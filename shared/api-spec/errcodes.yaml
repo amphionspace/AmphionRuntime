@@ -1,4 +1,4 @@
-# 公司 ASR 三端共享的错误码表（single source of truth）。
+# AmphionRuntime ASR 任务三端共享的错误码表（single source of truth）。
 #
 # 维护规则：
 #   1. 新增码必须在本文件先写明，再到三端 SDK 同步常量定义

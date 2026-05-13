@@ -1,6 +1,6 @@
 ## 跨端 CI
 
-本目录是公司 ASR 工程链路的 CI/CD 编排集合，目标：
+本目录是 AmphionRuntime 工程链路的 CI/CD 编排集合（首期覆盖 ASR），目标：
 
 - 每个端（android / ios / server）有一份独立 workflow，独立失败定位
 - 共用 [shared/regression-set/](../shared/regression-set/) 做端到端烟测；识别正确性（WER / CER）由上游 sherpa-onnx 的 `scripts/benchmark/`（位于 `third_party/sherpa-onnx/scripts/benchmark/`）统一出报告，下游 CI 不再重复计算
@@ -27,6 +27,6 @@
 
 ## 关键约定
 
-1. NDK 必须用 r26d (26.3.11579264)，与 [tools/asr-sdk/ANDROID_TOOLCHAIN.md](../tools/asr-sdk/ANDROID_TOOLCHAIN.md) 对齐
-2. CI 拉模型走公司内网 OSS：env `MODEL_OSS_URL`，CI 任务自己 export 后调 `tools/asr-sdk/00_fetch_demo_model.sh` 之类脚本
+1. NDK 必须用 r26d (26.3.11579264)，与 [tools/asr/ANDROID_TOOLCHAIN.md](../tools/asr/ANDROID_TOOLCHAIN.md) 对齐
+2. CI 拉模型走公司内网 OSS：env `MODEL_OSS_URL`，CI 任务自己 export 后调 `tools/asr/00_fetch_demo_model.sh` 之类脚本
 3. 识别正确性（WER / CER）由上游 sherpa-onnx `scripts/benchmark/`（路径：`third_party/sherpa-onnx/scripts/benchmark/`）统一出报告；下游 dashboard 通过 `--upstream-wer-report-url` 引用上游 URL，不重复跑

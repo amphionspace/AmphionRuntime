@@ -16,7 +16,7 @@ README 只说明如何接入和运行 sample；dump 工具用于回答更细的�
 每次 startListening 到 stopListening 生成一个目录：
 
 ```text
-/sdcard/Android/data/com.yourco.asr.sample/files/asr-debug/<yyyy-MM-dd_HHmmss>/
+/sdcard/Android/data/com.amphion.asr.sample/files/asr-debug/<yyyy-MM-dd_HHmmss>/
 ├── audio.wav
 └── transcript.txt
 ```
@@ -42,10 +42,10 @@ transcript 示例：
 
 | 文件 | 职责 |
 | --- | --- |
-| android/SherpaAsrSdk/sample/src/main/java/com/yourco/asr/sample/SessionRecorder.kt | 写 WAV + transcript |
-| android/SherpaAsrSdk/sample/src/main/java/com/yourco/asr/sample/MainActivity.kt | PCM tee、callback 事件记录、STOP 时关闭 dump |
-| tools/asr-sdk/decode_offline.py | PC 端一次性离线 decode dump wav |
-| tools/asr-sdk/decode_streaming.py | PC 端模拟 Android streaming 行为 |
+| android/AmphionRuntime/sample/src/main/java/com/amphion/asr/sample/SessionRecorder.kt | 写 WAV + transcript |
+| android/AmphionRuntime/sample/src/main/java/com/amphion/asr/sample/MainActivity.kt | PCM tee、callback 事件记录、STOP 时关闭 dump |
+| tools/asr/decode_offline.py | PC 端一次性离线 decode dump wav |
+| tools/asr/decode_streaming.py | PC 端模拟 Android streaming 行为 |
 
 ## 拉取 dump
 
@@ -53,7 +53,7 @@ transcript 示例：
 adb devices -l
 
 adb -s <SERIAL> pull \
-  /sdcard/Android/data/com.yourco.asr.sample/files/asr-debug \
+  /sdcard/Android/data/com.amphion.asr.sample/files/asr-debug \
   /tmp/asr-dump
 ```
 
@@ -62,7 +62,7 @@ adb -s <SERIAL> pull \
 ```bash
 adb devices -l
 adb -t <TRANSPORT_ID> pull \
-  /sdcard/Android/data/com.yourco.asr.sample/files/asr-debug \
+  /sdcard/Android/data/com.amphion.asr.sample/files/asr-debug \
   /tmp/asr-dump
 ```
 
@@ -108,8 +108,8 @@ python3 -m pip install --user sherpa-onnx
 一次性离线 decode：
 
 ```bash
-python3 tools/asr-sdk/decode_offline.py \
-  --model-dir tools/asr-sdk/demo-model/asr-streaming-zipformer-zh-en-v1-1.0.0 \
+python3 tools/asr/decode_offline.py \
+  --model-dir tools/asr/demo-model/asr-streaming-zipformer-zh-en-v1-1.0.0 \
   --wav /tmp/asr-dump/asr-debug/2026-05-13_144818/audio.wav \
   --segments 0:8:en1 8:16:en2 \
   --gains 0 10 \
@@ -119,8 +119,8 @@ python3 tools/asr-sdk/decode_offline.py \
 模拟 streaming：
 
 ```bash
-python3 tools/asr-sdk/decode_streaming.py \
-  --model-dir tools/asr-sdk/demo-model/asr-streaming-zipformer-zh-en-v1-1.0.0 \
+python3 tools/asr/decode_streaming.py \
+  --model-dir tools/asr/demo-model/asr-streaming-zipformer-zh-en-v1-1.0.0 \
   --wav /tmp/asr-dump/asr-debug/2026-05-13_144818/audio.wav \
   --segments 0:8:en1 8:16:en2 \
   --gain 10 \

@@ -1,0 +1,109 @@
+AmphionRuntime
+Copyright (c) 2026 Amphion
+
+This product includes software developed by third parties.
+The following acknowledgements pertain to those third-party components.
+
+================================================================================
+1. sherpa-onnx
+================================================================================
+
+Repository:  https://github.com/k2-fsa/sherpa-onnx
+License:     Apache License 2.0
+Pinned tag:  v1.13.1
+Copyright:   (c) 2022-2026  Xiaomi Corporation and contributors
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+The Kotlin sources under com.k2fsa.sherpa.onnx.* in this SDK are derived from
+the upstream android/SherpaOnnxAar/ template, retaining the upstream Apache 2.0
+license. Modifications, if any, are documented in the SDK CHANGELOG.
+
+================================================================================
+2. ONNX Runtime
+================================================================================
+
+Repository:  https://github.com/microsoft/onnxruntime
+License:     MIT License
+Pinned ver:  1.24.3 (Android prebuilt from
+             https://github.com/csukuangfj/onnxruntime-libs)
+Copyright:   (c) Microsoft Corporation
+
+   MIT License
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+The compiled libonnxruntime.so shipped inside this AAR is built from upstream
+without modification.
+
+================================================================================
+3. silero-vad (optional VAD model)
+================================================================================
+
+Repository:  https://github.com/snakers4/silero-vad
+License:     MIT License
+Copyright:   (c) Silero Team
+
+   MIT License (same text as above).
+
+silero_vad.onnx is not bundled inside the AAR; it is distributed separately and
+loaded at runtime when the integrator opts into VAD via AsrConfig.Builder.enableVad.
+
+================================================================================
+4. icefall / k2 (training-time only)
+================================================================================
+
+Repository:  https://github.com/k2-fsa/icefall
+                 https://github.com/k2-fsa/k2
+License:     Apache License 2.0
+Copyright:   (c) 2021-2026  k2-fsa contributors
+
+icefall and k2 are training frameworks; their code is NOT shipped inside this
+AAR. They are listed for transparency because the model artifacts (encoder.onnx
+/ decoder.onnx / joiner.onnx) shipped to end-users are derived from icefall
+training pipelines.
+
+================================================================================
+5. AndroidX libraries
+================================================================================
+
+Repository:  https://developer.android.com/jetpack/androidx
+License:     Apache License 2.0
+Copyright:   (c) The Android Open Source Project
+
+The SDK uses androidx.core (core-ktx) for ApplicationContext utilities.
+
+================================================================================
+6. Material Components for Android (used only in Sample app)
+================================================================================
+
+Repository:  https://github.com/material-components/material-components-android
+License:     Apache License 2.0
+Copyright:   (c) Google LLC
+
+================================================================================
+
+For the full text of any of the above licenses, please refer to the LICENSE file
+under the corresponding upstream repository.
+
+================================================================================
+TRADEMARKS
+================================================================================
+
+"sherpa-onnx", "k2", "icefall" are trademarks of their respective owners.
+"ONNX" and "ONNX Runtime" are trademarks of Microsoft Corporation.
+"Android" is a trademark of Google LLC.

@@ -1,6 +1,6 @@
 # 工程经验文档
 
-本目录用于沉淀 sherpa-asr-sdk（基于 sherpa-onnx）公司工程链路中的细节经验、排查记录和调优结论。底层 sherpa-onnx 通过 `third_party/sherpa-onnx` submodule 引用上游 pinned tag，本目录里的所有结论默认以该 pinned tag 为基准。
+本目录用于沉淀 amphion-runtime（基于 sherpa-onnx）公司工程链路中的细节经验、排查记录和调优结论。底层 sherpa-onnx 通过 `third_party/sherpa-onnx` submodule 引用上游 pinned tag，本目录里的所有结论默认以该 pinned tag 为基准。
 
 ## 与 README 的职责划分
 
@@ -9,7 +9,7 @@
 | 根 README / 各模块 README | 面向新用户：项目是什么、如何构建、如何运行、如何集成 |
 | docs/ | 面向工程维护者：为什么这样配置、踩过哪些坑、如何复盘问题、如何调参 |
 | shared/docs/ | 跨端发布流程、dashboard、release process 等流程性文档 |
-| android/SherpaAsrSdk/docs/ | Android SDK 的集成、隐私、API 文档构建等模块内文档 |
+| android/AmphionRuntime/docs/ | Android SDK 的集成、隐私、API 文档构建等模块内文档 |
 
 这里的文档可以包含具体实验数据、设备现象、脚本命令和调参经验，不要求像 README 一样短。
 
@@ -32,8 +32,8 @@
 
 | 工具 | 说明 |
 | --- | --- |
-| ../tools/asr-sdk/decode_offline.py | 一次性投递 wav 到 sherpa-onnx Python OnlineRecognizer，观察模型上限 |
-| ../tools/asr-sdk/decode_streaming.py | 模拟 Android streaming：100ms chunk、endpoint、encoder warmup、greedy/beam 对比 |
+| ../tools/asr/decode_offline.py | 一次性投递 wav 到 sherpa-onnx Python OnlineRecognizer，观察模型上限 |
+| ../tools/asr/decode_streaming.py | 模拟 Android streaming：100ms chunk、endpoint、encoder warmup、greedy/beam 对比 |
 
 依赖：
 

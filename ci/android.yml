@@ -15,7 +15,7 @@ on:
 env:
   NDK_VERSION: "26.3.11579264"
   ONNXRT_VERSION: "1.24.3"
-  SDK_BUILD_DIR: android/SherpaAsrSdk
+  SDK_BUILD_DIR: android/AmphionRuntime
 
 jobs:
   build-aar:
@@ -70,10 +70,10 @@ jobs:
         run: echo "ANDROID_NDK=$ANDROID_HOME/ndk/${{ env.NDK_VERSION }}" >> "$GITHUB_ENV"
 
       - name: Build native .so
-        run: bash tools/asr-sdk/04_build_android_so.sh arm64-v8a
+        run: bash tools/asr/04_build_android_so.sh arm64-v8a
 
       - name: Package .so to jniLibs/
-        run: bash tools/asr-sdk/05_package_aar_libs.sh
+        run: bash tools/asr/05_package_aar_libs.sh
 
       - name: Configure local.properties
         working-directory: ${{ env.SDK_BUILD_DIR }}
@@ -102,12 +102,12 @@ jobs:
           sha256sum sdk/build/outputs/aar/sdk-release.aar | tee sdk/build/outputs/aar/sdk-release.aar.sha256
 
       - name: Verify Kotlin bridge in sync with submodule
-        run: bash tools/asr-sdk/07_sync_kotlin_from_upstream.sh --check
+        run: bash tools/asr/07_sync_kotlin_from_upstream.sh --check
 
       - name: Upload AAR
         uses: actions/upload-artifact@v4
         with:
-          name: asr-sdk-aar-${{ github.sha }}
+          name: amphion-runtime-aar-${{ github.sha }}
           path: |
             ${{ env.SDK_BUILD_DIR }}/sdk/build/outputs/aar/sdk-release.aar
             ${{ env.SDK_BUILD_DIR }}/sdk/build/outputs/aar/sdk-release.aar.sha256
@@ -116,7 +116,7 @@ jobs:
       - name: Upload native .so
         uses: actions/upload-artifact@v4
         with:
-          name: asr-sdk-native-arm64-v8a-${{ github.sha }}
+          name: amphion-runtime-native-arm64-v8a-${{ github.sha }}
           path: |
             third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libsherpa-onnx-jni.so
             third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libonnxruntime.so
@@ -148,10 +148,10 @@ jobs:
       - name: Restage AAR for Gradle publish
         run: |
           mkdir -p ${{ env.SDK_BUILD_DIR }}/sdk/build/outputs/aar
-          cp artifacts/asr-sdk-aar-${{ github.sha }}/sdk-release.aar \
+          cp artifacts/amphion-runtime-aar-${{ github.sha }}/sdk-release.aar \
              ${{ env.SDK_BUILD_DIR }}/sdk/build/outputs/aar/sdk-release.aar
           mkdir -p ${{ env.SDK_BUILD_DIR }}/sdk/src/main/jniLibs/arm64-v8a
-          cp artifacts/asr-sdk-native-arm64-v8a-${{ github.sha }}/*.so \
+          cp artifacts/amphion-runtime-native-arm64-v8a-${{ github.sha }}/*.so \
              ${{ env.SDK_BUILD_DIR }}/sdk/src/main/jniLibs/arm64-v8a/
 
       - name: Publish to local repo (artifact-only verification)
@@ -163,7 +163,7 @@ jobs:
       - name: Upload Maven repo snapshot
         uses: actions/upload-artifact@v4
         with:
-          name: asr-sdk-maven-${{ github.ref_name }}
+          name: amphion-runtime-maven-${{ github.ref_name }}
           path: ${{ env.SDK_BUILD_DIR }}/sdk/build/maven-repo
           retention-days: 90
 

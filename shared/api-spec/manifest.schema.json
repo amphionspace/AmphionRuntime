@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://your-org.example/asr/manifest.schema.v1.json",
+  "$id": "https://amphion.example/asr/manifest.schema.v1.json",
   "title": "AsrModelManifest",
-  "description": "公司 ASR 模型 manifest.json 的单一 source of truth；三端 SDK + 服务端均按此校验。",
+  "description": "AmphionRuntime ASR 模型 manifest.json 的单一 source of truth；三端 SDK + 服务端均按此校验。",
   "type": "object",
   "required": [
     "manifest_version",

@@ -29,15 +29,15 @@ server/asr-service/build/
 **/cmake-build-*/
 
 # --- 编译产物（每次本地或 CI 重新构建） ---
-android/SherpaAsrSdk/sdk/src/main/jniLibs/**/*.so
-android/SherpaAsrSdk/sample/src/main/jniLibs/**/*.so
-android/SherpaAsrSdk/sdk/maven-repo/
-ios/SherpaAsrSdk/SherpaAsrSdk.xcframework/
-ios/SherpaAsrSdk/SherpaAsrSdk.xcframework.zip
-ios/SherpaAsrSdk/SherpaAsrSdk.xcframework.zip.sha256
+android/AmphionRuntime/sdk/src/main/jniLibs/**/*.so
+android/AmphionRuntime/sample/src/main/jniLibs/**/*.so
+android/AmphionRuntime/sdk/maven-repo/
+ios/AmphionRuntime/AmphionRuntime.xcframework/
+ios/AmphionRuntime/AmphionRuntime.xcframework.zip
+ios/AmphionRuntime/AmphionRuntime.xcframework.zip.sha256
 
 # Sample app 模型资源（不入库）
-android/SherpaAsrSdk/sample/src/main/assets/asr-models/
+android/AmphionRuntime/sample/src/main/assets/asr-models/
 
 # --- 上游 sherpa-onnx 在 submodule 路径下产生的构建工件 ---
 # 这些目录在 third_party/sherpa-onnx 下被上游 build-android-*.sh 创建；
@@ -52,8 +52,8 @@ third_party/sherpa-onnx/onnxruntime-*/
 shared/regression-set/audio/
 
 # --- 大型模型/音频/分词器二进制（不入库） ---
-# Demo 模型由 tools/asr-sdk/00_fetch_demo_model.sh 拉取到 tools/asr-sdk/demo-model/
-# 自有模型由 tools/asr-sdk/00_push_my_model.sh 推到设备，本地目录由用户自管
+# Demo 模型由 tools/asr/00_fetch_demo_model.sh 拉取到 tools/asr/demo-model/
+# 自有模型由 tools/asr/00_push_my_model.sh 推到设备，本地目录由用户自管
 *.onnx
 *.wav
 *.tar

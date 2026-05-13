@@ -1,4 +1,4 @@
-// 公司流式 ASR 服务的 gRPC 接口定义。
+// AmphionRuntime 流式 ASR 服务的 gRPC 接口定义。
 //
 // 跨端不变量：
 //   - 错误码段与 [shared/api-spec/errcodes.yaml](../../../shared/api-spec/errcodes.yaml) / Android `AsrErrorCode` 对齐
@@ -15,7 +15,7 @@ syntax = "proto3";
 package asr.v1;
 
 option go_package = "asr/v1;asrv1";
-option java_package = "com.yourco.asr.grpc";
+option java_package = "com.amphion.asr.grpc";
 option java_outer_classname = "AsrProto";
 option java_multiple_files = true;
 

@@ -1,5 +1,5 @@
-YourCo ASR SDK
-Copyright (c) 2026 YourCo
+AmphionRuntime
+Copyright (c) 2026 Amphion
 
 This product is built on top of sherpa-onnx (referenced via git submodule
 at third_party/sherpa-onnx) without modifications to its source code.
@@ -27,11 +27,11 @@ this repository; if upstream behaviour needs to change, please contribute
 to upstream and bump the submodule tag here.
 
 A small subset of the upstream Kotlin sources under
-android/SherpaAsrSdk/sdk/src/main/java/com/k2fsa/sherpa/onnx/ is copied
+android/AmphionRuntime/sdk/src/main/java/com/k2fsa/sherpa/onnx/ is copied
 verbatim into this repository (with upstream Apache 2.0 license headers
 preserved) so the Android SDK can compile without depending on the
 submodule at compile time. Sync is automated via
-tools/asr-sdk/07_sync_kotlin_from_upstream.sh.
+tools/asr/07_sync_kotlin_from_upstream.sh.
 
 ================================================================================
 2. ONNX Runtime
@@ -111,5 +111,7 @@ TRADEMARKS
 "sherpa-onnx", "k2", "icefall" are trademarks of their respective owners.
 "ONNX" and "ONNX Runtime" are trademarks of Microsoft Corporation.
 "Android" is a trademark of Google LLC.
-"YourCo" is a placeholder; replace with your company's legal name before
-distributing the SDK to external customers.
+"Amphion" and "AmphionRuntime" are trademarks of the Amphion project /
+its maintaining organisation; external forks should substitute their own
+brand identifiers (see android/AmphionRuntime/README.md "包名 / 坐标改名"
+section and tools/asr/06_rename_namespace.sh).

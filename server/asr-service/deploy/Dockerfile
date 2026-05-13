@@ -1,4 +1,4 @@
-# 公司 ASR gRPC 服务的容器镜像；CPU 推理版本。
+# AmphionRuntime ASR gRPC 服务的容器镜像；CPU 推理版本。
 #
 # 多阶段构建：
 #   1) builder：基于 ubuntu:22.04 + 完整工具链编译 sherpa-onnx + asr_service

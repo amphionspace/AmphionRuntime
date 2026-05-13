@@ -1,6 +1,6 @@
 ## ASR gRPC 服务端（Linux）
 
-公司流式 ASR 服务端实现，基于 [sherpa-onnx cxx-api](../../third_party/sherpa-onnx/sherpa-onnx/c-api/cxx-api.h) + grpc++。
+AmphionRuntime 的 Linux 流式 ASR 服务端实现，基于 [sherpa-onnx cxx-api](../../third_party/sherpa-onnx/sherpa-onnx/c-api/cxx-api.h) + grpc++。
 
 `sherpa-onnx` 通过仓库根的 `third_party/sherpa-onnx` git submodule 引用上游 pinned tag（首期 v1.13.1），公司侧不修改其源码。
 
@@ -46,7 +46,7 @@ server/asr-service/
 - nlohmann/json （manifest 解析）
 - prometheus-cpp （metrics）
 
-构建步骤（在 sherpa-asr-sdk 仓库根目录执行）：
+构建步骤（在 amphion-runtime 仓库根目录执行）：
 
 ```bash
 # 0) 第一次 clone 后初始化 submodule

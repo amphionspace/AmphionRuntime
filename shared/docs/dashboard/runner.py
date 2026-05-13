@@ -18,8 +18,8 @@
 使用例：
     python shared/docs/dashboard/runner.py \
         --month 2026-05 \
-        --android-aar artifacts/asr-sdk-1.1.0.aar \
-        --ios-xcframework artifacts/SherpaAsrSdk-1.1.0.xcframework \
+        --android-aar artifacts/amphion-runtime-1.1.0.aar \
+        --ios-xcframework artifacts/AmphionRuntime-1.1.0.xcframework \
         --server-image your-registry/asr-service:1.1.0 \
         --bench-target localhost:50051 \
         --upstream-wer-report-url 'https://internal.example/asr/wer/2026-05.html' \
