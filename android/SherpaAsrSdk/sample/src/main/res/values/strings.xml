@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ASR Sample</string>
+    <string name="status_idle">就绪</string>
+    <string name="label_partial">实时结果</string>
+    <string name="label_final">最终结果</string>
+    <string name="btn_talk_start">开始识别</string>
+    <string name="btn_talk_stop">停止识别</string>
+</resources>

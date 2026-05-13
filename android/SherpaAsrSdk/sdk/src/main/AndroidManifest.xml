@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      SDK 不主动声明任何运行时敏感权限，所有敏感权限由集成方在自己的 manifest 里声明：
+
+      <uses-permission android:name="android.permission.RECORD_AUDIO" />
+      <uses-permission android:name="android.permission.INTERNET" />
+      <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+      INTERNET 是模型下载需要；如果集成方完全本地分发模型，可以不申请。
+      RECORD_AUDIO 由集成方负责申请、SDK 不接管 AudioRecord。
+    -->
+
+</manifest>
