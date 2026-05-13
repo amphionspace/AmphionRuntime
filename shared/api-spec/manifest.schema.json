@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://your-org.example/asr/manifest.schema.v1.json",
+  "title": "AsrModelManifest",
+  "description": "公司 ASR 模型 manifest.json 的单一 source of truth；三端 SDK + 服务端均按此校验。",
+  "type": "object",
+  "required": [
+    "manifest_version",
+    "model_id",
+    "version",
+    "model_type",
+    "sample_rate",
+    "feature_dim",
+    "files"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "manifest_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "manifest 自身格式的版本号；当前固定 1"
+    },
+    "model_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "description": "业务标识；同一 model_id 的不同 version 可以互相热更"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.-]+)?$",
+      "description": "SemVer 版本号"
+    },
+    "min_sdk_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "max_sdk_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "model_type": {
+      "type": "string",
+      "enum": [
+        "zipformer",
+        "zipformer2",
+        "transducer",
+        "paraformer",
+        "zipformer2_ctc",
+        "nemo_ctc"
+      ]
+    },
+    "lang": {
+      "type": "string",
+      "description": "BCP-47 简写：zh / en / zh-en / yue / ...",
+      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]+)*$"
+    },
+    "sample_rate": {
+      "type": "integer",
+      "enum": [8000, 16000, 22050, 44100, 48000]
+    },
+    "feature_dim": {
+      "type": "integer",
+      "minimum": 16,
+      "maximum": 256
+    },
+    "decoding_method": {
+      "type": "string",
+      "enum": ["greedy_search", "modified_beam_search"]
+    },
+    "max_active_paths": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "homophone_lexicon": { "type": "string" },
+    "homophone_rule_fsts": { "type": "string" },
+    "itn_rule_fsts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "lm_model": { "type": "string" },
+    "lm_scale": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "hotwords_file": { "type": "string" },
+    "hotwords_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 5
+    },
+    "model_dir": {
+      "type": "string",
+      "description": "服务端使用：模型文件本地目录绝对路径；端 SDK 不读"
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "url", "size_bytes", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "本地落盘的文件名（不含目录）；SDK 按此名查找"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "下载 URL；公司 CDN 路径"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "lm_model 与 lm_scale 必须同时存在或同时缺失",
+      "if": { "required": ["lm_model"] },
+      "then": { "required": ["lm_scale"] }
+    },
+    {
+      "description": "homophone_lexicon 与 homophone_rule_fsts 必须配对",
+      "if": { "required": ["homophone_lexicon"] },
+      "then": { "required": ["homophone_rule_fsts"] }
+    }
+  ]
+}

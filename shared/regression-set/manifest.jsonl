@@ -1,0 +1,7 @@
+{"id":"short-0001","wav":"short/0001.wav","lang":"zh","duration_sec":3.2,"category":"short","tags":["daily","general"]}
+{"id":"short-0002","wav":"short/0002.wav","lang":"zh","duration_sec":3.5,"category":"short","tags":["voice-assistant"]}
+{"id":"short-0003","wav":"short/0003.wav","lang":"en","duration_sec":2.8,"category":"short","tags":["english","greeting"]}
+{"id":"long-0001","wav":"long/0001.wav","lang":"zh","duration_sec":18.5,"category":"long","tags":["news"]}
+{"id":"long-0002","wav":"long/0002.wav","lang":"en","duration_sec":16.3,"category":"long","tags":["english","scientific"]}
+{"id":"hotwords-0001","wav":"hotwords/0001.wav","lang":"zh","duration_sec":4.2,"category":"hotwords","hotwords":["端到端","语音识别","流式","zipformer"],"tags":["domain-asr"]}
+{"id":"hotwords-0002","wav":"hotwords/0002.wav","lang":"zh","duration_sec":4.8,"category":"hotwords","hotwords":["车载导航","浦东机场"],"tags":["car"]}

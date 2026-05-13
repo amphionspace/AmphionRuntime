@@ -1,0 +1,137 @@
+# 公司 ASR 三端共享的错误码表（single source of truth）。
+#
+# 维护规则：
+#   1. 新增码必须在本文件先写明，再到三端 SDK 同步常量定义
+#   2. 已存在的码不能删；废弃用 deprecated_at 标注
+#   3. CI 中：
+#      - Android :sdk:test 解析本文件，校验 AsrErrorCode 常量与之一致
+#      - iOS Test/AsrErrorCodeTests 校验 AsrErrorCode enum 与之一致
+#      - server 启动时把本文件内嵌为常量编入二进制
+#
+# 字段：
+#   code:           int，全局唯一
+#   name:           PascalCase，三端常量名转换规则：snake_case 改 SCREAMING_SNAKE
+#   category:       1xxx 配置 / 2xxx 模型 / 3xxx 运行时 / 4xxx 网络 / 5xxx 系统 / 9xxx native
+#   message:        默认日志文案；调用方可附加细节
+#   sdk_action:     SDK 收到此错误时的推荐处理（reset / retry / fallback / fatal）
+#   user_facing:    建议给终端用户显示的提示（不必逐字翻译，含义对齐即可）
+#   deprecated_at:  本错误码停用版本号（可选）
+
+errors:
+  # ---------- 1xxx 配置类 ----------
+  - code: 1001
+    name: InvalidArgument
+    category: config
+    message: invalid argument passed to SDK
+    sdk_action: fatal
+    user_facing: 内部参数错误，请联系开发者
+
+  - code: 1002
+    name: InvalidSampleRate
+    category: config
+    message: sample rate not supported by current model
+    sdk_action: fatal
+    user_facing: 录音参数与模型不匹配
+
+  - code: 1003
+    name: SdkNotInitialized
+    category: config
+    message: AsrSdk.start() not called before creating AsrEngine
+    sdk_action: fatal
+    user_facing: 应用未初始化
+
+  # ---------- 2xxx 模型类 ----------
+  - code: 2001
+    name: ModelDirInvalid
+    category: model
+    message: modelDir does not exist or is not a directory
+    sdk_action: fatal
+    user_facing: 模型路径异常
+
+  - code: 2002
+    name: ModelFileMissing
+    category: model
+    message: required model file missing under modelDir
+    sdk_action: fatal
+    user_facing: 模型文件缺失，请重新下载
+
+  - code: 2003
+    name: ModelLoadFailed
+    category: model
+    message: native onnxruntime failed to load model
+    sdk_action: fatal
+    user_facing: 模型加载失败，请重启应用
+
+  - code: 2004
+    name: ModelManifestParseError
+    category: model
+    message: manifest.json malformed or schema mismatch
+    sdk_action: fatal
+    user_facing: 模型配置错误
+
+  # ---------- 3xxx 运行时类 ----------
+  - code: 3001
+    name: SessionAlreadyClosed
+    category: runtime
+    message: operation on closed AsrSession ignored
+    sdk_action: fatal
+    user_facing: 会话已结束
+
+  - code: 3002
+    name: SampleRateMismatch
+    category: runtime
+    message: PCM sample rate differs from session config
+    sdk_action: reset
+    user_facing: 录音参数错误
+
+  - code: 3003
+    name: DecodeFailed
+    category: runtime
+    message: decoding failed; recommend close + recreate session
+    sdk_action: reset
+    user_facing: 识别异常，请重试
+
+  # ---------- 4xxx 网络类 ----------
+  - code: 4001
+    name: NetworkUnavailable
+    category: network
+    message: no network reachable for model download
+    sdk_action: retry
+    user_facing: 网络不可用
+
+  - code: 4002
+    name: DownloadFailed
+    category: network
+    message: download HTTP failed (non-2xx / timeout)
+    sdk_action: retry
+    user_facing: 下载失败，请检查网络
+
+  - code: 4003
+    name: Sha256Mismatch
+    category: network
+    message: downloaded file sha256 does not match manifest
+    sdk_action: retry
+    user_facing: 文件校验失败，请重试
+
+  # ---------- 5xxx 系统类 ----------
+  - code: 5001
+    name: IoFailed
+    category: system
+    message: local IO failed (permission / disk error)
+    sdk_action: fatal
+    user_facing: 设备 IO 异常
+
+  - code: 5002
+    name: StorageInsufficient
+    category: system
+    message: not enough storage to download / extract model
+    sdk_action: fatal
+    user_facing: 存储空间不足
+
+  # ---------- 9xxx native 兜底 ----------
+  - code: 9001
+    name: NativeCrash
+    category: native
+    message: native call raised; session must be closed and recreated
+    sdk_action: reset
+    user_facing: 内部异常，请重试
