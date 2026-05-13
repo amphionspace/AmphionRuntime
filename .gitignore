@@ -1,0 +1,58 @@
+# --- macOS / IDE ---
+.DS_Store
+*.iml
+.idea/
+*.swp
+*.swo
+
+# --- Android / Gradle ---
+.gradle/
+local.properties
+**/build/
+.externalNativeBuild/
+.cxx/
+
+# --- iOS / Xcode ---
+.swiftpm/
+*.xcworkspace/xcuserdata/
+DerivedData/
+.build/
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- C++ / cmake ---
+server/asr-service/build/
+**/cmake-build-*/
+
+# --- 编译产物（每次本地或 CI 重新构建） ---
+android/SherpaAsrSdk/sdk/src/main/jniLibs/**/*.so
+android/SherpaAsrSdk/sample/src/main/jniLibs/**/*.so
+android/SherpaAsrSdk/sdk/maven-repo/
+ios/SherpaAsrSdk/SherpaAsrSdk.xcframework/
+ios/SherpaAsrSdk/SherpaAsrSdk.xcframework.zip
+ios/SherpaAsrSdk/SherpaAsrSdk.xcframework.zip.sha256
+
+# Sample app 模型资源（不入库）
+android/SherpaAsrSdk/sample/src/main/assets/asr-models/
+
+# --- 上游 sherpa-onnx 在 submodule 路径下产生的构建工件 ---
+# 这些目录在 third_party/sherpa-onnx 下被上游 build-android-*.sh 创建；
+# 不通过 submodule 提交，submodule 自己有 .gitignore 管这些。
+# 这里仍然兜一层防止误提交。
+third_party/sherpa-onnx/build-*/
+third_party/sherpa-onnx/build-android-*/
+third_party/sherpa-onnx/build-ios/
+third_party/sherpa-onnx/onnxruntime-*/
+
+# --- 回归测试 wav 数据（外部分发，不入库） ---
+shared/regression-set/audio/
+
+# --- dashboard 渲染产物（CI 生成） ---
+shared/docs/dashboard/trends/reports/*.md
+shared/docs/dashboard/trends/*.csv
+!shared/docs/dashboard/trends/reports/.gitkeep
+!shared/docs/dashboard/trends/.gitkeep

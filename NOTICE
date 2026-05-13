@@ -1,0 +1,115 @@
+YourCo ASR SDK
+Copyright (c) 2026 YourCo
+
+This product is built on top of sherpa-onnx (referenced via git submodule
+at third_party/sherpa-onnx) without modifications to its source code.
+The following acknowledgements pertain to bundled or referenced
+third-party components.
+
+================================================================================
+1. sherpa-onnx (referenced as git submodule, NOT modified)
+================================================================================
+
+Repository:  https://github.com/k2-fsa/sherpa-onnx
+License:     Apache License 2.0
+Pinned tag:  v1.13.1
+Copyright:   (c) 2022-2026  Xiaomi Corporation and contributors
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+The sherpa-onnx source tree lives under third_party/sherpa-onnx as a
+git submodule pointed at the tag above. We do NOT patch sherpa-onnx in
+this repository; if upstream behaviour needs to change, please contribute
+to upstream and bump the submodule tag here.
+
+A small subset of the upstream Kotlin sources under
+android/SherpaAsrSdk/sdk/src/main/java/com/k2fsa/sherpa/onnx/ is copied
+verbatim into this repository (with upstream Apache 2.0 license headers
+preserved) so the Android SDK can compile without depending on the
+submodule at compile time. Sync is automated via
+tools/asr-sdk/07_sync_kotlin_from_upstream.sh.
+
+================================================================================
+2. ONNX Runtime
+================================================================================
+
+Repository:  https://github.com/microsoft/onnxruntime
+License:     MIT License
+Pinned ver:  1.24.3 (Android prebuilt from
+             https://github.com/csukuangfj/onnxruntime-libs)
+Copyright:   (c) Microsoft Corporation
+
+   MIT License
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+The compiled libonnxruntime.so / .dylib shipped inside our SDK artefacts
+is built from upstream without modification.
+
+================================================================================
+3. silero-vad (optional VAD model)
+================================================================================
+
+Repository:  https://github.com/snakers4/silero-vad
+License:     MIT License
+Copyright:   (c) Silero Team
+
+silero_vad.onnx is not bundled in our SDK artefacts; it is distributed
+separately and loaded at runtime when the integrator opts into VAD via
+AsrConfig.
+
+================================================================================
+4. icefall / k2 (training-time only)
+================================================================================
+
+Repository:  https://github.com/k2-fsa/icefall
+             https://github.com/k2-fsa/k2
+License:     Apache License 2.0
+Copyright:   (c) 2021-2026  k2-fsa contributors
+
+icefall and k2 are training frameworks; their code is NOT shipped inside
+our SDK artefacts. They are listed for transparency because the model
+artifacts (encoder.onnx / decoder.onnx / joiner.onnx) shipped to
+end-users are derived from icefall training pipelines.
+
+================================================================================
+5. AndroidX libraries
+================================================================================
+
+Repository:  https://developer.android.com/jetpack/androidx
+License:     Apache License 2.0
+Copyright:   (c) The Android Open Source Project
+
+The Android SDK uses androidx.core (core-ktx) for ApplicationContext utilities.
+
+================================================================================
+6. Material Components for Android (used only in the Android sample app)
+================================================================================
+
+Repository:  https://github.com/material-components/material-components-android
+License:     Apache License 2.0
+Copyright:   (c) Google LLC
+
+================================================================================
+TRADEMARKS
+================================================================================
+
+"sherpa-onnx", "k2", "icefall" are trademarks of their respective owners.
+"ONNX" and "ONNX Runtime" are trademarks of Microsoft Corporation.
+"Android" is a trademark of Google LLC.
+"YourCo" is a placeholder; replace with your company's legal name before
+distributing the SDK to external customers.
