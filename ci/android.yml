@@ -1,0 +1,173 @@
+name: Android SDK CI
+
+# 触发：
+#   - push 到 main / release/*
+#   - 任意 PR
+#   - 推 v* tag（用于发版）
+on:
+  push:
+    branches: [main, "release/*"]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NDK_VERSION: "26.3.11579264"
+  ONNXRT_VERSION: "1.24.3"
+  SDK_BUILD_DIR: android/SherpaAsrSdk
+
+jobs:
+  build-aar:
+    name: Build AAR (arm64-v8a)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK + NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+            cmake;3.22.1
+            ndk;${{ env.NDK_VERSION }}
+
+      - name: Cache onnxruntime + sherpa build
+        uses: actions/cache@v4
+        with:
+          path: |
+            build-android-arm64-v8a/${{ env.ONNXRT_VERSION }}
+            build-android-arm64-v8a/install
+          key: sherpa-android-arm64-v8a-${{ env.ONNXRT_VERSION }}-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            sherpa-android-arm64-v8a-${{ env.ONNXRT_VERSION }}-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('${{ env.SDK_BUILD_DIR }}/**/*.gradle*', '${{ env.SDK_BUILD_DIR }}/gradle/wrapper/gradle-wrapper.properties') }}
+
+      - name: Init Gradle wrapper
+        working-directory: ${{ env.SDK_BUILD_DIR }}
+        run: bash init_gradle_wrapper.sh
+
+      - name: Export ANDROID_NDK
+        run: echo "ANDROID_NDK=$ANDROID_HOME/ndk/${{ env.NDK_VERSION }}" >> "$GITHUB_ENV"
+
+      - name: Build native .so
+        run: bash tools/asr-sdk/04_build_android_so.sh arm64-v8a
+
+      - name: Package .so to jniLibs/
+        run: bash tools/asr-sdk/05_package_aar_libs.sh
+
+      - name: Configure local.properties
+        working-directory: ${{ env.SDK_BUILD_DIR }}
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Gradle assemble + unit test
+        working-directory: ${{ env.SDK_BUILD_DIR }}
+        run: |
+          ./gradlew --no-daemon :sdk:assembleRelease :sdk:testReleaseUnitTest
+
+      - name: Verify AAR contents
+        working-directory: ${{ env.SDK_BUILD_DIR }}
+        run: |
+          AAR=sdk/build/outputs/aar/sdk-release.aar
+          [ -f "$AAR" ] || { echo "AAR missing"; exit 1; }
+          unzip -l "$AAR" | tee /tmp/aar-contents.txt
+          # 必须包含 .so 和 classes.jar
+          unzip -l "$AAR" | grep -q 'jni/arm64-v8a/libsherpa-onnx-jni.so'
+          unzip -l "$AAR" | grep -q 'jni/arm64-v8a/libonnxruntime.so'
+          unzip -l "$AAR" | grep -q 'classes.jar'
+
+      - name: Compute SHA256 of AAR
+        working-directory: ${{ env.SDK_BUILD_DIR }}
+        run: |
+          sha256sum sdk/build/outputs/aar/sdk-release.aar | tee sdk/build/outputs/aar/sdk-release.aar.sha256
+
+      - name: Upload AAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: asr-sdk-aar-${{ github.sha }}
+          path: |
+            ${{ env.SDK_BUILD_DIR }}/sdk/build/outputs/aar/sdk-release.aar
+            ${{ env.SDK_BUILD_DIR }}/sdk/build/outputs/aar/sdk-release.aar.sha256
+          retention-days: 30
+
+      - name: Upload native .so
+        uses: actions/upload-artifact@v4
+        with:
+          name: asr-sdk-native-arm64-v8a-${{ github.sha }}
+          path: |
+            build-android-arm64-v8a/install/lib/libsherpa-onnx-jni.so
+            build-android-arm64-v8a/install/lib/libonnxruntime.so
+          retention-days: 30
+
+  publish-maven:
+    name: Publish to Maven (tags only)
+    needs: build-aar
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Download AAR + native artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Restage AAR for Gradle publish
+        run: |
+          mkdir -p ${{ env.SDK_BUILD_DIR }}/sdk/build/outputs/aar
+          cp artifacts/asr-sdk-aar-${{ github.sha }}/sdk-release.aar \
+             ${{ env.SDK_BUILD_DIR }}/sdk/build/outputs/aar/sdk-release.aar
+          mkdir -p ${{ env.SDK_BUILD_DIR }}/sdk/src/main/jniLibs/arm64-v8a
+          cp artifacts/asr-sdk-native-arm64-v8a-${{ github.sha }}/*.so \
+             ${{ env.SDK_BUILD_DIR }}/sdk/src/main/jniLibs/arm64-v8a/
+
+      - name: Publish to local repo (artifact-only verification)
+        working-directory: ${{ env.SDK_BUILD_DIR }}
+        run: |
+          bash init_gradle_wrapper.sh
+          ./gradlew --no-daemon :sdk:publishReleasePublicationToLocalFileRepoRepository
+
+      - name: Upload Maven repo snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: asr-sdk-maven-${{ github.ref_name }}
+          path: ${{ env.SDK_BUILD_DIR }}/sdk/build/maven-repo
+          retention-days: 90
+
+      # 真实推到公司私有 Nexus / Artifactory：把下面的 step 取消注释，并配 secrets
+      # - name: Publish to corp Maven
+      #   working-directory: ${{ env.SDK_BUILD_DIR }}
+      #   env:
+      #     MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+      #     MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+      #     MAVEN_URL: ${{ secrets.MAVEN_URL }}
+      #   run: ./gradlew --no-daemon :sdk:publishReleasePublicationToCorpRepository
+
+# 注：WER / CER 评估由上游 scripts/benchmark/ 统一出报告，此处不再下游做。
