@@ -51,6 +51,21 @@ third_party/sherpa-onnx/onnxruntime-*/
 # --- 回归测试 wav 数据（外部分发，不入库） ---
 shared/regression-set/audio/
 
+# --- 大型模型/音频/分词器二进制（不入库） ---
+# Demo 模型由 tools/asr-sdk/00_fetch_demo_model.sh 拉取到 tools/asr-sdk/demo-model/
+# 自有模型由 tools/asr-sdk/00_push_my_model.sh 推到设备，本地目录由用户自管
+*.onnx
+*.wav
+*.tar
+*.tar.bz2
+*.tar.gz
+*.tgz
+*.zip
+bpe.model
+bpe.vocab
+# 但不要忘了：当 demo-model/ 目录里的 manifest.json / export_meta.json / tokens.txt / README.md
+# 是文本元数据，依然入库，所以这里只忽略二进制后缀。
+
 # --- dashboard 渲染产物（CI 生成） ---
 shared/docs/dashboard/trends/reports/*.md
 shared/docs/dashboard/trends/*.csv

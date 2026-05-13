@@ -1,0 +1,12 @@
+word,score,category,note
+语音识别,1.5,asr,通用术语
+端到端,2.0,asr,公司术语
+流式,1.8,asr,公司术语
+zipformer,2.0,asr,模型名
+解码,1.5,asr,通用术语
+浦东机场,1.0,navigation,POI
+虹桥机场,1.0,navigation,POI
+人民广场,1.0,navigation,POI
+Apple Pay,2.0,payment,品牌
+微信支付,2.0,payment,品牌
+支付宝,2.0,payment,品牌
