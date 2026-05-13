@@ -1,0 +1,72 @@
+replicaCount: 2
+
+image:
+  repository: your-registry/asr-service
+  tag: "1.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  grpcPort: 50051
+  metricsPort: 9090
+
+resources:
+  limits:
+    cpu: "4"
+    memory: 4Gi
+  requests:
+    cpu: "2"
+    memory: 2Gi
+
+# 模型 ConfigMap / PVC：
+# - 小模型（< 100MB）适合放 ConfigMap
+# - 大模型（>= 100MB）建议放 PVC + initContainer 拉模型
+model:
+  source: pvc            # configmap | pvc
+  pvcClaimName: asr-model-pvc
+  manifestConfigMap: asr-manifest
+
+# 服务端 flags（与 src/flags.cc 对齐）
+serverFlags:
+  numThreads: 4
+  grpcThreads: 8
+  maxConcurrentSessions: 64
+  sessionIdleTimeoutSec: 300
+
+prometheus:
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+
+# Pod 健康检查
+probes:
+  liveness:
+    initialDelaySeconds: 30
+    periodSeconds: 15
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 5
+
+# HPA：按 CPU + 自定义 active_sessions
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  customMetrics:
+    - type: Pods
+      pods:
+        metric:
+          name: asr_active_sessions
+        target:
+          type: AverageValue
+          averageValue: "30"     # 单 pod 平均 30 个并发就扩容
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

@@ -1,0 +1,210 @@
+// 公司流式 ASR 服务的 gRPC 接口定义。
+//
+// 跨端不变量：
+//   - 错误码段与 [shared/api-spec/errcodes.yaml](../../../shared/api-spec/errcodes.yaml) / Android `AsrErrorCode` 对齐
+//   - PCM 协议：16-bit 或 float32，mono，sample_rate 见 manifest
+//   - 热词协议与 Android `AsrSession.updateHotwords` 一致：换行分隔，可选 :score
+//
+// 设计要点：
+//   - 双向流：Recognize(stream PcmRequest) returns (stream AsrEvent)
+//   - 第一帧 client 发 SessionConfig（声学参数 + 热词 + decoding），后续都是音频帧
+//   - 服务端按 partial / final / endpoint / error 异步推送
+
+syntax = "proto3";
+
+package asr.v1;
+
+option go_package = "asr/v1;asrv1";
+option java_package = "com.yourco.asr.grpc";
+option java_outer_classname = "AsrProto";
+option java_multiple_files = true;
+
+// =============================================================================
+// 服务
+// =============================================================================
+
+service AsrService {
+  // 流式识别：双向流
+  // - 客户端按顺序发 SessionConfig（必须第一帧） + 多帧 AudioChunk + EndOfStream
+  // - 服务端推 AsrEvent（partial / final / endpoint / error）
+  rpc Recognize(stream PcmRequest) returns (stream AsrEvent);
+
+  // 健康检查（gRPC health-check protocol 友好）
+  rpc Healthz(HealthzRequest) returns (HealthzResponse);
+
+  // 服务元信息：返回当前模型 manifest + sdk_version + uptime（运维与端侧灰度要看）
+  rpc ServerInfo(ServerInfoRequest) returns (ServerInfoResponse);
+}
+
+// =============================================================================
+// Recognize 请求
+// =============================================================================
+
+message PcmRequest {
+  oneof payload {
+    SessionConfig session_config = 1;   // 必须第一帧；后续不能再发
+    AudioChunk audio_chunk = 2;
+    EndOfStream end_of_stream = 3;
+    UpdateHotwordsRequest update_hotwords = 4;  // 可选；运行时更新热词
+  }
+}
+
+message SessionConfig {
+  // 业务标识，用于日志/审计；不影响识别逻辑
+  string trace_id = 1;
+  string client_app = 2;     // 例：android-1.1.0 / ios-1.1.0 / web-1.0.0
+  string client_user_hash = 3;  // 不带个人身份的 hash，仅用于聚合统计
+
+  AudioFormat audio_format = 10;
+  Decoding decoding = 11;
+  HotwordSpec hotwords = 12;     // 初始热词；之后可用 UpdateHotwordsRequest 覆盖
+  bool enable_endpoint = 13;     // 默认 true
+  bool include_token_timestamps = 14;   // false 时服务端不算 token+timestamps（省 5% RTF）
+}
+
+message AudioFormat {
+  // sample_rate 必须与服务端 manifest.sample_rate 一致；否则返回 InvalidArgument
+  int32 sample_rate = 1;
+  AudioEncoding encoding = 2;
+  int32 channels = 3;            // 必须 = 1
+}
+
+enum AudioEncoding {
+  AUDIO_ENCODING_UNSPECIFIED = 0;
+  PCM_S16LE = 1;                 // 16-bit signed little-endian
+  PCM_F32LE = 2;                 // float32 little-endian
+}
+
+message Decoding {
+  DecodingMethod method = 1;
+  int32 max_active_paths = 2;    // 仅 modified_beam_search 生效；默认 4
+  // 高级特性
+  HomophoneReplacer hr = 10;
+  ItnConfig itn = 11;
+  LmConfig lm = 12;
+}
+
+enum DecodingMethod {
+  DECODING_METHOD_UNSPECIFIED = 0;
+  GREEDY_SEARCH = 1;
+  MODIFIED_BEAM_SEARCH = 2;
+}
+
+message HotwordSpec {
+  // 直接传词串，每行一个词（可选 ":score"）；服务端按 sherpa-onnx 协议透传
+  // 例："端到端 :2.0\n语音识别 :1.5"
+  string words_text = 1;
+  // 全局 score；当某词没自带 :score 时用这个；默认 1.5
+  float score = 2;
+}
+
+message HomophoneReplacer {
+  // 服务端按 model_id 解析 lexicon / fst 路径；客户端只决定要不要开
+  bool enable = 1;
+}
+
+message ItnConfig {
+  bool enable = 1;
+  // 可选：自定义规则名集合（服务端按 model_id 加载预编译的 fst）
+  repeated string rule_set = 2;
+}
+
+message LmConfig {
+  bool enable = 1;
+  float scale = 2;   // 默认 0.5
+}
+
+message AudioChunk {
+  // 一段 PCM；客户端建议 100 ms 一帧（16k -> 1600 samples -> 3200 字节 PCM_S16LE）
+  bytes data = 1;
+  int64 client_send_us = 2;   // 客户端发送时间戳（单位微秒），便于服务端算 e2e latency
+}
+
+message EndOfStream {
+  // 主动告诉服务端，输入到此为止，请 flush 出最后的 final
+}
+
+message UpdateHotwordsRequest {
+  HotwordSpec hotwords = 1;
+}
+
+// =============================================================================
+// Recognize 响应
+// =============================================================================
+
+message AsrEvent {
+  // 服务端时间戳（uptime ns），便于排查
+  int64 server_send_ns = 1;
+
+  oneof payload {
+    AsrPartial partial = 10;
+    AsrFinal final = 11;
+    AsrEndpoint endpoint = 12;
+    AsrError error = 13;
+    SessionStarted session_started = 14;
+    SessionEnded session_ended = 15;
+  }
+}
+
+message AsrPartial {
+  string text = 1;
+  // 可选：token + timestamps（仅当 SessionConfig.include_token_timestamps=true 时填）
+  repeated string tokens = 2;
+  repeated float timestamps = 3;     // 单位秒
+  repeated float token_confidences = 4;
+}
+
+message AsrFinal {
+  string text = 1;
+  float confidence = 2;
+  repeated string tokens = 3;
+  repeated float timestamps = 4;
+  repeated float token_confidences = 5;
+}
+
+message AsrEndpoint {
+  // endpoint 检测；下一段 partial / final 属于新 utterance
+}
+
+message AsrError {
+  // 错误码与 errcodes.yaml / Android AsrErrorCode 对齐
+  int32 code = 1;
+  string message = 2;
+}
+
+message SessionStarted {
+  // 服务端确认 session 已建立；可在此读 server_info 字段
+}
+
+message SessionEnded {
+  // 正常结束（客户端发 EndOfStream + 服务端 flush 完）
+  string trace_id = 1;
+}
+
+// =============================================================================
+// Healthz / ServerInfo
+// =============================================================================
+
+message HealthzRequest {}
+
+message HealthzResponse {
+  enum Status {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+  }
+  Status status = 1;
+  // 当前每秒吞吐 / 进行中的 session 数（运维)
+  int64 active_sessions = 2;
+  double recent_rtf = 3;
+}
+
+message ServerInfoRequest {}
+
+message ServerInfoResponse {
+  string sdk_version = 1;
+  string sherpa_onnx_version = 2;
+  // 当前加载模型的 manifest（与 manifest.json 1:1）
+  string model_manifest_json = 3;
+  int64 uptime_seconds = 4;
+}

@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "asr-service.fullname" . }}
+  labels:
+    {{- include "asr-service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "asr-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "asr-service.selectorLabels" . | nindent 8 }}
+      annotations:
+        {{- with .Values.prometheus.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      containers:
+        - name: asr-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --listen=0.0.0.0:{{ .Values.service.grpcPort }}
+            - --metrics_listen=0.0.0.0:{{ .Values.service.metricsPort }}
+            - --manifest=/etc/asr-service/manifest.json
+            - --num_threads={{ .Values.serverFlags.numThreads }}
+            - --grpc_threads={{ .Values.serverFlags.grpcThreads }}
+            - --max_concurrent_sessions={{ .Values.serverFlags.maxConcurrentSessions }}
+            - --session_idle_timeout_sec={{ .Values.serverFlags.sessionIdleTimeoutSec }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.service.grpcPort }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.service.metricsPort }}
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: model
+              mountPath: /etc/asr-service/model
+              readOnly: true
+            - name: manifest
+              mountPath: /etc/asr-service/manifest.json
+              subPath: manifest.json
+              readOnly: true
+      volumes:
+        - name: model
+          {{- if eq .Values.model.source "pvc" }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.model.pvcClaimName }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: manifest
+          configMap:
+            name: {{ .Values.model.manifestConfigMap }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

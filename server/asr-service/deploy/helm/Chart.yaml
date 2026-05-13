@@ -1,0 +1,9 @@
+apiVersion: v2
+name: asr-service
+description: Streaming ASR gRPC service (sherpa-onnx based)
+type: application
+version: 0.1.0
+appVersion: "1.1.0"
+maintainers:
+  - name: YourCo Voice Team
+    email: voice@your-org.example
