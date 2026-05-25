@@ -216,7 +216,7 @@ if ! "${ADB[@]}" shell pm list packages 2>/dev/null | grep -q "package:${SAMPLE_
 
           cd ${REPO_ROOT}/android/AmphionRuntime
           ./gradlew :sample:installDebug
-          adb shell am start -n ${SAMPLE_PKG}/.MainActivity
+          adb shell am start -n ${SAMPLE_PKG}/.eval.LandingActivity
 
         Then re-run this script.
 EOF
@@ -237,7 +237,7 @@ cat <<EOF
        Restart the sample and the "ITN" switch becomes available:
 
          adb shell am force-stop ${SAMPLE_PKG}
-         adb shell am start -n ${SAMPLE_PKG}/.MainActivity
+         adb shell am start -n ${SAMPLE_PKG}/.eval.LandingActivity
 
 [HINT] At first launch, sample's WeitnAssetInstaller migrates
          ${DEV_DIR}/zh_itn_tagger.fst

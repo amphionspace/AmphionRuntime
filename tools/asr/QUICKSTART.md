@@ -132,7 +132,7 @@ bash tools/asr/00_fetch_demo_model.sh
 验证：
 
 ```bash
-ls -lh tools/asr/demo-model/sherpa-onnx-streaming-zh-en-demo/1.0.0/
+ls -lh tools/asr/demo-model/zipformer_L_zh_en/
 # 期望看到：
 #   encoder.int8.onnx   ~173 MB
 #   decoder.onnx        ~13 MB
@@ -262,7 +262,7 @@ cd /Users/boxp/workspace/amphion-runtime/android/AmphionRuntime
 启动一次 让 externalFilesDir 提前创建（push 模型脚本要用到这个目录）：
 
 ```bash
-adb shell am start -n com.amphion.asr.sample/.MainActivity
+adb shell am start -n com.amphion.asr.sample/.eval.LandingActivity
 ```
 
 屏幕会显示「没找到本地模型」，并附带 push 命令的提示，预期行为。
@@ -281,8 +281,10 @@ bash tools/asr/00_fetch_demo_model.sh push
 
 ```
 /sdcard/Android/data/com.amphion.asr.sample/files/asr-models-import/
-  sherpa-onnx-streaming-zh-en-demo/1.0.0/
+  zipformer_L_zh_en/1.0.0/
 ```
+
+（本地 `demo-model/zipformer_L_zh_en/` 是单层目录，设备端 ModelImporter 期望 `<id>/<v>/` 双层路径，push 脚本会自动补上 `1.0.0` 这一层。）
 
 总共约 190 MB；USB ~10 秒，WiFi 5 GHz ~1 分钟，2.4 GHz ~3 分钟。
 
@@ -290,7 +292,7 @@ bash tools/asr/00_fetch_demo_model.sh push
 
 ```bash
 adb shell am force-stop com.amphion.asr.sample
-adb shell am start -n com.amphion.asr.sample/.MainActivity
+adb shell am start -n com.amphion.asr.sample/.eval.LandingActivity
 
 # 实时看日志
 adb logcat -c && adb logcat -s AsrSdk AsrSampleImporter MainActivity *:E
@@ -299,9 +301,9 @@ adb logcat -c && adb logcat -s AsrSdk AsrSampleImporter MainActivity *:E
 预期 logcat 输出：
 
 ```
-AsrSampleImporter: importing /sdcard/.../sherpa-onnx-streaming-zh-en-demo/1.0.0 -> /data/user/0/.../asr-models/...
+AsrSampleImporter: importing /sdcard/.../zipformer_L_zh_en/1.0.0 -> /data/user/0/.../asr-models/...
 AsrSdk: AsrSdk initialized, version=1.0.0, logLevel=WARN
-AsrSdk: OnlineRecognizer loaded from /data/user/0/com.amphion.asr.sample/files/asr-models/sherpa-onnx-streaming-zh-en-demo/1.0.0
+AsrSdk: OnlineRecognizer loaded from /data/user/0/com.amphion.asr.sample/files/asr-models/zipformer_L_zh_en/1.0.0
 ```
 
 屏幕状态变成「模型就绪，按住说话」，按住按钮说话：
@@ -352,7 +354,7 @@ cd android/AmphionRuntime
 
 # 重启 app
 adb shell am force-stop com.amphion.asr.sample
-adb shell am start -n com.amphion.asr.sample/.MainActivity
+adb shell am start -n com.amphion.asr.sample/.eval.LandingActivity
 ```
 
 模型不变就不用再 push；要换成自己的模型见下一节。
@@ -495,7 +497,7 @@ bash tools/asr/00_push_my_model.sh --src ~/my-asr-models/.../1.0.1 \
     --id asr-streaming-zipformer-zh-en --version 1.0.1
 
 adb shell am force-stop com.amphion.asr.sample
-adb shell am start -n com.amphion.asr.sample/.MainActivity
+adb shell am start -n com.amphion.asr.sample/.eval.LandingActivity
 ```
 
 B. 如果你想保留多份模型来回切，改 sample 的选择策略：把 `firstOrNull()` 改成 `findLast { it.modelId == "asr-streaming-zipformer-zh-en" }`，按 model_id 锁定一个。这是 sample 应用层的策略，不动 SDK API。
@@ -513,7 +515,7 @@ AsrSampleImporter: importing /sdcard/.../asr-streaming-zipformer-zh-en/1.0.1 -> 
 AsrSdk: OnlineRecognizer loaded from /data/user/0/com.amphion.asr.sample/files/asr-models/asr-streaming-zipformer-zh-en/1.0.1
 ```
 
-注意第二行 `OnlineRecognizer loaded from` 后面那段路径，必须是你新 push 的 model_id / version，不是 demo 那个。如果还是看到 `sherpa-onnx-streaming-zh-en-demo`，说明清理没做干净，回 14.4 步骤 A。
+注意第二行 `OnlineRecognizer loaded from` 后面那段路径，必须是你新 push 的 model_id / version，不是 demo 那个。如果还是看到 `zipformer_L_zh_en`（demo 默认名）或 `sherpa-onnx-streaming-zh-en-demo`（更早的 demo 名），说明清理没做干净，回 14.4 步骤 A。
 
 ### 14.6 常见踩坑（针对自有模型）
 

@@ -138,7 +138,7 @@ if ! "${ADB[@]}" shell pm list packages 2>/dev/null | grep -q "package:${SAMPLE_
 
           cd $REPO_ROOT/android/AmphionRuntime
           ./gradlew :sample:installDebug
-          adb shell am start -n ${SAMPLE_PKG}/.MainActivity
+          adb shell am start -n ${SAMPLE_PKG}/.eval.LandingActivity
 
         然后再回来跑本脚本。
 EOF
@@ -161,7 +161,7 @@ cat <<EOF
 [DONE] 模型已 push。重启 sample app 即可生效：
 
          adb shell am force-stop $SAMPLE_PKG
-         adb shell am start -n ${SAMPLE_PKG}/.MainActivity
+         adb shell am start -n ${SAMPLE_PKG}/.eval.LandingActivity
 
 [HINT] 看 import / 加载日志：
          adb logcat -c && adb logcat -s AsrSdk AsrSampleImporter MainActivity *:E

@@ -48,7 +48,7 @@ EOF
 # 7) push demo 模型并启动 app
 bash ../../tools/asr/00_fetch_demo_model.sh push
 adb shell am force-stop com.amphion.asr.sample
-adb shell am start -n com.amphion.asr.sample/.MainActivity
+adb shell am start -n com.amphion.asr.sample/.eval.LandingActivity
 ```
 
 如果你想在 sample 上同时验证「中英 / 粤英」两个模型（顶部 RadioGroup 切换），把仓库内的两份 demo 模型分别 push 上去即可（每条命令对应一个 model_id；SDK 按 manifest.lang 自动归类）：
@@ -67,7 +67,7 @@ bash ../../tools/asr/00_push_my_model.sh \
   --version 1.0.0-iter-100000-avg-1-chunk-32-left-256
 
 adb shell am force-stop com.amphion.asr.sample
-adb shell am start -n com.amphion.asr.sample/.MainActivity
+adb shell am start -n com.amphion.asr.sample/.eval.LandingActivity
 ```
 
 切换前提：每份 manifest.json 含 `"lang": "zh-en"` 或 `"lang": "yue-en"`；缺失的话对应 RadioButton 会灰掉，并在状态栏提示。
