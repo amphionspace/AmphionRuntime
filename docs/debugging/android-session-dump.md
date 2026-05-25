@@ -109,7 +109,7 @@ python3 -m pip install --user sherpa-onnx
 
 ```bash
 python3 tools/asr/decode_offline.py \
-  --model-dir tools/asr/demo-model/asr-streaming-zipformer-zh-en-v1-1.0.0 \
+  --model-dir tools/asr/demo-model/zipformer_L_zh_en \
   --wav /tmp/asr-dump/asr-debug/2026-05-13_144818/audio.wav \
   --segments 0:8:en1 8:16:en2 \
   --gains 0 10 \
@@ -120,7 +120,7 @@ python3 tools/asr/decode_offline.py \
 
 ```bash
 python3 tools/asr/decode_streaming.py \
-  --model-dir tools/asr/demo-model/asr-streaming-zipformer-zh-en-v1-1.0.0 \
+  --model-dir tools/asr/demo-model/zipformer_L_zh_en \
   --wav /tmp/asr-dump/asr-debug/2026-05-13_144818/audio.wav \
   --segments 0:8:en1 8:16:en2 \
   --gain 10 \

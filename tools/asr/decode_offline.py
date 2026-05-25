@@ -4,7 +4,7 @@
 典型用法（需要先 pip install sherpa-onnx）：
 
     python3 tools/asr/decode_offline.py \
-      --model-dir tools/asr/demo-model/asr-streaming-zipformer-zh-en-v1-1.0.0 \
+      --model-dir tools/asr/demo-model/zipformer_L_zh_en \
       --wav /tmp/asr-dump/2026-05-13_142052/audio.wav \
       --segments 0:5:utt1 5:11:utt2 \
       --gains 0 10

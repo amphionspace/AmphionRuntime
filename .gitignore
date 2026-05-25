@@ -65,6 +65,7 @@ shared/regression-set/audio/
 *.tar.gz
 *.tgz
 *.zip
+*.pt
 bpe.model
 bpe.vocab
 # 但不要忘了：当 demo-model/ 目录里的 manifest.json / export_meta.json / tokens.txt / README.md

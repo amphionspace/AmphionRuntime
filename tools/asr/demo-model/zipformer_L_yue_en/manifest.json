@@ -1,0 +1,36 @@
+{
+  "manifest_version": 1,
+  "model_id": "amphion-yue-en-streaming_large_crctc_lid_musan_traffic_v5_fix",
+  "version": "1.0.0-iter-100000-avg-1-chunk-32-left-256",
+  "model_type": "zipformer2",
+  "lang": "yue-en",
+  "sample_rate": 16000,
+  "feature_dim": 80,
+  "decoding_method": "greedy_search",
+  "files": [
+    {
+      "name": "decoder.onnx",
+      "url": "file:///chenmingjie/mingdong/workspace/icefall/egs/amphion/yue_en/ASR/exp/streaming_large_crctc_lid_musan_traffic_v5_fix/onnx/zipformer_L_yue_en/decoder.onnx",
+      "size_bytes": 17453084,
+      "sha256": "c7de06b9b46f730895bd01c5fcbb1f482d642ab7b00c25c117eb70dfeaef2cab"
+    },
+    {
+      "name": "encoder.int8.onnx",
+      "url": "file:///chenmingjie/mingdong/workspace/icefall/egs/amphion/yue_en/ASR/exp/streaming_large_crctc_lid_musan_traffic_v5_fix/onnx/zipformer_L_yue_en/encoder.int8.onnx",
+      "size_bytes": 161135709,
+      "sha256": "6da7745f161582e4761bf60a88b724936ddec47e07a6032922cf2048b00685de"
+    },
+    {
+      "name": "joiner.int8.onnx",
+      "url": "file:///chenmingjie/mingdong/workspace/icefall/egs/amphion/yue_en/ASR/exp/streaming_large_crctc_lid_musan_traffic_v5_fix/onnx/zipformer_L_yue_en/joiner.int8.onnx",
+      "size_bytes": 4129422,
+      "sha256": "ab348cdb93dfd504a72b0c352a81951c0d2d3b8c55983c80f96fd67ba1d67f90"
+    },
+    {
+      "name": "tokens.txt",
+      "url": "file:///chenmingjie/mingdong/workspace/icefall/egs/amphion/yue_en/ASR/exp/streaming_large_crctc_lid_musan_traffic_v5_fix/onnx/zipformer_L_yue_en/tokens.txt",
+      "size_bytes": 116727,
+      "sha256": "5396093e9c1323935b13c3da337f685a9c607176f73cc3844baa1bd19fdc60d0"
+    }
+  ]
+}

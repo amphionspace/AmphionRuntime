@@ -2,18 +2,18 @@
   "schema": "amphion-onnx-export-meta-v1",
   "ckpt": {
     "kind": "iter",
-    "n": 80000,
-    "path": "/chenmingjie/mingdong/workspace/icefall/egs/amphion/zh_en/ASR/exp/streaming_large_crctc_full_lid_musan_traffic_v3_fix/checkpoint-80000.pt",
-    "size_bytes": 2863960982
+    "n": 100000,
+    "path": "/chenmingjie/mingdong/workspace/icefall/egs/amphion/yue_en/ASR/exp/streaming_large_crctc_lid_musan_traffic_v5_fix/checkpoint-100000.pt",
+    "size_bytes": 2863963543
   },
-  "suffix": "iter-80000-avg-1-chunk-32-left-256",
+  "suffix": "iter-100000-avg-1-chunk-32-left-256",
   "chunk_size": 32,
   "left_context_frames": 256,
   "fp16_exported": false,
   "int8_exported": true,
   "dynamic_batch": true,
-  "bpe_model": "/chenmingjie/mingdong/workspace/icefall/egs/amphion/zh_en/ASR/data/lang_bbpe_8000/bbpe.model",
-  "lang_dir": "/chenmingjie/mingdong/workspace/icefall/egs/amphion/zh_en/ASR/data/lang_bbpe_8000",
+  "bpe_model": "/chenmingjie/mingdong/workspace/icefall/egs/amphion/yue_en/ASR/data/lang_bbpe_8000/bbpe.model",
+  "lang_dir": "/chenmingjie/mingdong/workspace/icefall/egs/amphion/yue_en/ASR/data/lang_bbpe_8000",
   "causal": true,
   "use_punc": false,
   "use_lid": true,
@@ -43,7 +43,7 @@
     "use_transducer": true,
     "value_head_dim": "12"
   },
-  "exported_at": "2026-05-12T06:19:00.722669+00:00",
-  "git_sha": "9c106ed8",
+  "exported_at": "2026-05-15T03:00:13.716703+00:00",
+  "git_sha": "d641025a",
   "exporter": "egs/amphion/shared_amphion/zipformer/export_onnx_minimal.py"
 }
