@@ -241,7 +241,17 @@ internal class SessionImpl(
             val r = recognizer.getResult(stream)
             postEndpoint()
             postFinal(toAsrResult(r))
-            recognizer.reset(stream)
+            // 长 utterance 后做硬重启而不是软 reset：
+            // 软 reset 只清 decoder hyps、保留 encoder cache（见上游 reset_encoder=false 的默认），
+            // 经历一段 ~10s 的长 utterance 后，encoder cache 内部 norm/偏置会进入「持续语音」状态，
+            // 紧跟的 600-800ms 短词（如「社会招聘」）会被解成 CTC blank，partial 一个不出。
+            // 这里在 final emit 之后按 tokens 数量切换成「release + createStream + warmup」硬重启，
+            // 把 encoder cache 真正清掉。短 utterance 仍走软 reset，避免给短句之间引入 warmup 延迟。
+            if (shouldHardRestartAfter(r)) {
+                hardRestartStream()
+            } else {
+                recognizer.reset(stream)
+            }
             lastPartialText = ""
             return
         }
@@ -254,6 +264,58 @@ internal class SessionImpl(
         } else if (r.text != lastPartialText) {
             lastPartialText = r.text
             postPartial(toAsrResult(r))
+        }
+    }
+
+    /**
+     * 判断刚 emit 完 final 的 utterance 是否「足够长」，需要做硬重启 stream 而不是软 reset。
+     *
+     * 阈值取 [HARD_RESTART_TOKEN_THRESHOLD] = 20 个 token，约等于 zipformer streaming 在
+     * chunk_size=32 下处理 ~10s 持续语音；超过这个量级 encoder cache 的累积偏置已经能让
+     * 后续短词被吃成 blank（实测见 docs/troubleshooting/long-utterance-state-drift.md）。
+     *
+     * 用 tokens.size 而不是 text.length 是因为：英文 BPE 一个词可能占 4-6 token、中文一个字占
+     * 1 token，token 数比字符数更直接反映 encoder 处理的 frame 数。
+     */
+    private fun shouldHardRestartAfter(r: OnlineRecognizerResult): Boolean {
+        return r.tokens.size >= HARD_RESTART_TOKEN_THRESHOLD
+    }
+
+    /**
+     * 硬重启 stream：release 旧 stream → createStream(currentHotwords) → 跑一遍 800ms 静音
+     * warmup，让新 stream 的 encoder cache 进入与「冷启动 + warmup」一致的初始状态。
+     *
+     * 调用方必须确保已经处理完 endpoint 的 [postEndpoint] / [postFinal]；本方法只负责换 stream，
+     * 不再 emit 任何文本。
+     *
+     * 失败时回退到软 reset（沿用老 stream），保证 session 继续可用——最差情况是「再次出现长
+     * utterance 后短词被吞」的退化行为，与未启用本特性时一致，不会进一步劣化。
+     *
+     * 耗时：createStream + 800ms warmup decode 大约 20-100ms，期间 decoder 线程被占用，
+     * 录音线程的新 PCM 在 decoderHandler 队列里排队（不会丢，单线程串行保证）。
+     */
+    private fun hardRestartStream() {
+        if (closed.get()) return
+        val r = NativeGuard.run("recognizer.createStream(hardRestart)") {
+            recognizer.createStream(hotwords = currentHotwords)
+        }
+        when (r) {
+            is NativeResult.Ok -> {
+                val old = stream
+                stream = r.value
+                NativeGuard.runQuietly("oldStream.release") { old.release() }
+                Logger.i("session $sessionId hard-restarted stream after long utterance")
+                warmUpEncoder(WARMUP_DURATION_MS)
+            }
+            is NativeResult.Err -> {
+                Logger.w(
+                    "session $sessionId hard restart failed, fallback to soft reset: " +
+                    r.error.message
+                )
+                NativeGuard.runQuietly("recognizer.reset(hardRestartFallback)") {
+                    recognizer.reset(stream)
+                }
+            }
         }
     }
 
@@ -330,5 +392,13 @@ internal class SessionImpl(
     private companion object {
         /** 静音预热 encoder 的时长（ms）。≈ 2.5 chunk @chunk_size=32, 16kHz。 */
         const val WARMUP_DURATION_MS = 800
+
+        /**
+         * endpoint 后判断「是否硬重启 stream」的 token 阈值。20 个 token 大约对应 streaming
+         * zipformer 处理 ~10 秒持续语音；超过这个量级，encoder cache 的偏置已经足够大，会
+         * 让紧跟的短词被解成 blank（实测在 zh-en 模型上，"应届…锚点" 50+ token 之后说
+         * "社会招聘" 会被完全吞掉，硬重启可解决）。
+         */
+        const val HARD_RESTART_TOKEN_THRESHOLD = 20
     }
 }
