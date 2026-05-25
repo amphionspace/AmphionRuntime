@@ -282,7 +282,8 @@ internal class EngineImpl(private val config: AsrConfig) {
             rule3 = EndpointRule(false, 0f, c.endpointRules.rule3MinUtteranceLengthSec),
         )
 
-        // 高级特性：HomophoneReplacer / ITN rule_fsts / LM rescoring
+        // 高级特性：HomophoneReplacer / LM rescoring
+        // 注：ITN 不再走 sherpa-onnx 的 rule_fsts；由独立的 WeitnEngine 在 ASR final 之后处理。
         val hr = if (c.homophoneLexiconPath != null && c.homophoneRuleFstsPath != null) {
             HomophoneReplacerConfig(
                 lexicon = c.homophoneLexiconPath.absolutePath,
@@ -291,7 +292,6 @@ internal class EngineImpl(private val config: AsrConfig) {
         } else {
             HomophoneReplacerConfig()
         }
-        val ruleFsts = c.itnRuleFstsPaths.joinToString(",") { it.absolutePath }
         val lmConfig = if (c.lmModelPath != null) {
             // 仅在 modified_beam_search 下生效；上面已经做过协商
             OnlineLMConfig(model = c.lmModelPath.absolutePath, scale = c.lmScale)
@@ -314,7 +314,7 @@ internal class EngineImpl(private val config: AsrConfig) {
             maxActivePaths = effectiveMaxActivePaths,
             hotwordsFile = "",
             hotwordsScore = c.hotwordsScore,
-            ruleFsts = ruleFsts,
+            ruleFsts = "",
         )
     }
 

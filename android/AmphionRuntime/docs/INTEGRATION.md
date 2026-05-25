@@ -385,23 +385,54 @@ val config = AsrConfig.Builder(modelDir)
 
 文件来源：sherpa-onnx 官方提供 [中文同音字典 + FST](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/text-replacer-zh.zip)；公司可在此基础上加业务领域词扩展。建议把这两个文件随模型一起分发（放在同 modelDir 下）。
 
-### 12.4 文本归一化（ITN）
+### 12.4 文本归一化（WeText ITN）
 
-把"二零二六年三月一号"自动转写成 "2026 年 3 月 1 号"等规则化文本：
+把口语化中文自动转写成书面化中文：
 
-```kotlin
-val config = AsrConfig.Builder(modelDir)
-    .enableInverseTextNormalization(File(modelDir, "itn-zh.fst"))
-    .build()
-
-// 多个 FST 串行应用：
-.enableInverseTextNormalization(listOf(
-    File(modelDir, "itn-number.fst"),
-    File(modelDir, "itn-date.fst"),
-))
+```
+两点五八万        -> 2.58万
+幺三五七零八四    -> 1357084
+二零二六年五月十五日 -> 2026年5月15日
+三点五公里        -> 3.5公里
 ```
 
-构建 ITN FST 需要 sherpa-onnx Python 工具链；公司分发时建议预编译并随模型下发。
+底层走我们 fork 的 sherpa-onnx 中 vendored 的 [WeTextProcessing](https://github.com/wenet-e2e/WeTextProcessing)（wenet-e2e，Apache-2.0）三段式 runtime：`tagger.fst → C++ token reorder → verbalizer.fst`。覆盖小数、单位、日期、时间、货币、百分比、电话号码、身份证号、分数等场景。SDK 公开 API 是独立的 `WeitnEngine`（与 `AsrEngine` 解耦，跟 `PunctuationEngine` 同款生命周期）：
+
+```kotlin
+import com.amphion.asr.WeitnConfig
+import com.amphion.asr.WeitnEngine
+
+val itn = WeitnEngine(
+    WeitnConfig.Builder(
+        File(filesDir, "asr-weitn/zh_itn_tagger.fst"),
+        File(filesDir, "asr-weitn/zh_itn_verbalizer.fst"),
+    ).build(),
+    errorHandler = { err -> Log.w("Weitn", "${err.code} ${err.message}") },
+)
+val normalized = itn.normalize("两点五八万")   // "2.58万"
+itn.close()
+```
+
+关键约定：
+
+- `WeitnEngine` 与 `AsrEngine` 独立：ITN 失败不会影响 ASR 主路径；fst 加载 ~10 ms，加载后常驻数 MB native FST 内存，建议按需 lazy 创建并在不用时 `close()`
+- `normalize` 是同步阻塞调用，单次 FST Compose 通常 1–10 ms；可在 ASR final 出来后串行调用。线程安全但建议单线程 executor 避免抢占
+- 资源文件路径由集成方负责分发：通常把 WeTextProcessing 编出的 `zh_itn_tagger.fst` + `zh_itn_verbalizer.fst` 放自家 CDN，业务侧下载到 `filesDir/asr-weitn/`；sample 演示了用 [`tools/asr/00_push_weitn_fsts.sh`](../../../tools/asr/00_push_weitn_fsts.sh) 走 adb push 的 demo 路径
+- 错误处理：fst 路径不存在 → `Builder.build()` 抛 `IllegalArgumentException`；native 加载失败 → 构造期抛 `IllegalStateException`（含 `MODEL_LOAD_FAILED` 错误码）；调用期 native 抛出 → `normalize` 返回原文 + 通过 `errorHandler` 上报 `AsrError(code=NATIVE_CRASH)`，不向上抛
+- 接入顺序推荐：`ASR final → WeitnEngine.normalize → PunctuationEngine.addPunctuation → UI`。WeText 自身不处理标点，标点放在后面叠
+
+Sample 端到端演示见 [README.md](../README.md) 的「可选：开启 WeText ITN」一节，包含 push fst 脚本、Switch 状态机、final 行替换的 UX 实现。fst 资源 / asr 模型解耦方式见 [tools/asr/MODEL_LAYOUT.md §6](../../../tools/asr/MODEL_LAYOUT.md)。
+
+#### 与旧 itn_zh_number.fst 的差异
+
+|  | 旧 itn_zh_number.fst | WeText ITN |
+| --- | --- | --- |
+| 来源 | k2-fsa/colab 单 fst | wenet-e2e/WeTextProcessing 三段式 |
+| 覆盖 | 数字（缺幺）/ 简单单位 | 小数 / 单位 / 日期 / 时间 / 货币 / 百分比 / 电话 / 身份证 |
+| 体积 | ~25 KB | ~2-4 MB |
+| 维护 | 静态 colab notebook | 活跃维护，issues / PR 解决新 case |
+| SDK API | `AsrConfig.Builder.enableInverseTextNormalization(File)`（已删除，Breaking） | `WeitnEngine(WeitnConfig)` |
+| 装配方式 | `rule_fsts` 串到 sherpa-onnx | 独立引擎；与 ASR engine 完全解耦 |
 
 ### 12.5 LM 重打分（RNN-LM rescoring）
 
@@ -429,7 +460,7 @@ val config = AsrConfig.Builder(modelDir)
 | model_type | （不可显式设置） | model_type | TRANSDUCER |
 | hotwords | .hotwords() | （未来：hotwords_url） | 空 |
 | HomophoneReplacer | .enableHomophoneReplacer() | （不在 manifest） | 关闭 |
-| ITN | .enableInverseTextNormalization() | （不在 manifest） | 关闭 |
+| WeText ITN | 独立 WeitnEngine，不再走 AsrConfig | （不在 manifest） | 关闭 |
 | LM rescoring | .enableLmRescoring() | （不在 manifest） | 关闭 |
 
 如果调用方在 Builder 里传了 hotwords / LM，SDK 会自动把 decodingMethod 升级到 MODIFIED_BEAM_SEARCH，无需手动加 `.decodingMethod(MODIFIED_BEAM_SEARCH)`。但如果调用方显式选了 GREEDY_SEARCH 又同时传 hotwords / LM，build() 会立刻抛 IllegalArgumentException，避免 native 加载阶段才报错。

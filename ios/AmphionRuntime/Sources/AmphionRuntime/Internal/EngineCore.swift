@@ -128,8 +128,8 @@ internal final class EngineCore {
             }
             return SherpaOnnxHomophoneReplacerConfig()
         }()
-        let ruleFsts = c.itnRuleFstsPaths.map { $0.path }.joined(separator: ",")
-
+        // 注：ITN 已迁出到独立的 WeitnEngine（基于 WeTextProcessing），不再走
+        // sherpa-onnx 的 rule_fsts 通道。
         return sherpaOnnxOnlineRecognizerConfig(
             featConfig: feat,
             modelConfig: onlineModel,
@@ -140,7 +140,7 @@ internal final class EngineCore {
             maxActivePaths: c.maxActivePaths,
             hotwordsFile: "",
             hotwordsScore: c.hotwordsScore,
-            ruleFsts: ruleFsts,
+            ruleFsts: "",
             ruleFars: "",
             blankPenalty: 0,
             hotwordsBuf: "",

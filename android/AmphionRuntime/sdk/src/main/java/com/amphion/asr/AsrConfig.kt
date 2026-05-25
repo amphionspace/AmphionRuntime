@@ -26,8 +26,6 @@ public class AsrConfig private constructor(
     public val homophoneLexiconPath: File?,
     /** HomophoneReplacer FST 路径。 */
     public val homophoneRuleFstsPath: File?,
-    /** ITN（数字归一化等）规则 FST 路径列表，按顺序应用；空列表表示不启用 ITN。 */
-    public val itnRuleFstsPaths: List<File>,
     /** LM rescoring 的 ONNX 路径；为 null 表示不启用。仅在 [DecodingMethod.MODIFIED_BEAM_SEARCH] 下生效。 */
     public val lmModelPath: File?,
     /** LM rescoring 权重；建议范围 [0.1, 1.0]，默认 0.5。 */
@@ -81,7 +79,6 @@ public class AsrConfig private constructor(
         private var maxActivePathsExplicit: Boolean = false
         private var homophoneLexiconPath: File? = null
         private var homophoneRuleFstsPath: File? = null
-        private var itnRuleFstsPaths: List<File> = emptyList()
         private var lmModelPath: File? = null
         private var lmScale: Float = 0.5f
 
@@ -166,21 +163,6 @@ public class AsrConfig private constructor(
         }
 
         /**
-         * 启用文本归一化（ITN: Inverse Text Normalization），把"二零二六年"转写成 "2026 年"等。
-         *
-         * @param ruleFsts 1 个或多个 FST 路径；按列表顺序串行应用
-         */
-        public fun enableInverseTextNormalization(ruleFsts: List<File>): Builder = apply {
-            require(ruleFsts.isNotEmpty()) { "at least one ITN rule fst is required" }
-            for (f in ruleFsts) require(f.isFile) { "ITN fst not found: ${f.absolutePath}" }
-            this.itnRuleFstsPaths = ruleFsts.toList()
-        }
-
-        /** 单 FST 便捷重载。 */
-        public fun enableInverseTextNormalization(ruleFst: File): Builder =
-            enableInverseTextNormalization(listOf(ruleFst))
-
-        /**
          * 启用神经网络语言模型重打分（LM rescoring）。
          *
          * 仅在 [DecodingMethod.MODIFIED_BEAM_SEARCH] 下生效；如果当前是 GREEDY_SEARCH，
@@ -245,7 +227,6 @@ public class AsrConfig private constructor(
                 maxActivePaths = maxActivePaths,
                 homophoneLexiconPath = homophoneLexiconPath,
                 homophoneRuleFstsPath = homophoneRuleFstsPath,
-                itnRuleFstsPaths = itnRuleFstsPaths,
                 lmModelPath = lmModelPath,
                 lmScale = lmScale,
                 decodingMethodIsExplicit = effectiveDecodingExplicit,

@@ -53,7 +53,6 @@ public struct AsrConfig {
     // 高级特性
     public var homophoneLexiconPath: URL? = nil
     public var homophoneRuleFstsPath: URL? = nil
-    public var itnRuleFstsPaths: [URL] = []
     public var lmModelPath: URL? = nil
     public var lmScale: Float = 0.5
 
@@ -114,13 +113,6 @@ public struct AsrConfig {
         var c = self
         c.homophoneLexiconPath = lexicon
         c.homophoneRuleFstsPath = ruleFsts
-        return c
-    }
-
-    public func enableInverseTextNormalization(ruleFsts: [URL]) -> AsrConfig {
-        precondition(!ruleFsts.isEmpty)
-        var c = self
-        c.itnRuleFstsPaths = ruleFsts
         return c
     }
 
