@@ -434,6 +434,37 @@ Sample 端到端演示见 [README.md](../README.md) 的「可选：开启 WeText
 | SDK API | `AsrConfig.Builder.enableInverseTextNormalization(File)`（已删除，Breaking） | `WeitnEngine(WeitnConfig)` |
 | 装配方式 | `rule_fsts` 串到 sherpa-onnx | 独立引擎；与 ASR engine 完全解耦 |
 
+### 12.6 标点（CT-Transformer，可选）
+
+ITN 只解决数字 / 单位等"形式归一"，不会加标点。如果需要把 ASR 输出从「我们都是木头人不会说话不会动」自动补成「我们都是木头人，不会说话，不会动。」，要用一个独立的标点模型；sherpa-onnx 提供了 [CT-Transformer 中英双语标点模型](https://k2-fsa.github.io/sherpa/onnx/punctuation/pretrained_models.html#sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8)（INT8，~62 MB）。
+
+SDK 公开 API：
+
+```kotlin
+import com.amphion.asr.PunctuationConfig
+import com.amphion.asr.PunctuationEngine
+
+val punct = PunctuationEngine(
+    PunctuationConfig.Builder(File(filesDir, "asr-punct/model.int8.onnx"))
+        .numThreads(1)
+        .build(),
+    errorHandler = { err -> Log.w("Punct", "${err.code} ${err.message}") },
+)
+val withPunct = punct.addPunctuation("我们都是木头人不会说话不会动")
+// -> "我们都是木头人，不会说话，不会动。"
+punct.close()
+```
+
+关键约定：
+
+- `PunctuationEngine` 与 `AsrEngine` 独立：标点失败不会影响 ASR 主路径；模型加载 ~1 秒、内存常驻 ~70 MB，建议按需 lazy 创建，关闭时主动 `close()` 释放
+- `addPunctuation` 是同步阻塞调用，端侧推理 20-100 ms，必须放到非 UI / 非 ASR callback 的工作线程；多线程并发调用会争抢 native，推荐用单线程 executor 串行
+- 模型文件路径由集成方负责分发：可以放到自家 CDN，再用 `ModelManager`/自有逻辑下载到 `filesDir/asr-punct/model.int8.onnx`；sample 演示了用 `tools/asr/00_push_punct_model.sh` 走 adb push 的 demo 路径
+- 错误处理：模型路径不存在 / native 加载失败 → 构造期抛 `IllegalStateException`（含 `MODEL_LOAD_FAILED` 错误码）；调用期 native 抛出 → `addPunctuation` 返回原文 + 通过 `errorHandler` 上报 `AsrError(code=NATIVE_CRASH)`，不向上抛
+- 上游模型只支持「先 ASR、再标点」的两段式：不要在 partial 上跑标点（每次 partial 都改，UI 抖动 + 浪费推理）。推荐只在 final 上跑
+
+Sample 端到端演示见 [README.md](../README.md) 的「可选：开启标点（CT-Transformer 中英双语）」一节，包含 push 模型脚本、Switch 状态机、final 行替换的 UX 实现。模型资源 / asr 模型解耦方式见 [tools/asr/MODEL_LAYOUT.md §7](../../../tools/asr/MODEL_LAYOUT.md)。
+
 ### 12.5 LM 重打分（RNN-LM rescoring）
 
 ```kotlin

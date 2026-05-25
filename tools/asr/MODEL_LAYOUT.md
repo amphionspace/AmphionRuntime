@@ -204,3 +204,22 @@ WeText ITN 用我们 fork 的 sherpa-onnx 中 vendored 的 [WeTextProcessing](ht
 - 两份 fst 加起来 ~2-4 MB，与 ASR 模型完全独立，可跨多个 ASR 模型共享
 - 推荐放在 `<your-cdn>/asr-weitn/<v>/{zh_itn_tagger.fst,zh_itn_verbalizer.fst}`，旁边带 sha256 方便客户端校验
 - 客户端拿到 fst 路径后 `WeitnConfig.Builder(taggerFile, verbalizerFile).build()` 即可，无需修改 AsrConfig
+
+## 7. 可选：标点（CT-Transformer）模型
+
+标点是给 ASR 输出加「，。？」的独立模型，与 ITN 一样跟模型权重解耦：
+
+| 项 | 说明 |
+| --- | --- |
+| 与模型解耦 | 标点作用在 ASR final 文本上，与 ASR 模型族 / tokens 无关，可跨多套 ASR 共用 |
+| 不属于 modelDir | 不放进任意 `<id>/<v>/` 内、不进 ASR manifest.json 的 files |
+| 默认来源 | sherpa-onnx 官方 releases：`https://github.com/k2-fsa/sherpa-onnx/releases/download/punctuation-models/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8.tar.bz2`，~62 MB INT8 |
+| 在 sample 内的位置 | external push 到 `/sdcard/Android/data/<pkg>/files/asr-punct-import/model.int8.onnx`，由 `tools/asr/00_push_punct_model.sh` 一键完成；sample 启动时 `PunctModelInstaller` 搬到 `<filesDir>/asr-punct/model.int8.onnx` |
+| 为何不走 assets | 模型 62 MB INT8，再打 APK 会让安装包尺寸接近翻倍。改成 adb push + first-launch import，sample APK 仍维持几十 MB |
+| 在 SDK API 中传入 | `PunctuationConfig.Builder(modelFile).build()` → `PunctuationEngine(config)`，详见 INTEGRATION.md §12.6 |
+
+业务方自己分发标点模型时也推荐独立走 CDN：
+
+- 文件 model.int8.onnx ~72 MB（解压后），与 ASR 模型完全独立，可跨多个 ASR 模型共享
+- 推荐放在 `<your-cdn>/asr-punct/<v>/model.int8.onnx`，旁边带个 sha256 文件方便客户端校验
+- 客户端拿到模型路径后用 `PunctuationConfig.Builder(File)` 创建即可，无需修改 AsrConfig
