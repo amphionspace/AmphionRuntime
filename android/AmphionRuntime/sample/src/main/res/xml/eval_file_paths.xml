@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- ZipExporter 写到 externalFilesDir/asr-eval-export/，由 FileProvider 暴露给系统分享面板。 -->
+    <external-files-path
+        name="asr-eval-export"
+        path="asr-eval-export/" />
+</paths>

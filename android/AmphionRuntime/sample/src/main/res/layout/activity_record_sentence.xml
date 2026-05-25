@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/brand_cream">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/brand_surface"
+        app:titleTextColor="@color/brand_text_primary" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="@dimen/screen_padding">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- 引擎卡片：让测试员清晰看到「当前用什么模型录」，并能切换。
+                 自动选择 = 黑箱，meta.json 里的 model_id 也是黑箱；这张卡片是单一事实源。 -->
+            <LinearLayout
+                android:id="@+id/card_engine"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="@dimen/card_padding"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/bg_card">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/eval_engine_label"
+                        android:textAppearance="@style/TextAppearance.Amphion.CardLabel" />
+
+                    <TextView
+                        android:id="@+id/tv_engine_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textAppearance="@style/TextAppearance.Amphion.Body" />
+
+                    <TextView
+                        android:id="@+id/tv_engine_state"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textAppearance="@style/TextAppearance.Amphion.Status" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btn_engine_switch"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/eval_engine_btn_switch" />
+            </LinearLayout>
+
+            <!-- 句子卡片（双模式）：
+                 - 内置模式：tv_reference 显示句子（只读）
+                 - 自定义模式录音前：tv_reference 显示提示「录完后再填」
+                 - 自定义模式录完音：et_reference 出现，pre-fill 识别结果供用户校对 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding"
+                android:background="@drawable/bg_card">
+
+                <TextView
+                    android:id="@+id/tv_reference_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/eval_record_reference_label"
+                    android:textAppearance="@style/TextAppearance.Amphion.CardLabel" />
+
+                <TextView
+                    android:id="@+id/tv_reference"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textAppearance="@style/TextAppearance.Amphion.Body" />
+
+                <EditText
+                    android:id="@+id/et_reference"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="@string/eval_custom_ref_hint"
+                    android:inputType="textMultiLine"
+                    android:minLines="2"
+                    android:maxLines="6"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_reference_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textAppearance="@style/TextAppearance.Amphion.Status"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/btn_replay_pending"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/eval_custom_btn_replay"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- 现场识别卡片（含 diff） -->
+            <LinearLayout
+                android:id="@+id/card_hypothesis"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding"
+                android:layout_marginTop="@dimen/card_spacing"
+                android:background="@drawable/bg_card"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/eval_record_hypothesis_label"
+                        android:textAppearance="@style/TextAppearance.Amphion.CardLabel" />
+
+                    <TextView
+                        android:id="@+id/tv_wer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/brand_accent"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_diff_hyp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textAppearance="@style/TextAppearance.Amphion.Body" />
+
+                <TextView
+                    android:id="@+id/tv_diff_ref"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textAppearance="@style/TextAppearance.Amphion.Body" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/eval_record_diff_hint"
+                    android:textAppearance="@style/TextAppearance.Amphion.Status" />
+
+                <Button
+                    android:id="@+id/btn_replay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/eval_record_btn_replay" />
+            </LinearLayout>
+
+            <!-- 元信息卡片 -->
+            <LinearLayout
+                android:id="@+id/card_env"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding"
+                android:layout_marginTop="@dimen/card_spacing"
+                android:background="@drawable/bg_card">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/eval_env_section"
+                    android:textAppearance="@style/TextAppearance.Amphion.CardLabel" />
+
+                <EditText
+                    android:id="@+id/et_location"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:hint="@string/eval_env_location_hint"
+                    android:inputType="text"
+                    android:maxLines="1" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/eval_env_noise_label"
+                    android:textAppearance="@style/TextAppearance.Amphion.Status" />
+
+                <RadioGroup
+                    android:id="@+id/rg_noise"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/rb_noise_silent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/eval_noise_silent" />
+
+                    <RadioButton
+                        android:id="@+id/rb_noise_low"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/eval_noise_low" />
+
+                    <RadioButton
+                        android:id="@+id/rb_noise_medium"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/eval_noise_medium" />
+
+                    <RadioButton
+                        android:id="@+id/rb_noise_high"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/eval_noise_high" />
+                </RadioGroup>
+
+                <EditText
+                    android:id="@+id/et_notes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="@string/eval_env_notes_hint"
+                    android:inputType="textMultiLine"
+                    android:maxLines="3" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:text="@string/eval_record_status_idle"
+                android:textAppearance="@style/TextAppearance.Amphion.Status" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- 底部按钮区 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="@dimen/screen_padding"
+        android:background="@color/brand_surface">
+
+        <Button
+            android:id="@+id/btn_retake"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/eval_record_btn_retake"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btn_main"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:text="@string/eval_record_btn_start" />
+
+        <Button
+            android:id="@+id/btn_save_next"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/eval_record_btn_save_next"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>

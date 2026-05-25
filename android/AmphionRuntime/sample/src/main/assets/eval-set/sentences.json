@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "manifest_version": "1.0.0",
+  "lang": "zh-en",
+  "description": "AmphionRuntime ASR 评估种子测试集（中英混合，6 类共 75 句）。adb push 到 <externalFilesDir>/asr-eval-set/sentences.json 可覆盖。",
+  "categories": [
+    {
+      "id": "daily",
+      "label": "日常对话",
+      "description": "高频日常表达，覆盖常见交流场景",
+      "sentences": [
+        { "id": "daily_001", "text": "你今天吃过午饭了吗？" },
+        { "id": "daily_002", "text": "麻烦帮我把窗户关一下，谢谢。" },
+        { "id": "daily_003", "text": "外面下雨了，记得带伞。" },
+        { "id": "daily_004", "text": "我先去趟洗手间，马上回来。" },
+        { "id": "daily_005", "text": "这个周末有什么安排吗？" },
+        { "id": "daily_006", "text": "请问最近的地铁站怎么走？" },
+        { "id": "daily_007", "text": "不好意思，我没听清楚，能再说一遍吗？" },
+        { "id": "daily_008", "text": "今天天气真不错，适合出去散步。" },
+        { "id": "daily_009", "text": "等会儿一起去吃饭吧。" },
+        { "id": "daily_010", "text": "我刚才在开会，没看到你的消息。" },
+        { "id": "daily_011", "text": "需要我帮你点一杯咖啡吗？" },
+        { "id": "daily_012", "text": "好的，我知道了，等会儿告诉你结果。" },
+        { "id": "daily_013", "text": "这件衣服洗过之后会不会缩水？" },
+        { "id": "daily_014", "text": "最近睡得不太好，总是熬夜。" },
+        { "id": "daily_015", "text": "你帮我看一下这个怎么操作。" }
+      ]
+    },
+    {
+      "id": "numbers",
+      "label": "数字与日期",
+      "description": "金额、电话、日期、单位的口语读法",
+      "sentences": [
+        { "id": "numbers_001", "text": "这个商品的价格是一百二十八块五毛。" },
+        { "id": "numbers_002", "text": "请拨打客服电话四零零八二三六五五五。" },
+        { "id": "numbers_003", "text": "会议定在二零二六年五月十五号下午三点半。" },
+        { "id": "numbers_004", "text": "从北京到上海大约一千二百公里。" },
+        { "id": "numbers_005", "text": "他考了九十八分，全班第二名。" },
+        { "id": "numbers_006", "text": "我的工号是零零七二一九。" },
+        { "id": "numbers_007", "text": "气温今天最高三十二度，最低二十四度。" },
+        { "id": "numbers_008", "text": "这个文件总共五十八页，请仔细看一下。" },
+        { "id": "numbers_009", "text": "我大概晚上八点四十五分到家。" },
+        { "id": "numbers_010", "text": "这一笔订单金额是三万六千八百元整。" },
+        { "id": "numbers_011", "text": "我家住在花园路三百二十六号七栋二单元一零零五。" },
+        { "id": "numbers_012", "text": "他出生于一九九五年十月二十一日。" },
+        { "id": "numbers_013", "text": "本次活动的折扣是百分之八十五。" },
+        { "id": "numbers_014", "text": "比赛的最终比分是三比二。" },
+        { "id": "numbers_015", "text": "这趟列车的车次是 G 一二三八次。" }
+      ]
+    },
+    {
+      "id": "zh_en_mixed",
+      "label": "中英混读",
+      "description": "工程师 / 白领高频中英夹杂表达，含产品名、技术词",
+      "sentences": [
+        { "id": "zh_en_mixed_001", "text": "明天上午十点有个 weekly meeting，记得参加。" },
+        { "id": "zh_en_mixed_002", "text": "把代码 push 到 main 分支之前先 review 一下。" },
+        { "id": "zh_en_mixed_003", "text": "这个 bug 在 production 环境已经修复了。" },
+        { "id": "zh_en_mixed_004", "text": "PM 让我们重新评估一下这个 feature 的优先级。" },
+        { "id": "zh_en_mixed_005", "text": "我们的 deadline 是下周五五月二十二号。" },
+        { "id": "zh_en_mixed_006", "text": "周末我打算 update 一下 MacBook 的系统。" },
+        { "id": "zh_en_mixed_007", "text": "用 Python 写个 script 来处理这批 CSV 文件吧。" },
+        { "id": "zh_en_mixed_008", "text": "客户 demand 我们 support 离线模式。" },
+        { "id": "zh_en_mixed_009", "text": "把 PPT 发到我邮箱，我 review 完反馈给你。" },
+        { "id": "zh_en_mixed_010", "text": "请帮我 book 一下明天下午两点的会议室。" },
+        { "id": "zh_en_mixed_011", "text": "这次 release 的 changelog 写得不够详细。" },
+        { "id": "zh_en_mixed_012", "text": "我用 ChatGPT 帮你画了一张 architecture 图。" },
+        { "id": "zh_en_mixed_013", "text": "今天的 sprint planning 推迟到周四上午。" },
+        { "id": "zh_en_mixed_014", "text": "Backend 那边说 API 接口已经 deploy 上去了。" },
+        { "id": "zh_en_mixed_015", "text": "你 share 一下屏幕，我帮你看看这个 error。" }
+      ]
+    },
+    {
+      "id": "long_form",
+      "label": "长句与复杂语序",
+      "description": "超过 25 字的长句，含从句、定语、转折，考察长程依赖与 endpoint 切分",
+      "sentences": [
+        { "id": "long_form_001", "text": "虽然今天的工作比较多，但是我还是希望能在五点之前把所有事情处理完。" },
+        { "id": "long_form_002", "text": "如果这个方案行不通，我们可能需要重新考虑整个产品的设计思路。" },
+        { "id": "long_form_003", "text": "我刚才仔细看了一下你提交的报告，里面有几个数据可能需要再核对一下。" },
+        { "id": "long_form_004", "text": "他说他下个月会去日本出差大概两周时间，回来之后再跟我们对接项目细节。" },
+        { "id": "long_form_005", "text": "尽管这次实验的结果并不理想，但我们仍然从中学到了很多值得反思的地方。" },
+        { "id": "long_form_006", "text": "我建议你先把市场调研做好，再决定要不要投入这么多资源到新产品的研发上。" },
+        { "id": "long_form_007", "text": "刚才那位先生说他的护照丢在了酒店大堂的咖啡桌附近，请帮忙找一下。" },
+        { "id": "long_form_008", "text": "公司新出的这款智能音箱在音质和语音识别准确率方面都有了非常明显的提升。" },
+        { "id": "long_form_009", "text": "我们这个季度的销售业绩超过了预期目标，主要得益于新市场的开拓和老客户的复购。" },
+        { "id": "long_form_010", "text": "如果你不介意的话，我希望我们能在这个事情上保持坦诚的沟通而不是相互回避。" }
+      ]
+    },
+    {
+      "id": "proper_nouns",
+      "label": "人名地名品牌",
+      "description": "常见专有名词，含外文名音译、地名、品牌、技术名词",
+      "sentences": [
+        { "id": "proper_nouns_001", "text": "李雷和韩梅梅明天一起去王府井吃饭。" },
+        { "id": "proper_nouns_002", "text": "我刚从上海虹桥机场坐高铁到杭州东站。" },
+        { "id": "proper_nouns_003", "text": "马斯克最近又发推谈到了 SpaceX 的最新进展。" },
+        { "id": "proper_nouns_004", "text": "去年我去了一趟京都的清水寺和金阁寺。" },
+        { "id": "proper_nouns_005", "text": "苹果在 Cupertino 的总部叫做 Apple Park。" },
+        { "id": "proper_nouns_006", "text": "刘德华和张学友是我父母那一辈最喜欢的歌手。" },
+        { "id": "proper_nouns_007", "text": "我刚下载了一个叫 Notion 的笔记软件。" },
+        { "id": "proper_nouns_008", "text": "OpenAI 发布了 GPT 五点零，大家都在讨论。" },
+        { "id": "proper_nouns_009", "text": "巴塞罗那的圣家堂据说要到 2030 年才能完工。" },
+        { "id": "proper_nouns_010", "text": "周杰伦的演唱会下个月会在鸟巢举办。" }
+      ]
+    },
+    {
+      "id": "colloquial",
+      "label": "口语化表达",
+      "description": "语气词 / 缩略 / 重叠 / 拟声词，考察非书面语鲁棒性",
+      "sentences": [
+        { "id": "colloquial_001", "text": "哎呀这个事情真的好烦啊。" },
+        { "id": "colloquial_002", "text": "嗯嗯好的好的我马上就来。" },
+        { "id": "colloquial_003", "text": "唉算了算了不想再说这个话题了。" },
+        { "id": "colloquial_004", "text": "哇这个新出的奶茶超级好喝。" },
+        { "id": "colloquial_005", "text": "诶你看那边那个人是不是小王？" },
+        { "id": "colloquial_006", "text": "咦，这个味道有点奇怪呢。" },
+        { "id": "colloquial_007", "text": "哈哈哈这个梗我笑了好几分钟。" },
+        { "id": "colloquial_008", "text": "嗯怎么说呢，就是感觉怪怪的。" },
+        { "id": "colloquial_009", "text": "哎呀妈呀今天差点迟到了。" },
+        { "id": "colloquial_010", "text": "对对对就是这个意思你说得太对了。" }
+      ]
+    }
+  ]
+}

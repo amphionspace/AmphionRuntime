@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <TextView
+        android:id="@+id/tv_upload_summary"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="start|center_vertical"
+        android:paddingStart="@dimen/screen_padding"
+        android:paddingEnd="8dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:textColor="@color/brand_text_secondary"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/tv_upload_action"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="end|center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="@dimen/screen_padding"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:textColor="@color/brand_accent"
+        android:textStyle="bold"
+        android:textSize="13sp" />
+</merge>

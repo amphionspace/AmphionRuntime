@@ -27,4 +27,140 @@
     <string name="punct_toggle_label">标点 (CT-Transformer)</string>
     <string name="punct_toggle_desc">在 final 文本上补「，。？」；首次需 ~1-2 秒加载 62 MB 模型</string>
     <string name="punct_unavailable">标点模型未安装，先跑 tools/asr/00_push_punct_model.sh</string>
+
+    <!-- ========== 评估模式 ==========
+         文案原则：默认测试员没有任何技术背景。
+         - 不出现 sha / token / WER / tester_id / sentence_id / partial / final / reference 等技术名词
+         - dialog 一句话说清「做什么」，不解释「为什么」
+         - WER 在 UI 上一律展示为「准确率」（= 1 - WER），让数字直观（越高越好）
+    -->
+
+    <string name="landing_title">Amphion ASR</string>
+    <string name="landing_subtitle">选一个模式开始</string>
+    <string name="landing_demo_title">体验识别</string>
+    <string name="landing_demo_desc">边说边出字，看看识别效果</string>
+    <string name="landing_eval_title">参与测试</string>
+    <string name="landing_eval_desc">念几句话，帮我们看准确率</string>
+
+    <string name="eval_title">参与测试</string>
+    <string name="eval_tester_dialog_title">你叫什么？</string>
+    <string name="eval_tester_dialog_msg">填真名或工号，方便我们认出你的数据。</string>
+    <string name="eval_tester_dialog_hint">例：alice、张三、工号</string>
+    <string name="eval_tester_current_fmt">你好，%1$s</string>
+    <string name="eval_tester_change_title">换个人测</string>
+    <string name="eval_tester_change_msg">退出当前身份；已录的不会丢。</string>
+
+    <string name="eval_item_stat_fmt">已录 %1$d 次 · 准确率 %2$s · 已上传 %3$d/%4$d</string>
+    <string name="eval_item_stat_zero">已录 0 次</string>
+    <string name="eval_item_last_fmt">上次 %1$s</string>
+    <string name="eval_item_estimate_unknown">—</string>
+
+    <string name="eval_record_title">念这句</string>
+    <string name="eval_record_title_custom">念这句</string>
+    <string name="eval_record_btn_save_and_return">保存并返回</string>
+
+    <!-- 自由录音 section（先录 → 后校对 reference 流程） -->
+    <string name="eval_custom_section_title">自由发挥</string>
+    <string name="eval_custom_section_desc">想到啥念啥，念完再校对识别结果</string>
+    <string name="eval_custom_entry_title">+ 自由录音</string>
+    <string name="eval_custom_entry_desc">点这里开始录音，念完再填刚才说了什么</string>
+    <string name="eval_custom_idle_hint">点开始按钮，想到啥念啥；录完会自动填到下方供你校对</string>
+    <string name="eval_custom_pending_hint">请校对下面这段是不是你刚才念的；改完后点保存</string>
+    <string name="eval_custom_ref_hint">这里会填入识别结果，校对后保存</string>
+    <string name="eval_custom_save_empty">校对后的句子不能为空</string>
+    <string name="eval_custom_btn_save">保存</string>
+    <string name="eval_custom_btn_replay">播放刚才录的</string>
+    <string name="eval_custom_btn_replay_stop">暂停</string>
+    <string name="eval_record_reference_label">句子</string>
+    <string name="eval_record_hypothesis_label">识别结果</string>
+    <string name="eval_record_estimate_label">准确率（仅供参考）</string>
+    <string name="eval_record_btn_start">开始录音</string>
+    <string name="eval_record_btn_stop">停止</string>
+    <string name="eval_record_btn_replay">播放</string>
+    <string name="eval_record_btn_save_next">保存并下一句</string>
+    <string name="eval_record_btn_save_stay">保存继续</string>
+    <string name="eval_record_btn_retake">重录</string>
+    <string name="eval_record_btn_discard">丢弃</string>
+    <string name="eval_record_status_recording">录音中…</string>
+    <string name="eval_record_status_idle">准备好了，点下面的按钮开始</string>
+    <string name="eval_record_status_saved">已保存，可以播放检查或下一句</string>
+    <string name="eval_record_error_fmt">录音出错：%1$s</string>
+    <string name="eval_record_diff_hint">按句子念就行，颜色只是给你看哪里识别错了</string>
+
+    <!-- 识别引擎：UI 只暴露语种友好名（中英 / 粤英 / …），不出现 modelId/version 这类工程串 -->
+    <string name="eval_engine_label">识别引擎</string>
+    <string name="eval_engine_btn_switch">切换</string>
+    <string name="eval_engine_name_none">还没装引擎</string>
+    <string name="eval_engine_state_loading">加载中…</string>
+    <string name="eval_engine_state_ready">就绪</string>
+    <string name="eval_engine_state_failed">加载失败</string>
+    <string name="eval_engine_state_none">没有可用的引擎</string>
+    <string name="eval_engine_dialog_title">选语种</string>
+    <string name="eval_engine_dialog_empty">手机里还没有装识别引擎；请联系工程师装一个</string>
+    <string name="eval_engine_busy_hint">引擎还在加载，稍等一下再录</string>
+
+    <!-- 引擎 / 语种友好名 -->
+    <string name="eval_engine_lang_zh">中文</string>
+    <string name="eval_engine_lang_en">英文</string>
+    <string name="eval_engine_lang_other">其他</string>
+
+    <string name="eval_env_section">现在在哪里录的？（可不填）</string>
+    <string name="eval_env_location_hint">地点（办公室 / 户外 / 高铁…）</string>
+    <string name="eval_env_noise_label">周围吵不吵？</string>
+    <string name="eval_env_notes_hint">备注</string>
+
+    <string name="eval_noise_unspecified">未填</string>
+    <string name="eval_noise_silent">很安静</string>
+    <string name="eval_noise_low">较安静</string>
+    <string name="eval_noise_medium">一般</string>
+    <string name="eval_noise_high">较吵</string>
+    <string name="eval_noise_very_high">很吵</string>
+
+    <string name="eval_detail_title">句子详情</string>
+    <string name="eval_detail_reference_label">句子</string>
+    <string name="eval_detail_attempt_fmt">第 %1$d 次 · %2$s · 准确率 %3$s</string>
+    <string name="eval_detail_upload_pending">未上传</string>
+    <string name="eval_detail_upload_uploading">上传中</string>
+    <string name="eval_detail_upload_uploaded">已上传</string>
+    <string name="eval_detail_upload_retry">待重试</string>
+    <string name="eval_detail_upload_failed">上传失败</string>
+    <string name="eval_detail_btn_play">播放</string>
+    <string name="eval_detail_btn_delete">删除</string>
+    <string name="eval_detail_btn_add">再录一次</string>
+    <string name="eval_detail_delete_blocked_uploaded">已上传的不能在这里删，找工程师</string>
+    <string name="eval_detail_delete_blocked_uploading">上传中，等一下再删</string>
+    <string name="eval_detail_delete_confirm">删除这次录音？删了找不回。</string>
+
+    <string name="eval_upload_summary_fmt">待上传 %1$d · 已上传 %2$d · 失败 %3$d</string>
+    <string name="eval_upload_summary_not_configured">还没设上传地址</string>
+    <string name="eval_upload_action_sync_now">立即上传</string>
+    <string name="eval_upload_action_running">上传中…</string>
+    <string name="eval_upload_action_configure">去设置</string>
+
+    <string name="eval_upload_settings_title">上传到哪？</string>
+    <string name="eval_upload_settings_msg">服务器地址和 Token 由工程师告诉你，填到下面。</string>
+    <string name="eval_upload_url_hint">服务器地址</string>
+    <string name="eval_upload_token_hint">Token（工程师给的）</string>
+    <string name="eval_upload_auto_label">录完自动上传</string>
+    <string name="eval_upload_use_official">用官方服务器</string>
+    <string name="eval_upload_btn_save">保存</string>
+    <string name="eval_upload_btn_clear">清除</string>
+    <string name="eval_upload_btn_cancel">取消</string>
+
+    <string name="eval_menu_export_zip">导出 zip</string>
+    <string name="eval_menu_upload_settings">上传设置</string>
+    <string name="eval_menu_sync_now">立即上传</string>
+    <string name="eval_menu_change_tester">换个人测</string>
+    <string name="eval_menu_clean_uploaded">清理 7 天前已上传</string>
+
+    <string name="eval_export_empty">没有可导出的录音</string>
+    <string name="eval_export_done_fmt">已打包 %1$d 条 · %2$s</string>
+    <string name="eval_export_failed_fmt">打包失败：%1$s</string>
+    <string name="eval_export_share_subject">Amphion ASR 评估数据</string>
+    <string name="eval_export_share_chooser">发送到…</string>
+
+    <string name="eval_sync_done_fmt">上传完成：成功 %1$d · 已存在 %2$d · 待重试 %3$d · 失败 %4$d</string>
+    <string name="eval_no_permission">没有麦克风权限，没法录音</string>
+    <string name="eval_load_failed">句子列表加载失败：%1$s</string>
+    <string name="eval_engine_unavailable">识别引擎还没准备好，先只保存录音</string>
 </resources>

@@ -15,8 +15,15 @@ class ModelImporter(private val context: Context) {
 
     private val tag = "AsrSampleImporter"
 
-    /** 返回这次新 import 的目录列表（绝对路径）。同名目录已存在则跳过该 (id, version)。 */
-    fun importIfPresent(): List<File> {
+    /**
+     * 返回这次新 import 的目录列表（绝对路径）。同名目录已存在则跳过该 (id, version)。
+     *
+     * 用全局锁防并发：Application onCreate 和 RecordSentenceActivity.loadInitialEngineAsync
+     * 都会调用此方法（第一个保证「app 启动就 import」、第二个保证「即使用户在 import 没完成
+     * 时直接进录音页也能等到」）。两者并发执行会让 [java.io.File.deleteRecursively]
+     * 删掉对方正在写的目录，造成模型损坏。
+     */
+    fun importIfPresent(): List<File> = synchronized(LOCK) {
         val srcRoot = File(context.getExternalFilesDir(null), "asr-models-import")
         if (!srcRoot.isDirectory) return emptyList()
 
@@ -47,6 +54,10 @@ class ModelImporter(private val context: Context) {
             Log.i(tag, "cleanup $srcRoot")
             srcRoot.deleteRecursively()
         }
-        return imported
+        return@synchronized imported
+    }
+
+    companion object {
+        private val LOCK = Any()
     }
 }
