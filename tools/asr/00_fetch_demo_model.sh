@@ -9,6 +9,9 @@
 #   bash tools/asr/00_fetch_demo_model.sh                    # 仅下载 + 重命名 + 生成 manifest
 #   bash tools/asr/00_fetch_demo_model.sh push               # 同上，再用 adb push 到设备
 #   bash tools/asr/00_fetch_demo_model.sh push <serial>      # 指定 adb 设备序列号
+#
+# 注意：粤英 (yue-en) demo 上游没有公开分发，需要自有训练后用 00_push_my_model.sh
+#       推到 zipformer_L_yue_en 目录；本脚本只覆盖中英 demo。
 
 set -euo pipefail
 
@@ -18,15 +21,23 @@ DEVICE_SERIAL="${2:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# ----- 模型常量（也用作 model_id 与 version；不要随意改，跟 ModelImporter 是配对的） -----
-MODEL_ID="sherpa-onnx-streaming-zh-en-demo"
+# ----- 模型常量 -----
+# MODEL_ID = 本地 demo-model 目录名，必须与 decode_offline.py / decode_streaming.py /
+# MainActivity 的 lang 路由保持一致（zh-en → zipformer_L_zh_en）。改 MODEL_ID
+# 必须同步改下游所有消费者，否则脚本跑出来的产物没人能用。
+MODEL_ID="zipformer_L_zh_en"
+MODEL_LANG="zh-en"
+# MODEL_VERSION 只在 push 到设备时使用，构造 ModelImporter 期望的双层路径
+# asr-models-import/<id>/<v>/。本地 demo-model 不带 version 子层（python 消费者只
+# 关心文件路径）。
 MODEL_VERSION="1.0.0"
 SAMPLE_PKG="com.amphion.asr.sample"   # 与 sample/build.gradle.kts 中 applicationId 保持一致
 UPSTREAM_NAME="sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20"
 UPSTREAM_TAR_URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/${UPSTREAM_NAME}.tar.bz2"
 
 OUT_ROOT="$REPO_ROOT/tools/asr/demo-model"
-OUT_DIR="$OUT_ROOT/${MODEL_ID}/${MODEL_VERSION}"
+# 本地单层：直接写到 demo-model/<id>/，与 decode_*.py 默认 --model-dir 对齐
+OUT_DIR="$OUT_ROOT/${MODEL_ID}"
 
 # ----- 一些工具方法 -----
 have() { command -v "$1" >/dev/null 2>&1; }
@@ -63,13 +74,16 @@ prepare_model() {
   cp -fv "$UPSTREAM_NAME/joiner-epoch-99-avg-1.int8.onnx"   "$OUT_DIR/joiner.int8.onnx"
   cp -fv "$UPSTREAM_NAME/tokens.txt"                        "$OUT_DIR/tokens.txt"
 
-  # ----- 步骤 3：生成 manifest.json（虽然 sample 走 importer，不走下载，但保留以备后续测试） -----
+  # ----- 步骤 3：生成 manifest.json -----
+  # MainActivity 的多语言路由按 manifest.lang 选模型，必填；其他字段供 ModelManager /
+  # EngineImpl / ZipformerSignature 校验。
   if have python3; then
     ( cd "$OUT_DIR" && python3 - <<PY
 import hashlib, json, os, pathlib
 
 MODEL_ID = "$MODEL_ID"
 VERSION = "$MODEL_VERSION"
+LANG = "$MODEL_LANG"
 BASE_URL = f"https://your-cdn.example.com/{MODEL_ID}/{VERSION}"
 FILES = ["encoder.int8.onnx", "decoder.onnx", "joiner.int8.onnx", "tokens.txt"]
 
@@ -87,6 +101,7 @@ manifest = {
     "min_sdk_version": "1.0.0",
     "max_sdk_version": "2.0.0",
     "model_type": "zipformer",
+    "lang": LANG,
     "decoding_method": "greedy_search",
     "sample_rate": 16000,
     "feature_dim": 80,
@@ -132,7 +147,8 @@ push_to_device() {
     echo "[ERROR] 没有连接的 adb 设备，先 adb devices 看看"; exit 1;
   }
 
-  # externalFilesDir 路径：/sdcard/Android/data/<pkg>/files/asr-models-import/<id>/<v>/
+  # ModelImporter 期望双层：asr-models-import/<id>/<v>/
+  # 本地 OUT_DIR 是单层 demo-model/<id>/，push 时用 <id>/<v>/ 这一层把同一份产物挂上去。
   local DEV_DIR="/sdcard/Android/data/${SAMPLE_PKG}/files/asr-models-import/${MODEL_ID}/${MODEL_VERSION}"
 
   echo "[INFO] 检查 $SAMPLE_PKG 是否已安装到设备..."
@@ -144,7 +160,7 @@ push_to_device() {
           cd $REPO_ROOT/android/AmphionRuntime
           bash init_gradle_wrapper.sh
           ./gradlew :sample:installDebug
-          adb shell am start -n ${SAMPLE_PKG}/.MainActivity
+          adb shell am start -n ${SAMPLE_PKG}/.eval.LandingActivity
 
         然后再 重新跑本脚本 push。
 EOF

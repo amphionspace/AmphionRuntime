@@ -15,10 +15,13 @@
 ### 方式一：拉官方 sherpa-onnx 中英 demo 模型
 
 ```bash
-bash tools/asr/00_fetch_demo_model.sh
+bash tools/asr/00_fetch_demo_model.sh           # 仅 prepare
+bash tools/asr/00_fetch_demo_model.sh push      # prepare + push 到设备
 ```
 
-注意当前 fetch 脚本默认产出路径是 `demo-model/sherpa-onnx-streaming-zh-en-demo/1.0.0/`，与 `decode_offline.py` / `decode_streaming.py` 默认 `--model-dir tools/asr/demo-model/zipformer_L_zh_en` 不一致 —— 跑脚本时显式覆盖 `--model-dir`，或先把 fetch 脚本里的 `MODEL_ID` 改成 `zipformer_L_zh_en`。
+产物落到 `demo-model/zipformer_L_zh_en/`，manifest.json 带 `"lang": "zh-en"`，与 `decode_offline.py` / `decode_streaming.py` 默认 `--model-dir` 以及 sample app MainActivity 的 lang 路由一致。
+
+粤英 (yue-en) 上游没有公开 demo，需自有训练后用方式二填到 `demo-model/zipformer_L_yue_en/`。
 
 ### 方式二：用自己训练的 ONNX 模型
 
