@@ -119,6 +119,7 @@ SDK 从你的服务器拉一份 manifest.json，按里面的 URL 下载文件、
 | model_type | string | 必须是 sherpa-onnx 支持的字符串：`zipformer2` / `zipformer` / `paraformer` 等。流式 zipformer 用 `zipformer2`。SDK 加载时会读取并传给 native 层。Android SDK 在加载 zipformer transducer 之前会扫 encoder ONNX 的 metadata，校验该字段与模型实际结构一致，不一致直接抛 `MODEL_TYPE_MISMATCH (2005)`，避免 sherpa-onnx 走错路径 native abort |
 | decoding_method | string | greedy_search 或 modified_beam_search。SDK 加载时会读取，作为 AsrConfig 默认值的覆盖（仅当调用方未显式调用 .decodingMethod 时生效） |
 | max_active_paths | int (可选) | modified_beam_search 时的 beam size，范围 [1, 32]。SDK 加载时读取，覆盖逻辑同 decoding_method |
+| lang | string (可选) | 模型语言标识，约定值如 zh-en / yue-en / en / zh。SDK 会原样回填到 ModelDescriptor.lang 与 LocalModel.lang，业务方可据此做多语言路由（例如 sample 中的中英 / 粤英 RadioGroup 切换）。缺失时为 null，不影响加载 |
 | sample_rate | int | 训练时的采样率，端上 SDK 会按此值做重采样校验 |
 | feature_dim | int | fbank 特征维度，与 icefall 训练一致；通常 80 |
 | files | array | 每个文件的 url + size + sha256；name 必须与本地文件名一致 |

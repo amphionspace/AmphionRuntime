@@ -18,7 +18,13 @@ public class ModelManager(context: Context) {
     private val appCtx: Context = context.applicationContext ?: context
     private val downloader: ModelDownloader = ModelDownloader(appCtx)
 
-    /** 列出当前 filesDir 下已存在的模型版本。 */
+    /**
+     * 列出当前 filesDir 下已存在的模型版本。
+     *
+     * 若版本目录下存在合法的 `manifest.json`，会一并解析出 [LocalModel.lang]，便于多语言场景下的
+     * 模型路由（例如 sample 中切换中英 / 粤英两个模型）；manifest 缺失或解析失败时 lang = null，
+     * 不影响目录被列出。
+     */
     public fun listLocal(): List<LocalModel> {
         val root = rootDir()
         if (!root.isDirectory) return emptyList()
@@ -27,10 +33,31 @@ public class ModelManager(context: Context) {
                 if (!modelDir.isDirectory) continue
                 for (versionDir in modelDir.listFiles().orEmpty()) {
                     if (versionDir.isDirectory) {
-                        add(LocalModel(modelDir.name, versionDir.name, versionDir))
+                        add(
+                            LocalModel(
+                                modelId = modelDir.name,
+                                version = versionDir.name,
+                                dir = versionDir,
+                                lang = readLangSafely(versionDir),
+                            )
+                        )
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * 尝试读取 modelDir/manifest.json 并返回 `lang` 字段；任何异常（IO / 非法 JSON / 字段缺失）
+     * 都吞掉返回 null，使 [listLocal] 不会因为单个模型 manifest 损坏就整体失败。
+     */
+    private fun readLangSafely(versionDir: File): String? {
+        return try {
+            val mf = File(versionDir, "manifest.json")
+            if (!mf.isFile) return null
+            ModelDescriptor.fromJson(mf.readText()).lang
+        } catch (_: Throwable) {
+            null
         }
     }
 

@@ -102,6 +102,11 @@ if (localList.isNotEmpty()) {
     return
 }
 
+// 多语言场景（同设备并存多份模型）：listLocal() 会顺便解析 manifest.lang 到 LocalModel.lang，
+// 业务方可据此做语言路由，不必再单独读 manifest。
+// val zhEn  = localList.firstOrNull { it.lang == "zh-en" }
+// val yueEn = localList.firstOrNull { it.lang == "yue-en" }
+
 // 下载（manifest.json 是你服务端发布的）
 val cancellable = mm.ensure(
     manifestUrl = "https://your-cdn.example.com/asr/zh-en/1.0.0/manifest.json",
@@ -258,8 +263,8 @@ engine = AsrEngine(newConfig)
 | AsrCallback | onPartial / onFinal / onEndpoint / onError | 回调接口 |
 | AsrError | code / message / cause | 错误体 |
 | AsrErrorCode | 常量集合 | 见第 8 节 |
-| ModelManager | listLocal / ensure / delete / localPath | 模型管理 |
-| ModelDescriptor | fromJson | manifest 解析 |
+| ModelManager | listLocal / ensure / delete / localPath | 模型管理；listLocal 会顺便填 LocalModel.lang |
+| ModelDescriptor | fromJson + lang | manifest 解析；含可选 lang 字段（zh-en / yue-en 等），用于多语言路由 |
 
 更详细的 API 文档由 Dokka 生成；见 `docs/API_DOC_BUILD.md`。
 

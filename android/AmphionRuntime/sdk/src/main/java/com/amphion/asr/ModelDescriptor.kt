@@ -18,6 +18,16 @@ public data class ModelDescriptor(
     public val sampleRate: Int,
     public val featureDim: Int,
     public val files: List<ModelFile>,
+    /**
+     * 模型语言标识（manifest.json 的 `lang` 字段）。约定值如：
+     * - `zh-en`：中英混合
+     * - `yue-en`：粤英混合
+     * - `en`、`zh` 等单语种
+     *
+     * 老版本 manifest 没有该字段时为 null；调用方可以据此做语言路由（如多模型切换 UI）。
+     * 字段命名与值约定参考 `tools/asr/MODEL_LAYOUT.md`。
+     */
+    public val lang: String? = null,
 ) {
     /**
      * 从 JSON 字符串解析。失败时抛出 [IllegalArgumentException]。
@@ -46,7 +56,8 @@ public data class ModelDescriptor(
                         sizeBytes = f.getLong("size_bytes"),
                         sha256 = f.getString("sha256"),
                     )
-                }
+                },
+                lang = o.optString("lang", "").takeIf { it.isNotBlank() },
             )
         } catch (e: Exception) {
             throw IllegalArgumentException("invalid manifest.json: ${e.message}", e)
@@ -69,4 +80,9 @@ public data class LocalModel(
     public val modelId: String,
     public val version: String,
     public val dir: File,
+    /**
+     * 模型语言标识，来自 [dir] 内 manifest.json 的 `lang` 字段。
+     * manifest 不存在或缺少 `lang` 时为 null。语义同 [ModelDescriptor.lang]。
+     */
+    public val lang: String? = null,
 )
