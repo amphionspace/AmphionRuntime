@@ -120,6 +120,52 @@ errors:
     sdk_action: retry
     user_facing: 文件校验失败，请重试
 
+  # ---------- 401x 评估数据上传（eval-collector） ----------
+  # 这些码用于 sample app eval 模块的上传链路，把 server 返回的字符串
+  # body.code（见 docs/eval/SERVER_SPEC.md §1.6）映射成全局 int code。
+  # 凡是 sdk_action=fatal 的都表示重试也是同样的错，UploadScanner 应停止重试。
+  - code: 4010
+    name: UploadNotConfigured
+    category: network
+    message: upload server_url or bearer token not configured
+    sdk_action: fatal
+    user_facing: 未设置上传地址或令牌
+
+  - code: 4011
+    name: UploadSchemaMismatch
+    category: network
+    message: server rejected upload with SCHEMA_MISMATCH; client schema_version unsupported
+    sdk_action: fatal
+    user_facing: 客户端版本过旧，请升级 App
+
+  - code: 4012
+    name: UploadUnauthorized
+    category: network
+    message: upload rejected with 401; token invalid or expired
+    sdk_action: fatal
+    user_facing: 令牌失效，请联系工程师重新发放
+
+  - code: 4013
+    name: UploadForbidden
+    category: network
+    message: upload rejected with 403; tester_id mismatch or insufficient permissions
+    sdk_action: fatal
+    user_facing: 权限不足，请联系工程师
+
+  - code: 4014
+    name: UploadPayloadTooLarge
+    category: network
+    message: upload rejected with 413; recording exceeds server max body size
+    sdk_action: fatal
+    user_facing: 录音文件过大，请缩短录音
+
+  - code: 4015
+    name: UploadUnsupportedMediaType
+    category: network
+    message: upload rejected with 415; multipart part has wrong Content-Type
+    sdk_action: fatal
+    user_facing: 客户端打包格式异常，请联系工程师
+
   # ---------- 5xxx 系统类 ----------
   - code: 5001
     name: IoFailed
