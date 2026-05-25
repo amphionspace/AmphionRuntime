@@ -66,10 +66,22 @@ shared/regression-set/audio/
 *.tgz
 *.zip
 *.pt
+*.ckpt
+*.bin
+*.safetensors
+*.gguf
 bpe.model
 bpe.vocab
-# 但不要忘了：当 demo-model/ 目录里的 manifest.json / export_meta.json / tokens.txt / README.md
-# 是文本元数据，依然入库，所以这里只忽略二进制后缀。
+
+# --- demo 模型目录：整体不入库 ---
+# 元数据（manifest.json / tokens.txt / export_meta.json）也排除，理由：
+#   1. manifest.files[].url 在产线里通常是 file:// 私人路径或内部 CDN，留在 git 历史里会泄露内部目录结构
+#   2. 元数据每次重训都要 bump sha256，会持续污染 git 历史
+#   3. 元数据必须与权重严格配对，分两个分发渠道（git + CDN）会出现 sha 与文件版本不一致的故障
+# 保留 README.md 说明这个目录怎么填充。
+tools/asr/demo-model/**
+!tools/asr/demo-model/
+!tools/asr/demo-model/README.md
 
 # --- dashboard 渲染产物（CI 生成） ---
 shared/docs/dashboard/trends/reports/*.md
