@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_cream">#F3EEE5</color>
+    <color name="brand_surface">#FAF7F2</color>
+    <color name="brand_surface_alt">#EEE7DA</color>
+    <color name="brand_outline">#E0D6C5</color>
+
+    <color name="brand_accent">#C15F3C</color>
+    <color name="brand_accent_pressed">#A14F30</color>
+    <color name="brand_on_accent">#FFFFFF</color>
+
+    <color name="brand_text_primary">#2C2A26</color>
+    <color name="brand_text_secondary">#6F6A60</color>
+    <color name="brand_text_muted">#9A9387</color>
+
+    <color name="brand_recording">#B23B2E</color>
+
+    <color name="ic_launcher_background">#C15F3C</color>
+
+    <!-- Eval diff 三色（背景色风格，避免淹没文本色） -->
+    <color name="eval_diff_match">#E6F2E3</color>
+    <color name="eval_diff_sub">#FFF3D6</color>
+    <color name="eval_diff_del">#F8D6D0</color>
+    <color name="eval_diff_ins">#F8D6D0</color>
+
+    <!-- Eval 状态徽章色 -->
+    <color name="eval_state_uploaded">#5C8C5A</color>
+    <color name="eval_state_pending">#B0853A</color>
+    <color name="eval_state_failed">#B23B2E</color>
+</resources>

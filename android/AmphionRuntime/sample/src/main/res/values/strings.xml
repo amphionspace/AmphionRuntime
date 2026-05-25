@@ -1,9 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ASR Sample</string>
+    <string name="app_name">Amphion ASR</string>
+
+    <string name="brand_title">AMPHION</string>
+    <string name="brand_subtitle">Streaming ASR · On-Device</string>
+
     <string name="status_idle">就绪</string>
-    <string name="label_partial">实时结果</string>
-    <string name="label_final">最终结果</string>
+    <string name="label_partial">Live</string>
+    <string name="label_final">Final</string>
+    <string name="partial_placeholder">等待语音输入…</string>
+    <string name="final_placeholder">点击下方按钮开始识别，最终结果会累积显示在这里。</string>
     <string name="btn_talk_start">开始识别</string>
     <string name="btn_talk_stop">停止识别</string>
+    <string name="lang_zh_en">中英</string>
+    <string name="lang_yue_en">粤英</string>
+    <string name="status_switching">切换模型中…</string>
+    <string name="status_loading_model">加载 %1$s 模型中…</string>
+    <string name="loading_model_short">模型加载中…</string>
+    <string name="status_lang_missing">%1$s 模型未导入，请先 push 对应模型</string>
+    <string name="status_no_lang_model">未发现带 lang 字段的模型；请确认 manifest.json 中含 \"lang\": \"zh-en\" 或 \"yue-en\"。</string>
+
+    <string name="itn_toggle_label">WeText ITN</string>
+    <string name="itn_toggle_desc">中文 ITN：小数 / 单位 / 日期 / 货币（基于 WeTextProcessing）</string>
+    <string name="itn_unavailable">WeText fst 未安装，先跑 tools/asr/00_push_weitn_fsts.sh</string>
+
+    <string name="punct_toggle_label">标点 (CT-Transformer)</string>
+    <string name="punct_toggle_desc">在 final 文本上补「，。？」；首次需 ~1-2 秒加载 62 MB 模型</string>
+    <string name="punct_unavailable">标点模型未安装，先跑 tools/asr/00_push_punct_model.sh</string>
 </resources>

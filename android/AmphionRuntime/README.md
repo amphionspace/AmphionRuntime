@@ -51,6 +51,123 @@ adb shell am force-stop com.amphion.asr.sample
 adb shell am start -n com.amphion.asr.sample/.MainActivity
 ```
 
+如果你想在 sample 上同时验证「中英 / 粤英」两个模型（顶部 RadioGroup 切换），把仓库内的两份 demo 模型分别 push 上去即可（每条命令对应一个 model_id；SDK 按 manifest.lang 自动归类）：
+
+```bash
+# 中英
+bash ../../tools/asr/00_push_my_model.sh \
+  --src ../../tools/asr/demo-model/zipformer_L_zh_en \
+  --id  amphion-zh-en-streaming_large_crctc_full_lid_musan_traffic_v3_fix \
+  --version 1.0.0-iter-140000-avg-1-chunk-32-left-256
+
+# 粤英
+bash ../../tools/asr/00_push_my_model.sh \
+  --src ../../tools/asr/demo-model/zipformer_L_yue_en \
+  --id  amphion-yue-en-streaming_large_crctc_lid_musan_traffic_v5_fix \
+  --version 1.0.0-iter-100000-avg-1-chunk-32-left-256
+
+adb shell am force-stop com.amphion.asr.sample
+adb shell am start -n com.amphion.asr.sample/.MainActivity
+```
+
+切换前提：每份 manifest.json 含 `"lang": "zh-en"` 或 `"lang": "yue-en"`；缺失的话对应 RadioButton 会灰掉，并在状态栏提示。
+
+### 可选：开启 WeText ITN（中文小数/单位/日期/货币）
+
+Sample 的 lang 切换行下方有一个「WeText ITN」Switch，开启后会用我们 fork 的 sherpa-onnx 里 vendored 的 [WeTextProcessing](https://github.com/wenet-e2e/WeTextProcessing)（Apache-2.0）三段式 runtime 把口语化中文正规化为书面化中文，覆盖小数、单位、日期、时间、货币、百分比、电话号码、身份证号等场景：
+
+```
+两点五八万        -> 2.58万
+幺三五七零八四    -> 1357084
+二零二六年五月十五日 -> 2026年5月15日
+三点五公里        -> 3.5公里
+```
+
+SDK 入口是独立的 `WeitnEngine`（详见 [docs/INTEGRATION.md §12.4](docs/INTEGRATION.md)），跟 ASR engine 完全解耦：业务方按需 lazy 创建，错误回退到原文，关闭后立即释放 native FST 内存。
+
+#### 一次性 push WeText fst
+
+WeText 中文 ITN 由 `zh_itn_tagger.fst` + `zh_itn_verbalizer.fst` 两份文件组成，总和约 2–4 MB；不打进 APK，走 adb push（跟标点模型同款模式）：
+
+```bash
+# 自动 pip install WeTextProcessing 并编 fst（首次会 conda/pip 装 pynini，需要数分钟）
+bash ../../tools/asr/00_push_weitn_fsts.sh
+
+# 多设备 / fork 改包名 / 只编不 push（同 punct 脚本）：
+bash ../../tools/asr/00_push_weitn_fsts.sh --serial <adb-serial>
+bash ../../tools/asr/00_push_weitn_fsts.sh --pkg com.example.fork.asr
+bash ../../tools/asr/00_push_weitn_fsts.sh --no-push
+
+# 或：直接从公司内部 CDN 拉预编译产物（推荐生产环境）
+WEITN_TAGGER_URL=https://your-cdn.example.com/weitn/zh_itn_tagger.fst \
+WEITN_VERBALIZER_URL=https://your-cdn.example.com/weitn/zh_itn_verbalizer.fst \
+WEITN_TAGGER_SHA256=... WEITN_VERBALIZER_SHA256=... \
+  bash ../../tools/asr/00_push_weitn_fsts.sh
+```
+
+脚本会把 fst 缓存到 `tools/asr/weitn-fsts/`（git 忽略）；push 到 `/sdcard/Android/data/<pkg>/files/asr-weitn-import/`。sample 启动时 `WeitnAssetInstaller` 会一次性搬到 `<filesDir>/asr-weitn/{zh_itn_tagger.fst,zh_itn_verbalizer.fst}`。
+
+#### 运行时表现
+
+- Switch 默认关；fst + ASR engine 双就绪后由 sample 自动开一次（节流；失败也不再重试）
+- 关闭 Switch 立即 `WeitnEngine.close()` 释放数 MB native FST 内存
+- 录音中 Switch 灰禁，避免会话活跃时关 native；本段录音结束后自动恢复
+- ITN 与标点可以同时开：先做 WeText ITN → 再做标点；ASR final 显示用户能看到「先原文 → ITN 替换 → 再加标点」的两次轻微闪烁，但不会阻塞下一段语音的 partial
+- fst 未 push 时 Switch 永远灰禁，但 ASR + 标点主功能不受影响
+
+#### 装机验证清单
+
+| 朗读内容 | 期望显示（ITN on） |
+| --- | --- |
+| 两点五八万 | 2.58万 |
+| 幺三五七零八四 | 1357084 |
+| 二零二六年五月十五日 | 2026年5月15日 |
+| 三点五公里 | 3.5公里 |
+| 三百块钱 | 300块钱 |
+| 百分之七十五 | 75% |
+
+logcat 关键字（按重要性）：
+
+- `WeitnEngine loaded tagger=... verbalizer=...` —— fst 加载成功
+- `WeitnEngine error: <CODE> <message>` / `WeitnEngine error: MODEL_LOAD_FAILED` —— 加载或 normalize 期间出错
+- `MainActivity` 里 `installWeitnAsync` 输出 —— sample 端的 WeitnAssetInstaller 状态
+
+若朗读后 UI 没有任何 ITN 效果：
+
+1. 看 logcat 是否有 `WeitnEngine error: MODEL_LOAD_FAILED`，多半是 push 上去的 fst 文件名前缀错（WeText runtime 按 `zh_itn_` / `zh_tn_` 前缀决定 ParseType），需检查 tagger 文件名包含 `zh_itn_`
+2. 看 sample 的 `WeitnAssetInstaller` 是否报错（external 路径找不到 fst → push 步骤没跑或者 sample 包名不一致）
+3. 长按 sample 标题栏的「dump」按钮，从 `<filesDir>/asr-debug/<ts>/transcript.txt` 取 SDK 原始输出与 ITN 输出对比
+
+### 可选：开启标点（CT-Transformer 中英双语）
+
+Sample 的 ITN 行下方还有一个「标点 (CT-Transformer)」Switch，开启后会用 sherpa-onnx 官方 `sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8` 模型给 final 文本加上「，。？」。底层走 SDK 公开 API `PunctuationEngine`（详见 [docs/INTEGRATION.md §12.6](docs/INTEGRATION.md)）。
+
+#### 一次性 push 标点模型
+
+模型 ~62 MB INT8，不打进 APK，走 adb push（仿照 ASR 模型的工程习惯）：
+
+```bash
+bash ../../tools/asr/00_push_punct_model.sh           # 下载 + push 到默认 sample 包
+# 多设备时：
+bash ../../tools/asr/00_push_punct_model.sh --serial <adb-serial>
+# 改了 applicationId 的 fork：
+bash ../../tools/asr/00_push_punct_model.sh --pkg com.example.fork.asr
+# 只下载到本地 cache 不动设备：
+bash ../../tools/asr/00_push_punct_model.sh --no-push
+```
+
+脚本会把 tarball 缓存到 `tools/asr/punct-model/`（git 忽略），同时校验 tarball 与解压后 `model.int8.onnx` 两层 sha256；push 到 `/sdcard/Android/data/<pkg>/files/asr-punct-import/model.int8.onnx`。sample 启动时 `PunctModelInstaller` 会一次性搬到 `<filesDir>/asr-punct/model.int8.onnx`（之后即使外部目录被清空，模型仍常驻 internal 直到 app 被卸载或手动清理）。
+
+#### 运行时表现
+
+- Switch 默认关。开启时异步加载标点模型（~1 秒），过程中按钮短暂灰禁、状态栏提示「加载标点模型…」
+- 加载完成后状态栏切换为「模型就绪（中英）… 已启用标点」
+- 关闭 Switch 会立即 `PunctuationEngine.close()` 释放 ~70 MB native 内存
+- 录音中 Switch 灰禁，避免会话活跃时关 native；本段录音结束后自动恢复
+- 标点推理在专用单线程 `amphion-punct` 上跑，每段 final 大约 20-100 ms。先把无标点的 final 直接显示在 UI，标点回来后**替换**原行（用户能看到"先出文字、再补标点"的轻微闪烁，但不会阻塞下一段语音的 partial 显示）
+- ITN 与标点可以同时开：先做 WeText ITN → 再做标点（详见上面 WeText ITN 章节）
+- 标点模型未 push 时 Switch 永远灰禁，但 ASR + ITN 主功能不受影响
+
 如果 step 6 报 `more than one device/emulator`：
 
 ```bash
