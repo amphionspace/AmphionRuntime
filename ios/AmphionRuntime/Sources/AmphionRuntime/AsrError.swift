@@ -19,6 +19,7 @@ public enum AsrErrorCode: Int {
     case modelFileMissing        = 2002
     case modelLoadFailed         = 2003
     case modelManifestParseError = 2004
+    case modelTypeMismatch       = 2005
 
     // 3xxx
     case sessionAlreadyClosed    = 3001

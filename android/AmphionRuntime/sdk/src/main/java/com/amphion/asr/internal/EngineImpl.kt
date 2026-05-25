@@ -49,10 +49,14 @@ internal class EngineImpl(private val config: AsrConfig) {
 
     init {
         engineHotwords = config.hotwords.joinToString("\n")
+        // 注意：buildOnlineRecognizerConfig 必须在 NativeGuard.run 之外构造，
+        // 否则其抛出的业务异常（例如 MODEL_TYPE_MISMATCH）会被 NativeGuard 一律归一为 NATIVE_CRASH(9001)，
+        // 调用方就拿不到「请改 manifest.model_type」这种可操作错误了。
+        val recognizerConfig = buildOnlineRecognizerConfig(config)
         recognizer = when (val r = NativeGuard.run("OnlineRecognizer.<init>") {
             OnlineRecognizer(
                 assetManager = null,
-                config = buildOnlineRecognizerConfig(config),
+                config = recognizerConfig,
             )
         }) {
             is NativeResult.Ok -> {
@@ -191,6 +195,35 @@ internal class EngineImpl(private val config: AsrConfig) {
 
         // sherpa-onnx 的 OnlineModelConfig.modelType 是字符串字段；按实际选用的网络类型填回
         val modelTypeStr = modelTypeToManifestString(modelType, overrides?.modelType)
+
+        // ----- zipformer transducer 的 manifest.model_type ↔ encoder ONNX metadata 一致性校验 -----
+        // 仅对 zipformer / zipformer2 transducer 做（其它族的 metadata key 不在我们的特征字典里）。
+        // 校验目的：避免把 zipformer2 模型按 zipformer1 路径加载，sherpa-onnx 找不到 attention_dims
+        // 直接 abort 整个进程（Java try/catch 接不住）。详见 ZipformerSignature 的注释。
+        if (modelType == ModelType.TRANSDUCER &&
+            (modelTypeStr == "zipformer" || modelTypeStr == "zipformer2")
+        ) {
+            val expected = if (modelTypeStr == "zipformer2") {
+                ZipformerSignature.Detected.ZIPFORMER2
+            } else {
+                ZipformerSignature.Detected.ZIPFORMER1
+            }
+            val detected = ZipformerSignature.detect(resolved.encoder!!)
+            if (detected != ZipformerSignature.Detected.UNKNOWN && detected != expected) {
+                val actualTag = when (detected) {
+                    ZipformerSignature.Detected.ZIPFORMER1 -> "zipformer"
+                    ZipformerSignature.Detected.ZIPFORMER2 -> "zipformer2"
+                    else -> "unknown"
+                }
+                throw IllegalStateException(
+                    "MODEL_TYPE_MISMATCH (code=${AsrErrorCode.MODEL_TYPE_MISMATCH}): " +
+                        "manifest.model_type='$modelTypeStr' but encoder ONNX metadata indicates '$actualTag'. " +
+                        "Fix manifest.json under ${c.modelDir.absolutePath} " +
+                        "(see tools/asr/MODEL_LAYOUT.md §3 for the model_type convention)."
+                )
+            }
+            Logger.i("zipformer signature check passed: manifest=$modelTypeStr, detected=$detected")
+        }
 
         val modelConfig = when (modelType) {
             ModelType.TRANSDUCER -> OnlineModelConfig(

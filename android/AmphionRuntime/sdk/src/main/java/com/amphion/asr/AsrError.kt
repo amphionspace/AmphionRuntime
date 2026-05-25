@@ -40,6 +40,7 @@ public object AsrErrorCode {
     public const val MODEL_FILE_MISSING: Int = 2002
     public const val MODEL_LOAD_FAILED: Int = 2003
     public const val MODEL_MANIFEST_PARSE_ERROR: Int = 2004
+    public const val MODEL_TYPE_MISMATCH: Int = 2005
 
     public const val SESSION_ALREADY_CLOSED: Int = 3001
     public const val SAMPLE_RATE_MISMATCH: Int = 3002

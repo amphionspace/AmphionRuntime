@@ -69,6 +69,13 @@ errors:
     sdk_action: fatal
     user_facing: 模型配置错误
 
+  - code: 2005
+    name: ModelTypeMismatch
+    category: model
+    message: manifest.model_type does not match ONNX encoder metadata signature
+    sdk_action: fatal
+    user_facing: 模型配置错误，请联系开发者
+
   # ---------- 3xxx 运行时类 ----------
   - code: 3001
     name: SessionAlreadyClosed

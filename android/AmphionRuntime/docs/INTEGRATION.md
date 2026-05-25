@@ -274,7 +274,7 @@ engine = AsrEngine(newConfig)
 | 2002 | MODEL_FILE_MISSING | modelDir 内缺少必备文件 |
 | 2003 | MODEL_LOAD_FAILED | OnlineRecognizer 加载失败 |
 | 2004 | MODEL_VERSION_MISMATCH | 模型版本不在 SDK 兼容范围内 |
-| 2005 | MODEL_CHECKSUM_FAILED | 下载文件 SHA256 校验失败 |
+| 2005 | MODEL_TYPE_MISMATCH | manifest.model_type 与 encoder ONNX metadata 检测出的实际类型不一致；典型场景：zipformer2 模型把 manifest 写成了 zipformer。SDK 在 OnlineRecognizer 加载前做扫描校验、fail-fast，以避免 sherpa-onnx 走错路径直接 native abort |
 | 2006 | MANIFEST_PARSE_FAILED | manifest.json 解析失败 |
 | 3001 | SESSION_RELEASED | 在已关闭的 session 上调用方法 |
 | 3002 | SESSION_NOT_STARTED | 在 stop 之后调用 acceptPcm 等 |
