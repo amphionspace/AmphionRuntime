@@ -2,25 +2,31 @@ package com.amphion.asr.internal
 
 import android.os.Handler
 import android.os.HandlerThread
-import com.k2fsa.sherpa.onnx.OnlineRecognizer
-import com.k2fsa.sherpa.onnx.OnlineRecognizerResult
-import com.k2fsa.sherpa.onnx.OnlineStream
-import com.k2fsa.sherpa.onnx.Vad
 import com.amphion.asr.AsrCallback
 import com.amphion.asr.AsrError
 import com.amphion.asr.AsrErrorCode
 import com.amphion.asr.AsrResult
+import com.k2fsa.sherpa.onnx.OnlineRecognizer
+import com.k2fsa.sherpa.onnx.OnlineRecognizerResult
+import com.k2fsa.sherpa.onnx.OnlineStream
+import com.k2fsa.sherpa.onnx.Vad
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.exp
 
 /**
- * SessionImpl：把官方 [OnlineStream] 包成单线程消费 + 单线程回调的会话。
+ * 单次识别会话：一条 native [OnlineStream] + 三条专用线程。
  *
  * 线程：
- * - decoder thread "asr-decode-<id>"：串行执行 acceptWaveform + decode + getResult
- * - callback thread "asr-callback-<id>"：串行 dispatch 业务方回调
+ * - decoder thread "asr-decode-<id>"：串行 acceptWaveform + decode + getResult
+ * - postprocess thread "asr-postprocess-<id>"：ASR final 出来之后串行做 ITN -> 标点
+ *   （由 [PostProcessor] 自管）
+ * - callback thread "asr-callback-<id>"：串行 dispatch 业务 callback
  *
- * 这样 业务方录音线程 → SDK decoder → SDK callback → 业务方主线程，是一条清晰单链。
+ * 业务录音线程 -> SDK decoder -> SDK postprocess -> SDK callback -> 业务主线程，
+ * 整条单链上不会出现"先收到原文 final，然后再被异步替换"的 UI 抖动。
+ *
+ * 指标采集：[MetricsCollector] 在关键时序点累积；onFinal 同帧构造 [com.amphion.asr.AmphionMetrics]
+ * 同时打 logcat + 经回调线程 dispatch；session close 再打一份 SESSION 维度。
  */
 internal class SessionImpl(
     private val engineImpl: EngineImpl,
@@ -29,6 +35,7 @@ internal class SessionImpl(
     private val sampleRate: Int,
     private val callback: AsrCallback,
     private val sessionId: Int,
+    private val startupBundle: EngineStartupBundle?,
 ) {
 
     private val closed = AtomicBoolean(false)
@@ -46,9 +53,44 @@ internal class SessionImpl(
     @Volatile
     private var lastPartialText: String = ""
 
-    /** 当前 session 的热词字符串（与 stream 绑定）；初始 = engine 的 engineHotwords。 */
     @Volatile
     private var currentHotwords: String = engineImpl.engineHotwords
+
+    private val metrics = MetricsCollector(
+        sessionId = sessionId,
+        language = engineImpl.asrLanguage,
+    )
+
+    @Volatile
+    private var startupBundlePending: EngineStartupBundle? = startupBundle
+
+    // -------- VAD pipeline 状态（仅当 [vad] 非空且 [activeEpSilenceMs] > 0 时使用） --------
+
+    /** silero VAD 的窗口大小，必须按窗口对齐喂入；当前 SDK 只用 silero。 */
+    private val vadWindowSize: Int = VAD_WINDOW_SIZE
+
+    /** VAD 检测到 speech 后多少毫秒静音就主动 endpoint；0 = 禁用主动 endpoint，只做 onset 日志。 */
+    private val activeEpSilenceMs: Int = engineImpl.vadConfig.activeEndpointSilenceMs
+
+    /** 当前是否处于 speech 段内（VAD onset 后 → 主动 endpoint / hard restart 之间）。 */
+    @Volatile
+    private var vadSpeechActive: Boolean = false
+
+    /** speech 段后已累计的尾部静音毫秒数。 */
+    @Volatile
+    private var trailingSilenceMs: Int = 0
+
+    /** 不足 [vadWindowSize] 的余数 PCM；下次 feed 时拼回；只在 decoder 线程访问。 */
+    private var vadCarry: FloatArray = FloatArray(0)
+
+    private val postProcessor: PostProcessor =
+        PostProcessor(
+            sessionId = sessionId,
+            itn = engineImpl.sharedItn,
+            punctuation = engineImpl.sharedPunctuation,
+            onProcessed = { processed, postProcessMs -> dispatchFinal(processed, postProcessMs) },
+            onError = { err -> postError(err) },
+        )
 
     init {
         stream = when (val r = NativeGuard.run("recognizer.createStream") {
@@ -60,6 +102,20 @@ internal class SessionImpl(
                 throw IllegalStateException("Failed to create stream: ${r.error.message}", r.error.cause)
             }
         }
+        // 把每个 session 实际生效的热词打出来；空字符串说明这个 session 不带热词
+        // （sherpa-onnx native 端会跟 recognizer 自己 init 时 encoded 的 hotwords_ 合并）
+        val activeWordsPreview = if (currentHotwords.isEmpty()) {
+            "<none>"
+        } else {
+            currentHotwords.split('\n').filter { it.isNotBlank() }.let { all ->
+                "${all.size} word(s): ${all.take(5).joinToString(" / ")}" +
+                    if (all.size > 5) " /..." else ""
+            }
+        }
+        Logger.i(
+            "Session #$sessionId stream created: hotwords=$activeWordsPreview " +
+                "(engine score=${engineImpl.engineHotwordsScore})",
+        )
         callbackHandler.post {
             safeCallback { callback.onSessionStarted() }
         }
@@ -69,8 +125,6 @@ internal class SessionImpl(
         // 由于 sherpa-onnx 默认 reset_encoder=false（online-recognizer.h:115）+ 当前
         // result 为空时不会触发 SetStates，所以紧跟的 recognizer.reset 只清 decoder hyps，
         // encoder buffer 保留 → 下一段真实 PCM 第一个 chunk 起就能拿到正常 logits。
-        // 整段 800 ms 静音 ≈ 2.5 chunk（chunk_size=32@16k），与业务方点完按钮到张口的
-        // 自然停顿重合，肉眼几乎无感知。
         decoderHandler.post { warmUpEncoder(WARMUP_DURATION_MS) }
     }
 
@@ -79,22 +133,18 @@ internal class SessionImpl(
 
     // -------- public 方法（被 AsrSession 转发） --------
 
-    fun acceptPcmFloat(samples: FloatArray, sampleRate: Int) {
+    fun acceptPcmFloat(samples: FloatArray) {
         if (closed.get() || stopped.get()) {
             Logger.d("acceptPcmFloat dropped (closed=${closed.get()}, stopped=${stopped.get()})")
             return
         }
-        if (sampleRate != this.sampleRate) {
-            postError(AsrErrorCode.SAMPLE_RATE_MISMATCH,
-                "expected sampleRate=${this.sampleRate}, got $sampleRate")
-            return
-        }
-        // 拷贝一份再投递，避免业务方复用 buffer 造成数据竞争
+        // 16-bit PCM 单声道：每个 sample 2 字节
+        metrics.onPcmAccepted(samples.size * 2)
         val copy = samples.copyOf()
         decoderHandler.post { feedAndDecode(copy) }
     }
 
-    fun acceptPcmShort(samples: ShortArray, sampleRate: Int) {
+    fun acceptPcmShort(samples: ShortArray) {
         if (closed.get() || stopped.get()) return
         val floats = FloatArray(samples.size)
         var i = 0
@@ -102,7 +152,7 @@ internal class SessionImpl(
             floats[i] = samples[i] / 32768f
             i++
         }
-        acceptPcmFloat(floats, sampleRate)
+        acceptPcmFloat(floats)
     }
 
     fun updateHotwords(words: List<String>, score: Float) {
@@ -110,12 +160,11 @@ internal class SessionImpl(
             Logger.w("updateHotwords ignored: session closed")
             return
         }
-        // score 不一致：仅日志，不报错（Engine 级 score 改不了）
         if (score != engineImpl.engineHotwordsScore) {
             Logger.w(
                 "updateHotwords: requested score=$score differs from engine-level " +
-                "score=${engineImpl.engineHotwordsScore}; the latter is the one actually applied. " +
-                "Recreate AsrEngine to truly change score."
+                    "score=${engineImpl.engineHotwordsScore}; only the latter is honored. " +
+                    "Recreate AsrEngine to truly change score.",
             )
         }
         val newHotwords = words.filter { it.isNotBlank() }.joinToString("\n")
@@ -124,9 +173,6 @@ internal class SessionImpl(
             return
         }
         decoderHandler.post {
-            // 思路：用同一个 recognizer 重新 createStream(newHotwords)；旧 stream release。
-            // sherpa-onnx 的 createStream 接收 hotwords 字符串，会构造一个新的 ContextGraph，
-            // 后续 acceptWaveform 都走新 graph。
             val r = NativeGuard.run("recognizer.createStream(updateHotwords)") {
                 recognizer.createStream(hotwords = newHotwords)
             }
@@ -137,6 +183,11 @@ internal class SessionImpl(
                     currentHotwords = newHotwords
                     lastPartialText = ""
                     NativeGuard.runQuietly("oldStream.release") { old.release() }
+                    // 与 hardRestart 同源逻辑：stream 切换后 VAD 状态也要回到初始
+                    NativeGuard.runQuietly("vad.reset(updateHotwords)") { vad?.reset() }
+                    vadSpeechActive = false
+                    trailingSilenceMs = 0
+                    vadCarry = FloatArray(0)
                     Logger.i("updateHotwords applied: ${words.size} words")
                 }
                 is NativeResult.Err -> {
@@ -158,6 +209,11 @@ internal class SessionImpl(
             if (r is NativeResult.Err) {
                 postError(r.error)
             }
+            // VAD 状态与 stream 同步：用户手动 stop 等价于一段语音结束
+            NativeGuard.runQuietly("vad.reset(stop)") { vad?.reset() }
+            vadSpeechActive = false
+            trailingSilenceMs = 0
+            vadCarry = FloatArray(0)
             callbackHandler.post {
                 safeCallback { callback.onSessionStopped() }
             }
@@ -168,12 +224,19 @@ internal class SessionImpl(
         if (!closed.compareAndSet(false, true)) return
         engineImpl.unregister(this)
 
-        // 不再接受新任务；尽量 drain 完已经投递的任务
         decoderHandler.removeCallbacksAndMessages(null)
         decoderHandler.post {
             NativeGuard.runQuietly("stream.release") { stream.release() }
+            // VAD 是 per-engine 共享的，session 关闭只 reset（清内部 buffer），不 release
+            NativeGuard.runQuietly("vad.reset(close)") { vad?.reset() }
             decoderThread.quitSafely()
         }
+
+        try { postProcessor.close() } catch (_: Throwable) {}
+
+        // 派发 SESSION 维度指标（在 callback 线程上执行）
+        val sessionMetrics = metrics.snapshotSession()
+        metrics.emit(sessionMetrics, callback, callbackHandler)
 
         callbackHandler.removeCallbacksAndMessages(null)
         callbackHandler.post {
@@ -182,15 +245,33 @@ internal class SessionImpl(
         Logger.d("session $sessionId closed")
     }
 
+    /**
+     * 同步等待 decoder thread 真正退出。
+     *
+     * [EngineImpl.close] 在释放 per-engine vad 之前调用本方法，确保 decoder 线程上
+     * 没有「正在执行的 feedAndDecode」还会去碰 vad 的 native pointer——否则会出现
+     * SIGSEGV 0x0 in `Vad.isSpeechDetected`（参见 0.2.2 之前的崩溃 backtrace）。
+     *
+     * 时序保证：
+     * 1. close() 已经 post 了 stream.release + vad.reset + decoderThread.quitSafely() 任务
+     * 2. quitSafely 让 looper 处理完当前队列里所有消息后退出，从而保证 feedAndDecode 当前
+     *    那一次循环跑完才让 vad 进入「随时可被 release」状态
+     * 3. Thread.join(timeout) 等到 thread 真正退出（状态 TERMINATED）才返回
+     *
+     * @param timeoutMs 最长等待毫秒数；超时返回 false（病态 hang 时不无限阻塞 close 流程）
+     */
+    internal fun awaitDecoderQuit(timeoutMs: Long): Boolean {
+        return try {
+            decoderThread.join(timeoutMs)
+            !decoderThread.isAlive
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
+        }
+    }
+
     // -------- decoder loop --------
 
-    /**
-     * 用静音 PCM 预热 encoder：跑完所有 ready 的 chunk，然后 reset 清掉 decoder hyps，
-     * 但保留 encoder state（依赖上游 `reset_encoder=false` 的默认）。
-     *
-     * 调用时机：构造期由 decoderHandler post，一定排在外部 [acceptPcmFloat] 之前。
-     * 失败只 warn，不影响主流程；session 仍可识别，只是会回退到「第一句被吞」的原貌。
-     */
     private fun warmUpEncoder(durationMs: Int) {
         if (closed.get()) return
         val n = (sampleRate.toLong() * durationMs / 1000L).toInt().coerceAtLeast(0)
@@ -208,45 +289,109 @@ internal class SessionImpl(
                 lastPartialText = ""
                 Logger.i("session $sessionId encoder warm-up done: ${durationMs}ms silence, $n samples")
             }
-            is NativeResult.Err -> {
-                Logger.w("session $sessionId encoder warm-up failed: ${r.error.message}")
-            }
+            is NativeResult.Err -> Logger.w("session $sessionId encoder warm-up failed: ${r.error.message}")
         }
     }
 
     private fun feedAndDecode(samples: FloatArray) {
         if (closed.get()) return
-        val r = NativeGuard.run("stream.acceptWaveform+drain") {
+
+        // 保持 PCM 全量进 ASR，让 partial 实时性不受 VAD 抖动影响。VAD 只做 gate
+        // + 主动 endpoint（更敏感的尾静音切分），它们与 sherpa endpoint 规则并存：
+        // 谁先触发以谁为准。
+        val asrR = NativeGuard.run("stream.acceptWaveform+drain") {
             stream.acceptWaveform(samples, sampleRate)
             drainDecoder(isFinal = false)
         }
-        if (r is NativeResult.Err) {
-            postError(r.error)
+        if (asrR is NativeResult.Err) {
+            postError(asrR.error)
+            return
+        }
+
+        // drainDecoder 已经处理了 endpoint，stream 可能已被重建（hardRestart）
+        // 这种情况下当前 chunk 仍按 onset 路径继续判定，与已 reset 的状态一致。
+
+        val v = vad ?: return
+
+        // silero 的 acceptWaveform 强约束 windowSize=512；按 chunk 切片喂入，剩余样本
+        // 进 vadCarry 等下次拼回。两次 chunk 的 VAD speech/silence 状态由 v 自己维护。
+        val merged = if (vadCarry.isEmpty()) samples else vadCarry + samples
+        var i = 0
+        var anySpeech = false
+        var anySilence = false
+        while (i + vadWindowSize <= merged.size) {
+            val win = merged.copyOfRange(i, i + vadWindowSize)
+            NativeGuard.runQuietly("vad.acceptWaveform") { v.acceptWaveform(win) }
+            if (v.isSpeechDetected()) anySpeech = true else anySilence = true
+            i += vadWindowSize
+        }
+        vadCarry = if (i < merged.size) merged.copyOfRange(i, merged.size) else FloatArray(0)
+
+        when {
+            anySpeech -> {
+                // 任何一个窗口看到 speech，就把累计静音清零。中间夹杂少量静音窗口
+                // （正常说话时 vad 在 0.5 阈值附近抖动）不会被误判成结束。
+                if (!vadSpeechActive) {
+                    vadSpeechActive = true
+                    Logger.d("session $sessionId VAD speech onset")
+                }
+                trailingSilenceMs = 0
+            }
+            anySilence && vadSpeechActive -> {
+                // 仅在曾经有 speech 之后才累计静音；进入主动 endpoint 判定。
+                trailingSilenceMs += (samples.size * 1000L / sampleRate).toInt()
+                if (activeEpSilenceMs > 0 && trailingSilenceMs >= activeEpSilenceMs) {
+                    Logger.d(
+                        "session $sessionId VAD active endpoint after ${trailingSilenceMs}ms silence",
+                    )
+                    vadSpeechActive = false
+                    trailingSilenceMs = 0
+                    triggerVadActiveEndpoint()
+                }
+            }
         }
     }
 
     /**
+     * VAD 检测到 speech 后尾静音 ≥ [activeEpSilenceMs] 时调用：复用 stop 路径的
+     * inputFinished + drain(isFinal=true) + reset 三件套，让当前 stream 出 final。
+     * 不走 hardRestart：tokens < HARD_RESTART_TOKEN_THRESHOLD 时 soft reset 已经足够，
+     * encoder cache 偏置只在长 utterance 后才显现。
+     */
+    private fun triggerVadActiveEndpoint() {
+        val v = vad ?: return
+        val r = NativeGuard.run("vad.activeEndpoint") {
+            stream.inputFinished()
+            drainDecoder(isFinal = true)
+            recognizer.reset(stream)
+            v.reset()
+        }
+        if (r is NativeResult.Err) {
+            postError(r.error)
+            return
+        }
+        lastPartialText = ""
+        vadCarry = FloatArray(0)
+    }
+
+    /**
      * 解出当前 stream 的所有结果并 dispatch；isFinal=true 时把当前残留文本作为 final 发出。
-     *
-     * 注意：本方法内部已经被外层 [NativeGuard.run] 包住，所以 `recognizer.* / stream.*` 直接调用即可，
-     * 任何 native 异常都会被外层捕获并归一为 [AsrErrorCode.NATIVE_CRASH]。
      */
     private fun drainDecoder(isFinal: Boolean) {
-        // 反复 decode 直到 ready=false
         while (recognizer.isReady(stream)) {
             recognizer.decode(stream)
         }
 
         if (recognizer.isEndpoint(stream)) {
+            metrics.onEndpointDetected()
             val r = recognizer.getResult(stream)
+            metrics.onRawFinalReady()
             postEndpoint()
-            postFinal(toAsrResult(r))
+            postFinalToProcessor(toAsrResult(r))
             // 长 utterance 后做硬重启而不是软 reset：
-            // 软 reset 只清 decoder hyps、保留 encoder cache（见上游 reset_encoder=false 的默认），
-            // 经历一段 ~10s 的长 utterance 后，encoder cache 内部 norm/偏置会进入「持续语音」状态，
-            // 紧跟的 600-800ms 短词（如「社会招聘」）会被解成 CTC blank，partial 一个不出。
-            // 这里在 final emit 之后按 tokens 数量切换成「release + createStream + warmup」硬重启，
-            // 把 encoder cache 真正清掉。短 utterance 仍走软 reset，避免给短句之间引入 warmup 延迟。
+            // 软 reset 只清 decoder hyps、保留 encoder cache（reset_encoder=false 默认），
+            // 经历 ~10s 的长 utterance 后 encoder cache 内部 norm/偏置进入"持续语音"状态，
+            // 紧跟的 600-800ms 短词会被解成 CTC blank，partial 一个不出。
             if (shouldHardRestartAfter(r)) {
                 hardRestartStream()
             } else {
@@ -258,7 +403,8 @@ internal class SessionImpl(
 
         val r = recognizer.getResult(stream)
         if (isFinal) {
-            postFinal(toAsrResult(r))
+            metrics.onRawFinalReady()
+            postFinalToProcessor(toAsrResult(r))
             NativeGuard.runQuietly("recognizer.reset") { recognizer.reset(stream) }
             lastPartialText = ""
         } else if (r.text != lastPartialText) {
@@ -267,33 +413,10 @@ internal class SessionImpl(
         }
     }
 
-    /**
-     * 判断刚 emit 完 final 的 utterance 是否「足够长」，需要做硬重启 stream 而不是软 reset。
-     *
-     * 阈值取 [HARD_RESTART_TOKEN_THRESHOLD] = 20 个 token，约等于 zipformer streaming 在
-     * chunk_size=32 下处理 ~10s 持续语音；超过这个量级 encoder cache 的累积偏置已经能让
-     * 后续短词被吃成 blank（实测见 docs/troubleshooting/long-utterance-state-drift.md）。
-     *
-     * 用 tokens.size 而不是 text.length 是因为：英文 BPE 一个词可能占 4-6 token、中文一个字占
-     * 1 token，token 数比字符数更直接反映 encoder 处理的 frame 数。
-     */
     private fun shouldHardRestartAfter(r: OnlineRecognizerResult): Boolean {
         return r.tokens.size >= HARD_RESTART_TOKEN_THRESHOLD
     }
 
-    /**
-     * 硬重启 stream：release 旧 stream → createStream(currentHotwords) → 跑一遍 800ms 静音
-     * warmup，让新 stream 的 encoder cache 进入与「冷启动 + warmup」一致的初始状态。
-     *
-     * 调用方必须确保已经处理完 endpoint 的 [postEndpoint] / [postFinal]；本方法只负责换 stream，
-     * 不再 emit 任何文本。
-     *
-     * 失败时回退到软 reset（沿用老 stream），保证 session 继续可用——最差情况是「再次出现长
-     * utterance 后短词被吞」的退化行为，与未启用本特性时一致，不会进一步劣化。
-     *
-     * 耗时：createStream + 800ms warmup decode 大约 20-100ms，期间 decoder 线程被占用，
-     * 录音线程的新 PCM 在 decoderHandler 队列里排队（不会丢，单线程串行保证）。
-     */
     private fun hardRestartStream() {
         if (closed.get()) return
         val r = NativeGuard.run("recognizer.createStream(hardRestart)") {
@@ -304,13 +427,17 @@ internal class SessionImpl(
                 val old = stream
                 stream = r.value
                 NativeGuard.runQuietly("oldStream.release") { old.release() }
+                // stream 重建意味着上一段已结束；同步 reset VAD 让 onset 重新走
+                NativeGuard.runQuietly("vad.reset(hardRestart)") { vad?.reset() }
+                vadSpeechActive = false
+                trailingSilenceMs = 0
+                vadCarry = FloatArray(0)
                 Logger.i("session $sessionId hard-restarted stream after long utterance")
                 warmUpEncoder(WARMUP_DURATION_MS)
             }
             is NativeResult.Err -> {
                 Logger.w(
-                    "session $sessionId hard restart failed, fallback to soft reset: " +
-                    r.error.message
+                    "session $sessionId hard restart failed, fallback to soft reset: ${r.error.message}",
                 )
                 NativeGuard.runQuietly("recognizer.reset(hardRestartFallback)") {
                     recognizer.reset(stream)
@@ -319,13 +446,6 @@ internal class SessionImpl(
         }
     }
 
-    /**
-     * 把上游 [OnlineRecognizerResult] 翻成对外 [AsrResult]。
-     *
-     * sherpa-onnx 没有暴露稳定的 segment 置信度，目前用 ysProbs（log prob）的几何平均近似：
-     *   confidence ≈ exp(mean(ysProbs))
-     * 没数据则置 1.0，保持与旧签名 onFinal(text, 1.0f) 一致。
-     */
     private fun toAsrResult(r: OnlineRecognizerResult): AsrResult {
         val tokenList = r.tokens.toList()
         val tsList = r.timestamps.toList()
@@ -349,13 +469,28 @@ internal class SessionImpl(
 
     private fun postPartial(result: AsrResult) {
         callbackHandler.post {
+            metrics.onPartialDispatched()
             safeCallback { callback.onPartial(result) }
         }
     }
 
-    private fun postFinal(result: AsrResult) {
+    /**
+     * 把 ASR final 投递到 PostProcessor；处理完后由 PostProcessor 调 [dispatchFinal] 出 callback。
+     * 如果 ITN / 标点都没启用，PostProcessor 的处理是 no-op，链路一致但不增加耗时。
+     */
+    private fun postFinalToProcessor(raw: AsrResult) {
+        postProcessor.postFinal(raw)
+    }
+
+    private fun dispatchFinal(processed: AsrResult, postProcessMs: Long) {
+        // 在 postprocess 线程同步抓 metrics 快照（utterance 维度）；startupBundle 仅第一段非 null
+        val bundleForThisUtterance = startupBundlePending
+        startupBundlePending = null
+        val utteranceMetrics = metrics.snapshotUtterance(postProcessMs, bundleForThisUtterance)
+        metrics.emit(utteranceMetrics, callback, callbackHandler)
+
         callbackHandler.post {
-            safeCallback { callback.onFinal(result) }
+            safeCallback { callback.onFinal(processed) }
         }
     }
 
@@ -363,10 +498,6 @@ internal class SessionImpl(
         callbackHandler.post {
             safeCallback { callback.onEndpoint() }
         }
-    }
-
-    private fun postError(code: Int, message: String, cause: Throwable? = null) {
-        postError(AsrError(code, message, cause))
     }
 
     private fun postError(error: AsrError) {
@@ -379,7 +510,6 @@ internal class SessionImpl(
         try {
             block()
         } catch (t: Throwable) {
-            // 业务方 callback 抛出异常，SDK 不让它扩散；只打日志
             Logger.e("user callback threw: ${t.message}", t)
         }
     }
@@ -394,11 +524,18 @@ internal class SessionImpl(
         const val WARMUP_DURATION_MS = 800
 
         /**
-         * endpoint 后判断「是否硬重启 stream」的 token 阈值。20 个 token 大约对应 streaming
-         * zipformer 处理 ~10 秒持续语音；超过这个量级，encoder cache 的偏置已经足够大，会
-         * 让紧跟的短词被解成 blank（实测在 zh-en 模型上，"应届…锚点" 50+ token 之后说
-         * "社会招聘" 会被完全吞掉，硬重启可解决）。
+         * endpoint 后判断「是否硬重启 stream」的 token 阈值。20 个 token ≈ 10s 持续语音。
+         * 超过这个量级 encoder cache 偏置会让紧跟的短词被解成 blank，硬重启可解决。
          */
         const val HARD_RESTART_TOKEN_THRESHOLD = 20
+
+        /**
+         * silero VAD 强约束：必须按窗口对齐喂入 [Vad.acceptWaveform]。
+         * 16 kHz 下 512 个 sample = 32 ms。本 SDK 锁 silero，常量值与 EngineImpl 一致。
+         */
+        const val VAD_WINDOW_SIZE = 512
+
+        @Suppress("unused")
+        const val SESSION_ALREADY_CLOSED_CODE = AsrErrorCode.SESSION_ALREADY_CLOSED
     }
 }

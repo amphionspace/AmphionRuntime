@@ -1,99 +1,121 @@
 package com.amphion.asr
 
-import java.io.File
-
 /**
- * 引擎配置（不可变）。
+ * 引擎配置（不可变）。模型路径 / decoding / sampleRate 等内部细节由 SDK 自己决定，
+ * 业务方只调本类暴露的少量行为开关。
  *
- * 通过 [Builder] 构造，构造完成后字段不可改；想换配置必须新建一个 [AsrEngine]。
+ * 通过 [Builder] 链式构造。
  *
- * 每个 [AsrEngine] 对应一个 [AsrConfig] 实例（一个模型）。
+ * 典型用法（Kotlin）：
+ * ```
+ * val config = AsrConfig.Builder()
+ *     .numThreads(2)
+ *     .punctuation(true)
+ *     .itn(true)
+ *     .vad(true)
+ *     .endpoint(true)
+ *     .hotwords(listOf("声学模型", "语音识别"))
+ *     .build()
+ * ```
+ *
+ * 默认值：所有开关都为 true，[numThreads] = 2，[hotwords] 为空。
+ *
+ * @property numThreads 推理线程数，建议 1~4
+ * @property punctuation 是否给 final 文本加标点（中英 + 粤英 都生效）
+ * @property itn 是否对 final 做中文 ITN（口语数字 -> 阿拉伯数字 / 单位）。
+ *   仅 [AsrLanguage.ZH_EN] 生效；其他语言会被忽略
+ * @property vad 是否启用 VAD：0.2.x 起 SDK 把 silero VAD 真实接入流式管线——
+ *   在 ASR 之上做 Gate + 主动 endpoint，比 [endpointRules] 的尾静音规则更敏感，
+ *   显著缓解长句子说到一半不切分的问题。具体行为由 [vadConfig] 调
+ * @property vadConfig VAD 细节配置（模型 / 阈值 / 主动 endpoint 静音时长等）
+ * @property endpoint 是否启用端点检测自动出 final
+ * @property endpointRules 端点规则细节，默认与上游 sherpa-onnx 流式默认一致
+ * @property hotwords 热词列表，提升业务领域词识别率
+ * @property hotwordsScore 热词加权分数，[0.0, 5.0]，越大越倾向于命中
  */
 public class AsrConfig private constructor(
-    public val modelDir: File,
     public val numThreads: Int,
-    public val enableEndpoint: Boolean,
+    public val punctuation: Boolean,
+    public val itn: Boolean,
+    public val vad: Boolean,
+    public val vadConfig: VadConfig,
+    public val endpoint: Boolean,
     public val endpointRules: EndpointRules,
     public val hotwords: List<String>,
     public val hotwordsScore: Float,
-    public val enableVad: Boolean,
-    public val vadModelPath: File?,
-    public val sampleRate: Int,
-    public val featureDim: Int,
-    public val decodingMethod: DecodingMethod,
-    public val maxActivePaths: Int,
-    /** HomophoneReplacer 词典路径；与 [homophoneRuleFstsPath] 必须同时为 null 或同时非 null。 */
-    public val homophoneLexiconPath: File?,
-    /** HomophoneReplacer FST 路径。 */
-    public val homophoneRuleFstsPath: File?,
-    /** LM rescoring 的 ONNX 路径；为 null 表示不启用。仅在 [DecodingMethod.MODIFIED_BEAM_SEARCH] 下生效。 */
-    public val lmModelPath: File?,
-    /** LM rescoring 权重；建议范围 [0.1, 1.0]，默认 0.5。 */
-    public val lmScale: Float,
-    /**
-     * 标识 [decodingMethod] 是否由调用方显式设置过。仅 SDK 内部用，用来决定
-     * 是否被 manifest.json 的 `decoding_method` 字段覆盖。对 Java/外部不可见。
-     */
-    internal val decodingMethodIsExplicit: Boolean,
-    /** 同上，针对 [maxActivePaths]。 */
-    internal val maxActivePathsIsExplicit: Boolean,
 ) {
 
     /**
      * Builder：链式构造 [AsrConfig]。
      *
-     * 必填：[modelDir]，必须包含 `encoder.int8.onnx` / `decoder.onnx` / `joiner.int8.onnx` / `tokens.txt`。
-     *
-     * 典型用法（Kotlin）：
-     * ```
-     * val config = AsrConfig.Builder(modelDir)
-     *     .numThreads(2)
-     *     .enableEndpoint(true)
-     *     .hotwords(listOf("声学模型", "语音识别"), score = 1.5f)
-     *     .enableVad(File(filesDir, "silero_vad.onnx"))
-     *     .build()
-     * ```
-     *
      * Java 示例：
      * ```
-     * AsrConfig config = new AsrConfig.Builder(modelDir)
+     * AsrConfig config = new AsrConfig.Builder()
      *     .numThreads(2)
-     *     .enableEndpoint(true)
+     *     .punctuation(true)
+     *     .itn(true)
+     *     .vad(true)
      *     .build();
      * ```
      */
-    public class Builder(private val modelDir: File) {
+    public class Builder {
 
         private var numThreads: Int = 2
-        private var enableEndpoint: Boolean = true
+        private var punctuation: Boolean = true
+        private var itn: Boolean = true
+        private var vad: Boolean = true
+        private var vadConfig: VadConfig = VadConfig()
+        private var endpoint: Boolean = true
         private var endpointRules: EndpointRules = EndpointRules()
         private var hotwords: List<String> = emptyList()
         private var hotwordsScore: Float = 1.5f
-        private var enableVad: Boolean = false
-        private var vadModelPath: File? = null
-        private var sampleRate: Int = 16000
-        private var featureDim: Int = 80
-        private var decodingMethod: DecodingMethod = DecodingMethod.GREEDY_SEARCH
-        private var decodingMethodExplicit: Boolean = false
-        private var maxActivePaths: Int = 4
-        private var maxActivePathsExplicit: Boolean = false
-        private var homophoneLexiconPath: File? = null
-        private var homophoneRuleFstsPath: File? = null
-        private var lmModelPath: File? = null
-        private var lmScale: Float = 0.5f
 
-        /** 推理线程数，默认 2；建议 1~4，超过物理大核数没有收益。 */
+        /** 推理线程数，[1, 8]；默认 2，建议 1~4。 */
         public fun numThreads(value: Int): Builder = apply {
             require(value in 1..8) { "numThreads must be in [1, 8], got $value" }
             this.numThreads = value
         }
 
-        /** 是否启用 endpointing（端点检测自动出 final）。 */
-        public fun enableEndpoint(value: Boolean): Builder = apply {
-            this.enableEndpoint = value
+        /** 是否给 final 文本加标点（默认 true，中英 + 粤英 都生效）。 */
+        public fun punctuation(value: Boolean): Builder = apply {
+            this.punctuation = value
         }
 
-        /** 自定义 endpointing 规则（高级；不调使用默认值）。 */
+        /**
+         * 是否对 final 做中文 ITN（默认 true）。
+         *
+         * 仅 [AsrLanguage.ZH_EN] 生效；其他语言会自动忽略本开关。
+         */
+        public fun itn(value: Boolean): Builder = apply {
+            this.itn = value
+        }
+
+        /**
+         * 是否启用 VAD（默认 true）。
+         *
+         * 0.2.x 起 SDK 把 silero VAD 真实接入流式管线：在 ASR 之上做 Gate + 主动 endpoint，
+         * 比 [endpointRules] 的尾静音规则更敏感（默认 500ms 主动切，而 endpoint rule2 是 1.4s），
+         * 显著缓解长句子说到一半不切分的问题。关闭后 PCM 全量送进 ASR，分句只能靠 endpoint。
+         */
+        public fun vad(value: Boolean): Builder = apply {
+            this.vad = value
+        }
+
+        /**
+         * 调整 VAD 细节（模型选择 / 阈值 / 主动 endpoint 静音时长等）。
+         *
+         * 高级；不调使用默认值。仅在 [vad] 为 true 时生效。
+         */
+        public fun vadConfig(config: VadConfig): Builder = apply {
+            this.vadConfig = config
+        }
+
+        /** 是否启用端点检测自动出 final（默认 true）。 */
+        public fun endpoint(value: Boolean): Builder = apply {
+            this.endpoint = value
+        }
+
+        /** 自定义端点规则（高级；不调使用默认值）。 */
         public fun endpointRules(rules: EndpointRules): Builder = apply {
             this.endpointRules = rules
         }
@@ -101,8 +123,12 @@ public class AsrConfig private constructor(
         /**
          * 设置热词列表，提升业务领域内的识别率。
          *
-         * @param words 热词字符串列表；中英文皆可，最多建议 200 个
-         * @param score 热词加权分数，越大越倾向于命中；默认 1.5；建议范围 [0.5, 3.0]
+         * @param words 中英文热词皆可，建议不超过 200 个；空字符串会被自动过滤
+         * @param score 热词加权分数，越大越倾向于命中；默认 1.5（沿用 sherpa-onnx 英文场景）；
+         *   实际经验值：
+         *   - 0.5 ~ 1.5：泛领域词、训练语料里高频出现，少量 boost 就够
+         *   - 2.0 ~ 3.0：人名 / 专名 / 同音字纠错（如把「余明洞」纠为「余铭栋」），推荐起步
+         *   - 3.0 ~ 5.0：罕见词、训练数据里几乎没见过的命名实体；过大会误伤无关音节
          */
         @JvmOverloads
         public fun hotwords(words: List<String>, score: Float = 1.5f): Builder = apply {
@@ -111,142 +137,74 @@ public class AsrConfig private constructor(
             this.hotwordsScore = score
         }
 
-        /**
-         * 启用 VAD（基于 silero VAD）。
-         *
-         * @param sileroVadModel silero_vad.onnx 文件位置；该文件由集成方下发到本地
-         */
-        public fun enableVad(sileroVadModel: File): Builder = apply {
-            require(sileroVadModel.isFile) {
-                "VAD model file does not exist: ${sileroVadModel.absolutePath}"
-            }
-            this.enableVad = true
-            this.vadModelPath = sileroVadModel
-        }
+        public fun build(): AsrConfig = AsrConfig(
+            numThreads = numThreads,
+            punctuation = punctuation,
+            itn = itn,
+            vad = vad,
+            vadConfig = vadConfig,
+            endpoint = endpoint,
+            endpointRules = endpointRules,
+            hotwords = hotwords,
+            hotwordsScore = hotwordsScore,
+        )
+    }
+}
 
-        /**
-         * 解码方式，默认 [DecodingMethod.GREEDY_SEARCH]。
-         *
-         * 若调用方未显式设置，SDK 会优先使用 modelDir/manifest.json 中的 `decoding_method` 字段；
-         * 仍未提供则用此默认值。详见 INTEGRATION.md 第 7 节。
-         */
-        public fun decodingMethod(value: DecodingMethod): Builder = apply {
-            this.decodingMethod = value
-            this.decodingMethodExplicit = true
-        }
+/**
+ * VAD 选用的模型。
+ *
+ * - [SILERO] Silero VAD，默认。模型已内置在 AAR `amphion-models/vad/v1/silero_vad.onnx`，
+ *   近场录音场景已足够，约 2 MB
+ * - [TEN_VAD] Ten-VAD。在低 SNR / 远场场景识别更鲁棒；**当前 AAR 未打包资产**，
+ *   选择后会在 `AmphionRuntime.create` 时抛 [UnsupportedOperationException]
+ */
+public enum class VadModelType {
+    SILERO,
+    TEN_VAD,
+}
 
-        /**
-         * [DecodingMethod.MODIFIED_BEAM_SEARCH] 时的 beam size，默认 4，建议 [1, 8]。
-         *
-         * 若调用方未显式设置，SDK 会优先使用 modelDir/manifest.json 中的 `max_active_paths` 字段（如果存在）；
-         * 仍未提供则用此默认值。
-         */
-        public fun maxActivePaths(value: Int): Builder = apply {
-            require(value in 1..32) { "maxActivePaths must be in [1, 32]" }
-            this.maxActivePaths = value
-            this.maxActivePathsExplicit = true
-        }
-
-        /**
-         * 启用同音字纠错（HomophoneReplacer）。
-         *
-         * 中文场景非常实用：把 ASR 输出中的同音错误（"在线" -> "再线"）按词典 + 规则 FST 自动改回。
-         *
-         * @param lexicon 词典文件，每行 `key\\t<homophone>...` 格式
-         * @param ruleFsts FST 文件，sherpa-onnx 自带的同音替换规则
-         */
-        public fun enableHomophoneReplacer(lexicon: File, ruleFsts: File): Builder = apply {
-            require(lexicon.isFile) { "lexicon not found: ${lexicon.absolutePath}" }
-            require(ruleFsts.isFile) { "ruleFsts not found: ${ruleFsts.absolutePath}" }
-            this.homophoneLexiconPath = lexicon
-            this.homophoneRuleFstsPath = ruleFsts
-        }
-
-        /**
-         * 启用神经网络语言模型重打分（LM rescoring）。
-         *
-         * 仅在 [DecodingMethod.MODIFIED_BEAM_SEARCH] 下生效；如果当前是 GREEDY_SEARCH，
-         * SDK 会自动切换到 modified_beam_search（与 hotwords 协商一致）。
-         *
-         * @param modelPath RNN-LM ONNX 路径
-         * @param scale LM 权重，建议 [0.1, 1.0]，默认 0.5
-         */
-        @JvmOverloads
-        public fun enableLmRescoring(modelPath: File, scale: Float = 0.5f): Builder = apply {
-            require(modelPath.isFile) { "LM model not found: ${modelPath.absolutePath}" }
-            require(scale in 0.0f..2.0f) { "lmScale must be in [0.0, 2.0]" }
-            this.lmModelPath = modelPath
-            this.lmScale = scale
-        }
-
-        public fun build(): AsrConfig {
-            require(modelDir.isDirectory) { "modelDir not a directory: ${modelDir.absolutePath}" }
-            // 注意：单文件存在性校验放到 EngineImpl 中按 model_type 做（不同模型族需要的文件清单不同）。
-            // 这里只确保 tokens.txt 一定要在（所有 model_type 共用）。
-            require(File(modelDir, "tokens.txt").isFile) {
-                "missing tokens.txt under ${modelDir.absolutePath}"
-            }
-
-            // 上游 sherpa-onnx 强制：hotwords / LM rescoring 仅在 modified_beam_search 下生效
-            // （online-recognizer.cc 会 LOGE 并 reject 掉 greedy_search + hotwords / lm 的组合）。
-            // 这里做一次"用户友好"协商：
-            //   - 如果热词或 LM 非空且调用方没显式指定 decodingMethod：自动切到 MODIFIED_BEAM_SEARCH
-            //   - 如果调用方显式选了 GREEDY_SEARCH：直接 fail-fast
-            var effectiveDecoding = decodingMethod
-            var effectiveDecodingExplicit = decodingMethodExplicit
-            val needsBeam = hotwords.isNotEmpty() || lmModelPath != null
-            if (needsBeam) {
-                if (!decodingMethodExplicit) {
-                    effectiveDecoding = DecodingMethod.MODIFIED_BEAM_SEARCH
-                    effectiveDecodingExplicit = true
-                } else {
-                    require(decodingMethod == DecodingMethod.MODIFIED_BEAM_SEARCH) {
-                        "hotwords / LM rescoring require decodingMethod=MODIFIED_BEAM_SEARCH; " +
-                            "either drop them or remove the explicit GREEDY_SEARCH override."
-                    }
-                }
-            }
-
-            // HomophoneReplacer 必须 lexicon 与 ruleFsts 配对
-            require((homophoneLexiconPath == null) == (homophoneRuleFstsPath == null)) {
-                "enableHomophoneReplacer must be called with both lexicon and ruleFsts (or neither)."
-            }
-
-            return AsrConfig(
-                modelDir = modelDir,
-                numThreads = numThreads,
-                enableEndpoint = enableEndpoint,
-                endpointRules = endpointRules,
-                hotwords = hotwords,
-                hotwordsScore = hotwordsScore,
-                enableVad = enableVad,
-                vadModelPath = vadModelPath,
-                sampleRate = sampleRate,
-                featureDim = featureDim,
-                decodingMethod = effectiveDecoding,
-                maxActivePaths = maxActivePaths,
-                homophoneLexiconPath = homophoneLexiconPath,
-                homophoneRuleFstsPath = homophoneRuleFstsPath,
-                lmModelPath = lmModelPath,
-                lmScale = lmScale,
-                decodingMethodIsExplicit = effectiveDecodingExplicit,
-                maxActivePathsIsExplicit = maxActivePathsExplicit,
-            )
+/**
+ * VAD 细节配置（不可变）。
+ *
+ * 默认值对应 sherpa-onnx 1.13.x 上 silero VAD 的安全档；业务方一般不需要调，
+ * 只有在「长句子说一半不切分」「停顿被误切」「嘈杂场景误激发」时再针对性调。
+ *
+ * 与 [EndpointRules] 的区别：endpointRules 控制流式 ASR 自身的端点检测（粗粒度），
+ * 本类控制 VAD 这一层（细粒度）；两者叠加生效，谁先触发以谁为准。
+ *
+ * @property modelType VAD 模型，默认 [VadModelType.SILERO]；选 [VadModelType.TEN_VAD]
+ *   而 AAR 未打包对应资产时会抛 [UnsupportedOperationException]
+ * @property threshold speech 概率阈值 [0.0, 1.0]，越大越严格；默认 0.5
+ * @property minSilenceDurationSec 尾部静音至少持续此值才视为一段语音结束，默认 0.25 秒
+ * @property minSpeechDurationSec 一段语音至少持续此值才视为有效，默认 0.25 秒
+ * @property maxSpeechDurationSec 单段语音超过此值时 VAD 内部会强制切；默认 15 秒，
+ *   比 [EndpointRules.rule3MinUtteranceLengthSec] 的 20 秒更早兜底
+ * @property activeEndpointSilenceMs **主动 endpoint 机制**：VAD 检测到 speech 之后
+ *   尾部连续静音达到此毫秒数，SDK 会主动给 ASR 出 final（不等 endpoint rule2 的 1.4 秒）。
+ *   默认 500 ms；设 0 表示禁用主动 endpoint，仅做 gate；建议范围 [200, 1500]
+ */
+public data class VadConfig(
+    public val modelType: VadModelType = VadModelType.SILERO,
+    public val threshold: Float = 0.5f,
+    public val minSilenceDurationSec: Float = 0.25f,
+    public val minSpeechDurationSec: Float = 0.25f,
+    public val maxSpeechDurationSec: Float = 15.0f,
+    public val activeEndpointSilenceMs: Int = 500,
+) {
+    init {
+        require(threshold in 0.0f..1.0f) { "VadConfig.threshold must be in [0.0, 1.0], got $threshold" }
+        require(minSilenceDurationSec >= 0f) { "VadConfig.minSilenceDurationSec must be >= 0" }
+        require(minSpeechDurationSec >= 0f) { "VadConfig.minSpeechDurationSec must be >= 0" }
+        require(maxSpeechDurationSec > 0f) { "VadConfig.maxSpeechDurationSec must be > 0" }
+        require(activeEndpointSilenceMs >= 0) {
+            "VadConfig.activeEndpointSilenceMs must be >= 0 (0 disables active endpoint)"
         }
     }
 }
 
-/** 解码方式。 */
-public enum class DecodingMethod {
-    /** 贪心解码：最快，质量足够。 */
-    GREEDY_SEARCH,
-
-    /** modified_beam_search：质量略高，速度慢 ~2x；可与 [AsrConfig.Builder.maxActivePaths] 调节。 */
-    MODIFIED_BEAM_SEARCH,
-}
-
 /**
- * Endpointing 规则集合（默认值与 sherpa-onnx 官方流式默认一致）。
+ * 端点检测规则集合（默认与上游 sherpa-onnx 流式默认一致）。
  *
  * @property rule1 一段话开始之后，无静音超过 [rule1MinTrailingSilenceSec] 秒就出 final
  * @property rule1MinTrailingSilenceSec 默认 2.4 秒

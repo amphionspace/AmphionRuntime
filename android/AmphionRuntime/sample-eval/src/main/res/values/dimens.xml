@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="screen_padding">20dp</dimen>
+    <dimen name="card_corner">20dp</dimen>
+    <dimen name="card_padding">16dp</dimen>
+    <dimen name="card_stroke">1dp</dimen>
+    <dimen name="card_spacing">16dp</dimen>
+
+    <dimen name="segment_corner">14dp</dimen>
+    <dimen name="segment_height">44dp</dimen>
+
+    <dimen name="button_corner">22dp</dimen>
+    <dimen name="button_height">64dp</dimen>
+
+    <dimen name="logo_size">44dp</dimen>
+    <dimen name="status_dot_size">8dp</dimen>
+
+    <dimen name="waveform_height">56dp</dimen>
+    <dimen name="waveform_bar_width">3dp</dimen>
+    <dimen name="waveform_bar_gap">2dp</dimen>
+</resources>

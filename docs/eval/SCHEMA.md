@@ -22,9 +22,9 @@
 | device.android_sdk | int | 是 | Build.VERSION.SDK_INT | API level |
 | device.abi | string | 是 | Build.SUPPORTED_ABIS[0] | 进程 ABI |
 | app_version | string | 是 | PackageManager | sample app versionName |
-| sdk_version | string | 是 | AsrSdk.version() | AsrSDK 语义化版本 |
-| model_id | string \| null | 否 | 已加载模型 manifest | 现场识别用的 ASR 模型 id（无现场识别时 null） |
-| model_version | string \| null | 否 | 已加载模型 manifest | 模型版本号（同上） |
+| sdk_version | string | 是 | AmphionRuntime.version() | AmphionRuntime SDK 语义化版本（0.2.0 起统一从这里读，旧文档里的 AsrSdk.version() 已废弃） |
+| model_id | string \| null | 否 | 引擎语种 | 0.2.0 起取自 AsrLanguage 枚举名（如 ZH_EN / YUE_EN）；无现场识别时 null |
+| model_version | string \| null | 否 | SDK 版本 | 0.2.0 起取自 AmphionRuntime.version()（与 sdk_version 同值，保留独立字段以兼容老 schema） |
 | recorded_at | string(ISO8601 Z) | 是 | 客户端时钟 | UTC，例如 2026-05-19T10:47:00Z |
 | duration_ms | int | 是 | EvalRecorder | 实际录音时长（毫秒） |
 | sample_rate | int | 是 | 客户端常量 | 16000 |
@@ -36,6 +36,10 @@
 | env.notes | string | 是 | 测试员填 | 自由文本，可空字符串 |
 | on_device_hypothesis | string \| null | 否 | OnDeviceTranscriber | 设备端 ASR final 文本；引擎不可用时 null |
 | on_device_wer_estimate | float \| null | 否 | DeviceWerEstimator | 字符级编辑距离 / 参考长度；非权威 |
+| on_device_utterance_e2e_ms | int \| null | 否（仅 schema=1，未纳入 server schema） | AmphionMetrics.utteranceE2eLatencyMs | 第一帧 PCM accept → onFinal 派发的端到端延迟；schema 升 v2 时纳入 |
+| on_device_first_partial_ms | int \| null | 否（同上） | AmphionMetrics.firstPartialLatencyMs | 第一帧 PCM → 第一个 partial；本段无 partial 时 null |
+| on_device_rtf | float \| null | 否（同上） | AmphionMetrics.rtf | decodeMs / utteranceMs；< 1 才能流式跟上实时 |
+| on_device_native_rss_mb | int \| null | 否（同上） | AmphionMetrics.nativeRssMb | 本段结束时刻读到的 native VmRSS |
 | upload | object | 是 | 客户端状态机 | 详见 1.2 |
 
 ### 1.2 upload 子对象
@@ -56,6 +60,7 @@
 3. on_device_wer_estimate 与 on_device_hypothesis 必须同时为 null 或同时非 null
 4. recorded_at 必须 UTC（带 Z 后缀）；服务端不重新格式化
 5. duration_ms ≥ 0；零值合法（罕见，表示用户秒开秒关）
+6. on_device_utterance_e2e_ms / on_device_first_partial_ms / on_device_rtf / on_device_native_rss_mb 当前 schema=1 阶段为「客户端单边写入字段」：客户端永远输出（值为 SDK metrics 或 null），服务端不要求字段存在。schema 升 v2 时这 4 个字段升为 NORMATIVE，并同步更新 SERVER_SPEC.md 错误码表中的 SCHEMA_MISMATCH 行
 
 ### 1.4 完整示例
 
@@ -76,10 +81,10 @@
     "android_sdk": 34,
     "abi": "arm64-v8a"
   },
-  "app_version": "0.1.0",
-  "sdk_version": "0.1.0",
-  "model_id": "amphion-zh-en-streaming_large",
-  "model_version": "1.0.0-iter-140000",
+  "app_version": "0.2.0",
+  "sdk_version": "0.2.0",
+  "model_id": "ZH_EN",
+  "model_version": "0.2.0",
   "recorded_at": "2026-05-19T10:47:00Z",
   "duration_ms": 4321,
   "sample_rate": 16000,
@@ -93,6 +98,10 @@
   },
   "on_device_hypothesis": "我们的 deadline 是下周五五月二十二号",
   "on_device_wer_estimate": 0.083,
+  "on_device_utterance_e2e_ms": 320,
+  "on_device_first_partial_ms": 180,
+  "on_device_rtf": 0.42,
+  "on_device_native_rss_mb": 168,
   "upload": {
     "state": "uploaded",
     "uploaded_at": "2026-05-19T10:47:05Z",

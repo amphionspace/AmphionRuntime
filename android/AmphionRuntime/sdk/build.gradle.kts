@@ -62,6 +62,14 @@ android {
     // 把 native .so 打到 AAR 里：jniLibs 目录是 SDK 工程内的 sdk/src/main/jniLibs/<abi>/
     sourceSets["main"].jniLibs.srcDirs("src/main/jniLibs")
 
+    // 模型文件 (onnx / fst) 不要被 aapt2 zip-deflate；
+    // 原因：onnx int8 + sherpa fst 都已经是高熵二进制，再 deflate 通常 -1% ~ +5%；
+    //       但运行期 AssetManager 解压会把整文件读进堆，给 ZH-EN 这种 ~120MB 的模型直接 OOM。
+    //       禁用压缩后 first-run 的拷贝走 mmap streaming，常驻内存只有 IO 缓冲。
+    androidResources {
+        noCompress += listOf("onnx", "fst")
+    }
+
     publishing {
         singleVariant("release") {
             withSourcesJar()

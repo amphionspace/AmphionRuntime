@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# 下载 sherpa-onnx 官方 CT-Transformer 中英双语标点模型并 push 到 sample app。
+# [deprecated since 0.2.0 push 流] 下载 sherpa-onnx 官方 CT-Transformer 中英双语标点模型。
 #
-# 与 ITN 不同：标点模型体积大（~72 MB INT8），不打进 APK assets，走 adb push 推到
-# externalFilesDir，sample 启动时由 PunctModelInstaller 拷到 internal filesDir/asr-punct/。
+# 0.2.0 起标点模型一并打进 AAR。本脚本仍保留 --no-push 路径，作为
+# tools/asr/08_pack_sdk_assets.sh 的输入准备步骤（自动校验 sha256 + 解压到 cache）。
+# adb push 路径在 0.2.0 之后不再被 sample app 读取，仅用于 0.1.x 兼容性自验。
 #
 # 设计：
 # - 把 tarball 缓存到 tools/asr/punct-model/<file>.tar.bz2（已被根 .gitignore 排除）

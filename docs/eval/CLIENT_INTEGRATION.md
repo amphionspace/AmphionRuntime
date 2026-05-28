@@ -2,6 +2,8 @@
 
 本文档面向 app 工程师（Android / iOS），说明如何把单条录音上传到本服务。协议契约见 [../server_spec.md](../server_spec.md)，本文档不重复 NORMATIVE 内容，只覆盖"我怎么用"。
 
+> Android 评测客户端的参考实现已经独立成 `:sample-eval` 模块（applicationId `com.amphion.asr.sample.eval`），与对外 demo `:sample` 物理隔离。本文档示例代码与仓库内位置请参照 §4 末尾。
+
 ## 1. 总览
 
 ```mermaid
@@ -182,7 +184,9 @@ when {
 }
 ```
 
-对应仓库内的客户端实现：[android/AmphionRuntime/sample/.../HttpUploader.kt](../../android/AmphionRuntime/sample/src/main/java/com/amphion/asr/sample/eval/upload/HttpUploader.kt)（参见 server_spec 第五节）。
+对应仓库内的客户端实现：[android/AmphionRuntime/sample-eval/.../HttpUploader.kt](../../android/AmphionRuntime/sample-eval/src/main/java/com/amphion/asr/sample/eval/upload/HttpUploader.kt)（参见 server_spec 第五节）。
+
+> 历史路径 `android/AmphionRuntime/sample/...` 在 0.2.0 已废弃：评测代码搬到 `:sample-eval` 模块后，`:sample` 只承载对外 demo（零网络权限）。已克隆仓库的人请刷新到 main 后跑 `./gradlew :sample-eval:installDebug`。
 
 ## 5. iOS Swift 骨架（占位，未经验证）
 

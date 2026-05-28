@@ -5,8 +5,28 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
-    android:padding="@dimen/screen_padding">
+    android:fitsSystemWindows="true">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="0dp"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/brand_cream"
+        app:contentInsetStart="0dp"
+        app:contentInsetStartWithNavigation="0dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/content_root"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:padding="@dimen/screen_padding"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar">
 
     <LinearLayout
         android:id="@+id/brand_header"
@@ -93,108 +113,6 @@
                 android:textStyle="bold" />
 
         </RadioGroup>
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/itn_row"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:background="@drawable/bg_segment_container"
-        android:gravity="center_vertical"
-        android:minHeight="@dimen/segment_height"
-        android:orientation="horizontal"
-        android:paddingStart="14dp"
-        android:paddingTop="6dp"
-        android:paddingEnd="6dp"
-        android:paddingBottom="6dp"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/lang_card"
-        tools:visibility="visible">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/itn_toggle_label"
-                android:textAppearance="@style/TextAppearance.Amphion.CardLabel" />
-
-            <TextView
-                android:id="@+id/tv_itn_desc"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/itn_toggle_desc"
-                android:textColor="@color/brand_text_secondary"
-                android:textSize="12sp" />
-
-        </LinearLayout>
-
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/sw_itn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:enabled="false" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/punct_row"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_segment_container"
-        android:gravity="center_vertical"
-        android:minHeight="@dimen/segment_height"
-        android:orientation="horizontal"
-        android:paddingStart="14dp"
-        android:paddingTop="6dp"
-        android:paddingEnd="6dp"
-        android:paddingBottom="6dp"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/itn_row"
-        tools:visibility="visible">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/punct_toggle_label"
-                android:textAppearance="@style/TextAppearance.Amphion.CardLabel" />
-
-            <TextView
-                android:id="@+id/tv_punct_desc"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/punct_toggle_desc"
-                android:textColor="@color/brand_text_secondary"
-                android:textSize="12sp" />
-
-        </LinearLayout>
-
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/sw_punct"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:enabled="false" />
 
     </LinearLayout>
 
@@ -338,6 +256,17 @@
 
         </ScrollView>
 
+        <TextView
+            android:id="@+id/tv_metrics"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:fontFamily="monospace"
+            android:text="@string/metrics_placeholder"
+            android:textColor="@color/brand_text_muted"
+            android:textSize="11sp"
+            tools:text="E2E 145 ms · 首字 90 ms · RTF 0.18 · RSS 167 MB" />
+
     </LinearLayout>
 
     <Button
@@ -357,5 +286,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

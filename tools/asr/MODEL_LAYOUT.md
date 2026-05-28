@@ -1,6 +1,10 @@
 # 最终模型目录与清单文件
 
-阶段 A 输出的最终模型目录，是 SDK 在端上加载的实际形态。本文件给出一份固定的目录布局、tokens.txt 与 manifest.json 的内容模板。Android SDK 端会按 manifest.json 下载、校验、装载。
+> **internal-only：** 本文档描述模型导出 + 量化后的中间产物布局（manifest.json / tokens.txt / `<id>/<v>/` 目录），仅作为算法 / 训练同学交接给 SDK 打包脚本（`tools/asr/08_pack_sdk_assets.sh`）的参考。
+>
+> Android SDK 0.2.0 起所有模型已经打进 AAR，运行时不再读 manifest.json，也不再从外部 CDN 下载；业务方 不需要 看本文。本文如果还在被引用，往往是「我们自己」要把新一版模型替换进 SDK 时的内部参考。
+
+阶段 A 输出的最终模型目录，是 SDK 打包时使用的中间产物。本文件给出一份固定的目录布局、tokens.txt 与 manifest.json 的内容模板。
 
 如果你只想 把已经导出量化好的模型 push 到 测试设备 验证 demo（不走 CDN 远程下载），看 `QUICKSTART.md` 第 14 节"换成自己导出的模型"，那一节有现成的 push 脚本与故障排查表，本文是数据格式定义与字段语义的参考。
 

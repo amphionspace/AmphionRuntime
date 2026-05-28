@@ -1,116 +1,135 @@
 package com.amphion.asr.internal
 
+import com.amphion.asr.AsrCallback
+import com.amphion.asr.AsrConfig
+import com.amphion.asr.AsrErrorCode
+import com.amphion.asr.AsrLanguage
+import com.amphion.asr.VadConfig
+import com.amphion.asr.VadModelType
 import com.k2fsa.sherpa.onnx.EndpointConfig
 import com.k2fsa.sherpa.onnx.EndpointRule
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.HomophoneReplacerConfig
 import com.k2fsa.sherpa.onnx.OnlineLMConfig
 import com.k2fsa.sherpa.onnx.OnlineModelConfig
-import com.k2fsa.sherpa.onnx.OnlineNeMoCtcModelConfig
-import com.k2fsa.sherpa.onnx.OnlineParaformerModelConfig
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
-import com.k2fsa.sherpa.onnx.OnlineZipformer2CtcModelConfig
 import com.k2fsa.sherpa.onnx.SileroVadModelConfig
 import com.k2fsa.sherpa.onnx.Vad
 import com.k2fsa.sherpa.onnx.VadModelConfig
-import com.amphion.asr.AsrCallback
-import com.amphion.asr.AsrConfig
-import com.amphion.asr.AsrError
-import com.amphion.asr.AsrErrorCode
-import com.amphion.asr.DecodingMethod
-import com.amphion.asr.ModelType
-import org.json.JSONObject
-import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-/** EngineImpl：包装官方 [OnlineRecognizer]，对上为 [com.amphion.asr.AsrEngine] 提供 newSession 工厂。 */
-internal class EngineImpl(private val config: AsrConfig) {
+/**
+ * SDK 的 ASR 引擎实现：包装一份 [OnlineRecognizer]（可能来自 [AmphionRuntime] 的池）+
+ * per-engine 的 [Vad]，以及对 [SharedPostProcessor] 的引用。
+ *
+ * 业务方拿到的 [com.amphion.asr.AsrEngine] 只是 EngineImpl 的薄壳。
+ * 1 个 EngineImpl ↔ N 个 [SessionImpl]：recognizer / vad / 共享 punct / 共享 itn 都是
+ * Engine 级别共享资源，session 之间不互相影响。
+ *
+ * 关于 [ownsRecognizer]：true 时 close 会真的 release recognizer；false 时表示
+ * recognizer 来自 [AmphionRuntime.asrPool]，close 仅释放 sessions 与 vad，recognizer
+ * 留在池里供下次 create 复用。
+ */
+internal class EngineImpl(
+    private val language: AsrLanguage,
+    private val config: AsrConfig,
+    private val recognizer: OnlineRecognizer,
+    private val ownsRecognizer: Boolean,
+    layout: AssetInstaller.InstalledLayout,
+    private val createStartElapsedMs: Long,
+    private val assetInstallMs: Long,
+    private val assetTotalBytes: Long,
+) {
 
-    private val recognizer: OnlineRecognizer
     private val vad: Vad?
+
     private val closed = AtomicBoolean(false)
     private val sessionsLock = ReentrantLock()
     private val sessions: MutableSet<SessionImpl> = HashSet()
     private val sessionCounter = AtomicInteger(0)
 
-    /** 内部传给 SessionImpl 用：在 createStream 时把热词作为 string 注入 */
+    /** engine ready 时刻（init 完成）的 SystemClock.elapsedRealtime；MetricsCollector 需要。 */
+    val engineReadyElapsedMs: Long
+    val engineReadyMs: Long
+    val nativeRssMbAtReady: Int
+
     @Volatile
     internal var engineHotwords: String = ""
         private set
 
-    /** 内部传给 SessionImpl 用：调用方 updateHotwords 时校验 score 一致性，便于诊断 */
     internal val engineHotwordsScore: Float
         get() = config.hotwordsScore
 
+    /** 用于让 SessionImpl 通过 SharedPostProcessor 串入后处理；可能为 null。 */
+    internal val sharedPunctuation: InternalPunctuationEngine?
+        get() = if (config.punctuation) SharedPostProcessor.punctuation() else null
+
+    internal val sharedItn: InternalWeitnEngine?
+        get() = if (config.itn && AssetRegistry.itnEnabledFor(language)) SharedPostProcessor.itn() else null
+
+    internal val asrLanguage: AsrLanguage
+        get() = language
+
+    /** 给 [SessionImpl] 读 VAD 主动 endpoint 阈值等参数；与 [vad] 是否非空解耦。 */
+    internal val vadConfig: VadConfig
+        get() = config.vadConfig
+
     init {
         engineHotwords = config.hotwords.joinToString("\n")
-        // 注意：buildOnlineRecognizerConfig 必须在 NativeGuard.run 之外构造，
-        // 否则其抛出的业务异常（例如 MODEL_TYPE_MISMATCH）会被 NativeGuard 一律归一为 NATIVE_CRASH(9001)，
-        // 调用方就拿不到「请改 manifest.model_type」这种可操作错误了。
-        val recognizerConfig = buildOnlineRecognizerConfig(config)
-        recognizer = when (val r = NativeGuard.run("OnlineRecognizer.<init>") {
-            OnlineRecognizer(
-                assetManager = null,
-                config = recognizerConfig,
-            )
-        }) {
-            is NativeResult.Ok -> {
-                Logger.i("OnlineRecognizer loaded from ${config.modelDir.absolutePath}")
-                r.value
-            }
-            is NativeResult.Err -> {
-                throw IllegalStateException(
-                    "Failed to load model from ${config.modelDir.absolutePath}: ${r.error.message}",
-                    r.error.cause
-                )
-            }
+
+        // VAD：可选，per-engine（sherpa-onnx VAD 是 stateful，不能跨 session 共享）
+        // 0.2.x 起 SessionImpl 真正接入了 VAD 管线（Gate + 主动 endpoint）
+        vad = if (config.vad && layout.vadModel != null) {
+            buildVad(config.vadConfig, layout.vadModel.absolutePath)
+        } else {
+            null
         }
 
-        vad = if (config.enableVad && config.vadModelPath != null) {
-            NativeGuard.runQuietly("Vad.<init>") {
-                Vad(
-                    assetManager = null,
-                    config = VadModelConfig(
-                        sileroVadModelConfig = SileroVadModelConfig(
-                            model = config.vadModelPath.absolutePath,
-                            threshold = 0.5f,
-                            minSilenceDuration = 0.25f,
-                            minSpeechDuration = 0.25f,
-                            windowSize = 512,
-                        ),
-                        sampleRate = config.sampleRate,
-                        numThreads = 1,
-                        provider = "cpu",
-                    )
-                )
-            }
-        } else null
+        engineReadyElapsedMs = android.os.SystemClock.elapsedRealtime()
+        engineReadyMs = engineReadyElapsedMs - createStartElapsedMs
+        nativeRssMbAtReady = ProcessRssReader.readNativeRssMb()
+        Logger.i(
+            "Engine ready: language=$language ownsRecognizer=$ownsRecognizer " +
+                "engineReadyMs=$engineReadyMs nativeRssMbAtReady=$nativeRssMbAtReady",
+        )
     }
 
     val isClosed: Boolean
         get() = closed.get()
 
     fun newSession(callback: AsrCallback): SessionImpl {
-        check(!closed.get()) { "Engine is closed" }
+        check(!closed.get()) { "Engine is closed (code=${AsrErrorCode.SESSION_ALREADY_CLOSED})" }
         val id = sessionCounter.incrementAndGet()
+        val isFirstSession = id == 1
+        val startupBundle = if (isFirstSession) {
+            EngineStartupBundle(
+                assetInstallMs = assetInstallMs,
+                assetTotalBytes = assetTotalBytes,
+                engineReadyMs = engineReadyMs,
+                nativeRssMbAtReady = nativeRssMbAtReady,
+            )
+        } else {
+            null
+        }
         val session = SessionImpl(
             engineImpl = this,
             recognizer = recognizer,
             vad = vad,
-            sampleRate = config.sampleRate,
+            sampleRate = SAMPLE_RATE,
             callback = callback,
             sessionId = id,
+            startupBundle = startupBundle,
         )
         sessionsLock.withLock { sessions.add(session) }
         return session
     }
 
-    /** 由 SessionImpl.close() 反向调用，从注册表移除。 */
+    /** 由 SessionImpl.close() 反向调用。 */
     internal fun unregister(s: SessionImpl) {
         sessionsLock.withLock { sessions.remove(s) }
     }
@@ -118,263 +137,190 @@ internal class EngineImpl(private val config: AsrConfig) {
     fun close() {
         if (!closed.compareAndSet(false, true)) return
 
-        // 关闭所有未关闭的 session（拷贝一份避免并发修改）
         val toClose = sessionsLock.withLock { sessions.toList().also { sessions.clear() } }
         for (s in toClose) {
-            try {
-                s.close()
-            } catch (t: Throwable) {
-                Logger.w("close session failed: ${t.message}")
+            try { s.close() } catch (t: Throwable) { Logger.w("close session failed: ${t.message}") }
+        }
+
+        // session.close 只是 post 任务给各自的 decoder handler，不阻塞；但接下来要
+        // release per-engine vad，必须等 decoder 线程上「当前正在执行的 feedAndDecode」
+        // 退出，否则那个 task 里的 v.isSpeechDetected() 会拿到已释放的 native pointer
+        // 直接 SIGSEGV（见 SessionImpl.awaitDecoderQuit 的说明）。
+        // 超时 500ms 是为了避免极端病态（decoder 卡在 native）时永远 hang close 流程。
+        for (s in toClose) {
+            val quit = s.awaitDecoderQuit(timeoutMs = 500)
+            if (!quit) {
+                Logger.w("Engine close: session decoder didn't quit in 500ms, proceeding anyway")
             }
         }
 
-        NativeGuard.runQuietly("recognizer.release") { recognizer.release() }
+        if (ownsRecognizer) {
+            NativeGuard.runQuietly("recognizer.release") { recognizer.release() }
+        }
         NativeGuard.runQuietly("vad.release") { vad?.release() }
-        Logger.i("Engine closed")
+        Logger.i("Engine closed (ownsRecognizer=$ownsRecognizer)")
     }
 
-    // -------- 把 AsrConfig 翻译成 sherpa-onnx 官方 OnlineRecognizerConfig --------
-    private fun buildOnlineRecognizerConfig(c: AsrConfig): OnlineRecognizerConfig {
-        // 一次性读 manifest，把可被覆盖的字段全拿出来（不在则留 null，走 Builder/默认）
-        val overrides = readManifestOverrides(c.modelDir)
+    internal companion object {
+        /** SDK 锁定的采样率，与训练时一致。 */
+        const val SAMPLE_RATE: Int = 16000
 
-        // 决定 model_type：优先 manifest，其次 Builder 默认（TRANSDUCER）
-        val modelType: ModelType = overrides?.modelType
-            ?.let(ModelType::fromManifestString)
-            ?: ModelType.TRANSDUCER
+        /** fbank 特征维度，与训练时一致。 */
+        const val FEATURE_DIM: Int = 80
 
-        // 解析模型文件路径：按 model_type 不同期望不同（int8 优先）
-        val (resolved, errMsg) = ModelLayout.resolve(c.modelDir, modelType)
-        if (resolved == null) {
-            throw IllegalStateException("MODEL_FILE_MISSING (code=${AsrErrorCode.MODEL_FILE_MISSING}): $errMsg")
-        }
-        Logger.i(
-            "model layout: type=$modelType " +
-            "encoder=${resolved.encoder?.name} decoder=${resolved.decoder?.name} " +
-            "joiner=${resolved.joiner?.name} model=${resolved.model?.name}"
-        )
-
-        val tokens = resolved.tokens.absolutePath
-
-        // 优先级：调用方 Builder 显式设置 > manifest.json > Builder 默认值
-        var effectiveDecoding: DecodingMethod = when {
-            c.decodingMethodIsExplicit -> c.decodingMethod
-            overrides?.decodingMethod != null -> overrides.decodingMethod
-            else -> c.decodingMethod
-        }
-        val effectiveMaxActivePaths: Int = when {
-            c.maxActivePathsIsExplicit -> c.maxActivePaths
-            overrides?.maxActivePaths != null -> overrides.maxActivePaths
-            else -> c.maxActivePaths
-        }
-
-        // 兜底：如果 hotwords 非空但 effective decoding 仍然是 greedy_search（极端情况：调用方在
-        // Builder 里没传热词，但通过 updateHotwords 等运行时路径注入，或 manifest 把 explicit
-        // modified_beam_search 之外的 builder 默认覆盖回 greedy），强制切到 modified_beam_search。
-        // 这与 AsrConfig.Builder.build() 的协商保持一致，并防止 native LOGE。
-        if (c.hotwords.isNotEmpty() && effectiveDecoding != DecodingMethod.MODIFIED_BEAM_SEARCH) {
-            Logger.w(
-                "hotwords non-empty but effective decoding=$effectiveDecoding; forcing MODIFIED_BEAM_SEARCH " +
-                "(sherpa-onnx requires it for hotwords to take effect)."
-            )
-            effectiveDecoding = DecodingMethod.MODIFIED_BEAM_SEARCH
-        }
-
-        if (overrides != null) {
-            Logger.i(
-                "manifest overrides: model_type=${overrides.modelType ?: "(none)"} -> $modelType, " +
-                "decoding_method=${overrides.decodingMethod ?: "(none)"}, " +
-                "max_active_paths=${overrides.maxActivePaths ?: "(none)"}"
-            )
-        }
-        Logger.i(
-            "effective decoding=$effectiveDecoding maxActivePaths=$effectiveMaxActivePaths " +
-            "(decodingExplicit=${c.decodingMethodIsExplicit}, " +
-            "maxActiveExplicit=${c.maxActivePathsIsExplicit})"
-        )
-
-        // sherpa-onnx 的 OnlineModelConfig.modelType 是字符串字段；按实际选用的网络类型填回
-        val modelTypeStr = modelTypeToManifestString(modelType, overrides?.modelType)
-
-        // ----- zipformer transducer 的 manifest.model_type ↔ encoder ONNX metadata 一致性校验 -----
-        // 仅对 zipformer / zipformer2 transducer 做（其它族的 metadata key 不在我们的特征字典里）。
-        // 校验目的：避免把 zipformer2 模型按 zipformer1 路径加载，sherpa-onnx 找不到 attention_dims
-        // 直接 abort 整个进程（Java try/catch 接不住）。详见 ZipformerSignature 的注释。
-        if (modelType == ModelType.TRANSDUCER &&
-            (modelTypeStr == "zipformer" || modelTypeStr == "zipformer2")
-        ) {
-            val expected = if (modelTypeStr == "zipformer2") {
-                ZipformerSignature.Detected.ZIPFORMER2
-            } else {
-                ZipformerSignature.Detected.ZIPFORMER1
-            }
-            val detected = ZipformerSignature.detect(resolved.encoder!!)
-            if (detected != ZipformerSignature.Detected.UNKNOWN && detected != expected) {
-                val actualTag = when (detected) {
-                    ZipformerSignature.Detected.ZIPFORMER1 -> "zipformer"
-                    ZipformerSignature.Detected.ZIPFORMER2 -> "zipformer2"
-                    else -> "unknown"
-                }
-                throw IllegalStateException(
-                    "MODEL_TYPE_MISMATCH (code=${AsrErrorCode.MODEL_TYPE_MISMATCH}): " +
-                        "manifest.model_type='$modelTypeStr' but encoder ONNX metadata indicates '$actualTag'. " +
-                        "Fix manifest.json under ${c.modelDir.absolutePath} " +
-                        "(see tools/asr/MODEL_LAYOUT.md §3 for the model_type convention)."
+        /**
+         * 按 [VadConfig.modelType] 构造一份新的 [Vad]。
+         *
+         * 当前 AAR 只打包了 silero VAD 资产；选择 [VadModelType.TEN_VAD] 会抛
+         * [UnsupportedOperationException]。资产打包好后这里只需要分支多加 modelPath 与
+         * `TenVadModelConfig` 即可。
+         */
+        @Throws(UnsupportedOperationException::class)
+        fun buildVad(vadConfig: VadConfig, modelPath: String): Vad? {
+            val sherpaConfig = when (vadConfig.modelType) {
+                VadModelType.SILERO -> VadModelConfig(
+                    sileroVadModelConfig = SileroVadModelConfig(
+                        model = modelPath,
+                        threshold = vadConfig.threshold,
+                        minSilenceDuration = vadConfig.minSilenceDurationSec,
+                        minSpeechDuration = vadConfig.minSpeechDurationSec,
+                        windowSize = 512,
+                        maxSpeechDuration = vadConfig.maxSpeechDurationSec,
+                    ),
+                    sampleRate = SAMPLE_RATE,
+                    numThreads = 1,
+                    provider = "cpu",
+                )
+                VadModelType.TEN_VAD -> throw UnsupportedOperationException(
+                    "ten-vad is not packaged in this AAR yet; " +
+                        "use VadModelType.SILERO or rebuild SDK with ten-vad.onnx",
                 )
             }
-            Logger.i("zipformer signature check passed: manifest=$modelTypeStr, detected=$detected")
+            return NativeGuard.runQuietly("Vad.<init>") {
+                Vad(assetManager = null, config = sherpaConfig)
+            }
         }
 
-        val modelConfig = when (modelType) {
-            ModelType.TRANSDUCER -> OnlineModelConfig(
+        /**
+         * 构造一份新的 [OnlineRecognizer]。失败抛 [IllegalStateException]（含 ASSET_INSTALL_FAILED 错误码）。
+         */
+        fun buildRecognizer(
+            layout: AssetInstaller.InstalledLayout,
+            config: AsrConfig,
+            language: AsrLanguage,
+        ): OnlineRecognizer {
+            val recognizerConfig = buildOnlineRecognizerConfig(layout, config)
+            return when (val r = NativeGuard.run("OnlineRecognizer.<init>") {
+                OnlineRecognizer(assetManager = null, config = recognizerConfig)
+            }) {
+                is NativeResult.Ok -> {
+                    // 显式把热词链路的关键参数打出来；同音字纠错效果不达预期时直接看这一行
+                    Logger.i(
+                        "OnlineRecognizer loaded for $language: " +
+                            "decoding=${recognizerConfig.decodingMethod} " +
+                            "maxActivePaths=${recognizerConfig.maxActivePaths} " +
+                            "modelingUnit=${recognizerConfig.modelConfig.modelingUnit} " +
+                            "hotwordsCount=${config.hotwords.size} " +
+                            "hotwordsScore=${config.hotwordsScore}",
+                    )
+                    r.value
+                }
+                is NativeResult.Err -> throw IllegalStateException(
+                    "code=${AsrErrorCode.ASSET_INSTALL_FAILED}: " +
+                        "failed to load ASR model for $language: ${r.error.message}",
+                    r.error.cause,
+                )
+            }
+        }
+
+        /**
+         * 判断 [other] 是否能直接复用以 [pool] 为模板创建的 OnlineRecognizer。
+         * 比对 recognizer 级别字段：numThreads / endpoint / hasHotwords。
+         * hotwordsScore / hotwords 内容本身在 createStream 阶段才生效，不影响。
+         */
+        fun isRecognizerConfigCompatible(pool: AsrConfig, other: AsrConfig): Boolean {
+            if (pool.numThreads != other.numThreads) return false
+            if (pool.endpoint != other.endpoint) return false
+            // decodingMethod 在 buildOnlineRecognizerConfig 内由 hotwords 是否为空决定
+            val poolHasHotwords = pool.hotwords.isNotEmpty()
+            val otherHasHotwords = other.hotwords.isNotEmpty()
+            if (poolHasHotwords != otherHasHotwords) return false
+            return true
+        }
+
+        // -------- 把 AsrConfig + InstalledLayout 翻译成 sherpa-onnx 的 OnlineRecognizerConfig --------
+        private fun buildOnlineRecognizerConfig(
+            layout: AssetInstaller.InstalledLayout,
+            c: AsrConfig,
+        ): OnlineRecognizerConfig {
+            // 模型族固定 zipformer2 transducer：业务方在 SDK 边界看不到 model_type 这一层
+            val modelConfig = OnlineModelConfig(
                 transducer = OnlineTransducerModelConfig(
-                    encoder = resolved.encoder!!.absolutePath,
-                    decoder = resolved.decoder!!.absolutePath,
-                    joiner = resolved.joiner!!.absolutePath,
+                    encoder = layout.asrEncoder.absolutePath,
+                    decoder = layout.asrDecoder.absolutePath,
+                    joiner = layout.asrJoiner.absolutePath,
                 ),
-                tokens = tokens,
+                tokens = layout.asrTokens.absolutePath,
                 numThreads = c.numThreads,
                 debug = false,
                 provider = "cpu",
-                modelType = modelTypeStr,
+                modelType = "zipformer2",
+                // 我们的 zipformer2 是 byte-level BPE，tokens.txt 没有独立汉字/字母 token；
+                // 必须用 bbpe：sherpa-onnx 内部先把每个 byte 转成 byte-level 符号，再用
+                // bpeVocab 指向的两列文本词表做 BPE encode，让热词编出与 ASR 输出一致的
+                // token ID 序列。注意：bpeVocab 是 sherpa-onnx ssentencepiece 的文本词表
+                // 格式（每行 `<piece> <score>`），不是 Google SentencePiece protobuf。
+                // 空 modeling_unit 会触发 SHERPA_ONNX_EXIT(-1)；vocab 文件格式不对会让
+                // ssentencepiece::Build 的 darts trie 构造 segfault；都是直接 native 退出
+                modelingUnit = "bbpe",
+                bpeVocab = layout.asrBpeVocab.absolutePath,
             )
-            ModelType.PARAFORMER -> OnlineModelConfig(
-                paraformer = OnlineParaformerModelConfig(
-                    encoder = resolved.encoder!!.absolutePath,
-                    decoder = resolved.decoder!!.absolutePath,
-                ),
-                tokens = tokens,
-                numThreads = c.numThreads,
-                debug = false,
-                provider = "cpu",
-                modelType = modelTypeStr,
+
+            val featureConfig = FeatureConfig(
+                sampleRate = SAMPLE_RATE,
+                featureDim = FEATURE_DIM,
             )
-            ModelType.ZIPFORMER2_CTC -> OnlineModelConfig(
-                zipformer2Ctc = OnlineZipformer2CtcModelConfig(
-                    model = resolved.model!!.absolutePath,
-                ),
-                tokens = tokens,
-                numThreads = c.numThreads,
-                debug = false,
-                provider = "cpu",
-                modelType = modelTypeStr,
+
+            val endpointConfig = EndpointConfig(
+                rule1 = EndpointRule(false, c.endpointRules.rule1MinTrailingSilenceSec, 0f),
+                rule2 = EndpointRule(true, c.endpointRules.rule2MinTrailingSilenceSec, 0f),
+                rule3 = EndpointRule(false, 0f, c.endpointRules.rule3MinUtteranceLengthSec),
             )
-            ModelType.NEMO_CTC -> OnlineModelConfig(
-                neMoCtc = OnlineNeMoCtcModelConfig(
-                    model = resolved.model!!.absolutePath,
-                ),
-                tokens = tokens,
-                numThreads = c.numThreads,
-                debug = false,
-                provider = "cpu",
-                modelType = modelTypeStr,
+
+            // 解码方式：默认 greedy_search；hotwords 非空时自动切到 modified_beam_search
+            // （sherpa-onnx 强制要求；与旧 SDK 行为一致）
+            val decodingMethod = if (c.hotwords.isEmpty()) "greedy_search" else "modified_beam_search"
+
+            // beam width 跟着 decodingMethod 走：
+            // - greedy_search 时其实只取 top-1，maxActivePaths 没意义；保留 4 是历史默认
+            // - modified_beam_search 时这是 beam 宽度，直接决定「正确假设能不能在 boost
+            //   生效之前活下来」。同音字（如「余明洞」/「余铭栋」）声学概率几乎相同，
+            //   AM 给出的 top-1 通常是更常见的「明洞」，「铭栋」要靠 hotwords boost 翻盘；
+            //   beam 太窄（4）会让「铭栋」候选还没拿到完整路径 boost 就被 prune 掉。
+            //   8 是 sherpa-onnx 文档里的中文场景推荐值，多 4 条路径的解码代价约 +20% CPU
+            val maxActivePaths = if (decodingMethod == "modified_beam_search") 8 else 4
+
+            return OnlineRecognizerConfig(
+                featConfig = featureConfig,
+                modelConfig = modelConfig,
+                lmConfig = OnlineLMConfig(),
+                hr = HomophoneReplacerConfig(),
+                endpointConfig = endpointConfig,
+                enableEndpoint = c.endpoint,
+                decodingMethod = decodingMethod,
+                maxActivePaths = maxActivePaths,
+                hotwordsFile = "",
+                hotwordsScore = c.hotwordsScore,
+                ruleFsts = "",
             )
-        }
-
-        val featureConfig = FeatureConfig(
-            sampleRate = c.sampleRate,
-            featureDim = c.featureDim,
-        )
-
-        val endpointConfig = EndpointConfig(
-            rule1 = EndpointRule(false, c.endpointRules.rule1MinTrailingSilenceSec, 0f),
-            rule2 = EndpointRule(true,  c.endpointRules.rule2MinTrailingSilenceSec, 0f),
-            rule3 = EndpointRule(false, 0f, c.endpointRules.rule3MinUtteranceLengthSec),
-        )
-
-        // 高级特性：HomophoneReplacer / LM rescoring
-        // 注：ITN 不再走 sherpa-onnx 的 rule_fsts；由独立的 WeitnEngine 在 ASR final 之后处理。
-        val hr = if (c.homophoneLexiconPath != null && c.homophoneRuleFstsPath != null) {
-            HomophoneReplacerConfig(
-                lexicon = c.homophoneLexiconPath.absolutePath,
-                ruleFsts = c.homophoneRuleFstsPath.absolutePath,
-            )
-        } else {
-            HomophoneReplacerConfig()
-        }
-        val lmConfig = if (c.lmModelPath != null) {
-            // 仅在 modified_beam_search 下生效；上面已经做过协商
-            OnlineLMConfig(model = c.lmModelPath.absolutePath, scale = c.lmScale)
-        } else {
-            OnlineLMConfig()
-        }
-
-        // 热词通过 createStream(hotwords=...) 注入（见 SessionImpl），这里 hotwordsFile 留空
-        return OnlineRecognizerConfig(
-            featConfig = featureConfig,
-            modelConfig = modelConfig,
-            lmConfig = lmConfig,
-            hr = hr,
-            endpointConfig = endpointConfig,
-            enableEndpoint = c.enableEndpoint,
-            decodingMethod = when (effectiveDecoding) {
-                DecodingMethod.GREEDY_SEARCH -> "greedy_search"
-                DecodingMethod.MODIFIED_BEAM_SEARCH -> "modified_beam_search"
-            },
-            maxActivePaths = effectiveMaxActivePaths,
-            hotwordsFile = "",
-            hotwordsScore = c.hotwordsScore,
-            ruleFsts = "",
-        )
-    }
-
-    /**
-     * 把 [ModelType] 翻成 sherpa-onnx native 期望的 modelType 字符串。
-     * 如果 manifest 里已经写了 zipformer / zipformer2 这种"细分 type"，优先保留原始字符串。
-     */
-    private fun modelTypeToManifestString(t: ModelType, manifestRaw: String?): String {
-        if (!manifestRaw.isNullOrBlank()) return manifestRaw
-        return when (t) {
-            ModelType.TRANSDUCER -> "zipformer2"   // 公司主推 streaming zipformer2
-            ModelType.PARAFORMER -> "paraformer"
-            ModelType.ZIPFORMER2_CTC -> "zipformer2_ctc"
-            ModelType.NEMO_CTC -> "nemo_ctc"
-        }
-    }
-
-    /** 把内部异常包成 AsrError 上报。 */
-    internal fun asAsrError(t: Throwable, fallbackCode: Int = AsrErrorCode.NATIVE_CRASH): AsrError =
-        AsrError(
-            code = fallbackCode,
-            message = t.message ?: t.javaClass.simpleName,
-            cause = t,
-        )
-
-    /**
-     * manifest.json 中 SDK 关心的可覆盖字段。任意字段缺省都允许（返回 null 表示没有覆盖）。
-     * 优先级低于 Builder 显式调用，高于 Builder 默认值。
-     */
-    private data class ManifestOverrides(
-        val modelType: String?,
-        val decodingMethod: DecodingMethod?,
-        val maxActivePaths: Int?,
-    )
-
-    /** 读 modelDir/manifest.json 中允许覆盖运行时配置的字段；不存在/解析失败返回 null。 */
-    private fun readManifestOverrides(modelDir: File): ManifestOverrides? {
-        return try {
-            val mf = File(modelDir, "manifest.json")
-            if (!mf.isFile) return null
-            val o = JSONObject(mf.readText())
-            val modelType = o.optString("model_type", "").takeIf { it.isNotBlank() }
-            val decodingMethod = o.optString("decoding_method", "").takeIf { it.isNotBlank() }
-                ?.let(::parseDecodingMethod)
-            val maxActivePaths = if (o.has("max_active_paths")) o.optInt("max_active_paths", -1)
-                .takeIf { it in 1..32 } else null
-            ManifestOverrides(modelType, decodingMethod, maxActivePaths)
-        } catch (t: Throwable) {
-            Logger.w("readManifestOverrides failed: ${t.message}")
-            null
-        }
-    }
-
-    /** 把 manifest 里的字符串映射到 [DecodingMethod]；未知值返回 null（走 Builder 默认）。 */
-    private fun parseDecodingMethod(value: String): DecodingMethod? = when (value.trim()) {
-        "greedy_search" -> DecodingMethod.GREEDY_SEARCH
-        "modified_beam_search" -> DecodingMethod.MODIFIED_BEAM_SEARCH
-        else -> {
-            Logger.w("manifest.decoding_method='$value' unknown, ignored")
-            null
         }
     }
 }
+
+/** 引擎启动期信息，附带在第一段 utterance 的 metrics 上。 */
+internal data class EngineStartupBundle(
+    val assetInstallMs: Long,
+    val assetTotalBytes: Long,
+    val engineReadyMs: Long,
+    val nativeRssMbAtReady: Int,
+)

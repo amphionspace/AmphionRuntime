@@ -22,6 +22,7 @@ DerivedData/
 __pycache__/
 *.pyc
 .venv/
+.venv-*/
 venv/
 
 # --- C++ / cmake ---
@@ -42,6 +43,18 @@ android/AmphionRuntime/sample/src/main/assets/asr-models/
 tools/asr/weitn-fsts/
 # 标点模型 tarball / 解压结果（由 tools/asr/00_push_punct_model.sh 产出）
 tools/asr/punct-model/
+
+# SDK 内置模型权重（由 tools/asr/08_pack_sdk_assets.sh 写入）：
+# - 体积加起来 ~270MB，不入库
+# - 但目录骨架（README.md / manifest.json / .gitkeep）需要进 git，
+#   见 android/AmphionRuntime/sdk/src/main/assets/amphion-models/README.md
+android/AmphionRuntime/sdk/src/main/assets/amphion-models/**/*.onnx
+android/AmphionRuntime/sdk/src/main/assets/amphion-models/**/*.fst
+android/AmphionRuntime/sdk/src/main/assets/amphion-models/**/tokens.txt
+# bbpe.vocab 与 tokens.txt 同源、与 encoder ONNX 严格配对，必须走单一发布渠道
+# （tools/asr/08_pack_sdk_assets.sh）；否则 sha256 易与权重版本错位。
+android/AmphionRuntime/sdk/src/main/assets/amphion-models/**/bbpe.vocab
+android/AmphionRuntime/sdk/src/main/assets/amphion-models/manifest.json
 
 # --- 上游 sherpa-onnx 在 submodule 路径下产生的构建工件 ---
 # 这些目录在 third_party/sherpa-onnx 下被上游 build-android-*.sh 创建；

@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Build / fetch WeTextProcessing zh_itn fsts and push them to the sample app.
+# [deprecated since 0.2.0 push 流] Build / fetch WeTextProcessing zh_itn fsts.
+#
+# 0.2.0 起 ITN fst 一并打进 AAR。本脚本仍保留 --no-push 路径，作为
+# tools/asr/08_pack_sdk_assets.sh 的输入准备步骤（pip 编译或 CDN 拉取到 cache）。
+# adb push 路径在 0.2.0 之后不再被 sample app 读取，仅用于 0.1.x 兼容性自验。
 #
 # WeitnEngine 需要两份 FST（中文 ITN）：
 #   zh_itn_tagger.fst
 #   zh_itn_verbalizer.fst
-# 总和约 2-4 MB；同样不打进 APK，走 adb push 推到 externalFilesDir，
-# sample 启动时由 WeitnAssetInstaller 拷到 internal filesDir/asr-weitn/.
+# 总和约 2-4 MB。
 #
 # 资源来源（按优先级）：
 #   1) WEITN_TAGGER_URL + WEITN_VERBALIZER_URL  环境变量提供的预编译 URL，

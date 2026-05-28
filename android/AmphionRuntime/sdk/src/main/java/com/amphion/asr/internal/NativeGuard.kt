@@ -13,8 +13,8 @@ import com.amphion.asr.AsrErrorCode
  *   native segfault / abort 才会绕过 JVM，那是 OS 级问题，归 ANR/Tombstone 处理
  * - 错误码归一：所有捕获的异常都映射到 [AsrErrorCode.NATIVE_CRASH]（9001），调用方只需要
  *   一个错误码就能处理"native 出问题，应当 close session 重建"的场景
- * - 区分业务错误：业务级错误（如采样率不匹配）应该走 [AsrErrorCode.SAMPLE_RATE_MISMATCH] 等
- *   独立错误码，不要套这个 helper
+ * - 区分业务错误：业务级错误（如参数非法 / 已 close）应该走 [AsrErrorCode.INVALID_ARGUMENT] /
+ *   [AsrErrorCode.SESSION_ALREADY_CLOSED] 等独立错误码，不要套这个 helper
  *
  * 使用：
  *

@@ -1,497 +1,381 @@
 # AmphionRuntime 集成指南
 
-适用 SDK 版本：0.1.0
-对应 sherpa-onnx：v1.13.1（third_party/sherpa-onnx submodule pinned tag）
+适用 SDK 版本：0.2.0
+
+> 0.2.0 是一次破坏性升级：所有模型已经打进 AAR、API 收敛到 4 个公开类。如果你之前接的是 0.1.x，请先看 [CHANGELOG](CHANGELOG.md) 的 Breaking 段。
 
 ## 1. 环境要求
 
-| 项 | 最低版本 | 推荐版本 |
+| 项 | 最低 | 推荐 |
 | --- | --- | --- |
 | Android API Level (minSdk) | 24 (Android 7.0) | 24+ |
 | Android API Level (targetSdk) | 33 | 34 |
 | Android Gradle Plugin | 8.0 | 8.4 |
 | Gradle | 8.0 | 8.6 |
-| Kotlin | 1.8.0 | 1.9.x |
+| Kotlin | 1.8 | 1.9 |
 | ABI | arm64-v8a | arm64-v8a |
-| 设备最小内存 | 1 GB 可用堆 | 2 GB |
-| 模型大小 | 约 50 MB（INT8） | — |
+| 设备最小可用堆 | 1 GB | 2 GB |
+| 安装空间 | 320 MB | 512 MB |
 
-注：本 SDK 不支持 x86 / x86_64 / armeabi-v7a 默认包；如需要 armeabi-v7a 请联系我们提供专门构建。
+不支持 x86 / x86_64 / armeabi-v7a。如需 armeabi-v7a 请联系我们提供专门构建。
 
 ## 2. 引入依赖
 
-### 方案 A：使用本地 Maven 仓库（推荐用于内部交付）
+### 方案 A：AAR 直接放 libs/
 
-`amphion-runtime-0.1.0` 同时提供 AAR 与 Maven POM。先把它发布到本地仓库：
+把 `amphion-runtime-0.2.0.aar` 拷到你 app 工程的 `libs/`：
+
+```kotlin
+dependencies {
+    implementation(files("libs/amphion-runtime-0.2.0.aar"))
+    implementation("androidx.core:core-ktx:1.13.1")
+}
+```
+
+### 方案 B：本地 Maven 仓库
+
+发布到本地 Maven：
 
 ```bash
 cd android/AmphionRuntime
 ./gradlew :sdk:publishReleasePublicationToLocalFileRepoRepository
+# 输出：sdk/build/maven-repo/com/amphion/amphion-runtime/0.2.0/
 ```
 
-然后在你的 app 工程的 `settings.gradle.kts` 加入：
+在你 app 的 `settings.gradle.kts`：
 
 ```kotlin
 dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url = uri("file:///path/to/AmphionRuntime/sdk/build/maven-repo") }
+        maven { url = uri("file:///path/to/sdk/build/maven-repo") }
     }
 }
 ```
 
-并在 app `build.gradle.kts` 添加依赖：
+`build.gradle.kts`：
 
 ```kotlin
 dependencies {
-    implementation("com.amphion:amphion-runtime:0.1.0")
-}
-```
-
-### 方案 B：直接用 .aar 文件
-
-把 `sdk-release.aar`（在 `android/AmphionRuntime/sdk/build/outputs/aar/` 下）拷贝到 app 工程的 `libs/` 目录：
-
-```kotlin
-dependencies {
-    implementation(files("libs/sdk-release.aar"))
-    // SDK 内部使用 androidx.core，下面这行别忘
-    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("com.amphion:amphion-runtime:0.2.0")
 }
 ```
 
 ## 3. 权限
 
-在你的 app `AndroidManifest.xml` 里声明：
-
 ```xml
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
-
-<!-- 如果你用了 ModelManager.ensure() 在线下载模型，需要这两个 -->
-<uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 ```
 
-`RECORD_AUDIO` 是运行时权限，需要在 Activity 里通过 `ActivityResultContracts.RequestPermission` 申请。SDK 自身 不会 调用 `AudioRecord`，业务方负责录音并把 PCM 喂进来。
+`RECORD_AUDIO` 是运行时权限，需要在 Activity 里申请。SDK 自身不接管 `AudioRecord`，业务方负责录音并把 PCM 喂进来。
 
-## 4. 初始化
+> 0.2.0 起 SDK 不再做任何网络请求，因此 `INTERNET` / `ACCESS_NETWORK_STATE` 权限**不再需要**。
 
-在你的 `Application.onCreate()` 里调用一次：
+## 4. 初始化 + 预热（推荐 preload）
+
+在 `Application.onCreate` 调一次：
 
 ```kotlin
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
-        AsrSdk.init(this, AsrSdkOptions(logLevel = AsrLogLevel.WARN))
+        AmphionRuntime.init(this)
+
+        // 推荐：splash / onboarding 阶段预加载所有要用到的语言；后续 create 命中池 0 延迟
+        Thread {
+            AmphionRuntime.preload(
+                this,
+                listOf(AsrLanguage.ZH_EN, AsrLanguage.YUE_EN),
+            ) { stage, percent ->
+                // stage ∈ {"install", "shared", "asr-ZH_EN", "asr-YUE_EN"}
+            }
+        }.start()
     }
 }
 ```
 
-## 5. 模型准备
+`init` 是必须的；`preload` / `preInstall` 是可选的。三种路径区别：
 
-模型不打进 APK，运行时下载到 `<filesDir>/asr-models/<model_id>/<version>/`。
+| 路径 | 触发后做的事 | 占内存 | 切语言耗时 |
+| --- | --- | --- | --- |
+| 仅 init | 什么都不做 | ~0 | 第一次 create 1~3s + 解包 5~30s |
+| init + preInstall | 把模型解包到磁盘 | ~0（不加载 native） | 第一次 create 1~3s |
+| init + preload（推荐） | 解包 + 加载 N 个语言到 ASR 池 | ~180 MB native | 切语言 ~100 ms（VAD 重建） |
+
+详见 §11。
+
+## 5. 创建引擎 + 识别一段话
 
 ```kotlin
-val mm = ModelManager(context)
-
-// 先看本地是否已经有
-val localList = mm.listLocal()
-if (localList.isNotEmpty()) {
-    initEngine(localList.first().dir)
-    return
-}
-
-// 多语言场景（同设备并存多份模型）：listLocal() 会顺便解析 manifest.lang 到 LocalModel.lang，
-// 业务方可据此做语言路由，不必再单独读 manifest。
-// val zhEn  = localList.firstOrNull { it.lang == "zh-en" }
-// val yueEn = localList.firstOrNull { it.lang == "yue-en" }
-
-// 下载（manifest.json 是你服务端发布的）
-val cancellable = mm.ensure(
-    manifestUrl = "https://your-cdn.example.com/asr/zh-en/1.0.0/manifest.json",
-    callback = object : ModelDownloadCallback {
-        override fun onProgress(modelId: String, downloadedBytes: Long, totalBytes: Long) {
-            // 更新 UI
-        }
-        override fun onCompleted(modelId: String, modelDir: File) {
-            initEngine(modelDir)
-        }
-        override fun onError(modelId: String, error: AsrError) {
-            // 处理错误
-        }
-    }
+// 已经 preload 时这一步是 O(ms)；未 preload 时同步走解包 + 加载，建议放子线程
+val engine = AmphionRuntime.create(
+    context,
+    AsrLanguage.ZH_EN,
+    AsrConfig.Builder()
+        .numThreads(2)
+        .punctuation(true)   // 自动给 final 加标点（默认 true）
+        .itn(true)           // 中文 ITN（默认 true，仅 ZH_EN 生效）
+        .vad(true)           // 启用 VAD：Gate + 主动 endpoint（默认 true）
+        .endpoint(true)      // 端点检测自动出 final（默认 true）
+        .build(),
 )
 
-// 想取消下载
-// cancellable.cancel()
+val session = engine.newSession(object : AsrCallback {
+    override fun onPartial(text: String) {
+        // 流式增量，UI 直接覆盖显示
+    }
+    override fun onFinal(text: String, confidence: Float) {
+        // 一段话最终结果，已经做过 ITN + 标点
+    }
+    override fun onEndpoint() {
+        // 端点检测命中（onFinal 之前）
+    }
+    override fun onError(error: AsrError) {
+        // 错误码 见 §7
+    }
+})
+
+// 业务自己的录音线程把 16kHz / 16-bit / 单声道 PCM 喂进来
+session.acceptPcmShort(samples)
+// ...
+session.stop()        // 触发尾段 final
+session.close()       // 释放 session
+engine.close()        // 不再识别时释放 ASR / 标点 / ITN / VAD 全部 native 资源
 ```
 
-manifest.json 的结构与生成方法见 `tools/asr/MODEL_LAYOUT.md`。
+## 6. 切换语言
 
-## 6. 创建引擎与会话
+每个 `AsrEngine` 绑定一种 [AsrLanguage]。要切到另一种语言：
 
 ```kotlin
-fun initEngine(modelDir: File) {
-    val config = AsrConfig.Builder(modelDir)
-        .numThreads(2)
-        .enableEndpoint(true)
-        .hotwords(listOf("声学模型", "深度学习"), score = 1.5f)
-        .build()
-
-    engine = AsrEngine(config)
-}
-
-fun startTalking() {
-    val session = engine.newSession(object : AsrCallback {
-        override fun onPartial(text: String) {
-            runOnUiThread { partialView.text = text }
-        }
-        override fun onFinal(text: String, confidence: Float) {
-            runOnUiThread { finalView.append(text + "\n") }
-        }
-        override fun onEndpoint() {
-            // 一段话结束的提示，可选
-        }
-        override fun onError(error: AsrError) {
-            runOnUiThread { showError(error.code, error.message) }
-        }
-    })
-
-    // 业务方启动 AudioRecord 喂数据：
-    audioRecorder.start { samples: ShortArray ->
-        session.acceptPcmShort(samples, 16000)
-    }
-}
-
-fun stopTalking() {
-    audioRecorder.stop()
-    session.stop()
-    session.close()
-}
-
-override fun onDestroy() {
-    super.onDestroy()
-    engine.close()
-}
+oldEngine.close()
+val newEngine = AmphionRuntime.create(context, AsrLanguage.YUE_EN)
 ```
 
-PCM 格式要求：
+- 已 `preload` 过 ZH_EN + YUE_EN：上面两步加起来 ~100 ms，肉眼无感
+- 没有 preload：会同步走解包 + 加载，1~3 秒，建议放子线程
+
+详细机制见 §11。
+
+## 7. 错误码
+
+| 区段 | 含义 |
+| --- | --- |
+| 1xxx | 调用约定（参数 / 状态） |
+| 2xxx | 资源（首次安装失败） |
+| 3xxx | 运行时（识别 / 后处理） |
+| 9xxx | native 兜底 |
+
+| 常量 | 取值 | 触发场景 |
+| --- | --- | --- |
+| INVALID_ARGUMENT | 1001 | 参数越界 / 非法 |
+| SDK_NOT_INITIALIZED | 1002 | 用了 SDK 但忘了 init |
+| SESSION_ALREADY_CLOSED | 1003 | 用了已 close 的 session / engine |
+| LANGUAGE_UNAVAILABLE | 2001 | 当前 SDK 版本不支持你传入的 AsrLanguage |
+| ASSET_INSTALL_FAILED | 2002 | 首次解包模型失败 |
+| STORAGE_INSUFFICIENT | 2003 | filesDir 写不下 |
+| DECODE_FAILED | 3001 | 识别过程异常 |
+| POSTPROCESS_FAILED | 3002 | ITN 或标点过程异常（已自动降级到原文，仅日志/回调） |
+| NATIVE_CRASH | 9001 | native 兜底；建议 close session 重建 |
+
+业务方一般只需要关心：
+- `SDK_NOT_INITIALIZED`：忘了调 `AmphionRuntime.init`
+- `ASSET_INSTALL_FAILED` / `STORAGE_INSUFFICIENT`：首次解包磁盘问题
+- 其他错误码视为「重启 session 重试」即可
+
+## 8. 数据格式
 
 | 项 | 取值 |
 | --- | --- |
-| 采样率 | 16000 Hz（必须） |
-| 声道 | 单声道（必须） |
-| 位深 | 16-bit（int16）或 32-bit float |
-| 缓冲区大小 | 任意，建议每次 100ms（@16kHz 即 1600 个 sample） |
-| 调用线程 | 同一录音线程，不要从多线程并发调用 |
+| 采样率 | 16000 Hz（SDK 锁定，不接受其他值） |
+| 通道数 | 1（单声道） |
+| 采样格式 | 16-bit / float32（[-1.0, 1.0]） |
+| 推荐每帧长度 | ~100 ms（@16kHz 即 1600 个 sample） |
 
-## 7. 解码方式选择
+如果你的录音是 44.1 / 48 kHz，请先在业务侧重采样到 16 kHz 再喂进 SDK。
 
-SDK 当前支持两种解码方式（transducer 模型）：
+## 9. 隐私 / 网络
 
-| DecodingMethod | manifest 取值 | 速度 | WER（相对 greedy） | 内存（相对 greedy） | 推荐场景 |
-| --- | --- | --- | --- | --- | --- |
-| GREEDY_SEARCH | greedy_search | 1x（基线） | 0（基线） | 1x | 实时输入法、命令词、移动端通用、电池/CPU 敏感场景 |
-| MODIFIED_BEAM_SEARCH | modified_beam_search | 约 0.5x（慢 2x） | 通常下降 0.3 - 1.0 个百分点 | 约 1 + maxActivePaths × 单 state 大小 | 离线长音频转写、对 WER 敏感、CPU 富余、可接受首包稍慢 |
+SDK 不发起任何网络请求。所有模型加载、识别都在端上完成；不会上传音频或文本，也不会读取任何 ID。详见 [PRIVACY.md](PRIVACY.md)。
 
-挑选建议：
+## 10. FAQ
 
-- 流式实时识别（按住说话、IME、车载语音）：保持默认 greedy_search。在 mid-range 手机（Snapdragon 6xx/7xx）上 greedy 已足够低延迟，beam search 多出来的 ~50 ms 延迟容易被用户感知。
-- 离线整段音频转写、客服质检：可以试 modified_beam_search，maxActivePaths 默认 4 一般够用，调到 8 收益边际、CPU 占用线性增长。
-- 与热词联动：modified_beam_search 对热词分数更敏感，调高 hotwordsScore（如 2.0）配合 beam search 在领域词上效果更好。
-- 不要超过 maxActivePaths = 8：再大几乎只增内存，WER 不再下降。
+### Q: AAR 太大（~280 MB）能瘦身吗？
+0.2.0 的 AAR 已经把全部 5 类模型（中英 ASR / 粤英 ASR / 标点 / ITN / VAD）打进 assets。如果你的业务**不需要**某种语言或某项后处理，可以联系我们出一份精简包；模型粒度的开关都在 [AssetRegistry] 集中维护。
 
-### 7.1 三种设置入口与优先级
+### Q: 第一次启动卡了 30 秒？
+首次解包是阻塞的，建议在 splash 上调 `AmphionRuntime.preInstall`，把这件事提前到用户感知不到的时间。
 
-效力按从高到低：
+### Q: SDK 升级后用户要重新解包吗？
+是的。SDK 通过 `BuildConfig.SDK_VERSION` 维护 `install.flag`，版本变更会自动重新解包；用户无感（解包还是几十秒）。
 
-1. 调用方 Builder 显式设置（最高）
-2. modelDir/manifest.json 的 decoding_method / max_active_paths
-3. Builder 默认值（GREEDY_SEARCH / 4）
+### Q: 我可以在 Java 项目里用吗？
+可以。所有公开 API 都是 Java-friendly：
+- `AmphionRuntime.init(ctx)` / `AmphionRuntime.create(ctx, AsrLanguage.ZH_EN)` 直接用
+- `AsrConfig.Builder()` 可链式调用
+- `AsrCallback` 是 Java interface
 
-调用方在代码中显式调用 `.decodingMethod(...)`：
+### Q: 支持多 session 并发吗？
+同一个 `AsrEngine` 可以创建多个 `AsrSession`。但每条 session 各自独立的解码线程，并发越多 CPU 占用越高，建议根据机型评估。
+
+### Q: 怎么开 debug 日志？
+```kotlin
+AmphionRuntime.init(this, AmphionOptions(logLevel = AmphionLogLevel.DEBUG))
+```
+logcat tag = `AmphionRuntime`。
+
+### Q: 想用自己的模型怎么办？
+0.2.0 的设计目标是「一份 AAR 全程黑盒」。如果你需要替换内置模型，请联系我们走定制流程；我们会用 `tools/asr/08_pack_sdk_assets.sh` 出一份带你私有模型的专属 AAR。
+
+### Q: VAD 开了，为什么长句子说一半还是不切分？
+0.2.x 起 SDK 把 silero VAD 真正接入了流式管线（之前版本里 VAD 对象被构造但没参与解码，所以"开"和"不开"效果一样）。VAD 现在做两件事：(1) 维护 speech/silence 状态机；(2) speech 之后尾静音达到阈值时主动给 ASR 出 final。默认阈值 500 ms，比 `endpointRules.rule2MinTrailingSilenceSec` 的 1.4 秒更敏感。
+
+如果还是觉得不够灵敏，按下面方式调小 `activeEndpointSilenceMs`：
 
 ```kotlin
-val config = AsrConfig.Builder(modelDir)
-    .decodingMethod(DecodingMethod.MODIFIED_BEAM_SEARCH)
-    .maxActivePaths(4)
+val config = AsrConfig.Builder()
+    .vad(true)
+    .vadConfig(VadConfig(activeEndpointSilenceMs = 300))   // 300 ms 就切
     .build()
 ```
 
-如果调用方没显式设置，SDK 会读 modelDir/manifest.json 的相应字段。这条路径的好处是：运营/算法同学只更新 CDN 上的 manifest.json，App 不发版即可切换解码方式。manifest.json 的字段示例：
+反之，如果误切（正常停顿被切分），可以调大到 800~1000；设 0 就退化成只有 sherpa endpoint 规则（与 0.1.x 行为一致）。
 
-```json
-{
-  "decoding_method": "modified_beam_search",
-  "max_active_paths": 4
-}
-```
+### Q: 想用 ten-vad 代替 silero？
+`VadConfig.modelType` 留了 `VadModelType.TEN_VAD` 枚举位，但 **当前 AAR 没打包 ten-vad 资产**，选了会在 `AmphionRuntime.create` 时抛 `UnsupportedOperationException`。silero 在手机近场场景已足够；ten-vad 主要优势在低 SNR / 远场。需要的话联系我们出带 ten-vad 的定制 AAR。
 
-字段缺失或值不合法（不在 [greedy_search, modified_beam_search]、max_active_paths 不在 [1, 32]）会被忽略并打印一条 WARN 日志，回退到 Builder 默认。
+## 11. 多语言预加载
 
-加载完成后，可以从 logcat tag AsrSdk 看到 SDK 当前选择：
+### 11.1 使用方式
 
-```
-AsrSdk: manifest overrides: model_type=zipformer, decoding_method=GREEDY_SEARCH, max_active_paths=(none)
-AsrSdk: effective decoding=GREEDY_SEARCH maxActivePaths=4 (decodingExplicit=false, maxActiveExplicit=false)
-```
-
-### 7.2 切换是否需要重启引擎
-
-是。AsrConfig 不可变，切换解码方式需要：
+`AmphionRuntime.preload(ctx, languages, config)` 会一次性把所有语言加载到 SDK 内部的 ASR 池里。建议在 splash / onboarding 阶段调用一次：
 
 ```kotlin
-engine.close()
-val newConfig = AsrConfig.Builder(modelDir)
-    .decodingMethod(DecodingMethod.MODIFIED_BEAM_SEARCH)
-    .build()
-engine = AsrEngine(newConfig)
-```
-
-但 模型不重新加载 ：sherpa-onnx 的 OnlineRecognizer 会复用已经驻留内存的 ONNX session，所以切换解码方式只额外消耗 < 100 ms 的 config 重建时间。
-
-## 8. 完整公开 API 速查
-
-| 类型 | 关键方法 | 备注 |
-| --- | --- | --- |
-| AsrSdk (object) | init / release / version | 全局入口；进程内一次 |
-| AsrSdkOptions | logLevel / httpTimeoutMs | 全局配置 |
-| AsrConfig.Builder | numThreads / enableEndpoint / hotwords / enableVad / decodingMethod / build | 链式构造 |
-| AsrEngine | newSession / close | 一份模型，可创建多 session |
-| AsrSession | acceptPcmFloat / acceptPcmShort / stop / close | 单次识别 |
-| AsrCallback | onPartial / onFinal / onEndpoint / onError | 回调接口 |
-| AsrError | code / message / cause | 错误体 |
-| AsrErrorCode | 常量集合 | 见第 8 节 |
-| ModelManager | listLocal / ensure / delete / localPath | 模型管理；listLocal 会顺便填 LocalModel.lang |
-| ModelDescriptor | fromJson + lang | manifest 解析；含可选 lang 字段（zh-en / yue-en 等），用于多语言路由 |
-
-更详细的 API 文档由 Dokka 生成；见 `docs/API_DOC_BUILD.md`。
-
-## 9. 错误码表
-
-| 区段 | 名称 | 触发条件 |
-| --- | --- | --- |
-| 0 | OK | 正常 |
-| 1001 | INVALID_CONFIG | AsrConfig.Builder.build 时参数非法 |
-| 1002 | INVALID_ARGUMENT | 公开 API 入参非法 |
-| 2001 | MODEL_DIR_NOT_FOUND | 传给 AsrConfig 的 modelDir 不存在 |
-| 2002 | MODEL_FILE_MISSING | modelDir 内缺少必备文件 |
-| 2003 | MODEL_LOAD_FAILED | OnlineRecognizer 加载失败 |
-| 2004 | MODEL_VERSION_MISMATCH | 模型版本不在 SDK 兼容范围内 |
-| 2005 | MODEL_TYPE_MISMATCH | manifest.model_type 与 encoder ONNX metadata 检测出的实际类型不一致；典型场景：zipformer2 模型把 manifest 写成了 zipformer。SDK 在 OnlineRecognizer 加载前做扫描校验、fail-fast，以避免 sherpa-onnx 走错路径直接 native abort |
-| 2006 | MANIFEST_PARSE_FAILED | manifest.json 解析失败 |
-| 3001 | SESSION_RELEASED | 在已关闭的 session 上调用方法 |
-| 3002 | SESSION_NOT_STARTED | 在 stop 之后调用 acceptPcm 等 |
-| 3003 | DECODE_FAILED | native 解码层抛错 |
-| 3004 | SAMPLE_RATE_MISMATCH | 投递 PCM 的采样率与配置不一致 |
-| 4001 | NETWORK_FAILED | HTTP 请求失败（5xx / 连接断 / DNS 失败） |
-| 4002 | DOWNLOAD_TIMEOUT | 下载超时 |
-| 4003 | DOWNLOAD_CANCELLED | 调用 Cancellable.cancel 后回调 |
-| 5001 | PERMISSION_DENIED | 录音权限缺失 |
-| 5002 | STORAGE_FULL | 写入 filesDir 失败 |
-| 9001 | NATIVE_CRASH | JNI 层抛 Throwable，被 SDK 捕获 |
-| 9999 | UNKNOWN | 兜底 |
-
-## 10. ProGuard / R8 规则
-
-SDK 已经把所有需要保留的规则写在 AAR 内的 `consumer-rules.pro`，你 不需要 在 app 工程额外配置任何 keep 规则。
-
-如果你启用了 R8 full mode 并发现崩溃，请按下面的最小规则补充（一般不需要）：
-
-```pro
--keep class com.k2fsa.sherpa.onnx.** { *; }
--keep class com.amphion.asr.** { *; }
--keepclassmembers class com.k2fsa.sherpa.onnx.** {
-    private long ptr;
-    public long ptr;
-}
-```
-
-## 11. FAQ
-
-Q1：Sample App 启动后 进度条转个不停，最后报错 模型下载失败 怎么办？
-A1：把 `MainActivity#manifestUrl` 替换为你服务端真实的 manifest.json HTTPS 地址；或者把模型手工放到 `<filesDir>/asr-models/<id>/<v>/`。
-
-Q2：识别完全没文字 / 永远是空字符串
-A2：99% 是 tokens.txt 第一行不是 `<blk> 0`。回 `tools/asr/MODEL_LAYOUT.md` 第 2 节核对。
-
-Q3：识别延迟很高（首包 > 1.5s）
-A3：先看 numThreads，建议设为 2~3；其次检查机型，老旧 CPU（< Snapdragon 660）首包 1s 是正常水准；最后试 INT8 模型（默认就是）。
-
-Q4：偶发 NATIVE_CRASH (9001)
-A4：复现并把 `adb logcat -s sherpa-onnx AsrSdk` 的日志贴给我们；通常是 PCM 格式不对（采样率 / 位深）或者 stream 在 close 之后又被复用。
-
-Q5：能否多个 Activity 共用一个 AsrEngine？
-A5：可以。把 AsrEngine 放到 Application 单例里，业务方只在自己的 Activity / Service 里 newSession 即可。模型只加载一次。
-
-Q6：录音权限被拒怎么办？
-A6：SDK 不接管录音；你需要自己处理 RECORD_AUDIO 权限（Android 23+ 是运行时权限）。建议用 `ActivityResultContracts.RequestPermission()`。
-
-Q7：能否在后台 Service 里跑识别？
-A7：可以，但要遵守 Android Foreground Service 规则：targetSdk 34 起需要在 manifest 声明 `foregroundServiceType="microphone"`，并启动 `ServiceCompat.startForeground(... FOREGROUND_SERVICE_TYPE_MICROPHONE)`。
-
-Q8：能否输出时间戳？
-A8：1.0 不在公开 API 暴露 timestamps 字段；如果你需要，1.1 会加。
-
-Q9：能否多语种切换？
-A9：1.0 一个 SDK 实例对应一个模型；切换语言请重新 `engine.close()` + 用新的 modelDir 创建新 `AsrEngine`。
-
-## 12. 高级特性
-
-下面 5 项能力都是 1.1 开始稳定的可选开关；不调即按默认行为，与 1.0 完全兼容。
-
-### 12.1 多 model_type 支持
-
-SDK 不再硬编码 transducer，会按 [manifest.json](../../tools/asr/MODEL_LAYOUT.md) 的 `model_type` 字段自动选择网络分支。当前支持：
-
-| model_type （manifest 取值） | 枚举 | 期望文件名（按优先级匹配第一个存在的） |
-| --- | --- | --- |
-| zipformer / zipformer2 / transducer | TRANSDUCER | encoder.int8.onnx → encoder.onnx → encoder.fp16.onnx；decoder.onnx → decoder.int8.onnx；joiner.int8.onnx → joiner.onnx |
-| paraformer | PARAFORMER | encoder.int8.onnx → encoder.onnx；decoder.int8.onnx → decoder.onnx |
-| zipformer2_ctc / ctc | ZIPFORMER2_CTC | model.int8.onnx → model.onnx → model.fp16.onnx |
-| nemo_ctc / nemo-ctc / nemo | NEMO_CTC | 同上 |
-
-不带 `model_type` 字段时按 `TRANSDUCER` 处理，保持向下兼容。文件名按优先级数组匹配：INT8 优先，回落到 FP32，最后到 fp16。
-
-### 12.2 运行时更新热词
-
-```kotlin
-// 一段话开始前，按用户最新的偏好动态切热词
-session.updateHotwords(
-    words = listOf("张三", "李四", "今晚八点"),
-    score = 1.5f,   // score 必须与 AsrEngine 配置一致；不一致仅日志 WARN
-)
-```
-
-约束：
-
-- 仅词列表能 session 级别动态调整；`hotwords_score` 是 Engine 级属性（OnlineRecognizerConfig），运行时不能改
-- 切换会丢弃当前未 final 的部分识别（建议在两段话之间调用）
-- 切换异步发生在 decoder 线程；调用 `updateHotwords` 后立刻调 `acceptPcmFloat` 已经走新热词
-
-### 12.3 同音字纠错（HomophoneReplacer）
-
-中文场景常见："在线" → "再线"、"工业" → "公益" 这种同音错误，可以通过 sherpa-onnx 的 HomophoneReplacer 在 ASR 输出后自动改回。
-
-```kotlin
-val config = AsrConfig.Builder(modelDir)
-    .enableHomophoneReplacer(
-        lexicon = File(modelDir, "homophone-lexicon.txt"),
-        ruleFsts = File(modelDir, "homophone.fst"),
-    )
-    .build()
-```
-
-文件来源：sherpa-onnx 官方提供 [中文同音字典 + FST](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/text-replacer-zh.zip)；公司可在此基础上加业务领域词扩展。建议把这两个文件随模型一起分发（放在同 modelDir 下）。
-
-### 12.4 文本归一化（WeText ITN）
-
-把口语化中文自动转写成书面化中文：
-
-```
-两点五八万        -> 2.58万
-幺三五七零八四    -> 1357084
-二零二六年五月十五日 -> 2026年5月15日
-三点五公里        -> 3.5公里
-```
-
-底层走我们 fork 的 sherpa-onnx 中 vendored 的 [WeTextProcessing](https://github.com/wenet-e2e/WeTextProcessing)（wenet-e2e，Apache-2.0）三段式 runtime：`tagger.fst → C++ token reorder → verbalizer.fst`。覆盖小数、单位、日期、时间、货币、百分比、电话号码、身份证号、分数等场景。SDK 公开 API 是独立的 `WeitnEngine`（与 `AsrEngine` 解耦，跟 `PunctuationEngine` 同款生命周期）：
-
-```kotlin
-import com.amphion.asr.WeitnConfig
-import com.amphion.asr.WeitnEngine
-
-val itn = WeitnEngine(
-    WeitnConfig.Builder(
-        File(filesDir, "asr-weitn/zh_itn_tagger.fst"),
-        File(filesDir, "asr-weitn/zh_itn_verbalizer.fst"),
-    ).build(),
-    errorHandler = { err -> Log.w("Weitn", "${err.code} ${err.message}") },
-)
-val normalized = itn.normalize("两点五八万")   // "2.58万"
-itn.close()
-```
-
-关键约定：
-
-- `WeitnEngine` 与 `AsrEngine` 独立：ITN 失败不会影响 ASR 主路径；fst 加载 ~10 ms，加载后常驻数 MB native FST 内存，建议按需 lazy 创建并在不用时 `close()`
-- `normalize` 是同步阻塞调用，单次 FST Compose 通常 1–10 ms；可在 ASR final 出来后串行调用。线程安全但建议单线程 executor 避免抢占
-- 资源文件路径由集成方负责分发：通常把 WeTextProcessing 编出的 `zh_itn_tagger.fst` + `zh_itn_verbalizer.fst` 放自家 CDN，业务侧下载到 `filesDir/asr-weitn/`；sample 演示了用 [`tools/asr/00_push_weitn_fsts.sh`](../../../tools/asr/00_push_weitn_fsts.sh) 走 adb push 的 demo 路径
-- 错误处理：fst 路径不存在 → `Builder.build()` 抛 `IllegalArgumentException`；native 加载失败 → 构造期抛 `IllegalStateException`（含 `MODEL_LOAD_FAILED` 错误码）；调用期 native 抛出 → `normalize` 返回原文 + 通过 `errorHandler` 上报 `AsrError(code=NATIVE_CRASH)`，不向上抛
-- 接入顺序推荐：`ASR final → WeitnEngine.normalize → PunctuationEngine.addPunctuation → UI`。WeText 自身不处理标点，标点放在后面叠
-
-Sample 端到端演示见 [README.md](../README.md) 的「可选：开启 WeText ITN」一节，包含 push fst 脚本、Switch 状态机、final 行替换的 UX 实现。fst 资源 / asr 模型解耦方式见 [tools/asr/MODEL_LAYOUT.md §6](../../../tools/asr/MODEL_LAYOUT.md)。
-
-#### 与旧 itn_zh_number.fst 的差异
-
-|  | 旧 itn_zh_number.fst | WeText ITN |
-| --- | --- | --- |
-| 来源 | k2-fsa/colab 单 fst | wenet-e2e/WeTextProcessing 三段式 |
-| 覆盖 | 数字（缺幺）/ 简单单位 | 小数 / 单位 / 日期 / 时间 / 货币 / 百分比 / 电话 / 身份证 |
-| 体积 | ~25 KB | ~2-4 MB |
-| 维护 | 静态 colab notebook | 活跃维护，issues / PR 解决新 case |
-| SDK API | `AsrConfig.Builder.enableInverseTextNormalization(File)`（已删除，Breaking） | `WeitnEngine(WeitnConfig)` |
-| 装配方式 | `rule_fsts` 串到 sherpa-onnx | 独立引擎；与 ASR engine 完全解耦 |
-
-### 12.6 标点（CT-Transformer，可选）
-
-ITN 只解决数字 / 单位等"形式归一"，不会加标点。如果需要把 ASR 输出从「我们都是木头人不会说话不会动」自动补成「我们都是木头人，不会说话，不会动。」，要用一个独立的标点模型；sherpa-onnx 提供了 [CT-Transformer 中英双语标点模型](https://k2-fsa.github.io/sherpa/onnx/punctuation/pretrained_models.html#sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8)（INT8，~62 MB）。
-
-SDK 公开 API：
-
-```kotlin
-import com.amphion.asr.PunctuationConfig
-import com.amphion.asr.PunctuationEngine
-
-val punct = PunctuationEngine(
-    PunctuationConfig.Builder(File(filesDir, "asr-punct/model.int8.onnx"))
-        .numThreads(1)
+val handle = AmphionRuntime.preload(
+    this,
+    listOf(AsrLanguage.ZH_EN, AsrLanguage.YUE_EN),
+    AsrConfig.Builder()
+        .numThreads(2)
+        .punctuation(true)
+        .itn(true)
+        .vad(true)
+        .endpoint(true)
         .build(),
-    errorHandler = { err -> Log.w("Punct", "${err.code} ${err.message}") },
-)
-val withPunct = punct.addPunctuation("我们都是木头人不会说话不会动")
-// -> "我们都是木头人，不会说话，不会动。"
-punct.close()
+) { stage, percent ->
+    // stage ∈ {"install", "shared", "asr-ZH_EN", "asr-YUE_EN"}
+    // percent: 0..100，每个 stage 各自走完整 0..100
+}
+
+// 不需要时可以 cancel；已经加载的部分保留在池里
+handle.cancel()
 ```
 
-关键约定：
+### 11.2 三阶段进度
 
-- `PunctuationEngine` 与 `AsrEngine` 独立：标点失败不会影响 ASR 主路径；模型加载 ~1 秒、内存常驻 ~70 MB，建议按需 lazy 创建，关闭时主动 `close()` 释放
-- `addPunctuation` 是同步阻塞调用，端侧推理 20-100 ms，必须放到非 UI / 非 ASR callback 的工作线程；多线程并发调用会争抢 native，推荐用单线程 executor 串行
-- 模型文件路径由集成方负责分发：可以放到自家 CDN，再用 `ModelManager`/自有逻辑下载到 `filesDir/asr-punct/model.int8.onnx`；sample 演示了用 `tools/asr/00_push_punct_model.sh` 走 adb push 的 demo 路径
-- 错误处理：模型路径不存在 / native 加载失败 → 构造期抛 `IllegalStateException`（含 `MODEL_LOAD_FAILED` 错误码）；调用期 native 抛出 → `addPunctuation` 返回原文 + 通过 `errorHandler` 上报 `AsrError(code=NATIVE_CRASH)`，不向上抛
-- 上游模型只支持「先 ASR、再标点」的两段式：不要在 partial 上跑标点（每次 partial 都改，UI 抖动 + 浪费推理）。推荐只在 final 上跑
+| stage | 含义 | 典型耗时（HarmonyOS 4.3） |
+| --- | --- | --- |
+| install | 把全部 5 类模型从 APK assets 解包到 internal storage | 首装 4~6 s；已 cache 0 s |
+| shared | 加载共享 punct + itn 单例（进程级一份，跨语言共享） | 0.5~1 s |
+| asr-ZH_EN / asr-YUE_EN | 并行加载每个语言的 OnlineRecognizer | 1~2 s/份（并行） |
 
-Sample 端到端演示见 [README.md](../README.md) 的「可选：开启标点（CT-Transformer 中英双语）」一节，包含 push 模型脚本、Switch 状态机、final 行替换的 UX 实现。模型资源 / asr 模型解耦方式见 [tools/asr/MODEL_LAYOUT.md §7](../../../tools/asr/MODEL_LAYOUT.md)。
+### 11.3 与 create 的协作
 
-### 12.5 LM 重打分（RNN-LM rescoring）
+| 调用 | 池命中（preload 过且 config 兼容） | 未命中 |
+| --- | --- | --- |
+| AmphionRuntime.create | O(ms)：池里借 recognizer + 现场建 VAD | 同步走解包 + 加载 |
+| AsrEngine.close | 释放 sessions 与 VAD；recognizer 留在池里 | 释放 sessions / recognizer / VAD |
+| AmphionRuntime.release | 真的清空 ASR 池 + 释放共享 punct/itn | 同左 |
+
+### 11.4 内存预算
+
+| 项 | 大小 | 备注 |
+| --- | --- | --- |
+| 共享 punct（CT-Transformer INT8） | ~70 MB | 跨语言共享一份 |
+| 共享 itn（WeText fst） | ~4 MB | 仅 ZH_EN 生效；占用极小 |
+| 单语言 ASR（zipformer2 INT8） | ~50 MB | 每语言一份 |
+| VAD（silero） | <1 MB | per-engine，可忽略 |
+| 预加载 2 语言总计 | ~180 MB native | RSS 包含 SDK 自身 .so 与 Zygote 共享部分 |
+
+### 11.5 配置兼容性
+
+`preload(config)` 用的 config 决定了池里 recognizer 的「线程数 / 端点 / 是否带 hotwords」。后续 `create(language, config)` 如果这些字段与 preload 一致就直接复用；否则会跳过池、单独建 recognizer，并在 logcat 打 WARN。建议保持 preload 和 create 用同一份 config builder。
+
+## 12. 运行时指标
+
+### 12.1 监听方式
+
+业务方实现 `AsrCallback.onMetrics`：
 
 ```kotlin
-val config = AsrConfig.Builder(modelDir)
-    .enableLmRescoring(
-        modelPath = File(modelDir, "lm.int8.onnx"),
-        scale = 0.5f,   // [0.1, 1.0]
-    )
-    .build()
+override fun onMetrics(metrics: AmphionMetrics) {
+    when (metrics.kind) {
+        AmphionMetricsKind.UTTERANCE -> {
+            // 每段话 onFinal 同帧派发
+            // metrics.utteranceE2eLatencyMs / .firstPartialLatencyMs / .rtf / .nativeRssMb / ...
+        }
+        AmphionMetricsKind.SESSION -> {
+            // session close 时派发一次
+            // metrics.totalUtterances / .avgRtf / .p95Rtf / .peakNativeRssMb
+        }
+    }
+}
 ```
 
-约束：
+不实现也没关系：所有指标都会通过 logcat 输出，调试期 `adb logcat -s AmphionMetrics` 直接拉一行 KV。
 
-- 仅在 `MODIFIED_BEAM_SEARCH` 下生效；如果当前是 GREEDY_SEARCH，SDK 会自动切换（与 hotwords 协商一致）
-- LM 加载会增加 ~30 ~ 80 MB 内存；首包延迟增加 ~50 ms
-- LM 与训练 ASR 模型必须共用 tokens.txt（同一份 BPE）
+### 12.2 字段（v1，与未来鸿蒙端共用 schema）
 
-### 12.6 优先级总表（多重设置共存时）
+每段 utterance（kind = UTTERANCE）：
 
-| 配置项 | 1) Builder 显式 | 2) manifest.json | 3) Builder 默认 |
-| --- | --- | --- | --- |
-| decodingMethod | .decodingMethod() | decoding_method | GREEDY_SEARCH |
-| maxActivePaths | .maxActivePaths() | max_active_paths | 4 |
-| model_type | （不可显式设置） | model_type | TRANSDUCER |
-| hotwords | .hotwords() | （未来：hotwords_url） | 空 |
-| HomophoneReplacer | .enableHomophoneReplacer() | （不在 manifest） | 关闭 |
-| WeText ITN | 独立 WeitnEngine，不再走 AsrConfig | （不在 manifest） | 关闭 |
-| LM rescoring | .enableLmRescoring() | （不在 manifest） | 关闭 |
+| 字段 | 含义 |
+| --- | --- |
+| utteranceIndex | 该 engine 上 utterance 序号，从 1 开始 |
+| utteranceDurationMs | 本段音频物理时长（pcmBytes 推导） |
+| decodeDurationMs | 第一帧 PCM 进 decoder → raw final 出来；不含后处理 |
+| postProcessMs | ITN + 标点合计耗时 |
+| firstPartialLatencyMs | 第一帧 PCM accept → 第一个 partial；无 partial 时 -1 |
+| endpointToFinalLatencyMs | endpoint 命中 → onFinal；非 endpoint 触发为 -1 |
+| utteranceE2eLatencyMs | 第一帧 PCM accept → onFinal |
+| rtf | decodeDurationMs / utteranceDurationMs；越小越流畅 |
+| nativeRssMb | 本段结束时 native VmRSS 绝对值（MB） |
+| nativeRssMbDelta | 相比上段结束时的增量；>0 持续上涨需关注泄漏 |
+| pcmBytesAccepted | 本段累计 PCM 字节 |
 
-如果调用方在 Builder 里传了 hotwords / LM，SDK 会自动把 decodingMethod 升级到 MODIFIED_BEAM_SEARCH，无需手动加 `.decodingMethod(MODIFIED_BEAM_SEARCH)`。但如果调用方显式选了 GREEDY_SEARCH 又同时传 hotwords / LM，build() 会立刻抛 IllegalArgumentException，避免 native 加载阶段才报错。
+第一段会附带启动期字段（assetInstallMs / engineReadyMs / nativeRssMbAtReady）；后续段为 -1。
+
+session 总结（kind = SESSION）：
+
+| 字段 | 含义 |
+| --- | --- |
+| totalUtterances | 该 engine 生命周期内的 utterance 总数 |
+| totalPcmBytes | 累计 PCM 字节 |
+| avgRtf | RTF 算术平均；样本不足 -1 |
+| p95Rtf | RTF p95 分位；< 5 段时退化为最大值 |
+| peakNativeRssMb | 该 engine 生命周期内 native RSS 峰值 |
+| nativeRssMb | session close 时的 RSS |
+
+### 12.3 logcat 输出
+
+每条指标走独立 tag `AmphionMetrics`，KV 行：
+
+```
+AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=1840 decodeDurationMs=120 postProcessMs=18 firstPartialLatencyMs=78 endpointToFinalLatencyMs=320 utteranceE2eLatencyMs=148 rtf=0.065 nativeRssMb=176 nativeRssMbDelta=0 pcmBytesAccepted=58880 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=42 nativeRssMbAtReady=176
+```
+
+```
+AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=12 totalPcmBytes=720000 avgRtf=0.072 p95Rtf=0.110 peakNativeRssMb=181
+```
+
+业务方需要做 dashboard 时直接 grep 即可。SDK 自身不上报、不持久化、不跨进程——零网络、零磁盘副作用。
+
+### 12.4 性能验收基线（HarmonyOS 4.3 / Android 12）
+
+| 指标 | 预期 | 红线 |
+| --- | --- | --- |
+| preload 全部完成 | ≤ 6 s（首装） | > 12 s 视为故障 |
+| 切语言 create→engine ready | ≤ 100 ms | > 500 ms 视为池失效 |
+| utteranceE2eLatencyMs | ≤ 200 ms | > 500 ms 视为算力不足 |
+| firstPartialLatencyMs | ≤ 200 ms | > 800 ms 视为算力不足 |
+| rtf（流式） | ≤ 0.3 | > 0.8 视为跟不上实时 |
+| 预加载 2 语言常驻 RSS | ≤ 200 MB | > 280 MB 视为泄漏 |

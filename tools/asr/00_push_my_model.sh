@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# 把"自己导出 + 量化好"的 ONNX 模型 push 到一台已经装好 sample app 的设备。
+# [deprecated since 0.2.0] 把"自己导出 + 量化好"的 ONNX 模型 push 到一台已经装好 sample app 的设备。
+#
+# 0.2.0 起 SDK 已经把全部模型打进 AAR，sample app 也不再读 externalFilesDir 的 import 目录。
+# 本脚本现在只用作：在跑 tools/asr/08_pack_sdk_assets.sh 之前快速验证模型是否能在
+# 老版本 sample (< 0.2.0) 上跑通；正式打包请用 08_pack_sdk_assets.sh。
 #
 # 期望本地目录布局（4 个文件名固定，SDK 内部按这套名字加载，参考 MODEL_LAYOUT.md）：
 #
