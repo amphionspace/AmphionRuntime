@@ -25,3 +25,4 @@ rootProject.name = "AmphionRuntime"
 include(":sdk")
 include(":sample")
 include(":sample-eval")
+include(":sample-mini")

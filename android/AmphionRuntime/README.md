@@ -2,17 +2,18 @@
 
 基于 sherpa-onnx 的 AmphionRuntime 工程。
 
-包含三个 Gradle 模块：
+包含四个 Gradle 模块：
 
 | 模块 | 类型 | 说明 |
 | --- | --- | --- |
 | `:sdk` | Android Library (AAR) | 对外发布的 SDK；包名 `com.amphion.asr` |
-| `:sample` | Android Application (APK) | 对外 demo：30 行最小 Activity，零网络权限，applicationId `com.amphion.asr.sample` |
+| `:sample` | Android Application (APK) | 对外 demo：实时识别 + 热词 + 目标说话人注册/开关演示，零网络权限，applicationId `com.amphion.asr.sample` |
 | `:sample-eval` | Android Application (APK) | 对内评测版：评测数据采集 + WER 估算 + 上传，applicationId `com.amphion.asr.sample.eval` |
+| `:sample-mini` | Android Application (APK) | `:sample` 的小屏变体：240x320 等极小屏（如对讲机）适配，功能对齐，applicationId `com.amphion.asr.mini` |
 
 > 0.2.0 起所有模型（中英 ASR / 粤英 ASR / 标点 / 中文 ITN / VAD）一并打进 AAR，业务方不再需要任何外部模型分发。
 >
-> 对外交付边界：业务方只拿 `:sdk` AAR 与 `:sample` 产物；`:sample-eval` 含 INTERNET 权限 + FileProvider + OkHttp 上传链路，仅用于内部评测，不在交付范围内。详见 [docs/INTEGRATION.md](docs/INTEGRATION.md) 与 [docs/DELIVERY.md](docs/DELIVERY.md)。
+> 对外交付边界：业务方只拿 `:sdk` AAR 与 `:sample` 产物；`:sample-eval` 含 INTERNET 权限 + FileProvider + OkHttp 上传链路，仅用于内部评测，不在交付范围内；`:sample-mini` 是面向极小屏设备的 demo 变体，按需提供。详见 [docs/INTEGRATION.md](docs/INTEGRATION.md) 与 [docs/DELIVERY.md](docs/DELIVERY.md)。
 
 ## 快速开始
 
@@ -141,7 +142,7 @@ AmphionRuntime/
 ├── README.md                   # 本文件
 ├── LICENSE                     # 自有 SDK 协议（Apache 2.0 模板）
 ├── NOTICE                      # 第三方依赖声明（sherpa-onnx / onnxruntime / silero-vad / WeTextProcessing / ...）
-├── settings.gradle.kts         # 根 settings：include sdk + sample
+├── settings.gradle.kts         # 根 settings：include sdk + sample + sample-eval + sample-mini
 ├── build.gradle.kts            # 根 build：仅声明 plugin 版本
 ├── gradle.properties           # 全局属性 + SDK 坐标（GROUP/ARTIFACT/VERSION）
 ├── gradle/
@@ -225,6 +226,9 @@ AmphionRuntime/
 │       │       └── export/            # ZipExporter / RecordingExporter
 │       ├── res/                # eval 专用 layout / menu / xml
 │       └── assets/eval-set/    # 内置参考句子集
+│
+├── sample-mini/                # :sample 的小屏变体（applicationId com.amphion.asr.mini）
+│   └── src/main/               # 结构同 :sample，按 240x320 极小屏重排 UI：去 Toolbar、菜单收纳到溢出按钮、结果区弹性铺满
 │
 └── docs/
     ├── INTEGRATION.md          # 集成文档（中文，给客户看）
