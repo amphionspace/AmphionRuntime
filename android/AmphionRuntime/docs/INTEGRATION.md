@@ -379,3 +379,110 @@ AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=12 total
 | firstPartialLatencyMs | ≤ 200 ms | > 800 ms 视为算力不足 |
 | rtf（流式） | ≤ 0.3 | > 0.8 视为跟不上实时 |
 | 预加载 2 语言常驻 RSS | ≤ 200 MB | > 280 MB 视为泄漏 |
+
+## 13. 目标说话人（可选）
+
+> 0.2.x 的可选增量能力，默认不启用、不影响现有接入。仅 Android 端提供。
+
+### 13.1 能做什么
+
+开启后，SDK 只把目标说话人说的话当作 onFinal 输出，其他人说的话改走 onFinalRejected（默认丢弃）。典型场景：嘈杂环境只转写机主、问诊 / 考试只记录特定人。
+
+实现是输出门控（形态A）：ASR 始终流式全量识别，onPartial 不受影响；声纹只在每段话结束时对该段音频打一次分，决定这段的 onFinal 是否保留。由此带来两条语义：
+
+- onPartial 阶段不门控（声纹需要完整语音段才稳）。开关开启时，正在进行的那段 partial 仍按原文滚动，到段末才裁决
+- 开关可运行时随时切。一段话中途切换，以该段结束时刻的状态为准
+
+### 13.2 声纹模型
+
+需要一个声纹 embedding 模型（如 3D-Speaker eres2net，约 27 MB）。为避免给所有用户的 AAR 平白增重，该模型默认不打进 AAR，由业务自行下发到设备并提供绝对路径。模型与离线评测脚本见仓库 tools/speaker/。如需把声纹模型一起打进 AAR 黑盒分发，联系我们走定制（同 §10 想用自己的模型）。
+
+### 13.3 注册目标说话人（离线，一次性）
+
+用 SpeakerEnroller 把多段注册音频压成一个目标向量，业务自行持久化：
+
+```kotlin
+val enroller = SpeakerEnroller(modelPath = "/data/.../eres2net.onnx")
+// 建议 >=3 段、每段 5~10s、覆盖不同语速 / 距离 / 设备
+val segments: List<FloatArray> = listOf(seg1Pcm, seg2Pcm, seg3Pcm) // 16k mono float
+val targetEmbedding: FloatArray = enroller.enroll(segments)
+enroller.close() // 注册是一次性的，用完即释放模型
+
+// 持久化 targetEmbedding 供运行时加载
+```
+
+为什么要多段：单段注册在跨域（远场 / 方言 / 换设备）下错误率显著上升；多段取均值能同时压低短音频不稳与跨域漂移两个失败域。
+
+### 13.4 启用能力 + 运行时开关
+
+创建 engine 时通过 AsrConfig 声明能力（加载声纹模型），运行时用 session 三方法控制：
+
+```kotlin
+val engine = AmphionRuntime.create(
+    context,
+    AsrLanguage.ZH_EN,
+    AsrConfig.Builder()
+        .vad(true)
+        .endpoint(true)
+        .targetSpeaker(
+            TargetSpeakerConfig(
+                modelPath = "/data/.../eres2net.onnx",
+                threshold = 0.30f,        // 见 13.6 标定
+                preload = true,           // 随 create 即加载，开关秒级生效
+                enabledByDefault = false, // 初始关
+            ),
+        )
+        .build(),
+)
+
+val session = engine.newSession(object : AsrCallback {
+    override fun onPartial(text: String) { /* 全量滚动，不门控 */ }
+    override fun onFinal(result: AsrResult) {
+        // 目标说话人的段（或开关关闭时的全部段）
+        // result.speakerScore / result.isTargetSpeaker：开关开启且完成打分时非空
+    }
+    override fun onFinalRejected(result: AsrResult) {
+        // 被判为非目标的段；默认丢弃，这里可自定义呈现（灰显 / 折叠）
+    }
+    override fun onError(error: AsrError) {}
+})
+
+session.setTargetSpeaker(targetEmbedding) // 注入注册向量
+session.setTargetSpeakerEnabled(true)     // 打开门控
+// ...
+session.setTargetSpeakerEnabled(false)    // 关闭：恢复全量输出
+session.clearTargetSpeaker()              // 清除目标：即使开关开也不过滤
+```
+
+注意 onFinal 有两个重载：onFinal(text, confidence) 与 onFinal(result: AsrResult)。目标说话人信息挂在 AsrResult 上，要拿 speakerScore / isTargetSpeaker 请实现 result 版。
+
+### 13.5 判定逻辑（与离线评测同口径）
+
+| 步骤 | 行为 |
+| --- | --- |
+| 段长 < minSegSec（默认 1.5s） | 不打分，按未判定放行（speakerScore=null，走 onFinal） |
+| minSegSec ~ winSec（默认 2.5s） | 整段单次打分 |
+| 段长 >= winSec | 按 winSec / hopSec 滑窗，取窗内最大余弦 |
+| 余弦 >= threshold | 判为目标，走 onFinal |
+| 余弦 < threshold | 判为非目标，走 onFinalRejected |
+
+模型加载失败 / 未注册目标 / 开关关闭时，一律放行全部（门控降级，不影响 ASR 主链路）。
+
+### 13.6 阈值标定
+
+默认 threshold=0.30 对应离线评测的保守点（少误纳、偶有漏判）。不同声纹模型 / 机型 / 噪声环境最优阈值不同，上线前建议：
+
+1. 用 tools/speaker 的评测脚本在你的数据上跑 EER / FAR / FRR 曲线
+2. 按业务偏好取点：偏好宁可漏判不可误纳取高阈值，反之取低
+3. 把标定值回填 TargetSpeakerConfig.threshold
+
+可先把 speakerScore 打到日志观察分布，再定阈值。
+
+### 13.7 已知限制
+
+| 限制 | 说明 |
+| --- | --- |
+| 仅 Android | iOS 端 VAD / 管线尚未对齐，暂不提供 |
+| 段末有额外开销 | 段越长滑窗越多，段末打分在解码线程串行，长段（接近 20s）可能多花几百 ms；endpoint rule3 20s 会强制切，正常对话无感 |
+| partial 不门控 | 声纹需完整段，partial 始终全量；介意的话在 UI 上等 onFinal 再定稿 |
+| 单目标 | 当前一个 session 跟一个目标说话人；多目标需求联系我们 |

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_speaker"
+        android:title="@string/menu_speaker"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_hotwords"
+        android:title="@string/menu_hotwords"
+        app:showAsAction="never" />
+
+</menu>

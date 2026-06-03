@@ -27,6 +27,12 @@
             android:label="@string/hotwords_title"
             android:parentActivityName=".MainActivity" />
 
+        <activity
+            android:name=".SpeakerEnrollActivity"
+            android:exported="false"
+            android:label="@string/enroll_title"
+            android:parentActivityName=".MainActivity" />
+
     </application>
 
 </manifest>

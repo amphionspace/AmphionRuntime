@@ -32,6 +32,7 @@ package com.amphion.asr
  * @property endpointRules 端点规则细节，默认与上游 sherpa-onnx 流式默认一致
  * @property hotwords 热词列表，提升业务领域词识别率
  * @property hotwordsScore 热词加权分数，[0.0, 5.0]，越大越倾向于命中
+ * @property targetSpeaker 目标说话人能力配置；null 表示不启用（默认）。详见 [TargetSpeakerConfig]
  */
 public class AsrConfig private constructor(
     public val numThreads: Int,
@@ -43,6 +44,7 @@ public class AsrConfig private constructor(
     public val endpointRules: EndpointRules,
     public val hotwords: List<String>,
     public val hotwordsScore: Float,
+    public val targetSpeaker: TargetSpeakerConfig?,
 ) {
 
     /**
@@ -69,6 +71,7 @@ public class AsrConfig private constructor(
         private var endpointRules: EndpointRules = EndpointRules()
         private var hotwords: List<String> = emptyList()
         private var hotwordsScore: Float = 1.5f
+        private var targetSpeaker: TargetSpeakerConfig? = null
 
         /** 推理线程数，[1, 8]；默认 2，建议 1~4。 */
         public fun numThreads(value: Int): Builder = apply {
@@ -137,6 +140,16 @@ public class AsrConfig private constructor(
             this.hotwordsScore = score
         }
 
+        /**
+         * 声明目标说话人能力（默认 null 不启用）。
+         *
+         * 启用后 engine 会按 [TargetSpeakerConfig] 加载声纹模型；运行时是否真正过滤，由
+         * [AsrSession.setTargetSpeakerEnabled] 与是否已 [AsrSession.setTargetSpeaker] 共同决定。
+         */
+        public fun targetSpeaker(config: TargetSpeakerConfig?): Builder = apply {
+            this.targetSpeaker = config
+        }
+
         public fun build(): AsrConfig = AsrConfig(
             numThreads = numThreads,
             punctuation = punctuation,
@@ -147,6 +160,7 @@ public class AsrConfig private constructor(
             endpointRules = endpointRules,
             hotwords = hotwords,
             hotwordsScore = hotwordsScore,
+            targetSpeaker = targetSpeaker,
         )
     }
 }

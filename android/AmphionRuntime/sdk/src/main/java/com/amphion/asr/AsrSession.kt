@@ -55,6 +55,42 @@ public class AsrSession internal constructor(private val impl: SessionImpl) : Au
         impl.updateHotwords(words, score)
     }
 
+    /**
+     * 设置 / 替换目标说话人声纹向量（运行时可随时调用）。
+     *
+     * [embedding] 由 [SpeakerEnroller.enroll] 产出（多段注册的均值向量）。设置后，当目标说话人
+     * 开关开启时，每段话结束会用它做声纹判定。更换目标人：重新 enroll 后再次调用本方法覆盖即可。
+     *
+     * 仅在 [AsrConfig] 通过 [AsrConfig.Builder.targetSpeaker] 启用了目标说话人能力时有意义。
+     *
+     * @param embedding 目标声纹向量；长度需与所用声纹模型维度一致
+     */
+    public fun setTargetSpeaker(embedding: FloatArray) {
+        impl.setTargetSpeaker(embedding)
+    }
+
+    /** 清除已设置的目标说话人向量；之后即使开关开启也不会过滤（等价于放行全部）。 */
+    public fun clearTargetSpeaker() {
+        impl.clearTargetSpeaker()
+    }
+
+    /**
+     * 目标说话人开关：运行时启用 / 关闭"只保留目标说话人"的输出门控
+     * （初始状态随 [TargetSpeakerConfig.enabledByDefault]）。
+     *
+     * 语义为输出门控：ASR 始终流式全量识别（[AsrCallback.onPartial] 不受影响），开关只在每段话
+     * 结束时决定该段 [AsrCallback.onFinal] 是否保留；被判为非目标的段改触发
+     * [AsrCallback.onFinalRejected]。开关在一段话中途切换时，以该段结束时刻的状态为准。
+     *
+     * 注意：partial 阶段无法门控（声纹需完整语音段），开启时正在进行的那段 partial 仍按原文显示，
+     * 到段末才门控。未通过 [AsrConfig.Builder.targetSpeaker] 启用能力时本调用被忽略（仅记日志）。
+     *
+     * @param enabled true 开启门控；false 关闭（放行全部）
+     */
+    public fun setTargetSpeakerEnabled(enabled: Boolean) {
+        impl.setTargetSpeakerEnabled(enabled)
+    }
+
     /** 当前会话是否已经 [close]。 */
     public val isClosed: Boolean
         get() = impl.isClosed

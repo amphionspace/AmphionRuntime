@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="0dp"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/brand_cream"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:title="@string/enroll_title" />
+
+    <TextView
+        android:id="@+id/tv_enroll_status"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_padding"
+        android:layout_marginTop="14dp"
+        android:layout_marginEnd="@dimen/screen_padding"
+        android:background="@drawable/bg_card"
+        android:padding="14dp"
+        android:textColor="@color/brand_text_secondary"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        tools:text="已生成声纹 · 3 段录音" />
+
+    <LinearLayout
+        android:id="@+id/card_threshold"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_padding"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="@dimen/screen_padding"
+        android:background="@drawable/bg_card"
+        android:orientation="vertical"
+        android:padding="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_enroll_status">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/enroll_threshold_title"
+                android:textColor="@color/brand_text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_threshold_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/brand_accent"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                tools:text="0.40" />
+        </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/seek_threshold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:max="100" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/enroll_threshold_hint"
+            android:textColor="@color/brand_text_muted"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_segments"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:clipToPadding="false"
+        android:paddingStart="@dimen/screen_padding"
+        android:paddingEnd="@dimen/screen_padding"
+        android:paddingBottom="12dp"
+        app:layout_constraintBottom_toTopOf="@id/btn_record"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/card_threshold" />
+
+    <TextView
+        android:id="@+id/tv_empty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/enroll_empty"
+        android:textColor="@color/brand_text_muted"
+        android:textSize="14sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/rv_segments"
+        app:layout_constraintEnd_toEndOf="@id/rv_segments"
+        app:layout_constraintStart_toStartOf="@id/rv_segments"
+        app:layout_constraintTop_toTopOf="@id/rv_segments"
+        tools:visibility="visible" />
+
+    <Button
+        android:id="@+id/btn_record"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/button_height"
+        android:layout_marginStart="@dimen/screen_padding"
+        android:layout_marginEnd="@dimen/screen_padding"
+        android:layout_marginBottom="@dimen/screen_padding"
+        android:background="@drawable/bg_button_primary"
+        android:stateListAnimator="@null"
+        android:text="@string/enroll_record"
+        android:textColor="@color/brand_on_accent"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

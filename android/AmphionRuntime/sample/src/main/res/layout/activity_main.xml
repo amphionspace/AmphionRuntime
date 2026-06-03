@@ -40,31 +40,17 @@
 
         <ImageView
             android:id="@+id/iv_logo"
-            android:layout_width="@dimen/logo_size"
-            android:layout_height="@dimen/logo_size"
+            android:layout_width="@dimen/logo_size_small"
+            android:layout_height="@dimen/logo_size_small"
             android:contentDescription="@string/brand_title"
             android:src="@drawable/ic_amphion_logo" />
 
-        <LinearLayout
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/brand_title"
-                android:textAppearance="@style/TextAppearance.Amphion.BrandTitle" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/brand_subtitle"
-                android:textAppearance="@style/TextAppearance.Amphion.BrandSubtitle" />
-
-        </LinearLayout>
+            android:layout_marginStart="10dp"
+            android:text="@string/brand_title"
+            android:textAppearance="@style/TextAppearance.Amphion.BrandTitle" />
 
     </LinearLayout>
 
@@ -72,7 +58,7 @@
         android:id="@+id/lang_card"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="16dp"
         android:background="@drawable/bg_segment_container"
         android:orientation="vertical"
         android:padding="6dp"
@@ -117,6 +103,129 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/capability_row"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/lang_card">
+
+        <LinearLayout
+            android:id="@+id/card_hotword"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_card"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:contentDescription="@string/cap_hotword_title"
+                    android:src="@drawable/ic_hotword" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:text="@string/cap_hotword_title"
+                    android:textColor="@color/brand_text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/sw_hotword"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_hotword_state"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/cap_hotword_off"
+                android:textColor="@color/brand_text_muted"
+                android:textSize="11sp" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/card_target"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/capability_gap"
+            android:background="@drawable/bg_card"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:contentDescription="@string/cap_target_title"
+                    android:src="@drawable/ic_target" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:text="@string/cap_target_title"
+                    android:textColor="@color/brand_text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/sw_target"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:enabled="false" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_ts_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/ts_unregistered"
+                android:textColor="@color/brand_text_muted"
+                android:textSize="11sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/status_row"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -125,7 +234,7 @@
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/lang_card">
+        app:layout_constraintTop_toBottomOf="@id/capability_row">
 
         <View
             android:id="@+id/status_dot"

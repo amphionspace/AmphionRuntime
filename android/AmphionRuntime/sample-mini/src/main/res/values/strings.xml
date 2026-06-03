@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Amphion ASR Mini</string>
+
+    <string name="brand_title">AMPHION</string>
+    <string name="brand_subtitle">Streaming ASR · On-Device</string>
+
+    <string name="status_idle">就绪</string>
+    <string name="label_partial">Live</string>
+    <string name="label_final">Final</string>
+    <string name="partial_placeholder">等待语音输入…</string>
+    <string name="final_placeholder">点击下方按钮开始识别，最终结果会累积显示在这里。</string>
+    <string name="btn_talk_start">开始识别</string>
+    <string name="btn_talk_stop">停止识别</string>
+    <string name="lang_zh_en">中英</string>
+    <string name="lang_yue_en">粤英</string>
+    <string name="status_loading_model">加载 %1$s 模型中…</string>
+    <string name="loading_model_short">模型加载中…</string>
+    <string name="status_installing_assets">正在解包内置模型…%1$d%%</string>
+    <string name="status_install_failed">模型解包失败：%1$s</string>
+    <string name="status_no_permission">没有录音权限，无法识别</string>
+    <string name="status_preloading">正在预加载中英 + 粤英模型…</string>
+    <string name="status_preload_progress">预加载：%1$s %2$d%%</string>
+
+    <!-- 能力卡（热词 / 目标说话人快捷区） -->
+    <string name="cap_hotword_title">热词</string>
+    <string name="cap_hotword_on">已启用 %1$d 个</string>
+    <string name="cap_hotword_off">未启用</string>
+    <string name="cap_target_title">目标人</string>
+    <string name="metrics_placeholder">指标：—</string>
+    <string name="metrics_format">E2E %1$d ms · 首字 %2$d ms · RTF %3$.2f · RSS %4$d MB</string>
+    <string name="metrics_format_no_partial">E2E %1$d ms · 首字 — · RTF %2$.2f · RSS %3$d MB</string>
+
+    <!-- Toolbar 菜单 -->
+    <string name="menu_hotwords">热词管理</string>
+    <string name="menu_more">更多</string>
+
+    <!-- 热词管理页 -->
+    <string name="hotwords_title">热词管理</string>
+    <string name="hotwords_tab_zh_en">中英热词</string>
+    <string name="hotwords_tab_yue_en">粤英热词</string>
+    <string name="hotwords_master_label">为当前语言启用热词</string>
+    <string name="hotwords_add">+ 添加热词</string>
+    <string name="hotwords_add_dialog_title">添加热词</string>
+    <string name="hotwords_add_dialog_hint">输入热词（建议 ≤ 30 字符）</string>
+    <string name="hotwords_add_dialog_save">保存</string>
+    <string name="hotwords_add_dialog_cancel">取消</string>
+    <string name="hotwords_empty">还没有热词，点击下方按钮添加</string>
+    <string name="hotwords_count_label">已添加 %1$d 条，启用 %2$d 条</string>
+    <string name="hotwords_delete">删除</string>
+    <string name="hotwords_invalid">热词不能为空且不超过 30 字符</string>
+    <string name="hotwords_duplicate">该热词已存在</string>
+
+    <!-- 目标说话人 -->
+    <string name="ts_switch">只认目标人</string>
+    <string name="ts_enroll">注册</string>
+    <string name="ts_enroll_stop">结束本段</string>
+    <string name="ts_unregistered">未注册 · 点此注册</string>
+    <string name="ts_recording">注册录音中…说 5-10 秒后点结束本段</string>
+    <string name="ts_enrolling">正在生成声纹…</string>
+    <string name="ts_registered">已注册 %1$d 段 · 阈值 %2$.2f</string>
+    <string name="ts_model_missing">未找到声纹模型，请先 adb push</string>
+    <string name="ts_need_register">请先注册目标人</string>
+
+    <!-- 声纹管理页 -->
+    <string name="menu_speaker">声纹管理</string>
+    <string name="enroll_title">声纹管理</string>
+    <string name="enroll_status_none">未注册声纹，先录制至少一段</string>
+    <string name="enroll_status_segments">%1$d 段录音</string>
+    <string name="enroll_status_ready">已生成声纹 · %1$d 段录音</string>
+    <string name="enroll_record">录制一段</string>
+    <string name="enroll_record_stop">结束录音</string>
+    <string name="enroll_recording">录音中…正常说 5-10 秒后点结束</string>
+    <string name="enroll_building">正在生成声纹…</string>
+    <string name="enroll_build_failed">生成声纹失败，请重试</string>
+    <string name="enroll_empty">还没有录音，点下方“录制一段”</string>
+    <string name="enroll_seg_label">第 %1$d 段 · %2$s</string>
+    <string name="enroll_no_permission">没有录音权限，无法录制</string>
+    <string name="enroll_play_desc">播放</string>
+    <string name="enroll_delete_desc">删除</string>
+    <string name="enroll_delete_title">删除这段录音？</string>
+    <string name="enroll_delete_msg">删除后会用剩余录音自动重算声纹，删完则清空声纹。</string>
+    <string name="enroll_delete_ok">删除</string>
+    <string name="enroll_threshold_title">判定阈值</string>
+    <string name="enroll_threshold_value">%1$.2f</string>
+    <string name="enroll_threshold_hint">越高越严格，越易漏掉本人。返回主页后下一段生效。</string>
+</resources>

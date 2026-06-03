@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="screen_padding">10dp</dimen>
+    <dimen name="card_corner">12dp</dimen>
+    <dimen name="card_padding">10dp</dimen>
+    <dimen name="card_stroke">1dp</dimen>
+    <dimen name="card_spacing">8dp</dimen>
+
+    <dimen name="segment_corner">12dp</dimen>
+    <dimen name="segment_height">36dp</dimen>
+
+    <dimen name="button_corner">14dp</dimen>
+    <dimen name="button_height">46dp</dimen>
+
+    <dimen name="logo_size">44dp</dimen>
+    <dimen name="logo_size_small">36dp</dimen>
+    <dimen name="status_dot_size">8dp</dimen>
+
+    <dimen name="capability_gap">10dp</dimen>
+</resources>

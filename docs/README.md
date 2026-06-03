@@ -28,6 +28,12 @@
 | --- | --- |
 | debugging/android-session-dump.md | Android sample 的 audio.wav + transcript.txt 落盘工具、adb pull、PC 离线对照方法 |
 
+### Speaker（目标说话人 ASR 调研期）
+
+| 文档 | 说明 |
+| --- | --- |
+| speaker/PIPELINE.md | TS-ASR 当前方案落地：模型选型、处理链路、lhotse 数据接入契约、决策门、下一步清单 |
+
 ## 配套工具
 
 | 工具 | 说明 |

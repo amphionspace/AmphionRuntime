@@ -56,6 +56,25 @@ internal class SessionImpl(
     @Volatile
     private var currentHotwords: String = engineImpl.engineHotwords
 
+    // -------- 目标说话人门控（形态A 输出门控）状态 --------
+
+    /** 运行时开关；与 updateHotwords 同源可随时切换。decoder 线程读、业务线程写，故 @Volatile。 */
+    @Volatile
+    private var targetSpeakerEnabled: Boolean =
+        engineImpl.targetSpeakerConfig?.enabledByDefault ?: false
+
+    /** 已注册目标向量（已 L2 归一）；null = 未注册。 */
+    @Volatile
+    private var targetEmbedding: FloatArray? = null
+
+    /** 声纹打分器；decoder 线程独占，首次开关开启时懒加载。 */
+    private var speakerVerifier: SpeakerVerifier? = null
+
+    /** 当前 utterance 的 PCM 缓冲（decoder 线程独占）；仅开关开启时累积，段末打分后清空。 */
+    private var uttBuf = FloatArray(0)
+    private var uttLen = 0
+    private var uttOverflowWarned = false
+
     private val metrics = MetricsCollector(
         sessionId = sessionId,
         language = engineImpl.asrLanguage,
@@ -188,6 +207,7 @@ internal class SessionImpl(
                     vadSpeechActive = false
                     trailingSilenceMs = 0
                     vadCarry = FloatArray(0)
+                    resetUtteranceBuffer()
                     Logger.i("updateHotwords applied: ${words.size} words")
                 }
                 is NativeResult.Err -> {
@@ -196,6 +216,35 @@ internal class SessionImpl(
                 }
             }
         }
+    }
+
+    // -------- 目标说话人门控 public 方法（被 AsrSession 转发） --------
+
+    fun setTargetSpeaker(embedding: FloatArray) {
+        if (closed.get()) return
+        targetEmbedding = embedding.copyOf()
+        Logger.i("session $sessionId target speaker embedding set: dim=${embedding.size}")
+    }
+
+    fun clearTargetSpeaker() {
+        targetEmbedding = null
+        Logger.i("session $sessionId target speaker embedding cleared")
+    }
+
+    fun setTargetSpeakerEnabled(enabled: Boolean) {
+        if (closed.get()) {
+            Logger.w("setTargetSpeakerEnabled ignored: session closed")
+            return
+        }
+        if (engineImpl.targetSpeakerConfig == null) {
+            Logger.w(
+                "setTargetSpeakerEnabled($enabled) ignored: AsrConfig.targetSpeaker not configured",
+            )
+            return
+        }
+        targetSpeakerEnabled = enabled
+        // 懒加载 verifier 放到 decoder 线程：既不阻塞业务线程，又与段末打分共线程保证可见性。
+        if (enabled) decoderHandler.post { ensureVerifier() }
     }
 
     fun stop() {
@@ -296,6 +345,9 @@ internal class SessionImpl(
     private fun feedAndDecode(samples: FloatArray) {
         if (closed.get()) return
 
+        // 目标说话人门控开启时，累积当前段 PCM 供段末打分（decoder 线程独占，无锁）。
+        if (targetSpeakerEnabled) appendUtterance(samples)
+
         // 保持 PCM 全量进 ASR，让 partial 实时性不受 VAD 抖动影响。VAD 只做 gate
         // + 主动 endpoint（更敏感的尾静音切分），它们与 sherpa endpoint 规则并存：
         // 谁先触发以谁为准。
@@ -386,8 +438,8 @@ internal class SessionImpl(
             metrics.onEndpointDetected()
             val r = recognizer.getResult(stream)
             metrics.onRawFinalReady()
-            postEndpoint()
-            postFinalToProcessor(toAsrResult(r))
+        postEndpoint()
+        postFinalToProcessor(gateFinal(toAsrResult(r)))
             // 长 utterance 后做硬重启而不是软 reset：
             // 软 reset 只清 decoder hyps、保留 encoder cache（reset_encoder=false 默认），
             // 经历 ~10s 的长 utterance 后 encoder cache 内部 norm/偏置进入"持续语音"状态，
@@ -404,7 +456,7 @@ internal class SessionImpl(
         val r = recognizer.getResult(stream)
         if (isFinal) {
             metrics.onRawFinalReady()
-            postFinalToProcessor(toAsrResult(r))
+            postFinalToProcessor(gateFinal(toAsrResult(r)))
             NativeGuard.runQuietly("recognizer.reset") { recognizer.reset(stream) }
             lastPartialText = ""
         } else if (r.text != lastPartialText) {
@@ -465,6 +517,77 @@ internal class SessionImpl(
         )
     }
 
+    // -------- 目标说话人门控（decoder 线程） --------
+
+    /**
+     * 段末门控：对 utterance 缓冲打分并给 [raw] 打标（speakerScore / isTargetSpeaker），或原样放行。
+     * 调用后必清空 utterance 缓冲。
+     *
+     * 放行（返回不带 speaker 字段的 raw）的情况：开关关闭 / 未注册目标 / extractor 不可用 /
+     * 段太短无法判定。真正"过滤非目标"由 [dispatchFinal] 依据 isTargetSpeaker==false 改派
+     * onFinalRejected 完成；这里只负责打分与打标，保证 metrics / 后处理时序与未启用时一致。
+     */
+    private fun gateFinal(raw: AsrResult): AsrResult {
+        if (!targetSpeakerEnabled) {
+            resetUtteranceBuffer()
+            return raw
+        }
+        val target = targetEmbedding ?: run { resetUtteranceBuffer(); return raw }
+        val verifier = ensureVerifier() ?: run { resetUtteranceBuffer(); return raw }
+        val seg = currentUtterance()
+        resetUtteranceBuffer()
+        if (seg.isEmpty()) return raw
+        val score = verifier.segmentScore(seg, target) ?: return raw
+        val threshold = engineImpl.targetSpeakerConfig?.threshold ?: DEFAULT_TS_THRESHOLD
+        return raw.copy(speakerScore = score, isTargetSpeaker = score >= threshold)
+    }
+
+    /** 懒加载声纹打分器（仅 decoder 线程）。extractor 不可用时返回 null（门控降级为放行）。 */
+    private fun ensureVerifier(): SpeakerVerifier? {
+        speakerVerifier?.let { return it }
+        val tsc = engineImpl.targetSpeakerConfig ?: return null
+        val extractor = engineImpl.obtainSpeakerExtractor() ?: run {
+            Logger.w("session $sessionId target speaker enabled but extractor unavailable; gating disabled")
+            return null
+        }
+        return SpeakerVerifier(
+            extractor = extractor,
+            sampleRate = sampleRate,
+            winSec = tsc.winSec,
+            hopSec = tsc.hopSec,
+            minSegSec = tsc.minSegSec,
+        ).also { speakerVerifier = it }
+    }
+
+    private fun appendUtterance(samples: FloatArray) {
+        if (uttLen >= UTT_MAX_SAMPLES) {
+            if (!uttOverflowWarned) {
+                Logger.w(
+                    "session $sessionId utterance buffer hit cap ($UTT_MAX_SAMPLES samples); " +
+                        "extra audio ignored for speaker scoring",
+                )
+                uttOverflowWarned = true
+            }
+            return
+        }
+        val take = minOf(samples.size, UTT_MAX_SAMPLES - uttLen)
+        if (uttBuf.size < uttLen + take) {
+            var newCap = if (uttBuf.isEmpty()) UTT_INIT_CAP else uttBuf.size
+            while (newCap < uttLen + take) newCap *= 2
+            uttBuf = uttBuf.copyOf(newCap)
+        }
+        System.arraycopy(samples, 0, uttBuf, uttLen, take)
+        uttLen += take
+    }
+
+    private fun currentUtterance(): FloatArray =
+        if (uttLen == 0) FloatArray(0) else uttBuf.copyOf(uttLen)
+
+    private fun resetUtteranceBuffer() {
+        uttLen = 0
+        uttOverflowWarned = false
+    }
+
     // -------- callback dispatch --------
 
     private fun postPartial(result: AsrResult) {
@@ -490,7 +613,14 @@ internal class SessionImpl(
         metrics.emit(utteranceMetrics, callback, callbackHandler)
 
         callbackHandler.post {
-            safeCallback { callback.onFinal(processed) }
+            safeCallback {
+                // 目标说话人门控：被判为非目标的段改派 onFinalRejected（不再触发 onFinal）。
+                if (processed.isTargetSpeaker == false) {
+                    callback.onFinalRejected(processed)
+                } else {
+                    callback.onFinal(processed)
+                }
+            }
         }
     }
 
@@ -534,6 +664,15 @@ internal class SessionImpl(
          * 16 kHz 下 512 个 sample = 32 ms。本 SDK 锁 silero，常量值与 EngineImpl 一致。
          */
         const val VAD_WINDOW_SIZE = 512
+
+        /** utterance 缓冲初始容量（1s @16k）。 */
+        const val UTT_INIT_CAP = 16000
+
+        /** utterance 缓冲上限（25s @16k）；endpoint rule3 20s 会先强制 final，此为防御性上限。 */
+        const val UTT_MAX_SAMPLES = 25 * 16000
+
+        /** 目标说话人默认阈值兜底（与 TargetSpeakerConfig.threshold 默认一致）。 */
+        const val DEFAULT_TS_THRESHOLD = 0.30f
 
         @Suppress("unused")
         const val SESSION_ALREADY_CLOSED_CODE = AsrErrorCode.SESSION_ALREADY_CLOSED

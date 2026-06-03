@@ -10,6 +10,9 @@ package com.amphion.asr
  * @property tokens 与 [text] 对应的 token（subword）序列；BPE 模型下是 sentencepiece 子词
  * @property timestamps 每个 token 在音频中的起始时间（秒），与 [tokens] 等长；引擎不支持时为空
  * @property tokenConfidences 每个 token 的逐 token 置信度，与 [tokens] 等长；引擎不支持时为空
+ * @property speakerScore 目标说话人余弦相似度；仅在目标说话人开关开启且该段完成打分时非空，
+ *   否则为 null（开关关闭 / 未注册目标 / 段太短无法判定）
+ * @property isTargetSpeaker 该段是否判定为目标说话人；与 [speakerScore] 同步，未判定时为 null
  */
 public data class AsrResult(
     public val text: String,
@@ -17,4 +20,6 @@ public data class AsrResult(
     public val tokens: List<String> = emptyList(),
     public val timestamps: List<Float> = emptyList(),
     public val tokenConfidences: List<Float> = emptyList(),
+    public val speakerScore: Float? = null,
+    public val isTargetSpeaker: Boolean? = null,
 )

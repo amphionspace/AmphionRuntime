@@ -5,6 +5,7 @@ import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrErrorCode
 import com.amphion.asr.AsrLanguage
 import com.amphion.asr.VadConfig
+import com.amphion.asr.TargetSpeakerConfig
 import com.amphion.asr.VadModelType
 import com.k2fsa.sherpa.onnx.EndpointConfig
 import com.k2fsa.sherpa.onnx.EndpointRule
@@ -16,6 +17,8 @@ import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
 import com.k2fsa.sherpa.onnx.SileroVadModelConfig
+import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractor
+import com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractorConfig
 import com.k2fsa.sherpa.onnx.Vad
 import com.k2fsa.sherpa.onnx.VadModelConfig
 import java.util.concurrent.atomic.AtomicBoolean
@@ -48,6 +51,12 @@ internal class EngineImpl(
 
     private val vad: Vad?
 
+    // 目标说话人声纹 extractor（engine 级，可选）：preload 时 init 即建，否则首次开关开启懒加载。
+    private val speakerLock = ReentrantLock()
+
+    @Volatile
+    private var speakerExtractor: SpeakerEmbeddingExtractor? = null
+
     private val closed = AtomicBoolean(false)
     private val sessionsLock = ReentrantLock()
     private val sessions: MutableSet<SessionImpl> = HashSet()
@@ -79,6 +88,10 @@ internal class EngineImpl(
     internal val vadConfig: VadConfig
         get() = config.vadConfig
 
+    /** 目标说话人能力配置；null 表示未启用。 */
+    internal val targetSpeakerConfig: TargetSpeakerConfig?
+        get() = config.targetSpeaker
+
     init {
         engineHotwords = config.hotwords.joinToString("\n")
 
@@ -89,6 +102,9 @@ internal class EngineImpl(
         } else {
             null
         }
+
+        // 目标说话人：preload=true 时随 engine 创建即加载声纹模型，让运行时开关只切标志位（秒级生效）。
+        config.targetSpeaker?.let { if (it.preload) obtainSpeakerExtractor() }
 
         engineReadyElapsedMs = android.os.SystemClock.elapsedRealtime()
         engineReadyMs = engineReadyElapsedMs - createStartElapsedMs
@@ -134,6 +150,46 @@ internal class EngineImpl(
         sessionsLock.withLock { sessions.remove(s) }
     }
 
+    /**
+     * 懒加载 / 预加载 engine 级声纹 extractor。
+     *
+     * [config].targetSpeaker 为 null 时返回 null；模型加载失败时记 warn 并返回 null——目标说话人
+     * 是可选增量能力，加载失败只让门控降级（放行全部），不影响 ASR 主链路。
+     * 由 init（preload）或 SessionImpl 的 decoder 线程调用，内部用 [speakerLock] 保证只建一次。
+     */
+    internal fun obtainSpeakerExtractor(): SpeakerEmbeddingExtractor? {
+        val tsc = config.targetSpeaker ?: return null
+        speakerExtractor?.let { return it }
+        return speakerLock.withLock {
+            speakerExtractor ?: buildSpeakerExtractor(tsc)?.also { speakerExtractor = it }
+        }
+    }
+
+    private fun buildSpeakerExtractor(tsc: TargetSpeakerConfig): SpeakerEmbeddingExtractor? {
+        val cfg = SpeakerEmbeddingExtractorConfig(
+            model = tsc.modelPath,
+            numThreads = tsc.numThreads,
+            debug = false,
+            provider = "cpu",
+        )
+        return when (
+            val r = NativeGuard.run("SpeakerEmbeddingExtractor.<init>") {
+                SpeakerEmbeddingExtractor(assetManager = null, config = cfg)
+            }
+        ) {
+            is NativeResult.Ok -> {
+                Logger.i("Speaker extractor loaded: model=${tsc.modelPath} dim=${r.value.dim()}")
+                r.value
+            }
+            is NativeResult.Err -> {
+                Logger.w(
+                    "Speaker model load failed, target-speaker gating will pass through: ${r.error.message}",
+                )
+                null
+            }
+        }
+    }
+
     fun close() {
         if (!closed.compareAndSet(false, true)) return
 
@@ -158,6 +214,7 @@ internal class EngineImpl(
             NativeGuard.runQuietly("recognizer.release") { recognizer.release() }
         }
         NativeGuard.runQuietly("vad.release") { vad?.release() }
+        NativeGuard.runQuietly("speakerExtractor.release") { speakerExtractor?.release() }
         Logger.i("Engine closed (ownsRecognizer=$ownsRecognizer)")
     }
 

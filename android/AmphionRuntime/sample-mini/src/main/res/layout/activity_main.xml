@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/brand_cream"
+    android:fitsSystemWindows="true"
+    android:padding="@dimen/screen_padding">
+
+    <LinearLayout
+        android:id="@+id/top_row"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:id="@+id/lang_card"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_segment_container"
+            android:padding="4dp">
+
+            <RadioGroup
+                android:id="@+id/rg_lang"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/segment_height"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/rb_zh_en"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_segment_selector"
+                    android:button="@null"
+                    android:gravity="center"
+                    android:text="@string/lang_zh_en"
+                    android:textColor="@color/segment_text_selector"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <RadioButton
+                    android:id="@+id/rb_yue_en"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_segment_selector"
+                    android:button="@null"
+                    android:gravity="center"
+                    android:text="@string/lang_yue_en"
+                    android:textColor="@color/segment_text_selector"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+            </RadioGroup>
+
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btn_menu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/menu_more"
+            android:src="@drawable/ic_more" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/status_row"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/top_row">
+
+        <View
+            android:id="@+id/status_dot"
+            android:layout_width="@dimen/status_dot_size"
+            android:layout_height="@dimen/status_dot_size"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/status_dot" />
+
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/status_idle"
+            android:textAppearance="@style/TextAppearance.Amphion.Status" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="@string/cap_target_title"
+            android:textColor="@color/brand_text_muted"
+            android:textSize="11sp" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/sw_target"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="2dp"
+            android:enabled="false" />
+
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:indeterminateTint="@color/brand_accent"
+        android:progressTint="@color/brand_accent"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/status_row"
+        tools:visibility="visible" />
+
+    <LinearLayout
+        android:id="@+id/card_result"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_card"
+        android:orientation="vertical"
+        android:padding="@dimen/card_padding"
+        app:layout_constraintBottom_toTopOf="@id/btn_talk"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/progress">
+
+        <TextView
+            android:id="@+id/tv_partial"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:hint="@string/partial_placeholder"
+            android:maxLines="1"
+            android:textColor="@color/brand_text_muted"
+            android:textColorHint="@color/brand_text_muted"
+            android:textSize="13sp"
+            tools:text="正在识别 Amphion runtime…" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="4dp"
+            android:layout_weight="1"
+            android:scrollbars="vertical">
+
+            <TextView
+                android:id="@+id/tv_final"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/final_placeholder"
+                android:textAppearance="@style/TextAppearance.Amphion.Body"
+                android:textColorHint="@color/brand_text_muted" />
+
+        </ScrollView>
+
+        <TextView
+            android:id="@+id/tv_metrics"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="monospace"
+            android:text="@string/metrics_placeholder"
+            android:textColor="@color/brand_text_muted"
+            android:textSize="10sp"
+            tools:text="E2E 145 ms · 首字 90 ms · RTF 0.18 · RSS 167 MB" />
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_talk"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/button_height"
+        android:background="@drawable/bg_button_primary"
+        android:drawableStart="@drawable/ic_mic"
+        android:drawablePadding="8dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:stateListAnimator="@null"
+        android:text="@string/btn_talk_start"
+        android:textColor="@color/brand_on_accent"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
