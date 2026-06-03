@@ -13,7 +13,10 @@
     <dimen name="button_height">64dp</dimen>
 
     <dimen name="logo_size">44dp</dimen>
+    <dimen name="logo_size_small">36dp</dimen>
     <dimen name="status_dot_size">8dp</dimen>
+
+    <dimen name="capability_gap">10dp</dimen>
 
     <dimen name="waveform_height">56dp</dimen>
     <dimen name="waveform_bar_width">3dp</dimen>
