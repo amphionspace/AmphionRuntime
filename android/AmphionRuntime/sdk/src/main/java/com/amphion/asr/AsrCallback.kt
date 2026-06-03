@@ -60,6 +60,15 @@ public interface AsrCallback {
     }
 
     /**
+     * 一段话结束、但被目标说话人开关判定为"非目标"而过滤掉时触发（替代该段的 [onFinal]）。
+     *
+     * 仅在目标说话人开关开启、已注册目标、且该段被判为非目标时调用；此时不会再触发 [onFinal]。
+     * [result] 携带被过滤段的文本与 [AsrResult.speakerScore]，便于业务自定义呈现（如灰显 / 折叠）。
+     * 默认 no-op：默认行为即"丢弃非目标段"。
+     */
+    public fun onFinalRejected(result: AsrResult) {}
+
+    /**
      * 端点检测：检测到一段话结束。
      *
      * 该事件在 [onFinal] 之前触发，便于 UI 切状态（"正在识别…" -> "等待下一句"）。

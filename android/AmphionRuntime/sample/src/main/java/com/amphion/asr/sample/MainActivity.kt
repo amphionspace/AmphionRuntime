@@ -28,6 +28,15 @@ import com.amphion.asr.AsrEngine
 import com.amphion.asr.AsrError
 import com.amphion.asr.AsrLanguage
 import com.amphion.asr.AsrSession
+import android.graphics.Color
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StrikethroughSpan
+import androidx.appcompat.widget.SwitchCompat
+import com.amphion.asr.AsrResult
+import com.amphion.asr.TargetSpeakerConfig
+import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -74,6 +83,9 @@ class MainActivity : AppCompatActivity() {
          * 不会影响识别结果。
          */
         const val HOTWORD_POOL_PLACEHOLDER = "__placeholder__"
+
+        /** 声纹模型文件名；放在 app external files dir，由 adb push 进去。 */
+        const val SPEAKER_MODEL_FILENAME = "eres2net.onnx"
     }
 
     private lateinit var btnTalk: Button
@@ -87,6 +99,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rbZhEn: RadioButton
     private lateinit var rbYueEn: RadioButton
     private lateinit var waveform: WaveformView
+    private lateinit var swTarget: SwitchCompat
+    private lateinit var tvTsStatus: TextView
+    private lateinit var swHotword: SwitchCompat
+    private lateinit var tvHotwordState: TextView
+    private lateinit var cardHotword: android.view.View
+    private lateinit var cardTarget: android.view.View
 
     private val mainHandler: Handler by lazy { Handler(Looper.getMainLooper()) }
 
@@ -116,6 +134,20 @@ class MainActivity : AppCompatActivity() {
 
     @Volatile
     private var listening: Boolean = false
+
+    // -------- 目标说话人状态 --------
+    private val speakerStore: SpeakerProfileStore by lazy { SpeakerProfileStore(applicationContext) }
+
+    /**
+     * 当前 engine 的 TargetSpeakerConfig 实际生效的判定阈值。声纹页改阈值后，onResume 比对此值
+     * （NaN=尚未建过带阈值的 engine）决定是否静默重建 engine 使新阈值生效。
+     */
+    private var currentThresholdApplied: Float = Float.NaN
+
+    @Volatile
+    private var targetEmbedding: FloatArray? = null
+    private var targetEnabledDesired = false
+    private val finalBuilder = SpannableStringBuilder()
 
     private val recordPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -156,6 +188,22 @@ class MainActivity : AppCompatActivity() {
         rbYueEn = findViewById(R.id.rb_yue_en)
         waveform = findViewById(R.id.waveform)
 
+        swTarget = findViewById(R.id.sw_target)
+        tvTsStatus = findViewById(R.id.tv_ts_status)
+        swTarget.setOnCheckedChangeListener { _, isChecked -> onTargetSwitch(isChecked) }
+
+        swHotword = findViewById(R.id.sw_hotword)
+        tvHotwordState = findViewById(R.id.tv_hotword_state)
+        cardHotword = findViewById(R.id.card_hotword)
+        cardTarget = findViewById(R.id.card_target)
+        // 能力卡整卡点击 = 进入各自配置页（替代溢出菜单为主入口；菜单仍作冗余入口保留）
+        cardHotword.setOnClickListener {
+            hotwordsLauncher.launch(Intent(this, HotwordsActivity::class.java))
+        }
+        cardTarget.setOnClickListener {
+            startActivity(Intent(this, SpeakerEnrollActivity::class.java))
+        }
+
         btnTalk.isEnabled = false
         setTalkButtonRecording(false)
         btnTalk.setOnClickListener { onTalkButtonClick() }
@@ -171,6 +219,7 @@ class MainActivity : AppCompatActivity() {
             currentLang = newLang
             stopListeningForSwitch()
             clearTexts()
+            refreshHotwordCard()
             loadEngineForLang(newLang)
         }
 
@@ -181,6 +230,13 @@ class MainActivity : AppCompatActivity() {
         } else {
             loadEngineForLang(currentLang)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        reloadTargetSpeaker()
+        refreshHotwordCard()
+        maybeReloadThreshold()
     }
 
     override fun onDestroy() {
@@ -200,6 +256,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.action_speaker -> {
+                startActivity(Intent(this, SpeakerEnrollActivity::class.java))
+                true
+            }
             R.id.action_hotwords -> {
                 hotwordsLauncher.launch(Intent(this, HotwordsActivity::class.java))
                 true
@@ -253,6 +313,48 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * 主屏「热词」卡的快捷总开关：拨动即改当前语言的 master，再复用 [onHotwordsChanged]
+     * 决定热更新还是重建。master 翻转可能改变 activeWords 的 emptyness（池维度），故录音中
+     * 禁用本开关（见 [setCapabilityLocked]）。
+     */
+    private fun onHotwordMasterToggle(enabled: Boolean) {
+        val prefs = HotwordsPrefs(applicationContext)
+        if (prefs.masterEnabled(currentLang) == enabled) return
+        prefs.setMasterEnabled(currentLang, enabled)
+        onHotwordsChanged()
+        refreshHotwordCard()
+    }
+
+    /**
+     * 刷新「热词」能力卡：Switch 反映当前语言 master 意图，副文反映实际生效词数。
+     * 设监听器前先置 null，避免 setChecked 触发回调风暴（参照 [reloadTargetSpeaker]）。
+     */
+    private fun refreshHotwordCard() {
+        val prefs = HotwordsPrefs(applicationContext)
+        val effective = prefs.activeWords(currentLang).size
+        swHotword.setOnCheckedChangeListener(null)
+        swHotword.isChecked = prefs.masterEnabled(currentLang)
+        swHotword.setOnCheckedChangeListener { _, isChecked -> onHotwordMasterToggle(isChecked) }
+        tvHotwordState.text = if (effective > 0) {
+            getString(R.string.cap_hotword_on, effective)
+        } else {
+            getString(R.string.cap_hotword_off)
+        }
+    }
+
+    /**
+     * 录音中锁定能力卡：避免跳转打断录音、避免热词 master 翻转触发 engine 重建。
+     * 目标人开关 [swTarget] 不在此锁定——录音中允许实时切换目标人，其可用性由
+     * [refreshTsStatus] 决定。
+     */
+    private fun setCapabilityLocked(locked: Boolean) {
+        cardHotword.isEnabled = !locked
+        cardHotword.alpha = if (locked) 0.5f else 1f
+        swHotword.isEnabled = !locked
+        cardTarget.isEnabled = !locked
+    }
+
     // ----------- 加载 / 切换语言 -----------
 
     private fun loadEngineForLang(lang: AsrLanguage) {
@@ -260,10 +362,17 @@ class MainActivity : AppCompatActivity() {
         val oldEngine = engine
         engine = null
         btnTalk.isEnabled = false
-        tvLoadingHint.visibility = android.view.View.VISIBLE
-        progress.visibility = android.view.View.VISIBLE
-        progress.isIndeterminate = true
-        setStatus(getString(R.string.status_loading_model, langDisplayName(lang)))
+
+        // 池就绪（preload 完成）时 AmphionRuntime.create 命中池仅 O(ms)，无需加载 UI——
+        // 这样切语种 / 拨热词开关不再闪“模型加载”。仅冷启动（池未就绪、需同步解包+加载）
+        // 才显示加载条与“加载模型中”文案；完成时的隐藏在 mainHandler.post 里统一收尾（幂等）。
+        val showLoadingUi = (application as? AmphionApp)?.preloadDone != true
+        if (showLoadingUi) {
+            tvLoadingHint.visibility = android.view.View.VISIBLE
+            progress.visibility = android.view.View.VISIBLE
+            progress.isIndeterminate = true
+            setStatus(getString(R.string.status_loading_model, langDisplayName(lang)))
+        }
 
         val prefs = HotwordsPrefs(applicationContext)
         val userHotwords = prefs.activeWords(lang)
@@ -275,6 +384,8 @@ class MainActivity : AppCompatActivity() {
             else -> emptyList()
         }
         currentHotwordsApplied = userHotwords
+        val targetThreshold = speakerStore.getThreshold()
+        currentThresholdApplied = targetThreshold
 
         try {
             asrLoadExec.execute {
@@ -290,6 +401,15 @@ class MainActivity : AppCompatActivity() {
                     .itn(true)
                     .vad(true)
                     .endpoint(true)
+                if (speakerModelReady()) {
+                    cfgBuilder.targetSpeaker(
+                        TargetSpeakerConfig(
+                            modelPath = speakerModelPath(),
+                            threshold = targetThreshold,
+                            preload = false,
+                        ),
+                    )
+                }
                 if (effectiveHotwords.isNotEmpty()) {
                     cfgBuilder.hotwords(effectiveHotwords, HOTWORDS_SCORE)
                 }
@@ -353,6 +473,7 @@ class MainActivity : AppCompatActivity() {
         clearTexts()
         setStatus("识别中…（再次点击停止）")
         setTalkButtonRecording(true)
+        setCapabilityLocked(true)
 
         waveform.reset()
         waveform.visibility = android.view.View.VISIBLE
@@ -364,12 +485,16 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread { tvPartial.text = text }
             }
 
-            override fun onFinal(text: String, confidence: Float) {
+            override fun onFinal(result: AsrResult) {
                 runOnUiThread {
-                    if (text.isNotEmpty()) {
-                        val existing = tvFinal.text?.toString().orEmpty()
-                        tvFinal.text = if (existing.isEmpty()) text else "$existing\n$text"
-                    }
+                    appendFinalSegment(result, rejected = false)
+                    tvPartial.text = ""
+                }
+            }
+
+            override fun onFinalRejected(result: AsrResult) {
+                runOnUiThread {
+                    appendFinalSegment(result, rejected = true)
                     tvPartial.text = ""
                 }
             }
@@ -414,6 +539,11 @@ class MainActivity : AppCompatActivity() {
         capturedSession = s
         session = s
 
+        targetEmbedding?.let { emb ->
+            s.setTargetSpeaker(emb)
+            s.setTargetSpeakerEnabled(targetEnabledDesired)
+        }
+
         recorder = AudioRecorder(
             sampleRate = 16000,
             onPcm = { samples ->
@@ -437,6 +567,7 @@ class MainActivity : AppCompatActivity() {
         s?.stop()
 
         setTalkButtonRecording(false)
+        setCapabilityLocked(false)
         if (engine != null) {
             setStatus("正在结束本段…")
         }
@@ -448,6 +579,7 @@ class MainActivity : AppCompatActivity() {
         recorder = null
         session = null
         setTalkButtonRecording(false)
+        setCapabilityLocked(false)
         waveform.visibility = android.view.View.GONE
     }
 
@@ -498,11 +630,90 @@ class MainActivity : AppCompatActivity() {
     private fun clearTexts() {
         tvPartial.text = ""
         tvFinal.text = ""
+        finalBuilder.clear()
         tvMetrics.text = getString(R.string.metrics_placeholder)
     }
 
     private fun setStatus(s: String) {
         tvStatus.text = s
+    }
+
+    // ----------- 目标说话人 demo -----------
+
+    private fun speakerModelPath(): String =
+        File(getExternalFilesDir(null), SPEAKER_MODEL_FILENAME).absolutePath
+
+    private fun speakerModelReady(): Boolean = File(speakerModelPath()).exists()
+
+    private fun onTargetSwitch(enabled: Boolean) {
+        if (enabled && targetEmbedding == null) {
+            swTarget.isChecked = false
+            toast(getString(R.string.ts_need_register))
+            return
+        }
+        targetEnabledDesired = enabled
+        session?.setTargetSpeakerEnabled(enabled)
+    }
+
+    /** 从本地档案重载声纹（注册页可能刚更新过），同步开关可用性与运行中的 session。 */
+    private fun reloadTargetSpeaker() {
+        val emb = speakerStore.loadEmbedding()
+        targetEmbedding = emb
+        swTarget.setOnCheckedChangeListener(null)
+        if (emb == null) {
+            targetEnabledDesired = false
+            swTarget.isChecked = false
+            session?.clearTargetSpeaker()
+        } else {
+            session?.setTargetSpeaker(emb)
+            session?.setTargetSpeakerEnabled(targetEnabledDesired)
+        }
+        swTarget.setOnCheckedChangeListener { _, isChecked -> onTargetSwitch(isChecked) }
+        refreshTsStatus()
+    }
+
+    /**
+     * 声纹页改阈值后回主页：startActivity 无 result，故 onResume 主动比对 prefs 与
+     * [currentThresholdApplied]。阈值只在 engine 的 TargetSpeakerConfig 里生效，变更需静默重建
+     * engine（命中池 O(ms)），新值在下一段识别生效。无声纹模型 / 录音中则跳过：前者 engine 不带
+     * 目标人能力、阈值无意义，后者重建会打断当前 session。
+     */
+    private fun maybeReloadThreshold() {
+        if (!speakerModelReady() || listening) return
+        val t = speakerStore.getThreshold()
+        if (!currentThresholdApplied.isNaN() && t != currentThresholdApplied) {
+            loadEngineForLang(currentLang)
+        }
+    }
+
+    private fun refreshTsStatus() {
+        swTarget.isEnabled = targetEmbedding != null && speakerModelReady()
+        tvTsStatus.text = when {
+            !speakerModelReady() -> getString(R.string.ts_model_missing)
+            targetEmbedding == null -> getString(R.string.ts_unregistered)
+            else -> getString(R.string.ts_registered, speakerStore.segmentCount(), speakerStore.getThreshold())
+        }
+    }
+
+    private fun appendFinalSegment(result: AsrResult, rejected: Boolean) {
+        val text = result.text
+        if (text.isEmpty()) return
+        if (finalBuilder.isNotEmpty()) finalBuilder.append("\n")
+        val start = finalBuilder.length
+        finalBuilder.append(text)
+        result.speakerScore?.let {
+            finalBuilder.append(if (rejected) " [✗ %.2f]".format(it) else " [✓ %.2f]".format(it))
+        }
+        if (rejected) {
+            val end = finalBuilder.length
+            finalBuilder.setSpan(
+                ForegroundColorSpan(Color.GRAY), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            finalBuilder.setSpan(
+                StrikethroughSpan(), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+        tvFinal.text = finalBuilder
     }
 
     private fun toast(s: String) {

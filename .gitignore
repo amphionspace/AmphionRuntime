@@ -96,6 +96,20 @@ tools/asr/demo-model/**
 !tools/asr/demo-model/
 !tools/asr/demo-model/README.md
 
+# --- TS-ASR 调研期产物（不入库） ---
+# - models/：00_download_models.sh 拉的 silero_vad / 3D-Speaker / CAM++ 模型，跨任务可复用
+# - data/：注册音频副本、target_embedding.npy、测试集解压结果；含个人音频与中间产物
+# - results/：02/03/04/05 脚本产出的 JSONL / JSON 报告，每次实验都会变
+tools/speaker/models/**
+tools/speaker/data/**
+tools/speaker/results/**
+!tools/speaker/models/
+!tools/speaker/data/
+!tools/speaker/results/
+!tools/speaker/models/.gitkeep
+!tools/speaker/data/.gitkeep
+!tools/speaker/results/.gitkeep
+
 # --- dashboard 渲染产物（CI 生成） ---
 shared/docs/dashboard/trends/reports/*.md
 shared/docs/dashboard/trends/*.csv
