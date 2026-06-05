@@ -11,7 +11,7 @@
 # 字段：
 #   code:           int，全局唯一
 #   name:           PascalCase，三端常量名转换规则：snake_case 改 SCREAMING_SNAKE
-#   category:       1xxx 配置 / 2xxx 模型 / 3xxx 运行时 / 4xxx 网络 / 5xxx 系统 / 9xxx native
+#   category:       1xxx 配置 / 2xxx 模型 / 3xxx 运行时 / 4xxx 网络 / 5xxx 系统 / 6xxx 授权 / 9xxx native
 #   message:        默认日志文案；调用方可附加细节
 #   sdk_action:     SDK 收到此错误时的推荐处理（reset / retry / fallback / fatal）
 #   user_facing:    建议给终端用户显示的提示（不必逐字翻译，含义对齐即可）
@@ -180,6 +180,51 @@ errors:
     message: not enough storage to download / extract model
     sdk_action: fatal
     user_facing: 存储空间不足
+
+  # ---------- 6xxx 授权类（离线 license；仅端侧 SDK 使用，server 端不涉及） ----------
+  # 装机 license 离线验签失败的归一错误码。SDK 武装 license（构建期注入公钥）后，
+  # AmphionRuntime.init 在 ENFORCE 模式下遇到以下错误会抛 IllegalStateException(code=...)。
+  - code: 6001
+    name: LicenseMissing
+    category: license
+    message: no license provided (options.license empty and asset not found)
+    sdk_action: fatal
+    user_facing: 缺少授权文件，请联系供应商
+
+  - code: 6002
+    name: LicenseMalformed
+    category: license
+    message: license payload is not valid JSON or required fields missing
+    sdk_action: fatal
+    user_facing: 授权文件损坏，请重新获取
+
+  - code: 6003
+    name: LicenseSignatureInvalid
+    category: license
+    message: ECDSA signature verification failed against built-in public key
+    sdk_action: fatal
+    user_facing: 授权文件无效，请联系供应商
+
+  - code: 6004
+    name: LicenseAppMismatch
+    category: license
+    message: license applicationId does not match host app packageName
+    sdk_action: fatal
+    user_facing: 授权与当前应用不匹配
+
+  - code: 6005
+    name: LicenseCertMismatch
+    category: license
+    message: license certSha256 does not match host app signing certificate
+    sdk_action: fatal
+    user_facing: 授权与当前应用签名不匹配
+
+  - code: 6006
+    name: LicenseExpired
+    category: license
+    message: license expiresAt is in the past (beyond grace period)
+    sdk_action: fatal
+    user_facing: 授权已过期，请续期
 
   # ---------- 9xxx native 兜底 ----------
   - code: 9001
