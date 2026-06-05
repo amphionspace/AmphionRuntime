@@ -19,12 +19,17 @@
 - `VadModelType.TEN_VAD` 枚举位预留（当前 AAR 未打包资产，选择会抛 `UnsupportedOperationException`），方便未来切换。
 - ASR bundle 新增 `bbpe.vocab`（sherpa-onnx ssentencepiece 库专用的「token + score」两列文本词表，zh-en / yue-en 各一份，单份约 230 KB）：modeling_unit=bbpe 路径必备文件，sherpa-onnx 用它把热词字符串切成 BPE token，决定 `AsrConfig.Builder.hotwords()` 是否命中。
 - 新增脚本 `tools/asr/09_export_bbpe_vocab.py`：把 google SentencePiece protobuf `.model` 转成 ssentencepiece 期望的两列文本 `.vocab`；模型导出阶段一次性运行即可。
+- 商用离线装机 License（零网络）：`AmphionRuntime.init` 接入离线验签，新增公开 API `AmphionRuntime.licenseStatus()` 返回 `AmphionLicenseStatus`；`AmphionOptions` 扩展 `license` / `licenseAssetName`（默认 `amphion-license.lic`）/ `expiryGraceDays` / `licenseEnforcement`（`ENFORCE` 默认 / `PERMISSIVE`）。`.lic` 用 ECDSA P-256 + SHA256（minSdk 24 全覆盖）离线验签，绑定 applicationId + 签名证书 SHA-256 + 到期日 + 装机档位 + 功能模块；签名覆盖 payload 原始字节以规避 canonical JSON 歧义。公钥经 `gradle.properties.AMPHION_LICENSE_PUBLIC_KEY` 构建期注入 `BuildConfig`，为空时 SDK 处于 `DEV_UNLICENSED` 不校验（开发 / 内部构建无感）。
+- 新增授权错误码 6001-6006（`LICENSE_MISSING` / `LICENSE_MALFORMED` / `LICENSE_SIGNATURE_INVALID` / `LICENSE_APP_MISMATCH` / `LICENSE_CERT_MISMATCH` / `LICENSE_EXPIRED`），同步登记到 `shared/api-spec/errcodes.yaml` 6xxx 授权段（避开 4xxx 网络段）。
+- 新增离线签发工具 `tools/license/`：`gen_keypair.py` / `issue_license.py` / `verify_license.py` / `selftest.sh` + README；私钥与签发产物已加入 `.gitignore`。Python(cryptography) 签发与 JVM(java.security) 验签已实测互通。
+- 新增文档 `docs/LICENSING.md`（行业调研 + 授权方案 + 防破解边界）；`docs/DELIVERY.md` 增 §3.6 武装构建与 §11 签发 / 计费 / 续费 / 审计 / 吊销 SOP；`docs/INTEGRATION.md` 增商用授权接入章节。
 
 变更
 
 - 0.1.x ~ 0.2.0 期间 `vad(true)` 实际只构造了 silero `Vad` 对象但没参与解码；本版本起 `vad(true)` 真的会改变识别行为。开关含义不变；如果不想要新的主动 endpoint 行为，把 `activeEndpointSilenceMs` 设为 0 即可退化成「只做 gate / 不主动切」。
 - 热词 tokenization 由 `cjkchar` 切换到 `bbpe`：之前用 `cjkchar` 是因为缺词表，sherpa-onnx 把汉字按 UTF-8 char 拆，但模型本身是 byte-level BPE，多数热词 OOV 后被静默 skip；现在配合 `bbpe.vocab` 走 byte-level BPE，热词真正映射到模型 token，`hotwords()` + `hotwordsScore` 才有放大效果。开关 / API 不变，业务方代码不动。
 - AAR 体积小幅增加（~460 KB），首次启动会重新解包 zh-en / yue-en 两份 `bbpe.vocab`（SDK_VERSION bump 到 0.2.2）。注意中间一版 0.2.1 误把 google SentencePiece protobuf `.model` 当词表直接打进 AAR，会让 ssentencepiece 解析 segfault；0.2.2 改用同源导出的 `.vocab` 文本格式，闪退修复。
+- SDK release 构建 `isMinifyEnabled` 由 false 改为 true：开启 R8，让 internal 的 license 验签逻辑在交付 AAR 中被混淆，抬高逆向门槛；公开 API 由 `proguard-rules.pro`（include `consumer-rules.pro`，新增 `AmphionLicenseStatus` / `LicenseEnforcement` keep）整体保留。改动后正式交付的 release 包必须真机回归（验证 R8 未误伤验签与 JNI），见 `docs/DELIVERY.md` §3.6。
 
 ## [0.2.0] - 2026-05
 

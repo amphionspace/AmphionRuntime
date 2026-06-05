@@ -3,6 +3,7 @@ package com.amphion.asr
 import android.content.Context
 import com.amphion.asr.internal.AssetInstaller
 import com.amphion.asr.internal.EngineImpl
+import com.amphion.asr.internal.LicenseVerifier
 import com.amphion.asr.internal.Logger
 import com.amphion.asr.internal.SharedPostProcessor
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
@@ -32,6 +33,10 @@ public object AmphionRuntime {
     @Volatile
     private var appContext: Context? = null
 
+    /** 最近一次 [init] 得到的 license 状态；[licenseStatus] 对外暴露。 */
+    @Volatile
+    private var licenseStatusHolder: AmphionLicenseStatus? = null
+
     /**
      * 多语言预加载池：language → 已加载的 OnlineRecognizer。
      *
@@ -58,10 +63,34 @@ public object AmphionRuntime {
         }
         synchronized(this) {
             if (initialized) return
-            appContext = context.applicationContext ?: context
+            val ctx = context.applicationContext ?: context
             Logger.setLevel(options.logLevel)
+
+            // 离线 license 校验。仅当构建期注入了 LICENSE_PUBLIC_KEY_B64（武装态）才真正生效；
+            // 开发 / 内部构建（公钥为空）下结果为 DEV_UNLICENSED，result.ok=true，不影响使用。
+            val result = LicenseVerifier.verify(
+                ctx = ctx,
+                licenseText = resolveLicenseText(ctx, options),
+                publicKeyB64 = BuildConfig.LICENSE_PUBLIC_KEY_B64,
+                expiryGraceDays = options.expiryGraceDays,
+            )
+            licenseStatusHolder = result.status
+            if (!result.ok) {
+                Logger.e("license check failed: code=${result.errorCode} ${result.errorMessage}")
+                if (options.licenseEnforcement == LicenseEnforcement.ENFORCE) {
+                    throw IllegalStateException(
+                        "code=${result.errorCode}: AmphionRuntime license check failed " +
+                            "(${result.errorMessage}). 详见 AsrErrorCode 与 docs/INTEGRATION.md。",
+                    )
+                }
+            }
+
+            appContext = ctx
             initialized = true
-            Logger.i("AmphionRuntime initialized, version=${BuildConfig.SDK_VERSION}, logLevel=${options.logLevel}")
+            Logger.i(
+                "AmphionRuntime initialized, version=${BuildConfig.SDK_VERSION}, " +
+                    "logLevel=${options.logLevel}, license=${result.status.state}",
+            )
         }
     }
 
@@ -197,6 +226,17 @@ public object AmphionRuntime {
     public fun version(): String = BuildConfig.SDK_VERSION
 
     /**
+     * 查询当前 license 运行状态。
+     *
+     * [init] 之前返回 [AmphionLicenseStatus.State.NOT_INITIALIZED]；开发 / 内部构建（SDK 未武装
+     * license）返回 [AmphionLicenseStatus.State.DEV_UNLICENSED]。典型用途：在「关于」页展示
+     * 授权客户 / 到期日 / 档位，或排障时确认 SDK 是否被授权武装。
+     */
+    @JvmStatic
+    public fun licenseStatus(): AmphionLicenseStatus =
+        licenseStatusHolder ?: AmphionLicenseStatus.NOT_INITIALIZED
+
+    /**
      * 释放 SDK 全局资源：清空 ASR 池 + 释放共享后处理 + 重置 initialized 标记。
      *
      * 仅在能确认所有 [AsrEngine] 都已 [AsrEngine.close] 时调用。
@@ -216,8 +256,24 @@ public object AmphionRuntime {
             poolConfig = null
             SharedPostProcessor.release()
             appContext = null
+            licenseStatusHolder = null
             initialized = false
             Logger.i("AmphionRuntime released.")
+        }
+    }
+
+    /**
+     * 解析本次 init 要用的 license 文本：优先 [AmphionOptions.license] 字符串，
+     * 否则尝试从 app assets 读 [AmphionOptions.licenseAssetName]；都没有则返回 null。
+     */
+    private fun resolveLicenseText(ctx: Context, options: AmphionOptions): String? {
+        options.license?.let { if (it.isNotBlank()) return it }
+        val name = options.licenseAssetName
+        if (name.isNullOrBlank()) return null
+        return try {
+            ctx.assets.open(name).bufferedReader(Charsets.UTF_8).use { it.readText() }
+        } catch (_: Throwable) {
+            null
         }
     }
 
@@ -342,10 +398,23 @@ public object AmphionRuntime {
  * SDK 全局初始化选项。
  *
  * @property logLevel 日志最低输出级别，默认 [AmphionLogLevel.WARN]，调试期可调到 INFO/DEBUG
+ * @property license 直接传入的 `.lic` 文件全文（优先于 [licenseAssetName]）；null 表示走 asset
+ * @property licenseAssetName app assets 内 `.lic` 文件名，默认 `amphion-license.lic`；
+ *   置 null / 空表示不从 asset 读取。仅当 SDK 被武装（构建期注入 license 公钥）时才会真正读取
+ * @property expiryGraceDays 到期宽限天数（规避客户端时钟误差），默认 0；必须 >= 0
+ * @property licenseEnforcement license 校验失败时的策略，默认 [LicenseEnforcement.ENFORCE]
  */
 public data class AmphionOptions(
     public val logLevel: AmphionLogLevel = AmphionLogLevel.WARN,
-)
+    public val license: String? = null,
+    public val licenseAssetName: String? = "amphion-license.lic",
+    public val expiryGraceDays: Int = 0,
+    public val licenseEnforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE,
+) {
+    init {
+        require(expiryGraceDays >= 0) { "expiryGraceDays must be >= 0, got $expiryGraceDays" }
+    }
+}
 
 /** SDK 日志级别。 */
 public enum class AmphionLogLevel { DEBUG, INFO, WARN, ERROR, NONE }

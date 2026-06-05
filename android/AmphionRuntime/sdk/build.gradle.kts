@@ -11,6 +11,11 @@ val sdkGroupId: String = providers.gradleProperty("AMPHION_RUNTIME_GROUP_ID").ge
 val sdkArtifactId: String = providers.gradleProperty("AMPHION_RUNTIME_ARTIFACT_ID").get()
 val sdkVersion: String = providers.gradleProperty("AMPHION_RUNTIME_VERSION").get()
 
+// 离线 license 公钥（base64 of X.509 SubjectPublicKeyInfo DER，单行）。
+// 空 = 不武装 license（开发 / 内部构建）；正式交付构建必须注入真实公钥（见 gradle.properties）。
+val licensePublicKeyB64: String =
+    providers.gradleProperty("AMPHION_LICENSE_PUBLIC_KEY").orElse("").get()
+
 android {
     namespace = "com.amphion.asr"
     compileSdk = 34
@@ -28,6 +33,8 @@ android {
 
         // SDK 版本号通过 BuildConfig 暴露给 Kotlin 代码
         buildConfigField("String", "SDK_VERSION", "\"$sdkVersion\"")
+        // 离线 license 公钥（空字符串 = SDK 未武装 license，init 不做校验）
+        buildConfigField("String", "LICENSE_PUBLIC_KEY_B64", "\"$licensePublicKeyB64\"")
     }
 
     buildFeatures {
@@ -36,7 +43,14 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // 开启 R8：让 internal 的 license 验签逻辑在交付 AAR 中被混淆，抬高逆向门槛。
+            // 公开 API 由 proguard-rules.pro（include consumer-rules.pro）整体保留。
+            // 注意：改这里后必须用 :sample:assembleRelease + 真机跑一遍回归（见 docs/DELIVERY.md）。
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             consumerProguardFiles("consumer-rules.pro")
         }
         debug {
