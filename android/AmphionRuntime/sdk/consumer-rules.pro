@@ -84,6 +84,9 @@
 -keep public class com.amphion.asr.AmphionMetricsKind { *; }
 -keep public class com.amphion.asr.TargetSpeakerConfig { *; }
 -keep public class com.amphion.asr.SpeakerEnroller { *; }
+-keep public class com.amphion.asr.AmphionLicenseStatus { *; }
+-keep public class com.amphion.asr.AmphionLicenseStatus$State { *; }
+-keep public class com.amphion.asr.LicenseEnforcement { *; }
 
 # 保留所有 enum 内部 value/valueOf
 -keepclassmembers enum com.amphion.asr.** {
