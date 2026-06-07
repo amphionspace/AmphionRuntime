@@ -99,12 +99,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rbZhEn: RadioButton
     private lateinit var rbYueEn: RadioButton
     private lateinit var waveform: WaveformView
-    private lateinit var swTarget: SwitchCompat
-    private lateinit var tvTsStatus: TextView
-    private lateinit var swHotword: SwitchCompat
-    private lateinit var tvHotwordState: TextView
-    private lateinit var cardHotword: android.view.View
-    private lateinit var cardTarget: android.view.View
+
+    // -------- 云端（WebSocket /clean-stream）相关视图 --------
+    private lateinit var swCloud: SwitchCompat
+    private lateinit var tvCloudState: TextView
+    private lateinit var cardCloud: android.view.View
+    private lateinit var colCloud: android.view.View
+    private lateinit var svCloud: android.widget.ScrollView
+    private lateinit var tvCloudFinal: TextView
+    private lateinit var tvCloudStatus: TextView
 
     private val mainHandler: Handler by lazy { Handler(Looper.getMainLooper()) }
 
@@ -146,8 +149,24 @@ class MainActivity : AppCompatActivity() {
 
     @Volatile
     private var targetEmbedding: FloatArray? = null
-    private var targetEnabledDesired = false
     private val finalBuilder = SpannableStringBuilder()
+
+    // -------- 云端状态 --------
+    private val cloudPrefs: CloudAsrPrefs by lazy { CloudAsrPrefs(applicationContext) }
+
+    /**
+     * 当前会话的云端客户端。录音线程通过它扇出 PCM；非录音期可能为 null。
+     * @Volatile：录音线程读、主线程写。
+     */
+    @Volatile
+    private var cloudClient: CloudAsrClient? = null
+
+    /** 每次 startListening 自增；云端回调按它判定是否仍属当前会话，丢弃上一会话的迟到回调。 */
+    private val cloudGeneration = AtomicInteger(0)
+    private val cloudFinalBuilder = StringBuilder()
+
+    /** 云端当前段实时文本（transcription.delta 的累积 text），定稿后并入 [cloudFinalBuilder]。 */
+    private var cloudCurrentPartial: String = ""
 
     private val recordPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -188,21 +207,16 @@ class MainActivity : AppCompatActivity() {
         rbYueEn = findViewById(R.id.rb_yue_en)
         waveform = findViewById(R.id.waveform)
 
-        swTarget = findViewById(R.id.sw_target)
-        tvTsStatus = findViewById(R.id.tv_ts_status)
-        swTarget.setOnCheckedChangeListener { _, isChecked -> onTargetSwitch(isChecked) }
-
-        swHotword = findViewById(R.id.sw_hotword)
-        tvHotwordState = findViewById(R.id.tv_hotword_state)
-        cardHotword = findViewById(R.id.card_hotword)
-        cardTarget = findViewById(R.id.card_target)
-        // 能力卡整卡点击 = 进入各自配置页（替代溢出菜单为主入口；菜单仍作冗余入口保留）
-        cardHotword.setOnClickListener {
-            hotwordsLauncher.launch(Intent(this, HotwordsActivity::class.java))
-        }
-        cardTarget.setOnClickListener {
-            startActivity(Intent(this, SpeakerEnrollActivity::class.java))
-        }
+        // 热词 / 目标人不再放主屏卡片，统一走右上角溢出菜单（action_hotwords / action_speaker）。
+        swCloud = findViewById(R.id.sw_cloud)
+        tvCloudState = findViewById(R.id.tv_cloud_state)
+        cardCloud = findViewById(R.id.card_cloud)
+        colCloud = findViewById(R.id.col_cloud)
+        svCloud = findViewById(R.id.sv_cloud)
+        tvCloudFinal = findViewById(R.id.tv_cloud_final)
+        tvCloudStatus = findViewById(R.id.tv_cloud_status)
+        // 云端地址写死（见 CloudAsrPrefs.WS_URL），无需配置；整卡点击 = 切换启用开关。
+        cardCloud.setOnClickListener { swCloud.toggle() }
 
         btnTalk.isEnabled = false
         setTalkButtonRecording(false)
@@ -219,7 +233,6 @@ class MainActivity : AppCompatActivity() {
             currentLang = newLang
             stopListeningForSwitch()
             clearTexts()
-            refreshHotwordCard()
             loadEngineForLang(newLang)
         }
 
@@ -235,13 +248,16 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         reloadTargetSpeaker()
-        refreshHotwordCard()
+        refreshCloudCard()
         maybeReloadThreshold()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         stopListening()
+        cloudGeneration.incrementAndGet()
+        cloudClient?.close()
+        cloudClient = null
         asrLoadGeneration.incrementAndGet()
         asrLoadExec.shutdownNow()
         engine?.close()
@@ -252,6 +268,13 @@ class MainActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
+    }
+
+    /** 录音中禁用热词 / 声纹入口：跳转会打断录音、热词 master 翻转还会触发 engine 重建。 */
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        menu.findItem(R.id.action_hotwords)?.isEnabled = !listening
+        menu.findItem(R.id.action_speaker)?.isEnabled = !listening
+        return super.onPrepareOptionsMenu(menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -313,46 +336,141 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 主屏「热词」卡的快捷总开关：拨动即改当前语言的 master，再复用 [onHotwordsChanged]
-     * 决定热更新还是重建。master 翻转可能改变 activeWords 的 emptyness（池维度），故录音中
-     * 禁用本开关（见 [setCapabilityLocked]）。
-     */
-    private fun onHotwordMasterToggle(enabled: Boolean) {
-        val prefs = HotwordsPrefs(applicationContext)
-        if (prefs.masterEnabled(currentLang) == enabled) return
-        prefs.setMasterEnabled(currentLang, enabled)
-        onHotwordsChanged()
-        refreshHotwordCard()
-    }
+    // ----------- 云端能力卡 -----------
 
     /**
-     * 刷新「热词」能力卡：Switch 反映当前语言 master 意图，副文反映实际生效词数。
-     * 设监听器前先置 null，避免 setChecked 触发回调风暴（参照 [reloadTargetSpeaker]）。
+     * 刷新「云端」能力卡：开关反映启用意图，副文反映启用态，结果区随启用态显隐。
+     * 设监听器前先置 null，避免 setChecked 触发回调。
      */
-    private fun refreshHotwordCard() {
-        val prefs = HotwordsPrefs(applicationContext)
-        val effective = prefs.activeWords(currentLang).size
-        swHotword.setOnCheckedChangeListener(null)
-        swHotword.isChecked = prefs.masterEnabled(currentLang)
-        swHotword.setOnCheckedChangeListener { _, isChecked -> onHotwordMasterToggle(isChecked) }
-        tvHotwordState.text = if (effective > 0) {
-            getString(R.string.cap_hotword_on, effective)
+    private fun refreshCloudCard() {
+        val enabled = cloudPrefs.isEnabled()
+        swCloud.setOnCheckedChangeListener(null)
+        swCloud.isChecked = enabled
+        swCloud.setOnCheckedChangeListener { _, isChecked -> onCloudToggle(isChecked) }
+        tvCloudState.text = if (enabled) {
+            getString(R.string.cap_cloud_on)
         } else {
-            getString(R.string.cap_hotword_off)
+            getString(R.string.cap_cloud_off)
+        }
+        colCloud.visibility = if (enabled) android.view.View.VISIBLE else android.view.View.GONE
+        if (!enabled) {
+            cloudFinalBuilder.setLength(0)
+            cloudCurrentPartial = ""
+            renderCloud()
+            setCloudStatus(getString(R.string.cloud_status_idle))
         }
     }
 
     /**
-     * 录音中锁定能力卡：避免跳转打断录音、避免热词 master 翻转触发 engine 重建。
-     * 目标人开关 [swTarget] 不在此锁定——录音中允许实时切换目标人，其可用性由
-     * [refreshTsStatus] 决定。
+     * 云端总开关。关→立刻断当前云端连接；开→若正在录音则即时起一路云端（从当前时刻开始）。
      */
-    private fun setCapabilityLocked(locked: Boolean) {
-        cardHotword.isEnabled = !locked
-        cardHotword.alpha = if (locked) 0.5f else 1f
-        swHotword.isEnabled = !locked
-        cardTarget.isEnabled = !locked
+    private fun onCloudToggle(enabled: Boolean) {
+        cloudPrefs.setEnabled(enabled)
+        refreshCloudCard()
+        if (!enabled) {
+            cloudGeneration.incrementAndGet()
+            cloudClient?.close()
+            cloudClient = null
+        } else if (listening) {
+            startCloudForCurrentSession()
+        }
+    }
+
+    /**
+     * 为当前录音会话起一路云端识别。整个生命周期由 [CloudAsrClient] 管：connect→ready→start→
+     * PCM（[startListening] 的录音回调扇出）→stop→close。回调按 [cloudGeneration] 防串台。
+     */
+    private fun startCloudForCurrentSession() {
+        val gen = cloudGeneration.get()
+        cloudClient?.close()
+        cloudFinalBuilder.setLength(0)
+        cloudCurrentPartial = ""
+        renderCloud()
+
+        val client = CloudAsrClient(
+            url = CloudAsrPrefs.WS_URL,
+            apiKey = CloudAsrPrefs.API_KEY,
+            language = cloudLangCode(currentLang),
+            hotwords = currentHotwordsApplied,
+            listener = object : CloudAsrClient.Listener {
+                override fun onStatus(status: CloudAsrClient.Status, detail: String?) {
+                    runOnUiThread {
+                        if (gen != cloudGeneration.get()) return@runOnUiThread
+                        setCloudStatus(cloudStatusText(status, detail))
+                    }
+                }
+
+                override fun onPartial(text: String) {
+                    runOnUiThread {
+                        if (gen != cloudGeneration.get()) return@runOnUiThread
+                        cloudCurrentPartial = text
+                        renderCloud()
+                    }
+                }
+
+                override fun onFinal(text: String, durationSec: Double?) {
+                    runOnUiThread {
+                        if (gen != cloudGeneration.get()) return@runOnUiThread
+                        cloudCurrentPartial = ""
+                        appendCloudFinal(text)
+                        if (durationSec != null) {
+                            setCloudStatus(getString(R.string.cloud_status_duration, durationSec))
+                        }
+                    }
+                }
+
+                override fun onError(message: String) {
+                    runOnUiThread {
+                        if (gen != cloudGeneration.get()) return@runOnUiThread
+                        setCloudStatus(getString(R.string.cloud_status_error, message))
+                    }
+                }
+            },
+        )
+        cloudClient = client
+        client.start()
+    }
+
+    private fun cloudStatusText(status: CloudAsrClient.Status, detail: String?): String = when (status) {
+        CloudAsrClient.Status.CONNECTING -> getString(R.string.cloud_status_connecting)
+        CloudAsrClient.Status.READY -> getString(R.string.cloud_status_ready)
+        CloudAsrClient.Status.STOPPING -> getString(R.string.cloud_status_stopping)
+        CloudAsrClient.Status.CLOSED -> getString(R.string.cloud_status_closed)
+    }.let { if (detail.isNullOrBlank()) it else "$it · $detail" }
+
+    /**
+     * 语言码映射：作为 session.update 的 language 识别提示（auto 或语言码）。
+     * ZH_EN→"zh"，YUE_EN→"yue"；服务端不认的码会回退自动识别，识别照常。
+     */
+    private fun cloudLangCode(lang: AsrLanguage): String = when (lang) {
+        AsrLanguage.ZH_EN -> "zh"
+        AsrLanguage.YUE_EN -> "yue"
+    }
+
+    private fun appendCloudFinal(text: String) {
+        if (text.isNotEmpty()) {
+            if (cloudFinalBuilder.isNotEmpty()) cloudFinalBuilder.append("\n")
+            cloudFinalBuilder.append(text)
+        }
+        renderCloud()
+    }
+
+    /**
+     * 云端结果合并渲染：已定稿（[cloudFinalBuilder]）+ 当前实时段（[cloudCurrentPartial]）拼到同一个
+     * 可滚动文本区，并自动滚到底——保证内容溢出小框时能上下滑动查看。
+     */
+    private fun renderCloud() {
+        val sb = StringBuilder(cloudFinalBuilder)
+        if (cloudCurrentPartial.isNotEmpty()) {
+            if (sb.isNotEmpty()) sb.append("\n")
+            sb.append(cloudCurrentPartial)
+        }
+        tvCloudFinal.text = sb.toString()
+        svCloud.post { svCloud.fullScroll(android.view.View.FOCUS_DOWN) }
+    }
+
+    private fun setCloudStatus(s: String) {
+        tvCloudStatus.text = s
     }
 
     // ----------- 加载 / 切换语言 -----------
@@ -473,7 +591,16 @@ class MainActivity : AppCompatActivity() {
         clearTexts()
         setStatus("识别中…（再次点击停止）")
         setTalkButtonRecording(true)
-        setCapabilityLocked(true)
+        invalidateOptionsMenu() // 录音中禁用菜单里的热词 / 声纹入口
+
+        // 起一路云端（若启用）。新会话自增 generation，丢弃上一会话迟到的云端回调。
+        cloudGeneration.incrementAndGet()
+        if (cloudPrefs.isEnabled()) {
+            startCloudForCurrentSession()
+        } else {
+            cloudClient?.close()
+            cloudClient = null
+        }
 
         waveform.reset()
         waveform.visibility = android.view.View.VISIBLE
@@ -539,16 +666,20 @@ class MainActivity : AppCompatActivity() {
         capturedSession = s
         session = s
 
+        // 门控开关已从主屏移除：注册了目标人即启用「只认目标人」，要取消就在声纹页删除声纹。
         targetEmbedding?.let { emb ->
             s.setTargetSpeaker(emb)
-            s.setTargetSpeakerEnabled(targetEnabledDesired)
+            s.setTargetSpeakerEnabled(true)
         }
 
         recorder = AudioRecorder(
             sampleRate = 16000,
             onPcm = { samples ->
+                // 同一路麦克风音频扇出三处：端侧 SDK、波形、云端 WS。
+                // 云端是 @Volatile 读，未启用时为 null，自然跳过；其内部异常不会回抛录音线程。
                 s.acceptPcmShort(samples)
                 feedWaveform(samples)
+                cloudClient?.sendPcm(samples)
             },
             onError = { msg -> runOnUiThread { setStatus("录音错误：$msg") } },
             gainDb = 10f,
@@ -566,8 +697,12 @@ class MainActivity : AppCompatActivity() {
         session = null
         s?.stop()
 
+        // 云端：发 stop 让服务端 flush 尾部 final，连接保留片刻后由 client 自行关闭。
+        // 不清 generation：尾部 final 仍属本会话，应继续显示；下次 start 时才递增。
+        cloudClient?.stop()
+
         setTalkButtonRecording(false)
-        setCapabilityLocked(false)
+        invalidateOptionsMenu()
         if (engine != null) {
             setStatus("正在结束本段…")
         }
@@ -578,8 +713,12 @@ class MainActivity : AppCompatActivity() {
         recorder?.stop()
         recorder = null
         session = null
+        // 切语言会重建 engine，云端 language/hotwords 也随之变；直接断开当前云端连接。
+        cloudGeneration.incrementAndGet()
+        cloudClient?.close()
+        cloudClient = null
         setTalkButtonRecording(false)
-        setCapabilityLocked(false)
+        invalidateOptionsMenu()
         waveform.visibility = android.view.View.GONE
     }
 
@@ -632,6 +771,10 @@ class MainActivity : AppCompatActivity() {
         tvFinal.text = ""
         finalBuilder.clear()
         tvMetrics.text = getString(R.string.metrics_placeholder)
+        cloudFinalBuilder.setLength(0)
+        cloudCurrentPartial = ""
+        renderCloud()
+        if (cloudPrefs.isEnabled()) setCloudStatus(getString(R.string.cloud_status_idle))
     }
 
     private fun setStatus(s: String) {
@@ -645,31 +788,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun speakerModelReady(): Boolean = File(speakerModelPath()).exists()
 
-    private fun onTargetSwitch(enabled: Boolean) {
-        if (enabled && targetEmbedding == null) {
-            swTarget.isChecked = false
-            toast(getString(R.string.ts_need_register))
-            return
-        }
-        targetEnabledDesired = enabled
-        session?.setTargetSpeakerEnabled(enabled)
-    }
-
-    /** 从本地档案重载声纹（注册页可能刚更新过），同步开关可用性与运行中的 session。 */
+    /**
+     * 从本地档案重载声纹（声纹页可能刚更新过），同步到运行中的 session。
+     * 门控语义：有声纹即启用「只认目标人」（注册即生效），无声纹即放行全部。
+     */
     private fun reloadTargetSpeaker() {
         val emb = speakerStore.loadEmbedding()
         targetEmbedding = emb
-        swTarget.setOnCheckedChangeListener(null)
         if (emb == null) {
-            targetEnabledDesired = false
-            swTarget.isChecked = false
             session?.clearTargetSpeaker()
         } else {
             session?.setTargetSpeaker(emb)
-            session?.setTargetSpeakerEnabled(targetEnabledDesired)
+            session?.setTargetSpeakerEnabled(true)
         }
-        swTarget.setOnCheckedChangeListener { _, isChecked -> onTargetSwitch(isChecked) }
-        refreshTsStatus()
     }
 
     /**
@@ -683,15 +814,6 @@ class MainActivity : AppCompatActivity() {
         val t = speakerStore.getThreshold()
         if (!currentThresholdApplied.isNaN() && t != currentThresholdApplied) {
             loadEngineForLang(currentLang)
-        }
-    }
-
-    private fun refreshTsStatus() {
-        swTarget.isEnabled = targetEmbedding != null && speakerModelReady()
-        tvTsStatus.text = when {
-            !speakerModelReady() -> getString(R.string.ts_model_missing)
-            targetEmbedding == null -> getString(R.string.ts_unregistered)
-            else -> getString(R.string.ts_registered, speakerStore.segmentCount(), speakerStore.getThreshold())
         }
     }
 
