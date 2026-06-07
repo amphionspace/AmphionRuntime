@@ -27,9 +27,27 @@
     <string name="cap_hotword_on">已启用 %1$d 个</string>
     <string name="cap_hotword_off">未启用</string>
     <string name="cap_target_title">目标人</string>
+    <string name="cap_cloud_title">云端</string>
+    <string name="cap_cloud_on">已启用</string>
+    <string name="cap_cloud_off">未启用</string>
     <string name="metrics_placeholder">指标：—</string>
     <string name="metrics_format">E2E %1$d ms · 首字 %2$d ms · RTF %3$.2f · RSS %4$d MB</string>
     <string name="metrics_format_no_partial">E2E %1$d ms · 首字 — · RTF %2$.2f · RSS %3$d MB</string>
+
+    <!-- 端云双列结果区 -->
+    <string name="col_local_title">端侧 · On-Device</string>
+    <string name="col_cloud_title">云端 · Cloud</string>
+    <string name="cloud_partial_placeholder">等待云端结果…</string>
+
+    <!-- 云端连接状态 -->
+    <string name="cloud_status_idle">未连接</string>
+    <string name="cloud_status_connecting">连接中…</string>
+    <string name="cloud_status_ready">已连接</string>
+    <string name="cloud_status_stopping">收尾中…</string>
+    <string name="cloud_status_closed">连接已关闭</string>
+    <string name="cloud_status_error">云端错误：%1$s</string>
+    <string name="cloud_status_duration">本段 %1$.2fs · 已连接</string>
+    <string name="cloud_status_disabled">未启用云端识别</string>
 
     <!-- Toolbar 菜单 -->
     <string name="menu_hotwords">热词管理</string>
