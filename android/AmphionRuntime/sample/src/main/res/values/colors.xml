@@ -15,5 +15,8 @@
 
     <color name="brand_recording">#B23B2E</color>
 
+    <!-- 云端结果列的强调色：与端侧暖橙 brand_accent 区分，蓝色代表“远端/网络”。 -->
+    <color name="brand_cloud">#2F6FB0</color>
+
     <color name="ic_launcher_background">#C15F3C</color>
 </resources>

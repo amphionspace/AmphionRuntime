@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- 云端 ASR WebSocket 需要联网；ws:// 为明文，开放 cleartext 仅为演示，生产请用 wss://。 -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".AmphionApp"
@@ -10,6 +12,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.AmphionAsrSample">
 
         <activity

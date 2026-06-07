@@ -165,6 +165,7 @@ val newEngine = AmphionRuntime.create(context, AsrLanguage.YUE_EN)
 | 1xxx | 调用约定（参数 / 状态） |
 | 2xxx | 资源（首次安装失败） |
 | 3xxx | 运行时（识别 / 后处理） |
+| 6xxx | 商用授权 license（仅武装构建；通过 init 抛异常，见 §14） |
 | 9xxx | native 兜底 |
 
 | 常量 | 取值 | 触发场景 |
@@ -177,12 +178,19 @@ val newEngine = AmphionRuntime.create(context, AsrLanguage.YUE_EN)
 | STORAGE_INSUFFICIENT | 2003 | filesDir 写不下 |
 | DECODE_FAILED | 3001 | 识别过程异常 |
 | POSTPROCESS_FAILED | 3002 | ITN 或标点过程异常（已自动降级到原文，仅日志/回调） |
+| LICENSE_MISSING | 6001 | 武装构建未提供 .lic（assets 缺文件且未传 license 字符串） |
+| LICENSE_MALFORMED | 6002 | .lic 格式损坏 / 缺必填字段 |
+| LICENSE_SIGNATURE_INVALID | 6003 | 验签失败（被篡改或非我方签发） |
+| LICENSE_APP_MISMATCH | 6004 | .lic 的 applicationId 与你的包名不一致 |
+| LICENSE_CERT_MISMATCH | 6005 | .lic 绑定的签名证书与你的不一致 |
+| LICENSE_EXPIRED | 6006 | .lic 已过期 |
 | NATIVE_CRASH | 9001 | native 兜底；建议 close session 重建 |
 
 业务方一般只需要关心：
 - `SDK_NOT_INITIALIZED`：忘了调 `AmphionRuntime.init`
 - `ASSET_INSTALL_FAILED` / `STORAGE_INSUFFICIENT`：首次解包磁盘问题
 - 其他错误码视为「重启 session 重试」即可
+- `6xxx`（仅武装构建）：授权问题，按 §14 处理；常见是没放 `.lic`、或包名 / 签名 / 到期不匹配
 
 ## 8. 数据格式
 
@@ -486,3 +494,70 @@ session.clearTargetSpeaker()              // 清除目标：即使开关开也�
 | 段末有额外开销 | 段越长滑窗越多，段末打分在解码线程串行，长段（接近 20s）可能多花几百 ms；endpoint rule3 20s 会强制切，正常对话无感 |
 | partial 不门控 | 声纹需完整段，partial 始终全量；介意的话在 UI 上等 onFinal 再定稿 |
 | 单目标 | 当前一个 session 跟一个目标说话人；多目标需求联系我们 |
+
+## 14. 商用授权 License（武装构建需要）
+
+> 如果你拿到的是「武装构建」AAR（我方在构建期注入了 license 公钥），必须放入我方为你签发的 `.lic` 才能通过 `AmphionRuntime.init`。开发 / 评测用的未武装 AAR 不校验授权，本章可跳过；用 `AmphionRuntime.licenseStatus().state` 可判断当前 AAR 是否武装（`DEV_UNLICENSED` = 未武装）。
+
+授权是纯离线的：SDK 用内置公钥本地验签，不发起任何网络请求，与零网络承诺一致。
+
+### 14.1 放入 license 文件
+
+把我方签发的 `.lic` 放到你 App 的 assets，默认文件名 `amphion-license.lic`：
+
+```
+app/src/main/assets/amphion-license.lic
+```
+
+`AmphionRuntime.init(this)` 默认会读这个文件，无需额外配置。
+
+### 14.2 自定义来源 / 策略（可选）
+
+```kotlin
+AmphionRuntime.init(
+    this,
+    AmphionOptions(
+        // 改 asset 文件名（默认 "amphion-license.lic"）
+        licenseAssetName = "amphion-license.lic",
+        // 或不放 assets，直接传 .lic 全文（优先于 asset），便于从你自己的下发通道注入
+        license = null,
+        // 到期宽限天数，规避设备时钟误差（默认 0）
+        expiryGraceDays = 0,
+        // 校验失败策略（默认 ENFORCE：失败即 init 抛异常）
+        licenseEnforcement = LicenseEnforcement.ENFORCE,
+    ),
+)
+```
+
+### 14.3 查询授权状态
+
+```kotlin
+val s = AmphionRuntime.licenseStatus()
+when (s.state) {
+    AmphionLicenseStatus.State.LICENSED ->
+        Unit // s.customer / s.expiresAt / s.installTier / s.features 可用于「关于」页展示
+    AmphionLicenseStatus.State.DEV_UNLICENSED -> Unit // 未武装构建，不校验
+    AmphionLicenseStatus.State.INVALID -> Unit // 仅 PERMISSIVE 模式会到达，s.errorCode 见下表
+    AmphionLicenseStatus.State.NOT_INITIALIZED -> Unit // 还没 init
+}
+```
+
+### 14.4 授权错误码
+
+ENFORCE 模式下校验失败，`AmphionRuntime.init` 抛 `IllegalStateException`，message 形如 `code=6003: ...`：
+
+| 常量 | 取值 | 触发场景 | 处理 |
+| --- | --- | --- | --- |
+| LICENSE_MISSING | 6001 | 没找到 .lic（assets 无该文件且未传 license 字符串） | 确认 .lic 已放进 assets |
+| LICENSE_MALFORMED | 6002 | .lic 格式损坏 / 缺字段 | 向我方重新获取 |
+| LICENSE_SIGNATURE_INVALID | 6003 | 验签失败（被篡改或非我方签发） | 向我方重新获取 |
+| LICENSE_APP_MISMATCH | 6004 | license 的 applicationId 与你的包名不一致 | 告知我方正确包名重签 |
+| LICENSE_CERT_MISMATCH | 6005 | 签名证书与 license 绑定的不一致 | 换签名证书需告知我方重签 |
+| LICENSE_EXPIRED | 6006 | 已过期 | 联系我方续期 |
+
+### 14.5 常见问题
+
+- 换了 release 签名证书：若 license 绑了 certSha256，需把新证书 SHA-256 给我方重签。
+- 改了 applicationId：需用新包名重签。
+- 到期续期：我方重签一份更晚到期的 `.lic`，随你的 App 更新替换 assets 内文件即可，代码不动。
+- 灰度上线：可临时用 `LicenseEnforcement.PERMISSIVE` 让校验失败不阻断启动（仅记录），不建议长期使用。

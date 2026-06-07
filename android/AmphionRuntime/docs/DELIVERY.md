@@ -27,6 +27,8 @@ amphion-runtime-android-0.2.0-2026-05-25/
 
 只交付上面这些；不要把 `tools/`, `third_party/`, `sherpa-onnx/`, `:sample-eval/` 之类的内部资产带过去。
 
+> 商用授权补充：标准交付包不含 license。每个客户的 `.lic` 由我方用私钥单独签发（见 §11），经安全渠道单独发给该客户，由其放进自己 App 的 `assets/`（默认文件名 `amphion-license.lic`）。交付给客户的 AAR 必须是「武装构建」（gradle.properties 注入了 license 公钥，见 §3.6）；未武装的 AAR 不做授权校验，仅限内部 / 评测使用。私钥与签发出的 `.lic` 都不进库（`.gitignore` 已忽略）。
+
 ## 2. 体积 / 性能预算
 
 业务方的 Android 包会增加：
@@ -113,6 +115,38 @@ adb shell am start -n com.amphion.asr.sample/.MainActivity
 - [ ] 切到粤英，读一句普通话以外的粤语短语，能正常 partial / final
 - [ ] 把 app 杀掉重启，模型不再重新解包（`<filesDir>/amphion-runtime/install.flag` 存在）
 - [ ] adb shell pm clear 清掉应用数据，重启自动重新解包
+
+> 注意：默认 gradle.properties 公钥为空 = SDK 未武装 license，上面的 sample 自验跑在 DEV_UNLICENSED 状态、不校验授权。武装构建的 license 回归见 §3.6。
+
+### 3.6 武装 license 公钥（正式交付构建必做）
+
+未武装的 AAR（gradle.properties 公钥为空）不会做任何授权校验，只能内部用。给客户的正式交付构建必须注入公钥：
+
+```bash
+# 1) 一次性生成密钥对（私钥严禁进库；公钥贴进 gradle.properties）
+python tools/license/gen_keypair.py --out-private ~/secure/amphion-license-private.pem
+#    把输出的公钥 base64 填到 android/AmphionRuntime/gradle.properties 的 AMPHION_LICENSE_PUBLIC_KEY
+
+# 2) 重新编 AAR（此时 BuildConfig.LICENSE_PUBLIC_KEY_B64 已注入，SDK 进入武装态）
+cd android/AmphionRuntime && ./gradlew :sdk:assembleRelease
+```
+
+武装构建自验（在 sample 放一份测试 .lic）：
+
+```bash
+# 用同一把私钥给 sample 的包名签一份测试 license
+python tools/license/issue_license.py --private-key ~/secure/amphion-license-private.pem \
+  --application-id com.amphion.asr.sample --customer "Internal Test" --expires 2099-01-01 \
+  --features ASR_ZH_EN,ASR_YUE_EN --out sample/src/main/assets/amphion-license.lic
+./gradlew :sample:installRelease   # sample release minify=true，同时回归 SDK consumer-rules
+```
+
+- [ ] 武装构建 + 放入对应 `.lic` 后，`AmphionRuntime.licenseStatus().state == LICENSED`
+- [ ] 故意删掉 `.lic` 重启：ENFORCE 模式下 `AmphionRuntime.init` 抛 `code=6001`
+- [ ] 故意把 `.lic` 改 1 个字节重启：抛 `code=6003`（验签失败）
+- [ ] release 包真机回归：开启 R8 后录音 / 切语言 / 标点 / ITN 全链路正常（验证混淆未误伤验签与 JNI）
+
+> SDK 自 0.2.x 起 release 默认 `isMinifyEnabled=true`（让 internal 验签逻辑在 AAR 中被混淆），改动后这一步真机回归是强制项；任何 R8 误裁剪都要补 `consumer-rules.pro` 的 keep 规则。
 
 ## 4. 交付文件准备
 
@@ -282,3 +316,68 @@ adb shell am start -n com.amphion.asr.sample.eval/com.amphion.asr.sample.eval.La
 ### 10.4 维护责任
 
 `:sample-eval` 的责任人见 §9 联系点表。SDK 公开 API 升级时该责任人需在同一 PR 内同步评测版编译；如果评测版无法跟进，PR 不允许合入主干（保护"评测版自带回归测试"的契约）。
+
+## 11. 商用 License 签发与计费 SOP
+
+授权方案与行业调研背景见 [LICENSING.md](LICENSING.md)；客户接入步骤见 [INTEGRATION.md](INTEGRATION.md) 的商用授权章节；签发工具见 [tools/license/README.md](../../../tools/license/README.md)。
+
+### 11.1 角色与信任根
+
+- 私钥（信任根）：我方唯一持有，离线保管（密码管理器 / KMS / 保险库）。泄露 = 任何人可签发有效 license，等同授权体系被攻破。严禁进库、严禁外发、严禁放 CI。
+- 公钥：内置进交付 AAR（构建期注入）。换公钥 = 已签发的所有旧 `.lic` 立即失效。
+
+### 11.2 签发流程（每个客户 / 每个 applicationId 一次）
+
+1. 商务确认：客户主体、applicationId、装机量档位、功能模块、授权期限（订阅年限或买断）、是否绑签名证书。
+2. 收集绑定信息：向客户索取 applicationId 与（建议）release 签名证书 SHA-256（`keytool -list -v -keystore <ks> -alias <a> | grep SHA256`）。
+3. 签发：
+
+```bash
+python tools/license/issue_license.py \
+  --private-key ~/secure/amphion-license-private.pem \
+  --application-id <客户包名> --customer "<客户名>" --license-id <编号> \
+  --expires <yyyy-MM-dd 或留空=永久> --install-tier <档位> \
+  --features <逗号分隔> --cert-sha256 <证书SHA256或留空> \
+  --out <客户包名>.lic
+```
+
+4. 自测：`python tools/license/verify_license.py --license <...>.lic --private-key <...> --application-id <客户包名>` 确认通过。
+5. 登记台账（见 11.5）后，经安全渠道把 `.lic` 发给客户。
+
+### 11.3 计费口径
+
+- 计费单位：装机 License（按 applicationId + 装机量档位）。定价结构与档位建议见 [LICENSING.md](LICENSING.md) §6。
+- 离线方案不实时计量装机量；installTier 是声明性档位，实际约束靠合同 + 抽样审计（见 11.6）。需要离线硬上限走 Phase 2 批量激活码。
+
+### 11.4 续费
+
+- 订阅到期前按客户主体的到期日提前提醒（建议提前 30 天）。续费即用同一私钥对同一 applicationId 重签一份更晚 expiresAt 的 `.lic`，替换客户 assets 内文件并随 App 更新下发。
+- 客户端可设 `AmphionOptions.expiryGraceDays` 容忍时钟误差；不建议设很大宽限替代续期。
+
+### 11.5 授权台账（必须维护）
+
+每次签发登记：licenseId、客户、applicationId、certSha256、issuedAt、expiresAt、installTier、features、签发人、交付渠道。台账是审计与吊销决策的依据。
+
+### 11.6 审计
+
+- 合同约定我方有权抽样审计客户实际装机量 / 上架包名。
+- 技术核对手段：核对线上 App 的 applicationId 与签名证书是否与 license 绑定一致（防止一份 license 跨 App 复用）。
+
+### 11.7 吊销（离线方案的固有局限）
+
+纯离线无服务器仲裁，无法主动召回已发的 `.lic`。可用手段，按代价从低到高：
+
+| 手段 | 说明 | 代价 |
+| --- | --- | --- |
+| 短期有效期 + 续期 | 默认签发带 expiresAt，停止续期即自然失效 | 低，推荐默认 |
+| 下一版 App 不再随包下发该 .lic | 依赖客户发版，旧版本仍可用 | 中 |
+| 公钥轮换（核选项） | 换私钥 / 公钥重编 AAR，旧 .lic 全失效，需给所有在用客户重签重发 | 高，影响全量客户 |
+
+结论：把有效期做短（订阅制）是离线方案最务实的吊销手段；买断客户的吊销基本只能靠法务。
+
+### 11.8 公钥轮换 SOP
+
+1. `gen_keypair.py` 生成新密钥对，安全归档旧私钥（用于必要时验证历史签发）。
+2. 更新 gradle.properties 公钥，bump SDK 版本，重编 AAR。
+3. 对所有在用客户用新私钥重签 `.lic` 并随新版 AAR 下发。
+4. 更新台账标注轮换日期与受影响 licenseId。

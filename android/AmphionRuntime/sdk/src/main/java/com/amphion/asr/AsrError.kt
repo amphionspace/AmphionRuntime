@@ -25,6 +25,7 @@ public data class AsrError(
  * - 1xxx 调用约定（参数 / 状态）
  * - 2xxx 资源（首次安装失败）
  * - 3xxx 运行时（识别 / 后处理）
+ * - 6xxx 授权（离线 license 验签 / 绑定校验）
  * - 9xxx native 兜底
  *
  * 业务方一般只需要关心：
@@ -48,6 +49,24 @@ public object AsrErrorCode {
 
     public const val DECODE_FAILED: Int = 3001
     public const val POSTPROCESS_FAILED: Int = 3002
+
+    /** 未提供 license（[AmphionOptions.license] 为空且 asset 不存在）。 */
+    public const val LICENSE_MISSING: Int = 6001
+
+    /** license 内容不是合法 JSON 或缺必填字段。 */
+    public const val LICENSE_MALFORMED: Int = 6002
+
+    /** ECDSA 验签未通过（被篡改或用了非我方签发的 license）。 */
+    public const val LICENSE_SIGNATURE_INVALID: Int = 6003
+
+    /** license 的 applicationId 与宿主 app packageName 不一致。 */
+    public const val LICENSE_APP_MISMATCH: Int = 6004
+
+    /** license 的 certSha256 与宿主 app 签名证书不一致。 */
+    public const val LICENSE_CERT_MISMATCH: Int = 6005
+
+    /** license 已过期（超出宽限期）。 */
+    public const val LICENSE_EXPIRED: Int = 6006
 
     public const val NATIVE_CRASH: Int = 9001
 }
