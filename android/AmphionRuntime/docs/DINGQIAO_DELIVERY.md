@@ -206,7 +206,7 @@ adb logcat -s AmphionRuntime:D DingqiaoDemo:W
 - [x] ITN：如「两点五八万」→「2.58万」
 - [x] 声纹 register / verify / delete
 
-三星等机型若 adb 启动后被系统杀进程，请在手机上手动打开 App，并在电池优化里允许后台运行。
+部分机型若 adb 启动后被系统杀进程，请在手机上手动打开 App，并在电池优化里允许后台运行。
 
 ## 9. 验证清单
 
