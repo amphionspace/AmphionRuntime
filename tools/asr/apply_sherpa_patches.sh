@@ -18,7 +18,8 @@ PATCH_DIR="$REPO_ROOT/third_party/patches/sherpa-amphion"
 UPSTREAM_TAG="v1.13.1"
 MARKER_FILE="$SHERPA_ROOT/.amphion-patches-applied"
 
-if [[ ! -d "$SHERPA_ROOT/.git" ]]; then
+# .git is a gitfile (not a dir) in submodule layout, so test existence not dir-ness.
+if [[ ! -e "$SHERPA_ROOT/.git" ]]; then
   echo "[ERROR] $SHERPA_ROOT is not a git checkout; run: git submodule update --init third_party/sherpa-onnx"
   exit 1
 fi
