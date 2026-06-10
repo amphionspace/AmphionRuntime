@@ -36,6 +36,24 @@
             android:label="@string/enroll_title"
             android:parentActivityName=".MainActivity" />
 
+        <activity
+            android:name=".plate.PlateBatchEvalActivity"
+            android:exported="true"
+            android:label="@string/batch_eval_title"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".police_station.PoliceStationBatchEvalActivity"
+            android:exported="true"
+            android:label="@string/station_batch_eval_title"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".police_terms.PoliceTermsBatchEvalActivity"
+            android:exported="true"
+            android:label="@string/terms_batch_eval_title"
+            android:parentActivityName=".MainActivity" />
+
     </application>
 
 </manifest>
