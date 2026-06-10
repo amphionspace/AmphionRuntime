@@ -1,6 +1,7 @@
 package com.amphion.asr.sample.plate
 
 import android.content.Context
+import com.amphion.police.plate.PlateTextUtil
 import org.json.JSONObject
 import java.io.File
 

@@ -2,6 +2,8 @@ package com.amphion.asr.sample.police_terms
 
 import android.content.Context
 import com.amphion.asr.sample.plate.BatchEvalManifest
+import com.amphion.police.terms.PoliceTermsNormalizer
+import com.amphion.police.terms.PoliceTermsTextUtil
 import org.json.JSONObject
 import java.io.File
 

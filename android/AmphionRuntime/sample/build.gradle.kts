@@ -69,6 +69,7 @@ android {
 
 dependencies {
     implementation(project(":sdk"))
+    implementation(project(":sdk-police"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)

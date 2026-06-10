@@ -9,8 +9,10 @@ import com.amphion.asr.AsrSession
 import com.amphion.asr.sample.AsrTextEnhance
 import com.amphion.asr.sample.AudioRecorder
 import com.amphion.asr.sample.WavIo
-import com.amphion.asr.sample.plate.PlateNormalizer
-import com.amphion.asr.sample.police_terms.PoliceTermsNormalizer
+import com.amphion.police.plate.PlateNormalizer
+import com.amphion.police.station.PoliceStationNormalizeResult
+import com.amphion.police.station.PoliceStationNormalizer
+import com.amphion.police.terms.PoliceTermsNormalizer
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit

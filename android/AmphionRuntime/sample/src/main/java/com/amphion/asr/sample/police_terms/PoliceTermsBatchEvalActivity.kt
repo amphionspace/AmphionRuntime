@@ -17,6 +17,8 @@ import com.amphion.asr.AsrEngine
 import com.amphion.asr.AsrLanguage
 import com.amphion.asr.sample.AmphionApp
 import com.amphion.asr.sample.R
+import com.amphion.police.terms.PoliceTermsEnhancePrefs
+import com.amphion.police.terms.PoliceTermsNormalizer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean

@@ -2,6 +2,8 @@ package com.amphion.asr.sample.police_station
 
 import android.content.Context
 import android.util.Log
+import com.amphion.police.station.PoliceStationNormalizeResult
+import com.amphion.police.station.PoliceStationTextUtil
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date

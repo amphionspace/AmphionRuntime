@@ -6,6 +6,8 @@ import com.amphion.asr.AsrLanguage
 import com.amphion.asr.VadConfig
 import com.amphion.asr.sample.HotwordsPrefs
 import com.amphion.asr.sample.MainActivity
+import com.amphion.police.PoliceEngineConfig
+import com.amphion.police.station.PoliceStationHotwords
 
 /**
  * 构建派出所场景 ASR 配置：SDK ITN + 可选派出所热词偏置。
@@ -30,7 +32,7 @@ object PoliceStationAsrConfig {
         val merged = PoliceStationHotwords.mergeWithUserWords(user, stationHotwords)
         if (merged.isNotEmpty()) return merged
         val poolArmed = user.isNotEmpty() || stationHotwords
-        return if (poolArmed) listOf(MainActivity.HOTWORD_POOL_PLACEHOLDER) else emptyList()
+        return if (poolArmed) listOf(PoliceEngineConfig.HOTWORD_POOL_PLACEHOLDER) else emptyList()
     }
 
     fun build(
