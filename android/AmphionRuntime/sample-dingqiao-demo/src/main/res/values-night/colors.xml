@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_cream">#1F1D1A</color>
+    <color name="brand_surface">#2B2925</color>
+    <color name="brand_surface_alt">#363230</color>
+    <color name="brand_outline">#3F3B36</color>
+
+    <color name="brand_accent">#D87557</color>
+    <color name="brand_accent_pressed">#B85A3E</color>
+    <color name="brand_on_accent">#1F1D1A</color>
+
+    <color name="brand_text_primary">#EFEAE0</color>
+    <color name="brand_text_secondary">#B8B0A1</color>
+    <color name="brand_text_muted">#7A7367</color>
+
+    <color name="brand_recording">#E66A5C</color>
+</resources>
