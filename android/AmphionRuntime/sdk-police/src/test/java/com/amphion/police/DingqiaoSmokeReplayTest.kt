@@ -16,7 +16,7 @@ import java.io.BufferedReader
 /**
  * 鼎桥 Demo 真机 smoke 10 条口播用例回放。
  *
- * `asrRaw` 为三星真机/口播常见 ASR 误识（非朗读稿原文）；`mustContain` 为 Final 应出现的增强词。
+ * `asrRaw` 为真机/口播常见 ASR 误识（非朗读稿原文）；`mustContain` 为 Final 应出现的增强词。
  */
 class DingqiaoSmokeReplayTest {
 
