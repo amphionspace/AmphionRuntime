@@ -1,0 +1,105 @@
+From ea49957fb85723bc08e8ebded0f6cd4b13ac25e2 Mon Sep 17 00:00:00 2001
+From: Amphion <amphion@AmphiondeMacBook-Air.local>
+Date: Wed, 10 Jun 2026 17:26:40 +0800
+Subject: [PATCH 3/3] =?UTF-8?q?fix(wetext):=20merge=20decimal+=E4=B8=87=20?=
+ =?UTF-8?q?split=20in=20ITN=20token=20reorder?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When zh_itn tagger emits cardinal { value: "2.5 80000" } for oral
+两点五八万, rewrite to 2.58万 before verbalizer compose.
+
+Co-authored-by: Cursor <cursoragent@cursor.com>
+---
+ .../wetext/processor/wetext_token_parser.cc   | 64 +++++++++++++++++++
+ 1 file changed, 64 insertions(+)
+
+diff --git a/sherpa-onnx/csrc/wetext/processor/wetext_token_parser.cc b/sherpa-onnx/csrc/wetext/processor/wetext_token_parser.cc
+index 0b32cbb0..3755e5b5 100644
+--- a/sherpa-onnx/csrc/wetext/processor/wetext_token_parser.cc
++++ b/sherpa-onnx/csrc/wetext/processor/wetext_token_parser.cc
+@@ -14,9 +14,72 @@
+ 
+ #include "processor/wetext_token_parser.h"
+ 
++#include <cctype>
++#include <string>
++
+ #include "utils/wetext_log.h"
+ #include "utils/wetext_string.h"
+ 
++namespace {
++
++// WeText ITN tagger may split oral decimals like 两点五八万 into
++// cardinal { value: "2.5 80000" } (两点五 + 八万) instead of measure
++// { value: "2.58万" }. Merge back before verbalizer compose.
++bool TryFixDecimalWanSplitValue(std::string *value) {
++  if (value == nullptr || value->empty()) {
++    return false;
++  }
++  const size_t sp = value->find(' ');
++  if (sp == std::string::npos) {
++    return false;
++  }
++  const std::string left = wetext::Trim(value->substr(0, sp));
++  const std::string right = wetext::Trim(value->substr(sp + 1));
++  if (left.find('.') == std::string::npos) {
++    return false;
++  }
++  if (right.empty()) {
++    return false;
++  }
++  for (char c : right) {
++    if (!std::isdigit(static_cast<unsigned char>(c))) {
++      return false;
++    }
++  }
++
++  long long trailing = 0;
++  try {
++    trailing = std::stoll(right);
++  } catch (...) {
++    return false;
++  }
++  if (trailing <= 0 || trailing % 10000 != 0) {
++    return false;
++  }
++  const long long wan_coeff = trailing / 10000;
++  if (wan_coeff <= 0 || wan_coeff > 99) {
++    return false;
++  }
++
++  *value = left + std::to_string(wan_coeff) + "万";
++  return true;
++}
++
++void FixDecimalWanSplitTokens(std::vector<wetext::Token> *tokens) {
++  for (auto &token : *tokens) {
++    if (token.name != "cardinal" && token.name != "measure") {
++      continue;
++    }
++    auto it = token.members.find("value");
++    if (it == token.members.end()) {
++      continue;
++    }
++    TryFixDecimalWanSplitValue(&it->second);
++  }
++}
++
++}  // namespace
++
+ namespace wetext {
+ const char EOS[] = "<EOS>";
+ const std::set<std::string> UTF8_WHITESPACE = {" ", "\t", "\n", "\r",
+@@ -157,6 +220,7 @@ void TokenParser::Parse(const std::string& input) {
+ 
+ std::string TokenParser::Reorder(const std::string& input) {
+   Parse(input);
++  FixDecimalWanSplitTokens(&tokens_);
+   std::string output = "";
+   for (auto& token : tokens_) {
+     output += token.String(orders_) + " ";
+-- 
+2.39.5 (Apple Git-154)
+

@@ -16,13 +16,11 @@ if ! git submodule update --init --recursive; then
   git clone --progress https://github.com/k2-fsa/sherpa-onnx.git third_party/sherpa-onnx
   (
     cd third_party/sherpa-onnx
-    if ! git checkout 78ce0d97ce5115cc9db8ac8f14cac2681a779414 2>/dev/null; then
-      warn "pinned commit missing on GitHub; checking out tag v1.13.1"
-      git fetch --tags origin
-      git checkout v1.13.1
-    fi
+    git fetch --tags origin 2>/dev/null || true
+    git checkout v1.13.1
   )
 fi
 
 test -f third_party/sherpa-onnx/CMakeLists.txt
+bash "$REPO/tools/asr/apply_sherpa_patches.sh"
 echo "[OK] submodule ready at $(cd third_party/sherpa-onnx && git rev-parse --short HEAD)"
