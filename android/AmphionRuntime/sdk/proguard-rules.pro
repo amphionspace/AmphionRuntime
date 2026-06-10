@@ -5,3 +5,6 @@
 
 # 直接 include consumer-rules.pro（AGP 8 支持）
 -include consumer-rules.pro
+
+# Java 17 字符串拼接在 library AAR minify 时 R8 会报 Missing class（minSdk 24 无 StringConcatFactory）
+-dontwarn java.lang.invoke.StringConcatFactory
