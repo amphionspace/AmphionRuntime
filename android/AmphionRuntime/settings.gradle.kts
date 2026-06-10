@@ -32,6 +32,7 @@ rootProject.name = "AmphionRuntime"
 include(":sdk")
 include(":sdk-police")
 include(":sdk-dingqiao")
+include(":sample-dingqiao-demo")
 include(":sample")
 include(":sample-eval")
 include(":sample-mini")
