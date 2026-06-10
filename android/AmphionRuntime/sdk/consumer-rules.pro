@@ -26,10 +26,11 @@
     <fields>;
     <methods>;
 }
+-keep class com.k2fsa.sherpa.onnx.WetextItn$Companion { *; }
 -keep class com.k2fsa.sherpa.onnx.TextRewriteFst {
-    <fields>;
-    <methods>;
+    *;
 }
+-keep class com.k2fsa.sherpa.onnx.TextRewriteFst$Companion { *; }
 -keep class com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractor {
     <fields>;
     <methods>;
@@ -76,6 +77,8 @@
 -keep public class com.amphion.asr.AsrLanguage { *; }
 -keep public class com.amphion.asr.AsrConfig { *; }
 -keep public class com.amphion.asr.AsrConfig$Builder { *; }
+-keep public class com.amphion.asr.VadConfig { *; }
+-keep public class com.amphion.asr.VadModelType { *; }
 -keep public class com.amphion.asr.EndpointRules { *; }
 -keep public class com.amphion.asr.AsrEngine { *; }
 -keep public class com.amphion.asr.AsrSession { *; }

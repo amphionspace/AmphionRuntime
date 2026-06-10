@@ -1,6 +1,13 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+}
+
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -21,6 +28,18 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val storePath = localProps.getProperty("dingqiaoReleaseStoreFile")
+            if (!storePath.isNullOrBlank()) {
+                storeFile = rootProject.file(storePath)
+                storePassword = localProps.getProperty("dingqiaoReleaseStorePassword")
+                keyAlias = localProps.getProperty("dingqiaoReleaseKeyAlias")
+                keyPassword = localProps.getProperty("dingqiaoReleaseKeyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -28,6 +47,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val storePath = localProps.getProperty("dingqiaoReleaseStoreFile")
+            if (!storePath.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         debug {
             isMinifyEnabled = false

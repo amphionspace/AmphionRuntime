@@ -130,23 +130,93 @@ adb push eres2net.onnx /sdcard/Android/data/com.amphion.dingqiao.demo/files/ding
 - FST 后处理默认关（可在 `sdk-police` prefs 层扩展）
 - 系统热词：`CreateEngineParams.extraParams["sysGeneralLexicon"]`
 
-## 8. License
+## 8. License 与 Release 打包
 
-正式交付需：
+### 8.1 武装 AAR（§DELIVERY.md 3.6）
 
-1. `gradle.properties` 注入 `AMPHION_LICENSE_PUBLIC_KEY`（武装 AAR）  
-2. 客户 App `assets/amphion-license.lic`  
+`gradle.properties` 已注入 `AMPHION_LICENSE_PUBLIC_KEY` 时，`:sdk` release 构建会启用离线验签。
 
-流程见 [`docs/DELIVERY.md`](DELIVERY.md) §11、[`docs/LICENSING.md`](LICENSING.md)。开发构建公钥为空时不校验。
+```bash
+cd android/AmphionRuntime
+
+# 1) 若无密钥对，一次性生成（私钥写入仓库根 .secure/，不进 git）
+cd ../../tools/license
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python gen_keypair.py --out-private ../../.secure/amphion-license-private.pem
+# 公钥贴回 android/AmphionRuntime/gradle.properties → AMPHION_LICENSE_PUBLIC_KEY
+
+# 2) 武装 AAR + 全链 release
+cd ../../android/AmphionRuntime
+./gradlew :sdk:assembleRelease :sample-dingqiao-demo:assembleRelease
+```
+
+产物：
+
+| 文件 | 路径 |
+|------|------|
+| 武装 `:sdk` AAR | `sdk/build/outputs/aar/sdk-release.aar` |
+| Demo Release APK | `sample-dingqiao-demo/build/outputs/apk/release/sample-dingqiao-demo-release.apk` |
+
+> R8 变更后若 `:sdk:minifyReleaseWithR8` 失败，见 `sdk/proguard-rules.pro`；Demo 侧 include 了 `sdk/consumer-rules.pro`。
+
+### 8.2 Demo 签名
+
+1. 复制 `local.properties.example` → `local.properties`  
+2. 生成 keystore（仅首次，文件在 `keystore/`，已 gitignore）：
+
+```bash
+keytool -genkeypair -v -storetype PKCS12 \
+  -keystore keystore/dingqiao-demo-release.jks -alias dingqiao-demo \
+  -keyalg RSA -keysize 2048 -validity 10000 \
+  -storepass <pwd> -keypass <pwd> \
+  -dname "CN=Dingqiao Demo, OU=Amphion, O=Amphion, C=CN"
+```
+
+3. 在 `local.properties` 填写 `dingqiaoReleaseStoreFile` 等四项。
+
+### 8.3 签发 Demo `.lic`
+
+`.lic` **不进 git**；构建 Release 前生成并放入 Demo assets：
+
+```bash
+bash ../../tools/license/issue_dingqiao_demo.sh
+# → sample-dingqiao-demo/src/main/assets/amphion-license.lic
+```
+
+鼎桥客户正式包：用同一私钥，按 [`docs/DELIVERY.md`](DELIVERY.md) §11 对其 **applicationId + release 证书 SHA256** 单独签发。
+
+### 8.4 Release 真机 smoke
+
+```bash
+# Release 与 Debug 签名不同，需先卸载旧包
+adb uninstall com.amphion.dingqiao.demo
+adb install sample-dingqiao-demo/build/outputs/apk/release/sample-dingqiao-demo-release.apk
+
+# 声纹模型（卸载后需重 push）
+adb push eres2net.onnx /sdcard/Android/data/com.amphion.dingqiao.demo/files/dingqiao_work/
+
+# 日志：启动后应无 code=6001/6003；AmphionRuntime 进入 LICENSED
+adb logcat -s AmphionRuntime:D DingqiaoDemo:W
+```
+
+验证项：
+
+- [x] App 正常启动（无 `IllegalStateException` / `6001` 缺 license / `6003` 验签失败）
+- [x] 识别 + 警务增强 final 正常（R8 未误伤 JNI / 验签）
+- [x] ITN：如「两点五八万」→「2.58万」
+- [x] 声纹 register / verify / delete
+
+三星等机型若 adb 启动后被系统杀进程，请在手机上手动打开 App，并在电池优化里允许后台运行。
 
 ## 9. 验证清单
 
-- [ ] `:sdk-police:testDebugUnitTest` 通过（P0 回放）  
-- [ ] `:sdk-dingqiao:testDebugUnitTest` 通过  
-- [ ] Demo 真机：create → 说话 → finish → 看到增强 final  
-- [ ] 声纹：register → 校验开关 → final 带 `speakerSimilarity`  
-- [ ] 声纹：delete → 校验开关不可用 / 删除后 startListening 报 1002200024（若仍引用旧 ID）  
-- [ ] Release + 授权 `.lic` 真机 smoke  
+- [x] `:sdk-police:testDebugUnitTest` 通过（P0 回放）  
+- [x] `:sdk-dingqiao:testDebugUnitTest` 通过  
+- [x] Demo Debug 真机 smoke  
+- [x] Release APK 已构建（`assembleRelease`）  
+- [x] Release 真机：license + R8 + 识别链路  
+- [x] 声纹：register → 校验 → delete  
+- [x] `sherpa-onnx` patch 流程（`apply_sherpa_patches.sh`，upstream v1.13.1）  
 
 ## 10. 相关文档
 
