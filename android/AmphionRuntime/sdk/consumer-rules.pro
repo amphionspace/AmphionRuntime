@@ -26,6 +26,10 @@
     <fields>;
     <methods>;
 }
+-keep class com.k2fsa.sherpa.onnx.TextRewriteFst {
+    <fields>;
+    <methods>;
+}
 -keep class com.k2fsa.sherpa.onnx.SpeakerEmbeddingExtractor {
     <fields>;
     <methods>;
