@@ -6,6 +6,8 @@ import com.amphion.asr.AsrLanguage
 import com.amphion.asr.VadConfig
 import com.amphion.asr.sample.HotwordsPrefs
 import com.amphion.asr.sample.MainActivity
+import com.amphion.police.PoliceEngineConfig
+import com.amphion.police.plate.PlateHotwords
 
 /**
  * 构建车牌场景 ASR 配置：SDK ITN（final 内） + 可选车牌热词偏置。
@@ -26,7 +28,7 @@ object PlateAsrConfig {
         val merged = PlateHotwords.mergeWithUserWords(user, plateHotwords)
         if (merged.isNotEmpty()) return merged
         val poolArmed = user.isNotEmpty() || plateHotwords
-        return if (poolArmed) listOf(MainActivity.HOTWORD_POOL_PLACEHOLDER) else emptyList()
+        return if (poolArmed) listOf(PoliceEngineConfig.HOTWORD_POOL_PLACEHOLDER) else emptyList()
     }
 
     /** 用户可见热词（不含池占位词），用于 UI 展示。 */

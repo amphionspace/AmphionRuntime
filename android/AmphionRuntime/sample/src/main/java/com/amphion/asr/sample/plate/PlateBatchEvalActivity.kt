@@ -18,7 +18,8 @@ import com.amphion.asr.AsrEngine
 import com.amphion.asr.AsrLanguage
 import com.amphion.asr.sample.AmphionApp
 import com.amphion.asr.sample.R
-import com.amphion.asr.sample.plate.PlateEnhancePrefs
+import com.amphion.police.plate.PlateEnhancePrefs
+import com.amphion.police.plate.PlateNormalizer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -259,7 +260,7 @@ class PlateBatchEvalActivity : AppCompatActivity() {
         ): Intent = Intent().apply {
             setClassName(
                 "com.amphion.asr.sample",
-                "com.amphion.asr.sample.plate.PlateBatchEvalActivity",
+                "com.amphion.police.plate.PlateBatchEvalActivity",
             )
             filter?.let { putExtra(EXTRA_FILTER, it) }
             putExtra(EXTRA_AUTO_START, autoStart)

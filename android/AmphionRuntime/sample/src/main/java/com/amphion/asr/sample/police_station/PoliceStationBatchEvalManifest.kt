@@ -2,6 +2,7 @@ package com.amphion.asr.sample.police_station
 
 import android.content.Context
 import com.amphion.asr.sample.plate.BatchEvalManifest
+import com.amphion.police.station.PoliceStationTextUtil
 import org.json.JSONObject
 import java.io.File
 

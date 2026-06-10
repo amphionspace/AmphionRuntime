@@ -7,9 +7,9 @@ import com.amphion.asr.AmphionOptions
 import com.amphion.asr.AmphionRuntime
 import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrLanguage
-import com.amphion.asr.sample.plate.PlateEnhancePrefs
-import com.amphion.asr.sample.police_station.PoliceStationEnhancePrefs
-import com.amphion.asr.sample.police_terms.PoliceTermsEnhancePrefs
+import com.amphion.police.plate.PlateEnhancePrefs
+import com.amphion.police.station.PoliceStationEnhancePrefs
+import com.amphion.police.terms.PoliceTermsEnhancePrefs
 
 /**
  * Sample 入口：SDK 全局 init + 多语言并行预加载。

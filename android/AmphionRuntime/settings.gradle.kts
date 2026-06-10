@@ -30,6 +30,7 @@ dependencyResolutionManagement {
 rootProject.name = "AmphionRuntime"
 
 include(":sdk")
+include(":sdk-police")
 include(":sample")
 include(":sample-eval")
 include(":sample-mini")

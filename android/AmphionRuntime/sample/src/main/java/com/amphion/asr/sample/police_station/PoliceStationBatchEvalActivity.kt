@@ -18,10 +18,12 @@ import com.amphion.asr.AsrLanguage
 import com.amphion.asr.sample.AmphionApp
 import com.amphion.asr.sample.R
 import com.amphion.asr.sample.SceneAsrConfig
-import com.amphion.asr.sample.plate.PlateEnhancePrefs
-import com.amphion.asr.sample.plate.PlateNormalizer
-import com.amphion.asr.sample.police_terms.PoliceTermsEnhancePrefs
-import com.amphion.asr.sample.police_terms.PoliceTermsNormalizer
+import com.amphion.police.plate.PlateEnhancePrefs
+import com.amphion.police.plate.PlateNormalizer
+import com.amphion.police.station.PoliceStationEnhancePrefs
+import com.amphion.police.station.PoliceStationNormalizer
+import com.amphion.police.terms.PoliceTermsEnhancePrefs
+import com.amphion.police.terms.PoliceTermsNormalizer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean

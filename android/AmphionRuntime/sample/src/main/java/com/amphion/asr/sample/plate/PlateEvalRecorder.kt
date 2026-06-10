@@ -2,6 +2,7 @@ package com.amphion.asr.sample.plate
 
 import android.content.Context
 import android.util.Log
+import com.amphion.police.plate.PlateNormalizeResult
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date

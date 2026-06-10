@@ -8,6 +8,8 @@ import com.amphion.asr.AsrResult
 import com.amphion.asr.AsrSession
 import com.amphion.asr.sample.AudioRecorder
 import com.amphion.asr.sample.WavIo
+import com.amphion.police.plate.PlateEnhance
+import com.amphion.police.plate.PlateNormalizer
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit

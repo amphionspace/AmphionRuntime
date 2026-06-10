@@ -37,20 +37,21 @@ import androidx.appcompat.widget.SwitchCompat
 import com.amphion.asr.AsrResult
 import com.amphion.asr.TargetSpeakerConfig
 import com.amphion.asr.sample.plate.PlateBatchEvalActivity
-import com.amphion.asr.sample.police_station.PoliceStationBatchEvalActivity
-import com.amphion.asr.sample.police_terms.PoliceTermsBatchEvalActivity
-import com.amphion.asr.sample.plate.PlateEnhancePrefs
 import com.amphion.asr.sample.plate.PlateEvalRecorder
-import com.amphion.asr.sample.plate.PlateHotwords
-import com.amphion.asr.sample.plate.PlateNormalizer
-import com.amphion.asr.sample.police_station.PoliceStationEnhancePrefs
+import com.amphion.asr.sample.police_station.PoliceStationBatchEvalActivity
 import com.amphion.asr.sample.police_station.PoliceStationEvalRecorder
-import com.amphion.asr.sample.police_station.PoliceStationHotwords
-import com.amphion.asr.sample.police_station.PoliceStationNormalizer
-import com.amphion.asr.sample.police_terms.PoliceTermsEnhancePrefs
+import com.amphion.asr.sample.police_terms.PoliceTermsBatchEvalActivity
 import com.amphion.asr.sample.police_terms.PoliceTermsEvalRecorder
-import com.amphion.asr.sample.police_terms.PoliceTermsHotwords
-import com.amphion.asr.sample.police_terms.PoliceTermsNormalizer
+import com.amphion.police.PoliceEnhancePipeline
+import com.amphion.police.plate.PlateEnhancePrefs
+import com.amphion.police.plate.PlateHotwords
+import com.amphion.police.plate.PlateNormalizer
+import com.amphion.police.station.PoliceStationEnhancePrefs
+import com.amphion.police.station.PoliceStationHotwords
+import com.amphion.police.station.PoliceStationNormalizer
+import com.amphion.police.terms.PoliceTermsEnhancePrefs
+import com.amphion.police.terms.PoliceTermsHotwords
+import com.amphion.police.terms.PoliceTermsNormalizer
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -1054,7 +1055,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun applyDomainEnhance(asrRaw: String): AsrTextEnhance.Result =
+    private fun applyDomainEnhance(asrRaw: String): PoliceEnhancePipeline.Result =
         AsrTextEnhance.apply(
             asrRaw,
             termsNormalizer,
@@ -1065,7 +1066,7 @@ class MainActivity : AppCompatActivity() {
             stationEnhancePrefs.stationNormalizeEnabled,
         )
 
-    private fun recordDomainEnhance(enhanced: AsrTextEnhance.Result, asrRaw: String) {
+    private fun recordDomainEnhance(enhanced: PoliceEnhancePipeline.Result, asrRaw: String) {
         termsEvalRecorder.append(
             uttId = "mic_${System.currentTimeMillis()}",
             refText = "",
@@ -1088,7 +1089,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun logTermsEnhance(
         raw: String,
-        norm: com.amphion.asr.sample.police_terms.PoliceTermsNormalizeResult,
+        norm: com.amphion.police.terms.PoliceTermsNormalizeResult,
     ) {
         if (norm.spans.isEmpty()) return
         Log.i(
@@ -1098,7 +1099,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun logPlateEnhance(raw: String, norm: com.amphion.asr.sample.plate.PlateNormalizeResult) {
+    private fun logPlateEnhance(raw: String, norm: com.amphion.police.plate.PlateNormalizeResult) {
         if (norm.spans.isEmpty()) return
         Log.i(
             TAG,
@@ -1109,7 +1110,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun logStationEnhance(
         raw: String,
-        norm: com.amphion.asr.sample.police_station.PoliceStationNormalizeResult,
+        norm: com.amphion.police.station.PoliceStationNormalizeResult,
     ) {
         if (norm.spans.isEmpty()) return
         Log.i(
@@ -1122,7 +1123,7 @@ class MainActivity : AppCompatActivity() {
     private fun appendFinalSegment(
         result: AsrResult,
         rejected: Boolean,
-        enhanced: AsrTextEnhance.Result? = null,
+        enhanced: PoliceEnhancePipeline.Result? = null,
     ) {
         var text = enhanced?.text ?: result.text
         if (enhanced != null && enhanced.text != result.text) {
