@@ -7,6 +7,9 @@ import com.amphion.asr.AmphionOptions
 import com.amphion.asr.AmphionRuntime
 import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrLanguage
+import com.amphion.asr.sample.plate.PlateEnhancePrefs
+import com.amphion.asr.sample.police_station.PoliceStationEnhancePrefs
+import com.amphion.asr.sample.police_terms.PoliceTermsEnhancePrefs
 
 /**
  * Sample 入口：SDK 全局 init + 多语言并行预加载。
@@ -55,7 +58,13 @@ class AmphionApp : Application() {
         // 决定本次启动池子要不要带占位热词。读 prefs 是 ~ms 级 I/O，可接受。
         // 一旦决定就不会在运行期改变；用户在 app 内首次开关热词的边界场景会让
         // 后续 create 不命中池一次（同步加载 ~1-3 秒），可接受。
-        hotwordsArmed = HotwordsPrefs(this).anyLangHasActive()
+        val platePrefs = PlateEnhancePrefs(this)
+        val stationPrefs = PoliceStationEnhancePrefs(this)
+        val termsPrefs = PoliceTermsEnhancePrefs(this)
+        hotwordsArmed = HotwordsPrefs(this).anyLangHasActive() ||
+            platePrefs.plateHotwordsEnabled ||
+            stationPrefs.stationHotwordsEnabled ||
+            termsPrefs.termsHotwordsEnabled
 
         // 整个 SDK 默认配置：punct + itn + vad + endpoint 全开
         val configBuilder = AsrConfig.Builder()
@@ -65,7 +74,19 @@ class AmphionApp : Application() {
             .vad(true)
             .endpoint(true)
         if (hotwordsArmed) {
-            configBuilder.hotwords(listOf(POOL_HOTWORDS_PLACEHOLDER), MainActivity.HOTWORDS_SCORE)
+            val preloadWords = if (!HotwordsPrefs(this).anyLangHasActive()) {
+                SceneAsrConfig.effectiveHotwords(
+                    this,
+                    AsrLanguage.ZH_EN,
+                    platePrefs.plateHotwordsEnabled,
+                    stationPrefs.stationHotwordsEnabled,
+                    termsPrefs.termsHotwordsEnabled,
+                ).filter { it != MainActivity.HOTWORD_POOL_PLACEHOLDER }
+                    .ifEmpty { listOf(POOL_HOTWORDS_PLACEHOLDER) }
+            } else {
+                listOf(POOL_HOTWORDS_PLACEHOLDER)
+            }
+            configBuilder.hotwords(preloadWords, MainActivity.HOTWORDS_SCORE)
         }
         val config = configBuilder.build()
 
