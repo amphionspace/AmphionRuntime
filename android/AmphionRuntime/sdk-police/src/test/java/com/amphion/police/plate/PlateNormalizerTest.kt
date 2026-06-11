@@ -1,6 +1,7 @@
 package com.amphion.police.plate
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -1311,6 +1312,22 @@ class PlateNormalizerTest {
     }
 
     @Test
+    fun gaoxinDistrict_notMisheardAsXinjiangPlateQ() {
+        val input = "给我看一下成都市高新区桂溪派出所，昨天白天分辖区的接警趋势。"
+        val r = normalizer.normalize(input)
+        assertTrue("高新区 in ${r.text}", r.text.contains("高新区"))
+        assertFalse("高新Q in ${r.text}", r.text.contains("高新Q"))
+    }
+
+    @Test
+    fun zhengzhouZhengdongDistrict_notMisheardAsXinjiangPlateQ() {
+        val input = "帮我统计一下郑州市郑东新区如意湖派出所近七天的接警量。"
+        val r = normalizer.normalize(input)
+        assertTrue(r.text.contains("郑东新区"))
+        assertFalse(r.text.contains("郑东新Q"))
+    }
+
+    @Test
     fun round20_gangY_gangWai_fromUserEval() {
         val r = normalizer.normalize("查询港外八V幺幺，近期日通行记录。")
         assertEquals("港Y8V11", r.primaryPlate)
@@ -1853,6 +1870,49 @@ class PlateNormalizerTest {
         val n = p1Normalizer()
         val r = n.normalize("车牌号即二零零三郎零相关线索已保存，后续可能需要您补充照片。")
         assertEquals("冀R00300", r.primaryPlate)
+    }
+
+    // round29 新声学 round01：G/72X 分段阿拉伯数字
+    @Test
+    fun round29_newAcoustic_gSpaced215974_fromRound01() {
+        val n = p1Normalizer()
+        val r = n.normalize("车牌号G 215 974如果已经离开，请您告诉我他最后驶离的方向。")
+        assertEquals("冀R15974", r.primaryPlate)
+    }
+
+    @Test
+    fun redTeam_g215974Unspaced_fromRound01() {
+        val n = p1Normalizer()
+        val r = n.normalize("车牌号G215974如果已经离开请您告诉我他最后驶离的方向。")
+        assertEquals("冀R15974", r.primaryPlate)
+    }
+
+    @Test
+    fun redTeam_gr2024ProductCode_notPlate() {
+        val n = p1Normalizer()
+        val r = n.normalize("产品型号为 GR2024 标准版已上市。")
+        assertEquals("产品型号为 GR2024 标准版已上市。", r.text)
+    }
+
+    @Test
+    fun round29_newAcoustic_72x12760_fromRound01() {
+        val n = p1Normalizer()
+        val r = n.normalize("车牌号721 2760在斑马线前没有礼让行人老人差点被。")
+        assertEquals("冀R12760", r.primaryPlate)
+    }
+
+    @Test
+    fun round29_newAcoustic_ji231054_fromRound01() {
+        val n = p1Normalizer()
+        val r = n.normalize("车牌号记231 054的情况已记录，请您先把车辆停到安全区域。")
+        assertEquals("冀R31054", r.primaryPlate)
+    }
+
+    @Test
+    fun round29_newAcoustic_liaoB02000_fromRound01() {
+        val n = p1Normalizer()
+        val r = n.normalize("车牌号辽B 020里刚才从水坑旁边快速开过，把行人溅了一身。")
+        assertEquals("辽B02000", r.primaryPlate)
     }
 
 }

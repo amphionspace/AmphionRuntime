@@ -71,6 +71,14 @@ class PoliceStationNormalizerTest {
     }
 
     @Test
+    fun normalize_p2_commaBeforeStation() {
+        val raw = "请把拉萨市城关区八阔，派出所前天的接警情况整理一下。"
+        val r = normalizer.normalize(raw)
+        assertTrue(r.text.contains("萨市城关区八廓派出所"))
+        assertTrue(!r.text.contains("，派出所"))
+    }
+
+    @Test
     fun normalize_p2_adminPunct() {
         val raw = "请把银川市金凤区、上海西路派出所上周的接警情况整理一下。"
         val r = normalizer.normalize(raw)

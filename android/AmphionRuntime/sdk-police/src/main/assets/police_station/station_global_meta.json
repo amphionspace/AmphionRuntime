@@ -1,7 +1,7 @@
 {
   "source_csv": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_station_enhance/station_homophones.csv",
   "scope": "global",
-  "pair_count": 107,
+  "pair_count": 136,
   "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_station_fst_experiment/output/station_global.fst",
   "phase": "p0",
   "note": "gazetteer-category rules stay in host (scheme A); sequential cdrewrite compose",
@@ -15,7 +15,15 @@
       "to": "郑州市郑东新区如意湖"
     },
     {
+      "from": "大连市干净之区周岁字",
+      "to": "大连市甘井子区周水子"
+    },
+    {
       "from": "乌鲁木齐市三伊巴克",
+      "to": "乌鲁木齐市沙依巴克"
+    },
+    {
+      "from": "乌鲁木齐市三一巴克",
       "to": "乌鲁木齐市沙依巴克"
     },
     {
@@ -33,6 +41,18 @@
     {
       "from": "金凤区、上海西路",
       "to": "金凤区上海西路"
+    },
+    {
+      "from": "沙依巴克区油耗路",
+      "to": "沙依巴克区友好路"
+    },
+    {
+      "from": "拉萨市城关区八阔",
+      "to": "萨市城关区八廓"
+    },
+    {
+      "from": "拉萨市城关区八廓",
+      "to": "萨市城关区八廓"
     },
     {
       "from": "石家庄市雨花区",
@@ -151,6 +171,18 @@
       "to": "滨江道派出所"
     },
     {
+      "from": "莲湖区北苑门",
+      "to": "莲湖区北院门"
+    },
+    {
+      "from": "油耗路派出所",
+      "to": "友好路派出所"
+    },
+    {
+      "from": "二七区的化街",
+      "to": "二七区德化街"
+    },
+    {
       "from": "琼山区阜成",
       "to": "琼山区府城"
     },
@@ -239,6 +271,42 @@
       "to": "城关区八廓"
     },
     {
+      "from": "洪山区观山",
+      "to": "洪山区关山"
+    },
+    {
+      "from": "台江区颍州",
+      "to": "台江区瀛洲"
+    },
+    {
+      "from": "台江区银州",
+      "to": "台江区瀛洲"
+    },
+    {
+      "from": "鄞州区福民",
+      "to": "鄞州区福明"
+    },
+    {
+      "from": "鄞州区胡民",
+      "to": "鄞州区福明"
+    },
+    {
+      "from": "鄞州区富民",
+      "to": "鄞州区福明"
+    },
+    {
+      "from": "盘龙区托东",
+      "to": "盘龙区拓东"
+    },
+    {
+      "from": "铁西区新宫",
+      "to": "铁西区兴工"
+    },
+    {
+      "from": "沙伊巴克区",
+      "to": "沙依巴克区"
+    },
+    {
       "from": "from",
       "to": "to"
     },
@@ -257,6 +325,22 @@
     {
       "from": "振东新区",
       "to": "郑东新区"
+    },
+    {
+      "from": "集美集美",
+      "to": "集美区集美"
+    },
+    {
+      "from": "解放碑，",
+      "to": "解放碑"
+    },
+    {
+      "from": "沙伊巴克",
+      "to": "沙依巴克"
+    },
+    {
+      "from": "区的化街",
+      "to": "区德化街"
     },
     {
       "from": "水墨沟",
@@ -333,6 +417,14 @@
     {
       "from": "周岁至",
       "to": "周水子"
+    },
+    {
+      "from": "八阔，",
+      "to": "八廓，"
+    },
+    {
+      "from": "解南市",
+      "to": "济南市"
     },
     {
       "from": "陪洲",
@@ -433,6 +525,30 @@
     {
       "from": "巴阔",
       "to": "八廓"
+    },
+    {
+      "from": "培梨",
+      "to": "培黎"
+    },
+    {
+      "from": "福民",
+      "to": "福明"
+    },
+    {
+      "from": "胡民",
+      "to": "福明"
+    },
+    {
+      "from": "富民",
+      "to": "福明"
+    },
+    {
+      "from": "托东",
+      "to": "拓东"
+    },
+    {
+      "from": "新宫",
+      "to": "兴工"
     }
   ]
 }

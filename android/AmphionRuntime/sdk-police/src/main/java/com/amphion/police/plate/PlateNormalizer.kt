@@ -1101,13 +1101,102 @@ class PlateNormalizer private constructor(
             } else {
                 ""
             }
-            m.groupValues[1] + jiRReplacementFor(m.groupValues[2], tailAfter)
+            val matched = m.groupValues[2]
+            if (isGrNonPlateContext(matched, tailAfter)) {
+                return@replace m.value
+            }
+            m.groupValues[1] + jiRReplacementFor(matched, tailAfter)
         }
+    }
+
+    /** GR 后跟 4 位产品/年份编号（如 GR2024）时勿当作冀R 谐音。 */
+    private fun isGrNonPlateContext(matched: String, tailAfter: String): Boolean {
+        if (!Regex("^(?:GR|[GgＧ]\\s*[RrＲ])$").containsMatchIn(matched.trim())) return false
+        return Regex("^[0-9]{4}(\\s|[^0-9]|$)").containsMatchIn(tailAfter)
+    }
+
+    /**
+     * 新声学模型常把冀R 读成「G 215 974」「721 2760」「JR 79641」等带空格分段数字。
+     * 仅在车牌锚点后、且拼出的 5 位尾段能过 [isValidPlate] 时替换，避免误伤普通数字。
+     */
+    private fun fixSpacedDigitJiRInPlateContext(text: String): String {
+        var out = text
+        val plateAnchor =
+            "(车牌号|根据车牌号|看到车牌号|关于车牌号|核对车牌号|登记车牌号|拍下车牌号|会处理车牌号)"
+        val gap = "[\\s，,：:、.．。；！？]*(?:为|是)?[\\s，,：:、.．。；！？]*"
+
+        out = Regex("$plateAnchor$gap[GgＧTt]\\s+(\\d{3})\\s+(\\d{3,4})").replace(out) { m ->
+            val plate = plateFromSpacedDigitGroups(m.groupValues[2], m.groupValues[3]) ?: return@replace m.value
+            m.groupValues[1] + plate
+        }
+        out = Regex("$plateAnchor$gap[GgＧTt](\\d{3})(\\d{3})(?![0-9])").replace(out) { m ->
+            val plate = plateFromSpacedDigitGroups(m.groupValues[2], m.groupValues[3]) ?: return@replace m.value
+            m.groupValues[1] + plate
+        }
+        out = Regex("$plateAnchor$gap" + "72(\\d)\\s+(\\d{3,5})").replace(out) { m ->
+            val plate = plateFromSpacedDigitGroups("72${m.groupValues[2]}", m.groupValues[3]) ?: return@replace m.value
+            m.groupValues[1] + plate
+        }
+        out = Regex("$plateAnchor$gap(?:J\\s*R|JR)\\s+(\\d{5})").replace(out) { m ->
+            val plate = "冀R${m.groupValues[2]}"
+            if (isValidPlate(plate)) m.groupValues[1] + plate else m.value
+        }
+        out = Regex("$plateAnchor$gap" + "记\\s*(\\d{3})\\s+(\\d{3})").replace(out) { m ->
+            val plate = plateFromSpacedDigitGroups(m.groupValues[2], m.groupValues[3]) ?: return@replace m.value
+            m.groupValues[1] + plate
+        }
+        out = Regex("$plateAnchor$gap(?:G\\s*L|GL)\\s+(\\d{5})").replace(out) { m ->
+            val plate = "冀R${m.groupValues[2]}"
+            if (isValidPlate(plate)) m.groupValues[1] + plate else m.value
+        }
+        out = Regex("$plateAnchor$gap(?:G\\s*R|GR)\\s+(\\d{5})").replace(out) { m ->
+            val plate = "冀R${m.groupValues[2]}"
+            if (isValidPlate(plate)) m.groupValues[1] + plate else m.value
+        }
+        out = Regex("$plateAnchor$gap[GgＧ]\\s+(\\d{5})(?![0-9])").replace(out) { m ->
+            val plate = "冀R${m.groupValues[2]}"
+            if (isValidPlate(plate)) m.groupValues[1] + plate else m.value
+        }
+        out = Regex("$plateAnchor$gap\\d{3}\\s+(\\d{5})(?![0-9])").replace(out) { m ->
+            val plate = "冀R${m.groupValues[2]}"
+            if (isValidPlate(plate)) m.groupValues[1] + plate else m.value
+        }
+        out = Regex("(^|[\\s，,。；！？])([GgＧTt])\\s+(\\d{3})\\s+(\\d{3})(?=车主)").replace(out) { m ->
+            val plate = plateFromSpacedDigitGroups(m.groupValues[3], m.groupValues[4]) ?: return@replace m.value
+            m.groupValues[1] + plate
+        }
+        out = Regex("看到$gap(?:G\\s*R|GR)\\s+(\\d{5})").replace(out) { m ->
+            val plate = "冀R${m.groupValues[1]}"
+            if (isValidPlate(plate)) "看到$plate" else m.value
+        }
+        out = out.replace(Regex("纪尔"), "冀R")
+        out = out.replace(Regex("基尔"), "冀R")
+        out = out.replace(Regex("G儿"), "冀R")
+        out = out.replace(Regex("姚B"), "辽B")
+        out = Regex("辽B\\s*0?20[里敌]").replace(out, "辽B02000")
+        return out
+    }
+
+    /** 从「2XX YYY / 72X YYYY」分段阿拉伯数字拼出冀R 标准 7 位牌。 */
+    private fun plateFromSpacedDigitGroups(g1: String, g2: String): String? {
+        if (!g1.all { it.isDigit() } || !g2.all { it.isDigit() }) return null
+        val digits = when {
+            g1.length == 3 && g1.startsWith("72") && g2.length == 5 -> g2
+            g1.length == 3 && g1.startsWith("72") && g2.length == 4 -> "${g1[2]}$g2"
+            g1.length == 3 && g1.startsWith("72") && g2.length == 3 -> {
+                if (g1[1] == g1[2]) "${g1[1]}${g1[2]}$g2" else "${g1[2]}$g2"
+            }
+            g1.length == 3 && g1.startsWith("2") && g2.length == 3 -> "${g1[1]}${g1[2]}$g2"
+            else -> return null
+        }
+        if (digits.length != 5) return null
+        val plate = "冀R$digits"
+        return plate.takeIf { isValidPlate(it) }
     }
 
     /** KeSpeech 批量评测高频：句中 GR/G二、辽笔/聊B、车牌号及二等。 */
     private fun fixKeSpeechPlatePrefixes(text: String): String {
-        var out = text
+        var out = fixSpacedDigitJiRInPlateContext(text)
         val d = digitLookahead
         // 较长模式优先
         out = out.replace(Regex("G二零零三零枚?"), "冀R00300")
@@ -1327,7 +1416,8 @@ class PlateNormalizer private constructor(
         out = out.replace(Regex("新地"), "新D")
         out = out.replace(Regex("新恩"), "新N")
         out = out.replace(Regex("新辟"), "新P")
-        out = out.replace(Regex("新区"), "新Q")
+        // 仅「新区」作新疆号牌前缀（新Q 误听）时替换；勿伤「高新区/郑东新区」等区划名（前有汉字）
+        out = out.replace(Regex("(?<![\u4e00-\u9fa5])新区"), "新Q")
         out = out.replace(Regex("新翼"), "新E")
         out = out.replace(Regex("先D"), "新D")
         out = out.replace(Regex("港外"), "港Y")
@@ -1704,6 +1794,8 @@ class PlateNormalizer private constructor(
             .replace(Regex("一路入$"), "")
             .replace(Regex("耶$"), "一")
             .replace(Regex("李里$"), "")
+            .replace(Regex("里$"), "")
+            .replace(Regex("敌$"), "")
             .replace(Regex("迪$"), "")
             .replace(Regex("枚$"), "")
             .replace(Regex("仪$"), "一")
@@ -1753,7 +1845,12 @@ class PlateNormalizer private constructor(
     private fun padFourDigitStdTail(s: String): String {
         if (!s.startsWith("冀R") && !s.startsWith("辽B")) return s
         val tail = s.drop(2)
-        if (tail.length != 4 || !tail.all { it.isDigit() } || isValidPlate(s)) return s
+        if (isValidPlate(s)) return s
+        if (tail.length == 3 && tail.all { it.isDigit() }) {
+            val padded = s + "00"
+            if (isValidPlate(padded)) return padded
+        }
+        if (tail.length != 4 || !tail.all { it.isDigit() }) return s
         if (tail.startsWith("50")) {
             val prep = s.take(2) + "5" + tail
             if (isValidPlate(prep)) return prep

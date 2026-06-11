@@ -10,6 +10,12 @@ val localProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+// -PdingqiaoUseFatAar=true 时用方案 A fat AAR 构建 Demo（与 dingqiao-asr-*.aar 对齐）
+val useFatAar = providers.gradleProperty("dingqiaoUseFatAar").orElse("false").get() == "true"
+val fatAarPath = providers.gradleProperty("dingqiaoFatAarPath").orElse(
+    "${rootProject.projectDir}/build/dingqiao-delivery/dingqiao-asr-v0.1.0.aar",
+).get()
+
 android {
     namespace = "com.amphion.dingqiao.demo"
     compileSdk = 34
@@ -68,7 +74,11 @@ android {
 }
 
 dependencies {
-    implementation(project(":sdk-dingqiao"))
+    if (useFatAar) {
+        implementation(files(fatAarPath))
+    } else {
+        implementation(project(":sdk-dingqiao"))
+    }
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)

@@ -63,6 +63,23 @@ class PoliceEnhancePipelineTest {
         assertTrue(out.station.spans.any { it.valid })
     }
 
+    @Test
+    fun apply_preservesGaoxinDistrictInChengduStationQuery() {
+        val raw = "给我看一下成都市高新区桂溪派出所，昨天白天分辖区的接警趋势。"
+        val out = PoliceEnhancePipeline.apply(
+            raw,
+            termsNormalizer,
+            termsNormalizeEnabled = true,
+            plateNormalizer,
+            plateNormalizeEnabled = true,
+            stationNormalizer,
+            stationNormalizeEnabled = true,
+        )
+        assertTrue("高新区 in ${out.text}", out.text.contains("高新区"))
+        assertTrue(out.text.contains("成都市高新区桂溪派出所"))
+        assertTrue(!out.text.contains("高新Q"))
+    }
+
     private fun resolveAsset(rel: String): File {
         val roots = listOf("src/main/assets")
         val cwd = File(System.getProperty("user.dir") ?: ".")

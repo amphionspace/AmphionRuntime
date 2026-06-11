@@ -1,7 +1,8 @@
 # 鼎桥警务语音识别 SDK 交付说明
 
 > 面向鼎桥（Dingqiao）集成的 Android 离线 ASR + 警务域增强 + 声纹能力。  
-> 接口定义见仓库根目录 [`语音识别SDK接口.md`](../../../../语音识别SDK接口.md)（相对本文件：`/Users/amphion/Desktop/work/projects/鼎桥/语音识别SDK接口.md`）。
+> 接口定义见仓库根目录 [`语音识别SDK接口.md`](../../../../语音识别SDK接口.md)（相对本文件：`/Users/amphion/Desktop/work/projects/鼎桥/语音识别SDK接口.md`）。  
+> **对外正式交付**请使用 `docs/customer/` 下脱敏文档，打包命令：`bash tools/android/pack_dingqiao_customer_delivery.sh`（不含公钥、不含 LICENSING.md 全文）。
 
 ## 1. 模块与依赖
 
