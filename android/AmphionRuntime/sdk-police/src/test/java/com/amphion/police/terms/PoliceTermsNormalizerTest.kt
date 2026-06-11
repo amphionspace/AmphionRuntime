@@ -75,4 +75,20 @@ class PoliceTermsNormalizerTest {
         assertTrue(r.matchedTerms.contains("处警"))
         assertTrue(r.matchedTerms.contains("报警人"))
     }
+
+    @Test
+    fun normalize_vdP6_doesNotDoubleExtendZengpaiJingli() {
+        val homophones = PoliceTermsHomophoneDict.loadFromReader(
+            BufferedReader(
+                StringReader(
+                    """
+                    暂不需要增派警,暂不需要增派警力,term
+                    """.trimIndent(),
+                ),
+            ),
+        )
+        val n = PoliceTermsNormalizer.create(homophones, gazetteer)
+        val input = "处警反馈显示当事人对事实说法不一致暂不需要增派警力。"
+        assertEquals(input, n.normalize(input).text)
+    }
 }

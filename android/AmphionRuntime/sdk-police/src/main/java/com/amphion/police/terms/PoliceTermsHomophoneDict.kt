@@ -39,9 +39,38 @@ internal class PoliceTermsHomophoneDict(
     fun applyPhrases(text: String): String {
         var out = text
         for ((from, to) in phraseMap) {
-            if (from.isEmpty()) continue
-            out = out.replace(from, to)
+            if (from.isEmpty() || from == to) continue
+            out = if (to.startsWith(from)) {
+                replaceExtendingPhrase(out, from, to)
+            } else {
+                out.replace(from, to)
+            }
         }
         return out
+    }
+
+    /**
+     * from 为 to 的前缀时（如 暂不需要增派警→暂不需要增派警力），
+     * 跳过已是完整 to 的片段，避免「增派警力」→「增派警力力」。
+     */
+    private fun replaceExtendingPhrase(text: String, from: String, to: String): String {
+        val sb = StringBuilder()
+        var i = 0
+        while (i <= text.length) {
+            val idx = text.indexOf(from, i)
+            if (idx < 0) {
+                sb.append(text.substring(i))
+                break
+            }
+            sb.append(text.substring(i, idx))
+            if (idx + to.length <= text.length && text.regionMatches(idx, to, 0, to.length)) {
+                sb.append(to)
+                i = idx + to.length
+            } else {
+                sb.append(to)
+                i = idx + from.length
+            }
+        }
+        return sb.toString()
     }
 }
