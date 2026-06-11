@@ -63,6 +63,51 @@ dependencies {
 
 若只分发 AAR，需同时提供 `:sdk`、`:sdk-police`、`:sdk-dingqiao` 三个 library 的 release AAR（或合并为单一 fat AAR，需自行脚本打包）。当前工程未配置 `:sdk-dingqiao` 的 `maven-publish`，正式交付前需补发布任务或拷贝 `build/outputs/aar/*.aar`。
 
+### 4.1 交付打包脚本（AmphionRuntime 仓库根目录执行）
+
+| 脚本 | 用途 |
+|------|------|
+| `tools/android/pack_dingqiao_customer_delivery.sh` | **鼎桥正式发包**（fat AAR + Demo + 客户文档） |
+| `tools/android/pack_dingqiao_delivery_scheme_a_aligned.sh` | 内部预览（fat AAR 与 Demo 同 AAR 对齐） |
+| `tools/android/pack_dingqiao_delivery.sh` | 内部 scheme A（含 LICENSING 等） |
+| `tools/android/pack_dingqiao_delivery_scheme_b.sh` | 三 AAR 分模块 scheme B |
+| `tools/android/merge_dingqiao_fat_aar.sh` | 仅合并 fat AAR |
+| `tools/android/verify_dingqiao_delivery.sh` | 校验 VERSION.txt / AAR 溯源 / 交付目录含 `docs/NOTICE` |
+
+**构建溯源（强制）**
+
+1. 在 **AmphionRuntime git 仓库**内打包；`VERSION.txt` 写入 `git_commit_full`（40 字符）+ `git_commit`（短 hash），且 **本地必须能 `git cat-file -e` 该 commit**。
+2. `sdk_version` / `buildconfig_sdk_version` 均来自 **`gradle.properties` → `AMPHION_RUNTIME_VERSION`**，打包前校验与 `BuildConfig.SDK_VERSION` 一致。
+3. fat AAR 内嵌 `META-INF/amphion-dingqiao-build.properties`（与 VERSION.txt 同批 git/sdk 信息）。
+4. 工作区须 **clean**（无未提交改动）；本地预览可设 `DINGQIAO_ALLOW_DIRTY=1`。
+5. 交付版本号默认 = `AMPHION_RUNTIME_VERSION`（勿再手写 `0.1.0` 与 SDK `0.2.x` 混用）。
+
+```bash
+# 正式发包（仓库根）
+bash tools/android/pack_dingqiao_customer_delivery.sh
+
+# 验收同事收到的包
+bash tools/android/verify_dingqiao_delivery.sh delivery/.../VERSION.txt
+bash tools/android/verify_dingqiao_delivery.sh delivery/.../aar/dingqiao-asr-v*.aar
+bash tools/android/verify_dingqiao_delivery.sh delivery/.../amphion-dingqiao-*-customer/
+bash tools/android/verify_dingqiao_delivery.sh delivery/.../amphion-dingqiao-*.zip
+```
+
+**第三方开源声明（NOTICE）**
+
+正式客户包与 scheme A aligned 预览包的 `docs/NOTICE` 来自 `android/AmphionRuntime/docs/customer/NOTICE`（打包时由 `dingqiao_stage_customer_docs` 复制）。内部 scheme A/B 包使用 `android/AmphionRuntime/NOTICE`。随包分发，满足 sherpa-onnx（Apache-2.0）、ONNX Runtime（MIT）、silero-vad（MIT）、3D-Speaker eres2net（Apache-2.0）等组件的常规合规要求；WeTextProcessing（ITN）亦在 NOTICE 中列出。
+
+| 客户包 `docs/` 文件 | 说明 |
+|---------------------|------|
+| `语音识别SDK接口.md` | API 契约 |
+| `DINGQIAO_INTEGRATION.md` | 集成说明 |
+| `LICENSE.md` | 商用授权接入（不含验签公钥） |
+| `NOTICE` | 第三方开源组件声明（**必含**） |
+
+**Windows 解压（中文文件名）**
+
+交付 zip 使用 `tools/android/dingqiao_zip_utf8.py` 写入 **UTF-8 EFS**（语言编码标志位），避免 `语音识别SDK接口.md` 在 Windows 资源管理器中解压乱码。勿用 macOS 自带 `zip -r`（Info-ZIP 3.0 默认 EFS=false）。
+
 ## 5. 初始化与 API 映射
 
 ### 5.1 Android 初始化（必须）
@@ -158,7 +203,7 @@ cd ../../android/AmphionRuntime
 | 武装 `:sdk` AAR | `sdk/build/outputs/aar/sdk-release.aar` |
 | Demo Release APK | `sample-dingqiao-demo/build/outputs/apk/release/sample-dingqiao-demo-release.apk` |
 
-> R8 变更后若 `:sdk:minifyReleaseWithR8` 失败，见 `sdk/proguard-rules.pro`；Demo 侧 include 了 `sdk/consumer-rules.pro`。
+> R8：`sdk/consumer-rules.pro` 必须含 `-dontwarn java.lang.invoke.StringConcatFactory`（Java 17 字符串拼接；客户 `minifyEnabled=true` 时由 AAR 的 `proguard.txt` 注入）。fat AAR 合并脚本会拼接 sdk + sdk-police + sdk-dingqiao 三份 consumer 规则；**勿用旧版 sdk-release.aar 内嵌的 proguard.txt 代替源码 `consumer-rules.pro`**。重打 fat AAR：`bash tools/android/merge_dingqiao_fat_aar.sh <版本>`（需先 `./gradlew :sdk:assembleRelease :sdk-police:assembleRelease :sdk-dingqiao:assembleRelease`）。
 
 ### 8.2 Demo 签名
 
@@ -177,12 +222,15 @@ keytool -genkeypair -v -storetype PKCS12 \
 
 ### 8.3 签发 Demo `.lic`
 
-`.lic` **不进 git**；构建 Release 前生成并放入 Demo assets：
+`.lic` **不进 git**；构建 Release 前生成并放入 Demo assets。Demo 授权为**限期试用**（默认自签发日起 **2 个月**），仍绑定 `com.amphion.dingqiao.demo` 包名与 Demo Release 证书 SHA-256；到期后 SDK 返回 `6006 LICENSE_EXPIRED`。交付打包脚本会在构建 Demo Release 前自动重签。
 
 ```bash
 bash ../../tools/license/issue_dingqiao_demo.sh
 # → sample-dingqiao-demo/src/main/assets/amphion-license.lic
+# 可选：DINGQIAO_DEMO_TRIAL_MONTHS=2（默认）调整试用月数
 ```
+
+每次对外发 Demo APK 或交付 zip 前请确认已重签（`pack_dingqiao_*.sh` 已集成）。续期 = 用同一私钥对同一 applicationId + certSha256 重签更晚 `expiresAt` 的 `.lic`。
 
 鼎桥客户正式包：用同一私钥，按 [`docs/DELIVERY.md`](DELIVERY.md) §11 对其 **applicationId + release 证书 SHA256** 单独签发。
 
@@ -225,5 +273,7 @@ adb logcat -s AmphionRuntime:D DingqiaoDemo:W
 |------|------|
 | [`语音识别SDK接口.md`](../../../../语音识别SDK接口.md) | 鼎桥抽象接口（客户契约） |
 | [`docs/INTEGRATION.md`](INTEGRATION.md) | 底层 `:sdk` 接入 |
+| [`docs/customer/DINGQIAO_INTEGRATION.md`](customer/DINGQIAO_INTEGRATION.md) | 客户向集成说明（随包复制为 `docs/DINGQIAO_INTEGRATION.md`） |
+| [`docs/customer/NOTICE`](customer/NOTICE) | 第三方开源声明（随包复制为 `docs/NOTICE`） |
 | [`docs/DELIVERY.md`](DELIVERY.md) | 通用 AAR 交付 SOP |
 | [`docs/LICENSING.md`](LICENSING.md) | 离线授权方案 |

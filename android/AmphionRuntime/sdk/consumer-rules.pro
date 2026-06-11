@@ -108,3 +108,8 @@
 # ---- 4. 行号 / SourceFile 保留，方便客户上报崩溃栈 ----
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# ---- 5. Java 17 字符串拼接（invokedynamic） ----
+# Kotlin/Java 17+ 编译的 classes.jar 会引用 StringConcatFactory；客户 minSdk<26 且
+# minifyEnabled=true（AGP 8 R8 full mode）时缺此条会致命失败。
+-dontwarn java.lang.invoke.StringConcatFactory
