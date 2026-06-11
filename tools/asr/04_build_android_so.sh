@@ -32,31 +32,45 @@ if [[ ! -f "$SHERPA_ROOT/CMakeLists.txt" ]]; then
   exit 1
 fi
 
+bash "$SCRIPT_DIR/apply_sherpa_patches.sh"
+
 cd "$SHERPA_ROOT"
 
-CURRENT_TAG="$(git describe --tags --exact-match 2>/dev/null || true)"
-LATEST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo unknown)"
-if [[ -z "$CURRENT_TAG" ]]; then
-  echo "[WARN] third_party/sherpa-onnx 当前不在任何 release tag 上，最近的是 ${LATEST_TAG}。"
-  echo "[WARN] SDK 严格锁定 sherpa-onnx 版本，建议先："
-  echo "         git -C $SHERPA_ROOT checkout v1.13.1"
-  echo "         git -C $REPO_ROOT add third_party/sherpa-onnx"
-  echo "       否则不要发版给客户。继续编译（按 Ctrl+C 取消）..."
-  sleep 3
+if [[ -f "$SHERPA_ROOT/.amphion-patches-applied" ]]; then
+  echo "[INFO] sherpa-onnx: upstream v1.13.1 + amphion patches ($(git rev-parse --short HEAD))"
 else
-  echo "[INFO] sherpa-onnx submodule 在 release tag: $CURRENT_TAG"
+  CURRENT_TAG="$(git describe --tags --exact-match 2>/dev/null || true)"
+  LATEST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo unknown)"
+  if [[ -z "$CURRENT_TAG" ]]; then
+    echo "[WARN] third_party/sherpa-onnx 当前不在任何 release tag 上，最近的是 ${LATEST_TAG}。"
+    echo "[WARN] 期望 v1.13.1 + apply_sherpa_patches.sh；继续编译（按 Ctrl+C 取消）..."
+    sleep 3
+  else
+    echo "[INFO] sherpa-onnx submodule 在 release tag: $CURRENT_TAG"
+  fi
 fi
 
 # ---------- 检查 NDK ----------
-if [[ -z "${ANDROID_NDK:-}" ]]; then
-  echo "[ERROR] 请先 export ANDROID_NDK=/path/to/ndk/26.3.11579264"
+NDK_VER="26.3.11579264"
+_resolve_ndk() {
+  local d
+  for d in \
+    "${ANDROID_NDK:-}" \
+    "${ANDROID_HOME:-}/ndk/$NDK_VER" \
+    "$HOME/Library/Android/sdk/ndk/$NDK_VER" \
+    ; do
+    [[ -n "$d" && -f "$d/build/cmake/android.toolchain.cmake" ]] && echo "$d" && return 0
+  done
+  return 1
+}
+if ! ANDROID_NDK="$(_resolve_ndk)"; then
+  echo "[ERROR] 找不到合法 NDK（需含 build/cmake/android.toolchain.cmake）"
+  echo "        请安装 NDK $NDK_VER，并: source scripts/mac_prep/00_android_env.sh"
+  echo "        或: export ANDROID_NDK=\$HOME/Library/Android/sdk/ndk/$NDK_VER"
   echo "        参考 tools/asr/ANDROID_TOOLCHAIN.md"
   exit 1
 fi
-if [[ ! -f "$ANDROID_NDK/build/cmake/android.toolchain.cmake" ]]; then
-  echo "[ERROR] $ANDROID_NDK 看起来不是合法 NDK"
-  exit 1
-fi
+export ANDROID_NDK
 
 NDK_VERSION="$(grep -E '^Pkg.Revision' "$ANDROID_NDK/source.properties" | awk -F= '{print $2}' | tr -d ' ')"
 echo "[INFO] Using NDK $NDK_VERSION at $ANDROID_NDK"
@@ -140,6 +154,9 @@ build_one_abi() {
   fi
 
   prefetch_onnxruntime "$ABI"
+
+  # FetchContent（kaldifst 等）在 codeload.github.com 上常因代理/VPN 出现 SSL 35
+  bash "$SCRIPT_DIR/prefetch_sherpa_cmake_deps.sh" || true
 
   echo
   echo "================================================"

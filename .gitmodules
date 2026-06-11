@@ -1,3 +1,4 @@
 [submodule "third_party/sherpa-onnx"]
 	path = third_party/sherpa-onnx
 	url = https://github.com/k2-fsa/sherpa-onnx.git
+	ignore = all

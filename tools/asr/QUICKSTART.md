@@ -322,6 +322,8 @@ AsrSdk: OnlineRecognizer loaded from /data/user/0/com.amphion.asr.sample/files/a
 | `bash tools/asr/04_build_android_so.sh: line 31: LATEST_TAG。: unbound variable` | bash 在中文标点旁不能正确截断变量名 | 已修复（${VAR} 显式界定）。如自己写脚本注意：变量后接中文标点必须 `${VAR}` 不能 `$VAR` |
 | `[ERROR] /Users/.../ndk/26.3.11579264 看起来不是合法 NDK` | Android Studio 没装 NDK | SDK Manager → SDK Tools → 勾 Show Package Details → 勾 NDK 26.3.11579264 |
 | `wget: command not found` | 上游 build-android-*.sh 用 wget | 04 脚本现在自带 curl prefetch，不再需要 wget；如要装：`brew install wget` |
+| CMake 下载 `kaldifst` / `openfst` 报 `SSL connect error` / `codeload.github.com` | 系统代理/VPN 把 GitHub 解析到 `198.18.x`，直连不稳定 | `04` 会自动跑 `prefetch_sherpa_cmake_deps.sh`（ghproxy 镜像 + 本地 tarball）；仍失败时先关代理再编，或单独：`bash tools/asr/prefetch_sherpa_cmake_deps.sh` |
+| `./gradlew` 下载 `gradle-8.6-bin.zip` 报 `SSLHandshakeException` | `services.gradle.org` 同样被代理干扰 | 已改腾讯镜像 + 阿里云 Maven；或先跑 `bash scripts/mac_prep/prefetch_gradle_wrapper.sh` |
 | `cmake: command not found` | macOS 默认没 cmake | `brew install cmake`；先确保 `eval "$(/opt/homebrew/bin/brew shellenv)"` 让 brew 进 PATH |
 | `zsh: command not found: brew` 装完 brew 后 | brew 不在 PATH | `eval "$(/opt/homebrew/bin/brew shellenv)"`；写到 ~/.zprofile 永久 |
 | `./gradlew :sdk:assembleRelease` → `SDK location not found` | 没写 local.properties，也没 export ANDROID_HOME | `cat > local.properties <<EOF\nsdk.dir=$HOME/Library/Android/sdk\nEOF`，或者 `export ANDROID_HOME=...` |

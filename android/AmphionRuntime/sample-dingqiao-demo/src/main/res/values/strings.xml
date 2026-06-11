@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">鼎桥语音识别 Demo</string>
+
+    <string name="status_idle">就绪</string>
+    <string name="partial_placeholder">等待语音输入…</string>
+    <string name="final_placeholder">识别结果（警务增强）将累积显示在这里。</string>
+    <string name="btn_talk_start">开始识别</string>
+    <string name="btn_talk_stop">停止识别</string>
+    <string name="status_loading_engine">正在初始化引擎…</string>
+    <string name="status_engine_ready">引擎就绪，点击开始识别</string>
+    <string name="status_listening">识别中…（再次点击结束）</string>
+    <string name="status_no_permission">没有录音权限，无法识别</string>
+    <string name="status_engine_failed">引擎初始化失败：%1$s</string>
+
+    <string name="cap_voiceprint_title">声纹校验</string>
+    <string name="menu_more">更多</string>
+    <string name="menu_voiceprint">声纹注册</string>
+    <string name="menu_delete_voiceprint">删除声纹</string>
+
+    <string name="vp_delete_title">删除已注册声纹？</string>
+    <string name="vp_delete_msg">将删除 SDK 工作目录中的声纹特征，并关闭声纹校验。</string>
+    <string name="vp_delete_ok">删除</string>
+    <string name="vp_delete_success">已删除声纹：%1$s</string>
+    <string name="vp_delete_failed">删除失败：%1$s</string>
+
+    <string name="vp_need_register">请先注册声纹</string>
+    <string name="vp_model_missing">未找到声纹模型，请将 eres2net.onnx 放入工作目录</string>
+    <string name="vp_registered">已注册声纹：%1$s</string>
+    <string name="vp_not_registered">未注册声纹</string>
+    <string name="speaker_score_format">相似度 %.2f</string>
+
+    <string name="enroll_title">声纹注册</string>
+    <string name="enroll_hint">录制 3~5 段语音，每段 3~8 秒，覆盖远/中/近距离。</string>
+    <string name="enroll_status">已录制 %1$d 段（需要 3~5 段）</string>
+    <string name="enroll_record">录制一段</string>
+    <string name="enroll_record_stop">结束本段</string>
+    <string name="enroll_register">注册声纹</string>
+    <string name="enroll_recording">录音中…正常说 3~8 秒后结束</string>
+    <string name="enroll_registering">正在注册声纹…</string>
+    <string name="enroll_success">注册成功：%1$s</string>
+    <string name="enroll_failed">注册失败：%1$s</string>
+    <string name="enroll_no_permission">没有录音权限</string>
+    <string name="enroll_seg_label">样本 %1$d · %2$s</string>
+    <string name="enroll_delete_title">删除样本？</string>
+    <string name="enroll_delete_msg">删除后需重新注册声纹。</string>
+    <string name="enroll_delete_ok">删除</string>
+    <string name="enroll_play_desc">播放</string>
+    <string name="enroll_delete_desc">删除</string>
+    <string name="enroll_empty">还没有录音样本</string>
+    <string name="enroll_registered_id">当前已注册：%1$s</string>
+    <string name="enroll_delete_voiceprint">删除已注册声纹</string>
+</resources>

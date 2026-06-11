@@ -36,6 +36,22 @@ import android.text.style.StrikethroughSpan
 import androidx.appcompat.widget.SwitchCompat
 import com.amphion.asr.AsrResult
 import com.amphion.asr.TargetSpeakerConfig
+import com.amphion.asr.sample.plate.PlateBatchEvalActivity
+import com.amphion.asr.sample.plate.PlateEvalRecorder
+import com.amphion.asr.sample.police_station.PoliceStationBatchEvalActivity
+import com.amphion.asr.sample.police_station.PoliceStationEvalRecorder
+import com.amphion.asr.sample.police_terms.PoliceTermsBatchEvalActivity
+import com.amphion.asr.sample.police_terms.PoliceTermsEvalRecorder
+import com.amphion.police.PoliceEnhancePipeline
+import com.amphion.police.plate.PlateEnhancePrefs
+import com.amphion.police.plate.PlateHotwords
+import com.amphion.police.plate.PlateNormalizer
+import com.amphion.police.station.PoliceStationEnhancePrefs
+import com.amphion.police.station.PoliceStationHotwords
+import com.amphion.police.station.PoliceStationNormalizer
+import com.amphion.police.terms.PoliceTermsEnhancePrefs
+import com.amphion.police.terms.PoliceTermsHotwords
+import com.amphion.police.terms.PoliceTermsNormalizer
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -109,6 +125,22 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvCloudFinal: TextView
     private lateinit var tvCloudStatus: TextView
 
+    private lateinit var cardPlateEnhance: android.view.View
+    private lateinit var swPlateHotwords: SwitchCompat
+    private lateinit var swPlateNormalize: SwitchCompat
+    private lateinit var tvPlatePipeline: TextView
+    private lateinit var plateEnhancePrefs: PlateEnhancePrefs
+    private lateinit var cardStationEnhance: android.view.View
+    private lateinit var swStationHotwords: SwitchCompat
+    private lateinit var swStationNormalize: SwitchCompat
+    private lateinit var tvStationPipeline: TextView
+    private lateinit var stationEnhancePrefs: PoliceStationEnhancePrefs
+    private lateinit var cardTermsEnhance: android.view.View
+    private lateinit var swTermsHotwords: SwitchCompat
+    private lateinit var swTermsNormalize: SwitchCompat
+    private lateinit var tvTermsPipeline: TextView
+    private lateinit var termsEnhancePrefs: PoliceTermsEnhancePrefs
+
     private val mainHandler: Handler by lazy { Handler(Looper.getMainLooper()) }
 
     /**
@@ -154,19 +186,19 @@ class MainActivity : AppCompatActivity() {
     // -------- 云端状态 --------
     private val cloudPrefs: CloudAsrPrefs by lazy { CloudAsrPrefs(applicationContext) }
 
-    /**
-     * 当前会话的云端客户端。录音线程通过它扇出 PCM；非录音期可能为 null。
-     * @Volatile：录音线程读、主线程写。
-     */
     @Volatile
     private var cloudClient: CloudAsrClient? = null
 
-    /** 每次 startListening 自增；云端回调按它判定是否仍属当前会话，丢弃上一会话的迟到回调。 */
     private val cloudGeneration = AtomicInteger(0)
     private val cloudFinalBuilder = StringBuilder()
-
-    /** 云端当前段实时文本（transcription.delta 的累积 text），定稿后并入 [cloudFinalBuilder]。 */
     private var cloudCurrentPartial: String = ""
+
+    private lateinit var plateNormalizer: PlateNormalizer
+    private lateinit var plateEvalRecorder: PlateEvalRecorder
+    private lateinit var stationNormalizer: PoliceStationNormalizer
+    private lateinit var stationEvalRecorder: PoliceStationEvalRecorder
+    private lateinit var termsNormalizer: PoliceTermsNormalizer
+    private lateinit var termsEvalRecorder: PoliceTermsEvalRecorder
 
     private val recordPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -207,7 +239,6 @@ class MainActivity : AppCompatActivity() {
         rbYueEn = findViewById(R.id.rb_yue_en)
         waveform = findViewById(R.id.waveform)
 
-        // 热词 / 目标人不再放主屏卡片，统一走右上角溢出菜单（action_hotwords / action_speaker）。
         swCloud = findViewById(R.id.sw_cloud)
         tvCloudState = findViewById(R.id.tv_cloud_state)
         cardCloud = findViewById(R.id.card_cloud)
@@ -215,8 +246,71 @@ class MainActivity : AppCompatActivity() {
         svCloud = findViewById(R.id.sv_cloud)
         tvCloudFinal = findViewById(R.id.tv_cloud_final)
         tvCloudStatus = findViewById(R.id.tv_cloud_status)
-        // 云端地址写死（见 CloudAsrPrefs.WS_URL），无需配置；整卡点击 = 切换启用开关。
         cardCloud.setOnClickListener { swCloud.toggle() }
+
+        plateEnhancePrefs = PlateEnhancePrefs(this)
+        stationEnhancePrefs = PoliceStationEnhancePrefs(this)
+        termsEnhancePrefs = PoliceTermsEnhancePrefs(this)
+        plateNormalizer = PlateNormalizer.create(
+            this,
+            useFst = plateEnhancePrefs.plateFstEnabled,
+        )
+        stationNormalizer = PoliceStationNormalizer.create(
+            this,
+            useFst = stationEnhancePrefs.stationFstEnabled,
+        )
+        termsNormalizer = PoliceTermsNormalizer.create(
+            this,
+            useFst = termsEnhancePrefs.termsFstEnabled,
+        )
+        plateEvalRecorder = PlateEvalRecorder(this)
+        stationEvalRecorder = PoliceStationEvalRecorder(this)
+        termsEvalRecorder = PoliceTermsEvalRecorder(this)
+        Log.i(TAG, "plate-eval TSV: ${plateEvalRecorder.filePath()}")
+        Log.i(TAG, PlateEvalRecorder.pullHint())
+        Log.i(TAG, "police-station-eval TSV: ${stationEvalRecorder.filePath()}")
+        Log.i(TAG, PoliceStationEvalRecorder.pullHint())
+        Log.i(TAG, "police-terms-eval TSV: ${termsEvalRecorder.filePath()}")
+        Log.i(TAG, PoliceTermsEvalRecorder.pullHint())
+
+        cardPlateEnhance = findViewById(R.id.card_plate_enhance)
+        swPlateHotwords = findViewById(R.id.sw_plate_hotwords)
+        swPlateNormalize = findViewById(R.id.sw_plate_normalize)
+        tvPlatePipeline = findViewById(R.id.tv_plate_pipeline)
+        swPlateHotwords.setOnCheckedChangeListener { _, on ->
+            onPlateHotwordsToggle(on)
+        }
+        swPlateNormalize.setOnCheckedChangeListener { _, on ->
+            plateEnhancePrefs.plateNormalizeEnabled = on
+            refreshPlateEnhanceCard()
+        }
+        refreshPlateEnhanceCard()
+
+        cardStationEnhance = findViewById(R.id.card_station_enhance)
+        swStationHotwords = findViewById(R.id.sw_station_hotwords)
+        swStationNormalize = findViewById(R.id.sw_station_normalize)
+        tvStationPipeline = findViewById(R.id.tv_station_pipeline)
+        swStationHotwords.setOnCheckedChangeListener { _, on ->
+            onStationHotwordsToggle(on)
+        }
+        swStationNormalize.setOnCheckedChangeListener { _, on ->
+            stationEnhancePrefs.stationNormalizeEnabled = on
+            refreshStationEnhanceCard()
+        }
+        refreshStationEnhanceCard()
+
+        cardTermsEnhance = findViewById(R.id.card_terms_enhance)
+        swTermsHotwords = findViewById(R.id.sw_terms_hotwords)
+        swTermsNormalize = findViewById(R.id.sw_terms_normalize)
+        tvTermsPipeline = findViewById(R.id.tv_terms_pipeline)
+        swTermsHotwords.setOnCheckedChangeListener { _, on ->
+            onTermsHotwordsToggle(on)
+        }
+        swTermsNormalize.setOnCheckedChangeListener { _, on ->
+            termsEnhancePrefs.termsNormalizeEnabled = on
+            refreshTermsEnhanceCard()
+        }
+        refreshTermsEnhanceCard()
 
         btnTalk.isEnabled = false
         setTalkButtonRecording(false)
@@ -233,6 +327,9 @@ class MainActivity : AppCompatActivity() {
             currentLang = newLang
             stopListeningForSwitch()
             clearTexts()
+            refreshPlateEnhanceCard()
+            refreshStationEnhanceCard()
+            refreshTermsEnhanceCard()
             loadEngineForLang(newLang)
         }
 
@@ -249,6 +346,9 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         reloadTargetSpeaker()
         refreshCloudCard()
+        refreshPlateEnhanceCard()
+        refreshStationEnhanceCard()
+        refreshTermsEnhanceCard()
         maybeReloadThreshold()
     }
 
@@ -262,6 +362,15 @@ class MainActivity : AppCompatActivity() {
         asrLoadExec.shutdownNow()
         engine?.close()
         engine = null
+        try {
+            stationNormalizer.close()
+        } catch (_: Throwable) {}
+        try {
+            plateNormalizer.close()
+        } catch (_: Throwable) {}
+        try {
+            termsNormalizer.close()
+        } catch (_: Throwable) {}
         // 不调 AmphionRuntime.release()：保留池给下次 Activity 用，避免重复加载
     }
 
@@ -270,7 +379,6 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    /** 录音中禁用热词 / 声纹入口：跳转会打断录音、热词 master 翻转还会触发 engine 重建。 */
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         menu.findItem(R.id.action_hotwords)?.isEnabled = !listening
         menu.findItem(R.id.action_speaker)?.isEnabled = !listening
@@ -285,6 +393,18 @@ class MainActivity : AppCompatActivity() {
             }
             R.id.action_hotwords -> {
                 hotwordsLauncher.launch(Intent(this, HotwordsActivity::class.java))
+                true
+            }
+            R.id.action_batch_eval -> {
+                startActivity(Intent(this, PlateBatchEvalActivity::class.java))
+                true
+            }
+            R.id.action_station_batch_eval -> {
+                startActivity(Intent(this, PoliceStationBatchEvalActivity::class.java))
+                true
+            }
+            R.id.action_terms_batch_eval -> {
+                startActivity(Intent(this, PoliceTermsBatchEvalActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -324,7 +444,14 @@ class MainActivity : AppCompatActivity() {
         val s = session
         if (s != null) {
             try {
-                s.updateHotwords(newActive, HOTWORDS_SCORE)
+                val merged = SceneAsrConfig.effectiveHotwords(
+                    applicationContext,
+                    currentLang,
+                    plateEnhancePrefs.plateHotwordsEnabled,
+                    stationEnhancePrefs.stationHotwordsEnabled,
+                    termsEnhancePrefs.termsHotwordsEnabled,
+                ).filter { it != HOTWORD_POOL_PLACEHOLDER }
+                s.updateHotwords(merged, HOTWORDS_SCORE)
             } catch (t: Throwable) {
                 Log.w(TAG, "updateHotwords failed: ${t.message}")
             }
@@ -338,10 +465,6 @@ class MainActivity : AppCompatActivity() {
 
     // ----------- 云端能力卡 -----------
 
-    /**
-     * 刷新「云端」能力卡：开关反映启用意图，副文反映启用态，结果区随启用态显隐。
-     * 设监听器前先置 null，避免 setChecked 触发回调。
-     */
     private fun refreshCloudCard() {
         val enabled = cloudPrefs.isEnabled()
         swCloud.setOnCheckedChangeListener(null)
@@ -361,9 +484,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 云端总开关。关→立刻断当前云端连接；开→若正在录音则即时起一路云端（从当前时刻开始）。
-     */
     private fun onCloudToggle(enabled: Boolean) {
         cloudPrefs.setEnabled(enabled)
         refreshCloudCard()
@@ -376,10 +496,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 为当前录音会话起一路云端识别。整个生命周期由 [CloudAsrClient] 管：connect→ready→start→
-     * PCM（[startListening] 的录音回调扇出）→stop→close。回调按 [cloudGeneration] 防串台。
-     */
     private fun startCloudForCurrentSession() {
         val gen = cloudGeneration.get()
         cloudClient?.close()
@@ -438,10 +554,6 @@ class MainActivity : AppCompatActivity() {
         CloudAsrClient.Status.CLOSED -> getString(R.string.cloud_status_closed)
     }.let { if (detail.isNullOrBlank()) it else "$it · $detail" }
 
-    /**
-     * 语言码映射：作为 session.update 的 language 识别提示（auto 或语言码）。
-     * ZH_EN→"zh"，YUE_EN→"yue"；服务端不认的码会回退自动识别，识别照常。
-     */
     private fun cloudLangCode(lang: AsrLanguage): String = when (lang) {
         AsrLanguage.ZH_EN -> "zh"
         AsrLanguage.YUE_EN -> "yue"
@@ -455,10 +567,6 @@ class MainActivity : AppCompatActivity() {
         renderCloud()
     }
 
-    /**
-     * 云端结果合并渲染：已定稿（[cloudFinalBuilder]）+ 当前实时段（[cloudCurrentPartial]）拼到同一个
-     * 可滚动文本区，并自动滚到底——保证内容溢出小框时能上下滑动查看。
-     */
     private fun renderCloud() {
         val sb = StringBuilder(cloudFinalBuilder)
         if (cloudCurrentPartial.isNotEmpty()) {
@@ -471,6 +579,134 @@ class MainActivity : AppCompatActivity() {
 
     private fun setCloudStatus(s: String) {
         tvCloudStatus.text = s
+    }
+
+    private fun onPlateHotwordsToggle(enabled: Boolean) {
+        if (plateEnhancePrefs.plateHotwordsEnabled == enabled) return
+        plateEnhancePrefs.plateHotwordsEnabled = enabled
+        loadEngineForLang(currentLang)
+        refreshPlateEnhanceCard()
+        refreshStationEnhanceCard()
+        refreshTermsEnhanceCard()
+    }
+
+    private fun onStationHotwordsToggle(enabled: Boolean) {
+        if (stationEnhancePrefs.stationHotwordsEnabled == enabled) return
+        stationEnhancePrefs.stationHotwordsEnabled = enabled
+        loadEngineForLang(currentLang)
+        refreshStationEnhanceCard()
+        refreshPlateEnhanceCard()
+        refreshTermsEnhanceCard()
+    }
+
+    private fun onTermsHotwordsToggle(enabled: Boolean) {
+        if (termsEnhancePrefs.termsHotwordsEnabled == enabled) return
+        termsEnhancePrefs.termsHotwordsEnabled = enabled
+        loadEngineForLang(currentLang)
+        refreshTermsEnhanceCard()
+        refreshPlateEnhanceCard()
+        refreshStationEnhanceCard()
+    }
+
+    private fun refreshPlateEnhanceCard() {
+        swPlateHotwords.setOnCheckedChangeListener(null)
+        swPlateNormalize.setOnCheckedChangeListener(null)
+        swPlateHotwords.isChecked = plateEnhancePrefs.plateHotwordsEnabled
+        swPlateNormalize.isChecked = plateEnhancePrefs.plateNormalizeEnabled
+        swPlateHotwords.setOnCheckedChangeListener { _, on -> onPlateHotwordsToggle(on) }
+        swPlateNormalize.setOnCheckedChangeListener { _, on ->
+            plateEnhancePrefs.plateNormalizeEnabled = on
+            refreshPlateEnhanceCard()
+        }
+        val n = if (plateEnhancePrefs.plateHotwordsEnabled) {
+            PlateHotwords.mergeWithUserWords(
+                HotwordsPrefs(applicationContext).activeWords(currentLang),
+                includePreset = true,
+            ).size
+        } else {
+            HotwordsPrefs(applicationContext).activeWords(currentLang).size
+        }
+        tvPlatePipeline.text = if (plateEnhancePrefs.plateHotwordsEnabled && n > 0) {
+            getString(R.string.cap_plate_hotwords_on, n) + " · " +
+                getString(R.string.cap_plate_pipeline_hint)
+        } else {
+            getString(R.string.cap_plate_hotwords_off) + " · " +
+                getString(R.string.cap_plate_pipeline_hint)
+        }
+    }
+
+    private fun refreshStationEnhanceCard() {
+        swStationHotwords.setOnCheckedChangeListener(null)
+        swStationNormalize.setOnCheckedChangeListener(null)
+        swStationHotwords.isChecked = stationEnhancePrefs.stationHotwordsEnabled
+        swStationNormalize.isChecked = stationEnhancePrefs.stationNormalizeEnabled
+        swStationHotwords.setOnCheckedChangeListener { _, on -> onStationHotwordsToggle(on) }
+        swStationNormalize.setOnCheckedChangeListener { _, on ->
+            stationEnhancePrefs.stationNormalizeEnabled = on
+            refreshStationEnhanceCard()
+        }
+        val n = if (stationEnhancePrefs.stationHotwordsEnabled) {
+            PoliceStationHotwords.mergeWithUserWords(
+                HotwordsPrefs(applicationContext).activeWords(currentLang),
+                includePreset = true,
+            ).size
+        } else {
+            HotwordsPrefs(applicationContext).activeWords(currentLang).size
+        }
+        tvStationPipeline.text = if (stationEnhancePrefs.stationHotwordsEnabled && n > 0) {
+            getString(R.string.cap_station_hotwords_on, n) + " · " +
+                getString(R.string.cap_station_pipeline_hint)
+        } else {
+            getString(R.string.cap_station_hotwords_off) + " · " +
+                getString(R.string.cap_station_pipeline_hint)
+        }
+    }
+
+    private fun refreshTermsEnhanceCard() {
+        swTermsHotwords.setOnCheckedChangeListener(null)
+        swTermsNormalize.setOnCheckedChangeListener(null)
+        swTermsHotwords.isChecked = termsEnhancePrefs.termsHotwordsEnabled
+        swTermsNormalize.isChecked = termsEnhancePrefs.termsNormalizeEnabled
+        swTermsHotwords.setOnCheckedChangeListener { _, on -> onTermsHotwordsToggle(on) }
+        swTermsNormalize.setOnCheckedChangeListener { _, on ->
+            termsEnhancePrefs.termsNormalizeEnabled = on
+            refreshTermsEnhanceCard()
+        }
+        val n = if (termsEnhancePrefs.termsHotwordsEnabled) {
+            PoliceTermsHotwords.mergeWithUserWords(
+                HotwordsPrefs(applicationContext).activeWords(currentLang),
+                includePreset = true,
+            ).size
+        } else {
+            HotwordsPrefs(applicationContext).activeWords(currentLang).size
+        }
+        tvTermsPipeline.text = if (termsEnhancePrefs.termsHotwordsEnabled && n > 0) {
+            getString(R.string.cap_terms_hotwords_on, n) + " · " +
+                getString(R.string.cap_terms_pipeline_hint)
+        } else {
+            getString(R.string.cap_terms_hotwords_off) + " · " +
+                getString(R.string.cap_terms_pipeline_hint)
+        }
+    }
+
+    /**
+     * 录音中锁定能力卡：避免跳转打断录音、避免热词 master 翻转触发 engine 重建。
+     * 目标人开关 [swTarget] 不在此锁定——录音中允许实时切换目标人，其可用性由
+     * [refreshTsStatus] 决定。
+     */
+    private fun setCapabilityLocked(locked: Boolean) {
+        cardPlateEnhance.isEnabled = !locked
+        cardPlateEnhance.alpha = if (locked) 0.5f else 1f
+        swPlateHotwords.isEnabled = !locked
+        cardStationEnhance.isEnabled = !locked
+        cardStationEnhance.alpha = if (locked) 0.5f else 1f
+        swStationHotwords.isEnabled = !locked
+        cardTermsEnhance.isEnabled = !locked
+        cardTermsEnhance.alpha = if (locked) 0.5f else 1f
+        swTermsHotwords.isEnabled = !locked
+        cardCloud.isEnabled = !locked
+        cardCloud.alpha = if (locked) 0.5f else 1f
+        swCloud.isEnabled = !locked
     }
 
     // ----------- 加载 / 切换语言 -----------
@@ -494,13 +730,6 @@ class MainActivity : AppCompatActivity() {
 
         val prefs = HotwordsPrefs(applicationContext)
         val userHotwords = prefs.activeWords(lang)
-        val poolArmed = (application as AmphionApp).hotwordsArmed
-        // 占位词补齐策略（详见 HOTWORD_POOL_PLACEHOLDER）：池 armed 时 cfg 始终非空热词
-        val effectiveHotwords: List<String> = when {
-            userHotwords.isNotEmpty() -> userHotwords
-            poolArmed -> listOf(HOTWORD_POOL_PLACEHOLDER)
-            else -> emptyList()
-        }
         currentHotwordsApplied = userHotwords
         val targetThreshold = speakerStore.getThreshold()
         currentThresholdApplied = targetThreshold
@@ -513,28 +742,42 @@ class MainActivity : AppCompatActivity() {
                 // 等 preload 完成；最多 60 秒。这样 create 必然命中池，避免 race 重复加载。
                 waitForPreload(timeoutMs = 60_000)
 
-                val cfgBuilder = AsrConfig.Builder()
-                    .numThreads(2)
-                    .punctuation(true)
-                    .itn(true)
-                    .vad(true)
-                    .endpoint(true)
-                if (speakerModelReady()) {
-                    cfgBuilder.targetSpeaker(
-                        TargetSpeakerConfig(
-                            modelPath = speakerModelPath(),
-                            threshold = targetThreshold,
-                            preload = false,
-                        ),
-                    )
+                val cfg = SceneAsrConfig.build(
+                    applicationContext,
+                    lang,
+                    plateHotwords = plateEnhancePrefs.plateHotwordsEnabled,
+                    stationHotwords = stationEnhancePrefs.stationHotwordsEnabled,
+                    termsHotwords = termsEnhancePrefs.termsHotwordsEnabled,
+                    itn = true,
+                )
+                val cfgWithTarget = if (speakerModelReady()) {
+                    AsrConfig.Builder()
+                        .numThreads(cfg.numThreads)
+                        .punctuation(cfg.punctuation)
+                        .itn(cfg.itn)
+                        .vad(cfg.vad)
+                        .vadConfig(cfg.vadConfig)
+                        .endpoint(cfg.endpoint)
+                        .endpointRules(cfg.endpointRules)
+                        .apply {
+                            if (cfg.hotwords.isNotEmpty()) {
+                                hotwords(cfg.hotwords, cfg.hotwordsScore)
+                            }
+                            targetSpeaker(
+                                TargetSpeakerConfig(
+                                    modelPath = speakerModelPath(),
+                                    threshold = targetThreshold,
+                                    preload = false,
+                                ),
+                            )
+                        }
+                        .build()
+                } else {
+                    cfg
                 }
-                if (effectiveHotwords.isNotEmpty()) {
-                    cfgBuilder.hotwords(effectiveHotwords, HOTWORDS_SCORE)
-                }
-                val cfg = cfgBuilder.build()
 
                 val newEngine: AsrEngine = try {
-                    AmphionRuntime.create(applicationContext, lang, cfg)
+                    AmphionRuntime.create(applicationContext, lang, cfgWithTarget)
                 } catch (t: Throwable) {
                     mainHandler.post {
                         if (gen != asrLoadGeneration.get()) return@post
@@ -591,9 +834,9 @@ class MainActivity : AppCompatActivity() {
         clearTexts()
         setStatus("识别中…（再次点击停止）")
         setTalkButtonRecording(true)
-        invalidateOptionsMenu() // 录音中禁用菜单里的热词 / 声纹入口
+        setCapabilityLocked(true)
+        invalidateOptionsMenu()
 
-        // 起一路云端（若启用）。新会话自增 generation，丢弃上一会话迟到的云端回调。
         cloudGeneration.incrementAndGet()
         if (cloudPrefs.isEnabled()) {
             startCloudForCurrentSession()
@@ -613,15 +856,19 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onFinal(result: AsrResult) {
+                val enhanced = applyDomainEnhance(result.text)
+                recordDomainEnhance(enhanced, result.text)
                 runOnUiThread {
-                    appendFinalSegment(result, rejected = false)
+                    appendFinalSegment(result, rejected = false, enhanced = enhanced)
                     tvPartial.text = ""
                 }
             }
 
             override fun onFinalRejected(result: AsrResult) {
+                val enhanced = applyDomainEnhance(result.text)
+                recordDomainEnhance(enhanced, result.text)
                 runOnUiThread {
-                    appendFinalSegment(result, rejected = true)
+                    appendFinalSegment(result, rejected = true, enhanced = enhanced)
                     tvPartial.text = ""
                 }
             }
@@ -666,7 +913,6 @@ class MainActivity : AppCompatActivity() {
         capturedSession = s
         session = s
 
-        // 门控开关已从主屏移除：注册了目标人即启用「只认目标人」，要取消就在声纹页删除声纹。
         targetEmbedding?.let { emb ->
             s.setTargetSpeaker(emb)
             s.setTargetSpeakerEnabled(true)
@@ -675,8 +921,6 @@ class MainActivity : AppCompatActivity() {
         recorder = AudioRecorder(
             sampleRate = 16000,
             onPcm = { samples ->
-                // 同一路麦克风音频扇出三处：端侧 SDK、波形、云端 WS。
-                // 云端是 @Volatile 读，未启用时为 null，自然跳过；其内部异常不会回抛录音线程。
                 s.acceptPcmShort(samples)
                 feedWaveform(samples)
                 cloudClient?.sendPcm(samples)
@@ -697,12 +941,10 @@ class MainActivity : AppCompatActivity() {
         session = null
         s?.stop()
 
-        // 云端：发 stop 让服务端 flush 尾部 final，连接保留片刻后由 client 自行关闭。
-        // 不清 generation：尾部 final 仍属本会话，应继续显示；下次 start 时才递增。
-        cloudClient?.stop()
-
         setTalkButtonRecording(false)
+        setCapabilityLocked(false)
         invalidateOptionsMenu()
+        cloudClient?.stop()
         if (engine != null) {
             setStatus("正在结束本段…")
         }
@@ -713,11 +955,11 @@ class MainActivity : AppCompatActivity() {
         recorder?.stop()
         recorder = null
         session = null
-        // 切语言会重建 engine，云端 language/hotwords 也随之变；直接断开当前云端连接。
         cloudGeneration.incrementAndGet()
         cloudClient?.close()
         cloudClient = null
         setTalkButtonRecording(false)
+        setCapabilityLocked(false)
         invalidateOptionsMenu()
         waveform.visibility = android.view.View.GONE
     }
@@ -788,10 +1030,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun speakerModelReady(): Boolean = File(speakerModelPath()).exists()
 
-    /**
-     * 从本地档案重载声纹（声纹页可能刚更新过），同步到运行中的 session。
-     * 门控语义：有声纹即启用「只认目标人」（注册即生效），无声纹即放行全部。
-     */
     private fun reloadTargetSpeaker() {
         val emb = speakerStore.loadEmbedding()
         targetEmbedding = emb
@@ -817,8 +1055,80 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun appendFinalSegment(result: AsrResult, rejected: Boolean) {
-        val text = result.text
+    private fun applyDomainEnhance(asrRaw: String): PoliceEnhancePipeline.Result =
+        AsrTextEnhance.apply(
+            asrRaw,
+            termsNormalizer,
+            termsEnhancePrefs.termsNormalizeEnabled,
+            plateNormalizer,
+            plateEnhancePrefs.plateNormalizeEnabled,
+            stationNormalizer,
+            stationEnhancePrefs.stationNormalizeEnabled,
+        )
+
+    private fun recordDomainEnhance(enhanced: PoliceEnhancePipeline.Result, asrRaw: String) {
+        termsEvalRecorder.append(
+            uttId = "mic_${System.currentTimeMillis()}",
+            refText = "",
+            expectedTerms = emptyList(),
+            asrRaw = asrRaw,
+            result = enhanced.terms,
+        )
+        logTermsEnhance(asrRaw, enhanced.terms)
+        plateEvalRecorder.append(asrRaw, enhanced.plate)
+        logPlateEnhance(asrRaw, enhanced.plate)
+        stationEvalRecorder.append(
+            uttId = "mic_${System.currentTimeMillis()}",
+            refText = "",
+            expectedStation = "",
+            asrRaw = asrRaw,
+            result = enhanced.station,
+        )
+        logStationEnhance(asrRaw, enhanced.station)
+    }
+
+    private fun logTermsEnhance(
+        raw: String,
+        norm: com.amphion.police.terms.PoliceTermsNormalizeResult,
+    ) {
+        if (norm.spans.isEmpty()) return
+        Log.i(
+            TAG,
+            "PoliceTermsEnhance raw=$raw norm=${norm.text} terms=${norm.matchedTerms} " +
+                "valid=${norm.spans.any { it.valid }}",
+        )
+    }
+
+    private fun logPlateEnhance(raw: String, norm: com.amphion.police.plate.PlateNormalizeResult) {
+        if (norm.spans.isEmpty()) return
+        Log.i(
+            TAG,
+            "PlateEnhance raw=$raw norm=${norm.text} primary=${norm.primaryPlate} " +
+                "valid=${norm.spans.any { it.valid }}",
+        )
+    }
+
+    private fun logStationEnhance(
+        raw: String,
+        norm: com.amphion.police.station.PoliceStationNormalizeResult,
+    ) {
+        if (norm.spans.isEmpty()) return
+        Log.i(
+            TAG,
+            "PoliceStationEnhance raw=$raw norm=${norm.text} primary=${norm.primaryStation} " +
+                "valid=${norm.spans.any { it.valid }}",
+        )
+    }
+
+    private fun appendFinalSegment(
+        result: AsrResult,
+        rejected: Boolean,
+        enhanced: PoliceEnhancePipeline.Result? = null,
+    ) {
+        var text = enhanced?.text ?: result.text
+        if (enhanced != null && enhanced.text != result.text) {
+            text = "${enhanced.text}\n(原文: ${result.text})"
+        }
         if (text.isEmpty()) return
         if (finalBuilder.isNotEmpty()) finalBuilder.append("\n")
         val start = finalBuilder.length

@@ -28,7 +28,7 @@ class AudioRecorder(
     gainDb: Float = 0f,
 ) {
 
-    private val gainFactor: Float = if (gainDb == 0f) 1f else Math.pow(10.0, gainDb / 20.0).toFloat()
+    private val gainFactor: Float = gainFactor(gainDb)
 
     private val running = AtomicBoolean(false)
     private var thread: Thread? = null
@@ -114,7 +114,10 @@ class AudioRecorder(
         thread = null
     }
 
-    private companion object {
+    companion object {
+        fun gainFactor(gainDb: Float): Float =
+            if (gainDb == 0f) 1f else Math.pow(10.0, gainDb / 20.0).toFloat()
+
         fun applyGain(samples: ShortArray, factor: Float) {
             var i = 0
             while (i < samples.size) {

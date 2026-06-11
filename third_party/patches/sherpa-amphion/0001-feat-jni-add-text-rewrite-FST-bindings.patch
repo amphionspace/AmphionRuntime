@@ -1,0 +1,149 @@
+From 66cec351b8e35f3168deba58bcdebc12a7c5d5cf Mon Sep 17 00:00:00 2001
+From: Amphion <amphion@AmphiondeMacBook-Air.local>
+Date: Wed, 10 Jun 2026 11:46:30 +0800
+Subject: [PATCH 1/3] feat(jni): add text rewrite FST bindings
+
+Add JNI glue for loading and applying rule FSTs used by domain post-processing.
+
+Co-authored-by: Cursor <cursoragent@cursor.com>
+---
+ sherpa-onnx/jni/CMakeLists.txt      |   1 +
+ sherpa-onnx/jni/text-rewrite-fst.cc | 114 ++++++++++++++++++++++++++++
+ 2 files changed, 115 insertions(+)
+ create mode 100644 sherpa-onnx/jni/text-rewrite-fst.cc
+
+diff --git a/sherpa-onnx/jni/CMakeLists.txt b/sherpa-onnx/jni/CMakeLists.txt
+index 3996afb4..a763e453 100644
+--- a/sherpa-onnx/jni/CMakeLists.txt
++++ b/sherpa-onnx/jni/CMakeLists.txt
+@@ -27,6 +27,7 @@ set(sources
+   speaker-embedding-manager.cc
+   speech-denoiser.cc
+   spoken-language-identification.cc
++  text-rewrite-fst.cc
+   version.cc
+   voice-activity-detector.cc
+   wave-reader.cc
+diff --git a/sherpa-onnx/jni/text-rewrite-fst.cc b/sherpa-onnx/jni/text-rewrite-fst.cc
+new file mode 100644
+index 00000000..8eb2de7f
+--- /dev/null
++++ b/sherpa-onnx/jni/text-rewrite-fst.cc
+@@ -0,0 +1,114 @@
++// sherpa-onnx/jni/text-rewrite-fst.cc
++//
++// Single-rule FST text rewrite via kaldifst::TextNormalizer (same engine as
++// OnlineRecognizer rule_fsts).
++
++#include <memory>
++#include <sstream>
++#include <string>
++
++#include "kaldifst/csrc/text-normalizer.h"
++#include "sherpa-onnx/csrc/file-utils.h"
++#include "sherpa-onnx/csrc/macros.h"
++#include "sherpa-onnx/jni/common.h"
++
++namespace {
++
++struct TextRewriteFstHolder {
++  std::unique_ptr<kaldifst::TextNormalizer> normalizer;
++};
++
++static TextRewriteFstHolder *Cast(jlong ptr) {
++  return reinterpret_cast<TextRewriteFstHolder *>(ptr);
++}
++
++static std::string JstringToUtf8(JNIEnv *env, jstring text) {
++  const char *chars = env->GetStringUTFChars(text, nullptr);
++  std::string s(chars ? chars : "");
++  if (chars) {
++    env->ReleaseStringUTFChars(text, chars);
++  }
++  return s;
++}
++
++}  // namespace
++
++SHERPA_ONNX_EXTERN_C
++JNIEXPORT jlong JNICALL Java_com_k2fsa_sherpa_onnx_TextRewriteFst_newFromFile(
++    JNIEnv *env, jobject /*obj*/, jstring rule_fst) {
++  const char *path = env->GetStringUTFChars(rule_fst, nullptr);
++  if (!path) {
++    return 0;
++  }
++  try {
++    auto holder = new TextRewriteFstHolder;
++    holder->normalizer =
++        std::make_unique<kaldifst::TextNormalizer>(std::string(path));
++    env->ReleaseStringUTFChars(rule_fst, path);
++    return reinterpret_cast<jlong>(holder);
++  } catch (const std::exception &e) {
++    SHERPA_ONNX_LOGE("TextRewriteFst_newFromFile failed: %s", e.what());
++    env->ReleaseStringUTFChars(rule_fst, path);
++    return 0;
++  }
++}
++
++#if __ANDROID_API__ >= 9
++SHERPA_ONNX_EXTERN_C
++JNIEXPORT jlong JNICALL
++Java_com_k2fsa_sherpa_onnx_TextRewriteFst_newFromAsset(JNIEnv *env,
++                                                         jobject /*obj*/,
++                                                         jobject asset_manager,
++                                                         jstring rule_fst) {
++  AAssetManager *mgr = AAssetManager_fromJava(env, asset_manager);
++  if (!mgr) {
++    SHERPA_ONNX_LOGE("Failed to get asset manager");
++    return 0;
++  }
++
++  const char *path = env->GetStringUTFChars(rule_fst, nullptr);
++  if (!path) {
++    return 0;
++  }
++
++  try {
++    auto buf = sherpa_onnx::ReadFile(mgr, path);
++    std::istringstream is(std::string(buf.data(), buf.size()));
++    auto holder = new TextRewriteFstHolder;
++    holder->normalizer = std::make_unique<kaldifst::TextNormalizer>(is);
++    env->ReleaseStringUTFChars(rule_fst, path);
++    return reinterpret_cast<jlong>(holder);
++  } catch (const std::exception &e) {
++    SHERPA_ONNX_LOGE("TextRewriteFst_newFromAsset failed: %s", e.what());
++    env->ReleaseStringUTFChars(rule_fst, path);
++    return 0;
++  }
++}
++#endif
++
++SHERPA_ONNX_EXTERN_C
++JNIEXPORT void JNICALL Java_com_k2fsa_sherpa_onnx_TextRewriteFst_delete(
++    JNIEnv * /*env*/, jobject /*obj*/, jlong ptr) {
++  delete Cast(ptr);
++}
++
++SHERPA_ONNX_EXTERN_C
++JNIEXPORT jstring JNICALL Java_com_k2fsa_sherpa_onnx_TextRewriteFst_normalize(
++    JNIEnv *env, jobject /*obj*/, jlong ptr, jstring text) {
++  auto holder = Cast(ptr);
++  if (!holder || !holder->normalizer) {
++    return SafeNewStringUTF(env, "");
++  }
++
++  try {
++    std::string input = JstringToUtf8(env, text);
++    if (input.empty()) {
++      return SafeNewStringUTF(env, "");
++    }
++    std::string output = holder->normalizer->Normalize(input);
++    return SafeNewStringUTF(env, output);
++  } catch (const std::exception &e) {
++    SHERPA_ONNX_LOGE("TextRewriteFst_normalize failed: %s", e.what());
++    return SafeNewStringUTF(env, JstringToUtf8(env, text));
++  }
++}
+-- 
+2.39.5 (Apple Git-154)
+
