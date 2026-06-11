@@ -117,3 +117,13 @@ payload claims 字段：
 ## 7. 与交付流程的衔接
 
 完整商业化交付 SOP 见 `android/AmphionRuntime/docs/DELIVERY.md`；授权方案与防破解边界见 `android/AmphionRuntime/docs/LICENSING.md`。
+
+鼎桥 Demo Release（`com.amphion.dingqiao.demo`）专用脚本：
+
+```bash
+bash tools/license/issue_dingqiao_demo.sh
+# 默认自签发日起 2 个月试用（DINGQIAO_DEMO_TRIAL_MONTHS 可调）；绑定 demo release 证书 SHA-256
+# 产物 → sample-dingqiao-demo/src/main/assets/amphion-license.lic
+```
+
+`tools/android/pack_dingqiao_*.sh` 在构建 Demo Release 前会自动调用上述脚本。

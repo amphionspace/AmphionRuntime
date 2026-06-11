@@ -4,7 +4,5 @@
 
 -include ../sdk/consumer-rules.pro
 
--dontwarn java.lang.invoke.StringConcatFactory
-
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile

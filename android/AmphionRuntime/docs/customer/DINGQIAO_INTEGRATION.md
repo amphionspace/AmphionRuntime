@@ -9,7 +9,7 @@
 | `aar/dingqiao-asr-v0.1.0.aar` | 集成用 SDK（含 ASR 模型、JNI、警务域、鼎桥 API） |
 | `models/eres2net.onnx` | 声纹模型（约 38 MB），运行时放入 `setWorkPath` |
 | `demo/*.apk` | 参考 Demo（可选，用于验收） |
-| `docs/` | 接口与集成说明 |
+| `docs/` | 接口、集成说明、商用授权（LICENSE.md）、**第三方开源声明（NOTICE）** |
 
 商用授权文件 `amphion-license.lic` 由我方单独签发，见 [`LICENSE.md`](LICENSE.md)。
 
@@ -103,3 +103,4 @@ adb push eres2net.onnx /sdcard/Android/data/com.amphion.dingqiao.demo/files/ding
 |------|------|
 | [`语音识别SDK接口.md`](语音识别SDK接口.md) | API 契约 |
 | [`LICENSE.md`](LICENSE.md) | 商用授权接入 |
+| [`NOTICE`](NOTICE) | 第三方开源组件声明（sherpa-onnx / ONNX Runtime / silero-vad / 3D-Speaker 等） |

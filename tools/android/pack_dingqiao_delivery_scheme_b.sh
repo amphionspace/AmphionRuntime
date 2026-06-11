@@ -6,14 +6,21 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# shellcheck source=dingqiao_build_provenance.sh
+source "$SCRIPT_DIR/dingqiao_build_provenance.sh"
+
+REPO_ROOT="$(dingqiao_repo_root_from_script)"
 DQ_ROOT="$(cd "$REPO_ROOT/.." && pwd)"
-AR_ROOT="$REPO_ROOT/android/AmphionRuntime"
-VERSION="${1:-0.1.0}"
-DATE="$(date +%Y%m%d)"
+AR_ROOT="$(dingqiao_ar_root_from_repo "$REPO_ROOT")"
+BUILD_DATE="$(date +%Y%m%d)"
+
+dingqiao_load_git_provenance "$REPO_ROOT"
+dingqiao_assert_reproducible_build
+
+VERSION="$(dingqiao_resolve_delivery_version "$AR_ROOT" "${1:-}")"
 PKG_NAME="amphion-dingqiao-v${VERSION}-schemeB"
 OUT_ROOT="$DQ_ROOT/delivery/$PKG_NAME"
-ZIP_PATH="$DQ_ROOT/delivery/${PKG_NAME}-${DATE}.zip"
+ZIP_PATH="$DQ_ROOT/delivery/${PKG_NAME}-${BUILD_DATE}.zip"
 ERES2NET_SRC="$REPO_ROOT/tools/speaker/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"
 
 SDK_AAR="$AR_ROOT/sdk/build/outputs/aar/sdk-release.aar"
@@ -23,7 +30,9 @@ DEMO_APK="$AR_ROOT/sample-dingqiao-demo/build/outputs/apk/release/sample-dingqia
 
 echo "[1/3] build release（三 AAR + Demo APK 同批构建）..."
 cd "$AR_ROOT"
+dingqiao_issue_demo_license "$REPO_ROOT"
 ./gradlew :sdk:assembleRelease :sdk-police:assembleRelease :sdk-dingqiao:assembleRelease :sample-dingqiao-demo:assembleRelease
+dingqiao_assert_sdk_version_consistent "$AR_ROOT"
 
 for f in "$SDK_AAR" "$POLICE_AAR" "$DINGQIAO_AAR" "$DEMO_APK"; do
   [[ -f "$f" ]] || { echo "[ERROR] missing $f" >&2; exit 1; }
@@ -43,6 +52,7 @@ cp "$DQ_ROOT/语音识别SDK接口.md" "$OUT_ROOT/docs/"
 cp "$AR_ROOT/docs/DINGQIAO_DELIVERY.md" "$OUT_ROOT/docs/"
 cp "$AR_ROOT/docs/INTEGRATION.md" "$OUT_ROOT/docs/"
 cp "$AR_ROOT/docs/LICENSING.md" "$OUT_ROOT/docs/"
+cp "$AR_ROOT/NOTICE" "$OUT_ROOT/docs/NOTICE"
 
 SDK_MB="$(du -m "$OUT_ROOT/aar/amphion-runtime-release.aar" | awk '{print $1}')"
 POLICE_MB="$(du -m "$OUT_ROOT/aar/amphion-police-release.aar" | awk '{print $1}')"
@@ -51,20 +61,18 @@ APK_MB="$(du -m "$OUT_ROOT/demo/sample-dingqiao-demo-release.apk" | awk '{print 
 MODEL_MB="$(du -m "$OUT_ROOT/models/eres2net.onnx" | awk '{print $1}')"
 
 cd "$REPO_ROOT"
-GIT_HASH="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-cat > "$OUT_ROOT/VERSION.txt" <<EOF
-package=amphion-dingqiao-schemeB
-version=$VERSION
-sdk_version=0.2.2
-git_commit=$GIT_HASH
-build_date=$DATE
-amphion_runtime_aar_mb=$SDK_MB
-amphion_police_aar_mb=$POLICE_MB
-dingqiao_sdk_aar_mb=$DINGQIAO_MB
-demo_apk_mb=$APK_MB
-voiceprint_model_mb=$MODEL_MB
-demo_aligned=true
-EOF
+dingqiao_write_version_txt "$OUT_ROOT/VERSION.txt" \
+  "amphion-dingqiao-schemeB" "$VERSION" \
+  "amphion_runtime_aar_mb=$SDK_MB" \
+  "amphion_police_aar_mb=$POLICE_MB" \
+  "dingqiao_sdk_aar_mb=$DINGQIAO_MB" \
+  "demo_apk_mb=$APK_MB" \
+  "voiceprint_model_mb=$MODEL_MB" \
+  "demo_aligned=true" \
+  "pack_script=tools/android/pack_dingqiao_delivery_scheme_b.sh"
+
+bash "$REPO_ROOT/tools/android/verify_dingqiao_delivery.sh" "$OUT_ROOT/VERSION.txt"
+bash "$REPO_ROOT/tools/android/verify_dingqiao_delivery.sh" "$OUT_ROOT"
 
 cat > "$OUT_ROOT/README.txt" <<EOF
 鼎桥警务语音识别 SDK — 交付预览（方案 B）
@@ -103,12 +111,12 @@ Gradle 集成（方案 B）
 
 版本
 ----
-  见 VERSION.txt（commit: $GIT_HASH）
+  见 VERSION.txt（commit: $GIT_COMMIT_SHORT）
 EOF
 
-echo "[3/3] zip ..."
+echo "[3/3] zip (UTF-8 EFS for Windows) ..."
 rm -f "$ZIP_PATH"
-(cd "$DQ_ROOT/delivery" && zip -qr "$(basename "$ZIP_PATH")" "$(basename "$OUT_ROOT")")
+dingqiao_zip_delivery "$OUT_ROOT" "$ZIP_PATH"
 
 echo "[OK] tree: $OUT_ROOT"
 echo "[OK] zip:  $ZIP_PATH"
