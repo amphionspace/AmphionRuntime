@@ -40,6 +40,7 @@ ios/AmphionRuntime/AmphionRuntime.xcframework.zip.sha256
 # Sample app 模型资源（不入库）
 android/AmphionRuntime/sample/src/main/assets/asr-models/
 # WeText ITN fst 构建缓存（由 tools/asr/00_push_weitn_fsts.sh 产出）
+tools/asr/sherpa-cmake-deps/
 tools/asr/weitn-fsts/
 # 标点模型 tarball / 解压结果（由 tools/asr/00_push_punct_model.sh 产出）
 tools/asr/punct-model/
@@ -119,5 +120,8 @@ shared/docs/dashboard/trends/*.csv
 # --- 离线 license 私钥与签发产物（严禁进库，见 tools/license/README.md） ---
 # 私钥 = 授权信任根，泄露即可被任意签发有效 license；签发出的 .lic 是每客户产物，不入库。
 *-private.pem
+.secure/
 tools/license/*.pem
 tools/license/*.lic
+**/amphion-license.lic
+android/AmphionRuntime/keystore/

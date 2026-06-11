@@ -1,0 +1,104 @@
+Amphion Dingqiao Speech SDK — Third-Party Notices
+Copyright (c) 2026 Amphion
+
+This delivery package (dingqiao-asr AAR, optional voiceprint model, and
+documentation) includes software and model artifacts developed by third
+parties. The following notices are provided for compliance with their
+respective open-source licenses.
+
+For Amphion commercial licensing of the SDK wrapper and integration layer,
+see docs/LICENSE.md. This NOTICE covers bundled third-party components only.
+
+================================================================================
+1. sherpa-onnx
+================================================================================
+
+Repository:  https://github.com/k2-fsa/sherpa-onnx
+License:     Apache License 2.0
+Version:     v1.13.1 (pinned upstream tag used to build native libraries)
+Copyright:   (c) 2022-2026 Xiaomi Corporation and contributors
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+The fat AAR ships libsherpa-onnx-jni.so and Kotlin bindings derived from the
+upstream sherpa-onnx Android template (Apache-2.0). Speech recognition model
+artifacts (encoder/decoder/joiner ONNX) are loaded from AAR assets.
+
+================================================================================
+2. ONNX Runtime
+================================================================================
+
+Repository:  https://github.com/microsoft/onnxruntime
+License:     MIT License
+Version:     1.24.3 (Android arm64-v8a prebuilt)
+Copyright:   (c) Microsoft Corporation
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+libonnxruntime.so is bundled inside the fat AAR without modification.
+
+================================================================================
+3. silero-vad (VAD model)
+================================================================================
+
+Repository:  https://github.com/snakers4/silero-vad
+License:     MIT License
+Copyright:   (c) Silero Team
+
+   MIT License (same terms as ONNX Runtime above).
+
+The file assets/amphion-models/vad/v1/silero_vad.onnx is bundled inside the
+fat AAR and used when voice-activity detection is enabled.
+
+================================================================================
+4. 3D-Speaker / eres2net (voiceprint model, optional)
+================================================================================
+
+Project:     3D-Speaker (Alibaba DAMO Academy)
+Repository:  https://github.com/modelscope/3D-Speaker
+License:     Apache License 2.0
+Model:       3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx
+             (distributed in this package as models/eres2net.onnx)
+
+   Licensed under the Apache License, Version 2.0.
+
+This ONNX model is redistributed via the sherpa-onnx project model releases
+for speaker embedding / voiceprint verification. It is not embedded in the fat
+AAR; integrators copy it to the app work directory when enabling voiceprint
+features (see docs/DINGQIAO_INTEGRATION.md).
+
+================================================================================
+5. WeTextProcessing (Chinese ITN, optional component)
+================================================================================
+
+Repository:  https://github.com/wenet-e2e/WeTextProcessing
+License:     Apache License 2.0
+Copyright:   WeNet contributors
+
+Chinese inverse text normalization (ITN) FST assets under
+assets/amphion-models/itn-zh/ in the fat AAR are derived from this project.
+
+================================================================================
+TRADEMARKS
+================================================================================
+
+"sherpa-onnx", "k2", and "icefall" are trademarks of their respective owners.
+"ONNX" and "ONNX Runtime" are trademarks of Microsoft Corporation.
+"Android" is a trademark of Google LLC.
+"3D-Speaker" is a project name of Alibaba Group.
+
+For full license texts, refer to each upstream repository listed above.
