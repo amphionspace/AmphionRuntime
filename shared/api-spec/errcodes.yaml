@@ -226,6 +226,13 @@ errors:
     sdk_action: fatal
     user_facing: 授权已过期，请续期
 
+  - code: 6007
+    name: LicenseDeviceMismatch
+    category: license
+    message: license deviceSha256 does not match this device
+    sdk_action: fatal
+    user_facing: 授权与当前设备不匹配（单机绑定）
+
   # ---------- 9xxx native 兜底 ----------
   - code: 9001
     name: NativeCrash
