@@ -44,6 +44,13 @@ class PlateNormalizer private constructor(
         private val GANG_AO_SHORT_PLATE = Regex(
             "^[港澳][$PLATE_LETTERS][0-9$PLATE_LETTERS]{4}$",
         )
+        /** 冀/京 O 省直机关：省 + O + 5 位字母数字（发牌机关代号 O 不计入 PLATE_LETTERS） */
+        private val JI_O_PLATE = Regex(
+            "^冀O[0-9$PLATE_LETTERS]{5}$",
+        )
+        private val JING_O_PLATE = Regex(
+            "^京O[0-9$PLATE_LETTERS]{5}$",
+        )
 
         fun create(context: Context, useFst: Boolean = false): PlateNormalizer =
             PlateNormalizer(
@@ -287,7 +294,8 @@ class PlateNormalizer private constructor(
      */
     private val misheardJiLetterPrefix = Regex(
         "^[\\s，,：:、.．。；！？]*" +
-            "(?:[GgＧ]\\s*([A-GJ-Z])|记\\s*H|计\\s*T|即\\s*E\\s*H|G\\s*F)",
+            "(?:[GgＧ]\\s*([A-HJ-NP-Z])|记\\s*([A-HJ-NP-Z])|记\\s*笔|记\\s*毕|记\\s*G|" +
+            "即\\s*(?![RrＲ])([A-HJ-NP-Z])|记\\s*H|计\\s*T|即\\s*E\\s*H|G\\s*F)",
     )
 
     private fun fixMisheardJiLetterInPlateContext(text: String): String {
@@ -299,11 +307,15 @@ class PlateNormalizer private constructor(
     }
 
     private fun jiLetterReplacementFor(matched: String): String {
+        if (Regex("记\\s*笔|记\\s*毕").containsMatchIn(matched)) return "冀B"
+        if (Regex("记\\s*G").containsMatchIn(matched)) return "冀G"
         if (Regex("记\\s*H").containsMatchIn(matched)) return "冀H"
         if (Regex("计\\s*T").containsMatchIn(matched)) return "冀T"
         if (Regex("即\\s*E\\s*H").containsMatchIn(matched)) return "冀EH"
         if (Regex("G\\s*F").containsMatchIn(matched)) return "冀F"
-        Regex("[GgＧ]\\s*([A-GJ-Z])").find(matched)?.let { return "冀${it.groupValues[1]}" }
+        Regex("记\\s*([A-HJ-NP-Z])").find(matched)?.let { return "冀${it.groupValues[1]}" }
+        Regex("即\\s*(?![RrＲ])([A-HJ-NP-Z])").find(matched)?.let { return "冀${it.groupValues[1]}" }
+        Regex("[GgＧ]\\s*([A-HJ-NP-Z])").find(matched)?.let { return "冀${it.groupValues[1]}" }
         return matched
     }
 
@@ -1001,8 +1013,14 @@ class PlateNormalizer private constructor(
         replacement: String,
     ): String = replacePrefixAfterAnchor(text, anchor, prefix) { replacement }
 
+    private val optionalPlateTailFiller =
+        Regex("^[\\s，,：:、.．。；！？]*(?:一下|这辆|那辆|这辆车的?|那辆车的?)?")
+
     private fun advancePastPlateTail(out: String, tailStart: Int, anchor: Regex): Int {
         var pos = tailStart
+        optionalPlateTailFiller.find(out.substring(pos))?.let { skip ->
+            pos += skip.range.last + 1
+        }
         if (anchor.pattern == plateLabel.pattern) {
             optionalPlateConnector.find(out.substring(pos))?.let { skip ->
                 pos += skip.range.last + 1
@@ -1010,6 +1028,13 @@ class PlateNormalizer private constructor(
         }
         if (anchor.pattern in anchorsWithOptionalPlateLabel) {
             optionalPlateLabel.find(out.substring(pos))?.let { skip ->
+                pos += skip.range.last + 1
+            }
+        } else {
+            optionalPlateLabel.find(out.substring(pos))?.let { skip ->
+                pos += skip.range.last + 1
+            }
+            optionalPlateConnector.find(out.substring(pos))?.let { skip ->
                 pos += skip.range.last + 1
             }
         }
@@ -1115,6 +1140,10 @@ class PlateNormalizer private constructor(
         return Regex("^[0-9]{4}(\\s|[^0-9]|$)").containsMatchIn(tailAfter)
     }
 
+    private fun isGrProductCodeAfterOrphan(fullOrphan: String, tailAfter: String): Boolean =
+        Regex("(?:[GgＧ]\\s*[RrＲ]|GR)").containsMatchIn(fullOrphan) &&
+            Regex("^[0-9]{4}(\\s|[^0-9]|$)").containsMatchIn(tailAfter)
+
     /**
      * 新声学模型常把冀R 读成「G 215 974」「721 2760」「JR 79641」等带空格分段数字。
      * 仅在车牌锚点后、且拼出的 5 位尾段能过 [isValidPlate] 时替换，避免误伤普通数字。
@@ -1194,9 +1223,177 @@ class PlateNormalizer private constructor(
         return plate.takeIf { isValidPlate(it) }
     }
 
+    /**
+     * 京津冀 TTS 规则仅在 [plateActionAnchors] 后（或句首孤立车牌谐音段）改写，
+     * 避免误伤「国民经济 / 京剧 / 培训基地 / GR2024」等非车牌文本。
+     */
+    private fun applyJjsReplacementsInPlateContext(
+        text: String,
+        transform: (String) -> String,
+    ): String {
+        var out = text
+        for (anchor in plateActionAnchors) {
+            out = transformTailAfterPlateAnchor(out, anchor, transform)
+        }
+        out = transformJjsOrphanPlateLead(out, transform)
+        return out
+    }
+
+    private fun transformTailAfterPlateAnchor(
+        text: String,
+        anchor: Regex,
+        transform: (String) -> String,
+    ): String {
+        var out = text
+        var searchFrom = 0
+        while (searchFrom < out.length) {
+            val m = anchor.find(out, searchFrom) ?: break
+            val tailStart = advancePastPlateTail(out, m.range.last + 1, anchor)
+            val tailEnd = findJjsPlateContextTailEnd(out, tailStart)
+            val tail = out.substring(tailStart, tailEnd)
+            val newTail = transform(tail)
+            if (newTail != tail) {
+                out = out.substring(0, tailStart) + newTail + out.substring(tailEnd)
+                searchFrom = tailStart + newTail.length
+            } else {
+                searchFrom = m.range.last + 1
+            }
+        }
+        return out
+    }
+
+    private fun findJjsPlateContextTailEnd(text: String, start: Int): Int {
+        val limit = minOf(text.length, start + 64)
+        var i = start
+        while (i < limit) {
+            when {
+                text.startsWith("车辆", i) || text.startsWith("这辆", i) || text.startsWith("那辆", i) -> return i
+                text.startsWith("的情况", i) || text.startsWith("情况", i) ||
+                    text.startsWith("登记", i) || text.startsWith("记录", i) ||
+                    text.startsWith("信息", i) || text.startsWith("对吗", i) ||
+                    text.startsWith("是吧", i) -> return i
+                text[i] in "。！？；\n" -> return i
+            }
+            i++
+        }
+        return limit
+    }
+
+    private fun looksLikeJjsPlateMishearSegment(segment: String): Boolean =
+        segment.contains(Regex("车辆|车牌|核查|查询|登记|记录")) ||
+            segment.contains(Regex("[0-9零〇一二三四五六七八九幺两]{5,}"))
+
+    private fun transformJjsOrphanPlateLead(text: String, transform: (String) -> String): String {
+        val orphan = Regex("(^|[\\s，,。；！？])([^。！？；\\n]{1,56})")
+        return orphan.replace(text) { m ->
+            val segment = m.groupValues[2]
+            if (!looksLikeJjsPlateMishearSegment(segment)) {
+                return@replace m.value
+            }
+            val transformed = transform(segment)
+            if (transformed == segment) m.value else m.groupValues[1] + transformed
+        }
+    }
+
+    private fun fixJjsBeijingTtsMishears(text: String): String =
+        applyJjsReplacementsInPlateContext(text, ::transformJjsBeijingPlateTail)
+
+    private fun transformJjsBeijingPlateTail(tail: String): String {
+        var out = tail
+        val d = digitLookahead
+        val n5 = "(?=\\s*[0-9零〇一二三四五六七八九幺两]{5,6})"
+        out = out.replace(Regex("帮我和查"), "帮我核查")
+        out = out.replace(Regex("京R\\s*249\\s*372"), "京R49372")
+        out = out.replace(Regex("今249\\s*372"), "京R49372")
+        out = out.replace(Regex("京161\\s*845"), "京E61845")
+        out = out.replace(Regex("金O\\s*U\\s*2345"), "京O12345")
+        out = out.replace(Regex("(经|金)Z\\s*95376"), "京J95376")
+        out = out.replace(Regex("金欧|今欧|金隅|经欧"), "京O")
+        out = out.replace(Regex("(?<![A-Z])金\\s*O$n5"), "京O")
+        out = out.replace(Regex("京的$n5"), "京D")
+        out = out.replace(Regex("今歪$n5"), "京Y")
+        out = out.replace(Regex("静\\s*F$n5"), "京F")
+        out = out.replace(Regex("轻\\s*K$n5"), "京K")
+        out = out.replace(Regex("精P$n5"), "京P")
+        out = out.replace(Regex("今儿$n5"), "京R")
+        out = out.replace(Regex("今([A-HJ-NP-Z])$n5")) { m ->
+            "京${m.groupValues[1]}"
+        }
+        out = out.replace(Regex("(经|金|晶)\\s*([A-HJ-NP-Z])$n5")) { m ->
+            "京${m.groupValues[2]}"
+        }
+        out = out.replace(Regex("京威|金威|京徽"), "京V")
+        out = out.replace(Regex("金恩|江恩"), "京N")
+        out = out.replace(Regex("京剧|京基"), "京G")
+        out = out.replace(Regex("京冀(?=9)"), "京G")
+        out = out.replace(Regex("京冀(?=6|四)"), "京E")
+        out = out.replace(Regex("经济九"), "京G9")
+        out = out.replace(Regex("经济"), "京G")
+        out = out.replace(Regex("精益|精翼|江义"), "京E")
+        out = out.replace(Regex("金碧|金壁|金璧"), "京B")
+        out = out.replace(Regex("经地|经第"), "京D")
+        out = out.replace(Regex("金地(?=$d|[0-9])"), "京D")
+        out = out.replace(Regex("经批|精批"), "京P")
+        out = out.replace(Regex("围巾([A-HJ-NP-Z])")) { m ->
+            "京${m.groupValues[1]}"
+        }
+        return out
+    }
+
+    private fun fixJjsHebeiTtsMishears(text: String): String =
+        applyJjsReplacementsInPlateContext(text, ::transformJjsHebeiPlateTail)
+
+    private fun transformJjsHebeiPlateTail(tail: String): String {
+        var out = tail
+        val d = digitLookahead
+        val n5 = "(?=\\s*[0-9零〇一二三四五六七八九幺两]{5,6})"
+        out = out.replace(Regex("帮我和查"), "帮我核查")
+        out = out.replace(Regex("继欧|济欧|巨欧|G欧"), "冀O")
+        out = out.replace(Regex("纪\\s*O$n5"), "冀O")
+        out = out.replace(Regex("(?<![A-Z])G\\s*O$n5"), "冀O")
+        out = out.replace(Regex("(?<![A-Z])JO$n5"), "冀O")
+        out = out.replace(Regex("(?<![A-Z])EF$n5"), "冀F")
+        out = out.replace(Regex("(?<![A-Z])GF$n5"), "冀F")
+        out = out.replace(Regex("纪记$n5"), "冀G")
+        out = out.replace(Regex("记G$n5"), "冀G")
+        out = out.replace(Regex("继H$n5"), "冀H")
+        out = out.replace(Regex("(?<![A-Z])GH$n5"), "冀H")
+        out = out.replace(Regex("(?<![A-Z])GJ$n5"), "冀J")
+        out = out.replace(Regex("(?<![A-Z])EJ$n5"), "冀J")
+        out = out.replace(Regex("即接$n5"), "冀J")
+        out = out.replace(Regex("即借$n5"), "冀J")
+        out = out.replace(Regex("即G$n5"), "冀J")
+        out = out.replace(Regex("(?<![A-Z])GR$n5"), "冀R")
+        out = out.replace(Regex("(?<![A-Z])G\\s*R$n5"), "冀R")
+        out = out.replace(Regex("(?<![A-Z])G\\s*([A-HJ-NP-Z])$n5")) { m ->
+            "冀${m.groupValues[1]}"
+        }
+        out = out.replace(Regex("寄地|异地|基地|寄第"), "冀D")
+        out = out.replace(Regex("异碧|寄币"), "冀B")
+        out = out.replace(Regex("际(?=四)"), "冀B")
+        out = out.replace(Regex("记笔|记毕"), "冀B")
+        out = out.replace(Regex("记忆(?=$d|[0-9]|[A-HJ-NP-Z])"), "冀E")
+        out = out.replace(Regex("继第六"), "冀D6")
+        out = out.replace(Regex("记第六"), "冀D6")
+        out = out.replace(Regex("车牌号[,，]?即\\s*([A-HJ-NP-Z])")) { m ->
+            "车牌号冀${m.groupValues[1]}"
+        }
+        out = out.replace(Regex("(?<![A-Z])G\\s*G(?=$d)"), "冀G")
+        out = out.replace(Regex("(?<![A-Z])GG(?=$d)"), "冀G")
+        out = out.replace(Regex("(?<![A-Z])G([A-HJ-NP-Z])(?=$d)")) { m ->
+            "冀${m.groupValues[1]}"
+        }
+        out = out.replace(Regex("记\\s*([A-HJ-NP-Z])(?=$d)")) { m ->
+            "冀${m.groupValues[1]}"
+        }
+        return out
+    }
+
     /** KeSpeech 批量评测高频：句中 GR/G二、辽笔/聊B、车牌号及二等。 */
     private fun fixKeSpeechPlatePrefixes(text: String): String {
         var out = fixSpacedDigitJiRInPlateContext(text)
+        out = fixJjsBeijingTtsMishears(out)
+        out = fixJjsHebeiTtsMishears(out)
         val d = digitLookahead
         // 较长模式优先
         out = out.replace(Regex("G二零零三零枚?"), "冀R00300")
@@ -1480,6 +1677,22 @@ class PlateNormalizer private constructor(
         }
         out = fixKeSpeechPlatePrefixes(out)
         out = replaceOrphanJiRPrefix(out)
+        val jiLetterOrphan = Regex(
+            "(^|[\\s，,。；！？])" +
+                "(?:[GgＧ]\\s*([A-HJ-NP-Z])|记\\s*([A-HJ-NP-Z])|记\\s*笔|记\\s*毕|" +
+                "即\\s*(?![RrＲ])([A-HJ-NP-Z]))",
+        )
+        out = jiLetterOrphan.replace(out) { m ->
+            val tailAfter = if (m.range.last + 1 < out.length) {
+                out.substring(m.range.last + 1)
+            } else {
+                ""
+            }
+            if (isGrProductCodeAfterOrphan(m.value, tailAfter)) {
+                return@replace m.value
+            }
+            m.groupValues[1] + jiLetterReplacementFor(m.groupValues[2])
+        }
         val mengOrphan = Regex(
             "(^|[\\s，,。；！？])" +
                 "(蒙蔽|猛地|猛凯|猛翼|梦想|梦HX|梦\\s*C|梦\\s*F|萌\\s*M|" +
@@ -1751,6 +1964,7 @@ class PlateNormalizer private constructor(
     private fun isPlateBodyChar(c: Char): Boolean {
         if (c in PROVINCES ||
             c.uppercaseChar() in PLATE_LETTERS ||
+            c.uppercaseChar() == 'O' ||
             c.isDigit() ||
             c in "零〇一二三四五六七八九幺两" ||
             c in "耶仪李迪枚优" ||
@@ -1944,11 +2158,15 @@ class PlateNormalizer private constructor(
 
     private fun isValidPlate(s: String): Boolean =
         NORMAL_PLATE.matches(s) || NEW_ENERGY_PLATE.matches(s) || JI_R_EXTENDED_PLATE.matches(s) ||
-            LIAO_B_EXTENDED_PLATE.matches(s) || TAIWAN_PLATE.matches(s) || GANG_AO_SHORT_PLATE.matches(s)
+            LIAO_B_EXTENDED_PLATE.matches(s) || TAIWAN_PLATE.matches(s) || GANG_AO_SHORT_PLATE.matches(s) ||
+            JI_O_PLATE.matches(s) || JING_O_PLATE.matches(s)
 
     private fun looksLikePlate(s: String): Boolean {
         if (s.length !in 6..8) return false
         if (s[0] !in PROVINCES) return false
+        if (s.startsWith("冀O") || s.startsWith("京O")) {
+            return s.drop(2).all { it in PLATE_LETTERS || it.isDigit() }
+        }
         return s.drop(1).all { it in PLATE_LETTERS || it.isDigit() }
     }
 

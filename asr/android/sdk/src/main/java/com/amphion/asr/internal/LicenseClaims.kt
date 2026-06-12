@@ -14,12 +14,14 @@ package com.amphion.asr.internal
  * @property installTier 装机量档位（声明性）
  * @property features 授权功能模块
  * @property sdkMajor 兼容的 SDK 大版本；-1 表示未声明
+ * @property deviceSha256 绑定的设备指纹（大写 hex、无冒号）；空表示不绑设备
  */
 internal data class LicenseClaims(
     val licenseId: String,
     val customer: String,
     val applicationId: String,
     val certSha256: String,
+    val deviceSha256: String,
     val issuedAt: String,
     val expiresAt: String,
     val installTier: String,

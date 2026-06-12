@@ -41,6 +41,7 @@ def main() -> None:
     ap.add_argument("--password", default=None, help="私钥口令")
     ap.add_argument("--application-id", required=True, help="宿主 applicationId")
     ap.add_argument("--cert-sha256", default="", help="宿主签名证书 SHA-256（可带冒号）")
+    ap.add_argument("--device-sha256", default="", help="宿主设备指纹 SHA-256（可带冒号）")
     ap.add_argument("--grace-days", type=int, default=0, help="到期宽限天数")
     ap.add_argument("--now", default=None, help="模拟当前日期 yyyy-MM-dd；默认系统今天")
     args = ap.parse_args()
@@ -84,7 +85,16 @@ def main() -> None:
         elif have != want:
             sys.exit(f"[FAIL 6005] LICENSE_CERT_MISMATCH：license={want} host={have}")
 
-    # 4. 到期（6006）：到期日当天有效，再加宽限
+    # 4. 设备指纹（6007）
+    want_dev = _norm_cert(claims.get("deviceSha256", ""))
+    if want_dev:
+        have_dev = _norm_cert(args.device_sha256)
+        if not have_dev:
+            print("[warn] license 绑定了 deviceSha256，但未提供 --device-sha256，跳过设备校验")
+        elif have_dev != want_dev:
+            sys.exit(f"[FAIL 6007] LICENSE_DEVICE_MISMATCH：license={want_dev} host={have_dev}")
+
+    # 5. 到期（6006）：到期日当天有效，再加宽限
     expires = claims.get("expiresAt", "")
     if expires:
         now = (

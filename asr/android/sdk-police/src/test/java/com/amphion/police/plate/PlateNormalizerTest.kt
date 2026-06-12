@@ -1915,4 +1915,197 @@ class PlateNormalizerTest {
         assertEquals("辽B02000", r.primaryPlate)
     }
 
+    // round29 京津冀 TTS：冀+字母 → G/记/寄地/即A 等
+    @Test
+    fun round29_jjs_hebei_gaSpaced_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦核实一下G A三D八K二这辆车的情况。")
+        assertEquals("冀A3D8K2", r.primaryPlate)
+    }
+
+    @Test
+    fun round29_jjs_hebei_gbGlued_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("请帮忙查询GB74162车辆情况。")
+        assertEquals("冀B74162", r.primaryPlate)
+    }
+
+    @Test
+    fun round29_jjs_hebei_jidi_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦核实一下寄地六N三K五这辆车的情况。")
+        assertEquals("冀D6N3K5", r.primaryPlate)
+    }
+
+    @Test
+    fun round29_jjs_hebei_jibi_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查车牌号记笔74162的车辆基础信息。")
+        assertEquals("冀B74162", r.primaryPlate)
+    }
+
+    @Test
+    fun round29_jjs_hebei_jiA_notJilin_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查车牌号，即A 52841的车辆基础信息。")
+        assertEquals("冀A52841", r.primaryPlate)
+    }
+
+    @Test
+    fun round29_jjs_hebei_confirmYixia_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("请确认一下G A 52841车辆目前是否有异常记录？")
+        assertEquals("冀A52841", r.primaryPlate)
+    }
+
+    // round30 纯数字尾河北牌
+    @Test
+    fun round30_jjs_hebei_numeric_gh30564_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号，GH 30564最近有没有被记录？")
+        assertEquals("冀H30564", r.primaryPlate)
+    }
+
+    @Test
+    fun round30_jjs_hebei_numeric_jiou12345_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为继欧12345的情况。")
+        assertEquals("冀O12345", r.primaryPlate)
+    }
+
+    @Test
+    fun round30_jjs_hebei_numeric_ef55283_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为EF 55283的情况。")
+        assertEquals("冀F55283", r.primaryPlate)
+    }
+
+    @Test
+    fun round30_jjs_hebei_numeric_gr52741_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦核实一下GR 52741这辆车的。")
+        assertEquals("冀R52741", r.primaryPlate)
+    }
+
+    @Test
+    fun round30_jjs_hebei_numeric_jiyi61845_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查记忆61845车辆情况。")
+        assertEquals("冀E61845", r.primaryPlate)
+    }
+
+    @Test
+    fun round30_jjs_hebei_numeric_jiji73491_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为纪记73491的情况。")
+        assertEquals("冀G73491", r.primaryPlate)
+    }
+
+    // round31 京津冀 TTS 北京牌（纯数字尾为主）
+    @Test
+    fun round31_jjs_beijing_numeric_jinA52841_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦核实一下今A 52841这辆车的情况。")
+        assertEquals("京A52841", r.primaryPlate)
+    }
+
+    @Test
+    fun round31_jjs_beijing_numeric_jingA52841_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查车牌号经A 52841的车辆基础信。")
+        assertEquals("京A52841", r.primaryPlate)
+    }
+
+    @Test
+    fun round31_jjs_beijing_numeric_jinbi74162_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查金碧74162车辆情况。")
+        assertEquals("京B74162", r.primaryPlate)
+    }
+
+    @Test
+    fun round31_jjs_beijing_numeric_jingyi61845_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查精益61845车辆情况。")
+        assertEquals("京E61845", r.primaryPlate)
+    }
+
+    @Test
+    fun round31_jjs_beijing_numeric_jingji73491_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查经济73491车辆情况。")
+        assertEquals("京G73491", r.primaryPlate)
+    }
+
+    @Test
+    fun round31_jjs_beijing_numeric_jinou12345_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为金欧12345的。")
+        assertEquals("京O12345", r.primaryPlate)
+    }
+
+    @Test
+    fun round31_jjs_beijing_numeric_jingwei61845_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查京威61845车辆。")
+        assertEquals("京V61845", r.primaryPlate)
+    }
+
+    @Test
+    fun round31_jjs_beijing_numeric_jiner52841_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号金恩52841最近有没有被记录过？")
+        assertEquals("京N52841", r.primaryPlate)
+    }
+
+    // round32 北京纯数字尾剩余难例（低风险模式）
+    @Test
+    fun round32_jjs_beijing_numeric_jingde49372_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮我看下京的49372车辆有没有关联警情？")
+        assertEquals("京D49372", r.primaryPlate)
+    }
+
+    @Test
+    fun round32_jjs_beijing_numeric_jing161845_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮我看下京161 845车辆有没有关联警情？")
+        assertEquals("京E61845", r.primaryPlate)
+    }
+
+    @Test
+    fun round32_jjs_beijing_numeric_jingF55283_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("请确认一下静F 55283车辆目前是否有异常记？")
+        assertEquals("京F55283", r.primaryPlate)
+    }
+
+    @Test
+    fun round32_jjs_beijing_numeric_jingR49372_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为京R 249 372的情况。")
+        assertEquals("京R49372", r.primaryPlate)
+    }
+
+    @Test
+    fun round32_jjs_beijing_numeric_jinouU2345_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查车牌号金O U 2345的车辆基础信息。")
+        assertEquals("京O12345", r.primaryPlate)
+    }
+
+    @Test
+    fun round32_jjs_beijing_numeric_jingpi74162_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查车牌号经批74162的车辆基础信息。")
+        assertEquals("京P74162", r.primaryPlate)
+    }
+
+    @Test
+    fun round32_jjs_beijing_numeric_jinwai55283_fromJjsEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮我确认一下今歪55283车辆是否已经？")
+        assertEquals("京Y55283", r.primaryPlate)
+    }
+
 }

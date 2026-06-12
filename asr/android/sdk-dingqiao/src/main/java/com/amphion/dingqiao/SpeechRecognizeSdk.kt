@@ -52,6 +52,14 @@ object SpeechRecognizeSdk {
     }
 
     /**
+     * 本机设备指纹，用于申请单机试用 license（无需先 [init]）。
+     * 在目标真机 Release 包上获取后提供给授权签发方。
+     */
+    @JvmStatic
+    fun deviceLicenseFingerprint(context: Context): String =
+        AmphionRuntime.deviceLicenseFingerprint(context)
+
+    /**
      * 创建识别引擎（同步）。
      */
     @JvmStatic

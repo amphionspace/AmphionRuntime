@@ -139,6 +139,19 @@ internal object LicenseVerifier {
             }
         }
 
+        // 9. 单机绑定（deviceSha256 非空时才校验）。
+        if (claims.deviceSha256.isNotBlank()) {
+            val want = normalizeCert(claims.deviceSha256)
+            val have = DeviceLicenseFingerprint.compute(ctx)
+            if (want != have) {
+                return failWith(
+                    claims,
+                    AsrErrorCode.LICENSE_DEVICE_MISMATCH,
+                    "license device=$want host=$have",
+                )
+            }
+        }
+
         // 全部通过。
         return Result(
             AmphionLicenseStatus(
@@ -169,6 +182,7 @@ internal object LicenseVerifier {
             customer = o.optString("customer", ""),
             applicationId = o.getString("applicationId"),
             certSha256 = o.optString("certSha256", ""),
+            deviceSha256 = o.optString("deviceSha256", ""),
             issuedAt = o.optString("issuedAt", ""),
             expiresAt = o.optString("expiresAt", ""),
             installTier = o.optString("installTier", ""),
