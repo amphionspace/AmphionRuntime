@@ -2108,4 +2108,558 @@ class PlateNormalizerTest {
         assertEquals("京Y55283", r.primaryPlate)
     }
 
+    // car_plates2_zh 江苏 TTS
+    @Test
+    fun car_plates2_jiangsu_suE_from_yi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查苏艺60538车辆情况。")
+        assertEquals("苏E60538", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_jiangsu_suD_from_sudi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查速递47263车辆情况。")
+        assertEquals("苏D47263", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_jiangsu_suG_from_ji_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查苏记75826车辆情。")
+        assertEquals("苏G75826", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_jiangsu_suJ_from_zhe_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮我看下苏这63745车辆有没有关联警情？")
+        assertEquals("苏J63745", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_jiangsu_trailing_u_to_one_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核对一下苏A 5284U这辆车是不是报警人说的车？")
+        assertEquals("苏A52841", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_jiangsu_suF_from_fu_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号，苏FU 9374最近有没有被记录？")
+        assertEquals("苏F19374", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_jiangsu_suU_from_su_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮我查一下车牌号为SU 68147的车辆信息。")
+        assertEquals("苏U68147", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_jilin_jiA_from_jiA_should_not_regress() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦核实一下，即A 52841这辆车的情。")
+        assertEquals("吉A52841", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_henan_yuB_from_yubi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为育碧31672的情况。")
+        assertEquals("豫B31672", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_henan_yuA_from_yuA_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查与A 52841车辆情况。")
+        assertEquals("豫A52841", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_henan_yuC_from_uc_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核对一下UC 84915这辆车是不是报警人说的车？")
+        assertEquals("豫C84915", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_henan_yuV_from_yuwei_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查育威61285车辆情况。")
+        assertEquals("豫V61285", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_henan_yuD_from_yudi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为玉帝47263的情况。")
+        assertEquals("豫D47263", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_henan_yuD_from_yuji_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号，预计47263最近有没有被记录过？")
+        assertEquals("豫D47263", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_henan_yuJ_from_yuezhen_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号，粤镇63745最近有没有被记录？")
+        assertEquals("豫J63745", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_henan_yuL_from_yueroh_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("查一下育儿哦92631车辆现在的基本情况。")
+        assertEquals("豫L92631", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_henan_yuU_from_yuyue_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下预约46729车辆。")
+        assertEquals("豫U46729", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_henan_yuP_from_yupi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查与P 68147车辆。")
+        assertEquals("豫P68147", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_henan_yuN_from_yuen_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查育恩34862车辆。")
+        assertEquals("豫N34862", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanxi_jinA_from_jingA_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为劲A 52841的情况。")
+        assertEquals("晋A52841", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanxi_jinB_from_jinbi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查，禁闭31672车辆情况。")
+        assertEquals("晋B31672", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanxi_jinD_from_jindi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为禁地47263的情况。")
+        assertEquals("晋D47263", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanxi_jinC_from_jingxi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("请帮忙查询靖西84915车辆情况。")
+        assertEquals("晋C84915", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanxi_jinE_from_jingyi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为静亿60538的情况。")
+        assertEquals("晋E60538", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanxi_jinK_from_jingK_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号靖K 63745最近有没有被记录过？")
+        assertEquals("晋K63745", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanxi_jinB_from_jingDotB_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号静。B 31672最近有没有被记录？")
+        assertEquals("晋B31672", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanxi_jinC_from_jingDotC_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号劲。C 84915最近有没有被记录过？")
+        assertEquals("晋C84915", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanxi_jinE_from_yi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("请帮忙查询翼60538车辆情况。")
+        assertEquals("晋E60538", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanxi_jinE_from_jin160_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查车牌号近160 538的车辆基础信。")
+        assertEquals("晋E60538", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shandong_luB_from_lubi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查鲁璧31672车辆情况。")
+        assertEquals("鲁B31672", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shandong_luV_from_luwei_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查鲁威61285车辆情况。")
+        assertEquals("鲁V61285", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shandong_luE_from_luyu_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查鲁豫60538车辆。")
+        assertEquals("鲁E60538", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shandong_luG_from_luji_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查鲁济75826车辆。")
+        assertEquals("鲁G75826", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shandong_luJ_from_luzhai_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为鲁债63745的情况。")
+        assertEquals("鲁J63745", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shandong_luJ_from_luzhai_manualRetest() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查鲁寨63745车辆情况。")
+        assertEquals("鲁J63745", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shandong_luN_from_luen_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("查一下鲁额34862车辆现在的基本情况。")
+        assertEquals("鲁N34862", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shandong_luL_from_luilu_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮我确认一下路L 92631车辆是否已经登？")
+        assertEquals("鲁L92631", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shandong_luL_from_luAiao_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核对一下鲁爱奥92631这辆车是不是报警人说的？")
+        assertEquals("鲁L92631", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shandong_luP_from_lupi_manualRetest() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查鲁匹68147车辆情况。")
+        assertEquals("鲁P68147", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shandong_luR_from_luer_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查鲁尔79406车辆情况。")
+        assertEquals("鲁R79406", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_liaoning_liaoA_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查聊A 52841车辆情况。")
+        assertEquals("辽A52841", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_liaoning_liaoH_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查聊H 28491车辆情况。")
+        assertEquals("辽H28491", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_liaoning_liaoJi_toG_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查辽冀75826车辆情况。")
+        assertEquals("辽G75826", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_liaoning_liaoJi_toE_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号，辽冀60538最近有没有被记录过？")
+        assertEquals("辽E60538", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_liaoning_liaoHui_toV_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查辽徽25973车辆情况。")
+        assertEquals("辽V25973", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_liaoning_liao160538_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查辽160 538车辆情况。")
+        assertEquals("辽E60538", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_liaoning_liaoN_from_liaoen_manualRetest() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号，辽恩34862最近有没有被记录过？")
+        assertEquals("辽N34862", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_liaoning_liaoP_from_liaopi_manualRetest() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮我查一下车牌号为辽辟68147的车辆信息。")
+        assertEquals("辽P68147", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_liaoning_liaoD_from_liaodi_manualRetest() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮我看下聊第47263车辆有没有关联警情？")
+        assertEquals("辽D47263", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_liaoning_liaoA_from_missingLetter_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("请帮忙查询辽52841车辆情况。")
+        assertEquals("辽A52841", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanghai_huBi_toHuB_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查户壁31672车辆情况。")
+        assertEquals("沪B31672", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanghai_huJi_toHuG_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查户籍75826车辆情。")
+        assertEquals("沪G75826", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanghai_huEn_toHuN_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查互恩57384车辆情况。")
+        assertEquals("沪N57384", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanghai_huYi_toHuE_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号沪溢60538，最近有没有被记录过？")
+        assertEquals("沪E60538", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanghai_huDi_toHuD_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查户地47263车辆情况。")
+        assertEquals("沪D47263", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanghai_hu19374_missingF_fromManual() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮我查一下车牌号为沪19374的车辆信息。")
+        assertEquals("沪F19374", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_shanghai_huR_digitGap_fromManual() {
+        val n = p1Normalizer()
+        val r = n.normalize("请确认一下沪R 234 862车辆目前是否有异常记录？")
+        assertEquals("沪R34862", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_zhejiang_zheB_from_zhebi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查这笔31672车辆情况。")
+        assertEquals("浙B31672", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_zhejiang_zheA_from_zheA_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查这A 52841车辆情况。")
+        assertEquals("浙A52841", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_zhejiang_zheG_from_zheji_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查这季75826车辆情况。")
+        assertEquals("浙G75826", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_zhejiang_zheE_from_zhe160538_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查这160 538车辆情况。")
+        assertEquals("浙E60538", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_zhejiang_zheJ_from_zhejiang_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙查一下浙江63745这辆车的登记情况。")
+        assertEquals("浙J63745", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_zhejiang_zheL_from_zheer_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("查一下浙耳92631车辆现在的基本。")
+        assertEquals("浙L92631", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_heilongjiang_heiA_from_heiA_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为嘿A 52841的情况。")
+        assertEquals("黑A52841", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_heilongjiang_heiG_from_heiji_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为黑记75826的情。")
+        assertEquals("黑G75826", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_heilongjiang_heiK_from_heihei_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号，嘿嘿41258最近有没有被记录？")
+        assertEquals("黑K41258", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_heilongjiang_heiH_from_kh_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号，K H 28491最近有没有被记录过？")
+        assertEquals("黑H28491", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_heilongjiang_heiR_from_hei225973_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查一下车牌号为黑225 973的。")
+        assertEquals("黑R25973", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_heilongjiang_heiE_from_hei160538_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦查一下车牌号黑160 538最近有没有被记录过？")
+        assertEquals("黑E60538", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_heilongjiang_heiC_from_heihei84915_manualRetest() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮我确认一下，嘿嘿84915车辆是否已经登记？")
+        assertEquals("黑C84915", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_heilongjiang_heiH_from_hOnly_manualRetest() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦核实一下H 28491这辆车的情。")
+        assertEquals("黑H28491", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_heilongjiang_heiK_from_heiDotKK_manualRetest() {
+        val n = p1Normalizer()
+        val r = n.normalize("请帮忙查询。嘿。KK 41258车辆情。")
+        assertEquals("黑K41258", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_heilongjiang_heiR_from_hei25973_manualRetest() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核对一下黑25973这辆车是不是报警人说的车？")
+        assertEquals("黑R25973", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_heilongjiang_heiR_from_heiR225973_manualRetest() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦看一下车牌号黑R 225 973车辆信息。")
+        assertEquals("黑R25973", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_jilin_jiB_from_jibi_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核对一下吉弊31672这辆车是不是报警人说的？")
+        assertEquals("吉B31672", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_jilin_jiC_from_jiC_fromEval() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦核实一下及C 84915这辆车的。")
+        assertEquals("吉C84915", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_jilin_jiD_from_jidi_manualRetest() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦帮我核查极地47263车辆情况。")
+        assertEquals("吉D47263", r.primaryPlate)
+    }
+
+    @Test
+    fun car_plates2_hebei_jiC_from_gc_must_not_regress_to_jiC() {
+        val n = p1Normalizer()
+        val r = n.normalize("麻烦核实一下GC 38156这辆车的情况。")
+        assertEquals("冀C38156", r.primaryPlate)
+    }
+
+    @Test
+    fun jjs_hebei_jiJ_from_jiG_must_not_regress_to_jiG() {
+        val n = p1Normalizer()
+        val r = n.normalize("帮忙核查车牌号，即G 95376的车辆基础信。")
+        assertEquals("冀J95376", r.primaryPlate)
+    }
+
 }

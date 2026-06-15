@@ -18,10 +18,32 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <Button
+        android:id="@+id/btn_talk"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/button_height"
+        android:layout_marginStart="@dimen/screen_padding"
+        android:layout_marginEnd="@dimen/screen_padding"
+        android:layout_marginBottom="@dimen/screen_padding"
+        android:background="@drawable/bg_button_primary"
+        android:drawableStart="@drawable/ic_mic"
+        android:drawablePadding="12dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:stateListAnimator="@null"
+        android:text="@string/btn_talk_start"
+        android:textColor="@color/brand_on_accent"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <androidx.core.widget.NestedScrollView
-        android:id="@+id/content_scroll"
+        android:id="@+id/main_scroll"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:clipToPadding="false"
         android:fillViewport="true"
         android:scrollbars="vertical"
         app:layout_constraintBottom_toTopOf="@id/btn_talk"
@@ -29,175 +51,163 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/toolbar">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <LinearLayout
             android:id="@+id/content_root"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="vertical"
             android:padding="@dimen/screen_padding">
 
-    <LinearLayout
-        android:id="@+id/brand_header"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <ImageView
-            android:id="@+id/iv_logo"
-            android:layout_width="@dimen/logo_size_small"
-            android:layout_height="@dimen/logo_size_small"
-            android:contentDescription="@string/brand_title"
-            android:src="@drawable/ic_amphion_logo" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:text="@string/brand_title"
-            android:textAppearance="@style/TextAppearance.Amphion.BrandTitle" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/lang_card"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:background="@drawable/bg_segment_container"
-        android:orientation="vertical"
-        android:padding="6dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/brand_header">
-
-        <RadioGroup
-            android:id="@+id/rg_lang"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/segment_height"
-            android:orientation="horizontal">
-
-            <RadioButton
-                android:id="@+id/rb_zh_en"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@drawable/bg_segment_selector"
-                android:button="@null"
-                android:gravity="center"
-                android:text="@string/lang_zh_en"
-                android:textColor="@color/segment_text_selector"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <RadioButton
-                android:id="@+id/rb_yue_en"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@drawable/bg_segment_selector"
-                android:button="@null"
-                android:gravity="center"
-                android:text="@string/lang_yue_en"
-                android:textColor="@color/segment_text_selector"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-        </RadioGroup>
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/capability_row"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:baselineAligned="false"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/lang_card">
-
-        <LinearLayout
-            android:id="@+id/card_cloud"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@drawable/bg_card"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground"
-            android:orientation="vertical"
-            android:padding="12dp">
-
             <LinearLayout
+                android:id="@+id/brand_header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:contentDescription="@string/cap_cloud_title"
-                    android:src="@drawable/ic_cloud" />
+                    android:id="@+id/iv_logo"
+                    android:layout_width="@dimen/logo_size_small"
+                    android:layout_height="@dimen/logo_size_small"
+                    android:contentDescription="@string/brand_title"
+                    android:src="@drawable/ic_amphion_logo" />
 
                 <TextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:text="@string/cap_cloud_title"
-                    android:textColor="@color/brand_text_primary"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:layout_marginStart="10dp"
+                    android:text="@string/brand_title"
+                    android:textAppearance="@style/TextAppearance.Amphion.BrandTitle" />
 
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/lang_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_segment_container"
+                android:orientation="vertical"
+                android:padding="6dp">
 
-                <TextView
-                    android:id="@+id/tv_cloud_state"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:maxLines="1"
-                    android:text="@string/cap_cloud_off"
-                    android:textColor="@color/brand_text_muted"
-                    android:textSize="11sp" />
+                <RadioGroup
+                    android:id="@+id/rg_lang"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/segment_height"
+                    android:orientation="horizontal">
 
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/sw_cloud"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
+                    <RadioButton
+                        android:id="@+id/rb_zh_en"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_segment_selector"
+                        android:button="@null"
+                        android:gravity="center"
+                        android:text="@string/lang_zh_en"
+                        android:textColor="@color/segment_text_selector"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <RadioButton
+                        android:id="@+id/rb_yue_en"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_segment_selector"
+                        android:button="@null"
+                        android:gravity="center"
+                        android:text="@string/lang_yue_en"
+                        android:textColor="@color/segment_text_selector"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                </RadioGroup>
 
             </LinearLayout>
 
-        </LinearLayout>
+            <LinearLayout
+                android:id="@+id/capability_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:baselineAligned="false"
+                android:orientation="horizontal">
 
-    </LinearLayout>
+                <LinearLayout
+                    android:id="@+id/card_cloud"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_card"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:contentDescription="@string/cap_cloud_title"
+                            android:src="@drawable/ic_cloud" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:maxLines="1"
+                            android:text="@string/cap_cloud_title"
+                            android:textColor="@color/brand_text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/tv_cloud_state"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:ellipsize="end"
+                            android:maxLines="1"
+                            android:text="@string/cap_cloud_off"
+                            android:textColor="@color/brand_text_muted"
+                            android:textSize="11sp" />
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/sw_cloud"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/card_plate_enhance"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:background="@drawable/bg_card"
                 android:orientation="vertical"
-                android:padding="12dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/capability_row">
+                android:padding="12dp">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -251,6 +261,28 @@
 
                 </LinearLayout>
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cap_plate_v2"
+                        android:textColor="@color/brand_text_primary"
+                        android:textSize="13sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_plate_v2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                </LinearLayout>
+
                 <TextView
                     android:id="@+id/tv_plate_pipeline"
                     android:layout_width="match_parent"
@@ -264,15 +296,12 @@
 
             <LinearLayout
                 android:id="@+id/card_station_enhance"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:background="@drawable/bg_card"
                 android:orientation="vertical"
-                android:padding="12dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/card_plate_enhance">
+                android:padding="12dp">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -326,6 +355,28 @@
 
                 </LinearLayout>
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cap_station_v2"
+                        android:textColor="@color/brand_text_primary"
+                        android:textSize="13sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_station_v2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                </LinearLayout>
+
                 <TextView
                     android:id="@+id/tv_station_pipeline"
                     android:layout_width="match_parent"
@@ -339,15 +390,12 @@
 
             <LinearLayout
                 android:id="@+id/card_terms_enhance"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:background="@drawable/bg_card"
                 android:orientation="vertical"
-                android:padding="12dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/card_station_enhance">
+                android:padding="12dp">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -401,6 +449,28 @@
 
                 </LinearLayout>
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/cap_terms_v2"
+                        android:textColor="@color/brand_text_primary"
+                        android:textSize="13sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_terms_v2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                </LinearLayout>
+
                 <TextView
                     android:id="@+id/tv_terms_pipeline"
                     android:layout_width="match_parent"
@@ -412,232 +482,174 @@
 
             </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/status_row"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/card_terms_enhance">
-
-        <View
-            android:id="@+id/status_dot"
-            android:layout_width="@dimen/status_dot_size"
-            android:layout_height="@dimen/status_dot_size"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/status_dot" />
-
-        <TextView
-            android:id="@+id/tv_status"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/status_idle"
-            android:textAppearance="@style/TextAppearance.Amphion.Status" />
-
-        <TextView
-            android:id="@+id/tv_loading_hint"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="@string/loading_model_short"
-            android:textColor="@color/brand_accent"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            tools:visibility="visible" />
-
-    </LinearLayout>
-
-    <ProgressBar
-        android:id="@+id/progress"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:indeterminateTint="@color/brand_accent"
-        android:progressTint="@color/brand_accent"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/status_row"
-        tools:visibility="visible" />
-
-    <com.amphion.asr.sample.WaveformView
-        android:id="@+id/waveform"
-        android:layout_width="0dp"
-        android:layout_height="@dimen/waveform_height"
-        android:layout_marginTop="@dimen/card_spacing"
-        android:background="@drawable/bg_card"
-        android:paddingStart="@dimen/card_padding"
-        android:paddingTop="10dp"
-        android:paddingEnd="@dimen/card_padding"
-        android:paddingBottom="10dp"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/progress"
-        tools:visibility="visible" />
-
-    <LinearLayout
-        android:id="@+id/results_row"
-        android:layout_width="0dp"
-        android:layout_height="@dimen/results_panel_height"
-        android:layout_marginTop="@dimen/card_spacing"
-        android:layout_marginBottom="@dimen/card_spacing"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/waveform">
-
-        <!-- 端侧（On-Device）结果区（上） -->
-        <LinearLayout
-            android:id="@+id/col_local"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="@dimen/card_padding">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/col_local_title"
-                android:textColor="@color/brand_accent"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tv_partial"
+            <LinearLayout
+                android:id="@+id/status_row"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:ellipsize="end"
-                android:hint="@string/partial_placeholder"
-                android:maxLines="2"
-                android:minHeight="40dp"
-                android:textColor="@color/brand_text_secondary"
-                android:textColorHint="@color/brand_text_muted"
-                android:textSize="14sp"
-                tools:text="正在识别 Amphion runtime…" />
+                android:layout_marginTop="16dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <ScrollView
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="6dp"
-                android:layout_weight="1"
-                android:scrollbars="vertical">
+                <View
+                    android:id="@+id/status_dot"
+                    android:layout_width="@dimen/status_dot_size"
+                    android:layout_height="@dimen/status_dot_size"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/status_dot" />
 
                 <TextView
-                    android:id="@+id/tv_final"
-                    android:layout_width="match_parent"
+                    android:id="@+id/tv_status"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:hint="@string/final_placeholder"
-                    android:textAppearance="@style/TextAppearance.Amphion.Body"
-                    android:textColorHint="@color/brand_text_muted" />
-
-            </ScrollView>
-
-            <TextView
-                android:id="@+id/tv_metrics"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:maxLines="2"
-                android:text="@string/metrics_placeholder"
-                android:textColor="@color/brand_text_muted"
-                android:textSize="10sp"
-                tools:text="E2E 145 ms · 首字 90 ms · RTF 0.18 · RSS 167 MB" />
-
-        </LinearLayout>
-
-        <!-- 云端（Cloud / WebSocket）结果区（下）；未启用时整块 GONE，端侧区自动占满 -->
-        <LinearLayout
-            android:id="@+id/col_cloud"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:layout_marginTop="@dimen/card_spacing"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="@dimen/card_padding"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/col_cloud_title"
-                android:textColor="@color/brand_cloud"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <ScrollView
-                android:id="@+id/sv_cloud"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="6dp"
-                android:layout_weight="1"
-                android:fillViewport="true"
-                android:scrollbars="vertical">
+                    android:layout_weight="1"
+                    android:text="@string/status_idle"
+                    android:textAppearance="@style/TextAppearance.Amphion.Status" />
 
                 <TextView
-                    android:id="@+id/tv_cloud_final"
-                    android:layout_width="match_parent"
+                    android:id="@+id/tv_loading_hint"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:hint="@string/cloud_partial_placeholder"
-                    android:textAppearance="@style/TextAppearance.Amphion.Body"
-                    android:textColorHint="@color/brand_text_muted" />
+                    android:layout_marginStart="8dp"
+                    android:text="@string/loading_model_short"
+                    android:textColor="@color/brand_accent"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
 
-            </ScrollView>
+            </LinearLayout>
 
-            <TextView
-                android:id="@+id/tv_cloud_status"
+            <ProgressBar
+                android:id="@+id/progress"
+                style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:maxLines="2"
-                android:text="@string/cloud_status_idle"
-                android:textColor="@color/brand_text_muted"
-                android:textSize="10sp"
-                tools:text="已连接 · 本段 3.42s" />
+                android:indeterminateTint="@color/brand_accent"
+                android:progressTint="@color/brand_accent"
+                android:visibility="gone"
+                tools:visibility="visible" />
+
+            <com.amphion.asr.sample.WaveformView
+                android:id="@+id/waveform"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/waveform_height"
+                android:layout_marginTop="@dimen/card_spacing"
+                android:background="@drawable/bg_card"
+                android:paddingStart="@dimen/card_padding"
+                android:paddingTop="10dp"
+                android:paddingEnd="@dimen/card_padding"
+                android:paddingBottom="10dp"
+                android:visibility="gone"
+                tools:visibility="visible" />
+
+            <LinearLayout
+                android:id="@+id/results_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/card_spacing"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/col_local"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_card"
+                    android:minHeight="@dimen/asr_result_min_height"
+                    android:orientation="vertical"
+                    android:padding="@dimen/card_padding">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/col_local_title"
+                        android:textColor="@color/brand_accent"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_partial"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:hint="@string/partial_placeholder"
+                        android:minHeight="40dp"
+                        android:textColor="@color/brand_text_secondary"
+                        android:textColorHint="@color/brand_text_muted"
+                        android:textSize="14sp"
+                        tools:text="正在识别 Amphion runtime…" />
+
+                    <TextView
+                        android:id="@+id/tv_final"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:hint="@string/final_placeholder"
+                        android:minHeight="160dp"
+                        android:textAppearance="@style/TextAppearance.Amphion.Body"
+                        android:textColorHint="@color/brand_text_muted"
+                        tools:text="帮忙核查一下沪D47263车辆情况。" />
+
+                    <TextView
+                        android:id="@+id/tv_metrics"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="monospace"
+                        android:text="@string/metrics_placeholder"
+                        android:textColor="@color/brand_text_muted"
+                        android:textSize="10sp"
+                        tools:text="E2E 145 ms · 首字 90 ms · RTF 0.18 · RSS 167 MB" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/col_cloud"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/card_spacing"
+                    android:background="@drawable/bg_card"
+                    android:minHeight="@dimen/asr_result_min_height"
+                    android:orientation="vertical"
+                    android:padding="@dimen/card_padding"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/col_cloud_title"
+                        android:textColor="@color/brand_cloud"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_cloud_final"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:hint="@string/cloud_partial_placeholder"
+                        android:minHeight="160dp"
+                        android:textAppearance="@style/TextAppearance.Amphion.Body"
+                        android:textColorHint="@color/brand_text_muted" />
+
+                    <TextView
+                        android:id="@+id/tv_cloud_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="monospace"
+                        android:text="@string/cloud_status_idle"
+                        android:textColor="@color/brand_text_muted"
+                        android:textSize="10sp"
+                        tools:text="已连接 · 本段 3.42s" />
+
+                </LinearLayout>
+
+            </LinearLayout>
 
         </LinearLayout>
-
-    </LinearLayout>
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.core.widget.NestedScrollView>
-
-    <Button
-        android:id="@+id/btn_talk"
-        android:layout_width="0dp"
-        android:layout_height="@dimen/button_height"
-        android:layout_marginStart="@dimen/screen_padding"
-        android:layout_marginEnd="@dimen/screen_padding"
-        android:layout_marginBottom="@dimen/screen_padding"
-        android:background="@drawable/bg_button_primary"
-        android:drawableStart="@drawable/ic_mic"
-        android:drawablePadding="12dp"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:stateListAnimator="@null"
-        android:text="@string/btn_talk_start"
-        android:textColor="@color/brand_on_accent"
-        android:textSize="17sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

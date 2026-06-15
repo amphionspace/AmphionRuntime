@@ -121,7 +121,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvCloudState: TextView
     private lateinit var cardCloud: android.view.View
     private lateinit var colCloud: android.view.View
-    private lateinit var svCloud: android.widget.ScrollView
+    private var mainScroll: androidx.core.widget.NestedScrollView? = null
     private lateinit var tvCloudFinal: TextView
     private lateinit var tvCloudStatus: TextView
 
@@ -243,7 +243,7 @@ class MainActivity : AppCompatActivity() {
         tvCloudState = findViewById(R.id.tv_cloud_state)
         cardCloud = findViewById(R.id.card_cloud)
         colCloud = findViewById(R.id.col_cloud)
-        svCloud = findViewById(R.id.sv_cloud)
+        mainScroll = findViewById(R.id.main_scroll)
         tvCloudFinal = findViewById(R.id.tv_cloud_final)
         tvCloudStatus = findViewById(R.id.tv_cloud_status)
         cardCloud.setOnClickListener { swCloud.toggle() }
@@ -574,7 +574,11 @@ class MainActivity : AppCompatActivity() {
             sb.append(cloudCurrentPartial)
         }
         tvCloudFinal.text = sb.toString()
-        svCloud.post { svCloud.fullScroll(android.view.View.FOCUS_DOWN) }
+        scrollResultsToBottom()
+    }
+
+    private fun scrollResultsToBottom() {
+        mainScroll?.post { mainScroll?.fullScroll(android.view.View.FOCUS_DOWN) }
     }
 
     private fun setCloudStatus(s: String) {
@@ -852,7 +856,10 @@ class MainActivity : AppCompatActivity() {
 
         val s = eng.newSession(object : AsrCallback {
             override fun onPartial(text: String) {
-                runOnUiThread { tvPartial.text = text }
+                runOnUiThread {
+                    tvPartial.text = text
+                    scrollResultsToBottom()
+                }
             }
 
             override fun onFinal(result: AsrResult) {
@@ -861,6 +868,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     appendFinalSegment(result, rejected = false, enhanced = enhanced)
                     tvPartial.text = ""
+                    scrollResultsToBottom()
                 }
             }
 
@@ -870,6 +878,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     appendFinalSegment(result, rejected = true, enhanced = enhanced)
                     tvPartial.text = ""
+                    scrollResultsToBottom()
                 }
             }
 
