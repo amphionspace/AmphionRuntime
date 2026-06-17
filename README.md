@@ -16,7 +16,8 @@ amphion-runtime/
 ├── third_party/
 │   └── sherpa-onnx/             # git submodule，detached @ v1.13.1，禁止本地修改
 │
-├── android/AmphionRuntime/      # Android SDK（AAR + Sample）
+├── android/AmphionRuntime/      # Android ASR SDK（AAR + Sample + police/dingqiao）
+├── android/TtsRuntime/          # Android TTS SDK（AAR + Sample，独立 Gradle root）
 ├── ios/AmphionRuntime/          # iOS SDK（SPM + CocoaPods）
 ├── server/asr-service/          # Linux gRPC 服务端（ASR 任务；TTS 服务未来在同级 server/tts-service/）
 │
@@ -25,7 +26,8 @@ amphion-runtime/
 │   ├── regression-set/          # 端到端回归集清单
 │   └── docs/                    # 跨端文档（发布流程、dashboard 等）
 │
-├── tools/asr/                   # ASR 任务的模型导出 / quantize / 编译 / 打包脚本（TTS 任务未来在同级 tools/tts/）
+├── tools/asr/                   # ASR 任务的模型导出 / quantize / 编译 / 打包脚本
+├── tools/tts/                   # TTS 任务的模型校验 / license / Android 交付脚本
 ├── docs/                        # 仓库级文档（troubleshooting 等）
 ├── ci/                          # CI workflow 参考源（实际驱动在 .github/workflows）
 └── .github/workflows/           # GitHub Actions 实际入口
@@ -46,7 +48,8 @@ git submodule update --init --recursive
 
 | 端 | 入口 | 说明 |
 | --- | --- | --- |
-| Android | `bash tools/asr/04_build_android_so.sh arm64-v8a` 然后 `bash tools/asr/05_package_aar_libs.sh` 然后 `cd android/AmphionRuntime && ./gradlew :sdk:assembleRelease` | 详见 [android/AmphionRuntime/README.md](android/AmphionRuntime/README.md) |
+| Android ASR | `bash tools/asr/04_build_android_so.sh arm64-v8a` 然后 `bash tools/asr/05_package_aar_libs.sh` 然后 `cd android/AmphionRuntime && ./gradlew :sdk:assembleRelease` | 详见 [android/AmphionRuntime/README.md](android/AmphionRuntime/README.md) |
+| Android TTS | `cd android/TtsRuntime && ./gradlew :sdk:assembleRelease :sample:assembleDebug` | 详见 [android/TtsRuntime/README.md](android/TtsRuntime/README.md) |
 | iOS | `bash ios/AmphionRuntime/build_xcframework.sh` | 详见 [ios/AmphionRuntime/README.md](ios/AmphionRuntime/README.md) |
 | Server | `cmake -DSHERPA_ONNX_DIR=...` 详见 [server/asr-service/README.md](server/asr-service/README.md) | 需要先在 third_party/sherpa-onnx 内做 cxx-api install |
 
