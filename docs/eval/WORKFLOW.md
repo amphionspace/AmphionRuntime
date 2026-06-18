@@ -128,7 +128,7 @@
 
 ```bash
 # 方案 A：重新打包 APK
-./gradlew :sample:assembleDebug
+./gradlew :samples:public-demo:assembleDebug
 
 # 方案 B：adb push 覆盖（不需要重打包）
 adb push my-sentences.json /sdcard/Android/data/com.amphion.asr.sample/files/asr-eval-set/sentences.json
@@ -171,9 +171,9 @@ unzip eval_alice_20260519_120000.zip -d ./eval-data/
 pip install jiwer sherpa-onnx
 
 # 2. 跑批量 WER
-python tools/asr/eval_wer.py \
+python asr/tools/eval_wer.py \
   --data-root ./eval-data \
-  --model-dir tools/asr/demo-model/zipformer_L_zh_en \
+  --model-dir asr/tools/demo-model/zipformer_L_zh_en \
   --output ./report \
   --mode streaming
 
@@ -201,7 +201,7 @@ aplay ./eval-data/alice/zh_en_mixed_005/0bf8.../audio.wav        # Linux
 
 # 重跑单条识别
 sherpa-onnx-offline \
-  --model tools/asr/demo-model/zipformer_L_zh_en \
+  --model asr/tools/demo-model/zipformer_L_zh_en \
   ./eval-data/alice/zh_en_mixed_005/0bf8.../audio.wav
 ```
 

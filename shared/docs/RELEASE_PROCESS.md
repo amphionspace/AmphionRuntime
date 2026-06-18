@@ -13,7 +13,7 @@
 
 ### 1.1 模型 SemVer
 
-模型版本号规则与 [tools/asr/MODEL_LAYOUT.md](../../tools/asr/MODEL_LAYOUT.md) 第一节一致：
+模型版本号规则与 [asr/tools/MODEL_LAYOUT.md](../../asr/tools/MODEL_LAYOUT.md) 第一节一致：
 
 | 段位 | 含义 | 触发例 |
 | --- | --- | --- |
@@ -29,8 +29,8 @@ SDK 版本号语义遵守 [semver.org](https://semver.org/lang/zh-CN/)：
 
 | 段位 | 含义 | 触发例 |
 | --- | --- | --- |
-| MAJOR | 公开 API 不兼容变更 | 删 / 改 [com.amphion.asr](../../android/AmphionRuntime/sdk/src/main/java/com/amphion/asr) 包下的方法签名 |
-| MINOR | 公开 API 向下兼容的新增 | 新增 [enableLmRescoring](../../android/AmphionRuntime/sdk/src/main/java/com/amphion/asr/AsrConfig.kt) |
+| MAJOR | 公开 API 不兼容变更 | 删 / 改 [com.amphion.asr](../../asr/android/sdk/src/main/java/com/amphion/asr) 包下的方法签名 |
+| MINOR | 公开 API 向下兼容的新增 | 新增 [enableLmRescoring](../../asr/android/sdk/src/main/java/com/amphion/asr/AsrConfig.kt) |
 | PATCH | 仅修复 / 性能优化 | 修热词 bug、优化 RTF |
 
 强约束：
@@ -43,7 +43,7 @@ SDK 版本号语义遵守 [semver.org](https://semver.org/lang/zh-CN/)：
 
 ### 2.1 出包
 
-按 [tools/asr/](../../tools/asr/) 中的脚本顺序：
+按 [asr/tools/](../../asr/tools/) 中的脚本顺序：
 
 1. `01_export_to_onnx.md` 算法同学按文档导出 ONNX
 2. `02_quantize_int8.md` INT8 量化
@@ -76,9 +76,9 @@ SDK 版本号语义遵守 [semver.org](https://semver.org/lang/zh-CN/)：
 PR -> code review -> CI green ->
 打 tag v<MAJOR>.<MINOR>.<PATCH> ->
 [ci/android.yml](../../ci/android.yml) 自动产出 AAR + 上传到内部 Maven ->
-[ios/build_xcframework.sh](../../ios/AmphionRuntime/build_xcframework.sh) 产出 xcframework + 挂 GitHub Releases ->
-server [Dockerfile](../../server/asr-service/deploy/Dockerfile) build + push 到内部 Registry ->
-邮件通知所有业务方 + 更新 [INTEGRATION.md](../../android/AmphionRuntime/docs/INTEGRATION.md) CHANGELOG
+[ios/build_xcframework.sh](../../asr/ios/build_xcframework.sh) 产出 xcframework + 挂 GitHub Releases ->
+server [Dockerfile](../../asr/server/deploy/Dockerfile) build + push 到内部 Registry ->
+邮件通知所有业务方 + 更新 [INTEGRATION.md](../../asr/android/docs/INTEGRATION.md) CHANGELOG
 ```
 
 ### 3.2 紧急回滚 SOP
@@ -102,7 +102,7 @@ server [Dockerfile](../../server/asr-service/deploy/Dockerfile) build + push 到
 WER / CER 评估由上游 [scripts/benchmark/](../../scripts/benchmark/) 出报告，下游不重复跑。每月最后一个工作日由值班同学触发 [shared/docs/dashboard/runner.py](dashboard/runner.py)：
 
 - 三端 SDK 在 [shared/regression-set/](../regression-set/) 上跑端到端烟测，采集 启动延迟 p50 / p95
-- 服务端跑 [bench_concurrent.py](../../server/asr-service/bench/bench_concurrent.py) 输出 RTF / 并发上限 / 内存 / first-partial 延迟
+- 服务端跑 [bench_concurrent.py](../../asr/server/bench/bench_concurrent.py) 输出 RTF / 并发上限 / 内存 / first-partial 延迟
 - Bugly / Crashlytics / Sentry 拉上月端 crash 率
 - 拼接上游 WER 报告 URL（不重新跑 WER），写入 monthly 报告顶部
 - 与上月环比，工程指标劣化 ≥ 0.5% 自动 ticket

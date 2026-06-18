@@ -22,5 +22,5 @@ if ! git submodule update --init --recursive; then
 fi
 
 test -f third_party/sherpa-onnx/CMakeLists.txt
-bash "$REPO/tools/asr/apply_sherpa_patches.sh"
+bash "$REPO/asr/tools/apply_sherpa_patches.sh"
 echo "[OK] submodule ready at $(cd third_party/sherpa-onnx && git rev-parse --short HEAD)"
