@@ -1,7 +1,7 @@
 # 鼎桥语音识别 Demo
 
 内部开发默认依赖 `:sdk-dingqiao`；交付给客户的参考工程见
-`tools/android/pack_dingqiao_demo_source_delivery.sh`（纯 demo 模块 + fat AAR，无 SDK 源码）。
+`asr/tools/delivery/pack_dingqiao_demo_source_delivery.sh`（纯 demo 模块 + fat AAR，无 SDK 源码）。
 
 完整交付说明见 **[docs/DINGQIAO_DELIVERY.md](../docs/DINGQIAO_DELIVERY.md)**。
 
@@ -15,7 +15,7 @@ cd asr/android
 与交付 Demo APK 对齐（fat AAR）：
 
 ```bash
-./gradlew :sample-dingqiao-demo:assembleRelease \
+./gradlew :samples:dingqiao-demo:assembleRelease \
   -PdingqiaoUseFatAar=true \
   -PdingqiaoFatAarPath=build/dingqiao-delivery/dingqiao-asr-v<版本>.aar
 ```
