@@ -123,7 +123,7 @@ payload claims 字段：
 ```bash
 bash asr/tools/license/issue_dingqiao_demo.sh
 # 默认自签发日起 2 个月试用（DINGQIAO_DEMO_TRIAL_MONTHS 可调）；绑定 demo release 证书 SHA-256
-# 产物 → sample-dingqiao-demo/src/main/assets/amphion-license.lic
+# 产物 → samples/dingqiao-demo/src/main/assets/amphion-license.lic
 ```
 
 `asr/tools/delivery/pack_dingqiao_*.sh` 在构建 Demo Release 前会自动调用上述脚本。

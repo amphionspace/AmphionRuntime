@@ -238,7 +238,7 @@ class PoliceStationNormalizerTest {
         val roots = listOf(
             "src/main/assets",
             "sample/src/main/assets",
-            "asr/android/sample/src/main/assets",
+            "asr/android/samples/public-demo/src/main/assets",
         )
         val cwd = File(System.getProperty("user.dir") ?: ".")
         for (base in listOfNotNull(cwd, cwd.parentFile, cwd.parentFile?.parentFile)) {

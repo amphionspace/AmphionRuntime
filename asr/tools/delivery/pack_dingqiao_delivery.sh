@@ -30,7 +30,7 @@ ERES2NET_SRC="$REPO_ROOT/asr/tools/speaker/models/3dspeaker_speech_eres2net_base
 echo "[1/4] build release AARs ..."
 cd "$AR_ROOT"
 dingqiao_issue_demo_license "$REPO_ROOT"
-./gradlew :sdk:assembleRelease :sdk-police:assembleRelease :sdk-dingqiao:assembleRelease :sample-dingqiao-demo:assembleRelease
+./gradlew :sdk:assembleRelease :sdk-police:assembleRelease :sdk-dingqiao:assembleRelease :samples:dingqiao-demo:assembleRelease
 dingqiao_assert_sdk_version_consistent "$AR_ROOT"
 
 echo "[2/4] merge fat AAR ..."
@@ -42,7 +42,7 @@ rm -rf "$OUT_ROOT"
 mkdir -p "$OUT_ROOT"/{aar,demo,models,docs}
 
 cp "$FAT_AAR" "$OUT_ROOT/aar/"
-cp "$AR_ROOT/sample-dingqiao-demo/build/outputs/apk/release/sample-dingqiao-demo-release.apk" "$OUT_ROOT/demo/"
+cp "$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk" "$OUT_ROOT/demo/"
 if [[ ! -f "$ERES2NET_SRC" ]]; then
   echo "[ERROR] missing $ERES2NET_SRC" >&2
   exit 1
@@ -56,7 +56,7 @@ cp "$AR_ROOT/docs/LICENSING.md" "$OUT_ROOT/docs/"
 cp "$AR_ROOT/NOTICE" "$OUT_ROOT/docs/NOTICE"
 
 AAR_MB="$(du -m "$OUT_ROOT/aar/$AAR_NAME" | awk '{print $1}')"
-APK_MB="$(du -m "$OUT_ROOT/demo/sample-dingqiao-demo-release.apk" | awk '{print $1}')"
+APK_MB="$(du -m "$OUT_ROOT/demo/dingqiao-demo-release.apk" | awk '{print $1}')"
 MODEL_MB="$(du -m "$OUT_ROOT/models/eres2net.onnx" | awk '{print $1}')"
 
 cd "$REPO_ROOT"

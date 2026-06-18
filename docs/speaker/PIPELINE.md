@@ -247,4 +247,4 @@ def overlap_seconds(supervisions):
 - 默认阈值取 7.2 第 1 条的单阈值 0.30（FAR 3.96% / FRR 10.55%）；上线前按真机数据复标
 - P0 已验证预编译 libsherpa-onnx-jni.so 含 SpeakerEmbeddingExtractor / Manager 全部 JNI 符号，无需重编 native
 
-接入说明见 asr/android/docs/INTEGRATION.md 第 13 节。sample 与 sample-mini 两个 demo 已落地声纹注册页（SpeakerEnrollActivity）与目标人运行时开关；仍需真机 smoke 复标阈值。
+接入说明见 asr/android/docs/INTEGRATION.md 第 13 节。`:samples:public-demo` 与 `:samples:mini-demo` 两个 demo 已落地声纹注册页（SpeakerEnrollActivity）与目标人运行时开关；仍需真机 smoke 复标阈值。

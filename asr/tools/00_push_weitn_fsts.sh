@@ -218,7 +218,7 @@ if ! "${ADB[@]}" shell pm list packages 2>/dev/null | grep -q "package:${SAMPLE_
         the sample first:
 
           cd ${REPO_ROOT}/asr/android
-          ./gradlew :sample:installDebug
+          ./gradlew :samples:public-demo:installDebug
           adb shell am start -n ${SAMPLE_PKG}/.eval.LandingActivity
 
         Then re-run this script.

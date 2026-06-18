@@ -27,7 +27,7 @@ class CloudAsrPrefs(context: Context) {
 
         /**
          * 平台 API Key。来源 local.properties 的 cloudAsrApiKey，经 BuildConfig 注入
-         * （见 sample/build.gradle.kts），不写进源码与仓库。鉴权走 `Authorization: Bearer`
+         * （见 samples/public-demo/build.gradle.kts），不写进源码与仓库。鉴权走 `Authorization: Bearer`
          * （见 [CloudAsrClient]），不拼进 URL，避免 key 落到日志/状态栏。
          * 未配置时为空串：云端开关会鉴权失败并给出可读错误，端侧识别不受影响。
          */

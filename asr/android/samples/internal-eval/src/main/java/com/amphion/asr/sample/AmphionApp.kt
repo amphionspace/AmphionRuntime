@@ -9,7 +9,7 @@ import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrLanguage
 
 /**
- * 评测版（:sample-eval）的 Application 入口：
+ * 评测版（:samples:internal-eval）的 Application 入口：
  *
  * 0.2.0 起所有模型已经打进 SDK AAR；不再需要 ModelImporter / WeitnAssetInstaller /
  * PunctModelInstaller 把外部 push 的资产搬到 internal storage。

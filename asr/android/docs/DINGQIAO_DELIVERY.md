@@ -10,24 +10,24 @@
 :sdk                  核心 ASR（com.amphion.asr）
 :sdk-police           警务三域后处理（术语 / 车牌 / 派出所）
 :sdk-dingqiao         鼎桥 API 适配（SpeechRecognizeSdk）
-:sample-dingqiao-demo 交付 Demo APK（不含 cloud / batch eval）
+:samples:dingqiao-demo 交付 Demo APK（不含 cloud / batch eval）
 ```
 
-依赖链：`:sample-dingqiao-demo` → `:sdk-dingqiao` → `:sdk-police` → `:sdk`
+依赖链：`:samples:dingqiao-demo` → `:sdk-dingqiao` → `:sdk-police` → `:sdk`
 
 | 模块 | 包名 | 对外入口 |
 |------|------|----------|
 | `:sdk-dingqiao` | `com.amphion.dingqiao` | `SpeechRecognizeSdk` |
 | `:sdk-police` | `com.amphion.police` | `PoliceEnhancePipeline`（由 dingqiao 内部调用） |
 
-**不在交付范围：** `:sample` 云端 ASR、Batch Eval；`:sample-eval` 内部评测。
+**不在交付范围：** `:samples:public-demo` 云端 ASR、Batch Eval；`:samples:internal-eval` 内部评测。
 
 ## 2. 交付物清单（v0.1）
 
 | 产物 | 路径 / 命令 | 说明 |
 |------|-------------|------|
-| Demo Debug APK | `./gradlew :sample-dingqiao-demo:assembleDebug` | `sample-dingqiao-demo/build/outputs/apk/debug/` |
-| Demo Release APK | `./gradlew :sample-dingqiao-demo:assembleRelease` | 需配置签名；release 开启 R8 |
+| Demo Debug APK | `./gradlew :samples:dingqiao-demo:assembleDebug` | `samples/dingqiao-demo/build/outputs/apk/debug/` |
+| Demo Release APK | `./gradlew :samples:dingqiao-demo:assembleRelease` | 需配置签名；release 开启 R8 |
 | SDK AAR（集成用） | 见 §4 | 业务方 Gradle 依赖 `:sdk-dingqiao` 或发布 AAR |
 
 额外文件（需单独下发，不打进 AAR）：
@@ -46,7 +46,7 @@ cd asr/android
 ./gradlew :sdk-police:testDebugUnitTest :sdk-dingqiao:testDebugUnitTest
 
 # 交付 Demo
-./gradlew :sample-dingqiao-demo:assembleDebug
+./gradlew :samples:dingqiao-demo:assembleDebug
 ```
 
 要求：JDK 17、Android SDK 34、NDK（arm64-v8a）。首次构建会解包 AAR 内 ASR 模型，耗时数分钟。
@@ -193,7 +193,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 # 2) 武装 AAR + 全链 release
 cd ../../asr/android
-./gradlew :sdk:assembleRelease :sample-dingqiao-demo:assembleRelease
+./gradlew :sdk:assembleRelease :samples:dingqiao-demo:assembleRelease
 ```
 
 产物：
@@ -201,7 +201,7 @@ cd ../../asr/android
 | 文件 | 路径 |
 |------|------|
 | 武装 `:sdk` AAR | `sdk/build/outputs/aar/sdk-release.aar` |
-| Demo Release APK | `sample-dingqiao-demo/build/outputs/apk/release/sample-dingqiao-demo-release.apk` |
+| Demo Release APK | `samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk` |
 
 > R8：`sdk/consumer-rules.pro` 必须含 `-dontwarn java.lang.invoke.StringConcatFactory`（Java 17 字符串拼接；客户 `minifyEnabled=true` 时由 AAR 的 `proguard.txt` 注入）。fat AAR 合并脚本会拼接 sdk + sdk-police + sdk-dingqiao 三份 consumer 规则；**勿用旧版 sdk-release.aar 内嵌的 proguard.txt 代替源码 `consumer-rules.pro`**。重打 fat AAR：`bash asr/tools/delivery/merge_dingqiao_fat_aar.sh <版本>`（需先 `./gradlew :sdk:assembleRelease :sdk-police:assembleRelease :sdk-dingqiao:assembleRelease`）。
 
@@ -226,7 +226,7 @@ keytool -genkeypair -v -storetype PKCS12 \
 
 ```bash
 bash ../../asr/tools/license/issue_dingqiao_demo.sh
-# → sample-dingqiao-demo/src/main/assets/amphion-license.lic
+# → samples/dingqiao-demo/src/main/assets/amphion-license.lic
 # 可选：DINGQIAO_DEMO_TRIAL_MONTHS=2（默认）调整试用月数
 ```
 
@@ -239,7 +239,7 @@ bash ../../asr/tools/license/issue_dingqiao_demo.sh
 ```bash
 # Release 与 Debug 签名不同，需先卸载旧包
 adb uninstall com.amphion.dingqiao.demo
-adb install sample-dingqiao-demo/build/outputs/apk/release/sample-dingqiao-demo-release.apk
+adb install samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk
 
 # 声纹模型（卸载后需重 push）
 adb push eres2net.onnx /sdcard/Android/data/com.amphion.dingqiao.demo/files/dingqiao_work/

@@ -99,7 +99,7 @@ source ~/.zprofile
 注意：
 
 - AGP 8.4 build 时还会从 工程目录的 `local.properties` 读 `sdk.dir`。即使 `ANDROID_HOME` 已经 export 了，如果工程没有 `local.properties` 也可能报"SDK location not found"。最稳妥是两边都配。
-- 后续 `./gradlew :sample:installDebug` 会调 `adb install`，所以 `platform-tools` 必须在 PATH。
+- 后续 `./gradlew :samples:public-demo:installDebug` 会调 `adb install`，所以 `platform-tools` 必须在 PATH。
 
 ## 2. JDK 17
 

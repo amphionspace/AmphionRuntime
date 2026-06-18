@@ -46,9 +46,9 @@ fi
 
 echo "[4/4] unit test + assemble sample debug ..."
 cd "$ANDROID_DIR"
-./gradlew :sample:testDebugUnitTest --tests com.amphion.asr.sample.plate.PlateNormalizerTest
-./gradlew :sample:assembleDebug
+./gradlew :samples:public-demo:testDebugUnitTest --tests com.amphion.asr.sample.plate.PlateNormalizerTest
+./gradlew :samples:public-demo:assembleDebug
 
-APK="$ANDROID_DIR/sample/build/outputs/apk/debug/sample-debug.apk"
+APK="$ANDROID_DIR/samples/public-demo/build/outputs/apk/debug/public-demo-debug.apk"
 echo "[OK] APK: $APK"
 echo "[NEXT] adb install -r $APK"

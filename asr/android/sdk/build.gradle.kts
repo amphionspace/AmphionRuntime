@@ -45,7 +45,7 @@ android {
         release {
             // 开启 R8：让 internal 的 license 验签逻辑在交付 AAR 中被混淆，抬高逆向门槛。
             // 公开 API 由 proguard-rules.pro（include consumer-rules.pro）整体保留。
-            // 注意：改这里后必须用 :sample:assembleRelease + 真机跑一遍回归（见 docs/DELIVERY.md）。
+            // 注意：改这里后必须用 :samples:public-demo:assembleRelease + 真机跑一遍回归（见 docs/DELIVERY.md）。
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

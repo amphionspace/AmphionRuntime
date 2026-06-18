@@ -61,7 +61,7 @@
 
 ### 3.1 为什么纯离线，而不是在线激活计量
 
-不可违背的约束：本 SDK 的核心卖点之一是零网络、不发任何网络请求（README/DELIVERY 反复声明，sample 仅 RECORD_AUDIO）。在线激活计量需要 INTERNET 权限 + 自建高可用 server + 采集设备标识，直接侵蚀这个卖点与隐私优势，且目标客户（智能硬件/对讲机类，有 sample-mini 240x320 变体佐证）设备未必有稳定网络。
+不可违背的约束：本 SDK 的核心卖点之一是零网络、不发任何网络请求。在线激活计量需要 INTERNET 权限 + 自建高可用 server + 采集设备标识，直接侵蚀这个卖点与隐私优势，且目标客户（智能硬件/对讲机类，有 `:samples:mini-demo` 240x320 变体佐证）设备未必有稳定网络。注意：`:samples:public-demo` 为演示云端 ASR 入口保留 INTERNET 权限，但 SDK 本身和离线鉴权链路不联网。
 
 结论：默认纯离线授权。代价是装机量不实时实测，靠合同档位 + 抽样审计；防破解有固有上限（见 §5）。
 
@@ -134,7 +134,7 @@ AmphionOptions.licenseEnforcement：
 | native | 关键验签下沉到 .so，逆向成本数量级提升 | Phase 2 |
 | 法务 | 授权条款禁止反编译/二次授权 + 抽样审计 | 合同侧 |
 
-开启 R8 是相对此前 isMinifyEnabled=false（验签裸奔）的最大改进，但改动后必须用 :sample:assembleRelease + 真机回归（见 DELIVERY.md）。
+开启 R8 是相对此前 isMinifyEnabled=false（验签裸奔）的最大改进，但改动后必须用 :samples:public-demo:assembleRelease + 真机回归（见 DELIVERY.md）。
 
 ## 6. 商业模式建议
 

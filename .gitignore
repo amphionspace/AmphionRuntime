@@ -31,7 +31,7 @@ asr/server/build/
 
 # --- 编译产物（每次本地或 CI 重新构建） ---
 asr/android/sdk/src/main/jniLibs/**/*.so
-asr/android/sample/src/main/jniLibs/**/*.so
+asr/android/samples/public-demo/src/main/jniLibs/**/*.so
 asr/android/sdk/maven-repo/
 tts/android/sdk/src/main/assets/
 tts/android/sdk/src/main/jniLibs/**/*.so
@@ -42,7 +42,7 @@ asr/ios/AmphionRuntime.xcframework.zip
 asr/ios/AmphionRuntime.xcframework.zip.sha256
 
 # Sample app 模型资源（不入库）
-asr/android/sample/src/main/assets/asr-models/
+asr/android/samples/public-demo/src/main/assets/asr-models/
 # WeText ITN fst 构建缓存（由 asr/tools/00_push_weitn_fsts.sh 产出）
 asr/tools/sherpa-cmake-deps/
 asr/tools/weitn-fsts/

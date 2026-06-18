@@ -73,9 +73,9 @@ python3 generate_eval_subset.py
 
 ```bash
 cd /Users/amphion/Desktop/work/projects/鼎桥/AmphionRuntime/asr/android
-./gradlew :sample:assembleDebug
+./gradlew :samples:public-demo:assembleDebug
 adb devices   # 必须先看到一台 device
-adb install -r sample/build/outputs/apk/debug/sample-debug.apk
+adb install -r samples/public-demo/build/outputs/apk/debug/public-demo-debug.apk
 ```
 
 `adb: no devices`：USB 连真机 → 开启「开发者选项 / USB 调试」→ 手机上点「允许」→ 再 `adb devices`。
