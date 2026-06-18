@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/brand_cream"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/brand_cream" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="@dimen/screen_padding">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/sample_title"
+                android:textAppearance="@style/TextAppearance.Lits.BrandTitle" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:lineSpacingExtra="4dp"
+                android:text="@string/sample_subtitle"
+                android:textAppearance="@style/TextAppearance.Lits.Status" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/card_spacing"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_input"
+                    android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+
+                <EditText
+                    android:id="@+id/edit_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:backgroundTint="@color/brand_outline"
+                    android:gravity="top|start"
+                    android:hint="@string/hint_input"
+                    android:inputType="textMultiLine"
+                    android:minLines="4"
+                    android:textAppearance="@style/TextAppearance.Lits.Body" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/label_mode"
+                    android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+
+                <RadioGroup
+                    android:id="@+id/group_mode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/radio_mode_mixed"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/mode_mixed" />
+
+                    <RadioButton
+                        android:id="@+id/radio_mode_en"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/mode_en" />
+                </RadioGroup>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:lineSpacingExtra="3dp"
+                    android:text="@string/mode_desc"
+                    android:textColor="@color/brand_text_muted"
+                    android:textSize="12sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/button_synthesize"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/button_height"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_button_primary"
+                        android:stateListAnimator="@null"
+                        android:text="@string/button_synthesize"
+                        android:textColor="@color/brand_on_accent"
+                        android:textStyle="bold" />
+
+                    <Button
+                        android:id="@+id/button_sdk_playback"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/button_height"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:text="@string/button_sdk_playback" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/button_play"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/segment_height"
+                        android:layout_weight="1"
+                        android:text="@string/button_play" />
+
+                    <Button
+                        android:id="@+id/button_save"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/segment_height"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:text="@string/button_save" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:lineSpacingExtra="3dp"
+                    android:text="@string/action_desc"
+                    android:textColor="@color/brand_text_muted"
+                    android:textSize="12sp" />
+
+                <ProgressBar
+                    android:id="@+id/progress_busy"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:indeterminate="true"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/card_spacing"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_result"
+                    android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+
+                <TextView
+                    android:id="@+id/text_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:lineSpacingExtra="3dp"
+                    android:text="@string/status_ready"
+                    android:textAppearance="@style/TextAppearance.Lits.Status" />
+
+                <TextView
+                    android:id="@+id/text_metrics"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@color/brand_surface_alt"
+                    android:fontFamily="monospace"
+                    android:padding="12dp"
+                    android:text="@string/metrics_placeholder"
+                    android:textColor="@color/brand_text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/card_spacing"
+                android:layout_marginBottom="@dimen/card_spacing"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_log"
+                    android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+
+                <TextView
+                    android:id="@+id/text_log"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@color/brand_surface_alt"
+                    android:fontFamily="monospace"
+                    android:minHeight="160dp"
+                    android:padding="12dp"
+                    android:text="@string/log_placeholder"
+                    android:textColor="@color/brand_text_secondary"
+                    android:textIsSelectable="true"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
