@@ -9,7 +9,7 @@ import java.util.Locale
  * 离线 license 单机绑定用的设备指纹。
  *
  * 算法：SHA-256( UTF-8("{applicationId}|{ANDROID_ID}") )，大写 hex、无冒号。
- * 与签发端 `tools/license/issue_license.py --device-sha256` 一致。
+ * 与签发端 `asr/tools/license/issue_license.py --device-sha256` 一致。
  *
  * 不采集 IMEI/MAC；ANDROID_ID 在恢复出厂设置后可能变化。
  */

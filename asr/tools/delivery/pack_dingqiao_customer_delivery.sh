@@ -75,7 +75,7 @@ echo "[3b/4] embed demo reference source (AAR-aligned, no SDK source) ..."
 DINGQIAO_FAT_AAR="$FAT_AAR" \
 DINGQIAO_DEMO_SRC_OUT_ROOT="$OUT_ROOT/demo-src" \
 DINGQIAO_DEMO_SRC_SKIP_ZIP=1 \
-bash "$REPO_ROOT/tools/android/pack_dingqiao_demo_source_delivery.sh" "$VERSION"
+bash "$REPO_ROOT/asr/tools/delivery/pack_dingqiao_demo_source_delivery.sh" "$VERSION"
 
 cat > "$OUT_ROOT/README.txt" <<EOF
 鼎桥警务语音识别 SDK v${VERSION}

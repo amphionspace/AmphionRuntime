@@ -2,7 +2,7 @@
 # 鼎桥 Demo 参考工程源码交付（方案：纯 demo 模块 + fat AAR + 客户文档，脱敏）。
 #
 # 用法（AmphionRuntime 仓库根目录）:
-#   bash tools/android/pack_dingqiao_demo_source_delivery.sh [SDK版本号]
+#   bash asr/tools/delivery/pack_dingqiao_demo_source_delivery.sh [SDK版本号]
 #
 # 环境变量（可选，供 pack_dingqiao_customer_delivery.sh 嵌入调用）:
 #   DINGQIAO_FAT_AAR           已构建的 fat AAR 路径（跳过 AAR 编译）
@@ -22,7 +22,7 @@ DQ_ROOT="$(cd "$REPO_ROOT/.." && pwd)"
 AR_ROOT="$(dingqiao_ar_root_from_repo "$REPO_ROOT")"
 CUSTOMER_DOCS="$AR_ROOT/docs/customer"
 BUILD_DATE="$(date +%Y%m%d)"
-DEMO_SRC="$AR_ROOT/sample-dingqiao-demo"
+DEMO_SRC="$AR_ROOT/samples/dingqiao-demo"
 
 VERSION="$(dingqiao_resolve_delivery_version "$AR_ROOT" "${1:-}")"
 AAR_NAME="dingqiao-asr-v${VERSION}.aar"
@@ -37,18 +37,18 @@ if [[ -z "${DINGQIAO_FAT_AAR:-}" ]]; then
   cd "$AR_ROOT"
   ./gradlew :sdk:assembleRelease :sdk-police:assembleRelease :sdk-dingqiao:assembleRelease
   dingqiao_assert_sdk_version_consistent "$AR_ROOT"
-  bash "$REPO_ROOT/tools/android/merge_dingqiao_fat_aar.sh" "$VERSION"
+  bash "$REPO_ROOT/asr/tools/delivery/merge_dingqiao_fat_aar.sh" "$VERSION"
 fi
 [[ -f "$FAT_AAR" ]] || { echo "[ERROR] missing $FAT_AAR" >&2; exit 1; }
 
 echo "[0b/5] issue demo license + build Release Demo APK (2-month trial, hotwords UI) ..."
 dingqiao_issue_demo_license "$REPO_ROOT"
 cd "$AR_ROOT"
-./gradlew :sample-dingqiao-demo:assembleRelease \
+./gradlew :samples:dingqiao-demo:assembleRelease \
   -PdingqiaoUseFatAar=true \
   -PdingqiaoFatAarPath="$FAT_AAR"
-DEMO_APK_SRC="$AR_ROOT/sample-dingqiao-demo/build/outputs/apk/release/sample-dingqiao-demo-release.apk"
-DEMO_LIC_SRC="$AR_ROOT/sample-dingqiao-demo/src/main/assets/amphion-license.lic"
+DEMO_APK_SRC="$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk"
+DEMO_LIC_SRC="$AR_ROOT/samples/dingqiao-demo/src/main/assets/amphion-license.lic"
 [[ -f "$DEMO_APK_SRC" ]] || { echo "[ERROR] missing $DEMO_APK_SRC" >&2; exit 1; }
 [[ -f "$DEMO_LIC_SRC" ]] || { echo "[ERROR] missing $DEMO_LIC_SRC" >&2; exit 1; }
 
@@ -60,7 +60,7 @@ cp "$FAT_AAR" "$OUT_ROOT/libs/$AAR_NAME"
 cp "$DEMO_APK_SRC" "$OUT_ROOT/demo/sample-dingqiao-demo-release.apk"
 cp "$DEMO_LIC_SRC" "$OUT_ROOT/demo/amphion-license.lic"
 
-DEMO_LIC_EXPIRES="$("$REPO_ROOT/tools/license/.venv/bin/python" -c "
+DEMO_LIC_EXPIRES="$("$REPO_ROOT/asr/tools/license/.venv/bin/python" -c "
 import json, sys
 print(json.load(open(sys.argv[1]))['expiresAt'])
 " "$DEMO_LIC_SRC" 2>/dev/null || echo "见 amphion-license.lic")"
@@ -308,7 +308,7 @@ grep -rq ":sdk-dingqiao\|:sdk-police" "$OUT_ROOT" && {
 }
 
 echo "[3/5] verify AAR in delivery tree ..."
-bash "$REPO_ROOT/tools/android/verify_dingqiao_delivery.sh" "$OUT_ROOT/libs/$AAR_NAME"
+bash "$REPO_ROOT/asr/tools/delivery/verify_dingqiao_delivery.sh" "$OUT_ROOT/libs/$AAR_NAME"
 
 if [[ "${DINGQIAO_DEMO_SRC_SKIP_ZIP:-}" != "1" ]]; then
   echo "[4/5] zip ..."

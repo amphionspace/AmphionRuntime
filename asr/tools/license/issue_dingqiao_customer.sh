@@ -8,8 +8,8 @@
 #
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-VENV="$ROOT/tools/license/.venv"
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+VENV="$ROOT/asr/tools/license/.venv"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$ROOT/.secure/amphion-license-private.pem}"
 OUT="${1:-$ROOT/../delivery/com.tdtech.tiassistant.lic}"
 APP_ID="com.tdtech.tiassistant"
@@ -35,7 +35,7 @@ print(f'{y:04d}-{m:02d}-{day:02d}')
 ")"
 
 mkdir -p "$(dirname "$OUT")"
-"$VENV/bin/python" "$ROOT/tools/license/issue_license.py" \
+"$VENV/bin/python" "$ROOT/asr/tools/license/issue_license.py" \
   --private-key "$PRIVATE_KEY" \
   --application-id "$APP_ID" \
   --customer "TD Tech / Dingqiao" \
