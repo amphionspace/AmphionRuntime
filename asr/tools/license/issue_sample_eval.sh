@@ -6,7 +6,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 VENV="$ROOT/asr/tools/license/.venv"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$ROOT/.secure/amphion-license-private.pem}"
-OUT="$ROOT/asr/android/sample/src/main/assets/amphion-license.lic"
+OUT="$ROOT/asr/android/samples/public-demo/src/main/assets/amphion-license.lic"
 CERT_SHA="${SAMPLE_EVAL_CERT_SHA256:-}"
 
 if [[ ! -d "$VENV" ]]; then
@@ -37,4 +37,4 @@ mkdir -p "$(dirname "$OUT")"
   ${CERT_SHA:+--cert-sha256 "$CERT_SHA"} \
   --out "$OUT"
 
-echo "[ok] wrote $OUT (rebuild :sample before install)"
+echo "[ok] wrote $OUT (rebuild :samples:public-demo before install)"

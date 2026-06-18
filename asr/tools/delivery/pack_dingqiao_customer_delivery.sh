@@ -27,7 +27,7 @@ ZIP_PATH="$DQ_ROOT/delivery/${PKG_NAME}-${BUILD_DATE}.zip"
 AAR_NAME="dingqiao-asr-v${VERSION}.aar"
 FAT_AAR="$AR_ROOT/build/dingqiao-delivery/$AAR_NAME"
 ERES2NET_SRC="$REPO_ROOT/asr/tools/speaker/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"
-DEMO_APK_SRC="$AR_ROOT/sample-dingqiao-demo/build/outputs/apk/release/sample-dingqiao-demo-release.apk"
+DEMO_APK_SRC="$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk"
 
 echo "[1/4] build release AARs + merge fat AAR ..."
 cd "$AR_ROOT"
@@ -38,7 +38,7 @@ bash "$REPO_ROOT/asr/tools/delivery/merge_dingqiao_fat_aar.sh" "$VERSION"
 
 echo "[2/4] build Demo APK (fat AAR aligned) ..."
 dingqiao_issue_demo_license "$REPO_ROOT"
-./gradlew :sample-dingqiao-demo:assembleRelease \
+./gradlew :samples:dingqiao-demo:assembleRelease \
   -PdingqiaoUseFatAar=true \
   -PdingqiaoFatAarPath="$FAT_AAR"
 [[ -f "$DEMO_APK_SRC" ]] || { echo "[ERROR] missing $DEMO_APK_SRC" >&2; exit 1; }
@@ -48,13 +48,13 @@ rm -rf "$OUT_ROOT"
 mkdir -p "$OUT_ROOT"/{aar,demo,models,docs}
 
 cp "$FAT_AAR" "$OUT_ROOT/aar/"
-cp "$DEMO_APK_SRC" "$OUT_ROOT/demo/sample-dingqiao-demo-release.apk"
+cp "$DEMO_APK_SRC" "$OUT_ROOT/demo/dingqiao-demo-release.apk"
 cp "$ERES2NET_SRC" "$OUT_ROOT/models/eres2net.onnx"
 
 dingqiao_stage_customer_docs "$OUT_ROOT/docs" "$CUSTOMER_DOCS" "$DQ_ROOT"
 
 AAR_MB="$(du -m "$OUT_ROOT/aar/$AAR_NAME" | awk '{print $1}')"
-APK_MB="$(du -m "$OUT_ROOT/demo/sample-dingqiao-demo-release.apk" | awk '{print $1}')"
+APK_MB="$(du -m "$OUT_ROOT/demo/dingqiao-demo-release.apk" | awk '{print $1}')"
 MODEL_MB="$(du -m "$OUT_ROOT/models/eres2net.onnx" | awk '{print $1}')"
 
 dingqiao_write_version_txt "$OUT_ROOT/VERSION.txt" \
@@ -78,7 +78,7 @@ cat > "$OUT_ROOT/README.txt" <<EOF
 目录
 ----
   aar/$AAR_NAME              集成用 SDK（~${AAR_MB} MB）
-  demo/sample-dingqiao-demo-release.apk   参考 Demo（~${APK_MB} MB）
+  demo/dingqiao-demo-release.apk   参考 Demo（~${APK_MB} MB）
   models/eres2net.onnx       声纹模型（~${MODEL_MB} MB，放入 setWorkPath）
   docs/                      集成、商用授权（LICENSE.md）、第三方声明（NOTICE）
 

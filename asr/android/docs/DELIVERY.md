@@ -20,12 +20,12 @@ amphion-runtime-android-0.2.0-2026-05-25/
 ├── consumer-rules.pro                  # R8/混淆规则（业务方开混淆时需要 include）
 ├── checksum.txt                        # AAR / sources.jar 的 sha256
 └── samples/
-    └── MainActivity.kt                 # 200 行最小集成示例（来自 :sample 模块）
+    └── MainActivity.kt                 # 200 行最小集成示例（来自 :samples:public-demo 模块）
 ```
 
-> 交付边界（必须严格遵守）：对外只交付 `:sdk` AAR + `:sample` 来源；`:sample-eval` 是对内评测版（含 INTERNET / FileProvider / OkHttp / 上传链路），永远不进交付包。详细见 §10。
+> 交付边界（必须严格遵守）：对外只交付 `:sdk` AAR + `:samples:public-demo` 来源；`:samples:internal-eval` 是对内评测版（含 INTERNET / FileProvider / OkHttp / 上传链路），永远不进交付包。详细见 §10。
 
-只交付上面这些；不要把 `tools/`, `third_party/`, `sherpa-onnx/`, `:sample-eval/` 之类的内部资产带过去。
+只交付上面这些；不要把 `tools/`, `third_party/`, `sherpa-onnx/`, `samples/internal-eval/` 之类的内部资产带过去。
 
 > 商用授权补充：标准交付包不含 license。每个客户的 `.lic` 由我方用私钥单独签发（见 §11），经安全渠道单独发给该客户，由其放进自己 App 的 `assets/`（默认文件名 `amphion-license.lic`）。交付给客户的 AAR 必须是「武装构建」（gradle.properties 注入了 license 公钥，见 §3.6）；未武装的 AAR 不做授权校验，仅限内部 / 评测使用。私钥与签发出的 `.lic` 都不进库（`.gitignore` 已忽略）。
 
@@ -104,7 +104,7 @@ cd asr/android
 ### 3.5 装 sample 自验
 
 ```bash
-./gradlew :sample:installDebug
+./gradlew :samples:public-demo:installDebug
 adb shell am start -n com.amphion.asr.sample/.MainActivity
 ```
 
@@ -138,7 +138,7 @@ cd asr/android && ./gradlew :sdk:assembleRelease
 python asr/tools/license/issue_license.py --private-key ~/secure/amphion-license-private.pem \
   --application-id com.amphion.asr.sample --customer "Internal Test" --expires 2099-01-01 \
   --features ASR_ZH_EN,ASR_YUE_EN --out sample/src/main/assets/amphion-license.lic
-./gradlew :sample:installRelease   # sample release minify=true，同时回归 SDK consumer-rules
+./gradlew :samples:public-demo:installRelease   # sample release minify=true，同时回归 SDK consumer-rules
 ```
 
 - [ ] 武装构建 + 放入对应 `.lic` 后，`AmphionRuntime.licenseStatus().state == LICENSED`
@@ -255,13 +255,13 @@ Subject: Amphion ASR Android SDK v0.2.0 交付
 | 模型 / 训练 | (待填) |
 | 法务 / 合规 | (待填) |
 | 业务方对接窗口 | (待填) |
-| :sample-eval 维护（评测框架跟随 SDK 升级） | (待填) |
+| :samples:internal-eval 维护（评测框架跟随 SDK 升级） | (待填) |
 
-## 10. 对内评测版 :sample-eval
+## 10. 对内评测版 :samples:internal-eval
 
-`:sample-eval` 是对内使用的评测数据采集 App，与对外 `:sample` 完全物理隔离：
+`:samples:internal-eval` 是对内使用的评测数据采集 App，与对外 `:samples:public-demo` 完全物理隔离：
 
-| 维度 | :sample（对外） | :sample-eval（对内） |
+| 维度 | :samples:public-demo（对外） | :samples:internal-eval（对内） |
 | --- | --- | --- |
 | applicationId | com.amphion.asr.sample | com.amphion.asr.sample.eval |
 | 入口 | MainActivity（直接录音 demo） | LandingActivity → EvalActivity（句子列表 + 测试员管理 + 上传） |
@@ -285,7 +285,7 @@ Subject: Amphion ASR Android SDK v0.2.0 交付
 
 ```bash
 cd asr/android
-./gradlew :sample-eval:installDebug
+./gradlew :samples:internal-eval:installDebug
 adb shell am start -n com.amphion.asr.sample.eval/com.amphion.asr.sample.eval.LandingActivity
 ```
 
@@ -301,7 +301,7 @@ adb shell am start -n com.amphion.asr.sample.eval/com.amphion.asr.sample.eval.La
 
 ### 10.3 评测版的 SDK API 用法约束
 
-`:sample-eval` 只允许使用 SDK 公开 API（`com.amphion.asr.*` 顶层）；不允许：
+`:samples:internal-eval` 只允许使用 SDK 公开 API（`com.amphion.asr.*` 顶层）；不允许：
 
 - 反射访问 `com.amphion.asr.internal.*`
 - 通过 `@JvmField` / `@Suppress("INVISIBLE_*")` 等手段绕过 internal 可见性
@@ -315,7 +315,7 @@ adb shell am start -n com.amphion.asr.sample.eval/com.amphion.asr.sample.eval.La
 
 ### 10.4 维护责任
 
-`:sample-eval` 的责任人见 §9 联系点表。SDK 公开 API 升级时该责任人需在同一 PR 内同步评测版编译；如果评测版无法跟进，PR 不允许合入主干（保护"评测版自带回归测试"的契约）。
+`:samples:internal-eval` 的责任人见 §9 联系点表。SDK 公开 API 升级时该责任人需在同一 PR 内同步评测版编译；如果评测版无法跟进，PR 不允许合入主干（保护"评测版自带回归测试"的契约）。
 
 ## 11. 商用 License 签发与计费 SOP
 

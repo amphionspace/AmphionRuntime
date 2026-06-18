@@ -46,4 +46,4 @@ bash asr/tools/00_push_my_model.sh
 | zipformer_L_zh_en | zh-en |
 | zipformer_L_yue_en | yue-en |
 
-如果你换了 model_id，需要同步改 `asr/android/sample/src/main/java/com/amphion/asr/sample/MainActivity.kt` 里的 lang 路由逻辑。
+如果你换了 model_id，需要同步改 `asr/android/samples/public-demo/src/main/java/com/amphion/asr/sample/MainActivity.kt` 里的 lang 路由逻辑。

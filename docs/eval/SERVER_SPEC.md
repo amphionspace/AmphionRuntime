@@ -440,7 +440,7 @@ curl -s -o /dev/null -w "%{http_code}\n" \
 
 | 仓库内位置 | 角色 |
 | --- | --- |
-| asr/android/sample/src/main/java/com/amphion/asr/sample/eval/upload/HttpUploader.kt | 客户端实现 |
+| asr/android/samples/internal-eval/src/main/java/com/amphion/asr/sample/eval/upload/HttpUploader.kt | 客户端实现 |
 | docs/eval/SCHEMA.md | meta.json 完整字段定义 |
 | docs/eval/WORKFLOW.md | 测试员手册 + 工程师手册 |
 | asr/tools/eval_wer.py | 拿到服务端落盘数据后跑 WER 报告（与 zip 导出共用同一份代码） |

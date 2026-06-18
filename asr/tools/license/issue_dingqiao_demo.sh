@@ -10,7 +10,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 VENV="$ROOT/asr/tools/license/.venv"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$ROOT/.secure/amphion-license-private.pem}"
-OUT="$ROOT/asr/android/sample-dingqiao-demo/src/main/assets/amphion-license.lic"
+OUT="$ROOT/asr/android/samples/dingqiao-demo/src/main/assets/amphion-license.lic"
 CERT_SHA="${DINGQIAO_DEMO_CERT_SHA256:-}"
 TRIAL_MONTHS="${DINGQIAO_DEMO_TRIAL_MONTHS:-2}"
 

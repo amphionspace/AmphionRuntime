@@ -4,8 +4,8 @@ plugins {
 }
 
 android {
-    // namespace 故意与 :sample 共用 com.amphion.asr.sample：
-    // - sample-eval 的 Kotlin 文件继续用 com.amphion.asr.sample.eval.* 子 package（与 HEAD 一致）
+    // namespace 故意与 :samples:public-demo 共用 com.amphion.asr.sample：
+    // - internal-eval 的 Kotlin 文件继续用 com.amphion.asr.sample.eval.* 子 package（与 HEAD 一致）
     // - R / BuildConfig 由 namespace 决定，落在 com.amphion.asr.sample.R / .BuildConfig
     // - 两个模块互不依赖、不会同时打进同一个 APK，namespace 相同对运行期没有影响，
     //   反而让评测代码（其 import com.amphion.asr.sample.R）零修改
@@ -13,7 +13,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        // applicationId 必须与 :sample 区分，否则两版 APK 不能同设备共存
+        // applicationId 必须与 :samples:public-demo 区分，否则两版 APK 不能同设备共存
         applicationId = "com.amphion.asr.sample.eval"
         minSdk = 24
         targetSdk = 34

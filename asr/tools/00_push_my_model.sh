@@ -141,7 +141,7 @@ if ! "${ADB[@]}" shell pm list packages 2>/dev/null | grep -q "package:${SAMPLE_
         externalFilesDir 必须由 app 至少启动一次后才存在；请先：
 
           cd $REPO_ROOT/asr/android
-          ./gradlew :sample:installDebug
+          ./gradlew :samples:public-demo:installDebug
           adb shell am start -n ${SAMPLE_PKG}/.eval.LandingActivity
 
         然后再回来跑本脚本。

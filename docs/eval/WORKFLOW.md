@@ -128,7 +128,7 @@
 
 ```bash
 # 方案 A：重新打包 APK
-./gradlew :sample:assembleDebug
+./gradlew :samples:public-demo:assembleDebug
 
 # 方案 B：adb push 覆盖（不需要重打包）
 adb push my-sentences.json /sdcard/Android/data/com.amphion.asr.sample/files/asr-eval-set/sentences.json

@@ -8,7 +8,7 @@
 
 ```bash
 cd asr/android
-./gradlew :sample-dingqiao-demo:assembleDebug
+./gradlew :samples:dingqiao-demo:assembleDebug
 ```
 
 ## 声纹模型

@@ -254,7 +254,7 @@ export ANDROID_SERIAL=192.168.1.100:42123
 
 ```bash
 cd /Users/boxp/workspace/amphion-runtime/asr/android
-./gradlew :sample:installDebug
+./gradlew :samples:public-demo:installDebug
 ```
 
 无线调试 install 比 USB 慢，5–10 MB 的 APK 通常 30 秒到 1 分钟。
@@ -352,7 +352,7 @@ bash asr/tools/05_package_aar_libs.sh
 
 # 装 sample
 cd asr/android
-./gradlew :sample:installDebug
+./gradlew :samples:public-demo:installDebug
 
 # 重启 app
 adb shell am force-stop com.amphion.asr.sample
@@ -474,7 +474,7 @@ bash asr/tools/00_push_my_model.sh \
 
 sample 里 `MainActivity.ensureModel()` 是这样选模型的：
 
-```121:128:asr/android/sample/src/main/java/com/amphion/asr/sample/MainActivity.kt
+```121:128:asr/android/samples/public-demo/src/main/java/com/amphion/asr/sample/MainActivity.kt
         val mm = ModelManager(this)
         // 优先看是否已有本地模型
         val local = mm.listLocal().firstOrNull()

@@ -11,7 +11,7 @@ import java.io.File
  * - 录音直接写到 `_temp/<recording_id>/audio.wav`，stop 时由 finalize 搬迁到正式目录
  * - 同步把 PCM 喂给可选的 transcriber，复用录音管线的 PCM 流，不再起第二条采集线程
  *
- * 增益策略：默认 +10dB，与对外 :sample demo 链路一致，让 WER 数据复刻生产场景；
+ * 增益策略：默认 +10dB，与对外 :samples:public-demo demo 链路一致，让 WER 数据复刻生产场景；
  * 如果想测"模型本征 WER"，调用方可显式传 gainDb=0。meta.json 里始终记录实际 gain_db。
  */
 class EvalRecorder private constructor(

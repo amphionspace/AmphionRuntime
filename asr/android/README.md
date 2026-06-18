@@ -2,18 +2,21 @@
 
 基于 sherpa-onnx 的 AmphionRuntime 工程。
 
-包含四个 Gradle 模块：
+包含 3 个 SDK 模块和 4 个 sample 模块：
 
 | 模块 | 类型 | 说明 |
 | --- | --- | --- |
 | `:sdk` | Android Library (AAR) | 对外发布的 SDK；包名 `com.amphion.asr` |
-| `:sample` | Android Application (APK) | 对外 demo：实时识别 + 热词 + 目标说话人注册/开关演示，零网络权限，applicationId `com.amphion.asr.sample` |
-| `:sample-eval` | Android Application (APK) | 对内评测版：评测数据采集 + WER 估算 + 上传，applicationId `com.amphion.asr.sample.eval` |
-| `:sample-mini` | Android Application (APK) | `:sample` 的小屏变体：240x320 等极小屏（如对讲机）适配，功能对齐，applicationId `com.amphion.asr.mini` |
+| `:sdk-police` | Android Library (AAR) | 警务三域增强：术语、车牌、派出所归一化 |
+| `:sdk-dingqiao` | Android Library (AAR) | 鼎桥客户 API 适配层 |
+| `:samples:public-demo` | Android Application (APK) | 通用 demo：端侧识别 + 热词 + 目标说话人注册/开关；另含云端 ASR 演示开关，applicationId `com.amphion.asr.sample` |
+| `:samples:mini-demo` | Android Application (APK) | `:samples:public-demo` 的小屏变体：240x320 等极小屏适配，applicationId `com.amphion.asr.mini` |
+| `:samples:internal-eval` | Android Application (APK) | 内部评测版：评测数据采集 + WER 估算 + 上传。`eval` 即 evaluation（评测），applicationId `com.amphion.asr.sample.eval` |
+| `:samples:dingqiao-demo` | Android Application (APK) | 鼎桥客户定制 demo，applicationId `com.amphion.dingqiao.demo` |
 
 > 0.2.0 起所有模型（中英 ASR / 粤英 ASR / 标点 / 中文 ITN / VAD）一并打进 AAR，业务方不再需要任何外部模型分发。
 >
-> 对外交付边界：业务方只拿 `:sdk` AAR 与 `:sample` 产物；`:sample-eval` 含 INTERNET 权限 + FileProvider + OkHttp 上传链路，仅用于内部评测，不在交付范围内；`:sample-mini` 是面向极小屏设备的 demo 变体，按需提供。详见 [docs/INTEGRATION.md](docs/INTEGRATION.md) 与 [docs/DELIVERY.md](docs/DELIVERY.md)。
+> 对外交付边界：业务方只拿 `:sdk` AAR 与 `:samples:public-demo` 产物；`:samples:internal-eval` 含 INTERNET 权限 + FileProvider + OkHttp 上传链路，仅用于内部评测，不在交付范围内；`:samples:mini-demo` 是面向极小屏设备的 demo 变体，按需提供；`:samples:dingqiao-demo` 只用于鼎桥客户交付。详见 [samples/README.md](samples/README.md)、[docs/INTEGRATION.md](docs/INTEGRATION.md) 与 [docs/DELIVERY.md](docs/DELIVERY.md)。
 
 ## 快速开始
 
@@ -52,7 +55,7 @@ bash ../../asr/tools/08_pack_sdk_assets.sh
 # 文档入口：sdk/build/dokka/html/index.html
 
 # 7) 装 sample 自验
-./gradlew :sample:installDebug
+./gradlew :samples:public-demo:installDebug
 adb shell am start -n com.amphion.asr.sample/.MainActivity
 ```
 
@@ -61,7 +64,7 @@ adb shell am start -n com.amphion.asr.sample/.MainActivity
 ```bash
 adb devices                                     # 找到目标真机的 serial
 export ANDROID_SERIAL=<真机 serial>             # 之后 gradle install / adb 都默认走这台
-./gradlew :sample:installDebug
+./gradlew :samples:public-demo:installDebug
 ```
 
 ## SDK 公开 API（0.2.0）
@@ -142,7 +145,7 @@ AmphionRuntime/
 ├── README.md                   # 本文件
 ├── LICENSE                     # 自有 SDK 协议（Apache 2.0 模板）
 ├── NOTICE                      # 第三方依赖声明（sherpa-onnx / onnxruntime / silero-vad / WeTextProcessing / ...）
-├── settings.gradle.kts         # 根 settings：include sdk + sample + sample-eval + sample-mini
+├── settings.gradle.kts         # 根 settings：include SDK 模块 + samples/*
 ├── build.gradle.kts            # 根 build：仅声明 plugin 版本
 ├── gradle.properties           # 全局属性 + SDK 坐标（GROUP/ARTIFACT/VERSION）
 ├── gradle/
@@ -203,14 +206,14 @@ AmphionRuntime/
 │           ├── layout/activity_main.xml
 │           └── values/strings.xml
 │
-├── sample-eval/                # 对内评测 App（applicationId com.amphion.asr.sample.eval）
+├── samples/internal-eval/                # 对内评测 App（applicationId com.amphion.asr.sample.eval）
 │   ├── build.gradle.kts        # 含 OkHttp / RecyclerView / lifecycle；INTERNET + FileProvider
 │   ├── proguard-rules.pro
 │   └── src/main/
 │       ├── AndroidManifest.xml
 │       ├── java/com/amphion/asr/sample/
 │       │   ├── AmphionApp.kt          # AmphionRuntime.init + preload(ZH_EN, YUE_EN)
-│       │   ├── AudioRecorder.kt       # 与 :sample 共用思路（独立副本）
+│       │   ├── AudioRecorder.kt       # 与 :samples:public-demo 共用思路（独立副本）
 │       │   ├── WaveformView.kt
 │       │   └── eval/                  # 评测框架主体
 │       │       ├── LandingActivity.kt # 评测入口（已删 demo 跳板）
@@ -227,8 +230,8 @@ AmphionRuntime/
 │       ├── res/                # eval 专用 layout / menu / xml
 │       └── assets/eval-set/    # 内置参考句子集
 │
-├── sample-mini/                # :sample 的小屏变体（applicationId com.amphion.asr.mini）
-│   └── src/main/               # 结构同 :sample，按 240x320 极小屏重排 UI：去 Toolbar、菜单收纳到溢出按钮、结果区弹性铺满
+├── samples/mini-demo/                # :samples:public-demo 的小屏变体（applicationId com.amphion.asr.mini）
+│   └── src/main/               # 结构同 :samples:public-demo，按 240x320 极小屏重排 UI：去 Toolbar、菜单收纳到溢出按钮、结果区弹性铺满
 │
 └── docs/
     ├── INTEGRATION.md          # 集成文档（中文，给客户看）

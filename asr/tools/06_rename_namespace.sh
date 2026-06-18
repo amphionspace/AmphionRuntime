@@ -8,7 +8,7 @@
 #   - asr/android/**/AndroidManifest.xml
 #   - asr/android/**/build.gradle.kts  namespace / applicationId
 #   - asr/android/sdk/**.pro           consumer-rules / proguard-rules
-#   - asr/android/sample/**.pro
+#   - asr/android/samples/public-demo/**.pro
 #   - 物理目录：sdk/src/main/java/com/amphion/asr -> sdk/src/main/java/<new-pkg-path>
 #   - 同上 sample
 #

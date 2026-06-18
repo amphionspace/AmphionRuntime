@@ -26,12 +26,12 @@ ERES2NET_SRC="$REPO_ROOT/asr/tools/speaker/models/3dspeaker_speech_eres2net_base
 SDK_AAR="$AR_ROOT/sdk/build/outputs/aar/sdk-release.aar"
 POLICE_AAR="$AR_ROOT/sdk-police/build/outputs/aar/sdk-police-release.aar"
 DINGQIAO_AAR="$AR_ROOT/sdk-dingqiao/build/outputs/aar/sdk-dingqiao-release.aar"
-DEMO_APK="$AR_ROOT/sample-dingqiao-demo/build/outputs/apk/release/sample-dingqiao-demo-release.apk"
+DEMO_APK="$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk"
 
 echo "[1/3] build release（三 AAR + Demo APK 同批构建）..."
 cd "$AR_ROOT"
 dingqiao_issue_demo_license "$REPO_ROOT"
-./gradlew :sdk:assembleRelease :sdk-police:assembleRelease :sdk-dingqiao:assembleRelease :sample-dingqiao-demo:assembleRelease
+./gradlew :sdk:assembleRelease :sdk-police:assembleRelease :sdk-dingqiao:assembleRelease :samples:dingqiao-demo:assembleRelease
 dingqiao_assert_sdk_version_consistent "$AR_ROOT"
 
 for f in "$SDK_AAR" "$POLICE_AAR" "$DINGQIAO_AAR" "$DEMO_APK"; do
@@ -45,7 +45,7 @@ mkdir -p "$OUT_ROOT"/{aar,demo,models,docs}
 cp "$SDK_AAR" "$OUT_ROOT/aar/amphion-runtime-release.aar"
 cp "$POLICE_AAR" "$OUT_ROOT/aar/amphion-police-release.aar"
 cp "$DINGQIAO_AAR" "$OUT_ROOT/aar/dingqiao-sdk-release.aar"
-cp "$DEMO_APK" "$OUT_ROOT/demo/sample-dingqiao-demo-release.apk"
+cp "$DEMO_APK" "$OUT_ROOT/demo/dingqiao-demo-release.apk"
 cp "$ERES2NET_SRC" "$OUT_ROOT/models/eres2net.onnx"
 
 cp "$DQ_ROOT/语音识别SDK接口.md" "$OUT_ROOT/docs/"
@@ -57,7 +57,7 @@ cp "$AR_ROOT/NOTICE" "$OUT_ROOT/docs/NOTICE"
 SDK_MB="$(du -m "$OUT_ROOT/aar/amphion-runtime-release.aar" | awk '{print $1}')"
 POLICE_MB="$(du -m "$OUT_ROOT/aar/amphion-police-release.aar" | awk '{print $1}')"
 DINGQIAO_MB="$(du -m "$OUT_ROOT/aar/dingqiao-sdk-release.aar" | awk '{print $1}')"
-APK_MB="$(du -m "$OUT_ROOT/demo/sample-dingqiao-demo-release.apk" | awk '{print $1}')"
+APK_MB="$(du -m "$OUT_ROOT/demo/dingqiao-demo-release.apk" | awk '{print $1}')"
 MODEL_MB="$(du -m "$OUT_ROOT/models/eres2net.onnx" | awk '{print $1}')"
 
 cd "$REPO_ROOT"
@@ -85,7 +85,7 @@ cat > "$OUT_ROOT/README.txt" <<EOF
   aar/amphion-runtime-release.aar   核心 ASR + 模型 + JNI（~${SDK_MB} MB）
   aar/amphion-police-release.aar    警务三域后处理（~${POLICE_MB} MB）
   aar/dingqiao-sdk-release.aar      鼎桥 API 适配 SpeechRecognizeSdk（~${DINGQIAO_MB} MB）
-  demo/sample-dingqiao-demo-release.apk   参考 Demo（~${APK_MB} MB，依赖上述三模块）
+  demo/dingqiao-demo-release.apk   参考 Demo（~${APK_MB} MB，依赖上述三模块）
   models/eres2net.onnx              声纹模型（~${MODEL_MB} MB，外置）
   docs/                             接口与集成说明
 
@@ -103,7 +103,7 @@ Gradle 集成（方案 B）
 与方案 A 的区别
 ---------------
   方案 A：单一 fat AAR（dingqiao-asr-*.aar），集成最简单。
-  方案 B：三模块分发，与工程 :sample-dingqiao-demo 构建方式一致，便于分版本升级。
+  方案 B：三模块分发，与工程 :samples:dingqiao-demo 构建方式一致，便于分版本升级。
 
 商用授权
 --------

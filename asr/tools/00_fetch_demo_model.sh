@@ -31,7 +31,7 @@ MODEL_LANG="zh-en"
 # asr-models-import/<id>/<v>/。本地 demo-model 不带 version 子层（python 消费者只
 # 关心文件路径）。
 MODEL_VERSION="1.0.0"
-SAMPLE_PKG="com.amphion.asr.sample"   # 与 sample/build.gradle.kts 中 applicationId 保持一致
+SAMPLE_PKG="com.amphion.asr.sample"   # 与 samples/public-demo/build.gradle.kts 中 applicationId 保持一致
 UPSTREAM_NAME="sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20"
 UPSTREAM_TAR_URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/${UPSTREAM_NAME}.tar.bz2"
 
@@ -159,7 +159,7 @@ push_to_device() {
 
           cd $REPO_ROOT/asr/android
           bash init_gradle_wrapper.sh
-          ./gradlew :sample:installDebug
+          ./gradlew :samples:public-demo:installDebug
           adb shell am start -n ${SAMPLE_PKG}/.eval.LandingActivity
 
         然后再 重新跑本脚本 push。

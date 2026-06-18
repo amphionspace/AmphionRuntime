@@ -347,7 +347,7 @@ class EvalActivity : AppCompatActivity(), UploadScanner.Listener {
     private fun shareZip(zip: java.io.File) {
         // 用 BuildConfig.APPLICATION_ID 而不是 packageName，避免 build flavor 加 .debug
         // 后缀时 authority 与 manifest 不一致。AndroidManifest 用的也是 ${applicationId}.fileprovider。
-        // sample-eval 已经独立成模块，applicationId = com.amphion.asr.sample.eval，
+        // internal-eval 已经独立成模块，applicationId = com.amphion.asr.sample.eval，
         // 不需要在 authority 里再叠 .eval. 后缀。
         val authority = "${BuildConfig.APPLICATION_ID}.fileprovider"
         val uri: Uri = FileProvider.getUriForFile(this, authority, zip)
