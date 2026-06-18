@@ -71,6 +71,12 @@ bash "$REPO_ROOT/asr/tools/delivery/verify_dingqiao_delivery.sh" "$OUT_ROOT/VERS
 bash "$REPO_ROOT/asr/tools/delivery/verify_dingqiao_delivery.sh" "$OUT_ROOT/aar/$AAR_NAME"
 bash "$REPO_ROOT/asr/tools/delivery/verify_dingqiao_delivery.sh" "$OUT_ROOT"
 
+echo "[3b/4] embed demo reference source (AAR-aligned, no SDK source) ..."
+DINGQIAO_FAT_AAR="$FAT_AAR" \
+DINGQIAO_DEMO_SRC_OUT_ROOT="$OUT_ROOT/demo-src" \
+DINGQIAO_DEMO_SRC_SKIP_ZIP=1 \
+bash "$REPO_ROOT/tools/android/pack_dingqiao_demo_source_delivery.sh" "$VERSION"
+
 cat > "$OUT_ROOT/README.txt" <<EOF
 鼎桥警务语音识别 SDK v${VERSION}
 ================================
@@ -79,6 +85,7 @@ cat > "$OUT_ROOT/README.txt" <<EOF
 ----
   aar/$AAR_NAME              集成用 SDK（~${AAR_MB} MB）
   demo/dingqiao-demo-release.apk   参考 Demo（~${APK_MB} MB）
+  demo-src/                  Demo 参考工程源码（独立 Gradle，默认依赖 libs/ 内同版 AAR）
   models/eres2net.onnx       声纹模型（~${MODEL_MB} MB，放入 setWorkPath）
   docs/                      集成、商用授权（LICENSE.md）、第三方声明（NOTICE）
 
