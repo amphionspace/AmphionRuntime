@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.LitsTtsSample" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand_accent</item>
+        <item name="colorPrimaryDark">@color/brand_accent_pressed</item>
+        <item name="colorAccent">@color/brand_accent</item>
+        <item name="android:windowBackground">@color/brand_cream</item>
+        <item name="android:statusBarColor">@color/brand_cream</item>
+        <item name="android:navigationBarColor">@color/brand_cream</item>
+        <item name="android:textColorPrimary">@color/brand_text_primary</item>
+        <item name="android:textColorSecondary">@color/brand_text_secondary</item>
+    </style>
+
+    <style name="TextAppearance.Lits.BrandTitle" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/brand_text_primary</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <style name="TextAppearance.Lits.CardLabel" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/brand_text_muted</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+
+    <style name="TextAppearance.Lits.Body" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">17sp</item>
+        <item name="android:textColor">@color/brand_text_primary</item>
+    </style>
+
+    <style name="TextAppearance.Lits.Status" parent="TextAppearance.AppCompat">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/brand_text_secondary</item>
+    </style>
+</resources>
