@@ -7,7 +7,7 @@ WER / CER 由上游统一出报告，参见 [scripts/benchmark/](../../scripts/b
 ## 用途
 
 1. 三端 SDK 的端到端烟测（在 emulator / simulator 上跑通完整一遍）
-2. 服务端 [bench_concurrent.py](../../server/asr-service/bench/bench_concurrent.py) 提供的 PCM 源
+2. 服务端 [bench_concurrent.py](../../asr/server/bench/bench_concurrent.py) 提供的 PCM 源
 3. 现网 bad-case 沉淀池：把出现过的怪音频按本目录约定塞进来，避免下次再裸奔
 
 ## 目录约定
@@ -61,5 +61,5 @@ WAV 文件不入 git（避免仓库膨胀）。请把 WAV 放在公司内网对�
 
 - 新增样本：append 到对应 category 目录 + 在 manifest.jsonl 末尾追加新行
 - 不要删除已存在的 id：避免历史报告对不上；如果某条样本要废弃请打 `tags: ["deprecated"]` 并保留
-- 增删 hotwords 类别样本时同步更新 `tools/asr/hotwords/` 下的词典
+- 增删 hotwords 类别样本时同步更新 `asr/tools/hotwords/` 下的词典
 - 此目录不再承担识别正确性评估职责。WER / CER 评估请走上游 [scripts/benchmark/](../../scripts/benchmark/)，下游不重复造轮子

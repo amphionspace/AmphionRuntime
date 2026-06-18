@@ -12,7 +12,7 @@ Amphion-specific JNI is applied on top via `git am`:
 Apply (automatic in `04_build_android_so.sh` / `02_init_submodule.sh`):
 
 ```bash
-bash tools/asr/apply_sherpa_patches.sh
+bash asr/tools/apply_sherpa_patches.sh
 ```
 
 **Do not** bump `third_party/sherpa-onnx` to a local-only commit in the parent repo.

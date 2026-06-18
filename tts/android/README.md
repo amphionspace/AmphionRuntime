@@ -1,0 +1,149 @@
+# Lits TTS Android SDK
+
+Lits TTS Android SDK 是一套最小 Android 源码工程，用来从源码构建离线端侧语音合成 AAR。该工程只保留构建 `:sdk` 必需的源码、Gradle 配置、运行时依赖和文档；真实模型包不放在 Git 中。
+
+下面统一用 `仓库根目录` 指代 amphion-runtime 仓库根目录，例如：
+
+```text
+D:\work\amphion-runtime
+```
+
+下文的路径和命令默认按 Windows 写；如果你在 macOS 或 Linux 上构建，请把路径分隔符和 `gradlew.bat` 替换成各自平台的等价形式。
+
+## 当前版本
+
+| 项 | 值 |
+| --- | --- |
+| SDK 版本 | `0.1.0` |
+| 模型 ID | `lits_delivery_16k_hifigan` |
+| 模型版本 | `1.0.0` |
+| 支持语种 | `zh-en`, `en-US` |
+| 输出格式 | `pcm`, 16000 Hz, 16-bit, mono |
+| Android minSdk | 24 |
+| ABI | `arm64-v8a` |
+
+## 工程内容
+
+当前目录只包含以下几类内容：
+
+- `sdk/`：Android Library 模块，产出最终 AAR
+- `sample/`：可安装验证 App，集成 `:sdk` 并提供合成 / 播放 / 保存 WAV 流程
+- `docs/`：构建、接入、API、伪代码说明
+- `gradle/`、`build.gradle.kts`、`settings.gradle.kts`：Gradle 构建配置
+- `LICENSE`、`NOTICE`：许可证和第三方声明
+
+不包含：
+
+- 真实模型文件
+- `local.properties`
+- `.gradle/`
+- `build/`
+
+## 文档导航
+
+- 从源码构建 SDK：[docs/DELIVERY.md](docs/DELIVERY.md)
+- 宿主 App 接入 AAR：[docs/INTEGRATION.md](docs/INTEGRATION.md)
+- 公开接口说明：[docs/API.md](docs/API.md)
+- 伪代码与调用顺序：[docs/PSEUDOCODE.md](docs/PSEUDOCODE.md)
+
+## 对外交付打包
+
+正式打包 Android SDK 时，从 `仓库根目录` 执行：
+
+```bash
+bash tts/tools/android/pack_lits_tts_android_delivery.sh 0.1.0
+```
+
+脚本会构建 release AAR,并在 `../delivery/lits-tts-android-sdk-v0.1.0/` 生成交付目录。交付包内包含：
+
+- `aar/lits-tts-sdk-0.1.0.aar`
+- `demo/lits-tts-sample-debug.apk`
+- `android-src/TTS/` Android 源码快照（含本次构建使用的模型包）
+- `docs/` 集成、API、License 和 NOTICE 文档
+- `VERSION.txt` git commit / branch / dirty 状态等构建溯源
+
+源码快照只来自 git-tracked 源码加模型包 overlay，不包含 `local.properties`、私钥、Gradle `build/` 产物或生成的 `sdk/src/main/assets`。
+
+## 源码构建快速开始
+
+1. 从源码交接方单独获取完整模型包
+2. 放到下面这个固定目录：
+
+```text
+amphion-runtime/tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0/
+```
+
+如果你的 `仓库根目录` 是 `D:\work\amphion-runtime`，那么真实放置位置就是：
+
+```text
+D:\work\amphion-runtime\tools\tts\trial-export\lits_delivery_16k_hifigan\1.0.0\
+```
+
+3. 让 Gradle 能找到本机 Android SDK：
+
+- 在 `local.properties` 写 `sdk.dir=...`
+- 或设置 `ANDROID_HOME` / `ANDROID_SDK_ROOT`
+
+4. 打开终端进入 `仓库根目录\android\TtsRuntime\`，然后在当前目录执行：
+
+```powershell
+python ..\..\tools\tts\verify_lits_delivery_16k_package.py --model-dir ..\..\tools\tts\trial-export\lits_delivery_16k_hifigan\1.0.0
+.\gradlew.bat :sdk:testDebugUnitTest
+.\gradlew.bat :sdk:assembleRelease
+.\gradlew.bat :sample:assembleDebug
+```
+
+5. 构建输出位于：
+
+```text
+sdk/build/outputs/aar/sdk-release.aar
+sample/build/outputs/apk/debug/sample-debug.apk
+```
+
+注意：模型文件只需要放到 `tts/tools/trial-export/...`，不要手动放到 `sdk/src/main/assets/...`；Gradle 会在 `preBuild` 阶段自动同步。
+
+完整步骤、输入文件清单、自检方式与常见报错见 [docs/DELIVERY.md](docs/DELIVERY.md)。
+
+## 模型包说明
+
+源码构建直接消费已经导出的 ONNX 模型包，不要求 checkpoint，也不要求执行任何导出脚本。最少需要以下文件：
+
+- `manifest.json`
+- `lits_acoustic.onnx`
+- `hifigan_vocoder.onnx`
+- `smoke_tokens.json`
+- `frontend_golden.json`
+- `chinese_lexicon.txt`
+- `cmudict.txt`
+- `pinyin_2_bpmf.txt`
+- `polychar.txt`
+- `zh_en_symbols.json`
+- `pinyin_to_tokens.json`
+- `arpabet_to_tokens.json`
+
+另外还建议保留：
+
+- `export_report.json`
+
+`onnx_smoke_hello_world.wav` 只是导出时附带的参考音频，不参与 SDK 构建，也不是 Android 预检的必需输入。
+
+Gradle 会在 `preBuild` 阶段自动把运行时需要的这些文件同步到：
+
+```text
+sdk/src/main/assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0/
+```
+
+这个目录是构建时自动生成/同步的目录，不是你手工投放模型的地方。
+
+## 运行时说明
+
+- `createEngine(params, callback)` 和 `listVoices(params, callback)` 是异步接口；Android 环境下 callback 回到主线程
+- 同步版 `createEngine(params)` 会在当前线程完成模型加载，调用方应自行放到后台线程
+- `SpeakListener` 的 `onStart/onData/onComplete/onStop/onError` 为 SDK 内部异步派发；更新 UI 时需要切回主线程
+
+## 已验证范围
+
+当前工程已验证以下源码构建链路：
+
+- `:sdk:testDebugUnitTest`
+- `:sdk:assembleRelease`

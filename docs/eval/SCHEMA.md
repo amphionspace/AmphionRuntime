@@ -197,4 +197,4 @@ Android 客户端：
       _received_at
 ```
 
-两边的目录结构刻意保持镜像，让 tools/asr/eval_wer.py 用同一份遍历代码处理 zip 与服务端落盘。
+两边的目录结构刻意保持镜像，让 asr/tools/eval_wer.py 用同一份遍历代码处理 zip 与服务端落盘。

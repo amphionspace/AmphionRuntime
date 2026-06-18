@@ -21,13 +21,13 @@ echo "[INFO] ANDROID_HOME=$ANDROID_HOME"
 echo "[INFO] ANDROID_NDK=$ANDROID_NDK"
 
 echo "[1/4] package demo assets ..."
-bash tools/asr/08_pack_sdk_assets.sh
+bash asr/tools/08_pack_sdk_assets.sh
 
 echo "[2/4] build arm64 .so (skip if jniLibs already present) ..."
-JNI="$REPO/android/AmphionRuntime/sdk/src/main/jniLibs/arm64-v8a/libsherpa-onnx-jni.so"
+JNI="$REPO/asr/android/sdk/src/main/jniLibs/arm64-v8a/libsherpa-onnx-jni.so"
 if [[ ! -f "$JNI" ]]; then
-  bash tools/asr/04_build_android_so.sh arm64-v8a
-  bash tools/asr/05_package_aar_libs.sh
+  bash asr/tools/04_build_android_so.sh arm64-v8a
+  bash asr/tools/05_package_aar_libs.sh
 else
   echo "[SKIP] jniLibs already exist"
 fi
@@ -36,7 +36,7 @@ echo "[3/4] sync plate homophones to sample assets ..."
 SYNC="$REPO/../test_data/plate_enhance/sync_homophones_to_sample.sh"
 [[ -f "$SYNC" ]] && bash "$SYNC" || true
 
-ANDROID_DIR="$REPO/android/AmphionRuntime"
+ANDROID_DIR="$REPO/asr/android"
 if [[ ! -f "$ANDROID_DIR/gradlew" ]]; then
   bash "$ANDROID_DIR/init_gradle_wrapper.sh"
 fi

@@ -3,7 +3,7 @@
 #
 # 用法:
 #   bash scripts/mac_prep/prefetch_gradle_wrapper.sh
-#   cd android/AmphionRuntime && ./gradlew :sdk:assembleRelease
+#   cd asr/android && ./gradlew :sdk:assembleRelease
 #
 set -euo pipefail
 
