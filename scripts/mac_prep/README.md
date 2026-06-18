@@ -17,7 +17,7 @@
 | NDK（需在 SDK Manager 安装） | `~/Library/Android/sdk/ndk/26.3.11579264` |
 | adb（platform-tools cask） | `/opt/homebrew/bin/adb` |
 
-项目里已写好 `android/AmphionRuntime/local.properties` → `sdk.dir=.../Library/Android/sdk`。
+项目里已写好 `asr/android/local.properties` → `sdk.dir=.../Library/Android/sdk`。
 
 每次开终端加载环境：
 
@@ -69,13 +69,13 @@ python3 generate_eval_subset.py
 
 ## 编 sample APK / 装手机（注意目录）
 
-`gradlew` 在 **`android/AmphionRuntime`**，不在仓库根目录：
+`gradlew` 在 **`asr/android`**，不在仓库根目录：
 
 ```bash
-cd /Users/amphion/Desktop/work/projects/鼎桥/AmphionRuntime/android/AmphionRuntime
-./gradlew :sample:assembleDebug
+cd /Users/amphion/Desktop/work/projects/鼎桥/AmphionRuntime/asr/android
+./gradlew :samples:public-demo:assembleDebug
 adb devices   # 必须先看到一台 device
-adb install -r sample/build/outputs/apk/debug/sample-debug.apk
+adb install -r samples/public-demo/build/outputs/apk/debug/public-demo-debug.apk
 ```
 
 `adb: no devices`：USB 连真机 → 开启「开发者选项 / USB 调试」→ 手机上点「允许」→ 再 `adb devices`。

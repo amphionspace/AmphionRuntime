@@ -91,7 +91,7 @@ jobs:
             exit 0;
           fi
           mkdir -p build/dashboard
-          python server/asr-service/bench/bench_concurrent.py \
+          python asr/server/bench/bench_concurrent.py \
             --target "$BENCH_TARGET" \
             --regression-set shared/regression-set \
             --json-out build/dashboard/bench.json || true

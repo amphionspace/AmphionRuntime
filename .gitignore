@@ -26,44 +26,47 @@ __pycache__/
 venv/
 
 # --- C++ / cmake ---
-server/asr-service/build/
+asr/server/build/
 **/cmake-build-*/
 
 # --- 编译产物（每次本地或 CI 重新构建） ---
-android/AmphionRuntime/sdk/src/main/jniLibs/**/*.so
-android/AmphionRuntime/sample/src/main/jniLibs/**/*.so
-android/AmphionRuntime/sdk/maven-repo/
-android/TtsRuntime/sdk/src/main/assets/
-android/TtsRuntime/sdk/src/main/jniLibs/**/*.so
-!android/TtsRuntime/sdk/src/main/jniLibs/arm64-v8a/libonnxruntime.so
-!android/TtsRuntime/sdk/src/main/jniLibs/arm64-v8a/libonnxruntime4j_jni.so
-ios/AmphionRuntime/AmphionRuntime.xcframework/
-ios/AmphionRuntime/AmphionRuntime.xcframework.zip
-ios/AmphionRuntime/AmphionRuntime.xcframework.zip.sha256
+asr/android/sdk/src/main/jniLibs/**/*.so
+asr/android/samples/public-demo/src/main/jniLibs/**/*.so
+asr/android/sdk/maven-repo/
+tts/android/sdk/src/main/assets/
+tts/android/sdk/src/main/jniLibs/**/*.so
+!tts/android/sdk/src/main/jniLibs/arm64-v8a/libonnxruntime.so
+!tts/android/sdk/src/main/jniLibs/arm64-v8a/libonnxruntime4j_jni.so
+asr/ios/AmphionRuntime.xcframework/
+asr/ios/AmphionRuntime.xcframework.zip
+asr/ios/AmphionRuntime.xcframework.zip.sha256
 
 # Sample app 模型资源（不入库）
-android/AmphionRuntime/sample/src/main/assets/asr-models/
-# WeText ITN fst 构建缓存（由 tools/asr/00_push_weitn_fsts.sh 产出）
-tools/asr/sherpa-cmake-deps/
-tools/asr/weitn-fsts/
-# 标点模型 tarball / 解压结果（由 tools/asr/00_push_punct_model.sh 产出）
-tools/asr/punct-model/
+asr/android/samples/public-demo/src/main/assets/asr-models/
+# WeText ITN fst 构建缓存（由 asr/tools/00_push_weitn_fsts.sh 产出）
+asr/tools/sherpa-cmake-deps/
+asr/tools/weitn-fsts/
+# 标点模型 tarball / 解压结果（由 asr/tools/00_push_punct_model.sh 产出）
+asr/tools/punct-model/
 
 # TTS 模型投放目录:真实模型不入库,仅保留占位
-tools/tts/trial-export/lits_delivery_16k_hifigan/1.0.0/*
-!tools/tts/trial-export/lits_delivery_16k_hifigan/1.0.0/.gitkeep
+tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0/*
+!tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0/.gitkeep
 
-# SDK 内置模型权重（由 tools/asr/08_pack_sdk_assets.sh 写入）：
+# 本地误放到 ASR assets 下的 Lits/TTS 模型副本不入库；源目录是 tts/tools/trial-export/
+asr/android/sdk/src/main/assets/lits-models/
+
+# SDK 内置模型权重（由 asr/tools/08_pack_sdk_assets.sh 写入）：
 # - 体积加起来 ~270MB，不入库
 # - 但目录骨架（README.md / manifest.json / .gitkeep）需要进 git，
-#   见 android/AmphionRuntime/sdk/src/main/assets/amphion-models/README.md
-android/AmphionRuntime/sdk/src/main/assets/amphion-models/**/*.onnx
-android/AmphionRuntime/sdk/src/main/assets/amphion-models/**/*.fst
-android/AmphionRuntime/sdk/src/main/assets/amphion-models/**/tokens.txt
+#   见 asr/android/sdk/src/main/assets/amphion-models/README.md
+asr/android/sdk/src/main/assets/amphion-models/**/*.onnx
+asr/android/sdk/src/main/assets/amphion-models/**/*.fst
+asr/android/sdk/src/main/assets/amphion-models/**/tokens.txt
 # bbpe.vocab 与 tokens.txt 同源、与 encoder ONNX 严格配对，必须走单一发布渠道
-# （tools/asr/08_pack_sdk_assets.sh）；否则 sha256 易与权重版本错位。
-android/AmphionRuntime/sdk/src/main/assets/amphion-models/**/bbpe.vocab
-android/AmphionRuntime/sdk/src/main/assets/amphion-models/manifest.json
+# （asr/tools/08_pack_sdk_assets.sh）；否则 sha256 易与权重版本错位。
+asr/android/sdk/src/main/assets/amphion-models/**/bbpe.vocab
+asr/android/sdk/src/main/assets/amphion-models/manifest.json
 
 # --- 上游 sherpa-onnx 在 submodule 路径下产生的构建工件 ---
 # 这些目录在 third_party/sherpa-onnx 下被上游 build-android-*.sh 创建；
@@ -78,8 +81,8 @@ third_party/sherpa-onnx/onnxruntime-*/
 shared/regression-set/audio/
 
 # --- 大型模型/音频/分词器二进制（不入库） ---
-# Demo 模型由 tools/asr/00_fetch_demo_model.sh 拉取到 tools/asr/demo-model/
-# 自有模型由 tools/asr/00_push_my_model.sh 推到设备，本地目录由用户自管
+# Demo 模型由 asr/tools/00_fetch_demo_model.sh 拉取到 asr/tools/demo-model/
+# 自有模型由 asr/tools/00_push_my_model.sh 推到设备，本地目录由用户自管
 *.onnx
 *.wav
 *.tar
@@ -101,23 +104,23 @@ bpe.vocab
 #   2. 元数据每次重训都要 bump sha256，会持续污染 git 历史
 #   3. 元数据必须与权重严格配对，分两个分发渠道（git + CDN）会出现 sha 与文件版本不一致的故障
 # 保留 README.md 说明这个目录怎么填充。
-tools/asr/demo-model/**
-!tools/asr/demo-model/
-!tools/asr/demo-model/README.md
+asr/tools/demo-model/**
+!asr/tools/demo-model/
+!asr/tools/demo-model/README.md
 
 # --- TS-ASR 调研期产物（不入库） ---
 # - models/：00_download_models.sh 拉的 silero_vad / 3D-Speaker / CAM++ 模型，跨任务可复用
 # - data/：注册音频副本、target_embedding.npy、测试集解压结果；含个人音频与中间产物
 # - results/：02/03/04/05 脚本产出的 JSONL / JSON 报告，每次实验都会变
-tools/speaker/models/**
-tools/speaker/data/**
-tools/speaker/results/**
-!tools/speaker/models/
-!tools/speaker/data/
-!tools/speaker/results/
-!tools/speaker/models/.gitkeep
-!tools/speaker/data/.gitkeep
-!tools/speaker/results/.gitkeep
+asr/tools/speaker/models/**
+asr/tools/speaker/data/**
+asr/tools/speaker/results/**
+!asr/tools/speaker/models/
+!asr/tools/speaker/data/
+!asr/tools/speaker/results/
+!asr/tools/speaker/models/.gitkeep
+!asr/tools/speaker/data/.gitkeep
+!asr/tools/speaker/results/.gitkeep
 
 # --- dashboard 渲染产物（CI 生成） ---
 shared/docs/dashboard/trends/reports/*.md
@@ -125,13 +128,13 @@ shared/docs/dashboard/trends/*.csv
 !shared/docs/dashboard/trends/reports/.gitkeep
 !shared/docs/dashboard/trends/.gitkeep
 
-# --- 离线 license 私钥与签发产物（严禁进库，见 tools/license/README.md） ---
+# --- 离线 license 私钥与签发产物（严禁进库，见 asr/tools/license/README.md） ---
 # 私钥 = 授权信任根，泄露即可被任意签发有效 license；签发出的 .lic 是每客户产物，不入库。
 *-private.pem
 .secure/
-tools/license/*.pem
-tools/license/*.lic
-tools/tts/license/*.pem
-tools/tts/license/*.lic
+asr/tools/license/*.pem
+asr/tools/license/*.lic
+tts/tools/license/*.pem
+tts/tools/license/*.lic
 **/amphion-license.lic
-android/AmphionRuntime/keystore/
+asr/android/keystore/
