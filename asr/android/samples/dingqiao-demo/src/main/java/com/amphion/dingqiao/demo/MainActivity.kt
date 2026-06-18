@@ -18,14 +18,12 @@ import androidx.core.content.ContextCompat
 import com.amphion.dingqiao.AudioInfo
 import com.amphion.dingqiao.CreateEngineCallback
 import com.amphion.dingqiao.CreateEngineParams
-import com.amphion.dingqiao.DINGQIAO_SPEAKER_MODEL_FILENAME
 import com.amphion.dingqiao.DingqiaoOnlineMode
 import com.amphion.dingqiao.RecognitionListener
 import com.amphion.dingqiao.SpeechRecognitionEngine
 import com.amphion.dingqiao.SpeechRecognitionResult
 import com.amphion.dingqiao.SpeechRecognizeSdk
 import com.amphion.dingqiao.StartParams
-import java.io.File
 import java.util.concurrent.Executors
 
 /**
@@ -60,6 +58,33 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         if (granted) initEngine() else setStatus(getString(R.string.status_no_permission))
+    }
+
+    private val importModelLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        worker.execute {
+            val ok = VoiceprintModelHelper.importFromUri(this, DingqiaoApp.workPath(), uri)
+            runOnUiThread {
+                if (ok) {
+                    toast(getString(R.string.vp_model_import_ok))
+                    refreshVoiceprintUi()
+                } else {
+                    toast(getString(R.string.vp_model_import_failed))
+                }
+            }
+        }
+    }
+
+    private val hotwordsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == RESULT_OK &&
+            result.data?.getBooleanExtra(HotwordsActivity.EXTRA_HOTWORDS_CHANGED, false) == true
+        ) {
+            reloadEngine()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -107,10 +132,7 @@ class MainActivity : AppCompatActivity() {
         btnTalk.isEnabled = false
 
         SpeechRecognizeSdk.createEngine(
-            CreateEngineParams(
-                language = "zh-CN",
-                online = DingqiaoOnlineMode.OFFLINE,
-            ),
+            buildCreateEngineParams(),
             object : CreateEngineCallback {
                 override fun onResult(resultEngine: SpeechRecognitionEngine) {
                     runOnUiThread {
@@ -131,6 +153,28 @@ class MainActivity : AppCompatActivity() {
                 }
             },
         )
+    }
+
+    private fun buildCreateEngineParams(): CreateEngineParams {
+        val hotwords = DemoPrefs.getUserHotwords(this)
+        val extra = if (hotwords.isEmpty()) {
+            emptyMap()
+        } else {
+            mapOf("sysGeneralLexicon" to hotwords)
+        }
+        return CreateEngineParams(
+            language = "zh-CN",
+            online = DingqiaoOnlineMode.OFFLINE,
+            extraParams = extra,
+        )
+    }
+
+    private fun reloadEngine() {
+        stopListening()
+        engine?.shutdown()
+        engine = null
+        toast(getString(R.string.hotwords_engine_reloading))
+        initEngine()
     }
 
     private fun createListener(): RecognitionListener = object : RecognitionListener {
@@ -243,9 +287,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshVoiceprintUi() {
-        val modelReady = File(DingqiaoApp.workPath(), DINGQIAO_SPEAKER_MODEL_FILENAME).isFile
+        val modelFile = VoiceprintModelHelper.modelFile(DingqiaoApp.workPath())
+        val modelReady = VoiceprintModelHelper.isReady(modelFile)
         val id = DemoPrefs.getVoiceprintId(this)
         tvVoiceprintInfo.text = when {
+            !modelReady && modelFile.exists() && !modelFile.canRead() ->
+                getString(R.string.vp_model_unreadable)
             !modelReady -> getString(R.string.vp_model_missing)
             id.isNullOrBlank() -> getString(R.string.vp_not_registered)
             else -> getString(R.string.vp_registered, id)
@@ -278,6 +325,14 @@ class MainActivity : AppCompatActivity() {
                 !VoiceprintHelper.registeredId(this@MainActivity).isNullOrBlank()
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
+                    R.id.action_hotwords -> {
+                        hotwordsLauncher.launch(Intent(this@MainActivity, HotwordsActivity::class.java))
+                        true
+                    }
+                    R.id.action_import_model -> {
+                        importModelLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+                        true
+                    }
                     R.id.action_voiceprint -> {
                         startActivity(Intent(this@MainActivity, VoiceprintEnrollActivity::class.java))
                         true

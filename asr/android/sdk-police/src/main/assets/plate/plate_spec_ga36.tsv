@@ -1,0 +1,44 @@
+# GA 36-2018 车牌知识库（Layer 0，PlateNormalizer V2 用；老方案不读此文件）
+# 范围：仅民用「普通号牌(7位)」+「新能源号牌(8位)」；警/学/挂/港澳/使领/台 暂不收录。
+# 列（TAB 分隔，列内列表用英文逗号分隔；空字段留空）：
+#   char            省/直辖市/自治区简称（单字）
+#   name            行政区名
+#   pinyin          简称读音，带声调（数字调：1阴平 2阳平 3上声 4去声 5轻声），用于区分 吉ji2/冀ji4、津jin1/晋jin4
+#   polyphone       是否多音字（0/1）；为 1 时 notes 说明车牌语境取音
+#   homophones      ASR 常见同音/近音误字（迁移自 plate_homophones.csv，可继续补充）
+#   letters_verified 发牌机关字母表是否已核验（1=已核验，来自团队测试数据；0=按 GA36 补全，待人工核对）
+#   letters         合法发牌机关代号字母（不含 I、O；O 类机关号牌不在民用范围）
+#   notes           备注
+#
+# char	name	pinyin	polyphone	homophones	letters_verified	letters	notes
+京	北京	jing1	0	经	1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,Q,R,V,Y	直辖市，按团队测试集核验
+津	天津	jin1	0		1	A,B,C,D,E,F,G,H,J,K,L,M,N,R	注意与 晋jin4 同声母异调
+冀	河北	ji4	0	继,济,记,纪,季,即	1	A,B,C,D,E,F,G,H,J,R,S,T,X	冀R(廊坊) 为重点；注意与 吉ji2 异调
+鲁	山东	lu3	0	乳	1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,Q,R,S,U,V,Y
+晋	山西	jin4	0	进,静	1	A,B,C,D,E,F,H,J,K,L,M	无 G/I；与 津jin1 异调
+豫	河南	yu4	0	余,玉,遇,预,御	1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,Q,R,S,U,V	与 渝yu2 异调
+沪	上海	hu4	0		1	A,B,C,D,E,F,G,H,J,K,L,N,R,W	直辖市
+苏	江苏	su1	0	素,属	1	A,B,C,D,E,F,G,H,J,K,L,M,N,U
+浙	浙江	zhe4	0	这	1	A,B,C,D,E,F,G,H,J,K,L,M
+黑	黑龙江	hei1	0		1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,R
+吉	吉林	ji2	0		1	A,B,C,D,E,F,G,H,J,K	与 冀ji4 异调
+辽	辽宁	liao2	0	撂,疗,聊	1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,V	辽B(大连) 为重点
+渝	重庆	yu2	0		1	A,B,C,D,F,G,H	直辖市；与 豫yu4 异调；含渝D；已核对(对数据)
+蒙	内蒙古	meng3	1	猛,梦,孟,萌	1	A,B,C,D,E,F,G,H,J,K,L,M	多音 meng1/meng2/meng3，车牌取 meng3；已核对(对数据)
+陕	陕西	shan3	1	闪	1	A,B,C,D,E,F,G,H,J,K,U,V	旧读 shan3；U=西安增发,V=杨凌示范区；已核对
+甘	甘肃	gan1	0	肝,感,杆	1	A,B,C,D,E,F,G,H,J,K,L,M,N,P	与 赣gan4 异调；O 为警用不收录；已核对
+青	青海	qing1	0	轻,清	1	A,B,C,D,E,F,G,H	已核对(对数据)
+新	新疆	xin1	0		1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,Q,R	已核对(对数据)
+川	四川	chuan1	0	穿,春	1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,Q,R,S,T,U,V,W,X,Y,Z	含川P(原农用)、川N；O 禁用；已核对
+鄂	湖北	e4	0	俄,鹅,厄	1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,Q,R,S,W	含鄂W；已核对(对数据)
+湘	湖南	xiang1	0	向,相,乡,香,像	1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,S,T,U	湘P(湘西)、湘S(省直)、湘T(出租车)；已核对
+皖	安徽	wan3	0	晚,碗,万,挽	1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,Q,R,S	含皖Q；已核对(对数据)
+闽	福建	min3	0	缅	1	A,B,C,D,E,F,G,H,J,K	O 为机关牌不收录；已核对(对数据)
+赣	江西	gan4	0	干	1	A,B,C,D,E,F,G,H,J,K,L,M	与 甘gan1 异调；已核对(对数据)
+粤	广东	yue4	0	悦,月,岳,越,原	1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,Q,R,S,T,U,V,W,X,Y,Z	已核对(对数据)
+桂	广西	gui4	0		1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,R	已核对(对数据)
+琼	海南	qiong2	0	穷	1	A,B,C,D,E,F	O 为机关牌不收录；已核对(对数据)
+云	云南	yun2	0	芸	1	A,B,C,D,E,F,G,H,J,K,L,M,N,P,Q,R,S,T,U,V	含云T(怒江)、云U；已核对
+贵	贵州	gui4	0		1	A,B,C,D,E,F,G,H,J	与 桂gui4 同音，靠上下文/字形区分；已核对(对数据)
+藏	西藏	zang4	1	账	1	A,B,C,D,E,F,G,H,J	多音 cang2/zang4，地名取 zang4；已核对(对数据)
+宁	宁夏	ning2	1		1	A,B,C,D,E	多音 ning2/ning4，简称取 ning2；已核对(对数据)

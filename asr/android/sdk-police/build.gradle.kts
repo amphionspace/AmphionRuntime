@@ -34,6 +34,13 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        // 透传 realmic.* 系统属性给单测 JVM（真机对比工装用：realmic.dir / realmic.home）。
+        unitTests.all { testTask ->
+            for (key in listOf("realmic.dir", "realmic.home")) {
+                val value = System.getProperty(key)
+                if (value != null) testTask.systemProperty(key, value)
+            }
+        }
     }
 }
 

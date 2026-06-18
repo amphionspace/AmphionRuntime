@@ -25,13 +25,17 @@
     <string name="vp_delete_failed">删除失败：%1$s</string>
 
     <string name="vp_need_register">请先注册声纹</string>
-    <string name="vp_model_missing">未找到声纹模型，请将 eres2net.onnx 放入工作目录</string>
+    <string name="vp_model_missing">未找到声纹模型，请导入 eres2net.onnx</string>
+    <string name="vp_model_unreadable">声纹模型存在但 App 无法读取（adb push 后属主常为 root，请用下方「导入声纹模型」）</string>
+    <string name="menu_import_model">导入声纹模型</string>
+    <string name="vp_model_import_ok">声纹模型已导入</string>
+    <string name="vp_model_import_failed">导入失败，请确认选择的是 eres2net.onnx（约 38 MB）</string>
     <string name="vp_registered">已注册声纹：%1$s</string>
     <string name="vp_not_registered">未注册声纹</string>
     <string name="speaker_score_format">相似度 %.2f</string>
 
     <string name="enroll_title">声纹注册</string>
-    <string name="enroll_hint">录制 3~5 段语音，每段 3~8 秒，覆盖远/中/近距离。</string>
+    <string name="enroll_hint">录制 3~5 段语音，每段 3~8 秒，覆盖远/中/近距离。注册前须先导入声纹模型 eres2net.onnx。</string>
     <string name="enroll_status">已录制 %1$d 段（需要 3~5 段）</string>
     <string name="enroll_record">录制一段</string>
     <string name="enroll_record_stop">结束本段</string>
@@ -50,4 +54,19 @@
     <string name="enroll_empty">还没有录音样本</string>
     <string name="enroll_registered_id">当前已注册：%1$s</string>
     <string name="enroll_delete_voiceprint">删除已注册声纹</string>
+
+    <string name="menu_hotwords">自定义热词</string>
+    <string name="hotwords_title">自定义热词</string>
+    <string name="hotwords_hint">此处添加的词会作为 sysGeneralLexicon 传入 SDK；警务车牌/派出所/术语预设热词仍默认开启。</string>
+    <string name="hotwords_count_label">已添加 %1$d 条自定义热词</string>
+    <string name="hotwords_empty">还没有自定义热词</string>
+    <string name="hotwords_add">添加热词</string>
+    <string name="hotwords_delete">删除</string>
+    <string name="hotwords_add_dialog_title">添加热词</string>
+    <string name="hotwords_add_dialog_hint">例如：盘查、张三</string>
+    <string name="hotwords_add_dialog_save">保存</string>
+    <string name="hotwords_add_dialog_cancel">取消</string>
+    <string name="hotwords_invalid">热词不能为空且不超过 60 字</string>
+    <string name="hotwords_duplicate">该热词已存在</string>
+    <string name="hotwords_engine_reloading">热词已更新，正在重建引擎…</string>
 </resources>

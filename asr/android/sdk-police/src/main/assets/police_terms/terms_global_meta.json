@@ -1,7 +1,7 @@
 {
   "source_csv": "/Users/amphion/Desktop/work/projects/鼎桥/AmphionRuntime/asr/android/sdk-police/src/main/assets/police_terms/term_homophones.csv",
   "scope": "global",
-  "pair_count": 281,
+  "pair_count": 303,
   "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_terms_fst_experiment/output/terms_global.fst",
   "phase": "p0",
   "note": "gazetteer longest-match stays in host (scheme A); sequential cdrewrite compose",
@@ -335,6 +335,50 @@
       "to": "请及时签收警情。"
     },
     {
+      "from": "帮我打开警讯",
+      "to": "帮我打开警信"
+    },
+    {
+      "from": "帮我打开景讯",
+      "to": "帮我打开警信"
+    },
+    {
+      "from": "帮我打开景信",
+      "to": "帮我打开警信"
+    },
+    {
+      "from": "帮我打开井信",
+      "to": "帮我打开警信"
+    },
+    {
+      "from": "帮我打开警醒",
+      "to": "帮我打开警信"
+    },
+    {
+      "from": "帮我打开时中",
+      "to": "帮我打开时钟"
+    },
+    {
+      "from": "启动帮协功能",
+      "to": "启动帮写功能"
+    },
+    {
+      "from": "启动帮血功能",
+      "to": "启动帮写功能"
+    },
+    {
+      "from": "打开邦田功能",
+      "to": "打开帮填功能"
+    },
+    {
+      "from": "启动邦田功能",
+      "to": "启动帮填功能"
+    },
+    {
+      "from": "启动帮田功能",
+      "to": "启动帮填功能"
+    },
+    {
       "from": "已签收订单",
       "to": "已签收警单"
     },
@@ -541,6 +585,14 @@
     {
       "from": "出警结束后",
       "to": "处警结束后"
+    },
+    {
+      "from": "现场出警时",
+      "to": "现场处警时"
+    },
+    {
+      "from": "到场出警后",
+      "to": "到场处警后"
     },
     {
       "from": "以前手敬请",
@@ -911,6 +963,14 @@
       "to": "处警民警"
     },
     {
+      "from": "出警途中",
+      "to": "处警途中"
+    },
+    {
+      "from": "出警反馈",
+      "to": "处警反馈"
+    },
+    {
       "from": "牵手锦单",
       "to": "签收警单"
     },
@@ -1047,6 +1107,38 @@
       "to": "签收警单"
     },
     {
+      "from": "打开景信",
+      "to": "打开警信"
+    },
+    {
+      "from": "打开景讯",
+      "to": "打开警信"
+    },
+    {
+      "from": "打开警醒",
+      "to": "打开警信"
+    },
+    {
+      "from": "打开井信",
+      "to": "打开警信"
+    },
+    {
+      "from": "打开警讯",
+      "to": "打开警信"
+    },
+    {
+      "from": "打开邦田",
+      "to": "打开帮填"
+    },
+    {
+      "from": "打开帮田",
+      "to": "打开帮填"
+    },
+    {
+      "from": "启动邦田",
+      "to": "启动帮填"
+    },
+    {
       "from": "正处警",
       "to": "正在处警"
     },
@@ -1124,10 +1216,6 @@
     },
     {
       "from": "除警",
-      "to": "处警"
-    },
-    {
-      "from": "出警",
       "to": "处警"
     }
   ]

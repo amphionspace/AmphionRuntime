@@ -1,0 +1,270 @@
+from,to,category
+# V2 专用读音补充表（老方案 PlateNormalizer / PlateHomophoneDict 不读此文件）。
+# 仅 PlateReadingMap 加载，与 plate_homophones.csv 合并为 1→N 候选。
+# 来源：真机 ASR 国测语料挖掘（evaluation/.../mine_plate_homophones.py，计数≥3 + 音近人工核对）。
+# 已剔除：与 plate_homophones.csv 重复项、ASCII↔ASCII 字母混淆、省份字本身作源的对齐噪声。
+#
+# --- 省份近音（补充，主攻 豫/晋/吉/沪/黑 真机高频听岔）---
+及,吉,province
+极,吉,province
+即,吉,province
+户,沪,province
+互,沪,province
+护,沪,province
+育,豫,province
+裕,豫,province
+寓,豫,province
+喻,豫,province
+# === 渝(yú,重庆) 省份同音：基础表/补充表把 yú/yǔ 族（2/3 声）错配给了 豫(yù,4 声）===
+# 音理上 与/余/于/俞/虞/鱼/馀/雨 属渝；豫(yù) 仍由 玉/遇/预/御/育/裕/寓/喻/誉 等 4 声字承担。
+# 故同时 suppress 基础表 余→豫，避免 余 两属导致平局抢牌（重庆牌占比靠它扳回）。
+与,渝,province
+余,渝,province
+于,渝,province
+俞,渝,province
+虞,渝,province
+鱼,渝,province
+馀,渝,province
+雨,渝,province
+舆,渝,province
+# 与 同属豫(yù)：再补 与→豫 兜底（排在 与→渝 之后，故 A-H 平局仍判渝给重庆；
+# 而 P/R/S/U/V 等非渝合法字母时渝候选被合法性否决，自然回落豫，挽回河南 与S/与R/与U/与V 等）。
+与,豫,province
+余,豫,suppress
+劲,晋,province
+近,晋,province
+禁,晋,province
+靖,晋,province
+嘿,黑,province
+速,苏,province
+#
+# --- 字母近音（补充）---
+记,G,letter
+计,G,letter
+济,G,letter
+籍,G,letter
+季,G,letter
+机,G,letter
+纪,G,letter
+基,G,letter
+际,G,letter
+威,V,letter
+儿,R,letter
+意,E,letter
+溢,E,letter
+亿,E,letter
+奕,E,letter
+艺,E,letter
+璧,B,letter
+闭,B,letter
+弊,B,letter
+帝,D,letter
+街,J,letter
+披,P,letter
+扣,Q,letter
+嗯,N,letter
+#
+# === P5-3：结构性补全（真机国测 豫/鲁/浙/黑 高频残差，均有拼音依据）===
+# --- 省份被读成 ASCII 字母 / 生僻近音字 ---
+U,豫,province
+卢,鲁,province
+路,鲁,province
+如,鲁,province
+折,浙,province
+遮,浙,province
+昱,豫,province
+# --- 发证机关字母的生僻近音（机关位）---
+迪,D,letter
+尔,R,letter
+丕,P,letter
+逸,E,letter
+毅,E,letter
+塞,C,letter
+债,J,letter
+寨,J,letter
+斋,J,letter
+建,J,letter
+宅,J,letter
+贞,J,letter
+见,J,letter
+癖,P,letter
+各,K,letter
+# --- 数字补位：机关位的数字←→同音字母（仅机关位生效；序号位走最短路保留数字）---
+# 1↔E 同音(yī)、2↔R 近音(èr/ar)：如「黑160538→黑E60538」「黑225973→黑R25973」。
+1,E,digit2letter
+2,R,digit2letter
+#
+# --- 压制 base 噪声候选（仅 V2 生效）：消解等权平局选错 ---
+# 优 yōu 应为 U（you），base 的 优→V(wēi) 为噪声；扣 kòu 应为 Q(kiu)，压制 扣→K(kei)。
+优,V,suppress
+扣,K,suppress
+#
+# === P5-3b：冀R 真机高频听岔（round01/jjs/dialogue/accent 挖掘）===
+# 冀(jì) 真机几乎从不被识别为「冀」，最常见 G(jī,占~44%)/记(jì)/继(jì)/接(jiē)/J。
+# 仅补「不与 吉(jí) 冲突」的字（及/即/极 已属吉，留给吉避免误伤吉林）；R 多保持 R，
+# 少量被听成数字「2」由既有 2→R(digit2letter) 兜。冀 为河北辖区主力牌种。
+G,冀,province
+记,冀,province
+继,冀,province
+接,冀,province
+J,冀,province
+# R(读音近「啊R/二」) 真机/语料里高频被识别为 二(èr)/而(ér)；尔→R 已在上文。
+# 作 letter 同音（risky），受锚词门控；在序号位仍可走 二→2(digit) 兜，二者由解码按合法性择优。
+二,R,letter
+而,R,letter
+# === 辽B 真机/语料同音（雄安重点牌之二）===
+# 辽(liáo) 高频被识别为 料/撩/聊/六/姚；位 0 只过省份候选，故 六→辽 不与 六→6(digit) 冲突。
+# 由辖区先验[辽]在歧义时偏向辽。
+料,辽,province
+撩,辽,province
+聊,辽,province
+六,辽,province
+姚,辽,province
+# B(bì) 高频被识别为 别/比/碧/臂（权威位字母同音，risky，受锚词门控）。
+别,B,letter
+比,B,letter
+碧,B,letter
+臂,B,letter
+# === 低风险字母同音补充（扩展既有音族，源字生僻、紧贴音、权威位+锚词门控）===
+驿,E,letter
+洱,R,letter
+梯,T,letter
+踢,T,letter
+坞,U,letter
+幽,U,letter
+# === 皖(wǎn) 省份同音（安徽）：位 0 专用，补齐后辖区先验[冀,辽]不再把皖误纠成辽/冀 ===
+宛,皖,province
+晚,皖,province
+完,皖,province
+网,皖,province
+婉,皖,province
+莞,皖,province
+玩,皖,province
+# === 数字同音补充：期(qī)→7（同 七；ASR 常把序号尾位 七 识成 期，如 新C9023期→新C90237）===
+# 仅在能凑成 GA36 合法车牌时才生效，期为常用词，靠合法性校验+锚词门控防过纠。
+期,7,digit
+# === 云(yún,云南) 省份同音补全：base 已有 云/芸，补 匀(yún 精确同音) ===
+匀,云,province
+# === 陕(shǎn,陕西) 省份同音补全：base 已有 闪，补 伞(sǎn)/散(sàn)/赏(shǎng) ===
+伞,陕,province
+山,陕,province
+散,陕,province
+赏,陕,province
+# 陕 牌权威位补充：避(bì)→B（闪避→陕B 大簇，配 bì 音族），翼(yì)→E（配 驿/邑/益/意 yì 音族）
+避,B,letter
+翼,E,letter
+# === 新(xīn,新疆) 省份同音补全：base 仅有 新，补 星/兴(xīng)/鑫(xīn)；缺省份兜底会被偏置成 辽/冀 ===
+星,新,province
+兴,新,province
+鑫,新,province
+# 新 牌权威位补充：溢(yì)→E（兴溢→新E，配 义/驿/邑 yì 音族），低(dī)→D（配 笛/滴/迪 dī 音族）
+溢,E,letter
+低,D,letter
+# === 藏(cáng,西藏) 省份同音补全：base 已有 账，补 长(cháng)/仓(cāng)；ASR 把 cáng 听成 cháng/cāng ===
+长,藏,province
+仓,藏,province
+# 藏 牌权威位补充：熙(xī)→C（长熙→藏C，配 C=xī），堤(dī)→D（长堤→藏D，配 笛/滴 dī 音族），译(yì)→E（藏译→藏E，配 驿/翼/疫 yì 音族）
+熙,C,letter
+堤,D,letter
+译,E,letter
+# === 青(qīng,青海) 省份同音补全：base 已有 轻/清，补 亲(qīn)/庆(qìng) ===
+# 不补 新→青(新=新疆)、经→青(经济→京=北京)——跨省混淆，会误伤他省。
+亲,青,province
+庆,青,province
+# === 宁(níng,宁夏) 省份同音：base 零同音！补 您(nín)/令(lìng)/凝/拧/柠(níng) ===
+# 不补 零(líng)——它是数字 0 的口语字（零二零=020），补了会像 二→鄂 那样害优先牌冀R。
+# 临/灵(líng) 太常用且近数字音，也不补，相关误识留难例。
+您,宁,province
+令,宁,province
+凝,宁,province
+拧,宁,province
+柠,宁,province
+# === 蒙(méng,内蒙古) 省份同音补全：base 已有 猛/梦/萌/孟，补最高频的 盟/门/闷（méng/mén/mèn）===
+盟,蒙,province
+门,蒙,province
+闷,蒙,province
+锰,蒙,province
+# 蒙 牌权威位补充：蔽(bì)→B（蒙蔽→蒙B，配 bì 音族），蒂/迪(dì)→D（蒙蒂/蒙迪→蒙D，配 地/笛/滴）
+蔽,B,letter
+蒂,D,letter
+迪,D,letter
+# === 湘(xiāng,湖南) 省份同音补全：base 已有 相/向/乡/香/像，补 箱/镶（同 xiāng）===
+箱,湘,province
+镶,湘,province
+# === 鄂(è,湖北) 省份同音：base 已有 厄/俄/鹅，补 恶/饿/额/鳄/二 ===
+# 鄂(è) 高频被听成 恶/饿(è 精确)、额(é)、鳄(è)。
+# 注意：不补 二→鄂！「二」在口语车牌里绝大多数是数字 2（如 二零零三=2003），
+# 实测加 二→鄂 会害 62 个优先牌冀R/辽B（二被抢去当省份）。鄂 牌「二X」误识只能留作难例。
+恶,鄂,province
+饿,鄂,province
+额,鄂,province
+鳄,鄂,province
+# 鄂 牌权威位补充：意(yì)→E（恶意05816→鄂E 大簇，配 邑/益/驿 yì 音族）
+意,E,letter
+# === 琼(qióng,海南) 省份同音 + 权威位补充 ===
+# 琼多被正确识别，少量被听成 穷(qióng) → 补 穷→琼；权威位 弼/鄙(bì/bǐ)→B（配 碧/比/毕/币 音族）。
+穷,琼,province
+弼,B,letter
+鄙,B,letter
+# === 桂(guì,广西) 省份同音：桂与 贵(贵州) 完全同音同调(guì)，纯声学不可分 ===
+# 策略：补 贵/跪/柜/硅→桂，但靠「identity 优先 + 合法字母表」自动只救无歧义位：
+#   · 贵+[A-H,J]（贵州也合法）：贵→贵 identity(cost0) 永远赢 → 贵州原样保留，绝不误伤；
+#   · 贵+[K,L,M,N,P,R]（贵州非法、仅桂合法）：贵候选被否决 → 桂胜（顺带消除 贵K→辽K 兜底误纠）；
+#   · 跪/柜/硅 非贵州规范音，只映射桂。
+# A-J 重叠位的 桂 牌是真·同音歧义，无法靠声音救，留作难例（贵州优先保位）。
+贵,桂,province
+跪,桂,province
+柜,桂,province
+硅,桂,province
+# === 粤(yuè) 省份同音补全（广东）：base 已有 月/越/悦，补缺失的 阅/乐/跃（同 yuè）===
+# 漏因：阅兵→粤B、阅M/阅威→辽（兜底）、乐T/阅X→冀（兜底）、跃J 全因这三字未映射粤。
+阅,粤,province
+乐,粤,province
+跃,粤,province
+# 粤 牌权威位补充：毅(yì)→E（配 驿/邑/益 音族），聘(pìn)→P，耳(ěr)→R（配 尔/二/而），威(wēi)→V（V 中文读音即 wēi）
+毅,E,letter
+聘,P,letter
+耳,R,letter
+威,V,letter
+# === 甘(gān) 省份同音（甘肃）：基础表把 干(gān) 错配给了 赣(江西,gàn,4 声）===
+# 干/肝(gān,1 声) 精确同音→甘（肝→甘已在 base）；刚/缸/钢(gāng)、该(gāi) 近音→甘。
+# suppress 干→赣 让甘赢平局（赣 gàn 应由 gàn 调字承担）；刚→甘 还顺带消除「刚X→辽X」的丢省份兜底误纠。
+# 不补 纪/寄/机→G（jì 同冀，保护优先牌冀R），甘纪/甘寄→甘G 留作难例。
+干,甘,province
+刚,甘,province
+缸,甘,province
+钢,甘,province
+该,甘,province
+干,赣,suppress
+# 杠(gàng) 是 赣(gàn,江西) 的同调同音，且不与 甘(gān) 冲突 → 补回给赣（修 杠K→辽K 兜底）。
+# 注：干(gān) 对甘/赣是声调被抹平后的纯同音歧义（赣字母⊂甘），按声调正确性+案例数归甘，
+# 江西 干X 误识留作难例。
+杠,赣,province
+# 甘 牌权威位补充（紧贴音）：病(bìng)→B，溪(xī)→C，邑/益(yì)→E（E 已有 驿(yì) 音族）
+病,B,letter
+溪,C,letter
+邑,E,letter
+益,E,letter
+# === 闽(mǐn) 省份同音（福建）：位 0 专用，闽此前零同音，被听成 mǐn/mín/mǐ/miǎn/míng 族无处落地 ===
+# 敏/闵(mǐn) 精确同音；民(mín)/米(mǐ)/免(miǎn)/明(míng) 近音。均不映射冀/辽，优先牌不受影响。
+# 不补 迹/纪→G（jì 同冀，历史上 寄→G 坑过冀R），闽迹/闽纪→闽G 留作难例。
+敏,闽,province
+闵,闽,province
+民,闽,province
+米,闽,province
+免,闽,province
+明,闽,province
+# 闽 牌权威位补充：疫(yì)→E（免疫→闽E，配 驿/翼/意/益 yì 音族）
+疫,E,letter
+# 皖 牌权威位/字母补充（紧贴音）：毕/币→B，笛/滴→D，批→P
+# 注意：不补 寄/祭→G —— 它们读 jì 与河北「冀」同音，会从优先牌 冀R 抢食（实测回退 3 例）；
+# 安徽 晚G/网G 仍由省份同音正常处理，仅放弃极少数 晚寄/晚祭→皖G。
+毕,B,letter
+币,B,letter
+笛,D,letter
+滴,D,letter
+批,P,letter
+# 及/即 同时像 冀(jì)/吉(jí)：默认（无辖区提示）走 吉（插入在前），
+# 部署辖区含冀时由 PlateNormalizerV2 的 contextProvinces 平局偏好翻向 冀。
+及,冀,province
+即,冀,province

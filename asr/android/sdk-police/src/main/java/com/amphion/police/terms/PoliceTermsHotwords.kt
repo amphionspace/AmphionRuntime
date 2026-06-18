@@ -6,6 +6,16 @@ package com.amphion.police.terms
 object PoliceTermsHotwords {
 
     val PRESET: List<String> = listOf(
+        // 甲方真人测：语音指令
+        "帮我打开警信",
+        "帮我打开时钟",
+        "打开警信",
+        "警信",
+        "启动帮写功能",
+        "打开帮填功能",
+        "启动帮填功能",
+        "帮写功能",
+        "帮填功能",
         // P0/P1：警单系长短语优先
         "签收警单",
         "签收警单后",
