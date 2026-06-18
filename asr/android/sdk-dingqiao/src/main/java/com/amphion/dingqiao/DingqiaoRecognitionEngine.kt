@@ -27,7 +27,17 @@ internal class DingqiaoRecognitionEngine(
     private val callbackExecutor: ExecutorService,
 ) : SpeechRecognitionEngine {
 
-    private val enhancePipeline: PoliceEnhancePipeline = PoliceEnhancePipeline.create(appContext)
+    /**
+     * 鼎桥交付默认启用全国 V2 后处理（车牌/派出所/术语）。V2 仅在此处显式打开，三个 prefs 全局
+     * 默认仍为 false（内部 sample 等不受影响）；如需回退到 V1，将下面三个 *V2Enabled 改回 false 即可。
+     * normalize 默认全开、FST 默认关，与交付基线一致。
+     */
+    private val enhancePipeline: PoliceEnhancePipeline = PoliceEnhancePipeline.create(
+        context = appContext,
+        plateV2Enabled = true,
+        stationV2Enabled = true,
+        termsV2Enabled = true,
+    )
     private val destroyed = AtomicBoolean(false)
 
     @Volatile
