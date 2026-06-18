@@ -53,6 +53,35 @@ class JingxinCommandReplayTest {
         assertFixed("启动帮田功能", "启动帮填功能")
     }
 
+    @Test
+    fun replay_round07_clientMeetingAndDocs() {
+        assertFixed(
+            "帮我创建一个下午三点的会议，主题为群访群智工作会议",
+            "帮我创建一个下午三点的会议，主题为群访群治工作会议",
+        )
+        assertFixed(
+            "创建主题为报警人的工作会议，下午三点开始",
+            "创建主题为报警的工作会议，下午三点开始",
+        )
+        assertFixed("我有哪些代办公文", "我有哪些待办公文")
+        assertFixed("查一下代办公文", "查一下待办公文")
+        assertFixed("帮我查一下有哪些代办公文", "帮我查一下有哪些待办公文")
+    }
+
+    @Test
+    fun replay_round08_clientCommands() {
+        assertFixed(
+            "打开景信发消息给刘队长，内容为：今天几点集合？",
+            "打开警信发消息给刘队长，内容为：今天几点集合？",
+        )
+        assertFixed("用维康姆想张伟发起呼叫", "用WeConmm向张伟发起呼叫")
+        assertFixed("呼叫停止中心", "呼叫情指中心")
+        assertFixed("我已到港，帮我打卡", "我已到岗，帮我打卡")
+        assertFixed("创建一个简单", "创建一个警单")
+        assertFixed("创建简单", "创建警单")
+        assertFixed("查看报警人现场视频", "查看报警现场视频")
+    }
+
     private fun assertFixed(raw: String, expected: String) {
         assertEquals(expected, normalizer.normalize(raw).text)
     }
