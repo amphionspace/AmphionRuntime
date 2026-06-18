@@ -45,13 +45,10 @@ import com.amphion.asr.sample.police_terms.PoliceTermsEvalRecorder
 import com.amphion.police.PoliceEnhancePipeline
 import com.amphion.police.plate.PlateEnhancePrefs
 import com.amphion.police.plate.PlateHotwords
-import com.amphion.police.plate.PlateNormalizer
 import com.amphion.police.station.PoliceStationEnhancePrefs
 import com.amphion.police.station.PoliceStationHotwords
-import com.amphion.police.station.PoliceStationNormalizer
 import com.amphion.police.terms.PoliceTermsEnhancePrefs
 import com.amphion.police.terms.PoliceTermsHotwords
-import com.amphion.police.terms.PoliceTermsNormalizer
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -128,16 +125,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cardPlateEnhance: android.view.View
     private lateinit var swPlateHotwords: SwitchCompat
     private lateinit var swPlateNormalize: SwitchCompat
+    private lateinit var swPlateV2: SwitchCompat
     private lateinit var tvPlatePipeline: TextView
     private lateinit var plateEnhancePrefs: PlateEnhancePrefs
     private lateinit var cardStationEnhance: android.view.View
     private lateinit var swStationHotwords: SwitchCompat
     private lateinit var swStationNormalize: SwitchCompat
+    private lateinit var swStationV2: SwitchCompat
     private lateinit var tvStationPipeline: TextView
     private lateinit var stationEnhancePrefs: PoliceStationEnhancePrefs
     private lateinit var cardTermsEnhance: android.view.View
     private lateinit var swTermsHotwords: SwitchCompat
     private lateinit var swTermsNormalize: SwitchCompat
+    private lateinit var swTermsV2: SwitchCompat
     private lateinit var tvTermsPipeline: TextView
     private lateinit var termsEnhancePrefs: PoliceTermsEnhancePrefs
 
@@ -193,11 +193,14 @@ class MainActivity : AppCompatActivity() {
     private val cloudFinalBuilder = StringBuilder()
     private var cloudCurrentPartial: String = ""
 
-    private lateinit var plateNormalizer: PlateNormalizer
+    /**
+     * 三场景后处理流水线实例（含 V1，按各 *EnhancePrefs.*V2Enabled 决定是否额外构建 V2）。
+     * normalize 开关每次调用 [PoliceEnhancePipeline.apply] 时按 prefs 实时传入；V2 开关切换需
+     * [rebuildEnhancePipeline]（V2 normalizer 在 create 时构建、加载资产）。
+     */
+    private lateinit var enhancePipeline: PoliceEnhancePipeline
     private lateinit var plateEvalRecorder: PlateEvalRecorder
-    private lateinit var stationNormalizer: PoliceStationNormalizer
     private lateinit var stationEvalRecorder: PoliceStationEvalRecorder
-    private lateinit var termsNormalizer: PoliceTermsNormalizer
     private lateinit var termsEvalRecorder: PoliceTermsEvalRecorder
 
     private val recordPermissionLauncher = registerForActivityResult(
@@ -251,18 +254,7 @@ class MainActivity : AppCompatActivity() {
         plateEnhancePrefs = PlateEnhancePrefs(this)
         stationEnhancePrefs = PoliceStationEnhancePrefs(this)
         termsEnhancePrefs = PoliceTermsEnhancePrefs(this)
-        plateNormalizer = PlateNormalizer.create(
-            this,
-            useFst = plateEnhancePrefs.plateFstEnabled,
-        )
-        stationNormalizer = PoliceStationNormalizer.create(
-            this,
-            useFst = stationEnhancePrefs.stationFstEnabled,
-        )
-        termsNormalizer = PoliceTermsNormalizer.create(
-            this,
-            useFst = termsEnhancePrefs.termsFstEnabled,
-        )
+        enhancePipeline = PoliceEnhancePipeline.create(this)
         plateEvalRecorder = PlateEvalRecorder(this)
         stationEvalRecorder = PoliceStationEvalRecorder(this)
         termsEvalRecorder = PoliceTermsEvalRecorder(this)
@@ -276,6 +268,7 @@ class MainActivity : AppCompatActivity() {
         cardPlateEnhance = findViewById(R.id.card_plate_enhance)
         swPlateHotwords = findViewById(R.id.sw_plate_hotwords)
         swPlateNormalize = findViewById(R.id.sw_plate_normalize)
+        swPlateV2 = findViewById(R.id.sw_plate_v2)
         tvPlatePipeline = findViewById(R.id.tv_plate_pipeline)
         swPlateHotwords.setOnCheckedChangeListener { _, on ->
             onPlateHotwordsToggle(on)
@@ -284,11 +277,17 @@ class MainActivity : AppCompatActivity() {
             plateEnhancePrefs.plateNormalizeEnabled = on
             refreshPlateEnhanceCard()
         }
+        swPlateV2.setOnCheckedChangeListener { _, on ->
+            plateEnhancePrefs.plateV2Enabled = on
+            rebuildEnhancePipeline()
+            refreshPlateEnhanceCard()
+        }
         refreshPlateEnhanceCard()
 
         cardStationEnhance = findViewById(R.id.card_station_enhance)
         swStationHotwords = findViewById(R.id.sw_station_hotwords)
         swStationNormalize = findViewById(R.id.sw_station_normalize)
+        swStationV2 = findViewById(R.id.sw_station_v2)
         tvStationPipeline = findViewById(R.id.tv_station_pipeline)
         swStationHotwords.setOnCheckedChangeListener { _, on ->
             onStationHotwordsToggle(on)
@@ -297,17 +296,28 @@ class MainActivity : AppCompatActivity() {
             stationEnhancePrefs.stationNormalizeEnabled = on
             refreshStationEnhanceCard()
         }
+        swStationV2.setOnCheckedChangeListener { _, on ->
+            stationEnhancePrefs.stationV2Enabled = on
+            rebuildEnhancePipeline()
+            refreshStationEnhanceCard()
+        }
         refreshStationEnhanceCard()
 
         cardTermsEnhance = findViewById(R.id.card_terms_enhance)
         swTermsHotwords = findViewById(R.id.sw_terms_hotwords)
         swTermsNormalize = findViewById(R.id.sw_terms_normalize)
+        swTermsV2 = findViewById(R.id.sw_terms_v2)
         tvTermsPipeline = findViewById(R.id.tv_terms_pipeline)
         swTermsHotwords.setOnCheckedChangeListener { _, on ->
             onTermsHotwordsToggle(on)
         }
         swTermsNormalize.setOnCheckedChangeListener { _, on ->
             termsEnhancePrefs.termsNormalizeEnabled = on
+            refreshTermsEnhanceCard()
+        }
+        swTermsV2.setOnCheckedChangeListener { _, on ->
+            termsEnhancePrefs.termsV2Enabled = on
+            rebuildEnhancePipeline()
             refreshTermsEnhanceCard()
         }
         refreshTermsEnhanceCard()
@@ -363,13 +373,7 @@ class MainActivity : AppCompatActivity() {
         engine?.close()
         engine = null
         try {
-            stationNormalizer.close()
-        } catch (_: Throwable) {}
-        try {
-            plateNormalizer.close()
-        } catch (_: Throwable) {}
-        try {
-            termsNormalizer.close()
+            enhancePipeline.close()
         } catch (_: Throwable) {}
         // 不调 AmphionRuntime.release()：保留池给下次 Activity 用，避免重复加载
     }
@@ -615,11 +619,18 @@ class MainActivity : AppCompatActivity() {
     private fun refreshPlateEnhanceCard() {
         swPlateHotwords.setOnCheckedChangeListener(null)
         swPlateNormalize.setOnCheckedChangeListener(null)
+        swPlateV2.setOnCheckedChangeListener(null)
         swPlateHotwords.isChecked = plateEnhancePrefs.plateHotwordsEnabled
         swPlateNormalize.isChecked = plateEnhancePrefs.plateNormalizeEnabled
+        swPlateV2.isChecked = plateEnhancePrefs.plateV2Enabled
         swPlateHotwords.setOnCheckedChangeListener { _, on -> onPlateHotwordsToggle(on) }
         swPlateNormalize.setOnCheckedChangeListener { _, on ->
             plateEnhancePrefs.plateNormalizeEnabled = on
+            refreshPlateEnhanceCard()
+        }
+        swPlateV2.setOnCheckedChangeListener { _, on ->
+            plateEnhancePrefs.plateV2Enabled = on
+            rebuildEnhancePipeline()
             refreshPlateEnhanceCard()
         }
         val n = if (plateEnhancePrefs.plateHotwordsEnabled) {
@@ -642,11 +653,18 @@ class MainActivity : AppCompatActivity() {
     private fun refreshStationEnhanceCard() {
         swStationHotwords.setOnCheckedChangeListener(null)
         swStationNormalize.setOnCheckedChangeListener(null)
+        swStationV2.setOnCheckedChangeListener(null)
         swStationHotwords.isChecked = stationEnhancePrefs.stationHotwordsEnabled
         swStationNormalize.isChecked = stationEnhancePrefs.stationNormalizeEnabled
+        swStationV2.isChecked = stationEnhancePrefs.stationV2Enabled
         swStationHotwords.setOnCheckedChangeListener { _, on -> onStationHotwordsToggle(on) }
         swStationNormalize.setOnCheckedChangeListener { _, on ->
             stationEnhancePrefs.stationNormalizeEnabled = on
+            refreshStationEnhanceCard()
+        }
+        swStationV2.setOnCheckedChangeListener { _, on ->
+            stationEnhancePrefs.stationV2Enabled = on
+            rebuildEnhancePipeline()
             refreshStationEnhanceCard()
         }
         val n = if (stationEnhancePrefs.stationHotwordsEnabled) {
@@ -669,11 +687,18 @@ class MainActivity : AppCompatActivity() {
     private fun refreshTermsEnhanceCard() {
         swTermsHotwords.setOnCheckedChangeListener(null)
         swTermsNormalize.setOnCheckedChangeListener(null)
+        swTermsV2.setOnCheckedChangeListener(null)
         swTermsHotwords.isChecked = termsEnhancePrefs.termsHotwordsEnabled
         swTermsNormalize.isChecked = termsEnhancePrefs.termsNormalizeEnabled
+        swTermsV2.isChecked = termsEnhancePrefs.termsV2Enabled
         swTermsHotwords.setOnCheckedChangeListener { _, on -> onTermsHotwordsToggle(on) }
         swTermsNormalize.setOnCheckedChangeListener { _, on ->
             termsEnhancePrefs.termsNormalizeEnabled = on
+            refreshTermsEnhanceCard()
+        }
+        swTermsV2.setOnCheckedChangeListener { _, on ->
+            termsEnhancePrefs.termsV2Enabled = on
+            rebuildEnhancePipeline()
             refreshTermsEnhanceCard()
         }
         val n = if (termsEnhancePrefs.termsHotwordsEnabled) {
@@ -702,12 +727,15 @@ class MainActivity : AppCompatActivity() {
         cardPlateEnhance.isEnabled = !locked
         cardPlateEnhance.alpha = if (locked) 0.5f else 1f
         swPlateHotwords.isEnabled = !locked
+        swPlateV2.isEnabled = !locked
         cardStationEnhance.isEnabled = !locked
         cardStationEnhance.alpha = if (locked) 0.5f else 1f
         swStationHotwords.isEnabled = !locked
+        swStationV2.isEnabled = !locked
         cardTermsEnhance.isEnabled = !locked
         cardTermsEnhance.alpha = if (locked) 0.5f else 1f
         swTermsHotwords.isEnabled = !locked
+        swTermsV2.isEnabled = !locked
         cardCloud.isEnabled = !locked
         cardCloud.alpha = if (locked) 0.5f else 1f
         swCloud.isEnabled = !locked
@@ -1065,15 +1093,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyDomainEnhance(asrRaw: String): PoliceEnhancePipeline.Result =
-        AsrTextEnhance.apply(
-            asrRaw,
-            termsNormalizer,
-            termsEnhancePrefs.termsNormalizeEnabled,
-            plateNormalizer,
-            plateEnhancePrefs.plateNormalizeEnabled,
-            stationNormalizer,
-            stationEnhancePrefs.stationNormalizeEnabled,
+        enhancePipeline.apply(
+            asrFinalText = asrRaw,
+            termsNormalizeEnabled = termsEnhancePrefs.termsNormalizeEnabled,
+            plateNormalizeEnabled = plateEnhancePrefs.plateNormalizeEnabled,
+            stationNormalizeEnabled = stationEnhancePrefs.stationNormalizeEnabled,
         )
+
+    /**
+     * V2 normalizer 在 [PoliceEnhancePipeline.create] 时按 prefs 构建（会加载资产），故 V2 开关
+     * 切换后需整体重建流水线使新状态生效。仅在调试设置（非录音中）触发，开销可接受。
+     */
+    private fun rebuildEnhancePipeline() {
+        try {
+            enhancePipeline.close()
+        } catch (_: Throwable) {}
+        enhancePipeline = PoliceEnhancePipeline.create(this)
+    }
 
     private fun recordDomainEnhance(enhanced: PoliceEnhancePipeline.Result, asrRaw: String) {
         termsEvalRecorder.append(

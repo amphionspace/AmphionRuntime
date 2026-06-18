@@ -1,0 +1,222 @@
+package com.amphion.police.terms
+
+import android.content.Context
+import java.io.BufferedReader
+import java.io.InputStreamReader
+
+/**
+ * 警务术语后处理 **V2**（与派出所 [com.amphion.police.station.PoliceStationNormalizerV2] 同骨架）。
+ *
+ * 术语场景**没有「派出所」那样的天然边界锚**，且含大量 2–3 字短词（警情/处警/帮填…），
+ * 直接全局模糊纠极易过纠。故 V2 接受门显著收紧，且分两档（与派出所 V2 同思路：等长优先、变长兜底）：
+ * 1. 先复用 V1 全局谐音替换（[PoliceTermsHomophoneDict.applyPhrases]）做安全的人工高置信纠正；
+ * 2. 再叠加**保守**的「字级候选格 ∩ gazetteer 校验器」模糊层：
+ *    - 第一档（主）：长度 ≥ [minFuzzyLen] 的术语做**等长纯近音替换**，替换数 ≤ [maxSubsFor]；
+ *    - 第二档（变长兜底）：仅当第一档在该位置无唯一解时才尝试，处理上游多/漏一字的误识：
+ *      长度 ≥ [minVarLen]、**只允许 1 次增删字**（|Δ长度| = 1）、其余位仍须近音、总编辑 ≤ [maxSubsFor]；
+ *    - 两档都要求同位置能匹配的标准术语**唯一**，并列即放弃（不臆造）。
+ *
+ * V1 文件完全未改，可随时切回（[PoliceTermsEnhancePrefs.termsV2Enabled]）。
+ */
+class PoliceTermsNormalizerV2 private constructor(
+    private val homophones: PoliceTermsHomophoneDict,
+    private val gazetteer: PoliceTermsGazetteer,
+    private val terms: List<String>,
+    private val readingMap: TermReadingMap,
+) {
+
+    /** 低于此长度的术语不做模糊纠正（只精确匹配），避免 2–3 字短词过纠。 */
+    private val minFuzzyLen = 4
+
+    /**
+     * 变长兜底（增删字）的最小术语长度。比 [minFuzzyLen] 更严：对 4 字术语增删一字风险过高，
+     * 故仅长度 ≥ 5 的术语才允许变长纠正。
+     */
+    private val minVarLen = 5
+
+    /** 模糊层每个术语允许的最大编辑数（按长度放缩）；变长兜底里 1 次增删也计入此预算。 */
+    private fun maxSubsFor(len: Int): Int = if (len >= 7) 2 else 1
+
+    companion object {
+        private const val GAZETTEER_ASSET = "police_terms/term_gazetteer.txt"
+
+        fun create(context: Context): PoliceTermsNormalizerV2 {
+            val terms = context.assets.open(GAZETTEER_ASSET).use { input ->
+                BufferedReader(InputStreamReader(input, Charsets.UTF_8)).readLines()
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() && !it.startsWith("#") }
+                    .distinct()
+                    .sortedByDescending { it.length }
+            }
+            return PoliceTermsNormalizerV2(
+                PoliceTermsHomophoneDict.load(context),
+                PoliceTermsGazetteer.load(context),
+                terms,
+                TermReadingMap.load(context),
+            )
+        }
+
+        internal fun create(
+            homophones: PoliceTermsHomophoneDict,
+            gazetteer: PoliceTermsGazetteer,
+            terms: List<String>,
+            readingMap: TermReadingMap,
+        ): PoliceTermsNormalizerV2 = PoliceTermsNormalizerV2(homophones, gazetteer, terms, readingMap)
+    }
+
+    fun normalize(text: String): PoliceTermsNormalizeResult {
+        if (text.isEmpty()) return PoliceTermsNormalizeResult(text, emptyList())
+
+        // 1) 复用 V1 全局谐音（高置信人工对），保证不回退。
+        val global = homophones.applyPhrases(text)
+        // 2) 叠加保守模糊层（仅长术语、等长近音、唯一）。
+        val corrected = fuzzyCorrect(global)
+        val spans = locateSpans(corrected)
+        return PoliceTermsNormalizeResult(corrected, spans)
+    }
+
+    /** 命中的标准术语 + 它在原文里实际吃掉的字数（等长档 = 术语长度；变长档可能 ±1）。 */
+    private data class TermMatch(val term: String, val consumed: Int)
+
+    /** 从左到右扫描，把「距某标准术语 ≤ 预算且唯一」的窗口纠正为该术语。 */
+    private fun fuzzyCorrect(text: String): String {
+        val sb = StringBuilder(text.length)
+        var i = 0
+        while (i < text.length) {
+            val hit = bestTermAt(text, i)
+            if (hit != null) {
+                sb.append(hit.term)
+                i += hit.consumed
+            } else {
+                sb.append(text[i])
+                i++
+            }
+        }
+        return sb.toString()
+    }
+
+    /**
+     * 在 [start] 处选标准术语：先等长档（主），无唯一解再退到变长档（兜底）。两档各自要求唯一。
+     */
+    private fun bestTermAt(text: String, start: Int): TermMatch? =
+        bestEqualLenAt(text, start) ?: bestVarLenAt(text, start)
+
+    /** 第一档：等长纯近音替换，「最长优先、同长替换最少、唯一」。 */
+    private fun bestEqualLenAt(text: String, start: Int): TermMatch? {
+        var best: String? = null
+        var bestCost = Int.MAX_VALUE
+        var ambiguous = false
+        for (g in terms) {                       // terms 已按长度降序
+            val len = g.length
+            if (len < minFuzzyLen) break          // 降序，后续更短，直接停
+            if (start + len > text.length) continue
+            val cost = subCost(text, start, g) ?: continue
+            when {
+                best == null || len > best!!.length -> { best = g; bestCost = cost; ambiguous = false }
+                len == best!!.length && cost < bestCost -> { bestCost = cost; best = g; ambiguous = false }
+                len == best!!.length && cost == bestCost && g != best -> ambiguous = true
+            }
+        }
+        // cost==0（已是标准术语）也返回 g（原样保留并推进），避免重复扫描；纠正发生在 cost>0。
+        return if (best != null && !ambiguous) TermMatch(best!!, best!!.length) else null
+    }
+
+    /**
+     * 第二档（变长兜底）：术语长度 ≥ [minVarLen]，原文窗口取 len±1（恰好 1 次增删字），
+     * 其余位须近音、总编辑 ≤ 预算。要求 (术语, 窗口) 唯一最优；并列即放弃。
+     */
+    private fun bestVarLenAt(text: String, start: Int): TermMatch? {
+        var best: String? = null
+        var bestConsumed = 0
+        var bestCost = Int.MAX_VALUE
+        var ambiguous = false
+        for (g in terms) {
+            val len = g.length
+            if (len < minVarLen) break            // 降序，后续更短，直接停
+            for (width in intArrayOf(len - 1, len + 1)) {
+                if (width < 1 || start + width > text.length) continue
+                val cost = varCost(text, start, g, width) ?: continue
+                when {
+                    best == null || len > best!!.length -> {
+                        best = g; bestConsumed = width; bestCost = cost; ambiguous = false
+                    }
+                    len == best!!.length && cost < bestCost -> {
+                        bestConsumed = width; bestCost = cost; best = g; ambiguous = false
+                    }
+                    len == best!!.length && cost == bestCost &&
+                        (g != best || width != bestConsumed) -> ambiguous = true
+                }
+            }
+        }
+        return if (best != null && !ambiguous) TermMatch(best!!, bestConsumed) else null
+    }
+
+    /** [text] 自 [start] 起与术语 [g] 等长纯近音替换的代价；不可达或超预算返回 null。 */
+    private fun subCost(text: String, start: Int, g: String): Int? {
+        val budget = maxSubsFor(g.length)
+        var cost = 0
+        for (k in g.indices) {
+            val c = text[start + k]
+            if (c == g[k]) continue
+            if (!readingMap.allows(c, g[k])) return null
+            cost++
+            if (cost > budget) return null
+        }
+        return cost
+    }
+
+    /**
+     * [text] 自 [start] 起、宽 [width] 的窗口与术语 [g] 的「近音替换 + 增删」编辑距离。
+     * 替换仅当近音可达（[TermReadingMap.allows]），增删各计 1。整体须 ≤ 预算，否则返回 null。
+     */
+    private fun varCost(text: String, start: Int, g: String, width: Int): Int? {
+        val budget = maxSubsFor(g.length)
+        val m = g.length
+        val inf = budget + 1
+        // dp[j] = 对齐 raw 前 i 个字符与 g 前 j 个字符的最小编辑；逐行滚动。
+        var prev = IntArray(m + 1) { it }
+        for (i in 1..width) {
+            val cur = IntArray(m + 1)
+            cur[0] = i
+            val rc = text[start + i - 1]
+            for (j in 1..m) {
+                val sub = when {
+                    rc == g[j - 1] -> 0
+                    readingMap.allows(rc, g[j - 1]) -> 1
+                    else -> inf
+                }
+                cur[j] = minOf(
+                    prev[j - 1] + sub, // 替换/同字
+                    prev[j] + 1,       // 删 raw 一字
+                    cur[j - 1] + 1,    // 插 g 一字
+                ).coerceAtMost(inf)
+            }
+            prev = cur
+        }
+        val cost = prev[m]
+        return if (cost in 1..budget) cost else null
+    }
+
+    private fun locateSpans(text: String): List<PoliceTermsSpan> {
+        val spans = mutableListOf<PoliceTermsSpan>()
+        var i = 0
+        while (i < text.length) {
+            val term = gazetteer.findLongestAt(text, i)
+            if (term != null) {
+                spans.add(
+                    PoliceTermsSpan(
+                        start = i,
+                        end = i + term.length,
+                        raw = term,
+                        normalized = term,
+                        valid = gazetteer.isKnown(term),
+                    ),
+                )
+                i += term.length
+            } else {
+                i++
+            }
+        }
+        return spans
+    }
+}
