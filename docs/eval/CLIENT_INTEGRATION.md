@@ -184,9 +184,9 @@ when {
 }
 ```
 
-对应仓库内的客户端实现：[android/AmphionRuntime/sample-eval/.../HttpUploader.kt](../../android/AmphionRuntime/sample-eval/src/main/java/com/amphion/asr/sample/eval/upload/HttpUploader.kt)（参见 server_spec 第五节）。
+对应仓库内的客户端实现：[asr/android/sample-eval/.../HttpUploader.kt](../../asr/android/sample-eval/src/main/java/com/amphion/asr/sample/eval/upload/HttpUploader.kt)（参见 server_spec 第五节）。
 
-> 历史路径 `android/AmphionRuntime/sample/...` 在 0.2.0 已废弃：评测代码搬到 `:sample-eval` 模块后，`:sample` 只承载对外 demo（零网络权限）。已克隆仓库的人请刷新到 main 后跑 `./gradlew :sample-eval:installDebug`。
+> 历史路径 `asr/android/sample/...` 在 0.2.0 已废弃：评测代码搬到 `:sample-eval` 模块后，`:sample` 只承载对外 demo（零网络权限）。已克隆仓库的人请刷新到 main 后跑 `./gradlew :sample-eval:installDebug`。
 
 ## 5. iOS Swift 骨架（占位，未经验证）
 

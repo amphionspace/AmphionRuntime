@@ -27,11 +27,11 @@ this repository; if upstream behaviour needs to change, please contribute
 to upstream and bump the submodule tag here.
 
 A small subset of the upstream Kotlin sources under
-android/AmphionRuntime/sdk/src/main/java/com/k2fsa/sherpa/onnx/ is copied
+asr/android/sdk/src/main/java/com/k2fsa/sherpa/onnx/ is copied
 verbatim into this repository (with upstream Apache 2.0 license headers
 preserved) so the Android SDK can compile without depending on the
 submodule at compile time. Sync is automated via
-tools/asr/07_sync_kotlin_from_upstream.sh.
+asr/tools/07_sync_kotlin_from_upstream.sh.
 
 ================================================================================
 2. ONNX Runtime
@@ -113,5 +113,5 @@ TRADEMARKS
 "Android" is a trademark of Google LLC.
 "Amphion" and "AmphionRuntime" are trademarks of the Amphion project /
 its maintaining organisation; external forks should substitute their own
-brand identifiers (see android/AmphionRuntime/README.md "包名 / 坐标改名"
-section and tools/asr/06_rename_namespace.sh).
+brand identifiers (see asr/android/README.md "包名 / 坐标改名"
+section and asr/tools/06_rename_namespace.sh).

@@ -94,15 +94,15 @@ Android 实时使用则不同：
 
 1. 先用 Android sample 打开 debug dump，拿到 audio.wav 和 transcript.txt。
 2. 看 transcript 中英文 partial 是否增长，FINAL 置信度是否显著低于中文。
-3. 用 `tools/asr/decode_offline.py` 跑同一段 wav，判断模型上限。
-4. 用 `tools/asr/decode_streaming.py` 模拟 100ms chunk + endpoint，判断实时配置问题。
+3. 用 `asr/tools/decode_offline.py` 跑同一段 wav，判断模型上限。
+4. 用 `asr/tools/decode_streaming.py` 模拟 100ms chunk + endpoint，判断实时配置问题。
 5. 对比 greedy / modified_beam_search / +10dB / 不同 endpoint 参数。
 
 示例：
 
 ```bash
-python3 tools/asr/decode_streaming.py \
-  --model-dir tools/asr/demo-model/zipformer_L_zh_en \
+python3 asr/tools/decode_streaming.py \
+  --model-dir asr/tools/demo-model/zipformer_L_zh_en \
   --wav /tmp/asr-dump/2026-05-13_144818/audio.wav \
   --segments 0:8:en1 8:16:en2 \
   --gain 10 \

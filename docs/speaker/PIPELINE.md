@@ -1,6 +1,6 @@
 # 目标说话人 ASR（TS-ASR）当前方案
 
-本文档是 amphion-runtime 在 sherpa-onnx 上做"目标说话人 ASR"调研期的工程方案定稿，落地代码在 [tools/speaker/](../../tools/speaker/)，调研依据见 [Target_speaker.md](../../android/AmphionRuntime/docs/Target_speaker.md)。
+本文档是 amphion-runtime 在 sherpa-onnx 上做"目标说话人 ASR"调研期的工程方案定稿，落地代码在 [asr/tools/speaker/](../../asr/tools/speaker/)，调研依据见 [Target_speaker.md](../../asr/android/docs/Target_speaker.md)。
 
 读这份文档的角色：
 
@@ -24,7 +24,7 @@
 
 | 角色 | 模型 | 大小 | 来源 | 选型理由 |
 | --- | --- | --- | --- | --- |
-| ASR | 业务自有流式 zipformer-transducer (int8) | 视模型版本 | tools/asr/ 已导出量化产物 | 复用，不引入第二个 ASR；onnx chunk-level 形状本就支持整段推理（AcceptWaveform 全段 + InputFinished + Decode） |
+| ASR | 业务自有流式 zipformer-transducer (int8) | 视模型版本 | asr/tools/ 已导出量化产物 | 复用，不引入第二个 ASR；onnx chunk-level 形状本就支持整段推理（AcceptWaveform 全段 + InputFinished + Decode） |
 | VAD | silero_vad.onnx | 1.8 MB | sherpa-onnx releases/asr-models | 行业标杆；在 sherpa-onnx 里是默认 VAD |
 | 声纹（中文优先） | 3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx | 27 MB | sherpa-onnx releases/speaker-recongition-models | sherpa-onnx Android sample 默认款；阿里 3D-Speaker 出品；中文 EER 全长约 6.78% |
 | 声纹（中英 / 通用） | wespeaker_en_voxceleb_CAM++.onnx | 28 MB | sherpa-onnx releases/speaker-recongition-models | 调研文档候选；预期端侧 RTF 比 eres2net 快约 2 倍 |
@@ -59,7 +59,7 @@ flowchart LR
     Drop --> Skip["不出文本"]
 ```
 
-5 个加固点逐项对应失败域，均已落地在 [tools/speaker/ts_asr/core.py](../../tools/speaker/ts_asr/core.py) 与 [02_ts_asr_offline.py](../../tools/speaker/02_ts_asr_offline.py)：
+5 个加固点逐项对应失败域，均已落地在 [asr/tools/speaker/ts_asr/core.py](../../asr/tools/speaker/ts_asr/core.py) 与 [02_ts_asr_offline.py](../../asr/tools/speaker/02_ts_asr_offline.py)：
 
 | 加固点 | 实现位置 | 解决的失败域 |
 | --- | --- | --- |
@@ -140,7 +140,7 @@ def overlap_seconds(supervisions):
 
 ## 5. 工程产物
 
-落地代码全部在 [tools/speaker/](../../tools/speaker/)，骨架已就绪：
+落地代码全部在 [asr/tools/speaker/](../../asr/tools/speaker/)，骨架已就绪：
 
 | 路径 | 状态 | 职责 |
 | --- | --- | --- |
@@ -153,7 +153,7 @@ def overlap_seconds(supervisions):
 | 03_eval.py | 待写 | 调用 dataset.py 跑 ROC、切片长度分布、重叠占比、注册/使用余弦分布 |
 | 04_check_zipformer_drc.py | 完成 | 用 onnx 包读 encoder.int8.onnx metadata，启发式判 DRC 启用 |
 | 05_rtf_local.py | 完成 | 主机 CPU bench 声纹模型 RTF（量级参考） |
-| README.md | 完成 | tools/speaker/ 用户入口、决策门、已知未知空表（待执行后回填） |
+| README.md | 完成 | asr/tools/speaker/ 用户入口、决策门、已知未知空表（待执行后回填） |
 
 ## 6. 决策门
 
@@ -172,7 +172,7 @@ def overlap_seconds(supervisions):
 
 ### 6.1 实测对照（ts_hw_test 全量 6555 条）
 
-跑出 [tools/speaker/03_eval.py](../../tools/speaker/03_eval.py) + [04_eval_summary.py](../../tools/speaker/04_eval_summary.py)，配置：业务自有 zipformer-zh-en INT8 + 3D-Speaker eres2net 中文版 + 单段 enrollment（多模板 ablation 留作下一步）。完整 markdown 报告见 [tools/speaker/results/eval_full_summary.md](../../tools/speaker/results/eval_full_summary.md)。
+跑出 [asr/tools/speaker/03_eval.py](../../asr/tools/speaker/03_eval.py) + [04_eval_summary.py](../../asr/tools/speaker/04_eval_summary.py)，配置：业务自有 zipformer-zh-en INT8 + 3D-Speaker eres2net 中文版 + 单段 enrollment（多模板 ablation 留作下一步）。完整 markdown 报告见 [asr/tools/speaker/results/eval_full_summary.md](../../asr/tools/speaker/results/eval_full_summary.md)。
 
 | 决策门信号 | 实测 | 通过/触发 |
 | --- | --- | --- |
@@ -220,9 +220,9 @@ def overlap_seconds(supervisions):
 
 ### 7.1 当前在 feat/target-speaker 分支已落地
 
-- tools/speaker/ 工具集（00 / 01 / 02 / 03 / 04_eval_summary / 04_check_zipformer_drc / 05 + ts_asr/{core,metrics,dataset} + README）
-- .gitignore 加 tools/speaker/{models,data,results}/** 排除规则
-- 全量 6555 条 ts_hw_test cuts 实测完成，结果在 `tools/speaker/results/eval_full_summary.{md,json}`，原始 jsonl 在 `tools/speaker/results/eval_full.jsonl`
+- asr/tools/speaker/ 工具集（00 / 01 / 02 / 03 / 04_eval_summary / 04_check_zipformer_drc / 05 + ts_asr/{core,metrics,dataset} + README）
+- .gitignore 加 asr/tools/speaker/{models,data,results}/** 排除规则
+- 全量 6555 条 ts_hw_test cuts 实测完成，结果在 `asr/tools/speaker/results/eval_full_summary.{md,json}`，原始 jsonl 在 `asr/tools/speaker/results/eval_full.jsonl`
 
 ### 7.2 实测后的下一步路线
 
@@ -247,4 +247,4 @@ def overlap_seconds(supervisions):
 - 默认阈值取 7.2 第 1 条的单阈值 0.30（FAR 3.96% / FRR 10.55%）；上线前按真机数据复标
 - P0 已验证预编译 libsherpa-onnx-jni.so 含 SpeakerEmbeddingExtractor / Manager 全部 JNI 符号，无需重编 native
 
-接入说明见 android/AmphionRuntime/docs/INTEGRATION.md 第 13 节。sample 与 sample-mini 两个 demo 已落地声纹注册页（SpeakerEnrollActivity）与目标人运行时开关；仍需真机 smoke 复标阈值。
+接入说明见 asr/android/docs/INTEGRATION.md 第 13 节。sample 与 sample-mini 两个 demo 已落地声纹注册页（SpeakerEnrollActivity）与目标人运行时开关；仍需真机 smoke 复标阈值。

@@ -1,0 +1,32 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+/.idea/misc.xml
+/.idea/vcs.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Module-level build output
+**/build/
+
+# Native libs are produced by asr/tools/04_build_android_so.sh
+# and copied by 05_package_aar_libs.sh.
+# Keep the directory but ignore the .so files in source control:
+sdk/src/main/jniLibs/**/*.so
+sample/src/main/jniLibs/**/*.so
+
+# Maven publish artifacts
+sdk/maven-repo/
+
+# Models for sample app
+sample/src/main/assets/asr-models/

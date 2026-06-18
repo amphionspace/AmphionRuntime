@@ -109,7 +109,7 @@ Content-Type: multipart/form-data，至少包含两个 part：
         _received_at          # 服务端写入的接收时间戳（ISO8601）
 ```
 
-这是为了让后台 tools/asr/eval_wer.py 把客户端 export zip 与服务端落盘目录用同一份代码消费。任何不偏离此结构的方案都接受，但 eval_wer.py 默认按这个结构遍历。
+这是为了让后台 asr/tools/eval_wer.py 把客户端 export zip 与服务端落盘目录用同一份代码消费。任何不偏离此结构的方案都接受，但 eval_wer.py 默认按这个结构遍历。
 
 ### 1.8 不变量
 
@@ -440,8 +440,8 @@ curl -s -o /dev/null -w "%{http_code}\n" \
 
 | 仓库内位置 | 角色 |
 | --- | --- |
-| android/AmphionRuntime/sample/src/main/java/com/amphion/asr/sample/eval/upload/HttpUploader.kt | 客户端实现 |
+| asr/android/sample/src/main/java/com/amphion/asr/sample/eval/upload/HttpUploader.kt | 客户端实现 |
 | docs/eval/SCHEMA.md | meta.json 完整字段定义 |
 | docs/eval/WORKFLOW.md | 测试员手册 + 工程师手册 |
-| tools/asr/eval_wer.py | 拿到服务端落盘数据后跑 WER 报告（与 zip 导出共用同一份代码） |
+| asr/tools/eval_wer.py | 拿到服务端落盘数据后跑 WER 报告（与 zip 导出共用同一份代码） |
 | shared/api-spec/errcodes.yaml | 4010~4015 上传错误码定义 |
