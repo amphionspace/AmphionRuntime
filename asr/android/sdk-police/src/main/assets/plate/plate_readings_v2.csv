@@ -8,6 +8,7 @@ from,to,category
 及,吉,province
 极,吉,province
 即,吉,province
+集,吉,province
 户,沪,province
 互,沪,province
 护,沪,province
@@ -48,6 +49,7 @@ from,to,category
 纪,G,letter
 基,G,letter
 际,G,letter
+冀,G,letter
 威,V,letter
 儿,R,letter
 意,E,letter
@@ -59,6 +61,7 @@ from,to,category
 闭,B,letter
 弊,B,letter
 帝,D,letter
+定,D,letter
 街,J,letter
 披,P,letter
 扣,Q,letter
@@ -88,6 +91,7 @@ U,豫,province
 贞,J,letter
 见,J,letter
 癖,P,letter
+屁,P,letter
 各,K,letter
 # --- 数字补位：机关位的数字←→同音字母（仅机关位生效；序号位走最短路保留数字）---
 # 1↔E 同音(yī)、2↔R 近音(èr/ar)：如「黑160538→黑E60538」「黑225973→黑R25973」。
