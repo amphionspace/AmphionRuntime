@@ -97,6 +97,7 @@ internal object LitsTtsFrontend {
         'Y' to listOf("W", "AY1"),
         'Z' to listOf("Z", "IY1"),
     )
+    private val acronymWordReadings = setOf("SIM")
     private val englishMergeRules = listOf(
         listOf("t", "\u0279") to "t\u0279",
         listOf("d", "\u0279") to "d\u0279",
@@ -552,6 +553,10 @@ internal object LitsTtsFrontend {
 
     private fun phonesForEnglishWord(resources: FrontendResources, rawWord: String): List<String> {
         val normalized = rawWord.uppercase()
+        if (shouldSpellUppercaseWord(rawWord, normalized)) {
+            val spelled = spellEnglishWord(resources, normalized)
+            if (spelled.isNotEmpty()) return spelled
+        }
         resources.cmudict[normalized]?.let { return it }
         if ('-' in normalized) {
             val output = mutableListOf<String>()
@@ -569,6 +574,11 @@ internal object LitsTtsFrontend {
         if (spelled.isNotEmpty()) return spelled
         throw unsupported("english word is not covered by cmudict.txt: $rawWord")
     }
+
+    private fun shouldSpellUppercaseWord(rawWord: String, normalized: String): Boolean =
+        rawWord.length > 1 &&
+            rawWord.all { it in 'A'..'Z' } &&
+            normalized !in acronymWordReadings
 
     private fun spellEnglishWord(resources: FrontendResources, word: String): List<String> {
         val output = mutableListOf<String>()
