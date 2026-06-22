@@ -6,27 +6,32 @@
 
     <string name="label_input">合成文本</string>
     <string name="label_mode">语言模式</string>
+    <string name="label_chunk_size">Chunk size</string>
+    <string name="label_pcm_queue_capacity">PCM queue capacity</string>
     <string name="label_result">运行结果</string>
     <string name="label_log">运行日志（自测）</string>
 
     <string name="hint_input">请输入要合成的文本</string>
+    <string name="hint_chunk_size">默认 100</string>
+    <string name="hint_pcm_queue_capacity">默认 128</string>
     <string name="mode_mixed">zh-en</string>
     <string name="mode_en">en-US</string>
     <string name="mode_desc">数字读法由 languageContext 决定：zh-en 按中文逐位读，en-US 按英文逐位读。</string>
-    <string name="action_desc">“开始合成”会返回 PCM 结果供回放和保存；“SDK 直接播报”会走 SDK 内部播放链路。</string>
+    <string name="action_desc">“开始合成”用于测流式回调；“SDK 直接播报”用于测边推边播；“Warmup”会先跑一条短句，把模型首次执行开销排除掉。Chunk size 会覆盖流式切块大小，PCM queue capacity 会覆盖 SDK 直接播报的播放缓冲队列容量。</string>
 
     <string name="button_synthesize">开始合成</string>
     <string name="button_sdk_playback">SDK 直接播报</string>
+    <string name="button_warmup">Warmup</string>
     <string name="button_play">播放结果</string>
     <string name="button_save">保存 WAV</string>
 
-    <string name="metrics_placeholder">采样率 -- Hz | 总耗时 -- ms | 音频时长 -- ms | RTF -- | 播放方式 --</string>
-    <string name="metrics_format_pcm">采样率 %1$d Hz | 总耗时 %2$d ms | 音频时长 %3$d ms | RTF %4$s | 播放方式 PCM</string>
-    <string name="metrics_format_sdk_playback">采样率 %1$d Hz | 总耗时 %2$d ms | 音频时长 %3$d ms | RTF %4$s | 播放方式 SDK</string>
+    <string name="metrics_placeholder">模式: --\n引擎加载: -- ms\n采样率: -- Hz\n首包时延: -- ms\n合成耗时: -- ms\n音频时长: -- ms\nRTF: --\nChunk数: --</string>
     <string name="log_placeholder">等待运行日志…</string>
 
     <string name="status_ready">等待操作</string>
     <string name="status_empty_text">请输入要合成的文本</string>
+    <string name="status_warming_up">正在 Warmup：%1$s</string>
+    <string name="status_warmup_done">Warmup 完成：%1$s</string>
     <string name="status_playing_result">正在播放最近一次合成结果</string>
     <string name="status_play_result_done">最近一次合成结果播放完成</string>
     <string name="status_synth_done">合成完成：%1$s</string>

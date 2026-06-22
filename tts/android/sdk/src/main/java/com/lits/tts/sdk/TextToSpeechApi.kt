@@ -1,14 +1,9 @@
 package com.lits.tts.sdk
 
-import android.content.Context
-import com.lits.tts.sdk.internal.DeviceLicenseFingerprint
 import com.lits.tts.sdk.internal.EngineRegistry
-import com.lits.tts.sdk.internal.LicenseGuard
 import java.util.concurrent.Executors
 
 object TtsErrorCode {
-    const val OK = 0
-
     const val TEXT_LENGTH_INVALID = 1002300001
     const val LANGUAGE_UNSUPPORTED = 1002300002
     const val VOICE_UNSUPPORTED = 1002300003
@@ -19,28 +14,6 @@ object TtsErrorCode {
     const val INTERNAL_SERVICE_ERROR = 1002300009
     const val QUEUE_FULL = 1002300010
     const val RUNTIME_EXCEPTION = 1002300011
-
-    // 离线 license 验签 / 绑定校验失败码（仅在 SDK 被武装、即构建期注入公钥时可能出现）。
-    /** 未提供 license（[TtsLicenseOptions.license] 为空且 asset 不存在）。 */
-    const val LICENSE_MISSING = 1002300012
-
-    /** license 内容不是合法 JSON 或缺必填字段。 */
-    const val LICENSE_MALFORMED = 1002300013
-
-    /** ECDSA 验签未通过（被篡改或用了非我方签发的 license）。 */
-    const val LICENSE_SIGNATURE_INVALID = 1002300014
-
-    /** license 的 applicationId 与宿主 app packageName 不一致。 */
-    const val LICENSE_APP_MISMATCH = 1002300015
-
-    /** license 的 certSha256 与宿主 app 签名证书不一致。 */
-    const val LICENSE_CERT_MISMATCH = 1002300016
-
-    /** license 已过期（超出宽限期）。 */
-    const val LICENSE_EXPIRED = 1002300017
-
-    /** license 绑定的设备指纹与当前设备不一致（单机授权）。 */
-    const val LICENSE_DEVICE_MISMATCH = 1002300018
 }
 
 class TextToSpeechException(
@@ -107,7 +80,7 @@ data class SpeakParams @JvmOverloads constructor(
     val speed: Float = 1.0f,
     val volume: Float = 1.0f,
     val pitch: Float = 1.0f,
-    val languageContext: String = "zh-en",
+    val languageContext: String = "zh-CN",
     val audioType: String = "pcm",
     val playType: PlayType = PlayType.SYNTHESIZE_AND_PLAY,
     val soundChannel: Int? = null,
@@ -121,16 +94,28 @@ data class StartResponse @JvmOverloads constructor(
     val sampleBit: Int = 16,
     val audioChannel: Int = 1,
     val compressRate: Int = 0,
+    val isStreaming: Boolean = false,
+    val dataPath: String = "buffered_pcm",
+    val modelSource: String = "unknown",
+    val modelInfo: String = "",
+    val loadProfileInfo: String = "",
 )
 
 data class SynthesisResponse @JvmOverloads constructor(
     val sequence: Int,
     val audioType: String = "pcm",
+    val isStreaming: Boolean = false,
+    val chunkSource: String = "buffered_pcm",
 )
 
-data class CompleteResponse(
+data class CompleteResponse @JvmOverloads constructor(
     val type: CompleteType,
     val message: String,
+    val firstPacketMs: Long = -1L,
+    val synthesisMs: Long = -1L,
+    val audioDurationMs: Long = -1L,
+    val rtf: Double = -1.0,
+    val profilingInfo: String = "",
 )
 
 data class StopResponse(
@@ -159,45 +144,6 @@ object TextToSpeechSdk {
     private var workPath: String? = null
     private val callbackExecutor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "lits-tts-callback").apply { isDaemon = true }
-    }
-
-    /**
-     * 可选的显式 license 初始化（开发 / 内部构建下为 no-op）。
-     *
-     * SDK 通过内部机制自动发现 ApplicationContext 并在 [createEngine] 前懒校验一次，所以业务方
-     * 即使不调用本方法也会被强制校验；提供本入口是为了：让业务方在启动时主动传入 license 文本 /
-     * 调整 [TtsLicenseOptions.enforcement] / 尽早暴露授权问题。重复调用以最后一次为准。
-     *
-     * @param context 任意 [Context]，仅取其 ApplicationContext，不长期持有
-     * @param options license 选项，详见 [TtsLicenseOptions]
-     * @throws TextToSpeechException 当 SDK 被武装、校验失败且策略为
-     *   [LicenseEnforcement.ENFORCE] 时抛出（errorCode 取自 [TtsErrorCode] 的 `LICENSE_*` 段）
-     */
-    @JvmStatic
-    @JvmOverloads
-    @Throws(TextToSpeechException::class)
-    fun init(context: Context, options: TtsLicenseOptions = TtsLicenseOptions()) {
-        LicenseGuard.configureAndVerify(context, options)
-    }
-
-    /**
-     * 查询当前 license 运行状态。任何校验（[init] 或首次 [createEngine]）触发前返回
-     * [TtsLicenseStatus.State.NOT_INITIALIZED]；开发 / 内部构建返回
-     * [TtsLicenseStatus.State.DEV_UNLICENSED]。可用于在「关于」页展示授权客户 / 到期日 / 档位。
-     */
-    @JvmStatic
-    fun licenseStatus(): TtsLicenseStatus = LicenseGuard.status()
-
-    /**
-     * 本机设备指纹，用于申请单机绑定的 `.lic`（`deviceSha256` 字段）。
-     *
-     * 无需先 [init]；在目标真机 Release 包上调用后，将返回值提供给授权签发方。
-     * 算法：SHA-256("{packageName}|{ANDROID_ID}")，大写 hex、无冒号。
-     */
-    @JvmStatic
-    fun deviceLicenseFingerprint(context: Context): String {
-        val ctx = context.applicationContext ?: context
-        return DeviceLicenseFingerprint.compute(ctx)
     }
 
     @JvmStatic

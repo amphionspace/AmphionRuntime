@@ -34,7 +34,6 @@ internal object EngineRegistry {
     }
 
     fun createEngine(params: CreateEngineParams, workPath: String?): TextToSpeechEngine {
-        LicenseGuard.gate()
         val speaker = resolveVoice(params)
         validateLocate(params.locate)
         validateEngineName(params.engineName)
