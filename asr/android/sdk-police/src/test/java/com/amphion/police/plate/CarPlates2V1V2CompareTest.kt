@@ -23,7 +23,13 @@ import java.nio.charset.StandardCharsets
  */
 class CarPlates2V1V2CompareTest {
 
-    private data class Row(val uttId: String, val exp: String, val region: String, val asr: String)
+    private data class Row(
+        val uttId: String,
+        val exp: String,
+        val region: String,
+        val asr: String,
+        val text: String,
+    )
 
     private fun loadCorpus(evalName: String, stagingName: String): List<Row> {
         val base = locateEvalBase()
@@ -33,7 +39,13 @@ class CarPlates2V1V2CompareTest {
             "cases/eval size mismatch for $evalName: ${cases.size} vs ${evalRows.size}"
         }
         return cases.zip(evalRows).map { (c, e) ->
-            Row(uttId = c[0], exp = e[1].ifEmpty { c[2] }, region = c[3], asr = e[2])
+            Row(
+                uttId = c[0],
+                exp = e[1].ifEmpty { c[2] },
+                region = c[3],
+                asr = e[2],
+                text = c.getOrElse(4) { "" },
+            )
         }
     }
 
@@ -72,6 +84,8 @@ class CarPlates2V1V2CompareTest {
         var mergeExact = 0
         val recovers = mutableListOf<String>()
         val regresses = mutableListOf<String>()
+        // V2 未命中的 case（真人复测目标）：uttId, region, exp, v1_got, v2_got, asr_raw, clean_text
+        val v2Misses = mutableListOf<Array<String>>()
         // region -> [total, v1, v2, recover, regress]
         val byRegion = linkedMapOf<String, IntArray>()
         // "region\tplate" -> [n, v1_ok, v2_ok]：导出真机复测目标分桶（见 writePlateBuckets）。
@@ -104,6 +118,11 @@ class CarPlates2V1V2CompareTest {
                 regresses.add("${r.region} exp=${r.exp} v2=$g2 | ${r.asr}")
                 s[4]++
             }
+            if (!ok2) {
+                v2Misses.add(
+                    arrayOf(r.uttId, r.region, r.exp, g1, g2, r.asr, r.text),
+                )
+            }
         }
 
         val sb = StringBuilder()
@@ -131,6 +150,7 @@ class CarPlates2V1V2CompareTest {
 
         writeMetrics(sb.toString())
         writePlateBuckets(plateStats)
+        writeV2RetestManifest(v2Misses)
 
         // 棘轮门禁（ratchet）：基线（2026-06 真机国测+上海 1950 条）
         //   P4 初始：       V2=1079(55.3%)，regress=708
@@ -186,6 +206,37 @@ class CarPlates2V1V2CompareTest {
                 sb.appendLine("$region\t$plate\t$bucket\t${s[0]}\t${s[1]}\t${s[2]}")
             }
             out.writeText(sb.toString())
+        }
+    }
+
+    // 导出「V2 真人复测清单」到 car_plates2_zh_*/v2_retest_manifest.tsv：
+    // 列出当前交付版 V2 在真机 ASR 语料上仍未命中的全部 case，供真人清晰念读复测。
+    // 列：region, expected_plate, prompt_text(干净原句/朗读用), v1_got, v2_got, asr_raw(真机听岔), utt_id
+    private fun writeV2RetestManifest(misses: List<Array<String>>) {
+        runCatching {
+            val sorted = misses.sortedWith(compareBy({ it[1] }, { it[2] }, { it[0] }))
+            val sb = StringBuilder(
+                "region\texpected_plate\tprompt_text\tv1_got\tv2_got\tasr_raw\tutt_id\n",
+            )
+            for (m in sorted) {
+                sb.appendLine("${m[1]}\t${m[2]}\t${m[6]}\t${m[3]}\t${m[4]}\t${m[5]}\t${m[0]}")
+            }
+            val out = File(
+                locateEvalBase(),
+                "car_plates2_zh_20260612_0331/v2_retest_manifest.tsv",
+            )
+            out.writeText(sb.toString())
+
+            val byReg = sorted.groupingBy { it[1] }.eachCount().toSortedMap()
+            val summary = StringBuilder("=== car_plates2 V2 真人复测清单（V2 仍未命中）===\n")
+            summary.appendLine("total_cases=${sorted.size}")
+            summary.appendLine()
+            summary.appendLine("by_region:")
+            for ((reg, n) in byReg) summary.appendLine("  $reg: $n")
+            File(
+                locateEvalBase(),
+                "car_plates2_zh_20260612_0331/v2_retest_manifest_summary.txt",
+            ).writeText(summary.toString())
         }
     }
 
