@@ -1521,7 +1521,12 @@ class PlateNormalizer private constructor(
         out = out.replace(Regex("靖西$n5"), "晋C")
         out = out.replace(Regex("禁地|静地|竞地|进第$n5"), "晋D")
         out = out.replace(Regex("晋冀$n5"), "晋E")
-        out = out.replace(Regex("翼60538"), "晋E60538")
+        // 「翼60538」仅在无省份前缀时判晋E（裸前缀＝晋牌被误听）；前面已有省份字（如 黑翼/吉翼60538）
+        // 时不得改写，否则拼出「黑晋E…」双省份畸形串被下游丢弃，反而回归（交给通用 翼→E 谐音处理）。
+        out = out.replace(
+            Regex("(?<![京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼])翼60538"),
+            "晋E60538",
+        )
         out = out.replace(Regex("静亿|晋亿|近亿|劲翼|静逸|静翼|建议$n5"), "晋E")
         out = out.replace(Regex("近160\\s*538"), "晋E60538")
         out = out.replace(Regex("进F|禁F|近F$n5"), "晋F")
