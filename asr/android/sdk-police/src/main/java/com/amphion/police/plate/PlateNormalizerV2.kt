@@ -133,10 +133,15 @@ class PlateNormalizerV2 private constructor(
         body: List<Char>,
         bodyIdx: List<Int>,
     ): Match? {
+        // 防止把长数字串（身份证/手机号/流水号等）的切片误当成丢省份车牌：
+        // 若候选紧邻前一个字符已是数字，说明这个「机关位」其实身处一段长数字中，放弃补省。
+        if (start > 0 && isPlateNumeric(text[start - 1])) return null
         for (plateLen in intArrayOf(8, 7)) {
             val bodyLen = plateLen - 1
             if (body.size < bodyLen) continue
             val end = bodyIdx[bodyLen - 1] + 1
+            // 序号末位之后仍紧跟数字 → 是长数字串的切片，不是完整车牌，跳过该长度。
+            if (end < text.length && isPlateNumeric(text[end])) continue
             if (!hasAnchor(text, start, end)) continue
             val bodySeq = body.subList(0, bodyLen)
             val hits = contextProvinces.mapNotNull { p ->
@@ -151,6 +156,10 @@ class PlateNormalizerV2 private constructor(
     /** 起点须能解析出省份（直接是省份简称，或读音候选里含省份）。 */
     private fun canStartHere(c: Char): Boolean =
         readingMap.candidates(c).any { kb.isProvinceChar(it) }
+
+    /** 阿拉伯数字或中文数字（用于「丢省份兜底」时排除长数字串切片）。 */
+    private fun isPlateNumeric(c: Char): Boolean =
+        c in '0'..'9' || c in "零〇一二三四五六七八九幺两"
 
     /** 从 [start] 起收集有效源字符（跳过分隔符，遇无候选字符即停），返回 (字符, 原文下标)。 */
     private fun collectSig(text: String, start: Int): Pair<List<Char>, List<Int>> {

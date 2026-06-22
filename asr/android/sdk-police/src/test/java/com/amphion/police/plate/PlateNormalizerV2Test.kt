@@ -162,6 +162,27 @@ class PlateNormalizerV2Test {
         assertEquals("H 28491", n.normalize("H 28491").text)
     }
 
+    @Test
+    fun droppedProvinceNoopInsideLongDigitRun() {
+        // 回归：身份证/手机号等长数字串里不得截一段当车牌（即便句中有「核查/号码」等锚词、有辖区省）。
+        val n = PlateNormalizerV2.create(kb, readingMap, contextProvinces = listOf('冀', '辽'))
+        assertEquals(
+            "帮我核查身份证号码为37050319911230983。",
+            n.normalize("帮我核查身份证号码为37050319911230983。").text,
+        )
+        assertEquals(
+            "帮我核查身份证号码为370 503 19911230983。",
+            n.normalize("帮我核查身份证号码为370 503 19911230983。").text,
+        )
+    }
+
+    @Test
+    fun droppedProvinceStillFillsIsolatedPlate() {
+        // 守卫不应误伤真正孤立的丢省份车牌：唯一合法省份仍应补省。
+        val n = PlateNormalizerV2.create(kb, readingMap, contextProvinces = listOf('冀', '辽'))
+        assertEquals("查一下车牌冀R30983", n.normalize("查一下车牌R30983").text)
+    }
+
     // ---- P5-3: 省份读成字母/生僻近音、数字补位、suppress 平局 ----
 
     @Test
