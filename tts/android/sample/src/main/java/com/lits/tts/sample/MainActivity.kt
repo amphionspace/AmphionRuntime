@@ -76,7 +76,7 @@ class MainActivity : AppCompatActivity() {
     private var engine: TextToSpeechEngine? = null
     private var engineLanguage: String? = null
     private var lastAudio: ByteArray? = null
-    private var lastSampleRate: Int = 16000
+    private var lastSampleRate: Int = 24000
     private var busy: Boolean = false
     private var activeRequestId: String? = null
     private var loadingLanguage: String? = null
@@ -553,7 +553,7 @@ class MainActivity : AppCompatActivity() {
             requestDataPaths[requestId] = response.chunkSource
             val startedAtMs = requestStartedAtMs[requestId]
             val firstChunkMs = requestFirstChunkAtMs[requestId]
-            val sampleRate = requestSampleRates[requestId] ?: 16000
+            val sampleRate = requestSampleRates[requestId] ?: 24000
             val chunkCount = requestChunkCounts[requestId] ?: 0
             val totalBytes = requestBuffers[requestId]?.size() ?: 0
             setMetrics(
@@ -593,7 +593,7 @@ class MainActivity : AppCompatActivity() {
                     val synthesisMs = response.synthesisMs.takeIf { it >= 0L } ?: wallClockSynthesisMs
                     val buffer = requestBuffers.remove(requestId)
                     val audioBytes = buffer?.toByteArray() ?: ByteArray(0)
-                    val sampleRate = requestSampleRates[requestId] ?: 16000
+                    val sampleRate = requestSampleRates[requestId] ?: 24000
                     val chunkCount = requestChunkCounts.remove(requestId) ?: 0
                     val firstChunkAtMs = requestFirstChunkAtMs[requestId]
                     val firstPacketMs = response.firstPacketMs.takeIf { it >= 0L } ?: if (startedAtMs != null && firstChunkAtMs != null) {

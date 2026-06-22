@@ -3,6 +3,11 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+val licensePublicKeyB64: String = providers.gradleProperty("LITS_TTS_LICENSE_PUBLIC_KEY")
+    .orElse(providers.environmentVariable("LITS_TTS_LICENSE_PUBLIC_KEY"))
+    .orElse("")
+    .get()
+
 android {
     namespace = "com.lits.tts.sdk"
     compileSdk = 34
@@ -11,6 +16,22 @@ android {
         minSdk = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+        buildConfigField("String", "LICENSE_PUBLIC_KEY_B64", "\"$licensePublicKeyB64\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            consumerProguardFiles("consumer-rules.pro")
+        }
     }
 
     compileOptions {
@@ -28,7 +49,7 @@ android {
     }
 
     androidResources {
-        noCompress += listOf("onnx")
+        noCompress += listOf("onnx", "ort")
     }
 
     sourceSets["main"].jniLibs.srcDirs("src/main/jniLibs")

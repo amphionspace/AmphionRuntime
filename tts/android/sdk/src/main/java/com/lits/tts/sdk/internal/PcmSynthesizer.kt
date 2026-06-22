@@ -72,7 +72,7 @@ internal class DeterministicPcmSynthesizer : PcmSynthesizer {
     }
 
     private companion object {
-        const val SAMPLE_RATE = 16000
+        const val SAMPLE_RATE = 24000
     }
 }
 
