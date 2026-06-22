@@ -170,7 +170,7 @@ class MainActivity : AppCompatActivity() {
         return CreateEngineParams(
             language = "zh-CN",
             online = DingqiaoOnlineMode.OFFLINE,
-            extraParams = extra,
+            extraParams = extra + mapOf("vadEnd" to 800),
         )
     }
 

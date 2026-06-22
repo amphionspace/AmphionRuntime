@@ -2,6 +2,7 @@ package com.amphion.dingqiao
 
 import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrLanguage
+import com.amphion.asr.EndpointRules
 import com.amphion.asr.TargetSpeakerConfig
 import com.amphion.asr.VadConfig
 import com.amphion.police.PoliceEngineConfig
@@ -45,6 +46,7 @@ internal object DingqiaoEngineConfig {
             .vad(true)
             .vadConfig(VadConfig(activeEndpointSilenceMs = vadEndMs(params)))
             .endpoint(true)
+            .endpointRules(EndpointRules(rule2MinTrailingSilenceSec = 2.0f))
         if (hotwords.isNotEmpty()) {
             builder.hotwords(hotwords, PoliceEngineConfig.HOTWORDS_SCORE_DEFAULT)
         }
