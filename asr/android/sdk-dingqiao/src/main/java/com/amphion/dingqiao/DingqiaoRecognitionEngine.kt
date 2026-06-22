@@ -221,8 +221,11 @@ internal class DingqiaoRecognitionEngine(
         }
 
         override fun onSessionStopped() {
-            if (finishRequested && !completeSent) {
-                maybeComplete(sessionId)
+            if (finishRequested) {
+                // SessionImpl.stop() 的 onSessionStopped 可能早于后处理后的 onFinal 到达。
+                // 若这里提前 tearDownSession()，会关闭 postprocessor 并移除回调队列，
+                // 导致业务收不到 onResult(isFinal=true, isLast=true)，主动停止就无法闭环。
+                return
             }
             if (listening) {
                 tearDownSession()

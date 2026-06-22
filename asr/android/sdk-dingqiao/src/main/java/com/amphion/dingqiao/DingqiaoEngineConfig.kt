@@ -3,6 +3,7 @@ package com.amphion.dingqiao
 import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrLanguage
 import com.amphion.asr.TargetSpeakerConfig
+import com.amphion.asr.VadConfig
 import com.amphion.police.PoliceEngineConfig
 import java.io.File
 
@@ -10,6 +11,7 @@ internal object DingqiaoEngineConfig {
 
     /** 门控阈值设为 -1，保证始终走 onFinal 路径但仍计算 speakerScore。 */
     private const val SCORE_ONLY_THRESHOLD = -1.0f
+    private const val DEFAULT_VAD_END_MS = 500
 
     fun mapLanguage(language: String): AsrLanguage = when (language) {
         "zh-CN", "zh-en", "zh_en" -> AsrLanguage.ZH_EN
@@ -41,6 +43,7 @@ internal object DingqiaoEngineConfig {
             .punctuation(true)
             .itn(true)
             .vad(true)
+            .vadConfig(VadConfig(activeEndpointSilenceMs = vadEndMs(params)))
             .endpoint(true)
         if (hotwords.isNotEmpty()) {
             builder.hotwords(hotwords, PoliceEngineConfig.HOTWORDS_SCORE_DEFAULT)
@@ -56,6 +59,15 @@ internal object DingqiaoEngineConfig {
             )
         }
         return builder.build()
+    }
+
+    fun vadEndMs(params: CreateEngineParams): Int {
+        val raw = params.extraParams["vadEnd"] ?: return DEFAULT_VAD_END_MS
+        return when (raw) {
+            is Number -> raw.toInt()
+            is String -> raw.toIntOrNull() ?: DEFAULT_VAD_END_MS
+            else -> DEFAULT_VAD_END_MS
+        }.coerceAtLeast(0)
     }
 
     fun maxAudioDurationMs(startParams: StartParams): Long {

@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import com.amphion.dingqiao.AudioInfo
 import com.amphion.dingqiao.CreateEngineCallback
 import com.amphion.dingqiao.CreateEngineParams
+import com.amphion.dingqiao.DingqiaoErrorCode
 import com.amphion.dingqiao.DingqiaoOnlineMode
 import com.amphion.dingqiao.RecognitionListener
 import com.amphion.dingqiao.SpeechRecognitionEngine
@@ -41,9 +42,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swVoiceprint: SwitchCompat
 
     private val worker = Executors.newSingleThreadExecutor()
+    private val sessionLock = Any()
     private var engine: SpeechRecognitionEngine? = null
     private var recorder: AudioRecorder? = null
     private var frameWriter: PcmFrameWriter? = null
+    private var sessionAudioMs = 0L
+    private var rotatingSession = false
 
     @Volatile
     private var listening = false
@@ -157,10 +161,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildCreateEngineParams(): CreateEngineParams {
         val hotwords = DemoPrefs.getUserHotwords(this)
-        val extra = if (hotwords.isEmpty()) {
-            emptyMap()
-        } else {
-            mapOf("sysGeneralLexicon" to hotwords)
+        val extra = mutableMapOf<String, Any>(
+            "vadEnd" to DEFAULT_VAD_END_MS,
+        )
+        if (hotwords.isNotEmpty()) {
+            extra["sysGeneralLexicon"] = hotwords
         }
         return CreateEngineParams(
             language = "zh-CN",
@@ -199,17 +204,35 @@ class MainActivity : AppCompatActivity() {
 
         override fun onComplete(sessionId: String, eventMessage: String) {
             runOnUiThread {
-                listening = false
-                setTalkButtonRecording(false)
-                btnTalk.isEnabled = true
-                setStatus(getString(R.string.status_engine_ready))
+                if (listening) {
+                    rotatingSession = false
+                    startRecognitionSession()
+                } else {
+                    stopCapture()
+                    this@MainActivity.sessionId = null
+                    setTalkButtonRecording(false)
+                    btnTalk.isEnabled = true
+                    setStatus(getString(R.string.status_engine_ready))
+                }
             }
         }
 
         override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
             runOnUiThread {
+                if (listening && errorCode == DingqiaoErrorCode.MAX_AUDIO_DURATION) {
+                    synchronized(sessionLock) {
+                        rotatingSession = false
+                        this@MainActivity.sessionId = null
+                        sessionAudioMs = 0L
+                    }
+                    startRecognitionSession()
+                    setStatus(getString(R.string.status_listening))
+                    return@runOnUiThread
+                }
+                stopCapture()
                 setStatus("错误 $errorCode：$errorMessage")
                 listening = false
+                this@MainActivity.sessionId = null
                 setTalkButtonRecording(false)
                 btnTalk.isEnabled = engine != null
             }
@@ -217,22 +240,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startListening() {
-        val eng = engine ?: return
+        if (engine == null) return
         if (listening) return
 
-        val sid = "demo-${System.currentTimeMillis()}"
-        sessionId = sid
         listening = true
         finalLines.clear()
         tvPartial.text = ""
         tvFinal.text = ""
 
+        startRecognitionSession()
+        setTalkButtonRecording(true)
+        btnTalk.isEnabled = true
+
+        frameWriter = PcmFrameWriter { frame -> writeFrameToCurrentSession(frame) }
+        recorder = AudioRecorder(
+            onPcm = { samples -> frameWriter?.accept(samples) },
+            onError = { msg -> runOnUiThread { setStatus("录音错误：$msg") } },
+        ).also { it.start() }
+    }
+
+    private fun startRecognitionSession() {
+        val eng = engine ?: return
+        val sid = "demo-${System.currentTimeMillis()}"
+        synchronized(sessionLock) {
+            sessionId = sid
+            sessionAudioMs = 0L
+            frameWriter?.reset()
+        }
+
         val voiceprintId = DemoPrefs.getVoiceprintId(this)
         val verify = voiceprintVerifyDesired && !voiceprintId.isNullOrBlank()
         val extra = mutableMapOf<String, Any>(
             "enablePartialResult" to true,
-            "maxAudioDuration" to 60_000,
-            "vadEnd" to 800,
+            "maxAudioDuration" to SESSION_MAX_AUDIO_MS,
         )
         if (verify) {
             extra["enableVoiceprintVerification"] = true
@@ -246,33 +286,55 @@ class MainActivity : AppCompatActivity() {
                 extraParams = extra,
             ),
         )
+    }
 
-        setTalkButtonRecording(true)
-        btnTalk.isEnabled = true
-
-        frameWriter = PcmFrameWriter { frame ->
-            eng.writeAudio(sid, frame)
+    private fun writeFrameToCurrentSession(frame: ByteArray) {
+        val sidToFinish: String?
+        val sidToWrite: String?
+        synchronized(sessionLock) {
+            val sid = sessionId
+            if (!listening || sid == null) return
+            if (sessionAudioMs >= SESSION_ROTATE_AUDIO_MS && !rotatingSession) {
+                rotatingSession = true
+                sessionId = null
+                sessionAudioMs = 0L
+                sidToFinish = sid
+                sidToWrite = null
+            } else {
+                sessionAudioMs += DINGQIAO_FRAME_AUDIO_MS
+                sidToFinish = null
+                sidToWrite = sid
+            }
         }
-        recorder = AudioRecorder(
-            onPcm = { samples -> frameWriter?.accept(samples) },
-            onError = { msg -> runOnUiThread { setStatus("录音错误：$msg") } },
-        ).also { it.start() }
+        sidToFinish?.let { engine?.finish(it) }
+        sidToWrite?.let { engine?.writeAudio(it, frame) }
     }
 
     private fun stopListening() {
         if (!listening) return
         listening = false
-        recorder?.stop()
-        recorder = null
-        frameWriter?.reset()
-        frameWriter = null
+        stopCapture()
 
         val sid = sessionId
         sessionId = null
+        rotatingSession = false
+        sessionAudioMs = 0L
         setTalkButtonRecording(false)
         if (sid != null) {
             engine?.finish(sid)
         }
+    }
+
+    /**
+     * 仅停止本地麦克风采集，不触碰 SDK session。供 onComplete/onError 使用：
+     * 此时 SDK 侧 session 已结束，若继续采集会持续向已关闭的 session 写音频，
+     * 导致麦克风不释放、反复 NOT_LISTENING 报错而无法重新收音。
+     */
+    private fun stopCapture() {
+        recorder?.stop()
+        recorder = null
+        frameWriter?.reset()
+        frameWriter = null
     }
 
     private fun appendFinal(result: SpeechRecognitionResult) {
@@ -385,5 +447,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun toast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    private companion object {
+        const val SESSION_MAX_AUDIO_MS = 60_000L
+        const val SESSION_ROTATE_AUDIO_MS = 55_000L
+        const val DINGQIAO_FRAME_AUDIO_MS = 20L
+        const val DEFAULT_VAD_END_MS = 1_500
     }
 }
