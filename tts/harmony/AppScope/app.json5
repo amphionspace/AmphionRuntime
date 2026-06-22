@@ -1,0 +1,8 @@
+{
+  "app": {
+    "bundleName": "com.amphion.tts.harmony",
+    "vendor": "amphion",
+    "versionCode": 1,
+    "versionName": "0.1.0"
+  }
+}
