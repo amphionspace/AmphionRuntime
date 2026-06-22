@@ -30,6 +30,20 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildAsrConfig_readsVadEnd() {
+        val config = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(
+                language = "zh-CN",
+                online = DingqiaoOnlineMode.OFFLINE,
+                extraParams = mapOf("vadEnd" to 1500),
+            ),
+            speakerModelPath = null,
+        )
+
+        assertEquals(1500, config.vadConfig.activeEndpointSilenceMs)
+    }
+
+    @Test
     fun voiceprintIds_fromStartParams() {
         val ids = DingqiaoEngineConfig.voiceprintIds(
             StartParams(
