@@ -15,6 +15,16 @@ android {
         versionName = "0.1.0"
     }
 
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -23,13 +33,10 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
-
-    androidResources {
-        noCompress += listOf("onnx")
-    }
 }
 
 dependencies {
     implementation(project(":sdk"))
+    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
 }

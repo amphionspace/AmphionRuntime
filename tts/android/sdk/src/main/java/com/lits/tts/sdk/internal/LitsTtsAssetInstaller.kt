@@ -8,7 +8,9 @@ import org.json.JSONObject
 
 internal object LitsTtsAssetInstaller {
     fun ensureInstalled(context: Context, workPath: String?): InstalledLayout {
-        val rootDir = installRoot(context, workPath)
+        val installRoot = installRoot(context, workPath)
+        discoverExternalLayout(installRoot)?.let { return it }
+        val rootDir = installRoot
             .resolve(LitsTtsAssetRegistry.MODEL_ID)
             .resolve(LitsTtsAssetRegistry.MODEL_VERSION)
         val versionFile = rootDir.resolve(".version")
@@ -36,7 +38,7 @@ internal object LitsTtsAssetInstaller {
         }
 
         val manifest = parseAndValidateManifest(manifestFile)
-        return InstalledLayout.of(rootDir, manifest)
+        return InstalledLayout.of(rootDir, manifest, LayoutSource.BUNDLED_ASSET)
     }
 
     private fun parseAndValidateManifest(file: File): ManifestInfo {
@@ -50,44 +52,79 @@ internal object LitsTtsAssetInstaller {
         val version = json.optString("version")
         val runtimeFormat = json.optString("runtime_format")
         val sampleRate = json.optInt("sample_rate", -1)
+        val hopLength = json.optInt("hop_length", -1)
         val speakerCount = json.optInt("speaker_count", -1)
         val defaultSpeakerId = json.optInt("default_speaker_id", -1)
         val defaultLanguage = json.optString("default_language")
         val vocoderType = json.optString("vocoder_type")
+        val supportsStreaming = json.optBoolean("supports_streaming", false)
         val supportedLanguages = json.optJSONArray("supported_languages")
         val acousticFile = json.optJSONObject("acoustic_model")?.optString("file")
         val vocoderFile = json.optJSONObject("vocoder_model")?.optString("file")
+        val hiddenEncoderFile = json.optJSONObject("hidden_encoder_model")?.optString("file")
+        val streamDecoderChunkFile = json.optJSONObject("stream_decoder_chunk_model")?.optString("file")
+        val streamDecoderFinalFile = json.optJSONObject("stream_decoder_final_model")?.optString("file")
+        val streamingChunkSize = json.optInt("streaming_chunk_size", -1)
+        val streamingPreLookaheadLen = json.optInt("streaming_pre_lookahead_len", -1)
+        val streamingMelCacheLen = json.optInt("streaming_mel_cache_len", -1)
         if (
             task != "tts" ||
-            modelId != LitsTtsAssetRegistry.MODEL_ID ||
-            version != LitsTtsAssetRegistry.MODEL_VERSION ||
+            modelId.isBlank() ||
+            version.isBlank() ||
             runtimeFormat != "onnx"
         ) {
             throw illegalState(TtsErrorCode.CREATE_ENGINE_FAILED, "TTS manifest identity mismatch")
         }
         if (
-            sampleRate != 16_000 ||
+            sampleRate <= 0 ||
+            hopLength <= 0 ||
             speakerCount <= 0 ||
             defaultSpeakerId !in 0 until speakerCount ||
             defaultLanguage != "zh-en" ||
-            vocoderType != "hifigan" ||
+            vocoderType !in setOf("hifigan", "vocos") ||
             !supportedLanguages.containsString("zh-en") ||
             !supportedLanguages.containsString("en-US")
         ) {
             throw illegalState(TtsErrorCode.CREATE_ENGINE_FAILED, "TTS manifest core fields are invalid")
         }
         if (
-            acousticFile != LitsTtsAssetRegistry.ACOUSTIC_MODEL ||
-            vocoderFile != LitsTtsAssetRegistry.VOCODER_MODEL
+            !supportsStreaming &&
+            (
+                acousticFile != LitsTtsAssetRegistry.ACOUSTIC_MODEL ||
+                    vocoderFile != LitsTtsAssetRegistry.VOCODER_MODEL
+                )
         ) {
             throw illegalState(TtsErrorCode.CREATE_ENGINE_FAILED, "TTS manifest model files are invalid")
         }
+        if (
+            supportsStreaming &&
+            (
+                hiddenEncoderFile.isNullOrBlank() ||
+                    streamDecoderChunkFile.isNullOrBlank() ||
+                    vocoderFile.isNullOrBlank() ||
+                    streamingChunkSize <= 0 ||
+                    streamingPreLookaheadLen < 0 ||
+                    streamingMelCacheLen <= 0
+                )
+        ) {
+            throw illegalState(TtsErrorCode.CREATE_ENGINE_FAILED, "TTS streaming manifest fields are invalid")
+        }
         return ManifestInfo(
+            modelId = modelId,
+            version = version,
             sampleRate = sampleRate,
+            hopLength = hopLength,
             speakerCount = speakerCount,
             defaultSpeakerId = defaultSpeakerId,
+            supportsStreaming = supportsStreaming,
             acousticModelFile = acousticFile,
-            vocoderModelFile = vocoderFile,
+            vocoderModelFile = vocoderFile ?: throw illegalState(TtsErrorCode.CREATE_ENGINE_FAILED, "TTS manifest vocoder file missing"),
+            hiddenEncoderModelFile = hiddenEncoderFile,
+            streamDecoderChunkModelFile = streamDecoderChunkFile,
+            streamDecoderFinalModelFile = streamDecoderFinalFile,
+            streamingChunkSize = streamingChunkSize,
+            streamingPreLookaheadLen = streamingPreLookaheadLen,
+            streamingMelCacheLen = streamingMelCacheLen,
         )
     }
 
@@ -95,6 +132,34 @@ internal object LitsTtsAssetInstaller {
         val base = workPath?.takeIf { it.isNotBlank() }?.let(::File)
             ?: File(context.filesDir, "lits-tts-runtime")
         return base.resolve("tts")
+    }
+
+    private fun discoverExternalLayout(installRoot: File): InstalledLayout? {
+        if (!installRoot.isDirectory) return null
+        val bundledRoot = installRoot
+            .resolve(LitsTtsAssetRegistry.MODEL_ID)
+            .resolve(LitsTtsAssetRegistry.MODEL_VERSION)
+            .absoluteFile
+        val manifests = installRoot.walkTopDown()
+            .maxDepth(3)
+            .filter { it.isFile && it.name == LitsTtsAssetRegistry.MANIFEST }
+            .toList()
+        return manifests
+            .mapNotNull { manifestFile ->
+                val rootDir = manifestFile.parentFile?.absoluteFile ?: return@mapNotNull null
+                if (rootDir == bundledRoot) return@mapNotNull null
+                if (rootDir.resolve(".version").isFile || rootDir.resolve(".asset_signature").isFile) {
+                    return@mapNotNull null
+                }
+                val manifest = runCatching { parseAndValidateManifest(manifestFile) }.getOrNull() ?: return@mapNotNull null
+                InstalledLayout.of(rootDir, manifest, LayoutSource.EXTERNAL_PACKAGE)
+                    .takeIf(InstalledLayout::hasRequiredFiles)
+            }
+            .sortedWith(
+                compareByDescending<InstalledLayout> { it.manifest.supportsStreaming }
+                    .thenBy { it.rootDir.absolutePath },
+            )
+            .firstOrNull()
     }
 
     private fun readAssetSignature(context: Context): String {
@@ -131,38 +196,103 @@ internal object LitsTtsAssetInstaller {
     internal data class InstalledLayout(
         val rootDir: File,
         val manifest: ManifestInfo,
-        val acousticModel: File,
+        val source: LayoutSource,
+        val acousticModel: File?,
         val vocoderModel: File,
+        val hiddenEncoderModel: File?,
+        val streamDecoderChunkModel: File?,
+        val streamDecoderFinalModel: File?,
         val frontendGolden: File,
         val chineseLexicon: File,
+        val chineseLexiconBin: File,
         val cmudict: File,
+        val cmudictBin: File,
         val symbols: File,
         val pinyinToTokens: File,
         val arpabetToTokens: File,
         val polychar: File,
     ) {
         companion object {
-            fun of(rootDir: File, manifest: ManifestInfo): InstalledLayout = InstalledLayout(
+            fun of(rootDir: File, manifest: ManifestInfo, source: LayoutSource): InstalledLayout = InstalledLayout(
                 rootDir = rootDir,
                 manifest = manifest,
-                acousticModel = rootDir.resolve(manifest.acousticModelFile),
+                source = source,
+                acousticModel = manifest.acousticModelFile?.let(rootDir::resolve),
                 vocoderModel = rootDir.resolve(manifest.vocoderModelFile),
+                hiddenEncoderModel = manifest.hiddenEncoderModelFile?.let(rootDir::resolve),
+                streamDecoderChunkModel = manifest.streamDecoderChunkModelFile?.let(rootDir::resolve),
+                streamDecoderFinalModel = manifest.streamDecoderFinalModelFile?.let(rootDir::resolve),
                 frontendGolden = rootDir.resolve(LitsTtsAssetRegistry.FRONTEND_GOLDEN),
                 chineseLexicon = rootDir.resolve(LitsTtsAssetRegistry.CHINESE_LEXICON),
+                chineseLexiconBin = rootDir.resolve(LitsTtsAssetRegistry.CHINESE_LEXICON_BIN),
                 cmudict = rootDir.resolve(LitsTtsAssetRegistry.CMUDICT),
+                cmudictBin = rootDir.resolve(LitsTtsAssetRegistry.CMUDICT_BIN),
                 symbols = rootDir.resolve(LitsTtsAssetRegistry.SYMBOLS),
                 pinyinToTokens = rootDir.resolve(LitsTtsAssetRegistry.PINYIN_TO_TOKENS),
                 arpabetToTokens = rootDir.resolve(LitsTtsAssetRegistry.ARPABET_TO_TOKENS),
                 polychar = rootDir.resolve(LitsTtsAssetRegistry.POLYCHAR),
             )
         }
+
+        fun hasRequiredFiles(): Boolean {
+            val coreFiles = listOf(
+                vocoderModel,
+                frontendGolden,
+                chineseLexicon,
+                cmudict,
+                symbols,
+                pinyinToTokens,
+                arpabetToTokens,
+                polychar,
+            )
+            if (coreFiles.any { !it.isFile }) return false
+            return if (manifest.supportsStreaming) {
+                hiddenEncoderModel?.isFile == true &&
+                    streamDecoderChunkModel?.isFile == true &&
+                    streamDecoderFinalModel?.isFile == true
+            } else {
+                acousticModel?.isFile == true
+            }
+        }
+
+        fun debugSummary(): String {
+            val sourceLabel = when (source) {
+                LayoutSource.EXTERNAL_PACKAGE -> "external"
+                LayoutSource.BUNDLED_ASSET -> "bundled"
+            }
+            val streamingLabel = if (manifest.supportsStreaming) "streaming" else "non_streaming"
+            val chunkSizeLabel = if (manifest.supportsStreaming) manifest.streamingChunkSize.toString() else "-"
+            return buildString {
+                append("source=").append(sourceLabel)
+                append(" model=").append(manifest.modelId)
+                append(" version=").append(manifest.version)
+                append(" mode=").append(streamingLabel)
+                append(" chunkSize=").append(chunkSizeLabel)
+                append(" path=").append(rootDir.absolutePath)
+            }
+        }
+    }
+
+    internal enum class LayoutSource {
+        EXTERNAL_PACKAGE,
+        BUNDLED_ASSET,
     }
 
     internal data class ManifestInfo(
+        val modelId: String,
+        val version: String,
         val sampleRate: Int,
+        val hopLength: Int,
         val speakerCount: Int,
         val defaultSpeakerId: Int,
-        val acousticModelFile: String,
+        val supportsStreaming: Boolean,
+        val acousticModelFile: String?,
         val vocoderModelFile: String,
+        val hiddenEncoderModelFile: String?,
+        val streamDecoderChunkModelFile: String?,
+        val streamDecoderFinalModelFile: String?,
+        val streamingChunkSize: Int,
+        val streamingPreLookaheadLen: Int,
+        val streamingMelCacheLen: Int,
     )
 }
