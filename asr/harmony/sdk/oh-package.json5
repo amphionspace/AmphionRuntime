@@ -1,0 +1,12 @@
+{
+  "name": "amphion_asr",
+  "version": "0.1.0",
+  "description": "Amphion core ASR SDK for HarmonyOS",
+  "main": "Index.ets",
+  "author": "Amphion",
+  "license": "Commercial",
+  "dependencies": {
+    "sherpa_onnx": "file:../../../third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx",
+    "libamphion_asr.so": "file:./src/main/cpp/types/libamphion_asr"
+  }
+}
