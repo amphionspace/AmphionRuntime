@@ -80,14 +80,14 @@ class MainActivity : AppCompatActivity() {
          * 「北京」）已经内化强 prior；浅融合要击败这个 prior，λ 必须大到能补偿
          * prior gap，**否则属于浅融合的结构性短板**（不是参数没调对）。
          *
-         * 当前置 5.0：SDK 允许的上限（[com.amphion.asr.AsrConfig.Builder.hotwords] 写死
-         * [0.0, 5.0]），用来测试「在 boost 能力的天花板上，常见词 prior 是否还能撬动」。
-         * 如果 5.0 仍撬不动「余明洞」→「余铭栋」这类对抗，应转向后处理同音字典替换
-         * （deterministic mapping，本就不该用概率模型解决）。
+         * 当前置 3.0：与生产 [com.amphion.police.PoliceEngineConfig.HOTWORDS_SCORE_DEFAULT]
+         * 对齐。真机 A/B 实测，相对满分 5.0，辽宁车牌整体 90.0%→96.7%，且「辽F/辽G/辽P
+         * 被误偏成辽B」从 3/84 降到 0/84（5.0 过度偏置权威字母）。SDK 文档亦推荐人名/专名/
+         * 同音纠错 2.0~3.0 起步，3.0~5.0 "过大会误伤无关音节"。
          *
          * 被 [AmphionApp] 在 preload 时同样使用，保证 pool 命中。
          */
-        const val HOTWORDS_SCORE = 5.0f
+        const val HOTWORDS_SCORE = 3.0f
 
         /**
          * 占位热词：仅当 [AmphionApp.hotwordsArmed] 为 true 但当前语言无 active 热词时使用，
