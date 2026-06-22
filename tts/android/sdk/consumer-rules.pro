@@ -1,9 +1,10 @@
 # Lits TTS SDK consumer rules.
 # These rules are merged into the host app when the host enables R8/minify.
 
-# Public SDK API and SDK-owned implementation are kept for Java/Kotlin callers,
-# data-class field stability, callback dispatch, and predictable crash stacks.
--keep class com.lits.tts.sdk.** { *; }
+# Public SDK API is kept for Java/Kotlin callers, data-class field stability,
+# callbacks, and predictable integration behavior. Internal implementation is
+# intentionally not kept so release builds can obfuscate license/runtime code.
+-keep class com.lits.tts.sdk.* { *; }
 
 # ONNX Runtime Java classes cross JNI/native boundaries. Keep them stable when
 # a host app minifies its release build.
@@ -15,7 +16,7 @@
 }
 
 # Keep enum helpers used by Java/Kotlin callers and possible serialization/logging.
--keepclassmembers enum com.lits.tts.sdk.** {
+-keepclassmembers enum com.lits.tts.sdk.* {
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }

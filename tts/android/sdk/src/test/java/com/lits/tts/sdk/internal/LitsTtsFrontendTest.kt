@@ -101,26 +101,28 @@ class LitsTtsFrontendTest {
         copyAsset(assetRoot, root, "arpabet_to_tokens.json")
         copyAsset(assetRoot, root, "polychar.txt")
         copyAsset(assetRoot, root, "frontend_golden.json")
-        File(root, "lits_acoustic.onnx").writeBytes(byteArrayOf())
-        File(root, "hifigan_vocoder.onnx").writeBytes(byteArrayOf())
+        File(root, "lits_hidden_encoder.onnx").writeBytes(byteArrayOf())
+        File(root, "lits_stream_decoder_chunk.ort").writeBytes(byteArrayOf())
+        File(root, "lits_stream_decoder_final.ort").writeBytes(byteArrayOf())
+        File(root, "vocos_vocoder.onnx").writeBytes(byteArrayOf())
         return LitsTtsAssetInstaller.InstalledLayout.of(
             rootDir = root,
             manifest = LitsTtsAssetInstaller.ManifestInfo(
-                modelId = "lits_delivery_16k_hifigan",
-                version = "1.0.0",
-                sampleRate = 16_000,
-                hopLength = 256,
+                modelId = "transsion_lits_en_zh_vocos24k_streaming_proto",
+                version = "0.1.0",
+                sampleRate = 24_000,
+                hopLength = 384,
                 speakerCount = 1,
                 defaultSpeakerId = 0,
-                supportsStreaming = false,
-                acousticModelFile = "lits_acoustic.onnx",
-                vocoderModelFile = "hifigan_vocoder.onnx",
-                hiddenEncoderModelFile = null,
-                streamDecoderChunkModelFile = null,
-                streamDecoderFinalModelFile = null,
-                streamingChunkSize = -1,
-                streamingPreLookaheadLen = -1,
-                streamingMelCacheLen = -1,
+                supportsStreaming = true,
+                acousticModelFile = null,
+                vocoderModelFile = "vocos_vocoder.onnx",
+                hiddenEncoderModelFile = "lits_hidden_encoder.onnx",
+                streamDecoderChunkModelFile = "lits_stream_decoder_chunk.ort",
+                streamDecoderFinalModelFile = "lits_stream_decoder_final.ort",
+                streamingChunkSize = 100,
+                streamingPreLookaheadLen = 3,
+                streamingMelCacheLen = 8,
             ),
             source = LitsTtsAssetInstaller.LayoutSource.BUNDLED_ASSET,
         )

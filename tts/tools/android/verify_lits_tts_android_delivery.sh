@@ -4,6 +4,7 @@
 # Usage:
 #   bash tts/tools/android/verify_lits_tts_android_delivery.sh path/to/VERSION.txt
 #   bash tts/tools/android/verify_lits_tts_android_delivery.sh path/to/lits-tts-sdk-*.aar
+#   bash tts/tools/android/verify_lits_tts_android_delivery.sh path/to/sample-debug.apk
 #   bash tts/tools/android/verify_lits_tts_android_delivery.sh path/to/lits-tts-android-sdk-v*/
 #   bash tts/tools/android/verify_lits_tts_android_delivery.sh path/to/lits-tts-android-sdk-v*.zip
 set -euo pipefail
@@ -51,9 +52,11 @@ required = {
     "libs/onnxruntime-android-1.24.3-classes.jar",
     "jni/arm64-v8a/libonnxruntime.so",
     "jni/arm64-v8a/libonnxruntime4j_jni.so",
-    "assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0/manifest.json",
-    "assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0/lits_acoustic.onnx",
-    "assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0/hifigan_vocoder.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/manifest.json",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_hidden_encoder.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_stream_decoder_chunk.ort",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_stream_decoder_final.ort",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/vocos_vocoder.onnx",
 }
 with zipfile.ZipFile(path) as zf:
     names = set(zf.namelist())
@@ -73,9 +76,11 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 required = {
-    "assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0/manifest.json",
-    "assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0/lits_acoustic.onnx",
-    "assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0/hifigan_vocoder.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/manifest.json",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_hidden_encoder.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_stream_decoder_chunk.ort",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_stream_decoder_final.ort",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/vocos_vocoder.onnx",
     "lib/arm64-v8a/libonnxruntime.so",
     "lib/arm64-v8a/libonnxruntime4j_jni.so",
 }
@@ -120,11 +125,11 @@ verify_source_tree() {
     fail "missing Android SDK source build.gradle.kts"
   [[ -f "$source_root/tts/android/sdk/src/main/java/com/lits/tts/sdk/TextToSpeechApi.kt" ]] || \
     fail "missing TextToSpeechApi.kt"
-  [[ -f "$source_root/tts/tools/verify_lits_delivery_16k_package.py" ]] || \
+  [[ -f "$source_root/tts/tools/verify_transsion_vocos24k_package.py" ]] || \
     fail "missing Android model verifier"
   [[ -f "$source_root/tts/tools/license/issue_license.py" ]] || \
     fail "missing license tooling"
-  [[ -f "$source_root/tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0/manifest.json" ]] || \
+  [[ -f "$source_root/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/manifest.json" ]] || \
     fail "missing staged model package in Android source tree"
 
   python3 - "$source_root" <<'PY'
@@ -151,6 +156,11 @@ PY
 
 if [[ -f "$TARGET" && "$TARGET" == *.aar ]]; then
   verify_aar "$TARGET"
+  exit 0
+fi
+
+if [[ -f "$TARGET" && "$TARGET" == *.apk ]]; then
+  verify_sample_apk "$TARGET"
   exit 0
 fi
 

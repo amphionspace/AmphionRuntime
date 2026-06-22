@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
@@ -9,7 +11,13 @@ val modelId = "transsion_lits_en_zh_vocos24k_streaming_proto"
 val modelVersion = "0.1.0"
 val deliveryDirName = "lits-transsion-tts-android-sdk-vocos24k-$sdkVersion"
 val deliveryAarName = "lits-transsion-tts-sdk-vocos24k-$sdkVersion.aar"
-val litsModelDir = rootDir.resolve("../../tools/trial-export/$modelId/$modelVersion")
+val litsModelDirOverride = providers.gradleProperty("LITS_TTS_MODEL_DIR")
+    .orElse(providers.environmentVariable("LITS_TTS_MODEL_DIR"))
+    .orNull
+val litsModelDir = litsModelDirOverride
+    ?.let(::File)
+    ?.let { if (it.isAbsolute) it else rootDir.resolve(it.path) }
+    ?: rootDir.resolve("../../tools/trial-export/$modelId/$modelVersion")
 val litsAssetDir = rootDir.resolve(
     "sdk/src/main/assets/lits-models/tts/$modelId/$modelVersion",
 )
@@ -25,6 +33,7 @@ val packLitsTtsSdkAssets = tasks.register<Copy>("packLitsTtsSdkAssets") {
     include(
         "manifest.json",
         "export_report.json",
+        "vocos_vocoder.export_report.json",
         "smoke_tokens.json",
         "frontend_golden.json",
         "chinese_lexicon.txt",

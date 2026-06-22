@@ -10,11 +10,11 @@
 | 模式 | 离线 `RunMode.OFFLINE` |
 | 网络权限 | 不需要 |
 
-SDK AAR 已包含模型资源、ONNX Runtime Java 类和 arm64 native 库。宿主 App 不需要额外下载模型。
+SDK AAR 已包含 24 kHz Vocos streaming 模型资源、ONNX Runtime Java 类和 arm64 native 库。宿主 App 不需要额外下载模型。
 
 ## 2. Gradle 接入
 
-源码工程默认产物文件名是 `sdk-release.aar`。如果你在对外交付前把它重命名成 `lits-tts-sdk-0.1.0.aar`，下面的接入示例可以直接照抄；如果没重命名，就把依赖里的文件名改成 `sdk-release.aar`。
+源码工程默认产物文件名是 `sdk-release.aar`。正式交付包会把它重命名成 `lits-tts-sdk-0.1.0.aar`；如果你直接使用本地构建产物，请把依赖里的文件名改成 `sdk-release.aar`。
 
 把 `lits-tts-sdk-0.1.0.aar` 放到宿主 App 的 `app/libs/` 后添加依赖：
 
@@ -170,7 +170,7 @@ onData(sequence=0..n)
 onComplete(SYNTHESIS_COMPLETE)
 ```
 
-`onData` 返回 16 kHz、16-bit、mono PCM 分片，`sequence` 从 0 递增。
+`onData` 返回 24 kHz、16-bit、mono PCM 分片，`sequence` 从 0 递增。
 
 ## 8. 播放通道
 
@@ -256,7 +256,9 @@ TextToSpeechSdk.init(context) // 默认从 assets/lits-tts-license.lic 读取、
 TextToSpeechSdk.init(
     context,
     TtsLicenseOptions(
+        license = null,
         licenseAssetName = "lits-tts-license.lic",
+        expiryGraceDays = 0,
         enforcement = LicenseEnforcement.ENFORCE,
     ),
 )

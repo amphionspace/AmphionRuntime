@@ -1,9 +1,12 @@
 package com.lits.tts.sdk
 
+import android.content.Context
 import com.lits.tts.sdk.internal.EngineRegistry
+import com.lits.tts.sdk.internal.TtsLicenseGate
 import java.util.concurrent.Executors
 
 object TtsErrorCode {
+    const val OK = 0
     const val TEXT_LENGTH_INVALID = 1002300001
     const val LANGUAGE_UNSUPPORTED = 1002300002
     const val VOICE_UNSUPPORTED = 1002300003
@@ -14,6 +17,13 @@ object TtsErrorCode {
     const val INTERNAL_SERVICE_ERROR = 1002300009
     const val QUEUE_FULL = 1002300010
     const val RUNTIME_EXCEPTION = 1002300011
+    const val LICENSE_MISSING = 1002300012
+    const val LICENSE_MALFORMED = 1002300013
+    const val LICENSE_SIGNATURE_INVALID = 1002300014
+    const val LICENSE_APP_MISMATCH = 1002300015
+    const val LICENSE_CERT_MISMATCH = 1002300016
+    const val LICENSE_EXPIRED = 1002300017
+    const val LICENSE_DEVICE_MISMATCH = 1002300018
 }
 
 class TextToSpeechException(
@@ -90,7 +100,7 @@ data class SpeakParams @JvmOverloads constructor(
 
 data class StartResponse @JvmOverloads constructor(
     val audioType: String = "pcm",
-    val sampleRate: Int = 16000,
+    val sampleRate: Int = 24000,
     val sampleBit: Int = 16,
     val audioChannel: Int = 1,
     val compressRate: Int = 0,
@@ -123,6 +133,59 @@ data class StopResponse(
     val message: String,
 )
 
+enum class LicenseEnforcement {
+    ENFORCE,
+    PERMISSIVE,
+}
+
+data class TtsLicenseOptions @JvmOverloads constructor(
+    val license: String? = null,
+    val licenseAssetName: String? = "lits-tts-license.lic",
+    val expiryGraceDays: Int = 0,
+    val enforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE,
+) {
+    init {
+        require(expiryGraceDays >= 0) { "expiryGraceDays must be >= 0" }
+    }
+}
+
+data class TtsLicenseStatus(
+    val state: State,
+    val valid: Boolean,
+    val errorCode: Int,
+    val licenseId: String,
+    val customer: String,
+    val applicationId: String,
+    val issuedAt: String,
+    val expiresAt: String,
+    val installTier: String,
+    val features: List<String>,
+) {
+    enum class State {
+        NOT_INITIALIZED,
+        DEV_UNLICENSED,
+        LICENSED,
+        INVALID,
+    }
+
+    fun hasFeature(feature: String): Boolean = features.contains(feature)
+
+    internal companion object {
+        val NOT_INITIALIZED = TtsLicenseStatus(
+            state = State.NOT_INITIALIZED,
+            valid = false,
+            errorCode = TtsErrorCode.ENGINE_NOT_INITIALIZED,
+            licenseId = "",
+            customer = "",
+            applicationId = "",
+            issuedAt = "",
+            expiresAt = "",
+            installTier = "",
+            features = emptyList(),
+        )
+    }
+}
+
 interface SpeakListener {
     fun onStart(requestId: String, response: StartResponse) = Unit
     fun onData(requestId: String, audio: ByteArray, response: SynthesisResponse) = Unit
@@ -147,6 +210,19 @@ object TextToSpeechSdk {
     }
 
     @JvmStatic
+    @JvmOverloads
+    fun init(context: Context, options: TtsLicenseOptions = TtsLicenseOptions()) {
+        TtsLicenseGate.init(context, options)
+    }
+
+    @JvmStatic
+    fun licenseStatus(): TtsLicenseStatus = TtsLicenseGate.licenseStatus()
+
+    @JvmStatic
+    fun deviceLicenseFingerprint(context: Context): String =
+        TtsLicenseGate.deviceLicenseFingerprint(context)
+
+    @JvmStatic
     fun setWorkPath(workPath: String) {
         require(workPath.isNotBlank()) { "workPath must not be blank" }
         if (EngineRegistry.hasActiveEngines()) {
@@ -161,6 +237,7 @@ object TextToSpeechSdk {
     @JvmStatic
     @Throws(TextToSpeechException::class)
     fun createEngine(params: CreateEngineParams): TextToSpeechEngine {
+        TtsLicenseGate.ensureCreateAllowed()
         return EngineRegistry.createEngine(params, workPath)
     }
 

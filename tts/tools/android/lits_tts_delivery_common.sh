@@ -20,7 +20,7 @@ lits_tts_android_root_from_repo() {
 
 lits_tts_default_model_dir() {
   local repo_root="$1"
-  printf '%s/tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0\n' "$repo_root"
+  printf '%s/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0\n' "$repo_root"
 }
 
 lits_tts_default_version() {
@@ -85,17 +85,21 @@ lits_tts_assert_model_dir() {
   local required=(
     manifest.json
     export_report.json
-    smoke_tokens.json
+    vocos_vocoder.export_report.json
     frontend_golden.json
     chinese_lexicon.txt
+    chinese_lexicon.bin
     cmudict.txt
+    cmudict.bin
     pinyin_2_bpmf.txt
     polychar.txt
     zh_en_symbols.json
     pinyin_to_tokens.json
     arpabet_to_tokens.json
-    lits_acoustic.onnx
-    hifigan_vocoder.onnx
+    lits_hidden_encoder.onnx
+    lits_stream_decoder_chunk.ort
+    lits_stream_decoder_final.ort
+    vocos_vocoder.onnx
   )
   [[ -d "$model_dir" ]] || {
     echo "[ERROR] model dir not found: $model_dir" >&2
@@ -152,6 +156,7 @@ include_paths = [
     "tts/android",
     "tts/tools/README.md",
     "tts/tools/verify_lits_delivery_16k_package.py",
+    "tts/tools/verify_transsion_vocos24k_package.py",
     "tts/tools/license",
     "tts/tools/trial-export",
     "tts/tools/android",
@@ -197,7 +202,7 @@ if __import__("os").environ.get("LITS_TTS_ALLOW_DIRTY") == "1":
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(extra, dst)
 PY
-  local source_model_dir="$out_src/tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0"
+  local source_model_dir="$out_src/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0"
   rm -rf "$source_model_dir"
   mkdir -p "$source_model_dir"
   python3 - "$model_dir" "$source_model_dir" <<'PY'
@@ -225,12 +230,12 @@ used to build the AAR in this delivery package.
 
 Build:
   cd tts/android
-  python ../../tts/tools/verify_lits_delivery_16k_package.py --model-dir ../../tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0
+  python ../../tts/tools/verify_transsion_vocos24k_package.py --model-dir ../../tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0
   ./gradlew :sdk:testDebugUnitTest
   ./gradlew :sdk:assembleRelease
 
 Do not edit tts/android/sdk/src/main/assets directly. Gradle copies
-the model package from tts/tools/trial-export into Android assets during preBuild.
+the model package from tools/trial-export into Android assets during preBuild.
 EOF
 }
 

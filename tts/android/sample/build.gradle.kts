@@ -33,6 +33,10 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    androidResources {
+        noCompress += listOf("onnx", "ort")
+    }
 }
 
 dependencies {
