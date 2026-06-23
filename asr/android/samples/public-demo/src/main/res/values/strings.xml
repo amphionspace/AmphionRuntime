@@ -33,6 +33,7 @@
     <string name="cap_plate_title">车牌增强</string>
     <string name="cap_plate_hotwords">车牌热词偏置（冀R/辽B 等）</string>
     <string name="cap_plate_normalize">车牌规则后处理</string>
+    <string name="cap_plate_v2">车牌 V2（全国候选格，灰度）</string>
     <string name="cap_plate_pipeline_hint">流水线：术语 → 车牌后处理 → 派出所</string>
     <string name="cap_plate_hotwords_on">热词 %1$d 条（含车牌预设）</string>
     <string name="cap_plate_hotwords_off">车牌预设热词已关闭</string>
@@ -40,6 +41,7 @@
     <string name="cap_station_title">派出所增强</string>
     <string name="cap_station_hotwords">派出所热词偏置</string>
     <string name="cap_station_normalize">派出所规则后处理</string>
+    <string name="cap_station_v2">派出所 V2（候选格+名单校验，灰度）</string>
     <string name="cap_station_pipeline_hint">流水线：术语 → 车牌 → 派出所后处理</string>
     <string name="cap_station_hotwords_on">热词 %1$d 条（含派出所预设）</string>
     <string name="cap_station_hotwords_off">派出所预设热词已关闭</string>
@@ -47,6 +49,7 @@
     <string name="cap_terms_title">警务术语增强</string>
     <string name="cap_terms_hotwords">警务术语热词偏置</string>
     <string name="cap_terms_normalize">警务术语规则后处理</string>
+    <string name="cap_terms_v2">警务术语 V2（保守模糊纠错，灰度）</string>
     <string name="cap_terms_pipeline_hint">流水线：ASR final → 术语 → 车牌 → 派出所</string>
     <string name="cap_terms_hotwords_on">热词 %1$d 条（含术语预设）</string>
     <string name="cap_terms_hotwords_off">术语预设热词已关闭</string>

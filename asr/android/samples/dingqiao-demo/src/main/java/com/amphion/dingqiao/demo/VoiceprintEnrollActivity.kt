@@ -30,6 +30,7 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
     private lateinit var tvStatus: TextView
     private lateinit var tvEmpty: TextView
     private lateinit var rv: RecyclerView
+    private lateinit var btnImportModel: Button
     private lateinit var btnRecord: Button
     private lateinit var btnRegister: Button
     private lateinit var btnDeleteVoiceprint: Button
@@ -50,6 +51,23 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
         if (!granted) toast(getString(R.string.enroll_no_permission))
     }
 
+    private val importModelLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        worker.execute {
+            val ok = VoiceprintModelHelper.importFromUri(this, DingqiaoApp.workPath(), uri)
+            runOnUiThread {
+                if (ok) {
+                    toast(getString(R.string.vp_model_import_ok))
+                    reload()
+                } else {
+                    toast(getString(R.string.vp_model_import_failed))
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_voiceprint_enroll)
@@ -58,6 +76,7 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tv_status)
         tvEmpty = findViewById(R.id.tv_empty)
         rv = findViewById(R.id.rv_samples)
+        btnImportModel = findViewById(R.id.btn_import_model)
         btnRecord = findViewById(R.id.btn_record)
         btnRegister = findViewById(R.id.btn_register)
         btnDeleteVoiceprint = findViewById(R.id.btn_delete_voiceprint)
@@ -71,6 +90,9 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
         rv.layoutManager = LinearLayoutManager(this)
         rv.adapter = adapter
 
+        btnImportModel.setOnClickListener {
+            importModelLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+        }
         btnRecord.setOnClickListener { if (recording) stopRecord() else startRecord() }
         btnRegister.setOnClickListener { registerVoiceprint() }
         btnDeleteVoiceprint.setOnClickListener { confirmDeleteVoiceprint() }
@@ -197,6 +219,17 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
 
     private fun registerVoiceprint() {
         if (items.size !in DINGQIAO_VOICEPRINT_MIN_SAMPLES..DINGQIAO_VOICEPRINT_MAX_SAMPLES) return
+        val modelFile = VoiceprintModelHelper.modelFile(DingqiaoApp.workPath())
+        if (!VoiceprintModelHelper.isReady(modelFile)) {
+            toast(
+                if (modelFile.exists() && !modelFile.canRead()) {
+                    getString(R.string.vp_model_unreadable)
+                } else {
+                    getString(R.string.vp_model_missing)
+                },
+            )
+            return
+        }
         btnRegister.isEnabled = false
         tvStatus.text = getString(R.string.enroll_registering)
         worker.execute {

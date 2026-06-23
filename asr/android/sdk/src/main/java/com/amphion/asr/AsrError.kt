@@ -68,5 +68,8 @@ public object AsrErrorCode {
     /** license 已过期（超出宽限期）。 */
     public const val LICENSE_EXPIRED: Int = 6006
 
+    /** license 绑定的设备指纹与当前设备不一致（单机授权）。 */
+    public const val LICENSE_DEVICE_MISMATCH: Int = 6007
+
     public const val NATIVE_CRASH: Int = 9001
 }

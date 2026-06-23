@@ -56,6 +56,11 @@ def main() -> None:
         help="绑定签名证书 SHA-256（可带冒号、大小写不敏感）；空=不绑证书",
     )
     ap.add_argument(
+        "--device-sha256",
+        default="",
+        help="绑定设备指纹 SHA-256（大写 hex、无冒号）；空=不绑设备（不限单机）",
+    )
+    ap.add_argument(
         "--issued", default=date.today().isoformat(), help="签发日期 yyyy-MM-dd；默认今天",
     )
     ap.add_argument("--expires", default="", help="到期日期 yyyy-MM-dd；空=永久（买断）")
@@ -75,6 +80,9 @@ def main() -> None:
         "applicationId": args.application_id,
         "certSha256": args.cert_sha256,
         "customer": args.customer,
+        "deviceSha256": args.device_sha256.replace(":", "").replace(" ", "").upper()
+        if args.device_sha256
+        else "",
         "expiresAt": expires,
         "features": features,
         "installTier": args.install_tier,
@@ -109,6 +117,7 @@ def main() -> None:
     print(f"     applicationId = {args.application_id}")
     print(f"     customer      = {args.customer}")
     print(f"     expiresAt     = {expires or '(永久)'}")
+    print(f"     deviceSha256  = {payload['deviceSha256'] or '(不限单机)'}")
     print(f"     installTier   = {args.install_tier}")
     print(f"     features      = {','.join(features) or '(无)'}")
     print("     交付给业务方放进 app 的 assets/（默认文件名 amphion-license.lic）。")

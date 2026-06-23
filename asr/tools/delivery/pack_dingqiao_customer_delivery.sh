@@ -28,6 +28,7 @@ AAR_NAME="dingqiao-asr-v${VERSION}.aar"
 FAT_AAR="$AR_ROOT/build/dingqiao-delivery/$AAR_NAME"
 ERES2NET_SRC="$REPO_ROOT/asr/tools/speaker/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"
 DEMO_APK_SRC="$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk"
+DEMO_LIC_SRC="$AR_ROOT/samples/dingqiao-demo/src/main/assets/amphion-license.lic"
 
 echo "[1/4] build release AARs + merge fat AAR ..."
 cd "$AR_ROOT"
@@ -42,6 +43,7 @@ dingqiao_issue_demo_license "$REPO_ROOT"
   -PdingqiaoUseFatAar=true \
   -PdingqiaoFatAarPath="$FAT_AAR"
 [[ -f "$DEMO_APK_SRC" ]] || { echo "[ERROR] missing $DEMO_APK_SRC" >&2; exit 1; }
+[[ -f "$DEMO_LIC_SRC" ]] || { echo "[ERROR] missing $DEMO_LIC_SRC" >&2; exit 1; }
 
 echo "[3/4] assemble customer delivery tree ..."
 rm -rf "$OUT_ROOT"
@@ -71,6 +73,14 @@ bash "$REPO_ROOT/asr/tools/delivery/verify_dingqiao_delivery.sh" "$OUT_ROOT/VERS
 bash "$REPO_ROOT/asr/tools/delivery/verify_dingqiao_delivery.sh" "$OUT_ROOT/aar/$AAR_NAME"
 bash "$REPO_ROOT/asr/tools/delivery/verify_dingqiao_delivery.sh" "$OUT_ROOT"
 
+echo "[3b/4] embed demo reference source (AAR-aligned, no SDK source) ..."
+DINGQIAO_FAT_AAR="$FAT_AAR" \
+DINGQIAO_DEMO_APK="$DEMO_APK_SRC" \
+DINGQIAO_DEMO_LICENSE="$DEMO_LIC_SRC" \
+DINGQIAO_DEMO_SRC_OUT_ROOT="$OUT_ROOT/demo-src" \
+DINGQIAO_DEMO_SRC_SKIP_ZIP=1 \
+bash "$REPO_ROOT/asr/tools/delivery/pack_dingqiao_demo_source_delivery.sh" "$VERSION"
+
 cat > "$OUT_ROOT/README.txt" <<EOF
 鼎桥警务语音识别 SDK v${VERSION}
 ================================
@@ -79,6 +89,7 @@ cat > "$OUT_ROOT/README.txt" <<EOF
 ----
   aar/$AAR_NAME              集成用 SDK（~${AAR_MB} MB）
   demo/dingqiao-demo-release.apk   参考 Demo（~${APK_MB} MB）
+  demo-src/                  Demo 参考工程源码（独立 Gradle，默认依赖 libs/ 内同版 AAR）
   models/eres2net.onnx       声纹模型（~${MODEL_MB} MB，放入 setWorkPath）
   docs/                      集成、商用授权（LICENSE.md）、第三方声明（NOTICE）
 

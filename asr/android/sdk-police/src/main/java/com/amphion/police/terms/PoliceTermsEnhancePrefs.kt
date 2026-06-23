@@ -23,10 +23,19 @@ class PoliceTermsEnhancePrefs(context: Context) {
         get() = sp.getBoolean(KEY_TERMS_FST, false)
         set(value) = sp.edit().putBoolean(KEY_TERMS_FST, value).apply()
 
+    /**
+     * V2 术语后处理（V1 全局谐音 + 保守字级模糊层，对齐 plate/station 包）。
+     * 默认 false = 走老方案 [PoliceTermsNormalizer]，可灰度切换；行为见 [PoliceTermsNormalizerV2]。
+     */
+    var termsV2Enabled: Boolean
+        get() = sp.getBoolean(KEY_TERMS_V2, false)
+        set(value) = sp.edit().putBoolean(KEY_TERMS_V2, value).apply()
+
     companion object {
         private const val NAME = "amphion_police_terms_enhance"
         private const val KEY_TERMS_HOTWORDS = "terms_hotwords"
         private const val KEY_TERMS_NORMALIZE = "terms_normalize"
         private const val KEY_TERMS_FST = "terms_fst"
+        private const val KEY_TERMS_V2 = "terms_v2"
     }
 }

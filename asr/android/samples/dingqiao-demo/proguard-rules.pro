@@ -2,7 +2,7 @@
 # 这里不需要加额外规则——如果验证时发现问题，说明 sdk/consumer-rules.pro 漏了什么，
 # 应该回到 sdk/consumer-rules.pro 补上，而不是在这里 patch。
 
--include ../sdk/consumer-rules.pro
+-include ../../sdk/consumer-rules.pro
 
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile

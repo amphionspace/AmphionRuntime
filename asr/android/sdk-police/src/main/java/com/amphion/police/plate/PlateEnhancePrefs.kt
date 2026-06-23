@@ -25,10 +25,19 @@ class PlateEnhancePrefs(context: Context) {
         get() = sp.getBoolean(KEY_PLATE_FST, false)
         set(value) = sp.edit().putBoolean(KEY_PLATE_FST, value).apply()
 
+    /**
+     * 是否走车牌后处理 V2（Layer 0 知识库 + 读音映射 + 省份感知校验，面向全国车牌）。
+     * 默认关：保留并默认走老方案 [PlateNormalizer]，可随时回退。V2 验证达标后再翻默认值。
+     */
+    var plateV2Enabled: Boolean
+        get() = sp.getBoolean(KEY_PLATE_V2, false)
+        set(value) = sp.edit().putBoolean(KEY_PLATE_V2, value).apply()
+
     companion object {
         private const val NAME = "amphion_plate_enhance"
         private const val KEY_PLATE_HOTWORDS = "plate_hotwords"
         private const val KEY_PLATE_NORMALIZE = "plate_normalize"
         private const val KEY_PLATE_FST = "plate_fst"
+        private const val KEY_PLATE_V2 = "plate_v2"
     }
 }
