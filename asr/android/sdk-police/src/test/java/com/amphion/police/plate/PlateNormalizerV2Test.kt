@@ -20,6 +20,29 @@ class PlateNormalizerV2Test {
     private fun norm(text: String): String = normalizer.normalize(text).text
 
     @Test
+    fun shanxi_jin_human_retest_mishears() {
+        val home = PlateNormalizerV2.create(kb, readingMap, listOf('冀', '辽'))
+        assertEquals("晋K63745", home.normalize("麻烦核实一下净K 63745这辆车的情况。").primaryPlate)
+        assertEquals("晋J28491", home.normalize("帮我看下进这28491车辆有没有关联警。").primaryPlate)
+        assertEquals("晋J28491", home.normalize("请帮忙查询建寨28491车辆情况。").primaryPlate)
+    }
+
+    @Test
+    fun zhejiang_zhe_human_retest_mishears() {
+        assertEquals("浙J63745", normalizer.normalize("麻烦帮我核查这这63745车辆情况。").primaryPlate)
+    }
+
+    @Test
+    fun shanghai_hu19374_missing_authority_letter() {
+        assertEquals("沪F19374", normalizer.normalize("帮我查一下车牌号为沪19374的车辆信息。").primaryPlate)
+    }
+
+    @Test
+    fun shandong_luyu_to_luE_from_human_retest() {
+        assertEquals("鲁E60538", normalizer.normalize("麻烦帮我核查鲁豫60538车辆情况。").primaryPlate)
+    }
+
+    @Test
     fun chineseDigitsConvertedNationwide() {
         assertEquals("冀A12345", norm("冀A一二三四五"))
         assertEquals("辽B10088", norm("辽B幺零零八八"))

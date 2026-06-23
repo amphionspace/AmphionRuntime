@@ -36,6 +36,7 @@ from,to,category
 近,晋,province
 禁,晋,province
 靖,晋,province
+净,晋,province
 嘿,黑,province
 速,苏,province
 #
@@ -50,6 +51,12 @@ from,to,category
 基,G,letter
 际,G,letter
 冀,G,letter
+# === 山东/上海 真机真人复测（2026-06-22）===
+# 鲁豫→鲁E：机关位 yù(豫) 常被听成省份字；补 豫→E（同 冀→G 先例，位 0 仍为河南简称）。
+恩,N,letter
+外,Y,letter
+味,Y,letter
+豫,E,letter
 威,V,letter
 儿,R,letter
 意,E,letter
