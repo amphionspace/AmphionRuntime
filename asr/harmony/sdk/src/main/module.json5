@@ -1,0 +1,7 @@
+{
+  "module": {
+    "name": "amphion_asr",
+    "type": "har",
+    "deviceTypes": ["default", "tablet", "2in1"]
+  }
+}

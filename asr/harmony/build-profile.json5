@@ -1,0 +1,27 @@
+{
+  "app": {
+    "signingConfigs": [],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "compatibleSdkVersion": "5.0.0(12)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      { "name": "debug" },
+      { "name": "release" }
+    ]
+  },
+  "modules": [
+    { "name": "sdk", "srcPath": "./sdk" },
+    { "name": "sdk_police", "srcPath": "./sdk-police" },
+    { "name": "sdk_dingqiao", "srcPath": "./sdk-dingqiao" }
+  ]
+}
