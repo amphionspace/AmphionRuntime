@@ -82,7 +82,17 @@ export class AmphionRuntime {
   }
 
   static version(): string { return '0.1.0-harmony'; }
-  static licenseStatus(): AmphionLicenseStatus { return HarmonyLicenseVerifier.verify(AmphionRuntime.options.license, undefined); }
+  static licenseStatus(): AmphionLicenseStatus {
+    const serial = AmphionRuntime.appContext === undefined
+      ? undefined
+      : AmphionRuntime.options.deviceIdProvider?.getDeviceSerial(AmphionRuntime.appContext);
+    return HarmonyLicenseVerifier.verify(
+      AmphionRuntime.options.license,
+      AmphionRuntime.options.bundleName,
+      AmphionRuntime.options.signingCertDigest,
+      serial
+    );
+  }
   static release(): void { AmphionRuntime.initialized = false; }
 
   static allocateSessionId(): number { return AmphionRuntime.nextSessionId++; }

@@ -22,6 +22,13 @@ export class AmphionOptions {
   licenseAssetName?: string = 'amphion-license.lic';
   expiryGraceDays: number = 0;
   licenseEnforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE;
+  deviceIdProvider?: AmphionDeviceIdProvider;
+  bundleName?: string;
+  signingCertDigest?: string;
+}
+
+export interface AmphionDeviceIdProvider {
+  getDeviceSerial(context: Context): string | undefined;
 }
 
 export class VadConfig {

@@ -69,13 +69,13 @@
 
 SDK minSdk 24。Ed25519 的 java.security 支持需 API 33，覆盖不了 24；RSA-2048 可用但签名/公钥更大。ECDSA P-256（SHA256withECDSA）在 API 24 全覆盖、签名与公钥都短，是唯一同时满足「全版本 + 现代 + 紧凑」的选择。已用 java.security 与 Python cryptography 实测互通（见 asr/tools/license/selftest.sh 与跨端验签）。
 
-### 3.3 为什么应用级授权，而不是讯飞式设备指纹
+### 3.3 为什么使用 SN 白名单，而不是联网激活
 
-讯飞「计量准确」建立在采集 android id/mac/imei 拼设备指纹 + 联网激活之上。我方为守住零网络与隐私干净两个卖点，本轮只做应用级离线授权：只读宿主本机签名证书做比对，不采集任何设备标识。按设备硬计量留作 Phase 2 选项（§7）。
+鼎桥部署环境要求纯专网离线，设备不能访问我方服务。因此授权边界放在本地：私钥签发、公钥验签、绑定 App 标识、签名证书和设备 SN 白名单。SDK 不把明文 SN 写入 license，只校验 `authorizedDeviceHashes` 是否包含本机 SN 按 `deviceIdSaltId` 计算出的哈希。
 
 ### 3.4 「装机量」在离线方案下的真实含义
 
-离线无服务器仲裁，无法实时统计真实装机数。因此本轮 installTier 是声明性档位：写进 license 供展示/审计，实际约束靠合同 + 抽样审计。这是离线路线的逻辑必然，不是实现妥协。
+离线无服务器仲裁，无法实时统计真实装机数。当前通过授权 SN 白名单限制可运行设备范围，`installTier` 仍是声明性档位：写进 license 供展示/审计。旧授权进入完全离线现场后无法实时吊销，只能随下一次升级包或运维包下发新白名单。
 
 ## 4. 技术设计
 
@@ -101,10 +101,14 @@ SDK 端 LicenseVerifier（internal）在 AmphionRuntime.init 内执行：
 2. license 缺失 → 6001。
 3. 信封/payload 解析失败 → 6002。
 4. ECDSA 验签失败 → 6003。
-5. applicationId != 宿主 packageName → 6004。
-6. certSha256 非空且与宿主签名证书不符 → 6005。
+5. applicationId / bundleName 与宿主不符 → 6004。
+6. signingCertDigest 非空且与宿主签名证书不符 → 6005。
 7. expiresAt 非空且超出（到期日当天有效 + 宽限天数）→ 6006。
-8. 全过 → LICENSED。
+8. sdkMajor 与当前 SDK 大版本不符 → 6008。
+9. maintenanceUntil 早于当前 SDK 发布时间 → 6009。
+10. features 不包含 ASR → 6010。
+11. authorizedDeviceHashes 非空且 SN 哈希未命中 → 6007。
+12. 全过 → LICENSED。
 
 ### 4.3 失败策略
 
@@ -140,25 +144,22 @@ AmphionOptions.licenseEnforcement：
 
 计费单位：装机 License（按 applicationId 授权 + 装机量档位）。
 
-定价结构建议：基础授权（绑定一个 applicationId）+ 装机量阶梯档位（如 ≤1万 / ≤10万 / ≤100万 / 不限）+ 可选功能模块（粤英包、目标说话人声纹、热词）+ 订阅（年费含模型更新）与 买断 二选一。可参考讯飞档位（§2.1）做单机成本随量递减的定价曲线。
+定价结构建议：基础授权（绑定一个 applicationId）+ 装机量阶梯档位（如 ≤1万 / ≤10万 / ≤100万 / 不限）+ 授权能力（ASR / TTS）+ 订阅（年费含模型更新）与 买断 二选一。可参考讯飞档位（§2.1）做单机成本随量递减的定价曲线。
 
-功能模块与 license features 字段对应：
+license `features` 只区分 ASR 和 TTS：
 
 | feature | 能力 |
 | --- | --- |
-| ASR_ZH_EN | 中英 ASR |
-| ASR_YUE_EN | 粤英 ASR |
-| TARGET_SPEAKER | 目标说话人声纹 |
-| HOTWORDS | 热词增强 |
+| ASR | 语音识别 SDK |
+| TTS | 语音合成 SDK |
 
-注意：本轮 features 仅写进 license 供展示/审计，SDK 尚未按 feature 做能力闸门（运行时不拦截未授权能力）。若要按模块收费并强制，需在 EngineImpl/AsrConfig 接入 feature gating（后续项）。
+SDK 会在初始化时校验当前能力是否在 `features` 中：ASR SDK 要求 `ASR`，TTS SDK 要求 `TTS`。语言包、热词、警务增强、声纹等属于 ASR/TTS 内部能力或模型交付范围，不再作为 license feature 维度。
 
 ## 7. 演进路线
 
 | 阶段 | 内容 | 触发条件 |
 | --- | --- | --- |
-| Phase 2 | 离线批量激活码（对标讯飞离线激活）：预签 N 个一次性激活额度 + 本机设备指纹消耗，离线硬限装机量 | 客户要求按设备硬计量 |
-| Phase 2 | feature gating：SDK 按 license.features 拦截未授权能力 | 按功能模块收费并强制 |
+| Phase 2 | 授权包版本号 + 本地防回退记录，支持随运维包吊销旧白名单 | 客户要求离线吊销和防回退 |
 | Phase 2 | native 验签下沉 .so | 防破解要求提高 |
 | Phase 3 | hybrid/online 计量：可选弱上报做结算对账 | 需要精确实时计量 |
 | 跨端 | iOS 端对齐（同构复制 LicenseVerifier） | iOS 商用 |
