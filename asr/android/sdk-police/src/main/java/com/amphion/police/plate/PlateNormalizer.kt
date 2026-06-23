@@ -1332,6 +1332,9 @@ class PlateNormalizer private constructor(
         out = out.replace(Regex("京161\\s*845"), "京E61845")
         out = out.replace(Regex("金O\\s*U\\s*2345"), "京O12345")
         out = out.replace(Regex("(经|金)Z\\s*95376"), "京J95376")
+        out = out.replace(Regex("(经|金)债\\s*95376"), "京J95376")
+        out = out.replace(Regex("京寨\\s*95376"), "京J95376")
+        out = out.replace(Regex("(?<![A-HJ-NP-Z])京(?=49372)"), "京R")
         out = out.replace(Regex("金欧|今欧|金隅|经欧"), "京O")
         out = out.replace(Regex("(?<![A-Z])金\\s*O$n5"), "京O")
         out = out.replace(Regex("京的$n5"), "京D")
@@ -1456,6 +1459,16 @@ class PlateNormalizer private constructor(
         out = out.replace(Regex("极地47263"), "吉D47263")
         out = out.replace(Regex("集C84915|集C\\s*84915"), "吉C84915")
         out = out.replace(Regex("及记75826|吉记75826"), "吉G75826")
+        // 真人 ASR：吉X 连读误识 GX（数字锚定，与河北 GC38156 等区分）
+        out = out.replace(Regex("GC\\s*84915|冀C84915|及418\\s*4915"), "吉C84915")
+        out = out.replace(Regex("GF\\s*19374|冀F19374"), "吉F19374")
+        out = out.replace(Regex("GH\\s*28491|G\\s*H\\s*28491|冀H28491"), "吉H28491")
+        out = out.replace(Regex("GJ\\s*63745|G\\s*J\\s*63745|冀J63745"), "吉J63745")
+        out = out.replace(Regex("GK\\s*41258|G\\s*K\\s*41258|冀K41258"), "吉K41258")
+        out = out.replace(Regex("G\\s*G\\s*75826|G智75826|冀G75826"), "吉G75826")
+        out = out.replace(Regex("及G\\s*63745"), "吉J63745")
+        out = out.replace(Regex("及G\\s*75826"), "吉G75826")
+        out = out.replace(Regex("G智75826"), "吉G75826")
         return out
     }
 

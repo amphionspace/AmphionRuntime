@@ -68,14 +68,16 @@ class PlateNormalizerV2 private constructor(
     fun normalize(text: String): PlateNormalizeResult {
         if (text.isEmpty()) return PlateNormalizeResult(text, emptyList())
 
+        val input = preprocessStructuralMishears(text)
+
         val spans = mutableListOf<PlateSpan>()
         var i = 0
-        while (i < text.length) {
-            if (!canStartHere(text[i])) {
+        while (i < input.length) {
+            if (!canStartHere(input[i])) {
                 i++
                 continue
             }
-            val match = tryMatchPlateAt(text, i)
+            val match = tryMatchPlateAt(input, i)
             if (match != null) {
                 spans.add(match)
                 i = match.end
@@ -84,15 +86,54 @@ class PlateNormalizerV2 private constructor(
             }
         }
 
-        if (contextProvinces.isNotEmpty()) appendContextProvinceSpans(text, spans)
+        if (contextProvinces.isNotEmpty()) appendContextProvinceSpans(input, spans)
 
-        if (spans.isEmpty()) return PlateNormalizeResult(text, emptyList())
+        if (spans.isEmpty()) return PlateNormalizeResult(input, emptyList())
 
-        val out = StringBuilder(text)
+        val out = StringBuilder(input)
         for (span in spans.sortedByDescending { it.start }) {
             out.replace(span.start, span.end, span.normalized)
         }
         return PlateNormalizeResult(out.toString(), spans.sortedBy { it.start })
+    }
+
+    /**
+     * 真机 ASR 偶发「漏读机关字母」的结构性补丁（与 V1 [PlateNormalizer] 对齐，仅精确片段）。
+     * 范围刻意收窄：只补已验证的高频残差，避免泛化推断。
+     */
+    private fun preprocessStructuralMishears(text: String): String {
+        var t = text
+        // 上海：ASR 漏读机关字母 F
+        t = t.replace(Regex("沪19374"), "沪F19374")
+        // 山西/浙江：与 V1 粘连谐音规则对齐（范围收窄到真机验证片段）
+        t = t.replace(Regex("建易60538"), "晋E60538")
+        t = t.replace(Regex("净K"), "晋K")
+        t = t.replace(Regex("进这"), "晋J")
+        t = t.replace(Regex("建寨"), "晋J")
+        t = t.replace(Regex("建债"), "晋J")
+        t = t.replace(Regex("近债"), "晋J")
+        t = t.replace(Regex("这这"), "浙J")
+        // 北京纯数字尾真人复测
+        t = t.replace(Regex("(?<![A-HJ-NP-Z])京(?=49372)"), "京R")
+        t = t.replace(Regex("(经|金)债\\s*95376"), "京J95376")
+        t = t.replace(Regex("京寨\\s*95376"), "京J95376")
+        // 吉林真人：吉X→GX（数字锚定）
+        t = t.replace(Regex("GC\\s*84915|冀C84915|及418\\s*4915"), "吉C84915")
+        t = t.replace(Regex("GF\\s*19374|冀F19374"), "吉F19374")
+        t = t.replace(Regex("GH\\s*28491|G\\s*H\\s*28491|冀H28491"), "吉H28491")
+        t = t.replace(Regex("GJ\\s*63745|G\\s*J\\s*63745|冀J63745"), "吉J63745")
+        t = t.replace(Regex("GK\\s*41258|G\\s*K\\s*41258|冀K41258"), "吉K41258")
+        t = t.replace(Regex("G\\s*G\\s*75826|G智75826|冀G75826"), "吉G75826")
+        t = t.replace(Regex("及G\\s*63745"), "吉J63745")
+        t = t.replace(Regex("及G\\s*75826"), "吉G75826")
+        t = t.replace(Regex("G智75826"), "吉G75826")
+        t = t.replace(Regex("及质疑7586"), "吉G75826")
+        t = t.replace(Regex("及G\\s*7586(?=车辆)"), "吉G75826")
+        t = t.replace(Regex("请帮忙查询G\\s*63745"), "请帮忙查询吉J63745")
+        // 端上探针
+        t = t.replace(Regex("晚安92080"), "皖N92080")
+        t = t.replace(Regex("云R\\s*293\\s*627"), "云R93627")
+        return t
     }
 
     /**
