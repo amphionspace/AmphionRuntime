@@ -6,6 +6,8 @@
 #
 # 环境变量（可选，供 pack_dingqiao_customer_delivery.sh 嵌入调用）:
 #   DINGQIAO_FAT_AAR           已构建的 fat AAR 路径（跳过 AAR 编译）
+#   DINGQIAO_DEMO_APK          已构建的 Demo APK 路径（跳过 Demo APK 编译）
+#   DINGQIAO_DEMO_LICENSE      与 DINGQIAO_DEMO_APK 同批次签发的 license 路径
 #   DINGQIAO_DEMO_SRC_OUT_ROOT 输出目录（默认 ../delivery/amphion-dingqiao-demo-src-v<版本>/）
 #   DINGQIAO_DEMO_SRC_SKIP_ZIP=1  不生成 zip
 #
@@ -41,14 +43,24 @@ if [[ -z "${DINGQIAO_FAT_AAR:-}" ]]; then
 fi
 [[ -f "$FAT_AAR" ]] || { echo "[ERROR] missing $FAT_AAR" >&2; exit 1; }
 
-echo "[0b/5] issue demo license + build Release Demo APK (2-month trial, hotwords UI) ..."
-dingqiao_issue_demo_license "$REPO_ROOT"
-cd "$AR_ROOT"
-./gradlew :samples:dingqiao-demo:assembleRelease \
-  -PdingqiaoUseFatAar=true \
-  -PdingqiaoFatAarPath="$FAT_AAR"
-DEMO_APK_SRC="$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk"
-DEMO_LIC_SRC="$AR_ROOT/samples/dingqiao-demo/src/main/assets/amphion-license.lic"
+if [[ -n "${DINGQIAO_DEMO_APK:-}" || -n "${DINGQIAO_DEMO_LICENSE:-}" ]]; then
+  echo "[0b/5] reuse Release Demo APK + license from parent delivery ..."
+  [[ -n "${DINGQIAO_DEMO_APK:-}" && -n "${DINGQIAO_DEMO_LICENSE:-}" ]] || {
+    echo "[ERROR] DINGQIAO_DEMO_APK and DINGQIAO_DEMO_LICENSE must be provided together" >&2
+    exit 1
+  }
+  DEMO_APK_SRC="$DINGQIAO_DEMO_APK"
+  DEMO_LIC_SRC="$DINGQIAO_DEMO_LICENSE"
+else
+  echo "[0b/5] issue demo license + build Release Demo APK (2-month trial, hotwords UI) ..."
+  dingqiao_issue_demo_license "$REPO_ROOT"
+  cd "$AR_ROOT"
+  ./gradlew :samples:dingqiao-demo:assembleRelease \
+    -PdingqiaoUseFatAar=true \
+    -PdingqiaoFatAarPath="$FAT_AAR"
+  DEMO_APK_SRC="$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk"
+  DEMO_LIC_SRC="$AR_ROOT/samples/dingqiao-demo/src/main/assets/amphion-license.lic"
+fi
 [[ -f "$DEMO_APK_SRC" ]] || { echo "[ERROR] missing $DEMO_APK_SRC" >&2; exit 1; }
 [[ -f "$DEMO_LIC_SRC" ]] || { echo "[ERROR] missing $DEMO_LIC_SRC" >&2; exit 1; }
 

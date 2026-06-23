@@ -30,7 +30,25 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
-    fun buildAsrConfig_readsVadEnd() {
+    fun buildAsrConfig_readsVadEndFromStartParams() {
+        val config = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(
+                language = "zh-CN",
+                online = DingqiaoOnlineMode.OFFLINE,
+            ),
+            speakerModelPath = null,
+            startParams = StartParams(
+                sessionId = "s1",
+                audioInfo = AudioInfo(),
+                extraParams = mapOf("vadEnd" to 1500),
+            ),
+        )
+
+        assertEquals(1500, config.vadConfig.activeEndpointSilenceMs)
+    }
+
+    @Test
+    fun buildAsrConfig_ignoresCreateEngineVadEnd() {
         val config = DingqiaoEngineConfig.buildAsrConfig(
             CreateEngineParams(
                 language = "zh-CN",
@@ -40,7 +58,27 @@ class DingqiaoEngineConfigTest {
             speakerModelPath = null,
         )
 
-        assertEquals(1500, config.vadConfig.activeEndpointSilenceMs)
+        assertEquals(800, config.vadConfig.activeEndpointSilenceMs)
+    }
+
+    @Test
+    fun vadEndMs_clampsToDocumentRange() {
+        val low = DingqiaoEngineConfig.vadEndMs(
+            StartParams("s1", AudioInfo(), mapOf("vadEnd" to 100)),
+        )
+        val high = DingqiaoEngineConfig.vadEndMs(
+            StartParams("s1", AudioInfo(), mapOf("vadEnd" to 20_000)),
+        )
+
+        assertEquals(500, low)
+        assertEquals(10_000, high)
+    }
+
+    @Test
+    fun audioFrameBytes_acceptsDocumentedFrameSizes() {
+        assertTrue(DingqiaoEngineConfig.isSupportedAudioFrameBytes(640))
+        assertTrue(DingqiaoEngineConfig.isSupportedAudioFrameBytes(1280))
+        assertTrue(!DingqiaoEngineConfig.isSupportedAudioFrameBytes(960))
     }
 
     @Test
