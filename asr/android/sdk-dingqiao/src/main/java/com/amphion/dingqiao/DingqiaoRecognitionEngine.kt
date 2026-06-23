@@ -1,6 +1,7 @@
 package com.amphion.dingqiao
 
 import android.content.Context
+import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrCallback
 import com.amphion.asr.AsrEngine
 import com.amphion.asr.AsrError
@@ -27,7 +28,17 @@ internal class DingqiaoRecognitionEngine(
     private val callbackExecutor: ExecutorService,
 ) : SpeechRecognitionEngine {
 
-    private val enhancePipeline: PoliceEnhancePipeline = PoliceEnhancePipeline.create(appContext)
+    /**
+     * 鼎桥交付默认启用全国 V2 后处理（车牌/派出所/术语）。V2 仅在此处显式打开，三个 prefs 全局
+     * 默认仍为 false（内部 sample 等不受影响）；如需回退到 V1，将下面三个 *V2Enabled 改回 false 即可。
+     * normalize 默认全开、FST 默认关，与交付基线一致。
+     */
+    private val enhancePipeline: PoliceEnhancePipeline = PoliceEnhancePipeline.create(
+        context = appContext,
+        plateV2Enabled = true,
+        stationV2Enabled = true,
+        termsV2Enabled = true,
+    )
     private val destroyed = AtomicBoolean(false)
 
     @Volatile
@@ -35,6 +46,9 @@ internal class DingqiaoRecognitionEngine(
 
     @Volatile
     private var engine: AsrEngine? = null
+
+    @Volatile
+    private var currentAsrConfig: AsrConfig? = null
 
     @Volatile
     private var session: AsrSession? = null
@@ -60,9 +74,7 @@ internal class DingqiaoRecognitionEngine(
 
     init {
         try {
-            val lang = DingqiaoEngineConfig.mapLanguage(createParams.language)
-            val config = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath)
-            engine = AmphionRuntime.create(appContext, lang, config)
+            rebuildEngine(startParams = null)
         } catch (t: Throwable) {
             throw DingqiaoEngineException(
                 DingqiaoErrorCode.CREATE_ENGINE_FAILED,
@@ -98,10 +110,10 @@ internal class DingqiaoRecognitionEngine(
             activeSessionId = params.sessionId
             listening = true
 
-            val eng = engine ?: throw IllegalStateException("engine unavailable")
+            val eng = ensureEngineForStart(params)
             val s = eng.newSession(createAsrCallback(params.sessionId))
             session = s
-            configureVoiceprint(s, params)
+            configureVoiceprint(s)
             notifyStart(params.sessionId)
         } catch (t: Throwable) {
             listening = false
@@ -125,11 +137,11 @@ internal class DingqiaoRecognitionEngine(
             return
         }
         if (audio.isEmpty()) return
-        if (audio.size != DINGQIAO_AUDIO_FRAME_BYTES) {
+        if (!DingqiaoEngineConfig.isSupportedAudioFrameBytes(audio.size)) {
             notifyError(
                 sessionId,
                 DingqiaoErrorCode.RECOGNITION_ERROR,
-                "audio frame must be $DINGQIAO_AUDIO_FRAME_BYTES bytes",
+                "audio frame must be $DINGQIAO_AUDIO_FRAME_BYTES or $DINGQIAO_AUDIO_FRAME_BYTES_40MS bytes",
             )
             return
         }
@@ -178,6 +190,28 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
+    private fun ensureEngineForStart(params: StartParams): AsrEngine {
+        val desired = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath, params)
+        val current = engine
+        if (current != null && currentAsrConfig == desired) {
+            return current
+        }
+        return rebuildEngine(params)
+    }
+
+    private fun rebuildEngine(startParams: StartParams?): AsrEngine {
+        val lang = DingqiaoEngineConfig.mapLanguage(createParams.language)
+        val config = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath, startParams)
+        try {
+            engine?.close()
+        } catch (_: Throwable) {
+        }
+        return AmphionRuntime.create(appContext, lang, config).also {
+            engine = it
+            currentAsrConfig = config
+        }
+    }
+
     private fun createAsrCallback(sessionId: String): AsrCallback = object : AsrCallback {
         override fun onPartial(text: String) {
             if (!enablePartial) return
@@ -211,8 +245,11 @@ internal class DingqiaoRecognitionEngine(
         }
 
         override fun onSessionStopped() {
-            if (finishRequested && !completeSent) {
-                maybeComplete(sessionId)
+            if (finishRequested) {
+                // SessionImpl.stop() 的 onSessionStopped 可能早于后处理后的 onFinal 到达。
+                // 若这里提前 tearDownSession()，会关闭 postprocessor 并移除回调队列，
+                // 导致业务收不到 onResult(isFinal=true, isLast=true)，主动停止就无法闭环。
+                return
             }
             if (listening) {
                 tearDownSession()
@@ -267,7 +304,7 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
-    private fun configureVoiceprint(session: AsrSession, params: StartParams) {
+    private fun configureVoiceprint(session: AsrSession) {
         if (!voiceprintEnabled) {
             session.setTargetSpeakerEnabled(false)
             return

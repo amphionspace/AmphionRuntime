@@ -12,6 +12,7 @@ class PcmFrameWriter(
     private val frameSamples = frameBytes / 2
     private var pending = ShortArray(0)
 
+    @Synchronized
     fun accept(samples: ShortArray) {
         if (samples.isEmpty()) return
         pending = if (pending.isEmpty()) {
@@ -33,6 +34,7 @@ class PcmFrameWriter(
         pending = if (offset > 0) pending.copyOfRange(offset, pending.size) else pending
     }
 
+    @Synchronized
     fun reset() {
         pending = ShortArray(0)
     }

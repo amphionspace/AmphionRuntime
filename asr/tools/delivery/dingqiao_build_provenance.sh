@@ -233,6 +233,9 @@ dingqiao_stage_customer_docs() {
   cp "$customer_docs/DINGQIAO_INTEGRATION.md" "$out_docs/"
   cp "$customer_docs/LICENSE.md" "$out_docs/"
   cp "$customer_docs/NOTICE" "$out_docs/NOTICE"
+  if [[ -f "$customer_docs/DINGQIAO_VOICEPRINT_MODEL.md" ]]; then
+    cp "$customer_docs/DINGQIAO_VOICEPRINT_MODEL.md" "$out_docs/"
+  fi
   [[ -f "$out_docs/NOTICE" ]] || {
     echo "[ERROR] missing customer NOTICE at $customer_docs/NOTICE" >&2
     exit 1

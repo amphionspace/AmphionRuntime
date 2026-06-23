@@ -2,6 +2,7 @@ package com.amphion.asr
 
 import android.content.Context
 import com.amphion.asr.internal.AssetInstaller
+import com.amphion.asr.internal.DeviceLicenseFingerprint
 import com.amphion.asr.internal.EngineImpl
 import com.amphion.asr.internal.LicenseVerifier
 import com.amphion.asr.internal.Logger
@@ -235,6 +236,18 @@ public object AmphionRuntime {
     @JvmStatic
     public fun licenseStatus(): AmphionLicenseStatus =
         licenseStatusHolder ?: AmphionLicenseStatus.NOT_INITIALIZED
+
+    /**
+     * 本机设备指纹，用于申请单机绑定的 `.lic`（`deviceSha256` 字段）。
+     *
+     * 无需先 [init]；在目标真机 Release 包上调用后，将返回值提供给授权签发方。
+     * 算法：SHA-256("{packageName}|{ANDROID_ID}")，大写 hex、无冒号。
+     */
+    @JvmStatic
+    public fun deviceLicenseFingerprint(context: Context): String {
+        val ctx = context.applicationContext ?: context
+        return DeviceLicenseFingerprint.compute(ctx)
+    }
 
     /**
      * 释放 SDK 全局资源：清空 ASR 池 + 释放共享后处理 + 重置 initialized 标记。

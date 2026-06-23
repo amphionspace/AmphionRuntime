@@ -406,23 +406,18 @@ internal class SessionImpl(
 
     /**
      * VAD 检测到 speech 后尾静音 ≥ [activeEpSilenceMs] 时调用：复用 stop 路径的
-     * inputFinished + drain(isFinal=true) + reset 三件套，让当前 stream 出 final。
-     * 不走 hardRestart：tokens < HARD_RESTART_TOKEN_THRESHOLD 时 soft reset 已经足够，
-     * encoder cache 偏置只在长 utterance 后才显现。
+     * inputFinished + drain(isFinal=true)，让当前 stream 出 final 并按结果决定硬/软重启。
      */
     private fun triggerVadActiveEndpoint() {
-        val v = vad ?: return
+        if (vad == null) return
         val r = NativeGuard.run("vad.activeEndpoint") {
             stream.inputFinished()
             drainDecoder(isFinal = true)
-            recognizer.reset(stream)
-            v.reset()
         }
         if (r is NativeResult.Err) {
             postError(r.error)
             return
         }
-        lastPartialText = ""
         vadCarry = FloatArray(0)
     }
 
@@ -440,16 +435,7 @@ internal class SessionImpl(
             metrics.onRawFinalReady()
         postEndpoint()
         postFinalToProcessor(gateFinal(toAsrResult(r)))
-            // 长 utterance 后做硬重启而不是软 reset：
-            // 软 reset 只清 decoder hyps、保留 encoder cache（reset_encoder=false 默认），
-            // 经历 ~10s 的长 utterance 后 encoder cache 内部 norm/偏置进入"持续语音"状态，
-            // 紧跟的 600-800ms 短词会被解成 CTC blank，partial 一个不出。
-            if (shouldHardRestartAfter(r)) {
-                hardRestartStream()
-            } else {
-                recognizer.reset(stream)
-            }
-            lastPartialText = ""
+            restartStreamAfterUtterance(r)
             return
         }
 
@@ -457,16 +443,32 @@ internal class SessionImpl(
         if (isFinal) {
             metrics.onRawFinalReady()
             postFinalToProcessor(gateFinal(toAsrResult(r)))
-            NativeGuard.runQuietly("recognizer.reset") { recognizer.reset(stream) }
-            lastPartialText = ""
+            restartStreamAfterUtterance(r)
         } else if (r.text != lastPartialText) {
             lastPartialText = r.text
             postPartial(toAsrResult(r))
         }
     }
 
+    /**
+     * endpoint / VAD 切句后是否硬重启 stream。
+     *
+     * 软 reset 会保留 encoder cache。连续短指令（如「创建一个警单」「打开警信」）快速重复时，
+     * cache 仍停留在上一句尾部的「持续语音」偏置，下一句开头容易被解成 blank（只剩「信」「创建」等残片）。
+     * 有实际解码内容时一律硬重启 + 静音预热，与 session 冷启动同理。
+     */
     private fun shouldHardRestartAfter(r: OnlineRecognizerResult): Boolean {
-        return r.tokens.size >= HARD_RESTART_TOKEN_THRESHOLD
+        return r.text.isNotBlank() || r.tokens.isNotEmpty()
+    }
+
+    private fun restartStreamAfterUtterance(r: OnlineRecognizerResult) {
+        if (shouldHardRestartAfter(r)) {
+            hardRestartStream()
+        } else {
+            NativeGuard.runQuietly("recognizer.reset") { recognizer.reset(stream) }
+            NativeGuard.runQuietly("vad.reset") { vad?.reset() }
+        }
+        lastPartialText = ""
     }
 
     private fun hardRestartStream() {
@@ -652,12 +654,6 @@ internal class SessionImpl(
     private companion object {
         /** 静音预热 encoder 的时长（ms）。≈ 2.5 chunk @chunk_size=32, 16kHz。 */
         const val WARMUP_DURATION_MS = 800
-
-        /**
-         * endpoint 后判断「是否硬重启 stream」的 token 阈值。20 个 token ≈ 10s 持续语音。
-         * 超过这个量级 encoder cache 偏置会让紧跟的短词被解成 blank，硬重启可解决。
-         */
-        const val HARD_RESTART_TOKEN_THRESHOLD = 20
 
         /**
          * silero VAD 强约束：必须按窗口对齐喂入 [Vad.acceptWaveform]。

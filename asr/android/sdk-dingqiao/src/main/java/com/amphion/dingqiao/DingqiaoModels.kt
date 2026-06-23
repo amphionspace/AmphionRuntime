@@ -55,9 +55,31 @@ data class VoiceprintRegisterResult(
     val status: Int,
 )
 
+/** License 信息。 */
+data class LicenseInfo(
+    val status: Int,
+    val expireTime: Long,
+    val remainingDays: Int,
+    val authorizedFeatures: List<String>,
+)
+
+/** License 激活结果。 */
+data class LicenseActivationResult(
+    val errorCode: Int,
+    val errorMessage: String? = null,
+    val remainingDays: Int? = null,
+    val authorizedFeatures: List<String>? = null,
+)
+
 /** 异步创建引擎回调。 */
 interface CreateEngineCallback {
     fun onResult(engine: SpeechRecognitionEngine)
+    fun onError(errorCode: Int, errorMessage: String) {}
+}
+
+/** License 异步激活回调。 */
+interface LicenseActivationCallback {
+    fun onResult(result: LicenseActivationResult)
     fun onError(errorCode: Int, errorMessage: String) {}
 }
 
