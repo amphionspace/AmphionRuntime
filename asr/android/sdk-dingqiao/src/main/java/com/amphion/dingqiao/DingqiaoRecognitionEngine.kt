@@ -1,6 +1,7 @@
 package com.amphion.dingqiao
 
 import android.content.Context
+import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrCallback
 import com.amphion.asr.AsrEngine
 import com.amphion.asr.AsrError
@@ -47,6 +48,9 @@ internal class DingqiaoRecognitionEngine(
     private var engine: AsrEngine? = null
 
     @Volatile
+    private var currentAsrConfig: AsrConfig? = null
+
+    @Volatile
     private var session: AsrSession? = null
 
     @Volatile
@@ -70,9 +74,7 @@ internal class DingqiaoRecognitionEngine(
 
     init {
         try {
-            val lang = DingqiaoEngineConfig.mapLanguage(createParams.language)
-            val config = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath)
-            engine = AmphionRuntime.create(appContext, lang, config)
+            rebuildEngine(startParams = null)
         } catch (t: Throwable) {
             throw DingqiaoEngineException(
                 DingqiaoErrorCode.CREATE_ENGINE_FAILED,
@@ -108,10 +110,10 @@ internal class DingqiaoRecognitionEngine(
             activeSessionId = params.sessionId
             listening = true
 
-            val eng = engine ?: throw IllegalStateException("engine unavailable")
+            val eng = ensureEngineForStart(params)
             val s = eng.newSession(createAsrCallback(params.sessionId))
             session = s
-            configureVoiceprint(s, params)
+            configureVoiceprint(s)
             notifyStart(params.sessionId)
         } catch (t: Throwable) {
             listening = false
@@ -135,11 +137,11 @@ internal class DingqiaoRecognitionEngine(
             return
         }
         if (audio.isEmpty()) return
-        if (audio.size != DINGQIAO_AUDIO_FRAME_BYTES) {
+        if (!DingqiaoEngineConfig.isSupportedAudioFrameBytes(audio.size)) {
             notifyError(
                 sessionId,
                 DingqiaoErrorCode.RECOGNITION_ERROR,
-                "audio frame must be $DINGQIAO_AUDIO_FRAME_BYTES bytes",
+                "audio frame must be $DINGQIAO_AUDIO_FRAME_BYTES or $DINGQIAO_AUDIO_FRAME_BYTES_40MS bytes",
             )
             return
         }
@@ -185,6 +187,28 @@ internal class DingqiaoRecognitionEngine(
         try {
             enhancePipeline.close()
         } catch (_: Throwable) {
+        }
+    }
+
+    private fun ensureEngineForStart(params: StartParams): AsrEngine {
+        val desired = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath, params)
+        val current = engine
+        if (current != null && currentAsrConfig == desired) {
+            return current
+        }
+        return rebuildEngine(params)
+    }
+
+    private fun rebuildEngine(startParams: StartParams?): AsrEngine {
+        val lang = DingqiaoEngineConfig.mapLanguage(createParams.language)
+        val config = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath, startParams)
+        try {
+            engine?.close()
+        } catch (_: Throwable) {
+        }
+        return AmphionRuntime.create(appContext, lang, config).also {
+            engine = it
+            currentAsrConfig = config
         }
     }
 
@@ -280,7 +304,7 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
-    private fun configureVoiceprint(session: AsrSession, params: StartParams) {
+    private fun configureVoiceprint(session: AsrSession) {
         if (!voiceprintEnabled) {
             session.setTargetSpeakerEnabled(false)
             return

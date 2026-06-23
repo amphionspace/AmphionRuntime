@@ -12,7 +12,9 @@ internal object DingqiaoEngineConfig {
 
     /** 门控阈值设为 -1，保证始终走 onFinal 路径但仍计算 speakerScore。 */
     private const val SCORE_ONLY_THRESHOLD = -1.0f
-    private const val DEFAULT_VAD_END_MS = 500
+    private const val DEFAULT_VAD_END_MS = 800
+    private const val MIN_VAD_END_MS = 500
+    private const val MAX_VAD_END_MS = 10_000
 
     fun mapLanguage(language: String): AsrLanguage = when (language) {
         "zh-CN", "zh-en", "zh_en" -> AsrLanguage.ZH_EN
@@ -23,6 +25,7 @@ internal object DingqiaoEngineConfig {
     fun buildAsrConfig(
         params: CreateEngineParams,
         speakerModelPath: String?,
+        startParams: StartParams? = null,
     ): AsrConfig {
         require(params.online == DingqiaoOnlineMode.OFFLINE) {
             "only offline mode is supported"
@@ -44,7 +47,7 @@ internal object DingqiaoEngineConfig {
             .punctuation(true)
             .itn(true)
             .vad(true)
-            .vadConfig(VadConfig(activeEndpointSilenceMs = vadEndMs(params)))
+            .vadConfig(VadConfig(activeEndpointSilenceMs = vadEndMs(startParams)))
             .endpoint(true)
             .endpointRules(EndpointRules(rule2MinTrailingSilenceSec = 2.0f))
         if (hotwords.isNotEmpty()) {
@@ -63,19 +66,22 @@ internal object DingqiaoEngineConfig {
         return builder.build()
     }
 
-    fun vadEndMs(params: CreateEngineParams): Int {
-        val raw = params.extraParams["vadEnd"] ?: return DEFAULT_VAD_END_MS
+    fun vadEndMs(startParams: StartParams?): Int {
+        val raw = startParams?.extraParams?.get("vadEnd") ?: return DEFAULT_VAD_END_MS
         return when (raw) {
             is Number -> raw.toInt()
             is String -> raw.toIntOrNull() ?: DEFAULT_VAD_END_MS
             else -> DEFAULT_VAD_END_MS
-        }.coerceAtLeast(0)
+        }.coerceIn(MIN_VAD_END_MS, MAX_VAD_END_MS)
     }
 
     fun maxAudioDurationMs(startParams: StartParams): Long {
         val v = startParams.extraParams["maxAudioDuration"] as? Number
         return v?.toLong()?.coerceAtLeast(20_000L) ?: 20_000L
     }
+
+    fun isSupportedAudioFrameBytes(byteSize: Int): Boolean =
+        byteSize == DINGQIAO_AUDIO_FRAME_BYTES || byteSize == DINGQIAO_AUDIO_FRAME_BYTES_40MS
 
     fun enablePartialResult(startParams: StartParams): Boolean {
         val v = startParams.extraParams["enablePartialResult"]

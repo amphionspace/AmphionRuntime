@@ -916,9 +916,8 @@ class PlateNormalizer private constructor(
         Regex("原\\s*([A-Z])").containsMatchIn(matched) ->
             "粤${Regex("原\\s*([A-Z])").find(matched)!!.groupValues[1]}"
         else -> {
-            // 与+字母在车牌句中优先留给豫（粤牌常用月/悦/岳/越等，见 yueReplacementFor 其它分支）
             Regex("与\\s*([A-Z])").find(matched)?.let {
-                return matched
+                return "粤${it.groupValues[1]}"
             }
             matched
         }
@@ -1337,7 +1336,7 @@ class PlateNormalizer private constructor(
         out = out.replace(Regex("(?<![A-Z])金\\s*O$n5"), "京O")
         out = out.replace(Regex("京的$n5"), "京D")
         out = out.replace(Regex("今歪$n5"), "京Y")
-        // 静F 为晋牌谐音，由 fixMisheardJinInPlateContext 处理，勿改京F
+        out = out.replace(Regex("静\\s*F$n5"), "京F")
         out = out.replace(Regex("轻\\s*K$n5"), "京K")
         out = out.replace(Regex("精P$n5"), "京P")
         out = out.replace(Regex("今儿$n5"), "京R")
@@ -1390,7 +1389,7 @@ class PlateNormalizer private constructor(
         out = out.replace(Regex("即G$n5"), "冀J")
         out = out.replace(Regex("(?<![A-Z])GR$n5"), "冀R")
         out = out.replace(Regex("(?<![A-Z])G\\s*R$n5"), "冀R")
-        out = out.replace(Regex("(?<![A-Z])G\\s*([A-HJ-NP-Z])$n5")) { m ->
+        out = out.replace(Regex("(?<![A-Z$PROVINCES])G\\s*([A-HJ-NP-Z])$n5")) { m ->
             "冀${m.groupValues[1]}"
         }
         out = out.replace(Regex("寄地|异地|基地|寄第"), "冀D")
@@ -1405,7 +1404,7 @@ class PlateNormalizer private constructor(
         }
         out = out.replace(Regex("(?<![A-Z])G\\s*G(?=$d)"), "冀G")
         out = out.replace(Regex("(?<![A-Z])GG(?=$d)"), "冀G")
-        out = out.replace(Regex("(?<![A-Z])G([A-HJ-NP-Z])(?=$d)")) { m ->
+        out = out.replace(Regex("(?<![A-Z$PROVINCES])G([A-HJ-NP-Z])(?=$d)")) { m ->
             "冀${m.groupValues[1]}"
         }
         out = out.replace(Regex("记\\s*([A-HJ-NP-Z])(?=$d)")) { m ->
@@ -1480,12 +1479,12 @@ class PlateNormalizer private constructor(
         out = out.replace(Regex("(?i)U\\s*([A-HJ-NP-Z])$n5")) { m ->
             "豫${m.groupValues[1].uppercase()}"
         }
-        // 与→粤 误转回正（仅 P/R/S/V/U 高频误听，避免误伤真粤牌 A/G 等）
+        // 与→豫 只收敛到已验证的河南高频歧义，避免误伤粤牌「与X/月H」等默认路径。
         out = out.replace(Regex("粤\\s*([PRSUV])$n5")) { m -> "豫${m.groupValues[1]}" }
         out = out.replace(Regex("育碧|玉璧$n5"), "豫B")
         out = out.replace(Regex("育\\s*([A-HJ-NP-Z])$n5")) { m -> "豫${m.groupValues[1]}" }
         out = out.replace(Regex("遇\\s*([A-HJ-NP-Z])$n5")) { m -> "豫${m.groupValues[1]}" }
-        out = out.replace(Regex("与\\s*([A-HJ-NP-Z])$n5")) { m -> "豫${m.groupValues[1]}" }
+        out = out.replace(Regex("与\\s*([AFHLPRSUV])$n5")) { m -> "豫${m.groupValues[1]}" }
         out = out.replace(Regex("玉帝(?!外)$n5"), "豫D")
         out = out.replace(Regex("预定|预地|预第$n5"), "豫D")
         out = out.replace(Regex("裕恩|育恩|玉恩$n5"), "豫N")
@@ -1499,7 +1498,6 @@ class PlateNormalizer private constructor(
         out = out.replace(Regex("预扣$n5"), "豫Q")
         out = out.replace(Regex("预交|玉杯|预退|昱各$n5"), "豫K")
         out = out.replace(Regex("喻H$n5"), "豫H")
-        out = out.replace(Regex("月H$n5"), "豫H")
         out = out.replace(Regex("喻优|玉优|育优|育U$n5"), "豫U")
         out = out.replace(Regex("预约46729"), "豫U46729")
         out = out.replace(Regex("预约61285"), "豫V61285")
@@ -1684,6 +1682,7 @@ class PlateNormalizer private constructor(
     /** KeSpeech 批量评测高频：句中 GR/G二、辽笔/聊B、车牌号及二等。 */
     private fun fixKeSpeechPlatePrefixes(text: String): String {
         var out = fixSpacedDigitJiRInPlateContext(text)
+        out = out.replace(Regex("书记(?=\\s*[A-HJ-NP-Z][0-9零〇一二三四五六七八九幺两A-Za-z]{4,6})"), "苏G")
         out = fixJjsBeijingTtsMishears(out)
         out = fixJjsHebeiTtsMishears(out)
         out = fixJjsJiangsuTtsMishears(out)
