@@ -1,5 +1,9 @@
 package com.lits.tts.sdk
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.os.Build
+
 /**
  * License 强制策略：决定 license 校验失败时 SDK 的行为。
  *
@@ -35,10 +39,16 @@ enum class LicenseEnforcement {
  * @property licenseId 授权编号（我方签发时分配）
  * @property customer 授权客户名
  * @property applicationId license 绑定的 applicationId
+ * @property bundleName license 绑定的 HarmonyOS bundleName；Android 端通常等同或为空
+ * @property signingCertDigest license 绑定的签名证书 SHA-256
+ * @property deviceIdHashAlg 设备 SN 哈希算法
+ * @property deviceIdSaltId 设备 SN 哈希盐编号；当前实现也作为哈希盐材料
+ * @property authorizedDeviceCount 授权设备数量
+ * @property maintenanceUntil 可升级维护期截止日（`yyyy-MM-dd`）
  * @property issuedAt 签发日期（`yyyy-MM-dd`）
  * @property expiresAt 到期日期（`yyyy-MM-dd`）；空字符串表示永久授权（买断）
  * @property installTier 装机量档位标识（声明性，仅用于展示 / 审计）
- * @property features 授权的功能模块列表
+ * @property features 授权能力列表；当前仅允许 `ASR` / `TTS`
  */
 data class TtsLicenseStatus(
     val state: State,
@@ -47,6 +57,12 @@ data class TtsLicenseStatus(
     val licenseId: String,
     val customer: String,
     val applicationId: String,
+    val bundleName: String,
+    val signingCertDigest: String,
+    val deviceIdHashAlg: String,
+    val deviceIdSaltId: String,
+    val authorizedDeviceCount: Int,
+    val maintenanceUntil: String,
     val issuedAt: String,
     val expiresAt: String,
     val installTier: String,
@@ -79,6 +95,12 @@ data class TtsLicenseStatus(
             licenseId = "",
             customer = "",
             applicationId = "",
+            bundleName = "",
+            signingCertDigest = "",
+            deviceIdHashAlg = "",
+            deviceIdSaltId = "",
+            authorizedDeviceCount = 0,
+            maintenanceUntil = "",
             issuedAt = "",
             expiresAt = "",
             installTier = "",
@@ -91,18 +113,48 @@ data class TtsLicenseStatus(
  * 初始化 license 校验的选项。
  *
  * @property license 直接传入的 `.lic` 文件全文（优先于 [licenseAssetName]）；null 表示走 asset
- * @property licenseAssetName app assets 内 `.lic` 文件名，默认 `lits-tts-license.lic`；
+ * @property licenseAssetName app assets 内 `.lic` 文件名，默认 `amphion-license.lic`；
  *   置 null / 空表示不从 asset 读取。仅当 SDK 被武装（构建期注入 license 公钥）时才会真正读取
  * @property expiryGraceDays 到期宽限天数（规避客户端时钟误差），默认 0；必须 >= 0
- * @property enforcement license 校验失败时的策略，默认 [LicenseEnforcement.ENFORCE]
+ * @property licenseEnforcement license 校验失败时的策略，默认 [LicenseEnforcement.ENFORCE]
+ * @property deviceIdProvider 设备 SN 码提供方；默认通过系统序列号读取。license 包含设备白名单时必须能返回稳定 SN
  */
 data class TtsLicenseOptions @JvmOverloads constructor(
     val license: String? = null,
-    val licenseAssetName: String? = "lits-tts-license.lic",
+    val licenseAssetName: String? = "amphion-license.lic",
     val expiryGraceDays: Int = 0,
-    val enforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE,
+    val licenseEnforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE,
+    val deviceIdProvider: TtsDeviceIdProvider? = TtsSystemDeviceIdProvider,
 ) {
     init {
         require(expiryGraceDays >= 0) { "expiryGraceDays must be >= 0, got $expiryGraceDays" }
     }
+}
+
+/**
+ * License 设备绑定用 SN 码提供方。
+ */
+fun interface TtsDeviceIdProvider {
+    fun getDeviceSerial(context: Context): String?
+}
+
+/**
+ * 鼎桥 Android 交付默认 SN 来源。系统应用具备 `READ_PRIVILEGED_PHONE_STATE` 时，
+ * [Build.getSerial] 返回的序列号应与 `adb devices` 展示的设备序列号一致。
+ */
+object TtsSystemDeviceIdProvider : TtsDeviceIdProvider {
+    override fun getDeviceSerial(context: Context): String? = readDeviceSerial()
+
+    @SuppressLint("HardwareIds", "MissingPermission")
+    private fun readDeviceSerial(): String? =
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Build.getSerial()
+            } else {
+                @Suppress("DEPRECATION")
+                Build.SERIAL
+            }
+        }.getOrNull()
+            ?.trim()
+            ?.takeUnless { it.isBlank() || it.equals(Build.UNKNOWN, ignoreCase = true) }
 }

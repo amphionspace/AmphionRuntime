@@ -16,6 +16,7 @@
 """
 import argparse
 import base64
+import hashlib
 import json
 import sys
 from datetime import datetime, timedelta, timezone
@@ -42,15 +43,23 @@ def _norm_hex(s: str) -> str:
     return s.replace(":", "").replace(" ", "").upper()
 
 
+def _device_hash(device_id: str, salt_id: str) -> str:
+    return hashlib.sha256(f"{device_id.strip().upper()}{salt_id}".encode("utf-8")).hexdigest().upper()
+
+
 def main() -> None:
-    ap = argparse.ArgumentParser(description="本地校验 Lits TTS .lic")
+    ap = argparse.ArgumentParser(description="本地校验 Amphion .lic")
     ap.add_argument("--license", required=True, help=".lic 路径")
     ap.add_argument("--public-key-b64", default=None, help="公钥 base64（同 gradle.properties）")
     ap.add_argument("--private-key", default=None, help="或给私钥 PEM，自动推导公钥")
     ap.add_argument("--password", default=None, help="私钥口令")
     ap.add_argument("--application-id", required=True, help="宿主 applicationId")
+    ap.add_argument("--bundle-name", default="", help="宿主 HarmonyOS bundleName；默认同 applicationId")
     ap.add_argument("--cert-sha256", default="", help="宿主签名证书 SHA-256（可带冒号）")
-    ap.add_argument("--device-sha256", default="", help="宿主设备指纹 SHA-256（可带冒号）")
+    ap.add_argument("--device-id", default="", help="宿主设备 SN 码；用于校验 authorizedDeviceHashes")
+    ap.add_argument("--sdk-major", type=int, default=1, help="当前 SDK 大版本")
+    ap.add_argument("--sdk-release-date", default="", help="当前 SDK 发布时间 yyyy-MM-dd；用于维护期校验")
+    ap.add_argument("--required-feature", default="TTS", choices=["ASR", "TTS"], help="当前 SDK 要求的授权能力")
     ap.add_argument("--grace-days", type=int, default=0, help="到期宽限天数")
     ap.add_argument("--now", default=None, help="模拟当前日期 yyyy-MM-dd；默认系统今天")
     args = ap.parse_args()
@@ -81,19 +90,21 @@ def main() -> None:
 
     claims = json.loads(payload_bytes.decode("utf-8"))
 
-    # 2. applicationId
-    if claims.get("applicationId") != args.application_id:
+    # 2. applicationId / bundleName
+    bound_app = claims.get("applicationId") or claims.get("bundleName", "")
+    host_app = args.application_id or args.bundle_name
+    if bound_app != host_app:
         sys.exit(
             f"[FAIL {LICENSE_APP_MISMATCH}] LICENSE_APP_MISMATCH："
-            f"license={claims.get('applicationId')} host={args.application_id}"
+            f"license={bound_app} host={host_app}"
         )
 
     # 3. 签名证书
-    want = _norm_hex(claims.get("certSha256", ""))
+    want = _norm_hex(claims.get("signingCertDigest") or claims.get("certSha256", ""))
     if want:
         have = _norm_hex(args.cert_sha256)
         if not have:
-            print("[warn] license 绑定了 certSha256，但未提供 --cert-sha256，跳过证书校验")
+            print("[warn] license 绑定了 signingCertDigest，但未提供 --cert-sha256，跳过证书校验")
         elif have != want:
             sys.exit(f"[FAIL {LICENSE_CERT_MISMATCH}] LICENSE_CERT_MISMATCH：license={want} host={have}")
 
@@ -110,14 +121,33 @@ def main() -> None:
         if now >= deadline:
             sys.exit(f"[FAIL {LICENSE_EXPIRED}] LICENSE_EXPIRED：expiresAt={expires}")
 
-    # 5. 设备指纹
-    want_dev = _norm_hex(claims.get("deviceSha256", ""))
-    if want_dev:
-        have_dev = _norm_hex(args.device_sha256)
-        if not have_dev:
-            print("[warn] license 绑定了 deviceSha256，但未提供 --device-sha256，跳过设备校验")
-        elif have_dev != want_dev:
-            sys.exit(f"[FAIL {LICENSE_DEVICE_MISMATCH}] LICENSE_DEVICE_MISMATCH：license={want_dev} host={have_dev}")
+    # 5. SDK 大版本与维护期
+    sdk_major = claims.get("sdkMajor", -1)
+    if sdk_major >= 0 and sdk_major != args.sdk_major:
+        sys.exit(f"[FAIL 1002300019] LICENSE_SDK_MAJOR_MISMATCH：license={sdk_major} host={args.sdk_major}")
+    maintenance_until = claims.get("maintenanceUntil", "")
+    if maintenance_until and args.sdk_release_date:
+        release = datetime.strptime(args.sdk_release_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        maintenance = datetime.strptime(maintenance_until, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        if release > maintenance:
+            sys.exit(
+                f"[FAIL 1002300020] LICENSE_MAINTENANCE_EXPIRED："
+                f"maintenanceUntil={maintenance_until} sdkReleaseDate={args.sdk_release_date}"
+            )
+
+    features = {str(v).strip().upper() for v in claims.get("features", [])}
+    if args.required_feature not in features:
+        sys.exit(f"[FAIL 1002300021] LICENSE_FEATURE_MISSING：features={','.join(sorted(features))}")
+
+    # 6. 设备 SN 白名单
+    authorized = {_norm_hex(v) for v in claims.get("authorizedDeviceHashes", [])}
+    if authorized:
+        if not args.device_id:
+            print("[warn] license 绑定了 authorizedDeviceHashes，但未提供 --device-id，跳过设备校验")
+        else:
+            have_dev = _device_hash(args.device_id, claims.get("deviceIdSaltId", ""))
+            if have_dev not in authorized:
+                sys.exit(f"[FAIL {LICENSE_DEVICE_MISMATCH}] LICENSE_DEVICE_MISMATCH：device hash not authorized")
 
     print("[OK] license 校验通过")
     print(json.dumps(claims, ensure_ascii=False, indent=2))

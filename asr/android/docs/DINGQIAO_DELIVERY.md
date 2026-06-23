@@ -4,6 +4,8 @@
 > 接口定义见仓库根目录 [`语音识别SDK接口.md`](../../../../语音识别SDK接口.md)（相对本文件：`/Users/amphion/Desktop/work/projects/鼎桥/语音识别SDK接口.md`）。  
 > **对外正式交付**请使用 `docs/customer/` 下脱敏文档，打包命令：`bash asr/tools/delivery/pack_dingqiao_customer_delivery.sh`（不含公钥、不含 LICENSING.md 全文）。
 
+交付前置资料清单见仓库根目录 [`docs/dingqiao-offline-license.md`](../../../docs/dingqiao-offline-license.md)。鼎桥需在组包前确认 SN 清单、客户 App 标识、签名证书指纹、授权功能范围、`sdkMajor`、`maintenanceUntil` 和 license 固定路径。
+
 ## 1. 模块与依赖
 
 ```
@@ -233,6 +235,8 @@ bash ../../asr/tools/license/issue_dingqiao_demo.sh
 每次对外发 Demo APK 或交付 zip 前请确认已重签（`pack_dingqiao_*.sh` 已集成）。续期 = 用同一私钥对同一 applicationId + certSha256 重签更晚 `expiresAt` 的 `.lic`。
 
 鼎桥客户正式包：用同一私钥，按 [`docs/DELIVERY.md`](DELIVERY.md) §11 对其 **applicationId + release 证书 SHA256** 单独签发。
+
+正式包如启用设备 SN 白名单，Android 鼎桥封装层会通过 `Build.getSerial()` 读取设备序列号。宿主 App 必须作为系统应用声明并获得 `android.permission.READ_PRIVILEGED_PHONE_STATE`；若权限缺失或系统返回空/`UNKNOWN`，license 激活会因设备 SN 不可用失败。
 
 ### 8.4 Release 真机 smoke
 

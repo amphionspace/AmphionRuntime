@@ -39,8 +39,17 @@ object TtsErrorCode {
     /** license 已过期（超出宽限期）。 */
     const val LICENSE_EXPIRED = 1002300017
 
-    /** license 绑定的设备指纹与当前设备不一致（单机授权）。 */
+    /** license 绑定的设备 SN 白名单与当前设备不一致。 */
     const val LICENSE_DEVICE_MISMATCH = 1002300018
+
+    /** license 绑定的 SDK 大版本与当前 SDK 不一致。 */
+    const val LICENSE_SDK_MAJOR_MISMATCH = 1002300019
+
+    /** 当前 SDK 发布时间晚于 license 允许的维护期。 */
+    const val LICENSE_MAINTENANCE_EXPIRED = 1002300020
+
+    /** license 未授权当前 SDK 能力，例如 TTS。 */
+    const val LICENSE_FEATURE_MISSING = 1002300021
 }
 
 class TextToSpeechException(
@@ -166,7 +175,7 @@ object TextToSpeechSdk {
      *
      * SDK 通过内部机制自动发现 ApplicationContext 并在 [createEngine] 前懒校验一次，所以业务方
      * 即使不调用本方法也会被强制校验；提供本入口是为了：让业务方在启动时主动传入 license 文本 /
-     * 调整 [TtsLicenseOptions.enforcement] / 尽早暴露授权问题。重复调用以最后一次为准。
+     * 调整 [TtsLicenseOptions.licenseEnforcement] / 尽早暴露授权问题。重复调用以最后一次为准。
      *
      * @param context 任意 [Context]，仅取其 ApplicationContext，不长期持有
      * @param options license 选项，详见 [TtsLicenseOptions]
@@ -189,16 +198,13 @@ object TextToSpeechSdk {
     fun licenseStatus(): TtsLicenseStatus = LicenseGuard.status()
 
     /**
-     * 本机设备指纹，用于申请单机绑定的 `.lic`（`deviceSha256` 字段）。
+     * 设备 SN 授权哈希，用于申请设备白名单 `.lic`（`authorizedDeviceHashes` 字段）。
      *
-     * 无需先 [init]；在目标真机 Release 包上调用后，将返回值提供给授权签发方。
-     * 算法：SHA-256("{packageName}|{ANDROID_ID}")，大写 hex、无冒号。
+     * 算法：SHA-256(normalizedSn + deviceIdSaltId)，大写 hex、无冒号。
      */
     @JvmStatic
-    fun deviceLicenseFingerprint(context: Context): String {
-        val ctx = context.applicationContext ?: context
-        return DeviceLicenseFingerprint.compute(ctx)
-    }
+    fun deviceLicenseFingerprint(deviceSerial: String, deviceIdSaltId: String): String =
+        DeviceLicenseFingerprint.computeFromSerial(deviceSerial, deviceIdSaltId)
 
     @JvmStatic
     fun setWorkPath(workPath: String) {

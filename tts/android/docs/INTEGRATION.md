@@ -240,27 +240,31 @@ engine.shutdown()
 
 ## 12. 离线授权（License）
 
-To B 交付的纯离线授权：ECDSA P-256 签名，绑定 applicationId（必）、签名证书 / 设备指纹 / 到期（可选）。
+To B 交付的纯离线授权：ECDSA P-256 签名，绑定 applicationId / bundleName、签名证书、设备 SN 白名单、运行到期和维护期。
 完整签发 / 校验流程见 `tts/tools/license/README.md`，机制细节见 `docs/LICENSE.md`。
 
-判断 SDK 是否被武装：构建期 gradle 属性 `LITS_TTS_LICENSE_PUBLIC_KEY` 是否注入了公钥。
+判断 SDK 是否被武装：构建期 gradle 属性 `AMPHION_LICENSE_PUBLIC_KEY` 是否注入了公钥。
 
 - 未武装（公钥为空，默认）：开发 / 内部构建，`init` 与 `createEngine` 不做任何校验，功能照常。
-- 已武装（注入公钥）：业务方需把签发的 `.lic` 放进 app 的 `assets/`（默认文件名 `lits-tts-license.lic`）。
+- 已武装（注入公钥）：业务方需把签发的 `.lic` 放进 app 的 `assets/`（默认文件名 `amphion-license.lic`）。ASR 与 TTS 共用同一份授权文件。
 
 业务方可在启动时显式初始化（可选，便于尽早暴露授权问题；不调用也会在首次 `createEngine` 懒校验）：
 
 ```kotlin
-TextToSpeechSdk.init(context) // 默认从 assets/lits-tts-license.lic 读取、ENFORCE 策略
-// 或显式传入：
+TextToSpeechSdk.init(context) // 默认从 assets/amphion-license.lic 读取、ENFORCE 策略，并通过 Build.getSerial() 读取 SN
+// 或显式传入自定义选项：
 TextToSpeechSdk.init(
     context,
     TtsLicenseOptions(
-        licenseAssetName = "lits-tts-license.lic",
-        enforcement = LicenseEnforcement.ENFORCE,
+        licenseAssetName = "amphion-license.lic",
+        licenseEnforcement = LicenseEnforcement.ENFORCE,
+        // 一般不需要传；仅当客户系统改用其他 SN API 时覆盖默认实现
+        deviceIdProvider = TtsDeviceIdProvider { _ -> "DEVICE-SN-FROM-DINGQIAO" },
     ),
 )
 ```
+
+设备 SN 默认由系统应用通过 `Build.getSerial()` 读取，宿主 App 需要申请并获得 `android.permission.READ_PRIVILEGED_PHONE_STATE`。如果缺少权限或系统返回空/`UNKNOWN`，启用 SN 白名单的 license 会校验失败。
 
 武装态下校验失败时，`init` 与 `createEngine` 抛 `TextToSpeechException`（errorCode 见上表 `1002300012`+）。
 查询授权状态用于「关于」页展示：
@@ -269,10 +273,13 @@ TextToSpeechSdk.init(
 val status = TextToSpeechSdk.licenseStatus() // state / customer / expiresAt / features ...
 ```
 
-单机绑定：在目标真机 release 包取设备指纹，交给签发方：
+设备白名单绑定：鼎桥提供 SN 清单给签发方；本地自测时可用同一算法计算 SN 授权哈希：
 
 ```kotlin
-val fingerprint = TextToSpeechSdk.deviceLicenseFingerprint(context)
+val deviceHash = TextToSpeechSdk.deviceLicenseFingerprint(
+    "DEVICE-SN-FROM-DINGQIAO",
+    "DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71",
+)
 ```
 
 ## 13. 混淆

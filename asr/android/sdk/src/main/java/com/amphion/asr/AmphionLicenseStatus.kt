@@ -1,5 +1,7 @@
 package com.amphion.asr
 
+import android.content.Context
+
 /**
  * License 强制策略：决定 [AmphionRuntime.init] 在 license 校验失败时的行为。
  *
@@ -33,10 +35,16 @@ public enum class LicenseEnforcement {
  * @property licenseId 授权编号（我方签发时分配）
  * @property customer 授权客户名
  * @property applicationId license 绑定的 applicationId
+ * @property bundleName license 绑定的 HarmonyOS bundleName；Android 端通常等同或为空
+ * @property signingCertDigest license 绑定的签名证书 SHA-256
+ * @property deviceIdHashAlg 设备 SN 哈希算法
+ * @property deviceIdSaltId 设备 SN 哈希盐编号；当前实现也作为哈希盐材料
+ * @property authorizedDeviceCount 授权设备数量
+ * @property maintenanceUntil 可升级维护期截止日（`yyyy-MM-dd`）
  * @property issuedAt 签发日期（`yyyy-MM-dd`）
  * @property expiresAt 到期日期（`yyyy-MM-dd`）；空字符串表示永久授权（买断）
  * @property installTier 装机量档位标识（声明性，仅用于展示 / 审计）
- * @property features 授权的功能模块列表（如 `ASR_ZH_EN` / `TARGET_SPEAKER`）
+ * @property features 授权能力列表；当前仅允许 `ASR` / `TTS`
  */
 public data class AmphionLicenseStatus(
     public val state: State,
@@ -45,6 +53,12 @@ public data class AmphionLicenseStatus(
     public val licenseId: String,
     public val customer: String,
     public val applicationId: String,
+    public val bundleName: String,
+    public val signingCertDigest: String,
+    public val deviceIdHashAlg: String,
+    public val deviceIdSaltId: String,
+    public val authorizedDeviceCount: Int,
+    public val maintenanceUntil: String,
     public val issuedAt: String,
     public val expiresAt: String,
     public val installTier: String,
@@ -77,10 +91,26 @@ public data class AmphionLicenseStatus(
             licenseId = "",
             customer = "",
             applicationId = "",
+            bundleName = "",
+            signingCertDigest = "",
+            deviceIdHashAlg = "",
+            deviceIdSaltId = "",
+            authorizedDeviceCount = 0,
+            maintenanceUntil = "",
             issuedAt = "",
             expiresAt = "",
             installTier = "",
             features = emptyList(),
         )
     }
+}
+
+/**
+ * License 设备绑定用 SN 码提供方。
+ *
+ * Android 公开 API 无法在所有系统版本稳定读取硬件 SN，因此交付时由宿主或客户适配层注入。
+ * 返回值会被 SDK 做 trim + uppercase 规范化，再按 license 中的 `deviceIdSaltId` 计算白名单哈希。
+ */
+public fun interface AmphionDeviceIdProvider {
+    public fun getDeviceSerial(context: Context): String?
 }

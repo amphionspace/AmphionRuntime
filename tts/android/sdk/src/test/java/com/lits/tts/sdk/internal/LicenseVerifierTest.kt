@@ -34,8 +34,11 @@ class LicenseVerifierTest {
             publicKeyB64 = "",
             packageName = appId,
             hostCertSha256 = emptySet(),
-            hostDeviceSha256 = "",
+            deviceSerial = null,
             expiryGraceDays = 0,
+            sdkMajor = 1,
+            sdkReleaseDate = "2026-06-01",
+            requiredFeature = "TTS",
             nowMillis = utc("2026-06-01"),
         )
         assertTrue(r.ok)
@@ -102,8 +105,11 @@ class LicenseVerifierTest {
             publicKeyB64 = publicKeyB64,
             packageName = appId,
             hostCertSha256 = emptySet(),
-            hostDeviceSha256 = "",
+            deviceSerial = null,
             expiryGraceDays = 5,
+            sdkMajor = 1,
+            sdkReleaseDate = "2026-06-01",
+            requiredFeature = "TTS",
             nowMillis = utc("2026-01-05"),
         )
         assertTrue(r.ok)
@@ -124,15 +130,38 @@ class LicenseVerifierTest {
     }
 
     @Test
-    fun deviceBindingMatchesAndMismatches() {
-        val device = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
-        val lic = issue(claims(applicationId = appId, deviceSha256 = device))
+    fun snWhitelistMatchesAndMismatches() {
+        val saltId = "DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71"
+        val serial = "SN-001"
+        val hash = DeviceLicenseFingerprint.computeFromSerial(serial, saltId)
+        val lic = issue(claims(applicationId = appId, deviceIdSaltId = saltId, authorizedDeviceHashes = listOf(hash)))
 
-        val ok = verifyWith(lic, hostDevice = device)
+        val ok = verifyWith(lic, deviceSerial = serial.lowercase(Locale.ROOT))
         assertTrue(ok.ok)
 
-        val bad = verifyWith(lic, hostDevice = "FEDCBA9876543210")
+        val bad = verifyWith(lic, deviceSerial = "SN-999")
         assertEquals(TtsErrorCode.LICENSE_DEVICE_MISMATCH, bad.errorCode)
+    }
+
+    @Test
+    fun sdkMajorMismatchFails() {
+        val lic = issue(claims(applicationId = appId, sdkMajor = 2))
+        val r = verifyWith(lic, sdkMajor = 1)
+        assertEquals(TtsErrorCode.LICENSE_SDK_MAJOR_MISMATCH, r.errorCode)
+    }
+
+    @Test
+    fun maintenanceWindowRejectsNewerSdkRelease() {
+        val lic = issue(claims(applicationId = appId, maintenanceUntil = "2026-01-31"))
+        val r = verifyWith(lic, sdkReleaseDate = "2026-02-01")
+        assertEquals(TtsErrorCode.LICENSE_MAINTENANCE_EXPIRED, r.errorCode)
+    }
+
+    @Test
+    fun missingTtsFeatureFails() {
+        val lic = issue(claims(applicationId = appId, features = listOf("ASR")))
+        val r = verifyWith(lic)
+        assertEquals(TtsErrorCode.LICENSE_FEATURE_MISSING, r.errorCode)
     }
 
     // -------- helpers --------
@@ -143,22 +172,30 @@ class LicenseVerifierTest {
             publicKeyB64 = publicKeyB64,
             packageName = appId,
             hostCertSha256 = emptySet(),
-            hostDeviceSha256 = "",
+            deviceSerial = null,
             expiryGraceDays = 0,
+            sdkMajor = 1,
+            sdkReleaseDate = "2026-06-01",
+            requiredFeature = "TTS",
             nowMillis = nowMillis,
         )
 
     private fun verifyWith(
         licenseText: String,
         hostCert: Set<String> = emptySet(),
-        hostDevice: String = "",
+        deviceSerial: String? = null,
+        sdkMajor: Int = 1,
+        sdkReleaseDate: String = "2026-06-01",
     ) = LicenseVerifier.verifyResolved(
         licenseText = licenseText,
         publicKeyB64 = publicKeyB64,
         packageName = appId,
         hostCertSha256 = hostCert,
-        hostDeviceSha256 = hostDevice,
+        deviceSerial = deviceSerial,
         expiryGraceDays = 0,
+        sdkMajor = sdkMajor,
+        sdkReleaseDate = sdkReleaseDate,
+        requiredFeature = "TTS",
         nowMillis = utc("2026-06-01"),
     )
 
@@ -180,20 +217,29 @@ class LicenseVerifierTest {
         applicationId: String,
         expiresAt: String = "",
         certSha256: String = "",
-        deviceSha256: String = "",
+        deviceIdSaltId: String = "",
+        authorizedDeviceHashes: List<String> = emptyList(),
         customer: String = "ACME",
         licenseId: String = "LIC-1",
+        sdkMajor: Int = 1,
+        maintenanceUntil: String = "2026-12-31",
+        features: List<String> = listOf("TTS"),
     ): String = JSONObject()
         .put("applicationId", applicationId)
+        .put("bundleName", applicationId)
         .put("certSha256", certSha256)
-        .put("deviceSha256", deviceSha256)
+        .put("signingCertDigest", certSha256)
+        .put("deviceIdHashAlg", "SHA-256")
+        .put("deviceIdSaltId", deviceIdSaltId)
+        .put("authorizedDeviceHashes", JSONArray(authorizedDeviceHashes))
         .put("customer", customer)
         .put("licenseId", licenseId)
         .put("issuedAt", "2026-01-01")
         .put("expiresAt", expiresAt)
+        .put("maintenanceUntil", maintenanceUntil)
         .put("installTier", "LE_100K")
-        .put("features", JSONArray(listOf("TTS_ZH_EN")))
-        .put("sdkMajor", 0)
+        .put("features", JSONArray(features))
+        .put("sdkMajor", sdkMajor)
         .toString()
 
     private fun sign(kp: KeyPair, bytes: ByteArray): ByteArray =

@@ -137,7 +137,7 @@ cd asr/android && ./gradlew :sdk:assembleRelease
 # 用同一把私钥给 sample 的包名签一份测试 license
 python asr/tools/license/issue_license.py --private-key ~/secure/amphion-license-private.pem \
   --application-id com.amphion.asr.sample --customer "Internal Test" --expires 2099-01-01 \
-  --features ASR_ZH_EN,ASR_YUE_EN --out sample/src/main/assets/amphion-license.lic
+  --features ASR --out sample/src/main/assets/amphion-license.lic
 ./gradlew :samples:public-demo:installRelease   # sample release minify=true，同时回归 SDK consumer-rules
 ```
 

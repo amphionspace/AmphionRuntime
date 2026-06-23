@@ -99,7 +99,7 @@ Lits TTS Android SDK v${VERSION}
   1. 将 aar/$AAR_NAME 放入宿主 App 的 libs/
   2. implementation(files("libs/$AAR_NAME"))
   3. 按 docs/INTEGRATION.md 初始化 TextToSpeechSdk
-  4. 如为武装构建，按 docs/LICENSE.md 放置 lits-tts-license.lic
+  4. 如为武装构建，按 docs/LICENSE.md 放置 amphion-license.lic
 
 从源码重建
 ----------

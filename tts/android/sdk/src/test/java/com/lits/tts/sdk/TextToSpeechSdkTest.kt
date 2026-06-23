@@ -25,6 +25,16 @@ class TextToSpeechSdkTest {
     }
 
     @Test
+    fun licenseOptionsDefaultToSharedAmphionAsset() {
+        assertEquals("amphion-license.lic", TtsLicenseOptions().licenseAssetName)
+    }
+
+    @Test
+    fun licenseOptionsDefaultToSystemDeviceIdProvider() {
+        assertEquals(TtsSystemDeviceIdProvider, TtsLicenseOptions().deviceIdProvider)
+    }
+
+    @Test
     fun listVoicesReturnsSharedVoiceIdsAcrossLanguages() {
         val voices = TextToSpeechSdk.listVoices(
             VoiceQuery(requestId = "voices-1", mode = RunMode.OFFLINE),

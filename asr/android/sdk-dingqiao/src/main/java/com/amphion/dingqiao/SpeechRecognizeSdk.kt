@@ -1,6 +1,9 @@
 package com.amphion.dingqiao
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
+import com.amphion.asr.AmphionDeviceIdProvider
 import com.amphion.asr.AmphionRuntime
 import com.amphion.asr.AmphionLicenseStatus
 import com.amphion.asr.AmphionOptions
@@ -63,12 +66,11 @@ object SpeechRecognizeSdk {
     }
 
     /**
-     * 本机设备指纹，用于申请单机试用 license（无需先 [init]）。
-     * 在目标真机 Release 包上获取后提供给授权签发方。
+     * 设备 SN 授权哈希，用于申请设备白名单 license（无需先 [init]）。
      */
     @JvmStatic
-    fun deviceLicenseFingerprint(context: Context): String =
-        AmphionRuntime.deviceLicenseFingerprint(context)
+    fun deviceLicenseFingerprint(deviceSerial: String, deviceIdSaltId: String): String =
+        AmphionRuntime.deviceLicenseFingerprint(deviceSerial, deviceIdSaltId)
 
     /**
      * 创建识别引擎（同步）。
@@ -238,6 +240,7 @@ object SpeechRecognizeSdk {
                     AmphionOptions(
                         license = text,
                         licenseAssetName = null,
+                        deviceIdProvider = DingqiaoDeviceIdProvider,
                     ),
                 )
                 runtimeInitialized = true
@@ -328,5 +331,22 @@ object SpeechRecognizeSdk {
         DingqiaoErrorCode.LICENSE_EXPIRED -> 1
         DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH -> 3
         else -> 2
+    }
+
+    private object DingqiaoDeviceIdProvider : AmphionDeviceIdProvider {
+        override fun getDeviceSerial(context: Context): String? = readDeviceSerial()
+
+        @SuppressLint("HardwareIds", "MissingPermission")
+        private fun readDeviceSerial(): String? =
+            runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    Build.getSerial()
+                } else {
+                    @Suppress("DEPRECATION")
+                    Build.SERIAL
+                }
+            }.getOrNull()
+                ?.trim()
+                ?.takeUnless { it.isBlank() || it.equals(Build.UNKNOWN, ignoreCase = true) }
     }
 }
