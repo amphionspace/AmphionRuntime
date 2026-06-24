@@ -40,6 +40,9 @@ object DingqiaoRecognitionMode {
 object DingqiaoEventCode {
     const val SPEECH_BEGIN = 1
     const val SPEECH_END = 3
+    const val SPEAKER_VAD_CHANGED = 20
+    const val SPEAKER_VAD_DEBUG = 21
+    const val SPEAKER_VAD_REJECTED = 22
 }
 
 /** 声纹注册成功状态码。 */

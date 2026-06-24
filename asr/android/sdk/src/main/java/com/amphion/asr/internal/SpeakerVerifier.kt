@@ -64,6 +64,15 @@ internal class SpeakerVerifier(
         return cosine(emb, targetEmb)
     }
 
+    /**
+     * 对一个实时滑窗打分。与 [segmentScore] 的“多窗取 max”不同，这里表示当前窗口本身是否像目标人，
+     * 用于目标说话人离场检测。
+     */
+    fun windowScore(samples: FloatArray, targetEmb: FloatArray): Float? {
+        val emb = extractEmbedding(extractor, samples, sampleRate) ?: return null
+        return cosine(emb, targetEmb)
+    }
+
     internal companion object {
 
         /**

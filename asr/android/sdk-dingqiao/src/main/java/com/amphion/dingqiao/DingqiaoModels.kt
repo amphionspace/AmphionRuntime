@@ -99,6 +99,7 @@ interface SpeechRecognitionEngine {
     fun writeAudio(sessionId: String, audio: ByteArray)
     fun finish(sessionId: String)
     fun cancel(sessionId: String)
+    fun setSpeakerVadEnabled(enabled: Boolean) {}
     fun isBusy(): Boolean
     fun shutdown()
 }
