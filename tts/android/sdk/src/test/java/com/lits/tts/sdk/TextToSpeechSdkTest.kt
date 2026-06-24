@@ -448,7 +448,7 @@ class TextToSpeechSdkTest {
         override fun onStart(requestId: String, response: StartResponse) {
             starts += "start:$requestId"
             assertEquals("pcm", response.audioType)
-            assertEquals(24000, response.sampleRate)
+            assertEquals(16000, response.sampleRate)
             assertEquals(16, response.sampleBit)
             assertEquals(1, response.audioChannel)
             assertEquals(0, response.compressRate)

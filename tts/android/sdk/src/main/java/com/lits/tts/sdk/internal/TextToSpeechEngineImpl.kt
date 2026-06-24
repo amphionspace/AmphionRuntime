@@ -215,16 +215,7 @@ internal class TextToSpeechEngineImpl(
                 task.params.playType == PlayType.SYNTHESIZE_ONLY -> "buffered_pcm_callback"
                 else -> "buffered_pcm_playback"
             }
-            val responseSampleRate = synthesizer.streamingSampleRate(engineParams) ?: DEFAULT_SAMPLE_RATE
-            notifyStart(
-                callback = callback,
-                task = task,
-                sampleRate = responseSampleRate,
-                isStreaming = useStreamingSynthesis,
-                dataPath = dataPath,
-                modelInfo = synthesizer.debugSummary(),
-                loadProfileInfo = synthesizer.loadProfileInfo(),
-            )
+            notifyStart(callback, task, useStreamingSynthesis, dataPath, synthesizer.debugSummary(), synthesizer.loadProfileInfo())
             var synthesisCompleteNotified = false
             val audio = if (task.params.playType == PlayType.SYNTHESIZE_ONLY && useStreamingSynthesis) {
                 synthesizer.synthesizeStreaming(task.text, task.params, engineParams) { chunk ->
@@ -377,7 +368,6 @@ internal class TextToSpeechEngineImpl(
     private fun notifyStart(
         callback: SpeakListener,
         task: SynthesisTask,
-        sampleRate: Int,
         isStreaming: Boolean,
         dataPath: String,
         modelInfo: String,
@@ -388,7 +378,6 @@ internal class TextToSpeechEngineImpl(
                 callback.onStart(
                     task.params.requestId,
                     StartResponse(
-                        sampleRate = sampleRate,
                         isStreaming = isStreaming,
                         dataPath = dataPath,
                         modelSource = if (modelInfo.contains("source=external")) "external" else "bundled",
@@ -494,7 +483,6 @@ internal class TextToSpeechEngineImpl(
         val LISTENER_EXECUTOR: ExecutorService = Executors.newSingleThreadExecutor(TtsListenerThreadFactory())
         const val AUDIO_CHUNK_BYTES = 4096
         const val BYTES_PER_FRAME = 2L
-        const val DEFAULT_SAMPLE_RATE = 24000
         const val DEFAULT_PCM_QUEUE_CAPACITY = 128
     }
 }

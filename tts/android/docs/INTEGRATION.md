@@ -10,11 +10,11 @@
 | 模式 | 离线 `RunMode.OFFLINE` |
 | 网络权限 | 不需要 |
 
-SDK AAR 已包含 24 kHz Vocos streaming 模型资源、ONNX Runtime Java 类和 arm64 native 库。宿主 App 不需要额外下载模型。
+SDK AAR 已包含模型资源、ONNX Runtime Java 类和 arm64 native 库。宿主 App 不需要额外下载模型。
 
 ## 2. Gradle 接入
 
-源码工程默认产物文件名是 `sdk-release.aar`。正式交付包会把它重命名成 `lits-tts-sdk-0.1.0.aar`；如果你直接使用本地构建产物，请把依赖里的文件名改成 `sdk-release.aar`。
+源码工程默认产物文件名是 `sdk-release.aar`。如果你在对外交付前把它重命名成 `lits-tts-sdk-0.1.0.aar`，下面的接入示例可以直接照抄；如果没重命名，就把依赖里的文件名改成 `sdk-release.aar`。
 
 把 `lits-tts-sdk-0.1.0.aar` 放到宿主 App 的 `app/libs/` 后添加依赖：
 
@@ -126,6 +126,10 @@ engine.setListener(object : SpeakListener {
 
 `SpeakListener` 回调由 SDK 内部异步派发，不保证在 Android 主线程。更新 UI 时请切回主线程。
 
+`onStart` 的 `StartResponse.loadProfileInfo` 会返回引擎加载阶段的调试耗时，例如模型资源安装/发现、前端词典预加载、ORT session 创建总耗时和各 ONNX session 创建耗时。该字段用于定位首次加载慢的问题，格式可能随调试需求调整。
+
+调试流式首包和 RTF 时，`SpeakParams.extraParams["streamingChunkSize"]` 可覆盖本次请求的 manifest 默认 chunk size。该参数主要用于 Sample 和性能实验，传入非法值时 SDK 会回退到 manifest 默认值。
+
 ## 7. 合成模式
 
 ### 7.1 SDK 内部播放
@@ -170,7 +174,17 @@ onData(sequence=0..n)
 onComplete(SYNTHESIS_COMPLETE)
 ```
 
-`onData` 返回 24 kHz、16-bit、mono PCM 分片，`sequence` 从 0 递增。
+`onData` 返回 16 kHz、16-bit、mono PCM 分片，`sequence` 从 0 递增。
+
+### 7.3 性能指标
+
+`onComplete(SYNTHESIS_COMPLETE)` 的 `CompleteResponse` 会携带合成性能指标：
+
+- `firstPacketMs`：从开始处理请求到首个 PCM chunk 生成的耗时；SDK 内部播放模式也会返回该值。
+- `synthesisMs`：本次合成总耗时，不包含后续完整播放等待。
+- `audioDurationMs`：生成音频时长，按 PCM 字节数和采样率计算。
+- `rtf`：`synthesisMs / audioDurationMs`，小于 1 表示合成快于实时播放。
+- `profilingInfo`：调试用分段耗时文本，流式模型下包含 frontend、hidden encoder、decoder、vocoder、chunk 数和模型 chunk size。
 
 ## 8. 播放通道
 
@@ -228,58 +242,7 @@ engine.shutdown()
 | `1002300009` | 内部服务错误 |
 | `1002300010` | 队列已满，当前实现未启用该限制 |
 | `1002300011` | 合成/播报运行时异常 |
-| `1002300012` | license 缺失（仅武装态） |
-| `1002300013` | license 内容非法 |
-| `1002300014` | license 验签未通过 |
-| `1002300015` | license 的 applicationId 与宿主不一致 |
-| `1002300016` | license 的签名证书与宿主不一致 |
-| `1002300017` | license 已过期 |
-| `1002300018` | license 绑定的设备与当前设备不一致 |
 
-`1002300012` 起为离线授权失败码，仅当 SDK 被武装（构建期注入 license 公钥）时才可能出现。
+## 12. 混淆
 
-## 12. 离线授权（License）
-
-To B 交付的纯离线授权：ECDSA P-256 签名，绑定 applicationId（必）、签名证书 / 设备指纹 / 到期（可选）。
-完整签发 / 校验流程见 `tts/tools/license/README.md`，机制细节见 `docs/LICENSE.md`。
-
-判断 SDK 是否被武装：构建期 gradle 属性 `LITS_TTS_LICENSE_PUBLIC_KEY` 是否注入了公钥。
-
-- 未武装（公钥为空，默认）：开发 / 内部构建，`init` 与 `createEngine` 不做任何校验，功能照常。
-- 已武装（注入公钥）：业务方需把签发的 `.lic` 放进 app 的 `assets/`（默认文件名 `lits-tts-license.lic`）。
-
-业务方可在启动时显式初始化（可选，便于尽早暴露授权问题；不调用也会在首次 `createEngine` 懒校验）：
-
-```kotlin
-TextToSpeechSdk.init(context) // 默认从 assets/lits-tts-license.lic 读取、ENFORCE 策略
-// 或显式传入：
-TextToSpeechSdk.init(
-    context,
-    TtsLicenseOptions(
-        license = null,
-        licenseAssetName = "lits-tts-license.lic",
-        expiryGraceDays = 0,
-        enforcement = LicenseEnforcement.ENFORCE,
-    ),
-)
-```
-
-武装态下校验失败时，`init` 与 `createEngine` 抛 `TextToSpeechException`（errorCode 见上表 `1002300012`+）。
-查询授权状态用于「关于」页展示：
-
-```kotlin
-val status = TextToSpeechSdk.licenseStatus() // state / customer / expiresAt / features ...
-```
-
-单机绑定：在目标真机 release 包取设备指纹，交给签发方：
-
-```kotlin
-val fingerprint = TextToSpeechSdk.deviceLicenseFingerprint(context)
-```
-
-## 13. 混淆
-
-SDK AAR 自带 `consumer-rules.pro`，只保留公开 API（`com.lits.tts.sdk.*`）。宿主 App 开启 R8/minify
-时 Gradle 会自动合并这些规则。SDK 自身 release 构建已开启 R8（`isMinifyEnabled=true`），
-`com.lits.tts.sdk.internal.*`（含离线 license 验签逻辑）会被混淆。交付前应至少跑一次宿主 App
-release 构建和真机合成 smoke。
+SDK AAR 自带 `consumer-rules.pro`。宿主 App 开启 R8/minify 时，Gradle 会自动合并这些规则。交付前应至少跑一次宿主 App release 构建和真机合成 smoke。

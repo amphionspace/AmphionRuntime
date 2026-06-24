@@ -1,0 +1,10 @@
+{
+  "module": {
+    "name": "sdk",
+    "type": "har",
+    "deviceTypes": [
+      "phone",
+      "tablet"
+    ]
+  }
+}

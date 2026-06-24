@@ -76,12 +76,12 @@ internal object LitsTtsAssetInstaller {
             throw illegalState(TtsErrorCode.CREATE_ENGINE_FAILED, "TTS manifest identity mismatch")
         }
         if (
-            sampleRate <= 0 ||
+            sampleRate != 16_000 ||
             hopLength <= 0 ||
             speakerCount <= 0 ||
             defaultSpeakerId !in 0 until speakerCount ||
             defaultLanguage != "zh-en" ||
-            vocoderType !in setOf("hifigan", "vocos") ||
+            vocoderType != "hifigan" ||
             !supportedLanguages.containsString("zh-en") ||
             !supportedLanguages.containsString("en-US")
         ) {
@@ -248,8 +248,7 @@ internal object LitsTtsAssetInstaller {
             if (coreFiles.any { !it.isFile }) return false
             return if (manifest.supportsStreaming) {
                 hiddenEncoderModel?.isFile == true &&
-                    streamDecoderChunkModel?.isFile == true &&
-                    streamDecoderFinalModel?.isFile == true
+                    streamDecoderChunkModel?.isFile == true
             } else {
                 acousticModel?.isFile == true
             }

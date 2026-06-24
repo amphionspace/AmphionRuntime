@@ -1,0 +1,11 @@
+{
+  "name": "sdk",
+  "version": "0.1.0",
+  "description": "Offline Lits TTS SDK for HarmonyOS.",
+  "main": "Index.ets",
+  "author": "Amphion",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "liblitsttsnative.so": "file:./src/main/cpp/types/liblitsttsnative"
+  }
+}

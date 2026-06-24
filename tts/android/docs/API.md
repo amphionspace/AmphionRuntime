@@ -1,19 +1,16 @@
 # Lits TTS Android SDK API
 
-本文记录 Android AAR 当前公开 API。对外接口说明以本文和 `INTEGRATION.md` 为准；源码仓库中的构建说明用于协作者从源码构建 AAR，不属于运行时接口定义。
+本文记录 Android AAR 当前公开 API。SDK-only 交付以本文、`INTEGRATION.md` 与交付包根目录 `README.md` 为准；仓库根目录研发文档不属于交付依赖。
 
 ## TextToSpeechSdk
 
 ```kotlin
 object TextToSpeechSdk {
-    fun init(context: Context, options: TtsLicenseOptions = TtsLicenseOptions())
     fun setWorkPath(workPath: String)
     fun createEngine(params: CreateEngineParams): TextToSpeechEngine
     fun createEngine(params: CreateEngineParams, callback: Callback<TextToSpeechEngine>)
     fun listVoices(params: VoiceQuery): List<VoiceInfo>
     fun listVoices(params: VoiceQuery, callback: Callback<List<VoiceInfo>>)
-    fun licenseStatus(): TtsLicenseStatus
-    fun deviceLicenseFingerprint(context: Context): String
 }
 ```
 
@@ -99,7 +96,7 @@ interface SpeakListener {
 | `speed` | `Float` | `1.0` | 范围 `[0.5, 2.0]` |
 | `volume` | `Float` | `1.0` | 范围 `[0.0, 2.0]` |
 | `pitch` | `Float` | `1.0` | 范围 `[0.5, 2.0]` |
-| `languageContext` | `String` | `zh-en` | `zh-en` 或 `en-US`；控制数字等局部读法上下文 |
+| `languageContext` | `String` | `zh-CN` | 支持 `zh-CN` / `en-US`，兼容旧值 `zh-en`；内部会把 `zh-CN` 归一到中英前端路径 |
 | `audioType` | `String` | `pcm` | 当前仅支持 `pcm` |
 | `playType` | `PlayType` | `SYNTHESIZE_AND_PLAY` | 合成模式 |
 | `soundChannel` | `Int?` | `null` | Android `AudioManager.STREAM_*` |
@@ -111,9 +108,13 @@ interface SpeakListener {
 | 类型 | 字段 |
 | --- | --- |
 | `StartResponse` | `audioType`, `sampleRate`, `sampleBit`, `audioChannel`, `compressRate`, `isStreaming`, `dataPath`, `modelSource`, `modelInfo`, `loadProfileInfo` |
-| `SynthesisResponse` | `sequence`, `audioType`, `isStreaming`, `chunkSource` |
+| `SynthesisResponse` | `sequence`, `audioType` |
 | `CompleteResponse` | `type`, `message`, `firstPacketMs`, `synthesisMs`, `audioDurationMs`, `rtf`, `profilingInfo` |
 | `StopResponse` | `type`, `message` |
+
+`CompleteResponse` 的性能字段只在 `type = SYNTHESIS_COMPLETE` 时有意义；未知值为 `-1` 或空字符串。`profilingInfo` 是调试文本，当前包含流式路径的 frontend、hidden encoder、decoder、vocoder、chunk 数和模型 chunk size 等分段耗时。
+
+`StartResponse.loadProfileInfo` 是引擎创建时记录的加载分段耗时，当前包含 layout/model install、frontend preload、ORT session 创建总耗时，以及各 ONNX session 创建耗时。
 
 ## 枚举
 
@@ -141,41 +142,3 @@ interface SpeakListener {
 | `INTERNAL_SERVICE_ERROR` | `1002300009` | 内部服务错误 |
 | `QUEUE_FULL` | `1002300010` | 队列已满，当前未启用该限制 |
 | `RUNTIME_EXCEPTION` | `1002300011` | 运行时异常 |
-| `LICENSE_MISSING` | `1002300012` | 武装构建缺少 license |
-| `LICENSE_MALFORMED` | `1002300013` | license 内容非法 |
-| `LICENSE_SIGNATURE_INVALID` | `1002300014` | license 验签未通过 |
-| `LICENSE_APP_MISMATCH` | `1002300015` | license 的 applicationId 与宿主不一致 |
-| `LICENSE_CERT_MISMATCH` | `1002300016` | license 的签名证书与宿主不一致 |
-| `LICENSE_EXPIRED` | `1002300017` | license 已过期 |
-| `LICENSE_DEVICE_MISMATCH` | `1002300018` | license 绑定的设备与当前设备不一致 |
-
-## License
-
-```kotlin
-enum class LicenseEnforcement {
-    ENFORCE,
-    PERMISSIVE,
-}
-
-data class TtsLicenseOptions(
-    val license: String? = null,
-    val licenseAssetName: String? = "lits-tts-license.lic",
-    val expiryGraceDays: Int = 0,
-    val enforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE,
-)
-
-data class TtsLicenseStatus(
-    val state: State,
-    val valid: Boolean,
-    val errorCode: Int,
-    val licenseId: String,
-    val customer: String,
-    val applicationId: String,
-    val issuedAt: String,
-    val expiresAt: String,
-    val installTier: String,
-    val features: List<String>,
-)
-```
-
-`TtsLicenseStatus.State` 取值：`NOT_INITIALIZED`、`DEV_UNLICENSED`、`LICENSED`、`INVALID`。公钥未注入时为开发态 `DEV_UNLICENSED`，不做授权拦截。

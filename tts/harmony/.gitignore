@@ -1,0 +1,15 @@
+.hvigor/
+.ohos/
+build/
+**/build/
+node_modules/
+oh_modules/
+**/oh_modules/
+.signing-local/
+local.properties
+verification/out/
+model-packages/
+sdk/src/main/resources/rawfile/lits-models/
+*.hap
+*.har
+*.hsp
