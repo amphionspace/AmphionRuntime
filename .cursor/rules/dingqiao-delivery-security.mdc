@@ -16,4 +16,5 @@ alwaysApply: true
 7. 交付 Markdown 文档的表格单元格只放原文，不使用粗体、斜体或删除线。
 8. 压缩前必须脱敏可能暴露本机路径或仓库来源的 AAR 元数据。`amphion.repo.remote` 应为 `not-disclosed`，分支元数据应为 `main`。
 9. 更新 `docs/checksum.txt`，用 UTF-8 交付 zip 工具创建压缩包，并校验 `VERSION.txt`、AAR 溯源、`docs/NOTICE`、zip UTF-8 标志和 CRC 完整性。
-10. 最终回复必须包含 zip 路径、SHA-256、授权有效期、适用时的 SN 白名单数量、源码 commit，以及任何偏离标准流程的地方。
+10. 打包完成后必须对最终 zip 再做一次自检；以压缩包内容为准检查条目、CRC、UTF-8 标志、客户可见文档、license、AAR 元数据、checksum 和禁止文件名。必要时解包到临时目录后查验，确认没有 `.secure`、`.git`、keystore、私钥、内部路径或旧口径残留。
+11. 最终回复必须包含 zip 路径、SHA-256、授权有效期、适用时的 SN 白名单数量、源码 commit，以及任何偏离标准流程的地方。
