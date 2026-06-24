@@ -62,6 +62,32 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildAsrConfig_usesValueEqualityForReuse() {
+        val createParams = CreateEngineParams(
+            language = "zh-CN",
+            online = DingqiaoOnlineMode.OFFLINE,
+            extraParams = mapOf("sysGeneralLexicon" to listOf("盘查")),
+        )
+        val startParams = StartParams(
+            sessionId = "s1",
+            audioInfo = AudioInfo(),
+            extraParams = mapOf("vadEnd" to 800),
+        )
+
+        val first = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath = null, startParams)
+        val second = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath = null, startParams)
+        val changed = DingqiaoEngineConfig.buildAsrConfig(
+            createParams,
+            speakerModelPath = null,
+            startParams = startParams.copy(extraParams = mapOf("vadEnd" to 1500)),
+        )
+
+        assertEquals(first, second)
+        assertEquals(first.hashCode(), second.hashCode())
+        assertTrue(first != changed)
+    }
+
+    @Test
     fun vadEndMs_clampsToDocumentRange() {
         val low = DingqiaoEngineConfig.vadEndMs(
             StartParams("s1", AudioInfo(), mapOf("vadEnd" to 100)),

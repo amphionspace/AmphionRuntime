@@ -18,8 +18,6 @@
     <string name="speaker_vad_hint">目标说话人离开时提前截断当前句</string>
     <string name="speaker_vad_enabled_hint">说话人 VAD 已开启</string>
     <string name="speaker_vad_disabled_hint">说话人 VAD 已关闭</string>
-    <string name="debug_initial">Debug：等待识别</string>
-    <string name="debug_speaker_vad_status">Debug 声纹校验=%1$s，说话人VAD=%2$s（%3$s）\n链路：目标确认前抑制 partial；连续非目标会 endpoint + reject final\n参数：阈值 %4$.2f，窗 %5$.1fs，hop %6$.1fs，连续低分 %7$d 次\n最近：%8$s</string>
     <string name="menu_more">更多</string>
     <string name="menu_voiceprint">声纹注册</string>
     <string name="menu_delete_voiceprint">删除声纹</string>
