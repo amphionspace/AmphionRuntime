@@ -53,7 +53,8 @@ const val DINGQIAO_SPEAKER_MODEL_FILENAME = "eres2net.onnx"
 /** 写入音频帧字节数（16 kHz mono 16-bit PCM，20 ms）。 */
 const val DINGQIAO_AUDIO_FRAME_BYTES = 640
 
-/** 写入音频帧字节数（16 kHz mono 16-bit PCM，40 ms）。 */
+/** 遗留 40 ms 帧大小常量。交付接口只接受 640 字节 / 20 ms 帧。 */
+@Deprecated("Dingqiao delivery interface only accepts 640-byte / 20 ms frames.")
 const val DINGQIAO_AUDIO_FRAME_BYTES_40MS = 1280
 
 /** 声纹样本最短 / 最长时长（秒）。 */
