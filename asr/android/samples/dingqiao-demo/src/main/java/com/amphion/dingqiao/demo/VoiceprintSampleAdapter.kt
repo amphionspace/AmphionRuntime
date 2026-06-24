@@ -7,6 +7,7 @@ import android.widget.ImageButton
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
+import java.util.Locale
 
 class VoiceprintSampleAdapter(
     private val items: MutableList<File>,
@@ -29,13 +30,25 @@ class VoiceprintSampleAdapter(
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val file = items[position]
         holder.label.text = holder.itemView.context.getString(
-            R.string.enroll_seg_label,
+            R.string.enroll_seg_label_with_duration,
             position + 1,
             file.name,
+            formatDuration(file),
         )
         holder.play.setOnClickListener { onPlay(holder.bindingAdapterPosition) }
         holder.delete.setOnClickListener { onDelete(holder.bindingAdapterPosition) }
     }
 
     override fun getItemCount(): Int = items.size
+
+    private fun formatDuration(file: File): String {
+        val seconds = file.length().coerceAtLeast(0L).toDouble() / BYTES_PER_SECOND
+        return String.format(Locale.getDefault(), "%.1fs", seconds)
+    }
+
+    private companion object {
+        private const val SAMPLE_RATE = 16_000
+        private const val BYTES_PER_SAMPLE = 2
+        private const val BYTES_PER_SECOND = SAMPLE_RATE * BYTES_PER_SAMPLE.toDouble()
+    }
 }

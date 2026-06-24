@@ -21,6 +21,7 @@ package com.amphion.asr
  *   （秒级生效）；false 时首次 [AsrSession.setTargetSpeakerEnabled] 为 true 才懒加载（首次有加载延迟）
  * @property enabledByDefault 新建 [AsrSession] 时开关的初始状态，默认 false
  * @property numThreads 声纹推理线程数，[1, 8]，默认 1
+ * @property speakerVad 目标说话人 VAD 配置；null 表示不启用“目标人离场提前 endpoint”能力
  */
 public data class TargetSpeakerConfig(
     public val modelPath: String,
@@ -31,6 +32,7 @@ public data class TargetSpeakerConfig(
     public val preload: Boolean = false,
     public val enabledByDefault: Boolean = false,
     public val numThreads: Int = 1,
+    public val speakerVad: SpeakerVadConfig? = null,
 ) {
     init {
         require(modelPath.isNotBlank()) { "TargetSpeakerConfig.modelPath must not be blank" }
@@ -42,6 +44,37 @@ public data class TargetSpeakerConfig(
         require(minSegSec > 0f) { "TargetSpeakerConfig.minSegSec must be > 0" }
         require(numThreads in 1..8) {
             "TargetSpeakerConfig.numThreads must be in [1, 8], got $numThreads"
+        }
+    }
+}
+
+/**
+ * 目标说话人 VAD 配置。
+ *
+ * 语义不是过滤最终结果，而是在 VAD 已检测到 speech 后，对当前 utterance 尾部滑窗做声纹相似度
+ * 判定：先确认目标人开口，再在连续低于阈值时主动 endpoint，让下游尽早拿到 final。
+ *
+ * @property threshold 当前滑窗余弦相似度阈值；低于该值计一次“目标人离场”
+ * @property winSec 单次声纹打分窗长（秒）。越短响应越快但越不稳，默认 1.5s
+ * @property hopSec 滑窗打分步长（秒）。越短响应越快但推理开销越高，默认 0.5s
+ * @property consecutiveBelow 连续多少个低分窗口后触发 endpoint，默认 2
+ * @property enabledByDefault 新建 [AsrSession] 时 speaker vad 的初始状态，默认 false
+ */
+public data class SpeakerVadConfig(
+    public val threshold: Float = 0.35f,
+    public val winSec: Float = 1.5f,
+    public val hopSec: Float = 0.5f,
+    public val consecutiveBelow: Int = 2,
+    public val enabledByDefault: Boolean = false,
+) {
+    init {
+        require(threshold in -1.0f..1.0f) {
+            "SpeakerVadConfig.threshold must be in [-1.0, 1.0], got $threshold"
+        }
+        require(winSec > 0f) { "SpeakerVadConfig.winSec must be > 0" }
+        require(hopSec > 0f) { "SpeakerVadConfig.hopSec must be > 0" }
+        require(consecutiveBelow >= 1) {
+            "SpeakerVadConfig.consecutiveBelow must be >= 1, got $consecutiveBelow"
         }
     }
 }

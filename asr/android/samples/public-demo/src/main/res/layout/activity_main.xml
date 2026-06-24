@@ -201,6 +201,225 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/card_target_speaker"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cap_target_title"
+                    android:textColor="@color/brand_text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tv_target_speaker_state"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/ts_unregistered"
+                        android:textColor="@color/brand_text_muted"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/ts_switch"
+                        android:textColor="@color/brand_text_primary"
+                        android:textSize="12sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_target_speaker"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/speaker_vad_switch"
+                        android:textColor="@color/brand_text_primary"
+                        android:textSize="12sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/sw_speaker_vad"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/ts_target_params_title"
+                    android:textColor="@color/brand_text_muted"
+                    android:textSize="11sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal">
+
+                    <EditText
+                        android:id="@+id/et_target_threshold"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:hint="@string/ts_threshold_hint"
+                        android:inputType="numberDecimal|numberSigned"
+                        android:singleLine="true"
+                        android:text="@string/ts_threshold_default"
+                        android:textSize="12sp" />
+
+                    <EditText
+                        android:id="@+id/et_target_window"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:hint="@string/ts_window_hint"
+                        android:inputType="number"
+                        android:singleLine="true"
+                        android:text="@string/ts_window_default"
+                        android:textSize="12sp" />
+
+                    <EditText
+                        android:id="@+id/et_target_hop"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:hint="@string/ts_hop_hint"
+                        android:inputType="number"
+                        android:singleLine="true"
+                        android:text="@string/ts_hop_default"
+                        android:textSize="12sp" />
+
+                    <EditText
+                        android:id="@+id/et_target_min_seg"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:hint="@string/ts_min_seg_hint"
+                        android:inputType="number"
+                        android:singleLine="true"
+                        android:text="@string/ts_min_seg_default"
+                        android:textSize="12sp" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/speaker_vad_params_title"
+                    android:textColor="@color/brand_text_muted"
+                    android:textSize="11sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal">
+
+                    <EditText
+                        android:id="@+id/et_speaker_vad_threshold"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:hint="@string/speaker_vad_threshold_hint"
+                        android:inputType="numberDecimal|numberSigned"
+                        android:singleLine="true"
+                        android:text="@string/speaker_vad_threshold_default"
+                        android:textSize="12sp" />
+
+                    <EditText
+                        android:id="@+id/et_speaker_vad_window"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:hint="@string/speaker_vad_window_hint"
+                        android:inputType="number"
+                        android:singleLine="true"
+                        android:text="@string/speaker_vad_window_default"
+                        android:textSize="12sp" />
+
+                    <EditText
+                        android:id="@+id/et_speaker_vad_hop"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:hint="@string/speaker_vad_hop_hint"
+                        android:inputType="number"
+                        android:singleLine="true"
+                        android:text="@string/speaker_vad_hop_default"
+                        android:textSize="12sp" />
+
+                    <EditText
+                        android:id="@+id/et_speaker_vad_below"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:hint="@string/speaker_vad_below_hint"
+                        android:inputType="number"
+                        android:singleLine="true"
+                        android:text="@string/speaker_vad_below_default"
+                        android:textSize="12sp" />
+
+                </LinearLayout>
+
+                <EditText
+                    android:id="@+id/et_speaker_threads"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="4dp"
+                    android:hint="@string/speaker_threads_hint"
+                    android:inputType="number"
+                    android:singleLine="true"
+                    android:text="@string/speaker_threads_default"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tv_speaker_vad_debug"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:fontFamily="monospace"
+                    android:text="@string/speaker_vad_debug_idle"
+                    android:textColor="@color/brand_text_muted"
+                    android:textSize="10sp" />
+
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/card_plate_enhance"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
