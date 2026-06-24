@@ -184,7 +184,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun createListener(): RecognitionListener = object : RecognitionListener {
         override fun onStart(sessionId: String, eventMessage: String) {
-            runOnUiThread { setStatus(getString(R.string.status_listening)) }
+            runOnUiThread {
+                startCapture()
+                setTalkButtonRecording(true)
+                btnTalk.isEnabled = true
+                setStatus(getString(R.string.status_listening))
+            }
         }
 
         override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) {
@@ -249,14 +254,7 @@ class MainActivity : AppCompatActivity() {
         tvFinal.text = ""
 
         startRecognitionSession()
-        setTalkButtonRecording(true)
-        btnTalk.isEnabled = true
-
-        frameWriter = PcmFrameWriter { frame -> writeFrameToCurrentSession(frame) }
-        recorder = AudioRecorder(
-            onPcm = { samples -> frameWriter?.accept(samples) },
-            onError = { msg -> runOnUiThread { setStatus("录音错误：$msg") } },
-        ).also { it.start() }
+        btnTalk.isEnabled = false
     }
 
     private fun startRecognitionSession() {
@@ -323,6 +321,24 @@ class MainActivity : AppCompatActivity() {
         if (sid != null) {
             engine?.finish(sid)
         }
+    }
+
+    private fun startCapture() {
+        if (recorder != null) return
+        frameWriter = PcmFrameWriter { frame -> writeFrameToCurrentSession(frame) }
+        recorder = AudioRecorder(
+            onPcm = { samples -> frameWriter?.accept(samples) },
+            onError = { msg ->
+                runOnUiThread {
+                    stopCapture()
+                    listening = false
+                    sessionId = null
+                    setTalkButtonRecording(false)
+                    btnTalk.isEnabled = engine != null
+                    setStatus("录音错误：$msg")
+                }
+            },
+        ).also { it.start() }
     }
 
     /**
