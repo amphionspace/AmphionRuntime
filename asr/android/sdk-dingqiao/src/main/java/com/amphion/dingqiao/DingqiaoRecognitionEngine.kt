@@ -69,6 +69,7 @@ internal class DingqiaoRecognitionEngine(
     private var maxAudioDurationMs = 20_000L
     private var enablePartial = true
     private var voiceprintEnabled = false
+    private var speakerVadEnabled = false
     private var voiceprintIds: List<String> = emptyList()
     private var speechStarted = false
 
@@ -102,6 +103,7 @@ internal class DingqiaoRecognitionEngine(
             maxAudioDurationMs = DingqiaoEngineConfig.maxAudioDurationMs(params)
             enablePartial = DingqiaoEngineConfig.enablePartialResult(params)
             voiceprintEnabled = DingqiaoEngineConfig.enableVoiceprintVerification(params)
+            speakerVadEnabled = DingqiaoEngineConfig.enableSpeakerVad(params)
             voiceprintIds = DingqiaoEngineConfig.voiceprintIds(params)
             finishRequested = false
             completeSent = false
@@ -174,6 +176,36 @@ internal class DingqiaoRecognitionEngine(
         tearDownSession()
     }
 
+    override fun setSpeakerVadEnabled(enabled: Boolean) {
+        ensureAlive()
+        speakerVadEnabled = enabled
+        val currentSession = session ?: return
+        val sid = activeSessionId ?: return
+        try {
+            if (enabled) {
+                val embedding = voiceprintStore.loadMergedEmbedding(voiceprintIds)
+                    ?: throw DingqiaoEngineException(
+                        DingqiaoErrorCode.VOICEPRINT_NOT_FOUND,
+                        "voiceprint not found for speaker VAD",
+                    )
+                currentSession.setTargetSpeaker(embedding)
+            }
+            currentSession.setSpeakerVadEnabled(enabled)
+            notifyEvent(
+                sid,
+                DingqiaoEventCode.SPEAKER_VAD_CHANGED,
+                "speaker vad ${if (enabled) "enabled" else "disabled"}.",
+            )
+        } catch (t: Throwable) {
+            speakerVadEnabled = false
+            notifyError(
+                sid,
+                (t as? DingqiaoEngineException)?.errorCode ?: DingqiaoErrorCode.RECOGNITION_ERROR,
+                t.message ?: "setSpeakerVadEnabled failed",
+            )
+        }
+    }
+
     override fun isBusy(): Boolean = listening
 
     override fun shutdown() {
@@ -231,12 +263,24 @@ internal class DingqiaoRecognitionEngine(
             notifyEvent(sessionId, DingqiaoEventCode.SPEECH_END, "speech stopped.")
         }
 
+        override fun onDebug(message: String) {
+            notifyEvent(sessionId, DingqiaoEventCode.SPEAKER_VAD_DEBUG, message)
+        }
+
         override fun onFinal(result: AsrResult) {
             deliverFinal(sessionId, result)
         }
 
         override fun onFinalRejected(result: AsrResult) {
-            deliverFinal(sessionId, result)
+            notifyEvent(
+                sessionId,
+                DingqiaoEventCode.SPEAKER_VAD_REJECTED,
+                "speaker vad rejected final; score=${result.speakerScore ?: "n/a"}",
+            )
+            if (finishRequested) {
+                maybeComplete(sessionId)
+                tearDownSession()
+            }
         }
 
         override fun onError(error: AsrError) {
@@ -305,20 +349,32 @@ internal class DingqiaoRecognitionEngine(
     }
 
     private fun configureVoiceprint(session: AsrSession) {
-        if (!voiceprintEnabled) {
+        val needsVoiceprint = voiceprintEnabled || speakerVadEnabled
+        if (!needsVoiceprint) {
             session.setTargetSpeakerEnabled(false)
             return
         }
         val embedding = voiceprintStore.loadMergedEmbedding(voiceprintIds)
             ?: throw IllegalStateException("voiceprint not found")
         session.setTargetSpeaker(embedding)
-        session.setTargetSpeakerEnabled(true)
+        session.setTargetSpeakerEnabled(voiceprintEnabled)
+        session.setSpeakerVadEnabled(speakerVadEnabled)
     }
 
     private fun validateVoiceprintParams(params: StartParams) {
-        if (!DingqiaoEngineConfig.enableVoiceprintVerification(params)) return
+        val speakerVad = DingqiaoEngineConfig.enableSpeakerVad(params)
+        val voiceprint = DingqiaoEngineConfig.enableVoiceprintVerification(params)
+        if (!voiceprint && !speakerVad) return
+        if (speakerVad && speakerModelPath.isNullOrBlank()) {
+            throw DingqiaoEngineException(
+                DingqiaoErrorCode.START_LISTENING_FAILED,
+                "speaker model not found; enableSpeakerVad requires ${DINGQIAO_SPEAKER_MODEL_FILENAME}",
+            )
+        }
         val ids = DingqiaoEngineConfig.voiceprintIds(params)
-        require(ids.isNotEmpty()) { "voiceprintIds required when enableVoiceprintVerification=true" }
+        require(ids.isNotEmpty()) {
+            "voiceprintIds required when enableVoiceprintVerification=true or enableSpeakerVad=true"
+        }
         for (id in ids) {
             if (!voiceprintStore.exists(id)) {
                 throw DingqiaoEngineException(
