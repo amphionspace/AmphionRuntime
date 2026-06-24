@@ -41,7 +41,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnMenu: ImageButton
     private lateinit var tvPartial: TextView
     private lateinit var tvFinal: TextView
-    private lateinit var tvDebug: TextView
     private lateinit var tvStatus: TextView
     private lateinit var tvVoiceprintInfo: TextView
     private lateinit var progress: ProgressBar
@@ -64,9 +63,6 @@ class MainActivity : AppCompatActivity() {
 
     private var voiceprintVerifyDesired = false
     private var speakerVadDesired = false
-    private var activeVoiceprintVerify = false
-    private var activeSpeakerVad = false
-    private var lastDebugEvent = "idle"
     private val finalLines = SpannableStringBuilder()
 
     private val permLauncher = registerForActivityResult(
@@ -110,7 +106,6 @@ class MainActivity : AppCompatActivity() {
         btnMenu = findViewById(R.id.btn_menu)
         tvPartial = findViewById(R.id.tv_partial)
         tvFinal = findViewById(R.id.tv_final)
-        tvDebug = findViewById(R.id.tv_debug)
         tvStatus = findViewById(R.id.tv_status)
         tvVoiceprintInfo = findViewById(R.id.tv_voiceprint_info)
         progress = findViewById(R.id.progress)
@@ -199,20 +194,15 @@ class MainActivity : AppCompatActivity() {
     private fun createListener(): RecognitionListener = object : RecognitionListener {
         override fun onStart(sessionId: String, eventMessage: String) {
             runOnUiThread {
-                lastDebugEvent = "session start"
                 startCapture()
                 setTalkButtonRecording(true)
                 btnTalk.isEnabled = true
                 setStatus(getString(R.string.status_listening))
-                updateDebugInfo()
             }
         }
 
         override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) {
-            runOnUiThread {
-                lastDebugEvent = "event $eventCode: $eventMessage"
-                updateDebugInfo()
-            }
+            // Demo no longer exposes SDK debug events in the UI.
         }
 
         override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
@@ -220,12 +210,9 @@ class MainActivity : AppCompatActivity() {
                 if (result.isFinal) {
                     appendFinal(result)
                     tvPartial.text = ""
-                    lastDebugEvent = "final score=${result.speakerSimilarity?.let { "%.2f".format(it) } ?: "n/a"}"
                 } else {
                     tvPartial.text = result.result
-                    lastDebugEvent = "partial(raw ASR, not speaker-filtered)"
                 }
-                updateDebugInfo()
             }
         }
 
@@ -308,10 +295,6 @@ class MainActivity : AppCompatActivity() {
         if (!voiceprintId.isNullOrBlank()) {
             extra["voiceprintIds"] = listOf(voiceprintId)
         }
-        activeVoiceprintVerify = verify
-        activeSpeakerVad = speakerVad
-        lastDebugEvent = "session params prepared"
-        updateDebugInfo()
 
         eng.startListening(
             StartParams(
@@ -464,31 +447,12 @@ class MainActivity : AppCompatActivity() {
         speakerVadDesired = enabled
         if (listening) {
             engine?.setSpeakerVadEnabled(enabled)
-            activeSpeakerVad = enabled
-            lastDebugEvent = "speaker VAD runtime ${if (enabled) "enabled" else "disabled"}"
-        } else {
-            lastDebugEvent = "speaker VAD desired ${if (enabled) "ON" else "OFF"}"
         }
-        updateDebugInfo()
         if (enabled) {
             toast(getString(R.string.speaker_vad_enabled_hint))
         } else {
             toast(getString(R.string.speaker_vad_disabled_hint))
         }
-    }
-
-    private fun updateDebugInfo() {
-        tvDebug.text = getString(
-            R.string.debug_speaker_vad_status,
-            if (activeVoiceprintVerify) "ON" else "OFF",
-            if (activeSpeakerVad) "ON" else "OFF",
-            if (speakerVadDesired == activeSpeakerVad) "synced" else "pending",
-            SPEAKER_VAD_THRESHOLD,
-            SPEAKER_VAD_WINDOW_MS / 1000f,
-            SPEAKER_VAD_HOP_MS / 1000f,
-            SPEAKER_VAD_CONSECUTIVE_BELOW,
-            lastDebugEvent,
-        )
     }
 
     private fun showMenu(anchor: android.view.View) {
