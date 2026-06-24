@@ -26,12 +26,7 @@ internal object LitsTtsAssetInstaller {
             rootDir.deleteRecursively()
             rootDir.mkdirsOrThrow()
             for (name in LitsTtsAssetRegistry.files) {
-                val assetPath = "${LitsTtsAssetRegistry.ASSET_ROOT}/${LitsTtsAssetRegistry.assetSubPath}/$name"
-                val outFile = rootDir.resolve(name)
-                outFile.parentFile?.mkdirsOrThrow()
-                context.assets.open(assetPath).use { input ->
-                    outFile.outputStream().use { output -> input.copyTo(output) }
-                }
+                copyAssetFile(context, rootDir, name)
             }
             versionFile.writeText(LitsTtsAssetRegistry.MODEL_VERSION)
             signatureFile.writeText(assetSignature)
@@ -39,6 +34,22 @@ internal object LitsTtsAssetInstaller {
 
         val manifest = parseAndValidateManifest(manifestFile)
         return InstalledLayout.of(rootDir, manifest, LayoutSource.BUNDLED_ASSET)
+    }
+
+    fun ensureTnBinariesInstalled(context: Context, layout: InstalledLayout) {
+        if (layout.tnZhTts.isFile && layout.tnEnTts.isFile) return
+        for (name in LitsTtsAssetRegistry.tnBinaryFiles) {
+            copyAssetFile(context, layout.rootDir, name)
+        }
+    }
+
+    private fun copyAssetFile(context: Context, rootDir: File, name: String) {
+        val assetPath = "${LitsTtsAssetRegistry.ASSET_ROOT}/${LitsTtsAssetRegistry.assetSubPath}/$name"
+        val outFile = rootDir.resolve(name)
+        outFile.parentFile?.mkdirsOrThrow()
+        context.assets.open(assetPath).use { input ->
+            outFile.outputStream().use { output -> input.copyTo(output) }
+        }
     }
 
     private fun parseAndValidateManifest(file: File): ManifestInfo {
@@ -64,6 +75,12 @@ internal object LitsTtsAssetInstaller {
         val hiddenEncoderFile = json.optJSONObject("hidden_encoder_model")?.optString("file")
         val streamDecoderChunkFile = json.optJSONObject("stream_decoder_chunk_model")?.optString("file")
         val streamDecoderFinalFile = json.optJSONObject("stream_decoder_final_model")?.optString("file")
+        val streamDecoderExternalLoop = json.optBoolean("stream_decoder_external_loop", false)
+        val streamDecoderTimesteps = json.optInt("stream_decoder_n_timesteps", -1)
+        val streamDecoderTemperature = json.optDouble("stream_decoder_temperature", Double.NaN).toFloat()
+        val streamConditionChunkFile = json.optJSONObject("stream_condition_chunk_model")?.optString("file")
+        val streamConditionFinalFile = json.optJSONObject("stream_condition_final_model")?.optString("file")
+        val streamDecoderStepFile = json.optJSONObject("stream_decoder_step_model")?.optString("file")
         val streamingChunkSize = json.optInt("streaming_chunk_size", -1)
         val streamingPreLookaheadLen = json.optInt("streaming_pre_lookahead_len", -1)
         val streamingMelCacheLen = json.optInt("streaming_mel_cache_len", -1)
@@ -76,12 +93,12 @@ internal object LitsTtsAssetInstaller {
             throw illegalState(TtsErrorCode.CREATE_ENGINE_FAILED, "TTS manifest identity mismatch")
         }
         if (
-            sampleRate != 16_000 ||
+            sampleRate <= 0 ||
             hopLength <= 0 ||
             speakerCount <= 0 ||
             defaultSpeakerId !in 0 until speakerCount ||
             defaultLanguage != "zh-en" ||
-            vocoderType != "hifigan" ||
+            vocoderType !in setOf("hifigan", "vocos") ||
             !supportedLanguages.containsString("zh-en") ||
             !supportedLanguages.containsString("en-US")
         ) {
@@ -100,7 +117,17 @@ internal object LitsTtsAssetInstaller {
             supportsStreaming &&
             (
                 hiddenEncoderFile.isNullOrBlank() ||
-                    streamDecoderChunkFile.isNullOrBlank() ||
+                    (
+                        streamDecoderExternalLoop &&
+                            (
+                                streamConditionChunkFile.isNullOrBlank() ||
+                                    streamConditionFinalFile.isNullOrBlank() ||
+                                    streamDecoderStepFile.isNullOrBlank() ||
+                                    streamDecoderTimesteps <= 0 ||
+                                    streamDecoderTemperature.isNaN()
+                                )
+                        ) ||
+                    (!streamDecoderExternalLoop && streamDecoderChunkFile.isNullOrBlank()) ||
                     vocoderFile.isNullOrBlank() ||
                     streamingChunkSize <= 0 ||
                     streamingPreLookaheadLen < 0 ||
@@ -122,6 +149,12 @@ internal object LitsTtsAssetInstaller {
             hiddenEncoderModelFile = hiddenEncoderFile,
             streamDecoderChunkModelFile = streamDecoderChunkFile,
             streamDecoderFinalModelFile = streamDecoderFinalFile,
+            streamDecoderExternalLoop = streamDecoderExternalLoop,
+            streamDecoderTimesteps = streamDecoderTimesteps,
+            streamDecoderTemperature = streamDecoderTemperature,
+            streamConditionChunkModelFile = streamConditionChunkFile,
+            streamConditionFinalModelFile = streamConditionFinalFile,
+            streamDecoderStepModelFile = streamDecoderStepFile,
             streamingChunkSize = streamingChunkSize,
             streamingPreLookaheadLen = streamingPreLookaheadLen,
             streamingMelCacheLen = streamingMelCacheLen,
@@ -202,6 +235,9 @@ internal object LitsTtsAssetInstaller {
         val hiddenEncoderModel: File?,
         val streamDecoderChunkModel: File?,
         val streamDecoderFinalModel: File?,
+        val streamConditionChunkModel: File?,
+        val streamConditionFinalModel: File?,
+        val streamDecoderStepModel: File?,
         val frontendGolden: File,
         val chineseLexicon: File,
         val chineseLexiconBin: File,
@@ -211,6 +247,8 @@ internal object LitsTtsAssetInstaller {
         val pinyinToTokens: File,
         val arpabetToTokens: File,
         val polychar: File,
+        val tnZhTts: File,
+        val tnEnTts: File,
     ) {
         companion object {
             fun of(rootDir: File, manifest: ManifestInfo, source: LayoutSource): InstalledLayout = InstalledLayout(
@@ -222,6 +260,9 @@ internal object LitsTtsAssetInstaller {
                 hiddenEncoderModel = manifest.hiddenEncoderModelFile?.let(rootDir::resolve),
                 streamDecoderChunkModel = manifest.streamDecoderChunkModelFile?.let(rootDir::resolve),
                 streamDecoderFinalModel = manifest.streamDecoderFinalModelFile?.let(rootDir::resolve),
+                streamConditionChunkModel = manifest.streamConditionChunkModelFile?.let(rootDir::resolve),
+                streamConditionFinalModel = manifest.streamConditionFinalModelFile?.let(rootDir::resolve),
+                streamDecoderStepModel = manifest.streamDecoderStepModelFile?.let(rootDir::resolve),
                 frontendGolden = rootDir.resolve(LitsTtsAssetRegistry.FRONTEND_GOLDEN),
                 chineseLexicon = rootDir.resolve(LitsTtsAssetRegistry.CHINESE_LEXICON),
                 chineseLexiconBin = rootDir.resolve(LitsTtsAssetRegistry.CHINESE_LEXICON_BIN),
@@ -231,6 +272,8 @@ internal object LitsTtsAssetInstaller {
                 pinyinToTokens = rootDir.resolve(LitsTtsAssetRegistry.PINYIN_TO_TOKENS),
                 arpabetToTokens = rootDir.resolve(LitsTtsAssetRegistry.ARPABET_TO_TOKENS),
                 polychar = rootDir.resolve(LitsTtsAssetRegistry.POLYCHAR),
+                tnZhTts = rootDir.resolve(LitsTtsAssetRegistry.TN_ZH_TTS),
+                tnEnTts = rootDir.resolve(LitsTtsAssetRegistry.TN_EN_TTS),
             )
         }
 
@@ -247,8 +290,16 @@ internal object LitsTtsAssetInstaller {
             )
             if (coreFiles.any { !it.isFile }) return false
             return if (manifest.supportsStreaming) {
-                hiddenEncoderModel?.isFile == true &&
-                    streamDecoderChunkModel?.isFile == true
+                if (manifest.streamDecoderExternalLoop) {
+                    hiddenEncoderModel?.isFile == true &&
+                        streamConditionChunkModel?.isFile == true &&
+                        streamConditionFinalModel?.isFile == true &&
+                        streamDecoderStepModel?.isFile == true
+                } else {
+                    hiddenEncoderModel?.isFile == true &&
+                        streamDecoderChunkModel?.isFile == true &&
+                        streamDecoderFinalModel?.isFile == true
+                }
             } else {
                 acousticModel?.isFile == true
             }
@@ -290,6 +341,12 @@ internal object LitsTtsAssetInstaller {
         val hiddenEncoderModelFile: String?,
         val streamDecoderChunkModelFile: String?,
         val streamDecoderFinalModelFile: String?,
+        val streamDecoderExternalLoop: Boolean,
+        val streamDecoderTimesteps: Int,
+        val streamDecoderTemperature: Float,
+        val streamConditionChunkModelFile: String?,
+        val streamConditionFinalModelFile: String?,
+        val streamDecoderStepModelFile: String?,
         val streamingChunkSize: Int,
         val streamingPreLookaheadLen: Int,
         val streamingMelCacheLen: Int,

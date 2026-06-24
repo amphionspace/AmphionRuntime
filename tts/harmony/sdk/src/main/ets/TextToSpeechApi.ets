@@ -2,15 +2,21 @@ import application from '@ohos.app.ability.application';
 import fs from '@ohos.file.fs';
 import { audio } from '@kit.AudioKit';
 
-const MODEL_ID: string = 'lits_delivery_16k_hifigan';
-const MODEL_VERSION: string = '1.0.0';
+const MODEL_ID: string = 'transsion_lits_en_zh_vocos24k_streaming_proto_external_loop';
+const MODEL_VERSION: string = '0.1.0';
 const BUNDLED_MODEL_RAWFILE_DIR: string = `lits-models/tts/${MODEL_ID}/${MODEL_VERSION}`;
-const DEFAULT_SAMPLE_RATE: number = 16000;
+const DEFAULT_SAMPLE_RATE: number = 24000;
 const MAX_ENGINE_COUNT: number = 3;
 const MAX_TEXT_LENGTH: number = 10000;
 const AUDIO_CHUNK_BYTES: number = 4096;
 const SYNTHESIS_CALLBACK_CHUNK_BYTES: number = 524288;
 const DEFAULT_LANGUAGE_CONTEXT: string = 'zh-CN';
+const TN_LOG_TAG: string = '[LitsTn]';
+const TEXT_METRIC_LOG_TAG: string = '[LitsTextMetric]';
+const STREAM_METRIC_LOG_TAG: string = '[LitsStreamMetric]';
+const DEFAULT_PCM_QUEUE_CAPACITY_VALUE: number = 32;
+const MAX_PCM_QUEUE_CAPACITY_VALUE: number = 256;
+const STREAMING_PREBUFFER_CHUNKS: number = 2;
 
 const SUPPORTED_LANGUAGES: Array<string> = ['zh-en', 'en-US'];
 const SUPPORTED_LANGUAGE_SET: Set<string> = new Set<string>(SUPPORTED_LANGUAGES);
@@ -47,8 +53,11 @@ const VOICES: Array<RegisteredVoice> = [
 
 const REQUIRED_RUNTIME_FILES: Array<string> = [
   'manifest.json',
-  'lits_acoustic.onnx',
-  'hifigan_vocoder.onnx',
+  'lits_hidden_encoder.onnx',
+  'lits_stream_condition_chunk.onnx',
+  'lits_stream_condition_final.onnx',
+  'lits_stream_decoder_step.onnx',
+  'vocos_vocoder.onnx',
   'chinese_lexicon.txt',
   'cmudict.txt',
   'polychar.txt',
@@ -60,17 +69,29 @@ const REQUIRED_RUNTIME_FILES: Array<string> = [
 const BUNDLED_MODEL_FILES: Array<string> = [
   'manifest.json',
   'export_report.json',
-  'smoke_tokens.json',
+  'vocos_vocoder.export_report.json',
   'frontend_golden.json',
   'chinese_lexicon.txt',
+  'chinese_lexicon.bin',
   'cmudict.txt',
+  'cmudict.bin',
   'pinyin_2_bpmf.txt',
   'polychar.txt',
   'zh_en_symbols.json',
   'pinyin_to_tokens.json',
   'arpabet_to_tokens.json',
-  'lits_acoustic.onnx',
-  'hifigan_vocoder.onnx'
+  'tn-bin/arm64-v8a/zh_tts',
+  'tn-bin/arm64-v8a/en_tts',
+  'rules/zh.json',
+  'rules/en.json',
+  'rules/zh_pinyin.json',
+  'rules_v2/zh.full.json',
+  'rules_v2/en.full.json',
+  'lits_hidden_encoder.onnx',
+  'lits_stream_condition_chunk.onnx',
+  'lits_stream_condition_final.onnx',
+  'lits_stream_decoder_step.onnx',
+  'vocos_vocoder.onnx'
 ];
 
 let bundledModelPackageDirCache: string | undefined = undefined;
@@ -144,6 +165,93 @@ const CHINESE_DIGIT_TEXT_BY_CHAR: Map<string, string> = new Map<string, string>(
   ['9', '\u4E5D']
 ]);
 
+const ZH_EN_FRONTEND_CHAR_REPLACEMENTS: Map<string, string> = new Map<string, string>([
+  ['/', '\u659C\u6760'],
+  ['\\', '\u53CD\u659C\u6760'],
+  ['^', '\u5E42'],
+  ['\u2070', '\u96F6'],
+  ['\u00B9', '\u4E00'],
+  ['\u00B2', '\u4E8C'],
+  ['\u00B3', '\u4E09'],
+  ['\u2074', '\u56DB'],
+  ['\u2075', '\u4E94'],
+  ['\u2076', '\u516D'],
+  ['\u2077', '\u4E03'],
+  ['\u2078', '\u516B'],
+  ['\u2079', '\u4E5D'],
+  ['\u2080', '\u96F6'],
+  ['\u2081', '\u4E00'],
+  ['\u2082', '\u4E8C'],
+  ['\u2083', '\u4E09'],
+  ['\u2084', '\u56DB'],
+  ['\u2085', '\u4E94'],
+  ['\u2086', '\u516D'],
+  ['\u2087', '\u4E03'],
+  ['\u2088', '\u516B'],
+  ['\u2089', '\u4E5D']
+]);
+
+const ZH_EN_ASCII_SYMBOL_TEXT: Map<string, string> = new Map<string, string>([
+  ['@', '\u827E\u7279'],
+  ['#', '\u4E95\u53F7'],
+  ['$', '\u7F8E\u5143'],
+  ['%', '\u767E\u5206\u53F7'],
+  ['&', '\u548C'],
+  ['*', '\u661F\u53F7'],
+  ['+', '\u52A0'],
+  ['=', '\u7B49\u4E8E'],
+  ['_', '\u4E0B\u5212\u7EBF'],
+  ['|', '\u7AD6\u7EBF'],
+  ['~', '\u6CE2\u6D6A\u7EBF']
+]);
+
+const SYMBOL_TO_SAFE_PUNCTUATION: Map<string, string> = new Map<string, string>([
+  ['{', '('],
+  ['}', ')'],
+  ['\uFF5B', '('],
+  ['\uFF5D', ')'],
+  ['\u300C', '"'],
+  ['\u300D', '"'],
+  ['\u300E', '"'],
+  ['\u300F', '"'],
+  ['\u3014', '['],
+  ['\u3015', ']'],
+  ['\u3016', '['],
+  ['\u3017', ']'],
+  ['\u3018', '['],
+  ['\u3019', ']'],
+  ['\u301A', '['],
+  ['\u301B', ']'],
+  ['\uFF3B', '['],
+  ['\uFF3D', ']'],
+  ['\uFF1C', '<'],
+  ['\uFF1E', '>'],
+  ['\uFF0F', ','],
+  ['\uFF3C', ','],
+  ['\uFF20', ','],
+  ['\uFF03', ','],
+  ['\uFF04', ','],
+  ['\uFF05', ','],
+  ['\uFF06', ','],
+  ['\uFF0A', ','],
+  ['\uFF0B', ','],
+  ['\uFF1D', ','],
+  ['\uFF3F', ','],
+  ['\uFF5C', ','],
+  ['\uFF5E', ','],
+  ['\u2190', ','],
+  ['\u2191', ','],
+  ['\u2192', ','],
+  ['\u2193', ','],
+  ['\u21D2', ','],
+  ['\u2605', ','],
+  ['\u2606', ','],
+  ['\u2713', ','],
+  ['\u2714', ','],
+  ['\u2715', ','],
+  ['\u2716', ',']
+]);
+
 const ENGLISH_MERGE_RULES: Array<MergeRule> = [
   { pair: ['t', '\u0279'], replacement: 't\u0279' },
   { pair: ['d', '\u0279'], replacement: 'd\u0279' },
@@ -154,11 +262,80 @@ const ENGLISH_MERGE_RULES: Array<MergeRule> = [
 ];
 
 const PINYIN_SYLLABLE_REGEX: RegExp = /^[a-z]+[0-6]$/;
+const SENTENCE_END_PUNCTUATION: Set<string> = new Set<string>(['.', '!', '?', ';', ',', '\u2026']);
+const ATTACHED_SENTENCE_SUFFIX: Set<string> = new Set<string>([
+  '"',
+  '\'',
+  ')',
+  ']',
+  '}',
+  '>',
+  '\u201D',
+  '\u2019',
+  '\u300B',
+  '\u3011'
+]);
+const ENGLISH_ABBREVIATIONS: Set<string> = new Set<string>([
+  'mr',
+  'mrs',
+  'ms',
+  'dr',
+  'prof',
+  'sr',
+  'jr',
+  'st',
+  'mt',
+  'vs',
+  'etc',
+  'fig',
+  'no',
+  'e.g',
+  'i.e',
+  'a.m',
+  'p.m',
+  'u.s',
+  'u.k'
+]);
+const ACRONYM_AT_END_REGEX: RegExp = /(?:^|\s)(?:[A-Za-z]\.){2,}$/;
+const MIN_WEAK_PUNCTUATION_SEGMENT_CHARS: number = 24;
+const MIN_SHORT_SYMBOL_SEGMENT_CHARS: number = 8;
+const DEFAULT_WORDS_PER_STREAMING_SEGMENT: number = 7;
+const PLATE_PROVINCES: string = '\u4EAC\u6D25\u6CAA\u6E1D\u5180\u8C6B\u4E91\u8FBD\u9ED1\u6E58\u7696\u9C81\u65B0\u82CF\u6D59\u8D63\u9102\u6842\u7518\u664B\u8499\u9655\u5409\u95FD\u8D35\u7CA4\u9752\u85CF\u5DDD\u5B81\u743C';
+const PERCENTILE_CODE_REGEX: RegExp = /^P\d{1,3}$/;
 
 interface NativeTtsModule {
-  createRuntime(acousticPath: string, vocoderPath: string): object;
+  createRuntime(
+    hiddenEncoderPath: string,
+    streamConditionChunkPath: string,
+    streamConditionFinalPath: string,
+    streamDecoderStepPath: string,
+    vocoderPath: string,
+    chunkSize: number,
+    preLookaheadLen: number,
+    melCacheLen: number,
+    hopLength: number,
+    decoderTimesteps: number,
+    decoderTemperature: number
+  ): object;
   releaseRuntime(runtimeHandle: object): void;
+  cancelRuntime(runtimeHandle: object): void;
   synthesize(runtimeHandle: object, tokenIds: Array<number>, speakerId: number): ArrayBuffer;
+  synthesizeAsync(runtimeHandle: object, tokenIds: Array<number>, speakerId: number): Promise<ArrayBuffer>;
+  synthesizeStreaming(
+    runtimeHandle: object,
+    tokenIds: Array<number>,
+    speakerId: number,
+    onChunk: (chunk: ArrayBuffer, sequence: number) => void
+  ): Promise<NativeStreamingSynthesisMetrics>;
+  normalizeTnSegment(binaryPath: string, workingDir: string, text: string): string;
+}
+
+interface NativeStreamingSynthesisMetrics {
+  synthesisMs: number;
+  firstChunkMs: number;
+  audioBytes: number;
+  chunkCount: number;
+  textMetricSummary?: string;
 }
 
 export enum TtsErrorCode {
@@ -190,6 +367,10 @@ export interface Callback<T> {
 
 export interface ExtraParams {
   modelPackageDir?: string;
+  streamingChunkSize?: number;
+  streamingFirstChunkSize?: number;
+  pcmQueueCapacity?: number;
+  pcmQueueSize?: number;
 }
 
 export enum RunMode {
@@ -270,6 +451,11 @@ export interface SynthesisResponse {
 export interface CompleteResponse {
   type: CompleteType;
   message: string;
+  firstPacketMs?: number;
+  synthesisMs?: number;
+  audioDurationMs?: number;
+  rtf?: number;
+  profilingInfo?: string;
 }
 
 export interface StopResponse {
@@ -323,7 +509,17 @@ interface ModelManifest {
   input_modes?: Array<string>;
   runtime_format?: string;
   vocoder_type?: string;
+  streaming_chunk_size?: number;
+  streaming_pre_lookahead_len?: number;
+  streaming_mel_cache_len?: number;
   acoustic_model?: ManifestModelFile;
+  hidden_encoder_model?: ManifestModelFile;
+  stream_condition_chunk_model?: ManifestModelFile;
+  stream_condition_final_model?: ManifestModelFile;
+  stream_decoder_step_model?: ManifestModelFile;
+  stream_decoder_external_loop?: boolean;
+  stream_decoder_n_timesteps?: number;
+  stream_decoder_temperature?: number;
   vocoder_model?: ManifestModelFile;
 }
 
@@ -346,17 +542,43 @@ interface LoadedPackage {
 
 interface RequiredManifest {
   sampleRate: number;
+  hopLength: number;
   speakerCount: number;
   defaultSpeakerId: number;
+  supportsStreaming: boolean;
   supportedLanguages: Array<string>;
-  acousticModelFile: string;
+  hiddenEncoderModelFile: string;
+  streamConditionChunkModelFile: string;
+  streamConditionFinalModelFile: string;
+  streamDecoderStepModelFile: string;
+  streamDecoderTimesteps: number;
+  streamDecoderTemperature: number;
   vocoderModelFile: string;
+  streamingChunkSize: number;
+  streamingPreLookaheadLen: number;
+  streamingMelCacheLen: number;
 }
 
 interface InternalSynthesis {
   pcm: ArrayBuffer;
   sampleRate: number;
   tokenIds: Array<number>;
+}
+
+interface TextMetric {
+  rawText: string;
+  tnText: string;
+  cleanedText: string;
+  cleanedTokenLength: number;
+  modelTokenLength: number;
+  tokenIds: Array<number>;
+  tokenIdHead: Array<number>;
+  tokenIdTail: Array<number>;
+}
+
+interface PcmQueueTakeResult {
+  chunk?: ArrayBuffer;
+  done: boolean;
 }
 
 interface SynthesisTask {
@@ -402,10 +624,26 @@ class FrontendResources {
       raw.version !== MODEL_VERSION ||
       raw.runtime_format !== 'onnx' ||
       raw.sample_rate !== DEFAULT_SAMPLE_RATE ||
+      raw.hop_length === undefined ||
+      raw.hop_length <= 0 ||
+      raw.supports_streaming !== true ||
       (raw.supported_languages ?? []).indexOf('zh-en') < 0 ||
       (raw.supported_languages ?? []).indexOf('en-US') < 0 ||
-      raw.acoustic_model?.file !== 'lits_acoustic.onnx' ||
-      raw.vocoder_model?.file !== 'hifigan_vocoder.onnx' ||
+      raw.hidden_encoder_model?.file !== 'lits_hidden_encoder.onnx' ||
+      raw.stream_decoder_external_loop !== true ||
+      raw.stream_condition_chunk_model?.file !== 'lits_stream_condition_chunk.onnx' ||
+      raw.stream_condition_final_model?.file !== 'lits_stream_condition_final.onnx' ||
+      raw.stream_decoder_step_model?.file !== 'lits_stream_decoder_step.onnx' ||
+      raw.stream_decoder_n_timesteps === undefined ||
+      raw.stream_decoder_n_timesteps <= 0 ||
+      raw.stream_decoder_temperature === undefined ||
+      raw.vocoder_model?.file !== 'vocos_vocoder.onnx' ||
+      raw.streaming_chunk_size === undefined ||
+      raw.streaming_chunk_size <= 0 ||
+      raw.streaming_pre_lookahead_len === undefined ||
+      raw.streaming_pre_lookahead_len < 0 ||
+      raw.streaming_mel_cache_len === undefined ||
+      raw.streaming_mel_cache_len <= 0 ||
       raw.speaker_count === undefined ||
       raw.speaker_count < 1 ||
       raw.default_speaker_id === undefined ||
@@ -419,11 +657,21 @@ class FrontendResources {
     }
     return {
       sampleRate: raw.sample_rate,
+      hopLength: raw.hop_length,
       speakerCount: raw.speaker_count,
       defaultSpeakerId: raw.default_speaker_id,
+      supportsStreaming: raw.supports_streaming,
       supportedLanguages: raw.supported_languages ?? ['zh-en', 'en-US'],
-      acousticModelFile: raw.acoustic_model.file,
-      vocoderModelFile: raw.vocoder_model.file
+      hiddenEncoderModelFile: raw.hidden_encoder_model.file,
+      streamConditionChunkModelFile: raw.stream_condition_chunk_model.file,
+      streamConditionFinalModelFile: raw.stream_condition_final_model.file,
+      streamDecoderStepModelFile: raw.stream_decoder_step_model.file,
+      streamDecoderTimesteps: raw.stream_decoder_n_timesteps,
+      streamDecoderTemperature: raw.stream_decoder_temperature,
+      vocoderModelFile: raw.vocoder_model.file,
+      streamingChunkSize: raw.streaming_chunk_size,
+      streamingPreLookaheadLen: raw.streaming_pre_lookahead_len,
+      streamingMelCacheLen: raw.streaming_mel_cache_len
     };
   }
 
@@ -525,9 +773,197 @@ class FrontendResources {
   }
 }
 
+class TranssionTnNormalizer {
+  static normalize(resources: LoadedPackage, text: string, language: string, languageContext: string): string {
+    const input = TranssionTnNormalizer.prepareInput(text, languageContext);
+    console.info(`${TN_LOG_TAG} normalize start language=${language} languageContext=${languageContext} inputLen=${input.length} root=${resources.rootDir}`);
+    if (input.length === 0) {
+      console.info(`${TN_LOG_TAG} normalize skip empty input`);
+      return text;
+    }
+    if (!TranssionTnNormalizer.hasTnBinaries(resources)) {
+      console.error(`${TN_LOG_TAG} normalize skip missing binaries zh=${TranssionTnNormalizer.binaryPath(resources, 'zh')} en=${TranssionTnNormalizer.binaryPath(resources, 'en')}`);
+      return text;
+    }
+    let output: string;
+    try {
+      if (language === 'en-US' || languageContext === 'en-US') {
+        output = TranssionTnNormalizer.normalizeSegment(resources, input, 'en');
+      } else {
+        output = TranssionTnNormalizer.segmentZhEn(input)
+          .map((segment: TnTextSegment): string => TranssionTnNormalizer.normalizeSegment(resources, segment.text, segment.lang))
+          .join('');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`${TN_LOG_TAG} normalize failed language=${language} languageContext=${languageContext} message=${message}`);
+      const code = error instanceof TextToSpeechException ? error.errorCode : TtsErrorCode.RUNTIME_EXCEPTION;
+      throw new TextToSpeechException(code, message);
+    }
+    console.info(`${TN_LOG_TAG} normalize success outputLen=${output.length}`);
+    return output;
+  }
+
+  private static prepareInput(text: string, languageContext: string): string {
+    let output = '';
+    const normalized = LitsTtsFrontend.normalizeText(text, languageContext);
+    for (let index = 0; index < normalized.length; index += 1) {
+      const code = normalized.charCodeAt(index);
+      if ((code >= 0x00 && code <= 0x1f) || (code >= 0x7f && code <= 0x9f)) {
+        continue;
+      }
+      const char = normalized[index];
+      output += LitsTtsFrontend.isWhitespace(char) ? ' ' : char;
+    }
+    return output.replace(/\s+/g, ' ').trim();
+  }
+
+  private static hasTnBinaries(resources: LoadedPackage): boolean {
+    const zhPath = TranssionTnNormalizer.binaryPath(resources, 'zh');
+    const enPath = TranssionTnNormalizer.binaryPath(resources, 'en');
+    const zhExists = isRegularFile(zhPath);
+    const enExists = isRegularFile(enPath);
+    console.info(`${TN_LOG_TAG} binary check zh=${zhExists} path=${zhPath} en=${enExists} path=${enPath}`);
+    return zhExists && enExists;
+  }
+
+  private static normalizeSegment(resources: LoadedPackage, text: string, lang: string): string {
+    if (text.trim().length === 0) {
+      return text;
+    }
+    const binaryPath = TranssionTnNormalizer.binaryPath(resources, lang);
+    console.info(`${TN_LOG_TAG} segment start lang=${lang} textLen=${text.length} binary=${binaryPath} root=${resources.rootDir} preview=${TranssionTnNormalizer.preview(text)}`);
+    try {
+      const normalized = resolveNativeTtsModule().normalizeTnSegment(
+        binaryPath,
+        resources.rootDir,
+        text
+      );
+      console.info(`${TN_LOG_TAG} segment success lang=${lang} outputLen=${normalized.length} preview=${TranssionTnNormalizer.preview(normalized)}`);
+      return normalized;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`${TN_LOG_TAG} segment failed lang=${lang} binary=${binaryPath} root=${resources.rootDir} message=${message}`);
+      const code = error instanceof TextToSpeechException ? error.errorCode : TtsErrorCode.RUNTIME_EXCEPTION;
+      throw new TextToSpeechException(code, message);
+    }
+  }
+
+  private static binaryPath(resources: LoadedPackage, lang: string): string {
+    return joinPath(resources.rootDir, lang === 'en' ? 'tn-bin/arm64-v8a/en_tts' : 'tn-bin/arm64-v8a/zh_tts');
+  }
+
+  private static preview(text: string): string {
+    const singleLine = text.replace(/\s+/g, ' ');
+    return singleLine.length > 80 ? `${singleLine.substring(0, 80)}...` : singleLine;
+  }
+
+  private static segmentZhEn(text: string): Array<TnTextSegment> {
+    const segments: Array<TnTextSegment> = [];
+    let index = 0;
+    while (index < text.length) {
+      const char = text[index];
+      if (LitsTtsFrontend.isEnglishLetter(char)) {
+        const end = TranssionTnNormalizer.scanAsciiRun(text, index);
+        const segment = text.substring(index, end);
+        const lang = TranssionTnNormalizer.protectedAsciiRunLang(text, index, end, segment) ?? 'en';
+        segments.push({ text: segment, lang });
+        index = end;
+      } else {
+        const end = TranssionTnNormalizer.scanNonAsciiRun(text, index);
+        segments.push({ text: text.substring(index, end), lang: 'zh' });
+        index = end;
+      }
+    }
+    return segments;
+  }
+
+  private static scanAsciiRun(text: string, start: number): number {
+    let index = start;
+    while (index < text.length) {
+      const char = text[index];
+      const allowedPunctuation = char === '\'' || char === '.' || char === '_' || char === '-';
+      if (!LitsTtsFrontend.isEnglishLetter(char) && !LitsTtsFrontend.isAsciiDigit(char) && !allowedPunctuation) {
+        break;
+      }
+      index += 1;
+    }
+    return index;
+  }
+
+  private static scanNonAsciiRun(text: string, start: number): number {
+    let index = start;
+    while (
+      index < text.length &&
+      (!LitsTtsFrontend.isEnglishLetter(text[index]) || TranssionTnNormalizer.isAsciiCelsiusUnit(text, index))
+    ) {
+      index += 1;
+    }
+    return index;
+  }
+
+  private static isAsciiCelsiusUnit(text: string, index: number): boolean {
+    return index > 0 && text[index - 1] === '\u00B0' && (text[index] === 'C' || text[index] === 'c');
+  }
+
+  private static protectedAsciiRunLang(text: string, start: number, end: number, run: string): string | undefined {
+    if (TranssionTnNormalizer.isProtectedChemicalFormula(run)) {
+      return 'en';
+    }
+    if (TranssionTnNormalizer.isChineseContextCode(text, start, end, run)) {
+      return 'zh';
+    }
+    return undefined;
+  }
+
+  private static isProtectedChemicalFormula(run: string): boolean {
+    return run === 'SO2' || run === 'CO2' || run === 'C6H12O6';
+  }
+
+  private static isChineseContextCode(text: string, start: number, end: number, run: string): boolean {
+    const touchesChinese = (start > 0 && LitsTtsFrontend.isCjk(text[start - 1])) ||
+      (end < text.length && LitsTtsFrontend.isCjk(text[end]));
+    if (!touchesChinese) {
+      return false;
+    }
+    let hasDigit = false;
+    let upperCount = 0;
+    let hasLower = false;
+    for (let index = 0; index < run.length; index += 1) {
+      const char = run[index];
+      if (LitsTtsFrontend.isAsciiDigit(char)) {
+        hasDigit = true;
+      } else if (char >= 'A' && char <= 'Z') {
+        upperCount += 1;
+      } else if (char >= 'a' && char <= 'z') {
+        hasLower = true;
+      }
+    }
+    const followsPlateProvince = start > 0 && PLATE_PROVINCES.includes(text[start - 1]);
+    const isPercentileCode = PERCENTILE_CODE_REGEX.test(run);
+    return hasDigit && !hasLower && (upperCount >= 1 || followsPlateProvince || isPercentileCode);
+  }
+}
+
+interface TnTextSegment {
+  text: string;
+  lang: string;
+}
+
 class LitsTtsFrontend {
   static encode(resources: LoadedPackage, text: string, language: string, languageContext: string): Array<number> {
-    const normalized = LitsTtsFrontend.normalizeText(text).trim();
+    return LitsTtsFrontend.buildTextMetric(resources, text, language, languageContext).tokenIds;
+  }
+
+  static buildTextMetric(
+    resources: LoadedPackage,
+    text: string,
+    language: string,
+    languageContext: string,
+    alreadyNormalized: boolean = false
+  ): TextMetric {
+    const tnText = alreadyNormalized ? text : TranssionTnNormalizer.normalize(resources, text, language, languageContext);
+    const normalized = LitsTtsFrontend.normalizeText(tnText, languageContext).trim();
     if (normalized.length === 0) {
       throw new TextToSpeechException(TtsErrorCode.TEXT_LENGTH_INVALID, 'text must not be empty');
     }
@@ -540,6 +976,7 @@ class LitsTtsFrontend {
 
     const output: Array<string> = [];
     let index = 0;
+    let previousPhonemeLanguage = '';
     while (index < normalized.length) {
       const char = normalized[index];
       if (LitsTtsFrontend.isWhitespace(char)) {
@@ -549,6 +986,7 @@ class LitsTtsFrontend {
       }
       if (PUNCTUATION_SET.has(char)) {
         LitsTtsFrontend.appendPunctuation(output, char);
+        previousPhonemeLanguage = 'boundary';
         index += 1;
         continue;
       }
@@ -566,7 +1004,13 @@ class LitsTtsFrontend {
           const syllables = LitsTtsFrontend.applyThirdToneSandhi(
             LitsTtsFrontend.hanziChunkToPinyin(resources, chineseText)
           );
-          LitsTtsFrontend.appendChineseSyllables(output, resources, syllables);
+          LitsTtsFrontend.appendChineseSyllables(
+            output,
+            resources,
+            syllables,
+            previousPhonemeLanguage === 'en' || previousPhonemeLanguage === 'boundary'
+          );
+          previousPhonemeLanguage = 'zh';
         } else {
           digits.split('').forEach((digit: string): void => {
             LitsTtsFrontend.appendBoundary(output);
@@ -584,6 +1028,7 @@ class LitsTtsFrontend {
             });
           });
           LitsTtsFrontend.appendBoundary(output);
+          previousPhonemeLanguage = 'en';
         }
         index = end;
         continue;
@@ -593,7 +1038,13 @@ class LitsTtsFrontend {
         const syllables = LitsTtsFrontend.applyThirdToneSandhi(
           LitsTtsFrontend.hanziChunkToPinyin(resources, normalized.substring(index, end))
         );
-        LitsTtsFrontend.appendChineseSyllables(output, resources, syllables);
+        LitsTtsFrontend.appendChineseSyllables(
+          output,
+          resources,
+          syllables,
+          previousPhonemeLanguage === 'en' || previousPhonemeLanguage === 'boundary'
+        );
+        previousPhonemeLanguage = 'zh';
         index = end;
         continue;
       }
@@ -609,6 +1060,7 @@ class LitsTtsFrontend {
             mapped.forEach((token: string): void => {
               output.push(token);
             });
+            previousPhonemeLanguage = 'zh';
             index = end + 1;
             continue;
           }
@@ -623,10 +1075,13 @@ class LitsTtsFrontend {
           output.push(token);
         });
         LitsTtsFrontend.appendBoundary(output);
+        previousPhonemeLanguage = 'en';
         index = end;
         continue;
       }
-      throw new TextToSpeechException(TtsErrorCode.RUNTIME_EXCEPTION, `unsupported frontend character: ${char}`);
+      LitsTtsFrontend.appendPunctuation(output, ',');
+      previousPhonemeLanguage = 'boundary';
+      index += 1;
     }
 
     while (output.length > 0 && output[output.length - 1] === '_') {
@@ -643,10 +1098,69 @@ class LitsTtsFrontend {
       }
       return id;
     });
-    return LitsTtsFrontend.intersperseZero(ids);
+    const modelTokenIds = ids;
+    return {
+      rawText: text,
+      tnText,
+      cleanedText: output.join(' '),
+      cleanedTokenLength: ids.length,
+      modelTokenLength: modelTokenIds.length,
+      tokenIds: modelTokenIds,
+      tokenIdHead: modelTokenIds.slice(0, Math.min(24, modelTokenIds.length)),
+      tokenIdTail: modelTokenIds.slice(Math.max(0, modelTokenIds.length - 24), modelTokenIds.length)
+    };
   }
 
-  private static normalizeText(text: string): string {
+  static splitForStreaming(
+    resources: LoadedPackage,
+    text: string,
+    language: string = 'zh-en',
+    languageContext: string = 'zh-en',
+    wordsPerSegment: number = DEFAULT_WORDS_PER_STREAMING_SEGMENT
+  ): Array<string> {
+    const tnText = TranssionTnNormalizer.normalize(resources, text, language, languageContext);
+    const normalized = LitsTtsFrontend.normalizeText(tnText, languageContext).trim();
+    if (normalized.length === 0) {
+      return [];
+    }
+    const segments: Array<string> = [];
+    let current = '';
+    let index = 0;
+    while (index < normalized.length) {
+      const char = normalized[index];
+      if (LitsTtsFrontend.isWhitespace(char)) {
+        if (current.length > 0 && current[current.length - 1] !== ' ') {
+          current += ' ';
+        }
+        index += 1;
+        continue;
+      }
+      current += char;
+      if (LitsTtsFrontend.shouldSplitAfterPunctuation(normalized, index, current, wordsPerSegment)) {
+        while (
+          index + 1 < normalized.length &&
+          LitsTtsFrontend.isAttachedSentenceSuffix(normalized[index + 1])
+        ) {
+          index += 1;
+          current += normalized[index];
+        }
+        while (
+          index + 1 < normalized.length &&
+          LitsTtsFrontend.isSentenceEndPunctuation(normalized[index + 1]) &&
+          normalized[index + 1] !== ','
+        ) {
+          index += 1;
+          current += normalized[index];
+        }
+        current = LitsTtsFrontend.flushSegment(segments, current);
+      }
+      index += 1;
+    }
+    current = LitsTtsFrontend.flushSegment(segments, current);
+    return segments.length > 0 ? segments : [normalized];
+  }
+
+  static normalizeText(text: string, languageContext: string = DEFAULT_LANGUAGE_CONTEXT): string {
     let normalized = text
       .replace(/\.\.\./g, '\u2026')
       .replace(/\u22EF/g, '\u2026')
@@ -654,10 +1168,276 @@ class LitsTtsFrontend {
       .replace(/\u30FB\u30FB\u30FB/g, '\u2026');
     let output = '';
     for (let index = 0; index < normalized.length; index += 1) {
+      const code = normalized.charCodeAt(index);
+      if (LitsTtsFrontend.isHighSurrogate(code)) {
+        if (index + 1 < normalized.length && LitsTtsFrontend.isLowSurrogate(normalized.charCodeAt(index + 1))) {
+          index += 1;
+        }
+        output += ',';
+        continue;
+      }
+      if (LitsTtsFrontend.isLowSurrogate(code) || LitsTtsFrontend.isIgnoredFormatCode(code)) {
+        continue;
+      }
       const char = normalized[index];
-      output += FULLWIDTH_PUNCTUATION.get(char) ?? char;
+      output += LitsTtsFrontend.normalizeFrontendChar(char, languageContext);
     }
     return output;
+  }
+
+  private static normalizeFrontendChar(char: string, languageContext: string): string {
+    const fullwidthMapped = FULLWIDTH_PUNCTUATION.get(char);
+    if (fullwidthMapped !== undefined) {
+      return fullwidthMapped;
+    }
+    if (LitsTtsFrontend.isSupportedFrontendChar(char)) {
+      return char;
+    }
+    const shouldReadAsChinese = languageContext !== 'en-US';
+    if (shouldReadAsChinese) {
+      const zhReplacement = ZH_EN_FRONTEND_CHAR_REPLACEMENTS.get(char) ?? ZH_EN_ASCII_SYMBOL_TEXT.get(char);
+      if (zhReplacement !== undefined) {
+        return zhReplacement;
+      }
+    }
+    const safePunctuation = SYMBOL_TO_SAFE_PUNCTUATION.get(char);
+    if (safePunctuation !== undefined) {
+      return safePunctuation;
+    }
+    if (LitsTtsFrontend.isAsciiSymbol(char) || LitsTtsFrontend.isUnicodeSymbolLike(char)) {
+      return ',';
+    }
+    return ',';
+  }
+
+  private static shouldSplitAfterPunctuation(
+    text: string,
+    index: number,
+    current: string,
+    minWordsForWeakSplit: number
+  ): boolean {
+    const char = text[index];
+    if (!LitsTtsFrontend.isSentenceEndPunctuation(char)) {
+      return false;
+    }
+    if (LitsTtsFrontend.isPunctuationInsideTechnicalToken(text, index)) {
+      return false;
+    }
+    if (LitsTtsFrontend.wouldCreateShortSymbolSegment(current)) {
+      return false;
+    }
+    if (char === ',' && !LitsTtsFrontend.shouldSplitAfterWeakComma(text, index, current, minWordsForWeakSplit)) {
+      return false;
+    }
+    if (char === '.' && !LitsTtsFrontend.shouldSplitAfterPeriod(text, index)) {
+      return false;
+    }
+    return true;
+  }
+
+  private static shouldSplitAfterPeriod(text: string, index: number): boolean {
+    const prev = LitsTtsFrontend.previousNonSpace(text, index - 1);
+    const next = LitsTtsFrontend.nextNonSpace(text, index + 1);
+    if (
+      prev !== undefined &&
+      next !== undefined &&
+      LitsTtsFrontend.isAsciiDigit(prev) &&
+      LitsTtsFrontend.isAsciiDigit(next)
+    ) {
+      return false;
+    }
+    if (LitsTtsFrontend.isUrlOrEmailPeriod(text, index)) {
+      return false;
+    }
+    if (LitsTtsFrontend.isEnglishAbbreviationPeriod(text, index)) {
+      return false;
+    }
+    if (prev !== undefined && LitsTtsFrontend.isHanzi(prev)) {
+      return true;
+    }
+    return LitsTtsFrontend.isBoundaryAfterSentencePunctuation(text, index);
+  }
+
+  private static shouldSplitAfterWeakComma(
+    text: string,
+    index: number,
+    current: string,
+    minWordsForWeakSplit: number
+  ): boolean {
+    const prev = LitsTtsFrontend.previousNonSpace(text, index - 1);
+    const next = LitsTtsFrontend.nextNonSpace(text, index + 1);
+    if (
+      prev !== undefined &&
+      next !== undefined &&
+      LitsTtsFrontend.isAsciiDigit(prev) &&
+      LitsTtsFrontend.isAsciiDigit(next)
+    ) {
+      return false;
+    }
+    const trimmed = current.trim();
+    if (trimmed.length < MIN_WEAK_PUNCTUATION_SEGMENT_CHARS) {
+      return false;
+    }
+    return LitsTtsFrontend.countRoughWords(trimmed) >= minWordsForWeakSplit || LitsTtsFrontend.containsHanzi(trimmed);
+  }
+
+  private static isBoundaryAfterSentencePunctuation(text: string, index: number): boolean {
+    let cursor = index + 1;
+    while (cursor < text.length && LitsTtsFrontend.isAttachedSentenceSuffix(text[cursor])) {
+      cursor += 1;
+    }
+    return cursor >= text.length || LitsTtsFrontend.isWhitespace(text[cursor]) || LitsTtsFrontend.isHanzi(text[cursor]);
+  }
+
+  private static isEnglishAbbreviationPeriod(text: string, index: number): boolean {
+    const token = LitsTtsFrontend.asciiTokenBefore(text, index).toLowerCase();
+    if (ENGLISH_ABBREVIATIONS.has(token)) {
+      return true;
+    }
+    if (token.length === 1 && LitsTtsFrontend.isLowercaseAsciiLetter(token)) {
+      return true;
+    }
+    const prefix = text.substring(0, index + 1);
+    return ACRONYM_AT_END_REGEX.test(prefix);
+  }
+
+  private static isUrlOrEmailPeriod(text: string, index: number): boolean {
+    const start = LitsTtsFrontend.scanNonSpaceTokenStart(text, index);
+    const end = LitsTtsFrontend.scanNonSpaceTokenEnd(text, index);
+    const token = text.substring(start, end);
+    const next = index + 1 < text.length ? text[index + 1] : undefined;
+    const nextIsAsciiAlnum = next !== undefined && LitsTtsFrontend.isAsciiAlnum(next);
+    const dotCount = token.split('.').length - 1;
+    return (
+      nextIsAsciiAlnum &&
+      (token.includes('://') || token.includes('@') || token.toLowerCase().startsWith('www.'))
+    ) || (
+      index + 1 < text.length &&
+      next !== undefined &&
+      LitsTtsFrontend.isAsciiAlnum(next) &&
+      dotCount >= 1
+    );
+  }
+
+  private static isPunctuationInsideTechnicalToken(text: string, index: number): boolean {
+    const char = text[index];
+    const prev = index > 0 ? text[index - 1] : undefined;
+    const next = index + 1 < text.length ? text[index + 1] : undefined;
+    if (prev === undefined || next === undefined) {
+      return false;
+    }
+    if (LitsTtsFrontend.isAsciiDigit(prev) && LitsTtsFrontend.isAsciiDigit(next)) {
+      return true;
+    }
+    if (
+      (char === ':' || char === '/' || char === '?' || char === '=' || char === '&') &&
+      LitsTtsFrontend.hasAsciiNear(text, index)
+    ) {
+      return true;
+    }
+    if (
+      (char === '.' || char === '-' || char === '_' || char === '#') &&
+      LitsTtsFrontend.isAsciiAlnum(next)
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  private static hasAsciiNear(text: string, index: number): boolean {
+    const start = LitsTtsFrontend.scanNonSpaceTokenStart(text, index);
+    const end = LitsTtsFrontend.scanNonSpaceTokenEnd(text, index);
+    for (let cursor = start; cursor < end; cursor += 1) {
+      if (LitsTtsFrontend.isAsciiAlnum(text[cursor])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static wouldCreateShortSymbolSegment(current: string): boolean {
+    const trimmed = current.trim();
+    if (trimmed.length >= MIN_SHORT_SYMBOL_SEGMENT_CHARS) {
+      return false;
+    }
+    if (LitsTtsFrontend.containsHanzi(trimmed) && !LitsTtsFrontend.containsAsciiAlnum(trimmed)) {
+      return false;
+    }
+    return true;
+  }
+
+  private static asciiTokenBefore(text: string, endExclusive: number): string {
+    let cursor = endExclusive - 1;
+    while (cursor >= 0 && LitsTtsFrontend.isEnglishLetter(text[cursor])) {
+      cursor -= 1;
+    }
+    return text.substring(cursor + 1, endExclusive);
+  }
+
+  private static scanNonSpaceTokenStart(text: string, index: number): number {
+    let cursor = index;
+    while (cursor > 0 && !LitsTtsFrontend.isWhitespace(text[cursor - 1])) {
+      cursor -= 1;
+    }
+    return cursor;
+  }
+
+  private static scanNonSpaceTokenEnd(text: string, index: number): number {
+    let cursor = index + 1;
+    while (cursor < text.length && !LitsTtsFrontend.isWhitespace(text[cursor])) {
+      cursor += 1;
+    }
+    return cursor;
+  }
+
+  private static previousNonSpace(text: string, start: number): string | undefined {
+    let cursor = start;
+    while (cursor >= 0) {
+      if (!LitsTtsFrontend.isWhitespace(text[cursor])) {
+        return text[cursor];
+      }
+      cursor -= 1;
+    }
+    return undefined;
+  }
+
+  private static nextNonSpace(text: string, start: number): string | undefined {
+    let cursor = start;
+    while (cursor < text.length) {
+      if (!LitsTtsFrontend.isWhitespace(text[cursor])) {
+        return text[cursor];
+      }
+      cursor += 1;
+    }
+    return undefined;
+  }
+
+  private static countRoughWords(text: string): number {
+    let count = 0;
+    let inAsciiWord = false;
+    for (let index = 0; index < text.length; index += 1) {
+      const char = text[index];
+      if (LitsTtsFrontend.isHanzi(char)) {
+        count += 1;
+        inAsciiWord = false;
+      } else if (LitsTtsFrontend.isAsciiAlnum(char)) {
+        if (!inAsciiWord) {
+          count += 1;
+          inAsciiWord = true;
+        }
+      } else {
+        inAsciiWord = false;
+      }
+    }
+    return count;
+  }
+
+  private static flushSegment(segments: Array<string>, current: string): string {
+    const segment = current.trim();
+    if (segment.length > 0) {
+      segments.push(segment);
+    }
+    return '';
   }
 
   private static containsHanzi(text: string): boolean {
@@ -706,17 +1486,13 @@ class LitsTtsFrontend {
     word.split('').forEach((char: string): void => {
       const pinyin = resources.wordPinyin.get(char);
       if (pinyin === undefined) {
-        throw new TextToSpeechException(
-          TtsErrorCode.RUNTIME_EXCEPTION,
-          `hanzi is not covered by chinese_lexicon.txt: ${char}`
-        );
+        output.push(',');
+        return;
       }
       const syllables = LitsTtsFrontend.normalizeLexiconPinyin(pinyin);
       if (syllables.length === 0) {
-        throw new TextToSpeechException(
-          TtsErrorCode.RUNTIME_EXCEPTION,
-          `hanzi pinyin is invalid in chinese_lexicon.txt: ${char}`
-        );
+        output.push(',');
+        return;
       }
       syllables.forEach((syllable: string): void => {
         output.push(syllable);
@@ -768,10 +1544,7 @@ class LitsTtsFrontend {
         }
         const mapped = resources.cmudict.get(part) ?? LitsTtsFrontend.spellEnglishWord(resources, part);
         if (mapped.length === 0) {
-          throw new TextToSpeechException(
-            TtsErrorCode.RUNTIME_EXCEPTION,
-            `english word is not covered by cmudict.txt: ${rawWord}`
-          );
+          return;
         }
         mapped.forEach((phone: string): void => {
           output.push(phone);
@@ -785,10 +1558,7 @@ class LitsTtsFrontend {
     if (spelled.length > 0) {
       return spelled;
     }
-    throw new TextToSpeechException(
-      TtsErrorCode.RUNTIME_EXCEPTION,
-      `english word is not covered by cmudict.txt: ${rawWord}`
-    );
+    return [];
   }
 
   private static spellEnglishWord(resources: LoadedPackage, word: string): Array<string> {
@@ -814,10 +1584,7 @@ class LitsTtsFrontend {
     phones.forEach((phone: string): void => {
       const tokens = resources.arpabetToTokens.get(phone);
       if (tokens === undefined) {
-        throw new TextToSpeechException(
-          TtsErrorCode.RUNTIME_EXCEPTION,
-          `ARPAbet phone is not supported by HarmonyOS frontend: ${phone}`
-        );
+        return;
       }
       tokens.forEach((token: string): void => {
         rawTokens.push(token);
@@ -866,27 +1633,31 @@ class LitsTtsFrontend {
   }
 
   private static appendPunctuation(output: Array<string>, token: string): void {
-    while (output.length > 0 && output[output.length - 1] === '_') {
-      output.pop();
-    }
+    LitsTtsFrontend.appendBoundary(output);
     output.push(token);
+    LitsTtsFrontend.appendBoundary(output);
   }
 
   private static appendChineseSyllables(
     output: Array<string>,
     resources: LoadedPackage,
-    syllables: Array<string>
+    syllables: Array<string>,
+    preserveLeadingBoundary: boolean = false
   ): void {
-    while (output.length > 0 && output[output.length - 1] === '_') {
-      output.pop();
+    if (!preserveLeadingBoundary) {
+      while (output.length > 0 && output[output.length - 1] === '_') {
+        output.pop();
+      }
     }
     syllables.forEach((syllable: string): void => {
+      if (syllable === ',') {
+        LitsTtsFrontend.appendPunctuation(output, ',');
+        return;
+      }
       const tokens = resources.pinyinToTokens.get(syllable);
       if (tokens === undefined) {
-        throw new TextToSpeechException(
-          TtsErrorCode.RUNTIME_EXCEPTION,
-          `pinyin is not covered by generated mapping: ${syllable}`
-        );
+        LitsTtsFrontend.appendPunctuation(output, ',');
+        return;
       }
       tokens.forEach((token: string): void => {
         output.push(token);
@@ -937,8 +1708,49 @@ class LitsTtsFrontend {
     return index;
   }
 
-  private static isWhitespace(char: string): boolean {
+  static isWhitespace(char: string): boolean {
     return char === ' ' || char === '\t' || char === '\n' || char === '\r';
+  }
+
+  private static isSupportedFrontendChar(char: string): boolean {
+    return LitsTtsFrontend.isWhitespace(char) ||
+      PUNCTUATION_SET.has(char) ||
+      LitsTtsFrontend.isAsciiDigit(char) ||
+      LitsTtsFrontend.isEnglishLetter(char) ||
+      LitsTtsFrontend.isHanzi(char);
+  }
+
+  private static isAsciiSymbol(char: string): boolean {
+    const code = char.charCodeAt(0);
+    return code >= 0x21 && code <= 0x7e &&
+      !LitsTtsFrontend.isAsciiDigit(char) &&
+      !LitsTtsFrontend.isEnglishLetter(char);
+  }
+
+  private static isUnicodeSymbolLike(char: string): boolean {
+    const code = char.charCodeAt(0);
+    return (code >= 0x2000 && code <= 0x206f) ||
+      (code >= 0x20a0 && code <= 0x27bf) ||
+      (code >= 0x2b00 && code <= 0x2bff) ||
+      (code >= 0x3000 && code <= 0x303f) ||
+      (code >= 0xfe10 && code <= 0xfe6f) ||
+      (code >= 0xff00 && code <= 0xffef);
+  }
+
+  private static isHighSurrogate(code: number): boolean {
+    return code >= 0xd800 && code <= 0xdbff;
+  }
+
+  private static isLowSurrogate(code: number): boolean {
+    return code >= 0xdc00 && code <= 0xdfff;
+  }
+
+  private static isIgnoredFormatCode(code: number): boolean {
+    return code === 0x200c ||
+      code === 0x200d ||
+      code === 0x20e3 ||
+      code === 0xfe0e ||
+      code === 0xfe0f;
   }
 
   private static isHanzi(char: string): boolean {
@@ -946,14 +1758,45 @@ class LitsTtsFrontend {
     return code >= 0x4e00 && code <= 0x9fff;
   }
 
-  private static isEnglishLetter(char: string): boolean {
+  static isEnglishLetter(char: string): boolean {
     const code = char.charCodeAt(0);
     return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
   }
 
-  private static isAsciiDigit(char: string): boolean {
+  private static isLowercaseAsciiLetter(char: string): boolean {
+    const code = char.charCodeAt(0);
+    return code >= 97 && code <= 122;
+  }
+
+  static isAsciiDigit(char: string): boolean {
     const code = char.charCodeAt(0);
     return code >= 48 && code <= 57;
+  }
+
+  private static isAsciiAlnum(char: string): boolean {
+    return LitsTtsFrontend.isEnglishLetter(char) || LitsTtsFrontend.isAsciiDigit(char);
+  }
+
+  static isCjk(char: string): boolean {
+    const code = char.charCodeAt(0);
+    return code >= 0x4e00 && code <= 0x9fff;
+  }
+
+  private static containsAsciiAlnum(text: string): boolean {
+    for (let index = 0; index < text.length; index += 1) {
+      if (LitsTtsFrontend.isAsciiAlnum(text[index])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static isSentenceEndPunctuation(char: string): boolean {
+    return SENTENCE_END_PUNCTUATION.has(char);
+  }
+
+  private static isAttachedSentenceSuffix(char: string): boolean {
+    return ATTACHED_SENTENCE_SUFFIX.has(char);
   }
 }
 
@@ -1028,18 +1871,110 @@ class HarmonyPcmPlayer {
   private stopped: boolean = false;
 
   async play(pcm: ArrayBuffer, sampleRate: number, soundChannel: number | undefined): Promise<void> {
+    await this.begin(sampleRate, soundChannel);
+    await this.write(pcm);
+    await this.finish();
+  }
+
+  async playStreaming(
+    sampleRate: number,
+    soundChannel: number | undefined,
+    queueCapacity: number,
+    producer: (chunkWriter: (chunk: ArrayBuffer) => Promise<void>) => Promise<void>,
+    onSynthesisComplete: () => void
+  ): Promise<void> {
     this.stopped = false;
+    await this.releaseRenderer();
     const renderer = await this.createRenderer(sampleRate, soundChannel);
     this.renderer = renderer;
-    try {
-      await renderer.start();
-      let offset = 0;
-      while (offset < pcm.byteLength && !this.stopped) {
-        const length = Math.min(AUDIO_CHUNK_BYTES, pcm.byteLength - offset);
-        const chunk = copyArrayBuffer(pcm, offset, length);
-        await renderer.write(chunk);
-        offset += length;
+    const queue = new PcmChunkQueue(queueCapacity);
+    let queuedChunks = 0;
+    let producerError: string | undefined = undefined;
+    let playbackError: string | undefined = undefined;
+
+    const playbackPromise = (async (): Promise<void> => {
+      try {
+        await queue.waitForPrebuffer(STREAMING_PREBUFFER_CHUNKS);
+        if (this.stopped) {
+          return;
+        }
+        await renderer.start();
+        while (!this.stopped) {
+          const next = await queue.take();
+          if (next.done) {
+            return;
+          }
+          if (next.chunk !== undefined) {
+            await this.writeToRenderer(renderer, next.chunk);
+          }
+        }
+      } catch (error) {
+        playbackError = formatError(error);
+        this.stopped = true;
+        queue.close();
       }
+    })();
+
+    try {
+      try {
+        await producer(async (chunk: ArrayBuffer): Promise<void> => {
+          if (this.stopped) {
+            return;
+          }
+          queuedChunks += 1;
+          await queue.put(copyArrayBuffer(chunk, 0, chunk.byteLength));
+        });
+        onSynthesisComplete();
+      } catch (error) {
+        producerError = formatError(error);
+        this.stopped = true;
+      } finally {
+        queue.close();
+      }
+      await playbackPromise;
+      if (producerError !== undefined) {
+        throw new TextToSpeechException(TtsErrorCode.RUNTIME_EXCEPTION, producerError);
+      }
+      if (playbackError !== undefined) {
+        throw new TextToSpeechException(TtsErrorCode.RUNTIME_EXCEPTION, playbackError);
+      }
+      if (!this.stopped && queuedChunks > 0) {
+        await renderer.drain();
+      }
+    } finally {
+      await this.releaseRenderer();
+    }
+  }
+
+  async begin(sampleRate: number, soundChannel: number | undefined): Promise<void> {
+    this.stopped = false;
+    await this.releaseRenderer();
+    const renderer = await this.createRenderer(sampleRate, soundChannel);
+    this.renderer = renderer;
+    await renderer.start();
+  }
+
+  async write(pcm: ArrayBuffer): Promise<void> {
+    const renderer = this.renderer;
+    if (renderer === undefined || pcm.byteLength === 0) {
+      return;
+    }
+    let offset = 0;
+    while (offset < pcm.byteLength && !this.stopped) {
+      const written = await this.writeToRenderer(renderer, copyArrayBuffer(pcm, offset, Math.min(AUDIO_CHUNK_BYTES, pcm.byteLength - offset)));
+      if (written <= 0) {
+        return;
+      }
+      offset += written;
+    }
+  }
+
+  async finish(): Promise<void> {
+    const renderer = this.renderer;
+    if (renderer === undefined) {
+      return;
+    }
+    try {
       if (this.stopped) {
         try {
           await renderer.flush();
@@ -1056,6 +1991,17 @@ class HarmonyPcmPlayer {
   async stop(): Promise<void> {
     this.stopped = true;
     await this.releaseRenderer();
+  }
+
+  private async writeToRenderer(renderer: audio.AudioRenderer, pcm: ArrayBuffer): Promise<number> {
+    let offset = 0;
+    while (offset < pcm.byteLength && !this.stopped) {
+      const length = Math.min(AUDIO_CHUNK_BYTES, pcm.byteLength - offset);
+      const chunk = copyArrayBuffer(pcm, offset, length);
+      await renderer.write(chunk);
+      offset += length;
+    }
+    return offset;
   }
 
   private async createRenderer(sampleRate: number, soundChannel: number | undefined): Promise<audio.AudioRenderer> {
@@ -1090,6 +2036,77 @@ class HarmonyPcmPlayer {
       await renderer.release();
     } catch (_error) {
     }
+  }
+}
+
+class PcmChunkQueue {
+  private readonly capacity: number;
+  private readonly chunks: Array<ArrayBuffer> = [];
+  private closed: boolean = false;
+  private waitingTakers: Array<(result: PcmQueueTakeResult) => void> = [];
+  private waitingPutters: Array<() => void> = [];
+  private prebufferWaiters: Array<() => void> = [];
+
+  constructor(capacity: number) {
+    this.capacity = clampInt(Math.round(capacity), 1, MAX_PCM_QUEUE_CAPACITY_VALUE);
+  }
+
+  async put(chunk: ArrayBuffer): Promise<void> {
+    while (!this.closed && this.chunks.length >= this.capacity) {
+      await new Promise<void>((resolve: () => void): void => {
+        this.waitingPutters.push(resolve);
+      });
+    }
+    if (this.closed) {
+      return;
+    }
+    const taker = this.waitingTakers.shift();
+    if (taker !== undefined) {
+      taker({ chunk, done: false });
+      return;
+    }
+    this.chunks.push(chunk);
+    this.notifyPrebufferWaiters();
+  }
+
+  async take(): Promise<PcmQueueTakeResult> {
+    const chunk = this.chunks.shift();
+    if (chunk !== undefined) {
+      this.notifyPutters();
+      return { chunk, done: false };
+    }
+    if (this.closed) {
+      return { done: true };
+    }
+    return new Promise<PcmQueueTakeResult>((resolve: (result: PcmQueueTakeResult) => void): void => {
+      this.waitingTakers.push(resolve);
+    });
+  }
+
+  async waitForPrebuffer(targetChunks: number): Promise<void> {
+    const target = Math.min(Math.max(1, targetChunks), this.capacity);
+    while (!this.closed && this.chunks.length < target) {
+      await new Promise<void>((resolve: () => void): void => {
+        this.prebufferWaiters.push(resolve);
+      });
+    }
+  }
+
+  close(): void {
+    this.closed = true;
+    this.waitingTakers.splice(0).forEach((resolve: (result: PcmQueueTakeResult) => void): void => {
+      resolve({ done: true });
+    });
+    this.notifyPutters();
+    this.notifyPrebufferWaiters();
+  }
+
+  private notifyPutters(): void {
+    this.waitingPutters.splice(0).forEach((resolve: () => void): void => resolve());
+  }
+
+  private notifyPrebufferWaiters(): void {
+    this.prebufferWaiters.splice(0).forEach((resolve: () => void): void => resolve());
   }
 }
 
@@ -1209,10 +2226,26 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
     this.onRelease = onRelease;
     this.modelPackageDir = resolveModelPackageDir(this.engineParams.extraParams, workPath);
     this.modelPackage = FrontendResources.load(this.modelPackageDir);
+    const runtimeChunkSize = resolveIntegerExtraParam(
+      this.engineParams.extraParams,
+      ['streamingChunkSize', 'streamingFirstChunkSize'],
+      this.modelPackage.manifest.streamingChunkSize,
+      1,
+      10000
+    );
     const nativeTts = resolveNativeTtsModule();
     this.nativeRuntime = nativeTts.createRuntime(
-      joinPath(this.modelPackageDir, this.modelPackage.manifest.acousticModelFile),
-      joinPath(this.modelPackageDir, this.modelPackage.manifest.vocoderModelFile)
+      joinPath(this.modelPackageDir, this.modelPackage.manifest.hiddenEncoderModelFile),
+      joinPath(this.modelPackageDir, this.modelPackage.manifest.streamConditionChunkModelFile),
+      joinPath(this.modelPackageDir, this.modelPackage.manifest.streamConditionFinalModelFile),
+      joinPath(this.modelPackageDir, this.modelPackage.manifest.streamDecoderStepModelFile),
+      joinPath(this.modelPackageDir, this.modelPackage.manifest.vocoderModelFile),
+      runtimeChunkSize,
+      this.modelPackage.manifest.streamingPreLookaheadLen,
+      this.modelPackage.manifest.streamingMelCacheLen,
+      this.modelPackage.manifest.hopLength,
+      this.modelPackage.manifest.streamDecoderTimesteps,
+      this.modelPackage.manifest.streamDecoderTemperature
     );
   }
 
@@ -1260,6 +2293,9 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
     };
 
     const stoppedTasks = task.params.queueMode === QueueMode.PREEMPT ? this.cancelAllTasks() : [];
+    if (stoppedTasks.length > 0) {
+      this.cancelNativeSynthesis();
+    }
     stoppedTasks.forEach((stoppedTask: SynthesisTask): void => this.notifyStop(listener, stoppedTask));
     this.queue.push(task);
     this.scheduleProcessing();
@@ -1269,6 +2305,9 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
     this.ensureNotDestroyed();
     const listener = this.listener;
     const stoppedTasks = this.cancelAllTasks();
+    if (stoppedTasks.length > 0) {
+      this.cancelNativeSynthesis();
+    }
     void this.player.stop();
     if (listener !== undefined) {
       stoppedTasks.forEach((task: SynthesisTask): void => this.notifyStop(listener, task));
@@ -1285,6 +2324,9 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
     this.destroyed = true;
     const listener = this.listener;
     const stoppedTasks = this.cancelAllTasks();
+    if (stoppedTasks.length > 0) {
+      this.cancelNativeSynthesis();
+    }
     void this.player.stop();
     if (listener !== undefined) {
       stoppedTasks.forEach((task: SynthesisTask): void => this.notifyStop(listener, task));
@@ -1339,74 +2381,162 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
       return;
     }
     this.notifyStart(listener, task);
-    let audioResult: InternalSynthesis;
     try {
-      audioResult = this.synthesizeInternal(task.text, task.params);
+      if (task.params.playType === PlayType.SYNTHESIZE_AND_PLAY) {
+        let synthesisCompleteNotified = false;
+        let synthesisMetrics: NativeStreamingSynthesisMetrics | undefined = undefined;
+        await this.player.playStreaming(
+          this.modelPackage.manifest.sampleRate,
+          task.params.soundChannel,
+          this.pcmQueueCapacity(task.params),
+          async (chunkWriter: (chunk: ArrayBuffer) => Promise<void>): Promise<void> => {
+            synthesisMetrics = await this.synthesizeStreaming(task, listener, chunkWriter);
+          },
+          (): void => {
+            if (!task.cancelled && !this.destroyed) {
+              synthesisCompleteNotified = true;
+              listener.onComplete?.(task.params.requestId, this.buildSynthesisCompleteResponse(synthesisMetrics));
+            }
+          }
+        );
+        if (task.cancelled || this.destroyed) {
+          this.notifyStop(listener, task);
+          return;
+        }
+        if (!synthesisCompleteNotified) {
+          listener.onComplete?.(task.params.requestId, this.buildSynthesisCompleteResponse(synthesisMetrics));
+        }
+        listener.onComplete?.(task.params.requestId, {
+          type: CompleteType.PLAYBACK_COMPLETE,
+          message: 'playback complete'
+        });
+        return;
+      }
+      const synthesisMetrics = await this.synthesizeStreaming(task, listener);
+      if (task.cancelled || this.destroyed) {
+        this.notifyStop(listener, task);
+        return;
+      }
+      listener.onComplete?.(task.params.requestId, this.buildSynthesisCompleteResponse(synthesisMetrics));
     } catch (error) {
       const code = error instanceof TextToSpeechException ? error.errorCode : TtsErrorCode.RUNTIME_EXCEPTION;
       const message = error instanceof Error ? error.message : 'synthesis failed';
       listener.onError?.(task.params.requestId, code, message);
       return;
     }
-    if (task.cancelled || this.destroyed) {
-      this.notifyStop(listener, task);
-      return;
-    }
-
-    if (task.params.playType === PlayType.SYNTHESIZE_ONLY) {
-      this.emitAudioChunks(listener, task, audioResult.pcm);
-      if (task.cancelled || this.destroyed) {
-        this.notifyStop(listener, task);
-        return;
-      }
-    }
-
-    listener.onComplete?.(task.params.requestId, {
-      type: CompleteType.SYNTHESIS_COMPLETE,
-      message: 'synthesis complete'
-    });
-
-    if (task.params.playType === PlayType.SYNTHESIZE_AND_PLAY && !task.cancelled && !this.destroyed) {
-      try {
-        await this.player.play(audioResult.pcm, audioResult.sampleRate, task.params.soundChannel);
-      } catch (error) {
-        const code = error instanceof TextToSpeechException ? error.errorCode : TtsErrorCode.RUNTIME_EXCEPTION;
-        const message = error instanceof Error ? error.message : 'playback failed';
-        listener.onError?.(task.params.requestId, code, message);
-        return;
-      }
-    }
-
-    if (task.params.playType === PlayType.SYNTHESIZE_AND_PLAY && !task.cancelled && !this.destroyed) {
-      listener.onComplete?.(task.params.requestId, {
-        type: CompleteType.PLAYBACK_COMPLETE,
-        message: 'playback complete'
-      });
-    }
   }
 
-  private synthesizeInternal(text: string, params: SpeakParams): InternalSynthesis {
-    const tokenIds = LitsTtsFrontend.encode(
-      this.modelPackage,
-      text,
-      this.engineParams.language,
-      params.languageContext ?? 'zh-en'
-    );
-    const rawPcm = resolveNativeTtsModule().synthesize(this.nativeRuntime, tokenIds, this.voice.speakerId) as ArrayBuffer;
-    const transformedPcm = AudioTransforms.apply(rawPcm, params);
+  private async synthesizeStreaming(
+    task: SynthesisTask,
+    listener: SpeakListener,
+    chunkWriter?: (chunk: ArrayBuffer) => Promise<void>
+  ): Promise<NativeStreamingSynthesisMetrics> {
+    const params = task.params;
+    const languageContext = params.languageContext ?? 'zh-en';
+    const segments = LitsTtsFrontend.splitForStreaming(this.modelPackage, task.text, this.engineParams.language, languageContext);
+    let sequence = 0;
+    let synthesisMs = 0;
+    let firstChunkMs = -1;
+    let audioBytes = 0;
+    let chunkCount = 0;
+    const textMetricSummaries: Array<string> = [];
+    for (let index = 0; index < segments.length; index += 1) {
+      if (task.cancelled || this.destroyed) {
+        return { synthesisMs, firstChunkMs, audioBytes, chunkCount };
+      }
+      const textMetric = LitsTtsFrontend.buildTextMetric(
+        this.modelPackage,
+        segments[index],
+        this.engineParams.language,
+        languageContext,
+        true
+      );
+      const segmentTokenIds = textMetric.tokenIds;
+      textMetricSummaries.push(
+        `seg=${index} cleaned=${textMetric.cleanedTokenLength} model=${textMetric.modelTokenLength}`
+      );
+      console.info(
+        `${TEXT_METRIC_LOG_TAG} requestId=${task.params.requestId} segment=${index + 1}/${segments.length}` +
+          ` language=${this.engineParams.language} languageContext=${languageContext} speakerId=${this.voice.speakerId}` +
+          ` raw="${previewForHilLog(textMetric.rawText)}" tn="${previewForHilLog(textMetric.tnText)}"` +
+          ` cleaned="${previewForHilLog(textMetric.cleanedText, 240)}"` +
+          ` cleanedTokenLength=${textMetric.cleanedTokenLength} modelTokenLength=${textMetric.modelTokenLength}` +
+          ` tokenHead=${JSON.stringify(textMetric.tokenIdHead)} tokenTail=${JSON.stringify(textMetric.tokenIdTail)}`
+      );
+      const segmentMetrics = await resolveNativeTtsModule().synthesizeStreaming(
+        this.nativeRuntime,
+        segmentTokenIds,
+        this.voice.speakerId,
+        (chunk: ArrayBuffer, _nativeSequence: number): void => {
+          if (task.cancelled || this.destroyed) {
+            return;
+          }
+          const transformedChunk = AudioTransforms.apply(chunk, params);
+          sequence = this.emitAudioChunks(listener, task, transformedChunk, sequence);
+          if (chunkWriter !== undefined) {
+            void chunkWriter(transformedChunk);
+          }
+        }
+      );
+      synthesisMs += Math.max(0, Math.round(segmentMetrics.synthesisMs));
+      audioBytes += Math.max(0, Math.round(segmentMetrics.audioBytes));
+      chunkCount += Math.max(0, Math.round(segmentMetrics.chunkCount));
+      if (firstChunkMs < 0 && segmentMetrics.firstChunkMs >= 0) {
+        firstChunkMs = synthesisMs - Math.max(0, Math.round(segmentMetrics.synthesisMs)) + Math.round(segmentMetrics.firstChunkMs);
+      }
+      console.info(
+        `${STREAM_METRIC_LOG_TAG} requestId=${task.params.requestId} segment=${index + 1}/${segments.length}` +
+          ` nativeFirstChunkMs=${segmentMetrics.firstChunkMs} nativeSynthesisMs=${segmentMetrics.synthesisMs}` +
+          ` nativeAudioBytes=${segmentMetrics.audioBytes} nativeChunks=${segmentMetrics.chunkCount}` +
+          ` totalSynthesisMs=${synthesisMs} totalAudioBytes=${audioBytes} totalChunks=${chunkCount}`
+      );
+    }
+    return { synthesisMs, firstChunkMs, audioBytes, chunkCount, textMetricSummary: textMetricSummaries.join(';') };
+  }
+
+  private buildSynthesisCompleteResponse(metrics: NativeStreamingSynthesisMetrics | undefined): CompleteResponse {
+    if (metrics === undefined) {
+      return {
+        type: CompleteType.SYNTHESIS_COMPLETE,
+        message: 'synthesis complete'
+      };
+    }
+    const audioDuration = audioDurationMs(metrics.audioBytes, this.modelPackage.manifest.sampleRate);
+    const rtf = metrics.synthesisMs >= 0 && audioDuration > 0 ? metrics.synthesisMs / audioDuration : -1;
     return {
-      pcm: transformedPcm,
-      sampleRate: this.modelPackage.manifest.sampleRate,
-      tokenIds
+      type: CompleteType.SYNTHESIS_COMPLETE,
+      message: `synthesis complete firstPacketMs=${metrics.firstChunkMs} synthesisMs=${metrics.synthesisMs} audioDurationMs=${audioDuration} rtf=${formatSdkRtf(rtf)} chunks=${metrics.chunkCount}`,
+      firstPacketMs: metrics.firstChunkMs,
+      synthesisMs: metrics.synthesisMs,
+      audioDurationMs: audioDuration,
+      rtf,
+      profilingInfo: `chunks=${metrics.chunkCount} audioBytes=${metrics.audioBytes} textMetric=${metrics.textMetricSummary ?? ''}`
     };
   }
 
-  private emitAudioChunks(listener: SpeakListener, task: SynthesisTask, pcm: ArrayBuffer): void {
+  private pcmQueueCapacity(params: SpeakParams): number {
+    return resolveIntegerExtraParam(
+      params.extraParams,
+      ['pcmQueueCapacity', 'pcmQueueSize'],
+      DEFAULT_PCM_QUEUE_CAPACITY_VALUE,
+      1,
+      MAX_PCM_QUEUE_CAPACITY_VALUE
+    );
+  }
+
+  private cancelNativeSynthesis(): void {
+    try {
+      resolveNativeTtsModule().cancelRuntime(this.nativeRuntime);
+    } catch (_error) {
+    }
+  }
+
+  private emitAudioChunks(listener: SpeakListener, task: SynthesisTask, pcm: ArrayBuffer, initialSequence: number): number {
     let offset = 0;
-    let sequence = 0;
+    let sequence = initialSequence;
     while (offset < pcm.byteLength) {
       if (task.cancelled || this.destroyed) {
-        return;
+        return sequence;
       }
       const length = Math.min(SYNTHESIS_CALLBACK_CHUNK_BYTES, pcm.byteLength - offset);
       const chunk = copyArrayBuffer(pcm, offset, length);
@@ -1417,6 +2547,7 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
       offset += length;
       sequence += 1;
     }
+    return sequence;
   }
 
   private cancelAllTasks(): Array<SynthesisTask> {
@@ -1597,7 +2728,10 @@ function resolveNativeTtsModule(): NativeTtsModule {
     nativeModule === undefined ||
     typeof nativeModule.createRuntime !== 'function' ||
     typeof nativeModule.releaseRuntime !== 'function' ||
-    typeof nativeModule.synthesize !== 'function'
+    typeof nativeModule.cancelRuntime !== 'function' ||
+    typeof nativeModule.synthesize !== 'function' ||
+    typeof nativeModule.synthesizeStreaming !== 'function' ||
+    typeof nativeModule.normalizeTnSegment !== 'function'
   ) {
     throw new TextToSpeechException(
       TtsErrorCode.CREATE_ENGINE_FAILED,
@@ -1785,6 +2919,26 @@ function splitByWhitespace(text: string): Array<string> {
   return text.split(/\s+/).filter((item: string): boolean => item.length > 0);
 }
 
+function concatArrayBuffers(buffers: Array<ArrayBuffer>): ArrayBuffer {
+  if (buffers.length === 0) {
+    return new ArrayBuffer(0);
+  }
+  if (buffers.length === 1) {
+    return buffers[0];
+  }
+  let totalLength = 0;
+  buffers.forEach((buffer: ArrayBuffer): void => {
+    totalLength += buffer.byteLength;
+  });
+  const output = new Uint8Array(totalLength);
+  let offset = 0;
+  buffers.forEach((buffer: ArrayBuffer): void => {
+    output.set(new Uint8Array(buffer), offset);
+    offset += buffer.byteLength;
+  });
+  return output.buffer as ArrayBuffer;
+}
+
 function joinPath(basePath: string, ...parts: Array<string>): string {
   let output = normalizeDir(basePath);
   parts.forEach((part: string): void => {
@@ -1875,8 +3029,44 @@ function copyArrayBuffer(source: ArrayBuffer, offset: number, length: number): A
   return copy.buffer;
 }
 
+function resolveIntegerExtraParam(
+  extraParams: ExtraParams | undefined,
+  keys: Array<string>,
+  defaultValue: number,
+  minValue: number,
+  maxValue: number
+): number {
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index];
+    const raw = key === 'streamingChunkSize'
+      ? extraParams?.streamingChunkSize
+      : key === 'streamingFirstChunkSize'
+        ? extraParams?.streamingFirstChunkSize
+        : key === 'pcmQueueCapacity'
+          ? extraParams?.pcmQueueCapacity
+          : key === 'pcmQueueSize'
+            ? extraParams?.pcmQueueSize
+            : undefined;
+    let value: number | undefined = undefined;
+    if (typeof raw === 'number') {
+      value = raw;
+    } else if (typeof raw === 'string') {
+      const parsed = parseInt(raw, 10);
+      value = Number.isNaN(parsed) ? undefined : parsed;
+    }
+    if (value !== undefined && Number.isFinite(value)) {
+      return clampInt(Math.round(value), minValue, maxValue);
+    }
+  }
+  return clampInt(Math.round(defaultValue), minValue, maxValue);
+}
+
 function clampNumber(value: number, minValue: number, maxValue: number): number {
   return Math.max(minValue, Math.min(maxValue, value));
+}
+
+function clampInt(value: number, minValue: number, maxValue: number): number {
+  return Math.max(minValue, Math.min(maxValue, Math.round(value)));
 }
 
 function clampInt16(value: number): number {
@@ -1887,4 +3077,30 @@ function clampInt16(value: number): number {
     return -32768;
   }
   return value;
+}
+
+function audioDurationMs(audioBytes: number, sampleRate: number): number {
+  if (sampleRate <= 0) {
+    return 0;
+  }
+  return Math.floor(audioBytes * 1000 / (sampleRate * 2));
+}
+
+function formatSdkRtf(rtf: number): string {
+  if (!Number.isFinite(rtf) || rtf < 0) {
+    return '--';
+  }
+  return rtf.toFixed(3);
+}
+
+function previewForHilLog(value: string, maxLength: number = 160): string {
+  const singleLine = value.replace(/\s+/g, ' ');
+  return singleLine.length > maxLength ? `${singleLine.substring(0, maxLength)}...` : singleLine;
+}
+
+function formatError(error: Object): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
 }

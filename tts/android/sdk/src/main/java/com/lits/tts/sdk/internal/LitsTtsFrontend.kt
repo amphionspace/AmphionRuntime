@@ -1,8 +1,6 @@
 package com.lits.tts.sdk.internal
 
 import com.lits.tts.sdk.TtsErrorCode
-import java.io.BufferedInputStream
-import java.io.DataInputStream
 import java.io.File
 import java.text.Normalizer
 import java.util.concurrent.ConcurrentHashMap
@@ -16,6 +14,15 @@ internal object LitsTtsFrontend {
     private val pinyinSyllableRegex = Regex("^[a-z]+[0-6]$")
     private val hanziRegex = Regex("[\\u4e00-\\u9fff]")
     private val punctuation = setOf(',', '.', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '<', '>', '-')
+    private val sentenceEndPunctuation = setOf('.', '!', '?', ';', ',', '\u2026')
+    private val attachedSentenceSuffix = setOf('"', '\'', ')', ']', '}', '>', '\u201D', '\u2019', '\u300B', '\u3011')
+    private val ENGLISH_ABBREVIATIONS = setOf(
+        "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "mt", "vs", "etc", "fig", "no",
+        "e.g", "i.e", "a.m", "p.m", "u.s", "u.k",
+    )
+    private val ACRONYM_AT_END_REGEX = Regex("(?:^|\\s)(?:[A-Za-z]\\.){2,}$")
+    private const val MIN_WEAK_PUNCTUATION_SEGMENT_CHARS = 24
+    private const val MIN_SHORT_SYMBOL_SEGMENT_CHARS = 8
     private val fullwidthPunctuation = mapOf(
         '\uFF0C' to ",",
         '\u3002' to ".",
@@ -38,6 +45,122 @@ internal object LitsTtsFrontend {
         '\u2013' to "-",
         '\u22EF' to "\u2026",
         '\u00B7' to ".",
+    )
+    private val zhEnFrontendCharReplacements = mapOf(
+        '/' to "斜杠",
+        '\\' to "反斜杠",
+        '^' to "幂",
+        '\u2070' to "零",
+        '\u00B9' to "一",
+        '\u00B2' to "二",
+        '\u00B3' to "三",
+        '\u2074' to "四",
+        '\u2075' to "五",
+        '\u2076' to "六",
+        '\u2077' to "七",
+        '\u2078' to "八",
+        '\u2079' to "九",
+        '\u2080' to "零",
+        '\u2081' to "一",
+        '\u2082' to "二",
+        '\u2083' to "三",
+        '\u2084' to "四",
+        '\u2085' to "五",
+        '\u2086' to "六",
+        '\u2087' to "七",
+        '\u2088' to "八",
+        '\u2089' to "九",
+    )
+    private val zhEnAsciiSymbolText = mapOf(
+        '@' to "艾特",
+        '#' to "井号",
+        '$' to "美元",
+        '%' to "百分号",
+        '&' to "和",
+        '*' to "星号",
+        '+' to "加",
+        '=' to "等于",
+        '_' to "下划线",
+        '|' to "竖线",
+        '~' to "波浪线",
+    )
+    private val symbolToSafePunctuation = mapOf(
+        '{' to "(",
+        '}' to ")",
+        '\uFF5B' to "(",
+        '\uFF5D' to ")",
+        '\u300C' to "\"",
+        '\u300D' to "\"",
+        '\u300E' to "\"",
+        '\u300F' to "\"",
+        '\u3014' to "[",
+        '\u3015' to "]",
+        '\u3016' to "[",
+        '\u3017' to "]",
+        '\u3018' to "[",
+        '\u3019' to "]",
+        '\u301A' to "[",
+        '\u301B' to "]",
+        '\uFF3B' to "[",
+        '\uFF3D' to "]",
+        '\uFF1C' to "<",
+        '\uFF1E' to ">",
+        '\uFF0F' to ",",
+        '\uFF3C' to ",",
+        '\uFF20' to ",",
+        '\uFF03' to ",",
+        '\uFF04' to ",",
+        '\uFF05' to ",",
+        '\uFF06' to ",",
+        '\uFF0A' to ",",
+        '\uFF0B' to ",",
+        '\uFF1D' to ",",
+        '\uFF3F' to ",",
+        '\uFF5C' to ",",
+        '\uFF5E' to ",",
+        '\u2190' to ",",
+        '\u2191' to ",",
+        '\u2192' to ",",
+        '\u2193' to ",",
+        '\u21D2' to ",",
+        '\u2605' to ",",
+        '\u2606' to ",",
+        '\u2713' to ",",
+        '\u2714' to ",",
+        '\u2715' to ",",
+        '\u2716' to ",",
+    )
+    private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)%")
+    private val commaIntegerCurrencyRegex = Regex("(?<!\\d)(\\d{1,3}(?:,\\d{3})+)\\.00(?=元)")
+    private val thousandsSeparatorRegex = Regex("(?<=\\d),(?=\\d{3}(?:\\D|$))")
+    private val clockMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2})点0([1-9])分")
+    private val durationMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d+)小时0([1-9])分钟")
+    private val yearMonthLeadingZeroRegex = Regex("(\\d{2,4}年)0([1-9])月")
+    private val yearMonthRegex = Regex("(\\d{2,4}年)(\\d{1,2})月")
+    private val monthDayLeadingZeroRegex = Regex("(月)0([1-9])日")
+    private val monthDayRegex = Regex("(月)(\\d{1,2})(日|号)")
+    private val negativeTemperatureRegex = Regex("((?:气温|温度|体温))-(\\d+(?:\\.\\d+)?)(度|℃)")
+    private val negativeTemperatureRangeRegex = Regex("(温度范围是)-(\\d+(?:\\.\\d+)?)到(\\d+(?:\\.\\d+)?)(度|℃)")
+    private val versionNumberWithSuffixRegex = Regex("(?<!\\d)(\\d+(?:\\.\\d+){2,})(?=[-A-Za-z])")
+    private val digitDotRegex = Regex("(?<=\\d)\\.(?=\\d)")
+    private val hanziDigitDotRegex = Regex("(?<=[零一二三四五六七八九十百千万两])\\.(?=[零一二三四五六七八九十百千万两])")
+    private val leadingDotAsciiTokenRegex = Regex("(?<![A-Za-z0-9])\\.(?=[A-Za-z0-9])")
+    private val urlSchemeSeparatorRegex = Regex("(?<![A-Za-z0-9])(https?|ftp)://", RegexOption.IGNORE_CASE)
+    private val caretPowerTwoRegex = Regex("\\^(?:2|二)")
+    private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])([A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
+    private val technicalSymbolReadings = mapOf(
+        '.' to "点",
+        ':' to "冒号",
+        '/' to "斜杠",
+        '\\' to "反斜杠",
+        '?' to "问号",
+        '=' to "等于",
+        '&' to "和",
+        '@' to "艾特",
+        '_' to "下划线",
+        '#' to "井号",
+        '+' to "加",
+        '-' to "杠",
     )
     private val englishDigitWordByChar = mapOf(
         '0' to "ZERO",
@@ -63,6 +186,35 @@ internal object LitsTtsFrontend {
         '8' to "八",
         '9' to "九",
     )
+    private val letterPhonesByChar = mapOf(
+        'A' to listOf("EY1"),
+        'B' to listOf("B", "IY1"),
+        'C' to listOf("S", "IY1"),
+        'D' to listOf("D", "IY1"),
+        'E' to listOf("IY1"),
+        'F' to listOf("EH1", "F"),
+        'G' to listOf("JH", "IY1"),
+        'H' to listOf("EY1", "CH"),
+        'I' to listOf("AY1"),
+        'J' to listOf("JH", "EY1"),
+        'K' to listOf("K", "EY1"),
+        'L' to listOf("EH1", "L"),
+        'M' to listOf("EH1", "M"),
+        'N' to listOf("EH1", "N"),
+        'O' to listOf("OW1"),
+        'P' to listOf("P", "IY1"),
+        'Q' to listOf("K", "Y", "UW1"),
+        'R' to listOf("AA1", "R"),
+        'S' to listOf("EH1", "S"),
+        'T' to listOf("T", "IY1"),
+        'U' to listOf("Y", "UW1"),
+        'V' to listOf("V", "IY1"),
+        'W' to listOf("D", "AH1", "B", "AH0", "L", "Y", "UW0"),
+        'X' to listOf("EH1", "K", "S"),
+        'Y' to listOf("W", "AY1"),
+        'Z' to listOf("Z", "IY1"),
+    )
+    private val acronymWordReadings = setOf("SIM")
     private val englishMergeRules = listOf(
         listOf("t", "\u0279") to "t\u0279",
         listOf("d", "\u0279") to "d\u0279",
@@ -78,90 +230,234 @@ internal object LitsTtsFrontend {
         language: String,
         languageContext: String,
     ): LongArray {
+        val normalizedText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        return encodeNormalized(layout, normalizedText, language, languageContext)
+    }
+
+    fun encodeNormalized(
+        layout: LitsTtsAssetInstaller.InstalledLayout,
+        normalizedText: String,
+        language: String,
+        languageContext: String,
+    ): LongArray {
         val resources = resources(layout)
-        val rawTokens = tokenize(resources, text, language, languageContext)
+        val rawTokens = tokenize(resources, normalizedText, language, languageContext)
         val ids = rawTokens.map { token ->
             resources.symbolToId[token] ?: throw unsupported("frontend token is not in zh_en_symbols.json: $token")
         }
-        return intersperseZero(ids)
+        return ids.map { it.toLong() }.toLongArray()
+    }
+
+    internal fun debugTokensForTest(
+        layout: LitsTtsAssetInstaller.InstalledLayout,
+        text: String,
+        language: String,
+        languageContext: String,
+    ): List<String> {
+        val resources = resources(layout)
+        val normalizedText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        return tokenize(resources, normalizedText, language, languageContext)
     }
 
     fun preload(layout: LitsTtsAssetInstaller.InstalledLayout) {
         resources(layout)
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun splitForStreaming(
         layout: LitsTtsAssetInstaller.InstalledLayout,
         text: String,
+        language: String = "zh-en",
+        languageContext: String = "zh-en",
         wordsPerSegment: Int = 7,
     ): List<String> {
-        val resources = resources(layout)
-        val normalized = normalizeText(text).trim()
+        val tnText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        val normalized = normalizeText(preprocessZhMixedInput(tnText), languageContext).trim()
         if (normalized.isEmpty()) return emptyList()
         val segments = mutableListOf<String>()
         val current = StringBuilder()
-        var words = 0
         var index = 0
         fun flushCurrentSegment() {
             flushSegment(segments, current)
-            words = 0
-        }
-        fun appendWord(word: String, nextIndex: Int) {
-            current.append(word)
-            words += 1
-            if (words >= wordsPerSegment && !nextNonSpaceIsPunctuation(normalized, nextIndex)) {
-                flushCurrentSegment()
-            }
         }
         while (index < normalized.length) {
             val char = normalized[index]
-            when {
-                char.isWhitespace() -> {
-                    if (current.isNotEmpty() && current.last() != ' ') current.append(' ')
-                    index += 1
-                }
-
-                isPunctuationChar(char) -> {
-                    current.trimTrailingSpace()
-                    current.append(char)
-                    if (words >= wordsPerSegment) {
-                        flushCurrentSegment()
-                    }
-                    index += 1
-                }
-
-                char.isDigit() -> {
-                    val end = scanDigits(normalized, index)
-                    appendWord(normalized.substring(index, end), end)
-                    index = end
-                }
-
-                isHanzi(char) -> {
-                    val end = scanHanziChunk(normalized, index)
-                    val hanziChunk = normalized.substring(index, end)
-                    var chunkIndex = 0
-                    while (chunkIndex < hanziChunk.length) {
-                        val word = longestWord(resources, hanziChunk, chunkIndex)
-                        appendWord(word, index + chunkIndex + word.length)
-                        chunkIndex += word.length
-                    }
-                    index = end
-                }
-
-                isEnglishLetter(char) -> {
-                    val end = scanEnglishWord(normalized, index)
-                    appendWord(normalized.substring(index, end), end)
-                    index = end
-                }
-
-                else -> {
-                    current.append(char)
-                    index += 1
-                }
+            if (char.isWhitespace()) {
+                if (current.isNotEmpty() && current.last() != ' ') current.append(' ')
+                index += 1
+                continue
             }
+            current.append(char)
+            if (shouldSplitAfterPunctuation(normalized, index, current, wordsPerSegment)) {
+                while (index + 1 < normalized.length && isAttachedSentenceSuffix(normalized[index + 1])) {
+                    index += 1
+                    current.append(normalized[index])
+                }
+                while (
+                    index + 1 < normalized.length &&
+                    isSentenceEndPunctuation(normalized[index + 1]) &&
+                    normalized[index + 1] != ','
+                ) {
+                    index += 1
+                    current.append(normalized[index])
+                }
+                flushCurrentSegment()
+            }
+            index += 1
         }
         flushSegment(segments, current)
         return segments.ifEmpty { listOf(normalized) }
+    }
+
+    private fun shouldSplitAfterPunctuation(
+        text: String,
+        index: Int,
+        current: StringBuilder,
+        minWordsForWeakSplit: Int,
+    ): Boolean {
+        val char = text[index]
+        if (!isSentenceEndPunctuation(char)) return false
+        if (isPunctuationInsideTechnicalToken(text, index)) return false
+        if (wouldCreateShortSymbolSegment(current)) return false
+        if (char == ',' && !shouldSplitAfterWeakComma(text, index, current, minWordsForWeakSplit)) return false
+        if (char == '.' && !shouldSplitAfterPeriod(text, index)) return false
+        return true
+    }
+
+    private fun shouldSplitAfterPeriod(text: String, index: Int): Boolean {
+        val prev = previousNonSpace(text, index - 1)
+        val next = nextNonSpace(text, index + 1)
+        if (prev != null && next != null && prev.isDigit() && next.isDigit()) return false
+        if (isUrlOrEmailPeriod(text, index)) return false
+        if (isEnglishAbbreviationPeriod(text, index)) return false
+        if (prev != null && isHanzi(prev)) return true
+        return isBoundaryAfterSentencePunctuation(text, index)
+    }
+
+    private fun shouldSplitAfterWeakComma(
+        text: String,
+        index: Int,
+        current: StringBuilder,
+        minWordsForWeakSplit: Int,
+    ): Boolean {
+        val prev = previousNonSpace(text, index - 1)
+        val next = nextNonSpace(text, index + 1)
+        if (prev != null && next != null && prev.isDigit() && next.isDigit()) return false
+        val trimmed = current.toString().trim()
+        if (trimmed.length < MIN_WEAK_PUNCTUATION_SEGMENT_CHARS) return false
+        return countRoughWords(trimmed) >= minWordsForWeakSplit || trimmed.any(::isHanzi)
+    }
+
+    private fun isBoundaryAfterSentencePunctuation(text: String, index: Int): Boolean {
+        var cursor = index + 1
+        while (cursor < text.length && isAttachedSentenceSuffix(text[cursor])) {
+            cursor += 1
+        }
+        return cursor >= text.length || text[cursor].isWhitespace() || isHanzi(text[cursor])
+    }
+
+    private fun isEnglishAbbreviationPeriod(text: String, index: Int): Boolean {
+        val token = asciiTokenBefore(text, index).lowercase()
+        if (token in ENGLISH_ABBREVIATIONS) return true
+        if (token.length == 1 && token.single() in 'a'..'z') return true
+        val prefix = text.substring(0, index + 1)
+        return ACRONYM_AT_END_REGEX.containsMatchIn(prefix)
+    }
+
+    private fun isUrlOrEmailPeriod(text: String, index: Int): Boolean {
+        val start = scanNonSpaceTokenStart(text, index)
+        val end = scanNonSpaceTokenEnd(text, index)
+        val token = text.substring(start, end)
+        val nextIsAsciiAlnum = text.getOrNull(index + 1)?.let(::isAsciiAlnum) == true
+        return (nextIsAsciiAlnum && ("://" in token || "@" in token || token.startsWith("www.", ignoreCase = true))) ||
+            (index + 1 < text.length && isAsciiAlnum(text[index + 1]) && token.count { it == '.' } >= 1)
+    }
+
+    private fun isPunctuationInsideTechnicalToken(text: String, index: Int): Boolean {
+        val char = text[index]
+        val prev = text.getOrNull(index - 1)
+        val next = text.getOrNull(index + 1)
+        if (prev == null || next == null) return false
+        if (prev.isDigit() && next.isDigit()) return true
+        if ((char == ':' || char == '/' || char == '?' || char == '=' || char == '&') && hasAsciiNear(text, index)) return true
+        if ((char == '.' || char == '-' || char == '_' || char == '#') && isAsciiAlnum(next)) return true
+        return false
+    }
+
+    private fun hasAsciiNear(text: String, index: Int): Boolean {
+        val start = scanNonSpaceTokenStart(text, index)
+        val end = scanNonSpaceTokenEnd(text, index)
+        return text.substring(start, end).any(::isAsciiAlnum)
+    }
+
+    private fun wouldCreateShortSymbolSegment(current: StringBuilder): Boolean {
+        val trimmed = current.toString().trim()
+        if (trimmed.length >= MIN_SHORT_SYMBOL_SEGMENT_CHARS) return false
+        if (trimmed.any(::isHanzi) && trimmed.none(::isAsciiAlnum)) return false
+        return true
+    }
+
+    private fun asciiTokenBefore(text: String, endExclusive: Int): String {
+        var cursor = endExclusive - 1
+        while (cursor >= 0 && text[cursor].isLetter()) {
+            cursor -= 1
+        }
+        return text.substring(cursor + 1, endExclusive)
+    }
+
+    private fun scanNonSpaceTokenStart(text: String, index: Int): Int {
+        var cursor = index
+        while (cursor > 0 && !text[cursor - 1].isWhitespace()) {
+            cursor -= 1
+        }
+        return cursor
+    }
+
+    private fun scanNonSpaceTokenEnd(text: String, index: Int): Int {
+        var cursor = index + 1
+        while (cursor < text.length && !text[cursor].isWhitespace()) {
+            cursor += 1
+        }
+        return cursor
+    }
+
+    private fun previousNonSpace(text: String, start: Int): Char? {
+        var cursor = start
+        while (cursor >= 0) {
+            if (!text[cursor].isWhitespace()) return text[cursor]
+            cursor -= 1
+        }
+        return null
+    }
+
+    private fun nextNonSpace(text: String, start: Int): Char? {
+        var cursor = start
+        while (cursor < text.length) {
+            if (!text[cursor].isWhitespace()) return text[cursor]
+            cursor += 1
+        }
+        return null
+    }
+
+    private fun countRoughWords(text: String): Int {
+        var count = 0
+        var inAsciiWord = false
+        for (char in text) {
+            when {
+                isHanzi(char) -> {
+                    count += 1
+                    inAsciiWord = false
+                }
+                char.isLetterOrDigit() -> {
+                    if (!inAsciiWord) {
+                        count += 1
+                        inAsciiWord = true
+                    }
+                }
+                else -> inAsciiWord = false
+            }
+        }
+        return count
     }
 
     private fun tokenize(
@@ -170,7 +466,7 @@ internal object LitsTtsFrontend {
         language: String,
         languageContext: String,
     ): List<String> {
-        val normalized = normalizeText(text).trim()
+        val normalized = normalizeTechnicalText(normalizeText(preprocessZhMixedInput(text), languageContext), languageContext).trim()
         if (normalized.isEmpty()) {
             throw unsupported("text must not be empty after trim")
         }
@@ -181,6 +477,15 @@ internal object LitsTtsFrontend {
         var index = 0
         while (index < normalized.length) {
             val char = normalized[index]
+            if (languageContext == "zh-en" && isAsciiAlnum(char)) {
+                val end = scanAsciiAlnumRun(normalized, index)
+                val run = normalized.substring(index, end)
+                if (shouldExpandPlateAlnumRun(run)) {
+                    appendPlateAlnumRun(output, resources, run)
+                    index = end
+                    continue
+                }
+            }
             when {
                 char.isWhitespace() -> {
                     appendBoundary(output)
@@ -205,6 +510,7 @@ internal object LitsTtsFrontend {
                                     digits.map { chineseDigitTextByChar.getValue(it) }.joinToString(""),
                                 ),
                             ),
+                            trimLeadingBoundary = !shouldKeepBoundaryBeforeChinese(normalized, index),
                         )
                     } else {
                         digits.forEach { digit ->
@@ -226,6 +532,7 @@ internal object LitsTtsFrontend {
                         applyThirdToneSandhi(
                             hanziChunkToPinyin(resources, normalized.substring(index, end)),
                         ),
+                        trimLeadingBoundary = !shouldKeepBoundaryBeforeChinese(normalized, index),
                     )
                     index = end
                 }
@@ -262,7 +569,10 @@ internal object LitsTtsFrontend {
                     index = end
                 }
 
-                else -> throw unsupported("unsupported frontend character: $char")
+                else -> {
+                    appendUnknownSymbol(output)
+                    index += 1
+                }
             }
         }
         while (output.lastOrNull() == "_") {
@@ -271,7 +581,50 @@ internal object LitsTtsFrontend {
         return output
     }
 
-    private fun normalizeText(text: String): String {
+    private fun shouldExpandPlateAlnumRun(run: String): Boolean =
+        run.all { it.isDigit() } ||
+            (run.any { it.isDigit() } && run.any { it in 'A'..'Z' }) ||
+            (run.length == 1 && run.single() in 'A'..'Z')
+
+    private fun appendPlateAlnumRun(
+        output: MutableList<String>,
+        resources: FrontendResources,
+        run: String,
+    ) {
+        var index = 0
+        while (index < run.length) {
+            val char = run[index]
+            when {
+                char.isDigit() -> {
+                    val digitEnd = scanDigits(run, index)
+                    appendChineseSyllables(
+                        output,
+                        resources,
+                        hanziChunkToPinyin(
+                            resources,
+                            run.substring(index, digitEnd).map { chineseDigitTextByChar.getValue(it) }.joinToString(""),
+                        ),
+                    )
+                    index = digitEnd
+                }
+
+                isEnglishLetter(char) -> {
+                    appendBoundary(output)
+                    output += arpabetToTokens(
+                        resources,
+                        letterPhonesByChar[char.uppercaseChar()]
+                            ?: throw unsupported("ASCII letter is not supported by plate frontend: $char"),
+                    )
+                    appendBoundary(output)
+                    index += 1
+                }
+
+                else -> index += 1
+            }
+        }
+    }
+
+    private fun normalizeText(text: String, languageContext: String = "zh-en"): String {
         var normalized = text.replace("...", "\u2026")
             .replace("\u22EF", "\u2026")
             .replace("\u00B7\u00B7\u00B7", "\u2026")
@@ -282,10 +635,180 @@ internal object LitsTtsFrontend {
             .replace("\u00B7\u00B7\u00B7", "\u2026")
             .replace("\u30FB\u30FB\u30FB", "\u2026")
         val output = StringBuilder(normalized.length)
-        for (char in normalized) {
-            output.append(fullwidthPunctuation[char] ?: char)
+        var index = 0
+        while (index < normalized.length) {
+            val code = normalized[index].code
+            if (isHighSurrogate(code)) {
+                if (index + 1 < normalized.length && isLowSurrogate(normalized[index + 1].code)) {
+                    index += 1
+                }
+                output.append(',')
+                index += 1
+                continue
+            }
+            if (isLowSurrogate(code) || isIgnoredFormatCode(code)) {
+                index += 1
+                continue
+            }
+            output.append(normalizeFrontendChar(normalized[index], languageContext))
+            index += 1
         }
         return output.toString()
+    }
+
+    private fun normalizeFrontendChar(char: Char, languageContext: String): String {
+        fullwidthPunctuation[char]?.let { return it }
+        if (isSupportedFrontendChar(char)) return char.toString()
+        if (isAsciiSymbol(char)) return char.toString()
+        if (languageContext != "en-US") {
+            zhEnFrontendCharReplacements[char]?.let { return it }
+            zhEnAsciiSymbolText[char]?.let { return it }
+        }
+        symbolToSafePunctuation[char]?.let { return it }
+        if (isAsciiSymbol(char) || isUnicodeSymbolLike(char)) return ","
+        return ","
+    }
+
+    private fun normalizeTechnicalText(text: String, languageContext: String): String {
+        var normalized = percentNumberRegex.replace(text) { match ->
+            "百分之${numberTextToHanzi(match.groupValues[1])}"
+        }
+        normalized = normalized.replace(Regex("\\b(?:dot|point)\\b", RegexOption.IGNORE_CASE), "点")
+        normalized = normalized.replace(Regex("\\bunderscore\\b", RegexOption.IGNORE_CASE), "下划线")
+        normalized = versionNumberWithSuffixRegex.replace(normalized) { match ->
+            match.value.split('.').joinToString("点", transform = ::numberTextToHanzi)
+        }
+        normalized = digitDotRegex.replace(normalized, "点")
+        normalized = hanziDigitDotRegex.replace(normalized, "点")
+        normalized = leadingDotAsciiTokenRegex.replace(normalized, "点")
+        normalized = caretPowerTwoRegex.replace(normalized, "平方")
+        normalized = normalized.replace("=", "等于")
+        normalized = urlSchemeSeparatorRegex.replace(normalized) { match ->
+            "${match.groupValues[1]}冒号斜杠斜杠"
+        }
+        normalized = technicalAsciiTokenRegex.replace(normalized) { match ->
+            val token = match.groupValues[1]
+            if (looksLikeIpv6(token) || token.none { it in technicalSymbolReadings }) {
+                token
+            } else {
+                buildString {
+                    token.forEach { char ->
+                        append(technicalSymbolReadings[char] ?: char)
+                    }
+                }
+            }
+        }
+        return normalizeResidualSymbols(normalized, languageContext)
+    }
+
+    private fun normalizeResidualSymbols(text: String, languageContext: String): String {
+        val output = StringBuilder(text.length)
+        var index = 0
+        while (index < text.length) {
+            val code = text[index].code
+            if (isHighSurrogate(code)) {
+                if (index + 1 < text.length && isLowSurrogate(text[index + 1].code)) {
+                    index += 1
+                }
+                output.append(',')
+                index += 1
+                continue
+            }
+            if (isLowSurrogate(code) || isIgnoredFormatCode(code)) {
+                index += 1
+                continue
+            }
+            val char = text[index]
+            if (isSupportedFrontendChar(char)) {
+                output.append(char)
+            } else if (languageContext != "en-US") {
+                output.append(
+                    zhEnFrontendCharReplacements[char]
+                        ?: zhEnAsciiSymbolText[char]
+                        ?: symbolToSafePunctuation[char]
+                        ?: ",",
+                )
+            } else {
+                output.append(symbolToSafePunctuation[char] ?: ",")
+            }
+            index += 1
+        }
+        return output.toString()
+    }
+
+    private fun preprocessZhMixedInput(text: String): String {
+        var normalized = commaIntegerCurrencyRegex.replace(text) { match ->
+            compactIntegerCurrencyWithCommas(match.groupValues[1])
+        }
+        normalized = thousandsSeparatorRegex.replace(normalized, "")
+        normalized = negativeTemperatureRangeRegex.replace(normalized) { match ->
+            "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}到${numberTextToHanzi(match.groupValues[3])}${match.groupValues[4]}"
+        }
+        normalized = negativeTemperatureRegex.replace(normalized) { match ->
+            "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
+        }
+        normalized = clockMinuteLeadingZeroRegex.replace(normalized) { match ->
+            "${numberTextToHanzi(match.groupValues[1])}点零${numberTextToHanzi(match.groupValues[2])}分"
+        }
+        normalized = durationMinuteLeadingZeroRegex.replace(normalized) { match ->
+            "${numberTextToHanzi(match.groupValues[1])}小时零${numberTextToHanzi(match.groupValues[2])}分钟"
+        }
+        normalized = yearMonthLeadingZeroRegex.replace(normalized) { match ->
+            "${match.groupValues[1]}零${numberTextToHanzi(match.groupValues[2])}月"
+        }
+        normalized = yearMonthRegex.replace(normalized) { match ->
+            "${match.groupValues[1]}${numberTextToHanzi(match.groupValues[2])}月"
+        }
+        normalized = monthDayLeadingZeroRegex.replace(normalized) { match ->
+            "${match.groupValues[1]}零${numberTextToHanzi(match.groupValues[2])}日"
+        }
+        normalized = monthDayRegex.replace(normalized) { match ->
+            "${match.groupValues[1]}${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
+        }
+        return normalized
+    }
+
+    private fun compactIntegerCurrencyWithCommas(text: String): String {
+        val value = text.replace(",", "").toLongOrNull() ?: return text.replace(",", "")
+        return when {
+            value >= 100_000_000L && value % 100_000_000L == 0L -> integerTextToHanzi((value / 100_000_000L).toString()) + "亿"
+            value >= 10_000L && value % 10_000L == 0L -> integerTextToHanzi((value / 10_000L).toString()) + "万"
+            else -> value.toString()
+        }
+    }
+
+    private fun looksLikeIpv6(token: String): Boolean =
+        token.count { it == ':' } >= 2 && token.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' || it == ':' }
+
+    private fun numberTextToHanzi(text: String): String {
+        val parts = text.split('.', limit = 2)
+        val integer = integerTextToHanzi(parts[0])
+        if (parts.size == 1) return integer
+        return integer + "点" + parts[1].map { chineseDigitTextByChar.getValue(it) }.joinToString("")
+    }
+
+    private fun integerTextToHanzi(text: String): String {
+        val value = text.toIntOrNull() ?: return text.map { chineseDigitTextByChar.getValue(it) }.joinToString("")
+        if (value == 0) return "零"
+        if (value < 10) return chineseDigitTextByChar.getValue(value.digitToChar())
+        if (value < 20) {
+            val ones = value % 10
+            return "十" + if (ones == 0) "" else chineseDigitTextByChar.getValue(ones.digitToChar())
+        }
+        if (value < 100) {
+            val tens = value / 10
+            val ones = value % 10
+            return chineseDigitTextByChar.getValue(tens.digitToChar()) + "十" +
+                if (ones == 0) "" else chineseDigitTextByChar.getValue(ones.digitToChar())
+        }
+        val hundreds = value / 100
+        val remainder = value % 100
+        return chineseDigitTextByChar.getValue(hundreds.digitToChar()) + "百" +
+            when {
+                remainder == 0 -> ""
+                remainder < 10 -> "零" + chineseDigitTextByChar.getValue(remainder.digitToChar())
+                else -> integerTextToHanzi(remainder.toString())
+            }
     }
 
     private fun flushSegment(segments: MutableList<String>, current: StringBuilder) {
@@ -342,10 +865,14 @@ internal object LitsTtsFrontend {
         val output = mutableListOf<String>()
         for (char in word) {
             val pinyin = resources.wordPinyin[char.toString()]
-                ?: throw unsupported("hanzi is not covered by chinese_lexicon.txt: $char")
+            if (pinyin == null) {
+                output += ","
+                continue
+            }
             val syllables = normalizeLexiconPinyin(pinyin)
             if (syllables.isEmpty()) {
-                throw unsupported("hanzi pinyin is invalid in chinese_lexicon.txt: $char")
+                output += ","
+                continue
             }
             output += syllables
         }
@@ -373,6 +900,10 @@ internal object LitsTtsFrontend {
 
     private fun phonesForEnglishWord(resources: FrontendResources, rawWord: String): List<String> {
         val normalized = rawWord.uppercase()
+        if (shouldSpellUppercaseWord(rawWord, normalized)) {
+            val spelled = spellEnglishWord(resources, normalized)
+            if (spelled.isNotEmpty()) return spelled
+        }
         resources.cmudict[normalized]?.let { return it }
         if ('-' in normalized) {
             val output = mutableListOf<String>()
@@ -380,7 +911,7 @@ internal object LitsTtsFrontend {
                 if (part.isEmpty()) continue
                 val phones = resources.cmudict[part] ?: spellEnglishWord(resources, part)
                 if (phones.isEmpty()) {
-                    throw unsupported("english word is not covered by cmudict.txt: $rawWord")
+                    continue
                 }
                 output += phones
             }
@@ -388,8 +919,13 @@ internal object LitsTtsFrontend {
         }
         val spelled = spellEnglishWord(resources, normalized)
         if (spelled.isNotEmpty()) return spelled
-        throw unsupported("english word is not covered by cmudict.txt: $rawWord")
+        return emptyList()
     }
+
+    private fun shouldSpellUppercaseWord(rawWord: String, normalized: String): Boolean =
+        rawWord.length > 1 &&
+            rawWord.all { it in 'A'..'Z' } &&
+            normalized !in acronymWordReadings
 
     private fun spellEnglishWord(resources: FrontendResources, word: String): List<String> {
         val output = mutableListOf<String>()
@@ -405,7 +941,7 @@ internal object LitsTtsFrontend {
         val rawTokens = buildList {
             for (phone in phones) {
                 val tokens = resources.arpabetToTokens[phone]
-                    ?: throw unsupported("ARPAbet phone is not supported by Android frontend: $phone")
+                    ?: continue
                 addAll(tokens)
             }
         }
@@ -440,24 +976,43 @@ internal object LitsTtsFrontend {
     }
 
     private fun appendPunctuation(output: MutableList<String>, token: String) {
-        while (output.lastOrNull() == "_") {
-            output.removeAt(output.lastIndex)
-        }
+        appendBoundary(output)
         output += token
+        appendBoundary(output)
+    }
+
+    private fun appendUnknownSymbol(output: MutableList<String>) {
+        if (output.lastOrNull() != ",") {
+            appendPunctuation(output, ",")
+        }
     }
 
     private fun appendChineseSyllables(
         output: MutableList<String>,
         resources: FrontendResources,
         syllables: List<String>,
+        trimLeadingBoundary: Boolean = true,
     ) {
-        while (output.lastOrNull() == "_") {
+        while (trimLeadingBoundary && output.lastOrNull() == "_") {
             output.removeAt(output.lastIndex)
         }
         syllables.forEach { syllable ->
-            output += resources.pinyinToTokens[syllable]
-                ?: throw unsupported("pinyin is not covered by generated mapping: $syllable")
+            if (syllable == ",") {
+                appendPunctuation(output, ",")
+                return@forEach
+            }
+            val tokens = resources.pinyinToTokens[syllable]
+            if (tokens == null) {
+                appendPunctuation(output, ",")
+                return@forEach
+            }
+            output += tokens
         }
+    }
+
+    private fun shouldKeepBoundaryBeforeChinese(text: String, index: Int): Boolean {
+        val prev = previousNonSpace(text, index - 1)
+        return prev != null && (isEnglishLetter(prev) || prev.isDigit() || isPunctuationChar(prev))
     }
 
     private fun intersperseZero(ids: List<Int>): LongArray {
@@ -500,19 +1055,64 @@ internal object LitsTtsFrontend {
         return index
     }
 
+    private fun scanAsciiAlnumRun(text: String, start: Int): Int {
+        var index = start
+        while (index < text.length && isAsciiAlnum(text[index])) {
+            index += 1
+        }
+        return index
+    }
+
     private fun isHanzi(char: Char): Boolean = hanziRegex.matches(char.toString())
 
     private fun isEnglishLetter(char: Char): Boolean = char in 'a'..'z' || char in 'A'..'Z'
 
+    private fun isAsciiAlnum(char: Char): Boolean = isEnglishLetter(char) || char.isDigit()
+
     private fun isPunctuationChar(char: Char): Boolean = char == '\u2026' || char in punctuation
+
+    private fun isSupportedFrontendChar(char: Char): Boolean =
+        char.isWhitespace() ||
+            isPunctuationChar(char) ||
+            char.isDigit() ||
+            isEnglishLetter(char) ||
+            isHanzi(char)
+
+    private fun isAsciiSymbol(char: Char): Boolean =
+        char.code in 0x21..0x7e && !char.isDigit() && !isEnglishLetter(char)
+
+    private fun isUnicodeSymbolLike(char: Char): Boolean {
+        val code = char.code
+        return code in 0x2000..0x206f ||
+            code in 0x20a0..0x27bf ||
+            code in 0x2b00..0x2bff ||
+            code in 0x3000..0x303f ||
+            code in 0xfe10..0xfe6f ||
+            code in 0xff00..0xffef
+    }
+
+    private fun isHighSurrogate(code: Int): Boolean = code in 0xd800..0xdbff
+
+    private fun isLowSurrogate(code: Int): Boolean = code in 0xdc00..0xdfff
+
+    private fun isIgnoredFormatCode(code: Int): Boolean =
+        code == 0x200c ||
+            code == 0x200d ||
+            code == 0x20e3 ||
+            code == 0xfe0e ||
+            code == 0xfe0f
+
+    private fun isSentenceEndPunctuation(char: Char): Boolean = char in sentenceEndPunctuation
+
+    private fun isAttachedSentenceSuffix(char: Char): Boolean = char in attachedSentenceSuffix
 
     private fun resources(layout: LitsTtsAssetInstaller.InstalledLayout): FrontendResources =
         resourcesByRoot.getOrPut(layout.rootDir.absolutePath) {
-            val wordPinyin = loadWordPinyin(layout)
             val executor = Executors.newFixedThreadPool(FRONTEND_LOAD_THREADS) { runnable ->
                 Thread(runnable, "lits-tts-frontend-load").apply { isDaemon = true }
             }
             try {
+                val wordPinyinFuture = executor.submit(Callable { loadWordPinyin(layout) })
                 val polyphonicWords = executor.submit(Callable {
                     layout.polychar.readLines(Charsets.UTF_8)
                         .map { it.trim() }
@@ -523,6 +1123,7 @@ internal object LitsTtsFrontend {
                 val symbolToId = executor.submit(Callable { loadSymbols(layout) })
                 val pinyinToTokens = executor.submit(Callable { loadTokenMap(layout.pinyinToTokens, "pinyin_to_tokens") })
                 val arpabetToTokens = executor.submit(Callable { loadTokenMap(layout.arpabetToTokens, "arpabet_to_tokens") })
+                val wordPinyin = wordPinyinFuture.get()
                 FrontendResources(
                     wordPinyin = wordPinyin,
                     polyphonicWords = polyphonicWords.get(),
@@ -586,7 +1187,7 @@ internal object LitsTtsFrontend {
         }
 
     private fun loadWordPinyinBin(file: File): Map<String, String> =
-        DataInputStream(BufferedInputStream(file.inputStream())).use { input ->
+        BinaryReader(file.readBytes()).let { input ->
             require(input.readInt() == WORD_PINYIN_BIN_MAGIC) { "invalid chinese lexicon bin magic" }
             val count = input.readInt()
             buildMap(count) {
@@ -597,7 +1198,7 @@ internal object LitsTtsFrontend {
         }
 
     private fun loadCmudictBin(file: File): Map<String, List<String>> =
-        DataInputStream(BufferedInputStream(file.inputStream())).use { input ->
+        BinaryReader(file.readBytes()).let { input ->
             require(input.readInt() == CMUDICT_BIN_MAGIC) { "invalid cmudict bin magic" }
             val count = input.readInt()
             buildMap(count) {
@@ -609,12 +1210,26 @@ internal object LitsTtsFrontend {
             }
         }
 
-    private fun DataInputStream.readUtf8String(): String {
-        val length = readInt()
-        require(length >= 0) { "negative string length" }
-        val bytes = ByteArray(length)
-        readFully(bytes)
-        return bytes.toString(Charsets.UTF_8)
+    private class BinaryReader(private val bytes: ByteArray) {
+        private var offset: Int = 0
+
+        fun readInt(): Int {
+            require(offset + Int.SIZE_BYTES <= bytes.size) { "unexpected end of frontend bin" }
+            val value = ((bytes[offset].toInt() and 0xff) shl 24) or
+                ((bytes[offset + 1].toInt() and 0xff) shl 16) or
+                ((bytes[offset + 2].toInt() and 0xff) shl 8) or
+                (bytes[offset + 3].toInt() and 0xff)
+            offset += Int.SIZE_BYTES
+            return value
+        }
+
+        fun readUtf8String(): String {
+            val length = readInt()
+            require(length >= 0 && offset + length <= bytes.size) { "invalid frontend bin string length" }
+            return bytes.decodeToString(offset, offset + length).also {
+                offset += length
+            }
+        }
     }
 
     private fun loadSymbols(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, Int> {

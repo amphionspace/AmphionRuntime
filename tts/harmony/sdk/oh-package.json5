@@ -1,6 +1,6 @@
 {
   "name": "sdk",
-  "version": "0.1.0",
+  "version": "0.2.5",
   "description": "Offline Lits TTS SDK for HarmonyOS.",
   "main": "Index.ets",
   "author": "Amphion",

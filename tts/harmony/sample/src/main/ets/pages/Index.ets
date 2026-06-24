@@ -14,23 +14,61 @@ import type {
   TextToSpeechEngine
 } from 'sdk';
 
-const DEFAULT_VOICE_ID: string = 'lits-female-01';
+const ZH_VOICE_ID: string = 'lits-female-02';
+const EN_VOICE_ID: string = 'lits-female-01';
 const LOG_LIMIT: number = 60;
 const PROGRESS_INTERVAL_MS: number = 140;
 const PROGRESS_STEP: number = 7;
 const PROGRESS_MAX: number = 92;
 const PROGRESS_MIN_VISIBLE_MS: number = 600;
-const METRICS_PLACEHOLDER: string = '采样率 -- Hz | 总耗时 -- ms | 音频时长 -- ms | RTF -- | 播放方式 --';
+const METRICS_PLACEHOLDER: string = '模式: --\n引擎加载: -- ms\n采样率: -- Hz\n首包时延: -- ms\n合成耗时: -- ms\n音频时长: -- ms\nRTF: --\nChunk数: --';
 const PCM_BYTES_PER_SAMPLE: number = 2;
+const DEFAULT_SAMPLE_RATE: number = 24000;
+const DEFAULT_STREAMING_CHUNK_SIZE: string = '50';
+const DEFAULT_PCM_QUEUE_CAPACITY: string = '32';
+const AUTO_BATCH_RAWFILE: string = 'dual_tts_eval_cases.jsonl';
+const AUTO_BATCH_LOG_TAG: string = '[DualTtsEval]';
+const AUTO_BATCH_OUTPUT_FILE: string = 'dual_tts_eval_metrics.jsonl';
+const AUTO_WARMUP_ENABLED: boolean = true;
+const AUTO_BATCH_ENABLED: boolean = false;
+
+interface AutoBatchCase {
+  case_id: string;
+  dataset: string;
+  lang: string;
+  tn_mode: string;
+  spk_id: number;
+  text: string;
+  reference_text: string;
+}
+
+interface AutoBatchMetric {
+  model_id: string;
+  case_id: string;
+  dataset: string;
+  lang: string;
+  tn_mode: string;
+  text: string;
+  reference_text: string;
+  status: string;
+  error: string;
+  sample_rate: number;
+  first_audio_ms: number;
+  synthesis_ms: number;
+  audio_duration_ms: number;
+  rtf: number;
+  chunk_count: number;
+  audio_bytes: number;
+  engine_load_ms: number;
+}
 
 @Entry
 @Component
 struct Index {
   @State private inputText: string = '欢迎使用 Lits delivery 纯 TTS 示例。房间 204 已准备就绪。';
   @State private language: string = 'zh-en';
-  @State private speed: string = '1.0';
-  @State private pitch: string = '1.0';
-  @State private volume: string = '1.0';
+  @State private chunkSize: string = DEFAULT_STREAMING_CHUNK_SIZE;
+  @State private pcmQueueCapacity: string = DEFAULT_PCM_QUEUE_CAPACITY;
   @State private status: string = '等待操作';
   @State private metricsText: string = METRICS_PLACEHOLDER;
   @State private logText: string = '等待运行日志…';
@@ -38,6 +76,7 @@ struct Index {
   @State private busy: boolean = false;
   @State private localPlaying: boolean = false;
   @State private savingFile: boolean = false;
+  @State private warmupDone: boolean = false;
   @State private loadedLanguageText: string = '未加载';
   @State private progressVisible: boolean = false;
   @State private progressLabel: string = '';
@@ -50,21 +89,32 @@ struct Index {
   private requestChunkCount: number = 0;
   private requestAudioBytes: number = 0;
   private requestStartedAtMs: number = 0;
+  private requestFirstChunkAtMs: number = 0;
   private requestSampleRate: number = 16000;
+  private engineLoadStartedAtMs: number = 0;
+  private engineLoadMs: number = -1;
+  private engineLoadGeneration: number = 0;
+  private loadingLanguage: string = '';
   private requestPcmChunks: Map<number, ArrayBuffer> = new Map<number, ArrayBuffer>();
   private lastAudio: ArrayBuffer | undefined = undefined;
   private lastSampleRate: number = 16000;
   private logLines: Array<string> = [];
   private progressTimer: number | undefined = undefined;
   private progressStartedAtMs: number = 0;
+  private autoBatchCases: Array<AutoBatchCase> = [];
+  private autoBatchMetrics: Array<AutoBatchMetric> = [];
+  private autoBatchIndex: number = 0;
+  private autoBatchRunning: boolean = false;
+  private autoBatchStarted: boolean = false;
+  private currentBatchCase: AutoBatchCase | undefined = undefined;
   private readonly listener: SpeakListener = new PageSpeakListener(this);
   private readonly player: SamplePcmPlayer = new SamplePcmPlayer();
 
   aboutToAppear(): void {
     this.inputText = this.presetTextFor(this.language);
     this.metricsText = METRICS_PLACEHOLDER;
-    this.appendLog('sample 已启动，仅保留纯 TTS 流程。');
-    this.appendLog('createEngine 负责模型加载；纯英文品牌词或缩写发音异常，通常属于模型前端或词典问题。');
+    this.appendLog('sample 已启动，当前页面参考 clean sample 的 TTS 卡片布局，只保留纯 TTS 流程。');
+    this.appendLog('启动后自动加载模型并 Warmup；批测需要手动触发。');
     void this.preloadEngine(this.language, false);
   }
 
@@ -83,7 +133,7 @@ struct Index {
           .width('100%')
           .textAlign(TextAlign.Start);
 
-        Text('页面只展示纯 TTS 业务流程：输入文本、选择语言、开始合成、SDK 直接播报、播放结果、保存 WAV。createEngine 阶段负责模型加载。')
+        Text('页面只展示纯 TTS 业务流程：输入文本、选择语言、开始合成、SDK 直接播报、播放结果、保存 WAV。SDK 接口生命周期和回调处理都在后台完成。')
           .fontSize(14)
           .fontColor('#666666')
           .lineHeight(22)
@@ -96,9 +146,9 @@ struct Index {
 
           TextArea({ text: this.inputText, placeholder: '请输入要合成的文本' })
             .width('100%')
-            .height(180)
-            .backgroundColor('#FFF9F1')
-            .borderRadius(16)
+            .height(150)
+            .backgroundColor('#FAF7F2')
+            .borderRadius(8)
             .padding(12)
             .onChange((value: string) => {
               this.inputText = value;
@@ -109,69 +159,49 @@ struct Index {
             .width('100%');
 
           Row({ space: 10 }) {
-            this.languageButton('zh-en', this.language === 'zh-en', (): void => {
-              this.switchLanguage('zh-en');
-            });
-            this.languageButton('en-US', this.language === 'en-US', (): void => {
-              this.switchLanguage('en-US');
-            });
+            this.languageButton('zh-en');
+            this.languageButton('en-US');
           }.width('100%');
 
           Text('数字读法由 languageContext 决定：zh-en 按中文逐位读，en-US 按英文逐位读。')
             .fontSize(12)
-            .fontColor('#8A6F54')
+            .fontColor('#9A9387')
             .lineHeight(18)
             .width('100%');
 
-          Text('说明：像 HarmonyOS 这类英文品牌词或缩写如果念得不自然，问题通常在模型前端与词典，不在 Harmony 播放链路。')
+          Text(`当前选择：${this.language}`)
             .fontSize(12)
-            .fontColor('#8A6F54')
-            .lineHeight(18)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#1D5DF1')
             .width('100%');
 
-          Text('声学参数')
+          Text('Chunk size')
             .fontWeight(FontWeight.Medium)
             .width('100%');
 
-          Text('这些参数都在 SDK 内部生效：speed 控制语速，pitch 控制音高，volume 控制音量。')
-            .fontSize(12)
-            .fontColor('#8A6F54')
-            .lineHeight(18)
+          TextInput({ text: this.chunkSize, placeholder: '默认 100' })
+            .width('100%')
+            .backgroundColor('#FAF7F2')
+            .borderRadius(8)
+            .padding({ left: 12, right: 12 })
+            .enabled(!this.isUiBusy())
+            .onChange((value: string): void => {
+              this.chunkSize = value;
+            });
+
+          Text('PCM queue capacity')
+            .fontWeight(FontWeight.Medium)
             .width('100%');
 
-          Column({ space: 8 }) {
-            this.paramField(
-              '语速 speed',
-              '1.0 为默认语速，范围 0.5 ~ 2.0，越大越快。',
-              this.speed,
-              '1.0',
-              (value: string): void => {
-                this.speed = value;
-              }
-            );
-            this.paramField(
-              '音高 pitch',
-              '1.0 为默认音高，范围 0.5 ~ 2.0，越大越高。',
-              this.pitch,
-              '1.0',
-              (value: string): void => {
-                this.pitch = value;
-              }
-            );
-            this.paramField(
-              '音量 volume',
-              '1.0 为默认音量，范围 0.0 ~ 2.0，越大越响。',
-              this.volume,
-              '1.0',
-              (value: string): void => {
-                this.volume = value;
-              }
-            );
-          }
-          .width('100%')
-          .backgroundColor('#F7F2EA')
-          .borderRadius(14)
-          .padding(12);
+          TextInput({ text: this.pcmQueueCapacity, placeholder: '默认 128' })
+            .width('100%')
+            .backgroundColor('#FAF7F2')
+            .borderRadius(8)
+            .padding({ left: 12, right: 12 })
+            .enabled(!this.isUiBusy())
+            .onChange((value: string): void => {
+              this.pcmQueueCapacity = value;
+            });
 
           Row({ space: 12 }) {
             Button('开始合成')
@@ -180,7 +210,7 @@ struct Index {
               .backgroundColor('#C46A2B')
               .fontColor('#FFFFFF')
               .fontWeight(FontWeight.Bold)
-              .enabled(!this.isUiBusy())
+              .enabled(!this.isUiBusy() && this.warmupDone)
               .onClick((): void => {
                 void this.submitSynthesis(PlayType.SYNTHESIZE_ONLY);
               });
@@ -188,7 +218,7 @@ struct Index {
             Button('SDK 直接播报')
               .layoutWeight(1)
               .height(44)
-              .enabled(!this.isUiBusy())
+              .enabled(!this.isUiBusy() && this.warmupDone)
               .onClick((): void => {
                 void this.submitSynthesis(PlayType.SYNTHESIZE_AND_PLAY);
               });
@@ -213,6 +243,14 @@ struct Index {
           }.width('100%');
 
           Row({ space: 12 }) {
+            Button('Warmup')
+              .layoutWeight(1)
+              .height(40)
+              .enabled(!this.isUiBusy())
+              .onClick((): void => {
+                void this.submitWarmup(false);
+              });
+
             Button('停止')
               .layoutWeight(1)
               .height(40)
@@ -220,18 +258,16 @@ struct Index {
               .onClick((): void => {
                 void this.stopCurrentWork();
               });
-
-            Button('重新加载模型')
-              .layoutWeight(1)
-              .height(40)
-              .enabled(!this.isUiBusy())
-              .onClick((): void => {
-                void this.preloadEngine(this.language, true);
-              });
           }.width('100%');
+
+          Text('“开始合成”用于测流式回调；“SDK 直接播报”用于测边推边播；“Warmup”会先跑一条短句，把模型首次执行开销排除掉。Chunk size 会覆盖流式切块大小，PCM queue capacity 会覆盖 SDK 直接播报的播放缓冲队列容量。')
+            .fontSize(12)
+            .fontColor('#9A9387')
+            .lineHeight(18)
+            .width('100%');
         }
         .width('100%')
-        .backgroundColor('#FFFFFF')
+        .backgroundColor('#FAF7F2')
         .borderRadius(20)
         .padding(16);
 
@@ -240,31 +276,21 @@ struct Index {
             .fontWeight(FontWeight.Medium)
             .width('100%');
 
-          Text(`当前选择：${this.language} | 当前已加载：${this.loadedLanguageText}`)
-            .width('100%')
-            .fontSize(12)
-            .lineHeight(18)
-            .padding(12)
-            .backgroundColor('#F7F2EA')
-            .borderRadius(14)
-            .fontColor('#6F5A46');
-
           Text(this.status)
             .width('100%')
             .fontSize(14)
             .lineHeight(22)
-            .padding(12)
-            .backgroundColor('#F7F2EA')
-            .borderRadius(14);
+            .fontColor('#6F6A60');
 
           Text(this.metricsText)
             .width('100%')
             .fontSize(12)
             .lineHeight(18)
             .padding(12)
-            .backgroundColor('#F7F2EA')
-            .borderRadius(14)
-            .fontColor('#6F5A46');
+            .fontFamily('monospace')
+            .backgroundColor('#EEE7DA')
+            .borderRadius(8)
+            .fontColor('#6F6A60');
 
           if (this.progressVisible) {
             Column({ space: 8 }) {
@@ -291,7 +317,7 @@ struct Index {
           }
         }
         .width('100%')
-        .backgroundColor('#FFFFFF')
+        .backgroundColor('#FAF7F2')
         .borderRadius(20)
         .padding(16);
 
@@ -311,29 +337,35 @@ struct Index {
             .padding(12);
         }
         .width('100%')
-        .backgroundColor('#FFFFFF')
+        .backgroundColor('#FAF7F2')
         .borderRadius(20)
         .padding(16);
       }
       .width('100%')
-      .padding(16)
-      .backgroundColor('#F3E8DA');
+      .padding(20)
+      .backgroundColor('#F3EEE5');
     }
     .width('100%')
     .height('100%');
   }
 
   @Builder
-  private languageButton(label: string, selected: boolean, onClick: () => void) {
-    Button(label)
+  private languageButton(language: string) {
+    Button(this.language === language ? `✓ ${language}` : language)
       .type(ButtonType.Capsule)
       .layoutWeight(1)
-      .height(40)
-      .backgroundColor(selected ? '#5F3B23' : '#F2E5D6')
-      .fontColor(selected ? '#FFFFFF' : '#5F3B23')
-      .fontWeight(FontWeight.Medium)
+      .height(44)
+      .backgroundColor(this.language === language ? '#1D5DF1' : '#FFFFFF')
+      .fontColor(this.language === language ? '#FFFFFF' : '#2C2A26')
+      .fontWeight(this.language === language ? FontWeight.Bold : FontWeight.Medium)
+      .border({
+        width: this.language === language ? 2 : 1,
+        color: this.language === language ? '#0D3DB8' : '#D8CEC0'
+      })
       .enabled(!this.isUiBusy())
-      .onClick(onClick);
+      .onClick((): void => {
+        this.switchLanguage(language);
+      });
   }
 
   @Builder
@@ -374,14 +406,28 @@ struct Index {
   }
 
   private switchLanguage(language: string): void {
-    if (this.language === language) {
+    if (this.isUiBusy()) {
+      this.setStatus(`请等待当前任务完成后再切换语言：${this.language}`);
+      return;
+    }
+    if (this.language === language && this.engineLanguage === language && !this.loadingEngine) {
       return;
     }
     this.language = language;
     this.inputText = this.presetTextFor(language);
+    this.warmupDone = false;
+    this.busy = false;
+    this.localPlaying = false;
+    this.savingFile = false;
     this.setStatus(`正在切换语言并加载模型：${language}`);
     this.setMetrics(METRICS_PLACEHOLDER);
     this.appendLog(`切换语言：${language}`);
+    void this.player.stop();
+    try {
+      this.engine?.stop();
+    } catch (_error) {
+    }
+    this.releaseEngine();
     void this.preloadEngine(language, false);
   }
 
@@ -409,11 +455,8 @@ struct Index {
       }
     }
 
-    const numericSpeed = parseFloat(this.speed);
-    const numericPitch = parseFloat(this.pitch);
-    const numericVolume = parseFloat(this.volume);
-    if (Number.isNaN(numericSpeed) || Number.isNaN(numericPitch) || Number.isNaN(numericVolume)) {
-      this.setStatus('声学参数必须是数字：speed / pitch / volume');
+    if (!this.warmupDone) {
+      this.setStatus('模型加载和 Warmup 尚未完成，请稍候');
       return;
     }
 
@@ -422,6 +465,7 @@ struct Index {
     this.requestChunkCount = 0;
     this.requestAudioBytes = 0;
     this.requestStartedAtMs = Date.now();
+    this.requestFirstChunkAtMs = 0;
     this.requestSampleRate = 16000;
     this.requestPcmChunks.clear();
     if (playType === PlayType.SYNTHESIZE_ONLY) {
@@ -442,9 +486,14 @@ struct Index {
       queueMode: QueueMode.PREEMPT,
       languageContext: this.language === 'en-US' ? 'en-US' : 'zh-CN',
       audioType: 'pcm',
-      speed: numericSpeed,
-      pitch: numericPitch,
-      volume: numericVolume
+      speed: 1.0,
+      pitch: 1.0,
+      volume: 1.0,
+      extraParams: {
+        streamingChunkSize: this.selectedChunkSize(),
+        streamingFirstChunkSize: this.selectedChunkSize(),
+        pcmQueueCapacity: this.selectedPcmQueueCapacity()
+      }
     };
 
     try {
@@ -457,16 +506,72 @@ struct Index {
     }
   }
 
+  private async submitWarmup(autoTriggered: boolean): Promise<void> {
+    if (this.loadingEngine || this.localPlaying || this.savingFile) {
+      return;
+    }
+    let readyEngine = this.engine;
+    if (readyEngine === undefined || this.engineLanguage !== this.language) {
+      this.setStatus(`正在加载模型：${this.language}`);
+      await this.preloadEngine(this.language, false);
+      readyEngine = this.engine;
+      if (readyEngine === undefined || this.engineLanguage !== this.language) {
+        return;
+      }
+    }
+
+    const requestId = this.nextRequestId('warmup');
+    this.currentPlayType = PlayType.SYNTHESIZE_ONLY;
+    this.requestChunkCount = 0;
+    this.requestAudioBytes = 0;
+    this.requestStartedAtMs = Date.now();
+    this.requestFirstChunkAtMs = 0;
+    this.requestSampleRate = DEFAULT_SAMPLE_RATE;
+    this.requestPcmChunks.clear();
+    this.busy = true;
+    this.updateProgressBar('正在 Warmup…');
+    this.setStatus(`正在 Warmup：${requestId}`);
+    this.setMetrics(this.buildMetricsText('Warmup/待机', 0, undefined, undefined, 0, 0));
+    this.appendLog(`${autoTriggered ? '自动' : '提交'} Warmup requestId=${requestId} language=${this.language} chunkSize=${this.selectedChunkSize()} pcmQueueCapacity=${this.selectedPcmQueueCapacity()}`);
+
+    try {
+      const warmupParams: SpeakParams = {
+        requestId,
+        playType: PlayType.SYNTHESIZE_ONLY,
+        queueMode: QueueMode.PREEMPT,
+        languageContext: this.language === 'en-US' ? 'en-US' : 'zh-CN',
+        audioType: 'pcm',
+        speed: 1.0,
+        pitch: 1.0,
+        volume: 1.0,
+        extraParams: {
+          streamingChunkSize: this.selectedChunkSize(),
+          streamingFirstChunkSize: this.selectedChunkSize(),
+          pcmQueueCapacity: this.selectedPcmQueueCapacity()
+        }
+      };
+      readyEngine.speak(this.language === 'en-US' ? 'hello.' : '你好。', warmupParams);
+    } catch (error) {
+      this.busy = false;
+      this.clearProgressBar();
+      this.setStatus(`预热失败：${formatError(error)}`);
+      this.appendLog(`warmup failed requestId=${requestId} message=${formatError(error)}`);
+    }
+  }
+
   private preloadEngine(language: string, forceReload: boolean): Promise<void> {
     if (!forceReload && this.engine !== undefined && this.engineLanguage === language) {
       this.setStatus(`模型已加载：${language}`);
       this.loadedLanguageText = language;
       return Promise.resolve();
     }
-    if (this.loadingEngine) {
+    if (this.loadingEngine && this.loadingLanguage === language && !forceReload) {
       return Promise.resolve();
     }
 
+    const generation = this.engineLoadGeneration + 1;
+    this.engineLoadGeneration = generation;
+    this.loadingLanguage = language;
     this.loadingEngine = true;
     this.busy = false;
     this.localPlaying = false;
@@ -474,50 +579,80 @@ struct Index {
     this.updateProgressBar(`正在加载模型：${language}`);
     this.setStatus(`正在加载模型：${language}`);
     this.setMetrics(METRICS_PLACEHOLDER);
-    this.appendLog(`createEngine language=${language} voiceId=${DEFAULT_VOICE_ID}`);
+    const voiceId = this.voiceIdForLanguage(language);
+    this.appendLog(`createEngine language=${language} voiceId=${voiceId}`);
+    this.engineLoadStartedAtMs = Date.now();
 
     void this.player.stop();
     this.releaseEngine();
-    this.loadedLanguageText = '切换中';
+    this.loadedLanguageText = `切换中：${language}`;
 
     const params: CreateEngineParams = {
       language,
       mode: RunMode.OFFLINE,
-      voiceId: DEFAULT_VOICE_ID
+      voiceId,
+      extraParams: {
+        streamingChunkSize: this.selectedChunkSize(),
+        streamingFirstChunkSize: this.selectedChunkSize()
+      }
     };
 
     return new Promise<void>((resolve: () => void): void => {
-      const callback = new EngineCreateCallback(this, language, resolve);
+      const callback = new EngineCreateCallback(this, language, generation, resolve);
       TextToSpeechSdk.createEngine(params, callback);
     });
   }
 
-  handleEngineCreateSuccess(language: string, engine: TextToSpeechEngine): void {
+  handleEngineCreateSuccess(language: string, generation: number, engine: TextToSpeechEngine): void {
     engine.setListener(this.listener);
-    if (this.language !== language) {
+    if (generation !== this.engineLoadGeneration || this.language !== language) {
       try {
         engine.shutdown();
       } catch (_error) {
       }
-      this.loadingEngine = false;
-      this.clearProgressBar();
-      void this.preloadEngine(this.language, false);
+      if (generation === this.engineLoadGeneration) {
+        this.loadingEngine = false;
+        this.loadingLanguage = '';
+        this.clearProgressBar();
+        void this.preloadEngine(this.language, false);
+      }
       return;
     }
     this.engine = engine;
     this.engineLanguage = language;
     this.loadedLanguageText = language;
     this.loadingEngine = false;
+    this.loadingLanguage = '';
+    this.engineLoadMs = Math.max(0, Date.now() - this.engineLoadStartedAtMs);
     this.clearProgressBar();
     this.setStatus(`模型加载完成：${language}`);
-    this.appendLog(`createEngine success language=${language} voiceId=${DEFAULT_VOICE_ID}`);
+    this.appendLog(`createEngine success language=${language} voiceId=${this.voiceIdForLanguage(language)} loadMs=${this.engineLoadMs}`);
+    if (AUTO_WARMUP_ENABLED) {
+      void this.submitWarmup(true);
+    } else {
+      this.warmupDone = true;
+      this.appendLog('auto warmup disabled');
+    }
   }
 
-  handleEngineCreateError(language: string, errorCode: number, errorMessage: string): void {
+  private voiceIdForLanguage(language: string): string {
+    return language === 'en-US' ? EN_VOICE_ID : ZH_VOICE_ID;
+  }
+
+  handleEngineCreateError(language: string, generation: number, errorCode: number, errorMessage: string): void {
+    if (generation !== this.engineLoadGeneration) {
+      return;
+    }
     this.loadingEngine = false;
+    this.loadingLanguage = '';
+    if (this.language !== language) {
+      void this.preloadEngine(this.language, false);
+      return;
+    }
     this.engine = undefined;
     this.engineLanguage = '';
     this.loadedLanguageText = '未加载';
+    this.warmupDone = false;
     this.clearProgressBar();
     this.setStatus(`模型加载失败：${language} / ${errorCode} / ${errorMessage}`);
     this.appendLog(`createEngine failed language=${language} code=${errorCode} message=${errorMessage}`);
@@ -693,6 +828,10 @@ struct Index {
   }
 
   handleSpeakData(requestId: string, audio: ArrayBuffer, response: SynthesisResponse): void {
+    if (this.requestFirstChunkAtMs <= 0) {
+      this.requestFirstChunkAtMs = Date.now();
+      this.appendLog(`first onData requestId=${requestId} firstPacketMs=${this.requestFirstChunkAtMs - this.requestStartedAtMs}`);
+    }
     this.requestChunkCount += 1;
     this.requestAudioBytes += audio.byteLength;
     this.requestPcmChunks.set(response.sequence, audio);
@@ -702,22 +841,45 @@ struct Index {
     if (response.type === 'SYNTHESIS_COMPLETE') {
       const orderedAudio = concatOrderedAudioChunks(this.requestPcmChunks);
       this.requestPcmChunks.clear();
-      const synthesisMs = Math.max(0, Date.now() - this.requestStartedAtMs);
-      const audioDuration = audioDurationMs(orderedAudio.byteLength, this.requestSampleRate);
+      const uiSynthesisMs = Math.max(0, Date.now() - this.requestStartedAtMs);
+      const uiFirstPacketMs = this.requestFirstChunkAtMs > 0 ? this.requestFirstChunkAtMs - this.requestStartedAtMs : undefined;
+      const uiAudioDuration = audioDurationMs(orderedAudio.byteLength, this.requestSampleRate);
+      const synthesisMs = response.synthesisMs ?? uiSynthesisMs;
+      const firstPacketMs = response.firstPacketMs ?? uiFirstPacketMs;
+      const audioDuration = response.audioDurationMs ?? uiAudioDuration;
       this.appendLog(`onData summary requestId=${requestId} chunks=${this.requestChunkCount} bytes=${this.requestAudioBytes}`);
+      if (requestId.startsWith('batch-')) {
+        this.busy = false;
+        this.clearProgressBar();
+        this.recordBatchSuccess(firstPacketMs, synthesisMs, audioDuration, this.requestSampleRate);
+        return;
+      }
       if (this.currentPlayType === PlayType.SYNTHESIZE_ONLY) {
         this.lastAudio = orderedAudio;
         this.lastSampleRate = this.requestSampleRate;
         this.busy = false;
         this.clearProgressBar();
-        this.setStatus(`合成完成：${requestId}`);
+        if (requestId.startsWith('warmup-')) {
+          this.warmupDone = true;
+          this.setStatus(`Warmup 完成：${requestId}`);
+          this.startAutoBatchIfAvailable();
+        } else {
+          this.setStatus(`合成完成：${requestId}`);
+        }
         this.setMetrics(
-          `采样率 ${this.requestSampleRate} Hz | 总耗时 ${synthesisMs} ms | 音频时长 ${audioDuration} ms | RTF ${formatRtf(synthesisMs, audioDuration)} | 播放方式 PCM`
+          this.buildMetricsText(
+            requestId.startsWith('warmup-') ? 'Warmup/待机' : '真流式回调',
+            this.requestChunkCount,
+            firstPacketMs,
+            synthesisMs,
+            audioDuration,
+            this.requestSampleRate
+          )
         );
       } else {
         this.setStatus(`合成完成，SDK 正在播报：${requestId}`);
         this.setMetrics(
-          `采样率 ${this.requestSampleRate} Hz | 总耗时 ${synthesisMs} ms | 音频时长 ${audioDuration} ms | RTF ${formatRtf(synthesisMs, audioDuration)} | 播放方式 SDK`
+          this.buildMetricsText('真流式播报', this.requestChunkCount, firstPacketMs, synthesisMs, audioDuration, this.requestSampleRate)
         );
         this.updateProgressBar('SDK 正在播报…');
       }
@@ -744,6 +906,187 @@ struct Index {
     this.clearProgressBar();
     this.setStatus(`请求失败：${requestId} / ${errorCode} / ${errorMessage}`);
     this.appendLog(`onError requestId=${requestId} code=${errorCode} message=${errorMessage}`);
+    if (requestId.startsWith('batch-')) {
+      this.recordBatchError(`${errorCode}:${errorMessage}`);
+      this.runNextBatchCase();
+    }
+  }
+
+  private selectedChunkSize(): number {
+    const value = parseInt(this.chunkSize.trim(), 10);
+    return Number.isNaN(value) || value <= 0 ? parseInt(DEFAULT_STREAMING_CHUNK_SIZE, 10) : value;
+  }
+
+  private selectedPcmQueueCapacity(): number {
+    const value = parseInt(this.pcmQueueCapacity.trim(), 10);
+    return Number.isNaN(value) || value <= 0 ? parseInt(DEFAULT_PCM_QUEUE_CAPACITY, 10) : value;
+  }
+
+  private buildMetricsText(
+    mode: string,
+    chunkCount: number,
+    firstPacketMs: number | undefined,
+    synthesisMs: number | undefined,
+    audioDuration: number,
+    sampleRate: number
+  ): string {
+    const engineLoad = this.engineLoadMs >= 0 ? String(this.engineLoadMs) : '--';
+    const firstPacket = firstPacketMs === undefined ? '--' : String(firstPacketMs);
+    const synthesis = synthesisMs === undefined ? '--' : String(synthesisMs);
+    return `模式: ${mode}\n引擎加载: ${engineLoad} ms\n采样率: ${sampleRate} Hz\n首包时延: ${firstPacket} ms\n合成耗时: ${synthesis} ms\n音频时长: ${audioDuration} ms\nRTF: ${formatRtf(synthesisMs ?? 0, audioDuration)}\nChunk数: ${chunkCount}`;
+  }
+
+  private startAutoBatchIfAvailable(): void {
+    if (!AUTO_BATCH_ENABLED) {
+      this.appendLog(`${AUTO_BATCH_LOG_TAG} auto batch disabled`);
+      return;
+    }
+    if (this.autoBatchStarted || this.autoBatchRunning || !this.warmupDone) {
+      return;
+    }
+    const cases = loadAutoBatchCases(AUTO_BATCH_RAWFILE);
+    if (cases.length === 0) {
+      this.appendLog(`${AUTO_BATCH_LOG_TAG} no rawfile cases found`);
+      return;
+    }
+    this.autoBatchCases = cases;
+    this.autoBatchMetrics = [];
+    this.autoBatchIndex = 0;
+    this.autoBatchStarted = true;
+    this.autoBatchRunning = true;
+    console.info(`${AUTO_BATCH_LOG_TAG} start model=vocos_current_tn cases=${cases.length}`);
+    this.runNextBatchCase();
+  }
+
+  private runNextBatchCase(): void {
+    if (!this.autoBatchRunning) {
+      return;
+    }
+    if (this.autoBatchIndex >= this.autoBatchCases.length) {
+      this.finishAutoBatch();
+      return;
+    }
+    const batchCase = this.autoBatchCases[this.autoBatchIndex];
+    this.autoBatchIndex += 1;
+    this.submitBatchCase(batchCase);
+  }
+
+  private submitBatchCase(batchCase: AutoBatchCase): void {
+    const readyEngine = this.engine;
+    if (readyEngine === undefined) {
+      this.recordBatchError('engine undefined');
+      this.runNextBatchCase();
+      return;
+    }
+    this.currentBatchCase = batchCase;
+    this.language = batchCase.lang === 'en' ? 'en-US' : 'zh-en';
+    this.currentPlayType = PlayType.SYNTHESIZE_ONLY;
+    this.requestChunkCount = 0;
+    this.requestAudioBytes = 0;
+    this.requestStartedAtMs = Date.now();
+    this.requestFirstChunkAtMs = 0;
+    this.requestSampleRate = DEFAULT_SAMPLE_RATE;
+    this.requestPcmChunks.clear();
+    this.busy = true;
+    const requestId = `batch-${batchCase.case_id}`;
+    const speakParams: SpeakParams = {
+      requestId,
+      playType: PlayType.SYNTHESIZE_ONLY,
+      queueMode: QueueMode.PREEMPT,
+      languageContext: this.language === 'en-US' ? 'en-US' : 'zh-CN',
+      audioType: 'pcm',
+      speed: 1.0,
+      pitch: 1.0,
+      volume: 1.0,
+      extraParams: {
+        streamingChunkSize: this.selectedChunkSize(),
+        streamingFirstChunkSize: this.selectedChunkSize(),
+        pcmQueueCapacity: this.selectedPcmQueueCapacity()
+      }
+    };
+    console.info(`${AUTO_BATCH_LOG_TAG} submit case_id=${batchCase.case_id} index=${this.autoBatchIndex}/${this.autoBatchCases.length}`);
+    try {
+      readyEngine.speak(batchCase.text, speakParams);
+    } catch (error) {
+      this.busy = false;
+      this.recordBatchError(formatError(error));
+      this.runNextBatchCase();
+    }
+  }
+
+  private recordBatchSuccess(
+    firstPacketMs: number | undefined,
+    synthesisMs: number | undefined,
+    audioDuration: number,
+    sampleRate: number
+  ): void {
+    const batchCase = this.currentBatchCase;
+    if (batchCase === undefined) {
+      return;
+    }
+    const synthesis = synthesisMs ?? Math.max(0, Date.now() - this.requestStartedAtMs);
+    const firstPacket = firstPacketMs ?? (this.requestFirstChunkAtMs > 0 ? this.requestFirstChunkAtMs - this.requestStartedAtMs : -1);
+    const metric: AutoBatchMetric = {
+      model_id: 'vocos_current_tn',
+      case_id: batchCase.case_id,
+      dataset: batchCase.dataset,
+      lang: batchCase.lang,
+      tn_mode: batchCase.tn_mode,
+      text: batchCase.text,
+      reference_text: batchCase.reference_text,
+      status: 'ok',
+      error: '',
+      sample_rate: sampleRate,
+      first_audio_ms: firstPacket,
+      synthesis_ms: synthesis,
+      audio_duration_ms: audioDuration,
+      rtf: audioDuration > 0 ? synthesis / audioDuration : -1,
+      chunk_count: this.requestChunkCount,
+      audio_bytes: this.requestAudioBytes,
+      engine_load_ms: this.engineLoadMs
+    };
+    this.autoBatchMetrics.push(metric);
+    console.info(`${AUTO_BATCH_LOG_TAG} ${JSON.stringify(metric)}`);
+    this.currentBatchCase = undefined;
+    this.runNextBatchCase();
+  }
+
+  private recordBatchError(error: string): void {
+    const batchCase = this.currentBatchCase;
+    if (batchCase === undefined) {
+      return;
+    }
+    const metric: AutoBatchMetric = {
+      model_id: 'vocos_current_tn',
+      case_id: batchCase.case_id,
+      dataset: batchCase.dataset,
+      lang: batchCase.lang,
+      tn_mode: batchCase.tn_mode,
+      text: batchCase.text,
+      reference_text: batchCase.reference_text,
+      status: 'error',
+      error,
+      sample_rate: this.requestSampleRate,
+      first_audio_ms: -1,
+      synthesis_ms: -1,
+      audio_duration_ms: 0,
+      rtf: -1,
+      chunk_count: this.requestChunkCount,
+      audio_bytes: this.requestAudioBytes,
+      engine_load_ms: this.engineLoadMs
+    };
+    this.autoBatchMetrics.push(metric);
+    console.info(`${AUTO_BATCH_LOG_TAG} ${JSON.stringify(metric)}`);
+    this.currentBatchCase = undefined;
+  }
+
+  private finishAutoBatch(): void {
+    this.autoBatchRunning = false;
+    const output = this.autoBatchMetrics.map((metric: AutoBatchMetric): string => JSON.stringify(metric)).join('\n') + '\n';
+    const outputPath = joinPath(application.getApplicationContext().filesDir, AUTO_BATCH_OUTPUT_FILE);
+    writeTextFile(outputPath, output);
+    console.info(`${AUTO_BATCH_LOG_TAG} complete count=${this.autoBatchMetrics.length} path=${outputPath}`);
+    this.setStatus(`自动批测完成：${this.autoBatchMetrics.length} 条`);
   }
 }
 
@@ -778,21 +1121,23 @@ class PageSpeakListener implements SpeakListener {
 class EngineCreateCallback implements Callback<TextToSpeechEngine> {
   private readonly owner: Index;
   private readonly language: string;
+  private readonly generation: number;
   private readonly resolve: () => void;
 
-  constructor(owner: Index, language: string, resolve: () => void) {
+  constructor(owner: Index, language: string, generation: number, resolve: () => void) {
     this.owner = owner;
     this.language = language;
+    this.generation = generation;
     this.resolve = resolve;
   }
 
   onSuccess(engine: TextToSpeechEngine): void {
-    this.owner.handleEngineCreateSuccess(this.language, engine);
+    this.owner.handleEngineCreateSuccess(this.language, this.generation, engine);
     this.resolve();
   }
 
   onError(errorCode: number, errorMessage: string): void {
-    this.owner.handleEngineCreateError(this.language, errorCode, errorMessage);
+    this.owner.handleEngineCreateError(this.language, this.generation, errorCode, errorMessage);
     this.resolve();
   }
 }
@@ -971,6 +1316,84 @@ function writeBinaryFile(filePath: string, content: Uint8Array): void {
       }
     }
   }
+}
+
+function writeTextFile(filePath: string, content: string): void {
+  writeBinaryFile(filePath, utf8Encode(content));
+}
+
+function loadAutoBatchCases(rawfileName: string): Array<AutoBatchCase> {
+  try {
+    const bytes = application.getApplicationContext().resourceManager.getRawFileContentSync(rawfileName);
+    const text = utf8Decode(bytes);
+    const cases: Array<AutoBatchCase> = [];
+    text.split('\n').forEach((line: string): void => {
+      const trimmed = line.trim();
+      if (trimmed.length === 0) {
+        return;
+      }
+      const value = JSON.parse(trimmed) as AutoBatchCase;
+      if (value.case_id !== undefined && value.text !== undefined) {
+        cases.push(value);
+      }
+    });
+    return cases;
+  } catch (error) {
+    console.info(`${AUTO_BATCH_LOG_TAG} rawfile unavailable name=${rawfileName} message=${formatError(error)}`);
+    return [];
+  }
+}
+
+function utf8Decode(bytes: Uint8Array): string {
+  let output = '';
+  let index = 0;
+  while (index < bytes.length) {
+    const first = bytes[index];
+    if (first < 0x80) {
+      output += String.fromCharCode(first);
+      index += 1;
+    } else if (first < 0xE0 && index + 1 < bytes.length) {
+      const code = ((first & 0x1F) << 6) | (bytes[index + 1] & 0x3F);
+      output += String.fromCharCode(code);
+      index += 2;
+    } else if (first < 0xF0 && index + 2 < bytes.length) {
+      const code = ((first & 0x0F) << 12) | ((bytes[index + 1] & 0x3F) << 6) | (bytes[index + 2] & 0x3F);
+      output += String.fromCharCode(code);
+      index += 3;
+    } else if (index + 3 < bytes.length) {
+      const codePoint = ((first & 0x07) << 18) | ((bytes[index + 1] & 0x3F) << 12) | ((bytes[index + 2] & 0x3F) << 6) | (bytes[index + 3] & 0x3F);
+      const adjusted = codePoint - 0x10000;
+      output += String.fromCharCode(0xD800 + (adjusted >> 10), 0xDC00 + (adjusted & 0x3FF));
+      index += 4;
+    } else {
+      index += 1;
+    }
+  }
+  return output;
+}
+
+function utf8Encode(text: string): Uint8Array {
+  const bytes: Array<number> = [];
+  for (let index = 0; index < text.length; index += 1) {
+    let code = text.charCodeAt(index);
+    if (code >= 0xD800 && code <= 0xDBFF && index + 1 < text.length) {
+      const next = text.charCodeAt(index + 1);
+      if (next >= 0xDC00 && next <= 0xDFFF) {
+        code = 0x10000 + ((code - 0xD800) << 10) + (next - 0xDC00);
+        index += 1;
+      }
+    }
+    if (code < 0x80) {
+      bytes.push(code);
+    } else if (code < 0x800) {
+      bytes.push(0xC0 | (code >> 6), 0x80 | (code & 0x3F));
+    } else if (code < 0x10000) {
+      bytes.push(0xE0 | (code >> 12), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F));
+    } else {
+      bytes.push(0xF0 | (code >> 18), 0x80 | ((code >> 12) & 0x3F), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F));
+    }
+  }
+  return new Uint8Array(bytes);
 }
 
 function ensureDirectory(path: string): void {

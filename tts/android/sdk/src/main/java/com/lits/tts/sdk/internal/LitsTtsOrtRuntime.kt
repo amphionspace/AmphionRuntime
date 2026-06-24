@@ -5,10 +5,16 @@ import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import java.nio.FloatBuffer
 import java.nio.LongBuffer
+import java.util.Random
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
 import kotlin.math.cos
+import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 internal class LitsTtsOrtRuntime(
     private val layout: LitsTtsAssetInstaller.InstalledLayout,
@@ -37,29 +43,73 @@ internal class LitsTtsOrtRuntime(
     private val hiddenEncoderSession: OrtSession?
     private val streamDecoderChunkSession: OrtSession?
     private val streamDecoderFinalSession: OrtSession?
+    private val streamConditionChunkSession: OrtSession?
+    private val streamConditionFinalSession: OrtSession?
+    private val streamDecoderStepSession: OrtSession?
     val loadProfileInfo: String
 
     init {
-        val sessionProfiles = mutableListOf<String>()
-        acousticSession = layout.acousticModel?.let {
-            createProfiledSession("acoustic", it.absolutePath, intraOpThreads = 2, sessionProfiles)
+        val sessionLoadStartedAt = System.nanoTime()
+        val executor = Executors.newFixedThreadPool(SESSION_LOAD_THREADS) { runnable ->
+            Thread(runnable, "lits-tts-ort-load").apply { isDaemon = true }
         }
-        vocoderSession = createProfiledSession("vocoder", layout.vocoderModel.absolutePath, intraOpThreads = vocoderThreads(), sessionProfiles)
-        hiddenEncoderSession = layout.hiddenEncoderModel?.let {
-            createProfiledSession("hidden", it.absolutePath, intraOpThreads = 2, sessionProfiles)
-        }
-        streamDecoderChunkSession = layout.streamDecoderChunkModel?.let {
-            createProfiledSession("chunk", it.absolutePath, intraOpThreads = 2, sessionProfiles)
-        }
-        streamDecoderFinalSession = if (USE_ZERO_LOOKAHEAD_FINAL_DECODER) {
-            sessionProfiles += "final=chunk_zero_lookahead"
-            null
-        } else {
-            layout.streamDecoderFinalModel?.let {
-                createProfiledSession("final", it.absolutePath, intraOpThreads = 2, sessionProfiles)
+        try {
+            val acousticFuture = layout.acousticModel?.let { model ->
+                executor.submit(Callable { createProfiledSession("acoustic", model.absolutePath, intraOpThreads = SESSION_LOAD_INTRA_OP_THREADS) })
             }
+            val vocoderFuture = executor.submit(
+                Callable { createProfiledSession("vocoder", layout.vocoderModel.absolutePath, intraOpThreads = SESSION_LOAD_INTRA_OP_THREADS) },
+            )
+            val hiddenFuture = layout.hiddenEncoderModel?.let { model ->
+                executor.submit(Callable { createProfiledSession("hidden", model.absolutePath, intraOpThreads = SESSION_LOAD_INTRA_OP_THREADS) })
+            }
+            val chunkFuture = layout.streamDecoderChunkModel?.let { model ->
+                executor.submit(Callable { createProfiledSession("chunk", model.absolutePath, intraOpThreads = SESSION_LOAD_INTRA_OP_THREADS) })
+            }
+            val finalFuture = layout.streamDecoderFinalModel?.let { model ->
+                executor.submit(Callable { createProfiledSession("final", model.absolutePath, intraOpThreads = SESSION_LOAD_INTRA_OP_THREADS) })
+            }
+            val conditionChunkFuture = layout.streamConditionChunkModel?.let { model ->
+                executor.submit(Callable { createProfiledSession("condChunk", model.absolutePath, intraOpThreads = SESSION_LOAD_INTRA_OP_THREADS) })
+            }
+            val conditionFinalFuture = layout.streamConditionFinalModel?.let { model ->
+                executor.submit(Callable { createProfiledSession("condFinal", model.absolutePath, intraOpThreads = SESSION_LOAD_INTRA_OP_THREADS) })
+            }
+            val stepFuture = layout.streamDecoderStepModel?.let { model ->
+                executor.submit(Callable { createProfiledSession("step", model.absolutePath, intraOpThreads = SESSION_LOAD_INTRA_OP_THREADS) })
+            }
+            val chunkLoaded = chunkFuture?.get()
+            val finalLoaded = finalFuture?.get()
+            val conditionChunkLoaded = conditionChunkFuture?.get()
+            val conditionFinalLoaded = conditionFinalFuture?.get()
+            val stepLoaded = stepFuture?.get()
+            val loadedSessions = listOfNotNull(
+                acousticFuture?.get(),
+                vocoderFuture.get(),
+                hiddenFuture?.get(),
+                chunkLoaded,
+                finalLoaded,
+                conditionChunkLoaded,
+                conditionFinalLoaded,
+                stepLoaded,
+            )
+            acousticSession = loadedSessions.firstOrNull { it.label == "acoustic" }?.session
+            vocoderSession = loadedSessions.first { it.label == "vocoder" }.session
+            hiddenEncoderSession = loadedSessions.firstOrNull { it.label == "hidden" }?.session
+            streamDecoderChunkSession = chunkLoaded?.session
+            streamDecoderFinalSession = finalLoaded?.session
+            streamConditionChunkSession = conditionChunkLoaded?.session
+            streamConditionFinalSession = conditionFinalLoaded?.session
+            streamDecoderStepSession = stepLoaded?.session
+            loadProfileInfo = buildString {
+                append("ortcreateWall=").append(elapsedMs(sessionLoadStartedAt)).append("ms")
+                for (loaded in loadedSessions) {
+                    append(",").append(loaded.label).append("=").append(loaded.elapsedMs).append("ms")
+                }
+            }
+        } finally {
+            executor.shutdown()
         }
-        loadProfileInfo = sessionProfiles.joinToString(separator = ",")
     }
 
     fun synthesize(tokenIds: LongArray, speakerId: Int): FloatArray {
@@ -102,8 +152,24 @@ internal class LitsTtsOrtRuntime(
         onChunk: (FloatArray) -> Unit,
     ): StreamingRuntimeMetrics {
         val hiddenSession = hiddenEncoderSession ?: error("hidden encoder session is unavailable")
-        val chunkSession = streamDecoderChunkSession ?: error("stream decoder chunk session is unavailable")
-        val finalSession = streamDecoderFinalSession
+        val externalLoop = manifest.streamDecoderExternalLoop
+        val chunkSession = if (externalLoop) null else streamDecoderChunkSession ?: error("stream decoder chunk session is unavailable")
+        val finalSession = if (externalLoop) null else streamDecoderFinalSession ?: error("stream decoder final session is unavailable")
+        val conditionChunkSession = if (externalLoop) {
+            streamConditionChunkSession ?: error("stream condition chunk session is unavailable")
+        } else {
+            null
+        }
+        val conditionFinalSession = if (externalLoop) {
+            streamConditionFinalSession ?: error("stream condition final session is unavailable")
+        } else {
+            null
+        }
+        val stepSession = if (externalLoop) {
+            streamDecoderStepSession ?: error("stream decoder step session is unavailable")
+        } else {
+            null
+        }
         val runtimeStartedAt = System.nanoTime()
         val hiddenStartedAt = System.nanoTime()
         val hidden = runHiddenEncoder(hiddenSession, tokenIds, speakerId)
@@ -156,25 +222,42 @@ internal class LitsTtsOrtRuntime(
             val windowMask = hidden.yMask.copyOfRange(windowStartIdx, windowStartIdx + outputFrames)
             val speakerEmbedding = hidden.speakerEmbedding
             val decoderStartedAt = System.nanoTime()
-            if (finalize && USE_ZERO_LOOKAHEAD_FINAL_DECODER) {
-                windowMuY = windowMuY.appendZeroFrames(preLookaheadLen, hidden.muYShape[1].toInt())
+            val melWindow = if (externalLoop) {
+                runExternalLoopDecoder(
+                    conditionSession = if (finalize) {
+                        conditionFinalSession ?: error("stream condition final session is unavailable")
+                    } else {
+                        conditionChunkSession ?: error("stream condition chunk session is unavailable")
+                    },
+                    stepSession = stepSession ?: error("stream decoder step session is unavailable"),
+                    muY = windowMuY,
+                    muFrames = windowFrames,
+                    yMask = windowMask,
+                    maskFrames = outputFrames,
+                    speakerEmbedding = speakerEmbedding,
+                    speakerEmbeddingShape = hidden.speakerEmbeddingShape,
+                    timesteps = manifest.streamDecoderTimesteps,
+                    temperature = manifest.streamDecoderTemperature,
+                    seed = DECODER_NOISE_BASE_SEED + index,
+                )
+            } else {
+                runDecoder(
+                    session = if (finalize) {
+                        finalSession ?: error("stream decoder final session is unavailable")
+                    } else {
+                        chunkSession ?: error("stream decoder chunk session is unavailable")
+                    },
+                    muY = windowMuY,
+                    muFrames = windowFrames,
+                    yMask = windowMask,
+                    maskFrames = outputFrames,
+                    speakerEmbedding = speakerEmbedding,
+                    speakerEmbeddingShape = hidden.speakerEmbeddingShape,
+                )
             }
-            val melWindow = runDecoder(
-                session = if (finalize && !USE_ZERO_LOOKAHEAD_FINAL_DECODER) {
-                    finalSession ?: error("stream decoder final session is unavailable")
-                } else {
-                    chunkSession
-                },
-                muY = windowMuY,
-                muFrames = if (finalize && USE_ZERO_LOOKAHEAD_FINAL_DECODER) windowFrames + preLookaheadLen else windowFrames,
-                yMask = windowMask,
-                maskFrames = outputFrames,
-                speakerEmbedding = speakerEmbedding,
-                speakerEmbeddingShape = hidden.speakerEmbeddingShape,
-            )
             val decoderElapsedMs = elapsedMs(decoderStartedAt)
             decoderMs += decoderElapsedMs
-            decoderCalls += 1
+            decoderCalls += if (externalLoop) manifest.streamDecoderTimesteps + 1 else 1
             var melChunk = melWindow.sliceFramesFrom(startIdx - windowStartIdx, hidden.muYShape[1].toInt())
             if (melCache != null) {
                 melChunk = melCache.concatFrames(melChunk, hidden.muYShape[1].toInt())
@@ -217,13 +300,16 @@ internal class LitsTtsOrtRuntime(
             melLength = melLength,
             chunkSize = chunkSize,
             firstChunkSize = firstChunkSize,
-            finalDecoderMode = if (USE_ZERO_LOOKAHEAD_FINAL_DECODER) "chunk_zero_lookahead" else "final_session",
+            finalDecoderMode = if (externalLoop) "external_loop" else "final_session_preloaded",
         )
     }
 
     override fun close() {
         streamDecoderFinalSession?.close()
         streamDecoderChunkSession?.close()
+        streamDecoderStepSession?.close()
+        streamConditionFinalSession?.close()
+        streamConditionChunkSession?.close()
         hiddenEncoderSession?.close()
         vocoderSession.close()
         acousticSession?.close()
@@ -268,12 +354,15 @@ internal class LitsTtsOrtRuntime(
             }
         }
 
-        private fun createSessionOptions(intraOpThreads: Int): OrtSession.SessionOptions {
+        private fun createSessionOptions(
+            intraOpThreads: Int,
+            optimizationLevel: OrtSession.SessionOptions.OptLevel = DEFAULT_OPTIMIZATION_LEVEL,
+        ): OrtSession.SessionOptions {
             return OrtSession.SessionOptions().apply {
                 setIntraOpNumThreads(intraOpThreads)
                 setInterOpNumThreads(1)
                 setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL)
-                setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+                setOptimizationLevel(optimizationLevel)
             }
         }
 
@@ -297,8 +386,18 @@ internal class LitsTtsOrtRuntime(
             return output
         }
 
-        private const val USE_ZERO_LOOKAHEAD_FINAL_DECODER = true
+        val DEFAULT_OPTIMIZATION_LEVEL: OrtSession.SessionOptions.OptLevel = OrtSession.SessionOptions.OptLevel.NO_OPT
+        const val SESSION_LOAD_THREADS = 4
+        const val SESSION_LOAD_INTRA_OP_THREADS = 1
+        const val DECODER_NOISE_BASE_SEED = 20260624L
+
     }
+
+    private data class ProfiledSession(
+        val label: String,
+        val session: OrtSession,
+        val elapsedMs: Long,
+    )
 
     private data class HiddenEncoderOutput(
         val muY: FloatArray,
@@ -352,12 +451,10 @@ internal class LitsTtsOrtRuntime(
         label: String,
         modelPath: String,
         intraOpThreads: Int,
-        sessionProfiles: MutableList<String>,
-    ): OrtSession {
+    ): ProfiledSession {
         val startedAt = System.nanoTime()
-        return environment.createSession(modelPath, createSessionOptions(intraOpThreads = intraOpThreads)).also {
-            sessionProfiles += "$label=${elapsedMs(startedAt)}ms"
-        }
+        val session = environment.createSession(modelPath, createSessionOptions(intraOpThreads = intraOpThreads))
+        return ProfiledSession(label = label, session = session, elapsedMs = elapsedMs(startedAt))
     }
 
     private fun runDecoder(
@@ -388,6 +485,134 @@ internal class LitsTtsOrtRuntime(
                 }
             }
         }
+    }
+
+    private fun runExternalLoopDecoder(
+        conditionSession: OrtSession,
+        stepSession: OrtSession,
+        muY: FloatArray,
+        muFrames: Int,
+        yMask: FloatArray,
+        maskFrames: Int,
+        speakerEmbedding: FloatArray,
+        speakerEmbeddingShape: LongArray,
+        timesteps: Int,
+        temperature: Float,
+        seed: Long,
+    ): FloatArray {
+        val channels = if (muFrames == 0) 80 else muY.size / muFrames
+        val encodedMu = runConditionEncoder(conditionSession, muY, muFrames, yMask, maskFrames, channels)
+        val encodedFrames = if (channels == 0) 0 else encodedMu.size / channels
+        var x = gaussianNoise(encodedMu.size, temperature, seed)
+        var mel = FloatArray(encodedMu.size)
+        val stepCount = timesteps.coerceAtLeast(1)
+        for (step in 0 until stepCount) {
+            val output = runDecoderStep(
+                session = stepSession,
+                x = x,
+                encodedMu = encodedMu,
+                yMask = yMask,
+                frames = encodedFrames,
+                speakerEmbedding = speakerEmbedding,
+                speakerEmbeddingShape = speakerEmbeddingShape,
+                channels = channels,
+                t = step.toFloat() / stepCount.toFloat(),
+                dt = 1.0f / stepCount.toFloat(),
+            )
+            x = output.xNext
+            mel = output.mel
+        }
+        return mel
+    }
+
+    private fun runConditionEncoder(
+        session: OrtSession,
+        muY: FloatArray,
+        muFrames: Int,
+        yMask: FloatArray,
+        maskFrames: Int,
+        channels: Int,
+    ): FloatArray {
+        OnnxTensor.createTensor(environment, FloatBuffer.wrap(muY), longArrayOf(1L, channels.toLong(), muFrames.toLong())).use { muTensor ->
+            OnnxTensor.createTensor(environment, FloatBuffer.wrap(yMask), longArrayOf(1L, 1L, maskFrames.toLong())).use { maskTensor ->
+                session.run(
+                    mapOf("mu_y" to muTensor, "y_mask" to maskTensor),
+                    setOf("encoded_mu"),
+                ).use { result ->
+                    val encodedTensor = result.get("encoded_mu").orElseThrow { IllegalStateException("condition output 'encoded_mu' missing") } as OnnxTensor
+                    val encodedInfo = encodedTensor.info as ai.onnxruntime.TensorInfo
+                    return encodedTensor.floatBuffer.toFloatArray(encodedInfo.numElements.toInt())
+                }
+            }
+        }
+    }
+
+    private data class DecoderStepOutput(
+        val xNext: FloatArray,
+        val mel: FloatArray,
+    )
+
+    private fun runDecoderStep(
+        session: OrtSession,
+        x: FloatArray,
+        encodedMu: FloatArray,
+        yMask: FloatArray,
+        frames: Int,
+        speakerEmbedding: FloatArray,
+        speakerEmbeddingShape: LongArray,
+        channels: Int,
+        t: Float,
+        dt: Float,
+    ): DecoderStepOutput {
+        OnnxTensor.createTensor(environment, FloatBuffer.wrap(x), longArrayOf(1L, channels.toLong(), frames.toLong())).use { xTensor ->
+            OnnxTensor.createTensor(environment, FloatBuffer.wrap(encodedMu), longArrayOf(1L, channels.toLong(), frames.toLong())).use { muTensor ->
+                OnnxTensor.createTensor(environment, FloatBuffer.wrap(yMask), longArrayOf(1L, 1L, frames.toLong())).use { maskTensor ->
+                    OnnxTensor.createTensor(environment, FloatBuffer.wrap(speakerEmbedding), speakerEmbeddingShape).use { speakerTensor ->
+                        OnnxTensor.createTensor(environment, FloatBuffer.wrap(floatArrayOf(t)), longArrayOf(1L)).use { tTensor ->
+                            OnnxTensor.createTensor(environment, FloatBuffer.wrap(floatArrayOf(dt)), longArrayOf(1L)).use { dtTensor ->
+                                session.run(
+                                    mapOf(
+                                        "x" to xTensor,
+                                        "encoded_mu" to muTensor,
+                                        "y_mask" to maskTensor,
+                                        "speaker_embedding" to speakerTensor,
+                                        "t" to tTensor,
+                                        "dt" to dtTensor,
+                                    ),
+                                    setOf("x_next", "mel"),
+                                ).use { result ->
+                                    val xNextTensor = result.get("x_next").orElseThrow { IllegalStateException("decoder step output 'x_next' missing") } as OnnxTensor
+                                    val melTensor = result.get("mel").orElseThrow { IllegalStateException("decoder step output 'mel' missing") } as OnnxTensor
+                                    val xNextInfo = xNextTensor.info as ai.onnxruntime.TensorInfo
+                                    val melInfo = melTensor.info as ai.onnxruntime.TensorInfo
+                                    return DecoderStepOutput(
+                                        xNext = xNextTensor.floatBuffer.toFloatArray(xNextInfo.numElements.toInt()),
+                                        mel = melTensor.floatBuffer.toFloatArray(melInfo.numElements.toInt()),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun gaussianNoise(size: Int, scale: Float, seed: Long): FloatArray {
+        val random = Random(seed)
+        val output = FloatArray(size)
+        var index = 0
+        while (index < size) {
+            val u1 = random.nextDouble().coerceAtLeast(1e-12)
+            val u2 = random.nextDouble()
+            val radius = sqrt(-2.0 * ln(u1))
+            val angle = 2.0 * Math.PI * u2
+            output[index++] = (radius * cos(angle) * scale).toFloat()
+            if (index < size) {
+                output[index++] = (radius * sin(angle) * scale).toFloat()
+            }
+        }
+        return output
     }
 
     private fun runVocoder(mel: FloatArray, melChannels: Int): FloatArray {
@@ -434,21 +659,6 @@ internal class LitsTtsOrtRuntime(
             val srcStart = channel * totalFrames + safeStart
             val dstStart = channel * safeFrameCount
             copyInto(output, destinationOffset = dstStart, startIndex = srcStart, endIndex = srcStart + safeFrameCount)
-        }
-        return output
-    }
-
-    private fun FloatArray.appendZeroFrames(frameCount: Int, channels: Int): FloatArray {
-        if (frameCount <= 0 || channels <= 0) return this
-        val totalFrames = size / channels
-        val output = FloatArray(channels * (totalFrames + frameCount))
-        for (channel in 0 until channels) {
-            copyInto(
-                output,
-                destinationOffset = channel * (totalFrames + frameCount),
-                startIndex = channel * totalFrames,
-                endIndex = channel * totalFrames + totalFrames,
-            )
         }
         return output
     }
