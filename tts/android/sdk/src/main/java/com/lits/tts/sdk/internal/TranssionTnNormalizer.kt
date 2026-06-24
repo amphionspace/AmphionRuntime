@@ -31,10 +31,10 @@ internal object TranssionTnNormalizer {
 
         @Synchronized
         fun normalize(text: String, language: String, languageContext: String): String {
-            val input = Normalizer.normalize(text, Normalizer.Form.NFKC)
+            val input = prepareInputForTn(Normalizer.normalize(text, Normalizer.Form.NFKC)
                 .replace(Regex("[\\x00-\\x1f\\x7f-\\x9f]"), "")
                 .replace(Regex("\\s+"), " ")
-                .trim()
+                .trim())
             if (input.isEmpty() || !hasTnRules()) return text
             return if (language == "en-US" || languageContext == "en-US") {
                 normalizeSegment(input, "en")
@@ -42,6 +42,22 @@ internal object TranssionTnNormalizer {
                 segmentZhEn(input).joinToString("") { (segment, lang) ->
                     preserveSegmentWhitespace(segment, normalizeSegment(segment, lang))
                 }
+            }
+        }
+
+        private fun prepareInputForTn(text: String): String {
+            var output = hanziClockMinuteLeadingZeroRegex.replace(text) { match ->
+                "${match.groupValues[1]}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}分"
+            }
+            output = serialCodeRegex.replace(output) { match ->
+                match.groupValues[1] + match.groupValues[2] + normalizeSerialCode(match.groupValues[3])
+            }
+            return output
+        }
+
+        private fun normalizeSerialCode(code: String): String = buildString {
+            code.forEach { char ->
+                append(chineseDigitTextByChar[char] ?: char)
             }
         }
 
@@ -157,6 +173,20 @@ internal object TranssionTnNormalizer {
         companion object {
             private const val PLATE_PROVINCES = "京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼"
             private val PERCENTILE_CODE = Regex("P\\d{1,3}")
+            private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点0([1-9])分")
+            private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
+            private val chineseDigitTextByChar = mapOf(
+                '0' to "零",
+                '1' to "一",
+                '2' to "二",
+                '3' to "三",
+                '4' to "四",
+                '5' to "五",
+                '6' to "六",
+                '7' to "七",
+                '8' to "八",
+                '9' to "九",
+            )
         }
     }
 
