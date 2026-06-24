@@ -1,0 +1,236 @@
+package com.lits.tts.sdk.internal
+
+import android.util.Log
+import java.io.BufferedReader
+import java.io.BufferedWriter
+import java.io.File
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
+import java.text.Normalizer
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+
+internal object TranssionTnNormalizer {
+    private val normalizersByRoot = ConcurrentHashMap<String, LayoutNormalizer>()
+
+    fun normalize(
+        layout: LitsTtsAssetInstaller.InstalledLayout,
+        text: String,
+        language: String,
+        languageContext: String,
+    ): String {
+        val normalizer = normalizersByRoot.getOrPut(layout.rootDir.absolutePath) {
+            LayoutNormalizer(layout)
+        }
+        return normalizer.normalize(text, language, languageContext)
+    }
+
+    private class LayoutNormalizer(private val layout: LitsTtsAssetInstaller.InstalledLayout) {
+        private val processes = mutableMapOf<String, TnProcess>()
+        private val disabledLanguages = mutableSetOf<String>()
+
+        @Synchronized
+        fun normalize(text: String, language: String, languageContext: String): String {
+            val input = Normalizer.normalize(text, Normalizer.Form.NFKC)
+                .replace(Regex("[\\x00-\\x1f\\x7f-\\x9f]"), "")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            if (input.isEmpty() || !hasTnRules()) return text
+            return if (language == "en-US" || languageContext == "en-US") {
+                normalizeSegment(input, "en")
+            } else {
+                segmentZhEn(input).joinToString("") { (segment, lang) ->
+                    preserveSegmentWhitespace(segment, normalizeSegment(segment, lang))
+                }
+            }
+        }
+
+        private fun hasTnRules(): Boolean =
+            layout.rootDir.resolve(LitsTtsAssetRegistry.TN_RULES_V2_ZH).isFile &&
+                layout.rootDir.resolve(LitsTtsAssetRegistry.TN_RULES_V2_EN).isFile &&
+                layout.rootDir.resolve(LitsTtsAssetRegistry.TN_RULES_ZH_PINYIN).isFile
+
+        private fun normalizeSegment(text: String, lang: String): String {
+            if (text.isBlank()) return text
+            if (lang in disabledLanguages) return text
+            try {
+                NativeTnNormalizer.normalize(layout.rootDir, lang, text)?.let { normalized ->
+                    return normalized
+                }
+            } catch (error: Throwable) {
+                Log.w(TAG, "native TN normalize failed; falling back to process lang=$lang", error)
+            }
+            val binary = when (lang) {
+                "en" -> layout.tnEnTts
+                else -> layout.tnZhTts
+            }
+            return try {
+                val process = processes.getOrPut(lang) {
+                    TnProcess.start(binary, layout.rootDir)
+                }
+                process.normalize(text)
+            } catch (error: Throwable) {
+                Log.w(TAG, "TN normalize failed; restarting lang=$lang binary=${binary.absolutePath}", error)
+                processes.remove(lang)?.close()
+                try {
+                    val restarted = TnProcess.start(binary, layout.rootDir)
+                    processes[lang] = restarted
+                    restarted.normalize(text)
+                } catch (retryError: Throwable) {
+                    Log.e(TAG, "TN normalize retry failed; disabling TN for lang=$lang", retryError)
+                    processes.remove(lang)?.close()
+                    disabledLanguages += lang
+                    text
+                }
+            }
+        }
+
+        private fun segmentZhEn(text: String): List<Pair<String, String>> {
+            val segments = mutableListOf<Pair<String, String>>()
+            var index = 0
+            while (index < text.length) {
+                val char = text[index]
+                if (isAsciiLetter(char)) {
+                    val end = scanAsciiRun(text, index)
+                    val segment = text.substring(index, end)
+                    val lang = protectedAsciiRunLang(text, index, end) ?: "en"
+                    segments += segment to lang
+                    index = end
+                } else {
+                    val end = scanNonAsciiRun(text, index)
+                    segments += text.substring(index, end) to "zh"
+                    index = end
+                }
+            }
+            return segments
+        }
+
+        private fun scanAsciiRun(text: String, start: Int): Int {
+            var index = start
+            while (index < text.length) {
+                val char = text[index]
+                val allowedPunctuation = char in charArrayOf('\'', '.', '_', '-')
+                if (!isAsciiLetter(char) && !char.isDigit() && !allowedPunctuation) break
+                index += 1
+            }
+            return index
+        }
+
+        private fun scanNonAsciiRun(text: String, start: Int): Int {
+            var index = start
+            while (index < text.length && (!isAsciiLetter(text[index]) || isAsciiCelsiusUnit(text, index))) {
+                index += 1
+            }
+            return index
+        }
+
+        private fun isAsciiCelsiusUnit(text: String, index: Int): Boolean =
+            index > 0 && text[index - 1] == '°' && (text[index] == 'C' || text[index] == 'c')
+
+        private fun protectedAsciiRunLang(text: String, start: Int, end: Int): String? {
+            val run = text.substring(start, end)
+            if (isProtectedChemicalFormula(run)) return "en"
+            if (isChineseContextCode(text, start, end, run)) return "zh"
+            return null
+        }
+
+        private fun isProtectedChemicalFormula(run: String): Boolean =
+            run == "SO2" || run == "CO2" || run == "C6H12O6"
+
+        private fun isChineseContextCode(text: String, start: Int, end: Int, run: String): Boolean {
+            val touchesChinese = (start > 0 && isCjk(text[start - 1])) || (end < text.length && isCjk(text[end]))
+            if (!touchesChinese) return false
+            val hasDigit = run.any { it.isDigit() }
+            val upperCount = run.count { it in 'A'..'Z' }
+            val hasLower = run.any { it in 'a'..'z' }
+            val followsPlateProvince = start > 0 && text[start - 1] in PLATE_PROVINCES
+            val isPercentileCode = run.matches(PERCENTILE_CODE)
+            return hasDigit && !hasLower && (upperCount >= 1 || followsPlateProvince || isPercentileCode)
+        }
+
+        private fun isCjk(char: Char): Boolean =
+            char in '\u4e00'..'\u9fff'
+
+        private fun isAsciiLetter(char: Char): Boolean =
+            char in 'a'..'z' || char in 'A'..'Z'
+
+        companion object {
+            private const val PLATE_PROVINCES = "京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼"
+            private val PERCENTILE_CODE = Regex("P\\d{1,3}")
+        }
+    }
+
+    private class TnProcess private constructor(
+        private val process: Process,
+        private val writer: BufferedWriter,
+        private val reader: BufferedReader,
+    ) {
+        @Synchronized
+        fun normalize(text: String): String {
+            if (!process.isAlive) {
+                throw IllegalStateException("TN process exited before normalize")
+            }
+            writer.write(text)
+            writer.newLine()
+            writer.flush()
+            val normalized = reader.readLine()
+                ?: throw IllegalStateException("TN process exited without output")
+            return normalized.trim().takeUnless { it.isEmpty() } ?: text
+        }
+
+        @Synchronized
+        fun close() {
+            runCatching { writer.close() }
+            runCatching { reader.close() }
+            if (process.isAlive) {
+                process.destroy()
+                runCatching {
+                    if (!process.waitFor(200, TimeUnit.MILLISECONDS)) {
+                        process.destroyForcibly()
+                    }
+                }
+            }
+        }
+
+        companion object {
+            fun start(binary: File, workingDir: File): TnProcess {
+                binary.setExecutable(true, true)
+                val process = ProcessBuilder(binary.absolutePath)
+                    .directory(workingDir)
+                    .apply {
+                        environment()["TTS_RULES_ROOT"] = workingDir.absolutePath
+                        environment()["TTS_RULES_FORMAT"] = "v2"
+                    }
+                    .start()
+                Thread({
+                    process.errorStream.bufferedReader().use { error ->
+                        while (error.readLine() != null) {
+                            // Drain stderr so the TN process cannot block on a full error pipe.
+                        }
+                    }
+                }, "lits-tts-tn-stderr-${binary.name}").apply {
+                    isDaemon = true
+                    start()
+                }
+                return TnProcess(
+                    process = process,
+                    writer = BufferedWriter(OutputStreamWriter(process.outputStream, Charsets.UTF_8)),
+                    reader = BufferedReader(InputStreamReader(process.inputStream, Charsets.UTF_8)),
+                )
+            }
+        }
+    }
+
+    internal fun preserveSegmentWhitespace(segment: String, normalized: String): String {
+        var output = normalized
+        if (segment.firstOrNull()?.isWhitespace() == true && output.firstOrNull()?.isWhitespace() != true) {
+            output = " $output"
+        }
+        if (segment.lastOrNull()?.isWhitespace() == true && output.lastOrNull()?.isWhitespace() != true) {
+            output += " "
+        }
+        return output
+    }
+
+    private const val TAG = "LitsTn"
+}

@@ -6,11 +6,20 @@ plugins {
 android {
     namespace = "com.lits.tts.sdk"
     compileSdk = 34
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         minSdk = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+        externalNativeBuild {
+            ndkBuild {
+                arguments += listOf("APP_STL=c++_static")
+            }
+        }
     }
 
     compileOptions {
@@ -29,6 +38,12 @@ android {
 
     androidResources {
         noCompress += listOf("onnx")
+    }
+
+    externalNativeBuild {
+        ndkBuild {
+            path = file("src/main/jni/Android.mk")
+        }
     }
 
     sourceSets["main"].jniLibs.srcDirs("src/main/jniLibs")

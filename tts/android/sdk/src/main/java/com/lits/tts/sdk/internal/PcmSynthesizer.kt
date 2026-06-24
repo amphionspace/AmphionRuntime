@@ -146,7 +146,12 @@ internal class LitsDeliveryPcmSynthesizer(
         val startedAt = System.nanoTime()
         val activeLayout = layout ?: throw notReady()
         val activeRuntime = runtime ?: throw notReady()
-        val textSegments = listOf(text)
+        val textSegments = LitsTtsFrontend.splitForStreaming(
+            layout = activeLayout,
+            text = text,
+            language = engineParams.language,
+            languageContext = params.languageContext,
+        )
         val output = if (collectOutput) java.io.ByteArrayOutputStream() else null
         var totalBytes = 0L
         var firstChunkMs = -1L
@@ -157,7 +162,7 @@ internal class LitsDeliveryPcmSynthesizer(
         val firstChunkSizeOverride = streamingFirstChunkSizeOverride(params)
         for (segment in textSegments) {
             val frontendStartedAt = System.nanoTime()
-            val tokenIds = LitsTtsFrontend.encode(activeLayout, segment, engineParams.language, params.languageContext)
+            val tokenIds = LitsTtsFrontend.encodeNormalized(activeLayout, segment, engineParams.language, params.languageContext)
             val segmentFrontendMs = elapsedMs(frontendStartedAt)
             frontendMs += segmentFrontendMs
             if (firstPacketFrontendMs < 0L) firstPacketFrontendMs = segmentFrontendMs

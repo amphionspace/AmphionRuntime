@@ -1,6 +1,20 @@
 {
   "app": {
-    "signingConfigs": [],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "/Users/amphion/.ohos/config/default_AmphionRuntime_0egUx9IKXLD8VNanFhE9J4ki41GivDjlpFQMzsjaeJo=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001AA7D0C87DB1FF8B4231CA4E0A96F838210E7260CFFAE5EB7469F65522C4971AEFE99590F1357F",
+          "profile": "/Users/amphion/.ohos/config/default_AmphionRuntime_0egUx9IKXLD8VNanFhE9J4ki41GivDjlpFQMzsjaeJo=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/amphion/.ohos/config/default_AmphionRuntime_0egUx9IKXLD8VNanFhE9J4ki41GivDjlpFQMzsjaeJo=.p12",
+          "storePassword": "0000001AA3882AA03266695856DFEB2721ED673E7B6D18C49A193278E5D701983CC0C0B726400B5A9246"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",

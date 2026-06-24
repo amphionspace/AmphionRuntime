@@ -173,17 +173,9 @@
                     android:orientation="horizontal">
 
                     <Button
-                        android:id="@+id/button_warmup"
-                        android:layout_width="0dp"
-                        android:layout_height="@dimen/segment_height"
-                        android:layout_weight="1"
-                        android:text="@string/button_warmup" />
-
-                    <Button
                         android:id="@+id/button_play"
                         android:layout_width="0dp"
                         android:layout_height="@dimen/segment_height"
-                        android:layout_marginStart="12dp"
                         android:layout_weight="1"
                         android:text="@string/button_play" />
 
@@ -194,6 +186,28 @@
                         android:layout_marginStart="12dp"
                         android:layout_weight="1"
                         android:text="@string/button_save" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/button_warmup"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/segment_height"
+                        android:layout_weight="1"
+                        android:text="@string/button_warmup" />
+
+                    <Button
+                        android:id="@+id/button_stop"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/segment_height"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:text="@string/button_stop" />
                 </LinearLayout>
 
                 <TextView

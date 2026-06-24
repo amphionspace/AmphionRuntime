@@ -68,6 +68,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var warmupButton: Button
     private lateinit var playButton: Button
     private lateinit var saveButton: Button
+    private lateinit var stopButton: Button
     private lateinit var statusText: TextView
     private lateinit var metricsText: TextView
     private lateinit var logText: TextView
@@ -78,6 +79,7 @@ class MainActivity : AppCompatActivity() {
     private var lastAudio: ByteArray? = null
     private var lastSampleRate: Int = 16000
     private var busy: Boolean = false
+    private var localPlaying: Boolean = false
     private var activeRequestId: String? = null
     private var loadingLanguage: String? = null
     private var warmupDone: Boolean = false
@@ -97,6 +99,7 @@ class MainActivity : AppCompatActivity() {
         warmupButton = findViewById(R.id.button_warmup)
         playButton = findViewById(R.id.button_play)
         saveButton = findViewById(R.id.button_save)
+        stopButton = findViewById(R.id.button_stop)
         statusText = findViewById(R.id.text_status)
         metricsText = findViewById(R.id.text_metrics)
         logText = findViewById(R.id.text_log)
@@ -114,6 +117,7 @@ class MainActivity : AppCompatActivity() {
         warmupButton.setOnClickListener { submitWarmup(autoTriggered = false) }
         playButton.setOnClickListener { playLastAudio() }
         saveButton.setOnClickListener { saveLastAudio() }
+        stopButton.setOnClickListener { stopCurrentWork() }
 
         applyPresetText(selectedLanguage())
         setStatus(getString(R.string.status_ready))
@@ -143,6 +147,11 @@ class MainActivity : AppCompatActivity() {
         else -> "zh-en"
     }
 
+    private fun voiceIdForLanguage(language: String): String = when (language) {
+        "en-US" -> VOICE_ID_SPEAKER_0
+        else -> VOICE_ID_SPEAKER_1
+    }
+
     private fun selectedChunkSize(): Int {
         val value = chunkSizeInput.text?.toString()?.trim()?.toIntOrNull()
         return value?.takeIf { it > 0 } ?: DEFAULT_STREAMING_CHUNK_SIZE
@@ -162,7 +171,7 @@ class MainActivity : AppCompatActivity() {
         val language = selectedLanguage()
         val readyEngine = engine
         val chunkSize = selectedChunkSize()
-        val firstChunkSize = DEFAULT_STREAMING_FIRST_CHUNK_SIZE
+        val firstChunkSize = chunkSize
         val pcmQueueCapacity = selectedPcmQueueCapacity()
         if (readyEngine == null || engineLanguage != language) {
             setStatus("\u6a21\u578b\u52a0\u8f7d\u4e2d\uff1a$language")
@@ -239,7 +248,7 @@ class MainActivity : AppCompatActivity() {
         }
         val requestId = nextRequestId("warmup")
         val chunkSize = selectedChunkSize()
-        val firstChunkSize = DEFAULT_STREAMING_FIRST_CHUNK_SIZE
+        val firstChunkSize = chunkSize
         val pcmQueueCapacity = selectedPcmQueueCapacity()
         requestPlayTypes[requestId] = PlayType.SYNTHESIZE_ONLY
         requestWarmupFlags[requestId] = true
@@ -303,10 +312,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun playLastAudio() {
         val audio = lastAudio ?: return
+        localPlaying = true
         playButton.isEnabled = false
+        refreshActionState()
         setStatus(getString(R.string.status_playing_result))
         player.play(audio, lastSampleRate) {
             mainHandler.post {
+                localPlaying = false
                 refreshActionState()
                 setStatus(getString(R.string.status_play_result_done))
             }
@@ -334,6 +346,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun stopCurrentWork() {
+        player.stop()
+        localPlaying = false
+        runCatching { engine?.stop() }
+        val requestId = activeRequestId
+        if (requestId != null) {
+            endBusy(requestId)
+        } else {
+            refreshActionState()
+        }
+        setStatus(getString(R.string.status_stop_current))
+        appendLog("stop current work")
+    }
+
     private fun preloadEngine(language: String) {
         val current = engine
         if (current != null && engineLanguage == language) {
@@ -358,7 +384,7 @@ class MainActivity : AppCompatActivity() {
         setMetrics(buildMetricsText(null, null, null, null, 0L, 0))
         appendLog("\u5f00\u59cb\u52a0\u8f7d\u6a21\u578b language=$language requestId=$loadRequestId")
         beginBusy(loadRequestId)
-        val voiceId = "lits-female-01"
+        val voiceId = voiceIdForLanguage(language)
         TextToSpeechSdk.createEngine(
             CreateEngineParams(
                 language = language,
@@ -414,7 +440,7 @@ class MainActivity : AppCompatActivity() {
             runCatching { current.shutdown() }
             player.stop()
         }
-        val voiceId = "lits-female-01"
+        val voiceId = voiceIdForLanguage(language)
         return TextToSpeechSdk.createEngine(
             CreateEngineParams(
                 language = language,
@@ -489,15 +515,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshActionState() {
         mainHandler.post {
-            synthesizeButton.isEnabled = !busy
-            sdkPlaybackButton.isEnabled = !busy
-            warmupButton.isEnabled = !busy
-            playButton.isEnabled = !busy && lastAudio?.isNotEmpty() == true
-            saveButton.isEnabled = !busy && lastAudio?.isNotEmpty() == true
-            chunkSizeInput.isEnabled = !busy
-            pcmQueueCapacityInput.isEnabled = !busy
+            val uiBusy = busy || localPlaying
+            synthesizeButton.isEnabled = !uiBusy
+            sdkPlaybackButton.isEnabled = !uiBusy
+            warmupButton.isEnabled = !uiBusy
+            playButton.isEnabled = !uiBusy && lastAudio?.isNotEmpty() == true
+            saveButton.isEnabled = !uiBusy && lastAudio?.isNotEmpty() == true
+            stopButton.isEnabled = busy || localPlaying
+            chunkSizeInput.isEnabled = !uiBusy
+            pcmQueueCapacityInput.isEnabled = !uiBusy
             for (index in 0 until modeGroup.childCount) {
-                modeGroup.getChildAt(index).isEnabled = !busy
+                modeGroup.getChildAt(index).isEnabled = !uiBusy
             }
         }
     }
@@ -775,7 +803,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
-        const val DEFAULT_STREAMING_FIRST_CHUNK_SIZE = 50
+        const val VOICE_ID_SPEAKER_0 = "lits-female-01"
+        const val VOICE_ID_SPEAKER_1 = "lits-female-02"
         const val DEFAULT_STREAMING_CHUNK_SIZE = 100
         const val DEFAULT_PCM_QUEUE_CAPACITY = 128
     }

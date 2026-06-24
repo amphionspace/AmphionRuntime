@@ -60,8 +60,14 @@ internal class AndroidPcmPlayer {
         }
         var totalBytes = 0
         val totalBytesLock = Object()
-        val audioQueue = LinkedBlockingQueue<ByteArray>(queueCapacity.coerceIn(1, MAX_STREAMING_QUEUE_CAPACITY))
+        val actualQueueCapacity = queueCapacity.coerceIn(1, MAX_STREAMING_QUEUE_CAPACITY)
+        val prebufferChunks = minOf(STREAMING_PREBUFFER_CHUNKS, actualQueueCapacity)
+        val audioQueue = LinkedBlockingQueue<ByteArray>(actualQueueCapacity)
         val playbackError = arrayOfNulls<Throwable>(1)
+        val producerError = arrayOfNulls<Throwable>(1)
+        val prebufferLock = Object()
+        var queuedChunks = 0
+        var producerFinished = false
         val playbackThread = Thread(
             {
                 try {
@@ -88,17 +94,44 @@ internal class AndroidPcmPlayer {
             },
             "lits-tts-pcm-playback",
         ).apply { isDaemon = true }
+        val producerThread = Thread(
+            {
+                try {
+                    producer { chunk ->
+                        if (!cancelled.get()) {
+                            audioQueue.put(chunk.copyOf())
+                            synchronized(prebufferLock) {
+                                queuedChunks += 1
+                                prebufferLock.notifyAll()
+                            }
+                        }
+                    }
+                    onSynthesisComplete()
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                } catch (error: Throwable) {
+                    producerError[0] = error
+                    cancelled.set(true)
+                } finally {
+                    synchronized(prebufferLock) {
+                        producerFinished = true
+                        prebufferLock.notifyAll()
+                    }
+                    audioQueue.offer(END_OF_STREAM)
+                }
+            },
+            "lits-tts-pcm-producer",
+        ).apply { isDaemon = true }
         try {
+            producerThread.start()
+            waitForStreamingPrebuffer(prebufferLock) {
+                cancelled.get() || producerFinished || queuedChunks >= prebufferChunks
+            }
             localTrack.play()
             playbackThread.start()
-            producer { chunk ->
-                if (!cancelled.get()) {
-                    audioQueue.put(chunk.copyOf())
-                }
-            }
-            onSynthesisComplete()
-            audioQueue.put(END_OF_STREAM)
+            producerThread.join()
             playbackThread.join()
+            producerError[0]?.let { throw it }
             playbackError[0]?.let { throw it }
             if (!cancelled.get()) {
                 val writtenBytes = synchronized(totalBytesLock) { totalBytes }
@@ -111,6 +144,10 @@ internal class AndroidPcmPlayer {
             }
         } finally {
             audioQueue.offer(END_OF_STREAM)
+            if (producerThread.isAlive) {
+                producerThread.interrupt()
+                producerThread.join(PLAYBACK_THREAD_JOIN_TIMEOUT_MS)
+            }
             if (playbackThread.isAlive) {
                 playbackThread.interrupt()
                 playbackThread.join(PLAYBACK_THREAD_JOIN_TIMEOUT_MS)
@@ -119,6 +156,15 @@ internal class AndroidPcmPlayer {
                 releaseImmediately(localTrack)
             } else {
                 releaseAfterDrain(localTrack)
+            }
+        }
+    }
+
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+    private fun waitForStreamingPrebuffer(lock: Object, ready: () -> Boolean) {
+        synchronized(lock) {
+            while (!ready()) {
+                lock.wait(STREAMING_PREBUFFER_WAIT_MS)
             }
         }
     }
@@ -221,6 +267,8 @@ internal class AndroidPcmPlayer {
         const val PLAYBACK_THREAD_JOIN_TIMEOUT_MS = 200L
         const val DEFAULT_STREAMING_QUEUE_CAPACITY = 32
         const val MAX_STREAMING_QUEUE_CAPACITY = 256
+        const val STREAMING_PREBUFFER_CHUNKS = 2
+        const val STREAMING_PREBUFFER_WAIT_MS = 20L
         val END_OF_STREAM = ByteArray(0)
     }
 }

@@ -3,15 +3,16 @@ package com.lits.tts.sdk.internal
 internal object LitsTtsAssetRegistry {
     const val ASSET_ROOT: String = "lits-models"
     const val MODEL_ROOT: String = "tts"
-    const val MODEL_ID: String = "lits_delivery_16k_hifigan_streaming_proto"
-    const val MODEL_VERSION: String = "0.1.1"
+    const val MODEL_ID: String = "transsion_lits_en_zh_vocos24k_streaming_proto_external_loop"
+    const val MODEL_VERSION: String = "0.1.0"
 
     const val MANIFEST: String = "manifest.json"
     const val ACOUSTIC_MODEL: String = "lits_acoustic.onnx"
     const val HIDDEN_ENCODER_MODEL: String = "lits_hidden_encoder.onnx"
-    const val STREAM_DECODER_CHUNK_MODEL: String = "lits_stream_decoder_chunk.onnx"
-    const val STREAM_DECODER_FINAL_MODEL: String = "lits_stream_decoder_final.onnx"
-    const val VOCODER_MODEL: String = "hifigan_vocoder_int8.onnx"
+    const val STREAM_CONDITION_CHUNK_MODEL: String = "lits_stream_condition_chunk.onnx"
+    const val STREAM_CONDITION_FINAL_MODEL: String = "lits_stream_condition_final.onnx"
+    const val STREAM_DECODER_STEP_MODEL: String = "lits_stream_decoder_step.onnx"
+    const val VOCODER_MODEL: String = "vocos_vocoder.onnx"
     const val FRONTEND_GOLDEN: String = "frontend_golden.json"
     const val CHINESE_LEXICON: String = "chinese_lexicon.txt"
     const val CHINESE_LEXICON_BIN: String = "chinese_lexicon.bin"
@@ -22,11 +23,20 @@ internal object LitsTtsAssetRegistry {
     const val SYMBOLS: String = "zh_en_symbols.json"
     const val PINYIN_TO_TOKENS: String = "pinyin_to_tokens.json"
     const val ARPABET_TO_TOKENS: String = "arpabet_to_tokens.json"
+    const val TN_ZH_TTS: String = "tn-bin/arm64-v8a/zh_tts"
+    const val TN_EN_TTS: String = "tn-bin/arm64-v8a/en_tts"
+    const val TN_RULES_ZH: String = "rules/zh.json"
+    const val TN_RULES_EN: String = "rules/en.json"
+    const val TN_RULES_ZH_PINYIN: String = "rules/zh_pinyin.json"
+    const val TN_RULES_V2_ZH: String = "rules_v2/zh.full.json"
+    const val TN_RULES_V2_EN: String = "rules_v2/en.full.json"
 
     val files: List<String> = listOf(
         MANIFEST,
         HIDDEN_ENCODER_MODEL,
-        STREAM_DECODER_CHUNK_MODEL,
+        STREAM_CONDITION_CHUNK_MODEL,
+        STREAM_CONDITION_FINAL_MODEL,
+        STREAM_DECODER_STEP_MODEL,
         VOCODER_MODEL,
         FRONTEND_GOLDEN,
         CHINESE_LEXICON,
@@ -38,6 +48,18 @@ internal object LitsTtsAssetRegistry {
         SYMBOLS,
         PINYIN_TO_TOKENS,
         ARPABET_TO_TOKENS,
+        TN_ZH_TTS,
+        TN_EN_TTS,
+        TN_RULES_ZH,
+        TN_RULES_EN,
+        TN_RULES_ZH_PINYIN,
+        TN_RULES_V2_ZH,
+        TN_RULES_V2_EN,
+    )
+
+    val tnBinaryFiles: List<String> = listOf(
+        TN_ZH_TTS,
+        TN_EN_TTS,
     )
 
     val assetSubPath: String = "$MODEL_ROOT/$MODEL_ID/$MODEL_VERSION"

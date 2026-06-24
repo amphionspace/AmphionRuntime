@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LitsTtsSdk"
+rootProject.name = "LitsTranssionSdkVocos24k"
 include(":sdk")
 include(":sample")

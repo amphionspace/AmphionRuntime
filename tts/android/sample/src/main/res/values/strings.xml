@@ -24,6 +24,7 @@
     <string name="button_warmup">Warmup</string>
     <string name="button_play">播放结果</string>
     <string name="button_save">保存 WAV</string>
+    <string name="button_stop">停止</string>
 
     <string name="metrics_placeholder">模式: --\n引擎加载: -- ms\n采样率: -- Hz\n首包时延: -- ms\n合成耗时: -- ms\n音频时长: -- ms\nRTF: --\nChunk数: --</string>
     <string name="log_placeholder">等待运行日志…</string>
@@ -40,5 +41,6 @@
     <string name="status_saved">已保存到：%1$s</string>
     <string name="status_save_failed">保存 WAV 失败：%1$s</string>
     <string name="status_stopped">请求已停止：%1$s</string>
+    <string name="status_stop_current">当前任务已停止</string>
     <string name="status_error">请求失败：%1$s / %2$d / %3$s</string>
 </resources>
