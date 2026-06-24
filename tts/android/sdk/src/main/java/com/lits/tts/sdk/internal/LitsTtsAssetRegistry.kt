@@ -16,8 +16,10 @@ internal object LitsTtsAssetRegistry {
     const val FRONTEND_GOLDEN: String = "frontend_golden.json"
     const val CHINESE_LEXICON: String = "chinese_lexicon.txt"
     const val CHINESE_LEXICON_BIN: String = "chinese_lexicon.bin"
+    const val PINYIN_FALLBACK: String = "pinyin_fallback.json"
     const val CMUDICT: String = "cmudict.txt"
     const val CMUDICT_BIN: String = "cmudict.bin"
+    const val SUPPLEMENT_LEXICON: String = "supplement_lexicon.json"
     const val PINYIN_TO_BPMF: String = "pinyin_2_bpmf.txt"
     const val POLYCHAR: String = "polychar.txt"
     const val SYMBOLS: String = "zh_en_symbols.json"
@@ -41,8 +43,10 @@ internal object LitsTtsAssetRegistry {
         FRONTEND_GOLDEN,
         CHINESE_LEXICON,
         CHINESE_LEXICON_BIN,
+        PINYIN_FALLBACK,
         CMUDICT,
         CMUDICT_BIN,
+        SUPPLEMENT_LEXICON,
         PINYIN_TO_BPMF,
         POLYCHAR,
         SYMBOLS,

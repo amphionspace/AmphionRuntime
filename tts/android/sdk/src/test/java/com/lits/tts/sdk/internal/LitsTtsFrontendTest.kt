@@ -84,6 +84,14 @@ class LitsTtsFrontendTest {
             LitsTtsFrontend.encode(layout, "公式E等于mc平方只是备注", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "公式E=mc^2只是备注", "zh-en", "zh-en"),
         )
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "USB C接口已连接", "zh-en", "zh-en"),
+            LitsTtsFrontend.encode(layout, "USB-C接口已连接", "zh-en", "zh-en"),
+        )
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "Type C接口已连接", "zh-en", "zh-en"),
+            LitsTtsFrontend.encode(layout, "Type-C接口已连接", "zh-en", "zh-en"),
+        )
     }
 
     @Test
@@ -143,6 +151,14 @@ class LitsTtsFrontendTest {
             LitsTtsFrontend.encode(layout, "闹钟设为7点05分", "zh-en", "zh-en"),
         )
         assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "闹钟设为十四点零五分", "zh-en", "zh-en"),
+            LitsTtsFrontend.encode(layout, "闹钟设为十四点05分", "zh-en", "zh-en"),
+        )
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "设备序列号TX二零二六A零九需要登记", "zh-en", "zh-en"),
+            LitsTtsFrontend.encode(layout, "设备序列号TX2026A09需要登记", "zh-en", "zh-en"),
+        )
+        assertArrayEquals(
             LitsTtsFrontend.encode(layout, "用时一小时零五分钟", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "用时1小时05分钟", "zh-en", "zh-en"),
         )
@@ -174,6 +190,77 @@ class LitsTtsFrontendTest {
             LitsTtsFrontend.encode(layout, "URL是www点example点com斜杠test问号id等于123", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "URL是www.example.com/test?id=123", "zh-en", "zh-en"),
         )
+    }
+
+    @Test
+    fun enUsChatgptUsesLexiconReading() {
+        val layout = testLayout()
+
+        val tokens = LitsTtsFrontend.debugTokensForTest(layout, "chatgpt is ready.", "en-US", "en-US")
+
+        assertTrue(
+            "expected chatgpt lexicon reading, actual=${tokens.joinToString(" ")}",
+            tokens.joinToString(" ").contains("CH AE1 T JH IY1 P IY1 T IY1"),
+        )
+    }
+
+    @Test
+    fun enUsSupplementLexiconIsUsedBeforeSpellingFallback() {
+        val layout = testLayout()
+
+        val tokens = LitsTtsFrontend.debugTokensForTest(layout, "firmware roadmap is ready.", "en-US", "en-US")
+
+        assertTrue(
+            "expected firmware supplement lexicon reading, actual=${tokens.joinToString(" ")}",
+            tokens.joinToString(" ").contains("F ER1 M W EH2 R"),
+        )
+        assertTrue(
+            "expected roadmap supplement lexicon reading, actual=${tokens.joinToString(" ")}",
+            tokens.joinToString(" ").contains("R OW1 D M AE2 P"),
+        )
+    }
+
+    @Test
+    fun arpabetInputCanPassThroughDirectly() {
+        val layout = testLayout()
+
+        assertArrayEquals(
+            LitsTtsFrontend.encodeNormalized(layout, "/ CH AE1 T / .", "en-US", "en-US"),
+            LitsTtsFrontend.encodeNormalized(layout, "/ CH AE1 T /", "en-US", "en-US"),
+        )
+    }
+
+    @Test
+    fun enUsSingleAUsesArticleOrLetterNameByContext() {
+        val layout = testLayout()
+
+        val articleTokens = LitsTtsFrontend.debugTokensForTest(layout, "A dog is ready.", "en-US", "en-US")
+        val letterTokens = LitsTtsFrontend.debugTokensForTest(layout, "grade A.", "en-US", "en-US")
+        val acronymTokens = LitsTtsFrontend.debugTokensForTest(layout, "API is ready.", "en-US", "en-US")
+
+        assertTrue(
+            "expected article A as AH0, actual=${articleTokens.joinToString(" ")}",
+            articleTokens.joinToString(" ").contains("AH0 _ D AO1 G"),
+        )
+        assertTrue(
+            "expected final A as letter name EY1, actual=${letterTokens.joinToString(" ")}",
+            letterTokens.joinToString(" ").contains("G R EY1 D _ EY1"),
+        )
+        assertTrue(
+            "expected acronym A as letter name EY1, actual=${acronymTokens.joinToString(" ")}",
+            acronymTokens.joinToString(" ").contains("EY1 P IY1 AY1"),
+        )
+    }
+
+    @Test
+    fun zhEnAppliesYiBuErToneSandhi() {
+        val layout = testLayout()
+
+        assertTokenSequence(layout, "一个苹果。", "ㄧ ˊ _ ㄍ ㄜ ˋ _")
+        assertTokenSequence(layout, "一天。", "ㄧ ˋ _ ㄊ ㄧ ㄢ ˉ _")
+        assertTokenSequence(layout, "不对。", "ㄅ ㄨ ˊ _ ㄉ ㄨ ㄟ ˋ _")
+        assertTokenSequence(layout, "看一看。", "ㄎ ㄢ ˋ _ ㄧ ˙ _ ㄎ ㄢ ˋ _")
+        assertTokenSequence(layout, "花儿。", "ㄏ ㄨ ㄚ ˉ _ ㄦ ˙ _")
     }
 
     @Test
@@ -370,6 +457,7 @@ class LitsTtsFrontendTest {
             val root = createTempDirectory("lits-tts-frontend-test").toFile()
             copyAsset(root, "chinese_lexicon.txt")
             copyAsset(root, "cmudict.txt")
+            copyAsset(root, "supplement_lexicon.json")
             copyAsset(root, "zh_en_symbols.json")
             copyAsset(root, "pinyin_to_tokens.json")
             copyAsset(root, "arpabet_to_tokens.json")

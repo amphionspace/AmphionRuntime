@@ -83,6 +83,7 @@ val packLitsTtsSdkAssets = tasks.register<Copy>("packLitsTtsSdkAssets") {
         "chinese_lexicon.bin",
         "cmudict.txt",
         "cmudict.bin",
+        "supplement_lexicon.json",
         "pinyin_2_bpmf.txt",
         "polychar.txt",
         "zh_en_symbols.json",

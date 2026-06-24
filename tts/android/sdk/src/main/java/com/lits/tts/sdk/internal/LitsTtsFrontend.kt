@@ -134,6 +134,7 @@ internal object LitsTtsFrontend {
     private val commaIntegerCurrencyRegex = Regex("(?<!\\d)(\\d{1,3}(?:,\\d{3})+)\\.00(?=元)")
     private val thousandsSeparatorRegex = Regex("(?<=\\d),(?=\\d{3}(?:\\D|$))")
     private val clockMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2})点0([1-9])分")
+    private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点0([1-9])分")
     private val durationMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d+)小时0([1-9])分钟")
     private val yearMonthLeadingZeroRegex = Regex("(\\d{2,4}年)0([1-9])月")
     private val yearMonthRegex = Regex("(\\d{2,4}年)(\\d{1,2})月")
@@ -148,6 +149,10 @@ internal object LitsTtsFrontend {
     private val urlSchemeSeparatorRegex = Regex("(?<![A-Za-z0-9])(https?|ftp)://", RegexOption.IGNORE_CASE)
     private val caretPowerTwoRegex = Regex("\\^(?:2|二)")
     private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])([A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
+    private val connectorHyphenRegex = Regex("(?<![A-Za-z0-9])(USB|Type)-([A-Za-z])(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
+    private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
+    private val arpabetBoundaryTokens = setOf("/", "|", "_")
+    private const val CHINESE_DIGIT_SEQUENCE_CHARS = "零〇一二三四五六七八九两幺"
     private val technicalSymbolReadings = mapOf(
         '.' to "点",
         ':' to "冒号",
@@ -466,6 +471,7 @@ internal object LitsTtsFrontend {
         language: String,
         languageContext: String,
     ): List<String> {
+        tokenizeArpabetInput(resources, text)?.let { return it }
         val normalized = normalizeTechnicalText(normalizeText(preprocessZhMixedInput(text), languageContext), languageContext).trim()
         if (normalized.isEmpty()) {
             throw unsupported("text must not be empty after trim")
@@ -526,12 +532,11 @@ internal object LitsTtsFrontend {
 
                 isHanzi(char) -> {
                     val end = scanHanziChunk(normalized, index)
+                    val hanziText = normalized.substring(index, end)
                     appendChineseSyllables(
                         output,
                         resources,
-                        applyThirdToneSandhi(
-                            hanziChunkToPinyin(resources, normalized.substring(index, end)),
-                        ),
+                        applyMandarinToneSandhi(hanziText, hanziChunkToPinyin(resources, hanziText)),
                         trimLeadingBoundary = !shouldKeepBoundaryBeforeChinese(normalized, index),
                     )
                     index = end
@@ -552,8 +557,13 @@ internal object LitsTtsFrontend {
                         }
                     }
                     val actualEnd = if (end > index) end else throw unsupported("unsupported frontend character: $char")
+                    val word = normalized.substring(index, actualEnd)
                     appendBoundary(output)
-                    val phones = phonesForEnglishWord(resources, normalized.substring(index, actualEnd))
+                    val phones = phonesForEnglishWord(
+                        resources,
+                        word,
+                        preferLetterName = shouldPreferLetterName(normalized, actualEnd, word),
+                    )
                     output += arpabetToTokens(resources, phones)
                     appendBoundary(output)
                     index = actualEnd
@@ -562,8 +572,13 @@ internal object LitsTtsFrontend {
                 isEnglishLetter(char) -> {
                     val end = scanEnglishWord(normalized, index)
                     if (end <= index) throw unsupported("unsupported frontend character: $char")
+                    val word = normalized.substring(index, end)
                     appendBoundary(output)
-                    val phones = phonesForEnglishWord(resources, normalized.substring(index, end))
+                    val phones = phonesForEnglishWord(
+                        resources,
+                        word,
+                        preferLetterName = shouldPreferLetterName(normalized, end, word),
+                    )
                     output += arpabetToTokens(resources, phones)
                     appendBoundary(output)
                     index = end
@@ -686,6 +701,9 @@ internal object LitsTtsFrontend {
         normalized = urlSchemeSeparatorRegex.replace(normalized) { match ->
             "${match.groupValues[1]}冒号斜杠斜杠"
         }
+        normalized = connectorHyphenRegex.replace(normalized) { match ->
+            "${match.groupValues[1]} ${match.groupValues[2]}"
+        }
         normalized = technicalAsciiTokenRegex.replace(normalized) { match ->
             val token = match.groupValues[1]
             if (looksLikeIpv6(token) || token.none { it in technicalSymbolReadings }) {
@@ -750,6 +768,9 @@ internal object LitsTtsFrontend {
         normalized = clockMinuteLeadingZeroRegex.replace(normalized) { match ->
             "${numberTextToHanzi(match.groupValues[1])}点零${numberTextToHanzi(match.groupValues[2])}分"
         }
+        normalized = hanziClockMinuteLeadingZeroRegex.replace(normalized) { match ->
+            "${match.groupValues[1]}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}分"
+        }
         normalized = durationMinuteLeadingZeroRegex.replace(normalized) { match ->
             "${numberTextToHanzi(match.groupValues[1])}小时零${numberTextToHanzi(match.groupValues[2])}分钟"
         }
@@ -765,7 +786,16 @@ internal object LitsTtsFrontend {
         normalized = monthDayRegex.replace(normalized) { match ->
             "${match.groupValues[1]}${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
         }
+        normalized = serialCodeRegex.replace(normalized) { match ->
+            match.groupValues[1] + match.groupValues[2] + normalizeSerialCode(match.groupValues[3])
+        }
         return normalized
+    }
+
+    private fun normalizeSerialCode(code: String): String = buildString {
+        code.forEach { char ->
+            append(chineseDigitTextByChar[char] ?: char)
+        }
     }
 
     private fun compactIntegerCurrencyWithCommas(text: String): String {
@@ -885,6 +915,61 @@ internal object LitsTtsFrontend {
         .map { it.replace('\u7709', 'v').replace('\u813A', 'v') }
         .filter { pinyinSyllableRegex.matches(it) }
 
+    private fun applyMandarinToneSandhi(text: String, tokens: List<String>): List<String> {
+        val output = applyThirdToneSandhi(tokens).toMutableList()
+        if (text.length != output.size) return output
+        if (text.length > 1 && text.all { it in CHINESE_DIGIT_SEQUENCE_CHARS }) return output
+        applyBuSandhi(text, output)
+        applyYiSandhi(text, output)
+        applyErSandhi(text, output)
+        return output
+    }
+
+    private fun applyBuSandhi(text: String, tokens: MutableList<String>) {
+        if (text.all { it == '不' }) return
+        if (text == "不字") return
+        if (text.length == 3 && text[1] == '不' && tokens.getOrNull(1)?.startsWith("bu") == true) {
+            tokens[1] = changePinyinTone(tokens[1], '5')
+            return
+        }
+        text.forEachIndexed { index, char ->
+            if (char == '不' && tokens.getOrNull(index + 1)?.lastOrNull() == '4') {
+                tokens[index] = changePinyinTone(tokens[index], '2')
+            }
+        }
+    }
+
+    private fun applyYiSandhi(text: String, tokens: MutableList<String>) {
+        if (text.length == 3 && text[1] == '一' && text[0] == text[2]) {
+            tokens[1] = changePinyinTone(tokens[1], '5')
+            return
+        }
+        if (text.startsWith("第一") && tokens.size > 1) {
+            tokens[1] = changePinyinTone(tokens[1], '1')
+        }
+        if (text.startsWith("一月") || text.startsWith("一日") || text.startsWith("一号")) {
+            tokens[0] = changePinyinTone(tokens[0], '1')
+        }
+        text.forEachIndexed { index, char ->
+            if (char != '一' || index + 1 >= text.length || text.getOrNull(index - 1) == '第') return@forEachIndexed
+            val current = tokens.getOrNull(index)
+            val next = tokens.getOrNull(index + 1)
+            if (current == null || next == null || !pinyinSyllableRegex.matches(current) || !pinyinSyllableRegex.matches(next)) {
+                return@forEachIndexed
+            }
+            tokens[index] = changePinyinTone(current, if (next.last() == '4') '2' else '4')
+        }
+    }
+
+    private fun applyErSandhi(text: String, tokens: MutableList<String>) {
+        if (text.length > 1 && text.last() == '儿' && tokens.lastOrNull()?.startsWith("er") == true) {
+            tokens[tokens.lastIndex] = changePinyinTone(tokens.last(), '5')
+        }
+    }
+
+    private fun changePinyinTone(syllable: String, tone: Char): String =
+        if (pinyinSyllableRegex.matches(syllable)) syllable.dropLast(1) + tone else syllable
+
     private fun applyThirdToneSandhi(tokens: List<String>): List<String> {
         val output = tokens.toMutableList()
         val pinyinIndices = output.indices.filter { pinyinSyllableRegex.matches(output[it]) }
@@ -898,18 +983,28 @@ internal object LitsTtsFrontend {
         return output
     }
 
-    private fun phonesForEnglishWord(resources: FrontendResources, rawWord: String): List<String> {
+    private fun phonesForEnglishWord(
+        resources: FrontendResources,
+        rawWord: String,
+        preferLetterName: Boolean = false,
+    ): List<String> {
         val normalized = rawWord.uppercase()
+        if (preferLetterName && rawWord.length == 1) {
+            letterPhonesByChar[normalized.single()]?.let { return it }
+        }
         if (shouldSpellUppercaseWord(rawWord, normalized)) {
             val spelled = spellEnglishWord(resources, normalized)
             if (spelled.isNotEmpty()) return spelled
         }
         resources.cmudict[normalized]?.let { return it }
+        resources.supplementLexicon[normalized]?.let { return it }
         if ('-' in normalized) {
             val output = mutableListOf<String>()
             for (part in normalized.split('-')) {
                 if (part.isEmpty()) continue
-                val phones = resources.cmudict[part] ?: spellEnglishWord(resources, part)
+                val phones = resources.cmudict[part]
+                    ?: resources.supplementLexicon[part]
+                    ?: spellEnglishWord(resources, part)
                 if (phones.isEmpty()) {
                     continue
                 }
@@ -922,16 +1017,73 @@ internal object LitsTtsFrontend {
         return emptyList()
     }
 
+    private fun tokenizeArpabetInput(resources: FrontendResources, text: String): List<String>? {
+        val normalized = Normalizer.normalize(text, Normalizer.Form.NFKC)
+            .replace("/", " / ")
+            .replace("|", " | ")
+            .replace("_", " _ ")
+            .trim()
+        if (normalized.isEmpty() || normalized.any(::isHanzi)) return null
+        val parts = normalized.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (parts.isEmpty()) return null
+        val output = mutableListOf<String>()
+        var sawPhone = false
+        var endedWithPunctuation = false
+        for (part in parts) {
+            val token = part.uppercase()
+            when {
+                part in arpabetBoundaryTokens -> {
+                    appendBoundary(output)
+                    endedWithPunctuation = false
+                }
+                part.length == 1 && isPunctuationChar(part.single()) -> {
+                    appendPunctuation(output, part)
+                    endedWithPunctuation = true
+                }
+                resources.arpabetToTokens.containsKey(token) -> {
+                    output += arpabetToTokens(resources, listOf(token))
+                    sawPhone = true
+                    endedWithPunctuation = false
+                }
+                else -> return null
+            }
+        }
+        if (sawPhone && !endedWithPunctuation) {
+            appendPunctuation(output, ".")
+        }
+        while (output.lastOrNull() == "_") {
+            output.removeAt(output.lastIndex)
+        }
+        return if (sawPhone) output else null
+    }
+
     private fun shouldSpellUppercaseWord(rawWord: String, normalized: String): Boolean =
         rawWord.length > 1 &&
             rawWord.all { it in 'A'..'Z' } &&
             normalized !in acronymWordReadings
 
+    private fun shouldPreferLetterName(text: String, end: Int, word: String): Boolean {
+        if (word.length != 1 || !isEnglishLetter(word.single())) return false
+        if (word.uppercase() != "A") return true
+        return !hasEnglishWordAfter(text, end)
+    }
+
+    private fun hasEnglishWordAfter(text: String, start: Int): Boolean {
+        var index = start
+        while (index < text.length) {
+            if (isEnglishLetter(text[index])) return true
+            index += 1
+        }
+        return false
+    }
+
     private fun spellEnglishWord(resources: FrontendResources, word: String): List<String> {
         val output = mutableListOf<String>()
         for (char in word) {
             if (!isEnglishLetter(char)) continue
-            val phones = resources.cmudict[char.toString()] ?: return emptyList()
+            val phones = letterPhonesByChar[char.uppercaseChar()]
+                ?: resources.cmudict[char.toString()]
+                ?: return emptyList()
             output += phones
         }
         return output
@@ -1120,6 +1272,7 @@ internal object LitsTtsFrontend {
                         .toSet()
                 })
                 val cmudict = executor.submit(Callable { loadCmudict(layout) })
+                val supplementLexicon = executor.submit(Callable { loadSupplementLexicon(layout) })
                 val symbolToId = executor.submit(Callable { loadSymbols(layout) })
                 val pinyinToTokens = executor.submit(Callable { loadTokenMap(layout.pinyinToTokens, "pinyin_to_tokens") })
                 val arpabetToTokens = executor.submit(Callable { loadTokenMap(layout.arpabetToTokens, "arpabet_to_tokens") })
@@ -1129,6 +1282,7 @@ internal object LitsTtsFrontend {
                     polyphonicWords = polyphonicWords.get(),
                     maxWordLength = wordPinyin.keys.maxOfOrNull { it.length } ?: 1,
                     cmudict = cmudict.get(),
+                    supplementLexicon = supplementLexicon.get(),
                     symbolToId = symbolToId.get(),
                     pinyinToTokens = pinyinToTokens.get(),
                     arpabetToTokens = arpabetToTokens.get(),
@@ -1137,6 +1291,26 @@ internal object LitsTtsFrontend {
                 executor.shutdown()
             }
         }
+
+    private fun loadSupplementLexicon(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, List<String>> {
+        if (!layout.supplementLexicon.isFile) return emptyMap()
+        val root = JSONObject(layout.supplementLexicon.readText(Charsets.UTF_8))
+        val entries = root.optJSONObject("entries") ?: root
+        return buildMap {
+            val iterator = entries.keys()
+            while (iterator.hasNext()) {
+                val key = iterator.next().uppercase()
+                val value = entries.get(key)
+                val phones = when (value) {
+                    is JSONArray -> value.toStringList()
+                    is JSONObject -> value.optJSONArray("phones")?.toStringList().orEmpty()
+                    is String -> value.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    else -> emptyList()
+                }
+                if (phones.isNotEmpty()) put(key, phones)
+            }
+        }
+    }
 
     private fun loadWordPinyin(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> =
         if (layout.chineseLexiconBin.isFile) {
@@ -1268,6 +1442,7 @@ internal object LitsTtsFrontend {
         val polyphonicWords: Set<String>,
         val maxWordLength: Int,
         val cmudict: Map<String, List<String>>,
+        val supplementLexicon: Map<String, List<String>>,
         val symbolToId: Map<String, Int>,
         val pinyinToTokens: Map<String, List<String>>,
         val arpabetToTokens: Map<String, List<String>>,
