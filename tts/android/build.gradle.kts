@@ -1,5 +1,3 @@
-import java.io.File
-
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
@@ -7,33 +5,25 @@ plugins {
 }
 
 val sdkVersion = "0.1.0"
-val modelId = "transsion_lits_en_zh_vocos24k_streaming_proto"
-val modelVersion = "0.1.0"
-val deliveryDirName = "lits-transsion-tts-android-sdk-vocos24k-$sdkVersion"
-val deliveryAarName = "lits-transsion-tts-sdk-vocos24k-$sdkVersion.aar"
-val litsModelDirOverride = providers.gradleProperty("LITS_TTS_MODEL_DIR")
-    .orElse(providers.environmentVariable("LITS_TTS_MODEL_DIR"))
-    .orNull
-val litsModelDir = litsModelDirOverride
-    ?.let(::File)
-    ?.let { if (it.isAbsolute) it else rootDir.resolve(it.path) }
-    ?: rootDir.resolve("../../tools/trial-export/$modelId/$modelVersion")
+val deliveryDirName = "lits-tts-android-sdk-$sdkVersion"
+val deliveryAarName = "lits-tts-sdk-$sdkVersion.aar"
+val litsModelDir = rootDir.resolve("../../tools/trial-export/lits_delivery_16k_hifigan_streaming_proto/0.1.1")
 val litsAssetDir = rootDir.resolve(
-    "sdk/src/main/assets/lits-models/tts/$modelId/$modelVersion",
+    "sdk/src/main/assets/lits-models/tts/lits_delivery_16k_hifigan_streaming_proto/0.1.1",
 )
 
 val packLitsTtsSdkAssets = tasks.register<Copy>("packLitsTtsSdkAssets") {
     group = "build"
-    description = "Pack exported Transsion LITS TTS assets into the Android SDK AAR."
+    description = "Pack exported Lits_delivery 16k TTS assets into the Android SDK AAR."
     from(litsModelDir)
     into(litsAssetDir)
     doFirst {
-        delete(rootDir.resolve("sdk/src/main/assets/lits-models/tts"))
+        delete(rootDir.resolve("sdk/src/main/assets/lits-models/tts/lits_delivery_16k_hifigan"))
+        delete(rootDir.resolve("sdk/src/main/assets/lits-models/tts/lits_delivery_16k_hifigan_streaming_proto"))
     }
     include(
         "manifest.json",
         "export_report.json",
-        "vocos_vocoder.export_report.json",
         "smoke_tokens.json",
         "frontend_golden.json",
         "chinese_lexicon.txt",
@@ -46,9 +36,8 @@ val packLitsTtsSdkAssets = tasks.register<Copy>("packLitsTtsSdkAssets") {
         "pinyin_to_tokens.json",
         "arpabet_to_tokens.json",
         "lits_hidden_encoder.onnx",
-        "lits_stream_decoder_chunk.ort",
-        "lits_stream_decoder_final.ort",
-        "vocos_vocoder.onnx",
+        "lits_stream_decoder_chunk.onnx",
+        "hifigan_vocoder_int8.onnx",
     )
     inputs.dir(litsModelDir)
     outputs.dir(litsAssetDir)

@@ -72,7 +72,7 @@ internal class DeterministicPcmSynthesizer : PcmSynthesizer {
     }
 
     private companion object {
-        const val SAMPLE_RATE = 24000
+        const val SAMPLE_RATE = 16000
     }
 }
 
@@ -146,7 +146,7 @@ internal class LitsDeliveryPcmSynthesizer(
         val startedAt = System.nanoTime()
         val activeLayout = layout ?: throw notReady()
         val activeRuntime = runtime ?: throw notReady()
-        val textSegments = LitsTtsFrontend.splitForStreaming(activeLayout, text)
+        val textSegments = listOf(text)
         val output = if (collectOutput) java.io.ByteArrayOutputStream() else null
         var totalBytes = 0L
         var firstChunkMs = -1L

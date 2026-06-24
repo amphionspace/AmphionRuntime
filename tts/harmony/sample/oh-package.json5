@@ -1,0 +1,11 @@
+{
+  "name": "sample",
+  "version": "0.1.0",
+  "description": "Sample HAP for validating the Lits TTS HarmonyOS SDK.",
+  "main": "",
+  "author": "Amphion",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "sdk": "file:../sdk"
+  }
+}

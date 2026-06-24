@@ -1,0 +1,15 @@
+# Lits TTS Android SDK checksums
+
+Generated after local verification build.
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `lits-tts-sdk-0.1.0.aar` | 134751395 | `f68d6d2353d369be896731e487227b1fcdf6d1dc416901c5e3d38459bd4239e5` |
+| `AAR embedded native: libonnxruntime.so` | 25831632 | `4d2318b3849abb8862133d3068fc7e807ed8b2671cc6d83657fff2fcb9e1caad` |
+| `AAR embedded native: libonnxruntime4j_jni.so` | 111976 | `5c032a6547e3c33671c07d885af59f1bddd92eb72c595ae8d80db5bbe3fdd2ef` |
+| `AAR embedded jar: onnxruntime-android-1.24.3-classes.jar` | 121450 | `90015a893fac8394c48bcbdb0265052ea7b9de825b4f1a5fe7f9b062b29cf4b8` |
+| `AAR embedded asset: manifest.json` | 3262 | `62b4870b2a459eed1b4e19ec9d843c597b3f592695305bbfafb839a004ef1fca` |
+| `AAR embedded asset: lits_acoustic.onnx` | 73797337 | `8e3aa20cb2710f29985297c2e71a20ff55d1fc91303d497c89a8b9f16ea2d940` |
+| `AAR embedded asset: hifigan_vocoder.onnx` | 55743679 | `300abec706e45bd42de4baf2fe580946fc45e202ec62dadc593fffa16a83b21a` |
+
+Note: `:sample:assembleRelease` 仅用于内部验证 R8/minify 兼容性，sample APK 不属于 SDK-only 交付物。

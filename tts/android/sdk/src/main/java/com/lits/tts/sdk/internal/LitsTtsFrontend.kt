@@ -1,6 +1,8 @@
 package com.lits.tts.sdk.internal
 
 import com.lits.tts.sdk.TtsErrorCode
+import java.io.BufferedInputStream
+import java.io.DataInputStream
 import java.io.File
 import java.text.Normalizer
 import java.util.concurrent.ConcurrentHashMap
@@ -14,14 +16,6 @@ internal object LitsTtsFrontend {
     private val pinyinSyllableRegex = Regex("^[a-z]+[0-6]$")
     private val hanziRegex = Regex("[\\u4e00-\\u9fff]")
     private val punctuation = setOf(',', '.', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '<', '>', '-')
-    private val sentenceEndPunctuation = setOf('.', '!', '?', ';', ',', '\u2026')
-    private val attachedSentenceSuffix = setOf('"', '\'', ')', ']', '}', '>', '\u201D', '\u2019', '\u300B', '\u3011')
-    private val ENGLISH_ABBREVIATIONS = setOf(
-        "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "mt", "vs", "etc", "fig", "no",
-        "e.g", "i.e", "a.m", "p.m", "u.s", "u.k",
-    )
-    private val ACRONYM_AT_END_REGEX = Regex("(?:^|\\s)(?:[A-Za-z]\\.){2,}$")
-    private const val MIN_WEAK_PUNCTUATION_SEGMENT_CHARS = 24
     private val fullwidthPunctuation = mapOf(
         '\uFF0C' to ",",
         '\u3002' to ".",
@@ -69,35 +63,6 @@ internal object LitsTtsFrontend {
         '8' to "八",
         '9' to "九",
     )
-    private val letterPhonesByChar = mapOf(
-        'A' to listOf("EY1"),
-        'B' to listOf("B", "IY1"),
-        'C' to listOf("S", "IY1"),
-        'D' to listOf("D", "IY1"),
-        'E' to listOf("IY1"),
-        'F' to listOf("EH1", "F"),
-        'G' to listOf("JH", "IY1"),
-        'H' to listOf("EY1", "CH"),
-        'I' to listOf("AY1"),
-        'J' to listOf("JH", "EY1"),
-        'K' to listOf("K", "EY1"),
-        'L' to listOf("EH1", "L"),
-        'M' to listOf("EH1", "M"),
-        'N' to listOf("EH1", "N"),
-        'O' to listOf("OW1"),
-        'P' to listOf("P", "IY1"),
-        'Q' to listOf("K", "Y", "UW1"),
-        'R' to listOf("AA1", "R"),
-        'S' to listOf("EH1", "S"),
-        'T' to listOf("T", "IY1"),
-        'U' to listOf("Y", "UW1"),
-        'V' to listOf("V", "IY1"),
-        'W' to listOf("D", "AH1", "B", "AH0", "L", "Y", "UW0"),
-        'X' to listOf("EH1", "K", "S"),
-        'Y' to listOf("W", "AY1"),
-        'Z' to listOf("Z", "IY1"),
-    )
-    private val acronymWordReadings = setOf("SIM")
     private val englishMergeRules = listOf(
         listOf("t", "\u0279") to "t\u0279",
         listOf("d", "\u0279") to "d\u0279",
@@ -118,178 +83,85 @@ internal object LitsTtsFrontend {
         val ids = rawTokens.map { token ->
             resources.symbolToId[token] ?: throw unsupported("frontend token is not in zh_en_symbols.json: $token")
         }
-        return ids.map { it.toLong() }.toLongArray()
+        return intersperseZero(ids)
     }
 
     fun preload(layout: LitsTtsAssetInstaller.InstalledLayout) {
         resources(layout)
     }
 
-    @Suppress("UNUSED_PARAMETER")
     fun splitForStreaming(
         layout: LitsTtsAssetInstaller.InstalledLayout,
         text: String,
         wordsPerSegment: Int = 7,
     ): List<String> {
+        val resources = resources(layout)
         val normalized = normalizeText(text).trim()
         if (normalized.isEmpty()) return emptyList()
         val segments = mutableListOf<String>()
         val current = StringBuilder()
+        var words = 0
         var index = 0
         fun flushCurrentSegment() {
             flushSegment(segments, current)
+            words = 0
+        }
+        fun appendWord(word: String, nextIndex: Int) {
+            current.append(word)
+            words += 1
+            if (words >= wordsPerSegment && !nextNonSpaceIsPunctuation(normalized, nextIndex)) {
+                flushCurrentSegment()
+            }
         }
         while (index < normalized.length) {
             val char = normalized[index]
-            if (char.isWhitespace()) {
-                if (current.isNotEmpty() && current.last() != ' ') current.append(' ')
-                index += 1
-                continue
-            }
-            current.append(char)
-            if (shouldSplitAfterPunctuation(normalized, index, current, wordsPerSegment)) {
-                while (index + 1 < normalized.length && isAttachedSentenceSuffix(normalized[index + 1])) {
+            when {
+                char.isWhitespace() -> {
+                    if (current.isNotEmpty() && current.last() != ' ') current.append(' ')
                     index += 1
-                    current.append(normalized[index])
                 }
-                while (
-                    index + 1 < normalized.length &&
-                    isSentenceEndPunctuation(normalized[index + 1]) &&
-                    normalized[index + 1] != ','
-                ) {
+
+                isPunctuationChar(char) -> {
+                    current.trimTrailingSpace()
+                    current.append(char)
+                    if (words >= wordsPerSegment) {
+                        flushCurrentSegment()
+                    }
                     index += 1
-                    current.append(normalized[index])
                 }
-                flushCurrentSegment()
+
+                char.isDigit() -> {
+                    val end = scanDigits(normalized, index)
+                    appendWord(normalized.substring(index, end), end)
+                    index = end
+                }
+
+                isHanzi(char) -> {
+                    val end = scanHanziChunk(normalized, index)
+                    val hanziChunk = normalized.substring(index, end)
+                    var chunkIndex = 0
+                    while (chunkIndex < hanziChunk.length) {
+                        val word = longestWord(resources, hanziChunk, chunkIndex)
+                        appendWord(word, index + chunkIndex + word.length)
+                        chunkIndex += word.length
+                    }
+                    index = end
+                }
+
+                isEnglishLetter(char) -> {
+                    val end = scanEnglishWord(normalized, index)
+                    appendWord(normalized.substring(index, end), end)
+                    index = end
+                }
+
+                else -> {
+                    current.append(char)
+                    index += 1
+                }
             }
-            index += 1
         }
         flushSegment(segments, current)
         return segments.ifEmpty { listOf(normalized) }
-    }
-
-    private fun shouldSplitAfterPunctuation(
-        text: String,
-        index: Int,
-        current: StringBuilder,
-        minWordsForWeakSplit: Int,
-    ): Boolean {
-        val char = text[index]
-        if (!isSentenceEndPunctuation(char)) return false
-        if (char == ',' && !shouldSplitAfterWeakComma(text, index, current, minWordsForWeakSplit)) return false
-        if (char == '.' && !shouldSplitAfterPeriod(text, index)) return false
-        return true
-    }
-
-    private fun shouldSplitAfterPeriod(text: String, index: Int): Boolean {
-        val prev = previousNonSpace(text, index - 1)
-        val next = nextNonSpace(text, index + 1)
-        if (prev != null && next != null && prev.isDigit() && next.isDigit()) return false
-        if (isUrlOrEmailPeriod(text, index)) return false
-        if (isEnglishAbbreviationPeriod(text, index)) return false
-        if (prev != null && isHanzi(prev)) return true
-        return isBoundaryAfterSentencePunctuation(text, index)
-    }
-
-    private fun shouldSplitAfterWeakComma(
-        text: String,
-        index: Int,
-        current: StringBuilder,
-        minWordsForWeakSplit: Int,
-    ): Boolean {
-        val prev = previousNonSpace(text, index - 1)
-        val next = nextNonSpace(text, index + 1)
-        if (prev != null && next != null && prev.isDigit() && next.isDigit()) return false
-        val trimmed = current.toString().trim()
-        if (trimmed.length < MIN_WEAK_PUNCTUATION_SEGMENT_CHARS) return false
-        return countRoughWords(trimmed) >= minWordsForWeakSplit || trimmed.any(::isHanzi)
-    }
-
-    private fun isBoundaryAfterSentencePunctuation(text: String, index: Int): Boolean {
-        var cursor = index + 1
-        while (cursor < text.length && isAttachedSentenceSuffix(text[cursor])) {
-            cursor += 1
-        }
-        return cursor >= text.length || text[cursor].isWhitespace() || isHanzi(text[cursor])
-    }
-
-    private fun isEnglishAbbreviationPeriod(text: String, index: Int): Boolean {
-        val token = asciiTokenBefore(text, index).lowercase()
-        if (token in ENGLISH_ABBREVIATIONS) return true
-        if (token.length == 1 && token.single() in 'a'..'z') return true
-        val prefix = text.substring(0, index + 1)
-        return ACRONYM_AT_END_REGEX.containsMatchIn(prefix)
-    }
-
-    private fun isUrlOrEmailPeriod(text: String, index: Int): Boolean {
-        val start = scanNonSpaceTokenStart(text, index)
-        val end = scanNonSpaceTokenEnd(text, index)
-        val token = text.substring(start, end)
-        return "://" in token || "@" in token || token.startsWith("www.", ignoreCase = true) ||
-            (index + 1 < text.length && isAsciiAlnum(text[index + 1]) && token.count { it == '.' } >= 1)
-    }
-
-    private fun asciiTokenBefore(text: String, endExclusive: Int): String {
-        var cursor = endExclusive - 1
-        while (cursor >= 0 && text[cursor].isLetter()) {
-            cursor -= 1
-        }
-        return text.substring(cursor + 1, endExclusive)
-    }
-
-    private fun scanNonSpaceTokenStart(text: String, index: Int): Int {
-        var cursor = index
-        while (cursor > 0 && !text[cursor - 1].isWhitespace()) {
-            cursor -= 1
-        }
-        return cursor
-    }
-
-    private fun scanNonSpaceTokenEnd(text: String, index: Int): Int {
-        var cursor = index + 1
-        while (cursor < text.length && !text[cursor].isWhitespace()) {
-            cursor += 1
-        }
-        return cursor
-    }
-
-    private fun previousNonSpace(text: String, start: Int): Char? {
-        var cursor = start
-        while (cursor >= 0) {
-            if (!text[cursor].isWhitespace()) return text[cursor]
-            cursor -= 1
-        }
-        return null
-    }
-
-    private fun nextNonSpace(text: String, start: Int): Char? {
-        var cursor = start
-        while (cursor < text.length) {
-            if (!text[cursor].isWhitespace()) return text[cursor]
-            cursor += 1
-        }
-        return null
-    }
-
-    private fun countRoughWords(text: String): Int {
-        var count = 0
-        var inAsciiWord = false
-        for (char in text) {
-            when {
-                isHanzi(char) -> {
-                    count += 1
-                    inAsciiWord = false
-                }
-                char.isLetterOrDigit() -> {
-                    if (!inAsciiWord) {
-                        count += 1
-                        inAsciiWord = true
-                    }
-                }
-                else -> inAsciiWord = false
-            }
-        }
-        return count
     }
 
     private fun tokenize(
@@ -309,15 +181,6 @@ internal object LitsTtsFrontend {
         var index = 0
         while (index < normalized.length) {
             val char = normalized[index]
-            if (languageContext == "zh-en" && isAsciiAlnum(char)) {
-                val end = scanAsciiAlnumRun(normalized, index)
-                val run = normalized.substring(index, end)
-                if (shouldExpandPlateAlnumRun(run)) {
-                    appendPlateAlnumRun(output, resources, run)
-                    index = end
-                    continue
-                }
-            }
             when {
                 char.isWhitespace() -> {
                     appendBoundary(output)
@@ -406,49 +269,6 @@ internal object LitsTtsFrontend {
             output.removeAt(output.lastIndex)
         }
         return output
-    }
-
-    private fun shouldExpandPlateAlnumRun(run: String): Boolean =
-        run.all { it.isDigit() } ||
-            (run.any { it.isDigit() } && run.any { it in 'A'..'Z' }) ||
-            (run.length == 1 && run.single() in 'A'..'Z')
-
-    private fun appendPlateAlnumRun(
-        output: MutableList<String>,
-        resources: FrontendResources,
-        run: String,
-    ) {
-        var index = 0
-        while (index < run.length) {
-            val char = run[index]
-            when {
-                char.isDigit() -> {
-                    val digitEnd = scanDigits(run, index)
-                    appendChineseSyllables(
-                        output,
-                        resources,
-                        hanziChunkToPinyin(
-                            resources,
-                            run.substring(index, digitEnd).map { chineseDigitTextByChar.getValue(it) }.joinToString(""),
-                        ),
-                    )
-                    index = digitEnd
-                }
-
-                isEnglishLetter(char) -> {
-                    appendBoundary(output)
-                    output += arpabetToTokens(
-                        resources,
-                        letterPhonesByChar[char.uppercaseChar()]
-                            ?: throw unsupported("ASCII letter is not supported by plate frontend: $char"),
-                    )
-                    appendBoundary(output)
-                    index += 1
-                }
-
-                else -> index += 1
-            }
-        }
     }
 
     private fun normalizeText(text: String): String {
@@ -553,10 +373,6 @@ internal object LitsTtsFrontend {
 
     private fun phonesForEnglishWord(resources: FrontendResources, rawWord: String): List<String> {
         val normalized = rawWord.uppercase()
-        if (shouldSpellUppercaseWord(rawWord, normalized)) {
-            val spelled = spellEnglishWord(resources, normalized)
-            if (spelled.isNotEmpty()) return spelled
-        }
         resources.cmudict[normalized]?.let { return it }
         if ('-' in normalized) {
             val output = mutableListOf<String>()
@@ -574,11 +390,6 @@ internal object LitsTtsFrontend {
         if (spelled.isNotEmpty()) return spelled
         throw unsupported("english word is not covered by cmudict.txt: $rawWord")
     }
-
-    private fun shouldSpellUppercaseWord(rawWord: String, normalized: String): Boolean =
-        rawWord.length > 1 &&
-            rawWord.all { it in 'A'..'Z' } &&
-            normalized !in acronymWordReadings
 
     private fun spellEnglishWord(resources: FrontendResources, word: String): List<String> {
         val output = mutableListOf<String>()
@@ -689,33 +500,19 @@ internal object LitsTtsFrontend {
         return index
     }
 
-    private fun scanAsciiAlnumRun(text: String, start: Int): Int {
-        var index = start
-        while (index < text.length && isAsciiAlnum(text[index])) {
-            index += 1
-        }
-        return index
-    }
-
     private fun isHanzi(char: Char): Boolean = hanziRegex.matches(char.toString())
 
     private fun isEnglishLetter(char: Char): Boolean = char in 'a'..'z' || char in 'A'..'Z'
 
-    private fun isAsciiAlnum(char: Char): Boolean = isEnglishLetter(char) || char.isDigit()
-
     private fun isPunctuationChar(char: Char): Boolean = char == '\u2026' || char in punctuation
-
-    private fun isSentenceEndPunctuation(char: Char): Boolean = char in sentenceEndPunctuation
-
-    private fun isAttachedSentenceSuffix(char: Char): Boolean = char in attachedSentenceSuffix
 
     private fun resources(layout: LitsTtsAssetInstaller.InstalledLayout): FrontendResources =
         resourcesByRoot.getOrPut(layout.rootDir.absolutePath) {
+            val wordPinyin = loadWordPinyin(layout)
             val executor = Executors.newFixedThreadPool(FRONTEND_LOAD_THREADS) { runnable ->
                 Thread(runnable, "lits-tts-frontend-load").apply { isDaemon = true }
             }
             try {
-                val wordPinyinFuture = executor.submit(Callable { loadWordPinyin(layout) })
                 val polyphonicWords = executor.submit(Callable {
                     layout.polychar.readLines(Charsets.UTF_8)
                         .map { it.trim() }
@@ -726,7 +523,6 @@ internal object LitsTtsFrontend {
                 val symbolToId = executor.submit(Callable { loadSymbols(layout) })
                 val pinyinToTokens = executor.submit(Callable { loadTokenMap(layout.pinyinToTokens, "pinyin_to_tokens") })
                 val arpabetToTokens = executor.submit(Callable { loadTokenMap(layout.arpabetToTokens, "arpabet_to_tokens") })
-                val wordPinyin = wordPinyinFuture.get()
                 FrontendResources(
                     wordPinyin = wordPinyin,
                     polyphonicWords = polyphonicWords.get(),
@@ -790,7 +586,7 @@ internal object LitsTtsFrontend {
         }
 
     private fun loadWordPinyinBin(file: File): Map<String, String> =
-        BinaryReader(file.readBytes()).let { input ->
+        DataInputStream(BufferedInputStream(file.inputStream())).use { input ->
             require(input.readInt() == WORD_PINYIN_BIN_MAGIC) { "invalid chinese lexicon bin magic" }
             val count = input.readInt()
             buildMap(count) {
@@ -801,7 +597,7 @@ internal object LitsTtsFrontend {
         }
 
     private fun loadCmudictBin(file: File): Map<String, List<String>> =
-        BinaryReader(file.readBytes()).let { input ->
+        DataInputStream(BufferedInputStream(file.inputStream())).use { input ->
             require(input.readInt() == CMUDICT_BIN_MAGIC) { "invalid cmudict bin magic" }
             val count = input.readInt()
             buildMap(count) {
@@ -813,26 +609,12 @@ internal object LitsTtsFrontend {
             }
         }
 
-    private class BinaryReader(private val bytes: ByteArray) {
-        private var offset: Int = 0
-
-        fun readInt(): Int {
-            require(offset + Int.SIZE_BYTES <= bytes.size) { "unexpected end of frontend bin" }
-            val value = ((bytes[offset].toInt() and 0xff) shl 24) or
-                ((bytes[offset + 1].toInt() and 0xff) shl 16) or
-                ((bytes[offset + 2].toInt() and 0xff) shl 8) or
-                (bytes[offset + 3].toInt() and 0xff)
-            offset += Int.SIZE_BYTES
-            return value
-        }
-
-        fun readUtf8String(): String {
-            val length = readInt()
-            require(length >= 0 && offset + length <= bytes.size) { "invalid frontend bin string length" }
-            return bytes.decodeToString(offset, offset + length).also {
-                offset += length
-            }
-        }
+    private fun DataInputStream.readUtf8String(): String {
+        val length = readInt()
+        require(length >= 0) { "negative string length" }
+        val bytes = ByteArray(length)
+        readFully(bytes)
+        return bytes.toString(Charsets.UTF_8)
     }
 
     private fun loadSymbols(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, Int> {

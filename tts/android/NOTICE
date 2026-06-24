@@ -64,7 +64,7 @@ API surface delivered to Android applications.
 4. LITS model and frontend resources
 ================================================================================
 
-The bundled ONNX/ORT model files and Chinese/English frontend resources under
-assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0 are
-project delivery artifacts. Their use is governed by the SDK provider's
-separate written agreement described in LICENSE.
+The bundled ONNX model files and Chinese/English frontend resources under
+assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0 are project delivery
+artifacts. Their use is governed by the SDK provider's separate written
+agreement described in LICENSE.

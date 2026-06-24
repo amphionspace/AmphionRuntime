@@ -76,7 +76,7 @@ class MainActivity : AppCompatActivity() {
     private var engine: TextToSpeechEngine? = null
     private var engineLanguage: String? = null
     private var lastAudio: ByteArray? = null
-    private var lastSampleRate: Int = 24000
+    private var lastSampleRate: Int = 16000
     private var busy: Boolean = false
     private var activeRequestId: String? = null
     private var loadingLanguage: String? = null
@@ -143,11 +143,6 @@ class MainActivity : AppCompatActivity() {
         else -> "zh-en"
     }
 
-    private fun voiceIdForLanguage(language: String): String = when (language) {
-        "en-US" -> VOICE_ID_SPEAKER_0
-        else -> VOICE_ID_SPEAKER_1
-    }
-
     private fun selectedChunkSize(): Int {
         val value = chunkSizeInput.text?.toString()?.trim()?.toIntOrNull()
         return value?.takeIf { it > 0 } ?: DEFAULT_STREAMING_CHUNK_SIZE
@@ -167,7 +162,7 @@ class MainActivity : AppCompatActivity() {
         val language = selectedLanguage()
         val readyEngine = engine
         val chunkSize = selectedChunkSize()
-        val firstChunkSize = chunkSize
+        val firstChunkSize = DEFAULT_STREAMING_FIRST_CHUNK_SIZE
         val pcmQueueCapacity = selectedPcmQueueCapacity()
         if (readyEngine == null || engineLanguage != language) {
             setStatus("\u6a21\u578b\u52a0\u8f7d\u4e2d\uff1a$language")
@@ -244,7 +239,7 @@ class MainActivity : AppCompatActivity() {
         }
         val requestId = nextRequestId("warmup")
         val chunkSize = selectedChunkSize()
-        val firstChunkSize = chunkSize
+        val firstChunkSize = DEFAULT_STREAMING_FIRST_CHUNK_SIZE
         val pcmQueueCapacity = selectedPcmQueueCapacity()
         requestPlayTypes[requestId] = PlayType.SYNTHESIZE_ONLY
         requestWarmupFlags[requestId] = true
@@ -363,7 +358,7 @@ class MainActivity : AppCompatActivity() {
         setMetrics(buildMetricsText(null, null, null, null, 0L, 0))
         appendLog("\u5f00\u59cb\u52a0\u8f7d\u6a21\u578b language=$language requestId=$loadRequestId")
         beginBusy(loadRequestId)
-        val voiceId = voiceIdForLanguage(language)
+        val voiceId = "lits-female-01"
         TextToSpeechSdk.createEngine(
             CreateEngineParams(
                 language = language,
@@ -419,7 +414,7 @@ class MainActivity : AppCompatActivity() {
             runCatching { current.shutdown() }
             player.stop()
         }
-        val voiceId = voiceIdForLanguage(language)
+        val voiceId = "lits-female-01"
         return TextToSpeechSdk.createEngine(
             CreateEngineParams(
                 language = language,
@@ -553,7 +548,7 @@ class MainActivity : AppCompatActivity() {
             requestDataPaths[requestId] = response.chunkSource
             val startedAtMs = requestStartedAtMs[requestId]
             val firstChunkMs = requestFirstChunkAtMs[requestId]
-            val sampleRate = requestSampleRates[requestId] ?: 24000
+            val sampleRate = requestSampleRates[requestId] ?: 16000
             val chunkCount = requestChunkCounts[requestId] ?: 0
             val totalBytes = requestBuffers[requestId]?.size() ?: 0
             setMetrics(
@@ -593,7 +588,7 @@ class MainActivity : AppCompatActivity() {
                     val synthesisMs = response.synthesisMs.takeIf { it >= 0L } ?: wallClockSynthesisMs
                     val buffer = requestBuffers.remove(requestId)
                     val audioBytes = buffer?.toByteArray() ?: ByteArray(0)
-                    val sampleRate = requestSampleRates[requestId] ?: 24000
+                    val sampleRate = requestSampleRates[requestId] ?: 16000
                     val chunkCount = requestChunkCounts.remove(requestId) ?: 0
                     val firstChunkAtMs = requestFirstChunkAtMs[requestId]
                     val firstPacketMs = response.firstPacketMs.takeIf { it >= 0L } ?: if (startedAtMs != null && firstChunkAtMs != null) {
@@ -780,8 +775,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
-        const val VOICE_ID_SPEAKER_0 = "lits-female-01"
-        const val VOICE_ID_SPEAKER_1 = "lits-female-02"
+        const val DEFAULT_STREAMING_FIRST_CHUNK_SIZE = 50
         const val DEFAULT_STREAMING_CHUNK_SIZE = 100
         const val DEFAULT_PCM_QUEUE_CAPACITY = 128
     }
