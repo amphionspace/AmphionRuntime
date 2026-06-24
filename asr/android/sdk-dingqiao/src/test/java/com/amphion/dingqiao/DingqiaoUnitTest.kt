@@ -75,9 +75,9 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
-    fun audioFrameBytes_acceptsDocumentedFrameSizes() {
+    fun audioFrameBytes_acceptsDocumentedFrameSizeOnly() {
         assertTrue(DingqiaoEngineConfig.isSupportedAudioFrameBytes(640))
-        assertTrue(DingqiaoEngineConfig.isSupportedAudioFrameBytes(1280))
+        assertTrue(!DingqiaoEngineConfig.isSupportedAudioFrameBytes(1280))
         assertTrue(!DingqiaoEngineConfig.isSupportedAudioFrameBytes(960))
     }
 
