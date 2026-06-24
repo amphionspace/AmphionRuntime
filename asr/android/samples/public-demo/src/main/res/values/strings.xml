@@ -101,6 +101,29 @@
     <string name="ts_registered">已注册 %1$d 段 · 阈值 %2$.2f</string>
     <string name="ts_model_missing">未找到声纹模型，请先 adb push</string>
     <string name="ts_need_register">请先注册目标人</string>
+    <string name="speaker_vad_switch">说话人 VAD：目标人离开时提前 endpoint</string>
+    <string name="ts_target_params_title">段末目标人门控参数（final gating）</string>
+    <string name="ts_threshold_hint">阈值</string>
+    <string name="ts_window_hint">窗ms</string>
+    <string name="ts_hop_hint">步ms</string>
+    <string name="ts_min_seg_hint">最短ms</string>
+    <string name="ts_threshold_default">0.40</string>
+    <string name="ts_window_default">2500</string>
+    <string name="ts_hop_default">1000</string>
+    <string name="ts_min_seg_default">1500</string>
+    <string name="speaker_vad_params_title">说话人 VAD 参数（提前截断）</string>
+    <string name="speaker_vad_threshold_hint">VAD阈值</string>
+    <string name="speaker_vad_window_hint">VAD窗ms</string>
+    <string name="speaker_vad_hop_hint">VAD步ms</string>
+    <string name="speaker_vad_below_hint">低分</string>
+    <string name="speaker_vad_threshold_default">0.40</string>
+    <string name="speaker_vad_window_default">1000</string>
+    <string name="speaker_vad_hop_default">300</string>
+    <string name="speaker_vad_below_default">2</string>
+    <string name="speaker_threads_hint">声纹推理线程数（1-8）</string>
+    <string name="speaker_threads_default">1</string>
+    <string name="speaker_vad_debug_idle">Speaker VAD Debug：等待窗口打分</string>
+    <string name="speaker_vad_debug_format">配置：target 阈值 %1$.2f / 窗 %2$dms / 步 %3$dms / 最短 %4$dms；VAD 阈值 %5$.2f / 窗 %6$dms / 步 %7$dms / 低分 %8$d / 线程 %9$d\n最近：%10$s</string>
 
     <!-- 声纹管理页 -->
     <string name="menu_speaker">声纹管理</string>

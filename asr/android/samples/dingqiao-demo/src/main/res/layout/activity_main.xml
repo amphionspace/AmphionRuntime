@@ -87,6 +87,42 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/status_row" />
 
+    <LinearLayout
+        android:id="@+id/speaker_vad_row"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_voiceprint_info">
+
+        <TextView
+            android:id="@+id/tv_speaker_vad_info"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/speaker_vad_hint"
+            android:textColor="@color/brand_text_muted"
+            android:textSize="11sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/cap_speaker_vad_title"
+            android:textColor="@color/brand_text_muted"
+            android:textSize="11sp" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/sw_speaker_vad"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="2dp"
+            android:enabled="false" />
+
+    </LinearLayout>
+
     <ProgressBar
         android:id="@+id/progress"
         style="?android:attr/progressBarStyleHorizontal"
@@ -97,7 +133,7 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_voiceprint_info"
+        app:layout_constraintTop_toBottomOf="@id/speaker_vad_row"
         tools:visibility="visible" />
 
     <LinearLayout
@@ -124,6 +160,16 @@
             android:textColor="@color/brand_text_muted"
             android:textColorHint="@color/brand_text_muted"
             android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/tv_debug"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:maxLines="4"
+            android:text="@string/debug_initial"
+            android:textColor="@color/brand_accent"
+            android:textSize="11sp" />
 
         <ScrollView
             android:layout_width="match_parent"

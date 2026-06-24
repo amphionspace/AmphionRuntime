@@ -10,6 +10,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -35,6 +36,7 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.StrikethroughSpan
 import androidx.appcompat.widget.SwitchCompat
 import com.amphion.asr.AsrResult
+import com.amphion.asr.SpeakerVadConfig
 import com.amphion.asr.TargetSpeakerConfig
 import com.amphion.asr.sample.plate.PlateBatchEvalActivity
 import com.amphion.asr.sample.plate.PlateEvalRecorder
@@ -50,6 +52,7 @@ import com.amphion.police.station.PoliceStationHotwords
 import com.amphion.police.terms.PoliceTermsEnhancePrefs
 import com.amphion.police.terms.PoliceTermsHotwords
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -66,6 +69,18 @@ import kotlin.math.max
  * - 底部按钮：录音/停止
  */
 class MainActivity : AppCompatActivity() {
+
+    private data class SpeakerTuningUiConfig(
+        val targetThreshold: Float = DEFAULT_TARGET_THRESHOLD,
+        val targetWindowMs: Int = DEFAULT_TARGET_WINDOW_MS,
+        val targetHopMs: Int = DEFAULT_TARGET_HOP_MS,
+        val targetMinSegmentMs: Int = DEFAULT_TARGET_MIN_SEGMENT_MS,
+        val speakerVadThreshold: Float = DEFAULT_SPEAKER_VAD_THRESHOLD,
+        val speakerVadWindowMs: Int = DEFAULT_SPEAKER_VAD_WINDOW_MS,
+        val speakerVadHopMs: Int = DEFAULT_SPEAKER_VAD_HOP_MS,
+        val speakerVadConsecutiveBelow: Int = DEFAULT_SPEAKER_VAD_CONSECUTIVE_BELOW,
+        val speakerThreads: Int = DEFAULT_SPEAKER_THREADS,
+    )
 
     companion object {
         private const val TAG = "AmphionSample"
@@ -99,6 +114,16 @@ class MainActivity : AppCompatActivity() {
 
         /** 声纹模型文件名；放在 app external files dir，由 adb push 进去。 */
         const val SPEAKER_MODEL_FILENAME = "eres2net.onnx"
+
+        private const val DEFAULT_TARGET_THRESHOLD = 0.40f
+        private const val DEFAULT_TARGET_WINDOW_MS = 2_500
+        private const val DEFAULT_TARGET_HOP_MS = 1_000
+        private const val DEFAULT_TARGET_MIN_SEGMENT_MS = 1_500
+        private const val DEFAULT_SPEAKER_VAD_THRESHOLD = 0.40f
+        private const val DEFAULT_SPEAKER_VAD_WINDOW_MS = 1_000
+        private const val DEFAULT_SPEAKER_VAD_HOP_MS = 300
+        private const val DEFAULT_SPEAKER_VAD_CONSECUTIVE_BELOW = 2
+        private const val DEFAULT_SPEAKER_THREADS = 1
     }
 
     private lateinit var btnTalk: Button
@@ -112,6 +137,21 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rbZhEn: RadioButton
     private lateinit var rbYueEn: RadioButton
     private lateinit var waveform: WaveformView
+
+    private lateinit var cardTargetSpeaker: android.view.View
+    private lateinit var swTargetSpeaker: SwitchCompat
+    private lateinit var swSpeakerVad: SwitchCompat
+    private lateinit var tvTargetSpeakerState: TextView
+    private lateinit var tvSpeakerVadDebug: TextView
+    private lateinit var etTargetThreshold: EditText
+    private lateinit var etTargetWindow: EditText
+    private lateinit var etTargetHop: EditText
+    private lateinit var etTargetMinSegment: EditText
+    private lateinit var etSpeakerVadThreshold: EditText
+    private lateinit var etSpeakerVadWindow: EditText
+    private lateinit var etSpeakerVadHop: EditText
+    private lateinit var etSpeakerVadBelow: EditText
+    private lateinit var etSpeakerThreads: EditText
 
     // -------- 云端（WebSocket /clean-stream）相关视图 --------
     private lateinit var swCloud: SwitchCompat
@@ -173,14 +213,15 @@ class MainActivity : AppCompatActivity() {
     // -------- 目标说话人状态 --------
     private val speakerStore: SpeakerProfileStore by lazy { SpeakerProfileStore(applicationContext) }
 
-    /**
-     * 当前 engine 的 TargetSpeakerConfig 实际生效的判定阈值。声纹页改阈值后，onResume 比对此值
-     * （NaN=尚未建过带阈值的 engine）决定是否静默重建 engine 使新阈值生效。
-     */
-    private var currentThresholdApplied: Float = Float.NaN
+    /** 当前 engine 实际生效的目标说话人 / speaker VAD 参数；变更后需重建 engine。 */
+    private var currentSpeakerTuningApplied: SpeakerTuningUiConfig? = null
+    private var pendingStartAfterEngineReload = false
 
     @Volatile
     private var targetEmbedding: FloatArray? = null
+    private var targetSpeakerDesired = true
+    private var speakerVadDesired = false
+    private var lastSpeakerVadDebug = "等待窗口打分"
     private val finalBuilder = SpannableStringBuilder()
 
     // -------- 云端状态 --------
@@ -241,6 +282,25 @@ class MainActivity : AppCompatActivity() {
         rbZhEn = findViewById(R.id.rb_zh_en)
         rbYueEn = findViewById(R.id.rb_yue_en)
         waveform = findViewById(R.id.waveform)
+
+        cardTargetSpeaker = findViewById(R.id.card_target_speaker)
+        swTargetSpeaker = findViewById(R.id.sw_target_speaker)
+        swSpeakerVad = findViewById(R.id.sw_speaker_vad)
+        tvTargetSpeakerState = findViewById(R.id.tv_target_speaker_state)
+        tvSpeakerVadDebug = findViewById(R.id.tv_speaker_vad_debug)
+        etTargetThreshold = findViewById(R.id.et_target_threshold)
+        etTargetWindow = findViewById(R.id.et_target_window)
+        etTargetHop = findViewById(R.id.et_target_hop)
+        etTargetMinSegment = findViewById(R.id.et_target_min_seg)
+        etSpeakerVadThreshold = findViewById(R.id.et_speaker_vad_threshold)
+        etSpeakerVadWindow = findViewById(R.id.et_speaker_vad_window)
+        etSpeakerVadHop = findViewById(R.id.et_speaker_vad_hop)
+        etSpeakerVadBelow = findViewById(R.id.et_speaker_vad_below)
+        etSpeakerThreads = findViewById(R.id.et_speaker_threads)
+        etTargetThreshold.setText(String.format(Locale.US, "%.2f", speakerStore.getThreshold()))
+        swTargetSpeaker.setOnCheckedChangeListener { _, checked -> onTargetSpeakerToggle(checked) }
+        swSpeakerVad.setOnCheckedChangeListener { _, checked -> onSpeakerVadToggle(checked) }
+        refreshSpeakerControlCard()
 
         swCloud = findViewById(R.id.sw_cloud)
         tvCloudState = findViewById(R.id.tv_cloud_state)
@@ -355,6 +415,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         reloadTargetSpeaker()
+        refreshSpeakerControlCard()
         refreshCloudCard()
         refreshPlateEnhanceCard()
         refreshStationEnhanceCard()
@@ -739,6 +800,7 @@ class MainActivity : AppCompatActivity() {
         cardCloud.isEnabled = !locked
         cardCloud.alpha = if (locked) 0.5f else 1f
         swCloud.isEnabled = !locked
+        setSpeakerParamInputsEnabled(!locked)
     }
 
     // ----------- 加载 / 切换语言 -----------
@@ -746,6 +808,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadEngineForLang(lang: AsrLanguage) {
         val gen = asrLoadGeneration.incrementAndGet()
         val oldEngine = engine
+        val speakerTuning = normalizeSpeakerTuningInputs()
         engine = null
         btnTalk.isEnabled = false
 
@@ -763,8 +826,7 @@ class MainActivity : AppCompatActivity() {
         val prefs = HotwordsPrefs(applicationContext)
         val userHotwords = prefs.activeWords(lang)
         currentHotwordsApplied = userHotwords
-        val targetThreshold = speakerStore.getThreshold()
-        currentThresholdApplied = targetThreshold
+        currentSpeakerTuningApplied = speakerTuning
 
         try {
             asrLoadExec.execute {
@@ -798,8 +860,19 @@ class MainActivity : AppCompatActivity() {
                             targetSpeaker(
                                 TargetSpeakerConfig(
                                     modelPath = speakerModelPath(),
-                                    threshold = targetThreshold,
+                                    threshold = speakerTuning.targetThreshold,
+                                    winSec = speakerTuning.targetWindowMs / 1000f,
+                                    hopSec = speakerTuning.targetHopMs / 1000f,
+                                    minSegSec = speakerTuning.targetMinSegmentMs / 1000f,
                                     preload = false,
+                                    numThreads = speakerTuning.speakerThreads,
+                                    speakerVad = SpeakerVadConfig(
+                                        threshold = speakerTuning.speakerVadThreshold,
+                                        winSec = speakerTuning.speakerVadWindowMs / 1000f,
+                                        hopSec = speakerTuning.speakerVadHopMs / 1000f,
+                                        consecutiveBelow = speakerTuning.speakerVadConsecutiveBelow,
+                                        enabledByDefault = false,
+                                    ),
                                 ),
                             )
                         }
@@ -813,6 +886,7 @@ class MainActivity : AppCompatActivity() {
                 } catch (t: Throwable) {
                     mainHandler.post {
                         if (gen != asrLoadGeneration.get()) return@post
+                        pendingStartAfterEngineReload = false
                         setStatus(getString(R.string.status_install_failed, t.message ?: "unknown"))
                         progress.visibility = android.view.View.GONE
                         tvLoadingHint.visibility = android.view.View.GONE
@@ -830,6 +904,11 @@ class MainActivity : AppCompatActivity() {
                     progress.visibility = android.view.View.GONE
                     tvLoadingHint.visibility = android.view.View.GONE
                     setStatus("模型就绪（${langDisplayName(lang)}），点击开始识别")
+                    refreshSpeakerControlCard()
+                    if (pendingStartAfterEngineReload) {
+                        pendingStartAfterEngineReload = false
+                        startListening()
+                    }
                 }
             }
         } catch (t: java.util.concurrent.RejectedExecutionException) {
@@ -861,6 +940,13 @@ class MainActivity : AppCompatActivity() {
     private fun startListening() {
         val eng = engine ?: return
         if (session != null) return
+        val speakerTuning = normalizeSpeakerTuningInputs()
+        if (speakerModelReady() && currentSpeakerTuningApplied != speakerTuning) {
+            pendingStartAfterEngineReload = true
+            setStatus("正在应用目标说话人参数…")
+            loadEngineForLang(currentLang)
+            return
+        }
 
         listening = true
         clearTexts()
@@ -937,6 +1023,13 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread { tvMetrics.text = text }
             }
 
+            override fun onDebug(message: String) {
+                runOnUiThread {
+                    lastSpeakerVadDebug = message
+                    refreshSpeakerControlCard()
+                }
+            }
+
             override fun onSessionStopped() {
                 capturedSession?.close()
                 runOnUiThread {
@@ -952,7 +1045,8 @@ class MainActivity : AppCompatActivity() {
 
         targetEmbedding?.let { emb ->
             s.setTargetSpeaker(emb)
-            s.setTargetSpeakerEnabled(true)
+            s.setTargetSpeakerEnabled(targetSpeakerDesired)
+            s.setSpeakerVadEnabled(speakerVadDesired)
         }
 
         recorder = AudioRecorder(
@@ -1074,7 +1168,8 @@ class MainActivity : AppCompatActivity() {
             session?.clearTargetSpeaker()
         } else {
             session?.setTargetSpeaker(emb)
-            session?.setTargetSpeakerEnabled(true)
+            session?.setTargetSpeakerEnabled(targetSpeakerDesired)
+            session?.setSpeakerVadEnabled(speakerVadDesired)
         }
     }
 
@@ -1086,11 +1181,151 @@ class MainActivity : AppCompatActivity() {
      */
     private fun maybeReloadThreshold() {
         if (!speakerModelReady() || listening) return
-        val t = speakerStore.getThreshold()
-        if (!currentThresholdApplied.isNaN() && t != currentThresholdApplied) {
+        val storedThreshold = speakerStore.getThreshold()
+        val uiThreshold = parseFloat(etTargetThreshold.text?.toString(), DEFAULT_TARGET_THRESHOLD)
+        if (abs(uiThreshold - storedThreshold) > 0.0001f) {
+            etTargetThreshold.setText(String.format(Locale.US, "%.2f", storedThreshold))
+        }
+        val tuning = normalizeSpeakerTuningInputs()
+        if (currentSpeakerTuningApplied != null && tuning != currentSpeakerTuningApplied) {
             loadEngineForLang(currentLang)
         }
     }
+
+    private fun onTargetSpeakerToggle(enabled: Boolean) {
+        if (enabled && targetEmbedding == null) {
+            swTargetSpeaker.isChecked = false
+            toast(getString(R.string.ts_need_register))
+            return
+        }
+        targetSpeakerDesired = enabled
+        session?.setTargetSpeakerEnabled(enabled)
+        refreshSpeakerControlCard()
+    }
+
+    private fun onSpeakerVadToggle(enabled: Boolean) {
+        val emb = targetEmbedding
+        if (enabled && emb == null) {
+            swSpeakerVad.isChecked = false
+            toast(getString(R.string.ts_need_register))
+            return
+        }
+        speakerVadDesired = enabled
+        if (enabled && emb != null) {
+            session?.setTargetSpeaker(emb)
+        }
+        session?.setSpeakerVadEnabled(enabled)
+        refreshSpeakerControlCard()
+    }
+
+    private fun refreshSpeakerControlCard() {
+        val modelReady = speakerModelReady()
+        val hasEmbedding = targetEmbedding != null || speakerStore.hasEmbedding()
+        val config = readSpeakerTuningConfig()
+        tvTargetSpeakerState.text = when {
+            !modelReady -> getString(R.string.ts_model_missing)
+            !hasEmbedding -> getString(R.string.ts_unregistered)
+            else -> getString(
+                R.string.ts_registered,
+                speakerStore.segmentCount(),
+                config.targetThreshold,
+            )
+        }
+        swTargetSpeaker.setOnCheckedChangeListener(null)
+        swSpeakerVad.setOnCheckedChangeListener(null)
+        swTargetSpeaker.isEnabled = modelReady && hasEmbedding
+        swSpeakerVad.isEnabled = modelReady && hasEmbedding
+        swTargetSpeaker.isChecked = modelReady && hasEmbedding && targetSpeakerDesired
+        swSpeakerVad.isChecked = modelReady && hasEmbedding && speakerVadDesired
+        swTargetSpeaker.setOnCheckedChangeListener { _, checked -> onTargetSpeakerToggle(checked) }
+        swSpeakerVad.setOnCheckedChangeListener { _, checked -> onSpeakerVadToggle(checked) }
+        tvSpeakerVadDebug.text = getString(
+            R.string.speaker_vad_debug_format,
+            config.targetThreshold,
+            config.targetWindowMs,
+            config.targetHopMs,
+            config.targetMinSegmentMs,
+            config.speakerVadThreshold,
+            config.speakerVadWindowMs,
+            config.speakerVadHopMs,
+            config.speakerVadConsecutiveBelow,
+            config.speakerThreads,
+            lastSpeakerVadDebug,
+        )
+    }
+
+    private fun readSpeakerTuningConfig(): SpeakerTuningUiConfig {
+        return SpeakerTuningUiConfig(
+            targetThreshold = parseFloat(
+                etTargetThreshold.text?.toString(),
+                DEFAULT_TARGET_THRESHOLD,
+            ).coerceIn(0.0f, 1.0f),
+            targetWindowMs = parseInt(
+                etTargetWindow.text?.toString(),
+                DEFAULT_TARGET_WINDOW_MS,
+            ).coerceIn(300, 6000),
+            targetHopMs = parseInt(
+                etTargetHop.text?.toString(),
+                DEFAULT_TARGET_HOP_MS,
+            ).coerceIn(100, 3000),
+            targetMinSegmentMs = parseInt(
+                etTargetMinSegment.text?.toString(),
+                DEFAULT_TARGET_MIN_SEGMENT_MS,
+            ).coerceIn(300, 6000),
+            speakerVadThreshold = parseFloat(
+                etSpeakerVadThreshold.text?.toString(),
+                DEFAULT_SPEAKER_VAD_THRESHOLD,
+            ).coerceIn(0.0f, 1.0f),
+            speakerVadWindowMs = parseInt(
+                etSpeakerVadWindow.text?.toString(),
+                DEFAULT_SPEAKER_VAD_WINDOW_MS,
+            ).coerceIn(300, 6000),
+            speakerVadHopMs = parseInt(
+                etSpeakerVadHop.text?.toString(),
+                DEFAULT_SPEAKER_VAD_HOP_MS,
+            ).coerceIn(100, 3000),
+            speakerVadConsecutiveBelow = parseInt(
+                etSpeakerVadBelow.text?.toString(),
+                DEFAULT_SPEAKER_VAD_CONSECUTIVE_BELOW,
+            ).coerceIn(1, 8),
+            speakerThreads = parseInt(
+                etSpeakerThreads.text?.toString(),
+                DEFAULT_SPEAKER_THREADS,
+            ).coerceIn(1, 8),
+        )
+    }
+
+    private fun normalizeSpeakerTuningInputs(): SpeakerTuningUiConfig {
+        val config = readSpeakerTuningConfig()
+        etTargetThreshold.setText(String.format(Locale.US, "%.2f", config.targetThreshold))
+        etTargetWindow.setText(config.targetWindowMs.toString())
+        etTargetHop.setText(config.targetHopMs.toString())
+        etTargetMinSegment.setText(config.targetMinSegmentMs.toString())
+        etSpeakerVadThreshold.setText(String.format(Locale.US, "%.2f", config.speakerVadThreshold))
+        etSpeakerVadWindow.setText(config.speakerVadWindowMs.toString())
+        etSpeakerVadHop.setText(config.speakerVadHopMs.toString())
+        etSpeakerVadBelow.setText(config.speakerVadConsecutiveBelow.toString())
+        etSpeakerThreads.setText(config.speakerThreads.toString())
+        return config
+    }
+
+    private fun setSpeakerParamInputsEnabled(enabled: Boolean) {
+        etTargetThreshold.isEnabled = enabled
+        etTargetWindow.isEnabled = enabled
+        etTargetHop.isEnabled = enabled
+        etTargetMinSegment.isEnabled = enabled
+        etSpeakerVadThreshold.isEnabled = enabled
+        etSpeakerVadWindow.isEnabled = enabled
+        etSpeakerVadHop.isEnabled = enabled
+        etSpeakerVadBelow.isEnabled = enabled
+        etSpeakerThreads.isEnabled = enabled
+    }
+
+    private fun parseFloat(raw: String?, defaultValue: Float): Float =
+        raw?.trim()?.toFloatOrNull() ?: defaultValue
+
+    private fun parseInt(raw: String?, defaultValue: Int): Int =
+        raw?.trim()?.toIntOrNull() ?: defaultValue
 
     private fun applyDomainEnhance(asrRaw: String): PoliceEnhancePipeline.Result =
         enhancePipeline.apply(

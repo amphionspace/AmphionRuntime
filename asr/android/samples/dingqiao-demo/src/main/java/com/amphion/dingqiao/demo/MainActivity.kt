@@ -3,7 +3,12 @@ package com.amphion.dingqiao.demo
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Typeface
 import android.os.Bundle
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.PopupMenu
@@ -36,10 +41,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnMenu: ImageButton
     private lateinit var tvPartial: TextView
     private lateinit var tvFinal: TextView
+    private lateinit var tvDebug: TextView
     private lateinit var tvStatus: TextView
     private lateinit var tvVoiceprintInfo: TextView
     private lateinit var progress: ProgressBar
     private lateinit var swVoiceprint: SwitchCompat
+    private lateinit var swSpeakerVad: SwitchCompat
 
     private val worker = Executors.newSingleThreadExecutor()
     private val sessionLock = Any()
@@ -56,7 +63,11 @@ class MainActivity : AppCompatActivity() {
     private var sessionId: String? = null
 
     private var voiceprintVerifyDesired = false
-    private val finalLines = StringBuilder()
+    private var speakerVadDesired = false
+    private var activeVoiceprintVerify = false
+    private var activeSpeakerVad = false
+    private var lastDebugEvent = "idle"
+    private val finalLines = SpannableStringBuilder()
 
     private val permLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -99,14 +110,17 @@ class MainActivity : AppCompatActivity() {
         btnMenu = findViewById(R.id.btn_menu)
         tvPartial = findViewById(R.id.tv_partial)
         tvFinal = findViewById(R.id.tv_final)
+        tvDebug = findViewById(R.id.tv_debug)
         tvStatus = findViewById(R.id.tv_status)
         tvVoiceprintInfo = findViewById(R.id.tv_voiceprint_info)
         progress = findViewById(R.id.progress)
         swVoiceprint = findViewById(R.id.sw_voiceprint)
+        swSpeakerVad = findViewById(R.id.sw_speaker_vad)
 
         btnTalk.setOnClickListener { if (listening) stopListening() else startListening() }
         btnMenu.setOnClickListener { showMenu(it) }
         swVoiceprint.setOnCheckedChangeListener { _, checked -> onVoiceprintSwitch(checked) }
+        swSpeakerVad.setOnCheckedChangeListener { _, checked -> onSpeakerVadSwitch(checked) }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
@@ -185,15 +199,20 @@ class MainActivity : AppCompatActivity() {
     private fun createListener(): RecognitionListener = object : RecognitionListener {
         override fun onStart(sessionId: String, eventMessage: String) {
             runOnUiThread {
+                lastDebugEvent = "session start"
                 startCapture()
                 setTalkButtonRecording(true)
                 btnTalk.isEnabled = true
                 setStatus(getString(R.string.status_listening))
+                updateDebugInfo()
             }
         }
 
         override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) {
-            // VAD 事件可选展示
+            runOnUiThread {
+                lastDebugEvent = "event $eventCode: $eventMessage"
+                updateDebugInfo()
+            }
         }
 
         override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
@@ -201,9 +220,12 @@ class MainActivity : AppCompatActivity() {
                 if (result.isFinal) {
                     appendFinal(result)
                     tvPartial.text = ""
+                    lastDebugEvent = "final score=${result.speakerSimilarity?.let { "%.2f".format(it) } ?: "n/a"}"
                 } else {
                     tvPartial.text = result.result
+                    lastDebugEvent = "partial(raw ASR, not speaker-filtered)"
                 }
+                updateDebugInfo()
             }
         }
 
@@ -268,14 +290,28 @@ class MainActivity : AppCompatActivity() {
 
         val voiceprintId = DemoPrefs.getVoiceprintId(this)
         val verify = voiceprintVerifyDesired && !voiceprintId.isNullOrBlank()
+        val speakerVad = speakerVadDesired && !voiceprintId.isNullOrBlank()
         val extra = mutableMapOf<String, Any>(
             "enablePartialResult" to true,
             "maxAudioDuration" to SESSION_MAX_AUDIO_MS,
         )
         if (verify) {
             extra["enableVoiceprintVerification"] = true
-            extra["voiceprintIds"] = listOf(voiceprintId!!)
         }
+        if (speakerVad) {
+            extra["enableSpeakerVad"] = true
+            extra["speakerVadThreshold"] = SPEAKER_VAD_THRESHOLD
+            extra["speakerVadWindowMs"] = SPEAKER_VAD_WINDOW_MS
+            extra["speakerVadHopMs"] = SPEAKER_VAD_HOP_MS
+            extra["speakerVadConsecutiveBelow"] = SPEAKER_VAD_CONSECUTIVE_BELOW
+        }
+        if (!voiceprintId.isNullOrBlank()) {
+            extra["voiceprintIds"] = listOf(voiceprintId)
+        }
+        activeVoiceprintVerify = verify
+        activeSpeakerVad = speakerVad
+        lastDebugEvent = "session params prepared"
+        updateDebugInfo()
 
         eng.startListening(
             StartParams(
@@ -356,12 +392,28 @@ class MainActivity : AppCompatActivity() {
     private fun appendFinal(result: SpeechRecognitionResult) {
         if (result.result.isEmpty()) return
         if (finalLines.isNotEmpty()) finalLines.append('\n')
+        result.speakerSimilarity?.let { appendSpeakerScoreTag(it) }
         finalLines.append(result.result)
-        result.speakerSimilarity?.let {
-            finalLines.append(' ')
-            finalLines.append(getString(R.string.speaker_score_format, it))
-        }
         tvFinal.text = finalLines
+    }
+
+    private fun appendSpeakerScoreTag(score: Float) {
+        val start = finalLines.length
+        finalLines.append(getString(R.string.speaker_score_tag, score))
+        val end = finalLines.length
+        finalLines.setSpan(
+            ForegroundColorSpan(ContextCompat.getColor(this, R.color.brand_accent)),
+            start,
+            end,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+        finalLines.setSpan(
+            StyleSpan(Typeface.BOLD),
+            start,
+            end,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+        finalLines.append(' ')
     }
 
     private fun refreshVoiceprintUi() {
@@ -376,14 +428,20 @@ class MainActivity : AppCompatActivity() {
             else -> getString(R.string.vp_registered, id)
         }
         swVoiceprint.setOnCheckedChangeListener(null)
+        swSpeakerVad.setOnCheckedChangeListener(null)
         swVoiceprint.isEnabled = modelReady && !id.isNullOrBlank()
+        swSpeakerVad.isEnabled = modelReady && !id.isNullOrBlank()
         if (id.isNullOrBlank()) {
             voiceprintVerifyDesired = false
+            speakerVadDesired = false
             swVoiceprint.isChecked = false
+            swSpeakerVad.isChecked = false
         } else {
             swVoiceprint.isChecked = voiceprintVerifyDesired
+            swSpeakerVad.isChecked = speakerVadDesired
         }
         swVoiceprint.setOnCheckedChangeListener { _, checked -> onVoiceprintSwitch(checked) }
+        swSpeakerVad.setOnCheckedChangeListener { _, checked -> onSpeakerVadSwitch(checked) }
     }
 
     private fun onVoiceprintSwitch(enabled: Boolean) {
@@ -394,6 +452,43 @@ class MainActivity : AppCompatActivity() {
             return
         }
         voiceprintVerifyDesired = enabled
+    }
+
+    private fun onSpeakerVadSwitch(enabled: Boolean) {
+        val id = DemoPrefs.getVoiceprintId(this)
+        if (enabled && id.isNullOrBlank()) {
+            swSpeakerVad.isChecked = false
+            toast(getString(R.string.vp_need_register))
+            return
+        }
+        speakerVadDesired = enabled
+        if (listening) {
+            engine?.setSpeakerVadEnabled(enabled)
+            activeSpeakerVad = enabled
+            lastDebugEvent = "speaker VAD runtime ${if (enabled) "enabled" else "disabled"}"
+        } else {
+            lastDebugEvent = "speaker VAD desired ${if (enabled) "ON" else "OFF"}"
+        }
+        updateDebugInfo()
+        if (enabled) {
+            toast(getString(R.string.speaker_vad_enabled_hint))
+        } else {
+            toast(getString(R.string.speaker_vad_disabled_hint))
+        }
+    }
+
+    private fun updateDebugInfo() {
+        tvDebug.text = getString(
+            R.string.debug_speaker_vad_status,
+            if (activeVoiceprintVerify) "ON" else "OFF",
+            if (activeSpeakerVad) "ON" else "OFF",
+            if (speakerVadDesired == activeSpeakerVad) "synced" else "pending",
+            SPEAKER_VAD_THRESHOLD,
+            SPEAKER_VAD_WINDOW_MS / 1000f,
+            SPEAKER_VAD_HOP_MS / 1000f,
+            SPEAKER_VAD_CONSECUTIVE_BELOW,
+            lastDebugEvent,
+        )
     }
 
     private fun showMenu(anchor: android.view.View) {
@@ -435,6 +530,7 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val deleted = VoiceprintHelper.deleteRegistered(this)
                     voiceprintVerifyDesired = false
+                    speakerVadDesired = false
                     refreshVoiceprintUi()
                     toast(getString(R.string.vp_delete_success, deleted ?: id))
                 } catch (t: Throwable) {
@@ -470,5 +566,9 @@ class MainActivity : AppCompatActivity() {
         const val SESSION_ROTATE_AUDIO_MS = 55_000L
         const val DINGQIAO_FRAME_AUDIO_MS = 20L
         const val DEFAULT_VAD_END_MS = 1_500
+        const val SPEAKER_VAD_THRESHOLD = 0.40f
+        const val SPEAKER_VAD_WINDOW_MS = 1_000
+        const val SPEAKER_VAD_HOP_MS = 300
+        const val SPEAKER_VAD_CONSECUTIVE_BELOW = 2
     }
 }

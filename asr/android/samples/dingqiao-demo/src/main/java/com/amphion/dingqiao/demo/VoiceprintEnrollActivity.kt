@@ -13,12 +13,15 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.amphion.dingqiao.AudioInfo
+import com.amphion.dingqiao.DINGQIAO_VOICEPRINT_MAX_SEC
 import com.amphion.dingqiao.DINGQIAO_VOICEPRINT_MAX_SAMPLES
+import com.amphion.dingqiao.DINGQIAO_VOICEPRINT_MIN_SEC
 import com.amphion.dingqiao.DINGQIAO_VOICEPRINT_MIN_SAMPLES
 import com.amphion.dingqiao.SpeechRecognizeSdk
 import com.amphion.dingqiao.VoiceprintRegisterParams
 import com.google.android.material.appbar.MaterialToolbar
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.Executors
 
 /**
@@ -232,6 +235,13 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
         }
         btnRegister.isEnabled = false
         tvStatus.text = getString(R.string.enroll_registering)
+        val invalidSampleMessage = firstInvalidSampleMessage()
+        if (invalidSampleMessage != null) {
+            toast(invalidSampleMessage)
+            tvStatus.text = invalidSampleMessage
+            btnRegister.isEnabled = true
+            return
+        }
         worker.execute {
             try {
                 VoiceprintHelper.deleteRegisteredIfAny(this@VoiceprintEnrollActivity)
@@ -257,6 +267,26 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
         }
     }
 
+    private fun firstInvalidSampleMessage(): String? {
+        for ((index, file) in items.withIndex()) {
+            val durationSec = sampleDurationSec(file)
+            if (durationSec < DINGQIAO_VOICEPRINT_MIN_SEC || durationSec > DINGQIAO_VOICEPRINT_MAX_SEC) {
+                return getString(
+                    R.string.enroll_sample_duration_invalid,
+                    index + 1,
+                    file.name,
+                    String.format(Locale.getDefault(), "%.1f", durationSec),
+                    DINGQIAO_VOICEPRINT_MIN_SEC,
+                    DINGQIAO_VOICEPRINT_MAX_SEC,
+                )
+            }
+        }
+        return null
+    }
+
+    private fun sampleDurationSec(file: File): Double =
+        file.length().coerceAtLeast(0L).toDouble() / BYTES_PER_SECOND
+
     private fun merge(chunks: List<ShortArray>): ShortArray {
         val total = chunks.sumOf { it.size }
         if (total == 0) return ShortArray(0)
@@ -271,5 +301,11 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
 
     private fun toast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    private companion object {
+        private const val SAMPLE_RATE = 16_000
+        private const val BYTES_PER_SAMPLE = 2
+        private const val BYTES_PER_SECOND = SAMPLE_RATE * BYTES_PER_SAMPLE.toDouble()
     }
 }

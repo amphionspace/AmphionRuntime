@@ -14,6 +14,12 @@
     <string name="status_engine_failed">引擎初始化失败：%1$s</string>
 
     <string name="cap_voiceprint_title">声纹校验</string>
+    <string name="cap_speaker_vad_title">说话人VAD</string>
+    <string name="speaker_vad_hint">目标说话人离开时提前截断当前句</string>
+    <string name="speaker_vad_enabled_hint">说话人 VAD 已开启</string>
+    <string name="speaker_vad_disabled_hint">说话人 VAD 已关闭</string>
+    <string name="debug_initial">Debug：等待识别</string>
+    <string name="debug_speaker_vad_status">Debug 声纹校验=%1$s，说话人VAD=%2$s（%3$s）\n链路：目标确认前抑制 partial；连续非目标会 endpoint + reject final\n参数：阈值 %4$.2f，窗 %5$.1fs，hop %6$.1fs，连续低分 %7$d 次\n最近：%8$s</string>
     <string name="menu_more">更多</string>
     <string name="menu_voiceprint">声纹注册</string>
     <string name="menu_delete_voiceprint">删除声纹</string>
@@ -33,6 +39,7 @@
     <string name="vp_registered">已注册声纹：%1$s</string>
     <string name="vp_not_registered">未注册声纹</string>
     <string name="speaker_score_format">相似度 %.2f</string>
+    <string name="speaker_score_tag">[声纹相似度 %.2f]</string>
 
     <string name="enroll_title">声纹注册</string>
     <string name="enroll_hint">录制 3~5 段语音，每段 3~8 秒，覆盖远/中/近距离。注册前须先导入声纹模型 eres2net.onnx。</string>
@@ -46,6 +53,8 @@
     <string name="enroll_failed">注册失败：%1$s</string>
     <string name="enroll_no_permission">没有录音权限</string>
     <string name="enroll_seg_label">样本 %1$d · %2$s</string>
+    <string name="enroll_seg_label_with_duration">样本 %1$d · %2$s · %3$s</string>
+    <string name="enroll_sample_duration_invalid">样本 %1$d（%2$s）时长 %3$s 秒，不在 %4$d–%5$d 秒范围内</string>
     <string name="enroll_delete_title">删除样本？</string>
     <string name="enroll_delete_msg">删除后需重新注册声纹。</string>
     <string name="enroll_delete_ok">删除</string>

@@ -10,6 +10,7 @@ import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineRecognizerResult
 import com.k2fsa.sherpa.onnx.OnlineStream
 import com.k2fsa.sherpa.onnx.Vad
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.exp
 
@@ -63,6 +64,11 @@ internal class SessionImpl(
     private var targetSpeakerEnabled: Boolean =
         engineImpl.targetSpeakerConfig?.enabledByDefault ?: false
 
+    /** 目标说话人 VAD 开关：目标人离场时提前 endpoint。 */
+    @Volatile
+    private var speakerVadEnabled: Boolean =
+        engineImpl.targetSpeakerConfig?.speakerVad?.enabledByDefault ?: false
+
     /** 已注册目标向量（已 L2 归一）；null = 未注册。 */
     @Volatile
     private var targetEmbedding: FloatArray? = null
@@ -70,10 +76,25 @@ internal class SessionImpl(
     /** 声纹打分器；decoder 线程独占，首次开关开启时懒加载。 */
     private var speakerVerifier: SpeakerVerifier? = null
 
-    /** 当前 utterance 的 PCM 缓冲（decoder 线程独占）；仅开关开启时累积，段末打分后清空。 */
+    /** 当前 utterance 的 PCM 缓冲（decoder 线程独占）；声纹门控 / speaker vad 开启时累积。 */
     private var uttBuf = FloatArray(0)
     private var uttLen = 0
     private var uttOverflowWarned = false
+
+    /** speaker vad 状态：距上次声纹窗打分已累计的 sample 数。 */
+    private var svSamplesSinceScore = 0
+
+    /** speaker vad 状态：当前 speech 段内是否已经确认目标人出现。 */
+    private var svTargetConfirmed = false
+
+    /** speaker vad 状态：目标人确认后，连续低于阈值的窗口数量。 */
+    private var svBelowCount = 0
+
+    /** speaker vad 状态：当前 utterance 是否已被判为连续非目标，应在 final 阶段拒绝。 */
+    private var svRejectCurrentUtterance = false
+
+    /** speaker vad 状态：最近一次窗口相似度，供 rejected final 携带分数。 */
+    private var svLastScore: Float? = null
 
     private val metrics = MetricsCollector(
         sessionId = sessionId,
@@ -207,6 +228,7 @@ internal class SessionImpl(
                     vadSpeechActive = false
                     trailingSilenceMs = 0
                     vadCarry = FloatArray(0)
+                    resetSpeakerVadState()
                     resetUtteranceBuffer()
                     Logger.i("updateHotwords applied: ${words.size} words")
                 }
@@ -247,13 +269,32 @@ internal class SessionImpl(
         if (enabled) decoderHandler.post { ensureVerifier() }
     }
 
+    fun setSpeakerVadEnabled(enabled: Boolean) {
+        if (closed.get()) {
+            Logger.w("setSpeakerVadEnabled ignored: session closed")
+            return
+        }
+        val speakerVad = engineImpl.targetSpeakerConfig?.speakerVad
+        if (speakerVad == null) {
+            Logger.w(
+                "setSpeakerVadEnabled($enabled) ignored: TargetSpeakerConfig.speakerVad not configured",
+            )
+            return
+        }
+        speakerVadEnabled = enabled
+        decoderHandler.post {
+            resetSpeakerVadState()
+            if (enabled) ensureVerifier()
+        }
+    }
+
     fun stop() {
         if (closed.get()) return
         if (!stopped.compareAndSet(false, true)) return
         decoderHandler.post {
             val r = NativeGuard.run("stream.inputFinished+drain") {
                 stream.inputFinished()
-                drainDecoder(isFinal = true)
+                drainDecoder(isFinal = true, restartAfterFinal = false)
             }
             if (r is NativeResult.Err) {
                 postError(r.error)
@@ -263,6 +304,7 @@ internal class SessionImpl(
             vadSpeechActive = false
             trailingSilenceMs = 0
             vadCarry = FloatArray(0)
+            resetSpeakerVadState()
             callbackHandler.post {
                 safeCallback { callback.onSessionStopped() }
             }
@@ -278,6 +320,7 @@ internal class SessionImpl(
             NativeGuard.runQuietly("stream.release") { stream.release() }
             // VAD 是 per-engine 共享的，session 关闭只 reset（清内部 buffer），不 release
             NativeGuard.runQuietly("vad.reset(close)") { vad?.reset() }
+            resetSpeakerVadState()
             decoderThread.quitSafely()
         }
 
@@ -345,8 +388,8 @@ internal class SessionImpl(
     private fun feedAndDecode(samples: FloatArray) {
         if (closed.get()) return
 
-        // 目标说话人门控开启时，累积当前段 PCM 供段末打分（decoder 线程独占，无锁）。
-        if (targetSpeakerEnabled) appendUtterance(samples)
+        // 声纹门控 / speaker vad 开启时，累积当前段 PCM 供段末或实时滑窗打分（decoder 线程独占）。
+        if (targetSpeakerEnabled || speakerVadEnabled) appendUtterance(samples)
 
         // 保持 PCM 全量进 ASR，让 partial 实时性不受 VAD 抖动影响。VAD 只做 gate
         // + 主动 endpoint（更敏感的尾静音切分），它们与 sherpa endpoint 规则并存：
@@ -402,6 +445,7 @@ internal class SessionImpl(
                 }
             }
         }
+        if (maybeTriggerSpeakerVadEndpoint(samples.size)) return
     }
 
     /**
@@ -419,12 +463,35 @@ internal class SessionImpl(
             return
         }
         vadCarry = FloatArray(0)
+        resetSpeakerVadState()
+    }
+
+    /**
+     * 目标说话人离场时调用：主动派发 endpoint 事件，再复用 inputFinished + final flush 路径。
+     */
+    private fun triggerSpeakerVadEndpoint() {
+        if (vad == null) return
+        postEndpoint()
+        val r = NativeGuard.run("speakerVad.activeEndpoint") {
+            stream.inputFinished()
+            drainDecoder(isFinal = true, postEndpointOnEndpoint = false)
+        }
+        if (r is NativeResult.Err) {
+            postError(r.error)
+            return
+        }
+        vadCarry = FloatArray(0)
+        resetSpeakerVadState()
     }
 
     /**
      * 解出当前 stream 的所有结果并 dispatch；isFinal=true 时把当前残留文本作为 final 发出。
      */
-    private fun drainDecoder(isFinal: Boolean) {
+    private fun drainDecoder(
+        isFinal: Boolean,
+        postEndpointOnEndpoint: Boolean = true,
+        restartAfterFinal: Boolean = true,
+    ) {
         while (recognizer.isReady(stream)) {
             recognizer.decode(stream)
         }
@@ -433,9 +500,9 @@ internal class SessionImpl(
             metrics.onEndpointDetected()
             val r = recognizer.getResult(stream)
             metrics.onRawFinalReady()
-        postEndpoint()
-        postFinalToProcessor(gateFinal(toAsrResult(r)))
-            restartStreamAfterUtterance(r)
+            if (postEndpointOnEndpoint) postEndpoint()
+            postFinalToProcessor(gateFinal(toAsrResult(r)))
+            if (restartAfterFinal) restartStreamAfterUtterance(r) else lastPartialText = ""
             return
         }
 
@@ -443,7 +510,7 @@ internal class SessionImpl(
         if (isFinal) {
             metrics.onRawFinalReady()
             postFinalToProcessor(gateFinal(toAsrResult(r)))
-            restartStreamAfterUtterance(r)
+            if (restartAfterFinal) restartStreamAfterUtterance(r) else lastPartialText = ""
         } else if (r.text != lastPartialText) {
             lastPartialText = r.text
             postPartial(toAsrResult(r))
@@ -467,6 +534,7 @@ internal class SessionImpl(
         } else {
             NativeGuard.runQuietly("recognizer.reset") { recognizer.reset(stream) }
             NativeGuard.runQuietly("vad.reset") { vad?.reset() }
+            resetSpeakerVadState()
         }
         lastPartialText = ""
     }
@@ -486,6 +554,7 @@ internal class SessionImpl(
                 vadSpeechActive = false
                 trailingSilenceMs = 0
                 vadCarry = FloatArray(0)
+                resetSpeakerVadState()
                 Logger.i("session $sessionId hard-restarted stream after long utterance")
                 warmUpEncoder(WARMUP_DURATION_MS)
             }
@@ -496,6 +565,7 @@ internal class SessionImpl(
                 NativeGuard.runQuietly("recognizer.reset(hardRestartFallback)") {
                     recognizer.reset(stream)
                 }
+                resetSpeakerVadState()
             }
         }
     }
@@ -530,6 +600,16 @@ internal class SessionImpl(
      * onFinalRejected 完成；这里只负责打分与打标，保证 metrics / 后处理时序与未启用时一致。
      */
     private fun gateFinal(raw: AsrResult): AsrResult {
+        if (speakerVadEnabled && svRejectCurrentUtterance) {
+            val score = svLastScore
+            resetUtteranceBuffer()
+            return raw.copy(speakerScore = score, isTargetSpeaker = false)
+        }
+        if (speakerVadEnabled && !svTargetConfirmed) {
+            val score = svLastScore
+            resetUtteranceBuffer()
+            return raw.copy(speakerScore = score, isTargetSpeaker = false)
+        }
         if (!targetSpeakerEnabled) {
             resetUtteranceBuffer()
             return raw
@@ -561,6 +641,105 @@ internal class SessionImpl(
         ).also { speakerVerifier = it }
     }
 
+    /**
+     * 目标说话人 VAD：speech-active 期间按固定 hop 对 utterance 尾窗做声纹打分。
+     *
+     * 状态机分两段：
+     * 1. 先看到目标人（score >= threshold），确认当前 speech 段确实属于目标人；
+     * 2. 确认后若连续低于阈值，认为目标人离场，主动 endpoint。
+     */
+    private fun maybeTriggerSpeakerVadEndpoint(samplesInChunk: Int): Boolean {
+        if (!speakerVadEnabled) return false
+        val speakerVad = engineImpl.targetSpeakerConfig?.speakerVad ?: return false
+        val target = targetEmbedding ?: return false
+        val verifier = ensureVerifier() ?: return false
+
+        val winSamples = (speakerVad.winSec * sampleRate).toInt().coerceAtLeast(1)
+        val hopSamples = (speakerVad.hopSec * sampleRate).toInt().coerceAtLeast(1)
+        svSamplesSinceScore += samplesInChunk
+        if (uttLen < winSamples) return false
+        if (svSamplesSinceScore < hopSamples) return false
+        svSamplesSinceScore %= hopSamples
+
+        val scoreStartNs = System.nanoTime()
+        val score = verifier.windowScore(currentUtteranceTail(winSamples), target) ?: return false
+        svLastScore = score
+        val scoreElapsedMs = (System.nanoTime() - scoreStartNs) / 1_000_000.0
+        val scoreAudioMs = winSamples * 1000.0 / sampleRate
+        val scoreRtf = scoreElapsedMs / scoreAudioMs
+        if (!svTargetConfirmed) {
+            if (score >= speakerVad.threshold) {
+                svTargetConfirmed = true
+                svBelowCount = 0
+                Logger.d("session $sessionId speaker vad target confirmed: score=$score")
+                postSpeakerVadDebug("target_confirmed", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+            } else {
+                svBelowCount += 1
+                if (svBelowCount >= speakerVad.consecutiveBelow) {
+                    svRejectCurrentUtterance = true
+                    postSpeakerVadDebug("pre_target_endpoint", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+                    Logger.d(
+                        "session $sessionId speaker vad pre-target endpoint: score=$score " +
+                            "threshold=${speakerVad.threshold} belowCount=$svBelowCount",
+                    )
+                    if (vadSpeechActive) {
+                        vadSpeechActive = false
+                        trailingSilenceMs = 0
+                    }
+                    triggerSpeakerVadEndpoint()
+                    return true
+                }
+                postSpeakerVadDebug("waiting_target", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+            }
+            return false
+        }
+
+        if (score < speakerVad.threshold) {
+            svBelowCount += 1
+            if (vadSpeechActive && svBelowCount >= speakerVad.consecutiveBelow) {
+                postSpeakerVadDebug("endpoint", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+                Logger.d(
+                    "session $sessionId speaker vad endpoint: score=$score " +
+                        "threshold=${speakerVad.threshold} belowCount=$svBelowCount",
+                )
+                vadSpeechActive = false
+                trailingSilenceMs = 0
+                triggerSpeakerVadEndpoint()
+                return true
+            }
+            postSpeakerVadDebug("below", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+        } else {
+            svBelowCount = 0
+            postSpeakerVadDebug("target_active", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+        }
+        return false
+    }
+
+    private fun postSpeakerVadDebug(
+        state: String,
+        score: Float,
+        threshold: Float,
+        inferMs: Double,
+        rtf: Double,
+    ) {
+        val msg = String.format(
+            Locale.US,
+            "speaker_vad state=%s score=%.3f threshold=%.2f inferMs=%.1f rtf=%.3f confirmed=%s below=%d",
+            state,
+            score,
+            threshold,
+            inferMs,
+            rtf,
+            svTargetConfirmed,
+            svBelowCount,
+        )
+        Logger.i("session $sessionId $msg")
+        Logger.metric("kind=SPEAKER_VAD sessionId=$sessionId $msg")
+        callbackHandler.post {
+            safeCallback { callback.onDebug(msg) }
+        }
+    }
+
     private fun appendUtterance(samples: FloatArray) {
         if (uttLen >= UTT_MAX_SAMPLES) {
             if (!uttOverflowWarned) {
@@ -585,14 +764,30 @@ internal class SessionImpl(
     private fun currentUtterance(): FloatArray =
         if (uttLen == 0) FloatArray(0) else uttBuf.copyOf(uttLen)
 
+    private fun currentUtteranceTail(n: Int): FloatArray {
+        val take = minOf(n, uttLen)
+        val out = FloatArray(take)
+        if (take > 0) System.arraycopy(uttBuf, uttLen - take, out, 0, take)
+        return out
+    }
+
     private fun resetUtteranceBuffer() {
         uttLen = 0
         uttOverflowWarned = false
     }
 
+    private fun resetSpeakerVadState() {
+        svSamplesSinceScore = 0
+        svTargetConfirmed = false
+        svBelowCount = 0
+        svRejectCurrentUtterance = false
+        svLastScore = null
+    }
+
     // -------- callback dispatch --------
 
     private fun postPartial(result: AsrResult) {
+        if (speakerVadEnabled && !svTargetConfirmed) return
         callbackHandler.post {
             metrics.onPartialDispatched()
             safeCallback { callback.onPartial(result) }
