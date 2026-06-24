@@ -87,7 +87,7 @@ internal object DingqiaoEngineConfig {
     }
 
     fun isSupportedAudioFrameBytes(byteSize: Int): Boolean =
-        byteSize == DINGQIAO_AUDIO_FRAME_BYTES || byteSize == DINGQIAO_AUDIO_FRAME_BYTES_40MS
+        byteSize == DINGQIAO_AUDIO_FRAME_BYTES
 
     fun enablePartialResult(startParams: StartParams): Boolean {
         val v = startParams.extraParams["enablePartialResult"]

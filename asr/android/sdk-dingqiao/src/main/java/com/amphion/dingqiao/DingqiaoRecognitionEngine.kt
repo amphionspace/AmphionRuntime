@@ -143,7 +143,7 @@ internal class DingqiaoRecognitionEngine(
             notifyError(
                 sessionId,
                 DingqiaoErrorCode.RECOGNITION_ERROR,
-                "audio frame must be $DINGQIAO_AUDIO_FRAME_BYTES or $DINGQIAO_AUDIO_FRAME_BYTES_40MS bytes",
+                "audio frame must be $DINGQIAO_AUDIO_FRAME_BYTES bytes",
             )
             return
         }

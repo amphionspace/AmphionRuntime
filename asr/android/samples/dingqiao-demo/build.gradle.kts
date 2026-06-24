@@ -15,6 +15,7 @@ val useFatAar = providers.gradleProperty("dingqiaoUseFatAar").orElse("false").ge
 val fatAarPath = providers.gradleProperty("dingqiaoFatAarPath").orElse(
     "${rootProject.projectDir}/build/dingqiao-delivery/dingqiao-asr-v0.1.0.aar",
 ).get()
+val evalAudioDir = providers.gradleProperty("dingqiaoEvalAudioDir").orNull
 
 android {
     namespace = "com.amphion.dingqiao.demo"
@@ -71,6 +72,12 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    sourceSets {
+        evalAudioDir
+            ?.takeIf { it.isNotBlank() }
+            ?.let { getByName("androidTest").assets.srcDir(it) }
+    }
 }
 
 dependencies {
@@ -88,4 +95,6 @@ dependencies {
     implementation(libs.material)
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }
