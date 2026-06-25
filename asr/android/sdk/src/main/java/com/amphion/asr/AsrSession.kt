@@ -91,6 +91,19 @@ public class AsrSession internal constructor(private val impl: SessionImpl) : Au
         impl.setTargetSpeakerEnabled(enabled)
     }
 
+    /**
+     * 目标说话人 VAD 开关：运行时启用 / 关闭“目标人离场提前 endpoint”。
+     *
+     * 语义为 endpoint 增强：ASR 仍接收全量音频；当 VAD 已检测到 speech，且目标声纹已经确认后，
+     * 若当前滑窗相似度连续低于 [SpeakerVadConfig.threshold]，SDK 会主动结束当前子句并触发
+     * [AsrCallback.onFinal]。这用于让下游 LLM 尽早拿到目标人的完整一句话，避免被其他说话人拖住。
+     *
+     * 未通过 [TargetSpeakerConfig.speakerVad] 配置该能力时本调用被忽略（仅记日志）。
+     */
+    public fun setSpeakerVadEnabled(enabled: Boolean) {
+        impl.setSpeakerVadEnabled(enabled)
+    }
+
     /** 当前会话是否已经 [close]。 */
     public val isClosed: Boolean
         get() = impl.isClosed

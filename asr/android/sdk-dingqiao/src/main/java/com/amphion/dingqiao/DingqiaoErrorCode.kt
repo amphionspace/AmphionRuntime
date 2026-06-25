@@ -17,6 +17,12 @@ object DingqiaoErrorCode {
     const val VOICEPRINT_SAMPLE_COUNT = 1002200021
     const val VOICEPRINT_SAMPLE_DURATION = 1002200022
     const val VOICEPRINT_NOT_FOUND = 1002200024
+    const val LICENSE_FILE_UNREADABLE = 1002200030
+    const val LICENSE_INVALID = 1002200031
+    const val LICENSE_EXPIRED = 1002200032
+    const val LICENSE_DEVICE_MISMATCH = 1002200033
+    const val LICENSE_NOT_SET = 1002200034
+    const val LICENSE_ACTIVATION_FAILED = 1002200035
 }
 
 /** 运行模式：当前仅支持离线。 */
@@ -34,6 +40,9 @@ object DingqiaoRecognitionMode {
 object DingqiaoEventCode {
     const val SPEECH_BEGIN = 1
     const val SPEECH_END = 3
+    const val SPEAKER_VAD_CHANGED = 20
+    const val SPEAKER_VAD_DEBUG = 21
+    const val SPEAKER_VAD_REJECTED = 22
 }
 
 /** 声纹注册成功状态码。 */
@@ -46,6 +55,10 @@ const val DINGQIAO_SPEAKER_MODEL_FILENAME = "eres2net.onnx"
 
 /** 写入音频帧字节数（16 kHz mono 16-bit PCM，20 ms）。 */
 const val DINGQIAO_AUDIO_FRAME_BYTES = 640
+
+/** 遗留 40 ms 帧大小常量。交付接口只接受 640 字节 / 20 ms 帧。 */
+@Deprecated("Dingqiao delivery interface only accepts 640-byte / 20 ms frames.")
+const val DINGQIAO_AUDIO_FRAME_BYTES_40MS = 1280
 
 /** 声纹样本最短 / 最长时长（秒）。 */
 const val DINGQIAO_VOICEPRINT_MIN_SEC = 3

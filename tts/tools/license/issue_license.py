@@ -1,5 +1,26 @@
 #!/usr/bin/env python3
-"""签发一份 Amphion 离线 license（.lic）。"""
+"""签发一份 Amphion 离线 license（.lic）。
+
+.lic 信封格式（与 SDK 端 LicenseVerifier.kt 严格一致）：
+    {"payload_b64": "<base64(UTF-8 JSON of claims)>",
+     "alg": "SHA256withECDSA",
+     "sig_b64": "<base64(DER ECDSA-P256 signature over the decoded payload bytes)>"}
+
+签名覆盖的是 payload 的原始 UTF-8 字节：SDK 端 base64-decode 拿到同一串字节后直接验签，
+不重新序列化，从根上规避 canonical JSON 歧义。
+
+用法：
+    python issue_license.py \
+        --private-key amphion-license-private.pem \
+        --application-id com.acme.reader \
+        --customer "ACME Reader Co." \
+        --license-id AMP-2026-0001 \
+        --expires 2027-06-03 \
+        --install-tier LE_100K \
+        --features TTS \
+        --cert-sha256 AB:CD:...:EF \
+        --out com.acme.reader.lic
+"""
 import argparse
 import base64
 import hashlib
@@ -60,18 +81,26 @@ def main() -> None:
     ap.add_argument("--bundle-name", default="", help="HarmonyOS bundleName；默认同 applicationId")
     ap.add_argument("--customer", default="", help="客户名")
     ap.add_argument("--license-id", default="", help="授权编号")
-    ap.add_argument("--cert-sha256", default="", help="绑定签名证书 SHA-256；空=不绑证书")
+    ap.add_argument(
+        "--cert-sha256",
+        default="",
+        help="绑定签名证书 SHA-256（可带冒号、大小写不敏感）；空=不绑证书",
+    )
     ap.add_argument("--device-id-file", default="", help="授权设备 SN 清单，一行一个；空=不绑设备白名单")
     ap.add_argument(
         "--device-id-salt-id",
         default=DEFAULT_DEVICE_ID_SALT_ID,
         help=f"设备 SN 哈希盐编号；默认 {DEFAULT_DEVICE_ID_SALT_ID}",
     )
-    ap.add_argument("--issued", default=date.today().isoformat(), help="签发日期 yyyy-MM-dd；默认今天")
-    ap.add_argument("--expires", default="", help="到期日期 yyyy-MM-dd；空=永久")
+    ap.add_argument(
+        "--issued", default=date.today().isoformat(), help="签发日期 yyyy-MM-dd；默认今天",
+    )
+    ap.add_argument("--expires", default="", help="到期日期 yyyy-MM-dd；空=永久（买断）")
     ap.add_argument("--maintenance-until", default="", help="可升级维护期 yyyy-MM-dd；空=不限制升级期")
-    ap.add_argument("--install-tier", default="", help="装机量档位标识，如 LE_100K")
-    ap.add_argument("--features", default="TTS", help="逗号分隔的授权能力，仅允许 ASR,TTS")
+    ap.add_argument("--install-tier", default="", help="装机量档位标识（声明性），如 LE_100K")
+    ap.add_argument(
+        "--features", default="TTS", help="逗号分隔的授权能力，仅允许 ASR,TTS",
+    )
     ap.add_argument("--sdk-major", type=int, default=1, help="兼容的 SDK 大版本，默认 1")
     ap.add_argument("--out", default=None, help="输出 .lic 路径；默认 <applicationId>.lic")
     args = ap.parse_args()
@@ -101,6 +130,7 @@ def main() -> None:
         "maintenanceUntil": maintenance_until,
         "sdkMajor": args.sdk_major,
     }
+    # 紧凑 + key 排序：确定性序列化（SDK 端不依赖此格式，仅为产物可复现 / 可 diff）
     payload_bytes = json.dumps(
         payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")

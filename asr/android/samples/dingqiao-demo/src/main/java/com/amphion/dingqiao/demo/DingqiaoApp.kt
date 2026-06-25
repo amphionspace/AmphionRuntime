@@ -2,7 +2,6 @@ package com.amphion.dingqiao.demo
 
 import android.app.Application
 import android.util.Log
-import com.amphion.dingqiao.DINGQIAO_SPEAKER_MODEL_FILENAME
 import com.amphion.dingqiao.SpeechRecognizeSdk
 import java.io.File
 
@@ -21,9 +20,12 @@ class DingqiaoApp : Application() {
         SpeechRecognizeSdk.init(this)
         SpeechRecognizeSdk.setWorkPath(workDir.absolutePath)
 
-        val speakerModel = File(workDir, DINGQIAO_SPEAKER_MODEL_FILENAME)
-        if (!speakerModel.isFile) {
-            Log.w(TAG, "speaker model missing: ${speakerModel.absolutePath}")
+        VoiceprintModelHelper.tryImportFromDownloads(workDir.absolutePath)
+        val speakerModel = VoiceprintModelHelper.modelFile(workDir.absolutePath)
+        if (!VoiceprintModelHelper.isReady(speakerModel)) {
+            Log.w(TAG, "speaker model not ready: exists=${speakerModel.exists()} " +
+                "canRead=${speakerModel.canRead()} size=${speakerModel.length()} " +
+                "path=${speakerModel.absolutePath}")
         }
     }
 

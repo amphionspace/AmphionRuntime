@@ -1,11 +1,11 @@
 {
-  "name": "sdk",
-  "version": "0.2.5",
-  "description": "Offline Lits TTS SDK for HarmonyOS.",
+  "name": "amphion_tts",
+  "version": "0.1.0",
+  "description": "Amphion offline TTS SDK for HarmonyOS",
   "main": "Index.ets",
   "author": "Amphion",
-  "license": "Apache-2.0",
+  "license": "Commercial",
   "dependencies": {
-    "liblitsttsnative.so": "file:./src/main/cpp/types/liblitsttsnative"
+    "sherpa_onnx": "file:../../../third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx"
   }
 }

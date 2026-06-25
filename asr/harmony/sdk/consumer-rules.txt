@@ -1,0 +1,2 @@
+# Consumer keep rules for Amphion HarmonyOS HAR.
+-keep-global-name

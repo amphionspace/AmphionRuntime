@@ -525,9 +525,13 @@ AmphionRuntime.init(
         expiryGraceDays = 0,
         // 校验失败策略（默认 ENFORCE：失败即 init 抛异常）
         licenseEnforcement = LicenseEnforcement.ENFORCE,
+        // 设备 SN 由宿主或交付适配层注入；返回值需与提供给我方签发的 SN 清单一致
+        deviceIdProvider = AmphionDeviceIdProvider { _ -> "DEVICE-SN-FROM-DINGQIAO" },
     ),
 )
 ```
+
+如果 license 启用了设备 SN 白名单，`deviceIdProvider` 必须能返回稳定 SN；否则武装态初始化会因设备 SN 不可用或白名单不匹配而失败。鼎桥 Android 封装层已默认使用 `Build.getSerial()` 读取 SN；宿主 App 需要作为系统应用申请并获得 `android.permission.READ_PRIVILEGED_PHONE_STATE`。如果业务 App 自行集成 ASR 基础 SDK，则按上面示例注入同一个 SN。
 
 ### 14.3 查询授权状态
 
@@ -554,10 +558,15 @@ ENFORCE 模式下校验失败，`AmphionRuntime.init` 抛 `IllegalStateException
 | LICENSE_APP_MISMATCH | 6004 | license 的 applicationId 与你的包名不一致 | 告知我方正确包名重签 |
 | LICENSE_CERT_MISMATCH | 6005 | 签名证书与 license 绑定的不一致 | 换签名证书需告知我方重签 |
 | LICENSE_EXPIRED | 6006 | 已过期 | 联系我方续期 |
+| LICENSE_DEVICE_MISMATCH | 6007 | 设备 SN 不可用或 SN 哈希不在白名单 | 确认 `deviceIdProvider` 返回值与授权 SN 清单一致 |
+| LICENSE_SDK_MAJOR_MISMATCH | 6008 | license 授权 SDK 大版本与当前 SDK 不一致 | 使用匹配版本或重签 |
+| LICENSE_MAINTENANCE_EXPIRED | 6009 | 当前 SDK 发布时间晚于维护期 | 续期后重签 |
+| LICENSE_FEATURE_MISSING | 6010 | license 未授权 ASR | 使用包含 ASR 的 license |
 
 ### 14.5 常见问题
 
 - 换了 release 签名证书：若 license 绑了 certSha256，需把新证书 SHA-256 给我方重签。
 - 改了 applicationId：需用新包名重签。
+- 启用了设备白名单：需在 `AmphionOptions.deviceIdProvider` 注入设备 SN，且 SN 与签发清单一致。
 - 到期续期：我方重签一份更晚到期的 `.lic`，随你的 App 更新替换 assets 内文件即可，代码不动。
 - 灰度上线：可临时用 `LicenseEnforcement.PERMISSIVE` 让校验失败不阻断启动（仅记录），不建议长期使用。

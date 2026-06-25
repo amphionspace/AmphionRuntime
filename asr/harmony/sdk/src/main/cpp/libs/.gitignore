@@ -1,0 +1,5 @@
+*
+!.gitignore
+!README.md
+*/
+!arm64-v8a/README.md

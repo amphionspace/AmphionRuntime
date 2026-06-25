@@ -76,6 +76,11 @@ public interface AsrCallback {
     public fun onEndpoint() {}
 
     /**
+     * 调试事件。用于 demo / 集成期观察内部状态，不承诺稳定格式；生产业务可忽略。
+     */
+    public fun onDebug(message: String) {}
+
+    /**
      * 错误回调。错误发生后 session 自动进入"已停止"状态，集成方可以直接 [AsrSession.close]。
      *
      * @param error 错误码 + 错误信息；详见 [AsrErrorCode]

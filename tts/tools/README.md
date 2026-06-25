@@ -18,8 +18,8 @@
   - `verify_lits_tts_android_delivery.sh` 校验交付目录 / zip 是否包含源码与必要合规文件
 
 - `license/`
-  - TTS 离线 license 签发 / 校验工具
-  - 与 ASR / police 的 license 工具分开维护,避免密钥、格式和脚本命名互相污染
+  - Amphion 离线 license 签发 / 校验工具
+  - ASR / TTS 共用同一份 `amphion-license.lic`、同一套信封格式和同一把 `AMPHION_LICENSE_PUBLIC_KEY`
 
 ## 模型包固定位置
 

@@ -2,6 +2,7 @@ package com.amphion.asr
 
 import android.content.Context
 import com.amphion.asr.internal.AssetInstaller
+import com.amphion.asr.internal.DeviceLicenseFingerprint
 import com.amphion.asr.internal.EngineImpl
 import com.amphion.asr.internal.LicenseVerifier
 import com.amphion.asr.internal.Logger
@@ -73,6 +74,9 @@ public object AmphionRuntime {
                 licenseText = resolveLicenseText(ctx, options),
                 publicKeyB64 = BuildConfig.LICENSE_PUBLIC_KEY_B64,
                 expiryGraceDays = options.expiryGraceDays,
+                deviceIdProvider = options.deviceIdProvider,
+                sdkMajor = BuildConfig.SDK_MAJOR,
+                sdkReleaseDate = BuildConfig.SDK_RELEASE_DATE,
             )
             licenseStatusHolder = result.status
             if (!result.ok) {
@@ -235,6 +239,15 @@ public object AmphionRuntime {
     @JvmStatic
     public fun licenseStatus(): AmphionLicenseStatus =
         licenseStatusHolder ?: AmphionLicenseStatus.NOT_INITIALIZED
+
+    /**
+     * 设备 SN 授权哈希，用于申请设备白名单 `.lic`（`authorizedDeviceHashes` 字段）。
+     *
+     * 算法：SHA-256(normalizedSn + deviceIdSaltId)，大写 hex、无冒号。
+     */
+    @JvmStatic
+    public fun deviceLicenseFingerprint(deviceSerial: String, deviceIdSaltId: String): String =
+        DeviceLicenseFingerprint.computeFromSerial(deviceSerial, deviceIdSaltId)
 
     /**
      * 释放 SDK 全局资源：清空 ASR 池 + 释放共享后处理 + 重置 initialized 标记。
@@ -403,6 +416,7 @@ public object AmphionRuntime {
  *   置 null / 空表示不从 asset 读取。仅当 SDK 被武装（构建期注入 license 公钥）时才会真正读取
  * @property expiryGraceDays 到期宽限天数（规避客户端时钟误差），默认 0；必须 >= 0
  * @property licenseEnforcement license 校验失败时的策略，默认 [LicenseEnforcement.ENFORCE]
+ * @property deviceIdProvider 设备 SN 码提供方；license 包含设备白名单时必须能返回稳定 SN
  */
 public data class AmphionOptions(
     public val logLevel: AmphionLogLevel = AmphionLogLevel.WARN,
@@ -410,6 +424,7 @@ public data class AmphionOptions(
     public val licenseAssetName: String? = "amphion-license.lic",
     public val expiryGraceDays: Int = 0,
     public val licenseEnforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE,
+    public val deviceIdProvider: AmphionDeviceIdProvider? = null,
 ) {
     init {
         require(expiryGraceDays >= 0) { "expiryGraceDays must be >= 0, got $expiryGraceDays" }
