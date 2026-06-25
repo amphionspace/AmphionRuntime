@@ -5,7 +5,7 @@
 #   bash tts/tools/android/pack_lits_tts_android_delivery.sh [version]
 #
 # Optional env:
-#   LITS_TTS_MODEL_DIR=/path/to/lits_delivery_16k_hifigan/1.0.0
+#   LITS_TTS_MODEL_DIR=/path/to/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0
 #   LITS_TTS_DELIVERY_VERSION=0.1.0
 #   LITS_TTS_ALLOW_DIRTY=1   # local preview only
 #
@@ -78,8 +78,11 @@ lits_tts_write_version_txt "$OUT_ROOT/VERSION.txt" \
   "sample_apk_mb=$SAMPLE_APK_MB" \
   "android_source_dir=android-src/TTS" \
   "android_source_mb=$SRC_MB" \
-  "model_id=lits_delivery_16k_hifigan" \
-  "model_version=1.0.0" \
+  "model_id=transsion_lits_en_zh_vocos24k_streaming_proto_external_loop" \
+  "model_version=0.1.0" \
+  "sample_rate=24000" \
+  "vocoder=vocos" \
+  "streaming=true" \
   "pack_script=tts/tools/android/pack_lits_tts_android_delivery.sh"
 
 cat > "$OUT_ROOT/README.txt" <<EOF
@@ -106,7 +109,7 @@ Lits TTS Android SDK v${VERSION}
   1. 进入 android-src/TTS/tts/android
   2. 确认 Android SDK 路径可用（local.properties 或 ANDROID_HOME / ANDROID_SDK_ROOT）
   3. 执行:
-       python ../../tts/tools/verify_lits_delivery_16k_package.py --model-dir ../../tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0
+       python ../../tts/tools/verify_transsion_vocos24k_package.py --model-dir ../../tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0
        ./gradlew :sdk:testDebugUnitTest
        ./gradlew :sdk:assembleRelease
        ./gradlew :sample:assembleDebug

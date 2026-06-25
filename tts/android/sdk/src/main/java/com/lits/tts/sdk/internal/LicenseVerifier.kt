@@ -3,8 +3,8 @@ package com.lits.tts.sdk.internal
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import com.lits.tts.sdk.TtsErrorCode
 import com.lits.tts.sdk.TtsDeviceIdProvider
+import com.lits.tts.sdk.TtsErrorCode
 import com.lits.tts.sdk.TtsLicenseStatus
 import org.json.JSONObject
 import java.security.KeyFactory
@@ -17,28 +17,11 @@ import java.util.TimeZone
 
 /**
  * 离线 license 验签 + 绑定校验。纯本地、零网络。
- *
- * 信封格式（`.lic` 文件，UTF-8 JSON）：
- * ```
- * { "payload_b64": "<base64(UTF-8 JSON of claims)>",
- *   "alg": "SHA256withECDSA",
- *   "sig_b64": "<base64(DER ECDSA-P256 signature over the DECODED payload bytes)>" }
- * ```
- *
- * 设计要点（第一性原理）：
- * - 签名覆盖的是「payload_b64 解码后的原始字节」，不是重新序列化的 JSON——规避 canonical
- *   JSON 歧义，保证 Python 签发端与本端逐字节一致。
- * - 算法 ECDSA P-256 + SHA256：minSdk 24 全覆盖（Ed25519 需 API 33，故不用）。
- * - base64 用内部 [Base64Codec]（标准字母表、无换行），既覆盖 API 24+ 又可纯 JVM 自测。
- * - 公钥由构建期注入（`BuildConfig.LICENSE_PUBLIC_KEY_B64`），本类只接收字符串参数。
- * - 校验拆成 [verify]（从 [Context] 解析 packageName/证书/SN）+ [verifyResolved]
- *   （仅接收已解析好的字符串，无任何 Android 依赖），后者可用运行时生成的 EC 密钥离设备自测。
  */
 internal object LicenseVerifier {
 
     private const val DAY_MS = 24L * 60 * 60 * 1000
 
-    /** 校验结果：成功时 [errorCode] = [TtsErrorCode.OK]。 */
     internal class Result(
         val status: TtsLicenseStatus,
         val errorCode: Int,
@@ -47,21 +30,13 @@ internal object LicenseVerifier {
         val ok: Boolean get() = errorCode == TtsErrorCode.OK
     }
 
-    /**
-     * 真机校验入口：从 [ctx] 解析宿主 packageName / 签名证书 / SN 后委托 [verifyResolved]。
-     *
-     * @param publicKeyB64 构建期注入的 X.509 SubjectPublicKeyInfo(DER) 的 base64；
-     *   空白表示 SDK 未武装 → 返回 [TtsLicenseStatus.State.DEV_UNLICENSED]
-     * @param licenseText `.lic` 文件全文；可空（武装态下为空即 [TtsErrorCode.LICENSE_MISSING]）
-     * @param expiryGraceDays 过期宽限天数（规避客户端时钟误差）
-     * @param nowMillis 当前时间（可注入用于测试）
-     */
     fun verify(
         ctx: Context,
         licenseText: String?,
         publicKeyB64: String,
         expiryGraceDays: Int,
         deviceIdProvider: TtsDeviceIdProvider? = null,
+        hostDeviceSha256Override: String? = null,
         sdkMajor: Int = 1,
         sdkReleaseDate: String = "",
         requiredFeature: String = "TTS",
@@ -78,6 +53,7 @@ internal object LicenseVerifier {
             packageName = pkg,
             hostCertSha256 = hostCerts,
             deviceSerial = deviceIdProvider?.getDeviceSerial(ctx),
+            hostDeviceSha256 = hostDeviceSha256Override?.takeIf { it.isNotBlank() }?.let(::normalizeHex),
             expiryGraceDays = expiryGraceDays,
             sdkMajor = sdkMajor,
             sdkReleaseDate = sdkReleaseDate,
@@ -86,32 +62,26 @@ internal object LicenseVerifier {
         )
     }
 
-    /**
-     * 纯字符串校验核心（无 Android 依赖，可单测）。所有宿主侧信息由调用方解析后传入。
-     */
     internal fun verifyResolved(
         licenseText: String?,
         publicKeyB64: String,
         packageName: String,
         hostCertSha256: Set<String>,
         deviceSerial: String?,
+        hostDeviceSha256: String? = null,
         expiryGraceDays: Int,
         sdkMajor: Int,
         sdkReleaseDate: String,
         requiredFeature: String,
         nowMillis: Long,
     ): Result {
-        // 1. 未武装：开发 / 内部构建，跳过一切校验。
         if (publicKeyB64.isBlank()) {
             return Result(dev(packageName), TtsErrorCode.OK, null)
         }
-
-        // 2. 缺 license。
         if (licenseText.isNullOrBlank()) {
             return fail(packageName, TtsErrorCode.LICENSE_MISSING, "no license provided")
         }
 
-        // 3. 解析信封 + payload + 签名字节。
         val payloadBytes: ByteArray
         val sigBytes: ByteArray
         try {
@@ -122,14 +92,12 @@ internal object LicenseVerifier {
             return fail(packageName, TtsErrorCode.LICENSE_MALFORMED, "bad envelope: ${t.message}")
         }
 
-        // 4. 解析 claims（payload 原始字节 → JSON）。
         val claims: LicenseClaims = try {
             parseClaims(String(payloadBytes, Charsets.UTF_8))
         } catch (t: Throwable) {
             return fail(packageName, TtsErrorCode.LICENSE_MALFORMED, "bad payload: ${t.message}")
         }
 
-        // 5. ECDSA 验签（对 payload 原始字节）。
         val signatureValid: Boolean = try {
             val keyBytes = Base64Codec.decode(publicKeyB64)
             val pub = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(keyBytes))
@@ -145,17 +113,11 @@ internal object LicenseVerifier {
             return failWith(claims, TtsErrorCode.LICENSE_SIGNATURE_INVALID, "signature mismatch")
         }
 
-        // 6. applicationId / bundleName 绑定。Android 使用 packageName 匹配统一绑定字段。
         val boundApp = claims.boundApplicationId
         if (boundApp != packageName) {
-            return failWith(
-                claims,
-                TtsErrorCode.LICENSE_APP_MISMATCH,
-                "license app=$boundApp host=$packageName",
-            )
+            return failWith(claims, TtsErrorCode.LICENSE_APP_MISMATCH, "license app=$boundApp host=$packageName")
         }
 
-        // 7. 签名证书绑定（signingCertDigest 非空时才校验；兼容旧 certSha256）。
         if (claims.boundSigningCertDigest.isNotBlank()) {
             val want = normalizeHex(claims.boundSigningCertDigest)
             if (!hostCertSha256.contains(want)) {
@@ -167,7 +129,6 @@ internal object LicenseVerifier {
             }
         }
 
-        // 8. 到期校验（expiresAt 非空时才校验；到期日当天有效，再加宽限）。
         if (claims.expiresAt.isNotBlank()) {
             val expMillis = parseDateUtcMillis(claims.expiresAt)
                 ?: return failWith(claims, TtsErrorCode.LICENSE_MALFORMED, "bad expiresAt=${claims.expiresAt}")
@@ -177,7 +138,6 @@ internal object LicenseVerifier {
             }
         }
 
-        // 9. SDK 大版本和维护期校验。
         if (claims.sdkMajor >= 0 && claims.sdkMajor != sdkMajor) {
             return failWith(
                 claims,
@@ -189,11 +149,7 @@ internal object LicenseVerifier {
             val releaseMillis = parseDateUtcMillis(sdkReleaseDate)
                 ?: return failWith(claims, TtsErrorCode.LICENSE_MALFORMED, "bad sdkReleaseDate=$sdkReleaseDate")
             val maintenanceMillis = parseDateUtcMillis(claims.maintenanceUntil)
-                ?: return failWith(
-                    claims,
-                    TtsErrorCode.LICENSE_MALFORMED,
-                    "bad maintenanceUntil=${claims.maintenanceUntil}",
-                )
+                ?: return failWith(claims, TtsErrorCode.LICENSE_MALFORMED, "bad maintenanceUntil=${claims.maintenanceUntil}")
             if (releaseMillis > maintenanceMillis) {
                 return failWith(
                     claims,
@@ -203,9 +159,8 @@ internal object LicenseVerifier {
             }
         }
 
-        // 10. 能力授权。当前 license 只按 ASR / TTS 两类授权，不再细分语言或增强能力。
         val normalizedFeatures = claims.features.map { it.trim().uppercase(Locale.ROOT) }.toSet()
-        if (!normalizedFeatures.contains(requiredFeature.uppercase(Locale.ROOT))) {
+        if (normalizedFeatures.isNotEmpty() && !normalizedFeatures.contains(requiredFeature.uppercase(Locale.ROOT))) {
             return failWith(
                 claims,
                 TtsErrorCode.LICENSE_FEATURE_MISSING,
@@ -213,7 +168,6 @@ internal object LicenseVerifier {
             )
         }
 
-        // 11. SN 白名单绑定。新 license 使用 authorizedDeviceHashes；旧 deviceSha256 仅保留兼容。
         if (claims.authorizedDeviceHashes.isNotEmpty()) {
             if (!claims.deviceIdHashAlg.equals("SHA-256", ignoreCase = true)) {
                 return failWith(claims, TtsErrorCode.LICENSE_MALFORMED, "unsupported deviceIdHashAlg=${claims.deviceIdHashAlg}")
@@ -221,21 +175,21 @@ internal object LicenseVerifier {
             val have = deviceSerial?.let { DeviceLicenseFingerprint.computeFromSerial(it, claims.deviceIdSaltId) }
                 ?: return failWith(claims, TtsErrorCode.LICENSE_DEVICE_MISMATCH, "device SN unavailable")
             if (!claims.authorizedDeviceHashes.contains(have)) {
-                return failWith(
-                    claims,
-                    TtsErrorCode.LICENSE_DEVICE_MISMATCH,
-                    "device hash not authorized",
-                )
+                return failWith(claims, TtsErrorCode.LICENSE_DEVICE_MISMATCH, "device hash not authorized")
             }
         } else if (claims.deviceSha256.isNotBlank()) {
-            val have = deviceSerial?.let { DeviceLicenseFingerprint.computeFromSerial(it, claims.deviceIdSaltId) }
-                ?: return failWith(claims, TtsErrorCode.LICENSE_DEVICE_MISMATCH, "device SN unavailable")
+            val have = when {
+                hostDeviceSha256 != null -> hostDeviceSha256
+                claims.deviceIdSaltId.isNotBlank() -> deviceSerial?.let {
+                    DeviceLicenseFingerprint.computeFromSerial(it, claims.deviceIdSaltId)
+                }
+                else -> null
+            } ?: return failWith(claims, TtsErrorCode.LICENSE_DEVICE_MISMATCH, "device unavailable")
             if (normalizeHex(claims.deviceSha256) != have) {
                 return failWith(claims, TtsErrorCode.LICENSE_DEVICE_MISMATCH, "legacy device hash mismatch")
             }
         }
 
-        // 全部通过。
         return Result(
             TtsLicenseStatus(
                 state = TtsLicenseStatus.State.LICENSED,
@@ -260,10 +214,7 @@ internal object LicenseVerifier {
         )
     }
 
-    /** 未武装 / 无 Context 时的开发态结果（放行）。 */
     internal fun devResult(packageName: String): Result = Result(dev(packageName), TtsErrorCode.OK, null)
-
-    // -------- 内部 --------
 
     private fun parseClaims(payloadJson: String): LicenseClaims {
         val o = JSONObject(payloadJson)
@@ -297,7 +248,6 @@ internal object LicenseVerifier {
         }
     }
 
-    /** 读取宿主 app 的签名证书 SHA-256 集合（大写、无冒号）。兼容 API 24~27 与 28+。 */
     private fun hostCertSha256Set(ctx: Context): Set<String> {
         val pm = ctx.packageManager
         val sigs: Array<android.content.pm.Signature> = try {
@@ -386,7 +336,6 @@ internal object LicenseVerifier {
         msg,
     )
 
-    /** 失败但已解析出 claims：尽量把客户 / 到期等信息带进 status，便于排障展示。 */
     private fun failWith(claims: LicenseClaims, code: Int, msg: String): Result = Result(
         TtsLicenseStatus(
             state = TtsLicenseStatus.State.INVALID,

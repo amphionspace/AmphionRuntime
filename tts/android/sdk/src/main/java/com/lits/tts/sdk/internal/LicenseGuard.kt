@@ -30,7 +30,7 @@ internal object LicenseGuard {
     /** police 风格显式入口：用业务方给定的 [context] / [options] 验签并缓存。ENFORCE 下失败抛异常。 */
     @Synchronized
     fun configureAndVerify(context: Context, options: TtsLicenseOptions) {
-        enforcement = options.licenseEnforcement
+        enforcement = options.enforcement
         val ctx = context.applicationContext ?: context
         val result = LicenseVerifier.verify(
             ctx = ctx,
@@ -38,6 +38,7 @@ internal object LicenseGuard {
             publicKeyB64 = BuildConfig.LICENSE_PUBLIC_KEY_B64,
             expiryGraceDays = options.expiryGraceDays,
             deviceIdProvider = options.deviceIdProvider,
+            hostDeviceSha256Override = options.deviceSha256,
             sdkMajor = BuildConfig.SDK_MAJOR,
             sdkReleaseDate = BuildConfig.SDK_RELEASE_DATE,
         )
@@ -72,7 +73,7 @@ internal object LicenseGuard {
                 licenseText = resolveLicenseText(ctx, TtsLicenseOptions()),
                 publicKeyB64 = BuildConfig.LICENSE_PUBLIC_KEY_B64,
                 expiryGraceDays = 0,
-                deviceIdProvider = null,
+                deviceIdProvider = TtsLicenseOptions().deviceIdProvider,
                 sdkMajor = BuildConfig.SDK_MAJOR,
                 sdkReleaseDate = BuildConfig.SDK_RELEASE_DATE,
             )
