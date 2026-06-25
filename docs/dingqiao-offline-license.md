@@ -2,6 +2,15 @@
 
 本文是鼎桥专网交付前的信息收集清单。实现细节以 Android/Harmony SDK 内的 `amphion-license.lic` 为准；ASR 与 TTS 共用同一份 license、公钥和设备白名单。
 
+## 当前 Android v0.2.7 交付口径
+
+| 对象 | applicationId / bundleName | features | SN 绑定 | 到期 |
+| --- | --- | --- | --- | --- |
+| Demo APK | `com.amphion.dingqiao.demo` | `ASR` | 不绑定 SN，只绑定 Demo 包名和签名 | `2026-08-25` |
+| 正式 SDK license | `com.tdtech.tiassistant` | `ASR,TTS` | 绑定鼎桥 SN 清单，本次 16 台 | `2026-08-25` |
+
+Demo APK 是普通安装体验包，必须能在没有系统 SN 读取权限的设备上完成 `createEngine`。正式 SDK license 单独下发给客户 App，才启用 SN 白名单；客户 App 需要能读取或注入本机 SN。
+
 ## 交付前鼎桥需要提供的信息
 
 | 类别 | 鼎桥需提供 | 用途 |
@@ -13,7 +22,7 @@
 | SN 读取方式 | Android 端使用 `Build.getSerial()`；宿主为系统应用，并申请 `android.permission.READ_PRIVILEGED_PHONE_STATE` | 运行时向 SDK 注入本机 SN |
 | 授权能力 | 是否授权 ASR、是否授权 TTS | 写入 `features`，仅允许 `ASR` 和 `TTS` |
 | 版本范围 | 授权 SDK 大版本 `sdkMajor`、维护期 `maintenanceUntil` | 控制大版本和维护期外升级 |
-| 运行期限 | `expiresAt` 是否为空；专网现场建议为空 | 避免设备时间异常导致停机 |
+| 运行期限 | `expiresAt` 是否为空或固定日期；本次 Android v0.2.7 为 `2026-08-25` | 控制运行到期策略 |
 | 组包责任 | 后装包或升级包由哪一方组包 | 确认 license、SDK/HAR、模型放置责任 |
 | 固定路径 | App assets 或 rawfile 中 license 的固定路径 | SDK 初始化时读取 `amphion-license.lic` |
 | 增量设备 | 后续新增设备 SN 的同步周期和交付方式 | 支持增量或全量重签 |
@@ -66,7 +75,7 @@ SDK 已提供 `DeviceIdProvider` 注入通道。Android ASR 鼎桥封装层和 A
 
 建议策略：
 
-- `expiresAt` 默认留空，避免专网设备因系统时间异常停机。
+- `expiresAt` 由商务策略决定；本次 Android v0.2.7 使用固定到期日 `2026-08-25`。
 - `maintenanceUntil` 控制能否升级到某个发布时间的 SDK 或模型版本。
 - `sdkMajor` 不一致或维护期外升级需要重新签发 license。
 - 新增设备、换机或 SN 变化时，需要提供新 SN 并重新签发全量或增量授权包。

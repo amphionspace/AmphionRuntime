@@ -31,6 +31,10 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+
+    androidResources {
+        noCompress += listOf("onnx")
+    }
 }
 
 dependencies {

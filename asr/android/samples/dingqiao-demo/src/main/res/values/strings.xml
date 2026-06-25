@@ -29,18 +29,15 @@
     <string name="vp_delete_failed">删除失败：%1$s</string>
 
     <string name="vp_need_register">请先注册声纹</string>
-    <string name="vp_model_missing">未找到声纹模型，请导入 eres2net.onnx</string>
-    <string name="vp_model_unreadable">声纹模型存在但 App 无法读取（adb push 后属主常为 root，请用下方「导入声纹模型」）</string>
-    <string name="menu_import_model">导入声纹模型</string>
-    <string name="vp_model_import_ok">声纹模型已导入</string>
-    <string name="vp_model_import_failed">导入失败，请确认选择的是 eres2net.onnx（约 38 MB）</string>
+    <string name="vp_model_missing">声纹模型正在准备或解包失败，请重新打开 Demo</string>
+    <string name="vp_model_unreadable">声纹模型存在但 App 无法读取，请重新安装或清理应用数据后重试</string>
     <string name="vp_registered">已注册声纹：%1$s</string>
     <string name="vp_not_registered">未注册声纹</string>
     <string name="speaker_score_format">相似度 %.2f</string>
     <string name="speaker_score_tag">[声纹相似度 %.2f]</string>
 
     <string name="enroll_title">声纹注册</string>
-    <string name="enroll_hint">录制至少 1 段语音，每段 3~8 秒；多录几段并覆盖远/中/近距离可提升稳定性。注册前须先导入声纹模型 eres2net.onnx。</string>
+    <string name="enroll_hint">录制至少 1 段语音，每段 3~8 秒；多录几段并覆盖远/中/近距离可提升稳定性。声纹模型已随 SDK 内置并自动准备。</string>
     <string name="enroll_status">已录制 %1$d 段（至少 1 段即可注册）</string>
     <string name="enroll_record">录制一段</string>
     <string name="enroll_record_stop">结束本段</string>

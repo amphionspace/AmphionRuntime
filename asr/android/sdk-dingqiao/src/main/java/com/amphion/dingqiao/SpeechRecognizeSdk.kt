@@ -63,6 +63,9 @@ object SpeechRecognizeSdk {
         dir.mkdirs()
         require(dir.isDirectory && dir.canWrite()) { "workPath must be writable: $path" }
         workPath = dir
+        appContext?.let { ctx ->
+            DingqiaoSpeakerModelAssets.ensureInstalled(ctx, File(dir, DINGQIAO_SPEAKER_MODEL_FILENAME))
+        }
     }
 
     /**
@@ -80,6 +83,7 @@ object SpeechRecognizeSdk {
         val ctx = requireContext()
         ensureRuntimeInitialized(ctx)
         val store = requireStore()
+        DingqiaoSpeakerModelAssets.ensureInstalled(ctx, store.speakerModelPath())
         val speakerModel = store.speakerModelPath().takeIf { it.isFile }?.absolutePath
         return DingqiaoRecognitionEngine.create(
             appContext = ctx,
@@ -146,7 +150,8 @@ object SpeechRecognizeSdk {
         }
         val store = requireStore()
         val modelPath = store.speakerModelPath()
-        if (!modelPath.isFile) {
+        DingqiaoSpeakerModelAssets.ensureInstalled(requireContext(), modelPath)
+        if (!DingqiaoSpeakerModelAssets.isReady(modelPath)) {
             throw DingqiaoEngineException(
                 DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
                 "speaker model not found: ${modelPath.absolutePath}",
@@ -338,15 +343,39 @@ object SpeechRecognizeSdk {
 
         @SuppressLint("HardwareIds", "MissingPermission")
         private fun readDeviceSerial(): String? =
+            firstUsableSerial(
+                runCatching {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Build.getSerial()
+                    } else {
+                        @Suppress("DEPRECATION")
+                        Build.SERIAL
+                    }
+                }.getOrNull(),
+                readSystemProperty("ro.serialno"),
+                readSystemProperty("ro.boot.serialno"),
+                readSystemProperty("ril.serialnumber"),
+                readGetprop("ro.serialno"),
+                readGetprop("ro.boot.serialno"),
+            )
+
+        private fun firstUsableSerial(vararg candidates: String?): String? =
+            candidates
+                .asSequence()
+                .mapNotNull { it?.trim() }
+                .firstOrNull { it.isNotBlank() && !it.equals(Build.UNKNOWN, ignoreCase = true) }
+
+        private fun readSystemProperty(key: String): String? =
             runCatching {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    Build.getSerial()
-                } else {
-                    @Suppress("DEPRECATION")
-                    Build.SERIAL
-                }
+                val clazz = Class.forName("android.os.SystemProperties")
+                val get = clazz.getMethod("get", String::class.java)
+                get.invoke(null, key) as? String
             }.getOrNull()
-                ?.trim()
-                ?.takeUnless { it.isBlank() || it.equals(Build.UNKNOWN, ignoreCase = true) }
+
+        private fun readGetprop(key: String): String? =
+            runCatching {
+                val process = ProcessBuilder("getprop", key).redirectErrorStream(true).start()
+                process.inputStream.bufferedReader().use { it.readText() }.trim()
+            }.getOrNull()
     }
 }

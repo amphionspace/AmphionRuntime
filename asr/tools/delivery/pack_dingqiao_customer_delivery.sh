@@ -26,7 +26,6 @@ OUT_ROOT="$DQ_ROOT/delivery/$PKG_NAME"
 ZIP_PATH="$DQ_ROOT/delivery/${PKG_NAME}-${BUILD_DATE}.zip"
 AAR_NAME="dingqiao-asr-v${VERSION}.aar"
 FAT_AAR="$AR_ROOT/build/dingqiao-delivery/$AAR_NAME"
-ERES2NET_SRC="$REPO_ROOT/asr/tools/speaker/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"
 DEMO_APK_DIR="$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release"
 DEMO_APK_SRC="$DEMO_APK_DIR/dingqiao-demo-release.apk"
 DEMO_LIC_SRC="$AR_ROOT/samples/dingqiao-demo/src/main/assets/amphion-license.lic"
@@ -55,20 +54,19 @@ fi
 [[ -f "$DEMO_APK_SRC" ]] || { echo "[ERROR] missing $DEMO_APK_SRC" >&2; exit 1; }
 [[ -f "$DEMO_LIC_SRC" ]] || { echo "[ERROR] missing $DEMO_LIC_SRC" >&2; exit 1; }
 dingqiao_verify_apk_native_libs "$DEMO_APK_SRC"
+dingqiao_verify_apk_speaker_model "$DEMO_APK_SRC"
 
 echo "[3/4] assemble customer delivery tree ..."
 rm -rf "$OUT_ROOT"
-mkdir -p "$OUT_ROOT"/{aar,demo,models,docs}
+mkdir -p "$OUT_ROOT"/{aar,demo,docs}
 
 cp "$FAT_AAR" "$OUT_ROOT/aar/"
 cp "$DEMO_APK_SRC" "$OUT_ROOT/demo/dingqiao-demo-release.apk"
-cp "$ERES2NET_SRC" "$OUT_ROOT/models/eres2net.onnx"
 
 dingqiao_stage_customer_docs "$OUT_ROOT/docs" "$CUSTOMER_DOCS" "$DQ_ROOT"
 
 AAR_MB="$(du -m "$OUT_ROOT/aar/$AAR_NAME" | awk '{print $1}')"
 APK_MB="$(du -m "$OUT_ROOT/demo/dingqiao-demo-release.apk" | awk '{print $1}')"
-MODEL_MB="$(du -m "$OUT_ROOT/models/eres2net.onnx" | awk '{print $1}')"
 
 dingqiao_write_version_txt "$OUT_ROOT/VERSION.txt" \
   "amphion-dingqiao-customer" "$VERSION" \
@@ -77,7 +75,7 @@ dingqiao_write_version_txt "$OUT_ROOT/VERSION.txt" \
   "aar_file=$AAR_NAME" \
   "aar_mb=$AAR_MB" \
   "demo_apk_mb=$APK_MB" \
-  "voiceprint_model_mb=$MODEL_MB" \
+  "voiceprint_model=embedded-in-aar" \
   "pack_script=asr/tools/delivery/pack_dingqiao_customer_delivery.sh"
 
 bash "$REPO_ROOT/asr/tools/delivery/verify_dingqiao_delivery.sh" "$OUT_ROOT/VERSION.txt"
@@ -101,7 +99,6 @@ cat > "$OUT_ROOT/README.txt" <<EOF
   aar/$AAR_NAME              集成用 SDK（~${AAR_MB} MB）
   demo/dingqiao-demo-release.apk   参考 Demo（~${APK_MB} MB）
   demo-src/                  Demo 参考工程源码（独立 Gradle，默认依赖 libs/ 内同版 AAR）
-  models/eres2net.onnx       声纹模型（~${MODEL_MB} MB，放入 setWorkPath）
   docs/                      集成、商用授权（LICENSE.md）、第三方声明（NOTICE）
 
 快速集成
@@ -114,9 +111,10 @@ cat > "$OUT_ROOT/README.txt" <<EOF
 说明
 ----
   - SDK 已内置授权校验能力；交付包内不含验签公钥，请勿自行配置密钥。
-  - 商用授权文件单独下发，不包含在本压缩包内。
+  - 商用授权文件单独下发，不包含在本压缩包内；正式 App 授权可绑定 SN 清单，并可供 ASR/TTS 共用。
+  - 声纹模型已内置于 SDK AAR，首次运行会自动解包到 setWorkPath，无需单独下发 models/eres2net.onnx。
   - 版本与 git 溯源见 VERSION.txt（含 git_commit_full / buildconfig_sdk_version）
-  - Demo APK 内 license 为 2 个月试用（绑定 demo 包名+签名）；到期需重签并重打 Demo
+  - Demo APK 内 license 为 2 个月试用（绑定 demo 包名+签名，不绑定 SN）；到期需重签并重打 Demo
   - 第三方开源组件声明见 docs/NOTICE（sherpa-onnx / ONNX Runtime / silero-vad / 3D-Speaker 等）
   - 校验: bash asr/tools/delivery/verify_dingqiao_delivery.sh VERSION.txt
 EOF

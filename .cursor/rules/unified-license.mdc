@@ -11,5 +11,7 @@ alwaysApply: false
 - `features` is only a product-level authorization list. It may contain `ASR`, `TTS`, or both. Do not add language, police enhancement, hotword, speaker, or model names as license feature values.
 - Device binding uses SN whitelist hashing: `SHA-256(normalizedSn + deviceIdSaltId)`, where `normalizedSn` is trimmed and uppercased. Keep Android, Harmony, and Python tool behavior aligned.
 - The project default `deviceIdSaltId` is `DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71`; signing tools should default to it unless a task explicitly changes the project salt.
+- Dingqiao formal customer license for `com.tdtech.tiassistant` is shared by ASR and TTS: use `features=ASR,TTS`, bind the customer SN whitelist, and enforce the agreed expiry.
+- Dingqiao Demo APK license is the deliberate exception: it is for `com.amphion.dingqiao.demo`, uses `features=ASR`, is time-limited, and must not bind SN so that a normally installed Demo can pass `createEngine`.
 - Android Dingqiao ASR and Android TTS delivery paths should both read SN through `Build.getSerial()` by default. The host system app must obtain `android.permission.READ_PRIVILEGED_PHONE_STATE`; custom providers are only for customer systems with a different SN API.
 - When changing license error codes, status fields, claim parsing, signing tools, or docs, update ASR, TTS, and delivery documentation together, then run focused tests for both sides.

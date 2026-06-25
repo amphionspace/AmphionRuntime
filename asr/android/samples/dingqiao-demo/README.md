@@ -22,6 +22,4 @@ cd asr/android
 
 ## 声纹模型
 
-```bash
-adb push eres2net.onnx /sdcard/Android/data/com.amphion.dingqiao.demo/files/dingqiao_work/
-```
+声纹模型已内置在交付 AAR 中，Demo 首次启动会自动准备到工作目录，不需要手动 push `eres2net.onnx`。

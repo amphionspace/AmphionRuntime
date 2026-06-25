@@ -207,6 +207,34 @@ for path in required:
 PY
 }
 
+dingqiao_verify_aar_speaker_model() {
+  local aar_path="$1"
+  python3 - "$aar_path" <<'PY'
+import sys
+import zipfile
+
+aar_path = sys.argv[1]
+path = "assets/amphion-dingqiao/eres2net.onnx"
+min_bytes = 30 * 1024 * 1024
+
+try:
+    with zipfile.ZipFile(aar_path) as aar:
+        sizes = {info.filename: info.file_size for info in aar.infolist()}
+except zipfile.BadZipFile as exc:
+    print(f"[ERROR] invalid AAR zip: {aar_path}: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+size = sizes.get(path)
+if size is None:
+    print(f"[ERROR] AAR missing embedded speaker model: {path}", file=sys.stderr)
+    sys.exit(1)
+if size < min_bytes:
+    print(f"[ERROR] AAR speaker model too small: {path} ({size} bytes)", file=sys.stderr)
+    sys.exit(1)
+print(f"[OK] AAR speaker model present: {path} ({size} bytes)")
+PY
+}
+
 dingqiao_verify_apk_native_libs() {
   local apk_path="$1"
   python3 - "$apk_path" <<'PY'
@@ -242,6 +270,34 @@ if missing or empty:
 
 for path in required:
     print(f"[OK] APK native lib present: {path} ({sizes[path]} bytes)")
+PY
+}
+
+dingqiao_verify_apk_speaker_model() {
+  local apk_path="$1"
+  python3 - "$apk_path" <<'PY'
+import sys
+import zipfile
+
+apk_path = sys.argv[1]
+path = "assets/amphion-dingqiao/eres2net.onnx"
+min_bytes = 30 * 1024 * 1024
+
+try:
+    with zipfile.ZipFile(apk_path) as apk:
+        sizes = {info.filename: info.file_size for info in apk.infolist()}
+except zipfile.BadZipFile as exc:
+    print(f"[ERROR] invalid APK zip: {apk_path}: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+size = sizes.get(path)
+if size is None:
+    print(f"[ERROR] APK missing embedded speaker model: {path}", file=sys.stderr)
+    sys.exit(1)
+if size < min_bytes:
+    print(f"[ERROR] APK speaker model too small: {path} ({size} bytes)", file=sys.stderr)
+    sys.exit(1)
+print(f"[OK] APK speaker model present: {path} ({size} bytes)")
 PY
 }
 
@@ -319,7 +375,8 @@ dingqiao_stage_customer_docs() {
   }
 }
 
-# Demo Release APK 内嵌 license：自签发日起 DINGQIAO_DEMO_TRIAL_MONTHS（默认 2）个月试用
+# Demo Release APK 内嵌 license：自签发日起 DINGQIAO_DEMO_TRIAL_MONTHS（默认 2）个月试用。
+# Demo 只绑定包名和签名，不绑定 SN；正式客户 license 才绑定 SN 清单。
 dingqiao_issue_demo_license() {
   local repo_root="$1"
   bash "$repo_root/asr/tools/license/issue_dingqiao_demo.sh"
