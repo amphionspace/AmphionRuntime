@@ -50,7 +50,7 @@ object DingqiaoVoiceprintStatus {
     const val SUCCESS = 0
 }
 
-/** 默认声纹 ONNX 文件名，应置于 [SpeechRecognizeSdk.setWorkPath] 目录下。 */
+/** 默认声纹 ONNX 文件名；SDK 会自动准备到 [SpeechRecognizeSdk.setWorkPath] 目录下。 */
 const val DINGQIAO_SPEAKER_MODEL_FILENAME = "eres2net.onnx"
 
 /** 写入音频帧字节数（16 kHz mono 16-bit PCM，20 ms）。 */

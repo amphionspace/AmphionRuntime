@@ -24,7 +24,7 @@
 
 **不在交付范围：** `:samples:public-demo` 云端 ASR、Batch Eval；`:samples:internal-eval` 内部评测。
 
-## 2. 交付物清单（v0.1）
+## 2. 交付物清单（v0.2.7）
 
 | 产物 | 路径 / 命令 | 说明 |
 |------|-------------|------|
@@ -36,7 +36,7 @@
 
 | 文件 | 用途 |
 |------|------|
-| `eres2net.onnx` | 声纹 embedding 模型（约 27 MB），放入 `setWorkPath` 目录 |
+| 声纹模型 `eres2net.onnx` | 已内置于 `dingqiao-asr-v*.aar`，首次运行自动解包到 `setWorkPath` |
 | `amphion-license.lic` | 商用授权（武装构建 AAR 时必需，见 `docs/LICENSING.md`） |
 
 ## 3. 构建环境
@@ -69,7 +69,7 @@ dependencies {
 
 | 脚本 | 用途 |
 |------|------|
-| `asr/tools/delivery/pack_dingqiao_customer_delivery.sh` | **鼎桥正式发包**（fat AAR + Demo + 客户文档） |
+| `asr/tools/delivery/pack_dingqiao_customer_delivery.sh` | 鼎桥正式发包（fat AAR + Demo + 客户文档） |
 | `asr/tools/delivery/pack_dingqiao_delivery_scheme_a_aligned.sh` | 内部预览（fat AAR 与 Demo 同 AAR 对齐） |
 | `asr/tools/delivery/pack_dingqiao_delivery.sh` | 内部 scheme A（含 LICENSING 等） |
 | `asr/tools/delivery/pack_dingqiao_delivery_scheme_b.sh` | 三 AAR 分模块 scheme B |
@@ -106,7 +106,7 @@ bash asr/tools/delivery/verify_dingqiao_delivery.sh delivery/.../amphion-dingqia
 | `语音识别SDK接口.md` | API 契约 |
 | `DINGQIAO_INTEGRATION.md` | 集成说明 |
 | `LICENSE.md` | 商用授权接入（不含验签公钥） |
-| `NOTICE` | 第三方开源组件声明（**必含**） |
+| `NOTICE` | 第三方开源组件声明（必含） |
 
 **Windows 解压（中文文件名）**
 
@@ -124,7 +124,7 @@ SpeechRecognizeSdk.setWorkPath("/data/your_app/asr_work")  // 可读写目录
 `setWorkPath` 用于：
 
 - 声纹 embedding 持久化（`voiceprints/{voiceprintId}/`）
-- 声纹模型路径：`{workPath}/eres2net.onnx`
+- 声纹模型路径：`{workPath}/eres2net.onnx`（由 SDK 从 AAR assets 自动准备）
 
 ### 5.2 识别主链
 
@@ -141,8 +141,8 @@ createEngine → setListener → startListening
 | `createEngine` | `AmphionRuntime.create` + 警务热词默认全开 |
 | `writeAudio` | 仅接受 640 字节 PCM 帧 |
 | `finish` | 触发 final；`isLast=true` |
-| `onResult` | **partial**：ASR 原文；**final**：警务增强后文本 |
-| `speakerSimilarity` | final 且启用声纹校验时返回；SDK **不丢弃**非目标人结果 |
+| `onResult` | partial：ASR 原文；final：警务增强后文本 |
+| `speakerSimilarity` | final 且启用声纹校验时返回；SDK 不丢弃非目标人结果 |
 
 警务后处理顺序：**术语 → 车牌 → 派出所**（`PoliceEnhancePipeline`）。
 
@@ -161,19 +161,13 @@ createEngine → setListener → startListening
 包名：`com.amphion.dingqiao.demo`
 
 1. 安装 APK，授予录音权限  
-2. 推送声纹模型（示例）：
-
-```bash
-adb push eres2net.onnx /sdcard/Android/data/com.amphion.dingqiao.demo/files/dingqiao_work/
-```
-
-3. 菜单 → **声纹注册**：录至少 1 段 → **注册声纹**  
-4. 主界面打开 **声纹校验** 开关 → 开始识别 → final 行显示增强文本与相似度  
-5. 删除声纹：主界面菜单 **删除声纹**，或注册页 **删除已注册声纹**（调用 `deleteVoiceprint`）
+2. 菜单 → **声纹注册**：录至少 1 段 → **注册声纹**  
+3. 主界面打开 **声纹校验** 开关 → 开始识别 → final 行显示增强文本与相似度  
+4. 删除声纹：主界面菜单 **删除声纹**，或注册页 **删除已注册声纹**（调用 `deleteVoiceprint`）
 
 工作目录默认：`getExternalFilesDir()/dingqiao_work/`
 
-## 7. 能力与默认行为（v0.1 锁定）
+## 7. 能力与默认行为（v0.2.7 锁定）
 
 - 语种：`zh-CN`（映射内部 `AsrLanguage.ZH_EN`）
 - 离线 only；警务三场景 normalize **默认开启**
@@ -226,7 +220,7 @@ keytool -genkeypair -v -storetype PKCS12 \
 
 ### 8.3 签发 Demo `.lic`
 
-`.lic` **不进 git**；构建 Release 前生成并放入 Demo assets。Demo 授权为**限期试用**（默认自签发日起 **2 个月**），仍绑定 `com.amphion.dingqiao.demo` 包名与 Demo Release 证书 SHA-256；到期后 SDK 返回 `6006 LICENSE_EXPIRED`。交付打包脚本会在构建 Demo Release 前自动重签。
+`.lic` **不进 git**；构建 Release 前生成并放入 Demo assets。Demo 授权为**限期试用**（默认自签发日起 **2 个月**），绑定 `com.amphion.dingqiao.demo` 包名与 Demo Release 证书 SHA-256，不绑定设备 SN；到期后 SDK 返回 `6006 LICENSE_EXPIRED`。交付打包脚本会在构建 Demo Release 前自动重签。
 
 ```bash
 bash ../../asr/tools/license/issue_dingqiao_demo.sh
@@ -236,9 +230,9 @@ bash ../../asr/tools/license/issue_dingqiao_demo.sh
 
 每次对外发 Demo APK 或交付 zip 前请确认已重签（`pack_dingqiao_*.sh` 已集成）。续期 = 用同一私钥对同一 applicationId + certSha256 重签更晚 `expiresAt` 的 `.lic`。
 
-鼎桥客户正式包：用同一私钥，按 [`docs/DELIVERY.md`](DELIVERY.md) §11 对其 **applicationId + release 证书 SHA256** 单独签发。
+鼎桥客户正式包：用同一私钥，按 [`docs/DELIVERY.md`](DELIVERY.md) §11 对其 **applicationId + release 证书 SHA256 + 设备 SN 清单** 单独签发。本次 `com.tdtech.tiassistant` 正式 license 供 ASR 与 TTS 共用，`features=ASR,TTS`，并限制到期时间。
 
-正式包如启用设备 SN 白名单，Android 鼎桥封装层会通过 `Build.getSerial()` 读取设备序列号。宿主 App 必须作为系统应用声明并获得 `android.permission.READ_PRIVILEGED_PHONE_STATE`；若权限缺失或系统返回空/`UNKNOWN`，license 激活会因设备 SN 不可用失败。
+正式包如启用设备 SN 白名单，Android 鼎桥封装层会通过 `Build.getSerial()` 读取设备序列号。宿主 App 必须作为系统应用声明并获得 `android.permission.READ_PRIVILEGED_PHONE_STATE`；若权限缺失或系统返回空/`UNKNOWN`，license 激活会因设备 SN 不可用失败。不要把 SN 绑定策略套到普通安装的 Demo APK 上，否则 Demo 可能无法完成 `createEngine`。
 
 ### 8.4 Release 真机 smoke
 
@@ -247,10 +241,7 @@ bash ../../asr/tools/license/issue_dingqiao_demo.sh
 adb uninstall com.amphion.dingqiao.demo
 adb install samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk
 
-# 声纹模型（卸载后需重 push）
-adb push eres2net.onnx /sdcard/Android/data/com.amphion.dingqiao.demo/files/dingqiao_work/
-
-# 日志：启动后应无 code=6001/6003；AmphionRuntime 进入 LICENSED
+# 日志：启动后应无 code=6001/6003/6007；AmphionRuntime 进入 LICENSED
 adb logcat -s AmphionRuntime:D DingqiaoDemo:W
 ```
 

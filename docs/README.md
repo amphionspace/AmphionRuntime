@@ -33,6 +33,7 @@
 
 | 文档 | 说明 |
 | --- | --- |
+| dingqiao-v0.2.7-delivery.md | 鼎桥 Android v0.2.7 最终交付口径：Demo 不绑 SN，正式 SDK license 绑 SN 并供 ASR/TTS 共用 |
 | dingqiao-offline-license.md | 鼎桥专网离线 license 交付前置清单：SN、App 标识、签名证书、授权范围、维护期和组包路径 |
 
 ### Speaker（目标说话人 ASR 调研期）

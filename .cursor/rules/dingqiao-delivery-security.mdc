@@ -9,12 +9,14 @@ alwaysApply: true
 
 1. 只从 `origin/main` 的干净隔离 clone 或等价干净检出构建。不要从用户当前脏工作区或功能分支直接打包。
 2. `.secure/` 下的文件一律按敏感输入处理：只读取必要内容，不在对话中打印私钥、SN 明文、签名密码或完整 license payload。
-3. 面向 `com.tdtech.tiassistant` 时，用 `.secure/amphion-license-private.pem` 签发 `license/amphion-license.lic`；如提供 SN 清单，必须绑定 SN 白名单；除非用户明确要求已交付的其他产品能力，`features` 使用 `ASR`。
-4. 设备绑定规则必须是 `SHA-256(normalizedSn + deviceIdSaltId)`，其中 `normalizedSn` 为 trim 后转大写。默认 `deviceIdSaltId` 为 `DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71`。
-5. 客户可见文档不得暴露内部路径、仓库 URL、除 `main` 外的分支信息、构建脚本、`.secure`、密钥配置、密码、TODO/FIXME、或把离线授权描述成联网鉴权。
-6. 文档必须清楚覆盖全部公开集成面：`init`、`setWorkPath`、`createEngine`、`setListener`、`startListening`、`writeAudio`、`finish`、`cancel`、`isBusy`、`shutdown`、`registerVoiceprint`、`deleteVoiceprint`、`setLicense`、`getLicenseInfo`、监听回调、数据结构、错误码、热词、声纹模型放置、授权绑定和最小调用顺序。
-7. 交付 Markdown 文档的表格单元格只放原文，不使用粗体、斜体或删除线。
-8. 压缩前必须脱敏可能暴露本机路径或仓库来源的 AAR 元数据。`amphion.repo.remote` 应为 `not-disclosed`，分支元数据应为 `main`。
-9. 更新 `docs/checksum.txt`，用 UTF-8 交付 zip 工具创建压缩包，并校验 `VERSION.txt`、AAR 溯源、`docs/NOTICE`、zip UTF-8 标志和 CRC 完整性。
-10. 打包完成后必须对最终 zip 再做一次自检；以压缩包内容为准检查条目、CRC、UTF-8 标志、客户可见文档、license、AAR 元数据、checksum 和禁止文件名。必要时解包到临时目录后查验，确认没有 `.secure`、`.git`、keystore、私钥、内部路径或旧口径残留。
-11. 最终回复必须包含 zip 路径、SHA-256、授权有效期、适用时的 SN 白名单数量、源码 commit，以及任何偏离标准流程的地方。
+3. Demo APK 内置 license 仅用于体验：绑定 `com.amphion.dingqiao.demo` 和 Demo 签名，限制期限，不绑定 SN 清单。普通安装 Demo 必须能通过 `createEngine`。
+4. 面向正式宿主 `com.tdtech.tiassistant` 时，用 `.secure/amphion-license-private.pem` 单独签发 `license/amphion-license.lic`；必须绑定客户 SN 白名单；鼎桥 ASR/TTS 共用交付时 `features` 使用 `ASR,TTS`。
+5. 设备绑定规则必须是 `SHA-256(normalizedSn + deviceIdSaltId)`，其中 `normalizedSn` 为 trim 后转大写。默认 `deviceIdSaltId` 为 `DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71`。
+6. 声纹模型 `eres2net.onnx` 必须内置在 `dingqiao-asr-v*.aar` 和 Demo APK 的 `assets/amphion-dingqiao/` 下；客户包不得再要求外置 `models/eres2net.onnx`。
+7. 客户可见文档不得暴露内部路径、仓库 URL、除 `main` 外的分支信息、构建脚本、`.secure`、密钥配置、密码、TODO/FIXME、或把离线授权描述成联网鉴权。
+8. 文档必须清楚覆盖全部公开集成面：`init`、`setWorkPath`、`createEngine`、`setListener`、`startListening`、`writeAudio`、`finish`、`cancel`、`isBusy`、`shutdown`、`registerVoiceprint`、`deleteVoiceprint`、`setLicense`、`getLicenseInfo`、监听回调、数据结构、错误码、热词、声纹模型自动准备、授权绑定和最小调用顺序。
+9. 交付 Markdown 文档的表格单元格只放原文，不使用粗体、斜体或删除线。
+10. 压缩前必须脱敏可能暴露本机路径或仓库来源的 AAR 元数据。`amphion.repo.remote` 应为 `not-disclosed`，分支元数据应为 `main`。
+11. 更新 `docs/checksum.txt`，用 UTF-8 交付 zip 工具创建压缩包，并校验 `VERSION.txt`、AAR 溯源、`docs/NOTICE`、zip UTF-8 标志、CRC 完整性、native `.so` 和内置声纹模型。
+12. 打包完成后必须对最终 zip 再做一次自检；以压缩包内容为准检查条目、CRC、UTF-8 标志、客户可见文档、license、AAR 元数据、checksum 和禁止文件名。必要时解包到临时目录后查验，确认没有 `.secure`、`.git`、keystore、私钥、内部路径或旧口径残留。
+13. 最终回复必须包含 zip 路径、SHA-256、授权有效期、正式 license 的 SN 白名单数量、Demo license 是否绑定 SN、声纹模型是否内置、源码 commit，以及任何偏离标准流程的地方。

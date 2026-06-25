@@ -9,6 +9,7 @@
 - 防转移：license 与宿主 applicationId / bundleName 绑定，叠加签名证书和设备 SN 白名单。
 - 防篡改：ECDSA 数字签名；客户拿到的是公钥，无法伪造 / 改写 license。
 - 开发无摩擦：未注入公钥的构建（开发 / 内部）自动处于 DEV_UNLICENSED，不做任何校验。
+- 鼎桥 Android v0.2.7 正式 license 面向 `com.tdtech.tiassistant`，`features=ASR,TTS`，绑定 SN 清单并与 ASR 共用；ASR Demo APK 的限期 license 不绑 SN，只用于 Demo 体验。
 
 边界（诚实声明）：离线方案无法对抗「持有 root 的对手反编译 + 打补丁绕过校验」。本方案目标是
 抬高门槛、约束正常商业客户的越权使用，不是 DRM 级强对抗。release 开启 R8 混淆 internal 验签

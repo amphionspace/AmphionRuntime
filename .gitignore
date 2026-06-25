@@ -118,6 +118,7 @@ shared/regression-set/audio/
 # Demo 模型由 asr/tools/00_fetch_demo_model.sh 拉取到 asr/tools/demo-model/
 # 自有模型由 asr/tools/00_push_my_model.sh 推到设备，本地目录由用户自管
 *.onnx
+!asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx
 *.wav
 *.tar
 *.tar.bz2
