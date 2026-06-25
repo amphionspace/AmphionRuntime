@@ -78,7 +78,7 @@ lits_tts_write_version_txt "$OUT_ROOT/VERSION.txt" \
   "sample_apk_mb=$SAMPLE_APK_MB" \
   "android_source_dir=android-src/TTS" \
   "android_source_mb=$SRC_MB" \
-  "model_id=transsion_lits_en_zh_vocos24k_streaming_proto" \
+  "model_id=transsion_lits_en_zh_vocos24k_streaming_proto_external_loop" \
   "model_version=0.1.0" \
   "sample_rate=24000" \
   "vocoder=vocos" \
@@ -102,14 +102,14 @@ Lits TTS Android SDK v${VERSION}
   1. 将 aar/$AAR_NAME 放入宿主 App 的 libs/
   2. implementation(files("libs/$AAR_NAME"))
   3. 按 docs/INTEGRATION.md 初始化 TextToSpeechSdk
-  4. 如为武装构建，按 docs/LICENSE.md 放置 lits-tts-license.lic
+  4. 如为武装构建，按 docs/LICENSE.md 放置 amphion-license.lic
 
 从源码重建
 ----------
   1. 进入 android-src/TTS/tts/android
   2. 确认 Android SDK 路径可用（local.properties 或 ANDROID_HOME / ANDROID_SDK_ROOT）
   3. 执行:
-       python ../../tts/tools/verify_transsion_vocos24k_package.py --model-dir ../../tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0
+       python ../../tts/tools/verify_transsion_vocos24k_package.py --model-dir ../../tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0
        ./gradlew :sdk:testDebugUnitTest
        ./gradlew :sdk:assembleRelease
        ./gradlew :sample:assembleDebug

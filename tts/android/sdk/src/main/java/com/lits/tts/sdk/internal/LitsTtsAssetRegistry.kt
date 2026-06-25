@@ -5,6 +5,7 @@ internal object LitsTtsAssetRegistry {
     const val MODEL_ROOT: String = "tts"
     const val MODEL_ID: String = "transsion_lits_en_zh_vocos24k_streaming_proto_external_loop"
     const val MODEL_VERSION: String = "0.1.0"
+    const val ASSET_SIGNATURE_VERSION: String = "20260624-frontend-v2.6"
 
     const val MANIFEST: String = "manifest.json"
     const val ACOUSTIC_MODEL: String = "lits_acoustic.onnx"
@@ -14,9 +15,9 @@ internal object LitsTtsAssetRegistry {
     const val STREAM_DECODER_STEP_MODEL: String = "lits_stream_decoder_step.onnx"
     const val VOCODER_MODEL: String = "vocos_vocoder.onnx"
     const val FRONTEND_GOLDEN: String = "frontend_golden.json"
+    const val FRONTEND_RULES: String = "frontend_rules.json"
     const val CHINESE_LEXICON: String = "chinese_lexicon.txt"
     const val CHINESE_LEXICON_BIN: String = "chinese_lexicon.bin"
-    const val PINYIN_FALLBACK: String = "pinyin_fallback.json"
     const val CMUDICT: String = "cmudict.txt"
     const val CMUDICT_BIN: String = "cmudict.bin"
     const val SUPPLEMENT_LEXICON: String = "supplement_lexicon.json"
@@ -41,9 +42,9 @@ internal object LitsTtsAssetRegistry {
         STREAM_DECODER_STEP_MODEL,
         VOCODER_MODEL,
         FRONTEND_GOLDEN,
+        FRONTEND_RULES,
         CHINESE_LEXICON,
         CHINESE_LEXICON_BIN,
-        PINYIN_FALLBACK,
         CMUDICT,
         CMUDICT_BIN,
         SUPPLEMENT_LEXICON,

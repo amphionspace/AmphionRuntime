@@ -8,11 +8,11 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.lits.tts.sample"
+        applicationId = "com.tdtech.tiassistant"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "0.2.5"
+        versionName = "0.2.5.1"
     }
 
     buildTypes {

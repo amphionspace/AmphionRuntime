@@ -1,6 +1,8 @@
 import application from '@ohos.app.ability.application';
 import fs from '@ohos.file.fs';
 import { audio } from '@kit.AudioKit';
+import { buffer } from '@kit.ArkTS';
+import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 
 const MODEL_ID: string = 'transsion_lits_en_zh_vocos24k_streaming_proto_external_loop';
 const MODEL_VERSION: string = '0.1.0';
@@ -17,6 +19,7 @@ const STREAM_METRIC_LOG_TAG: string = '[LitsStreamMetric]';
 const DEFAULT_PCM_QUEUE_CAPACITY_VALUE: number = 32;
 const MAX_PCM_QUEUE_CAPACITY_VALUE: number = 256;
 const STREAMING_PREBUFFER_CHUNKS: number = 2;
+const LICENSE_PUBLIC_KEY_B64: string = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc5BCEdeeELgXa3tTXeM6i49o+2NslcH9FrgpAMn3o61kFEv1Xlv7fD/kYA5NnXi2eLM8l+w4wEUvPgsbiM9tCQ==';
 
 const SUPPORTED_LANGUAGES: Array<string> = ['zh-en', 'en-US'];
 const SUPPORTED_LANGUAGE_SET: Set<string> = new Set<string>(SUPPORTED_LANGUAGES);
@@ -339,6 +342,7 @@ interface NativeStreamingSynthesisMetrics {
 }
 
 export enum TtsErrorCode {
+  OK = 0,
   TEXT_LENGTH_INVALID = 1002300001,
   LANGUAGE_UNSUPPORTED = 1002300002,
   VOICE_UNSUPPORTED = 1002300003,
@@ -348,7 +352,14 @@ export enum TtsErrorCode {
   ENGINE_DESTROYED = 1002300008,
   INTERNAL_SERVICE_ERROR = 1002300009,
   QUEUE_FULL = 1002300010,
-  RUNTIME_EXCEPTION = 1002300011
+  RUNTIME_EXCEPTION = 1002300011,
+  LICENSE_MISSING = 1002300012,
+  LICENSE_MALFORMED = 1002300013,
+  LICENSE_SIGNATURE_INVALID = 1002300014,
+  LICENSE_APP_MISMATCH = 1002300015,
+  LICENSE_CERT_MISMATCH = 1002300016,
+  LICENSE_EXPIRED = 1002300017,
+  LICENSE_DEVICE_MISMATCH = 1002300018
 }
 
 export class TextToSpeechException extends Error {
@@ -477,6 +488,285 @@ export interface TextToSpeechEngine {
   stop(): void;
   isBusy(): boolean;
   shutdown(): void;
+}
+
+export enum LicenseEnforcement {
+  ENFORCE = 'ENFORCE',
+  PERMISSIVE = 'PERMISSIVE'
+}
+
+export enum TtsLicenseState {
+  NOT_INITIALIZED = 'NOT_INITIALIZED',
+  DEV_UNLICENSED = 'DEV_UNLICENSED',
+  LICENSED = 'LICENSED',
+  INVALID = 'INVALID'
+}
+
+export interface TtsLicenseStatus {
+  state: TtsLicenseState;
+  valid: boolean;
+  errorCode: number;
+  licenseId: string;
+  customer: string;
+  applicationId: string;
+  issuedAt: string;
+  expiresAt: string;
+  installTier: string;
+  features: Array<string>;
+}
+
+export interface TtsLicenseOptions {
+  license?: string;
+  applicationId?: string;
+  certSha256?: string;
+  deviceSha256?: string;
+  expiryGraceDays?: number;
+  enforcement?: LicenseEnforcement;
+}
+
+interface LicenseClaims {
+  licenseId: string;
+  customer: string;
+  applicationId: string;
+  certSha256: string;
+  deviceSha256: string;
+  issuedAt: string;
+  expiresAt: string;
+  installTier: string;
+  features: Array<string>;
+  sdkMajor: number;
+}
+
+interface LicenseEnvelope {
+  payload_b64: string;
+  sig_b64: string;
+}
+
+interface LicenseVerifierResult {
+  status: TtsLicenseStatus;
+  errorCode: number;
+  errorMessage?: string;
+}
+
+class LicenseVerifier {
+  private static readonly DAY_MS: number = 24 * 60 * 60 * 1000;
+
+  static async verify(options: TtsLicenseOptions): Promise<LicenseVerifierResult> {
+    const applicationId = options.applicationId ?? '';
+    if (LICENSE_PUBLIC_KEY_B64.trim().length === 0) {
+      return LicenseVerifier.okDev(applicationId);
+    }
+    if (options.license === undefined || options.license.trim().length === 0) {
+      return LicenseVerifier.fail(applicationId, TtsErrorCode.LICENSE_MISSING, 'no license provided');
+    }
+
+    let payloadBytes: Uint8Array;
+    let sigBytes: Uint8Array;
+    try {
+      const envelope = JSON.parse(options.license) as LicenseEnvelope;
+      payloadBytes = base64Decode(envelope.payload_b64);
+      sigBytes = base64Decode(envelope.sig_b64);
+    } catch (error) {
+      return LicenseVerifier.fail(
+        applicationId,
+        TtsErrorCode.LICENSE_MALFORMED,
+        `bad envelope: ${formatError(error)}`
+      );
+    }
+
+    let claims: LicenseClaims;
+    try {
+      claims = LicenseVerifier.parseClaims(buffer.from(payloadBytes.buffer).toString('utf-8'));
+    } catch (error) {
+      return LicenseVerifier.fail(
+        applicationId,
+        TtsErrorCode.LICENSE_MALFORMED,
+        `bad payload: ${formatError(error)}`
+      );
+    }
+
+    const signatureValid = await LicenseVerifier.verifySignature(payloadBytes, sigBytes);
+    if (!signatureValid) {
+      return LicenseVerifier.failWith(
+        claims,
+        TtsErrorCode.LICENSE_SIGNATURE_INVALID,
+        'signature mismatch'
+      );
+    }
+
+    if (claims.applicationId !== applicationId) {
+      return LicenseVerifier.failWith(
+        claims,
+        TtsErrorCode.LICENSE_APP_MISMATCH,
+        `license app=${claims.applicationId} host=${applicationId}`
+      );
+    }
+
+    if (claims.certSha256.trim().length > 0) {
+      const want = normalizeHex(claims.certSha256);
+      const have = normalizeHex(options.certSha256 ?? '');
+      if (want !== have) {
+        return LicenseVerifier.failWith(
+          claims,
+          TtsErrorCode.LICENSE_CERT_MISMATCH,
+          `license cert=${want} host=${have}`
+        );
+      }
+    }
+
+    if (claims.expiresAt.trim().length > 0) {
+      const expMillis = parseDateUtcMillis(claims.expiresAt);
+      if (expMillis === undefined) {
+        return LicenseVerifier.failWith(
+          claims,
+          TtsErrorCode.LICENSE_MALFORMED,
+          `bad expiresAt=${claims.expiresAt}`
+        );
+      }
+      const graceDays = options.expiryGraceDays ?? 0;
+      const deadline = expMillis + (graceDays + 1) * LicenseVerifier.DAY_MS;
+      if (Date.now() >= deadline) {
+        return LicenseVerifier.failWith(claims, TtsErrorCode.LICENSE_EXPIRED, `expiresAt=${claims.expiresAt}`);
+      }
+    }
+
+    if (claims.deviceSha256.trim().length > 0) {
+      const want = normalizeHex(claims.deviceSha256);
+      const have = normalizeHex(options.deviceSha256 ?? '');
+      if (want !== have) {
+        return LicenseVerifier.failWith(
+          claims,
+          TtsErrorCode.LICENSE_DEVICE_MISMATCH,
+          `license device=${want} host=${have}`
+        );
+      }
+    }
+
+    return {
+      status: {
+        state: TtsLicenseState.LICENSED,
+        valid: true,
+        errorCode: TtsErrorCode.OK,
+        licenseId: claims.licenseId,
+        customer: claims.customer,
+        applicationId: claims.applicationId,
+        issuedAt: claims.issuedAt,
+        expiresAt: claims.expiresAt,
+        installTier: claims.installTier,
+        features: claims.features
+      },
+      errorCode: TtsErrorCode.OK
+    };
+  }
+
+  private static async verifySignature(payloadBytes: Uint8Array, sigBytes: Uint8Array): Promise<boolean> {
+    try {
+      const keyGenerator = cryptoFramework.createAsyKeyGenerator('ECC256');
+      const keyPair = await keyGenerator.convertKey({ data: base64Decode(LICENSE_PUBLIC_KEY_B64) }, null);
+      const verifier = cryptoFramework.createVerify('ECC256|SHA256');
+      await verifier.init(keyPair.pubKey);
+      await verifier.update({ data: payloadBytes });
+      return await verifier.verify({ data: sigBytes });
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  private static parseClaims(payloadJson: string): LicenseClaims {
+    const raw = JSON.parse(payloadJson) as Record<string, Object>;
+    const featuresRaw = raw['features'];
+    const features = Array.isArray(featuresRaw) ? featuresRaw.map((item: Object): string => String(item)) : [];
+    return {
+      licenseId: String(raw['licenseId'] ?? ''),
+      customer: String(raw['customer'] ?? ''),
+      applicationId: String(raw['applicationId'] ?? ''),
+      certSha256: String(raw['certSha256'] ?? ''),
+      deviceSha256: String(raw['deviceSha256'] ?? ''),
+      issuedAt: String(raw['issuedAt'] ?? ''),
+      expiresAt: String(raw['expiresAt'] ?? ''),
+      installTier: String(raw['installTier'] ?? ''),
+      features,
+      sdkMajor: Number(raw['sdkMajor'] ?? -1)
+    };
+  }
+
+  private static okDev(applicationId: string): LicenseVerifierResult {
+    return {
+      status: makeLicenseStatus(TtsLicenseState.DEV_UNLICENSED, false, TtsErrorCode.OK, applicationId),
+      errorCode: TtsErrorCode.OK
+    };
+  }
+
+  private static fail(applicationId: string, errorCode: number, message: string): LicenseVerifierResult {
+    return {
+      status: makeLicenseStatus(TtsLicenseState.INVALID, false, errorCode, applicationId),
+      errorCode,
+      errorMessage: message
+    };
+  }
+
+  private static failWith(claims: LicenseClaims, errorCode: number, message: string): LicenseVerifierResult {
+    return {
+      status: {
+        state: TtsLicenseState.INVALID,
+        valid: false,
+        errorCode,
+        licenseId: claims.licenseId,
+        customer: claims.customer,
+        applicationId: claims.applicationId,
+        issuedAt: claims.issuedAt,
+        expiresAt: claims.expiresAt,
+        installTier: claims.installTier,
+        features: claims.features
+      },
+      errorCode,
+      errorMessage: message
+    };
+  }
+}
+
+class LicenseGuard {
+  private static cached: LicenseVerifierResult | undefined = undefined;
+  private static enforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE;
+
+  static async configureAndVerify(options: TtsLicenseOptions): Promise<void> {
+    LicenseGuard.enforcement = options.enforcement ?? LicenseEnforcement.ENFORCE;
+    const result = await LicenseVerifier.verify(options);
+    LicenseGuard.cached = result;
+    if (result.errorCode !== TtsErrorCode.OK && LicenseGuard.enforcement === LicenseEnforcement.ENFORCE) {
+      throw LicenseGuard.licenseException(result);
+    }
+  }
+
+  static gate(): void {
+    const result = LicenseGuard.cached;
+    if (LICENSE_PUBLIC_KEY_B64.trim().length > 0 && result === undefined) {
+      throw new TextToSpeechException(TtsErrorCode.LICENSE_MISSING, 'license check has not been initialized');
+    }
+    if (
+      result !== undefined &&
+      result.errorCode !== TtsErrorCode.OK &&
+      LicenseGuard.enforcement === LicenseEnforcement.ENFORCE
+    ) {
+      throw LicenseGuard.licenseException(result);
+    }
+  }
+
+  static status(): TtsLicenseStatus {
+    return LicenseGuard.cached?.status ?? makeLicenseStatus(
+      TtsLicenseState.NOT_INITIALIZED,
+      false,
+      TtsErrorCode.OK,
+      ''
+    );
+  }
+
+  private static licenseException(result: LicenseVerifierResult): TextToSpeechException {
+    return new TextToSpeechException(
+      result.errorCode,
+      `license check failed (code=${result.errorCode}): ${result.errorMessage ?? 'unauthorized'}`
+    );
+  }
 }
 
 interface RegisteredVoice {
@@ -2645,6 +2935,14 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
 export class TextToSpeechSdk {
   private static workPath: string | undefined;
 
+  static async init(options: TtsLicenseOptions): Promise<void> {
+    await LicenseGuard.configureAndVerify(options);
+  }
+
+  static licenseStatus(): TtsLicenseStatus {
+    return LicenseGuard.status();
+  }
+
   static setWorkPath(workPath: string): void {
     if (workPath.trim().length === 0) {
       throw new TextToSpeechException(TtsErrorCode.RUNTIME_EXCEPTION, 'workPath must not be blank');
@@ -2709,6 +3007,7 @@ export class TextToSpeechSdk {
   }
 
   private static createEngineInternal(params: CreateEngineParams): TextToSpeechEngine {
+    LicenseGuard.gate();
     return EngineRegistry.createEngine(params, TextToSpeechSdk.workPath);
   }
 
@@ -3096,6 +3395,68 @@ function formatSdkRtf(rtf: number): string {
 function previewForHilLog(value: string, maxLength: number = 160): string {
   const singleLine = value.replace(/\s+/g, ' ');
   return singleLine.length > maxLength ? `${singleLine.substring(0, maxLength)}...` : singleLine;
+}
+
+function makeLicenseStatus(
+  state: TtsLicenseState,
+  valid: boolean,
+  errorCode: number,
+  applicationId: string
+): TtsLicenseStatus {
+  return {
+    state,
+    valid,
+    errorCode,
+    licenseId: '',
+    customer: '',
+    applicationId,
+    issuedAt: '',
+    expiresAt: '',
+    installTier: '',
+    features: []
+  };
+}
+
+function normalizeHex(value: string): string {
+  return value.replace(/[:\s]/g, '').toUpperCase();
+}
+
+function parseDateUtcMillis(value: string): number | undefined {
+  const matched = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (matched === null) {
+    return undefined;
+  }
+  const year = Number(matched[1]);
+  const month = Number(matched[2]);
+  const day = Number(matched[3]);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return undefined;
+  }
+  return Date.UTC(year, month - 1, day);
+}
+
+function base64Decode(input: string): Uint8Array {
+  const table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const output: Array<number> = [];
+  let collected = 0;
+  let bits = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input.charAt(i);
+    if (char === '=' || char === '\n' || char === '\r' || char === ' ' || char === '\t') {
+      continue;
+    }
+    const value = table.indexOf(char);
+    if (value < 0) {
+      throw new Error(`illegal base64 character: ${char}`);
+    }
+    collected = (collected << 6) | value;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      output.push((collected >> bits) & 0xff);
+    }
+  }
+  return new Uint8Array(output);
 }
 
 function formatError(error: Object): string {

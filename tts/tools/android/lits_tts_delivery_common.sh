@@ -20,7 +20,7 @@ lits_tts_android_root_from_repo() {
 
 lits_tts_default_model_dir() {
   local repo_root="$1"
-  printf '%s/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0\n' "$repo_root"
+  printf '%s/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0\n' "$repo_root"
 }
 
 lits_tts_default_version() {
@@ -85,8 +85,9 @@ lits_tts_assert_model_dir() {
   local required=(
     manifest.json
     export_report.json
-    vocos_vocoder.export_report.json
+    external_loop_export_report.json
     frontend_golden.json
+    frontend_rules.json
     chinese_lexicon.txt
     chinese_lexicon.bin
     cmudict.txt
@@ -97,8 +98,9 @@ lits_tts_assert_model_dir() {
     pinyin_to_tokens.json
     arpabet_to_tokens.json
     lits_hidden_encoder.onnx
-    lits_stream_decoder_chunk.ort
-    lits_stream_decoder_final.ort
+    lits_stream_condition_chunk.onnx
+    lits_stream_condition_final.onnx
+    lits_stream_decoder_step.onnx
     vocos_vocoder.onnx
   )
   [[ -d "$model_dir" ]] || {
@@ -190,6 +192,8 @@ if __import__("os").environ.get("LITS_TTS_ALLOW_DIRTY") == "1":
             rel_posix = rel.as_posix()
             parts = set(rel.parts)
             if "build" in parts or ".gradle" in parts:
+                continue
+            if extra.name == "local.properties":
                 continue
             if rel_posix.startswith("tts/android/sdk/src/main/assets/"):
                 continue

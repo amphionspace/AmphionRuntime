@@ -92,6 +92,10 @@ class LitsTtsFrontendTest {
             LitsTtsFrontend.encode(layout, "Type C接口已连接", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "Type-C接口已连接", "zh-en", "zh-en"),
         )
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "Type C接口已连接", "zh-en", "zh-en"),
+            LitsTtsFrontend.encodeNormalized(layout, "Type杠C接口已连接", "zh-en", "zh-en"),
+        )
     }
 
     @Test
@@ -198,6 +202,21 @@ class LitsTtsFrontendTest {
 
         val tokens = LitsTtsFrontend.debugTokensForTest(layout, "chatgpt is ready.", "en-US", "en-US")
 
+        assertTrue(
+            "expected chatgpt lexicon reading, actual=${tokens.joinToString(" ")}",
+            tokens.joinToString(" ").contains("CH AE1 T JH IY1 P IY1 T IY1"),
+        )
+    }
+
+    @Test
+    fun zhEnChatgptUsesLexiconAfterTnSplitRepair() {
+        val layout = testLayout()
+
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "请打开chatgpt应用", "zh-en", "zh-en"),
+            LitsTtsFrontend.encodeNormalized(layout, "请打开chat g p t应用", "zh-en", "zh-en"),
+        )
+        val tokens = LitsTtsFrontend.debugTokensForTest(layout, "请打开chat gpt应用", "zh-en", "zh-en")
         assertTrue(
             "expected chatgpt lexicon reading, actual=${tokens.joinToString(" ")}",
             tokens.joinToString(" ").contains("CH AE1 T JH IY1 P IY1 T IY1"),
@@ -359,6 +378,29 @@ class LitsTtsFrontendTest {
     }
 
     @Test
+    fun realAssetLayoutLoadsBinaryLexiconsAndSupplementLexicon() {
+        val layout = realAssetLayout()
+
+        val firmwareTokens = LitsTtsFrontend.debugTokensForNormalizedForTest(
+            layout,
+            "firmware roadmap",
+            "en-US",
+            "en-US",
+        ).joinToString(" ")
+        val polyphoneTokens = LitsTtsFrontend.debugTokensForNormalizedForTest(
+            layout,
+            "曾医生从重庆出发。",
+            "zh-en",
+            "zh-en",
+        ).joinToString(" ")
+
+        assertTrue("expected firmware supplement entry, actual=$firmwareTokens", firmwareTokens.contains("F ER1 M W EH2 R"))
+        assertTrue("expected roadmap supplement entry, actual=$firmwareTokens", firmwareTokens.contains("R OW1 D M AE2 P"))
+        assertTrue("expected user_dict 曾医生 entry, actual=$polyphoneTokens", polyphoneTokens.contains("ㄗ ㄥ ˉ _ ㄧ ˉ _ ㄕ ㄥ ˉ"))
+        assertTrue("expected user_dict 从重庆 entry, actual=$polyphoneTokens", polyphoneTokens.contains("ㄘ ㄨ ㄥ ˊ _ ㄔ ㄨ ㄥ ˊ _ ㄑ ㄧ ㄥ ˋ"))
+    }
+
+    @Test
     fun splitForStreamingDoesNotCreateShortPlateFragments() {
         val layout = testLayout()
 
@@ -440,6 +482,10 @@ class LitsTtsFrontendTest {
         return sharedLayout
     }
 
+    private fun realAssetLayout(): LitsTtsAssetInstaller.InstalledLayout {
+        return sharedRealAssetLayout
+    }
+
     private fun assertTokenSequence(
         layout: LitsTtsAssetInstaller.InstalledLayout,
         text: String,
@@ -458,6 +504,7 @@ class LitsTtsFrontendTest {
             copyAsset(root, "chinese_lexicon.txt")
             copyAsset(root, "cmudict.txt")
             copyAsset(root, "supplement_lexicon.json")
+            copyAsset(root, "frontend_rules.json")
             copyAsset(root, "zh_en_symbols.json")
             copyAsset(root, "pinyin_to_tokens.json")
             copyAsset(root, "arpabet_to_tokens.json")
@@ -467,35 +514,69 @@ class LitsTtsFrontendTest {
             File(root, "hifigan_vocoder.onnx").writeBytes(byteArrayOf())
             LitsTtsAssetInstaller.InstalledLayout.of(
                 rootDir = root,
-                manifest = LitsTtsAssetInstaller.ManifestInfo(
-                    modelId = "lits_delivery_16k_hifigan",
-                    version = "1.0.0",
-                    sampleRate = 16_000,
-                    hopLength = 256,
-                    speakerCount = 1,
-                    defaultSpeakerId = 0,
-                    supportsStreaming = false,
-                    acousticModelFile = "lits_acoustic.onnx",
-                    vocoderModelFile = "hifigan_vocoder.onnx",
-                    hiddenEncoderModelFile = null,
-                    streamDecoderChunkModelFile = null,
-                    streamDecoderFinalModelFile = null,
-                    streamDecoderExternalLoop = false,
-                    streamDecoderTimesteps = -1,
-                    streamDecoderTemperature = Float.NaN,
-                    streamConditionChunkModelFile = null,
-                    streamConditionFinalModelFile = null,
-                    streamDecoderStepModelFile = null,
-                    streamingChunkSize = -1,
-                    streamingPreLookaheadLen = -1,
-                    streamingMelCacheLen = -1,
-                ),
+                manifest = fakeManifest(),
+                source = LitsTtsAssetInstaller.LayoutSource.BUNDLED_ASSET,
+            )
+        }
+
+        private val sharedRealAssetLayout: LitsTtsAssetInstaller.InstalledLayout by lazy {
+            val root = createTempDirectory("lits-tts-real-assets-test").toFile()
+            listOf(
+                "manifest.json",
+                "chinese_lexicon.txt",
+                "chinese_lexicon.bin",
+                "cmudict.txt",
+                "cmudict.bin",
+                "supplement_lexicon.json",
+                "frontend_rules.json",
+                "zh_en_symbols.json",
+                "pinyin_to_tokens.json",
+                "arpabet_to_tokens.json",
+                "polychar.txt",
+                "frontend_golden.json",
+                "rules/zh.json",
+                "rules/en.json",
+                "rules/zh_pinyin.json",
+                "rules_v2/zh.full.json",
+                "rules_v2/en.full.json",
+                "tn-bin/arm64-v8a/zh_tts",
+                "tn-bin/arm64-v8a/en_tts",
+            ).forEach { copyAsset(root, it) }
+            LitsTtsAssetInstaller.InstalledLayout.of(
+                rootDir = root,
+                manifest = fakeManifest(),
                 source = LitsTtsAssetInstaller.LayoutSource.BUNDLED_ASSET,
             )
         }
 
         private fun copyAsset(root: File, name: String) {
+            root.resolve(name).parentFile?.mkdirs()
             assetRoot.resolve(name).copyTo(root.resolve(name), overwrite = true)
         }
+
+        private fun fakeManifest(): LitsTtsAssetInstaller.ManifestInfo =
+            LitsTtsAssetInstaller.ManifestInfo(
+                modelId = "lits_delivery_16k_hifigan",
+                version = "1.0.0",
+                sampleRate = 16_000,
+                hopLength = 256,
+                speakerCount = 1,
+                defaultSpeakerId = 0,
+                supportsStreaming = false,
+                acousticModelFile = "lits_acoustic.onnx",
+                vocoderModelFile = "hifigan_vocoder.onnx",
+                hiddenEncoderModelFile = null,
+                streamDecoderChunkModelFile = null,
+                streamDecoderFinalModelFile = null,
+                streamDecoderExternalLoop = false,
+                streamDecoderTimesteps = -1,
+                streamDecoderTemperature = Float.NaN,
+                streamConditionChunkModelFile = null,
+                streamConditionFinalModelFile = null,
+                streamDecoderStepModelFile = null,
+                streamingChunkSize = -1,
+                streamingPreLookaheadLen = -1,
+                streamingMelCacheLen = -1,
+            )
     }
 }

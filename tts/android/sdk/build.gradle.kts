@@ -3,6 +3,13 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+// 离线 license 公钥（X.509 SubjectPublicKeyInfo DER 的 base64，单行）。来自 gradle.properties /
+// -P 参数；空 = SDK 不武装 license（开发 / 内部构建，init/createEngine 不做校验）。
+val amphionLicensePublicKey: String =
+    (project.findProperty("AMPHION_LICENSE_PUBLIC_KEY") as String?)?.trim().orEmpty()
+val sdkMajor: String = providers.gradleProperty("AMPHION_SDK_MAJOR").orElse("1").get()
+val sdkReleaseDate: String = providers.gradleProperty("AMPHION_SDK_RELEASE_DATE").orElse("2026-06-23").get()
+
 android {
     namespace = "com.lits.tts.sdk"
     compileSdk = 34
@@ -12,6 +19,9 @@ android {
         minSdk = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+        buildConfigField("int", "SDK_MAJOR", sdkMajor)
+        buildConfigField("String", "SDK_RELEASE_DATE", "\"$sdkReleaseDate\"")
+        buildConfigField("String", "LICENSE_PUBLIC_KEY_B64", "\"$amphionLicensePublicKey\"")
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
@@ -20,6 +30,10 @@ android {
                 arguments += listOf("APP_STL=c++_static")
             }
         }
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     compileOptions {
