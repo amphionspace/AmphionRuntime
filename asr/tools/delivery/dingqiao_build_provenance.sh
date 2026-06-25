@@ -386,7 +386,11 @@ dingqiao_stage_customer_docs() {
   local customer_docs="$2"
   local dq_root="$3"
   mkdir -p "$out_docs"
-  cp "$dq_root/语音识别SDK接口.md" "$out_docs/"
+  [[ -f "$customer_docs/语音识别SDK接口.md" ]] || {
+    echo "[ERROR] missing customer API contract at $customer_docs/语音识别SDK接口.md" >&2
+    exit 1
+  }
+  cp "$customer_docs/语音识别SDK接口.md" "$out_docs/"
   cp "$customer_docs/DINGQIAO_INTEGRATION.md" "$out_docs/"
   cp "$customer_docs/LICENSE.md" "$out_docs/"
   cp "$customer_docs/NOTICE" "$out_docs/NOTICE"
