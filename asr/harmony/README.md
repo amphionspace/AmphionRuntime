@@ -34,4 +34,4 @@ bash asr/tools/08_pack_harmony_assets.sh
 ## 相关目录
 
 - TTS 鸿蒙 SDK：`tts/harmony/`（模块名 `amphion_tts`）。
-- 统一客户交付聚合层（同时演示 ASR + TTS 的 HAP demo、交付文档与打包脚本）：仓库顶层 `harmony/`。
+- 统一客户交付聚合层（同时演示 ASR + TTS 的 HAP demo、交付文档与打包脚本）：`delivery/harmony-dingqiao/`。
