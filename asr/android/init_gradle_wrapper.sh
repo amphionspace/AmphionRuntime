@@ -10,7 +10,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SOURCE_DIR="$REPO_ROOT/android/SherpaOnnxAar"
+SOURCE_DIR="$REPO_ROOT/third_party/sherpa-onnx/android/SherpaOnnxAar"
 
 if [[ ! -f "$SOURCE_DIR/gradlew" ]]; then
   echo "[ERROR] 没有找到 $SOURCE_DIR/gradlew"

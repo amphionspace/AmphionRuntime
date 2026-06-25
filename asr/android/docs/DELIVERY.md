@@ -124,7 +124,7 @@ adb shell am start -n com.amphion.asr.sample/.MainActivity
 
 ```bash
 # 1) 一次性生成密钥对（私钥严禁进库；公钥贴进 gradle.properties）
-python asr/tools/license/gen_keypair.py --out-private ~/secure/amphion-license-private.pem
+python tools/license/gen_keypair.py --out-private ~/secure/amphion-license-private.pem
 #    把输出的公钥 base64 填到 asr/android/gradle.properties 的 AMPHION_LICENSE_PUBLIC_KEY
 
 # 2) 重新编 AAR（此时 BuildConfig.LICENSE_PUBLIC_KEY_B64 已注入，SDK 进入武装态）
@@ -135,7 +135,7 @@ cd asr/android && ./gradlew :sdk:assembleRelease
 
 ```bash
 # 用同一把私钥给 sample 的包名签一份测试 license
-python asr/tools/license/issue_license.py --private-key ~/secure/amphion-license-private.pem \
+python tools/license/issue_license.py --private-key ~/secure/amphion-license-private.pem \
   --application-id com.amphion.asr.sample --customer "Internal Test" --expires 2099-01-01 \
   --features ASR --out sample/src/main/assets/amphion-license.lic
 ./gradlew :samples:public-demo:installRelease   # sample release minify=true，同时回归 SDK consumer-rules
@@ -319,7 +319,7 @@ adb shell am start -n com.amphion.asr.sample.eval/com.amphion.asr.sample.eval.La
 
 ## 11. 商用 License 签发与计费 SOP
 
-授权方案与行业调研背景见 [LICENSING.md](LICENSING.md)；客户接入步骤见 [INTEGRATION.md](INTEGRATION.md) 的商用授权章节；签发工具见 [asr/tools/license/README.md](../../../asr/tools/license/README.md)。
+授权方案与行业调研背景见 [LICENSING.md](LICENSING.md)；客户接入步骤见 [INTEGRATION.md](INTEGRATION.md) 的商用授权章节；签发工具见 [tools/license/README.md](../../../tools/license/README.md)。
 
 ### 11.1 角色与信任根
 
@@ -333,7 +333,7 @@ adb shell am start -n com.amphion.asr.sample.eval/com.amphion.asr.sample.eval.La
 3. 签发：
 
 ```bash
-python asr/tools/license/issue_license.py \
+python tools/license/issue_license.py \
   --private-key ~/secure/amphion-license-private.pem \
   --application-id <客户包名> --customer "<客户名>" --license-id <编号> \
   --expires <yyyy-MM-dd 或留空=永久> --install-tier <档位> \
@@ -341,7 +341,7 @@ python asr/tools/license/issue_license.py \
   --out <客户包名>.lic
 ```
 
-4. 自测：`python asr/tools/license/verify_license.py --license <...>.lic --private-key <...> --application-id <客户包名>` 确认通过。
+4. 自测：`python tools/license/verify_license.py --license <...>.lic --private-key <...> --application-id <客户包名>` 确认通过。
 5. 登记台账（见 11.5）后，经安全渠道把 `.lic` 发给客户。
 
 ### 11.3 计费口径

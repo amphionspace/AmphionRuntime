@@ -4,14 +4,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-VENV="$ROOT/asr/tools/license/.venv"
+VENV="$ROOT/tools/license/.venv"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$ROOT/.secure/amphion-license-private.pem}"
 OUT="$ROOT/asr/android/samples/public-demo/src/main/assets/amphion-license.lic"
 CERT_SHA="${SAMPLE_EVAL_CERT_SHA256:-}"
 
 if [[ ! -d "$VENV" ]]; then
   python3 -m venv "$VENV"
-  "$VENV/bin/pip" install -q -r "$ROOT/asr/tools/license/requirements.txt"
+  "$VENV/bin/pip" install -q -r "$ROOT/tools/license/requirements.txt"
 fi
 
 if [[ ! -f "$PRIVATE_KEY" ]]; then
@@ -26,14 +26,14 @@ if [[ -z "$CERT_SHA" ]]; then
 fi
 
 mkdir -p "$(dirname "$OUT")"
-"$VENV/bin/python" "$ROOT/asr/tools/license/issue_license.py" \
+"$VENV/bin/python" "$ROOT/tools/license/issue_license.py" \
   --private-key "$PRIVATE_KEY" \
   --application-id com.amphion.asr.sample \
   --customer "Amphion Sample Eval" \
   --license-id "SAMPLE-EVAL-$(date +%Y)-001" \
   --expires 2099-12-31 \
   --install-tier LE_100K \
-  --features ASR_ZH_EN,ASR_YUE_EN,TARGET_SPEAKER,HOTWORDS \
+  --features ASR \
   ${CERT_SHA:+--cert-sha256 "$CERT_SHA"} \
   --out "$OUT"
 

@@ -16,7 +16,7 @@ import zipfile
 from pathlib import Path
 
 
-def _zip_info(arcname: str, is_dir: bool) -> zipfile.ZipInfo:
+def _zip_info(arcname: str, is_dir: bool, mode: int | None = None) -> zipfile.ZipInfo:
     name = arcname if not is_dir or arcname.endswith("/") else f"{arcname}/"
     info = zipfile.ZipInfo(name)
     info.flag_bits |= 0x800
@@ -24,7 +24,8 @@ def _zip_info(arcname: str, is_dir: bool) -> zipfile.ZipInfo:
     if is_dir:
         info.external_attr = 0o40755 << 16
     else:
-        info.external_attr = 0o100644 << 16
+        file_mode = 0o755 if mode is not None and mode & 0o111 else 0o644
+        info.external_attr = (0o100000 | file_mode) << 16
     return info
 
 
@@ -102,7 +103,7 @@ def zip_tree(source_dir: Path, dest_zip: Path) -> None:
                 if fname.startswith("._") or fname == ".DS_Store":
                     continue
                 arc = (rel_dir / fname).as_posix()
-                info = _zip_info(arc, False)
+                info = _zip_info(arc, False, fp.stat().st_mode)
                 zf.writestr(info, fp.read_bytes(), compress_type=zipfile.ZIP_DEFLATED)
 
     patched = patch_zip_efs(dest_zip)

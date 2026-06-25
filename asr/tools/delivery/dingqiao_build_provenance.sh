@@ -7,6 +7,14 @@
 # 环境变量：
 #   DINGQIAO_ALLOW_DIRTY=1  允许脏工作区打包（仅本地预览，VERSION.txt 会标注 git_dirty=true）
 
+_dingqiao_delivery_common="$(
+  cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd
+)/tools/delivery/delivery_common.sh"
+if [[ -f "$_dingqiao_delivery_common" ]]; then
+  # shellcheck source=../../../tools/delivery/delivery_common.sh
+  source "$_dingqiao_delivery_common"
+fi
+
 dingqiao_repo_root_from_script() {
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)"
@@ -53,7 +61,7 @@ dingqiao_resolve_delivery_version() {
 dingqiao_collect_git_provenance() {
   local repo_root="$1"
   (
-    cd "$repo_root"
+    cd "$repo_root" || exit 1
     GIT_COMMIT_FULL="$(git rev-parse HEAD)"
     GIT_COMMIT_SHORT="$(git rev-parse --short=12 HEAD)"
     git cat-file -e "$GIT_COMMIT_FULL" 2>/dev/null || {
@@ -169,6 +177,154 @@ dingqiao_verify_aar_provenance() {
   echo "[OK] AAR provenance verified: $(basename "$aar_path")"
 }
 
+dingqiao_verify_aar_native_libs() {
+  local aar_path="$1"
+  python3 - "$aar_path" <<'PY'
+import sys
+import zipfile
+
+aar_path = sys.argv[1]
+required = [
+    "jni/arm64-v8a/libsherpa-onnx-jni.so",
+    "jni/arm64-v8a/libonnxruntime.so",
+]
+
+try:
+    with zipfile.ZipFile(aar_path) as aar:
+        sizes = {info.filename: info.file_size for info in aar.infolist()}
+except zipfile.BadZipFile as exc:
+    print(f"[ERROR] invalid AAR zip: {aar_path}: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+missing = [path for path in required if path not in sizes]
+empty = [path for path in required if path in sizes and sizes[path] <= 0]
+
+if missing or empty:
+    if missing:
+        print("[ERROR] AAR missing required native libs:", file=sys.stderr)
+        for path in missing:
+            print(f"  - {path}", file=sys.stderr)
+    if empty:
+        print("[ERROR] AAR contains empty native libs:", file=sys.stderr)
+        for path in empty:
+            print(f"  - {path}", file=sys.stderr)
+    sys.exit(1)
+
+for path in required:
+    print(f"[OK] AAR native lib present: {path} ({sizes[path]} bytes)")
+PY
+}
+
+dingqiao_verify_aar_speaker_model() {
+  local aar_path="$1"
+  python3 - "$aar_path" <<'PY'
+import sys
+import zipfile
+
+aar_path = sys.argv[1]
+path = "assets/amphion-dingqiao/eres2net.onnx"
+min_bytes = 30 * 1024 * 1024
+
+try:
+    with zipfile.ZipFile(aar_path) as aar:
+        sizes = {info.filename: info.file_size for info in aar.infolist()}
+except zipfile.BadZipFile as exc:
+    print(f"[ERROR] invalid AAR zip: {aar_path}: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+size = sizes.get(path)
+if size is None:
+    print(f"[ERROR] AAR missing embedded speaker model: {path}", file=sys.stderr)
+    sys.exit(1)
+if size < min_bytes:
+    print(f"[ERROR] AAR speaker model too small: {path} ({size} bytes)", file=sys.stderr)
+    sys.exit(1)
+print(f"[OK] AAR speaker model present: {path} ({size} bytes)")
+PY
+}
+
+dingqiao_verify_apk_native_libs() {
+  local apk_path="$1"
+  python3 - "$apk_path" <<'PY'
+import sys
+import zipfile
+
+apk_path = sys.argv[1]
+required = [
+    "lib/arm64-v8a/libsherpa-onnx-jni.so",
+    "lib/arm64-v8a/libonnxruntime.so",
+]
+
+try:
+    with zipfile.ZipFile(apk_path) as apk:
+        sizes = {info.filename: info.file_size for info in apk.infolist()}
+except zipfile.BadZipFile as exc:
+    print(f"[ERROR] invalid APK zip: {apk_path}: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+missing = [path for path in required if path not in sizes]
+empty = [path for path in required if path in sizes and sizes[path] <= 0]
+
+if missing or empty:
+    if missing:
+        print("[ERROR] APK missing required native libs:", file=sys.stderr)
+        for path in missing:
+            print(f"  - {path}", file=sys.stderr)
+    if empty:
+        print("[ERROR] APK contains empty native libs:", file=sys.stderr)
+        for path in empty:
+            print(f"  - {path}", file=sys.stderr)
+    sys.exit(1)
+
+for path in required:
+    print(f"[OK] APK native lib present: {path} ({sizes[path]} bytes)")
+PY
+}
+
+dingqiao_verify_apk_speaker_model() {
+  local apk_path="$1"
+  python3 - "$apk_path" <<'PY'
+import sys
+import zipfile
+
+apk_path = sys.argv[1]
+path = "assets/amphion-dingqiao/eres2net.onnx"
+min_bytes = 30 * 1024 * 1024
+
+try:
+    with zipfile.ZipFile(apk_path) as apk:
+        sizes = {info.filename: info.file_size for info in apk.infolist()}
+except zipfile.BadZipFile as exc:
+    print(f"[ERROR] invalid APK zip: {apk_path}: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+size = sizes.get(path)
+if size is None:
+    print(f"[ERROR] APK missing embedded speaker model: {path}", file=sys.stderr)
+    sys.exit(1)
+if size < min_bytes:
+    print(f"[ERROR] APK speaker model too small: {path} ({size} bytes)", file=sys.stderr)
+    sys.exit(1)
+print(f"[OK] APK speaker model present: {path} ({size} bytes)")
+PY
+}
+
+dingqiao_cert_sha256_from_keystore() {
+  delivery_cert_sha256_from_keystore "$@"
+}
+
+dingqiao_sign_apk() {
+  delivery_sign_apk "$@"
+}
+
+dingqiao_verify_apk_signature() {
+  delivery_verify_apk_signature "$@"
+}
+
+dingqiao_apk_cert_sha256_from_apk() {
+  delivery_apk_cert_sha256_from_apk "$@"
+}
+
 dingqiao_write_version_txt() {
   local out_file="$1"
   local package_id="$2"
@@ -214,7 +370,8 @@ dingqiao_standard_version_fields() {
 dingqiao_zip_delivery() {
   local source_dir="$1"
   local dest_zip="$2"
-  local py="$(
+  local py
+  py="$(
     cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
   )/dingqiao_zip_utf8.py"
   if [[ ! -f "$py" ]]; then
@@ -242,7 +399,8 @@ dingqiao_stage_customer_docs() {
   }
 }
 
-# Demo Release APK 内嵌 license：自签发日起 DINGQIAO_DEMO_TRIAL_MONTHS（默认 2）个月试用
+# Demo Release APK 内嵌 license：自签发日起 DINGQIAO_DEMO_TRIAL_MONTHS（默认 2）个月试用。
+# Demo 只绑定包名和签名，不绑定 SN；正式客户 license 才绑定 SN 清单。
 dingqiao_issue_demo_license() {
   local repo_root="$1"
   bash "$repo_root/asr/tools/license/issue_dingqiao_demo.sh"

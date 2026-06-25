@@ -19,6 +19,7 @@
 
 | 文档 | 说明 |
 | --- | --- |
+| troubleshooting/dingqiao-create-engine-missing-so.md | 鼎桥 Android `createEngine` 找不到 sherpa native 库的根因、验包命令和交付门禁 |
 | troubleshooting/zh-en-mixed-asr-tuning.md | 中英混合 ASR 在 Android 实机上纯英文不可用的深度分析：greedy vs beam、低电平、endpoint 切分 |
 | troubleshooting/streaming-zipformer-cold-start.md | streaming zipformer 第一段被吞的根因：encoder left-context cold start，以及 800ms 静音 warmup 修复 |
 
@@ -32,6 +33,8 @@
 
 | 文档 | 说明 |
 | --- | --- |
+| delivery-zip-verification.md | 所有客户交付包的 zip-only 验证流程：以最终 zip 为唯一真相，生成 JSON/Markdown 验收报告 |
+| dingqiao-v0.2.7-delivery.md | 鼎桥 Android v0.2.7 最终交付口径：Demo 不绑 SN，正式 SDK license 绑 SN 并供 ASR/TTS 共用 |
 | dingqiao-offline-license.md | 鼎桥专网离线 license 交付前置清单：SN、App 标识、签名证书、授权范围、维护期和组包路径 |
 
 ### Speaker（目标说话人 ASR 调研期）

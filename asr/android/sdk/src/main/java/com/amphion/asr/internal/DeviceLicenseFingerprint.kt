@@ -9,7 +9,7 @@ import java.util.Locale
  * 离线 license 设备白名单绑定用的 SN 哈希。
  *
  * 算法：SHA-256( UTF-8(normalizedSn + deviceIdSaltId) )，大写 hex、无冒号。
- * 与签发端 `asr/tools/license/issue_license.py --device-id-file ... --device-id-salt-id ...` 一致。
+ * 与签发端 `tools/license/issue_license.py --device-id-file ... --device-id-salt-id ...` 一致。
  *
  * SDK 不直接保存明文 SN 清单；SN 来源由客户或交付适配层通过 [AmphionDeviceIdProvider] 注入。
  */

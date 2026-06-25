@@ -118,6 +118,7 @@ shared/regression-set/audio/
 # Demo 模型由 asr/tools/00_fetch_demo_model.sh 拉取到 asr/tools/demo-model/
 # 自有模型由 asr/tools/00_push_my_model.sh 推到设备，本地目录由用户自管
 *.onnx
+!asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx
 *.wav
 *.tar
 *.tar.bz2
@@ -162,11 +163,13 @@ shared/docs/dashboard/trends/*.csv
 !shared/docs/dashboard/trends/reports/.gitkeep
 !shared/docs/dashboard/trends/.gitkeep
 
-# --- 离线 license 私钥与签发产物（严禁进库，见 asr/tools/license/README.md） ---
+# --- 离线 license 私钥与签发产物（严禁进库，见 tools/license/README.md） ---
 # 私钥 = 授权信任根，泄露即可被任意签发有效 license；签发出的 .lic 是每客户产物，不入库。
 *-private.pem
 .secure/
 current_usb_device_sn.txt
+tools/license/*.pem
+tools/license/*.lic
 asr/tools/license/*.pem
 asr/tools/license/*.lic
 tts/tools/license/*.pem

@@ -6,12 +6,16 @@
 #   bash asr/tools/05_package_aar_libs.sh arm64-v8a
 #   bash asr/tools/05_package_aar_libs.sh all
 #
+# 交付打包时设置 AMPHION_REQUIRE_ANDROID_NATIVE_LIBS=1：
+#   若目标 ABI 的 native 构建产物或必需 .so 缺失，立即失败。
+#
 # 这一步执行完，SDK 工程就具备了完整的 native 依赖，可以直接：
 #   cd asr/android && ./gradlew :sdk:assembleRelease
 
 set -euo pipefail
 
 ABI_ARG="${1:-all}"
+STRICT="${AMPHION_REQUIRE_ANDROID_NATIVE_LIBS:-0}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -24,6 +28,10 @@ copy_one_abi() {
   local DST_DIR="$SDK_JNI_LIBS_DIR/${ABI}"
 
   if [[ ! -d "$SRC_DIR" ]]; then
+    if [[ "$STRICT" == "1" ]]; then
+      echo "[ERROR] $SRC_DIR 不存在，请先运行 04_build_android_so.sh $ABI" >&2
+      return 1
+    fi
     echo "[SKIP] $SRC_DIR 不存在，请先运行 04_build_android_so.sh $ABI"
     return 0
   fi
@@ -35,6 +43,10 @@ copy_one_abi() {
     if [[ -f "$SRC_DIR/$f" ]]; then
       cp -fv "$SRC_DIR/$f" "$DST_DIR/$f"
     else
+      if [[ "$STRICT" == "1" ]]; then
+        echo "[ERROR] $SRC_DIR/$f 缺失" >&2
+        return 1
+      fi
       echo "[WARN] $SRC_DIR/$f 缺失"
     fi
   done
