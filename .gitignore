@@ -167,6 +167,7 @@ shared/docs/dashboard/trends/*.csv
 # 私钥 = 授权信任根，泄露即可被任意签发有效 license；签发出的 .lic 是每客户产物，不入库。
 *-private.pem
 .secure/
+current_usb_device_sn.txt
 tools/license/*.pem
 tools/license/*.lic
 asr/tools/license/*.pem

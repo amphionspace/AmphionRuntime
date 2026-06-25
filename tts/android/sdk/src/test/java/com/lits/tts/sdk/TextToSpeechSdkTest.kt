@@ -306,7 +306,7 @@ class TextToSpeechSdkTest {
         engine.speak("ok", SpeakParams(requestId = "pitch", pitch = 0.4f))
         engine.speak("ok", SpeakParams(requestId = "audio", audioType = "wav"))
         engine.speak("ok", SpeakParams(requestId = "context-ok", languageContext = "zh-en"))
-        engine.speak("ok", SpeakParams(requestId = "context-bad", languageContext = "zh-CN"))
+        engine.speak("ok", SpeakParams(requestId = "context-bad", languageContext = "ja-JP"))
 
         assertTrue(listener.awaitErrors())
         assertEquals(TtsErrorCode.TEXT_LENGTH_INVALID, listener.errors[0].code)
@@ -458,7 +458,7 @@ class TextToSpeechSdkTest {
         override fun onStart(requestId: String, response: StartResponse) {
             starts += "start:$requestId"
             assertEquals("pcm", response.audioType)
-            assertEquals(16000, response.sampleRate)
+            assertEquals(24000, response.sampleRate)
             assertEquals(16, response.sampleBit)
             assertEquals(1, response.audioChannel)
             assertEquals(0, response.compressRate)

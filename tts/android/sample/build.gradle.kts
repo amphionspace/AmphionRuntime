@@ -8,11 +8,21 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.lits.tts.sample"
+        applicationId = "com.tdtech.tiassistant"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "0.2.5.1"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
     }
 
     compileOptions {
@@ -23,13 +33,10 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
-
-    androidResources {
-        noCompress += listOf("onnx")
-    }
 }
 
 dependencies {
     implementation(project(":sdk"))
+    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
 }

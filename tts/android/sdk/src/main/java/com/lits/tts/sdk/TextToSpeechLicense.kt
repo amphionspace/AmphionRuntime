@@ -57,12 +57,12 @@ data class TtsLicenseStatus(
     val licenseId: String,
     val customer: String,
     val applicationId: String,
-    val bundleName: String,
-    val signingCertDigest: String,
-    val deviceIdHashAlg: String,
-    val deviceIdSaltId: String,
-    val authorizedDeviceCount: Int,
-    val maintenanceUntil: String,
+    val bundleName: String = "",
+    val signingCertDigest: String = "",
+    val deviceIdHashAlg: String = "",
+    val deviceIdSaltId: String = "",
+    val authorizedDeviceCount: Int = 0,
+    val maintenanceUntil: String = "",
     val issuedAt: String,
     val expiresAt: String,
     val installTier: String,
@@ -115,15 +115,18 @@ data class TtsLicenseStatus(
  * @property license 直接传入的 `.lic` 文件全文（优先于 [licenseAssetName]）；null 表示走 asset
  * @property licenseAssetName app assets 内 `.lic` 文件名，默认 `amphion-license.lic`；
  *   置 null / 空表示不从 asset 读取。仅当 SDK 被武装（构建期注入 license 公钥）时才会真正读取
+ * @property deviceSha256 显式传入的宿主设备指纹；用于按 SN 清单签发的单机 license。
+ *   兼容旧 license 字段；新 Dingqiao license 优先使用 [deviceIdProvider] 提供的 SN。
  * @property expiryGraceDays 到期宽限天数（规避客户端时钟误差），默认 0；必须 >= 0
- * @property licenseEnforcement license 校验失败时的策略，默认 [LicenseEnforcement.ENFORCE]
+ * @property enforcement license 校验失败时的策略，默认 [LicenseEnforcement.ENFORCE]
  * @property deviceIdProvider 设备 SN 码提供方；默认通过系统序列号读取。license 包含设备白名单时必须能返回稳定 SN
  */
 data class TtsLicenseOptions @JvmOverloads constructor(
     val license: String? = null,
     val licenseAssetName: String? = "amphion-license.lic",
+    val deviceSha256: String? = null,
     val expiryGraceDays: Int = 0,
-    val licenseEnforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE,
+    val enforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE,
     val deviceIdProvider: TtsDeviceIdProvider? = TtsSystemDeviceIdProvider,
 ) {
     init {

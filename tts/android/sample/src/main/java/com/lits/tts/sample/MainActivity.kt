@@ -48,14 +48,27 @@ class MainActivity : AppCompatActivity() {
     private val requestChunkCounts = ConcurrentHashMap<String, Int>()
     private val requestSampleRates = ConcurrentHashMap<String, Int>()
     private val requestStartedAtMs = ConcurrentHashMap<String, Long>()
+    private val requestFirstChunkAtMs = ConcurrentHashMap<String, Long>()
+    private val requestWarmupFlags = ConcurrentHashMap<String, Boolean>()
+    private val requestStreamingFlags = ConcurrentHashMap<String, Boolean>()
+    private val requestDataPaths = ConcurrentHashMap<String, String>()
+    private val requestModelInfos = ConcurrentHashMap<String, String>()
+    private val requestLoadProfiles = ConcurrentHashMap<String, String>()
+    private val requestProfiles = ConcurrentHashMap<String, String>()
+    private val engineLoadStartedAtMs = ConcurrentHashMap<String, Long>()
+    private val engineLoadMsByLanguage = ConcurrentHashMap<String, Long>()
     private val player = PcmPlayer()
 
     private lateinit var inputText: EditText
+    private lateinit var chunkSizeInput: EditText
+    private lateinit var pcmQueueCapacityInput: EditText
     private lateinit var modeGroup: RadioGroup
     private lateinit var synthesizeButton: Button
     private lateinit var sdkPlaybackButton: Button
+    private lateinit var warmupButton: Button
     private lateinit var playButton: Button
     private lateinit var saveButton: Button
+    private lateinit var stopButton: Button
     private lateinit var statusText: TextView
     private lateinit var metricsText: TextView
     private lateinit var logText: TextView
@@ -66,8 +79,10 @@ class MainActivity : AppCompatActivity() {
     private var lastAudio: ByteArray? = null
     private var lastSampleRate: Int = 16000
     private var busy: Boolean = false
+    private var localPlaying: Boolean = false
     private var activeRequestId: String? = null
     private var loadingLanguage: String? = null
+    private var warmupDone: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,11 +91,15 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
         inputText = findViewById(R.id.edit_input)
+        chunkSizeInput = findViewById(R.id.edit_chunk_size)
+        pcmQueueCapacityInput = findViewById(R.id.edit_pcm_queue_capacity)
         modeGroup = findViewById(R.id.group_mode)
         synthesizeButton = findViewById(R.id.button_synthesize)
         sdkPlaybackButton = findViewById(R.id.button_sdk_playback)
+        warmupButton = findViewById(R.id.button_warmup)
         playButton = findViewById(R.id.button_play)
         saveButton = findViewById(R.id.button_save)
+        stopButton = findViewById(R.id.button_stop)
         statusText = findViewById(R.id.text_status)
         metricsText = findViewById(R.id.text_metrics)
         logText = findViewById(R.id.text_log)
@@ -95,8 +114,10 @@ class MainActivity : AppCompatActivity() {
         }
         synthesizeButton.setOnClickListener { submitSynthesis(PlayType.SYNTHESIZE_ONLY) }
         sdkPlaybackButton.setOnClickListener { submitSynthesis(PlayType.SYNTHESIZE_AND_PLAY) }
+        warmupButton.setOnClickListener { submitWarmup(autoTriggered = false) }
         playButton.setOnClickListener { playLastAudio() }
         saveButton.setOnClickListener { saveLastAudio() }
+        stopButton.setOnClickListener { stopCurrentWork() }
 
         applyPresetText(selectedLanguage())
         setStatus(getString(R.string.status_ready))
@@ -115,7 +136,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun configureWorkPath() {
-        val workDir = File(filesDir, "lits-tts-work").apply { mkdirs() }
+        val baseDir = getExternalFilesDir(null) ?: filesDir
+        val workDir = File(baseDir, "lits-tts-work").apply { mkdirs() }
         TextToSpeechSdk.setWorkPath(workDir.absolutePath)
         appendLog("workPath=${workDir.absolutePath}")
     }
@@ -123,6 +145,21 @@ class MainActivity : AppCompatActivity() {
     private fun selectedLanguage(): String = when (modeGroup.checkedRadioButtonId) {
         R.id.radio_mode_en -> "en-US"
         else -> "zh-en"
+    }
+
+    private fun voiceIdForLanguage(language: String): String = when (language) {
+        "en-US" -> VOICE_ID_SPEAKER_0
+        else -> VOICE_ID_SPEAKER_1
+    }
+
+    private fun selectedChunkSize(): Int {
+        val value = chunkSizeInput.text?.toString()?.trim()?.toIntOrNull()
+        return value?.takeIf { it > 0 } ?: DEFAULT_STREAMING_CHUNK_SIZE
+    }
+
+    private fun selectedPcmQueueCapacity(): Int {
+        val value = pcmQueueCapacityInput.text?.toString()?.trim()?.toIntOrNull()
+        return value?.takeIf { it > 0 } ?: DEFAULT_PCM_QUEUE_CAPACITY
     }
 
     private fun submitSynthesis(playType: PlayType) {
@@ -133,6 +170,9 @@ class MainActivity : AppCompatActivity() {
         }
         val language = selectedLanguage()
         val readyEngine = engine
+        val chunkSize = selectedChunkSize()
+        val firstChunkSize = chunkSize
+        val pcmQueueCapacity = selectedPcmQueueCapacity()
         if (readyEngine == null || engineLanguage != language) {
             setStatus("\u6a21\u578b\u52a0\u8f7d\u4e2d\uff1a$language")
             preloadEngine(language)
@@ -144,6 +184,13 @@ class MainActivity : AppCompatActivity() {
         requestSampleRates.remove(requestId)
         requestChunkCounts.remove(requestId)
         requestStartedAtMs[requestId] = System.currentTimeMillis()
+        requestFirstChunkAtMs.remove(requestId)
+        requestWarmupFlags[requestId] = false
+        requestStreamingFlags.remove(requestId)
+        requestDataPaths.remove(requestId)
+        requestModelInfos.remove(requestId)
+        requestLoadProfiles.remove(requestId)
+        requestProfiles.remove(requestId)
         if (playType == PlayType.SYNTHESIZE_ONLY) {
             lastAudio = null
         }
@@ -154,7 +201,7 @@ class MainActivity : AppCompatActivity() {
         val actionText = if (playType == PlayType.SYNTHESIZE_ONLY) "\u5f00\u59cb\u5408\u6210" else "SDK \u76f4\u63a5\u64ad\u62a5"
         setStatus("$actionText\uff1a$requestId")
         setMetrics(getString(R.string.metrics_placeholder))
-        appendLog("\u63d0\u4ea4\u8bf7\u6c42 requestId=$requestId language=$language playType=$playType")
+        appendLog("提交请求 requestId=$requestId language=$language playType=$playType firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity")
         beginBusy(requestId)
 
         runCatching {
@@ -165,6 +212,11 @@ class MainActivity : AppCompatActivity() {
                     playType = playType,
                     queueMode = QueueMode.PREEMPT,
                     languageContext = if (language == "en-US") "en-US" else "zh-en",
+                    extraParams = mapOf(
+                        "streamingChunkSize" to chunkSize,
+                        "streamingFirstChunkSize" to firstChunkSize,
+                        "pcmQueueCapacity" to pcmQueueCapacity,
+                    ),
                 ),
             )
         }.onFailure { error ->
@@ -173,18 +225,100 @@ class MainActivity : AppCompatActivity() {
             requestChunkCounts.remove(requestId)
             requestSampleRates.remove(requestId)
             requestStartedAtMs.remove(requestId)
+            requestFirstChunkAtMs.remove(requestId)
+            requestWarmupFlags.remove(requestId)
+            requestStreamingFlags.remove(requestId)
+            requestDataPaths.remove(requestId)
+            requestModelInfos.remove(requestId)
+            requestLoadProfiles.remove(requestId)
+            requestProfiles.remove(requestId)
             endBusy(requestId)
             setStatus("\u63d0\u4ea4\u8bf7\u6c42\u5931\u8d25\uff1a${error.message ?: "unknown"}")
             appendLog("speak failed requestId=$requestId message=${error.message}")
         }
     }
 
+    private fun submitWarmup(autoTriggered: Boolean) {
+        val language = selectedLanguage()
+        val readyEngine = engine
+        if (readyEngine == null || engineLanguage != language) {
+            setStatus("\u6a21\u578b\u52a0\u8f7d\u4e2d\uff1a$language")
+            preloadEngine(language)
+            return
+        }
+        val requestId = nextRequestId("warmup")
+        val chunkSize = selectedChunkSize()
+        val firstChunkSize = chunkSize
+        val pcmQueueCapacity = selectedPcmQueueCapacity()
+        requestPlayTypes[requestId] = PlayType.SYNTHESIZE_ONLY
+        requestWarmupFlags[requestId] = true
+        requestSampleRates.remove(requestId)
+        requestChunkCounts.remove(requestId)
+        requestStartedAtMs[requestId] = System.currentTimeMillis()
+        requestFirstChunkAtMs.remove(requestId)
+        requestStreamingFlags.remove(requestId)
+        requestDataPaths.remove(requestId)
+        requestModelInfos.remove(requestId)
+        requestLoadProfiles.remove(requestId)
+        requestProfiles.remove(requestId)
+        requestBuffers[requestId] = ByteArrayOutputStream()
+        requestChunkCounts[requestId] = 0
+        refreshActionState()
+
+        setStatus(getString(R.string.status_warming_up, requestId))
+        setMetrics(buildMetricsText(null, null, null, null, 0L, 0))
+        appendLog(
+            if (autoTriggered) {
+                "自动 Warmup requestId=$requestId language=$language firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity"
+            } else {
+                "提交 Warmup requestId=$requestId language=$language firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity"
+            },
+        )
+        beginBusy(requestId)
+
+        runCatching {
+            readyEngine.speak(
+                if (language == "en-US") "hello." else "你好。",
+                SpeakParams(
+                    requestId = requestId,
+                    playType = PlayType.SYNTHESIZE_ONLY,
+                    queueMode = QueueMode.PREEMPT,
+                    languageContext = if (language == "en-US") "en-US" else "zh-en",
+                    extraParams = mapOf(
+                        "streamingChunkSize" to chunkSize,
+                        "streamingFirstChunkSize" to firstChunkSize,
+                        "pcmQueueCapacity" to pcmQueueCapacity,
+                    ),
+                ),
+            )
+        }.onFailure { error ->
+            requestPlayTypes.remove(requestId)
+            requestWarmupFlags.remove(requestId)
+            requestBuffers.remove(requestId)
+            requestChunkCounts.remove(requestId)
+            requestSampleRates.remove(requestId)
+            requestStartedAtMs.remove(requestId)
+            requestFirstChunkAtMs.remove(requestId)
+            requestStreamingFlags.remove(requestId)
+            requestDataPaths.remove(requestId)
+            requestModelInfos.remove(requestId)
+            requestLoadProfiles.remove(requestId)
+            requestProfiles.remove(requestId)
+            endBusy(requestId)
+            setStatus("\u9884\u70ed\u5931\u8d25\uff1a${error.message ?: "unknown"}")
+            appendLog("warmup failed requestId=$requestId message=${error.message}")
+        }
+    }
+
     private fun playLastAudio() {
         val audio = lastAudio ?: return
+        localPlaying = true
         playButton.isEnabled = false
+        refreshActionState()
         setStatus(getString(R.string.status_playing_result))
         player.play(audio, lastSampleRate) {
             mainHandler.post {
+                localPlaying = false
                 refreshActionState()
                 setStatus(getString(R.string.status_play_result_done))
             }
@@ -212,6 +346,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun stopCurrentWork() {
+        player.stop()
+        localPlaying = false
+        runCatching { engine?.stop() }
+        val requestId = activeRequestId
+        if (requestId != null) {
+            endBusy(requestId)
+        } else {
+            refreshActionState()
+        }
+        setStatus(getString(R.string.status_stop_current))
+        appendLog("stop current work")
+    }
+
     private fun preloadEngine(language: String) {
         val current = engine
         if (current != null && engineLanguage == language) {
@@ -231,11 +379,12 @@ class MainActivity : AppCompatActivity() {
         }
         val loadRequestId = nextRequestId("preload")
         loadingLanguage = language
+        engineLoadStartedAtMs[language] = System.currentTimeMillis()
         setStatus("\u6b63\u5728\u52a0\u8f7d\u6a21\u578b\uff1a$language")
-        setMetrics(getString(R.string.metrics_placeholder))
+        setMetrics(buildMetricsText(null, null, null, null, 0L, 0))
         appendLog("\u5f00\u59cb\u52a0\u8f7d\u6a21\u578b language=$language requestId=$loadRequestId")
         beginBusy(loadRequestId)
-        val voiceId = "lits-female-01"
+        val voiceId = voiceIdForLanguage(language)
         TextToSpeechSdk.createEngine(
             CreateEngineParams(
                 language = language,
@@ -253,9 +402,16 @@ class MainActivity : AppCompatActivity() {
                         engine = result
                         engineLanguage = language
                         loadingLanguage = null
+                        val loadMs = (System.currentTimeMillis() - (engineLoadStartedAtMs.remove(language)
+                            ?: System.currentTimeMillis())).coerceAtLeast(0L)
+                        engineLoadMsByLanguage[language] = loadMs
                         endBusy(loadRequestId)
                         setStatus("\u6a21\u578b\u52a0\u8f7d\u5b8c\u6210\uff1a$language")
+                        setMetrics(buildMetricsText(null, null, null, null, 0L, 0))
                         appendLog("\u6a21\u578b\u52a0\u8f7d\u5b8c\u6210 language=$language requestId=$loadRequestId voiceId=$voiceId")
+                        if (!warmupDone) {
+                            submitWarmup(autoTriggered = true)
+                        }
                     }
                 }
 
@@ -265,6 +421,7 @@ class MainActivity : AppCompatActivity() {
                             return@post
                         }
                         loadingLanguage = null
+                        engineLoadStartedAtMs.remove(language)
                         endBusy(loadRequestId)
                         setStatus("\u6a21\u578b\u52a0\u8f7d\u5931\u8d25\uff1a$errorMessage")
                         appendLog("\u6a21\u578b\u52a0\u8f7d\u5931\u8d25 language=$language requestId=$loadRequestId code=$errorCode message=$errorMessage")
@@ -283,7 +440,7 @@ class MainActivity : AppCompatActivity() {
             runCatching { current.shutdown() }
             player.stop()
         }
-        val voiceId = "lits-female-01"
+        val voiceId = voiceIdForLanguage(language)
         return TextToSpeechSdk.createEngine(
             CreateEngineParams(
                 language = language,
@@ -358,12 +515,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshActionState() {
         mainHandler.post {
-            synthesizeButton.isEnabled = !busy
-            sdkPlaybackButton.isEnabled = !busy
-            playButton.isEnabled = !busy && lastAudio?.isNotEmpty() == true
-            saveButton.isEnabled = !busy && lastAudio?.isNotEmpty() == true
+            val uiBusy = busy || localPlaying
+            synthesizeButton.isEnabled = !uiBusy
+            sdkPlaybackButton.isEnabled = !uiBusy
+            warmupButton.isEnabled = !uiBusy
+            playButton.isEnabled = !uiBusy && lastAudio?.isNotEmpty() == true
+            saveButton.isEnabled = !uiBusy && lastAudio?.isNotEmpty() == true
+            stopButton.isEnabled = busy || localPlaying
+            chunkSizeInput.isEnabled = !uiBusy
+            pcmQueueCapacityInput.isEnabled = !uiBusy
             for (index in 0 until modeGroup.childCount) {
-                modeGroup.getChildAt(index).isEnabled = !busy
+                modeGroup.getChildAt(index).isEnabled = !uiBusy
             }
         }
     }
@@ -372,6 +534,15 @@ class MainActivity : AppCompatActivity() {
         override fun onStart(requestId: String, response: StartResponse) {
             requestSampleRates[requestId] = response.sampleRate
             requestStartedAtMs[requestId] = System.currentTimeMillis()
+            requestFirstChunkAtMs.remove(requestId)
+            requestStreamingFlags[requestId] = response.isStreaming
+            requestDataPaths[requestId] = response.dataPath
+            if (response.modelInfo.isNotBlank()) {
+                requestModelInfos[requestId] = response.modelInfo
+            }
+            if (response.loadProfileInfo.isNotBlank()) {
+                requestLoadProfiles[requestId] = response.loadProfileInfo
+            }
             val playType = requestPlayTypes[requestId]
             val status = if (playType == PlayType.SYNTHESIZE_AND_PLAY) {
                 "正在合成并准备播报：$requestId"
@@ -379,30 +550,98 @@ class MainActivity : AppCompatActivity() {
                 "正在合成：$requestId"
             }
             setStatus(status)
-            setMetrics(getString(R.string.metrics_placeholder))
+            setMetrics(
+                buildMetricsText(
+                    playType = playType,
+                    sampleRate = response.sampleRate,
+                    firstPacketMs = null,
+                    synthesisMs = null,
+                    audioDurationMs = 0L,
+                    chunkCount = 0,
+                    requestId = requestId,
+                ),
+            )
             appendLog(
-                "onStart requestId=$requestId sampleRate=${response.sampleRate} sampleBit=${response.sampleBit} channel=${response.audioChannel}",
+                "onStart requestId=$requestId sampleRate=${response.sampleRate} sampleBit=${response.sampleBit} channel=${response.audioChannel} " +
+                    "isStreaming=${response.isStreaming} dataPath=${response.dataPath} modelSource=${response.modelSource} " +
+                    "modelInfo=${response.modelInfo} loadProfile=${response.loadProfileInfo}",
             )
         }
 
         override fun onData(requestId: String, audio: ByteArray, response: SynthesisResponse) {
             requestBuffers[requestId]?.write(audio, 0, audio.size)
             requestChunkCounts.compute(requestId) { _, count -> (count ?: 0) + 1 }
-            appendLog("onData requestId=$requestId sequence=${response.sequence} bytes=${audio.size}")
+            requestFirstChunkAtMs.putIfAbsent(requestId, System.currentTimeMillis())
+            requestStreamingFlags[requestId] = response.isStreaming
+            requestDataPaths[requestId] = response.chunkSource
+            val startedAtMs = requestStartedAtMs[requestId]
+            val firstChunkMs = requestFirstChunkAtMs[requestId]
+            val sampleRate = requestSampleRates[requestId] ?: 16000
+            val chunkCount = requestChunkCounts[requestId] ?: 0
+            val totalBytes = requestBuffers[requestId]?.size() ?: 0
+            setMetrics(
+                buildMetricsText(
+                    requestId = requestId,
+                    playType = requestPlayTypes[requestId],
+                    sampleRate = sampleRate,
+                    firstPacketMs = if (startedAtMs != null && firstChunkMs != null) {
+                        (firstChunkMs - startedAtMs).coerceAtLeast(0L)
+                    } else {
+                        null
+                    },
+                    synthesisMs = if (startedAtMs != null) {
+                        (System.currentTimeMillis() - startedAtMs).coerceAtLeast(0L)
+                    } else {
+                        null
+                    },
+                    audioDurationMs = audioDurationMs(totalBytes, sampleRate),
+                    chunkCount = chunkCount,
+                ),
+            )
+            appendLog(
+                "onData requestId=$requestId sequence=${response.sequence} bytes=${audio.size} " +
+                    "isStreaming=${response.isStreaming} chunkSource=${response.chunkSource}",
+            )
         }
 
         override fun onComplete(requestId: String, response: CompleteResponse) {
             when (response.type) {
                 CompleteType.SYNTHESIS_COMPLETE -> {
-                    val synthesisMs =
-                        (System.currentTimeMillis() - (requestStartedAtMs[requestId] ?: System.currentTimeMillis()))
-                            .coerceAtLeast(0L)
+                    if (response.profilingInfo.isNotBlank()) {
+                        requestProfiles[requestId] = response.profilingInfo
+                    }
+                    val startedAtMs = requestStartedAtMs[requestId]
+                    val wallClockSynthesisMs =
+                        (System.currentTimeMillis() - (startedAtMs ?: System.currentTimeMillis())).coerceAtLeast(0L)
+                    val synthesisMs = response.synthesisMs.takeIf { it >= 0L } ?: wallClockSynthesisMs
                     val buffer = requestBuffers.remove(requestId)
                     val audioBytes = buffer?.toByteArray() ?: ByteArray(0)
                     val sampleRate = requestSampleRates[requestId] ?: 16000
-                    requestChunkCounts.remove(requestId)
-                    val audioDurationMs = audioDurationMs(audioBytes.size, sampleRate)
-                    if (requestPlayTypes[requestId] == PlayType.SYNTHESIZE_ONLY) {
+                    val chunkCount = requestChunkCounts.remove(requestId) ?: 0
+                    val firstChunkAtMs = requestFirstChunkAtMs[requestId]
+                    val firstPacketMs = response.firstPacketMs.takeIf { it >= 0L } ?: if (startedAtMs != null && firstChunkAtMs != null) {
+                        (firstChunkAtMs - startedAtMs).coerceAtLeast(0L)
+                    } else {
+                        null
+                    }
+                    val isWarmup = requestWarmupFlags[requestId] == true
+                    val audioDurationMs = response.audioDurationMs.takeIf { it > 0L } ?: audioDurationMs(audioBytes.size, sampleRate)
+                    if (isWarmup) {
+                        warmupDone = true
+                        endBusy(requestId)
+                        setStatus(getString(R.string.status_warmup_done, requestId))
+                        setMetrics(
+                            buildMetricsText(
+                                requestId = requestId,
+                                playType = null,
+                                sampleRate = sampleRate,
+                                firstPacketMs = firstPacketMs,
+                                synthesisMs = synthesisMs,
+                                audioDurationMs = audioDurationMs,
+                                chunkCount = chunkCount,
+                            ),
+                        )
+                    } else if (requestPlayTypes[requestId] == PlayType.SYNTHESIZE_ONLY) {
                         lastAudio = audioBytes
                         lastSampleRate = sampleRate
                         val hasAudio = lastAudio?.isNotEmpty() == true
@@ -412,23 +651,27 @@ class MainActivity : AppCompatActivity() {
                         }
                         setStatus(getString(R.string.status_synth_done, requestId))
                         setMetrics(
-                            getString(
-                                R.string.metrics_format_pcm,
-                                sampleRate,
-                                synthesisMs,
-                                audioDurationMs,
-                                formatRtf(synthesisMs, audioDurationMs),
+                            buildMetricsText(
+                                requestId = requestId,
+                                playType = requestPlayTypes[requestId],
+                                sampleRate = sampleRate,
+                                firstPacketMs = firstPacketMs,
+                                synthesisMs = synthesisMs,
+                                audioDurationMs = audioDurationMs,
+                                chunkCount = chunkCount,
                             ),
                         )
                     } else {
                         setStatus(getString(R.string.status_sdk_playback_started, requestId))
                         setMetrics(
-                            getString(
-                                R.string.metrics_format_sdk_playback,
-                                sampleRate,
-                                synthesisMs,
-                                audioDurationMs,
-                                formatRtf(synthesisMs, audioDurationMs),
+                            buildMetricsText(
+                                requestId = requestId,
+                                playType = requestPlayTypes[requestId],
+                                sampleRate = sampleRate,
+                                firstPacketMs = firstPacketMs,
+                                synthesisMs = synthesisMs,
+                                audioDurationMs = audioDurationMs,
+                                chunkCount = chunkCount,
                             ),
                         )
                     }
@@ -443,8 +686,19 @@ class MainActivity : AppCompatActivity() {
                 requestPlayTypes.remove(requestId)
                 requestSampleRates.remove(requestId)
                 requestStartedAtMs.remove(requestId)
+                requestFirstChunkAtMs.remove(requestId)
+                requestWarmupFlags.remove(requestId)
+                requestStreamingFlags.remove(requestId)
+                requestDataPaths.remove(requestId)
+                requestModelInfos.remove(requestId)
+                requestLoadProfiles.remove(requestId)
+                requestProfiles.remove(requestId)
             }
-            appendLog("onComplete requestId=$requestId type=${response.type} message=${response.message}")
+            appendLog(
+                "onComplete requestId=$requestId type=${response.type} message=${response.message} " +
+                    "firstPacketMs=${response.firstPacketMs} synthesisMs=${response.synthesisMs} " +
+                    "audioDurationMs=${response.audioDurationMs} rtf=${response.rtf} profile=${response.profilingInfo}",
+            )
         }
 
         override fun onStop(requestId: String, response: StopResponse) {
@@ -453,6 +707,13 @@ class MainActivity : AppCompatActivity() {
             requestChunkCounts.remove(requestId)
             requestSampleRates.remove(requestId)
             requestStartedAtMs.remove(requestId)
+            requestFirstChunkAtMs.remove(requestId)
+            requestWarmupFlags.remove(requestId)
+            requestStreamingFlags.remove(requestId)
+            requestDataPaths.remove(requestId)
+            requestModelInfos.remove(requestId)
+            requestLoadProfiles.remove(requestId)
+            requestProfiles.remove(requestId)
             player.stop()
             endBusy(requestId)
             setStatus(getString(R.string.status_stopped, requestId))
@@ -465,6 +726,13 @@ class MainActivity : AppCompatActivity() {
             requestChunkCounts.remove(requestId)
             requestSampleRates.remove(requestId)
             requestStartedAtMs.remove(requestId)
+            requestFirstChunkAtMs.remove(requestId)
+            requestWarmupFlags.remove(requestId)
+            requestStreamingFlags.remove(requestId)
+            requestDataPaths.remove(requestId)
+            requestModelInfos.remove(requestId)
+            requestLoadProfiles.remove(requestId)
+            requestProfiles.remove(requestId)
             player.stop()
             endBusy(requestId)
             setStatus(getString(R.string.status_error, requestId, errorCode, errorMessage))
@@ -480,5 +748,64 @@ class MainActivity : AppCompatActivity() {
     private fun formatRtf(synthesisMs: Long, audioDurationMs: Long): String {
         if (audioDurationMs <= 0L) return "--"
         return String.format(Locale.US, "%.2f", synthesisMs.toDouble() / audioDurationMs.toDouble())
+    }
+
+    private fun buildMetricsText(
+        playType: PlayType?,
+        sampleRate: Int?,
+        firstPacketMs: Long?,
+        synthesisMs: Long?,
+        audioDurationMs: Long,
+        chunkCount: Int,
+        requestId: String? = null,
+    ): String {
+        val dataPath = requestId?.let(requestDataPaths::get)
+        val modelInfo = requestId?.let(requestModelInfos::get)
+        val loadProfileInfo = requestId?.let(requestLoadProfiles::get)
+        val profilingInfo = requestId?.let(requestProfiles::get)
+        val mode = when {
+            dataPath == "model_stream_callback" || (dataPath == "model_stream" && playType == PlayType.SYNTHESIZE_ONLY) -> "真流式回调"
+            dataPath == "model_stream_playback" || (dataPath == "model_stream" && playType == PlayType.SYNTHESIZE_AND_PLAY) -> "真流式播报"
+            dataPath == "buffered_pcm_callback" || (dataPath == "buffered_pcm" && playType == PlayType.SYNTHESIZE_ONLY) -> "整段合成后切块"
+            dataPath == "buffered_pcm_playback" || (dataPath == "buffered_pcm" && playType == PlayType.SYNTHESIZE_AND_PLAY) -> "整段合成后播放"
+            playType == null -> "Warmup/待机"
+            else -> "待确认"
+        }
+        val engineLoadMs = engineLoadMsByLanguage[selectedLanguage()]
+        val modelText = when {
+            modelInfo.isNullOrBlank() -> "--"
+            modelInfo.contains("source=external") -> "外部模型包"
+            modelInfo.contains("source=bundled") -> "内置模型包"
+            else -> "未知"
+        }
+        val sampleRateText = sampleRate?.toString() ?: "--"
+        val firstPacketText = firstPacketMs?.toString() ?: "--"
+        val synthesisText = synthesisMs?.toString() ?: "--"
+        val audioDurationText = if (audioDurationMs > 0L) audioDurationMs.toString() else "--"
+        val rtfText = if (synthesisMs != null) formatRtf(synthesisMs, audioDurationMs) else "--"
+        return buildString {
+            appendLine("模式: $mode")
+            appendLine("模型来源: $modelText")
+            appendLine("引擎加载: ${engineLoadMs?.toString() ?: "--"} ms")
+            if (!loadProfileInfo.isNullOrBlank()) {
+                appendLine("加载Profile: $loadProfileInfo")
+            }
+            appendLine("采样率: ${sampleRateText} Hz")
+            appendLine("首包时延: ${firstPacketText} ms")
+            appendLine("合成耗时: ${synthesisText} ms")
+            appendLine("音频时长: ${audioDurationText} ms")
+            appendLine("RTF: $rtfText")
+            if (!profilingInfo.isNullOrBlank()) {
+                appendLine("Profile: $profilingInfo")
+            }
+            append("Chunk数: $chunkCount")
+        }
+    }
+
+    private companion object {
+        const val VOICE_ID_SPEAKER_0 = "lits-female-01"
+        const val VOICE_ID_SPEAKER_1 = "lits-female-02"
+        const val DEFAULT_STREAMING_CHUNK_SIZE = 100
+        const val DEFAULT_PCM_QUEUE_CAPACITY = 128
     }
 }

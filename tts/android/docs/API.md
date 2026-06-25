@@ -1,6 +1,6 @@
 # Lits TTS Android SDK API
 
-本文记录 Android AAR 当前公开 API。对外接口说明以本文和 `INTEGRATION.md` 为准；源码仓库中的构建说明用于协作者从源码构建 AAR，不属于运行时接口定义。
+本文记录 Android AAR 当前公开 API。SDK-only 交付以本文、`INTEGRATION.md` 与交付包根目录 `README.md` 为准；仓库根目录研发文档不属于交付依赖。
 
 ## TextToSpeechSdk
 
@@ -96,7 +96,7 @@ interface SpeakListener {
 | `speed` | `Float` | `1.0` | 范围 `[0.5, 2.0]` |
 | `volume` | `Float` | `1.0` | 范围 `[0.0, 2.0]` |
 | `pitch` | `Float` | `1.0` | 范围 `[0.5, 2.0]` |
-| `languageContext` | `String` | `zh-en` | `zh-en` 或 `en-US`；控制数字等局部读法上下文 |
+| `languageContext` | `String` | `zh-CN` | 支持 `zh-CN` / `en-US`，兼容旧值 `zh-en`；内部会把 `zh-CN` 归一到中英前端路径 |
 | `audioType` | `String` | `pcm` | 当前仅支持 `pcm` |
 | `playType` | `PlayType` | `SYNTHESIZE_AND_PLAY` | 合成模式 |
 | `soundChannel` | `Int?` | `null` | Android `AudioManager.STREAM_*` |
@@ -107,10 +107,14 @@ interface SpeakListener {
 
 | 类型 | 字段 |
 | --- | --- |
-| `StartResponse` | `audioType`, `sampleRate`, `sampleBit`, `audioChannel`, `compressRate` |
+| `StartResponse` | `audioType`, `sampleRate`, `sampleBit`, `audioChannel`, `compressRate`, `isStreaming`, `dataPath`, `modelSource`, `modelInfo`, `loadProfileInfo` |
 | `SynthesisResponse` | `sequence`, `audioType` |
-| `CompleteResponse` | `type`, `message` |
+| `CompleteResponse` | `type`, `message`, `firstPacketMs`, `synthesisMs`, `audioDurationMs`, `rtf`, `profilingInfo` |
 | `StopResponse` | `type`, `message` |
+
+`CompleteResponse` 的性能字段只在 `type = SYNTHESIS_COMPLETE` 时有意义；未知值为 `-1` 或空字符串。`profilingInfo` 是调试文本，当前包含流式路径的 frontend、hidden encoder、decoder、vocoder、chunk 数和模型 chunk size 等分段耗时。
+
+`StartResponse.loadProfileInfo` 是引擎创建时记录的加载分段耗时，当前包含 layout/model install、frontend preload、ORT session 创建总耗时，以及各 ONNX session 创建耗时。
 
 ## 枚举
 
