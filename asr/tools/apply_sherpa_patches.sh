@@ -48,7 +48,9 @@ if git rev-parse --verify refs/tags/"$UPSTREAM_TAG" >/dev/null 2>&1; then
 fi
 
 echo "[INFO] applying $(ls "$PATCH_DIR"/*.patch | wc -l | tr -d ' ') patch(es) from $PATCH_DIR ..."
-git am --3way "$PATCH_DIR"/*.patch
+GIT_COMMITTER_NAME="${GIT_COMMITTER_NAME:-Amphion CI}" \
+GIT_COMMITTER_EMAIL="${GIT_COMMITTER_EMAIL:-ci@amphion.local}" \
+  git am --3way "$PATCH_DIR"/*.patch
 
 echo "$PATCH_SIG" > "$MARKER_FILE"
 echo "[OK] sherpa-onnx patched at $(git rev-parse --short HEAD) (base $UPSTREAM_TAG + amphion patches)"

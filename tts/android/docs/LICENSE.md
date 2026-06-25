@@ -9,6 +9,7 @@
 - 防转移：license 与宿主 applicationId / bundleName 绑定，叠加签名证书和设备 SN 白名单。
 - 防篡改：ECDSA 数字签名；客户拿到的是公钥，无法伪造 / 改写 license。
 - 开发无摩擦：未注入公钥的构建（开发 / 内部）自动处于 DEV_UNLICENSED，不做任何校验。
+- 鼎桥 Android v0.2.7 正式 license 面向 `com.tdtech.tiassistant`，`features=ASR,TTS`，绑定 SN 清单并与 ASR 共用；ASR Demo APK 的限期 license 不绑 SN，只用于 Demo 体验。
 
 边界（诚实声明）：离线方案无法对抗「持有 root 的对手反编译 + 打补丁绕过校验」。本方案目标是
 抬高门槛、约束正常商业客户的越权使用，不是 DRM 级强对抗。release 开启 R8 混淆 internal 验签
@@ -103,6 +104,6 @@ police 参考分支用强制的 `AmphionRuntime.init(context)` 拿 Context 并�
 gradle 属性 `AMPHION_LICENSE_PUBLIC_KEY` → `BuildConfig.LICENSE_PUBLIC_KEY_B64`：
 
 - 留空（默认）：开发 / 内部构建，不武装。
-- 正式交付：填入 `asr/tools/license/gen_keypair.py` 生成的公钥；私钥严禁进库。
+- 正式交付：填入 `tools/license/gen_keypair.py` 生成的公钥；私钥严禁进库。
 - 可用 `-PAMPHION_LICENSE_PUBLIC_KEY=...` 注入，避免公钥进 VCS。
 - 不再保留 TTS 独立公钥属性；ASR 与 TTS 共用同一份 `amphion-license.lic`。
