@@ -27,10 +27,13 @@ ZIP_PATH="$DQ_ROOT/delivery/${PKG_NAME}-${BUILD_DATE}.zip"
 AAR_NAME="dingqiao-asr-v${VERSION}.aar"
 FAT_AAR="$AR_ROOT/build/dingqiao-delivery/$AAR_NAME"
 ERES2NET_SRC="$REPO_ROOT/asr/tools/speaker/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"
-DEMO_APK_SRC="$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk"
+DEMO_APK_DIR="$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release"
+DEMO_APK_SRC="$DEMO_APK_DIR/dingqiao-demo-release.apk"
 DEMO_LIC_SRC="$AR_ROOT/samples/dingqiao-demo/src/main/assets/amphion-license.lic"
 
 echo "[1/4] build release AARs + merge fat AAR ..."
+AMPHION_REQUIRE_ANDROID_NATIVE_LIBS=1 \
+  bash "$REPO_ROOT/asr/tools/05_package_aar_libs.sh" arm64-v8a
 cd "$AR_ROOT"
 ./gradlew :sdk:assembleRelease :sdk-police:assembleRelease :sdk-dingqiao:assembleRelease
 dingqiao_assert_sdk_version_consistent "$AR_ROOT"
@@ -42,8 +45,16 @@ dingqiao_issue_demo_license "$REPO_ROOT"
 ./gradlew :samples:dingqiao-demo:assembleRelease \
   -PdingqiaoUseFatAar=true \
   -PdingqiaoFatAarPath="$FAT_AAR"
+if [[ ! -f "$DEMO_APK_SRC" ]]; then
+  unsigned_apk="$DEMO_APK_DIR/dingqiao-demo-release-unsigned.apk"
+  if [[ "${DINGQIAO_ALLOW_DIRTY:-}" == "1" && -f "$unsigned_apk" ]]; then
+    echo "[WARN] using unsigned Demo APK for local preview: $unsigned_apk" >&2
+    DEMO_APK_SRC="$unsigned_apk"
+  fi
+fi
 [[ -f "$DEMO_APK_SRC" ]] || { echo "[ERROR] missing $DEMO_APK_SRC" >&2; exit 1; }
 [[ -f "$DEMO_LIC_SRC" ]] || { echo "[ERROR] missing $DEMO_LIC_SRC" >&2; exit 1; }
+dingqiao_verify_apk_native_libs "$DEMO_APK_SRC"
 
 echo "[3/4] assemble customer delivery tree ..."
 rm -rf "$OUT_ROOT"

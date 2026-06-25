@@ -93,6 +93,7 @@ rm -f "$OUT_PATH"
 (cd "$MERGE" && zip -qr "$OUT_PATH" .)
 
 dingqiao_verify_aar_provenance "$OUT_PATH" "$SDK_VERSION" "$GIT_COMMIT_FULL"
+dingqiao_verify_aar_native_libs "$OUT_PATH"
 
 SIZE_MB="$(du -m "$OUT_PATH" | awk '{print $1}')"
 echo "[OK] $OUT_PATH (${SIZE_MB} MB) sdk=$SDK_VERSION git=$GIT_COMMIT_SHORT"

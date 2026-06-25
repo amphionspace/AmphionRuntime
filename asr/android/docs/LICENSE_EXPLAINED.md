@@ -12,7 +12,7 @@
 | LICENSING.md | 行业调研、方案为什么这么选、防破解的技术边界 |
 | DELIVERY.md §11 | 签发 / 计费 / 续费 / 审计 / 吊销的标准操作流程 |
 | INTEGRATION.md §14 | 给客户看的接入步骤 |
-| asr/tools/license/README.md | 签发工具的命令说明 |
+| tools/license/README.md | ASR/TTS 统一签发工具的命令说明 |
 
 ## 1. 先看懂几个词
 
@@ -120,7 +120,7 @@ flowchart TD
 ### 6.1 我方一次性准备（整个产品线只做一次）
 
 ```bash
-python asr/tools/license/gen_keypair.py --out-private ~/secure/amphion-license-private.pem
+python tools/license/gen_keypair.py --out-private ~/secure/amphion-license-private.pem
 ```
 
 把输出的公钥 base64 填进 asr/android/gradle.properties 的 AMPHION_LICENSE_PUBLIC_KEY。从此打出来的就是武装包。私钥收进安全位置，绝不进库。
@@ -136,7 +136,7 @@ keytool -list -v -keystore <客户的release.keystore> -alias <alias> | grep "SH
 然后签发：
 
 ```bash
-python asr/tools/license/issue_license.py \
+python tools/license/issue_license.py \
   --private-key ~/secure/amphion-license-private.pem \
   --application-id <客户包名> --customer "<客户名>" --license-id <编号> \
   --expires <到期日或留空=永久> --install-tier <档位> \
@@ -147,7 +147,7 @@ python asr/tools/license/issue_license.py \
 签完本地自测一下，确认能过：
 
 ```bash
-python asr/tools/license/verify_license.py --license <客户包名>.lic \
+python tools/license/verify_license.py --license <客户包名>.lic \
   --private-key ~/secure/amphion-license-private.pem --application-id <客户包名>
 ```
 
@@ -200,7 +200,7 @@ App 每次启动 init 时本地验签，不联网。结果可用 AmphionRuntime.
 
 平时：
 
-- 不进 git（仓库 .gitignore 已忽略 *-private.pem 和 asr/tools/license 下的 .pem / .lic）。
+- 不进 git（仓库 .gitignore 已忽略 *-private.pem 和 tools/license 下的 .pem / .lic）。
 - 不放 CI、不放共享盘明文、不在聊天工具里发。
 - 存进密码管理器 / KMS / 保险库，生成时用 --password 加口令加密。
 - 限制能接触私钥的人数，并登记。
@@ -246,10 +246,10 @@ App 每次启动 init 时本地验签，不联网。结果可用 AmphionRuntime.
 
 | 我想做 | 怎么做 |
 | --- | --- |
-| 生成密钥对 | python asr/tools/license/gen_keypair.py --out-private <路径> |
-| 给客户签发 .lic | python asr/tools/license/issue_license.py（参数见 §6.2） |
-| 本地验一份 .lic | python asr/tools/license/verify_license.py（参数见 §6.2） |
-| 一键自测整条链路 | bash asr/tools/license/selftest.sh |
+| 生成密钥对 | python tools/license/gen_keypair.py --out-private <路径> |
+| 给客户签发 .lic | python tools/license/issue_license.py（参数见 §6.2） |
+| 本地验一份 .lic | python tools/license/verify_license.py（参数见 §6.2） |
+| 一键自测整条链路 | bash tools/license/selftest.sh |
 | 让构建开始鉴权 | 公钥填进 gradle.properties 的 AMPHION_LICENSE_PUBLIC_KEY |
 | 查错误码含义 | 本文 §5 或 INTEGRATION.md §7 |
 | 完整签发 / 续费 / 吊销流程 | DELIVERY.md §11 |

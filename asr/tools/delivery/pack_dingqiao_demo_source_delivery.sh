@@ -72,9 +72,11 @@ cp "$FAT_AAR" "$OUT_ROOT/libs/$AAR_NAME"
 cp "$DEMO_APK_SRC" "$OUT_ROOT/demo/sample-dingqiao-demo-release.apk"
 cp "$DEMO_LIC_SRC" "$OUT_ROOT/demo/amphion-license.lic"
 
-DEMO_LIC_EXPIRES="$("$REPO_ROOT/asr/tools/license/.venv/bin/python" -c "
-import json, sys
-print(json.load(open(sys.argv[1]))['expiresAt'])
+DEMO_LIC_EXPIRES="$("$REPO_ROOT/tools/license/.venv/bin/python" -c "
+import base64, json, sys
+env = json.load(open(sys.argv[1], encoding='utf-8'))
+payload = json.loads(base64.b64decode(env['payload_b64']).decode('utf-8'))
+print(payload.get('expiresAt') or '永久')
 " "$DEMO_LIC_SRC" 2>/dev/null || echo "见 amphion-license.lic")"
 
 cat > "$OUT_ROOT/demo/README.txt" <<EOF

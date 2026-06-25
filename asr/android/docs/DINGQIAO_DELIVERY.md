@@ -74,15 +74,17 @@ dependencies {
 | `asr/tools/delivery/pack_dingqiao_delivery.sh` | 内部 scheme A（含 LICENSING 等） |
 | `asr/tools/delivery/pack_dingqiao_delivery_scheme_b.sh` | 三 AAR 分模块 scheme B |
 | `asr/tools/delivery/merge_dingqiao_fat_aar.sh` | 仅合并 fat AAR |
-| `asr/tools/delivery/verify_dingqiao_delivery.sh` | 校验 VERSION.txt / AAR 溯源 / 交付目录含 `docs/NOTICE` |
+| `asr/tools/delivery/verify_dingqiao_delivery.sh` | 校验 VERSION.txt / AAR 与 Demo APK native 库 / 交付目录含 `docs/NOTICE` |
 
 **构建溯源（强制）**
 
 1. 在 **AmphionRuntime git 仓库**内打包；`VERSION.txt` 写入 `git_commit_full`（40 字符）+ `git_commit`（短 hash），且 **本地必须能 `git cat-file -e` 该 commit**。
 2. `sdk_version` / `buildconfig_sdk_version` 均来自 **`gradle.properties` → `AMPHION_RUNTIME_VERSION`**，打包前校验与 `BuildConfig.SDK_VERSION` 一致。
 3. fat AAR 内嵌 `META-INF/amphion-dingqiao-build.properties`（与 VERSION.txt 同批 git/sdk 信息）。
-4. 工作区须 **clean**（无未提交改动）；本地预览可设 `DINGQIAO_ALLOW_DIRTY=1`。
-5. 交付版本号默认 = `AMPHION_RUNTIME_VERSION`（勿再手写 `0.1.0` 与 SDK `0.2.x` 混用）。
+4. 正式客户包脚本必须用严格模式拷贝 `arm64-v8a` native 库，缺少构建产物时直接失败。
+5. fat AAR 必须包含 `jni/arm64-v8a/libsherpa-onnx-jni.so` 和 `jni/arm64-v8a/libonnxruntime.so`；Demo APK 必须包含对应 `lib/arm64-v8a/*.so`。缺失会导致 `createEngine` 阶段加载 sherpa JNI 失败。
+6. 工作区须 **clean**（无未提交改动）；本地预览可设 `DINGQIAO_ALLOW_DIRTY=1`。
+7. 交付版本号默认 = `AMPHION_RUNTIME_VERSION`（勿再手写 `0.1.0` 与 SDK `0.2.x` 混用）。
 
 ```bash
 # 正式发包（仓库根）
@@ -148,7 +150,7 @@ createEngine → setListener → startListening
 
 | API | 说明 |
 |-----|------|
-| `registerVoiceprint` | 3~5 段样本，每段 3~8 s，PCM/WAV 16 kHz mono |
+| `registerVoiceprint` | 至少 1 段样本，每段 3~8 s，PCM/WAV 16 kHz mono；多段样本可提升稳定性 |
 | `deleteVoiceprint(voiceprintId)` | 删除 `{workPath}/voiceprints/{id}/` |
 | 会话校验 | `startListening.extraParams`：`enableVoiceprintVerification=true`，`voiceprintIds=["vp-xxx"]` |
 
@@ -165,7 +167,7 @@ createEngine → setListener → startListening
 adb push eres2net.onnx /sdcard/Android/data/com.amphion.dingqiao.demo/files/dingqiao_work/
 ```
 
-3. 菜单 → **声纹注册**：录 3~5 段 → **注册声纹**  
+3. 菜单 → **声纹注册**：录至少 1 段 → **注册声纹**  
 4. 主界面打开 **声纹校验** 开关 → 开始识别 → final 行显示增强文本与相似度  
 5. 删除声纹：主界面菜单 **删除声纹**，或注册页 **删除已注册声纹**（调用 `deleteVoiceprint`）
 
@@ -188,7 +190,7 @@ adb push eres2net.onnx /sdcard/Android/data/com.amphion.dingqiao.demo/files/ding
 cd asr/android
 
 # 1) 若无密钥对，一次性生成（私钥写入仓库根 .secure/，不进 git）
-cd ../../asr/tools/license
+cd ../../tools/license
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python gen_keypair.py --out-private ../../.secure/amphion-license-private.pem
 # 公钥贴回 asr/android/gradle.properties → AMPHION_LICENSE_PUBLIC_KEY

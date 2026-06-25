@@ -15,7 +15,7 @@ bash asr/tools/delivery/<script>.sh [交付版本号]
 | `pack_dingqiao_delivery.sh` | 内部 scheme A（含 LICENSING） |
 | `pack_dingqiao_delivery_scheme_b.sh` | scheme B 三 AAR |
 | `merge_dingqiao_fat_aar.sh` | 仅 fat AAR |
-| `verify_dingqiao_delivery.sh` | 校验 VERSION.txt / AAR / zip UTF-8 EFS / 交付目录 `docs/NOTICE` |
+| `verify_dingqiao_delivery.sh` | 校验 VERSION.txt / AAR 与 Demo APK native 库 / zip UTF-8 EFS / 交付目录 `docs/NOTICE` |
 | `dingqiao_zip_utf8.py` | 交付 zip 打包（Windows 中文文件名） |
 | `dingqiao_build_provenance.sh` | 共用库（勿直接运行） |
 

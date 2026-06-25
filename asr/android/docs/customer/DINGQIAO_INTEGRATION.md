@@ -62,7 +62,7 @@ createEngine → setListener → startListening
 
 | API | 要求 |
 |-----|------|
-| `registerVoiceprint` | 3～5 段样本，每段 **3～8 秒**，16 kHz mono PCM/WAV |
+| `registerVoiceprint` | 至少 1 段样本，每段 3～8 秒，16 kHz mono PCM/WAV；多段样本可提升稳定性 |
 | `deleteVoiceprint` | 删除对应 ID 的本地 embedding |
 | 会话校验 | `startListening` 的 extraParams：`enableVoiceprintVerification=true`，`voiceprintIds=["vp-xxx"]` |
 

@@ -67,7 +67,7 @@
 
 ### 3.2 为什么 ECDSA P-256，而不是 Ed25519 / RSA
 
-SDK minSdk 24。Ed25519 的 java.security 支持需 API 33，覆盖不了 24；RSA-2048 可用但签名/公钥更大。ECDSA P-256（SHA256withECDSA）在 API 24 全覆盖、签名与公钥都短，是唯一同时满足「全版本 + 现代 + 紧凑」的选择。已用 java.security 与 Python cryptography 实测互通（见 asr/tools/license/selftest.sh 与跨端验签）。
+SDK minSdk 24。Ed25519 的 java.security 支持需 API 33，覆盖不了 24；RSA-2048 可用但签名/公钥更大。ECDSA P-256（SHA256withECDSA）在 API 24 全覆盖、签名与公钥都短，是唯一同时满足「全版本 + 现代 + 紧凑」的选择。已用 java.security 与 Python cryptography 实测互通（见 tools/license/selftest.sh 与跨端验签）。
 
 ### 3.3 为什么使用 SN 白名单，而不是联网激活
 
@@ -91,7 +91,7 @@ SDK minSdk 24。Ed25519 的 java.security 支持需 API 33，覆盖不了 24；R
 
 签名覆盖的是 payload 解码后的原始字节，验签端不重新序列化，从根上规避 canonical JSON 歧义（这是 Python 签发与 Kotlin 验签逐字节一致的关键）。
 
-payload claims 字段见 asr/tools/license/README.md §5。
+payload claims 字段见 tools/license/README.md §4。
 
 ### 4.2 验签与绑定校验流程
 

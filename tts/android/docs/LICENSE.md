@@ -103,6 +103,6 @@ police 参考分支用强制的 `AmphionRuntime.init(context)` 拿 Context 并�
 gradle 属性 `AMPHION_LICENSE_PUBLIC_KEY` → `BuildConfig.LICENSE_PUBLIC_KEY_B64`：
 
 - 留空（默认）：开发 / 内部构建，不武装。
-- 正式交付：填入 `asr/tools/license/gen_keypair.py` 生成的公钥；私钥严禁进库。
+- 正式交付：填入 `tools/license/gen_keypair.py` 生成的公钥；私钥严禁进库。
 - 可用 `-PAMPHION_LICENSE_PUBLIC_KEY=...` 注入，避免公钥进 VCS。
 - 不再保留 TTS 独立公钥属性；ASR 与 TTS 共用同一份 `amphion-license.lic`。
