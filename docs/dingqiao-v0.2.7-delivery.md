@@ -21,6 +21,7 @@
 | 授权能力 | Demo 为 `ASR`；正式 license 为 `ASR,TTS`，供 ASR 与 TTS 共用 |
 | 到期时间 | Demo 和正式 license 均为 `2026-08-25` |
 | 声纹模型 | `eres2net.onnx` 固定内置在 AAR / APK assets 中，运行时自动准备到 `setWorkPath` |
+| 验证口径 | Demo 验证使用 Demo APK 内置 license；正式 license zip 只在 `com.tdtech.tiassistant` 正式宿主中验证 |
 
 ## 本次产物
 
@@ -33,8 +34,9 @@
 
 - Demo license：`applicationId=com.amphion.dingqiao.demo`，`features=ASR`，`device_hash_count=0`，`expiresAt=2026-08-25`。
 - 正式 SDK license：`applicationId=com.tdtech.tiassistant`，`features=ASR,TTS`，`device_hash_count=16`，`expiresAt=2026-08-25`。
-- 设备实测：Demo APK 普通安装后显示“引擎就绪，点击开始识别”，没有 `device SN unavailable`、`dlopen failed` 或崩溃日志。
+- 设备实测：从最终 zip 解压出的 Demo APK 普通安装后显示“引擎就绪，点击开始识别”，没有 `device SN unavailable`、`dlopen failed` 或崩溃日志。
 - 声纹模型实测：安装后不需要手动导入 `eres2net.onnx`，SDK 可自动把模型准备到工作目录。
+- 授权边界：Demo 通过不代表正式 license zip 已在正式宿主通过；正式 license 需要包名、签名证书和设备 SN 均匹配。
 
 ## 后续规则
 
@@ -42,3 +44,4 @@
 - 正式客户 App 使用 SN 绑定 license 时，必须确认宿主能读取或注入稳定 SN；否则会返回设备不匹配或 SN 不可用。
 - 每次重新交付前，必须从最终 zip 中反查 Demo license 和正式 license 的 claims，不能只相信脚本参数。
 - 每次重新交付前，必须验证 AAR 和 Demo APK 都包含 `assets/amphion-dingqiao/eres2net.onnx`，客户包不再提供外置 `models/eres2net.onnx`。
+- 每次设备验证必须安装最终 zip 解压出的 APK；如需验证源码工程，也必须从最终 zip 解压出的 `demo-src/` 运行。

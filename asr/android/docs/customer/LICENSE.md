@@ -17,6 +17,8 @@
 
 Demo APK 内自带的授权文件仅用于体验：绑定 Demo 包名与 Demo 签名，只限制期限，不绑定设备 SN，不可用于贵司正式 App。
 
+Demo APK 验收只证明 Demo 内置授权可用、SDK 能完成初始化和体验流程；它不会验证正式 `amphion-license.lic`。正式授权必须在贵司正式宿主中验证：包名为 `com.tdtech.tiassistant`，签名证书 SHA-256 与授权一致，设备 SN 在授权白名单内。
+
 ## 2. 集成方式
 
 将 `.lic` 放入 App 的 assets 目录，默认文件名：
@@ -53,5 +55,6 @@ Release 集成在 `init` 阶段校验授权。常见错误（`IllegalStateExcept
 - 授权文件与 **包名 + Release 签名** 绑定；Debug 签名与 Release 不一致时，请使用 Debug 专用授权或先用 Release 包验证。
 - 正式授权启用设备 SN 白名单；宿主 App 需要能在运行时向 SDK 提供本机 SN。普通三方 App 通常无法读取系统 SN，系统 / 特权应用需具备对应权限。
 - Demo APK 为普通安装体验包，不绑定 SN；若把 Demo 授权换成正式 SN 绑定授权，普通安装时可能因无法读取 SN 而初始化失败。
+- 独立下发的正式 license zip 不用于 Demo APK；不要用 Demo 通过来替代正式宿主的授权验收。
 - 请勿将授权文件提交到公开代码仓库。
 - 授权相关问题请联系我方对接人，勿在交付包内查找或替换验签密钥。

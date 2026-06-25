@@ -76,6 +76,8 @@ Demo APK 内置授权只用于体验：绑定 Demo 包名与 Demo 签名，限�
 
 建议验收项：启动后显示引擎就绪、识别 + 警务增强、中文 ITN、声纹注册 / 校验 / 删除。若正式 App 使用 SN 绑定 license，请确认宿主系统能读取本机 SN。
 
+注意：Demo 验收使用的是 Demo APK 内置 license，不使用单独下发给 `com.tdtech.tiassistant` 的正式 license zip。正式 license 需要在正式宿主包名、正式签名和白名单设备上单独验收。
+
 ## 7. 端侧存储（参考）
 
 | 类别 | 约占用 |
