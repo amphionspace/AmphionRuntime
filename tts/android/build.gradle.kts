@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
 }
 
-val sdkVersion = "0.2.5"
+val sdkVersion = "0.2.5.1"
 val modelId = "transsion_lits_en_zh_vocos24k_streaming_proto_external_loop"
 val modelVersion = "0.1.0"
 val deliveryDirName = "lits-transsion-tts-android-sdk-vocos24k-$sdkVersion"
@@ -79,6 +79,7 @@ val packLitsTtsSdkAssets = tasks.register<Copy>("packLitsTtsSdkAssets") {
         "export_report.json",
         "smoke_tokens.json",
         "frontend_golden.json",
+        "frontend_rules.json",
         "chinese_lexicon.txt",
         "chinese_lexicon.bin",
         "cmudict.txt",

@@ -52,11 +52,12 @@ required = {
     "libs/onnxruntime-android-1.24.3-classes.jar",
     "jni/arm64-v8a/libonnxruntime.so",
     "jni/arm64-v8a/libonnxruntime4j_jni.so",
-    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/manifest.json",
-    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_hidden_encoder.onnx",
-    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_stream_decoder_chunk.ort",
-    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_stream_decoder_final.ort",
-    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/vocos_vocoder.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/manifest.json",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/lits_hidden_encoder.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/lits_stream_condition_chunk.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/lits_stream_condition_final.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/lits_stream_decoder_step.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/vocos_vocoder.onnx",
 }
 with zipfile.ZipFile(path) as zf:
     names = set(zf.namelist())
@@ -76,11 +77,12 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 required = {
-    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/manifest.json",
-    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_hidden_encoder.onnx",
-    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_stream_decoder_chunk.ort",
-    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/lits_stream_decoder_final.ort",
-    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/vocos_vocoder.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/manifest.json",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/lits_hidden_encoder.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/lits_stream_condition_chunk.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/lits_stream_condition_final.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/lits_stream_decoder_step.onnx",
+    "assets/lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/vocos_vocoder.onnx",
     "lib/arm64-v8a/libonnxruntime.so",
     "lib/arm64-v8a/libonnxruntime4j_jni.so",
 }

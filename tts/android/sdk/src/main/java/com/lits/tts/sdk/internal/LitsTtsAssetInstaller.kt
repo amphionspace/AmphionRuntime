@@ -198,9 +198,10 @@ internal object LitsTtsAssetInstaller {
     private fun readAssetSignature(context: Context): String {
         val assetPath =
             "${LitsTtsAssetRegistry.ASSET_ROOT}/${LitsTtsAssetRegistry.assetSubPath}/${LitsTtsAssetRegistry.MANIFEST}"
-        return context.assets.open(assetPath).use { input ->
+        val manifestSignature = context.assets.open(assetPath).use { input ->
             input.bufferedReader().use { it.readText() }
         }
+        return "${LitsTtsAssetRegistry.ASSET_SIGNATURE_VERSION}\n$manifestSignature"
     }
 
     private fun File.mkdirsOrThrow() {
@@ -239,6 +240,7 @@ internal object LitsTtsAssetInstaller {
         val streamConditionFinalModel: File?,
         val streamDecoderStepModel: File?,
         val frontendGolden: File,
+        val frontendRules: File,
         val chineseLexicon: File,
         val chineseLexiconBin: File,
         val cmudict: File,
@@ -265,6 +267,7 @@ internal object LitsTtsAssetInstaller {
                 streamConditionFinalModel = manifest.streamConditionFinalModelFile?.let(rootDir::resolve),
                 streamDecoderStepModel = manifest.streamDecoderStepModelFile?.let(rootDir::resolve),
                 frontendGolden = rootDir.resolve(LitsTtsAssetRegistry.FRONTEND_GOLDEN),
+                frontendRules = rootDir.resolve(LitsTtsAssetRegistry.FRONTEND_RULES),
                 chineseLexicon = rootDir.resolve(LitsTtsAssetRegistry.CHINESE_LEXICON),
                 chineseLexiconBin = rootDir.resolve(LitsTtsAssetRegistry.CHINESE_LEXICON_BIN),
                 cmudict = rootDir.resolve(LitsTtsAssetRegistry.CMUDICT),

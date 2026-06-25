@@ -3,7 +3,7 @@
 
 - 私钥：PKCS#8 PEM，写到本地文件，严禁进库（仅 issue_license.py 签发时使用）。
 - 公钥：X.509 SubjectPublicKeyInfo(DER) 的 base64，单行打印；贴到
-        tts/android/gradle.properties 的 LITS_TTS_LICENSE_PUBLIC_KEY。
+        tts/android/gradle.properties 的 AMPHION_LICENSE_PUBLIC_KEY。
 
 为什么是 P-256：SDK 端 minSdk 24，Ed25519 需 API 33 不可用；ECDSA P-256 + SHA256
 （SHA256withECDSA）在 API 24 全覆盖，签名 / 公钥都短。
@@ -67,7 +67,7 @@ def main() -> None:
     pub_b64 = base64.b64encode(pub_der).decode("ascii")
 
     print(f"[ok] 私钥已写入：{out}（权限 600；严禁进库 / 严禁外发）")
-    print("[ok] 公钥 base64（贴到 gradle.properties 的 LITS_TTS_LICENSE_PUBLIC_KEY）：")
+    print("[ok] 公钥 base64（贴到 gradle.properties 的 AMPHION_LICENSE_PUBLIC_KEY）：")
     print(pub_b64)
 
 

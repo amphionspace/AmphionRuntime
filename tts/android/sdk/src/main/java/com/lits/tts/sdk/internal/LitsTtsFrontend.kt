@@ -1,15 +1,21 @@
 package com.lits.tts.sdk.internal
 
+import android.util.Log
 import com.lits.tts.sdk.TtsErrorCode
 import java.io.File
 import java.text.Normalizer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicLong
 import org.json.JSONArray
 import org.json.JSONObject
 
 internal object LitsTtsFrontend {
+    private const val METRIC_TAG = "LitsFrontendMetric"
+    private const val DETAIL_TAG = "LitsFrontendDetail"
+    private const val LOG_CHUNK_SIZE = 3200
+    private val traceSequence = AtomicLong(0L)
     private val resourcesByRoot = ConcurrentHashMap<String, FrontendResources>()
     private val pinyinSyllableRegex = Regex("^[a-z]+[0-6]$")
     private val hanziRegex = Regex("[\\u4e00-\\u9fff]")
@@ -149,8 +155,9 @@ internal object LitsTtsFrontend {
     private val urlSchemeSeparatorRegex = Regex("(?<![A-Za-z0-9])(https?|ftp)://", RegexOption.IGNORE_CASE)
     private val caretPowerTwoRegex = Regex("\\^(?:2|二)")
     private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])([A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
-    private val connectorHyphenRegex = Regex("(?<![A-Za-z0-9])(USB|Type)-([A-Za-z])(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
     private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
+    private val vinCodeRegex = Regex("((?:车架号\\s*)?(?:VIN\\s+))([A-HJ-NPR-Z0-9]{8,17})(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
+    private val productCodeRegex = Regex("(?<![A-Za-z0-9])(vocos|Office)(\\d+)(k?)(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
     private val arpabetBoundaryTokens = setOf("/", "|", "_")
     private const val CHINESE_DIGIT_SEQUENCE_CHARS = "零〇一二三四五六七八九两幺"
     private val technicalSymbolReadings = mapOf(
@@ -235,8 +242,17 @@ internal object LitsTtsFrontend {
         language: String,
         languageContext: String,
     ): LongArray {
+        val traceId = nextTraceId()
         val normalizedText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
-        return encodeNormalized(layout, normalizedText, language, languageContext)
+        return encodeNormalizedInternal(
+            layout = layout,
+            rawText = text,
+            normalizedText = normalizedText,
+            language = language,
+            languageContext = languageContext,
+            alreadyNormalized = false,
+            traceId = traceId,
+        )
     }
 
     fun encodeNormalized(
@@ -245,12 +261,43 @@ internal object LitsTtsFrontend {
         language: String,
         languageContext: String,
     ): LongArray {
+        return encodeNormalizedInternal(
+            layout = layout,
+            rawText = normalizedText,
+            normalizedText = normalizedText,
+            language = language,
+            languageContext = languageContext,
+            alreadyNormalized = true,
+            traceId = nextTraceId(),
+        )
+    }
+
+    private fun encodeNormalizedInternal(
+        layout: LitsTtsAssetInstaller.InstalledLayout,
+        rawText: String,
+        normalizedText: String,
+        language: String,
+        languageContext: String,
+        alreadyNormalized: Boolean,
+        traceId: Long,
+    ): LongArray {
         val resources = resources(layout)
-        val rawTokens = tokenize(resources, normalizedText, language, languageContext)
-        val ids = rawTokens.map { token ->
+        val tokenization = tokenizeDetailed(resources, normalizedText, language, languageContext, traceId)
+        val ids = tokenization.tokens.map { token ->
             resources.symbolToId[token] ?: throw unsupported("frontend token is not in zh_en_symbols.json: $token")
         }
-        return ids.map { it.toLong() }.toLongArray()
+        val tokenIds = ids.map { it.toLong() }.toLongArray()
+        logFrontendMetric(
+            traceId = traceId,
+            rawText = rawText,
+            tnText = normalizedText,
+            language = language,
+            languageContext = languageContext,
+            alreadyNormalized = alreadyNormalized,
+            tokenization = tokenization,
+            tokenIds = tokenIds,
+        )
+        return tokenIds
     }
 
     internal fun debugTokensForTest(
@@ -264,8 +311,81 @@ internal object LitsTtsFrontend {
         return tokenize(resources, normalizedText, language, languageContext)
     }
 
+    internal fun debugTokensForNormalizedForTest(
+        layout: LitsTtsAssetInstaller.InstalledLayout,
+        normalizedText: String,
+        language: String,
+        languageContext: String,
+    ): List<String> {
+        val resources = resources(layout)
+        return tokenize(resources, normalizedText, language, languageContext)
+    }
+
     fun preload(layout: LitsTtsAssetInstaller.InstalledLayout) {
         resources(layout)
+    }
+
+    private data class TokenizationResult(
+        val inputText: String,
+        val preprocessedText: String,
+        val normalizedText: String,
+        val tokens: List<String>,
+    )
+
+    private fun nextTraceId(): Long = traceSequence.incrementAndGet()
+
+    private fun logFrontendMetric(
+        traceId: Long,
+        rawText: String,
+        tnText: String,
+        language: String,
+        languageContext: String,
+        alreadyNormalized: Boolean,
+        tokenization: TokenizationResult,
+        tokenIds: LongArray,
+    ) {
+        val tokenText = tokenization.tokens.joinToString(" ")
+        val tokenIdText = tokenIds.joinToString(" ")
+        logChunked(
+            METRIC_TAG,
+            buildString {
+                append("trace=").append(traceId)
+                append(" alreadyNormalized=").append(alreadyNormalized)
+                append(" language=").append(language)
+                append(" languageContext=").append(languageContext)
+                append(" rawLen=").append(rawText.length)
+                append(" tnLen=").append(tnText.length)
+                append(" normalizedLen=").append(tokenization.normalizedText.length)
+                append(" tokenCount=").append(tokenization.tokens.size)
+                append(" rawText=").append(rawText)
+                append(" | tnText=").append(tnText)
+                append(" | frontendInput=").append(tokenization.inputText)
+                append(" | preprocessedText=").append(tokenization.preprocessedText)
+                append(" | normalizedText=").append(tokenization.normalizedText)
+                append(" | cleanedTokens=").append(tokenText)
+                append(" | tokenIds=").append(tokenIdText)
+            },
+        )
+    }
+
+    private fun logDetail(traceId: Long, message: String) {
+        logChunked(DETAIL_TAG, "trace=$traceId $message")
+    }
+
+    private fun logChunked(tag: String, message: String) {
+        if (message.length <= LOG_CHUNK_SIZE) {
+            runCatching { Log.i(tag, message) }
+            return
+        }
+        var start = 0
+        var part = 1
+        val total = (message.length + LOG_CHUNK_SIZE - 1) / LOG_CHUNK_SIZE
+        while (start < message.length) {
+            val end = minOf(start + LOG_CHUNK_SIZE, message.length)
+            runCatching { Log.i(tag, "part=$part/$total ${message.substring(start, end)}") }
+            start = end
+            part += 1
+        }
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -470,14 +590,37 @@ internal object LitsTtsFrontend {
         text: String,
         language: String,
         languageContext: String,
-    ): List<String> {
-        tokenizeArpabetInput(resources, text)?.let { return it }
-        val normalized = normalizeTechnicalText(normalizeText(preprocessZhMixedInput(text), languageContext), languageContext).trim()
+    ): List<String> = tokenizeDetailed(resources, text, language, languageContext, traceId = -1L).tokens
+
+    private fun tokenizeDetailed(
+        resources: FrontendResources,
+        text: String,
+        language: String,
+        languageContext: String,
+        traceId: Long,
+    ): TokenizationResult {
+        tokenizeArpabetInput(resources, text, traceId)?.let {
+            return TokenizationResult(
+                inputText = text,
+                preprocessedText = text,
+                normalizedText = text,
+                tokens = it,
+            )
+        }
+        val preprocessed = resources.frontendRules.apply("pre_frontend", preprocessZhMixedInput(text))
+        val normalizedText = normalizeText(preprocessed, languageContext)
+        val normalized = normalizeTechnicalText(resources, normalizedText, languageContext).trim()
         if (normalized.isEmpty()) {
             throw unsupported("text must not be empty after trim")
         }
         if (language == "en-US" && normalized.any(::isHanzi)) {
             throw unsupported("en-US mode does not support Chinese input")
+        }
+        if (traceId > 0L) {
+            logDetail(
+                traceId,
+                "stage input='$text' preprocessed='$preprocessed' normalizedText='$normalizedText' technicalNormalized='$normalized'",
+            )
         }
         val output = mutableListOf<String>()
         var index = 0
@@ -487,7 +630,7 @@ internal object LitsTtsFrontend {
                 val end = scanAsciiAlnumRun(normalized, index)
                 val run = normalized.substring(index, end)
                 if (shouldExpandPlateAlnumRun(run)) {
-                    appendPlateAlnumRun(output, resources, run)
+                    appendPlateAlnumRun(output, resources, run, traceId)
                     index = end
                     continue
                 }
@@ -507,15 +650,19 @@ internal object LitsTtsFrontend {
                     val end = scanDigits(normalized, index)
                     val digits = normalized.substring(index, end)
                     if (languageContext == "zh-en") {
+                        val chineseText = digits.map { chineseDigitTextByChar.getValue(it) }.joinToString("")
+                        val pinyin = hanziChunkToPinyin(resources, chineseText)
+                        val sandhi = applyThirdToneSandhi(pinyin)
+                        if (traceId > 0L) {
+                            logDetail(
+                                traceId,
+                                "digits.zh digits='$digits' hanzi='$chineseText' pinyin='${pinyin.joinToString(" ")}' sandhi='${sandhi.joinToString(" ")}'",
+                            )
+                        }
                         appendChineseSyllables(
                             output,
                             resources,
-                            applyThirdToneSandhi(
-                                hanziChunkToPinyin(
-                                    resources,
-                                    digits.map { chineseDigitTextByChar.getValue(it) }.joinToString(""),
-                                ),
-                            ),
+                            sandhi,
                             trimLeadingBoundary = !shouldKeepBoundaryBeforeChinese(normalized, index),
                         )
                     } else {
@@ -523,7 +670,14 @@ internal object LitsTtsFrontend {
                             appendBoundary(output)
                             val phones = resources.cmudict[englishDigitWordByChar.getValue(digit)]
                                 ?: throw unsupported("english digit is not covered by cmudict.txt: $digit")
-                            output += arpabetToTokens(resources, phones)
+                            val tokens = arpabetToTokens(resources, phones)
+                            if (traceId > 0L) {
+                                logDetail(
+                                    traceId,
+                                    "digits.en digit='$digit' word='${englishDigitWordByChar.getValue(digit)}' phones='${phones.joinToString(" ")}' tokens='${tokens.joinToString(" ")}'",
+                                )
+                            }
+                            output += tokens
                         }
                         appendBoundary(output)
                     }
@@ -533,10 +687,18 @@ internal object LitsTtsFrontend {
                 isHanzi(char) -> {
                     val end = scanHanziChunk(normalized, index)
                     val hanziText = normalized.substring(index, end)
+                    val pinyin = hanziChunkToPinyin(resources, hanziText)
+                    val sandhi = applyMandarinToneSandhi(hanziText, pinyin)
+                    if (traceId > 0L) {
+                        logDetail(
+                            traceId,
+                            "hanzi chunk='$hanziText' pinyin='${pinyin.joinToString(" ")}' sandhi='${sandhi.joinToString(" ")}'",
+                        )
+                    }
                     appendChineseSyllables(
                         output,
                         resources,
-                        applyMandarinToneSandhi(hanziText, hanziChunkToPinyin(resources, hanziText)),
+                        sandhi,
                         trimLeadingBoundary = !shouldKeepBoundaryBeforeChinese(normalized, index),
                     )
                     index = end
@@ -548,6 +710,9 @@ internal object LitsTtsFrontend {
                         val candidate = normalized.substring(index, end + 1)
                         val tokens = resources.pinyinToTokens[candidate]
                         if (tokens != null) {
+                            if (traceId > 0L) {
+                                logDetail(traceId, "ascii.zh-token candidate='$candidate' tokens='${tokens.joinToString(" ")}'")
+                            }
                             while (output.lastOrNull() == "_") {
                                 output.removeAt(output.lastIndex)
                             }
@@ -564,7 +729,11 @@ internal object LitsTtsFrontend {
                         word,
                         preferLetterName = shouldPreferLetterName(normalized, actualEnd, word),
                     )
-                    output += arpabetToTokens(resources, phones)
+                    val tokens = arpabetToTokens(resources, phones)
+                    if (traceId > 0L) {
+                        logDetail(traceId, "english word='$word' phones='${phones.joinToString(" ")}' tokens='${tokens.joinToString(" ")}'")
+                    }
+                    output += tokens
                     appendBoundary(output)
                     index = actualEnd
                 }
@@ -579,7 +748,11 @@ internal object LitsTtsFrontend {
                         word,
                         preferLetterName = shouldPreferLetterName(normalized, end, word),
                     )
-                    output += arpabetToTokens(resources, phones)
+                    val tokens = arpabetToTokens(resources, phones)
+                    if (traceId > 0L) {
+                        logDetail(traceId, "english word='$word' phones='${phones.joinToString(" ")}' tokens='${tokens.joinToString(" ")}'")
+                    }
+                    output += tokens
                     appendBoundary(output)
                     index = end
                 }
@@ -593,7 +766,12 @@ internal object LitsTtsFrontend {
         while (output.lastOrNull() == "_") {
             output.removeAt(output.lastIndex)
         }
-        return output
+        return TokenizationResult(
+            inputText = text,
+            preprocessedText = preprocessed,
+            normalizedText = normalized,
+            tokens = output,
+        )
     }
 
     private fun shouldExpandPlateAlnumRun(run: String): Boolean =
@@ -605,6 +783,7 @@ internal object LitsTtsFrontend {
         output: MutableList<String>,
         resources: FrontendResources,
         run: String,
+        traceId: Long,
     ) {
         var index = 0
         while (index < run.length) {
@@ -612,24 +791,32 @@ internal object LitsTtsFrontend {
             when {
                 char.isDigit() -> {
                     val digitEnd = scanDigits(run, index)
+                    val digits = run.substring(index, digitEnd)
+                    val hanzi = digits.map { chineseDigitTextByChar.getValue(it) }.joinToString("")
+                    val pinyin = hanziChunkToPinyin(resources, hanzi)
+                    if (traceId > 0L) {
+                        logDetail(traceId, "plate digits='$digits' hanzi='$hanzi' pinyin='${pinyin.joinToString(" ")}'")
+                    }
                     appendChineseSyllables(
                         output,
                         resources,
-                        hanziChunkToPinyin(
-                            resources,
-                            run.substring(index, digitEnd).map { chineseDigitTextByChar.getValue(it) }.joinToString(""),
-                        ),
+                        pinyin,
                     )
                     index = digitEnd
                 }
 
                 isEnglishLetter(char) -> {
                     appendBoundary(output)
-                    output += arpabetToTokens(
+                    val phones = letterPhonesByChar[char.uppercaseChar()]
+                        ?: throw unsupported("ASCII letter is not supported by plate frontend: $char")
+                    val tokens = arpabetToTokens(
                         resources,
-                        letterPhonesByChar[char.uppercaseChar()]
-                            ?: throw unsupported("ASCII letter is not supported by plate frontend: $char"),
+                        phones,
                     )
+                    if (traceId > 0L) {
+                        logDetail(traceId, "plate letter='$char' phones='${phones.joinToString(" ")}' tokens='${tokens.joinToString(" ")}'")
+                    }
+                    output += tokens
                     appendBoundary(output)
                     index += 1
                 }
@@ -684,8 +871,9 @@ internal object LitsTtsFrontend {
         return ","
     }
 
-    private fun normalizeTechnicalText(text: String, languageContext: String): String {
-        var normalized = percentNumberRegex.replace(text) { match ->
+    private fun normalizeTechnicalText(resources: FrontendResources, text: String, languageContext: String): String {
+        var normalized = resources.frontendRules.apply("post_frontend", text)
+        normalized = percentNumberRegex.replace(normalized) { match ->
             "百分之${numberTextToHanzi(match.groupValues[1])}"
         }
         normalized = normalized.replace(Regex("\\b(?:dot|point)\\b", RegexOption.IGNORE_CASE), "点")
@@ -700,9 +888,6 @@ internal object LitsTtsFrontend {
         normalized = normalized.replace("=", "等于")
         normalized = urlSchemeSeparatorRegex.replace(normalized) { match ->
             "${match.groupValues[1]}冒号斜杠斜杠"
-        }
-        normalized = connectorHyphenRegex.replace(normalized) { match ->
-            "${match.groupValues[1]} ${match.groupValues[2]}"
         }
         normalized = technicalAsciiTokenRegex.replace(normalized) { match ->
             val token = match.groupValues[1]
@@ -785,6 +970,12 @@ internal object LitsTtsFrontend {
         }
         normalized = monthDayRegex.replace(normalized) { match ->
             "${match.groupValues[1]}${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
+        }
+        normalized = vinCodeRegex.replace(normalized) { match ->
+            match.groupValues[1] + normalizeSerialCode(match.groupValues[2])
+        }
+        normalized = productCodeRegex.replace(normalized) { match ->
+            match.groupValues[1] + normalizeSerialCode(match.groupValues[2]) + match.groupValues[3]
         }
         normalized = serialCodeRegex.replace(normalized) { match ->
             match.groupValues[1] + match.groupValues[2] + normalizeSerialCode(match.groupValues[3])
@@ -996,14 +1187,12 @@ internal object LitsTtsFrontend {
             val spelled = spellEnglishWord(resources, normalized)
             if (spelled.isNotEmpty()) return spelled
         }
-        resources.cmudict[normalized]?.let { return it }
-        resources.supplementLexicon[normalized]?.let { return it }
+        resources.englishLexicon[normalized]?.let { return it }
         if ('-' in normalized) {
             val output = mutableListOf<String>()
             for (part in normalized.split('-')) {
                 if (part.isEmpty()) continue
-                val phones = resources.cmudict[part]
-                    ?: resources.supplementLexicon[part]
+                val phones = resources.englishLexicon[part]
                     ?: spellEnglishWord(resources, part)
                 if (phones.isEmpty()) {
                     continue
@@ -1017,7 +1206,7 @@ internal object LitsTtsFrontend {
         return emptyList()
     }
 
-    private fun tokenizeArpabetInput(resources: FrontendResources, text: String): List<String>? {
+    private fun tokenizeArpabetInput(resources: FrontendResources, text: String, traceId: Long = -1L): List<String>? {
         val normalized = Normalizer.normalize(text, Normalizer.Form.NFKC)
             .replace("/", " / ")
             .replace("|", " | ")
@@ -1041,7 +1230,11 @@ internal object LitsTtsFrontend {
                     endedWithPunctuation = true
                 }
                 resources.arpabetToTokens.containsKey(token) -> {
-                    output += arpabetToTokens(resources, listOf(token))
+                    val tokens = arpabetToTokens(resources, listOf(token))
+                    if (traceId > 0L) {
+                        logDetail(traceId, "arpabet passthrough phone='$token' tokens='${tokens.joinToString(" ")}'")
+                    }
+                    output += tokens
                     sawPhone = true
                     endedWithPunctuation = false
                 }
@@ -1053,6 +1246,9 @@ internal object LitsTtsFrontend {
         }
         while (output.lastOrNull() == "_") {
             output.removeAt(output.lastIndex)
+        }
+        if (sawPhone && traceId > 0L) {
+            logDetail(traceId, "arpabet passthrough input='$text' normalized='$normalized' tokens='${output.joinToString(" ")}'")
         }
         return if (sawPhone) output else null
     }
@@ -1273,16 +1469,21 @@ internal object LitsTtsFrontend {
                 })
                 val cmudict = executor.submit(Callable { loadCmudict(layout) })
                 val supplementLexicon = executor.submit(Callable { loadSupplementLexicon(layout) })
+                val frontendRules = executor.submit(Callable { FrontendRuleSet.load(layout.frontendRules) })
                 val symbolToId = executor.submit(Callable { loadSymbols(layout) })
                 val pinyinToTokens = executor.submit(Callable { loadTokenMap(layout.pinyinToTokens, "pinyin_to_tokens") })
                 val arpabetToTokens = executor.submit(Callable { loadTokenMap(layout.arpabetToTokens, "arpabet_to_tokens") })
                 val wordPinyin = wordPinyinFuture.get()
+                val baseCmudict = cmudict.get()
+                val supplement = supplementLexicon.get()
                 FrontendResources(
                     wordPinyin = wordPinyin,
                     polyphonicWords = polyphonicWords.get(),
                     maxWordLength = wordPinyin.keys.maxOfOrNull { it.length } ?: 1,
-                    cmudict = cmudict.get(),
-                    supplementLexicon = supplementLexicon.get(),
+                    cmudict = baseCmudict,
+                    supplementLexicon = supplement,
+                    englishLexicon = mergeEnglishLexicon(baseCmudict, supplement),
+                    frontendRules = frontendRules.get(),
                     symbolToId = symbolToId.get(),
                     pinyinToTokens = pinyinToTokens.get(),
                     arpabetToTokens = arpabetToTokens.get(),
@@ -1291,6 +1492,16 @@ internal object LitsTtsFrontend {
                 executor.shutdown()
             }
         }
+
+    private fun mergeEnglishLexicon(
+        cmudict: Map<String, List<String>>,
+        supplement: Map<String, List<String>>,
+    ): Map<String, List<String>> = buildMap(cmudict.size + supplement.size) {
+        putAll(cmudict)
+        supplement.forEach { (word, phones) ->
+            putIfAbsent(word, phones)
+        }
+    }
 
     private fun loadSupplementLexicon(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, List<String>> {
         if (!layout.supplementLexicon.isFile) return emptyMap()
@@ -1443,6 +1654,8 @@ internal object LitsTtsFrontend {
         val maxWordLength: Int,
         val cmudict: Map<String, List<String>>,
         val supplementLexicon: Map<String, List<String>>,
+        val englishLexicon: Map<String, List<String>>,
+        val frontendRules: FrontendRuleSet,
         val symbolToId: Map<String, Int>,
         val pinyinToTokens: Map<String, List<String>>,
         val arpabetToTokens: Map<String, List<String>>,

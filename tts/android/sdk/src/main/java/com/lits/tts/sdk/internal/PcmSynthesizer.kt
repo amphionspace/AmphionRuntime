@@ -1,6 +1,7 @@
 package com.lits.tts.sdk.internal
 
 import android.content.Context
+import android.util.Log
 import com.lits.tts.sdk.CreateEngineParams
 import com.lits.tts.sdk.SpeakParams
 import com.lits.tts.sdk.TtsErrorCode
@@ -72,7 +73,7 @@ internal class DeterministicPcmSynthesizer : PcmSynthesizer {
     }
 
     private companion object {
-        const val SAMPLE_RATE = 16000
+        const val SAMPLE_RATE = 24000
     }
 }
 
@@ -81,6 +82,14 @@ internal class LitsDeliveryPcmSynthesizer(
     private val workPath: String?,
     private val speakerId: Int,
 ) : PcmSynthesizer {
+    private companion object {
+        private const val FRONTEND_REQUEST_TAG = "LitsFrontendRequest"
+
+        fun logFrontendRequest(message: String) {
+            runCatching { Log.i(FRONTEND_REQUEST_TAG, message) }
+        }
+    }
+
     @Volatile
     private var layout: LitsTtsAssetInstaller.InstalledLayout? = null
 
@@ -107,13 +116,23 @@ internal class LitsDeliveryPcmSynthesizer(
         val startedAt = System.nanoTime()
         val activeLayout = layout ?: throw notReady()
         val activeRuntime = runtime ?: throw notReady()
+        logFrontendRequest(
+            "synthesize start language=${engineParams.language} languageContext=${params.languageContext} textLen=${text.length} text=$text",
+        )
         val tokenIds = LitsTtsFrontend.encode(activeLayout, text, engineParams.language, params.languageContext)
+        logFrontendRequest(
+            "synthesize frontend tokenCount=${tokenIds.size} tokenIds=${tokenIds.joinToString(" ")}",
+        )
         val waveform = activeRuntime.synthesize(tokenIds, speakerId)
         val pcm = AudioTransforms.apply(LitsTtsOrtRuntime.floatToPcm16(waveform), params)
+        val synthesisMs = (System.nanoTime() - startedAt) / 1_000_000L
+        logFrontendRequest(
+            "synthesize complete synthesisMs=$synthesisMs pcmBytes=${pcm.size * 2}",
+        )
         return SynthesizedAudio(
             pcm = shortsToBytes(pcm),
             sampleRate = activeLayout.manifest.sampleRate,
-            synthesisMs = (System.nanoTime() - startedAt) / 1_000_000L,
+            synthesisMs = synthesisMs,
         )
     }
 
@@ -146,12 +165,16 @@ internal class LitsDeliveryPcmSynthesizer(
         val startedAt = System.nanoTime()
         val activeLayout = layout ?: throw notReady()
         val activeRuntime = runtime ?: throw notReady()
+        logFrontendRequest(
+            "stream start language=${engineParams.language} languageContext=${params.languageContext} textLen=${text.length} text=$text",
+        )
         val textSegments = LitsTtsFrontend.splitForStreaming(
             layout = activeLayout,
             text = text,
             language = engineParams.language,
             languageContext = params.languageContext,
         )
+        logFrontendRequest("stream segments count=${textSegments.size} segments=${textSegments.joinToString(" | ")}")
         val output = if (collectOutput) java.io.ByteArrayOutputStream() else null
         var totalBytes = 0L
         var firstChunkMs = -1L
@@ -164,6 +187,9 @@ internal class LitsDeliveryPcmSynthesizer(
             val frontendStartedAt = System.nanoTime()
             val tokenIds = LitsTtsFrontend.encodeNormalized(activeLayout, segment, engineParams.language, params.languageContext)
             val segmentFrontendMs = elapsedMs(frontendStartedAt)
+            logFrontendRequest(
+                "stream segment frontendMs=$segmentFrontendMs tokenCount=${tokenIds.size} segment=$segment tokenIds=${tokenIds.joinToString(" ")}",
+            )
             frontendMs += segmentFrontendMs
             if (firstPacketFrontendMs < 0L) firstPacketFrontendMs = segmentFrontendMs
             val segmentMetrics = activeRuntime.synthesizeStreaming(
@@ -182,6 +208,9 @@ internal class LitsDeliveryPcmSynthesizer(
             runtimeMetrics = runtimeMetrics?.plus(segmentMetrics) ?: segmentMetrics
         }
         val synthesisMs = elapsedMs(startedAt)
+        logFrontendRequest(
+            "stream complete synthesisMs=$synthesisMs frontendMs=$frontendMs totalBytes=$totalBytes firstChunkMs=$firstChunkMs",
+        )
         return SynthesizedAudio(
             pcm = output?.toByteArray() ?: ByteArray(0),
             sampleRate = activeLayout.manifest.sampleRate,

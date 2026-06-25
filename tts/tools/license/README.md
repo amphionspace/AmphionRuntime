@@ -27,7 +27,7 @@ python gen_keypair.py --out-private lits-tts-license-private.pem
 
 - 私钥 lits-tts-license-private.pem：严禁进库、严禁外发，离线保管（建议加 --password 口令）。
 - 打印出的公钥 base64：填到 tts/android/gradle.properties 的
-  LITS_TTS_LICENSE_PUBLIC_KEY（或构建时 -PLITS_TTS_LICENSE_PUBLIC_KEY=...）。
+  AMPHION_LICENSE_PUBLIC_KEY（或构建时 -PAMPHION_LICENSE_PUBLIC_KEY=...）。
 - 公钥为空时 SDK 不武装 license（开发 / 内部构建，不做任何校验）。
 
 ## 2. 签发客户 license

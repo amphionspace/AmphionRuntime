@@ -28,6 +28,7 @@ internal object TranssionTnNormalizer {
     private class LayoutNormalizer(private val layout: LitsTtsAssetInstaller.InstalledLayout) {
         private val processes = mutableMapOf<String, TnProcess>()
         private val disabledLanguages = mutableSetOf<String>()
+        private val frontendRules = FrontendRuleSet.load(layout.frontendRules)
 
         @Synchronized
         fun normalize(text: String, language: String, languageContext: String): String {
@@ -49,11 +50,24 @@ internal object TranssionTnNormalizer {
             var output = hanziClockMinuteLeadingZeroRegex.replace(text) { match ->
                 "${match.groupValues[1]}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}分"
             }
+            output = frontendRules.apply("pre_tn", output)
+            output = protectVinCodes(output)
+            output = protectProductCodes(output)
             output = serialCodeRegex.replace(output) { match ->
                 match.groupValues[1] + match.groupValues[2] + normalizeSerialCode(match.groupValues[3])
             }
             return output
         }
+
+        private fun protectVinCodes(text: String): String =
+            vinCodeRegex.replace(text) { match ->
+                match.groupValues[1] + normalizeSerialCode(match.groupValues[2])
+            }
+
+        private fun protectProductCodes(text: String): String =
+            productCodeRegex.replace(text) { match ->
+                match.groupValues[1] + normalizeSerialCode(match.groupValues[2]) + match.groupValues[3]
+            }
 
         private fun normalizeSerialCode(code: String): String = buildString {
             code.forEach { char ->
@@ -174,6 +188,8 @@ internal object TranssionTnNormalizer {
             private const val PLATE_PROVINCES = "京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼"
             private val PERCENTILE_CODE = Regex("P\\d{1,3}")
             private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点0([1-9])分")
+            private val vinCodeRegex = Regex("((?:车架号\\s*)?(?:VIN\\s+))([A-HJ-NPR-Z0-9]{8,17})(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
+            private val productCodeRegex = Regex("(?<![A-Za-z0-9])(vocos|Office)(\\d+)(k?)(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
             private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
             private val chineseDigitTextByChar = mapOf(
                 '0' to "零",

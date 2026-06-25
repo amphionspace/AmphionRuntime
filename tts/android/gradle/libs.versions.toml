@@ -4,11 +4,13 @@ kotlin = "1.9.22"
 junit = "4.13.2"
 coreKtx = "1.13.1"
 appcompat = "1.7.0"
+androidxTest = "1.6.1"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTest" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -72,6 +72,7 @@ internal class TextToSpeechEngineImpl(
             return
         }
         val normalizedParams = normalizeSpeakParams(params)
+        val normalizedText = TtsInputTextNormalizer.ensureTerminalPunctuation(trimmedText, engineParams.language)
 
         val stoppedTasks: List<SynthesisTask>
         synchronized(lock) {
@@ -84,7 +85,7 @@ internal class TextToSpeechEngineImpl(
                 return
             }
 
-            val task = SynthesisTask(trimmedText, normalizedParams)
+            val task = SynthesisTask(normalizedText, normalizedParams)
             stoppedTasks = if (normalizedParams.queueMode == QueueMode.PREEMPT) {
                 cancelAllLocked()
             } else {
@@ -494,7 +495,7 @@ internal class TextToSpeechEngineImpl(
         val LISTENER_EXECUTOR: ExecutorService = Executors.newSingleThreadExecutor(TtsListenerThreadFactory())
         const val AUDIO_CHUNK_BYTES = 4096
         const val BYTES_PER_FRAME = 2L
-        const val DEFAULT_SAMPLE_RATE = 16000
+        const val DEFAULT_SAMPLE_RATE = 24000
         const val DEFAULT_PCM_QUEUE_CAPACITY = 128
     }
 }
