@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Amphion <dev@amphion.local>
+Date: Wed, 24 Jun 2026 14:45:00 +0800
+Subject: [PATCH 4/4] build(harmony): build HAR native libs for arm64 only
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The Amphion Harmony delivery only packages arm64-v8a native libraries.
+Keeping x86_64 in the sherpa_onnx HAR abiFilters makes hvigor try to link
+libsherpa-onnx-c-api.so for x86_64, which is not produced by the delivery
+scripts and breaks reproducible command-line builds.
+
+---
+ harmony-os/SherpaOnnxHar/sherpa_onnx/build-profile.json5 | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/build-profile.json5 b/harmony-os/SherpaOnnxHar/sherpa_onnx/build-profile.json5
+index 905c5712..be1a7eca 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/build-profile.json5
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/build-profile.json5
+@@ -7,7 +7,6 @@
+       "cppFlags": "-std=c++17",
+       "abiFilters": [
+         "arm64-v8a",
+-        "x86_64",
+       ],
+     },
+   },
+-- 
+2.39.5
+

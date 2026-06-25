@@ -18,4 +18,4 @@ import { probe, nativeVersion } from 'libamphion_asr.so';
 1. `bash asr/tools/04_build_harmony_so.sh`
 2. `bash asr/tools/05_package_har_libs.sh`
 3. `bash asr/tools/08_pack_harmony_assets.sh`
-4. 用 DevEco 打开 `asr/harmony` 构建 `amphion_asr` 验证 native 加载；端到端 demo 见仓库顶层 `harmony/`（`samples/dingqiao-demo`）。
+4. 用 DevEco 打开 `asr/harmony` 构建 `amphion_asr` 验证 native 加载；端到端 demo 见 `delivery/harmony-dingqiao/`（`samples/dingqiao-demo`）。
