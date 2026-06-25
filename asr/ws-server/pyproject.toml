@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "amphion-asr-ws"
+version = "0.1.0"
+description = "AmphionRuntime streaming ASR WebSocket service powered by sherpa-onnx."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26",
+    "prometheus-client>=0.20",
+    "sherpa-onnx>=1.13.3",
+    "websockets>=16.0",
+]
+
+[project.scripts]
+amphion-asr-ws = "amphion_asr_ws.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["amphion_asr_ws*"]

@@ -33,9 +33,11 @@ DerivedData/
 # --- Python ---
 __pycache__/
 *.pyc
+*.egg-info/
 .venv/
 .venv-*/
 venv/
+asr/ws-server/reports/**/server.log
 
 # --- C++ / cmake ---
 asr/server/build/

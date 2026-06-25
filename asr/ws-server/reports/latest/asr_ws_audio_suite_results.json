@@ -1,0 +1,1656 @@
+{
+  "generated_at": "2026-06-25T19:14:11+0800",
+  "uri": "ws://127.0.0.1:18110",
+  "audio_dir": "/Users/boxp/Downloads/audio",
+  "file_count": 24,
+  "concurrency": 4,
+  "realtime": false,
+  "chunk_ms": 100,
+  "model_id": "amphion-zh-en-streaming_large_crctc_musan_zhcs_v6",
+  "model_version": "1.0.0-iter-140000-avg-1-chunk-32-left-256",
+  "provider": "cpu",
+  "duration_sec_total": 131.8473125,
+  "elapsed_summary": "min=0.219, p50=0.397, p95=0.756, max=0.937",
+  "rtf_summary": "min=0.056, p50=0.074, p95=0.101, max=0.103",
+  "first_partial_summary": "min=0.060, p50=0.132, p95=0.311, max=0.342",
+  "results": [
+    {
+      "file": "/Users/boxp/Downloads/audio/01_说话人跟踪_3人重叠91_抗战历史长句.wav",
+      "duration_sec": 11.78,
+      "elapsed_sec": 0.9371360829100013,
+      "rtf": 0.0795531479550086,
+      "first_partial_sec": 0.1987197919515893,
+      "final_text": "与此同时欧美澳等国众多华侨应征入伍开赴欧亚各战场同德意日法西斯浴血奋战",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673414986289208,
+          "client_recv_sec": 0.036325707915239036
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415149215208,
+          "text": "与此同",
+          "client_recv_sec": 0.1987197919515893
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415201937708,
+          "text": "与此同时",
+          "client_recv_sec": 0.25128812494222075
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415250994083,
+          "text": "与此同时欧美",
+          "client_recv_sec": 0.30057191697414964
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415301529041,
+          "text": "与此同时欧美澳等国",
+          "client_recv_sec": 0.3509448328986764
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415351915000,
+          "text": "与此同时欧美澳等国众多",
+          "client_recv_sec": 0.4013895419193432
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415390296958,
+          "text": "与此同时欧美澳等国众多华侨",
+          "client_recv_sec": 0.43958391691558063
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415443424625,
+          "text": "与此同时欧美澳等国众多华侨应征入",
+          "client_recv_sec": 0.4927373749669641
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415492057291,
+          "text": "与此同时欧美澳等国众多华侨应征入伍",
+          "client_recv_sec": 0.5413524169707671
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415540568291,
+          "text": "与此同时欧美澳等国众多华侨应征入伍开赴",
+          "client_recv_sec": 0.5898676249198616
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415588511083,
+          "text": "与此同时欧美澳等国众多华侨应征入伍开赴欧亚各",
+          "client_recv_sec": 0.6377933329204097
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415637029625,
+          "text": "与此同时欧美澳等国众多华侨应征入伍开赴欧亚各战场",
+          "client_recv_sec": 0.6862904579611495
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415684790958,
+          "text": "与此同时欧美澳等国众多华侨应征入伍开赴欧亚各战场同",
+          "client_recv_sec": 0.7341752499341965
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415736808791,
+          "text": "与此同时欧美澳等国众多华侨应征入伍开赴欧亚各战场同德意",
+          "client_recv_sec": 0.7860954999923706
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415786220250,
+          "text": "与此同时欧美澳等国众多华侨应征入伍开赴欧亚各战场同德意日法",
+          "client_recv_sec": 0.8356016249163076
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415836327250,
+          "text": "与此同时欧美澳等国众多华侨应征入伍开赴欧亚各战场同德意日法西斯浴",
+          "client_recv_sec": 0.885591416968964
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415886363375,
+          "text": "与此同时欧美澳等国众多华侨应征入伍开赴欧亚各战场同德意日法西斯浴血奋战",
+          "client_recv_sec": 0.9356261669890955
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673415886938000,
+          "text": "与此同时欧美澳等国众多华侨应征入伍开赴欧亚各战场同德意日法西斯浴血奋战",
+          "confidence": 1.0,
+          "client_recv_sec": 0.9365010419860482
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673415887008375,
+          "trace_id": "01_说话人跟踪_3人重叠91_抗战历史长句",
+          "client_recv_sec": 0.936729707987979
+        }
+      ],
+      "sha256": "5094c621d86667945014db0c5c87a5155e012b71985b83571982dc98cd38ddbe",
+      "event_count": 19
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/01_说话人跟踪_3人重叠91_抗战历史长句_声纹.wav",
+      "duration_sec": 3.764375,
+      "elapsed_sec": 0.29963008407503366,
+      "rtf": 0.07959623684543482,
+      "first_partial_sec": 0.0919706670101732,
+      "final_text": "也是说种子胚芽靠内胚乳",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673414986514916,
+          "client_recv_sec": 0.032466292032040656
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415046471750,
+          "text": "也是",
+          "client_recv_sec": 0.0919706670101732
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415099531583,
+          "text": "也是说",
+          "client_recv_sec": 0.1452177920145914
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415149343041,
+          "text": "也是说种子",
+          "client_recv_sec": 0.1948633750434965
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415202032958,
+          "text": "也是说种子胚芽靠",
+          "client_recv_sec": 0.24742979207076132
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415251163375,
+          "text": "也是说种子胚芽靠内胚乳",
+          "client_recv_sec": 0.2967179589904845
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673415253588916,
+          "text": "也是说种子胚芽靠内胚乳",
+          "confidence": 1.0,
+          "client_recv_sec": 0.29918208403978497
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673415253647500,
+          "trace_id": "01_说话人跟踪_3人重叠91_抗战历史长句_声纹",
+          "client_recv_sec": 0.29918624996207654
+        }
+      ],
+      "sha256": "3017dc2902a2dc9892b44e568bc3b93cc3c0d4bbf6a75965fce48c85989d5efd",
+      "event_count": 8
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/02_说话人跟踪_2人重叠89_政策标题.wav",
+      "duration_sec": 5.105,
+      "elapsed_sec": 0.40180416696239263,
+      "rtf": 0.07870796610428846,
+      "first_partial_sec": 0.144730250001885,
+      "final_text": "农业农村信息化十二五",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673414986782458,
+          "client_recv_sec": 0.03277554200030863
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415099725208,
+          "text": "农",
+          "client_recv_sec": 0.144730250001885
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415149394666,
+          "text": "农业农村",
+          "client_recv_sec": 0.19437179202213883
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415202065291,
+          "text": "农业农村信息",
+          "client_recv_sec": 0.2469359579263255
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415251220833,
+          "text": "农业农村信息化",
+          "client_recv_sec": 0.29622675001155585
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415352066666,
+          "text": "农业农村信息化十二五",
+          "client_recv_sec": 0.3970386249711737
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673415356402583,
+          "text": "农业农村信息化十二五",
+          "confidence": 1.0,
+          "client_recv_sec": 0.4015306249493733
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673415356451750,
+          "trace_id": "02_说话人跟踪_2人重叠89_政策标题",
+          "client_recv_sec": 0.40153579192701727
+        }
+      ],
+      "sha256": "c4ae6a440710df84e050bfa077dae598f65fc370cc36831fd5ef6e81fd94b619",
+      "event_count": 8
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/02_说话人跟踪_2人重叠89_政策标题_声纹.wav",
+      "duration_sec": 4.842,
+      "elapsed_sec": 0.39938408392481506,
+      "rtf": 0.08248328870814024,
+      "first_partial_sec": 0.14429941691923887,
+      "final_text": "本次比赛使用最新的仰泳出发",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673414987198750,
+          "client_recv_sec": 0.03237404196988791
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415099783416,
+          "text": "本次",
+          "client_recv_sec": 0.14429941691923887
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415149444125,
+          "text": "本次比赛",
+          "client_recv_sec": 0.19394012494012713
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415202091375,
+          "text": "本次比赛使用",
+          "client_recv_sec": 0.24650179198943079
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415251270083,
+          "text": "本次比赛使用最新的",
+          "client_recv_sec": 0.29579549992922693
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415301691000,
+          "text": "本次比赛使用最新的仰泳",
+          "client_recv_sec": 0.346157333930023
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415352134166,
+          "text": "本次比赛使用最新的仰泳出发",
+          "client_recv_sec": 0.3966075419448316
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673415354259750,
+          "text": "本次比赛使用最新的仰泳出发",
+          "confidence": 1.0,
+          "client_recv_sec": 0.39873104193247855
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673415354312250,
+          "trace_id": "02_说话人跟踪_2人重叠89_政策标题_声纹",
+          "client_recv_sec": 0.3987344999331981
+        }
+      ],
+      "sha256": "bdd8b3637413232aa7b533f884f53fe9157bb960fb9118f3d048300b8df30ecd",
+      "event_count": 9
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/03_说话人跟踪_2人重叠76_天文科普.wav",
+      "duration_sec": 9.624,
+      "elapsed_sec": 0.710510041913949,
+      "rtf": 0.07382689546071788,
+      "first_partial_sec": 0.17098108399659395,
+      "final_text": "木星凌日是当日后一道太太和天王府有限时发生罕见的天文现象",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673415267428500,
+          "client_recv_sec": 0.012467916938476264
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415425793583,
+          "text": "木星",
+          "client_recv_sec": 0.17098108399659395
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415476118333,
+          "text": "木星凌日",
+          "client_recv_sec": 0.22125424991827458
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415524012250,
+          "text": "木星凌日是当",
+          "client_recv_sec": 0.26917129196226597
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415572376333,
+          "text": "木星凌日是当日后",
+          "client_recv_sec": 0.31775187491439283
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415621029333,
+          "text": "木星凌日是当日后一道",
+          "client_recv_sec": 0.3662000419571996
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415668531708,
+          "text": "木星凌日是当日后一道太太和天",
+          "client_recv_sec": 0.4136583749204874
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415712386583,
+          "text": "木星凌日是当日后一道太太和天王府",
+          "client_recv_sec": 0.4575437919702381
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415761162208,
+          "text": "木星凌日是当日后一道太太和天王府有限时",
+          "client_recv_sec": 0.5062729589408264
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415811356583,
+          "text": "木星凌日是当日后一道太太和天王府有限时发生",
+          "client_recv_sec": 0.5565912089077756
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415861200166,
+          "text": "木星凌日是当日后一道太太和天王府有限时发生罕见",
+          "client_recv_sec": 0.606302791973576
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415911845583,
+          "text": "木星凌日是当日后一道太太和天王府有限时发生罕见的天",
+          "client_recv_sec": 0.6573775840224698
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415962182958,
+          "text": "木星凌日是当日后一道太太和天王府有限时发生罕见的天文现象",
+          "client_recv_sec": 0.7073228339431807
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673415965013416,
+          "text": "木星凌日是当日后一道太太和天王府有限时发生罕见的天文现象",
+          "confidence": 1.0,
+          "client_recv_sec": 0.7101991670206189
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673415965051458,
+          "trace_id": "03_说话人跟踪_2人重叠76_天文科普",
+          "client_recv_sec": 0.7102020839229226
+        }
+      ],
+      "sha256": "52acbad04d0fd2a91614e89d7d7200d7aae9e584230c1c129e17044c462afa68",
+      "event_count": 15
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/03_说话人跟踪_2人重叠76_天文科普_声纹.wav",
+      "duration_sec": 4.21625,
+      "elapsed_sec": 0.31604025000706315,
+      "rtf": 0.07495766380244606,
+      "first_partial_sec": 0.12043041596189141,
+      "final_text": "夺权后的造反派宣布成立上海市",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673415364765166,
+          "client_recv_sec": 0.009150375030003488
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415475961416,
+          "text": "夺权后",
+          "client_recv_sec": 0.12043041596189141
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415523868083,
+          "text": "夺权后的造反",
+          "client_recv_sec": 0.16834270802792162
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415572515541,
+          "text": "夺权后的造反派宣",
+          "client_recv_sec": 0.21694420801941305
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415620868166,
+          "text": "夺权后的造反派宣布成立",
+          "client_recv_sec": 0.2653756249928847
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415668337916,
+          "text": "夺权后的造反派宣布成立上海市",
+          "client_recv_sec": 0.31283004104625434
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673415670572416,
+          "text": "夺权后的造反派宣布成立上海市",
+          "confidence": 1.0,
+          "client_recv_sec": 0.315266374964267
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673415670647500,
+          "trace_id": "03_说话人跟踪_2人重叠76_天文科普_声纹",
+          "client_recv_sec": 0.31527050002478063
+        }
+      ],
+      "sha256": "ec562374ec2b452a71b396d96c26ff7fed428949d0172d10c82e305ac5e34c93",
+      "event_count": 8
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/04_说话人跟踪_3人重叠71_生活建议.wav",
+      "duration_sec": 7.538625,
+      "elapsed_sec": 0.5569545830367133,
+      "rtf": 0.07388012841024899,
+      "first_partial_sec": 0.31089987501036376,
+      "final_text": "一般可用雨伞遮住或把相机装在塑料袋里",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673415375581500,
+          "client_recv_sec": 0.0182573749916628
+        },
+        {
+          "type": "endpoint",
+          "server_send_ns": 673415572568500,
+          "client_recv_sec": 0.215014582965523
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673415572597833,
+          "text": "",
+          "confidence": 1.0,
+          "client_recv_sec": 0.21501879103016108
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415668472000,
+          "text": "一般可",
+          "client_recv_sec": 0.31089987501036376
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415712013666,
+          "text": "一般可用雨伞",
+          "client_recv_sec": 0.3547847910085693
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415761028541,
+          "text": "一般可用雨伞遮住",
+          "client_recv_sec": 0.4035124579677358
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415811481000,
+          "text": "一般可用雨伞遮住或把相机",
+          "client_recv_sec": 0.4538467079401016
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415861067166,
+          "text": "一般可用雨伞遮住或把相机装在塑",
+          "client_recv_sec": 0.5035421659704298
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415911769458,
+          "text": "一般可用雨伞遮住或把相机装在塑料袋里",
+          "client_recv_sec": 0.5541464160196483
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673415913944583,
+          "text": "一般可用雨伞遮住或把相机装在塑料袋里",
+          "confidence": 1.0,
+          "client_recv_sec": 0.5564378750277683
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673415913987583,
+          "trace_id": "04_说话人跟踪_3人重叠71_生活建议",
+          "client_recv_sec": 0.5564430829836056
+        }
+      ],
+      "sha256": "f47b0a627366686ff57714eb327259795abd71fa3d48f57afea195e523ae0cf8",
+      "event_count": 11
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/04_说话人跟踪_3人重叠71_生活建议_声纹.wav",
+      "duration_sec": 3.5125625,
+      "elapsed_sec": 0.2629289170727134,
+      "rtf": 0.07485387578803605,
+      "first_partial_sec": 0.1105075420346111,
+      "final_text": "三三五原始建于清康熙",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673415684056541,
+          "client_recv_sec": 0.008231042069382966
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415786335208,
+          "text": "三三",
+          "client_recv_sec": 0.1105075420346111
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415836153291,
+          "text": "三三五原始",
+          "client_recv_sec": 0.16048087505623698
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415886451791,
+          "text": "三三五原始建于",
+          "client_recv_sec": 0.21079995902255177
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415937081500,
+          "text": "三三五原始建于清康熙",
+          "client_recv_sec": 0.26128487510140985
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673415938014916,
+          "text": "三三五原始建于清康熙",
+          "confidence": 1.0,
+          "client_recv_sec": 0.2624142090789974
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673415938063875,
+          "trace_id": "04_说话人跟踪_3人重叠71_生活建议_声纹",
+          "client_recv_sec": 0.2624200420686975
+        }
+      ],
+      "sha256": "6abe61ab1fd4f10fc5f619099cbe5ab939d381a514b38f96598a40cd8658ba2c",
+      "event_count": 7
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/05_说话人跟踪_3人重叠64_数码资讯.wav",
+      "duration_sec": 5.36,
+      "elapsed_sec": 0.5409047920256853,
+      "rtf": 0.10091507313912039,
+      "first_partial_sec": 0.09557979204691947,
+      "final_text": "目前市场上大卫工芯片的智能手机不超过十",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673415901593625,
+          "client_recv_sec": 0.009339667041786015
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673415987810375,
+          "text": "目前",
+          "client_recv_sec": 0.09557979204691947
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416036939708,
+          "text": "目前市场上",
+          "client_recv_sec": 0.14477087499108166
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416089313000,
+          "text": "目前市场上大卫",
+          "client_recv_sec": 0.19753604207653552
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416139685166,
+          "text": "目前市场上大卫工芯片",
+          "client_recv_sec": 0.24760858400259167
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416193640125,
+          "text": "目前市场上大卫工芯片的智能手",
+          "client_recv_sec": 0.30154345906339586
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416291591125,
+          "text": "目前市场上大卫工芯片的智能手机不超",
+          "client_recv_sec": 0.4005696250824258
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416430505875,
+          "text": "目前市场上大卫工芯片的智能手机不超过十",
+          "client_recv_sec": 0.5388260419713333
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673416431768750,
+          "text": "目前市场上大卫工芯片的智能手机不超过十",
+          "confidence": 1.0,
+          "client_recv_sec": 0.5400228339713067
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673416431838666,
+          "trace_id": "05_说话人跟踪_3人重叠64_数码资讯",
+          "client_recv_sec": 0.540028625051491
+        }
+      ],
+      "sha256": "1450cac7b85788062f8525e57d8a34fc88f46e8f0e4714d54a31d0f6b2dac75e",
+      "event_count": 10
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/05_说话人跟踪_3人重叠64_数码资讯_声纹.wav",
+      "duration_sec": 3.8,
+      "elapsed_sec": 0.25335208396427333,
+      "rtf": 0.06667160104322983,
+      "first_partial_sec": 0.09663091693073511,
+      "final_text": "新政的推出是一项长远的制度",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673415921202458,
+          "client_recv_sec": 0.005848792032338679
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416011924750,
+          "text": "新政",
+          "client_recv_sec": 0.09663091693073511
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416062061208,
+          "text": "新政的推出",
+          "client_recv_sec": 0.1468284169677645
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416114524125,
+          "text": "新政的推出是一项长",
+          "client_recv_sec": 0.19926054193638265
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416166351791,
+          "text": "新政的推出是一项长远的制度",
+          "client_recv_sec": 0.2512336670188233
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673416168143666,
+          "text": "新政的推出是一项长远的制度",
+          "confidence": 1.0,
+          "client_recv_sec": 0.2529757919255644
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673416168192875,
+          "trace_id": "05_说话人跟踪_3人重叠64_数码资讯_声纹",
+          "client_recv_sec": 0.2529820000054315
+        }
+      ],
+      "sha256": "704bb1a51dfe0441c23bc11769b0ea1687dae72b2dca84eafed1ebf7a77a9a4b",
+      "event_count": 7
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/06_说话人跟踪_2人重叠71_流行歌曲口语.wav",
+      "duration_sec": 5.717,
+      "elapsed_sec": 0.5488285419996828,
+      "rtf": 0.09599939513725429,
+      "first_partial_sec": 0.25479149993043393,
+      "final_text": "来个新长征路上的摇",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673415948507833,
+          "client_recv_sec": 0.009043291909620166
+        },
+        {
+          "type": "endpoint",
+          "server_send_ns": 673416139815541,
+          "client_recv_sec": 0.20042008301243186
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673416139849791,
+          "text": "",
+          "confidence": 1.0,
+          "client_recv_sec": 0.2004247079603374
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416193729708,
+          "text": "来个",
+          "client_recv_sec": 0.25479149993043393
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416291524708,
+          "text": "来个新长征",
+          "client_recv_sec": 0.35336870793253183
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416430747833,
+          "text": "来个新长征路上",
+          "client_recv_sec": 0.4916392919840291
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416483376375,
+          "text": "来个新长征路上的摇",
+          "client_recv_sec": 0.5450957079883665
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673416487423375,
+          "text": "来个新长征路上的摇",
+          "confidence": 1.0,
+          "client_recv_sec": 0.5483189169317484
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673416487502250,
+          "trace_id": "06_说话人跟踪_2人重叠71_流行歌曲口语",
+          "client_recv_sec": 0.5483251250116155
+        }
+      ],
+      "sha256": "4db7dc74904a21b78496287793dcc5213c8cb2dd938edac15ad627e550194923",
+      "event_count": 9
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/06_说话人跟踪_2人重叠71_流行歌曲口语_声纹.wav",
+      "duration_sec": 4.693,
+      "elapsed_sec": 0.483681375044398,
+      "rtf": 0.1030644310770079,
+      "first_partial_sec": 0.34187887504231185,
+      "final_text": "我们在海南",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673415974418583,
+          "client_recv_sec": 0.00820279202889651
+        },
+        {
+          "type": "endpoint",
+          "server_send_ns": 673416166472291,
+          "client_recv_sec": 0.20034554204903543
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673416166505416,
+          "text": "",
+          "confidence": 1.0,
+          "client_recv_sec": 0.20035104209091514
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416308034291,
+          "text": "我们",
+          "client_recv_sec": 0.34187887504231185
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416449274083,
+          "text": "我们在海南",
+          "client_recv_sec": 0.4831475419923663
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673416449560958,
+          "text": "我们在海南",
+          "confidence": 1.0,
+          "client_recv_sec": 0.48348508309572935
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673416449611125,
+          "trace_id": "06_说话人跟踪_2人重叠71_流行歌曲口语_声纹",
+          "client_recv_sec": 0.4834906670730561
+        }
+      ],
+      "sha256": "4b862a11d2945623e21c7d690142c8320a7ceb7fc8b05b944276b14e72c2b611",
+      "event_count": 7
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/07_抗路噪_交通背景_情感独白长句.wav",
+      "duration_sec": 8.312,
+      "elapsed_sec": 0.7562350410735235,
+      "rtf": 0.09098111658728628,
+      "first_partial_sec": 0.11993537505622953,
+      "final_text": "我当时有点昏头想究何站分手他登个报纸征婚也行我连稿子都准备",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673416189235416,
+          "client_recv_sec": 0.01636600005440414
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416291356458,
+          "text": "我",
+          "client_recv_sec": 0.11993537505622953
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416430680500,
+          "text": "我当时",
+          "client_recv_sec": 0.258209333056584
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416483216250,
+          "text": "我当时有点昏头",
+          "client_recv_sec": 0.31166237499564886
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416524124625,
+          "text": "我当时有点昏头想",
+          "client_recv_sec": 0.35138079104945064
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416574270333,
+          "text": "我当时有点昏头想究何站分",
+          "client_recv_sec": 0.4015269160736352
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416623200958,
+          "text": "我当时有点昏头想究何站分手",
+          "client_recv_sec": 0.45046020799782127
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416673187625,
+          "text": "我当时有点昏头想究何站分手他",
+          "client_recv_sec": 0.50029420806095
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416723063041,
+          "text": "我当时有点昏头想究何站分手他登个报纸",
+          "client_recv_sec": 0.5503925409866497
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416771779625,
+          "text": "我当时有点昏头想究何站分手他登个报纸征婚",
+          "client_recv_sec": 0.5989784999983385
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416822722291,
+          "text": "我当时有点昏头想究何站分手他登个报纸征婚也行我",
+          "client_recv_sec": 0.6499045409727842
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416874816541,
+          "text": "我当时有点昏头想究何站分手他登个报纸征婚也行我连稿子",
+          "client_recv_sec": 0.7020603750133887
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416926198333,
+          "text": "我当时有点昏头想究何站分手他登个报纸征婚也行我连稿子都准备",
+          "client_recv_sec": 0.7534694999922067
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673416928604875,
+          "text": "我当时有点昏头想究何站分手他登个报纸征婚也行我连稿子都准备",
+          "confidence": 1.0,
+          "client_recv_sec": 0.7559800409944728
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673416928673500,
+          "trace_id": "07_抗路噪_交通背景_情感独白长句",
+          "client_recv_sec": 0.7559848750242963
+        }
+      ],
+      "sha256": "2b71ee050ee753a725fa9063e74f6789db70e9a808707e290e4b458eb6d5d632",
+      "event_count": 15
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/07_抗路噪_交通背景_情感独白长句_声纹.wav",
+      "duration_sec": 4.4010625,
+      "elapsed_sec": 0.2916112079983577,
+      "rtf": 0.06625927443619756,
+      "first_partial_sec": 0.09036691696383059,
+      "final_text": "竟是一个永远不会说话的冰冷",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673416441112291,
+          "client_recv_sec": 0.007230124901980162
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416524254625,
+          "text": "竟是一",
+          "client_recv_sec": 0.09036691696383059
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416574401833,
+          "text": "竟是一个永",
+          "client_recv_sec": 0.14051245793234557
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416623334625,
+          "text": "竟是一个永远不会",
+          "client_recv_sec": 0.18944645789451897
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416673093000,
+          "text": "竟是一个永远不会说话的",
+          "client_recv_sec": 0.23926266690250486
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416722971625,
+          "text": "竟是一个永远不会说话的冰冷",
+          "client_recv_sec": 0.28909583296626806
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673416724924125,
+          "text": "竟是一个永远不会说话的冰冷",
+          "confidence": 1.0,
+          "client_recv_sec": 0.2912472919560969
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673416724987916,
+          "trace_id": "07_抗路噪_交通背景_情感独白长句_声纹",
+          "client_recv_sec": 0.2912535419454798
+        }
+      ],
+      "sha256": "dbf5d57f0f0b167e23dd44470ab02426a3999fe7e6ec4d5be89e56e250b2aacc",
+      "event_count": 8
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/08_抗路噪_交通背景_招聘要求.wav",
+      "duration_sec": 6.2678125,
+      "elapsed_sec": 0.4516684589907527,
+      "rtf": 0.07206157794138748,
+      "first_partial_sec": 0.0984412090620026,
+      "final_text": "还要求具备大型赛会或日常从事社会志愿服务的",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673416459596500,
+          "client_recv_sec": 0.008957167039625347
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416549069458,
+          "text": "还",
+          "client_recv_sec": 0.0984412090620026
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416599171708,
+          "text": "还要求具",
+          "client_recv_sec": 0.14869195909705013
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416648290791,
+          "text": "还要求具备大型",
+          "client_recv_sec": 0.19765283400192857
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416698570916,
+          "text": "还要求具备大型赛会",
+          "client_recv_sec": 0.24807258404325694
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416747644083,
+          "text": "还要求具备大型赛会或日常",
+          "client_recv_sec": 0.29709316708613187
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416797264875,
+          "text": "还要求具备大型赛会或日常从事社",
+          "client_recv_sec": 0.34662929200567305
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416849611625,
+          "text": "还要求具备大型赛会或日常从事社会志愿",
+          "client_recv_sec": 0.3990292090456933
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416900214333,
+          "text": "还要求具备大型赛会或日常从事社会志愿服务的",
+          "client_recv_sec": 0.44965800002682954
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673416901660041,
+          "text": "还要求具备大型赛会或日常从事社会志愿服务的",
+          "confidence": 1.0,
+          "client_recv_sec": 0.4512439590180293
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673416901732583,
+          "trace_id": "08_抗路噪_交通背景_招聘要求",
+          "client_recv_sec": 0.45124733401462436
+        }
+      ],
+      "sha256": "a668f3dae9754f2dea7e09754e5b567f2df4af98ba105b4024b3952258dab54e",
+      "event_count": 11
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/08_抗路噪_交通背景_招聘要求_声纹.wav",
+      "duration_sec": 4.10025,
+      "elapsed_sec": 0.3098179589724168,
+      "rtf": 0.07556074848421848,
+      "first_partial_sec": 0.0599539999384433,
+      "final_text": "吴曲美她琴导致兴奋剂检测呈",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673416497760500,
+          "client_recv_sec": 0.00861637492198497
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416548931875,
+          "text": "吴",
+          "client_recv_sec": 0.0599539999384433
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416599325958,
+          "text": "吴曲美",
+          "client_recv_sec": 0.11022195895202458
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416648164750,
+          "text": "吴曲美她琴",
+          "client_recv_sec": 0.1591669999761507
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416698696250,
+          "text": "吴曲美她琴导致兴奋",
+          "client_recv_sec": 0.2096049590036273
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416747749708,
+          "text": "吴曲美她琴导致兴奋剂检",
+          "client_recv_sec": 0.25862270896323025
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416797131958,
+          "text": "吴曲美她琴导致兴奋剂检测呈",
+          "client_recv_sec": 0.30814291699789464
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673416798122916,
+          "text": "吴曲美她琴导致兴奋剂检测呈",
+          "confidence": 1.0,
+          "client_recv_sec": 0.30930320895276964
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673416798166375,
+          "trace_id": "08_抗路噪_交通背景_招聘要求_声纹",
+          "client_recv_sec": 0.30930854193866253
+        }
+      ],
+      "sha256": "65bbbadca1de0104e9af5f6154ed61571bd34168c413a5d0e14cbf76c2895471",
+      "event_count": 9
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/09_抗路噪_交通背景_通信术语.wav",
+      "duration_sec": 5.616,
+      "elapsed_sec": 0.3995485419873148,
+      "rtf": 0.07114468340229965,
+      "first_partial_sec": 0.14528012508526444,
+      "final_text": "导致信号衰落的性道被称作衰落性",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673416740220041,
+          "client_recv_sec": 0.010551667073741555
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416874941208,
+          "text": "导致信",
+          "client_recv_sec": 0.14528012508526444
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416926331375,
+          "text": "导致信号衰落",
+          "client_recv_sec": 0.19669125007931143
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416976503333,
+          "text": "导致信号衰落的性",
+          "client_recv_sec": 0.246913917013444
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417026896458,
+          "text": "导致信号衰落的性道被称",
+          "client_recv_sec": 0.29736225004307926
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417076760416,
+          "text": "导致信号衰落的性道被称作衰",
+          "client_recv_sec": 0.3471011670771986
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417126908958,
+          "text": "导致信号衰落的性道被称作衰落性",
+          "client_recv_sec": 0.39736529206857085
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673417128628041,
+          "text": "导致信号衰落的性道被称作衰落性",
+          "confidence": 1.0,
+          "client_recv_sec": 0.39926229207776487
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673417128683291,
+          "trace_id": "09_抗路噪_交通背景_通信术语",
+          "client_recv_sec": 0.3992690830491483
+        }
+      ],
+      "sha256": "ef60554cbe7b1b2bf3cc9c38685c0b1657c48a60ac619204a9824ec07fe5055a",
+      "event_count": 9
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/09_抗路噪_交通背景_通信术语_声纹.wav",
+      "duration_sec": 4.824,
+      "elapsed_sec": 0.3512532919412479,
+      "rtf": 0.07281370065117079,
+      "first_partial_sec": 0.14839345891959965,
+      "final_text": "兰直地松江府上海县人",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673416811453916,
+          "client_recv_sec": 0.008380874991416931
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673416951437833,
+          "text": "兰直",
+          "client_recv_sec": 0.14839345891959965
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417001758333,
+          "text": "兰直地松",
+          "client_recv_sec": 0.1987455419730395
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417052416666,
+          "text": "兰直地松江",
+          "client_recv_sec": 0.24948816699907184
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417101726166,
+          "text": "兰直地松江府上海",
+          "client_recv_sec": 0.2987619169289246
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417152421583,
+          "text": "兰直地松江府上海县人",
+          "client_recv_sec": 0.34931795892771333
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673417153445875,
+          "text": "兰直地松江府上海县人",
+          "confidence": 1.0,
+          "client_recv_sec": 0.3504220839822665
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673417153503875,
+          "trace_id": "09_抗路噪_交通背景_通信术语_声纹",
+          "client_recv_sec": 0.35042724991217256
+        }
+      ],
+      "sha256": "c4454261c9366746ad86e6a2e69c8a17bd13ac811e57ced1b039c71aa7c742c7",
+      "event_count": 8
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/10_抗路噪_交通背景_证券公告.wav",
+      "duration_sec": 5.818625,
+      "elapsed_sec": 0.4083372079767287,
+      "rtf": 0.07017761206070655,
+      "first_partial_sec": 0.1460259580053389,
+      "final_text": "具体内容影见上海证券交易",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673416917634666,
+          "client_recv_sec": 0.011124083073809743
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417052539750,
+          "text": "具体",
+          "client_recv_sec": 0.1460259580053389
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417101849875,
+          "text": "具体内",
+          "client_recv_sec": 0.19529870804399252
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417152336583,
+          "text": "具体内容影",
+          "client_recv_sec": 0.24583733303006738
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417202874958,
+          "text": "具体内容影见上海",
+          "client_recv_sec": 0.2963929580291733
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417255822583,
+          "text": "具体内容影见上海证券",
+          "client_recv_sec": 0.3493195000337437
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417311820541,
+          "text": "具体内容影见上海证券交易",
+          "client_recv_sec": 0.40547066705767065
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673417314425791,
+          "text": "具体内容影见上海证券交易",
+          "confidence": 1.0,
+          "client_recv_sec": 0.4081124580698088
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673417314483833,
+          "trace_id": "10_抗路噪_交通背景_证券公告",
+          "client_recv_sec": 0.4081169579876587
+        }
+      ],
+      "sha256": "be5783c5e15dc2db33187ef62b4ab6ec566ec7f500a06d53b3664cb16155fec2",
+      "event_count": 9
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/10_抗路噪_交通背景_证券公告_声纹.wav",
+      "duration_sec": 3.4891875,
+      "elapsed_sec": 0.24793808395043015,
+      "rtf": 0.07105897403061033,
+      "first_partial_sec": 0.09690162492915988,
+      "final_text": "为运城人视野中的一个亮",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673416937248791,
+          "client_recv_sec": 0.007148416945710778
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417027025458,
+          "text": "为运城",
+          "client_recv_sec": 0.09690162492915988
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417076632333,
+          "text": "为运城人视",
+          "client_recv_sec": 0.14662466698791832
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417127025583,
+          "text": "为运城人视野中的",
+          "client_recv_sec": 0.1969038340030238
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417176719458,
+          "text": "为运城人视野中的一个亮",
+          "client_recv_sec": 0.24663920898456126
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673417177331583,
+          "text": "为运城人视野中的一个亮",
+          "confidence": 1.0,
+          "client_recv_sec": 0.24742895900271833
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673417177365500,
+          "trace_id": "10_抗路噪_交通背景_证券公告_声纹",
+          "client_recv_sec": 0.24743362492881715
+        }
+      ],
+      "sha256": "7a759ab22e8e0ff5438cdc42476a2a818eb769923a4f845cf53be89f409dcd8d",
+      "event_count": 7
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/11_抗路噪_交通背景_行程提醒.wav",
+      "duration_sec": 5.7585625,
+      "elapsed_sec": 0.3940794999944046,
+      "rtf": 0.0684336585726741,
+      "first_partial_sec": 0.20802058395929635,
+      "final_text": "管理价值得不确定早上去机场",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673417140996833,
+          "client_recv_sec": 0.010874291998334229
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417337904708,
+          "text": "管",
+          "client_recv_sec": 0.20802058395929635
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417387678708,
+          "text": "管理价值",
+          "client_recv_sec": 0.25779745902400464
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417437984416,
+          "text": "管理价值得不确定",
+          "client_recv_sec": 0.30804375000298023
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417479330875,
+          "text": "管理价值得不确定早上去",
+          "client_recv_sec": 0.34926795901264995
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417520445416,
+          "text": "管理价值得不确定早上去机场",
+          "client_recv_sec": 0.3905155420070514
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673417523717041,
+          "text": "管理价值得不确定早上去机场",
+          "confidence": 1.0,
+          "client_recv_sec": 0.3939027499873191
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673417523781000,
+          "trace_id": "11_抗路噪_交通背景_行程提醒",
+          "client_recv_sec": 0.3939082919387147
+        }
+      ],
+      "sha256": "36e60ea6c0bd3095fc703a948355430da12495cdb261fb4e95f80fd13c51edb8",
+      "event_count": 8
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/11_抗路噪_交通背景_行程提醒_声纹.wav",
+      "duration_sec": 3.622,
+      "elapsed_sec": 0.2593050830764696,
+      "rtf": 0.0715916850017862,
+      "first_partial_sec": 0.15702479204628617,
+      "final_text": "烦了劲了扔",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673417163306958,
+          "client_recv_sec": 0.008294417057186365
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417311962833,
+          "text": "烦了",
+          "client_recv_sec": 0.15702479204628617
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417362670708,
+          "text": "烦了劲了",
+          "client_recv_sec": 0.20827366702724248
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417412239083,
+          "text": "烦了劲了扔",
+          "client_recv_sec": 0.25733625004068017
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673417413824333,
+          "text": "烦了劲了扔",
+          "confidence": 1.0,
+          "client_recv_sec": 0.25902229198254645
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673417413890708,
+          "trace_id": "11_抗路噪_交通背景_行程提醒_声纹",
+          "client_recv_sec": 0.2590262920130044
+        }
+      ],
+      "sha256": "fe63ca5b27ad0a194d08d51b9518a6ec84701debd62fd16ab9a2461d9e8c7fd8",
+      "event_count": 6
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/12_抗路噪_交通背景_汽车行业评论.wav",
+      "duration_sec": 5.735,
+      "elapsed_sec": 0.3785176669480279,
+      "rtf": 0.06600133686975203,
+      "first_partial_sec": 0.10738804202992469,
+      "final_text": "这不失为中国自主品牌车企实现追赶的一种",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673417187043375,
+          "client_recv_sec": 0.00823291705455631
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417286138500,
+          "text": "这不失",
+          "client_recv_sec": 0.10738804202992469
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417337738875,
+          "text": "这不失为中国",
+          "client_recv_sec": 0.15927479194942862
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417387869125,
+          "text": "这不失为中国自主品",
+          "client_recv_sec": 0.20906729204580188
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417438120416,
+          "text": "这不失为中国自主品牌车",
+          "client_recv_sec": 0.259314666967839
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417479190708,
+          "text": "这不失为中国自主品牌车企实",
+          "client_recv_sec": 0.30052404198795557
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417520593458,
+          "text": "这不失为中国自主品牌车企实现追赶",
+          "client_recv_sec": 0.3417859999462962
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417556445916,
+          "text": "这不失为中国自主品牌车企实现追赶的一种",
+          "client_recv_sec": 0.37774187501054257
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673417557190333,
+          "text": "这不失为中国自主品牌车企实现追赶的一种",
+          "confidence": 1.0,
+          "client_recv_sec": 0.3783205000218004
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673417557220208,
+          "trace_id": "12_抗路噪_交通背景_汽车行业评论",
+          "client_recv_sec": 0.37832300004083663
+        }
+      ],
+      "sha256": "95ade2e7c593ca7ff2b79139e7e1cfdbace5e28947bcaaa3414c94db5f3575aa",
+      "event_count": 10
+    },
+    {
+      "file": "/Users/boxp/Downloads/audio/12_抗路噪_交通背景_汽车行业评论_声纹.wav",
+      "duration_sec": 3.95,
+      "elapsed_sec": 0.21928258298430592,
+      "rtf": 0.055514577970710355,
+      "first_partial_sec": 0.09331466699950397,
+      "final_text": "可转日常监管部门或有关",
+      "events": [
+        {
+          "type": "session_started",
+          "server_send_ns": 673417325981000,
+          "client_recv_sec": 0.006952625000849366
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417412357208,
+          "text": "可转",
+          "client_recv_sec": 0.09331466699950397
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417454167916,
+          "text": "可转日常监管",
+          "client_recv_sec": 0.13519674993585795
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417495213541,
+          "text": "可转日常监管部门",
+          "client_recv_sec": 0.17621179192792624
+        },
+        {
+          "type": "partial",
+          "server_send_ns": 673417536542750,
+          "text": "可转日常监管部门或有关",
+          "client_recv_sec": 0.21753166697453707
+        },
+        {
+          "type": "final",
+          "server_send_ns": 673417538027750,
+          "text": "可转日常监管部门或有关",
+          "confidence": 1.0,
+          "client_recv_sec": 0.21909183298703283
+        },
+        {
+          "type": "session_ended",
+          "server_send_ns": 673417538116875,
+          "trace_id": "12_抗路噪_交通背景_汽车行业评论_声纹",
+          "client_recv_sec": 0.21909804199822247
+        }
+      ],
+      "sha256": "7f85abef112e9787082651a7e53a160e492a154ca44cb084b0b6d7334493004c",
+      "event_count": 7
+    }
+  ]
+}

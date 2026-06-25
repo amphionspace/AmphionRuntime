@@ -1,0 +1,17 @@
+{
+  "manifest_version": 1,
+  "model_id": "amphion-zh-en-streaming_large_crctc_musan_zhcs_v6",
+  "version": "1.0.0-iter-140000-avg-1-chunk-32-left-256",
+  "model_type": "zipformer2",
+  "lang": "zh-en",
+  "model_dir": "/models/zhen/chunk32-lc256",
+  "sample_rate": 16000,
+  "feature_dim": 80,
+  "decoding_method": "greedy_search",
+  "local_files": {
+    "tokens": "tokens.txt",
+    "encoder": "encoder.int8.onnx",
+    "decoder": "decoder.onnx",
+    "joiner": "joiner.int8.onnx"
+  }
+}
