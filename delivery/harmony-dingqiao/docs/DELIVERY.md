@@ -59,6 +59,21 @@ bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.
 
 脚本默认只收集已构建产物，不负责启动 DevEco 构建。
 
+## main 分支复现说明
+
+`main` 合入后可以复现功能一致的鸿蒙应用源码与构建流程，但模型、签名、license、HAP/HAR 和 native 构建产物不会入库。干净检出后请先执行：
+
+```bash
+git submodule update --init third_party/sherpa-onnx
+bash asr/tools/04_build_harmony_so.sh
+bash asr/tools/05_package_har_libs.sh
+bash asr/tools/08_pack_harmony_assets.sh
+```
+
+其中 `04_build_harmony_so.sh` 会自动调用 `apply_sherpa_patches.sh`，把 `third_party/patches/sherpa-amphion/` 中的 patch 应用到 sherpa-onnx；不要提交 `third_party/sherpa-onnx` 的本地工作区改动或 submodule 指针。`08_pack_harmony_assets.sh` 需要本机已有 `asr/android/sdk/src/main/assets/amphion-models/` 模型源文件。
+
+构建 signed HAP 还需要本机 DevEco 签名配置；无签名配置时只能生成未签名或调试产物。即使输入相同，HAP 的签名、时间戳和构建元数据也会影响 hash，因此交付验收以功能和清单一致为准，不承诺字节级一致。
+
 ## 验收
 
 | 项目 | 预期 |

@@ -114,7 +114,7 @@ claims 字段与 Android 对齐，包括 `bundleName`、`signingCertDigest`、`a
 | 标点 | 已接入 `OfflinePunctuation`，final 阶段单次加标点 |
 | ITN | `AsrConfig.itn` 已保留并在回调中明确提示降级；需 Amphion WeText NAPI 打包后启用，不会伪装成已处理 |
 | 声纹 | `SpeakerEnroller` 与目标说话人过滤已接入 `SpeakerEmbeddingExtractor`；注册输入需 16 kHz 单声道 PCM 或可读取的 16 kHz wav |
-| 目标说话人 VAD | API 已对齐，当前仅保留开关和 debug 提示；目标人离场提前 endpoint 还需补充滑窗状态机 |
+| 目标说话人 VAD | 已实现基础滑窗声纹打分与连续低分提前 endpoint；未确认目标说话人前会抑制 partial，避免非目标人文本泄露到 UI |
 | license | 状态机、错误码和 claims 解析已对齐 Android；正式 ECDSA 验签仍需交付构建注入公钥 |
 
 ## 安装验收
@@ -132,6 +132,21 @@ hdc install samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_d
 ```
 
 若安装失败，先按顺序检查设备 API、签名、ABI 和旧包签名是否一致。签名不一致时先卸载旧包；系统 API 低于 `compatibleSdkVersion` 时需要更换设备或另建低 API 兼容变体。
+
+## main 分支复现说明
+
+合入 `main` 后，源码、交付工程和 sherpa-onnx patch 序列都在仓库中；模型、签名证书、license、HAP/HAR 和 native 构建产物不入库。从干净 `main` 复现时需要：
+
+```bash
+git submodule update --init third_party/sherpa-onnx
+bash asr/tools/04_build_harmony_so.sh
+bash asr/tools/05_package_har_libs.sh
+bash asr/tools/08_pack_harmony_assets.sh
+```
+
+`04_build_harmony_so.sh` 会自动调用 `apply_sherpa_patches.sh`，把 `third_party/patches/sherpa-amphion/` 的 patch 应用到 sherpa-onnx；不要提交 submodule 本体的本地改动。`08_pack_harmony_assets.sh` 需要本机已有 `asr/android/sdk/src/main/assets/amphion-models/` 模型源文件。构建 signed HAP 还需要 DevEco 签名配置；无签名配置时只能得到未签名或调试产物。
+
+因此 `main` 可以编译出功能等价的鸿蒙应用，但 HAP 二进制不承诺字节级一致，签名、时间戳和构建元数据都会影响 hash。
 
 ## TTS
 
