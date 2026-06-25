@@ -35,6 +35,7 @@ AMPHION_LICENSE_PUBLIC_KEY=<这里粘贴公钥 base64>
 
 - applicationId（必填）：宿主 App 的包名。
 - 签名证书 SHA-256（建议）：业务方用如下命令导出后给你，用于强绑定，防止改包名绕过。
+- 设备 SN 清单（鼎桥交付必需）：一行一个 SN，用于生成 `authorizedDeviceHashes`。
 
 ```bash
 keytool -list -v -keystore <release.keystore> -alias <alias> | grep "SHA256:"
@@ -49,16 +50,19 @@ python issue_license.py \
     --application-id com.acme.talkie \
     --customer "ACME Talkie Co." \
     --license-id AMP-2026-0001 \
+    --device-id-file devices.txt \
+    --device-id-salt-id DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71 \
     --expires 2027-06-03 \
+    --maintenance-until 2027-06-30 \
     --install-tier LE_100K \
-    --features ASR_ZH_EN,ASR_YUE_EN,TARGET_SPEAKER,HOTWORDS \
+    --features ASR,TTS \
     --cert-sha256 AB:CD:...:EF \
-    --out com.acme.talkie.lic
+    --out amphion-license.lic
 ```
 
-把产物 `com.acme.talkie.lic` 交付给业务方，让其放进 App 的 `assets/`，默认文件名 `amphion-license.lic`（可在 `AmphionOptions.licenseAssetName` 改）。
+把产物 `amphion-license.lic` 交付给业务方，让其放进 App 的 `assets/`，默认文件名 `amphion-license.lic`（可在 `AmphionOptions.licenseAssetName` 改）。ASR 与 TTS 共用这一份授权。
 
-不带 `--expires` = 永久授权（买断）。`--install-tier` 是声明性档位（离线方案不实时计量，仅用于展示 / 审计）。
+不带 `--expires` = 已授权版本不因时间停机。`--maintenance-until` 控制可升级到哪些发布时间的 SDK/模型版本。`--install-tier` 是声明性档位（离线方案不实时计量，仅用于展示 / 审计）。本项目默认 `deviceIdSaltId` 固定为 `DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71`，一般无需手工传 `--device-id-salt-id`。
 
 ## 4. 自测校验
 
@@ -68,7 +72,10 @@ python issue_license.py \
 python verify_license.py --license com.acme.talkie.lic \
     --public-key-b64 "<gradle.properties 里的公钥>" \
     --application-id com.acme.talkie \
-    --cert-sha256 AB:CD:...:EF
+    --cert-sha256 AB:CD:...:EF \
+    --device-id SN001 \
+    --sdk-major 1 \
+    --sdk-release-date 2026-06-23
 ```
 
 端到端闭环自测（生成→签发→正确校验→错误用例拒绝）：
@@ -100,7 +107,7 @@ payload claims 字段：
 | issuedAt | 签发日期 yyyy-MM-dd | 否 |
 | expiresAt | 到期日期 yyyy-MM-dd，空=永久 | 否 |
 | installTier | 装机量档位标识（声明性） | 否 |
-| features | 授权功能模块列表 | 否 |
+| features | 授权能力列表，仅允许 ASR、TTS | 否 |
 | sdkMajor | 兼容的 SDK 大版本 | 否 |
 
 ## 6. 校验失败错误码（与 SDK 端 AsrErrorCode 对齐）

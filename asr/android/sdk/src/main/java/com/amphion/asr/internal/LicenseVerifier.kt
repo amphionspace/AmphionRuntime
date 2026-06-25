@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Base64
+import com.amphion.asr.AmphionDeviceIdProvider
 import com.amphion.asr.AmphionLicenseStatus
 import com.amphion.asr.AsrErrorCode
 import org.json.JSONObject
@@ -59,6 +60,10 @@ internal object LicenseVerifier {
         licenseText: String?,
         publicKeyB64: String,
         expiryGraceDays: Int,
+        deviceIdProvider: AmphionDeviceIdProvider? = null,
+        sdkMajor: Int = 1,
+        sdkReleaseDate: String = "",
+        requiredFeature: String = "ASR",
         nowMillis: Long = System.currentTimeMillis(),
     ): Result {
         val pkg = ctx.packageName ?: ""
@@ -107,18 +112,19 @@ internal object LicenseVerifier {
             return failWith(claims, AsrErrorCode.LICENSE_SIGNATURE_INVALID, "signature mismatch")
         }
 
-        // 6. applicationId 绑定。
-        if (claims.applicationId != pkg) {
+        // 6. applicationId / bundleName 绑定。Android 使用 packageName 匹配统一绑定字段。
+        val boundApp = claims.boundApplicationId
+        if (boundApp != pkg) {
             return failWith(
                 claims,
                 AsrErrorCode.LICENSE_APP_MISMATCH,
-                "license app=${claims.applicationId} host=$pkg",
+                "license app=$boundApp host=$pkg",
             )
         }
 
-        // 7. 签名证书绑定（certSha256 非空时才校验）。
-        if (claims.certSha256.isNotBlank()) {
-            val want = normalizeCert(claims.certSha256)
+        // 7. 签名证书绑定（signingCertDigest 非空时才校验；兼容旧 certSha256）。
+        if (claims.boundSigningCertDigest.isNotBlank()) {
+            val want = normalizeHex(claims.boundSigningCertDigest)
             val have = hostCertSha256Set(ctx)
             if (!have.contains(want)) {
                 return failWith(
@@ -139,6 +145,64 @@ internal object LicenseVerifier {
             }
         }
 
+        // 9. SDK 大版本和维护期校验。维护期控制可升级版本，不影响已授权旧版本运行。
+        if (claims.sdkMajor >= 0 && claims.sdkMajor != sdkMajor) {
+            return failWith(
+                claims,
+                AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH,
+                "license sdkMajor=${claims.sdkMajor} host=$sdkMajor",
+            )
+        }
+        if (claims.maintenanceUntil.isNotBlank() && sdkReleaseDate.isNotBlank()) {
+            val releaseMillis = parseDateUtcMillis(sdkReleaseDate)
+                ?: return failWith(claims, AsrErrorCode.LICENSE_MALFORMED, "bad sdkReleaseDate=$sdkReleaseDate")
+            val maintenanceMillis = parseDateUtcMillis(claims.maintenanceUntil)
+                ?: return failWith(
+                    claims,
+                    AsrErrorCode.LICENSE_MALFORMED,
+                    "bad maintenanceUntil=${claims.maintenanceUntil}",
+                )
+            if (releaseMillis > maintenanceMillis) {
+                return failWith(
+                    claims,
+                    AsrErrorCode.LICENSE_MAINTENANCE_EXPIRED,
+                    "maintenanceUntil=${claims.maintenanceUntil} sdkReleaseDate=$sdkReleaseDate",
+                )
+            }
+        }
+
+        // 10. 能力授权。当前 license 只按 ASR / TTS 两类授权，不再细分语言或增强能力。
+        val normalizedFeatures = claims.features.map { it.trim().uppercase(Locale.ROOT) }.toSet()
+        if (!normalizedFeatures.contains(requiredFeature.uppercase(Locale.ROOT))) {
+            return failWith(
+                claims,
+                AsrErrorCode.LICENSE_FEATURE_MISSING,
+                "license features=${claims.features.joinToString(",")} missing $requiredFeature",
+            )
+        }
+
+        // 11. SN 白名单绑定。新 license 使用 authorizedDeviceHashes；旧 deviceSha256 仅保留兼容。
+        if (claims.authorizedDeviceHashes.isNotEmpty()) {
+            if (!claims.deviceIdHashAlg.equals("SHA-256", ignoreCase = true)) {
+                return failWith(claims, AsrErrorCode.LICENSE_MALFORMED, "unsupported deviceIdHashAlg=${claims.deviceIdHashAlg}")
+            }
+            val have = DeviceLicenseFingerprint.compute(ctx, deviceIdProvider, claims.deviceIdSaltId)
+                ?: return failWith(claims, AsrErrorCode.LICENSE_DEVICE_MISMATCH, "device SN unavailable")
+            if (!claims.authorizedDeviceHashes.contains(have)) {
+                return failWith(
+                    claims,
+                    AsrErrorCode.LICENSE_DEVICE_MISMATCH,
+                    "device hash not authorized",
+                )
+            }
+        } else if (claims.deviceSha256.isNotBlank()) {
+            val have = DeviceLicenseFingerprint.compute(ctx, deviceIdProvider, claims.deviceIdSaltId)
+                ?: return failWith(claims, AsrErrorCode.LICENSE_DEVICE_MISMATCH, "device SN unavailable")
+            if (normalizeHex(claims.deviceSha256) != have) {
+                return failWith(claims, AsrErrorCode.LICENSE_DEVICE_MISMATCH, "legacy device hash mismatch")
+            }
+        }
+
         // 全部通过。
         return Result(
             AmphionLicenseStatus(
@@ -147,7 +211,13 @@ internal object LicenseVerifier {
                 errorCode = AsrErrorCode.OK,
                 licenseId = claims.licenseId,
                 customer = claims.customer,
-                applicationId = claims.applicationId,
+                applicationId = claims.boundApplicationId,
+                bundleName = claims.bundleName,
+                signingCertDigest = claims.boundSigningCertDigest,
+                deviceIdHashAlg = claims.deviceIdHashAlg,
+                deviceIdSaltId = claims.deviceIdSaltId,
+                authorizedDeviceCount = claims.authorizedDeviceHashes.size,
+                maintenanceUntil = claims.maintenanceUntil,
                 issuedAt = claims.issuedAt,
                 expiresAt = claims.expiresAt,
                 installTier = claims.installTier,
@@ -162,19 +232,34 @@ internal object LicenseVerifier {
 
     private fun parseClaims(payloadJson: String): LicenseClaims {
         val o = JSONObject(payloadJson)
-        val arr = o.optJSONArray("features")
-        val features = if (arr == null) emptyList() else (0 until arr.length()).map { arr.getString(it) }
         return LicenseClaims(
             licenseId = o.optString("licenseId", ""),
             customer = o.optString("customer", ""),
-            applicationId = o.getString("applicationId"),
+            applicationId = o.optString("applicationId", ""),
+            bundleName = o.optString("bundleName", ""),
+            signingCertDigest = o.optString("signingCertDigest", ""),
             certSha256 = o.optString("certSha256", ""),
+            deviceIdHashAlg = o.optString("deviceIdHashAlg", "SHA-256"),
+            deviceIdSaltId = o.optString("deviceIdSaltId", ""),
+            authorizedDeviceHashes = parseStringArray(o, "authorizedDeviceHashes")
+                .map(::normalizeHex)
+                .filter { it.isNotEmpty() }
+                .toSet(),
+            deviceSha256 = o.optString("deviceSha256", ""),
             issuedAt = o.optString("issuedAt", ""),
             expiresAt = o.optString("expiresAt", ""),
+            maintenanceUntil = o.optString("maintenanceUntil", ""),
             installTier = o.optString("installTier", ""),
-            features = features,
+            features = parseStringArray(o, "features"),
             sdkMajor = o.optInt("sdkMajor", -1),
         )
+    }
+
+    private fun parseStringArray(o: JSONObject, key: String): List<String> {
+        val arr = o.optJSONArray(key) ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { i ->
+            arr.optString(i, "").trim().takeIf { it.isNotEmpty() }
+        }
     }
 
     /** 读取宿主 app 的签名证书 SHA-256 集合（大写、无冒号）。兼容 API 24~27 与 28+。 */
@@ -212,7 +297,7 @@ internal object LicenseVerifier {
         return sb.toString()
     }
 
-    private fun normalizeCert(s: String): String =
+    private fun normalizeHex(s: String): String =
         s.replace(":", "").replace(" ", "").uppercase(Locale.ROOT)
 
     private fun parseDateUtcMillis(s: String): Long? = try {
@@ -231,6 +316,12 @@ internal object LicenseVerifier {
         licenseId = "",
         customer = "",
         applicationId = pkg,
+        bundleName = "",
+        signingCertDigest = "",
+        deviceIdHashAlg = "",
+        deviceIdSaltId = "",
+        authorizedDeviceCount = 0,
+        maintenanceUntil = "",
         issuedAt = "",
         expiresAt = "",
         installTier = "",
@@ -245,6 +336,12 @@ internal object LicenseVerifier {
             licenseId = "",
             customer = "",
             applicationId = pkg,
+            bundleName = "",
+            signingCertDigest = "",
+            deviceIdHashAlg = "",
+            deviceIdSaltId = "",
+            authorizedDeviceCount = 0,
+            maintenanceUntil = "",
             issuedAt = "",
             expiresAt = "",
             installTier = "",
@@ -262,7 +359,13 @@ internal object LicenseVerifier {
             errorCode = code,
             licenseId = claims.licenseId,
             customer = claims.customer,
-            applicationId = claims.applicationId,
+            applicationId = claims.boundApplicationId,
+            bundleName = claims.bundleName,
+            signingCertDigest = claims.boundSigningCertDigest,
+            deviceIdHashAlg = claims.deviceIdHashAlg,
+            deviceIdSaltId = claims.deviceIdSaltId,
+            authorizedDeviceCount = claims.authorizedDeviceHashes.size,
+            maintenanceUntil = claims.maintenanceUntil,
             issuedAt = claims.issuedAt,
             expiresAt = claims.expiresAt,
             installTier = claims.installTier,

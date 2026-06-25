@@ -76,7 +76,7 @@
 | issuedAt | 签发日期 |
 | expiresAt | 到期日期；空表示永久（买断） |
 | installTier | 装机量档位标识（声明性，仅记录用） |
-| features | 授权的功能模块列表 |
+| features | 授权能力列表，仅允许 ASR、TTS |
 | sdkMajor | 兼容的 SDK 大版本 |
 
 签名块：用我方私钥对上面那段授权信息算出的签名。SDK 验签时，就是用公钥检验这段签名配不配那段授权信息。

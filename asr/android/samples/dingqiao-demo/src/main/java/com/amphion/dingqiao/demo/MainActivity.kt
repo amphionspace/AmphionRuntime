@@ -3,7 +3,12 @@ package com.amphion.dingqiao.demo
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Typeface
 import android.os.Bundle
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.PopupMenu
@@ -18,14 +23,13 @@ import androidx.core.content.ContextCompat
 import com.amphion.dingqiao.AudioInfo
 import com.amphion.dingqiao.CreateEngineCallback
 import com.amphion.dingqiao.CreateEngineParams
-import com.amphion.dingqiao.DINGQIAO_SPEAKER_MODEL_FILENAME
+import com.amphion.dingqiao.DingqiaoErrorCode
 import com.amphion.dingqiao.DingqiaoOnlineMode
 import com.amphion.dingqiao.RecognitionListener
 import com.amphion.dingqiao.SpeechRecognitionEngine
 import com.amphion.dingqiao.SpeechRecognitionResult
 import com.amphion.dingqiao.SpeechRecognizeSdk
 import com.amphion.dingqiao.StartParams
-import java.io.File
 import java.util.concurrent.Executors
 
 /**
@@ -41,11 +45,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvVoiceprintInfo: TextView
     private lateinit var progress: ProgressBar
     private lateinit var swVoiceprint: SwitchCompat
+    private lateinit var swSpeakerVad: SwitchCompat
 
     private val worker = Executors.newSingleThreadExecutor()
+    private val sessionLock = Any()
     private var engine: SpeechRecognitionEngine? = null
     private var recorder: AudioRecorder? = null
     private var frameWriter: PcmFrameWriter? = null
+    private var sessionAudioMs = 0L
+    private var rotatingSession = false
 
     @Volatile
     private var listening = false
@@ -54,12 +62,40 @@ class MainActivity : AppCompatActivity() {
     private var sessionId: String? = null
 
     private var voiceprintVerifyDesired = false
-    private val finalLines = StringBuilder()
+    private var speakerVadDesired = false
+    private val finalLines = SpannableStringBuilder()
 
     private val permLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         if (granted) initEngine() else setStatus(getString(R.string.status_no_permission))
+    }
+
+    private val importModelLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        worker.execute {
+            val ok = VoiceprintModelHelper.importFromUri(this, DingqiaoApp.workPath(), uri)
+            runOnUiThread {
+                if (ok) {
+                    toast(getString(R.string.vp_model_import_ok))
+                    refreshVoiceprintUi()
+                } else {
+                    toast(getString(R.string.vp_model_import_failed))
+                }
+            }
+        }
+    }
+
+    private val hotwordsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == RESULT_OK &&
+            result.data?.getBooleanExtra(HotwordsActivity.EXTRA_HOTWORDS_CHANGED, false) == true
+        ) {
+            reloadEngine()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -74,10 +110,12 @@ class MainActivity : AppCompatActivity() {
         tvVoiceprintInfo = findViewById(R.id.tv_voiceprint_info)
         progress = findViewById(R.id.progress)
         swVoiceprint = findViewById(R.id.sw_voiceprint)
+        swSpeakerVad = findViewById(R.id.sw_speaker_vad)
 
         btnTalk.setOnClickListener { if (listening) stopListening() else startListening() }
         btnMenu.setOnClickListener { showMenu(it) }
         swVoiceprint.setOnCheckedChangeListener { _, checked -> onVoiceprintSwitch(checked) }
+        swSpeakerVad.setOnCheckedChangeListener { _, checked -> onSpeakerVadSwitch(checked) }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
@@ -107,10 +145,7 @@ class MainActivity : AppCompatActivity() {
         btnTalk.isEnabled = false
 
         SpeechRecognizeSdk.createEngine(
-            CreateEngineParams(
-                language = "zh-CN",
-                online = DingqiaoOnlineMode.OFFLINE,
-            ),
+            buildCreateEngineParams(),
             object : CreateEngineCallback {
                 override fun onResult(resultEngine: SpeechRecognitionEngine) {
                     runOnUiThread {
@@ -133,13 +168,41 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private fun buildCreateEngineParams(): CreateEngineParams {
+        val hotwords = DemoPrefs.getUserHotwords(this)
+        val extra = mutableMapOf<String, Any>(
+            "vadEnd" to DEFAULT_VAD_END_MS,
+        )
+        if (hotwords.isNotEmpty()) {
+            extra["sysGeneralLexicon"] = hotwords
+        }
+        return CreateEngineParams(
+            language = "zh-CN",
+            online = DingqiaoOnlineMode.OFFLINE,
+            extraParams = extra + mapOf("vadEnd" to 800),
+        )
+    }
+
+    private fun reloadEngine() {
+        stopListening()
+        engine?.shutdown()
+        engine = null
+        toast(getString(R.string.hotwords_engine_reloading))
+        initEngine()
+    }
+
     private fun createListener(): RecognitionListener = object : RecognitionListener {
         override fun onStart(sessionId: String, eventMessage: String) {
-            runOnUiThread { setStatus(getString(R.string.status_listening)) }
+            runOnUiThread {
+                startCapture()
+                setTalkButtonRecording(true)
+                btnTalk.isEnabled = true
+                setStatus(getString(R.string.status_listening))
+            }
         }
 
         override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) {
-            // VAD 事件可选展示
+            // Demo no longer exposes SDK debug events in the UI.
         }
 
         override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
@@ -155,17 +218,35 @@ class MainActivity : AppCompatActivity() {
 
         override fun onComplete(sessionId: String, eventMessage: String) {
             runOnUiThread {
-                listening = false
-                setTalkButtonRecording(false)
-                btnTalk.isEnabled = true
-                setStatus(getString(R.string.status_engine_ready))
+                if (listening) {
+                    rotatingSession = false
+                    startRecognitionSession()
+                } else {
+                    stopCapture()
+                    this@MainActivity.sessionId = null
+                    setTalkButtonRecording(false)
+                    btnTalk.isEnabled = true
+                    setStatus(getString(R.string.status_engine_ready))
+                }
             }
         }
 
         override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
             runOnUiThread {
+                if (listening && errorCode == DingqiaoErrorCode.MAX_AUDIO_DURATION) {
+                    synchronized(sessionLock) {
+                        rotatingSession = false
+                        this@MainActivity.sessionId = null
+                        sessionAudioMs = 0L
+                    }
+                    startRecognitionSession()
+                    setStatus(getString(R.string.status_listening))
+                    return@runOnUiThread
+                }
+                stopCapture()
                 setStatus("错误 $errorCode：$errorMessage")
                 listening = false
+                this@MainActivity.sessionId = null
                 setTalkButtonRecording(false)
                 btnTalk.isEnabled = engine != null
             }
@@ -173,26 +254,46 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startListening() {
-        val eng = engine ?: return
+        if (engine == null) return
         if (listening) return
 
-        val sid = "demo-${System.currentTimeMillis()}"
-        sessionId = sid
         listening = true
         finalLines.clear()
         tvPartial.text = ""
         tvFinal.text = ""
 
+        startRecognitionSession()
+        btnTalk.isEnabled = false
+    }
+
+    private fun startRecognitionSession() {
+        val eng = engine ?: return
+        val sid = "demo-${System.currentTimeMillis()}"
+        synchronized(sessionLock) {
+            sessionId = sid
+            sessionAudioMs = 0L
+            frameWriter?.reset()
+        }
+
         val voiceprintId = DemoPrefs.getVoiceprintId(this)
         val verify = voiceprintVerifyDesired && !voiceprintId.isNullOrBlank()
+        val speakerVad = speakerVadDesired && !voiceprintId.isNullOrBlank()
         val extra = mutableMapOf<String, Any>(
             "enablePartialResult" to true,
-            "maxAudioDuration" to 60_000,
-            "vadEnd" to 800,
+            "maxAudioDuration" to SESSION_MAX_AUDIO_MS,
         )
         if (verify) {
             extra["enableVoiceprintVerification"] = true
-            extra["voiceprintIds"] = listOf(voiceprintId!!)
+        }
+        if (speakerVad) {
+            extra["enableSpeakerVad"] = true
+            extra["speakerVadThreshold"] = SPEAKER_VAD_THRESHOLD
+            extra["speakerVadWindowMs"] = SPEAKER_VAD_WINDOW_MS
+            extra["speakerVadHopMs"] = SPEAKER_VAD_HOP_MS
+            extra["speakerVadConsecutiveBelow"] = SPEAKER_VAD_CONSECUTIVE_BELOW
+        }
+        if (!voiceprintId.isNullOrBlank()) {
+            extra["voiceprintIds"] = listOf(voiceprintId)
         }
 
         eng.startListening(
@@ -202,63 +303,128 @@ class MainActivity : AppCompatActivity() {
                 extraParams = extra,
             ),
         )
+    }
 
-        setTalkButtonRecording(true)
-        btnTalk.isEnabled = true
-
-        frameWriter = PcmFrameWriter { frame ->
-            eng.writeAudio(sid, frame)
+    private fun writeFrameToCurrentSession(frame: ByteArray) {
+        val sidToFinish: String?
+        val sidToWrite: String?
+        synchronized(sessionLock) {
+            val sid = sessionId
+            if (!listening || sid == null) return
+            if (sessionAudioMs >= SESSION_ROTATE_AUDIO_MS && !rotatingSession) {
+                rotatingSession = true
+                sessionId = null
+                sessionAudioMs = 0L
+                sidToFinish = sid
+                sidToWrite = null
+            } else {
+                sessionAudioMs += DINGQIAO_FRAME_AUDIO_MS
+                sidToFinish = null
+                sidToWrite = sid
+            }
         }
-        recorder = AudioRecorder(
-            onPcm = { samples -> frameWriter?.accept(samples) },
-            onError = { msg -> runOnUiThread { setStatus("录音错误：$msg") } },
-        ).also { it.start() }
+        sidToFinish?.let { engine?.finish(it) }
+        sidToWrite?.let { engine?.writeAudio(it, frame) }
     }
 
     private fun stopListening() {
         if (!listening) return
         listening = false
-        recorder?.stop()
-        recorder = null
-        frameWriter?.reset()
-        frameWriter = null
+        stopCapture()
 
         val sid = sessionId
         sessionId = null
+        rotatingSession = false
+        sessionAudioMs = 0L
         setTalkButtonRecording(false)
         if (sid != null) {
             engine?.finish(sid)
         }
     }
 
+    private fun startCapture() {
+        if (recorder != null) return
+        frameWriter = PcmFrameWriter { frame -> writeFrameToCurrentSession(frame) }
+        recorder = AudioRecorder(
+            onPcm = { samples -> frameWriter?.accept(samples) },
+            onError = { msg ->
+                runOnUiThread {
+                    stopCapture()
+                    listening = false
+                    sessionId = null
+                    setTalkButtonRecording(false)
+                    btnTalk.isEnabled = engine != null
+                    setStatus("录音错误：$msg")
+                }
+            },
+        ).also { it.start() }
+    }
+
+    /**
+     * 仅停止本地麦克风采集，不触碰 SDK session。供 onComplete/onError 使用：
+     * 此时 SDK 侧 session 已结束，若继续采集会持续向已关闭的 session 写音频，
+     * 导致麦克风不释放、反复 NOT_LISTENING 报错而无法重新收音。
+     */
+    private fun stopCapture() {
+        recorder?.stop()
+        recorder = null
+        frameWriter?.reset()
+        frameWriter = null
+    }
+
     private fun appendFinal(result: SpeechRecognitionResult) {
         if (result.result.isEmpty()) return
         if (finalLines.isNotEmpty()) finalLines.append('\n')
+        result.speakerSimilarity?.let { appendSpeakerScoreTag(it) }
         finalLines.append(result.result)
-        result.speakerSimilarity?.let {
-            finalLines.append(' ')
-            finalLines.append(getString(R.string.speaker_score_format, it))
-        }
         tvFinal.text = finalLines
     }
 
+    private fun appendSpeakerScoreTag(score: Float) {
+        val start = finalLines.length
+        finalLines.append(getString(R.string.speaker_score_tag, score))
+        val end = finalLines.length
+        finalLines.setSpan(
+            ForegroundColorSpan(ContextCompat.getColor(this, R.color.brand_accent)),
+            start,
+            end,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+        finalLines.setSpan(
+            StyleSpan(Typeface.BOLD),
+            start,
+            end,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+        finalLines.append(' ')
+    }
+
     private fun refreshVoiceprintUi() {
-        val modelReady = File(DingqiaoApp.workPath(), DINGQIAO_SPEAKER_MODEL_FILENAME).isFile
+        val modelFile = VoiceprintModelHelper.modelFile(DingqiaoApp.workPath())
+        val modelReady = VoiceprintModelHelper.isReady(modelFile)
         val id = DemoPrefs.getVoiceprintId(this)
         tvVoiceprintInfo.text = when {
+            !modelReady && modelFile.exists() && !modelFile.canRead() ->
+                getString(R.string.vp_model_unreadable)
             !modelReady -> getString(R.string.vp_model_missing)
             id.isNullOrBlank() -> getString(R.string.vp_not_registered)
             else -> getString(R.string.vp_registered, id)
         }
         swVoiceprint.setOnCheckedChangeListener(null)
+        swSpeakerVad.setOnCheckedChangeListener(null)
         swVoiceprint.isEnabled = modelReady && !id.isNullOrBlank()
+        swSpeakerVad.isEnabled = modelReady && !id.isNullOrBlank()
         if (id.isNullOrBlank()) {
             voiceprintVerifyDesired = false
+            speakerVadDesired = false
             swVoiceprint.isChecked = false
+            swSpeakerVad.isChecked = false
         } else {
             swVoiceprint.isChecked = voiceprintVerifyDesired
+            swSpeakerVad.isChecked = speakerVadDesired
         }
         swVoiceprint.setOnCheckedChangeListener { _, checked -> onVoiceprintSwitch(checked) }
+        swSpeakerVad.setOnCheckedChangeListener { _, checked -> onSpeakerVadSwitch(checked) }
     }
 
     private fun onVoiceprintSwitch(enabled: Boolean) {
@@ -271,6 +437,24 @@ class MainActivity : AppCompatActivity() {
         voiceprintVerifyDesired = enabled
     }
 
+    private fun onSpeakerVadSwitch(enabled: Boolean) {
+        val id = DemoPrefs.getVoiceprintId(this)
+        if (enabled && id.isNullOrBlank()) {
+            swSpeakerVad.isChecked = false
+            toast(getString(R.string.vp_need_register))
+            return
+        }
+        speakerVadDesired = enabled
+        if (listening) {
+            engine?.setSpeakerVadEnabled(enabled)
+        }
+        if (enabled) {
+            toast(getString(R.string.speaker_vad_enabled_hint))
+        } else {
+            toast(getString(R.string.speaker_vad_disabled_hint))
+        }
+    }
+
     private fun showMenu(anchor: android.view.View) {
         PopupMenu(this, anchor).apply {
             menuInflater.inflate(R.menu.menu_main, menu)
@@ -278,6 +462,14 @@ class MainActivity : AppCompatActivity() {
                 !VoiceprintHelper.registeredId(this@MainActivity).isNullOrBlank()
             setOnMenuItemClickListener { item ->
                 when (item.itemId) {
+                    R.id.action_hotwords -> {
+                        hotwordsLauncher.launch(Intent(this@MainActivity, HotwordsActivity::class.java))
+                        true
+                    }
+                    R.id.action_import_model -> {
+                        importModelLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+                        true
+                    }
                     R.id.action_voiceprint -> {
                         startActivity(Intent(this@MainActivity, VoiceprintEnrollActivity::class.java))
                         true
@@ -302,6 +494,7 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val deleted = VoiceprintHelper.deleteRegistered(this)
                     voiceprintVerifyDesired = false
+                    speakerVadDesired = false
                     refreshVoiceprintUi()
                     toast(getString(R.string.vp_delete_success, deleted ?: id))
                 } catch (t: Throwable) {
@@ -330,5 +523,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun toast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    private companion object {
+        const val SESSION_MAX_AUDIO_MS = 60_000L
+        const val SESSION_ROTATE_AUDIO_MS = 55_000L
+        const val DINGQIAO_FRAME_AUDIO_MS = 20L
+        const val DEFAULT_VAD_END_MS = 1_500
+        const val SPEAKER_VAD_THRESHOLD = 0.40f
+        const val SPEAKER_VAD_WINDOW_MS = 1_000
+        const val SPEAKER_VAD_HOP_MS = 300
+        const val SPEAKER_VAD_CONSECUTIVE_BELOW = 2
     }
 }

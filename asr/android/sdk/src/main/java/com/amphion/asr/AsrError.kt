@@ -68,5 +68,17 @@ public object AsrErrorCode {
     /** license 已过期（超出宽限期）。 */
     public const val LICENSE_EXPIRED: Int = 6006
 
+    /** license 绑定的设备 SN 白名单与当前设备不一致。 */
+    public const val LICENSE_DEVICE_MISMATCH: Int = 6007
+
+    /** license 绑定的 SDK 大版本与当前 SDK 不一致。 */
+    public const val LICENSE_SDK_MAJOR_MISMATCH: Int = 6008
+
+    /** 当前 SDK 发布时间晚于 license 允许的维护期。 */
+    public const val LICENSE_MAINTENANCE_EXPIRED: Int = 6009
+
+    /** license 未授权当前 SDK 能力，例如 ASR。 */
+    public const val LICENSE_FEATURE_MISSING: Int = 6010
+
     public const val NATIVE_CRASH: Int = 9001
 }

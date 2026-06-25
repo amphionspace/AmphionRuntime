@@ -1,10 +1,7 @@
 {
   "module": {
-    "name": "sdk",
+    "name": "amphion_tts",
     "type": "har",
-    "deviceTypes": [
-      "phone",
-      "tablet"
-    ]
+    "deviceTypes": ["default", "tablet", "2in1"]
   }
 }

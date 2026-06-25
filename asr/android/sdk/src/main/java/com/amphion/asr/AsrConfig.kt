@@ -47,6 +47,36 @@ public class AsrConfig private constructor(
     public val targetSpeaker: TargetSpeakerConfig?,
 ) {
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is AsrConfig) return false
+
+        return numThreads == other.numThreads &&
+            punctuation == other.punctuation &&
+            itn == other.itn &&
+            vad == other.vad &&
+            vadConfig == other.vadConfig &&
+            endpoint == other.endpoint &&
+            endpointRules == other.endpointRules &&
+            hotwords == other.hotwords &&
+            hotwordsScore == other.hotwordsScore &&
+            targetSpeaker == other.targetSpeaker
+    }
+
+    override fun hashCode(): Int {
+        var result = numThreads
+        result = 31 * result + punctuation.hashCode()
+        result = 31 * result + itn.hashCode()
+        result = 31 * result + vad.hashCode()
+        result = 31 * result + vadConfig.hashCode()
+        result = 31 * result + endpoint.hashCode()
+        result = 31 * result + endpointRules.hashCode()
+        result = 31 * result + hotwords.hashCode()
+        result = 31 * result + hotwordsScore.hashCode()
+        result = 31 * result + (targetSpeaker?.hashCode() ?: 0)
+        return result
+    }
+
     /**
      * Builder：链式构造 [AsrConfig]。
      *

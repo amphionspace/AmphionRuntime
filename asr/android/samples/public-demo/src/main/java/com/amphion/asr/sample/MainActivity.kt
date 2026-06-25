@@ -10,6 +10,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -35,6 +36,7 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.StrikethroughSpan
 import androidx.appcompat.widget.SwitchCompat
 import com.amphion.asr.AsrResult
+import com.amphion.asr.SpeakerVadConfig
 import com.amphion.asr.TargetSpeakerConfig
 import com.amphion.asr.sample.plate.PlateBatchEvalActivity
 import com.amphion.asr.sample.plate.PlateEvalRecorder
@@ -45,14 +47,12 @@ import com.amphion.asr.sample.police_terms.PoliceTermsEvalRecorder
 import com.amphion.police.PoliceEnhancePipeline
 import com.amphion.police.plate.PlateEnhancePrefs
 import com.amphion.police.plate.PlateHotwords
-import com.amphion.police.plate.PlateNormalizer
 import com.amphion.police.station.PoliceStationEnhancePrefs
 import com.amphion.police.station.PoliceStationHotwords
-import com.amphion.police.station.PoliceStationNormalizer
 import com.amphion.police.terms.PoliceTermsEnhancePrefs
 import com.amphion.police.terms.PoliceTermsHotwords
-import com.amphion.police.terms.PoliceTermsNormalizer
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -70,6 +70,18 @@ import kotlin.math.max
  */
 class MainActivity : AppCompatActivity() {
 
+    private data class SpeakerTuningUiConfig(
+        val targetThreshold: Float = DEFAULT_TARGET_THRESHOLD,
+        val targetWindowMs: Int = DEFAULT_TARGET_WINDOW_MS,
+        val targetHopMs: Int = DEFAULT_TARGET_HOP_MS,
+        val targetMinSegmentMs: Int = DEFAULT_TARGET_MIN_SEGMENT_MS,
+        val speakerVadThreshold: Float = DEFAULT_SPEAKER_VAD_THRESHOLD,
+        val speakerVadWindowMs: Int = DEFAULT_SPEAKER_VAD_WINDOW_MS,
+        val speakerVadHopMs: Int = DEFAULT_SPEAKER_VAD_HOP_MS,
+        val speakerVadConsecutiveBelow: Int = DEFAULT_SPEAKER_VAD_CONSECUTIVE_BELOW,
+        val speakerThreads: Int = DEFAULT_SPEAKER_THREADS,
+    )
+
     companion object {
         private const val TAG = "AmphionSample"
         private const val WAVEFORM_FRAMES_PER_BATCH = 4
@@ -83,14 +95,14 @@ class MainActivity : AppCompatActivity() {
          * 「北京」）已经内化强 prior；浅融合要击败这个 prior，λ 必须大到能补偿
          * prior gap，**否则属于浅融合的结构性短板**（不是参数没调对）。
          *
-         * 当前置 5.0：SDK 允许的上限（[com.amphion.asr.AsrConfig.Builder.hotwords] 写死
-         * [0.0, 5.0]），用来测试「在 boost 能力的天花板上，常见词 prior 是否还能撬动」。
-         * 如果 5.0 仍撬不动「余明洞」→「余铭栋」这类对抗，应转向后处理同音字典替换
-         * （deterministic mapping，本就不该用概率模型解决）。
+         * 当前置 3.0：与生产 [com.amphion.police.PoliceEngineConfig.HOTWORDS_SCORE_DEFAULT]
+         * 对齐。真机 A/B 实测，相对满分 5.0，辽宁车牌整体 90.0%→96.7%，且「辽F/辽G/辽P
+         * 被误偏成辽B」从 3/84 降到 0/84（5.0 过度偏置权威字母）。SDK 文档亦推荐人名/专名/
+         * 同音纠错 2.0~3.0 起步，3.0~5.0 "过大会误伤无关音节"。
          *
          * 被 [AmphionApp] 在 preload 时同样使用，保证 pool 命中。
          */
-        const val HOTWORDS_SCORE = 5.0f
+        const val HOTWORDS_SCORE = 3.0f
 
         /**
          * 占位热词：仅当 [AmphionApp.hotwordsArmed] 为 true 但当前语言无 active 热词时使用，
@@ -102,6 +114,16 @@ class MainActivity : AppCompatActivity() {
 
         /** 声纹模型文件名；放在 app external files dir，由 adb push 进去。 */
         const val SPEAKER_MODEL_FILENAME = "eres2net.onnx"
+
+        private const val DEFAULT_TARGET_THRESHOLD = 0.40f
+        private const val DEFAULT_TARGET_WINDOW_MS = 2_500
+        private const val DEFAULT_TARGET_HOP_MS = 1_000
+        private const val DEFAULT_TARGET_MIN_SEGMENT_MS = 1_500
+        private const val DEFAULT_SPEAKER_VAD_THRESHOLD = 0.40f
+        private const val DEFAULT_SPEAKER_VAD_WINDOW_MS = 1_000
+        private const val DEFAULT_SPEAKER_VAD_HOP_MS = 300
+        private const val DEFAULT_SPEAKER_VAD_CONSECUTIVE_BELOW = 2
+        private const val DEFAULT_SPEAKER_THREADS = 1
     }
 
     private lateinit var btnTalk: Button
@@ -116,28 +138,46 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rbYueEn: RadioButton
     private lateinit var waveform: WaveformView
 
+    private lateinit var cardTargetSpeaker: android.view.View
+    private lateinit var swTargetSpeaker: SwitchCompat
+    private lateinit var swSpeakerVad: SwitchCompat
+    private lateinit var tvTargetSpeakerState: TextView
+    private lateinit var tvSpeakerVadDebug: TextView
+    private lateinit var etTargetThreshold: EditText
+    private lateinit var etTargetWindow: EditText
+    private lateinit var etTargetHop: EditText
+    private lateinit var etTargetMinSegment: EditText
+    private lateinit var etSpeakerVadThreshold: EditText
+    private lateinit var etSpeakerVadWindow: EditText
+    private lateinit var etSpeakerVadHop: EditText
+    private lateinit var etSpeakerVadBelow: EditText
+    private lateinit var etSpeakerThreads: EditText
+
     // -------- 云端（WebSocket /clean-stream）相关视图 --------
     private lateinit var swCloud: SwitchCompat
     private lateinit var tvCloudState: TextView
     private lateinit var cardCloud: android.view.View
     private lateinit var colCloud: android.view.View
-    private lateinit var svCloud: android.widget.ScrollView
+    private var mainScroll: androidx.core.widget.NestedScrollView? = null
     private lateinit var tvCloudFinal: TextView
     private lateinit var tvCloudStatus: TextView
 
     private lateinit var cardPlateEnhance: android.view.View
     private lateinit var swPlateHotwords: SwitchCompat
     private lateinit var swPlateNormalize: SwitchCompat
+    private lateinit var swPlateV2: SwitchCompat
     private lateinit var tvPlatePipeline: TextView
     private lateinit var plateEnhancePrefs: PlateEnhancePrefs
     private lateinit var cardStationEnhance: android.view.View
     private lateinit var swStationHotwords: SwitchCompat
     private lateinit var swStationNormalize: SwitchCompat
+    private lateinit var swStationV2: SwitchCompat
     private lateinit var tvStationPipeline: TextView
     private lateinit var stationEnhancePrefs: PoliceStationEnhancePrefs
     private lateinit var cardTermsEnhance: android.view.View
     private lateinit var swTermsHotwords: SwitchCompat
     private lateinit var swTermsNormalize: SwitchCompat
+    private lateinit var swTermsV2: SwitchCompat
     private lateinit var tvTermsPipeline: TextView
     private lateinit var termsEnhancePrefs: PoliceTermsEnhancePrefs
 
@@ -173,14 +213,15 @@ class MainActivity : AppCompatActivity() {
     // -------- 目标说话人状态 --------
     private val speakerStore: SpeakerProfileStore by lazy { SpeakerProfileStore(applicationContext) }
 
-    /**
-     * 当前 engine 的 TargetSpeakerConfig 实际生效的判定阈值。声纹页改阈值后，onResume 比对此值
-     * （NaN=尚未建过带阈值的 engine）决定是否静默重建 engine 使新阈值生效。
-     */
-    private var currentThresholdApplied: Float = Float.NaN
+    /** 当前 engine 实际生效的目标说话人 / speaker VAD 参数；变更后需重建 engine。 */
+    private var currentSpeakerTuningApplied: SpeakerTuningUiConfig? = null
+    private var pendingStartAfterEngineReload = false
 
     @Volatile
     private var targetEmbedding: FloatArray? = null
+    private var targetSpeakerDesired = true
+    private var speakerVadDesired = false
+    private var lastSpeakerVadDebug = "等待窗口打分"
     private val finalBuilder = SpannableStringBuilder()
 
     // -------- 云端状态 --------
@@ -193,11 +234,14 @@ class MainActivity : AppCompatActivity() {
     private val cloudFinalBuilder = StringBuilder()
     private var cloudCurrentPartial: String = ""
 
-    private lateinit var plateNormalizer: PlateNormalizer
+    /**
+     * 三场景后处理流水线实例（含 V1，按各 *EnhancePrefs.*V2Enabled 决定是否额外构建 V2）。
+     * normalize 开关每次调用 [PoliceEnhancePipeline.apply] 时按 prefs 实时传入；V2 开关切换需
+     * [rebuildEnhancePipeline]（V2 normalizer 在 create 时构建、加载资产）。
+     */
+    private lateinit var enhancePipeline: PoliceEnhancePipeline
     private lateinit var plateEvalRecorder: PlateEvalRecorder
-    private lateinit var stationNormalizer: PoliceStationNormalizer
     private lateinit var stationEvalRecorder: PoliceStationEvalRecorder
-    private lateinit var termsNormalizer: PoliceTermsNormalizer
     private lateinit var termsEvalRecorder: PoliceTermsEvalRecorder
 
     private val recordPermissionLauncher = registerForActivityResult(
@@ -239,11 +283,30 @@ class MainActivity : AppCompatActivity() {
         rbYueEn = findViewById(R.id.rb_yue_en)
         waveform = findViewById(R.id.waveform)
 
+        cardTargetSpeaker = findViewById(R.id.card_target_speaker)
+        swTargetSpeaker = findViewById(R.id.sw_target_speaker)
+        swSpeakerVad = findViewById(R.id.sw_speaker_vad)
+        tvTargetSpeakerState = findViewById(R.id.tv_target_speaker_state)
+        tvSpeakerVadDebug = findViewById(R.id.tv_speaker_vad_debug)
+        etTargetThreshold = findViewById(R.id.et_target_threshold)
+        etTargetWindow = findViewById(R.id.et_target_window)
+        etTargetHop = findViewById(R.id.et_target_hop)
+        etTargetMinSegment = findViewById(R.id.et_target_min_seg)
+        etSpeakerVadThreshold = findViewById(R.id.et_speaker_vad_threshold)
+        etSpeakerVadWindow = findViewById(R.id.et_speaker_vad_window)
+        etSpeakerVadHop = findViewById(R.id.et_speaker_vad_hop)
+        etSpeakerVadBelow = findViewById(R.id.et_speaker_vad_below)
+        etSpeakerThreads = findViewById(R.id.et_speaker_threads)
+        etTargetThreshold.setText(String.format(Locale.US, "%.2f", speakerStore.getThreshold()))
+        swTargetSpeaker.setOnCheckedChangeListener { _, checked -> onTargetSpeakerToggle(checked) }
+        swSpeakerVad.setOnCheckedChangeListener { _, checked -> onSpeakerVadToggle(checked) }
+        refreshSpeakerControlCard()
+
         swCloud = findViewById(R.id.sw_cloud)
         tvCloudState = findViewById(R.id.tv_cloud_state)
         cardCloud = findViewById(R.id.card_cloud)
         colCloud = findViewById(R.id.col_cloud)
-        svCloud = findViewById(R.id.sv_cloud)
+        mainScroll = findViewById(R.id.main_scroll)
         tvCloudFinal = findViewById(R.id.tv_cloud_final)
         tvCloudStatus = findViewById(R.id.tv_cloud_status)
         cardCloud.setOnClickListener { swCloud.toggle() }
@@ -251,18 +314,7 @@ class MainActivity : AppCompatActivity() {
         plateEnhancePrefs = PlateEnhancePrefs(this)
         stationEnhancePrefs = PoliceStationEnhancePrefs(this)
         termsEnhancePrefs = PoliceTermsEnhancePrefs(this)
-        plateNormalizer = PlateNormalizer.create(
-            this,
-            useFst = plateEnhancePrefs.plateFstEnabled,
-        )
-        stationNormalizer = PoliceStationNormalizer.create(
-            this,
-            useFst = stationEnhancePrefs.stationFstEnabled,
-        )
-        termsNormalizer = PoliceTermsNormalizer.create(
-            this,
-            useFst = termsEnhancePrefs.termsFstEnabled,
-        )
+        enhancePipeline = PoliceEnhancePipeline.create(this)
         plateEvalRecorder = PlateEvalRecorder(this)
         stationEvalRecorder = PoliceStationEvalRecorder(this)
         termsEvalRecorder = PoliceTermsEvalRecorder(this)
@@ -276,6 +328,7 @@ class MainActivity : AppCompatActivity() {
         cardPlateEnhance = findViewById(R.id.card_plate_enhance)
         swPlateHotwords = findViewById(R.id.sw_plate_hotwords)
         swPlateNormalize = findViewById(R.id.sw_plate_normalize)
+        swPlateV2 = findViewById(R.id.sw_plate_v2)
         tvPlatePipeline = findViewById(R.id.tv_plate_pipeline)
         swPlateHotwords.setOnCheckedChangeListener { _, on ->
             onPlateHotwordsToggle(on)
@@ -284,11 +337,17 @@ class MainActivity : AppCompatActivity() {
             plateEnhancePrefs.plateNormalizeEnabled = on
             refreshPlateEnhanceCard()
         }
+        swPlateV2.setOnCheckedChangeListener { _, on ->
+            plateEnhancePrefs.plateV2Enabled = on
+            rebuildEnhancePipeline()
+            refreshPlateEnhanceCard()
+        }
         refreshPlateEnhanceCard()
 
         cardStationEnhance = findViewById(R.id.card_station_enhance)
         swStationHotwords = findViewById(R.id.sw_station_hotwords)
         swStationNormalize = findViewById(R.id.sw_station_normalize)
+        swStationV2 = findViewById(R.id.sw_station_v2)
         tvStationPipeline = findViewById(R.id.tv_station_pipeline)
         swStationHotwords.setOnCheckedChangeListener { _, on ->
             onStationHotwordsToggle(on)
@@ -297,17 +356,28 @@ class MainActivity : AppCompatActivity() {
             stationEnhancePrefs.stationNormalizeEnabled = on
             refreshStationEnhanceCard()
         }
+        swStationV2.setOnCheckedChangeListener { _, on ->
+            stationEnhancePrefs.stationV2Enabled = on
+            rebuildEnhancePipeline()
+            refreshStationEnhanceCard()
+        }
         refreshStationEnhanceCard()
 
         cardTermsEnhance = findViewById(R.id.card_terms_enhance)
         swTermsHotwords = findViewById(R.id.sw_terms_hotwords)
         swTermsNormalize = findViewById(R.id.sw_terms_normalize)
+        swTermsV2 = findViewById(R.id.sw_terms_v2)
         tvTermsPipeline = findViewById(R.id.tv_terms_pipeline)
         swTermsHotwords.setOnCheckedChangeListener { _, on ->
             onTermsHotwordsToggle(on)
         }
         swTermsNormalize.setOnCheckedChangeListener { _, on ->
             termsEnhancePrefs.termsNormalizeEnabled = on
+            refreshTermsEnhanceCard()
+        }
+        swTermsV2.setOnCheckedChangeListener { _, on ->
+            termsEnhancePrefs.termsV2Enabled = on
+            rebuildEnhancePipeline()
             refreshTermsEnhanceCard()
         }
         refreshTermsEnhanceCard()
@@ -345,6 +415,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         reloadTargetSpeaker()
+        refreshSpeakerControlCard()
         refreshCloudCard()
         refreshPlateEnhanceCard()
         refreshStationEnhanceCard()
@@ -363,13 +434,7 @@ class MainActivity : AppCompatActivity() {
         engine?.close()
         engine = null
         try {
-            stationNormalizer.close()
-        } catch (_: Throwable) {}
-        try {
-            plateNormalizer.close()
-        } catch (_: Throwable) {}
-        try {
-            termsNormalizer.close()
+            enhancePipeline.close()
         } catch (_: Throwable) {}
         // 不调 AmphionRuntime.release()：保留池给下次 Activity 用，避免重复加载
     }
@@ -574,7 +639,11 @@ class MainActivity : AppCompatActivity() {
             sb.append(cloudCurrentPartial)
         }
         tvCloudFinal.text = sb.toString()
-        svCloud.post { svCloud.fullScroll(android.view.View.FOCUS_DOWN) }
+        scrollResultsToBottom()
+    }
+
+    private fun scrollResultsToBottom() {
+        mainScroll?.post { mainScroll?.fullScroll(android.view.View.FOCUS_DOWN) }
     }
 
     private fun setCloudStatus(s: String) {
@@ -611,11 +680,18 @@ class MainActivity : AppCompatActivity() {
     private fun refreshPlateEnhanceCard() {
         swPlateHotwords.setOnCheckedChangeListener(null)
         swPlateNormalize.setOnCheckedChangeListener(null)
+        swPlateV2.setOnCheckedChangeListener(null)
         swPlateHotwords.isChecked = plateEnhancePrefs.plateHotwordsEnabled
         swPlateNormalize.isChecked = plateEnhancePrefs.plateNormalizeEnabled
+        swPlateV2.isChecked = plateEnhancePrefs.plateV2Enabled
         swPlateHotwords.setOnCheckedChangeListener { _, on -> onPlateHotwordsToggle(on) }
         swPlateNormalize.setOnCheckedChangeListener { _, on ->
             plateEnhancePrefs.plateNormalizeEnabled = on
+            refreshPlateEnhanceCard()
+        }
+        swPlateV2.setOnCheckedChangeListener { _, on ->
+            plateEnhancePrefs.plateV2Enabled = on
+            rebuildEnhancePipeline()
             refreshPlateEnhanceCard()
         }
         val n = if (plateEnhancePrefs.plateHotwordsEnabled) {
@@ -638,11 +714,18 @@ class MainActivity : AppCompatActivity() {
     private fun refreshStationEnhanceCard() {
         swStationHotwords.setOnCheckedChangeListener(null)
         swStationNormalize.setOnCheckedChangeListener(null)
+        swStationV2.setOnCheckedChangeListener(null)
         swStationHotwords.isChecked = stationEnhancePrefs.stationHotwordsEnabled
         swStationNormalize.isChecked = stationEnhancePrefs.stationNormalizeEnabled
+        swStationV2.isChecked = stationEnhancePrefs.stationV2Enabled
         swStationHotwords.setOnCheckedChangeListener { _, on -> onStationHotwordsToggle(on) }
         swStationNormalize.setOnCheckedChangeListener { _, on ->
             stationEnhancePrefs.stationNormalizeEnabled = on
+            refreshStationEnhanceCard()
+        }
+        swStationV2.setOnCheckedChangeListener { _, on ->
+            stationEnhancePrefs.stationV2Enabled = on
+            rebuildEnhancePipeline()
             refreshStationEnhanceCard()
         }
         val n = if (stationEnhancePrefs.stationHotwordsEnabled) {
@@ -665,11 +748,18 @@ class MainActivity : AppCompatActivity() {
     private fun refreshTermsEnhanceCard() {
         swTermsHotwords.setOnCheckedChangeListener(null)
         swTermsNormalize.setOnCheckedChangeListener(null)
+        swTermsV2.setOnCheckedChangeListener(null)
         swTermsHotwords.isChecked = termsEnhancePrefs.termsHotwordsEnabled
         swTermsNormalize.isChecked = termsEnhancePrefs.termsNormalizeEnabled
+        swTermsV2.isChecked = termsEnhancePrefs.termsV2Enabled
         swTermsHotwords.setOnCheckedChangeListener { _, on -> onTermsHotwordsToggle(on) }
         swTermsNormalize.setOnCheckedChangeListener { _, on ->
             termsEnhancePrefs.termsNormalizeEnabled = on
+            refreshTermsEnhanceCard()
+        }
+        swTermsV2.setOnCheckedChangeListener { _, on ->
+            termsEnhancePrefs.termsV2Enabled = on
+            rebuildEnhancePipeline()
             refreshTermsEnhanceCard()
         }
         val n = if (termsEnhancePrefs.termsHotwordsEnabled) {
@@ -698,15 +788,19 @@ class MainActivity : AppCompatActivity() {
         cardPlateEnhance.isEnabled = !locked
         cardPlateEnhance.alpha = if (locked) 0.5f else 1f
         swPlateHotwords.isEnabled = !locked
+        swPlateV2.isEnabled = !locked
         cardStationEnhance.isEnabled = !locked
         cardStationEnhance.alpha = if (locked) 0.5f else 1f
         swStationHotwords.isEnabled = !locked
+        swStationV2.isEnabled = !locked
         cardTermsEnhance.isEnabled = !locked
         cardTermsEnhance.alpha = if (locked) 0.5f else 1f
         swTermsHotwords.isEnabled = !locked
+        swTermsV2.isEnabled = !locked
         cardCloud.isEnabled = !locked
         cardCloud.alpha = if (locked) 0.5f else 1f
         swCloud.isEnabled = !locked
+        setSpeakerParamInputsEnabled(!locked)
     }
 
     // ----------- 加载 / 切换语言 -----------
@@ -714,6 +808,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadEngineForLang(lang: AsrLanguage) {
         val gen = asrLoadGeneration.incrementAndGet()
         val oldEngine = engine
+        val speakerTuning = normalizeSpeakerTuningInputs()
         engine = null
         btnTalk.isEnabled = false
 
@@ -731,8 +826,7 @@ class MainActivity : AppCompatActivity() {
         val prefs = HotwordsPrefs(applicationContext)
         val userHotwords = prefs.activeWords(lang)
         currentHotwordsApplied = userHotwords
-        val targetThreshold = speakerStore.getThreshold()
-        currentThresholdApplied = targetThreshold
+        currentSpeakerTuningApplied = speakerTuning
 
         try {
             asrLoadExec.execute {
@@ -766,8 +860,19 @@ class MainActivity : AppCompatActivity() {
                             targetSpeaker(
                                 TargetSpeakerConfig(
                                     modelPath = speakerModelPath(),
-                                    threshold = targetThreshold,
+                                    threshold = speakerTuning.targetThreshold,
+                                    winSec = speakerTuning.targetWindowMs / 1000f,
+                                    hopSec = speakerTuning.targetHopMs / 1000f,
+                                    minSegSec = speakerTuning.targetMinSegmentMs / 1000f,
                                     preload = false,
+                                    numThreads = speakerTuning.speakerThreads,
+                                    speakerVad = SpeakerVadConfig(
+                                        threshold = speakerTuning.speakerVadThreshold,
+                                        winSec = speakerTuning.speakerVadWindowMs / 1000f,
+                                        hopSec = speakerTuning.speakerVadHopMs / 1000f,
+                                        consecutiveBelow = speakerTuning.speakerVadConsecutiveBelow,
+                                        enabledByDefault = false,
+                                    ),
                                 ),
                             )
                         }
@@ -781,6 +886,7 @@ class MainActivity : AppCompatActivity() {
                 } catch (t: Throwable) {
                     mainHandler.post {
                         if (gen != asrLoadGeneration.get()) return@post
+                        pendingStartAfterEngineReload = false
                         setStatus(getString(R.string.status_install_failed, t.message ?: "unknown"))
                         progress.visibility = android.view.View.GONE
                         tvLoadingHint.visibility = android.view.View.GONE
@@ -798,6 +904,11 @@ class MainActivity : AppCompatActivity() {
                     progress.visibility = android.view.View.GONE
                     tvLoadingHint.visibility = android.view.View.GONE
                     setStatus("模型就绪（${langDisplayName(lang)}），点击开始识别")
+                    refreshSpeakerControlCard()
+                    if (pendingStartAfterEngineReload) {
+                        pendingStartAfterEngineReload = false
+                        startListening()
+                    }
                 }
             }
         } catch (t: java.util.concurrent.RejectedExecutionException) {
@@ -829,6 +940,13 @@ class MainActivity : AppCompatActivity() {
     private fun startListening() {
         val eng = engine ?: return
         if (session != null) return
+        val speakerTuning = normalizeSpeakerTuningInputs()
+        if (speakerModelReady() && currentSpeakerTuningApplied != speakerTuning) {
+            pendingStartAfterEngineReload = true
+            setStatus("正在应用目标说话人参数…")
+            loadEngineForLang(currentLang)
+            return
+        }
 
         listening = true
         clearTexts()
@@ -852,7 +970,10 @@ class MainActivity : AppCompatActivity() {
 
         val s = eng.newSession(object : AsrCallback {
             override fun onPartial(text: String) {
-                runOnUiThread { tvPartial.text = text }
+                runOnUiThread {
+                    tvPartial.text = text
+                    scrollResultsToBottom()
+                }
             }
 
             override fun onFinal(result: AsrResult) {
@@ -861,6 +982,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     appendFinalSegment(result, rejected = false, enhanced = enhanced)
                     tvPartial.text = ""
+                    scrollResultsToBottom()
                 }
             }
 
@@ -870,6 +992,7 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     appendFinalSegment(result, rejected = true, enhanced = enhanced)
                     tvPartial.text = ""
+                    scrollResultsToBottom()
                 }
             }
 
@@ -900,6 +1023,13 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread { tvMetrics.text = text }
             }
 
+            override fun onDebug(message: String) {
+                runOnUiThread {
+                    lastSpeakerVadDebug = message
+                    refreshSpeakerControlCard()
+                }
+            }
+
             override fun onSessionStopped() {
                 capturedSession?.close()
                 runOnUiThread {
@@ -915,7 +1045,8 @@ class MainActivity : AppCompatActivity() {
 
         targetEmbedding?.let { emb ->
             s.setTargetSpeaker(emb)
-            s.setTargetSpeakerEnabled(true)
+            s.setTargetSpeakerEnabled(targetSpeakerDesired)
+            s.setSpeakerVadEnabled(speakerVadDesired)
         }
 
         recorder = AudioRecorder(
@@ -1037,7 +1168,8 @@ class MainActivity : AppCompatActivity() {
             session?.clearTargetSpeaker()
         } else {
             session?.setTargetSpeaker(emb)
-            session?.setTargetSpeakerEnabled(true)
+            session?.setTargetSpeakerEnabled(targetSpeakerDesired)
+            session?.setSpeakerVadEnabled(speakerVadDesired)
         }
     }
 
@@ -1049,22 +1181,170 @@ class MainActivity : AppCompatActivity() {
      */
     private fun maybeReloadThreshold() {
         if (!speakerModelReady() || listening) return
-        val t = speakerStore.getThreshold()
-        if (!currentThresholdApplied.isNaN() && t != currentThresholdApplied) {
+        val storedThreshold = speakerStore.getThreshold()
+        val uiThreshold = parseFloat(etTargetThreshold.text?.toString(), DEFAULT_TARGET_THRESHOLD)
+        if (abs(uiThreshold - storedThreshold) > 0.0001f) {
+            etTargetThreshold.setText(String.format(Locale.US, "%.2f", storedThreshold))
+        }
+        val tuning = normalizeSpeakerTuningInputs()
+        if (currentSpeakerTuningApplied != null && tuning != currentSpeakerTuningApplied) {
             loadEngineForLang(currentLang)
         }
     }
 
-    private fun applyDomainEnhance(asrRaw: String): PoliceEnhancePipeline.Result =
-        AsrTextEnhance.apply(
-            asrRaw,
-            termsNormalizer,
-            termsEnhancePrefs.termsNormalizeEnabled,
-            plateNormalizer,
-            plateEnhancePrefs.plateNormalizeEnabled,
-            stationNormalizer,
-            stationEnhancePrefs.stationNormalizeEnabled,
+    private fun onTargetSpeakerToggle(enabled: Boolean) {
+        if (enabled && targetEmbedding == null) {
+            swTargetSpeaker.isChecked = false
+            toast(getString(R.string.ts_need_register))
+            return
+        }
+        targetSpeakerDesired = enabled
+        session?.setTargetSpeakerEnabled(enabled)
+        refreshSpeakerControlCard()
+    }
+
+    private fun onSpeakerVadToggle(enabled: Boolean) {
+        val emb = targetEmbedding
+        if (enabled && emb == null) {
+            swSpeakerVad.isChecked = false
+            toast(getString(R.string.ts_need_register))
+            return
+        }
+        speakerVadDesired = enabled
+        if (enabled && emb != null) {
+            session?.setTargetSpeaker(emb)
+        }
+        session?.setSpeakerVadEnabled(enabled)
+        refreshSpeakerControlCard()
+    }
+
+    private fun refreshSpeakerControlCard() {
+        val modelReady = speakerModelReady()
+        val hasEmbedding = targetEmbedding != null || speakerStore.hasEmbedding()
+        val config = readSpeakerTuningConfig()
+        tvTargetSpeakerState.text = when {
+            !modelReady -> getString(R.string.ts_model_missing)
+            !hasEmbedding -> getString(R.string.ts_unregistered)
+            else -> getString(
+                R.string.ts_registered,
+                speakerStore.segmentCount(),
+                config.targetThreshold,
+            )
+        }
+        swTargetSpeaker.setOnCheckedChangeListener(null)
+        swSpeakerVad.setOnCheckedChangeListener(null)
+        swTargetSpeaker.isEnabled = modelReady && hasEmbedding
+        swSpeakerVad.isEnabled = modelReady && hasEmbedding
+        swTargetSpeaker.isChecked = modelReady && hasEmbedding && targetSpeakerDesired
+        swSpeakerVad.isChecked = modelReady && hasEmbedding && speakerVadDesired
+        swTargetSpeaker.setOnCheckedChangeListener { _, checked -> onTargetSpeakerToggle(checked) }
+        swSpeakerVad.setOnCheckedChangeListener { _, checked -> onSpeakerVadToggle(checked) }
+        tvSpeakerVadDebug.text = getString(
+            R.string.speaker_vad_debug_format,
+            config.targetThreshold,
+            config.targetWindowMs,
+            config.targetHopMs,
+            config.targetMinSegmentMs,
+            config.speakerVadThreshold,
+            config.speakerVadWindowMs,
+            config.speakerVadHopMs,
+            config.speakerVadConsecutiveBelow,
+            config.speakerThreads,
+            lastSpeakerVadDebug,
         )
+    }
+
+    private fun readSpeakerTuningConfig(): SpeakerTuningUiConfig {
+        return SpeakerTuningUiConfig(
+            targetThreshold = parseFloat(
+                etTargetThreshold.text?.toString(),
+                DEFAULT_TARGET_THRESHOLD,
+            ).coerceIn(0.0f, 1.0f),
+            targetWindowMs = parseInt(
+                etTargetWindow.text?.toString(),
+                DEFAULT_TARGET_WINDOW_MS,
+            ).coerceIn(300, 6000),
+            targetHopMs = parseInt(
+                etTargetHop.text?.toString(),
+                DEFAULT_TARGET_HOP_MS,
+            ).coerceIn(100, 3000),
+            targetMinSegmentMs = parseInt(
+                etTargetMinSegment.text?.toString(),
+                DEFAULT_TARGET_MIN_SEGMENT_MS,
+            ).coerceIn(300, 6000),
+            speakerVadThreshold = parseFloat(
+                etSpeakerVadThreshold.text?.toString(),
+                DEFAULT_SPEAKER_VAD_THRESHOLD,
+            ).coerceIn(0.0f, 1.0f),
+            speakerVadWindowMs = parseInt(
+                etSpeakerVadWindow.text?.toString(),
+                DEFAULT_SPEAKER_VAD_WINDOW_MS,
+            ).coerceIn(300, 6000),
+            speakerVadHopMs = parseInt(
+                etSpeakerVadHop.text?.toString(),
+                DEFAULT_SPEAKER_VAD_HOP_MS,
+            ).coerceIn(100, 3000),
+            speakerVadConsecutiveBelow = parseInt(
+                etSpeakerVadBelow.text?.toString(),
+                DEFAULT_SPEAKER_VAD_CONSECUTIVE_BELOW,
+            ).coerceIn(1, 8),
+            speakerThreads = parseInt(
+                etSpeakerThreads.text?.toString(),
+                DEFAULT_SPEAKER_THREADS,
+            ).coerceIn(1, 8),
+        )
+    }
+
+    private fun normalizeSpeakerTuningInputs(): SpeakerTuningUiConfig {
+        val config = readSpeakerTuningConfig()
+        etTargetThreshold.setText(String.format(Locale.US, "%.2f", config.targetThreshold))
+        etTargetWindow.setText(config.targetWindowMs.toString())
+        etTargetHop.setText(config.targetHopMs.toString())
+        etTargetMinSegment.setText(config.targetMinSegmentMs.toString())
+        etSpeakerVadThreshold.setText(String.format(Locale.US, "%.2f", config.speakerVadThreshold))
+        etSpeakerVadWindow.setText(config.speakerVadWindowMs.toString())
+        etSpeakerVadHop.setText(config.speakerVadHopMs.toString())
+        etSpeakerVadBelow.setText(config.speakerVadConsecutiveBelow.toString())
+        etSpeakerThreads.setText(config.speakerThreads.toString())
+        return config
+    }
+
+    private fun setSpeakerParamInputsEnabled(enabled: Boolean) {
+        etTargetThreshold.isEnabled = enabled
+        etTargetWindow.isEnabled = enabled
+        etTargetHop.isEnabled = enabled
+        etTargetMinSegment.isEnabled = enabled
+        etSpeakerVadThreshold.isEnabled = enabled
+        etSpeakerVadWindow.isEnabled = enabled
+        etSpeakerVadHop.isEnabled = enabled
+        etSpeakerVadBelow.isEnabled = enabled
+        etSpeakerThreads.isEnabled = enabled
+    }
+
+    private fun parseFloat(raw: String?, defaultValue: Float): Float =
+        raw?.trim()?.toFloatOrNull() ?: defaultValue
+
+    private fun parseInt(raw: String?, defaultValue: Int): Int =
+        raw?.trim()?.toIntOrNull() ?: defaultValue
+
+    private fun applyDomainEnhance(asrRaw: String): PoliceEnhancePipeline.Result =
+        enhancePipeline.apply(
+            asrFinalText = asrRaw,
+            termsNormalizeEnabled = termsEnhancePrefs.termsNormalizeEnabled,
+            plateNormalizeEnabled = plateEnhancePrefs.plateNormalizeEnabled,
+            stationNormalizeEnabled = stationEnhancePrefs.stationNormalizeEnabled,
+        )
+
+    /**
+     * V2 normalizer 在 [PoliceEnhancePipeline.create] 时按 prefs 构建（会加载资产），故 V2 开关
+     * 切换后需整体重建流水线使新状态生效。仅在调试设置（非录音中）触发，开销可接受。
+     */
+    private fun rebuildEnhancePipeline() {
+        try {
+            enhancePipeline.close()
+        } catch (_: Throwable) {}
+        enhancePipeline = PoliceEnhancePipeline.create(this)
+    }
 
     private fun recordDomainEnhance(enhanced: PoliceEnhancePipeline.Result, asrRaw: String) {
         termsEvalRecorder.append(

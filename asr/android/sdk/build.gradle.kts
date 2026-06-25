@@ -10,6 +10,8 @@ plugins {
 val sdkGroupId: String = providers.gradleProperty("AMPHION_RUNTIME_GROUP_ID").get()
 val sdkArtifactId: String = providers.gradleProperty("AMPHION_RUNTIME_ARTIFACT_ID").get()
 val sdkVersion: String = providers.gradleProperty("AMPHION_RUNTIME_VERSION").get()
+val sdkMajor: String = providers.gradleProperty("AMPHION_SDK_MAJOR").orElse("1").get()
+val sdkReleaseDate: String = providers.gradleProperty("AMPHION_SDK_RELEASE_DATE").orElse("2026-06-23").get()
 
 // 离线 license 公钥（base64 of X.509 SubjectPublicKeyInfo DER，单行）。
 // 空 = 不武装 license（开发 / 内部构建）；正式交付构建必须注入真实公钥（见 gradle.properties）。
@@ -33,6 +35,8 @@ android {
 
         // SDK 版本号通过 BuildConfig 暴露给 Kotlin 代码
         buildConfigField("String", "SDK_VERSION", "\"$sdkVersion\"")
+        buildConfigField("int", "SDK_MAJOR", sdkMajor)
+        buildConfigField("String", "SDK_RELEASE_DATE", "\"$sdkReleaseDate\"")
         // 离线 license 公钥（空字符串 = SDK 未武装 license，init 不做校验）
         buildConfigField("String", "LICENSE_PUBLIC_KEY_B64", "\"$licensePublicKeyB64\"")
     }

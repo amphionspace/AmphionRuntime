@@ -12,6 +12,7 @@ VENV="$ROOT/asr/tools/license/.venv"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$ROOT/.secure/amphion-license-private.pem}"
 OUT="$ROOT/asr/android/samples/dingqiao-demo/src/main/assets/amphion-license.lic"
 CERT_SHA="${DINGQIAO_DEMO_CERT_SHA256:-}"
+DEVICE_SHA="${DINGQIAO_DEMO_DEVICE_SHA256:-}"
 TRIAL_MONTHS="${DINGQIAO_DEMO_TRIAL_MONTHS:-2}"
 
 if [[ ! -f "$PRIVATE_KEY" ]]; then
@@ -57,6 +58,7 @@ mkdir -p "$(dirname "$OUT")"
   --install-tier LE_100K \
   --features ASR_ZH_EN,ASR_YUE_EN,TARGET_SPEAKER,HOTWORDS \
   ${CERT_SHA:+--cert-sha256 "$CERT_SHA"} \
+  ${DEVICE_SHA:+--device-sha256 "$DEVICE_SHA"} \
   --out "$OUT"
 
-echo "[ok] wrote $OUT (trial ${TRIAL_MONTHS} month(s): issued=$ISSUED expires=$EXPIRES)"
+echo "[ok] wrote $OUT (trial ${TRIAL_MONTHS} month(s): issued=$ISSUED expires=$EXPIRES device=${DEVICE_SHA:-none})"

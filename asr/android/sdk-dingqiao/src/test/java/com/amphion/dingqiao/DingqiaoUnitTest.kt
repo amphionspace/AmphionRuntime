@@ -30,6 +30,84 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildAsrConfig_readsVadEndFromStartParams() {
+        val config = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(
+                language = "zh-CN",
+                online = DingqiaoOnlineMode.OFFLINE,
+            ),
+            speakerModelPath = null,
+            startParams = StartParams(
+                sessionId = "s1",
+                audioInfo = AudioInfo(),
+                extraParams = mapOf("vadEnd" to 1500),
+            ),
+        )
+
+        assertEquals(1500, config.vadConfig.activeEndpointSilenceMs)
+    }
+
+    @Test
+    fun buildAsrConfig_ignoresCreateEngineVadEnd() {
+        val config = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(
+                language = "zh-CN",
+                online = DingqiaoOnlineMode.OFFLINE,
+                extraParams = mapOf("vadEnd" to 1500),
+            ),
+            speakerModelPath = null,
+        )
+
+        assertEquals(800, config.vadConfig.activeEndpointSilenceMs)
+    }
+
+    @Test
+    fun buildAsrConfig_usesValueEqualityForReuse() {
+        val createParams = CreateEngineParams(
+            language = "zh-CN",
+            online = DingqiaoOnlineMode.OFFLINE,
+            extraParams = mapOf("sysGeneralLexicon" to listOf("盘查")),
+        )
+        val startParams = StartParams(
+            sessionId = "s1",
+            audioInfo = AudioInfo(),
+            extraParams = mapOf("vadEnd" to 800),
+        )
+
+        val first = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath = null, startParams)
+        val second = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath = null, startParams)
+        val changed = DingqiaoEngineConfig.buildAsrConfig(
+            createParams,
+            speakerModelPath = null,
+            startParams = startParams.copy(extraParams = mapOf("vadEnd" to 1500)),
+        )
+
+        assertEquals(first, second)
+        assertEquals(first.hashCode(), second.hashCode())
+        assertTrue(first != changed)
+    }
+
+    @Test
+    fun vadEndMs_clampsToDocumentRange() {
+        val low = DingqiaoEngineConfig.vadEndMs(
+            StartParams("s1", AudioInfo(), mapOf("vadEnd" to 100)),
+        )
+        val high = DingqiaoEngineConfig.vadEndMs(
+            StartParams("s1", AudioInfo(), mapOf("vadEnd" to 20_000)),
+        )
+
+        assertEquals(500, low)
+        assertEquals(10_000, high)
+    }
+
+    @Test
+    fun audioFrameBytes_acceptsDocumentedFrameSizeOnly() {
+        assertTrue(DingqiaoEngineConfig.isSupportedAudioFrameBytes(640))
+        assertTrue(!DingqiaoEngineConfig.isSupportedAudioFrameBytes(1280))
+        assertTrue(!DingqiaoEngineConfig.isSupportedAudioFrameBytes(960))
+    }
+
+    @Test
     fun voiceprintIds_fromStartParams() {
         val ids = DingqiaoEngineConfig.voiceprintIds(
             StartParams(

@@ -3,8 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-// 离线 license 公钥（X.509 SubjectPublicKeyInfo DER 的 base64，单行）。来自 gradle.properties /
-// -P 参数；空 = SDK 不武装 license（开发 / 内部构建，init/createEngine 不做校验）。
+// 离线 license 公钥（X.509 SubjectPublicKeyInfo DER 的 base64，单行）。
+// 与 ASR 共用 AMPHION_LICENSE_PUBLIC_KEY。空 = SDK 不武装 license（开发 / 内部构建不校验）。
 val amphionLicensePublicKey: String =
     (project.findProperty("AMPHION_LICENSE_PUBLIC_KEY") as String?)?.trim().orEmpty()
 val sdkMajor: String = providers.gradleProperty("AMPHION_SDK_MAJOR").orElse("1").get()

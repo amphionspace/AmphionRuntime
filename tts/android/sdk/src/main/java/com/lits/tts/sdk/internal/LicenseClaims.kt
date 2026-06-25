@@ -3,7 +3,7 @@ package com.lits.tts.sdk.internal
 /**
  * 解析自 `.lic` 文件 payload 的授权声明（不含签名）。仅内部使用。
  *
- * 与签发端（`tts/tools/license/issue_license.py`）的 payload JSON 字段一一对应。
+ * 与签发端（`asr/tools/license/issue_license.py`）的 payload JSON 字段一一对应。
  *
  * @property licenseId 授权编号
  * @property customer 客户名

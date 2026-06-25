@@ -10,6 +10,7 @@ import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.widget.NestedScrollView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import com.amphion.asr.AmphionRuntime
@@ -40,6 +41,7 @@ class PlateBatchEvalActivity : AppCompatActivity() {
     private lateinit var progress: ProgressBar
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
+    private var batchScroll: NestedScrollView? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val exec: ExecutorService = Executors.newSingleThreadExecutor { r ->
@@ -71,6 +73,7 @@ class PlateBatchEvalActivity : AppCompatActivity() {
         progress = findViewById(R.id.progress_batch)
         btnStart = findViewById(R.id.btn_batch_start)
         btnStop = findViewById(R.id.btn_batch_stop)
+        batchScroll = findViewById(R.id.batch_scroll)
 
         val prefs = PlateEnhancePrefs(applicationContext)
         val useFst = intent.getBooleanExtra(EXTRA_USE_FST, prefs.plateFstEnabled)
@@ -214,6 +217,7 @@ class PlateBatchEvalActivity : AppCompatActivity() {
         logLines.addFirst(line)
         while (logLines.size > 15) logLines.removeLast()
         tvDetail.text = logLines.joinToString("\n")
+        batchScroll?.post { batchScroll?.fullScroll(android.view.View.FOCUS_DOWN) }
         Log.i(TAG, line)
     }
 

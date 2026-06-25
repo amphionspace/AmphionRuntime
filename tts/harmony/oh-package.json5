@@ -1,9 +1,11 @@
 {
   "modelVersion": "5.0.0",
-  "description": "Lits TTS HarmonyOS SDK workspace.",
+  "name": "amphion-tts-harmony",
+  "version": "0.1.0",
+  "description": "Amphion TTS for HarmonyOS NEXT",
+  "license": "Commercial",
   "dependencies": {},
   "devDependencies": {
     "@ohos/hypium": "1.0.19"
   }
 }
-

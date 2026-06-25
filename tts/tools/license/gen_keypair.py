@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""生成 Lits TTS 离线 license 的 ECDSA P-256 密钥对。
+"""生成 Amphion 离线 license 的 ECDSA P-256 密钥对。
 
 - 私钥：PKCS#8 PEM，写到本地文件，严禁进库（仅 issue_license.py 签发时使用）。
 - 公钥：X.509 SubjectPublicKeyInfo(DER) 的 base64，单行打印；贴到
-        tts/android/gradle.properties 的 AMPHION_LICENSE_PUBLIC_KEY。
+        ASR/TTS Android gradle.properties 的 AMPHION_LICENSE_PUBLIC_KEY。
 
 为什么是 P-256：SDK 端 minSdk 24，Ed25519 需 API 33 不可用；ECDSA P-256 + SHA256
 （SHA256withECDSA）在 API 24 全覆盖，签名 / 公钥都短。
 
 用法：
-    python gen_keypair.py --out-private lits-tts-license-private.pem
+    python gen_keypair.py --out-private amphion-license-private.pem
     python gen_keypair.py --out-private key.pem --password "$PASSPHRASE"
 """
 import argparse
@@ -26,12 +26,12 @@ except ImportError:
 
 def main() -> None:
     ap = argparse.ArgumentParser(
-        description="生成 Lits TTS 离线 license 的 ECDSA P-256 密钥对",
+        description="生成 Amphion 离线 license 的 ECDSA P-256 密钥对",
     )
     ap.add_argument(
         "--out-private",
-        default="lits-tts-license-private.pem",
-        help="私钥输出路径（PKCS#8 PEM）；默认 lits-tts-license-private.pem",
+        default="amphion-license-private.pem",
+        help="私钥输出路径（PKCS#8 PEM）；默认 amphion-license-private.pem",
     )
     ap.add_argument(
         "--password",

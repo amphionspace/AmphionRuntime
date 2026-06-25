@@ -1,10 +1,8 @@
 {
   "app": {
-    "bundleName": "com.amphion.lits.tts",
-    "vendor": "Amphion",
-    "versionCode": 205,
-    "versionName": "0.2.5",
-    "icon": "$media:app_icon",
-    "label": "$string:app_name"
+    "bundleName": "com.amphion.tts.harmony",
+    "vendor": "amphion",
+    "versionCode": 1,
+    "versionName": "0.1.0"
   }
 }

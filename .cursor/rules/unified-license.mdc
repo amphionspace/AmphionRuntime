@@ -1,0 +1,15 @@
+---
+description: Keep ASR and TTS license management unified
+globs: "{asr,tts}/**/*License*.{kt,ets,md},asr/android/sdk/src/main/java/com/amphion/asr/AmphionRuntime.kt,asr/android/sdk/src/main/java/com/amphion/asr/AmphionLicenseStatus.kt,asr/android/sdk/src/main/java/com/amphion/asr/AsrError.kt,asr/android/sdk-dingqiao/src/main/java/com/amphion/dingqiao/SpeechRecognizeSdk.kt,tts/android/sdk/src/main/java/com/lits/tts/sdk/TextToSpeech*.kt,tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/License*.kt,{asr,tts}/tools/license/*.py,{asr,tts}/tools/license/*.md,docs/dingqiao-offline-license.md,harmony/docs/*LICENSE*.md"
+alwaysApply: false
+---
+
+# Unified ASR/TTS License
+
+- ASR and TTS must share one offline license scheme: same `amphion-license.lic`, same `AMPHION_LICENSE_PUBLIC_KEY`, same signed claims shape, same SN whitelist algorithm, and same maintenance-period semantics.
+- Do not introduce ASR-only or TTS-only license concepts unless the other side is deliberately updated in the same change.
+- `features` is only a product-level authorization list. It may contain `ASR`, `TTS`, or both. Do not add language, police enhancement, hotword, speaker, or model names as license feature values.
+- Device binding uses SN whitelist hashing: `SHA-256(normalizedSn + deviceIdSaltId)`, where `normalizedSn` is trimmed and uppercased. Keep Android, Harmony, and Python tool behavior aligned.
+- The project default `deviceIdSaltId` is `DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71`; signing tools should default to it unless a task explicitly changes the project salt.
+- Android Dingqiao ASR and Android TTS delivery paths should both read SN through `Build.getSerial()` by default. The host system app must obtain `android.permission.READ_PRIVILEGED_PHONE_STATE`; custom providers are only for customer systems with a different SN API.
+- When changing license error codes, status fields, claim parsing, signing tools, or docs, update ASR, TTS, and delivery documentation together, then run focused tests for both sides.
