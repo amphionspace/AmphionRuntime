@@ -5,9 +5,16 @@ import {
   OnlineRecognizer,
   OnlineRecognizerConfig,
   OnlineStream,
-  Samples
+  Samples,
+  SileroVadConfig,
+  SpeakerEmbeddingExtractor,
+  SpeakerEmbeddingExtractorConfig,
+  TenVadConfig,
+  Vad as SherpaVad,
+  VadConfig as SherpaVadConfig
 } from 'sherpa_onnx';
-import { AssetRegistry, InstalledLayout } from './AssetRegistry';
+import { InstalledLayout } from './AssetRegistry';
+import { AssetInstaller } from './AssetInstaller';
 import {
   AmphionLogLevel,
   AmphionMetrics,
@@ -19,13 +26,24 @@ import {
   AsrErrorCode,
   AsrLanguage,
   AsrResult,
-  Cancellable
+  Cancellable,
+  LicenseEnforcement,
+  TargetSpeakerConfig,
+  VadModelType
 } from './Types';
 import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 
+// Silence fed to the encoder to prime it after a stream rebuild / at session start (Android parity).
+const WARMUP_DURATION_MS: number = 800;
+// Hard cap on the per-utterance sample buffer used for speaker scoring, so a stuck utterance that
+// never endpoints can't grow unbounded (Android UTT_MAX_SAMPLES).
+const UTT_MAX_SAMPLES: number = 25 * 16000;
+
 class DoneCancellable implements Cancellable {
   private done: boolean = false;
-  cancel(): void { this.done = true; }
+  private cancelled: boolean = false;
+  cancel(): void { this.cancelled = true; this.done = true; }
+  isCancelled(): boolean { return this.cancelled; }
   isDone(): boolean { return this.done; }
   markDone(): void { this.done = true; }
 }
@@ -41,101 +59,103 @@ class Logger {
 }
 
 export class AmphionRuntime {
+  private static readonly SDK_VERSION: string = '0.2.0-harmony';
+  private static readonly SDK_MAJOR: number = 0;
+  private static readonly SDK_RELEASE_DATE: string = '2026-06-24';
   private static initialized: boolean = false;
   private static appContext?: Context;
   private static options: AmphionOptions = new AmphionOptions();
+  private static licenseStatusHolder: AmphionLicenseStatus = AmphionLicenseStatus.notInitialized();
   private static nextSessionId: number = 1;
+  private static asrPool: Map<AsrLanguage, OnlineRecognizer> = new Map<AsrLanguage, OnlineRecognizer>();
+  private static poolConfig?: AsrConfig;
 
   static init(context: Context, options?: AmphionOptions): void {
+    if (AmphionRuntime.initialized) {
+      Logger.w('AmphionRuntime.init called more than once, ignored.');
+      return;
+    }
     AmphionRuntime.appContext = context;
     AmphionRuntime.options = options ?? new AmphionOptions();
     Logger.setLevel(AmphionRuntime.options.logLevel);
+    const status = AmphionRuntime.evaluateLicense();
+    AmphionRuntime.licenseStatusHolder = status;
+    if (!status.valid && AmphionRuntime.options.licenseEnforcement === LicenseEnforcement.ENFORCE) {
+      throw new Error(`code=${status.errorCode}: AmphionRuntime license check failed (${status.message}).`);
+    }
     AmphionRuntime.initialized = true;
-    Logger.i('AmphionRuntime Harmony init done');
+    Logger.i(`AmphionRuntime Harmony init done, version=${AmphionRuntime.SDK_VERSION}, license=${status.state}`);
   }
 
-  static preInstall(context: Context, onProgress?: (doneBytes: number, totalBytes: number) => void): Cancellable {
+  static preInstall(context: Context, onProgress?: (stage: string, percent: number) => void): Cancellable {
+    AmphionRuntime.checkInitialized();
     const c = new DoneCancellable();
     AmphionRuntime.appContext = context;
-    onProgress?.(0, 0);
-    // HarmonyOS 版首阶段直接从 rawfile 读取模型；如需解包到 filesDir，可在 AssetInstaller 后续扩展。
-    onProgress?.(1, 1);
+    onProgress?.('install', 0);
+    AssetInstaller.ensureInstalled(context, AsrLanguage.ZH_EN, new AsrConfig());
+    AssetInstaller.ensureInstalled(context, AsrLanguage.YUE_EN, new AsrConfig());
+    onProgress?.('install', 100);
     c.markDone();
     return c;
   }
 
-  static preload(context: Context, languages: AsrLanguage[], config?: AsrConfig, onProgress?: (done: number, total: number) => void): Cancellable {
+  static preload(context: Context, languages: AsrLanguage[], config?: AsrConfig, onProgress?: (stage: string, percent: number) => void): Cancellable {
+    AmphionRuntime.checkInitialized();
     const c = new DoneCancellable();
     AmphionRuntime.appContext = context;
-    onProgress?.(0, languages.length);
-    // 先保持 API 语义；真正 recognizer 池化在 native 验证后补齐。
-    onProgress?.(languages.length, languages.length);
+    const effectiveConfig = config ?? new AsrConfig();
+    AmphionRuntime.poolConfig = effectiveConfig;
+    onProgress?.('install', 0);
+    for (let i = 0; i < languages.length; i++) {
+      if (c.isCancelled()) break;
+      const language = languages[i];
+      const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
+      onProgress?.('install', Math.round(((i + 1) / Math.max(languages.length, 1)) * 100));
+      const stage = `asr-${language}`;
+      onProgress?.(stage, 0);
+      AmphionRuntime.asrPool.set(language, new OnlineRecognizer(AmphionRuntime.buildRecognizerConfig(layout, effectiveConfig), context.resourceManager));
+      onProgress?.(stage, 100);
+    }
     c.markDone();
     return c;
   }
 
   static create(context: Context, language: AsrLanguage, config?: AsrConfig): AsrEngine {
-    if (!AmphionRuntime.initialized) {
-      AmphionRuntime.init(context, AmphionRuntime.options);
-    }
-    return new AsrEngine(context, language, config ?? new AsrConfig());
-  }
-
-  static version(): string { return '0.1.0-harmony'; }
-  static licenseStatus(): AmphionLicenseStatus {
-    const serial = AmphionRuntime.appContext === undefined
-      ? undefined
-      : AmphionRuntime.options.deviceIdProvider?.getDeviceSerial(AmphionRuntime.appContext);
-    return HarmonyLicenseVerifier.verify(
-      AmphionRuntime.options.license,
-      AmphionRuntime.options.bundleName,
-      AmphionRuntime.options.signingCertDigest,
-      serial
+    AmphionRuntime.checkInitialized();
+    const effectiveConfig = config ?? new AsrConfig();
+    const createStartMs = Date.now();
+    const pooled = AmphionRuntime.asrPool.get(language);
+    const canReusePool = pooled !== undefined && AmphionRuntime.poolConfig !== undefined &&
+      AmphionRuntime.isRecognizerConfigCompatible(AmphionRuntime.poolConfig, effectiveConfig);
+    const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
+    const recognizer = canReusePool ? pooled as OnlineRecognizer :
+      new OnlineRecognizer(AmphionRuntime.buildRecognizerConfig(layout, effectiveConfig), context.resourceManager);
+    return new AsrEngine(
+      context,
+      language,
+      effectiveConfig,
+      layout,
+      recognizer,
+      !canReusePool,
+      Date.now() - createStartMs
     );
   }
-  static release(): void { AmphionRuntime.initialized = false; }
+
+  static version(): string { return AmphionRuntime.SDK_VERSION; }
+  static licenseStatus(): AmphionLicenseStatus {
+    return AmphionRuntime.licenseStatusHolder;
+  }
+  static release(): void {
+    AmphionRuntime.asrPool.clear();
+    AmphionRuntime.poolConfig = undefined;
+    AmphionRuntime.initialized = false;
+    AmphionRuntime.appContext = undefined;
+    AmphionRuntime.licenseStatusHolder = AmphionLicenseStatus.notInitialized();
+  }
 
   static allocateSessionId(): number { return AmphionRuntime.nextSessionId++; }
-}
 
-export class AsrEngine {
-  private context: Context;
-  private language: AsrLanguage;
-  private config: AsrConfig;
-  private recognizer: OnlineRecognizer;
-  private punctuation?: OfflinePunctuation;
-  private closed: boolean = false;
-
-  constructor(context: Context, language: AsrLanguage, config: AsrConfig) {
-    this.context = context;
-    this.language = language;
-    this.config = config;
-    const layout = AssetRegistry.rawfileLayout(language, config);
-    this.recognizer = new OnlineRecognizer(this.buildRecognizerConfig(layout), context.resourceManager);
-    if (config.punctuation && layout.punctModel !== undefined) {
-      const pc = new OfflinePunctuationConfig();
-      pc.model.ctTransformer = layout.punctModel;
-      pc.model.numThreads = config.numThreads;
-      this.punctuation = new OfflinePunctuation(pc, context.resourceManager);
-    }
-  }
-
-  newSession(callback: AsrCallback): AsrSession {
-    if (this.closed) throw new Error('AsrEngine is closed');
-    return new AsrSession(
-      AmphionRuntime.allocateSessionId(),
-      this.language,
-      this.config,
-      this.recognizer,
-      this.punctuation,
-      callback
-    );
-  }
-
-  isClosed(): boolean { return this.closed; }
-  close(): void { this.closed = true; }
-
-  private buildRecognizerConfig(layout: InstalledLayout): OnlineRecognizerConfig {
+  static buildRecognizerConfig(layout: InstalledLayout, config: AsrConfig): OnlineRecognizerConfig {
     const model = new OnlineModelConfig();
     model.transducer.encoder = layout.asrEncoder;
     model.transducer.decoder = layout.asrDecoder;
@@ -144,149 +164,670 @@ export class AsrEngine {
     model.modelType = 'zipformer2';
     model.modelingUnit = 'bbpe';
     model.bpeVocab = layout.asrBpeVocab;
-    model.numThreads = this.config.numThreads;
+    model.numThreads = config.numThreads;
     model.debug = false;
 
     const rc = new OnlineRecognizerConfig();
     rc.modelConfig = model;
-    rc.decodingMethod = this.config.hotwords.length > 0 ? 'modified_beam_search' : 'modified_beam_search';
+    rc.decodingMethod = 'modified_beam_search';
     rc.maxActivePaths = 8;
-    rc.enableEndpoint = this.config.endpoint;
-    rc.rule1MinTrailingSilence = this.config.endpointRules.rule1MinTrailingSilenceSec;
-    rc.rule2MinTrailingSilence = this.config.endpointRules.rule2MinTrailingSilenceSec;
-    rc.rule3MinUtteranceLength = this.config.endpointRules.rule3MinUtteranceLengthSec;
-    rc.hotwordsScore = this.config.hotwordsScore;
-    rc.hotwordsBuf = this.config.hotwords.join('\n');
+    rc.enableEndpoint = config.endpoint;
+    rc.rule1MinTrailingSilence = config.endpointRules.rule1 ? config.endpointRules.rule1MinTrailingSilenceSec : 100000.0;
+    rc.rule2MinTrailingSilence = config.endpointRules.rule2 ? config.endpointRules.rule2MinTrailingSilenceSec : 100000.0;
+    rc.rule3MinUtteranceLength = config.endpointRules.rule3MinUtteranceLengthSec;
+    rc.hotwordsScore = config.hotwordsScore;
+    rc.hotwordsBuf = config.hotwords.join('\n');
     rc.hotwordsBufSize = rc.hotwordsBuf.length;
     return rc;
+  }
+
+  private static checkInitialized(): void {
+    if (!AmphionRuntime.initialized) {
+      throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: AmphionRuntime.init must be called first`);
+    }
+  }
+
+  private static evaluateLicense(): AmphionLicenseStatus {
+    const context = AmphionRuntime.appContext;
+    const serial = context === undefined ? undefined : AmphionRuntime.options.deviceIdProvider?.getDeviceSerial(context);
+    return HarmonyLicenseVerifier.verify(
+      AmphionRuntime.options.license,
+      AmphionRuntime.options.bundleName,
+      AmphionRuntime.options.signingCertDigest,
+      serial,
+      '',
+      AmphionRuntime.SDK_MAJOR,
+      AmphionRuntime.SDK_RELEASE_DATE
+    );
+  }
+
+  private static isRecognizerConfigCompatible(left: AsrConfig, right: AsrConfig): boolean {
+    return left.numThreads === right.numThreads &&
+      left.endpoint === right.endpoint &&
+      left.endpointRules.rule1 === right.endpointRules.rule1 &&
+      left.endpointRules.rule2 === right.endpointRules.rule2 &&
+      left.endpointRules.rule1MinTrailingSilenceSec === right.endpointRules.rule1MinTrailingSilenceSec &&
+      left.endpointRules.rule2MinTrailingSilenceSec === right.endpointRules.rule2MinTrailingSilenceSec &&
+      left.endpointRules.rule3MinUtteranceLengthSec === right.endpointRules.rule3MinUtteranceLengthSec &&
+      left.hotwordsScore === right.hotwordsScore &&
+      left.hotwords.join('\n') === right.hotwords.join('\n');
+  }
+}
+
+export class AsrEngine {
+  private context: Context;
+  private language: AsrLanguage;
+  private config: AsrConfig;
+  private layout: InstalledLayout;
+  private recognizer: OnlineRecognizer;
+  private punctuation?: OfflinePunctuation;
+  private targetExtractor?: SpeakerEmbeddingExtractor;
+  private closed: boolean = false;
+  private sessions: AsrSession[] = [];
+  private ownsRecognizer: boolean = true;
+  private engineReadyMs: number = -1;
+
+  constructor(context: Context, language: AsrLanguage, config: AsrConfig, layout: InstalledLayout, recognizer: OnlineRecognizer, ownsRecognizer: boolean, engineReadyMs: number) {
+    this.context = context;
+    this.language = language;
+    this.config = config;
+    this.layout = layout;
+    this.recognizer = recognizer;
+    this.ownsRecognizer = ownsRecognizer;
+    this.engineReadyMs = engineReadyMs;
+    if (config.punctuation && layout.punctModel !== undefined) {
+      try {
+        const pc = new OfflinePunctuationConfig();
+        pc.model.ctTransformer = layout.punctModel;
+        pc.model.numThreads = config.numThreads;
+        this.punctuation = new OfflinePunctuation(pc, context.resourceManager);
+      } catch (e) {
+        Logger.w(`punctuation disabled: ${e}`);
+      }
+    }
+    if (config.targetSpeaker !== undefined && config.targetSpeaker.preload) {
+      this.targetExtractor = this.createSpeakerExtractor(config.targetSpeaker);
+    }
+  }
+
+  newSession(callback: AsrCallback): AsrSession {
+    if (this.closed) throw new Error('AsrEngine is closed');
+    if (this.config.targetSpeaker !== undefined && this.targetExtractor === undefined) {
+      this.targetExtractor = this.createSpeakerExtractor(this.config.targetSpeaker);
+    }
+    const session = new AsrSession(
+      AmphionRuntime.allocateSessionId(),
+      this.context,
+      this.language,
+      this.config,
+      this.layout,
+      this.recognizer,
+      this.punctuation,
+      this.targetExtractor,
+      callback,
+      this.engineReadyMs
+    );
+    this.sessions.push(session);
+    return session;
+  }
+
+  isClosed(): boolean { return this.closed; }
+  close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    for (let i = 0; i < this.sessions.length; i++) {
+      this.sessions[i].close();
+    }
+    this.sessions = [];
+    if (this.ownsRecognizer) Logger.d('dedicated Harmony recognizer closed');
+  }
+
+  private createSpeakerExtractor(config: TargetSpeakerConfig): SpeakerEmbeddingExtractor {
+    const extractorConfig = new SpeakerEmbeddingExtractorConfig();
+    extractorConfig.model = config.modelPath;
+    extractorConfig.numThreads = config.numThreads;
+    extractorConfig.debug = false;
+    return new SpeakerEmbeddingExtractor(extractorConfig, this.context.resourceManager);
   }
 }
 
 export class AsrSession {
   private sessionId: number;
+  private context: Context;
   private language: AsrLanguage;
   private config: AsrConfig;
+  private layout: InstalledLayout;
   private recognizer: OnlineRecognizer;
   private stream: OnlineStream;
   private punctuation?: OfflinePunctuation;
+  private vad?: SherpaVad;
+  private vadWindowSize: number = 512;
+  private targetExtractor?: SpeakerEmbeddingExtractor;
+  private targetSpeaker?: Float32Array;
+  private targetSpeakerEnabled: boolean = false;
+  private speakerVadEnabled: boolean = false;
+  private lastSpeakerVadScore: number = -1;
+  // VAD gate state (Android-aligned): VAD only gates / drives an early active endpoint while PCM is
+  // fed to the recognizer in full so partial results stay real-time.
+  private vadSpeechActive: boolean = false;
+  private trailingSilenceMs: number = 0;
+  private vadCarry: Float32Array = new Float32Array(0);
+  // Speaker-VAD sliding-window state (Android-aligned two-phase: confirm target -> detect departure).
+  private svSamplesSinceScore: number = 0;
+  private svTargetConfirmed: boolean = false;
+  private svBelowCount: number = 0;
+  private svRejectCurrentUtterance: boolean = false;
   private callback: AsrCallback;
   private closed: boolean = false;
-  private stopped: boolean = false;
   private lastPartialText: string = '';
   private pcmBytesAccepted: number = 0;
+  private totalPcmBytes: number = 0;
   private utteranceIndex: number = 0;
   private utteranceStartMs: number = Date.now();
+  private firstPcmMs: number = -1;
+  private firstPartialLatencyMs: number = -1;
+  private rtfValues: number[] = [];
+  private utteranceSamples: Float32Array[] = [];
+  private engineReadyMs: number = -1;
+  private stoppedNotified: boolean = false;
+  private itnWarned: boolean = false;
 
-  constructor(sessionId: number, language: AsrLanguage, config: AsrConfig, recognizer: OnlineRecognizer, punctuation: OfflinePunctuation | undefined, callback: AsrCallback) {
+  constructor(sessionId: number, context: Context, language: AsrLanguage, config: AsrConfig, layout: InstalledLayout, recognizer: OnlineRecognizer, punctuation: OfflinePunctuation | undefined, targetExtractor: SpeakerEmbeddingExtractor | undefined, callback: AsrCallback, engineReadyMs: number) {
     this.sessionId = sessionId;
+    this.context = context;
     this.language = language;
     this.config = config;
+    this.layout = layout;
     this.recognizer = recognizer;
     this.stream = recognizer.createStream();
     this.punctuation = punctuation;
+    this.targetExtractor = targetExtractor;
+    this.targetSpeakerEnabled = config.targetSpeaker?.enabledByDefault ?? false;
+    this.speakerVadEnabled = config.targetSpeaker?.speakerVad?.enabledByDefault ?? false;
     this.callback = callback;
+    this.engineReadyMs = engineReadyMs;
+    if (config.vad) {
+      this.vad = this.createVad();
+    }
+    // Warm up the encoder with silence so the very first utterance isn't decoded against a cold
+    // encoder cache (mirrors Android; same WARMUP_DURATION_MS).
+    this.warmUpEncoder(WARMUP_DURATION_MS);
     this.callback.onSessionStarted?.();
   }
 
   acceptPcmShort(samples: Int16Array): void {
-    if (this.closed || this.stopped) return;
+    if (this.closed) return;
     const floats = new Float32Array(samples.length);
     for (let i = 0; i < samples.length; i++) floats[i] = samples[i] / 32768.0;
     this.acceptPcmFloat(floats);
   }
 
   acceptPcmBytes(bytes: ArrayBuffer): void {
+    if (bytes.byteLength % 2 !== 0) {
+      this.callback.onError?.(new AsrError(AsrErrorCode.INVALID_ARGUMENT, 'PCM byte length must be even for int16 samples'));
+      return;
+    }
     this.acceptPcmShort(new Int16Array(bytes));
   }
 
   acceptPcmFloat(samples: Float32Array): void {
-    if (this.closed || this.stopped) return;
+    if (this.closed || samples.length === 0) return;
+    if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
     this.pcmBytesAccepted += samples.length * 2;
-    const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
+    this.totalPcmBytes += samples.length * 2;
     try {
-      this.stream.acceptWaveform(wave);
-      this.drain(false);
+      this.feedAndDecode(samples);
     } catch (e) {
       this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
     }
   }
 
   stop(): void {
-    if (this.closed || this.stopped) return;
-    this.stopped = true;
+    if (this.closed) return;
     try {
+      // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
+      // Don't rebuild the stream afterwards (session is ending), so a soft reset is enough.
       this.stream.inputFinished();
-      this.drain(true);
-      this.callback.onSessionStopped?.();
+      this.drain(true, false);
+      this.notifyStopped();
     } catch (e) {
       this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
     }
   }
 
   updateHotwords(words: string[], score: number = 1.5): void {
-    this.config.hotwords = words;
+    this.config.hotwords = words.filter((word: string): boolean => word.trim().length > 0);
     this.config.hotwordsScore = score;
     Logger.w('updateHotwords requires recreating recognizer on Harmony first implementation');
   }
 
-  setTargetSpeaker(embedding: Float32Array): void { Logger.d(`target speaker dim=${embedding.length}`); }
-  clearTargetSpeaker(): void { Logger.d('target speaker cleared'); }
-  setTargetSpeakerEnabled(enabled: boolean): void { Logger.d(`target speaker enabled=${enabled}`); }
+  setTargetSpeaker(embedding: Float32Array): void {
+    if (embedding.length === 0) throw new Error('target speaker embedding must not be empty');
+    if (this.targetExtractor !== undefined && embedding.length !== this.targetExtractor.dim) {
+      throw new Error(`target speaker embedding dim=${embedding.length}, expected=${this.targetExtractor.dim}`);
+    }
+    this.targetSpeaker = embedding;
+  }
+  clearTargetSpeaker(): void { this.targetSpeaker = undefined; }
+  setTargetSpeakerEnabled(enabled: boolean): void { this.targetSpeakerEnabled = enabled; }
+  setSpeakerVadEnabled(enabled: boolean): void {
+    if (this.config.targetSpeaker?.speakerVad === undefined) {
+      this.callback.onDebug?.('speaker VAD is not configured for this session');
+      return;
+    }
+    this.speakerVadEnabled = enabled;
+  }
   isClosed(): boolean { return this.closed; }
-  close(): void { this.closed = true; }
+  close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.dispatchSessionMetrics();
+    this.notifyStopped();
+  }
 
-  private drain(isFinal: boolean): void {
+  private drain(isFinal: boolean, restartAfterFinal: boolean = true): void {
+    const decodeStartMs = Date.now();
     while (this.recognizer.isReady(this.stream)) {
       this.recognizer.decode(this.stream);
     }
+    const decodeDurationMs = Date.now() - decodeStartMs;
 
     if (this.recognizer.isEndpoint(this.stream)) {
       this.callback.onEndpoint?.();
-      this.dispatchFinal();
-      this.recognizer.reset(this.stream);
-      this.lastPartialText = '';
+      this.dispatchFinal(true, decodeDurationMs);
+      this.finishUtterance(restartAfterFinal);
       return;
     }
 
     const r = this.recognizer.getResult(this.stream);
     if (isFinal) {
-      this.dispatchFinal();
-      this.recognizer.reset(this.stream);
-      this.lastPartialText = '';
+      this.dispatchFinal(false, decodeDurationMs);
+      this.finishUtterance(restartAfterFinal);
     } else if (r.text !== this.lastPartialText) {
       this.lastPartialText = r.text;
+      // When speaker VAD is on, hold partials until the target speaker is confirmed so a non-target
+      // prefix never leaks to the UI (Android postPartial gate).
+      if (this.speakerVadEnabled && !this.svTargetConfirmed) return;
       const result = new AsrResult();
       result.text = r.text;
       result.tokens = r.tokens;
       result.timestamps = r.timestamps;
+      if (this.firstPartialLatencyMs < 0 && this.firstPcmMs >= 0) {
+        this.firstPartialLatencyMs = Date.now() - this.firstPcmMs;
+      }
       this.callback.onPartial?.(result.text);
       this.callback.onPartialResult?.(result);
     }
   }
 
-  private dispatchFinal(): void {
+  private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number): void {
     const native = this.recognizer.getResult(this.stream);
     const result = new AsrResult();
     result.text = native.text;
     result.tokens = native.tokens;
     result.timestamps = native.timestamps;
-    if (this.punctuation !== undefined && result.text.length > 0) {
-      try { result.text = this.punctuation.addPunct(result.text); } catch (_) {}
+    const postStartMs = Date.now();
+    if (this.config.itn && this.language === AsrLanguage.ZH_EN && !this.itnWarned) {
+      this.callback.onDebug?.('Harmony WeText ITN NAPI is not packaged; final text keeps raw ITN form before punctuation.');
+      this.itnWarned = true;
     }
+    if (this.punctuation !== undefined && result.text.length > 0) {
+      try {
+        result.text = this.punctuation.addPunct(result.text);
+      } catch (e) {
+        this.callback.onError?.(new AsrError(AsrErrorCode.POSTPROCESS_FAILED, `${e}`));
+      }
+    }
+    const postProcessMs = Date.now() - postStartMs;
+    this.applyTargetSpeaker(result);
     this.utteranceIndex += 1;
-    this.callback.onFinal?.(result.text, result.confidence);
-    this.callback.onFinalResult?.(result);
+    if (this.targetSpeakerEnabled && result.isTargetSpeaker === false) {
+      this.callback.onFinalRejected?.(result);
+    } else {
+      this.callback.onFinal?.(result.text, result.confidence);
+      this.callback.onFinalResult?.(result);
+    }
 
     const metrics = new AmphionMetrics();
     metrics.kind = AmphionMetricsKind.UTTERANCE;
     metrics.language = this.language;
     metrics.sessionId = this.sessionId;
     metrics.utteranceIndex = this.utteranceIndex;
-    metrics.utteranceE2eLatencyMs = Date.now() - this.utteranceStartMs;
+    metrics.utteranceDurationMs = Math.round(this.pcmBytesAccepted * 1000 / 32000);
+    metrics.decodeDurationMs = decodeDurationMs;
+    metrics.postProcessMs = postProcessMs;
+    metrics.firstPartialLatencyMs = this.firstPartialLatencyMs;
+    metrics.endpointToFinalLatencyMs = endpointTriggered ? 0 : -1;
+    metrics.utteranceE2eLatencyMs = this.firstPcmMs < 0 ? Date.now() - this.utteranceStartMs : Date.now() - this.firstPcmMs;
+    metrics.rtf = metrics.utteranceDurationMs > 0 ? decodeDurationMs / metrics.utteranceDurationMs : -1;
     metrics.pcmBytesAccepted = this.pcmBytesAccepted;
+    if (this.utteranceIndex === 1) {
+      metrics.engineReadyMs = this.engineReadyMs;
+      metrics.assetInstallMs = 0;
+      metrics.assetTotalBytes = 0;
+      metrics.nativeRssMbAtReady = -1;
+    }
+    if (metrics.rtf >= 0) this.rtfValues.push(metrics.rtf);
     this.callback.onMetrics?.(metrics);
     Logger.metric(metrics.toLogLine());
     this.utteranceStartMs = Date.now();
     this.pcmBytesAccepted = 0;
+    this.firstPcmMs = -1;
+    this.firstPartialLatencyMs = -1;
+    this.utteranceSamples = [];
   }
+
+  private createVad(): SherpaVad {
+    if (this.layout.vadModel === undefined) throw new Error('VAD model is not packaged');
+    if (this.config.vadConfig.modelType === VadModelType.TEN_VAD) {
+      throw new Error('TEN_VAD is declared but ten-vad model is not packaged in Harmony HAR');
+    }
+    const silero = new SileroVadConfig(
+      this.layout.vadModel,
+      this.config.vadConfig.threshold,
+      this.config.vadConfig.minSpeechDurationSec,
+      this.config.vadConfig.minSilenceDurationSec,
+      512,
+      this.config.vadConfig.maxSpeechDurationSec
+    );
+    const ten = new TenVadConfig('', 0.5, 0.25, 0.5, 256);
+    const vadConfig = new SherpaVadConfig(silero, ten, 16000, false, 1);
+    this.vadWindowSize = silero.windowSize;
+    return new SherpaVad(vadConfig, Math.max(60, Math.ceil(this.config.vadConfig.maxSpeechDurationSec + 5)), this.context.resourceManager);
+  }
+
+  // Android-aligned chunk pipeline: feed every chunk to the recognizer in full (so partials stay
+  // real-time) and let the VAD only gate / drive a more sensitive active endpoint. sherpa's own
+  // endpoint rules stay enabled as a backstop in case the VAD active endpoint misses.
+  private feedAndDecode(samples: Float32Array): void {
+    if (this.closed) return;
+    if ((this.targetSpeakerEnabled || this.speakerVadEnabled) && this.utteranceLength() < UTT_MAX_SAMPLES) {
+      this.utteranceSamples.push(samples);
+    }
+
+    const utteranceBefore = this.utteranceIndex;
+    this.feedRecognizer(samples, false);
+    if (this.vad === undefined) return;
+    if (this.utteranceIndex !== utteranceBefore) {
+      // sherpa endpoint already cut + reset the stream; resync VAD/speaker state to segment start.
+      this.resetVadGateState();
+      return;
+    }
+
+    // silero requires window-aligned feeds (512). Slice chunk into windows, keep the remainder.
+    const merged = this.vadCarry.length === 0 ? samples : concatFloat32([this.vadCarry, samples]);
+    let i = 0;
+    let anySpeech = false;
+    let anySilence = false;
+    while (i + this.vadWindowSize <= merged.length) {
+      this.vad.acceptWaveform(merged.slice(i, i + this.vadWindowSize));
+      if (this.vad.isDetected()) anySpeech = true; else anySilence = true;
+      i += this.vadWindowSize;
+    }
+    this.vadCarry = i < merged.length ? merged.slice(i, merged.length) : new Float32Array(0);
+
+    if (anySpeech) {
+      this.vadSpeechActive = true;
+      this.trailingSilenceMs = 0;
+    } else if (anySilence && this.vadSpeechActive) {
+      this.trailingSilenceMs += Math.round(samples.length * 1000 / 16000);
+      const activeEpMs = this.config.vadConfig.activeEndpointSilenceMs;
+      if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs) {
+        this.vadSpeechActive = false;
+        this.trailingSilenceMs = 0;
+        this.triggerVadActiveEndpoint();
+        return;
+      }
+    }
+    this.maybeTriggerSpeakerVadEndpoint(samples.length);
+  }
+
+  // VAD detected enough trailing silence: cut the utterance now and start the next one on a fresh
+  // stream (Android parity), then resync the VAD/speaker gate. No inputFinished is used here, which
+  // is the verified-safe native ordering on Harmony.
+  private triggerVadActiveEndpoint(): void {
+    this.callback.onEndpoint?.();
+    this.dispatchFinal(true, 0);
+    this.finishUtterance(true);
+    this.resetVadGateState();
+  }
+
+  // After a final, either rebuild the stream (when the utterance had content) or do a cheap soft
+  // reset. A soft reset keeps the encoder cache, which biases the next utterance toward the trailing
+  // audio of this one and can blank out the start of a quick follow-up command (the dingqiao
+  // short-command case). Rebuilding gives the next utterance a clean encoder (Android parity).
+  private finishUtterance(restart: boolean): void {
+    if (!restart) {
+      this.recognizer.reset(this.stream);
+      this.lastPartialText = '';
+      return;
+    }
+    this.restartStreamAfterUtterance();
+  }
+
+  private restartStreamAfterUtterance(): void {
+    let hadContent = false;
+    try {
+      const r = this.recognizer.getResult(this.stream);
+      hadContent = r.text.length > 0 || r.tokens.length > 0;
+    } catch (e) {
+      hadContent = false;
+    }
+    if (hadContent) {
+      this.hardRestartStream();
+    } else {
+      this.recognizer.reset(this.stream);
+    }
+    this.lastPartialText = '';
+  }
+
+  private hardRestartStream(): void {
+    if (this.closed) return;
+    try {
+      // The old stream is dropped here; its native handle is freed by the NAPI finalizer on GC
+      // (Napi::External destructor calls SherpaOnnxDestroyOnlineStream), so this does not leak.
+      this.stream = this.recognizer.createStream();
+      this.warmUpEncoder(WARMUP_DURATION_MS);
+    } catch (e) {
+      // If rebuilding fails, fall back to a soft reset so the session keeps running.
+      this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `hardRestartStream: ${e}`));
+      this.recognizer.reset(this.stream);
+    }
+    this.lastPartialText = '';
+  }
+
+  private warmUpEncoder(durationMs: number): void {
+    if (this.closed || durationMs <= 0) return;
+    const n = Math.round(16000 * durationMs / 1000);
+    if (n <= 0) return;
+    const silence = new Float32Array(n);
+    const wave: Samples = { samples: silence, sampleRate: 16000 } as Samples;
+    this.stream.acceptWaveform(wave);
+    while (this.recognizer.isReady(this.stream)) this.recognizer.decode(this.stream);
+    this.recognizer.reset(this.stream);
+    this.lastPartialText = '';
+  }
+
+  private resetVadGateState(): void {
+    this.vad?.reset();
+    this.vadSpeechActive = false;
+    this.trailingSilenceMs = 0;
+    this.vadCarry = new Float32Array(0);
+    this.resetSpeakerVadState();
+  }
+
+  private feedRecognizer(samples: Float32Array, isFinal: boolean): void {
+    const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
+    this.stream.acceptWaveform(wave);
+    this.drain(isFinal);
+  }
+
+  private applyTargetSpeaker(result: AsrResult): void {
+    if (this.config.targetSpeaker === undefined || this.targetExtractor === undefined || this.targetSpeaker === undefined) return;
+    const samples = concatFloat32(this.utteranceSamples);
+    if (samples.length < Math.round(this.config.targetSpeaker.minSegSec * 16000)) return;
+    const stream = this.targetExtractor.createStream();
+    const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
+    stream.acceptWaveform(wave);
+    const embedding = this.targetExtractor.compute(stream);
+    const score = cosineSimilarity(embedding, this.targetSpeaker);
+    result.speakerScore = score;
+    result.isTargetSpeaker = score >= this.config.targetSpeaker.threshold;
+  }
+
+  // Realtime Speaker VAD over the current utterance tail (Android-aligned two-phase machine):
+  // phase 1 confirm the target appears; phase 2 once confirmed, cut early when the target leaves
+  // (consecutive windows below threshold). Scored every hop while the utterance is long enough.
+  private maybeTriggerSpeakerVadEndpoint(samplesInChunk: number): boolean {
+    if (!this.speakerVadEnabled) return false;
+    const sv = this.config.targetSpeaker?.speakerVad;
+    if (sv === undefined || this.targetExtractor === undefined || this.targetSpeaker === undefined) return false;
+    const winSamples = Math.max(1, Math.round(sv.winSec * 16000));
+    const hopSamples = Math.max(1, Math.round(sv.hopSec * 16000));
+    this.svSamplesSinceScore += samplesInChunk;
+    if (this.utteranceLength() < winSamples) return false;
+    if (this.svSamplesSinceScore < hopSamples) return false;
+    this.svSamplesSinceScore = this.svSamplesSinceScore % hopSamples;
+
+    const score = this.scoreSamples(this.currentUtteranceTail(winSamples));
+    if (!this.svTargetConfirmed) {
+      if (score >= sv.threshold) {
+        this.svTargetConfirmed = true;
+        this.svBelowCount = 0;
+      } else {
+        this.svBelowCount += 1;
+        if (this.svBelowCount >= sv.consecutiveBelow) {
+          this.svRejectCurrentUtterance = true;
+          this.vadSpeechActive = false;
+          this.trailingSilenceMs = 0;
+          this.triggerSpeakerVadEndpoint();
+          return true;
+        }
+      }
+      return false;
+    }
+    if (score < sv.threshold) {
+      this.svBelowCount += 1;
+      if (this.vadSpeechActive && this.svBelowCount >= sv.consecutiveBelow) {
+        this.vadSpeechActive = false;
+        this.trailingSilenceMs = 0;
+        this.triggerSpeakerVadEndpoint();
+        return true;
+      }
+    } else {
+      this.svBelowCount = 0;
+    }
+    return false;
+  }
+
+  private triggerSpeakerVadEndpoint(): void {
+    this.callback.onEndpoint?.();
+    if (this.svRejectCurrentUtterance) {
+      // Target never showed up in this segment: drop the transcription, surface a rejected result.
+      // Rebuild the stream so the rejected (non-target) audio doesn't bias the next utterance.
+      const rejected = new AsrResult();
+      rejected.speakerScore = this.lastSpeakerVadScore;
+      rejected.isTargetSpeaker = false;
+      this.callback.onFinalRejected?.(rejected);
+      this.restartStreamAfterUtterance();
+      this.utteranceSamples = [];
+      this.pcmBytesAccepted = 0;
+      this.firstPcmMs = -1;
+      this.firstPartialLatencyMs = -1;
+    } else {
+      this.dispatchFinal(true, 0);
+      this.restartStreamAfterUtterance();
+    }
+    this.resetVadGateState();
+  }
+
+  private utteranceLength(): number {
+    let total = 0;
+    for (let i = 0; i < this.utteranceSamples.length; i++) total += this.utteranceSamples[i].length;
+    return total;
+  }
+
+  private currentUtteranceTail(n: number): Float32Array {
+    const all = concatFloat32(this.utteranceSamples);
+    if (all.length <= n) return all;
+    return all.slice(all.length - n, all.length);
+  }
+
+  private resetSpeakerVadState(): void {
+    this.svSamplesSinceScore = 0;
+    this.svTargetConfirmed = false;
+    this.svBelowCount = 0;
+    this.svRejectCurrentUtterance = false;
+  }
+
+  private scoreSamples(samples: Float32Array): number {
+    if (this.targetExtractor === undefined || this.targetSpeaker === undefined) return -1;
+    const stream = this.targetExtractor.createStream();
+    const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
+    stream.acceptWaveform(wave);
+    const embedding = this.targetExtractor.compute(stream);
+    const score = cosineSimilarity(embedding, this.targetSpeaker);
+    this.lastSpeakerVadScore = score;
+    return score;
+  }
+
+  private dispatchSessionMetrics(): void {
+    const metrics = new AmphionMetrics();
+    metrics.kind = AmphionMetricsKind.SESSION;
+    metrics.language = this.language;
+    metrics.sessionId = this.sessionId;
+    metrics.totalUtterances = this.utteranceIndex;
+    metrics.totalPcmBytes = this.totalPcmBytes;
+    metrics.avgRtf = average(this.rtfValues);
+    metrics.p95Rtf = p95(this.rtfValues);
+    this.callback.onMetrics?.(metrics);
+    Logger.metric(metrics.toLogLine());
+  }
+
+  private notifyStopped(): void {
+    if (this.stoppedNotified) return;
+    this.stoppedNotified = true;
+    this.callback.onSessionStopped?.();
+  }
+}
+
+function concatFloat32(parts: Float32Array[]): Float32Array {
+  let total = 0;
+  for (let i = 0; i < parts.length; i++) total += parts[i].length;
+  const out = new Float32Array(total);
+  let offset = 0;
+  for (let i = 0; i < parts.length; i++) {
+    out.set(parts[i], offset);
+    offset += parts[i].length;
+  }
+  return out;
+}
+
+function cosineSimilarity(left: Float32Array, right: Float32Array): number {
+  const n = Math.min(left.length, right.length);
+  if (n === 0) return -1.0;
+  let dot = 0;
+  let leftNorm = 0;
+  let rightNorm = 0;
+  for (let i = 0; i < n; i++) {
+    dot += left[i] * right[i];
+    leftNorm += left[i] * left[i];
+    rightNorm += right[i] * right[i];
+  }
+  if (leftNorm <= 0 || rightNorm <= 0) return -1.0;
+  return dot / Math.sqrt(leftNorm * rightNorm);
+}
+
+function average(values: number[]): number {
+  if (values.length === 0) return -1;
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) sum += values[i];
+  return sum / values.length;
+}
+
+function p95(values: number[]): number {
+  if (values.length === 0) return -1;
+  const sorted = values.slice().sort((a: number, b: number): number => a - b);
+  const idx = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
+  return sorted[idx];
 }

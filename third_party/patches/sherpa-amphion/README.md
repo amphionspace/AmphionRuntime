@@ -8,6 +8,7 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0001-*` | `TextRewriteFst` JNI — 警务域 FST 后处理 |
 | `0002-*` | WeTextProcessing vendor + `WetextItn` JNI — 中文 ITN |
 | `0003-*` | ITN token reorder：「两点五八万」→ `2.58万` |
+| `0004-*` | Harmony HAR 只构建 arm64-v8a，避免未产出的 x86_64 native lib 破坏命令行构建 |
 
 Apply (automatic in `04_build_android_so.sh` / `02_init_submodule.sh`):
 

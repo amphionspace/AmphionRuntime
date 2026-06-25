@@ -1,7 +1,0 @@
-{
-  "string": [
-    { "name": "module_desc", "value": "Dingqiao ASR Demo" },
-    { "name": "EntryAbility_desc", "value": "Dingqiao ASR Demo" },
-    { "name": "EntryAbility_label", "value": "鼎桥语音识别" }
-  ]
-}

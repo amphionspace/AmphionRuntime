@@ -12,6 +12,18 @@ local.properties
 .externalNativeBuild/
 .cxx/
 
+# --- HarmonyOS / DevEco / ohpm ---
+**/.hvigor/
+**/hvigor/
+**/oh_modules/
+**/oh-package-lock.json5
+*.hap
+*.har
+*.hsp
+*.app
+# DevEco 每次构建按当前 buildMode 生成的模块信息文件，不是源码
+**/BuildProfile.ets
+
 # --- iOS / Xcode ---
 .swiftpm/
 *.xcworkspace/xcuserdata/
@@ -41,6 +53,25 @@ asr/ios/AmphionRuntime.xcframework/
 asr/ios/AmphionRuntime.xcframework.zip
 asr/ios/AmphionRuntime.xcframework.zip.sha256
 
+# HarmonyOS native / rawfile 交付产物（由构建和打包脚本生成）
+asr/harmony/sdk/src/main/cpp/libs/*/
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/*.onnx
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/*.fst
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/tokens.txt
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/bbpe.vocab
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json
+third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/*/
+
+# 客户交付聚合目录中的本地构建、签名和打包输出
+delivery/**/build/
+delivery/**/*.hap
+delivery/**/*.har
+delivery/**/*.hsp
+delivery/**/*.p12
+delivery/**/*.p7b
+delivery/**/*.cer
+delivery/**/*.csr
+
 # Sample app 模型资源（不入库）
 asr/android/samples/public-demo/src/main/assets/asr-models/
 # WeText ITN fst 构建缓存（由 asr/tools/00_push_weitn_fsts.sh 产出）
@@ -52,6 +83,9 @@ asr/tools/punct-model/
 # TTS 模型投放目录:真实模型不入库,仅保留占位
 tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0/*
 !tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0/.gitkeep
+
+# 临时模型导出目录（客户试用包、模型清单、词典和 ONNX 均不入库）
+tools/trial-export/
 
 # 本地误放到 ASR assets 下的 Lits/TTS 模型副本不入库；源目录是 tts/tools/trial-export/
 asr/android/sdk/src/main/assets/lits-models/
