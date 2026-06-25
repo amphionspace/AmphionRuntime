@@ -1,4 +1,4 @@
-# 鼎桥警务语音识别 SDK 集成说明（v0.2.7）
+# 鼎桥警务语音识别 SDK 集成说明（v0.2.8）
 
 面向 Android 离线 ASR + 警务域增强 + 声纹。API 契约见同目录 [`语音识别SDK接口.md`](语音识别SDK接口.md)。
 
@@ -6,7 +6,7 @@
 
 | 文件 | 说明 |
 |------|------|
-| `aar/dingqiao-asr-v0.2.7.aar` | 集成用 SDK（含 ASR 模型、JNI、警务域、鼎桥 API） |
+| `aar/dingqiao-asr-v0.2.8.aar` | 集成用 SDK（含 ASR 模型、JNI、警务域、鼎桥 API） |
 | `demo/*.apk` | 参考 Demo（可选，用于验收） |
 | `docs/` | 接口、集成说明、商用授权（LICENSE.md）、第三方开源声明（NOTICE） |
 
@@ -18,7 +18,7 @@
 
 ```kotlin
 dependencies {
-    implementation(files("libs/dingqiao-asr-v0.2.7.aar"))
+    implementation(files("libs/dingqiao-asr-v0.2.8.aar"))
 }
 ```
 
@@ -89,7 +89,7 @@ Demo APK 内置授权只用于体验：绑定 Demo 包名与 Demo 签名，限�
 
 实际占用与是否启用声纹、系统是否保留 APK 内 assets 有关；与贵司约定的存储上限对比时，请明确验收口径（仅运行模型 vs 安装总占用）。
 
-## 8. 默认行为（v0.2.7）
+## 8. 默认行为（v0.2.8）
 
 - 离线 only；警务三场景 normalize 默认开启  
 - 系统热词：`CreateEngineParams.extraParams["sysGeneralLexicon"]`  
