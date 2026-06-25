@@ -7,6 +7,14 @@
 # 环境变量：
 #   DINGQIAO_ALLOW_DIRTY=1  允许脏工作区打包（仅本地预览，VERSION.txt 会标注 git_dirty=true）
 
+_dingqiao_delivery_common="$(
+  cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd
+)/tools/delivery/delivery_common.sh"
+if [[ -f "$_dingqiao_delivery_common" ]]; then
+  # shellcheck source=../../../tools/delivery/delivery_common.sh
+  source "$_dingqiao_delivery_common"
+fi
+
 dingqiao_repo_root_from_script() {
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)"
@@ -299,6 +307,22 @@ if size < min_bytes:
     sys.exit(1)
 print(f"[OK] APK speaker model present: {path} ({size} bytes)")
 PY
+}
+
+dingqiao_cert_sha256_from_keystore() {
+  delivery_cert_sha256_from_keystore "$@"
+}
+
+dingqiao_sign_apk() {
+  delivery_sign_apk "$@"
+}
+
+dingqiao_verify_apk_signature() {
+  delivery_verify_apk_signature "$@"
+}
+
+dingqiao_apk_cert_sha256_from_apk() {
+  delivery_apk_cert_sha256_from_apk "$@"
 }
 
 dingqiao_write_version_txt() {

@@ -75,6 +75,7 @@ dependencies {
 | `asr/tools/delivery/pack_dingqiao_delivery_scheme_b.sh` | 三 AAR 分模块 scheme B |
 | `asr/tools/delivery/merge_dingqiao_fat_aar.sh` | 仅合并 fat AAR |
 | `asr/tools/delivery/verify_dingqiao_delivery.sh` | 校验 VERSION.txt / AAR 与 Demo APK native 库 / 交付目录含 `docs/NOTICE` |
+| `tools/delivery/verify_delivery_zip_e2e.sh` | 通用 zip-only 验证；只以最终 zip 为输入，解压后校验 AAR/APK/license/声纹模型，可选安装 Demo 和运行 demo-src 设备测试，并生成验收报告 |
 
 **构建溯源（强制）**
 
@@ -95,6 +96,28 @@ bash asr/tools/delivery/verify_dingqiao_delivery.sh delivery/.../VERSION.txt
 bash asr/tools/delivery/verify_dingqiao_delivery.sh delivery/.../aar/dingqiao-asr-v*.aar
 bash asr/tools/delivery/verify_dingqiao_delivery.sh delivery/.../amphion-dingqiao-*-customer/
 bash asr/tools/delivery/verify_dingqiao_delivery.sh delivery/.../amphion-dingqiao-*.zip
+
+# 最终交付验收必须从 zip 开始；设备验证也安装 zip 解压出的 Demo APK
+ZIP=delivery/.../amphion-dingqiao-*.zip
+export DELIVERY_VERIFY_REQUIRED_AAR_ENTRIES='jni/arm64-v8a/libsherpa-onnx-jni.so:1,jni/arm64-v8a/libonnxruntime.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280'
+export DELIVERY_VERIFY_REQUIRED_APK_ENTRIES='lib/arm64-v8a/libsherpa-onnx-jni.so:1,lib/arm64-v8a/libonnxruntime.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-license.lic:1'
+export DELIVERY_VERIFY_LICENSE_ENTRY='assets/amphion-license.lic'
+export DELIVERY_VERIFY_LICENSE_APPLICATION_ID='com.amphion.dingqiao.demo'
+export DELIVERY_VERIFY_LICENSE_FEATURES='ASR'
+export DELIVERY_VERIFY_LICENSE_DEVICE_HASH_COUNT=0
+export DELIVERY_VERIFY_ANDROID_PACKAGE='com.amphion.dingqiao.demo'
+export DELIVERY_VERIFY_DEVICE_READY_TEXT='引擎就绪'
+export DELIVERY_VERIFY_DEVICE_MODEL_PATH='/sdcard/Android/data/com.amphion.dingqiao.demo/files/dingqiao_work/eres2net.onnx'
+export DELIVERY_VERIFY_FORBIDDEN_RELATIVE_PATHS='models/eres2net.onnx'
+DELIVERY_VERIFY_DEVICE=1 bash tools/delivery/verify_delivery_zip_e2e.sh "$ZIP"
+
+# 强校验：同时从 zip 内 demo-src 工程运行声纹自动解包 / 注册测试
+DELIVERY_VERIFY_DEVICE=1 \
+DELIVERY_VERIFY_SOURCE_TEST=1 \
+DELIVERY_VERIFY_SOURCE_DIR='demo-src' \
+DELIVERY_VERIFY_SOURCE_GRADLE_TASK=':sample-dingqiao-demo:connectedDebugAndroidTest' \
+DELIVERY_VERIFY_SOURCE_GRADLE_ARGS='-Pandroid.testInstrumentationRunnerArguments.class=com.amphion.dingqiao.demo.DingqiaoEmbeddedVoiceprintModelInstrumentedTest' \
+  bash tools/delivery/verify_delivery_zip_e2e.sh "$ZIP"
 ```
 
 **第三方开源声明（NOTICE）**
@@ -237,12 +260,16 @@ bash ../../asr/tools/license/issue_dingqiao_demo.sh
 ### 8.4 Release 真机 smoke
 
 ```bash
-# Release 与 Debug 签名不同，需先卸载旧包
+# Release 与 Debug 签名不同，需先卸载旧包；必须安装最终 zip 解压出的 APK
+ZIP=delivery/.../amphion-dingqiao-*.zip
+rm -rf /tmp/dingqiao-release-smoke
+unzip -q "$ZIP" -d /tmp/dingqiao-release-smoke
+APK=$(find /tmp/dingqiao-release-smoke -path '*/demo/*.apk' | head -1)
 adb uninstall com.amphion.dingqiao.demo
-adb install samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk
+adb install -r "$APK"
 
-# 日志：启动后应无 code=6001/6003/6007；AmphionRuntime 进入 LICENSED
-adb logcat -s AmphionRuntime:D DingqiaoDemo:W
+# 推荐直接使用通用 zip-only 验证脚本生成报告
+DELIVERY_VERIFY_DEVICE=1 bash tools/delivery/verify_delivery_zip_e2e.sh "$ZIP"
 ```
 
 验证项：
