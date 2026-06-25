@@ -24,7 +24,6 @@ OUT_ROOT="$DQ_ROOT/delivery/$PKG_NAME"
 ZIP_PATH="$DQ_ROOT/delivery/${PKG_NAME}-${BUILD_DATE}.zip"
 AAR_NAME="dingqiao-asr-v${VERSION}.aar"
 FAT_AAR="$AR_ROOT/build/dingqiao-delivery/$AAR_NAME"
-ERES2NET_SRC="$REPO_ROOT/asr/tools/speaker/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"
 DEMO_APK_SRC="$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release/dingqiao-demo-release.apk"
 
 echo "[1/4] build release AARs + merge fat AAR ..."
@@ -43,17 +42,15 @@ dingqiao_issue_demo_license "$REPO_ROOT"
 
 echo "[3/4] assemble delivery tree ..."
 rm -rf "$OUT_ROOT"
-mkdir -p "$OUT_ROOT"/{aar,demo,models,docs}
+mkdir -p "$OUT_ROOT"/{aar,demo,docs}
 
 cp "$FAT_AAR" "$OUT_ROOT/aar/"
 cp "$DEMO_APK_SRC" "$OUT_ROOT/demo/dingqiao-demo-fat-release.apk"
-cp "$ERES2NET_SRC" "$OUT_ROOT/models/eres2net.onnx"
 
 dingqiao_stage_customer_docs "$OUT_ROOT/docs" "$AR_ROOT/docs/customer" "$DQ_ROOT"
 
 AAR_MB="$(du -m "$OUT_ROOT/aar/$AAR_NAME" | awk '{print $1}')"
 APK_MB="$(du -m "$OUT_ROOT/demo/dingqiao-demo-fat-release.apk" | awk '{print $1}')"
-MODEL_MB="$(du -m "$OUT_ROOT/models/eres2net.onnx" | awk '{print $1}')"
 
 cd "$REPO_ROOT"
 dingqiao_write_version_txt "$OUT_ROOT/VERSION.txt" \
@@ -63,7 +60,7 @@ dingqiao_write_version_txt "$OUT_ROOT/VERSION.txt" \
   "demo_apk_mb=$APK_MB" \
   "demo_apk_name=dingqiao-demo-fat-release.apk" \
   "demo_aligned_fat_aar=true" \
-  "voiceprint_model_mb=$MODEL_MB" \
+  "voiceprint_model=embedded-in-aar" \
   "pack_script=asr/tools/delivery/pack_dingqiao_delivery_scheme_a_aligned.sh"
 
 bash "$REPO_ROOT/asr/tools/delivery/verify_dingqiao_delivery.sh" "$OUT_ROOT/VERSION.txt"
@@ -81,7 +78,6 @@ cat > "$OUT_ROOT/README.txt" <<EOF
 ----
   aar/$AAR_NAME                    集成用 fat AAR（~${AAR_MB} MB）
   demo/dingqiao-demo-fat-release.apk   Demo（~${APK_MB} MB）
-  models/eres2net.onnx             声纹模型（~${MODEL_MB} MB，外置）
   docs/                            集成说明、商用授权、第三方开源声明（NOTICE）
 
 Gradle 集成

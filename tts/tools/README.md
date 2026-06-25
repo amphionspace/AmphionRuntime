@@ -1,6 +1,6 @@
 # TTS tools 目录说明
 
-本目录只服务 TTS 产品线,与 ASR 的 `asr/tools`、`asr/tools/license`、`asr/tools/delivery` 隔离。
+本目录只服务 TTS 产品线；license 签发 / 校验工具已统一迁移到仓库根目录 `tools/license/`，ASR 与 TTS 共用同一份 `amphion-license.lic` 和同一套签发逻辑。
 
 下面统一用 `仓库根目录` 指代 amphion-runtime 仓库根目录。
 
@@ -17,8 +17,8 @@
   - `pack_lits_tts_android_delivery.sh` 会生成含 AAR、sample APK、Android 源码快照、文档和 `VERSION.txt` 的交付包
   - `verify_lits_tts_android_delivery.sh` 校验交付目录 / zip 是否包含源码与必要合规文件
 
-- `license/`
-  - Amphion 离线 license 签发 / 校验工具
+- `../license/`
+  - Amphion 统一离线 license 签发 / 校验工具
   - ASR / TTS 共用同一份 `amphion-license.lic`、同一套信封格式和同一把 `AMPHION_LICENSE_PUBLIC_KEY`
 
 ## 模型包固定位置

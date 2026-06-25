@@ -69,15 +69,6 @@
         android:visibility="gone" />
 
     <Button
-        android:id="@+id/btn_import_model"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/button_height"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_button_primary"
-        android:text="@string/menu_import_model"
-        android:textColor="@color/brand_on_accent" />
-
-    <Button
         android:id="@+id/btn_record"
         android:layout_width="match_parent"
         android:layout_height="@dimen/button_height"
