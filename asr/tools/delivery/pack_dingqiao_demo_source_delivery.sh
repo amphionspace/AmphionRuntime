@@ -72,9 +72,11 @@ cp "$FAT_AAR" "$OUT_ROOT/libs/$AAR_NAME"
 cp "$DEMO_APK_SRC" "$OUT_ROOT/demo/sample-dingqiao-demo-release.apk"
 cp "$DEMO_LIC_SRC" "$OUT_ROOT/demo/amphion-license.lic"
 
-DEMO_LIC_EXPIRES="$("$REPO_ROOT/asr/tools/license/.venv/bin/python" -c "
-import json, sys
-print(json.load(open(sys.argv[1]))['expiresAt'])
+DEMO_LIC_EXPIRES="$("$REPO_ROOT/tools/license/.venv/bin/python" -c "
+import base64, json, sys
+env = json.load(open(sys.argv[1], encoding='utf-8'))
+payload = json.loads(base64.b64decode(env['payload_b64']).decode('utf-8'))
+print(payload.get('expiresAt') or '永久')
 " "$DEMO_LIC_SRC" 2>/dev/null || echo "见 amphion-license.lic")"
 
 cat > "$OUT_ROOT/demo/README.txt" <<EOF
@@ -82,7 +84,7 @@ cat > "$OUT_ROOT/demo/README.txt" <<EOF
 ============================================
 
   sample-dingqiao-demo-release.apk   可直接安装（内置 2 个月试用 license）
-  amphion-license.lic                与 APK 同批次签发的 Demo 授权（绑定 Demo 包名+签名）
+  amphion-license.lic                与 APK 同批次签发的 Demo 授权（绑定 Demo 包名+签名，不绑定 SN）
 
 试用到期：${DEMO_LIC_EXPIRES}（到期后需联系我方重签 Demo 或更换正式授权）
 
@@ -90,12 +92,12 @@ cat > "$OUT_ROOT/demo/README.txt" <<EOF
 ----------
   - 离线 ASR + 警务增强（车牌/派出所/术语预设热词默认开启）
   - 菜单「自定义热词」：追加 sysGeneralLexicon
-  - 菜单「导入声纹模型」+ 声纹注册（需 models/eres2net.onnx，见 docs/DINGQIAO_VOICEPRINT_MODEL.md）
+  - 声纹注册：声纹模型已内置于 SDK，首次运行自动准备
 
 说明
 ----
   本 Demo 包名 com.amphion.dingqiao.demo，仅供集成参考。
-  贵司正式 App（com.tdtech.tiassistant）请使用 SDK 交付包中的商用授权，勿混用本 license。
+  贵司正式 App（com.tdtech.tiassistant）请使用 SDK 交付包中的商用授权，勿混用本 license。正式授权可绑定设备 SN 清单。
 EOF
 
 # Gradle wrapper + version catalog（可独立编译的最小工程）
@@ -239,6 +241,8 @@ dependencies {
     implementation(libs.androidx.recyclerview)
     implementation(libs.material)
     testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }
 EOF
 
@@ -281,10 +285,10 @@ cat > "$OUT_ROOT/README.txt" <<EOF
 目录
 ----
   demo/sample-dingqiao-demo-release.apk   可直接安装（内置 2 个月试用 license，到期 ${DEMO_LIC_EXPIRES}）
-  demo/amphion-license.lic               与 APK 同批 Demo 授权（自编译 Release 需同签名，见 demo/README.txt）
+  demo/amphion-license.lic               与 APK 同批 Demo 授权（不绑定 SN；自编译 Release 需同签名，见 demo/README.txt）
   sample-dingqiao-demo/                  Demo App 源码（含自定义热词 UI）
   libs/${AAR_NAME}                       与 SDK 交付包同版本的 fat AAR
-  docs/                                  集成说明、声纹部署、第三方声明
+  docs/                                  集成说明、声纹说明、第三方声明
   gradle/ gradlew                        独立 Gradle 工程，JDK 17
 
 快速体验（推荐）
@@ -296,7 +300,7 @@ cat > "$OUT_ROOT/README.txt" <<EOF
 ----------
   1. 复制 local.properties.example → local.properties，填写 sdk.dir
   2. Debug 联调：./gradlew :sample-dingqiao-demo:assembleDebug（需向我方索取 Debug 授权或自配签名+license）
-  3. 声纹模型：SDK 交付包 models/eres2net.onnx，按文档导入或部署
+  3. 声纹模型已内置于 libs/${AAR_NAME}，运行时自动准备，无需外置部署
 
 与正式 App 的区别
 -----------------

@@ -71,23 +71,6 @@ class MainActivity : AppCompatActivity() {
         if (granted) initEngine() else setStatus(getString(R.string.status_no_permission))
     }
 
-    private val importModelLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri == null) return@registerForActivityResult
-        worker.execute {
-            val ok = VoiceprintModelHelper.importFromUri(this, DingqiaoApp.workPath(), uri)
-            runOnUiThread {
-                if (ok) {
-                    toast(getString(R.string.vp_model_import_ok))
-                    refreshVoiceprintUi()
-                } else {
-                    toast(getString(R.string.vp_model_import_failed))
-                }
-            }
-        }
-    }
-
     private val hotwordsLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
@@ -147,10 +130,10 @@ class MainActivity : AppCompatActivity() {
         SpeechRecognizeSdk.createEngine(
             buildCreateEngineParams(),
             object : CreateEngineCallback {
-                override fun onResult(resultEngine: SpeechRecognitionEngine) {
+                override fun onResult(engine: SpeechRecognitionEngine) {
                     runOnUiThread {
-                        engine = resultEngine
-                        engine?.setListener(createListener())
+                        this@MainActivity.engine = engine
+                        this@MainActivity.engine?.setListener(createListener())
                         progress.visibility = android.view.View.GONE
                         btnTalk.isEnabled = true
                         setStatus(getString(R.string.status_engine_ready))
@@ -464,10 +447,6 @@ class MainActivity : AppCompatActivity() {
                 when (item.itemId) {
                     R.id.action_hotwords -> {
                         hotwordsLauncher.launch(Intent(this@MainActivity, HotwordsActivity::class.java))
-                        true
-                    }
-                    R.id.action_import_model -> {
-                        importModelLauncher.launch(arrayOf("application/octet-stream", "*/*"))
                         true
                     }
                     R.id.action_voiceprint -> {

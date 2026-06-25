@@ -20,7 +20,6 @@ class DingqiaoApp : Application() {
         SpeechRecognizeSdk.init(this)
         SpeechRecognizeSdk.setWorkPath(workDir.absolutePath)
 
-        VoiceprintModelHelper.tryImportFromDownloads(workDir.absolutePath)
         val speakerModel = VoiceprintModelHelper.modelFile(workDir.absolutePath)
         if (!VoiceprintModelHelper.isReady(speakerModel)) {
             Log.w(TAG, "speaker model not ready: exists=${speakerModel.exists()} " +

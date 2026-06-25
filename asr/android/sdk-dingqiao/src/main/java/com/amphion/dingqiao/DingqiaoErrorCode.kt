@@ -50,7 +50,7 @@ object DingqiaoVoiceprintStatus {
     const val SUCCESS = 0
 }
 
-/** 默认声纹 ONNX 文件名，应置于 [SpeechRecognizeSdk.setWorkPath] 目录下。 */
+/** 默认声纹 ONNX 文件名；SDK 会自动准备到 [SpeechRecognizeSdk.setWorkPath] 目录下。 */
 const val DINGQIAO_SPEAKER_MODEL_FILENAME = "eres2net.onnx"
 
 /** 写入音频帧字节数（16 kHz mono 16-bit PCM，20 ms）。 */
@@ -64,6 +64,8 @@ const val DINGQIAO_AUDIO_FRAME_BYTES_40MS = 1280
 const val DINGQIAO_VOICEPRINT_MIN_SEC = 3
 const val DINGQIAO_VOICEPRINT_MAX_SEC = 8
 
-/** 声纹样本数量范围。 */
-const val DINGQIAO_VOICEPRINT_MIN_SAMPLES = 3
-const val DINGQIAO_VOICEPRINT_MAX_SAMPLES = 5
+/** 声纹注册至少需要 1 条样本；多段样本只是质量建议，不再作为 API 硬限制。 */
+const val DINGQIAO_VOICEPRINT_MIN_SAMPLES = 1
+
+/** 历史推荐样本数上限，仅用于文案建议，不参与 SDK 校验。 */
+const val DINGQIAO_VOICEPRINT_RECOMMENDED_MAX_SAMPLES = 5
