@@ -40,8 +40,8 @@
     <string name="speaker_score_tag">[声纹相似度 %.2f]</string>
 
     <string name="enroll_title">声纹注册</string>
-    <string name="enroll_hint">录制 3~5 段语音，每段 3~8 秒，覆盖远/中/近距离。注册前须先导入声纹模型 eres2net.onnx。</string>
-    <string name="enroll_status">已录制 %1$d 段（需要 3~5 段）</string>
+    <string name="enroll_hint">录制至少 1 段语音，每段 3~8 秒；多录几段并覆盖远/中/近距离可提升稳定性。注册前须先导入声纹模型 eres2net.onnx。</string>
+    <string name="enroll_status">已录制 %1$d 段（至少 1 段即可注册）</string>
     <string name="enroll_record">录制一段</string>
     <string name="enroll_record_stop">结束本段</string>
     <string name="enroll_register">注册声纹</string>

@@ -132,16 +132,16 @@ object SpeechRecognizeSdk {
         )
 
     /**
-     * 注册声纹：3~5 条样本，每条 3~8 秒。
+     * 注册声纹：至少 1 条样本，每条 3~8 秒；多段样本可提升稳定性但不是硬限制。
      */
     @JvmStatic
     fun registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult {
         params.audioInfo.validate()
         val count = params.samplePaths.size
-        if (count !in DINGQIAO_VOICEPRINT_MIN_SAMPLES..DINGQIAO_VOICEPRINT_MAX_SAMPLES) {
+        if (count < DINGQIAO_VOICEPRINT_MIN_SAMPLES) {
             throw DingqiaoEngineException(
                 DingqiaoErrorCode.VOICEPRINT_SAMPLE_COUNT,
-                "sample count must be $DINGQIAO_VOICEPRINT_MIN_SAMPLES..$DINGQIAO_VOICEPRINT_MAX_SAMPLES",
+                "sample count must be >= $DINGQIAO_VOICEPRINT_MIN_SAMPLES",
             )
         }
         val store = requireStore()

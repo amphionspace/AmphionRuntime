@@ -14,7 +14,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.amphion.dingqiao.AudioInfo
 import com.amphion.dingqiao.DINGQIAO_VOICEPRINT_MAX_SEC
-import com.amphion.dingqiao.DINGQIAO_VOICEPRINT_MAX_SAMPLES
 import com.amphion.dingqiao.DINGQIAO_VOICEPRINT_MIN_SEC
 import com.amphion.dingqiao.DINGQIAO_VOICEPRINT_MIN_SAMPLES
 import com.amphion.dingqiao.SpeechRecognizeSdk
@@ -25,7 +24,7 @@ import java.util.Locale
 import java.util.concurrent.Executors
 
 /**
- * 声纹注册页：录制 3~5 段样本，调用 [SpeechRecognizeSdk.registerVoiceprint]。
+ * 声纹注册页：录制任意正数段样本，调用 [SpeechRecognizeSdk.registerVoiceprint]。
  */
 class VoiceprintEnrollActivity : AppCompatActivity() {
 
@@ -123,7 +122,7 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
         tvEmpty.visibility = if (items.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
         rv.visibility = if (items.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
         tvStatus.text = getString(R.string.enroll_status, items.size)
-        btnRegister.isEnabled = items.size in DINGQIAO_VOICEPRINT_MIN_SAMPLES..DINGQIAO_VOICEPRINT_MAX_SAMPLES
+        btnRegister.isEnabled = items.size >= DINGQIAO_VOICEPRINT_MIN_SAMPLES
         val registeredId = VoiceprintHelper.registeredId(this)
         if (registeredId.isNullOrBlank()) {
             tvRegisteredId.visibility = android.view.View.GONE
@@ -136,10 +135,6 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
     }
 
     private fun startRecord() {
-        if (items.size >= DINGQIAO_VOICEPRINT_MAX_SAMPLES) {
-            toast(getString(R.string.enroll_status, items.size))
-            return
-        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
@@ -221,7 +216,7 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
     }
 
     private fun registerVoiceprint() {
-        if (items.size !in DINGQIAO_VOICEPRINT_MIN_SAMPLES..DINGQIAO_VOICEPRINT_MAX_SAMPLES) return
+        if (items.size < DINGQIAO_VOICEPRINT_MIN_SAMPLES) return
         val modelFile = VoiceprintModelHelper.modelFile(DingqiaoApp.workPath())
         if (!VoiceprintModelHelper.isReady(modelFile)) {
             toast(

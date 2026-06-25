@@ -162,10 +162,12 @@ shared/docs/dashboard/trends/*.csv
 !shared/docs/dashboard/trends/reports/.gitkeep
 !shared/docs/dashboard/trends/.gitkeep
 
-# --- 离线 license 私钥与签发产物（严禁进库，见 asr/tools/license/README.md） ---
+# --- 离线 license 私钥与签发产物（严禁进库，见 tools/license/README.md） ---
 # 私钥 = 授权信任根，泄露即可被任意签发有效 license；签发出的 .lic 是每客户产物，不入库。
 *-private.pem
 .secure/
+tools/license/*.pem
+tools/license/*.lic
 asr/tools/license/*.pem
 asr/tools/license/*.lic
 tts/tools/license/*.pem
