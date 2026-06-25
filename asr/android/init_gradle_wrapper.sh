@@ -9,8 +9,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SOURCE_DIR="$REPO_ROOT/android/SherpaOnnxAar"
+ASR_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+AMPHION_ROOT="$(cd "$ASR_ROOT/.." && pwd)"
+SOURCE_DIR="$AMPHION_ROOT/third_party/sherpa-onnx/android/SherpaOnnxAar"
 
 if [[ ! -f "$SOURCE_DIR/gradlew" ]]; then
   echo "[ERROR] 没有找到 $SOURCE_DIR/gradlew"
