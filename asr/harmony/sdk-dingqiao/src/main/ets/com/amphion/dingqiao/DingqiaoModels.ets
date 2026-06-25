@@ -67,6 +67,7 @@ export interface SpeechRecognitionEngine {
   writeAudio(sessionId: string, audio: ArrayBuffer): void;
   finish(sessionId: string): void;
   cancel(sessionId: string): void;
+  setSpeakerVadEnabled(enabled: boolean): void;
   isBusy(): boolean;
   shutdown(): void;
 }
@@ -93,6 +94,7 @@ export class DingqiaoErrorCode {
   static readonly ENGINE_DESTROYED: number = 1002200009;
   static readonly RECOGNITION_TIMEOUT: number = 1002200010;
   static readonly RECOGNITION_ERROR: number = 1002200011;
+  static readonly MAX_AUDIO_DURATION: number = 1002200012;
   static readonly VOICEPRINT_REGISTER_FAILED: number = 1002200020;
   static readonly VOICEPRINT_DELETE_FAILED: number = 1002200021;
   static readonly VOICEPRINT_MODEL_MISSING: number = 1002200022;
@@ -107,6 +109,7 @@ export class DingqiaoErrorCode {
 export class DingqiaoEventCode {
   static readonly SPEECH_BEGIN: number = 1;
   static readonly SPEECH_END: number = 3;
+  static readonly SPEAKER_VAD_REJECTED: number = 11;
 }
 
 export class DingqiaoOnlineMode {

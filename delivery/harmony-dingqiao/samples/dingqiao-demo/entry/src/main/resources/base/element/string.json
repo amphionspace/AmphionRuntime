@@ -1,0 +1,8 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "Dingqiao ASR Demo" },
+    { "name": "EntryAbility_desc", "value": "Dingqiao ASR Demo" },
+    { "name": "EntryAbility_label", "value": "鼎桥语音识别" },
+    { "name": "mic_reason", "value": "用于采集语音并在本机完成离线识别" }
+  ]
+}
