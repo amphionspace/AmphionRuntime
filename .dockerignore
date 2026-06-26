@@ -1,0 +1,40 @@
+# Docker 构建上下文裁剪：只保留构建所需源码，排除大体积产物与敏感物。
+
+# VCS
+.git
+.gitmodules
+**/.git
+
+# 敏感物：禁止进入镜像（见 .cursor/rules 交付安全流程）
+.secure/
+**/*.keystore
+**/*.jks
+**/*.pem
+**/*.key
+
+# 构建产物 / 缓存
+**/build/
+**/build-*/
+third_party/sherpa-onnx/build*/
+asr/server/build/
+**/_deps/
+**/CMakeFiles/
+**/*.o
+**/*.a
+
+# 模型与大文件（运行时通过 volume 挂载，不进镜像）
+**/*.onnx
+**/*.tar
+**/*.tar.gz
+**/*.tgz
+**/*.zip
+**/*.wav
+
+# python 缓存
+**/__pycache__/
+**/*.pyc
+
+# IDE / OS
+.DS_Store
+**/.idea/
+**/.vscode/

@@ -1,7 +1,9 @@
 #include "recognizer_factory.h"
 
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 
 namespace asr_service {
 
@@ -26,10 +28,43 @@ std::string PickFirst(const std::string &dir, std::initializer_list<const char *
     return "";
 }
 
+// 按精度 + provider 选择 encoder/joiner 文件。
+// 根因：ONNX Runtime CUDA EP 对 int8(QDQ)支持差，量化算子常回退 CPU 并产生
+// GPU<->CPU 拷贝；在 GPU 上应优先 fp16/fp32。CPU provider 则 int8 更省。
+std::string PickByPrecision(const std::string &dir, const std::string &base,
+                            const std::string &precision,
+                            const std::string &provider) {
+    const std::string i8 = base + ".int8.onnx";
+    const std::string f32 = base + ".onnx";
+    const std::string f16 = base + ".fp16.onnx";
+
+    std::string p = precision;
+    if (p.empty() || p == "auto") {
+        p = (provider.find("cuda") != std::string::npos) ? "fp16" : "int8";
+    }
+
+    std::vector<std::string> order;
+    if (p == "fp16") {
+        order = {f16, f32, i8};
+    } else if (p == "fp32") {
+        order = {f32, f16, i8};
+    } else {  // int8 兜底
+        order = {i8, f32, f16};
+    }
+    for (const auto &name : order) {
+        std::string full = dir + "/" + name;
+        std::ifstream ifs(full);
+        if (ifs.good()) return full;
+    }
+    return "";
+}
+
 }  // namespace
 
-RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads)
-    : manifest_(m), recognizer_() {
+RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads,
+                                     std::string provider,
+                                     std::string encoder_precision)
+    : manifest_(m) {
     using namespace sherpa_onnx::cxx;
 
     OnlineRecognizerConfig config;
@@ -42,18 +77,18 @@ RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads)
     const std::string md = m.model_dir;
     config.model_config.tokens = md + "/tokens.txt";
     config.model_config.num_threads = num_threads;
-    config.model_config.provider = "cpu";
+    config.model_config.provider = provider;
     config.model_config.debug = false;
     config.model_config.model_type = m.model_type;
 
     const std::string normalized = ResolveModelType(m.model_type);
     if (normalized == "transducer") {
-        config.model_config.transducer.encoder = PickFirst(md, {
-            "encoder.int8.onnx", "encoder.onnx", "encoder.fp16.onnx"});
+        config.model_config.transducer.encoder =
+            PickByPrecision(md, "encoder", encoder_precision, provider);
         config.model_config.transducer.decoder = PickFirst(md, {
             "decoder.onnx", "decoder.int8.onnx"});
-        config.model_config.transducer.joiner = PickFirst(md, {
-            "joiner.int8.onnx", "joiner.onnx", "joiner.fp16.onnx"});
+        config.model_config.transducer.joiner =
+            PickByPrecision(md, "joiner", encoder_precision, provider);
         if (config.model_config.transducer.encoder.empty()
             || config.model_config.transducer.decoder.empty()
             || config.model_config.transducer.joiner.empty()) {
@@ -88,9 +123,9 @@ RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads)
 
     // Endpoint：使用与 Android / iOS 一致的默认值
     config.enable_endpoint = true;
-    config.endpoint_config.rule1.min_trailing_silence = 2.4f;
-    config.endpoint_config.rule2.min_trailing_silence = 1.2f;
-    config.endpoint_config.rule3.min_utterance_length = 20.0f;
+    config.rule1_min_trailing_silence = 2.4f;
+    config.rule2_min_trailing_silence = 1.2f;
+    config.rule3_min_utterance_length = 20.0f;
 
     // Hotwords
     if (m.hotwords_file) {
@@ -113,19 +148,33 @@ RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads)
         config.rule_fsts = joined;
     }
     if (m.lm_model) {
-        config.lm_config.model = *m.lm_model;
-        config.lm_config.scale = m.lm_scale.value_or(0.5f);
+        std::cerr << "[recognizer] lm_model ignored: streaming cxx-api has no LM config"
+                  << std::endl;
     }
 
-    recognizer_ = OnlineRecognizer::Create(config);
-    if (!recognizer_.Get()) {
-        throw std::runtime_error("OnlineRecognizer::Create failed for model_id=" + m.model_id);
-    }
-    std::cerr << "[recognizer] loaded model_id=" << m.model_id
+    config_ = config;
+    std::cerr << "[recognizer] configured model_id=" << m.model_id
               << " version=" << m.version
               << " model_type=" << m.model_type
+              << " provider=" << provider
+              << " num_threads=" << num_threads
+              << " encoder_precision=" << encoder_precision
+              << " encoder=" << config.model_config.transducer.encoder
+              << " joiner=" << config.model_config.transducer.joiner
               << " decoding=" << config.decoding_method
+              << " max_active_paths=" << config.max_active_paths
               << std::endl;
+}
+
+std::unique_ptr<sherpa_onnx::cxx::OnlineRecognizer>
+RecognizerFactory::CreateRecognizer() const {
+    using namespace sherpa_onnx::cxx;
+    auto r = std::make_unique<OnlineRecognizer>(OnlineRecognizer::Create(config_));
+    if (!r->Get()) {
+        throw std::runtime_error(
+            "OnlineRecognizer::Create failed for model_id=" + manifest_.model_id);
+    }
+    return r;
 }
 
 }  // namespace asr_service

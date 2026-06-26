@@ -1,0 +1,33 @@
+# GPU(CUDA) 一键拉起 asr-service。
+#
+# 前置：宿主已装 NVIDIA 驱动 + nvidia-container-toolkit（docker 能跑 --gpus all）。
+# 使用：
+#   1. 在本目录(asr/server/deploy/)下放好 model/ 与 manifest.json
+#      （manifest.model_dir 写容器内路径 /etc/asr-service/model）。
+#   2. docker compose -f asr/server/deploy/docker-compose.gpu.yml up --build
+#   3. 用 grpcurl / bench 客户端打 localhost:50051。
+#
+# 默认启动参数取自镜像 CMD（BENCHMARK.md 推荐：fp32 + 双引擎 + 束宽2）。
+# 如需改参，在下方加 command: 覆盖。
+
+services:
+  asr-service:
+    image: asr-service-gpu:dev
+    build:
+      context: ../../..
+      dockerfile: asr/server/deploy/Dockerfile.gpu
+    ports:
+      - "50051:50051"
+    volumes:
+      - ./model:/etc/asr-service/model:ro
+      - ./manifest.json:/etc/asr-service/manifest.json:ro
+    environment:
+      - GLOG_logtostderr=1
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

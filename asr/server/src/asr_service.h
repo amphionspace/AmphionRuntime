@@ -8,6 +8,7 @@
 #include <grpcpp/grpcpp.h>
 
 #include "asr.grpc.pb.h"
+#include "decode_engine_pool.h"
 #include "metrics.h"
 #include "recognizer_factory.h"
 
@@ -16,6 +17,7 @@ namespace asr_service {
 class AsrServiceImpl final : public asr::v1::AsrService::Service {
 public:
     AsrServiceImpl(std::shared_ptr<RecognizerFactory> factory,
+                   std::shared_ptr<DecodeEnginePool> engine,
                    std::shared_ptr<Metrics> metrics,
                    int max_concurrent_sessions,
                    int session_idle_timeout_sec);
@@ -34,6 +36,7 @@ public:
 
 private:
     std::shared_ptr<RecognizerFactory> factory_;
+    std::shared_ptr<DecodeEnginePool> engine_;
     std::shared_ptr<Metrics> metrics_;
     int max_concurrent_sessions_;
     int session_idle_timeout_sec_;
