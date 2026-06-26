@@ -1,5 +1,6 @@
 #include "recognizer_factory.h"
 
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 
@@ -28,7 +29,8 @@ std::string PickFirst(const std::string &dir, std::initializer_list<const char *
 
 }  // namespace
 
-RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads)
+RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads,
+                                     EndpointRules endpoint)
     : manifest_(m), recognizer_() {
     using namespace sherpa_onnx::cxx;
 
@@ -86,11 +88,11 @@ RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads)
     config.decoding_method = m.decoding_method.value_or("greedy_search");
     config.max_active_paths = m.max_active_paths.value_or(4);
 
-    // Endpoint：使用与 Android / iOS 一致的默认值
+    // Endpoint：默认与 Android / iOS 一致；服务端可通过启动参数统一覆盖。
     config.enable_endpoint = true;
-    config.endpoint_config.rule1.min_trailing_silence = 2.4f;
-    config.endpoint_config.rule2.min_trailing_silence = 1.2f;
-    config.endpoint_config.rule3.min_utterance_length = 20.0f;
+    config.endpoint_config.rule1.min_trailing_silence = endpoint.rule1_min_trailing_silence;
+    config.endpoint_config.rule2.min_trailing_silence = endpoint.rule2_min_trailing_silence;
+    config.endpoint_config.rule3.min_utterance_length = endpoint.rule3_min_utterance_length;
 
     // Hotwords
     if (m.hotwords_file) {
@@ -125,6 +127,10 @@ RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads)
               << " version=" << m.version
               << " model_type=" << m.model_type
               << " decoding=" << config.decoding_method
+              << " max_active_paths=" << config.max_active_paths
+              << " endpoint_rule1=" << config.endpoint_config.rule1.min_trailing_silence
+              << " endpoint_rule2=" << config.endpoint_config.rule2.min_trailing_silence
+              << " endpoint_rule3=" << config.endpoint_config.rule3.min_utterance_length
               << std::endl;
 }
 
