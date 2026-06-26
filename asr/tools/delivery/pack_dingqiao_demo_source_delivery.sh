@@ -184,6 +184,7 @@ val localProps = Properties().apply {
 
 val sdkAar = providers.gradleProperty("dingqiaoSdkAar").get()
 val demoAssetDir = providers.gradleProperty("dingqiaoDemoAssetDir").orElse("demo").get()
+val evalAudioDir = providers.gradleProperty("dingqiaoEvalAudioDir").orNull
 
 android {
     namespace = "com.amphion.dingqiao.demo"
@@ -234,6 +235,9 @@ android {
 
     sourceSets {
         getByName("main").assets.srcDir(rootProject.file(demoAssetDir))
+        evalAudioDir
+            ?.takeIf { it.isNotBlank() }
+            ?.let { getByName("androidTest").assets.srcDir(it) }
     }
 }
 
