@@ -1,0 +1,893 @@
+{
+  "runId": "tts-batch-1782398460860",
+  "resultFile": "\/storage\/emulated\/0\/Android\/data\/com.lits.tts.sdk.test\/files\/tts-batch\/tts-batch-results.jsonl",
+  "summaryFile": "\/storage\/emulated\/0\/Android\/data\/com.lits.tts.sdk.test\/files\/tts-batch\/tts-batch-summary.json",
+  "total": 235,
+  "pass": 201,
+  "expectedError": 34,
+  "fail": 0,
+  "timeout": 0,
+  "firstPacketMs": {
+    "count": 199,
+    "p50": 345,
+    "p90": 913,
+    "max": 1880
+  },
+  "rtf": {
+    "count": 199,
+    "p50": 0.5045454545454545,
+    "p90": 0.5593584656084656,
+    "max": 0.6695833333333333
+  },
+  "categories": [
+    {
+      "category": "chunk-boundary",
+      "total": 9,
+      "pass": 9,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "compact-generated",
+      "total": 112,
+      "pass": 112,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "control",
+      "total": 2,
+      "pass": 2,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "duplicate-request-id",
+      "total": 2,
+      "pass": 1,
+      "expectedError": 1,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-address",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-chunk",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-code",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-command",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-date",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-email",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-greeting",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-long-lite",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-long-repeat",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-money",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-parentheses",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-percent",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-phone",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-product",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-punctuation",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-question",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-repeated",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-short-one",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-short-two",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-speed",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-time",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-url",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "en-usb",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "err-audio-type",
+      "total": 7,
+      "pass": 0,
+      "expectedError": 7,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "err-language-context",
+      "total": 8,
+      "pass": 0,
+      "expectedError": 8,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "err-pitch",
+      "total": 6,
+      "pass": 0,
+      "expectedError": 6,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "err-text-length",
+      "total": 6,
+      "pass": 0,
+      "expectedError": 6,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "err-volume",
+      "total": 6,
+      "pass": 0,
+      "expectedError": 6,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "speed-boundary",
+      "total": 14,
+      "pass": 14,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-address",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-ai-term",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-code",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-command",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-date",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-dialogue",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-email",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-fraction",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-fullwidth",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-greeting",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-homophone",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-id",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-license",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-list",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-long-lite",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-long-repeat",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-mixed-en",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-money",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-navigation",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-ordinal",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-parentheses",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-percent",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-phone",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-polyphone",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-product",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-punctuation",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-question",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-quote",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-reminder",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-repeated",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-short-one",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-short-two",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-space",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-stock",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-symbol",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-temperature",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-time",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-unit",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-url",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    },
+    {
+      "category": "zh-weather",
+      "total": 1,
+      "pass": 1,
+      "expectedError": 0,
+      "fail": 0,
+      "timeout": 0
+    }
+  ],
+  "slowestFirstPacket": [
+    {
+      "id": "ok-chunk-boundary-008",
+      "category": "chunk-boundary",
+      "status": "PASS",
+      "requestId": "ok-chunk-boundary-008-211931475422943",
+      "language": "zh-en",
+      "voiceId": "lits-female-02",
+      "playType": "SYNTHESIZE_ONLY",
+      "queueMode": "PREEMPT",
+      "textLength": 24,
+      "speed": 1,
+      "pitch": 1,
+      "volume": 1,
+      "languageContext": "zh-en",
+      "submittedAtMs": 1782398672555,
+      "startLatencyMs": 2,
+      "firstPacketMs": 1880,
+      "synthesisMs": 1880,
+      "audioDurationMs": 5696,
+      "rtf": 0.3300561797752809,
+      "chunkCount": 1,
+      "bytes": 273408,
+      "sampleRate": 24000,
+      "dataPath": "model_stream_callback",
+      "errorCode": null,
+      "message": "synthesis complete",
+      "profilingInfo": "frontend=1ms textSegments=1 firstPacketBreakdown=frontend=1ms,hidden=32ms,decoder=1520ms,vocoder=281ms,other=46ms,total=1880ms onnxHiddenEncoder=32ms\/1x\/32.0ms_avg onnxStreamDecoderChunk=1520ms\/11x\/138.2ms_avg onnxVocoder=281ms\/1x\/281.0ms_avg chunks=1 melLength=356 chunkSize=1024 finalDecoder=external_loop runtimeFirstChunk=1834ms"
+    },
+    {
+      "id": "ok-chunk-boundary-006",
+      "category": "chunk-boundary",
+      "status": "PASS",
+      "requestId": "ok-chunk-boundary-006-211927947871381",
+      "language": "zh-en",
+      "voiceId": "lits-female-02",
+      "playType": "SYNTHESIZE_ONLY",
+      "queueMode": "PREEMPT",
+      "textLength": 23,
+      "speed": 1,
+      "pitch": 1,
+      "volume": 1,
+      "languageContext": "zh-en",
+      "submittedAtMs": 1782398669027,
+      "startLatencyMs": 2,
+      "firstPacketMs": 1783,
+      "synthesisMs": 1783,
+      "audioDurationMs": 5424,
+      "rtf": 0.3287241887905605,
+      "chunkCount": 1,
+      "bytes": 260352,
+      "sampleRate": 24000,
+      "dataPath": "model_stream_callback",
+      "errorCode": null,
+      "message": "synthesis complete",
+      "profilingInfo": "frontend=1ms textSegments=1 firstPacketBreakdown=frontend=1ms,hidden=31ms,decoder=1435ms,vocoder=270ms,other=46ms,total=1783ms onnxHiddenEncoder=31ms\/1x\/31.0ms_avg onnxStreamDecoderChunk=1435ms\/11x\/130.5ms_avg onnxVocoder=270ms\/1x\/270.0ms_avg chunks=1 melLength=339 chunkSize=256 finalDecoder=external_loop runtimeFirstChunk=1737ms"
+    },
+    {
+      "id": "ok-chunk-boundary-007",
+      "category": "chunk-boundary",
+      "status": "PASS",
+      "requestId": "ok-chunk-boundary-007-211929733866537",
+      "language": "zh-en",
+      "voiceId": "lits-female-02",
+      "playType": "SYNTHESIZE_ONLY",
+      "queueMode": "PREEMPT",
+      "textLength": 23,
+      "speed": 1,
+      "pitch": 1,
+      "volume": 1,
+      "languageContext": "zh-en",
+      "submittedAtMs": 1782398670813,
+      "startLatencyMs": 1,
+      "firstPacketMs": 1738,
+      "synthesisMs": 1738,
+      "audioDurationMs": 5200,
+      "rtf": 0.3342307692307692,
+      "chunkCount": 1,
+      "bytes": 249600,
+      "sampleRate": 24000,
+      "dataPath": "model_stream_callback",
+      "errorCode": null,
+      "message": "synthesis complete",
+      "profilingInfo": "frontend=2ms textSegments=1 firstPacketBreakdown=frontend=2ms,hidden=31ms,decoder=1410ms,vocoder=249ms,other=46ms,total=1738ms onnxHiddenEncoder=31ms\/1x\/31.0ms_avg onnxStreamDecoderChunk=1410ms\/11x\/128.2ms_avg onnxVocoder=249ms\/1x\/249.0ms_avg chunks=1 melLength=325 chunkSize=512 finalDecoder=external_loop runtimeFirstChunk=1691ms"
+    },
+    {
+      "id": "ok-compact-083",
+      "category": "compact-generated",
+      "status": "PASS",
+      "requestId": "ok-compact-083-212127696399506",
+      "language": "zh-en",
+      "voiceId": "lits-female-02",
+      "playType": "SYNTHESIZE_ONLY",
+      "queueMode": "PREEMPT",
+      "textLength": 14,
+      "speed": 1,
+      "pitch": 1,
+      "volume": 1.5,
+      "languageContext": "zh-en",
+      "submittedAtMs": 1782398868776,
+      "startLatencyMs": 1,
+      "firstPacketMs": 1301,
+      "synthesisMs": 1301,
+      "audioDurationMs": 4064,
+      "rtf": 0.3201279527559055,
+      "chunkCount": 1,
+      "bytes": 195072,
+      "sampleRate": 24000,
+      "dataPath": "model_stream_callback",
+      "errorCode": null,
+      "message": "synthesis complete",
+      "profilingInfo": "frontend=1ms textSegments=1 firstPacketBreakdown=frontend=1ms,hidden=27ms,decoder=1059ms,vocoder=195ms,other=19ms,total=1301ms onnxHiddenEncoder=27ms\/1x\/27.0ms_avg onnxStreamDecoderChunk=1059ms\/11x\/96.3ms_avg onnxVocoder=195ms\/1x\/195.0ms_avg chunks=1 melLength=254 chunkSize=128 finalDecoder=external_loop runtimeFirstChunk=1281ms"
+    },
+    {
+      "id": "ok-compact-059",
+      "category": "compact-generated",
+      "status": "PASS",
+      "requestId": "ok-compact-059-212070750999193",
+      "language": "zh-en",
+      "voiceId": "lits-female-02",
+      "playType": "SYNTHESIZE_ONLY",
+      "queueMode": "PREEMPT",
+      "textLength": 14,
+      "speed": 1,
+      "pitch": 1,
+      "volume": 1.5,
+      "languageContext": "zh-en",
+      "submittedAtMs": 1782398811831,
+      "startLatencyMs": 0,
+      "firstPacketMs": 1223,
+      "synthesisMs": 1224,
+      "audioDurationMs": 4032,
+      "rtf": 0.30357142857142855,
+      "chunkCount": 1,
+      "bytes": 193536,
+      "sampleRate": 24000,
+      "dataPath": "model_stream_callback",
+      "errorCode": null,
+      "message": "synthesis complete",
+      "profilingInfo": "frontend=1ms textSegments=1 firstPacketBreakdown=frontend=1ms,hidden=22ms,decoder=1000ms,vocoder=182ms,other=18ms,total=1223ms onnxHiddenEncoder=22ms\/1x\/22.0ms_avg onnxStreamDecoderChunk=1000ms\/11x\/90.9ms_avg onnxVocoder=182ms\/1x\/182.0ms_avg chunks=1 melLength=252 chunkSize=128 finalDecoder=external_loop runtimeFirstChunk=1205ms"
+    }
+  ],
+  "slowestRtf": [
+    {
+      "id": "ok-chunk-boundary-000",
+      "category": "chunk-boundary",
+      "status": "PASS",
+      "requestId": "ok-chunk-boundary-000-211912457169974",
+      "language": "zh-en",
+      "voiceId": "lits-female-02",
+      "playType": "SYNTHESIZE_ONLY",
+      "queueMode": "PREEMPT",
+      "textLength": 22,
+      "speed": 1,
+      "pitch": 1,
+      "volume": 1,
+      "languageContext": "zh-en",
+      "submittedAtMs": 1782398653537,
+      "startLatencyMs": 1,
+      "firstPacketMs": 182,
+      "synthesisMs": 3214,
+      "audioDurationMs": 4800,
+      "rtf": 0.6695833333333333,
+      "chunkCount": 18,
+      "bytes": 230400,
+      "sampleRate": 24000,
+      "dataPath": "model_stream_callback",
+      "errorCode": null,
+      "message": "synthesis complete",
+      "profilingInfo": "frontend=1ms textSegments=1 firstPacketBreakdown=frontend=1ms,hidden=27ms,decoder=97ms,vocoder=14ms,other=43ms,total=182ms onnxHiddenEncoder=27ms\/1x\/27.0ms_avg onnxStreamDecoderChunk=2760ms\/198x\/13.9ms_avg onnxVocoder=361ms\/18x\/20.1ms_avg chunks=18 melLength=300 chunkSize=16 finalDecoder=external_loop runtimeFirstChunk=139ms"
+    },
+    {
+      "id": "ok-compact-020",
+      "category": "compact-generated",
+      "status": "PASS",
+      "requestId": "ok-compact-020-211978590889974",
+      "language": "zh-en",
+      "voiceId": "lits-female-02",
+      "playType": "SYNTHESIZE_ONLY",
+      "queueMode": "PREEMPT",
+      "textLength": 19,
+      "speed": 0.75,
+      "pitch": 0.800000011920929,
+      "volume": 1,
+      "languageContext": "zh-CN",
+      "submittedAtMs": 1782398719670,
+      "startLatencyMs": 1,
+      "firstPacketMs": 232,
+      "synthesisMs": 3649,
+      "audioDurationMs": 6176,
+      "rtf": 0.5908354922279793,
+      "chunkCount": 12,
+      "bytes": 296448,
+      "sampleRate": 24000,
+      "dataPath": "model_stream_callback",
+      "errorCode": null,
+      "message": "synthesis complete",
+      "profilingInfo": "frontend=1ms textSegments=1 firstPacketBreakdown=frontend=1ms,hidden=28ms,decoder=157ms,vocoder=26ms,other=20ms,total=232ms onnxHiddenEncoder=28ms\/1x\/28.0ms_avg onnxStreamDecoderChunk=3198ms\/132x\/24.2ms_avg onnxVocoder=381ms\/12x\/31.8ms_avg chunks=12 melLength=386 chunkSize=32 finalDecoder=external_loop runtimeFirstChunk=213ms"
+    },
+    {
+      "id": "ok-compact-092",
+      "category": "compact-generated",
+      "status": "PASS",
+      "requestId": "ok-compact-092-212149544257474",
+      "language": "zh-en",
+      "voiceId": "lits-female-02",
+      "playType": "SYNTHESIZE_ONLY",
+      "queueMode": "PREEMPT",
+      "textLength": 19,
+      "speed": 0.75,
+      "pitch": 0.800000011920929,
+      "volume": 1,
+      "languageContext": "zh-en",
+      "submittedAtMs": 1782398890624,
+      "startLatencyMs": 1,
+      "firstPacketMs": 231,
+      "synthesisMs": 3668,
+      "audioDurationMs": 6224,
+      "rtf": 0.5893316195372751,
+      "chunkCount": 12,
+      "bytes": 298752,
+      "sampleRate": 24000,
+      "dataPath": "model_stream_callback",
+      "errorCode": null,
+      "message": "synthesis complete",
+      "profilingInfo": "frontend=1ms textSegments=1 firstPacketBreakdown=frontend=1ms,hidden=27ms,decoder=157ms,vocoder=26ms,other=20ms,total=231ms onnxHiddenEncoder=27ms\/1x\/27.0ms_avg onnxStreamDecoderChunk=3208ms\/132x\/24.3ms_avg onnxVocoder=391ms\/12x\/32.6ms_avg chunks=12 melLength=389 chunkSize=32 finalDecoder=external_loop runtimeFirstChunk=211ms"
+    },
+    {
+      "id": "ok-compact-068",
+      "category": "compact-generated",
+      "status": "PASS",
+      "requestId": "ok-compact-068-212092554137318",
+      "language": "zh-en",
+      "voiceId": "lits-female-02",
+      "playType": "SYNTHESIZE_ONLY",
+      "queueMode": "PREEMPT",
+      "textLength": 19,
+      "speed": 0.75,
+      "pitch": 0.800000011920929,
+      "volume": 1,
+      "languageContext": "zh-en",
+      "submittedAtMs": 1782398833634,
+      "startLatencyMs": 1,
+      "firstPacketMs": 230,
+      "synthesisMs": 3674,
+      "audioDurationMs": 6352,
+      "rtf": 0.5784005037783375,
+      "chunkCount": 12,
+      "bytes": 304896,
+      "sampleRate": 24000,
+      "dataPath": "model_stream_callback",
+      "errorCode": null,
+      "message": "synthesis complete",
+      "profilingInfo": "frontend=1ms textSegments=1 firstPacketBreakdown=frontend=1ms,hidden=28ms,decoder=155ms,vocoder=26ms,other=20ms,total=230ms onnxHiddenEncoder=28ms\/1x\/28.0ms_avg onnxStreamDecoderChunk=3213ms\/132x\/24.3ms_avg onnxVocoder=388ms\/12x\/32.3ms_avg chunks=12 melLength=397 chunkSize=32 finalDecoder=external_loop runtimeFirstChunk=210ms"
+    },
+    {
+      "id": "ok-compact-053",
+      "category": "compact-generated",
+      "status": "PASS",
+      "requestId": "ok-compact-053-212055467371849",
+      "language": "zh-en",
+      "voiceId": "lits-female-02",
+      "playType": "SYNTHESIZE_ONLY",
+      "queueMode": "PREEMPT",
+      "textLength": 19,
+      "speed": 1,
+      "pitch": 1,
+      "volume": 1,
+      "languageContext": "zh-en",
+      "submittedAtMs": 1782398796547,
+      "startLatencyMs": 1,
+      "firstPacketMs": 403,
+      "synthesisMs": 3255,
+      "audioDurationMs": 5632,
+      "rtf": 0.5779474431818182,
+      "chunkCount": 7,
+      "bytes": 270336,
+      "sampleRate": 24000,
+      "dataPath": "model_stream_callback",
+      "errorCode": null,
+      "message": "synthesis complete",
+      "profilingInfo": "frontend=1ms textSegments=1 firstPacketBreakdown=frontend=1ms,hidden=29ms,decoder=235ms,vocoder=40ms,other=98ms,total=403ms onnxHiddenEncoder=29ms\/1x\/29.0ms_avg onnxStreamDecoderChunk=2802ms\/77x\/36.4ms_avg onnxVocoder=317ms\/7x\/45.3ms_avg chunks=7 melLength=352 chunkSize=50 finalDecoder=external_loop runtimeFirstChunk=306ms"
+    }
+  ],
+  "failures": []
+}

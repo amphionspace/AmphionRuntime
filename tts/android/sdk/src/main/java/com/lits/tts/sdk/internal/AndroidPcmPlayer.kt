@@ -129,8 +129,8 @@ internal class AndroidPcmPlayer {
             }
             localTrack.play()
             playbackThread.start()
-            producerThread.join()
-            playbackThread.join()
+            joinUntilFinishedOrCancelled(producerThread, cancelled)
+            joinUntilFinishedOrCancelled(playbackThread, cancelled)
             producerError[0]?.let { throw it }
             playbackError[0]?.let { throw it }
             if (!cancelled.get()) {
@@ -146,17 +146,27 @@ internal class AndroidPcmPlayer {
             audioQueue.offer(END_OF_STREAM)
             if (producerThread.isAlive) {
                 producerThread.interrupt()
-                producerThread.join(PLAYBACK_THREAD_JOIN_TIMEOUT_MS)
+                if (!cancelled.get()) {
+                    producerThread.join(PLAYBACK_THREAD_JOIN_TIMEOUT_MS)
+                }
             }
             if (playbackThread.isAlive) {
                 playbackThread.interrupt()
-                playbackThread.join(PLAYBACK_THREAD_JOIN_TIMEOUT_MS)
+                if (!cancelled.get()) {
+                    playbackThread.join(PLAYBACK_THREAD_JOIN_TIMEOUT_MS)
+                }
             }
             if (cancelled.get()) {
                 releaseImmediately(localTrack)
             } else {
                 releaseAfterDrain(localTrack)
             }
+        }
+    }
+
+    private fun joinUntilFinishedOrCancelled(thread: Thread, cancelled: AtomicBoolean) {
+        while (thread.isAlive && !cancelled.get()) {
+            thread.join(STREAMING_THREAD_JOIN_POLL_MS)
         }
     }
 
@@ -265,6 +275,7 @@ internal class AndroidPcmPlayer {
         const val BYTES_PER_FRAME = 2
         const val POST_DRAIN_GRACE_MS = 24L
         const val PLAYBACK_THREAD_JOIN_TIMEOUT_MS = 200L
+        const val STREAMING_THREAD_JOIN_POLL_MS = 20L
         const val DEFAULT_STREAMING_QUEUE_CAPACITY = 32
         const val MAX_STREAMING_QUEUE_CAPACITY = 256
         const val STREAMING_PREBUFFER_CHUNKS = 2

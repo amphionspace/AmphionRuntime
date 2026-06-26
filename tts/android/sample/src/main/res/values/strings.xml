@@ -8,16 +8,18 @@
     <string name="label_mode">语言模式</string>
     <string name="label_chunk_size">Chunk size</string>
     <string name="label_pcm_queue_capacity">PCM queue capacity</string>
+    <string name="label_speed">Speed</string>
     <string name="label_result">运行结果</string>
     <string name="label_log">运行日志（自测）</string>
 
     <string name="hint_input">请输入要合成的文本</string>
     <string name="hint_chunk_size">默认 100</string>
     <string name="hint_pcm_queue_capacity">默认 128</string>
+    <string name="hint_speed">默认 1.0，范围 0.5~2.0</string>
     <string name="mode_mixed">zh-en</string>
     <string name="mode_en">en-US</string>
     <string name="mode_desc">数字读法由 languageContext 决定：zh-en 按中文逐位读，en-US 按英文逐位读。</string>
-    <string name="action_desc">“开始合成”用于测流式回调；“SDK 直接播报”用于测边推边播；“Warmup”会先跑一条短句，把模型首次执行开销排除掉。Chunk size 会覆盖流式切块大小，PCM queue capacity 会覆盖 SDK 直接播报的播放缓冲队列容量。</string>
+    <string name="action_desc">“开始合成”用于测流式回调；“SDK 直接播报”用于测边推边播；“Warmup”会先跑一条短句，把模型首次执行开销排除掉。Chunk size 会覆盖流式切块大小，PCM queue capacity 会覆盖 SDK 直接播报的播放缓冲队列容量，Speed 会调整语速。</string>
 
     <string name="button_synthesize">开始合成</string>
     <string name="button_sdk_playback">SDK 直接播报</string>

@@ -32,7 +32,7 @@ internal class TextToSpeechEngineImpl(
     private val lock = Any()
     private val queue = ArrayDeque<SynthesisTask>()
     private val seenRequestIds = mutableSetOf<String>()
-    private val executor: ExecutorService = Executors.newSingleThreadExecutor(TtsThreadFactory(engineThreadLabel()))
+    private val executor: ExecutorService = Executors.newCachedThreadPool(TtsThreadFactory(engineThreadLabel()))
     private val player = AndroidPcmPlayer()
 
     @Volatile
@@ -149,9 +149,6 @@ internal class TextToSpeechEngineImpl(
         if (voice.voiceId != engineParams.voiceId) {
             return TtsErrorCode.VOICE_UNSUPPORTED to "voiceId is not supported"
         }
-        if (params.speed !in 0.5f..2.0f) {
-            return TtsErrorCode.RUNTIME_EXCEPTION to "speed out of range"
-        }
         if (params.pitch !in 0.5f..2.0f) {
             return TtsErrorCode.RUNTIME_EXCEPTION to "pitch out of range"
         }
@@ -172,7 +169,11 @@ internal class TextToSpeechEngineImpl(
             "zh-CN", "zh-en" -> "zh-en"
             else -> params.languageContext
         }
-        return params.copy(languageContext = normalizedLanguageContext)
+        val normalizedSpeed = params.speed.takeIf { it.isFinite() }?.coerceIn(0.5f, 2.0f) ?: 1.0f
+        return params.copy(
+            speed = normalizedSpeed,
+            languageContext = normalizedLanguageContext,
+        )
     }
 
     private fun markRequestSeenIfPossible(requestId: String) {
@@ -189,6 +190,7 @@ internal class TextToSpeechEngineImpl(
         }
         tasks.forEach { it.cancelled.set(true) }
         queue.clear()
+        current = null
         return tasks
     }
 
@@ -228,7 +230,12 @@ internal class TextToSpeechEngineImpl(
             )
             var synthesisCompleteNotified = false
             val audio = if (task.params.playType == PlayType.SYNTHESIZE_ONLY && useStreamingSynthesis) {
-                synthesizer.synthesizeStreaming(task.text, task.params, engineParams) { chunk ->
+                synthesizer.synthesizeStreaming(
+                    text = task.text,
+                    params = task.params,
+                    engineParams = engineParams,
+                    isCancelled = { task.cancelled.get() || destroyed },
+                ) { chunk ->
                     if (!task.cancelled.get() && !destroyed) {
                         notifyData(
                             callback,
@@ -258,6 +265,7 @@ internal class TextToSpeechEngineImpl(
                             params = task.params,
                             engineParams = engineParams,
                             collectOutput = false,
+                            isCancelled = { task.cancelled.get() || destroyed },
                         ) { chunk ->
                             if (!task.cancelled.get() && !destroyed) {
                                 chunkWriter(chunk)

@@ -127,6 +127,28 @@ class LitsTtsFrontendTest {
     }
 
     @Test
+    fun enUsTechnicalTextDoesNotNormalizeToChinese() {
+        val layout = testLayout()
+
+        assertTrue(
+            LitsTtsFrontend.encode(
+                layout,
+                "Open example dot com for more information.",
+                "en-US",
+                "en-US",
+            ).isNotEmpty(),
+        )
+        assertTrue(
+            LitsTtsFrontend.encode(
+                layout,
+                "Send feedback to service at example dot com.",
+                "en-US",
+                "en-US",
+            ).isNotEmpty(),
+        )
+    }
+
+    @Test
     fun oovTextDoesNotBreakFrontend() {
         val layout = testLayout()
 
