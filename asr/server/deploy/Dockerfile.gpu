@@ -1,0 +1,115 @@
+# AmphionRuntime ASR gRPC 服务端 —— GPU(CUDA) 镜像。
+#
+# 推理后端：sherpa-onnx 1.13.1 + onnxruntime-gpu 1.24.4（需要 CUDA 12 + cuDNN 9）。
+# 设计要点（第一性原理）：
+#   - builder 阶段不需要 CUDA。sherpa-onnx 开 GPU 只是下载预编译的 onnxruntime-gpu 并链接
+#     libonnxruntime.so；CUDA 内核全在 libonnxruntime_providers_cuda.so 里，由 ORT 在
+#     运行期 dlopen，链接期不解析 CUDA 符号。故 builder 用纯 ubuntu:22.04 即可，且与本机
+#     验证通过的 apt 工具链（grpc 1.30.2 / protobuf 3.12.4 / gflags 2.2.2）完全一致。
+#   - runtime 阶段必须提供 CUDA 12 运行时 + cuDNN 9，供 providers_cuda.so 加载，故基于
+#     nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04（cuDNN 9）。选 ubuntu22.04 让 apt 的
+#     grpc/protobuf 版本与 builder 链接到的 .so soname 一致。
+#
+# 构建（在仓库根目录执行）：
+#   docker build -t your-registry/asr-service-gpu:1.1.0 \
+#                -f asr/server/deploy/Dockerfile.gpu .
+#
+# 运行（宿主需装 NVIDIA 驱动 + nvidia-container-toolkit）：
+#   docker run --rm -it --gpus all -p 50051:50051 \
+#       -v /abs/path/model:/etc/asr-service/model:ro \
+#       -v /abs/path/manifest.json:/etc/asr-service/manifest.json:ro \
+#       your-registry/asr-service-gpu:1.1.0
+#   注意 manifest.json 里的 model_dir 要写成容器内路径 /etc/asr-service/model。
+
+# =================================== Builder ===================================
+FROM ubuntu:22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl wget git unzip \
+        build-essential cmake ninja-build pkg-config \
+        protobuf-compiler libprotobuf-dev \
+        libgrpc++-dev protobuf-compiler-grpc \
+        nlohmann-json3-dev \
+        libgflags-dev \
+        libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+
+# 只拷构建所需的两棵源码树，避免把其它模块/敏感物带进镜像。
+COPY third_party/sherpa-onnx /src/third_party/sherpa-onnx
+COPY asr/server             /src/asr/server
+
+# 1) 编 sherpa-onnx cxx-api（GPU）。会联网下载 onnxruntime-gpu 1.24.4（CUDA12/cuDNN9）。
+#    flags 与本机验证通过的 build-linux-gpu 完全一致。
+RUN cmake -S /src/third_party/sherpa-onnx -B /tmp/sherpa-build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/opt/sherpa-onnx \
+        -DBUILD_SHARED_LIBS=ON \
+        -DSHERPA_ONNX_ENABLE_GPU=ON \
+        -DSHERPA_ONNX_ENABLE_C_API=ON \
+        -DSHERPA_ONNX_ENABLE_PYTHON=OFF \
+        -DSHERPA_ONNX_ENABLE_TESTS=OFF \
+        -DSHERPA_ONNX_ENABLE_BINARY=OFF \
+        -DSHERPA_ONNX_ENABLE_PORTAUDIO=OFF \
+        -DSHERPA_ONNX_ENABLE_TTS=OFF \
+        -DSHERPA_ONNX_BUILD_C_API_EXAMPLES=OFF \
+    && cmake --build /tmp/sherpa-build -j"$(nproc)" \
+    && cmake --install /tmp/sherpa-build
+
+# 2) 编 asr_service（通过 -DSHERPA_ONNX_DIR 注入上一步的 install 目录）。
+RUN cmake -S /src/asr/server -B /tmp/asr-build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DSHERPA_ONNX_DIR=/opt/sherpa-onnx \
+        -DCMAKE_INSTALL_PREFIX=/opt/asr-service \
+    && cmake --build /tmp/asr-build -j"$(nproc)" \
+    && cmake --install /tmp/asr-build
+
+# =================================== Runtime ===================================
+FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04 AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 运行期共享库：
+#   libgrpc++1 会自动带出 libgrpc10 / libprotobuf23 / libabsl* / libgrpc++_reflection.so.1，
+#   与 builder(ubuntu22.04) 链接到的 soname 完全一致。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libgrpc++1 \
+        libgflags2.2 \
+        libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# sherpa-onnx + onnxruntime(-gpu) 动态库（含 providers_cuda/providers_shared）+ 服务二进制。
+COPY --from=builder /opt/sherpa-onnx/lib/        /usr/local/lib/
+COPY --from=builder /opt/asr-service/bin/asr_service /usr/local/bin/asr_service
+
+RUN ldconfig
+
+ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
+# 让 NVIDIA Container Toolkit 暴露 GPU 与所需驱动能力。
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+EXPOSE 50051
+
+# 简单 TCP 探活；k8s 建议换 grpc_health_probe。
+HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
+    CMD bash -c 'echo > /dev/tcp/127.0.0.1/50051' || exit 1
+
+# 默认参数 = BENCHMARK.md 推荐生产配置（fp32 + 双引擎 + 束宽2）。
+# metrics 默认未编入（需 -DASR_ENABLE_PROMETHEUS=ON 重编），故置空关闭。
+ENTRYPOINT ["/usr/local/bin/asr_service"]
+CMD ["--listen=0.0.0.0:50051", \
+     "--manifest=/etc/asr-service/manifest.json", \
+     "--provider=cuda", \
+     "--encoder_precision=fp32", \
+     "--decode_workers=2", \
+     "--max_active_paths=2", \
+     "--num_threads=4", \
+     "--grpc_threads=16", \
+     "--max_batch_size=130", \
+     "--max_concurrent_sessions=200", \
+     "--metrics_listen="]
