@@ -53,3 +53,20 @@
 | 01_说话人跟踪_3人重叠91_抗战历史长句.wav | 与此同时，欧美、澳等国众多华侨应征入伍，开拓欧亚各战场，同德意志法西斯浴血奋战。 | 与此同时，欧美、澳等国众多华侨应征入伍，开拓欧亚各战场，同德意志法西斯浴血奋战。 | 与此同时，欧美、澳等国众多华侨应征入伍，开拓欧亚各战场，同德意志法西斯浴血奋战。 |
 
 结论：修复后，快喂 + 短等待路径不再丢弃真实语音 final；实时语料 baseline 无回归。
+
+## 正式交付 zip 验收
+
+| 项目 | 结果 |
+| --- | --- |
+| 最终 zip | /Users/boxp/workspace/delivery/amphion-dingqiao-v0.2.8-customer-20260626.zip |
+| SHA-256 | 29fdc2e93a85e9b7840d256bedabc9f84eee875642def809172bb9eb707ca912 |
+| 源码 commit | c3f9c631fd60c08194e1b8214f0caf890c9cebb2 |
+| git dirty | false |
+| Demo APK 签名 | debug-keystore，本机验收包 |
+| Demo license | applicationId=com.amphion.dingqiao.demo，features=ASR，device_hash_count=0，expiresAt=2026-08-26 |
+| zip 静态验包 | UTF-8 文件名、CRC、AAR/APK native、ASR 全量模型、声纹模型、VERSION 元数据通过 |
+| e2e 验收 | 最终 zip 解压后 APK 签名检查、真机安装启动、demo-src connectedDebugAndroidTest 通过 |
+| 机器报告 | asr/android/reports/dingqiao-main-finish-flush-validation/delivery-zip-e2e.json |
+| Markdown 报告 | asr/android/reports/dingqiao-main-finish-flush-validation/delivery-zip-e2e.md |
+
+说明：本次交付包用本机 debug keystore 签 Demo 以完成本机全链路验收；若作为客户正式发布包，应改用客户认可的 release keystore 重新签名并重跑同一 zip-only 验收流程。
