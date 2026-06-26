@@ -13,6 +13,7 @@ package com.amphion.asr
  * @property speakerScore 目标说话人余弦相似度；仅在目标说话人开关开启且该段完成打分时非空，
  *   否则为 null（开关关闭 / 未注册目标 / 段太短无法判定）
  * @property isTargetSpeaker 该段是否判定为目标说话人；与 [speakerScore] 同步，未判定时为 null
+ * @property isLast 该 final 是否由手动 stop/finish 产生，用于区分中间 endpoint final 与会话末尾 final
  */
 public data class AsrResult(
     public val text: String,
@@ -22,4 +23,5 @@ public data class AsrResult(
     public val tokenConfidences: List<Float> = emptyList(),
     public val speakerScore: Float? = null,
     public val isTargetSpeaker: Boolean? = null,
+    public val isLast: Boolean = false,
 )

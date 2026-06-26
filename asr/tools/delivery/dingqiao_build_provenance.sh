@@ -20,7 +20,7 @@ dingqiao_repo_root_from_script() {
   script_dir="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)"
   local repo_root
   repo_root="$(cd "$script_dir/../../.." && pwd)"
-  if [[ ! -d "$repo_root/.git" ]]; then
+  if ! git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "[ERROR] AmphionRuntime git root not found (expected .git at $repo_root)" >&2
     exit 1
   fi
@@ -384,7 +384,7 @@ dingqiao_zip_delivery() {
 dingqiao_stage_customer_docs() {
   local out_docs="$1"
   local customer_docs="$2"
-  local dq_root="$3"
+  local _dq_root="$3"
   mkdir -p "$out_docs"
   [[ -f "$customer_docs/语音识别SDK接口.md" ]] || {
     echo "[ERROR] missing customer API contract at $customer_docs/语音识别SDK接口.md" >&2
