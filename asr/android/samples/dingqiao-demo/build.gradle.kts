@@ -16,6 +16,7 @@ val fatAarPath = providers.gradleProperty("dingqiaoFatAarPath").orElse(
     "${rootProject.projectDir}/build/dingqiao-delivery/dingqiao-asr-v0.1.0.aar",
 ).get()
 val evalAudioDir = providers.gradleProperty("dingqiaoEvalAudioDir").orNull
+val demoAssetDir = providers.gradleProperty("dingqiaoDemoAssetDir").orNull
 
 android {
     namespace = "com.amphion.dingqiao.demo"
@@ -74,6 +75,9 @@ android {
     }
 
     sourceSets {
+        demoAssetDir
+            ?.takeIf { it.isNotBlank() }
+            ?.let { getByName("main").assets.srcDir(it) }
         evalAudioDir
             ?.takeIf { it.isNotBlank() }
             ?.let { getByName("androidTest").assets.srcDir(it) }

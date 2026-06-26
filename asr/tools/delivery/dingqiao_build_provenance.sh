@@ -20,7 +20,7 @@ dingqiao_repo_root_from_script() {
   script_dir="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)"
   local repo_root
   repo_root="$(cd "$script_dir/../../.." && pwd)"
-  if [[ ! -d "$repo_root/.git" ]]; then
+  if ! git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "[ERROR] AmphionRuntime git root not found (expected .git at $repo_root)" >&2
     exit 1
   fi
@@ -243,6 +243,50 @@ print(f"[OK] AAR speaker model present: {path} ({size} bytes)")
 PY
 }
 
+dingqiao_verify_aar_asr_models() {
+  local aar_path="$1"
+  python3 - "$aar_path" <<'PY'
+import sys
+import zipfile
+
+aar_path = sys.argv[1]
+required = {
+    "assets/amphion-models/manifest.json": 100,
+    "assets/amphion-models/itn-zh/v1/zh_itn_tagger.fst": 1024 * 1024,
+    "assets/amphion-models/itn-zh/v1/zh_itn_verbalizer.fst": 100 * 1024,
+    "assets/amphion-models/punct-zhen/v1/model.int8.onnx": 50 * 1024 * 1024,
+    "assets/amphion-models/vad/v1/silero_vad.onnx": 500 * 1024,
+    "assets/amphion-models/zh-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/decoder.onnx": 10 * 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/joiner.int8.onnx": 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/tokens.txt": 10 * 1024,
+    "assets/amphion-models/zh-en/v1/bbpe.vocab": 10 * 1024,
+    "assets/amphion-models/yue-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/decoder.onnx": 10 * 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/joiner.int8.onnx": 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/tokens.txt": 10 * 1024,
+    "assets/amphion-models/yue-en/v1/bbpe.vocab": 10 * 1024,
+}
+
+try:
+    with zipfile.ZipFile(aar_path) as aar:
+        sizes = {info.filename: info.file_size for info in aar.infolist()}
+except zipfile.BadZipFile as exc:
+    print(f"[ERROR] invalid AAR zip: {aar_path}: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+for path, min_bytes in required.items():
+    size = sizes.get(path)
+    if size is None:
+        print(f"[ERROR] AAR missing ASR model asset: {path}", file=sys.stderr)
+        sys.exit(1)
+    if size < min_bytes:
+        print(f"[ERROR] AAR ASR model asset too small: {path} ({size} bytes, min {min_bytes})", file=sys.stderr)
+        sys.exit(1)
+    print(f"[OK] AAR ASR model asset present: {path} ({size} bytes)")
+PY
+}
+
 dingqiao_verify_apk_native_libs() {
   local apk_path="$1"
   python3 - "$apk_path" <<'PY'
@@ -306,6 +350,50 @@ if size < min_bytes:
     print(f"[ERROR] APK speaker model too small: {path} ({size} bytes)", file=sys.stderr)
     sys.exit(1)
 print(f"[OK] APK speaker model present: {path} ({size} bytes)")
+PY
+}
+
+dingqiao_verify_apk_asr_models() {
+  local apk_path="$1"
+  python3 - "$apk_path" <<'PY'
+import sys
+import zipfile
+
+apk_path = sys.argv[1]
+required = {
+    "assets/amphion-models/manifest.json": 100,
+    "assets/amphion-models/itn-zh/v1/zh_itn_tagger.fst": 1024 * 1024,
+    "assets/amphion-models/itn-zh/v1/zh_itn_verbalizer.fst": 100 * 1024,
+    "assets/amphion-models/punct-zhen/v1/model.int8.onnx": 50 * 1024 * 1024,
+    "assets/amphion-models/vad/v1/silero_vad.onnx": 500 * 1024,
+    "assets/amphion-models/zh-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/decoder.onnx": 10 * 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/joiner.int8.onnx": 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/tokens.txt": 10 * 1024,
+    "assets/amphion-models/zh-en/v1/bbpe.vocab": 10 * 1024,
+    "assets/amphion-models/yue-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/decoder.onnx": 10 * 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/joiner.int8.onnx": 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/tokens.txt": 10 * 1024,
+    "assets/amphion-models/yue-en/v1/bbpe.vocab": 10 * 1024,
+}
+
+try:
+    with zipfile.ZipFile(apk_path) as apk:
+        sizes = {info.filename: info.file_size for info in apk.infolist()}
+except zipfile.BadZipFile as exc:
+    print(f"[ERROR] invalid APK zip: {apk_path}: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+for path, min_bytes in required.items():
+    size = sizes.get(path)
+    if size is None:
+        print(f"[ERROR] APK missing ASR model asset: {path}", file=sys.stderr)
+        sys.exit(1)
+    if size < min_bytes:
+        print(f"[ERROR] APK ASR model asset too small: {path} ({size} bytes, min {min_bytes})", file=sys.stderr)
+        sys.exit(1)
+    print(f"[OK] APK ASR model asset present: {path} ({size} bytes)")
 PY
 }
 
@@ -384,7 +472,7 @@ dingqiao_zip_delivery() {
 dingqiao_stage_customer_docs() {
   local out_docs="$1"
   local customer_docs="$2"
-  local dq_root="$3"
+  local _dq_root="$3"
   mkdir -p "$out_docs"
   [[ -f "$customer_docs/语音识别SDK接口.md" ]] || {
     echo "[ERROR] missing customer API contract at $customer_docs/语音识别SDK接口.md" >&2

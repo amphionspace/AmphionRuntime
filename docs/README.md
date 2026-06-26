@@ -19,6 +19,7 @@
 
 | 文档 | 说明 |
 | --- | --- |
+| troubleshooting/dingqiao-finish-flush-postprocessor.md | 鼎桥 Android 快喂后 finish 空 final/丢尾字的根因：PostProcessor 队列被提前关闭，以及 isLast 语义修复和真机回归 |
 | troubleshooting/dingqiao-create-engine-missing-so.md | 鼎桥 Android `createEngine` 找不到 sherpa native 库的根因、验包命令和交付门禁 |
 | troubleshooting/zh-en-mixed-asr-tuning.md | 中英混合 ASR 在 Android 实机上纯英文不可用的深度分析：greedy vs beam、低电平、endpoint 切分 |
 | troubleshooting/streaming-zipformer-cold-start.md | streaming zipformer 第一段被吞的根因：encoder left-context cold start，以及 800ms 静音 warmup 修复 |

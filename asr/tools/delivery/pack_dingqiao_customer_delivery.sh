@@ -104,6 +104,7 @@ if [[ -z "$DEMO_APK_CERT_SHA" ]]; then
 fi
 dingqiao_verify_apk_native_libs "$DEMO_APK_SRC"
 dingqiao_verify_apk_speaker_model "$DEMO_APK_SRC"
+dingqiao_verify_apk_asr_models "$DEMO_APK_SRC"
 
 echo "[3/4] assemble customer delivery tree ..."
 rm -rf "$OUT_ROOT"
