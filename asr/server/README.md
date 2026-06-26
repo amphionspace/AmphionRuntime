@@ -4,6 +4,8 @@ AmphionRuntime 的 Linux 流式 ASR 服务端实现，基于 [sherpa-onnx cxx-ap
 
 `sherpa-onnx` 通过仓库根的 `third_party/sherpa-onnx` git submodule 引用上游 pinned tag（首期 v1.13.1），公司侧不修改其源码。
 
+文档索引：对外 gRPC 接口文档见 [API.md](API.md)。
+
 ## 设计目标
 
 - 与 Android / iOS SDK 共用同一份模型 + manifest（[shared/api-spec/manifest.schema.json](../../shared/api-spec/manifest.schema.json)，错误码同步走 [shared/api-spec/errcodes.yaml](../../shared/api-spec/errcodes.yaml)）
@@ -82,6 +84,25 @@ cd ../../..
 ```
 
 升级 sherpa-onnx 版本后，需要重新跑步骤 1 让 install 目录跟着 submodule HEAD 走（或者直接 `rm -rf third_party/sherpa-onnx/build-linux` 后再来）。
+
+## 启动参数
+
+| flag | 默认 | 说明 |
+| --- | --- | --- |
+| --listen | 0.0.0.0:50051 | gRPC 监听地址 |
+| --manifest | /etc/asr-service/manifest.json | 模型 manifest 路径 |
+| --max_active_paths | -1 | 覆盖 manifest 的 modified_beam_search 束宽；-1 用 manifest 值 |
+| --decoding_method | 空 | 覆盖 manifest 的解码方法；空用 manifest 值 |
+| --endpoint_rule1_min_trailing_silence | 2.4 | endpoint rule1 句尾静音阈值（秒）；纯静音兜底 |
+| --endpoint_rule2_min_trailing_silence | 1.2 | endpoint rule2 已识别出内容后的句尾静音阈值（秒）；cascade 下主控喂给 vLLM 的句子颗粒 |
+| --endpoint_rule3_min_utterance_length | 20.0 | endpoint rule3 单段最长语音强制切断（秒） |
+| --num_threads | 4 | 每个 recognizer 的 ORT intra-op 线程数 |
+| --grpc_threads | 8 | gRPC 完成队列线程数，建议取 vCPU 数 |
+| --max_concurrent_sessions | 64 | 活跃 session 上限，超出以 RESOURCE_EXHAUSTED 拒绝 |
+| --session_idle_timeout_sec | 300 | session 无音频多久自动断流 |
+| --metrics_listen | 0.0.0.0:9090 | prometheus exporter 地址；空关闭（metrics 需编译期开启） |
+
+cascade 接入时，建议优先通过 `--endpoint_rule2_min_trailing_silence` 调整喂给 vLLM final 的句子颗粒；rule1 主要是纯静音兜底，rule3 是长段保护。
 
 ## 关键约定
 
