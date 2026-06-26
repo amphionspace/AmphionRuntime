@@ -38,7 +38,7 @@ public class AsrSession internal constructor(private val impl: SessionImpl) : Au
     /**
      * 主动结束音频输入；解码器会 flush 出最后一段 final 结果，触发 [AsrCallback.onFinal]。
      *
-     * 调用 [stop] 之后还可以继续 [acceptPcmShort]（会作为下一段话）；如要彻底结束请 [close]。
+     * 调用 [stop] 后本 session 不再接收新的 PCM；继续识别请创建新的 session。
      */
     public fun stop() {
         impl.stop()

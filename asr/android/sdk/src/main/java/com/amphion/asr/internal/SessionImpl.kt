@@ -293,6 +293,7 @@ internal class SessionImpl(
         if (!stopped.compareAndSet(false, true)) return
         decoderHandler.post {
             val r = NativeGuard.run("stream.inputFinished+drain") {
+                appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
                 stream.inputFinished()
                 drainDecoder(isFinal = true, restartAfterFinal = false)
             }
@@ -383,6 +384,13 @@ internal class SessionImpl(
             }
             is NativeResult.Err -> Logger.w("session $sessionId encoder warm-up failed: ${r.error.message}")
         }
+    }
+
+    private fun appendFinalTailSilence(durationMs: Int) {
+        val n = (sampleRate.toLong() * durationMs / 1000L).toInt().coerceAtLeast(0)
+        if (n == 0) return
+        // 用户松手通常正好卡在语音末尾；SDK 内部补尾静音，给流式模型足够右上下文完成 final。
+        stream.acceptWaveform(FloatArray(n), sampleRate)
     }
 
     private fun feedAndDecode(samples: FloatArray) {
@@ -849,6 +857,9 @@ internal class SessionImpl(
     private companion object {
         /** 静音预热 encoder 的时长（ms）。≈ 2.5 chunk @chunk_size=32, 16kHz。 */
         const val WARMUP_DURATION_MS = 800
+
+        /** 手动 stop/final flush 的尾部静音；与整段流式评估口径一致，避免末尾 token 被截断。 */
+        const val FINAL_TAIL_SILENCE_MS = 500
 
         /**
          * silero VAD 强约束：必须按窗口对齐喂入 [Vad.acceptWaveform]。

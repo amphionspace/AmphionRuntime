@@ -24,7 +24,7 @@
 
 **不在交付范围：** `:samples:public-demo` 云端 ASR、Batch Eval；`:samples:internal-eval` 内部评测。
 
-## 2. 交付物清单（v0.2.7）
+## 2. 交付物清单（v0.2.8）
 
 | 产物 | 路径 / 命令 | 说明 |
 |------|-------------|------|
@@ -190,7 +190,7 @@ createEngine → setListener → startListening
 
 工作目录默认：`getExternalFilesDir()/dingqiao_work/`
 
-## 7. 能力与默认行为（v0.2.7 锁定）
+## 7. 能力与默认行为（v0.2.8 锁定）
 
 - 语种：`zh-CN`（映射内部 `AsrLanguage.ZH_EN`）
 - 离线 only；警务三场景 normalize **默认开启**
