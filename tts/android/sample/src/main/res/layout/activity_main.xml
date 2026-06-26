@@ -140,6 +140,25 @@
                     android:text="32"
                     android:textAppearance="@style/TextAppearance.Lits.Body" />
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/label_speed"
+                    android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+
+                <EditText
+                    android:id="@+id/edit_speed"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:backgroundTint="@color/brand_outline"
+                    android:hint="@string/hint_speed"
+                    android:inputType="numberDecimal"
+                    android:maxLines="1"
+                    android:text="1.0"
+                    android:textAppearance="@style/TextAppearance.Lits.Body" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

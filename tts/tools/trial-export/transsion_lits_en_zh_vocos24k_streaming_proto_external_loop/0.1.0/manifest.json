@@ -34,7 +34,7 @@
   "files": [
     {
       "name": "lits_hidden_encoder.onnx",
-      "size_bytes": 29100982
+      "size_bytes": 29101412
     },
     {
       "name": "lits_stream_condition_chunk.onnx",
@@ -62,7 +62,7 @@
     },
     {
       "name": "chinese_lexicon.bin",
-      "size_bytes": 18769938
+      "size_bytes": 18755953
     },
     {
       "name": "cmudict.txt",
