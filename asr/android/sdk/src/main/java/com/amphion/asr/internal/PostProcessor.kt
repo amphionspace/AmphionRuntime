@@ -29,15 +29,18 @@ internal class PostProcessor(
     private val handler: Handler = Handler(thread.looper)
 
     @Volatile
-    private var closed: Boolean = false
+    private var accepting: Boolean = true
+
+    @Volatile
+    private var drained: Boolean = false
 
     /**
      * 把一个 ASR final 结果 [raw] 投递到后处理队列；处理完后调 [onProcessed]，
      * 同时把后处理实际耗时（毫秒）一并传出供 metrics 采集。
      */
     fun postFinal(raw: AsrResult) {
-        if (closed) {
-            // 已关闭：直接走原文，avoid 吞掉 final；耗时记 0
+        if (!accepting || drained) {
+            // close 已经进入排空阶段后不再接收新任务；直接走原文，避免吞掉 final。
             onProcessed(raw, 0L)
             return
         }
@@ -45,7 +48,7 @@ internal class PostProcessor(
             val started = android.os.SystemClock.elapsedRealtime()
             val processed = process(raw)
             val elapsed = android.os.SystemClock.elapsedRealtime() - started
-            if (!closed) onProcessed(processed, elapsed)
+            if (!drained) onProcessed(processed, elapsed)
         }
     }
 
@@ -65,9 +68,13 @@ internal class PostProcessor(
     }
 
     override fun close() {
-        if (closed) return
-        closed = true
-        handler.removeCallbacksAndMessages(null)
-        handler.post { thread.quitSafely() }
+        if (!accepting) return
+        accepting = false
+        // 不移除已排队的 final：让 close 标记之前的任务自然处理并回调，避免 finish
+        // 后 teardown 把真实语音 final 从后处理队列中丢弃。
+        handler.post {
+            drained = true
+            thread.quitSafely()
+        }
     }
 }

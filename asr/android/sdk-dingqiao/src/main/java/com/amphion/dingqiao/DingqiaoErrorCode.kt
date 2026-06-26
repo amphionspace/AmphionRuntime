@@ -23,6 +23,8 @@ object DingqiaoErrorCode {
     const val LICENSE_DEVICE_MISMATCH = 1002200033
     const val LICENSE_NOT_SET = 1002200034
     const val LICENSE_ACTIVATION_FAILED = 1002200035
+    const val LICENSE_APP_MISMATCH = 1002200036
+    const val LICENSE_CERT_MISMATCH = 1002200037
 }
 
 /** 运行模式：当前仅支持离线。 */

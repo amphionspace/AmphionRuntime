@@ -277,7 +277,7 @@ internal class DingqiaoRecognitionEngine(
                 DingqiaoEventCode.SPEAKER_VAD_REJECTED,
                 "speaker vad rejected final; score=${result.speakerScore ?: "n/a"}",
             )
-            if (finishRequested) {
+            if (result.isLast) {
                 maybeComplete(sessionId)
                 tearDownSession()
             }
@@ -303,7 +303,7 @@ internal class DingqiaoRecognitionEngine(
 
     private fun deliverFinal(sessionId: String, result: AsrResult) {
         val enhanced = enhancePipeline.enhance(result.text)
-        val isLast = finishRequested
+        val isLast = result.isLast
         dispatchResult(
             sessionId = sessionId,
             asrResult = result,
