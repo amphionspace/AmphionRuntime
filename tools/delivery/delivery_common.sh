@@ -67,7 +67,7 @@ delivery_sign_apk() {
   local keypass="${6:-$storepass}"
   local aligned_apk
   aligned_apk="$(mktemp "${TMPDIR:-/tmp}/delivery-apk-aligned.XXXXXX.apk")"
-  trap 'rm -f "$aligned_apk"' RETURN
+  trap "rm -f '$aligned_apk'" RETURN
 
   command -v zipalign >/dev/null 2>&1 || {
     echo "[ERROR] zipalign not found; install Android build-tools or add it to PATH" >&2

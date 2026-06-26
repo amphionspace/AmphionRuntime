@@ -14,6 +14,7 @@
 #include <grpcpp/health_check_service_interface.h>
 
 #include "asr_service.h"
+#include "decode_engine_pool.h"
 #include "flags.h"
 #include "manifest.h"
 #include "metrics.h"
@@ -102,18 +103,28 @@ int main(int argc, char **argv) {
         static_cast<float>(FLAGS_endpoint_rule2_min_trailing_silence),
         static_cast<float>(FLAGS_endpoint_rule3_min_utterance_length)};
     auto factory = std::make_shared<RecognizerFactory>(
-        manifest, FLAGS_num_threads, endpoint_rules);
+        manifest, FLAGS_num_threads, FLAGS_provider, FLAGS_encoder_precision,
+        endpoint_rules);
+    auto engine = std::make_shared<DecodeEnginePool>(
+        factory, FLAGS_decode_workers, FLAGS_max_batch_size, FLAGS_loop_interval_ms);
     auto metrics = std::make_shared<Metrics>(FLAGS_metrics_listen, manifest.model_id);
 
     // 2) 启动 gRPC server
     grpc::EnableDefaultHealthCheckService(true);
     grpc::reflection::InitProtoReflectionServerBuilderPlugin();
 
-    AsrServiceImpl service(factory, metrics,
+    AsrServiceImpl service(factory, engine, metrics,
                            FLAGS_max_concurrent_sessions,
                            FLAGS_session_idle_timeout_sec);
 
     grpc::ServerBuilder builder;
+    const int grpc_threads = std::max(1, FLAGS_grpc_threads);
+    builder.SetSyncServerOption(grpc::ServerBuilder::NUM_CQS,
+                                std::max(1, grpc_threads / 4));
+    builder.SetSyncServerOption(grpc::ServerBuilder::MIN_POLLERS,
+                                grpc_threads);
+    builder.SetSyncServerOption(grpc::ServerBuilder::MAX_POLLERS,
+                                grpc_threads);
     builder.AddListeningPort(FLAGS_listen, grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
     builder.SetMaxReceiveMessageSize(8 * 1024 * 1024);
@@ -163,13 +174,17 @@ int main(int argc, char **argv) {
             st.str(),
             col("model", manifest.model_id),
             col("version", manifest.version),
+            col2("provider", FLAGS_provider, "precision", FLAGS_encoder_precision),
             col2("decoding", dec_method, "beam", std::to_string(max_paths)),
             col("endpoint", "r1=" + sec(FLAGS_endpoint_rule1_min_trailing_silence)
                             + " r2=" + sec(FLAGS_endpoint_rule2_min_trailing_silence)
                             + " r3=" + sec(FLAGS_endpoint_rule3_min_utterance_length)),
-            col2("num_threads", std::to_string(FLAGS_num_threads),
-                 "grpc_threads", std::to_string(FLAGS_grpc_threads)),
-            col("max_sessions", std::to_string(FLAGS_max_concurrent_sessions)),
+            col2("decode_workers", std::to_string(FLAGS_decode_workers),
+                 "num_threads", std::to_string(FLAGS_num_threads)),
+            col2("max_sessions", std::to_string(FLAGS_max_concurrent_sessions),
+                 "max_batch", std::to_string(FLAGS_max_batch_size)),
+            col2("grpc_threads", std::to_string(FLAGS_grpc_threads),
+                 "loop_ms", std::to_string(FLAGS_loop_interval_ms)),
             col2("language", manifest.lang,
                  "sample_rate", std::to_string(manifest.sample_rate) + " Hz"),
         };
@@ -177,6 +192,7 @@ int main(int argc, char **argv) {
             std::string("AmphionRuntime ASR Server  v") + kServerVersion, rows);
     }
     g_server->Wait();
+    engine->Stop();
     std::cerr << "[main] grpc server stopped, bye" << std::endl;
     return 0;
 }

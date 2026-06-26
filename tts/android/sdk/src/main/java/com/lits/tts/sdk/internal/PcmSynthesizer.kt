@@ -1,6 +1,7 @@
 package com.lits.tts.sdk.internal
 
 import android.content.Context
+import android.util.Log
 import com.lits.tts.sdk.CreateEngineParams
 import com.lits.tts.sdk.SpeakParams
 import com.lits.tts.sdk.TtsErrorCode
@@ -12,6 +13,9 @@ internal data class SynthesizedAudio(
     val pcm: ByteArray,
     val sampleRate: Int,
     val synthesisMs: Long = -1L,
+    val audioBytes: Long = pcm.size.toLong(),
+    val firstChunkMs: Long = -1L,
+    val profilingInfo: String = "",
 )
 
 internal interface PcmSynthesizer {
@@ -19,7 +23,25 @@ internal interface PcmSynthesizer {
 
     fun synthesize(text: String, params: SpeakParams, engineParams: CreateEngineParams): SynthesizedAudio
 
+    fun supportsStreamingSynthesis(): Boolean = false
+
+    fun canStream(params: SpeakParams, engineParams: CreateEngineParams): Boolean = supportsStreamingSynthesis()
+
+    fun streamingSampleRate(engineParams: CreateEngineParams): Int? = null
+
+    fun synthesizeStreaming(
+        text: String,
+        params: SpeakParams,
+        engineParams: CreateEngineParams,
+        collectOutput: Boolean = true,
+        onChunk: (ByteArray) -> Unit,
+    ): SynthesizedAudio = synthesize(text, params, engineParams).also { onChunk(it.pcm) }
+
     fun supportsInternalPlayback(): Boolean = true
+
+    fun debugSummary(): String = "source=unknown model=unknown"
+
+    fun loadProfileInfo(): String = ""
 
     fun close() = Unit
 }
@@ -28,6 +50,8 @@ internal class DeterministicPcmSynthesizer : PcmSynthesizer {
     override fun preload() = Unit
 
     override fun supportsInternalPlayback(): Boolean = false
+
+    override fun streamingSampleRate(engineParams: CreateEngineParams): Int = SAMPLE_RATE
 
     override fun synthesize(text: String, params: SpeakParams, engineParams: CreateEngineParams): SynthesizedAudio {
         val startedAt = System.nanoTime()
@@ -49,7 +73,7 @@ internal class DeterministicPcmSynthesizer : PcmSynthesizer {
     }
 
     private companion object {
-        const val SAMPLE_RATE = 16000
+        const val SAMPLE_RATE = 24000
     }
 }
 
@@ -58,29 +82,148 @@ internal class LitsDeliveryPcmSynthesizer(
     private val workPath: String?,
     private val speakerId: Int,
 ) : PcmSynthesizer {
+    private companion object {
+        private const val FRONTEND_REQUEST_TAG = "LitsFrontendRequest"
+
+        fun logFrontendRequest(message: String) {
+            runCatching { Log.i(FRONTEND_REQUEST_TAG, message) }
+        }
+    }
+
     @Volatile
     private var layout: LitsTtsAssetInstaller.InstalledLayout? = null
 
     @Volatile
     private var runtime: LitsTtsOrtRuntime? = null
 
+    @Volatile
+    private var loadProfileInfo: String = ""
+
     override fun preload() {
+        val layoutStartedAt = System.nanoTime()
         val activeLayout = ensureLayout()
+        val layoutMs = elapsedMs(layoutStartedAt)
+        val frontendStartedAt = System.nanoTime()
         LitsTtsFrontend.preload(activeLayout)
-        obtainRuntime(activeLayout)
+        val frontendMs = elapsedMs(frontendStartedAt)
+        val runtimeStartedAt = System.nanoTime()
+        val activeRuntime = obtainRuntime(activeLayout)
+        val runtimeMs = elapsedMs(runtimeStartedAt)
+        loadProfileInfo = buildLoadProfile(layoutMs, frontendMs, runtimeMs, activeRuntime.loadProfileInfo)
     }
 
     override fun synthesize(text: String, params: SpeakParams, engineParams: CreateEngineParams): SynthesizedAudio {
         val startedAt = System.nanoTime()
         val activeLayout = layout ?: throw notReady()
         val activeRuntime = runtime ?: throw notReady()
+        logFrontendRequest(
+            "synthesize start language=${engineParams.language} languageContext=${params.languageContext} textLen=${text.length} text=$text",
+        )
         val tokenIds = LitsTtsFrontend.encode(activeLayout, text, engineParams.language, params.languageContext)
+        logFrontendRequest(
+            "synthesize frontend tokenCount=${tokenIds.size} tokenIds=${tokenIds.joinToString(" ")}",
+        )
         val waveform = activeRuntime.synthesize(tokenIds, speakerId)
         val pcm = AudioTransforms.apply(LitsTtsOrtRuntime.floatToPcm16(waveform), params)
+        val synthesisMs = (System.nanoTime() - startedAt) / 1_000_000L
+        logFrontendRequest(
+            "synthesize complete synthesisMs=$synthesisMs pcmBytes=${pcm.size * 2}",
+        )
         return SynthesizedAudio(
             pcm = shortsToBytes(pcm),
             sampleRate = activeLayout.manifest.sampleRate,
-            synthesisMs = (System.nanoTime() - startedAt) / 1_000_000L,
+            synthesisMs = synthesisMs,
+        )
+    }
+
+    override fun supportsStreamingSynthesis(): Boolean = ensureLayout().manifest.supportsStreaming
+
+    override fun canStream(params: SpeakParams, engineParams: CreateEngineParams): Boolean {
+        val manifest = ensureLayout().manifest
+        return manifest.supportsStreaming &&
+            params.speed == 1.0f &&
+            params.pitch == 1.0f &&
+            params.volume == 1.0f
+    }
+
+    override fun streamingSampleRate(engineParams: CreateEngineParams): Int = ensureLayout().manifest.sampleRate
+
+    override fun debugSummary(): String = ensureLayout().debugSummary()
+
+    override fun loadProfileInfo(): String = loadProfileInfo
+
+    override fun synthesizeStreaming(
+        text: String,
+        params: SpeakParams,
+        engineParams: CreateEngineParams,
+        collectOutput: Boolean,
+        onChunk: (ByteArray) -> Unit,
+    ): SynthesizedAudio {
+        if (!supportsStreamingSynthesis() || params.speed != 1.0f || params.pitch != 1.0f || params.volume != 1.0f) {
+            return synthesize(text, params, engineParams).also { onChunk(it.pcm) }
+        }
+        val startedAt = System.nanoTime()
+        val activeLayout = layout ?: throw notReady()
+        val activeRuntime = runtime ?: throw notReady()
+        logFrontendRequest(
+            "stream start language=${engineParams.language} languageContext=${params.languageContext} textLen=${text.length} text=$text",
+        )
+        val textSegments = LitsTtsFrontend.splitForStreaming(
+            layout = activeLayout,
+            text = text,
+            language = engineParams.language,
+            languageContext = params.languageContext,
+        )
+        logFrontendRequest("stream segments count=${textSegments.size} segments=${textSegments.joinToString(" | ")}")
+        val output = if (collectOutput) java.io.ByteArrayOutputStream() else null
+        var totalBytes = 0L
+        var firstChunkMs = -1L
+        var frontendMs = 0L
+        var firstPacketFrontendMs = -1L
+        var runtimeMetrics: LitsTtsOrtRuntime.StreamingRuntimeMetrics? = null
+        val chunkSizeOverride = streamingChunkSizeOverride(params)
+        val firstChunkSizeOverride = streamingFirstChunkSizeOverride(params)
+        for (segment in textSegments) {
+            val frontendStartedAt = System.nanoTime()
+            val tokenIds = LitsTtsFrontend.encodeNormalized(activeLayout, segment, engineParams.language, params.languageContext)
+            val segmentFrontendMs = elapsedMs(frontendStartedAt)
+            logFrontendRequest(
+                "stream segment frontendMs=$segmentFrontendMs tokenCount=${tokenIds.size} segment=$segment tokenIds=${tokenIds.joinToString(" ")}",
+            )
+            frontendMs += segmentFrontendMs
+            if (firstPacketFrontendMs < 0L) firstPacketFrontendMs = segmentFrontendMs
+            val segmentMetrics = activeRuntime.synthesizeStreaming(
+                tokenIds = tokenIds,
+                speakerId = speakerId,
+                manifest = activeLayout.manifest,
+                chunkSizeOverride = chunkSizeOverride,
+                firstChunkSizeOverride = firstChunkSizeOverride,
+            ) { waveformChunk ->
+                val pcmChunk = LitsTtsOrtRuntime.floatToPcm16Bytes(waveformChunk)
+                if (firstChunkMs < 0L) firstChunkMs = elapsedMs(startedAt)
+                output?.write(pcmChunk)
+                totalBytes += pcmChunk.size.toLong()
+                onChunk(pcmChunk)
+            }
+            runtimeMetrics = runtimeMetrics?.plus(segmentMetrics) ?: segmentMetrics
+        }
+        val synthesisMs = elapsedMs(startedAt)
+        logFrontendRequest(
+            "stream complete synthesisMs=$synthesisMs frontendMs=$frontendMs totalBytes=$totalBytes firstChunkMs=$firstChunkMs",
+        )
+        return SynthesizedAudio(
+            pcm = output?.toByteArray() ?: ByteArray(0),
+            sampleRate = activeLayout.manifest.sampleRate,
+            synthesisMs = synthesisMs,
+            audioBytes = totalBytes,
+            firstChunkMs = firstChunkMs,
+            profilingInfo = buildStreamingProfile(
+                frontendMs = frontendMs,
+                runtimeMetrics = runtimeMetrics,
+                textSegments = textSegments.size,
+                firstPacketMs = firstChunkMs,
+                firstPacketFrontendMs = firstPacketFrontendMs,
+            ),
         )
     }
 
@@ -111,6 +254,117 @@ internal class LitsDeliveryPcmSynthesizer(
 
     private fun notReady(): IllegalStateException =
         IllegalStateException("${TtsErrorCode.ENGINE_NOT_INITIALIZED}:TTS engine is not ready")
+
+    private fun buildStreamingProfile(
+        frontendMs: Long,
+        runtimeMetrics: LitsTtsOrtRuntime.StreamingRuntimeMetrics?,
+        textSegments: Int,
+        firstPacketMs: Long,
+        firstPacketFrontendMs: Long,
+    ): String = buildString {
+        append("frontend=").append(frontendMs).append("ms")
+        append(" textSegments=").append(textSegments)
+        if (runtimeMetrics == null) return@buildString
+        append(" firstPacketBreakdown=").append(
+            formatFirstPacketBreakdown(
+                firstPacketMs = firstPacketMs,
+                frontendMs = firstPacketFrontendMs,
+                hiddenMs = runtimeMetrics.firstHiddenEncoderMs,
+                decoderMs = runtimeMetrics.firstDecoderMs,
+                vocoderMs = runtimeMetrics.firstVocoderMs,
+            ),
+        )
+        append(" onnxHiddenEncoder=").append(formatModuleTiming(runtimeMetrics.hiddenEncoderMs, runtimeMetrics.hiddenEncoderCalls))
+        append(" onnxStreamDecoderChunk=").append(formatModuleTiming(runtimeMetrics.decoderMs, runtimeMetrics.decoderCalls))
+        append(" onnxVocoder=").append(formatModuleTiming(runtimeMetrics.vocoderMs, runtimeMetrics.vocoderCalls))
+        append(" chunks=").append(runtimeMetrics.chunkCount)
+        append(" melLength=").append(runtimeMetrics.melLength)
+        append(" chunkSize=").append(runtimeMetrics.chunkSize)
+        if (runtimeMetrics.firstChunkSize != runtimeMetrics.chunkSize) {
+            append(" firstChunkSize=").append(runtimeMetrics.firstChunkSize)
+        }
+        append(" finalDecoder=").append(runtimeMetrics.finalDecoderMode)
+        append(" runtimeFirstChunk=").append(runtimeMetrics.firstChunkMs).append("ms")
+    }
+
+    private fun formatFirstPacketBreakdown(
+        firstPacketMs: Long,
+        frontendMs: Long,
+        hiddenMs: Long,
+        decoderMs: Long,
+        vocoderMs: Long,
+    ): String {
+        val knownMs = listOf(frontendMs, hiddenMs, decoderMs, vocoderMs)
+            .filter { it >= 0L }
+            .sum()
+        val otherMs = if (firstPacketMs >= 0L) (firstPacketMs - knownMs).coerceAtLeast(0L) else -1L
+        return buildString {
+            append("frontend=").append(frontendMs).append("ms")
+            append(",hidden=").append(hiddenMs).append("ms")
+            append(",decoder=").append(decoderMs).append("ms")
+            append(",vocoder=").append(vocoderMs).append("ms")
+            append(",other=").append(otherMs).append("ms")
+            append(",total=").append(firstPacketMs).append("ms")
+        }
+    }
+
+    private fun formatModuleTiming(totalMs: Long, calls: Int): String {
+        val avgMs = if (calls > 0) totalMs.toDouble() / calls else 0.0
+        return "${totalMs}ms/${calls}x/${String.format(java.util.Locale.US, "%.1f", avgMs)}ms_avg"
+    }
+
+    private fun LitsTtsOrtRuntime.StreamingRuntimeMetrics.plus(
+        other: LitsTtsOrtRuntime.StreamingRuntimeMetrics,
+    ): LitsTtsOrtRuntime.StreamingRuntimeMetrics = LitsTtsOrtRuntime.StreamingRuntimeMetrics(
+        hiddenEncoderMs = hiddenEncoderMs + other.hiddenEncoderMs,
+        hiddenEncoderCalls = hiddenEncoderCalls + other.hiddenEncoderCalls,
+        firstHiddenEncoderMs = if (firstHiddenEncoderMs >= 0L) firstHiddenEncoderMs else other.firstHiddenEncoderMs,
+        decoderMs = decoderMs + other.decoderMs,
+        decoderCalls = decoderCalls + other.decoderCalls,
+        firstDecoderMs = if (firstDecoderMs >= 0L) firstDecoderMs else other.firstDecoderMs,
+        vocoderMs = vocoderMs + other.vocoderMs,
+        vocoderCalls = vocoderCalls + other.vocoderCalls,
+        firstVocoderMs = if (firstVocoderMs >= 0L) firstVocoderMs else other.firstVocoderMs,
+        firstChunkMs = if (firstChunkMs >= 0L) firstChunkMs else other.firstChunkMs,
+        chunkCount = chunkCount + other.chunkCount,
+        melLength = melLength + other.melLength,
+        chunkSize = other.chunkSize,
+        firstChunkSize = other.firstChunkSize,
+        finalDecoderMode = other.finalDecoderMode,
+    )
+
+    private fun buildLoadProfile(
+        layoutMs: Long,
+        frontendMs: Long,
+        runtimeMs: Long,
+        runtimeProfile: String,
+    ): String = buildString {
+        append("layout=").append(layoutMs).append("ms")
+        append(" frontendPreload=").append(frontendMs).append("ms")
+        append(" ortCreate=").append(runtimeMs).append("ms")
+        if (runtimeProfile.isNotBlank()) {
+            append(" sessions=").append(runtimeProfile)
+        }
+    }
+
+    private fun streamingChunkSizeOverride(params: SpeakParams): Int? {
+        val value = params.extraParams["streamingChunkSize"] ?: params.extraParams["chunkSize"]
+        return intExtraParam(value)
+    }
+
+    private fun streamingFirstChunkSizeOverride(params: SpeakParams): Int? {
+        val value = params.extraParams["streamingFirstChunkSize"] ?: params.extraParams["firstChunkSize"]
+        return intExtraParam(value)
+    }
+
+    private fun intExtraParam(value: Any?): Int? {
+        return when (value) {
+            is Number -> value.toInt()
+            is String -> value.toIntOrNull()
+            else -> null
+        }?.takeIf { it > 0 }
+    }
+
 }
 
 private object AudioTransforms {
@@ -175,3 +429,5 @@ internal fun shortsToBytes(samples: ShortArray): ByteArray {
     }
     return output
 }
+
+private fun elapsedMs(startedAt: Long): Long = (System.nanoTime() - startedAt) / 1_000_000L

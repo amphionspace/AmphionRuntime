@@ -1,5 +1,6 @@
 #include "asr_service.h"
 
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <vector>
@@ -60,34 +61,45 @@ int64_t NowNs() {
 }  // namespace
 
 AsrServiceImpl::AsrServiceImpl(std::shared_ptr<RecognizerFactory> factory,
+                               std::shared_ptr<DecodeEnginePool> engine,
                                std::shared_ptr<Metrics> metrics,
                                int max_concurrent_sessions,
                                int session_idle_timeout_sec)
     : factory_(std::move(factory)),
+      engine_(std::move(engine)),
       metrics_(std::move(metrics)),
-      max_concurrent_sessions_(max_concurrent_sessions),
+      max_concurrent_sessions_(std::max(1, max_concurrent_sessions)),
       session_idle_timeout_sec_(session_idle_timeout_sec),
       start_time_(std::chrono::steady_clock::now()) {}
 
 grpc::Status AsrServiceImpl::Recognize(
     grpc::ServerContext *context,
     grpc::ServerReaderWriter<asr::v1::AsrEvent, asr::v1::PcmRequest> *stream) {
-    if (active_sessions_.load() >= max_concurrent_sessions_) {
-        return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED, "too many active sessions");
+    const char *stage = "start";
+    try {
+    stage = "admit";
+    int current = active_sessions_.load();
+    while (true) {
+        if (current >= max_concurrent_sessions_) {
+            return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                                "too many active sessions");
+        }
+        if (active_sessions_.compare_exchange_weak(current, current + 1)) {
+            break;
+        }
     }
-    active_sessions_++;
     metrics_->active_sessions().Increment();
     auto active_guard = std::shared_ptr<void>(nullptr, [this](void *) {
         active_sessions_--;
         metrics_->active_sessions().Decrement();
     });
 
-    auto *recognizer = factory_->get();
-    if (!recognizer || !recognizer->Get()) {
+    if (!engine_) {
         return grpc::Status(grpc::StatusCode::INTERNAL, "recognizer not loaded");
     }
 
     asr::v1::PcmRequest req;
+    stage = "read-session-config";
     if (!stream->Read(&req)) {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "client closed before sending SessionConfig");
     }
@@ -99,6 +111,7 @@ grpc::Status AsrServiceImpl::Recognize(
     const auto encoding = cfg.audio_format().encoding();
     const int channels = cfg.audio_format().channels();
     const bool include_ts = cfg.include_token_timestamps();
+    const std::string trace_id = cfg.trace_id();
     if (sr != factory_->manifest().sample_rate || channels != 1) {
         metrics_->error_total(1002).Increment();
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
@@ -106,11 +119,21 @@ grpc::Status AsrServiceImpl::Recognize(
     }
 
     // 创建 stream（含初始热词）
+    stage = "create-session";
     std::string hotwords = cfg.hotwords().words_text();
-    auto sherpa_stream = recognizer->CreateStream(hotwords);
+    auto session = engine_->CreateSession(hotwords);
+    if (!session) {
+        return grpc::Status(grpc::StatusCode::INTERNAL, "failed to create decode session");
+    }
+    auto session_guard = std::shared_ptr<void>(nullptr, [this, &session](void *) {
+        if (engine_ && session) {
+            engine_->DestroySession(session);
+        }
+    });
 
     // SessionStarted
     {
+        stage = "write-session-started";
         asr::v1::AsrEvent ev;
         ev.set_server_send_ns(NowNs());
         ev.mutable_session_started();
@@ -122,6 +145,7 @@ grpc::Status AsrServiceImpl::Recognize(
     bool client_finished = false;
 
     while (!client_finished) {
+        stage = "read-request";
         if (!stream->Read(&req)) break;
 
         // 5 分钟无音频自动断流
@@ -137,42 +161,51 @@ grpc::Status AsrServiceImpl::Recognize(
         }
 
         if (req.has_audio_chunk()) {
+            stage = "decode-pcm";
             last_audio_time = now;
             auto samples = DecodePcm(req.audio_chunk(), encoding, channels);
             if (samples.empty()) continue;
 
+            stage = "submit-audio";
             auto t0 = std::chrono::steady_clock::now();
-            sherpa_stream.AcceptWaveform(sr, samples.data(), static_cast<int>(samples.size()));
-            while (recognizer->IsReady(&sherpa_stream)) {
-                recognizer->Decode(&sherpa_stream);
-            }
+            auto step = engine_->Submit(session, std::move(samples), sr, false);
             auto t1 = std::chrono::steady_clock::now();
+            if (!step.ok) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, step.error);
+            }
             double decode_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-            double audio_ms = static_cast<double>(samples.size()) * 1000.0 / sr;
+            double audio_ms = static_cast<double>(req.audio_chunk().data().size()) * 1000.0
+                              / sr / (encoding == asr::v1::PCM_F32LE ? sizeof(float)
+                                                                      : sizeof(int16_t));
             metrics_->decode_latency_ms().Observe(decode_ms);
             if (audio_ms > 0) metrics_->rtf().Observe(decode_ms / audio_ms);
+            if (!step.has_result) {
+                continue;
+            }
+            bool has_endpoint = step.is_endpoint;
+            const auto &r = step.result;
 
             // endpoint
-            if (recognizer->IsEndpoint(&sherpa_stream)) {
-                auto r = recognizer->GetResult(&sherpa_stream);
+            if (has_endpoint) {
                 {
+                    stage = "write-endpoint";
                     asr::v1::AsrEvent ev;
                     ev.set_server_send_ns(NowNs());
                     ev.mutable_endpoint();
                     stream->Write(ev);
                 }
                 {
+                    stage = "write-final";
                     asr::v1::AsrEvent ev;
                     ev.set_server_send_ns(NowNs());
-                    FillResult(ev.mutable_final_(), r, include_ts);
+                    FillResult(ev.mutable_final(), r, include_ts);
                     stream->Write(ev);
                     metrics_->final_total().Increment();
                 }
-                recognizer->Reset(&sherpa_stream);
                 last_partial.clear();
             } else {
-                auto r = recognizer->GetResult(&sherpa_stream);
                 if (r.text != last_partial) {
+                    stage = "write-partial";
                     last_partial = r.text;
                     asr::v1::AsrEvent ev;
                     ev.set_server_send_ns(NowNs());
@@ -183,20 +216,28 @@ grpc::Status AsrServiceImpl::Recognize(
             }
         } else if (req.has_update_hotwords()) {
             // 重建 stream 应用新热词；当前未 final 的部分识别会被丢弃
+            stage = "update-hotwords";
             const auto &hw = req.update_hotwords().hotwords();
-            sherpa_stream = recognizer->CreateStream(hw.words_text());
+            engine_->DestroySession(session);
+            session = engine_->CreateSession(hw.words_text());
+            if (!session) {
+                return grpc::Status(grpc::StatusCode::INTERNAL,
+                                    "failed to recreate decode session");
+            }
             last_partial.clear();
         } else if (req.has_end_of_stream()) {
+            stage = "submit-eos";
             client_finished = true;
-            sherpa_stream.InputFinished();
-            while (recognizer->IsReady(&sherpa_stream)) {
-                recognizer->Decode(&sherpa_stream);
+            auto step = engine_->Submit(session, {}, sr, true);
+            if (!step.ok) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, step.error);
             }
-            auto r = recognizer->GetResult(&sherpa_stream);
+            const auto &r = step.result;
             if (!r.text.empty()) {
+                stage = "write-eos-final";
                 asr::v1::AsrEvent ev;
                 ev.set_server_send_ns(NowNs());
-                FillResult(ev.mutable_final_(), r, include_ts);
+                FillResult(ev.mutable_final(), r, include_ts);
                 stream->Write(ev);
                 metrics_->final_total().Increment();
             }
@@ -205,13 +246,23 @@ grpc::Status AsrServiceImpl::Recognize(
 
     // SessionEnded
     {
+        stage = "write-session-ended";
         asr::v1::AsrEvent ev;
         ev.set_server_send_ns(NowNs());
         auto *e = ev.mutable_session_ended();
-        e->set_trace_id(cfg.trace_id());
+        e->set_trace_id(trace_id);
         stream->Write(ev);
     }
     return grpc::Status::OK;
+    } catch (const std::exception &e) {
+        std::cerr << "[asr_service] Recognize failed at " << stage << ": "
+                  << e.what() << std::endl;
+        return grpc::Status(grpc::StatusCode::INTERNAL, e.what());
+    } catch (...) {
+        std::cerr << "[asr_service] Recognize failed at " << stage
+                  << ": unknown exception" << std::endl;
+        return grpc::Status(grpc::StatusCode::INTERNAL, "unknown exception");
+    }
 }
 
 grpc::Status AsrServiceImpl::Healthz(grpc::ServerContext *,

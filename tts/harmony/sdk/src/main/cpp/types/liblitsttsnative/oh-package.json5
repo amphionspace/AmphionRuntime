@@ -1,0 +1,6 @@
+{
+  "name": "liblitsttsnative.so",
+  "types": "./Index.d.ts",
+  "version": "1.0.0",
+  "description": "Native ONNX Runtime bridge for Lits TTS HarmonyOS SDK."
+}

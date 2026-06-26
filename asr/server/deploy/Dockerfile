@@ -1,18 +1,20 @@
-# AmphionRuntime ASR gRPC 服务的容器镜像；CPU 推理版本。
+# AmphionRuntime ASR gRPC 服务端 —— CPU 推理镜像。
+# GPU(CUDA) 部署见同目录 Dockerfile.gpu（推荐，并发更高，见 ../BENCHMARK.md）。
 #
 # 多阶段构建：
-#   1) builder：基于 ubuntu:22.04 + 完整工具链编译 sherpa-onnx + asr_service
-#   2) runtime：基于 ubuntu:22.04-slim，只带运行时所需的 .so + 二进制
+#   1) builder：ubuntu:22.04 + 工具链，编 sherpa-onnx(CPU) + asr_service
+#   2) runtime：ubuntu:22.04，只带运行期 .so + 二进制
 #
-# 构建：
+# 构建（在仓库根目录执行）：
 #   docker build -t your-registry/asr-service:1.1.0 \
 #                -f asr/server/deploy/Dockerfile .
 #
 # 运行：
-#   docker run --rm -it -p 50051:50051 -p 9090:9090 \
-#       -v $PWD/model:/etc/asr-service/model:ro \
-#       -v $PWD/manifest.json:/etc/asr-service/manifest.json:ro \
+#   docker run --rm -it -p 50051:50051 \
+#       -v /abs/path/model:/etc/asr-service/model:ro \
+#       -v /abs/path/manifest.json:/etc/asr-service/manifest.json:ro \
 #       your-registry/asr-service:1.1.0
+#   注意 manifest.json 里的 model_dir 要写成容器内路径 /etc/asr-service/model。
 
 # =================================== Builder ===================================
 FROM ubuntu:22.04 AS builder
@@ -20,7 +22,7 @@ FROM ubuntu:22.04 AS builder
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl wget git \
+        ca-certificates curl wget git unzip \
         build-essential cmake ninja-build pkg-config \
         protobuf-compiler libprotobuf-dev \
         libgrpc++-dev protobuf-compiler-grpc \
@@ -29,70 +31,64 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# prometheus-cpp 必须从源码编（apt 上没有 1.x 稳定版本）
-RUN git clone --depth 1 --branch v1.2.4 https://github.com/jupp0r/prometheus-cpp.git /tmp/pcpp \
-    && cd /tmp/pcpp && git submodule update --init \
-    && mkdir build && cd build \
-    && cmake -DBUILD_SHARED_LIBS=ON -DENABLE_PUSH=OFF -DENABLE_COMPRESSION=OFF .. \
-    && cmake --build . -j$(nproc) \
-    && cmake --install . \
-    && rm -rf /tmp/pcpp
-
 WORKDIR /src
 
-# 拷源代码（包含 sherpa-onnx 仓库本身）
-COPY . /src
+# 只拷构建所需的两棵源码树，避免把其它模块/敏感物带进镜像。
+COPY third_party/sherpa-onnx /src/third_party/sherpa-onnx
+COPY asr/server             /src/asr/server
 
-# 1) 编 sherpa-onnx cxx-api（动态库 + 头文件 install 到 /opt/sherpa-onnx）
-RUN mkdir -p /src/build-linux \
-    && cd /src/build-linux \
-    && cmake -DCMAKE_BUILD_TYPE=Release \
-             -DCMAKE_INSTALL_PREFIX=/opt/sherpa-onnx \
-             -DBUILD_SHARED_LIBS=ON \
-             -DSHERPA_ONNX_ENABLE_PYTHON=OFF \
-             -DSHERPA_ONNX_ENABLE_TESTS=OFF \
-             -DSHERPA_ONNX_ENABLE_BINARY=OFF \
-             -DSHERPA_ONNX_ENABLE_PORTAUDIO=OFF \
-             -DSHERPA_ONNX_BUILD_C_API_EXAMPLES=OFF \
-             .. \
-    && cmake --build . -j$(nproc) \
-    && cmake --install .
+# 1) 编 sherpa-onnx cxx-api（CPU）。会联网下载 onnxruntime(CPU)。
+RUN cmake -S /src/third_party/sherpa-onnx -B /tmp/sherpa-build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/opt/sherpa-onnx \
+        -DBUILD_SHARED_LIBS=ON \
+        -DSHERPA_ONNX_ENABLE_GPU=OFF \
+        -DSHERPA_ONNX_ENABLE_C_API=ON \
+        -DSHERPA_ONNX_ENABLE_PYTHON=OFF \
+        -DSHERPA_ONNX_ENABLE_TESTS=OFF \
+        -DSHERPA_ONNX_ENABLE_BINARY=OFF \
+        -DSHERPA_ONNX_ENABLE_PORTAUDIO=OFF \
+        -DSHERPA_ONNX_ENABLE_TTS=OFF \
+        -DSHERPA_ONNX_BUILD_C_API_EXAMPLES=OFF \
+    && cmake --build /tmp/sherpa-build -j"$(nproc)" \
+    && cmake --install /tmp/sherpa-build
 
-# 2) 编 asr_service
-RUN mkdir -p /src/asr/server/build \
-    && cd /src/asr/server/build \
-    && cmake -DCMAKE_BUILD_TYPE=Release \
-             -DSHERPA_ONNX_DIR=/opt/sherpa-onnx \
-             -DCMAKE_INSTALL_PREFIX=/opt/asr-service \
-             .. \
-    && cmake --build . -j$(nproc) \
-    && cmake --install .
+# 2) 编 asr_service。
+RUN cmake -S /src/asr/server -B /tmp/asr-build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DSHERPA_ONNX_DIR=/opt/sherpa-onnx \
+        -DCMAKE_INSTALL_PREFIX=/opt/asr-service \
+    && cmake --build /tmp/asr-build -j"$(nproc)" \
+    && cmake --install /tmp/asr-build
 
 # =================================== Runtime ===================================
 FROM ubuntu:22.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# 运行期共享库：libgrpc++1 会自动带出 libgrpc10 / libprotobuf23 / libabsl* / 反射库。
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
-        libstdc++6 libc6 libssl3 \
+        libgrpc++1 \
+        libgflags2.2 \
+        libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
-# sherpa-onnx 动态库 + onnxruntime
-COPY --from=builder /opt/sherpa-onnx/lib/* /usr/local/lib/
+COPY --from=builder /opt/sherpa-onnx/lib/        /usr/local/lib/
 COPY --from=builder /opt/asr-service/bin/asr_service /usr/local/bin/asr_service
-COPY --from=builder /usr/local/lib/libprometheus-cpp-* /usr/local/lib/
 
 RUN ldconfig
 
-EXPOSE 50051 9090
+ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
 
-# 健康检查（k8s liveness 推荐用 grpc_health_probe；这里用 timeout + bash + nc 兜底）
+EXPOSE 50051
+
 HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
     CMD bash -c 'echo > /dev/tcp/127.0.0.1/50051' || exit 1
 
 ENTRYPOINT ["/usr/local/bin/asr_service"]
 CMD ["--listen=0.0.0.0:50051", \
-     "--metrics_listen=0.0.0.0:9090", \
      "--manifest=/etc/asr-service/manifest.json", \
-     "--num_threads=4"]
+     "--provider=cpu", \
+     "--num_threads=4", \
+     "--metrics_listen="]

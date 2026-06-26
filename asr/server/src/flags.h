@@ -8,9 +8,14 @@ namespace asr_service {
 DECLARE_string(listen);
 DECLARE_string(metrics_listen);
 DECLARE_string(manifest);
+DECLARE_string(provider);
+DECLARE_string(encoder_precision);
 DECLARE_int32(num_threads);
 DECLARE_int32(grpc_threads);
+DECLARE_int32(decode_workers);
 DECLARE_int32(max_concurrent_sessions);
+DECLARE_int32(max_batch_size);
+DECLARE_int32(loop_interval_ms);
 DECLARE_int32(session_idle_timeout_sec);
 DECLARE_int32(max_active_paths);
 DECLARE_string(decoding_method);
