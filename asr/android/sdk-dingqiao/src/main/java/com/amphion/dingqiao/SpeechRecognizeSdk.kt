@@ -126,14 +126,23 @@ object SpeechRecognizeSdk {
     }
 
     /**
-     * 查询当前通过 [setLicense] 激活的 License 信息。
+     * 查询当前生效的 License 信息。
+     *
+     * 优先返回 [setLicense] 显式激活的状态；若宿主通过默认 asset
+     * `amphion-license.lic` 授权，则回落到 AmphionRuntime 当前生效状态。
      */
     @JvmStatic
-    fun getLicenseInfo(): LicenseInfo =
-        licenseInfo ?: throw DingqiaoEngineException(
+    fun getLicenseInfo(): LicenseInfo {
+        licenseInfo?.let { return it }
+        if (runtimeInitialized) {
+            val info = AmphionRuntime.licenseStatus().toDingqiaoLicenseInfo()
+            if (info.status != 2) return info
+        }
+        throw DingqiaoEngineException(
             DingqiaoErrorCode.LICENSE_NOT_SET,
             "license not set",
         )
+    }
 
     /**
      * 注册声纹：至少 1 条样本，每条 3~8 秒；多段样本可提升稳定性但不是硬限制。
@@ -325,16 +334,18 @@ object SpeechRecognizeSdk {
         AsrErrorCode.LICENSE_SIGNATURE_INVALID,
         -> DingqiaoErrorCode.LICENSE_INVALID
         AsrErrorCode.LICENSE_EXPIRED -> DingqiaoErrorCode.LICENSE_EXPIRED
-        AsrErrorCode.LICENSE_APP_MISMATCH,
-        AsrErrorCode.LICENSE_CERT_MISMATCH,
-        AsrErrorCode.LICENSE_DEVICE_MISMATCH,
-        -> DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH
+        AsrErrorCode.LICENSE_APP_MISMATCH -> DingqiaoErrorCode.LICENSE_APP_MISMATCH
+        AsrErrorCode.LICENSE_CERT_MISMATCH -> DingqiaoErrorCode.LICENSE_CERT_MISMATCH
+        AsrErrorCode.LICENSE_DEVICE_MISMATCH -> DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH
         else -> DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED
     }
 
     private fun licenseStatusForError(code: Int): Int = when (code) {
         DingqiaoErrorCode.LICENSE_EXPIRED -> 1
-        DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH -> 3
+        DingqiaoErrorCode.LICENSE_APP_MISMATCH,
+        DingqiaoErrorCode.LICENSE_CERT_MISMATCH,
+        DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH,
+        -> 3
         else -> 2
     }
 

@@ -295,7 +295,7 @@ internal class SessionImpl(
             val r = NativeGuard.run("stream.inputFinished+drain") {
                 appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
                 stream.inputFinished()
-                drainDecoder(isFinal = true, restartAfterFinal = false)
+                drainDecoder(isFinal = true, restartAfterFinal = false, isLastFinal = true)
             }
             if (r is NativeResult.Err) {
                 postError(r.error)
@@ -499,6 +499,7 @@ internal class SessionImpl(
         isFinal: Boolean,
         postEndpointOnEndpoint: Boolean = true,
         restartAfterFinal: Boolean = true,
+        isLastFinal: Boolean = false,
     ) {
         while (recognizer.isReady(stream)) {
             recognizer.decode(stream)
@@ -509,7 +510,7 @@ internal class SessionImpl(
             val r = recognizer.getResult(stream)
             metrics.onRawFinalReady()
             if (postEndpointOnEndpoint) postEndpoint()
-            postFinalToProcessor(gateFinal(toAsrResult(r)))
+            postFinalToProcessor(gateFinal(toAsrResult(r)).copy(isLast = isLastFinal))
             if (restartAfterFinal) restartStreamAfterUtterance(r) else lastPartialText = ""
             return
         }
@@ -517,7 +518,7 @@ internal class SessionImpl(
         val r = recognizer.getResult(stream)
         if (isFinal) {
             metrics.onRawFinalReady()
-            postFinalToProcessor(gateFinal(toAsrResult(r)))
+            postFinalToProcessor(gateFinal(toAsrResult(r)).copy(isLast = isLastFinal))
             if (restartAfterFinal) restartStreamAfterUtterance(r) else lastPartialText = ""
         } else if (r.text != lastPartialText) {
             lastPartialText = r.text

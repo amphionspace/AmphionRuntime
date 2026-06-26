@@ -22,6 +22,7 @@ if [[ -f "$TARGET" && "$TARGET" == *.aar ]]; then
   dingqiao_verify_aar_provenance "$TARGET"
   dingqiao_verify_aar_native_libs "$TARGET"
   dingqiao_verify_aar_speaker_model "$TARGET"
+  dingqiao_verify_aar_asr_models "$TARGET"
   tmp="$(mktemp -d)"
   unzip -q "$TARGET" "META-INF/amphion-dingqiao-build.properties" -d "$tmp"
   echo "--- AAR META-INF/amphion-dingqiao-build.properties ---"
@@ -82,8 +83,10 @@ PY
   dingqiao_verify_aar_provenance "$tmp/customer.aar"
   dingqiao_verify_aar_native_libs "$tmp/customer.aar"
   dingqiao_verify_aar_speaker_model "$tmp/customer.aar"
+  dingqiao_verify_aar_asr_models "$tmp/customer.aar"
   dingqiao_verify_apk_native_libs "$tmp/demo.apk"
   dingqiao_verify_apk_speaker_model "$tmp/demo.apk"
+  dingqiao_verify_apk_asr_models "$tmp/demo.apk"
   exit 0
 fi
 
@@ -105,6 +108,7 @@ if [[ -d "$TARGET" ]]; then
   bash "$0" "${AARS[0]}"
   dingqiao_verify_apk_native_libs "${APKS[0]}"
   dingqiao_verify_apk_speaker_model "${APKS[0]}"
+  dingqiao_verify_apk_asr_models "${APKS[0]}"
   [[ -f "$TARGET_DIR/docs/NOTICE" ]] || fail "missing docs/NOTICE (third-party open source notices)"
   ok "docs/NOTICE present"
   exit 0
