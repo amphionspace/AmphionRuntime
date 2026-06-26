@@ -183,6 +183,7 @@ val localProps = Properties().apply {
 }
 
 val sdkAar = providers.gradleProperty("dingqiaoSdkAar").get()
+val demoAssetDir = providers.gradleProperty("dingqiaoDemoAssetDir").orElse("demo").get()
 
 android {
     namespace = "com.amphion.dingqiao.demo"
@@ -230,6 +231,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+
+    sourceSets {
+        getByName("main").assets.srcDir(rootProject.file(demoAssetDir))
+    }
 }
 
 dependencies {
@@ -259,6 +264,7 @@ cat > "$OUT_ROOT/sample-dingqiao-demo/README.md" <<EOF
 
 - 集成说明见 \`docs/DINGQIAO_INTEGRATION.md\`
 - 声纹模型部署见 \`docs/DINGQIAO_VOICEPRINT_MODEL.md\`
+- 默认读取根目录 \`demo/amphion-license.lic\` 作为 Demo 授权；如需替换，使用 \`-PdingqiaoDemoAssetDir=/path/to/assets\`
 - 工程级说明见根目录 \`README.txt\`
 EOF
 
@@ -299,7 +305,7 @@ cat > "$OUT_ROOT/README.txt" <<EOF
 自编译源码
 ----------
   1. 复制 local.properties.example → local.properties，填写 sdk.dir
-  2. Debug 联调：./gradlew :sample-dingqiao-demo:assembleDebug（需向我方索取 Debug 授权或自配签名+license）
+  2. Debug 联调：./gradlew :sample-dingqiao-demo:assembleDebug（默认使用 demo/amphion-license.lic；如本机签名不匹配，请向我方索取匹配授权或自配签名+license）
   3. 声纹模型已内置于 libs/${AAR_NAME}，运行时自动准备，无需外置部署
 
 与正式 App 的区别
