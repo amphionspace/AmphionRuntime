@@ -251,11 +251,21 @@ import zipfile
 
 aar_path = sys.argv[1]
 required = {
+    "assets/amphion-models/manifest.json": 100,
+    "assets/amphion-models/itn-zh/v1/zh_itn_tagger.fst": 1024 * 1024,
+    "assets/amphion-models/itn-zh/v1/zh_itn_verbalizer.fst": 100 * 1024,
+    "assets/amphion-models/punct-zhen/v1/model.int8.onnx": 50 * 1024 * 1024,
+    "assets/amphion-models/vad/v1/silero_vad.onnx": 500 * 1024,
     "assets/amphion-models/zh-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
     "assets/amphion-models/zh-en/v1/decoder.onnx": 10 * 1024 * 1024,
     "assets/amphion-models/zh-en/v1/joiner.int8.onnx": 1024 * 1024,
     "assets/amphion-models/zh-en/v1/tokens.txt": 10 * 1024,
     "assets/amphion-models/zh-en/v1/bbpe.vocab": 10 * 1024,
+    "assets/amphion-models/yue-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/decoder.onnx": 10 * 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/joiner.int8.onnx": 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/tokens.txt": 10 * 1024,
+    "assets/amphion-models/yue-en/v1/bbpe.vocab": 10 * 1024,
 }
 
 try:
@@ -351,11 +361,21 @@ import zipfile
 
 apk_path = sys.argv[1]
 required = {
+    "assets/amphion-models/manifest.json": 100,
+    "assets/amphion-models/itn-zh/v1/zh_itn_tagger.fst": 1024 * 1024,
+    "assets/amphion-models/itn-zh/v1/zh_itn_verbalizer.fst": 100 * 1024,
+    "assets/amphion-models/punct-zhen/v1/model.int8.onnx": 50 * 1024 * 1024,
+    "assets/amphion-models/vad/v1/silero_vad.onnx": 500 * 1024,
     "assets/amphion-models/zh-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
     "assets/amphion-models/zh-en/v1/decoder.onnx": 10 * 1024 * 1024,
     "assets/amphion-models/zh-en/v1/joiner.int8.onnx": 1024 * 1024,
     "assets/amphion-models/zh-en/v1/tokens.txt": 10 * 1024,
     "assets/amphion-models/zh-en/v1/bbpe.vocab": 10 * 1024,
+    "assets/amphion-models/yue-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/decoder.onnx": 10 * 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/joiner.int8.onnx": 1024 * 1024,
+    "assets/amphion-models/yue-en/v1/tokens.txt": 10 * 1024,
+    "assets/amphion-models/yue-en/v1/bbpe.vocab": 10 * 1024,
 }
 
 try:
