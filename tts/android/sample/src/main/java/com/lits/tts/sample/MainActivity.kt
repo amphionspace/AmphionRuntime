@@ -62,6 +62,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var inputText: EditText
     private lateinit var chunkSizeInput: EditText
     private lateinit var pcmQueueCapacityInput: EditText
+    private lateinit var speedInput: EditText
     private lateinit var modeGroup: RadioGroup
     private lateinit var synthesizeButton: Button
     private lateinit var sdkPlaybackButton: Button
@@ -93,6 +94,7 @@ class MainActivity : AppCompatActivity() {
         inputText = findViewById(R.id.edit_input)
         chunkSizeInput = findViewById(R.id.edit_chunk_size)
         pcmQueueCapacityInput = findViewById(R.id.edit_pcm_queue_capacity)
+        speedInput = findViewById(R.id.edit_speed)
         modeGroup = findViewById(R.id.group_mode)
         synthesizeButton = findViewById(R.id.button_synthesize)
         sdkPlaybackButton = findViewById(R.id.button_sdk_playback)
@@ -162,6 +164,11 @@ class MainActivity : AppCompatActivity() {
         return value?.takeIf { it > 0 } ?: DEFAULT_PCM_QUEUE_CAPACITY
     }
 
+    private fun selectedSpeed(): Float {
+        val value = speedInput.text?.toString()?.trim()?.toFloatOrNull()
+        return value?.takeIf { it.isFinite() }?.coerceIn(0.5f, 2.0f) ?: 1.0f
+    }
+
     private fun submitSynthesis(playType: PlayType) {
         val text = inputText.text?.toString()?.trim().orEmpty()
         if (text.isEmpty()) {
@@ -173,6 +180,7 @@ class MainActivity : AppCompatActivity() {
         val chunkSize = selectedChunkSize()
         val firstChunkSize = chunkSize
         val pcmQueueCapacity = selectedPcmQueueCapacity()
+        val speed = selectedSpeed()
         if (readyEngine == null || engineLanguage != language) {
             setStatus("\u6a21\u578b\u52a0\u8f7d\u4e2d\uff1a$language")
             preloadEngine(language)
@@ -201,7 +209,7 @@ class MainActivity : AppCompatActivity() {
         val actionText = if (playType == PlayType.SYNTHESIZE_ONLY) "\u5f00\u59cb\u5408\u6210" else "SDK \u76f4\u63a5\u64ad\u62a5"
         setStatus("$actionText\uff1a$requestId")
         setMetrics(getString(R.string.metrics_placeholder))
-        appendLog("提交请求 requestId=$requestId language=$language playType=$playType firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity")
+        appendLog("提交请求 requestId=$requestId language=$language playType=$playType speed=$speed firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity")
         beginBusy(requestId)
 
         runCatching {
@@ -209,6 +217,7 @@ class MainActivity : AppCompatActivity() {
                 text,
                 SpeakParams(
                     requestId = requestId,
+                    speed = speed,
                     playType = playType,
                     queueMode = QueueMode.PREEMPT,
                     languageContext = if (language == "en-US") "en-US" else "zh-en",
@@ -250,6 +259,7 @@ class MainActivity : AppCompatActivity() {
         val chunkSize = selectedChunkSize()
         val firstChunkSize = chunkSize
         val pcmQueueCapacity = selectedPcmQueueCapacity()
+        val speed = selectedSpeed()
         requestPlayTypes[requestId] = PlayType.SYNTHESIZE_ONLY
         requestWarmupFlags[requestId] = true
         requestSampleRates.remove(requestId)
@@ -269,9 +279,9 @@ class MainActivity : AppCompatActivity() {
         setMetrics(buildMetricsText(null, null, null, null, 0L, 0))
         appendLog(
             if (autoTriggered) {
-                "自动 Warmup requestId=$requestId language=$language firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity"
+                "自动 Warmup requestId=$requestId language=$language speed=$speed firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity"
             } else {
-                "提交 Warmup requestId=$requestId language=$language firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity"
+                "提交 Warmup requestId=$requestId language=$language speed=$speed firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity"
             },
         )
         beginBusy(requestId)
@@ -281,6 +291,7 @@ class MainActivity : AppCompatActivity() {
                 if (language == "en-US") "hello." else "你好。",
                 SpeakParams(
                     requestId = requestId,
+                    speed = speed,
                     playType = PlayType.SYNTHESIZE_ONLY,
                     queueMode = QueueMode.PREEMPT,
                     languageContext = if (language == "en-US") "en-US" else "zh-en",
@@ -524,6 +535,7 @@ class MainActivity : AppCompatActivity() {
             stopButton.isEnabled = busy || localPlaying
             chunkSizeInput.isEnabled = !uiBusy
             pcmQueueCapacityInput.isEnabled = !uiBusy
+            speedInput.isEnabled = !uiBusy
             for (index in 0 until modeGroup.childCount) {
                 modeGroup.getChildAt(index).isEnabled = !uiBusy
             }
