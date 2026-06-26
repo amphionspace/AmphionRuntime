@@ -873,6 +873,9 @@ internal object LitsTtsFrontend {
 
     private fun normalizeTechnicalText(resources: FrontendResources, text: String, languageContext: String): String {
         var normalized = resources.frontendRules.apply("post_frontend", text)
+        if (languageContext == "en-US") {
+            return normalizeResidualSymbols(normalized, languageContext)
+        }
         normalized = percentNumberRegex.replace(normalized) { match ->
             "百分之${numberTextToHanzi(match.groupValues[1])}"
         }

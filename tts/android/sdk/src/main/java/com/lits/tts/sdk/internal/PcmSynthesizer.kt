@@ -34,6 +34,7 @@ internal interface PcmSynthesizer {
         params: SpeakParams,
         engineParams: CreateEngineParams,
         collectOutput: Boolean = true,
+        isCancelled: () -> Boolean = { false },
         onChunk: (ByteArray) -> Unit,
     ): SynthesizedAudio = synthesize(text, params, engineParams).also { onChunk(it.pcm) }
 
@@ -140,10 +141,7 @@ internal class LitsDeliveryPcmSynthesizer(
 
     override fun canStream(params: SpeakParams, engineParams: CreateEngineParams): Boolean {
         val manifest = ensureLayout().manifest
-        return manifest.supportsStreaming &&
-            params.speed == 1.0f &&
-            params.pitch == 1.0f &&
-            params.volume == 1.0f
+        return manifest.supportsStreaming
     }
 
     override fun streamingSampleRate(engineParams: CreateEngineParams): Int = ensureLayout().manifest.sampleRate
@@ -157,16 +155,18 @@ internal class LitsDeliveryPcmSynthesizer(
         params: SpeakParams,
         engineParams: CreateEngineParams,
         collectOutput: Boolean,
+        isCancelled: () -> Boolean,
         onChunk: (ByteArray) -> Unit,
     ): SynthesizedAudio {
-        if (!supportsStreamingSynthesis() || params.speed != 1.0f || params.pitch != 1.0f || params.volume != 1.0f) {
+        if (!supportsStreamingSynthesis()) {
             return synthesize(text, params, engineParams).also { onChunk(it.pcm) }
         }
         val startedAt = System.nanoTime()
         val activeLayout = layout ?: throw notReady()
         val activeRuntime = runtime ?: throw notReady()
+        val lengthScale = lengthScaleForSpeed(params.speed)
         logFrontendRequest(
-            "stream start language=${engineParams.language} languageContext=${params.languageContext} textLen=${text.length} text=$text",
+            "stream start language=${engineParams.language} languageContext=${params.languageContext} speed=${params.speed} lengthScale=$lengthScale textLen=${text.length} text=$text",
         )
         val textSegments = LitsTtsFrontend.splitForStreaming(
             layout = activeLayout,
@@ -184,8 +184,14 @@ internal class LitsDeliveryPcmSynthesizer(
         val chunkSizeOverride = streamingChunkSizeOverride(params)
         val firstChunkSizeOverride = streamingFirstChunkSizeOverride(params)
         for (segment in textSegments) {
+            if (isCancelled()) {
+                break
+            }
             val frontendStartedAt = System.nanoTime()
             val tokenIds = LitsTtsFrontend.encodeNormalized(activeLayout, segment, engineParams.language, params.languageContext)
+            if (isCancelled()) {
+                break
+            }
             val segmentFrontendMs = elapsedMs(frontendStartedAt)
             logFrontendRequest(
                 "stream segment frontendMs=$segmentFrontendMs tokenCount=${tokenIds.size} segment=$segment tokenIds=${tokenIds.joinToString(" ")}",
@@ -196,14 +202,18 @@ internal class LitsDeliveryPcmSynthesizer(
                 tokenIds = tokenIds,
                 speakerId = speakerId,
                 manifest = activeLayout.manifest,
+                lengthScale = lengthScale,
                 chunkSizeOverride = chunkSizeOverride,
                 firstChunkSizeOverride = firstChunkSizeOverride,
+                isCancelled = isCancelled,
             ) { waveformChunk ->
-                val pcmChunk = LitsTtsOrtRuntime.floatToPcm16Bytes(waveformChunk)
-                if (firstChunkMs < 0L) firstChunkMs = elapsedMs(startedAt)
-                output?.write(pcmChunk)
-                totalBytes += pcmChunk.size.toLong()
-                onChunk(pcmChunk)
+                if (!isCancelled()) {
+                    val pcmChunk = shortsToBytes(AudioTransforms.applyPitchAndVolume(LitsTtsOrtRuntime.floatToPcm16(waveformChunk), params))
+                    if (firstChunkMs < 0L) firstChunkMs = elapsedMs(startedAt)
+                    output?.write(pcmChunk)
+                    totalBytes += pcmChunk.size.toLong()
+                    onChunk(pcmChunk)
+                }
             }
             runtimeMetrics = runtimeMetrics?.plus(segmentMetrics) ?: segmentMetrics
         }
@@ -365,6 +375,14 @@ internal class LitsDeliveryPcmSynthesizer(
         }?.takeIf { it > 0 }
     }
 
+    private fun lengthScaleForSpeed(speed: Float): Float {
+        val clampedSpeed = speed.takeIf { it.isFinite() }?.coerceIn(0.5f, 2.0f) ?: 1.0f
+        return (1.0f / clampedSpeed).coerceIn(
+            LitsTtsOrtRuntime.MIN_LENGTH_SCALE,
+            LitsTtsOrtRuntime.MAX_LENGTH_SCALE,
+        )
+    }
+
 }
 
 private object AudioTransforms {
@@ -375,6 +393,17 @@ private object AudioTransforms {
         }
         if (params.speed != 1.0f) {
             output = applySpeed(output, params.speed.coerceIn(0.5f, 2.0f))
+        }
+        if (params.volume != 1.0f) {
+            output = applyVolume(output, params.volume.coerceIn(0.0f, 2.0f))
+        }
+        return output
+    }
+
+    fun applyPitchAndVolume(source: ShortArray, params: SpeakParams): ShortArray {
+        var output = source
+        if (params.pitch != 1.0f) {
+            output = applyPitch(output, params.pitch.coerceIn(0.5f, 2.0f))
         }
         if (params.volume != 1.0f) {
             output = applyVolume(output, params.volume.coerceIn(0.0f, 2.0f))

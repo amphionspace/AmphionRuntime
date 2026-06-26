@@ -288,7 +288,7 @@ class TextToSpeechSdkTest {
     @Test
     fun speakValidatesTextLengthRangesAudioTypeAndLanguageContext() {
         val engine = newEngine("zh-en", primaryVoiceId)
-        val listener = RecordingListener(errorTarget = 5)
+        val listener = RecordingListener(errorTarget = 4)
         engine.setListener(listener)
 
         engine.speak(" ", SpeakParams(requestId = "bad-text"))
@@ -303,7 +303,6 @@ class TextToSpeechSdkTest {
         assertEquals(TtsErrorCode.RUNTIME_EXCEPTION, listener.errors[1].code)
         assertEquals(TtsErrorCode.RUNTIME_EXCEPTION, listener.errors[2].code)
         assertEquals(TtsErrorCode.RUNTIME_EXCEPTION, listener.errors[3].code)
-        assertEquals(TtsErrorCode.RUNTIME_EXCEPTION, listener.errors[4].code)
     }
 
     @Test

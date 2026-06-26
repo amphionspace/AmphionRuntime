@@ -261,8 +261,12 @@ internal object LitsTtsAssetInstaller {
                 acousticModel = manifest.acousticModelFile?.let(rootDir::resolve),
                 vocoderModel = rootDir.resolve(manifest.vocoderModelFile),
                 hiddenEncoderModel = manifest.hiddenEncoderModelFile?.let(rootDir::resolve),
-                streamDecoderChunkModel = manifest.streamDecoderChunkModelFile?.let(rootDir::resolve),
-                streamDecoderFinalModel = manifest.streamDecoderFinalModelFile?.let(rootDir::resolve),
+                streamDecoderChunkModel = manifest.streamDecoderChunkModelFile
+                    ?.takeUnless { manifest.streamDecoderExternalLoop }
+                    ?.let(rootDir::resolve),
+                streamDecoderFinalModel = manifest.streamDecoderFinalModelFile
+                    ?.takeUnless { manifest.streamDecoderExternalLoop }
+                    ?.let(rootDir::resolve),
                 streamConditionChunkModel = manifest.streamConditionChunkModelFile?.let(rootDir::resolve),
                 streamConditionFinalModel = manifest.streamConditionFinalModelFile?.let(rootDir::resolve),
                 streamDecoderStepModel = manifest.streamDecoderStepModelFile?.let(rootDir::resolve),
