@@ -71,6 +71,8 @@ internal class TextToSpeechEngineImpl(
             notifyError(callback, params.requestId, error.first, error.second)
             return
         }
+        val normalizedParams = normalizeSpeakParams(params)
+        val normalizedText = TtsInputTextNormalizer.ensureTerminalPunctuation(trimmedText, engineParams.language)
 
         val stoppedTasks: List<SynthesisTask>
         synchronized(lock) {
@@ -83,8 +85,8 @@ internal class TextToSpeechEngineImpl(
                 return
             }
 
-            val task = SynthesisTask(trimmedText, params)
-            stoppedTasks = if (params.queueMode == QueueMode.PREEMPT) {
+            val task = SynthesisTask(normalizedText, normalizedParams)
+            stoppedTasks = if (normalizedParams.queueMode == QueueMode.PREEMPT) {
                 cancelAllLocked()
             } else {
                 emptyList()
@@ -156,13 +158,21 @@ internal class TextToSpeechEngineImpl(
         if (params.volume !in 0.0f..2.0f) {
             return TtsErrorCode.RUNTIME_EXCEPTION to "volume out of range"
         }
-        if (params.languageContext !in setOf("zh-en", "en-US")) {
+        if (params.languageContext !in setOf("zh-CN", "zh-en", "en-US")) {
             return TtsErrorCode.RUNTIME_EXCEPTION to "languageContext is not supported"
         }
         if (params.audioType != "pcm") {
             return TtsErrorCode.RUNTIME_EXCEPTION to "only pcm audioType is supported"
         }
         return null
+    }
+
+    private fun normalizeSpeakParams(params: SpeakParams): SpeakParams {
+        val normalizedLanguageContext = when (params.languageContext) {
+            "zh-CN", "zh-en" -> "zh-en"
+            else -> params.languageContext
+        }
+        return params.copy(languageContext = normalizedLanguageContext)
     }
 
     private fun markRequestSeenIfPossible(requestId: String) {
@@ -193,21 +203,94 @@ internal class TextToSpeechEngineImpl(
         val callback = listener
         try {
             if (callback == null || task.cancelled.get() || destroyed) return
-            notifyStart(callback, task)
-            val audio = synthesizer.synthesize(task.text, task.params, engineParams)
+            var sequence = 0
+            val useStreamingSynthesis = synthesizer.canStream(task.params, engineParams)
+            val useStreamingPlayback =
+                task.params.playType == PlayType.SYNTHESIZE_AND_PLAY &&
+                    useStreamingSynthesis &&
+                    synthesizer.supportsInternalPlayback() &&
+                    synthesizer.streamingSampleRate(engineParams) != null
+            val dataPath = when {
+                task.params.playType == PlayType.SYNTHESIZE_ONLY && useStreamingSynthesis -> "model_stream_callback"
+                useStreamingPlayback -> "model_stream_playback"
+                task.params.playType == PlayType.SYNTHESIZE_ONLY -> "buffered_pcm_callback"
+                else -> "buffered_pcm_playback"
+            }
+            val responseSampleRate = synthesizer.streamingSampleRate(engineParams) ?: DEFAULT_SAMPLE_RATE
+            notifyStart(
+                callback = callback,
+                task = task,
+                sampleRate = responseSampleRate,
+                isStreaming = useStreamingSynthesis,
+                dataPath = dataPath,
+                modelInfo = synthesizer.debugSummary(),
+                loadProfileInfo = synthesizer.loadProfileInfo(),
+            )
+            var synthesisCompleteNotified = false
+            val audio = if (task.params.playType == PlayType.SYNTHESIZE_ONLY && useStreamingSynthesis) {
+                synthesizer.synthesizeStreaming(task.text, task.params, engineParams) { chunk ->
+                    if (!task.cancelled.get() && !destroyed) {
+                        notifyData(
+                            callback,
+                            task,
+                            chunk,
+                            SynthesisResponse(
+                                sequence = sequence,
+                                isStreaming = true,
+                                chunkSource = "model_stream",
+                            ),
+                        )
+                        sequence += 1
+                    }
+                }
+            } else if (useStreamingPlayback) {
+                var synthesized: SynthesizedAudio? = null
+                val sampleRate = synthesizer.streamingSampleRate(engineParams)
+                    ?: throw IllegalStateException("streaming sample rate is unavailable")
+                player.playStreaming(
+                    sampleRate = sampleRate,
+                    cancelled = task.cancelled,
+                    soundChannel = task.params.soundChannel,
+                    queueCapacity = pcmQueueCapacity(task.params),
+                    producer = { chunkWriter ->
+                        synthesized = synthesizer.synthesizeStreaming(
+                            text = task.text,
+                            params = task.params,
+                            engineParams = engineParams,
+                            collectOutput = false,
+                        ) { chunk ->
+                            if (!task.cancelled.get() && !destroyed) {
+                                chunkWriter(chunk)
+                            }
+                        }
+                    },
+                    onSynthesisComplete = {
+                        val produced = synthesized
+                        if (produced != null && !task.cancelled.get() && !destroyed) {
+                            synthesisCompleteNotified = true
+                            notifyComplete(callback, task, buildSynthesisCompleteResponse(produced))
+                        }
+                    }
+                )
+                synthesized ?: throw IllegalStateException("streaming playback produced no synthesized audio")
+            } else {
+                synthesizer.synthesize(task.text, task.params, engineParams)
+            }
             if (task.cancelled.get() || destroyed) {
                 notifyStop(callback, task)
                 return
             }
-            if (task.params.playType == PlayType.SYNTHESIZE_ONLY) {
-                emitAudioChunks(callback, task, audio)
+            if (task.params.playType == PlayType.SYNTHESIZE_ONLY && !useStreamingSynthesis) {
+                emitAudioChunks(callback, task, audio, "buffered_pcm")
             }
             if (task.cancelled.get() || destroyed) {
                 notifyStop(callback, task)
                 return
             }
-            notifyComplete(callback, task, CompleteResponse(CompleteType.SYNTHESIS_COMPLETE, "synthesis complete"))
-            if (task.params.playType == PlayType.SYNTHESIZE_AND_PLAY && !task.cancelled.get() && !destroyed) {
+            if (!synthesisCompleteNotified) {
+                notifyComplete(callback, task, buildSynthesisCompleteResponse(audio))
+            }
+            if (task.params.playType == PlayType.SYNTHESIZE_AND_PLAY && !useStreamingPlayback && !task.cancelled.get() && !destroyed) {
                 if (synthesizer.supportsInternalPlayback()) {
                     player.playBlocking(audio, task.cancelled, task.params.soundChannel)
                 }
@@ -229,23 +312,91 @@ internal class TextToSpeechEngineImpl(
         }
     }
 
-    private fun emitAudioChunks(callback: SpeakListener, task: SynthesisTask, audio: SynthesizedAudio) {
+    private fun pcmQueueCapacity(params: SpeakParams): Int {
+        val value = params.extraParams["pcmQueueCapacity"] ?: params.extraParams["pcmQueueSize"]
+        return when (value) {
+            is Number -> value.toInt()
+            is String -> value.toIntOrNull()
+            else -> null
+        }?.coerceIn(1, 256) ?: DEFAULT_PCM_QUEUE_CAPACITY
+    }
+
+    private fun emitAudioChunks(
+        callback: SpeakListener,
+        task: SynthesisTask,
+        audio: SynthesizedAudio,
+        chunkSource: String,
+    ) {
         var offset = 0
         var sequence = 0
         while (offset < audio.pcm.size) {
             if (task.cancelled.get() || destroyed) return
             val end = minOf(offset + AUDIO_CHUNK_BYTES, audio.pcm.size)
-            notifyData(callback, task, audio.pcm.copyOfRange(offset, end), SynthesisResponse(sequence = sequence))
+            notifyData(
+                callback,
+                task,
+                audio.pcm.copyOfRange(offset, end),
+                SynthesisResponse(
+                    sequence = sequence,
+                    isStreaming = false,
+                    chunkSource = chunkSource,
+                ),
+            )
             offset = end
             sequence += 1
             Thread.sleep(2)
         }
     }
 
-    private fun notifyStart(callback: SpeakListener, task: SynthesisTask) {
+    private fun buildSynthesisCompleteResponse(audio: SynthesizedAudio): CompleteResponse {
+        val audioDurationMs = audioDurationMs(audio.audioBytes, audio.sampleRate)
+        val firstPacketMs = when {
+            audio.firstChunkMs >= 0L -> audio.firstChunkMs
+            audio.synthesisMs >= 0L -> audio.synthesisMs
+            else -> -1L
+        }
+        return CompleteResponse(
+            type = CompleteType.SYNTHESIS_COMPLETE,
+            message = "synthesis complete",
+            firstPacketMs = firstPacketMs,
+            synthesisMs = audio.synthesisMs,
+            audioDurationMs = audioDurationMs,
+            rtf = if (audio.synthesisMs >= 0L && audioDurationMs > 0L) {
+                audio.synthesisMs.toDouble() / audioDurationMs.toDouble()
+            } else {
+                -1.0
+            },
+            profilingInfo = audio.profilingInfo,
+        )
+    }
+
+    private fun audioDurationMs(audioBytes: Long, sampleRate: Int): Long {
+        if (sampleRate <= 0) return 0L
+        return audioBytes * 1000L / (sampleRate.toLong() * BYTES_PER_FRAME)
+    }
+
+    private fun notifyStart(
+        callback: SpeakListener,
+        task: SynthesisTask,
+        sampleRate: Int,
+        isStreaming: Boolean,
+        dataPath: String,
+        modelInfo: String,
+        loadProfileInfo: String,
+    ) {
         dispatchListener {
             if (!task.cancelled.get() && !destroyed) {
-                callback.onStart(task.params.requestId, StartResponse())
+                callback.onStart(
+                    task.params.requestId,
+                    StartResponse(
+                        sampleRate = sampleRate,
+                        isStreaming = isStreaming,
+                        dataPath = dataPath,
+                        modelSource = if (modelInfo.contains("source=external")) "external" else "bundled",
+                        modelInfo = modelInfo,
+                        loadProfileInfo = loadProfileInfo,
+                    ),
+                )
             }
         }
     }
@@ -343,5 +494,8 @@ internal class TextToSpeechEngineImpl(
     private companion object {
         val LISTENER_EXECUTOR: ExecutorService = Executors.newSingleThreadExecutor(TtsListenerThreadFactory())
         const val AUDIO_CHUNK_BYTES = 4096
+        const val BYTES_PER_FRAME = 2L
+        const val DEFAULT_SAMPLE_RATE = 24000
+        const val DEFAULT_PCM_QUEUE_CAPACITY = 128
     }
 }

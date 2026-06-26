@@ -4,12 +4,17 @@ project(asr_service CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+option(ASR_ENABLE_PROMETHEUS "Build with prometheus-cpp metrics exporter" OFF)
 
 # 外部依赖
 find_package(Protobuf REQUIRED)
-find_package(gRPC CONFIG REQUIRED)
-find_package(nlohmann_json 3.11 REQUIRED)
-find_package(prometheus-cpp CONFIG REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GRPCPP REQUIRED grpc++)
+find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin REQUIRED)
+find_package(nlohmann_json 3.10 REQUIRED)
+if(ASR_ENABLE_PROMETHEUS)
+    find_package(prometheus-cpp CONFIG REQUIRED)
+endif()
 find_package(gflags REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -36,7 +41,7 @@ add_custom_command(
         --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto
         --cpp_out=${PROTO_OUT}
         --grpc_out=${PROTO_OUT}
-        --plugin=protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>
+        --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
         ${PROTO_SRC}
     DEPENDS ${PROTO_SRC}
     VERBATIM
@@ -47,6 +52,8 @@ include_directories(${PROTO_OUT})
 add_executable(asr_service
     src/main.cc
     src/asr_service.cc
+    src/decode_engine.cc
+    src/decode_engine_pool.cc
     src/recognizer_factory.cc
     src/manifest.cc
     src/metrics.cc
@@ -58,16 +65,22 @@ target_link_libraries(asr_service
     PRIVATE
     sherpa-onnx-cxx-api
     sherpa-onnx-c-api
-    sherpa-onnx-core
     onnxruntime
-    gRPC::grpc++
-    gRPC::grpc++_reflection
+    ${GRPCPP_LIBRARIES}
+    grpc++_reflection
     protobuf::libprotobuf
     nlohmann_json::nlohmann_json
-    prometheus-cpp::core
-    prometheus-cpp::pull
     gflags
     Threads::Threads
 )
+
+if(ASR_ENABLE_PROMETHEUS)
+    target_compile_definitions(asr_service PRIVATE ASR_ENABLE_PROMETHEUS)
+    target_link_libraries(asr_service
+        PRIVATE
+        prometheus-cpp::core
+        prometheus-cpp::pull
+    )
+endif()
 
 install(TARGETS asr_service DESTINATION bin)

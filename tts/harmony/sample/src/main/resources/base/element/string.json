@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Host HAP for validating the Lits TTS HarmonyOS SDK."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Lits TTS HarmonyOS sample app"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Lits TTS Sample"
+    }
+  ]
+}

@@ -38,6 +38,9 @@ __pycache__/
 .venv-*/
 venv/
 asr/ws-server/reports/**/server.log
+# gRPC python stub（由 asr/server/bench/README.md 的 protoc 步骤生成，不入库）
+asr/server/bench/asr_pb2.py
+asr/server/bench/asr_pb2_grpc.py
 
 # --- C++ / cmake ---
 asr/server/build/
@@ -169,6 +172,7 @@ shared/docs/dashboard/trends/*.csv
 # 私钥 = 授权信任根，泄露即可被任意签发有效 license；签发出的 .lic 是每客户产物，不入库。
 *-private.pem
 .secure/
+current_usb_device_sn.txt
 tools/license/*.pem
 tools/license/*.lic
 asr/tools/license/*.pem

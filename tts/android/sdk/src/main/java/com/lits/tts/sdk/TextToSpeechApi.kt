@@ -1,9 +1,14 @@
 package com.lits.tts.sdk
 
 import android.content.Context
+import com.lits.tts.sdk.internal.AndroidAppContext
 import com.lits.tts.sdk.internal.DeviceLicenseFingerprint
 import com.lits.tts.sdk.internal.EngineRegistry
 import com.lits.tts.sdk.internal.LicenseGuard
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 import java.util.concurrent.Executors
 
 object TtsErrorCode {
@@ -19,37 +24,17 @@ object TtsErrorCode {
     const val INTERNAL_SERVICE_ERROR = 1002300009
     const val QUEUE_FULL = 1002300010
     const val RUNTIME_EXCEPTION = 1002300011
-
-    // 离线 license 验签 / 绑定校验失败码（仅在 SDK 被武装、即构建期注入公钥时可能出现）。
-    /** 未提供 license（[TtsLicenseOptions.license] 为空且 asset 不存在）。 */
     const val LICENSE_MISSING = 1002300012
-
-    /** license 内容不是合法 JSON 或缺必填字段。 */
     const val LICENSE_MALFORMED = 1002300013
-
-    /** ECDSA 验签未通过（被篡改或用了非我方签发的 license）。 */
     const val LICENSE_SIGNATURE_INVALID = 1002300014
-
-    /** license 的 applicationId 与宿主 app packageName 不一致。 */
     const val LICENSE_APP_MISMATCH = 1002300015
-
-    /** license 的 certSha256 与宿主 app 签名证书不一致。 */
     const val LICENSE_CERT_MISMATCH = 1002300016
-
-    /** license 已过期（超出宽限期）。 */
     const val LICENSE_EXPIRED = 1002300017
-
-    /** license 绑定的设备 SN 白名单与当前设备不一致。 */
     const val LICENSE_DEVICE_MISMATCH = 1002300018
-
-    /** license 绑定的 SDK 大版本与当前 SDK 不一致。 */
     const val LICENSE_SDK_MAJOR_MISMATCH = 1002300019
-
-    /** 当前 SDK 发布时间晚于 license 允许的维护期。 */
     const val LICENSE_MAINTENANCE_EXPIRED = 1002300020
-
-    /** license 未授权当前 SDK 能力，例如 TTS。 */
     const val LICENSE_FEATURE_MISSING = 1002300021
+    const val LICENSE_NOT_SET = 1002300034
 }
 
 class TextToSpeechException(
@@ -116,7 +101,7 @@ data class SpeakParams @JvmOverloads constructor(
     val speed: Float = 1.0f,
     val volume: Float = 1.0f,
     val pitch: Float = 1.0f,
-    val languageContext: String = "zh-en",
+    val languageContext: String = "zh-CN",
     val audioType: String = "pcm",
     val playType: PlayType = PlayType.SYNTHESIZE_AND_PLAY,
     val soundChannel: Int? = null,
@@ -126,20 +111,32 @@ data class SpeakParams @JvmOverloads constructor(
 
 data class StartResponse @JvmOverloads constructor(
     val audioType: String = "pcm",
-    val sampleRate: Int = 16000,
+    val sampleRate: Int = 24000,
     val sampleBit: Int = 16,
     val audioChannel: Int = 1,
     val compressRate: Int = 0,
+    val isStreaming: Boolean = false,
+    val dataPath: String = "buffered_pcm",
+    val modelSource: String = "unknown",
+    val modelInfo: String = "",
+    val loadProfileInfo: String = "",
 )
 
 data class SynthesisResponse @JvmOverloads constructor(
     val sequence: Int,
     val audioType: String = "pcm",
+    val isStreaming: Boolean = false,
+    val chunkSource: String = "buffered_pcm",
 )
 
-data class CompleteResponse(
+data class CompleteResponse @JvmOverloads constructor(
     val type: CompleteType,
     val message: String,
+    val firstPacketMs: Long = -1L,
+    val synthesisMs: Long = -1L,
+    val audioDurationMs: Long = -1L,
+    val rtf: Double = -1.0,
+    val profilingInfo: String = "",
 )
 
 data class StopResponse(
@@ -163,6 +160,20 @@ interface TextToSpeechEngine {
     fun shutdown()
 }
 
+data class LicenseInfo(
+    val status: Int,
+    val expireTime: Long,
+    val remainingDays: Int,
+    val authorizedFeatures: List<String>,
+)
+
+data class LicenseActivationResult @JvmOverloads constructor(
+    val errorCode: Int,
+    val errorMessage: String? = null,
+    val remainingDays: Int = -1,
+    val authorizedFeatures: List<String> = emptyList(),
+)
+
 object TextToSpeechSdk {
     @Volatile
     private var workPath: String? = null
@@ -170,18 +181,6 @@ object TextToSpeechSdk {
         Thread(runnable, "lits-tts-callback").apply { isDaemon = true }
     }
 
-    /**
-     * 可选的显式 license 初始化（开发 / 内部构建下为 no-op）。
-     *
-     * SDK 通过内部机制自动发现 ApplicationContext 并在 [createEngine] 前懒校验一次，所以业务方
-     * 即使不调用本方法也会被强制校验；提供本入口是为了：让业务方在启动时主动传入 license 文本 /
-     * 调整 [TtsLicenseOptions.licenseEnforcement] / 尽早暴露授权问题。重复调用以最后一次为准。
-     *
-     * @param context 任意 [Context]，仅取其 ApplicationContext，不长期持有
-     * @param options license 选项，详见 [TtsLicenseOptions]
-     * @throws TextToSpeechException 当 SDK 被武装、校验失败且策略为
-     *   [LicenseEnforcement.ENFORCE] 时抛出（errorCode 取自 [TtsErrorCode] 的 `LICENSE_*` 段）
-     */
     @JvmStatic
     @JvmOverloads
     @Throws(TextToSpeechException::class)
@@ -190,12 +189,82 @@ object TextToSpeechSdk {
     }
 
     /**
-     * 查询当前 license 运行状态。任何校验（[init] 或首次 [createEngine]）触发前返回
-     * [TtsLicenseStatus.State.NOT_INITIALIZED]；开发 / 内部构建返回
-     * [TtsLicenseStatus.State.DEV_UNLICENSED]。可用于在「关于」页展示授权客户 / 到期日 / 档位。
+     * 设置 License 文件路径，异步激活并校验。
+     *
+     * 与 ASR 抽象接口保持一致；应在 [createEngine] 前调用。若已设置过 License，再次调用将覆盖。
      */
     @JvmStatic
+    fun setLicense(licensePath: String, callback: Callback<LicenseActivationResult>) {
+        callbackExecutor.execute {
+            val ctx = AndroidAppContext.tryGet()
+            if (ctx == null) {
+                dispatchCallback {
+                    callback.onError(
+                        TtsErrorCode.INTERNAL_SERVICE_ERROR,
+                        "ApplicationContext unavailable for license activation",
+                    )
+                }
+                return@execute
+            }
+            val licenseText = runCatching { File(licensePath).readText(Charsets.UTF_8) }.getOrElse { error ->
+                dispatchCallback {
+                    callback.onError(
+                        TtsErrorCode.LICENSE_MISSING,
+                        "License file does not exist or cannot be read: ${error.message}",
+                    )
+                }
+                return@execute
+            }
+            runCatching {
+                init(
+                    ctx,
+                    TtsLicenseOptions(
+                        license = licenseText,
+                        licenseAssetName = null,
+                    ),
+                )
+                val info = getLicenseInfo()
+                LicenseActivationResult(
+                    errorCode = TtsErrorCode.OK,
+                    errorMessage = null,
+                    remainingDays = info.remainingDays,
+                    authorizedFeatures = info.authorizedFeatures,
+                )
+            }.onSuccess { result ->
+                dispatchCallback { callback.onSuccess(result) }
+            }.onFailure { error ->
+                val code = (error as? TextToSpeechException)?.errorCode ?: TtsErrorCode.INTERNAL_SERVICE_ERROR
+                dispatchCallback { callback.onError(code, error.message ?: "license activation failed") }
+            }
+        }
+    }
+
+    @JvmStatic
     fun licenseStatus(): TtsLicenseStatus = LicenseGuard.status()
+
+    /**
+     * 查询当前 License 状态及授权信息。
+     *
+     * status: 0=有效；1=已过期；2=未激活；3=设备不匹配或其他无效状态。
+     */
+    @JvmStatic
+    fun getLicenseInfo(): LicenseInfo {
+        val current = licenseStatus()
+        if (current.state == TtsLicenseStatus.State.NOT_INITIALIZED) {
+            throw TextToSpeechException(TtsErrorCode.LICENSE_NOT_SET, "License has not been set")
+        }
+        return LicenseInfo(
+            status = when {
+                current.valid -> 0
+                current.errorCode == TtsErrorCode.LICENSE_EXPIRED -> 1
+                current.state == TtsLicenseStatus.State.NOT_INITIALIZED -> 2
+                else -> 3
+            },
+            expireTime = expireTimeMillis(current.expiresAt),
+            remainingDays = remainingDays(current.expiresAt),
+            authorizedFeatures = current.features.map { it.lowercase(Locale.ROOT) },
+        )
+    }
 
     /**
      * 设备 SN 授权哈希，用于申请设备白名单 `.lic`（`authorizedDeviceHashes` 字段）。
@@ -205,6 +274,12 @@ object TextToSpeechSdk {
     @JvmStatic
     fun deviceLicenseFingerprint(deviceSerial: String, deviceIdSaltId: String): String =
         DeviceLicenseFingerprint.computeFromSerial(deviceSerial, deviceIdSaltId)
+
+    @JvmStatic
+    fun deviceLicenseFingerprint(context: Context): String {
+        val ctx = context.applicationContext ?: context
+        return DeviceLicenseFingerprint.compute(ctx)
+    }
 
     @JvmStatic
     fun setWorkPath(workPath: String) {
@@ -271,4 +346,27 @@ object TextToSpeechSdk {
             block()
         }
     }
+
+    private fun expireTimeMillis(expiresAt: String): Long {
+        if (expiresAt.isBlank()) return -1L
+        return parseDateUtcMillis(expiresAt) ?: -1L
+    }
+
+    private fun remainingDays(expiresAt: String): Int {
+        if (expiresAt.isBlank()) return -1
+        val expires = parseDateUtcMillis(expiresAt) ?: return -1
+        val remainingMs = (expires + DAY_MS - System.currentTimeMillis()).coerceAtLeast(0L)
+        return (remainingMs / DAY_MS).toInt()
+    }
+
+    private fun parseDateUtcMillis(date: String): Long? = try {
+        SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+            isLenient = false
+        }.parse(date)?.time
+    } catch (_: Throwable) {
+        null
+    }
+
+    private const val DAY_MS = 24L * 60 * 60 * 1000
 }

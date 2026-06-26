@@ -4,6 +4,7 @@
 
 namespace asr_service {
 
+#ifdef ASR_ENABLE_PROMETHEUS
 namespace {
 
 const prometheus::Summary::Quantiles kQuantiles = {
@@ -64,5 +65,17 @@ prometheus::Counter &Metrics::error_total(int code) {
         {"code", std::to_string(code)},
     });
 }
+#else
+Metrics::Metrics(const std::string &listen, const std::string &model_id) {
+    if (!listen.empty()) {
+        std::cerr << "[metrics] prometheus-cpp disabled; metrics listen ignored for model_id="
+                  << model_id << std::endl;
+    }
+}
+
+MetricValue &Metrics::error_total(int) {
+    return error_total_;
+}
+#endif
 
 }  // namespace asr_service

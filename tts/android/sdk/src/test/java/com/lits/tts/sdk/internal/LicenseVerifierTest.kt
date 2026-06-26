@@ -17,10 +17,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * [LicenseVerifier.verifyResolved] 纯逻辑测试：用运行时生成的 ECDSA P-256 密钥对真实签发 /
- * 验签，覆盖 DEV / 正常 / 各类绑定失败 / 过期。无需 Android Context（验签核心不依赖平台）。
- */
 class LicenseVerifierTest {
 
     private val appId = "com.lits.tts.demo"
@@ -74,7 +70,6 @@ class LicenseVerifierTest {
 
     @Test
     fun tamperedSignatureFails() {
-        // 用另一把私钥签名，但用本测试的公钥验签 → 签名不匹配。
         val attacker = newKeyPair()
         val payloadBytes = claims(applicationId = appId).toByteArray(Charsets.UTF_8)
         val sig = sign(attacker, payloadBytes)
@@ -99,7 +94,6 @@ class LicenseVerifierTest {
     @Test
     fun expiryGraceKeepsLicenseValid() {
         val lic = issue(claims(applicationId = appId, expiresAt = "2026-01-01"))
-        // 到期次日 + 5 天宽限 → deadline = 2026-01-07，2026-01-05 仍有效。
         val r = LicenseVerifier.verifyResolved(
             licenseText = lic,
             publicKeyB64 = publicKeyB64,
@@ -144,6 +138,18 @@ class LicenseVerifierTest {
     }
 
     @Test
+    fun legacyDeviceHashStillMatchesOverride() {
+        val device = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
+        val lic = issue(claims(applicationId = appId, deviceSha256 = device))
+
+        val ok = verifyWith(lic, hostDeviceSha256 = device)
+        assertTrue(ok.ok)
+
+        val bad = verifyWith(lic, hostDeviceSha256 = "FEDCBA9876543210")
+        assertEquals(TtsErrorCode.LICENSE_DEVICE_MISMATCH, bad.errorCode)
+    }
+
+    @Test
     fun sdkMajorMismatchFails() {
         val lic = issue(claims(applicationId = appId, sdkMajor = 2))
         val r = verifyWith(lic, sdkMajor = 1)
@@ -164,8 +170,6 @@ class LicenseVerifierTest {
         assertEquals(TtsErrorCode.LICENSE_FEATURE_MISSING, r.errorCode)
     }
 
-    // -------- helpers --------
-
     private fun verify(licenseText: String?, nowMillis: Long = utc("2026-06-01")) =
         LicenseVerifier.verifyResolved(
             licenseText = licenseText,
@@ -184,6 +188,7 @@ class LicenseVerifierTest {
         licenseText: String,
         hostCert: Set<String> = emptySet(),
         deviceSerial: String? = null,
+        hostDeviceSha256: String? = null,
         sdkMajor: Int = 1,
         sdkReleaseDate: String = "2026-06-01",
     ) = LicenseVerifier.verifyResolved(
@@ -192,6 +197,7 @@ class LicenseVerifierTest {
         packageName = appId,
         hostCertSha256 = hostCert,
         deviceSerial = deviceSerial,
+        hostDeviceSha256 = hostDeviceSha256,
         expiryGraceDays = 0,
         sdkMajor = sdkMajor,
         sdkReleaseDate = sdkReleaseDate,
@@ -219,6 +225,7 @@ class LicenseVerifierTest {
         certSha256: String = "",
         deviceIdSaltId: String = "",
         authorizedDeviceHashes: List<String> = emptyList(),
+        deviceSha256: String = "",
         customer: String = "ACME",
         licenseId: String = "LIC-1",
         sdkMajor: Int = 1,
@@ -232,6 +239,7 @@ class LicenseVerifierTest {
         .put("deviceIdHashAlg", "SHA-256")
         .put("deviceIdSaltId", deviceIdSaltId)
         .put("authorizedDeviceHashes", JSONArray(authorizedDeviceHashes))
+        .put("deviceSha256", deviceSha256)
         .put("customer", customer)
         .put("licenseId", licenseId)
         .put("issuedAt", "2026-01-01")

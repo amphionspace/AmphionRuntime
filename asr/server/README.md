@@ -39,14 +39,18 @@ asr/server/
 
 ## 编译
 
-依赖：
+依赖（Ubuntu 22.04 apt 自带版本即可，已验证）：
 
 - gcc 11+ / clang 15+
 - cmake 3.18+
-- protoc 3.21+
-- grpc 1.56+ (含 grpc_cpp_plugin)
-- nlohmann/json （manifest 解析）
-- prometheus-cpp （metrics）
+- protoc 3.12+（libprotobuf-dev）
+- grpc 1.30+（libgrpc++-dev，含 grpc_cpp_plugin）
+- nlohmann/json 3.10+（nlohmann-json3-dev，manifest 解析）
+- gflags（libgflags-dev）
+- prometheus-cpp（可选，metrics；默认关闭，需 -DASR_ENABLE_PROMETHEUS=ON 才编入）
+
+GPU(CUDA) 部署额外要求：宿主装 NVIDIA 驱动；sherpa-onnx 用 -DSHERPA_ONNX_ENABLE_GPU=ON 编译，
+会拉取 onnxruntime-gpu 1.24.4（需 CUDA 12 + cuDNN 9）。并发压测结论与推荐参数见 [BENCHMARK.md](BENCHMARK.md)。
 
 构建步骤（在 amphion-runtime 仓库根目录执行）：
 
@@ -85,12 +89,18 @@ cd ../../..
 
 升级 sherpa-onnx 版本后，需要重新跑步骤 1 让 install 目录跟着 submodule HEAD 走（或者直接 `rm -rf third_party/sherpa-onnx/build-linux` 后再来）。
 
+GPU 编译：把步骤 1 的 `-DSHERPA_ONNX_ENABLE_GPU=OFF` 改成 `ON`，install 目录建议用 `build-linux-gpu/install`，
+步骤 2 的 `-DSHERPA_ONNX_DIR` 指向它；步骤 3 启动加 `--provider=cuda`（其余推荐参数见 BENCHMARK.md）。
+
 ## 启动参数
 
 | flag | 默认 | 说明 |
 | --- | --- | --- |
 | --listen | 0.0.0.0:50051 | gRPC 监听地址 |
 | --manifest | /etc/asr-service/manifest.json | 模型 manifest 路径 |
+| --provider | cpu | 推理后端：cpu 或 cuda |
+| --encoder_precision | auto | encoder/joiner 精度：auto/int8/fp16/fp32（cuda 推荐 fp32） |
+| --decode_workers | 1 | 进程内 DecodeEngine 分片数（每分片独立 recognizer + worker，共享 CUDA context） |
 | --max_active_paths | -1 | 覆盖 manifest 的 modified_beam_search 束宽；-1 用 manifest 值 |
 | --decoding_method | 空 | 覆盖 manifest 的解码方法；空用 manifest 值 |
 | --endpoint_rule1_min_trailing_silence | 2.4 | endpoint rule1 句尾静音阈值（秒）；纯静音兜底 |
@@ -98,11 +108,30 @@ cd ../../..
 | --endpoint_rule3_min_utterance_length | 20.0 | endpoint rule3 单段最长语音强制切断（秒） |
 | --num_threads | 4 | 每个 recognizer 的 ORT intra-op 线程数 |
 | --grpc_threads | 8 | gRPC 完成队列线程数，建议取 vCPU 数 |
+| --max_batch_size | 64 | 单次批量解码 stream 上限 |
 | --max_concurrent_sessions | 64 | 活跃 session 上限，超出以 RESOURCE_EXHAUSTED 拒绝 |
+| --loop_interval_ms | 5 | 批量解码凑批等待窗口（ms） |
 | --session_idle_timeout_sec | 300 | session 无音频多久自动断流 |
 | --metrics_listen | 0.0.0.0:9090 | prometheus exporter 地址；空关闭（metrics 需编译期开启） |
 
 cascade 接入时，建议优先通过 `--endpoint_rule2_min_trailing_silence` 调整喂给 vLLM final 的句子颗粒；rule1 主要是纯静音兜底，rule3 是长段保护。
+
+## 容器部署
+
+GPU（推荐，并发结论见 BENCHMARK.md）：
+
+```bash
+# 在仓库根目录构建（onnxruntime-gpu 需联网下载，宿主需 NVIDIA 驱动 + nvidia-container-toolkit）
+docker build -t asr-service-gpu:1.1.0 -f asr/server/deploy/Dockerfile.gpu .
+docker run --rm -it --gpus all -p 50051:50051 \
+    -v /abs/path/model:/etc/asr-service/model:ro \
+    -v /abs/path/manifest.json:/etc/asr-service/manifest.json:ro \
+    asr-service-gpu:1.1.0
+# 或：docker compose -f asr/server/deploy/docker-compose.gpu.yml up --build
+```
+
+CPU：把上面的 `Dockerfile.gpu` 换成 `Dockerfile`、去掉 `--gpus all` 即可。
+注意 manifest.json 的 `model_dir` 要写成容器内路径 `/etc/asr-service/model`；fp32 路径需 model_dir 下存在非量化的 `encoder.onnx`/`decoder.onnx`/`joiner.onnx`。
 
 ## 关键约定
 

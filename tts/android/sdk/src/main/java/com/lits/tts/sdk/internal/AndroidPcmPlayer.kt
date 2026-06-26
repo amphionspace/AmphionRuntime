@@ -4,6 +4,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.SystemClock
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
 internal class AndroidPcmPlayer {
@@ -13,23 +14,8 @@ internal class AndroidPcmPlayer {
     private var track: AudioTrack? = null
 
     fun playBlocking(audio: SynthesizedAudio, cancelled: AtomicBoolean, soundChannel: Int?) {
-        val minBufferSize = AudioTrack.getMinBufferSize(
-            audio.sampleRate,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-        ).coerceAtLeast(4096)
-        val localTrack = AudioTrack.Builder()
-            .setAudioAttributes(buildAudioAttributes(soundChannel))
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(audio.sampleRate)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                    .build(),
-            )
-            .setBufferSizeInBytes(minBufferSize)
-            .setTransferMode(AudioTrack.MODE_STREAM)
-            .build()
+        val minBufferSize = minBufferSize(audio.sampleRate)
+        val localTrack = createTrack(audio.sampleRate, soundChannel, minBufferSize)
         synchronized(lock) {
             track = localTrack
         }
@@ -59,6 +45,130 @@ internal class AndroidPcmPlayer {
         }
     }
 
+    fun playStreaming(
+        sampleRate: Int,
+        cancelled: AtomicBoolean,
+        soundChannel: Int?,
+        queueCapacity: Int = DEFAULT_STREAMING_QUEUE_CAPACITY,
+        producer: ((ByteArray) -> Unit) -> Unit,
+        onSynthesisComplete: () -> Unit = {},
+    ) {
+        val minBufferSize = minBufferSize(sampleRate)
+        val localTrack = createTrack(sampleRate, soundChannel, minBufferSize)
+        synchronized(lock) {
+            track = localTrack
+        }
+        var totalBytes = 0
+        val totalBytesLock = Object()
+        val actualQueueCapacity = queueCapacity.coerceIn(1, MAX_STREAMING_QUEUE_CAPACITY)
+        val prebufferChunks = minOf(STREAMING_PREBUFFER_CHUNKS, actualQueueCapacity)
+        val audioQueue = LinkedBlockingQueue<ByteArray>(actualQueueCapacity)
+        val playbackError = arrayOfNulls<Throwable>(1)
+        val producerError = arrayOfNulls<Throwable>(1)
+        val prebufferLock = Object()
+        var queuedChunks = 0
+        var producerFinished = false
+        val playbackThread = Thread(
+            {
+                try {
+                    while (!cancelled.get()) {
+                        val chunk = audioQueue.take()
+                        if (chunk === END_OF_STREAM) return@Thread
+                        var offset = 0
+                        while (offset < chunk.size && !cancelled.get()) {
+                            val length = minOf(minBufferSize, chunk.size - offset)
+                            val written = localTrack.write(chunk, offset, length, AudioTrack.WRITE_BLOCKING)
+                            if (written <= 0) break
+                            offset += written
+                            synchronized(totalBytesLock) {
+                                totalBytes += written
+                            }
+                        }
+                    }
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                } catch (error: Throwable) {
+                    playbackError[0] = error
+                    cancelled.set(true)
+                }
+            },
+            "lits-tts-pcm-playback",
+        ).apply { isDaemon = true }
+        val producerThread = Thread(
+            {
+                try {
+                    producer { chunk ->
+                        if (!cancelled.get()) {
+                            audioQueue.put(chunk.copyOf())
+                            synchronized(prebufferLock) {
+                                queuedChunks += 1
+                                prebufferLock.notifyAll()
+                            }
+                        }
+                    }
+                    onSynthesisComplete()
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                } catch (error: Throwable) {
+                    producerError[0] = error
+                    cancelled.set(true)
+                } finally {
+                    synchronized(prebufferLock) {
+                        producerFinished = true
+                        prebufferLock.notifyAll()
+                    }
+                    audioQueue.offer(END_OF_STREAM)
+                }
+            },
+            "lits-tts-pcm-producer",
+        ).apply { isDaemon = true }
+        try {
+            producerThread.start()
+            waitForStreamingPrebuffer(prebufferLock) {
+                cancelled.get() || producerFinished || queuedChunks >= prebufferChunks
+            }
+            localTrack.play()
+            playbackThread.start()
+            producerThread.join()
+            playbackThread.join()
+            producerError[0]?.let { throw it }
+            playbackError[0]?.let { throw it }
+            if (!cancelled.get()) {
+                val writtenBytes = synchronized(totalBytesLock) { totalBytes }
+                waitForPlaybackComplete(
+                    localTrack = localTrack,
+                    targetFrames = writtenBytes / BYTES_PER_FRAME,
+                    sampleRate = sampleRate,
+                    cancelled = cancelled,
+                )
+            }
+        } finally {
+            audioQueue.offer(END_OF_STREAM)
+            if (producerThread.isAlive) {
+                producerThread.interrupt()
+                producerThread.join(PLAYBACK_THREAD_JOIN_TIMEOUT_MS)
+            }
+            if (playbackThread.isAlive) {
+                playbackThread.interrupt()
+                playbackThread.join(PLAYBACK_THREAD_JOIN_TIMEOUT_MS)
+            }
+            if (cancelled.get()) {
+                releaseImmediately(localTrack)
+            } else {
+                releaseAfterDrain(localTrack)
+            }
+        }
+    }
+
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+    private fun waitForStreamingPrebuffer(lock: Object, ready: () -> Boolean) {
+        synchronized(lock) {
+            while (!ready()) {
+                lock.wait(STREAMING_PREBUFFER_WAIT_MS)
+            }
+        }
+    }
+
     internal fun buildAudioAttributes(soundChannel: Int?): AudioAttributes {
         val builder = AudioAttributes.Builder()
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
@@ -75,6 +185,27 @@ internal class AndroidPcmPlayer {
             track?.let(::releaseImmediately)
             track = null
         }
+    }
+
+    private fun minBufferSize(sampleRate: Int): Int = AudioTrack.getMinBufferSize(
+        sampleRate,
+        AudioFormat.CHANNEL_OUT_MONO,
+        AudioFormat.ENCODING_PCM_16BIT,
+    ).coerceAtLeast(4096)
+
+    private fun createTrack(sampleRate: Int, soundChannel: Int?, minBufferSize: Int): AudioTrack {
+        return AudioTrack.Builder()
+            .setAudioAttributes(buildAudioAttributes(soundChannel))
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setSampleRate(sampleRate)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build(),
+            )
+            .setBufferSizeInBytes(minBufferSize)
+            .setTransferMode(AudioTrack.MODE_STREAM)
+            .build()
     }
 
     private fun waitForPlaybackComplete(
@@ -133,5 +264,11 @@ internal class AndroidPcmPlayer {
     private companion object {
         const val BYTES_PER_FRAME = 2
         const val POST_DRAIN_GRACE_MS = 24L
+        const val PLAYBACK_THREAD_JOIN_TIMEOUT_MS = 200L
+        const val DEFAULT_STREAMING_QUEUE_CAPACITY = 32
+        const val MAX_STREAMING_QUEUE_CAPACITY = 256
+        const val STREAMING_PREBUFFER_CHUNKS = 2
+        const val STREAMING_PREBUFFER_WAIT_MS = 20L
+        val END_OF_STREAM = ByteArray(0)
     }
 }

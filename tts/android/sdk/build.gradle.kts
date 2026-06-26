@@ -13,6 +13,7 @@ val sdkReleaseDate: String = providers.gradleProperty("AMPHION_SDK_RELEASE_DATE"
 android {
     namespace = "com.lits.tts.sdk"
     compileSdk = 34
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         minSdk = 24
@@ -21,22 +22,18 @@ android {
         buildConfigField("int", "SDK_MAJOR", sdkMajor)
         buildConfigField("String", "SDK_RELEASE_DATE", "\"$sdkReleaseDate\"")
         buildConfigField("String", "LICENSE_PUBLIC_KEY_B64", "\"$amphionLicensePublicKey\"")
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+        externalNativeBuild {
+            ndkBuild {
+                arguments += listOf("APP_STL=c++_static")
+            }
+        }
     }
 
     buildFeatures {
         buildConfig = true
-    }
-
-    buildTypes {
-        release {
-            // 开启 R8：混淆 com.lits.tts.sdk.internal.*（含离线 license 验签逻辑），抬高逆向 / 打补丁门槛。
-            // 公开 API 由 consumer-rules.pro 保留；proguard-rules.pro 复用同一份规则做开发态自验。
-            isMinifyEnabled = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
-        }
     }
 
     compileOptions {
@@ -55,14 +52,11 @@ android {
 
     androidResources {
         noCompress += listOf("onnx")
-        // 仅打包 TTS 的 lits-models;排除工作区里残留的非 TTS assets(如 ASR 的 amphion-models)
-        ignoreAssetsPatterns += "amphion-models"
     }
 
-    packaging {
-        // 纯 TTS 运行时不需要 sherpa-onnx(ASR)的 JNI 库,排除其残留以免打入 AAR
-        jniLibs {
-            excludes += "**/libsherpa-onnx-jni.so"
+    externalNativeBuild {
+        ndkBuild {
+            path = file("src/main/jni/Android.mk")
         }
     }
 
