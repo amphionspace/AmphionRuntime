@@ -1,7 +1,6 @@
 package com.amphion.dingqiao
 
 import android.content.Context
-import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrCallback
 import com.amphion.asr.AsrEngine
 import com.amphion.asr.AsrError
@@ -48,9 +47,6 @@ internal class DingqiaoRecognitionEngine(
     private var engine: AsrEngine? = null
 
     @Volatile
-    private var currentAsrConfig: AsrConfig? = null
-
-    @Volatile
     private var session: AsrSession? = null
 
     @Volatile
@@ -75,7 +71,7 @@ internal class DingqiaoRecognitionEngine(
 
     init {
         try {
-            rebuildEngine(startParams = null)
+            buildEngine()
         } catch (t: Throwable) {
             throw DingqiaoEngineException(
                 DingqiaoErrorCode.CREATE_ENGINE_FAILED,
@@ -109,13 +105,20 @@ internal class DingqiaoRecognitionEngine(
             completeSent = false
             audioMsWritten = 0L
             speechStarted = false
-            activeSessionId = params.sessionId
-            listening = true
 
-            val eng = ensureEngineForStart(params)
-            val s = eng.newSession(createAsrCallback(params.sessionId))
+            val eng = engine
+                ?: throw DingqiaoEngineException(
+                    DingqiaoErrorCode.START_LISTENING_FAILED,
+                    "engine not ready",
+                )
+            val sessionConfig = DingqiaoEngineConfig.buildSessionConfig(params, speakerModelPath)
+            val s = eng.newSession(createAsrCallback(params.sessionId), sessionConfig)
+            // session 必须在 listening=true 之前对外可见：否则录音线程早到的 writeAudio
+            // 会落到 session==null 的空安全调用上被静默丢弃，导致首字丢失。
             session = s
             configureVoiceprint(s)
+            activeSessionId = params.sessionId
+            listening = true
             notifyStart(params.sessionId)
         } catch (t: Throwable) {
             listening = false
@@ -222,26 +225,15 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
-    private fun ensureEngineForStart(params: StartParams): AsrEngine {
-        val desired = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath, params)
-        val current = engine
-        if (current != null && currentAsrConfig == desired) {
-            return current
-        }
-        return rebuildEngine(params)
-    }
-
-    private fun rebuildEngine(startParams: StartParams?): AsrEngine {
+    /**
+     * 引擎只在 createEngine 阶段构建一次：recognizer / VAD / 声纹模型都是 engine 级资源，
+     * 不随会话参数变化。vadEnd 与 speaker VAD 窗口等运行时阈值改为通过 [com.amphion.asr.SessionConfig]
+     * 逐会话生效（见 [startListening]），因此启动识别恒走快路径，不再触发 native 冷重建。
+     */
+    private fun buildEngine() {
         val lang = DingqiaoEngineConfig.mapLanguage(createParams.language)
-        val config = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath, startParams)
-        try {
-            engine?.close()
-        } catch (_: Throwable) {
-        }
-        return AmphionRuntime.create(appContext, lang, config).also {
-            engine = it
-            currentAsrConfig = config
-        }
+        val config = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath)
+        engine = AmphionRuntime.create(appContext, lang, config)
     }
 
     private fun createAsrCallback(sessionId: String): AsrCallback = object : AsrCallback {
