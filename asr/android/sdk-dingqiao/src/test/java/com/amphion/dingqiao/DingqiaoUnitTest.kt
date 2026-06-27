@@ -88,6 +88,50 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildSessionConfig_readsVadEndAndSpeakerVad() {
+        val sc = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams(
+                sessionId = "s1",
+                audioInfo = AudioInfo(),
+                extraParams = mapOf(
+                    "vadEnd" to 1500,
+                    "speakerVadWindowMs" to 1200,
+                    "speakerVadHopMs" to 400,
+                    "speakerVadThreshold" to 0.5,
+                    "speakerVadConsecutiveBelow" to 3,
+                ),
+            ),
+            speakerModelPath = "/tmp/eres2net.onnx",
+        )
+        assertEquals(1500, sc.endpointSilenceMs)
+        val sv = sc.speakerVad!!
+        assertEquals(1.2f, sv.winSec, 1e-6f)
+        assertEquals(0.4f, sv.hopSec, 1e-6f)
+        assertEquals(0.5f, sv.threshold, 1e-6f)
+        assertEquals(3, sv.consecutiveBelow)
+    }
+
+    @Test
+    fun buildSessionConfig_noSpeakerModelDropsSpeakerVad() {
+        val sc = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams("s1", AudioInfo(), mapOf("vadEnd" to 800)),
+            speakerModelPath = null,
+        )
+        assertEquals(800, sc.endpointSilenceMs)
+        assertEquals(null, sc.speakerVad)
+    }
+
+    @Test
+    fun buildSessionConfig_usesDefaultsWhenAbsent() {
+        val sc = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams("s1", AudioInfo(), emptyMap()),
+            speakerModelPath = "/tmp/eres2net.onnx",
+        )
+        assertEquals(800, sc.endpointSilenceMs)
+        assertEquals(0.40f, sc.speakerVad!!.threshold, 1e-6f)
+    }
+
+    @Test
     fun vadEndMs_clampsToDocumentRange() {
         val low = DingqiaoEngineConfig.vadEndMs(
             StartParams("s1", AudioInfo(), mapOf("vadEnd" to 100)),

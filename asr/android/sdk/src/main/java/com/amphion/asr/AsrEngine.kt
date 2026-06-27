@@ -20,10 +20,13 @@ public class AsrEngine internal constructor(internal val impl: EngineImpl) : Aut
      * 创建一个新的识别会话。回调将在 SDK 专用回调线程上触发。
      *
      * @param callback 识别结果回调；不能为 null
+     * @param sessionConfig 会话级覆盖参数（如逐会话的 vadEnd / speaker VAD 窗口）；null 表示
+     *   沿用 engine 级 [AsrConfig]。这些参数只是运行时阈值，不会触发任何 native 重建。
      * @return 新的 [AsrSession]，初始处于已启动状态，可以直接 [AsrSession.acceptPcmShort]
      */
-    public fun newSession(callback: AsrCallback): AsrSession =
-        AsrSession(impl.newSession(callback))
+    @JvmOverloads
+    public fun newSession(callback: AsrCallback, sessionConfig: SessionConfig? = null): AsrSession =
+        AsrSession(impl.newSession(callback, sessionConfig))
 
     /** 引擎是否已经 [close]。 */
     public val isClosed: Boolean
