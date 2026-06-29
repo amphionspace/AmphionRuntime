@@ -4,6 +4,7 @@ import com.amphion.asr.AsrCallback
 import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrErrorCode
 import com.amphion.asr.AsrLanguage
+import com.amphion.asr.SessionConfig
 import com.amphion.asr.VadConfig
 import com.amphion.asr.TargetSpeakerConfig
 import com.amphion.asr.VadModelType
@@ -118,7 +119,7 @@ internal class EngineImpl(
     val isClosed: Boolean
         get() = closed.get()
 
-    fun newSession(callback: AsrCallback): SessionImpl {
+    fun newSession(callback: AsrCallback, sessionConfig: SessionConfig? = null): SessionImpl {
         check(!closed.get()) { "Engine is closed (code=${AsrErrorCode.SESSION_ALREADY_CLOSED})" }
         val id = sessionCounter.incrementAndGet()
         val isFirstSession = id == 1
@@ -140,6 +141,7 @@ internal class EngineImpl(
             callback = callback,
             sessionId = id,
             startupBundle = startupBundle,
+            sessionConfig = sessionConfig,
         )
         sessionsLock.withLock { sessions.add(session) }
         return session
