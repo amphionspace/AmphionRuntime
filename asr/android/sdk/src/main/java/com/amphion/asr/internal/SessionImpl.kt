@@ -6,6 +6,8 @@ import com.amphion.asr.AsrCallback
 import com.amphion.asr.AsrError
 import com.amphion.asr.AsrErrorCode
 import com.amphion.asr.AsrResult
+import com.amphion.asr.SessionConfig
+import com.amphion.asr.SpeakerVadConfig
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineRecognizerResult
 import com.k2fsa.sherpa.onnx.OnlineStream
@@ -37,6 +39,7 @@ internal class SessionImpl(
     private val callback: AsrCallback,
     private val sessionId: Int,
     private val startupBundle: EngineStartupBundle?,
+    private val sessionConfig: SessionConfig? = null,
 ) {
 
     private val closed = AtomicBoolean(false)
@@ -67,7 +70,8 @@ internal class SessionImpl(
     /** 目标说话人 VAD 开关：目标人离场时提前 endpoint。 */
     @Volatile
     private var speakerVadEnabled: Boolean =
-        engineImpl.targetSpeakerConfig?.speakerVad?.enabledByDefault ?: false
+        (sessionConfig?.speakerVad ?: engineImpl.targetSpeakerConfig?.speakerVad)
+            ?.enabledByDefault ?: false
 
     /** 已注册目标向量（已 L2 归一）；null = 未注册。 */
     @Volatile
@@ -75,6 +79,10 @@ internal class SessionImpl(
 
     /** 声纹打分器；decoder 线程独占，首次开关开启时懒加载。 */
     private var speakerVerifier: SpeakerVerifier? = null
+
+    /** 生效的 speaker VAD 配置：优先会话级 [sessionConfig] 覆盖，否则回落 engine 级。 */
+    private val effectiveSpeakerVad: SpeakerVadConfig?
+        get() = sessionConfig?.speakerVad ?: engineImpl.targetSpeakerConfig?.speakerVad
 
     /** 当前 utterance 的 PCM 缓冲（decoder 线程独占）；声纹门控 / speaker vad 开启时累积。 */
     private var uttBuf = FloatArray(0)
@@ -110,7 +118,8 @@ internal class SessionImpl(
     private val vadWindowSize: Int = VAD_WINDOW_SIZE
 
     /** VAD 检测到 speech 后多少毫秒静音就主动 endpoint；0 = 禁用主动 endpoint，只做 onset 日志。 */
-    private val activeEpSilenceMs: Int = engineImpl.vadConfig.activeEndpointSilenceMs
+    private val activeEpSilenceMs: Int =
+        sessionConfig?.endpointSilenceMs ?: engineImpl.vadConfig.activeEndpointSilenceMs
 
     /** 当前是否处于 speech 段内（VAD onset 后 → 主动 endpoint / hard restart 之间）。 */
     @Volatile
@@ -274,7 +283,7 @@ internal class SessionImpl(
             Logger.w("setSpeakerVadEnabled ignored: session closed")
             return
         }
-        val speakerVad = engineImpl.targetSpeakerConfig?.speakerVad
+        val speakerVad = effectiveSpeakerVad
         if (speakerVad == null) {
             Logger.w(
                 "setSpeakerVadEnabled($enabled) ignored: TargetSpeakerConfig.speakerVad not configured",
@@ -659,7 +668,7 @@ internal class SessionImpl(
      */
     private fun maybeTriggerSpeakerVadEndpoint(samplesInChunk: Int): Boolean {
         if (!speakerVadEnabled) return false
-        val speakerVad = engineImpl.targetSpeakerConfig?.speakerVad ?: return false
+        val speakerVad = effectiveSpeakerVad ?: return false
         val target = targetEmbedding ?: return false
         val verifier = ensureVerifier() ?: return false
 

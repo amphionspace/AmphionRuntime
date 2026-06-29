@@ -3,6 +3,7 @@ package com.amphion.dingqiao
 import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrLanguage
 import com.amphion.asr.EndpointRules
+import com.amphion.asr.SessionConfig
 import com.amphion.asr.SpeakerVadConfig
 import com.amphion.asr.TargetSpeakerConfig
 import com.amphion.asr.VadConfig
@@ -70,6 +71,22 @@ internal object DingqiaoEngineConfig {
             )
         }
         return builder.build()
+    }
+
+    /**
+     * 会话级覆盖参数：vadEnd 与 speaker VAD 窗口都是运行时阈值，逐会话直接生效，不触发引擎重建。
+     * speakerModelPath 为空时不下发 speakerVad（engine 未配置声纹能力）。
+     */
+    fun buildSessionConfig(startParams: StartParams, speakerModelPath: String?): SessionConfig {
+        val speakerVad = if (!speakerModelPath.isNullOrBlank()) {
+            speakerVadConfig(startParams)
+        } else {
+            null
+        }
+        return SessionConfig(
+            endpointSilenceMs = vadEndMs(startParams),
+            speakerVad = speakerVad,
+        )
     }
 
     fun vadEndMs(startParams: StartParams?): Int {
