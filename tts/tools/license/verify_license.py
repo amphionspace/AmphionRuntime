@@ -6,11 +6,10 @@
 用法：
     python verify_license.py --license com.acme.reader.lic \
         --public-key-b64 "<gradle.properties 里的公钥>" \
-        --application-id com.acme.reader \
-        [--cert-sha256 AB:CD:...] [--grace-days 0] [--now 2026-06-03]
+        [--device-id SN001] [--cert-sha256 AB:CD:...] [--grace-days 0] [--now 2026-06-03]
 
 或用私钥推导公钥（开发期便捷）：
-    python verify_license.py --license x.lic --private-key key.pem --application-id com.acme.reader
+    python verify_license.py --license x.lic --private-key key.pem --device-id SN001
 
 退出码：0 通过；非 0 表示对应失败（错误码与 SDK 端 TtsErrorCode 的 LICENSE_* 段对齐）。
 """
@@ -33,7 +32,6 @@ except ImportError:
 LICENSE_MISSING = 1002300012
 LICENSE_MALFORMED = 1002300013
 LICENSE_SIGNATURE_INVALID = 1002300014
-LICENSE_APP_MISMATCH = 1002300015
 LICENSE_CERT_MISMATCH = 1002300016
 LICENSE_EXPIRED = 1002300017
 LICENSE_DEVICE_MISMATCH = 1002300018
@@ -53,8 +51,8 @@ def main() -> None:
     ap.add_argument("--public-key-b64", default=None, help="公钥 base64（同 gradle.properties）")
     ap.add_argument("--private-key", default=None, help="或给私钥 PEM，自动推导公钥")
     ap.add_argument("--password", default=None, help="私钥口令")
-    ap.add_argument("--application-id", required=True, help="宿主 applicationId")
-    ap.add_argument("--bundle-name", default="", help="宿主 HarmonyOS bundleName；默认同 applicationId")
+    ap.add_argument("--application-id", default="", help="宿主 applicationId；仅用于人工记录，不参与绑定校验")
+    ap.add_argument("--bundle-name", default="", help="宿主 HarmonyOS bundleName；仅用于人工记录，不参与绑定校验")
     ap.add_argument("--cert-sha256", default="", help="宿主签名证书 SHA-256（可带冒号）")
     ap.add_argument("--device-id", default="", help="宿主设备 SN 码；用于校验 authorizedDeviceHashes")
     ap.add_argument("--sdk-major", type=int, default=1, help="当前 SDK 大版本")
@@ -90,16 +88,7 @@ def main() -> None:
 
     claims = json.loads(payload_bytes.decode("utf-8"))
 
-    # 2. applicationId / bundleName
-    bound_app = claims.get("applicationId") or claims.get("bundleName", "")
-    host_app = args.application_id or args.bundle_name
-    if bound_app != host_app:
-        sys.exit(
-            f"[FAIL {LICENSE_APP_MISMATCH}] LICENSE_APP_MISMATCH："
-            f"license={bound_app} host={host_app}"
-        )
-
-    # 3. 签名证书
+    # 2. 签名证书
     want = _norm_hex(claims.get("signingCertDigest") or claims.get("certSha256", ""))
     if want:
         have = _norm_hex(args.cert_sha256)
@@ -108,7 +97,7 @@ def main() -> None:
         elif have != want:
             sys.exit(f"[FAIL {LICENSE_CERT_MISMATCH}] LICENSE_CERT_MISMATCH：license={want} host={have}")
 
-    # 4. 到期：到期日当天有效，再加宽限
+    # 3. 到期：到期日当天有效，再加宽限
     expires = claims.get("expiresAt", "")
     if expires:
         now = (
@@ -121,7 +110,7 @@ def main() -> None:
         if now >= deadline:
             sys.exit(f"[FAIL {LICENSE_EXPIRED}] LICENSE_EXPIRED：expiresAt={expires}")
 
-    # 5. SDK 大版本与维护期
+    # 4. SDK 大版本与维护期
     sdk_major = claims.get("sdkMajor", -1)
     if sdk_major >= 0 and sdk_major != args.sdk_major:
         sys.exit(f"[FAIL 1002300019] LICENSE_SDK_MAJOR_MISMATCH：license={sdk_major} host={args.sdk_major}")
@@ -139,7 +128,7 @@ def main() -> None:
     if args.required_feature not in features:
         sys.exit(f"[FAIL 1002300021] LICENSE_FEATURE_MISSING：features={','.join(sorted(features))}")
 
-    # 6. 设备 SN 白名单
+    # 5. 设备 SN 白名单
     authorized = {_norm_hex(v) for v in claims.get("authorizedDeviceHashes", [])}
     if authorized:
         if not args.device_id:

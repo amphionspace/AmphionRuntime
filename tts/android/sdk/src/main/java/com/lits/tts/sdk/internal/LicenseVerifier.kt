@@ -113,11 +113,6 @@ internal object LicenseVerifier {
             return failWith(claims, TtsErrorCode.LICENSE_SIGNATURE_INVALID, "signature mismatch")
         }
 
-        val boundApp = claims.boundApplicationId
-        if (boundApp != packageName) {
-            return failWith(claims, TtsErrorCode.LICENSE_APP_MISMATCH, "license app=$boundApp host=$packageName")
-        }
-
         if (claims.boundSigningCertDigest.isNotBlank()) {
             val want = normalizeHex(claims.boundSigningCertDigest)
             if (!hostCertSha256.contains(want)) {
