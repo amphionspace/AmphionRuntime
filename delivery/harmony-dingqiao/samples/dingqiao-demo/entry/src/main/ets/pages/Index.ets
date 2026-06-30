@@ -4,7 +4,6 @@ import {
   AudioInfo,
   CreateEngineCallback,
   CreateEngineParams,
-  DingqiaoErrorCode,
   DingqiaoEventCode,
   RecognitionListener,
   SpeechRecognitionEngine,
@@ -288,14 +287,6 @@ struct Index {
   }
 
   handleError(errorCode: number, message: string): void {
-    if (this.listening && errorCode === DingqiaoErrorCode.MAX_AUDIO_DURATION) {
-      this.rotatingSession = false;
-      this.sessionId = '';
-      this.sessionAudioMs = 0;
-      this.startRecognitionSession();
-      this.status = '识别中…（再次点击结束）';
-      return;
-    }
     this.stopCapture();
     this.status = `错误 ${errorCode}：${message}`;
     this.listening = false;

@@ -32,6 +32,12 @@
             android:parentActivityName=".MainActivity" />
 
         <activity
+            android:name=".DebugRecordsActivity"
+            android:exported="false"
+            android:label="@string/debug_records_title"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
             android:name=".VoiceprintEnrollActivity"
             android:exported="false"
             android:label="@string/enroll_title"
