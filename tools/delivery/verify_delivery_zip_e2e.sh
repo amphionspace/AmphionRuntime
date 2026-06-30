@@ -9,7 +9,6 @@
 #   DELIVERY_VERIFY_REQUIRED_AAR_ENTRIES='path:min_bytes,...' \
 #   DELIVERY_VERIFY_REQUIRED_APK_ENTRIES='path:min_bytes,...' \
 #   DELIVERY_VERIFY_LICENSE_ENTRY='assets/amphion-license.lic' \
-#   DELIVERY_VERIFY_LICENSE_APPLICATION_ID='com.example.demo' \
 #   DELIVERY_VERIFY_LICENSE_FEATURES='ASR' \
 #   DELIVERY_VERIFY_LICENSE_DEVICE_HASH_COUNT='0' \
 #   DELIVERY_VERIFY_ANDROID_PACKAGE='com.example.demo' \
@@ -152,9 +151,6 @@ if license_entry:
         fail("license entry configured but APK missing")
     with zipfile.ZipFile(apk) as z:
         payload = json.loads(base64.b64decode(json.loads(z.read(license_entry).decode("utf-8"))["payload_b64"]).decode("utf-8"))
-    expected_app = env("DELIVERY_VERIFY_LICENSE_APPLICATION_ID")
-    if expected_app and payload.get("applicationId") != expected_app:
-        fail(f"license applicationId mismatch: {payload.get('applicationId')} != {expected_app}")
     expected_features = [p for p in env("DELIVERY_VERIFY_LICENSE_FEATURES").split(",") if p]
     if expected_features and payload.get("features") != expected_features:
         fail(f"license features mismatch: {payload.get('features')} != {expected_features}")
@@ -166,6 +162,7 @@ if license_entry:
         fail("license expiresAt is required")
     license_result = {
         "applicationId": payload.get("applicationId"),
+        "bundleName": payload.get("bundleName"),
         "features": payload.get("features", []),
         "expiresAt": payload.get("expiresAt"),
         "device_hash_count": actual_hash_count,
@@ -362,7 +359,8 @@ lines = [
 ]
 if static.get("license"):
     lines += [
-        f"- License applicationId: `{static['license'].get('applicationId')}`",
+        f"- License applicationId record: `{static['license'].get('applicationId')}`",
+        f"- License bundleName record: `{static['license'].get('bundleName')}`",
         f"- License features: `{','.join(static['license'].get('features', []))}`",
         f"- License device hash count: `{static['license'].get('device_hash_count')}`",
         f"- License expiresAt: `{static['license'].get('expiresAt')}`",

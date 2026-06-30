@@ -6,7 +6,7 @@
 
 | 对象 | applicationId / bundleName | features | SN 绑定 | 到期 |
 | --- | --- | --- | --- | --- |
-| Demo APK | com.amphion.dingqiao.demo | ASR | 不绑定 SN，只绑定 Demo 包名和签名 | 2026-08-25 |
+| Demo APK | com.amphion.dingqiao.demo | ASR | 不绑定 SN，记录 Demo 包名并绑定 Demo 签名 | 2026-08-25 |
 | 正式 SDK license | 不限制应用，仅可记录为空或客户当前包名 | ASR,TTS | 绑定鼎桥 SN 清单，本次 16 台 | 2026-08-25 |
 
 Demo APK 是普通安装体验包，必须能在没有系统 SN 读取权限的设备上完成 `createEngine`。正式 SDK license 单独下发给客户 App，授权边界只看设备 SN 白名单；客户 App 需要能读取或注入本机 SN。

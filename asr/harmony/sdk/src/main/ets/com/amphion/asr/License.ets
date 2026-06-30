@@ -37,7 +37,7 @@ export class AmphionLicenseStatus {
 
 export class HarmonyLicenseVerifier {
   /**
-   * 纯血鸿蒙 license 绑定字段预留为 bundleName + signingCertDigest。
+   * License 字段与 Android 对齐；applicationId / bundleName 仅作记录，正式授权边界由设备 SN 白名单决定。
    * 当前实现只解析占位字段，真正签名验签由交付期注入公钥后补齐。
    */
   static verify(
@@ -85,13 +85,6 @@ export class HarmonyLicenseVerifier {
     status.features = HarmonyLicenseVerifier.stringArray(claims, 'features');
     status.authorizedDeviceCount = HarmonyLicenseVerifier.stringArray(claims, 'authorizedDeviceHashes').length;
 
-    const boundBundle = HarmonyLicenseVerifier.stringValue(claims, 'bundleName');
-    if (bundleName !== undefined && boundBundle.length > 0 && boundBundle !== bundleName) {
-      status.state = AmphionLicenseState.INVALID;
-      status.errorCode = AsrErrorCode.LICENSE_APP_MISMATCH;
-      status.message = `license bundleName=${boundBundle} host=${bundleName}`;
-      return status;
-    }
     const boundCert = HarmonyLicenseVerifier.normalizeHex(HarmonyLicenseVerifier.stringValue(claims, 'signingCertDigest'));
     const hostCert = HarmonyLicenseVerifier.normalizeHex(signingCertDigest ?? '');
     if (boundCert.length > 0 && hostCert.length > 0 && boundCert !== hostCert) {

@@ -6,11 +6,10 @@
 用法：
     python verify_license.py --license amphion-license.lic \
         --public-key-b64 "<构建配置里的公钥>" \
-        --application-id com.acme.app \
-        [--cert-sha256 AB:CD:...] [--required-feature ASR] [--now 2026-06-03]
+        [--device-id SN001] [--cert-sha256 AB:CD:...] [--required-feature ASR] [--now 2026-06-03]
 
 或用私钥推导公钥（开发期便捷）：
-    python verify_license.py --license x.lic --private-key key.pem --application-id com.acme.app
+    python verify_license.py --license x.lic --private-key key.pem --device-id SN001
 """
 import argparse
 import base64
@@ -42,8 +41,8 @@ def main() -> None:
     ap.add_argument("--public-key-b64", default=None, help="公钥 base64（同构建配置）")
     ap.add_argument("--private-key", default=None, help="或给私钥 PEM，自动推导公钥")
     ap.add_argument("--password", default=None, help="私钥口令")
-    ap.add_argument("--application-id", required=True, help="宿主 applicationId")
-    ap.add_argument("--bundle-name", default="", help="宿主 HarmonyOS bundleName；默认同 applicationId")
+    ap.add_argument("--application-id", default="", help="宿主 applicationId；仅用于人工记录，不参与绑定校验")
+    ap.add_argument("--bundle-name", default="", help="宿主 HarmonyOS bundleName；仅用于人工记录，不参与绑定校验")
     ap.add_argument("--cert-sha256", default="", help="宿主签名证书 SHA-256（可带冒号）")
     ap.add_argument("--device-id", default="", help="宿主设备 SN 码；用于校验 authorizedDeviceHashes")
     ap.add_argument("--sdk-major", type=int, default=1, help="当前 SDK 大版本")
@@ -74,13 +73,6 @@ def main() -> None:
         sys.exit("[FAIL 6003] LICENSE_SIGNATURE_INVALID：签名校验未通过")
 
     claims = json.loads(payload_bytes.decode("utf-8"))
-
-    bound_app = claims.get("applicationId") or claims.get("bundleName", "")
-    host_app = args.application_id or args.bundle_name
-    if bound_app != host_app:
-        sys.exit(
-            f"[FAIL 6004] LICENSE_APP_MISMATCH：license={bound_app} host={host_app}"
-        )
 
     want = _norm_hex(claims.get("signingCertDigest") or claims.get("certSha256", ""))
     if want:
