@@ -181,7 +181,7 @@ val newEngine = AmphionRuntime.create(context, AsrLanguage.YUE_EN)
 | LICENSE_MISSING | 6001 | 武装构建未提供 .lic（assets 缺文件且未传 license 字符串） |
 | LICENSE_MALFORMED | 6002 | .lic 格式损坏 / 缺必填字段 |
 | LICENSE_SIGNATURE_INVALID | 6003 | 验签失败（被篡改或非我方签发） |
-| LICENSE_APP_MISMATCH | 6004 | .lic 的 applicationId 与你的包名不一致 |
+| LICENSE_APP_MISMATCH | 6004 | 保留错误码；当前正式设备白名单 license 不按 applicationId 限制宿主 |
 | LICENSE_CERT_MISMATCH | 6005 | .lic 绑定的签名证书与你的不一致 |
 | LICENSE_EXPIRED | 6006 | .lic 已过期 |
 | NATIVE_CRASH | 9001 | native 兜底；建议 close session 重建 |
@@ -190,7 +190,7 @@ val newEngine = AmphionRuntime.create(context, AsrLanguage.YUE_EN)
 - `SDK_NOT_INITIALIZED`：忘了调 `AmphionRuntime.init`
 - `ASSET_INSTALL_FAILED` / `STORAGE_INSUFFICIENT`：首次解包磁盘问题
 - 其他错误码视为「重启 session 重试」即可
-- `6xxx`（仅武装构建）：授权问题，按 §14 处理；常见是没放 `.lic`、或包名 / 签名 / 到期不匹配
+- `6xxx`（仅武装构建）：授权问题，按 §14 处理；常见是没放 `.lic`、设备 SN 不在白名单、或签名 / 到期不匹配
 
 ## 8. 数据格式
 
@@ -555,7 +555,7 @@ ENFORCE 模式下校验失败，`AmphionRuntime.init` 抛 `IllegalStateException
 | LICENSE_MISSING | 6001 | 没找到 .lic（assets 无该文件且未传 license 字符串） | 确认 .lic 已放进 assets |
 | LICENSE_MALFORMED | 6002 | .lic 格式损坏 / 缺字段 | 向我方重新获取 |
 | LICENSE_SIGNATURE_INVALID | 6003 | 验签失败（被篡改或非我方签发） | 向我方重新获取 |
-| LICENSE_APP_MISMATCH | 6004 | license 的 applicationId 与你的包名不一致 | 告知我方正确包名重签 |
+| LICENSE_APP_MISMATCH | 6004 | 保留错误码；当前正式设备白名单 license 不按 applicationId 限制宿主 | 无需按包名重签 |
 | LICENSE_CERT_MISMATCH | 6005 | 签名证书与 license 绑定的不一致 | 换签名证书需告知我方重签 |
 | LICENSE_EXPIRED | 6006 | 已过期 | 联系我方续期 |
 | LICENSE_DEVICE_MISMATCH | 6007 | 设备 SN 不可用或 SN 哈希不在白名单 | 确认 `deviceIdProvider` 返回值与授权 SN 清单一致 |
