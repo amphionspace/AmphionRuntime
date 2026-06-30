@@ -166,7 +166,7 @@ cat > "$OUT_ROOT/README.txt" <<EOF
   - 商用授权文件单独下发，不包含在本压缩包内；正式 App 授权可绑定 SN 清单，并可供 ASR/TTS 共用。
   - 声纹模型已内置于 SDK AAR，首次运行会自动解包到 setWorkPath，无需单独下发 models/eres2net.onnx。
   - 版本与 git 溯源见 VERSION.txt（含 git_commit_full / buildconfig_sdk_version）
-  - Demo APK 内 license 为 2 个月试用（绑定 demo 包名+签名，不绑定 SN）；签名来源见 VERSION.txt 的 demo_apk_signing
+  - Demo APK 内 license 为 2 个月试用（记录 demo 包名，绑定 Demo 签名，不绑定 SN）；签名来源见 VERSION.txt 的 demo_apk_signing
   - 第三方开源组件声明见 docs/NOTICE（sherpa-onnx / ONNX Runtime / silero-vad / 3D-Speaker 等）
   - 快速静态校验: bash asr/tools/delivery/verify_dingqiao_delivery.sh <本zip>
   - 最终验收: 按内部流程运行 tools/delivery/verify_delivery_zip_e2e.sh，以最终 zip 解压内容为唯一验收对象

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 为鼎桥 Demo（com.amphion.dingqiao.demo）签发 amphion-license.lic。
 #
-# 商务策略：Demo 为限期试用（默认自签发日起 2 个月），绑定 demo 包名 + 签名。
+# 商务策略：Demo 为限期试用（默认自签发日起 2 个月），记录 demo 包名，并在可获取证书时绑定 Demo 签名。
 # Demo APK 不绑定设备 SN；正式 SDK license 单独下发并绑定 SN 清单。
 #
 # 私钥默认：仓库根 .secure/amphion-license-private.pem（不进 git）
