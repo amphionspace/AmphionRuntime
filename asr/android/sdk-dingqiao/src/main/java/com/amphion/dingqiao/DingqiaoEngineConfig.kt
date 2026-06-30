@@ -99,8 +99,12 @@ internal object DingqiaoEngineConfig {
     }
 
     fun maxAudioDurationMs(startParams: StartParams): Long {
-        val v = startParams.extraParams["maxAudioDuration"] as? Number
-        return v?.toLong()?.coerceAtLeast(20_000L) ?: 20_000L
+        val v = when (val raw = startParams.extraParams["maxAudioDuration"]) {
+            is Number -> raw.toLong()
+            is String -> raw.toLongOrNull()
+            else -> null
+        }
+        return v?.coerceAtLeast(20_000L) ?: 20_000L
     }
 
     fun isSupportedAudioFrameBytes(byteSize: Int): Boolean =
