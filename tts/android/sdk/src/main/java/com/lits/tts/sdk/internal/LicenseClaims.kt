@@ -7,8 +7,8 @@ package com.lits.tts.sdk.internal
  *
  * @property licenseId 授权编号
  * @property customer 客户名
- * @property applicationId Android 宿主 applicationId；兼容旧 license 字段
- * @property bundleName HarmonyOS 应用 bundleName；Android 可用 applicationId 兼容
+ * @property applicationId Android 宿主 applicationId；仅作签发记录，不参与 Android 端绑定校验
+ * @property bundleName HarmonyOS 应用 bundleName；仅作签发记录，不参与 Android 端绑定校验
  * @property signingCertDigest 绑定的签名证书 SHA-256（大写、可含冒号）；空表示不绑证书
  * @property certSha256 旧 license 字段；新签发使用 signingCertDigest
  * @property deviceIdHashAlg 设备 ID 哈希算法；当前支持 SHA-256
