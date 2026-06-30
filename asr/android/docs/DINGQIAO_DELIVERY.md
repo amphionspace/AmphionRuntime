@@ -102,7 +102,6 @@ ZIP=delivery/.../amphion-dingqiao-*.zip
 export DELIVERY_VERIFY_REQUIRED_AAR_ENTRIES='jni/arm64-v8a/libsherpa-onnx-jni.so:1,jni/arm64-v8a/libonnxruntime.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280'
 export DELIVERY_VERIFY_REQUIRED_APK_ENTRIES='lib/arm64-v8a/libsherpa-onnx-jni.so:1,lib/arm64-v8a/libonnxruntime.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-license.lic:1'
 export DELIVERY_VERIFY_LICENSE_ENTRY='assets/amphion-license.lic'
-export DELIVERY_VERIFY_LICENSE_APPLICATION_ID='com.amphion.dingqiao.demo'
 export DELIVERY_VERIFY_LICENSE_FEATURES='ASR'
 export DELIVERY_VERIFY_LICENSE_DEVICE_HASH_COUNT=0
 export DELIVERY_VERIFY_ANDROID_PACKAGE='com.amphion.dingqiao.demo'
@@ -243,7 +242,7 @@ keytool -genkeypair -v -storetype PKCS12 \
 
 ### 8.3 签发 Demo `.lic`
 
-`.lic` **不进 git**；构建 Release 前生成并放入 Demo assets。Demo 授权为**限期试用**（默认自签发日起 **2 个月**），绑定 `com.amphion.dingqiao.demo` 包名与 Demo Release 证书 SHA-256，不绑定设备 SN；到期后 SDK 返回 `6006 LICENSE_EXPIRED`。交付打包脚本会在构建 Demo Release 前自动重签。
+`.lic` **不进 git**；构建 Release 前生成并放入 Demo assets。Demo 授权为**限期试用**（默认自签发日起 **2 个月**），记录 `com.amphion.dingqiao.demo` 包名，可绑定 Demo Release 证书 SHA-256，不绑定设备 SN；到期后 SDK 返回 `6006 LICENSE_EXPIRED`。交付打包脚本会在构建 Demo Release 前自动重签。
 
 ```bash
 bash ../../asr/tools/license/issue_dingqiao_demo.sh
@@ -251,9 +250,9 @@ bash ../../asr/tools/license/issue_dingqiao_demo.sh
 # 可选：DINGQIAO_DEMO_TRIAL_MONTHS=2（默认）调整试用月数
 ```
 
-每次对外发 Demo APK 或交付 zip 前请确认已重签（`pack_dingqiao_*.sh` 已集成）。续期 = 用同一私钥对同一 applicationId + certSha256 重签更晚 `expiresAt` 的 `.lic`。
+每次对外发 Demo APK 或交付 zip 前请确认已重签（`pack_dingqiao_*.sh` 已集成）。续期 = 用同一私钥对同一 Demo 证书记录重签更晚 `expiresAt` 的 `.lic`。
 
-鼎桥客户正式包：用同一私钥，按 [`docs/DELIVERY.md`](DELIVERY.md) §11 对其 **applicationId + release 证书 SHA256 + 设备 SN 清单** 单独签发。本次 `com.tdtech.tiassistant` 正式 license 供 ASR 与 TTS 共用，`features=ASR,TTS`，并限制到期时间。
+鼎桥客户正式包：用同一私钥，按 [`docs/DELIVERY.md`](DELIVERY.md) §11 对其 **设备 SN 清单** 单独签发；applicationId / bundleName 仅作记录，不作为授权限制。如 license 内写入 release 证书 SHA-256，则同时校验证书。本次正式 license 供 ASR 与 TTS 共用，`features=ASR,TTS`，并限制到期时间。
 
 正式包如启用设备 SN 白名单，Android 鼎桥封装层会通过 `Build.getSerial()` 读取设备序列号。宿主 App 必须作为系统应用声明并获得 `android.permission.READ_PRIVILEGED_PHONE_STATE`；若权限缺失或系统返回空/`UNKNOWN`，license 激活会因设备 SN 不可用失败。不要把 SN 绑定策略套到普通安装的 Demo APK 上，否则 Demo 可能无法完成 `createEngine`。
 
