@@ -100,6 +100,8 @@
 
 > 批注（交付约束，2026-06-29）：鼎桥交付采用本地离线 License 校验，不描述为联网鉴权；客户可见文档不得出现“联网鉴权服务器”等表述。
 
+> 批注（增补 S3，2026-06-30）：正式设备白名单 License 不按 Android applicationId 或 HarmonyOS bundleName 限制宿主应用；applicationId 与 bundleName 仅作为签发记录展示。正式授权边界为签名验真、授权能力、到期时间、SDK 大版本 / 维护期、设备 SN 白名单；如 license 内写入签名证书 SHA-256，则同时校验证书。Demo 体验 License 可记录 Demo 包名并绑定 Demo 签名，但不绑定 SN。
+
 > 批注（生命周期澄清，2026-06-29）：`getLicenseInfo()` 查询的是当前进程通过 `setLicense()` 激活后的 License 信息。若仅依赖 AAR 或 Demo APK 内置体验 License，而未显式调用 `setLicense()`，`getLicenseInfo()` 可返回未设置 License。
 
 ## 8. 错误码一致性
@@ -131,3 +133,5 @@
 | 1002200035 | LICENSE_ACTIVATION_FAILED |
 
 > 批注（兼容澄清，2026-06-29）：`1002200003` 因增补 S1 保留名称但不再主动触发。其余错误码不得跨平台复用为其他含义。
+
+> 批注（兼容澄清，2026-06-30）：正式设备白名单 License 不再因 applicationId / bundleName 不匹配触发授权失败。`LICENSE_DEVICE_MISMATCH` 用于设备 SN 不可用、设备 SN 哈希未命中，或已写入证书绑定时签名证书不匹配等本地绑定失败。

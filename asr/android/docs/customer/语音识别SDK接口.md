@@ -186,13 +186,13 @@ SDK 不在内部丢弃非目标说话人结果；final 会返回增强文本与 
 
 | 项 | 值 |
 |----|----|
-| 应用包名 | `com.tdtech.tiassistant` |
-| 授权能力 | `ASR,TTS` |
-| 绑定方式 | 包名、Release 签名证书 SHA-256、设备 SN 白名单、到期时间 |
+| 应用包名 | 可记录 com.tdtech.tiassistant，不作为授权限制 |
+| 授权能力 | ASR,TTS |
+| 绑定方式 | 设备 SN 白名单、到期时间；如 license 内写入签名证书 SHA-256，则同时校验证书 |
 
 设备绑定哈希规则为 `SHA-256(normalizedSn + deviceIdSaltId)`，其中 `normalizedSn` 为 trim 后转大写。默认 `deviceIdSaltId` 为 `DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71`。
 
-Demo APK 内置 license 仅用于体验：包名为 `com.amphion.dingqiao.demo`，授权能力为 `ASR`，不绑定 SN，不可用于正式宿主。
+Demo APK 内置 license 仅用于体验：记录包名 com.amphion.dingqiao.demo，授权能力为 ASR，不绑定 SN，不可用于正式宿主。
 
 ## 8. 错误码
 
@@ -216,7 +216,7 @@ Demo APK 内置 license 仅用于体验：包名为 `com.amphion.dingqiao.demo`�
 | `1002200030` | `LICENSE_FILE_UNREADABLE` | 授权文件不可读 |
 | `1002200031` | `LICENSE_INVALID` | 授权无效 |
 | `1002200032` | `LICENSE_EXPIRED` | 授权已过期 |
-| `1002200033` | `LICENSE_DEVICE_MISMATCH` | 包名、签名或设备不匹配 |
+| 1002200033 | LICENSE_DEVICE_MISMATCH | 设备 SN 不在授权白名单，或 license 内写入签名证书且签名不匹配 |
 | `1002200034` | `LICENSE_NOT_SET` | 未设置授权 |
 | `1002200035` | `LICENSE_ACTIVATION_FAILED` | 授权激活失败 |
 

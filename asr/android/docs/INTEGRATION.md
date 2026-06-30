@@ -566,7 +566,7 @@ ENFORCE 模式下校验失败，`AmphionRuntime.init` 抛 `IllegalStateException
 ### 14.5 常见问题
 
 - 换了 release 签名证书：若 license 绑了 certSha256，需把新证书 SHA-256 给我方重签。
-- 改了 applicationId：需用新包名重签。
+- 改了 applicationId：正式设备白名单 license 不按 applicationId 限制宿主，通常无需因此重签；若业务要求记录新包名，可重新签发用于审计展示。
 - 启用了设备白名单：需在 `AmphionOptions.deviceIdProvider` 注入设备 SN，且 SN 与签发清单一致。
 - 到期续期：我方重签一份更晚到期的 `.lic`，随你的 App 更新替换 assets 内文件即可，代码不动。
 - 灰度上线：可临时用 `LicenseEnforcement.PERMISSIVE` 让校验失败不阻断启动（仅记录），不建议长期使用。
