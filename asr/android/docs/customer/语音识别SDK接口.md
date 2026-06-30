@@ -1,5 +1,7 @@
 # 语音识别 SDK 接口
 
+> 交付契约提示：本文件为 Android 集成说明。跨平台接口契约以《语音识别SDK接口-交付批注版.md》为准；该文档基于 `/Users/boxp/Downloads/语音识别SDK接口-20260622.md`，并在增补项旁批注。
+
 本文描述鼎桥 Android 离线语音识别 SDK 的客户集成接口。SDK 入口包名为 `com.amphion.dingqiao`，核心入口为 `SpeechRecognizeSdk`。
 
 ## 1. 最小调用顺序
@@ -86,7 +88,7 @@ engine.shutdown()
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `enablePartialResult` | `Boolean` | `true` | 是否回调中间结果 |
-| `maxAudioDuration` | `Number` | `20000` | 单会话最长音频毫秒数，最小 20000 |
+| `maxAudioDuration` | `Number` | `20000` | 单会话最长音频毫秒数，最小 20000；达到上限后自动结束识别（等同 finish），回调最终 onResult 与 onComplete，不回调错误 |
 | `vadEnd` | `Number/String` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `enableVoiceprintVerification` | `Boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
 | `enableSpeakerVad` | `Boolean/String/Number` | `false` | 是否启用目标说话人离场提前 endpoint |
@@ -113,7 +115,7 @@ interface RecognitionListener {
 | `onStart` | 会话启动成功 |
 | `onEvent` | 语音端点、声纹 VAD 状态等事件 |
 | `onResult` | 识别结果，包含 partial 与 final |
-| `onComplete` | 主动 `finish` 后识别完整结束 |
+| `onComplete` | 主动 `finish` 或达到 `maxAudioDuration` 上限自动结束后，识别完整结束 |
 | `onError` | 发生错误 |
 
 `SpeechRecognitionResult`：
@@ -121,7 +123,7 @@ interface RecognitionListener {
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `isFinal` | `Boolean` | 是否最终结果 |
-| `isLast` | `Boolean` | 是否本次 `finish` 对应的最后结果 |
+| `isLast` | `Boolean` | 是否本次会话结束（`finish` 或达到上限自动结束）对应的最后结果 |
 | `result` | `String` | 识别文本；final 为警务增强后文本 |
 | `beginTime` | `Int?` | 起始时间毫秒，可能为空 |
 | `endTime` | `Int?` | 结束时间毫秒，可能为空 |
@@ -198,7 +200,7 @@ Demo APK 内置 license 仅用于体验：包名为 `com.amphion.dingqiao.demo`�
 |--------|------|------|
 | `1002200001` | `CREATE_ENGINE_FAILED` | 创建引擎失败 |
 | `1002200002` | `START_LISTENING_FAILED` | 启动识别失败 |
-| `1002200003` | `MAX_AUDIO_DURATION` | 超过单会话最长音频 |
+| `1002200003` | `MAX_AUDIO_DURATION` | 已废弃：达到单会话最长音频时改为自动结束识别，不再回调此错误 |
 | `1002200004` | `FINISH_FAILED` | 结束识别失败 |
 | `1002200005` | `CANCEL_FAILED` | 取消识别失败 |
 | `1002200006` | `ENGINE_BUSY` | 引擎忙 |

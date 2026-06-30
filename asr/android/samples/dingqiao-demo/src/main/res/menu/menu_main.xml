@@ -4,6 +4,9 @@
         android:id="@+id/action_hotwords"
         android:title="@string/menu_hotwords" />
     <item
+        android:id="@+id/action_debug_records"
+        android:title="@string/menu_debug_records" />
+    <item
         android:id="@+id/action_voiceprint"
         android:title="@string/menu_voiceprint" />
     <item

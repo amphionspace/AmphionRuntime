@@ -19,6 +19,7 @@
     <string name="speaker_vad_enabled_hint">说话人 VAD 已开启</string>
     <string name="speaker_vad_disabled_hint">说话人 VAD 已关闭</string>
     <string name="menu_more">更多</string>
+    <string name="menu_debug_records">调试记录</string>
     <string name="menu_voiceprint">声纹注册</string>
     <string name="menu_delete_voiceprint">删除声纹</string>
 
@@ -73,4 +74,15 @@
     <string name="hotwords_invalid">热词不能为空且不超过 60 字</string>
     <string name="hotwords_duplicate">该热词已存在</string>
     <string name="hotwords_engine_reloading">热词已更新，正在重建引擎…</string>
+
+    <string name="debug_records_title">调试记录</string>
+    <string name="debug_records_hint">每次开始到结束会保存一段 WAV 和对应识别文本，文件位于应用私有目录 dingqiao_work/debug_records。</string>
+    <string name="debug_records_empty">还没有调试记录</string>
+    <string name="debug_record_saved">调试记录已保存：%1$s</string>
+    <string name="debug_record_meta">%1$s · %2$s</string>
+    <string name="debug_record_no_text">未返回最终文本</string>
+    <string name="debug_record_play_desc">播放录音</string>
+    <string name="debug_record_stop_desc">停止播放</string>
+    <string name="debug_record_play_failed">播放失败：%1$s</string>
+    <string name="debug_record_empty_audio">音频为空</string>
 </resources>
