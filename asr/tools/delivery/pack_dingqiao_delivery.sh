@@ -97,7 +97,7 @@ Gradle 集成（方案 A）
 商用授权
 --------
   Release AAR 已武装离线验签；正式集成需单独签发 amphion-license.lic。
-  - Demo APK 内嵌 Demo 用 license（2 个月试用，绑定 demo 包名+签名），不可用于客户正式包
+  - Demo APK 内嵌 Demo 用 license（2 个月试用，记录 demo 包名并绑定 Demo 签名），不可用于客户正式包
 
 版本
 ----
