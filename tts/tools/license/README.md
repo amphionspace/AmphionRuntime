@@ -1,7 +1,7 @@
 # Amphion 离线 License 工具链
 
-纯离线（零网络）的 To B 授权方案：ECDSA P-256 + SHA256 签名，绑定 applicationId / bundleName、
-签名证书 SHA-256、设备 SN 白名单，可选到期日和维护期。SDK 端验签逻辑见
+纯离线（零网络）的 To B 授权方案：ECDSA P-256 + SHA256 签名，正式 license 以设备 SN 白名单为授权边界，
+可选到期日和维护期；applicationId / bundleName 仅作为记录字段。SDK 端验签逻辑见
 `tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LicenseVerifier.kt`。
 
 ## 角色与产物
@@ -32,12 +32,11 @@ python gen_keypair.py --out-private amphion-license-private.pem
 
 ## 2. 签发客户 license
 
-绑定 applicationId（必），可选叠加证书 / 设备 / 到期：
+签发正式设备白名单 license；applicationId 可选，仅用于记录：
 
 ```bash
 python issue_license.py \
     --private-key amphion-license-private.pem \
-    --application-id com.acme.reader \
     --customer "ACME Reader Co." \
     --license-id AMP-2026-0001 \
     --device-id-file devices.txt \
@@ -67,9 +66,9 @@ python issue_license.py ... --device-id-file devices.txt --out amphion-license.l
 
 ```bash
 python verify_license.py \
-    --license com.acme.reader.lic \
+    --license amphion-license.lic \
     --public-key-b64 "<gradle.properties 里的公钥>" \
-    --application-id com.acme.reader
+    --device-id SN001
 ```
 
 退出码 0 即通过；非 0 的错误码与 SDK 端 TtsErrorCode 的 LICENSE_* 段一致。
