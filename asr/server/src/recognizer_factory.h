@@ -14,9 +14,25 @@ namespace asr_service {
 // 供单进程 recognizer 池按分片各持有一个使用。
 class RecognizerFactory {
 public:
+    struct EndpointRules {
+        float rule1_min_trailing_silence;
+        float rule2_min_trailing_silence;
+        float rule3_min_utterance_length;
+
+        EndpointRules()
+            : rule1_min_trailing_silence(2.4f),
+              rule2_min_trailing_silence(1.2f),
+              rule3_min_utterance_length(20.0f) {}
+        EndpointRules(float rule1, float rule2, float rule3)
+            : rule1_min_trailing_silence(rule1),
+              rule2_min_trailing_silence(rule2),
+              rule3_min_utterance_length(rule3) {}
+    };
+
     explicit RecognizerFactory(const Manifest &m, int num_threads,
                                std::string provider,
-                               std::string encoder_precision = "auto");
+                               std::string encoder_precision = "auto",
+                               EndpointRules endpoint = EndpointRules());
 
     std::unique_ptr<sherpa_onnx::cxx::OnlineRecognizer> CreateRecognizer() const;
     const Manifest &manifest() const { return manifest_; }

@@ -1,0 +1,42 @@
+services:
+  asr-ws:
+    image: amphion-asr-ws:cuda
+    build:
+      context: ../../..
+      dockerfile: asr/ws-server/deploy/Dockerfile
+    ports:
+      - "8010:8010"
+      - "9100:9100"
+    volumes:
+      - ../../tools/demo-model/zhen/chunk32-lc256:/models/zhen/chunk32-lc256:ro
+      - ./manifest.cuda.json:/etc/asr-ws/manifest.json:ro
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  asr-ws-cpu:
+    profiles: ["cpu"]
+    image: amphion-asr-ws:cpu
+    build:
+      context: ../../..
+      dockerfile: asr/ws-server/deploy/Dockerfile.cpu
+    ports:
+      - "8010:8010"
+      - "9100:9100"
+    volumes:
+      - ../../tools/demo-model/zhen/chunk32-lc256:/models/zhen/chunk32-lc256:ro
+      - ./manifest.cpu.json:/etc/asr-ws/manifest.json:ro
+    command:
+      - "--listen=0.0.0.0:8010"
+      - "--metrics-listen=0.0.0.0:9100"
+      - "--provider=cpu"
+      - "--manifest=/etc/asr-ws/manifest.json"
+      - "--max-batch-size=8"
+      - "--max-wait-ms=10"

@@ -33,9 +33,11 @@ DerivedData/
 # --- Python ---
 __pycache__/
 *.pyc
+*.egg-info/
 .venv/
 .venv-*/
 venv/
+asr/ws-server/reports/**/server.log
 # gRPC python stub（由 asr/server/bench/README.md 的 protoc 步骤生成，不入库）
 asr/server/bench/asr_pb2.py
 asr/server/bench/asr_pb2_grpc.py
