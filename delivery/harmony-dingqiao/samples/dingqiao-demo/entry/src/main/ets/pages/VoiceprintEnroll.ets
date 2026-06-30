@@ -146,8 +146,10 @@ struct VoiceprintEnroll {
       const result = SpeechRecognizeSdk.registerVoiceprint(params);
       this.registering = false;
       if (result.status === 0) {
-        DemoPrefs.setVoiceprintId(ctx, result.voiceprintId);
-        this.toast(`注册成功：${result.voiceprintId}`);
+        const ids = Object.keys(result.voiceprintId);
+        const id = ids.length > 0 ? ids[0] : '';
+        DemoPrefs.setVoiceprintId(ctx, id);
+        this.toast(`注册成功：${id}`);
         router.back();
       } else {
         this.status = `注册失败：${result.message}`;

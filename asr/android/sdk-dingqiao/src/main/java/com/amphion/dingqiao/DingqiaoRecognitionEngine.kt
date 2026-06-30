@@ -10,6 +10,8 @@ import com.amphion.asr.AmphionRuntime
 import com.amphion.police.PoliceEnhancePipeline
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -150,13 +152,16 @@ internal class DingqiaoRecognitionEngine(
             )
             return
         }
+        if (finishRequested) return
         val samples = PcmIo.bytesToShortsLE(audio)
         audioMsWritten += samples.size * 1000L / 16000
-        if (audioMsWritten > maxAudioDurationMs) {
-            notifyError(sessionId, DingqiaoErrorCode.MAX_AUDIO_DURATION, "max audio duration exceeded")
-            return
-        }
         session?.acceptPcmShort(samples)
+        if (!finishRequested && audioMsWritten >= maxAudioDurationMs) {
+            // 达到单会话上限是正常的生命周期终止，不是错误：等价于自动 finish，
+            // flush 出最终 onResult + onComplete 并清理会话，使引擎可被再次 startListening。
+            finishRequested = true
+            session?.stop()
+        }
     }
 
     override fun finish(sessionId: String) {
@@ -269,7 +274,13 @@ internal class DingqiaoRecognitionEngine(
                 DingqiaoEventCode.SPEAKER_VAD_REJECTED,
                 "speaker vad rejected final; score=${result.speakerScore ?: "n/a"}",
             )
-            if (result.isLast) {
+            if (finishRequested || result.isLast) {
+                dispatchResult(
+                    sessionId = sessionId,
+                    asrResult = AsrResult(text = ""),
+                    isFinal = true,
+                    isLast = true,
+                )
                 maybeComplete(sessionId)
                 tearDownSession()
             }
@@ -283,8 +294,9 @@ internal class DingqiaoRecognitionEngine(
         override fun onSessionStopped() {
             if (finishRequested) {
                 // SessionImpl.stop() 的 onSessionStopped 可能早于后处理后的 onFinal 到达。
-                // 若这里提前 tearDownSession()，会关闭 postprocessor 并移除回调队列，
-                // 导致业务收不到 onResult(isFinal=true, isLast=true)，主动停止就无法闭环。
+                // 先短暂等待真实 final；若底层没有产出 final（例如强制达到 maxAudioDuration 时），
+                // 再补一个空的 isLast final + onComplete，保证所有正常终止路径都能闭环并释放 busy。
+                scheduleStoppedFallback(sessionId)
                 return
             }
             if (listening) {
@@ -293,7 +305,22 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
+    private fun scheduleStoppedFallback(sessionId: String) {
+        stopFallbackExecutor.schedule({
+            if (!listening || !finishRequested || completeSent || activeSessionId != sessionId) return@schedule
+            dispatchResult(
+                sessionId = sessionId,
+                asrResult = AsrResult(text = ""),
+                isFinal = true,
+                isLast = true,
+            )
+            maybeComplete(sessionId)
+            tearDownSession()
+        }, STOP_FALLBACK_DELAY_MS, TimeUnit.MILLISECONDS)
+    }
+
     private fun deliverFinal(sessionId: String, result: AsrResult) {
+        if (!listening || activeSessionId != sessionId || completeSent) return
         val enhanced = enhancePipeline.enhance(result.text)
         val isLast = result.isLast
         dispatchResult(
@@ -324,6 +351,7 @@ internal class DingqiaoRecognitionEngine(
         enhancedText: String? = null,
         speakerSimilarity: Float? = null,
     ) {
+        if (!listening || activeSessionId != sessionId || completeSent) return
         val text = if (isFinal) enhancedText ?: asrResult.text else asrResult.text
         val begin = asrResult.timestamps.firstOrNull()?.let { (it * 1000f).toInt() }
         val end = asrResult.timestamps.lastOrNull()?.let { (it * 1000f).toInt() }
@@ -430,6 +458,11 @@ internal class DingqiaoRecognitionEngine(
         private val sharedExecutor: ExecutorService = Executors.newSingleThreadExecutor { r ->
             Thread(r, "dingqiao-callback").apply { isDaemon = true }
         }
+        private val stopFallbackExecutor: ScheduledExecutorService =
+            Executors.newSingleThreadScheduledExecutor { r ->
+                Thread(r, "dingqiao-stop-fallback").apply { isDaemon = true }
+            }
+        private const val STOP_FALLBACK_DELAY_MS = 1_500L
 
         fun create(
             appContext: Context,

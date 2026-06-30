@@ -1,0 +1,48 @@
+---
+description: ASR/TTS SDK 接口的生命周期语义与测试契约准则：终止事件不得误建模为错误、终止必须状态可重入、测试以契约为准绳、多端行为对齐
+alwaysApply: true
+---
+
+# SDK 接口生命周期与测试契约
+
+本规则来自一次客户缺陷复盘：达到 `maxAudioDuration` 被错误建模为 `onError`，且会话状态未清理，导致二次 `startListening` 报 `engine is busy`；同时测试把该错误行为当成预期固化、Demo 用会话轮转绕开了该路径，使缺陷在实现、测试、文档、验收四者内部自洽的情况下直达客户。修改或评审 ASR/TTS SDK 的接口、回调、错误码、会话生命周期及其测试时必须遵守。
+
+接口契约真值来源必须先看外部基线文档 `语音识别SDK接口-20260622.md`，再看项目内交付批注文档 `asr/android/docs/customer/语音识别SDK接口-交付批注版.md`。除批注文档明确标注的增补和澄清外，不得用当前实现行为反向改写接口文档。
+
+## 1. 终止语义必须显式归类
+
+1. 每个会话终止条件（VAD 自然结束、finish、cancel、达到时长上限、不可恢复故障）都要明确归类为正常结束或错误，不得留给实现自由发挥。
+2. 正常结束统一走 `onResult(isFinal=true,isLast=true)` 加 `onComplete`；只有不可恢复故障才走 `onError`。
+3. 命名即契约：给某事件分配 error code 前，先确认它真的是错误。错误码表不得混入非错误的生命周期事件。
+4. 反例：达到 `maxAudioDuration` 是正常终止，用 `onError(MAX_AUDIO_DURATION)` 表达属于错误建模。
+
+## 2. 终止必须保证状态可重入（硬性不变量）
+
+1. 任何终止路径结束后，引擎必须回到空闲：`isBusy()==false` 且能立即再次 `startListening` 成功。
+2. 终止时必须释放会话资源（等价 `tearDownSession`）；禁止只 `notifyError` 后 `return` 而残留 `listening` / `busy` 状态。
+3. `finish` 必须幂等；重复 `finish` 不得重复 `onComplete`、重复释放、或使底层 session 进入未定义状态。
+4. `onComplete` 是会话对外输出的边界；一旦发出 `onComplete`，后续迟到的 `onPartial` / `onFinal` / `onSessionStopped` 不得再透出 `onResult`。
+5. `cancel` 一旦生效，本会话不得再输出 final result 或 `onComplete`。
+6. 正常终止到 `onComplete` 的短暂窗口内，调用方可能仍会写入残留音频帧；这些帧不得导致错误风暴、重复 complete 或 busy 卡死。
+
+## 3. 测试以契约为准绳，不得录制实现行为
+
+1. 断言来自接口契约与客户期望；禁止把当前实现做了什么录下来当真值，否则会把缺陷焊死。
+2. 必须有覆盖全部终止路径的生命周期不变量测试：终止后断言 `isBusy()==false` 且可重新 `startListening`。
+3. 反例：`assertTrue(errorCodes.contains(MAX_AUDIO_DURATION))` 把错误行为当成预期结果。
+
+## 4. Demo 与验收覆盖客户真实用法
+
+1. Demo 与样例不得用规避逻辑（如主动会话轮转）掩盖 SDK 真实路径；客户配置（如设定 `maxAudioDuration` 并真实触发）必须有可复现的端到端用例。
+2. 验收复核时要质疑结果是否符合客户期望，而非是否与当前实现一致。
+
+## 5. 多端行为对齐（Android / Harmony）
+
+1. 同一接口在各端的终止语义、回调顺序、错误码必须一致，以单一行为契约为准；新增或修改时同步双端并加对照用例。
+2. 反例：`ENGINE_BUSY` 在 Android 为 `1002200006`、Harmony 为 `1002200003`；一端 `tearDown` 另一端不 `tearDown`。
+
+## 6. 文档增补必须旁批注
+
+1. 不得直接把外部基线文档改写成实现现状；如确需补充交付口径，必须在项目内新建或更新批注文档，并在修改项旁标注原因、日期和增补编号。
+2. 表格单元格只放原文或交付口径原文，批注放在表格外。
+3. 已确认增补包括：`maxAudioDuration` 达到上限自动正常结束、声纹注册样本数硬性下限放宽为 1 条。除此之外的差异默认视为实现偏离文档，应优先修实现。

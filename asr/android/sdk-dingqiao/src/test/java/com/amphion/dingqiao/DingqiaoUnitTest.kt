@@ -152,6 +152,26 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun maxAudioDuration_defaultsAndClampsToDeliveryMinimum() {
+        assertEquals(
+            20_000L,
+            DingqiaoEngineConfig.maxAudioDurationMs(StartParams("s1", AudioInfo())),
+        )
+        assertEquals(
+            20_000L,
+            DingqiaoEngineConfig.maxAudioDurationMs(StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to 0))),
+        )
+        assertEquals(
+            20_000L,
+            DingqiaoEngineConfig.maxAudioDurationMs(StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to "5000"))),
+        )
+        assertEquals(
+            60_000L,
+            DingqiaoEngineConfig.maxAudioDurationMs(StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to 60_000))),
+        )
+    }
+
+    @Test
     fun voiceprintIds_fromStartParams() {
         val ids = DingqiaoEngineConfig.voiceprintIds(
             StartParams(

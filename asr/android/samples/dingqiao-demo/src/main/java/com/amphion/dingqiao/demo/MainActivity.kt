@@ -23,13 +23,13 @@ import androidx.core.content.ContextCompat
 import com.amphion.dingqiao.AudioInfo
 import com.amphion.dingqiao.CreateEngineCallback
 import com.amphion.dingqiao.CreateEngineParams
-import com.amphion.dingqiao.DingqiaoErrorCode
 import com.amphion.dingqiao.DingqiaoOnlineMode
 import com.amphion.dingqiao.RecognitionListener
 import com.amphion.dingqiao.SpeechRecognitionEngine
 import com.amphion.dingqiao.SpeechRecognitionResult
 import com.amphion.dingqiao.SpeechRecognizeSdk
 import com.amphion.dingqiao.StartParams
+import java.io.File
 import java.util.concurrent.Executors
 
 /**
@@ -52,6 +52,10 @@ class MainActivity : AppCompatActivity() {
     private var engine: SpeechRecognitionEngine? = null
     private var recorder: AudioRecorder? = null
     private var frameWriter: PcmFrameWriter? = null
+    private lateinit var debugRecordStore: DebugRecordStore
+
+    @Volatile
+    private var activeDebugRecord: DebugRecordStore.ActiveRecord? = null
     private var sessionAudioMs = 0L
     private var rotatingSession = false
 
@@ -94,6 +98,7 @@ class MainActivity : AppCompatActivity() {
         progress = findViewById(R.id.progress)
         swVoiceprint = findViewById(R.id.sw_voiceprint)
         swSpeakerVad = findViewById(R.id.sw_speaker_vad)
+        debugRecordStore = DebugRecordStore(File(DingqiaoApp.workPath(), "debug_records"))
 
         btnTalk.setOnClickListener { if (listening) stopListening() else startListening() }
         btnMenu.setOnClickListener { showMenu(it) }
@@ -117,6 +122,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         stopListening()
+        finishActiveDebugRecord(DebugRecordStore.STATUS_ABORTED)
         engine?.shutdown()
         engine = null
         worker.shutdownNow()
@@ -194,6 +200,7 @@ class MainActivity : AppCompatActivity() {
                     appendFinal(result)
                     tvPartial.text = ""
                 } else {
+                    activeDebugRecord?.updatePartial(result.result)
                     tvPartial.text = result.result
                 }
             }
@@ -206,27 +213,23 @@ class MainActivity : AppCompatActivity() {
                     startRecognitionSession()
                 } else {
                     stopCapture()
+                    val savedRecord = finishActiveDebugRecord(DebugRecordStore.STATUS_COMPLETED)
                     this@MainActivity.sessionId = null
                     setTalkButtonRecording(false)
                     btnTalk.isEnabled = true
-                    setStatus(getString(R.string.status_engine_ready))
+                    setSavedOrReadyStatus(savedRecord)
                 }
             }
         }
 
         override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
             runOnUiThread {
-                if (listening && errorCode == DingqiaoErrorCode.MAX_AUDIO_DURATION) {
-                    synchronized(sessionLock) {
-                        rotatingSession = false
-                        this@MainActivity.sessionId = null
-                        sessionAudioMs = 0L
-                    }
-                    startRecognitionSession()
-                    setStatus(getString(R.string.status_listening))
-                    return@runOnUiThread
-                }
                 stopCapture()
+                finishActiveDebugRecord(
+                    DebugRecordStore.STATUS_ERROR,
+                    errorCode = errorCode,
+                    errorMessage = errorMessage,
+                )
                 setStatus("错误 $errorCode：$errorMessage")
                 listening = false
                 this@MainActivity.sessionId = null
@@ -244,6 +247,9 @@ class MainActivity : AppCompatActivity() {
         finalLines.clear()
         tvPartial.text = ""
         tvFinal.text = ""
+        activeDebugRecord = runCatching { debugRecordStore.begin() }
+            .onFailure { toast("调试记录创建失败：${it.message ?: it.javaClass.simpleName}") }
+            .getOrNull()
 
         startRecognitionSession()
         btnTalk.isEnabled = false
@@ -257,6 +263,7 @@ class MainActivity : AppCompatActivity() {
             sessionAudioMs = 0L
             frameWriter?.reset()
         }
+        activeDebugRecord?.addSession(sid)
 
         val voiceprintId = DemoPrefs.getVoiceprintId(this)
         val verify = voiceprintVerifyDesired && !voiceprintId.isNullOrBlank()
@@ -322,6 +329,9 @@ class MainActivity : AppCompatActivity() {
         setTalkButtonRecording(false)
         if (sid != null) {
             engine?.finish(sid)
+        } else {
+            val savedRecord = finishActiveDebugRecord(DebugRecordStore.STATUS_COMPLETED)
+            setSavedOrReadyStatus(savedRecord)
         }
     }
 
@@ -329,10 +339,17 @@ class MainActivity : AppCompatActivity() {
         if (recorder != null) return
         frameWriter = PcmFrameWriter { frame -> writeFrameToCurrentSession(frame) }
         recorder = AudioRecorder(
-            onPcm = { samples -> frameWriter?.accept(samples) },
+            onPcm = { samples ->
+                activeDebugRecord?.appendPcm(samples)
+                frameWriter?.accept(samples)
+            },
             onError = { msg ->
                 runOnUiThread {
                     stopCapture()
+                    finishActiveDebugRecord(
+                        DebugRecordStore.STATUS_ERROR,
+                        errorMessage = msg,
+                    )
                     listening = false
                     sessionId = null
                     setTalkButtonRecording(false)
@@ -357,6 +374,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun appendFinal(result: SpeechRecognitionResult) {
         if (result.result.isEmpty()) return
+        activeDebugRecord?.addFinal(result.result, result.speakerSimilarity)
         if (finalLines.isNotEmpty()) finalLines.append('\n')
         result.speakerSimilarity?.let { appendSpeakerScoreTag(it) }
         finalLines.append(result.result)
@@ -449,6 +467,10 @@ class MainActivity : AppCompatActivity() {
                         hotwordsLauncher.launch(Intent(this@MainActivity, HotwordsActivity::class.java))
                         true
                     }
+                    R.id.action_debug_records -> {
+                        startActivity(Intent(this@MainActivity, DebugRecordsActivity::class.java))
+                        true
+                    }
                     R.id.action_voiceprint -> {
                         startActivity(Intent(this@MainActivity, VoiceprintEnrollActivity::class.java))
                         true
@@ -498,6 +520,24 @@ class MainActivity : AppCompatActivity() {
 
     private fun setStatus(text: String) {
         tvStatus.text = text
+    }
+
+    private fun setSavedOrReadyStatus(savedRecord: DebugRecordSummary?) {
+        if (savedRecord != null) {
+            setStatus(getString(R.string.debug_record_saved, savedRecord.wavFile.name))
+        } else {
+            setStatus(getString(R.string.status_engine_ready))
+        }
+    }
+
+    private fun finishActiveDebugRecord(
+        status: String,
+        errorCode: Int? = null,
+        errorMessage: String? = null,
+    ): DebugRecordSummary? {
+        val record = activeDebugRecord ?: return null
+        activeDebugRecord = null
+        return record.finish(status, errorCode, errorMessage)
     }
 
     private fun toast(msg: String) {
