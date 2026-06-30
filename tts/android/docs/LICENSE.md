@@ -6,10 +6,10 @@
 ## 1. 目标与边界
 
 - 离线：终端零联网即可校验；我方不运营任何在线授权服务。
-- 防转移：license 与宿主 applicationId / bundleName 绑定，叠加签名证书和设备 SN 白名单。
+- 防转移：正式 license 以设备 SN 白名单为授权边界；applicationId / bundleName 仅作为记录字段。
 - 防篡改：ECDSA 数字签名；客户拿到的是公钥，无法伪造 / 改写 license。
 - 开发无摩擦：未注入公钥的构建（开发 / 内部）自动处于 DEV_UNLICENSED，不做任何校验。
-- 鼎桥 Android v0.2.7 正式 license 面向 `com.tdtech.tiassistant`，`features=ASR,TTS`，绑定 SN 清单并与 ASR 共用；ASR Demo APK 的限期 license 不绑 SN，只用于 Demo 体验。
+- 鼎桥 Android 正式 license 使用 `features=ASR,TTS`，绑定 SN 清单并与 ASR 共用；ASR Demo APK 的限期 license 不绑 SN，只用于 Demo 体验。
 
 边界（诚实声明）：离线方案无法对抗「持有 root 的对手反编译 + 打补丁绕过校验」。本方案目标是
 抬高门槛、约束正常商业客户的越权使用，不是 DRM 级强对抗。release 开启 R8 混淆 internal 验签
@@ -38,8 +38,8 @@ payload（claims）字段：
 
 | 字段 | 含义 | 空值语义 |
 |---|---|---|
-| applicationId | 绑定 Android 宿主包名 | 空=不用 Android 包名绑定 |
-| bundleName | 绑定 HarmonyOS bundleName | 空=不用 Harmony 包名绑定 |
+| applicationId | Android 宿主包名记录 | 空=不记录 |
+| bundleName | HarmonyOS bundleName 记录 | 空=不记录 |
 | signingCertDigest | 绑定签名证书 SHA-256 | 空=不绑证书 |
 | deviceIdHashAlg / deviceIdSaltId / authorizedDeviceHashes | SN 白名单绑定 | 空=不绑设备 |
 | expiresAt | 到期日 yyyy-MM-dd | 空=已授权版本不因时间停机 |
@@ -57,14 +57,13 @@ payload（claims）字段：
 2. license 缺失 → LICENSE_MISSING（1002300012）
 3. 信封 / payload 解析失败 → LICENSE_MALFORMED（1002300013）
 4. 验签失败 → LICENSE_SIGNATURE_INVALID（1002300014）
-5. applicationId 不符 → LICENSE_APP_MISMATCH（1002300015）
-6. certSha256 非空且不符 → LICENSE_CERT_MISMATCH（1002300016）
-7. expiresAt 非空且超期（含宽限）→ LICENSE_EXPIRED（1002300017）
-8. sdkMajor 不符 → LICENSE_SDK_MAJOR_MISMATCH（1002300019）
-9. maintenanceUntil 早于当前 SDK 发布时间 → LICENSE_MAINTENANCE_EXPIRED（1002300020）
-10. features 不包含 TTS → LICENSE_FEATURE_MISSING（1002300021）
-11. authorizedDeviceHashes 非空且 SN 哈希未命中 → LICENSE_DEVICE_MISMATCH（1002300018）
-12. 全部通过 → LICENSED
+5. certSha256 非空且不符 → LICENSE_CERT_MISMATCH（1002300016）
+6. expiresAt 非空且超期（含宽限）→ LICENSE_EXPIRED（1002300017）
+7. sdkMajor 不符 → LICENSE_SDK_MAJOR_MISMATCH（1002300019）
+8. maintenanceUntil 早于当前 SDK 发布时间 → LICENSE_MAINTENANCE_EXPIRED（1002300020）
+9. features 不包含 TTS → LICENSE_FEATURE_MISSING（1002300021）
+10. authorizedDeviceHashes 非空且 SN 哈希未命中 → LICENSE_DEVICE_MISMATCH（1002300018）
+11. 全部通过 → LICENSED
 
 到期判定：到期日当天有效，deadline = expiresAt + (graceDays + 1) 天，now >= deadline 才算过期。
 
@@ -78,7 +77,7 @@ police 参考分支用强制的 `AmphionRuntime.init(context)` 拿 Context 并�
   （纯 JVM 单测）或未武装（公钥为空）一律放行。
 - 校验在 `createEngine`（模型加载、价值所在）处强制，`listVoices`（静态元数据）不拦。
 
-这样既照搬了 police 的验签内核（claims / 签名 / 绑定 / 状态机 / DEV_UNLICENSED / ENFORCE-PERMISSIVE），
+这样既照搬了 police 的验签内核（claims / 签名 / 设备白名单 / 状态机 / DEV_UNLICENSED / ENFORCE-PERMISSIVE），
 又适配了 TTS「直接 createEngine、纯 JVM 单测」的现有架构，不破坏既有调用方与测试。
 
 ## 5. 强制策略
