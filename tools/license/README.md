@@ -28,7 +28,6 @@ python3 -m venv .venv
 ```bash
 .venv/bin/python issue_license.py \
   --private-key amphion-license-private.pem \
-  --application-id com.acme.app \
   --customer "ACME Co." \
   --license-id AMP-2026-0001 \
   --device-id-file devices.txt \
@@ -36,13 +35,12 @@ python3 -m venv .venv
   --maintenance-until 2027-06-30 \
   --install-tier LE_100K \
   --features ASR,TTS \
-  --cert-sha256 AB:CD:...:EF \
   --out amphion-license.lic
 ```
 
 `features` 只放产品级授权项：`ASR`、`TTS` 或两者。语言、警务增强、热词、声纹、模型名都不是 license feature。
 
-设备 SN 白名单使用：
+`--application-id` 和 `--bundle-name` 可选，仅写入记录，不作为 Android 端授权边界。设备 SN 白名单使用：
 
 ```text
 SHA-256(trim(upper(serial)) + deviceIdSaltId)
@@ -60,8 +58,6 @@ DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71
 .venv/bin/python verify_license.py \
   --license amphion-license.lic \
   --public-key-b64 "<构建配置里的公钥>" \
-  --application-id com.acme.app \
-  --cert-sha256 AB:CD:...:EF \
   --device-id SN001 \
   --sdk-major 1 \
   --sdk-release-date 2026-06-23 \
@@ -94,8 +90,8 @@ payload claims 字段：
 
 | 字段 | 含义 | 必填 |
 | --- | --- | --- |
-| applicationId | 绑定的 Android 宿主包名 | 是 |
-| bundleName | HarmonyOS bundleName，默认同 applicationId | 否 |
+| applicationId | Android 宿主包名记录，不参与 Android 绑定校验 | 否 |
+| bundleName | HarmonyOS bundleName 记录，不参与 Android 绑定校验 | 否 |
 | certSha256 | 兼容字段，绑定签名证书 SHA-256 | 否 |
 | signingCertDigest | 绑定签名证书 SHA-256 | 否 |
 | customer | 客户名 | 否 |

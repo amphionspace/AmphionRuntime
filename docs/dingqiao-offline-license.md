@@ -6,25 +6,25 @@
 
 | 对象 | applicationId / bundleName | features | SN 绑定 | 到期 |
 | --- | --- | --- | --- | --- |
-| Demo APK | `com.amphion.dingqiao.demo` | `ASR` | 不绑定 SN，只绑定 Demo 包名和签名 | `2026-08-25` |
-| 正式 SDK license | `com.tdtech.tiassistant` | `ASR,TTS` | 绑定鼎桥 SN 清单，本次 16 台 | `2026-08-25` |
+| Demo APK | com.amphion.dingqiao.demo | ASR | 不绑定 SN，只绑定 Demo 包名和签名 | 2026-08-25 |
+| 正式 SDK license | 不限制应用，仅可记录为空或客户当前包名 | ASR,TTS | 绑定鼎桥 SN 清单，本次 16 台 | 2026-08-25 |
 
-Demo APK 是普通安装体验包，必须能在没有系统 SN 读取权限的设备上完成 `createEngine`。正式 SDK license 单独下发给客户 App，才启用 SN 白名单；客户 App 需要能读取或注入本机 SN。
+Demo APK 是普通安装体验包，必须能在没有系统 SN 读取权限的设备上完成 `createEngine`。正式 SDK license 单独下发给客户 App，授权边界只看设备 SN 白名单；客户 App 需要能读取或注入本机 SN。
 
 ## 交付前鼎桥需要提供的信息
 
 | 类别 | 鼎桥需提供 | 用途 |
 | --- | --- | --- |
-| App 标识 | Android `applicationId`、HarmonyOS `bundleName` | 防止授权被复制到其他 App |
-| 签名信息 | 正式签名证书 SHA-256 指纹，建议大写十六进制 | 防止换包或重签名后复用授权 |
-| 设备 SN | 首批授权设备 SN 清单，一行一个；说明 SN 字段名和样例 | 生成 `authorizedDeviceHashes` 白名单 |
+| App 标识 | Android applicationId、HarmonyOS bundleName | 可选记录字段，不作为授权限制 |
+| 签名信息 | 正式签名证书 SHA-256 指纹，建议大写十六进制 | 可选记录字段；正式设备白名单 license 默认不绑定签名 |
+| 设备 SN | 首批授权设备 SN 清单，一行一个；说明 SN 字段名和样例 | 生成 authorizedDeviceHashes 白名单 |
 | SN 稳定性 | SN 在系统升级、恢复出厂、主板维修、换机后的变化规则 | 评估换机和重签流程 |
-| SN 读取方式 | Android 端使用 `Build.getSerial()`；宿主为系统应用，并申请 `android.permission.READ_PRIVILEGED_PHONE_STATE` | 运行时向 SDK 注入本机 SN |
-| 授权能力 | 是否授权 ASR、是否授权 TTS | 写入 `features`，仅允许 `ASR` 和 `TTS` |
-| 版本范围 | 授权 SDK 大版本 `sdkMajor`、维护期 `maintenanceUntil` | 控制大版本和维护期外升级 |
-| 运行期限 | `expiresAt` 是否为空或固定日期；本次 Android v0.2.7 为 `2026-08-25` | 控制运行到期策略 |
+| SN 读取方式 | Android 端使用 Build.getSerial()；宿主为系统应用，并申请 android.permission.READ_PRIVILEGED_PHONE_STATE | 运行时向 SDK 注入本机 SN |
+| 授权能力 | 是否授权 ASR、是否授权 TTS | 写入 features，仅允许 ASR 和 TTS |
+| 版本范围 | 授权 SDK 大版本 sdkMajor、维护期 maintenanceUntil | 控制大版本和维护期外升级 |
+| 运行期限 | expiresAt 是否为空或固定日期；本次 Android v0.2.7 为 2026-08-25 | 控制运行到期策略 |
 | 组包责任 | 后装包或升级包由哪一方组包 | 确认 license、SDK/HAR、模型放置责任 |
-| 固定路径 | App assets 或 rawfile 中 license 的固定路径 | SDK 初始化时读取 `amphion-license.lic` |
+| 固定路径 | App assets 或 rawfile 中 license 的固定路径 | SDK 初始化时读取 amphion-license.lic |
 | 增量设备 | 后续新增设备 SN 的同步周期和交付方式 | 支持增量或全量重签 |
 
 ## License 结构
@@ -45,9 +45,9 @@ Demo APK 是普通安装体验包，必须能在没有系统 SN 读取权限的�
 | --- | --- |
 | customer | 客户名称，例如 Dingqiao |
 | licenseId | 授权编号，用于交付和排障追踪 |
-| applicationId | Android 宿主包名 |
-| bundleName | HarmonyOS 应用 bundleName |
-| signingCertDigest | 客户应用正式签名证书 SHA-256 |
+| applicationId | Android 宿主包名记录；正式设备白名单 license 可为空 |
+| bundleName | HarmonyOS 应用 bundleName 记录；正式设备白名单 license 可为空 |
+| signingCertDigest | 客户应用正式签名证书 SHA-256；正式设备白名单 license 默认为空 |
 | deviceIdHashAlg | 当前固定为 SHA-256 |
 | deviceIdSaltId | 项目固定 SN 哈希盐编号，当前也作为哈希盐材料 |
 | authorizedDeviceHashes | 授权 SN 哈希白名单 |
@@ -71,7 +71,7 @@ SDK 已提供 `DeviceIdProvider` 注入通道。Android ASR 鼎桥封装层和 A
 
 ## 后装和升级
 
-后装或升级包进入专网前，应确认本次覆盖的 SN 范围、SDK/HAR 版本、模型版本、license 文件和校验清单。设备不需要访问公网，SDK 初始化时在本地完成验签、App 绑定、签名证书绑定、SN 白名单、`sdkMajor` 和 `maintenanceUntil` 校验。
+后装或升级包进入专网前，应确认本次覆盖的 SN 范围、SDK/HAR 版本、模型版本、license 文件和校验清单。设备不需要访问公网，SDK 初始化时在本地完成验签、SN 白名单、`sdkMajor` 和 `maintenanceUntil` 校验；正式设备白名单 license 不按 App 包名限制宿主应用。
 
 建议策略：
 
