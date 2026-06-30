@@ -28,7 +28,7 @@ std::string PickFirst(const std::string &dir, std::initializer_list<const char *
     return "";
 }
 
-// 按精度 + provider 选择 encoder/joiner 文件。
+// 按精度 + provider 选择模型文件。
 // 根因：ONNX Runtime CUDA EP 对 int8(QDQ)支持差，量化算子常回退 CPU 并产生
 // GPU<->CPU 拷贝；在 GPU 上应优先 fp16/fp32。CPU provider 则 int8 更省。
 std::string PickByPrecision(const std::string &dir, const std::string &base,
@@ -105,8 +105,12 @@ RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads,
             throw std::runtime_error("missing paraformer encoder/decoder under " + md);
         }
     } else if (normalized == "zipformer2_ctc") {
-        config.model_config.zipformer2_ctc.model = PickFirst(md, {
-            "model.int8.onnx", "model.onnx"});
+        config.model_config.zipformer2_ctc.model =
+            PickByPrecision(md, "ctc", encoder_precision, provider);
+        if (config.model_config.zipformer2_ctc.model.empty()) {
+            config.model_config.zipformer2_ctc.model = PickFirst(md, {
+                "model.int8.onnx", "model.onnx"});
+        }
         if (config.model_config.zipformer2_ctc.model.empty()) {
             throw std::runtime_error("missing zipformer2_ctc model under " + md);
         }
@@ -120,6 +124,12 @@ RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads,
 
     // Decoding
     config.decoding_method = m.decoding_method.value_or("greedy_search");
+    if (normalized == "zipformer2_ctc" && config.decoding_method != "greedy_search") {
+        std::cerr << "[recognizer] zipformer2_ctc supports greedy_search only; "
+                  << "override decoding_method=" << config.decoding_method
+                  << " to greedy_search" << std::endl;
+        config.decoding_method = "greedy_search";
+    }
     config.max_active_paths = m.max_active_paths.value_or(4);
 
     // Endpoint：默认与 Android / iOS 一致；服务端可通过启动参数统一覆盖。
@@ -161,7 +171,9 @@ RecognizerFactory::RecognizerFactory(const Manifest &m, int num_threads,
               << " num_threads=" << num_threads
               << " encoder_precision=" << encoder_precision
               << " encoder=" << config.model_config.transducer.encoder
+              << " decoder=" << config.model_config.transducer.decoder
               << " joiner=" << config.model_config.transducer.joiner
+              << " ctc_model=" << config.model_config.zipformer2_ctc.model
               << " decoding=" << config.decoding_method
               << " max_active_paths=" << config.max_active_paths
               << " endpoint_rule1=" << config.rule1_min_trailing_silence
