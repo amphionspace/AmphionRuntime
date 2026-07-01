@@ -19,7 +19,7 @@
 
 ```bash
 bash asr/tools/delivery/verify_dingqiao_delivery.sh \
-  /Users/boxp/workspace/delivery/amphion-dingqiao-v0.2.6-customer-20260624.zip
+  amphion-dingqiao-v0.2.6-customer-20260624.zip
 ```
 
 预期失败信息：
@@ -34,7 +34,7 @@ bash asr/tools/delivery/verify_dingqiao_delivery.sh \
 
 ```bash
 bash asr/tools/delivery/verify_dingqiao_delivery.sh \
-  /Users/boxp/workspace/delivery/amphion-dingqiao-v0.2.6-customer-20260625.zip
+  amphion-dingqiao-v0.2.6-customer-20260625.zip
 ```
 
 预期通过信息：

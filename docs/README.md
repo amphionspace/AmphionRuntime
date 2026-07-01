@@ -23,6 +23,14 @@
 - 接口契约以基线文档和项目内批注文档为准，不用当前实现行为反向改写接口。
 - 自动生成报告可保留设备现象、脚本命令和实验数据，但要说明实验条件，不泛化为绝对结论。
 
+## 文档污染防护
+
+- 当前规则文档不得混入单次历史交付的版本号、固定到期日、SN 数量、zip 路径或本机绝对路径；这些信息只能进入明确标记为“历史交付记录”或“实验报告”的文档。
+- 历史交付记录必须在标题或首段标明“历史归档 / 不作为当前规则”，并从当前 Delivery 主索引移到历史区。
+- License 当前规则以 `docs/dingqiao-offline-license.md`、模块客户 `LICENSE.md` 和交付 Runbook 为准；正式设备白名单 license 默认不按 Android `applicationId` 或 HarmonyOS `bundleName` 限制宿主，包名只作签发记录。
+- 客户可见文档和交付包内文档只能使用仓库相对路径、占位路径或基线文档名；不得出现 macOS/Linux 用户主目录绝对路径、`.secure/`、私钥路径、内部下载目录。
+- 规则变更必须同步检查当前入口索引、客户文档、打包脚本注释、交付邮件模板和错误码表，避免同一交付口径在不同文档里分叉。
+
 ## 入口索引
 
 ### 模块入口
@@ -72,8 +80,13 @@
 | android-sdk-delivery-runbook.md | Android ASR / TTS / License 三件套交付 Runbook：打包、验包、设备回归、license 策略、目录归档和交付门禁 |
 | delivery-email-template.md | Android SDK 交付邮件模板：更新点、license 策略、测试数据、验证结论和复现说明 |
 | delivery-zip-verification.md | 所有客户交付包的 zip-only 验证流程：以最终 zip 为唯一真相，生成 JSON/Markdown 验收报告 |
-| dingqiao-v0.2.7-delivery.md | 鼎桥 Android v0.2.7 最终交付口径：Demo 不绑 SN，正式 SDK license 绑 SN 并供 ASR/TTS 共用 |
-| dingqiao-offline-license.md | 鼎桥专网离线 license 交付前置清单：SN、App 标识、签名证书、授权范围、维护期和组包路径 |
+| dingqiao-offline-license.md | 鼎桥专网离线 license 当前前置清单：SN、App 标识记录、可选签名证书、授权范围、维护期和期限策略 |
+
+### 历史交付记录
+
+| 文档 | 说明 |
+| --- | --- |
+| dingqiao-v0.2.7-delivery.md | 鼎桥 Android v0.2.7 历史交付归档；只用于追溯当时产物和验证，不作为当前 license 或交付规则 |
 
 ### Speaker（目标说话人 ASR 调研期）
 

@@ -12,7 +12,7 @@ ASR 基础模型容易把低频人名、地名、店名、艺名、书名等专�
 
 ## 2. 数据与实验构造
 
-测试集路径：`/Users/boxp/Downloads/testdata/aishell3_test_hotwords_500/`
+测试集：`aishell3_test_hotwords_500`，本地路径通过环境变量 `AISHELL3_HOTWORDS_DIR` 指定。
 
 | 项 | 值 |
 | --- | --- |
@@ -103,8 +103,9 @@ bash asr/tools/00_fetch_demo_model.sh
 运行评测：
 
 ```bash
+export AISHELL3_HOTWORDS_DIR=<aishell3_test_hotwords_500目录>
 python3 asr/tools/hotwords/01_eval_aishell3_hotwords.py \
-  --dataset-dir /Users/boxp/Downloads/testdata/aishell3_test_hotwords_500 \
+  --dataset-dir "$AISHELL3_HOTWORDS_DIR" \
   --model-dir asr/tools/demo-model/zipformer_L_zh_en \
   --bpe-vocab asr/tools/demo-model/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/bpe.vocab \
   --hotwords-scores 3.0 \
