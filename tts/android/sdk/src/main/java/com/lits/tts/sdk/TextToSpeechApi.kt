@@ -137,6 +137,7 @@ data class CompleteResponse @JvmOverloads constructor(
     val audioDurationMs: Long = -1L,
     val rtf: Double = -1.0,
     val profilingInfo: String = "",
+    val playbackStartMs: Long = -1L,
 )
 
 data class StopResponse(
