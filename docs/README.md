@@ -69,6 +69,8 @@
 
 | 文档 | 说明 |
 | --- | --- |
+| android-sdk-delivery-runbook.md | Android ASR / TTS / License 三件套交付 Runbook：打包、验包、设备回归、license 策略、目录归档和交付门禁 |
+| delivery-email-template.md | Android SDK 交付邮件模板：更新点、license 策略、测试数据、验证结论和复现说明 |
 | delivery-zip-verification.md | 所有客户交付包的 zip-only 验证流程：以最终 zip 为唯一真相，生成 JSON/Markdown 验收报告 |
 | dingqiao-v0.2.7-delivery.md | 鼎桥 Android v0.2.7 最终交付口径：Demo 不绑 SN，正式 SDK license 绑 SN 并供 ASR/TTS 共用 |
 | dingqiao-offline-license.md | 鼎桥专网离线 license 交付前置清单：SN、App 标识、签名证书、授权范围、维护期和组包路径 |
@@ -90,6 +92,7 @@
 
 | 工具 | 说明 |
 | --- | --- |
+| ../tools/delivery/generate_delivery_manifest.py | 扫描交付目录内的 zip，生成包含大小、SHA-256 和 verification 报告路径的 `MANIFEST.md` |
 | ../asr/tools/decode_offline.py | 一次性投递 wav 到 sherpa-onnx Python OnlineRecognizer，观察模型上限 |
 | ../asr/tools/decode_streaming.py | 模拟 Android streaming：100ms chunk、endpoint、encoder warmup、greedy/beam 对比 |
 
@@ -106,4 +109,3 @@ python3 -m pip install --user sherpa-onnx
 - 命令尽量可复制运行。
 - 具体设备、模型、dump 数据可以写进文档，但要说明它们是本次实验条件，不要泛化成绝对结论。
 - README 只放入口和结论，细节分析放到本目录。
-
