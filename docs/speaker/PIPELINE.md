@@ -216,11 +216,29 @@ def overlap_seconds(supervisions):
 - 不能容忍任何 positive 劣化：方案 A 无效，需走 6.1 节的 ablation 优化
 - 重叠 ≥0.5 占大多数：方案 A 边际有效，但 FRR 28.77% 是上限
 
+### 6.3 目标说话人 VAD endpoint 收益
+
+Android 已额外实现目标说话人 VAD：它不是段末 final 门控，而是在普通 VAD 已检测到 speech 后，对当前 utterance 尾部滑窗做声纹打分。状态机先确认目标人开口，再在目标人离场后连续低分时主动 endpoint，解决“目标人说完后旁边人立刻接话，普通 VAD 把两个人合进同一个 utterance”的问题。
+
+Aidatatang 500 人测试集实测见 [AIDATATANG_SPEAKER_VAD_EVAL.md](AIDATATANG_SPEAKER_VAD_EVAL.md)，脚本为 `asr/tools/speaker/06_eval_speaker_vad_aidatatang.py`。实验把 500 个 speaker 样本构造成 500 组 target + other 无静音连续会话，离线复刻 Android `SpeakerVadConfig(threshold, winSec, hopSec, consecutiveBelow)` 状态机。
+
+| 指标 | 业务含义 | 默认阈值 0.40 结果 |
+| --- | --- | --- |
+| 非目标泄露降幅 | 目标人离场后，other 被拖进同一个 utterance 的时长减少比例 | 60.74% |
+| 平均非目标泄露 无/有 | 无 speaker-VAD 与有 speaker-VAD 时，平均每段混入 other 的秒数 | 2.337s / 0.917s |
+| speaker endpoint 率 | speaker-VAD 主动触发 endpoint 的会话占比 | 93.20% |
+| target 确认率 | 状态机在 endpoint 前确认过目标人开口的占比 | 99.00% |
+| target 截断率 | endpoint 早于 target 结束时间超过 hopSec 的占比 | 1.00% |
+| endpoint 提前 p50 / p90 | 相比等 target + other 全部结束，final 提前产出的秒数 | 1.100s / 3.105s |
+| target 后 endpoint 延迟 p50 / p90 | target 结束后多久触发 speaker endpoint | 0.880s / 1.132s |
+
+结论：在“目标人说完后其他人马上接话”的压力场景里，默认阈值 0.40 能减少约 6 成非目标拖尾，代价是约 1% target 截断风险。若业务更怕误切目标人，可降到 0.35；若业务更怕非目标拖尾，可升到 0.45，但不建议仅凭该测试集推到 0.50，因为本实验每个 speaker 只有 1 条 utterance，target 用自身音频注册，目标确认率会偏乐观。
+
 ## 7. 现状与下一步
 
 ### 7.1 当前在 feat/target-speaker 分支已落地
 
-- asr/tools/speaker/ 工具集（00 / 01 / 02 / 03 / 04_eval_summary / 04_check_zipformer_drc / 05 + ts_asr/{core,metrics,dataset} + README）
+- asr/tools/speaker/ 工具集（00 / 01 / 02 / 03 / 04_eval_summary / 04_check_zipformer_drc / 05 / 06 + ts_asr/{core,metrics,dataset} + README）
 - .gitignore 加 asr/tools/speaker/{models,data,results}/** 排除规则
 - 全量 6555 条 ts_hw_test cuts 实测完成，结果在 `asr/tools/speaker/results/eval_full_summary.{md,json}`，原始 jsonl 在 `asr/tools/speaker/results/eval_full.jsonl`
 
