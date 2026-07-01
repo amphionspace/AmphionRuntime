@@ -63,6 +63,8 @@ const REQUIRED_RUNTIME_FILES: Array<string> = [
   'vocos_vocoder.onnx',
   'chinese_lexicon.txt',
   'cmudict.txt',
+  'supplement_lexicon.json',
+  'frontend_rules.json',
   'polychar.txt',
   'zh_en_symbols.json',
   'pinyin_to_tokens.json',
@@ -74,10 +76,12 @@ const BUNDLED_MODEL_FILES: Array<string> = [
   'export_report.json',
   'vocos_vocoder.export_report.json',
   'frontend_golden.json',
+  'frontend_rules.json',
   'chinese_lexicon.txt',
   'chinese_lexicon.bin',
   'cmudict.txt',
   'cmudict.bin',
+  'supplement_lexicon.json',
   'pinyin_2_bpmf.txt',
   'polychar.txt',
   'zh_en_symbols.json',
@@ -305,6 +309,44 @@ const MIN_SHORT_SYMBOL_SEGMENT_CHARS: number = 8;
 const DEFAULT_WORDS_PER_STREAMING_SEGMENT: number = 7;
 const PLATE_PROVINCES: string = '\u4EAC\u6D25\u6CAA\u6E1D\u5180\u8C6B\u4E91\u8FBD\u9ED1\u6E58\u7696\u9C81\u65B0\u82CF\u6D59\u8D63\u9102\u6842\u7518\u664B\u8499\u9655\u5409\u95FD\u8D35\u7CA4\u9752\u85CF\u5DDD\u5B81\u743C';
 const PERCENTILE_CODE_REGEX: RegExp = /^P\d{1,3}$/;
+const PERCENT_NUMBER_REGEX: RegExp = /(\d+(?:\.\d+)?)%/g;
+const COMMA_INTEGER_CURRENCY_REGEX: RegExp = /(?<!\d)(\d{1,3}(?:,\d{3})+)\.00(?=元)/g;
+const THOUSANDS_SEPARATOR_REGEX: RegExp = /(?<=\d),(?=\d{3}(?:\D|$))/g;
+const CLOCK_MINUTE_LEADING_ZERO_REGEX: RegExp = /(?<!\d)(\d{1,2})点0([1-9])分/g;
+const HANZI_CLOCK_MINUTE_LEADING_ZERO_REGEX: RegExp = /([零一二三四五六七八九十两]+)点0([1-9])分/g;
+const DURATION_MINUTE_LEADING_ZERO_REGEX: RegExp = /(?<!\d)(\d+)小时0([1-9])分钟/g;
+const YEAR_MONTH_LEADING_ZERO_REGEX: RegExp = /(\d{2,4}年)0([1-9])月/g;
+const YEAR_MONTH_REGEX: RegExp = /(\d{2,4}年)(\d{1,2})月/g;
+const MONTH_DAY_LEADING_ZERO_REGEX: RegExp = /(月)0([1-9])日/g;
+const MONTH_DAY_REGEX: RegExp = /(月)(\d{1,2})(日|号)/g;
+const NEGATIVE_TEMPERATURE_REGEX: RegExp = /((?:气温|温度|体温))-(\d+(?:\.\d+)?)(度|℃)/g;
+const NEGATIVE_TEMPERATURE_RANGE_REGEX: RegExp = /(温度范围是)-(\d+(?:\.\d+)?)到(\d+(?:\.\d+)?)(度|℃)/g;
+const VERSION_NUMBER_WITH_SUFFIX_REGEX: RegExp = /(?<!\d)(\d+(?:\.\d+){2,})(?=[-A-Za-z])/g;
+const DIGIT_DOT_REGEX: RegExp = /(?<=\d)\.(?=\d)/g;
+const HANZI_DIGIT_DOT_REGEX: RegExp = /(?<=[零一二三四五六七八九十百千万两])\.(?=[零一二三四五六七八九十百千万两])/g;
+const LEADING_DOT_ASCII_TOKEN_REGEX: RegExp = /(?<![A-Za-z0-9])\.(?=[A-Za-z0-9])/g;
+const URL_SCHEME_SEPARATOR_REGEX: RegExp = /(?<![A-Za-z0-9])(https?|ftp):\/\//gi;
+const CARET_POWER_TWO_REGEX: RegExp = /\^(?:2|二)/g;
+const TECHNICAL_ASCII_TOKEN_REGEX: RegExp = /(?<![A-Za-z0-9])([A-Za-z0-9./\\_@:?=&#%+\-]*[A-Za-z0-9])(?![A-Za-z0-9])/g;
+const SERIAL_CODE_REGEX: RegExp = /((?:设备)?(?:序列号|编号)|S\/N|SN)(\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\d[A-Z0-9]*)/g;
+const VIN_CODE_REGEX: RegExp = /((?:车架号\s*)?(?:VIN\s+))([A-HJ-NPR-Z0-9]{8,17})(?![A-Za-z0-9])/gi;
+const PRODUCT_CODE_REGEX: RegExp = /(?<![A-Za-z0-9])(vocos|Office)(\d+)(k?)(?![A-Za-z0-9])/gi;
+const CHINESE_DIGIT_SEQUENCE_CHARS: string = '零〇一二三四五六七八九两幺';
+
+const TECHNICAL_SYMBOL_READINGS: Map<string, string> = new Map<string, string>([
+  ['.', '点'],
+  [':', '冒号'],
+  ['/', '斜杠'],
+  ['\\', '反斜杠'],
+  ['?', '问号'],
+  ['=', '等于'],
+  ['&', '和'],
+  ['@', '艾特'],
+  ['_', '下划线'],
+  ['#', '井号'],
+  ['+', '加'],
+  ['-', '杠']
+]);
 
 interface NativeTtsModule {
   createRuntime(
@@ -781,6 +823,32 @@ interface MergeRule {
   replacement: string;
 }
 
+interface FrontendReplacementRule {
+  name: string;
+  stages: Set<string>;
+  pattern: RegExp;
+  replacement: string;
+}
+
+interface FrontendReplacementRuleJson {
+  name?: string;
+  stages?: Array<string>;
+  pattern?: string;
+  replacement?: string;
+}
+
+interface FrontendRuleSetJson {
+  replacements?: Array<FrontendReplacementRuleJson>;
+}
+
+interface SupplementLexiconEntry {
+  phones?: Array<string>;
+}
+
+interface SupplementLexiconJson {
+  entries?: Record<string, Object>;
+}
+
 interface ModelManifest {
   manifest_version?: number;
   task?: string;
@@ -825,6 +893,8 @@ interface LoadedPackage {
   polyphonicWords: Set<string>;
   maxWordLength: number;
   cmudict: Map<string, Array<string>>;
+  englishLexicon: Map<string, Array<string>>;
+  frontendRules: FrontendRuleSet;
   symbolToId: Map<string, number>;
   pinyinToTokens: Map<string, Array<string>>;
   arpabetToTokens: Map<string, Array<string>>;
@@ -890,13 +960,17 @@ class FrontendResources {
 
     const manifest = FrontendResources.loadManifest(normalizedDir);
     const wordPinyin = FrontendResources.loadWordPinyin(joinPath(normalizedDir, 'chinese_lexicon.txt'));
+    const cmudict = FrontendResources.loadCmudict(joinPath(normalizedDir, 'cmudict.txt'));
+    const supplementLexicon = FrontendResources.loadSupplementLexicon(joinPath(normalizedDir, 'supplement_lexicon.json'));
     const loaded: LoadedPackage = {
       rootDir: normalizedDir,
       manifest,
       wordPinyin,
       polyphonicWords: new Set<string>(readNonEmptyLines(joinPath(normalizedDir, 'polychar.txt'))),
       maxWordLength: FrontendResources.maxWordLength(wordPinyin),
-      cmudict: FrontendResources.loadCmudict(joinPath(normalizedDir, 'cmudict.txt')),
+      cmudict,
+      englishLexicon: FrontendResources.mergeEnglishLexicon(cmudict, supplementLexicon),
+      frontendRules: FrontendRuleSet.load(joinPath(normalizedDir, 'frontend_rules.json')),
       symbolToId: FrontendResources.loadSymbols(joinPath(normalizedDir, 'zh_en_symbols.json')),
       pinyinToTokens: FrontendResources.loadTokenMap(joinPath(normalizedDir, 'pinyin_to_tokens.json'), 'pinyin_to_tokens'),
       arpabetToTokens: FrontendResources.loadTokenMap(joinPath(normalizedDir, 'arpabet_to_tokens.json'), 'arpabet_to_tokens')
@@ -1061,11 +1135,124 @@ class FrontendResources {
     });
     return output;
   }
+
+  private static loadSupplementLexicon(filePath: string): Map<string, Array<string>> {
+    if (!isRegularFile(filePath)) {
+      return new Map<string, Array<string>>();
+    }
+    const parsed = readJsonFile<SupplementLexiconJson>(filePath);
+    const rawEntries = parsed.entries ?? (parsed as Record<string, Object>);
+    const output = new Map<string, Array<string>>();
+    Object.keys(rawEntries).forEach((key: string): void => {
+      const value = rawEntries[key];
+      const phones = FrontendResources.supplementPhones(value);
+      if (phones.length > 0) {
+        output.set(key.toUpperCase(), phones);
+      }
+    });
+    return output;
+  }
+
+  private static supplementPhones(value: Object): Array<string> {
+    if (Array.isArray(value)) {
+      return value.filter((item: Object): boolean => typeof item === 'string') as Array<string>;
+    }
+    if (typeof value === 'string') {
+      return splitByWhitespace(value);
+    }
+    const entry = value as SupplementLexiconEntry;
+    if (Array.isArray(entry.phones)) {
+      return entry.phones.slice();
+    }
+    return [];
+  }
+
+  private static mergeEnglishLexicon(
+    cmudict: Map<string, Array<string>>,
+    supplement: Map<string, Array<string>>
+  ): Map<string, Array<string>> {
+    const output = new Map<string, Array<string>>();
+    cmudict.forEach((phones: Array<string>, word: string): void => {
+      output.set(word, phones);
+    });
+    supplement.forEach((phones: Array<string>, word: string): void => {
+      if (!output.has(word)) {
+        output.set(word, phones);
+      }
+    });
+    return output;
+  }
+}
+
+class FrontendRuleSet {
+  private static cache: Map<string, FrontendRuleSet> = new Map<string, FrontendRuleSet>();
+  private readonly replacements: Array<FrontendReplacementRule>;
+
+  private constructor(replacements: Array<FrontendReplacementRule>) {
+    this.replacements = replacements;
+  }
+
+  static load(filePath: string): FrontendRuleSet {
+    if (!isRegularFile(filePath)) {
+      return new FrontendRuleSet([]);
+    }
+    const cached = FrontendRuleSet.cache.get(filePath);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const parsed = readJsonFile<FrontendRuleSetJson>(filePath);
+    const replacements: Array<FrontendReplacementRule> = [];
+    (parsed.replacements ?? []).forEach((item: FrontendReplacementRuleJson, index: number): void => {
+      const pattern = item.pattern ?? '';
+      const replacement = item.replacement ?? '';
+      const stages = new Set<string>((item.stages ?? []).filter((stage: string): boolean => stage.length > 0));
+      if (pattern.length === 0 || replacement.length === 0 || stages.size === 0) {
+        return;
+      }
+      replacements.push({
+        name: item.name ?? `rule-${index}`,
+        stages,
+        pattern: new RegExp(pattern, 'gi'),
+        replacement
+      });
+    });
+    const loaded = new FrontendRuleSet(replacements);
+    FrontendRuleSet.cache.set(filePath, loaded);
+    return loaded;
+  }
+
+  apply(stage: string, text: string): string {
+    let output = text;
+    this.replacements.forEach((rule: FrontendReplacementRule): void => {
+      if (!rule.stages.has(stage)) {
+        return;
+      }
+      output = output.replace(rule.pattern, (...args: Array<string>): string => {
+        return FrontendRuleSet.renderReplacement(rule.replacement, args);
+      });
+    });
+    return output;
+  }
+
+  private static renderReplacement(template: string, groups: Array<string>): string {
+    let output = '';
+    for (let index = 0; index < template.length; index += 1) {
+      const char = template[index];
+      if (char === '$' && index + 1 < template.length && /^[0-9]$/.test(template[index + 1])) {
+        const groupIndex = Number(template[index + 1]);
+        output += groups[groupIndex] ?? '';
+        index += 1;
+      } else {
+        output += char;
+      }
+    }
+    return output;
+  }
 }
 
 class TranssionTnNormalizer {
   static normalize(resources: LoadedPackage, text: string, language: string, languageContext: string): string {
-    const input = TranssionTnNormalizer.prepareInput(text, languageContext);
+    const input = TranssionTnNormalizer.prepareInput(resources, text, languageContext);
     console.info(`${TN_LOG_TAG} normalize start language=${language} languageContext=${languageContext} inputLen=${input.length} root=${resources.rootDir}`);
     if (input.length === 0) {
       console.info(`${TN_LOG_TAG} normalize skip empty input`);
@@ -1094,9 +1281,9 @@ class TranssionTnNormalizer {
     return output;
   }
 
-  private static prepareInput(text: string, languageContext: string): string {
+  private static prepareInput(resources: LoadedPackage, text: string, languageContext: string): string {
     let output = '';
-    const normalized = LitsTtsFrontend.normalizeText(text, languageContext);
+    const normalized = resources.frontendRules.apply('pre_tn', LitsTtsFrontend.normalizeText(text, languageContext));
     for (let index = 0; index < normalized.length; index += 1) {
       const code = normalized.charCodeAt(index);
       if ((code >= 0x00 && code <= 0x1f) || (code >= 0x7f && code <= 0x9f)) {
@@ -1253,7 +1440,9 @@ class LitsTtsFrontend {
     alreadyNormalized: boolean = false
   ): TextMetric {
     const tnText = alreadyNormalized ? text : TranssionTnNormalizer.normalize(resources, text, language, languageContext);
-    const normalized = LitsTtsFrontend.normalizeText(tnText, languageContext).trim();
+    const preprocessed = resources.frontendRules.apply('pre_frontend', LitsTtsFrontend.preprocessZhMixedInput(tnText));
+    const normalizedText = LitsTtsFrontend.normalizeText(preprocessed, languageContext);
+    const normalized = LitsTtsFrontend.normalizeTechnicalText(resources, normalizedText, languageContext).trim();
     if (normalized.length === 0) {
       throw new TextToSpeechException(TtsErrorCode.TEXT_LENGTH_INVALID, 'text must not be empty');
     }
@@ -1325,8 +1514,10 @@ class LitsTtsFrontend {
       }
       if (LitsTtsFrontend.isHanzi(char)) {
         const end = LitsTtsFrontend.scanHanziChunk(normalized, index);
-        const syllables = LitsTtsFrontend.applyThirdToneSandhi(
-          LitsTtsFrontend.hanziChunkToPinyin(resources, normalized.substring(index, end))
+        const hanziText = normalized.substring(index, end);
+        const syllables = LitsTtsFrontend.applyMandarinToneSandhi(
+          hanziText,
+          LitsTtsFrontend.hanziChunkToPinyin(resources, hanziText)
         );
         LitsTtsFrontend.appendChineseSyllables(
           output,
@@ -1409,7 +1600,7 @@ class LitsTtsFrontend {
     wordsPerSegment: number = DEFAULT_WORDS_PER_STREAMING_SEGMENT
   ): Array<string> {
     const tnText = TranssionTnNormalizer.normalize(resources, text, language, languageContext);
-    const normalized = LitsTtsFrontend.normalizeText(tnText, languageContext).trim();
+    const normalized = LitsTtsFrontend.normalizeText(LitsTtsFrontend.preprocessZhMixedInput(tnText), languageContext).trim();
     if (normalized.length === 0) {
       return [];
     }
@@ -1498,6 +1689,198 @@ class LitsTtsFrontend {
       return ',';
     }
     return ',';
+  }
+
+  private static normalizeTechnicalText(resources: LoadedPackage, text: string, languageContext: string): string {
+    let normalized = resources.frontendRules.apply('post_frontend', text);
+    if (languageContext === 'en-US') {
+      return LitsTtsFrontend.normalizeResidualSymbols(normalized, languageContext);
+    }
+    normalized = normalized.replace(PERCENT_NUMBER_REGEX, (_match: string, value: string): string => {
+      return `百分之${LitsTtsFrontend.numberTextToHanzi(value)}`;
+    });
+    normalized = normalized.replace(/\b(?:dot|point)\b/gi, '点');
+    normalized = normalized.replace(/\bunderscore\b/gi, '下划线');
+    normalized = normalized.replace(VERSION_NUMBER_WITH_SUFFIX_REGEX, (match: string): string => {
+      return match.split('.').map((part: string): string => LitsTtsFrontend.numberTextToHanzi(part)).join('点');
+    });
+    normalized = normalized.replace(DIGIT_DOT_REGEX, '点');
+    normalized = normalized.replace(HANZI_DIGIT_DOT_REGEX, '点');
+    normalized = normalized.replace(LEADING_DOT_ASCII_TOKEN_REGEX, '点');
+    normalized = normalized.replace(CARET_POWER_TWO_REGEX, '平方');
+    normalized = normalized.replace(/=/g, '等于');
+    normalized = normalized.replace(URL_SCHEME_SEPARATOR_REGEX, (_match: string, scheme: string): string => {
+      return `${scheme}冒号斜杠斜杠`;
+    });
+    normalized = normalized.replace(TECHNICAL_ASCII_TOKEN_REGEX, (match: string, token: string): string => {
+      if (LitsTtsFrontend.looksLikeIpv6(token) || !LitsTtsFrontend.hasTechnicalSymbol(token)) {
+        return match;
+      }
+      let output = '';
+      for (let index = 0; index < token.length; index += 1) {
+        output += TECHNICAL_SYMBOL_READINGS.get(token[index]) ?? token[index];
+      }
+      return output;
+    });
+    return LitsTtsFrontend.normalizeResidualSymbols(normalized, languageContext);
+  }
+
+  private static normalizeResidualSymbols(text: string, languageContext: string): string {
+    let output = '';
+    for (let index = 0; index < text.length; index += 1) {
+      const code = text.charCodeAt(index);
+      if (LitsTtsFrontend.isHighSurrogate(code)) {
+        if (index + 1 < text.length && LitsTtsFrontend.isLowSurrogate(text.charCodeAt(index + 1))) {
+          index += 1;
+        }
+        output += ',';
+        continue;
+      }
+      if (LitsTtsFrontend.isLowSurrogate(code) || LitsTtsFrontend.isIgnoredFormatCode(code)) {
+        continue;
+      }
+      const char = text[index];
+      if (LitsTtsFrontend.isSupportedFrontendChar(char)) {
+        output += char;
+      } else if (languageContext !== 'en-US') {
+        output += ZH_EN_FRONTEND_CHAR_REPLACEMENTS.get(char) ??
+          ZH_EN_ASCII_SYMBOL_TEXT.get(char) ??
+          SYMBOL_TO_SAFE_PUNCTUATION.get(char) ??
+          ',';
+      } else {
+        output += SYMBOL_TO_SAFE_PUNCTUATION.get(char) ?? ',';
+      }
+    }
+    return output;
+  }
+
+  private static preprocessZhMixedInput(text: string): string {
+    let normalized = text.replace(COMMA_INTEGER_CURRENCY_REGEX, (_match: string, value: string): string => {
+      return LitsTtsFrontend.compactIntegerCurrencyWithCommas(value);
+    });
+    normalized = normalized.replace(THOUSANDS_SEPARATOR_REGEX, '');
+    normalized = normalized.replace(NEGATIVE_TEMPERATURE_RANGE_REGEX, (_match: string, prefix: string, low: string, high: string, unit: string): string => {
+      return `${prefix}零下${LitsTtsFrontend.numberTextToHanzi(low)}到${LitsTtsFrontend.numberTextToHanzi(high)}${unit}`;
+    });
+    normalized = normalized.replace(NEGATIVE_TEMPERATURE_REGEX, (_match: string, prefix: string, value: string, unit: string): string => {
+      return `${prefix}零下${LitsTtsFrontend.numberTextToHanzi(value)}${unit}`;
+    });
+    normalized = normalized.replace(CLOCK_MINUTE_LEADING_ZERO_REGEX, (_match: string, hour: string, minute: string): string => {
+      return `${LitsTtsFrontend.numberTextToHanzi(hour)}点零${LitsTtsFrontend.numberTextToHanzi(minute)}分`;
+    });
+    normalized = normalized.replace(HANZI_CLOCK_MINUTE_LEADING_ZERO_REGEX, (_match: string, hour: string, minute: string): string => {
+      return `${hour}点零${CHINESE_DIGIT_TEXT_BY_CHAR.get(minute) ?? minute}分`;
+    });
+    normalized = normalized.replace(DURATION_MINUTE_LEADING_ZERO_REGEX, (_match: string, hour: string, minute: string): string => {
+      return `${LitsTtsFrontend.numberTextToHanzi(hour)}小时零${LitsTtsFrontend.numberTextToHanzi(minute)}分钟`;
+    });
+    normalized = normalized.replace(YEAR_MONTH_LEADING_ZERO_REGEX, (_match: string, year: string, month: string): string => {
+      return `${year}零${LitsTtsFrontend.numberTextToHanzi(month)}月`;
+    });
+    normalized = normalized.replace(YEAR_MONTH_REGEX, (_match: string, year: string, month: string): string => {
+      return `${year}${LitsTtsFrontend.numberTextToHanzi(month)}月`;
+    });
+    normalized = normalized.replace(MONTH_DAY_LEADING_ZERO_REGEX, (_match: string, month: string, day: string): string => {
+      return `${month}零${LitsTtsFrontend.numberTextToHanzi(day)}日`;
+    });
+    normalized = normalized.replace(MONTH_DAY_REGEX, (_match: string, month: string, day: string, suffix: string): string => {
+      return `${month}${LitsTtsFrontend.numberTextToHanzi(day)}${suffix}`;
+    });
+    normalized = normalized.replace(VIN_CODE_REGEX, (_match: string, prefix: string, code: string): string => {
+      return prefix + LitsTtsFrontend.normalizeSerialCode(code);
+    });
+    normalized = normalized.replace(PRODUCT_CODE_REGEX, (_match: string, product: string, code: string, suffix: string): string => {
+      return product + LitsTtsFrontend.normalizeSerialCode(code) + suffix;
+    });
+    normalized = normalized.replace(SERIAL_CODE_REGEX, (_match: string, prefix: string, space: string, code: string): string => {
+      return prefix + space + LitsTtsFrontend.normalizeSerialCode(code);
+    });
+    return normalized;
+  }
+
+  private static normalizeSerialCode(code: string): string {
+    let output = '';
+    for (let index = 0; index < code.length; index += 1) {
+      output += CHINESE_DIGIT_TEXT_BY_CHAR.get(code[index]) ?? code[index];
+    }
+    return output;
+  }
+
+  private static compactIntegerCurrencyWithCommas(text: string): string {
+    const compact = text.replace(/,/g, '');
+    const value = Number(compact);
+    if (!Number.isSafeInteger(value)) {
+      return compact;
+    }
+    if (value >= 100000000 && value % 100000000 === 0) {
+      return `${LitsTtsFrontend.integerTextToHanzi(String(value / 100000000))}亿`;
+    }
+    if (value >= 10000 && value % 10000 === 0) {
+      return `${LitsTtsFrontend.integerTextToHanzi(String(value / 10000))}万`;
+    }
+    return compact;
+  }
+
+  private static looksLikeIpv6(token: string): boolean {
+    let colonCount = 0;
+    for (let index = 0; index < token.length; index += 1) {
+      const char = token[index];
+      if (char === ':') {
+        colonCount += 1;
+      } else if (!LitsTtsFrontend.isAsciiHex(char)) {
+        return false;
+      }
+    }
+    return colonCount >= 2;
+  }
+
+  private static hasTechnicalSymbol(token: string): boolean {
+    for (let index = 0; index < token.length; index += 1) {
+      if (TECHNICAL_SYMBOL_READINGS.has(token[index])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static numberTextToHanzi(text: string): string {
+    const parts = text.split('.');
+    const integer = LitsTtsFrontend.integerTextToHanzi(parts[0]);
+    if (parts.length < 2) {
+      return integer;
+    }
+    return integer + '点' + parts[1].split('').map((digit: string): string => {
+      return CHINESE_DIGIT_TEXT_BY_CHAR.get(digit) ?? digit;
+    }).join('');
+  }
+
+  private static integerTextToHanzi(text: string): string {
+    const value = Number(text);
+    if (!Number.isSafeInteger(value)) {
+      return text.split('').map((digit: string): string => CHINESE_DIGIT_TEXT_BY_CHAR.get(digit) ?? digit).join('');
+    }
+    if (value === 0) {
+      return '零';
+    }
+    if (value < 10) {
+      return CHINESE_DIGIT_TEXT_BY_CHAR.get(String(value)) ?? String(value);
+    }
+    if (value < 20) {
+      const ones = value % 10;
+      return '十' + (ones === 0 ? '' : CHINESE_DIGIT_TEXT_BY_CHAR.get(String(ones)) ?? String(ones));
+    }
+    if (value < 100) {
+      const tens = Math.floor(value / 10);
+      const ones = value % 10;
+      return (CHINESE_DIGIT_TEXT_BY_CHAR.get(String(tens)) ?? String(tens)) + '十' +
+        (ones === 0 ? '' : CHINESE_DIGIT_TEXT_BY_CHAR.get(String(ones)) ?? String(ones));
+    }
+    const hundreds = Math.floor(value / 100);
+    const remainder = value % 100;
+    return (CHINESE_DIGIT_TEXT_BY_CHAR.get(String(hundreds)) ?? String(hundreds)) + '百' +
+      (remainder === 0 ? '' : remainder < 10
+        ? `零${CHINESE_DIGIT_TEXT_BY_CHAR.get(String(remainder)) ?? String(remainder)}`
+        : LitsTtsFrontend.integerTextToHanzi(String(remainder)));
   }
 
   private static shouldSplitAfterPunctuation(
@@ -1820,9 +2203,81 @@ class LitsTtsFrontend {
     return output;
   }
 
+  private static applyMandarinToneSandhi(text: string, tokens: Array<string>): Array<string> {
+    const output = LitsTtsFrontend.applyThirdToneSandhi(tokens);
+    if (text.length !== output.length) {
+      return output;
+    }
+    if (text.length > 1 && LitsTtsFrontend.allChineseDigitSequence(text)) {
+      return output;
+    }
+    LitsTtsFrontend.applyBuSandhi(text, output);
+    LitsTtsFrontend.applyYiSandhi(text, output);
+    LitsTtsFrontend.applyErSandhi(text, output);
+    return output;
+  }
+
+  private static applyBuSandhi(text: string, tokens: Array<string>): void {
+    if (/^不+$/.test(text) || text === '不字') {
+      return;
+    }
+    if (text.length === 3 && text[1] === '不' && (tokens[1] ?? '').startsWith('bu')) {
+      tokens[1] = LitsTtsFrontend.changePinyinTone(tokens[1], '5');
+      return;
+    }
+    for (let index = 0; index < text.length; index += 1) {
+      if (text[index] === '不' && index + 1 < tokens.length && (tokens[index + 1] ?? '').endsWith('4')) {
+        tokens[index] = LitsTtsFrontend.changePinyinTone(tokens[index], '2');
+      }
+    }
+  }
+
+  private static applyYiSandhi(text: string, tokens: Array<string>): void {
+    if (text.length === 3 && text[1] === '一' && text[0] === text[2]) {
+      tokens[1] = LitsTtsFrontend.changePinyinTone(tokens[1], '5');
+      return;
+    }
+    if (text.startsWith('第一') && tokens.length > 1) {
+      tokens[1] = LitsTtsFrontend.changePinyinTone(tokens[1], '1');
+    }
+    if (text.startsWith('一月') || text.startsWith('一日') || text.startsWith('一号')) {
+      tokens[0] = LitsTtsFrontend.changePinyinTone(tokens[0], '1');
+    }
+    for (let index = 0; index < text.length; index += 1) {
+      if (text[index] !== '一' || index + 1 >= text.length || text[index - 1] === '第') {
+        continue;
+      }
+      const current = tokens[index];
+      const next = tokens[index + 1];
+      if (!PINYIN_SYLLABLE_REGEX.test(current) || !PINYIN_SYLLABLE_REGEX.test(next)) {
+        continue;
+      }
+      tokens[index] = LitsTtsFrontend.changePinyinTone(current, next.endsWith('4') ? '2' : '4');
+    }
+  }
+
+  private static applyErSandhi(text: string, tokens: Array<string>): void {
+    if (text.length > 1 && text[text.length - 1] === '儿' && (tokens[tokens.length - 1] ?? '').startsWith('er')) {
+      tokens[tokens.length - 1] = LitsTtsFrontend.changePinyinTone(tokens[tokens.length - 1], '5');
+    }
+  }
+
+  private static changePinyinTone(syllable: string, tone: string): string {
+    return PINYIN_SYLLABLE_REGEX.test(syllable) ? syllable.substring(0, syllable.length - 1) + tone : syllable;
+  }
+
+  private static allChineseDigitSequence(text: string): boolean {
+    for (let index = 0; index < text.length; index += 1) {
+      if (!CHINESE_DIGIT_SEQUENCE_CHARS.includes(text[index])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static phonesForEnglishWord(resources: LoadedPackage, rawWord: string): Array<string> {
     const normalized = rawWord.toUpperCase();
-    const direct = resources.cmudict.get(normalized);
+    const direct = resources.englishLexicon.get(normalized);
     if (direct !== undefined) {
       return direct;
     }
@@ -1832,7 +2287,7 @@ class LitsTtsFrontend {
         if (part.length === 0) {
           return;
         }
-        const mapped = resources.cmudict.get(part) ?? LitsTtsFrontend.spellEnglishWord(resources, part);
+        const mapped = resources.englishLexicon.get(part) ?? LitsTtsFrontend.spellEnglishWord(resources, part);
         if (mapped.length === 0) {
           return;
         }
@@ -1858,7 +2313,7 @@ class LitsTtsFrontend {
       if (!LitsTtsFrontend.isEnglishLetter(char)) {
         continue;
       }
-      const phones = resources.cmudict.get(char);
+      const phones = resources.englishLexicon.get(char);
       if (phones === undefined) {
         return [];
       }

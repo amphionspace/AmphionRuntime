@@ -3,6 +3,7 @@ package com.lits.tts.sdk.internal
 import java.io.File
 import kotlin.io.path.createTempDirectory
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Ignore
@@ -249,7 +250,12 @@ class LitsTtsFrontendTest {
     fun enUsSupplementLexiconIsUsedBeforeSpellingFallback() {
         val layout = testLayout()
 
-        val tokens = LitsTtsFrontend.debugTokensForTest(layout, "firmware roadmap is ready.", "en-US", "en-US")
+        val tokens = LitsTtsFrontend.debugTokensForTest(
+            layout,
+            "firmware roadmap barista barcode Figma Anthropic is ready.",
+            "en-US",
+            "en-US",
+        )
 
         assertTrue(
             "expected firmware supplement lexicon reading, actual=${tokens.joinToString(" ")}",
@@ -258,6 +264,22 @@ class LitsTtsFrontendTest {
         assertTrue(
             "expected roadmap supplement lexicon reading, actual=${tokens.joinToString(" ")}",
             tokens.joinToString(" ").contains("R OW1 D M AE2 P"),
+        )
+        assertTrue(
+            "expected barista supplement lexicon reading, actual=${tokens.joinToString(" ")}",
+            tokens.joinToString(" ").contains("B AH0 R IY1 S T AH0"),
+        )
+        assertTrue(
+            "expected barcode supplement lexicon reading, actual=${tokens.joinToString(" ")}",
+            tokens.joinToString(" ").contains("B AA1 R K OW2 D"),
+        )
+        assertTrue(
+            "expected Figma supplement lexicon reading, actual=${tokens.joinToString(" ")}",
+            tokens.joinToString(" ").contains("F IH1 G M AH0"),
+        )
+        assertTrue(
+            "expected Anthropic supplement lexicon reading, actual=${tokens.joinToString(" ")}",
+            tokens.joinToString(" ").contains("AE0 N TH R AA1 P IH0 K"),
         )
     }
 
@@ -297,11 +319,25 @@ class LitsTtsFrontendTest {
     fun zhEnAppliesYiBuErToneSandhi() {
         val layout = testLayout()
 
-        assertTokenSequence(layout, "一个苹果。", "ㄧ ˊ _ ㄍ ㄜ ˋ _")
-        assertTokenSequence(layout, "一天。", "ㄧ ˋ _ ㄊ ㄧ ㄢ ˉ _")
+        assertTokenSequence(layout, "一辆车。", "ㄧ ˊ _ ㄌ ㄧ ㄤ ˋ _")
+        assertTokenSequence(layout, "一条鱼。", "ㄧ ˋ _ ㄊ ㄧ ㄠ ˊ _")
         assertTokenSequence(layout, "不对。", "ㄅ ㄨ ˊ _ ㄉ ㄨ ㄟ ˋ _")
         assertTokenSequence(layout, "看一看。", "ㄎ ㄢ ˋ _ ㄧ ˙ _ ㄎ ㄢ ˋ _")
         assertTokenSequence(layout, "花儿。", "ㄏ ㄨ ㄚ ˉ _ ㄦ ˙ _")
+    }
+
+    @Test
+    fun zhEnAssistantAlarmUsesWeiFourthToneForAlreadyForYou() {
+        val layout = realAssetLayout()
+
+        val actual = LitsTtsFrontend.debugTokensForNormalizedForTest(
+            layout,
+            "好的，已为你设置明天早上七点半的闹钟。",
+            "zh-en",
+            "zh-en",
+        ).joinToString(" ")
+
+        assertTrue("expected 已为你 with 为 as fourth tone, actual=$actual", actual.contains("ㄧ ˇ _ ㄨ ㄟ ˋ _ ㄋ ㄧ ˇ _ ㄕ ㄜ ˋ"))
     }
 
     @Test
@@ -405,7 +441,7 @@ class LitsTtsFrontendTest {
 
         val firmwareTokens = LitsTtsFrontend.debugTokensForNormalizedForTest(
             layout,
-            "firmware roadmap",
+            "firmware roadmap barista barcode Figma Anthropic",
             "en-US",
             "en-US",
         ).joinToString(" ")
@@ -418,8 +454,27 @@ class LitsTtsFrontendTest {
 
         assertTrue("expected firmware supplement entry, actual=$firmwareTokens", firmwareTokens.contains("F ER1 M W EH2 R"))
         assertTrue("expected roadmap supplement entry, actual=$firmwareTokens", firmwareTokens.contains("R OW1 D M AE2 P"))
+        assertTrue("expected barista supplement entry, actual=$firmwareTokens", firmwareTokens.contains("B AH0 R IY1 S T AH0"))
+        assertTrue("expected barcode supplement entry, actual=$firmwareTokens", firmwareTokens.contains("B AA1 R K OW2 D"))
+        assertTrue("expected Figma supplement entry, actual=$firmwareTokens", firmwareTokens.contains("F IH1 G M AH0"))
+        assertTrue("expected Anthropic supplement entry, actual=$firmwareTokens", firmwareTokens.contains("AE0 N TH R AA1 P IH0 K"))
         assertTrue("expected user_dict 曾医生 entry, actual=$polyphoneTokens", polyphoneTokens.contains("ㄗ ㄥ ˉ _ ㄧ ˉ _ ㄕ ㄥ ˉ"))
         assertTrue("expected user_dict 从重庆 entry, actual=$polyphoneTokens", polyphoneTokens.contains("ㄘ ㄨ ㄥ ˊ _ ㄔ ㄨ ㄥ ˊ _ ㄑ ㄧ ㄥ ˋ"))
+    }
+
+    @Test
+    fun realAssetLayoutUsesSyncedPolyphonePhraseOverrides() {
+        val layout = realAssetLayout()
+        assertTrue(
+            "expected copied polyphone overrides to contain 圈养了",
+            layout.rootDir.resolve(LitsTtsAssetRegistry.POLYPHONE_PHRASES).readText().contains("圈养了\tjuan4 yang3 le5"),
+        )
+
+        assertNormalizedTokenSequence(layout, "朝阳越过山脊照亮小村", "ㄓ ㄠ ˉ _ ㄧ ㄤ ˊ")
+        assertNormalizedTokenSequence(layout, "医生在处方上写下用药说明", "ㄔ ㄨ ˇ _ ㄈ ㄤ ˉ")
+        assertNormalizedTokenSequence(layout, "盖姓同学在名册里排在前面", "ㄍ ㄜ ˇ _ ㄒ ㄧ ㄥ ˋ")
+        assertNormalizedTokenSequence(layout, "吴堡县名出现在这册旧志里", "ㄨ ˊ _ ㄅ ㄨ ˇ _ ㄒ ㄧ ㄢ ˋ")
+        assertNormalizedTokenSequence(layout, "棋盘上那枚车守住了边线", "ㄋ ㄚ ˋ _ ㄇ ㄟ ˊ _ ㄐ ㄩ ˉ")
     }
 
     @Test
@@ -517,6 +572,15 @@ class LitsTtsFrontendTest {
         assertTrue("expected '$expected' in '$actual'", actual.contains(expected))
     }
 
+    private fun assertNormalizedTokenSequence(
+        layout: LitsTtsAssetInstaller.InstalledLayout,
+        text: String,
+        expected: String,
+    ) {
+        val actual = LitsTtsFrontend.debugTokensForNormalizedForTest(layout, text, "zh-en", "zh-en").joinToString(" ")
+        assertTrue("expected '$expected' in '$actual'", actual.contains(expected))
+    }
+
     private companion object {
         private val assetRoot = File(
             "src/main/assets/lits-models/${LitsTtsAssetRegistry.assetSubPath}",
@@ -531,6 +595,8 @@ class LitsTtsFrontendTest {
             copyAsset(root, "pinyin_to_tokens.json")
             copyAsset(root, "arpabet_to_tokens.json")
             copyAsset(root, "polychar.txt")
+            copyAsset(root, "polyphone_phrases.txt")
+            copyAsset(root, "chinese_surname_lexicon.txt")
             copyAsset(root, "frontend_golden.json")
             File(root, "lits_acoustic.onnx").writeBytes(byteArrayOf())
             File(root, "hifigan_vocoder.onnx").writeBytes(byteArrayOf())
@@ -555,6 +621,8 @@ class LitsTtsFrontendTest {
                 "pinyin_to_tokens.json",
                 "arpabet_to_tokens.json",
                 "polychar.txt",
+                "polyphone_phrases.txt",
+                "chinese_surname_lexicon.txt",
                 "frontend_golden.json",
                 "rules/zh.json",
                 "rules/en.json",

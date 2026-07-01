@@ -1,6 +1,6 @@
 {
   "name": "sample",
-  "version": "0.2.5",
+  "version": "0.2.5.2",
   "description": "Sample HAP for validating the Lits TTS HarmonyOS SDK.",
   "main": "",
   "author": "Amphion",
