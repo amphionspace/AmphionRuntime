@@ -1,8 +1,10 @@
-# 鼎桥 Android v0.2.7 交付记录
+# 鼎桥 Android v0.2.7 历史交付记录
+
+> 历史归档：本文只用于追溯 2026-06-25 这次 v0.2.7 交付的产物、假设和验证结果，不作为当前 license 或交付规则。当前规则见 `docs/dingqiao-offline-license.md` 和 `docs/android-sdk-delivery-runbook.md`。v3.0 起正式设备白名单 license 不按 Android `applicationId` 或 HarmonyOS `bundleName` 限制宿主，包名仅作签发记录。
 
 ## 问题复述
 
-本次交付要同时满足两件事：客户拿到 Demo APK 后能普通安装并完成体验；正式 SDK 授权仍能限制到鼎桥 App、签名证书、SN 清单和到期时间。
+本次历史交付要同时满足两件事：客户拿到 Demo APK 后能普通安装并完成体验；正式 SDK 授权限制到当时约定的客户 App 记录、签名证书、SN 清单和到期时间。该策略已被后续 v3.0 交付口径替换。
 
 ## 关键假设
 
@@ -17,7 +19,7 @@
 | 对象 | 交付策略 |
 | --- | --- |
 | Demo APK | 内置 Demo license，绑定 `com.amphion.dingqiao.demo` 和 Demo 签名，只限制期限，不绑定 SN |
-| 正式 SDK license | 单独下发 `amphion-license.lic`，绑定 `com.tdtech.tiassistant`、Release 签名证书、SN 白名单和期限 |
+| 正式 SDK license | 单独下发 `amphion-license.lic`，当时记录为 `com.tdtech.tiassistant`、Release 签名证书、SN 白名单和期限 |
 | 授权能力 | Demo 为 `ASR`；正式 license 为 `ASR,TTS`，供 ASR 与 TTS 共用 |
 | 到期时间 | Demo 和正式 license 均为 `2026-08-25` |
 | 声纹模型 | `eres2net.onnx` 固定内置在 AAR / APK assets 中，运行时自动准备到 `setWorkPath` |
@@ -27,16 +29,16 @@
 
 | 产物 | 路径 | 关键状态 |
 | --- | --- | --- |
-| ASR 客户交付包 | `/Users/boxp/workspace/delivery/amphion-dingqiao-v0.2.7-customer-20260625.zip` | AAR/APK 均包含 `libsherpa-onnx-jni.so` 和 `libonnxruntime.so` |
-| 独立 license 包 | `/Users/boxp/workspace/delivery/amphion-dingqiao-license-v0.2.7-20260625.zip` | `features=ASR,TTS`，SN 白名单 16 台，到期 `2026-08-25` |
+| ASR 客户交付包 | `amphion-dingqiao-v0.2.7-customer-20260625.zip` | AAR/APK 均包含 `libsherpa-onnx-jni.so` 和 `libonnxruntime.so` |
+| 独立 license 包 | `amphion-dingqiao-license-v0.2.7-20260625.zip` | `features=ASR,TTS`，SN 白名单 16 台，到期 `2026-08-25` |
 
 ## 验证结果
 
 - Demo license：`applicationId=com.amphion.dingqiao.demo`，`features=ASR`，`device_hash_count=0`，`expiresAt=2026-08-25`。
-- 正式 SDK license：`applicationId=com.tdtech.tiassistant`，`features=ASR,TTS`，`device_hash_count=16`，`expiresAt=2026-08-25`。
+- 正式 SDK license：历史记录字段 `applicationId=com.tdtech.tiassistant`，`features=ASR,TTS`，`device_hash_count=16`，`expiresAt=2026-08-25`。
 - 设备实测：从最终 zip 解压出的 Demo APK 普通安装后显示“引擎就绪，点击开始识别”，没有 `device SN unavailable`、`dlopen failed` 或崩溃日志。
 - 声纹模型实测：安装后不需要手动导入 `eres2net.onnx`，SDK 可自动把模型准备到工作目录。
-- 授权边界：Demo 通过不代表正式 license zip 已在正式宿主通过；正式 license 需要包名、签名证书和设备 SN 均匹配。
+- 授权边界：Demo 通过不代表正式 license zip 已在正式宿主通过；当时正式 license 需要签名证书和设备 SN 匹配，并记录宿主包名。当前 v3.0 规则已改为包名仅记录、不作为授权限制。
 
 ## 后续规则
 

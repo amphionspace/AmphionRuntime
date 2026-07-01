@@ -1,15 +1,15 @@
-# 鼎桥离线 License 交付前置清单
+# 鼎桥离线 License 交付前置清单（当前口径）
 
-本文是鼎桥专网交付前的信息收集清单。实现细节以 Android/Harmony SDK 内的 `amphion-license.lic` 为准；ASR 与 TTS 共用同一份 license、公钥和设备白名单。
+本文是鼎桥专网交付前的信息收集清单。实现细节以 Android/Harmony SDK 内的 `amphion-license.lic` 为准；ASR 与 TTS 可共用同一份 license、公钥和设备白名单。本文只记录当前规则，不写入某次历史交付的 zip 路径、固定到期日或 SN 数量。
 
-## 当前 Android v0.2.7 交付口径
+## 当前 Android v3.0 交付口径
 
 | 对象 | applicationId / bundleName | features | SN 绑定 | 到期 |
 | --- | --- | --- | --- | --- |
-| Demo APK | com.amphion.dingqiao.demo | ASR | 不绑定 SN，记录 Demo 包名并绑定 Demo 签名 | 2026-08-25 |
-| 正式 SDK license | 不限制应用，仅可记录为空或客户当前包名 | ASR,TTS | 绑定鼎桥 SN 清单，本次 16 台 | 2026-08-25 |
+| Demo APK | 记录 `com.amphion.dingqiao.demo` | ASR | 不绑定 SN，可绑定 Demo 签名 | 默认签发日起 2 个月 |
+| 正式 SDK license | 不限制应用，仅记录为空或客户当前包名 / bundleName | ASR,TTS | 绑定本次交付确认的鼎桥 SN 清单 | 当前 v3.0 为签发日起 2 个月，后续按商务策略 |
 
-Demo APK 是普通安装体验包，必须能在没有系统 SN 读取权限的设备上完成 `createEngine`。正式 SDK license 单独下发给客户 App，授权边界只看设备 SN 白名单；客户 App 需要能读取或注入本机 SN。
+Demo APK 是普通安装体验包，必须能在没有系统 SN 读取权限的设备上完成 `createEngine`。正式 SDK license 单独下发给客户 App，授权边界默认只看验签、授权能力、到期、SDK 大版本 / 维护期和设备 SN 白名单；不校验宿主包名。若 license 显式写入 `signingCertDigest`，才同时校验宿主签名证书。
 
 ## 交付前鼎桥需要提供的信息
 
@@ -22,7 +22,7 @@ Demo APK 是普通安装体验包，必须能在没有系统 SN 读取权限的�
 | SN 读取方式 | Android 端使用 Build.getSerial()；宿主为系统应用，并申请 android.permission.READ_PRIVILEGED_PHONE_STATE | 运行时向 SDK 注入本机 SN |
 | 授权能力 | 是否授权 ASR、是否授权 TTS | 写入 features，仅允许 ASR 和 TTS |
 | 版本范围 | 授权 SDK 大版本 sdkMajor、维护期 maintenanceUntil | 控制大版本和维护期外升级 |
-| 运行期限 | expiresAt 是否为空或固定日期；本次 Android v0.2.7 为 2026-08-25 | 控制运行到期策略 |
+| 运行期限 | expiresAt 是否为空、固定日期或签发日起几个月；当前 v3.0 交付为 2 个月 | 控制运行到期策略 |
 | 组包责任 | 后装包或升级包由哪一方组包 | 确认 license、SDK/HAR、模型放置责任 |
 | 固定路径 | App assets 或 rawfile 中 license 的固定路径 | SDK 初始化时读取 amphion-license.lic |
 | 增量设备 | 后续新增设备 SN 的同步周期和交付方式 | 支持增量或全量重签 |
@@ -75,7 +75,7 @@ SDK 已提供 `DeviceIdProvider` 注入通道。Android ASR 鼎桥封装层和 A
 
 建议策略：
 
-- `expiresAt` 由商务策略决定；本次 Android v0.2.7 使用固定到期日 `2026-08-25`。
+- `expiresAt` 由商务策略决定；当前 v3.0 交付使用签发日起 2 个月，不在当前规则文档中写死历史日期。
 - `maintenanceUntil` 控制能否升级到某个发布时间的 SDK 或模型版本。
 - `sdkMajor` 不一致或维护期外升级需要重新签发 license。
 - 新增设备、换机或 SN 变化时，需要提供新 SN 并重新签发全量或增量授权包。

@@ -45,7 +45,7 @@
 
 ### 2.3 腾讯音视频终端 SDK（License 绑定对标）
 
-正式 License 移动端仅按 Bundle ID / Package Name 绑定；单 license 不跨端（移动端与 PC 端需分别购买）；按年付费，到期前通过站内信/邮件/短信提醒续期。
+竞品公开口径：正式 License 移动端仅按 Bundle ID / Package Name 绑定；单 license 不跨端（移动端与 PC 端需分别购买）；按年付费，到期前通过站内信/邮件/短信提醒续期。注意这是竞品做法，不是我方当前鼎桥授权策略；我方正式设备白名单 license 默认不按 applicationId / bundleName 限制宿主应用，包名只作签发记录。
 
 ### 2.4 定价模式光谱（综合）
 
