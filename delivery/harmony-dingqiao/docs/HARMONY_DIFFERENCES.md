@@ -6,7 +6,7 @@
 ## 一、已对齐（与接口文档 / Android 一致）
 
 - 接口契约 `SpeechRecognizeSdk` / `SpeechRecognitionEngine` / `RecognitionListener` 的 13 个方法 + 5 个回调 + 数据结构全部实现（非桩）。
-- **错误码 `1002200001`~`1002200037` 已按接口文档对齐**（引擎块 002–012、声纹 020–024、License 030–037 语义一致；036/037 为签名绑定失败的扩展码，与 Android 一致）。
+- **错误码 `1002200001`~`1002200035` 已按接口文档对齐**（引擎块 002–012、声纹 020–024、License 030–035 语义一致）。鸿蒙不单独发出 `1002200036` / `1002200037`，见"二、已知差异"第 10 条。
 - **License 授权**：真 ECDSA-P256 签名验签 + 有效期 + 设备 SN 白名单；SN 指纹算法与 Android `DeviceLicenseFingerprint` 一致：`SHA-256( 大写去空(SN) + deviceIdSaltId )`，大写 hex。
 - **授权文件与 Android 共用**：注入的验签公钥与 Android SDK 为同一把生产密钥，故同一份 `amphion-license.lic`（ASR/TTS 共用、SN 白名单）在 Android 与鸿蒙上验签一致。
 - `SpeechRecognitionResult.beginTime` / `endTime` 已填（由 token 时间戳换算，单位 ms，仅 `isFinal=true` 保证有效）。
@@ -24,6 +24,7 @@
 7. **设备 SN 读取需宿主特权**（与 Android 相同）：读取设备序列号需 `ohos.permission.sn`（system_basic 级特权权限），普通三方 App / Demo 无法读取。因此**绑定 SN 的正式 license 需宿主为系统/预置应用，或由宿主通过 `deviceIdProvider` 注入设备 SN**；Demo 使用不绑定 SN 的授权文件。若宿主读不到 SN，绑 SN 的授权会激活失败（`1002200033`），属宿主权限/环境问题。
 8. **线程模型（鸿蒙特有，建议注意）**：首次 `createEngine` 会**同步加载 ASR 模型（约数秒）**，此期间调用线程被阻塞。**建议调用方在非 UI 线程调用 `createEngine`，或在加载期间显示加载态**。Android 使用 JVM 工作线程无此问题；鸿蒙 ArkTS 的 TaskPool worker 无法跨线程传递 NAPI 对象，故暂未后台化，列为后续优化项。
 9. **native 内存指标**：`nativeRssMb` / `peakNativeRssMb` 等字段保持 `-1`（鸿蒙端暂未接入 native RSS 读取），字段名与 sentinel 规则与 Android 一致。
+10. **License 错误码收敛（与 Android 的差异）**：鸿蒙 `DingqiaoErrorCode` 只定义到 `1002200035`，将「应用不匹配 / 证书指纹不匹配 / 设备不匹配」三类统一映射为 `LICENSE_DEVICE_MISMATCH = 1002200033`；Android 则拆分为 `1002200036`（`LICENSE_APP_MISMATCH`）/ `1002200037`（`LICENSE_CERT_MISMATCH`）/ `1002200033`。这与正式设备白名单授权**不按 applicationId 限制**（`6004 LicenseAppMismatch` 保留、默认不绑签名证书）的方案一致——鸿蒙有意不再单独发出 036/037。若鼎桥侧按 Android 文档预期 036/037 分支，请注意鸿蒙对应场景只返回 `1002200033`。
 
 ## 三、Demo 与授权
 
