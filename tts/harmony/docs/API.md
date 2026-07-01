@@ -137,26 +137,26 @@ interface SpeakListener {
 如果 `extraParams.modelPackageDir` 为空，且设置了 `setWorkPath()`，SDK 会按下面顺序找 `manifest.json`：
 
 1. `<workPath>/manifest.json`
-2. `<workPath>/lits_delivery_16k_hifigan/1.0.0/manifest.json`
-3. `<workPath>/tts/lits_delivery_16k_hifigan/1.0.0/manifest.json`
+2. `<workPath>/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/manifest.json`
+3. `<workPath>/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/manifest.json`
 
 如果以上都没命中外部模型，SDK 会自动把 HAR 中的 `rawfile` 资源解包到：
 
 ```text
-<application filesDir>/tts/lits_delivery_16k_hifigan/1.0.0/
+<application filesDir>/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
 
 如果调用过 `setWorkPath("/some/base")`，则内置模型默认解包到：
 
 ```text
-/some/base/tts/lits_delivery_16k_hifigan/1.0.0/
+/some/base/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
 
 显式传目录仍然是最可控的方式：
 
 ```ts
 extraParams: {
-  modelPackageDir: "/absolute/path/to/lits_delivery_16k_hifigan/1.0.0"
+  modelPackageDir: "/absolute/path/to/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0"
 }
 ```
 
