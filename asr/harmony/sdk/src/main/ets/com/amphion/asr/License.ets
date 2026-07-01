@@ -1,4 +1,11 @@
 import { AsrErrorCode } from './Types';
+import { cryptoFramework } from '@kit.CryptoArchitectureKit';
+import { util } from '@kit.ArkTS';
+
+// Offline-license public key (X.509 SubjectPublicKeyInfo DER, base64). Empty = development/unarmed build.
+// PRODUCTION key — same keypair as the Android SDK (asr/android/gradle.properties AMPHION_LICENSE_PUBLIC_KEY),
+// so the shared amphion-license.lic (ASR/TTS, SN whitelist) verifies identically on Harmony and Android.
+const LICENSE_PUBLIC_KEY_B64: string = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc5BCEdeeELgXa3tTXeM6i49o+2NslcH9FrgpAMn3o61kFEv1Xlv7fD/kYA5NnXi2eLM8l+w4wEUvPgsbiM9tCQ==';
 
 export enum AmphionLicenseState {
   NOT_INITIALIZED = 'NOT_INITIALIZED',
@@ -143,6 +150,101 @@ export class HarmonyLicenseVerifier {
       ? 'license parsed without signature verification; public key is not injected'
       : 'license accepted; signature verification is expected in delivery build';
     return status;
+  }
+
+  /** Injected offline-license public key (empty on a development/unarmed build). */
+  static publicKey(): string {
+    return LICENSE_PUBLIC_KEY_B64;
+  }
+
+  /**
+   * Real ECDSA P-256 (ECC256|SHA256) signature verification over the raw license payload bytes.
+   * Mirrors tools/license/issue_license.py (SHA256withECDSA over the decoded UTF-8 payload) and the TTS
+   * Harmony verifier. Returns true on an unarmed build (empty public key) so development keeps working;
+   * otherwise a forged or tampered license (e.g. an edited expiresAt) fails signature verification here.
+   */
+  static async verifySignature(licenseText: string | undefined, publicKeyB64: string): Promise<boolean> {
+    if (publicKeyB64.trim().length === 0) {
+      return true;
+    }
+    if (licenseText === undefined || licenseText.trim().length === 0) {
+      return false;
+    }
+    let payloadBytes: Uint8Array;
+    let sigBytes: Uint8Array;
+    try {
+      const envelope = JSON.parse(licenseText) as Record<string, Object>;
+      const payloadB64 = envelope['payload_b64'];
+      const sigB64 = envelope['sig_b64'];
+      if (typeof payloadB64 !== 'string' || typeof sigB64 !== 'string') {
+        return false;
+      }
+      payloadBytes = HarmonyLicenseVerifier.base64ToBytes(payloadB64 as string);
+      sigBytes = HarmonyLicenseVerifier.base64ToBytes(sigB64 as string);
+    } catch (_e) {
+      return false;
+    }
+    try {
+      const keyGenerator = cryptoFramework.createAsyKeyGenerator('ECC256');
+      const keyPair = await keyGenerator.convertKey({ data: HarmonyLicenseVerifier.base64ToBytes(publicKeyB64) }, null);
+      const verifier = cryptoFramework.createVerify('ECC256|SHA256');
+      await verifier.init(keyPair.pubKey);
+      await verifier.update({ data: payloadBytes });
+      return await verifier.verify(null, { data: sigBytes });
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  private static base64ToBytes(b64: string): Uint8Array {
+    return new util.Base64Helper().decodeSync(b64.replace(/[\r\n\t ]/g, ''));
+  }
+
+  /**
+   * SN 白名单校验（对齐 Android LicenseVerifier + DeviceLicenseFingerprint）。
+   * 指纹 = SHA-256( 大写去空(SN) + deviceIdSaltId )，大写 hex，对 authorizedDeviceHashes 取成员判定。
+   * 返回 true = 未绑 SN 或 SN 在白名单内；false = 需要 SN 但缺失 / 不在白名单。
+   */
+  static async deviceHashOk(licenseText: string | undefined, deviceSerial: string | undefined): Promise<boolean> {
+    if (licenseText === undefined || licenseText.trim().length === 0) {
+      return true;
+    }
+    const claims = HarmonyLicenseVerifier.parseClaims(licenseText);
+    if (claims === undefined) {
+      return true;
+    }
+    const hashes = HarmonyLicenseVerifier.stringArray(claims, 'authorizedDeviceHashes')
+      .map((h: string): string => HarmonyLicenseVerifier.normalizeHex(h));
+    if (hashes.length === 0) {
+      return true;
+    }
+    if (deviceSerial === undefined || deviceSerial.trim().length === 0) {
+      return false;
+    }
+    const saltId = HarmonyLicenseVerifier.stringValue(claims, 'deviceIdSaltId');
+    const have = await HarmonyLicenseVerifier.deviceFingerprint(deviceSerial, saltId);
+    return hashes.includes(have);
+  }
+
+  static async deviceFingerprint(deviceSerial: string, saltId: string): Promise<string> {
+    const raw = deviceSerial.trim().toUpperCase() + saltId;
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) {
+      bytes[i] = raw.charCodeAt(i) & 0xff;
+    }
+    const md = cryptoFramework.createMd('SHA256');
+    await md.update({ data: bytes });
+    const digest = await md.digest();
+    return HarmonyLicenseVerifier.bytesToHexUpper(digest.data);
+  }
+
+  private static bytesToHexUpper(bytes: Uint8Array): string {
+    let out = '';
+    for (let i = 0; i < bytes.length; i++) {
+      const h = bytes[i].toString(16).toUpperCase();
+      out += h.length === 1 ? `0${h}` : h;
+    }
+    return out;
   }
 
   private static parseClaims(licenseText: string): Record<string, Object> | undefined {

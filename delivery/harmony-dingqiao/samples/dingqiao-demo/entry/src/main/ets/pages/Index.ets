@@ -1,11 +1,14 @@
 import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit';
 import { promptAction, router } from '@kit.ArkUI';
+import { fileIo as fs } from '@kit.CoreFileKit';
 import {
   AudioInfo,
   CreateEngineCallback,
   CreateEngineParams,
   DingqiaoErrorCode,
   DingqiaoEventCode,
+  LicenseActivationCallback,
+  LicenseActivationResult,
   RecognitionListener,
   SpeechRecognitionEngine,
   SpeechRecognitionResult,
@@ -87,8 +90,51 @@ struct Index {
       this.refreshVoiceprintUi();
       return;
     }
-    this.initEngine();
+    this.activateLicenseThenInit();
     this.refreshVoiceprintUi();
+  }
+
+  // ---- license activation (armed build requires a valid signed license before createEngine) ----
+
+  private activateLicenseThenInit(): void {
+    this.loading = true;
+    this.engineReady = false;
+    this.status = '正在校验授权…';
+    let licPath = '';
+    try {
+      licPath = this.prepareLicenseFile();
+    } catch (e) {
+      this.loading = false;
+      this.status = `授权文件准备失败：${e}`;
+      return;
+    }
+    SpeechRecognizeSdk.setLicense(licPath, new DemoLicenseCallback(this));
+  }
+
+  // Copies the bundled signed license out of rawfile into the SDK work path (setLicense needs a real fs path).
+  private prepareLicenseFile(): string {
+    const ctx = getContext(this) as common.UIAbilityContext;
+    const data = ctx.resourceManager.getRawFileContentSync('amphion-license.lic');
+    if (!fs.accessSync(this.workPath)) fs.mkdirSync(this.workPath);
+    const dest = `${this.workPath}/amphion-license.lic`;
+    const dst = fs.openSync(dest, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+    try {
+      fs.writeSync(dst.fd, data.buffer);
+    } finally {
+      fs.closeSync(dst);
+    }
+    return dest;
+  }
+
+  onLicenseActivated(): void {
+    this.status = '授权通过，正在初始化引擎…';
+    this.initEngine();
+  }
+
+  onLicenseFailed(errorCode: number, message: string): void {
+    this.loading = false;
+    this.engineReady = false;
+    this.status = `授权失败：${errorCode} ${message}`;
   }
 
   private async requestMicPermission(): Promise<boolean> {
@@ -518,7 +564,7 @@ class DemoRecognitionListener implements RecognitionListener {
     this.owner = owner;
   }
 
-  onStart(_sessionId: string): void {
+  onStart(_sessionId: string, _eventMessage: string): void {
     this.owner.handleStart();
   }
 
@@ -530,7 +576,7 @@ class DemoRecognitionListener implements RecognitionListener {
     this.owner.handleResult(result);
   }
 
-  onComplete(_sessionId: string): void {
+  onComplete(_sessionId: string, _eventMessage: string): void {
     this.owner.handleComplete();
   }
 
@@ -552,5 +598,25 @@ class DemoCreateEngineCallback implements CreateEngineCallback {
 
   onError(errorCode: number, message: string): void {
     this.owner.onEngineCreateFailed(errorCode, message);
+  }
+}
+
+class DemoLicenseCallback implements LicenseActivationCallback {
+  private owner: Index;
+
+  constructor(owner: Index) {
+    this.owner = owner;
+  }
+
+  onResult(result: LicenseActivationResult): void {
+    if (result.errorCode === 0) {
+      this.owner.onLicenseActivated();
+    } else {
+      this.owner.onLicenseFailed(result.errorCode, result.message);
+    }
+  }
+
+  onError(errorCode: number, message: string): void {
+    this.owner.onLicenseFailed(errorCode, message);
   }
 }
