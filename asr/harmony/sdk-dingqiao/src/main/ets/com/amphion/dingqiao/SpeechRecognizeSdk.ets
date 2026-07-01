@@ -1,6 +1,7 @@
-import { AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
+import { AmphionDeviceIdProvider, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
 import { PoliceEngineConfig, PoliceEnhanceOptions, PoliceEnhancePipeline } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
+import deviceInfo from '@ohos.deviceInfo';
 import { VoiceprintStore } from './VoiceprintStore';
 import {
   CreateEngineCallback,
@@ -134,13 +135,11 @@ function extractAsrErrorCode(message: string): number {
 }
 
 function mapLicenseErrorCode(asrCode: number): number {
-  if (asrCode === AsrErrorCode.LICENSE_MISSING) return DingqiaoErrorCode.LICENSE_FILE_MISSING;
+  if (asrCode === AsrErrorCode.LICENSE_MISSING) return DingqiaoErrorCode.LICENSE_FILE_UNREADABLE;
   if (asrCode === AsrErrorCode.LICENSE_EXPIRED || asrCode === AsrErrorCode.LICENSE_MAINTENANCE_EXPIRED) return DingqiaoErrorCode.LICENSE_EXPIRED;
-  if (asrCode === AsrErrorCode.LICENSE_APP_MISMATCH ||
-    asrCode === AsrErrorCode.LICENSE_CERT_MISMATCH ||
-    asrCode === AsrErrorCode.LICENSE_DEVICE_MISMATCH) {
-    return DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH;
-  }
+  if (asrCode === AsrErrorCode.LICENSE_APP_MISMATCH) return DingqiaoErrorCode.LICENSE_APP_MISMATCH;
+  if (asrCode === AsrErrorCode.LICENSE_CERT_MISMATCH) return DingqiaoErrorCode.LICENSE_CERT_MISMATCH;
+  if (asrCode === AsrErrorCode.LICENSE_DEVICE_MISMATCH) return DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH;
   if (asrCode === AsrErrorCode.LICENSE_MALFORMED ||
     asrCode === AsrErrorCode.LICENSE_SIGNATURE_INVALID ||
     asrCode === AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH ||
@@ -220,7 +219,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.ensureAlive();
     if (this.busy) throw new Error('engine busy');
     if (params.audioInfo.sampleRate !== 16000 || params.audioInfo.sampleBit !== 16 || params.audioInfo.soundChannel !== 1) {
-      this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.INVALID_ARGUMENT, 'only 16k/16bit/mono PCM is supported');
+      this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, 'only 16k/16bit/mono PCM is supported');
       return;
     }
 
@@ -231,18 +230,22 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if ((verify || speakerVad) && voiceprintIds.length > 0) {
       const modelPath = `${SpeechRecognizeSdk.getWorkPath()}/eres2net.onnx`;
       if (!fs.accessSync(modelPath)) {
-        this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.VOICEPRINT_MODEL_MISSING, `voiceprint model not found: ${modelPath}`);
+        this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, `voiceprint model not found: ${modelPath}`);
         return;
       }
       embedding = new VoiceprintStore(SpeechRecognizeSdk.getWorkPath()).loadMergedEmbedding(voiceprintIds);
       if (embedding === undefined) {
-        this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED, `voiceprint not found for ids: ${voiceprintIds.join(',')}`);
+        this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.VOICEPRINT_NOT_FOUND, `voiceprint not found for ids: ${voiceprintIds.join(',')}`);
         return;
       }
     }
     const useTarget = embedding !== undefined && (verify || speakerVad);
 
-    this.rebuildEngine(params, useTarget, useTarget && speakerVad);
+    // Only rebuild (which reloads the ~160 MB model on the UI thread) when a target speaker is actually
+    // needed; otherwise reuse the engine already built in createEngine so startListening stays responsive.
+    if (useTarget) {
+      this.rebuildEngine(params, useTarget, speakerVad);
+    }
     this.currentSessionId = params.sessionId;
     this.finishRequested = false;
     this.partialEnabled = params.extraParams['enablePartialResult'] !== false;
@@ -263,7 +266,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (!this.busy || sessionId !== this.currentSessionId || this.session === undefined) return;
     if (audio.byteLength === 0) return;
     if (!isSupportedAudioFrameBytes(audio.byteLength)) {
-      this.listener?.onError?.(sessionId, DingqiaoErrorCode.INVALID_ARGUMENT, 'audio frame must be 640 or 1280 bytes');
+      this.listener?.onError?.(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, 'audio frame must be 640 or 1280 bytes');
       return;
     }
     this.session.acceptPcmBytes(audio);
@@ -306,9 +309,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     payload.isLast = this.finishRequested;
     payload.result = enhanced.text;
     payload.speakerSimilarity = result.speakerScore;
+    // beginTime/endTime from token timestamps (seconds -> ms), aligned with Android dispatchResult.
+    const ts = result.timestamps;
+    if (ts.length > 0) {
+      payload.beginTime = Math.round(ts[0] * 1000);
+      payload.endTime = Math.round(ts[ts.length - 1] * 1000);
+    }
     this.listener?.onResult?.(this.currentSessionId, payload);
     if (this.finishRequested) {
-      this.listener?.onComplete?.(this.currentSessionId);
+      this.listener?.onComplete?.(this.currentSessionId, 'recognize complete');
       this.tearDownSession();
     }
   }
@@ -355,12 +364,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   }
 
   handleSessionStarted(): void {
-    this.listener?.onStart?.(this.currentSessionId);
+    this.listener?.onStart?.(this.currentSessionId, 'startListening success.');
     this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEECH_BEGIN, 'speech started.');
   }
 
   handleSessionStopped(): void {
-    if (this.finishRequested) this.listener?.onComplete?.(this.currentSessionId);
+    if (this.finishRequested) this.listener?.onComplete?.(this.currentSessionId, 'recognize complete');
     this.tearDownSession();
   }
 
@@ -405,6 +414,19 @@ class DingqiaoAsrCallback implements AsrCallback {
   }
 }
 
+// 设备 SN 提供者（对齐 Android DingqiaoDeviceIdProvider）：读设备序列号供 license SN 白名单校验。
+// 读取 deviceInfo.serial 需要 ohos.permission.sn（系统/特权权限）；普通 Demo 读不到→返回 undefined。
+class DingqiaoDeviceIdProvider implements AmphionDeviceIdProvider {
+  getDeviceSerial(_context: Context): string | undefined {
+    try {
+      const sn = deviceInfo.serial;
+      return sn !== undefined && sn.length > 0 ? sn : undefined;
+    } catch (e) {
+      return undefined;
+    }
+  }
+}
+
 export class SpeechRecognizeSdk {
   private static context?: Context;
   private static workPath: string = '';
@@ -424,30 +446,68 @@ export class SpeechRecognizeSdk {
   }
 
   static setLicense(licensePath: string, callback: LicenseActivationCallback): void {
-    if (SpeechRecognizeSdk.context === undefined) {
+    const context = SpeechRecognizeSdk.context;
+    if (context === undefined) {
       callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, 'SpeechRecognizeSdk.init must be called first');
       return;
     }
     if (licensePath.length === 0) {
-      callback.onError(DingqiaoErrorCode.LICENSE_FILE_MISSING, 'licensePath is empty');
+      callback.onError(DingqiaoErrorCode.LICENSE_FILE_UNREADABLE, 'licensePath is empty');
       return;
     }
     if (!fs.accessSync(licensePath)) {
-      callback.onError(DingqiaoErrorCode.LICENSE_FILE_MISSING, `license file not found: ${licensePath}`);
+      callback.onError(DingqiaoErrorCode.LICENSE_FILE_UNREADABLE, `license file not found: ${licensePath}`);
       return;
     }
     let licenseText = '';
     try {
       licenseText = readTextFile(licensePath);
     } catch (e) {
-      callback.onError(DingqiaoErrorCode.LICENSE_FILE_MISSING, `license file not readable: ${e}`);
+      callback.onError(DingqiaoErrorCode.LICENSE_FILE_UNREADABLE, `license file not readable: ${e}`);
+      return;
+    }
+    // Signature verification (cryptoFramework) is async, so activation continues on the async path.
+    SpeechRecognizeSdk.activateLicense(context, licensePath, licenseText, callback);
+  }
+
+  private static async activateLicense(
+    context: Context,
+    licensePath: string,
+    licenseText: string,
+    callback: LicenseActivationCallback
+  ): Promise<void> {
+    // Real ECDSA verification first: a forged or tampered license (e.g. an edited expiresAt) fails here and the
+    // engine is never initialized. On an unarmed (empty public key) development build this returns true.
+    const signatureValid = await AmphionRuntime.verifyLicenseSignature(licenseText);
+    if (!signatureValid) {
+      const info = new LicenseInfo();
+      info.licensePath = licensePath;
+      info.status = 2;
+      info.expireTime = -1;
+      info.remainingDays = -1;
+      SpeechRecognizeSdk.licenseInfo = info;
+      callback.onError(DingqiaoErrorCode.LICENSE_INVALID, 'license signature verification failed');
+      return;
+    }
+    // SN 白名单校验（对齐 Android）：绑了 SN 的 license 只在白名单设备上激活；本机 SN 由 provider 读取。
+    const provider = new DingqiaoDeviceIdProvider();
+    const deviceOk = await AmphionRuntime.checkDeviceBinding(licenseText, provider.getDeviceSerial(context));
+    if (!deviceOk) {
+      const dInfo = new LicenseInfo();
+      dInfo.licensePath = licensePath;
+      dInfo.status = 3;
+      dInfo.expireTime = -1;
+      dInfo.remainingDays = -1;
+      SpeechRecognizeSdk.licenseInfo = dInfo;
+      callback.onError(DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH, 'device not authorized');
       return;
     }
     try {
       const options = new AmphionOptions();
       options.license = licenseText;
+      options.deviceIdProvider = provider;
       AmphionRuntime.release();
-      AmphionRuntime.init(SpeechRecognizeSdk.context, options);
+      AmphionRuntime.init(context, options);
       const status = AmphionRuntime.licenseStatus();
       const info = new LicenseInfo();
       info.licensePath = licensePath;
@@ -488,7 +548,7 @@ export class SpeechRecognizeSdk {
     try {
       callback.onSuccess(SpeechRecognizeSdk.createEngine(params));
     } catch (e) {
-      callback.onError(DingqiaoErrorCode.ENGINE_CREATE_FAILED, `${e}`);
+      callback.onError(DingqiaoErrorCode.CREATE_ENGINE_FAILED, `${e}`);
     }
   }
 
@@ -496,13 +556,13 @@ export class SpeechRecognizeSdk {
     const result = new VoiceprintRegisterResult();
     result.voiceprintId = params.voiceprintId;
     if (params.samplePaths.length < 3) {
-      result.status = DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED;
+      result.status = DingqiaoErrorCode.VOICEPRINT_SAMPLE_COUNT;
       result.message = 'at least 3 audio samples required';
       return result;
     }
     const modelPath = SpeechRecognizeSdk.speakerModelPath();
     if (!fs.accessSync(modelPath)) {
-      result.status = DingqiaoErrorCode.VOICEPRINT_MODEL_MISSING;
+      result.status = DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED;
       result.message = `voiceprint model not found: ${modelPath}`;
       return result;
     }
