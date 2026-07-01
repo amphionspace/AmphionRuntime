@@ -112,17 +112,7 @@ internal object LicenseVerifier {
             return failWith(claims, AsrErrorCode.LICENSE_SIGNATURE_INVALID, "signature mismatch")
         }
 
-        // 6. applicationId / bundleName 绑定。Android 使用 packageName 匹配统一绑定字段。
-        val boundApp = claims.boundApplicationId
-        if (boundApp != pkg) {
-            return failWith(
-                claims,
-                AsrErrorCode.LICENSE_APP_MISMATCH,
-                "license app=$boundApp host=$pkg",
-            )
-        }
-
-        // 7. 签名证书绑定（signingCertDigest 非空时才校验；兼容旧 certSha256）。
+        // 6. 签名证书绑定（signingCertDigest 非空时才校验；兼容旧 certSha256）。
         if (claims.boundSigningCertDigest.isNotBlank()) {
             val want = normalizeHex(claims.boundSigningCertDigest)
             val have = hostCertSha256Set(ctx)
@@ -135,7 +125,7 @@ internal object LicenseVerifier {
             }
         }
 
-        // 8. 到期校验（expiresAt 非空时才校验；到期日当天有效，再加宽限）。
+        // 7. 到期校验（expiresAt 非空时才校验；到期日当天有效，再加宽限）。
         if (claims.expiresAt.isNotBlank()) {
             val expMillis = parseDateUtcMillis(claims.expiresAt)
                 ?: return failWith(claims, AsrErrorCode.LICENSE_MALFORMED, "bad expiresAt=${claims.expiresAt}")
@@ -145,7 +135,7 @@ internal object LicenseVerifier {
             }
         }
 
-        // 9. SDK 大版本和维护期校验。维护期控制可升级版本，不影响已授权旧版本运行。
+        // 8. SDK 大版本和维护期校验。维护期控制可升级版本，不影响已授权旧版本运行。
         if (claims.sdkMajor >= 0 && claims.sdkMajor != sdkMajor) {
             return failWith(
                 claims,
@@ -171,7 +161,7 @@ internal object LicenseVerifier {
             }
         }
 
-        // 10. 能力授权。当前 license 只按 ASR / TTS 两类授权，不再细分语言或增强能力。
+        // 9. 能力授权。当前 license 只按 ASR / TTS 两类授权，不再细分语言或增强能力。
         val normalizedFeatures = claims.features.map { it.trim().uppercase(Locale.ROOT) }.toSet()
         if (!normalizedFeatures.contains(requiredFeature.uppercase(Locale.ROOT))) {
             return failWith(
@@ -181,7 +171,7 @@ internal object LicenseVerifier {
             )
         }
 
-        // 11. SN 白名单绑定。新 license 使用 authorizedDeviceHashes；旧 deviceSha256 仅保留兼容。
+        // 10. SN 白名单绑定。新 license 使用 authorizedDeviceHashes；旧 deviceSha256 仅保留兼容。
         if (claims.authorizedDeviceHashes.isNotEmpty()) {
             if (!claims.deviceIdHashAlg.equals("SHA-256", ignoreCase = true)) {
                 return failWith(claims, AsrErrorCode.LICENSE_MALFORMED, "unsupported deviceIdHashAlg=${claims.deviceIdHashAlg}")

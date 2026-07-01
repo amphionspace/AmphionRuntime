@@ -1,0 +1,11 @@
+# CPU / Mac development:
+#   pip install -r requirements.txt
+#
+# H20 CUDA deployment uses the CUDA wheel instead of PyPI's CPU-only wheel:
+#   pip install "sherpa-onnx==1.13.3+cuda12.cudnn9" \
+#       -f https://k2-fsa.github.io/sherpa/onnx/cuda.html
+
+numpy>=1.26
+prometheus-client>=0.20
+sherpa-onnx>=1.13.3
+websockets>=16.0

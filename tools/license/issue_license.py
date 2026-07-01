@@ -12,16 +12,14 @@
 用法：
     python issue_license.py \
         --private-key amphion-license-private.pem \
-        --application-id com.acme.app \
+        --device-id-file devices.txt \
         --customer "ACME Co." \
         --license-id AMP-2026-0001 \
-        --device-id-file devices.txt \
         --device-id-salt-id DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71 \
         --expires 2027-06-03 \
         --maintenance-until 2027-06-30 \
         --install-tier LE_100K \
         --features ASR,TTS \
-        --cert-sha256 AB:CD:...:EF \
         --out amphion-license.lic
 """
 import argparse
@@ -80,8 +78,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="签发 Amphion 离线 license（.lic）")
     ap.add_argument("--private-key", required=True, help="签发私钥 PEM 路径")
     ap.add_argument("--password", default=None, help="私钥口令（若 gen 时加密）")
-    ap.add_argument("--application-id", required=True, help="绑定的宿主 applicationId（必填）")
-    ap.add_argument("--bundle-name", default="", help="HarmonyOS bundleName；默认同 applicationId")
+    ap.add_argument("--application-id", default="", help="宿主 applicationId；仅写入记录，不参与 Android 绑定校验")
+    ap.add_argument("--bundle-name", default="", help="HarmonyOS bundleName；仅写入记录，不参与 Android 绑定校验")
     ap.add_argument("--customer", default="", help="客户名")
     ap.add_argument("--license-id", default="", help="授权编号")
     ap.add_argument(
@@ -105,7 +103,7 @@ def main() -> None:
         "--features", default="ASR", help="逗号分隔的授权能力，仅允许 ASR,TTS",
     )
     ap.add_argument("--sdk-major", type=int, default=1, help="兼容的 SDK 大版本，默认 1")
-    ap.add_argument("--out", default=None, help="输出 .lic 路径；默认 <applicationId>.lic")
+    ap.add_argument("--out", default=None, help="输出 .lic 路径；默认 <applicationId>.lic 或 amphion-license.lic")
     args = ap.parse_args()
 
     issued = _check_date(args.issued)
@@ -118,7 +116,7 @@ def main() -> None:
 
     payload = {
         "applicationId": args.application_id,
-        "bundleName": args.bundle_name or args.application_id,
+        "bundleName": args.bundle_name,
         "certSha256": args.cert_sha256,
         "signingCertDigest": args.cert_sha256,
         "customer": args.customer,
@@ -153,12 +151,12 @@ def main() -> None:
         "sig_b64": base64.b64encode(signature).decode("ascii"),
     }
 
-    out = Path(args.out or f"{args.application_id}.lic")
+    out = Path(args.out or (f"{args.application_id}.lic" if args.application_id else "amphion-license.lic"))
     out.write_text(json.dumps(envelope, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"[ok] 已签发：{out}")
-    print(f"     applicationId = {args.application_id}")
-    print(f"     bundleName    = {payload['bundleName']}")
+    print(f"     applicationId = {args.application_id or '(未设置)'}")
+    print(f"     bundleName    = {payload['bundleName'] or '(未设置)'}")
     print(f"     customer      = {args.customer}")
     print(f"     expiresAt     = {expires or '(永久)'}")
     print(f"     maintenance   = {maintenance_until or '(不限制)'}")

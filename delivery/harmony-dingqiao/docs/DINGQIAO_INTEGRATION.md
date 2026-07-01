@@ -1,6 +1,6 @@
 # 鼎桥 HarmonyOS 语音识别 SDK 集成指南
 
-交付前置资料清单见 [`../../docs/dingqiao-offline-license.md`](../../docs/dingqiao-offline-license.md)。组包前需确认鼎桥提供的设备 SN 清单、bundleName、签名证书指纹、授权功能范围、维护期和 license 固定路径。
+交付前置资料清单见 [`../../docs/dingqiao-offline-license.md`](../../docs/dingqiao-offline-license.md)。组包前需确认鼎桥提供的设备 SN 清单、授权功能范围、维护期和 license 固定路径；bundleName 和签名证书指纹仅作可选记录。
 
 ## 交付文件
 

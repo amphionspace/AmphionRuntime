@@ -1,10 +1,10 @@
 # 鼎桥警务语音识别 SDK 交付说明
 
 > 面向鼎桥（Dingqiao）集成的 Android 离线 ASR + 警务域增强 + 声纹能力。  
-> 接口定义见仓库根目录 [`语音识别SDK接口.md`](../../../../语音识别SDK接口.md)（相对本文件：`/Users/amphion/Desktop/work/projects/鼎桥/语音识别SDK接口.md`）。  
+> 接口定义以 `docs/customer/语音识别SDK接口-交付批注版.md` 和 `docs/customer/语音识别SDK接口.md` 为准。
 > **对外正式交付**请使用 `docs/customer/` 下脱敏文档，打包命令：`bash asr/tools/delivery/pack_dingqiao_customer_delivery.sh`（不含公钥、不含 LICENSING.md 全文）。
 
-交付前置资料清单见仓库根目录 [`docs/dingqiao-offline-license.md`](../../../docs/dingqiao-offline-license.md)。鼎桥需在组包前确认 SN 清单、客户 App 标识、签名证书指纹、授权功能范围、`sdkMajor`、`maintenanceUntil` 和 license 固定路径。
+交付前置资料清单见仓库根目录 [`docs/dingqiao-offline-license.md`](../../../docs/dingqiao-offline-license.md)。鼎桥需在组包前确认 SN 清单、客户 App 标识记录、可选签名证书指纹、授权功能范围、`sdkMajor`、`maintenanceUntil`、运行期限和 license 固定路径。
 
 ## 1. 模块与依赖
 
@@ -24,7 +24,7 @@
 
 **不在交付范围：** `:samples:public-demo` 云端 ASR、Batch Eval；`:samples:internal-eval` 内部评测。
 
-## 2. 交付物清单（v0.2.8）
+## 2. 交付物清单（当前 Android ASR 客户包）
 
 | 产物 | 路径 / 命令 | 说明 |
 |------|-------------|------|
@@ -102,7 +102,6 @@ ZIP=delivery/.../amphion-dingqiao-*.zip
 export DELIVERY_VERIFY_REQUIRED_AAR_ENTRIES='jni/arm64-v8a/libsherpa-onnx-jni.so:1,jni/arm64-v8a/libonnxruntime.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280'
 export DELIVERY_VERIFY_REQUIRED_APK_ENTRIES='lib/arm64-v8a/libsherpa-onnx-jni.so:1,lib/arm64-v8a/libonnxruntime.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-license.lic:1'
 export DELIVERY_VERIFY_LICENSE_ENTRY='assets/amphion-license.lic'
-export DELIVERY_VERIFY_LICENSE_APPLICATION_ID='com.amphion.dingqiao.demo'
 export DELIVERY_VERIFY_LICENSE_FEATURES='ASR'
 export DELIVERY_VERIFY_LICENSE_DEVICE_HASH_COUNT=0
 export DELIVERY_VERIFY_ANDROID_PACKAGE='com.amphion.dingqiao.demo'
@@ -190,7 +189,7 @@ createEngine → setListener → startListening
 
 工作目录默认：`getExternalFilesDir()/dingqiao_work/`
 
-## 7. 能力与默认行为（v0.2.8 锁定）
+## 7. 能力与默认行为（当前交付口径）
 
 - 语种：`zh-CN`（映射内部 `AsrLanguage.ZH_EN`）
 - 离线 only；警务三场景 normalize **默认开启**
@@ -243,7 +242,7 @@ keytool -genkeypair -v -storetype PKCS12 \
 
 ### 8.3 签发 Demo `.lic`
 
-`.lic` **不进 git**；构建 Release 前生成并放入 Demo assets。Demo 授权为**限期试用**（默认自签发日起 **2 个月**），绑定 `com.amphion.dingqiao.demo` 包名与 Demo Release 证书 SHA-256，不绑定设备 SN；到期后 SDK 返回 `6006 LICENSE_EXPIRED`。交付打包脚本会在构建 Demo Release 前自动重签。
+`.lic` **不进 git**；构建 Release 前生成并放入 Demo assets。Demo 授权为**限期试用**（默认自签发日起 **2 个月**），记录 `com.amphion.dingqiao.demo` 包名，可绑定 Demo Release 证书 SHA-256，不绑定设备 SN；到期后 SDK 返回 `6006 LICENSE_EXPIRED`。交付打包脚本会在构建 Demo Release 前自动重签。
 
 ```bash
 bash ../../asr/tools/license/issue_dingqiao_demo.sh
@@ -251,9 +250,9 @@ bash ../../asr/tools/license/issue_dingqiao_demo.sh
 # 可选：DINGQIAO_DEMO_TRIAL_MONTHS=2（默认）调整试用月数
 ```
 
-每次对外发 Demo APK 或交付 zip 前请确认已重签（`pack_dingqiao_*.sh` 已集成）。续期 = 用同一私钥对同一 applicationId + certSha256 重签更晚 `expiresAt` 的 `.lic`。
+每次对外发 Demo APK 或交付 zip 前请确认已重签（`pack_dingqiao_*.sh` 已集成）。续期 = 用同一私钥对同一 Demo 证书记录重签更晚 `expiresAt` 的 `.lic`。
 
-鼎桥客户正式包：用同一私钥，按 [`docs/DELIVERY.md`](DELIVERY.md) §11 对其 **applicationId + release 证书 SHA256 + 设备 SN 清单** 单独签发。本次 `com.tdtech.tiassistant` 正式 license 供 ASR 与 TTS 共用，`features=ASR,TTS`，并限制到期时间。
+鼎桥客户正式包：用同一私钥，按 [`docs/DELIVERY.md`](DELIVERY.md) §11 对其 **设备 SN 清单** 单独签发；applicationId / bundleName 仅作记录，不作为授权限制。如 license 内写入 release 证书 SHA-256，则同时校验证书。当前 v3.0 正式 license 供 ASR 与 TTS 共用，`features=ASR,TTS`，并限制到期时间。
 
 正式包如启用设备 SN 白名单，Android 鼎桥封装层会通过 `Build.getSerial()` 读取设备序列号。宿主 App 必须作为系统应用声明并获得 `android.permission.READ_PRIVILEGED_PHONE_STATE`；若权限缺失或系统返回空/`UNKNOWN`，license 激活会因设备 SN 不可用失败。不要把 SN 绑定策略套到普通安装的 Demo APK 上，否则 Demo 可能无法完成 `createEngine`。
 

@@ -19,5 +19,8 @@ DECLARE_int32(loop_interval_ms);
 DECLARE_int32(session_idle_timeout_sec);
 DECLARE_int32(max_active_paths);
 DECLARE_string(decoding_method);
+DECLARE_double(endpoint_rule1_min_trailing_silence);
+DECLARE_double(endpoint_rule2_min_trailing_silence);
+DECLARE_double(endpoint_rule3_min_utterance_length);
 
 }  // namespace asr_service

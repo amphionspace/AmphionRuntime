@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# 为鼎桥正式 App（com.tdtech.tiassistant）签发 amphion-license.lic。
+# 为鼎桥正式设备白名单签发 amphion-license.lic。
 #
 # 环境变量：
 #   DINGQIAO_TRIAL_MONTHS=2          试用月数（默认 2）
 #   DINGQIAO_DEVICE_ID_FILE=...      设备 SN 清单（一行一个；默认 .secure/dingqiao_tiassistant_sn.txt）
-#   DINGQIAO_CUSTOMER_CERT_SHA256=... Release 证书 SHA-256（必填，或见下方默认）
 #   DINGQIAO_LICENSE_FEATURES=ASR,TTS 授权能力；鼎桥客户默认 ASR,TTS，供 ASR 和 TTS 共用同一份 license
 #
 set -euo pipefail
@@ -13,8 +12,6 @@ ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 VENV="$ROOT/tools/license/.venv"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$ROOT/.secure/amphion-license-private.pem}"
 OUT="${1:-$ROOT/../delivery/com.tdtech.tiassistant.lic}"
-APP_ID="com.tdtech.tiassistant"
-CERT_SHA="${DINGQIAO_CUSTOMER_CERT_SHA256:-6e9b5aaeef2797755cd3405952d9693e8db173c0a1733e38bf5bd16f9a6022e8}"
 DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$ROOT/.secure/dingqiao_tiassistant_sn.txt}"
 TRIAL_MONTHS="${DINGQIAO_TRIAL_MONTHS:-2}"
 FEATURES="${DINGQIAO_LICENSE_FEATURES:-ASR,TTS}"
@@ -49,14 +46,12 @@ print(f'{y:04d}-{m:02d}-{day:02d}')
 mkdir -p "$(dirname "$OUT")"
 "$VENV/bin/python" "$ROOT/tools/license/issue_license.py" \
   --private-key "$PRIVATE_KEY" \
-  --application-id "$APP_ID" \
   --customer "TD Tech / Dingqiao" \
   --license-id "DINGQIAO-TDTECH-$(date +%Y%m)-001" \
   --issued "$ISSUED" \
   --expires "$EXPIRES" \
   --install-tier LE_100K \
   --features "$FEATURES" \
-  --cert-sha256 "$CERT_SHA" \
   --device-id-file "$DEVICE_ID_FILE" \
   --out "$OUT"
 

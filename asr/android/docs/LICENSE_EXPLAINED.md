@@ -18,9 +18,9 @@
 
 | 词 | 一句话解释 |
 | --- | --- |
-| license | 一份授权凭证，表示某个 App 被允许使用我们的 SDK |
+| license | 一份授权凭证，表示某个客户或设备范围被允许使用我们的 SDK |
 | .lic 文件 | license 的实际载体，一个文本文件，里面是授权信息加一段签名 |
-| 鉴权 | SDK 启动时检查这份 license 是不是真的、是不是发给当前 App 的、有没有过期 |
+| 鉴权 | SDK 启动时检查这份 license 是不是真的、授权能力和设备是否匹配、有没有过期 |
 | 私钥 | 一串只有我方持有的秘密数据，用来给 .lic 生成签名 |
 | 公钥 | 与私钥配套的另一串数据，可以公开，用来检验签名，但不能用来生成签名 |
 | 签名 | 用私钥对授权信息算出的一串数据，附在 .lic 里 |
@@ -33,13 +33,13 @@
 
 ## 2. 我们用的是哪种鉴权方式
 
-一句话：离线、基于数字签名、绑定到具体 App。
+一句话：离线、基于数字签名，正式授权以设备 SN 白名单为主要边界。
 
 拆开说：
 
 - 离线：鉴权全程在用户设备本地完成，SDK 不联网、不向任何服务器汇报。这是为了守住我们 SDK 的核心卖点——零网络权限。
 - 基于数字签名：每份 .lic 都由我方用私钥签过名，SDK 用内置的公钥检验这个签名。
-- 绑定到具体 App：.lic 里写明了它授权给哪个 applicationId、哪个签名证书，换 App 就失效。
+- 设备白名单：正式 .lic 里写入授权设备 SN 的哈希白名单，换到白名单外设备就失效；applicationId / bundleName 只作为记录字段。若 .lic 额外写入签名证书指纹，则换签名证书也会失效。
 
 为什么不做联网激活按设备计数那种方式：那需要联网、采集设备标识、自建服务器，会破坏零网络和隐私干净两个卖点。代价是我们没法精确实测真实装机数，改用合同约定的档位加抽样审计来约束。
 
@@ -69,8 +69,10 @@
 
 | 字段 | 含义 |
 | --- | --- |
-| applicationId | 授权给哪个 App 的包名（必填） |
+| applicationId | 记录授权使用的 App 包名；正式设备白名单 license 不按该字段限制宿主 |
 | certSha256 | 绑定的签名证书指纹；空表示不绑证书 |
+| authorizedDeviceHashes | 授权设备 SN 哈希白名单；空表示不绑设备 |
+| deviceIdSaltId | 设备 SN 哈希盐编号 |
 | customer | 客户名 |
 | licenseId | 授权编号，我方台账用 |
 | issuedAt | 签发日期 |
@@ -93,9 +95,12 @@ App 启动调用 AmphionRuntime.init 时，SDK 按顺序检查：
 | 2 | 有没有 .lic | 客户漏放授权文件 | 6001 |
 | 3 | .lic 格式对不对 | 文件损坏 | 6002 |
 | 4 | 签名能否通过验证 | 伪造的或被篡改的 .lic | 6003 |
-| 5 | applicationId 是否一致 | 把别家的 .lic 拿来用，或改包名复用 | 6004 |
-| 6 | 签名证书是否一致 | 换开发者证书重打包复用 | 6005 |
-| 7 | 有没有过期 | 到期不续费还想用 | 6006 |
+| 5 | 签名证书是否一致 | license 写入证书绑定后，换开发者证书重打包复用 | 6005 |
+| 6 | 有没有过期 | 到期不续费还想用 | 6006 |
+| 7 | SDK 大版本是否一致 | 拿旧大版本授权跑新大版本 SDK | 6008 |
+| 8 | 是否仍在维护期内升级 | 用维护期外发布的新 SDK / 模型 | 6009 |
+| 9 | 是否授权当前能力 | 只授权 TTS 却初始化 ASR | 6010 |
+| 10 | 设备 SN 是否在白名单 | 换到未授权设备上使用 | 6007 |
 
 全过表示授权有效（状态 LICENSED）。武装构建下默认策略 ENFORCE 会在任一检查失败时让 init 直接抛异常，App 起不来；另有 PERMISSIVE 策略只记录不拦截，用于灰度，详见 INTEGRATION.md §14。
 
@@ -106,13 +111,13 @@ flowchart TD
     A["我方：gen_keypair 生成密钥对"] --> B["公钥填进 gradle.properties"]
     B --> C["打武装 AAR 交付客户"]
     A -. 私钥离线保管 .-> S["私钥：绝不进库 / 绝不外发"]
-    D["客户提供 applicationId 和证书 SHA-256"] --> E["我方：issue_license 签发 .lic"]
+    D["客户提供设备 SN 清单，可选提供应用记录和证书 SHA-256"] --> E["我方：issue_license 签发 .lic"]
     E --> F["客户把 .lic 放进 App 的 assets"]
     C --> F
     F --> G["App 启动 init，用内置公钥本地验签"]
-    G --> H{"七项检查全过？"}
+    G --> H{"十项检查全过？"}
     H -->|是| I["LICENSED 正常使用"]
-    H -->|否| J["抛错 6001-6006"]
+    H -->|否| J["抛错 6001-6010"]
 ```
 
 分四个阶段：
@@ -127,7 +132,7 @@ python tools/license/gen_keypair.py --out-private ~/secure/amphion-license-priva
 
 ### 6.2 每个客户签发一次
 
-先收集客户的 applicationId（必填）和 release 签名证书 SHA-256（建议绑，更安全）。证书指纹让客户这样导出：
+先收集客户的设备 SN 清单；applicationId / bundleName 可作为记录字段，不作为正式授权限制。若业务要求额外绑定签名证书，再收集 release 签名证书 SHA-256。证书指纹让客户这样导出：
 
 ```bash
 keytool -list -v -keystore <客户的release.keystore> -alias <alias> | grep "SHA256:"
@@ -138,17 +143,17 @@ keytool -list -v -keystore <客户的release.keystore> -alias <alias> | grep "SH
 ```bash
 python tools/license/issue_license.py \
   --private-key ~/secure/amphion-license-private.pem \
-  --application-id <客户包名> --customer "<客户名>" --license-id <编号> \
+  --device-id-file <设备SN清单> --customer "<客户名>" --license-id <编号> \
   --expires <到期日或留空=永久> --install-tier <档位> \
   --features <逗号分隔功能> --cert-sha256 <证书指纹或留空> \
-  --out <客户包名>.lic
+  --out amphion-license.lic
 ```
 
 签完本地自测一下，确认能过：
 
 ```bash
 python tools/license/verify_license.py --license <客户包名>.lic \
-  --private-key ~/secure/amphion-license-private.pem --application-id <客户包名>
+  --private-key ~/secure/amphion-license-private.pem --device-id <白名单内SN>
 ```
 
 ### 6.3 客户接入
@@ -169,8 +174,8 @@ App 每次启动 init 时本地验签，不联网。结果可用 AmphionRuntime.
 | --- | --- |
 | 凭空伪造一份 license | 没有私钥，造不出能通过验签的签名 |
 | 篡改 license（改到期日 / 改功能） | 改任何内容都会让签名失效（6003） |
-| 把 A 客户的 .lic 给 B 客户用 | applicationId / 证书绑定不符（6004 / 6005） |
-| 改包名重打包复用 | 包名与 license 不符（6004） |
+| 把 A 客户的 .lic 给 B 客户用 | 设备 SN 白名单不符；若写入证书绑定，证书也不符（6007 / 6005） |
+| 改包名重打包复用 | 正式设备白名单 license 不按包名限制，需依靠设备 SN 白名单、可选证书绑定和合同审计约束 |
 
 防不住（离线方案的固有上限）：
 
@@ -191,7 +196,7 @@ App 每次启动 init 时本地验签，不联网。结果可用 AmphionRuntime.
 | 东西 | 泄漏后果 | 保密级别 |
 | --- | --- | --- |
 | 私钥 | 灾难：任何人都能签发有效 license，整个授权体系失守 | 绝密 |
-| .lic | 有限：只能用在它绑定的那个 applicationId / 证书上 | 一般 |
+| .lic | 有限：只能用在授权设备 SN 范围内；若额外绑定证书，也只能用在匹配签名上 | 一般 |
 | 公钥 / AAR 里的验签代码 | 几乎无影响：公钥本就该公开 | 公开 |
 
 记住一句话：要严防的是私钥，不是 .lic，更不是公钥。
@@ -209,7 +214,7 @@ App 每次启动 init 时本地验签，不联网。结果可用 AmphionRuntime.
 
 ### 8.3 .lic 怎么防
 
-.lic 即使泄漏，别人也只能用在它绑定的 applicationId（加证书）上，挪不到别的 App，所以保密要求远低于私钥。但仍然：
+.lic 即使泄漏，别人也只能用在授权设备 SN 范围内；如果写入证书绑定，也只能用在匹配签名上，所以保密要求远低于私钥。但仍然：
 
 - 不进库（已 gitignore）。
 - 按客户单独签发、单独发送，不要把一份 .lic 群发给多个客户。
@@ -225,7 +230,7 @@ App 每次启动 init 时本地验签，不联网。结果可用 AmphionRuntime.
 不能。公钥只能验签、不能签发，见 §3。
 
 客户把 .lic 转给另一家公司用，行吗？
-不行。.lic 绑定了 applicationId（和证书），换 App 验签过不了（6004 / 6005）。
+不能用于未授权设备。正式设备白名单 license 不按 applicationId 限制宿主，但设备 SN 不在白名单会验不过；如果 license 写入证书绑定，签名不匹配也会验不过。
 
 客户设备断网能用吗？
 能。鉴权全程离线，不需要网络。

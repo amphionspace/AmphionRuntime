@@ -492,7 +492,7 @@ dingqiao_stage_customer_docs() {
 }
 
 # Demo Release APK 内嵌 license：自签发日起 DINGQIAO_DEMO_TRIAL_MONTHS（默认 2）个月试用。
-# Demo 只绑定包名和签名，不绑定 SN；正式客户 license 才绑定 SN 清单。
+# Demo 记录包名并可绑定 Demo 签名，不绑定 SN；正式客户 license 才绑定 SN 清单。
 dingqiao_issue_demo_license() {
   local repo_root="$1"
   bash "$repo_root/asr/tools/license/issue_dingqiao_demo.sh"

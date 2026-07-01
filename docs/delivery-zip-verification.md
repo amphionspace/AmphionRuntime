@@ -37,7 +37,7 @@ tools/delivery/verify_delivery_zip_e2e.sh <delivery.zip>
 | `DELIVERY_VERIFY_REQUIRED_AAR_ENTRIES` | AAR 内必须存在的条目，格式为 `path:min_bytes,path:min_bytes` |
 | `DELIVERY_VERIFY_REQUIRED_APK_ENTRIES` | APK 内必须存在的条目，格式同上 |
 | `DELIVERY_VERIFY_LICENSE_ENTRY` | APK 内 license 路径，例如 `assets/amphion-license.lic` |
-| `DELIVERY_VERIFY_LICENSE_APPLICATION_ID` | license 期望绑定的应用包名 |
+| DELIVERY_VERIFY_LICENSE_APPLICATION_ID | 已废弃；当前验包只报告 license 记录的 applicationId，不按应用包名失败 |
 | `DELIVERY_VERIFY_LICENSE_FEATURES` | license 授权能力，逗号分隔 |
 | `DELIVERY_VERIFY_LICENSE_DEVICE_HASH_COUNT` | license 期望设备哈希数量 |
 | `DELIVERY_VERIFY_FORBIDDEN_RELATIVE_PATHS` | zip 根目录下禁止出现的相对路径，逗号分隔 |

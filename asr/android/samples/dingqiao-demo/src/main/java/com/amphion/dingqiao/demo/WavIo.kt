@@ -27,8 +27,37 @@ internal object WavIo {
         file.writeBytes(buf.array())
     }
 
+    fun readPcm(file: File): ShortArray {
+        val bytes = file.readBytes()
+        if (bytes.size < WAV_HEADER_BYTES) return ShortArray(0)
+        val dataOffset = dataOffset(bytes)
+        if (dataOffset < 0 || dataOffset >= bytes.size) return ShortArray(0)
+        val buf = ByteBuffer.wrap(bytes, dataOffset, bytes.size - dataOffset).order(ByteOrder.LITTLE_ENDIAN)
+        val count = (bytes.size - dataOffset) / 2
+        val out = ShortArray(count)
+        var i = 0
+        while (i < count && buf.remaining() >= 2) {
+            out[i++] = buf.short
+        }
+        return out
+    }
+
     fun durationLabel(sampleCount: Int, sampleRate: Int = 16000): String {
         val sec = sampleCount.toFloat() / sampleRate
         return "%.1fs".format(sec)
     }
+
+    private fun dataOffset(bytes: ByteArray): Int {
+        var i = 12
+        while (i + 8 <= bytes.size) {
+            val id = String(bytes, i, 4, Charsets.US_ASCII)
+            val size = ByteBuffer.wrap(bytes, i + 4, 4).order(ByteOrder.LITTLE_ENDIAN).int
+            val dataStart = i + 8
+            if (id == "data") return dataStart
+            i = dataStart + size.coerceAtLeast(0)
+        }
+        return if (bytes.size >= WAV_HEADER_BYTES) WAV_HEADER_BYTES else -1
+    }
+
+    private const val WAV_HEADER_BYTES = 44
 }
