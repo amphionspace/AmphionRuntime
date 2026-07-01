@@ -8,7 +8,8 @@
 2. 确认版本号、交付日期和客户口径一致。
 3. 确认 license 策略：
    - 正式 license 可同时授权 `ASR,TTS`。
-   - v3.0 起不限制 applicationId / 证书，包名只作为记录字段。
+   - v3.0 起不限制 applicationId / bundleName，包名只作为记录字段。
+   - 正式设备白名单 license 默认不绑定签名证书；只有 license 显式写入 `signingCertDigest` 时才校验证书。
    - 正式 license 仍限制设备白名单、授权能力和有效期。
    - 真实 SN、私钥、正式 license 和 `.secure/` 内容不得提交。
 4. 确认测试音频口径：
@@ -81,7 +82,8 @@ bash tts/tools/android/verify_lits_tts_android_delivery.sh /path/to/lits-tts-and
 | `features` | 正式三件套通常为 `ASR,TTS` |
 | `authorizedDeviceHashes` | 必须来自客户确认的设备 SN |
 | `expiresAt` | 必须为约定有效期；试用交付通常为 2 个月 |
-| `applicationId` / `certificateSha256` | v3.0 起不作为限制条件 |
+| `applicationId` / `bundleName` | v3.0 起只作为记录字段，不作为限制条件 |
+| `signingCertDigest` | 默认留空；只有业务明确要求证书绑定时才写入并校验 |
 
 生成后必须运行 verifier，并在交付目录保留 verification 报告。正式 license zip 内只放客户需要的 `.lic`、说明和 checksum；不得放私钥、明文 SN 清单或 `.secure/`。
 
