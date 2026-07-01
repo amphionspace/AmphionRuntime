@@ -20,7 +20,7 @@ lits_tts_android_root_from_repo() {
 
 lits_tts_default_model_dir() {
   local repo_root="$1"
-  printf '%s/tts/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0\n' "$repo_root"
+  printf '%s/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0\n' "$repo_root"
 }
 
 lits_tts_default_version() {
