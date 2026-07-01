@@ -156,14 +156,14 @@ sdk.dir=C\:\\Android
 macOS 示例：
 
 ```properties
-sdk.dir=/Users/yourname/Library/Android/sdk
+sdk.dir=<ANDROID_SDK_ROOT>
 ```
 
 也可以不写 `local.properties`，改用环境变量：
 
 ```bash
-export ANDROID_HOME=/Users/yourname/Library/Android/sdk
-export ANDROID_SDK_ROOT=/Users/yourname/Library/Android/sdk
+export ANDROID_HOME=<ANDROID_SDK_ROOT>
+export ANDROID_SDK_ROOT=<ANDROID_SDK_ROOT>
 ```
 
 ### 4.2 构建 Android AAR

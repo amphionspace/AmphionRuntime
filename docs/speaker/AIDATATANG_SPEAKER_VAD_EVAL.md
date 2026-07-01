@@ -15,7 +15,7 @@
 
 ## 2. 数据与实验构造
 
-测试集路径：`/Users/boxp/Downloads/testdata/aidatatang_test_spk_balanced_500/`
+测试集：`aidatatang_test_spk_balanced_500`，本地路径通过环境变量 `AIDATATANG_SPEAKER_VAD_DIR` 指定。
 
 | 项 | 值 |
 | --- | --- |
@@ -123,8 +123,9 @@
 ## 6. 复现实验
 
 ```bash
+export AIDATATANG_SPEAKER_VAD_DIR=<aidatatang_test_spk_balanced_500目录>
 python3 asr/tools/speaker/06_eval_speaker_vad_aidatatang.py \
-  --dataset-dir /Users/boxp/Downloads/testdata/aidatatang_test_spk_balanced_500 \
+  --dataset-dir "$AIDATATANG_SPEAKER_VAD_DIR" \
   --speaker-model asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx \
   --out-dir asr/tools/speaker/results/aidatatang_speaker_vad_eval \
   --thresholds 0.30 0.35 0.40 0.45 0.50 \

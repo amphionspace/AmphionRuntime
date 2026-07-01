@@ -1,6 +1,6 @@
 # 语音识别 SDK 接口
 
-> 交付契约提示：本文件为 Android 集成说明。跨平台接口契约以《语音识别SDK接口-交付批注版.md》为准；该文档基于 `/Users/boxp/Downloads/语音识别SDK接口-20260622.md`，并在增补项旁批注。
+> 交付契约提示：本文件为 Android 集成说明。跨平台接口契约以《语音识别SDK接口-交付批注版.md》为准；该文档基于《语音识别SDK接口-20260622.md》（v1.1）基线，并在增补项旁批注。
 
 本文描述鼎桥 Android 离线语音识别 SDK 的客户集成接口。SDK 入口包名为 `com.amphion.dingqiao`，核心入口为 `SpeechRecognizeSdk`。
 
@@ -219,4 +219,3 @@ Demo APK 内置 license 仅用于体验：记录包名 com.amphion.dingqiao.demo
 | 1002200033 | LICENSE_DEVICE_MISMATCH | 设备 SN 不在授权白名单，或 license 内写入签名证书且签名不匹配 |
 | `1002200034` | `LICENSE_NOT_SET` | 未设置授权 |
 | `1002200035` | `LICENSE_ACTIVATION_FAILED` | 授权激活失败 |
-
