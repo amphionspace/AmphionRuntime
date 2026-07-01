@@ -78,6 +78,13 @@
 | 文档 | 说明 |
 | --- | --- |
 | speaker/PIPELINE.md | TS-ASR 当前方案落地：模型选型、处理链路、lhotse 数据接入契约、决策门、下一步清单 |
+| speaker/AIDATATANG_SPEAKER_VAD_EVAL.md | Aidatatang 500 人主说话人 VAD endpoint 评测：指标定义、场景问题、阈值扫描和结论 |
+
+### ASR 功能评测
+
+| 文档 | 说明 |
+| --- | --- |
+| asr/AISHELL3_HOTWORDS_EVAL.md | AISHELL-3 500 条热词 ASR 评测：最终收益表、指标定义、系统对比和限制 |
 
 ## 配套工具
 
