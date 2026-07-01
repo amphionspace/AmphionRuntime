@@ -6,7 +6,7 @@
 
 ## 1. 一句话结论
 
-端侧 ASR SDK 走纯离线装机 License：我方用私钥签发 `.lic`（绑定 applicationId + 签名证书 + 到期 + 装机档位 + 功能模块），SDK 内置公钥离线验签，全程零网络。装机量按合同档位 + 抽样审计计，不实时联网计量；如需离线硬上限，走 Phase 2 批量激活码（见 §7）。
+端侧 ASR SDK 走纯离线装机 License：我方用私钥签发 `.lic`（绑定设备 SN 白名单 + 到期 + 装机档位 + 功能模块；applicationId 仅记录、不限制应用），SDK 内置公钥离线验签，全程零网络。装机量按合同档位 + 抽样审计计，不实时联网计量；如需离线硬上限，走 Phase 2 批量激活码（见 §7）。
 
 ## 2. 行业调研
 
@@ -45,7 +45,7 @@
 
 ### 2.3 腾讯音视频终端 SDK（License 绑定对标）
 
-正式 License 移动端仅按 Bundle ID / Package Name 绑定；单 license 不跨端（移动端与 PC 端需分别购买）；按年付费，到期前通过站内信/邮件/短信提醒续期。
+竞品公开口径：正式 License 移动端仅按 Bundle ID / Package Name 绑定；单 license 不跨端（移动端与 PC 端需分别购买）；按年付费，到期前通过站内信/邮件/短信提醒续期。注意这是竞品做法，不是我方当前鼎桥授权策略；我方正式设备白名单 license 默认不按 applicationId / bundleName 限制宿主应用，包名只作签发记录。
 
 ### 2.4 定价模式光谱（综合）
 
@@ -71,7 +71,7 @@ SDK minSdk 24。Ed25519 的 java.security 支持需 API 33，覆盖不了 24；R
 
 ### 3.3 为什么使用 SN 白名单，而不是联网激活
 
-鼎桥部署环境要求纯专网离线，设备不能访问我方服务。因此授权边界放在本地：私钥签发、公钥验签、绑定 App 标识、签名证书和设备 SN 白名单。SDK 不把明文 SN 写入 license，只校验 `authorizedDeviceHashes` 是否包含本机 SN 按 `deviceIdSaltId` 计算出的哈希。
+鼎桥部署环境要求纯专网离线，设备不能访问我方服务。因此授权边界放在本地：私钥签发、公钥验签和设备 SN 白名单。SDK 不把明文 SN 写入 license，只校验 `authorizedDeviceHashes` 是否包含本机 SN 按 `deviceIdSaltId` 计算出的哈希。
 
 ### 3.4 「装机量」在离线方案下的真实含义
 
@@ -101,14 +101,13 @@ SDK 端 LicenseVerifier（internal）在 AmphionRuntime.init 内执行：
 2. license 缺失 → 6001。
 3. 信封/payload 解析失败 → 6002。
 4. ECDSA 验签失败 → 6003。
-5. applicationId / bundleName 与宿主不符 → 6004。
-6. signingCertDigest 非空且与宿主签名证书不符 → 6005。
-7. expiresAt 非空且超出（到期日当天有效 + 宽限天数）→ 6006。
-8. sdkMajor 与当前 SDK 大版本不符 → 6008。
-9. maintenanceUntil 早于当前 SDK 发布时间 → 6009。
-10. features 不包含 ASR → 6010。
-11. authorizedDeviceHashes 非空且 SN 哈希未命中 → 6007。
-12. 全过 → LICENSED。
+5. signingCertDigest 非空且与宿主签名证书不符 → 6005。
+6. expiresAt 非空且超出（到期日当天有效 + 宽限天数）→ 6006。
+7. sdkMajor 与当前 SDK 大版本不符 → 6008。
+8. maintenanceUntil 早于当前 SDK 发布时间 → 6009。
+9. features 不包含 ASR → 6010。
+10. authorizedDeviceHashes 非空且 SN 哈希未命中 → 6007。
+11. 全过 → LICENSED。
 
 ### 4.3 失败策略
 
@@ -142,9 +141,9 @@ AmphionOptions.licenseEnforcement：
 
 ## 6. 商业模式建议
 
-计费单位：装机 License（按 applicationId 授权 + 装机量档位）。
+计费单位：装机 License（按设备 SN 白名单 + 装机量档位）。
 
-定价结构建议：基础授权（绑定一个 applicationId）+ 装机量阶梯档位（如 ≤1万 / ≤10万 / ≤100万 / 不限）+ 授权能力（ASR / TTS）+ 订阅（年费含模型更新）与 买断 二选一。可参考讯飞档位（§2.1）做单机成本随量递减的定价曲线。
+定价结构建议：基础授权（绑定一批设备 SN）+ 装机量阶梯档位（如 ≤1万 / ≤10万 / ≤100万 / 不限）+ 授权能力（ASR / TTS）+ 订阅（年费含模型更新）与 买断 二选一。可参考讯飞档位（§2.1）做单机成本随量递减的定价曲线。
 
 license `features` 只区分 ASR 和 TTS：
 

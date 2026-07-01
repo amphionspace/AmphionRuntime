@@ -1,4 +1,4 @@
-# 鼎桥警务语音识别 SDK 集成说明（v0.2.8）
+# 鼎桥警务语音识别 SDK 集成说明（v3.0）
 
 面向 Android 离线 ASR + 警务域增强 + 声纹。API 契约见同目录 [`语音识别SDK接口.md`](语音识别SDK接口.md)。
 
@@ -6,11 +6,11 @@
 
 | 文件 | 说明 |
 |------|------|
-| `aar/dingqiao-asr-v0.2.8.aar` | 集成用 SDK（含 ASR 模型、JNI、警务域、鼎桥 API） |
+| `aar/dingqiao-asr-v3.0.aar` | 集成用 SDK（含 ASR 模型、JNI、警务域、鼎桥 API） |
 | `demo/*.apk` | 参考 Demo（可选，用于验收） |
 | `docs/` | 接口、集成说明、商用授权（LICENSE.md）、第三方开源声明（NOTICE） |
 
-商用授权文件 `amphion-license.lic` 由我方单独签发，见 [`LICENSE.md`](LICENSE.md)。本次正式授权面向 `com.tdtech.tiassistant`，ASR 与 TTS 共用同一份 license，绑定设备 SN 清单并限制到期时间。
+商用授权文件 `amphion-license.lic` 由我方单独签发，见 [`LICENSE.md`](LICENSE.md)。本次正式授权供贵司正式宿主使用，ASR 与 TTS 共用同一份 license，绑定设备 SN 清单并限制到期时间；包名仅作记录，不作为授权限制。
 
 ## 2. Gradle 集成
 
@@ -18,7 +18,7 @@
 
 ```kotlin
 dependencies {
-    implementation(files("libs/dingqiao-asr-v0.2.8.aar"))
+    implementation(files("libs/dingqiao-asr-v3.0.aar"))
 }
 ```
 
@@ -69,14 +69,14 @@ createEngine → setListener → startListening
 
 包名：`com.amphion.dingqiao.demo`
 
-Demo APK 内置授权只用于体验：绑定 Demo 包名与 Demo 签名，限制期限，不绑定设备 SN。正式 App 的 SDK 授权与 Demo 授权分开下发，正式授权需要绑定 SN 清单。
+Demo APK 内置授权只用于体验：记录 Demo 包名，可绑定 Demo 签名，限制期限，不绑定设备 SN。正式 App 的 SDK 授权与 Demo 授权分开下发，正式授权需要绑定 SN 清单。
 
 1. 安装 `demo/` 下 APK，授予录音权限  
 2. 菜单注册声纹 → 主界面识别 → 可选开启声纹校验  
 
 建议验收项：启动后显示引擎就绪、识别 + 警务增强、中文 ITN、声纹注册 / 校验 / 删除。若正式 App 使用 SN 绑定 license，请确认宿主系统能读取本机 SN。
 
-注意：Demo 验收使用的是 Demo APK 内置 license，不使用单独下发给 `com.tdtech.tiassistant` 的正式 license zip。正式 license 需要在正式宿主包名、正式签名和白名单设备上单独验收。
+注意：Demo 验收使用的是 Demo APK 内置 license，不使用单独下发给正式宿主的正式 license zip。正式 license 需要在正式宿主可读取或注入设备 SN 的条件下，在白名单设备上单独验收；如正式 license 内写入签名证书 SHA-256，也需使用匹配签名。
 
 ## 7. 端侧存储（参考）
 
@@ -89,7 +89,7 @@ Demo APK 内置授权只用于体验：绑定 Demo 包名与 Demo 签名，限�
 
 实际占用与是否启用声纹、系统是否保留 APK 内 assets 有关；与贵司约定的存储上限对比时，请明确验收口径（仅运行模型 vs 安装总占用）。
 
-## 8. 默认行为（v0.2.8）
+## 8. 默认行为（v3.0）
 
 - 离线 only；警务三场景 normalize 默认开启  
 - 系统热词：`CreateEngineParams.extraParams["sysGeneralLexicon"]`  

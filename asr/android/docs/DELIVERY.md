@@ -326,42 +326,42 @@ adb shell am start -n com.amphion.asr.sample.eval/com.amphion.asr.sample.eval.La
 - 私钥（信任根）：我方唯一持有，离线保管（密码管理器 / KMS / 保险库）。泄露 = 任何人可签发有效 license，等同授权体系被攻破。严禁进库、严禁外发、严禁放 CI。
 - 公钥：内置进交付 AAR（构建期注入）。换公钥 = 已签发的所有旧 `.lic` 立即失效。
 
-### 11.2 签发流程（每个客户 / 每个 applicationId 一次）
+### 11.2 签发流程（每个客户 / 每批设备 SN 一次）
 
-1. 商务确认：客户主体、applicationId、装机量档位、功能模块、授权期限（订阅年限或买断）、是否绑签名证书。
-2. 收集绑定信息：向客户索取 applicationId 与（建议）release 签名证书 SHA-256（`keytool -list -v -keystore <ks> -alias <a> | grep SHA256`）。
+1. 商务确认：客户主体、设备 SN 清单、装机量档位、功能模块、授权期限（订阅年限或买断）、是否额外绑定签名证书。
+2. 收集绑定信息：向客户索取设备 SN 清单；applicationId / bundleName 可作为签发记录字段，不作为授权限制。若业务要求额外绑定签名证书，再索取 release 签名证书 SHA-256（`keytool -list -v -keystore <ks> -alias <a> | grep SHA256`）。
 3. 签发：
 
 ```bash
 python tools/license/issue_license.py \
   --private-key ~/secure/amphion-license-private.pem \
-  --application-id <客户包名> --customer "<客户名>" --license-id <编号> \
+  --device-id-file <设备SN清单> --customer "<客户名>" --license-id <编号> \
   --expires <yyyy-MM-dd 或留空=永久> --install-tier <档位> \
   --features <逗号分隔> --cert-sha256 <证书SHA256或留空> \
-  --out <客户包名>.lic
+  --out amphion-license.lic
 ```
 
-4. 自测：`python tools/license/verify_license.py --license <...>.lic --private-key <...> --application-id <客户包名>` 确认通过。
+4. 自测：`python tools/license/verify_license.py --license <...>.lic --private-key <...> --device-id <白名单内SN>` 确认通过。
 5. 登记台账（见 11.5）后，经安全渠道把 `.lic` 发给客户。
 
 ### 11.3 计费口径
 
-- 计费单位：装机 License（按 applicationId + 装机量档位）。定价结构与档位建议见 [LICENSING.md](LICENSING.md) §6。
+- 计费单位：装机 License（按设备 SN 白名单 + 装机量档位）。定价结构与档位建议见 [LICENSING.md](LICENSING.md) §6。
 - 离线方案不实时计量装机量；installTier 是声明性档位，实际约束靠合同 + 抽样审计（见 11.6）。需要离线硬上限走 Phase 2 批量激活码。
 
 ### 11.4 续费
 
-- 订阅到期前按客户主体的到期日提前提醒（建议提前 30 天）。续费即用同一私钥对同一 applicationId 重签一份更晚 expiresAt 的 `.lic`，替换客户 assets 内文件并随 App 更新下发。
+- 订阅到期前按客户主体的到期日提前提醒（建议提前 30 天）。续费即用同一私钥对同一设备 SN 范围重签一份更晚 expiresAt 的 `.lic`，替换客户 assets 内文件并随 App 更新下发。
 - 客户端可设 `AmphionOptions.expiryGraceDays` 容忍时钟误差；不建议设很大宽限替代续期。
 
 ### 11.5 授权台账（必须维护）
 
-每次签发登记：licenseId、客户、applicationId、certSha256、issuedAt、expiresAt、installTier、features、签发人、交付渠道。台账是审计与吊销决策的依据。
+每次签发登记：licenseId、客户、设备 SN 清单版本、applicationId / bundleName 记录、certSha256、issuedAt、expiresAt、installTier、features、签发人、交付渠道。台账是审计与吊销决策的依据。
 
 ### 11.6 审计
 
-- 合同约定我方有权抽样审计客户实际装机量 / 上架包名。
-- 技术核对手段：核对线上 App 的 applicationId 与签名证书是否与 license 绑定一致（防止一份 license 跨 App 复用）。
+- 合同约定我方有权抽样审计客户实际装机量、授权 SN 范围和上架包名。
+- 技术核对手段：核对现场设备 SN 是否在授权白名单范围内；若 license 额外写入签名证书 SHA-256，再核对线上 App 签名证书是否一致。
 
 ### 11.7 吊销（离线方案的固有局限）
 

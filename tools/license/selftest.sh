@@ -10,6 +10,9 @@ trap 'rm -rf "$TMP"' EXIT
 PRIV="$TMP/test-private.pem"
 LIC="$TMP/com.amphion.demo.lic"
 APP="com.amphion.demo"
+SN="SN-001"
+DEVICE_FILE="$TMP/devices.txt"
+printf '%s\n' "$SN" > "$DEVICE_FILE"
 
 echo "== 1) 生成密钥对 =="
 python3 gen_keypair.py --out-private "$PRIV" --force >/dev/null
@@ -27,31 +30,36 @@ PY
 echo "== 2) 签发 license =="
 python3 issue_license.py --private-key "$PRIV" --application-id "$APP" \
   --customer "Demo Co." --license-id AMP-DEMO-0001 --expires 2099-01-01 \
-  --install-tier LE_10K --features ASR,TTS --out "$LIC" >/dev/null
+  --install-tier LE_10K --features ASR,TTS --device-id-file "$DEVICE_FILE" --out "$LIC" >/dev/null
 
 echo "== 3) ASR 正确校验（期望 OK）=="
 python3 verify_license.py --license "$LIC" --public-key-b64 "$PUB_B64" \
-  --application-id "$APP" --required-feature ASR >/dev/null
+  --application-id "$APP" --device-id "$SN" --required-feature ASR >/dev/null
 echo "[ok] ASR license 校验通过"
 
 echo "== 4) TTS 正确校验（期望 OK）=="
 python3 verify_license.py --license "$LIC" --public-key-b64 "$PUB_B64" \
-  --application-id "$APP" --required-feature TTS >/dev/null
+  --application-id "$APP" --device-id "$SN" --required-feature TTS >/dev/null
 echo "[ok] TTS license 校验通过"
 
-echo "== 5) 错误 applicationId（期望 FAIL 6004）=="
-if python3 verify_license.py --license "$LIC" --public-key-b64 "$PUB_B64" \
-    --application-id com.wrong.app >/dev/null 2>&1; then
-  echo "!! 预期失败但通过了，自测不通过"; exit 1
-fi
-echo "[ok] 正确地拒绝了不匹配的 applicationId"
+echo "== 5) 不同 applicationId + 正确设备（期望 OK）=="
+python3 verify_license.py --license "$LIC" --public-key-b64 "$PUB_B64" \
+  --application-id com.wrong.app --device-id "$SN" --required-feature ASR >/dev/null
+echo "[ok] 不再按 applicationId 限制 license"
 
-echo "== 6) 过期校验（期望 FAIL 6006）=="
+echo "== 6) 错误设备 SN（期望 FAIL 6007）=="
+if python3 verify_license.py --license "$LIC" --public-key-b64 "$PUB_B64" \
+    --application-id "$APP" --device-id SN-999 >/dev/null 2>&1; then
+  echo "!! 预期设备不匹配失败但通过了，自测不通过"; exit 1
+fi
+echo "[ok] 正确地拒绝了不匹配的设备 SN"
+
+echo "== 7) 过期校验（期望 FAIL 6006）=="
 EXPLIC="$TMP/expired.lic"
 python3 issue_license.py --private-key "$PRIV" --application-id "$APP" \
-  --expires 2000-01-01 --out "$EXPLIC" >/dev/null
+  --expires 2000-01-01 --device-id-file "$DEVICE_FILE" --out "$EXPLIC" >/dev/null
 if python3 verify_license.py --license "$EXPLIC" --public-key-b64 "$PUB_B64" \
-    --application-id "$APP" >/dev/null 2>&1; then
+    --application-id "$APP" --device-id "$SN" >/dev/null 2>&1; then
   echo "!! 预期过期失败但通过了，自测不通过"; exit 1
 fi
 echo "[ok] 正确地拒绝了过期 license"

@@ -84,7 +84,7 @@ cat > "$OUT_ROOT/demo/README.txt" <<EOF
 ============================================
 
   sample-dingqiao-demo-release.apk   可直接安装（内置 2 个月试用 license）
-  amphion-license.lic                与 APK 同批次签发的 Demo 授权（绑定 Demo 包名+签名，不绑定 SN）
+  amphion-license.lic                与 APK 同批次签发的 Demo 授权（记录 Demo 包名，绑定 Demo 签名，不绑定 SN）
 
 试用到期：${DEMO_LIC_EXPIRES}（到期后需联系我方重签 Demo 或更换正式授权）
 

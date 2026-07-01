@@ -59,7 +59,7 @@ public object AsrErrorCode {
     /** ECDSA 验签未通过（被篡改或用了非我方签发的 license）。 */
     public const val LICENSE_SIGNATURE_INVALID: Int = 6003
 
-    /** license 的 applicationId 与宿主 app packageName 不一致。 */
+    /** 保留错误码；当前正式设备白名单 license 不按 applicationId 限制宿主 app。 */
     public const val LICENSE_APP_MISMATCH: Int = 6004
 
     /** license 的 certSha256 与宿主 app 签名证书不一致。 */

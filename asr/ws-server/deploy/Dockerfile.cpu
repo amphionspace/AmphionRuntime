@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
+
+COPY asr/ws-server /app/asr/ws-server
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -e /app/asr/ws-server
+
+EXPOSE 8010 9100
+
+ENTRYPOINT ["amphion-asr-ws"]
+CMD ["--listen=0.0.0.0:8010", "--metrics-listen=0.0.0.0:9100", "--provider=cpu", "--manifest=/etc/asr-ws/manifest.json"]

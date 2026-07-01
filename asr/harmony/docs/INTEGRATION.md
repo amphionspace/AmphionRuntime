@@ -103,7 +103,7 @@ ASR 与 TTS 共用离线 license 结构。Harmony ASR 读取同一类 `amphion-l
 }
 ```
 
-claims 字段与 Android 对齐，包括 `bundleName`、`signingCertDigest`、`authorizedDeviceHashes`、`features`、`sdkMajor`、`maintenanceUntil`。当前 Harmony 侧已解析 `payload_b64`、校验 bundleName、签名证书摘要、ASR feature、SDK 大版本、维护期和过期日；正式 ECDSA 验签仍需交付构建注入公钥后启用。未注入公钥且未传 license 时，状态为 `DEV_UNLICENSED`，用于开发和内部验证。
+claims 字段与 Android 对齐，包括 `bundleName`、`signingCertDigest`、`authorizedDeviceHashes`、`features`、`sdkMajor`、`maintenanceUntil`。当前 Harmony 侧已解析 `payload_b64`；`bundleName` 仅记录展示，不作为授权限制；运行时校验证书摘要、设备 SN 白名单、ASR feature、SDK 大版本、维护期和过期日。正式 ECDSA 验签仍需交付构建注入公钥后启用。未注入公钥且未传 license 时，状态为 `DEV_UNLICENSED`，用于开发和内部验证。
 
 ## 已知差异
 

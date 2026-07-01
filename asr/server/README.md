@@ -4,6 +4,8 @@ AmphionRuntime 的 Linux 流式 ASR 服务端实现，基于 [sherpa-onnx cxx-ap
 
 `sherpa-onnx` 通过仓库根的 `third_party/sherpa-onnx` git submodule 引用上游 pinned tag（首期 v1.13.1），公司侧不修改其源码。
 
+文档索引：对外 gRPC 接口文档见 [API.md](API.md)。
+
 ## 设计目标
 
 - 与 Android / iOS SDK 共用同一份模型 + manifest（[shared/api-spec/manifest.schema.json](../../shared/api-spec/manifest.schema.json)，错误码同步走 [shared/api-spec/errcodes.yaml](../../shared/api-spec/errcodes.yaml)）
@@ -101,6 +103,9 @@ GPU 编译：把步骤 1 的 `-DSHERPA_ONNX_ENABLE_GPU=OFF` 改成 `ON`，instal
 | --decode_workers | 1 | 进程内 DecodeEngine 分片数（每分片独立 recognizer + worker，共享 CUDA context） |
 | --max_active_paths | -1 | 覆盖 manifest 的 modified_beam_search 束宽；-1 用 manifest 值 |
 | --decoding_method | 空 | 覆盖 manifest 的解码方法；空用 manifest 值 |
+| --endpoint_rule1_min_trailing_silence | 2.4 | endpoint rule1 句尾静音阈值（秒）；纯静音兜底 |
+| --endpoint_rule2_min_trailing_silence | 1.2 | endpoint rule2 已识别出内容后的句尾静音阈值（秒）；cascade 下主控喂给 vLLM 的句子颗粒 |
+| --endpoint_rule3_min_utterance_length | 20.0 | endpoint rule3 单段最长语音强制切断（秒） |
 | --num_threads | 4 | 每个 recognizer 的 ORT intra-op 线程数 |
 | --grpc_threads | 8 | gRPC 完成队列线程数，建议取 vCPU 数 |
 | --max_batch_size | 64 | 单次批量解码 stream 上限 |
@@ -108,6 +113,8 @@ GPU 编译：把步骤 1 的 `-DSHERPA_ONNX_ENABLE_GPU=OFF` 改成 `ON`，instal
 | --loop_interval_ms | 5 | 批量解码凑批等待窗口（ms） |
 | --session_idle_timeout_sec | 300 | session 无音频多久自动断流 |
 | --metrics_listen | 0.0.0.0:9090 | prometheus exporter 地址；空关闭（metrics 需编译期开启） |
+
+cascade 接入时，建议优先通过 `--endpoint_rule2_min_trailing_silence` 调整喂给 vLLM final 的句子颗粒；rule1 主要是纯静音兜底，rule3 是长段保护。
 
 ## 容器部署
 

@@ -199,8 +199,14 @@ void DecodeEngine::ProcessCreate(Command &cmd) {
     try {
         if (recognizer_ && recognizer_->Get()) {
             session = std::make_shared<Session>(next_session_id_++);
+            // sherpa-onnx only implements CreateStream(hotwords) for transducer
+            // models. Use the plain stream path when there is no contextual biasing
+            // so CTC/Paraformer models can share the same DecodeEngine.
+            auto stream = cmd.hotwords.empty()
+                              ? recognizer_->CreateStream()
+                              : recognizer_->CreateStream(cmd.hotwords);
             session->stream = std::make_unique<sherpa_onnx::cxx::OnlineStream>(
-                recognizer_->CreateStream(cmd.hotwords));
+                std::move(stream));
         }
     } catch (const std::exception &e) {
         std::cerr << "[decode_engine] CreateSession failed: " << e.what()

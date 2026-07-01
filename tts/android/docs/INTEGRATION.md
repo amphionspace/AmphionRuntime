@@ -231,7 +231,7 @@ engine.shutdown()
 | `1002300012` | license 缺失（仅武装态） |
 | `1002300013` | license 内容非法 |
 | `1002300014` | license 验签未通过 |
-| `1002300015` | license 的 applicationId 与宿主不一致 |
+| `1002300015` | 保留错误码；当前正式设备白名单 license 不按 applicationId 限制宿主 |
 | `1002300016` | license 的签名证书与宿主不一致 |
 | `1002300017` | license 已过期 |
 | `1002300018` | license 绑定的设备与当前设备不一致 |
@@ -240,7 +240,7 @@ engine.shutdown()
 
 ## 12. 离线授权（License）
 
-To B 交付的纯离线授权：ECDSA P-256 签名，绑定 applicationId / bundleName、签名证书、设备 SN 白名单、运行到期和维护期。
+To B 交付的纯离线授权：ECDSA P-256 签名，正式 license 以设备 SN 白名单为授权边界，叠加运行到期、维护期和授权能力；applicationId / bundleName 仅作为记录字段。
 完整签发 / 校验流程见 `tts/tools/license/README.md`，机制细节见 `docs/LICENSE.md`。
 
 判断 SDK 是否被武装：构建期 gradle 属性 `AMPHION_LICENSE_PUBLIC_KEY` 是否注入了公钥。

@@ -33,31 +33,30 @@ export class VoiceprintRegisterParams {
 }
 
 export class VoiceprintRegisterResult {
-  voiceprintId: string = '';
+  voiceprintId: Record<string, string> = {};
   status: number = 0;
   message: string = '';
 }
 
 export class LicenseInfo {
-  licensePath: string = '';
   status: number = 0;
-  expireTime: number = 0;
-  remainingDays: number = 0;
-  deviceId: string = '';
+  expireTime: number = -1;
+  remainingDays: number = -1;
+  authorizedFeatures: string[] = [];
 }
 
 export class LicenseActivationResult {
-  success: boolean = false;
   errorCode: number = 0;
-  message: string = '';
-  licenseInfo?: LicenseInfo;
+  errorMessage: string = '';
+  remainingDays?: number;
+  authorizedFeatures?: string[];
 }
 
 export interface RecognitionListener {
-  onStart?(sessionId: string, eventMessage: string): void;
+  onStart?(sessionId: string, eventMessage?: string): void;
   onEvent?(sessionId: string, eventCode: number, message: string): void;
   onResult?(sessionId: string, result: SpeechRecognitionResult): void;
-  onComplete?(sessionId: string, eventMessage: string): void;
+  onComplete?(sessionId: string, eventMessage?: string): void;
   onError?(sessionId: string, errorCode: number, message: string): void;
 }
 
@@ -82,7 +81,6 @@ export interface LicenseActivationCallback {
   onError(errorCode: number, message: string): void;
 }
 
-// 错误码与鼎桥《语音识别 SDK 接口文档》对齐（= Android sdk-dingqiao）。
 export class DingqiaoErrorCode {
   static readonly CREATE_ENGINE_FAILED: number = 1002200001;
   static readonly START_LISTENING_FAILED: number = 1002200002;
@@ -105,9 +103,6 @@ export class DingqiaoErrorCode {
   static readonly LICENSE_DEVICE_MISMATCH: number = 1002200033;
   static readonly LICENSE_NOT_SET: number = 1002200034;
   static readonly LICENSE_ACTIVATION_FAILED: number = 1002200035;
-  // 契约外扩展码（与 Android 对齐）：签名绑定失败时比 033 更精确。
-  static readonly LICENSE_APP_MISMATCH: number = 1002200036;
-  static readonly LICENSE_CERT_MISMATCH: number = 1002200037;
 }
 
 export class DingqiaoEventCode {
