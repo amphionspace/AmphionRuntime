@@ -46,7 +46,7 @@ class DingqiaoFinishFlushRegressionTest {
         val engine = createEngine()
         try {
             for (wav in selected) {
-                val pcm = readWav16kMonoPcm(wav, testContext.assets.open(wav).use { it.readBytes() })
+                val pcm = readMonoPcm16As16k(wav, testContext.assets.open(wav).use { it.readBytes() })
                 val realtime = decode(engine, "rt-${wav.sessionTag()}", pcm, frameSleepMs = 20, drainMs = 300)
                 val fastShortSettle = decode(engine, "fs-${wav.sessionTag()}", pcm, frameSleepMs = 0, drainMs = 300)
                 val fastLongSettle = decode(engine, "fl-${wav.sessionTag()}", pcm, frameSleepMs = 0, drainMs = 3_000)
@@ -176,9 +176,9 @@ class DingqiaoFinishFlushRegressionTest {
             .sorted()
 
     private fun selectedRegressionWavs(wavs: List<String>): List<String> {
-        val supported = wavs.filter { isSupportedPcm16kMonoWav(it) }
+        val supported = wavs.filter { isSupportedMonoPcm16Wav(it) }
         require(supported.size >= 4) {
-            "need at least 4 16 kHz mono PCM16 wav assets; found ${wavs.size} wav assets " +
+            "need at least 4 mono PCM16 wav assets; found ${wavs.size} wav assets " +
                 "but only ${supported.size} supported. Run with -PdingqiaoEvalAudioDir=/Users/boxp/Downloads/audio"
         }
         val preferred = listOf("04", "06", "11", "01").mapNotNull { prefix ->
@@ -195,7 +195,7 @@ class DingqiaoFinishFlushRegressionTest {
         }
     }
 
-    private fun isSupportedPcm16kMonoWav(assetName: String): Boolean =
+    private fun isSupportedMonoPcm16Wav(assetName: String): Boolean =
         runCatching {
             val header = testContext.assets.open(assetName).use { input ->
                 ByteArray(4096).let { buffer ->
@@ -204,13 +204,13 @@ class DingqiaoFinishFlushRegressionTest {
                 }
             }
             val spec = readWavFormat(assetName, header)
-            spec.sampleRate == SAMPLE_RATE && spec.channels == 1 && spec.bits == 16
+            spec.sampleRate > 0 && spec.channels == 1 && spec.bits == 16
         }.getOrDefault(false)
 
     private fun String.sessionTag(): String =
         substringBefore('_').ifBlank { Integer.toHexString(hashCode()) } + "-" + System.nanoTime()
 
-    private fun readWav16kMonoPcm(name: String, bytes: ByteArray): ByteArray {
+    private fun readMonoPcm16As16k(name: String, bytes: ByteArray): ByteArray {
         require(bytes.size >= 44) { "wav too small: $name" }
         val buf = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
         require(buf.int == fourCc("RIFF")) { "missing RIFF: $name" }
@@ -246,11 +246,35 @@ class DingqiaoFinishFlushRegressionTest {
                 else -> buf.position(buf.position() + size)
             }
         }
-        require(sampleRate == SAMPLE_RATE && channels == 1 && bits == 16) {
-            "expected 16k mono PCM16, got sr=$sampleRate ch=$channels bits=$bits file=$name"
+        require(sampleRate > 0 && channels == 1 && bits == 16) {
+            "expected mono PCM16, got sr=$sampleRate ch=$channels bits=$bits file=$name"
         }
         require(dataOffset >= 0 && dataBytes > 0) { "missing data chunk: $name" }
-        return bytes.copyOfRange(dataOffset, dataOffset + dataBytes)
+        val pcm = bytes.copyOfRange(dataOffset, dataOffset + dataBytes)
+        return if (sampleRate == SAMPLE_RATE) pcm else resamplePcm16Mono(pcm, sampleRate, SAMPLE_RATE)
+    }
+
+    private fun resamplePcm16Mono(pcm: ByteArray, sourceRate: Int, targetRate: Int): ByteArray {
+        require(sourceRate > 0 && targetRate > 0) { "bad sample rate: source=$sourceRate target=$targetRate" }
+        val sourceSamples = pcm.size / 2
+        if (sourceSamples == 0) return ByteArray(0)
+
+        val targetSamples = ((sourceSamples.toLong() * targetRate) / sourceRate).toInt().coerceAtLeast(1)
+        val out = ByteBuffer.allocate(targetSamples * 2).order(ByteOrder.LITTLE_ENDIAN)
+        for (i in 0 until targetSamples) {
+            val sourcePos = i.toDouble() * sourceRate / targetRate
+            val index = sourcePos.toInt().coerceIn(0, sourceSamples - 1)
+            val nextIndex = (index + 1).coerceAtMost(sourceSamples - 1)
+            val fraction = sourcePos - index
+            val sample = sampleAt(pcm, index) + (sampleAt(pcm, nextIndex) - sampleAt(pcm, index)) * fraction
+            out.putShort(Math.round(sample).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort())
+        }
+        return out.array()
+    }
+
+    private fun sampleAt(pcm: ByteArray, sampleIndex: Int): Int {
+        val offset = sampleIndex * 2
+        return (pcm[offset].toInt() and 0xff) or (pcm[offset + 1].toInt() shl 8)
     }
 
     private fun readWavFormat(name: String, bytes: ByteArray): WavSpec {

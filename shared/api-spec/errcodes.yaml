@@ -208,9 +208,9 @@ errors:
   - code: 6004
     name: LicenseAppMismatch
     category: license
-    message: license applicationId does not match host app packageName
+    message: reserved; current device-whitelist license does not enforce applicationId
     sdk_action: fatal
-    user_facing: 授权与当前应用不匹配
+    user_facing: 授权应用不匹配（保留错误码，当前正式设备白名单授权不按包名限制）
 
   - code: 6005
     name: LicenseCertMismatch
@@ -229,9 +229,30 @@ errors:
   - code: 6007
     name: LicenseDeviceMismatch
     category: license
-    message: license deviceSha256 does not match this device
+    message: device SN is unavailable or not in authorizedDeviceHashes
     sdk_action: fatal
-    user_facing: 授权与当前设备不匹配（单机绑定）
+    user_facing: 授权与当前设备不匹配
+
+  - code: 6008
+    name: LicenseSdkMajorMismatch
+    category: license
+    message: license sdkMajor does not match current SDK major version
+    sdk_action: fatal
+    user_facing: 授权版本与当前 SDK 不匹配
+
+  - code: 6009
+    name: LicenseMaintenanceExpired
+    category: license
+    message: SDK release date is later than license maintenanceUntil
+    sdk_action: fatal
+    user_facing: 授权维护期已过，请续期
+
+  - code: 6010
+    name: LicenseFeatureMissing
+    category: license
+    message: license does not include the required SDK feature
+    sdk_action: fatal
+    user_facing: 授权未包含当前功能
 
   # ---------- 9xxx native 兜底 ----------
   - code: 9001
