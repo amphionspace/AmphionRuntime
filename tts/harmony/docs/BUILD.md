@@ -21,7 +21,7 @@ sample/build/default/outputs/default/sample-default-unsigned.hap
 1. 把完整模型包放到：
 
 ```text
-LitsTtsSdk\tools\trial-export\lits_delivery_16k_hifigan\1.0.0\
+LitsTtsSdk\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0\
 ```
 
 2. 进入：
@@ -33,7 +33,7 @@ LitsTtsSdk\HarmonyOS\AmphionRuntime
 3. 运行宿主侧预检：
 
 ```powershell
-node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-export\lits_delivery_16k_hifigan\1.0.0 --out-dir .\verification\out --text "Hello world." --mode en-US
+node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0 --out-dir .\verification\out --text "Hello world." --mode en-US
 ```
 
 4. 设置环境变量：
@@ -57,7 +57,7 @@ $env:JAVA_HOME="C:\Program Files\Huawei\DevEco Studio\jbr"
 - HarmonyOS SDK `6.0.2.130`
 - Node.js
 - Java 17
-- 完整模型包 `lits_delivery_16k_hifigan/1.0.0`
+- 完整模型包 `transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0`
 
 建议显式设置：
 
@@ -73,23 +73,36 @@ $env:JAVA_HOME="C:\Program Files\Huawei\DevEco Studio\jbr"
 把完整模型包放到：
 
 ```text
-LitsTtsSdk\tools\trial-export\lits_delivery_16k_hifigan\1.0.0\
+LitsTtsSdk\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0\
 ```
 
 最少需要以下文件：
 
 - `manifest.json`
-- `lits_acoustic.onnx`
-- `hifigan_vocoder.onnx`
-- `smoke_tokens.json`
+- `lits_hidden_encoder.onnx`
+- `lits_stream_condition_chunk.onnx`
+- `lits_stream_condition_final.onnx`
+- `lits_stream_decoder_step.onnx`
+- `vocos_vocoder.onnx`
 - `frontend_golden.json`
+- `frontend_rules.json`
 - `chinese_lexicon.txt`
+- `chinese_lexicon.bin`
 - `cmudict.txt`
+- `cmudict.bin`
+- `supplement_lexicon.json`
 - `pinyin_2_bpmf.txt`
 - `polychar.txt`
 - `zh_en_symbols.json`
 - `pinyin_to_tokens.json`
 - `arpabet_to_tokens.json`
+- `tn-bin/arm64-v8a/zh_tts`
+- `tn-bin/arm64-v8a/en_tts`
+- `rules/zh.json`
+- `rules/en.json`
+- `rules/zh_pinyin.json`
+- `rules_v2/zh.full.json`
+- `rules_v2/en.full.json`
 
 注意：
 
@@ -104,7 +117,7 @@ HarmonyOS SDK 会在构建阶段把 `tools/trial-export/...` 同步进 `sdk/src/
 执行：
 
 ```powershell
-node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-export\lits_delivery_16k_hifigan\1.0.0 --out-dir .\verification\out --text "Hello world." --mode en-US
+node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0 --out-dir .\verification\out --text "Hello world." --mode en-US
 ```
 
 这个脚本只做宿主侧预检，验证：

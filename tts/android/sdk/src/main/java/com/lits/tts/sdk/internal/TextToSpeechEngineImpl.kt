@@ -1,5 +1,7 @@
 package com.lits.tts.sdk.internal
 
+import android.os.SystemClock
+
 import com.lits.tts.sdk.CompleteResponse
 import com.lits.tts.sdk.CompleteType
 import com.lits.tts.sdk.CreateEngineParams
@@ -20,6 +22,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 internal class TextToSpeechEngineImpl(
     private val engineParams: CreateEngineParams,
@@ -205,6 +208,7 @@ internal class TextToSpeechEngineImpl(
         val callback = listener
         try {
             if (callback == null || task.cancelled.get() || destroyed) return
+            task.startedAtMs = SystemClock.elapsedRealtime()
             var sequence = 0
             val useStreamingSynthesis = synthesizer.canStream(task.params, engineParams)
             val useStreamingPlayback =
@@ -276,9 +280,22 @@ internal class TextToSpeechEngineImpl(
                         val produced = synthesized
                         if (produced != null && !task.cancelled.get() && !destroyed) {
                             synthesisCompleteNotified = true
-                            notifyComplete(callback, task, buildSynthesisCompleteResponse(produced))
+                            notifyComplete(
+                                callback,
+                                task,
+                                buildSynthesisCompleteResponse(
+                                    audio = produced,
+                                    playbackStartMs = task.playbackStartMs.get(),
+                                ),
+                            )
                         }
-                    }
+                    },
+                    onFirstAudioWritten = {
+                        val startedAt = task.startedAtMs
+                        if (startedAt >= 0L) {
+                            task.playbackStartMs.compareAndSet(-1L, SystemClock.elapsedRealtime() - startedAt)
+                        }
+                    },
                 )
                 synthesized ?: throw IllegalStateException("streaming playback produced no synthesized audio")
             } else {
@@ -356,7 +373,10 @@ internal class TextToSpeechEngineImpl(
         }
     }
 
-    private fun buildSynthesisCompleteResponse(audio: SynthesizedAudio): CompleteResponse {
+    private fun buildSynthesisCompleteResponse(
+        audio: SynthesizedAudio,
+        playbackStartMs: Long = -1L,
+    ): CompleteResponse {
         val audioDurationMs = audioDurationMs(audio.audioBytes, audio.sampleRate)
         val firstPacketMs = when {
             audio.firstChunkMs >= 0L -> audio.firstChunkMs
@@ -375,6 +395,7 @@ internal class TextToSpeechEngineImpl(
                 -1.0
             },
             profilingInfo = audio.profilingInfo,
+            playbackStartMs = playbackStartMs,
         )
     }
 
@@ -483,6 +504,8 @@ internal class TextToSpeechEngineImpl(
         val params: SpeakParams,
         val cancelled: AtomicBoolean = AtomicBoolean(false),
         val stopNotified: AtomicBoolean = AtomicBoolean(false),
+        val playbackStartMs: AtomicLong = AtomicLong(-1L),
+        @Volatile var startedAtMs: Long = -1L,
     )
 
     private class TtsThreadFactory(

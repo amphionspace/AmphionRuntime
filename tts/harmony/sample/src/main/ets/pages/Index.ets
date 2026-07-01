@@ -26,6 +26,7 @@ const PCM_BYTES_PER_SAMPLE: number = 2;
 const DEFAULT_SAMPLE_RATE: number = 24000;
 const DEFAULT_STREAMING_CHUNK_SIZE: string = '50';
 const DEFAULT_PCM_QUEUE_CAPACITY: string = '32';
+const DEFAULT_SPEED: string = '1.0';
 const AUTO_BATCH_RAWFILE: string = 'dual_tts_eval_cases.jsonl';
 const AUTO_BATCH_LOG_TAG: string = '[DualTtsEval]';
 const AUTO_BATCH_OUTPUT_FILE: string = 'dual_tts_eval_metrics.jsonl';
@@ -69,6 +70,7 @@ struct Index {
   @State private language: string = 'zh-en';
   @State private chunkSize: string = DEFAULT_STREAMING_CHUNK_SIZE;
   @State private pcmQueueCapacity: string = DEFAULT_PCM_QUEUE_CAPACITY;
+  @State private speed: string = DEFAULT_SPEED;
   @State private status: string = '等待操作';
   @State private metricsText: string = METRICS_PLACEHOLDER;
   @State private logText: string = '等待运行日志…';
@@ -203,6 +205,20 @@ struct Index {
               this.pcmQueueCapacity = value;
             });
 
+          Text('Speed')
+            .fontWeight(FontWeight.Medium)
+            .width('100%');
+
+          TextInput({ text: this.speed, placeholder: '默认 1.0，范围 0.5~2.0' })
+            .width('100%')
+            .backgroundColor('#FAF7F2')
+            .borderRadius(8)
+            .padding({ left: 12, right: 12 })
+            .enabled(!this.isUiBusy())
+            .onChange((value: string): void => {
+              this.speed = value;
+            });
+
           Row({ space: 12 }) {
             Button('开始合成')
               .layoutWeight(1)
@@ -210,7 +226,7 @@ struct Index {
               .backgroundColor('#C46A2B')
               .fontColor('#FFFFFF')
               .fontWeight(FontWeight.Bold)
-              .enabled(!this.isUiBusy() && this.warmupDone)
+              .enabled(!this.isUiBusy())
               .onClick((): void => {
                 void this.submitSynthesis(PlayType.SYNTHESIZE_ONLY);
               });
@@ -218,7 +234,7 @@ struct Index {
             Button('SDK 直接播报')
               .layoutWeight(1)
               .height(44)
-              .enabled(!this.isUiBusy() && this.warmupDone)
+              .enabled(!this.isUiBusy())
               .onClick((): void => {
                 void this.submitSynthesis(PlayType.SYNTHESIZE_AND_PLAY);
               });
@@ -260,7 +276,7 @@ struct Index {
               });
           }.width('100%');
 
-          Text('“开始合成”用于测流式回调；“SDK 直接播报”用于测边推边播；“Warmup”会先跑一条短句，把模型首次执行开销排除掉。Chunk size 会覆盖流式切块大小，PCM queue capacity 会覆盖 SDK 直接播报的播放缓冲队列容量。')
+          Text('“开始合成”用于测流式回调；“SDK 直接播报”用于测边推边播；“Warmup”会先跑一条短句，把模型首次执行开销排除掉。Chunk size 会覆盖流式切块大小，PCM queue capacity 会覆盖 SDK 直接播报的播放缓冲队列容量，Speed 会调整语速。')
             .fontSize(12)
             .fontColor('#9A9387')
             .lineHeight(18)
@@ -455,11 +471,6 @@ struct Index {
       }
     }
 
-    if (!this.warmupDone) {
-      this.setStatus('模型加载和 Warmup 尚未完成，请稍候');
-      return;
-    }
-
     const requestId = this.nextRequestId(playType === PlayType.SYNTHESIZE_ONLY ? 'synth' : 'speak');
     this.currentPlayType = playType;
     this.requestChunkCount = 0;
@@ -478,15 +489,16 @@ struct Index {
     const actionText = playType === PlayType.SYNTHESIZE_ONLY ? '开始合成' : 'SDK 直接播报';
     this.setStatus(`${actionText}：${requestId}`);
     this.setMetrics(METRICS_PLACEHOLDER);
-    this.appendLog(`提交请求 requestId=${requestId} language=${this.language} playType=${playType}`);
+    const selectedSpeed = this.selectedSpeed();
+    this.appendLog(`提交请求 requestId=${requestId} language=${this.language} playType=${playType} speed=${selectedSpeed} chunkSize=${this.selectedChunkSize()} pcmQueueCapacity=${this.selectedPcmQueueCapacity()}`);
 
     const speakParams: SpeakParams = {
       requestId,
       playType,
       queueMode: QueueMode.PREEMPT,
-      languageContext: this.language === 'en-US' ? 'en-US' : 'zh-CN',
+      languageContext: this.language === 'en-US' ? 'en-US' : 'zh-en',
       audioType: 'pcm',
-      speed: 1.0,
+      speed: selectedSpeed,
       pitch: 1.0,
       volume: 1.0,
       extraParams: {
@@ -532,16 +544,17 @@ struct Index {
     this.updateProgressBar('正在 Warmup…');
     this.setStatus(`正在 Warmup：${requestId}`);
     this.setMetrics(this.buildMetricsText('Warmup/待机', 0, undefined, undefined, 0, 0));
-    this.appendLog(`${autoTriggered ? '自动' : '提交'} Warmup requestId=${requestId} language=${this.language} chunkSize=${this.selectedChunkSize()} pcmQueueCapacity=${this.selectedPcmQueueCapacity()}`);
+    const selectedSpeed = this.selectedSpeed();
+    this.appendLog(`${autoTriggered ? '自动' : '提交'} Warmup requestId=${requestId} language=${this.language} speed=${selectedSpeed} chunkSize=${this.selectedChunkSize()} pcmQueueCapacity=${this.selectedPcmQueueCapacity()}`);
 
     try {
       const warmupParams: SpeakParams = {
         requestId,
         playType: PlayType.SYNTHESIZE_ONLY,
         queueMode: QueueMode.PREEMPT,
-        languageContext: this.language === 'en-US' ? 'en-US' : 'zh-CN',
+        languageContext: this.language === 'en-US' ? 'en-US' : 'zh-en',
         audioType: 'pcm',
-        speed: 1.0,
+        speed: selectedSpeed,
         pitch: 1.0,
         volume: 1.0,
         extraParams: {
@@ -922,6 +935,14 @@ struct Index {
     return Number.isNaN(value) || value <= 0 ? parseInt(DEFAULT_PCM_QUEUE_CAPACITY, 10) : value;
   }
 
+  private selectedSpeed(): number {
+    const value = Number(this.speed.trim());
+    if (!Number.isFinite(value)) {
+      return Number(DEFAULT_SPEED);
+    }
+    return Math.min(2.0, Math.max(0.5, value));
+  }
+
   private buildMetricsText(
     mode: string,
     chunkCount: number,
@@ -993,9 +1014,9 @@ struct Index {
       requestId,
       playType: PlayType.SYNTHESIZE_ONLY,
       queueMode: QueueMode.PREEMPT,
-      languageContext: this.language === 'en-US' ? 'en-US' : 'zh-CN',
+      languageContext: this.language === 'en-US' ? 'en-US' : 'zh-en',
       audioType: 'pcm',
-      speed: 1.0,
+      speed: this.selectedSpeed(),
       pitch: 1.0,
       volume: 1.0,
       extraParams: {
