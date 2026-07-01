@@ -36,48 +36,56 @@ class DingqiaoFinishFlushRegressionTest {
 
     @Test
     fun fastFeedFinishDoesNotDropQueuedFinals() {
-        val engine = createEngine()
         val wavs = mainWavs()
-        val selected = listOf("04", "06", "11", "01").map { prefix ->
-            wavs.firstOrNull { it.startsWith(prefix) }
-                ?: error("missing wav with prefix $prefix; run with -PdingqiaoEvalAudioDir=/Users/boxp/Downloads/audio")
-        }
+        val selected = selectedRegressionWavs(wavs)
         val report = File(targetContext.filesDir, "eval_reports/finish_flush_regression.tsv").apply {
             parentFile?.mkdirs()
             writeText("file\trealtime\tfast_short_settle\tfast_long_settle\n", Charsets.UTF_8)
         }
 
-        for (wav in selected) {
-            val pcm = readWav16kMonoPcm(wav, testContext.assets.open(wav).use { it.readBytes() })
-            val realtime = decode(engine, "rt-${wav.sessionTag()}", pcm, frameSleepMs = 20, drainMs = 300)
-            val fastShortSettle = decode(engine, "fs-${wav.sessionTag()}", pcm, frameSleepMs = 0, drainMs = 300)
-            val fastLongSettle = decode(engine, "fl-${wav.sessionTag()}", pcm, frameSleepMs = 0, drainMs = 3_000)
-            report.appendText(
-                listOf(wav, realtime, fastShortSettle, fastLongSettle)
-                    .joinToString("\t") { it.replace('\t', ' ') } + "\n",
-                Charsets.UTF_8,
-            )
+        val engine = createEngine()
+        try {
+            for (wav in selected) {
+                val pcm = readWav16kMonoPcm(wav, testContext.assets.open(wav).use { it.readBytes() })
+                val realtime = decode(engine, "rt-${wav.sessionTag()}", pcm, frameSleepMs = 20, drainMs = 300)
+                val fastShortSettle = decode(engine, "fs-${wav.sessionTag()}", pcm, frameSleepMs = 0, drainMs = 300)
+                val fastLongSettle = decode(engine, "fl-${wav.sessionTag()}", pcm, frameSleepMs = 0, drainMs = 3_000)
+                report.appendText(
+                    listOf(wav, realtime, fastShortSettle, fastLongSettle)
+                        .joinToString("\t") { it.replace('\t', ' ') } + "\n",
+                    Charsets.UTF_8,
+                )
 
-            assertTrue("$wav realtime should produce text", realtime.isNotBlank())
-            assertTrue("$wav fast short-settle should not drop all finals", fastShortSettle.isNotBlank())
-            assertTrue("$wav fast long-settle should produce text", fastLongSettle.isNotBlank())
-            assertTrue(
-                "$wav fast short-settle too short: rt=${realtime.length} fast=${fastShortSettle.length}",
-                fastShortSettle.length >= (realtime.length * 0.8).toInt(),
-            )
+                assertTrue("$wav realtime should produce text", realtime.isNotBlank())
+                assertTrue("$wav fast short-settle should not drop all finals", fastShortSettle.isNotBlank())
+                assertTrue("$wav fast long-settle should produce text", fastLongSettle.isNotBlank())
+                assertTrue(
+                    "$wav fast short-settle too short: rt=${realtime.length} fast=${fastShortSettle.length}",
+                    fastShortSettle.length >= (realtime.length * 0.8).toInt(),
+                )
+            }
+        } finally {
+            engine.shutdown()
         }
-        engine.shutdown()
     }
 
     @Test
     fun assetLicenseInfoReflectsRuntimeLicense() {
         SpeechRecognizeSdk.init(targetContext)
         SpeechRecognizeSdk.setWorkPath(File(targetContext.getExternalFilesDir(null), "dingqiao_work_license").absolutePath)
-        val engine = createEngine()
-        val info = SpeechRecognizeSdk.getLicenseInfo()
-        assertTrue("asset license should be active", info.status == 0)
-        assertTrue("asset license should include ASR", info.authorizedFeatures.contains("ASR"))
-        engine.shutdown()
+        val engine = SpeechRecognizeSdk.createEngine(
+            CreateEngineParams(
+                language = "zh-CN",
+                online = DingqiaoOnlineMode.OFFLINE,
+            ),
+        )
+        try {
+            val info = SpeechRecognizeSdk.getLicenseInfo()
+            assertTrue("asset license should be active", info.status == 0)
+            assertTrue("asset license should include ASR", info.authorizedFeatures.contains("ASR"))
+        } finally {
+            engine.shutdown()
+        }
     }
 
     private fun createEngine(): SpeechRecognitionEngine {
@@ -159,10 +167,45 @@ class DingqiaoFinishFlushRegressionTest {
     }
 
     private fun mainWavs(): List<String> =
-        testContext.assets.list("")
-            .orEmpty()
-            .filter { it.endsWith(".wav", ignoreCase = true) && !it.contains("声纹") }
+        wavAssets("")
+            .filter {
+                it.endsWith(".wav", ignoreCase = true) &&
+                    !it.substringAfterLast('/').startsWith("._") &&
+                    !it.contains("声纹")
+            }
             .sorted()
+
+    private fun selectedRegressionWavs(wavs: List<String>): List<String> {
+        val supported = wavs.filter { isSupportedPcm16kMonoWav(it) }
+        require(supported.size >= 4) {
+            "need at least 4 16 kHz mono PCM16 wav assets; found ${wavs.size} wav assets " +
+                "but only ${supported.size} supported. Run with -PdingqiaoEvalAudioDir=/Users/boxp/Downloads/audio"
+        }
+        val preferred = listOf("04", "06", "11", "01").mapNotNull { prefix ->
+            supported.firstOrNull { it.substringAfterLast('/').startsWith(prefix) }
+        }
+        return if (preferred.size == 4) preferred else supported.take(4)
+    }
+
+    private fun wavAssets(path: String): List<String> {
+        val children = testContext.assets.list(path).orEmpty()
+        if (children.isEmpty()) return if (path.endsWith(".wav", ignoreCase = true)) listOf(path) else emptyList()
+        return children.flatMap { child ->
+            wavAssets(if (path.isBlank()) child else "$path/$child")
+        }
+    }
+
+    private fun isSupportedPcm16kMonoWav(assetName: String): Boolean =
+        runCatching {
+            val header = testContext.assets.open(assetName).use { input ->
+                ByteArray(4096).let { buffer ->
+                    val count = input.read(buffer)
+                    if (count <= 0) ByteArray(0) else buffer.copyOf(count)
+                }
+            }
+            val spec = readWavFormat(assetName, header)
+            spec.sampleRate == SAMPLE_RATE && spec.channels == 1 && spec.bits == 16
+        }.getOrDefault(false)
 
     private fun String.sessionTag(): String =
         substringBefore('_').ifBlank { Integer.toHexString(hashCode()) } + "-" + System.nanoTime()
@@ -210,6 +253,33 @@ class DingqiaoFinishFlushRegressionTest {
         return bytes.copyOfRange(dataOffset, dataOffset + dataBytes)
     }
 
+    private fun readWavFormat(name: String, bytes: ByteArray): WavSpec {
+        require(bytes.size >= 44) { "wav header too small: $name" }
+        val buf = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        require(buf.int == fourCc("RIFF")) { "missing RIFF: $name" }
+        buf.int
+        require(buf.int == fourCc("WAVE")) { "missing WAVE: $name" }
+
+        while (buf.remaining() >= 8) {
+            val id = buf.int
+            val size = buf.int
+            require(size >= 0) { "bad chunk size: $name" }
+            if (id == fourCc("fmt ")) {
+                val format = buf.short.toInt() and 0xffff
+                val channels = buf.short.toInt() and 0xffff
+                val sampleRate = buf.int
+                buf.int
+                buf.short
+                val bits = buf.short.toInt() and 0xffff
+                require(format == 1) { "only PCM wav supported: $name" }
+                return WavSpec(sampleRate, channels, bits)
+            }
+            if (size > buf.remaining()) break
+            buf.position(buf.position() + size)
+        }
+        error("missing fmt chunk: $name")
+    }
+
     private fun fourCc(s: String): Int {
         val b = s.toByteArray(Charsets.US_ASCII)
         return (b[0].toInt() and 0xff) or
@@ -217,6 +287,8 @@ class DingqiaoFinishFlushRegressionTest {
             ((b[2].toInt() and 0xff) shl 16) or
             ((b[3].toInt() and 0xff) shl 24)
     }
+
+    private data class WavSpec(val sampleRate: Int, val channels: Int, val bits: Int)
 
     private companion object {
         private const val SAMPLE_RATE = 16_000
