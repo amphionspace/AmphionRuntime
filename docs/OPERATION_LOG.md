@@ -1,6 +1,6 @@
 ## 2026-07-02 15:30 CST
 
-- Goal: Pull GitHub `origin/main`, sync latest local v3.0 TTS Android and HarmonyOS SDK code/resources from `Lits_delivery`, document colleague HAP compilation from a separate model/frontend resource package, verify builds, and prepare/push the remote branch `tts-android-harmony-v3.0`.
+- Goal: Pull GitHub `origin/main`, sync latest local v3.0 TTS Android and HarmonyOS SDK code/resources from `Lits_delivery`, document colleague HAP compilation from a separate model/frontend resource package, verify builds, and push the remote branch `tts-android-harmony-v3.0`.
 - Files changed or artifacts created: updated `tts/android`, `tts/harmony`, and tracked `tts/tools/trial-export` frontend/TN resource files from `/Users/amphion/Documents/Lits_delivery/lits_transsion_sdk_vocos24k_v2_5`; added `tts/harmony/docs/HAP_BUILD_WITH_LOCAL_ASSETS.md`; kept local-only models under ignored `tools/trial-export`; generated local HAP `tts/harmony/sample/build/default/outputs/default/sample-default-unsigned.hap`; updated `docs/OPERATION_LOG.md`.
 - Commands run:
   - `git pull origin main`
@@ -10,7 +10,9 @@
   - `./gradlew --no-daemon :sdk:testDebugUnitTest --tests com.lits.tts.sdk.internal.LitsTtsFrontendTest`
   - `/Applications/DevEco-Studio.app/Contents/tools/ohpm/bin/ohpm install --all`
   - `/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw --mode module -p product=default -p module=sample@default assembleHap --no-daemon`
-- Verification result: Android focused frontend unit tests passed. HarmonyOS sample HAP build passed after generating local `oh_modules`; output `sample-default-unsigned.hap` size `327M`, SHA-256 `dc43ba69de7d726752e91806c9fdef3d7dd2f38a22daa7e1429c4bc9f0295170`. `git diff --check` passed. Diff scan found no `.ohos`, signing password, `.p12`, `.p7b`, `.cer`, `.csr`, or `.signing-local` secrets in tracked changes.
+- `git commit -m "Sync v3.0 TTS Android and Harmony SDK"`
+  - `git push origin HEAD:refs/heads/tts-android-harmony-v3.0`
+- Verification result: Android focused frontend unit tests passed. HarmonyOS sample HAP build passed after generating local `oh_modules`; output `sample-default-unsigned.hap` size `327M`, SHA-256 `dc43ba69de7d726752e91806c9fdef3d7dd2f38a22daa7e1429c4bc9f0295170`. `git diff --check` passed. Diff scan found no `.ohos`, signing password, `.p12`, `.p7b`, `.cer`, `.csr`, or `.signing-local` secrets in tracked changes. Commit `675a751` was pushed to new GitHub branch `origin/tts-android-harmony-v3.0`.
 - Notes or next action: the HAP is unsigned because personal signing material is intentionally not committed; configure device-trusted DevEco signing locally before install. The separate resource package is `/Users/amphion/Documents/Lits_delivery/delivery/harmony-v3.0-model-frontend-20260702.zip`, SHA-256 `3cbbb1396d1cab0fec032db174d4b5848eb9c83872ad320cc14cb08858c5a5aa`.
 
 ## 2026-07-01 10:44 CST
