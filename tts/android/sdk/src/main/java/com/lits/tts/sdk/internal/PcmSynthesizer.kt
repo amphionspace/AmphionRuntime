@@ -182,7 +182,6 @@ internal class LitsDeliveryPcmSynthesizer(
         var firstPacketFrontendMs = -1L
         var runtimeMetrics: LitsTtsOrtRuntime.StreamingRuntimeMetrics? = null
         val chunkSizeOverride = streamingChunkSizeOverride(params)
-        val firstChunkSizeOverride = streamingFirstChunkSizeOverride(params)
         for (segment in textSegments) {
             if (isCancelled()) {
                 break
@@ -204,7 +203,7 @@ internal class LitsDeliveryPcmSynthesizer(
                 manifest = activeLayout.manifest,
                 lengthScale = lengthScale,
                 chunkSizeOverride = chunkSizeOverride,
-                firstChunkSizeOverride = firstChunkSizeOverride,
+                firstChunkSizeOverride = chunkSizeOverride,
                 isCancelled = isCancelled,
             ) { waveformChunk ->
                 if (!isCancelled()) {
@@ -359,11 +358,6 @@ internal class LitsDeliveryPcmSynthesizer(
 
     private fun streamingChunkSizeOverride(params: SpeakParams): Int? {
         val value = params.extraParams["streamingChunkSize"] ?: params.extraParams["chunkSize"]
-        return intExtraParam(value)
-    }
-
-    private fun streamingFirstChunkSizeOverride(params: SpeakParams): Int? {
-        val value = params.extraParams["streamingFirstChunkSize"] ?: params.extraParams["firstChunkSize"]
         return intExtraParam(value)
     }
 

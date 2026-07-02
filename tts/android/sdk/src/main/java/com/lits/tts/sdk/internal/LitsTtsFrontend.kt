@@ -82,6 +82,7 @@ internal object LitsTtsFrontend {
         '#' to "井号",
         '$' to "美元",
         '%' to "百分号",
+        '\uFF05' to "百分号",
         '&' to "和",
         '*' to "星号",
         '+' to "加",
@@ -136,7 +137,7 @@ internal object LitsTtsFrontend {
         '\u2715' to ",",
         '\u2716' to ",",
     )
-    private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)%")
+    private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)[%％]")
     private val commaIntegerCurrencyRegex = Regex("(?<!\\d)(\\d{1,3}(?:,\\d{3})+)\\.00(?=元)")
     private val thousandsSeparatorRegex = Regex("(?<=\\d),(?=\\d{3}(?:\\D|$))")
     private val clockMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2})点0([1-9])分")
