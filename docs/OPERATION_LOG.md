@@ -15,6 +15,21 @@
 - Verification result: Android focused frontend unit tests passed. HarmonyOS sample HAP build passed after generating local `oh_modules`; output `sample-default-unsigned.hap` size `327M`, SHA-256 `dc43ba69de7d726752e91806c9fdef3d7dd2f38a22daa7e1429c4bc9f0295170`. `git diff --check` passed. Diff scan found no `.ohos`, signing password, `.p12`, `.p7b`, `.cer`, `.csr`, or `.signing-local` secrets in tracked changes. Commit `675a751` was pushed to new GitHub branch `origin/tts-android-harmony-v3.0`.
 - Notes or next action: the HAP is unsigned because personal signing material is intentionally not committed; configure device-trusted DevEco signing locally before install. The separate resource package is `/Users/amphion/Documents/Lits_delivery/delivery/harmony-v3.0-model-frontend-20260702.zip`, SHA-256 `3cbbb1396d1cab0fec032db174d4b5848eb9c83872ad320cc14cb08858c5a5aa`.
 
+## 2026-07-02 16:05 CST
+
+- Goal: Re-check v3.0 frontend synchronization against the historical build-overwrite failure mode and fix any mismatch before telling the user it is safe.
+- Files changed or artifacts created: updated `tts/harmony/hvigorfile.ts` so HarmonyOS rawfile bundling includes `chinese_surname_lexicon.txt`, `polyphone_context.txt`, and `polyphone_phrases.txt`; updated tracked `tts/tools/trial-export/.../rules/{zh,en,zh_pinyin}.json` and `rules_v2/{zh,en}.full.json` to match authoritative `transsion_lits` rules; updated `tts/harmony/docs/HAP_BUILD_WITH_LOCAL_ASSETS.md` with the regenerated resource zip hash; rebuilt local Android assets and Harmony unsigned sample HAP.
+- Commands run:
+  - SHA comparison script across Lits_delivery trial-export, AmphionRuntime root `tools/trial-export`, AmphionRuntime `tts/tools/trial-export`, Android generated assets, Harmony generated rawfile, and HAP contents.
+  - Inspected `tts/android/build.gradle.kts` and confirmed `syncTranssionTnRules` overwrites root `tools/trial-export` from `transsion_lits`.
+  - Forced `rules/` and `rules_v2/` sync from `/Users/amphion/Documents/Lits_delivery/transsion_lits/Transsion_Multilingual_Text_Normalization_for_TTS/` into all trial-export mirrors.
+  - Cleared generated Android and Harmony model output directories.
+  - `./gradlew --no-daemon :sdk:testDebugUnitTest --tests com.lits.tts.sdk.internal.LitsTtsFrontendTest`
+  - `/Applications/DevEco-Studio.app/Contents/tools/ohpm/bin/ohpm install --all`
+  - `/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw --mode module -p product=default -p module=sample@default assembleHap --no-daemon`
+- Verification result: final comparison passed for 19 frontend files and 2 TN binaries across source, build inputs, Android generated assets, Harmony generated rawfile, and HAP package contents. Final key hashes: `rules/zh.json=35473f0250019dcaeb2c25f55c3a35392df8c4d23390a01e4776001e429f3037`, `rules_v2/zh.full.json=36d3c0395a0a8e3180d3be07c6c9c1140e044ffb644a92ee8a8393967f34d4a8`, `polyphone_phrases.txt=4ac31b411b884ab55f0f5a9eb764ca22ed55a3a3b4a7d72c138f864458ba0a8e`, `chinese_surname_lexicon.txt=2010afe0b843ec728aad4f36533394fa895dd0d8a21c0f7254ebfb1e8d2776b8`. Android focused frontend test passed. HarmonyOS sample HAP build passed; HAP SHA-256 `3413cfb9bbd028fdb0997af10b85c6f41a1991937e247b729bd9675d50b15fb4`. Regenerated local resource zip SHA-256 `669f71f0187d430da18bf2720b50d17876d383cd5d5ebf1c856e2dad2a967e98`.
+- Notes or next action: the first verification did catch a real mismatch. Root `tools/trial-export` is the actual Android/Harmony build input and is rewritten by Android Gradle from `transsion_lits`; `tts/tools/trial-export` alone is not sufficient evidence. Use the multi-path SHA check above for future frontend sync verification.
+
 ## 2026-07-01 10:44 CST
 
 - Goal: Read local Lits delivery skill and AmphionRuntime operation history to clarify the correct TTS AAR / demo APK / zip build procedure before running any further build commands.

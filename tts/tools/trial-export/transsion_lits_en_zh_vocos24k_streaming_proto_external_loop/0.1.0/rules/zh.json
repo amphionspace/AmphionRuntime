@@ -5711,7 +5711,7 @@
     },
     {
       "id": "zh_385",
-      "pattern": "ns ",
+      "pattern": "(?<![A-Za-z])ns ",
       "replace": "纳秒"
     },
     {
