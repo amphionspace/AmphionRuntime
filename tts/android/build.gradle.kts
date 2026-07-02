@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
 }
 
-val sdkVersion = "0.3.0"
+val sdkVersion = "3.0"
 val modelId = "transsion_lits_en_zh_vocos24k_streaming_proto_external_loop"
 val modelVersion = "0.1.0"
 val deliveryDirName = "lits-transsion-tts-android-sdk-vocos24k-$sdkVersion"

@@ -22,11 +22,11 @@ D:\work\LitsTtsSdk
 
 | 项 | 值 |
 | --- | --- |
-| SDK 版本 | `0.2.5.2` |
+| SDK 版本 | `0.1.0` |
 | 模型 ID | `transsion_lits_en_zh_vocos24k_streaming_proto_external_loop` |
 | 模型版本 | `0.1.0` |
 | 支持语种 | `zh-en`, `en-US` |
-| 输出格式 | `pcm`, 16000 Hz, 16-bit, mono |
+| 输出格式 | `pcm`, 24000 Hz, 16-bit, mono |
 | HarmonyOS SDK | `6.0.2.130` |
 | API | `22` |
 | ABI | `arm64-v8a` |
@@ -142,8 +142,8 @@ LitsTtsSdk\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_exte
 当前 HarmonyOS SDK 已经完成：
 
 - 真实 OHOS native ONNX Runtime 接入
-- acoustic + vocoder 两段真实 ONNX 推理
-- 16 kHz PCM 输出
+- hidden encoder + streaming decoder + vocos vocoder 真实 ONNX 推理
+- 24 kHz PCM 输出
 - HarmonyOS `AudioRenderer` 播放
 - 一个可构建的宿主 HAP 验证工程
 

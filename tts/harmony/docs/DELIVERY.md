@@ -91,7 +91,7 @@ LitsTtsSdk/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_exte
 如果已有，也建议一并发过去：
 
 - `export_report.json`
-- `onnx_smoke_hello_world.wav`
+- `external_loop_export_report.json`
 
 ## 4. 最终交付物分别是什么
 

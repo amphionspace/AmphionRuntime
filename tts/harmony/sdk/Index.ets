@@ -1,3 +1,24 @@
-export * from './src/main/ets/com/amphion/tts/TtsTypes';
-export * from './src/main/ets/com/amphion/tts/TtsAssetRegistry';
-export * from './src/main/ets/com/amphion/tts/TextToSpeechSdk';
+export {
+  TextToSpeechSdk,
+  TtsErrorCode,
+  TextToSpeechException,
+  RunMode,
+  PlayType,
+  QueueMode,
+  CompleteType,
+  StopType
+} from './src/main/ets/TextToSpeechApi';
+
+export type {
+  Callback,
+  TextToSpeechEngine,
+  SpeakListener,
+  CreateEngineParams,
+  VoiceQuery,
+  VoiceInfo,
+  SpeakParams,
+  StartResponse,
+  SynthesisResponse,
+  CompleteResponse,
+  StopResponse
+} from './src/main/ets/TextToSpeechApi';

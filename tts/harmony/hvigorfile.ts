@@ -9,12 +9,12 @@ const MODEL_FILES = [
   'manifest.json',
   'export_report.json',
   'frontend_golden.json',
-  'frontend_rules.json',
   'chinese_lexicon.txt',
   'chinese_lexicon.bin',
   'cmudict.txt',
   'cmudict.bin',
   'supplement_lexicon.json',
+  'frontend_rules.json',
   'pinyin_2_bpmf.txt',
   'polychar.txt',
   'zh_en_symbols.json',
@@ -75,7 +75,10 @@ function syncBundledModelResources(): void {
       : path.join(modelSourceDir, fileName);
     const targetFile = path.join(modelTargetDir, fileName);
     fs.mkdirSync(path.dirname(targetFile), { recursive: true });
-    fs.copyFileSync(sourceFile, targetFile);
+    fs.copyFileSync(
+      sourceFile,
+      targetFile
+    );
   });
 }
 

@@ -19,7 +19,7 @@
     49
   ],
   "speaker_id": 0,
-  "chunk_size": 100,
+  "chunk_size": 50,
   "pre_lookahead_len": 3,
   "mel_cache_len": 8,
   "num_decoding_left_chunks": 1,

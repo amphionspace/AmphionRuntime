@@ -18,7 +18,7 @@
   ],
   "runtime_format": "onnx",
   "vocoder_type": "vocos",
-  "streaming_chunk_size": 100,
+  "streaming_chunk_size": 50,
   "streaming_pre_lookahead_len": 3,
   "streaming_mel_cache_len": 8,
   "num_decoding_left_chunks": 1,
