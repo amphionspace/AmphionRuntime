@@ -130,6 +130,13 @@ export class AmphionRuntime {
     const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
     const recognizer = canReusePool ? pooled as OnlineRecognizer :
       new OnlineRecognizer(AmphionRuntime.buildRecognizerConfig(layout, effectiveConfig), context.resourceManager);
+    if (!canReusePool) {
+      // Absorb ONNX Runtime's one-time first-inference cost (graph optimization + memory-arena
+      // allocation, multiple seconds) here at engine-create time — where the caller already shows a
+      // loading state — so the first startListening's per-stream warm-up runs against an already-warm
+      // session and no longer freezes the UI for seconds when the user taps "开始识别".
+      AmphionRuntime.warmRecognizer(recognizer);
+    }
     return new AsrEngine(
       context,
       language,
@@ -196,6 +203,23 @@ export class AmphionRuntime {
     rc.hotwordsBuf = config.hotwords.join('\n');
     rc.hotwordsBufSize = rc.hotwordsBuf.length;
     return rc;
+  }
+
+  /**
+   * One-time recognizer warm-up: push a short silence through the encoder so ONNX Runtime performs its
+   * first-inference graph optimization / memory-arena allocation now (at create) instead of on the first
+   * startListening. Cheap on an already-warm session; skipped silently on any native error.
+   */
+  private static warmRecognizer(recognizer: OnlineRecognizer): void {
+    try {
+      const stream = recognizer.createStream();
+      const wave: Samples = { samples: new Float32Array(Math.round(16000 * 0.2)), sampleRate: 16000 } as Samples;
+      stream.acceptWaveform(wave);
+      while (recognizer.isReady(stream)) recognizer.decode(stream);
+      recognizer.reset(stream);
+    } catch (e) {
+      Logger.w(`recognizer warm-up skipped: ${e}`);
+    }
   }
 
   private static checkInitialized(): void {
