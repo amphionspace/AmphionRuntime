@@ -4,6 +4,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { VoiceprintStore } from './VoiceprintStore';
 import {
+  AudioInfo,
   CreateEngineCallback,
   CreateEngineParams,
   DINGQIAO_AUDIO_FRAME_BYTES_20MS,
