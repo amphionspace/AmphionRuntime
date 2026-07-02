@@ -15,7 +15,7 @@ Use the provided package:
 
 ```text
 harmony-v3.0-model-frontend-20260702.zip
-SHA-256: 3cbbb1396d1cab0fec032db174d4b5848eb9c83872ad320cc14cb08858c5a5aa
+SHA-256: 669f71f0187d430da18bf2720b50d17876d383cd5d5ebf1c856e2dad2a967e98
 ```
 
 Unzip it at the repository root. After unzipping, these paths must exist:
