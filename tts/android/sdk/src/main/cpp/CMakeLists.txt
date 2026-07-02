@@ -5,10 +5,9 @@ project(lits_tn LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(LITS_WORKSPACE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../../../../..")
-set(TRANSSION_TN_ROOT "${LITS_WORKSPACE_ROOT}/transsion_lits/Transsion_Multilingual_Text_Normalization_for_TTS")
-set(ANDROID_ICU_ROOT "${LITS_WORKSPACE_ROOT}/transsion_lits/build/android-icu/android-arm64-install")
-set(ANDROID_ICU_LIB_DIR "${LITS_WORKSPACE_ROOT}/transsion_lits/build/android-icu/android-arm64-build/lib")
+set(TRANSSION_TN_ROOT "${CMAKE_CURRENT_LIST_DIR}/third_party/transsion_tn")
+set(ANDROID_ICU_ROOT "${CMAKE_CURRENT_LIST_DIR}/third_party/android-icu")
+set(ANDROID_ICU_LIB_DIR "${ANDROID_ICU_ROOT}/lib")
 
 add_library(lits_tn SHARED
     lits_tn_jni.cpp

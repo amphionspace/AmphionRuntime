@@ -2,6 +2,8 @@
 
 This note is for colleagues who pull the remote branch and use the separately provided local model/frontend resource package to build the sample HAP.
 
+The remote branch contains the HarmonyOS native TN source and ICU static build dependencies needed by `liblitsttsnative.so`. You do not need a sibling `transsion_lits` checkout or any files from the original local training/export workspace.
+
 ## 1. Pull the branch
 
 ```bash

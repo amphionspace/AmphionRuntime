@@ -1,9 +1,8 @@
 LOCAL_PATH := $(call my-dir)
 
-LITS_WORKSPACE_ROOT := $(LOCAL_PATH)/../../../../../../..
-TRANSSION_TN_ROOT := $(LITS_WORKSPACE_ROOT)/transsion_lits/Transsion_Multilingual_Text_Normalization_for_TTS
-ANDROID_ICU_ROOT := $(LITS_WORKSPACE_ROOT)/transsion_lits/build/android-icu/android-arm64-install
-ANDROID_ICU_LIB_DIR := $(LITS_WORKSPACE_ROOT)/transsion_lits/build/android-icu/android-arm64-build/lib
+TRANSSION_TN_ROOT := $(LOCAL_PATH)/../cpp/third_party/transsion_tn
+ANDROID_ICU_ROOT := $(LOCAL_PATH)/../cpp/third_party/android-icu
+ANDROID_ICU_LIB_DIR := $(ANDROID_ICU_ROOT)/lib
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := icui18n
