@@ -1,4 +1,3 @@
-import application from '@ohos.app.ability.application';
 import common from '@ohos.app.ability.common';
 import fs from '@ohos.file.fs';
 import { audio } from '@kit.AudioKit';
@@ -77,6 +76,7 @@ struct Index {
   private readonly player: SamplePcmPlayer = new SamplePcmPlayer();
 
   aboutToAppear(): void {
+    TextToSpeechSdk.setContext(getContext(this) as common.Context);
     this.inputText = this.presetTextFor(this.language);
     this.metricsText = METRICS_PLACEHOLDER;
     this.appendLog('sample 已启动，当前页面参考 clean sample 的 TTS 卡片布局，只保留纯 TTS 流程。');
@@ -699,7 +699,7 @@ struct Index {
     this.appendLog(`save wav bytes=${audioData.byteLength} sampleRate=${this.lastSampleRate}`);
 
     try {
-      const outputDir = joinPath(application.getApplicationContext().filesDir, 'tts-sample', 'output');
+      const outputDir = joinPath((getContext(this) as common.Context).filesDir, 'tts-sample', 'output');
       ensureDirectory(outputDir);
       const filePath = joinPath(outputDir, `tts-${this.timestamp()}.wav`);
       const wavBytes = buildWavFile(audioData, this.lastSampleRate);
