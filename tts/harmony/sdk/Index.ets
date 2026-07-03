@@ -6,11 +6,14 @@ export {
   PlayType,
   QueueMode,
   CompleteType,
-  StopType
+  StopType,
+  LicenseInfo,
+  LicenseActivationResult
 } from './src/main/ets/TextToSpeechApi';
 
 export type {
   Callback,
+  LicenseActivationCallback,
   TextToSpeechEngine,
   SpeakListener,
   CreateEngineParams,
