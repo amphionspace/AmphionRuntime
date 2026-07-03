@@ -1,6 +1,8 @@
 import application from '@ohos.app.ability.application';
 import fs from '@ohos.file.fs';
 import { audio } from '@kit.AudioKit';
+import deviceInfo from '@ohos.deviceInfo';
+import { HarmonyLicenseVerifier, AmphionLicenseStatus } from './License';
 
 const MODEL_ID: string = 'transsion_lits_en_zh_vocos24k_streaming_proto_external_loop';
 const MODEL_VERSION: string = '0.1.0';
@@ -77,7 +79,7 @@ const REQUIRED_RUNTIME_FILES: Array<string> = [
 const BUNDLED_MODEL_FILES: Array<string> = [
   'manifest.json',
   'export_report.json',
-  'vocos_vocoder.export_report.json',
+  'external_loop_export_report.json',
   'frontend_golden.json',
   'chinese_lexicon.txt',
   'chinese_lexicon.bin',
@@ -401,7 +403,18 @@ export enum TtsErrorCode {
   ENGINE_DESTROYED = 1002300008,
   INTERNAL_SERVICE_ERROR = 1002300009,
   QUEUE_FULL = 1002300010,
-  RUNTIME_EXCEPTION = 1002300011
+  RUNTIME_EXCEPTION = 1002300011,
+  LICENSE_MISSING = 1002300012,
+  LICENSE_MALFORMED = 1002300013,
+  LICENSE_SIGNATURE_INVALID = 1002300014,
+  LICENSE_APP_MISMATCH = 1002300015,
+  LICENSE_CERT_MISMATCH = 1002300016,
+  LICENSE_EXPIRED = 1002300017,
+  LICENSE_DEVICE_MISMATCH = 1002300018,
+  LICENSE_SDK_MAJOR_MISMATCH = 1002300019,
+  LICENSE_MAINTENANCE_EXPIRED = 1002300020,
+  LICENSE_FEATURE_MISSING = 1002300021,
+  LICENSE_NOT_SET = 1002300034
 }
 
 export class TextToSpeechException extends Error {
@@ -416,6 +429,73 @@ export class TextToSpeechException extends Error {
 export interface Callback<T> {
   onSuccess(result: T): void;
   onError(errorCode: number, errorMessage: string): void;
+}
+
+export class LicenseInfo {
+  status: number = 0;
+  expireTime: number = -1;
+  remainingDays: number = -1;
+  authorizedFeatures: string[] = [];
+}
+
+export class LicenseActivationResult {
+  errorCode: number = 0;
+  errorMessage: string = '';
+  remainingDays: number = -1;
+  authorizedFeatures: string[] = [];
+}
+
+export interface LicenseActivationCallback {
+  onResult(result: LicenseActivationResult): void;
+  onError(errorCode: number, errorMessage: string): void;
+}
+
+function utf8BytesToText(bytes: Uint8Array): string {
+  let out = '';
+  for (let i = 0; i < bytes.length;) {
+    const b0 = bytes[i++];
+    if (b0 < 0x80) {
+      out += String.fromCharCode(b0);
+    } else if (b0 < 0xE0 && i < bytes.length) {
+      const b1 = bytes[i++] & 0x3F;
+      out += String.fromCharCode(((b0 & 0x1F) << 6) | b1);
+    } else if (b0 < 0xF0 && i + 1 < bytes.length) {
+      const b1 = bytes[i++] & 0x3F;
+      const b2 = bytes[i++] & 0x3F;
+      out += String.fromCharCode(((b0 & 0x0F) << 12) | (b1 << 6) | b2);
+    } else if (i + 2 < bytes.length) {
+      const b1 = bytes[i++] & 0x3F;
+      const b2 = bytes[i++] & 0x3F;
+      const b3 = bytes[i++] & 0x3F;
+      const cp = ((b0 & 0x07) << 18) | (b1 << 12) | (b2 << 6) | b3;
+      const u = cp - 0x10000;
+      out += String.fromCharCode(0xD800 + (u >> 10), 0xDC00 + (u & 0x3FF));
+    }
+  }
+  return out;
+}
+
+function readLicenseText(path: string): string {
+  const fp = fs.openSync(path);
+  try {
+    const size = fs.statSync(fp.fd).size;
+    const raw = new ArrayBuffer(size);
+    fs.readSync(fp.fd, raw);
+    return utf8BytesToText(new Uint8Array(raw));
+  } finally {
+    fs.close(fp.fd);
+  }
+}
+
+// Reads the device serial for license SN-whitelist checks. Requires ohos.permission.sn
+// (system/privileged); ordinary demo hosts get undefined, which only matters for SN-bound licenses.
+function readDeviceSerial(): string | undefined {
+  try {
+    const sn = deviceInfo.serial;
+    return sn !== undefined && sn.length > 0 ? sn : undefined;
+  } catch (e) {
+    return undefined;
+  }
 }
 
 export interface ExtraParams {
@@ -3571,6 +3651,11 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
 
 export class TextToSpeechSdk {
   private static workPath: string | undefined;
+  private static licensed: boolean = false;
+  private static licenseInfo: LicenseInfo | undefined;
+  private static licenseGateCode: number = TtsErrorCode.LICENSE_MISSING;
+  private static licenseGateMessage: string =
+    'no valid license: call TextToSpeechSdk.setLicense with a valid license before createEngine';
 
   static setWorkPath(workPath: string): void {
     if (workPath.trim().length === 0) {
@@ -3583,6 +3668,100 @@ export class TextToSpeechSdk {
       );
     }
     TextToSpeechSdk.workPath = workPath;
+  }
+
+  static setLicense(licensePath: string, callback: LicenseActivationCallback): void {
+    if (licensePath.trim().length === 0) {
+      TextToSpeechSdk.recordLicenseFailure(TtsErrorCode.LICENSE_MISSING, 'licensePath is empty');
+      callback.onError(TtsErrorCode.LICENSE_MISSING, 'licensePath is empty');
+      return;
+    }
+    if (!fs.accessSync(licensePath)) {
+      TextToSpeechSdk.recordLicenseFailure(TtsErrorCode.LICENSE_MISSING, `license file not found: ${licensePath}`);
+      callback.onError(TtsErrorCode.LICENSE_MISSING, `license file not found: ${licensePath}`);
+      return;
+    }
+    let licenseText = '';
+    try {
+      licenseText = readLicenseText(licensePath);
+    } catch (e) {
+      const msg = `license file not readable: ${e}`;
+      TextToSpeechSdk.recordLicenseFailure(TtsErrorCode.LICENSE_MISSING, msg);
+      callback.onError(TtsErrorCode.LICENSE_MISSING, msg);
+      return;
+    }
+    TextToSpeechSdk.activateLicense(licenseText, callback);
+  }
+
+  private static async activateLicense(licenseText: string, callback: LicenseActivationCallback): Promise<void> {
+    const pub = HarmonyLicenseVerifier.publicKey();
+    // Gate 1: real ECDSA signature. Tampered/forged licenses (e.g. edited expiresAt) are rejected here.
+    let signatureValid = false;
+    try {
+      signatureValid = await HarmonyLicenseVerifier.verifySignature(licenseText, pub);
+    } catch (e) {
+      signatureValid = false;
+    }
+    if (!signatureValid) {
+      TextToSpeechSdk.recordLicenseFailure(TtsErrorCode.LICENSE_SIGNATURE_INVALID, 'license signature verification failed');
+      TextToSpeechSdk.licenseInfo = TextToSpeechSdk.buildLicenseInfo(2, []);
+      callback.onError(TtsErrorCode.LICENSE_SIGNATURE_INVALID, 'license signature verification failed');
+      return;
+    }
+    // Gate 2: SN whitelist (aligns with ASR / Android). SN-bound licenses activate only on whitelisted devices.
+    const serial = readDeviceSerial();
+    let deviceOk = false;
+    try {
+      deviceOk = await HarmonyLicenseVerifier.deviceHashOk(licenseText, serial);
+    } catch (e) {
+      deviceOk = false;
+    }
+    if (!deviceOk) {
+      TextToSpeechSdk.recordLicenseFailure(TtsErrorCode.LICENSE_DEVICE_MISMATCH, 'device not authorized');
+      TextToSpeechSdk.licenseInfo = TextToSpeechSdk.buildLicenseInfo(3, []);
+      callback.onError(TtsErrorCode.LICENSE_DEVICE_MISMATCH, 'device not authorized');
+      return;
+    }
+    // Gate 3: claim policy (feature must include TTS, not expired, maintenance, etc.).
+    const status: AmphionLicenseStatus = HarmonyLicenseVerifier.verify(licenseText, undefined, undefined, serial, pub);
+    if (!status.valid) {
+      const infoStatus =
+        status.errorCode === TtsErrorCode.LICENSE_EXPIRED || status.errorCode === TtsErrorCode.LICENSE_MAINTENANCE_EXPIRED ? 1 : 2;
+      TextToSpeechSdk.recordLicenseFailure(status.errorCode, status.message);
+      TextToSpeechSdk.licenseInfo = TextToSpeechSdk.buildLicenseInfo(infoStatus, []);
+      callback.onError(status.errorCode, status.message);
+      return;
+    }
+    TextToSpeechSdk.licensed = true;
+    TextToSpeechSdk.licenseInfo = TextToSpeechSdk.buildLicenseInfo(0, status.features);
+    const result = new LicenseActivationResult();
+    result.errorCode = 0;
+    result.errorMessage = '';
+    result.remainingDays = -1;
+    result.authorizedFeatures = status.features;
+    callback.onResult(result);
+  }
+
+  static getLicenseInfo(): LicenseInfo {
+    if (TextToSpeechSdk.licenseInfo === undefined) {
+      throw new TextToSpeechException(TtsErrorCode.LICENSE_NOT_SET, 'license not set');
+    }
+    return TextToSpeechSdk.licenseInfo;
+  }
+
+  private static recordLicenseFailure(code: number, message: string): void {
+    TextToSpeechSdk.licensed = false;
+    TextToSpeechSdk.licenseGateCode = code;
+    TextToSpeechSdk.licenseGateMessage = message;
+  }
+
+  private static buildLicenseInfo(status: number, features: string[]): LicenseInfo {
+    const info = new LicenseInfo();
+    info.status = status;
+    info.expireTime = -1;
+    info.remainingDays = -1;
+    info.authorizedFeatures = features;
+    return info;
   }
 
   static createEngine(params: CreateEngineParams): TextToSpeechEngine;
@@ -3636,6 +3815,9 @@ export class TextToSpeechSdk {
   }
 
   private static createEngineInternal(params: CreateEngineParams): TextToSpeechEngine {
+    if (!TextToSpeechSdk.licensed) {
+      throw new TextToSpeechException(TextToSpeechSdk.licenseGateCode, TextToSpeechSdk.licenseGateMessage);
+    }
     return EngineRegistry.createEngine(params, TextToSpeechSdk.workPath);
   }
 
