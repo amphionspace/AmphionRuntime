@@ -1,4 +1,4 @@
-import application from '@ohos.app.ability.application';
+import common from '@ohos.app.ability.common';
 import fs from '@ohos.file.fs';
 import { audio } from '@kit.AudioKit';
 import deviceInfo from '@ohos.deviceInfo';
@@ -3010,7 +3010,11 @@ class EngineRegistry {
     return EngineRegistry.activeEngines.size > 0;
   }
 
-  static createEngine(params: CreateEngineParams, workPath: string | undefined): TextToSpeechEngine {
+  static createEngine(
+    params: CreateEngineParams,
+    workPath: string | undefined,
+    context: common.Context | undefined
+  ): TextToSpeechEngine {
     if ((params.modelLoadOnCreate ?? true) === false) {
       throw new TextToSpeechException(
         TtsErrorCode.CREATE_ENGINE_FAILED,
@@ -3028,7 +3032,7 @@ class EngineRegistry {
     }
     const speaker = EngineRegistry.resolveVoice(params.voiceId);
     try {
-      const engine = new TextToSpeechEngineImpl(params, speaker, workPath, (): void => {
+      const engine = new TextToSpeechEngineImpl(params, speaker, workPath, context, (): void => {
         EngineRegistry.activeEngines.delete(engine);
       });
       EngineRegistry.activeEngines.add(engine);
@@ -3107,7 +3111,13 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
   private destroyed: boolean = false;
   private released: boolean = false;
 
-  constructor(engineParams: CreateEngineParams, voice: RegisteredVoice, workPath: string | undefined, onRelease: () => void) {
+  constructor(
+    engineParams: CreateEngineParams,
+    voice: RegisteredVoice,
+    workPath: string | undefined,
+    context: common.Context | undefined,
+    onRelease: () => void
+  ) {
     this.engineParams = {
       language: engineParams.language,
       mode: engineParams.mode,
@@ -3119,7 +3129,7 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
     };
     this.voice = voice;
     this.onRelease = onRelease;
-    this.modelPackageDir = resolveModelPackageDir(this.engineParams.extraParams, workPath);
+    this.modelPackageDir = resolveModelPackageDir(this.engineParams.extraParams, workPath, context);
     const loadStartedAt = Date.now();
     this.modelPackage = FrontendResources.load(this.modelPackageDir);
     const runtimeChunkSize = resolveIntegerExtraParam(
@@ -3651,6 +3661,7 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
 
 export class TextToSpeechSdk {
   private static workPath: string | undefined;
+  private static context: common.Context | undefined;
   private static licensed: boolean = false;
   private static licenseInfo: LicenseInfo | undefined;
   private static licenseGateCode: number = TtsErrorCode.LICENSE_MISSING;
@@ -3668,6 +3679,16 @@ export class TextToSpeechSdk {
       );
     }
     TextToSpeechSdk.workPath = workPath;
+  }
+
+  static setContext(context: common.Context): void {
+    if (EngineRegistry.hasActiveEngines()) {
+      throw new TextToSpeechException(
+        TtsErrorCode.INTERNAL_SERVICE_ERROR,
+        'setContext must be called before createEngine'
+      );
+    }
+    TextToSpeechSdk.context = context;
   }
 
   static setLicense(licensePath: string, callback: LicenseActivationCallback): void {
@@ -3818,7 +3839,7 @@ export class TextToSpeechSdk {
     if (!TextToSpeechSdk.licensed) {
       throw new TextToSpeechException(TextToSpeechSdk.licenseGateCode, TextToSpeechSdk.licenseGateMessage);
     }
-    return EngineRegistry.createEngine(params, TextToSpeechSdk.workPath);
+    return EngineRegistry.createEngine(params, TextToSpeechSdk.workPath, TextToSpeechSdk.context);
   }
 
   private static listVoicesInternal(params: VoiceQuery): Array<VoiceInfo> {
@@ -3851,7 +3872,11 @@ function resolveNativeTtsModule(): NativeTtsModule {
   return nativeModule;
 }
 
-function resolveModelPackageDir(extraParams: ExtraParams | undefined, workPath: string | undefined): string {
+function resolveModelPackageDir(
+  extraParams: ExtraParams | undefined,
+  workPath: string | undefined,
+  context: common.Context | undefined
+): string {
   const extraModelDir = extraParams?.modelPackageDir;
   if (typeof extraModelDir === 'string' && extraModelDir.trim().length > 0) {
     return requireManifestDir(extraModelDir.trim());
@@ -3862,7 +3887,7 @@ function resolveModelPackageDir(extraParams: ExtraParams | undefined, workPath: 
     return workPathModelDir;
   }
 
-  return ensureBundledModelPackageDir(workPath);
+  return ensureBundledModelPackageDir(workPath, context);
 }
 
 function normalizeLanguageContext(languageContext: string | undefined): string {
@@ -3925,23 +3950,23 @@ function resolveWorkPathModelPackageDir(workPath: string | undefined): string | 
   return undefined;
 }
 
-function ensureBundledModelPackageDir(workPath: string | undefined): string {
-  const modelPackageDir = resolveBundledModelPackageDir(workPath);
+function ensureBundledModelPackageDir(workPath: string | undefined, context: common.Context | undefined): string {
+  const modelPackageDir = resolveBundledModelPackageDir(workPath, context);
   if (
     bundledModelPackageDirCache !== modelPackageDir ||
       !hasRequiredRuntimeFiles(modelPackageDir) ||
       !hasExpectedAssetSignature(modelPackageDir)
   ) {
-    extractBundledModelPackage(modelPackageDir);
+    extractBundledModelPackage(modelPackageDir, context);
     bundledModelPackageDirCache = modelPackageDir;
   }
   return requireManifestDir(modelPackageDir);
 }
 
-function resolveBundledModelPackageDir(workPath: string | undefined): string {
+function resolveBundledModelPackageDir(workPath: string | undefined, context: common.Context | undefined): string {
   const baseDir = workPath !== undefined && workPath.trim().length > 0
     ? normalizeDir(workPath)
-    : normalizeDir(application.getApplicationContext().filesDir);
+    : normalizeDir(requireContext(context).filesDir);
   return joinPath(joinPath(baseDir, 'tts'), MODEL_ID, MODEL_VERSION);
 }
 
@@ -3957,10 +3982,10 @@ function bundledAssetSignature(): string {
   return `${MODEL_ID}:${MODEL_VERSION}:${FRONTEND_ASSET_SIGNATURE_VERSION}:${BUNDLED_MODEL_FILES.join('|')}`;
 }
 
-function extractBundledModelPackage(modelPackageDir: string): void {
+function extractBundledModelPackage(modelPackageDir: string, context: common.Context | undefined): void {
   ensureDirectory(modelPackageDir);
   try {
-    const resourceManager = resolveBundledModelResourceManager();
+    const resourceManager = resolveBundledModelResourceManager(context);
     BUNDLED_MODEL_FILES.forEach((fileName: string): void => {
       const rawfilePath = joinPath(BUNDLED_MODEL_RAWFILE_DIR, fileName);
       writeBinaryFile(
@@ -3975,8 +4000,8 @@ function extractBundledModelPackage(modelPackageDir: string): void {
   }
 }
 
-function resolveBundledModelResourceManager() {
-  const appContext = application.getApplicationContext();
+function resolveBundledModelResourceManager(context: common.Context | undefined) {
+  const appContext = requireContext(context);
   try {
     return appContext.resourceManager;
   } catch (_error) {
@@ -3990,6 +4015,16 @@ function resolveBundledModelResourceManager() {
   throw new TextToSpeechException(
     TtsErrorCode.CREATE_ENGINE_FAILED,
     'failed to access bundled model resources'
+  );
+}
+
+function requireContext(context: common.Context | undefined): common.Context {
+  if (context !== undefined) {
+    return context;
+  }
+  throw new TextToSpeechException(
+    TtsErrorCode.CREATE_ENGINE_FAILED,
+    'TextToSpeechSdk.setContext(context) must be called before createEngine when using bundled model resources'
   );
 }
 
