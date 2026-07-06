@@ -20,8 +20,8 @@
     ]
   },
   "modules": [
-    { "name": "sdk", "srcPath": "./sdk" },
-    { "name": "sdk_police", "srcPath": "./sdk-police" },
-    { "name": "sdk_dingqiao", "srcPath": "./sdk-dingqiao" }
+    { "name": "amphion_asr", "srcPath": "./sdk" },
+    { "name": "amphion_police", "srcPath": "./sdk-police" },
+    { "name": "amphion_dingqiao", "srcPath": "./sdk-dingqiao" }
   ]
 }
