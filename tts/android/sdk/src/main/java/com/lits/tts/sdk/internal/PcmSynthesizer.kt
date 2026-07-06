@@ -29,6 +29,8 @@ internal interface PcmSynthesizer {
 
     fun streamingSampleRate(engineParams: CreateEngineParams): Int? = null
 
+    fun streamingChunkSize(params: SpeakParams, engineParams: CreateEngineParams): Int? = null
+
     fun synthesizeStreaming(
         text: String,
         params: SpeakParams,
@@ -146,6 +148,11 @@ internal class LitsDeliveryPcmSynthesizer(
 
     override fun streamingSampleRate(engineParams: CreateEngineParams): Int = ensureLayout().manifest.sampleRate
 
+    override fun streamingChunkSize(params: SpeakParams, engineParams: CreateEngineParams): Int {
+        val manifest = ensureLayout().manifest
+        return streamingChunkSizeOverride(params) ?: manifest.streamingChunkSize
+    }
+
     override fun debugSummary(): String = ensureLayout().debugSummary()
 
     override fun loadProfileInfo(): String = loadProfileInfo
@@ -182,6 +189,7 @@ internal class LitsDeliveryPcmSynthesizer(
         var firstPacketFrontendMs = -1L
         var runtimeMetrics: LitsTtsOrtRuntime.StreamingRuntimeMetrics? = null
         val chunkSizeOverride = streamingChunkSizeOverride(params)
+        val firstChunkSizeOverride = streamingFirstChunkSizeOverride(params)
         for (segment in textSegments) {
             if (isCancelled()) {
                 break
@@ -203,7 +211,7 @@ internal class LitsDeliveryPcmSynthesizer(
                 manifest = activeLayout.manifest,
                 lengthScale = lengthScale,
                 chunkSizeOverride = chunkSizeOverride,
-                firstChunkSizeOverride = chunkSizeOverride,
+                firstChunkSizeOverride = firstChunkSizeOverride,
                 isCancelled = isCancelled,
             ) { waveformChunk ->
                 if (!isCancelled()) {
@@ -356,11 +364,6 @@ internal class LitsDeliveryPcmSynthesizer(
         }
     }
 
-    private fun streamingChunkSizeOverride(params: SpeakParams): Int? {
-        val value = params.extraParams["streamingChunkSize"] ?: params.extraParams["chunkSize"]
-        return intExtraParam(value)
-    }
-
     private fun intExtraParam(value: Any?): Int? {
         return when (value) {
             is Number -> value.toInt()
@@ -377,6 +380,26 @@ internal class LitsDeliveryPcmSynthesizer(
         )
     }
 
+}
+
+internal fun streamingChunkSizeOverride(params: SpeakParams): Int? {
+    params.streamingConfig?.chunkSize?.let { return it.takeIf { value -> value > 0 } }
+    val value = params.extraParams["streamingChunkSize"] ?: params.extraParams["chunkSize"]
+    return when (value) {
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull()
+        else -> null
+    }?.takeIf { it > 0 }
+}
+
+internal fun streamingFirstChunkSizeOverride(params: SpeakParams): Int? {
+    params.streamingConfig?.firstChunkSize?.let { return it.takeIf { value -> value > 0 } }
+    val value = params.extraParams["streamingFirstChunkSize"] ?: params.extraParams["firstChunkSize"]
+    return when (value) {
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull()
+        else -> null
+    }?.takeIf { it > 0 }
 }
 
 private object AudioTransforms {
