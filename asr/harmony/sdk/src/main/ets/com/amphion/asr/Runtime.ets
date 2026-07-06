@@ -113,7 +113,9 @@ export class AmphionRuntime {
       onProgress?.('install', Math.round(((i + 1) / Math.max(languages.length, 1)) * 100));
       const stage = `asr-${language}`;
       onProgress?.(stage, 0);
-      AmphionRuntime.asrPool.set(language, new OnlineRecognizer(AmphionRuntime.buildRecognizerConfig(layout, effectiveConfig), context.resourceManager));
+      const preloadRecognizer = new OnlineRecognizer(AmphionRuntime.buildRecognizerConfig(layout, effectiveConfig), context.resourceManager);
+      AmphionRuntime.warmUpRecognizer(preloadRecognizer);
+      AmphionRuntime.asrPool.set(language, preloadRecognizer);
       onProgress?.(stage, 100);
     }
     c.markDone();
@@ -130,6 +132,11 @@ export class AmphionRuntime {
     const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
     const recognizer = canReusePool ? pooled as OnlineRecognizer :
       new OnlineRecognizer(AmphionRuntime.buildRecognizerConfig(layout, effectiveConfig), context.resourceManager);
+    if (!canReusePool) {
+      // 预热一次:第一次 encoder/decoder 推理会触发 onnxruntime 懒加载(权重入算子缓冲/图构建),
+      // 在此(createEngine,已有加载态)一次性付清,之后每次 startListening 不再冷启动卡顿。
+      AmphionRuntime.warmUpRecognizer(recognizer);
+    }
     return new AsrEngine(
       context,
       language,
@@ -139,6 +146,22 @@ export class AmphionRuntime {
       !canReusePool,
       Date.now() - createStartMs
     );
+  }
+
+  // 对新建的 recognizer 做一次性预热(喂静音跑一遍 encoder/decoder,触发懒加载),
+  // 使后续各 session 的首句不再冷启动。尽力而为,失败不阻塞引擎创建。
+  private static warmUpRecognizer(recognizer: OnlineRecognizer): void {
+    try {
+      const n = Math.round(16000 * WARMUP_DURATION_MS / 1000);
+      if (n <= 0) return;
+      const stream = recognizer.createStream();
+      const wave: Samples = { samples: new Float32Array(n), sampleRate: 16000 } as Samples;
+      stream.acceptWaveform(wave);
+      while (recognizer.isReady(stream)) recognizer.decode(stream);
+      recognizer.reset(stream);
+    } catch (e) {
+      Logger.w(`warmUpRecognizer skipped: ${e}`);
+    }
   }
 
   static version(): string { return AmphionRuntime.SDK_VERSION; }
@@ -366,9 +389,8 @@ export class AsrSession {
     if (config.vad) {
       this.vad = this.createVad();
     }
-    // Warm up the encoder with silence so the very first utterance isn't decoded against a cold
-    // encoder cache (mirrors Android; same WARMUP_DURATION_MS).
-    this.warmUpEncoder(WARMUP_DURATION_MS);
+    // 预热已前移到 recognizer 创建处一次性完成(见 AmphionRuntime.warmUpRecognizer),
+    // 这里不再每次 startListening 都跑 encoder,避免每次点"开始识别"卡 3~4 秒。
     this.callback.onSessionStarted?.();
   }
 
@@ -644,24 +666,12 @@ export class AsrSession {
       // The old stream is dropped here; its native handle is freed by the NAPI finalizer on GC
       // (Napi::External destructor calls SherpaOnnxDestroyOnlineStream), so this does not leak.
       this.stream = this.recognizer.createStream();
-      this.warmUpEncoder(WARMUP_DURATION_MS);
+      // recognizer 已在创建时预热,新 stream 复用暖模型,无需再逐次预热。
     } catch (e) {
       // If rebuilding fails, fall back to a soft reset so the session keeps running.
       this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `hardRestartStream: ${e}`));
       this.recognizer.reset(this.stream);
     }
-    this.lastPartialText = '';
-  }
-
-  private warmUpEncoder(durationMs: number): void {
-    if (this.closed || durationMs <= 0) return;
-    const n = Math.round(16000 * durationMs / 1000);
-    if (n <= 0) return;
-    const silence = new Float32Array(n);
-    const wave: Samples = { samples: silence, sampleRate: 16000 } as Samples;
-    this.stream.acceptWaveform(wave);
-    while (this.recognizer.isReady(this.stream)) this.recognizer.decode(this.stream);
-    this.recognizer.reset(this.stream);
     this.lastPartialText = '';
   }
 

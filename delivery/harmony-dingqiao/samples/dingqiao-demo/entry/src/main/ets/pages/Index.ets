@@ -603,7 +603,7 @@ class DemoLicenseCallback implements LicenseActivationCallback {
     if (result.errorCode === 0) {
       this.owner.onLicenseActivated();
     } else {
-      this.owner.onLicenseFailed(result.errorCode, result.message);
+      this.owner.onLicenseFailed(result.errorCode, result.errorMessage);
     }
   }
 
