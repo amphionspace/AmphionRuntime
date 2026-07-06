@@ -1,7 +1,8 @@
-import application from '@ohos.app.ability.application';
+import common from '@ohos.app.ability.common';
 import fs from '@ohos.file.fs';
 import { audio } from '@kit.AudioKit';
 import { PlayType, QueueMode, RunMode, TextToSpeechSdk } from 'sdk';
+import { runHmsSeedTtsEvalOnce } from '../HmsSeedTtsEvalRunner';
 import type {
   Callback,
   CompleteResponse,
@@ -24,44 +25,12 @@ const PROGRESS_MIN_VISIBLE_MS: number = 600;
 const METRICS_PLACEHOLDER: string = '模式: --\n引擎加载: -- ms\n采样率: -- Hz\n首包时延: -- ms\n合成耗时: -- ms\n音频时长: -- ms\nRTF: --\nChunk数: --';
 const PCM_BYTES_PER_SAMPLE: number = 2;
 const DEFAULT_SAMPLE_RATE: number = 24000;
+const PLAYBACK_DRAIN_PADDING_MS: number = 500;
+const PLAYBACK_DRAIN_MAX_MS: number = 30000;
 const DEFAULT_STREAMING_CHUNK_SIZE: string = '50';
-const DEFAULT_PCM_QUEUE_CAPACITY: string = '32';
+const DEFAULT_PCM_QUEUE_CAPACITY: string = '128';
 const DEFAULT_SPEED: string = '1.0';
-const AUTO_BATCH_RAWFILE: string = 'dual_tts_eval_cases.jsonl';
-const AUTO_BATCH_LOG_TAG: string = '[DualTtsEval]';
-const AUTO_BATCH_OUTPUT_FILE: string = 'dual_tts_eval_metrics.jsonl';
-const AUTO_WARMUP_ENABLED: boolean = true;
-const AUTO_BATCH_ENABLED: boolean = false;
-
-interface AutoBatchCase {
-  case_id: string;
-  dataset: string;
-  lang: string;
-  tn_mode: string;
-  spk_id: number;
-  text: string;
-  reference_text: string;
-}
-
-interface AutoBatchMetric {
-  model_id: string;
-  case_id: string;
-  dataset: string;
-  lang: string;
-  tn_mode: string;
-  text: string;
-  reference_text: string;
-  status: string;
-  error: string;
-  sample_rate: number;
-  first_audio_ms: number;
-  synthesis_ms: number;
-  audio_duration_ms: number;
-  rtf: number;
-  chunk_count: number;
-  audio_bytes: number;
-  engine_load_ms: number;
-}
+const AUTO_WARMUP_ENABLED: boolean = false;
 
 @Entry
 @Component
@@ -103,20 +72,16 @@ struct Index {
   private logLines: Array<string> = [];
   private progressTimer: number | undefined = undefined;
   private progressStartedAtMs: number = 0;
-  private autoBatchCases: Array<AutoBatchCase> = [];
-  private autoBatchMetrics: Array<AutoBatchMetric> = [];
-  private autoBatchIndex: number = 0;
-  private autoBatchRunning: boolean = false;
-  private autoBatchStarted: boolean = false;
-  private currentBatchCase: AutoBatchCase | undefined = undefined;
   private readonly listener: SpeakListener = new PageSpeakListener(this);
   private readonly player: SamplePcmPlayer = new SamplePcmPlayer();
 
   aboutToAppear(): void {
+    TextToSpeechSdk.setContext(getContext(this) as common.Context);
     this.inputText = this.presetTextFor(this.language);
     this.metricsText = METRICS_PLACEHOLDER;
     this.appendLog('sample 已启动，当前页面参考 clean sample 的 TTS 卡片布局，只保留纯 TTS 流程。');
-    this.appendLog('启动后自动加载模型并 Warmup；批测需要手动触发。');
+    void runHmsSeedTtsEvalOnce(getContext(this) as common.UIAbilityContext);
+    this.appendLog('启动后自动加载模型。');
     void this.preloadEngine(this.language, false);
   }
 
@@ -181,7 +146,7 @@ struct Index {
             .fontWeight(FontWeight.Medium)
             .width('100%');
 
-          TextInput({ text: this.chunkSize, placeholder: '默认 100' })
+          TextInput({ text: this.chunkSize, placeholder: '默认 50' })
             .width('100%')
             .backgroundColor('#FAF7F2')
             .borderRadius(8)
@@ -472,6 +437,9 @@ struct Index {
     }
 
     const requestId = this.nextRequestId(playType === PlayType.SYNTHESIZE_ONLY ? 'synth' : 'speak');
+    const chunkSize = this.selectedChunkSize();
+    const pcmQueueCapacity = this.selectedPcmQueueCapacity();
+    const selectedSpeed = this.selectedSpeed();
     this.currentPlayType = playType;
     this.requestChunkCount = 0;
     this.requestAudioBytes = 0;
@@ -489,8 +457,11 @@ struct Index {
     const actionText = playType === PlayType.SYNTHESIZE_ONLY ? '开始合成' : 'SDK 直接播报';
     this.setStatus(`${actionText}：${requestId}`);
     this.setMetrics(METRICS_PLACEHOLDER);
-    const selectedSpeed = this.selectedSpeed();
-    this.appendLog(`提交请求 requestId=${requestId} language=${this.language} playType=${playType} speed=${selectedSpeed} chunkSize=${this.selectedChunkSize()} pcmQueueCapacity=${this.selectedPcmQueueCapacity()}`);
+    this.appendLog(
+      `提交请求 requestId=${requestId} language=${this.language} playType=${playType}` +
+        ` speed=${selectedSpeed} chunkSize=${chunkSize}` +
+        ` pcmQueueCapacity=${pcmQueueCapacity}`
+    );
 
     const speakParams: SpeakParams = {
       requestId,
@@ -502,9 +473,8 @@ struct Index {
       pitch: 1.0,
       volume: 1.0,
       extraParams: {
-        streamingChunkSize: this.selectedChunkSize(),
-        streamingFirstChunkSize: this.selectedChunkSize(),
-        pcmQueueCapacity: this.selectedPcmQueueCapacity()
+        streamingChunkSize: chunkSize,
+        pcmQueueCapacity: pcmQueueCapacity
       }
     };
 
@@ -544,8 +514,14 @@ struct Index {
     this.updateProgressBar('正在 Warmup…');
     this.setStatus(`正在 Warmup：${requestId}`);
     this.setMetrics(this.buildMetricsText('Warmup/待机', 0, undefined, undefined, 0, 0));
+    const chunkSize = this.selectedChunkSize();
+    const pcmQueueCapacity = this.selectedPcmQueueCapacity();
     const selectedSpeed = this.selectedSpeed();
-    this.appendLog(`${autoTriggered ? '自动' : '提交'} Warmup requestId=${requestId} language=${this.language} speed=${selectedSpeed} chunkSize=${this.selectedChunkSize()} pcmQueueCapacity=${this.selectedPcmQueueCapacity()}`);
+    this.appendLog(
+      `${autoTriggered ? '自动' : '提交'} Warmup requestId=${requestId} language=${this.language}` +
+        ` speed=${selectedSpeed} chunkSize=${chunkSize}` +
+        ` pcmQueueCapacity=${pcmQueueCapacity}`
+    );
 
     try {
       const warmupParams: SpeakParams = {
@@ -558,9 +534,8 @@ struct Index {
         pitch: 1.0,
         volume: 1.0,
         extraParams: {
-          streamingChunkSize: this.selectedChunkSize(),
-          streamingFirstChunkSize: this.selectedChunkSize(),
-          pcmQueueCapacity: this.selectedPcmQueueCapacity()
+          streamingChunkSize: chunkSize,
+          pcmQueueCapacity: pcmQueueCapacity
         }
       };
       readyEngine.speak(this.language === 'en-US' ? 'hello.' : '你好。', warmupParams);
@@ -605,8 +580,7 @@ struct Index {
       mode: RunMode.OFFLINE,
       voiceId,
       extraParams: {
-        streamingChunkSize: this.selectedChunkSize(),
-        streamingFirstChunkSize: this.selectedChunkSize()
+        streamingChunkSize: this.selectedChunkSize()
       }
     };
 
@@ -725,7 +699,7 @@ struct Index {
     this.appendLog(`save wav bytes=${audioData.byteLength} sampleRate=${this.lastSampleRate}`);
 
     try {
-      const outputDir = joinPath(application.getApplicationContext().filesDir, 'tts-sample', 'output');
+      const outputDir = joinPath((getContext(this) as common.Context).filesDir, 'tts-sample', 'output');
       ensureDirectory(outputDir);
       const filePath = joinPath(outputDir, `tts-${this.timestamp()}.wav`);
       const wavBytes = buildWavFile(audioData, this.lastSampleRate);
@@ -861,12 +835,6 @@ struct Index {
       const firstPacketMs = response.firstPacketMs ?? uiFirstPacketMs;
       const audioDuration = response.audioDurationMs ?? uiAudioDuration;
       this.appendLog(`onData summary requestId=${requestId} chunks=${this.requestChunkCount} bytes=${this.requestAudioBytes}`);
-      if (requestId.startsWith('batch-')) {
-        this.busy = false;
-        this.clearProgressBar();
-        this.recordBatchSuccess(firstPacketMs, synthesisMs, audioDuration, this.requestSampleRate);
-        return;
-      }
       if (this.currentPlayType === PlayType.SYNTHESIZE_ONLY) {
         this.lastAudio = orderedAudio;
         this.lastSampleRate = this.requestSampleRate;
@@ -875,7 +843,6 @@ struct Index {
         if (requestId.startsWith('warmup-')) {
           this.warmupDone = true;
           this.setStatus(`Warmup 完成：${requestId}`);
-          this.startAutoBatchIfAvailable();
         } else {
           this.setStatus(`合成完成：${requestId}`);
         }
@@ -919,10 +886,6 @@ struct Index {
     this.clearProgressBar();
     this.setStatus(`请求失败：${requestId} / ${errorCode} / ${errorMessage}`);
     this.appendLog(`onError requestId=${requestId} code=${errorCode} message=${errorMessage}`);
-    if (requestId.startsWith('batch-')) {
-      this.recordBatchError(`${errorCode}:${errorMessage}`);
-      this.runNextBatchCase();
-    }
   }
 
   private selectedChunkSize(): number {
@@ -936,9 +899,9 @@ struct Index {
   }
 
   private selectedSpeed(): number {
-    const value = Number(this.speed.trim());
+    const value = Number.parseFloat(this.speed.trim());
     if (!Number.isFinite(value)) {
-      return Number(DEFAULT_SPEED);
+      return Number.parseFloat(DEFAULT_SPEED);
     }
     return Math.min(2.0, Math.max(0.5, value));
   }
@@ -957,158 +920,6 @@ struct Index {
     return `模式: ${mode}\n引擎加载: ${engineLoad} ms\n采样率: ${sampleRate} Hz\n首包时延: ${firstPacket} ms\n合成耗时: ${synthesis} ms\n音频时长: ${audioDuration} ms\nRTF: ${formatRtf(synthesisMs ?? 0, audioDuration)}\nChunk数: ${chunkCount}`;
   }
 
-  private startAutoBatchIfAvailable(): void {
-    if (!AUTO_BATCH_ENABLED) {
-      this.appendLog(`${AUTO_BATCH_LOG_TAG} auto batch disabled`);
-      return;
-    }
-    if (this.autoBatchStarted || this.autoBatchRunning || !this.warmupDone) {
-      return;
-    }
-    const cases = loadAutoBatchCases(AUTO_BATCH_RAWFILE);
-    if (cases.length === 0) {
-      this.appendLog(`${AUTO_BATCH_LOG_TAG} no rawfile cases found`);
-      return;
-    }
-    this.autoBatchCases = cases;
-    this.autoBatchMetrics = [];
-    this.autoBatchIndex = 0;
-    this.autoBatchStarted = true;
-    this.autoBatchRunning = true;
-    console.info(`${AUTO_BATCH_LOG_TAG} start model=vocos_current_tn cases=${cases.length}`);
-    this.runNextBatchCase();
-  }
-
-  private runNextBatchCase(): void {
-    if (!this.autoBatchRunning) {
-      return;
-    }
-    if (this.autoBatchIndex >= this.autoBatchCases.length) {
-      this.finishAutoBatch();
-      return;
-    }
-    const batchCase = this.autoBatchCases[this.autoBatchIndex];
-    this.autoBatchIndex += 1;
-    this.submitBatchCase(batchCase);
-  }
-
-  private submitBatchCase(batchCase: AutoBatchCase): void {
-    const readyEngine = this.engine;
-    if (readyEngine === undefined) {
-      this.recordBatchError('engine undefined');
-      this.runNextBatchCase();
-      return;
-    }
-    this.currentBatchCase = batchCase;
-    this.language = batchCase.lang === 'en' ? 'en-US' : 'zh-en';
-    this.currentPlayType = PlayType.SYNTHESIZE_ONLY;
-    this.requestChunkCount = 0;
-    this.requestAudioBytes = 0;
-    this.requestStartedAtMs = Date.now();
-    this.requestFirstChunkAtMs = 0;
-    this.requestSampleRate = DEFAULT_SAMPLE_RATE;
-    this.requestPcmChunks.clear();
-    this.busy = true;
-    const requestId = `batch-${batchCase.case_id}`;
-    const speakParams: SpeakParams = {
-      requestId,
-      playType: PlayType.SYNTHESIZE_ONLY,
-      queueMode: QueueMode.PREEMPT,
-      languageContext: this.language === 'en-US' ? 'en-US' : 'zh-en',
-      audioType: 'pcm',
-      speed: this.selectedSpeed(),
-      pitch: 1.0,
-      volume: 1.0,
-      extraParams: {
-        streamingChunkSize: this.selectedChunkSize(),
-        streamingFirstChunkSize: this.selectedChunkSize(),
-        pcmQueueCapacity: this.selectedPcmQueueCapacity()
-      }
-    };
-    console.info(`${AUTO_BATCH_LOG_TAG} submit case_id=${batchCase.case_id} index=${this.autoBatchIndex}/${this.autoBatchCases.length}`);
-    try {
-      readyEngine.speak(batchCase.text, speakParams);
-    } catch (error) {
-      this.busy = false;
-      this.recordBatchError(formatError(error));
-      this.runNextBatchCase();
-    }
-  }
-
-  private recordBatchSuccess(
-    firstPacketMs: number | undefined,
-    synthesisMs: number | undefined,
-    audioDuration: number,
-    sampleRate: number
-  ): void {
-    const batchCase = this.currentBatchCase;
-    if (batchCase === undefined) {
-      return;
-    }
-    const synthesis = synthesisMs ?? Math.max(0, Date.now() - this.requestStartedAtMs);
-    const firstPacket = firstPacketMs ?? (this.requestFirstChunkAtMs > 0 ? this.requestFirstChunkAtMs - this.requestStartedAtMs : -1);
-    const metric: AutoBatchMetric = {
-      model_id: 'vocos_current_tn',
-      case_id: batchCase.case_id,
-      dataset: batchCase.dataset,
-      lang: batchCase.lang,
-      tn_mode: batchCase.tn_mode,
-      text: batchCase.text,
-      reference_text: batchCase.reference_text,
-      status: 'ok',
-      error: '',
-      sample_rate: sampleRate,
-      first_audio_ms: firstPacket,
-      synthesis_ms: synthesis,
-      audio_duration_ms: audioDuration,
-      rtf: audioDuration > 0 ? synthesis / audioDuration : -1,
-      chunk_count: this.requestChunkCount,
-      audio_bytes: this.requestAudioBytes,
-      engine_load_ms: this.engineLoadMs
-    };
-    this.autoBatchMetrics.push(metric);
-    console.info(`${AUTO_BATCH_LOG_TAG} ${JSON.stringify(metric)}`);
-    this.currentBatchCase = undefined;
-    this.runNextBatchCase();
-  }
-
-  private recordBatchError(error: string): void {
-    const batchCase = this.currentBatchCase;
-    if (batchCase === undefined) {
-      return;
-    }
-    const metric: AutoBatchMetric = {
-      model_id: 'vocos_current_tn',
-      case_id: batchCase.case_id,
-      dataset: batchCase.dataset,
-      lang: batchCase.lang,
-      tn_mode: batchCase.tn_mode,
-      text: batchCase.text,
-      reference_text: batchCase.reference_text,
-      status: 'error',
-      error,
-      sample_rate: this.requestSampleRate,
-      first_audio_ms: -1,
-      synthesis_ms: -1,
-      audio_duration_ms: 0,
-      rtf: -1,
-      chunk_count: this.requestChunkCount,
-      audio_bytes: this.requestAudioBytes,
-      engine_load_ms: this.engineLoadMs
-    };
-    this.autoBatchMetrics.push(metric);
-    console.info(`${AUTO_BATCH_LOG_TAG} ${JSON.stringify(metric)}`);
-    this.currentBatchCase = undefined;
-  }
-
-  private finishAutoBatch(): void {
-    this.autoBatchRunning = false;
-    const output = this.autoBatchMetrics.map((metric: AutoBatchMetric): string => JSON.stringify(metric)).join('\n') + '\n';
-    const outputPath = joinPath(application.getApplicationContext().filesDir, AUTO_BATCH_OUTPUT_FILE);
-    writeTextFile(outputPath, output);
-    console.info(`${AUTO_BATCH_LOG_TAG} complete count=${this.autoBatchMetrics.length} path=${outputPath}`);
-    this.setStatus(`自动批测完成：${this.autoBatchMetrics.length} 条`);
-  }
 }
 
 class PageSpeakListener implements SpeakListener {
@@ -1176,15 +987,20 @@ class SamplePcmPlayer {
     this.renderer = renderer;
     try {
       await renderer.start();
+      const playbackStartedAt = Date.now();
       let offset = 0;
       while (offset < pcm.byteLength && !this.stopped) {
         const chunkBytes = Math.min(4096, pcm.byteLength - offset);
         const chunk = cloneArrayBuffer(pcm, offset, chunkBytes);
-        await renderer.write(chunk);
-        offset += chunkBytes;
+        const written = await renderer.write(chunk);
+        if (written <= 0) {
+          break;
+        }
+        offset += Math.min(written, chunkBytes);
       }
       if (!this.stopped) {
         await renderer.drain();
+        await this.waitForPlaybackComplete(pcm.byteLength, playbackStartedAt, sampleRate);
       }
     } finally {
       await this.releaseRenderer();
@@ -1210,6 +1026,19 @@ class SamplePcmPlayer {
       }
     };
     return audio.createAudioRenderer(options);
+  }
+
+  private async waitForPlaybackComplete(totalBytes: number, playbackStartedAt: number, sampleRate: number): Promise<void> {
+    if (this.stopped || totalBytes <= 0 || playbackStartedAt <= 0 || sampleRate <= 0) {
+      return;
+    }
+    const targetAudioMs = Math.ceil(totalBytes * 1000 / (sampleRate * PCM_BYTES_PER_SAMPLE));
+    const elapsedMs = Math.max(0, Date.now() - playbackStartedAt);
+    const remainingMs = Math.max(0, targetAudioMs - elapsedMs);
+    const waitMs = Math.min(Math.max(remainingMs + PLAYBACK_DRAIN_PADDING_MS, PLAYBACK_DRAIN_PADDING_MS), PLAYBACK_DRAIN_MAX_MS);
+    await new Promise<void>((resolve: () => void): void => {
+      setTimeout(resolve, waitMs);
+    });
   }
 
   private async releaseRenderer(): Promise<void> {
@@ -1337,84 +1166,6 @@ function writeBinaryFile(filePath: string, content: Uint8Array): void {
       }
     }
   }
-}
-
-function writeTextFile(filePath: string, content: string): void {
-  writeBinaryFile(filePath, utf8Encode(content));
-}
-
-function loadAutoBatchCases(rawfileName: string): Array<AutoBatchCase> {
-  try {
-    const bytes = application.getApplicationContext().resourceManager.getRawFileContentSync(rawfileName);
-    const text = utf8Decode(bytes);
-    const cases: Array<AutoBatchCase> = [];
-    text.split('\n').forEach((line: string): void => {
-      const trimmed = line.trim();
-      if (trimmed.length === 0) {
-        return;
-      }
-      const value = JSON.parse(trimmed) as AutoBatchCase;
-      if (value.case_id !== undefined && value.text !== undefined) {
-        cases.push(value);
-      }
-    });
-    return cases;
-  } catch (error) {
-    console.info(`${AUTO_BATCH_LOG_TAG} rawfile unavailable name=${rawfileName} message=${formatError(error)}`);
-    return [];
-  }
-}
-
-function utf8Decode(bytes: Uint8Array): string {
-  let output = '';
-  let index = 0;
-  while (index < bytes.length) {
-    const first = bytes[index];
-    if (first < 0x80) {
-      output += String.fromCharCode(first);
-      index += 1;
-    } else if (first < 0xE0 && index + 1 < bytes.length) {
-      const code = ((first & 0x1F) << 6) | (bytes[index + 1] & 0x3F);
-      output += String.fromCharCode(code);
-      index += 2;
-    } else if (first < 0xF0 && index + 2 < bytes.length) {
-      const code = ((first & 0x0F) << 12) | ((bytes[index + 1] & 0x3F) << 6) | (bytes[index + 2] & 0x3F);
-      output += String.fromCharCode(code);
-      index += 3;
-    } else if (index + 3 < bytes.length) {
-      const codePoint = ((first & 0x07) << 18) | ((bytes[index + 1] & 0x3F) << 12) | ((bytes[index + 2] & 0x3F) << 6) | (bytes[index + 3] & 0x3F);
-      const adjusted = codePoint - 0x10000;
-      output += String.fromCharCode(0xD800 + (adjusted >> 10), 0xDC00 + (adjusted & 0x3FF));
-      index += 4;
-    } else {
-      index += 1;
-    }
-  }
-  return output;
-}
-
-function utf8Encode(text: string): Uint8Array {
-  const bytes: Array<number> = [];
-  for (let index = 0; index < text.length; index += 1) {
-    let code = text.charCodeAt(index);
-    if (code >= 0xD800 && code <= 0xDBFF && index + 1 < text.length) {
-      const next = text.charCodeAt(index + 1);
-      if (next >= 0xDC00 && next <= 0xDFFF) {
-        code = 0x10000 + ((code - 0xD800) << 10) + (next - 0xDC00);
-        index += 1;
-      }
-    }
-    if (code < 0x80) {
-      bytes.push(code);
-    } else if (code < 0x800) {
-      bytes.push(0xC0 | (code >> 6), 0x80 | (code & 0x3F));
-    } else if (code < 0x10000) {
-      bytes.push(0xE0 | (code >> 12), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F));
-    } else {
-      bytes.push(0xF0 | (code >> 18), 0x80 | ((code >> 12) & 0x3F), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F));
-    }
-  }
-  return new Uint8Array(bytes);
 }
 
 function ensureDirectory(path: string): void {

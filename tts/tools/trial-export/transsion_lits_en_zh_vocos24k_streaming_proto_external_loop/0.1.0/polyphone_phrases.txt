@@ -131,26 +131,3 @@
 会场	hui4 chang3
 操场	cao1 chang3
 笼住	long3 zhu4
-
-# --- Literal yi1 tone fixes 2026-06-30 ---
-一盏	yi1 zhan3
-一支	yi1 zhi1
-一颗	yi1 ke1
-一天	yi1 tian1
-一件	yi1 jian4
-一盆	yi1 pen2
-一杯	yi1 bei1
-一起	yi1 qi3
-一把	yi1 ba3
-一张	yi1 zhang1
-一个	yi1 ge5
-一口	yi1 kou3
-一块	yi1 kuai4
-一跳	yi1 tiao4
-一声	yi1 sheng1
-一直	yi1 zhi2
-一枚	yi1 mei2
-一碗	yi1 wan3
-一用力	yi1 yong4 li4
-一下	yi1 xia4
-一溜烟	yi1 liu4 yan1

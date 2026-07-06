@@ -1,3 +1,63 @@
+## 2026-07-02 17:25 CST
+
+- Goal: Fix the colleague build failure caused by residual local `transsion_lits` build-time dependencies in the v3.0 TTS Android/Harmony branch.
+- Files changed or artifacts created: vendored HarmonyOS native TN source and OHOS ICU static dependencies under `tts/harmony/sdk/src/main/cpp/third_party/`; vendored Android native TN source and Android ICU static dependencies under `tts/android/sdk/src/main/cpp/third_party/`; updated HarmonyOS `CMakeLists.txt`; updated Android `CMakeLists.txt` and `Android.mk`; changed Android Gradle asset packing to validate the unpacked model/frontend package instead of copying TN files from a sibling `transsion_lits`; updated `tts/harmony/docs/HAP_BUILD_WITH_LOCAL_ASSETS.md`; refreshed `/Users/amphion/Documents/Lits_delivery/delivery/harmony-v3.0-har-hap-20260702.zip` with newly built HAR/HAP.
+- Commands run:
+  - searched TTS Android/Harmony build scripts for `transsion_lits` and historical external paths.
+  - copied required TN engine sources, nlohmann header, and platform ICU headers/static libraries from the local export workspace into repo-local `third_party` directories.
+  - ran `/Applications/DevEco-Studio.app/Contents/tools/ohpm/bin/ohpm install --all`.
+  - ran `/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw --mode module -p product=default -p module=sdk@default assembleHar --no-daemon`.
+  - ran `/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw --mode module -p product=default -p module=sample@default assembleHap --no-daemon`.
+  - ran `JAVA_HOME=/Users/amphion/Documents/Lits_delivery/.venv/lib/jvm ./gradlew --no-daemon :sdk:assembleRelease` in `tts/android`.
+  - inspected HAR/HAP/AAR package contents and regenerated the handoff zip/checksum.
+- Verification result: `rg` found no remaining build-script references to the old external `transsion_lits`/ICU paths in `tts/android` or `tts/harmony` after excluding generated build directories. HarmonyOS HAR and HAP builds passed; new HAR SHA-256 `6866aba03778da29403e443cee0a81e04cdcbe7de7761c475debce2050e83fbf`, new HAP SHA-256 `2bc0aa32b2ccce870b0ae2ec4a5753bcd32df627823392d2603c0cf2d2bf3fa4`. Android SDK release AAR build passed; AAR SHA-256 `9a48ca0903c7a1fd1ab2e3f598a2da5e8ff9835dc1e1b32f29893c64a3450958`. Package inspection confirmed the HAR/HAP still contain `liblitsttsnative.so` plus rawfile model/frontend resources and Android AAR still contains `jni/arm64-v8a/liblits_tn.so` plus model/frontend assets. Refreshed handoff zip SHA-256 `6c3458d544ccfb5cc550f766f48c6b1cbc629ea53537bff7d34b148865d28981`.
+- Notes or next action: colleagues still need to unpack the separately provided v3.0 model/frontend package into repo-root `tools/trial-export/...`, but they should no longer need a sibling `transsion_lits` checkout or any files from the original local training/export workspace.
+
+## 2026-07-02 17:10 CST
+
+- Goal: Build and verify the HarmonyOS TTS HAR/HAP artifacts requested for colleague handoff.
+- Files changed or artifacts created: generated/verified `tts/harmony/sdk/build/default/outputs/default/sdk.har`; generated/verified `tts/harmony/sample/build/default/outputs/default/sample-default-unsigned.hap`; copied both into `/Users/amphion/Documents/Lits_delivery/delivery/harmony-v3.0-har-hap-20260702/`; created `/Users/amphion/Documents/Lits_delivery/delivery/harmony-v3.0-har-hap-20260702.zip` and `.sha256`.
+- Commands run:
+  - `/Applications/DevEco-Studio.app/Contents/tools/ohpm/bin/ohpm install --all`
+  - `/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw --mode module -p product=default -p module=sdk@default assembleHar --no-daemon`
+  - `/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw --mode module -p product=default -p module=sample@default assembleHap --no-daemon`
+  - `gzip -dc sdk.har | tar -tvf -` package inspection for HAR contents.
+  - `unzip -l sample-default-unsigned.hap` package inspection for HAP contents.
+- Verification result: HAR build passed and produced `sdk.har` size `199M`, SHA-256 `43a08a5c0df41de0d3267cc945ee8e1d60ec12bec1dd22abe9337b5cbda4d172`; HAP build passed and produced `sample-default-unsigned.hap` size `327M`, SHA-256 `3413cfb9bbd028fdb0997af10b85c6f41a1991937e247b729bd9675d50b15fb4`. HAR contains `package/libs/arm64-v8a/liblitsttsnative.so`, 34 v3.0 rawfile model/frontend entries, `manifest.json`, `lits_hidden_encoder.onnx`, `vocos_vocoder.onnx`, `chinese_surname_lexicon.txt`, `polyphone_context.txt`, `polyphone_phrases.txt`, and TN binaries `zh_tts`/`en_tts`. HAP contains `libs/arm64-v8a/liblitsttsnative.so` and 30 v3.0 rawfile model/frontend entries with the same required frontend/model files. Delivery zip SHA-256 is `8c5c035a3d49f8d3608027ce7318a62106a084da5925f5e5d1be5e273c3d1bad`.
+- Notes or next action: handoff package is `/Users/amphion/Documents/Lits_delivery/delivery/harmony-v3.0-har-hap-20260702.zip`; `sample-default-unsigned.hap` is intentionally unsigned.
+
+## 2026-07-02 15:30 CST
+
+- Goal: Pull GitHub `origin/main`, sync latest local v3.0 TTS Android and HarmonyOS SDK code/resources from `Lits_delivery`, document colleague HAP compilation from a separate model/frontend resource package, verify builds, and push the remote branch `tts-android-harmony-v3.0`.
+- Files changed or artifacts created: updated `tts/android`, `tts/harmony`, and tracked `tts/tools/trial-export` frontend/TN resource files from `/Users/amphion/Documents/Lits_delivery/lits_transsion_sdk_vocos24k_v2_5`; added `tts/harmony/docs/HAP_BUILD_WITH_LOCAL_ASSETS.md`; kept local-only models under ignored `tools/trial-export`; generated local HAP `tts/harmony/sample/build/default/outputs/default/sample-default-unsigned.hap`; updated `docs/OPERATION_LOG.md`.
+- Commands run:
+  - `git pull origin main`
+  - rsync from `Lits_delivery/lits_transsion_sdk_vocos24k_v2_5/android/AmphionRuntime/` to `tts/android/`
+  - rsync from `Lits_delivery/lits_transsion_sdk_vocos24k_v2_5/HarmonyOS/AmphionRuntime/` to `tts/harmony/`
+  - rsync from `Lits_delivery/lits_transsion_sdk_vocos24k_v2_5/tools/trial-export/` to `tools/trial-export/` and `tts/tools/trial-export/`
+  - `./gradlew --no-daemon :sdk:testDebugUnitTest --tests com.lits.tts.sdk.internal.LitsTtsFrontendTest`
+  - `/Applications/DevEco-Studio.app/Contents/tools/ohpm/bin/ohpm install --all`
+  - `/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw --mode module -p product=default -p module=sample@default assembleHap --no-daemon`
+- `git commit -m "Sync v3.0 TTS Android and Harmony SDK"`
+  - `git push origin HEAD:refs/heads/tts-android-harmony-v3.0`
+- Verification result: Android focused frontend unit tests passed. HarmonyOS sample HAP build passed after generating local `oh_modules`; output `sample-default-unsigned.hap` size `327M`, SHA-256 `dc43ba69de7d726752e91806c9fdef3d7dd2f38a22daa7e1429c4bc9f0295170`. `git diff --check` passed. Diff scan found no `.ohos`, signing password, `.p12`, `.p7b`, `.cer`, `.csr`, or `.signing-local` secrets in tracked changes. Commit `675a751` was pushed to new GitHub branch `origin/tts-android-harmony-v3.0`.
+- Notes or next action: the HAP is unsigned because personal signing material is intentionally not committed; configure device-trusted DevEco signing locally before install. The separate resource package is `/Users/amphion/Documents/Lits_delivery/delivery/harmony-v3.0-model-frontend-20260702.zip`, SHA-256 `3cbbb1396d1cab0fec032db174d4b5848eb9c83872ad320cc14cb08858c5a5aa`.
+
+## 2026-07-02 16:05 CST
+
+- Goal: Re-check v3.0 frontend synchronization against the historical build-overwrite failure mode and fix any mismatch before telling the user it is safe.
+- Files changed or artifacts created: updated `tts/harmony/hvigorfile.ts` so HarmonyOS rawfile bundling includes `chinese_surname_lexicon.txt`, `polyphone_context.txt`, and `polyphone_phrases.txt`; updated tracked `tts/tools/trial-export/.../rules/{zh,en,zh_pinyin}.json` and `rules_v2/{zh,en}.full.json` to match authoritative `transsion_lits` rules; updated `tts/harmony/docs/HAP_BUILD_WITH_LOCAL_ASSETS.md` with the regenerated resource zip hash; rebuilt local Android assets and Harmony unsigned sample HAP.
+- Commands run:
+  - SHA comparison script across Lits_delivery trial-export, AmphionRuntime root `tools/trial-export`, AmphionRuntime `tts/tools/trial-export`, Android generated assets, Harmony generated rawfile, and HAP contents.
+  - Inspected `tts/android/build.gradle.kts` and confirmed `syncTranssionTnRules` overwrites root `tools/trial-export` from `transsion_lits`.
+  - Forced `rules/` and `rules_v2/` sync from `/Users/amphion/Documents/Lits_delivery/transsion_lits/Transsion_Multilingual_Text_Normalization_for_TTS/` into all trial-export mirrors.
+  - Cleared generated Android and Harmony model output directories.
+  - `./gradlew --no-daemon :sdk:testDebugUnitTest --tests com.lits.tts.sdk.internal.LitsTtsFrontendTest`
+  - `/Applications/DevEco-Studio.app/Contents/tools/ohpm/bin/ohpm install --all`
+  - `/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw --mode module -p product=default -p module=sample@default assembleHap --no-daemon`
+- Verification result: final comparison passed for 19 frontend files and 2 TN binaries across source, build inputs, Android generated assets, Harmony generated rawfile, and HAP package contents. Final key hashes: `rules/zh.json=35473f0250019dcaeb2c25f55c3a35392df8c4d23390a01e4776001e429f3037`, `rules_v2/zh.full.json=36d3c0395a0a8e3180d3be07c6c9c1140e044ffb644a92ee8a8393967f34d4a8`, `polyphone_phrases.txt=4ac31b411b884ab55f0f5a9eb764ca22ed55a3a3b4a7d72c138f864458ba0a8e`, `chinese_surname_lexicon.txt=2010afe0b843ec728aad4f36533394fa895dd0d8a21c0f7254ebfb1e8d2776b8`. Android focused frontend test passed. HarmonyOS sample HAP build passed; HAP SHA-256 `3413cfb9bbd028fdb0997af10b85c6f41a1991937e247b729bd9675d50b15fb4`. Regenerated local resource zip SHA-256 `669f71f0187d430da18bf2720b50d17876d383cd5d5ebf1c856e2dad2a967e98`.
+- Notes or next action: the first verification did catch a real mismatch. Root `tools/trial-export` is the actual Android/Harmony build input and is rewritten by Android Gradle from `transsion_lits`; `tts/tools/trial-export` alone is not sufficient evidence. Use the multi-path SHA check above for future frontend sync verification.
+
 ## 2026-07-01 10:44 CST
 
 - Goal: Read local Lits delivery skill and AmphionRuntime operation history to clarify the correct TTS AAR / demo APK / zip build procedure before running any further build commands.
@@ -1009,3 +1069,11 @@
 - Commands run: copied local demo license asset; first ran `clean :sdk:testDebugUnitTest :sdk:assembleRelease :sample:assembleRelease`, which failed in 6 lifecycle/cancellation unit tests; reran release assembly only; signed release APK with `~/.android/debug.keystore`; staged AAR/APK/license/docs/source snapshot; generated `VERSION.txt`, `README.txt`, `CHECKSUMS.txt`, zip, and `.zip.sha256`; verified zip CRC, CHECKSUMS, forbidden files, AAR public key/no-license, APK metadata/signature/license, formal license, and source/AAR/APK model/frontend resource hashes.
 - Verification result: Release build/package verification passed. Zip `/Users/amphion/Documents/AmphionRuntime-Delivery/lits-transsion-tts-android-sdk-vocos24k-0.2.5.4-demo-auth-20260630.zip` SHA256 `1c9500aa1f060992d7a7c835d6e50301380719bbeb6d6e8fcd948b8ed241e824`, size `994194792` bytes. AAR SHA256 `da3f73b715f516235ce1f7a335013448140f2740736db2433d34fd97f6f91d0f`; demo APK SHA256 `1de70f284379f601e56abaa21fbe1ca324996855d5735833c9c3f19161f51e14`; formal license SHA256 `bda872951b762023f0be811b79781da252c1042078818522570a9e49a33cb503`; embedded demo license SHA256 `d84169281cea4b2bfdb824087a4234dd6594ad6f3ab1c9ff9f82f71f8c89d5a3`.
 - Notes: APK metadata is `com.tdtech.tiassistant` / `versionName=0.2.5.4`; APK signing cert SHA256 is `954fd136a60416acbd8cddd4c436bec496f4e707f62680bb68a97b56c2d0755c`. Current full unit suite is not green due 6 lifecycle/cancellation failures; release assemble and package verification passed. Delivery source snapshot excludes private keys, keystores, `.secure`, build outputs, and source-tree `.lic` files.
+
+## 2026-07-03 15:10 Harmony v3.0 API 12 GitHub push
+
+- Goal: Pull remote `origin/tts-android-harmony-v3.0`, merge local Harmony v3.0 API 12 changes with the remote license-auth update, verify the build, and push back to GitHub branch `tts-android-harmony-v3.0`.
+- Files changed: `tts/harmony/build-profile.json5`, `tts/harmony/sdk/src/main/ets/TextToSpeechApi.ets`, `tts/harmony/sample/src/main/ets/pages/Index.ets`, and `docs/OPERATION_LOG.md`.
+- Commands run: `git fetch origin tts-android-harmony-v3.0`; `git pull --rebase --autostash origin tts-android-harmony-v3.0`; resolved `TextToSpeechApi.ets` autostash conflict; checked for conflict markers and API14 `application.getApplicationContext`; ran `hvigorw --mode module -p product=default -p module=sdk@default assembleHar --no-daemon`; ran `hvigorw --mode module -p product=default -p module=sample@default assembleHap --no-daemon`; unpacked `sample-default-unsigned.hap` to inspect SDK metadata and native libraries.
+- Verification result: Remote was fast-forwarded to `499da36` before local changes were applied. HAR and HAP builds passed. HAP `pack.info` reports `compatible=12` and `target=12`; `module.json` app metadata reports `minAPIVersion=50000012` and `targetAPIVersion=50000012`. Packaged native libraries include `libs/arm64-v8a/liblitsttsnative.so`, `libonnxruntime.so`, and `libc++_shared.so`.
+- Notes: Kept the remote Harmony license gate and added API12-compatible context injection via `TextToSpeechSdk.setContext(common.Context)` for bundled model extraction. The sample now passes `getContext(this) as common.Context` before engine creation and no longer imports `@ohos.app.ability.application`.

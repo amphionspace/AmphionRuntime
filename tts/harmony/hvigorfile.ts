@@ -9,17 +9,20 @@ const MODEL_FILES = [
   'manifest.json',
   'export_report.json',
   'frontend_golden.json',
-  'frontend_rules.json',
   'chinese_lexicon.txt',
   'chinese_lexicon.bin',
+  'chinese_surname_lexicon.txt',
   'cmudict.txt',
   'cmudict.bin',
   'supplement_lexicon.json',
+  'frontend_rules.json',
   'pinyin_2_bpmf.txt',
   'polychar.txt',
   'zh_en_symbols.json',
   'pinyin_to_tokens.json',
   'arpabet_to_tokens.json',
+  'polyphone_context.txt',
+  'polyphone_phrases.txt',
   'tn-bin/arm64-v8a/zh_tts',
   'tn-bin/arm64-v8a/en_tts',
   'rules/zh.json',
@@ -75,7 +78,10 @@ function syncBundledModelResources(): void {
       : path.join(modelSourceDir, fileName);
     const targetFile = path.join(modelTargetDir, fileName);
     fs.mkdirSync(path.dirname(targetFile), { recursive: true });
-    fs.copyFileSync(sourceFile, targetFile);
+    fs.copyFileSync(
+      sourceFile,
+      targetFile
+    );
   });
 }
 

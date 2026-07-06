@@ -30,7 +30,7 @@ android {
 }
 
 dependencies {
-    implementation(files("../sdk/build/outputs/aar/sdk-debug.aar"))
+    implementation(files("../sdk/build/outputs/aar/sdk-release.aar"))
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation("androidx.test:runner:1.6.2")

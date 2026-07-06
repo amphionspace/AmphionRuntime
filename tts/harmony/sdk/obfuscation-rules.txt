@@ -1,2 +1,1 @@
-# Keep public SDK entry points stable for customer apps.
--keep-global-name
+

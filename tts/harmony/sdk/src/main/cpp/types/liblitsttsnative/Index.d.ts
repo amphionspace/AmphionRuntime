@@ -20,6 +20,8 @@ declare const nativeModule: {
     runtimeHandle: object,
     tokenIds: Array<number>,
     speakerId: number,
+    lengthScale: number,
+    chunkSizeOverride: number,
     onChunk: (chunk: ArrayBuffer, sequence: number) => void
   ) => Promise<{
     synthesisMs: number;
