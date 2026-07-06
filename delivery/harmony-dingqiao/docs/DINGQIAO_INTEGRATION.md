@@ -6,34 +6,29 @@
 
 | 路径 | 说明 |
 | --- | --- |
-| `har/amphion_dingqiao.har` | 鼎桥业务层 SDK（对外主接口）|
-| `har/amphion_asr.har` | ASR 核心 SDK |
-| `har/amphion_police.har` | 警务能力层 SDK |
-| `har/sherpa_onnx.har` | ASR 运行时依赖，**必须一起集成** |
-| `har/amphion_tts.har` | TTS SDK（如需）|
+| `har/amphion_dingqiao.har` | ASR SDK（**自包含**：已内置 amphion_asr / amphion_police / sherpa_onnx，客户只需集成这一个）|
+| `har/amphion_tts.har` | TTS SDK（自包含，如需）|
 | `demo/dingqiao-demo.hap` | 验收 Demo |
 | `models/eres2net.onnx` | 声纹模型，放入 `setWorkPath` 指定目录 |
 | `docs/` | 接口、授权、NOTICE 与集成说明 |
 | `amphion-license.lic` | 授权文件，单独签发 |
 
-## 依赖配置（重要）
+## 依赖配置
 
-各 HAR 之间存在依赖（`amphion_dingqiao → amphion_asr → sherpa_onnx`），但 HAR 内部**不再声明**这些相互依赖。请在**宿主工程的 `oh-package.json5`** 里把用到的 HAR **平铺声明齐全**——尤其 `sherpa_onnx` 是 ASR 的运行时依赖，漏声明会在编译期报 `Cannot find module 'sherpa_onnx'`：
+ASR SDK 为**自包含 HAR**——ASR 核心、警务能力层与 sherpa_onnx 运行时依赖都已打进 `amphion_dingqiao.har` 内部（`file:./` 相对路径）。客户**只需声明这一个依赖**，无需再单独集成 amphion_asr / sherpa_onnx：
 
 ```json5
 {
   "dependencies": {
-    "amphion_dingqiao": "file:./libs/amphion_dingqiao.har",
-    "amphion_asr": "file:./libs/amphion_asr.har",
-    "amphion_police": "file:./libs/amphion_police.har",
-    "sherpa_onnx": "file:./libs/sherpa_onnx.har"
+    "amphion_dingqiao": "file:./libs/amphion_dingqiao.har"
   }
 }
 ```
 
-把交付包 `har/` 下的文件放到宿主工程（例如 `./libs/`），路径按实际调整。全部为本地 `file:` 依赖，**无需联网、无需连 ohpm 公共仓库**，适配内网/隔离构建环境。声明后执行 `ohpm install` 即可。
+把交付包 `har/amphion_dingqiao.har` 放到宿主工程（例如 `./libs/`），路径按实际调整。为**纯本地 `file:` 依赖**，`ohpm install` 与后续 HAP 编译**全程无需联网、无需连 ohpm 公共仓库**，适配内网/隔离构建环境。
 
-> 只用 TTS 时按同样方式声明 `amphion_tts`（TTS 不依赖 sherpa_onnx）。
+> 只用 TTS 时同理声明一个自包含依赖 `"amphion_tts": "file:./libs/amphion_tts.har"`（HAR 包名为 `sdk`，`import { TextToSpeechSdk } from 'sdk'`）。
+> ASR 的授权、识别等能力统一通过 `amphion_dingqiao` 的 `SpeechRecognizeSdk` 使用（含 `setLicense`），无需从 amphion_asr 单独导入。
 
 ## 主流程
 
