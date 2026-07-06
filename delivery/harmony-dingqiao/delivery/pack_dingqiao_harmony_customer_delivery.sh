@@ -34,41 +34,13 @@ copy_har() {
   fi
 }
 
-# 剥离交付 HAR 内部的 inter-HAR file: 依赖（amphion_*/sherpa_onnx），只保留 .so 依赖。
-# 原因：源码里这些依赖是仓库本地 file: 路径，客户机上不存在，ohpm 安装会因死路径报错。
-# 客户改为在自己工程 oh-package.json5 里平铺声明全部 HAR（见 DINGQIAO_INTEGRATION.md）。
-strip_har_deps() {
-  local har="$1"
-  [[ -f "$har" ]] || return 0
-  local tmp
-  tmp="$(mktemp -d)"
-  tar xzf "$har" -C "$tmp"
-  python3 - "$tmp/package/oh-package.json5" <<'PY'
-import sys, re
-path = sys.argv[1]
-text = open(path).read()
-match = re.search(r'"dependencies"\s*:\s*\{(.*?)\}', text, re.S)
-if match:
-    items = re.findall(r'"[^"]+"\s*:\s*"[^"]+"', match.group(1))
-    kept = [it for it in items if it.split(':', 1)[0].strip().endswith('.so"')]
-    text = text[:match.start()] + '"dependencies":{' + ",".join(kept) + '}' + text[match.end():]
-    open(path, "w").write(text)
-PY
-  ( cd "$tmp" && tar czf "$har" package )
-  rm -rf "$tmp"
-}
-
-# DevEco/Hvigor 产物；ASR 三个 HAR 会做死路径剥离，sherpa_onnx / tts 无外部 HAR 依赖不需剥离。
-copy_har "$REPO_ROOT/asr/harmony/sdk/build/default/outputs/default" "$OUT_ROOT/har/amphion_asr.har"
-copy_har "$REPO_ROOT/asr/harmony/sdk-police/build/default/outputs/default" "$OUT_ROOT/har/amphion_police.har"
-copy_har "$REPO_ROOT/asr/harmony/sdk-dingqiao/build/default/outputs/default" "$OUT_ROOT/har/amphion_dingqiao.har"
+# ASR:交付"自包含" amphion_dingqiao.har(内部打包 amphion_asr/police/sherpa_onnx,file:./ 相对依赖)。
+# 客户只需声明这一个 HAR,纯本地离线可解析,且 HAP 全量编译整链可解析(已真机验证)。
+# 为何不发分层 HAR:各 HAR 用仓库本地 file: 路径互依赖,外部工程既装不上(死路径)、剥离后又编不过
+# (幽灵依赖)——只有自包含两头都成立。详见 assemble_selfcontained_dingqiao_har.sh。
+bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh" "$OUT_ROOT/har/amphion_dingqiao.har"
+# TTS 本就自包含(模型+.so 内置,无外部 HAR 依赖),直接拷。
 copy_har "$REPO_ROOT/tts/harmony/sdk/build/default/outputs/default" "$OUT_ROOT/har/amphion_tts.har"
-# sherpa_onnx 是 amphion_asr 的运行时依赖，必须随包交付（客户内网无法从 ohpm 公共仓库拉取）。
-copy_har "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default" "$OUT_ROOT/har/sherpa_onnx.har"
-
-strip_har_deps "$OUT_ROOT/har/amphion_asr.har"
-strip_har_deps "$OUT_ROOT/har/amphion_police.har"
-strip_har_deps "$OUT_ROOT/har/amphion_dingqiao.har"
 
 copy_if_exists "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/entry-default-signed.hap" "$OUT_ROOT/demo/dingqiao-demo.hap"
 copy_if_exists "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap" "$OUT_ROOT/demo/dingqiao-demo.hap"
