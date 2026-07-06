@@ -247,15 +247,29 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private maxAudioBytes: number = 0;
   private audioBytesWritten: number = 0;
   private voiceprintIds: string[] = [];
-  // Whether the current asrEngine was built for the target-speaker path. Lets the plain path reuse the
-  // engine built at createEngine instead of reloading the ASR model on every startListening.
-  private engineTargetSpeaker: boolean = false;
+  // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
+  private engineCfgKey: string = '';
 
   constructor(context: Context, params: CreateEngineParams) {
     this.context = context;
     this.params = params;
     this.pipeline = PoliceEnhancePipeline.create(buildEnhanceOptions(params));
     this.asrEngine = AmphionRuntime.create(context, languageOf(params.language), buildAsrConfig(params));
+    this.engineCfgKey = this.computeEngineCfgKey(undefined, false, false);
+  }
+
+  // 会话级配置指纹:只含影响引擎构建的可变项(VAD 端点、目标说话人/说话人VAD)。
+  // recognizer(模型)级配置由 CreateEngineParams 固定,不随 startListening 变。
+  private computeEngineCfgKey(sp: StartParams | undefined, withTargetSpeaker: boolean, withSpeakerVad: boolean): string {
+    const extra: Record<string, Object> = sp?.extraParams ?? {};
+    const parts: string[] = [`${withTargetSpeaker}`, `${withSpeakerVad}`, `${vadEndMs(sp)}`];
+    if (withTargetSpeaker) {
+      parts.push(`${numberParam(extra, 'speakerVadThreshold', 0.40)}`);
+      parts.push(`${numberParam(extra, 'speakerVadWindowMs', 1000)}`);
+      parts.push(`${numberParam(extra, 'speakerVadHopMs', 300)}`);
+      parts.push(`${numberParam(extra, 'speakerVadConsecutiveBelow', 2)}`);
+    }
+    return parts.join('|');
   }
 
   setListener(listener: RecognitionListener): void { this.listener = listener; }
@@ -433,18 +447,14 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   }
 
   private rebuildEngine(params: StartParams, withTargetSpeaker: boolean, withSpeakerVad: boolean): void {
-    const wantTarget = withTargetSpeaker || withSpeakerVad;
-    // Recreating the engine reloads the OnlineRecognizer = the full ASR model (~3s on device), which is
-    // why every "开始识别" froze the UI. The recognizer config does not depend on StartParams, so the
-    // plain (non-voiceprint) path reuses the engine built at createEngine; per-start VAD endpoint tuning
-    // then falls back to the createEngine-time value on the reused path. Only rebuild when the
-    // target-speaker requirement actually changes.
-    if (!wantTarget && !this.engineTargetSpeaker) {
+    const newKey = this.computeEngineCfgKey(params, withTargetSpeaker, withSpeakerVad);
+    if (newKey === this.engineCfgKey) {
+      // 会话配置未变(纯 ASR 反复开始/结束):复用已加载的引擎与模型,避免每次点"开始识别"重载模型卡 3~4 秒。
       return;
     }
     this.asrEngine.close();
     this.asrEngine = AmphionRuntime.create(this.context, languageOf(this.params.language), buildAsrConfig(this.params, params, withTargetSpeaker, withSpeakerVad));
-    this.engineTargetSpeaker = wantTarget;
+    this.engineCfgKey = newKey;
   }
 
   handlePartial(text: string): void {
@@ -676,11 +686,15 @@ export class SpeechRecognizeSdk {
   }
 
   static createEngineAsync(params: CreateEngineParams, callback: CreateEngineCallback): void {
-    try {
-      callback.onSuccess(SpeechRecognizeSdk.createEngine(params));
-    } catch (e) {
-      callback.onError(DingqiaoErrorCode.CREATE_ENGINE_FAILED, `${e}`);
-    }
+    // 让出一帧再做重活(模型加载+一次性预热),使 UI 先渲染"加载中"态,避免调用即冻屏。
+    // 注:sherpa NAPI 对象线程绑定,无法搬到 Worker,故仍在调用线程执行;此处仅消除"点击即卡死"的观感。
+    setTimeout((): void => {
+      try {
+        callback.onSuccess(SpeechRecognizeSdk.createEngine(params));
+      } catch (e) {
+        callback.onError(DingqiaoErrorCode.CREATE_ENGINE_FAILED, `${e}`);
+      }
+    }, 0);
   }
 
   static registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult {

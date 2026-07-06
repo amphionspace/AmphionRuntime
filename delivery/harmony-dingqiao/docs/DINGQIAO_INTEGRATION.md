@@ -6,11 +6,29 @@
 
 | 路径 | 说明 |
 | --- | --- |
-| `har/` | 鼎桥 fat HAR 或三个分层 HAR |
+| `har/amphion_dingqiao.har` | ASR SDK（**自包含**：已内置 amphion_asr / amphion_police / sherpa_onnx，客户只需集成这一个）|
+| `har/amphion_tts.har` | TTS SDK（自包含，如需）|
 | `demo/dingqiao-demo.hap` | 验收 Demo |
 | `models/eres2net.onnx` | 声纹模型，放入 `setWorkPath` 指定目录 |
 | `docs/` | 接口、授权、NOTICE 与集成说明 |
 | `amphion-license.lic` | 授权文件，单独签发 |
+
+## 依赖配置
+
+ASR SDK 为**自包含 HAR**——ASR 核心、警务能力层与 sherpa_onnx 运行时依赖都已打进 `amphion_dingqiao.har` 内部（`file:./` 相对路径）。客户**只需声明这一个依赖**，无需再单独集成 amphion_asr / sherpa_onnx：
+
+```json5
+{
+  "dependencies": {
+    "amphion_dingqiao": "file:./libs/amphion_dingqiao.har"
+  }
+}
+```
+
+把交付包 `har/amphion_dingqiao.har` 放到宿主工程（例如 `./libs/`），路径按实际调整。为**纯本地 `file:` 依赖**，`ohpm install` 与后续 HAP 编译**全程无需联网、无需连 ohpm 公共仓库**，适配内网/隔离构建环境。
+
+> 只用 TTS 时同理声明一个自包含依赖 `"amphion_tts": "file:./libs/amphion_tts.har"`（HAR 包名为 `sdk`，`import { TextToSpeechSdk } from 'sdk'`）。
+> ASR 的授权、识别等能力统一通过 `amphion_dingqiao` 的 `SpeechRecognizeSdk` 使用（含 `setLicense`），无需从 amphion_asr 单独导入。
 
 ## 主流程
 
