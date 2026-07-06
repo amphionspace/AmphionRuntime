@@ -4,6 +4,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { VoiceprintStore } from './VoiceprintStore';
 import {
+  AudioInfo,
   CreateEngineCallback,
   CreateEngineParams,
   DINGQIAO_AUDIO_FRAME_BYTES_20MS,
@@ -246,6 +247,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private maxAudioBytes: number = 0;
   private audioBytesWritten: number = 0;
   private voiceprintIds: string[] = [];
+  // Whether the current asrEngine was built for the target-speaker path. Lets the plain path reuse the
+  // engine built at createEngine instead of reloading the ASR model on every startListening.
+  private engineTargetSpeaker: boolean = false;
 
   constructor(context: Context, params: CreateEngineParams) {
     this.context = context;
@@ -429,8 +433,18 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   }
 
   private rebuildEngine(params: StartParams, withTargetSpeaker: boolean, withSpeakerVad: boolean): void {
+    const wantTarget = withTargetSpeaker || withSpeakerVad;
+    // Recreating the engine reloads the OnlineRecognizer = the full ASR model (~3s on device), which is
+    // why every "开始识别" froze the UI. The recognizer config does not depend on StartParams, so the
+    // plain (non-voiceprint) path reuses the engine built at createEngine; per-start VAD endpoint tuning
+    // then falls back to the createEngine-time value on the reused path. Only rebuild when the
+    // target-speaker requirement actually changes.
+    if (!wantTarget && !this.engineTargetSpeaker) {
+      return;
+    }
     this.asrEngine.close();
     this.asrEngine = AmphionRuntime.create(this.context, languageOf(this.params.language), buildAsrConfig(this.params, params, withTargetSpeaker, withSpeakerVad));
+    this.engineTargetSpeaker = wantTarget;
   }
 
   handlePartial(text: string): void {
