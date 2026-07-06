@@ -410,6 +410,15 @@ export async function runTtsSelfTest(ctx: common.UIAbilityContext): Promise<void
   const r = new Report();
   hilog.info(DOMAIN, TAG, 'SELFTEST START');
 
+  // 0. setContext (API12: host must inject context before createEngine so the
+  //    SDK can extract bundled model resources without the API14 getApplicationContext).
+  try {
+    TextToSpeechSdk.setContext(ctx);
+    r.pass('setContext', 'context injected for bundled model extraction');
+  } catch (e) {
+    r.fail('setContext', 'threw ' + messageOf(e));
+  }
+
   // 1. listVoices (sync)
   try {
     const query: VoiceQuery = { requestId: 'lv-1', mode: RunMode.OFFLINE };
