@@ -114,6 +114,21 @@ class LitsTtsFrontendTest {
     }
 
     @Test
+    fun zhEnPercentNumbersAcceptAsciiAndFullwidthPercent() {
+        val layout = testLayout()
+        val expected = LitsTtsFrontend.encodeNormalized(layout, "电量百分之六十八。", "zh-en", "zh-en")
+
+        assertArrayEquals(
+            expected,
+            LitsTtsFrontend.encodeNormalized(layout, "电量68%。", "zh-en", "zh-en"),
+        )
+        assertArrayEquals(
+            expected,
+            LitsTtsFrontend.encodeNormalized(layout, "电量68％。", "zh-en", "zh-en"),
+        )
+    }
+
+    @Test
     fun enUsSymbolsAndEmojiDoNotBreakFrontend() {
         val layout = testLayout()
 
@@ -321,6 +336,7 @@ class LitsTtsFrontendTest {
 
         assertTokenSequence(layout, "一辆车。", "ㄧ ˊ _ ㄌ ㄧ ㄤ ˋ _")
         assertTokenSequence(layout, "一条鱼。", "ㄧ ˋ _ ㄊ ㄧ ㄠ ˊ _")
+        assertTokenSequence(layout, "一个城市。", "ㄧ ˊ _ ㄍ ㄜ ˋ _")
         assertTokenSequence(layout, "不对。", "ㄅ ㄨ ˊ _ ㄉ ㄨ ㄟ ˋ _")
         assertTokenSequence(layout, "看一看。", "ㄎ ㄢ ˋ _ ㄧ ˙ _ ㄎ ㄢ ˋ _")
         assertTokenSequence(layout, "花儿。", "ㄏ ㄨ ㄚ ˉ _ ㄦ ˙ _")
@@ -410,6 +426,9 @@ class LitsTtsFrontendTest {
     fun zhEnNamePlacePolyphoneOverridesUseExpectedReadings() {
         val layout = testLayout()
 
+        assertTokenSequence(layout, "听音乐。", "ㄧ ㄣ ˉ _ ㄩ ㄝ ˋ _")
+        assertTokenSequence(layout, "成都是一个美食之都。", "ㄕ ˋ _ ㄧ ˊ _ ㄍ ㄜ ˋ _ ㄇ ㄟ ˇ _")
+        assertTokenSequence(layout, "成都是一个美食之都。", "ㄇ ㄟ ˇ _ ㄕ ˊ _ ㄓ ˉ _ ㄉ ㄨ ˉ _")
         assertTokenSequence(layout, "重庆市人民医院的曾医生今天接诊。", "ㄗ ㄥ ˉ _ ㄧ ˉ _ ㄕ ㄥ ˉ _")
         assertTokenSequence(layout, "单县来的单老师重新核对名单。", "ㄕ ㄢ ˋ _ ㄌ ㄠ ˇ _ ㄕ ˉ _")
         assertTokenSequence(layout, "解律师在解放路口说明合同。", "ㄒ ㄧ ㄝ ˋ _ ㄌ ㄩ ˋ _ ㄕ ˉ _")

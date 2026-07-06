@@ -11,6 +11,10 @@
     {
       "name": "EntryAbility_label",
       "value": "Lits TTS Sample"
+    },
+    {
+      "name": "download_permission_reason",
+      "value": "用于将 HMS 原生语音合成的 SeedTTS WAV 结果导出到下载目录。"
     }
   ]
 }

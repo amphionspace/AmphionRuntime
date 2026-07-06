@@ -4,22 +4,42 @@
     "products": [
       {
         "name": "default",
-        "signingConfig": "default",
+        "targetSdkVersion": "5.0.0(12)",
         "compatibleSdkVersion": "5.0.0(12)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
           "strictMode": {
-            "caseSensitiveCheck": true
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
           }
         }
       }
     ],
     "buildModeSet": [
-      { "name": "debug" },
-      { "name": "release" }
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
     ]
   },
   "modules": [
-    { "name": "sdk", "srcPath": "./sdk" }
+    {
+      "name": "sdk",
+      "srcPath": "./sdk"
+    },
+    {
+      "name": "sample",
+      "srcPath": "./sample",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
   ]
 }

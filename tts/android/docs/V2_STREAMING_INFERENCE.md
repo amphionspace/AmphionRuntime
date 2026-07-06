@@ -191,7 +191,7 @@ PCM queue/drain 模拟
 常用命令：
 
 ```bash
-python3 \
+/Users/amphion/Documents/Lits_delivery/.venv/bin/python \
   LitsTtsSdk/tools/run_v2_streaming_onnx_breakpoints.py \
   --case-index 2 \
   --repeat-case 4 \

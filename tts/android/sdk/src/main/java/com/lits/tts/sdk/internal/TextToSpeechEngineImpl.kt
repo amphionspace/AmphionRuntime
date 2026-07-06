@@ -231,6 +231,16 @@ internal class TextToSpeechEngineImpl(
                 dataPath = dataPath,
                 modelInfo = synthesizer.debugSummary(),
                 loadProfileInfo = synthesizer.loadProfileInfo(),
+                streamingChunkSize = if (useStreamingSynthesis) {
+                    synthesizer.streamingChunkSize(task.params, engineParams) ?: -1
+                } else {
+                    -1
+                },
+                pcmQueueCapacity = if (useStreamingPlayback) {
+                    pcmQueueCapacity(task.params)
+                } else {
+                    -1
+                },
             )
             var synthesisCompleteNotified = false
             val audio = if (task.params.playType == PlayType.SYNTHESIZE_ONLY && useStreamingSynthesis) {
@@ -338,12 +348,13 @@ internal class TextToSpeechEngineImpl(
     }
 
     private fun pcmQueueCapacity(params: SpeakParams): Int {
+        params.streamingConfig?.pcmQueueCapacity?.let { return it.coerceIn(1, MAX_PCM_QUEUE_CAPACITY) }
         val value = params.extraParams["pcmQueueCapacity"] ?: params.extraParams["pcmQueueSize"]
         return when (value) {
             is Number -> value.toInt()
             is String -> value.toIntOrNull()
             else -> null
-        }?.coerceIn(1, 256) ?: DEFAULT_PCM_QUEUE_CAPACITY
+        }?.coerceIn(1, MAX_PCM_QUEUE_CAPACITY) ?: DEFAULT_PCM_QUEUE_CAPACITY
     }
 
     private fun emitAudioChunks(
@@ -412,6 +423,8 @@ internal class TextToSpeechEngineImpl(
         dataPath: String,
         modelInfo: String,
         loadProfileInfo: String,
+        streamingChunkSize: Int,
+        pcmQueueCapacity: Int,
     ) {
         dispatchListener {
             if (!task.cancelled.get() && !destroyed) {
@@ -424,6 +437,8 @@ internal class TextToSpeechEngineImpl(
                         modelSource = if (modelInfo.contains("source=external")) "external" else "bundled",
                         modelInfo = modelInfo,
                         loadProfileInfo = loadProfileInfo,
+                        streamingChunkSize = streamingChunkSize,
+                        pcmQueueCapacity = pcmQueueCapacity,
                     ),
                 )
             }
@@ -528,5 +543,6 @@ internal class TextToSpeechEngineImpl(
         const val BYTES_PER_FRAME = 2L
         const val DEFAULT_SAMPLE_RATE = 24000
         const val DEFAULT_PCM_QUEUE_CAPACITY = 128
+        const val MAX_PCM_QUEUE_CAPACITY = 256
     }
 }
