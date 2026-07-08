@@ -69,6 +69,13 @@ export class AmphionRuntime {
   private static nextSessionId: number = 1;
   private static asrPool: Map<AsrLanguage, OnlineRecognizer> = new Map<AsrLanguage, OnlineRecognizer>();
   private static poolConfig?: AsrConfig;
+  // Pooled speaker-embedding extractor(s), keyed by `${modelPath}|${numThreads}`. eres2net (~38 MB)
+  // is expensive to load into onnxruntime (~3-4 s), so build it at most once per process and share it
+  // across enrollment and every recognition session — mirrors asrPool for the recognizer.
+  private static speakerExtractorPool: Map<string, SpeakerEmbeddingExtractor> = new Map<string, SpeakerEmbeddingExtractor>();
+  // Pooled punctuation model (ct-transformer), keyed by `${punctModel}|${numThreads}`. Rebuilt cold in
+  // the AsrEngine ctor otherwise, so a verify/VAD toggle re-loads it and adds to the start freeze.
+  private static punctuationPool: Map<string, OfflinePunctuation> = new Map<string, OfflinePunctuation>();
 
   static init(context: Context, options?: AmphionOptions): void {
     if (AmphionRuntime.initialized) {
@@ -136,6 +143,11 @@ export class AmphionRuntime {
       // 预热一次:第一次 encoder/decoder 推理会触发 onnxruntime 懒加载(权重入算子缓冲/图构建),
       // 在此(createEngine,已有加载态)一次性付清,之后每次 startListening 不再冷启动卡顿。
       AmphionRuntime.warmUpRecognizer(recognizer);
+      // 缓存已预热的 recognizer:开启声纹/说话人VAD 会改会话级配置触发 rebuildEngine→create,
+      // 但 recognizer 配置并不随之变(见 isRecognizerConfigCompatible)。缓存后 rebuild 直接复用,
+      // 不再冷加载重来一遍(否则点"开始识别"卡 3~4 秒)。close() 从不释放 native recognizer,复用安全。
+      AmphionRuntime.asrPool.set(language, recognizer);
+      AmphionRuntime.poolConfig = effectiveConfig;
     }
     return new AsrEngine(
       context,
@@ -164,6 +176,55 @@ export class AmphionRuntime {
     }
   }
 
+  /**
+   * Pooled speaker-embedding extractor. Built at most once per process and shared across enrollment
+   * and every recognition session, so the ~3-4 s eres2net load is paid once (ideally during
+   * registration / an explicit preload) and never blocks the UI thread at recognition start.
+   * An absolute modelPath is read from the filesystem (rm=undefined); a rawfile-relative name uses
+   * the resourceManager loader — same rule as SpeakerEnroller (avoids the rawfile-loader crash).
+   */
+  static getOrCreateSpeakerExtractor(context: Context | undefined, modelPath: string, numThreads: number): SpeakerEmbeddingExtractor {
+    const key = `${modelPath}|${numThreads}`;
+    const cached = AmphionRuntime.speakerExtractorPool.get(key);
+    if (cached !== undefined) return cached;
+    const cfg = new SpeakerEmbeddingExtractorConfig();
+    cfg.model = modelPath;
+    cfg.numThreads = numThreads;
+    cfg.debug = false;
+    const rm = modelPath.startsWith('/') ? undefined : context?.resourceManager;
+    const extractor = new SpeakerEmbeddingExtractor(cfg, rm);
+    AmphionRuntime.warmUpExtractor(extractor);
+    AmphionRuntime.speakerExtractorPool.set(key, extractor);
+    return extractor;
+  }
+
+  // Force onnxruntime's lazy graph/weight init by computing one embedding over 1 s of silence, so the
+  // first real segment during recognition doesn't pay it. Best-effort; failure never blocks.
+  private static warmUpExtractor(extractor: SpeakerEmbeddingExtractor): void {
+    try {
+      const stream = extractor.createStream();
+      const wave: Samples = { samples: new Float32Array(16000), sampleRate: 16000 } as Samples;
+      stream.acceptWaveform(wave);
+      extractor.compute(stream);
+    } catch (e) {
+      Logger.w(`warmUpExtractor skipped: ${e}`);
+    }
+  }
+
+  // Pooled punctuation model. ct-transformer is a rawfile-relative asset (layout.punctModel), so the
+  // resourceManager loader is correct here. Built once and shared; stateless across addPunct calls.
+  static getOrCreatePunctuation(context: Context, punctModel: string, numThreads: number): OfflinePunctuation {
+    const key = `${punctModel}|${numThreads}`;
+    const cached = AmphionRuntime.punctuationPool.get(key);
+    if (cached !== undefined) return cached;
+    const pc = new OfflinePunctuationConfig();
+    pc.model.ctTransformer = punctModel;
+    pc.model.numThreads = numThreads;
+    const punctuation = new OfflinePunctuation(pc, context.resourceManager);
+    AmphionRuntime.punctuationPool.set(key, punctuation);
+    return punctuation;
+  }
+
   static version(): string { return AmphionRuntime.SDK_VERSION; }
   static licenseStatus(): AmphionLicenseStatus {
     return AmphionRuntime.licenseStatusHolder;
@@ -187,6 +248,8 @@ export class AmphionRuntime {
   }
   static release(): void {
     AmphionRuntime.asrPool.clear();
+    AmphionRuntime.speakerExtractorPool.clear();
+    AmphionRuntime.punctuationPool.clear();
     AmphionRuntime.poolConfig = undefined;
     AmphionRuntime.initialized = false;
     AmphionRuntime.appContext = undefined;
@@ -277,10 +340,7 @@ export class AsrEngine {
     this.engineReadyMs = engineReadyMs;
     if (config.punctuation && layout.punctModel !== undefined) {
       try {
-        const pc = new OfflinePunctuationConfig();
-        pc.model.ctTransformer = layout.punctModel;
-        pc.model.numThreads = config.numThreads;
-        this.punctuation = new OfflinePunctuation(pc, context.resourceManager);
+        this.punctuation = AmphionRuntime.getOrCreatePunctuation(context, layout.punctModel, config.numThreads);
       } catch (e) {
         Logger.w(`punctuation disabled: ${e}`);
       }
@@ -323,11 +383,10 @@ export class AsrEngine {
   }
 
   private createSpeakerExtractor(config: TargetSpeakerConfig): SpeakerEmbeddingExtractor {
-    const extractorConfig = new SpeakerEmbeddingExtractorConfig();
-    extractorConfig.model = config.modelPath;
-    extractorConfig.numThreads = config.numThreads;
-    extractorConfig.debug = false;
-    return new SpeakerEmbeddingExtractor(extractorConfig, this.context.resourceManager);
+    // Reuse the pooled, pre-warmed extractor (populated at registration / preload) so recognition
+    // start never blocks on the ~38 MB eres2net load. The rawfile-vs-filesystem loader choice
+    // (the crash fix: absolute path must NOT get a resourceManager) lives in getOrCreateSpeakerExtractor.
+    return AmphionRuntime.getOrCreateSpeakerExtractor(this.context, config.modelPath, config.numThreads);
   }
 }
 
