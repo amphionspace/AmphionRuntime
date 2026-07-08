@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # AmphionRuntime ASR gRPC 服务端 —— GPU(CUDA) 镜像。
 #
 # 推理后端：sherpa-onnx 1.13.1 + onnxruntime-gpu 1.24.4（需要 CUDA 12 + cuDNN 9）。
@@ -38,11 +39,54 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /src
 
+ARG ONNXRUNTIME_GPU_FILENAME=onnxruntime-linux-x64-gpu-1.24.4-patched.zip
+ARG ONNXRUNTIME_GPU_URL=https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.24.4/onnxruntime-linux-x64-gpu-1.24.4-patched.zip
+ARG ONNXRUNTIME_GPU_SHA256=f832c427bed33510dfd40de28094b64de4dc0c11559f4547feeb81cf267b9da3
+
+# sherpa-onnx 的 CMake 会优先查找 /tmp/${ONNXRUNTIME_GPU_FILENAME}。
+# 先用 BuildKit cache 预取并校验，避免 FetchContent 在 GitHub/HF mirror 间反复重试大文件。
+RUN --mount=type=cache,target=/var/cache/onnxruntime-gpu,sharing=locked \
+    set -eux; \
+    cache_dir=/var/cache/onnxruntime-gpu; \
+    cached="${cache_dir}/${ONNXRUNTIME_GPU_FILENAME}"; \
+    partial="${cached}.part"; \
+    target="/tmp/${ONNXRUNTIME_GPU_FILENAME}"; \
+    download_attempt=1; \
+    max_download_attempts=12; \
+    verify_file() { \
+        printf '%s  %s\n' "${ONNXRUNTIME_GPU_SHA256}" "$1" | sha256sum -c -; \
+    }; \
+    if [ -f "${cached}" ]; then \
+        if verify_file "${cached}"; then \
+            echo "onnxruntime GPU asset cache hit: ${cached}"; \
+        else \
+            rm -f "${cached}" "${partial}"; \
+        fi; \
+    fi; \
+    if [ ! -f "${cached}" ]; then \
+        while [ ! -f "${cached}" ]; do \
+            echo "downloading onnxruntime GPU asset (${download_attempt}/${max_download_attempts}): ${ONNXRUNTIME_GPU_URL}"; \
+            if curl -L --fail --retry 5 --retry-all-errors --connect-timeout 30 -C - \
+                -o "${partial}" "${ONNXRUNTIME_GPU_URL}"; then \
+                verify_file "${partial}" || { rm -f "${partial}"; exit 1; }; \
+                mv "${partial}" "${cached}"; \
+            elif [ "${download_attempt}" -ge "${max_download_attempts}" ]; then \
+                exit 1; \
+            else \
+                download_attempt=$((download_attempt + 1)); \
+                sleep 2; \
+            fi; \
+        done; \
+    fi; \
+    cp "${cached}" "${target}"; \
+    verify_file "${target}"; \
+    echo "onnxruntime GPU asset ready: ${target}"
+
 # 只拷构建所需的两棵源码树，避免把其它模块/敏感物带进镜像。
 COPY third_party/sherpa-onnx /src/third_party/sherpa-onnx
 COPY asr/server             /src/asr/server
 
-# 1) 编 sherpa-onnx cxx-api（GPU）。会联网下载 onnxruntime-gpu 1.24.4（CUDA12/cuDNN9）。
+# 1) 编 sherpa-onnx cxx-api（GPU）。onnxruntime-gpu 1.24.4 已预取到 /tmp，本步只做本地命中。
 #    flags 与本机验证通过的 build-linux-gpu 完全一致。
 RUN cmake -S /src/third_party/sherpa-onnx -B /tmp/sherpa-build \
         -DCMAKE_BUILD_TYPE=Release \
