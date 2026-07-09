@@ -76,6 +76,11 @@ export class AmphionRuntime {
   // Pooled punctuation model (ct-transformer), keyed by `${punctModel}|${numThreads}`. Rebuilt cold in
   // the AsrEngine ctor otherwise, so a verify/VAD toggle re-loads it and adds to the start freeze.
   private static punctuationPool: Map<string, OfflinePunctuation> = new Map<string, OfflinePunctuation>();
+  // Pooled silero VAD, keyed by its config. Otherwise a fresh SherpaVad (silero ONNX session + a
+  // multi-MB ring buffer) is built per session and only reclaimed by the NAPI finalizer on GC —
+  // since the JS wrapper is tiny over the native payload, GC lags and RSS climbs under start/stop
+  // churn. Pooling one instance (reset() on acquire) keeps it flat. Sessions are sequential (busy guard).
+  private static vadPool: Map<string, SherpaVad> = new Map<string, SherpaVad>();
 
   static init(context: Context, options?: AmphionOptions): void {
     if (AmphionRuntime.initialized) {
@@ -225,6 +230,27 @@ export class AmphionRuntime {
     return punctuation;
   }
 
+  // Pooled silero VAD. Built once per config and shared; callers MUST reset() it on acquire to drop
+  // the previous session's internal state. vadModel is rawfile-relative, so resourceManager is correct.
+  static getOrCreateVad(
+    context: Context,
+    vadModel: string,
+    threshold: number,
+    minSpeechDurationSec: number,
+    minSilenceDurationSec: number,
+    maxSpeechDurationSec: number
+  ): SherpaVad {
+    const key = `${vadModel}|${threshold}|${minSpeechDurationSec}|${minSilenceDurationSec}|${maxSpeechDurationSec}`;
+    const cached = AmphionRuntime.vadPool.get(key);
+    if (cached !== undefined) return cached;
+    const silero = new SileroVadConfig(vadModel, threshold, minSpeechDurationSec, minSilenceDurationSec, 512, maxSpeechDurationSec);
+    const ten = new TenVadConfig('', 0.5, 0.25, 0.5, 256);
+    const cfg = new SherpaVadConfig(silero, ten, 16000, false, 1);
+    const vad = new SherpaVad(cfg, Math.max(60, Math.ceil(maxSpeechDurationSec + 5)), context.resourceManager);
+    AmphionRuntime.vadPool.set(key, vad);
+    return vad;
+  }
+
   static version(): string { return AmphionRuntime.SDK_VERSION; }
   static licenseStatus(): AmphionLicenseStatus {
     return AmphionRuntime.licenseStatusHolder;
@@ -250,6 +276,7 @@ export class AmphionRuntime {
     AmphionRuntime.asrPool.clear();
     AmphionRuntime.speakerExtractorPool.clear();
     AmphionRuntime.punctuationPool.clear();
+    AmphionRuntime.vadPool.clear();
     AmphionRuntime.poolConfig = undefined;
     AmphionRuntime.initialized = false;
     AmphionRuntime.appContext = undefined;
@@ -620,18 +647,14 @@ export class AsrSession {
     if (this.config.vadConfig.modelType === VadModelType.TEN_VAD) {
       throw new Error('TEN_VAD is declared but ten-vad model is not packaged in Harmony HAR');
     }
-    const silero = new SileroVadConfig(
-      this.layout.vadModel,
-      this.config.vadConfig.threshold,
-      this.config.vadConfig.minSpeechDurationSec,
-      this.config.vadConfig.minSilenceDurationSec,
-      512,
-      this.config.vadConfig.maxSpeechDurationSec
-    );
-    const ten = new TenVadConfig('', 0.5, 0.25, 0.5, 256);
-    const vadConfig = new SherpaVadConfig(silero, ten, 16000, false, 1);
-    this.vadWindowSize = silero.windowSize;
-    return new SherpaVad(vadConfig, Math.max(60, Math.ceil(this.config.vadConfig.maxSpeechDurationSec + 5)), this.context.resourceManager);
+    this.vadWindowSize = 512;
+    const vc = this.config.vadConfig;
+    // Reuse the pooled VAD; reset() drops any state left by the previous session (sessions run
+    // sequentially, so single-instance reuse is safe). Avoids per-session silero-ONNX+ring-buffer alloc.
+    const vad = AmphionRuntime.getOrCreateVad(
+      this.context, this.layout.vadModel, vc.threshold, vc.minSpeechDurationSec, vc.minSilenceDurationSec, vc.maxSpeechDurationSec);
+    vad.reset();
+    return vad;
   }
 
   // Android-aligned chunk pipeline: feed every chunk to the recognizer in full (so partials stay
