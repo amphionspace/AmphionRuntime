@@ -56,20 +56,27 @@ internal class LitsTtsOrtRuntime(
                 .also(loadedSessions::add)
         }
 
-        acousticSession = load("acoustic", layout.acousticModel?.absolutePath)?.session
-        vocoderSession = load("vocoder", layout.vocoderModel.absolutePath)?.session
-            ?: error("vocoder session is unavailable")
-        hiddenEncoderSession = load("hidden", layout.hiddenEncoderModel?.absolutePath)?.session
-        streamDecoderChunkSession = load("chunk", layout.streamDecoderChunkModel?.absolutePath)?.session
-        streamDecoderFinalSession = load("final", layout.streamDecoderFinalModel?.absolutePath)?.session
-        streamConditionChunkSession = load("condChunk", layout.streamConditionChunkModel?.absolutePath)?.session
-        streamConditionFinalSession = load("condFinal", layout.streamConditionFinalModel?.absolutePath)?.session
-        streamDecoderStepSession = load("step", layout.streamDecoderStepModel?.absolutePath)?.session
-        loadProfileInfo = buildString {
-            append("ortcreateWall=").append(elapsedMs(sessionLoadStartedAt)).append("ms")
-            for (loaded in loadedSessions) {
-                append(",").append(loaded.label).append("=").append(loaded.elapsedMs).append("ms")
+        try {
+            acousticSession = load("acoustic", layout.acousticModel?.absolutePath)?.session
+            vocoderSession = load("vocoder", layout.vocoderModel.absolutePath)?.session
+                ?: error("vocoder session is unavailable")
+            hiddenEncoderSession = load("hidden", layout.hiddenEncoderModel?.absolutePath)?.session
+            streamDecoderChunkSession = load("chunk", layout.streamDecoderChunkModel?.absolutePath)?.session
+            streamDecoderFinalSession = load("final", layout.streamDecoderFinalModel?.absolutePath)?.session
+            streamConditionChunkSession = load("condChunk", layout.streamConditionChunkModel?.absolutePath)?.session
+            streamConditionFinalSession = load("condFinal", layout.streamConditionFinalModel?.absolutePath)?.session
+            streamDecoderStepSession = load("step", layout.streamDecoderStepModel?.absolutePath)?.session
+            loadProfileInfo = buildString {
+                append("ortcreateWall=").append(elapsedMs(sessionLoadStartedAt)).append("ms")
+                for (loaded in loadedSessions) {
+                    append(",").append(loaded.label).append("=").append(loaded.elapsedMs).append("ms")
+                }
             }
+        } catch (error: Throwable) {
+            // 半初始化失败(某个 session load 抛异常):init 抛出后对象不会构造成功、close() 永不
+            // 被调用,故这里必须主动关闭已建好的 session,避免孤儿 native 句柄泄漏。
+            loadedSessions.forEach { runCatching { it.session.close() } }
+            throw error
         }
     }
 
@@ -467,7 +474,11 @@ internal class LitsTtsOrtRuntime(
         val file = java.io.File(modelPath)
         Log.i(ORT_LOG_TAG, "createSession start label=$label path=$modelPath bytes=${file.length()} exists=${file.isFile}")
         return try {
-            val session = environment.createSession(modelPath, createSessionOptions(intraOpThreads = intraOpThreads))
+            // createSession 不接管 SessionOptions 的 native 句柄，必须显式关闭，否则每建一个
+            // session 泄漏一个 OrtSessionOptions（无 finalizer/Cleaner 回收）。
+            val session = createSessionOptions(intraOpThreads = intraOpThreads).use { sessionOptions ->
+                environment.createSession(modelPath, sessionOptions)
+            }
             ProfiledSession(label = label, session = session, elapsedMs = elapsedMs(startedAt)).also {
                 Log.i(ORT_LOG_TAG, "createSession complete label=$label elapsedMs=${it.elapsedMs}")
             }
