@@ -725,7 +725,11 @@ export class SpeechRecognizeSdk {
       }
     }
     try {
-      const enroller = new SpeakerEnroller(modelPath);
+      // Reuse the shared, pooled extractor so registration warms the SAME instance the recognition
+      // path uses — the ~38 MB eres2net load is paid here (where a wait is expected) and start
+      // recognition stays instant.
+      const extractor = AmphionRuntime.getOrCreateSpeakerExtractor(undefined, modelPath, 1);
+      const enroller = new SpeakerEnroller(modelPath, 1, undefined, extractor);
       const embedding = enroller.enrollFiles(params.samplePaths);
       enroller.close();
       // Persist to {workPath}/voiceprints/{id}; auto-generated id is returned to the caller and
@@ -751,6 +755,25 @@ export class SpeechRecognizeSdk {
   }
 
   static getWorkPath(): string { return SpeechRecognizeSdk.workPath; }
+
+  /**
+   * Preload + warm the voiceprint extractor so the first startListening with
+   * enableVoiceprintVerification does not block the UI thread on the ~38 MB eres2net load.
+   * Idempotent (no-op once pooled). Returns false if the model file is not present yet.
+   * Registration already warms the same pool, so this mainly covers the app-restart case
+   * (model on disk + voiceprint registered, but the in-memory pool is cold). Synchronous —
+   * call it at a non-critical moment (e.g. when the caller enables voiceprint verification).
+   */
+  static preloadVoiceprintModel(): boolean {
+    const modelPath = SpeechRecognizeSdk.speakerModelPath();
+    if (!fs.accessSync(modelPath)) return false;
+    try {
+      AmphionRuntime.getOrCreateSpeakerExtractor(undefined, modelPath, 1);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
   private static speakerModelPath(): string {
     return `${SpeechRecognizeSdk.workPath}/eres2net.onnx`;
