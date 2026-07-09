@@ -47,6 +47,11 @@ internal class LitsTtsOrtRuntime(
     private val streamDecoderStepSession: OrtSession?
     val loadProfileInfo: String
 
+    // ONNX Runtime 契约:SessionOptions 必须在使用它的 session 关闭之后才能 close(否则可能释放
+    // session 仍在用的 native 资源)。故与 session 同生命周期持有,统一在 close() 里(session 关闭后)
+    // 再释放——既不泄漏(无 finalizer 回收),又不违反关闭次序。
+    private val heldSessionOptions = mutableListOf<OrtSession.SessionOptions>()
+
     init {
         val sessionLoadStartedAt = System.nanoTime()
         val loadedSessions = mutableListOf<ProfiledSession>()
@@ -73,9 +78,10 @@ internal class LitsTtsOrtRuntime(
                 }
             }
         } catch (error: Throwable) {
-            // 半初始化失败(某个 session load 抛异常):init 抛出后对象不会构造成功、close() 永不
-            // 被调用,故这里必须主动关闭已建好的 session,避免孤儿 native 句柄泄漏。
+            // 半初始化失败(某个 session load 抛异常):init 抛出后对象不会构造成功、close() 永不被
+            // 调用,故这里主动清理——先关已建 session,再关其 options(遵守 ORT 契约的关闭次序)。
             loadedSessions.forEach { runCatching { it.session.close() } }
+            heldSessionOptions.forEach { runCatching { it.close() } }
             throw error
         }
     }
@@ -308,6 +314,8 @@ internal class LitsTtsOrtRuntime(
         hiddenEncoderSession?.close()
         vocoderSession.close()
         acousticSession?.close()
+        // ORT 契约:所有 session 关闭后,再关闭它们各自的 SessionOptions。
+        heldSessionOptions.forEach { runCatching { it.close() } }
     }
 
     companion object {
@@ -474,11 +482,16 @@ internal class LitsTtsOrtRuntime(
         val file = java.io.File(modelPath)
         Log.i(ORT_LOG_TAG, "createSession start label=$label path=$modelPath bytes=${file.length()} exists=${file.isFile}")
         return try {
-            // createSession 不接管 SessionOptions 的 native 句柄，必须显式关闭，否则每建一个
-            // session 泄漏一个 OrtSessionOptions（无 finalizer/Cleaner 回收）。
-            val session = createSessionOptions(intraOpThreads = intraOpThreads).use { sessionOptions ->
+            // SessionOptions 若从不 close 会泄漏(无 finalizer 回收);但 ORT 契约要求它必须晚于其
+            // session 关闭。故此处持有,由 close() 在 session 关闭后统一释放,而不是建完即关。
+            val sessionOptions = createSessionOptions(intraOpThreads = intraOpThreads)
+            val session = try {
                 environment.createSession(modelPath, sessionOptions)
+            } catch (t: Throwable) {
+                runCatching { sessionOptions.close() } // 建 session 失败:没有 session 会用到它,立即关闭
+                throw t
             }
+            heldSessionOptions.add(sessionOptions)
             ProfiledSession(label = label, session = session, elapsedMs = elapsedMs(startedAt)).also {
                 Log.i(ORT_LOG_TAG, "createSession complete label=$label elapsedMs=${it.elapsedMs}")
             }
