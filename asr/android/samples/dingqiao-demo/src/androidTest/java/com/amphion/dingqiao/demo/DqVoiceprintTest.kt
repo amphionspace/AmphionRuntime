@@ -225,6 +225,45 @@ class DqVoiceprintTest {
             listener.errors.isNotEmpty())
     }
 
+    // ---------- v09: 异步 registerVoiceprint —— 回调成功且跑在后台线程(engineExecutor),不阻塞调用线程 ----------
+    // 同时覆盖 setWorkPath 后台预装 eres2net 与异步注册的 @Synchronized 并发安全:紧跟 ensureReady() 就注册。
+    @Test
+    fun v09_register_async_offCallerThread_ok() {
+        ensureReady()
+        val sample = testCtx.assets.list("").orEmpty().first { it.contains("声纹") }
+        val path = stageAsset(testCtx, ctx, sample, "vp_samples/${File(sample).name}")
+        val callerThread = Thread.currentThread().name
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val cbThread = java.util.concurrent.atomic.AtomicReference("")
+        val id = java.util.concurrent.atomic.AtomicReference("")
+        val err = java.util.concurrent.atomic.AtomicReference("")
+        SpeechRecognizeSdk.registerVoiceprint(
+            VoiceprintRegisterParams(samplePaths = listOf(path), audioInfo = AudioInfo()),
+            object : com.amphion.dingqiao.VoiceprintRegisterCallback {
+                override fun onResult(result: com.amphion.dingqiao.VoiceprintRegisterResult) {
+                    cbThread.set(Thread.currentThread().name)
+                    id.set(result.voiceprintId.keys.firstOrNull() ?: "")
+                    latch.countDown()
+                }
+                override fun onError(errorCode: Int, errorMessage: String) {
+                    cbThread.set(Thread.currentThread().name)
+                    err.set("$errorCode $errorMessage")
+                    latch.countDown()
+                }
+            },
+        )
+        val fired = latch.await(30, java.util.concurrent.TimeUnit.SECONDS)
+        DqReport.append(ctx, mapOf("case" to "v09_register_async", "callerThread" to callerThread,
+            "callbackThread" to cbThread.get(), "voiceprintId" to id.get(), "err" to err.get()))
+        assertTrue("async callback must fire within 30s", fired)
+        assertTrue("no error: ${err.get()}", err.get().isEmpty())
+        assertTrue("voiceprint id should be returned", id.get().isNotBlank())
+        assertTrue("callback must run OFF the caller thread (cb='${cbThread.get()}' caller='$callerThread')",
+            cbThread.get() != callerThread)
+        assertTrue("callback should run on the SDK engine executor 'dingqiao-engine', got '${cbThread.get()}'",
+            cbThread.get().contains("dingqiao-engine"))
+    }
+
     companion object {
         @Volatile private var engine: SpeechRecognitionEngine? = null
 
