@@ -83,6 +83,12 @@ interface LicenseActivationCallback {
     fun onError(errorCode: Int, errorMessage: String) {}
 }
 
+/** 声纹注册异步回调。注册会加载 ~38MB 声纹模型并计算 embedding，务必走异步重载，勿在 UI 线程同步调用。 */
+interface VoiceprintRegisterCallback {
+    fun onResult(result: VoiceprintRegisterResult)
+    fun onError(errorCode: Int, errorMessage: String) {}
+}
+
 /** 识别过程回调，与鼎桥 [RecognitionListener] 对齐。 */
 interface RecognitionListener {
     fun onStart(sessionId: String, eventMessage: String)
