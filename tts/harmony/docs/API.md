@@ -29,6 +29,10 @@ class TextToSpeechSdk {
 - `extraParams.modelPackageDir` 优先级最高，适合显式接入外部模型目录
 - 当前仅支持 `RunMode.OFFLINE`
 - callback 版 `createEngine` / `listVoices` 为 Android 对齐接口；`createEngineAsync` / `listVoicesAsync` 保留为兼容别名
+- ⚠️ **线程约定（重要）**：`createEngine` 会加载模型——首次还需把内置模型解包到工作目录、并构建 native ONNX 运行时（多个模型），**耗时数秒**。**callback / `*Async` 重载并不会把这项工作切到后台线程**（当前实现只是下一个微任务再执行，仍跑在**调用线程**上）。因此：
+  - **请在非 UI 线程调用 `createEngine`，或在调用前先显示"加载中"状态**；在 UI 线程直接调用会造成首启卡顿（可能触发无响应）。
+  - 建议在应用启动/闪屏阶段预先 `createEngine` 一次并持有 engine，之后 `speak()` 即时返回。
+  - 该耗时是"模型加载"固有成本，与是否用 callback 无关；调度到哪个线程由集成方决定。
 
 ## TextToSpeechEngine
 
