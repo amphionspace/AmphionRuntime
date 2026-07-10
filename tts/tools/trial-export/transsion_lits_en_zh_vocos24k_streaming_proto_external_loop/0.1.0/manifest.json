@@ -18,7 +18,7 @@
   ],
   "runtime_format": "onnx",
   "vocoder_type": "vocos",
-  "streaming_chunk_size": 100,
+  "streaming_chunk_size": 50,
   "streaming_pre_lookahead_len": 3,
   "streaming_mel_cache_len": 8,
   "num_decoding_left_chunks": 1,
@@ -62,7 +62,7 @@
     },
     {
       "name": "chinese_lexicon.bin",
-      "size_bytes": 18755953
+      "size_bytes": 18757817
     },
     {
       "name": "cmudict.txt",
@@ -91,6 +91,18 @@
     {
       "name": "arpabet_to_tokens.json",
       "size_bytes": 2256
+    },
+    {
+      "name": "polyphone_context.txt",
+      "size_bytes": 763
+    },
+    {
+      "name": "polyphone_phrases.txt",
+      "size_bytes": 1798
+    },
+    {
+      "name": "chinese_surname_lexicon.txt",
+      "size_bytes": 854
     }
   ],
   "stream_decoder_external_loop": true,

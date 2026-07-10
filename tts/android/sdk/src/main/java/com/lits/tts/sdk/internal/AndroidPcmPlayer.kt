@@ -52,6 +52,7 @@ internal class AndroidPcmPlayer {
         queueCapacity: Int = DEFAULT_STREAMING_QUEUE_CAPACITY,
         producer: ((ByteArray) -> Unit) -> Unit,
         onSynthesisComplete: () -> Unit = {},
+        onFirstAudioWritten: () -> Unit = {},
     ) {
         val minBufferSize = minBufferSize(sampleRate)
         val localTrack = createTrack(sampleRate, soundChannel, minBufferSize)
@@ -68,6 +69,7 @@ internal class AndroidPcmPlayer {
         val prebufferLock = Object()
         var queuedChunks = 0
         var producerFinished = false
+        val firstAudioWritten = AtomicBoolean(false)
         val playbackThread = Thread(
             {
                 try {
@@ -79,6 +81,9 @@ internal class AndroidPcmPlayer {
                             val length = minOf(minBufferSize, chunk.size - offset)
                             val written = localTrack.write(chunk, offset, length, AudioTrack.WRITE_BLOCKING)
                             if (written <= 0) break
+                            if (firstAudioWritten.compareAndSet(false, true)) {
+                                onFirstAudioWritten()
+                            }
                             offset += written
                             synchronized(totalBytesLock) {
                                 totalBytes += written
@@ -278,7 +283,7 @@ internal class AndroidPcmPlayer {
         const val STREAMING_THREAD_JOIN_POLL_MS = 20L
         const val DEFAULT_STREAMING_QUEUE_CAPACITY = 32
         const val MAX_STREAMING_QUEUE_CAPACITY = 256
-        const val STREAMING_PREBUFFER_CHUNKS = 2
+        const val STREAMING_PREBUFFER_CHUNKS = 1
         const val STREAMING_PREBUFFER_WAIT_MS = 20L
         val END_OF_STREAM = ByteArray(0)
     }

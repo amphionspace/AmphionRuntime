@@ -178,7 +178,6 @@ class MainActivity : AppCompatActivity() {
         val language = selectedLanguage()
         val readyEngine = engine
         val chunkSize = selectedChunkSize()
-        val firstChunkSize = chunkSize
         val pcmQueueCapacity = selectedPcmQueueCapacity()
         val speed = selectedSpeed()
         if (readyEngine == null || engineLanguage != language) {
@@ -209,7 +208,7 @@ class MainActivity : AppCompatActivity() {
         val actionText = if (playType == PlayType.SYNTHESIZE_ONLY) "\u5f00\u59cb\u5408\u6210" else "SDK \u76f4\u63a5\u64ad\u62a5"
         setStatus("$actionText\uff1a$requestId")
         setMetrics(getString(R.string.metrics_placeholder))
-        appendLog("提交请求 requestId=$requestId language=$language playType=$playType speed=$speed firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity")
+        appendLog("提交请求 requestId=$requestId language=$language playType=$playType speed=$speed chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity")
         beginBusy(requestId)
 
         runCatching {
@@ -223,7 +222,6 @@ class MainActivity : AppCompatActivity() {
                     languageContext = if (language == "en-US") "en-US" else "zh-en",
                     extraParams = mapOf(
                         "streamingChunkSize" to chunkSize,
-                        "streamingFirstChunkSize" to firstChunkSize,
                         "pcmQueueCapacity" to pcmQueueCapacity,
                     ),
                 ),
@@ -257,7 +255,6 @@ class MainActivity : AppCompatActivity() {
         }
         val requestId = nextRequestId("warmup")
         val chunkSize = selectedChunkSize()
-        val firstChunkSize = chunkSize
         val pcmQueueCapacity = selectedPcmQueueCapacity()
         val speed = selectedSpeed()
         requestPlayTypes[requestId] = PlayType.SYNTHESIZE_ONLY
@@ -279,9 +276,9 @@ class MainActivity : AppCompatActivity() {
         setMetrics(buildMetricsText(null, null, null, null, 0L, 0))
         appendLog(
             if (autoTriggered) {
-                "自动 Warmup requestId=$requestId language=$language speed=$speed firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity"
+                "自动 Warmup requestId=$requestId language=$language speed=$speed chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity"
             } else {
-                "提交 Warmup requestId=$requestId language=$language speed=$speed firstChunkSize=$firstChunkSize chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity"
+                "提交 Warmup requestId=$requestId language=$language speed=$speed chunkSize=$chunkSize pcmQueueCapacity=$pcmQueueCapacity"
             },
         )
         beginBusy(requestId)
@@ -297,7 +294,6 @@ class MainActivity : AppCompatActivity() {
                     languageContext = if (language == "en-US") "en-US" else "zh-en",
                     extraParams = mapOf(
                         "streamingChunkSize" to chunkSize,
-                        "streamingFirstChunkSize" to firstChunkSize,
                         "pcmQueueCapacity" to pcmQueueCapacity,
                     ),
                 ),
@@ -817,7 +813,7 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val VOICE_ID_SPEAKER_0 = "lits-female-01"
         const val VOICE_ID_SPEAKER_1 = "lits-female-02"
-        const val DEFAULT_STREAMING_CHUNK_SIZE = 100
+        const val DEFAULT_STREAMING_CHUNK_SIZE = 50
         const val DEFAULT_PCM_QUEUE_CAPACITY = 128
     }
 }

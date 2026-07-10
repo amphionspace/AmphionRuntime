@@ -88,7 +88,7 @@ internal object TranssionTnNormalizer {
                     return normalized
                 }
             } catch (error: Throwable) {
-                Log.w(TAG, "native TN normalize failed; falling back to process lang=$lang", error)
+                logWarning("native TN normalize failed; falling back to process lang=$lang", error)
             }
             val binary = when (lang) {
                 "en" -> layout.tnEnTts
@@ -100,14 +100,14 @@ internal object TranssionTnNormalizer {
                 }
                 process.normalize(text)
             } catch (error: Throwable) {
-                Log.w(TAG, "TN normalize failed; restarting lang=$lang binary=${binary.absolutePath}", error)
+                logWarning("TN normalize failed; restarting lang=$lang binary=${binary.absolutePath}", error)
                 processes.remove(lang)?.close()
                 try {
                     val restarted = TnProcess.start(binary, layout.rootDir)
                     processes[lang] = restarted
                     restarted.normalize(text)
                 } catch (retryError: Throwable) {
-                    Log.e(TAG, "TN normalize retry failed; disabling TN for lang=$lang", retryError)
+                    logError("TN normalize retry failed; disabling TN for lang=$lang", retryError)
                     processes.remove(lang)?.close()
                     disabledLanguages += lang
                     text
@@ -276,6 +276,22 @@ internal object TranssionTnNormalizer {
             output += " "
         }
         return output
+    }
+
+    private fun logWarning(message: String, error: Throwable) {
+        try {
+            Log.w(TAG, message, error)
+        } catch (_: Throwable) {
+            // Android Log is not mocked in local JVM tests; TN should still be testable there.
+        }
+    }
+
+    private fun logError(message: String, error: Throwable) {
+        try {
+            Log.e(TAG, message, error)
+        } catch (_: Throwable) {
+            // Android Log is not mocked in local JVM tests; TN should still be testable there.
+        }
     }
 
     private const val TAG = "LitsTn"

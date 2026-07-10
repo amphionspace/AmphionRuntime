@@ -1,5 +1,7 @@
 package com.lits.tts.sdk.internal
 
+import android.os.SystemClock
+
 import com.lits.tts.sdk.CompleteResponse
 import com.lits.tts.sdk.CompleteType
 import com.lits.tts.sdk.CreateEngineParams
@@ -20,6 +22,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 internal class TextToSpeechEngineImpl(
     private val engineParams: CreateEngineParams,
@@ -205,6 +208,7 @@ internal class TextToSpeechEngineImpl(
         val callback = listener
         try {
             if (callback == null || task.cancelled.get() || destroyed) return
+            task.startedAtMs = SystemClock.elapsedRealtime()
             var sequence = 0
             val useStreamingSynthesis = synthesizer.canStream(task.params, engineParams)
             val useStreamingPlayback =
@@ -227,6 +231,16 @@ internal class TextToSpeechEngineImpl(
                 dataPath = dataPath,
                 modelInfo = synthesizer.debugSummary(),
                 loadProfileInfo = synthesizer.loadProfileInfo(),
+                streamingChunkSize = if (useStreamingSynthesis) {
+                    synthesizer.streamingChunkSize(task.params, engineParams) ?: -1
+                } else {
+                    -1
+                },
+                pcmQueueCapacity = if (useStreamingPlayback) {
+                    pcmQueueCapacity(task.params)
+                } else {
+                    -1
+                },
             )
             var synthesisCompleteNotified = false
             val audio = if (task.params.playType == PlayType.SYNTHESIZE_ONLY && useStreamingSynthesis) {
@@ -276,9 +290,22 @@ internal class TextToSpeechEngineImpl(
                         val produced = synthesized
                         if (produced != null && !task.cancelled.get() && !destroyed) {
                             synthesisCompleteNotified = true
-                            notifyComplete(callback, task, buildSynthesisCompleteResponse(produced))
+                            notifyComplete(
+                                callback,
+                                task,
+                                buildSynthesisCompleteResponse(
+                                    audio = produced,
+                                    playbackStartMs = task.playbackStartMs.get(),
+                                ),
+                            )
                         }
-                    }
+                    },
+                    onFirstAudioWritten = {
+                        val startedAt = task.startedAtMs
+                        if (startedAt >= 0L) {
+                            task.playbackStartMs.compareAndSet(-1L, SystemClock.elapsedRealtime() - startedAt)
+                        }
+                    },
                 )
                 synthesized ?: throw IllegalStateException("streaming playback produced no synthesized audio")
             } else {
@@ -321,12 +348,13 @@ internal class TextToSpeechEngineImpl(
     }
 
     private fun pcmQueueCapacity(params: SpeakParams): Int {
+        params.streamingConfig?.pcmQueueCapacity?.let { return it.coerceIn(1, MAX_PCM_QUEUE_CAPACITY) }
         val value = params.extraParams["pcmQueueCapacity"] ?: params.extraParams["pcmQueueSize"]
         return when (value) {
             is Number -> value.toInt()
             is String -> value.toIntOrNull()
             else -> null
-        }?.coerceIn(1, 256) ?: DEFAULT_PCM_QUEUE_CAPACITY
+        }?.coerceIn(1, MAX_PCM_QUEUE_CAPACITY) ?: DEFAULT_PCM_QUEUE_CAPACITY
     }
 
     private fun emitAudioChunks(
@@ -356,7 +384,10 @@ internal class TextToSpeechEngineImpl(
         }
     }
 
-    private fun buildSynthesisCompleteResponse(audio: SynthesizedAudio): CompleteResponse {
+    private fun buildSynthesisCompleteResponse(
+        audio: SynthesizedAudio,
+        playbackStartMs: Long = -1L,
+    ): CompleteResponse {
         val audioDurationMs = audioDurationMs(audio.audioBytes, audio.sampleRate)
         val firstPacketMs = when {
             audio.firstChunkMs >= 0L -> audio.firstChunkMs
@@ -375,6 +406,7 @@ internal class TextToSpeechEngineImpl(
                 -1.0
             },
             profilingInfo = audio.profilingInfo,
+            playbackStartMs = playbackStartMs,
         )
     }
 
@@ -391,6 +423,8 @@ internal class TextToSpeechEngineImpl(
         dataPath: String,
         modelInfo: String,
         loadProfileInfo: String,
+        streamingChunkSize: Int,
+        pcmQueueCapacity: Int,
     ) {
         dispatchListener {
             if (!task.cancelled.get() && !destroyed) {
@@ -403,6 +437,8 @@ internal class TextToSpeechEngineImpl(
                         modelSource = if (modelInfo.contains("source=external")) "external" else "bundled",
                         modelInfo = modelInfo,
                         loadProfileInfo = loadProfileInfo,
+                        streamingChunkSize = streamingChunkSize,
+                        pcmQueueCapacity = pcmQueueCapacity,
                     ),
                 )
             }
@@ -483,6 +519,8 @@ internal class TextToSpeechEngineImpl(
         val params: SpeakParams,
         val cancelled: AtomicBoolean = AtomicBoolean(false),
         val stopNotified: AtomicBoolean = AtomicBoolean(false),
+        val playbackStartMs: AtomicLong = AtomicLong(-1L),
+        @Volatile var startedAtMs: Long = -1L,
     )
 
     private class TtsThreadFactory(
@@ -505,5 +543,6 @@ internal class TextToSpeechEngineImpl(
         const val BYTES_PER_FRAME = 2L
         const val DEFAULT_SAMPLE_RATE = 24000
         const val DEFAULT_PCM_QUEUE_CAPACITY = 128
+        const val MAX_PCM_QUEUE_CAPACITY = 256
     }
 }

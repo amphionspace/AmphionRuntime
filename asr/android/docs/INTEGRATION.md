@@ -184,6 +184,10 @@ val newEngine = AmphionRuntime.create(context, AsrLanguage.YUE_EN)
 | LICENSE_APP_MISMATCH | 6004 | 保留错误码；当前正式设备白名单 license 不按 applicationId 限制宿主 |
 | LICENSE_CERT_MISMATCH | 6005 | .lic 绑定的签名证书与你的不一致 |
 | LICENSE_EXPIRED | 6006 | .lic 已过期 |
+| LICENSE_DEVICE_MISMATCH | 6007 | 设备 SN 不可用或 SN 哈希不在白名单 |
+| LICENSE_SDK_MAJOR_MISMATCH | 6008 | license 授权 SDK 大版本与当前 SDK 不一致 |
+| LICENSE_MAINTENANCE_EXPIRED | 6009 | 当前 SDK 发布时间晚于维护期 |
+| LICENSE_FEATURE_MISSING | 6010 | license 未授权当前 SDK 所需能力 |
 | NATIVE_CRASH | 9001 | native 兜底；建议 close session 重建 |
 
 业务方一般只需要关心：

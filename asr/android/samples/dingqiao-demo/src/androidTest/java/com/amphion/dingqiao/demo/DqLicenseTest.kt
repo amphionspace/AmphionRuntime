@@ -20,8 +20,8 @@ import org.junit.runner.RunWith
 import org.junit.runners.MethodSorters
 
 /**
- * 离线 License 运行时激活（setLicense）corner-case：到期、设备白名单、包名、能力、损坏、路径。
- * 同时验证“资产 license 已生效但 getLicenseInfo 报 NOT_SET”的接口不一致。
+ * 离线 License 运行时激活（setLicense）corner-case：到期、设备白名单、包名不限制、能力、损坏、路径。
+ * 同时验证资产 license 生效后 getLicenseInfo 能回落返回 runtime 授权信息。
  *
  * 变体 license 用项目签发私钥（与交付 AAR 内置公钥同对）现签，落在 androidTest 资产 licenses/ 下。
  */
@@ -57,25 +57,27 @@ class DqLicenseTest {
         return Activation(code, remaining, features, msg)
     }
 
-    // ---------- L01: 资产 license 已授权但 getLicenseInfo 报 NOT_SET ----------
+    // ---------- L01: 资产 license 已授权且 getLicenseInfo 可读 ----------
     @Test
-    fun L01_assetLicensed_engineWorks_butInfoNotSet() {
+    fun L01_assetLicensed_engineWorks_andInfoReadable() {
         SpeechRecognizeSdk.init(ctx)
         SpeechRecognizeSdk.setWorkPath(File(ctx.getExternalFilesDir(null), "dq_lic_work").absolutePath)
         // 资产内置 license 使引擎可创建（武装 AAR 必须通过授权才会成功）。
         val engine = SpeechRecognizeSdk.createEngine(
             CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE),
         )
-        var infoThrew: Int? = null
         try {
-            SpeechRecognizeSdk.getLicenseInfo()
-        } catch (t: Throwable) {
-            infoThrew = runCatching { t.javaClass.getMethod("getErrorCode").invoke(t) as? Int }.getOrNull()
+            val info = SpeechRecognizeSdk.getLicenseInfo()
+            DqReport.append(ctx, mapOf(
+                "case" to "L01_infoReadableWhileAssetLicensed",
+                "infoStatus" to info.status,
+                "infoFeatures" to info.authorizedFeatures.toString(),
+            ))
+            assertEquals("asset license should be active", 0, info.status)
+            assertTrue("asset license should include ASR", info.authorizedFeatures.contains("ASR"))
+        } finally {
+            engine.shutdown()
         }
-        engine.shutdown()
-        DqReport.append(ctx, mapOf("case" to "L01_infoNotSetWhileLicensed", "getLicenseInfoErrorCode" to infoThrew))
-        assertEquals("engine licensed via asset, yet getLicenseInfo throws NOT_SET",
-            DingqiaoErrorCode.LICENSE_NOT_SET, infoThrew)
     }
 
     // ---------- L10: 合法 demo license ----------
@@ -139,13 +141,13 @@ class DqLicenseTest {
         ))
     }
 
-    // ---------- L50: 包名不匹配（注意会被归并成 DEVICE_MISMATCH 码） ----------
+    // ---------- L50: 3.0 license 不再限制包名/证书 ----------
     @Test
     fun L50_setAppMismatch() {
         val a = setLicense("app_mismatch.lic")
         DqReport.append(ctx, mapOf("case" to "L50_appMismatch", "code" to a.code, "msg" to a.errMsg,
-            "note" to "app/cert/device mismatch all surface as LICENSE_DEVICE_MISMATCH(1002200033)"))
-        assertEquals(DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH, a.code)
+            "note" to "v3.0 policy does not bind applicationId/cert; only device/time/features are enforced"))
+        assertEquals("v3.0 license should not reject app/cert mismatch", 0, a.code)
     }
 
     // ---------- L60: 仅 TTS 能力，缺 ASR ----------

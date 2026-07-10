@@ -2,6 +2,7 @@
 .DS_Store
 *.iml
 .idea/
+.vscode/
 *.swp
 *.swo
 
@@ -161,6 +162,11 @@ asr/tools/speaker/results/**
 !asr/tools/speaker/models/.gitkeep
 !asr/tools/speaker/data/.gitkeep
 !asr/tools/speaker/results/.gitkeep
+
+# --- ASR 热词评测产物（不入库） ---
+asr/tools/hotwords/results/**
+!asr/tools/hotwords/results/
+!asr/tools/hotwords/results/.gitkeep
 
 # --- dashboard 渲染产物（CI 生成） ---
 shared/docs/dashboard/trends/reports/*.md

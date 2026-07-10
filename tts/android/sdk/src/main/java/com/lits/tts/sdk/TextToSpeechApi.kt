@@ -72,6 +72,12 @@ enum class StopType {
     STOP_PLAYBACK_ONLY,
 }
 
+data class TtsStreamingConfig @JvmOverloads constructor(
+    val chunkSize: Int? = null,
+    val firstChunkSize: Int? = null,
+    val pcmQueueCapacity: Int? = null,
+)
+
 data class CreateEngineParams @JvmOverloads constructor(
     val language: String,
     val mode: RunMode,
@@ -107,6 +113,7 @@ data class SpeakParams @JvmOverloads constructor(
     val soundChannel: Int? = null,
     val queueMode: QueueMode = QueueMode.QUEUE,
     val extraParams: Map<String, Any?> = emptyMap(),
+    val streamingConfig: TtsStreamingConfig? = null,
 )
 
 data class StartResponse @JvmOverloads constructor(
@@ -120,6 +127,8 @@ data class StartResponse @JvmOverloads constructor(
     val modelSource: String = "unknown",
     val modelInfo: String = "",
     val loadProfileInfo: String = "",
+    val streamingChunkSize: Int = -1,
+    val pcmQueueCapacity: Int = -1,
 )
 
 data class SynthesisResponse @JvmOverloads constructor(
@@ -137,6 +146,7 @@ data class CompleteResponse @JvmOverloads constructor(
     val audioDurationMs: Long = -1L,
     val rtf: Double = -1.0,
     val profilingInfo: String = "",
+    val playbackStartMs: Long = -1L,
 )
 
 data class StopResponse(

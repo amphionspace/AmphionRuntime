@@ -9,11 +9,17 @@ if (DEFINED PACKAGE_FIND_FILE)
   include(${PACKAGE_FIND_FILE})
 endif()
 
+# Do not leak absolute build-machine source paths into the shipped .so (.rodata __FILE__ strings).
+add_compile_options(-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=. -fmacro-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=.)
+# Do not record the absolute build-dir of the imported onnxruntime.so as an RPATH/RUNPATH.
+set(CMAKE_SKIP_BUILD_RPATH TRUE)
+set(CMAKE_SKIP_INSTALL_RPATH TRUE)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/include)
 
-set(TN_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../../transsion_lits/Transsion_Multilingual_Text_Normalization_for_TTS)
-set(OHOS_ICU_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../../transsion_lits/build/ohos-icu/ohos-arm64-install)
+set(TN_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/transsion_tn)
+set(OHOS_ICU_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ohos-icu)
 include_directories(${TN_ROOT})
 include_directories(${TN_ROOT}/third_party)
 include_directories(${OHOS_ICU_ROOT}/include)

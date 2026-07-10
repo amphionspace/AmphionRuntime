@@ -5,7 +5,7 @@ internal object LitsTtsAssetRegistry {
     const val MODEL_ROOT: String = "tts"
     const val MODEL_ID: String = "transsion_lits_en_zh_vocos24k_streaming_proto_external_loop"
     const val MODEL_VERSION: String = "0.1.0"
-    const val ASSET_SIGNATURE_VERSION: String = "20260625-length-scale-v1"
+    const val ASSET_SIGNATURE_VERSION: String = "20260701-chunk50-polyphone-v1"
 
     const val MANIFEST: String = "manifest.json"
     const val ACOUSTIC_MODEL: String = "lits_acoustic.onnx"
@@ -18,6 +18,9 @@ internal object LitsTtsAssetRegistry {
     const val FRONTEND_RULES: String = "frontend_rules.json"
     const val CHINESE_LEXICON: String = "chinese_lexicon.txt"
     const val CHINESE_LEXICON_BIN: String = "chinese_lexicon.bin"
+    const val POLYPHONE_CONTEXT: String = "polyphone_context.txt"
+    const val POLYPHONE_PHRASES: String = "polyphone_phrases.txt"
+    const val CHINESE_SURNAME_LEXICON: String = "chinese_surname_lexicon.txt"
     const val CMUDICT: String = "cmudict.txt"
     const val CMUDICT_BIN: String = "cmudict.bin"
     const val SUPPLEMENT_LEXICON: String = "supplement_lexicon.json"
@@ -45,6 +48,9 @@ internal object LitsTtsAssetRegistry {
         FRONTEND_RULES,
         CHINESE_LEXICON,
         CHINESE_LEXICON_BIN,
+        POLYPHONE_CONTEXT,
+        POLYPHONE_PHRASES,
+        CHINESE_SURNAME_LEXICON,
         CMUDICT,
         CMUDICT_BIN,
         SUPPLEMENT_LEXICON,
