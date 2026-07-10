@@ -62,6 +62,24 @@ engine.finish(start.sessionId);
 
 授权文件固定为 `amphion-license.lic`。如果 license 启用了设备 SN 白名单，宿主或交付适配层需要通过 `deviceIdProvider` 注入本机 SN；该 SN 必须与交付给我方签发 license 的 SN 清单一致。
 
+**交付入口（推荐）**：鼎桥侧通过 `SpeechRecognizeSdk.setLicense(licensePath, callback)` 激活 license（异步 ECDSA 验签 + SN 白名单，需先 `init(context)`）；激活成功后再 `createEngine`。`getLicenseInfo()` 返回授权状态 `LicenseInfo`（`status` / `expireTime` / `remainingDays` / `authorizedFeatures`）。
+
+```ts
+import { LicenseActivationResult, SpeechRecognizeSdk } from 'amphion_dingqiao';
+
+SpeechRecognizeSdk.init(context);
+SpeechRecognizeSdk.setLicense(`${context.filesDir}/amphion-license.lic`, {
+  onResult: (result: LicenseActivationResult) => {
+    // 授权成功，可继续 createEngine
+    const info = SpeechRecognizeSdk.getLicenseInfo();
+    // info.status / info.expireTime / info.remainingDays / info.authorizedFeatures
+  },
+  onError: (errorCode, message) => {}
+});
+```
+
+如需直接使用底层 `amphion_asr` 授权入口（例如自定义 `deviceIdProvider` 注入 SN）：
+
 ```ts
 import { AmphionOptions, AmphionRuntime, LicenseEnforcement } from 'amphion_asr';
 
@@ -103,7 +121,7 @@ params.extraParams['termsNormalizeEnabled'] = false;
 ```ts
 SpeechRecognizeSdk.registerVoiceprint({
   voiceprintId: 'user-1',
-  audioPaths: [path1, path2, path3]
+  samplePaths: [path1, path2, path3]
 });
 ```
 
@@ -111,6 +129,6 @@ SpeechRecognizeSdk.registerVoiceprint({
 
 ## TTS
 
-离线 TTS 为独立 SDK（模块名 `amphion_tts`），通过 `import { TextToSpeechSdk } from 'amphion_tts'` 使用，API 文档见 `tts/harmony/docs/INTEGRATION.md`。
+离线 TTS 为独立 SDK（依赖名 `amphion_tts`，HAR 包名 `sdk`），通过 `import { TextToSpeechSdk } from 'sdk'` 使用，API 文档见 [`tts/harmony/docs/API.md`](../../../tts/harmony/docs/API.md)。
 
-TTS 模型按 `rawfile/amphion-tts/<voiceId>/` 打包，默认 voiceId 为 `kokoro-zh-en`，目录需包含 `model.onnx`、`voices.bin`、`tokens.txt`、`espeak-ng-data/`，中英混合还需要 `lexicon-us-en.txt`、`lexicon-zh.txt` 以及可选 `date-zh.fst`、`phone-zh.fst`、`number-zh.fst`。可用 `bash tts/tools/harmony/pack_harmony_tts_assets.sh` 同步。
+TTS 模型打包在 rawfile 目录 `lits-models/tts/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0` 下；`manifest.json` 的 `model_id` 必须为 `transsion_lits_en_zh_vocos24k_streaming_proto_external_loop`。支持的 voiceId 为 `lits-female-01`、`lits-female-02`。目录需包含以下运行时文件：`manifest.json`、`lits_hidden_encoder.onnx`、`lits_stream_condition_chunk.onnx`、`lits_stream_condition_final.onnx`、`lits_stream_decoder_step.onnx`、`vocos_vocoder.onnx`、`chinese_lexicon.txt`（以及 `cmudict.txt`、`supplement_lexicon.json`、`frontend_rules.json`、`zh_en_symbols.json`、`pinyin_to_tokens.json`、`arpabet_to_tokens.json` 等前端资源）。SDK 已内置该模型，不传外部目录时会自动解包，无需额外同步脚本。

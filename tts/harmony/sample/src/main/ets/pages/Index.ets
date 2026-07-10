@@ -2,7 +2,6 @@ import common from '@ohos.app.ability.common';
 import fs from '@ohos.file.fs';
 import { audio } from '@kit.AudioKit';
 import { PlayType, QueueMode, RunMode, TextToSpeechSdk } from 'sdk';
-import { runHmsSeedTtsEvalOnce } from '../HmsSeedTtsEvalRunner';
 import type {
   Callback,
   CompleteResponse,
@@ -80,7 +79,6 @@ struct Index {
     this.inputText = this.presetTextFor(this.language);
     this.metricsText = METRICS_PLACEHOLDER;
     this.appendLog('sample 已启动，当前页面参考 clean sample 的 TTS 卡片布局，只保留纯 TTS 流程。');
-    void runHmsSeedTtsEvalOnce(getContext(this) as common.UIAbilityContext);
     this.appendLog('启动后自动加载模型。');
     void this.preloadEngine(this.language, false);
   }
