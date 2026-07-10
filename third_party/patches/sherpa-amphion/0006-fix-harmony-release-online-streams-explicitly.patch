@@ -1,0 +1,436 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Amphion <dev@amphion.local>
+Date: Fri, 10 Jul 2026 23:24:10 +0800
+Subject: [PATCH 6/6] fix(harmony): release online streams explicitly
+
+---
+ .../SherpaOnnxHar/sherpa_onnx/Index.ets       |  1 +
+ .../src/main/cpp/keyword-spotting.cc          | 25 ++++----
+ .../src/main/cpp/online-stream-handle.h       | 64 +++++++++++++++++++
+ .../src/main/cpp/speaker-identification.cc    | 17 ++---
+ .../sherpa_onnx/src/main/cpp/streaming-asr.cc | 59 +++++++++++------
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |  2 +
+ .../src/main/ets/components/StreamingAsr.ets  | 15 +++++
+ 7 files changed, 139 insertions(+), 44 deletions(-)
+ create mode 100644 harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-stream-handle.h
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
+index 8ff60a4c..93ea7575 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
+@@ -32,6 +32,7 @@ export { Samples,
+ } from './src/main/ets/components/NonStreamingAsr';
+ 
+ export { OnlineStream,
++  onlineStreamLiveCount,
+   OnlineNemoCtcModelConfig,
+   OnlineParaformerModelConfig,
+   OnlineToneCtcModelConfig,
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/keyword-spotting.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/keyword-spotting.cc
+index 3bd8f18d..7cd93025 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/keyword-spotting.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/keyword-spotting.cc
+@@ -7,6 +7,7 @@
+ 
+ #include "macros.h"  // NOLINT
+ #include "napi.h"    // NOLINT
++#include "online-stream-handle.h"  // NOLINT
+ #include "sherpa-onnx/c-api/c-api.h"
+ 
+ // defined ./streaming-asr.cc
+@@ -116,7 +117,7 @@ static Napi::External<SherpaOnnxKeywordSpotter> CreateKeywordSpotterWrapper(
+       });
+ }
+ 
+-static Napi::External<SherpaOnnxOnlineStream> CreateKeywordStreamWrapper(
++static Napi::External<OnlineStreamHandle> CreateKeywordStreamWrapper(
+     const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+   if (info.Length() != 1 && info.Length() != 2) {
+@@ -155,11 +156,7 @@ static Napi::External<SherpaOnnxOnlineStream> CreateKeywordStreamWrapper(
+     stream = SherpaOnnxCreateKeywordStreamWithKeywords(kws, keywords.c_str());
+   }
+ 
+-  return Napi::External<SherpaOnnxOnlineStream>::New(
+-      env, const_cast<SherpaOnnxOnlineStream *>(stream),
+-      [](Napi::Env env, SherpaOnnxOnlineStream *stream) {
+-        SherpaOnnxDestroyOnlineStream(stream);
+-      });
++  return WrapOnlineStream(env, stream);
+ }
+ 
+ static Napi::Boolean IsKeywordStreamReadyWrapper(
+@@ -191,8 +188,8 @@ static Napi::Boolean IsKeywordStreamReadyWrapper(
+   const SherpaOnnxKeywordSpotter *kws =
+       info[0].As<Napi::External<SherpaOnnxKeywordSpotter>>().Data();
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[1].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return {};
+ 
+   int32_t is_ready = SherpaOnnxIsKeywordStreamReady(kws, stream);
+ 
+@@ -227,8 +224,8 @@ static void DecodeKeywordStreamWrapper(const Napi::CallbackInfo &info) {
+   const SherpaOnnxKeywordSpotter *kws =
+       info[0].As<Napi::External<SherpaOnnxKeywordSpotter>>().Data();
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[1].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return;
+ 
+   SherpaOnnxDecodeKeywordStream(kws, stream);
+ }
+@@ -261,8 +258,8 @@ static void ResetKeywordStreamWrapper(const Napi::CallbackInfo &info) {
+   const SherpaOnnxKeywordSpotter *kws =
+       info[0].As<Napi::External<SherpaOnnxKeywordSpotter>>().Data();
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[1].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return;
+ 
+   SherpaOnnxResetKeywordStream(kws, stream);
+ }
+@@ -296,8 +293,8 @@ static Napi::String GetKeywordResultAsJsonWrapper(
+   const SherpaOnnxKeywordSpotter *kws =
+       info[0].As<Napi::External<SherpaOnnxKeywordSpotter>>().Data();
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[1].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return {};
+ 
+   const char *json = SherpaOnnxGetKeywordResultAsJson(kws, stream);
+ 
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-stream-handle.h b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-stream-handle.h
+new file mode 100644
+index 00000000..80348981
+--- /dev/null
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-stream-handle.h
+@@ -0,0 +1,64 @@
++#ifndef SHERPA_ONNX_HARMONY_ONLINE_STREAM_HANDLE_H_
++#define SHERPA_ONNX_HARMONY_ONLINE_STREAM_HANDLE_H_
++
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++
++#include "napi.h"  // NOLINT
++#include "sherpa-onnx/c-api/c-api.h"
++
++class OnlineStreamHandle {
++ public:
++  explicit OnlineStreamHandle(const SherpaOnnxOnlineStream *stream)
++      : stream_(stream) {
++    if (stream_ != nullptr) LiveCount().fetch_add(1);
++  }
++
++  ~OnlineStreamHandle() { Close(); }
++
++  const SherpaOnnxOnlineStream *Get() const { return stream_; }
++
++  void Close() {
++    if (stream_ == nullptr) return;
++    SherpaOnnxDestroyOnlineStream(stream_);
++    stream_ = nullptr;
++    LiveCount().fetch_sub(1);
++  }
++
++  static int64_t ActiveCount() { return LiveCount().load(); }
++
++ private:
++  static std::atomic<int64_t> &LiveCount() {
++    static std::atomic<int64_t> count{0};
++    return count;
++  }
++
++  const SherpaOnnxOnlineStream *stream_;
++};
++
++inline Napi::External<OnlineStreamHandle> WrapOnlineStream(
++    Napi::Env env, const SherpaOnnxOnlineStream *stream) {
++  auto *handle = new OnlineStreamHandle(stream);
++  return Napi::External<OnlineStreamHandle>::New(
++      env, handle, [](Napi::Env, OnlineStreamHandle *value) { delete value; });
++}
++
++inline OnlineStreamHandle *GetOnlineStreamHandle(
++    const Napi::CallbackInfo &info, size_t index) {
++  return info[index].As<Napi::External<OnlineStreamHandle>>().Data();
++}
++
++inline const SherpaOnnxOnlineStream *GetOnlineStream(
++    const Napi::CallbackInfo &info, size_t index) {
++  OnlineStreamHandle *handle = GetOnlineStreamHandle(info, index);
++  const SherpaOnnxOnlineStream *stream =
++      handle == nullptr ? nullptr : handle->Get();
++  if (stream == nullptr) {
++    Napi::Error::New(info.Env(), "Online stream is closed")
++        .ThrowAsJavaScriptException();
++  }
++  return stream;
++}
++
++#endif  // SHERPA_ONNX_HARMONY_ONLINE_STREAM_HANDLE_H_
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
+index 1a109af1..e0a061e0 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
+@@ -8,6 +8,7 @@
+ 
+ #include "macros.h"  // NOLINT
+ #include "napi.h"    // NOLINT
++#include "online-stream-handle.h"  // NOLINT
+ #include "sherpa-onnx/c-api/c-api.h"
+ 
+ static Napi::External<SherpaOnnxSpeakerEmbeddingExtractor>
+@@ -135,7 +136,7 @@ static Napi::Number SpeakerEmbeddingExtractorDimWrapper(
+   return Napi::Number::New(env, dim);
+ }
+ 
+-static Napi::External<SherpaOnnxOnlineStream>
++static Napi::External<OnlineStreamHandle>
+ SpeakerEmbeddingExtractorCreateStreamWrapper(const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+   if (info.Length() != 1) {
+@@ -162,11 +163,7 @@ SpeakerEmbeddingExtractorCreateStreamWrapper(const Napi::CallbackInfo &info) {
+   const SherpaOnnxOnlineStream *stream =
+       SherpaOnnxSpeakerEmbeddingExtractorCreateStream(extractor);
+ 
+-  return Napi::External<SherpaOnnxOnlineStream>::New(
+-      env, const_cast<SherpaOnnxOnlineStream *>(stream),
+-      [](Napi::Env env, SherpaOnnxOnlineStream *stream) {
+-        SherpaOnnxDestroyOnlineStream(stream);
+-      });
++  return WrapOnlineStream(env, stream);
+ }
+ 
+ static Napi::Boolean SpeakerEmbeddingExtractorIsReadyWrapper(
+@@ -199,8 +196,8 @@ static Napi::Boolean SpeakerEmbeddingExtractorIsReadyWrapper(
+   const SherpaOnnxSpeakerEmbeddingExtractor *extractor =
+       info[0].As<Napi::External<SherpaOnnxSpeakerEmbeddingExtractor>>().Data();
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[1].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return {};
+ 
+   int32_t is_ready =
+       SherpaOnnxSpeakerEmbeddingExtractorIsReady(extractor, stream);
+@@ -248,8 +245,8 @@ static Napi::Float32Array SpeakerEmbeddingExtractorComputeEmbeddingWrapper(
+   const SherpaOnnxSpeakerEmbeddingExtractor *extractor =
+       info[0].As<Napi::External<SherpaOnnxSpeakerEmbeddingExtractor>>().Data();
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[1].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return {};
+ 
+   const float *v =
+       SherpaOnnxSpeakerEmbeddingExtractorComputeEmbedding(extractor, stream);
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+index 3f708784..112f5940 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+@@ -8,6 +8,7 @@
+ 
+ #include "macros.h"  // NOLINT
+ #include "napi.h"    // NOLINT
++#include "online-stream-handle.h"  // NOLINT
+ #include "sherpa-onnx/c-api/c-api.h"
+ /*
+ {
+@@ -346,7 +347,7 @@ static Napi::External<SherpaOnnxOnlineRecognizer> CreateOnlineRecognizerWrapper(
+       });
+ }
+ 
+-static Napi::External<SherpaOnnxOnlineStream> CreateOnlineStreamWrapper(
++static Napi::External<OnlineStreamHandle> CreateOnlineStreamWrapper(
+     const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+   if (info.Length() != 1) {
+@@ -373,11 +374,23 @@ static Napi::External<SherpaOnnxOnlineStream> CreateOnlineStreamWrapper(
+   const SherpaOnnxOnlineStream *stream =
+       SherpaOnnxCreateOnlineStream(recognizer);
+ 
+-  return Napi::External<SherpaOnnxOnlineStream>::New(
+-      env, const_cast<SherpaOnnxOnlineStream *>(stream),
+-      [](Napi::Env env, SherpaOnnxOnlineStream *stream) {
+-        SherpaOnnxDestroyOnlineStream(stream);
+-      });
++  return WrapOnlineStream(env, stream);
++}
++
++static void DestroyOnlineStreamWrapper(const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 1 || !info[0].IsExternal()) {
++    Napi::TypeError::New(env, "Expected one online stream handle")
++        .ThrowAsJavaScriptException();
++    return;
++  }
++  OnlineStreamHandle *handle = GetOnlineStreamHandle(info, 0);
++  if (handle != nullptr) handle->Close();
++}
++
++static Napi::Number GetOnlineStreamLiveCountWrapper(
++    const Napi::CallbackInfo &info) {
++  return Napi::Number::New(info.Env(), OnlineStreamHandle::ActiveCount());
+ }
+ 
+ static void AcceptWaveformWrapper(const Napi::CallbackInfo &info) {
+@@ -399,8 +412,8 @@ static void AcceptWaveformWrapper(const Napi::CallbackInfo &info) {
+     return;
+   }
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[0].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 0);
++  if (stream == nullptr) return;
+ 
+   if (!info[1].IsObject()) {
+     Napi::TypeError::New(env, "Argument 1 should be an object")
+@@ -482,8 +495,8 @@ static Napi::Boolean IsOnlineStreamReadyWrapper(
+   const SherpaOnnxOnlineRecognizer *recognizer =
+       info[0].As<Napi::External<SherpaOnnxOnlineRecognizer>>().Data();
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[1].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return {};
+ 
+   int32_t is_ready = SherpaOnnxIsOnlineStreamReady(recognizer, stream);
+ 
+@@ -519,8 +532,8 @@ static void DecodeOnlineStreamWrapper(const Napi::CallbackInfo &info) {
+   const SherpaOnnxOnlineRecognizer *recognizer =
+       info[0].As<Napi::External<SherpaOnnxOnlineRecognizer>>().Data();
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[1].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return;
+ 
+   SherpaOnnxDecodeOnlineStream(recognizer, stream);
+ }
+@@ -555,8 +568,8 @@ static Napi::String GetOnlineStreamResultAsJsonWrapper(
+   const SherpaOnnxOnlineRecognizer *recognizer =
+       info[0].As<Napi::External<SherpaOnnxOnlineRecognizer>>().Data();
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[1].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return {};
+ 
+   const char *json = SherpaOnnxGetOnlineStreamResultAsJson(recognizer, stream);
+   Napi::String s = Napi::String::New(env, json);
+@@ -585,8 +598,8 @@ static void InputFinishedWrapper(const Napi::CallbackInfo &info) {
+     return;
+   }
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[0].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 0);
++  if (stream == nullptr) return;
+ 
+   SherpaOnnxOnlineStreamInputFinished(stream);
+ }
+@@ -620,8 +633,8 @@ static void ResetOnlineStreamWrapper(const Napi::CallbackInfo &info) {
+   const SherpaOnnxOnlineRecognizer *recognizer =
+       info[0].As<Napi::External<SherpaOnnxOnlineRecognizer>>().Data();
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[1].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return;
+ 
+   SherpaOnnxOnlineStreamReset(recognizer, stream);
+ }
+@@ -655,8 +668,8 @@ static Napi::Boolean IsEndpointWrapper(const Napi::CallbackInfo &info) {
+   const SherpaOnnxOnlineRecognizer *recognizer =
+       info[0].As<Napi::External<SherpaOnnxOnlineRecognizer>>().Data();
+ 
+-  const SherpaOnnxOnlineStream *stream =
+-      info[1].As<Napi::External<SherpaOnnxOnlineStream>>().Data();
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return {};
+ 
+   int32_t is_endpoint = SherpaOnnxOnlineStreamIsEndpoint(recognizer, stream);
+ 
+@@ -742,6 +755,12 @@ void InitStreamingAsr(Napi::Env env, Napi::Object exports) {
+   exports.Set(Napi::String::New(env, "createOnlineStream"),
+               Napi::Function::New(env, CreateOnlineStreamWrapper));
+ 
++  exports.Set(Napi::String::New(env, "destroyOnlineStream"),
++              Napi::Function::New(env, DestroyOnlineStreamWrapper));
++
++  exports.Set(Napi::String::New(env, "getOnlineStreamLiveCount"),
++              Napi::Function::New(env, GetOnlineStreamLiveCountWrapper));
++
+   exports.Set(Napi::String::New(env, "acceptWaveformOnline"),
+               Napi::Function::New(env, AcceptWaveformWrapper));
+ 
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index 8f3971c3..2cad7f7a 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -29,6 +29,8 @@ export const getOfflineStreamResultAsJson: (streamHandle: object) => string;
+ 
+ export const createOnlineRecognizer: (config: object, mgr?: object) => object;
+ export const createOnlineStream: (handle: object) => object;
++export const destroyOnlineStream: (streamHandle: object) => void;
++export const getOnlineStreamLiveCount: () => number;
+ export const acceptWaveformOnline: (handle: object, audio: object) => void;
+ export const inputFinished: (streamHandle: object) => void;
+ export const isOnlineStreamReady: (handle: object, streamHandle: object) => boolean;
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+index 2339d7fc..f390eb5d 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+@@ -3,7 +3,9 @@ import {
+   createOnlineRecognizer,
+   createOnlineStream,
+   decodeOnlineStream,
++  destroyOnlineStream,
+   getOnlineStreamResultAsJson,
++  getOnlineStreamLiveCount,
+   inputFinished,
+   isEndpoint,
+   isOnlineStreamReady,
+@@ -12,8 +14,13 @@ import {
+ 
+ import { FeatureConfig, HomophoneReplacerConfig, Samples } from './NonStreamingAsr';
+ 
++export function onlineStreamLiveCount(): number {
++  return getOnlineStreamLiveCount();
++}
++
+ export class OnlineStream {
+   public handle: object;
++  private closed: boolean = false;
+ 
+   constructor(handle: object) {
+     this.handle = handle;
+@@ -23,12 +30,20 @@ export class OnlineStream {
+   // samples is a float32 array containing samples in the range [-1, 1]
+   // sampleRate is a number
+   acceptWaveform(obj: Samples) {
++    if (this.closed) throw new Error('Online stream is closed');
+     acceptWaveformOnline(this.handle, obj)
+   }
+ 
+   inputFinished() {
++    if (this.closed) throw new Error('Online stream is closed');
+     inputFinished(this.handle)
+   }
++
++  close(): void {
++    if (this.closed) return;
++    destroyOnlineStream(this.handle);
++    this.closed = true;
++  }
+ }
+ 
+ export class OnlineTransducerModelConfig {
+-- 
+2.50.1 (Apple Git-155)

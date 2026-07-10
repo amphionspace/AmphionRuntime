@@ -36,6 +36,18 @@ bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.
 
 脚本只收集已构建产物（HAR/HAP/模型/文档），不负责启动 DevEco 构建。
 
+## 真机压力测试
+
+使用真实 WAV 语料执行连续会话、取消、自动结束、重配置、重建和错误边界测试：
+
+```bash
+python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
+  --data-dir ~/Downloads/testdata --mode burst --cycles 200 --files 48
+```
+
+模式、门槛、artifact 结构和已验证基线见
+[`docs/DEVICE_STRESS.md`](docs/DEVICE_STRESS.md)。
+
 ## main 分支复现边界
 
 PR 合入后，`main` 分支包含完整源码、交付工程和 sherpa-onnx patch 序列，可以在同样工具链下编译出功能等价的鸿蒙应用。但仓库不会提交模型、签名证书、license、HAP/HAR 或 native 构建产物，因此干净检出后不能只运行 DevEco 构建就得到已签名的 279 MB HAP。
