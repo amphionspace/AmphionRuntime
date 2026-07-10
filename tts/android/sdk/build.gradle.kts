@@ -10,6 +10,20 @@ val amphionLicensePublicKey: String =
 val sdkMajor: String = providers.gradleProperty("AMPHION_SDK_MAJOR").orElse("1").get()
 val sdkReleaseDate: String = providers.gradleProperty("AMPHION_SDK_RELEASE_DATE").orElse("2026-06-23").get()
 
+// Release 护栏：公钥为空会让 SDK 退化为「不校验 license」。禁止其进入 release 产物，
+// 避免正式交付构建因公钥漏注入而静默关闭验签。
+gradle.taskGraph.whenReady {
+    val buildingRelease = allTasks.any {
+        (it.name.startsWith("assemble") || it.name.startsWith("bundle")) && it.name.contains("Release")
+    }
+    if (buildingRelease && amphionLicensePublicKey.isBlank()) {
+        throw GradleException(
+            "AMPHION_LICENSE_PUBLIC_KEY 为空：release 构建将关闭 license 验签（SDK 未武装）。" +
+                "打包前请在 gradle.properties 注入正式公钥。",
+        )
+    }
+}
+
 android {
     namespace = "com.lits.tts.sdk"
     compileSdk = 34
