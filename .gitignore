@@ -187,3 +187,10 @@ tts/tools/license/*.pem
 tts/tools/license/*.lic
 **/amphion-license.lic
 asr/android/keystore/
+
+# Local-only benchmark harnesses & their large prebuilt model inputs (compute-audit tooling).
+# Never part of a delivery: keep them out of git so a stray `git add .` can't commit ~343 MB of
+# .ms binaries or leak internal bench code into a client sample.
+**/resources/rawfile/msbench/
+**/ets/util/TtsBench.ets
+**/ets/util/AsrBench.ets
