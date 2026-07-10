@@ -48,8 +48,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-ZH_EN_DIR="${ZH_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/zipformer_L_zh_en}"
-YUE_EN_DIR="${YUE_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/zipformer_L_yue_en}"
+ZH_EN_DIR="${ZH_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/zhen}"
+YUE_EN_DIR="${YUE_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/yueen}"
 PUNCT_DIR="${PUNCT_DIR:-${REPO_ROOT}/asr/tools/punct-model/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8}"
 ITN_DIR="${ITN_DIR:-${REPO_ROOT}/asr/tools/weitn-fsts}"
 VAD_FILE="${VAD_FILE:-${REPO_ROOT}/asr/tools/vad-model/silero_vad.onnx}"
@@ -133,7 +133,13 @@ info "清空旧的 ${ASSET_ROOT}/<bundle>/v1/ 内的真实模型文件（保留 
 for sub in zh-en yue-en punct-zhen itn-zh vad; do
   local_dst="${ASSET_ROOT}/${sub}/v1"
   mkdir -p "${local_dst}"
+  touch "${local_dst}/.gitkeep"
   find "${local_dst}" -type f ! -name '.gitkeep' -delete
+done
+
+# Remove stale pre-versioned layouts. Runtime lookup always includes /v1/.
+for f in encoder.int8.onnx decoder.onnx joiner.int8.onnx tokens.txt bbpe.vocab bbpe.model; do
+  rm -f "${ASSET_ROOT}/zh-en/${f}" "${ASSET_ROOT}/yue-en/${f}"
 done
 
 copy_one() {
@@ -225,6 +231,7 @@ MANIFEST="${ASSET_ROOT}/manifest.json"
 } >"${MANIFEST}"
 
 ok "manifest 写到 ${MANIFEST}"
+python3 "${SCRIPT_DIR}/verify_packed_model_assets.py" --root "${ASSET_ROOT}"
 
 info "下一步：cd asr/android && ./gradlew :sdk:assembleRelease"
 info "       AAR 输出：asr/android/sdk/build/outputs/aar/sdk-release.aar"

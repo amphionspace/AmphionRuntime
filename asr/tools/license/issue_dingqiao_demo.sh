@@ -13,6 +13,7 @@ PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$ROOT/.secure/amphion-license-privat
 OUT="$ROOT/asr/android/samples/dingqiao-demo/src/main/assets/amphion-license.lic"
 CERT_SHA="${DINGQIAO_DEMO_CERT_SHA256:-}"
 TRIAL_MONTHS="${DINGQIAO_DEMO_TRIAL_MONTHS:-2}"
+source "$ROOT/asr/tools/license/ensure_python.sh"
 
 if [[ ! -f "$PRIVATE_KEY" ]]; then
   echo "私钥不存在: $PRIVATE_KEY" >&2
@@ -21,10 +22,8 @@ if [[ ! -f "$PRIVATE_KEY" ]]; then
   exit 1
 fi
 
-if [[ ! -x "$VENV/bin/python" ]]; then
-  python3 -m venv "$VENV"
-  "$VENV/bin/pip" install -q -r "$ROOT/tools/license/requirements.txt"
-fi
+ensure_license_python "$VENV" "$ROOT/tools/license/requirements.txt"
+PYTHON="$VENV/bin/python"
 
 if [[ -z "$CERT_SHA" ]]; then
   KEYSTORE="$ROOT/asr/android/keystore/dingqiao-demo-release.jks"
@@ -35,7 +34,7 @@ if [[ -z "$CERT_SHA" ]]; then
 fi
 
 ISSUED="$(date +%Y-%m-%d)"
-EXPIRES="$("$VENV/bin/python" -c "
+EXPIRES="$("$PYTHON" -c "
 from datetime import date
 import calendar
 months = int('${TRIAL_MONTHS}')
@@ -47,7 +46,7 @@ print(f'{y:04d}-{m:02d}-{day:02d}')
 ")"
 
 mkdir -p "$(dirname "$OUT")"
-"$VENV/bin/python" "$ROOT/tools/license/issue_license.py" \
+"$PYTHON" "$ROOT/tools/license/issue_license.py" \
   --private-key "$PRIVATE_KEY" \
   --application-id com.amphion.dingqiao.demo \
   --customer "Dingqiao Demo" \

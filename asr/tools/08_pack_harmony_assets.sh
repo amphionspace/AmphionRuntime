@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SRC="$REPO_ROOT/asr/android/sdk/src/main/assets/amphion-models"
 DST="$REPO_ROOT/asr/harmony/sdk/src/main/resources/rawfile/amphion-models"
+VERIFY="$REPO_ROOT/asr/tools/verify_packed_model_assets.py"
 
 if [[ ! -d "$SRC" ]]; then
   echo "[ERROR] 找不到 Android 模型资产：$SRC"
@@ -13,9 +14,18 @@ if [[ ! -d "$SRC" ]]; then
   exit 1
 fi
 
-rm -rf "$DST"
+python3 "$VERIFY" --root "$SRC"
+
+TMP_DST="${DST}.tmp.$$"
+trap 'rm -rf "$TMP_DST"' EXIT
+rm -rf "$TMP_DST"
 mkdir -p "$(dirname "$DST")"
-cp -R "$SRC" "$DST"
+cp -R "$SRC" "$TMP_DST"
+python3 "$VERIFY" --root "$TMP_DST"
+
+rm -rf "$DST"
+mv "$TMP_DST" "$DST"
+trap - EXIT
 
 echo "[DONE] Harmony rawfile assets -> $DST"
 find "$DST" -maxdepth 3 -type f | sed "s#$REPO_ROOT/##" | sort | head -80

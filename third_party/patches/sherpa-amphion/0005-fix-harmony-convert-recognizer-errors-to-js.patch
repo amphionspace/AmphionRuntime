@@ -1,0 +1,82 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Amphion <dev@amphion.local>
+Date: Fri, 10 Jul 2026 18:30:00 +0800
+Subject: [PATCH 5/5] fix(harmony): convert recognizer errors to JavaScript
+ exceptions
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+An invalid or missing ONNX rawfile can throw an Ort::Exception while the
+online recognizer is being created. Letting it escape the NAPI callback
+terminates the Harmony application with SIGABRT, so callers cannot surface
+an engine initialization error. Preserve config cleanup and convert the
+native exception into a JavaScript exception instead.
+
+---
+ .../sherpa_onnx/src/main/cpp/streaming-asr.cc | 24 ++++++++++++++++----
+ 1 file changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+@@ -2,5 +2,6 @@
+ //
+ // Copyright (c)  2024  Xiaomi Corporation
++#include <exception>
+ #include <memory>
+ #include <sstream>
+ #include <string>
+@@ -276,23 +277,29 @@ static Napi::External<SherpaOnnxOnlineRecognizer> CreateOnlineRecognizerWrapper(
+-
++
+   c.ctc_fst_decoder_config = GetCtcFstDecoderConfig(o);
+-
++
+-#if __OHOS__
+   const SherpaOnnxOnlineRecognizer *recognizer = nullptr;
++  std::string creation_error;
+-
++
++  try {
++#if __OHOS__
+   if (use_resource_manager) {
+     std::unique_ptr<NativeResourceManager,
+                     decltype(&OH_ResourceManager_ReleaseNativeResourceManager)>
+         mgr(OH_ResourceManager_InitNativeResourceManager(env, info[1]),
+             &OH_ResourceManager_ReleaseNativeResourceManager);
+-
++
+     recognizer = SherpaOnnxCreateOnlineRecognizerOHOS(&c, mgr.get());
+   } else {
+     recognizer = SherpaOnnxCreateOnlineRecognizer(&c);
+   }
+ #else
+-  const SherpaOnnxOnlineRecognizer *recognizer =
+-      SherpaOnnxCreateOnlineRecognizer(&c);
++    recognizer = SherpaOnnxCreateOnlineRecognizer(&c);
+ #endif
++  } catch (const std::exception &e) {
++    creation_error = e.what();
++  } catch (...) {
++    creation_error = "unknown native exception";
++  }
+   SHERPA_ONNX_DELETE_C_STR(c.model_config.transducer.encoder);
+   SHERPA_ONNX_DELETE_C_STR(c.model_config.transducer.decoder);
+   SHERPA_ONNX_DELETE_C_STR(c.model_config.transducer.joiner);
+@@ -319,6 +326,12 @@ static Napi::External<SherpaOnnxOnlineRecognizer> CreateOnlineRecognizerWrapper(
+   SHERPA_ONNX_DELETE_C_STR(c.hr.lexicon);
+   SHERPA_ONNX_DELETE_C_STR(c.hr.rule_fsts);
+-
++
++  if (!creation_error.empty()) {
++    Napi::Error::New(env, "Failed to create online recognizer: " + creation_error)
++        .ThrowAsJavaScriptException();
++    return {};
++  }
++
+   if (!recognizer) {
+     Napi::TypeError::New(env, "Please check your config!")
+         .ThrowAsJavaScriptException();
+--
+2.39.5
