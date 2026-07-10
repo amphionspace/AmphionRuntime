@@ -63,8 +63,17 @@ object SpeechRecognizeSdk {
         dir.mkdirs()
         require(dir.isDirectory && dir.canWrite()) { "workPath must be writable: $path" }
         workPath = dir
+        // 预安装声纹模型放后台执行：~38MB 拷贝不再阻塞调用线程（demo 常从 Application.onCreate 主线程调用，
+        // 主线程拷贝会造成首启白屏/ANR）。ensureInstalled 幂等且 @Synchronized，若随后 createEngine /
+        // registerVoiceprint 抢先到达，会各自安全地等待或跳过；预安装失败不致命（正式调用会再次尝试并报明确错误）。
         appContext?.let { ctx ->
-            DingqiaoSpeakerModelAssets.ensureInstalled(ctx, File(dir, DINGQIAO_SPEAKER_MODEL_FILENAME))
+            engineExecutor.execute {
+                try {
+                    DingqiaoSpeakerModelAssets.ensureInstalled(ctx, File(dir, DINGQIAO_SPEAKER_MODEL_FILENAME))
+                } catch (_: Throwable) {
+                    // best-effort 预热：忽略；createEngine/registerVoiceprint 会再次安装并给出明确错误。
+                }
+            }
         }
     }
 
@@ -190,6 +199,23 @@ object SpeechRecognizeSdk {
         return SpeakerEnroller(modelPath.absolutePath).use { enroller ->
             val embedding = enroller.enroll(segments)
             store.saveVoiceprint(params.samplePaths, embedding)
+        }
+    }
+
+    /**
+     * 注册声纹（异步回调）。注册需加载 ~38MB 声纹模型并计算 embedding，属重操作；
+     * 若从 UI 线程触发（如"注册"按钮），务必使用本重载，避免主线程卡顿 / ANR。
+     */
+    @JvmStatic
+    fun registerVoiceprint(params: VoiceprintRegisterParams, callback: VoiceprintRegisterCallback) {
+        engineExecutor.execute {
+            try {
+                callback.onResult(registerVoiceprint(params))
+            } catch (t: Throwable) {
+                val code = (t as? DingqiaoEngineException)?.errorCode
+                    ?: DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED
+                callback.onError(code, t.message ?: "registerVoiceprint failed")
+            }
         }
     }
 

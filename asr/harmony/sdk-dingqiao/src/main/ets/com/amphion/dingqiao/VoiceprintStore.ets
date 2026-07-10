@@ -35,6 +35,7 @@ export class VoiceprintStore {
   }
 
   loadEmbedding(id: string): Float32Array | undefined {
+    if (!VoiceprintStore.isSafeId(id)) return undefined;
     const file = `${this.root}/${id}/embedding.bin`;
     if (!fs.accessSync(file)) return undefined;
     return VoiceprintStore.readEmbedding(file);
@@ -65,6 +66,7 @@ export class VoiceprintStore {
   }
 
   deleteVoiceprint(id: string): boolean {
+    if (!VoiceprintStore.isSafeId(id)) return false;
     const dir = `${this.root}/${id}`;
     if (!fs.accessSync(dir)) return false;
     try {
@@ -86,6 +88,12 @@ export class VoiceprintStore {
     } catch (e) {
       return [];
     }
+  }
+
+  // 声纹 id 直接拼进文件系统路径,必须限定字符集,否则 `../..` 之类可越出 {workPath}/voiceprints 根,
+  // deleteVoiceprint 会 unlink+rmdir 沙箱内任意目录、loadEmbedding 会读任意文件。与本模块 isValidSessionId 一致。
+  private static isSafeId(id: string): boolean {
+    return /^[A-Za-z0-9_-]+$/.test(id);
   }
 
   private ensureDir(dir: string): void {

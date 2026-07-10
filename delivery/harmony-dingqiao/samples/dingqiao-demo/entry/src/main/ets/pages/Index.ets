@@ -372,6 +372,11 @@ struct Index {
       return;
     }
     this.voiceprintVerifyDesired = checked;
+    if (checked) {
+      // Warm the ~38 MB eres2net extractor now (usually already warm from registration) so the first
+      // 开始识别 with 声纹校验 doesn't block. No-op if pooled; only the app-restart case pays here.
+      SpeechRecognizeSdk.preloadVoiceprintModel();
+    }
   }
 
   private onSpeakerVadSwitch(checked: boolean): void {
@@ -603,7 +608,7 @@ class DemoLicenseCallback implements LicenseActivationCallback {
     if (result.errorCode === 0) {
       this.owner.onLicenseActivated();
     } else {
-      this.owner.onLicenseFailed(result.errorCode, result.message);
+      this.owner.onLicenseFailed(result.errorCode, result.errorMessage);
     }
   }
 

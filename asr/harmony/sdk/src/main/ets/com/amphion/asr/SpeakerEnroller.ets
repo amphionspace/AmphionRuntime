@@ -12,15 +12,23 @@ export class SpeakerEnroller {
   private extractor: SpeakerEmbeddingExtractor;
   private context?: Context;
 
-  constructor(modelPath: string, numThreads: number = 1, context?: Context) {
+  constructor(modelPath: string, numThreads: number = 1, context?: Context, extractor?: SpeakerEmbeddingExtractor) {
     if (modelPath.trim().length === 0) throw new Error('SpeakerEnroller modelPath must not be blank');
     this.modelPath = modelPath;
     this.context = context;
-    const config = new SpeakerEmbeddingExtractorConfig();
-    config.model = modelPath;
-    config.numThreads = numThreads;
-    config.debug = false;
-    this.extractor = new SpeakerEmbeddingExtractor(config, context?.resourceManager);
+    if (extractor !== undefined) {
+      // Reuse a pooled extractor (shared with the recognition path) so the ~38 MB model loads once.
+      this.extractor = extractor;
+    } else {
+      const config = new SpeakerEmbeddingExtractorConfig();
+      config.model = modelPath;
+      config.numThreads = numThreads;
+      config.debug = false;
+      // rawfile 加载器只能吃 rawfile 相对路径;把 resourceManager 传给一个绝对路径会让 native 端
+      // 按 rawfile 找不到而 abort(与 Runtime.getOrCreateSpeakerExtractor 同一守卫,也与下方 readWaveSamples 一致)。
+      const rm = modelPath.startsWith('/') ? undefined : context?.resourceManager;
+      this.extractor = new SpeakerEmbeddingExtractor(config, rm);
+    }
   }
 
   get embeddingDim(): number {
