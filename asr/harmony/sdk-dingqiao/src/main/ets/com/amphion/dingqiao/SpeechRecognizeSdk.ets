@@ -575,6 +575,8 @@ class SystemDeviceIdProvider implements LicenseDeviceIdProvider {
   }
 }
 
+// Keep the public Dingqiao provider type independent from the core HAR's emitted API type.
+// The explicit adapter also prevents core package type identity from leaking to customers.
 class CoreDeviceIdProviderAdapter implements AmphionDeviceIdProvider {
   private delegate: LicenseDeviceIdProvider;
 
@@ -657,7 +659,19 @@ export class SpeechRecognizeSdk {
   ): Promise<void> {
     // 第一道门:真 ECDSA 验签。被篡改/伪造的 license(如改了 expiresAt)在这里被拒,引擎不会初始化。
     // 开发(未注入公钥)构建下 verifyLicenseSignature 返回 true,保持可用。
-    const signatureValid = await AmphionRuntime.verifyLicenseSignature(licenseText);
+    let signatureValid: boolean = false;
+    try {
+      signatureValid = await AmphionRuntime.verifyLicenseSignature(licenseText);
+    } catch (e) {
+      const info = new LicenseInfo();
+      info.status = 2;
+      info.expireTime = -1;
+      info.remainingDays = -1;
+      info.authorizedFeatures = [];
+      SpeechRecognizeSdk.licenseInfo = info;
+      callback.onError(DingqiaoErrorCode.LICENSE_INVALID, `license signature verification failed: ${e}`);
+      return;
+    }
     if (!signatureValid) {
       const info = new LicenseInfo();
       info.status = 2;
@@ -670,7 +684,20 @@ export class SpeechRecognizeSdk {
     }
     // 第二道门:设备白名单(对齐 Android)。特权宿主默认读取硬件 SN，普通宿主可注入稳定设备标识。
     const provider = SpeechRecognizeSdk.deviceIdProvider ?? new SystemDeviceIdProvider();
-    const deviceOk = await AmphionRuntime.checkDeviceBinding(licenseText, provider.getDeviceSerial(context));
+    let deviceOk: boolean = false;
+    try {
+      const deviceId: string | undefined = provider.getDeviceSerial(context);
+      deviceOk = await AmphionRuntime.checkDeviceBinding(licenseText, deviceId);
+    } catch (e) {
+      const info = new LicenseInfo();
+      info.status = 3;
+      info.expireTime = -1;
+      info.remainingDays = -1;
+      info.authorizedFeatures = [];
+      SpeechRecognizeSdk.licenseInfo = info;
+      callback.onError(DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH, `device identity check failed: ${e}`);
+      return;
+    }
     if (!deviceOk) {
       const info = new LicenseInfo();
       info.status = 3;

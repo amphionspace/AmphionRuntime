@@ -7,10 +7,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 MODEL_ROOT="$REPO_ROOT/asr/harmony/sdk/src/main/resources/rawfile/amphion-models"
 LICENSE_FILE="$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/resources/rawfile/amphion-license.lic"
-DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/current_usb_device_sn.txt}"
+DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/dingqiao_demo_device_ids.txt}"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$REPO_ROOT/.secure/amphion-license-private.pem}"
 HAP=""
 BUNDLE_NAME="com.amphion.dingqiao.harmony.demo"
+MODULE_NAME="dingqiao_demo"
+SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
+DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
+HAP_SIGN_TOOL_JAR="${HAP_SIGN_TOOL_JAR:-$DEVECO_HOME/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar}"
+JAVA_BIN="${JAVA_HOME:+$JAVA_HOME/bin/java}"
+JAVA_BIN="${JAVA_BIN:-$DEVECO_HOME/jbr/Contents/Home/bin/java}"
+LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
+VERIFY_DIR=""
 
 usage() {
   cat <<'EOF'
@@ -21,6 +29,7 @@ Options:
   --license PATH         License rawfile to verify.
   --device-id-file PATH  Authorized device identifiers, one per line.
   --private-key PATH     Optional private key; verifies it matches the embedded public key.
+  --signing-config PATH  Expected signing config; required with --hap, defaults to .secure.
   -h, --help             Show this help.
 EOF
 }
@@ -31,21 +40,36 @@ while [[ $# -gt 0 ]]; do
     --license) LICENSE_FILE="$2"; shift 2 ;;
     --device-id-file) DEVICE_ID_FILE="$2"; shift 2 ;;
     --private-key) PRIVATE_KEY="$2"; shift 2 ;;
+    --signing-config) SIGNING_CONFIG="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
 
+if [[ -n "$HAP" && -z "$SIGNING_CONFIG" && -s "$REPO_ROOT/.secure/harmony-signing.json" ]]; then
+  SIGNING_CONFIG="$REPO_ROOT/.secure/harmony-signing.json"
+fi
+if [[ -n "$HAP" && -z "$SIGNING_CONFIG" ]]; then
+  echo "[ERROR] HAP provenance verification requires --signing-config or HARMONY_SIGNING_CONFIG" >&2
+  exit 1
+fi
+
 require_file() {
   [[ -s "$1" ]] || { echo "[ERROR] missing or empty file: $1" >&2; exit 1; }
 }
 
-command -v python3 >/dev/null || { echo "[ERROR] python3 is required" >&2; exit 1; }
+cleanup_verify_dir() {
+  [[ -z "$VERIFY_DIR" ]] || rm -rf "$VERIFY_DIR"
+}
+
+source "$REPO_ROOT/asr/tools/license/ensure_python.sh"
+ensure_license_python "$LICENSE_VENV" "$REPO_ROOT/tools/license/requirements.txt"
+PYTHON="$LICENSE_VENV/bin/python"
 require_file "$LICENSE_FILE"
 
-python3 "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --root "$MODEL_ROOT"
+"$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --root "$MODEL_ROOT"
 
-python3 - "$REPO_ROOT" <<'PY'
+"$PYTHON" - "$REPO_ROOT" <<'PY'
 import struct
 import sys
 from pathlib import Path
@@ -67,7 +91,7 @@ for path in libraries:
 print(f"[OK] verified {len(libraries)} AArch64 native libraries")
 PY
 
-PUBLIC_KEY_B64="$(python3 - "$REPO_ROOT/asr/harmony/sdk/src/main/ets/com/amphion/asr/License.ets" <<'PY'
+PUBLIC_KEY_B64="$("$PYTHON" - "$REPO_ROOT/asr/harmony/sdk/src/main/ets/com/amphion/asr/License.ets" <<'PY'
 import re
 import sys
 from pathlib import Path
@@ -90,55 +114,66 @@ if [[ -s "$PRIVATE_KEY" ]]; then
   echo "[OK] private key matches the SDK embedded public key"
 fi
 
-DEVICE_HASH_COUNT="$(python3 - "$LICENSE_FILE" <<'PY'
-import base64
-import json
-import sys
-from pathlib import Path
-
-envelope = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-claims = json.loads(base64.b64decode(envelope["payload_b64"]))
-print(len(claims.get("authorizedDeviceHashes", [])))
-PY
-)"
-
 VERIFY_LICENSE=(
-  python3 "$REPO_ROOT/tools/license/verify_license.py"
+  "$PYTHON" "$REPO_ROOT/tools/license/verify_license.py"
   --license "$LICENSE_FILE"
   --public-key-b64 "$PUBLIC_KEY_B64"
   --bundle-name "$BUNDLE_NAME"
   --required-feature ASR
 )
 
-if [[ "$DEVICE_HASH_COUNT" -gt 0 ]]; then
-  require_file "$DEVICE_ID_FILE"
-  VERIFIED_DEVICE_IDS=0
-  while IFS= read -r device_id; do
-    [[ -n "${device_id//[[:space:]]/}" ]] || continue
-    [[ "$device_id" =~ ^[[:space:]]*# ]] && continue
-    "${VERIFY_LICENSE[@]}" --device-id "$device_id" >/dev/null
-    VERIFIED_DEVICE_IDS=$((VERIFIED_DEVICE_IDS + 1))
-  done < "$DEVICE_ID_FILE"
-  [[ "$VERIFIED_DEVICE_IDS" -eq "$DEVICE_HASH_COUNT" ]] || {
-    echo "[ERROR] license device hash count does not match the authorized device list" >&2
-    exit 1
-  }
-  echo "[OK] license signature, expiry, feature, and $VERIFIED_DEVICE_IDS device bindings verified"
-else
-  "${VERIFY_LICENSE[@]}" >/dev/null
-  echo "[OK] unbound license signature, expiry, and feature verified"
-fi
+"${VERIFY_LICENSE[@]}" >/dev/null
+"$PYTHON" "$REPO_ROOT/tools/license/verify_license_device_set.py" \
+  --license "$LICENSE_FILE" \
+  --device-id-file "$DEVICE_ID_FILE"
+echo "[OK] license signature, expiry, feature, and device set verified"
 
 if [[ -n "$HAP" ]]; then
   require_file "$HAP"
-  python3 "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --archive "$HAP"
-  python3 - "$HAP" "$LICENSE_FILE" <<'PY'
+  require_file "$HAP_SIGN_TOOL_JAR"
+  [[ -x "$JAVA_BIN" ]] || { echo "[ERROR] missing Java runtime: $JAVA_BIN" >&2; exit 1; }
+
+  VERIFY_DIR="$(mktemp -d "${TMPDIR:-/tmp}/amphion-hap-verify.XXXXXX")"
+  trap cleanup_verify_dir EXIT
+  trap 'cleanup_verify_dir; exit 130' INT TERM
+  if ! "$JAVA_BIN" -jar "$HAP_SIGN_TOOL_JAR" verify-app \
+      -inFile "$HAP" \
+      -outCertChain "$VERIFY_DIR/cert-chain.cer" \
+      -outProfile "$VERIFY_DIR/profile.p7b" \
+      >"$VERIFY_DIR/verify-app.log" 2>&1; then
+    cat "$VERIFY_DIR/verify-app.log" >&2
+    echo "[ERROR] HAP signature verification failed" >&2
+    exit 1
+  fi
+  grep -q 'verify-app success' "$VERIFY_DIR/verify-app.log" || {
+    cat "$VERIFY_DIR/verify-app.log" >&2
+    echo "[ERROR] HAP signature tool did not report success" >&2
+    exit 1
+  }
+  require_file "$VERIFY_DIR/cert-chain.cer"
+  require_file "$VERIFY_DIR/profile.p7b"
+
+  if ! "$JAVA_BIN" -jar "$HAP_SIGN_TOOL_JAR" verify-profile \
+      -inFile "$VERIFY_DIR/profile.p7b" \
+      -outFile "$VERIFY_DIR/profile-result.json" \
+      >"$VERIFY_DIR/verify-profile.log" 2>&1; then
+    cat "$VERIFY_DIR/verify-profile.log" >&2
+    echo "[ERROR] embedded HAP profile verification failed" >&2
+    exit 1
+  fi
+
+  "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --archive "$HAP"
+  "$PYTHON" - "$HAP" "$LICENSE_FILE" "$VERIFY_DIR/profile-result.json" "$BUNDLE_NAME" "$MODULE_NAME" <<'PY'
+import json
 import sys
 import zipfile
 from pathlib import Path
 
 hap = Path(sys.argv[1])
 license_path = Path(sys.argv[2])
+profile_result_path = Path(sys.argv[3])
+expected_bundle = sys.argv[4]
+expected_module = sys.argv[5]
 required = {
     "libs/arm64-v8a/libamphion_asr.so",
     "libs/arm64-v8a/libonnxruntime.so",
@@ -155,8 +190,66 @@ with zipfile.ZipFile(hap) as package:
         raise SystemExit("[ERROR] HAP unexpectedly contains x86_64 native libraries")
     if package.read("resources/rawfile/amphion-license.lic") != license_path.read_bytes():
         raise SystemExit("[ERROR] HAP license differs from the verified source license")
-print("[OK] HAP license and required arm64 runtime libraries verified")
+    try:
+        module = json.loads(package.read("module.json"))
+    except (KeyError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"[ERROR] invalid HAP module metadata: {exc}") from exc
+    if module.get("app", {}).get("bundleName") != expected_bundle:
+        raise SystemExit("[ERROR] HAP bundle name does not match the Dingqiao demo")
+    if module.get("module", {}).get("name") != expected_module:
+        raise SystemExit("[ERROR] HAP module name does not match the Dingqiao demo")
+
+profile_result = json.loads(profile_result_path.read_text(encoding="utf-8"))
+if profile_result.get("verifiedPassed") is not True:
+    raise SystemExit("[ERROR] embedded HAP profile did not pass signature verification")
+profile_bundle = profile_result.get("content", {}).get("bundle-info", {}).get("bundle-name")
+if profile_bundle != expected_bundle:
+    raise SystemExit("[ERROR] embedded HAP profile is issued for a different bundle")
+print("[OK] HAP signature, profile, identity, license, and arm64 runtime verified")
 PY
+
+  require_file "$SIGNING_CONFIG"
+  if [[ "$(uname)" == "Darwin" ]]; then
+    SIGNING_CONFIG_MODE="$(stat -f '%Lp' "$SIGNING_CONFIG")"
+  else
+    SIGNING_CONFIG_MODE="$(stat -c '%a' "$SIGNING_CONFIG")"
+  fi
+  [[ "$SIGNING_CONFIG_MODE" == "600" || "$SIGNING_CONFIG_MODE" == "400" ]] || {
+    echo "[ERROR] signing config must not be group/world readable: chmod 600 $SIGNING_CONFIG" >&2
+    exit 1
+  }
+  "$PYTHON" - "$SIGNING_CONFIG" "$VERIFY_DIR/cert-chain.cer" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
+
+
+def fingerprints(path: Path) -> set[bytes]:
+    blocks = re.findall(
+        b"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+        path.read_bytes(),
+        re.DOTALL,
+    )
+    if not blocks:
+        raise SystemExit(f"[ERROR] certificate chain is not PEM: {path}")
+    return {x509.load_pem_x509_certificate(block).fingerprint(hashes.SHA256()) for block in blocks}
+
+
+config = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+expected_path = Path(config.get("certpath", ""))
+if not expected_path.is_file():
+    raise SystemExit("[ERROR] signing config certpath is missing or invalid")
+if fingerprints(expected_path) != fingerprints(Path(sys.argv[2])):
+    raise SystemExit("[ERROR] HAP certificate chain differs from the expected signing config")
+print("[OK] HAP certificate chain matches the expected signing config")
+PY
+  cleanup_verify_dir
+  VERIFY_DIR=""
+  trap - EXIT INT TERM
 fi
 
 echo "[DONE] Harmony demo preflight passed"
