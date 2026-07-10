@@ -6,12 +6,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 VERSION="${AMPHION_RUNTIME_VERSION:-0.1.0}"
-OUT_ROOT="${1:-$REPO_ROOT/build/dingqiao-harmony-delivery-$VERSION}"
+FINAL_OUT_ROOT="${1:-$REPO_ROOT/build/dingqiao-harmony-delivery-$VERSION}"
+OUT_ROOT="${FINAL_OUT_ROOT}.tmp.$$"
 
 rm -rf "$OUT_ROOT"
+trap 'rm -rf "$OUT_ROOT"' EXIT
 mkdir -p "$OUT_ROOT/har" "$OUT_ROOT/demo" "$OUT_ROOT/models" "$OUT_ROOT/tts-models" "$OUT_ROOT/docs"
 
-copy_if_exists() {
+copy_optional() {
   local src="$1"
   local dst="$2"
   if [[ -f "$src" ]]; then
@@ -19,6 +21,16 @@ copy_if_exists() {
   else
     echo "[WARN] missing: $src"
   fi
+}
+
+copy_required() {
+  local src="$1"
+  local dst="$2"
+  if [[ ! -f "$src" ]]; then
+    echo "[ERROR] missing required artifact: $src" >&2
+    exit 1
+  fi
+  cp -v "$src" "$dst"
 }
 
 # 从构建输出目录里取唯一的 .har（模块改名后产物名会变，glob 比写死文件名稳）。
@@ -30,7 +42,8 @@ copy_har() {
   if [[ -n "$har" && -f "$har" ]]; then
     cp -v "$har" "$dst"
   else
-    echo "[WARN] no .har in $build_dir"
+    echo "[ERROR] no required .har in $build_dir" >&2
+    exit 1
   fi
 }
 
@@ -42,10 +55,23 @@ bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingq
 # TTS 本就自包含(模型+.so 内置,无外部 HAR 依赖),直接拷。
 copy_har "$REPO_ROOT/tts/harmony/sdk/build/default/outputs/default" "$OUT_ROOT/har/amphion_tts.har"
 
-copy_if_exists "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/entry-default-signed.hap" "$OUT_ROOT/demo/dingqiao-demo.hap"
-copy_if_exists "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap" "$OUT_ROOT/demo/dingqiao-demo.hap"
+HAP_SRC=""
+for candidate in \
+  "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap" \
+  "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/entry-default-signed.hap"; do
+  if [[ -f "$candidate" ]]; then
+    HAP_SRC="$candidate"
+    break
+  fi
+done
+if [[ -z "$HAP_SRC" ]]; then
+  echo "[ERROR] no signed Dingqiao demo HAP found" >&2
+  exit 1
+fi
+"$SCRIPT_DIR/verify_demo_inputs.sh" --hap "$HAP_SRC"
+copy_required "$HAP_SRC" "$OUT_ROOT/demo/dingqiao-demo.hap"
 
-copy_if_exists "$REPO_ROOT/asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx" "$OUT_ROOT/models/eres2net.onnx"
+copy_optional "$REPO_ROOT/asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx" "$OUT_ROOT/models/eres2net.onnx"
 if [[ -d "$REPO_ROOT/tts/models/amphion-tts" ]]; then
   cp -R "$REPO_ROOT/tts/models/amphion-tts" "$OUT_ROOT/tts-models/"
 else
@@ -66,4 +92,7 @@ cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/CHANGELOG.md" "$OUT_ROOT/docs/"
   done > "$OUT_ROOT/docs/checksum.txt"
 )
 
-echo "[DONE] $OUT_ROOT"
+rm -rf "$FINAL_OUT_ROOT"
+mv "$OUT_ROOT" "$FINAL_OUT_ROOT"
+trap - EXIT
+echo "[DONE] $FINAL_OUT_ROOT"

@@ -2,8 +2,17 @@ import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { window } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
-import { SpeechRecognizeSdk } from 'amphion_dingqiao';
+import deviceInfo from '@ohos.deviceInfo';
+import { LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
 import { runSdkSelfTest } from '../util/SdkSelfTest';
+
+class DemoDeviceIdProvider implements LicenseDeviceIdProvider {
+  getDeviceSerial(_context: Context): string | undefined {
+    // Normal apps cannot request ACCESS_UDID; ODID remains scoped to this developer and device.
+    const deviceId = deviceInfo.ODID;
+    return deviceId.length > 0 ? deviceId : undefined;
+  }
+}
 
 export default class EntryAbility extends UIAbility {
   private selfTest: boolean = false;
@@ -13,7 +22,8 @@ export default class EntryAbility extends UIAbility {
     // shares one SpeechRecognizeSdk instance and the same {filesDir}/dingqiao_work path.
     try {
       const workPath = `${this.context.filesDir}/dingqiao_work`;
-      SpeechRecognizeSdk.init(this.context);
+      const deviceIdProvider = new DemoDeviceIdProvider();
+      SpeechRecognizeSdk.init(this.context, deviceIdProvider);
       SpeechRecognizeSdk.setWorkPath(workPath);
       hilog.info(0x0000, 'DingqiaoDemo', 'SpeechRecognizeSdk init done, workPath=%{public}s', workPath);
     } catch (e) {

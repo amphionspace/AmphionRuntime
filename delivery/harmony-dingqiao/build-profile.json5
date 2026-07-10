@@ -1,24 +1,9 @@
 {
   "app": {
-    "signingConfigs": [
-      {
-        "name": "default",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "/Users/boxp/.ohos/config/default_harmony-dingqiao_bD3fx8Z10lB9pFFki27gp3C0f7RRCBSv1b4OcdbQCG4=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001B38D1F77248DF87DAB1B76BC3E2053940A09B2E0C8E3787766DBEB1E7B976328404063F42497636",
-          "profile": "/Users/boxp/.ohos/config/default_harmony-dingqiao_bD3fx8Z10lB9pFFki27gp3C0f7RRCBSv1b4OcdbQCG4=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "/Users/boxp/.ohos/config/default_harmony-dingqiao_bD3fx8Z10lB9pFFki27gp3C0f7RRCBSv1b4OcdbQCG4=.p12",
-          "storePassword": "0000001B1C544D18F3D0BBE7480882CDB808315E428DFD8CBED6009B6E79F1F22D290E16796E85D290A11B"
-        }
-      }
-    ],
+    "signingConfigs": [],
     "products": [
       {
         "name": "default",
-        "signingConfig": "default",
         "compatibleSdkVersion": "5.0.0(12)",
         "targetSdkVersion": "5.0.0(12)",
         "runtimeOS": "HarmonyOS",

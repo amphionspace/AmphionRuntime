@@ -1,0 +1,9 @@
+{
+  "certpath": "/absolute/path/to/app-signing-cert.cer",
+  "keyAlias": "debugKey",
+  "keyPassword": "replace-with-local-encrypted-password",
+  "profile": "/absolute/path/to/debug-profile.p7b",
+  "signAlg": "SHA256withECDSA",
+  "storeFile": "/absolute/path/to/debug-keystore.p12",
+  "storePassword": "replace-with-local-encrypted-password"
+}
