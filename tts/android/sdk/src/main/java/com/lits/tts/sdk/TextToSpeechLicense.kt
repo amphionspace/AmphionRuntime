@@ -38,8 +38,8 @@ enum class LicenseEnforcement {
  * @property errorCode 校验错误码（取自 [TtsErrorCode]）；无错误时为 [TtsErrorCode.OK]
  * @property licenseId 授权编号（我方签发时分配）
  * @property customer 授权客户名
- * @property applicationId license 记录的 applicationId；Android 端不按该字段限制宿主应用
- * @property bundleName license 记录的 HarmonyOS bundleName；Android 端不按该字段限制宿主应用
+ * @property applicationId license 绑定的 applicationId
+ * @property bundleName license 绑定的 HarmonyOS bundleName；Android 端通常等同或为空
  * @property signingCertDigest license 绑定的签名证书 SHA-256
  * @property deviceIdHashAlg 设备 SN 哈希算法
  * @property deviceIdSaltId 设备 SN 哈希盐编号；当前实现也作为哈希盐材料

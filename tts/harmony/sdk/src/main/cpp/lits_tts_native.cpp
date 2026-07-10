@@ -4,6 +4,7 @@
 #include <cerrno>
 #include <chrono>
 #include <cmath>
+#include <condition_variable>
 #include <cstdint>
 #include <cstring>
 #include <fcntl.h>
@@ -33,7 +34,7 @@
 namespace {
 
 constexpr const char* kHandleProperty = "__nativeHandle";
-constexpr const char* kHiddenInputNames[] = {"token_ids", "token_lengths", "speaker_id"};
+constexpr const char* kHiddenInputNames[] = {"token_ids", "token_lengths", "speaker_id", "length_scale"};
 constexpr const char* kHiddenOutputNames[] = {"mu_y", "y_mask", "mel_length", "speaker_embedding"};
 constexpr const char* kDecoderInputNames[] = {"mu_y", "y_mask", "speaker_embedding"};
 constexpr const char* kDecoderOutputNames[] = {"mel"};
@@ -45,6 +46,8 @@ constexpr const char* kVocoderInputNames[] = {"mel"};
 constexpr const char* kVocoderOutputNames[] = {"waveform"};
 constexpr int kSessionIntraOpThreads = 1;
 constexpr int kVocoderIntraOpThreads = 2;
+constexpr float kMinLengthScale = 0.5f;
+constexpr float kMaxLengthScale = 2.0f;
 constexpr unsigned int kLogDomain = 0x23000;
 constexpr const char* kLogTag = "LitsTn";
 constexpr const char* kNativeLogTag = "LitsTtsNative";
@@ -71,7 +74,11 @@ void TnLogError(const std::string& message) {
 }
 
 void NativeLogInfo(const std::string& message) {
-  OH_LOG_Print(LOG_APP, LOG_INFO, kLogDomain, kNativeLogTag, "%{public}s", message.c_str());
+  OH_LOG_Print(LOG_APP, LOG_ERROR, kLogDomain, kNativeLogTag, "%{public}s", message.c_str());
+}
+
+void NativeLogError(const std::string& message) {
+  OH_LOG_Print(LOG_APP, LOG_ERROR, kLogDomain, kNativeLogTag, "%{public}s", message.c_str());
 }
 
 Ort::SessionOptions CreateSessionOptions(int intra_op_threads) {
@@ -180,6 +187,7 @@ struct SynthesizeAsyncContext {
   RuntimeHolder* holder = nullptr;
   std::vector<int64_t> token_ids;
   int64_t speaker_id = 0;
+  float length_scale = 1.0f;
   std::vector<int16_t> pcm;
   std::string error;
 };
@@ -197,8 +205,13 @@ struct SynthesizeStreamingAsyncContext {
   RuntimeHolder* holder = nullptr;
   std::vector<int64_t> token_ids;
   int64_t speaker_id = 0;
+  float length_scale = 1.0f;
+  int chunk_size_override = 0;
   StreamingMetrics metrics;
   std::string error;
+  std::mutex callback_mutex;
+  std::condition_variable callback_cv;
+  int pending_callbacks = 0;
 };
 
 void DeleteRuntime(RuntimeHolder* holder) {
@@ -234,6 +247,15 @@ int64_t GetInt64Argument(napi_env env, napi_value value, const char* name) {
   napi_status status = napi_get_value_int64(env, value, &output);
   if (status != napi_ok) {
     throw std::runtime_error(std::string(name) + " must be an integer");
+  }
+  return output;
+}
+
+double GetDoubleArgument(napi_env env, napi_value value, const char* name) {
+  double output = 0.0;
+  napi_status status = napi_get_value_double(env, value, &output);
+  if (status != napi_ok) {
+    throw std::runtime_error(std::string(name) + " must be a number");
   }
   return output;
 }
@@ -304,9 +326,14 @@ std::vector<T> TensorDataCopy(Ort::Value& tensor) {
   return std::vector<T>(data, data + count);
 }
 
-HiddenEncoderOutput RunHiddenEncoder(Runtime* runtime, const std::vector<int64_t>& token_ids, int64_t speaker_id) {
+HiddenEncoderOutput RunHiddenEncoder(
+    Runtime* runtime,
+    const std::vector<int64_t>& token_ids,
+    int64_t speaker_id,
+    float length_scale) {
   std::vector<int64_t> token_lengths = {static_cast<int64_t>(token_ids.size())};
   std::vector<int64_t> speaker_ids = {speaker_id};
+  std::vector<float> length_scales = {std::clamp(length_scale, kMinLengthScale, kMaxLengthScale)};
   std::vector<int64_t> token_shape = {1, static_cast<int64_t>(token_ids.size())};
   std::vector<int64_t> single_shape = {1};
 
@@ -316,8 +343,11 @@ HiddenEncoderOutput RunHiddenEncoder(Runtime* runtime, const std::vector<int64_t
       runtime->memory_info, token_lengths.data(), token_lengths.size(), single_shape.data(), single_shape.size());
   Ort::Value speaker_tensor = Ort::Value::CreateTensor<int64_t>(
       runtime->memory_info, speaker_ids.data(), speaker_ids.size(), single_shape.data(), single_shape.size());
+  Ort::Value length_scale_tensor = Ort::Value::CreateTensor<float>(
+      runtime->memory_info, length_scales.data(), length_scales.size(), single_shape.data(), single_shape.size());
 
-  std::array<Ort::Value, 3> inputs = {std::move(token_tensor), std::move(length_tensor), std::move(speaker_tensor)};
+  std::array<Ort::Value, 4> inputs = {
+      std::move(token_tensor), std::move(length_tensor), std::move(speaker_tensor), std::move(length_scale_tensor)};
   auto outputs = runtime->hidden_encoder_session->Run(
       Ort::RunOptions{nullptr}, kHiddenInputNames, inputs.data(), inputs.size(), kHiddenOutputNames, 4);
   if (outputs.size() != 4) {
@@ -496,10 +526,10 @@ std::vector<float> RunDecoder(
 
 std::vector<float> GaussianNoise(size_t size, float scale, uint32_t seed) {
   std::mt19937 rng(seed);
-  std::normal_distribution<float> normal(0.0f, scale);
+  std::normal_distribution<float> distribution(0.0f, scale);
   std::vector<float> output(size);
   for (float& value : output) {
-    value = normal(rng);
+    value = distribution(rng);
   }
   return output;
 }
@@ -587,13 +617,17 @@ std::vector<float> RunExternalLoopDecoder(
     const std::vector<float>& speaker_embedding,
     const std::vector<int64_t>& speaker_embedding_shape,
     int channels,
-    uint32_t seed) {
+    uint32_t seed,
+    int chunk_index,
+    const std::function<void(int32_t)>& on_progress) {
   std::vector<float> encoded_mu = RunConditionEncoder(
       runtime, condition_session, mu_y, mu_frames, y_mask, mask_frames, channels);
+  on_progress(static_cast<int32_t>(-5000 - chunk_index));
   const int frames = channels == 0 ? 0 : static_cast<int>(encoded_mu.size()) / channels;
   std::vector<float> x = GaussianNoise(encoded_mu.size(), runtime->decoder_temperature, seed);
   std::vector<float> mel(encoded_mu.size());
   for (int step = 0; step < runtime->decoder_timesteps; ++step) {
+    on_progress(static_cast<int32_t>(-600000 - chunk_index * 100 - step));
     const float t = static_cast<float>(step) / static_cast<float>(runtime->decoder_timesteps);
     const float dt = 1.0f / static_cast<float>(runtime->decoder_timesteps);
     DecoderStepOutput output = RunDecoderStep(
@@ -609,6 +643,7 @@ std::vector<float> RunExternalLoopDecoder(
         dt);
     x = std::move(output.x_next);
     mel = std::move(output.mel);
+    on_progress(static_cast<int32_t>(-700000 - chunk_index * 100 - step));
   }
   return mel;
 }
@@ -629,7 +664,9 @@ StreamingMetrics SynthesizeStreamingNative(
     Runtime* runtime,
     const std::vector<int64_t>& token_ids,
     int64_t speaker_id,
-    const std::function<void(const std::vector<int16_t>&, int32_t)>& on_chunk) {
+    float length_scale,
+    const std::function<void(const std::vector<int16_t>&, int32_t)>& on_chunk,
+    int chunk_size_override = 0) {
   runtime->EnsureLoaded();
   const auto started_at = std::chrono::steady_clock::now();
   StreamingMetrics metrics;
@@ -638,7 +675,8 @@ StreamingMetrics SynthesizeStreamingNative(
     NativeLogInfo("stream cancelled before hidden encoder");
     return metrics;
   }
-  HiddenEncoderOutput hidden = RunHiddenEncoder(runtime, token_ids, speaker_id);
+  const float safe_length_scale = std::clamp(length_scale, kMinLengthScale, kMaxLengthScale);
+  HiddenEncoderOutput hidden = RunHiddenEncoder(runtime, token_ids, speaker_id, safe_length_scale);
   if (runtime->cancel_requested.load(std::memory_order_relaxed)) {
     metrics.synthesis_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                std::chrono::steady_clock::now() - started_at)
@@ -650,15 +688,17 @@ StreamingMetrics SynthesizeStreamingNative(
   const int channels = ChannelsFromShape(hidden.mu_y_shape, 80);
   const int source_cache_len = runtime->streaming_mel_cache_len * runtime->hop_length;
   const std::vector<float> speech_window = HammingWindow(source_cache_len * 2);
+  const int chunk_size = std::max(1, chunk_size_override > 0 ? chunk_size_override : runtime->streaming_chunk_size);
   const std::vector<StreamingChunkSlice> slices =
-      BuildStreamingChunkSlices(mel_length, runtime->streaming_chunk_size, runtime->streaming_chunk_size);
+      BuildStreamingChunkSlices(mel_length, chunk_size, chunk_size);
   {
     std::ostringstream log;
     log << "stream start tokenLength=" << token_ids.size()
         << " speakerId=" << speaker_id
+        << " lengthScale=" << safe_length_scale
         << " melLength=" << mel_length
         << " channels=" << channels
-        << " chunkSize=" << runtime->streaming_chunk_size
+        << " chunkSize=" << chunk_size
         << " lookahead=" << runtime->streaming_pre_lookahead_len
         << " melCacheLen=" << runtime->streaming_mel_cache_len
         << " hopLength=" << runtime->hop_length
@@ -684,6 +724,7 @@ StreamingMetrics SynthesizeStreamingNative(
     std::vector<float> window_mu_y = SliceFrameRange(hidden.mu_y, window_start_idx, window_frames, channels);
     const int output_frames = finalize ? window_frames : std::max(1, window_frames - runtime->streaming_pre_lookahead_len);
     std::vector<float> window_mask(hidden.y_mask.begin() + window_start_idx, hidden.y_mask.begin() + window_start_idx + output_frames);
+    on_chunk({}, static_cast<int32_t>(-1000 - static_cast<int>(index)));
     std::vector<float> mel_window = RunExternalLoopDecoder(
         runtime,
         finalize ? runtime->stream_condition_final_session.get() : runtime->stream_condition_chunk_session.get(),
@@ -694,12 +735,18 @@ StreamingMetrics SynthesizeStreamingNative(
         hidden.speaker_embedding,
         hidden.speaker_embedding_shape,
         channels,
-        static_cast<uint32_t>(20260624 + index));
+        static_cast<uint32_t>(20260624 + index),
+        static_cast<int>(index),
+        [&on_chunk](int32_t marker) {
+          on_chunk({}, marker);
+        });
+    on_chunk({}, static_cast<int32_t>(-2000 - static_cast<int>(index)));
     std::vector<float> mel_chunk = SliceFramesFrom(mel_window, slice.start_idx - window_start_idx, channels);
     if (!mel_cache.empty()) {
       mel_chunk = ConcatFrames(mel_cache, mel_chunk, channels);
     }
     std::vector<float> waveform = RunVocoder(runtime, mel_chunk, channels);
+    on_chunk({}, static_cast<int32_t>(-3000 - static_cast<int>(index)));
     if (runtime->cancel_requested.load(std::memory_order_relaxed)) {
       NativeLogInfo("stream cancelled after vocoder index=" + std::to_string(index));
       break;
@@ -716,6 +763,7 @@ StreamingMetrics SynthesizeStreamingNative(
     if (emitted.empty()) {
       continue;
     }
+    on_chunk({}, static_cast<int32_t>(-4000 - static_cast<int>(index)));
     std::vector<int16_t> chunk(emitted.size());
     for (size_t sample = 0; sample < emitted.size(); ++sample) {
       const float clipped = std::max(-1.0f, std::min(1.0f, emitted[sample]));
@@ -760,12 +808,17 @@ StreamingMetrics SynthesizeStreamingNative(
   return metrics;
 }
 
-std::vector<int16_t> Synthesize(Runtime* runtime, const std::vector<int64_t>& token_ids, int64_t speaker_id) {
+std::vector<int16_t> Synthesize(
+    Runtime* runtime,
+    const std::vector<int64_t>& token_ids,
+    int64_t speaker_id,
+    float length_scale = 1.0f) {
   std::vector<int16_t> pcm;
   SynthesizeStreamingNative(
       runtime,
       token_ids,
       speaker_id,
+      length_scale,
       [&pcm](const std::vector<int16_t>& chunk, int32_t /*sequence*/) {
         const size_t base = pcm.size();
         pcm.resize(base + chunk.size());
@@ -1237,7 +1290,7 @@ void ExecuteSynthesize(napi_env /*env*/, void* data) {
     if (context->holder == nullptr || context->holder->runtime == nullptr) {
       throw std::runtime_error("runtime handle has been released");
     }
-    context->pcm = Synthesize(context->holder->runtime, context->token_ids, context->speaker_id);
+    context->pcm = Synthesize(context->holder->runtime, context->token_ids, context->speaker_id, context->length_scale);
   } catch (const Ort::Exception& error) {
     context->error = error.what();
   } catch (const std::exception& error) {
@@ -1263,8 +1316,8 @@ void CompleteSynthesize(napi_env env, napi_status /*status*/, void* data) {
 
 napi_value SynthesizeAsyncWrapped(napi_env env, napi_callback_info info) {
   try {
-    size_t argc = 3;
-    napi_value args[3] = {nullptr, nullptr, nullptr};
+    size_t argc = 4;
+    napi_value args[4] = {nullptr, nullptr, nullptr, nullptr};
     napi_value this_arg = nullptr;
     napi_get_cb_info(env, info, &argc, args, &this_arg, nullptr);
     if (argc < 3) {
@@ -1280,6 +1333,9 @@ napi_value SynthesizeAsyncWrapped(napi_env env, napi_callback_info info) {
     context->holder->runtime->cancel_requested.store(false, std::memory_order_relaxed);
     context->token_ids = GetTokenIds(env, args[1]);
     context->speaker_id = GetInt64Argument(env, args[2], "speakerId");
+    context->length_scale = argc >= 4
+        ? static_cast<float>(GetDoubleArgument(env, args[3], "lengthScale"))
+        : 1.0f;
 
     napi_value promise = nullptr;
     napi_create_promise(env, &context->deferred, &promise);
@@ -1295,21 +1351,28 @@ napi_value SynthesizeAsyncWrapped(napi_env env, napi_callback_info info) {
   }
 }
 
-void CallStreamingChunkJs(napi_env env, napi_value js_callback, void* /*context*/, void* data) {
+void CallStreamingChunkJs(napi_env env, napi_value js_callback, void* context_data, void* data) {
+  auto* context = static_cast<SynthesizeStreamingAsyncContext*>(context_data);
   std::unique_ptr<StreamingChunkPayload> payload(static_cast<StreamingChunkPayload*>(data));
-  if (env == nullptr || js_callback == nullptr || payload == nullptr) {
-    return;
+  if (env != nullptr && js_callback != nullptr && payload != nullptr) {
+    void* buffer_data = nullptr;
+    napi_value chunk = nullptr;
+    napi_create_arraybuffer(env, payload->pcm.size() * sizeof(int16_t), &buffer_data, &chunk);
+    std::memcpy(buffer_data, payload->pcm.data(), payload->pcm.size() * sizeof(int16_t));
+    napi_value sequence = nullptr;
+    napi_create_int32(env, payload->sequence, &sequence);
+    napi_value argv[2] = {chunk, sequence};
+    napi_value global = nullptr;
+    napi_get_global(env, &global);
+    napi_call_function(env, global, js_callback, 2, argv, nullptr);
   }
-  void* buffer_data = nullptr;
-  napi_value chunk = nullptr;
-  napi_create_arraybuffer(env, payload->pcm.size() * sizeof(int16_t), &buffer_data, &chunk);
-  std::memcpy(buffer_data, payload->pcm.data(), payload->pcm.size() * sizeof(int16_t));
-  napi_value sequence = nullptr;
-  napi_create_int32(env, payload->sequence, &sequence);
-  napi_value argv[2] = {chunk, sequence};
-  napi_value global = nullptr;
-  napi_get_global(env, &global);
-  napi_call_function(env, global, js_callback, 2, argv, nullptr);
+  if (context != nullptr) {
+    {
+      std::lock_guard<std::mutex> lock(context->callback_mutex);
+      context->pending_callbacks = std::max(0, context->pending_callbacks - 1);
+    }
+    context->callback_cv.notify_all();
+  }
 }
 
 void ExecuteSynthesizeStreaming(napi_env /*env*/, void* data) {
@@ -1322,16 +1385,36 @@ void ExecuteSynthesizeStreaming(napi_env /*env*/, void* data) {
         context->holder->runtime,
         context->token_ids,
         context->speaker_id,
+        context->length_scale,
         [context](const std::vector<int16_t>& chunk, int32_t sequence) {
           auto* payload = new StreamingChunkPayload();
           payload->pcm = chunk;
           payload->sequence = sequence;
-          napi_call_threadsafe_function(context->tsfn, payload, napi_tsfn_blocking);
-        });
+          {
+            std::lock_guard<std::mutex> lock(context->callback_mutex);
+            context->pending_callbacks += 1;
+          }
+          napi_status status = napi_call_threadsafe_function(context->tsfn, payload, napi_tsfn_blocking);
+          if (status != napi_ok) {
+            delete payload;
+            {
+              std::lock_guard<std::mutex> lock(context->callback_mutex);
+              context->pending_callbacks = std::max(0, context->pending_callbacks - 1);
+            }
+            context->callback_cv.notify_all();
+          }
+        },
+        context->chunk_size_override);
+    std::unique_lock<std::mutex> lock(context->callback_mutex);
+    context->callback_cv.wait(lock, [context]() {
+      return context->pending_callbacks == 0;
+    });
   } catch (const Ort::Exception& error) {
     context->error = error.what();
+    NativeLogError(std::string("synthesizeStreaming Ort exception: ") + context->error);
   } catch (const std::exception& error) {
     context->error = error.what();
+    NativeLogError(std::string("synthesizeStreaming exception: ") + context->error);
   }
   if (context->tsfn != nullptr) {
     napi_release_threadsafe_function(context->tsfn, napi_tsfn_release);
@@ -1363,15 +1446,17 @@ void CompleteSynthesizeStreaming(napi_env env, napi_status /*status*/, void* dat
 
 napi_value SynthesizeStreamingWrapped(napi_env env, napi_callback_info info) {
   try {
-    size_t argc = 4;
-    napi_value args[4] = {nullptr, nullptr, nullptr, nullptr};
+    size_t argc = 6;
+    napi_value args[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
     napi_value this_arg = nullptr;
     napi_get_cb_info(env, info, &argc, args, &this_arg, nullptr);
-    if (argc < 4) {
-      throw std::runtime_error("synthesizeStreaming expects runtimeHandle, tokenIds, speakerId, and onChunk");
+    if (argc < 5) {
+      throw std::runtime_error("synthesizeStreaming expects runtimeHandle, tokenIds, speakerId, lengthScale, optional chunkSizeOverride, and onChunk");
     }
+    const bool has_chunk_size_override = argc >= 6;
+    napi_value callback_arg = has_chunk_size_override ? args[5] : args[4];
     napi_valuetype callback_type = napi_undefined;
-    napi_typeof(env, args[3], &callback_type);
+    napi_typeof(env, callback_arg, &callback_type);
     if (callback_type != napi_function) {
       throw std::runtime_error("onChunk must be a function");
     }
@@ -1385,6 +1470,11 @@ napi_value SynthesizeStreamingWrapped(napi_env env, napi_callback_info info) {
     context->holder->runtime->cancel_requested.store(false, std::memory_order_relaxed);
     context->token_ids = GetTokenIds(env, args[1]);
     context->speaker_id = GetInt64Argument(env, args[2], "speakerId");
+    context->length_scale = static_cast<float>(GetDoubleArgument(env, args[3], "lengthScale"));
+    if (has_chunk_size_override) {
+      const int64_t chunk_size_override = GetInt64Argument(env, args[4], "chunkSizeOverride");
+      context->chunk_size_override = chunk_size_override > 0 ? static_cast<int>(chunk_size_override) : 0;
+    }
 
     napi_value promise = nullptr;
     napi_create_promise(env, &context->deferred, &promise);
@@ -1392,14 +1482,14 @@ napi_value SynthesizeStreamingWrapped(napi_env env, napi_callback_info info) {
     napi_create_string_utf8(env, "LitsTtsSynthesizeStreaming", NAPI_AUTO_LENGTH, &resource_name);
     napi_create_threadsafe_function(
         env,
-        args[3],
+        callback_arg,
         nullptr,
         resource_name,
         0,
         1,
         nullptr,
         nullptr,
-        nullptr,
+        context.get(),
         CallStreamingChunkJs,
         &context->tsfn);
     napi_create_async_work(

@@ -51,7 +51,7 @@ class LicenseVerifierTest {
     }
 
     @Test
-    fun validLicenseIsLicensed() {
+    fun validAppOnlyLicenseIsLicensed() {
         val lic = issue(claims(applicationId = appId, expiresAt = "2027-01-01", customer = "ACME Co."))
         val r = verify(licenseText = lic)
         assertTrue(r.errorMessage, r.ok)
@@ -62,33 +62,10 @@ class LicenseVerifierTest {
     }
 
     @Test
-    fun applicationIdMismatchDoesNotRestrictLicensedDevice() {
-        val saltId = "DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71"
-        val serial = "SN-001"
-        val hash = DeviceLicenseFingerprint.computeFromSerial(serial, saltId)
-        val lic = issue(
-            claims(
-                applicationId = "com.other.app",
-                deviceIdSaltId = saltId,
-                authorizedDeviceHashes = listOf(hash),
-            ),
-        )
-
-        val r = LicenseVerifier.verifyResolved(
-            licenseText = lic,
-            publicKeyB64 = publicKeyB64,
-            packageName = appId,
-            hostCertSha256 = emptySet(),
-            deviceSerial = serial,
-            expiryGraceDays = 0,
-            sdkMajor = 1,
-            sdkReleaseDate = "2026-06-01",
-            requiredFeature = "TTS",
-            nowMillis = utc("2026-06-01"),
-        )
-
-        assertTrue(r.errorMessage, r.ok)
-        assertEquals(TtsLicenseStatus.State.LICENSED, r.status.state)
+    fun applicationIdMismatchFails() {
+        val lic = issue(claims(applicationId = "com.other.app"))
+        val r = verify(licenseText = lic)
+        assertEquals(TtsErrorCode.LICENSE_APP_MISMATCH, r.errorCode)
     }
 
     @Test

@@ -145,6 +145,23 @@ export class AmphionRuntime {
   static licenseStatus(): AmphionLicenseStatus {
     return AmphionRuntime.licenseStatusHolder;
   }
+
+  /**
+   * Real ECDSA signature verification of a raw .lic envelope against the injected public key.
+   * Returns true on an unarmed (development) build. Callers (e.g. the Dingqiao setLicense path) invoke this
+   * before init() so a forged / tampered license is rejected up front rather than trusted by binding checks.
+   */
+  static verifyLicenseSignature(licenseText: string | undefined): Promise<boolean> {
+    return HarmonyLicenseVerifier.verifySignature(licenseText, HarmonyLicenseVerifier.publicKey());
+  }
+
+  /**
+   * SN 白名单校验（对齐 Android）。true = 未绑 SN 或该设备 SN 在白名单内；
+   * false = license 绑了 SN 但本机 SN 缺失 / 不在白名单。
+   */
+  static checkDeviceBinding(licenseText: string | undefined, deviceSerial: string | undefined): Promise<boolean> {
+    return HarmonyLicenseVerifier.deviceHashOk(licenseText, deviceSerial);
+  }
   static release(): void {
     AmphionRuntime.asrPool.clear();
     AmphionRuntime.poolConfig = undefined;
@@ -195,7 +212,7 @@ export class AmphionRuntime {
       AmphionRuntime.options.bundleName,
       AmphionRuntime.options.signingCertDigest,
       serial,
-      '',
+      HarmonyLicenseVerifier.publicKey(),
       AmphionRuntime.SDK_MAJOR,
       AmphionRuntime.SDK_RELEASE_DATE
     );

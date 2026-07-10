@@ -82,6 +82,7 @@ internal object LitsTtsFrontend {
         '#' to "井号",
         '$' to "美元",
         '%' to "百分号",
+        '\uFF05' to "百分号",
         '&' to "和",
         '*' to "星号",
         '+' to "加",
@@ -136,7 +137,7 @@ internal object LitsTtsFrontend {
         '\u2715' to ",",
         '\u2716' to ",",
     )
-    private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)%")
+    private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)[%％]")
     private val commaIntegerCurrencyRegex = Regex("(?<!\\d)(\\d{1,3}(?:,\\d{3})+)\\.00(?=元)")
     private val thousandsSeparatorRegex = Regex("(?<=\\d),(?=\\d{3}(?:\\D|$))")
     private val clockMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2})点0([1-9])分")
@@ -688,7 +689,7 @@ internal object LitsTtsFrontend {
                     val end = scanHanziChunk(normalized, index)
                     val hanziText = normalized.substring(index, end)
                     val pinyin = hanziChunkToPinyin(resources, hanziText)
-                    val sandhi = applyMandarinToneSandhi(hanziText, pinyin)
+                    val sandhi = restoreOverridePinyin(resources, hanziText, applyMandarinToneSandhi(hanziText, pinyin))
                     if (traceId > 0L) {
                         logDetail(
                             traceId,
@@ -1070,10 +1071,14 @@ internal object LitsTtsFrontend {
     }
 
     private fun longestWord(resources: FrontendResources, text: String, start: Int): String {
+        resources.overrideWordPinyin.keys
+            .filter { it.length > 1 && text.startsWith(it, start) }
+            .maxByOrNull { it.length }
+            ?.let { return it }
         val maxLength = minOf(resources.maxWordLength, text.length - start)
         for (length in maxLength downTo 2) {
             val candidate = text.substring(start, start + length)
-            if (resources.wordPinyin.containsKey(candidate)) {
+            if (resources.overrideWordPinyin.containsKey(candidate) || resources.wordPinyin.containsKey(candidate)) {
                 return candidate
             }
         }
@@ -1081,6 +1086,10 @@ internal object LitsTtsFrontend {
     }
 
     private fun lexiconPinyinForWord(resources: FrontendResources, word: String): List<String> {
+        resources.overrideWordPinyin[word]?.let { pinyin ->
+            val syllables = normalizeLexiconPinyin(pinyin)
+            if (syllables.isNotEmpty()) return syllables
+        }
         val direct = resources.wordPinyin[word]
         if (direct != null && word !in resources.polyphonicWords) {
             val syllables = normalizeLexiconPinyin(direct)
@@ -1116,6 +1125,31 @@ internal object LitsTtsFrontend {
         applyBuSandhi(text, output)
         applyYiSandhi(text, output)
         applyErSandhi(text, output)
+        return output
+    }
+
+    private fun restoreOverridePinyin(resources: FrontendResources, text: String, tokens: List<String>): List<String> {
+        if (text.length != tokens.size || resources.overrideWordPinyin.isEmpty()) return tokens
+        val output = tokens.toMutableList()
+        val occupied = BooleanArray(output.size)
+        resources.overrideWordPinyin.entries
+            .filter { it.key.length > 1 }
+            .sortedByDescending { it.key.length }
+            .forEach { (word, pinyin) ->
+                val syllables = normalizeLexiconPinyin(pinyin)
+                if (syllables.size != word.length) return@forEach
+                var start = text.indexOf(word)
+                while (start >= 0) {
+                    val end = start + word.length
+                    if ((start until end).none { occupied[it] }) {
+                        for (offset in syllables.indices) {
+                            output[start + offset] = syllables[offset]
+                            occupied[start + offset] = true
+                        }
+                    }
+                    start = text.indexOf(word, start + 1)
+                }
+            }
         return output
     }
 
@@ -1186,6 +1220,7 @@ internal object LitsTtsFrontend {
         if (preferLetterName && rawWord.length == 1) {
             letterPhonesByChar[normalized.single()]?.let { return it }
         }
+        resources.supplementLexicon[normalized]?.let { return it }
         if (shouldSpellUppercaseWord(rawWord, normalized)) {
             val spelled = spellEnglishWord(resources, normalized)
             if (spelled.isNotEmpty()) return spelled
@@ -1464,6 +1499,7 @@ internal object LitsTtsFrontend {
             }
             try {
                 val wordPinyinFuture = executor.submit(Callable { loadWordPinyin(layout) })
+                val overrideWordPinyinFuture = executor.submit(Callable { loadWordPinyinOverrides(layout) })
                 val polyphonicWords = executor.submit(Callable {
                     layout.polychar.readLines(Charsets.UTF_8)
                         .map { it.trim() }
@@ -1477,12 +1513,14 @@ internal object LitsTtsFrontend {
                 val pinyinToTokens = executor.submit(Callable { loadTokenMap(layout.pinyinToTokens, "pinyin_to_tokens") })
                 val arpabetToTokens = executor.submit(Callable { loadTokenMap(layout.arpabetToTokens, "arpabet_to_tokens") })
                 val wordPinyin = wordPinyinFuture.get()
+                val overrideWordPinyin = overrideWordPinyinFuture.get()
                 val baseCmudict = cmudict.get()
                 val supplement = supplementLexicon.get()
                 FrontendResources(
                     wordPinyin = wordPinyin,
+                    overrideWordPinyin = overrideWordPinyin,
                     polyphonicWords = polyphonicWords.get(),
-                    maxWordLength = wordPinyin.keys.maxOfOrNull { it.length } ?: 1,
+                    maxWordLength = (wordPinyin.keys + overrideWordPinyin.keys).maxOfOrNull { it.length } ?: 1,
                     cmudict = baseCmudict,
                     supplementLexicon = supplement,
                     englishLexicon = mergeEnglishLexicon(baseCmudict, supplement),
@@ -1526,8 +1564,8 @@ internal object LitsTtsFrontend {
         }
     }
 
-    private fun loadWordPinyin(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> =
-        if (layout.chineseLexiconBin.isFile) {
+    private fun loadWordPinyin(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> {
+        val base = if (layout.chineseLexiconBin.isFile) {
             try {
                 loadWordPinyinBin(layout.chineseLexiconBin)
             } catch (exception: Exception) {
@@ -1536,6 +1574,31 @@ internal object LitsTtsFrontend {
         } else {
             loadWordPinyinText(layout)
         }
+        return buildMap {
+            putAll(base)
+            mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.POLYPHONE_PHRASES)
+            mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.CHINESE_SURNAME_LEXICON)
+        }
+    }
+
+    private fun loadWordPinyinOverrides(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> =
+        buildMap {
+            mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.POLYPHONE_PHRASES)
+            mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.CHINESE_SURNAME_LEXICON)
+        }
+
+    private fun MutableMap<String, String>.mergeWordPinyinText(rootDir: File, relativePath: String) {
+        val file = rootDir.resolve(relativePath)
+        if (!file.isFile) return
+        file.forEachLine(Charsets.UTF_8) { line ->
+            val trimmed = line.trim()
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) return@forEachLine
+            val parts = trimmed.split('\t', limit = 2)
+            if (parts.size == 2) {
+                put(parts[0], parts[1])
+            }
+        }
+    }
 
     private fun loadWordPinyinText(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> =
         buildMap {
@@ -1653,6 +1716,7 @@ internal object LitsTtsFrontend {
 
     private data class FrontendResources(
         val wordPinyin: Map<String, String>,
+        val overrideWordPinyin: Map<String, String>,
         val polyphonicWords: Set<String>,
         val maxWordLength: Int,
         val cmudict: Map<String, List<String>>,

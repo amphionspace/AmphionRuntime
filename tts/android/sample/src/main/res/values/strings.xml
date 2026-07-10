@@ -13,7 +13,7 @@
     <string name="label_log">运行日志（自测）</string>
 
     <string name="hint_input">请输入要合成的文本</string>
-    <string name="hint_chunk_size">默认 100</string>
+    <string name="hint_chunk_size">默认 50</string>
     <string name="hint_pcm_queue_capacity">默认 128</string>
     <string name="hint_speed">默认 1.0，范围 0.5~2.0</string>
     <string name="mode_mixed">zh-en</string>

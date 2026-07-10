@@ -31,14 +31,14 @@ HarmonyOS/
 ```text
 tools/README.md
 tools/verify_lits_harmony_package.mjs
-tools/trial-export/lits_delivery_16k_hifigan/1.0.0/.gitkeep
+tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/.gitkeep
 ```
 
 ## 2. 不要上传什么
 
 以下内容不要进 Git：
 
-- `tools/trial-export/lits_delivery_16k_hifigan/1.0.0/` 里的真实 `.onnx/.json/.txt/.wav`
+- `tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/` 里的真实 `.onnx/.json/.txt/.wav`
 - `HarmonyOS/AmphionRuntime/.hvigor/`
 - `HarmonyOS/AmphionRuntime/.ohos/`
 - `HarmonyOS/AmphionRuntime/**/build/`
@@ -57,28 +57,41 @@ tools/trial-export/lits_delivery_16k_hifigan/1.0.0/.gitkeep
 负责人单独接收完整模型包目录：
 
 ```text
-LitsTtsSdk/tools/trial-export/lits_delivery_16k_hifigan/1.0.0/
+LitsTtsSdk/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
 
 至少包括：
 
 - `manifest.json`
-- `lits_acoustic.onnx`
-- `hifigan_vocoder.onnx`
-- `smoke_tokens.json`
+- `lits_hidden_encoder.onnx`
+- `lits_stream_condition_chunk.onnx`
+- `lits_stream_condition_final.onnx`
+- `lits_stream_decoder_step.onnx`
+- `vocos_vocoder.onnx`
 - `frontend_golden.json`
+- `frontend_rules.json`
 - `chinese_lexicon.txt`
+- `chinese_lexicon.bin`
 - `cmudict.txt`
+- `cmudict.bin`
+- `supplement_lexicon.json`
 - `pinyin_2_bpmf.txt`
 - `polychar.txt`
 - `zh_en_symbols.json`
 - `pinyin_to_tokens.json`
 - `arpabet_to_tokens.json`
+- `tn-bin/arm64-v8a/zh_tts`
+- `tn-bin/arm64-v8a/en_tts`
+- `rules/zh.json`
+- `rules/en.json`
+- `rules/zh_pinyin.json`
+- `rules_v2/zh.full.json`
+- `rules_v2/en.full.json`
 
 如果已有，也建议一并发过去：
 
 - `export_report.json`
-- `onnx_smoke_hello_world.wav`
+- `external_loop_export_report.json`
 
 ## 4. 最终交付物分别是什么
 

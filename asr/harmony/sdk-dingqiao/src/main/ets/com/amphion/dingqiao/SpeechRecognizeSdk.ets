@@ -1,6 +1,7 @@
-import { AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
+import { AmphionDeviceIdProvider, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
 import { PoliceEngineConfig, PoliceEnhanceOptions, PoliceEnhancePipeline } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
+import deviceInfo from '@ohos.deviceInfo';
 import { VoiceprintStore } from './VoiceprintStore';
 import {
   CreateEngineCallback,
@@ -396,6 +397,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     payload.isLast = this.finishRequested;
     payload.result = enhanced.text;
     payload.speakerSimilarity = result.speakerScore;
+    // beginTime/endTime from token timestamps (seconds -> ms), aligned with Android dispatchResult.
+    const ts = result.timestamps;
+    if (ts.length > 0) {
+      payload.beginTime = Math.round(ts[0] * 1000);
+      payload.endTime = Math.round(ts[ts.length - 1] * 1000);
+    }
     this.finalResultSent = true;
     this.listener?.onResult?.(this.currentSessionId, payload);
     if (this.finishRequested) {
@@ -522,6 +529,19 @@ class DingqiaoAsrCallback implements AsrCallback {
   }
 }
 
+// 设备 SN 提供者(对齐 Android DingqiaoDeviceIdProvider):读设备序列号供 license SN 白名单校验。
+// 读取 deviceInfo.serial 需要 ohos.permission.sn(系统/特权权限);普通 Demo 读不到 -> 返回 undefined。
+class DingqiaoDeviceIdProvider implements AmphionDeviceIdProvider {
+  getDeviceSerial(_context: Context): string | undefined {
+    try {
+      const sn = deviceInfo.serial;
+      return sn !== undefined && sn.length > 0 ? sn : undefined;
+    } catch (e) {
+      return undefined;
+    }
+  }
+}
+
 export class SpeechRecognizeSdk {
   private static context?: Context;
   private static workPath: string = '';
@@ -541,7 +561,8 @@ export class SpeechRecognizeSdk {
   }
 
   static setLicense(licensePath: string, callback: LicenseActivationCallback): void {
-    if (SpeechRecognizeSdk.context === undefined) {
+    const context = SpeechRecognizeSdk.context;
+    if (context === undefined) {
       callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, 'SpeechRecognizeSdk.init must be called first');
       return;
     }
@@ -560,11 +581,47 @@ export class SpeechRecognizeSdk {
       callback.onError(DingqiaoErrorCode.LICENSE_FILE_UNREADABLE, `license file not readable: ${e}`);
       return;
     }
+    // 真鉴权(ECDSA 验签 + SN 白名单)是异步的,交给 activateLicense 继续。
+    SpeechRecognizeSdk.activateLicense(context, licenseText, callback);
+  }
+
+  private static async activateLicense(
+    context: Context,
+    licenseText: string,
+    callback: LicenseActivationCallback
+  ): Promise<void> {
+    // 第一道门:真 ECDSA 验签。被篡改/伪造的 license(如改了 expiresAt)在这里被拒,引擎不会初始化。
+    // 开发(未注入公钥)构建下 verifyLicenseSignature 返回 true,保持可用。
+    const signatureValid = await AmphionRuntime.verifyLicenseSignature(licenseText);
+    if (!signatureValid) {
+      const info = new LicenseInfo();
+      info.status = 2;
+      info.expireTime = -1;
+      info.remainingDays = -1;
+      info.authorizedFeatures = [];
+      SpeechRecognizeSdk.licenseInfo = info;
+      callback.onError(DingqiaoErrorCode.LICENSE_INVALID, 'license signature verification failed');
+      return;
+    }
+    // 第二道门:SN 白名单(对齐 Android)。绑了 SN 的 license 只在白名单设备上激活;本机 SN 由 provider 读取。
+    const provider = new DingqiaoDeviceIdProvider();
+    const deviceOk = await AmphionRuntime.checkDeviceBinding(licenseText, provider.getDeviceSerial(context));
+    if (!deviceOk) {
+      const info = new LicenseInfo();
+      info.status = 3;
+      info.expireTime = -1;
+      info.remainingDays = -1;
+      info.authorizedFeatures = [];
+      SpeechRecognizeSdk.licenseInfo = info;
+      callback.onError(DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH, 'device not authorized');
+      return;
+    }
     try {
       const options = new AmphionOptions();
       options.license = licenseText;
+      options.deviceIdProvider = provider;
       AmphionRuntime.release();
-      AmphionRuntime.init(SpeechRecognizeSdk.context, options);
+      AmphionRuntime.init(context, options);
       const status = AmphionRuntime.licenseStatus();
       const info = new LicenseInfo();
       info.status = status.valid ? 0 : 2;
