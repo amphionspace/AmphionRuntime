@@ -150,4 +150,4 @@ bash asr/tools/08_pack_harmony_assets.sh
 
 ## TTS
 
-离线 TTS 已拆分为独立 SDK，见 `tts/harmony/`（模块名 `amphion_tts`）与 `tts/harmony/docs/INTEGRATION.md`。
+离线 TTS 已拆分为独立 SDK，见 `tts/harmony/`（模块名 `amphion_tts`）与 `tts/harmony/docs/API.md`。

@@ -3109,6 +3109,9 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
   private currentTask: SynthesisTask | undefined;
   private processing: boolean = false;
   private destroyed: boolean = false;
+  // 当前在途的 native synthesizeStreaming(至多一个,处理循环串行执行)。shutdown() 释放 native runtime
+  // 前会等它结算,避免 worker 线程仍在解引用 nativeRuntime 时 runtime 就被 delete → native use-after-free。
+  private activeSynthesis: Promise<void> | undefined = undefined;
   private released: boolean = false;
 
   constructor(
@@ -3183,6 +3186,10 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
       listener.onError?.(normalizedParams.requestId, TtsErrorCode.RUNTIME_EXCEPTION, 'requestId duplicated');
       return;
     }
+    // 有界去重集:超过上限即清空,避免长生命周期引擎无限增长(极旧 requestId 被复用时放行是可接受折衷)。
+    if (this.seenRequestIds.size >= 4096) {
+      this.seenRequestIds.clear();
+    }
     this.seenRequestIds.add(normalizedParams.requestId);
     const task: SynthesisTask = {
       text: normalizedText,
@@ -3243,7 +3250,15 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
     if (listener !== undefined) {
       stoppedTasks.forEach((task: SynthesisTask): void => this.notifyStop(listener, task));
     }
-    this.releaseOnce();
+    // 释放 native runtime 前必须等在途的 native synthesizeStreaming 结算:cancelNativeSynthesis() 已置协作
+    // 取消标志,在途调用会在下一个 chunk 边界(数毫秒)返回。若此刻直接 releaseRuntime,worker 线程仍在
+    // 解引用 this.nativeRuntime → native use-after-free。等 activeSynthesis 结算后再 releaseOnce(幂等)。
+    const inFlight = this.activeSynthesis;
+    if (inFlight !== undefined) {
+      inFlight.then((): void => this.releaseOnce(), (): void => this.releaseOnce());
+    } else {
+      this.releaseOnce();
+    }
   }
 
   private scheduleProcessing(): void {
@@ -3370,7 +3385,19 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
     callback();
   }
 
-  private async synthesizeStreaming(
+  private synthesizeStreaming(
+    task: SynthesisTask,
+    listener: SpeakListener,
+    chunkWriter?: (chunk: ArrayBuffer) => Promise<void>
+  ): Promise<NativeStreamingSynthesisMetrics> {
+    const pending = this.synthesizeStreamingInner(task, listener, chunkWriter);
+    // 记录在途 native 合成供 shutdown() 等待(见 activeSynthesis 声明)。设置发生在返回 pending 之前、
+    // 任何 await 让出事件循环之前,故 native 调用在途时该字段必已被赋值,shutdown 不会漏等。
+    this.activeSynthesis = pending.then((): void => {}, (): void => {});
+    return pending;
+  }
+
+  private async synthesizeStreamingInner(
     task: SynthesisTask,
     listener: SpeakListener,
     chunkWriter?: (chunk: ArrayBuffer) => Promise<void>
@@ -3716,6 +3743,12 @@ export class TextToSpeechSdk {
 
   private static async activateLicense(licenseText: string, callback: LicenseActivationCallback): Promise<void> {
     const pub = HarmonyLicenseVerifier.publicKey();
+    if (pub.trim().length === 0) {
+      // SECURITY: 未注入公钥(unarmed)——下面的签名校验对任意 license 直接放行(fail-open)。正式发布/交付
+      // 构建绝不能走到这里。此告警用于在错误清空了内置公钥的 release 构建里第一时间暴露问题(配合
+      // HarmonyLicenseVerifier.isArmed() 的发版自检)。
+      console.error('[AmphionLicense] SECURITY: TTS SDK is UNARMED (empty public key) — signature verification is bypassed; DO NOT ship a release build in this state.');
+    }
     // Gate 1: real ECDSA signature. Tampered/forged licenses (e.g. edited expiresAt) are rejected here.
     let signatureValid = false;
     try {
@@ -3799,6 +3832,13 @@ export class TextToSpeechSdk {
   }
 
   static createEngineAsync(params: CreateEngineParams, callback: Callback<TextToSpeechEngine>): void {
+    // 回调在调用方线程的微任务里执行(非真正 off-thread)。注意两块开销的归属:
+    //  1) 5 个 ONNX 模型(~160MB)的加载 **不在这里**:native Runtime 构造函数用 std::async 在后台线程
+    //     加载,首次 speak 时在合成 worker 线程 join(见 lits_tts_native.cpp Runtime::EnsureLoaded),不占 UI 线程。
+    //  2) 前端词典解析(chinese_lexicon.txt ~14MB + cmudict.txt ~3.4MB → Map)**是同步的**,首次创建约
+    //     ~2s 的 UI 线程开销。FrontendResources 按 modelPackageDir 缓存(loadedPackages),同一进程内仅首个
+    //     引擎付这笔钱,之后 createEngine 直接命中缓存。
+    // 若要彻底消除这一次性卡顿,需把前端加载搬到 taskpool/Worker(涉及 Map 结果的 Sendable 序列化),风险较大,暂缓。
     Promise.resolve().then((): void => {
       try {
         callback.onSuccess(TextToSpeechSdk.createEngineInternal(params));
