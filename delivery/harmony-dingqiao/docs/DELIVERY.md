@@ -30,7 +30,8 @@ bash tts/tools/harmony/pack_harmony_tts_assets.sh
 
 ```bash
 # 只检查模型、native、license 和已有 HAP
-delivery/harmony-dingqiao/delivery/verify_demo_inputs.sh \
+HARMONY_SIGNING_CONFIG=.secure/harmony-signing.json \
+  delivery/harmony-dingqiao/delivery/verify_demo_inputs.sh \
   --hap delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap
 
 # 构建、检查 HAP、覆盖安装到唯一 USB 设备，并等待页面进入“引擎就绪”
@@ -38,22 +39,22 @@ HARMONY_SIGNING_CONFIG=.secure/harmony-signing.json \
   delivery/harmony-dingqiao/delivery/build_install_smoke.sh
 ```
 
-本地签名文件结构见 `delivery/harmony-dingqiao/delivery/harmony-signing.example.json`，应放在 `.secure/` 下并执行 `chmod 600`。构建脚本只在构建期间临时注入签名配置，退出时恢复仓库文件。设备绑定 license 默认读取 `.secure/current_usb_device_sn.txt`；也可通过 `DINGQIAO_DEVICE_ID_FILE` 指定清单。脚本不会输出口令或明文设备标识。
+本地签名文件结构见 `delivery/harmony-dingqiao/delivery/harmony-signing.example.json`，应放在 `.secure/` 下并执行 `chmod 600`。构建脚本把工程复制到系统临时目录后再注入签名配置，仓库内的 `build-profile.json5` 不会接触口令。普通 Demo 运行时固定注入 ODID，因此设备绑定 license 默认读取 `.secure/dingqiao_demo_device_ids.txt`，该清单必须包含运行时 `deviceInfo.ODID`；正式系统宿主使用 SN 时应通过 `DINGQIAO_DEVICE_ID_FILE` 显式指定另一份清单，两种标识不可混用。license 缺失时，smoke 脚本会从 `.secure/amphion-license-private.pem` 与设备清单本地签发；已有 license 与清单不一致时仍会失败，避免静默改写授权范围。脚本不会输出口令或明文设备标识。
+
+HAP 预检使用 DevEco Studio 自带的 `hap-sign-tool.jar` 校验应用签名和 profile，并核对 bundle、module、license、arm64 native 库及预期证书链。客户包组装自包含 ASR HAR 后，会在临时宿主中仅声明该 HAR，执行本地安装和 HAP 编译；`docs/checksum.txt` 不包含自身，打包脚本会在替换旧交付目录前执行一次完整 `shasum -c`。
 
 ## 客户包结构
 
 ```text
 dingqiao-harmony-delivery-<version>/
 ├── har/
-│   ├── amphion_asr.har
-│   ├── amphion_police.har
 │   ├── amphion_dingqiao.har
-│   └── amphion_tts.har
+│   └── amphion_tts.har（仅完整 ASR + TTS 包）
 ├── demo/
 │   └── dingqiao-demo.hap
 ├── models/
 │   └── eres2net.onnx
-├── tts-models/
+├── tts-models/（仅完整 ASR + TTS 包）
 │   └── amphion-tts/
 └── docs/
     ├── DINGQIAO_INTEGRATION.md
@@ -68,10 +69,14 @@ dingqiao-harmony-delivery-<version>/
 ## 打包脚本
 
 ```bash
+# 默认要求已构建 ASR 与 TTS 产物
 bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh
+
+# 本次 ASR SDK + demo 交付，不依赖 TTS 构建产物
+bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh --asr-only
 ```
 
-脚本默认只收集已构建产物，不负责启动 DevEco 构建。HAR、signed HAP 或 HAP 内必需资源缺失时会直接失败，不再生成残缺交付包。
+脚本只收集已构建产物，不负责启动各 SDK 的 DevEco 构建。默认完整模式要求 ASR 和 TTS HAR；`--asr-only` 明确生成只含 ASR SDK/demo 的交付包。自包含 ASR HAR 无法被干净宿主安装或编译、所选模式的 HAR 缺失、signed HAP 无效或 HAP 内必需资源缺失时都会直接失败，不再生成残缺交付包。
 
 ## main 分支复现说明
 
