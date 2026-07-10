@@ -118,10 +118,12 @@ export class HarmonyLicenseVerifier {
       return status;
     }
     const normalizedFeatures = status.features.map((feature: string): string => feature.trim().toUpperCase());
-    if (normalizedFeatures.length > 0 && !normalizedFeatures.includes('TTS')) {
+    // fail-closed:空/缺失的 features 也必须被拒(与 ASR verifier 一致)。原先的 `length > 0 &&` 让一张
+    // 签名合法但 features 为空的 license 直接跳过特征门被当作 TTS 授权接受——per-feature 授权边界失效。
+    if (!normalizedFeatures.includes('TTS')) {
       status.state = AmphionLicenseState.INVALID;
       status.errorCode = AsrErrorCode.LICENSE_FEATURE_MISSING;
-      status.message = 'license feature ASR missing';
+      status.message = 'license feature TTS missing';
       return status;
     }
     if (status.authorizedDeviceCount > 0 && (deviceSerial === undefined || deviceSerial.trim().length === 0)) {
@@ -165,6 +167,15 @@ export class HarmonyLicenseVerifier {
   /** Injected offline-license public key (empty on a development/unarmed build). */
   static publicKey(): string {
     return LICENSE_PUBLIC_KEY_B64;
+  }
+
+  /**
+   * True when a real public key is embedded (armed build). A release/delivery build MUST be armed —
+   * on an unarmed build verifySignature() returns true for ANY license (fail-open). The delivery
+   * self-test asserts isArmed() so an accidentally-blanked key is caught before shipping.
+   */
+  static isArmed(): boolean {
+    return LICENSE_PUBLIC_KEY_B64.trim().length > 0;
   }
 
   /**

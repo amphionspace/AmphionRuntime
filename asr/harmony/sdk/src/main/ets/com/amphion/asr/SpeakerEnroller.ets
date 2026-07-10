@@ -24,7 +24,10 @@ export class SpeakerEnroller {
       config.model = modelPath;
       config.numThreads = numThreads;
       config.debug = false;
-      this.extractor = new SpeakerEmbeddingExtractor(config, context?.resourceManager);
+      // rawfile 加载器只能吃 rawfile 相对路径;把 resourceManager 传给一个绝对路径会让 native 端
+      // 按 rawfile 找不到而 abort(与 Runtime.getOrCreateSpeakerExtractor 同一守卫,也与下方 readWaveSamples 一致)。
+      const rm = modelPath.startsWith('/') ? undefined : context?.resourceManager;
+      this.extractor = new SpeakerEmbeddingExtractor(config, rm);
     }
   }
 

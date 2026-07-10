@@ -452,8 +452,13 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       // 会话配置未变(纯 ASR 反复开始/结束):复用已加载的引擎与模型,避免每次点"开始识别"重载模型卡 3~4 秒。
       return;
     }
+    // 先建新引擎、成功后再关旧引擎:create() 可能抛(模型加载 / 鉴权失败)。若先 close 再 create,
+    // create 抛出后旧引擎已被关闭而 engineCfgKey 仍是旧值 —— 下次相同配置的 startListening 会 early-return
+    // 复用这个已关闭的引擎(newSession on closed engine)→ native use-after-close 崩溃且不可恢复。
+    // create-before-close 保证 create 抛出时旧引擎仍可用、engineCfgKey 不变。create() 复用池化 recognizer,不会重载大模型。
+    const next = AmphionRuntime.create(this.context, languageOf(this.params.language), buildAsrConfig(this.params, params, withTargetSpeaker, withSpeakerVad));
     this.asrEngine.close();
-    this.asrEngine = AmphionRuntime.create(this.context, languageOf(this.params.language), buildAsrConfig(this.params, params, withTargetSpeaker, withSpeakerVad));
+    this.asrEngine = next;
     this.engineCfgKey = newKey;
   }
 
@@ -566,6 +571,24 @@ class DingqiaoDeviceIdProvider implements AmphionDeviceIdProvider {
   }
 }
 
+// license expiresAt("YYYY-MM-DD")→ epoch ms(当日 00:00:00 UTC),对齐安卓 toExpireTimeMillis
+// (LocalDate.parse(x).atStartOfDay().toInstant(UTC))。空/非法返回 -1。
+function expireTimeMillisFromClaim(expiresAt: string | undefined): number {
+  if (expiresAt === undefined || expiresAt.trim().length === 0) return -1;
+  const ms = new Date(`${expiresAt.trim()}T00:00:00Z`).getTime();
+  return Number.isNaN(ms) ? -1 : ms;
+}
+
+// 剩余天数,对齐安卓 toRemainingDays(ChronoUnit.DAYS.between(now(UTC), expiry))。
+// 两端都取当日 00:00:00 UTC,差为整数天;已过期返回负数(与安卓一致,不夹取到 0)。空/非法返回 -1。
+function remainingDaysFromClaim(expiresAt: string | undefined): number {
+  if (expiresAt === undefined || expiresAt.trim().length === 0) return -1;
+  const expMs = new Date(`${expiresAt.trim()}T00:00:00Z`).getTime();
+  if (Number.isNaN(expMs)) return -1;
+  const todayMs = new Date(`${new Date().toISOString().substring(0, 10)}T00:00:00Z`).getTime();
+  return Math.round((expMs - todayMs) / 86400000);
+}
+
 export class SpeechRecognizeSdk {
   private static context?: Context;
   private static workPath: string = '';
@@ -573,11 +596,10 @@ export class SpeechRecognizeSdk {
 
   static init(context: Context): void {
     SpeechRecognizeSdk.context = context;
-    try {
-      AmphionRuntime.init(context);
-    } catch (e) {
-      // AmphionRuntime.init is process-level and idempotent; keep Dingqiao init tolerant.
-    }
+    // AmphionRuntime.init 现为异步(核心路径也强制 ECDSA 签名 + SN 白名单)。此处不带 license,真正的
+    // 授权在 setLicense→activateLicense 完成(其会 release() 后再 init(options))。保持本 init 同步且容错:
+    // 此处的 license 判定结果无意义(无 license),忽略其 rejection 即可。
+    AmphionRuntime.init(context).catch((_e: Object): void => {});
   }
 
   static setWorkPath(path: string): void {
@@ -645,12 +667,14 @@ export class SpeechRecognizeSdk {
       options.license = licenseText;
       options.deviceIdProvider = provider;
       AmphionRuntime.release();
-      AmphionRuntime.init(context, options);
+      await AmphionRuntime.init(context, options);
       const status = AmphionRuntime.licenseStatus();
       const info = new LicenseInfo();
       info.status = status.valid ? 0 : 2;
-      info.expireTime = -1;
-      info.remainingDays = -1;
+      // 与安卓 SpeechRecognizeSdk(toExpireTimeMillis/toRemainingDays)对齐:从签名 claims 的 expiresAt 计算,
+      // 而非恒 -1。否则 Harmony 端 getLicenseInfo / remainingDays 永远返回 -1,违反契约 §5.5/§5.6。
+      info.expireTime = status.valid ? expireTimeMillisFromClaim(status.expiresAt) : -1;
+      info.remainingDays = status.valid ? remainingDaysFromClaim(status.expiresAt) : -1;
       info.authorizedFeatures = status.features ?? [];
       SpeechRecognizeSdk.licenseInfo = info;
 

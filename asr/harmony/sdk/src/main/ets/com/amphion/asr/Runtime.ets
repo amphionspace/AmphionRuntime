@@ -31,7 +31,7 @@ import {
   TargetSpeakerConfig,
   VadModelType
 } from './Types';
-import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
+import { AmphionLicenseState, AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 
 // Silence fed to the encoder to prime it after a stream rebuild / at session start (Android parity).
 const WARMUP_DURATION_MS: number = 800;
@@ -68,7 +68,10 @@ export class AmphionRuntime {
   private static licenseStatusHolder: AmphionLicenseStatus = AmphionLicenseStatus.notInitialized();
   private static nextSessionId: number = 1;
   private static asrPool: Map<AsrLanguage, OnlineRecognizer> = new Map<AsrLanguage, OnlineRecognizer>();
-  private static poolConfig?: AsrConfig;
+  // 复用兼容性必须按「该语言的池化 recognizer 实际用的配置」判定,而不是一个进程级全局配置。
+  // asrPool 按语言分键,poolConfig 也必须按语言分键——否则多语言交替使用时,A 语言的 recognizer
+  // 可能被拿 B 语言最后一次的配置误判为兼容而复用,导致 hotwords/线程数等静默用错。
+  private static poolConfig: Map<AsrLanguage, AsrConfig> = new Map<AsrLanguage, AsrConfig>();
   // Pooled speaker-embedding extractor(s), keyed by `${modelPath}|${numThreads}`. eres2net (~38 MB)
   // is expensive to load into onnxruntime (~3-4 s), so build it at most once per process and share it
   // across enrollment and every recognition session — mirrors asrPool for the recognizer.
@@ -76,13 +79,16 @@ export class AmphionRuntime {
   // Pooled punctuation model (ct-transformer), keyed by `${punctModel}|${numThreads}`. Rebuilt cold in
   // the AsrEngine ctor otherwise, so a verify/VAD toggle re-loads it and adds to the start freeze.
   private static punctuationPool: Map<string, OfflinePunctuation> = new Map<string, OfflinePunctuation>();
-  // Pooled silero VAD, keyed by its config. Otherwise a fresh SherpaVad (silero ONNX session + a
-  // multi-MB ring buffer) is built per session and only reclaimed by the NAPI finalizer on GC —
-  // since the JS wrapper is tiny over the native payload, GC lags and RSS climbs under start/stop
-  // churn. Pooling one instance (reset() on acquire) keeps it flat. Sessions are sequential (busy guard).
-  private static vadPool: Map<string, SherpaVad> = new Map<string, SherpaVad>();
+  // VAD free-list, keyed by config. A SherpaVad carries cross-call state (endpoint + ring buffer),
+  // so it must NOT be shared by two concurrently-active sessions — reset()/acceptWaveform from one
+  // would corrupt the other's endpoint detection. But a fresh SherpaVad (silero ONNX session + a
+  // multi-MB ring buffer) built per session is only reclaimed by the NAPI finalizer on GC, so under
+  // sequential start/stop churn GC lags and RSS climbs. Checkout/checkin solves both: the common
+  // sequential case reuses one instance (flat RSS); a rare concurrent session finds the free-list
+  // empty and builds its own isolated instance. Each key maps to a list of currently-free instances.
+  private static vadPool: Map<string, SherpaVad[]> = new Map<string, SherpaVad[]>();
 
-  static init(context: Context, options?: AmphionOptions): void {
+  static async init(context: Context, options?: AmphionOptions): Promise<void> {
     if (AmphionRuntime.initialized) {
       Logger.w('AmphionRuntime.init called more than once, ignored.');
       return;
@@ -90,7 +96,7 @@ export class AmphionRuntime {
     AmphionRuntime.appContext = context;
     AmphionRuntime.options = options ?? new AmphionOptions();
     Logger.setLevel(AmphionRuntime.options.logLevel);
-    const status = AmphionRuntime.evaluateLicense();
+    const status = await AmphionRuntime.evaluateLicense();
     AmphionRuntime.licenseStatusHolder = status;
     if (!status.valid && AmphionRuntime.options.licenseEnforcement === LicenseEnforcement.ENFORCE) {
       throw new Error(`code=${status.errorCode}: AmphionRuntime license check failed (${status.message}).`);
@@ -116,7 +122,6 @@ export class AmphionRuntime {
     const c = new DoneCancellable();
     AmphionRuntime.appContext = context;
     const effectiveConfig = config ?? new AsrConfig();
-    AmphionRuntime.poolConfig = effectiveConfig;
     onProgress?.('install', 0);
     for (let i = 0; i < languages.length; i++) {
       if (c.isCancelled()) break;
@@ -128,6 +133,7 @@ export class AmphionRuntime {
       const preloadRecognizer = new OnlineRecognizer(AmphionRuntime.buildRecognizerConfig(layout, effectiveConfig), context.resourceManager);
       AmphionRuntime.warmUpRecognizer(preloadRecognizer);
       AmphionRuntime.asrPool.set(language, preloadRecognizer);
+      AmphionRuntime.poolConfig.set(language, effectiveConfig);
       onProgress?.(stage, 100);
     }
     c.markDone();
@@ -139,8 +145,9 @@ export class AmphionRuntime {
     const effectiveConfig = config ?? new AsrConfig();
     const createStartMs = Date.now();
     const pooled = AmphionRuntime.asrPool.get(language);
-    const canReusePool = pooled !== undefined && AmphionRuntime.poolConfig !== undefined &&
-      AmphionRuntime.isRecognizerConfigCompatible(AmphionRuntime.poolConfig, effectiveConfig);
+    const pooledConfig = AmphionRuntime.poolConfig.get(language);
+    const canReusePool = pooled !== undefined && pooledConfig !== undefined &&
+      AmphionRuntime.isRecognizerConfigCompatible(pooledConfig, effectiveConfig);
     const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
     const recognizer = canReusePool ? pooled as OnlineRecognizer :
       new OnlineRecognizer(AmphionRuntime.buildRecognizerConfig(layout, effectiveConfig), context.resourceManager);
@@ -152,7 +159,7 @@ export class AmphionRuntime {
       // 但 recognizer 配置并不随之变(见 isRecognizerConfigCompatible)。缓存后 rebuild 直接复用,
       // 不再冷加载重来一遍(否则点"开始识别"卡 3~4 秒)。close() 从不释放 native recognizer,复用安全。
       AmphionRuntime.asrPool.set(language, recognizer);
-      AmphionRuntime.poolConfig = effectiveConfig;
+      AmphionRuntime.poolConfig.set(language, effectiveConfig);
     }
     return new AsrEngine(
       context,
@@ -230,9 +237,21 @@ export class AmphionRuntime {
     return punctuation;
   }
 
-  // Pooled silero VAD. Built once per config and shared; callers MUST reset() it on acquire to drop
-  // the previous session's internal state. vadModel is rawfile-relative, so resourceManager is correct.
-  static getOrCreateVad(
+  static vadKeyFor(
+    vadModel: string,
+    threshold: number,
+    minSpeechDurationSec: number,
+    minSilenceDurationSec: number,
+    maxSpeechDurationSec: number
+  ): string {
+    return `${vadModel}|${threshold}|${minSpeechDurationSec}|${minSilenceDurationSec}|${maxSpeechDurationSec}`;
+  }
+
+  // Acquire a VAD for a session. Reuses a free pooled instance (flat RSS under sequential churn);
+  // if none is free — i.e. another session already holds the pooled one — builds a fresh isolated
+  // instance so concurrent sessions never share the stateful VAD. Caller resets it; release on close.
+  // vadModel is rawfile-relative, so resourceManager is correct.
+  static acquireVad(
     context: Context,
     vadModel: string,
     threshold: number,
@@ -240,15 +259,26 @@ export class AmphionRuntime {
     minSilenceDurationSec: number,
     maxSpeechDurationSec: number
   ): SherpaVad {
-    const key = `${vadModel}|${threshold}|${minSpeechDurationSec}|${minSilenceDurationSec}|${maxSpeechDurationSec}`;
-    const cached = AmphionRuntime.vadPool.get(key);
-    if (cached !== undefined) return cached;
+    const key = AmphionRuntime.vadKeyFor(vadModel, threshold, minSpeechDurationSec, minSilenceDurationSec, maxSpeechDurationSec);
+    const free = AmphionRuntime.vadPool.get(key);
+    if (free !== undefined && free.length > 0) {
+      return free.pop() as SherpaVad;
+    }
     const silero = new SileroVadConfig(vadModel, threshold, minSpeechDurationSec, minSilenceDurationSec, 512, maxSpeechDurationSec);
     const ten = new TenVadConfig('', 0.5, 0.25, 0.5, 256);
     const cfg = new SherpaVadConfig(silero, ten, 16000, false, 1);
-    const vad = new SherpaVad(cfg, Math.max(60, Math.ceil(maxSpeechDurationSec + 5)), context.resourceManager);
-    AmphionRuntime.vadPool.set(key, vad);
-    return vad;
+    return new SherpaVad(cfg, Math.max(60, Math.ceil(maxSpeechDurationSec + 5)), context.resourceManager);
+  }
+
+  // Return a session's VAD to the free list for reuse. The caller (AsrSession.close) guards via its
+  // `closed` flag + nulling this.vad, so a given instance is pushed back at most once.
+  static releaseVad(key: string, vad: SherpaVad): void {
+    let free = AmphionRuntime.vadPool.get(key);
+    if (free === undefined) {
+      free = [];
+      AmphionRuntime.vadPool.set(key, free);
+    }
+    free.push(vad);
   }
 
   static version(): string { return AmphionRuntime.SDK_VERSION; }
@@ -277,7 +307,7 @@ export class AmphionRuntime {
     AmphionRuntime.speakerExtractorPool.clear();
     AmphionRuntime.punctuationPool.clear();
     AmphionRuntime.vadPool.clear();
-    AmphionRuntime.poolConfig = undefined;
+    AmphionRuntime.poolConfig.clear();
     AmphionRuntime.initialized = false;
     AmphionRuntime.appContext = undefined;
     AmphionRuntime.licenseStatusHolder = AmphionLicenseStatus.notInitialized();
@@ -317,18 +347,44 @@ export class AmphionRuntime {
     }
   }
 
-  private static evaluateLicense(): AmphionLicenseStatus {
+  // 核心鉴权(双保险,与安卓 LicenseVerifier.verify 的内联签名校验对齐):
+  //  ① 同步结构校验(cert / feature / 有效期 / SN 存在性等,见 HarmonyLicenseVerifier.verify)。
+  //  ② armed build(注入了公钥)且携带 license 时,核心路径再强制 ECDSA 签名校验 + SN 白名单成员判定。
+  // 任一失败即 fail-closed。这样即使调用方(非交付 wrapper)未先手动跑 verifyLicenseSignature / checkDeviceBinding,
+  // init(ENFORCE) 也不会接受被伪造/篡改的 license 或非白名单设备——不再依赖 wrapper 的前置门做唯一防线。
+  private static async evaluateLicense(): Promise<AmphionLicenseStatus> {
     const context = AmphionRuntime.appContext;
     const serial = context === undefined ? undefined : AmphionRuntime.options.deviceIdProvider?.getDeviceSerial(context);
-    return HarmonyLicenseVerifier.verify(
-      AmphionRuntime.options.license,
+    const license = AmphionRuntime.options.license;
+    const publicKey = HarmonyLicenseVerifier.publicKey();
+    const status = HarmonyLicenseVerifier.verify(
+      license,
       AmphionRuntime.options.bundleName,
       AmphionRuntime.options.signingCertDigest,
       serial,
-      HarmonyLicenseVerifier.publicKey(),
+      publicKey,
       AmphionRuntime.SDK_MAJOR,
       AmphionRuntime.SDK_RELEASE_DATE
     );
+    if (status.valid && publicKey.trim().length > 0 && license !== undefined && license.trim().length > 0) {
+      const signatureOk = await HarmonyLicenseVerifier.verifySignature(license, publicKey);
+      if (!signatureOk) {
+        status.valid = false;
+        status.state = AmphionLicenseState.INVALID;
+        status.errorCode = AsrErrorCode.LICENSE_SIGNATURE_INVALID;
+        status.message = 'license signature verification failed';
+        return status;
+      }
+      const deviceOk = await HarmonyLicenseVerifier.deviceHashOk(license, serial);
+      if (!deviceOk) {
+        status.valid = false;
+        status.state = AmphionLicenseState.INVALID;
+        status.errorCode = AsrErrorCode.LICENSE_DEVICE_MISMATCH;
+        status.message = 'device SN not in license whitelist';
+        return status;
+      }
+    }
+    return status;
   }
 
   private static isRecognizerConfigCompatible(left: AsrConfig, right: AsrConfig): boolean {
@@ -427,6 +483,7 @@ export class AsrSession {
   private stream: OnlineStream;
   private punctuation?: OfflinePunctuation;
   private vad?: SherpaVad;
+  private vadKey: string = '';
   private vadWindowSize: number = 512;
   private targetExtractor?: SpeakerEmbeddingExtractor;
   private targetSpeaker?: Float32Array;
@@ -546,6 +603,12 @@ export class AsrSession {
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    // 归还 VAD 到空闲池,供后续会话复用(顺序场景保持 RSS 平)。closed 早退保证同一实例只归还一次,
+    // 避免重复入池后被两个会话同时取出而重现共享污染。
+    if (this.vad !== undefined) {
+      AmphionRuntime.releaseVad(this.vadKey, this.vad);
+      this.vad = undefined;
+    }
     this.dispatchSessionMetrics();
     this.notifyStopped();
   }
@@ -649,9 +712,11 @@ export class AsrSession {
     }
     this.vadWindowSize = 512;
     const vc = this.config.vadConfig;
-    // Reuse the pooled VAD; reset() drops any state left by the previous session (sessions run
-    // sequentially, so single-instance reuse is safe). Avoids per-session silero-ONNX+ring-buffer alloc.
-    const vad = AmphionRuntime.getOrCreateVad(
+    // Check out a VAD from the free list (or a fresh isolated instance if a concurrent session holds
+    // the pooled one). reset() drops any state left by a previous owner; released back to the pool in close().
+    this.vadKey = AmphionRuntime.vadKeyFor(
+      this.layout.vadModel, vc.threshold, vc.minSpeechDurationSec, vc.minSilenceDurationSec, vc.maxSpeechDurationSec);
+    const vad = AmphionRuntime.acquireVad(
       this.context, this.layout.vadModel, vc.threshold, vc.minSpeechDurationSec, vc.minSilenceDurationSec, vc.maxSpeechDurationSec);
     vad.reset();
     return vad;
