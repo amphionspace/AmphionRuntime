@@ -4,6 +4,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { VoiceprintStore } from './VoiceprintStore';
 import {
+  AudioInfo,
   CreateEngineCallback,
   CreateEngineParams,
   DINGQIAO_AUDIO_FRAME_BYTES_20MS,
@@ -246,12 +247,29 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private maxAudioBytes: number = 0;
   private audioBytesWritten: number = 0;
   private voiceprintIds: string[] = [];
+  // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
+  private engineCfgKey: string = '';
 
   constructor(context: Context, params: CreateEngineParams) {
     this.context = context;
     this.params = params;
     this.pipeline = PoliceEnhancePipeline.create(buildEnhanceOptions(params));
     this.asrEngine = AmphionRuntime.create(context, languageOf(params.language), buildAsrConfig(params));
+    this.engineCfgKey = this.computeEngineCfgKey(undefined, false, false);
+  }
+
+  // 会话级配置指纹:只含影响引擎构建的可变项(VAD 端点、目标说话人/说话人VAD)。
+  // recognizer(模型)级配置由 CreateEngineParams 固定,不随 startListening 变。
+  private computeEngineCfgKey(sp: StartParams | undefined, withTargetSpeaker: boolean, withSpeakerVad: boolean): string {
+    const extra: Record<string, Object> = sp?.extraParams ?? {};
+    const parts: string[] = [`${withTargetSpeaker}`, `${withSpeakerVad}`, `${vadEndMs(sp)}`];
+    if (withTargetSpeaker) {
+      parts.push(`${numberParam(extra, 'speakerVadThreshold', 0.40)}`);
+      parts.push(`${numberParam(extra, 'speakerVadWindowMs', 1000)}`);
+      parts.push(`${numberParam(extra, 'speakerVadHopMs', 300)}`);
+      parts.push(`${numberParam(extra, 'speakerVadConsecutiveBelow', 2)}`);
+    }
+    return parts.join('|');
   }
 
   setListener(listener: RecognitionListener): void { this.listener = listener; }
@@ -429,8 +447,19 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   }
 
   private rebuildEngine(params: StartParams, withTargetSpeaker: boolean, withSpeakerVad: boolean): void {
+    const newKey = this.computeEngineCfgKey(params, withTargetSpeaker, withSpeakerVad);
+    if (newKey === this.engineCfgKey) {
+      // 会话配置未变(纯 ASR 反复开始/结束):复用已加载的引擎与模型,避免每次点"开始识别"重载模型卡 3~4 秒。
+      return;
+    }
+    // 先建新引擎、成功后再关旧引擎:create() 可能抛(模型加载 / 鉴权失败)。若先 close 再 create,
+    // create 抛出后旧引擎已被关闭而 engineCfgKey 仍是旧值 —— 下次相同配置的 startListening 会 early-return
+    // 复用这个已关闭的引擎(newSession on closed engine)→ native use-after-close 崩溃且不可恢复。
+    // create-before-close 保证 create 抛出时旧引擎仍可用、engineCfgKey 不变。create() 复用池化 recognizer,不会重载大模型。
+    const next = AmphionRuntime.create(this.context, languageOf(this.params.language), buildAsrConfig(this.params, params, withTargetSpeaker, withSpeakerVad));
     this.asrEngine.close();
-    this.asrEngine = AmphionRuntime.create(this.context, languageOf(this.params.language), buildAsrConfig(this.params, params, withTargetSpeaker, withSpeakerVad));
+    this.asrEngine = next;
+    this.engineCfgKey = newKey;
   }
 
   handlePartial(text: string): void {
@@ -542,6 +571,24 @@ class DingqiaoDeviceIdProvider implements AmphionDeviceIdProvider {
   }
 }
 
+// license expiresAt("YYYY-MM-DD")→ epoch ms(当日 00:00:00 UTC),对齐安卓 toExpireTimeMillis
+// (LocalDate.parse(x).atStartOfDay().toInstant(UTC))。空/非法返回 -1。
+function expireTimeMillisFromClaim(expiresAt: string | undefined): number {
+  if (expiresAt === undefined || expiresAt.trim().length === 0) return -1;
+  const ms = new Date(`${expiresAt.trim()}T00:00:00Z`).getTime();
+  return Number.isNaN(ms) ? -1 : ms;
+}
+
+// 剩余天数,对齐安卓 toRemainingDays(ChronoUnit.DAYS.between(now(UTC), expiry))。
+// 两端都取当日 00:00:00 UTC,差为整数天;已过期返回负数(与安卓一致,不夹取到 0)。空/非法返回 -1。
+function remainingDaysFromClaim(expiresAt: string | undefined): number {
+  if (expiresAt === undefined || expiresAt.trim().length === 0) return -1;
+  const expMs = new Date(`${expiresAt.trim()}T00:00:00Z`).getTime();
+  if (Number.isNaN(expMs)) return -1;
+  const todayMs = new Date(`${new Date().toISOString().substring(0, 10)}T00:00:00Z`).getTime();
+  return Math.round((expMs - todayMs) / 86400000);
+}
+
 export class SpeechRecognizeSdk {
   private static context?: Context;
   private static workPath: string = '';
@@ -549,11 +596,10 @@ export class SpeechRecognizeSdk {
 
   static init(context: Context): void {
     SpeechRecognizeSdk.context = context;
-    try {
-      AmphionRuntime.init(context);
-    } catch (e) {
-      // AmphionRuntime.init is process-level and idempotent; keep Dingqiao init tolerant.
-    }
+    // AmphionRuntime.init 现为异步(核心路径也强制 ECDSA 签名 + SN 白名单)。此处不带 license,真正的
+    // 授权在 setLicense→activateLicense 完成(其会 release() 后再 init(options))。保持本 init 同步且容错:
+    // 此处的 license 判定结果无意义(无 license),忽略其 rejection 即可。
+    AmphionRuntime.init(context).catch((_e: Object): void => {});
   }
 
   static setWorkPath(path: string): void {
@@ -621,12 +667,14 @@ export class SpeechRecognizeSdk {
       options.license = licenseText;
       options.deviceIdProvider = provider;
       AmphionRuntime.release();
-      AmphionRuntime.init(context, options);
+      await AmphionRuntime.init(context, options);
       const status = AmphionRuntime.licenseStatus();
       const info = new LicenseInfo();
       info.status = status.valid ? 0 : 2;
-      info.expireTime = -1;
-      info.remainingDays = -1;
+      // 与安卓 SpeechRecognizeSdk(toExpireTimeMillis/toRemainingDays)对齐:从签名 claims 的 expiresAt 计算,
+      // 而非恒 -1。否则 Harmony 端 getLicenseInfo / remainingDays 永远返回 -1,违反契约 §5.5/§5.6。
+      info.expireTime = status.valid ? expireTimeMillisFromClaim(status.expiresAt) : -1;
+      info.remainingDays = status.valid ? remainingDaysFromClaim(status.expiresAt) : -1;
       info.authorizedFeatures = status.features ?? [];
       SpeechRecognizeSdk.licenseInfo = info;
 
@@ -662,11 +710,15 @@ export class SpeechRecognizeSdk {
   }
 
   static createEngineAsync(params: CreateEngineParams, callback: CreateEngineCallback): void {
-    try {
-      callback.onSuccess(SpeechRecognizeSdk.createEngine(params));
-    } catch (e) {
-      callback.onError(DingqiaoErrorCode.CREATE_ENGINE_FAILED, `${e}`);
-    }
+    // 让出一帧再做重活(模型加载+一次性预热),使 UI 先渲染"加载中"态,避免调用即冻屏。
+    // 注:sherpa NAPI 对象线程绑定,无法搬到 Worker,故仍在调用线程执行;此处仅消除"点击即卡死"的观感。
+    setTimeout((): void => {
+      try {
+        callback.onSuccess(SpeechRecognizeSdk.createEngine(params));
+      } catch (e) {
+        callback.onError(DingqiaoErrorCode.CREATE_ENGINE_FAILED, `${e}`);
+      }
+    }, 0);
   }
 
   static registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult {
@@ -697,7 +749,11 @@ export class SpeechRecognizeSdk {
       }
     }
     try {
-      const enroller = new SpeakerEnroller(modelPath);
+      // Reuse the shared, pooled extractor so registration warms the SAME instance the recognition
+      // path uses — the ~38 MB eres2net load is paid here (where a wait is expected) and start
+      // recognition stays instant.
+      const extractor = AmphionRuntime.getOrCreateSpeakerExtractor(undefined, modelPath, 1);
+      const enroller = new SpeakerEnroller(modelPath, 1, undefined, extractor);
       const embedding = enroller.enrollFiles(params.samplePaths);
       enroller.close();
       // Persist to {workPath}/voiceprints/{id}; auto-generated id is returned to the caller and
@@ -723,6 +779,25 @@ export class SpeechRecognizeSdk {
   }
 
   static getWorkPath(): string { return SpeechRecognizeSdk.workPath; }
+
+  /**
+   * Preload + warm the voiceprint extractor so the first startListening with
+   * enableVoiceprintVerification does not block the UI thread on the ~38 MB eres2net load.
+   * Idempotent (no-op once pooled). Returns false if the model file is not present yet.
+   * Registration already warms the same pool, so this mainly covers the app-restart case
+   * (model on disk + voiceprint registered, but the in-memory pool is cold). Synchronous —
+   * call it at a non-critical moment (e.g. when the caller enables voiceprint verification).
+   */
+  static preloadVoiceprintModel(): boolean {
+    const modelPath = SpeechRecognizeSdk.speakerModelPath();
+    if (!fs.accessSync(modelPath)) return false;
+    try {
+      AmphionRuntime.getOrCreateSpeakerExtractor(undefined, modelPath, 1);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
   private static speakerModelPath(): string {
     return `${SpeechRecognizeSdk.workPath}/eres2net.onnx`;

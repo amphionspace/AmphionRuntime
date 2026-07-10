@@ -1,5 +1,6 @@
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { util } from '@kit.ArkTS';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
 // License policy error codes, aligned 1:1 with the Android Lits TTS TtsErrorCode LICENSE_* values
 // so Harmony TTS and Android TTS report identical license error codes. verify() returns these directly.
@@ -117,10 +118,12 @@ export class HarmonyLicenseVerifier {
       return status;
     }
     const normalizedFeatures = status.features.map((feature: string): string => feature.trim().toUpperCase());
-    if (normalizedFeatures.length > 0 && !normalizedFeatures.includes('TTS')) {
+    // fail-closed:空/缺失的 features 也必须被拒(与 ASR verifier 一致)。原先的 `length > 0 &&` 让一张
+    // 签名合法但 features 为空的 license 直接跳过特征门被当作 TTS 授权接受——per-feature 授权边界失效。
+    if (!normalizedFeatures.includes('TTS')) {
       status.state = AmphionLicenseState.INVALID;
       status.errorCode = AsrErrorCode.LICENSE_FEATURE_MISSING;
-      status.message = 'license feature ASR missing';
+      status.message = 'license feature TTS missing';
       return status;
     }
     if (status.authorizedDeviceCount > 0 && (deviceSerial === undefined || deviceSerial.trim().length === 0)) {
@@ -164,6 +167,15 @@ export class HarmonyLicenseVerifier {
   /** Injected offline-license public key (empty on a development/unarmed build). */
   static publicKey(): string {
     return LICENSE_PUBLIC_KEY_B64;
+  }
+
+  /**
+   * True when a real public key is embedded (armed build). A release/delivery build MUST be armed —
+   * on an unarmed build verifySignature() returns true for ANY license (fail-open). The delivery
+   * self-test asserts isArmed() so an accidentally-blanked key is caught before shipping.
+   */
+  static isArmed(): boolean {
+    return LICENSE_PUBLIC_KEY_B64.trim().length > 0;
   }
 
   /**
@@ -237,10 +249,9 @@ export class HarmonyLicenseVerifier {
 
   static async deviceFingerprint(deviceSerial: string, saltId: string): Promise<string> {
     const raw = deviceSerial.trim().toUpperCase() + saltId;
-    const bytes = new Uint8Array(raw.length);
-    for (let i = 0; i < raw.length; i++) {
-      bytes[i] = raw.charCodeAt(i) & 0xff;
-    }
+    // UTF-8 编码,与签发端 issue_license.py 及安卓 DeviceLicenseFingerprint 逐字节一致。
+    // 旧实现用 charCodeAt & 0xff(非 UTF-8):非 ASCII SN 会与签发端分叉,导致合法 SN license 在鸿蒙被误拒。
+    const bytes = new util.TextEncoder().encodeInto(raw);
     const md = cryptoFramework.createMd('SHA256');
     await md.update({ data: bytes });
     const digest = await md.digest();
@@ -259,17 +270,25 @@ export class HarmonyLicenseVerifier {
   private static parseClaims(licenseText: string): Record<string, Object> | undefined {
     try {
       const parsed = JSON.parse(licenseText) as Record<string, Object>;
-      const payload = parsed['payload'];
-      if (typeof payload === 'object' && payload !== null) {
-        return payload as Record<string, Object>;
+      // 安全:claims 只能取自「签名覆盖的」payload_b64 解码结果。绝不接受未签名的顶层 payload
+      // 或其他顶层字段——否则攻击者可保留一张合法签名,另附未签名 claims,绕过设备/有效期/特征绑定。
+      if (parsed['payload'] !== undefined) {
+        hilog.warn(0x0000, 'AmphionLicense', '%{public}s',
+          'SECURITY: ignoring UNSIGNED top-level "payload"; claims are taken only from signed payload_b64');
       }
       const payloadB64 = parsed['payload_b64'];
-      if (typeof payloadB64 === 'string') {
-        const payloadJson = HarmonyLicenseVerifier.decodeBase64Utf8(payloadB64);
-        return JSON.parse(payloadJson) as Record<string, Object>;
+      if (typeof payloadB64 !== 'string') {
+        hilog.error(0x0000, 'AmphionLicense', '%{public}s', 'license missing payload_b64 (malformed)');
+        return undefined;
       }
-      return parsed;
-    } catch (_) {
+      const payloadJson = HarmonyLicenseVerifier.decodeBase64Utf8(payloadB64);
+      const claims = JSON.parse(payloadJson) as Record<string, Object>;
+      hilog.info(0x0000, 'AmphionLicense', 'claims(signed): features=%{public}s expiresAt=%{public}s devices=%{public}s',
+        JSON.stringify(claims['features'] ?? []), `${claims['expiresAt'] ?? ''}`,
+        JSON.stringify(claims['authorizedDeviceHashes'] ?? []));
+      return claims;
+    } catch (e) {
+      hilog.error(0x0000, 'AmphionLicense', 'parseClaims failed: %{public}s', `${e}`);
       return undefined;
     }
   }

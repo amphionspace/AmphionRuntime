@@ -1,6 +1,7 @@
 import { AsrErrorCode } from './Types';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { util } from '@kit.ArkTS';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
 // Offline-license public key (X.509 SubjectPublicKeyInfo DER, base64). Empty = development/unarmed build.
 // PRODUCTION key — same keypair as the Android SDK (asr/android/gradle.properties AMPHION_LICENSE_PUBLIC_KEY),
@@ -221,10 +222,9 @@ export class HarmonyLicenseVerifier {
 
   static async deviceFingerprint(deviceSerial: string, saltId: string): Promise<string> {
     const raw = deviceSerial.trim().toUpperCase() + saltId;
-    const bytes = new Uint8Array(raw.length);
-    for (let i = 0; i < raw.length; i++) {
-      bytes[i] = raw.charCodeAt(i) & 0xff;
-    }
+    // UTF-8 编码,与签发端 issue_license.py 及安卓 DeviceLicenseFingerprint 逐字节一致。
+    // 旧实现用 charCodeAt & 0xff(非 UTF-8):非 ASCII SN 会与签发端分叉,导致合法 SN license 在鸿蒙被误拒。
+    const bytes = new util.TextEncoder().encodeInto(raw);
     const md = cryptoFramework.createMd('SHA256');
     await md.update({ data: bytes });
     const digest = await md.digest();
@@ -243,17 +243,25 @@ export class HarmonyLicenseVerifier {
   private static parseClaims(licenseText: string): Record<string, Object> | undefined {
     try {
       const parsed = JSON.parse(licenseText) as Record<string, Object>;
-      const payload = parsed['payload'];
-      if (typeof payload === 'object' && payload !== null) {
-        return payload as Record<string, Object>;
+      // 安全:claims 只能取自「签名覆盖的」payload_b64 解码结果。绝不接受未签名的顶层 payload
+      // 或其他顶层字段——否则攻击者可保留一张合法签名,另附未签名 claims,绕过设备/有效期/特征绑定。
+      if (parsed['payload'] !== undefined) {
+        hilog.warn(0x0000, 'AmphionLicense', '%{public}s',
+          'SECURITY: ignoring UNSIGNED top-level "payload"; claims are taken only from signed payload_b64');
       }
       const payloadB64 = parsed['payload_b64'];
-      if (typeof payloadB64 === 'string') {
-        const payloadJson = HarmonyLicenseVerifier.decodeBase64Utf8(payloadB64);
-        return JSON.parse(payloadJson) as Record<string, Object>;
+      if (typeof payloadB64 !== 'string') {
+        hilog.error(0x0000, 'AmphionLicense', '%{public}s', 'license missing payload_b64 (malformed)');
+        return undefined;
       }
-      return parsed;
-    } catch (_) {
+      const payloadJson = HarmonyLicenseVerifier.decodeBase64Utf8(payloadB64);
+      const claims = JSON.parse(payloadJson) as Record<string, Object>;
+      hilog.info(0x0000, 'AmphionLicense', 'claims(signed): features=%{public}s expiresAt=%{public}s devices=%{public}s',
+        JSON.stringify(claims['features'] ?? []), `${claims['expiresAt'] ?? ''}`,
+        JSON.stringify(claims['authorizedDeviceHashes'] ?? []));
+      return claims;
+    } catch (e) {
+      hilog.error(0x0000, 'AmphionLicense', 'parseClaims failed: %{public}s', `${e}`);
       return undefined;
     }
   }

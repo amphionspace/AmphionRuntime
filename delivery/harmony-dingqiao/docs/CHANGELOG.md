@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0 — hotfix 2026-07-08（声纹 ASR 崩溃）
+
+- 修复：开启「声纹校验」启动识别时 native abort 崩溃。`amphion_asr` 的 `Runtime.ets`
+  `createSpeakerExtractor` 对绝对路径模型（`${workPath}/eres2net.onnx`）不再传 `resourceManager`，
+  避免 sherpa 走 rawfile-only 加载器打不开文件系统绝对路径而崩溃；与 `SpeakerEnroller` 的
+  `startsWith('/')` 判定对齐。注册路径本就正确，故此前「注册成功、识别崩溃」。
+- 说明：`eres2net.onnx` 为合法 ONNX（非 `.pth`），无需重导；模型文件不变。
+
 ## 0.1.0
 
 - 新增纯血鸿蒙 SDK：ASR 工程 `asr/harmony`（`amphion_asr` / `amphion_police` / `amphion_dingqiao`）、TTS 工程 `tts/harmony`（`amphion_tts`）。

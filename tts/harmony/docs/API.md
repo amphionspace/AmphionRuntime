@@ -12,7 +12,10 @@ sdk/Index.ets
 
 ```ts
 class TextToSpeechSdk {
+  static setContext(context: common.Context): void
   static setWorkPath(workPath: string): void
+  static setLicense(licensePath: string, callback: LicenseActivationCallback): void
+  static getLicenseInfo(): LicenseInfo
   static createEngine(params: CreateEngineParams): TextToSpeechEngine
   static createEngine(params: CreateEngineParams, callback: Callback<TextToSpeechEngine>): void
   static createEngineAsync(params: CreateEngineParams, callback: Callback<TextToSpeechEngine>): void
@@ -24,11 +27,18 @@ class TextToSpeechSdk {
 
 说明：
 
+- `setLicense()` **必填前置**：`createEngine` 前必须先成功调用一次 `setLicense()`（异步 ECDSA 验签 + SN 白名单）。未授权时 `createEngine` 抛 `LICENSE_MISSING`（`1002300012`）
+- `getLicenseInfo()` 返回当前授权状态（`status` / `expireTime` / `remainingDays` / `authorizedFeatures`）；未调用 `setLicense()` 时抛 `LICENSE_NOT_SET`（`1002300034`）
+- 使用 HAR 内置模型资源时，必须在 `createEngine` 之前调用 `setContext(context)`
 - `setWorkPath()` 不是必填；不传时，SDK 会把 HAR 内置模型自动解包到应用私有目录
 - `setWorkPath()` 一旦要用，仍然必须在创建任何 engine 之前调用
 - `extraParams.modelPackageDir` 优先级最高，适合显式接入外部模型目录
 - 当前仅支持 `RunMode.OFFLINE`
 - callback 版 `createEngine` / `listVoices` 为 Android 对齐接口；`createEngineAsync` / `listVoicesAsync` 保留为兼容别名
+- ⚠️ **线程约定（重要）**：`createEngine` 会加载模型——首次还需把内置模型解包到工作目录、并构建 native ONNX 运行时（多个模型），**耗时数秒**。**callback / `*Async` 重载并不会把这项工作切到后台线程**（当前实现只是下一个微任务再执行，仍跑在**调用线程**上）。因此：
+  - **请在非 UI 线程调用 `createEngine`，或在调用前先显示"加载中"状态**；在 UI 线程直接调用会造成首启卡顿（可能触发无响应）。
+  - 建议在应用启动/闪屏阶段预先 `createEngine` 一次并持有 engine，之后 `speak()` 即时返回。
+  - 该耗时是"模型加载"固有成本，与是否用 callback 无关；调度到哪个线程由集成方决定。
 
 ## TextToSpeechEngine
 
@@ -164,7 +174,7 @@ extraParams: {
 
 - 文本前端在 ArkTS 层完成
 - acoustic 和 vocoder 在 `sdk/src/main/cpp/lits_tts_native.cpp` 中通过 OHOS native ONNX Runtime 执行
-- 输出固定为 `16 kHz / 16-bit / mono PCM`
+- 输出固定为 `24 kHz / 16-bit / mono PCM`
 - `SYNTHESIZE_AND_PLAY` 会在合成后走 HarmonyOS `AudioRenderer`
 - `soundChannel` 会映射到 HarmonyOS `AudioRenderer.rendererInfo.usage`
 - `SYNTHESIZE_ONLY` 不内部播放，只通过 `onData` 回传 PCM
@@ -185,3 +195,14 @@ extraParams: {
 - `1002300009` `INTERNAL_SERVICE_ERROR`
 - `1002300010` `QUEUE_FULL`（当前未启用固定队列上限）
 - `1002300011` `RUNTIME_EXCEPTION`
+- `1002300012` `LICENSE_MISSING`（未调用 `setLicense()` 即 `createEngine`）
+- `1002300013` `LICENSE_MALFORMED`
+- `1002300014` `LICENSE_SIGNATURE_INVALID`
+- `1002300015` `LICENSE_APP_MISMATCH`
+- `1002300016` `LICENSE_CERT_MISMATCH`
+- `1002300017` `LICENSE_EXPIRED`
+- `1002300018` `LICENSE_DEVICE_MISMATCH`
+- `1002300019` `LICENSE_SDK_MAJOR_MISMATCH`
+- `1002300020` `LICENSE_MAINTENANCE_EXPIRED`
+- `1002300021` `LICENSE_FEATURE_MISSING`
+- `1002300034` `LICENSE_NOT_SET`（`getLicenseInfo()` 在未 `setLicense()` 时抛出）

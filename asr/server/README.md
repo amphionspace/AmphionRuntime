@@ -121,13 +121,24 @@ cascade 接入时，建议优先通过 `--endpoint_rule2_min_trailing_silence` �
 GPU（推荐，并发结论见 BENCHMARK.md）：
 
 ```bash
-# 在仓库根目录构建（onnxruntime-gpu 需联网下载，宿主需 NVIDIA 驱动 + nvidia-container-toolkit）
-docker build -t asr-service-gpu:1.1.0 -f asr/server/deploy/Dockerfile.gpu .
+# 在仓库根目录构建（BuildKit 会预取并校验 onnxruntime-gpu，宿主需 NVIDIA 驱动 + nvidia-container-toolkit）
+DOCKER_BUILDKIT=1 docker build -t asr-service-gpu:1.1.0 -f asr/server/deploy/Dockerfile.gpu .
 docker run --rm -it --gpus all -p 50051:50051 \
     -v /abs/path/model:/etc/asr-service/model:ro \
     -v /abs/path/manifest.json:/etc/asr-service/manifest.json:ro \
     asr-service-gpu:1.1.0
 # 或：docker compose -f asr/server/deploy/docker-compose.gpu.yml up --build
+```
+
+GPU 镜像的 builder 阶段会先把 `onnxruntime-linux-x64-gpu-1.24.4-patched.zip` 下载到 BuildKit cache，
+校验 SHA256 后复制到 sherpa-onnx CMake 已支持的 `/tmp/` 查找路径，避免 CMake `FetchContent` 直接拉大文件。
+如需使用私有镜像，可覆盖 `ONNXRUNTIME_GPU_URL`；`ONNXRUNTIME_GPU_SHA256` 必须与实际文件匹配：
+
+```bash
+DOCKER_BUILDKIT=1 docker build \
+    --build-arg ONNXRUNTIME_GPU_URL=https://mirror.example.com/onnxruntime-linux-x64-gpu-1.24.4-patched.zip \
+    -t asr-service-gpu:1.1.0 \
+    -f asr/server/deploy/Dockerfile.gpu .
 ```
 
 CPU：把上面的 `Dockerfile.gpu` 换成 `Dockerfile`、去掉 `--gpus all` 即可。
