@@ -15,6 +15,7 @@ OUT="${1:-$ROOT/../delivery/com.tdtech.tiassistant.lic}"
 DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$ROOT/.secure/dingqiao_tiassistant_sn.txt}"
 TRIAL_MONTHS="${DINGQIAO_TRIAL_MONTHS:-2}"
 FEATURES="${DINGQIAO_LICENSE_FEATURES:-ASR,TTS}"
+source "$ROOT/asr/tools/license/ensure_python.sh"
 
 if [[ ! -f "$PRIVATE_KEY" ]]; then
   echo "私钥不存在: $PRIVATE_KEY" >&2
@@ -26,13 +27,11 @@ if [[ ! -f "$DEVICE_ID_FILE" ]]; then
   exit 1
 fi
 
-if [[ ! -x "$VENV/bin/python" ]]; then
-  python3 -m venv "$VENV"
-  "$VENV/bin/pip" install -q -r "$ROOT/tools/license/requirements.txt"
-fi
+ensure_license_python "$VENV" "$ROOT/tools/license/requirements.txt"
+PYTHON="$VENV/bin/python"
 
 ISSUED="$(date +%Y-%m-%d)"
-EXPIRES="$("$VENV/bin/python" -c "
+EXPIRES="$("$PYTHON" -c "
 import calendar
 from datetime import date
 months = int('${TRIAL_MONTHS}')
@@ -44,7 +43,7 @@ print(f'{y:04d}-{m:02d}-{day:02d}')
 ")"
 
 mkdir -p "$(dirname "$OUT")"
-"$VENV/bin/python" "$ROOT/tools/license/issue_license.py" \
+"$PYTHON" "$ROOT/tools/license/issue_license.py" \
   --private-key "$PRIVATE_KEY" \
   --customer "TD Tech / Dingqiao" \
   --license-id "DINGQIAO-TDTECH-$(date +%Y%m)-001" \
