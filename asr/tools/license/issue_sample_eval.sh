@@ -8,11 +8,10 @@ VENV="$ROOT/tools/license/.venv"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$ROOT/.secure/amphion-license-private.pem}"
 OUT="$ROOT/asr/android/samples/public-demo/src/main/assets/amphion-license.lic"
 CERT_SHA="${SAMPLE_EVAL_CERT_SHA256:-}"
+source "$ROOT/asr/tools/license/ensure_python.sh"
 
-if [[ ! -d "$VENV" ]]; then
-  python3 -m venv "$VENV"
-  "$VENV/bin/pip" install -q -r "$ROOT/tools/license/requirements.txt"
-fi
+ensure_license_python "$VENV" "$ROOT/tools/license/requirements.txt"
+PYTHON="$VENV/bin/python"
 
 if [[ ! -f "$PRIVATE_KEY" ]]; then
   echo "私钥不存在: $PRIVATE_KEY" >&2
@@ -26,7 +25,7 @@ if [[ -z "$CERT_SHA" ]]; then
 fi
 
 mkdir -p "$(dirname "$OUT")"
-"$VENV/bin/python" "$ROOT/tools/license/issue_license.py" \
+"$PYTHON" "$ROOT/tools/license/issue_license.py" \
   --private-key "$PRIVATE_KEY" \
   --application-id com.amphion.asr.sample \
   --customer "Amphion Sample Eval" \

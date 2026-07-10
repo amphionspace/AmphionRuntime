@@ -48,13 +48,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-ZH_EN_DIR="${ZH_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/zipformer_L_zh_en}"
-YUE_EN_DIR="${YUE_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/zipformer_L_yue_en}"
+ZH_EN_DIR="${ZH_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/zhen}"
+YUE_EN_DIR="${YUE_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/yueen}"
 PUNCT_DIR="${PUNCT_DIR:-${REPO_ROOT}/asr/tools/punct-model/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8}"
 ITN_DIR="${ITN_DIR:-${REPO_ROOT}/asr/tools/weitn-fsts}"
 VAD_FILE="${VAD_FILE:-${REPO_ROOT}/asr/tools/vad-model/silero_vad.onnx}"
 
-ASSET_ROOT="${REPO_ROOT}/asr/android/sdk/src/main/assets/amphion-models"
+FINAL_ASSET_ROOT="${REPO_ROOT}/asr/android/sdk/src/main/assets/amphion-models"
+ASSET_ROOT="${FINAL_ASSET_ROOT}.tmp.$$"
+BACKUP_ASSET_ROOT="${FINAL_ASSET_ROOT}.backup.$$"
+LOCK_DIR="${FINAL_ASSET_ROOT}.lock"
+LOCK_HELD=false
 
 DEFAULT_VAD_URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
 DEFAULT_VAD_SHA256="a4a060cb50f7464b7e6da6a5df1c3a6b4c4a4ca1f0f5e7a2cf2a1d2e0fbe93d5"
@@ -128,12 +132,47 @@ for f in encoder.int8.onnx decoder.onnx joiner.int8.onnx tokens.txt bbpe.vocab; 
   ensure_file "${YUE_EN_DIR}/${f}" "粤英 ASR 缺 ${f}（同上）"
 done
 
-# -------- 5. 拷贝到 SDK assets --------
-info "清空旧的 ${ASSET_ROOT}/<bundle>/v1/ 内的真实模型文件（保留 .gitkeep / README.md）"
+# -------- 5. 在临时目录组装 SDK assets --------
+cleanup_asset_publish() {
+  rm -rf "$ASSET_ROOT"
+  if [[ -e "$BACKUP_ASSET_ROOT" ]]; then
+    if [[ ! -e "$FINAL_ASSET_ROOT" ]]; then
+      mv "$BACKUP_ASSET_ROOT" "$FINAL_ASSET_ROOT"
+    else
+      rm -rf "$BACKUP_ASSET_ROOT"
+    fi
+  fi
+  if [[ "$LOCK_HELD" == true ]]; then
+    rm -rf "$LOCK_DIR"
+    LOCK_HELD=false
+  fi
+}
+
+mkdir -p "$(dirname "$FINAL_ASSET_ROOT")"
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  err "另一个模型打包进程持有锁: $LOCK_DIR"
+fi
+LOCK_HELD=true
+rm -rf "$ASSET_ROOT"
+if [[ -e "$BACKUP_ASSET_ROOT" ]]; then
+  if [[ ! -e "$FINAL_ASSET_ROOT" ]]; then
+    mv "$BACKUP_ASSET_ROOT" "$FINAL_ASSET_ROOT"
+  else
+    rm -rf "$BACKUP_ASSET_ROOT"
+  fi
+fi
+trap cleanup_asset_publish EXIT
+trap 'cleanup_asset_publish; exit 130' INT TERM
+
+info "在临时目录组装模型资产，验证通过后原子替换 ${FINAL_ASSET_ROOT}"
+mkdir -p "$ASSET_ROOT"
+if [[ -f "$FINAL_ASSET_ROOT/README.md" ]]; then
+  cp "$FINAL_ASSET_ROOT/README.md" "$ASSET_ROOT/README.md"
+fi
 for sub in zh-en yue-en punct-zhen itn-zh vad; do
   local_dst="${ASSET_ROOT}/${sub}/v1"
   mkdir -p "${local_dst}"
-  find "${local_dst}" -type f ! -name '.gitkeep' -delete
+  touch "${local_dst}/.gitkeep"
 done
 
 copy_one() {
@@ -208,7 +247,6 @@ MANIFEST="${ASSET_ROOT}/manifest.json"
 {
   echo '{'
   echo '  "manifest_version": 1,'
-  echo "  \"generated_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
   echo '  "bundles": {'
   write_entry "zh-en/v1"      encoder.int8.onnx decoder.onnx joiner.int8.onnx tokens.txt bbpe.vocab
   echo ','
@@ -224,7 +262,20 @@ MANIFEST="${ASSET_ROOT}/manifest.json"
   echo '}'
 } >"${MANIFEST}"
 
-ok "manifest 写到 ${MANIFEST}"
+python3 "${SCRIPT_DIR}/verify_packed_model_assets.py" --root "${ASSET_ROOT}"
+
+if [[ -e "$FINAL_ASSET_ROOT" ]]; then
+  mv "$FINAL_ASSET_ROOT" "$BACKUP_ASSET_ROOT"
+fi
+if ! mv "$ASSET_ROOT" "$FINAL_ASSET_ROOT"; then
+  [[ ! -e "$BACKUP_ASSET_ROOT" ]] || mv "$BACKUP_ASSET_ROOT" "$FINAL_ASSET_ROOT"
+  exit 1
+fi
+rm -rf "$BACKUP_ASSET_ROOT" "$LOCK_DIR"
+LOCK_HELD=false
+trap - EXIT INT TERM
+ASSET_ROOT="$FINAL_ASSET_ROOT"
+ok "manifest 写到 ${ASSET_ROOT}/manifest.json"
 
 info "下一步：cd asr/android && ./gradlew :sdk:assembleRelease"
 info "       AAR 输出：asr/android/sdk/build/outputs/aar/sdk-release.aar"

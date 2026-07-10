@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0 — hotfix 2026-07-10（授权、模型与真机验收）
+
+- `SpeechRecognizeSdk.init` 支持宿主注入 `deviceIdProvider`；普通 Demo 使用 ODID，特权宿主保留硬件 SN 路径。
+- 模型打包和 signed HAP 增加强制 manifest 路径、大小、SHA-256 校验。
+- signed HAP 增加 profile、bundle/module 和预期证书链校验；客户包支持显式 `--asr-only` 模式，并在仅依赖自包含 ASR HAR 的干净宿主中执行编译验收。
+- Sherpa Harmony NAPI 捕获 recognizer 创建异常并转成 ArkTS 错误，避免无效 ONNX 导致 `SIGABRT`。
+- 新增一键预检和 USB 真机 smoke，完成标准为页面进入“引擎就绪”。
+
 ## 0.1.0 — hotfix 2026-07-08（声纹 ASR 崩溃）
 
 - 修复：开启「声纹校验」启动识别时 native abort 崩溃。`amphion_asr` 的 `Runtime.ets`

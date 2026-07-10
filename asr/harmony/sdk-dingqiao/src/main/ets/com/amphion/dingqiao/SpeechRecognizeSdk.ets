@@ -558,9 +558,13 @@ class DingqiaoAsrCallback implements AsrCallback {
   }
 }
 
+export interface LicenseDeviceIdProvider {
+  getDeviceSerial(context: Context): string | undefined;
+}
+
 // 设备 SN 提供者(对齐 Android DingqiaoDeviceIdProvider):读设备序列号供 license SN 白名单校验。
-// 读取 deviceInfo.serial 需要 ohos.permission.sn(系统/特权权限);普通 Demo 读不到 -> 返回 undefined。
-class DingqiaoDeviceIdProvider implements AmphionDeviceIdProvider {
+// 读取 deviceInfo.serial 需要 ohos.permission.sec.ACCESS_UDID(系统/特权权限);普通 Demo 读不到 -> 返回 undefined。
+class SystemDeviceIdProvider implements LicenseDeviceIdProvider {
   getDeviceSerial(_context: Context): string | undefined {
     try {
       const sn = deviceInfo.serial;
@@ -568,6 +572,20 @@ class DingqiaoDeviceIdProvider implements AmphionDeviceIdProvider {
     } catch (e) {
       return undefined;
     }
+  }
+}
+
+// Keep the public Dingqiao provider type independent from the core HAR's emitted API type.
+// The explicit adapter also prevents core package type identity from leaking to customers.
+class CoreDeviceIdProviderAdapter implements AmphionDeviceIdProvider {
+  private delegate: LicenseDeviceIdProvider;
+
+  constructor(delegate: LicenseDeviceIdProvider) {
+    this.delegate = delegate;
+  }
+
+  getDeviceSerial(context: Context): string | undefined {
+    return this.delegate.getDeviceSerial(context);
   }
 }
 
@@ -593,9 +611,12 @@ export class SpeechRecognizeSdk {
   private static context?: Context;
   private static workPath: string = '';
   private static licenseInfo?: LicenseInfo;
+  private static deviceIdProvider?: LicenseDeviceIdProvider;
 
-  static init(context: Context): void {
+  /** Uses the host provider for device-bound licenses; privileged hosts may omit it to use hardware SN. */
+  static init(context: Context, deviceIdProvider?: LicenseDeviceIdProvider): void {
     SpeechRecognizeSdk.context = context;
+    SpeechRecognizeSdk.deviceIdProvider = deviceIdProvider;
     // AmphionRuntime.init 现为异步(核心路径也强制 ECDSA 签名 + SN 白名单)。此处不带 license,真正的
     // 授权在 setLicense→activateLicense 完成(其会 release() 后再 init(options))。保持本 init 同步且容错:
     // 此处的 license 判定结果无意义(无 license),忽略其 rejection 即可。
@@ -638,7 +659,19 @@ export class SpeechRecognizeSdk {
   ): Promise<void> {
     // 第一道门:真 ECDSA 验签。被篡改/伪造的 license(如改了 expiresAt)在这里被拒,引擎不会初始化。
     // 开发(未注入公钥)构建下 verifyLicenseSignature 返回 true,保持可用。
-    const signatureValid = await AmphionRuntime.verifyLicenseSignature(licenseText);
+    let signatureValid: boolean = false;
+    try {
+      signatureValid = await AmphionRuntime.verifyLicenseSignature(licenseText);
+    } catch (e) {
+      const info = new LicenseInfo();
+      info.status = 2;
+      info.expireTime = -1;
+      info.remainingDays = -1;
+      info.authorizedFeatures = [];
+      SpeechRecognizeSdk.licenseInfo = info;
+      callback.onError(DingqiaoErrorCode.LICENSE_INVALID, `license signature verification failed: ${e}`);
+      return;
+    }
     if (!signatureValid) {
       const info = new LicenseInfo();
       info.status = 2;
@@ -649,9 +682,22 @@ export class SpeechRecognizeSdk {
       callback.onError(DingqiaoErrorCode.LICENSE_INVALID, 'license signature verification failed');
       return;
     }
-    // 第二道门:SN 白名单(对齐 Android)。绑了 SN 的 license 只在白名单设备上激活;本机 SN 由 provider 读取。
-    const provider = new DingqiaoDeviceIdProvider();
-    const deviceOk = await AmphionRuntime.checkDeviceBinding(licenseText, provider.getDeviceSerial(context));
+    // 第二道门:设备白名单(对齐 Android)。特权宿主默认读取硬件 SN，普通宿主可注入稳定设备标识。
+    const provider = SpeechRecognizeSdk.deviceIdProvider ?? new SystemDeviceIdProvider();
+    let deviceOk: boolean = false;
+    try {
+      const deviceId: string | undefined = provider.getDeviceSerial(context);
+      deviceOk = await AmphionRuntime.checkDeviceBinding(licenseText, deviceId);
+    } catch (e) {
+      const info = new LicenseInfo();
+      info.status = 3;
+      info.expireTime = -1;
+      info.remainingDays = -1;
+      info.authorizedFeatures = [];
+      SpeechRecognizeSdk.licenseInfo = info;
+      callback.onError(DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH, `device identity check failed: ${e}`);
+      return;
+    }
     if (!deviceOk) {
       const info = new LicenseInfo();
       info.status = 3;
@@ -665,7 +711,7 @@ export class SpeechRecognizeSdk {
     try {
       const options = new AmphionOptions();
       options.license = licenseText;
-      options.deviceIdProvider = provider;
+      options.deviceIdProvider = new CoreDeviceIdProviderAdapter(provider);
       AmphionRuntime.release();
       await AmphionRuntime.init(context, options);
       const status = AmphionRuntime.licenseStatus();

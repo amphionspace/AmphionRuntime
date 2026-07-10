@@ -36,11 +36,18 @@ ASR SDK 为**自包含 HAR**——ASR 核心、警务能力层与 sherpa_onnx �
 import {
   AudioInfo,
   CreateEngineParams,
+  LicenseDeviceIdProvider,
   SpeechRecognizeSdk,
   StartParams
 } from 'amphion_dingqiao';
 
-SpeechRecognizeSdk.init(context);
+class HostDeviceIdProvider implements LicenseDeviceIdProvider {
+  getDeviceSerial(_context: Context): string | undefined {
+    return readStableDeviceIdFromHost();
+  }
+}
+
+SpeechRecognizeSdk.init(context, new HostDeviceIdProvider());
 SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/dingqiao_work`);
 
 const engine = SpeechRecognizeSdk.createEngine(new CreateEngineParams());
@@ -60,14 +67,22 @@ engine.finish(start.sessionId);
 
 ## 离线授权
 
-授权文件固定为 `amphion-license.lic`。如果 license 启用了设备 SN 白名单，宿主或交付适配层需要通过 `deviceIdProvider` 注入本机 SN；该 SN 必须与交付给我方签发 license 的 SN 清单一致。
+授权文件固定为 `amphion-license.lic`。如果 license 启用了设备白名单，宿主或交付适配层需要通过 `deviceIdProvider` 注入稳定设备标识；该标识必须与交付给我方签发 license 的清单一致。系统/预置宿主通常注入硬件 SN；普通 Demo 可注入 ODID，但不能用 ODID 去匹配按 SN 签发的 license。
 
 **交付入口（推荐）**：鼎桥侧通过 `SpeechRecognizeSdk.setLicense(licensePath, callback)` 激活 license（异步 ECDSA 验签 + SN 白名单，需先 `init(context)`）；激活成功后再 `createEngine`。`getLicenseInfo()` 返回授权状态 `LicenseInfo`（`status` / `expireTime` / `remainingDays` / `authorizedFeatures`）。
 
 ```ts
-import { LicenseActivationResult, SpeechRecognizeSdk } from 'amphion_dingqiao';
+import deviceInfo from '@ohos.deviceInfo';
+import { LicenseActivationResult, LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
 
-SpeechRecognizeSdk.init(context);
+class DeviceIdProvider implements LicenseDeviceIdProvider {
+  getDeviceSerial(_context: Context): string | undefined {
+    const sn = deviceInfo.serial;
+    return sn.length > 0 ? sn : undefined;
+  }
+}
+
+SpeechRecognizeSdk.init(context, new DeviceIdProvider());
 SpeechRecognizeSdk.setLicense(`${context.filesDir}/amphion-license.lic`, {
   onResult: (result: LicenseActivationResult) => {
     // 授权成功，可继续 createEngine
@@ -95,7 +110,7 @@ licenseOptions.deviceIdProvider = {
 AmphionRuntime.init(context, licenseOptions);
 ```
 
-如果由鼎桥业务 App 自行读取 SN，只需按上面的接口注入；如果由我方交付适配层实现，需要鼎桥提供读取 SN 的系统 API、权限要求和失败行为。
+如果由鼎桥业务 App 自行读取 SN，只需按上面的接口注入；读取 `deviceInfo.serial` 需要 `ohos.permission.sec.ACCESS_UDID`。如果由我方交付适配层实现，需要鼎桥提供读取 SN 的系统 API、权限要求和失败行为。
 
 ## 音频要求
 
