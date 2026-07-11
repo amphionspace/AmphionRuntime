@@ -113,8 +113,12 @@ internal object LicenseVerifier {
             return failWith(claims, TtsErrorCode.LICENSE_SIGNATURE_INVALID, "signature mismatch")
         }
 
+        // 包名绑定：仅当 boundApplicationId 非空时才校验（与下面的 cert / expiry 校验一致，
+        // 也与 ASR 验签器一致——ASR 根本不做包名校验）。鼎桥离线 license 按 packageNameBound=false
+        // 签发（applicationId/bundleName 均为空），改用 cert + SN 绑定；若在此无条件比对，武装态下
+        // 会把这类合法 license 误判为 LICENSE_APP_MISMATCH。
         val boundApp = claims.boundApplicationId
-        if (boundApp != packageName) {
+        if (boundApp.isNotBlank() && boundApp != packageName) {
             return failWith(claims, TtsErrorCode.LICENSE_APP_MISMATCH, "license app=$boundApp host=$packageName")
         }
 
@@ -159,8 +163,10 @@ internal object LicenseVerifier {
             }
         }
 
+        // 能力授权：无条件校验（与 ASR 验签器一致）。features 为空表示不授权任何能力，必须拒绝——
+        // 否则一个空 features 的 license 会绕过能力门禁激活 TTS（与本次鼎桥审计的能力分档诉求相悖）。
         val normalizedFeatures = claims.features.map { it.trim().uppercase(Locale.ROOT) }.toSet()
-        if (normalizedFeatures.isNotEmpty() && !normalizedFeatures.contains(requiredFeature.uppercase(Locale.ROOT))) {
+        if (!normalizedFeatures.contains(requiredFeature.uppercase(Locale.ROOT))) {
             return failWith(
                 claims,
                 TtsErrorCode.LICENSE_FEATURE_MISSING,
