@@ -41,6 +41,9 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | `reconfigure` | 轮换 VAD 参数，覆盖引擎替换和旧引擎释放 |
 | `recreate` | 每轮创建引擎并连续 shutdown 两次 |
 | `edge` | 空闲调用、非法 session/帧、串 session、busy、重复 finish |
+| `reentrant` | `onComplete` 回调内立即再次 `startListening`，验证完成态可重入 |
+| `start-cancel` | `onStart` 回调内立即 `cancel`，验证取消后不再透出 start 后续事件 |
+| `numeric-edge` | `maxAudioDuration=NaN` 等非有限数输入，验证不会绕过 20 秒兜底上限 |
 
 默认门槛为 RSS 增长不超过 64 MiB、线程增长不超过 2、正常结束模式空 final
 不超过 5%。少于 15 秒的采样只报告 `INCONCLUSIVE`，避免把模型冷启动误判为泄漏。
@@ -66,6 +69,23 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 主稳压 artifact：
 `delivery/harmony-dingqiao/build/device-stress/20260710-231528-burst-18e50bec`。
 该轮 RSS 三段中位数为 694.57/682.59/694.20 MiB，未呈线性增长。
+
+## 2026-07-11 adversarial 发现
+
+新增三条红灯契约，用于固定当前 Harmony SDK 的高风险边界：
+
+| 用例 | 结果 | 主要症状 | Artifact |
+| --- | --- | --- | --- |
+| `reentrant` 3 轮 | 3/3 FAIL | `onComplete` 回调内 `isBusy()==true`，立即 `startListening` 触发 `ENGINE_BUSY` | `20260711-112219-reentrant-4ff47443` |
+| `numeric-edge` 3 轮 | 3/3 FAIL | `maxAudioDuration=Number.NaN` 后喂入 1168 帧仍无 `onComplete`，会话上限被绕过 | `20260711-112231-numeric-edge-f5bf6f84` |
+| `start-cancel` 3 轮 | 3/3 FAIL | `onStart` 内立即 `cancel` 后，每轮仍有 1 个 native stream 存活 | `20260711-112628-start-cancel-dfa83bdb` |
+
+对照结果：单独重跑 `edge` 通过（`20260711-112205-edge-71f55e92`），标准
+`max-duration` 通过（`20260711-111857-max-duration-457e0da3`）。因此新增失败集中在
+回调重入、取消时序和非有限数参数处理，不是旧 edge/max-duration 路径回归。`start-cancel` 的根因指向
+`startListening` 中 `this.session = this.asrEngine.newSession(callback)` 的赋值时序：如果
+`newSession` 同步触发 `onSessionStarted`，客户在 `onStart` 中取消时 `tearDownSession()` 还看不到
+新 session，无法关闭刚创建的 native stream。
 
 ## 已修复问题
 
