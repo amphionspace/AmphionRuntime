@@ -32,7 +32,7 @@ import {
   TargetSpeakerConfig,
   VadModelType
 } from './Types';
-import { AmphionLicenseState, AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
+import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 
 // Silence fed to the encoder to prime it after a stream rebuild / at session start (Android parity).
 const WARMUP_DURATION_MS: number = 800;
@@ -366,36 +366,18 @@ export class AmphionRuntime {
   private static async evaluateLicense(): Promise<AmphionLicenseStatus> {
     const context = AmphionRuntime.appContext;
     const serial = context === undefined ? undefined : AmphionRuntime.options.deviceIdProvider?.getDeviceSerial(context);
-    const license = AmphionRuntime.options.license;
-    const publicKey = HarmonyLicenseVerifier.publicKey();
-    const status = HarmonyLicenseVerifier.verify(
-      license,
+    // 单次解析快速路径:结构校验 + ECDSA 验签 + SN 白名单一遍完成,替代原先 verify()+verifySignature()+
+    // deviceHashOk() 对同一份 4MB payload 的 3 次重复解析(6万台白名单尤其慢)。行为/错误码/门禁顺序等价、
+    // 仍 fail-closed,详见 HarmonyLicenseVerifier.evaluate。
+    return await HarmonyLicenseVerifier.evaluate(
+      AmphionRuntime.options.license,
       AmphionRuntime.options.bundleName,
       AmphionRuntime.options.signingCertDigest,
       serial,
-      publicKey,
+      HarmonyLicenseVerifier.publicKey(),
       AmphionRuntime.SDK_MAJOR,
       AmphionRuntime.SDK_RELEASE_DATE
     );
-    if (status.valid && publicKey.trim().length > 0 && license !== undefined && license.trim().length > 0) {
-      const signatureOk = await HarmonyLicenseVerifier.verifySignature(license, publicKey);
-      if (!signatureOk) {
-        status.valid = false;
-        status.state = AmphionLicenseState.INVALID;
-        status.errorCode = AsrErrorCode.LICENSE_SIGNATURE_INVALID;
-        status.message = 'license signature verification failed';
-        return status;
-      }
-      const deviceOk = await HarmonyLicenseVerifier.deviceHashOk(license, serial);
-      if (!deviceOk) {
-        status.valid = false;
-        status.state = AmphionLicenseState.INVALID;
-        status.errorCode = AsrErrorCode.LICENSE_DEVICE_MISMATCH;
-        status.message = 'device SN not in license whitelist';
-        return status;
-      }
-    }
-    return status;
   }
 
   private static isRecognizerConfigCompatible(left: AsrConfig, right: AsrConfig): boolean {
