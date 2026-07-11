@@ -357,3 +357,52 @@ from,to,category
 用微胖向,用WeConmm向,term
 用微COM向,用WeConmm向,term
 我已到岗，帮我打开,我已到岗，帮我打卡,term
+# ── Phase 1（20260711 批）：警务 App/系统名 误识纠正（from 均为罕见无歧义串，全局替换安全）──
+# 情指行（qíng zhǐ xíng）
+请止行,情指行,appname
+请知星,情指行,appname
+停止型,情指行,appname
+请止型,情指行,appname
+# 勤指情平台
+停止请平台,勤指情平台,appname
+# e警保
+易井宝,e警保,appname
+易玟宝,e警保,appname
+易文宝,e警保,appname
+# 京警智联
+精井智联,京警智联,appname
+京井智联,京警智联,appname
+# 基管平台
+机管平台,基管平台,appname
+# 指信接处警
+指信接触井,指信接处警,appname
+只性接触井,指信接处警,appname
+# 移动警务门户
+一栋警务门户,移动警务门户,appname
+# 智能警务
+智能景物,智能警务,appname
+# 指信中心
+紫信中心,指信中心,appname
+直信中心,指信中心,appname
+# 情指行 真残留（真人也念成 请指行；请指 因误伤 请指示/请指教 不加）
+请指行,情指行,appname
+# ── Phase 3b：真人复测真残留（长词等长近音亦喂 V2 模糊层 readingMap；from 均无子串碰撞）──
+吸塑霸坊,息诉罢访,term
+西素霸坊,息诉罢访,term
+吸塑罢坊,息诉罢访,term
+吸塑罢访,息诉罢访,term
+定分值征,定纷止争,term
+定分指针,定纷止争,term
+制爆机枪,治爆缉枪,term
+接触井流程,接处警流程,term
+晋黄,禁黄,term
+硝胺,销案,term
+景增系统,警综系统,term
+沪证业务,户政业务,term
+# ── 甲方 0711 群反馈：同音误识纠正（from 无子串碰撞；长词亦喂 V2 模糊层）──
+人向核查,人像核查,term
+锦琴,警情,term
+劝法,劝返,term
+# WeSpace 归一（ASR 常输出 WE SPACE；WeComm 截断成 WE 暂不修，裸 WE 无法安全映射）
+WE SPACE,WeSpace,term
+We Space,WeSpace,term

@@ -8,9 +8,8 @@ import com.amphion.asr.AsrResult
 import com.amphion.asr.AsrSession
 import com.amphion.asr.sample.AudioRecorder
 import com.amphion.asr.sample.WavIo
-import com.amphion.police.terms.PoliceTermsEnhance
+import com.amphion.police.PoliceEnhancePipeline
 import com.amphion.police.terms.PoliceTermsNormalizeResult
-import com.amphion.police.terms.PoliceTermsNormalizer
 import com.amphion.police.terms.PoliceTermsTextUtil
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
@@ -18,11 +17,15 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * 端侧批量警务术语评测：读 WAV → +10dB → acceptPcmShort → onFinal → PoliceTermsNormalizer → TSV。
+ * 端侧批量警务术语评测：读 WAV → +10dB → acceptPcmShort → onFinal →
+ * 交付 [PoliceEnhancePipeline]（terms→plate→station，V2 全开）→ TSV。
+ *
+ * 注意：后处理走**完整交付 pipeline**（与 dingqiao SDK 一致），而非裸 V1，
+ * 故基线数字即甲方口径；`normalized` 列记录 pipeline 最终文本。
  */
 class PoliceTermsBatchEvalRunner(
     private val engine: AsrEngine,
-    private val normalizer: PoliceTermsNormalizer,
+    private val pipeline: PoliceEnhancePipeline,
     private val evalRecorder: PoliceTermsEvalRecorder,
     private val normalizeEnabled: Boolean = true,
     private val gainDb: Float = 10f,
@@ -66,11 +69,12 @@ class PoliceTermsBatchEvalRunner(
             val outcome = decodeOne(case, gain)
             when (outcome.kind) {
                 OutcomeKind.OK -> {
-                    val norm = PoliceTermsEnhance.apply(
-                        outcome.text,
-                        normalizer,
-                        normalizeEnabled,
-                    )
+                    // 交付 pipeline：terms(V2) → plate(V2) → station(V2)，取最终文本落盘。
+                    val norm = if (normalizeEnabled) {
+                        PoliceTermsNormalizeResult(pipeline.enhance(outcome.text).text, emptyList())
+                    } else {
+                        PoliceTermsNormalizeResult(outcome.text, emptyList())
+                    }
                     evalRecorder.append(
                         uttId = case.uttId,
                         refText = case.refText,

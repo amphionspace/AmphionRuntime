@@ -17,8 +17,8 @@ import com.amphion.asr.AsrEngine
 import com.amphion.asr.AsrLanguage
 import com.amphion.asr.sample.AmphionApp
 import com.amphion.asr.sample.R
+import com.amphion.police.PoliceEnhancePipeline
 import com.amphion.police.terms.PoliceTermsEnhancePrefs
-import com.amphion.police.terms.PoliceTermsNormalizer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -45,7 +45,7 @@ class PoliceTermsBatchEvalActivity : AppCompatActivity() {
         Thread(r, "police-terms-batch-eval").apply { isDaemon = true }
     }
 
-    private lateinit var normalizer: PoliceTermsNormalizer
+    private lateinit var pipeline: PoliceEnhancePipeline
     private lateinit var evalRecorder: PoliceTermsEvalRecorder
 
     private var engine: AsrEngine? = null
@@ -74,9 +74,16 @@ class PoliceTermsBatchEvalActivity : AppCompatActivity() {
 
         val prefs = PoliceTermsEnhancePrefs(applicationContext)
         val useFst = intent.getBooleanExtra(EXTRA_USE_FST, prefs.termsFstEnabled)
-        normalizer = PoliceTermsNormalizer.create(this, useFst = useFst)
+        // 交付基线：完整三域 V2 pipeline（与 dingqiao SDK 一致），而非裸 V1。
+        pipeline = PoliceEnhancePipeline.create(
+            context = this,
+            termsUseFst = useFst,
+            plateV2Enabled = true,
+            stationV2Enabled = true,
+            termsV2Enabled = true,
+        )
         evalRecorder = PoliceTermsEvalRecorder(this)
-        Log.i(TAG, "normalize terms_fst=${normalizer.fstEnabled}")
+        Log.i(TAG, "pipeline terms_v2=true plate_v2=true station_v2=true terms_fst=${pipeline.termsNormalizer.fstEnabled}")
 
         filterPrefix = intent.getStringExtra(EXTRA_FILTER) ?: "police_terms_samples"
         autoStart = intent.getBooleanExtra(EXTRA_AUTO_START, false)
@@ -98,7 +105,7 @@ class PoliceTermsBatchEvalActivity : AppCompatActivity() {
         } catch (_: Throwable) {}
         engine = null
         try {
-            normalizer.close()
+            pipeline.close()
         } catch (_: Throwable) {}
         exec.shutdownNow()
         super.onDestroy()
@@ -113,7 +120,7 @@ class PoliceTermsBatchEvalActivity : AppCompatActivity() {
     }
 
     private fun reloadCases() {
-        cases = PoliceTermsBatchEvalManifest.loadCases(this, filterPrefix, normalizer)
+        cases = PoliceTermsBatchEvalManifest.loadCases(this, filterPrefix, pipeline.termsNormalizer)
         val filterLabel = filterPrefix ?: "all"
         val done = PoliceTermsBatchEvalManifest.loadDoneIds(this).size
         val dir = PoliceTermsBatchEvalManifest.batchDir(this).absolutePath
@@ -192,7 +199,7 @@ class PoliceTermsBatchEvalActivity : AppCompatActivity() {
         val skipIds = PoliceTermsBatchEvalManifest.loadDoneIds(this)
         val runner = PoliceTermsBatchEvalRunner(
             eng,
-            normalizer,
+            pipeline,
             evalRecorder,
             normalizeEnabled = prefs.termsNormalizeEnabled,
         )

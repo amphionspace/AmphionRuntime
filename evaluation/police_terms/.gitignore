@@ -1,0 +1,8 @@
+# 只入库工装脚本；结果/中间产物/录音数据不入库
+build/
+_archive/
+_smoke*/
+round*/
+human_record_list.tsv
+human_record_mapping.tsv
+human_record_script.txt
