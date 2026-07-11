@@ -41,10 +41,41 @@ asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/
 third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/
 ```
 
-## 资源同步
+## 模型预优化与资源打包
 
 ```bash
 bash asr/tools/08_pack_harmony_assets.sh
 ```
 
-该脚本把 Android AAR 的 `amphion-models` 资源布局复制到 Harmony `rawfile` 下。模型二进制可复用，但路径和打包格式不同。
+该脚本不依赖 Android assets，会直接从以下默认目录组装五类模型：
+
+- 中英：`asr/tools/demo-model/zhen`
+- 粤英：`asr/tools/demo-model/yueen`
+- 标点：`asr/tools/punct-model/...-int8`
+- ITN：`asr/tools/weitn-fsts`
+- VAD：`asr/tools/vad-model/silero_vad.onnx`
+
+中英模型接受 `decoder.int8.onnx`，并兼容旧的 `decoder.onnx`。构建时会并行把中英
+encoder / decoder / joiner 和标点图转换成 ORT FlatBuffer：
+
+```text
+zh-en/v1/{encoder.int8.ort,decoder.int8.ort,joiner.int8.ort}
+punct-zhen/v1/model.int8.ort
+```
+
+转换器固定使用 `onnxruntime==1.16.3`、`onnx==1.15.0`、`numpy==1.26.4`、CPU EP、ARM target 和 Fixed
+全图优化；ARM target 会禁用 `NchwcTransformer`。脚本会覆盖外部同名环境变量，
+防止转换级别被意外降级。首次执行自动创建
+`.venv-harmony-ort-1.16.3`，转换结果按源文件 SHA-256 缓存在
+`.cache/harmony-ort-1.16.3`。后续模型未变化时直接命中缓存。
+
+粤英、ITN 与 VAD 保持原格式。脚本先在临时目录构建并校验 manifest v2（包含源/输出
+SHA-256、格式和转换器信息），通过后才原子替换 Harmony `rawfile` 目录。
+
+自定义模型或复用已有转换环境：
+
+```bash
+ZH_EN_DIR=/path/to/zhen \
+HARMONY_ORT_PYTHON=/path/to/venv/bin/python \
+bash asr/tools/08_pack_harmony_assets.sh
+```

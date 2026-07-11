@@ -38,6 +38,8 @@ __pycache__/
 .venv/
 .venv-*/
 venv/
+# Build-time ONNX -> ORT content cache (for example Harmony model pre-optimization).
+.cache/
 asr/ws-server/reports/**/server.log
 # gRPC python stub（由 asr/server/bench/README.md 的 protoc 步骤生成，不入库）
 asr/server/bench/asr_pb2.py
@@ -62,6 +64,7 @@ asr/ios/AmphionRuntime.xcframework.zip.sha256
 # HarmonyOS native / rawfile 交付产物（由构建和打包脚本生成）
 asr/harmony/sdk/src/main/cpp/libs/*/
 asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/*.onnx
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/*.ort
 asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/*.fst
 asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/tokens.txt
 asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/bbpe.vocab

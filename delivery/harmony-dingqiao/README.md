@@ -50,13 +50,13 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 
 ## main 分支复现边界
 
-PR 合入后，`main` 分支包含完整源码、交付工程和 sherpa-onnx patch 序列，可以在同样工具链下编译出功能等价的鸿蒙应用。但仓库不会提交模型、签名证书、license、HAP/HAR 或 native 构建产物，因此干净检出后不能只运行 DevEco 构建就得到已签名的 279 MB HAP。
+PR 合入后，`main` 分支包含完整源码、交付工程和 sherpa-onnx patch 序列，可以在同样工具链下编译出功能等价的鸿蒙应用。但仓库不会提交模型、签名证书、license、HAP/HAR 或 native 构建产物，因此干净检出后不能只运行 DevEco 构建就得到带完整模型的已签名 HAP。
 
 从干净 `main` 复现时需要先准备这些本地输入：
 
 - 执行 `git submodule update --init third_party/sherpa-onnx`。
 - 执行 `bash asr/tools/04_build_harmony_so.sh`；该脚本会调用 `asr/tools/apply_sherpa_patches.sh`，把 `third_party/patches/sherpa-amphion/` 下的 patch 应用到 sherpa-onnx，本分支不提交 submodule 本体改动。
-- 执行 `bash asr/tools/08_pack_harmony_assets.sh`；前提是 `asr/android/sdk/src/main/assets/amphion-models/` 下已有 ASR 模型源文件。
+- 执行 `bash asr/tools/08_pack_harmony_assets.sh`；默认直接读取 `asr/tools/demo-model/zhen`、`asr/tools/demo-model/yueen` 及标点/ITN/VAD 源文件，并用固定 ORT 1.16.3 构建环境预优化中英三图与标点图，不再依赖 Android assets。
 - 配置 DevEco 签名后构建 `dingqiao_demo`；无签名配置时只能得到未签名或调试产物。
 - 声纹模型 `eres2net.onnx` 不内置进 HAP，由 demo 通过导入流程放入工作目录。
 
