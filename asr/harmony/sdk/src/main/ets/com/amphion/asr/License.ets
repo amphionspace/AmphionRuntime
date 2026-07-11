@@ -146,6 +146,172 @@ export class HarmonyLicenseVerifier {
     return status;
   }
 
+  /**
+   * 单次解析快速路径(核心鉴权用)。把 envelope + payload 只解码/解析一遍,复用给「结构校验 + ECDSA 验签 +
+   * SN 白名单」三段——消除旧 evaluateLicense 里 verify()/verifySignature()/deviceHashOk() 各自重复解析同一份
+   * 4MB payload(原先:base64 解码 3 次、其中 2 次走按字节手搓的 decodeBase64Utf8/decodeUtf8 逐字符拼接、
+   * payload JSON 解析 2 次、6万条设备数组重建 3 次)。本方法:native base64 解码 1 次、native UTF-8 解码 1 次、
+   * JSON.parse 1 次、白名单单遍扫描。行为、错误码、门禁顺序与旧三段式严格等价(fail-closed)。
+   * 旧 verify()/verifySignature()/deviceHashOk() 保留供交付 wrapper 前置门与单测,未改。
+   */
+  static async evaluate(
+    licenseText: string | undefined,
+    bundleName: string | undefined,
+    signingCertDigest: string | undefined,
+    deviceSerial: string | undefined,
+    publicKeyB64: string = '',
+    sdkMajor: number = 0,
+    sdkReleaseDate: string = ''
+  ): Promise<AmphionLicenseStatus> {
+    const status = new AmphionLicenseStatus();
+    status.bundleName = bundleName;
+    const armed = publicKeyB64.trim().length > 0;
+    const hasLicense = licenseText !== undefined && licenseText.trim().length > 0;
+
+    // 与 verify() 一致:未武装且无 license = 开发态放行;有公钥但无 license = LICENSE_MISSING。
+    if (!armed && !hasLicense) {
+      status.state = AmphionLicenseState.DEV_UNLICENSED;
+      status.valid = true;
+      status.errorCode = AsrErrorCode.OK;
+      status.message = 'license public key is not injected; development build is unlicensed';
+      return status;
+    }
+    if (!hasLicense) {
+      return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_MISSING, 'license missing');
+    }
+
+    // ---- 单次解析:envelope 一次 → native base64 解 payload 一次(bytes 同时喂 ECDSA)→ native UTF-8 → claims 一次 ----
+    let payloadBytes: Uint8Array | undefined;
+    let sigBytes: Uint8Array | undefined;
+    let claims: Record<string, Object> | undefined;
+    try {
+      const envelope = JSON.parse(licenseText as string) as Record<string, Object>;
+      if (envelope['payload'] !== undefined) {
+        // 安全:claims 只取自签名覆盖的 payload_b64;绝不接受未签名的顶层 payload(否则可附伪造 claims 绕过绑定)。
+        hilog.warn(0x0000, 'AmphionLicense', '%{public}s',
+          'SECURITY: ignoring UNSIGNED top-level "payload"; claims are taken only from signed payload_b64');
+      }
+      const payloadB64 = envelope['payload_b64'];
+      const sigB64 = envelope['sig_b64'];
+      if (typeof payloadB64 === 'string' && typeof sigB64 === 'string') {
+        payloadBytes = HarmonyLicenseVerifier.base64ToBytes(payloadB64 as string);
+        sigBytes = HarmonyLicenseVerifier.base64ToBytes(sigB64 as string);
+        claims = JSON.parse(HarmonyLicenseVerifier.bytesToUtf8(payloadBytes)) as Record<string, Object>;
+      }
+    } catch (_e) {
+      claims = undefined;
+    }
+    if (claims === undefined || payloadBytes === undefined || sigBytes === undefined) {
+      return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_MALFORMED, 'license payload missing or unsupported');
+    }
+
+    // ---- 字段填充(与 verify() 逐字段一致) ----
+    status.licenseId = HarmonyLicenseVerifier.stringValue(claims, 'licenseId');
+    status.customer = HarmonyLicenseVerifier.stringValue(claims, 'customer');
+    status.applicationId = HarmonyLicenseVerifier.stringValue(claims, 'applicationId');
+    status.bundleName = HarmonyLicenseVerifier.stringValue(claims, 'bundleName') || bundleName;
+    status.signingCertDigest = HarmonyLicenseVerifier.stringValue(claims, 'signingCertDigest');
+    status.deviceIdHashAlg = HarmonyLicenseVerifier.stringValue(claims, 'deviceIdHashAlg');
+    status.deviceIdSaltId = HarmonyLicenseVerifier.stringValue(claims, 'deviceIdSaltId');
+    status.issuedAt = HarmonyLicenseVerifier.stringValue(claims, 'issuedAt');
+    status.maintenanceUntil = HarmonyLicenseVerifier.stringValue(claims, 'maintenanceUntil');
+    status.expiresAt = HarmonyLicenseVerifier.stringValue(claims, 'expiresAt');
+    status.installTier = HarmonyLicenseVerifier.stringValue(claims, 'installTier');
+    status.features = HarmonyLicenseVerifier.stringArray(claims, 'features');
+    const deviceHashes = HarmonyLicenseVerifier.stringArray(claims, 'authorizedDeviceHashes');
+    status.authorizedDeviceCount = deviceHashes.length;
+
+    // ---- 结构校验(顺序/错误码/消息与 verify() 逐条对齐) ----
+    const boundCert = HarmonyLicenseVerifier.normalizeHex(status.signingCertDigest ?? '');
+    const hostCert = HarmonyLicenseVerifier.normalizeHex(signingCertDigest ?? '');
+    if (boundCert.length > 0 && hostCert.length > 0 && boundCert !== hostCert) {
+      return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_CERT_MISMATCH, 'license signingCertDigest mismatch');
+    }
+    const normalizedFeatures = status.features.map((feature: string): string => feature.trim().toUpperCase());
+    if (!normalizedFeatures.includes('ASR')) {
+      return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_FEATURE_MISSING, 'license feature ASR missing');
+    }
+    if (status.authorizedDeviceCount > 0 && (deviceSerial === undefined || deviceSerial.trim().length === 0)) {
+      return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_DEVICE_MISMATCH, 'device SN unavailable');
+    }
+    const claimSdkMajor = HarmonyLicenseVerifier.numberValue(claims, 'sdkMajor');
+    if (claimSdkMajor > 0 && sdkMajor > 0 && claimSdkMajor !== sdkMajor) {
+      return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH,
+        `license sdkMajor=${claimSdkMajor} runtime=${sdkMajor}`);
+    }
+    const maintenanceUntil = status.maintenanceUntil ?? '';
+    if (sdkReleaseDate.length > 0 && maintenanceUntil.length > 0 && sdkReleaseDate > maintenanceUntil) {
+      return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_MAINTENANCE_EXPIRED,
+        `license maintenanceUntil=${maintenanceUntil} runtimeRelease=${sdkReleaseDate}`);
+    }
+    const expiresAt = status.expiresAt ?? '';
+    if (expiresAt.length > 0 && HarmonyLicenseVerifier.today() > expiresAt) {
+      return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_EXPIRED, `license expired at ${expiresAt}`);
+    }
+
+    // ---- armed 且带 license:强制 ECDSA(复用已解码的 payloadBytes)+ SN 白名单单遍扫描 ----
+    // 与旧 evaluateLicense 第二段(verifySignature → deviceHashOk)语义一致;未武装(公钥空)时跳过,同旧逻辑。
+    if (armed) {
+      const signatureOk = await HarmonyLicenseVerifier.verifyBytes(payloadBytes, sigBytes, publicKeyB64);
+      if (!signatureOk) {
+        return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_SIGNATURE_INVALID, 'license signature verification failed');
+      }
+      if (deviceHashes.length > 0) {
+        if (deviceSerial === undefined || deviceSerial.trim().length === 0) {
+          return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_DEVICE_MISMATCH, 'device SN not in license whitelist');
+        }
+        const saltId = HarmonyLicenseVerifier.stringValue(claims, 'deviceIdSaltId');
+        const have = await HarmonyLicenseVerifier.deviceFingerprint(deviceSerial, saltId);
+        let found = false;
+        // 单遍扫描,归一化边扫边比——不再 .map 出第二个 6万数组。
+        for (let i = 0; i < deviceHashes.length; i++) {
+          if (HarmonyLicenseVerifier.normalizeHex(deviceHashes[i]) === have) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_DEVICE_MISMATCH, 'device SN not in license whitelist');
+        }
+      }
+    }
+
+    status.state = armed ? AmphionLicenseState.LICENSED : AmphionLicenseState.DEV_UNLICENSED;
+    status.valid = true;
+    status.errorCode = AsrErrorCode.OK;
+    status.message = armed
+      ? 'license accepted; signature and SN whitelist verified'
+      : 'license parsed without signature verification; public key is not injected';
+    return status;
+  }
+
+  private static fail(status: AmphionLicenseStatus, code: number, message: string): AmphionLicenseStatus {
+    status.state = AmphionLicenseState.INVALID;
+    status.valid = false;
+    status.errorCode = code;
+    status.message = message;
+    return status;
+  }
+
+  /** ECDSA P-256(ECC256|SHA256)验签,输入为已解码的 payload/sig 字节(避免重复 base64 解码)。 */
+  private static async verifyBytes(payloadBytes: Uint8Array, sigBytes: Uint8Array, publicKeyB64: string): Promise<boolean> {
+    try {
+      const keyGenerator = cryptoFramework.createAsyKeyGenerator('ECC256');
+      const keyPair = await keyGenerator.convertKey({ data: HarmonyLicenseVerifier.base64ToBytes(publicKeyB64) }, null);
+      const verifier = cryptoFramework.createVerify('ECC256|SHA256');
+      await verifier.init(keyPair.pubKey);
+      await verifier.update({ data: payloadBytes });
+      return await verifier.verify(null, { data: sigBytes });
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  /** native UTF-8 解码。替代按字节手搓的 decodeBase64Utf8/decodeUtf8(4MB 逐字符 String.fromCharCode 拼接,真机极慢)。 */
+  private static bytesToUtf8(bytes: Uint8Array): string {
+    return util.TextDecoder.create('utf-8').decodeToString(bytes);
+  }
+
   /** Injected offline-license public key (empty on a development/unarmed build). */
   static publicKey(): string {
     return LICENSE_PUBLIC_KEY_B64;
