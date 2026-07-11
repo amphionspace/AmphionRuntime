@@ -28,17 +28,21 @@ import {
   AsrLanguage,
   AsrResult,
   Cancellable,
+  EndpointRules,
   LicenseEnforcement,
+  SpeakerVadConfig,
   TargetSpeakerConfig,
+  VadConfig,
   VadModelType
 } from './Types';
 import { AmphionLicenseState, AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 
+const ASR_SAMPLE_RATE_HZ: number = 16000;
 // Silence fed to the encoder to prime it after a stream rebuild / at session start (Android parity).
 const WARMUP_DURATION_MS: number = 800;
 // Hard cap on the per-utterance sample buffer used for speaker scoring, so a stuck utterance that
 // never endpoints can't grow unbounded (Android UTT_MAX_SAMPLES).
-const UTT_MAX_SAMPLES: number = 25 * 16000;
+const UTT_MAX_SAMPLES: number = 25 * ASR_SAMPLE_RATE_HZ;
 
 class DoneCancellable implements Cancellable {
   private done: boolean = false;
@@ -47,6 +51,26 @@ class DoneCancellable implements Cancellable {
   isCancelled(): boolean { return this.cancelled; }
   isDone(): boolean { return this.done; }
   markDone(): void { this.done = true; }
+}
+
+class AsyncRecognizerLoad {
+  recognizer: OnlineRecognizer;
+  elapsedMs: number;
+
+  constructor(recognizer: OnlineRecognizer, elapsedMs: number) {
+    this.recognizer = recognizer;
+    this.elapsedMs = elapsedMs;
+  }
+}
+
+class AsyncPunctuationLoad {
+  punctuation?: OfflinePunctuation;
+  elapsedMs: number;
+
+  constructor(punctuation: OfflinePunctuation | undefined, elapsedMs: number) {
+    this.punctuation = punctuation;
+    this.elapsedMs = elapsedMs;
+  }
 }
 
 class Logger {
@@ -70,9 +94,11 @@ export class AmphionRuntime {
   private static nextSessionId: number = 1;
   private static asrPool: Map<AsrLanguage, OnlineRecognizer> = new Map<AsrLanguage, OnlineRecognizer>();
   // 复用兼容性必须按「该语言的池化 recognizer 实际用的配置」判定,而不是一个进程级全局配置。
-  // asrPool 按语言分键,poolConfig 也必须按语言分键——否则多语言交替使用时,A 语言的 recognizer
+  // asrPool 按语言分键,poolConfigKey 也必须按语言分键——否则多语言交替使用时,A 语言的 recognizer
   // 可能被拿 B 语言最后一次的配置误判为兼容而复用,导致 hotwords/线程数等静默用错。
-  private static poolConfig: Map<AsrLanguage, AsrConfig> = new Map<AsrLanguage, AsrConfig>();
+  private static poolConfigKey: Map<AsrLanguage, string> = new Map<AsrLanguage, string>();
+  private static recognizerLoads: Map<string, Promise<OnlineRecognizer>> =
+    new Map<string, Promise<OnlineRecognizer>>();
   // Pooled speaker-embedding extractor(s), keyed by `${modelPath}|${numThreads}`. eres2net (~38 MB)
   // is expensive to load into onnxruntime (~3-4 s), so build it at most once per process and share it
   // across enrollment and every recognition session — mirrors asrPool for the recognizer.
@@ -80,6 +106,8 @@ export class AmphionRuntime {
   // Pooled punctuation model (ct-transformer), keyed by `${punctModel}|${numThreads}`. Rebuilt cold in
   // the AsrEngine ctor otherwise, so a verify/VAD toggle re-loads it and adds to the start freeze.
   private static punctuationPool: Map<string, OfflinePunctuation> = new Map<string, OfflinePunctuation>();
+  private static punctuationLoads: Map<string, Promise<OfflinePunctuation>> =
+    new Map<string, Promise<OfflinePunctuation>>();
   // VAD free-list, keyed by config. A SherpaVad carries cross-call state (endpoint + ring buffer),
   // so it must NOT be shared by two concurrently-active sessions — reset()/acceptWaveform from one
   // would corrupt the other's endpoint detection. But a fresh SherpaVad (silero ONNX session + a
@@ -88,6 +116,7 @@ export class AmphionRuntime {
   // sequential case reuses one instance (flat RSS); a rare concurrent session finds the free-list
   // empty and builds its own isolated instance. Each key maps to a list of currently-free instances.
   private static vadPool: Map<string, SherpaVad[]> = new Map<string, SherpaVad[]>();
+  private static loadGeneration: number = 0;
 
   static async init(context: Context, options?: AmphionOptions): Promise<void> {
     if (AmphionRuntime.initialized) {
@@ -122,62 +151,178 @@ export class AmphionRuntime {
     AmphionRuntime.checkInitialized();
     const c = new DoneCancellable();
     AmphionRuntime.appContext = context;
-    const effectiveConfig = config ?? new AsrConfig();
+    const effectiveConfig = AmphionRuntime.snapshotConfig(config);
+    const languageSnapshot = languages.slice();
     onProgress?.('install', 0);
-    for (let i = 0; i < languages.length; i++) {
+    for (let i = 0; i < languageSnapshot.length; i++) {
       if (c.isCancelled()) break;
-      const language = languages[i];
+      const language = languageSnapshot[i];
       const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
-      onProgress?.('install', Math.round(((i + 1) / Math.max(languages.length, 1)) * 100));
+      onProgress?.('install', Math.round(((i + 1) / Math.max(languageSnapshot.length, 1)) * 100));
       const stage = `asr-${language}`;
       onProgress?.(stage, 0);
       const preloadRecognizer = new OnlineRecognizer(AmphionRuntime.buildRecognizerConfig(layout, effectiveConfig), context.resourceManager);
       AmphionRuntime.warmUpRecognizer(preloadRecognizer);
       AmphionRuntime.asrPool.set(language, preloadRecognizer);
-      AmphionRuntime.poolConfig.set(language, effectiveConfig);
+      AmphionRuntime.poolConfigKey.set(language, AmphionRuntime.recognizerConfigKey(effectiveConfig));
       onProgress?.(stage, 100);
     }
     c.markDone();
     return c;
   }
 
+  /**
+   * Background preload for Harmony hosts. Native model/session construction runs in N-API async
+   * work and concurrent calls for the same language/config share one in-flight load.
+   */
+  static async preloadAsync(
+    context: Context,
+    languages: AsrLanguage[],
+    config?: AsrConfig,
+    onProgress?: (stage: string, percent: number) => void
+  ): Promise<void> {
+    AmphionRuntime.checkInitialized();
+    const generation = AmphionRuntime.loadGeneration;
+    AmphionRuntime.appContext = context;
+    const effectiveConfig = AmphionRuntime.snapshotConfig(config);
+    const languageSnapshot = languages.slice();
+    onProgress?.('load', 0);
+    for (let i = 0; i < languageSnapshot.length; i++) {
+      const language = languageSnapshot[i];
+      const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
+      const recognizerTask = AmphionRuntime.getOrCreateRecognizerAsync(
+        context, language, layout, effectiveConfig);
+      const punctuationTask = AmphionRuntime.timedPunctuationLoadAsync(
+        context, layout, effectiveConfig);
+      await recognizerTask;
+      await punctuationTask;
+      if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+        throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during preload`);
+      }
+      onProgress?.('load', Math.round(((i + 1) / Math.max(languageSnapshot.length, 1)) * 100));
+    }
+    if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+      throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during preload`);
+    }
+  }
+
   static create(context: Context, language: AsrLanguage, config?: AsrConfig): AsrEngine {
     AmphionRuntime.checkInitialized();
-    const effectiveConfig = config ?? new AsrConfig();
+    const effectiveConfig = AmphionRuntime.snapshotConfig(config);
     const createStartMs = Date.now();
-    const pooled = AmphionRuntime.asrPool.get(language);
-    const pooledConfig = AmphionRuntime.poolConfig.get(language);
-    const canReusePool = pooled !== undefined && pooledConfig !== undefined &&
-      AmphionRuntime.isRecognizerConfigCompatible(pooledConfig, effectiveConfig);
+    const layoutStartMs = Date.now();
     const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
+    const assetLayoutMs = Date.now() - layoutStartMs;
+    const pooled = AmphionRuntime.asrPool.get(language);
+    const requestedConfigKey = AmphionRuntime.recognizerConfigKey(effectiveConfig);
+    const canReusePool = pooled !== undefined &&
+      AmphionRuntime.poolConfigKey.get(language) === requestedConfigKey;
+    const recognizerStartMs = Date.now();
     const recognizer = canReusePool ? pooled as OnlineRecognizer :
       new OnlineRecognizer(AmphionRuntime.buildRecognizerConfig(layout, effectiveConfig), context.resourceManager);
+    const recognizerLoadMs = Date.now() - recognizerStartMs;
+    let warmupMs = 0;
     if (!canReusePool) {
       // 预热一次:第一次 encoder/decoder 推理会触发 onnxruntime 懒加载(权重入算子缓冲/图构建),
       // 在此(createEngine,已有加载态)一次性付清,之后每次 startListening 不再冷启动卡顿。
+      const warmupStartMs = Date.now();
       AmphionRuntime.warmUpRecognizer(recognizer);
+      warmupMs = Date.now() - warmupStartMs;
       // 缓存已预热的 recognizer:开启声纹/说话人VAD 会改会话级配置触发 rebuildEngine→create,
-      // 但 recognizer 配置并不随之变(见 isRecognizerConfigCompatible)。缓存后 rebuild 直接复用,
+      // 但 recognizer 配置并不随之变(见 recognizerConfigKey)。缓存后 rebuild 直接复用,
       // 不再冷加载重来一遍(否则点"开始识别"卡 3~4 秒)。close() 从不释放 native recognizer,复用安全。
       AmphionRuntime.asrPool.set(language, recognizer);
-      AmphionRuntime.poolConfig.set(language, effectiveConfig);
+      AmphionRuntime.poolConfigKey.set(language, requestedConfigKey);
     }
-    return new AsrEngine(
+    let punctuation: OfflinePunctuation | undefined;
+    let punctuationLoadMs = 0;
+    if (effectiveConfig.punctuation && layout.punctModel !== undefined) {
+      const punctuationStartMs = Date.now();
+      try {
+        punctuation = AmphionRuntime.getOrCreatePunctuation(
+          context, layout.punctModel, effectiveConfig.numThreads);
+      } catch (e) {
+        Logger.w(`punctuation disabled: ${e}`);
+      } finally {
+        punctuationLoadMs = Date.now() - punctuationStartMs;
+      }
+    }
+    const engine = new AsrEngine(
       context,
       language,
       effectiveConfig,
       layout,
       recognizer,
       !canReusePool,
-      Date.now() - createStartMs
+      -1,
+      punctuation,
+      punctuationLoadMs
     );
+    const engineReadyMs = Date.now() - createStartMs;
+    engine.setEngineReadyMs(engineReadyMs);
+    Logger.metric(
+      `kind=LOAD language=${language} pooled=${canReusePool} assetLayoutMs=${assetLayoutMs} ` +
+      `recognizerLoadMs=${recognizerLoadMs} warmupMs=${warmupMs} ` +
+      `punctuationLoadMs=${engine.punctuationLoadDurationMs()} engineReadyMs=${engineReadyMs}`
+    );
+    return engine;
+  }
+
+  static async createAsync(
+    context: Context,
+    language: AsrLanguage,
+    config?: AsrConfig
+  ): Promise<AsrEngine> {
+    AmphionRuntime.checkInitialized();
+    const generation = AmphionRuntime.loadGeneration;
+    const effectiveConfig = AmphionRuntime.snapshotConfig(config);
+    const createStartMs = Date.now();
+    const layoutStartMs = Date.now();
+    const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
+    const assetLayoutMs = Date.now() - layoutStartMs;
+    const requestedConfigKey = AmphionRuntime.recognizerConfigKey(effectiveConfig);
+    const pooled = AmphionRuntime.asrPool.get(language);
+    const canReusePool = pooled !== undefined &&
+      AmphionRuntime.poolConfigKey.get(language) === requestedConfigKey;
+
+    // Start the independent ASR and punctuation loads before awaiting either one. The N-API layer
+    // performs native work off the ArkTS event thread; single-flight helpers prevent duplicate loads.
+    const recognizerTask = AmphionRuntime.timedRecognizerLoadAsync(
+      context, language, layout, effectiveConfig);
+    const punctuationTask = AmphionRuntime.timedPunctuationLoadAsync(
+      context, layout, effectiveConfig);
+    const recognizerLoad = await recognizerTask;
+    const punctuationLoad = await punctuationTask;
+    if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+      throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during model load`);
+    }
+
+    const engine = new AsrEngine(
+      context,
+      language,
+      effectiveConfig,
+      layout,
+      recognizerLoad.recognizer,
+      !canReusePool,
+      -1,
+      punctuationLoad.punctuation,
+      punctuationLoad.elapsedMs
+    );
+    const engineReadyMs = Date.now() - createStartMs;
+    engine.setEngineReadyMs(engineReadyMs);
+    Logger.metric(
+      `kind=LOAD language=${language} async=true pooled=${canReusePool} assetLayoutMs=${assetLayoutMs} ` +
+      `recognizerReadyMs=${recognizerLoad.elapsedMs} punctuationReadyMs=${punctuationLoad.elapsedMs} ` +
+      `engineReadyMs=${engineReadyMs}`
+    );
+    return engine;
   }
 
   // 对新建的 recognizer 做一次性预热(喂静音跑一遍 encoder/decoder,触发懒加载),
   // 使后续各 session 的首句不再冷启动。尽力而为,失败不阻塞引擎创建。
   private static warmUpRecognizer(recognizer: OnlineRecognizer): void {
     try {
-      const n = Math.round(16000 * WARMUP_DURATION_MS / 1000);
+      const n = Math.round(ASR_SAMPLE_RATE_HZ * WARMUP_DURATION_MS / 1000);
       if (n <= 0) return;
       const stream = recognizer.createStream();
       try {
@@ -246,6 +391,129 @@ export class AmphionRuntime {
     return punctuation;
   }
 
+  private static async timedRecognizerLoadAsync(
+    context: Context,
+    language: AsrLanguage,
+    layout: InstalledLayout,
+    config: AsrConfig
+  ): Promise<AsyncRecognizerLoad> {
+    const startedMs = Date.now();
+    const recognizer = await AmphionRuntime.getOrCreateRecognizerAsync(
+      context, language, layout, config);
+    return new AsyncRecognizerLoad(recognizer, Date.now() - startedMs);
+  }
+
+  private static async timedPunctuationLoadAsync(
+    context: Context,
+    layout: InstalledLayout,
+    config: AsrConfig
+  ): Promise<AsyncPunctuationLoad> {
+    const startedMs = Date.now();
+    if (!config.punctuation || layout.punctModel === undefined) {
+      return new AsyncPunctuationLoad(undefined, 0);
+    }
+    try {
+      const punctuation = await AmphionRuntime.getOrCreatePunctuationAsync(
+        context, layout.punctModel, config.numThreads);
+      return new AsyncPunctuationLoad(punctuation, Date.now() - startedMs);
+    } catch (e) {
+      Logger.w(`punctuation disabled: ${e}`);
+      return new AsyncPunctuationLoad(undefined, Date.now() - startedMs);
+    }
+  }
+
+  private static async getOrCreateRecognizerAsync(
+    context: Context,
+    language: AsrLanguage,
+    layout: InstalledLayout,
+    config: AsrConfig
+  ): Promise<OnlineRecognizer> {
+    const configKey = AmphionRuntime.recognizerConfigKey(config);
+    const cached = AmphionRuntime.asrPool.get(language);
+    if (cached !== undefined && AmphionRuntime.poolConfigKey.get(language) === configKey) {
+      return cached;
+    }
+
+    const loadKey = `${language}|${configKey}`;
+    let load: Promise<OnlineRecognizer> | undefined =
+      AmphionRuntime.recognizerLoads.get(loadKey);
+    if (load === undefined) {
+      const generation = AmphionRuntime.loadGeneration;
+      const newLoad: Promise<OnlineRecognizer> = OnlineRecognizer.createAsync(
+        AmphionRuntime.buildRecognizerConfig(layout, config),
+        context.resourceManager,
+        Math.round(ASR_SAMPLE_RATE_HZ * WARMUP_DURATION_MS / 1000))
+        .then((recognizer: OnlineRecognizer): OnlineRecognizer => {
+          if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+            throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during recognizer load`);
+          }
+          AmphionRuntime.asrPool.set(language, recognizer);
+          AmphionRuntime.poolConfigKey.set(language, configKey);
+          return recognizer;
+        });
+      AmphionRuntime.recognizerLoads.set(loadKey, newLoad);
+      load = newLoad;
+    }
+
+    const activeLoad: Promise<OnlineRecognizer> = load;
+    try {
+      const recognizer = await activeLoad;
+      if (AmphionRuntime.recognizerLoads.get(loadKey) === activeLoad) {
+        AmphionRuntime.recognizerLoads.delete(loadKey);
+      }
+      return recognizer;
+    } catch (e) {
+      if (AmphionRuntime.recognizerLoads.get(loadKey) === activeLoad) {
+        AmphionRuntime.recognizerLoads.delete(loadKey);
+      }
+      throw new Error(`recognizer load failed: ${e}`);
+    }
+  }
+
+  private static async getOrCreatePunctuationAsync(
+    context: Context,
+    punctModel: string,
+    numThreads: number
+  ): Promise<OfflinePunctuation> {
+    const key = `${punctModel}|${numThreads}`;
+    const cached = AmphionRuntime.punctuationPool.get(key);
+    if (cached !== undefined) return cached;
+
+    let load: Promise<OfflinePunctuation> | undefined =
+      AmphionRuntime.punctuationLoads.get(key);
+    if (load === undefined) {
+      const generation = AmphionRuntime.loadGeneration;
+      const pc = new OfflinePunctuationConfig();
+      pc.model.ctTransformer = punctModel;
+      pc.model.numThreads = numThreads;
+      const newLoad: Promise<OfflinePunctuation> =
+        OfflinePunctuation.createAsync(pc, context.resourceManager)
+        .then((punctuation: OfflinePunctuation): OfflinePunctuation => {
+          if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+            throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during punctuation load`);
+          }
+          AmphionRuntime.punctuationPool.set(key, punctuation);
+          return punctuation;
+        });
+      AmphionRuntime.punctuationLoads.set(key, newLoad);
+      load = newLoad;
+    }
+
+    const activeLoad: Promise<OfflinePunctuation> = load;
+    try {
+      const punctuation = await activeLoad;
+      if (AmphionRuntime.punctuationLoads.get(key) === activeLoad) {
+        AmphionRuntime.punctuationLoads.delete(key);
+      }
+      return punctuation;
+    } catch (e) {
+      if (AmphionRuntime.punctuationLoads.get(key) === activeLoad) {
+        AmphionRuntime.punctuationLoads.delete(key);
+      }
+      throw new Error(`punctuation load failed: ${e}`);
+    }
+  }
+
   static vadKeyFor(
     vadModel: string,
     threshold: number,
@@ -312,11 +580,14 @@ export class AmphionRuntime {
     return HarmonyLicenseVerifier.deviceHashOk(licenseText, deviceSerial);
   }
   static release(): void {
+    AmphionRuntime.loadGeneration += 1;
     AmphionRuntime.asrPool.clear();
+    AmphionRuntime.recognizerLoads.clear();
     AmphionRuntime.speakerExtractorPool.clear();
     AmphionRuntime.punctuationPool.clear();
+    AmphionRuntime.punctuationLoads.clear();
     AmphionRuntime.vadPool.clear();
-    AmphionRuntime.poolConfig.clear();
+    AmphionRuntime.poolConfigKey.clear();
     AmphionRuntime.initialized = false;
     AmphionRuntime.appContext = undefined;
     AmphionRuntime.licenseStatusHolder = AmphionLicenseStatus.notInitialized();
@@ -398,16 +669,74 @@ export class AmphionRuntime {
     return status;
   }
 
-  private static isRecognizerConfigCompatible(left: AsrConfig, right: AsrConfig): boolean {
-    return left.numThreads === right.numThreads &&
-      left.endpoint === right.endpoint &&
-      left.endpointRules.rule1 === right.endpointRules.rule1 &&
-      left.endpointRules.rule2 === right.endpointRules.rule2 &&
-      left.endpointRules.rule1MinTrailingSilenceSec === right.endpointRules.rule1MinTrailingSilenceSec &&
-      left.endpointRules.rule2MinTrailingSilenceSec === right.endpointRules.rule2MinTrailingSilenceSec &&
-      left.endpointRules.rule3MinUtteranceLengthSec === right.endpointRules.rule3MinUtteranceLengthSec &&
-      left.hotwordsScore === right.hotwordsScore &&
-      left.hotwords.join('\n') === right.hotwords.join('\n');
+  // Async model construction must not observe caller mutations half-way through a load. Keep a
+  // field-level snapshot rather than retaining the public, mutable config and its nested objects.
+  private static snapshotConfig(config?: AsrConfig): AsrConfig {
+    const source = config ?? new AsrConfig();
+    const snapshot = new AsrConfig();
+    snapshot.numThreads = source.numThreads;
+    snapshot.punctuation = source.punctuation;
+    snapshot.itn = source.itn;
+    snapshot.vad = source.vad;
+    snapshot.endpoint = source.endpoint;
+    snapshot.hotwords = source.hotwords.slice();
+    snapshot.hotwordsScore = source.hotwordsScore;
+
+    const vad = new VadConfig();
+    vad.modelType = source.vadConfig.modelType;
+    vad.threshold = source.vadConfig.threshold;
+    vad.minSilenceDurationSec = source.vadConfig.minSilenceDurationSec;
+    vad.minSpeechDurationSec = source.vadConfig.minSpeechDurationSec;
+    vad.maxSpeechDurationSec = source.vadConfig.maxSpeechDurationSec;
+    vad.activeEndpointSilenceMs = source.vadConfig.activeEndpointSilenceMs;
+    snapshot.vadConfig = vad;
+
+    const endpoint = new EndpointRules();
+    endpoint.rule1 = source.endpointRules.rule1;
+    endpoint.rule1MinTrailingSilenceSec = source.endpointRules.rule1MinTrailingSilenceSec;
+    endpoint.rule2 = source.endpointRules.rule2;
+    endpoint.rule2MinTrailingSilenceSec = source.endpointRules.rule2MinTrailingSilenceSec;
+    endpoint.rule3MinUtteranceLengthSec = source.endpointRules.rule3MinUtteranceLengthSec;
+    snapshot.endpointRules = endpoint;
+
+    const sourceTarget = source.targetSpeaker;
+    if (sourceTarget !== undefined) {
+      const target = new TargetSpeakerConfig();
+      target.modelPath = sourceTarget.modelPath;
+      target.threshold = sourceTarget.threshold;
+      target.winSec = sourceTarget.winSec;
+      target.hopSec = sourceTarget.hopSec;
+      target.minSegSec = sourceTarget.minSegSec;
+      target.preload = sourceTarget.preload;
+      target.enabledByDefault = sourceTarget.enabledByDefault;
+      target.numThreads = sourceTarget.numThreads;
+      const sourceSpeakerVad = sourceTarget.speakerVad;
+      if (sourceSpeakerVad !== undefined) {
+        const speakerVad = new SpeakerVadConfig();
+        speakerVad.threshold = sourceSpeakerVad.threshold;
+        speakerVad.winSec = sourceSpeakerVad.winSec;
+        speakerVad.hopSec = sourceSpeakerVad.hopSec;
+        speakerVad.consecutiveBelow = sourceSpeakerVad.consecutiveBelow;
+        speakerVad.enabledByDefault = sourceSpeakerVad.enabledByDefault;
+        target.speakerVad = speakerVad;
+      }
+      snapshot.targetSpeaker = target;
+    }
+    return snapshot;
+  }
+
+  private static recognizerConfigKey(config: AsrConfig): string {
+    return [
+      `${config.numThreads}`,
+      `${config.endpoint}`,
+      `${config.endpointRules.rule1}`,
+      `${config.endpointRules.rule2}`,
+      `${config.endpointRules.rule1MinTrailingSilenceSec}`,
+      `${config.endpointRules.rule2MinTrailingSilenceSec}`,
+      `${config.endpointRules.rule3MinUtteranceLengthSec}`,
+      `${config.hotwordsScore}`,
+      config.hotwords.join('\n')
+    ].join('|');
   }
 }
 
@@ -423,8 +752,19 @@ export class AsrEngine {
   private sessions: AsrSession[] = [];
   private ownsRecognizer: boolean = true;
   private engineReadyMs: number = -1;
+  private punctuationLoadMs: number = 0;
 
-  constructor(context: Context, language: AsrLanguage, config: AsrConfig, layout: InstalledLayout, recognizer: OnlineRecognizer, ownsRecognizer: boolean, engineReadyMs: number) {
+  constructor(
+    context: Context,
+    language: AsrLanguage,
+    config: AsrConfig,
+    layout: InstalledLayout,
+    recognizer: OnlineRecognizer,
+    ownsRecognizer: boolean,
+    engineReadyMs: number,
+    punctuation?: OfflinePunctuation,
+    punctuationLoadMs: number = 0
+  ) {
     this.context = context;
     this.language = language;
     this.config = config;
@@ -432,13 +772,8 @@ export class AsrEngine {
     this.recognizer = recognizer;
     this.ownsRecognizer = ownsRecognizer;
     this.engineReadyMs = engineReadyMs;
-    if (config.punctuation && layout.punctModel !== undefined) {
-      try {
-        this.punctuation = AmphionRuntime.getOrCreatePunctuation(context, layout.punctModel, config.numThreads);
-      } catch (e) {
-        Logger.w(`punctuation disabled: ${e}`);
-      }
-    }
+    this.punctuation = punctuation;
+    this.punctuationLoadMs = punctuationLoadMs;
     if (config.targetSpeaker !== undefined && config.targetSpeaker.preload) {
       this.targetExtractor = this.createSpeakerExtractor(config.targetSpeaker);
     }
@@ -466,6 +801,9 @@ export class AsrEngine {
   }
 
   isClosed(): boolean { return this.closed; }
+  isPunctuationLoaded(): boolean { return this.punctuation !== undefined; }
+  setEngineReadyMs(value: number): void { this.engineReadyMs = value; }
+  punctuationLoadDurationMs(): number { return this.punctuationLoadMs; }
   close(): void {
     if (this.closed) return;
     this.closed = true;

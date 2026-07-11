@@ -47,6 +47,18 @@ if git rev-parse --verify refs/tags/"$UPSTREAM_TAG" >/dev/null 2>&1; then
   git reset --hard "$UPSTREAM_TAG"
 fi
 
+# `reset --hard` does not remove files introduced by an earlier patch application when that
+# application was later reset to the upstream tag. Remove only the patch-owned collision; never
+# use a broad `git clean`, because the submodule may also contain unrelated local build inputs.
+PATCH_OWNED_NEW_FILES=(
+  "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-stream-handle.h"
+)
+for path in "${PATCH_OWNED_NEW_FILES[@]}"; do
+  if [[ -e "$path" ]] && ! git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+    rm -f -- "$path"
+  fi
+done
+
 echo "[INFO] applying $(ls "$PATCH_DIR"/*.patch | wc -l | tr -d ' ') patch(es) from $PATCH_DIR ..."
 GIT_COMMITTER_NAME="${GIT_COMMITTER_NAME:-Amphion CI}" \
 GIT_COMMITTER_EMAIL="${GIT_COMMITTER_EMAIL:-ci@amphion.local}" \

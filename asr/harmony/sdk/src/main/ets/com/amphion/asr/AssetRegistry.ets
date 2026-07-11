@@ -35,14 +35,14 @@ export class AssetRegistry {
       ]);
     }
     return new AssetBundle('zh-en/v1', `${AssetRegistry.ROOT}/zh-en/v1`, [
-      'encoder.int8.onnx', 'decoder.onnx', 'joiner.int8.onnx', 'tokens.txt', 'bbpe.vocab'
+      'encoder.int8.ort', 'decoder.int8.ort', 'joiner.int8.ort', 'tokens.txt', 'bbpe.vocab'
     ]);
   }
 
   static requiredBundles(language: AsrLanguage, config: AsrConfig): AssetBundle[] {
     const bundles: AssetBundle[] = [AssetRegistry.asrBundle(language)];
     if (config.punctuation) {
-      bundles.push(new AssetBundle('punct-zhen/v1', `${AssetRegistry.ROOT}/punct-zhen/v1`, ['model.int8.onnx']));
+      bundles.push(new AssetBundle('punct-zhen/v1', `${AssetRegistry.ROOT}/punct-zhen/v1`, ['model.int8.ort']));
     }
     if (config.itn && language === AsrLanguage.ZH_EN) {
       bundles.push(new AssetBundle('itn-zh/v1', `${AssetRegistry.ROOT}/itn-zh/v1`, [
@@ -59,12 +59,18 @@ export class AssetRegistry {
     const asr = AssetRegistry.asrBundle(language).rawfileSubPath;
     const layout = new InstalledLayout();
     layout.asrDir = asr;
-    layout.asrEncoder = `${asr}/encoder.int8.onnx`;
-    layout.asrDecoder = `${asr}/decoder.onnx`;
-    layout.asrJoiner = `${asr}/joiner.int8.onnx`;
+    if (language === AsrLanguage.YUE_EN) {
+      layout.asrEncoder = `${asr}/encoder.int8.onnx`;
+      layout.asrDecoder = `${asr}/decoder.onnx`;
+      layout.asrJoiner = `${asr}/joiner.int8.onnx`;
+    } else {
+      layout.asrEncoder = `${asr}/encoder.int8.ort`;
+      layout.asrDecoder = `${asr}/decoder.int8.ort`;
+      layout.asrJoiner = `${asr}/joiner.int8.ort`;
+    }
     layout.asrTokens = `${asr}/tokens.txt`;
     layout.asrBpeVocab = `${asr}/bbpe.vocab`;
-    if (config.punctuation) layout.punctModel = `${AssetRegistry.ROOT}/punct-zhen/v1/model.int8.onnx`;
+    if (config.punctuation) layout.punctModel = `${AssetRegistry.ROOT}/punct-zhen/v1/model.int8.ort`;
     if (config.itn && language === AsrLanguage.ZH_EN) {
       layout.itnTagger = `${AssetRegistry.ROOT}/itn-zh/v1/zh_itn_tagger.fst`;
       layout.itnVerbalizer = `${AssetRegistry.ROOT}/itn-zh/v1/zh_itn_verbalizer.fst`;
