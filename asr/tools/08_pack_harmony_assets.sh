@@ -7,6 +7,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SRC="$REPO_ROOT/asr/android/sdk/src/main/assets/amphion-models"
 DST="$REPO_ROOT/asr/harmony/sdk/src/main/resources/rawfile/amphion-models"
 VERIFY="$REPO_ROOT/asr/tools/verify_packed_model_assets.py"
+OPTIMIZER="$REPO_ROOT/asr/tools/optimize_onnx_graphs.py"
 
 if [[ ! -d "$SRC" ]]; then
   echo "[ERROR] 找不到 Android 模型资产：$SRC"
@@ -53,7 +54,12 @@ fi
 trap cleanup EXIT
 trap 'cleanup; exit 130' INT TERM
 cp -R "$SRC" "$TMP_DST"
-python3 "$VERIFY" --root "$TMP_DST"
+if [[ "${OPTIMIZE_ONNX_GRAPHS:-0}" == "1" ]]; then
+  echo "[INFO] offline optimize ONNX graphs: level=${OPTIMIZE_ONNX_LEVEL:-extended}"
+  "${PYTHON:-python3}" "$OPTIMIZER" --root "$TMP_DST" --level "${OPTIMIZE_ONNX_LEVEL:-extended}"
+else
+  python3 "$VERIFY" --root "$TMP_DST"
+fi
 
 if [[ -e "$DST" ]]; then
   mv "$DST" "$BACKUP_DST"

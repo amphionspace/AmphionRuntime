@@ -263,6 +263,12 @@ MANIFEST="${ASSET_ROOT}/manifest.json"
 } >"${MANIFEST}"
 
 python3 "${SCRIPT_DIR}/verify_packed_model_assets.py" --root "${ASSET_ROOT}"
+if [[ "${OPTIMIZE_ONNX_GRAPHS:-0}" == "1" ]]; then
+  info "离线优化 ONNX graphs: level=${OPTIMIZE_ONNX_LEVEL:-extended}"
+  "${PYTHON:-python3}" "${SCRIPT_DIR}/optimize_onnx_graphs.py" \
+    --root "${ASSET_ROOT}" \
+    --level "${OPTIMIZE_ONNX_LEVEL:-extended}"
+fi
 
 if [[ -e "$FINAL_ASSET_ROOT" ]]; then
   mv "$FINAL_ASSET_ROOT" "$BACKUP_ASSET_ROOT"
