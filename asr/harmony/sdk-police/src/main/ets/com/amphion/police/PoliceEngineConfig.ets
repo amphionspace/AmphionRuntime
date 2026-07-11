@@ -2,6 +2,7 @@ import { AsrConfig } from 'amphion_asr';
 
 export class PoliceEngineConfig {
   static readonly HOTWORDS_SCORE_DEFAULT: number = 5.0;
+  static readonly NUM_THREADS: number = 4;
 
   static effectiveHotwords(extraHotwords: string[] = [], plate: boolean = true, station: boolean = true, terms: boolean = true): string[] {
     const words: string[] = [];
@@ -16,6 +17,9 @@ export class PoliceEngineConfig {
 
   static build(extraHotwords: string[] = [], plate: boolean = true, station: boolean = true, terms: boolean = true): AsrConfig {
     const config = new AsrConfig();
+    // The Dingqiao target has enough performance cores for four ORT workers. Device A/B testing
+    // reduced zhen load latency and improved sustained recognition throughput with negligible RSS cost.
+    config.numThreads = PoliceEngineConfig.NUM_THREADS;
     config.punctuation = true;
     config.itn = true;
     config.vad = true;
