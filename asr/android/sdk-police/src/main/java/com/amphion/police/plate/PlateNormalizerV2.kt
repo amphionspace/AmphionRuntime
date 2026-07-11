@@ -307,8 +307,21 @@ class PlateNormalizerV2 private constructor(
      */
     private fun acceptSpan(text: String, start: Int, end: Int, cand: Candidate): Boolean {
         if (cand.cost == 0) return true
+        // 国标码守护：源串以 Latin「GB」开头（如 GB28181、GB/T 标准）结构上与「冀B+序号」车牌无法区分，
+        // 无车牌锚词时一律不纠（有锚词如「车牌GB28181」仍会纠）。仅拦 GB，不影响 U→豫 等单字母省份近音。
+        if (startsWithGb(text, start)) return hasAnchor(text, start, end)
         if (cand.risky <= maxRiskyUnanchored) return true
         return hasAnchor(text, start, end)
+    }
+
+    /** 源串从 [start] 起（跳过空白）是否为 Latin「GB」开头（含全角/大小写）。 */
+    private fun startsWithGb(text: String, start: Int): Boolean {
+        fun isG(c: Char) = c == 'G' || c == 'g' || c == 'Ｇ' || c == 'ｇ'
+        fun isB(c: Char) = c == 'B' || c == 'b' || c == 'Ｂ' || c == 'ｂ'
+        if (start >= text.length || !isG(text[start])) return false
+        var k = start + 1
+        while (k < text.length && text[k].isWhitespace()) k++
+        return k < text.length && isB(text[k])
     }
 
     /** 车牌前 [anchorPre] 字、后 [anchorPost] 字窗口内是否出现 [anchors]。 */

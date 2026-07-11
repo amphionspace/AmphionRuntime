@@ -70,7 +70,9 @@ class PoliceTermsNormalizerV2 private constructor(
         // 1) 复用 V1 全局谐音（高置信人工对），保证不回退。
         val global = homophones.applyPhrases(text)
         // 2) 叠加保守模糊层（仅长术语、等长近音、唯一）。
-        val corrected = fuzzyCorrect(global)
+        val fuzzy = fuzzyCorrect(global)
+        // 3) 电台音标数字归一（洞0幺1两2拐7勾9…），严格数字上下文门控。
+        val corrected = PoliceTermsRadioDigits.normalize(fuzzy)
         val spans = locateSpans(corrected)
         return PoliceTermsNormalizeResult(corrected, spans)
     }
