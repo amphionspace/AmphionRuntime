@@ -87,6 +87,93 @@ class StressListener implements RecognitionListener {
   }
 }
 
+class ReentrantCompleteListener implements RecognitionListener {
+  private events: SessionEvents;
+  private engine: SpeechRecognitionEngine;
+  private firstSessionId: string;
+  secondSessionId: string;
+  secondStartAttempted: boolean = false;
+  firstCompleteBusy: boolean = false;
+  startThrowMessage: string = '';
+
+  constructor(events: SessionEvents, engine: SpeechRecognitionEngine, firstSessionId: string,
+    secondSessionId: string) {
+    this.events = events;
+    this.engine = engine;
+    this.firstSessionId = firstSessionId;
+    this.secondSessionId = secondSessionId;
+  }
+
+  onStart(_sessionId: string, _eventMessage?: string): void {
+    this.events.starts += 1;
+  }
+
+  onResult(_sessionId: string, result: SpeechRecognitionResult): void {
+    if (!result.isFinal) return;
+    this.events.finals += 1;
+    this.events.finalChars += result.result.length;
+    this.events.lastIsLast = result.isLast;
+  }
+
+  onComplete(sessionId: string, _eventMessage?: string): void {
+    this.events.completes += 1;
+    if (sessionId !== this.firstSessionId || this.secondStartAttempted) return;
+    this.firstCompleteBusy = this.engine.isBusy();
+    this.secondStartAttempted = true;
+    try {
+      this.engine.startListening(startParams(this.secondSessionId, 'reentrant', 0));
+    } catch (e) {
+      this.startThrowMessage = safeDetail(`${e}`);
+    }
+  }
+
+  onError(_sessionId: string, errorCode: number, _message: string): void {
+    this.events.errors += 1;
+    this.events.errorCodes.push(errorCode);
+  }
+}
+
+class StartCancelListener implements RecognitionListener {
+  private events: SessionEvents;
+  private engine: SpeechRecognitionEngine;
+  cancelledInStart: boolean = false;
+  eventAfterCancel: boolean = false;
+  eventAfterCancelSessionId: string = '';
+
+  constructor(events: SessionEvents, engine: SpeechRecognitionEngine) {
+    this.events = events;
+    this.engine = engine;
+  }
+
+  onStart(sessionId: string, _eventMessage?: string): void {
+    this.events.starts += 1;
+    this.cancelledInStart = true;
+    this.engine.cancel(sessionId);
+  }
+
+  onEvent(sessionId: string, _eventCode: number, _message: string): void {
+    if (!this.cancelledInStart) return;
+    this.eventAfterCancel = true;
+    this.eventAfterCancelSessionId = sessionId;
+  }
+
+  onResult(_sessionId: string, result: SpeechRecognitionResult): void {
+    if (!result.isFinal) return;
+    this.events.finals += 1;
+    this.events.finalChars += result.result.length;
+    this.events.lastIsLast = result.isLast;
+  }
+
+  onComplete(_sessionId: string, _eventMessage?: string): void {
+    this.events.completes += 1;
+  }
+
+  onError(_sessionId: string, errorCode: number, _message: string): void {
+    this.events.errors += 1;
+    this.events.errorCodes.push(errorCode);
+  }
+}
+
 class LicenseCb implements LicenseActivationCallback {
   private resolve: (result: LicenseActivationResult) => void;
 
@@ -399,6 +486,116 @@ async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: Corpu
   return finishCycle(index, entry.id, events, startedAt, ok, ok ? 'auto-finished' : 'max-duration-contract');
 }
 
+async function runNumericEdgeCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  engine.setListener(new StressListener(events));
+  const sessionId = `numeric-${index}`;
+  const params = startParams(sessionId, 'numeric-edge', index);
+  params.extraParams['maxAudioDuration'] = Number.NaN;
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+
+  let fedFrames = 0;
+  while (events.completes === 0 && fedFrames < 1100) {
+    const fed = await feedPcmFile(engine, sessionId, entry.path, 0, 0,
+      (): boolean => events.completes > 0);
+    if (fed === 0) break;
+    fedFrames += fed;
+  }
+  const completed = await waitFor((): boolean => events.completes === 1, 1000);
+  if (!completed && engine.isBusy()) {
+    engine.cancel(sessionId);
+    await sleep(100);
+  }
+
+  const ok = completed && events.completes === 1 && events.errors === 0 && events.lastIsLast &&
+    !engine.isBusy() && fedFrames >= 1000;
+  const detail = ok ? 'nan-max-duration-defaulted' : `nan-max-duration-bypass-fed-${fedFrames}`;
+  return finishCycle(index, entry.id, events, startedAt, ok, detail);
+}
+
+async function runReentrantCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const firstSessionId = `reentrant-a-${index}`;
+  const secondSessionId = `reentrant-b-${index}`;
+  const listener = new ReentrantCompleteListener(events, engine, firstSessionId, secondSessionId);
+  engine.setListener(listener);
+  engine.startListening(startParams(firstSessionId, 'reentrant', index));
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+
+  const firstFed = await feedPcmFile(engine, firstSessionId, entry.path, 80, 0);
+  if (firstFed === 0) {
+    engine.cancel(firstSessionId);
+    return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+  }
+  engine.finish(firstSessionId);
+  const firstCompleted = await waitFor((): boolean => events.completes >= 1 &&
+    listener.secondStartAttempted, COMPLETE_TIMEOUT_MS);
+  if (!firstCompleted) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'first-complete-timeout');
+  }
+
+  let secondCompleted = false;
+  if (events.starts >= 2) {
+    const secondFed = await feedPcmFile(engine, secondSessionId, entry.path, 80, 0);
+    if (secondFed > 0) {
+      engine.finish(secondSessionId);
+      secondCompleted = await waitFor((): boolean => events.completes === 2, COMPLETE_TIMEOUT_MS);
+    }
+  }
+  if (engine.isBusy()) {
+    engine.cancel(secondSessionId);
+    await sleep(100);
+  }
+
+  const ok = !listener.firstCompleteBusy && listener.secondStartAttempted && events.starts === 2 &&
+    secondCompleted && events.completes === 2 && events.errors === 0 && !engine.isBusy();
+  let detail = 'reentrant-complete-contract';
+  if (ok) {
+    detail = 'reentrant-complete';
+  } else if (listener.startThrowMessage.length > 0) {
+    detail = `reentrant-start-throw-${listener.startThrowMessage}`;
+  } else if (listener.firstCompleteBusy) {
+    detail = 'oncomplete-observed-busy';
+  } else if (errorCount(events, DingqiaoErrorCode.ENGINE_BUSY) > 0) {
+    detail = 'reentrant-start-engine-busy';
+  }
+  return finishCycle(index, entry.id, events, startedAt, ok, detail);
+}
+
+async function runStartCancelCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const listener = new StartCancelListener(events, engine);
+  engine.setListener(listener);
+  const sessionId = `start-cancel-${index}`;
+  engine.startListening(startParams(sessionId, 'start-cancel', index));
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+  await sleep(100);
+  if (engine.isBusy()) {
+    engine.cancel(sessionId);
+    await sleep(100);
+  }
+
+  const ok = events.starts === 1 && events.finals === 0 && events.completes === 0 &&
+    events.errors === 0 && !listener.eventAfterCancel && !engine.isBusy();
+  const detail = listener.eventAfterCancel
+    ? `event-after-cancel-session-${safeDetail(listener.eventAfterCancelSessionId)}`
+    : (ok ? 'start-cancel' : 'start-cancel-contract');
+  return finishCycle(index, entry.id, events, startedAt, ok, detail);
+}
+
 async function runEdgeCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
   index: number): Promise<CycleResult> {
   const startedAt = Date.now();
@@ -481,6 +678,12 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runEdgeCycle(engine, entry, i);
       } else if (options.mode === 'max-duration') {
         result = await runMaxDurationCycle(engine, entry, i);
+      } else if (options.mode === 'numeric-edge') {
+        result = await runNumericEdgeCycle(engine, entry, i);
+      } else if (options.mode === 'reentrant') {
+        result = await runReentrantCycle(engine, entry, i);
+      } else if (options.mode === 'start-cancel') {
+        result = await runStartCancelCycle(engine, entry, i);
       } else {
         result = await runRecognitionCycle(engine, entry, i, options);
       }
