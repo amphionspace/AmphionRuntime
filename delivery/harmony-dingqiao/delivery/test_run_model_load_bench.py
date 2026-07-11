@@ -99,6 +99,11 @@ class StatisticsTest(unittest.TestCase):
 
 
 class ModelIdentityTest(unittest.TestCase):
+    def test_records_the_dingqiao_worker_count(self) -> None:
+        identity = MODULE.comparison_identity("serial", "build", {}, 2, 10)
+
+        self.assertEqual(4, identity["profile"]["num_threads"])
+
     def manifest(self, version: int) -> dict:
         digest_key = "source_sha256" if version == 2 else "sha256"
         suffix = "ort" if version == 2 else "onnx"

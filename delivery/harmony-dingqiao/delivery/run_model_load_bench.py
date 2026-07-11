@@ -47,6 +47,7 @@ PROCESS_STOP_TIMEOUT_SECONDS = 10.0
 ASR_SAMPLE_RATE_HZ = 16_000
 WARMUP_DURATION_MS = 800
 WARMUP_SAMPLES = ASR_SAMPLE_RATE_HZ * WARMUP_DURATION_MS // 1_000
+BENCHMARK_NUM_THREADS = 4
 
 
 class LoadBenchFailure(RuntimeError):
@@ -237,7 +238,7 @@ def comparison_identity(
             "api": "SpeechRecognizeSdk.createEngineAsync",
             "language": "zh-CN",
             "punctuation_requested": True,
-            "num_threads": 2,
+            "num_threads": BENCHMARK_NUM_THREADS,
             "warmup_samples": WARMUP_SAMPLES,
             "police_hotword_profile": "defaults-v1",
             "process_isolation": "force-stop",
