@@ -5,6 +5,7 @@ import {
   OnlineRecognizer,
   OnlineRecognizerConfig,
   OnlineStream,
+  onlineStreamLiveCount,
   Samples,
   SileroVadConfig,
   SpeakerEmbeddingExtractor,
@@ -179,10 +180,14 @@ export class AmphionRuntime {
       const n = Math.round(16000 * WARMUP_DURATION_MS / 1000);
       if (n <= 0) return;
       const stream = recognizer.createStream();
-      const wave: Samples = { samples: new Float32Array(n), sampleRate: 16000 } as Samples;
-      stream.acceptWaveform(wave);
-      while (recognizer.isReady(stream)) recognizer.decode(stream);
-      recognizer.reset(stream);
+      try {
+        const wave: Samples = { samples: new Float32Array(n), sampleRate: 16000 } as Samples;
+        stream.acceptWaveform(wave);
+        while (recognizer.isReady(stream)) recognizer.decode(stream);
+        recognizer.reset(stream);
+      } finally {
+        stream.close();
+      }
     } catch (e) {
       Logger.w(`warmUpRecognizer skipped: ${e}`);
     }
@@ -215,9 +220,13 @@ export class AmphionRuntime {
   private static warmUpExtractor(extractor: SpeakerEmbeddingExtractor): void {
     try {
       const stream = extractor.createStream();
-      const wave: Samples = { samples: new Float32Array(16000), sampleRate: 16000 } as Samples;
-      stream.acceptWaveform(wave);
-      extractor.compute(stream);
+      try {
+        const wave: Samples = { samples: new Float32Array(16000), sampleRate: 16000 } as Samples;
+        stream.acceptWaveform(wave);
+        extractor.compute(stream);
+      } finally {
+        stream.close();
+      }
     } catch (e) {
       Logger.w(`warmUpExtractor skipped: ${e}`);
     }
@@ -314,6 +323,8 @@ export class AmphionRuntime {
   }
 
   static allocateSessionId(): number { return AmphionRuntime.nextSessionId++; }
+
+  static activeOnlineStreamCount(): number { return onlineStreamLiveCount(); }
 
   static buildRecognizerConfig(layout: InstalledLayout, config: AsrConfig): OnlineRecognizerConfig {
     const model = new OnlineModelConfig();
@@ -502,6 +513,9 @@ export class AsrSession {
   private svRejectCurrentUtterance: boolean = false;
   private callback: AsrCallback;
   private closed: boolean = false;
+  private streamCallDepth: number = 0;
+  private streamReleased: boolean = false;
+  private pcmFloatScratch: Float32Array = new Float32Array(0);
   private lastPartialText: string = '';
   private pcmBytesAccepted: number = 0;
   private totalPcmBytes: number = 0;
@@ -539,9 +553,11 @@ export class AsrSession {
 
   acceptPcmShort(samples: Int16Array): void {
     if (this.closed) return;
-    const floats = new Float32Array(samples.length);
-    for (let i = 0; i < samples.length; i++) floats[i] = samples[i] / 32768.0;
-    this.acceptPcmFloat(floats);
+    if (this.pcmFloatScratch.length !== samples.length) {
+      this.pcmFloatScratch = new Float32Array(samples.length);
+    }
+    for (let i = 0; i < samples.length; i++) this.pcmFloatScratch[i] = samples[i] / 32768.0;
+    this.acceptPcmFloat(this.pcmFloatScratch);
   }
 
   acceptPcmBytes(bytes: ArrayBuffer): void {
@@ -557,15 +573,20 @@ export class AsrSession {
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
     this.pcmBytesAccepted += samples.length * 2;
     this.totalPcmBytes += samples.length * 2;
+    this.streamCallDepth += 1;
     try {
       this.feedAndDecode(samples);
     } catch (e) {
       this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
+    } finally {
+      this.streamCallDepth -= 1;
+      this.releaseStreamIfClosed();
     }
   }
 
   stop(): void {
     if (this.closed) return;
+    this.streamCallDepth += 1;
     try {
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
       // Don't rebuild the stream afterwards (session is ending), so a soft reset is enough.
@@ -574,6 +595,9 @@ export class AsrSession {
       this.notifyStopped();
     } catch (e) {
       this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
+    } finally {
+      this.streamCallDepth -= 1;
+      this.releaseStreamIfClosed();
     }
   }
 
@@ -611,6 +635,7 @@ export class AsrSession {
     }
     this.dispatchSessionMetrics();
     this.notifyStopped();
+    this.releaseStreamIfClosed();
   }
 
   private drain(isFinal: boolean, restartAfterFinal: boolean = true): void {
@@ -623,14 +648,14 @@ export class AsrSession {
     if (this.recognizer.isEndpoint(this.stream)) {
       this.callback.onEndpoint?.();
       this.dispatchFinal(true, decodeDurationMs);
-      this.finishUtterance(restartAfterFinal);
+      if (!this.closed) this.finishUtterance(restartAfterFinal);
       return;
     }
 
     const r = this.recognizer.getResult(this.stream);
     if (isFinal) {
       this.dispatchFinal(false, decodeDurationMs);
-      this.finishUtterance(restartAfterFinal);
+      if (!this.closed) this.finishUtterance(restartAfterFinal);
     } else if (r.text !== this.lastPartialText) {
       this.lastPartialText = r.text;
       // When speaker VAD is on, hold partials until the target speaker is confirmed so a non-target
@@ -728,7 +753,8 @@ export class AsrSession {
   private feedAndDecode(samples: Float32Array): void {
     if (this.closed) return;
     if ((this.targetSpeakerEnabled || this.speakerVadEnabled) && this.utteranceLength() < UTT_MAX_SAMPLES) {
-      this.utteranceSamples.push(samples);
+      // acceptPcmShort reuses one conversion buffer; speaker scoring needs an immutable snapshot.
+      this.utteranceSamples.push(samples.slice());
     }
 
     const utteranceBefore = this.utteranceIndex;
@@ -784,7 +810,7 @@ export class AsrSession {
   // short-command case). Rebuilding gives the next utterance a clean encoder (Android parity).
   private finishUtterance(restart: boolean): void {
     if (!restart) {
-      this.recognizer.reset(this.stream);
+      if (!this.closed) this.recognizer.reset(this.stream);
       this.lastPartialText = '';
       return;
     }
@@ -792,6 +818,7 @@ export class AsrSession {
   }
 
   private restartStreamAfterUtterance(): void {
+    if (this.closed) return;
     let hadContent = false;
     try {
       const r = this.recognizer.getResult(this.stream);
@@ -810,9 +837,10 @@ export class AsrSession {
   private hardRestartStream(): void {
     if (this.closed) return;
     try {
-      // The old stream is dropped here; its native handle is freed by the NAPI finalizer on GC
-      // (Napi::External destructor calls SherpaOnnxDestroyOnlineStream), so this does not leak.
-      this.stream = this.recognizer.createStream();
+      const next = this.recognizer.createStream();
+      const previous = this.stream;
+      this.stream = next;
+      previous.close();
       // recognizer 已在创建时预热,新 stream 复用暖模型,无需再逐次预热。
     } catch (e) {
       // If rebuilding fails, fall back to a soft reset so the session keeps running.
@@ -841,12 +869,16 @@ export class AsrSession {
     const samples = concatFloat32(this.utteranceSamples);
     if (samples.length < Math.round(this.config.targetSpeaker.minSegSec * 16000)) return;
     const stream = this.targetExtractor.createStream();
-    const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
-    stream.acceptWaveform(wave);
-    const embedding = this.targetExtractor.compute(stream);
-    const score = cosineSimilarity(embedding, this.targetSpeaker);
-    result.speakerScore = score;
-    result.isTargetSpeaker = score >= this.config.targetSpeaker.threshold;
+    try {
+      const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
+      stream.acceptWaveform(wave);
+      const embedding = this.targetExtractor.compute(stream);
+      const score = cosineSimilarity(embedding, this.targetSpeaker);
+      result.speakerScore = score;
+      result.isTargetSpeaker = score >= this.config.targetSpeaker.threshold;
+    } finally {
+      stream.close();
+    }
   }
 
   // Realtime Speaker VAD over the current utterance tail (Android-aligned two-phase machine):
@@ -937,12 +969,16 @@ export class AsrSession {
   private scoreSamples(samples: Float32Array): number {
     if (this.targetExtractor === undefined || this.targetSpeaker === undefined) return -1;
     const stream = this.targetExtractor.createStream();
-    const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
-    stream.acceptWaveform(wave);
-    const embedding = this.targetExtractor.compute(stream);
-    const score = cosineSimilarity(embedding, this.targetSpeaker);
-    this.lastSpeakerVadScore = score;
-    return score;
+    try {
+      const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
+      stream.acceptWaveform(wave);
+      const embedding = this.targetExtractor.compute(stream);
+      const score = cosineSimilarity(embedding, this.targetSpeaker);
+      this.lastSpeakerVadScore = score;
+      return score;
+    } finally {
+      stream.close();
+    }
   }
 
   private dispatchSessionMetrics(): void {
@@ -962,6 +998,12 @@ export class AsrSession {
     if (this.stoppedNotified) return;
     this.stoppedNotified = true;
     this.callback.onSessionStopped?.();
+  }
+
+  private releaseStreamIfClosed(): void {
+    if (!this.closed || this.streamCallDepth > 0 || this.streamReleased) return;
+    this.streamReleased = true;
+    this.stream.close();
   }
 }
 

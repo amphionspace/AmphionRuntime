@@ -62,9 +62,13 @@ export class SpeakerEnroller {
 
   private computeEmbedding(samples: Float32Array, sampleRate: number): Float32Array {
     const stream: OnlineStream = this.extractor.createStream();
-    const wave: Samples = { samples: samples, sampleRate: sampleRate } as Samples;
-    stream.acceptWaveform(wave);
-    return this.extractor.compute(stream);
+    try {
+      const wave: Samples = { samples: samples, sampleRate: sampleRate } as Samples;
+      stream.acceptWaveform(wave);
+      return this.extractor.compute(stream);
+    } finally {
+      stream.close();
+    }
   }
 
   private readWaveSamples(path: string): Float32Array {

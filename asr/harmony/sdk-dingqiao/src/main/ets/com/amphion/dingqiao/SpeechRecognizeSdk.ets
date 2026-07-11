@@ -240,6 +240,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private busy: boolean = false;
   private destroyed: boolean = false;
   private currentSessionId: string = '';
+  private lastFinishedSessionId: string = '';
+  private lastAutoFinishedSessionId: string = '';
   private finishRequested: boolean = false;
   private partialEnabled: boolean = true;
   private finalResultSent: boolean = false;
@@ -314,6 +316,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
 
     try {
       this.rebuildEngine(params, useTarget, useTarget && speakerVad);
+      this.lastFinishedSessionId = '';
+      this.lastAutoFinishedSessionId = '';
       this.currentSessionId = params.sessionId;
       this.finishRequested = false;
       this.finalResultSent = false;
@@ -339,6 +343,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   writeAudio(sessionId: string, audio: ArrayBuffer): void {
     this.ensureAlive();
     if (!this.busy || this.session === undefined) {
+      if (!this.busy && sessionId === this.lastAutoFinishedSessionId) return;
       this.listener?.onError?.(sessionId, DingqiaoErrorCode.NOT_LISTENING, 'startListening not succeeded');
       return;
     }
@@ -358,6 +363,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       // 达到单会话上限是正常的生命周期终止，不是错误：等价于自动 finish，
       // flush 出最终 onResult + onComplete 并清理会话，使引擎可被再次 startListening。
       this.finishRequested = true;
+      this.lastFinishedSessionId = sessionId;
+      this.lastAutoFinishedSessionId = sessionId;
       this.session.stop();
     }
   }
@@ -379,12 +386,16 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
 
   finish(sessionId: string): void {
     this.ensureAlive();
+    // stop() 在 Harmony 上可同步回调并清空会话。记住最近正常结束的 session，
+    // 让紧随其后的重复 finish 与 Android 的异步完成窗口保持同样的幂等语义。
+    if (!this.busy && sessionId === this.lastFinishedSessionId) return;
     if (!this.busy || sessionId !== this.currentSessionId || this.session === undefined) {
       this.listener?.onError?.(sessionId, DingqiaoErrorCode.FINISH_FAILED, 'finish failed');
       return;
     }
     if (this.finishRequested) return;
     this.finishRequested = true;
+    this.lastFinishedSessionId = sessionId;
     this.session.stop();
   }
 
