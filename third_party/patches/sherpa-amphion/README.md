@@ -10,6 +10,7 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0003-*` | ITN token reorder：「两点五八万」→ `2.58万` |
 | `0004-*` | Harmony HAR 只构建 arm64-v8a，避免未产出的 x86_64 native lib 破坏命令行构建 |
 | `0005-*` | Harmony recognizer 创建异常转为 ArkTS 异常，避免无效模型触发 SIGABRT |
+| `0006-*` | Harmony online stream 增加显式幂等释放与存活计数，避免依赖 ArkTS GC 导致会话级泄漏 |
 
 Apply (automatic in `04_build_android_so.sh` / `02_init_submodule.sh`):
 

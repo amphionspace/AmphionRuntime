@@ -73,6 +73,10 @@ INSTALL_LOG="$SMOKE_DIR/install.log"
 HILOG_FILE="$SMOKE_DIR/hilog.txt"
 LOCAL_LAYOUT="$SMOKE_DIR/layout.json"
 REMOTE_LAYOUT="/data/local/tmp/amphion-smoke-layout.json"
+LOCAL_GLOBAL_LAYOUT="$SMOKE_DIR/global-layout.json"
+REMOTE_GLOBAL_LAYOUT="/data/local/tmp/amphion-smoke-global-layout.json"
+LOCAL_SCREENSHOT="$SMOKE_DIR/screen.jpeg"
+REMOTE_SCREENSHOT="/data/local/tmp/amphion-smoke-screen.jpeg"
 
 cleanup() {
   [[ -z "$BUILD_WORKSPACE" ]] || rm -rf "$BUILD_WORKSPACE"
@@ -249,13 +253,56 @@ capture_hilog() {
   "$HDC" -t "$DEVICE" shell hilog -x >"$HILOG_FILE" 2>/dev/null || true
 }
 
+capture_screen() {
+  "$HDC" -t "$DEVICE" shell snapshot_display -f "$REMOTE_SCREENSHOT" >/dev/null 2>&1 || return
+  "$HDC" -t "$DEVICE" file recv "$REMOTE_SCREENSHOT" "$LOCAL_SCREENSHOT" >/dev/null 2>&1 || true
+}
+
 fail_with_logs() {
   local message="$1"
   capture_hilog
+  capture_screen
   echo "[ERROR] $message" >&2
   grep -Ei 'Amphion|Dingqiao|LastFatalMessage|SIGABRT|cppcrash|exception' "$HILOG_FILE" | tail -80 >&2 || true
   echo "[INFO] smoke artifacts: $SMOKE_DIR" >&2
   exit 1
+}
+
+dismiss_usb_mode_dialog() {
+  rm -f "$LOCAL_GLOBAL_LAYOUT"
+  if ! "$HDC" -t "$DEVICE" shell uitest dumpLayout -p "$REMOTE_GLOBAL_LAYOUT" >/dev/null 2>&1; then
+    return
+  fi
+  if ! "$HDC" -t "$DEVICE" file recv "$REMOTE_GLOBAL_LAYOUT" "$LOCAL_GLOBAL_LAYOUT" >/dev/null 2>&1; then
+    return
+  fi
+  if "$LICENSE_PYTHON" - "$LOCAL_GLOBAL_LAYOUT" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+try:
+    root = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+except (OSError, json.JSONDecodeError):
+    raise SystemExit(1)
+
+def contains_usb_dialog(value):
+    if isinstance(value, dict):
+        attributes = value.get("attributes")
+        if isinstance(attributes, dict) and attributes.get("text") == "USB 连接方式":
+            return True
+        return any(contains_usb_dialog(child) for child in value.values())
+    if isinstance(value, list):
+        return any(contains_usb_dialog(child) for child in value)
+    return False
+
+raise SystemExit(0 if contains_usb_dialog(root) else 1)
+PY
+  then
+    echo "[INFO] dismissing the system USB mode dialog"
+    "$HDC" -t "$DEVICE" shell uitest uiInput keyEvent Back >/dev/null 2>&1 || true
+    sleep 1
+  fi
 }
 
 ensure_demo_license
@@ -331,6 +378,8 @@ grep -q 'install bundle successfully' "$INSTALL_LOG" || {
   exit 1
 }
 
+"$HDC" -t "$DEVICE" shell power-shell wakeup >/dev/null 2>&1 || true
+dismiss_usb_mode_dialog
 "$HDC" -t "$DEVICE" shell hilog -r >/dev/null
 "$HDC" -t "$DEVICE" shell aa force-stop "$BUNDLE" >/dev/null 2>&1 || true
 "$HDC" -t "$DEVICE" shell aa start -a "$ABILITY" -b "$BUNDLE" -m "$MODULE" >/dev/null
