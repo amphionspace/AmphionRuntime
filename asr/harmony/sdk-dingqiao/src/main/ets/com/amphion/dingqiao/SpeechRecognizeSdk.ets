@@ -62,7 +62,7 @@ function booleanParam(params: Record<string, Object>, key: string, defaultValue:
 
 function numberParam(params: Record<string, Object>, key: string, defaultValue: number): number {
   const value = params[key];
-  if (typeof value === 'number') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : defaultValue;
   if (typeof value === 'string') {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : defaultValue;
@@ -249,6 +249,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private maxAudioBytes: number = 0;
   private audioBytesWritten: number = 0;
   private voiceprintIds: string[] = [];
+  private startingSession: boolean = false;
+  private cancelRequestedDuringStart: boolean = false;
   // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
   private engineCfgKey: string = '';
 
@@ -328,13 +330,24 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.voiceprintIds = voiceprintIds;
       this.busy = true;
       const callback: AsrCallback = new DingqiaoAsrCallback(this);
-      this.session = this.asrEngine.newSession(callback);
+      this.startingSession = true;
+      this.cancelRequestedDuringStart = false;
+      const createdSession = this.asrEngine.newSession(callback);
+      this.startingSession = false;
+      if (this.cancelRequestedDuringStart || this.destroyed || !this.busy || this.currentSessionId !== params.sessionId) {
+        this.cancelRequestedDuringStart = false;
+        createdSession.close();
+        return;
+      }
+      this.session = createdSession;
       if (useTarget && embedding !== undefined) {
         this.session.setTargetSpeaker(embedding);
         this.session.setTargetSpeakerEnabled(verify);
         this.session.setSpeakerVadEnabled(speakerVad);
       }
     } catch (e) {
+      this.startingSession = false;
+      this.cancelRequestedDuringStart = false;
       this.tearDownSession();
       this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, `${e}`);
     }
@@ -405,6 +418,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.listener?.onError?.(sessionId, DingqiaoErrorCode.CANCEL_FAILED, 'cancel failed');
       return;
     }
+    if (this.startingSession && this.session === undefined) {
+      this.cancelRequestedDuringStart = true;
+      this.resetSessionState();
+      return;
+    }
     this.tearDownSession();
   }
 
@@ -435,19 +453,20 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finalResultSent = true;
     this.listener?.onResult?.(this.currentSessionId, payload);
     if (this.finishRequested) {
-      this.maybeComplete();
-      this.tearDownSession();
+      this.completeCurrentSession();
     }
   }
 
-  private maybeComplete(): void {
+  private completeCurrentSession(): void {
     if (this.completeSent) return;
+    const sessionId = this.currentSessionId;
+    if (sessionId.length === 0) return;
     this.completeSent = true;
-    this.listener?.onComplete?.(this.currentSessionId, 'recognize complete');
+    this.tearDownSession();
+    this.listener?.onComplete?.(sessionId, 'recognize complete');
   }
 
-  private tearDownSession(): void {
-    this.session?.close();
+  private resetSessionState(): void {
     this.session = undefined;
     this.busy = false;
     this.currentSessionId = '';
@@ -455,6 +474,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finalResultSent = false;
     this.completeSent = false;
     this.voiceprintIds = [];
+  }
+
+  private tearDownSession(): void {
+    const oldSession = this.session;
+    this.resetSessionState();
+    oldSession?.close();
   }
 
   private rebuildEngine(params: StartParams, withTargetSpeaker: boolean, withSpeakerVad: boolean): void {
@@ -498,8 +523,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const detail = result.speakerScore !== undefined ? `score=${result.speakerScore.toFixed(2)}` : 'target speaker absent';
     this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEAKER_VAD_REJECTED, `speaker vad rejected: ${detail}`);
     if (this.finishRequested) {
-      this.maybeComplete();
-      this.tearDownSession();
+      this.completeCurrentSession();
     }
   }
 
@@ -509,8 +533,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   }
 
   handleSessionStarted(): void {
-    this.listener?.onStart?.(this.currentSessionId, 'startListening success.');
-    this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEECH_BEGIN, 'speech started.');
+    const sessionId = this.currentSessionId;
+    if (!this.busy || sessionId.length === 0) return;
+    this.listener?.onStart?.(sessionId, 'startListening success.');
+    if (!this.busy || this.currentSessionId !== sessionId) return;
+    this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEECH_BEGIN, 'speech started.');
   }
 
   handleSessionStopped(): void {
@@ -523,9 +550,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         this.finalResultSent = true;
         this.listener?.onResult?.(this.currentSessionId, result);
       }
-      this.maybeComplete();
+      this.completeCurrentSession();
+    } else {
+      this.tearDownSession();
     }
-    this.tearDownSession();
   }
 
   private ensureAlive(): void {

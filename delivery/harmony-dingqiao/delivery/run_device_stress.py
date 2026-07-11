@@ -29,7 +29,7 @@ BUNDLE = "com.amphion.dingqiao.harmony.demo"
 MODULE = "dingqiao_demo"
 ABILITY = "EntryAbility"
 REMOTE_ROOT = "/data/storage/el2/base/files/asr-stress"
-FINISH_MODES = {"burst", "paced", "reconfigure", "recreate", "max-duration"}
+FINISH_MODES = {"burst", "paced", "reconfigure", "recreate", "max-duration", "numeric-edge"}
 MIN_MEMORY_SAMPLES = 6
 MIN_MEMORY_OBSERVATION_SECONDS = 15.0
 MIN_MEMORY_SLOPE_SECONDS = 60.0
@@ -67,7 +67,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data-dir", type=Path, default=Path.home() / "Downloads" / "testdata")
     parser.add_argument(
         "--mode",
-        choices=("burst", "paced", "cancel", "cancel-full", "recreate", "reconfigure", "max-duration", "edge"),
+        choices=(
+            "burst",
+            "paced",
+            "cancel",
+            "cancel-full",
+            "recreate",
+            "reconfigure",
+            "max-duration",
+            "edge",
+            "reentrant",
+            "start-cancel",
+            "numeric-edge",
+        ),
         default="burst",
     )
     parser.add_argument("--cycles", type=int, default=100)
@@ -109,6 +121,8 @@ def run(command: list[str], *, check: bool = True, capture: bool = True) -> subp
         command,
         check=check,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         stdout=subprocess.PIPE if capture else None,
         stderr=subprocess.PIPE if capture else None,
     )
