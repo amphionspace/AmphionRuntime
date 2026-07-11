@@ -48,27 +48,3 @@ amphion-models/
 都是与 encoder ONNX 严格配对的、由 `asr/tools/08_pack_sdk_assets.sh` 一次性
 写入的产物，与 git 走不同发布渠道易产生 sha256 错位。只有 `README.md` /
 运行期生成的 `manifest.json` 与各级目录占位 `.gitkeep` 进 git。
-
-## 离线 ONNX 图优化
-
-Harmony 资产从 Android `amphion-models` 同步时可显式启用 ONNX Runtime 离线图优化：
-
-```bash
-OPTIMIZE_ONNX_GRAPHS=1 \
-OPTIMIZE_ONNX_LEVEL=extended \
-PYTHON=.venv-onnxopt/bin/python \
-bash asr/tools/08_pack_harmony_assets.sh
-```
-
-也可以对已同步的 rawfile 目录直接执行：
-
-```bash
-.venv-onnxopt/bin/python asr/tools/optimize_onnx_graphs.py \
-  --root asr/harmony/sdk/src/main/resources/rawfile/amphion-models \
-  --backup-dir outputs/asr-onnx-backup/harmony
-```
-
-建议 `.venv-onnxopt` 中安装与目标端 `libonnxruntime.so` 匹配的 `onnxruntime`
-版本，并安装 `onnx` 用于校验 sherpa 模型 metadata 是否保留。当前 Harmony 端为
-`onnxruntime 1.16.3`，venv 里还需要约束 `numpy<2`。默认优化级别是 `extended`；
-`all` 可能写入宿主机/provider 特定 layout 转换，移动端发布前必须实机验证。
