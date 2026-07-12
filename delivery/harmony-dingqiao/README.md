@@ -50,6 +50,8 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 
 鼎桥 `zhen` 配置默认使用 4 个 ONNX Runtime worker。真机 A/B 表明它小幅降低冷加载 p50，并缩短持续识别耗时，代价是不到 4 MB 峰值 RSS；加载基准会把线程数写入 comparison identity，禁止与 2 线程报告直接套用门槛比较。
 
+`zhen` 不执行创建阶段的静音预热：ORT Session 创建已经完成图初始化和权重预打包，真机测试中额外执行一次 800 ms 静音 decode 会让 engine ready 增加约 93 ms，而首次真实音频只减少约 9 ms。加载基准把预热样本数记录为 0，首轮真实音频延迟由设备压力测试单独守护。
+
 ## main 分支复现边界
 
 PR 合入后，`main` 分支包含完整源码、交付工程和 sherpa-onnx patch 序列，可以在同样工具链下编译出功能等价的鸿蒙应用。但仓库不会提交模型、签名证书、license、HAP/HAR 或 native 构建产物，因此干净检出后不能只运行 DevEco 构建就得到带完整模型的已签名 HAP。

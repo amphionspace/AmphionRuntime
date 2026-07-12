@@ -38,8 +38,9 @@ import {
 import { AmphionLicenseState, AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 
 const ASR_SAMPLE_RATE_HZ: number = 16000;
-// Silence fed to the encoder to prime it after a stream rebuild / at session start (Android parity).
-const WARMUP_DURATION_MS: number = 800;
+// ORT-format models are optimized and prepacked during Session creation. Device A/B testing showed
+// that an eager silence decode adds ~93 ms to engine readiness but saves only ~9 ms on first audio.
+const EAGER_WARMUP_DURATION_MS: number = 0;
 // Hard cap on the per-utterance sample buffer used for speaker scoring, so a stuck utterance that
 // never endpoints can't grow unbounded (Android UTT_MAX_SAMPLES).
 const UTT_MAX_SAMPLES: number = 25 * ASR_SAMPLE_RATE_HZ;
@@ -223,8 +224,8 @@ export class AmphionRuntime {
     const recognizerLoadMs = Date.now() - recognizerStartMs;
     let warmupMs = 0;
     if (!canReusePool) {
-      // 预热一次:第一次 encoder/decoder 推理会触发 onnxruntime 懒加载(权重入算子缓冲/图构建),
-      // 在此(createEngine,已有加载态)一次性付清,之后每次 startListening 不再冷启动卡顿。
+      // Keep the warmup hook for model profiles that need it. zhen currently passes zero because
+      // ORT Session creation already pays the material initialization costs.
       const warmupStartMs = Date.now();
       AmphionRuntime.warmUpRecognizer(recognizer);
       warmupMs = Date.now() - warmupStartMs;
@@ -318,11 +319,11 @@ export class AmphionRuntime {
     return engine;
   }
 
-  // 对新建的 recognizer 做一次性预热(喂静音跑一遍 encoder/decoder,触发懒加载),
-  // 使后续各 session 的首句不再冷启动。尽力而为,失败不阻塞引擎创建。
+  // Optional one-time silence decode for model profiles where first-run latency exceeds the
+  // engine-ready cost. Disabled for zhen by EAGER_WARMUP_DURATION_MS=0 after device A/B testing.
   private static warmUpRecognizer(recognizer: OnlineRecognizer): void {
     try {
-      const n = Math.round(ASR_SAMPLE_RATE_HZ * WARMUP_DURATION_MS / 1000);
+      const n = Math.round(ASR_SAMPLE_RATE_HZ * EAGER_WARMUP_DURATION_MS / 1000);
       if (n <= 0) return;
       const stream = recognizer.createStream();
       try {
@@ -442,7 +443,7 @@ export class AmphionRuntime {
       const newLoad: Promise<OnlineRecognizer> = OnlineRecognizer.createAsync(
         AmphionRuntime.buildRecognizerConfig(layout, config),
         context.resourceManager,
-        Math.round(ASR_SAMPLE_RATE_HZ * WARMUP_DURATION_MS / 1000))
+        Math.round(ASR_SAMPLE_RATE_HZ * EAGER_WARMUP_DURATION_MS / 1000))
         .then((recognizer: OnlineRecognizer): OnlineRecognizer => {
           if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
             throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during recognizer load`);
