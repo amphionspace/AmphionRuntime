@@ -44,10 +44,6 @@ DEFAULT_ITERATIONS = 10
 DEFAULT_MIN_P50_IMPROVEMENT_PERCENT = 20.0
 DEFAULT_MAX_P95_REGRESSION_PERCENT = 3.0
 PROCESS_STOP_TIMEOUT_SECONDS = 10.0
-ASR_SAMPLE_RATE_HZ = 16_000
-WARMUP_DURATION_MS = 0
-WARMUP_SAMPLES = ASR_SAMPLE_RATE_HZ * WARMUP_DURATION_MS // 1_000
-BENCHMARK_NUM_THREADS = 4
 
 
 class LoadBenchFailure(RuntimeError):
@@ -59,6 +55,8 @@ class ProcessSample:
     run_id: str
     cold_ms: int
     pool_hit_ms: list[int]
+    num_threads: int
+    warmup_samples: int
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -229,6 +227,8 @@ def comparison_identity(
     model_source_sha256: dict[str, str],
     warmup_runs: int,
     iterations: int,
+    num_threads: int,
+    warmup_samples: int,
 ) -> dict[str, object]:
     return {
         "schema_version": 1,
@@ -238,8 +238,8 @@ def comparison_identity(
             "api": "SpeechRecognizeSdk.createEngineAsync",
             "language": "zh-CN",
             "punctuation_requested": True,
-            "num_threads": BENCHMARK_NUM_THREADS,
-            "warmup_samples": WARMUP_SAMPLES,
+            "num_threads": num_threads,
+            "warmup_samples": warmup_samples,
             "police_hotword_profile": "defaults-v1",
             "process_isolation": "force-stop",
             "preconditioning": "install-smoke-then-process-warmups",
@@ -308,7 +308,7 @@ def parse_device_result(text: str, expected_run_id: str) -> ProcessSample | None
         }
         if fields.get("runId") != expected_run_id:
             continue
-        if fields.get("version") != "1":
+        if fields.get("version") != "2":
             raise LoadBenchFailure("unsupported device loadbench result version")
         if fields.get("api") != "createEngineAsync":
             raise LoadBenchFailure("device loadbench did not measure createEngineAsync")
@@ -322,11 +322,19 @@ def parse_device_result(text: str, expected_run_id: str) -> ProcessSample | None
         try:
             cold_ms = int(fields["coldMs"])
             pool_hit_ms = [int(value) for value in fields["poolHitMs"].split(",")]
+            num_threads = int(fields["numThreads"])
+            warmup_samples = int(fields["warmupSamples"])
         except (KeyError, ValueError) as error:
             raise LoadBenchFailure("malformed device timing result") from error
-        if cold_ms < 0 or len(pool_hit_ms) != POOL_HIT_CREATES or any(value < 0 for value in pool_hit_ms):
+        if (
+            cold_ms < 0
+            or len(pool_hit_ms) != POOL_HIT_CREATES
+            or any(value < 0 for value in pool_hit_ms)
+            or num_threads <= 0
+            or warmup_samples < 0
+        ):
             raise LoadBenchFailure("device timing result has invalid sample counts or values")
-        return ProcessSample(expected_run_id, cold_ms, pool_hit_ms)
+        return ProcessSample(expected_run_id, cold_ms, pool_hit_ms, num_threads, warmup_samples)
     return None
 
 
@@ -525,16 +533,7 @@ def run_benchmark(args: argparse.Namespace) -> tuple[Path, str]:
     print(f"[INFO] {action} Harmony demo HAP")
     build_install(device, args.skip_build)
     manifest_bytes, native_bytes, model_source_sha256 = read_hap_artifacts()
-    identity = comparison_identity(
-        device,
-        read_device_build(hdc),
-        model_source_sha256,
-        args.warmup_runs,
-        args.iterations,
-    )
-    baseline_statistics = (
-        load_baseline(args.baseline, identity) if args.baseline is not None else None
-    )
+    device_build = read_device_build(hdc)
     artifacts = artifact_fingerprints(manifest_bytes, native_bytes)
 
     warmup_samples: list[ProcessSample] = []
@@ -559,6 +558,25 @@ def run_benchmark(args: argparse.Namespace) -> tuple[Path, str]:
 
     cold_values = [sample.cold_ms for sample in measured_samples]
     pool_values = [value for sample in measured_samples for value in sample.pool_hit_ms]
+    runtime_profiles = {
+        (sample.num_threads, sample.warmup_samples)
+        for sample in warmup_samples + measured_samples
+    }
+    if len(runtime_profiles) != 1:
+        raise LoadBenchFailure("device loadbench samples reported inconsistent runtime profiles")
+    num_threads, eager_warmup_samples = runtime_profiles.pop()
+    identity = comparison_identity(
+        device,
+        device_build,
+        model_source_sha256,
+        args.warmup_runs,
+        args.iterations,
+        num_threads,
+        eager_warmup_samples,
+    )
+    baseline_statistics = (
+        load_baseline(args.baseline, identity) if args.baseline is not None else None
+    )
     cold_statistics = timing_statistics(cold_values)
     statistics_report = {
         "cold_create_engine_async_ms": cold_statistics,

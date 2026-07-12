@@ -9,6 +9,8 @@ import {
   SpeechRecognitionEngine,
   SpeechRecognizeSdk
 } from 'amphion_dingqiao';
+import { PoliceEngineConfig } from 'amphion_police';
+import { AmphionRuntime } from 'amphion_asr';
 
 const TAG: string = 'ModelLoadBench';
 const DOMAIN: number = 0x0000;
@@ -180,8 +182,9 @@ export async function runModelLoadBench(context: common.UIAbilityContext,
   const status = fatal.length === 0 && punctuationLoaded && coldMs >= 0 &&
     poolHitMs.length === POOL_HIT_CREATES ?
     'PASS' : 'FAIL';
-  const result = `LOADBENCH|version=1|api=createEngineAsync|runId=${safeDetail(options.runId)}|status=${status}` +
+  const result = `LOADBENCH|version=2|api=createEngineAsync|runId=${safeDetail(options.runId)}|status=${status}` +
     `|punctuationRequested=true|punctuationLoaded=${punctuationLoaded}` +
+    `|numThreads=${PoliceEngineConfig.NUM_THREADS}|warmupSamples=${AmphionRuntime.eagerWarmupSamples()}` +
     `|coldMs=${coldMs}|poolHitMs=${poolHitMs.join(',')}|fatal=${fatal}`;
   try {
     writeText(options.resultPath, `${result}\n`);
