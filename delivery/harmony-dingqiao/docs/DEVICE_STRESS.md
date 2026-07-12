@@ -87,6 +87,21 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 `newSession` 同步触发 `onSessionStarted`，客户在 `onStart` 中取消时 `tearDownSession()` 还看不到
 新 session，无法关闭刚创建的 native stream。
 
+## 2026-07-12 模型加载回归
+
+加载优化后的 `zhen` 配置使用 4 个 ORT worker，不执行 eager silence warmup。独立进程
+`createEngineAsync` 10 次结果为 p50 774.5 ms、p95 810.25 ms，pool hit 为 0–1 ms。
+
+同一台设备随后使用 500 条 44.1 kHz 语料中的 24 条分位样本执行 48 轮 burst：
+
+| 结果 | 首轮 | 总耗时 | 空 final | 峰值 RSS |
+| --- | ---: | ---: | ---: | ---: |
+| 48/48 PASS | 120 ms | 21858 ms | 4.1667% | 571.863 MiB |
+
+artifact：`delivery/harmony-dingqiao/build/device-stress/20260712-101550-burst-edaea120`。
+该结果用于防止去掉 eager warmup 后把全部成本转移到第一条真实音频；完整加载身份、历史对照
+和复现命令见 [`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)。
+
 ## 已修复问题
 
 1. online stream 原先只依赖 N-API finalizer，ArkTS 引用释放后 native 对象要等 GC，短会话呈现

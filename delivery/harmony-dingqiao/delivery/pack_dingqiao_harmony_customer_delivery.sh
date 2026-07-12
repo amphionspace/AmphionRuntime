@@ -8,13 +8,15 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 VERSION="${AMPHION_RUNTIME_VERSION:-0.1.0}"
 FINAL_OUT_ROOT=""
 ASR_ONLY=false
+ALLOW_DIRTY=false
 
 usage() {
   cat <<'EOF'
-Usage: pack_dingqiao_harmony_customer_delivery.sh [--asr-only] [OUTPUT_DIR]
+Usage: pack_dingqiao_harmony_customer_delivery.sh [--asr-only] [--allow-dirty] [OUTPUT_DIR]
 
 Options:
   --asr-only  Package the ASR SDK/demo without requiring TTS build artifacts.
+  --allow-dirty  Permit a non-release package from a dirty worktree; recorded in provenance.
   -h, --help  Show this help.
 EOF
 }
@@ -22,6 +24,7 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --asr-only) ASR_ONLY=true; shift ;;
+    --allow-dirty) ALLOW_DIRTY=true; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 2 ;;
     *)
@@ -38,6 +41,15 @@ BACKUP_OUT_ROOT="${FINAL_OUT_ROOT}.backup.$$"
 LOCK_DIR="${FINAL_OUT_ROOT}.lock"
 LOCK_HELD=false
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-$REPO_ROOT/.secure/harmony-signing.json}"
+
+GIT_DIRTY=false
+if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
+  GIT_DIRTY=true
+fi
+if [[ "$GIT_DIRTY" == true && "$ALLOW_DIRTY" != true ]]; then
+  echo "[ERROR] release packaging requires a clean worktree; commit/stash changes or pass --allow-dirty for a non-release package" >&2
+  exit 1
+fi
 
 cleanup() {
   rm -rf "$OUT_ROOT"
@@ -150,7 +162,7 @@ fi
   --signing-config "$SIGNING_CONFIG"
 copy_required "$HAP_SRC" "$OUT_ROOT/demo/dingqiao-demo.hap"
 
-copy_optional "$REPO_ROOT/asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx" "$OUT_ROOT/models/eres2net.onnx"
+copy_required "$REPO_ROOT/asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx" "$OUT_ROOT/models/eres2net.onnx"
 if [[ "$ASR_ONLY" != true ]]; then
   if [[ -d "$REPO_ROOT/tts/models/amphion-tts" ]]; then
     cp -R "$REPO_ROOT/tts/models/amphion-tts" "$OUT_ROOT/tts-models/"
@@ -164,7 +176,96 @@ cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/DINGQIAO_LICENSE_SCHEME.md" "$O
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/LICENSE.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/NOTICE" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/PRIVACY.md" "$OUT_ROOT/docs/"
+cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/MODEL_LOAD_PERFORMANCE.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/CHANGELOG.md" "$OUT_ROOT/docs/"
+
+python3 - "$REPO_ROOT" "$OUT_ROOT" "$VERSION" "$ASR_ONLY" "$GIT_DIRTY" <<'PY'
+import hashlib
+import json
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+repo = Path(sys.argv[1])
+out = Path(sys.argv[2])
+version = sys.argv[3]
+asr_only = sys.argv[4] == "true"
+git_dirty = sys.argv[5] == "true"
+
+
+def run(*args: str) -> str:
+    return subprocess.run(
+        list(args), cwd=repo, check=True, text=True, stdout=subprocess.PIPE
+    ).stdout.strip()
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def fingerprint(relative: str) -> dict[str, object]:
+    path = out / relative
+    return {"path": relative, "size_bytes": path.stat().st_size, "sha256": sha256(path)}
+
+
+manifest_path = repo / "asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+source_hashes: dict[str, str] = {}
+converter_ids: set[str] = set()
+for bundle_name, entries in manifest["bundles"].items():
+    for entry in entries:
+        source_hash = entry.get("source_sha256")
+        if source_hash:
+            source_hashes[f"{bundle_name}/{entry['name']}"] = source_hash
+        converter = entry.get("converter")
+        if converter:
+            converter_ids.add(converter)
+
+patch_digest = hashlib.sha256()
+patches = sorted((repo / "third_party/patches/sherpa-amphion").glob("*.patch"))
+for patch in patches:
+    patch_digest.update(patch.name.encode("utf-8"))
+    patch_digest.update(b"\0")
+    patch_digest.update(patch.read_bytes())
+
+artifacts = [fingerprint("har/amphion_dingqiao.har"), fingerprint("demo/dingqiao-demo.hap")]
+if not asr_only:
+    artifacts.append(fingerprint("har/amphion_tts.har"))
+
+payload = {
+    "schema_version": 1,
+    "created_at": datetime.now(timezone.utc).isoformat(),
+    "delivery_version": version,
+    "asr_only": asr_only,
+    "source": {
+        "repository": run("git", "remote", "get-url", "origin"),
+        "commit": run("git", "rev-parse", "HEAD"),
+        "branch": run("git", "branch", "--show-current"),
+        "worktree_dirty": git_dirty,
+        "sherpa_submodule_commit": run("git", "-C", "third_party/sherpa-onnx", "rev-parse", "HEAD"),
+        "sherpa_patch_series_sha256": patch_digest.hexdigest(),
+    },
+    "model": {
+        "manifest_sha256": sha256(manifest_path),
+        "manifest_version": manifest["manifest_version"],
+        "converter_ids": sorted(converter_ids),
+        "source_sha256": dict(sorted(source_hashes.items())),
+    },
+    "local_native": {
+        "libsherpa-onnx-c-api.so": sha256(repo / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so"),
+        "libonnxruntime.so": sha256(repo / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so"),
+    },
+    "artifacts": artifacts,
+}
+(out / "docs/BUILD_PROVENANCE.json").write_text(
+    json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+)
+PY
 
 (
   cd "$OUT_ROOT"
