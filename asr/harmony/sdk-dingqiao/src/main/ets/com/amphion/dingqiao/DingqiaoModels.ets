@@ -81,6 +81,15 @@ export interface LicenseActivationCallback {
   onError(errorCode: number, message: string): void;
 }
 
+/**
+ * 两级加载 L1 运行时就绪回调。onReady 在运行时框架资源拉起后触发(不含模型);重复 prepareRuntime
+ * 除首次外直接 onReady 返回,不重复拉起。
+ */
+export interface PrepareRuntimeCallback {
+  onReady(): void;
+  onError(errorCode: number, message: string): void;
+}
+
 export class DingqiaoErrorCode {
   static readonly CREATE_ENGINE_FAILED: number = 1002200001;
   static readonly START_LISTENING_FAILED: number = 1002200002;

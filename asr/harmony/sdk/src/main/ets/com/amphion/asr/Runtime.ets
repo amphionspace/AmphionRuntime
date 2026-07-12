@@ -580,8 +580,22 @@ export class AmphionRuntime {
   static checkDeviceBinding(licenseText: string | undefined, deviceSerial: string | undefined): Promise<boolean> {
     return HarmonyLicenseVerifier.deviceHashOk(licenseText, deviceSerial);
   }
-  static release(): void {
+  /**
+   * 模型级卸载(两级加载的 L2)。清空所有模型池并 bump loadGeneration,使正在进行的 async 加载失效;
+   * 池化的 native session(recognizer / punctuation / extractor / vad)引用被丢弃后,由 NAPI finalizer
+   * 在 GC 时回收其 native 内存 —— 与 release() 释放模型的语义一致,区别在于本方法**保留运行时**
+   * (initialized / appContext / license 不变),下次 create 只需重付模型加载,无需重建运行时。
+   */
+  static unloadModel(): void {
     AmphionRuntime.loadGeneration += 1;
+    // 显式释放 native session 内存(否则清 Map 只丢引用,native 权重要等 GC finalizer 才回收 → 内存不降)。
+    // close() 幂等,native handle 的 Close() 防双重释放,与后续 GC 回收 wrapper 对象安全共存。
+    AmphionRuntime.asrPool.forEach((r: OnlineRecognizer): void => {
+      try { r.close(); } catch (e) { Logger.w(`recognizer close failed: ${e}`); }
+    });
+    AmphionRuntime.punctuationPool.forEach((p: OfflinePunctuation): void => {
+      try { p.close(); } catch (e) { Logger.w(`punctuation close failed: ${e}`); }
+    });
     AmphionRuntime.asrPool.clear();
     AmphionRuntime.recognizerLoads.clear();
     AmphionRuntime.speakerExtractorPool.clear();
@@ -589,6 +603,24 @@ export class AmphionRuntime {
     AmphionRuntime.punctuationLoads.clear();
     AmphionRuntime.vadPool.clear();
     AmphionRuntime.poolConfigKey.clear();
+  }
+
+  /** 是否有已加载的模型(任一模型池非空)。 */
+  static isModelLoaded(): boolean {
+    return AmphionRuntime.asrPool.size > 0 ||
+      AmphionRuntime.punctuationPool.size > 0 ||
+      AmphionRuntime.speakerExtractorPool.size > 0;
+  }
+
+  /** 运行时是否就绪(已 init)。 */
+  static isRuntimeReady(): boolean { return AmphionRuntime.initialized; }
+
+  /**
+   * 运行时级卸载(两级加载的 L1)。先卸载模型(「若没卸载模型,则模型跟随卸载」),再重置运行时状态
+   * 为未初始化。native .so 由 OS 保留映射,无法在进程内真正 unload。
+   */
+  static release(): void {
+    AmphionRuntime.unloadModel();
     AmphionRuntime.initialized = false;
     AmphionRuntime.appContext = undefined;
     AmphionRuntime.licenseStatusHolder = AmphionLicenseStatus.notInitialized();
@@ -613,6 +645,8 @@ export class AmphionRuntime {
     model.bpeVocab = layout.asrBpeVocab;
     model.numThreads = config.numThreads;
     model.debug = false;
+    // provider 内联配置把「跳过 prepack」下发到 native session.cc(零 C-API/ABI 改动)。
+    model.provider = config.disablePrepack ? 'cpu;DisablePrepacking=1' : 'cpu';
 
     const rc = new OnlineRecognizerConfig();
     rc.modelConfig = model;
@@ -666,6 +700,7 @@ export class AmphionRuntime {
     snapshot.itn = source.itn;
     snapshot.vad = source.vad;
     snapshot.endpoint = source.endpoint;
+    snapshot.disablePrepack = source.disablePrepack;
     snapshot.hotwords = source.hotwords.slice();
     snapshot.hotwordsScore = source.hotwordsScore;
 
@@ -722,6 +757,7 @@ export class AmphionRuntime {
       `${config.endpointRules.rule2MinTrailingSilenceSec}`,
       `${config.endpointRules.rule3MinUtteranceLengthSec}`,
       `${config.hotwordsScore}`,
+      `${config.disablePrepack}`,
       config.hotwords.join('\n')
     ].join('|');
   }
