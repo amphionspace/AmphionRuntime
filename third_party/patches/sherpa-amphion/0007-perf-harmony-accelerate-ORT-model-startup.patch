@@ -1411,5 +1411,3 @@ index 131023e8..017066a0 100644
    return GetSessionOptionsImpl(config.num_threads, config.provider);
 -- 
 2.50.1 (Apple Git-155)
-
-

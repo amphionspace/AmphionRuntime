@@ -598,6 +598,10 @@ export class AmphionRuntime {
 
   static activeOnlineStreamCount(): number { return onlineStreamLiveCount(); }
 
+  static eagerWarmupSamples(): number {
+    return Math.round(ASR_SAMPLE_RATE_HZ * EAGER_WARMUP_DURATION_MS / 1000);
+  }
+
   static buildRecognizerConfig(layout: InstalledLayout, config: AsrConfig): OnlineRecognizerConfig {
     const model = new OnlineModelConfig();
     model.transducer.encoder = layout.asrEncoder;

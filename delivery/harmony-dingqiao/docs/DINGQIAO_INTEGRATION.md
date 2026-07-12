@@ -37,6 +37,7 @@ import {
   AudioInfo,
   CreateEngineParams,
   LicenseDeviceIdProvider,
+  SpeechRecognitionEngine,
   SpeechRecognizeSdk,
   StartParams
 } from 'amphion_dingqiao';
@@ -50,24 +51,25 @@ class HostDeviceIdProvider implements LicenseDeviceIdProvider {
 SpeechRecognizeSdk.init(context, new HostDeviceIdProvider());
 SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/dingqiao_work`);
 
+let engine: SpeechRecognitionEngine | undefined;
 SpeechRecognizeSdk.createEngineAsync(new CreateEngineParams(), {
-  onSuccess: (engine) => {
-    engine.setListener({
+  onSuccess: (createdEngine) => {
+    engine = createdEngine;
+    createdEngine.setListener({
       onResult: (sessionId, result) => {},
       onComplete: (sessionId) => {},
       onError: (sessionId, code, message) => {}
     });
-    // 保存 engine 并在需要时 startListening；同配置后续创建可命中进程内 pool。
+
+    const start = new StartParams();
+    start.sessionId = 'session-1';
+    start.audioInfo = new AudioInfo();
+    createdEngine.startListening(start);
+    createdEngine.writeAudio(start.sessionId, pcmFrame640Bytes);
+    createdEngine.finish(start.sessionId);
   },
   onError: (errorCode, message) => {}
 });
-
-const start = new StartParams();
-start.sessionId = 'session-1';
-start.audioInfo = new AudioInfo();
-engine.startListening(start);
-engine.writeAudio(start.sessionId, pcmFrame640Bytes);
-engine.finish(start.sessionId);
 ```
 
 ## 离线授权

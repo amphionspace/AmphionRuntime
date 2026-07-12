@@ -41,6 +41,7 @@ BACKUP_OUT_ROOT="${FINAL_OUT_ROOT}.backup.$$"
 LOCK_DIR="${FINAL_OUT_ROOT}.lock"
 LOCK_HELD=false
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-$REPO_ROOT/.secure/harmony-signing.json}"
+BUILD_IDENTITY="$REPO_ROOT/delivery/harmony-dingqiao/build/smoke/build-identity.json"
 
 GIT_DIRTY=false
 if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
@@ -50,6 +51,7 @@ if [[ "$GIT_DIRTY" == true && "$ALLOW_DIRTY" != true ]]; then
   echo "[ERROR] release packaging requires a clean worktree; commit/stash changes or pass --allow-dirty for a non-release package" >&2
   exit 1
 fi
+python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"
 
 cleanup() {
   rm -rf "$OUT_ROOT"
@@ -179,7 +181,7 @@ cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/PRIVACY.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/MODEL_LOAD_PERFORMANCE.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/CHANGELOG.md" "$OUT_ROOT/docs/"
 
-python3 - "$REPO_ROOT" "$OUT_ROOT" "$VERSION" "$ASR_ONLY" "$GIT_DIRTY" <<'PY'
+python3 - "$REPO_ROOT" "$OUT_ROOT" "$VERSION" "$ASR_ONLY" "$GIT_DIRTY" "$BUILD_IDENTITY" <<'PY'
 import hashlib
 import json
 import subprocess
@@ -192,6 +194,7 @@ out = Path(sys.argv[2])
 version = sys.argv[3]
 asr_only = sys.argv[4] == "true"
 git_dirty = sys.argv[5] == "true"
+build_identity = json.loads(Path(sys.argv[6]).read_text(encoding="utf-8"))
 
 
 def run(*args: str) -> str:
@@ -250,6 +253,7 @@ payload = {
         "sherpa_submodule_commit": run("git", "-C", "third_party/sherpa-onnx", "rev-parse", "HEAD"),
         "sherpa_patch_series_sha256": patch_digest.hexdigest(),
     },
+    "verified_build_identity": build_identity,
     "model": {
         "manifest_sha256": sha256(manifest_path),
         "manifest_version": manifest["manifest_version"],

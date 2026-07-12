@@ -19,24 +19,26 @@ SPEC.loader.exec_module(MODULE)
 class DeviceResultTest(unittest.TestCase):
     def test_parses_one_cold_and_three_pool_hit_creates(self) -> None:
         result = MODULE.parse_device_result(
-            "LOADBENCH|version=1|api=createEngineAsync|runId=measure-001-abcd|status=PASS|"
+            "LOADBENCH|version=2|api=createEngineAsync|runId=measure-001-abcd|status=PASS|"
             "punctuationRequested=true|punctuationLoaded=true|"
-            "coldMs=4321|poolHitMs=8,7,9|fatal=\n",
+            "numThreads=4|warmupSamples=0|coldMs=4321|poolHitMs=8,7,9|fatal=\n",
             "measure-001-abcd",
         )
 
         self.assertEqual(4321, result.cold_ms)
         self.assertEqual([8, 7, 9], result.pool_hit_ms)
+        self.assertEqual(4, result.num_threads)
+        self.assertEqual(0, result.warmup_samples)
 
     def test_ignores_partial_or_stale_results(self) -> None:
         partial = (
-            "LOADBENCH|version=1|api=createEngineAsync|runId=current|status=PASS|"
+            "LOADBENCH|version=2|api=createEngineAsync|runId=current|status=PASS|"
             "punctuationRequested=true|punctuationLoaded=true|coldMs=4"
         )
         stale = (
-            "LOADBENCH|version=1|api=createEngineAsync|runId=old|status=PASS|"
+            "LOADBENCH|version=2|api=createEngineAsync|runId=old|status=PASS|"
             "punctuationRequested=true|punctuationLoaded=true|"
-            "coldMs=4321|poolHitMs=8,7,9|fatal=\n"
+            "numThreads=4|warmupSamples=0|coldMs=4321|poolHitMs=8,7,9|fatal=\n"
         )
 
         self.assertIsNone(MODULE.parse_device_result(partial, "current"))
@@ -44,9 +46,9 @@ class DeviceResultTest(unittest.TestCase):
 
     def test_rejects_missing_pool_hit_sample(self) -> None:
         text = (
-            "LOADBENCH|version=1|api=createEngineAsync|runId=current|status=PASS|"
+            "LOADBENCH|version=2|api=createEngineAsync|runId=current|status=PASS|"
             "punctuationRequested=true|punctuationLoaded=true|"
-            "coldMs=4321|poolHitMs=8,7|fatal=\n"
+            "numThreads=4|warmupSamples=0|coldMs=4321|poolHitMs=8,7|fatal=\n"
         )
 
         with self.assertRaisesRegex(MODULE.LoadBenchFailure, "invalid sample counts"):
@@ -54,8 +56,8 @@ class DeviceResultTest(unittest.TestCase):
 
     def test_rejects_a_result_from_the_synchronous_api(self) -> None:
         text = (
-            "LOADBENCH|version=1|api=createEngine|runId=current|status=PASS|punctuationRequested=true|"
-            "coldMs=4321|poolHitMs=8,7,9|fatal=\n"
+            "LOADBENCH|version=2|api=createEngine|runId=current|status=PASS|punctuationRequested=true|"
+            "numThreads=4|warmupSamples=0|coldMs=4321|poolHitMs=8,7,9|fatal=\n"
         )
 
         with self.assertRaisesRegex(MODULE.LoadBenchFailure, "createEngineAsync"):
@@ -63,9 +65,9 @@ class DeviceResultTest(unittest.TestCase):
 
     def test_rejects_silently_degraded_punctuation(self) -> None:
         text = (
-            "LOADBENCH|version=1|api=createEngineAsync|runId=current|status=PASS|"
+            "LOADBENCH|version=2|api=createEngineAsync|runId=current|status=PASS|"
             "punctuationRequested=true|punctuationLoaded=false|"
-            "coldMs=4321|poolHitMs=8,7,9|fatal=\n"
+            "numThreads=4|warmupSamples=0|coldMs=4321|poolHitMs=8,7,9|fatal=\n"
         )
 
         with self.assertRaisesRegex(MODULE.LoadBenchFailure, "did not load punctuation"):
@@ -73,7 +75,7 @@ class DeviceResultTest(unittest.TestCase):
 
     def test_surfaces_device_failure_detail(self) -> None:
         text = (
-            "LOADBENCH|version=1|api=createEngineAsync|runId=current|status=FAIL|"
+            "LOADBENCH|version=2|api=createEngineAsync|runId=current|status=FAIL|"
             "punctuationRequested=true|"
             "coldMs=-1|poolHitMs=|fatal=license-1002200031\n"
         )
@@ -100,7 +102,7 @@ class StatisticsTest(unittest.TestCase):
 
 class ModelIdentityTest(unittest.TestCase):
     def test_records_the_dingqiao_worker_count(self) -> None:
-        identity = MODULE.comparison_identity("serial", "build", {}, 2, 10)
+        identity = MODULE.comparison_identity("serial", "build", {}, 2, 10, 4, 0)
 
         self.assertEqual(4, identity["profile"]["num_threads"])
         self.assertEqual(0, identity["profile"]["warmup_samples"])
