@@ -49,6 +49,37 @@ export class WavIo {
     }
   }
 
+  /** Writes an already-framed PCM16LE byte stream without converting or touching its payload. */
+  static writePcmBytes(path: string, pcm: ArrayBuffer, sampleRate: number = SAMPLE_RATE): void {
+    const dataBytes = pcm.byteLength;
+    const buf = new ArrayBuffer(HEADER_BYTES + dataBytes);
+    const view = new DataView(buf);
+    WavIo.writeHeader(view, dataBytes, sampleRate);
+    new Uint8Array(buf).set(new Uint8Array(pcm), HEADER_BYTES);
+    const fp = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+    try {
+      fs.writeSync(fp.fd, buf);
+    } finally {
+      fs.closeSync(fp.fd);
+    }
+  }
+
+  /** Reads the fixed-header WAV payload byte-for-byte for exact SDK replay. */
+  static readPcmBytes(path: string): ArrayBuffer {
+    if (!fs.accessSync(path)) return new ArrayBuffer(0);
+    const fp = fs.openSync(path);
+    try {
+      const size = fs.statSync(fp.fd).size;
+      if (size <= HEADER_BYTES) return new ArrayBuffer(0);
+      const buf = new ArrayBuffer(size);
+      fs.readSync(fp.fd, buf);
+      const payloadBytes = Math.floor((size - HEADER_BYTES) / 2) * 2;
+      return buf.slice(HEADER_BYTES, HEADER_BYTES + payloadBytes);
+    } finally {
+      fs.closeSync(fp.fd);
+    }
+  }
+
   static durationLabel(sampleCount: number, sampleRate: number = SAMPLE_RATE): string {
     return `${(sampleCount / sampleRate).toFixed(1)}s`;
   }
@@ -61,5 +92,21 @@ export class WavIo {
 
   private static writeAscii(view: DataView, offset: number, text: string): void {
     for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+  }
+
+  private static writeHeader(view: DataView, dataBytes: number, sampleRate: number): void {
+    WavIo.writeAscii(view, 0, 'RIFF');
+    view.setUint32(4, 36 + dataBytes, true);
+    WavIo.writeAscii(view, 8, 'WAVE');
+    WavIo.writeAscii(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    WavIo.writeAscii(view, 36, 'data');
+    view.setUint32(40, dataBytes, true);
   }
 }

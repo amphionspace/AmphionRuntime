@@ -17,14 +17,23 @@ import {
   SpeechRecognizeSdk,
   StartParams
 } from 'amphion_dingqiao';
-import { AudioRecorder } from '../util/AudioRecorder';
+import { AudioRecorder, AudioRecorderStats } from '../util/AudioRecorder';
+import { PcmPlayer } from '../util/PcmPlayer';
 import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
 import { VoiceprintModelHelper } from '../util/VoiceprintModelHelper';
+import { WavIo } from '../util/WavIo';
 
 const SESSION_MAX_AUDIO_MS = 60000;
 const SESSION_ROTATE_AUDIO_MS = 55000;
 const FRAME_AUDIO_MS = 20;
+const SDK_FRAME_BYTES = 640;
+const SDK_CAPTURE_MAX_FRAMES = SESSION_ROTATE_AUDIO_MS / FRAME_AUDIO_MS;
+const SDK_CAPTURE_WAV = 'last_sdk_input.wav';
+const SDK_CAPTURE_META = 'last_sdk_input.json';
+const SDK_CAPTURE_EXPORT_WAV = '/data/storage/el2/base/files/last_sdk_input.wav';
+const SDK_CAPTURE_EXPORT_META = '/data/storage/el2/base/files/last_sdk_input.json';
+const REPLAY_YIELD_EVERY_FRAMES = 50;
 // pre-roll 缓存上限:模型冷加载 ~0.5s,正常只缓存 ~25 帧;给 10s(500 帧)裕量防加载异常久时无界增长。
 const MAX_PREROLL_FRAMES = 500;
 const SPEAKER_VAD_THRESHOLD = 0.40;
@@ -60,9 +69,19 @@ struct Index {
   @State voiceprintId: string = '';
   @State voiceprintVerifyDesired: boolean = false;
   @State speakerVadDesired: boolean = false;
+  @State captureReady: boolean = false;
+  @State captureInfo: string = '尚未保存 SDK 输入 PCM';
+  @State replaying: boolean = false;
+  @State replayHasCompleted: boolean = false;
+  @State playingCapture: boolean = false;
+  @State liveHasCompleted: boolean = false;
+  @State liveCompareText: string = '';
+  @State replayCompareText: string = '';
+  @State compareInfo: string = '';
 
   private engine?: SpeechRecognitionEngine;
   private recorder?: AudioRecorder;
+  private capturePlayer: PcmPlayer = new PcmPlayer();
   private frameWriter?: PcmFrameWriter;
   private sessionId: string = '';
   private sessionAudioMs: number = 0;
@@ -83,6 +102,21 @@ struct Index {
   private runtimeAnonMb: number = -1;
   private peakAnonMb: number = 0;
   private peakVmRssMb: number = 0;
+  // Debug capture is taken at the public SDK writeAudio boundary. It therefore includes pre-roll
+  // replay and PcmFrameWriter's zero-padded last frame, but intentionally excludes Runtime.stop's
+  // synthetic 1280 ms right context (live and replay each add that exactly once in finish()).
+  private sdkCaptureFrames: ArrayBuffer[] = [];
+  private sdkCaptureTruncated: boolean = false;
+  private sdkCaptureBytes: number = 0;
+  private sdkCaptureRmsDbfs: number = -120;
+  private sdkCapturePeak: number = 0;
+  private sdkCaptureClipSamples: number = 0;
+  private recorderStats: AudioRecorderStats = new AudioRecorderStats();
+  private replaySessionId: string = '';
+  private capturedHotwords: string[] = [];
+  private capturedVoiceprintId: string = '';
+  private capturedVoiceprintVerify: boolean = false;
+  private capturedSpeakerVad: boolean = false;
 
   aboutToAppear(): void {
     this.workPath = SpeechRecognizeSdk.getWorkPath();
@@ -100,8 +134,20 @@ struct Index {
   aboutToDisappear(): void {
     this.active = false;
     this.startPending = false;
-    this.stopListening();
-    this.releaseModel('');
+    this.capturePlayer.stop();
+    this.playingCapture = false;
+    if (this.replaying) {
+      const sid = this.replaySessionId;
+      this.replaying = false;
+      this.replaySessionId = '';
+      if (sid.length > 0 && this.engine?.isBusy()) this.engine.cancel(sid);
+      this.releaseModel('');
+    } else if (this.listening) {
+      // stopListening owns recorder drain -> capture save -> SDK finish; onComplete then unloads.
+      this.stopListening();
+    } else {
+      this.releaseModel('');
+    }
   }
 
   private async initWithPermission(): Promise<void> {
@@ -201,8 +247,8 @@ struct Index {
 
   // L2 加载完成回调(由「开始识别」触发的按需加载)。加载完直接开录。
   onEngineCreated(engine: SpeechRecognitionEngine): void {
-    if (!this.active || !this.listening) {
-      // 加载途中用户已离开本页 / 已点停止:直接释放,避免残留会话与内存。
+    if (!this.active || (!this.listening && !this.replaying)) {
+      // 加载途中用户已离开本页 / 已取消当前输入:直接释放,避免残留会话与内存。
       engine.shutdown();
       SpeechRecognizeSdk.unloadModel();
       this.startPending = false;
@@ -218,6 +264,12 @@ struct Index {
     this.peakVmRssMb = 0;
     this.logStartTiming('model_loaded(模型冷加载完成)');
     this.logMem('02_model_loaded(L2冷加载完_关prepack)');
+    if (this.replaying) {
+      this.loading = false;
+      this.loadingHint = '';
+      this.startSavedPcmReplay();
+      return;
+    }
     // 麦克风点击时已开始录音,模型就绪 → 建会话并把 pre-roll 缓存回灌,转 live。
     this.startSessionAndFlush();
   }
@@ -226,14 +278,22 @@ struct Index {
     this.loading = false;
     this.engineReady = false;
     this.startPending = false;
-    this.status = `模型加载失败：${errorCode} ${message}`;
+    if (this.replaying) {
+      this.replaying = false;
+      this.replaySessionId = '';
+      this.compareInfo = `原样复测失败：${errorCode} ${message}`;
+      this.status = this.compareInfo;
+    } else {
+      this.status = `模型加载失败：${errorCode} ${message}`;
+    }
   }
 
-  private buildCreateEngineParams(): CreateEngineParams {
+  private buildCreateEngineParams(hotwordsOverride?: string[]): CreateEngineParams {
     const params = new CreateEngineParams();
     params.language = 'zh-CN';
     params.online = 1; // DingqiaoOnlineMode.OFFLINE
-    const hotwords = DemoPrefs.getUserHotwords(getContext(this) as common.UIAbilityContext);
+    const hotwords = hotwordsOverride ??
+      DemoPrefs.getUserHotwords(getContext(this) as common.UIAbilityContext);
     this.appliedHotwordsKey = hotwords.join('\n');
     const extra: Record<string, Object> = {};
     if (hotwords.length > 0) {
@@ -250,9 +310,9 @@ struct Index {
     return DemoPrefs.getUserHotwords(getContext(this) as common.UIAbilityContext).join('\n');
   }
 
-  private reloadEngine(): void {
+  private async reloadEngine(): Promise<void> {
     // 按需加载模型:热词变了只需卸掉当前模型,下次「开始识别」会用新热词冷加载。
-    this.stopListening();
+    await this.stopListening();
     this.releaseModel('热词已更新 · 下次识别将按新热词加载');
     this.toast('热词已更新，下次识别按新热词加载');
   }
@@ -261,13 +321,24 @@ struct Index {
 
   private startListening(): void {
     if (!this.runtimeReady) return;
-    if (this.listening) return;
+    if (this.listening || this.replaying || this.playingCapture) return;
     this.startTapMs = Date.now();
     this.finalSegments = [];
     this.partialText = '';
     this.preRoll = [];
     this.preRollDroppedFrames = 0;
     this.micFirstFrameLogged = false;
+    this.resetSdkCapture();
+    const ctx = getContext(this) as common.UIAbilityContext;
+    this.capturedHotwords = DemoPrefs.getUserHotwords(ctx);
+    this.capturedVoiceprintId = DemoPrefs.getVoiceprintId(ctx);
+    this.capturedVoiceprintVerify = this.voiceprintVerifyDesired && this.capturedVoiceprintId.length > 0;
+    this.capturedSpeakerVad = this.speakerVadDesired && this.capturedVoiceprintId.length > 0;
+    this.liveCompareText = '';
+    this.liveHasCompleted = false;
+    this.replayCompareText = '';
+    this.replayHasCompleted = false;
+    this.compareInfo = '';
     this.listening = true;                         // UI 立即进入识别态,按钮变「停止识别」
     this.modelReady = (this.engine !== undefined);
     // ① 立即开麦(与模型冷加载并行);模型没好时,麦克风帧先进 pre-roll 缓存不丢。
@@ -282,7 +353,8 @@ struct Index {
       this.loading = true;
       this.loadingHint = '模型加载中（语音已在缓存,加载完立即识别）…';
       this.status = '录音中 · 模型加载中（语音已缓存,加载完立即识别）…';
-      SpeechRecognizeSdk.createEngineAsync(this.buildCreateEngineParams(), new DemoCreateEngineCallback(this));
+      SpeechRecognizeSdk.createEngineAsync(
+        this.buildCreateEngineParams(this.capturedHotwords), new DemoCreateEngineCallback(this));
     }
   }
 
@@ -343,36 +415,33 @@ struct Index {
     const sid = `demo-${Date.now()}`;
     this.sessionId = sid;
     this.sessionAudioMs = 0;
-    this.frameWriter?.reset();
 
-    const ctx = getContext(this) as common.UIAbilityContext;
-    const id = DemoPrefs.getVoiceprintId(ctx);
-    const hasVoiceprint = id.length > 0;
-    const verify = this.voiceprintVerifyDesired && hasVoiceprint;
-    const speakerVad = this.speakerVadDesired && hasVoiceprint;
+    engine.startListening(this.buildCapturedStartParams(sid));
+  }
 
+  private buildCapturedStartParams(sessionId: string): StartParams {
     const extra: Record<string, Object> = {};
     extra['enablePartialResult'] = true;
     extra['maxAudioDuration'] = SESSION_MAX_AUDIO_MS;
-    if (verify) {
+    if (this.capturedVoiceprintVerify) {
       extra['enableVoiceprintVerification'] = true;
     }
-    if (speakerVad) {
+    if (this.capturedSpeakerVad) {
       extra['enableSpeakerVad'] = true;
       extra['speakerVadThreshold'] = SPEAKER_VAD_THRESHOLD;
       extra['speakerVadWindowMs'] = SPEAKER_VAD_WINDOW_MS;
       extra['speakerVadHopMs'] = SPEAKER_VAD_HOP_MS;
       extra['speakerVadConsecutiveBelow'] = SPEAKER_VAD_CONSECUTIVE_BELOW;
     }
-    if (hasVoiceprint) {
-      extra['voiceprintIds'] = [id];
+    if (this.capturedVoiceprintId.length > 0) {
+      extra['voiceprintIds'] = [this.capturedVoiceprintId];
     }
 
     const startParams = new StartParams();
-    startParams.sessionId = sid;
+    startParams.sessionId = sessionId;
     startParams.audioInfo = new AudioInfo();
     startParams.extraParams = extra;
-    engine.startListening(startParams);
+    return startParams;
   }
 
   private writeFrameToCurrentSession(frame: ArrayBuffer): void {
@@ -405,8 +474,240 @@ struct Index {
       this.engine?.finish(sid);
     } else {
       this.sessionAudioMs += FRAME_AUDIO_MS;
+      // Copy before writeAudio: the public call can synchronously finish at max duration, so saving
+      // afterwards could miss the final frame. This is the exact payload attempted at the SDK gate.
+      this.captureSdkFrame(frame);
       this.engine?.writeAudio(this.sessionId, frame);
     }
+  }
+
+  private resetSdkCapture(): void {
+    this.sdkCaptureFrames = [];
+    this.sdkCaptureTruncated = false;
+    this.sdkCaptureBytes = 0;
+    this.sdkCaptureRmsDbfs = -120;
+    this.sdkCapturePeak = 0;
+    this.sdkCaptureClipSamples = 0;
+    this.recorderStats = new AudioRecorderStats();
+    this.captureReady = false;
+    this.captureInfo = '正在采集实际送入 SDK 的 PCM…';
+  }
+
+  private captureSdkFrame(frame: ArrayBuffer): void {
+    if (this.replaying || frame.byteLength !== SDK_FRAME_BYTES) return;
+    if (this.sdkCaptureFrames.length >= SDK_CAPTURE_MAX_FRAMES) {
+      this.sdkCaptureTruncated = true;
+      return;
+    }
+    this.sdkCaptureFrames.push(frame.slice(0));
+  }
+
+  private mergeSdkCaptureFrames(): ArrayBuffer {
+    const out = new ArrayBuffer(this.sdkCaptureFrames.length * SDK_FRAME_BYTES);
+    const bytes = new Uint8Array(out);
+    for (let i = 0; i < this.sdkCaptureFrames.length; i++) {
+      bytes.set(new Uint8Array(this.sdkCaptureFrames[i]), i * SDK_FRAME_BYTES);
+    }
+    return out;
+  }
+
+  private sdkCaptureWavPath(): string {
+    return `${this.workPath}/${SDK_CAPTURE_WAV}`;
+  }
+
+  private sdkCaptureMetaPath(): string {
+    return `${this.workPath}/${SDK_CAPTURE_META}`;
+  }
+
+  private saveSdkCapture(): void {
+    if (this.sdkCaptureFrames.length === 0) {
+      this.captureReady = false;
+      this.captureInfo = '本轮没有任何 PCM 真正送入 SDK';
+      return;
+    }
+    const pcm = this.mergeSdkCaptureFrames();
+    WavIo.writePcmBytes(this.sdkCaptureWavPath(), pcm);
+    // Debug builds can pull this mirror with `hdc file recv -b <bundle> ...` without root access.
+    try {
+      WavIo.writePcmBytes(SDK_CAPTURE_EXPORT_WAV, pcm);
+    } catch (e) {
+      hilog.warn(0x0000, 'PcmReplay', 'PCM export mirror failed: %{public}s', `${e}`);
+    }
+    this.sdkCaptureBytes = pcm.byteLength;
+    this.measureSdkCapture(pcm);
+    this.captureReady = true;
+    const durationMs = Math.round(this.sdkCaptureBytes / 32);
+    const suffix = this.sdkCaptureTruncated ? ' · 超过55s，仅保存首段，不可做全文对照' : '';
+    this.captureInfo = `已保存 ${this.sdkCaptureFrames.length} 帧 / ${(durationMs / 1000).toFixed(2)}s` +
+      ` · RMS ${this.sdkCaptureRmsDbfs.toFixed(1)} dBFS · overflow ${this.recorderStats.overflowCount}` +
+      ` · maxGap ${this.recorderStats.maxCallbackGapMs}ms${suffix}`;
+    hilog.info(0x0000, 'PcmReplay',
+      'PCM_CAPTURE|path=%{public}s|frames=%{public}d|bytes=%{public}d|durationMs=%{public}d' +
+      '|rmsDbfs=%{public}s|peak=%{public}d|clipSamples=%{public}d|truncated=%{public}s',
+      this.sdkCaptureWavPath(), this.sdkCaptureFrames.length, this.sdkCaptureBytes, durationMs,
+      this.sdkCaptureRmsDbfs.toFixed(2), this.sdkCapturePeak, this.sdkCaptureClipSamples,
+      String(this.sdkCaptureTruncated));
+    this.writeSdkCaptureMetadataBestEffort();
+  }
+
+  private measureSdkCapture(pcm: ArrayBuffer): void {
+    const view = new DataView(pcm);
+    const samples = Math.floor(pcm.byteLength / 2);
+    let sumSquares = 0;
+    let peak = 0;
+    let clipped = 0;
+    for (let i = 0; i < samples; i++) {
+      const value = view.getInt16(i * 2, true);
+      const magnitude = Math.abs(value);
+      sumSquares += value * value;
+      if (magnitude > peak) peak = magnitude;
+      if (magnitude >= 32767) clipped += 1;
+    }
+    const rms = samples > 0 ? Math.sqrt(sumSquares / samples) : 0;
+    this.sdkCaptureRmsDbfs = rms > 0 ? Math.max(-120, 20 * Math.log10(rms / 32768)) : -120;
+    this.sdkCapturePeak = peak;
+    this.sdkCaptureClipSamples = clipped;
+  }
+
+  private writeSdkCaptureMetadata(): void {
+    if (!this.captureReady) return;
+    const samples = Math.floor(this.sdkCaptureBytes / 2);
+    const meta: Record<string, Object> = {};
+    meta['wavPath'] = this.sdkCaptureWavPath();
+    meta['hdcPullPath'] = SDK_CAPTURE_EXPORT_WAV;
+    meta['sampleRate'] = 16000;
+    meta['channels'] = 1;
+    meta['sampleFormat'] = 's16le';
+    meta['audioSource'] = 'SOURCE_TYPE_MIC';
+    meta['softwareGainDb'] = 0;
+    meta['frameBytes'] = SDK_FRAME_BYTES;
+    meta['frameCount'] = this.sdkCaptureFrames.length;
+    meta['byteCount'] = this.sdkCaptureBytes;
+    meta['durationMs'] = Math.round(this.sdkCaptureBytes / 32);
+    meta['rmsDbfs'] = Number(this.sdkCaptureRmsDbfs.toFixed(3));
+    meta['peak'] = this.sdkCapturePeak;
+    meta['clipSamples'] = this.sdkCaptureClipSamples;
+    meta['clipRate'] = samples > 0 ? this.sdkCaptureClipSamples / samples : 0;
+    meta['truncated'] = this.sdkCaptureTruncated;
+    meta['captureThread'] = 'ThreadWorker';
+    meta['capturerOverflowCount'] = this.recorderStats.overflowCount;
+    meta['captureCallbackCount'] = this.recorderStats.callbackCount;
+    meta['captureTotalBytes'] = this.recorderStats.totalBytes;
+    meta['captureBufferSizeBytes'] = this.recorderStats.bufferSizeBytes;
+    meta['captureMaxCallbackGapMs'] = this.recorderStats.maxCallbackGapMs;
+    meta['captureLateCallbackCount'] = this.recorderStats.lateCallbackCount;
+    meta['captureCallbackGapExcessMs'] = this.recorderStats.callbackGapExcessMs;
+    meta['captureMaxCallbackWorkMs'] = this.recorderStats.maxCallbackWorkMs;
+    meta['disablePrepack'] = true;
+    meta['hotwords'] = this.capturedHotwords;
+    meta['voiceprintId'] = this.capturedVoiceprintId;
+    meta['voiceprintVerify'] = this.capturedVoiceprintVerify;
+    meta['speakerVad'] = this.capturedSpeakerVad;
+    meta['liveText'] = this.liveCompareText;
+    meta['replayText'] = this.replayCompareText;
+    meta['comparison'] = !this.replayHasCompleted ? 'pending' :
+      (this.liveCompareText === this.replayCompareText ? 'exact-match' : 'different');
+    const encoded = new util.TextEncoder().encodeInto(`${JSON.stringify(meta)}\n`);
+    const data = new ArrayBuffer(encoded.byteLength);
+    new Uint8Array(data).set(encoded);
+    this.writeDebugText(this.sdkCaptureMetaPath(), data);
+    try {
+      this.writeDebugText(SDK_CAPTURE_EXPORT_META, data);
+    } catch (e) {
+      hilog.warn(0x0000, 'PcmReplay', 'metadata export mirror failed: %{public}s', `${e}`);
+    }
+  }
+
+  private writeSdkCaptureMetadataBestEffort(): void {
+    try {
+      this.writeSdkCaptureMetadata();
+    } catch (e) {
+      hilog.warn(0x0000, 'PcmReplay', 'metadata write failed: %{public}s', `${e}`);
+    }
+  }
+
+  private writeDebugText(path: string, data: ArrayBuffer): void {
+    const fp = fs.openSync(path,
+      fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+    try {
+      fs.writeSync(fp.fd, data);
+    } finally {
+      fs.closeSync(fp.fd);
+    }
+  }
+
+  private playLastSdkCapture(): void {
+    if (!this.captureReady || this.listening || this.replaying || this.loading) return;
+    const pcm = WavIo.readPcm(this.sdkCaptureWavPath());
+    if (pcm.length === 0) {
+      this.toast('上次 SDK PCM 文件为空');
+      return;
+    }
+    this.playingCapture = true;
+    this.capturePlayer.play(pcm, (): void => {
+      this.playingCapture = false;
+    });
+  }
+
+  private replayLastSdkCapture(): void {
+    if (!this.captureReady || this.sdkCaptureTruncated || this.listening || this.replaying ||
+      this.playingCapture || this.loading) return;
+    this.capturePlayer.stop();
+    this.replayHasCompleted = false;
+    this.replaying = true;
+    this.replayCompareText = '';
+    this.compareInfo = '正在加载同配置模型并原样复测…';
+    this.loading = true;
+    this.loadingHint = '正在加载模型以原样复测上次 SDK PCM…';
+    this.status = this.compareInfo;
+    SpeechRecognizeSdk.createEngineAsync(
+      this.buildCreateEngineParams(this.capturedHotwords), new DemoCreateEngineCallback(this));
+  }
+
+  private async startSavedPcmReplay(): Promise<void> {
+    const engine = this.engine;
+    if (engine === undefined || !this.replaying) return;
+    try {
+      const pcm = WavIo.readPcmBytes(this.sdkCaptureWavPath());
+      if (pcm.byteLength === 0 || pcm.byteLength % SDK_FRAME_BYTES !== 0) {
+        throw new Error(`PCM 长度非法：${pcm.byteLength}B`);
+      }
+      const sid = `replay-${Date.now()}`;
+      this.replaySessionId = sid;
+      this.compareInfo = `正在原样复测 ${pcm.byteLength / SDK_FRAME_BYTES} 帧…`;
+      this.status = this.compareInfo;
+      engine.startListening(this.buildCapturedStartParams(sid));
+      if (!engine.isBusy()) throw new Error('replay startListening failed');
+      const frames = pcm.byteLength / SDK_FRAME_BYTES;
+      for (let i = 0; i < frames; i++) {
+        if (!this.replaying || this.replaySessionId !== sid) return;
+        const offset = i * SDK_FRAME_BYTES;
+        engine.writeAudio(sid, pcm.slice(offset, offset + SDK_FRAME_BYTES));
+        if ((i + 1) % REPLAY_YIELD_EVERY_FRAMES === 0) await this.yieldReplayLoop();
+      }
+      if (!this.replaying || this.replaySessionId !== sid) return;
+      engine.finish(sid);
+    } catch (e) {
+      this.failSavedPcmReplay(`${e}`);
+    }
+  }
+
+  private yieldReplayLoop(): Promise<void> {
+    return new Promise<void>((resolve: () => void): void => {
+      setTimeout((): void => resolve(), 1);
+    });
+  }
+
+  private failSavedPcmReplay(message: string): void {
+    const engine = this.engine;
+    const sid = this.replaySessionId;
+    if (engine !== undefined && sid.length > 0 && engine.isBusy()) engine.cancel(sid);
+    this.replaying = false;
+    this.replaySessionId = '';
+    this.loading = false;
+    this.compareInfo = `原样复测失败：${message}`;
+    this.writeSdkCaptureMetadataBestEffort();
+    this.releaseModel(this.compareInfo);
   }
 
   private logStartTiming(label: string): void {
@@ -424,6 +725,13 @@ struct Index {
     // 之后再 finish 冲最终结果(与同事 5af9778「preserve recorder tail frames」对齐)。
     try {
       await this.stopCapture();
+      try {
+        // stopCapture has already emitted PcmFrameWriter's zero-padded final 640B frame.
+        this.saveSdkCapture();
+      } catch (e) {
+        this.captureReady = false;
+        this.captureInfo = `SDK PCM 保存失败：${e}`;
+      }
     } finally {
       this.listening = false;
       this.modelReady = false;
@@ -462,7 +770,16 @@ struct Index {
 
   private async stopCapture(): Promise<void> {
     // 先 await recorder.stop()(其内部重排为先冲出已缓冲的 readData 帧再 off),再补齐并吐出不足 640B 的尾帧。
-    await this.recorder?.stop();
+    const stats = await this.recorder?.stop();
+    if (stats !== undefined) {
+      this.recorderStats = stats;
+      hilog.info(0x0000, 'AudioCapture',
+        'CAPTURE_STATS|overflow=%{public}d|callbacks=%{public}d|bytes=%{public}d|bufferBytes=%{public}d' +
+        '|maxGapMs=%{public}d|lateCallbacks=%{public}d|gapExcessMs=%{public}d|maxWorkMs=%{public}d',
+        stats.overflowCount, stats.callbackCount, stats.totalBytes, stats.bufferSizeBytes,
+        stats.maxCallbackGapMs, stats.lateCallbackCount, stats.callbackGapExcessMs,
+        stats.maxCallbackWorkMs);
+    }
     this.recorder = undefined;
     this.frameWriter?.flushFinalFrame();
     this.frameWriter = undefined;
@@ -470,17 +787,26 @@ struct Index {
 
   // ---- listener bridge (called by DemoRecognitionListener) ----
 
-  handleStart(): void {
+  handleStart(sessionId: string): void {
+    if (sessionId === this.replaySessionId) {
+      this.status = '正在用上次 SDK PCM 原样复测…';
+      return;
+    }
     this.startCapture();
     this.status = '识别中…（再次点击结束）';
   }
 
-  handleResult(result: SpeechRecognitionResult): void {
+  handleResult(sessionId: string, result: SpeechRecognitionResult): void {
     this.trackPeak();
     if (result.isFinal) {
+      if (sessionId === this.replaySessionId) {
+        this.replayCompareText += result.result;
+        return;
+      }
+      this.liveCompareText += result.result;
       this.appendFinal(result);
       this.partialText = '';
-    } else {
+    } else if (sessionId !== this.replaySessionId) {
       this.partialText = result.result;
     }
   }
@@ -491,20 +817,48 @@ struct Index {
     }
   }
 
-  handleComplete(): void {
+  handleComplete(sessionId: string): void {
+    if (sessionId === this.replaySessionId) {
+      const matched = this.liveCompareText === this.replayCompareText;
+      this.replayHasCompleted = true;
+      this.replaying = false;
+      this.replaySessionId = '';
+      this.loading = false;
+      this.compareInfo = matched ? '原样复测：逐字一致' : '原样复测：结果不同，请检查实时喂帧/时序';
+      hilog.info(0x0000, 'PcmReplay',
+        'PCM_COMPARE|match=%{public}s|live=%{public}s|replay=%{public}s',
+        String(matched), this.liveCompareText, this.replayCompareText);
+      this.writeSdkCaptureMetadataBestEffort();
+      this.releaseModel(`${this.compareInfo} · 模型已卸载`);
+      return;
+    }
     if (this.listening) {
       // 连续场景的会话轮转(逼近 55s 上限):模型保持在内存,立即重开新会话,体验不中断。
       this.rotatingSession = false;
       this.startRecognitionSession();
     } else {
       // 用户点了结束识别、最终结果已下发:按甲方工况「用完即卸」,当场释放模型(L2),运行时(L1)常驻。
+      this.liveHasCompleted = true;
       this.stopCapture();
       this.sessionId = '';
-      this.releaseModel('模型已卸载 · 运行时常驻 · 点击开始识别按需加载');
+      this.writeSdkCaptureMetadataBestEffort();
+      const next = this.captureReady ?
+        'SDK PCM 已保存 · 可试听或原样重新识别 · 模型已卸载' :
+        '模型已卸载 · 运行时常驻 · 点击开始识别按需加载';
+      this.releaseModel(next);
     }
   }
 
-  handleError(errorCode: number, message: string): void {
+  handleError(sessionId: string, errorCode: number, message: string): void {
+    if (sessionId === this.replaySessionId) {
+      this.replaying = false;
+      this.replaySessionId = '';
+      this.loading = false;
+      this.compareInfo = `原样复测失败：${errorCode} ${message}`;
+      this.writeSdkCaptureMetadataBestEffort();
+      this.releaseModel(this.compareInfo);
+      return;
+    }
     this.stopCapture();
     this.listening = false;
     this.modelReady = false;
@@ -671,7 +1025,8 @@ struct Index {
       Row() {
         Text('声纹校验').fontSize(15).layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.voiceprintVerifyDesired })
-          .enabled(this.voiceprintModelReady && this.voiceprintId.length > 0)
+          .enabled(this.voiceprintModelReady && this.voiceprintId.length > 0 &&
+            !this.listening && !this.replaying)
           .onChange((isOn: boolean): void => this.onVoiceprintSwitch(isOn))
       }
       .width('100%')
@@ -685,7 +1040,8 @@ struct Index {
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
         Toggle({ type: ToggleType.Switch, isOn: this.speakerVadDesired })
-          .enabled(this.voiceprintModelReady && this.voiceprintId.length > 0)
+          .enabled(this.voiceprintModelReady && this.voiceprintId.length > 0 &&
+            !this.listening && !this.replaying)
           .onChange((isOn: boolean): void => this.onSpeakerVadSwitch(isOn))
       }
       .width('100%')
@@ -737,10 +1093,51 @@ struct Index {
       .padding(12)
       .align(Alignment.TopStart)
 
-      Button(this.listening ? '停止识别' : '开始识别')
+      if (this.captureReady || this.replaying) {
+        Column({ space: 4 }) {
+          Text('SDK 实际输入 PCM').fontSize(13).fontWeight(FontWeight.Medium).width('100%')
+          Text(this.captureInfo).fontSize(11).fontColor(Color.Gray).width('100%').maxLines(2)
+          if (this.liveHasCompleted) {
+            Text(`实录：${this.liveCompareText.length > 0 ? this.liveCompareText : '（空）'}`)
+              .fontSize(12).width('100%').maxLines(2)
+          }
+          if (this.replaying || this.replayHasCompleted) {
+            Text(`复测：${this.replayHasCompleted ?
+              (this.replayCompareText.length > 0 ? this.replayCompareText : '（空）') : '等待结果…'}`)
+              .fontSize(12).width('100%').maxLines(2)
+          }
+          if (this.compareInfo.length > 0) {
+            Text(this.compareInfo).fontSize(11)
+              .fontColor(this.replayHasCompleted && this.liveCompareText === this.replayCompareText ?
+                '#16803A' : Color.Gray)
+              .width('100%')
+          }
+          Row({ space: 8 }) {
+            Button(this.playingCapture ? '正在试听…' : '试听上次 PCM')
+              .layoutWeight(1)
+              .height(36)
+              .enabled(this.captureReady && !this.listening && !this.replaying &&
+                !this.playingCapture && !this.loading)
+              .onClick((): void => this.playLastSdkCapture())
+            Button(this.replaying ? '正在复测…' : '原样重新识别')
+              .layoutWeight(1)
+              .height(36)
+              .enabled(this.captureReady && !this.sdkCaptureTruncated && !this.listening &&
+                !this.replaying && !this.playingCapture && !this.loading)
+              .onClick((): void => this.replayLastSdkCapture())
+          }
+          .width('100%')
+        }
+        .width('100%')
+        .padding(8)
+        .backgroundColor('#EEF4FF')
+        .borderRadius(8)
+      }
+
+      Button(this.replaying ? '正在原样复测…' : (this.listening ? '停止识别' : '开始识别'))
         .width('100%')
         .height(48)
-        .enabled(this.runtimeReady)
+        .enabled(this.runtimeReady && !this.replaying && !this.playingCapture)
         .backgroundColor(this.listening ? '#E5533C' : BRAND_ACCENT)
         .onClick((): void => {
           if (this.listening) {
@@ -764,24 +1161,24 @@ class DemoRecognitionListener implements RecognitionListener {
     this.owner = owner;
   }
 
-  onStart(_sessionId: string, _eventMessage: string): void {
-    this.owner.handleStart();
+  onStart(sessionId: string, _eventMessage: string): void {
+    this.owner.handleStart(sessionId);
   }
 
   onEvent(_sessionId: string, eventCode: number, message: string): void {
     this.owner.handleEvent(eventCode, message);
   }
 
-  onResult(_sessionId: string, result: SpeechRecognitionResult): void {
-    this.owner.handleResult(result);
+  onResult(sessionId: string, result: SpeechRecognitionResult): void {
+    this.owner.handleResult(sessionId, result);
   }
 
-  onComplete(_sessionId: string, _eventMessage: string): void {
-    this.owner.handleComplete();
+  onComplete(sessionId: string, _eventMessage: string): void {
+    this.owner.handleComplete(sessionId);
   }
 
-  onError(_sessionId: string, errorCode: number, message: string): void {
-    this.owner.handleError(errorCode, message);
+  onError(sessionId: string, errorCode: number, message: string): void {
+    this.owner.handleError(sessionId, errorCode, message);
   }
 }
 
