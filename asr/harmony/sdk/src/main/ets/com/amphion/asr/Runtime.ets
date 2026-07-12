@@ -44,9 +44,10 @@ const EAGER_WARMUP_DURATION_MS: number = 0;
 // Hard cap on the per-utterance sample buffer used for speaker scoring, so a stuck utterance that
 // never endpoints can't grow unbounded (Android UTT_MAX_SAMPLES).
 const UTT_MAX_SAMPLES: number = 25 * ASR_SAMPLE_RATE_HZ;
-// Manual stop often lands exactly at the speech tail. Add right context before inputFinished so the
-// streaming model can emit trailing tokens instead of finalizing on a clipped encoder state.
-const FINAL_TAIL_SILENCE_MS: number = 500;
+// Manual stop often lands exactly at the speech tail. The zh-en encoder advances by a 64-frame
+// chunk (~640 ms); padding two complete chunks guarantees two more decode opportunities regardless
+// of the current chunk phase. This is synthetic input, not a 1.28-second wall-clock delay.
+const FINAL_TAIL_SILENCE_MS: number = 1280;
 
 class DoneCancellable implements Cancellable {
   private done: boolean = false;
