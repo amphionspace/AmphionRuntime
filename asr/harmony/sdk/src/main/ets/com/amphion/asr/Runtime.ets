@@ -44,6 +44,9 @@ const EAGER_WARMUP_DURATION_MS: number = 0;
 // Hard cap on the per-utterance sample buffer used for speaker scoring, so a stuck utterance that
 // never endpoints can't grow unbounded (Android UTT_MAX_SAMPLES).
 const UTT_MAX_SAMPLES: number = 25 * ASR_SAMPLE_RATE_HZ;
+// Manual stop often lands exactly at the speech tail. Add right context before inputFinished so the
+// streaming model can emit trailing tokens instead of finalizing on a clipped encoder state.
+const FINAL_TAIL_SILENCE_MS: number = 500;
 
 class DoneCancellable implements Cancellable {
   private done: boolean = false;
@@ -951,8 +954,9 @@ export class AsrSession {
     try {
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
       // Don't rebuild the stream afterwards (session is ending), so a soft reset is enough.
+      this.appendFinalTailSilence();
       this.stream.inputFinished();
-      this.drain(true, false);
+      this.drain(true, false, true);
       this.notifyStopped();
     } catch (e) {
       this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
@@ -999,7 +1003,7 @@ export class AsrSession {
     this.releaseStreamIfClosed();
   }
 
-  private drain(isFinal: boolean, restartAfterFinal: boolean = true): void {
+  private drain(isFinal: boolean, restartAfterFinal: boolean = true, isLastFinal: boolean = false): void {
     const decodeStartMs = Date.now();
     while (this.recognizer.isReady(this.stream)) {
       this.recognizer.decode(this.stream);
@@ -1008,14 +1012,14 @@ export class AsrSession {
 
     if (this.recognizer.isEndpoint(this.stream)) {
       this.callback.onEndpoint?.();
-      this.dispatchFinal(true, decodeDurationMs);
+      this.dispatchFinal(true, decodeDurationMs, isLastFinal);
       if (!this.closed) this.finishUtterance(restartAfterFinal);
       return;
     }
 
     const r = this.recognizer.getResult(this.stream);
     if (isFinal) {
-      this.dispatchFinal(false, decodeDurationMs);
+      this.dispatchFinal(false, decodeDurationMs, isLastFinal);
       if (!this.closed) this.finishUtterance(restartAfterFinal);
     } else if (r.text !== this.lastPartialText) {
       this.lastPartialText = r.text;
@@ -1034,12 +1038,13 @@ export class AsrSession {
     }
   }
 
-  private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number): void {
+  private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number, isLast: boolean = false): void {
     const native = this.recognizer.getResult(this.stream);
     const result = new AsrResult();
     result.text = native.text;
     result.tokens = native.tokens;
     result.timestamps = native.timestamps;
+    result.isLast = isLast;
     const postStartMs = Date.now();
     if (this.config.itn && this.language === AsrLanguage.ZH_EN && !this.itnWarned) {
       this.callback.onDebug?.('Harmony WeText ITN NAPI is not packaged; final text keeps raw ITN form before punctuation.');
@@ -1223,6 +1228,13 @@ export class AsrSession {
     const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
     this.stream.acceptWaveform(wave);
     this.drain(isFinal);
+  }
+
+  private appendFinalTailSilence(): void {
+    const n = Math.max(0, Math.round(ASR_SAMPLE_RATE_HZ * FINAL_TAIL_SILENCE_MS / 1000));
+    if (n === 0) return;
+    const wave: Samples = { samples: new Float32Array(n), sampleRate: ASR_SAMPLE_RATE_HZ } as Samples;
+    this.stream.acceptWaveform(wave);
   }
 
   private applyTargetSpeaker(result: AsrResult): void {
