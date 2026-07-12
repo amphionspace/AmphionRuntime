@@ -46,6 +46,24 @@ python3 asr/tools/verify_packed_model_assets.py \
 
 当前 NAPI 边界会把 recognizer 创建异常转成 ArkTS 异常；无效模型应显示“引擎初始化失败”，不应再触发 App `SIGABRT`。
 
+当前 `zhen` 正式交付使用 manifest v2 和
+`zh-en/v1/{encoder.int8.ort,decoder.int8.ort,joiner.int8.ort}`。如果 HAP 仍包含 ONNX 三图、
+manifest v1，或 HAP 内 manifest/native 与本地验收产物不同，说明混入了旧构建产物；重新执行
+模型打包和 `build_install_smoke.sh`，不要直接复用旧 HAP。
+
+## 冷加载回退
+
+先运行独立进程基准，不要用页面打开时间代替模型加载时间：
+
+```bash
+python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
+  --skip-build --device <HDC_TARGET> --warmup-runs 2 --iterations 10
+```
+
+报告的 comparison identity 必须显示 4 threads、0 warmup samples、punctuation loaded，并与
+待比较基线具有相同设备构建和模型源 SHA-256。当前 `zhen` 参考值和常见误判见
+[`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)。
+
 ## 真机日志
 
 清空和导出日志应通过设备 shell 执行：

@@ -1,67 +1,207 @@
 #!/usr/bin/env python3
-"""Verify packed ASR model paths, sizes, and SHA-256 values."""
+"""Verify packed ASR model paths, sizes, SHA-256 values, and target format."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import re
 import sys
 import zipfile
 from pathlib import Path
-from typing import BinaryIO, Callable
+from typing import BinaryIO, Callable, Iterable
 
 
-EXPECTED_BUNDLES = {
-    "zh-en/v1": ["encoder.int8.onnx", "decoder.onnx", "joiner.int8.onnx", "tokens.txt", "bbpe.vocab"],
-    "yue-en/v1": ["encoder.int8.onnx", "decoder.onnx", "joiner.int8.onnx", "tokens.txt", "bbpe.vocab"],
+EXPECTED_BUNDLES_V1 = {
+    "zh-en/v1": [
+        "encoder.int8.onnx",
+        "decoder.onnx",
+        "joiner.int8.onnx",
+        "tokens.txt",
+        "bbpe.vocab",
+    ],
+    "yue-en/v1": [
+        "encoder.int8.onnx",
+        "decoder.onnx",
+        "joiner.int8.onnx",
+        "tokens.txt",
+        "bbpe.vocab",
+    ],
     "punct-zhen/v1": ["model.int8.onnx"],
     "itn-zh/v1": ["zh_itn_tagger.fst", "zh_itn_verbalizer.fst"],
     "vad/v1": ["silero_vad.onnx"],
 }
+
+EXPECTED_BUNDLES_V2 = {
+    "zh-en/v1": [
+        "encoder.int8.ort",
+        "decoder.int8.ort",
+        "joiner.int8.ort",
+        "tokens.txt",
+        "bbpe.vocab",
+    ],
+    "yue-en/v1": [
+        "encoder.int8.onnx",
+        "decoder.onnx",
+        "joiner.int8.onnx",
+        "tokens.txt",
+        "bbpe.vocab",
+    ],
+    "punct-zhen/v1": ["model.int8.ort"],
+    "itn-zh/v1": ["zh_itn_tagger.fst", "zh_itn_verbalizer.fst"],
+    "vad/v1": ["silero_vad.onnx"],
+}
+
+EXPECTED_HARMONY_TARGET = {
+    "platform": "HarmonyOS",
+    "architecture": "arm64",
+    "execution_provider": "CPUExecutionProvider",
+}
+HARMONY_CONVERTER_ID = "onnxruntime-1.16.3-fixed-arm-cpu-v1"
+EXPECTED_HARMONY_CONVERTER = {
+    "id": HARMONY_CONVERTER_ID,
+    "onnxruntime_version": "1.16.3",
+    "onnx_version": "1.15.0",
+    "numpy_version": "1.26.4",
+    "optimization_style": "Fixed",
+    "graph_optimization_level": "all",
+    "target_platform": "arm",
+    "execution_provider": "CPUExecutionProvider",
+    "disabled_optimizers": ["NchwcTransformer"],
+}
+SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
 def fail(message: str) -> None:
     raise ValueError(message)
 
 
-def sha256_stream(stream: BinaryIO) -> str:
+def sha256_and_size(stream: BinaryIO) -> tuple[str, int]:
     digest = hashlib.sha256()
+    size = 0
     for chunk in iter(lambda: stream.read(1024 * 1024), b""):
         digest.update(chunk)
-    return digest.hexdigest()
+        size += len(chunk)
+    return digest.hexdigest(), size
 
 
-def validate_manifest(manifest: dict) -> dict[str, list[dict]]:
-    if manifest.get("manifest_version") != 1:
-        fail("manifest_version must be 1")
+def _validate_v2_header(manifest: dict) -> None:
+    if manifest.get("target") != EXPECTED_HARMONY_TARGET:
+        fail("manifest v2 target must be HarmonyOS arm64 CPUExecutionProvider")
+    converters = manifest.get("converters")
+    if not isinstance(converters, dict):
+        fail("manifest v2 converters must be an object")
+    if converters.get("copy") != {"mode": "byte-for-byte"}:
+        fail("manifest v2 copy converter is invalid")
+    if converters.get(HARMONY_CONVERTER_ID) != EXPECTED_HARMONY_CONVERTER:
+        fail("manifest v2 ONNX Runtime converter is invalid")
+    if set(converters) != {"copy", HARMONY_CONVERTER_ID}:
+        fail("manifest v2 converter list is invalid")
+
+
+def validate_manifest(
+    manifest: dict,
+) -> tuple[int, dict[str, list[dict]], dict[str, list[str]]]:
+    version = manifest.get("manifest_version")
+    if version == 1:
+        expected_bundles = EXPECTED_BUNDLES_V1
+    elif version == 2:
+        _validate_v2_header(manifest)
+        expected_bundles = EXPECTED_BUNDLES_V2
+    else:
+        fail("manifest_version must be 1 or 2")
+
     bundles = manifest.get("bundles")
     if not isinstance(bundles, dict):
         fail("manifest bundles must be an object")
-    if set(bundles) != set(EXPECTED_BUNDLES):
-        missing = sorted(set(EXPECTED_BUNDLES) - set(bundles))
-        extra = sorted(set(bundles) - set(EXPECTED_BUNDLES))
+    if set(bundles) != set(expected_bundles):
+        missing = sorted(set(expected_bundles) - set(bundles))
+        extra = sorted(set(bundles) - set(expected_bundles))
         fail(f"manifest bundle mismatch: missing={missing} extra={extra}")
-    return bundles
+    return version, bundles, expected_bundles
+
+
+def _expected_v2_format(name: str) -> str:
+    suffix = Path(name).suffix.lower()
+    return {
+        ".ort": "ort",
+        ".onnx": "onnx",
+        ".fst": "fst",
+        ".txt": "text",
+        ".vocab": "text",
+    }[suffix]
+
+
+def _validate_v2_entry(entry: dict, name: str, relative_path: str) -> str:
+    source_name = entry.get("source_name")
+    if (
+        not isinstance(source_name, str)
+        or not source_name
+        or Path(source_name).name != source_name
+    ):
+        fail(f"invalid source_name: {relative_path}")
+    source_sha256 = entry.get("source_sha256")
+    output_sha256 = entry.get("output_sha256")
+    if not isinstance(source_sha256, str) or not SHA256_PATTERN.fullmatch(source_sha256):
+        fail(f"invalid source_sha256: {relative_path}")
+    if not isinstance(output_sha256, str) or not SHA256_PATTERN.fullmatch(output_sha256):
+        fail(f"invalid output_sha256: {relative_path}")
+    if entry.get("format") != _expected_v2_format(name):
+        fail(f"format mismatch: {relative_path}")
+
+    expected_converter = HARMONY_CONVERTER_ID if name.endswith(".ort") else "copy"
+    if entry.get("converter") != expected_converter:
+        fail(f"converter mismatch: {relative_path}")
+    if expected_converter == "copy" and source_sha256 != output_sha256:
+        fail(f"copy source/output sha256 mismatch: {relative_path}")
+    return output_sha256
+
+
+def _validate_exact_v2_assets(
+    asset_names: Iterable[str], expected_bundles: dict[str, list[str]]
+) -> None:
+    expected = {
+        f"{bundle}/{name}" for bundle, names in expected_bundles.items() for name in names
+    }
+    bundle_families = {bundle.split("/", 1)[0] for bundle in expected_bundles}
+    actual = {
+        name.strip("/")
+        for name in asset_names
+        if name.strip("/").split("/", 1)[0] in bundle_families
+        and Path(name).name != ".gitkeep"
+    }
+    if actual != expected:
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        fail(f"Harmony target file mismatch: missing={missing} extra={extra}")
 
 
 def verify_assets(
     manifest_bytes: bytes,
     open_asset: Callable[[str], BinaryIO],
     asset_exists: Callable[[str], bool],
+    list_assets: Callable[[], Iterable[str]],
     source_label: str,
 ) -> int:
     manifest = json.loads(manifest_bytes.decode("utf-8"))
-    bundles = validate_manifest(manifest)
+    version, bundles, expected_bundles = validate_manifest(manifest)
+    if version == 2:
+        _validate_exact_v2_assets(list_assets(), expected_bundles)
     verified = 0
 
-    for bundle, expected_names in EXPECTED_BUNDLES.items():
+    for bundle, expected_names in expected_bundles.items():
         entries = bundles[bundle]
         if not isinstance(entries, list):
             fail(f"manifest bundle {bundle} must be an array")
-        by_name = {entry.get("name"): entry for entry in entries if isinstance(entry, dict)}
-        if len(by_name) != len(entries) or set(by_name) != set(expected_names):
+        if not all(isinstance(entry, dict) for entry in entries):
+            fail(f"manifest bundle {bundle} contains a non-object entry")
+        names = [entry.get("name") for entry in entries]
+        if not all(isinstance(name, str) for name in names):
+            fail(f"manifest bundle {bundle} contains an invalid name")
+        if len(set(names)) != len(entries) or set(names) != set(expected_names):
             fail(f"manifest file list mismatch for {bundle}")
+        by_name = {entry["name"]: entry for entry in entries}
 
         for name in expected_names:
             entry = by_name[name]
@@ -69,14 +209,15 @@ def verify_assets(
             if not asset_exists(relative_path):
                 fail(f"missing model asset: {relative_path}")
             with open_asset(relative_path) as stream:
-                digest = sha256_stream(stream)
-            with open_asset(relative_path) as stream:
-                size = 0
-                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                    size += len(chunk)
+                digest, size = sha256_and_size(stream)
             if size != entry.get("size_bytes"):
                 fail(f"size mismatch: {relative_path}")
-            if digest != str(entry.get("sha256", "")).lower():
+            expected_digest = (
+                str(entry.get("sha256", "")).lower()
+                if version == 1
+                else _validate_v2_entry(entry, name, relative_path)
+            )
+            if digest != expected_digest:
                 fail(f"sha256 mismatch: {relative_path}")
             verified += 1
 
@@ -85,7 +226,7 @@ def verify_assets(
             if stale_path != relative_path and asset_exists(stale_path):
                 fail(f"stale unversioned model asset: {stale_path}")
 
-    print(f"[OK] verified {verified} model assets in {source_label}")
+    print(f"[OK] verified manifest v{version} with {verified} model assets in {source_label}")
     return verified
 
 
@@ -100,7 +241,12 @@ def verify_directory(root: Path) -> int:
     def asset_exists(relative_path: str) -> bool:
         return (root / relative_path).is_file()
 
-    return verify_assets(manifest_path.read_bytes(), open_asset, asset_exists, str(root))
+    def list_assets() -> Iterable[str]:
+        return (path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file())
+
+    return verify_assets(
+        manifest_path.read_bytes(), open_asset, asset_exists, list_assets, str(root)
+    )
 
 
 def verify_archive(archive: Path, prefix: str) -> int:
@@ -117,7 +263,17 @@ def verify_archive(archive: Path, prefix: str) -> int:
         def asset_exists(relative_path: str) -> bool:
             return f"{normalized_prefix}/{relative_path}" in names
 
-        return verify_assets(package.read(manifest_name), open_asset, asset_exists, str(archive))
+        def list_assets() -> Iterable[str]:
+            prefix_with_separator = f"{normalized_prefix}/"
+            return (
+                name[len(prefix_with_separator) :]
+                for name in names
+                if name.startswith(prefix_with_separator) and not name.endswith("/")
+            )
+
+        return verify_assets(
+            package.read(manifest_name), open_asset, asset_exists, list_assets, str(archive)
+        )
 
 
 def main() -> None:
@@ -137,7 +293,14 @@ def main() -> None:
             verify_directory(args.root)
         else:
             verify_archive(args.archive, args.prefix)
-    except (OSError, ValueError, json.JSONDecodeError, zipfile.BadZipFile, KeyError) as error:
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        zipfile.BadZipFile,
+        KeyError,
+    ) as error:
         print(f"[ERROR] {error}", file=sys.stderr)
         raise SystemExit(1) from error
 

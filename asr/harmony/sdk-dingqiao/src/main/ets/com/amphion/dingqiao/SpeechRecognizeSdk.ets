@@ -201,6 +201,32 @@ function buildAsrConfig(params: CreateEngineParams, startParams?: StartParams, w
   return config;
 }
 
+function snapshotExtraParams(source: Record<string, Object>): Record<string, Object> {
+  const snapshot: Record<string, Object> = {};
+  const keys: string[] = Object.keys(source);
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const value = source[key];
+    if (Array.isArray(value)) {
+      const sourceArray = value as Object[];
+      const arraySnapshot: Object[] = [];
+      for (let j = 0; j < sourceArray.length; j++) arraySnapshot.push(sourceArray[j]);
+      snapshot[key] = arraySnapshot;
+    } else if (value !== undefined) {
+      snapshot[key] = value;
+    }
+  }
+  return snapshot;
+}
+
+function snapshotCreateEngineParams(source: CreateEngineParams): CreateEngineParams {
+  const snapshot = new CreateEngineParams();
+  snapshot.language = source.language;
+  snapshot.online = source.online;
+  snapshot.extraParams = snapshotExtraParams(source.extraParams);
+  return snapshot;
+}
+
 function buildTargetSpeakerConfig(startParams: StartParams | undefined, withSpeakerVad: boolean): TargetSpeakerConfig {
   const extra = startParams?.extraParams ?? {};
   const cfg = new TargetSpeakerConfig();
@@ -254,11 +280,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
   private engineCfgKey: string = '';
 
-  constructor(context: Context, params: CreateEngineParams) {
+  constructor(context: Context, params: CreateEngineParams, preloadedEngine?: AsrEngine) {
     this.context = context;
-    this.params = params;
-    this.pipeline = PoliceEnhancePipeline.create(buildEnhanceOptions(params));
-    this.asrEngine = AmphionRuntime.create(context, languageOf(params.language), buildAsrConfig(params));
+    this.params = snapshotCreateEngineParams(params);
+    this.pipeline = PoliceEnhancePipeline.create(buildEnhanceOptions(this.params));
+    this.asrEngine = preloadedEngine ??
+      AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(this.params));
     this.engineCfgKey = this.computeEngineCfgKey(undefined, false, false);
   }
 
@@ -427,6 +454,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   }
 
   isBusy(): boolean { return this.busy; }
+
+  // Kept off the customer interface; the delivery cold-load harness uses this to reject a
+  // misleading "fast" sample when optional punctuation construction silently degraded.
+  isPunctuationLoaded(): boolean { return this.asrEngine.isPunctuationLoaded(); }
 
   shutdown(): void {
     if (this.destroyed) return;
@@ -795,15 +826,25 @@ export class SpeechRecognizeSdk {
   }
 
   static createEngineAsync(params: CreateEngineParams, callback: CreateEngineCallback): void {
-    // 让出一帧再做重活(模型加载+一次性预热),使 UI 先渲染"加载中"态,避免调用即冻屏。
-    // 注:sherpa NAPI 对象线程绑定,无法搬到 Worker,故仍在调用线程执行;此处仅消除"点击即卡死"的观感。
-    setTimeout((): void => {
-      try {
-        callback.onSuccess(SpeechRecognizeSdk.createEngine(params));
-      } catch (e) {
-        callback.onError(DingqiaoErrorCode.CREATE_ENGINE_FAILED, `${e}`);
-      }
-    }, 0);
+    const context = SpeechRecognizeSdk.context;
+    if (context === undefined) {
+      callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, 'SpeechRecognizeSdk.init must be called first');
+      return;
+    }
+    try {
+      const paramsSnapshot = snapshotCreateEngineParams(params);
+      const language: AsrLanguage = languageOf(paramsSnapshot.language);
+      const config: AsrConfig = buildAsrConfig(paramsSnapshot);
+      AmphionRuntime.createAsync(context, language, config)
+        .then((engine: AsrEngine): void => {
+          callback.onSuccess(new DingqiaoRecognitionEngineImpl(context, paramsSnapshot, engine));
+        })
+        .catch((e: Object): void => {
+          callback.onError(DingqiaoErrorCode.CREATE_ENGINE_FAILED, `${e}`);
+        });
+    } catch (e) {
+      callback.onError(DingqiaoErrorCode.CREATE_ENGINE_FAILED, `${e}`);
+    }
   }
 
   static registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult {

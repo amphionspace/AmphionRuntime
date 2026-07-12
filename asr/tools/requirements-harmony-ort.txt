@@ -1,0 +1,6 @@
+# Keep the build-time converter byte-compatible with the Harmony runtime
+# (third_party/sherpa-onnx downloads ONNX Runtime 1.16.3 for OHOS).
+onnxruntime==1.16.3
+numpy==1.26.4
+# convert_onnx_models_to_ort imports ONNX model helpers but ORT does not declare it.
+onnx==1.15.0

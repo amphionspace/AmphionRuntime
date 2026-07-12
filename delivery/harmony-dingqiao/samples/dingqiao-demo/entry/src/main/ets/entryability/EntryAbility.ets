@@ -5,6 +5,7 @@ import hilog from '@ohos.hilog';
 import deviceInfo from '@ohos.deviceInfo';
 import { LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
 import { DeviceStressOptions, runDeviceStress } from '../util/DeviceStressTest';
+import { ModelLoadBenchOptions, runModelLoadBench } from '../util/ModelLoadBench';
 import { runSdkSelfTest } from '../util/SdkSelfTest';
 
 class DemoDeviceIdProvider implements LicenseDeviceIdProvider {
@@ -18,6 +19,7 @@ class DemoDeviceIdProvider implements LicenseDeviceIdProvider {
 export default class EntryAbility extends UIAbility {
   private selfTest: boolean = false;
   private stressTest: boolean = false;
+  private loadBench: boolean = false;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     // Process-level SDK init + work directory live here (mirrors Android DingqiaoApp) so every page
@@ -36,9 +38,17 @@ export default class EntryAbility extends UIAbility {
     const params = want.parameters;
     this.selfTest = params !== undefined && params['selftest'] === 'true';
     this.stressTest = params !== undefined && params['stress'] === 'true';
+    this.loadBench = params !== undefined && params['loadbench'] === 'true';
     if (this.selfTest) {
       runSdkSelfTest(this.context).catch((e: Object): void => {
         hilog.error(0x0000, 'SdkSelfTest', 'self-test crashed: %{public}s', `${e}`);
+      });
+    } else if (this.loadBench) {
+      const options = new ModelLoadBenchOptions();
+      options.runId = this.stringParameter(want, 'loadbenchRunId', 'manual');
+      options.resultPath = this.stringParameter(want, 'loadbenchResult', '');
+      runModelLoadBench(this.context, options).catch((e: Object): void => {
+        hilog.error(0x0000, 'ModelLoadBench', 'model load benchmark crashed: %{public}s', `${e}`);
       });
     } else if (this.stressTest) {
       const options = new DeviceStressOptions();
@@ -56,7 +66,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    if (this.selfTest || this.stressTest) {
+    if (this.selfTest || this.stressTest || this.loadBench) {
       hilog.info(0x0000, 'DingqiaoDemo', 'headless test mode: skipping UI');
       return;
     }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0 — hotfix 2026-07-12（Harmony ASR 冷加载）
+
+- `zhen` encoder/INT8 decoder/joiner 与标点模型在构建期转换为 ARM CPU ORT 格式，运行时关闭重复图优化并直接使用 rawfile 映射模型字节。
+- recognizer 与标点异步并行加载；transducer Session 采用 encoder 关键 lane 与 decoder/joiner 辅助 lane，相同配置使用 single-flight 与进程内 pool。
+- 鼎桥配置使用 4 个 ORT worker，并跳过收益不足的 800 ms eager warmup。
+- 新增独立进程 `createEngineAsync` 加载基准，固定设备构建、模型源哈希、HAP/native hash、线程数、预热样本和标点状态。
+- 真机 `zhen` 冷加载 p50 从 3884.5 ms 降至 774.5 ms，p95 为 810.25 ms；pool hit 为 0–1 ms。48 轮真实音频回归通过。
+
 ## 0.1.0 — hotfix 2026-07-10（授权、模型与真机验收）
 
 - `SpeechRecognizeSdk.init` 支持宿主注入 `deviceIdProvider`；普通 Demo 使用 ODID，特权宿主保留硬件 SN 路径。
