@@ -1,0 +1,533 @@
+From 8a1237c3e17d91e3bacaf947b788f3e4af54f07a Mon Sep 17 00:00:00 2001
+From: dazhanzheng <1365950682@qq.com>
+Date: Mon, 13 Jul 2026 00:20:22 +0800
+Subject: [PATCH] feat(harmony): deterministic model unload + prepack toggle
+
+Add explicit-destroy handles for OnlineRecognizer and OfflinePunctuation
+(mirroring the OnlineStreamHandle pattern from patch 0006), exposing
+destroyOnlineRecognizer / destroyOfflinePunctuation to ArkTS with idempotent
+Close() that is safe against the NAPI finalizer. Without this, clearing the
+ArkTS pool only drops references and the recognizer/punctuation ORT session
+memory (~150+ MB) is reclaimed only at GC, so SpeechRecognizeSdk.unloadModel
+cannot actually free memory. Verified on 9020: unloadModel now frees ~283 MB.
+
+Also add a deployment-time prepack toggle with no C-API/ABI change: session.cc
+parses an inline provider config ("cpu;DisablePrepacking=1") and applies
+session.disable_prepacking, so an ArkTS-level AsrConfig flag can trade
+inference throughput for lower cold-load latency and peak memory.
+---
+ .../src/main/cpp/offline-punctuation-handle.h | 62 +++++++++++++++++
+ .../src/main/cpp/offline-punctuation.cc       | 33 ++++++----
+ .../src/main/cpp/online-recognizer-handle.h   | 66 +++++++++++++++++++
+ .../sherpa_onnx/src/main/cpp/streaming-asr.cc | 43 +++++++-----
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |  2 +
+ .../ets/components/OfflinePunctuation.ets     | 10 +++
+ .../src/main/ets/components/StreamingAsr.ets  | 10 +++
+ sherpa-onnx/csrc/session.cc                   | 36 ++++++++++
+ 8 files changed, 230 insertions(+), 32 deletions(-)
+ create mode 100644 harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation-handle.h
+ create mode 100644 harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-recognizer-handle.h
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation-handle.h b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation-handle.h
+new file mode 100644
+index 00000000..0897cdfe
+--- /dev/null
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation-handle.h
+@@ -0,0 +1,62 @@
++#ifndef SHERPA_ONNX_HARMONY_OFFLINE_PUNCTUATION_HANDLE_H_
++#define SHERPA_ONNX_HARMONY_OFFLINE_PUNCTUATION_HANDLE_H_
++
++#include <atomic>
++#include <cstdint>
++
++#include "napi.h"  // NOLINT
++#include "sherpa-onnx/c-api/c-api.h"
++
++// Deterministic-release wrapper for the native offline punctuation model
++// (ct-transformer, ~70 MB), mirroring OnlineRecognizerHandle so
++// SpeechRecognizeSdk.unloadModel can actually free it instead of waiting for GC.
++// Close() is idempotent, so explicit destroy + finalizer never double-free.
++class OfflinePunctuationHandle {
++ public:
++  explicit OfflinePunctuationHandle(const SherpaOnnxOfflinePunctuation *punct)
++      : punct_(punct) {
++    if (punct_ != nullptr) LiveCount().fetch_add(1);
++  }
++
++  ~OfflinePunctuationHandle() { Close(); }
++
++  const SherpaOnnxOfflinePunctuation *Get() const { return punct_; }
++
++  void Close() {
++    if (punct_ == nullptr) return;
++    SherpaOnnxDestroyOfflinePunctuation(punct_);
++    punct_ = nullptr;
++    LiveCount().fetch_sub(1);
++  }
++
++  static int64_t ActiveCount() { return LiveCount().load(); }
++
++ private:
++  static std::atomic<int64_t> &LiveCount() {
++    static std::atomic<int64_t> count{0};
++    return count;
++  }
++
++  const SherpaOnnxOfflinePunctuation *punct_;
++};
++
++inline Napi::External<OfflinePunctuationHandle> WrapOfflinePunctuation(
++    Napi::Env env, const SherpaOnnxOfflinePunctuation *punct) {
++  auto *handle = new OfflinePunctuationHandle(punct);
++  return Napi::External<OfflinePunctuationHandle>::New(
++      env, handle,
++      [](Napi::Env, OfflinePunctuationHandle *value) { delete value; });
++}
++
++inline OfflinePunctuationHandle *GetOfflinePunctuationHandle(
++    const Napi::CallbackInfo &info, size_t index) {
++  return info[index].As<Napi::External<OfflinePunctuationHandle>>().Data();
++}
++
++inline const SherpaOnnxOfflinePunctuation *GetOfflinePunctuation(
++    const Napi::CallbackInfo &info, size_t index) {
++  OfflinePunctuationHandle *handle = GetOfflinePunctuationHandle(info, index);
++  return handle == nullptr ? nullptr : handle->Get();
++}
++
++#endif  // SHERPA_ONNX_HARMONY_OFFLINE_PUNCTUATION_HANDLE_H_
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation.cc
+index eac2ac90..a7f43c58 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation.cc
+@@ -8,6 +8,7 @@
+ 
+ #include "macros.h"  // NOLINT
+ #include "napi.h"    // NOLINT
++#include "offline-punctuation-handle.h"  // NOLINT
+ #include "sherpa-onnx/c-api/c-api.h"
+ 
+ static SherpaOnnxOfflinePunctuationModelConfig GetOfflinePunctuationModelConfig(
+@@ -44,7 +45,7 @@ static void FreeOfflinePunctuationConfig(
+   SHERPA_ONNX_DELETE_C_STR(config.model.provider);
+ }
+ 
+-static Napi::External<SherpaOnnxOfflinePunctuation>
++static Napi::External<OfflinePunctuationHandle>
+ CreateOfflinePunctuationWrapper(const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+ #if __OHOS__
+@@ -116,11 +117,7 @@ CreateOfflinePunctuationWrapper(const Napi::CallbackInfo &info) {
+     return {};
+   }
+ 
+-  return Napi::External<SherpaOnnxOfflinePunctuation>::New(
+-      env, const_cast<SherpaOnnxOfflinePunctuation *>(punct),
+-      [](Napi::Env env, SherpaOnnxOfflinePunctuation *punct) {
+-        SherpaOnnxDestroyOfflinePunctuation(punct);
+-      });
++  return WrapOfflinePunctuation(env, punct);
+ }
+ 
+ class CreateOfflinePunctuationAsyncWorker : public Napi::AsyncWorker {
+@@ -179,12 +176,8 @@ class CreateOfflinePunctuationAsyncWorker : public Napi::AsyncWorker {
+       return;
+     }
+ 
+-    Napi::External<SherpaOnnxOfflinePunctuation> external =
+-        Napi::External<SherpaOnnxOfflinePunctuation>::New(
+-            env, const_cast<SherpaOnnxOfflinePunctuation *>(punctuation_),
+-            [](Napi::Env /*env*/, SherpaOnnxOfflinePunctuation *punctuation) {
+-              SherpaOnnxDestroyOfflinePunctuation(punctuation);
+-            });
++    Napi::External<OfflinePunctuationHandle> external =
++        WrapOfflinePunctuation(env, punctuation_);
+     punctuation_ = nullptr;
+     ReleaseResourceManager();
+     deferred_.Resolve(external);
+@@ -315,8 +308,7 @@ static Napi::String OfflinePunctuationAddPunctWrapper(
+     return {};
+   }
+ 
+-  const SherpaOnnxOfflinePunctuation *punct =
+-      info[0].As<Napi::External<SherpaOnnxOfflinePunctuation>>().Data();
++  const SherpaOnnxOfflinePunctuation *punct = GetOfflinePunctuation(info, 0);
+   Napi::String js_text = info[1].As<Napi::String>();
+   std::string text = js_text.Utf8Value();
+ 
+@@ -328,6 +320,17 @@ static Napi::String OfflinePunctuationAddPunctWrapper(
+   return ans;
+ }
+ 
++static void DestroyOfflinePunctuationWrapper(const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 1 || !info[0].IsExternal()) {
++    Napi::TypeError::New(env, "Expected one offline punctuation handle")
++        .ThrowAsJavaScriptException();
++    return;
++  }
++  OfflinePunctuationHandle *handle = GetOfflinePunctuationHandle(info, 0);
++  if (handle != nullptr) handle->Close();
++}
++
+ void InitOfflinePunctuation(Napi::Env env, Napi::Object exports) {
+   exports.Set(Napi::String::New(env, "createOfflinePunctuation"),
+               Napi::Function::New(env, CreateOfflinePunctuationWrapper));
+@@ -337,4 +340,6 @@ void InitOfflinePunctuation(Napi::Env env, Napi::Object exports) {
+ 
+   exports.Set(Napi::String::New(env, "offlinePunctuationAddPunct"),
+               Napi::Function::New(env, OfflinePunctuationAddPunctWrapper));
++  exports.Set(Napi::String::New(env, "destroyOfflinePunctuation"),
++              Napi::Function::New(env, DestroyOfflinePunctuationWrapper));
+ }
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-recognizer-handle.h b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-recognizer-handle.h
+new file mode 100644
+index 00000000..6b40e5c3
+--- /dev/null
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-recognizer-handle.h
+@@ -0,0 +1,66 @@
++#ifndef SHERPA_ONNX_HARMONY_ONLINE_RECOGNIZER_HANDLE_H_
++#define SHERPA_ONNX_HARMONY_ONLINE_RECOGNIZER_HANDLE_H_
++
++#include <atomic>
++#include <cstdint>
++
++#include "napi.h"  // NOLINT
++#include "sherpa-onnx/c-api/c-api.h"
++
++// Deterministic-release wrapper for a native online recognizer, mirroring
++// OnlineStreamHandle. Without it the recognizer's ~150+ MB of ORT session
++// memory is only reclaimed when the NAPI-wrapped External is garbage-collected
++// and its finalizer runs, so SpeechRecognizeSdk.unloadModel (which just drops
++// ArkTS references) could not actually free memory. Close() is idempotent, so an
++// explicit destroyOnlineRecognizer() and the later finalizer never double-free.
++class OnlineRecognizerHandle {
++ public:
++  explicit OnlineRecognizerHandle(const SherpaOnnxOnlineRecognizer *recognizer)
++      : recognizer_(recognizer) {
++    if (recognizer_ != nullptr) LiveCount().fetch_add(1);
++  }
++
++  ~OnlineRecognizerHandle() { Close(); }
++
++  const SherpaOnnxOnlineRecognizer *Get() const { return recognizer_; }
++
++  void Close() {
++    if (recognizer_ == nullptr) return;
++    SherpaOnnxDestroyOnlineRecognizer(recognizer_);
++    recognizer_ = nullptr;
++    LiveCount().fetch_sub(1);
++  }
++
++  static int64_t ActiveCount() { return LiveCount().load(); }
++
++ private:
++  static std::atomic<int64_t> &LiveCount() {
++    static std::atomic<int64_t> count{0};
++    return count;
++  }
++
++  const SherpaOnnxOnlineRecognizer *recognizer_;
++};
++
++inline Napi::External<OnlineRecognizerHandle> WrapOnlineRecognizer(
++    Napi::Env env, const SherpaOnnxOnlineRecognizer *recognizer) {
++  auto *handle = new OnlineRecognizerHandle(recognizer);
++  return Napi::External<OnlineRecognizerHandle>::New(
++      env, handle,
++      [](Napi::Env, OnlineRecognizerHandle *value) { delete value; });
++}
++
++inline OnlineRecognizerHandle *GetOnlineRecognizerHandle(
++    const Napi::CallbackInfo &info, size_t index) {
++  return info[index].As<Napi::External<OnlineRecognizerHandle>>().Data();
++}
++
++// Unwrap for the many recognizer methods; returns nullptr on a closed handle so
++// existing null checks at the call sites still fire.
++inline const SherpaOnnxOnlineRecognizer *GetOnlineRecognizer(
++    const Napi::CallbackInfo &info, size_t index) {
++  OnlineRecognizerHandle *handle = GetOnlineRecognizerHandle(info, index);
++  return handle == nullptr ? nullptr : handle->Get();
++}
++
++#endif  // SHERPA_ONNX_HARMONY_ONLINE_RECOGNIZER_HANDLE_H_
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+index c1ff369c..4e48d48b 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+@@ -9,6 +9,7 @@
+ 
+ #include "macros.h"  // NOLINT
+ #include "napi.h"    // NOLINT
++#include "online-recognizer-handle.h"  // NOLINT
+ #include "online-stream-handle.h"  // NOLINT
+ #include "sherpa-onnx/c-api/c-api.h"
+ /*
+@@ -268,7 +269,7 @@ static void FreeOnlineRecognizerConfig(SherpaOnnxOnlineRecognizerConfig &c) {
+   SHERPA_ONNX_DELETE_C_STR(c.hr.rule_fsts);
+ }
+ 
+-static Napi::External<SherpaOnnxOnlineRecognizer> CreateOnlineRecognizerWrapper(
++static Napi::External<OnlineRecognizerHandle> CreateOnlineRecognizerWrapper(
+     const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+ #if __OHOS__
+@@ -351,11 +352,7 @@ static Napi::External<SherpaOnnxOnlineRecognizer> CreateOnlineRecognizerWrapper(
+     return {};
+   }
+ 
+-  return Napi::External<SherpaOnnxOnlineRecognizer>::New(
+-      env, const_cast<SherpaOnnxOnlineRecognizer *>(recognizer),
+-      [](Napi::Env env, SherpaOnnxOnlineRecognizer *recognizer) {
+-        SherpaOnnxDestroyOnlineRecognizer(recognizer);
+-      });
++  return WrapOnlineRecognizer(env, recognizer);
+ }
+ 
+ static constexpr int32_t kDefaultWarmupSamples = 12800;
+@@ -449,12 +446,8 @@ class CreateOnlineRecognizerAsyncWorker : public Napi::AsyncWorker {
+       return;
+     }
+ 
+-    Napi::External<SherpaOnnxOnlineRecognizer> external =
+-        Napi::External<SherpaOnnxOnlineRecognizer>::New(
+-            env, const_cast<SherpaOnnxOnlineRecognizer *>(recognizer_),
+-            [](Napi::Env /*env*/, SherpaOnnxOnlineRecognizer *recognizer) {
+-              SherpaOnnxDestroyOnlineRecognizer(recognizer);
+-            });
++    Napi::External<OnlineRecognizerHandle> external =
++        WrapOnlineRecognizer(env, recognizer_);
+     recognizer_ = nullptr;
+     ReleaseResourceManager();
+     deferred_.Resolve(external);
+@@ -599,7 +592,7 @@ static Napi::External<OnlineStreamHandle> CreateOnlineStreamWrapper(
+   }
+ 
+   const SherpaOnnxOnlineRecognizer *recognizer =
+-      info[0].As<Napi::External<SherpaOnnxOnlineRecognizer>>().Data();
++      GetOnlineRecognizer(info, 0);
+ 
+   const SherpaOnnxOnlineStream *stream =
+       SherpaOnnxCreateOnlineStream(recognizer);
+@@ -607,6 +600,17 @@ static Napi::External<OnlineStreamHandle> CreateOnlineStreamWrapper(
+   return WrapOnlineStream(env, stream);
+ }
+ 
++static void DestroyOnlineRecognizerWrapper(const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 1 || !info[0].IsExternal()) {
++    Napi::TypeError::New(env, "Expected one online recognizer handle")
++        .ThrowAsJavaScriptException();
++    return;
++  }
++  OnlineRecognizerHandle *handle = GetOnlineRecognizerHandle(info, 0);
++  if (handle != nullptr) handle->Close();
++}
++
+ static void DestroyOnlineStreamWrapper(const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+   if (info.Length() != 1 || !info[0].IsExternal()) {
+@@ -723,7 +727,7 @@ static Napi::Boolean IsOnlineStreamReadyWrapper(
+   }
+ 
+   const SherpaOnnxOnlineRecognizer *recognizer =
+-      info[0].As<Napi::External<SherpaOnnxOnlineRecognizer>>().Data();
++      GetOnlineRecognizer(info, 0);
+ 
+   const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
+   if (stream == nullptr) return {};
+@@ -760,7 +764,7 @@ static void DecodeOnlineStreamWrapper(const Napi::CallbackInfo &info) {
+   }
+ 
+   const SherpaOnnxOnlineRecognizer *recognizer =
+-      info[0].As<Napi::External<SherpaOnnxOnlineRecognizer>>().Data();
++      GetOnlineRecognizer(info, 0);
+ 
+   const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
+   if (stream == nullptr) return;
+@@ -796,7 +800,7 @@ static Napi::String GetOnlineStreamResultAsJsonWrapper(
+   }
+ 
+   const SherpaOnnxOnlineRecognizer *recognizer =
+-      info[0].As<Napi::External<SherpaOnnxOnlineRecognizer>>().Data();
++      GetOnlineRecognizer(info, 0);
+ 
+   const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
+   if (stream == nullptr) return {};
+@@ -861,7 +865,7 @@ static void ResetOnlineStreamWrapper(const Napi::CallbackInfo &info) {
+   }
+ 
+   const SherpaOnnxOnlineRecognizer *recognizer =
+-      info[0].As<Napi::External<SherpaOnnxOnlineRecognizer>>().Data();
++      GetOnlineRecognizer(info, 0);
+ 
+   const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
+   if (stream == nullptr) return;
+@@ -896,7 +900,7 @@ static Napi::Boolean IsEndpointWrapper(const Napi::CallbackInfo &info) {
+   }
+ 
+   const SherpaOnnxOnlineRecognizer *recognizer =
+-      info[0].As<Napi::External<SherpaOnnxOnlineRecognizer>>().Data();
++      GetOnlineRecognizer(info, 0);
+ 
+   const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
+   if (stream == nullptr) return {};
+@@ -987,6 +991,9 @@ void InitStreamingAsr(Napi::Env env, Napi::Object exports) {
+   exports.Set(Napi::String::New(env, "createOnlineStream"),
+               Napi::Function::New(env, CreateOnlineStreamWrapper));
+ 
++  exports.Set(Napi::String::New(env, "destroyOnlineRecognizer"),
++              Napi::Function::New(env, DestroyOnlineRecognizerWrapper));
++
+   exports.Set(Napi::String::New(env, "destroyOnlineStream"),
+               Napi::Function::New(env, DestroyOnlineStreamWrapper));
+ 
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index 4995d5e7..956edee3 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -31,6 +31,7 @@ export const createOnlineRecognizer: (config: object, mgr?: object) => object;
+ export const createOnlineRecognizerAsync: (config: object, mgr?: object,
+   warmupSamples?: number) => Promise<object>;
+ export const createOnlineStream: (handle: object) => object;
++export const destroyOnlineRecognizer: (recognizerHandle: object) => void;
+ export const destroyOnlineStream: (streamHandle: object) => void;
+ export const getOnlineStreamLiveCount: () => number;
+ export const acceptWaveformOnline: (handle: object, audio: object) => void;
+@@ -59,6 +60,7 @@ export const createOfflinePunctuation: (config: object, mgr?: object) => object;
+ export const createOfflinePunctuationAsync: (config: object,
+   mgr?: object) => Promise<object>;
+ export const offlinePunctuationAddPunct: (handle: object, text: string) => string;
++export const destroyOfflinePunctuation: (handle: object) => void;
+ export const createOnlinePunctuation: (config: object, mgr?: object) => object;
+ export const onlinePunctuationAddPunct: (handle: object, text: string) => string;
+ 
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/OfflinePunctuation.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/OfflinePunctuation.ets
+index 8c320196..b79c3f15 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/OfflinePunctuation.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/OfflinePunctuation.ets
+@@ -1,6 +1,7 @@
+ import {
+   createOfflinePunctuation,
+   createOfflinePunctuationAsync,
++  destroyOfflinePunctuation,
+   offlinePunctuationAddPunct,
+ } from 'libsherpa_onnx.so';
+ 
+@@ -18,12 +19,21 @@ export class OfflinePunctuationConfig {
+ export class OfflinePunctuation {
+   public config: OfflinePunctuationConfig;
+   private handle: object;
++  private closed: boolean = false;
+ 
+   constructor(config: OfflinePunctuationConfig, mgr?: object, handle?: object) {
+     this.handle = handle === undefined ? createOfflinePunctuation(config, mgr) : handle;
+     this.config = config;
+   }
+ 
++  // Deterministically free the native punctuation model now instead of at GC.
++  // Idempotent; the native handle's Close() guards double-free.
++  close(): void {
++    if (this.closed) return;
++    destroyOfflinePunctuation(this.handle);
++    this.closed = true;
++  }
++
+   static async createAsync(config: OfflinePunctuationConfig,
+     mgr?: object): Promise<OfflinePunctuation> {
+     const handle: object = await createOfflinePunctuationAsync(config, mgr);
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+index c7711344..9106a915 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+@@ -2,6 +2,7 @@ import {
+   acceptWaveformOnline,
+   createOnlineRecognizer,
+   createOnlineRecognizerAsync,
++  destroyOnlineRecognizer,
+   createOnlineStream,
+   decodeOnlineStream,
+   destroyOnlineStream,
+@@ -133,12 +134,21 @@ export class OnlineRecognizerResult {
+ export class OnlineRecognizer {
+   public handle: object;
+   public config: OnlineRecognizerConfig
++  private closed: boolean = false;
+ 
+   constructor(config: OnlineRecognizerConfig, mgr?: object, handle?: object) {
+     this.handle = handle === undefined ? createOnlineRecognizer(config, mgr) : handle;
+     this.config = config
+   }
+ 
++  // Deterministically release the native recognizer (frees its ORT session memory
++  // now instead of at GC). Idempotent; the native handle's Close() guards double-free.
++  close(): void {
++    if (this.closed) return;
++    destroyOnlineRecognizer(this.handle);
++    this.closed = true;
++  }
++
+   static async createAsync(config: OnlineRecognizerConfig, mgr?: object,
+     warmupSamples: number = DEFAULT_WARMUP_SAMPLES): Promise<OnlineRecognizer> {
+     const handle: object = await createOnlineRecognizerAsync(config, mgr, warmupSamples);
+diff --git a/sherpa-onnx/csrc/session.cc b/sherpa-onnx/csrc/session.cc
+index 0ab8756d..e2b89f64 100755
+--- a/sherpa-onnx/csrc/session.cc
++++ b/sherpa-onnx/csrc/session.cc
+@@ -124,9 +124,33 @@ static void SplitProviderAndConfig(
+   // provider string format: provider_name[:config_path], e.g.,
+   // tensorrt:trt_config.config or spacemit:spacemit_config.config or cpu. The
+   // config file is optional. If it is not provided, default config will be used.
++  //
++  // Amphion extension: provider_name;key=value;key=value carries inline session
++  // config without a file (e.g. "cpu;DisablePrepacking=1"), so an ArkTS-level
++  // toggle can flow through OnlineModelConfig.provider with no C-API/ABI change.
+   provider_str = Trim(s);
+   config.clear();
+ 
++  auto semi = provider_str.find(';');
++  if (semi != std::string::npos) {
++    std::string rest = provider_str.substr(semi + 1);
++    provider_str = Trim(provider_str.substr(0, semi));
++    size_t start = 0;
++    while (start <= rest.size()) {
++      size_t next = rest.find(';', start);
++      std::string pair =
++          Trim(rest.substr(start, next == std::string::npos ? std::string::npos
++                                                            : next - start));
++      auto eq = pair.find('=');
++      if (!pair.empty() && eq != std::string::npos) {
++        config[Trim(pair.substr(0, eq))] = Trim(pair.substr(eq + 1));
++      }
++      if (next == std::string::npos) break;
++      start = next + 1;
++    }
++    return;
++  }
++
+   auto pos = provider_str.find(':');
+   if (pos == std::string::npos) {
+     return;
+@@ -218,6 +242,18 @@ Ort::SessionOptions GetSessionOptionsImpl(
+     config.erase("EnableCpuMemArena");
+   }
+ 
++  // Amphion: trade inference throughput (~24%, absorbed by ASR's ~7.5x realtime
++  // headroom) for faster cold load (~-156 ms) and lower peak memory (~-176 MB
++  // private), by skipping INT8 weight prepacking at session creation. Kernels
++  // then read the mmap'd initializers directly. Deployment-time toggle; flows in
++  // via OnlineModelConfig.provider = "cpu;DisablePrepacking=1".
++  if (config.find("DisablePrepacking") != config.end()) {
++    if (ToIntOrDefault(config["DisablePrepacking"], 0) == 1) {
++      sess_opts.AddConfigEntry("session.disable_prepacking", "1");
++    }
++    config.erase("DisablePrepacking");
++  }
++
+   // If you want to speed up initialization, please uncomment the following line
+   // sess_opts.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
+ 
+-- 
+2.50.1 (Apple Git-155)
+

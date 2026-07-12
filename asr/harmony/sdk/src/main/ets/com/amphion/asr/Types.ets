@@ -84,6 +84,9 @@ export class AsrConfig {
   hotwords: string[] = [];
   hotwordsScore: number = 1.5;
   targetSpeaker?: TargetSpeakerConfig;
+  // 低内存/快加载模式:跳过 INT8 权重 prepack。冷加载 ~-156ms、峰值内存 ~-176MB;推理吞吐 ~-24%
+  // (由 ASR ~7.5x 实时余量吸收)。默认 false(保留 prepack,吞吐优先)。经 provider 内联配置下发到 native。
+  disablePrepack: boolean = false;
 
   static builder(): AsrConfigBuilder {
     return new AsrConfigBuilder();
@@ -100,6 +103,7 @@ export class AsrConfigBuilder {
   }
   punctuation(value: boolean): AsrConfigBuilder { this.config.punctuation = value; return this; }
   itn(value: boolean): AsrConfigBuilder { this.config.itn = value; return this; }
+  disablePrepack(value: boolean): AsrConfigBuilder { this.config.disablePrepack = value; return this; }
   vad(value: boolean): AsrConfigBuilder { this.config.vad = value; return this; }
   vadConfig(value: VadConfig): AsrConfigBuilder {
     validateVadConfig(value);

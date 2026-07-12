@@ -6,7 +6,9 @@ import deviceInfo from '@ohos.deviceInfo';
 import { LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
 import { DeviceStressOptions, runDeviceStress } from '../util/DeviceStressTest';
 import { ModelLoadBenchOptions, runModelLoadBench } from '../util/ModelLoadBench';
+import { LifecycleBenchOptions, runLifecycleBench } from '../util/LifecycleBench';
 import { runSdkSelfTest } from '../util/SdkSelfTest';
+import { fileIo as fs } from '@kit.CoreFileKit';
 
 class DemoDeviceIdProvider implements LicenseDeviceIdProvider {
   getDeviceSerial(_context: Context): string | undefined {
@@ -20,10 +22,22 @@ export default class EntryAbility extends UIAbility {
   private selfTest: boolean = false;
   private stressTest: boolean = false;
   private loadBench: boolean = false;
+  private lifecycleBench: boolean = false;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     // Process-level SDK init + work directory live here (mirrors Android DingqiaoApp) so every page
     // shares one SpeechRecognizeSdk instance and the same {filesDir}/dingqiao_work path.
+    // 载体基线:任何 SDK 调用之前从 /proc 采一次 VmRSS + 私有 anon(纯宿主,无 SDK native/模型),供内存减法。
+    // 用 /proc 内核账,不用 hidebug.getPss()(实测低估)。
+    let carrierBaselinePss = 0;   // 实为 VmRSS,沿用字段名传给 bench
+    let carrierBaselineAnon = 0;
+    try {
+      const st = fs.readTextSync('/proc/self/status');
+      const mr = st.match(/VmRSS:\s*(\d+)\s*kB/);
+      const ma = st.match(/RssAnon:\s*(\d+)\s*kB/);
+      carrierBaselinePss = mr !== null ? Math.round(Number(mr[1]) / 1024) : 0;
+      carrierBaselineAnon = ma !== null ? Math.round(Number(ma[1]) / 1024) : 0;
+    } catch (e) { /* 0 */ }
     try {
       const workPath = `${this.context.filesDir}/dingqiao_work`;
       const deviceIdProvider = new DemoDeviceIdProvider();
@@ -39,7 +53,18 @@ export default class EntryAbility extends UIAbility {
     this.selfTest = params !== undefined && params['selftest'] === 'true';
     this.stressTest = params !== undefined && params['stress'] === 'true';
     this.loadBench = params !== undefined && params['loadbench'] === 'true';
-    if (this.selfTest) {
+    this.lifecycleBench = params !== undefined && params['lifecycle'] === 'true';
+    if (this.lifecycleBench) {
+      const options = new LifecycleBenchOptions();
+      options.resultPath = this.stringParameter(want, 'lifecycleResult', '');
+      options.disablePrepack = this.stringParameter(want, 'prepack', 'on') === 'off';
+      options.carrierBaselinePss = carrierBaselinePss;
+      options.carrierBaselineAnon = carrierBaselineAnon;
+      options.iters = this.numberParameter(want, 'iters', 20);
+      runLifecycleBench(this.context, options).catch((e: Object): void => {
+        hilog.error(0x0000, 'LifecycleBench', 'lifecycle bench crashed: %{public}s', `${e}`);
+      });
+    } else if (this.selfTest) {
       runSdkSelfTest(this.context).catch((e: Object): void => {
         hilog.error(0x0000, 'SdkSelfTest', 'self-test crashed: %{public}s', `${e}`);
       });
@@ -66,7 +91,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    if (this.selfTest || this.stressTest || this.loadBench) {
+    if (this.selfTest || this.stressTest || this.loadBench || this.lifecycleBench) {
       hilog.info(0x0000, 'DingqiaoDemo', 'headless test mode: skipping UI');
       return;
     }

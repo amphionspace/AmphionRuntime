@@ -14,6 +14,7 @@ import {
   LicenseActivationCallback,
   LicenseActivationResult,
   LicenseInfo,
+  PrepareRuntimeCallback,
   RecognitionListener,
   SpeechRecognitionEngine,
   SpeechRecognitionResult,
@@ -195,6 +196,8 @@ function buildAsrConfig(params: CreateEngineParams, startParams?: StartParams, w
   const config = PoliceEngineConfig.build(parseLexicon(params.extraParams['sysGeneralLexicon']), plate, station, terms);
   config.vadConfig.activeEndpointSilenceMs = vadEndMs(startParams);
   config.endpointRules.rule2MinTrailingSilenceSec = 2.0;
+  // 低内存/快加载模式开关(默认关=保留 prepack)。host 传 extraParams["disablePrepack"]=true 启用。
+  config.disablePrepack = booleanParam(params.extraParams, 'disablePrepack', false);
   if (withTargetSpeaker) {
     config.targetSpeaker = buildTargetSpeakerConfig(startParams, withSpeakerVad);
   }
@@ -820,6 +823,53 @@ export class SpeechRecognizeSdk {
     return SpeechRecognizeSdk.licenseInfo;
   }
 
+  // ---- 两级加载(L1 运行时 / L2 模型)---------------------------------------------------------
+  // 甲方契约:占内存的模型「用完释放、用时当场起」;不占内存的运行时框架「可常驻加速」。
+  // prepareRuntime/unloadRuntime 管 L1(运行时,~15-20MB 净值);createEngine/unloadModel 管 L2(模型,
+  // ~310MB 净值)。createEngine 已实现「未加载则加载,已加载则复用只建会话」(见 AmphionRuntime 池化)。
+
+  /**
+   * L1:拉起 SDK 运行时框架资源(不含模型)。幂等 —— 运行时已就绪时除首次外直接 onReady 返回,不重复
+   * 拉起。正式宿主通常先 setLicense(其内部已完成 init),此后 prepareRuntime 即命中「已就绪」快路径。
+   */
+  static prepareRuntime(callback: PrepareRuntimeCallback): void {
+    const context = SpeechRecognizeSdk.context;
+    if (context === undefined) {
+      callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, 'SpeechRecognizeSdk.init must be called first');
+      return;
+    }
+    if (AmphionRuntime.isRuntimeReady()) {
+      callback.onReady();
+      return;
+    }
+    // 未就绪(未走 setLicense 的开发/内部宿主):拉起运行时。init 自身幂等,不加载模型。
+    AmphionRuntime.init(context)
+      .then((): void => { callback.onReady(); })
+      .catch((e: Object): void => {
+        callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, `prepareRuntime failed: ${e}`);
+      });
+  }
+
+  /**
+   * L2:从内存卸载模型(recognizer / punctuation / extractor / vad),运行时保留常驻。释放 ~310MB 净值,
+   * 回落到运行时常驻态;下次 createEngine 只重付模型加载,无需重建运行时。可在空闲/明确不再用时调用。
+   */
+  static unloadModel(): void {
+    AmphionRuntime.unloadModel();
+  }
+
+  /**
+   * L1:卸载 SDK 运行时框架资源,重置为未初始化态。若模型仍在,模型跟随卸载(release 内部先 unloadModel)。
+   * native .so 由 OS 保留映射,进程内无法真正 unload。再次使用需重新 prepareRuntime(正式宿主重新 setLicense)。
+   */
+  static unloadRuntime(): void {
+    AmphionRuntime.release();
+    SpeechRecognizeSdk.licenseInfo = undefined;
+  }
+
+  // L2:若模型未加载则加载,若已加载则复用(不重复加载模型)、只建会话。复用由 AmphionRuntime 的按语言+
+  // 配置池化实现:同配置命中池 → 0-1ms;unloadModel 后池空 → 重新冷加载。需运行时已就绪(prepareRuntime /
+  // setLicense 先行),否则内部 checkInitialized 抛错。
   static createEngine(params: CreateEngineParams): SpeechRecognitionEngine {
     if (SpeechRecognizeSdk.context === undefined) throw new Error('SpeechRecognizeSdk.init must be called first');
     return new DingqiaoRecognitionEngineImpl(SpeechRecognizeSdk.context, params);
