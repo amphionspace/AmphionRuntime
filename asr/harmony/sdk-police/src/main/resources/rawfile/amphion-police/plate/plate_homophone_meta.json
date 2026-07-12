@@ -1,0 +1,754 @@
+{
+  "source_csv": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/plate_enhance/plate_homophones.csv",
+  "pair_count": 149,
+  "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/plate_fst_experiment/output/plate_homophone.fst",
+  "phase": 2,
+  "note": "homophone FST; JiR/LiaoB context rules in plate_context_rules.py",
+  "pairs": [
+    {
+      "from": "经",
+      "to": "京",
+      "category": "province"
+    },
+    {
+      "from": "沪",
+      "to": "沪",
+      "category": "province"
+    },
+    {
+      "from": "粤",
+      "to": "粤",
+      "category": "province"
+    },
+    {
+      "from": "浙",
+      "to": "浙",
+      "category": "province"
+    },
+    {
+      "from": "苏",
+      "to": "苏",
+      "category": "province"
+    },
+    {
+      "from": "川",
+      "to": "川",
+      "category": "province"
+    },
+    {
+      "from": "鲁",
+      "to": "鲁",
+      "category": "province"
+    },
+    {
+      "from": "豫",
+      "to": "豫",
+      "category": "province"
+    },
+    {
+      "from": "湘",
+      "to": "湘",
+      "category": "province"
+    },
+    {
+      "from": "皖",
+      "to": "皖",
+      "category": "province"
+    },
+    {
+      "from": "闽",
+      "to": "闽",
+      "category": "province"
+    },
+    {
+      "from": "赣",
+      "to": "赣",
+      "category": "province"
+    },
+    {
+      "from": "鄂",
+      "to": "鄂",
+      "category": "province"
+    },
+    {
+      "from": "桂",
+      "to": "桂",
+      "category": "province"
+    },
+    {
+      "from": "甘",
+      "to": "甘",
+      "category": "province"
+    },
+    {
+      "from": "晋",
+      "to": "晋",
+      "category": "province"
+    },
+    {
+      "from": "蒙",
+      "to": "蒙",
+      "category": "province"
+    },
+    {
+      "from": "陕",
+      "to": "陕",
+      "category": "province"
+    },
+    {
+      "from": "吉",
+      "to": "吉",
+      "category": "province"
+    },
+    {
+      "from": "贵",
+      "to": "贵",
+      "category": "province"
+    },
+    {
+      "from": "琼",
+      "to": "琼",
+      "category": "province"
+    },
+    {
+      "from": "青",
+      "to": "青",
+      "category": "province"
+    },
+    {
+      "from": "藏",
+      "to": "藏",
+      "category": "province"
+    },
+    {
+      "from": "宁",
+      "to": "宁",
+      "category": "province"
+    },
+    {
+      "from": "渝",
+      "to": "渝",
+      "category": "province"
+    },
+    {
+      "from": "津",
+      "to": "津",
+      "category": "province"
+    },
+    {
+      "from": "冀",
+      "to": "冀",
+      "category": "province"
+    },
+    {
+      "from": "继",
+      "to": "冀",
+      "category": "province"
+    },
+    {
+      "from": "济",
+      "to": "冀",
+      "category": "province"
+    },
+    {
+      "from": "记",
+      "to": "冀",
+      "category": "province"
+    },
+    {
+      "from": "纪",
+      "to": "冀",
+      "category": "province"
+    },
+    {
+      "from": "季",
+      "to": "冀",
+      "category": "province"
+    },
+    {
+      "from": "即",
+      "to": "冀",
+      "category": "province"
+    },
+    {
+      "from": "辽",
+      "to": "辽",
+      "category": "province"
+    },
+    {
+      "from": "毕",
+      "to": "B",
+      "category": "letter"
+    },
+    {
+      "from": "黑",
+      "to": "黑",
+      "category": "province"
+    },
+    {
+      "from": "新",
+      "to": "新",
+      "category": "province"
+    },
+    {
+      "from": "云",
+      "to": "云",
+      "category": "province"
+    },
+    {
+      "from": "零",
+      "to": "0",
+      "category": "digit"
+    },
+    {
+      "from": "〇",
+      "to": "0",
+      "category": "digit"
+    },
+    {
+      "from": "一",
+      "to": "1",
+      "category": "digit"
+    },
+    {
+      "from": "二",
+      "to": "2",
+      "category": "digit"
+    },
+    {
+      "from": "三",
+      "to": "3",
+      "category": "digit"
+    },
+    {
+      "from": "四",
+      "to": "4",
+      "category": "digit"
+    },
+    {
+      "from": "五",
+      "to": "5",
+      "category": "digit"
+    },
+    {
+      "from": "六",
+      "to": "6",
+      "category": "digit"
+    },
+    {
+      "from": "七",
+      "to": "7",
+      "category": "digit"
+    },
+    {
+      "from": "八",
+      "to": "8",
+      "category": "digit"
+    },
+    {
+      "from": "九",
+      "to": "9",
+      "category": "digit"
+    },
+    {
+      "from": "幺",
+      "to": "1",
+      "category": "digit"
+    },
+    {
+      "from": "两",
+      "to": "2",
+      "category": "digit"
+    },
+    {
+      "from": "诶",
+      "to": "A",
+      "category": "letter"
+    },
+    {
+      "from": "艾",
+      "to": "A",
+      "category": "letter"
+    },
+    {
+      "from": "啊",
+      "to": "A",
+      "category": "letter"
+    },
+    {
+      "from": "比",
+      "to": "B",
+      "category": "letter"
+    },
+    {
+      "from": "币",
+      "to": "B",
+      "category": "letter"
+    },
+    {
+      "from": "笔",
+      "to": "B",
+      "category": "letter"
+    },
+    {
+      "from": "北",
+      "to": "B",
+      "category": "letter"
+    },
+    {
+      "from": "壁",
+      "to": "B",
+      "category": "letter"
+    },
+    {
+      "from": "翼",
+      "to": "E",
+      "category": "letter"
+    },
+    {
+      "from": "寺",
+      "to": "4",
+      "category": "digit"
+    },
+    {
+      "from": "必",
+      "to": "B",
+      "category": "letter"
+    },
+    {
+      "from": "撂",
+      "to": "辽",
+      "category": "province"
+    },
+    {
+      "from": "西",
+      "to": "C",
+      "category": "letter"
+    },
+    {
+      "from": "弟",
+      "to": "D",
+      "category": "letter"
+    },
+    {
+      "from": "第",
+      "to": "D",
+      "category": "letter"
+    },
+    {
+      "from": "易",
+      "to": "E",
+      "category": "letter"
+    },
+    {
+      "from": "艾弗",
+      "to": "F",
+      "category": "letter"
+    },
+    {
+      "from": "鸡",
+      "to": "G",
+      "category": "letter"
+    },
+    {
+      "from": "爱曲",
+      "to": "H",
+      "category": "letter"
+    },
+    {
+      "from": "勾",
+      "to": "J",
+      "category": "letter"
+    },
+    {
+      "from": "开",
+      "to": "K",
+      "category": "letter"
+    },
+    {
+      "from": "艾勒",
+      "to": "L",
+      "category": "letter"
+    },
+    {
+      "from": "艾姆",
+      "to": "M",
+      "category": "letter"
+    },
+    {
+      "from": "恩",
+      "to": "N",
+      "category": "letter"
+    },
+    {
+      "from": "欧",
+      "to": "P",
+      "category": "letter"
+    },
+    {
+      "from": "皮",
+      "to": "P",
+      "category": "letter"
+    },
+    {
+      "from": "丘",
+      "to": "Q",
+      "category": "letter"
+    },
+    {
+      "from": "阿尔",
+      "to": "R",
+      "category": "letter"
+    },
+    {
+      "from": "艾斯",
+      "to": "S",
+      "category": "letter"
+    },
+    {
+      "from": "提",
+      "to": "T",
+      "category": "letter"
+    },
+    {
+      "from": "优",
+      "to": "V",
+      "category": "letter"
+    },
+    {
+      "from": "豆贝尔",
+      "to": "V",
+      "category": "letter"
+    },
+    {
+      "from": "达不溜",
+      "to": "W",
+      "category": "letter"
+    },
+    {
+      "from": "艾克斯",
+      "to": "X",
+      "category": "letter"
+    },
+    {
+      "from": "歪",
+      "to": "Y",
+      "category": "letter"
+    },
+    {
+      "from": "贼",
+      "to": "Z",
+      "category": "letter"
+    },
+    {
+      "from": "外",
+      "to": "Y",
+      "category": "letter"
+    },
+    {
+      "from": "优",
+      "to": "U",
+      "category": "letter"
+    },
+    {
+      "from": "仪",
+      "to": "E",
+      "category": "letter"
+    },
+    {
+      "from": "猛",
+      "to": "蒙",
+      "category": "province"
+    },
+    {
+      "from": "梦",
+      "to": "蒙",
+      "category": "province"
+    },
+    {
+      "from": "孟",
+      "to": "蒙",
+      "category": "province"
+    },
+    {
+      "from": "萌",
+      "to": "蒙",
+      "category": "province"
+    },
+    {
+      "from": "进",
+      "to": "晋",
+      "category": "province"
+    },
+    {
+      "from": "静",
+      "to": "晋",
+      "category": "province"
+    },
+    {
+      "from": "疗",
+      "to": "辽",
+      "category": "province"
+    },
+    {
+      "from": "聊",
+      "to": "辽",
+      "category": "province"
+    },
+    {
+      "from": "义",
+      "to": "E",
+      "category": "letter"
+    },
+    {
+      "from": "替",
+      "to": "T",
+      "category": "letter"
+    },
+    {
+      "from": "这",
+      "to": "浙",
+      "category": "province"
+    },
+    {
+      "from": "素",
+      "to": "苏",
+      "category": "province"
+    },
+    {
+      "from": "属",
+      "to": "苏",
+      "category": "province"
+    },
+    {
+      "from": "晚",
+      "to": "皖",
+      "category": "province"
+    },
+    {
+      "from": "碗",
+      "to": "皖",
+      "category": "province"
+    },
+    {
+      "from": "万",
+      "to": "皖",
+      "category": "province"
+    },
+    {
+      "from": "挽",
+      "to": "皖",
+      "category": "province"
+    },
+    {
+      "from": "缅",
+      "to": "闽",
+      "category": "province"
+    },
+    {
+      "from": "干",
+      "to": "赣",
+      "category": "province"
+    },
+    {
+      "from": "乳",
+      "to": "鲁",
+      "category": "province"
+    },
+    {
+      "from": "余",
+      "to": "豫",
+      "category": "province"
+    },
+    {
+      "from": "玉",
+      "to": "豫",
+      "category": "province"
+    },
+    {
+      "from": "遇",
+      "to": "豫",
+      "category": "province"
+    },
+    {
+      "from": "预",
+      "to": "豫",
+      "category": "province"
+    },
+    {
+      "from": "御",
+      "to": "豫",
+      "category": "province"
+    },
+    {
+      "from": "俄",
+      "to": "鄂",
+      "category": "province"
+    },
+    {
+      "from": "鹅",
+      "to": "鄂",
+      "category": "province"
+    },
+    {
+      "from": "厄",
+      "to": "鄂",
+      "category": "province"
+    },
+    {
+      "from": "向",
+      "to": "湘",
+      "category": "province"
+    },
+    {
+      "from": "相",
+      "to": "湘",
+      "category": "province"
+    },
+    {
+      "from": "乡",
+      "to": "湘",
+      "category": "province"
+    },
+    {
+      "from": "香",
+      "to": "湘",
+      "category": "province"
+    },
+    {
+      "from": "像",
+      "to": "湘",
+      "category": "province"
+    },
+    {
+      "from": "悦",
+      "to": "粤",
+      "category": "province"
+    },
+    {
+      "from": "月",
+      "to": "粤",
+      "category": "province"
+    },
+    {
+      "from": "岳",
+      "to": "粤",
+      "category": "province"
+    },
+    {
+      "from": "越",
+      "to": "粤",
+      "category": "province"
+    },
+    {
+      "from": "原",
+      "to": "粤",
+      "category": "province"
+    },
+    {
+      "from": "穿",
+      "to": "川",
+      "category": "province"
+    },
+    {
+      "from": "春",
+      "to": "川",
+      "category": "province"
+    },
+    {
+      "from": "穷",
+      "to": "琼",
+      "category": "province"
+    },
+    {
+      "from": "芸",
+      "to": "云",
+      "category": "province"
+    },
+    {
+      "from": "闪",
+      "to": "陕",
+      "category": "province"
+    },
+    {
+      "from": "账",
+      "to": "藏",
+      "category": "province"
+    },
+    {
+      "from": "地",
+      "to": "D",
+      "category": "letter"
+    },
+    {
+      "from": "轻",
+      "to": "青",
+      "category": "province"
+    },
+    {
+      "from": "清",
+      "to": "青",
+      "category": "province"
+    },
+    {
+      "from": "肝",
+      "to": "甘",
+      "category": "province"
+    },
+    {
+      "from": "感",
+      "to": "甘",
+      "category": "province"
+    },
+    {
+      "from": "杆",
+      "to": "甘",
+      "category": "province"
+    },
+    {
+      "from": "镇",
+      "to": "J",
+      "category": "letter"
+    },
+    {
+      "from": "奥",
+      "to": "澳",
+      "category": "province"
+    },
+    {
+      "from": "辟",
+      "to": "P",
+      "category": "letter"
+    },
+    {
+      "from": "开",
+      "to": "K",
+      "category": "letter"
+    },
+    {
+      "from": "批",
+      "to": "P",
+      "category": "letter"
+    },
+    {
+      "from": "衣",
+      "to": "1",
+      "category": "digit"
+    },
+    {
+      "from": "要",
+      "to": "1",
+      "category": "digit"
+    },
+    {
+      "from": "碧",
+      "to": "B",
+      "category": "letter"
+    },
+    {
+      "from": "扣",
+      "to": "K",
+      "category": "letter"
+    }
+  ]
+}

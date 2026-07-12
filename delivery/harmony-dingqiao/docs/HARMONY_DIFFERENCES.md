@@ -9,6 +9,7 @@
 - **错误码 `1002200001`~`1002200035` 已按接口文档对齐**（引擎块 002–012、声纹 020–024、License 030–035 语义一致）。鸿蒙不单独发出 `1002200036` / `1002200037`，见"二、已知差异"第 10 条。
 - **License 授权**：真 ECDSA-P256 签名验签 + 有效期 + 设备 SN 白名单；SN 指纹算法与 Android `DeviceLicenseFingerprint` 一致：`SHA-256( 大写去空(SN) + deviceIdSaltId )`，大写 hex。
 - **授权文件与 Android 共用**：注入的验签公钥与 Android SDK 为同一把生产密钥，故同一份 `amphion-license.lic`（ASR/TTS 共用、SN 白名单）在 Android 与鸿蒙上验签一致。
+- **警务增强与 Android 鼎桥 V2 对齐**：final 依次执行术语、全国车牌、派出所 V2；共用 Android 词表、同音表、GA36 车牌知识库和 235 条预设热词，包含电台数字归一与 GB28181 防误纠。`sync_harmony_police_assets.py --check` 校验资源同步，跨端共同执行 `police_v2_parity.tsv` 行为契约。
 - `SpeechRecognitionResult.beginTime` / `endTime` 已填（由 token 时间戳换算，单位 ms，仅 `isFinal=true` 保证有效）。
 - `onStart(sessionId, eventMessage)` / `onComplete(sessionId, eventMessage)` 回调携带 `eventMessage`（`"startListening success."` / `"recognize complete"`），与接口文档一致。
 - 音频：PCM 16 kHz / 16 bit / mono；每帧 **640 字节(20ms) 或 1280 字节(40ms)** 均接受。

@@ -11,7 +11,7 @@
 | API | `SpeechRecognizeSdk.createEngineAsync` |
 | ASR 模型 | `asr/tools/demo-model/zhen` |
 | encoder | `encoder.int8.onnx` → `encoder.int8.ort` |
-| decoder | `decoder.int8.onnx` → `decoder.int8.ort` |
+| decoder | `decoder.onnx` → `decoder.ort` |
 | joiner | `joiner.int8.onnx` → `joiner.int8.ort` |
 | punctuation | `model.int8.onnx` → `model.int8.ort` |
 | ORT 转换 | ONNX Runtime 1.16.3、CPU EP、ARM、Fixed、全部图优化 |

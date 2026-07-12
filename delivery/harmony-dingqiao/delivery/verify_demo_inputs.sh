@@ -6,6 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 MODEL_ROOT="$REPO_ROOT/asr/harmony/sdk/src/main/resources/rawfile/amphion-models"
+POLICE_ROOT="$REPO_ROOT/asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police"
 LICENSE_FILE="$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/resources/rawfile/amphion-license.lic"
 DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/dingqiao_demo_device_ids.txt}"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$REPO_ROOT/.secure/amphion-license-private.pem}"
@@ -67,6 +68,7 @@ ensure_license_python "$LICENSE_VENV" "$REPO_ROOT/tools/license/requirements.txt
 PYTHON="$LICENSE_VENV/bin/python"
 require_file "$LICENSE_FILE"
 
+"$PYTHON" "$REPO_ROOT/asr/tools/sync_harmony_police_assets.py" --check
 "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --root "$MODEL_ROOT"
 
 "$PYTHON" - "$REPO_ROOT" <<'PY'
@@ -170,9 +172,11 @@ if [[ -n "$HAP" ]]; then
     "$BUNDLE_NAME" \
     "$MODULE_NAME" \
     "$MODEL_ROOT/manifest.json" \
+    "$POLICE_ROOT" \
     "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
     "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" <<'PY'
 import json
+import hashlib
 import sys
 import zipfile
 from pathlib import Path
@@ -183,8 +187,9 @@ profile_result_path = Path(sys.argv[3])
 expected_bundle = sys.argv[4]
 expected_module = sys.argv[5]
 local_manifest = Path(sys.argv[6])
-local_sherpa = Path(sys.argv[7])
-local_ort = Path(sys.argv[8])
+police_root = Path(sys.argv[7])
+local_sherpa = Path(sys.argv[8])
+local_ort = Path(sys.argv[9])
 required = {
     "libs/arm64-v8a/libamphion_asr.so",
     "libs/arm64-v8a/libonnxruntime.so",
@@ -203,6 +208,13 @@ with zipfile.ZipFile(hap) as package:
         raise SystemExit("[ERROR] HAP license differs from the verified source license")
     if package.read("resources/rawfile/amphion-models/manifest.json") != local_manifest.read_bytes():
         raise SystemExit("[ERROR] HAP model manifest differs from the verified local manifest")
+    police_manifest = json.loads((police_root / "manifest.json").read_text(encoding="utf-8"))
+    for relative, expected_sha256 in police_manifest["files"].items():
+        member = f"resources/rawfile/amphion-police/{relative}"
+        if member not in names:
+            raise SystemExit(f"[ERROR] HAP missing police asset: {member}")
+        if hashlib.sha256(package.read(member)).hexdigest() != expected_sha256:
+            raise SystemExit(f"[ERROR] HAP police asset differs from Android source: {member}")
     if package.read("libs/arm64-v8a/libsherpa-onnx-c-api.so") != local_sherpa.read_bytes():
         raise SystemExit("[ERROR] HAP sherpa native library differs from the verified local library")
     if package.read("libs/arm64-v8a/libonnxruntime.so") != local_ort.read_bytes():

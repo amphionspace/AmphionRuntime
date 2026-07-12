@@ -59,7 +59,7 @@ bash asr/tools/08_pack_harmony_assets.sh
 encoder / decoder / joiner 和标点图转换成 ORT FlatBuffer：
 
 ```text
-zh-en/v1/{encoder.int8.ort,decoder.int8.ort,joiner.int8.ort}
+zh-en/v1/{encoder.int8.ort,decoder.ort,joiner.int8.ort}
 punct-zhen/v1/model.int8.ort
 ```
 

@@ -130,7 +130,7 @@ AmphionRuntime.init(context, licenseOptions);
 
 ## final 文本
 
-中间结果为 ASR 原文；最终结果会经过警务增强（术语、车牌、派出所）。如需关闭某类增强，可在 `CreateEngineParams.extraParams` 中设置：
+中间结果为 ASR 原文；最终结果会经过与 Android 鼎桥一致的 V2 警务增强（术语 → 全国车牌 → 派出所），并默认注入同一套警务预设热词，热词分数为 `3.0`。如需关闭某类增强，可在 `CreateEngineParams.extraParams` 中设置：
 
 ```ts
 params.extraParams['plateNormalizeEnabled'] = false;
