@@ -152,6 +152,29 @@ publish_har() {
   done
 }
 
+resolve_built_hap() {
+  [[ -f "$BUILD_HAP" ]] && return
+
+  local output_dir
+  local candidate
+  local resolved=""
+  output_dir="$(dirname "$BUILD_HAP")"
+  for candidate in "$output_dir"/*-signed.hap; do
+    [[ -f "$candidate" ]] || continue
+    [[ -z "$resolved" ]] || {
+      echo "[ERROR] expected one signed HAP in $output_dir" >&2
+      return 1
+    }
+    resolved="$candidate"
+  done
+  [[ -n "$resolved" ]] || {
+    echo "[ERROR] missing signed HAP in $output_dir" >&2
+    return 1
+  }
+  BUILD_HAP="$resolved"
+  echo "[INFO] resolved Hvigor HAP output: $(basename "$BUILD_HAP")"
+}
+
 prepare_build_workspace() {
   command -v rsync >/dev/null || { echo "[ERROR] rsync is required" >&2; exit 1; }
   BUILD_WORKSPACE="$(mktemp -d "${TMPDIR:-/tmp}/amphion-harmony-build.XXXXXX")"
@@ -323,6 +346,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
   apply_local_signing "$SIGNING_CONFIG"
   echo "[INFO] building signed Harmony demo HAP in an isolated workspace"
   if ! (
+    set -e
     export PATH="$DEVECO_HOME/tools/node/bin:$PATH"
     export DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
     export JAVA_HOME="$JAVA_HOME_VALUE"
@@ -343,6 +367,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
     tail -120 "$BUILD_LOG" >&2
     exit 1
   fi
+  resolve_built_hap
   "$SCRIPT_DIR/verify_demo_inputs.sh" \
     --hap "$BUILD_HAP" \
     --signing-config "$SIGNING_CONFIG"

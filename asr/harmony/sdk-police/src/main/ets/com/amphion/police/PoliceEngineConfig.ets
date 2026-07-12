@@ -1,31 +1,41 @@
+import { common } from '@kit.AbilityKit';
 import { AsrConfig } from 'amphion_asr';
+import { PoliceAssets } from './PoliceAssets';
 
 export class PoliceEngineConfig {
-  static readonly HOTWORDS_SCORE_DEFAULT: number = 5.0;
+  static readonly HOTWORDS_SCORE_DEFAULT: number = 3.0;
+  static readonly HOTWORD_POOL_PLACEHOLDER: string = '__placeholder__';
   static readonly NUM_THREADS: number = 4;
 
-  static effectiveHotwords(extraHotwords: string[] = [], plate: boolean = true, station: boolean = true, terms: boolean = true): string[] {
+  static effectiveHotwords(context: common.Context, extraHotwords: string[] = [], plate: boolean = true,
+    station: boolean = true, terms: boolean = true): string[] {
+    const seen = new Set<string>();
     const words: string[] = [];
-    if (plate) words.push('车牌号', '冀R', '辽B', '机动车', '号牌');
-    if (station) words.push('派出所', '接警', '警情', '接警数据', '多少起');
-    if (terms) words.push('处警', '派警', '核查', '嫌疑人', '身份证');
-    for (const w of extraHotwords) {
-      if (w.length > 0) words.push(w);
-    }
-    return Array.from(new Set(words));
+    const append = (value: string): void => {
+      const normalized = value.trim();
+      if (normalized.length > 0 && !seen.has(normalized)) {
+        seen.add(normalized);
+        words.push(normalized);
+      }
+    };
+    for (let i = 0; i < extraHotwords.length; i++) append(extraHotwords[i]);
+    if (terms) PoliceAssets.readHotwords(context, 'terms').forEach(append);
+    if (plate) PoliceAssets.readHotwords(context, 'plate').forEach(append);
+    if (station) PoliceAssets.readHotwords(context, 'station').forEach(append);
+    if (words.length > 0) return words;
+    return extraHotwords.length > 0 || plate || station || terms ? [PoliceEngineConfig.HOTWORD_POOL_PLACEHOLDER] : [];
   }
 
-  static build(extraHotwords: string[] = [], plate: boolean = true, station: boolean = true, terms: boolean = true): AsrConfig {
+  static build(context: common.Context, extraHotwords: string[] = [], plate: boolean = true,
+    station: boolean = true, terms: boolean = true): AsrConfig {
     const config = new AsrConfig();
-    // The Dingqiao target has enough performance cores for four ORT workers. Device A/B testing
-    // reduced zhen load latency and improved sustained recognition throughput with negligible RSS cost.
     config.numThreads = PoliceEngineConfig.NUM_THREADS;
     config.punctuation = true;
     config.itn = true;
     config.vad = true;
     config.endpoint = true;
     config.hotwordsScore = PoliceEngineConfig.HOTWORDS_SCORE_DEFAULT;
-    config.hotwords = PoliceEngineConfig.effectiveHotwords(extraHotwords, plate, station, terms);
+    config.hotwords = PoliceEngineConfig.effectiveHotwords(context, extraHotwords, plate, station, terms);
     return config;
   }
 }

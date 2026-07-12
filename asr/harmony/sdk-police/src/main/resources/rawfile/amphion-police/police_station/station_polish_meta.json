@@ -1,0 +1,64 @@
+{
+  "scope": "polish",
+  "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_station_fst_experiment/output/station_polish.fst",
+  "phase": "p1",
+  "note": "P2 punct + P3 mid rules; polish_end stays in host",
+  "rewrite_pairs": [
+    [
+      "接警数据，按派警",
+      "接警数据按派警"
+    ],
+    [
+      "接警数据，按日期",
+      "接警数据按日期"
+    ],
+    [
+      "接警数据，按天分",
+      "接警数据按天分"
+    ],
+    [
+      "麻烦和一下",
+      "麻烦核一下"
+    ],
+    [
+      "接警情况，",
+      "接警情况"
+    ],
+    [
+      "派出所，",
+      "派出所"
+    ],
+    [
+      "麻烦和",
+      "麻烦核"
+    ],
+    [
+      "汇总，",
+      "汇总"
+    ],
+    [
+      "统计，",
+      "统计"
+    ],
+    [
+      "导出，",
+      "导出"
+    ],
+    [
+      "整理，",
+      "整理"
+    ],
+    [
+      "市、",
+      "市"
+    ],
+    [
+      "区、",
+      "区"
+    ],
+    [
+      "县、",
+      "县"
+    ]
+  ]
+}

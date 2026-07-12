@@ -13,7 +13,7 @@ amphion-models/
 ├── manifest.json          # v2：源/输出 SHA、格式、转换器与 Harmony target
 ├── zh-en/v1/              # 中英流式 ASR
 │   ├── encoder.int8.ort
-│   ├── decoder.int8.ort
+│   ├── decoder.ort       # FP32 decoder；避免 INT8 decoder 严重漏 token
 │   ├── joiner.int8.ort
 │   ├── tokens.txt
 │   └── bbpe.vocab
@@ -36,7 +36,7 @@ amphion-models/
 
 | 资产 | 体积 (~MB) | 说明 |
 | --- | --- | --- |
-| zh-en | ~164 | zhen INT8 三图的 ORT 产物 |
+| zh-en | ~177 | INT8 encoder/joiner + FP32 decoder 的 ORT 产物 |
 | yue-en | ~175 | 保持 ONNX，decoder 为 FP32 |
 | punct-zhen | ~72 | CT-Transformer INT8 ORT |
 | itn-zh | ~1.3 | tagger + verbalizer FST |

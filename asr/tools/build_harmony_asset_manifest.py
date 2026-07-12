@@ -17,7 +17,7 @@ from convert_harmony_ort import CONVERTER_CONFIG, CONVERTER_ID, sha256_file
 HARMONY_BUNDLES = {
     "zh-en/v1": [
         "encoder.int8.ort",
-        "decoder.int8.ort",
+        "decoder.ort",
         "joiner.int8.ort",
         "tokens.txt",
         "bbpe.vocab",

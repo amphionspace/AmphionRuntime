@@ -23,6 +23,8 @@ export default class EntryAbility extends UIAbility {
   private stressTest: boolean = false;
   private loadBench: boolean = false;
   private lifecycleBench: boolean = false;
+  private stressWindow?: window.Window;
+  private stressFinished: boolean = false;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     // Process-level SDK init + work directory live here (mirrors Android DingqiaoApp) so every page
@@ -86,12 +88,27 @@ export default class EntryAbility extends UIAbility {
       options.paceMs = this.numberParameter(want, 'stressPaceMs', 20);
       runDeviceStress(this.context, options).catch((e: Object): void => {
         hilog.error(0x0000, 'DeviceStressTest', 'stress test crashed: %{public}s', `${e}`);
+      }).finally((): void => {
+        this.stressFinished = true;
+        this.setStressKeepScreenOn(false);
       });
     }
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    if (this.selfTest || this.stressTest || this.loadBench || this.lifecycleBench) {
+    if (this.stressTest) {
+      // A real-time corpus run lasts longer than Harmony's content-less foreground grace period.
+      // Keep a minimal window attached so the event runner is not suspended between audio frames.
+      this.stressWindow = windowStage.getMainWindowSync();
+      if (!this.stressFinished) this.setStressKeepScreenOn(true);
+      windowStage.loadContent('pages/DeviceTest', (err: BusinessError): void => {
+        if (err.code !== 0) {
+          hilog.error(0x0000, 'DingqiaoDemo', 'Failed to load device test page: %{public}s', JSON.stringify(err));
+        }
+      });
+      return;
+    }
+    if (this.selfTest || this.loadBench || this.lifecycleBench) {
       hilog.info(0x0000, 'DingqiaoDemo', 'headless test mode: skipping UI');
       return;
     }
@@ -117,5 +134,11 @@ export default class EntryAbility extends UIAbility {
       if (Number.isFinite(parsed)) return Math.max(0, Math.floor(parsed));
     }
     return fallback;
+  }
+
+  private setStressKeepScreenOn(enabled: boolean): void {
+    this.stressWindow?.setWindowKeepScreenOn(enabled).catch((e: Object): void => {
+      hilog.error(0x0000, 'DingqiaoDemo', 'Failed to set test screen state: %{public}s', `${e}`);
+    });
   }
 }

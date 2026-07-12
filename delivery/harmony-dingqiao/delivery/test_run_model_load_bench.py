@@ -116,7 +116,7 @@ class ModelIdentityTest(unittest.TestCase):
                 "zh-en/v1": [
                     {"name": f"encoder.int8.{suffix}", digest_key: "1" * 64},
                     {
-                        "name": "decoder.int8.ort" if version == 2 else "decoder.onnx",
+                        "name": "decoder.ort" if version == 2 else "decoder.onnx",
                         digest_key: "2" * 64,
                     },
                     {"name": f"joiner.int8.{suffix}", digest_key: "3" * 64},
