@@ -11,9 +11,9 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0004-*` | Harmony HAR 只构建 arm64-v8a，避免未产出的 x86_64 native lib 破坏命令行构建 |
 | `0005-*` | Harmony recognizer 创建异常转为 ArkTS 异常，避免无效模型触发 SIGABRT |
 | `0006-*` | Harmony online stream 增加显式幂等释放与存活计数，避免依赖 ArkTS GC 导致会话级泄漏 |
-| `0007-*` | Harmony 冷启动优化：已知模型跳过重复探测、API 11+ rawfile64 mmap + ORT 直载、Zipformer2 双路建图，以及 ASR/标点异步工厂与后台预热 |
+| `0007-*` | Harmony 冷启动优化：已知模型跳过重复探测、API 11+ rawfile64 mmap + ORT 直载、Zipformer2 多 lane 建图，以及 ASR/标点异步工厂与可配置预热；当前 `zhen` 配置跳过 eager warmup |
 
-Apply (automatic in `04_build_android_so.sh` / `02_init_submodule.sh`):
+Apply automatically from the Harmony `04_build_harmony_so.sh` entry point (Android also applies the same series from its native build flow):
 
 ```bash
 bash asr/tools/apply_sherpa_patches.sh

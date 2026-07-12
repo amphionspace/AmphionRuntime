@@ -10,6 +10,11 @@
 
 ## 构建步骤
 
+从干净检出开始，先从受控制品库准备 `asr/tools/demo-model/zhen`、`yueen`、标点、ITN、VAD 和可选
+TTS 模型输入。`zhen` 正式输入必须包含 `encoder.int8.onnx`、`decoder.int8.onnx`、
+`joiner.int8.onnx`、`tokens.txt` 和 `bbpe.vocab`。这些模型目录被 Git 忽略；公开 demo 下载
+脚本不是本次交付模型。当前源 SHA-256 见 [`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)。
+
 ```bash
 # 1) 共享 native（ASR + TTS 共用 sherpa_onnx .so）
 bash asr/tools/04_build_harmony_so.sh
@@ -19,6 +24,27 @@ bash asr/tools/05_package_har_libs.sh
 bash asr/tools/08_pack_harmony_assets.sh
 bash tts/tools/harmony/pack_harmony_tts_assets.sh
 ```
+
+`08_pack_harmony_assets.sh` 使用固定 ONNX Runtime 1.16.3 环境并行生成 ARM CPU ORT 模型；
+不要手工复制旧 HAP/HAR 中的模型代替该步骤。随后执行：
+
+```bash
+# 构建、签名、校验并安装当前 HAP
+HARMONY_SIGNING_CONFIG=.secure/harmony-signing.json \
+  delivery/harmony-dingqiao/delivery/build_install_smoke.sh --device <HDC_TARGET>
+
+# 10 次独立进程冷加载；产物不进客户包
+python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
+  --skip-build --device <HDC_TARGET> --warmup-runs 2 --iterations 10
+
+# 真实 WAV 生命周期与首轮音频回归
+python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
+  --skip-build-install --device <HDC_TARGET> --data-dir <WAV_DIR> \
+  --mode burst --cycles 48 --files 24
+```
+
+加载基准和压力测试均通过后再执行客户打包。基准身份和当前验收值见
+[`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)。
 
 然后在 DevEco Studio 中构建 HAR 与 HAP：
 
@@ -62,6 +88,8 @@ dingqiao-harmony-delivery-<version>/
     ├── LICENSE.md
     ├── NOTICE
     ├── PRIVACY.md
+    ├── MODEL_LOAD_PERFORMANCE.md
+    ├── BUILD_PROVENANCE.json
     ├── CHANGELOG.md
     └── checksum.txt
 ```
@@ -76,7 +104,9 @@ bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.
 bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh --asr-only
 ```
 
-脚本只收集已构建产物，不负责启动各 SDK 的 DevEco 构建。默认完整模式要求 ASR 和 TTS HAR；`--asr-only` 明确生成只含 ASR SDK/demo 的交付包。自包含 ASR HAR 无法被干净宿主安装或编译、所选模式的 HAR 缺失、signed HAP 无效或 HAP 内必需资源缺失时都会直接失败，不再生成残缺交付包。
+脚本只收集已构建产物，不负责启动各 SDK 的 DevEco 构建。默认完整模式要求 ASR 和 TTS HAR；`--asr-only` 明确生成只含 ASR SDK/demo 的交付包。正式打包默认要求干净工作区；`--allow-dirty` 只用于本地非发布验收，并会在 `BUILD_PROVENANCE.json` 标记。provenance 记录 Git commit/branch、sherpa submodule 与 patch series、模型源哈希、转换器、native、HAR/HAP 哈希。自包含 ASR HAR 无法被干净宿主安装或编译、所选模式的 HAR 缺失、signed HAP 无效、HAP/HAR 模型 manifest/native 与本地已验收产物不一致或 HAP 内必需资源缺失时都会直接失败，不再生成残缺交付包。
+
+`models/eres2net.onnx` 是声纹 API 的客户侧工作目录模型，ASR-only 与完整包都作为必需产物；缺失时打包失败，不再只输出警告。
 
 ## main 分支复现说明
 

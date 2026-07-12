@@ -48,6 +48,19 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 模式、门槛、artifact 结构和已验证基线见
 [`docs/DEVICE_STRESS.md`](docs/DEVICE_STRESS.md)。
 
+## 模型加载验收
+
+使用独立进程冷启动测量 `createEngineAsync`，并记录设备、系统构建、模型源哈希、native/HAP
+哈希、线程数和预热样本数：
+
+```bash
+python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
+  --device <HDC_TARGET> --warmup-runs 2 --iterations 10
+```
+
+当前 `zhen` 配置、真机基线、comparison identity 规则和已拒绝方案见
+[`docs/MODEL_LOAD_PERFORMANCE.md`](docs/MODEL_LOAD_PERFORMANCE.md)。
+
 鼎桥 `zhen` 配置默认使用 4 个 ONNX Runtime worker。真机 A/B 表明它小幅降低冷加载 p50，并缩短持续识别耗时，代价是不到 4 MB 峰值 RSS；加载基准会把线程数写入 comparison identity，禁止与 2 线程报告直接套用门槛比较。
 
 `zhen` 不执行创建阶段的静音预热：ORT Session 创建已经完成图初始化和权重预打包，真机测试中额外执行一次 800 ms 静音 decode 会让 engine ready 增加约 93 ms，而首次真实音频只减少约 9 ms。加载基准把预热样本数记录为 0，首轮真实音频延迟由设备压力测试单独守护。

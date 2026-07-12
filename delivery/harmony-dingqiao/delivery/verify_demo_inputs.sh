@@ -163,7 +163,15 @@ if [[ -n "$HAP" ]]; then
   fi
 
   "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --archive "$HAP"
-  "$PYTHON" - "$HAP" "$LICENSE_FILE" "$VERIFY_DIR/profile-result.json" "$BUNDLE_NAME" "$MODULE_NAME" <<'PY'
+  "$PYTHON" - \
+    "$HAP" \
+    "$LICENSE_FILE" \
+    "$VERIFY_DIR/profile-result.json" \
+    "$BUNDLE_NAME" \
+    "$MODULE_NAME" \
+    "$MODEL_ROOT/manifest.json" \
+    "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
+    "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" <<'PY'
 import json
 import sys
 import zipfile
@@ -174,6 +182,9 @@ license_path = Path(sys.argv[2])
 profile_result_path = Path(sys.argv[3])
 expected_bundle = sys.argv[4]
 expected_module = sys.argv[5]
+local_manifest = Path(sys.argv[6])
+local_sherpa = Path(sys.argv[7])
+local_ort = Path(sys.argv[8])
 required = {
     "libs/arm64-v8a/libamphion_asr.so",
     "libs/arm64-v8a/libonnxruntime.so",
@@ -190,6 +201,12 @@ with zipfile.ZipFile(hap) as package:
         raise SystemExit("[ERROR] HAP unexpectedly contains x86_64 native libraries")
     if package.read("resources/rawfile/amphion-license.lic") != license_path.read_bytes():
         raise SystemExit("[ERROR] HAP license differs from the verified source license")
+    if package.read("resources/rawfile/amphion-models/manifest.json") != local_manifest.read_bytes():
+        raise SystemExit("[ERROR] HAP model manifest differs from the verified local manifest")
+    if package.read("libs/arm64-v8a/libsherpa-onnx-c-api.so") != local_sherpa.read_bytes():
+        raise SystemExit("[ERROR] HAP sherpa native library differs from the verified local library")
+    if package.read("libs/arm64-v8a/libonnxruntime.so") != local_ort.read_bytes():
+        raise SystemExit("[ERROR] HAP ONNX Runtime library differs from the verified local library")
     try:
         module = json.loads(package.read("module.json"))
     except (KeyError, json.JSONDecodeError) as exc:
