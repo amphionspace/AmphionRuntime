@@ -47,7 +47,7 @@ python3 asr/tools/verify_packed_model_assets.py \
 当前 NAPI 边界会把 recognizer 创建异常转成 ArkTS 异常；无效模型应显示“引擎初始化失败”，不应再触发 App `SIGABRT`。
 
 当前 `zhen` 正式交付使用 manifest v2 和
-`zh-en/v1/{encoder.int8.ort,decoder.int8.ort,joiner.int8.ort}`。如果 HAP 仍包含 ONNX 三图、
+`zh-en/v1/{encoder.int8.ort,decoder.ort,joiner.int8.ort}`。如果 HAP 仍包含 ONNX 三图、
 manifest v1，或 HAP 内 manifest/native 与本地验收产物不同，说明混入了旧构建产物；重新执行
 模型打包和 `build_install_smoke.sh`，不要直接复用旧 HAP。
 

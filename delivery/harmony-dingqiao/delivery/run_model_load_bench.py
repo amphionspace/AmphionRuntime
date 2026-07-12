@@ -158,7 +158,7 @@ def model_source_hashes_from_manifest(manifest: object) -> dict[str, str]:
         raise LoadBenchFailure("HAP model manifest is missing bundles")
     specifications = {
         "encoder": ("zh-en/v1", ("encoder.int8.ort", "encoder.int8.onnx")),
-        "decoder": ("zh-en/v1", ("decoder.int8.ort", "decoder.int8.onnx", "decoder.onnx")),
+        "decoder": ("zh-en/v1", ("decoder.ort", "decoder.int8.ort", "decoder.int8.onnx", "decoder.onnx")),
         "joiner": ("zh-en/v1", ("joiner.int8.ort", "joiner.int8.onnx")),
         "tokens": ("zh-en/v1", ("tokens.txt",)),
         "bbpe_vocab": ("zh-en/v1", ("bbpe.vocab",)),

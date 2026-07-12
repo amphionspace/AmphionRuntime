@@ -1,6 +1,7 @@
 {
   "src": [
     "pages/Index",
+    "pages/DeviceTest",
     "pages/Hotwords",
     "pages/VoiceprintEnroll"
   ]

@@ -1,5 +1,11 @@
 {
   "apiType": "stageMode",
-  "buildOption": {},
+  "buildOption": {
+    "nativeLib": {
+      "filter": {
+        "pickFirsts": ["**/libsherpa-onnx-c-api.so"]
+      }
+    }
+  },
   "targets": [ { "name": "default" } ]
 }

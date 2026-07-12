@@ -35,7 +35,7 @@ export class AssetRegistry {
       ]);
     }
     return new AssetBundle('zh-en/v1', `${AssetRegistry.ROOT}/zh-en/v1`, [
-      'encoder.int8.ort', 'decoder.int8.ort', 'joiner.int8.ort', 'tokens.txt', 'bbpe.vocab'
+      'encoder.int8.ort', 'decoder.ort', 'joiner.int8.ort', 'tokens.txt', 'bbpe.vocab'
     ]);
   }
 
@@ -65,7 +65,7 @@ export class AssetRegistry {
       layout.asrJoiner = `${asr}/joiner.int8.onnx`;
     } else {
       layout.asrEncoder = `${asr}/encoder.int8.ort`;
-      layout.asrDecoder = `${asr}/decoder.int8.ort`;
+      layout.asrDecoder = `${asr}/decoder.ort`;
       layout.asrJoiner = `${asr}/joiner.int8.ort`;
     }
     layout.asrTokens = `${asr}/tokens.txt`;

@@ -36,7 +36,7 @@ EXPECTED_BUNDLES_V1 = {
 EXPECTED_BUNDLES_V2 = {
     "zh-en/v1": [
         "encoder.int8.ort",
-        "decoder.int8.ort",
+        "decoder.ort",
         "joiner.int8.ort",
         "tokens.txt",
         "bbpe.vocab",

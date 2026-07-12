@@ -47,6 +47,7 @@ class SessionEvents {
   completes: number = 0;
   errors: number = 0;
   finalChars: number = 0;
+  finalTexts: string[] = [];
   lastIsLast: boolean = false;
   errorCodes: number[] = [];
 }
@@ -74,6 +75,7 @@ class StressListener implements RecognitionListener {
     if (!result.isFinal) return;
     this.events.finals += 1;
     this.events.finalChars += result.result.length;
+    this.events.finalTexts.push(result.result);
     this.events.lastIsLast = result.isLast;
   }
 
@@ -204,13 +206,14 @@ class CycleResult {
   finalChars: number = 0;
   liveStreams: number = 0;
   elapsedMs: number = 0;
+  resultHex: string = '';
   detail: string = '';
 
   toLine(): string {
     return `CYCLE|index=${this.index}|id=${this.corpusId}|status=${this.ok ? 'PASS' : 'FAIL'}` +
       `|starts=${this.starts}|finals=${this.finals}|completes=${this.completes}` +
       `|errors=${this.errors}|finalChars=${this.finalChars}|liveStreams=${this.liveStreams}` +
-      `|elapsedMs=${this.elapsedMs}|detail=${this.detail}`;
+      `|elapsedMs=${this.elapsedMs}|resultHex=${this.resultHex}|detail=${this.detail}`;
   }
 }
 
@@ -259,6 +262,14 @@ function stringToAsciiBytes(value: string): ArrayBuffer {
   const bytes = new Uint8Array(value.length);
   for (let i = 0; i < value.length; i++) bytes[i] = value.charCodeAt(i) & 0x7F;
   return bytes.buffer;
+}
+
+function stringToUtf16Hex(value: string): string {
+  let result = '';
+  for (let i = 0; i < value.length; i++) {
+    result += value.charCodeAt(i).toString(16).padStart(4, '0');
+  }
+  return result;
 }
 
 function readBytes(path: string): ArrayBuffer {
@@ -410,6 +421,7 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.finalChars = events.finalChars;
   result.liveStreams = AmphionRuntime.activeOnlineStreamCount();
   result.elapsedMs = Date.now() - startedAt;
+  result.resultHex = stringToUtf16Hex(events.finalTexts.join(''));
   result.ok = ok && result.liveStreams === 0;
   result.detail = result.liveStreams === 0 ? detail : `live-streams-${result.liveStreams}`;
   return result;
