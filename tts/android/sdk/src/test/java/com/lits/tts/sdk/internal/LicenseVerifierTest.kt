@@ -170,6 +170,50 @@ class LicenseVerifierTest {
         assertEquals(TtsErrorCode.LICENSE_FEATURE_MISSING, r.errorCode)
     }
 
+    /**
+     * 鼎桥离线 license 交付形态：applicationId / bundleName 均为空（packageNameBound=false），
+     * 改用 cert + SN 白名单绑定。武装态下必须按 LICENSED 通过，不能误判 LICENSE_APP_MISMATCH。
+     * 锁定 LicenseVerifier 的空包名放行（app-binding guard）。
+     */
+    @Test
+    fun blankApplicationIdIsNotAppBound() {
+        val cert = "AABBCCDDEEFF00112233445566778899AABBCCDDEEFF00112233445566778899"
+        val saltId = "DQ-TIASSISTANT-20260623-69CD375699165832C1D2E9EA77C8BE71"
+        val serial = "SN-001"
+        val hash = DeviceLicenseFingerprint.computeFromSerial(serial, saltId)
+        val lic = issue(
+            claims(
+                applicationId = "",
+                certSha256 = cert,
+                deviceIdSaltId = saltId,
+                authorizedDeviceHashes = listOf(hash),
+                features = listOf("TTS"),
+            ),
+        )
+        val r = verifyWith(lic, hostCert = setOf(cert), deviceSerial = serial)
+        assertTrue(r.errorMessage, r.ok)
+        assertEquals(TtsLicenseStatus.State.LICENSED, r.status.state)
+    }
+
+    /** 空 features 授权不到任何能力，必须拒绝激活 TTS（与 ASR 验签器一致，堵住能力门禁绕过）。 */
+    @Test
+    fun emptyFeaturesDeniesTts() {
+        val lic = issue(claims(applicationId = appId, features = emptyList()))
+        val r = verifyWith(lic)
+        assertEquals(TtsErrorCode.LICENSE_FEATURE_MISSING, r.errorCode)
+    }
+
+    /** 鼎桥能力分档诉求：requiredFeature=TTS 下 asr-only 拒绝、tts-only 与 asr&tts 放行。 */
+    @Test
+    fun featureTierMatrixForTts() {
+        assertEquals(
+            TtsErrorCode.LICENSE_FEATURE_MISSING,
+            verifyWith(issue(claims(applicationId = appId, features = listOf("ASR")))).errorCode,
+        )
+        assertTrue(verifyWith(issue(claims(applicationId = appId, features = listOf("TTS")))).ok)
+        assertTrue(verifyWith(issue(claims(applicationId = appId, features = listOf("ASR", "TTS")))).ok)
+    }
+
     private fun verify(licenseText: String?, nowMillis: Long = utc("2026-06-01")) =
         LicenseVerifier.verifyResolved(
             licenseText = licenseText,
