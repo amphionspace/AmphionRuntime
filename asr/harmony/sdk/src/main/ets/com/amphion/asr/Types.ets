@@ -150,6 +150,8 @@ export class AsrResult {
   tokenConfidences: number[] = [];
   speakerScore?: number;
   isTargetSpeaker?: boolean;
+  // True only for the final produced by an explicit stop/finish; endpoint finals stay false.
+  isLast: boolean = false;
 }
 
 export class AsrError {

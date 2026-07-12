@@ -48,15 +48,16 @@ export class AudioRecorder {
 
   async stop(): Promise<void> {
     if (!this.running && this.capturer === undefined) return;
-    this.running = false;
     const capturer = this.capturer;
     this.capturer = undefined;
     if (capturer === undefined) return;
     try {
-      capturer.off('readData');
       await capturer.stop();
+      this.running = false;
+      capturer.off('readData');
       await capturer.release();
     } catch (e) {
+      this.running = false;
       // best-effort teardown; the capturer may already be stopped
     }
   }
