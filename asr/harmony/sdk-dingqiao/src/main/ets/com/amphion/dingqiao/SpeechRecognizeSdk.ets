@@ -261,6 +261,8 @@ function buildEnhanceOptions(params: CreateEngineParams): PoliceEnhanceOptions {
   return options;
 }
 
+const STOP_FALLBACK_DELAY_MS: number = 1500;
+
 class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private context: Context;
   private params: CreateEngineParams;
@@ -477,7 +479,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const enhanced = this.pipeline.enhance(result.text);
     const payload = new SpeechRecognitionResult();
     payload.isFinal = true;
-    payload.isLast = this.finishRequested;
+    payload.isLast = result.isLast;
     payload.result = enhanced.text;
     payload.speakerSimilarity = result.speakerScore;
     // beginTime/endTime from token timestamps (seconds -> ms), aligned with Android dispatchResult.
@@ -488,7 +490,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     }
     this.finalResultSent = true;
     this.listener?.onResult?.(this.currentSessionId, payload);
-    if (this.finishRequested) {
+    if (result.isLast) {
       this.completeCurrentSession();
     }
   }
@@ -559,7 +561,14 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     // can show the target speaker left without polluting the recognized text.
     const detail = result.speakerScore !== undefined ? `score=${result.speakerScore.toFixed(2)}` : 'target speaker absent';
     this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEAKER_VAD_REJECTED, `speaker vad rejected: ${detail}`);
-    if (this.finishRequested) {
+    if (this.finishRequested || result.isLast) {
+      const payload = new SpeechRecognitionResult();
+      payload.isFinal = true;
+      payload.isLast = true;
+      payload.result = '';
+      payload.speakerSimilarity = result.speakerScore;
+      this.finalResultSent = true;
+      this.listener?.onResult?.(this.currentSessionId, payload);
       this.completeCurrentSession();
     }
   }
@@ -579,15 +588,17 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
 
   handleSessionStopped(): void {
     if (this.finishRequested) {
-      if (!this.finalResultSent) {
+      const sessionId = this.currentSessionId;
+      setTimeout((): void => {
+        if (!this.busy || !this.finishRequested || this.completeSent || this.currentSessionId !== sessionId) return;
         const result = new SpeechRecognitionResult();
         result.isFinal = true;
         result.isLast = true;
         result.result = '';
         this.finalResultSent = true;
-        this.listener?.onResult?.(this.currentSessionId, result);
-      }
-      this.completeCurrentSession();
+        this.listener?.onResult?.(sessionId, result);
+        this.completeCurrentSession();
+      }, STOP_FALLBACK_DELAY_MS);
     } else {
       this.tearDownSession();
     }

@@ -59,6 +59,7 @@ struct Index {
   private sessionId: string = '';
   private sessionAudioMs: number = 0;
   private rotatingSession: boolean = false;
+  private stoppingListening: boolean = false;
   private workPath: string = '';
   private appliedHotwordsKey: string = '';
 
@@ -260,14 +261,19 @@ struct Index {
     }
   }
 
-  private stopListening(): void {
-    if (!this.listening) return;
-    this.listening = false;
-    this.stopCapture();
+  private async stopListening(): Promise<void> {
+    if (!this.listening || this.stoppingListening) return;
+    this.stoppingListening = true;
     const sid = this.sessionId;
-    this.sessionId = '';
     this.rotatingSession = false;
     this.sessionAudioMs = 0;
+    try {
+      await this.stopCapture();
+    } finally {
+      this.listening = false;
+      this.sessionId = '';
+      this.stoppingListening = false;
+    }
     if (sid.length > 0) {
       this.engine?.finish(sid);
     }
@@ -291,10 +297,10 @@ struct Index {
     recorder.start();
   }
 
-  private stopCapture(): void {
-    this.recorder?.stop();
+  private async stopCapture(): Promise<void> {
+    await this.recorder?.stop();
     this.recorder = undefined;
-    this.frameWriter?.reset();
+    this.frameWriter?.flushFinalFrame();
     this.frameWriter = undefined;
   }
 

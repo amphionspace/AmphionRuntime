@@ -39,4 +39,12 @@ export class PcmFrameWriter {
   reset(): void {
     this.pending = new Int16Array(0);
   }
+
+  flushFinalFrame(): void {
+    if (this.pending.length === 0) return;
+    const out = new ArrayBuffer(FRAME_SAMPLES * 2);
+    new Int16Array(out).set(this.pending, 0);
+    this.pending = new Int16Array(0);
+    this.onFrame(out);
+  }
 }
