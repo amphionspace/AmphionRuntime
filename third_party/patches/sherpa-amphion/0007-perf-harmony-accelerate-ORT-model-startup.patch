@@ -1,0 +1,1413 @@
+From eb3b9192d1d8c85a23df23c853285c7ae30aec97 Mon Sep 17 00:00:00 2001
+From: Amphion <dev@amphion.local>
+Date: Sun, 12 Jul 2026 00:08:06 +0800
+Subject: [PATCH 7/7] perf(harmony): accelerate ORT model startup
+
+---
+ .../src/main/cpp/offline-punctuation.cc       | 181 ++++++++-
+ .../sherpa_onnx/src/main/cpp/streaming-asr.cc | 354 +++++++++++++++---
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |   4 +
+ .../ets/components/OfflinePunctuation.ets     |  11 +-
+ .../src/main/ets/components/StreamingAsr.ets  |  14 +-
+ sherpa-onnx/csrc/file-utils.cc                | 179 ++++++++-
+ sherpa-onnx/csrc/file-utils.h                 |  43 +++
+ .../csrc/offline-ct-transformer-model.cc      |  15 +-
+ sherpa-onnx/csrc/online-recognizer-impl.cc    |  26 +-
+ sherpa-onnx/csrc/online-transducer-model.cc   |  11 +-
+ .../online-zipformer2-transducer-model.cc     |  64 +++-
+ .../csrc/online-zipformer2-transducer-model.h |  13 +-
+ sherpa-onnx/csrc/session.cc                   |  24 ++
+ sherpa-onnx/csrc/session.h                    |   9 +
+ 14 files changed, 844 insertions(+), 104 deletions(-)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation.cc
+index d8d3e6e1..eac2ac90 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation.cc
+@@ -1,6 +1,8 @@
+ // scripts/node-addon-api/src/offline-punctuation.cc
+ //
+ // Copyright (c)  2024  Xiaomi Corporation
++#include <exception>
++#include <memory>
+ #include <sstream>
+ #include <string>
+ 
+@@ -36,6 +38,12 @@ static SherpaOnnxOfflinePunctuationModelConfig GetOfflinePunctuationModelConfig(
+   return c;
+ }
+ 
++static void FreeOfflinePunctuationConfig(
++    SherpaOnnxOfflinePunctuationConfig &config) {
++  SHERPA_ONNX_DELETE_C_STR(config.model.ct_transformer);
++  SHERPA_ONNX_DELETE_C_STR(config.model.provider);
++}
++
+ static Napi::External<SherpaOnnxOfflinePunctuation>
+ CreateOfflinePunctuationWrapper(const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+@@ -83,8 +91,7 @@ CreateOfflinePunctuationWrapper(const Napi::CallbackInfo &info) {
+           env, "You should pass a resource manager as the second argument.")
+           .ThrowAsJavaScriptException();
+ 
+-      SHERPA_ONNX_DELETE_C_STR(c.model.ct_transformer);
+-      SHERPA_ONNX_DELETE_C_STR(c.model.provider);
++      FreeOfflinePunctuationConfig(c);
+       return {};
+     }
+ 
+@@ -100,8 +107,7 @@ CreateOfflinePunctuationWrapper(const Napi::CallbackInfo &info) {
+       SherpaOnnxCreateOfflinePunctuation(&c);
+ #endif
+ 
+-  SHERPA_ONNX_DELETE_C_STR(c.model.ct_transformer);
+-  SHERPA_ONNX_DELETE_C_STR(c.model.provider);
++  FreeOfflinePunctuationConfig(c);
+ 
+   if (!punct) {
+     Napi::TypeError::New(env, "Please check your config!")
+@@ -117,6 +123,170 @@ CreateOfflinePunctuationWrapper(const Napi::CallbackInfo &info) {
+       });
+ }
+ 
++class CreateOfflinePunctuationAsyncWorker : public Napi::AsyncWorker {
++ public:
++  CreateOfflinePunctuationAsyncWorker(
++      Napi::Env env, SherpaOnnxOfflinePunctuationConfig config,
++      Napi::Promise::Deferred deferred, void *mgr,
++      napi_ref resource_manager_ref)
++      : Napi::AsyncWorker(env, "CreateOfflinePunctuationAsyncWorker"),
++        config_(config),
++        deferred_(deferred),
++        mgr_(mgr),
++        resource_manager_ref_(resource_manager_ref) {}
++
++  ~CreateOfflinePunctuationAsyncWorker() override {
++    if (punctuation_ != nullptr) {
++      SherpaOnnxDestroyOfflinePunctuation(punctuation_);
++      punctuation_ = nullptr;
++    }
++    ReleaseResourceManager();
++    FreeOfflinePunctuationConfig(config_);
++  }
++
++  void Execute() override {
++    try {
++#if __OHOS__
++      if (mgr_ != nullptr) {
++        punctuation_ = SherpaOnnxCreateOfflinePunctuationOHOS(
++            &config_, static_cast<NativeResourceManager *>(mgr_));
++      } else {
++        punctuation_ = SherpaOnnxCreateOfflinePunctuation(&config_);
++      }
++#else
++      punctuation_ = SherpaOnnxCreateOfflinePunctuation(&config_);
++#endif
++    } catch (const std::exception &e) {
++      error_ = std::string("Failed to create offline punctuation: ") +
++               e.what();
++      return;
++    } catch (...) {
++      error_ =
++          "Failed to create offline punctuation: unknown native exception";
++      return;
++    }
++
++    if (punctuation_ == nullptr) {
++      error_ = "Failed to create offline punctuation: check the config";
++    }
++  }
++
++  void OnOK() override {
++    Napi::Env env = Env();
++    if (!error_.empty()) {
++      ReleaseResourceManager();
++      deferred_.Reject(Napi::Error::New(env, error_).Value());
++      return;
++    }
++
++    Napi::External<SherpaOnnxOfflinePunctuation> external =
++        Napi::External<SherpaOnnxOfflinePunctuation>::New(
++            env, const_cast<SherpaOnnxOfflinePunctuation *>(punctuation_),
++            [](Napi::Env /*env*/, SherpaOnnxOfflinePunctuation *punctuation) {
++              SherpaOnnxDestroyOfflinePunctuation(punctuation);
++            });
++    punctuation_ = nullptr;
++    ReleaseResourceManager();
++    deferred_.Resolve(external);
++  }
++
++  void OnError(const Napi::Error &error) override {
++    if (punctuation_ != nullptr) {
++      SherpaOnnxDestroyOfflinePunctuation(punctuation_);
++      punctuation_ = nullptr;
++    }
++    ReleaseResourceManager();
++    deferred_.Reject(error.Value());
++  }
++
++ private:
++  void ReleaseResourceManager() {
++#if __OHOS__
++    if (mgr_ != nullptr) {
++      OH_ResourceManager_ReleaseNativeResourceManager(
++          static_cast<NativeResourceManager *>(mgr_));
++      mgr_ = nullptr;
++    }
++    if (resource_manager_ref_ != nullptr) {
++      napi_delete_reference(Env(), resource_manager_ref_);
++      resource_manager_ref_ = nullptr;
++    }
++#endif
++  }
++
++ private:
++  SherpaOnnxOfflinePunctuationConfig config_;
++  Napi::Promise::Deferred deferred_;
++  void *mgr_ = nullptr;
++  napi_ref resource_manager_ref_ = nullptr;
++  const SherpaOnnxOfflinePunctuation *punctuation_ = nullptr;
++  std::string error_;
++};
++
++static Napi::Value CreateOfflinePunctuationAsyncWrapper(
++    const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++#if __OHOS__
++  if (info.Length() < 1 || info.Length() > 2 || !info[0].IsObject()) {
++    Napi::TypeError::New(env,
++                         "Expected config and optional resource manager")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++#else
++  if (info.Length() != 1 || !info[0].IsObject()) {
++    Napi::TypeError::New(env, "Expected config object")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++#endif
++
++  SherpaOnnxOfflinePunctuationConfig config;
++  memset(&config, 0, sizeof(config));
++  config.model =
++      GetOfflinePunctuationModelConfig(info[0].As<Napi::Object>());
++
++  void *mgr = nullptr;
++  napi_ref resource_manager_ref = nullptr;
++#if __OHOS__
++  const bool use_resource_manager =
++      info.Length() == 2 && !info[1].IsUndefined() && !info[1].IsNull();
++  if (use_resource_manager) {
++    if (!info[1].IsObject()) {
++      FreeOfflinePunctuationConfig(config);
++      Napi::TypeError::New(env, "resource manager must be an object")
++          .ThrowAsJavaScriptException();
++      return env.Null();
++    }
++
++    mgr = OH_ResourceManager_InitNativeResourceManager(env, info[1]);
++    if (mgr == nullptr ||
++        napi_create_reference(env, info[1], 1, &resource_manager_ref) !=
++            napi_ok) {
++      if (mgr != nullptr) {
++        OH_ResourceManager_ReleaseNativeResourceManager(
++            static_cast<NativeResourceManager *>(mgr));
++      }
++      FreeOfflinePunctuationConfig(config);
++      Napi::Error::New(env, "Failed to retain the resource manager")
++          .ThrowAsJavaScriptException();
++      return env.Null();
++    }
++  }
++#endif
++
++  Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
++  auto *worker = new CreateOfflinePunctuationAsyncWorker(
++      env, config, deferred, mgr, resource_manager_ref);
++  try {
++    worker->Queue();
++  } catch (...) {
++    delete worker;
++    throw;
++  }
++  return deferred.Promise();
++}
++
+ static Napi::String OfflinePunctuationAddPunctWrapper(
+     const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+@@ -161,6 +331,9 @@ static Napi::String OfflinePunctuationAddPunctWrapper(
+ void InitOfflinePunctuation(Napi::Env env, Napi::Object exports) {
+   exports.Set(Napi::String::New(env, "createOfflinePunctuation"),
+               Napi::Function::New(env, CreateOfflinePunctuationWrapper));
++  exports.Set(Napi::String::New(env, "createOfflinePunctuationAsync"),
++              Napi::Function::New(env,
++                                  CreateOfflinePunctuationAsyncWrapper));
+ 
+   exports.Set(Napi::String::New(env, "offlinePunctuationAddPunct"),
+               Napi::Function::New(env, OfflinePunctuationAddPunctWrapper));
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+index 112f5940..c1ff369c 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+@@ -5,6 +5,7 @@
+ #include <memory>
+ #include <sstream>
+ #include <string>
++#include <vector>
+ 
+ #include "macros.h"  // NOLINT
+ #include "napi.h"    // NOLINT
+@@ -199,6 +200,74 @@ SherpaOnnxHomophoneReplacerConfig GetHomophoneReplacerConfig(Napi::Object obj) {
+   return c;
+ }
+ 
++static SherpaOnnxOnlineRecognizerConfig GetOnlineRecognizerConfig(
++    Napi::Object o) {
++  SherpaOnnxOnlineRecognizerConfig c;
++  memset(&c, 0, sizeof(c));
++  c.feat_config = GetFeatureConfig(o);
++  c.model_config = GetOnlineModelConfig(o);
++  c.hr = GetHomophoneReplacerConfig(o);
++
++  SHERPA_ONNX_ASSIGN_ATTR_STR(decoding_method, decodingMethod);
++  SHERPA_ONNX_ASSIGN_ATTR_INT32(max_active_paths, maxActivePaths);
++
++  // enableEndpoint can be either a boolean or an integer
++  if (o.Has("enableEndpoint") && (o.Get("enableEndpoint").IsNumber() ||
++                                  o.Get("enableEndpoint").IsBoolean())) {
++    if (o.Get("enableEndpoint").IsNumber()) {
++      c.enable_endpoint =
++          o.Get("enableEndpoint").As<Napi::Number>().Int32Value();
++    } else {
++      c.enable_endpoint = o.Get("enableEndpoint").As<Napi::Boolean>().Value();
++    }
++  }
++
++  SHERPA_ONNX_ASSIGN_ATTR_FLOAT(rule1_min_trailing_silence,
++                                rule1MinTrailingSilence);
++  SHERPA_ONNX_ASSIGN_ATTR_FLOAT(rule2_min_trailing_silence,
++                                rule2MinTrailingSilence);
++  SHERPA_ONNX_ASSIGN_ATTR_FLOAT(rule3_min_utterance_length,
++                                rule3MinUtteranceLength);
++  SHERPA_ONNX_ASSIGN_ATTR_STR(hotwords_file, hotwordsFile);
++  SHERPA_ONNX_ASSIGN_ATTR_FLOAT(hotwords_score, hotwordsScore);
++  SHERPA_ONNX_ASSIGN_ATTR_STR(rule_fsts, ruleFsts);
++  SHERPA_ONNX_ASSIGN_ATTR_STR(rule_fars, ruleFars);
++  SHERPA_ONNX_ASSIGN_ATTR_FLOAT(blank_penalty, blankPenalty);
++  SHERPA_ONNX_ASSIGN_ATTR_STR(hotwords_buf, hotwordsBuf);
++  SHERPA_ONNX_ASSIGN_ATTR_INT32(hotwords_buf_size, hotwordsBufSize);
++
++  c.ctc_fst_decoder_config = GetCtcFstDecoderConfig(o);
++  return c;
++}
++
++static void FreeOnlineRecognizerConfig(SherpaOnnxOnlineRecognizerConfig &c) {
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.transducer.encoder);
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.transducer.decoder);
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.transducer.joiner);
++
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.paraformer.encoder);
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.paraformer.decoder);
++
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.t_one_ctc.model);
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.nemo_ctc.model);
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.zipformer2_ctc.model);
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.tokens);
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.provider);
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.model_type);
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.modeling_unit);
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.bpe_vocab);
++  SHERPA_ONNX_DELETE_C_STR(c.model_config.tokens_buf);
++  SHERPA_ONNX_DELETE_C_STR(c.decoding_method);
++  SHERPA_ONNX_DELETE_C_STR(c.hotwords_file);
++  SHERPA_ONNX_DELETE_C_STR(c.rule_fsts);
++  SHERPA_ONNX_DELETE_C_STR(c.rule_fars);
++  SHERPA_ONNX_DELETE_C_STR(c.hotwords_buf);
++  SHERPA_ONNX_DELETE_C_STR(c.ctc_fst_decoder_config.graph);
++
++  SHERPA_ONNX_DELETE_C_STR(c.hr.lexicon);
++  SHERPA_ONNX_DELETE_C_STR(c.hr.rule_fsts);
++}
++
+ static Napi::External<SherpaOnnxOnlineRecognizer> CreateOnlineRecognizerWrapper(
+     const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+@@ -241,42 +310,8 @@ static Napi::External<SherpaOnnxOnlineRecognizer> CreateOnlineRecognizerWrapper(
+   }
+ #endif
+ 
+-  Napi::Object o = info[0].As<Napi::Object>();
+-  SherpaOnnxOnlineRecognizerConfig c;
+-  memset(&c, 0, sizeof(c));
+-  c.feat_config = GetFeatureConfig(o);
+-  c.model_config = GetOnlineModelConfig(o);
+-  c.hr = GetHomophoneReplacerConfig(o);
+-
+-  SHERPA_ONNX_ASSIGN_ATTR_STR(decoding_method, decodingMethod);
+-  SHERPA_ONNX_ASSIGN_ATTR_INT32(max_active_paths, maxActivePaths);
+-
+-  // enableEndpoint can be either a boolean or an integer
+-  if (o.Has("enableEndpoint") && (o.Get("enableEndpoint").IsNumber() ||
+-                                  o.Get("enableEndpoint").IsBoolean())) {
+-    if (o.Get("enableEndpoint").IsNumber()) {
+-      c.enable_endpoint =
+-          o.Get("enableEndpoint").As<Napi::Number>().Int32Value();
+-    } else {
+-      c.enable_endpoint = o.Get("enableEndpoint").As<Napi::Boolean>().Value();
+-    }
+-  }
+-
+-  SHERPA_ONNX_ASSIGN_ATTR_FLOAT(rule1_min_trailing_silence,
+-                                rule1MinTrailingSilence);
+-  SHERPA_ONNX_ASSIGN_ATTR_FLOAT(rule2_min_trailing_silence,
+-                                rule2MinTrailingSilence);
+-  SHERPA_ONNX_ASSIGN_ATTR_FLOAT(rule3_min_utterance_length,
+-                                rule3MinUtteranceLength);
+-  SHERPA_ONNX_ASSIGN_ATTR_STR(hotwords_file, hotwordsFile);
+-  SHERPA_ONNX_ASSIGN_ATTR_FLOAT(hotwords_score, hotwordsScore);
+-  SHERPA_ONNX_ASSIGN_ATTR_STR(rule_fsts, ruleFsts);
+-  SHERPA_ONNX_ASSIGN_ATTR_STR(rule_fars, ruleFars);
+-  SHERPA_ONNX_ASSIGN_ATTR_FLOAT(blank_penalty, blankPenalty);
+-  SHERPA_ONNX_ASSIGN_ATTR_STR(hotwords_buf, hotwordsBuf);
+-  SHERPA_ONNX_ASSIGN_ATTR_INT32(hotwords_buf_size, hotwordsBufSize);
+-
+-  c.ctc_fst_decoder_config = GetCtcFstDecoderConfig(o);
++  SherpaOnnxOnlineRecognizerConfig c =
++      GetOnlineRecognizerConfig(info[0].As<Napi::Object>());
+ 
+   const SherpaOnnxOnlineRecognizer *recognizer = nullptr;
+   std::string creation_error;
+@@ -301,31 +336,7 @@ static Napi::External<SherpaOnnxOnlineRecognizer> CreateOnlineRecognizerWrapper(
+   } catch (...) {
+     creation_error = "unknown native exception";
+   }
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.transducer.encoder);
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.transducer.decoder);
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.transducer.joiner);
+-
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.paraformer.encoder);
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.paraformer.decoder);
+-
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.t_one_ctc.model);
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.nemo_ctc.model);
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.zipformer2_ctc.model);
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.tokens);
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.provider);
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.model_type);
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.modeling_unit);
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.bpe_vocab);
+-  SHERPA_ONNX_DELETE_C_STR(c.model_config.tokens_buf);
+-  SHERPA_ONNX_DELETE_C_STR(c.decoding_method);
+-  SHERPA_ONNX_DELETE_C_STR(c.hotwords_file);
+-  SHERPA_ONNX_DELETE_C_STR(c.rule_fsts);
+-  SHERPA_ONNX_DELETE_C_STR(c.rule_fars);
+-  SHERPA_ONNX_DELETE_C_STR(c.hotwords_buf);
+-  SHERPA_ONNX_DELETE_C_STR(c.ctc_fst_decoder_config.graph);
+-
+-  SHERPA_ONNX_DELETE_C_STR(c.hr.lexicon);
+-  SHERPA_ONNX_DELETE_C_STR(c.hr.rule_fsts);
++  FreeOnlineRecognizerConfig(c);
+ 
+   if (!creation_error.empty()) {
+     Napi::Error::New(env, "Failed to create online recognizer: " + creation_error)
+@@ -347,6 +358,225 @@ static Napi::External<SherpaOnnxOnlineRecognizer> CreateOnlineRecognizerWrapper(
+       });
+ }
+ 
++static constexpr int32_t kDefaultWarmupSamples = 12800;
++static constexpr int32_t kWarmupSampleRate = 16000;
++
++static void WarmUpOnlineRecognizer(
++    const SherpaOnnxOnlineRecognizer *recognizer, int32_t warmup_samples) {
++  if (warmup_samples <= 0) {
++    return;
++  }
++
++  const SherpaOnnxOnlineStream *raw_stream =
++      SherpaOnnxCreateOnlineStream(recognizer);
++  if (raw_stream == nullptr) {
++    return;
++  }
++
++  std::unique_ptr<const SherpaOnnxOnlineStream,
++                  decltype(&SherpaOnnxDestroyOnlineStream)>
++      stream(raw_stream, &SherpaOnnxDestroyOnlineStream);
++  std::vector<float> silence(static_cast<size_t>(warmup_samples), 0.0f);
++  SherpaOnnxOnlineStreamAcceptWaveform(stream.get(), kWarmupSampleRate,
++                                       silence.data(), warmup_samples);
++  while (SherpaOnnxIsOnlineStreamReady(recognizer, stream.get())) {
++    SherpaOnnxDecodeOnlineStream(recognizer, stream.get());
++  }
++  SherpaOnnxOnlineStreamReset(recognizer, stream.get());
++}
++
++class CreateOnlineRecognizerAsyncWorker : public Napi::AsyncWorker {
++ public:
++  CreateOnlineRecognizerAsyncWorker(
++      Napi::Env env, SherpaOnnxOnlineRecognizerConfig config,
++      Napi::Promise::Deferred deferred, void *mgr,
++      napi_ref resource_manager_ref, int32_t warmup_samples)
++      : Napi::AsyncWorker(env, "CreateOnlineRecognizerAsyncWorker"),
++        config_(config),
++        deferred_(deferred),
++        mgr_(mgr),
++        resource_manager_ref_(resource_manager_ref),
++        warmup_samples_(warmup_samples) {}
++
++  ~CreateOnlineRecognizerAsyncWorker() override {
++    if (recognizer_ != nullptr) {
++      SherpaOnnxDestroyOnlineRecognizer(recognizer_);
++      recognizer_ = nullptr;
++    }
++    ReleaseResourceManager();
++    FreeOnlineRecognizerConfig(config_);
++  }
++
++  void Execute() override {
++    try {
++#if __OHOS__
++      if (mgr_ != nullptr) {
++        recognizer_ = SherpaOnnxCreateOnlineRecognizerOHOS(
++            &config_, static_cast<NativeResourceManager *>(mgr_));
++      } else {
++        recognizer_ = SherpaOnnxCreateOnlineRecognizer(&config_);
++      }
++#else
++      recognizer_ = SherpaOnnxCreateOnlineRecognizer(&config_);
++#endif
++    } catch (const std::exception &e) {
++      error_ = std::string("Failed to create online recognizer: ") + e.what();
++      return;
++    } catch (...) {
++      error_ = "Failed to create online recognizer: unknown native exception";
++      return;
++    }
++
++    if (recognizer_ == nullptr) {
++      error_ = "Failed to create online recognizer: check the config";
++      return;
++    }
++
++    // Match the SDK's one-time silence warmup before resolving. Warmup remains
++    // best-effort so a usable recognizer is not discarded if a model rejects
++    // the synthetic stream.
++    try {
++      WarmUpOnlineRecognizer(recognizer_, warmup_samples_);
++    } catch (...) {
++    }
++  }
++
++  void OnOK() override {
++    Napi::Env env = Env();
++    if (!error_.empty()) {
++      ReleaseResourceManager();
++      deferred_.Reject(Napi::Error::New(env, error_).Value());
++      return;
++    }
++
++    Napi::External<SherpaOnnxOnlineRecognizer> external =
++        Napi::External<SherpaOnnxOnlineRecognizer>::New(
++            env, const_cast<SherpaOnnxOnlineRecognizer *>(recognizer_),
++            [](Napi::Env /*env*/, SherpaOnnxOnlineRecognizer *recognizer) {
++              SherpaOnnxDestroyOnlineRecognizer(recognizer);
++            });
++    recognizer_ = nullptr;
++    ReleaseResourceManager();
++    deferred_.Resolve(external);
++  }
++
++  void OnError(const Napi::Error &error) override {
++    if (recognizer_ != nullptr) {
++      SherpaOnnxDestroyOnlineRecognizer(recognizer_);
++      recognizer_ = nullptr;
++    }
++    ReleaseResourceManager();
++    deferred_.Reject(error.Value());
++  }
++
++ private:
++  void ReleaseResourceManager() {
++#if __OHOS__
++    if (mgr_ != nullptr) {
++      OH_ResourceManager_ReleaseNativeResourceManager(
++          static_cast<NativeResourceManager *>(mgr_));
++      mgr_ = nullptr;
++    }
++    if (resource_manager_ref_ != nullptr) {
++      napi_delete_reference(Env(), resource_manager_ref_);
++      resource_manager_ref_ = nullptr;
++    }
++#endif
++  }
++
++ private:
++  SherpaOnnxOnlineRecognizerConfig config_;
++  Napi::Promise::Deferred deferred_;
++  void *mgr_ = nullptr;
++  napi_ref resource_manager_ref_ = nullptr;
++  int32_t warmup_samples_ = 0;
++  const SherpaOnnxOnlineRecognizer *recognizer_ = nullptr;
++  std::string error_;
++};
++
++static Napi::Value CreateOnlineRecognizerAsyncWrapper(
++    const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++#if __OHOS__
++  if (info.Length() < 1 || info.Length() > 3 || !info[0].IsObject()) {
++    Napi::TypeError::New(
++        env, "Expected config, optional resource manager, and warmup samples")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++#else
++  if (info.Length() < 1 || info.Length() > 2 || !info[0].IsObject()) {
++    Napi::TypeError::New(env, "Expected config and optional warmup samples")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++#endif
++
++  int32_t warmup_samples = kDefaultWarmupSamples;
++#if __OHOS__
++  if (info.Length() == 3 && !info[2].IsUndefined()) {
++    if (!info[2].IsNumber()) {
++      Napi::TypeError::New(env, "warmup samples must be a number")
++          .ThrowAsJavaScriptException();
++      return env.Null();
++    }
++    warmup_samples = info[2].As<Napi::Number>().Int32Value();
++  }
++#else
++  if (info.Length() == 2 && !info[1].IsUndefined()) {
++    if (!info[1].IsNumber()) {
++      Napi::TypeError::New(env, "warmup samples must be a number")
++          .ThrowAsJavaScriptException();
++      return env.Null();
++    }
++    warmup_samples = info[1].As<Napi::Number>().Int32Value();
++  }
++#endif
++
++  SherpaOnnxOnlineRecognizerConfig config =
++      GetOnlineRecognizerConfig(info[0].As<Napi::Object>());
++
++  void *mgr = nullptr;
++  napi_ref resource_manager_ref = nullptr;
++#if __OHOS__
++  const bool use_resource_manager =
++      info.Length() >= 2 && !info[1].IsUndefined() && !info[1].IsNull();
++  if (use_resource_manager) {
++    if (!info[1].IsObject()) {
++      FreeOnlineRecognizerConfig(config);
++      Napi::TypeError::New(env, "resource manager must be an object")
++          .ThrowAsJavaScriptException();
++      return env.Null();
++    }
++
++    mgr = OH_ResourceManager_InitNativeResourceManager(env, info[1]);
++    if (mgr == nullptr ||
++        napi_create_reference(env, info[1], 1, &resource_manager_ref) !=
++            napi_ok) {
++      if (mgr != nullptr) {
++        OH_ResourceManager_ReleaseNativeResourceManager(
++            static_cast<NativeResourceManager *>(mgr));
++      }
++      FreeOnlineRecognizerConfig(config);
++      Napi::Error::New(env, "Failed to retain the resource manager")
++          .ThrowAsJavaScriptException();
++      return env.Null();
++    }
++  }
++#endif
++
++  Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
++  auto *worker = new CreateOnlineRecognizerAsyncWorker(
++      env, config, deferred, mgr, resource_manager_ref, warmup_samples);
++  try {
++    worker->Queue();
++  } catch (...) {
++    delete worker;
++    throw;
++  }
++  return deferred.Promise();
++}
++
+ static Napi::External<OnlineStreamHandle> CreateOnlineStreamWrapper(
+     const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+@@ -751,6 +981,8 @@ static void PrintWrapper(const Napi::CallbackInfo &info) {
+ void InitStreamingAsr(Napi::Env env, Napi::Object exports) {
+   exports.Set(Napi::String::New(env, "createOnlineRecognizer"),
+               Napi::Function::New(env, CreateOnlineRecognizerWrapper));
++  exports.Set(Napi::String::New(env, "createOnlineRecognizerAsync"),
++              Napi::Function::New(env, CreateOnlineRecognizerAsyncWrapper));
+ 
+   exports.Set(Napi::String::New(env, "createOnlineStream"),
+               Napi::Function::New(env, CreateOnlineStreamWrapper));
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index 2cad7f7a..4995d5e7 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -28,6 +28,8 @@ export const decodeOfflineStream: (handle: object, streamHandle: object) => void
+ export const getOfflineStreamResultAsJson: (streamHandle: object) => string;
+ 
+ export const createOnlineRecognizer: (config: object, mgr?: object) => object;
++export const createOnlineRecognizerAsync: (config: object, mgr?: object,
++  warmupSamples?: number) => Promise<object>;
+ export const createOnlineStream: (handle: object) => object;
+ export const destroyOnlineStream: (streamHandle: object) => void;
+ export const getOnlineStreamLiveCount: () => number;
+@@ -54,6 +56,8 @@ export const offlineTtsGenerateAsync: (handle: object, input: object) => Promise
+ export const offlineTtsGenerateAsyncWithConfig: (handle: object, input: object) => Promise<TtsOutput>;
+ 
+ export const createOfflinePunctuation: (config: object, mgr?: object) => object;
++export const createOfflinePunctuationAsync: (config: object,
++  mgr?: object) => Promise<object>;
+ export const offlinePunctuationAddPunct: (handle: object, text: string) => string;
+ export const createOnlinePunctuation: (config: object, mgr?: object) => object;
+ export const onlinePunctuationAddPunct: (handle: object, text: string) => string;
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/OfflinePunctuation.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/OfflinePunctuation.ets
+index ef3623a9..8c320196 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/OfflinePunctuation.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/OfflinePunctuation.ets
+@@ -1,5 +1,6 @@
+ import {
+   createOfflinePunctuation,
++  createOfflinePunctuationAsync,
+   offlinePunctuationAddPunct,
+ } from 'libsherpa_onnx.so';
+ 
+@@ -18,11 +19,17 @@ export class OfflinePunctuation {
+   public config: OfflinePunctuationConfig;
+   private handle: object;
+ 
+-  constructor(config: OfflinePunctuationConfig, mgr?: object) {
+-    this.handle = createOfflinePunctuation(config, mgr);
++  constructor(config: OfflinePunctuationConfig, mgr?: object, handle?: object) {
++    this.handle = handle === undefined ? createOfflinePunctuation(config, mgr) : handle;
+     this.config = config;
+   }
+ 
++  static async createAsync(config: OfflinePunctuationConfig,
++    mgr?: object): Promise<OfflinePunctuation> {
++    const handle: object = await createOfflinePunctuationAsync(config, mgr);
++    return new OfflinePunctuation(config, undefined, handle);
++  }
++
+   addPunct(text: string): string {
+     return offlinePunctuationAddPunct(this.handle, text);
+   }
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+index f390eb5d..c7711344 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+@@ -1,6 +1,7 @@
+ import {
+   acceptWaveformOnline,
+   createOnlineRecognizer,
++  createOnlineRecognizerAsync,
+   createOnlineStream,
+   decodeOnlineStream,
+   destroyOnlineStream,
+@@ -14,6 +15,9 @@ import {
+ 
+ import { FeatureConfig, HomophoneReplacerConfig, Samples } from './NonStreamingAsr';
+ 
++// 800 ms of silence at the recognizer's 16 kHz feature sample rate.
++const DEFAULT_WARMUP_SAMPLES: number = 12800;
++
+ export function onlineStreamLiveCount(): number {
+   return getOnlineStreamLiveCount();
+ }
+@@ -130,11 +134,17 @@ export class OnlineRecognizer {
+   public handle: object;
+   public config: OnlineRecognizerConfig
+ 
+-  constructor(config: OnlineRecognizerConfig, mgr?: object) {
+-    this.handle = createOnlineRecognizer(config, mgr);
++  constructor(config: OnlineRecognizerConfig, mgr?: object, handle?: object) {
++    this.handle = handle === undefined ? createOnlineRecognizer(config, mgr) : handle;
+     this.config = config
+   }
+ 
++  static async createAsync(config: OnlineRecognizerConfig, mgr?: object,
++    warmupSamples: number = DEFAULT_WARMUP_SAMPLES): Promise<OnlineRecognizer> {
++    const handle: object = await createOnlineRecognizerAsync(config, mgr, warmupSamples);
++    return new OnlineRecognizer(config, undefined, handle);
++  }
++
+   createStream(): OnlineStream {
+     const handle: object = createOnlineStream(this.handle);
+     return new OnlineStream(handle);
+diff --git a/sherpa-onnx/csrc/file-utils.cc b/sherpa-onnx/csrc/file-utils.cc
+index 6e14fe09..df1adde8 100644
+--- a/sherpa-onnx/csrc/file-utils.cc
++++ b/sherpa-onnx/csrc/file-utils.cc
+@@ -4,10 +4,15 @@
+ 
+ #include "sherpa-onnx/csrc/file-utils.h"
+ 
++#include <cerrno>
++#include <cstdint>
++#include <cstring>
+ #include <fstream>
++#include <limits>
+ #include <memory>
+ #include <sstream>
+ #include <string>
++#include <utility>
+ #include <vector>
+ 
+ #ifdef _WIN32
+@@ -17,10 +22,83 @@
+ #include <stdlib.h>
+ #endif
+ 
++#if __OHOS__
++#include <sys/mman.h>
++#include <unistd.h>
++#endif
++
+ #include "sherpa-onnx/csrc/macros.h"
+ 
+ namespace sherpa_onnx {
+ 
++ModelData::ModelData(ModelData &&other) noexcept { *this = std::move(other); }
++
++ModelData &ModelData::operator=(ModelData &&other) noexcept {
++  if (this == &other) {
++    return *this;
++  }
++
++  Reset();
++  buffer_ = std::move(other.buffer_);
++
++#if __OHOS__
++  mapped_region_ = other.mapped_region_;
++  mapped_region_size_ = other.mapped_region_size_;
++  data_offset_ = other.data_offset_;
++  data_size_ = other.data_size_;
++  descriptor_ = other.descriptor_;
++  owns_descriptor_ = other.owns_descriptor_;
++
++  other.mapped_region_ = nullptr;
++  other.mapped_region_size_ = 0;
++  other.data_offset_ = 0;
++  other.data_size_ = 0;
++  other.owns_descriptor_ = false;
++#endif
++
++  return *this;
++}
++
++ModelData::~ModelData() { Reset(); }
++
++const void *ModelData::Data() const {
++#if __OHOS__
++  if (mapped_region_ != nullptr) {
++    return static_cast<const char *>(mapped_region_) + data_offset_;
++  }
++#endif
++  return buffer_.empty() ? nullptr : buffer_.data();
++}
++
++size_t ModelData::Size() const {
++#if __OHOS__
++  if (mapped_region_ != nullptr) {
++    return data_size_;
++  }
++#endif
++  return buffer_.size();
++}
++
++void ModelData::Reset() {
++#if __OHOS__
++  if (mapped_region_ != nullptr) {
++    munmap(mapped_region_, mapped_region_size_);
++    mapped_region_ = nullptr;
++    mapped_region_size_ = 0;
++    data_offset_ = 0;
++    data_size_ = 0;
++  }
++
++  if (owns_descriptor_) {
++    OH_ResourceManager_ReleaseRawFileDescriptor64(&descriptor_);
++    owns_descriptor_ = false;
++  }
++#endif
++
++  buffer_.clear();
++  buffer_.shrink_to_fit();
++}
++
+ bool FileExists(const std::string &filename) {
+   return std::ifstream(filename).good();
+ }
+@@ -80,14 +158,18 @@ std::vector<char> ReadFile(AAssetManager *mgr, const std::string &filename) {
+ 
+   return buffer;
+ }
++
++ModelData ReadModelData(AAssetManager *mgr, const std::string &filename) {
++  return ModelData(ReadFile(mgr, filename));
++}
+ #endif
+ 
+ #if __OHOS__
+ std::vector<char> ReadFile(NativeResourceManager *mgr,
+                            const std::string &filename) {
+-  std::unique_ptr<RawFile, decltype(&OH_ResourceManager_CloseRawFile)> fp(
+-      OH_ResourceManager_OpenRawFile(mgr, filename.c_str()),
+-      OH_ResourceManager_CloseRawFile);
++  std::unique_ptr<RawFile64, decltype(&OH_ResourceManager_CloseRawFile64)> fp(
++      OH_ResourceManager_OpenRawFile64(mgr, filename.c_str()),
++      OH_ResourceManager_CloseRawFile64);
+ 
+   if (!fp) {
+     std::ostringstream os;
+@@ -96,15 +178,35 @@ std::vector<char> ReadFile(NativeResourceManager *mgr,
+     return {};
+   }
+ 
+-  auto len = static_cast<int32_t>(OH_ResourceManager_GetRawFileSize(fp.get()));
++  const int64_t len = OH_ResourceManager_GetRawFileSize64(fp.get());
++  const uint64_t max_size =
++      static_cast<uint64_t>(std::numeric_limits<size_t>::max());
++  const uint64_t max_buffer_size =
++      static_cast<uint64_t>(std::vector<char>().max_size());
++  if (len <= 0 || static_cast<uint64_t>(len) > max_size ||
++      static_cast<uint64_t>(len) > max_buffer_size) {
++    std::ostringstream os;
++    os << "Read file '" << filename << "' failed. Invalid file size: " << len;
++    SHERPA_ONNX_LOGE("%s", os.str().c_str());
++    return {};
++  }
+ 
+-  std::vector<char> buffer(len);
++  std::vector<char> buffer(static_cast<size_t>(len));
+ 
+-  int32_t n = OH_ResourceManager_ReadRawFile(fp.get(), buffer.data(), len);
++  int64_t total = 0;
++  while (total < len) {
++    const int64_t n = OH_ResourceManager_ReadRawFile64(
++        fp.get(), buffer.data() + static_cast<size_t>(total), len - total);
++    if (n <= 0 || n > len - total) {
++      break;
++    }
++    total += n;
++  }
+ 
+-  if (n != len) {
++  if (total != len) {
+     std::ostringstream os;
+-    os << "Read file '" << filename << "' failed. Number of bytes read: " << n
++    os << "Read file '" << filename
++       << "' failed. Number of bytes read: " << total
+        << ". Expected bytes to read: " << len;
+     SHERPA_ONNX_LOGE("%s", os.str().c_str());
+     return {};
+@@ -112,6 +214,67 @@ std::vector<char> ReadFile(NativeResourceManager *mgr,
+ 
+   return buffer;
+ }
++
++ModelData ReadModelData(NativeResourceManager *mgr,
++                        const std::string &filename) {
++  std::unique_ptr<RawFile64, decltype(&OH_ResourceManager_CloseRawFile64)>
++      raw_file(OH_ResourceManager_OpenRawFile64(mgr, filename.c_str()),
++               OH_ResourceManager_CloseRawFile64);
++
++  if (raw_file) {
++    RawFileDescriptor64 descriptor{};
++    const bool has_descriptor = OH_ResourceManager_GetRawFileDescriptor64(
++        raw_file.get(), &descriptor);
++    if (has_descriptor && descriptor.fd >= 0 && descriptor.start >= 0 &&
++        descriptor.length > 0) {
++      const long page_size_value = sysconf(_SC_PAGESIZE);
++      if (page_size_value > 0) {
++        const uint64_t page_size = static_cast<uint64_t>(page_size_value);
++        const uint64_t start = static_cast<uint64_t>(descriptor.start);
++        const uint64_t length = static_cast<uint64_t>(descriptor.length);
++        const uint64_t aligned_start = start - start % page_size;
++        const uint64_t data_offset = start - aligned_start;
++        const uint64_t max_size =
++            static_cast<uint64_t>(std::numeric_limits<size_t>::max());
++        const uint64_t max_offset =
++            static_cast<uint64_t>(std::numeric_limits<off_t>::max());
++        const bool valid_end =
++            descriptor.start <=
++            std::numeric_limits<int64_t>::max() - descriptor.length;
++
++        if (valid_end && aligned_start <= max_offset &&
++            data_offset <= max_size && length <= max_size - data_offset) {
++          const size_t mapping_size =
++              static_cast<size_t>(data_offset + length);
++          void *mapping = mmap(nullptr, mapping_size, PROT_READ, MAP_PRIVATE,
++                               descriptor.fd,
++                               static_cast<off_t>(aligned_start));
++          if (mapping != MAP_FAILED) {
++            ModelData ans;
++            ans.mapped_region_ = mapping;
++            ans.mapped_region_size_ = mapping_size;
++            ans.data_offset_ = static_cast<size_t>(data_offset);
++            ans.data_size_ = static_cast<size_t>(length);
++            ans.descriptor_ = descriptor;
++            ans.owns_descriptor_ = true;
++            return ans;
++          }
++
++          SHERPA_ONNX_LOGE("mmap rawfile '%s' failed: %s. Falling back to read",
++                           filename.c_str(), std::strerror(errno));
++        }
++      }
++    }
++
++    if (has_descriptor) {
++      OH_ResourceManager_ReleaseRawFileDescriptor64(&descriptor);
++    }
++  }
++
++  // Compressed rawfiles do not expose an fd. Preserve compatibility by using
++  // the existing copy-based path when the HAP entry is not stored verbatim.
++  return ModelData(ReadFile(mgr, filename));
++}
+ #endif
+ 
+ std::string ResolveAbsolutePath(const std::string &path) {
+diff --git a/sherpa-onnx/csrc/file-utils.h b/sherpa-onnx/csrc/file-utils.h
+index 7f123264..885423bc 100644
+--- a/sherpa-onnx/csrc/file-utils.h
++++ b/sherpa-onnx/csrc/file-utils.h
+@@ -5,8 +5,10 @@
+ #ifndef SHERPA_ONNX_CSRC_FILE_UTILS_H_
+ #define SHERPA_ONNX_CSRC_FILE_UTILS_H_
+ 
++#include <cstddef>
+ #include <fstream>
+ #include <string>
++#include <utility>
+ #include <vector>
+ 
+ #if __ANDROID_API__ >= 9
+@@ -20,6 +22,44 @@
+ 
+ namespace sherpa_onnx {
+ 
++// Owns model bytes loaded from an asset/rawfile. On HarmonyOS, uncompressed
++// rawfiles are mmap'ed directly from the HAP. The mapping intentionally stays
++// alive for as long as this object does so ORT-format sessions can refer to the
++// model bytes without copying them.
++class ModelData {
++ public:
++  ModelData() = default;
++  explicit ModelData(std::vector<char> buffer)
++      : buffer_(std::move(buffer)) {}
++
++  ModelData(const ModelData &) = delete;
++  ModelData &operator=(const ModelData &) = delete;
++
++  ModelData(ModelData &&other) noexcept;
++  ModelData &operator=(ModelData &&other) noexcept;
++
++  ~ModelData();
++
++  const void *Data() const;
++  size_t Size() const;
++  void Reset();
++
++ private:
++#if __OHOS__
++  friend ModelData ReadModelData(NativeResourceManager *mgr,
++                                 const std::string &filename);
++
++  void *mapped_region_ = nullptr;
++  size_t mapped_region_size_ = 0;
++  size_t data_offset_ = 0;
++  size_t data_size_ = 0;
++  RawFileDescriptor64 descriptor_{};
++  bool owns_descriptor_ = false;
++#endif
++
++  std::vector<char> buffer_;
++};
++
+ /** Check whether a given path is a file or not
+  *
+  * @param filename Path to check.
+@@ -37,11 +77,14 @@ std::vector<char> ReadFile(const std::string &filename);
+ 
+ #if __ANDROID_API__ >= 9
+ std::vector<char> ReadFile(AAssetManager *mgr, const std::string &filename);
++ModelData ReadModelData(AAssetManager *mgr, const std::string &filename);
+ #endif
+ 
+ #if __OHOS__
+ std::vector<char> ReadFile(NativeResourceManager *mgr,
+                            const std::string &filename);
++ModelData ReadModelData(NativeResourceManager *mgr,
++                        const std::string &filename);
+ #endif
+ 
+ std::string ResolveAbsolutePath(const std::string &path);
+diff --git a/sherpa-onnx/csrc/offline-ct-transformer-model.cc b/sherpa-onnx/csrc/offline-ct-transformer-model.cc
+index 3d12d9fe..06476497 100644
+--- a/sherpa-onnx/csrc/offline-ct-transformer-model.cc
++++ b/sherpa-onnx/csrc/offline-ct-transformer-model.cc
+@@ -33,6 +33,8 @@ class OfflineCtTransformerModel::Impl {
+         env_(ORT_LOGGING_LEVEL_ERROR),
+         sess_opts_(GetSessionOptions(config)),
+         allocator_{} {
++    ConfigureSessionOptionsForModel(config_.ct_transformer, false,
++                                    &sess_opts_);
+     sess_ = std::make_unique<Ort::Session>(
+         env_, SHERPA_ONNX_TO_ORT_PATH(config_.ct_transformer), sess_opts_);
+     Init(nullptr, 0);
+@@ -44,8 +46,12 @@ class OfflineCtTransformerModel::Impl {
+         env_(ORT_LOGGING_LEVEL_ERROR),
+         sess_opts_(GetSessionOptions(config)),
+         allocator_{} {
+-    auto buf = ReadFile(mgr, config_.ct_transformer);
+-    Init(buf.data(), buf.size());
++    ConfigureSessionOptionsForModel(config_.ct_transformer, true, &sess_opts_);
++    model_data_ = ReadModelData(mgr, config_.ct_transformer);
++    Init(model_data_.Data(), model_data_.Size());
++    if (!IsOrtModel(config_.ct_transformer)) {
++      model_data_.Reset();
++    }
+   }
+ 
+   Ort::Value Forward(Ort::Value text, Ort::Value text_len) {
+@@ -64,7 +70,7 @@ class OfflineCtTransformerModel::Impl {
+   }
+ 
+  private:
+-  void Init(void *model_data, size_t model_data_length) {
++  void Init(const void *model_data, size_t model_data_length) {
+     if (model_data) {
+       sess_ = std::make_unique<Ort::Session>(
+           env_, model_data, model_data_length, sess_opts_);
+@@ -144,6 +150,9 @@ class OfflineCtTransformerModel::Impl {
+   Ort::SessionOptions sess_opts_;
+   Ort::AllocatorWithDefaultOptions allocator_;
+ 
++  // ORT-format sessions can refer directly to these bytes. Keep model_data_
++  // declared before sess_ so the session is destroyed first.
++  ModelData model_data_;
+   std::unique_ptr<Ort::Session> sess_;
+ 
+   std::vector<std::string> input_names_;
+diff --git a/sherpa-onnx/csrc/online-recognizer-impl.cc b/sherpa-onnx/csrc/online-recognizer-impl.cc
+index 3b49f67a..7af3040b 100644
+--- a/sherpa-onnx/csrc/online-recognizer-impl.cc
++++ b/sherpa-onnx/csrc/online-recognizer-impl.cc
+@@ -21,6 +21,7 @@
+ 
+ #include "fst/extensions/far/far.h"
+ #include "kaldifst/csrc/kaldi-fst-io.h"
++#include "sherpa-onnx/csrc/file-utils.h"
+ #include "sherpa-onnx/csrc/fst-utils.h"
+ #include "sherpa-onnx/csrc/macros.h"
+ #include "sherpa-onnx/csrc/online-recognizer-ctc-impl.h"
+@@ -38,6 +39,12 @@
+ 
+ namespace sherpa_onnx {
+ 
++static bool IsKnownIcefallTransducer(const std::string &model_type) {
++  return model_type == "conformer" || model_type == "ebranchformer" ||
++         model_type == "lstm" || model_type == "zipformer" ||
++         model_type == "zipformer2";
++}
++
+ std::unique_ptr<OnlineRecognizerImpl> OnlineRecognizerImpl::Create(
+     const OnlineRecognizerConfig &config) {
+   if (config.model_config.provider_config.provider == "rknn") {
+@@ -62,11 +69,17 @@ std::unique_ptr<OnlineRecognizerImpl> OnlineRecognizerImpl::Create(
+   }
+ 
+   if (!config.model_config.transducer.encoder.empty()) {
++    if (IsKnownIcefallTransducer(config.model_config.model_type)) {
++      return std::make_unique<OnlineRecognizerTransducerImpl>(config);
++    }
++
+     Ort::Env env(ORT_LOGGING_LEVEL_ERROR);
+ 
+     Ort::SessionOptions sess_opts;
+     sess_opts.SetIntraOpNumThreads(1);
+     sess_opts.SetInterOpNumThreads(1);
++    ConfigureSessionOptionsForModel(config.model_config.transducer.decoder,
++                                    false, &sess_opts);
+ 
+     auto sess = std::make_unique<Ort::Session>(
+         env, SHERPA_ONNX_TO_ORT_PATH(config.model_config.transducer.decoder),
+@@ -123,15 +136,22 @@ std::unique_ptr<OnlineRecognizerImpl> OnlineRecognizerImpl::Create(
+   }
+ 
+   if (!config.model_config.transducer.encoder.empty()) {
++    if (IsKnownIcefallTransducer(config.model_config.model_type)) {
++      return std::make_unique<OnlineRecognizerTransducerImpl>(mgr, config);
++    }
++
+     Ort::Env env(ORT_LOGGING_LEVEL_ERROR);
+ 
+     Ort::SessionOptions sess_opts;
+     sess_opts.SetIntraOpNumThreads(1);
+     sess_opts.SetInterOpNumThreads(1);
++    ConfigureSessionOptionsForModel(config.model_config.transducer.decoder,
++                                    true, &sess_opts);
+ 
+-    auto decoder_model = ReadFile(mgr, config.model_config.transducer.decoder);
+-    auto sess = std::make_unique<Ort::Session>(env, decoder_model.data(),
+-                                               decoder_model.size(), sess_opts);
++    auto decoder_model =
++        ReadModelData(mgr, config.model_config.transducer.decoder);
++    auto sess = std::make_unique<Ort::Session>(
++        env, decoder_model.Data(), decoder_model.Size(), sess_opts);
+ 
+     size_t node_count = sess->GetOutputCount();
+ 
+diff --git a/sherpa-onnx/csrc/online-transducer-model.cc b/sherpa-onnx/csrc/online-transducer-model.cc
+index 40697e80..14de46d1 100644
+--- a/sherpa-onnx/csrc/online-transducer-model.cc
++++ b/sherpa-onnx/csrc/online-transducer-model.cc
+@@ -50,6 +50,7 @@ static ModelType GetModelType(const std::string &model_path, bool debug) {
+   Ort::SessionOptions sess_opts;
+   sess_opts.SetIntraOpNumThreads(1);
+   sess_opts.SetInterOpNumThreads(1);
++  ConfigureSessionOptionsForModel(model_path, false, &sess_opts);
+ 
+   auto sess = std::make_unique<Ort::Session>(
+       env, SHERPA_ONNX_TO_ORT_PATH(model_path), sess_opts);
+@@ -93,12 +94,13 @@ static ModelType GetModelType(const std::string &model_path, bool debug) {
+   }
+ }
+ 
+-static ModelType GetModelType(char *model_data, size_t model_data_length,
+-                              bool debug) {
++static ModelType GetModelType(const void *model_data, size_t model_data_length,
++                              const std::string &model_path, bool debug) {
+   Ort::Env env(ORT_LOGGING_LEVEL_ERROR);
+   Ort::SessionOptions sess_opts;
+   sess_opts.SetIntraOpNumThreads(1);
+   sess_opts.SetInterOpNumThreads(1);
++  ConfigureSessionOptionsForModel(model_path, true, &sess_opts);
+ 
+   auto sess = std::make_unique<Ort::Session>(env, model_data, model_data_length,
+                                              sess_opts);
+@@ -243,8 +245,9 @@ std::unique_ptr<OnlineTransducerModel> OnlineTransducerModel::Create(
+     }
+   }
+ 
+-  auto buffer = ReadFile(mgr, config.transducer.encoder);
+-  auto model_type = GetModelType(buffer.data(), buffer.size(), config.debug);
++  auto buffer = ReadModelData(mgr, config.transducer.encoder);
++  auto model_type = GetModelType(buffer.Data(), buffer.Size(),
++                                 config.transducer.encoder, config.debug);
+ 
+   switch (model_type) {
+     case ModelType::kConformer:
+diff --git a/sherpa-onnx/csrc/online-zipformer2-transducer-model.cc b/sherpa-onnx/csrc/online-zipformer2-transducer-model.cc
+index d1b1aa9f..dddba649 100644
+--- a/sherpa-onnx/csrc/online-zipformer2-transducer-model.cc
++++ b/sherpa-onnx/csrc/online-zipformer2-transducer-model.cc
+@@ -7,6 +7,7 @@
+ #include <algorithm>
+ #include <cassert>
+ #include <cmath>
++#include <future>
+ #include <memory>
+ #include <numeric>
+ #include <sstream>
+@@ -43,6 +44,13 @@ OnlineZipformer2TransducerModel::OnlineZipformer2TransducerModel(
+       joiner_sess_opts_(GetSessionOptions(config, "joiner")),
+       config_(config),
+       allocator_{} {
++  ConfigureSessionOptionsForModel(config.transducer.encoder, false,
++                                  &encoder_sess_opts_);
++  ConfigureSessionOptionsForModel(config.transducer.decoder, false,
++                                  &decoder_sess_opts_);
++  ConfigureSessionOptionsForModel(config.transducer.joiner, false,
++                                  &joiner_sess_opts_);
++
+   encoder_sess_ = std::make_unique<Ort::Session>(
+       env_, SHERPA_ONNX_TO_ORT_PATH(config.transducer.encoder), encoder_sess_opts_);
+   InitEncoder(nullptr, 0);
+@@ -65,23 +73,51 @@ OnlineZipformer2TransducerModel::OnlineZipformer2TransducerModel(
+       decoder_sess_opts_(GetSessionOptions(config, "decoder")),
+       joiner_sess_opts_(GetSessionOptions(config, "joiner")),
+       allocator_{} {
+-  {
+-    auto buf = ReadFile(mgr, config.transducer.encoder);
+-    InitEncoder(buf.data(), buf.size());
+-  }
++  ConfigureSessionOptionsForModel(config.transducer.encoder, true,
++                                  &encoder_sess_opts_);
++  ConfigureSessionOptionsForModel(config.transducer.decoder, true,
++                                  &decoder_sess_opts_);
++  ConfigureSessionOptionsForModel(config.transducer.joiner, true,
++                                  &joiner_sess_opts_);
++
++  // ResourceManager access is kept serial. Session construction then uses two
++  // lanes: the large encoder in one lane, decoder followed by joiner in the
++  // caller lane. This avoids both a redundant third worker and undocumented
++  // concurrent ResourceManager access.
++  encoder_model_data_ = ReadModelData(mgr, config.transducer.encoder);
++  decoder_model_data_ = ReadModelData(mgr, config.transducer.decoder);
++  joiner_model_data_ = ReadModelData(mgr, config.transducer.joiner);
++
++  auto encoder_future = std::async(std::launch::async, [this]() {
++    return std::make_unique<Ort::Session>(
++        env_, encoder_model_data_.Data(), encoder_model_data_.Size(),
++        encoder_sess_opts_);
++  });
+ 
+-  {
+-    auto buf = ReadFile(mgr, config.transducer.decoder);
+-    InitDecoder(buf.data(), buf.size());
+-  }
++  decoder_sess_ = std::make_unique<Ort::Session>(
++      env_, decoder_model_data_.Data(), decoder_model_data_.Size(),
++      decoder_sess_opts_);
++  joiner_sess_ = std::make_unique<Ort::Session>(
++      env_, joiner_model_data_.Data(), joiner_model_data_.Size(),
++      joiner_sess_opts_);
++  encoder_sess_ = encoder_future.get();
+ 
+-  {
+-    auto buf = ReadFile(mgr, config.transducer.joiner);
+-    InitJoiner(buf.data(), buf.size());
++  InitEncoder(nullptr, 0);
++  InitDecoder(nullptr, 0);
++  InitJoiner(nullptr, 0);
++
++  if (!IsOrtModel(config.transducer.encoder)) {
++    encoder_model_data_.Reset();
++  }
++  if (!IsOrtModel(config.transducer.decoder)) {
++    decoder_model_data_.Reset();
++  }
++  if (!IsOrtModel(config.transducer.joiner)) {
++    joiner_model_data_.Reset();
+   }
+ }
+ 
+-void OnlineZipformer2TransducerModel::InitEncoder(void *model_data,
++void OnlineZipformer2TransducerModel::InitEncoder(const void *model_data,
+                                                   size_t model_data_length) {
+   if (model_data) {
+     encoder_sess_ = std::make_unique<Ort::Session>(
+@@ -161,7 +197,7 @@ void OnlineZipformer2TransducerModel::InitEncoder(void *model_data,
+   }
+ }
+ 
+-void OnlineZipformer2TransducerModel::InitDecoder(void *model_data,
++void OnlineZipformer2TransducerModel::InitDecoder(const void *model_data,
+                                                   size_t model_data_length) {
+   if (model_data) {
+     decoder_sess_ = std::make_unique<Ort::Session>(
+@@ -193,7 +229,7 @@ void OnlineZipformer2TransducerModel::InitDecoder(void *model_data,
+   SHERPA_ONNX_READ_META_DATA(context_size_, "context_size");
+ }
+ 
+-void OnlineZipformer2TransducerModel::InitJoiner(void *model_data,
++void OnlineZipformer2TransducerModel::InitJoiner(const void *model_data,
+                                                  size_t model_data_length) {
+   if (model_data) {
+     joiner_sess_ = std::make_unique<Ort::Session>(
+diff --git a/sherpa-onnx/csrc/online-zipformer2-transducer-model.h b/sherpa-onnx/csrc/online-zipformer2-transducer-model.h
+index b072b73d..51d2b25b 100644
+--- a/sherpa-onnx/csrc/online-zipformer2-transducer-model.h
++++ b/sherpa-onnx/csrc/online-zipformer2-transducer-model.h
+@@ -10,6 +10,7 @@
+ #include <vector>
+ 
+ #include "onnxruntime_cxx_api.h"  // NOLINT
++#include "sherpa-onnx/csrc/file-utils.h"
+ #include "sherpa-onnx/csrc/online-model-config.h"
+ #include "sherpa-onnx/csrc/online-transducer-model.h"
+ 
+@@ -55,9 +56,9 @@ class OnlineZipformer2TransducerModel : public OnlineTransducerModel {
+   bool UseWhisperFeature() const override { return use_whisper_feature_; }
+ 
+  private:
+-  void InitEncoder(void *model_data, size_t model_data_length);
+-  void InitDecoder(void *model_data, size_t model_data_length);
+-  void InitJoiner(void *model_data, size_t model_data_length);
++  void InitEncoder(const void *model_data, size_t model_data_length);
++  void InitDecoder(const void *model_data, size_t model_data_length);
++  void InitJoiner(const void *model_data, size_t model_data_length);
+ 
+  private:
+   Ort::Env env_;
+@@ -67,6 +68,12 @@ class OnlineZipformer2TransducerModel : public OnlineTransducerModel {
+ 
+   Ort::AllocatorWithDefaultOptions allocator_;
+ 
++  // Declared before the sessions so the sessions are destroyed first. ORT
++  // sessions configured for direct model-byte access require this ordering.
++  ModelData encoder_model_data_;
++  ModelData decoder_model_data_;
++  ModelData joiner_model_data_;
++
+   std::unique_ptr<Ort::Session> encoder_sess_;
+   std::unique_ptr<Ort::Session> decoder_sess_;
+   std::unique_ptr<Ort::Session> joiner_sess_;
+diff --git a/sherpa-onnx/csrc/session.cc b/sherpa-onnx/csrc/session.cc
+index 1b3e845f..0ab8756d 100755
+--- a/sherpa-onnx/csrc/session.cc
++++ b/sherpa-onnx/csrc/session.cc
+@@ -34,6 +34,30 @@
+ 
+ namespace sherpa_onnx {
+ 
++bool IsOrtModel(const std::string &model_path) {
++  return EndsWith(model_path, ".ort");
++}
++
++void ConfigureSessionOptionsForModel(const std::string &model_path,
++                                     bool use_model_bytes_directly,
++                                     Ort::SessionOptions *sess_opts) {
++  if (!IsOrtModel(model_path)) {
++    return;
++  }
++
++  // ORT files have already been optimized offline. Re-running graph
++  // optimization adds cold-start latency and cannot improve this graph.
++  sess_opts->SetGraphOptimizationLevel(
++      GraphOptimizationLevel::ORT_DISABLE_ALL);
++  sess_opts->AddConfigEntry("session.load_model_format", "ORT");
++
++  if (use_model_bytes_directly) {
++    sess_opts->AddConfigEntry("session.use_ort_model_bytes_directly", "1");
++    sess_opts->AddConfigEntry(
++        "session.use_ort_model_bytes_for_initializers", "1");
++  }
++}
++
+ static void OrtStatusFailure(OrtStatus *status, const char *s) {
+   const auto &api = Ort::GetApi();
+   const char *msg = api.GetErrorMessage(status);
+diff --git a/sherpa-onnx/csrc/session.h b/sherpa-onnx/csrc/session.h
+index 131023e8..017066a0 100644
+--- a/sherpa-onnx/csrc/session.h
++++ b/sherpa-onnx/csrc/session.h
+@@ -29,6 +29,15 @@ Ort::SessionOptions GetSessionOptions(const OnlineModelConfig &config,
+ Ort::SessionOptions GetSessionOptions(int32_t num_threads,
+                                       const std::string &provider_str);
+ 
++bool IsOrtModel(const std::string &model_path);
++
++// Configures a session for a pre-optimized ORT-format model. If the session is
++// constructed from bytes, keep those bytes alive until after the session is
++// destroyed when use_model_bytes_directly is true.
++void ConfigureSessionOptionsForModel(const std::string &model_path,
++                                     bool use_model_bytes_directly,
++                                     Ort::SessionOptions *sess_opts);
++
+ template <typename T>
+ Ort::SessionOptions GetSessionOptions(const T &config) {
+   return GetSessionOptionsImpl(config.num_threads, config.provider);
+-- 
+2.50.1 (Apple Git-155)

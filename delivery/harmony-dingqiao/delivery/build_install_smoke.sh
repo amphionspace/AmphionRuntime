@@ -12,6 +12,7 @@ HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
 HDC="$DEVECO_HOME/sdk/default/openharmony/toolchains/hdc"
 JAVA_HOME_VALUE="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
 HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap"
+BUILD_IDENTITY="$PROJECT_ROOT/build/smoke/build-identity.json"
 LICENSE_FILE="$PROJECT_ROOT/samples/dingqiao-demo/entry/src/main/resources/rawfile/amphion-license.lic"
 DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/dingqiao_demo_device_ids.txt}"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$REPO_ROOT/.secure/amphion-license-private.pem}"
@@ -362,6 +363,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
   cp "$BUILD_HAP" "$TEMP_HAP_COPY"
   mv -f "$TEMP_HAP_COPY" "$HAP"
   TEMP_HAP_COPY=""
+  python3 "$SCRIPT_DIR/harmony_build_identity.py" --write "$BUILD_IDENTITY"
   echo "[OK] HAP build succeeded"
 fi
 

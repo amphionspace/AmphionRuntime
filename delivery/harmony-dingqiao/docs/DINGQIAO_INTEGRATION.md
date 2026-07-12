@@ -37,6 +37,7 @@ import {
   AudioInfo,
   CreateEngineParams,
   LicenseDeviceIdProvider,
+  SpeechRecognitionEngine,
   SpeechRecognizeSdk,
   StartParams
 } from 'amphion_dingqiao';
@@ -50,26 +51,32 @@ class HostDeviceIdProvider implements LicenseDeviceIdProvider {
 SpeechRecognizeSdk.init(context, new HostDeviceIdProvider());
 SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/dingqiao_work`);
 
-const engine = SpeechRecognizeSdk.createEngine(new CreateEngineParams());
-engine.setListener({
-  onResult: (sessionId, result) => {},
-  onComplete: (sessionId) => {},
-  onError: (sessionId, code, message) => {}
-});
+let engine: SpeechRecognitionEngine | undefined;
+SpeechRecognizeSdk.createEngineAsync(new CreateEngineParams(), {
+  onSuccess: (createdEngine) => {
+    engine = createdEngine;
+    createdEngine.setListener({
+      onResult: (sessionId, result) => {},
+      onComplete: (sessionId) => {},
+      onError: (sessionId, code, message) => {}
+    });
 
-const start = new StartParams();
-start.sessionId = 'session-1';
-start.audioInfo = new AudioInfo();
-engine.startListening(start);
-engine.writeAudio(start.sessionId, pcmFrame640Bytes);
-engine.finish(start.sessionId);
+    const start = new StartParams();
+    start.sessionId = 'session-1';
+    start.audioInfo = new AudioInfo();
+    createdEngine.startListening(start);
+    createdEngine.writeAudio(start.sessionId, pcmFrame640Bytes);
+    createdEngine.finish(start.sessionId);
+  },
+  onError: (errorCode, message) => {}
+});
 ```
 
 ## 离线授权
 
 授权文件固定为 `amphion-license.lic`。如果 license 启用了设备白名单，宿主或交付适配层需要通过 `deviceIdProvider` 注入稳定设备标识；该标识必须与交付给我方签发 license 的清单一致。系统/预置宿主通常注入硬件 SN；普通 Demo 可注入 ODID，但不能用 ODID 去匹配按 SN 签发的 license。
 
-**交付入口（推荐）**：鼎桥侧通过 `SpeechRecognizeSdk.setLicense(licensePath, callback)` 激活 license（异步 ECDSA 验签 + SN 白名单，需先 `init(context)`）；激活成功后再 `createEngine`。`getLicenseInfo()` 返回授权状态 `LicenseInfo`（`status` / `expireTime` / `remainingDays` / `authorizedFeatures`）。
+**交付入口（推荐）**：鼎桥侧通过 `SpeechRecognizeSdk.setLicense(licensePath, callback)` 激活 license（异步 ECDSA 验签 + SN 白名单，需先 `init(context)`）；激活成功且语言、热词配置确定后立即调用 `createEngineAsync` 并长期持有 engine，可以把冷加载隐藏在业务首页初始化阶段。不要在 license 激活前预加载，因为重新设置 license 会释放 Runtime。`getLicenseInfo()` 返回授权状态 `LicenseInfo`（`status` / `expireTime` / `remainingDays` / `authorizedFeatures`）。
 
 ```ts
 import deviceInfo from '@ohos.deviceInfo';

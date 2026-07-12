@@ -1,27 +1,30 @@
-# SDK 内置模型资产
+# Harmony SDK 内置模型资产
 
-> 本目录的内容由 `asr/tools/08_pack_sdk_assets.sh` 写入；不要手工放文件。
+> 本目录由 `asr/tools/08_pack_harmony_assets.sh` 原子生成；不要手工放文件。
 
-构建 AAR 之前必须把全部 5 类模型放到这里，否则 `assembleRelease` 出来的 AAR 在
-设备上 first-run 会以 `ASSET_INSTALL_FAILED` 失败。
+构建 HAR/HAP 前必须先运行上述脚本。脚本直接读取 `asr/tools/demo-model/zhen` 等
+源模型，把中英 ASR 三图与标点图预优化成 ONNX Runtime 1.16.3 的 ARM/CPU ORT 格式，
+写入 manifest v2 并完成 SHA-256 校验后，才会替换本目录。
 
 ## 目录布局
 
 ```
 amphion-models/
-├── manifest.json          # 由 08_pack_sdk_assets.sh 自动生成；记录每份资产的 sha256
+├── manifest.json          # v2：源/输出 SHA、格式、转换器与 Harmony target
 ├── zh-en/v1/              # 中英流式 ASR
-│   ├── encoder.int8.onnx
-│   ├── decoder.onnx
-│   ├── joiner.int8.onnx
-│   └── tokens.txt
+│   ├── encoder.int8.ort
+│   ├── decoder.int8.ort
+│   ├── joiner.int8.ort
+│   ├── tokens.txt
+│   └── bbpe.vocab
 ├── yue-en/v1/             # 粤英流式 ASR
 │   ├── encoder.int8.onnx
 │   ├── decoder.onnx
 │   ├── joiner.int8.onnx
-│   └── tokens.txt
+│   ├── tokens.txt
+│   └── bbpe.vocab
 ├── punct-zhen/v1/         # CT-Transformer 中英标点
-│   └── model.int8.onnx
+│   └── model.int8.ort
 ├── itn-zh/v1/             # WeText 中文 ITN
 │   ├── zh_itn_tagger.fst
 │   └── zh_itn_verbalizer.fst
@@ -33,18 +36,18 @@ amphion-models/
 
 | 资产 | 体积 (~MB) | 说明 |
 | --- | --- | --- |
-| zh-en | 100~120 | encoder INT8 是大头 |
-| yue-en | 100~120 | 同 zh-en |
-| punct-zhen | 60~70 | CT-Transformer INT8 |
-| itn-zh | 2~4 | tagger + verbalizer fst |
-| vad | 2 | silero |
+| zh-en | ~164 | zhen INT8 三图的 ORT 产物 |
+| yue-en | ~175 | 保持 ONNX，decoder 为 FP32 |
+| punct-zhen | ~72 | CT-Transformer INT8 ORT |
+| itn-zh | ~1.3 | tagger + verbalizer FST |
+| vad | ~0.7 | silero |
 
-合计 ~270 MB；AAR 体积约 280 MB（含 native .so）。安装后首次启动会一次性
-拷贝到 `<filesDir>/amphion-runtime/`，耗时 5~30s（视磁盘速度），之后启动秒开。
+模型合计约 413 MB。Harmony rawfile 在 HAP 中按 Stored 方式打包，运行时优先使用
+rawfile descriptor + mmap 直载，不会先整体复制到 `<filesDir>`；若平台不给 descriptor，
+native loader 才回退到兼容的读取路径。
 
 ## 不入库
 
-实际模型资产（`*.onnx`, `*.fst`, `tokens.txt`, `bbpe.vocab`）走 `.gitignore`：
-都是与 encoder ONNX 严格配对的、由 `asr/tools/08_pack_sdk_assets.sh` 一次性
-写入的产物，与 git 走不同发布渠道易产生 sha256 错位。只有 `README.md` /
-运行期生成的 `manifest.json` 与各级目录占位 `.gitkeep` 进 git。
+实际模型资产（`*.ort`, `*.onnx`, `*.fst`, `tokens.txt`, `bbpe.vocab`）走
+`.gitignore`。它们必须由同一次 Harmony 打包生成，避免模型、词表和 manifest
+跨发布渠道后 SHA 错位；git 只保留本说明与目录占位文件。

@@ -48,15 +48,33 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 模式、门槛、artifact 结构和已验证基线见
 [`docs/DEVICE_STRESS.md`](docs/DEVICE_STRESS.md)。
 
+## 模型加载验收
+
+使用独立进程冷启动测量 `createEngineAsync`，并记录设备、系统构建、模型源哈希、native/HAP
+哈希、线程数和预热样本数：
+
+```bash
+python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
+  --device <HDC_TARGET> --warmup-runs 2 --iterations 10
+```
+
+当前 `zhen` 配置、真机基线、comparison identity 规则和已拒绝方案见
+[`docs/MODEL_LOAD_PERFORMANCE.md`](docs/MODEL_LOAD_PERFORMANCE.md)。
+
+鼎桥 `zhen` 配置默认使用 4 个 ONNX Runtime worker。真机 A/B 表明它小幅降低冷加载 p50，并缩短持续识别耗时，代价是不到 4 MB 峰值 RSS；加载基准会把线程数写入 comparison identity，禁止与 2 线程报告直接套用门槛比较。
+
+`zhen` 不执行创建阶段的静音预热：ORT Session 创建已经完成图初始化和权重预打包，真机测试中额外执行一次 800 ms 静音 decode 会让 engine ready 增加约 93 ms，而首次真实音频只减少约 9 ms。加载基准把预热样本数记录为 0，首轮真实音频延迟由设备压力测试单独守护。
+
 ## main 分支复现边界
 
-PR 合入后，`main` 分支包含完整源码、交付工程和 sherpa-onnx patch 序列，可以在同样工具链下编译出功能等价的鸿蒙应用。但仓库不会提交模型、签名证书、license、HAP/HAR 或 native 构建产物，因此干净检出后不能只运行 DevEco 构建就得到已签名的 279 MB HAP。
+PR 合入后，`main` 分支包含完整源码、交付工程和 sherpa-onnx patch 序列，可以在同样工具链下编译出功能等价的鸿蒙应用。但仓库不会提交模型、签名证书、license、HAP/HAR 或 native 构建产物，因此干净检出后不能只运行 DevEco 构建就得到带完整模型的已签名 HAP。
 
 从干净 `main` 复现时需要先准备这些本地输入：
 
 - 执行 `git submodule update --init third_party/sherpa-onnx`。
 - 执行 `bash asr/tools/04_build_harmony_so.sh`；该脚本会调用 `asr/tools/apply_sherpa_patches.sh`，把 `third_party/patches/sherpa-amphion/` 下的 patch 应用到 sherpa-onnx，本分支不提交 submodule 本体改动。
-- 执行 `bash asr/tools/08_pack_harmony_assets.sh`；前提是 `asr/android/sdk/src/main/assets/amphion-models/` 下已有 ASR 模型源文件。
+- 执行 `bash asr/tools/05_package_har_libs.sh`，把已构建的 AArch64 native 库同步到 Harmony HAR 源目录。
+- 执行 `bash asr/tools/08_pack_harmony_assets.sh`；默认直接读取 `asr/tools/demo-model/zhen`、`asr/tools/demo-model/yueen` 及标点/ITN/VAD 源文件，并用固定 ORT 1.16.3 构建环境预优化中英三图与标点图，不再依赖 Android assets。
 - 配置 DevEco 签名后构建 `dingqiao_demo`；无签名配置时只能得到未签名或调试产物。
 - 声纹模型 `eres2net.onnx` 不内置进 HAP，由 demo 通过导入流程放入工作目录。
 
