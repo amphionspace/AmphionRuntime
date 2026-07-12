@@ -448,13 +448,15 @@ def visit(value):
             visit(child)
 visit(root)
 
-failures = ("授权文件准备失败", "授权失败", "引擎初始化失败")
+failures = ("授权文件准备失败", "授权失败", "引擎初始化失败", "运行时拉起失败", "模型加载失败")
 for text in texts:
     if any(marker in text for marker in failures):
         print(f"FAIL\t{text}")
         raise SystemExit(0)
+# 两级加载:启动后到达的是「运行时就绪(未加载模型)」态,模型要等点击开始识别才按需加载。
+# 兼容旧版一次性加载的「引擎就绪」文案。
 for text in texts:
-    if "引擎就绪" in text:
+    if "运行时就绪" in text or "引擎就绪" in text:
         print(f"READY\t{text}")
         raise SystemExit(0)
 PY

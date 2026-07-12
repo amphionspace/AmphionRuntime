@@ -9,6 +9,7 @@ import { ModelLoadBenchOptions, runModelLoadBench } from '../util/ModelLoadBench
 import { LifecycleBenchOptions, runLifecycleBench } from '../util/LifecycleBench';
 import { runSdkSelfTest } from '../util/SdkSelfTest';
 import { fileIo as fs } from '@kit.CoreFileKit';
+import { util } from '@kit.ArkTS';
 
 class DemoDeviceIdProvider implements LicenseDeviceIdProvider {
   getDeviceSerial(_context: Context): string | undefined {
@@ -33,13 +34,25 @@ export default class EntryAbility extends UIAbility {
     // 用 /proc 内核账,不用 hidebug.getPss()(实测低估)。
     let carrierBaselinePss = 0;   // 实为 VmRSS,沿用字段名传给 bench
     let carrierBaselineAnon = 0;
+    // /proc 文件 stat 报 size=0,fs.readTextSync 读到空;必须 openSync+readSync 读到 EOF。
     try {
-      const st = fs.readTextSync('/proc/self/status');
-      const mr = st.match(/VmRSS:\s*(\d+)\s*kB/);
-      const ma = st.match(/RssAnon:\s*(\d+)\s*kB/);
-      carrierBaselinePss = mr !== null ? Math.round(Number(mr[1]) / 1024) : 0;
-      carrierBaselineAnon = ma !== null ? Math.round(Number(ma[1]) / 1024) : 0;
+      const fp = fs.openSync('/proc/self/status', fs.OpenMode.READ_ONLY);
+      try {
+        const buf = new ArrayBuffer(8192);
+        const n = fs.readSync(fp.fd, buf);
+        const st = util.TextDecoder.create('utf-8').decodeToString(new Uint8Array(buf.slice(0, n)));
+        const mr = st.match(/VmRSS:\s*(\d+)\s*kB/);
+        const ma = st.match(/RssAnon:\s*(\d+)\s*kB/);
+        carrierBaselinePss = mr !== null ? Math.round(Number(mr[1]) / 1024) : 0;
+        carrierBaselineAnon = ma !== null ? Math.round(Number(ma[1]) / 1024) : 0;
+      } finally {
+        fs.closeSync(fp);
+      }
     } catch (e) { /* 0 */ }
+    // 两级加载内存曲线的地板:纯载体(SDK.init 之前)。运行时净值 = 运行时就绪 anon − 本基线 anon(≈6-7MB)。
+    hilog.info(0x0000, 'TwoLevelMem',
+      'STAGE=00_carrier_baseline(纯载体_SDK_init前) | vmRssMb=%{public}d | anonMb=%{public}d',
+      carrierBaselinePss, carrierBaselineAnon);
     try {
       const workPath = `${this.context.filesDir}/dingqiao_work`;
       const deviceIdProvider = new DemoDeviceIdProvider();
