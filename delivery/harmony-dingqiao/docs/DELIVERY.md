@@ -85,10 +85,13 @@ dingqiao-harmony-delivery-<version>/
 └── docs/
     ├── DINGQIAO_INTEGRATION.md
     ├── DINGQIAO_LICENSE_SCHEME.md
+    ├── 语音识别SDK接口.md
     ├── LICENSE.md
     ├── NOTICE
     ├── PRIVACY.md
     ├── MODEL_LOAD_PERFORMANCE.md
+    ├── SDK_LIFECYCLE_PERFORMANCE_20260713.md
+    ├── SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md
     ├── BUILD_PROVENANCE.json
     ├── CHANGELOG.md
     └── checksum.txt
