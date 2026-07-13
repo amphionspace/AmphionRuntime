@@ -439,6 +439,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.ensureAlive();
     if (this.session === undefined || !this.busy) return;
     const sessionId = this.currentSessionId;
+    const session = this.session;
     try {
       if (enabled) {
         const embedding = new VoiceprintStore(SpeechRecognizeSdk.getWorkPath()).loadMergedEmbedding(this.voiceprintIds);
@@ -446,15 +447,18 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           this.listener?.onError?.(sessionId, DingqiaoErrorCode.VOICEPRINT_NOT_FOUND, 'voiceprint not found for speaker VAD');
           return;
         }
-        this.session.setTargetSpeaker(embedding);
+        session.setTargetSpeaker(embedding);
         // This API is synchronous by contract. Enabling streaming Speaker VAD is the one path that
         // intentionally blocks until the extractor is ready; final-only verification never does.
-        this.session.ensureTargetSpeakerExtractor();
+        session.ensureTargetSpeakerExtractor();
+        // ensureTargetSpeakerExtractor() can synchronously flush a final result. Its callbacks may
+        // complete and tear down this session before control returns here.
+        if (this.session !== session || !this.busy || this.currentSessionId !== sessionId) return;
       }
-      this.session.setSpeakerVadEnabled(enabled);
+      session.setSpeakerVadEnabled(enabled);
       this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEAKER_VAD_CHANGED, `speaker vad ${enabled ? 'enabled' : 'disabled'}.`);
     } catch (e) {
-      this.session.setSpeakerVadEnabled(false);
+      if (this.session === session) session.setSpeakerVadEnabled(false);
       this.listener?.onError?.(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, `setSpeakerVadEnabled failed: ${e}`);
     }
   }

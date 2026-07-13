@@ -1,4 +1,4 @@
-From f6581420617a8763bb98e3e595de644e2a0b290b Mon Sep 17 00:00:00 2001
+From 8579d923ed51ae1ee1ca30e7ed99156b4b93c53b Mon Sep 17 00:00:00 2001
 From: Amphion CI <ci@amphion.local>
 Date: Mon, 13 Jul 2026 13:43:18 +0800
 Subject: [PATCH] feat(harmony): manage speaker extractor lifecycle
@@ -8,8 +8,8 @@ Subject: [PATCH] feat(harmony): manage speaker extractor lifecycle
  .../cpp/speaker-embedding-extractor-handle.h  |  50 +++
  .../src/main/cpp/speaker-identification.cc    | 324 ++++++++++++++++--
  .../main/cpp/types/libsherpa_onnx/Index.d.ts  |   3 +
- .../ets/components/SpeakerIdentification.ets  |  20 +-
- 4 files changed, 364 insertions(+), 33 deletions(-)
+ .../ets/components/SpeakerIdentification.ets  |  30 +-
+ 4 files changed, 375 insertions(+), 32 deletions(-)
  create mode 100644 harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-embedding-extractor-handle.h
 
 diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-embedding-extractor-handle.h b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-embedding-extractor-handle.h
@@ -501,7 +501,7 @@ index 956edee3..79de3624 100644
  export const speakerEmbeddingManagerAdd: (handle: object, speaker: {name: string, v: Float32Array}) => boolean;
  export const speakerEmbeddingManagerAddListFlattened: (handle: object, speaker: {name: string, vv: Float32Array, n: number}) => boolean;
 diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets
-index 50868dfb..ce646e54 100644
+index 50868dfb..c8dc9a35 100644
 --- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets
 +++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets
 @@ -1,6 +1,8 @@
@@ -522,14 +522,20 @@ index 50868dfb..ce646e54 100644
  export class SpeakerEmbeddingExtractorConfig {
    public model: string = '';
    public numThreads: number = 1;
-@@ -28,12 +32,18 @@ export class SpeakerEmbeddingExtractor {
+@@ -24,16 +28,34 @@ export class SpeakerEmbeddingExtractorConfig {
+ }
+ 
+ export class SpeakerEmbeddingExtractor {
++  private static pendingAsyncHandle?: object;
+   public config: SpeakerEmbeddingExtractorConfig = new SpeakerEmbeddingExtractorConfig();
    public dim: number;
    private handle: object;
  
--  constructor(config: SpeakerEmbeddingExtractorConfig, mgr?: object) {
+   constructor(config: SpeakerEmbeddingExtractorConfig, mgr?: object) {
 -    this.handle = createSpeakerEmbeddingExtractor(config, mgr);
-+  constructor(config: SpeakerEmbeddingExtractorConfig, mgr?: object, handle?: object) {
-+    this.handle = handle === undefined ? createSpeakerEmbeddingExtractor(config, mgr) : handle;
++    const pendingHandle = SpeakerEmbeddingExtractor.pendingAsyncHandle;
++    SpeakerEmbeddingExtractor.pendingAsyncHandle = undefined;
++    this.handle = pendingHandle === undefined ? createSpeakerEmbeddingExtractor(config, mgr) : pendingHandle;
      this.config = config;
      this.dim = speakerEmbeddingExtractorDim(this.handle);
    }
@@ -537,13 +543,22 @@ index 50868dfb..ce646e54 100644
 +  static async createAsync(config: SpeakerEmbeddingExtractorConfig, mgr?: object,
 +    warmupSamples: number = SPEAKER_SAMPLE_RATE_HZ): Promise<SpeakerEmbeddingExtractor> {
 +    const handle: object = await createSpeakerEmbeddingExtractorAsync(config, mgr, warmupSamples);
-+    return new SpeakerEmbeddingExtractor(config, undefined, handle);
++    // ArkTS has no allocation-without-constructor primitive. Transfer the opaque native handle via
++    // private state so the public constructor never accepts caller-controlled native pointers.
++    SpeakerEmbeddingExtractor.pendingAsyncHandle = handle;
++    try {
++      return new SpeakerEmbeddingExtractor(config);
++    } finally {
++      if (SpeakerEmbeddingExtractor.pendingAsyncHandle === handle) {
++        SpeakerEmbeddingExtractor.pendingAsyncHandle = undefined;
++      }
++    }
 +  }
 +
    createStream(): OnlineStream {
      return new OnlineStream(speakerEmbeddingExtractorCreateStream(this.handle));
    }
-@@ -45,6 +55,10 @@ export class SpeakerEmbeddingExtractor {
+@@ -45,6 +67,10 @@ export class SpeakerEmbeddingExtractor {
    compute(stream: OnlineStream, enableExternalBuffer: boolean = true): Float32Array {
      return speakerEmbeddingExtractorComputeEmbedding(this.handle, stream.handle, enableExternalBuffer);
    }
@@ -554,7 +569,7 @@ index 50868dfb..ce646e54 100644
  }
  
  function flatten(arrayList: Float32Array[]): Float32Array {
-@@ -132,4 +146,4 @@ export class SpeakerEmbeddingManager {
+@@ -132,4 +158,4 @@ export class SpeakerEmbeddingManager {
    getAllSpeakerNames(): string[] {
      return speakerEmbeddingManagerGetAllSpeakers(this.handle);
    }
