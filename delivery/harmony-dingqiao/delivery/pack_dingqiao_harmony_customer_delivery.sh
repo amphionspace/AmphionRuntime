@@ -174,7 +174,10 @@ fi
 
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/DINGQIAO_INTEGRATION.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/DINGQIAO_LICENSE_SCHEME.md" "$OUT_ROOT/docs/"
+cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/语音识别SDK接口.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/LICENSE.md" "$OUT_ROOT/docs/"
+cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/SDK_LIFECYCLE_PERFORMANCE_20260713.md" "$OUT_ROOT/docs/"
+cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/NOTICE" "$OUT_ROOT/docs/"
 mkdir -p "$OUT_ROOT/docs/third-party"
 cp -v "$REPO_ROOT/LICENSE" "$OUT_ROOT/docs/third-party/Apache-2.0.txt"
