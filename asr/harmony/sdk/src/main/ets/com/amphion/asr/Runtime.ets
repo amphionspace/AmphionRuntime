@@ -78,6 +78,35 @@ class AsyncPunctuationLoad {
   }
 }
 
+class PendingSpeakerFinal {
+  result: AsrResult;
+  samples: Float32Array;
+  endpointAtMs: number;
+  decodeDurationMs: number;
+  postProcessMs: number;
+  utteranceIndex: number;
+  utteranceDurationMs: number;
+  firstPartialLatencyMs: number;
+  utteranceStartedMs: number;
+  pcmBytesAccepted: number;
+
+  constructor(result: AsrResult, samples: Float32Array, endpointAtMs: number,
+    decodeDurationMs: number, postProcessMs: number, utteranceIndex: number,
+    utteranceDurationMs: number, firstPartialLatencyMs: number,
+    utteranceStartedMs: number, pcmBytesAccepted: number) {
+    this.result = result;
+    this.samples = samples;
+    this.endpointAtMs = endpointAtMs;
+    this.decodeDurationMs = decodeDurationMs;
+    this.postProcessMs = postProcessMs;
+    this.utteranceIndex = utteranceIndex;
+    this.utteranceDurationMs = utteranceDurationMs;
+    this.firstPartialLatencyMs = firstPartialLatencyMs;
+    this.utteranceStartedMs = utteranceStartedMs;
+    this.pcmBytesAccepted = pcmBytesAccepted;
+  }
+}
+
 class Logger {
   private static level: AmphionLogLevel = AmphionLogLevel.WARN;
   static setLevel(level: AmphionLogLevel): void { Logger.level = level; }
@@ -110,6 +139,8 @@ export class AmphionRuntime {
   // is expensive to load into onnxruntime (~3-4 s), so build it at most once per process and share it
   // across enrollment and every recognition session — mirrors asrPool for the recognizer.
   private static speakerExtractorPool: Map<string, SpeakerEmbeddingExtractor> = new Map<string, SpeakerEmbeddingExtractor>();
+  private static speakerExtractorLoads: Map<string, Promise<SpeakerEmbeddingExtractor>> =
+    new Map<string, Promise<SpeakerEmbeddingExtractor>>();
   // Pooled punctuation model (ct-transformer), keyed by `${punctModel}|${numThreads}`. Rebuilt cold in
   // the AsrEngine ctor otherwise, so a verify/VAD toggle re-loads it and adds to the start freeze.
   private static punctuationPool: Map<string, OfflinePunctuation> = new Map<string, OfflinePunctuation>();
@@ -359,7 +390,7 @@ export class AmphionRuntime {
       if (n <= 0) return;
       const stream = recognizer.createStream();
       try {
-        const wave: Samples = { samples: new Float32Array(n), sampleRate: 16000 } as Samples;
+        const wave: Samples = { samples: new Float32Array(n), sampleRate: ASR_SAMPLE_RATE_HZ } as Samples;
         stream.acceptWaveform(wave);
         while (recognizer.isReady(stream)) recognizer.decode(stream);
         recognizer.reset(stream);
@@ -373,12 +404,13 @@ export class AmphionRuntime {
 
   /**
    * Pooled speaker-embedding extractor. Built at most once per process and shared across enrollment
-   * and every recognition session, so the ~3-4 s eres2net load is paid once (ideally during
-   * registration / an explicit preload) and never blocks the UI thread at recognition start.
+   * and every recognition session. Registration, explicit preload, and Speaker VAD use this
+   * synchronous path; final-only verification uses getOrCreateSpeakerExtractorAsync instead.
    * An absolute modelPath is read from the filesystem (rm=undefined); a rawfile-relative name uses
    * the resourceManager loader — same rule as SpeakerEnroller (avoids the rawfile-loader crash).
    */
   static getOrCreateSpeakerExtractor(context: Context | undefined, modelPath: string, numThreads: number): SpeakerEmbeddingExtractor {
+    AmphionRuntime.checkInitialized();
     const key = `${modelPath}|${numThreads}`;
     const cached = AmphionRuntime.speakerExtractorPool.get(key);
     if (cached !== undefined) return cached;
@@ -393,13 +425,71 @@ export class AmphionRuntime {
     return extractor;
   }
 
+  /**
+   * True background speaker-extractor load with one in-flight task per model/config. Native model
+   * construction and the one-second silence warmup both run in N-API async work, so callers can
+   * continue streaming ASR audio while the final-only voiceprint path becomes ready.
+   */
+  static async getOrCreateSpeakerExtractorAsync(context: Context | undefined,
+    modelPath: string, numThreads: number): Promise<SpeakerEmbeddingExtractor> {
+    AmphionRuntime.checkInitialized();
+    const key = `${modelPath}|${numThreads}`;
+    const cached = AmphionRuntime.speakerExtractorPool.get(key);
+    if (cached !== undefined) return cached;
+
+    let load = AmphionRuntime.speakerExtractorLoads.get(key);
+    if (load === undefined) {
+      const generation = AmphionRuntime.loadGeneration;
+      const cfg = new SpeakerEmbeddingExtractorConfig();
+      cfg.model = modelPath;
+      cfg.numThreads = numThreads;
+      cfg.debug = false;
+      const rm = modelPath.startsWith('/') ? undefined : context?.resourceManager;
+      const newLoad = SpeakerEmbeddingExtractor.createAsync(cfg, rm, ASR_SAMPLE_RATE_HZ)
+        .then((extractor: SpeakerEmbeddingExtractor): SpeakerEmbeddingExtractor => {
+          if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+            extractor.close();
+            throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during speaker load`);
+          }
+          // A synchronous registration/Speaker-VAD load may have completed while this worker was
+          // running. Keep that published instance and deterministically release this late loser.
+          const winner = AmphionRuntime.speakerExtractorPool.get(key);
+          if (winner !== undefined) {
+            extractor.close();
+            return winner;
+          }
+          AmphionRuntime.speakerExtractorPool.set(key, extractor);
+          return extractor;
+        });
+      AmphionRuntime.speakerExtractorLoads.set(key, newLoad);
+      load = newLoad;
+    }
+
+    const activeLoad: Promise<SpeakerEmbeddingExtractor> = load;
+    try {
+      const extractor = await activeLoad;
+      if (AmphionRuntime.speakerExtractorLoads.get(key) === activeLoad) {
+        AmphionRuntime.speakerExtractorLoads.delete(key);
+      }
+      return extractor;
+    } catch (e) {
+      if (AmphionRuntime.speakerExtractorLoads.get(key) === activeLoad) {
+        AmphionRuntime.speakerExtractorLoads.delete(key);
+      }
+      throw new Error(`speaker extractor load failed: ${e}`);
+    }
+  }
+
   // Force onnxruntime's lazy graph/weight init by computing one embedding over 1 s of silence, so the
   // first real segment during recognition doesn't pay it. Best-effort; failure never blocks.
   private static warmUpExtractor(extractor: SpeakerEmbeddingExtractor): void {
     try {
       const stream = extractor.createStream();
       try {
-        const wave: Samples = { samples: new Float32Array(16000), sampleRate: 16000 } as Samples;
+        const wave: Samples = {
+          samples: new Float32Array(ASR_SAMPLE_RATE_HZ),
+          sampleRate: ASR_SAMPLE_RATE_HZ
+        } as Samples;
         stream.acceptWaveform(wave);
         extractor.compute(stream);
       } finally {
@@ -614,8 +704,8 @@ export class AmphionRuntime {
   }
   /**
    * 模型级卸载(两级加载的 L2)。清空所有模型池并 bump loadGeneration,使正在进行的 async 加载失效;
-   * 池化的 native session(recognizer / punctuation / extractor / vad)引用被丢弃后,由 NAPI finalizer
-   * 在 GC 时回收其 native 内存 —— 与 release() 释放模型的语义一致,区别在于本方法**保留运行时**
+   * 池化的 recognizer / punctuation / speaker extractor 会显式 close；VAD 引用清空后由 NAPI
+   * finalizer 回收。区别于 release() 的是本方法**保留运行时**
    * (initialized / appContext / license 不变),下次 create 只需重付模型加载,无需重建运行时。
    */
   static unloadModel(): void {
@@ -628,9 +718,13 @@ export class AmphionRuntime {
     AmphionRuntime.punctuationPool.forEach((p: OfflinePunctuation): void => {
       try { p.close(); } catch (e) { Logger.w(`punctuation close failed: ${e}`); }
     });
+    AmphionRuntime.speakerExtractorPool.forEach((extractor: SpeakerEmbeddingExtractor): void => {
+      try { extractor.close(); } catch (e) { Logger.w(`speaker extractor close failed: ${e}`); }
+    });
     AmphionRuntime.asrPool.clear();
     AmphionRuntime.recognizerLoads.clear();
     AmphionRuntime.speakerExtractorPool.clear();
+    AmphionRuntime.speakerExtractorLoads.clear();
     AmphionRuntime.punctuationPool.clear();
     AmphionRuntime.punctuationLoads.clear();
     AmphionRuntime.vadPool.clear();
@@ -780,6 +874,7 @@ export class AmphionRuntime {
       target.hopSec = sourceTarget.hopSec;
       target.minSegSec = sourceTarget.minSegSec;
       target.preload = sourceTarget.preload;
+      target.deferLoad = sourceTarget.deferLoad;
       target.enabledByDefault = sourceTarget.enabledByDefault;
       target.numThreads = sourceTarget.numThreads;
       const sourceSpeakerVad = sourceTarget.speakerVad;
@@ -847,14 +942,16 @@ export class AsrEngine {
     this.engineReadyMs = engineReadyMs;
     this.punctuation = punctuation;
     this.punctuationLoadMs = punctuationLoadMs;
-    if (config.targetSpeaker !== undefined && config.targetSpeaker.preload) {
+    if (config.targetSpeaker !== undefined && config.targetSpeaker.preload &&
+      !config.targetSpeaker.deferLoad) {
       this.targetExtractor = this.createSpeakerExtractor(config.targetSpeaker);
     }
   }
 
   newSession(callback: AsrCallback): AsrSession {
     if (this.closed) throw new Error('AsrEngine is closed');
-    if (this.config.targetSpeaker !== undefined && this.targetExtractor === undefined) {
+    if (this.config.targetSpeaker !== undefined && this.targetExtractor === undefined &&
+      !this.config.targetSpeaker.deferLoad) {
       this.targetExtractor = this.createSpeakerExtractor(this.config.targetSpeaker);
     }
     const session = new AsrSession(
@@ -869,6 +966,10 @@ export class AsrEngine {
       callback,
       this.engineReadyMs
     );
+    const targetConfig = this.config.targetSpeaker;
+    if (targetConfig !== undefined && targetConfig.deferLoad && targetConfig.enabledByDefault) {
+      session.setTargetSpeakerEnabled(true);
+    }
     this.sessions.push(session);
     return session;
   }
@@ -908,6 +1009,7 @@ export class AsrSession {
   private vadKey: string = '';
   private vadWindowSize: number = 512;
   private targetExtractor?: SpeakerEmbeddingExtractor;
+  private targetExtractorLoad?: Promise<SpeakerEmbeddingExtractor>;
   private targetSpeaker?: Float32Array;
   private targetSpeakerEnabled: boolean = false;
   private speakerVadEnabled: boolean = false;
@@ -938,6 +1040,8 @@ export class AsrSession {
   private utteranceSamples: Float32Array[] = [];
   private engineReadyMs: number = -1;
   private stoppedNotified: boolean = false;
+  private stopNotificationPending: boolean = false;
+  private pendingSpeakerFinals: PendingSpeakerFinal[] = [];
   private itnWarned: boolean = false;
 
   constructor(sessionId: number, context: Context, language: AsrLanguage, config: AsrConfig, layout: InstalledLayout, recognizer: OnlineRecognizer, punctuation: OfflinePunctuation | undefined, targetExtractor: SpeakerEmbeddingExtractor | undefined, callback: AsrCallback, engineReadyMs: number) {
@@ -1026,8 +1130,52 @@ export class AsrSession {
     }
     this.targetSpeaker = embedding;
   }
+  setTargetSpeakerExtractor(extractor: SpeakerEmbeddingExtractor): void {
+    if (this.targetSpeaker !== undefined && this.targetSpeaker.length !== extractor.dim) {
+      throw new Error(`target speaker embedding dim=${this.targetSpeaker.length}, expected=${extractor.dim}`);
+    }
+    this.targetExtractor = extractor;
+    this.flushPendingSpeakerFinals();
+  }
+  setTargetSpeakerExtractorAsync(load: Promise<SpeakerEmbeddingExtractor>): void {
+    this.targetExtractorLoad = load;
+    load.then((extractor: SpeakerEmbeddingExtractor): void => {
+      if (this.closed || this.targetExtractorLoad !== load) return;
+      this.setTargetSpeakerExtractor(extractor);
+      this.targetExtractorLoad = undefined;
+    }).catch((e: Object): void => {
+      if (this.closed || this.targetExtractorLoad !== load) return;
+      this.targetExtractorLoad = undefined;
+      const shouldReport = this.targetSpeakerEnabled || this.speakerVadEnabled ||
+        this.pendingSpeakerFinals.length > 0;
+      this.pendingSpeakerFinals = [];
+      const stoppedWasPending = this.stopNotificationPending;
+      this.stopNotificationPending = false;
+      if (shouldReport) {
+        this.callback.onError?.(new AsrError(
+          AsrErrorCode.POSTPROCESS_FAILED, `speaker extractor load failed: ${e}`));
+      }
+      // A failed deferred load must still complete stop(). The error callback may close the session,
+      // in which case close() owns the stopped notification and this branch deliberately does nothing.
+      if (stoppedWasPending && !this.closed) this.notifyStopped();
+    });
+  }
+  ensureTargetSpeakerExtractor(): void {
+    const config = this.config.targetSpeaker;
+    if (config === undefined || this.targetExtractor !== undefined) return;
+    this.setTargetSpeakerExtractor(AmphionRuntime.getOrCreateSpeakerExtractor(
+      this.context, config.modelPath, config.numThreads));
+  }
   clearTargetSpeaker(): void { this.targetSpeaker = undefined; }
-  setTargetSpeakerEnabled(enabled: boolean): void { this.targetSpeakerEnabled = enabled; }
+  setTargetSpeakerEnabled(enabled: boolean): void {
+    this.targetSpeakerEnabled = enabled;
+    const config = this.config.targetSpeaker;
+    if (enabled && this.targetExtractor === undefined && this.targetExtractorLoad === undefined &&
+      config !== undefined && config.deferLoad) {
+      this.setTargetSpeakerExtractorAsync(AmphionRuntime.getOrCreateSpeakerExtractorAsync(
+        this.context, config.modelPath, config.numThreads));
+    }
+  }
   setSpeakerVadEnabled(enabled: boolean): void {
     if (this.config.targetSpeaker?.speakerVad === undefined) {
       this.callback.onDebug?.('speaker VAD is not configured for this session');
@@ -1039,6 +1187,8 @@ export class AsrSession {
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    this.targetExtractorLoad = undefined;
+    this.pendingSpeakerFinals = [];
     // 归还 VAD 到空闲池,供后续会话复用(顺序场景保持 RSS 平)。closed 早退保证同一实例只归还一次,
     // 避免重复入池后被两个会话同时取出而重现共享污染。
     if (this.vad !== undefined) {
@@ -1105,29 +1255,55 @@ export class AsrSession {
       }
     }
     const postProcessMs = Date.now() - postStartMs;
-    this.applyTargetSpeaker(result);
     this.utteranceIndex += 1;
-    if (this.targetSpeakerEnabled && result.isTargetSpeaker === false) {
-      this.callback.onFinalRejected?.(result);
+    const pending = new PendingSpeakerFinal(
+      result,
+      concatFloat32(this.utteranceSamples),
+      endpointTriggered ? Date.now() : -1,
+      decodeDurationMs,
+      postProcessMs,
+      this.utteranceIndex,
+      Math.round(this.pcmBytesAccepted * 1000 / 32000),
+      this.firstPartialLatencyMs,
+      this.firstPcmMs < 0 ? this.utteranceStartMs : this.firstPcmMs,
+      this.pcmBytesAccepted);
+    this.utteranceStartMs = Date.now();
+    this.pcmBytesAccepted = 0;
+    this.firstPcmMs = -1;
+    this.firstPartialLatencyMs = -1;
+    this.utteranceSamples = [];
+
+    if (this.targetSpeakerEnabled && this.targetExtractor === undefined &&
+      this.targetExtractorLoad !== undefined) {
+      this.pendingSpeakerFinals.push(pending);
+      return;
+    }
+    this.deliverSpeakerFinal(pending);
+  }
+
+  private deliverSpeakerFinal(pending: PendingSpeakerFinal): void {
+    this.applyTargetSpeaker(pending.result, pending.samples);
+    if (this.targetSpeakerEnabled && pending.result.isTargetSpeaker === false) {
+      this.callback.onFinalRejected?.(pending.result);
     } else {
-      this.callback.onFinal?.(result.text, result.confidence);
-      this.callback.onFinalResult?.(result);
+      this.callback.onFinal?.(pending.result.text, pending.result.confidence);
+      this.callback.onFinalResult?.(pending.result);
     }
 
     const metrics = new AmphionMetrics();
     metrics.kind = AmphionMetricsKind.UTTERANCE;
     metrics.language = this.language;
     metrics.sessionId = this.sessionId;
-    metrics.utteranceIndex = this.utteranceIndex;
-    metrics.utteranceDurationMs = Math.round(this.pcmBytesAccepted * 1000 / 32000);
-    metrics.decodeDurationMs = decodeDurationMs;
-    metrics.postProcessMs = postProcessMs;
-    metrics.firstPartialLatencyMs = this.firstPartialLatencyMs;
-    metrics.endpointToFinalLatencyMs = endpointTriggered ? 0 : -1;
-    metrics.utteranceE2eLatencyMs = this.firstPcmMs < 0 ? Date.now() - this.utteranceStartMs : Date.now() - this.firstPcmMs;
-    metrics.rtf = metrics.utteranceDurationMs > 0 ? decodeDurationMs / metrics.utteranceDurationMs : -1;
-    metrics.pcmBytesAccepted = this.pcmBytesAccepted;
-    if (this.utteranceIndex === 1) {
+    metrics.utteranceIndex = pending.utteranceIndex;
+    metrics.utteranceDurationMs = pending.utteranceDurationMs;
+    metrics.decodeDurationMs = pending.decodeDurationMs;
+    metrics.postProcessMs = pending.postProcessMs;
+    metrics.firstPartialLatencyMs = pending.firstPartialLatencyMs;
+    metrics.endpointToFinalLatencyMs = pending.endpointAtMs >= 0 ? Date.now() - pending.endpointAtMs : -1;
+    metrics.utteranceE2eLatencyMs = Date.now() - pending.utteranceStartedMs;
+    metrics.rtf = metrics.utteranceDurationMs > 0 ? pending.decodeDurationMs / metrics.utteranceDurationMs : -1;
+    metrics.pcmBytesAccepted = pending.pcmBytesAccepted;
+    if (pending.utteranceIndex === 1) {
       metrics.engineReadyMs = this.engineReadyMs;
       metrics.assetInstallMs = 0;
       metrics.assetTotalBytes = 0;
@@ -1136,11 +1312,20 @@ export class AsrSession {
     if (metrics.rtf >= 0) this.rtfValues.push(metrics.rtf);
     this.callback.onMetrics?.(metrics);
     Logger.metric(metrics.toLogLine());
-    this.utteranceStartMs = Date.now();
-    this.pcmBytesAccepted = 0;
-    this.firstPcmMs = -1;
-    this.firstPartialLatencyMs = -1;
-    this.utteranceSamples = [];
+  }
+
+  private flushPendingSpeakerFinals(): void {
+    if (this.targetExtractor === undefined || this.pendingSpeakerFinals.length === 0) return;
+    const pending = this.pendingSpeakerFinals;
+    this.pendingSpeakerFinals = [];
+    for (let i = 0; i < pending.length; i++) {
+      if (this.closed) break;
+      this.deliverSpeakerFinal(pending[i]);
+    }
+    if (this.stopNotificationPending && !this.closed) {
+      this.stopNotificationPending = false;
+      this.notifyStopped();
+    }
   }
 
   private createVad(): SherpaVad {
@@ -1284,9 +1469,8 @@ export class AsrSession {
     this.stream.acceptWaveform(wave);
   }
 
-  private applyTargetSpeaker(result: AsrResult): void {
+  private applyTargetSpeaker(result: AsrResult, samples: Float32Array): void {
     if (this.config.targetSpeaker === undefined || this.targetExtractor === undefined || this.targetSpeaker === undefined) return;
-    const samples = concatFloat32(this.utteranceSamples);
     if (samples.length < Math.round(this.config.targetSpeaker.minSegSec * 16000)) return;
     const stream = this.targetExtractor.createStream();
     try {
@@ -1416,6 +1600,10 @@ export class AsrSession {
 
   private notifyStopped(): void {
     if (this.stoppedNotified) return;
+    if (this.pendingSpeakerFinals.length > 0) {
+      this.stopNotificationPending = true;
+      return;
+    }
     this.stoppedNotified = true;
     this.callback.onSessionStopped?.();
   }

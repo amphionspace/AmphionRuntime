@@ -1,3 +1,13 @@
 Amphion Runtime HarmonyOS SDK
 
 This product includes software derived from sherpa-onnx and ONNX Runtime. See bundled third-party notices in the final delivery package.
+
+3D-Speaker / eres2net voiceprint model
+Project:     3D-Speaker (Alibaba DAMO Academy)
+Repository:  https://github.com/modelscope/3D-Speaker
+License:     Apache License 2.0
+Model:       3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx
+             (distributed as amphion-dingqiao/eres2net.onnx in the ASR HAR)
+
+Licensed under the Apache License, Version 2.0. This ONNX model is
+redistributed for speaker embedding and voiceprint verification.

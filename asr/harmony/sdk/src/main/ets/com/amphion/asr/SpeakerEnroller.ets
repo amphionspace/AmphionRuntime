@@ -7,10 +7,14 @@ import {
   SpeakerEmbeddingExtractorConfig
 } from 'sherpa_onnx';
 
+const SPEAKER_SAMPLE_RATE_HZ: number = 16000;
+
 export class SpeakerEnroller {
   private modelPath: string;
   private extractor: SpeakerEmbeddingExtractor;
   private context?: Context;
+  private ownsExtractor: boolean;
+  private closed: boolean = false;
 
   constructor(modelPath: string, numThreads: number = 1, context?: Context, extractor?: SpeakerEmbeddingExtractor) {
     if (modelPath.trim().length === 0) throw new Error('SpeakerEnroller modelPath must not be blank');
@@ -19,6 +23,7 @@ export class SpeakerEnroller {
     if (extractor !== undefined) {
       // Reuse a pooled extractor (shared with the recognition path) so the ~38 MB model loads once.
       this.extractor = extractor;
+      this.ownsExtractor = false;
     } else {
       const config = new SpeakerEmbeddingExtractorConfig();
       config.model = modelPath;
@@ -28,6 +33,7 @@ export class SpeakerEnroller {
       // 按 rawfile 找不到而 abort(与 Runtime.getOrCreateSpeakerExtractor 同一守卫,也与下方 readWaveSamples 一致)。
       const rm = modelPath.startsWith('/') ? undefined : context?.resourceManager;
       this.extractor = new SpeakerEmbeddingExtractor(config, rm);
+      this.ownsExtractor = true;
     }
   }
 
@@ -35,9 +41,10 @@ export class SpeakerEnroller {
     return this.extractor.dim;
   }
 
-  enroll(segments: Float32Array[], sampleRate: number = 16000): Float32Array {
+  enroll(segments: Float32Array[], sampleRate: number = SPEAKER_SAMPLE_RATE_HZ): Float32Array {
+    this.ensureOpen();
     if (segments.length === 0) throw new Error('enroll() needs at least 1 segment');
-    if (sampleRate !== 16000) throw new Error('SpeakerEnroller only supports 16 kHz PCM');
+    if (sampleRate !== SPEAKER_SAMPLE_RATE_HZ) throw new Error('SpeakerEnroller only supports 16 kHz PCM');
     const embeddings: Float32Array[] = [];
     for (let i = 0; i < segments.length; i++) {
       if (segments[i].length === 0) continue;
@@ -48,16 +55,24 @@ export class SpeakerEnroller {
   }
 
   enrollFiles(audioPaths: string[]): Float32Array {
+    this.ensureOpen();
     if (audioPaths.length === 0) throw new Error('enrollFiles() needs at least 1 audio path');
     const segments: Float32Array[] = [];
     for (let i = 0; i < audioPaths.length; i++) {
       segments.push(this.readWaveSamples(audioPaths[i]));
     }
-    return this.enroll(segments, 16000);
+    return this.enroll(segments, SPEAKER_SAMPLE_RATE_HZ);
   }
 
   close(): void {
-    // sherpa_onnx Harmony binding does not expose an explicit extractor release API yet.
+    if (this.closed) return;
+    this.closed = true;
+    // A pooled extractor belongs to AmphionRuntime and is released by unloadModel()/unloadRuntime().
+    if (this.ownsExtractor) this.extractor.close();
+  }
+
+  private ensureOpen(): void {
+    if (this.closed) throw new Error('SpeakerEnroller is closed');
   }
 
   private computeEmbedding(samples: Float32Array, sampleRate: number): Float32Array {
@@ -75,7 +90,7 @@ export class SpeakerEnroller {
     if (this.context !== undefined && !path.startsWith('/')) {
       const rawData: Uint8Array = this.context.resourceManager.getRawFileContentSync(path);
       const rawWave = readWaveFromBinary(rawData) as Samples;
-      if (rawWave.sampleRate !== 16000) throw new Error(`voiceprint sample ${path} must be 16 kHz`);
+      if (rawWave.sampleRate !== SPEAKER_SAMPLE_RATE_HZ) throw new Error(`voiceprint sample ${path} must be 16 kHz`);
       return rawWave.samples;
     }
     const fp = fileIo.openSync(path);
@@ -84,7 +99,7 @@ export class SpeakerEnroller {
       const buffer = new ArrayBuffer(stat.size);
       fileIo.readSync(fp.fd, buffer);
       const wave = readWaveFromBinary(new Uint8Array(buffer)) as Samples;
-      if (wave.sampleRate !== 16000) throw new Error(`voiceprint sample ${path} must be 16 kHz`);
+      if (wave.sampleRate !== SPEAKER_SAMPLE_RATE_HZ) throw new Error(`voiceprint sample ${path} must be 16 kHz`);
       return wave.samples;
     } finally {
       fileIo.closeSync(fp);

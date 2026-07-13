@@ -7,6 +7,13 @@
 - `createEngineAsync` / `createEngine` 在模型未加载时加载，同语言、同配置已加载时复用。
 - 新增 HarmonyOS 客户接口文档和十轮全流程耗时、SDK 净内存报告及甲方简版摘要，并纳入客户交付包。
 
+## 0.1.0 - hotfix 2026-07-13（声纹模型与生命周期）
+
+- 声纹模型内置到 `amphion_dingqiao.har` 并由 SDK 直接加载，Demo 和宿主不再导入模型。
+- 声纹注册与 Android 对齐：至少 1 条 3~8 秒样本，不限制样本数量上限。
+- 明确生命周期：`prepareRuntime()` 不读取声纹模型；`unloadModel()` 确定性卸载内存 extractor，但保留 HAR 模型和已注册 embedding。
+- 普通 final 声纹校验改为 N-API 后台加载 extractor，ASR 启动、音频写入和中间结果不等待；只有 final 必要时等待。Speaker VAD 因流式打分仍在冷启动时同步加载。
+
 ## 0.1.0 — hotfix 2026-07-12（Harmony ASR 冷加载）
 
 - `zhen` encoder/INT8 decoder/joiner 与标点模型在构建期转换为 ARM CPU ORT 格式，运行时关闭重复图优化并直接使用 rawfile 映射模型字节。
