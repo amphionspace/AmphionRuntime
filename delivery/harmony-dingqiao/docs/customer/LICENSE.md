@@ -38,12 +38,29 @@ class HostDeviceIdProvider implements LicenseDeviceIdProvider {
 SpeechRecognizeSdk.init(context, new HostDeviceIdProvider());
 SpeechRecognizeSdk.setWorkPath(workPath);
 SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
-  onResult: (r) => { if (r.errorCode === 0) { /* 激活成功，再 createEngine */ } },
+  onResult: (r) => {
+    if (r.errorCode !== 0) return;
+    // setLicense 只完成授权校验与缓存，不会拉起 Runtime 或加载模型。
+    SpeechRecognizeSdk.prepareRuntime({
+      onReady: () => { /* Runtime 已就绪；现在可以 createEngine/createEngineAsync */ },
+      onError: (code, msg) => { /* Runtime 拉起失败 */ }
+    });
+  },
   onError:  (code, msg) => { /* 激活失败 */ }
 });
 ```
 
-`setLicense` 为异步回调，鉴权为**离线本地验签，无网络请求**；应在 `createEngine` 之前调用，并在成功回调后再建引擎。
+`setLicense` 为异步回调，鉴权为**离线本地完整校验，无网络请求**，覆盖授权格式、ECDSA 签名、ASR 能力、有效期、维护期、SDK 主版本和设备白名单。它只缓存已验证授权，不会拉起 Runtime，也不会加载模型。必须在授权成功后调用 `prepareRuntime()`；收到 `onReady()` 后，才可调用 `createEngine()` / `createEngineAsync()` 加载或复用模型。
+
+生命周期与内存控制粒度如下：
+
+| 层级 | 加载接口 | 卸载接口 | 说明 |
+| --- | --- | --- | --- |
+| License | `setLicense()` | 重新设置授权 | 只校验并缓存，不拉 Runtime、不加载模型 |
+| Runtime | `prepareRuntime()` | `unloadRuntime()` | 只管理运行时框架；卸载时模型跟随释放，但保留已验证授权 |
+| Model | `createEngineAsync()` / `createEngine()` | `unloadModel()` | 创建引擎时按需加载模型；同配置已加载则复用 |
+
+调用 `unloadRuntime()` 后无需再次 `setLicense()`，可直接再次调用 `prepareRuntime()`。准备成功后再创建引擎即可。释放模型前应先结束会话并对持有的 engine 调用 `shutdown()`，再调用 `unloadModel()`。
 
 ## 3. 授权错误码（setLicense / getLicenseInfo）
 

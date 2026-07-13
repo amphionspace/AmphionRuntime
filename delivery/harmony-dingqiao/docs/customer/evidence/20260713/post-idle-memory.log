@@ -1,0 +1,11 @@
+# Post-benchmark idle memory observation
+# This is an additional observation after the fixed 800 ms benchmark stage.
+# It is not part of the formal per-stage timing sample.
+# Automatic Ark Full GC and the later memory decrease are time-correlated;
+# this log alone cannot attribute reclamation to GC, finalizers, allocator, or ORT arena.
+
+2026-07-13 12:45:02.784 +0800 benchmark_complete pid=9644 vmrss=215MiB rssanon=148MiB rssfile=67MiB
+2026-07-13 12:45:17.368 +0800 pid=9644 ArkCompiler IdleGCTrigger: trigger full gc
+2026-07-13 12:45:17.380 +0800 pid=9644 ArkCompiler IdleGCTrigger: trigger shared full gc
+2026-07-13 12:47:31.000 +0800 pid=9644 VmRSS=149144kB RssAnon=78360kB RssFile=70772kB
+2026-07-13 12:47:31.000 +0800 pid=9644 rounded_MiB VmRSS=146 RssAnon=77 RssFile=69

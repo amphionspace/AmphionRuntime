@@ -1,4 +1,4 @@
-import { AmphionDeviceIdProvider, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
+import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
 import { PoliceEngineConfig, PoliceEnhanceOptions, PoliceEnhancePipeline } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
@@ -183,7 +183,8 @@ function mapLicenseErrorCode(asrCode: number): number {
   }
   if (asrCode === AsrErrorCode.LICENSE_MALFORMED ||
     asrCode === AsrErrorCode.LICENSE_SIGNATURE_INVALID ||
-    asrCode === AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH) {
+    asrCode === AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH ||
+    asrCode === AsrErrorCode.LICENSE_FEATURE_MISSING) {
     return DingqiaoErrorCode.LICENSE_INVALID;
   }
   return DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED;
@@ -672,7 +673,12 @@ class CoreDeviceIdProviderAdapter implements AmphionDeviceIdProvider {
   }
 
   getDeviceSerial(context: Context): string | undefined {
-    return this.delegate.getDeviceSerial(context);
+    try {
+      return this.delegate.getDeviceSerial(context);
+    } catch (e) {
+      // 设备标识不可读统一落到 License 的 device mismatch 状态，避免 provider 异常逃逸为兜底错误。
+      return undefined;
+    }
   }
 }
 
@@ -699,15 +705,22 @@ export class SpeechRecognizeSdk {
   private static workPath: string = '';
   private static licenseInfo?: LicenseInfo;
   private static deviceIdProvider?: LicenseDeviceIdProvider;
+  private static activatedLicenseText?: string;
+  private static licenseRequestGeneration: number = 0;
+  private static runtimeGeneration: number = 0;
+  private static prepareTask?: Promise<void>;
 
   /** Uses the host provider for device-bound licenses; privileged hosts may omit it to use hardware SN. */
   static init(context: Context, deviceIdProvider?: LicenseDeviceIdProvider): void {
+    if (SpeechRecognizeSdk.context !== undefined &&
+      (SpeechRecognizeSdk.context !== context || SpeechRecognizeSdk.deviceIdProvider !== deviceIdProvider)) {
+      SpeechRecognizeSdk.invalidateRuntime();
+      SpeechRecognizeSdk.activatedLicenseText = undefined;
+      SpeechRecognizeSdk.licenseInfo = undefined;
+      SpeechRecognizeSdk.licenseRequestGeneration += 1;
+    }
     SpeechRecognizeSdk.context = context;
     SpeechRecognizeSdk.deviceIdProvider = deviceIdProvider;
-    // AmphionRuntime.init 现为异步(核心路径也强制 ECDSA 签名 + SN 白名单)。此处不带 license,真正的
-    // 授权在 setLicense→activateLicense 完成(其会 release() 后再 init(options))。保持本 init 同步且容错:
-    // 此处的 license 判定结果无意义(无 license),忽略其 rejection 即可。
-    AmphionRuntime.init(context).catch((_e: Object): void => {});
   }
 
   static setWorkPath(path: string): void {
@@ -720,6 +733,8 @@ export class SpeechRecognizeSdk {
       callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, 'SpeechRecognizeSdk.init must be called first');
       return;
     }
+    // 每次调用都参与 latest-wins；即使新请求的文件路径本身无效，也不能让更早的异步校验稍后覆盖状态。
+    const requestGeneration = ++SpeechRecognizeSdk.licenseRequestGeneration;
     if (licensePath.length === 0) {
       callback.onError(DingqiaoErrorCode.LICENSE_FILE_UNREADABLE, 'licensePath is empty');
       return;
@@ -735,98 +750,87 @@ export class SpeechRecognizeSdk {
       callback.onError(DingqiaoErrorCode.LICENSE_FILE_UNREADABLE, `license file not readable: ${e}`);
       return;
     }
-    // 真鉴权(ECDSA 验签 + SN 白名单)是异步的,交给 activateLicense 继续。
-    SpeechRecognizeSdk.activateLicense(context, licenseText, callback);
+    // 完整鉴权是异步的，但只校验并缓存授权；Runtime 必须由 prepareRuntime 显式拉起。
+    SpeechRecognizeSdk.activateLicense(context, licenseText, callback, requestGeneration);
   }
 
   private static async activateLicense(
     context: Context,
     licenseText: string,
-    callback: LicenseActivationCallback
+    callback: LicenseActivationCallback,
+    requestGeneration: number
   ): Promise<void> {
-    // 第一道门:真 ECDSA 验签。被篡改/伪造的 license(如改了 expiresAt)在这里被拒,引擎不会初始化。
-    // 开发(未注入公钥)构建下 verifyLicenseSignature 返回 true,保持可用。
-    let signatureValid: boolean = false;
-    try {
-      signatureValid = await AmphionRuntime.verifyLicenseSignature(licenseText);
-    } catch (e) {
-      const info = new LicenseInfo();
-      info.status = 2;
-      info.expireTime = -1;
-      info.remainingDays = -1;
-      info.authorizedFeatures = [];
-      SpeechRecognizeSdk.licenseInfo = info;
-      callback.onError(DingqiaoErrorCode.LICENSE_INVALID, `license signature verification failed: ${e}`);
-      return;
-    }
-    if (!signatureValid) {
-      const info = new LicenseInfo();
-      info.status = 2;
-      info.expireTime = -1;
-      info.remainingDays = -1;
-      info.authorizedFeatures = [];
-      SpeechRecognizeSdk.licenseInfo = info;
-      callback.onError(DingqiaoErrorCode.LICENSE_INVALID, 'license signature verification failed');
-      return;
-    }
-    // 第二道门:设备白名单(对齐 Android)。特权宿主默认读取硬件 SN，普通宿主可注入稳定设备标识。
     const provider = SpeechRecognizeSdk.deviceIdProvider ?? new SystemDeviceIdProvider();
-    let deviceOk: boolean = false;
+    const options = SpeechRecognizeSdk.buildRuntimeOptions(licenseText, provider);
+    let status: AmphionLicenseStatus;
     try {
-      const deviceId: string | undefined = provider.getDeviceSerial(context);
-      deviceOk = await AmphionRuntime.checkDeviceBinding(licenseText, deviceId);
+      // 与 Runtime.init 共用完整的单遍校验：结构/feature/有效期/maintenance/sdkMajor/ECDSA/SN。
+      // validateLicense 无副作用，不会提前创建 Runtime 或模型。
+      status = await AmphionRuntime.validateLicense(context, options);
     } catch (e) {
+      if (requestGeneration !== SpeechRecognizeSdk.licenseRequestGeneration) {
+        callback.onError(DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED,
+          'setLicense superseded by a newer request');
+        return;
+      }
       const info = new LicenseInfo();
-      info.status = 3;
+      info.status = 2;
       info.expireTime = -1;
       info.remainingDays = -1;
       info.authorizedFeatures = [];
-      SpeechRecognizeSdk.licenseInfo = info;
-      callback.onError(DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH, `device identity check failed: ${e}`);
+      SpeechRecognizeSdk.recordLicenseFailureIfInactive(info);
+      callback.onError(DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED, `license validation failed: ${e}`);
       return;
     }
-    if (!deviceOk) {
-      const info = new LicenseInfo();
-      info.status = 3;
-      info.expireTime = -1;
-      info.remainingDays = -1;
-      info.authorizedFeatures = [];
-      SpeechRecognizeSdk.licenseInfo = info;
-      callback.onError(DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH, 'device not authorized');
+    if (requestGeneration !== SpeechRecognizeSdk.licenseRequestGeneration) {
+      callback.onError(DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED,
+        'setLicense superseded by a newer request');
       return;
     }
-    try {
-      const options = new AmphionOptions();
-      options.license = licenseText;
-      options.deviceIdProvider = new CoreDeviceIdProviderAdapter(provider);
-      AmphionRuntime.release();
-      await AmphionRuntime.init(context, options);
-      const status = AmphionRuntime.licenseStatus();
-      const info = new LicenseInfo();
-      info.status = status.valid ? 0 : 2;
-      // 与安卓 SpeechRecognizeSdk(toExpireTimeMillis/toRemainingDays)对齐:从签名 claims 的 expiresAt 计算,
-      // 而非恒 -1。否则 Harmony 端 getLicenseInfo / remainingDays 永远返回 -1,违反契约 §5.5/§5.6。
-      info.expireTime = status.valid ? expireTimeMillisFromClaim(status.expiresAt) : -1;
-      info.remainingDays = status.valid ? remainingDaysFromClaim(status.expiresAt) : -1;
-      info.authorizedFeatures = status.features ?? [];
-      SpeechRecognizeSdk.licenseInfo = info;
 
-      const result = new LicenseActivationResult();
-      result.errorCode = status.valid ? 0 : mapLicenseErrorCode(status.errorCode);
-      result.errorMessage = status.valid ? '' : status.message;
-      result.remainingDays = info.remainingDays;
-      result.authorizedFeatures = info.authorizedFeatures;
-      callback.onResult(result);
-    } catch (e) {
-      const message = `${e}`;
-      const code = mapLicenseErrorCode(extractAsrErrorCode(message));
-      const info = new LicenseInfo();
-      info.status = code === DingqiaoErrorCode.LICENSE_EXPIRED ? 1 : 2;
-      info.expireTime = -1;
-      info.remainingDays = -1;
-      info.authorizedFeatures = [];
+    const code = status.valid ? 0 : mapLicenseErrorCode(status.errorCode);
+    const info = SpeechRecognizeSdk.licenseInfoFromStatus(status, code);
+    if (!status.valid) {
+      SpeechRecognizeSdk.recordLicenseFailureIfInactive(info);
+      callback.onError(code, status.message);
+      return;
+    }
+
+    // 新授权只有在完整校验成功后才替换旧状态；替换授权会使旧 Runtime/模型失效。
+    SpeechRecognizeSdk.invalidateRuntime();
+    SpeechRecognizeSdk.activatedLicenseText = licenseText;
+    SpeechRecognizeSdk.licenseInfo = info;
+    const result = new LicenseActivationResult();
+    result.errorCode = 0;
+    result.errorMessage = '';
+    result.remainingDays = info.remainingDays;
+    result.authorizedFeatures = info.authorizedFeatures;
+    callback.onResult(result);
+  }
+
+  private static buildRuntimeOptions(licenseText: string,
+    provider: LicenseDeviceIdProvider): AmphionOptions {
+    const options = new AmphionOptions();
+    options.license = licenseText;
+    options.deviceIdProvider = new CoreDeviceIdProviderAdapter(provider);
+    return options;
+  }
+
+  private static licenseInfoFromStatus(status: AmphionLicenseStatus, code: number): LicenseInfo {
+    const info = new LicenseInfo();
+    info.status = status.valid ? 0 :
+      (code === DingqiaoErrorCode.LICENSE_EXPIRED ? 1 :
+        (code === DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH ? 3 : 2));
+    info.expireTime = status.valid ? expireTimeMillisFromClaim(status.expiresAt) : -1;
+    info.remainingDays = status.valid ? remainingDaysFromClaim(status.expiresAt) : -1;
+    info.authorizedFeatures = status.valid ? status.features.slice() : [];
+    return info;
+  }
+
+  private static recordLicenseFailureIfInactive(info: LicenseInfo): void {
+    // setLicense 是原子替换：已有可用授权时，失败的新授权不能破坏正在使用的旧授权/Runtime。
+    if (SpeechRecognizeSdk.activatedLicenseText === undefined) {
       SpeechRecognizeSdk.licenseInfo = info;
-      callback.onError(code, message);
     }
   }
 
@@ -839,12 +843,12 @@ export class SpeechRecognizeSdk {
 
   // ---- 两级加载(L1 运行时 / L2 模型)---------------------------------------------------------
   // 甲方契约:占内存的模型「用完释放、用时当场起」;不占内存的运行时框架「可常驻加速」。
-  // prepareRuntime/unloadRuntime 管 L1(运行时,~15-20MB 净值);createEngine/unloadModel 管 L2(模型,
-  // ~310MB 净值)。createEngine 已实现「未加载则加载,已加载则复用只建会话」(见 AmphionRuntime 池化)。
+  // prepareRuntime/unloadRuntime 管 L1(运行时);createEngine/unloadModel 管 L2(模型)。具体净内存与时延
+  // 以目标设备的交付测量表为准。createEngine 已实现「未加载则加载,已加载则复用只建会话」。
 
   /**
-   * L1:拉起 SDK 运行时框架资源(不含模型)。幂等 —— 运行时已就绪时除首次外直接 onReady 返回,不重复
-   * 拉起。正式宿主通常先 setLicense(其内部已完成 init),此后 prepareRuntime 即命中「已就绪」快路径。
+   * L1:拉起 SDK 运行时框架资源(不含模型)。调用前必须先成功 setLicense。幂等且 single-flight：
+   * 已就绪时直接 onReady；并发调用共享同一次初始化。
    */
   static prepareRuntime(callback: PrepareRuntimeCallback): void {
     const context = SpeechRecognizeSdk.context;
@@ -852,15 +856,64 @@ export class SpeechRecognizeSdk {
       callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, 'SpeechRecognizeSdk.init must be called first');
       return;
     }
+    const licenseText = SpeechRecognizeSdk.activatedLicenseText;
+    const licenseInfo = SpeechRecognizeSdk.licenseInfo;
+    if (licenseText === undefined || licenseInfo === undefined) {
+      callback.onError(DingqiaoErrorCode.LICENSE_NOT_SET,
+        'setLicense must succeed before prepareRuntime');
+      return;
+    }
+    if (licenseInfo.status !== 0) {
+      const errorCode = licenseInfo.status === 1 ? DingqiaoErrorCode.LICENSE_EXPIRED :
+        (licenseInfo.status === 3 ? DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH :
+          DingqiaoErrorCode.LICENSE_INVALID);
+      callback.onError(errorCode, 'cached license is no longer valid; call setLicense again');
+      return;
+    }
     if (AmphionRuntime.isRuntimeReady()) {
       callback.onReady();
       return;
     }
-    // 未就绪(未走 setLicense 的开发/内部宿主):拉起运行时。init 自身幂等,不加载模型。
-    AmphionRuntime.init(context)
-      .then((): void => { callback.onReady(); })
+    const generation = SpeechRecognizeSdk.runtimeGeneration;
+    let task = SpeechRecognizeSdk.prepareTask;
+    if (task === undefined) {
+      const provider = SpeechRecognizeSdk.deviceIdProvider ?? new SystemDeviceIdProvider();
+      task = AmphionRuntime.init(context, SpeechRecognizeSdk.buildRuntimeOptions(licenseText, provider));
+      SpeechRecognizeSdk.prepareTask = task;
+    }
+    const observedTask = task;
+    observedTask
+      .then((): void => {
+        if (generation !== SpeechRecognizeSdk.runtimeGeneration || !AmphionRuntime.isRuntimeReady()) {
+          callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, 'prepareRuntime cancelled by unloadRuntime');
+          return;
+        }
+        callback.onReady();
+      })
       .catch((e: Object): void => {
-        callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, `prepareRuntime failed: ${e}`);
+        const message = `${e}`;
+        const licenseCode = mapLicenseErrorCode(extractAsrErrorCode(message));
+        const errorCode = licenseCode === DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED ?
+          DingqiaoErrorCode.ENGINE_NOT_INITIALIZED : licenseCode;
+        // unloadRuntime 保留的是上次激活快照；重新 prepare 时会再次完整验权。若授权在此期间
+        // 过期/失效，同步刷新公开状态。generation + 文本双重检查防止旧 Promise 覆盖新授权。
+        if (licenseCode !== DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED &&
+          generation === SpeechRecognizeSdk.runtimeGeneration &&
+          SpeechRecognizeSdk.activatedLicenseText === licenseText) {
+          const failedInfo = new LicenseInfo();
+          failedInfo.status = licenseCode === DingqiaoErrorCode.LICENSE_EXPIRED ? 1 :
+            (licenseCode === DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH ? 3 : 2);
+          failedInfo.expireTime = -1;
+          failedInfo.remainingDays = -1;
+          failedInfo.authorizedFeatures = [];
+          SpeechRecognizeSdk.licenseInfo = failedInfo;
+        }
+        callback.onError(errorCode, `prepareRuntime failed: ${message}`);
+      })
+      .finally((): void => {
+        if (SpeechRecognizeSdk.prepareTask === observedTask) {
+          SpeechRecognizeSdk.prepareTask = undefined;
+        }
       });
   }
 
@@ -874,16 +927,22 @@ export class SpeechRecognizeSdk {
 
   /**
    * L1:卸载 SDK 运行时框架资源,重置为未初始化态。若模型仍在,模型跟随卸载(release 内部先 unloadModel)。
-   * native .so 由 OS 保留映射,进程内无法真正 unload。再次使用需重新 prepareRuntime(正式宿主重新 setLicense)。
+   * 已激活授权会保留；再次使用只需 prepareRuntime，无需重新 setLicense。native .so 由 OS 保留映射。
    */
   static unloadRuntime(): void {
+    SpeechRecognizeSdk.invalidateRuntime();
+  }
+
+  private static invalidateRuntime(): void {
+    SpeechRecognizeSdk.runtimeGeneration += 1;
+    // Promise 不可取消；清掉 wrapper 引用并让 core generation 拒绝旧任务提交。
+    SpeechRecognizeSdk.prepareTask = undefined;
     AmphionRuntime.release();
-    SpeechRecognizeSdk.licenseInfo = undefined;
   }
 
   // L2:若模型未加载则加载,若已加载则复用(不重复加载模型)、只建会话。复用由 AmphionRuntime 的按语言+
-  // 配置池化实现:同配置命中池 → 0-1ms;unloadModel 后池空 → 重新冷加载。需运行时已就绪(prepareRuntime /
-  // setLicense 先行),否则内部 checkInitialized 抛错。
+  // 配置池化实现:同配置命中池;unloadModel 后池空 → 重新冷加载。需先成功 setLicense，再完成
+  // prepareRuntime，否则内部 checkInitialized 抛错。
   static createEngine(params: CreateEngineParams): SpeechRecognitionEngine {
     if (SpeechRecognizeSdk.context === undefined) throw new Error('SpeechRecognizeSdk.init must be called first');
     return new DingqiaoRecognitionEngineImpl(SpeechRecognizeSdk.context, params);
