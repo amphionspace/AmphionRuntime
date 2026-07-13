@@ -119,7 +119,7 @@ python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
 - `session.disable_prepacking=1`：加载进一步缩短，但 48 轮真实音频处理慢约 24%。
 - 继续拆分 decoder/joiner：两者 Session 创建仅约 4–11 ms，已被 encoder 关键路径覆盖。
 - `session.use_device_allocator_for_initializers=1`：真机无显著收益。
-- 隐式自动预加载：license 重设会释放 Runtime，且语言、热词配置可能尚未确定。
+- 隐式自动预加载：`setLicense` 只验权并缓存；语言、热词配置可能尚未确定，不应在该阶段自动加载模型。重新设置有效授权还会使旧 Runtime / 模型失效。
 
-业务如需接近 0 ms 的点击响应，应在 license 激活成功且最终配置确定后显式调用
-`createEngineAsync`，并长期持有返回的 engine；同配置后续 pool hit 为 0–1 ms。
+业务如需接近 0 ms 的点击响应，应在 license 激活成功后先调用 `prepareRuntime`，收到 `onReady`
+且最终配置确定后显式调用 `createEngineAsync`，并长期持有返回的 engine；同配置后续 pool hit 为 0–1 ms。

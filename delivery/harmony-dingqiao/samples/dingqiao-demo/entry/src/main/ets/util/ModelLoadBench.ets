@@ -6,6 +6,7 @@ import {
   CreateEngineParams,
   LicenseActivationCallback,
   LicenseActivationResult,
+  PrepareRuntimeCallback,
   SpeechRecognitionEngine,
   SpeechRecognizeSdk
 } from 'amphion_dingqiao';
@@ -37,6 +38,22 @@ class LicenseCb implements LicenseActivationCallback {
     result.errorCode = errorCode;
     result.errorMessage = message;
     this.resolve(result);
+  }
+}
+
+class PrepareRuntimeCb implements PrepareRuntimeCallback {
+  private resolve: (errorCode: number) => void;
+
+  constructor(resolve: (errorCode: number) => void) {
+    this.resolve = resolve;
+  }
+
+  onReady(): void {
+    this.resolve(0);
+  }
+
+  onError(errorCode: number, _message: string): void {
+    this.resolve(errorCode);
   }
 }
 
@@ -108,6 +125,12 @@ function activateLicense(path: string): Promise<LicenseActivationResult> {
   });
 }
 
+function prepareRuntime(): Promise<number> {
+  return new Promise<number>((resolve: (errorCode: number) => void): void => {
+    SpeechRecognizeSdk.prepareRuntime(new PrepareRuntimeCb(resolve));
+  });
+}
+
 function createParams(): CreateEngineParams {
   const params = new CreateEngineParams();
   params.language = 'zh-CN';
@@ -139,6 +162,8 @@ export async function runModelLoadBench(context: common.UIAbilityContext,
     SpeechRecognizeSdk.setWorkPath(workPath);
     const license = await activateLicense(prepareLicense(context, workPath));
     if (license.errorCode !== 0) throw new Error(`license-${license.errorCode}`);
+    const runtimeError = await prepareRuntime();
+    if (runtimeError !== 0) throw new Error(`runtime-${runtimeError}`);
 
     // PoliceEngineConfig always enables punctuation. Keep parameter construction and license work out
     // of the interval so this measures the public async path from invocation through its callback,
