@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0 — hotfix 2026-07-13（License / Runtime / Model 生命周期）
+
+- `setLicense` 只执行离线授权校验与缓存，不再隐式拉起 Runtime。
+- 新增 `prepareRuntime` / `unloadRuntime` 和 `unloadModel`，形成 License、Runtime、Model 三层控制；`unloadRuntime` 保留已验证授权，模型未卸载时跟随释放。
+- `createEngineAsync` / `createEngine` 在模型未加载时加载，同语言、同配置已加载时复用。
+- 新增 HarmonyOS 客户接口文档和十轮全流程耗时、SDK 净内存报告及甲方简版摘要，并纳入客户交付包。
+
 ## 0.1.0 — hotfix 2026-07-12（Harmony ASR 冷加载）
 
 - `zhen` encoder/INT8 decoder/joiner 与标点模型在构建期转换为 ARM CPU ORT 格式，运行时关闭重复图优化并直接使用 rawfile 映射模型字节。

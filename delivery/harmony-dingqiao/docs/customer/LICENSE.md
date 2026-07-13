@@ -60,7 +60,7 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 | Runtime | `prepareRuntime()` | `unloadRuntime()` | 只管理运行时框架；卸载时模型跟随释放，但保留已验证授权 |
 | Model | `createEngineAsync()` / `createEngine()` | `unloadModel()` | 创建引擎时按需加载模型；同配置已加载则复用 |
 
-调用 `unloadRuntime()` 后无需再次 `setLicense()`，可直接再次调用 `prepareRuntime()`。准备成功后再创建引擎即可。释放模型前应先结束会话并对持有的 engine 调用 `shutdown()`，再调用 `unloadModel()`。
+调用 `unloadModel()` 或 `unloadRuntime()` 前，都应先结束或取消活跃会话，并对持有的 engine 调用 `shutdown()`。`unloadRuntime()` 后无需再次 `setLicense()`，可直接再次调用 `prepareRuntime()`；准备成功后再创建引擎即可。
 
 ## 3. 授权错误码（setLicense / getLicenseInfo）
 

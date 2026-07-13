@@ -2,6 +2,8 @@
 
 交付前置资料清单见 [`../../docs/dingqiao-offline-license.md`](../../docs/dingqiao-offline-license.md)。组包前需确认鼎桥提供的设备 SN 清单、授权功能范围、维护期和 license 固定路径；bundleName 和签名证书指纹仅作可选记录。
 
+完整 API、回调、参数、错误码和新增生命周期控制契约见 [`语音识别SDK接口.md`](语音识别SDK接口.md)。
+
 ## 交付文件
 
 | 路径 | 说明 |
@@ -90,7 +92,7 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 | Runtime | `prepareRuntime()` | `unloadRuntime()` | 管理运行时框架；卸载时模型跟随释放，授权保留 |
 | Model | `createEngineAsync()` / `createEngine()` | `unloadModel()` | 模型未加载时加载，同配置已加载时复用 |
 
-正常释放顺序为：结束会话 → `engine.shutdown()` → `unloadModel()`（保留 Runtime），或直接 `unloadRuntime()`（模型跟随释放）。`unloadRuntime()` 不清除已验证授权，后续可直接 `prepareRuntime()`，无需再次 `setLicense()`。
+调用任一卸载接口前，都应先结束或取消活跃会话，并对持有的 engine 调用 `shutdown()`。随后二选一：调用 `unloadModel()` 保留 Runtime，或调用 `unloadRuntime()` 让模型跟随 Runtime 一并释放。`unloadRuntime()` 不清除已验证授权，后续可直接 `prepareRuntime()`，无需再次 `setLicense()`。
 
 ## 离线授权
 
