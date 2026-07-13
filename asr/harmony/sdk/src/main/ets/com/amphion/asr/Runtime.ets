@@ -125,6 +125,8 @@ export class AmphionRuntime {
   private static appContext?: Context;
   private static options: AmphionOptions = new AmphionOptions();
   private static licenseStatusHolder: AmphionLicenseStatus = AmphionLicenseStatus.notInitialized();
+  private static runtimeGeneration: number = 0;
+  private static initTask?: Promise<void>;
   private static nextSessionId: number = 1;
   private static asrPool: Map<AsrLanguage, OnlineRecognizer> = new Map<AsrLanguage, OnlineRecognizer>();
   // 复用兼容性必须按「该语言的池化 recognizer 实际用的配置」判定,而不是一个进程级全局配置。
@@ -159,14 +161,40 @@ export class AmphionRuntime {
       Logger.w('AmphionRuntime.init called more than once, ignored.');
       return;
     }
-    AmphionRuntime.appContext = context;
-    AmphionRuntime.options = options ?? new AmphionOptions();
-    Logger.setLevel(AmphionRuntime.options.logLevel);
-    const status = await AmphionRuntime.evaluateLicense();
-    AmphionRuntime.licenseStatusHolder = status;
-    if (!status.valid && AmphionRuntime.options.licenseEnforcement === LicenseEnforcement.ENFORCE) {
+    const inFlight = AmphionRuntime.initTask;
+    if (inFlight !== undefined) {
+      await inFlight;
+      return;
+    }
+    const generation = AmphionRuntime.runtimeGeneration;
+    const optionsSnapshot = AmphionRuntime.snapshotOptions(options);
+    const task = AmphionRuntime.initializeRuntime(context, optionsSnapshot, generation);
+    AmphionRuntime.initTask = task;
+    try {
+      await task;
+    } finally {
+      if (AmphionRuntime.initTask === task) AmphionRuntime.initTask = undefined;
+    }
+  }
+
+  /** 完整校验 License，但不改变 Runtime 初始化状态、模型池或全局 options。 */
+  static validateLicense(context: Context, options: AmphionOptions): Promise<AmphionLicenseStatus> {
+    return AmphionRuntime.evaluateLicense(context, AmphionRuntime.snapshotOptions(options));
+  }
+
+  private static async initializeRuntime(context: Context, options: AmphionOptions,
+    generation: number): Promise<void> {
+    Logger.setLevel(options.logLevel);
+    const status = await AmphionRuntime.evaluateLicense(context, options);
+    if (generation !== AmphionRuntime.runtimeGeneration) {
+      throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: AmphionRuntime.init cancelled by release`);
+    }
+    if (!status.valid && options.licenseEnforcement === LicenseEnforcement.ENFORCE) {
       throw new Error(`code=${status.errorCode}: AmphionRuntime license check failed (${status.message}).`);
     }
+    AmphionRuntime.appContext = context;
+    AmphionRuntime.options = options;
+    AmphionRuntime.licenseStatusHolder = status;
     AmphionRuntime.initialized = true;
     Logger.i(`AmphionRuntime Harmony init done, version=${AmphionRuntime.SDK_VERSION}, license=${status.state}`);
   }
@@ -702,9 +730,13 @@ export class AmphionRuntime {
    * 为未初始化。native .so 由 OS 保留映射,无法在进程内真正 unload。
    */
   static release(): void {
+    AmphionRuntime.runtimeGeneration += 1;
+    // Promise 本身不可取消；清掉 single-flight 引用允许后续 init 立即开始，旧任务会被 generation 拒绝提交。
+    AmphionRuntime.initTask = undefined;
     AmphionRuntime.unloadModel();
     AmphionRuntime.initialized = false;
     AmphionRuntime.appContext = undefined;
+    AmphionRuntime.options = new AmphionOptions();
     AmphionRuntime.licenseStatusHolder = AmphionLicenseStatus.notInitialized();
   }
 
@@ -755,16 +787,30 @@ export class AmphionRuntime {
   //  ② armed build(注入了公钥)且携带 license 时,核心路径再强制 ECDSA 签名校验 + SN 白名单成员判定。
   // 任一失败即 fail-closed。这样即使调用方(非交付 wrapper)未先手动跑 verifyLicenseSignature / checkDeviceBinding,
   // init(ENFORCE) 也不会接受被伪造/篡改的 license 或非白名单设备——不再依赖 wrapper 的前置门做唯一防线。
-  private static async evaluateLicense(): Promise<AmphionLicenseStatus> {
-    const context = AmphionRuntime.appContext;
-    const serial = context === undefined ? undefined : AmphionRuntime.options.deviceIdProvider?.getDeviceSerial(context);
+  private static snapshotOptions(source?: AmphionOptions): AmphionOptions {
+    const input = source ?? new AmphionOptions();
+    const snapshot = new AmphionOptions();
+    snapshot.logLevel = input.logLevel;
+    snapshot.license = input.license;
+    snapshot.licenseAssetName = input.licenseAssetName;
+    snapshot.expiryGraceDays = input.expiryGraceDays;
+    snapshot.licenseEnforcement = input.licenseEnforcement;
+    snapshot.deviceIdProvider = input.deviceIdProvider;
+    snapshot.bundleName = input.bundleName;
+    snapshot.signingCertDigest = input.signingCertDigest;
+    return snapshot;
+  }
+
+  private static async evaluateLicense(context: Context,
+    options: AmphionOptions): Promise<AmphionLicenseStatus> {
+    const serial = options.deviceIdProvider?.getDeviceSerial(context);
     // 单次解析快速路径:结构校验 + ECDSA 验签 + SN 白名单一遍完成,替代原先 verify()+verifySignature()+
     // deviceHashOk() 对同一份 4MB payload 的 3 次重复解析(6万台白名单尤其慢)。行为/错误码/门禁顺序等价、
     // 仍 fail-closed,详见 HarmonyLicenseVerifier.evaluate。
     return await HarmonyLicenseVerifier.evaluate(
-      AmphionRuntime.options.license,
-      AmphionRuntime.options.bundleName,
-      AmphionRuntime.options.signingCertDigest,
+      options.license,
+      options.bundleName,
+      options.signingCertDigest,
       serial,
       HarmonyLicenseVerifier.publicKey(),
       AmphionRuntime.SDK_MAJOR,

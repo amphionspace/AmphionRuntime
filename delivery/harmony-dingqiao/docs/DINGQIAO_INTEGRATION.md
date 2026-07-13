@@ -51,31 +51,51 @@ SpeechRecognizeSdk.init(context, new HostDeviceIdProvider());
 SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/dingqiao_work`);
 
 let engine: SpeechRecognitionEngine | undefined;
-SpeechRecognizeSdk.createEngineAsync(new CreateEngineParams(), {
-  onSuccess: (createdEngine) => {
-    engine = createdEngine;
-    createdEngine.setListener({
-      onResult: (sessionId, result) => {},
-      onComplete: (sessionId) => {},
-      onError: (sessionId, code, message) => {}
-    });
+SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
+  onResult: () => {
+    SpeechRecognizeSdk.prepareRuntime({
+      onReady: () => {
+        SpeechRecognizeSdk.createEngineAsync(new CreateEngineParams(), {
+          onSuccess: (createdEngine) => {
+            engine = createdEngine;
+            createdEngine.setListener({
+              onResult: (sessionId, result) => {},
+              onComplete: (sessionId) => {},
+              onError: (sessionId, code, message) => {}
+            });
 
-    const start = new StartParams();
-    start.sessionId = 'session-1';
-    start.audioInfo = new AudioInfo();
-    createdEngine.startListening(start);
-    createdEngine.writeAudio(start.sessionId, pcmFrame640Bytes);
-    createdEngine.finish(start.sessionId);
+            const start = new StartParams();
+            start.sessionId = 'session-1';
+            start.audioInfo = new AudioInfo();
+            createdEngine.startListening(start);
+            createdEngine.writeAudio(start.sessionId, pcmFrame640Bytes);
+            createdEngine.finish(start.sessionId);
+          },
+          onError: (errorCode, message) => {}
+        });
+      },
+      onError: (errorCode, message) => {}
+    });
   },
   onError: (errorCode, message) => {}
 });
 ```
 
+三层状态彼此独立：
+
+| 层级 | 加载接口 | 卸载接口 | 说明 |
+| --- | --- | --- | --- |
+| License | `setLicense()` | 重新设置授权 | 完整离线验权并缓存，不拉 Runtime、不加载模型 |
+| Runtime | `prepareRuntime()` | `unloadRuntime()` | 管理运行时框架；卸载时模型跟随释放，授权保留 |
+| Model | `createEngineAsync()` / `createEngine()` | `unloadModel()` | 模型未加载时加载，同配置已加载时复用 |
+
+正常释放顺序为：结束会话 → `engine.shutdown()` → `unloadModel()`（保留 Runtime），或直接 `unloadRuntime()`（模型跟随释放）。`unloadRuntime()` 不清除已验证授权，后续可直接 `prepareRuntime()`，无需再次 `setLicense()`。
+
 ## 离线授权
 
 授权文件固定为 `amphion-license.lic`。如果 license 启用了设备白名单，宿主或交付适配层需要通过 `deviceIdProvider` 注入稳定设备标识；该标识必须与交付给我方签发 license 的清单一致。系统/预置宿主通常注入硬件 SN；普通 Demo 可注入 ODID，但不能用 ODID 去匹配按 SN 签发的 license。
 
-**交付入口（推荐）**：鼎桥侧通过 `SpeechRecognizeSdk.setLicense(licensePath, callback)` 激活 license（异步 ECDSA 验签 + SN 白名单，需先 `init(context)`）；激活成功且语言、热词配置确定后立即调用 `createEngineAsync` 并长期持有 engine，可以把冷加载隐藏在业务首页初始化阶段。不要在 license 激活前预加载，因为重新设置 license 会释放 Runtime。`getLicenseInfo()` 返回授权状态 `LicenseInfo`（`status` / `expireTime` / `remainingDays` / `authorizedFeatures`）。
+**交付入口（推荐）**：鼎桥侧先通过 `SpeechRecognizeSdk.setLicense(licensePath, callback)` 完成离线完整验权和缓存（需先 `init(context)`）；授权成功后调用 `prepareRuntime()`，收到 `onReady()` 后再调用 `createEngineAsync()`。`setLicense()` 本身不会拉 Runtime 或加载模型。语言、热词配置确定后可提前创建并长期持有 engine，以隐藏模型冷加载。重新设置有效授权会使旧 Runtime / 模型失效，需要再次 `prepareRuntime()`。`getLicenseInfo()` 返回授权状态 `LicenseInfo`（`status` / `expireTime` / `remainingDays` / `authorizedFeatures`）。
 
 ```ts
 import deviceInfo from '@ohos.deviceInfo';
@@ -91,9 +111,15 @@ class DeviceIdProvider implements LicenseDeviceIdProvider {
 SpeechRecognizeSdk.init(context, new DeviceIdProvider());
 SpeechRecognizeSdk.setLicense(`${context.filesDir}/amphion-license.lic`, {
   onResult: (result: LicenseActivationResult) => {
-    // 授权成功，可继续 createEngine
+    // 授权成功：此时仅缓存授权，Runtime 和模型尚未加载。
     const info = SpeechRecognizeSdk.getLicenseInfo();
     // info.status / info.expireTime / info.remainingDays / info.authorizedFeatures
+    SpeechRecognizeSdk.prepareRuntime({
+      onReady: () => {
+        // Runtime 就绪，可继续 createEngine/createEngineAsync。
+      },
+      onError: (errorCode, message) => {}
+    });
   },
   onError: (errorCode, message) => {}
 });
