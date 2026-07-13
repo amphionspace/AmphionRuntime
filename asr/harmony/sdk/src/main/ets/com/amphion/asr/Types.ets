@@ -68,6 +68,9 @@ export class TargetSpeakerConfig {
   hopSec: number = 1.0;
   minSegSec: number = 1.5;
   preload: boolean = false;
+  // Allows a session to start before the extractor is ready. The caller must attach an async
+  // extractor load; final delivery waits for it, while streaming speaker VAD must keep this false.
+  deferLoad: boolean = false;
   enabledByDefault: boolean = false;
   numThreads: number = 1;
   speakerVad?: SpeakerVadConfig;

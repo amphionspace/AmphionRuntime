@@ -1,75 +1,44 @@
-# 声纹模型说明（eres2net.onnx）— 纯血鸿蒙
+# 声纹模型说明（eres2net.onnx）- 纯血鸿蒙
 
-面向鼎桥集成与 Demo 验收。声纹（说话人）能力使用单个模型文件 `eres2net.onnx`（约 38 MB）。
+面向鼎桥集成与 Demo 验收。声纹能力使用单个 `eres2net.onnx` 模型（约 38 MB），已内置在 `amphion_dingqiao.har`，行为与 Android 鼎桥 SDK 对齐，宿主无需单独分发或导入模型。
 
-> **与 Android 的差异**：Android 版把 `eres2net.onnx` 内置在 AAR 中、运行时自动解包；**纯血鸿蒙版当前不内置**该模型，需由**宿主 / Demo 将 `eres2net.onnx` 放入 `SpeechRecognizeSdk.setWorkPath(...)` 指定目录**后方可使用声纹。ASR 识别本身不依赖此模型，缺失不影响识别。
+## 1. 模型准备
 
----
+宿主只需配置可写工作目录：
 
-## 1. 与 ASR 模型的区别
-
-| 类型 | 是否随 HAR 内置 | 是否需要放置 |
-|------|-----------------|--------------|
-| ASR 声学模型（识别用） | 是（内置于 `amphion_asr.har`） | 否 |
-| 声纹模型 `eres2net.onnx` | 否 | **是**，需放入 `{setWorkPath}/eres2net.onnx` |
-
-交付包内已随附 `eres2net.onnx`（见交付包 `models/eres2net.onnx`），供集成方放置。
-
----
-
-## 2. 文件要求
-
-- 类型：`eres2net.onnx`，单个模型文件（约 38 MB）。
-- 目标位置：`{SpeechRecognizeSdk.setWorkPath}/eres2net.onnx`。
-- native 声纹模块按该文件路径加载；集成方只需确保该目录可读写且文件存在。
-
----
-
-## 3. 参考 Demo（`com.amphion.dingqiao.harmony.demo`）
-
-Demo 工作目录（由 EntryAbility 设置）：
-
-```
-{filesDir}/dingqiao_work/
+```ts
+SpeechRecognizeSdk.init(context);
+SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/dingqiao_work`);
+SpeechRecognizeSdk.prepareRuntime(callback);
 ```
 
-Demo 提供「导入声纹模型」入口（右上角菜单 → 导入声纹模型），通过系统文件选择器选中 `eres2net.onnx`（约 38 MB）后自动复制到工作目录。导入成功后主界面不再提示「未找到声纹模型」，声纹注册页可录制样本并注册。
+SDK 会把 HAR 内的模型幂等准备到 `{setWorkPath}/eres2net.onnx`。`prepareRuntime()` 会做一次尽力准备；注册声纹、预加载声纹和启用声纹识别时都会重试，因此声纹准备失败不会阻断纯 ASR 运行时。
 
-也可用 `hdc file send` 直接推送：
+## 2. 生命周期
 
-```
-hdc file send eres2net.onnx /data/app/el2/100/base/com.amphion.dingqiao.harmony.demo/files/dingqiao_work/eres2net.onnx
-```
+| 资源 | 创建/加载时机 | 释放时机 |
+| --- | --- | --- |
+| HAR 内置 `eres2net.onnx` | 应用安装 | 应用卸载 |
+| 工作目录模型副本 | 首次 `prepareRuntime()` 或首次使用声纹 | 应用数据清理；`unloadModel()` 不删除 |
+| 内存声纹 extractor | 注册/显式预加载时同步加载；普通声纹识别后台加载；Speaker VAD 启动前同步加载 | `unloadModel()` / `unloadRuntime()` |
+| 已注册声纹 embedding | `registerVoiceprint()` | `deleteVoiceprint()` 或应用数据清理 |
 
----
+这样可以让 L1 `prepareRuntime()` 保持“运行时就绪、不加载推理权重”的语义；约 38 MB 的 extractor 只在声纹真正使用时进入 L2，并和 ASR 模型一起由 `unloadModel()` 卸载。磁盘模型和 embedding 属于持久状态，不应跟随内存模型周期删除。
 
-## 4. 正式 App（`com.tdtech.tiassistant`）
+普通 `enableVoiceprintVerification` 会在 ASR 会话启动后后台加载 extractor，ASR 音频写入和中间结果不等待；如果模型在 ASR final 产生时仍未就绪，只延后 final 和 `onComplete`，模型就绪后立即完成声纹打分。`enableSpeakerVad` 需要在流式阶段持续打分，因此冷态 `startListening()` 会同步等待 extractor。`preloadVoiceprintModel()` 仍是可选同步接口，可用于提前消除 final 等待或 Speaker VAD 冷启动，不是普通声纹识别的必需调用。
 
-路径取决于贵司 `SpeechRecognizeSdk.setWorkPath(...)` 的配置。集成方需确保该目录可写，并把交付包内的 `eres2net.onnx` 放入其下（打包进 rawfile 后自行复制，或随首启流程拷贝）。
+## 3. 注册约束
 
----
+- 至少 1 条样本，不限制样本数量上限；多段样本只是质量建议。
+- 每条样本为 16 kHz、16 bit、单声道 PCM/WAV，时长 3~8 秒。
+- 注册成功后返回声纹 ID，并把 embedding 保存到 `{workPath}/voiceprints/`。
 
-## 5. 声纹接口要点
+## 4. 验收
 
-- `registerVoiceprint(params)`：传入声纹样本（16 kHz / 16 bit / mono PCM 或可读 wav），返回声纹 ID；调用前需保证 `{workPath}/eres2net.onnx` 存在，否则返回 `1002200020`（注册失败）。
-- 识别会话通过 `StartParams.extraParams.enableVoiceprintVerification=true` + `voiceprintIds=[...]` 启用；`isFinal=true` 的结果携带 `speakerSimilarity`（0~1，典型判决阈值 0.4，由调用方判断）。
+1. 安装并首次打开 Demo，无“导入声纹模型”入口。
+2. 声纹注册页录制任意正数段样本；录制 1 段后“注册声纹”即可点击。
+3. 注册成功后开启“声纹校验”，final 结果携带 `speakerSimilarity`。
+4. 冷态开启普通“声纹校验”时 ASR 可立即开始；只有 final 必要时等待模型。冷态开启 Speaker VAD 时启动会等待模型就绪。
+5. 调用 `unloadModel()` 后再次启用声纹，模型可重新加载，已注册声纹仍存在。
 
----
-
-## 6. 常见错误
-
-| 现象 | 可能原因 |
-|------|----------|
-| 提示声纹模型未就绪 | `{workPath}/eres2net.onnx` 不存在；请先导入或推送 |
-| 注册失败 `1002200020` | 模型缺失或 `setWorkPath` 目录不可写 |
-| 启动识别报 `1002200024` | 传入的 voiceprintId 未注册 |
-
----
-
-## 7. 验收建议
-
-1. 将 `eres2net.onnx` 放入工作目录（Demo 用「导入声纹模型」）
-2. 声纹注册页 → 录制至少 1 段 → 注册成功
-3. 主界面开启「声纹校验」后识别，final 结果带 `speakerSimilarity`
-
-更多集成说明见 `DINGQIAO_INTEGRATION.md`；平台差异见 `HARMONY_DIFFERENCES.md`。
+常见错误：`1002200020` 通常表示工作目录不可写、内置资源损坏或存储空间不足；`1002200024` 表示传入的声纹 ID 不存在。

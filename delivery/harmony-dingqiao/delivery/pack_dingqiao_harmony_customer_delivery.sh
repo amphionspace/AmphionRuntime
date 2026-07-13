@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 打包鼎桥纯血鸿蒙客户交付包（默认 ASR + TTS，可显式选择 ASR-only）。
-# 该脚本收集 DevEco/Hvigor 已构建的 HAR/HAP、声纹/TTS 模型与文档，不负责启动 DevEco 构建。
+# 该脚本收集 DevEco/Hvigor 已构建的 HAR/HAP、TTS 模型与文档，不负责启动 DevEco 构建。
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -84,7 +84,7 @@ if [[ -e "$BACKUP_OUT_ROOT" ]]; then
 fi
 trap cleanup EXIT
 trap 'cleanup; exit 130' INT TERM
-mkdir -p "$OUT_ROOT/har" "$OUT_ROOT/demo" "$OUT_ROOT/models" "$OUT_ROOT/docs"
+mkdir -p "$OUT_ROOT/har" "$OUT_ROOT/demo" "$OUT_ROOT/docs"
 if [[ "$ASR_ONLY" != true ]]; then
   mkdir -p "$OUT_ROOT/tts-models"
 fi
@@ -164,7 +164,6 @@ fi
   --signing-config "$SIGNING_CONFIG"
 copy_required "$HAP_SRC" "$OUT_ROOT/demo/dingqiao-demo.hap"
 
-copy_required "$REPO_ROOT/asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx" "$OUT_ROOT/models/eres2net.onnx"
 if [[ "$ASR_ONLY" != true ]]; then
   if [[ -d "$REPO_ROOT/tts/models/amphion-tts" ]]; then
     cp -R "$REPO_ROOT/tts/models/amphion-tts" "$OUT_ROOT/tts-models/"

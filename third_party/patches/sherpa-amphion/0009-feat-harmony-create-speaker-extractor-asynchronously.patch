@@ -1,0 +1,397 @@
+From 8cadf647a0bb068ac4887ab9cb94f238c1208f3a Mon Sep 17 00:00:00 2001
+From: Amphion CI <ci@amphion.local>
+Date: Mon, 13 Jul 2026 13:16:50 +0800
+Subject: [PATCH] feat(harmony): create speaker extractor asynchronously
+
+---
+ .../src/main/cpp/speaker-identification.cc    | 283 ++++++++++++++++--
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |   2 +
+ .../ets/components/SpeakerIdentification.ets  |  13 +-
+ 3 files changed, 270 insertions(+), 28 deletions(-)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
+index e0a061e0..196edc2d 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
+@@ -2,15 +2,54 @@
+ //
+ // Copyright (c)  2024  Xiaomi Corporation
+ #include <algorithm>
++#include <exception>
+ #include <memory>
+ #include <sstream>
+ #include <string>
++#include <vector>
+ 
+ #include "macros.h"  // NOLINT
+ #include "napi.h"    // NOLINT
+ #include "online-stream-handle.h"  // NOLINT
+ #include "sherpa-onnx/c-api/c-api.h"
+ 
++static SherpaOnnxSpeakerEmbeddingExtractorConfig
++GetSpeakerEmbeddingExtractorConfig(Napi::Object o) {
++  SherpaOnnxSpeakerEmbeddingExtractorConfig c;
++  memset(&c, 0, sizeof(c));
++
++  SHERPA_ONNX_ASSIGN_ATTR_STR(model, model);
++  SHERPA_ONNX_ASSIGN_ATTR_INT32(num_threads, numThreads);
++
++  if (o.Has("debug") &&
++      (o.Get("debug").IsNumber() || o.Get("debug").IsBoolean())) {
++    if (o.Get("debug").IsBoolean()) {
++      c.debug = o.Get("debug").As<Napi::Boolean>().Value();
++    } else {
++      c.debug = o.Get("debug").As<Napi::Number>().Int32Value();
++    }
++  }
++
++  SHERPA_ONNX_ASSIGN_ATTR_STR(provider, provider);
++  return c;
++}
++
++static void FreeSpeakerEmbeddingExtractorConfig(
++    SherpaOnnxSpeakerEmbeddingExtractorConfig &config) {
++  SHERPA_ONNX_DELETE_C_STR(config.model);
++  SHERPA_ONNX_DELETE_C_STR(config.provider);
++}
++
++static Napi::External<SherpaOnnxSpeakerEmbeddingExtractor>
++WrapSpeakerEmbeddingExtractor(
++    Napi::Env env, const SherpaOnnxSpeakerEmbeddingExtractor *extractor) {
++  return Napi::External<SherpaOnnxSpeakerEmbeddingExtractor>::New(
++      env, const_cast<SherpaOnnxSpeakerEmbeddingExtractor *>(extractor),
++      [](Napi::Env env, SherpaOnnxSpeakerEmbeddingExtractor *extractor) {
++        SherpaOnnxDestroySpeakerEmbeddingExtractor(extractor);
++      });
++}
++
+ static Napi::External<SherpaOnnxSpeakerEmbeddingExtractor>
+ CreateSpeakerEmbeddingExtractorWrapper(const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+@@ -54,24 +93,8 @@ CreateSpeakerEmbeddingExtractorWrapper(const Napi::CallbackInfo &info) {
+   }
+ #endif
+ 
+-  Napi::Object o = info[0].As<Napi::Object>();
+-
+-  SherpaOnnxSpeakerEmbeddingExtractorConfig c;
+-  memset(&c, 0, sizeof(c));
+-
+-  SHERPA_ONNX_ASSIGN_ATTR_STR(model, model);
+-  SHERPA_ONNX_ASSIGN_ATTR_INT32(num_threads, numThreads);
+-
+-  if (o.Has("debug") &&
+-      (o.Get("debug").IsNumber() || o.Get("debug").IsBoolean())) {
+-    if (o.Get("debug").IsBoolean()) {
+-      c.debug = o.Get("debug").As<Napi::Boolean>().Value();
+-    } else {
+-      c.debug = o.Get("debug").As<Napi::Number>().Int32Value();
+-    }
+-  }
+-
+-  SHERPA_ONNX_ASSIGN_ATTR_STR(provider, provider);
++  SherpaOnnxSpeakerEmbeddingExtractorConfig c =
++      GetSpeakerEmbeddingExtractorConfig(info[0].As<Napi::Object>());
+ 
+ #if __OHOS__
+   const SherpaOnnxSpeakerEmbeddingExtractor *extractor = nullptr;
+@@ -90,8 +113,7 @@ CreateSpeakerEmbeddingExtractorWrapper(const Napi::CallbackInfo &info) {
+   const SherpaOnnxSpeakerEmbeddingExtractor *extractor =
+       SherpaOnnxCreateSpeakerEmbeddingExtractor(&c);
+ #endif
+-  SHERPA_ONNX_DELETE_C_STR(c.model);
+-  SHERPA_ONNX_DELETE_C_STR(c.provider);
++  FreeSpeakerEmbeddingExtractorConfig(c);
+ 
+   if (!extractor) {
+     Napi::TypeError::New(env, "Please check your config!")
+@@ -100,11 +122,217 @@ CreateSpeakerEmbeddingExtractorWrapper(const Napi::CallbackInfo &info) {
+     return {};
+   }
+ 
+-  return Napi::External<SherpaOnnxSpeakerEmbeddingExtractor>::New(
+-      env, const_cast<SherpaOnnxSpeakerEmbeddingExtractor *>(extractor),
+-      [](Napi::Env env, SherpaOnnxSpeakerEmbeddingExtractor *extractor) {
+-        SherpaOnnxDestroySpeakerEmbeddingExtractor(extractor);
+-      });
++  return WrapSpeakerEmbeddingExtractor(env, extractor);
++}
++
++static void WarmUpSpeakerEmbeddingExtractor(
++    const SherpaOnnxSpeakerEmbeddingExtractor *extractor,
++    int32_t warmup_samples) {
++  if (extractor == nullptr || warmup_samples <= 0) return;
++  const SherpaOnnxOnlineStream *raw_stream =
++      SherpaOnnxSpeakerEmbeddingExtractorCreateStream(extractor);
++  if (raw_stream == nullptr) return;
++
++  std::unique_ptr<const SherpaOnnxOnlineStream,
++                  decltype(&SherpaOnnxDestroyOnlineStream)>
++      stream(raw_stream, &SherpaOnnxDestroyOnlineStream);
++  std::vector<float> silence(static_cast<size_t>(warmup_samples), 0.0f);
++  SherpaOnnxOnlineStreamAcceptWaveform(stream.get(), 16000, silence.data(),
++                                       warmup_samples);
++  const float *embedding =
++      SherpaOnnxSpeakerEmbeddingExtractorComputeEmbedding(extractor,
++                                                          stream.get());
++  if (embedding != nullptr) {
++    SherpaOnnxSpeakerEmbeddingExtractorDestroyEmbedding(embedding);
++  }
++}
++
++class CreateSpeakerEmbeddingExtractorAsyncWorker : public Napi::AsyncWorker {
++ public:
++  CreateSpeakerEmbeddingExtractorAsyncWorker(
++      Napi::Env env, SherpaOnnxSpeakerEmbeddingExtractorConfig config,
++      Napi::Promise::Deferred deferred, void *mgr,
++      napi_ref resource_manager_ref, int32_t warmup_samples)
++      : Napi::AsyncWorker(env,
++                          "CreateSpeakerEmbeddingExtractorAsyncWorker"),
++        config_(config),
++        deferred_(deferred),
++        mgr_(mgr),
++        resource_manager_ref_(resource_manager_ref),
++        warmup_samples_(warmup_samples) {}
++
++  ~CreateSpeakerEmbeddingExtractorAsyncWorker() override {
++    if (extractor_ != nullptr) {
++      SherpaOnnxDestroySpeakerEmbeddingExtractor(extractor_);
++      extractor_ = nullptr;
++    }
++    ReleaseResourceManager();
++    FreeSpeakerEmbeddingExtractorConfig(config_);
++  }
++
++  void Execute() override {
++    try {
++#if __OHOS__
++      if (mgr_ != nullptr) {
++        extractor_ = SherpaOnnxCreateSpeakerEmbeddingExtractorOHOS(
++            &config_, static_cast<NativeResourceManager *>(mgr_));
++      } else {
++        extractor_ = SherpaOnnxCreateSpeakerEmbeddingExtractor(&config_);
++      }
++#else
++      extractor_ = SherpaOnnxCreateSpeakerEmbeddingExtractor(&config_);
++#endif
++    } catch (const std::exception &e) {
++      error_ = std::string("Failed to create speaker embedding extractor: ") +
++               e.what();
++      return;
++    } catch (...) {
++      error_ = "Failed to create speaker embedding extractor: unknown native "
++               "exception";
++      return;
++    }
++
++    if (extractor_ == nullptr) {
++      error_ =
++          "Failed to create speaker embedding extractor: check the config";
++      return;
++    }
++
++    try {
++      WarmUpSpeakerEmbeddingExtractor(extractor_, warmup_samples_);
++    } catch (...) {
++      // Warmup is best-effort; a valid extractor remains usable.
++    }
++  }
++
++  void OnOK() override {
++    Napi::Env env = Env();
++    if (!error_.empty()) {
++      ReleaseResourceManager();
++      deferred_.Reject(Napi::Error::New(env, error_).Value());
++      return;
++    }
++
++    Napi::External<SherpaOnnxSpeakerEmbeddingExtractor> external =
++        WrapSpeakerEmbeddingExtractor(env, extractor_);
++    extractor_ = nullptr;
++    ReleaseResourceManager();
++    deferred_.Resolve(external);
++  }
++
++  void OnError(const Napi::Error &error) override {
++    if (extractor_ != nullptr) {
++      SherpaOnnxDestroySpeakerEmbeddingExtractor(extractor_);
++      extractor_ = nullptr;
++    }
++    ReleaseResourceManager();
++    deferred_.Reject(error.Value());
++  }
++
++ private:
++  void ReleaseResourceManager() {
++#if __OHOS__
++    if (mgr_ != nullptr) {
++      OH_ResourceManager_ReleaseNativeResourceManager(
++          static_cast<NativeResourceManager *>(mgr_));
++      mgr_ = nullptr;
++    }
++    if (resource_manager_ref_ != nullptr) {
++      napi_delete_reference(Env(), resource_manager_ref_);
++      resource_manager_ref_ = nullptr;
++    }
++#endif
++  }
++
++ private:
++  SherpaOnnxSpeakerEmbeddingExtractorConfig config_;
++  Napi::Promise::Deferred deferred_;
++  void *mgr_ = nullptr;
++  napi_ref resource_manager_ref_ = nullptr;
++  int32_t warmup_samples_ = 0;
++  const SherpaOnnxSpeakerEmbeddingExtractor *extractor_ = nullptr;
++  std::string error_;
++};
++
++static Napi::Value CreateSpeakerEmbeddingExtractorAsyncWrapper(
++    const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++#if __OHOS__
++  if (info.Length() < 1 || info.Length() > 3 || !info[0].IsObject()) {
++    Napi::TypeError::New(
++        env, "Expected config, optional resource manager, and warmup samples")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++#else
++  if (info.Length() < 1 || info.Length() > 2 || !info[0].IsObject()) {
++    Napi::TypeError::New(env, "Expected config and optional warmup samples")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++#endif
++
++  int32_t warmup_samples = 16000;
++#if __OHOS__
++  if (info.Length() == 3 && !info[2].IsUndefined()) {
++    if (!info[2].IsNumber()) {
++      Napi::TypeError::New(env, "warmup samples must be a number")
++          .ThrowAsJavaScriptException();
++      return env.Null();
++    }
++    warmup_samples = info[2].As<Napi::Number>().Int32Value();
++  }
++#else
++  if (info.Length() == 2 && !info[1].IsUndefined()) {
++    if (!info[1].IsNumber()) {
++      Napi::TypeError::New(env, "warmup samples must be a number")
++          .ThrowAsJavaScriptException();
++      return env.Null();
++    }
++    warmup_samples = info[1].As<Napi::Number>().Int32Value();
++  }
++#endif
++
++  SherpaOnnxSpeakerEmbeddingExtractorConfig config =
++      GetSpeakerEmbeddingExtractorConfig(info[0].As<Napi::Object>());
++  void *mgr = nullptr;
++  napi_ref resource_manager_ref = nullptr;
++#if __OHOS__
++  const bool use_resource_manager =
++      info.Length() >= 2 && !info[1].IsUndefined() && !info[1].IsNull();
++  if (use_resource_manager) {
++    if (!info[1].IsObject()) {
++      FreeSpeakerEmbeddingExtractorConfig(config);
++      Napi::TypeError::New(env, "resource manager must be an object")
++          .ThrowAsJavaScriptException();
++      return env.Null();
++    }
++    mgr = OH_ResourceManager_InitNativeResourceManager(env, info[1]);
++    if (mgr == nullptr ||
++        napi_create_reference(env, info[1], 1, &resource_manager_ref) !=
++            napi_ok) {
++      if (mgr != nullptr) {
++        OH_ResourceManager_ReleaseNativeResourceManager(
++            static_cast<NativeResourceManager *>(mgr));
++      }
++      FreeSpeakerEmbeddingExtractorConfig(config);
++      Napi::Error::New(env, "Failed to retain the resource manager")
++          .ThrowAsJavaScriptException();
++      return env.Null();
++    }
++  }
++#endif
++
++  Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
++  auto *worker = new CreateSpeakerEmbeddingExtractorAsyncWorker(
++      env, config, deferred, mgr, resource_manager_ref, warmup_samples);
++  try {
++    worker->Queue();
++  } catch (...) {
++    delete worker;
++    throw;
++  }
++  return deferred.Promise();
+ }
+ 
+ static Napi::Number SpeakerEmbeddingExtractorDimWrapper(
+@@ -793,6 +1021,11 @@ void InitSpeakerID(Napi::Env env, Napi::Object exports) {
+   exports.Set(Napi::String::New(env, "createSpeakerEmbeddingExtractor"),
+               Napi::Function::New(env, CreateSpeakerEmbeddingExtractorWrapper));
+ 
++  exports.Set(
++      Napi::String::New(env, "createSpeakerEmbeddingExtractorAsync"),
++      Napi::Function::New(env,
++                          CreateSpeakerEmbeddingExtractorAsyncWrapper));
++
+   exports.Set(Napi::String::New(env, "speakerEmbeddingExtractorDim"),
+               Napi::Function::New(env, SpeakerEmbeddingExtractorDimWrapper));
+ 
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index 956edee3..2365a4f4 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -65,6 +65,8 @@ export const createOnlinePunctuation: (config: object, mgr?: object) => object;
+ export const onlinePunctuationAddPunct: (handle: object, text: string) => string;
+ 
+ export const createSpeakerEmbeddingExtractor: (config: object, mgr?: object) => object;
++export const createSpeakerEmbeddingExtractorAsync: (config: object, mgr?: object,
++  warmupSamples?: number) => Promise<object>;
+ export const speakerEmbeddingExtractorDim: (handle: object) => number;
+ export const speakerEmbeddingExtractorCreateStream: (handle: object) => object;
+ export const speakerEmbeddingExtractorIsReady: (handle: object, stream: object) => boolean;
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets
+index 50868dfb..7b50b80e 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets
+@@ -1,5 +1,6 @@
+ import {
+   createSpeakerEmbeddingExtractor,
++  createSpeakerEmbeddingExtractorAsync,
+   createSpeakerEmbeddingManager,
+   speakerEmbeddingExtractorComputeEmbedding,
+   speakerEmbeddingExtractorCreateStream,
+@@ -28,12 +29,18 @@ export class SpeakerEmbeddingExtractor {
+   public dim: number;
+   private handle: object;
+ 
+-  constructor(config: SpeakerEmbeddingExtractorConfig, mgr?: object) {
+-    this.handle = createSpeakerEmbeddingExtractor(config, mgr);
++  constructor(config: SpeakerEmbeddingExtractorConfig, mgr?: object, handle?: object) {
++    this.handle = handle === undefined ? createSpeakerEmbeddingExtractor(config, mgr) : handle;
+     this.config = config;
+     this.dim = speakerEmbeddingExtractorDim(this.handle);
+   }
+ 
++  static async createAsync(config: SpeakerEmbeddingExtractorConfig, mgr?: object,
++    warmupSamples: number = 16000): Promise<SpeakerEmbeddingExtractor> {
++    const handle: object = await createSpeakerEmbeddingExtractorAsync(config, mgr, warmupSamples);
++    return new SpeakerEmbeddingExtractor(config, undefined, handle);
++  }
++
+   createStream(): OnlineStream {
+     return new OnlineStream(speakerEmbeddingExtractorCreateStream(this.handle));
+   }
+@@ -132,4 +139,4 @@ export class SpeakerEmbeddingManager {
+   getAllSpeakerNames(): string[] {
+     return speakerEmbeddingManagerGetAllSpeakers(this.handle);
+   }
+-}
+\ No newline at end of file
++}
+-- 
+2.50.1 (Apple Git-155)
+

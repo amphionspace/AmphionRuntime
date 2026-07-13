@@ -1,20 +1,22 @@
 import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit';
 import { promptAction, router } from '@kit.ArkUI';
-import { AudioInfo, SpeechRecognizeSdk, VoiceprintRegisterParams } from 'amphion_dingqiao';
+import {
+  AudioInfo,
+  DINGQIAO_VOICEPRINT_MAX_SEC,
+  DINGQIAO_VOICEPRINT_MIN_SAMPLES,
+  DINGQIAO_VOICEPRINT_MIN_SEC,
+  SpeechRecognizeSdk,
+  VoiceprintRegisterParams
+} from 'amphion_dingqiao';
 import { AudioRecorder } from '../util/AudioRecorder';
 import { EnrollSampleStore } from '../util/EnrollSampleStore';
 import { PcmPlayer } from '../util/PcmPlayer';
 import { WavIo } from '../util/WavIo';
 import { DemoPrefs } from '../util/DemoPrefs';
-import { VoiceprintModelHelper } from '../util/VoiceprintModelHelper';
 
-const MIN_SAMPLES = 3;
-const MAX_SAMPLES = 5;
-const MIN_SEC = 3;
-const MAX_SEC = 8;
 const BRAND_ACCENT = '#2E6BE6';
 
-/** Voiceprint enrollment: record 3~5 segments of 3~8 s, then call SpeechRecognizeSdk.registerVoiceprint. */
+/** Voiceprint enrollment: record one or more 3~8 s segments, then register their merged embedding. */
 @Entry
 @Component
 struct VoiceprintEnroll {
@@ -23,7 +25,6 @@ struct VoiceprintEnroll {
   @State registering: boolean = false;
   @State status: string = '';
   @State registeredId: string = '';
-  @State modelReady: boolean = false;
 
   private store?: EnrollSampleStore;
   private recorder?: AudioRecorder;
@@ -58,16 +59,15 @@ struct VoiceprintEnroll {
     const store = this.store;
     if (store === undefined) return;
     this.samples = store.listSamples();
-    this.registeredId = DemoPrefs.getVoiceprintId(getContext(this) as common.UIAbilityContext);
-    this.modelReady = VoiceprintModelHelper.isReady(this.workPath);
-    this.status = `已录制 ${this.samples.length} 段（需要 3~5 段）`;
+    const ctx = getContext(this) as common.UIAbilityContext;
+    this.registeredId = DemoPrefs.getVoiceprintId(ctx);
+    const missing = Math.max(0, DINGQIAO_VOICEPRINT_MIN_SAMPLES - this.samples.length);
+    this.status = missing > 0 ?
+      `已录制 ${this.samples.length} 段，还需 ${missing} 段` :
+      `已录制 ${this.samples.length} 段，可注册声纹`;
   }
 
   private startRecord(): void {
-    if (this.samples.length >= MAX_SAMPLES) {
-      this.toast(`最多 ${MAX_SAMPLES} 段`);
-      return;
-    }
     this.recording = true;
     this.recChunks = [];
     this.status = '录音中…正常说 3~8 秒后结束';
@@ -118,11 +118,7 @@ struct VoiceprintEnroll {
   }
 
   private register(): void {
-    if (this.samples.length < MIN_SAMPLES || this.samples.length > MAX_SAMPLES) return;
-    if (!this.modelReady) {
-      this.toast('未找到声纹模型，请先导入 eres2net.onnx');
-      return;
-    }
+    if (this.samples.length < DINGQIAO_VOICEPRINT_MIN_SAMPLES) return;
     const invalid = this.firstInvalidSample();
     if (invalid.length > 0) {
       this.status = invalid;
@@ -190,17 +186,6 @@ struct VoiceprintEnroll {
     this.reload();
   }
 
-  private async importModel(): Promise<void> {
-    const ctx = getContext(this) as common.UIAbilityContext;
-    const ok = await VoiceprintModelHelper.importViaPicker(ctx, this.workPath);
-    if (ok) {
-      this.toast('声纹模型已导入');
-    } else {
-      this.toast('导入失败，请确认选择的是 eres2net.onnx（约 38 MB）');
-    }
-    this.reload();
-  }
-
   private deleteRegisteredIfAny(): void {
     const ctx = getContext(this) as common.UIAbilityContext;
     const id = DemoPrefs.getVoiceprintId(ctx);
@@ -218,8 +203,9 @@ struct VoiceprintEnroll {
     if (store === undefined) return '';
     for (let i = 0; i < this.samples.length; i++) {
       const sec = WavIo.durationSecFromBytes(store.fileSize(this.samples[i]));
-      if (sec < MIN_SEC || sec > MAX_SEC) {
-        return `样本 ${i + 1} 时长 ${sec.toFixed(1)} 秒，不在 ${MIN_SEC}–${MAX_SEC} 秒范围内`;
+      if (sec < DINGQIAO_VOICEPRINT_MIN_SEC || sec > DINGQIAO_VOICEPRINT_MAX_SEC) {
+        return `样本 ${i + 1} 时长 ${sec.toFixed(1)} 秒，不在 ` +
+          `${DINGQIAO_VOICEPRINT_MIN_SEC}–${DINGQIAO_VOICEPRINT_MAX_SEC} 秒范围内`;
       }
     }
     return '';
@@ -230,6 +216,14 @@ struct VoiceprintEnroll {
     const bytes = store === undefined ? 0 : store.fileSize(this.samples[index]);
     const sec = WavIo.durationSecFromBytes(bytes);
     return `样本 ${index + 1} · ${sec.toFixed(1)}s`;
+  }
+
+  private registerButtonText(): string {
+    if (this.registering) return '正在注册声纹…';
+    if (this.samples.length < DINGQIAO_VOICEPRINT_MIN_SAMPLES) {
+      return `还需录制 ${DINGQIAO_VOICEPRINT_MIN_SAMPLES - this.samples.length} 段`;
+    }
+    return '注册声纹';
   }
 
   private merge(chunks: Int16Array[]): Int16Array {
@@ -258,25 +252,26 @@ struct VoiceprintEnroll {
       .width('100%')
       .alignItems(VerticalAlign.Center)
 
-      Text('录制 3~5 段语音，每段 3~8 秒，覆盖远/中/近距离。注册前须先导入声纹模型 eres2net.onnx。')
+      Text('录制至少 1 段语音，每段 3~8 秒；多录几段并覆盖远/中/近距离可提升稳定性。')
         .fontSize(12)
         .fontColor(Color.Gray)
         .width('100%')
 
-      Row({ space: 8 }) {
-        Button('导入声纹模型').layoutWeight(1).onClick((): void => { this.importModel(); })
-        if (this.registeredId.length > 0) {
+      if (this.registeredId.length > 0) {
+        Row({ space: 8 }) {
           Button('删除已注册声纹')
             .layoutWeight(1)
             .backgroundColor('#E5533C')
             .onClick((): void => this.confirmDeleteVoiceprint())
         }
+        .width('100%')
       }
-      .width('100%')
 
       if (this.registeredId.length > 0) {
         Text(`当前已注册：${this.registeredId}`).fontSize(12).fontColor(BRAND_ACCENT).width('100%')
       }
+
+      Text('声纹模型已随 SDK 内置').fontSize(12).fontColor(BRAND_ACCENT).width('100%')
 
       Text(this.status).fontSize(13).fontColor(Color.Gray).width('100%')
 
@@ -319,11 +314,11 @@ struct VoiceprintEnroll {
           }
         })
 
-      Button(this.registering ? '正在注册声纹…' : '注册声纹')
+      Button(this.registerButtonText())
         .width('100%')
         .height(46)
         .enabled(!this.recording && !this.registering &&
-          this.samples.length >= MIN_SAMPLES && this.samples.length <= MAX_SAMPLES)
+          this.samples.length >= DINGQIAO_VOICEPRINT_MIN_SAMPLES)
         .onClick((): void => this.register())
     }
     .padding(20)
