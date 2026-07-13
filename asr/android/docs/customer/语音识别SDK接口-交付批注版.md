@@ -104,7 +104,38 @@
 
 > 批注（生命周期澄清，2026-06-29）：`getLicenseInfo()` 查询的是当前进程通过 `setLicense()` 激活后的 License 信息。若仅依赖 AAR 或 Demo APK 内置体验 License，而未显式调用 `setLicense()`，`getLicenseInfo()` 可返回未设置 License。
 
-## 8. 错误码一致性
+## 8. HarmonyOS 生命周期控制
+
+> 批注（HarmonyOS 交付扩展，2026-07-13）：本节接口当前仅适用于 HarmonyOS `amphion_dingqiao` SDK；Android 版本尚未提供，不得无平台标识地写入 Android 调用示例。
+
+HarmonyOS 新增 License、Runtime、Model 三层生命周期：
+
+| 层级 | 加载接口 | 卸载接口 | 说明 |
+|------|----------|----------|------|
+| License | `setLicense(licensePath, callback)` | 重新设置授权 | 只完成离线完整验权并缓存授权，不拉起 Runtime、不加载模型 |
+| Runtime | `prepareRuntime(callback)` | `unloadRuntime()` | 管理 SDK Runtime 状态，不创建模型；卸载时模型跟随释放，已验证授权保留 |
+| Model | `createEngineAsync(params, callback)` / `createEngine(params)` | `unloadModel()` | 模型未加载时加载；同语言、同配置已加载时复用 |
+
+`PrepareRuntimeCallback`：
+
+```ts
+interface PrepareRuntimeCallback {
+  onReady(): void;
+  onError(errorCode: number, message: string): void;
+}
+```
+
+> 批注（前置条件，2026-07-13）：最小顺序为 `init` → `setWorkPath` → `setLicense` 成功 → `prepareRuntime.onReady` → `createEngineAsync.onSuccess` / `createEngine` 返回 → 会话。`createEngineAsync` / `createEngine` 不得在 Runtime 未就绪时调用。
+
+> 批注（幂等与并发，2026-07-13）：`prepareRuntime` 幂等且 single-flight；Runtime 已就绪时直接回调 `onReady`，并发调用共享同一次准备过程。该阶段不创建识别模型 Session。
+
+> 批注（模型卸载，2026-07-13）：`unloadModel` 前必须结束或取消会话，并对持有的 engine 调用 `shutdown`。调用后旧 engine 不再使用；下次创建引擎重新加载模型，但保留 Runtime 与已验证授权。
+
+> 批注（Runtime 卸载，2026-07-13）：调用 `unloadRuntime` 前同样必须结束或取消活跃会话，并对持有的 engine 调用 `shutdown`。`unloadRuntime` 会使模型跟随释放，但保留已验证授权。后续无需重新 `setLicense`，直接重新 `prepareRuntime`；准备时会再次校验保留授权。已映射的 native `.so` 由操作系统管理，不承诺在应用进程存活期间物理卸载动态库映射。
+
+> 批注（授权替换，2026-07-13）：新的 `setLicense` 成功后替换旧授权，并使旧 Runtime / 模型失效，调用方必须重新 `prepareRuntime`。新的授权校验失败时，不得覆盖已经生效的旧授权或破坏正在使用的 Runtime。
+
+## 9. 错误码一致性
 
 基线错误码总表是跨平台唯一真值。Android 与 Harmony 必须使用相同数值与含义。
 
