@@ -1,9 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { execFileSync } from 'child_process';
 
 import { appTasks } from '@ohos/hvigor-ohos-plugin';
 
-const MODEL_ID = 'transsion_lits_en_zh_vocos24k_streaming_proto_external_loop';
+const MODEL_ID = 'dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop';
 const MODEL_VERSION = '0.1.0';
 const MODEL_FILES = [
   'manifest.json',
@@ -25,11 +26,9 @@ const MODEL_FILES = [
   'polyphone_phrases.txt',
   'tn-bin/arm64-v8a/zh_tts',
   'tn-bin/arm64-v8a/en_tts',
-  'rules/zh.json',
-  'rules/en.json',
-  'rules/zh_pinyin.json',
   'rules_v2/zh.full.json',
   'rules_v2/en.full.json',
+  'rules_v2/zh_pinyin.json',
   'lits_hidden_encoder.onnx',
   'external_loop_export_report.json',
   'lits_stream_condition_chunk.onnx',
@@ -40,9 +39,13 @@ const MODEL_FILES = [
 
 const modelSourceDir = path.resolve(
   __dirname,
-  '../../tools/trial-export',
+  '../tools/trial-export',
   MODEL_ID,
   MODEL_VERSION
+);
+const frontendBinaryBuilder = path.resolve(
+  __dirname,
+  '../../tools/dingqiao-android/build_frontend_binary_assets.py'
 );
 const modelTargetDir = path.resolve(
   __dirname,
@@ -56,6 +59,7 @@ const HARMONY_TN_FILES = new Set<string>([
   'tn-bin/arm64-v8a/en_tts'
 ]);
 
+buildFrontendBinaryAssets();
 syncBundledModelResources();
 
 export default {
@@ -70,12 +74,10 @@ function syncBundledModelResources(): void {
     return;
   }
 
+  fs.rmSync(modelTargetDir, { recursive: true, force: true });
   fs.mkdirSync(modelTargetDir, { recursive: true });
   MODEL_FILES.forEach((fileName: string): void => {
-    const harmonyTnFile = path.join(harmonyTnDir, path.basename(fileName));
-    const sourceFile = HARMONY_TN_FILES.has(fileName) && fs.existsSync(harmonyTnFile)
-      ? harmonyTnFile
-      : path.join(modelSourceDir, fileName);
+    const sourceFile = resolveModelSource(fileName);
     const targetFile = path.join(modelTargetDir, fileName);
     fs.mkdirSync(path.dirname(targetFile), { recursive: true });
     fs.copyFileSync(
@@ -85,20 +87,41 @@ function syncBundledModelResources(): void {
   });
 }
 
+function buildFrontendBinaryAssets(): void {
+  try {
+    execFileSync('python3', [frontendBinaryBuilder, '--model-dir', modelSourceDir], {
+      encoding: 'utf8',
+      stdio: 'inherit'
+    });
+  } catch (error) {
+    throw new Error(`Failed to build frontend binary assets: ${String(error)}`);
+  }
+}
+
 function assertModelSourceDir(): void {
   if (!fs.existsSync(modelSourceDir)) {
-    if (MODEL_FILES.every((fileName: string): boolean => fs.existsSync(path.join(modelTargetDir, fileName)))) {
+    if (MODEL_FILES.every((fileName: string): boolean => fs.existsSync(resolveModelSource(fileName)))) {
       return;
     }
     throw new Error(`Missing HarmonyOS model source directory: ${modelSourceDir}`);
   }
 
   MODEL_FILES.forEach((fileName: string): void => {
-    const sourceFile = path.join(modelSourceDir, fileName);
+    const sourceFile = resolveModelSource(fileName);
     if (!fs.existsSync(sourceFile)) {
       throw new Error(`Missing HarmonyOS model file: ${sourceFile}`);
     }
   });
+}
+
+function resolveModelSource(fileName: string): string {
+  if (HARMONY_TN_FILES.has(fileName)) {
+    const harmonyTnFile = path.join(harmonyTnDir, path.basename(fileName));
+    if (fs.existsSync(harmonyTnFile)) {
+      return harmonyTnFile;
+    }
+  }
+  return path.join(modelSourceDir, fileName);
 }
 
 function isModelTargetUpToDate(): boolean {
@@ -106,10 +129,7 @@ function isModelTargetUpToDate(): boolean {
     return MODEL_FILES.every((fileName: string): boolean => fs.existsSync(path.join(modelTargetDir, fileName)));
   }
   return MODEL_FILES.every((fileName: string): boolean => {
-    const harmonyTnFile = path.join(harmonyTnDir, path.basename(fileName));
-    const sourceFile = HARMONY_TN_FILES.has(fileName) && fs.existsSync(harmonyTnFile)
-      ? harmonyTnFile
-      : path.join(modelSourceDir, fileName);
+    const sourceFile = resolveModelSource(fileName);
     const targetFile = path.join(modelTargetDir, fileName);
     if (!fs.existsSync(targetFile)) {
       return false;

@@ -31,14 +31,14 @@ HarmonyOS/
 ```text
 tools/README.md
 tools/verify_lits_harmony_package.mjs
-tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/.gitkeep
+tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/.gitkeep
 ```
 
 ## 2. 不要上传什么
 
 以下内容不要进 Git：
 
-- `tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/` 里的真实 `.onnx/.json/.txt/.wav`
+- `tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/` 里的真实 `.onnx/.json/.txt/.wav`
 - `HarmonyOS/AmphionRuntime/.hvigor/`
 - `HarmonyOS/AmphionRuntime/.ohos/`
 - `HarmonyOS/AmphionRuntime/**/build/`
@@ -57,7 +57,7 @@ tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0
 负责人单独接收完整模型包目录：
 
 ```text
-LitsTtsSdk/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
+AmphionRuntime/tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
 
 至少包括：
@@ -71,9 +71,9 @@ LitsTtsSdk/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_exte
 - `frontend_golden.json`
 - `frontend_rules.json`
 - `chinese_lexicon.txt`
-- `chinese_lexicon.bin`
+- `chinese_lexicon.bin`（由构建脚本从 `chinese_lexicon.txt` 生成）
 - `cmudict.txt`
-- `cmudict.bin`
+- `cmudict.bin`（由构建脚本从 `cmudict.txt` 生成）
 - `supplement_lexicon.json`
 - `pinyin_2_bpmf.txt`
 - `polychar.txt`
@@ -82,11 +82,9 @@ LitsTtsSdk/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_exte
 - `arpabet_to_tokens.json`
 - `tn-bin/arm64-v8a/zh_tts`
 - `tn-bin/arm64-v8a/en_tts`
-- `rules/zh.json`
-- `rules/en.json`
-- `rules/zh_pinyin.json`
 - `rules_v2/zh.full.json`
 - `rules_v2/en.full.json`
+- `rules_v2/zh_pinyin.json`
 
 如果已有，也建议一并发过去：
 

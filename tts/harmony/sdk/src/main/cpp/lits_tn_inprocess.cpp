@@ -38,7 +38,7 @@ class ZhNormalizer final : public BaseNormalizer {
     if (!engine_.loadRulesV2((root / "rules_v2" / "zh.full.json").string(), err)) {
       throw std::runtime_error("failed to load zh rules_v2: " + err);
     }
-    if (!engine_.loadPinyinMap((root / "rules" / "zh_pinyin.json").string(), err)) {
+    if (!engine_.loadPinyinMap((root / "rules_v2" / "zh_pinyin.json").string(), err)) {
       throw std::runtime_error("failed to load zh pinyin map: " + err);
     }
   }

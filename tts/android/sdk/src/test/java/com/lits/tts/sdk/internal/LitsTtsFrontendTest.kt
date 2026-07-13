@@ -450,7 +450,7 @@ class LitsTtsFrontendTest {
     @Test
     fun tnSegmentWhitespaceIsPreservedAroundNormalizedSegment() {
         assertTrue(
-            TranssionTnNormalizer.preserveSegmentWhitespace(" 204 ", "二百零四") == " 二百零四 ",
+            LitsTnNormalizer.preserveSegmentWhitespace(" 204 ", "二百零四") == " 二百零四 ",
         )
     }
 
@@ -643,11 +643,9 @@ class LitsTtsFrontendTest {
                 "polyphone_phrases.txt",
                 "chinese_surname_lexicon.txt",
                 "frontend_golden.json",
-                "rules/zh.json",
-                "rules/en.json",
-                "rules/zh_pinyin.json",
                 "rules_v2/zh.full.json",
                 "rules_v2/en.full.json",
+                "rules_v2/zh_pinyin.json",
                 "tn-bin/arm64-v8a/zh_tts",
                 "tn-bin/arm64-v8a/en_tts",
             ).forEach { copyAsset(root, it) }

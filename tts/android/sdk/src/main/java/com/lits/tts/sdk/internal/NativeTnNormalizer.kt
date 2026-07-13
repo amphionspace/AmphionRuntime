@@ -21,5 +21,12 @@ internal object NativeTnNormalizer {
         return normalizeNative(rootDir.absolutePath, lang, text)
     }
 
+    fun clear(rootDir: File) {
+        if (!isAvailable) return
+        runCatching { clearCacheNative(rootDir.absolutePath) }
+    }
+
     private external fun normalizeNative(rulesRoot: String, lang: String, text: String): String
+
+    private external fun clearCacheNative(rulesRoot: String)
 }

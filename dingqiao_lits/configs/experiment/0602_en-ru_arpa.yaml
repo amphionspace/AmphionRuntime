@@ -1,0 +1,13 @@
+# @package _global_
+
+defaults:
+  - override /data: en-ru_16k
+
+model:
+  n_vocab: 164
+  optimizer:
+    lr: 3e-4
+
+tags: ["LJPlus", "en-ru", "ru_char", "en_arpa", "16k"]
+name: en-ru_bs${data.batch_size}_lr${model.optimizer.lr}
+run_name: ${name}_${now:%Y%m%d_%H%M%S}

@@ -24,6 +24,8 @@ D:\work\LitsTtsSdk
 
 ## 文档导航
 
+- Dingqiao v3 源码编译说明：[docs/BUILD_FROM_SOURCE.md](docs/BUILD_FROM_SOURCE.md)
+- Dingqiao v3 批测说明：[docs/BATCH_TESTING.md](docs/BATCH_TESTING.md)
 - 从源码构建 SDK：[docs/DELIVERY.md](docs/DELIVERY.md)
 - 宿主 App 接入 AAR：[docs/INTEGRATION.md](docs/INTEGRATION.md)
 - 公开接口说明：[docs/API.md](docs/API.md)
@@ -63,7 +65,7 @@ python ..\..\tools\verify_lits_delivery_16k_package.py --model-dir ..\..\tools\t
 sdk/build/outputs/aar/sdk-release.aar
 ```
 
-注意：模型文件只需要放到 `tools/trial-export/...`，不要手动放到 `sdk/src/main/assets/...`；Gradle 会在 `preBuild` 阶段自动同步。
+注意：模型文件只需要放到 `tts/tools/trial-export/...`，不要手动放到 `sdk/src/main/assets/...`；Gradle 会在 `preBuild` 阶段自动生成前端 `.bin` 并同步资源。
 
 完整步骤、输入文件清单、自检方式与常见报错见 [docs/DELIVERY.md](docs/DELIVERY.md)。
 
@@ -104,4 +106,3 @@ sdk/src/main/assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0/
 
 - `:sdk:testDebugUnitTest`
 - `:sdk:assembleRelease`
-

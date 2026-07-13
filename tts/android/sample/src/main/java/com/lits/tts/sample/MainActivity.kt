@@ -26,6 +26,7 @@ import com.lits.tts.sdk.StopResponse
 import com.lits.tts.sdk.SynthesisResponse
 import com.lits.tts.sdk.TextToSpeechEngine
 import com.lits.tts.sdk.TextToSpeechSdk
+import com.lits.tts.sdk.TtsStreamingConfig
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
@@ -220,9 +221,9 @@ class MainActivity : AppCompatActivity() {
                     playType = playType,
                     queueMode = QueueMode.PREEMPT,
                     languageContext = if (language == "en-US") "en-US" else "zh-en",
-                    extraParams = mapOf(
-                        "streamingChunkSize" to chunkSize,
-                        "pcmQueueCapacity" to pcmQueueCapacity,
+                    streamingConfig = TtsStreamingConfig(
+                        chunkSize = chunkSize,
+                        pcmQueueCapacity = pcmQueueCapacity,
                     ),
                 ),
             )
@@ -292,9 +293,9 @@ class MainActivity : AppCompatActivity() {
                     playType = PlayType.SYNTHESIZE_ONLY,
                     queueMode = QueueMode.PREEMPT,
                     languageContext = if (language == "en-US") "en-US" else "zh-en",
-                    extraParams = mapOf(
-                        "streamingChunkSize" to chunkSize,
-                        "pcmQueueCapacity" to pcmQueueCapacity,
+                    streamingConfig = TtsStreamingConfig(
+                        chunkSize = chunkSize,
+                        pcmQueueCapacity = pcmQueueCapacity,
                     ),
                 ),
             )

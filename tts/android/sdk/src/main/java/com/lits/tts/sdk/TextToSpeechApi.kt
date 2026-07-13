@@ -157,6 +157,8 @@ data class StopResponse(
 interface SpeakListener {
     fun onStart(requestId: String, response: StartResponse) = Unit
     fun onData(requestId: String, audio: ByteArray, response: SynthesisResponse) = Unit
+    /** Called when the first PCM bytes are written to the internal AudioTrack. */
+    fun onPlaybackStart(requestId: String, elapsedMs: Long) = Unit
     fun onComplete(requestId: String, response: CompleteResponse) = Unit
     fun onStop(requestId: String, response: StopResponse) = Unit
     fun onError(requestId: String, errorCode: Int, errorMessage: String) = Unit

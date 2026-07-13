@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lits TTS Sample</string>
-    <string name="sample_title">Lits_delivery 纯 TTS Sample</string>
+    <string name="sample_title">Dingqiao 纯 TTS Sample</string>
     <string name="sample_subtitle">页面只展示纯 TTS 业务流程：输入文本、选择语言、开始合成、SDK 直接播报、播放结果、保存 WAV。SDK 接口生命周期和回调处理都在后台完成。</string>
 
     <string name="label_input">合成文本</string>

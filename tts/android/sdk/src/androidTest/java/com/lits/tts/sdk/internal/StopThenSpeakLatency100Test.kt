@@ -15,6 +15,7 @@ import com.lits.tts.sdk.StopResponse
 import com.lits.tts.sdk.SynthesisResponse
 import com.lits.tts.sdk.TextToSpeechEngine
 import com.lits.tts.sdk.TextToSpeechSdk
+import com.lits.tts.sdk.TtsStreamingConfig
 import java.io.File
 import java.util.Collections
 import java.util.Locale
@@ -168,10 +169,9 @@ class StopThenSpeakLatency100Test {
             playType = PlayType.SYNTHESIZE_AND_PLAY,
             queueMode = QueueMode.PREEMPT,
             languageContext = LANGUAGE,
-            extraParams = mapOf(
-                "streamingChunkSize" to CHUNK_SIZE,
-                "streamingFirstChunkSize" to CHUNK_SIZE,
-                "pcmQueueCapacity" to PCM_QUEUE_CAPACITY,
+            streamingConfig = TtsStreamingConfig(
+                chunkSize = CHUNK_SIZE,
+                pcmQueueCapacity = PCM_QUEUE_CAPACITY,
             ),
         )
 

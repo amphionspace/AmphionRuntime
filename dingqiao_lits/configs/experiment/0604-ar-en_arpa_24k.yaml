@@ -1,0 +1,13 @@
+# @package _global_
+
+defaults:
+  - override /data: ar-en_24k
+
+model:
+  n_vocab: 158
+  optimizer:
+    lr: 2e-4
+
+tags: ["ar-en", "ar_char", "en_arpa", "24k"]
+name: ar-en_bs${data.batch_size}_lr${model.optimizer.lr}
+run_name: ${name}_${now:%Y%m%d_%H%M%S}

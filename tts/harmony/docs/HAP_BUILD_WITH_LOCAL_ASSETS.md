@@ -2,7 +2,7 @@
 
 This note is for colleagues who pull the remote branch and use the separately provided local model/frontend resource package to build the sample HAP.
 
-The remote branch contains the HarmonyOS native TN source and ICU static build dependencies needed by `liblitsttsnative.so`. You do not need a sibling `transsion_lits` checkout or any files from the original local training/export workspace.
+The remote branch contains the HarmonyOS native TN source and ICU static build dependencies needed by `liblitsttsnative.so`. You do not need a sibling training checkout or any files from the original local training/export workspace.
 
 ## 1. Pull the branch
 
@@ -23,17 +23,16 @@ SHA-256: 669f71f0187d430da18bf2720b50d17876d383cd5d5ebf1c856e2dad2a967e98
 Unzip it at the repository root. After unzipping, these paths must exist:
 
 ```text
-tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/manifest.json
-tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/lits_hidden_encoder.onnx
-tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/vocos_vocoder.onnx
-tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/frontend_rules.json
-tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/rules/zh.json
-tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/rules_v2/zh.full.json
+tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/manifest.json
+tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/lits_hidden_encoder.onnx
+tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/vocos_vocoder.onnx
+tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/frontend_rules.json
+tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/rules_v2/zh.full.json
 tts/harmony/build-ohos-tn/zh_tts
 tts/harmony/build-ohos-tn/en_tts
 ```
 
-The HarmonyOS build script reads the model package from `tools/trial-export/...`. If `tts/harmony/build-ohos-tn/zh_tts` and `en_tts` are present, those HarmonyOS TN binaries are copied into the bundled rawfile model resources during the build.
+The HarmonyOS build script reads the model package from `tts/tools/trial-export/...`. The frontend `.bin` files are generated from the text dictionaries during the build. If `tts/harmony/build-ohos-tn/zh_tts` and `en_tts` are present, those HarmonyOS TN binaries are copied into the bundled rawfile model resources during the build.
 
 ## 3. Build the sample HAP
 
