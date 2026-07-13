@@ -32,6 +32,7 @@ python3 - \
   "$HAR" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json" \
   "$REPO_ROOT/asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police" \
+  "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" <<'PY'
 import sys
@@ -44,10 +45,11 @@ har = Path(sys.argv[1])
 police_root = Path(sys.argv[3])
 expected = {
     "package/_bundled/amphion_asr/src/main/resources/rawfile/amphion-models/manifest.json": Path(sys.argv[2]),
-    "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[4]),
-    "package/_bundled/amphion_asr/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[5]),
-    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[4]),
-    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[5]),
+    "package/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx": Path(sys.argv[4]),
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[5]),
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[6]),
+    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[5]),
+    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[6]),
 }
 with tarfile.open(har, "r:gz") as package:
     for member_name, local_path in expected.items():
@@ -66,7 +68,7 @@ with tarfile.open(har, "r:gz") as package:
             raise SystemExit(f"[ERROR] self-contained HAR is missing police asset: {member_name}")
         if hashlib.sha256(member.read()).hexdigest() != expected_sha256:
             raise SystemExit(f"[ERROR] self-contained HAR police asset differs from Android: {member_name}")
-print("[OK] self-contained HAR model, police assets, and native libraries match local artifacts")
+print("[OK] self-contained HAR ASR/voiceprint models, police assets, and native libraries match local artifacts")
 PY
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/amphion-har-customer.XXXXXX")"

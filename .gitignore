@@ -128,6 +128,7 @@ shared/regression-set/audio/
 # 自有模型由 asr/tools/00_push_my_model.sh 推到设备，本地目录由用户自管
 *.onnx
 !asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx
+!asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx
 *.wav
 *.tar
 *.tar.bz2

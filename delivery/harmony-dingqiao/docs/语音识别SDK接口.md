@@ -4,11 +4,11 @@
 
 | 文档项 | 值 |
 | --- | --- |
-| 文档版本 | v1.2（HarmonyOS 生命周期扩展） |
+| 文档版本 | v1.3（HarmonyOS 声纹模型生命周期扩展） |
 | 更新日期 | 2026-07-13 |
 | SDK 依赖 | `amphion_dingqiao` |
 
-SDK 依赖名为 `amphion_dingqiao`，核心入口为 `SpeechRecognizeSdk`。本版新增 License、Runtime、Model 三层生命周期控制，便于宿主按需控制模型内存。
+SDK 依赖名为 `amphion_dingqiao`，核心入口为 `SpeechRecognizeSdk`。本版包含 License、Runtime、Model 三层生命周期控制，以及内置声纹模型的按需加载策略，便于宿主控制模型内存和识别启动时延。
 
 ## 1. 最小调用顺序
 
@@ -90,7 +90,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | `SpeechRecognizeSdk.deleteVoiceprint(voiceprintId: string): boolean` | 删除本地声纹 |
 | `SpeechRecognizeSdk.preloadVoiceprintModel(): boolean` | 同步预加载并预热声纹模型；应在非 UI 关键路径调用 |
 
-`setWorkPath` 指向的目录用于保存声纹 embedding，并承载客户侧放置的声纹模型 `eres2net.onnx`。
+声纹模型 `eres2net.onnx` 已内置在 `amphion_dingqiao.har`，宿主无需单独分发、导入或复制。`setWorkPath` 指向可读写目录，用于保存已注册的声纹 embedding；SDK 不会把 HAR 内模型复制到该目录。
 
 ## 3. 生命周期控制
 
@@ -100,7 +100,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | --- | --- | --- | --- |
 | License | `setLicense()` | 重新设置授权 | 成功授权保存在当前进程内 |
 | Runtime | `prepareRuntime()` | `unloadRuntime()` | 已验证授权 |
-| Model | `createEngineAsync()` / `createEngine()` | `unloadModel()` | Runtime、已验证授权 |
+| Model | ASR：`createEngineAsync()` / `createEngine()`；声纹：注册、显式预加载或声纹会话按需加载 | `unloadModel()` | Runtime、已验证授权、HAR 内模型和已注册声纹 embedding |
 
 完整状态流转：
 
@@ -142,12 +142,14 @@ interface CreateEngineCallback {
 - 当前语言和模型配置未加载时，创建引擎会加载模型。
 - 同语言、同配置模型已加载时直接复用模型，只创建新的引擎对象；会话对象在 `startListening()` 时创建。
 - `createEngine()` 在冷加载时会阻塞调用线程；客户业务优先使用 `createEngineAsync()`，不得在 UI 关键路径同步冷加载。
+- 创建识别引擎只加载 ASR 相关模型，不会因为 HAR 内置声纹资源而加载声纹 extractor。声纹 extractor 在注册、显式预加载或声纹会话中另行按需加载。
 
 ### 3.4 `unloadModel()`
 
 - 调用前应结束或取消所有会话，并对仍持有的 engine 调用 `shutdown()`。
 - 调用后已有 engine 不应继续使用；下次识别需重新调用 `createEngineAsync()` 或 `createEngine()`。
 - Runtime 与已验证授权保留，无需重新 `setLicense()` 或 `prepareRuntime()`。
+- ASR 模型、标点模型、VAD 和内存声纹 extractor 都在本层释放；HAR 内置模型文件及 `{workPath}/voiceprints/` 下的 embedding 不会删除。
 - 接口返回表示 SDK 已释放模型持有关系；操作系统回收物理页可能延后，进程 RSS 不保证在返回瞬间下降到最终稳定值。
 
 ### 3.5 `unloadRuntime()`
@@ -175,6 +177,8 @@ interface CreateEngineCallback {
 | `setSpeakerVadEnabled(enabled: boolean)` | 运行时启用或关闭目标说话人 VAD |
 
 一个 `SpeechRecognitionEngine` 同时只处理一个活跃会话。`startListening` 成功后才能写入音频；`finish` 或 `cancel` 后如需继续识别，请重新调用 `startListening` 创建新会话。
+
+运行时调用 `setSpeakerVadEnabled(true)` 时，本次会话的 `StartParams.extraParams` 必须已经提供有效的 `voiceprintIds`，即使会话启动时 `enableSpeakerVad=false`。冷态启用 Speaker VAD 会同步等待声纹 extractor 就绪，因此该调用可能阻塞；关闭操作不加载模型。
 
 ## 5. 参数对象
 
@@ -210,11 +214,11 @@ interface CreateEngineCallback {
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `enablePartialResult` | `boolean` | `true` | 是否回调中间结果 |
-| `maxAudioDuration` | `number` | `20000` | 单会话最长音频毫秒数；达到上限后正常自动结束 |
+| `maxAudioDuration` | `number` | `20000` | 单会话最长音频毫秒数，有效值不小于 20000；达到上限后正常自动结束 |
 | `vadEnd` | `number/string` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
-| `enableSpeakerVad` | `boolean/string/number` | `false` | 是否启用目标说话人离场提前 endpoint |
-| `voiceprintIds` | `string[]` | 空 | 声纹 ID 列表 |
+| `enableSpeakerVad` | `boolean` | `false` | 是否启用目标说话人离场提前 endpoint；冷态启动会同步等待声纹模型 |
+| `voiceprintIds` | `string[]` | 空 | 声纹 ID 列表；启用声纹校验或 Speaker VAD 时必填 |
 | `speakerVadThreshold` | `number/string` | `0.40` | 目标说话人 VAD 阈值 |
 | `speakerVadWindowMs` | `number/string` | `1000` | 目标说话人 VAD 窗长 |
 | `speakerVadHopMs` | `number/string` | `300` | 目标说话人 VAD 步长 |
@@ -271,15 +275,20 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 | 项 | 要求 |
 | --- | --- |
-| 模型 | 将 `eres2net.onnx` 放入 `setWorkPath` 指定目录 |
-| 样本格式 | 16 kHz、16 bit、单声道 PCM 或 WAV |
+| 模型 | `eres2net.onnx` 已内置在 `amphion_dingqiao.har`，宿主无需导入 |
+| 样本格式 | 标准 WAV 文件，16 kHz、16 bit、单声道 PCM 编码 |
 | 样本时长 | 每段 3 到 8 秒 |
-| 样本数量 | 至少 1 段，建议多段提升稳定性 |
+| 样本数量 | 至少 1 段，不限制上限；建议多段提升稳定性 |
+| 已注册声纹数量 | SDK 不设置上限，受宿主存储空间约束 |
 | 返回 | `VoiceprintRegisterResult.voiceprintId` |
 
-`registerVoiceprint()` 与 `preloadVoiceprintModel()` 都可能同步加载声纹模型，不应放在 UI 关键路径。`preloadVoiceprintModel()` 在模型文件不存在或加载失败时返回 `false`；声纹模型由 `unloadModel()` / `unloadRuntime()` 一并释放。
+`registerVoiceprint()` 与 `preloadVoiceprintModel()` 都会在 extractor 尚未加载时同步加载并预热声纹模型，不应放在 UI 关键路径。注册成功后，同一个进程内的声纹识别复用该 extractor。`preloadVoiceprintModel()` 是可选优化接口，不是普通声纹识别的前置步骤；Runtime 未就绪或加载失败时返回 `false`。
 
-SDK 不在内部丢弃非目标说话人结果；final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧判定。启用 `enableSpeakerVad` 时，SDK 可在目标说话人离场后提前切句。
+启用 `enableVoiceprintVerification` 时，声纹 extractor 在 ASR 会话启动后后台加载，ASR 音频写入和 partial 结果不等待；如果 ASR final 产生时模型仍未就绪，只延后 final 和 `onComplete`，模型就绪后立即完成声纹打分。启用 `enableSpeakerVad` 时需要流式打分，因此冷态 `startListening()` 会同步等待 extractor。
+
+内存声纹 extractor 由 `unloadModel()` / `unloadRuntime()` 一并释放；HAR 内置的模型文件和已注册的 embedding 属于持久数据，不随内存模型卸载。调用 `unloadModel()` 后再次使用声纹能力会重新按需加载 extractor，但无需重新注册声纹。
+
+仅启用 `enableVoiceprintVerification` 时，SDK 不依据相似度丢弃识别结果；final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧判定。启用 `enableSpeakerVad` 时，SDK 会在流式阶段执行目标说话人判断，可拒绝非目标说话人片段，并在目标说话人离场后提前切句。
 
 ## 8. 授权
 

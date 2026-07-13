@@ -11,7 +11,6 @@
 | `har/amphion_dingqiao.har` | ASR SDK（**自包含**：已内置 amphion_asr / amphion_police / sherpa_onnx，客户只需集成这一个）|
 | `har/amphion_tts.har` | TTS SDK（自包含，如需）|
 | `demo/dingqiao-demo.hap` | 验收 Demo |
-| `models/eres2net.onnx` | 声纹模型，放入 `setWorkPath` 指定目录 |
 | `docs/` | 接口、授权、NOTICE 与集成说明 |
 | `amphion-license.lic` | 授权文件，单独签发 |
 
@@ -168,14 +167,18 @@ params.extraParams['termsNormalizeEnabled'] = false;
 
 ## 声纹
 
+`eres2net.onnx` 已内置在 `amphion_dingqiao.har`，SDK 直接从包内加载；`prepareRuntime()` 不复制或加载该模型，不需要宿主分发或导入。
+
+普通 final 声纹校验会在 ASR 启动后后台加载 extractor，不阻塞音频写入和中间识别；如果加载尚未完成，只在 final 前等待。Speaker VAD 需要流式声纹打分，因此冷态启动会同步等 extractor。宿主无需为普通声纹校验调用 `preloadVoiceprintModel()`；该同步接口仅用于主动前置 final 等待或 Speaker VAD 冷启动成本。
+
 ```ts
 SpeechRecognizeSdk.registerVoiceprint({
   voiceprintId: 'user-1',
-  samplePaths: [path1, path2, path3]
+  samplePaths: [path1]
 });
 ```
 
-首版接口已稳定；native 声纹 embedding 接入后无需修改客户调用代码。
+至少需要 1 条 3~8 秒标准 WAV 样本，不限制样本上限；多条样本仅用于提升 embedding 稳定性。SDK 不限制已注册声纹条数，持久化数量只受工作目录可用空间约束。模型文件和注册后的 embedding 是持久数据，`unloadModel()` 只卸载内存中的声纹 extractor，不删除它们。
 
 ## TTS
 

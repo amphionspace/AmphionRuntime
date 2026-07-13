@@ -54,6 +54,7 @@ PATCH_OWNED_NEW_FILES=(
   "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-stream-handle.h"
   "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-recognizer-handle.h"
   "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation-handle.h"
+  "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-embedding-extractor-handle.h"
 )
 for path in "${PATCH_OWNED_NEW_FILES[@]}"; do
   if [[ -e "$path" ]] && ! git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
