@@ -76,6 +76,6 @@ PR 合入后，`main` 分支包含完整源码、交付工程、声纹模型和 
 - 执行 `bash asr/tools/05_package_har_libs.sh`，把已构建的 AArch64 native 库同步到 Harmony HAR 源目录。
 - 执行 `bash asr/tools/08_pack_harmony_assets.sh`；默认直接读取 `asr/tools/demo-model/zhen`、`asr/tools/demo-model/yueen` 及标点/ITN/VAD 源文件，并用固定 ORT 1.16.3 构建环境预优化中英三图与标点图，不再依赖 Android assets。
 - 配置 DevEco 签名后构建 `dingqiao_demo`；无签名配置时只能得到未签名或调试产物。
-- 声纹模型 `eres2net.onnx` 已内置在 `amphion_dingqiao` HAR，SDK 会自动准备到工作目录，无需 Demo 或宿主导入。
+- 声纹模型 `eres2net.onnx` 已内置在 `amphion_dingqiao` HAR，SDK 直接从包内加载，无需 Demo 或宿主导入。
 
 在相同模型、签名和 SDK 环境下，`main` 可以编译出功能一致的应用；但 HAP 二进制不承诺字节级一致，签名、时间戳和构建元数据都会影响 hash。

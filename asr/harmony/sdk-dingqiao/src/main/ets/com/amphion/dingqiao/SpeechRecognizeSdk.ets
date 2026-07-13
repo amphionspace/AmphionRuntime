@@ -252,15 +252,15 @@ function buildTargetSpeakerConfig(startParams: StartParams | undefined, withSpea
   // Final-only verification can attach the extractor after ASR streaming starts. Speaker VAD
   // scores sliding windows during streaming, so it must keep synchronous session construction.
   cfg.deferLoad = !withSpeakerVad;
-  if (withSpeakerVad) {
-    const sv = new SpeakerVadConfig();
-    sv.threshold = clamp(numberParam(extra, 'speakerVadThreshold', 0.40), -1.0, 1.0);
-    sv.winSec = clamp(numberParam(extra, 'speakerVadWindowMs', 1000), 500, 5000) / 1000;
-    sv.hopSec = clamp(numberParam(extra, 'speakerVadHopMs', 300), 100, 2000) / 1000;
-    sv.consecutiveBelow = Math.round(clamp(numberParam(extra, 'speakerVadConsecutiveBelow', 2), 1, 5));
-    sv.enabledByDefault = false;
-    cfg.speakerVad = sv;
-  }
+  // Keep Speaker VAD configured even when initially disabled so the Android-aligned runtime toggle
+  // can enable it later in the same session. Only an initially enabled Speaker VAD makes load sync.
+  const sv = new SpeakerVadConfig();
+  sv.threshold = clamp(numberParam(extra, 'speakerVadThreshold', 0.40), -1.0, 1.0);
+  sv.winSec = clamp(numberParam(extra, 'speakerVadWindowMs', 1000), 500, 5000) / 1000;
+  sv.hopSec = clamp(numberParam(extra, 'speakerVadHopMs', 300), 100, 2000) / 1000;
+  sv.consecutiveBelow = Math.round(clamp(numberParam(extra, 'speakerVadConsecutiveBelow', 2), 1, 5));
+  sv.enabledByDefault = false;
+  cfg.speakerVad = sv;
   return cfg;
 }
 
@@ -349,27 +349,26 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       return;
     }
     if ((verify || speakerVad) && voiceprintIds.length > 0) {
-      try {
-        // Speaker VAD needs the extractor before streaming starts and intentionally pays any
-        // first-use asset installation here. Final-only verification can load the SDK rawfile in
-        // native async work when prepareRuntime has not copied it to workPath yet.
-        speakerModelPath = speakerVad ? DingqiaoSpeakerModelAssets.ensureInstalled(
-          this.context, SpeechRecognizeSdk.getWorkPath()) :
-          DingqiaoSpeakerModelAssets.preferredLoadPath(SpeechRecognizeSdk.getWorkPath());
-      } catch (e) {
-        this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, `${e}`);
-        return;
-      }
+      // Every path uses the same bundled rawfile identity, so registration, final verification,
+      // preload, and Speaker VAD share one extractor pool entry without copying 40 MB on ArkTS.
+      speakerModelPath = DingqiaoSpeakerModelAssets.bundledPath();
       embedding = new VoiceprintStore(SpeechRecognizeSdk.getWorkPath()).loadMergedEmbedding(voiceprintIds);
       if (embedding === undefined) {
         this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.VOICEPRINT_NOT_FOUND, `voiceprint not found for ids: ${voiceprintIds.join(',')}`);
         return;
       }
     }
+    // Android builds the session with voiceprint capability whenever IDs are supplied, even if both
+    // switches start disabled. This preserves setSpeakerVadEnabled(true) for a running session without
+    // loading the model for ordinary sessions that have no voiceprint IDs.
+    const configureTarget = verify || speakerVad || voiceprintIds.length > 0;
     const useTarget = embedding !== undefined && (verify || speakerVad);
 
     try {
-      this.rebuildEngine(params, useTarget, useTarget && speakerVad, speakerModelPath);
+      if (configureTarget && speakerModelPath === undefined) {
+        speakerModelPath = DingqiaoSpeakerModelAssets.bundledPath();
+      }
+      this.rebuildEngine(params, configureTarget, useTarget && speakerVad, speakerModelPath);
       this.lastFinishedSessionId = '';
       this.lastAutoFinishedSessionId = '';
       this.currentSessionId = params.sessionId;
@@ -397,9 +396,6 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         this.session.setTargetSpeakerEnabled(verify);
         if (speakerVad) {
           this.session.setSpeakerVadEnabled(true);
-        } else if (verify && speakerModelPath !== undefined) {
-          this.session.setTargetSpeakerExtractorAsync(
-            AmphionRuntime.getOrCreateSpeakerExtractorAsync(this.context, speakerModelPath, 1));
         }
       }
     } catch (e) {
@@ -442,19 +438,25 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   setSpeakerVadEnabled(enabled: boolean): void {
     this.ensureAlive();
     if (this.session === undefined || !this.busy) return;
-    if (enabled) {
-      const embedding = new VoiceprintStore(SpeechRecognizeSdk.getWorkPath()).loadMergedEmbedding(this.voiceprintIds);
-      if (embedding === undefined) {
-        this.listener?.onError?.(this.currentSessionId, DingqiaoErrorCode.VOICEPRINT_NOT_FOUND, 'voiceprint not found for speaker VAD');
-        return;
+    const sessionId = this.currentSessionId;
+    try {
+      if (enabled) {
+        const embedding = new VoiceprintStore(SpeechRecognizeSdk.getWorkPath()).loadMergedEmbedding(this.voiceprintIds);
+        if (embedding === undefined) {
+          this.listener?.onError?.(sessionId, DingqiaoErrorCode.VOICEPRINT_NOT_FOUND, 'voiceprint not found for speaker VAD');
+          return;
+        }
+        this.session.setTargetSpeaker(embedding);
+        // This API is synchronous by contract. Enabling streaming Speaker VAD is the one path that
+        // intentionally blocks until the extractor is ready; final-only verification never does.
+        this.session.ensureTargetSpeakerExtractor();
       }
-      this.session.setTargetSpeaker(embedding);
-      // This API is synchronous by contract. Enabling streaming Speaker VAD is the one path that
-      // intentionally blocks until the extractor is ready; final-only verification never does.
-      this.session.ensureTargetSpeakerExtractor();
+      this.session.setSpeakerVadEnabled(enabled);
+      this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEAKER_VAD_CHANGED, `speaker vad ${enabled ? 'enabled' : 'disabled'}.`);
+    } catch (e) {
+      this.session.setSpeakerVadEnabled(false);
+      this.listener?.onError?.(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, `setSpeakerVadEnabled failed: ${e}`);
     }
-    this.session.setSpeakerVadEnabled(enabled);
-    this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEAKER_VAD_CHANGED, `speaker vad ${enabled ? 'enabled' : 'disabled'}.`);
   }
 
   finish(sessionId: string): void {
@@ -601,8 +603,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   }
 
   handleAsrError(error: AsrError): void {
-    this.listener?.onError?.(this.currentSessionId, DingqiaoErrorCode.RECOGNITION_ERROR, `${error.code}: ${error.message}`);
+    const sessionId = this.currentSessionId;
     this.tearDownSession();
+    this.listener?.onError?.(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, `${error.code}: ${error.message}`);
   }
 
   handleSessionStarted(): void {
@@ -871,13 +874,13 @@ export class SpeechRecognizeSdk {
 
   // ---- 两级加载(L1 运行时 / L2 模型)---------------------------------------------------------
   // 甲方契约:占内存的模型「用完释放、用时当场起」;不占内存的运行时框架「可常驻加速」。
-  // prepareRuntime/unloadRuntime 管 L1(运行时),并可准备不占推理内存的持久磁盘资源;
-  // createEngine/registerVoiceprint/unloadModel 管 L2(内存模型)。具体净内存与时延以目标设备
-  // 的交付测量表为准。createEngine 已实现「未加载则加载,已加载则复用只建会话」。
+  // prepareRuntime/unloadRuntime 管 L1(运行时);createEngine/registerVoiceprint/unloadModel 管 L2
+  // (内存模型)。具体净内存与时延以目标设备的交付测量表为准。createEngine 已实现
+  // 「未加载则加载,已加载则复用只建会话」。
 
   /**
-   * L1:拉起 SDK 运行时框架，并尽力把内置声纹文件准备到 workPath，但不加载任何推理权重。
-   * 调用前必须先成功 setLicense；Runtime 初始化幂等且 single-flight，并发调用共享同一任务。
+   * L1:只拉起 SDK 运行时框架，不加载或复制模型。调用前必须先成功 setLicense；Runtime 初始化
+   * 幂等且 single-flight，并发调用共享同一任务。
    */
   static prepareRuntime(callback: PrepareRuntimeCallback): void {
     const context = SpeechRecognizeSdk.context;
@@ -900,7 +903,6 @@ export class SpeechRecognizeSdk {
       return;
     }
     if (AmphionRuntime.isRuntimeReady()) {
-      SpeechRecognizeSdk.prepareBundledSpeakerModel(context);
       callback.onReady();
       return;
     }
@@ -918,7 +920,6 @@ export class SpeechRecognizeSdk {
           callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, 'prepareRuntime cancelled by unloadRuntime');
           return;
         }
-        SpeechRecognizeSdk.prepareBundledSpeakerModel(context);
         callback.onReady();
       })
       .catch((e: Object): void => {
@@ -1028,12 +1029,12 @@ export class SpeechRecognizeSdk {
     try {
       const context = SpeechRecognizeSdk.context;
       if (context === undefined) throw new Error('SpeechRecognizeSdk.init must be called first');
-      const modelPath = DingqiaoSpeakerModelAssets.ensureInstalled(context, SpeechRecognizeSdk.workPath);
+      const modelPath = DingqiaoSpeakerModelAssets.bundledPath();
       // Reuse the shared, pooled extractor so registration warms the SAME instance the recognition
       // path uses — the ~38 MB eres2net load is paid here (where a wait is expected) and start
       // recognition stays instant.
-      const extractor = AmphionRuntime.getOrCreateSpeakerExtractor(undefined, modelPath, 1);
-      const enroller = new SpeakerEnroller(modelPath, 1, undefined, extractor);
+      const extractor = AmphionRuntime.getOrCreateSpeakerExtractor(context, modelPath, 1);
+      const enroller = new SpeakerEnroller(modelPath, 1, context, extractor);
       const embedding = enroller.enrollFiles(params.samplePaths);
       enroller.close();
       // Persist to {workPath}/voiceprints/{id}; auto-generated id is returned to the caller and
@@ -1063,7 +1064,7 @@ export class SpeechRecognizeSdk {
   /**
    * Preload + warm the voiceprint extractor. Final-only verification already loads it in the
    * background; explicit preload removes its final-result wait and Speaker VAD cold-start cost.
-   * Idempotent (no-op once pooled). Returns false if model installation or loading fails.
+   * Idempotent (no-op once pooled). Returns false if Runtime is not ready or model loading fails.
    * Registration already warms the same pool, so this mainly covers the app-restart case
    * (model on disk + voiceprint registered, but the in-memory pool is cold). Synchronous - call it
    * only at a caller-chosen non-critical moment.
@@ -1072,21 +1073,12 @@ export class SpeechRecognizeSdk {
     try {
       const context = SpeechRecognizeSdk.context;
       if (context === undefined) return false;
-      const modelPath = DingqiaoSpeakerModelAssets.ensureInstalled(context, SpeechRecognizeSdk.workPath);
-      AmphionRuntime.getOrCreateSpeakerExtractor(undefined, modelPath, 1);
+      const modelPath = DingqiaoSpeakerModelAssets.bundledPath();
+      AmphionRuntime.getOrCreateSpeakerExtractor(context, modelPath, 1);
       return true;
     } catch (e) {
       return false;
     }
   }
 
-  private static prepareBundledSpeakerModel(context: Context): void {
-    if (SpeechRecognizeSdk.workPath.length === 0) return;
-    try {
-      DingqiaoSpeakerModelAssets.ensureInstalled(context, SpeechRecognizeSdk.workPath);
-    } catch (e) {
-      // Voiceprint is optional. Registration and voiceprint recognition retry installation and
-      // surface the concrete error without making ASR runtime preparation fail.
-    }
-  }
 }
