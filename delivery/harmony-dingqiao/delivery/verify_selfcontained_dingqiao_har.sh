@@ -12,6 +12,7 @@ NODE="$DEVECO_HOME/tools/node/bin/node"
 HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
 OHPM="$DEVECO_HOME/tools/ohpm/bin/ohpm"
 JAVA_HOME_VALUE="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
+EXPECTED_VERSION="${AMPHION_RUNTIME_VERSION:-0.2.0}"
 WORK=""
 
 cleanup() {
@@ -34,7 +35,8 @@ python3 - \
   "$REPO_ROOT/asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police" \
   "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
-  "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" <<'PY'
+  "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
+  "$EXPECTED_VERSION" <<'PY'
 import sys
 import tarfile
 import json
@@ -43,6 +45,7 @@ from pathlib import Path
 
 har = Path(sys.argv[1])
 police_root = Path(sys.argv[3])
+expected_version = sys.argv[7]
 expected = {
     "package/_bundled/amphion_asr/src/main/resources/rawfile/amphion-models/manifest.json": Path(sys.argv[2]),
     "package/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx": Path(sys.argv[4]),
@@ -52,6 +55,59 @@ expected = {
     "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[6]),
 }
 with tarfile.open(har, "r:gz") as package:
+    names = package.getnames()
+    forbidden_names = {"CONTRACT_TESTS.md", "oh-package-lock.json5"}
+    forbidden = [
+        name for name in names
+        if Path(name).name in forbidden_names or "/tests/" in f"/{name}/"
+    ]
+    if forbidden:
+        raise SystemExit(
+            "[ERROR] self-contained HAR contains internal test material: "
+            + ", ".join(forbidden[:10])
+        )
+    text_suffixes = {".md", ".json", ".json5", ".txt", ".csv", ".tsv"}
+    for member_info in package.getmembers():
+        if not member_info.isfile() or Path(member_info.name).suffix.lower() not in text_suffixes:
+            continue
+        member = package.extractfile(member_info)
+        if member is None:
+            continue
+        text = member.read().decode("utf-8", errors="ignore")
+        if "/Users/" in text or '"file:../sdk' in text or '"file:../../../' in text:
+            raise SystemExit(
+                f"[ERROR] self-contained HAR contains a local source dependency/path: {member_info.name}"
+            )
+    version_packages = [
+        "package/oh-package.json5",
+        "package/_bundled/amphion_asr/oh-package.json5",
+        "package/_bundled/amphion_police/oh-package.json5",
+        "package/_bundled/amphion_asr/src/main/cpp/types/libamphion_asr/oh-package.json5",
+    ]
+    for member_name in version_packages:
+        member = package.extractfile(member_name)
+        if member is None:
+            raise SystemExit(f"[ERROR] self-contained HAR is missing version metadata: {member_name}")
+        metadata = json.loads(member.read().decode("utf-8"))
+        if metadata.get("version") != expected_version:
+            raise SystemExit(
+                f"[ERROR] self-contained HAR version mismatch in {member_name}: "
+                f"{metadata.get('version')} != {expected_version}"
+            )
+        if member_name.endswith("/oh-package.json5") and "metadata" in metadata:
+            if metadata["metadata"].get("debug") is not False:
+                raise SystemExit(f"[ERROR] self-contained HAR is not a release build: {member_name}")
+    for member_name in [
+        "package/BuildProfile.ets",
+        "package/_bundled/amphion_asr/BuildProfile.ets",
+        "package/_bundled/amphion_police/BuildProfile.ets",
+    ]:
+        member = package.extractfile(member_name)
+        if member is None:
+            raise SystemExit(f"[ERROR] self-contained HAR is missing BuildProfile: {member_name}")
+        profile = member.read().decode("utf-8")
+        if f"HAR_VERSION = '{expected_version}'" not in profile or "DEBUG = false" not in profile:
+            raise SystemExit(f"[ERROR] stale/non-release BuildProfile in {member_name}")
     for member_name, local_path in expected.items():
         member = package.extractfile(member_name)
         if member is None:
@@ -68,7 +124,7 @@ with tarfile.open(har, "r:gz") as package:
             raise SystemExit(f"[ERROR] self-contained HAR is missing police asset: {member_name}")
         if hashlib.sha256(member.read()).hexdigest() != expected_sha256:
             raise SystemExit(f"[ERROR] self-contained HAR police asset differs from Android: {member_name}")
-print("[OK] self-contained HAR ASR/voiceprint models, police assets, and native libraries match local artifacts")
+print(f"[OK] self-contained HAR {expected_version} is customer-clean; models, police assets, and native libraries match")
 PY
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/amphion-har-customer.XXXXXX")"

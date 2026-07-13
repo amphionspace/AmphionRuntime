@@ -1,11 +1,12 @@
 # Changelog
 
-## 0.1.0 — hotfix 2026-07-13（License / Runtime / Model 生命周期）
+## 0.2.0 — 2026-07-13（正式 HarmonyOS SDK-only 交付）
 
 - `setLicense` 只执行离线授权校验与缓存，不再隐式拉起 Runtime。
 - 新增 `prepareRuntime` / `unloadRuntime` 和 `unloadModel`，形成 License、Runtime、Model 三层控制；`unloadRuntime` 保留已验证授权，模型未卸载时跟随释放。
 - `createEngineAsync` / `createEngine` 在模型未加载时加载，同语言、同配置已加载时复用。
 - 新增 HarmonyOS 客户接口文档和十轮全流程耗时、SDK 净内存报告及甲方简版摘要，并纳入客户交付包。
+- 正式交付改为自包含 HAR + 文档，不包含 Demo HAP 或 License；统一全部公开版本标识为 `0.2.0`，License 兼容代际保持 `sdkMajor=1`。
 
 ## 0.1.0 - hotfix 2026-07-13（声纹模型与生命周期）
 
@@ -16,7 +17,7 @@
 
 ## 0.1.0 — hotfix 2026-07-12（Harmony ASR 冷加载）
 
-- `zhen` encoder/INT8 decoder/joiner 与标点模型在构建期转换为 ARM CPU ORT 格式，运行时关闭重复图优化并直接使用 rawfile 映射模型字节。
+- `zhen` INT8 encoder、FP32 decoder、INT8 joiner 与标点模型在构建期转换为 ARM CPU ORT 格式；FP32 decoder 用于避免 INT8 decoder 的明显漏 token。
 - recognizer 与标点异步并行加载；transducer Session 采用 encoder 关键 lane 与 decoder/joiner 辅助 lane，相同配置使用 single-flight 与进程内 pool。
 - 鼎桥配置使用 4 个 ORT worker，并跳过收益不足的 800 ms eager warmup。
 - 新增独立进程 `createEngineAsync` 加载基准，固定设备构建、模型源哈希、HAP/native hash、线程数、预热样本和标点状态。

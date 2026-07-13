@@ -1,6 +1,7 @@
-Amphion Runtime HarmonyOS SDK
+Amphion Runtime HarmonyOS SDK 0.2.0
 
-This product includes software derived from sherpa-onnx and ONNX Runtime. See bundled third-party notices in the final delivery package.
+This product includes sherpa-onnx (Apache License 2.0) and ONNX Runtime 1.16.3
+(MIT License). The complete license texts are distributed in docs/third-party/.
 
 3D-Speaker / eres2net voiceprint model
 Project:     3D-Speaker (Alibaba DAMO Academy)

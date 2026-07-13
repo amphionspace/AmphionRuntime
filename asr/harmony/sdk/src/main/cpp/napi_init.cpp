@@ -4,7 +4,7 @@
 
 static napi_value NativeVersion(napi_env env, napi_callback_info info) {
   napi_value value;
-  napi_create_string_utf8(env, "amphion-harmony-native-0.1.0", NAPI_AUTO_LENGTH, &value);
+  napi_create_string_utf8(env, "amphion-harmony-native-0.2.0", NAPI_AUTO_LENGTH, &value);
   return value;
 }
 

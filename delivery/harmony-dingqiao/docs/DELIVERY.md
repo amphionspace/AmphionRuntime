@@ -11,7 +11,7 @@
 ## 构建步骤
 
 从干净检出开始，先从受控制品库准备 `asr/tools/demo-model/zhen`、`yueen`、标点、ITN、VAD 和可选
-TTS 模型输入。`zhen` 正式输入必须包含 `encoder.int8.onnx`、`decoder.int8.onnx`、
+TTS 模型输入。`zhen` 正式输入必须包含 `encoder.int8.onnx`、`decoder.onnx`（FP32）、
 `joiner.int8.onnx`、`tokens.txt` 和 `bbpe.vocab`。这些模型目录被 Git 忽略；公开 demo 下载
 脚本不是本次交付模型。当前源 SHA-256 见 [`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)。
 
@@ -67,7 +67,7 @@ HARMONY_SIGNING_CONFIG=.secure/harmony-signing.json \
 
 本地签名文件结构见 `delivery/harmony-dingqiao/delivery/harmony-signing.example.json`，应放在 `.secure/` 下并执行 `chmod 600`。构建脚本把工程复制到系统临时目录后再注入签名配置，仓库内的 `build-profile.json5` 不会接触口令。普通 Demo 运行时固定注入 ODID，因此设备绑定 license 默认读取 `.secure/dingqiao_demo_device_ids.txt`，该清单必须包含运行时 `deviceInfo.ODID`；正式系统宿主使用 SN 时应通过 `DINGQIAO_DEVICE_ID_FILE` 显式指定另一份清单，两种标识不可混用。license 缺失时，smoke 脚本会从 `.secure/amphion-license-private.pem` 与设备清单本地签发；已有 license 与清单不一致时仍会失败，避免静默改写授权范围。脚本不会输出口令或明文设备标识。
 
-HAP 预检使用 DevEco Studio 自带的 `hap-sign-tool.jar` 校验应用签名和 profile，并核对 bundle、module、license、arm64 native 库及预期证书链。客户包组装自包含 ASR HAR 后，会在临时宿主中仅声明该 HAR，执行本地安装和 HAP 编译；`docs/checksum.txt` 不包含自身，打包脚本会在替换旧交付目录前执行一次完整 `shasum -c`。
+HAP 预检使用 DevEco Studio 自带的 `hap-sign-tool.jar` 校验应用签名和 profile，并核对 bundle、module、license、arm64 native 库及预期证书链。客户包组装自包含 ASR HAR 后，会在临时宿主中仅声明该 HAR，执行本地安装和 HAP 编译；`docs/checksum.txt` 不包含自身，打包脚本会在替换旧交付目录前执行一次完整 `shasum -c`。`--sdk-only` 不读取、校验或复制 demo HAP，也不要求签名配置；临时客户宿主的编译仅用于验证自包含 HAR 可集成，该临时产物不进入交付包。
 
 ## 客户包结构
 
@@ -87,13 +87,34 @@ dingqiao-harmony-delivery-<version>/
     ├── LICENSE.md
     ├── NOTICE
     ├── PRIVACY.md
+    ├── TROUBLESHOOTING.md
     ├── MODEL_LOAD_PERFORMANCE.md
     ├── SDK_LIFECYCLE_PERFORMANCE_20260713.md
     ├── SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md
     ├── BUILD_PROVENANCE.json
     ├── CHANGELOG.md
+    ├── third-party/
+    │   ├── Apache-2.0.txt
+    │   └── ONNX-Runtime-MIT.txt
     └── checksum.txt
 ```
+
+`--sdk-only` 为正式 ASR SDK 交付口径，目录中只有自包含 HAR 和文档，不会创建 `demo/`、`tts-models/` 或复制 TTS HAR：
+
+```text
+dingqiao-harmony-delivery-<version>/
+├── README.md
+├── har/
+│   └── amphion_dingqiao.har
+└── docs/
+    ├── ASR_SDK_API_HARMONY.md
+    ├── BUILD_PROVENANCE.json
+    ├── checksum.txt
+    └── ...
+```
+
+SDK-only 包将中文 API 文档以 ASCII 文件名 `ASR_SDK_API_HARMONY.md` 交付，正文仍为中文，避免 Windows 或部分 ZIP 工具对中文路径解码不一致。默认和 `--asr-only` 模式的原有目录与文件名保持不变。
+SDK-only 只保留 `SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md` 性能摘要，不复制包含旧 HAR/HAP 身份信息的完整历史报告或内部模型加载报告。所有模式都交付 `TROUBLESHOOTING.md`、Apache 2.0 和 ONNX Runtime MIT 许可证。
 
 ## 打包脚本
 
@@ -103,9 +124,12 @@ bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.
 
 # 本次 ASR SDK + demo 交付，不依赖 TTS 构建产物
 bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh --asr-only
+
+# 正式 ASR SDK-only 交付：仅自包含 HAR + docs，不需要 demo HAP 和签名配置
+bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh --sdk-only
 ```
 
-脚本只收集已构建产物，不负责启动各 SDK 的 DevEco 构建。默认完整模式要求 ASR 和 TTS HAR；`--asr-only` 明确生成只含 ASR SDK/demo 的交付包。正式打包默认要求干净工作区；`--allow-dirty` 只用于本地非发布验收，并会在 `BUILD_PROVENANCE.json` 标记。provenance 记录 Git commit/branch、sherpa submodule 与 patch series、模型源哈希、转换器、native、HAR/HAP 哈希。自包含 ASR HAR 无法被干净宿主安装或编译、所选模式的 HAR 缺失、signed HAP 无效、HAP/HAR 模型 manifest/native 与本地已验收产物不一致或 HAP 内必需资源缺失时都会直接失败，不再生成残缺交付包。
+脚本只收集已构建产物，不负责启动各 SDK 的 DevEco 构建。默认完整模式要求 ASR 和 TTS HAR 并交付 demo HAP；`--asr-only` 生成只含 ASR SDK/demo 的交付包；`--sdk-only` 则仅交付 ASR HAR 和文档。`--asr-only` 和 `--sdk-only` 不能同时使用。正式打包默认要求干净工作区；`--allow-dirty` 只用于本地非发布验收，并会在 `BUILD_PROVENANCE.json` 标记。provenance 总是记录 Git commit/branch、sherpa submodule 与 patch series、模型源哈希、转换器、native 和实际交付产物哈希；SDK-only 模式明确记录 `sdk_only: true`，其 artifacts 和 checksum 中均不会出现 HAP。自包含 ASR HAR 无法被干净宿主安装或编译、所选模式的 HAR 缺失，或默认/ASR-only 模式的 signed HAP 无效、HAP/HAR 模型 manifest/native 与本地已验收产物不一致、HAP 内必需资源缺失时都会直接失败，不生成残缺交付包。
 
 声纹模型 `eres2net.onnx` 已内置在自包含 `amphion_dingqiao.har`，不再作为 `models/` 下的独立客户产物。HAR 验证会逐字节校验该资源，缺失或内容不一致时打包失败。
 
@@ -122,7 +146,7 @@ bash asr/tools/08_pack_harmony_assets.sh
 
 其中 `04_build_harmony_so.sh` 会自动调用 `apply_sherpa_patches.sh`，把 `third_party/patches/sherpa-amphion/` 中的 patch 应用到 sherpa-onnx；不要提交 `third_party/sherpa-onnx` 的本地工作区改动或 submodule 指针。`08_pack_harmony_assets.sh` 默认直接使用 `asr/tools/demo-model/zhen`、`asr/tools/demo-model/yueen` 及标点/ITN/VAD 源文件，并在构建期生成 Harmony 专用 ORT 资产；不再要求先打 Android assets。
 
-构建 signed HAP 还需要本机 DevEco 签名配置；无签名配置时只能生成未签名或调试产物。即使输入相同，HAP 的签名、时间戳和构建元数据也会影响 hash，因此交付验收以功能和清单一致为准，不承诺字节级一致。
+构建 signed HAP 还需要本机 DevEco 签名配置；无签名配置时只能生成未签名或调试产物。该限制适用于默认和 `--asr-only` 交付，不适用于不交付 HAP 的 `--sdk-only`。即使输入相同，HAP 的签名、时间戳和构建元数据也会影响 hash，因此交付验收以功能和清单一致为准，不承诺字节级一致。
 
 ## 验收
 

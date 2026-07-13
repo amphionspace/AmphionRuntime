@@ -1,5 +1,6 @@
 import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
 import { PoliceEngineConfig, PoliceEnhanceOptions, PoliceEnhancePipeline } from 'amphion_police';
+import { bundleManager } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
@@ -9,7 +10,6 @@ import {
   CreateEngineCallback,
   CreateEngineParams,
   DINGQIAO_AUDIO_FRAME_BYTES_20MS,
-  DINGQIAO_AUDIO_FRAME_BYTES_40MS,
   DINGQIAO_VOICEPRINT_MAX_SEC,
   DINGQIAO_VOICEPRINT_MIN_SAMPLES,
   DINGQIAO_VOICEPRINT_MIN_SEC,
@@ -294,6 +294,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private audioBytesWritten: number = 0;
   private voiceprintIds: string[] = [];
   private startingSession: boolean = false;
+  // Core newSession() currently emits onSessionStarted synchronously from its constructor. Hold that
+  // notification until this wrapper has stored and fully configured the returned session, so calls
+  // such as writeAudio()/cancel() made inside the customer's onStart callback see an active session.
+  private sessionStartedDuringStart: boolean = false;
   private cancelRequestedDuringStart: boolean = false;
   // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
   private engineCfgKey: string = '';
@@ -382,10 +386,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.busy = true;
       const callback: AsrCallback = new DingqiaoAsrCallback(this);
       this.startingSession = true;
+      this.sessionStartedDuringStart = false;
       this.cancelRequestedDuringStart = false;
       const createdSession = this.asrEngine.newSession(callback);
       this.startingSession = false;
       if (this.cancelRequestedDuringStart || this.destroyed || !this.busy || this.currentSessionId !== params.sessionId) {
+        this.sessionStartedDuringStart = false;
         this.cancelRequestedDuringStart = false;
         createdSession.close();
         return;
@@ -398,8 +404,13 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           this.session.setSpeakerVadEnabled(true);
         }
       }
+      if (this.sessionStartedDuringStart) {
+        this.sessionStartedDuringStart = false;
+        this.notifySessionStarted();
+      }
     } catch (e) {
       this.startingSession = false;
+      this.sessionStartedDuringStart = false;
       this.cancelRequestedDuringStart = false;
       this.tearDownSession();
       this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, `${e}`);
@@ -544,6 +555,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finalResultSent = false;
     this.completeSent = false;
     this.voiceprintIds = [];
+    this.sessionStartedDuringStart = false;
   }
 
   private tearDownSession(): void {
@@ -613,8 +625,16 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   }
 
   handleSessionStarted(): void {
+    if (this.startingSession) {
+      this.sessionStartedDuringStart = true;
+      return;
+    }
+    this.notifySessionStarted();
+  }
+
+  private notifySessionStarted(): void {
     const sessionId = this.currentSessionId;
-    if (!this.busy || sessionId.length === 0) return;
+    if (!this.busy || this.session === undefined || sessionId.length === 0) return;
     this.listener?.onStart?.(sessionId, 'startListening success.');
     if (!this.busy || this.currentSessionId !== sessionId) return;
     this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEECH_BEGIN, 'speech started.');
@@ -713,6 +733,29 @@ class CoreDeviceIdProviderAdapter implements AmphionDeviceIdProvider {
       return undefined;
     }
   }
+}
+
+class HostAppIdentity {
+  bundleName?: string;
+  signingCertDigest?: string;
+}
+
+function readHostAppIdentity(): HostAppIdentity {
+  const identity = new HostAppIdentity();
+  try {
+    // API 10+ genuine synchronous self-query (the delivery target is API 12). Using the explicit
+    // signature flag makes signatureInfo.fingerprint the installed host certificate SHA-256, not
+    // an SDK/HAR certificate. No cross-application query permission is required for "ForSelf".
+    const bundleInfo = bundleManager.getBundleInfoForSelfSync(
+      bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_SIGNATURE_INFO);
+    identity.bundleName = bundleInfo.name;
+    const fingerprint = bundleInfo.signatureInfo.fingerprint.trim();
+    if (fingerprint.length > 0) identity.signingCertDigest = fingerprint;
+  } catch (_e) {
+    // An unbound license remains usable. A license containing signingCertDigest is rejected by the
+    // core verifier when this value is unavailable, so certificate binding always fails closed.
+  }
+  return identity;
 }
 
 // license expiresAt("YYYY-MM-DD")→ epoch ms(当日 00:00:00 UTC),对齐安卓 toExpireTimeMillis
@@ -846,8 +889,11 @@ export class SpeechRecognizeSdk {
   private static buildRuntimeOptions(licenseText: string,
     provider: LicenseDeviceIdProvider): AmphionOptions {
     const options = new AmphionOptions();
+    const hostIdentity = readHostAppIdentity();
     options.license = licenseText;
     options.deviceIdProvider = new CoreDeviceIdProviderAdapter(provider);
+    options.bundleName = hostIdentity.bundleName;
+    options.signingCertDigest = hostIdentity.signingCertDigest;
     return options;
   }
 

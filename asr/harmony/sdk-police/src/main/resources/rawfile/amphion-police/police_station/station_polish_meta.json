@@ -1,6 +1,6 @@
 {
   "scope": "polish",
-  "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_station_fst_experiment/output/station_polish.fst",
+  "fst_path": "station_polish.fst",
   "phase": "p1",
   "note": "P2 punct + P3 mid rules; polish_end stays in host",
   "rewrite_pairs": [

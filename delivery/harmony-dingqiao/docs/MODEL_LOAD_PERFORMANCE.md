@@ -23,8 +23,8 @@
 并行创建 recognizer 与 punctuation。encoder、decoder 和 joiner 的 Session 初始化采用多 lane，
 但整体关键路径仍是约 155 MiB encoder 的 Session 创建和权重预打包。
 
-`zhen` 使用 INT8 decoder。打包脚本仅在 `decoder.int8.onnx` 缺失时兼容回退到
-`decoder.onnx`，正式交付不应依赖该回退。
+`zhen` 固定使用 FP32 `decoder.onnx`；INT8 decoder 曾在真机造成明显漏 token，已从正式
+Harmony 打包输入中移除。打包脚本强制要求 FP32 decoder，不提供 INT8 回退。
 
 `demo-model/zhen` 和 `yueen` 是不入 Git 的受控模型输入，干净检出后必须从内部制品库恢复；
 公开 demo 下载脚本不能替代本次交付模型。当前 `zhen` 源文件身份如下，恢复后应由
@@ -33,7 +33,7 @@
 | 源文件 | SHA-256 |
 | --- | --- |
 | `encoder.int8.onnx` | `cbb44392d7c7ecbf16495dec7517c724b4717667b2bd7c591efd1282029dcc1a` |
-| `decoder.int8.onnx` | `2b2eac6b42a78d7090d8eb5ea258a5e380ae3935acfb4b9737d8623109928fe5` |
+| `decoder.onnx` | `d420d9bfd846b35c10ad438b33ce0f1bb13ca82b81250ba28ebe6df292afa918` |
 | `joiner.int8.onnx` | `31ac778b0b43ba89c424ddfc25b4192cac571f39a950867dc1f571ea5257023e` |
 | `tokens.txt` | `29a20d469f044011706d9720ff31770e5dcd6c30714943282e9563a55c6918f5` |
 | `bbpe.vocab` | `aa7a1b34d6a10e666f32dd7bc34599f16bd7602a3ed67602873c603dae978514` |
@@ -56,13 +56,14 @@
 48 轮真实 WAV burst 回归：48/48 完成、空 final 4.1667%、首轮 120 ms、总耗时
 21858 ms、峰值 RSS 571.863 MiB。该短跑的 RSS slope 只作观察，不作为泄漏结论。
 
-### 2026-07-12 第二台设备单变量复核（9020）
+### 2026-07-12 第二台设备历史单变量复核（9020）
 
 在另一台设备 `3ZF0225520048151`（`PLR-AL00`、`OpenHarmony-6.1.0.115`，Kirin 9020，比
 6CT9K 的 8020 新一代）上做**单变量对照**：只把模型格式在 ORT 与 ONNX 之间切换
 （`AssetRegistry` 指向 `.ort` 或 `.onnx`），异步并行 lane、4 worker、eager warmup=0、
-native `.so`、bench harness 与源模型全部保持一致。ORT 组 decoder 源 SHA `2b2eac6b…`
-（真 INT8 `decoder.int8.onnx`），ONNX 组用 `decoder.onnx`（FP32）。
+native `.so` 和 bench harness 保持一致。该次 ORT 组仍使用后来废弃的 INT8 decoder，
+ONNX 组使用 FP32 decoder，因此只用于证明离线 ORT 图优化的启动收益，**不能作为当前
+FP32 decoder 正式交付的制品身份或准确率结论**。
 
 **以单次冷启（凉机、用户实际首启场景）为准**：
 
@@ -112,7 +113,7 @@ python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
 ```
 
 默认门槛要求 p50 至少改善 20%，且 p95 回退不超过 3%。报告和设备压力测试 artifact
-包含设备信息，不进入客户交付包；交付包通过 `docs/checksum.txt` 固定实际 HAR/HAP 与文档。
+包含设备信息，不进入客户交付包；SDK-only 交付包通过 `docs/checksum.txt` 固定实际 HAR 与文档。
 
 ## 已验证但未采用的方案
 

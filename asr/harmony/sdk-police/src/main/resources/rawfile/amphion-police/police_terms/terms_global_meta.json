@@ -1,8 +1,8 @@
 {
-  "source_csv": "/Users/amphion/Desktop/work/projects/鼎桥/AmphionRuntime/asr/android/sdk-police/src/main/assets/police_terms/term_homophones.csv",
+  "source_csv": "term_homophones.csv",
   "scope": "global",
   "pair_count": 316,
-  "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_terms_fst_experiment/output/terms_global.fst",
+  "fst_path": "terms_global.fst",
   "phase": "p0",
   "note": "gazetteer longest-match stays in host (scheme A); sequential cdrewrite compose",
   "pairs": [

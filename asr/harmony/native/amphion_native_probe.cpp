@@ -4,5 +4,5 @@
 #include <string>
 
 std::string AmphionNativeProbeVersion() {
-  return "amphion-harmony-native-probe-0.1.0";
+  return "amphion-harmony-native-probe-0.2.0";
 }

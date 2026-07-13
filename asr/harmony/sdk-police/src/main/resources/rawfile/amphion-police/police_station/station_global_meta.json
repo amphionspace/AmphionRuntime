@@ -1,8 +1,8 @@
 {
-  "source_csv": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_station_enhance/station_homophones.csv",
+  "source_csv": "station_homophones.csv",
   "scope": "global",
   "pair_count": 136,
-  "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_station_fst_experiment/output/station_global.fst",
+  "fst_path": "station_global.fst",
   "phase": "p0",
   "note": "gazetteer-category rules stay in host (scheme A); sequential cdrewrite compose",
   "pairs": [

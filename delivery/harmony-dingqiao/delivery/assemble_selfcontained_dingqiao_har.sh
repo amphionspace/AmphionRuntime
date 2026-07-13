@@ -54,6 +54,15 @@ cp -R "$WORK/ex/asr/package"    "$WORK/sc/_bundled/amphion_asr"
 cp -R "$WORK/ex/police/package" "$WORK/sc/_bundled/amphion_police"
 cp -R "$WORK/ex/sherpa/package" "$WORK/sc/_bundled/sherpa_onnx"
 
+# HAR 构建会把模块根目录里的开发文档、lock 和测试带进 package；客户制品不应包含这些内部资料。
+rm -rf "$WORK/sc/tests" "$WORK/sc/_bundled/"*/tests
+find "$WORK/sc" -type f \( \
+  -name 'CONTRACT_TESTS.md' -o \
+  -name 'oh-package-lock.json5' -o \
+  -name 'README.md' -o \
+  -name '.gitkeep' \
+\) -delete
+
 # 改写内部依赖为包内相对路径(保留 .so 依赖)
 python3 - "$WORK/sc" <<'PY'
 import json

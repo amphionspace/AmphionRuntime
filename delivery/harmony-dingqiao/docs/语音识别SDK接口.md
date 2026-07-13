@@ -4,11 +4,16 @@
 
 | 文档项 | 值 |
 | --- | --- |
-| 文档版本 | v1.3（HarmonyOS 声纹模型生命周期扩展） |
+| 文档版本 | v1.4（HarmonyOS 正式交付契约） |
 | 更新日期 | 2026-07-13 |
 | SDK 依赖 | `amphion_dingqiao` |
+| SDK 版本 | `0.2.0`（运行时标识 `0.2.0-harmony`，授权主版本 `1`） |
 
 SDK 依赖名为 `amphion_dingqiao`，核心入口为 `SpeechRecognizeSdk`。本版包含 License、Runtime、Model 三层生命周期控制，以及内置声纹模型的按需加载策略，便于宿主控制模型内存和识别启动时延。
+
+集成工具链要求 DevEco Studio 5.x、HarmonyOS SDK 5.x（Stage 模型）；运行环境要求
+HarmonyOS API 12 或更高版本，仅支持 `arm64-v8a` 真机。宿主负责申请麦克风权限并通过
+`AudioCapturer` 采集音频；SDK 只接收 PCM，不主动申请录音权限。
 
 ## 1. 最小调用顺序
 
@@ -59,7 +64,10 @@ SpeechRecognizeSdk.setLicense(licensePath, {
 });
 ```
 
-`writeAudio` 输入为 16 kHz、16 bit、单声道 PCM，每帧 640 字节，对应 20 ms 音频。调用 `finish` 表示本次会话音频输入结束，SDK 输出最后一次 final 结果并回调 `onComplete`。
+`writeAudio` 输入为 PCM S16LE、16 kHz、16 bit、单声道，每帧严格 640 字节，对应 20 ms
+音频。帧必须连续、按时间顺序写入。调用 `finish` 表示本次会话音频输入结束，SDK 会处理
+尾部缓存、输出最后一次 final 结果并回调 `onComplete`。历史导出的
+`DINGQIAO_AUDIO_FRAME_BYTES_40MS` 仅用于源码兼容，已废弃；实现不接受 1280 字节帧。
 
 不再使用模型时，先结束会话并释放引擎，再按需要卸载模型或整个 Runtime：
 
@@ -86,8 +94,8 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | `SpeechRecognizeSdk.createEngineAsync(params: CreateEngineParams, callback: CreateEngineCallback)` | 异步创建引擎；推荐用于模型冷加载 |
 | `SpeechRecognizeSdk.unloadModel(): void` | 卸载模型，保留 Runtime 和已验证授权 |
 | `SpeechRecognizeSdk.unloadRuntime(): void` | 卸载 SDK 管理的 Runtime 状态；模型跟随释放，已验证授权保留 |
-| `SpeechRecognizeSdk.registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult` | 注册本地声纹 |
-| `SpeechRecognizeSdk.deleteVoiceprint(voiceprintId: string): boolean` | 删除本地声纹 |
+| `SpeechRecognizeSdk.registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult` | 同步注册本地声纹；需 Runtime 已就绪 |
+| `SpeechRecognizeSdk.deleteVoiceprint(voiceprintId: string): boolean` | 删除本地声纹；不存在时抛出含 `1002200024` 的错误 |
 | `SpeechRecognizeSdk.preloadVoiceprintModel(): boolean` | 同步预加载并预热声纹模型；应在非 UI 关键路径调用 |
 
 声纹模型 `eres2net.onnx` 已内置在 `amphion_dingqiao.har`，宿主无需单独分发、导入或复制。`setWorkPath` 指向可读写目录，用于保存已注册的声纹 embedding；SDK 不会把 HAR 内模型复制到该目录。
@@ -199,7 +207,18 @@ interface CreateEngineCallback {
 | `online` | `number` | `1` | 当前仅支持离线模式 `DingqiaoOnlineMode.OFFLINE` |
 | `extraParams` | `Record<string, Object>` | 空 | 扩展参数 |
 
-`extraParams['sysGeneralLexicon']` 可传入 `string[]` 作为系统热词。SDK 会将客户热词与警务域默认热词合并后用于 ASR 解码。
+`extraParams` 支持：
+
+| 参数 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `sysGeneralLexicon` | `string[]` 或 `string` | 空 | 系统热词；字符串可用逗号或换行分隔 |
+| `plateNormalizeEnabled` | `boolean` | `true` | 是否启用车牌增强 |
+| `stationNormalizeEnabled` | `boolean` | `true` | 是否启用派出所增强 |
+| `termsNormalizeEnabled` | `boolean` | `true` | 是否启用警务术语增强 |
+| `disablePrepack` | `boolean` | `false` | 禁用 ORT 权重 prepack；可降低部分常驻内存/加载耗时，但会降低持续推理速度 |
+
+SDK 会将客户热词与警务域默认热词合并后用于 ASR 解码。改变语言、热词、增强开关或
+`disablePrepack` 会形成不同的模型配置，不命中已有模型复用池。
 
 ### 5.3 `StartParams`
 
@@ -219,10 +238,10 @@ interface CreateEngineCallback {
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
 | `enableSpeakerVad` | `boolean` | `false` | 是否启用目标说话人离场提前 endpoint；冷态启动会同步等待声纹模型 |
 | `voiceprintIds` | `string[]` | 空 | 声纹 ID 列表；启用声纹校验或 Speaker VAD 时必填 |
-| `speakerVadThreshold` | `number/string` | `0.40` | 目标说话人 VAD 阈值 |
-| `speakerVadWindowMs` | `number/string` | `1000` | 目标说话人 VAD 窗长 |
-| `speakerVadHopMs` | `number/string` | `300` | 目标说话人 VAD 步长 |
-| `speakerVadConsecutiveBelow` | `number/string` | `2` | 连续低于阈值多少次触发 endpoint |
+| `speakerVadThreshold` | `number/string` | `0.40` | 目标说话人 VAD 阈值，超范围夹到 `[-1, 1]` |
+| `speakerVadWindowMs` | `number/string` | `1000` | 窗长，超范围夹到 `[500, 5000]` ms |
+| `speakerVadHopMs` | `number/string` | `300` | 步长，超范围夹到 `[100, 2000]` ms |
+| `speakerVadConsecutiveBelow` | `number/string` | `2` | 连续低于阈值次数，取整并夹到 `[1, 5]` |
 
 ## 6. 回调
 
@@ -243,6 +262,16 @@ interface RecognitionListener {
 | `onResult` | 识别结果，包含 partial 与 final |
 | `onComplete` | 主动 `finish` 或达到 `maxAudioDuration` 上限自动结束后，识别完整结束 |
 | `onError` | 发生错误 |
+
+回调线程与时序约束：
+
+- 参数错误、状态检查、Runtime 已就绪和模型池命中等路径可能在调用栈内同步回调；模型冷加载
+  等路径通过异步任务回调。客户代码必须同时兼容两种情况。
+- `onStart` 触发时会话已保存且可以立即调用 `writeAudio()`、`finish()` 或 `cancel()`；
+  `onStart` 仍可能在 `startListening()` 返回前同步触发。
+- 不保证回调位于 UI 线程。宿主更新 UI 时应切换到自己的 UI 调度器，并建议在同一个 ArkTS
+  事件执行器上串行操作同一 engine。
+- 不要在创建引擎或会话仍在执行时并发调用 `unloadModel()` / `unloadRuntime()`。
 
 `SpeechRecognitionResult`：
 
@@ -271,6 +300,10 @@ interface RecognitionListener {
 const params = new VoiceprintRegisterParams();
 params.samplePaths = [samplePath1, samplePath2];
 const result = SpeechRecognizeSdk.registerVoiceprint(params);
+if (result.status === 0) {
+  // key 是 SDK 生成的 voiceprintId，value 是第一条样本的文件名。
+  const ids = Object.keys(result.voiceprintId);
+}
 ```
 
 | 项 | 要求 |
@@ -280,7 +313,15 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 | 样本时长 | 每段 3 到 8 秒 |
 | 样本数量 | 至少 1 段，不限制上限；建议多段提升稳定性 |
 | 已注册声纹数量 | SDK 不设置上限，受宿主存储空间约束 |
-| 返回 | `VoiceprintRegisterResult.voiceprintId` |
+| 返回 | `VoiceprintRegisterResult`：`status`、`message`、`voiceprintId: Record<string, string>` |
+
+调用 `registerVoiceprint()` 前必须完成 `prepareRuntime()`。`VoiceprintRegisterParams.voiceprintId` 和
+`audioInfo` 是跨平台兼容字段；当前 HarmonyOS 实现根据 WAV 头读取格式，并始终生成新的 ID，
+不使用调用方预填的 `voiceprintId`。成功时 `status=0`，返回 map 的 key 为生成的 ID，value 为
+第一条样本文件名；失败时查看 `status` 和 `message`。
+
+`deleteVoiceprint()` 成功返回 `true`；ID 为空或不存在时会抛出含 `1002200024` 的错误，客户
+应使用 `try/catch` 处理。
 
 `registerVoiceprint()` 与 `preloadVoiceprintModel()` 都会在 extractor 尚未加载时同步加载并预热声纹模型，不应放在 UI 关键路径。注册成功后，同一个进程内的声纹识别复用该 extractor。`preloadVoiceprintModel()` 是可选优化接口，不是普通声纹识别的前置步骤；Runtime 未就绪或加载失败时返回 `false`。
 
@@ -290,9 +331,13 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 仅启用 `enableVoiceprintVerification` 时，SDK 不依据相似度丢弃识别结果；final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧判定。启用 `enableSpeakerVad` 时，SDK 会在流式阶段执行目标说话人判断，可拒绝非目标说话人片段，并在目标说话人离场后提前切句。
 
+传入多个 `voiceprintIds` 时，SDK 跳过不存在的 ID，并将至少一个有效 ID 的 embedding 求平均
+后作为一个目标；全部无效时返回 `VOICEPRINT_NOT_FOUND`。有效语音过短时可能无法计算可靠
+embedding，约 1.5 秒以下的语音可能不返回 `speakerSimilarity`，因此该字段始终按可选值处理。
+
 ## 8. 授权
 
-正式 App 授权文件名默认为 `amphion-license.lic`。`setLicense` 为异步回调，但鉴权为离线本地完整校验，不发起网络请求。校验范围包括授权结构、ECDSA 签名、ASR 能力、有效期、维护期、SDK 主版本和设备白名单；如 License 写入签名证书 SHA-256，则同时校验证书。
+正式 App 授权文件名默认为 `amphion-license.lic`。`setLicense` 为异步回调，但鉴权为离线本地完整校验，不发起网络请求。校验范围包括授权结构、ECDSA 签名、ASR 能力、有效期、维护期、SDK 主版本和设备白名单；如 License 写入签名证书 SHA-256，则同时校验证书。宿主证书摘要由 SDK 从当前应用签名信息读取；已声明证书绑定但摘要缺失时校验失败，不会跳过。
 
 设备绑定哈希规则为 `SHA-256(normalizedSn + deviceIdSaltId)`，其中 `normalizedSn` 为 trim 后转大写。正式系统宿主应通过 `LicenseDeviceIdProvider` 注入与签发清单一致的设备 SN。普通 Demo 可使用 ODID 签发体验授权，但 ODID 与 SN 不可混用。
 
@@ -307,7 +352,19 @@ interface LicenseActivationCallback {
 }
 ```
 
-`LicenseActivationResult` 包含 `errorCode`、`errorMessage`、可选的 `remainingDays` 和 `authorizedFeatures`。`LicenseInfo` 包含 `status`、`expireTime`、`remainingDays` 和 `authorizedFeatures`。
+`LicenseActivationResult` 包含 `errorCode`、`errorMessage`、可选的 `remainingDays` 和 `authorizedFeatures`。
+
+`LicenseInfo` 字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `status` | `0` 有效；`1` 已过期；`2` 无效；`3` 设备或宿主证书不匹配 |
+| `expireTime` | 到期日当天 `00:00:00 UTC` 的 epoch 毫秒；未提供或不可用时为 `-1` |
+| `remainingDays` | 以 UTC 日期计算的剩余整天数；未提供或不可用时为 `-1` |
+| `authorizedFeatures` | 授权能力列表 |
+
+`getLicenseInfo()` 在尚未发起过 `setLicense()` 时会抛出含 `1002200034` 的错误。首次校验失败后
+可查询对应失败状态；已有有效授权时，新授权失败不会覆盖旧授权信息。
 
 ## 9. 错误码
 
@@ -337,4 +394,13 @@ interface LicenseActivationCallback {
 
 ## 10. 生命周期性能说明
 
-甲方简版数据见《SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md》，完整测试方法、逐轮数据和证据索引见《SDK_LIFECYCLE_PERFORMANCE_20260713.md》。性能数据是特定设备、系统构建、模型和包版本下的测量值，不作为所有设备的固定常量。
+甲方简版数据见 `SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md`。完整测试方法、逐轮数据和
+证据索引在需要时另行提供，不随 SDK-only 包交付。性能数据是特定设备、系统构建、模型和包
+版本下的测量值，不作为所有设备的固定常量。
+
+## 11. 内置模型清单
+
+自包含 HAR 已内置：中英 `zh-en`、粤英 `yue-en`、中英标点、中文 ITN FST、Silero VAD、
+警务术语/车牌/派出所增强资源、`eres2net` 声纹模型，以及 `arm64-v8a` native 运行时。
+当前中文 ASR transducer 使用 INT8 encoder、FP32 decoder、INT8 joiner；FP32 decoder 用于
+避免 INT8 decoder 的明显漏 token。标点模型是独立模型，只对最终文本执行标点恢复。

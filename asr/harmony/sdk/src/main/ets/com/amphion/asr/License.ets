@@ -95,7 +95,13 @@ export class HarmonyLicenseVerifier {
 
     const boundCert = HarmonyLicenseVerifier.normalizeHex(HarmonyLicenseVerifier.stringValue(claims, 'signingCertDigest'));
     const hostCert = HarmonyLicenseVerifier.normalizeHex(signingCertDigest ?? '');
-    if (boundCert.length > 0 && hostCert.length > 0 && boundCert !== hostCert) {
+    if (boundCert.length > 0 && hostCert.length === 0) {
+      status.state = AmphionLicenseState.INVALID;
+      status.errorCode = AsrErrorCode.LICENSE_CERT_MISMATCH;
+      status.message = 'host signing certificate fingerprint unavailable';
+      return status;
+    }
+    if (boundCert.length > 0 && boundCert !== hostCert) {
       status.state = AmphionLicenseState.INVALID;
       status.errorCode = AsrErrorCode.LICENSE_CERT_MISMATCH;
       status.message = 'license signingCertDigest mismatch';
@@ -115,7 +121,7 @@ export class HarmonyLicenseVerifier {
       return status;
     }
     const claimSdkMajor = HarmonyLicenseVerifier.numberValue(claims, 'sdkMajor');
-    if (claimSdkMajor > 0 && sdkMajor > 0 && claimSdkMajor !== sdkMajor) {
+    if (sdkMajor > 0 && claimSdkMajor !== sdkMajor) {
       status.state = AmphionLicenseState.INVALID;
       status.errorCode = AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH;
       status.message = `license sdkMajor=${claimSdkMajor} runtime=${sdkMajor}`;
@@ -224,7 +230,11 @@ export class HarmonyLicenseVerifier {
     // ---- 结构校验(顺序/错误码/消息与 verify() 逐条对齐) ----
     const boundCert = HarmonyLicenseVerifier.normalizeHex(status.signingCertDigest ?? '');
     const hostCert = HarmonyLicenseVerifier.normalizeHex(signingCertDigest ?? '');
-    if (boundCert.length > 0 && hostCert.length > 0 && boundCert !== hostCert) {
+    if (boundCert.length > 0 && hostCert.length === 0) {
+      return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_CERT_MISMATCH,
+        'host signing certificate fingerprint unavailable');
+    }
+    if (boundCert.length > 0 && boundCert !== hostCert) {
       return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_CERT_MISMATCH, 'license signingCertDigest mismatch');
     }
     const normalizedFeatures = status.features.map((feature: string): string => feature.trim().toUpperCase());
@@ -235,7 +245,7 @@ export class HarmonyLicenseVerifier {
       return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_DEVICE_MISMATCH, 'device SN unavailable');
     }
     const claimSdkMajor = HarmonyLicenseVerifier.numberValue(claims, 'sdkMajor');
-    if (claimSdkMajor > 0 && sdkMajor > 0 && claimSdkMajor !== sdkMajor) {
+    if (sdkMajor > 0 && claimSdkMajor !== sdkMajor) {
       return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH,
         `license sdkMajor=${claimSdkMajor} runtime=${sdkMajor}`);
     }
@@ -453,7 +463,9 @@ export class HarmonyLicenseVerifier {
   }
 
   private static normalizeHex(value: string): string {
-    return value.replace(/[: ]/g, '').toUpperCase();
+    // BundleManager returns the host certificate SHA-256 fingerprint. Accept both its plain/colon
+    // form and the conventional "SHA256:" prefix used by some signing tools and license issuers.
+    return value.trim().replace(/^SHA-?256\s*[:=]?\s*/i, '').replace(/[:\s]/g, '').toUpperCase();
   }
 
   private static today(): string {

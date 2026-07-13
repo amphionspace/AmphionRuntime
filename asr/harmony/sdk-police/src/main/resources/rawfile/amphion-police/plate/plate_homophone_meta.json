@@ -1,7 +1,7 @@
 {
-  "source_csv": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/plate_enhance/plate_homophones.csv",
+  "source_csv": "plate_homophones.csv",
   "pair_count": 149,
-  "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/plate_fst_experiment/output/plate_homophone.fst",
+  "fst_path": "plate_homophone.fst",
   "phase": 2,
   "note": "homophone FST; JiR/LiaoB context rules in plate_context_rules.py",
   "pairs": [

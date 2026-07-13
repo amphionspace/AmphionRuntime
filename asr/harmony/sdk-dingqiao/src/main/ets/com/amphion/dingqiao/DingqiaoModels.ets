@@ -63,6 +63,7 @@ export interface RecognitionListener {
 export interface SpeechRecognitionEngine {
   setListener(listener: RecognitionListener): void;
   startListening(params: StartParams): void;
+  /** 写入且仅写入一帧 640 字节（20 ms）的 16 kHz / 16 bit / 单声道 PCM。 */
   writeAudio(sessionId: string, audio: ArrayBuffer): void;
   finish(sessionId: string): void;
   cancel(sessionId: string): void;
@@ -131,7 +132,13 @@ export class DingqiaoRecognitionMode {
   static readonly CONTINUOUS: number = 1;
 }
 
+/** `writeAudio()` 唯一支持的帧大小：20 ms、16 kHz、16 bit、单声道 PCM。 */
 export const DINGQIAO_AUDIO_FRAME_BYTES_20MS: number = 640;
+
+/**
+ * @deprecated `writeAudio()` 不支持 40 ms / 1280 字节帧。仅为已有客户代码保留此符号；
+ * 请改用 `DINGQIAO_AUDIO_FRAME_BYTES_20MS`，并将音频严格切成 640 字节一帧。
+ */
 export const DINGQIAO_AUDIO_FRAME_BYTES_40MS: number = 1280;
 export const DINGQIAO_VOICEPRINT_MIN_SAMPLES: number = 1;
 export const DINGQIAO_VOICEPRINT_MIN_SEC: number = 3;

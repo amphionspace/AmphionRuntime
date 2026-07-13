@@ -1,8 +1,8 @@
 {
-  "source_gazetteer": "/Users/amphion/Desktop/work/projects/鼎桥/AmphionRuntime/asr/android/samples/public-demo/src/main/assets/police_station/station_gazetteer.txt",
+  "source_gazetteer": "station_gazetteer.txt",
   "scope": "gazetteer",
   "name_count": 106,
-  "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_station_fst_experiment/output/station_gazetteer.fst",
+  "fst_path": "station_gazetteer.fst",
   "phase": "p2",
   "note": "union acceptor; findLongestIn stays in host (scheme A)",
   "names": [

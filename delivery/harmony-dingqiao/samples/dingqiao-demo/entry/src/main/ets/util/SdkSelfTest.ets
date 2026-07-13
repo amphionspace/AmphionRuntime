@@ -16,7 +16,9 @@ import {
   SpeechRecognitionResult,
   SpeechRecognitionEngine,
   LicenseInfo,
-  DingqiaoErrorCode
+  DingqiaoErrorCode,
+  DINGQIAO_AUDIO_FRAME_BYTES_20MS,
+  DINGQIAO_AUDIO_FRAME_BYTES_40MS
 } from 'amphion_dingqiao';
 
 const TAG: string = 'SdkSelfTest';
@@ -69,6 +71,52 @@ class TestListener implements RecognitionListener {
   onError(sessionId: string, errorCode: number, message: string): void {
     this.log.errors += 1;
     this.log.lastErrorCode = errorCode;
+  }
+}
+
+// Regression guard: onStart is synchronous today, and customer code is allowed to feed its first
+// frame directly from that callback. The wrapper must publish the session before invoking onStart.
+class StartWriteListener implements RecognitionListener {
+  private engine: SpeechRecognitionEngine;
+  starts: number = 0;
+  writeAttempted: boolean = false;
+  writeThrew: boolean = false;
+  errorCodes: number[] = [];
+
+  constructor(engine: SpeechRecognitionEngine) {
+    this.engine = engine;
+  }
+
+  onStart(sessionId: string, _eventMessage?: string): void {
+    this.starts += 1;
+    this.writeAttempted = true;
+    try {
+      this.engine.writeAudio(sessionId, frame640());
+    } catch (e) {
+      this.writeThrew = true;
+    }
+  }
+
+  onError(_sessionId: string, errorCode: number, _message: string): void {
+    this.errorCodes.push(errorCode);
+  }
+
+  hasError(errorCode: number): boolean {
+    return this.errorCodes.includes(errorCode);
+  }
+}
+
+class ThrowingStartListener implements RecognitionListener {
+  starts: number = 0;
+  errorCodes: number[] = [];
+
+  onStart(_sessionId: string, _eventMessage?: string): void {
+    this.starts += 1;
+    throw new Error('intentional onStart regression test');
+  }
+
+  onError(_sessionId: string, errorCode: number, _message: string): void {
+    this.errorCodes.push(errorCode);
   }
 }
 
@@ -250,6 +298,41 @@ export async function runSdkSelfTest(context: common.UIAbilityContext): Promise<
   r.check('createEngineAsync -> onSuccess', engine2 !== undefined, '');
   if (engine2 !== undefined) engine2.shutdown();
 
+  // --- onStart reentrancy: the first PCM frame must be accepted from inside the callback ---
+  const startWriteListener = new StartWriteListener(engine);
+  engine.setListener(startWriteListener);
+  const startWriteId = 'selftest-start-write';
+  const startWriteParams = new StartParams();
+  startWriteParams.sessionId = startWriteId;
+  startWriteParams.audioInfo = new AudioInfo();
+  engine.startListening(startWriteParams);
+  await sleep(100);
+  const startWriteAccepted = startWriteListener.starts === 1 && startWriteListener.writeAttempted &&
+    !startWriteListener.writeThrew && !startWriteListener.hasError(DingqiaoErrorCode.NOT_LISTENING) &&
+    engine.isBusy();
+  r.check('onStart can immediately write first 640-byte frame', startWriteAccepted,
+    `starts=${startWriteListener.starts} threw=${startWriteListener.writeThrew}` +
+    ` notListening=${startWriteListener.hasError(DingqiaoErrorCode.NOT_LISTENING)}`);
+  if (engine.isBusy()) engine.cancel(startWriteId);
+
+  // A listener exception must keep the established start-failure behavior: release the just-created
+  // session and surface START_LISTENING_FAILED instead of leaving the engine permanently busy.
+  const throwingStartListener = new ThrowingStartListener();
+  engine.setListener(throwingStartListener);
+  const throwingStartParams = new StartParams();
+  throwingStartParams.sessionId = 'selftest-start-throw';
+  throwingStartParams.audioInfo = new AudioInfo();
+  engine.startListening(throwingStartParams);
+  await sleep(100);
+  const startExceptionHandled = throwingStartListener.starts === 1 && !engine.isBusy() &&
+    throwingStartListener.errorCodes.includes(DingqiaoErrorCode.START_LISTENING_FAILED);
+  r.check('onStart exception releases session and reports START_LISTENING_FAILED', startExceptionHandled,
+    `starts=${throwingStartListener.starts} busy=${engine.isBusy()}` +
+    ` codes=${throwingStartListener.errorCodes.join(',')}`);
+
+  r.check('audio frame contract is exactly 640 bytes', DINGQIAO_AUDIO_FRAME_BYTES_20MS === 640,
+    `frameBytes=${DINGQIAO_AUDIO_FRAME_BYTES_20MS}`);
+
   // --- setListener + full recognition lifecycle (synthetic silence PCM) ---
   const evt = new EventLog();
   engine.setListener(new TestListener(evt));
@@ -283,6 +366,15 @@ export async function runSdkSelfTest(context: common.UIAbilityContext): Promise<
   engine.writeAudio(sid, new ArrayBuffer(320));
   await sleep(100);
   r.check('writeAudio wrong size -> RECOGNITION_ERROR', evt.errors > wrongBefore && evt.lastErrorCode === DingqiaoErrorCode.RECOGNITION_ERROR, `code=${evt.lastErrorCode}`);
+
+  // The legacy 40 ms symbol remains exported only for source compatibility; 1280-byte frames are
+  // deliberately rejected so all integrations follow the exact 640-byte customer contract.
+  const legacyBefore = evt.errors;
+  engine.writeAudio(sid, new ArrayBuffer(DINGQIAO_AUDIO_FRAME_BYTES_40MS));
+  await sleep(100);
+  r.check('legacy 1280-byte frame -> RECOGNITION_ERROR',
+    evt.errors > legacyBefore && evt.lastErrorCode === DingqiaoErrorCode.RECOGNITION_ERROR,
+    `code=${evt.lastErrorCode}`);
 
   // --- setSpeakerVadEnabled (not configured -> graceful, no crash) ---
   let svOk = true;
