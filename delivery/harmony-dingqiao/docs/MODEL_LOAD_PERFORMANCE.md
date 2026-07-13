@@ -56,6 +56,37 @@
 48 轮真实 WAV burst 回归：48/48 完成、空 final 4.1667%、首轮 120 ms、总耗时
 21858 ms、峰值 RSS 571.863 MiB。该短跑的 RSS slope 只作观察，不作为泄漏结论。
 
+### 2026-07-12 第二台设备单变量复核（9020）
+
+在另一台设备 `3ZF0225520048151`（`PLR-AL00`、`OpenHarmony-6.1.0.115`，Kirin 9020，比
+6CT9K 的 8020 新一代）上做**单变量对照**：只把模型格式在 ORT 与 ONNX 之间切换
+（`AssetRegistry` 指向 `.ort` 或 `.onnx`），异步并行 lane、4 worker、eager warmup=0、
+native `.so`、bench harness 与源模型全部保持一致。ORT 组 decoder 源 SHA `2b2eac6b…`
+（真 INT8 `decoder.int8.onnx`），ONNX 组用 `decoder.onnx`（FP32）。
+
+**以单次冷启（凉机、用户实际首启场景）为准**：
+
+| 模型格式 | 冷加载（凉机单次） | 说明 |
+| --- | ---: | --- |
+| ORT（优化） | **约 730 ms**（p50 740.5、p95 774.1，20 轮 648–776 无漂移） | 见下方耗时归因 |
+| ONNX（未优化） | **约 2.6 s**（20 轮 min 2740、10 轮 min 2605） | 与本机 2026-07-11 逐算子 profiling 的 2573 ms 一致 |
+
+单次冷启提速约 **3.6×**。
+
+**ORT 启动耗时归因**（SDK `kind=LOAD` 埋点，3 次冷启）：`recognizerReadyMs` 690–709 ms、
+`punctuationReadyMs` 176–201 ms、`assetLayoutMs` 0、`engineReadyMs` 691–709 ms。即
+`engineReadyMs ≈ recognizerReadyMs`——**关键路径几乎全部是 recognizer 的 ORT session 创建**
+（约 154 MiB encoder 的 `.ort` 字节载入 + INT8 权重 prepack；图优化已离线做掉，运行时不再花）。
+punctuation（约 190 ms）走并行 lane、被 recognizer 完全隐藏；asset layout 无拷贝为 0。
+下一步只能动 encoder 权重的零拷贝 mmap / prepack 缓存。
+
+> 单次观察（未复验，不作结论）：某次 ONNX 20 轮连测后段从约 2.8 s 升到约 3.1–3.2 s
+> （该次 p50 3141 ms），疑似连续重算力图优化使 SoC 发热降频；但同日 10 轮与前一日 12 轮
+> 均稳定在约 2.6–2.7 s 未出现，故仅记为观察。ORT 组 20 轮无此现象。
+
+绝对值随设备/系统/热状态而变，只在 comparison identity 一致时可比；此 9020 单次冷启结论
+与 6CT9K 的 80.1% 同向印证（6CT9K 的 3884.5 ms 是更慢机型上的全串行优化前路径）。
+
 ## 复现加载基准
 
 先构建并安装当前 signed HAP，再从仓库根目录执行：
@@ -88,7 +119,7 @@ python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
 - `session.disable_prepacking=1`：加载进一步缩短，但 48 轮真实音频处理慢约 24%。
 - 继续拆分 decoder/joiner：两者 Session 创建仅约 4–11 ms，已被 encoder 关键路径覆盖。
 - `session.use_device_allocator_for_initializers=1`：真机无显著收益。
-- 隐式自动预加载：license 重设会释放 Runtime，且语言、热词配置可能尚未确定。
+- 隐式自动预加载：`setLicense` 只验权并缓存；语言、热词配置可能尚未确定，不应在该阶段自动加载模型。重新设置有效授权还会使旧 Runtime / 模型失效。
 
-业务如需接近 0 ms 的点击响应，应在 license 激活成功且最终配置确定后显式调用
-`createEngineAsync`，并长期持有返回的 engine；同配置后续 pool hit 为 0–1 ms。
+业务如需接近 0 ms 的点击响应，应在 license 激活成功后先调用 `prepareRuntime`，收到 `onReady`
+且最终配置确定后显式调用 `createEngineAsync`，并长期持有返回的 engine；同配置后续 pool hit 为 0–1 ms。

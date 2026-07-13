@@ -7,6 +7,7 @@ import {
   DingqiaoErrorCode,
   LicenseActivationCallback,
   LicenseActivationResult,
+  PrepareRuntimeCallback,
   RecognitionListener,
   SpeechRecognitionEngine,
   SpeechRecognitionResult,
@@ -195,6 +196,22 @@ class LicenseCb implements LicenseActivationCallback {
   }
 }
 
+class PrepareRuntimeCb implements PrepareRuntimeCallback {
+  private resolve: (errorCode: number) => void;
+
+  constructor(resolve: (errorCode: number) => void) {
+    this.resolve = resolve;
+  }
+
+  onReady(): void {
+    this.resolve(0);
+  }
+
+  onError(errorCode: number, _message: string): void {
+    this.resolve(errorCode);
+  }
+}
+
 class CycleResult {
   index: number = 0;
   corpusId: string = '';
@@ -357,6 +374,12 @@ function prepareLicense(context: common.UIAbilityContext, workPath: string): str
 function activateLicense(path: string): Promise<LicenseActivationResult> {
   return new Promise<LicenseActivationResult>((resolve: (result: LicenseActivationResult) => void): void => {
     SpeechRecognizeSdk.setLicense(path, new LicenseCb(resolve));
+  });
+}
+
+function prepareRuntime(): Promise<number> {
+  return new Promise<number>((resolve: (errorCode: number) => void): void => {
+    SpeechRecognizeSdk.prepareRuntime(new PrepareRuntimeCb(resolve));
   });
 }
 
@@ -678,6 +701,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     SpeechRecognizeSdk.setWorkPath(workPath);
     const license = await activateLicense(prepareLicense(context, workPath));
     if (license.errorCode !== 0) throw new Error(`license-${license.errorCode}`);
+    const runtimeError = await prepareRuntime();
+    if (runtimeError !== 0) throw new Error(`runtime-${runtimeError}`);
 
     if (options.mode !== 'recreate') engine = createEngine();
     for (let i = 0; i < options.cycles; i++) {

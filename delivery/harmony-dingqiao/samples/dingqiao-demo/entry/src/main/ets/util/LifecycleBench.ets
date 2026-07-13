@@ -16,10 +16,10 @@ import {
   StartParams
 } from 'amphion_dingqiao';
 
-// 两级加载生命周期 + 全工况延迟/内存 bench(demo 侧,非 SDK)。驱动 prepareRuntime → createEngine →
-// (推理) → unloadModel → unloadRuntime,把每个工况的延迟、SDK 净内存(= 当前 PSS − 载体基线)、
-// 推理侧首块/RTF/尾包、峰值内存都采出来,供 prepack on/off A/B。载体基线由 EntryAbility 在任何 SDK
-// 调用之前采样并传入,减法得纯 SDK 净值。
+// 两级加载生命周期 + 全链路延迟/内存 bench(demo 侧,非 SDK)。驱动 setLicense(只验权) →
+// prepareRuntime → createEngine → 推理 → engine.shutdown → unloadModel → unloadRuntime。
+// 输出均为 /proc 的进程绝对值;载体基线由 EntryAbility 在任何 SDK 调用前采样并传入,
+// 主机后处理使用「阶段绝对值 − 载体基线」计算 SDK 净增量,避免把 Demo/ArkUI 共享内存算入 SDK。
 
 const TAG: string = 'LifecycleBench';
 const DOMAIN: number = 0x0000;
@@ -30,7 +30,7 @@ const INFER_UTTERANCES: number = 12;
 export class LifecycleBenchOptions {
   resultPath: string = '';
   disablePrepack: boolean = false;
-  carrierBaselinePss: number = 0;   // EntryAbility 在 SDK init 前采的载体基线(PSS)
+  carrierBaselinePss: number = 0;   // 历史字段名;实际传入 SDK init 前的 VmRSS
   carrierBaselineAnon: number = 0;  // 同上,私有 anon
   iters: number = 20;               // 压测轮数(默认 20,可传 100)
 }
@@ -85,6 +85,29 @@ class EngineResult {
   errorMessage: string = '';
 }
 
+// 一条会话的全链路指标。内存均是调用返回后立即采样的进程绝对值(MB)。
+class InferMetrics {
+  firstPartialMs: number = -1;
+  finishToCompleteMs: number = -1;
+  inferWallMs: number = -1;
+  rtf: number = -1;
+  ok: number = 0;
+
+  startListeningMs: number = 0;
+  startListeningVmRssMb: number = -1;
+  startListeningRssAnonMb: number = -1;
+  startListeningRssFileMb: number = -1;
+
+  finishMs: number = 0;
+  finishVmRssMb: number = -1;
+  finishRssAnonMb: number = -1;
+  finishRssFileMb: number = -1;
+
+  inferCompleteVmRssMb: number = -1;
+  inferCompleteRssAnonMb: number = -1;
+  inferCompleteRssFileMb: number = -1;
+}
+
 class CreateCb implements CreateEngineCallback {
   private resolve: (r: EngineResult) => void;
   constructor(resolve: (r: EngineResult) => void) { this.resolve = resolve; }
@@ -111,6 +134,7 @@ class InferListener implements RecognitionListener {
     if (this.done !== undefined) this.done();
   }
   waitComplete(timeoutMs: number): Promise<void> {
+    if (this.completeAt >= 0) return Promise.resolve();
     return new Promise<void>((resolve: () => void): void => {
       this.done = resolve;
       setTimeout(resolve, timeoutMs);   // 兜底:onComplete 万一不触发也不死等
@@ -181,9 +205,8 @@ function readManifest(ctx: common.UIAbilityContext): ManifestEntry[] {
 }
 
 // 单条推理:走甲方接口 startListening→writeAudio(640B/帧)→finish→onComplete,不限速(最大吞吐,量 RTF)。
-// 返回 [firstPartialMs, finishToCompleteMs, rtf, ok]。
 async function feedOne(engine: SpeechRecognitionEngine, sid: string, blobFd: number,
-  rawBase: number, e: ManifestEntry): Promise<number[]> {
+  rawBase: number, e: ManifestEntry): Promise<InferMetrics> {
   const buf: ArrayBuffer = new ArrayBuffer(e.nbytes);
   fs.readSync(blobFd, buf, { offset: rawBase + e.offset, length: e.nbytes });
   const bytes = new Uint8Array(buf);
@@ -195,7 +218,10 @@ async function feedOne(engine: SpeechRecognitionEngine, sid: string, blobFd: num
   sp.audioInfo = new AudioInfo();
   const startAt = Date.now();
   listener.setStart(startAt);
+  const startCallAt = Date.now();
   engine.startListening(sp);
+  const startListeningMs = Date.now() - startCallAt;
+  const startListeningMem = procMem();
   // 契约要求每帧正好 640 字节:尾帧不满则补零到 640(否则 writeAudio 报错、会话卡死)。
   for (let off = 0; off < e.nbytes; off += FRAME_BYTES) {
     const end = Math.min(off + FRAME_BYTES, e.nbytes);
@@ -203,14 +229,35 @@ async function feedOne(engine: SpeechRecognitionEngine, sid: string, blobFd: num
     frame.set(bytes.subarray(off, end));
     engine.writeAudio(sid, frame.buffer as ArrayBuffer);
   }
+  const finishCallAt = Date.now();
   engine.finish(sid);
   const finishAt = Date.now();
+  const finishMs = finishAt - finishCallAt;
+  const finishMem = procMem();
   await listener.waitComplete(8000);
+  const inferCompleteMem = procMem();
   const firstPartialMs = listener.firstResultAt > 0 ? listener.firstResultAt - startAt : -1;
   const finishToCompleteMs = listener.completeAt > 0 ? listener.completeAt - finishAt : -1;
-  const wallMs = listener.completeAt - startAt;
+  const wallMs = listener.completeAt > 0 ? listener.completeAt - startAt : -1;
   const rtf = e.durMs > 0 ? Math.round(wallMs / e.durMs * 1000) / 1000 : -1;
-  return [firstPartialMs, finishToCompleteMs, rtf, listener.finals > 0 ? 1 : 0];
+  const out = new InferMetrics();
+  out.firstPartialMs = firstPartialMs;
+  out.finishToCompleteMs = finishToCompleteMs;
+  out.inferWallMs = wallMs;
+  out.rtf = rtf;
+  out.ok = listener.finals > 0 ? 1 : 0;
+  out.startListeningMs = startListeningMs;
+  out.startListeningVmRssMb = startListeningMem[0];
+  out.startListeningRssAnonMb = startListeningMem[1];
+  out.startListeningRssFileMb = startListeningMem[2];
+  out.finishMs = finishMs;
+  out.finishVmRssMb = finishMem[0];
+  out.finishRssAnonMb = finishMem[1];
+  out.finishRssFileMb = finishMem[2];
+  out.inferCompleteVmRssMb = inferCompleteMem[0];
+  out.inferCompleteRssAnonMb = inferCompleteMem[1];
+  out.inferCompleteRssFileMb = inferCompleteMem[2];
+  return out;
 }
 
 function writeText(path: string, text: string): void {
@@ -228,7 +275,7 @@ function appendLine(path: string, text: string): void {
   try { fs.writeSync(fp.fd, b.buffer); } finally { fs.closeSync(fp); }
 }
 
-const STRESS_UTT_PER_ITER: number = 3;   // 每轮喂几条音频量 RTF(重复冷加载才是主发热源)
+const STRESS_UTT_PER_ITER: number = 1;   // 交付口径:每轮只起一个实际会话
 
 export async function runLifecycleBench(context: common.UIAbilityContext,
   options: LifecycleBenchOptions): Promise<void> {
@@ -243,72 +290,151 @@ export async function runLifecycleBench(context: common.UIAbilityContext,
     SpeechRecognizeSdk.setWorkPath(workPath);
     try { writeText(`${options.resultPath}.iters`, ''); } catch (e) { /* ignore */ }
 
-    // 运行时侧:setLicense 内部完成 runtime init(甲方冷启动首帧的运行时代价)
+    summary.push(`carrierBaselineVmRssMb=${options.carrierBaselinePss}`);
+    summary.push(`carrierBaselineRssAnonMb=${options.carrierBaselineAnon}`);
+
+    // EntryAbility 已调 SDK init;在 Demo license 文件 IO 前先采 SDK init 后的边界值。
+    const afterSdkInitMem = procMem();
+    summary.push(`afterSdkInitVmRssMb=${afterSdkInitMem[0]}|` +
+      `afterSdkInitRssAnonMb=${afterSdkInitMem[1]}|` +
+      `afterSdkInitRssFileMb=${afterSdkInitMem[2]}`);
+
+    // 再准备 license 文件并采 beforeSetLicense,避免把 Demo 文件 IO 计入 setLicense 耗时/净增量。
+    const licensePath = prepareLicense(context, workPath);
+    const beforeSetLicenseMem = procMem();
+    summary.push(`beforeSetLicenseVmRssMb=${beforeSetLicenseMem[0]}|` +
+      `beforeSetLicenseRssAnonMb=${beforeSetLicenseMem[1]}|` +
+      `beforeSetLicenseRssFileMb=${beforeSetLicenseMem[2]}`);
+
+    // setLicense 只验权/缓存授权,不启动 Runtime。
     let s = Date.now();
-    const lic = await activateLicense(prepareLicense(context, workPath));
+    const lic = await activateLicense(licensePath);
     const setLicenseMs = Date.now() - s;
+    const setLicenseMem = procMem();
     if (lic.errorCode !== 0) throw new Error(`license-${lic.errorCode}`);
+    summary.push(`setLicenseMs=${setLicenseMs}|` +
+      `setLicenseImmediateVmRssMb=${setLicenseMem[0]}|` +
+      `setLicenseImmediateRssAnonMb=${setLicenseMem[1]}|` +
+      `setLicenseImmediateRssFileMb=${setLicenseMem[2]}`);
 
-    // prepareRuntime 幂等 + 运行时净内存(全新运行时,未加载模型)
-    s = Date.now(); const ok1 = await prepareRuntime();
-    const prepMs = Date.now() - s;
-    const pm = procMem();        // 运行时常驻态(全新运行时,未加载模型)/proc 权威
-    await prepareRuntime();      // 再调一次验幂等
-
-    summary.push(`carrierBaselineVmRss=${options.carrierBaselinePss}`);
-    summary.push(`carrierBaselineAnon=${options.carrierBaselineAnon}`);
-    summary.push(`setLicenseRuntimeInitMs=${setLicenseMs}`);
-    summary.push(`prepareRuntimeMs=${prepMs}|prepareRuntimeIdempotent=${ok1}`);
-    summary.push(`runtimeResidentVmRss=${pm[0]}|runtimeResidentAnon=${pm[1]}|runtimeResidentFile=${pm[2]}`);
+    // 第一次 prepareRuntime 是冷加载;第二次单独量幂等命中。两次均在返回后立即采内存。
+    s = Date.now();
+    const prepareColdOk = await prepareRuntime();
+    const prepareRuntimeColdMs = Date.now() - s;
+    const prepareColdMem = procMem();
+    if (!prepareColdOk) throw new Error('prepare-runtime-cold');
+    s = Date.now();
+    const prepareIdempotentOk = await prepareRuntime();
+    const prepareRuntimeIdempotentMs = Date.now() - s;
+    const prepareIdempotentMem = procMem();
+    if (!prepareIdempotentOk) throw new Error('prepare-runtime-idempotent');
+    summary.push(`prepareRuntimeColdMs=${prepareRuntimeColdMs}|prepareRuntimeColdOk=${prepareColdOk}|` +
+      `prepareRuntimeColdImmediateVmRssMb=${prepareColdMem[0]}|` +
+      `prepareRuntimeColdImmediateRssAnonMb=${prepareColdMem[1]}|` +
+      `prepareRuntimeColdImmediateRssFileMb=${prepareColdMem[2]}`);
+    summary.push(`prepareRuntimeIdempotentMs=${prepareRuntimeIdempotentMs}|` +
+      `prepareRuntimeIdempotentOk=${prepareIdempotentOk}|` +
+      `prepareRuntimeIdempotentImmediateVmRssMb=${prepareIdempotentMem[0]}|` +
+      `prepareRuntimeIdempotentImmediateRssAnonMb=${prepareIdempotentMem[1]}|` +
+      `prepareRuntimeIdempotentImmediateRssFileMb=${prepareIdempotentMem[2]}`);
 
     const man = readManifest(context);
     const rfd = await context.resourceManager.getRawFileDescriptor('asr_eval/pcm.bin');
     const iters = options.iters;
     try {
-      // 压测循环:重复「createEngine 冷加载 → 推理 → unloadModel」N 轮,heat SoC(USB 充电已关=电池)。
-      // 每轮所有 PSS 为总进程占用(绝对 PSS);主机侧 = demo基线 / 总 / SDK净(相减)三视图 + p50/p95 + 首末轮热漂移。
+      // 代码仍支持多轮,交付单次链路由主机传 iters=1。所有内存都是进程绝对值。
       for (let it = 0; it < iters; it++) {
         s = Date.now();
         const e1 = await createEngineAsync(makeParams(options.disablePrepack));
-        const coldMs = Date.now() - s;
+        const modelCreateColdMs = Date.now() - s;
         if (e1.engine === undefined) throw new Error(`iter${it}-create-${e1.errorCode}`);
         const engine = e1.engine;
-        const cm = procMem();
-        const coldVmRss = cm[0], coldAnon = cm[1], coldFile = cm[2];
+        const modelColdMem = procMem();
 
-        let firstSum = 0, rtfSum = 0, ok = 0, peakVmRss = coldVmRss, peakAnon = coldAnon;
+        let firstSum = 0;
+        let rtfSum = 0;
+        let ok = 0;
+        let peakVmRss = modelColdMem[0];
+        let peakAnon = modelColdMem[1];
+        let peakFile = modelColdMem[2];
+        let firstSession = new InferMetrics();
         for (let u = 0; u < STRESS_UTT_PER_ITER && u < man.length; u++) {
           const r = await feedOne(engine, `it${it}_${u}`, rfd.fd, rfd.offset, man[u]);
-          if (r[3] === 1) { firstSum += r[0]; rtfSum += r[2]; ok += 1; }
+          if (u === 0) firstSession = r;
+          if (r.ok === 1) {
+            firstSum += r.firstPartialMs;
+            rtfSum += r.rtf;
+            ok += 1;
+          }
           const m = procMem();
           if (m[0] > peakVmRss) peakVmRss = m[0];
           if (m[1] > peakAnon) peakAnon = m[1];
+          if (m[2] > peakFile) peakFile = m[2];
         }
         const firstAvg = ok > 0 ? Math.round(firstSum / ok * 10) / 10 : -1;
         const rtfAvg = ok > 0 ? Math.round(rtfSum / ok * 1000) / 1000 : -1;
 
-        // ② 复用命中(同配置再 createEngine,量复用延迟)
+        // 推理完成后先销毁实例;模型仍常驻,然后单独测同配置模型复用。
+        s = Date.now();
+        engine.shutdown();
+        const engineShutdownMs = Date.now() - s;
+        const engineShutdownMem = procMem();
+
         s = Date.now();
         const e2 = await createEngineAsync(makeParams(options.disablePrepack));
-        const reuseMs = Date.now() - s;
-        if (e2.engine !== undefined) e2.engine.shutdown();
+        const modelCreateReuseMs = Date.now() - s;
+        const reuseEngine = e2.engine;
+        if (reuseEngine === undefined) throw new Error(`iter${it}-reuse-${e2.errorCode}`);
+        const modelReuseMem = procMem();
 
-        engine.shutdown();
+        s = Date.now();
+        reuseEngine.shutdown();
+        const reuseEngineShutdownMs = Date.now() - s;
+        const reuseEngineShutdownMem = procMem();
 
-        // ③ unloadModel 释放模型 → 采卸载后内存(短延迟给 finalizer/GC)
+        // unloadModel: API 返回后立即采样;另保留 400ms settled 值,不与调用耗时混在一起。
+        s = Date.now();
         SpeechRecognizeSdk.unloadModel();
+        const unloadModelMs = Date.now() - s;
+        const unloadModelImmediateMem = procMem();
         await delay(400);
-        const um = procMem();
-        const unloadVmRss = um[0], unloadAnon = um[1];
+        const unloadModelSettledMem = procMem();
 
         if (ok === STRESS_UTT_PER_ITER) iterOk += 1;
-        // 每轮一条 LCITER。内存全部 /proc 权威:VmRss=总RSS;Anon=私有独占(OOM相关);File=mmap文件页(可换出)
+        // 每轮一条 LCITER。VmRSS/RssAnon/RssFile 均为 MB 绝对值;主机侧再扣载体基线。
         const iterLine =
-          `LCITER|prepack=${pk}|iter=${it}|coldMs=${coldMs}|reuseMs=${reuseMs}|` +
-          `firstMs=${firstAvg}|rtf=${rtfAvg}|inferOk=${ok}/${STRESS_UTT_PER_ITER}|` +
-          `coldVmRss=${coldVmRss}|coldAnon=${coldAnon}|coldFile=${coldFile}|` +
-          `peakVmRss=${peakVmRss}|peakAnon=${peakAnon}|` +
-          `unloadVmRss=${unloadVmRss}|unloadAnon=${unloadAnon}`;
+          `LCITER|prepack=${pk}|iter=${it}|modelCreateColdMs=${modelCreateColdMs}|` +
+          `modelColdImmediateVmRssMb=${modelColdMem[0]}|modelColdImmediateRssAnonMb=${modelColdMem[1]}|` +
+          `modelColdImmediateRssFileMb=${modelColdMem[2]}|` +
+          `startListeningMs=${firstSession.startListeningMs}|` +
+          `startListeningImmediateVmRssMb=${firstSession.startListeningVmRssMb}|` +
+          `startListeningImmediateRssAnonMb=${firstSession.startListeningRssAnonMb}|` +
+          `startListeningImmediateRssFileMb=${firstSession.startListeningRssFileMb}|` +
+          `finishMs=${firstSession.finishMs}|finishImmediateVmRssMb=${firstSession.finishVmRssMb}|` +
+          `finishImmediateRssAnonMb=${firstSession.finishRssAnonMb}|` +
+          `finishImmediateRssFileMb=${firstSession.finishRssFileMb}|` +
+          `inferWallMs=${firstSession.inferWallMs}|firstPartialMs=${firstSession.firstPartialMs}|` +
+          `finishToCompleteMs=${firstSession.finishToCompleteMs}|rtf=${rtfAvg}|` +
+          `inferCompleteImmediateVmRssMb=${firstSession.inferCompleteVmRssMb}|` +
+          `inferCompleteImmediateRssAnonMb=${firstSession.inferCompleteRssAnonMb}|` +
+          `inferCompleteImmediateRssFileMb=${firstSession.inferCompleteRssFileMb}|` +
+          `inferOk=${ok}/${STRESS_UTT_PER_ITER}|firstMs=${firstAvg}|` +
+          `peakVmRssMb=${peakVmRss}|peakRssAnonMb=${peakAnon}|peakRssFileMb=${peakFile}|` +
+          `engineShutdownMs=${engineShutdownMs}|engineShutdownImmediateVmRssMb=${engineShutdownMem[0]}|` +
+          `engineShutdownImmediateRssAnonMb=${engineShutdownMem[1]}|` +
+          `engineShutdownImmediateRssFileMb=${engineShutdownMem[2]}|` +
+          `modelCreateReuseMs=${modelCreateReuseMs}|modelReuseImmediateVmRssMb=${modelReuseMem[0]}|` +
+          `modelReuseImmediateRssAnonMb=${modelReuseMem[1]}|modelReuseImmediateRssFileMb=${modelReuseMem[2]}|` +
+          `reuseEngineShutdownMs=${reuseEngineShutdownMs}|` +
+          `reuseEngineShutdownImmediateVmRssMb=${reuseEngineShutdownMem[0]}|` +
+          `reuseEngineShutdownImmediateRssAnonMb=${reuseEngineShutdownMem[1]}|` +
+          `reuseEngineShutdownImmediateRssFileMb=${reuseEngineShutdownMem[2]}|` +
+          `unloadModelMs=${unloadModelMs}|unloadModelImmediateVmRssMb=${unloadModelImmediateMem[0]}|` +
+          `unloadModelImmediateRssAnonMb=${unloadModelImmediateMem[1]}|` +
+          `unloadModelImmediateRssFileMb=${unloadModelImmediateMem[2]}|` +
+          `unloadModelSettledVmRssMb=${unloadModelSettledMem[0]}|` +
+          `unloadModelSettledRssAnonMb=${unloadModelSettledMem[1]}|` +
+          `unloadModelSettledRssFileMb=${unloadModelSettledMem[2]}`;
         hilog.info(DOMAIN, TAG, '%{public}s', iterLine);
         try { appendLine(`${options.resultPath}.iters`, iterLine + '\n'); } catch (e) { /* ignore */ }
       }
@@ -316,17 +442,26 @@ export async function runLifecycleBench(context: common.UIAbilityContext,
       context.resourceManager.closeRawFileDescriptor('asr_eval/pcm.bin');
     }
 
-    // unloadRuntime(模型跟随)→ 终态内存
+    // unloadRuntime 同样分开 API 调用耗时、immediate 和 settled 内存。
+    s = Date.now();
     SpeechRecognizeSdk.unloadRuntime();
+    const unloadRuntimeMs = Date.now() - s;
+    const unloadRuntimeImmediateMem = procMem();
     await delay(800);
-    const fm = procMem();
-    summary.push(`afterUnloadRuntimeVmRss=${fm[0]}|afterUnloadRuntimeAnon=${fm[1]}`);
+    const unloadRuntimeSettledMem = procMem();
+    summary.push(`unloadRuntimeMs=${unloadRuntimeMs}|` +
+      `unloadRuntimeImmediateVmRssMb=${unloadRuntimeImmediateMem[0]}|` +
+      `unloadRuntimeImmediateRssAnonMb=${unloadRuntimeImmediateMem[1]}|` +
+      `unloadRuntimeImmediateRssFileMb=${unloadRuntimeImmediateMem[2]}|` +
+      `unloadRuntimeSettledVmRssMb=${unloadRuntimeSettledMem[0]}|` +
+      `unloadRuntimeSettledRssAnonMb=${unloadRuntimeSettledMem[1]}|` +
+      `unloadRuntimeSettledRssFileMb=${unloadRuntimeSettledMem[2]}`);
     summary.push(`iters=${iters}|iterOk=${iterOk}`);
   } catch (e) {
     fatal = `${e}`.replace(/[^A-Za-z0-9_.:-]/g, '_').substring(0, 160);
     status = 'FAIL';
   }
-  const line = `LIFECYCLE|version=3|status=${status}|prepack=${pk}|` +
+  const line = `LIFECYCLE|version=4|status=${status}|prepack=${pk}|` +
     summary.join('|') + `|fatal=${fatal}\n`;
   try { writeText(options.resultPath, line); } catch (e) {
     hilog.error(DOMAIN, TAG, 'result write failed: %{public}s', `${e}`);
