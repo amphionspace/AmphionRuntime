@@ -1,8 +1,13 @@
 LOCAL_PATH := $(call my-dir)
 
-TRANSSION_TN_ROOT := $(LOCAL_PATH)/../cpp/third_party/transsion_tn
-ANDROID_ICU_ROOT := $(LOCAL_PATH)/../cpp/third_party/android-icu
-ANDROID_ICU_LIB_DIR := $(ANDROID_ICU_ROOT)/lib
+LITS_WORKSPACE_ROOT := $(LOCAL_PATH)/../../../../../..
+SDK_PROJECT_ROOT := $(LOCAL_PATH)/../../../..
+empty :=
+LITS_SOURCE_DIR_NAME := dingqiao_lits
+TN_PACKAGE_DIR_NAME := Dingqiao_Multilingual_Text_Normalization_for_TTS
+LITS_TN_ROOT := $(LITS_WORKSPACE_ROOT)/$(LITS_SOURCE_DIR_NAME)/$(TN_PACKAGE_DIR_NAME)
+ANDROID_ICU_ROOT := $(LITS_WORKSPACE_ROOT)/$(LITS_SOURCE_DIR_NAME)/build/android-icu/android-arm64-install
+ANDROID_ICU_LIB_DIR := $(LITS_WORKSPACE_ROOT)/$(LITS_SOURCE_DIR_NAME)/build/android-icu/android-arm64-build/lib
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := icui18n
@@ -23,12 +28,15 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := lits_tn
 LOCAL_SRC_FILES := \
     ../cpp/lits_tn_jni.cpp \
-    $(TRANSSION_TN_ROOT)/tts_normalizer_engine.cpp \
-    $(TRANSSION_TN_ROOT)/ru_year_spellout.cpp
+    $(LITS_TN_ROOT)/tts_normalizer_engine.cpp \
+    $(LITS_TN_ROOT)/ru_year_spellout.cpp
 LOCAL_C_INCLUDES := \
-    $(TRANSSION_TN_ROOT) \
+    $(LITS_TN_ROOT) \
     $(ANDROID_ICU_ROOT)/include
-LOCAL_CPPFLAGS := -std=c++17 -fexceptions -frtti -DU_STATIC_IMPLEMENTATION
+LOCAL_CPPFLAGS := -std=c++17 -fexceptions -frtti -DU_STATIC_IMPLEMENTATION \
+    -ffile-prefix-map=$(LITS_TN_ROOT)=/lits_tn_runtime_source \
+    -ffile-prefix-map=$(LITS_WORKSPACE_ROOT)/$(LITS_SOURCE_DIR_NAME)=/lits_src_pack_ \
+    -ffile-prefix-map=$(SDK_PROJECT_ROOT)=/lits_sdk_workspace
 LOCAL_LDLIBS := -llog -landroid
 LOCAL_STATIC_LIBRARIES := icui18n icuuc icudata
 include $(BUILD_SHARED_LIBRARY)

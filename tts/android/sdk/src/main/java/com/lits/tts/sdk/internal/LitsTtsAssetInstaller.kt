@@ -16,7 +16,13 @@ internal object LitsTtsAssetInstaller {
         val versionFile = rootDir.resolve(".version")
         val signatureFile = rootDir.resolve(".asset_signature")
         val manifestFile = rootDir.resolve(LitsTtsAssetRegistry.MANIFEST)
-        val assetSignature = readAssetSignature(context)
+        val assetSignature = runCatching { readAssetSignature(context) }.getOrElse { error ->
+            throw illegalState(
+                TtsErrorCode.CREATE_ENGINE_FAILED,
+                "TTS external resources not found under ${installRoot.absolutePath}",
+                error,
+            )
+        }
         val needsInstall = versionFile.readTextSafely() != LitsTtsAssetRegistry.MODEL_VERSION ||
             signatureFile.readTextSafely() != assetSignature ||
             !manifestFile.isFile ||

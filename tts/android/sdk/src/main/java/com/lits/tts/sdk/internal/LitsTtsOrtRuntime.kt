@@ -3,6 +3,8 @@ package com.lits.tts.sdk.internal
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
+import android.os.Process
+import android.os.SystemClock
 import android.util.Log
 import java.nio.FloatBuffer
 import java.nio.LongBuffer
@@ -33,7 +35,15 @@ internal class LitsTtsOrtRuntime(
         val melLength: Int,
         val chunkSize: Int,
         val firstChunkSize: Int,
+        val secondChunkSize: Int,
+        val steadyChunkSize: Int,
+        val chunkGrowthFactor: Int,
+        val maxChunkSize: Int,
         val finalDecoderMode: String,
+        val powerMode: String,
+        val cpuBudgetCore: Double,
+        val throttleMs: Long,
+        val throttleCount: Int,
     )
 
     private val environment: OrtEnvironment = OrtEnvironment.getEnvironment()
@@ -47,11 +57,6 @@ internal class LitsTtsOrtRuntime(
     private val streamDecoderStepSession: OrtSession?
     val loadProfileInfo: String
 
-    // ONNX Runtime 契约:SessionOptions 必须在使用它的 session 关闭之后才能 close(否则可能释放
-    // session 仍在用的 native 资源)。故与 session 同生命周期持有,统一在 close() 里(session 关闭后)
-    // 再释放——既不泄漏(无 finalizer 回收),又不违反关闭次序。
-    private val heldSessionOptions = mutableListOf<OrtSession.SessionOptions>()
-
     init {
         val sessionLoadStartedAt = System.nanoTime()
         val loadedSessions = mutableListOf<ProfiledSession>()
@@ -61,28 +66,20 @@ internal class LitsTtsOrtRuntime(
                 .also(loadedSessions::add)
         }
 
-        try {
-            acousticSession = load("acoustic", layout.acousticModel?.absolutePath)?.session
-            vocoderSession = load("vocoder", layout.vocoderModel.absolutePath)?.session
-                ?: error("vocoder session is unavailable")
-            hiddenEncoderSession = load("hidden", layout.hiddenEncoderModel?.absolutePath)?.session
-            streamDecoderChunkSession = load("chunk", layout.streamDecoderChunkModel?.absolutePath)?.session
-            streamDecoderFinalSession = load("final", layout.streamDecoderFinalModel?.absolutePath)?.session
-            streamConditionChunkSession = load("condChunk", layout.streamConditionChunkModel?.absolutePath)?.session
-            streamConditionFinalSession = load("condFinal", layout.streamConditionFinalModel?.absolutePath)?.session
-            streamDecoderStepSession = load("step", layout.streamDecoderStepModel?.absolutePath)?.session
-            loadProfileInfo = buildString {
-                append("ortcreateWall=").append(elapsedMs(sessionLoadStartedAt)).append("ms")
-                for (loaded in loadedSessions) {
-                    append(",").append(loaded.label).append("=").append(loaded.elapsedMs).append("ms")
-                }
+        acousticSession = load("acoustic", layout.acousticModel?.absolutePath)?.session
+        vocoderSession = load("vocoder", layout.vocoderModel.absolutePath)?.session
+            ?: error("vocoder session is unavailable")
+        hiddenEncoderSession = load("hidden", layout.hiddenEncoderModel?.absolutePath)?.session
+        streamDecoderChunkSession = load("chunk", layout.streamDecoderChunkModel?.absolutePath)?.session
+        streamDecoderFinalSession = load("final", layout.streamDecoderFinalModel?.absolutePath)?.session
+        streamConditionChunkSession = load("condChunk", layout.streamConditionChunkModel?.absolutePath)?.session
+        streamConditionFinalSession = load("condFinal", layout.streamConditionFinalModel?.absolutePath)?.session
+        streamDecoderStepSession = load("step", layout.streamDecoderStepModel?.absolutePath)?.session
+        loadProfileInfo = buildString {
+            append("ortcreateWall=").append(elapsedMs(sessionLoadStartedAt)).append("ms")
+            for (loaded in loadedSessions) {
+                append(",").append(loaded.label).append("=").append(loaded.elapsedMs).append("ms")
             }
-        } catch (error: Throwable) {
-            // 半初始化失败(某个 session load 抛异常):init 抛出后对象不会构造成功、close() 永不被
-            // 调用,故这里主动清理——先关已建 session,再关其 options(遵守 ORT 契约的关闭次序)。
-            loadedSessions.forEach { runCatching { it.session.close() } }
-            heldSessionOptions.forEach { runCatching { it.close() } }
-            throw error
         }
     }
 
@@ -124,6 +121,14 @@ internal class LitsTtsOrtRuntime(
         lengthScale: Float = 1.0f,
         chunkSizeOverride: Int? = null,
         firstChunkSizeOverride: Int? = null,
+        secondChunkSizeOverride: Int? = null,
+        steadyChunkSizeOverride: Int? = null,
+        chunkGrowthFactorOverride: Int? = null,
+        maxChunkSizeOverride: Int? = null,
+        flowStepOverride: Int? = null,
+        previousChunkContextFramesOverride: Int? = null,
+        powerModeOverride: String? = null,
+        cpuBudgetCoreOverride: Double? = null,
         isCancelled: () -> Boolean = { false },
         onChunk: (FloatArray) -> Unit,
     ): StreamingRuntimeMetrics {
@@ -158,7 +163,17 @@ internal class LitsTtsOrtRuntime(
         }
         val melLength = hidden.melLength
         val chunkSize = chunkSizeOverride?.takeIf { it > 0 } ?: manifest.streamingChunkSize
-        val firstChunkSize = firstChunkSizeOverride?.takeIf { it > 0 } ?: chunkSize
+        val firstChunkSize = firstChunkSizeOverride?.takeIf { it > 0 } ?: DEFAULT_FIRST_CHUNK_SIZE
+        val secondChunkSize = secondChunkSizeOverride?.takeIf { it > 0 }
+        val steadyChunkSize = steadyChunkSizeOverride?.takeIf { it > 0 }
+        val chunkGrowthFactor = chunkGrowthFactorOverride?.takeIf { it > 1 }
+        val maxChunkSize = maxChunkSizeOverride?.takeIf { it > 0 }
+        val flowStep = flowStepOverride?.takeIf { it > 0 } ?: DEFAULT_FLOW_STEP
+        val powerConfig = PowerConfig.from(powerModeOverride, cpuBudgetCoreOverride)
+        val throttler = CpuBudgetThrottler(
+            cpuBudgetCore = powerConfig.cpuBudgetCore,
+            maxThrottleSleepMs = powerConfig.maxThrottleSleepMs,
+        )
         val preLookaheadLen = manifest.streamingPreLookaheadLen
         val melCacheLen = manifest.streamingMelCacheLen
         val sourceCacheLen = melCacheLen * manifest.hopLength
@@ -168,6 +183,10 @@ internal class LitsTtsOrtRuntime(
             melLength = melLength,
             firstChunkSize = firstChunkSize,
             chunkSize = chunkSize,
+            secondChunkSize = secondChunkSize,
+            steadyChunkSize = steadyChunkSize,
+            chunkGrowthFactor = chunkGrowthFactor,
+            maxChunkSize = maxChunkSize,
         )
         var melCache: FloatArray? = null
         var waveformCache: FloatArray? = null
@@ -187,7 +206,11 @@ internal class LitsTtsOrtRuntime(
             val startIdx = chunkSlice.startIdx
             val currentChunkSize = chunkSlice.chunkSize
             val finalize = index == chunkSlices.lastIndex
-            val windowStartIdx = max(0, startIdx - chunkSlice.previousChunkSize)
+            val previousContextFrames = previousChunkContextFramesOverride
+                ?.takeIf { it >= 0 }
+                ?.coerceAtMost(chunkSlice.previousChunkSize)
+                ?: chunkSlice.previousChunkSize
+            val windowStartIdx = max(0, startIdx - previousContextFrames)
             val windowEndIdx = if (finalize) {
                 melLength
             } else {
@@ -221,10 +244,11 @@ internal class LitsTtsOrtRuntime(
                     maskFrames = outputFrames,
                     speakerEmbedding = speakerEmbedding,
                     speakerEmbeddingShape = hidden.speakerEmbeddingShape,
-                    timesteps = manifest.streamDecoderTimesteps,
+                    timesteps = flowStep,
                     temperature = manifest.streamDecoderTemperature,
                     seed = DECODER_NOISE_BASE_SEED + index,
                     isCancelled = isCancelled,
+                    throttler = throttler,
                 )
             } else {
                 if (isCancelled()) {
@@ -244,9 +268,10 @@ internal class LitsTtsOrtRuntime(
                     speakerEmbeddingShape = hidden.speakerEmbeddingShape,
                 )
             }
+            throttler.maybeThrottle(isCancelled)
             val decoderElapsedMs = elapsedMs(decoderStartedAt)
             decoderMs += decoderElapsedMs
-            decoderCalls += if (externalLoop) manifest.streamDecoderTimesteps + 1 else 1
+            decoderCalls += if (externalLoop) flowStep + 1 else 1
             if (isCancelled()) {
                 break
             }
@@ -259,6 +284,7 @@ internal class LitsTtsOrtRuntime(
             }
             val vocoderStartedAt = System.nanoTime()
             var waveform = runVocoder(melChunk, hidden.muYShape[1].toInt())
+            throttler.maybeThrottle(isCancelled)
             val vocoderElapsedMs = elapsedMs(vocoderStartedAt)
             vocoderMs += vocoderElapsedMs
             vocoderCalls += 1
@@ -301,7 +327,15 @@ internal class LitsTtsOrtRuntime(
             melLength = melLength,
             chunkSize = chunkSize,
             firstChunkSize = firstChunkSize,
+            secondChunkSize = secondChunkSize ?: chunkSize,
+            steadyChunkSize = steadyChunkSize ?: chunkSize,
+            chunkGrowthFactor = chunkGrowthFactor ?: 1,
+            maxChunkSize = maxChunkSize ?: 0,
             finalDecoderMode = if (externalLoop) "external_loop" else "final_session_preloaded",
+            powerMode = powerConfig.mode,
+            cpuBudgetCore = powerConfig.cpuBudgetCore,
+            throttleMs = throttler.throttleMs,
+            throttleCount = throttler.throttleCount,
         )
     }
 
@@ -314,8 +348,6 @@ internal class LitsTtsOrtRuntime(
         hiddenEncoderSession?.close()
         vocoderSession.close()
         acousticSession?.close()
-        // ORT 契约:所有 session 关闭后,再关闭它们各自的 SessionOptions。
-        heldSessionOptions.forEach { runCatching { it.close() } }
     }
 
     companion object {
@@ -329,20 +361,47 @@ internal class LitsTtsOrtRuntime(
             melLength: Int,
             firstChunkSize: Int,
             chunkSize: Int,
+            secondChunkSize: Int? = null,
+            steadyChunkSize: Int? = null,
+            chunkGrowthFactor: Int? = null,
+            maxChunkSize: Int? = null,
         ): List<StreamingChunkSlice> {
             val normalizedFirstChunkSize = firstChunkSize.coerceAtLeast(1)
             val normalizedChunkSize = chunkSize.coerceAtLeast(1)
+            val normalizedSecondChunkSize = secondChunkSize?.coerceAtLeast(1) ?: normalizedChunkSize
+            val normalizedSteadyChunkSize = steadyChunkSize?.coerceAtLeast(1) ?: normalizedChunkSize
+            val normalizedGrowthFactor = chunkGrowthFactor?.takeIf { it > 1 } ?: 1
+            val normalizedMaxChunkSize = maxChunkSize?.coerceAtLeast(1)
             if (melLength <= normalizedFirstChunkSize) {
                 return listOf(StreamingChunkSlice(startIdx = 0, chunkSize = normalizedFirstChunkSize, previousChunkSize = 0))
             }
+            if (secondChunkSize == null && steadyChunkSize == null && chunkGrowthFactor == null) {
+                val remainingAfterFirst = melLength - normalizedFirstChunkSize
+                val upper = melLength - (remainingAfterFirst % normalizedChunkSize)
+                val legacySlices = mutableListOf<StreamingChunkSlice>()
+                var legacyStartIdx = 0
+                var legacyCurrentChunkSize = normalizedFirstChunkSize
+                var legacyPreviousChunkSize = 0
+                while (legacyStartIdx < upper) {
+                    legacySlices += StreamingChunkSlice(
+                        startIdx = legacyStartIdx,
+                        chunkSize = legacyCurrentChunkSize,
+                        previousChunkSize = legacyPreviousChunkSize,
+                    )
+                    legacyPreviousChunkSize = legacyCurrentChunkSize
+                    legacyStartIdx += legacyCurrentChunkSize
+                    legacyCurrentChunkSize = normalizedChunkSize
+                }
+                return legacySlices.ifEmpty {
+                    listOf(StreamingChunkSlice(startIdx = 0, chunkSize = normalizedFirstChunkSize, previousChunkSize = 0))
+                }
+            }
 
-            val remainingAfterFirst = melLength - normalizedFirstChunkSize
-            val upper = melLength - (remainingAfterFirst % normalizedChunkSize)
             val slices = mutableListOf<StreamingChunkSlice>()
             var startIdx = 0
             var currentChunkSize = normalizedFirstChunkSize
             var previousChunkSize = 0
-            while (startIdx < upper) {
+            while (startIdx < melLength) {
                 slices += StreamingChunkSlice(
                     startIdx = startIdx,
                     chunkSize = currentChunkSize,
@@ -350,7 +409,14 @@ internal class LitsTtsOrtRuntime(
                 )
                 previousChunkSize = currentChunkSize
                 startIdx += currentChunkSize
-                currentChunkSize = normalizedChunkSize
+                currentChunkSize = when (slices.size) {
+                    1 -> normalizedSecondChunkSize
+                    2 -> normalizedSteadyChunkSize
+                    else -> {
+                        val grown = (currentChunkSize * normalizedGrowthFactor).coerceAtLeast(1)
+                        normalizedMaxChunkSize?.let { min(grown, it) } ?: grown
+                    }
+                }
             }
             return slices.ifEmpty {
                 listOf(StreamingChunkSlice(startIdx = 0, chunkSize = normalizedFirstChunkSize, previousChunkSize = 0))
@@ -392,6 +458,10 @@ internal class LitsTtsOrtRuntime(
         val DEFAULT_OPTIMIZATION_LEVEL: OrtSession.SessionOptions.OptLevel = OrtSession.SessionOptions.OptLevel.NO_OPT
         const val SESSION_LOAD_THREADS = 4
         const val SESSION_LOAD_INTRA_OP_THREADS = 1
+        const val DEFAULT_FLOW_STEP = 4
+        const val DEFAULT_FIRST_CHUNK_SIZE = 25
+        const val DEFAULT_BALANCED_CPU_BUDGET_CORE = 0.85
+        const val DEFAULT_LOW_POWER_CPU_BUDGET_CORE = 0.55
         const val DECODER_NOISE_BASE_SEED = 20260624L
         const val MIN_LENGTH_SCALE = 0.5f
         const val MAX_LENGTH_SCALE = 2.0f
@@ -482,16 +552,7 @@ internal class LitsTtsOrtRuntime(
         val file = java.io.File(modelPath)
         Log.i(ORT_LOG_TAG, "createSession start label=$label path=$modelPath bytes=${file.length()} exists=${file.isFile}")
         return try {
-            // SessionOptions 若从不 close 会泄漏(无 finalizer 回收);但 ORT 契约要求它必须晚于其
-            // session 关闭。故此处持有,由 close() 在 session 关闭后统一释放,而不是建完即关。
-            val sessionOptions = createSessionOptions(intraOpThreads = intraOpThreads)
-            val session = try {
-                environment.createSession(modelPath, sessionOptions)
-            } catch (t: Throwable) {
-                runCatching { sessionOptions.close() } // 建 session 失败:没有 session 会用到它,立即关闭
-                throw t
-            }
-            heldSessionOptions.add(sessionOptions)
+            val session = environment.createSession(modelPath, createSessionOptions(intraOpThreads = intraOpThreads))
             ProfiledSession(label = label, session = session, elapsedMs = elapsedMs(startedAt)).also {
                 Log.i(ORT_LOG_TAG, "createSession complete label=$label elapsedMs=${it.elapsedMs}")
             }
@@ -544,12 +605,14 @@ internal class LitsTtsOrtRuntime(
         temperature: Float,
         seed: Long,
         isCancelled: () -> Boolean,
+        throttler: CpuBudgetThrottler,
     ): FloatArray {
         val channels = if (muFrames == 0) 80 else muY.size / muFrames
         if (isCancelled()) {
             return FloatArray(channels * maskFrames)
         }
         val encodedMu = runConditionEncoder(conditionSession, muY, muFrames, yMask, maskFrames, channels)
+        throttler.maybeThrottle(isCancelled)
         if (isCancelled()) {
             return FloatArray(encodedMu.size)
         }
@@ -575,6 +638,7 @@ internal class LitsTtsOrtRuntime(
             )
             x = output.xNext
             mel = output.mel
+            throttler.maybeThrottle(isCancelled)
         }
         return mel
     }
@@ -598,8 +662,78 @@ internal class LitsTtsOrtRuntime(
             melLength = 0,
             chunkSize = 0,
             firstChunkSize = 0,
+            secondChunkSize = 0,
+            steadyChunkSize = 0,
+            chunkGrowthFactor = 1,
+            maxChunkSize = 0,
             finalDecoderMode = "cancelled",
+            powerMode = "fast",
+            cpuBudgetCore = 0.0,
+            throttleMs = 0L,
+            throttleCount = 0,
         )
+    }
+
+    private data class PowerConfig(
+        val mode: String,
+        val cpuBudgetCore: Double,
+        val maxThrottleSleepMs: Long,
+    ) {
+        companion object {
+            fun from(modeOverride: String?, budgetOverride: Double?): PowerConfig {
+                val mode = modeOverride?.lowercase()?.trim().orEmpty()
+                return when (mode) {
+                    "balanced", "balance" -> {
+                        val budget = budgetOverride
+                            ?.takeIf { it.isFinite() && it > 0.05 }
+                            ?.coerceIn(0.5, 1.0)
+                            ?: DEFAULT_BALANCED_CPU_BUDGET_CORE
+                        PowerConfig("balanced", budget, BALANCED_MAX_THROTTLE_SLEEP_MS)
+                    }
+                    "low_power" -> {
+                        val budget = budgetOverride
+                            ?.takeIf { it.isFinite() && it > 0.05 }
+                            ?.coerceIn(0.1, 1.0)
+                            ?: DEFAULT_LOW_POWER_CPU_BUDGET_CORE
+                        PowerConfig("low_power", budget, LOW_POWER_MAX_THROTTLE_SLEEP_MS)
+                    }
+                    else -> PowerConfig("fast", 0.0, 0L)
+                }
+            }
+
+            private const val BALANCED_MAX_THROTTLE_SLEEP_MS = 8L
+            private const val LOW_POWER_MAX_THROTTLE_SLEEP_MS = 40L
+        }
+    }
+
+    private class CpuBudgetThrottler(
+        private val cpuBudgetCore: Double,
+        private val maxThrottleSleepMs: Long,
+    ) {
+        private val startedWallMs = SystemClock.elapsedRealtime()
+        private val startedCpuMs = Process.getElapsedCpuTime()
+
+        var throttleMs: Long = 0L
+            private set
+        var throttleCount: Int = 0
+            private set
+
+        fun maybeThrottle(isCancelled: () -> Boolean) {
+            if (cpuBudgetCore <= 0.0 || isCancelled()) return
+            val cpuMs = Process.getElapsedCpuTime() - startedCpuMs
+            val wallMs = (SystemClock.elapsedRealtime() - startedWallMs).coerceAtLeast(1L)
+            val targetWallMs = (cpuMs.toDouble() / cpuBudgetCore).toLong()
+            val sleepMs = (targetWallMs - wallMs).coerceIn(0L, maxThrottleSleepMs)
+            if (sleepMs <= 0L) return
+            try {
+                Thread.sleep(sleepMs)
+                throttleMs += sleepMs
+                throttleCount += 1
+            } catch (interrupted: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+
     }
 
     private fun runConditionEncoder(

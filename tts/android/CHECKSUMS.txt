@@ -1,10 +1,10 @@
-# Lits Transsion TTS Android SDK FP32 vocoder checksums
+# Lits TTS Android SDK FP32 vocoder checksums
 
 Generated after local verification build.
 
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `lits-transsion-tts-sdk-fp32-vocoder-0.1.0.aar` | 151258273 | `e45896e342b3ad8d371f7b87c766796251934c49be28aed7b257a6cc7d372993` |
+| `lits-tts-sdk-fp32-vocoder-0.1.0.aar` | 151258273 | `e45896e342b3ad8d371f7b87c766796251934c49be28aed7b257a6cc7d372993` |
 | `AAR embedded asset: manifest.json` | 2041 | `2a479bccad479d2be44586c83a75021cd7cd58f1baf96fbb1a8ac26873d5a23a` |
 | `AAR embedded asset: lits_hidden_encoder.onnx` | 29100982 | `af1ef52699d45ec0104dd404ab61fd47682b0542e7d04ab5e20b0263902c79b0` |
 | `AAR embedded asset: lits_stream_decoder_chunk.onnx` | 63544823 | `8fab2314b146a21201f87b6dc1d23570edeba793ee22408efd960df2f9b897f8` |

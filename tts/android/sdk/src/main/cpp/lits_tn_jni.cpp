@@ -51,7 +51,7 @@ public:
             throw std::runtime_error("failed to load TN rules_v2: " + err);
         }
         if (lang_ == "zh") {
-            const std::string pinyin_path = rules_root_ + "/rules/zh_pinyin.json";
+            const std::string pinyin_path = rules_root_ + "/rules_v2/zh_pinyin.json";
             if (!engine_.loadPinyinMap(pinyin_path, err)) {
                 throw std::runtime_error("failed to load TN pinyin map: " + err);
             }
@@ -140,6 +140,18 @@ NativeTnNormalizer& GetNormalizer(const std::string& rules_root, const std::stri
     return *cached;
 }
 
+void ClearNormalizers(const std::string& rules_root) {
+    const std::string prefix = rules_root + "\n";
+    std::lock_guard<std::mutex> lock(g_normalizers_mutex);
+    for (auto it = g_normalizers.begin(); it != g_normalizers.end();) {
+        if (it->first.rfind(prefix, 0) == 0) {
+            it = g_normalizers.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 }  // namespace
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -172,5 +184,19 @@ Java_com_lits_tts_sdk_internal_NativeTnNormalizer_normalizeNative(
             env->ThrowNew(exception_class, "native TN normalize failed");
         }
         return nullptr;
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_lits_tts_sdk_internal_NativeTnNormalizer_clearCacheNative(
+    JNIEnv* env,
+    jobject /* thiz */,
+    jstring rules_root) {
+    try {
+        ClearNormalizers(ToUtf8(env, rules_root));
+    } catch (const std::exception& error) {
+        __android_log_print(ANDROID_LOG_ERROR, kLogTag, "clear cache failed: %s", error.what());
+    } catch (...) {
+        __android_log_print(ANDROID_LOG_ERROR, kLogTag, "clear cache failed: unknown error");
     }
 }

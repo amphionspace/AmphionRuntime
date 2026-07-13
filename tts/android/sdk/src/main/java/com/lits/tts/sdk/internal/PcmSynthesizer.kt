@@ -46,7 +46,7 @@ internal interface PcmSynthesizer {
 
     fun loadProfileInfo(): String = ""
 
-    fun close() = Unit
+    fun close(releaseSharedResources: Boolean = true) = Unit
 }
 
 internal class DeterministicPcmSynthesizer : PcmSynthesizer {
@@ -175,12 +175,9 @@ internal class LitsDeliveryPcmSynthesizer(
         logFrontendRequest(
             "stream start language=${engineParams.language} languageContext=${params.languageContext} speed=${params.speed} lengthScale=$lengthScale textLen=${text.length} text=$text",
         )
-        val textSegments = LitsTtsFrontend.splitForStreaming(
-            layout = activeLayout,
-            text = text,
-            language = engineParams.language,
-            languageContext = params.languageContext,
-        )
+        val splitStartedAt = System.nanoTime()
+        val textSegments = LitsTtsFrontend.splitRawForStreaming(text)
+        val splitMs = elapsedMs(splitStartedAt)
         logFrontendRequest("stream segments count=${textSegments.size} segments=${textSegments.joinToString(" | ")}")
         val output = if (collectOutput) java.io.ByteArrayOutputStream() else null
         var totalBytes = 0L
@@ -190,12 +187,20 @@ internal class LitsDeliveryPcmSynthesizer(
         var runtimeMetrics: LitsTtsOrtRuntime.StreamingRuntimeMetrics? = null
         val chunkSizeOverride = streamingChunkSizeOverride(params)
         val firstChunkSizeOverride = streamingFirstChunkSizeOverride(params)
+        val secondChunkSizeOverride = streamingSecondChunkSizeOverride(params)
+        val steadyChunkSizeOverride = streamingSteadyChunkSizeOverride(params)
+        val chunkGrowthFactorOverride = streamingChunkGrowthFactorOverride(params)
+        val maxChunkSizeOverride = streamingMaxChunkSizeOverride(params)
+        val flowStepOverride = streamingFlowStepOverride(params)
+        val previousChunkContextFramesOverride = streamingPreviousChunkContextFramesOverride(params)
+        val powerModeOverride = streamingPowerModeOverride(params)
+        val cpuBudgetCoreOverride = streamingCpuBudgetCoreOverride(params)
         for (segment in textSegments) {
             if (isCancelled()) {
                 break
             }
             val frontendStartedAt = System.nanoTime()
-            val tokenIds = LitsTtsFrontend.encodeNormalized(activeLayout, segment, engineParams.language, params.languageContext)
+            val tokenIds = LitsTtsFrontend.encode(activeLayout, segment, engineParams.language, params.languageContext)
             if (isCancelled()) {
                 break
             }
@@ -212,6 +217,14 @@ internal class LitsDeliveryPcmSynthesizer(
                 lengthScale = lengthScale,
                 chunkSizeOverride = chunkSizeOverride,
                 firstChunkSizeOverride = firstChunkSizeOverride,
+                secondChunkSizeOverride = secondChunkSizeOverride,
+                steadyChunkSizeOverride = steadyChunkSizeOverride,
+                chunkGrowthFactorOverride = chunkGrowthFactorOverride,
+                maxChunkSizeOverride = maxChunkSizeOverride,
+                flowStepOverride = flowStepOverride,
+                previousChunkContextFramesOverride = previousChunkContextFramesOverride,
+                powerModeOverride = powerModeOverride,
+                cpuBudgetCoreOverride = cpuBudgetCoreOverride,
                 isCancelled = isCancelled,
             ) { waveformChunk ->
                 if (!isCancelled()) {
@@ -240,12 +253,13 @@ internal class LitsDeliveryPcmSynthesizer(
                 textSegments = textSegments.size,
                 firstPacketMs = firstChunkMs,
                 firstPacketFrontendMs = firstPacketFrontendMs,
+                splitMs = splitMs,
             ),
         )
     }
 
-    override fun close() {
-        resetRuntime()
+    override fun close(releaseSharedResources: Boolean) {
+        resetRuntime(releaseSharedResources)
     }
 
     private fun ensureLayout(): LitsTtsAssetInstaller.InstalledLayout {
@@ -260,12 +274,15 @@ internal class LitsDeliveryPcmSynthesizer(
         return LitsTtsOrtRuntime(layout).also { runtime = it }
     }
 
-    private fun resetRuntime() {
+    private fun resetRuntime(releaseSharedResources: Boolean) {
         try {
             runtime?.close()
         } catch (_: Throwable) {
         } finally {
             runtime = null
+        }
+        if (releaseSharedResources) layout?.let { activeLayout ->
+            runCatching { LitsTnNormalizer.shutdown(activeLayout) }
         }
     }
 
@@ -278,13 +295,16 @@ internal class LitsDeliveryPcmSynthesizer(
         textSegments: Int,
         firstPacketMs: Long,
         firstPacketFrontendMs: Long,
+        splitMs: Long,
     ): String = buildString {
         append("frontend=").append(frontendMs).append("ms")
+        append(" split=").append(splitMs).append("ms")
         append(" textSegments=").append(textSegments)
         if (runtimeMetrics == null) return@buildString
         append(" firstPacketBreakdown=").append(
             formatFirstPacketBreakdown(
                 firstPacketMs = firstPacketMs,
+                splitMs = splitMs,
                 frontendMs = firstPacketFrontendMs,
                 hiddenMs = runtimeMetrics.firstHiddenEncoderMs,
                 decoderMs = runtimeMetrics.firstDecoderMs,
@@ -300,22 +320,45 @@ internal class LitsDeliveryPcmSynthesizer(
         if (runtimeMetrics.firstChunkSize != runtimeMetrics.chunkSize) {
             append(" firstChunkSize=").append(runtimeMetrics.firstChunkSize)
         }
+        if (runtimeMetrics.secondChunkSize != runtimeMetrics.chunkSize) {
+            append(" secondChunkSize=").append(runtimeMetrics.secondChunkSize)
+        }
+        if (runtimeMetrics.steadyChunkSize != runtimeMetrics.chunkSize) {
+            append(" steadyChunkSize=").append(runtimeMetrics.steadyChunkSize)
+        }
+        if (runtimeMetrics.chunkGrowthFactor > 1) {
+            append(" chunkGrowthFactor=").append(runtimeMetrics.chunkGrowthFactor)
+        }
+        if (runtimeMetrics.maxChunkSize > 0) {
+            append(" maxChunkSize=").append(runtimeMetrics.maxChunkSize)
+        }
         append(" finalDecoder=").append(runtimeMetrics.finalDecoderMode)
         append(" runtimeFirstChunk=").append(runtimeMetrics.firstChunkMs).append("ms")
+        append(" powerMode=").append(runtimeMetrics.powerMode)
+        if (runtimeMetrics.cpuBudgetCore > 0.0) {
+            append(" cpuBudgetCore=").append(String.format(java.util.Locale.US, "%.2f", runtimeMetrics.cpuBudgetCore))
+        }
+        if (runtimeMetrics.throttleCount > 0) {
+            append(" throttle=").append(runtimeMetrics.throttleMs).append("ms/")
+                .append(runtimeMetrics.throttleCount).append("x")
+        }
     }
 
     private fun formatFirstPacketBreakdown(
         firstPacketMs: Long,
+        splitMs: Long,
         frontendMs: Long,
         hiddenMs: Long,
         decoderMs: Long,
         vocoderMs: Long,
     ): String {
-        val knownMs = listOf(frontendMs, hiddenMs, decoderMs, vocoderMs)
+        val knownMs = listOf(splitMs, frontendMs, hiddenMs, decoderMs, vocoderMs)
             .filter { it >= 0L }
             .sum()
         val otherMs = if (firstPacketMs >= 0L) (firstPacketMs - knownMs).coerceAtLeast(0L) else -1L
         return buildString {
+            append("split=").append(splitMs).append("ms")
+            append(",")
             append("frontend=").append(frontendMs).append("ms")
             append(",hidden=").append(hiddenMs).append("ms")
             append(",decoder=").append(decoderMs).append("ms")
@@ -347,7 +390,15 @@ internal class LitsDeliveryPcmSynthesizer(
         melLength = melLength + other.melLength,
         chunkSize = other.chunkSize,
         firstChunkSize = other.firstChunkSize,
+        secondChunkSize = other.secondChunkSize,
+        steadyChunkSize = other.steadyChunkSize,
+        chunkGrowthFactor = other.chunkGrowthFactor,
+        maxChunkSize = other.maxChunkSize,
         finalDecoderMode = other.finalDecoderMode,
+        powerMode = other.powerMode,
+        cpuBudgetCore = other.cpuBudgetCore,
+        throttleMs = throttleMs + other.throttleMs,
+        throttleCount = throttleCount + other.throttleCount,
     )
 
     private fun buildLoadProfile(
@@ -400,6 +451,83 @@ internal fun streamingFirstChunkSizeOverride(params: SpeakParams): Int? {
         is String -> value.toIntOrNull()
         else -> null
     }?.takeIf { it > 0 }
+}
+
+internal fun streamingSecondChunkSizeOverride(params: SpeakParams): Int? {
+    val value = params.extraParams["streamingSecondChunkSize"]
+        ?: params.extraParams["secondChunkSize"]
+    return when (value) {
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull()
+        else -> null
+    }?.takeIf { it > 0 }
+}
+
+internal fun streamingSteadyChunkSizeOverride(params: SpeakParams): Int? {
+    val value = params.extraParams["streamingSteadyChunkSize"]
+        ?: params.extraParams["steadyChunkSize"]
+    return when (value) {
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull()
+        else -> null
+    }?.takeIf { it > 0 }
+}
+
+internal fun streamingChunkGrowthFactorOverride(params: SpeakParams): Int? {
+    val value = params.extraParams["streamingChunkGrowthFactor"]
+        ?: params.extraParams["chunkGrowthFactor"]
+    return when (value) {
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull()
+        else -> null
+    }?.takeIf { it > 1 }
+}
+
+internal fun streamingMaxChunkSizeOverride(params: SpeakParams): Int? {
+    val value = params.extraParams["streamingMaxChunkSize"]
+        ?: params.extraParams["maxChunkSize"]
+    return when (value) {
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull()
+        else -> null
+    }?.takeIf { it > 0 }
+}
+
+internal fun streamingFlowStepOverride(params: SpeakParams): Int? {
+    val value = params.extraParams["streamingFlowStep"] ?: params.extraParams["flowStep"]
+    return when (value) {
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull()
+        else -> null
+    }?.takeIf { it > 0 }
+}
+
+internal fun streamingPreviousChunkContextFramesOverride(params: SpeakParams): Int? {
+    val value = params.extraParams["streamingPreviousChunkContextFrames"]
+        ?: params.extraParams["previousChunkContextFrames"]
+        ?: params.extraParams["chunkContextFrames"]
+    return when (value) {
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull()
+        else -> null
+    }?.takeIf { it >= 0 }
+}
+
+internal fun streamingPowerModeOverride(params: SpeakParams): String? {
+    val value = params.extraParams["streamingPowerMode"] ?: params.extraParams["powerMode"]
+    return when (value) {
+        is String -> value
+        else -> null
+    }?.takeIf { it.isNotBlank() }
+}
+
+internal fun streamingCpuBudgetCoreOverride(params: SpeakParams): Double? {
+    val value = params.extraParams["streamingCpuBudgetCore"] ?: params.extraParams["cpuBudgetCore"]
+    return when (value) {
+        is Number -> value.toDouble()
+        is String -> value.toDoubleOrNull()
+        else -> null
+    }?.takeIf { it.isFinite() && it > 0.0 }
 }
 
 private object AudioTransforms {

@@ -11,7 +11,7 @@
    - `LITS.get_mel(..., streaming=True)`
    - `CFM_Causal.forward(..., finalize, streaming=True)`
 2. 本地已经可以测训练侧流式指标：
-   - [infer/benchmark_streaming_local.py](/Users/amphion/Documents/Lits_delivery/infer/benchmark_streaming_local.py:1)
+   - [infer/benchmark_streaming_local.py](dingqiao_lits/infer/benchmark_streaming_local.py:1)
 
 但 Android 交付包目前仍是非流式资产，因此 SDK 侧暂时无法实现真实首包提前。
 
@@ -19,7 +19,7 @@
 
 ### 1. SDK Runtime 是整句式调用
 
-[LitsTtsOrtRuntime.kt](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt:24)
+[LitsTtsOrtRuntime.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt:24)
 
 - acoustic ONNX 输入：`token_ids`, `token_lengths`, `speaker_id`
 - acoustic ONNX 输出：`mel`
@@ -30,7 +30,7 @@
 
 ### 2. SDK 的 `onData` 不是模型流式
 
-[TextToSpeechEngineImpl.kt](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt:206)
+[TextToSpeechEngineImpl.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt:206)
 
 先执行：
 
@@ -44,7 +44,7 @@
 
 ### 3. 导出的 manifest 明确关闭了流式
 
-[export_lits_delivery_16k_hifigan_onnx.py](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/tools/export_lits_delivery_16k_hifigan_onnx.py:1011)
+[export_lits_delivery_16k_hifigan_onnx.py](tools/dingqiao-onnx-export/export_lits_delivery_16k_hifigan_onnx.py:1011)
 
 当前导出结果写死：
 
@@ -52,7 +52,7 @@
 
 ### 4. ONNX 导出协议仍然是整句 mel
 
-[export_lits_delivery_16k_hifigan_onnx.py](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/tools/export_lits_delivery_16k_hifigan_onnx.py:306)
+[export_lits_delivery_16k_hifigan_onnx.py](tools/dingqiao-onnx-export/export_lits_delivery_16k_hifigan_onnx.py:306)
 
 虽然导出 wrapper 内部调用了流式路径，但最终还是把整个过程包成：
 
@@ -64,7 +64,7 @@
 
 ### 1. 隐变量阶段和解码阶段已经拆开
 
-[train/lits/models/lits.py](/Users/amphion/Documents/Lits_delivery/train/lits/models/lits.py:135)
+[train/lits/models/lits.py](dingqiao_lits/lits/models/lits.py:135)
 
 - `get_hidden_mel(...)` 产出 `mu_y`, `y_mask`, `y_max_length`, `spks`
 - `get_mel(...)` 接收 `mu_y`, `y_mask`, `finalize`, `streaming`
@@ -73,7 +73,7 @@
 
 ### 2. `CFM_Causal` 已有 lookahead/finalize 语义
 
-[flow_matching.py](/Users/amphion/Documents/Lits_delivery/train/lits/models/components/flow_matching.py:177)
+[flow_matching.py](dingqiao_lits/lits/models/components/flow_matching.py:177)
 
 关键点：
 
@@ -85,7 +85,7 @@
 
 ### 3. Conformer/Attention 已考虑 ONNX 流式缓存形态
 
-[transformer.py](/Users/amphion/Documents/Lits_delivery/train/lits/models/components/transformer.py:398)
+[transformer.py](dingqiao_lits/lits/models/components/transformer.py:398)
 
 注释里已经明确提到：
 
@@ -157,7 +157,7 @@
 - speaker count
 - acoustic/vocoder file
 
-[LitsTtsAssetInstaller.kt](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt:37)
+[LitsTtsAssetInstaller.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt:37)
 
 建议新增字段：
 
@@ -171,7 +171,7 @@
 
 ### 2. Asset Registry 允许新模型文件
 
-[LitsTtsAssetRegistry.kt](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetRegistry.kt:3)
+[LitsTtsAssetRegistry.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetRegistry.kt:3)
 
 至少要新增：
 
@@ -197,7 +197,7 @@
 
 - `synthesize(...) -> SynthesizedAudio`
 
-[PcmSynthesizer.kt](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt:13)
+[PcmSynthesizer.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt:13)
 
 建议扩成两类：
 
@@ -236,7 +236,7 @@
 
 ### 第 2 步：对齐本地 benchmark
 
-以 [infer/benchmark_streaming_local.py](/Users/amphion/Documents/Lits_delivery/infer/benchmark_streaming_local.py:1) 为基线，至少对比：
+以 [infer/benchmark_streaming_local.py](dingqiao_lits/infer/benchmark_streaming_local.py:1) 为基线，至少对比：
 
 - `first_mel_ms`
 - `first_audio_ms`
@@ -261,11 +261,11 @@
 
 ## 下一步最值得直接动手的文件
 
-1. [LitsTtsSdk/tools/export_lits_delivery_16k_hifigan_onnx.py](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/tools/export_lits_delivery_16k_hifigan_onnx.py:1)
-2. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt:1)
-3. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt:1)
-4. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt:1)
-5. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt](/Users/amphion/Documents/Lits_delivery/LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt:1)
+1. [LitsTtsSdk/tools/export_lits_delivery_16k_hifigan_onnx.py](tools/dingqiao-onnx-export/export_lits_delivery_16k_hifigan_onnx.py:1)
+2. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt:1)
+3. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt:1)
+4. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt:1)
+5. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt:1)
 
 ## 建议的下一次改造目标
 

@@ -4,7 +4,7 @@ import { audio } from '@kit.AudioKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { HarmonyLicenseVerifier, AmphionLicenseStatus } from './License';
 
-const MODEL_ID: string = 'transsion_lits_en_zh_vocos24k_streaming_proto_external_loop';
+const MODEL_ID: string = 'dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop';
 const MODEL_VERSION: string = '0.1.0';
 const FRONTEND_ASSET_SIGNATURE_VERSION: string = '20260701-chunk50-polyphone-v1';
 const BUNDLED_MODEL_RAWFILE_DIR: string = `lits-models/tts/${MODEL_ID}/${MODEL_VERSION}`;
@@ -22,6 +22,11 @@ const MAX_PCM_QUEUE_CAPACITY_VALUE: number = 256;
 const STREAMING_PREBUFFER_CHUNKS: number = 1;
 const PLAYBACK_DRAIN_PADDING_MS: number = 500;
 const PLAYBACK_DRAIN_MAX_MS: number = 30000;
+const MIN_RUNTIME_STREAMING_CHUNK_SIZE: number = 16;
+const MAX_RUNTIME_STREAMING_CHUNK_SIZE: number = 128;
+const PREFERRED_TN_SEGMENT_LENGTH: number = 160;
+const MAX_TN_SEGMENT_LENGTH: number = 220;
+const MAX_TN_SEGMENTS_PER_REQUEST: number = 40;
 
 const SUPPORTED_LANGUAGES: Array<string> = ['zh-en', 'en-US'];
 const SUPPORTED_LANGUAGE_SET: Set<string> = new Set<string>(SUPPORTED_LANGUAGES);
@@ -97,11 +102,9 @@ const BUNDLED_MODEL_FILES: Array<string> = [
   'arpabet_to_tokens.json',
   'tn-bin/arm64-v8a/zh_tts',
   'tn-bin/arm64-v8a/en_tts',
-  'rules/zh.json',
-  'rules/en.json',
-  'rules/zh_pinyin.json',
   'rules_v2/zh.full.json',
   'rules_v2/en.full.json',
+  'rules_v2/zh_pinyin.json',
   'lits_hidden_encoder.onnx',
   'lits_stream_condition_chunk.onnx',
   'lits_stream_condition_final.onnx',
@@ -383,6 +386,7 @@ interface NativeTtsModule {
     onChunk: (chunk: ArrayBuffer, sequence: number) => void
   ): Promise<NativeStreamingSynthesisMetrics>;
   normalizeTnSegment(binaryPath: string, workingDir: string, text: string): string;
+  releaseTnResources(): void;
 }
 
 interface NativeStreamingSynthesisMetrics {
@@ -1027,26 +1031,24 @@ class FrontendResources {
   }
 }
 
-class TranssionTnNormalizer {
+class DingqiaoTnNormalizer {
   static normalize(resources: LoadedPackage, text: string, language: string, languageContext: string): string {
-    const input = TranssionTnNormalizer.prepareInput(resources, text, languageContext);
+    const input = DingqiaoTnNormalizer.prepareInput(resources, text, languageContext);
     console.info(`${TN_LOG_TAG} normalize start language=${language} languageContext=${languageContext} inputLen=${input.length} root=${resources.rootDir}`);
     if (input.length === 0) {
       console.info(`${TN_LOG_TAG} normalize skip empty input`);
       return text;
     }
-    if (!TranssionTnNormalizer.hasTnBinaries(resources)) {
-      console.error(`${TN_LOG_TAG} normalize skip missing binaries zh=${TranssionTnNormalizer.binaryPath(resources, 'zh')} en=${TranssionTnNormalizer.binaryPath(resources, 'en')}`);
+    if (!DingqiaoTnNormalizer.hasTnBinaries(resources)) {
+      console.error(`${TN_LOG_TAG} normalize skip missing binaries zh=${DingqiaoTnNormalizer.binaryPath(resources, 'zh')} en=${DingqiaoTnNormalizer.binaryPath(resources, 'en')}`);
       return text;
     }
     let output: string;
     try {
       if (language === 'en-US' || languageContext === 'en-US') {
-        output = TranssionTnNormalizer.normalizeSegment(resources, input, 'en');
+        output = DingqiaoTnNormalizer.normalizeSegments(resources, [{ text: input, lang: 'en' }]);
       } else {
-        output = TranssionTnNormalizer.segmentZhEn(input)
-          .map((segment: TnTextSegment): string => TranssionTnNormalizer.normalizeSegment(resources, segment.text, segment.lang))
-          .join('');
+        output = DingqiaoTnNormalizer.normalizeSegments(resources, DingqiaoTnNormalizer.segmentZhEn(input));
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1076,9 +1078,30 @@ class TranssionTnNormalizer {
     return output.replace(/\s+/g, ' ').trim();
   }
 
+  private static normalizeSegments(resources: LoadedPackage, segments: Array<TnTextSegment>): string {
+    const tnSegments = segments.flatMap((segment: TnTextSegment): Array<TnTextSegment> =>
+      DingqiaoTnNormalizer.splitLongSegment(segment)
+    );
+    console.info(`${TN_LOG_TAG} normalize segments original=${segments.length} tn=${tnSegments.length}`);
+    const output: Array<string> = [];
+    for (let index = 0; index < tnSegments.length; index += 1) {
+      const segment = tnSegments[index];
+      if (index >= MAX_TN_SEGMENTS_PER_REQUEST) {
+        const fallback = tnSegments.slice(index)
+          .map((item: TnTextSegment): string => item.text)
+          .join('');
+        console.error(`${TN_LOG_TAG} normalize segment cap reached processed=${index} total=${tnSegments.length} fallbackLen=${fallback.length}`);
+        output.push(fallback);
+        break;
+      }
+      output.push(DingqiaoTnNormalizer.normalizeSegment(resources, segment.text, segment.lang));
+    }
+    return output.join('');
+  }
+
   private static hasTnBinaries(resources: LoadedPackage): boolean {
-    const zhPath = TranssionTnNormalizer.binaryPath(resources, 'zh');
-    const enPath = TranssionTnNormalizer.binaryPath(resources, 'en');
+    const zhPath = DingqiaoTnNormalizer.binaryPath(resources, 'zh');
+    const enPath = DingqiaoTnNormalizer.binaryPath(resources, 'en');
     const zhExists = isRegularFile(zhPath);
     const enExists = isRegularFile(enPath);
     console.info(`${TN_LOG_TAG} binary check zh=${zhExists} path=${zhPath} en=${enExists} path=${enPath}`);
@@ -1089,21 +1112,20 @@ class TranssionTnNormalizer {
     if (text.trim().length === 0) {
       return text;
     }
-    const binaryPath = TranssionTnNormalizer.binaryPath(resources, lang);
-    console.info(`${TN_LOG_TAG} segment start lang=${lang} textLen=${text.length} binary=${binaryPath} root=${resources.rootDir} preview=${TranssionTnNormalizer.preview(text)}`);
+    const binaryPath = DingqiaoTnNormalizer.binaryPath(resources, lang);
+    console.info(`${TN_LOG_TAG} segment start lang=${lang} textLen=${text.length} binary=${binaryPath} root=${resources.rootDir} preview=${DingqiaoTnNormalizer.preview(text)}`);
     try {
       const normalized = resolveNativeTtsModule().normalizeTnSegment(
         binaryPath,
         resources.rootDir,
         text
       );
-      console.info(`${TN_LOG_TAG} segment success lang=${lang} outputLen=${normalized.length} preview=${TranssionTnNormalizer.preview(normalized)}`);
+      console.info(`${TN_LOG_TAG} segment success lang=${lang} outputLen=${normalized.length} preview=${DingqiaoTnNormalizer.preview(normalized)}`);
       return normalized;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`${TN_LOG_TAG} segment failed lang=${lang} binary=${binaryPath} root=${resources.rootDir} message=${message}`);
-      const code = error instanceof TextToSpeechException ? error.errorCode : TtsErrorCode.RUNTIME_EXCEPTION;
-      throw new TextToSpeechException(code, message);
+      return text;
     }
   }
 
@@ -1116,19 +1138,48 @@ class TranssionTnNormalizer {
     return singleLine.length > 80 ? `${singleLine.substring(0, 80)}...` : singleLine;
   }
 
+  private static splitLongSegment(segment: TnTextSegment): Array<TnTextSegment> {
+    if (segment.text.length <= MAX_TN_SEGMENT_LENGTH) {
+      return [segment];
+    }
+    const output: Array<TnTextSegment> = [];
+    let current = '';
+    for (let index = 0; index < segment.text.length; index += 1) {
+      const char = segment.text[index];
+      current += char;
+      const canSplitAtBoundary = current.length >= PREFERRED_TN_SEGMENT_LENGTH &&
+        (DingqiaoTnNormalizer.isTnSplitBoundary(char) || LitsTtsFrontend.isWhitespace(char));
+      const mustSplit = current.length >= MAX_TN_SEGMENT_LENGTH;
+      if (canSplitAtBoundary || mustSplit) {
+        output.push({ text: current, lang: segment.lang });
+        current = '';
+      }
+    }
+    if (current.length > 0) {
+      output.push({ text: current, lang: segment.lang });
+    }
+    return output.length > 0 ? output : [segment];
+  }
+
+  private static isTnSplitBoundary(char: string): boolean {
+    return char === ',' || char === '.' || char === '!' || char === '?' ||
+      char === ';' || char === ':' || char === '\u3002' || char === '\uFF01' ||
+      char === '\uFF1F' || char === '\uFF1B' || char === '\uFF1A';
+  }
+
   private static segmentZhEn(text: string): Array<TnTextSegment> {
     const segments: Array<TnTextSegment> = [];
     let index = 0;
     while (index < text.length) {
       const char = text[index];
       if (LitsTtsFrontend.isEnglishLetter(char)) {
-        const end = TranssionTnNormalizer.scanAsciiRun(text, index);
+        const end = DingqiaoTnNormalizer.scanAsciiRun(text, index);
         const segment = text.substring(index, end);
-        const lang = TranssionTnNormalizer.protectedAsciiRunLang(text, index, end, segment) ?? 'en';
+        const lang = DingqiaoTnNormalizer.protectedAsciiRunLang(text, index, end, segment) ?? 'en';
         segments.push({ text: segment, lang });
         index = end;
       } else {
-        const end = TranssionTnNormalizer.scanNonAsciiRun(text, index);
+        const end = DingqiaoTnNormalizer.scanNonAsciiRun(text, index);
         segments.push({ text: text.substring(index, end), lang: 'zh' });
         index = end;
       }
@@ -1153,7 +1204,7 @@ class TranssionTnNormalizer {
     let index = start;
     while (
       index < text.length &&
-      (!LitsTtsFrontend.isEnglishLetter(text[index]) || TranssionTnNormalizer.isAsciiCelsiusUnit(text, index))
+      (!LitsTtsFrontend.isEnglishLetter(text[index]) || DingqiaoTnNormalizer.isAsciiCelsiusUnit(text, index))
     ) {
       index += 1;
     }
@@ -1165,10 +1216,10 @@ class TranssionTnNormalizer {
   }
 
   private static protectedAsciiRunLang(text: string, start: number, end: number, run: string): string | undefined {
-    if (TranssionTnNormalizer.isProtectedChemicalFormula(run)) {
+    if (DingqiaoTnNormalizer.isProtectedChemicalFormula(run)) {
       return 'en';
     }
-    if (TranssionTnNormalizer.isChineseContextCode(text, start, end, run)) {
+    if (DingqiaoTnNormalizer.isChineseContextCode(text, start, end, run)) {
       return 'zh';
     }
     return undefined;
@@ -1220,7 +1271,7 @@ class LitsTtsFrontend {
     languageContext: string,
     alreadyNormalized: boolean = false
   ): TextMetric {
-    const tnText = alreadyNormalized ? text : TranssionTnNormalizer.normalize(resources, text, language, languageContext);
+    const tnText = alreadyNormalized ? text : DingqiaoTnNormalizer.normalize(resources, text, language, languageContext);
     const arpabetTokens = LitsTtsFrontend.tokenizeArpabetInput(resources, tnText);
     if (arpabetTokens !== undefined) {
       return LitsTtsFrontend.metricFromTokens(text, tnText, arpabetTokens, resources);
@@ -1477,7 +1528,7 @@ class LitsTtsFrontend {
     languageContext: string = 'zh-en',
     wordsPerSegment: number = DEFAULT_WORDS_PER_STREAMING_SEGMENT
   ): Array<string> {
-    const tnText = TranssionTnNormalizer.normalize(resources, text, language, languageContext);
+    const tnText = DingqiaoTnNormalizer.normalize(resources, text, language, languageContext);
     const normalized = LitsTtsFrontend.normalizeText(LitsTtsFrontend.preprocessZhMixedInput(tnText), languageContext).trim();
     if (normalized.length === 0) {
       return [];
@@ -1771,6 +1822,16 @@ class LitsTtsFrontend {
   }
 
   private static normalizeFrontendChar(char: string, languageContext: string): string {
+    const code = char.charCodeAt(0);
+    if (code === 0x3000) {
+      return ' ';
+    }
+    if (code >= 0xFF10 && code <= 0xFF19) {
+      return String.fromCharCode(code - 0xFEE0);
+    }
+    if ((code >= 0xFF21 && code <= 0xFF3A) || (code >= 0xFF41 && code <= 0xFF5A)) {
+      return String.fromCharCode(code - 0xFEE0);
+    }
     const fullwidthMapped = FULLWIDTH_PUNCTUATION.get(char);
     if (fullwidthMapped !== undefined) {
       return fullwidthMapped;
@@ -3032,8 +3093,9 @@ class EngineRegistry {
     }
     const speaker = EngineRegistry.resolveVoice(params.voiceId);
     try {
-      const engine = new TextToSpeechEngineImpl(params, speaker, workPath, context, (): void => {
+      const engine = new TextToSpeechEngineImpl(params, speaker, workPath, context, (): boolean => {
         EngineRegistry.activeEngines.delete(engine);
+        return EngineRegistry.activeEngines.size === 0;
       });
       EngineRegistry.activeEngines.add(engine);
       return engine;
@@ -3100,7 +3162,7 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
   private readonly nativeRuntime: object;
   private readonly modelInfo: string;
   private readonly loadProfileInfo: string;
-  private readonly onRelease: () => void;
+  private readonly onRelease: () => boolean;
   private readonly player: HarmonyPcmPlayer = new HarmonyPcmPlayer();
   private readonly seenRequestIds: Set<string> = new Set<string>();
 
@@ -3119,7 +3181,7 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
     voice: RegisteredVoice,
     workPath: string | undefined,
     context: common.Context | undefined,
-    onRelease: () => void
+    onRelease: () => boolean
   ) {
     this.engineParams = {
       language: engineParams.language,
@@ -3512,7 +3574,12 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
   }
 
   private streamingChunkSizeOverride(params: SpeakParams): number | undefined {
-    return resolveOptionalIntegerExtraParam(params.extraParams, ['streamingChunkSize', 'chunkSize'], 1, 10000);
+    return resolveOptionalIntegerExtraParam(
+      params.extraParams,
+      ['streamingChunkSize', 'chunkSize'],
+      MIN_RUNTIME_STREAMING_CHUNK_SIZE,
+      MAX_RUNTIME_STREAMING_CHUNK_SIZE
+    );
   }
 
   private pcmQueueCapacity(params: SpeakParams): number {
@@ -3682,7 +3749,13 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
       resolveNativeTtsModule().releaseRuntime(this.nativeRuntime);
     } catch (_error) {
     }
-    this.onRelease();
+    const noActiveEngines = this.onRelease();
+    if (noActiveEngines) {
+      try {
+        resolveNativeTtsModule().releaseTnResources();
+      } catch (_error) {
+      }
+    }
   }
 }
 
@@ -3901,7 +3974,8 @@ function resolveNativeTtsModule(): NativeTtsModule {
     typeof nativeModule.cancelRuntime !== 'function' ||
     typeof nativeModule.synthesize !== 'function' ||
     typeof nativeModule.synthesizeStreaming !== 'function' ||
-    typeof nativeModule.normalizeTnSegment !== 'function'
+    typeof nativeModule.normalizeTnSegment !== 'function' ||
+    typeof nativeModule.releaseTnResources !== 'function'
   ) {
     throw new TextToSpeechException(
       TtsErrorCode.CREATE_ENGINE_FAILED,

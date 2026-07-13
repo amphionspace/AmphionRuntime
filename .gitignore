@@ -93,6 +93,20 @@ tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0/*
 # 临时模型导出目录（客户试用包、模型清单、词典和 ONNX 均不入库）
 tools/trial-export/
 
+# Local-only TTS training/evaluation inputs and runtime binaries
+dingqiao_lits/data/filelists/*.txt
+dingqiao_lits/*_query_samples.jsonl
+tools/dingqiao-android/frontend_golden_cases.jsonl
+tts/android/aarHost/src/androidTest/assets/*
+tts/android/sdk/src/androidTest/assets/*
+!tts/android/aarHost/src/androidTest/assets/
+!tts/android/aarHost/src/androidTest/assets/android_v3_sdk_stability_100_cases_improved_v2.jsonl
+!tts/android/aarHost/src/androidTest/assets/android_v3_sdk_stability_424_cases_improved_v3.jsonl
+!tts/android/aarHost/src/androidTest/assets/android_v3_sdk_stability_1000_cases_improved.jsonl
+!tts/android/sdk/src/androidTest/assets/
+!tts/android/sdk/src/androidTest/assets/pronunciation-golden-round3-results-with-pinyin-fixed-round15.jsonl
+tts/tools/trial-export/*/0.1.0/tn-bin/
+
 # 本地误放到 ASR assets 下的 Lits/TTS 模型副本不入库；源目录是 tts/tools/trial-export/
 asr/android/sdk/src/main/assets/lits-models/
 

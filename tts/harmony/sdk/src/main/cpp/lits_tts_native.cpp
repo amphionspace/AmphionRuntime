@@ -178,6 +178,10 @@ struct Runtime {
 
 struct RuntimeHolder {
   Runtime* runtime = nullptr;
+  std::mutex mutex;
+  std::condition_variable cv;
+  int active_calls = 0;
+  bool release_requested = false;
 };
 
 struct SynthesizeAsyncContext {
@@ -214,17 +218,49 @@ struct SynthesizeStreamingAsyncContext {
   int pending_callbacks = 0;
 };
 
-void DeleteRuntime(RuntimeHolder* holder) {
+void DeleteDetachedRuntime(RuntimeHolder* holder, Runtime* runtime) {
+  if (runtime == nullptr) {
+    if (holder != nullptr) {
+      holder->cv.notify_all();
+    }
+    return;
+  }
+  delete runtime;
+  if (holder != nullptr) {
+    holder->cv.notify_all();
+  }
+}
+
+void DeleteRuntime(RuntimeHolder* holder, bool wait_until_idle) {
   if (holder == nullptr) {
     return;
   }
-  delete holder->runtime;
-  holder->runtime = nullptr;
+  Runtime* runtime = nullptr;
+  {
+    std::unique_lock<std::mutex> lock(holder->mutex);
+    holder->release_requested = true;
+    if (holder->runtime != nullptr) {
+      holder->runtime->cancel_requested.store(true, std::memory_order_relaxed);
+    }
+    if (wait_until_idle) {
+      holder->cv.wait(lock, [holder]() {
+        return holder->active_calls == 0;
+      });
+    } else if (!holder->cv.wait_for(lock, std::chrono::milliseconds(2000), [holder]() {
+      return holder->active_calls == 0;
+    })) {
+      NativeLogError("runtime release deferred while native call is still active");
+      return;
+    }
+    runtime = holder->runtime;
+    holder->runtime = nullptr;
+  }
+  DeleteDetachedRuntime(holder, runtime);
 }
 
 void FinalizeRuntimeHolder(napi_env /*env*/, void* data, void* /*hint*/) {
   auto* holder = static_cast<RuntimeHolder*>(data);
-  DeleteRuntime(holder);
+  DeleteRuntime(holder, true);
   delete holder;
 }
 
@@ -313,6 +349,54 @@ Runtime* GetRuntime(napi_env env, napi_value handle) {
   }
   return holder->runtime;
 }
+
+void BeginRuntimeUse(RuntimeHolder* holder) {
+  if (holder == nullptr) {
+    throw std::runtime_error("runtime handle is invalid");
+  }
+  std::lock_guard<std::mutex> lock(holder->mutex);
+  if (holder->runtime == nullptr || holder->release_requested) {
+    throw std::runtime_error("runtime handle has been released");
+  }
+  holder->active_calls += 1;
+}
+
+void EndRuntimeUse(RuntimeHolder* holder) {
+  if (holder == nullptr) {
+    return;
+  }
+  Runtime* runtime = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(holder->mutex);
+    holder->active_calls = std::max(0, holder->active_calls - 1);
+    if (holder->release_requested && holder->active_calls == 0) {
+      runtime = holder->runtime;
+      holder->runtime = nullptr;
+    }
+  }
+  DeleteDetachedRuntime(holder, runtime);
+}
+
+Runtime* RuntimeForActiveUse(RuntimeHolder* holder) {
+  if (holder == nullptr || holder->runtime == nullptr) {
+    throw std::runtime_error("runtime handle has been released");
+  }
+  return holder->runtime;
+}
+
+class RuntimeUseGuard {
+ public:
+  explicit RuntimeUseGuard(RuntimeHolder* holder) : holder_(holder) {
+    BeginRuntimeUse(holder_);
+  }
+
+  ~RuntimeUseGuard() {
+    EndRuntimeUse(holder_);
+  }
+
+ private:
+  RuntimeHolder* holder_;
+};
 
 std::vector<int64_t> TensorShape(const Ort::Value& tensor) {
   return tensor.GetTensorTypeAndShapeInfo().GetShape();
@@ -1060,9 +1144,28 @@ class TnProcess {
       TnLogInfo("TN stop pid=" + std::to_string(pid_) + " binary=" + binary_path_);
       kill(pid_, SIGTERM);
       int status = 0;
-      while (waitpid(pid_, &status, 0) < 0 && errno == EINTR) {
+      bool exited = false;
+      for (int attempt = 0; attempt < 20; ++attempt) {
+        const pid_t result = waitpid(pid_, &status, WNOHANG);
+        if (result == pid_) {
+          exited = true;
+          break;
+        }
+        if (result < 0 && errno != EINTR) {
+          exited = true;
+          break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
       }
-      LogExitStatus(status);
+      if (!exited) {
+        TnLogError("TN stop timeout; killing pid=" + std::to_string(pid_) + " binary=" + binary_path_);
+        kill(pid_, SIGKILL);
+        while (waitpid(pid_, &status, 0) < 0 && errno == EINTR) {
+        }
+      }
+      if (exited || status != 0) {
+        LogExitStatus(status);
+      }
       pid_ = -1;
     }
   }
@@ -1124,6 +1227,15 @@ std::string NormalizeWithTnBinary(
   return process->Normalize(text);
 }
 
+void ReleaseTnResources() {
+  std::map<std::string, std::unique_ptr<TnProcess>> processes;
+  {
+    std::lock_guard<std::mutex> lock(g_tn_processes_mutex);
+    processes.swap(g_tn_processes);
+  }
+  TnLogInfo("TN resources released count=" + std::to_string(processes.size()));
+}
+
 napi_value NormalizeTnSegmentWrapped(napi_env env, napi_callback_info info) {
   try {
     size_t argc = 3;
@@ -1146,6 +1258,19 @@ napi_value NormalizeTnSegmentWrapped(napi_env env, napi_callback_info info) {
     return output;
   } catch (const std::exception& error) {
     TnLogError(std::string("normalizeTnSegment failed error=") + error.what());
+    ThrowError(env, error.what());
+    return nullptr;
+  }
+}
+
+napi_value ReleaseTnResourcesWrapped(napi_env env, napi_callback_info /*info*/) {
+  try {
+    ReleaseTnResources();
+    napi_value output = nullptr;
+    napi_get_undefined(env, &output);
+    return output;
+  } catch (const std::exception& error) {
+    TnLogError(std::string("releaseTnResources failed error=") + error.what());
     ThrowError(env, error.what());
     return nullptr;
   }
@@ -1216,7 +1341,7 @@ napi_value ReleaseRuntimeWrapped(napi_env env, napi_callback_info info) {
     }
 
     RuntimeHolder* holder = GetRuntimeHolder(env, args[0]);
-    DeleteRuntime(holder);
+    DeleteRuntime(holder, false);
 
     napi_value null_value = nullptr;
     napi_get_null(env, &null_value);
@@ -1241,9 +1366,12 @@ napi_value CancelRuntimeWrapped(napi_env env, napi_callback_info info) {
       throw std::runtime_error("cancelRuntime expects runtimeHandle");
     }
     RuntimeHolder* holder = GetRuntimeHolder(env, args[0]);
-    if (holder->runtime != nullptr) {
-      holder->runtime->cancel_requested.store(true, std::memory_order_relaxed);
-      NativeLogInfo("runtime cancel requested");
+    {
+      std::lock_guard<std::mutex> lock(holder->mutex);
+      if (holder->runtime != nullptr) {
+        holder->runtime->cancel_requested.store(true, std::memory_order_relaxed);
+        NativeLogInfo("runtime cancel requested");
+      }
     }
     napi_value output = nullptr;
     napi_get_undefined(env, &output);
@@ -1264,11 +1392,12 @@ napi_value SynthesizeWrapped(napi_env env, napi_callback_info info) {
       throw std::runtime_error("synthesize expects runtimeHandle, tokenIds, and speakerId");
     }
 
-    Runtime* runtime = GetRuntime(env, args[0]);
+    RuntimeHolder* holder = GetRuntimeHolder(env, args[0]);
+    RuntimeUseGuard runtime_guard(holder);
     std::vector<int64_t> token_ids = GetTokenIds(env, args[1]);
     const int64_t speaker_id = GetInt64Argument(env, args[2], "speakerId");
 
-    std::vector<int16_t> pcm = Synthesize(runtime, token_ids, speaker_id);
+    std::vector<int16_t> pcm = Synthesize(RuntimeForActiveUse(holder), token_ids, speaker_id);
 
     void* data = nullptr;
     napi_value output = nullptr;
@@ -1287,10 +1416,7 @@ napi_value SynthesizeWrapped(napi_env env, napi_callback_info info) {
 void ExecuteSynthesize(napi_env /*env*/, void* data) {
   auto* context = static_cast<SynthesizeAsyncContext*>(data);
   try {
-    if (context->holder == nullptr || context->holder->runtime == nullptr) {
-      throw std::runtime_error("runtime handle has been released");
-    }
-    context->pcm = Synthesize(context->holder->runtime, context->token_ids, context->speaker_id, context->length_scale);
+    context->pcm = Synthesize(RuntimeForActiveUse(context->holder), context->token_ids, context->speaker_id, context->length_scale);
   } catch (const Ort::Exception& error) {
     context->error = error.what();
   } catch (const std::exception& error) {
@@ -1300,6 +1426,7 @@ void ExecuteSynthesize(napi_env /*env*/, void* data) {
 
 void CompleteSynthesize(napi_env env, napi_status /*status*/, void* data) {
   std::unique_ptr<SynthesizeAsyncContext> context(static_cast<SynthesizeAsyncContext*>(data));
+  EndRuntimeUse(context->holder);
   if (!context->error.empty()) {
     napi_value message = nullptr;
     napi_create_string_utf8(env, context->error.c_str(), NAPI_AUTO_LENGTH, &message);
@@ -1327,15 +1454,13 @@ napi_value SynthesizeAsyncWrapped(napi_env env, napi_callback_info info) {
     auto context = std::make_unique<SynthesizeAsyncContext>();
     context->env = env;
     context->holder = GetRuntimeHolder(env, args[0]);
-    if (context->holder->runtime == nullptr) {
-      throw std::runtime_error("runtime handle has been released");
-    }
-    context->holder->runtime->cancel_requested.store(false, std::memory_order_relaxed);
     context->token_ids = GetTokenIds(env, args[1]);
     context->speaker_id = GetInt64Argument(env, args[2], "speakerId");
     context->length_scale = argc >= 4
         ? static_cast<float>(GetDoubleArgument(env, args[3], "lengthScale"))
         : 1.0f;
+    BeginRuntimeUse(context->holder);
+    RuntimeForActiveUse(context->holder)->cancel_requested.store(false, std::memory_order_relaxed);
 
     napi_value promise = nullptr;
     napi_create_promise(env, &context->deferred, &promise);
@@ -1378,11 +1503,8 @@ void CallStreamingChunkJs(napi_env env, napi_value js_callback, void* context_da
 void ExecuteSynthesizeStreaming(napi_env /*env*/, void* data) {
   auto* context = static_cast<SynthesizeStreamingAsyncContext*>(data);
   try {
-    if (context->holder == nullptr || context->holder->runtime == nullptr) {
-      throw std::runtime_error("runtime handle has been released");
-    }
     context->metrics = SynthesizeStreamingNative(
-        context->holder->runtime,
+        RuntimeForActiveUse(context->holder),
         context->token_ids,
         context->speaker_id,
         context->length_scale,
@@ -1423,6 +1545,7 @@ void ExecuteSynthesizeStreaming(napi_env /*env*/, void* data) {
 
 void CompleteSynthesizeStreaming(napi_env env, napi_status /*status*/, void* data) {
   std::unique_ptr<SynthesizeStreamingAsyncContext> context(static_cast<SynthesizeStreamingAsyncContext*>(data));
+  EndRuntimeUse(context->holder);
   if (!context->error.empty()) {
     napi_value message = nullptr;
     napi_create_string_utf8(env, context->error.c_str(), NAPI_AUTO_LENGTH, &message);
@@ -1464,10 +1587,6 @@ napi_value SynthesizeStreamingWrapped(napi_env env, napi_callback_info info) {
     auto context = std::make_unique<SynthesizeStreamingAsyncContext>();
     context->env = env;
     context->holder = GetRuntimeHolder(env, args[0]);
-    if (context->holder->runtime == nullptr) {
-      throw std::runtime_error("runtime handle has been released");
-    }
-    context->holder->runtime->cancel_requested.store(false, std::memory_order_relaxed);
     context->token_ids = GetTokenIds(env, args[1]);
     context->speaker_id = GetInt64Argument(env, args[2], "speakerId");
     context->length_scale = static_cast<float>(GetDoubleArgument(env, args[3], "lengthScale"));
@@ -1475,6 +1594,8 @@ napi_value SynthesizeStreamingWrapped(napi_env env, napi_callback_info info) {
       const int64_t chunk_size_override = GetInt64Argument(env, args[4], "chunkSizeOverride");
       context->chunk_size_override = chunk_size_override > 0 ? static_cast<int>(chunk_size_override) : 0;
     }
+    BeginRuntimeUse(context->holder);
+    RuntimeForActiveUse(context->holder)->cancel_requested.store(false, std::memory_order_relaxed);
 
     napi_value promise = nullptr;
     napi_create_promise(env, &context->deferred, &promise);
@@ -1518,6 +1639,7 @@ napi_value Init(napi_env env, napi_value exports) {
       {"synthesizeAsync", nullptr, SynthesizeAsyncWrapped, nullptr, nullptr, nullptr, napi_default, nullptr},
       {"synthesizeStreaming", nullptr, SynthesizeStreamingWrapped, nullptr, nullptr, nullptr, napi_default, nullptr},
       {"normalizeTnSegment", nullptr, NormalizeTnSegmentWrapped, nullptr, nullptr, nullptr, napi_default, nullptr},
+      {"releaseTnResources", nullptr, ReleaseTnResourcesWrapped, nullptr, nullptr, nullptr, napi_default, nullptr},
   };
 
   napi_define_properties(env, exports, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);

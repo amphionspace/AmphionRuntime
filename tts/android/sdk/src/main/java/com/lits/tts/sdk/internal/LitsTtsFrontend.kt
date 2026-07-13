@@ -244,7 +244,7 @@ internal object LitsTtsFrontend {
         languageContext: String,
     ): LongArray {
         val traceId = nextTraceId()
-        val normalizedText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        val normalizedText = LitsTnNormalizer.normalize(layout, text, language, languageContext)
         return encodeNormalizedInternal(
             layout = layout,
             rawText = text,
@@ -308,7 +308,7 @@ internal object LitsTtsFrontend {
         languageContext: String,
     ): List<String> {
         val resources = resources(layout)
-        val normalizedText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        val normalizedText = LitsTnNormalizer.normalize(layout, text, language, languageContext)
         return tokenize(resources, normalizedText, language, languageContext)
     }
 
@@ -397,7 +397,7 @@ internal object LitsTtsFrontend {
         languageContext: String = "zh-en",
         wordsPerSegment: Int = 7,
     ): List<String> {
-        val tnText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        val tnText = LitsTnNormalizer.normalize(layout, text, language, languageContext)
         val normalized = normalizeText(preprocessZhMixedInput(tnText), languageContext).trim()
         if (normalized.isEmpty()) return emptyList()
         val segments = mutableListOf<String>()
@@ -434,6 +434,68 @@ internal object LitsTtsFrontend {
         flushSegment(segments, current)
         return segments.ifEmpty { listOf(normalized) }
     }
+
+    fun splitRawForStreaming(
+        text: String,
+        wordsPerSegment: Int = 7,
+        maxCharsPerSegment: Int = 50,
+    ): List<String> {
+        val normalized = text.trim()
+        if (normalized.isEmpty()) return emptyList()
+        val segmentLimit = maxCharsPerSegment.coerceAtLeast(1)
+        val segments = mutableListOf<String>()
+        val current = StringBuilder()
+        var index = 0
+        fun flushCurrentSegment() {
+            flushSegment(segments, current)
+        }
+        while (index < normalized.length) {
+            val char = normalized[index]
+            if (char.isWhitespace()) {
+                if (current.isNotEmpty() && current.last() != ' ') current.append(' ')
+                index += 1
+                continue
+            }
+            current.append(char)
+            if (shouldSplitRawAfterPunctuation(normalized, index, current, wordsPerSegment)) {
+                while (index + 1 < normalized.length && isAttachedSentenceSuffix(normalized[index + 1])) {
+                    index += 1
+                    current.append(normalized[index])
+                }
+                flushCurrentSegment()
+            } else if (current.length >= segmentLimit) {
+                flushCurrentSegment()
+            }
+            index += 1
+        }
+        flushSegment(segments, current)
+        return segments.ifEmpty { listOf(normalized) }
+    }
+
+    private fun shouldSplitRawAfterPunctuation(
+        text: String,
+        index: Int,
+        current: StringBuilder,
+        minWordsForWeakSplit: Int,
+    ): Boolean {
+        val char = text[index]
+        if (!isRawSentenceEndPunctuation(char)) return false
+        if (isPunctuationInsideTechnicalToken(text, index)) return false
+        if (wouldCreateShortSymbolSegment(current)) return false
+        if ((char == ',' || char == '\uFF0C' || char == '\u3001') &&
+            !shouldSplitAfterWeakComma(text, index, current, minWordsForWeakSplit)
+        ) {
+            return false
+        }
+        if ((char == '.' || char == '\u3002') && !shouldSplitAfterPeriod(text, index)) return false
+        return true
+    }
+
+    private fun isRawSentenceEndPunctuation(char: Char): Boolean =
+        char == '.' || char == '!' || char == '?' || char == ';' || char == ',' ||
+            char == '\u3002' || char == '\uFF01' || char == '\uFF1F' ||
+            char == '\uFF1B' || char == '\uFF0C' || char == '\u3001' ||
+            char == '\u2026'
 
     private fun shouldSplitAfterPunctuation(
         text: String,

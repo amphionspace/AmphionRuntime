@@ -1,5 +1,6 @@
 package com.lits.tts.sdk.internal
 
+import android.media.AudioManager
 import android.os.SystemClock
 
 import com.lits.tts.sdk.CompleteResponse
@@ -29,7 +30,7 @@ internal class TextToSpeechEngineImpl(
     private val voice: VoiceInfo,
     private val engineName: String?,
     @Suppress("unused") private val workPath: String?,
-    private val onRelease: () -> Unit,
+    private val onRelease: () -> Boolean,
     private val synthesizer: PcmSynthesizer,
 ) : TextToSpeechEngine {
     private val lock = Any()
@@ -143,7 +144,7 @@ internal class TextToSpeechEngineImpl(
         if (text.isEmpty() || text.length > 10000) {
             return TtsErrorCode.TEXT_LENGTH_INVALID to "text length must be 1..10000"
         }
-        if (params.requestId.isBlank()) {
+        if (params.requestId.isBlankRequestId()) {
             return TtsErrorCode.RUNTIME_EXCEPTION to "requestId must not be blank"
         }
         if (engineParams.language !in setOf("zh-en", "en-US")) {
@@ -164,6 +165,9 @@ internal class TextToSpeechEngineImpl(
         if (params.audioType != "pcm") {
             return TtsErrorCode.RUNTIME_EXCEPTION to "only pcm audioType is supported"
         }
+        if (params.soundChannel != null && params.soundChannel !in SUPPORTED_SOUND_CHANNELS) {
+            return TtsErrorCode.RUNTIME_EXCEPTION to "soundChannel is not supported"
+        }
         return null
     }
 
@@ -180,11 +184,14 @@ internal class TextToSpeechEngineImpl(
     }
 
     private fun markRequestSeenIfPossible(requestId: String) {
-        if (requestId.isBlank()) return
+        if (requestId.isBlankRequestId()) return
         synchronized(lock) {
             seenRequestIds.add(requestId)
         }
     }
+
+    private fun String.isBlankRequestId(): Boolean =
+        isEmpty() || all { it.isWhitespace() || Character.isSpaceChar(it) }
 
     private fun cancelAllLocked(): List<SynthesisTask> {
         val tasks = buildList {
@@ -208,7 +215,7 @@ internal class TextToSpeechEngineImpl(
         val callback = listener
         try {
             if (callback == null || task.cancelled.get() || destroyed) return
-            task.startedAtMs = SystemClock.elapsedRealtime()
+            task.startedAtMs = elapsedRealtimeMs()
             var sequence = 0
             val useStreamingSynthesis = synthesizer.canStream(task.params, engineParams)
             val useStreamingPlayback =
@@ -303,7 +310,10 @@ internal class TextToSpeechEngineImpl(
                     onFirstAudioWritten = {
                         val startedAt = task.startedAtMs
                         if (startedAt >= 0L) {
-                            task.playbackStartMs.compareAndSet(-1L, SystemClock.elapsedRealtime() - startedAt)
+                            val elapsedMs = elapsedRealtimeMs() - startedAt
+                            if (task.playbackStartMs.compareAndSet(-1L, elapsedMs)) {
+                                notifyPlaybackStart(callback, task, elapsedMs)
+                            }
                         }
                     },
                 )
@@ -458,6 +468,14 @@ internal class TextToSpeechEngineImpl(
         }
     }
 
+    private fun notifyPlaybackStart(callback: SpeakListener, task: SynthesisTask, elapsedMs: Long) {
+        dispatchListener {
+            if (!task.cancelled.get() && !destroyed) {
+                callback.onPlaybackStart(task.params.requestId, elapsedMs)
+            }
+        }
+    }
+
     private fun notifyComplete(callback: SpeakListener, task: SynthesisTask, response: CompleteResponse) {
         dispatchListener {
             if (!task.cancelled.get() && !destroyed) {
@@ -499,8 +517,8 @@ internal class TextToSpeechEngineImpl(
         if (!released) {
             released = true
             player.stop()
-            synthesizer.close()
-            onRelease()
+            val noActiveEngines = onRelease()
+            synthesizer.close(releaseSharedResources = noActiveEngines)
         }
     }
 
@@ -544,5 +562,19 @@ internal class TextToSpeechEngineImpl(
         const val DEFAULT_SAMPLE_RATE = 24000
         const val DEFAULT_PCM_QUEUE_CAPACITY = 128
         const val MAX_PCM_QUEUE_CAPACITY = 256
+        val SUPPORTED_SOUND_CHANNELS = setOf(
+            AudioManager.STREAM_VOICE_CALL,
+            AudioManager.STREAM_SYSTEM,
+            AudioManager.STREAM_RING,
+            AudioManager.STREAM_MUSIC,
+            AudioManager.STREAM_ALARM,
+            AudioManager.STREAM_NOTIFICATION,
+            AudioManager.STREAM_DTMF,
+            AudioManager.STREAM_ACCESSIBILITY,
+        )
+
+        fun elapsedRealtimeMs(): Long =
+            runCatching { SystemClock.elapsedRealtime() }
+                .getOrElse { System.nanoTime() / 1_000_000L }
     }
 }

@@ -1,3 +1,52 @@
+## 2026-07-13 18:40 Dingqiao v3 Android 1000-case stability report
+
+- Goal: Write a concise Chinese test report from today's Dingqiao v3 Android 1000-case stability results, with conclusion first and emphasis on tested case types, first packet, RTF, temperature, and memory.
+- Files changed or artifacts created: `tts/android/docs/DINGQIAO_V3_ANDROID_1000_STABILITY_TEST_REPORT_20260713.md`, `docs/OPERATION_LOG.md`; temporarily pulled a latest device-side single-case artifact while searching for evidence, then removed that temporary copy after confirming it was not needed for the report.
+- Commands run: inspected `docs/OPERATION_LOG.md`; searched local and device result paths; pulled `/sdcard/Android/data/com.lits.tts.aarhost/files/aar-stability-1000/*1783938891126*`; parsed `/Users/amphion/Documents/Lits_delivery/eval_output/dingqiao_improved_v2_full1000_batched_20260713_step4_ctx16_chunkramp` JSONL result files and `android_v3_sdk_stability_1000_cases_improved_summary.json`.
+- Verification result: Report conclusion follows the requested口径: ignore harness false-positive fail, long-text timeout caused by unreasonable timeout settings, and skipped cases; no remaining real FAIL was found. Key metrics recorded: firstPacketMs avg/P50/P95/max 174/169/247/288 ms; RTF avg/P50/P95/max 0.23/0.21/0.25/0.93; temperature peak max 44 C; memory peak max Java/native/PSS/RSS 313.8/654.7/755.5/847.7 MB.
+- Notes/next action: The report intentionally describes the test as a 1000-case stability result summary and avoids emphasizing execution batching. No code, build artifact, commit, or push was performed.
+
+## 2026-07-13 17:24 CST
+
+- Goal: Create a new branch from `lits_dingqiao_sdk_vocos24k_v3`, migrate the Android TTS AAR build to the Lits_delivery external-resources layout, keep frontend binary resources and ONNX models outside the SDK AAR, keep ICU/native playback runtime inside the SDK, and compile the Android AAR once.
+- Files changed or artifacts created: created branch `codex/lits-delivery-external-resources-aar`; updated `tts/android/build.gradle.kts` to stage resources under `tts/android/external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/` and remove bundled SDK assets before build; updated `tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt` with a clear missing external-resources error; updated `docs/DINGQIAO_V3_BUILD.md`; generated `tts/android/sdk/build/outputs/aar/sdk-release.aar` and refreshed `tts/android/external-resources/...`.
+- Commands run:
+  - `git switch -c codex/lits-delivery-external-resources-aar`
+  - `JAVA_HOME=/Users/amphion/Documents/Lits_delivery/.venv/lib/jvm PATH=/Users/amphion/Documents/Lits_delivery/.venv/lib/jvm/bin:$PATH ANDROID_HOME=/Users/amphion/Library/Android/sdk ANDROID_SDK_ROOT=/Users/amphion/Library/Android/sdk ./gradlew --no-daemon :sdk:assembleRelease`
+  - repeated the same `:sdk:assembleRelease` command after the installer error-message change
+  - inspected the AAR with `zipinfo -1 sdk/build/outputs/aar/sdk-release.aar | rg 'assets/lits-models|\\.onnx$|chinese_lexicon|cmudict|tn-bin|jni/arm64-v8a|classes.jar'`
+  - inspected external resources with `find external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 -maxdepth 3 -type f`
+- Verification result: Android `:sdk:assembleRelease` passed twice. Final AAR `tts/android/sdk/build/outputs/aar/sdk-release.aar` is 23M with SHA-256 `29f4f8626892c083a0b13d9ff41d820e1e7e3bf22d8d05f13299f91dbc2092e1`; AAR contents include `classes.jar`, `libs/onnxruntime-android-1.24.3-classes.jar`, `jni/arm64-v8a/liblits_tn.so`, `jni/arm64-v8a/libonnxruntime.so`, and `jni/arm64-v8a/libonnxruntime4j_jni.so`, with no `assets/lits-models`, `.onnx`, frontend dictionary, or `tn-bin` entries. External resources contain 28 files and are 273M, including ONNX files, `chinese_lexicon.bin`, `cmudict.bin`, `rules_v2`, and `tn-bin/arm64-v8a/{zh_tts,en_tts}`.
+- Notes/next action: Integration must copy the external resource tree so it appears under `<workPath>/tts/...` before engine creation. Existing unrelated dirty working-tree changes were left untouched.
+
+## 2026-07-13 14:52 CST
+
+- Goal: finish reproducibility verification after adding manifest size synchronization for generated frontend binaries.
+- Commands run:
+  - reran `python3 tools/dingqiao-android/build_frontend_binary_assets.py` and confirmed `manifest.json` records `chinese_lexicon.bin=18755755` and `cmudict.bin=6594504`.
+  - reran Android `:sdk:assembleRelease` with local JDK 17 and Android SDK/NDK.
+  - reran HarmonyOS `ohpm install --all` and `sdk@default assembleHar` with DevEco SDK.
+  - inspected AAR and gzip/tar HAR contents for arm64 native libraries, generated frontend binaries, ONNX assets, and TN executables.
+- Verification result: Android AAR and HarmonyOS HAR builds passed again. No forbidden model/TN/test-data files are staged for the parent repository; license/signing remains outside the current compile check.
+
+## 2026-07-13 14:55 CST
+
+- Goal: allow a clean colleague checkout to build HarmonyOS TN binaries without pre-supplied `tn-bin` files.
+- Files changed: updated `tts/harmony/hvigorfile.ts` to resolve generated `build-ohos-tn/{zh_tts,en_tts}` before checking model-package TN files; updated `docs/DINGQIAO_V3_BUILD.md` to describe generated TN outputs.
+- Verification result: the existing HarmonyOS HAR build path remains successful; a clean checkout only needs the model text resources/ONNX inputs plus the Android ICU source archive when rebuilding Android ICU.
+
+## 2026-07-13 14:48 CST
+
+- Goal: make the Android/HarmonyOS v3 SDK build independent of local model paths and regenerate frontend binary dictionaries from source text.
+- Files changed: added `tools/dingqiao-android/build_frontend_binary_assets.py`; updated `tts/android/build.gradle.kts`, `tts/harmony/hvigorfile.ts`, Android/Harmony build handoff docs, and moved the active model input path to `tts/tools/trial-export/...`.
+- Commands run:
+  - `python3 tools/dingqiao-android/build_frontend_binary_assets.py --model-dir tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0`
+  - `JAVA_HOME=/Users/amphion/Documents/Lits_delivery/.venv/lib/jvm ANDROID_HOME=/Users/amphion/Library/Android/sdk ANDROID_SDK_ROOT=/Users/amphion/Library/Android/sdk ./gradlew --no-daemon :sdk:assembleRelease`
+  - `NODE_HOME=/Applications/DevEco-Studio.app/Contents/tools/node /Applications/DevEco-Studio.app/Contents/tools/ohpm/bin/ohpm install --all`
+  - `DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk NODE_HOME=/Applications/DevEco-Studio.app/Contents/tools/node /Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw --mode module -p product=default -p module=sdk@default assembleHar --no-daemon`
+- Verification result: the frontend generator produced `chinese_lexicon.bin` with 664,612 entries and `cmudict.bin` with 125,699 entries; Android AAR build passed; HarmonyOS HAR build passed. The current Android/Harmony build flow does not export ONNX. License/signing is outside this compile verification scope.
+- Notes: `chinese_lexicon.bin` and `cmudict.bin` are generated local build outputs and remain ignored; the text dictionaries are the reproducible inputs. Android and HarmonyOS are the primary targets; macOS is only used for local tool verification.
+
 ## 2026-07-02 17:25 CST
 
 - Goal: Fix the colleague build failure caused by residual local `transsion_lits` build-time dependencies in the v3.0 TTS Android/Harmony branch.
@@ -1070,6 +1119,38 @@
 - Verification result: Release build/package verification passed. Zip `/Users/amphion/Documents/AmphionRuntime-Delivery/lits-transsion-tts-android-sdk-vocos24k-0.2.5.4-demo-auth-20260630.zip` SHA256 `1c9500aa1f060992d7a7c835d6e50301380719bbeb6d6e8fcd948b8ed241e824`, size `994194792` bytes. AAR SHA256 `da3f73b715f516235ce1f7a335013448140f2740736db2433d34fd97f6f91d0f`; demo APK SHA256 `1de70f284379f601e56abaa21fbe1ca324996855d5735833c9c3f19161f51e14`; formal license SHA256 `bda872951b762023f0be811b79781da252c1042078818522570a9e49a33cb503`; embedded demo license SHA256 `d84169281cea4b2bfdb824087a4234dd6594ad6f3ab1c9ff9f82f71f8c89d5a3`.
 - Notes: APK metadata is `com.tdtech.tiassistant` / `versionName=0.2.5.4`; APK signing cert SHA256 is `954fd136a60416acbd8cddd4c436bec496f4e707f62680bb68a97b56c2d0755c`. Current full unit suite is not green due 6 lifecycle/cancellation failures; release assemble and package verification passed. Delivery source snapshot excludes private keys, keystores, `.secure`, build outputs, and source-tree `.lic` files.
 
+## 2026-07-13 Dingqiao vocos24k v3 Android source sync
+
+- Goal: Create branch `lits_dingqiao_sdk_vocos24k_v3`, compare/sync the Dingqiao vocos24k v3 Android SDK source from local delivery inputs, vendor the Android build dependencies into AmphionRuntime so the SDK compiles without external source paths, include ONNX export Python tooling, and remove legacy vendor-word/path residues from the synced scope.
+- Files changed or artifacts created: synced Dingqiao Android SDK source into `tts/android`; replaced root and `tts/tools` trial-export inputs with `dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0`; added repo-local `dingqiao_lits/` with TN source, Android TN binaries, Android ICU headers/static libraries, and Python model/frontend/vocoder source excluding checkpoints and caches; added `tools/dingqiao-android/` parity tools and `tools/dingqiao-onnx-export/` ONNX export tools; generated `tts/android/sdk/build/outputs/aar/sdk-release.aar`.
+- Commands run: created branch `lits_dingqiao_sdk_vocos24k_v3`; used `rsync` to sync Android source, trial-export resources, TN source/binaries, ICU dependencies, Dingqiao model/frontend Python source, and ONNX export scripts; sanitized synced text for legacy vendor wording and local absolute paths; updated `tts/android/build.gradle.kts`, `tts/android/sdk/src/main/cpp/CMakeLists.txt`, and `tts/android/sdk/src/main/jni/Android.mk` so the workspace root resolves to the AmphionRuntime checkout; ran `JAVA_HOME=/Users/amphion/Documents/Lits_delivery/.venv/lib/jvm ANDROID_HOME=/Users/amphion/Library/Android/sdk ANDROID_SDK_ROOT=/Users/amphion/Library/Android/sdk ./gradlew --no-daemon :sdk:assembleRelease`.
+- Verification result: first Gradle run without `ANDROID_HOME` failed as expected due to missing Android SDK location; second run with the local Android SDK surfaced the old source layout path issue; after path fixes, `:sdk:assembleRelease` passed. Generated AAR `tts/android/sdk/build/outputs/aar/sdk-release.aar` is 202M with SHA-256 `5602a49fc367127f8218cbc2a80943c4e259bf5ef4c0794394e06fbc636fe5f2`. Source-scope checks over `tts/android`, `tools/trial-export`, `tts/tools/trial-export`, `tools/dingqiao-android`, `tools/dingqiao-onnx-export`, and `dingqiao_lits` found no legacy vendor-word occurrences and no local absolute path references after excluding generated build outputs and binary model/static-library files.
+- Notes/next action: Large training checkpoints were intentionally not vendored; Android compilation uses exported ONNX assets and repo-local TN/ICU inputs only. Existing unrelated untracked Harmony/signing/license files were left untouched.
+
+## 2026-07-13 TN source moved to independent submodule
+
+- Goal: Keep the TN implementation in its independent GitHub repository and prevent its source files from being committed to the AmphionRuntime parent repository.
+- Files changed or artifacts created: added `.gitmodules` entry for `dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS`; parent repository now records only submodule commit `9cf6411c919c203351724a05fbdcc5ace5346242`; updated `tts/android/build.gradle.kts` to sync `rules_v2` and the pinyin map from the submodule layout; generated `tts/android/sdk/build/outputs/aar/sdk-release.aar`.
+- Commands run: verified the independent repository with the local SSH key using `git ls-remote` and `git fetch`; replaced the copied TN directory with `git submodule add -b main git@github.com:hhk1994/Transsion_Multilingual_Text_Normalization_for_TTS.git dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS`; ran `JAVA_HOME=/Users/amphion/Documents/Lits_delivery/.venv/lib/jvm ANDROID_HOME=/Users/amphion/Library/Android/sdk ANDROID_SDK_ROOT=/Users/amphion/Library/Android/sdk ./gradlew --no-daemon :sdk:assembleRelease`.
+- Verification result: `:sdk:assembleRelease` passed in 22 seconds; `git diff --cached` shows only `.gitmodules` and one mode-160000 submodule entry for the TN path, with no TN source files staged in the parent repository; submodule status is `9cf6411`.
+- Notes/next action: The copied pre-submodule directory was preserved at `/tmp/amphion-tn-source-before-submodule-20260713104527`; clone consumers should initialize submodules before building, for example with `git clone --recurse-submodules`.
+
+## 2026-07-13 Portable Android ICU/TN build handoff
+
+- Goal: remove build dependence on the current machine's absolute paths and provide a reproducible Android ICU/TN build entry point while keeping ONNX and TN binaries outside the parent repository.
+- Files changed: `scripts/build_dingqiao_android_native.sh`, `scripts/build_dingqiao_harmony_tn.sh`, `docs/DINGQIAO_V3_BUILD.md`, `tts/harmony/hvigorfile.ts`, `tts/harmony/sdk/src/main/ets/TextToSpeechApi.ets`.
+- Commands run: `bash -n scripts/build_dingqiao_android_native.sh`; ran the new script with an external ICU 78.1 source archive, Android NDK, and temporary `/tmp` output directories; inspected generated ELF and ICU static library outputs.
+- Verification result: ICU host tools and Android arm64 static libraries built successfully; `zh_tts` and `en_tts` built as Android arm64 ELF executables. The first run exposed and fixed ICU archive-root handling and macOS NDK host-tag detection.
+- Notes: ONNX export remains outside the colleague workflow; the pre-exported ONNX/model package is delivered separately. Temporary build outputs were not added to the parent repository.
+
+## 2026-07-13 Exclude local training and runtime data from parent push
+
+- Goal: Keep training filelists, test data, ONNX models, and TN binaries local-only; do not commit or push them from AmphionRuntime.
+- Files changed or artifacts created: updated `.gitignore`; removed the listed data and binary files from the parent repository index while preserving them in the working tree; retained pure preprocessing scripts, model rules, and the TN submodule gitlink.
+- Commands run: inspected staged paths and sizes; used `git restore --staged` for training filelists, Android test assets, frontend case data, TN binaries, and the old TN-binary deletion paths; re-added only filelist processing scripts; added local-only ignore rules.
+- Verification result: staged-path scan found no training filelist data, test asset data, ONNX files, TN binaries, or TN-binary deletion paths; no commit or push was performed.
+- Notes/next action: Local build inputs remain available in the working tree. Any later commit should preserve these exclusions.
+
 ## 2026-07-03 15:10 Harmony v3.0 API 12 GitHub push
 
 - Goal: Pull remote `origin/tts-android-harmony-v3.0`, merge local Harmony v3.0 API 12 changes with the remote license-auth update, verify the build, and push back to GitHub branch `tts-android-harmony-v3.0`.
@@ -1077,3 +1158,49 @@
 - Commands run: `git fetch origin tts-android-harmony-v3.0`; `git pull --rebase --autostash origin tts-android-harmony-v3.0`; resolved `TextToSpeechApi.ets` autostash conflict; checked for conflict markers and API14 `application.getApplicationContext`; ran `hvigorw --mode module -p product=default -p module=sdk@default assembleHar --no-daemon`; ran `hvigorw --mode module -p product=default -p module=sample@default assembleHap --no-daemon`; unpacked `sample-default-unsigned.hap` to inspect SDK metadata and native libraries.
 - Verification result: Remote was fast-forwarded to `499da36` before local changes were applied. HAR and HAP builds passed. HAP `pack.info` reports `compatible=12` and `target=12`; `module.json` app metadata reports `minAPIVersion=50000012` and `targetAPIVersion=50000012`. Packaged native libraries include `libs/arm64-v8a/liblitsttsnative.so`, `libonnxruntime.so`, and `libc++_shared.so`.
 - Notes: Kept the remote Harmony license gate and added API12-compatible context injection via `TextToSpeechSdk.setContext(common.Context)` for bundled model extraction. The sample now passes `getContext(this) as common.Context` before engine creation and no longer imports `@ohos.app.ability.application`.
+
+## 2026-07-13 15:19 Dingqiao v3 delivery parity audit
+
+- Goal: Recompare the integrated Android and HarmonyOS projects with `Lits_delivery/lits_dingqiao_sdk_vocos24k_v3_0`, find omissions or regressions, and verify that the colleague build remains independent of this machine's paths.
+- Files changed: `tts/harmony/sdk/src/main/ets/TextToSpeechApi.ets`, `tts/harmony/sdk/src/main/cpp/lits_tts_native.cpp`, `tts/harmony/sdk/src/main/cpp/CMakeLists.txt`, `tts/harmony/sdk/src/main/cpp/types/liblitsttsnative/Index.d.ts`, Harmony vendored TN source directory renamed to `tts/harmony/sdk/src/main/cpp/third_party/dingqiao_tn`, `scripts/build_dingqiao_android_native.sh`, `scripts/build_dingqiao_harmony_tn.sh`, and this log.
+- Commands run: `bash -n scripts/build_dingqiao_android_native.sh scripts/build_dingqiao_harmony_tn.sh`; `python3 -m py_compile tools/dingqiao-android/build_frontend_binary_assets.py`; rebuilt Android ICU/TN with the local Android NDK into `/tmp/dingqiao-native-tn-test2`; rebuilt Harmony arm64 TN with the local DevEco native SDK into `/tmp/dingqiao-harmony-tn-test2`; ran Harmony `ohpm install --all` and `hvigorw ... assembleHar --no-daemon`; ran Android `./gradlew --no-daemon :sdk:assembleRelease` with the local JDK17 and Android SDK; compared Android/Harmony source file lists and model package file lists against `Lits_delivery`.
+- Verification result: Android and Harmony builds passed. Newly generated TN binaries are arm64 ELF, contain no `/Users`, `Lits_delivery`, `AmphionRuntime`, or source checkout path strings, and resolve their `rules_v2` files relative to the model package working directory. Restored bounded TN process shutdown, runtime active-call protection, TN cache release, long-text TN segmentation, fullwidth digit/Latin normalization, and streaming chunk bounds.
+- Notes: Delivery-only Harmony stability/evaluation runners are not required for SDK/HAR compilation. `rules_v2` differs from the older delivery mirror because the integrated model package carries the newer hand-authored rule source; both Android and Harmony builds package the same current model directory. License/signing warnings remain intentionally out of scope. No commit or push was performed.
+
+## 2026-07-13 16:18 Dingqiao v3 rules_v2-only resource migration
+
+- Goal: Make the intentional `rules_v2` upgrade authoritative and remove legacy v1 TN rule assets from the SDK workflow.
+- Files changed: moved `rules/zh_pinyin.json` to `rules_v2/zh_pinyin.json`; removed `rules/zh.json` and `rules/en.json` from the model source; updated Android/Harmony resource lists, native pinyin-map loading paths, packaging tasks, tests, and build documentation; removed stale generated v1 assets from Android and Harmony package inputs.
+- Commands run: ran Android `./gradlew --no-daemon :sdk:assembleRelease` with local JDK17/Android SDK; ran Harmony `ohpm install --all` and `hvigorw --mode module -p product=default -p module=sdk@default assembleHar --no-daemon`; inspected source, Android assets/AAR, and gzip-tar HAR contents; ran `git diff --check`.
+- Verification result: Android and Harmony builds passed. Source, Android assets/AAR, and Harmony rawfile/HAR contain only `rules_v2/en.full.json`, `rules_v2/zh.full.json`, and `rules_v2/zh_pinyin.json`; no v1 rule paths remain in the Android/Harmony code or docs.
+- Notes: The pinyin map remains because the v2 native pipeline needs it, but it is now packaged under `rules_v2`. No commit or push was performed.
+
+## 2026-07-13 17:53 Android AAR v2 stability 100-case device test
+
+- Goal: Run `test/dingqiao_test_cases/android_v3_sdk_stability_100_cases_improved_v2.jsonl` against the locally built Android AAR on device `4EE9K25419002062`.
+- Commands run: built `:aarHost:connectedDebugAndroidTest` with the local JDK17/Android SDK; installed the AAR host and test APK; ran only `AarStability1000DeviceTest#runAndroidV3SdkStability1000CasesThroughAar` with `caseStart=0` and `caseLimit=100`; pulled the device results and summary.
+- Verification result: all 100 cases executed. Summary: 85 PASS, 9 EXPECTED_ERROR, 6 FAIL. Failures: four native-heap-delta checks in memory-leak-soak cases, one longtext TN case with a 522000 ms terminal-callback timeout, and one stress-recovery case with a native-heap-delta check.
+- Notes: The test asset was temporarily replaced in the built AAR host APK with the requested v2 100-line JSONL and the source asset was restored after the run. The runner's native heap check compares immediate `Debug.getNativeHeapAllocatedSize()` before/after without post-loop GC or settling; these four native-heap failures are therefore warnings requiring a better leak-validation rerun, not proof of a native leak. No commit or push was performed.
+
+## 2026-07-13 18:09 Android AAR index 90 focused rerun
+
+- Goal: Re-run only `android-v3-sdk-stability-longtext-tn-stability-005` and collect first-packet, RTF, memory, and temperature indicators.
+- Commands run: cleared `com.lits.tts.aarhost` data; ran `AarStability1000DeviceTest#runAndroidV3SdkStability1000CasesThroughAar` with `caseStart=90` and `caseLimit=1`; collected the device JSONL result and logcat frontend progress.
+- Verification result: the failure reproduced after 532185 ms. The case produced `startCallbacks=1`, `dataCallbacks=0`, `completeCallbacks=0`, `firstPacketMs=-1`, and `rtf=-1`; it timed out before the first PCM callback. Resource samples reported Java heap average/peak 128.5/167.5 MB, native heap average/peak 297.6/317.2 MB, PSS average/peak 417.9/507.3 MB, RSS average/peak 511.6/608.4 MB, and temperature average/peak 36.3/38.0 C.
+- Notes: Logcat showed frontend/TN segment processing continuing through the long request, so this is a reproducible pre-first-packet latency/throughput problem for the 3600-character, three-repeat `SYNTHESIZE_AND_PLAY` case, not an OOM or device thermal failure. The current runner still cannot calculate first-packet or RTF when no PCM callback is emitted. No commit or push was performed.
+
+## 2026-07-13 Dingqiao v3 Android/Harmony source build docs
+
+- Goal: Add clear SDK build documentation for compiling the Dingqiao v3 TTS Android and HarmonyOS SDKs from the current AmphionRuntime source plus initialized submodules.
+- Files changed or artifacts created: added `tts/android/docs/BUILD_FROM_SOURCE.md`; added `tts/harmony/docs/BUILD_FROM_SOURCE.md`; linked the new docs from `tts/android/README.md`, `tts/harmony/README.md`, and `tts/harmony/docs/BUILD.md`; updated this operation log.
+- Commands run: inspected recent operation history and existing Android/Harmony build docs; inspected `.gitmodules`, `scripts/build_dingqiao_android_native.sh`, `scripts/build_dingqiao_harmony_tn.sh`, `tts/android/build.gradle.kts`, `tts/harmony/hvigorfile.ts`, and native CMake inputs; ran `git diff --check` on the new and linked documentation files.
+- Verification result: `git diff --check` passed for the documentation changes. No Android or HarmonyOS SDK build was run because this task only added build instructions.
+- Notes/next action: The docs describe `git submodule update --init --recursive`, the expected model package path under `tts/tools/trial-export/...`, optional Android/Harmony TN native rebuild scripts, AAR/HAR output paths, and local-only files that must not be committed.
+
+## 2026-07-13 Dingqiao v3 Android batch-test cases and docs
+
+- Goal: Bring local Dingqiao v3 TTS Android batch-test cases and batch-test code into the repository, and document how to run stability and pronunciation batch tests.
+- Files changed or artifacts created: added `tts/android/testdata/dingqiao_batch_cases/` with the requested 100-case stability corpus, 1000-case stability corpus, pronunciation correctness corpus, and the locally available 424-case middle corpus plus summaries/design notes; added stability assets under `tts/android/aarHost/src/androidTest/assets/`; added the pronunciation asset under `tts/android/sdk/src/androidTest/assets/`; added batch generation scripts under `tools/dingqiao-android/`; updated `AarStability1000DeviceTest` to accept 100/424/1000-case assets via `inputAsset`; added `tts/android/docs/BATCH_TESTING.md`; updated `tts/android/README.md` and `.gitignore`; updated this operation log.
+- Commands run: inspected local `test /dingqiao_test_cases/` and `Lits_delivery/dingqiao_test_cases/`; copied the selected JSONL/summary/script files into repository-scoped paths; ran `python3 -m py_compile` on Dingqiao Android helper scripts; ran `git diff --check`; checked line counts for the copied corpora.
+- Verification result: script syntax checks passed; `git diff --check` passed; copied corpus counts are 100 for `android_v3_sdk_stability_100_cases_improved_v2.jsonl`, 424 for `android_v3_sdk_stability_424_cases_improved_v3.jsonl`, 1000 for `android_v3_sdk_stability_1000_cases_improved.jsonl`, and 675 for `pronunciation-golden-round3-results-with-pinyin-fixed-round15.jsonl`. No Android device batch test was run in this documentation/data import step.
+- Notes/next action: No 432-case corpus was found in the workspace or `Lits_delivery`; the available middle corpus is 424 cases and is documented as such. Build outputs, pulled device reports, model binaries, license files, and signing materials remain local-only.
