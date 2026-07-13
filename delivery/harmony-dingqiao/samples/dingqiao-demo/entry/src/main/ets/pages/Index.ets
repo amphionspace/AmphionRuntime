@@ -21,7 +21,6 @@ import { AudioRecorder, AudioRecorderStats } from '../util/AudioRecorder';
 import { PcmPlayer } from '../util/PcmPlayer';
 import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
-import { VoiceprintModelHelper } from '../util/VoiceprintModelHelper';
 import { WavIo } from '../util/WavIo';
 
 const SESSION_MAX_AUDIO_MS = 60000;
@@ -65,7 +64,6 @@ struct Index {
   @State loading: boolean = true;
   @State loadingHint: string = '正在初始化运行时…';
   @State voiceprintInfo: string = '';
-  @State voiceprintModelReady: boolean = false;
   @State voiceprintId: string = '';
   @State voiceprintVerifyDesired: boolean = false;
   @State speakerVadDesired: boolean = false;
@@ -217,7 +215,7 @@ struct Index {
     }
   }
 
-  // L1:启动时只把运行时框架拉起来常驻(~15-20MB,不含模型),等用户点开始识别再按需加载模型。
+  // L1:启动时只把运行时框架拉起来常驻(~15-20MB,不加载内存模型),等用户点开始识别再按需加载模型。
   // 甲方工况:「不占内存的运行时常驻加速;占内存的模型用时当场起、用完释放」。
   private prepareRuntimeStep(): void {
     this.loading = true;
@@ -908,11 +906,8 @@ struct Index {
 
   private refreshVoiceprintUi(): void {
     const ctx = getContext(this) as common.UIAbilityContext;
-    this.voiceprintModelReady = VoiceprintModelHelper.isReady(this.workPath);
     this.voiceprintId = DemoPrefs.getVoiceprintId(ctx);
-    if (!this.voiceprintModelReady) {
-      this.voiceprintInfo = '未找到声纹模型，请导入 eres2net.onnx';
-    } else if (this.voiceprintId.length === 0) {
+    if (this.voiceprintId.length === 0) {
       this.voiceprintInfo = '未注册声纹';
     } else {
       this.voiceprintInfo = `已注册声纹：${this.voiceprintId}`;
@@ -930,11 +925,6 @@ struct Index {
       return;
     }
     this.voiceprintVerifyDesired = checked;
-    if (checked) {
-      // Warm the ~38 MB eres2net extractor now (usually already warm from registration) so the first
-      // 开始识别 with 声纹校验 doesn't block. No-op if pooled; only the app-restart case pays here.
-      SpeechRecognizeSdk.preloadVoiceprintModel();
-    }
   }
 
   private onSpeakerVadSwitch(checked: boolean): void {
@@ -962,17 +952,6 @@ struct Index {
     router.pushUrl({ url: 'pages/VoiceprintEnroll' }).catch((err: Object): void => {
       this.toast(`打开声纹注册页失败：${err}`);
     });
-  }
-
-  private async importModel(): Promise<void> {
-    const ctx = getContext(this) as common.UIAbilityContext;
-    const ok = await VoiceprintModelHelper.importViaPicker(ctx, this.workPath);
-    if (ok) {
-      this.toast('声纹模型已导入');
-      this.refreshVoiceprintUi();
-    } else {
-      this.toast('导入失败，请确认选择的是 eres2net.onnx（约 38 MB）');
-    }
   }
 
   private confirmDeleteVoiceprint(): void {
@@ -1008,7 +987,6 @@ struct Index {
           .bindMenu([
             { value: '自定义热词', action: (): void => this.openHotwords() },
             { value: '声纹注册', action: (): void => this.openEnroll() },
-            { value: '导入声纹模型', action: (): void => { this.importModel(); } },
             { value: '删除声纹', action: (): void => this.confirmDeleteVoiceprint() }
           ])
       }
@@ -1025,8 +1003,7 @@ struct Index {
       Row() {
         Text('声纹校验').fontSize(15).layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.voiceprintVerifyDesired })
-          .enabled(this.voiceprintModelReady && this.voiceprintId.length > 0 &&
-            !this.listening && !this.replaying)
+          .enabled(this.voiceprintId.length > 0 && !this.listening && !this.replaying)
           .onChange((isOn: boolean): void => this.onVoiceprintSwitch(isOn))
       }
       .width('100%')
@@ -1040,8 +1017,7 @@ struct Index {
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
         Toggle({ type: ToggleType.Switch, isOn: this.speakerVadDesired })
-          .enabled(this.voiceprintModelReady && this.voiceprintId.length > 0 &&
-            !this.listening && !this.replaying)
+          .enabled(this.voiceprintId.length > 0 && !this.listening && !this.replaying)
           .onChange((isOn: boolean): void => this.onSpeakerVadSwitch(isOn))
       }
       .width('100%')

@@ -67,7 +67,7 @@ python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
 
 ## main 分支复现边界
 
-PR 合入后，`main` 分支包含完整源码、交付工程和 sherpa-onnx patch 序列，可以在同样工具链下编译出功能等价的鸿蒙应用。但仓库不会提交模型、签名证书、license、HAP/HAR 或 native 构建产物，因此干净检出后不能只运行 DevEco 构建就得到带完整模型的已签名 HAP。
+PR 合入后，`main` 分支包含完整源码、交付工程、声纹模型和 sherpa-onnx patch 序列，可以在同样工具链下编译出功能等价的鸿蒙应用。ASR 大模型、签名证书、license、HAP/HAR 和 native 构建产物仍不入库，因此干净检出后不能只运行 DevEco 构建就得到带完整模型的已签名 HAP。
 
 从干净 `main` 复现时需要先准备这些本地输入：
 
@@ -76,6 +76,6 @@ PR 合入后，`main` 分支包含完整源码、交付工程和 sherpa-onnx pat
 - 执行 `bash asr/tools/05_package_har_libs.sh`，把已构建的 AArch64 native 库同步到 Harmony HAR 源目录。
 - 执行 `bash asr/tools/08_pack_harmony_assets.sh`；默认直接读取 `asr/tools/demo-model/zhen`、`asr/tools/demo-model/yueen` 及标点/ITN/VAD 源文件，并用固定 ORT 1.16.3 构建环境预优化中英三图与标点图，不再依赖 Android assets。
 - 配置 DevEco 签名后构建 `dingqiao_demo`；无签名配置时只能得到未签名或调试产物。
-- 声纹模型 `eres2net.onnx` 不内置进 HAP，由 demo 通过导入流程放入工作目录。
+- 声纹模型 `eres2net.onnx` 已内置在 `amphion_dingqiao` HAR，SDK 会自动准备到工作目录，无需 Demo 或宿主导入。
 
 在相同模型、签名和 SDK 环境下，`main` 可以编译出功能一致的应用；但 HAP 二进制不承诺字节级一致，签名、时间戳和构建元数据都会影响 hash。

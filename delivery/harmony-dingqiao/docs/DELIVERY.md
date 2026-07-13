@@ -78,8 +78,6 @@ dingqiao-harmony-delivery-<version>/
 │   └── amphion_tts.har（仅完整 ASR + TTS 包）
 ├── demo/
 │   └── dingqiao-demo.hap
-├── models/
-│   └── eres2net.onnx
 ├── tts-models/（仅完整 ASR + TTS 包）
 │   └── amphion-tts/
 └── docs/
@@ -106,11 +104,11 @@ bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.
 
 脚本只收集已构建产物，不负责启动各 SDK 的 DevEco 构建。默认完整模式要求 ASR 和 TTS HAR；`--asr-only` 明确生成只含 ASR SDK/demo 的交付包。正式打包默认要求干净工作区；`--allow-dirty` 只用于本地非发布验收，并会在 `BUILD_PROVENANCE.json` 标记。provenance 记录 Git commit/branch、sherpa submodule 与 patch series、模型源哈希、转换器、native、HAR/HAP 哈希。自包含 ASR HAR 无法被干净宿主安装或编译、所选模式的 HAR 缺失、signed HAP 无效、HAP/HAR 模型 manifest/native 与本地已验收产物不一致或 HAP 内必需资源缺失时都会直接失败，不再生成残缺交付包。
 
-`models/eres2net.onnx` 是声纹 API 的客户侧工作目录模型，ASR-only 与完整包都作为必需产物；缺失时打包失败，不再只输出警告。
+声纹模型 `eres2net.onnx` 已内置在自包含 `amphion_dingqiao.har`，不再作为 `models/` 下的独立客户产物。HAR 验证会逐字节校验该资源，缺失或内容不一致时打包失败。
 
 ## main 分支复现说明
 
-`main` 合入后可以复现功能一致的鸿蒙应用源码与构建流程，但模型、签名、license、HAP/HAR 和 native 构建产物不会入库。干净检出后请先执行：
+`main` 合入后可以复现功能一致的鸿蒙应用源码与构建流程；声纹模型随源码入库，但 ASR 大模型、签名、license、HAP/HAR 和 native 构建产物不会入库。干净检出后请先执行：
 
 ```bash
 git submodule update --init third_party/sherpa-onnx
