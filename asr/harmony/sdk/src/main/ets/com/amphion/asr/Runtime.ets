@@ -967,9 +967,8 @@ export class AsrEngine {
       this.engineReadyMs
     );
     const targetConfig = this.config.targetSpeaker;
-    if (targetConfig !== undefined && targetConfig.deferLoad) {
-      session.setTargetSpeakerExtractorAsync(AmphionRuntime.getOrCreateSpeakerExtractorAsync(
-        this.context, targetConfig.modelPath, targetConfig.numThreads));
+    if (targetConfig !== undefined && targetConfig.deferLoad && targetConfig.enabledByDefault) {
+      session.setTargetSpeakerEnabled(true);
     }
     this.sessions.push(session);
     return session;
@@ -1147,11 +1146,15 @@ export class AsrSession {
     }).catch((e: Object): void => {
       if (this.closed || this.targetExtractorLoad !== load) return;
       this.targetExtractorLoad = undefined;
+      const shouldReport = this.targetSpeakerEnabled || this.speakerVadEnabled ||
+        this.pendingSpeakerFinals.length > 0;
       this.pendingSpeakerFinals = [];
       const stoppedWasPending = this.stopNotificationPending;
       this.stopNotificationPending = false;
-      this.callback.onError?.(new AsrError(
-        AsrErrorCode.POSTPROCESS_FAILED, `speaker extractor load failed: ${e}`));
+      if (shouldReport) {
+        this.callback.onError?.(new AsrError(
+          AsrErrorCode.POSTPROCESS_FAILED, `speaker extractor load failed: ${e}`));
+      }
       // A failed deferred load must still complete stop(). The error callback may close the session,
       // in which case close() owns the stopped notification and this branch deliberately does nothing.
       if (stoppedWasPending && !this.closed) this.notifyStopped();
@@ -1164,7 +1167,15 @@ export class AsrSession {
       this.context, config.modelPath, config.numThreads));
   }
   clearTargetSpeaker(): void { this.targetSpeaker = undefined; }
-  setTargetSpeakerEnabled(enabled: boolean): void { this.targetSpeakerEnabled = enabled; }
+  setTargetSpeakerEnabled(enabled: boolean): void {
+    this.targetSpeakerEnabled = enabled;
+    const config = this.config.targetSpeaker;
+    if (enabled && this.targetExtractor === undefined && this.targetExtractorLoad === undefined &&
+      config !== undefined && config.deferLoad) {
+      this.setTargetSpeakerExtractorAsync(AmphionRuntime.getOrCreateSpeakerExtractorAsync(
+        this.context, config.modelPath, config.numThreads));
+    }
+  }
   setSpeakerVadEnabled(enabled: boolean): void {
     if (this.config.targetSpeaker?.speakerVad === undefined) {
       this.callback.onDebug?.('speaker VAD is not configured for this session');
