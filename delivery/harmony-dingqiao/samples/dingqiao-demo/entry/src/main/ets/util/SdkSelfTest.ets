@@ -10,6 +10,7 @@ import {
   VoiceprintRegisterResult,
   LicenseActivationCallback,
   LicenseActivationResult,
+  PrepareRuntimeCallback,
   CreateEngineCallback,
   RecognitionListener,
   SpeechRecognitionResult,
@@ -90,6 +91,35 @@ class CreateCb implements CreateEngineCallback {
   onError(errorCode: number, message: string): void { this.resolve(undefined); }
 }
 
+class EngineCreateAttempt {
+  engine?: SpeechRecognitionEngine;
+  errorCode: number = 0;
+  message: string = '';
+}
+
+class InspectCreateCb implements CreateEngineCallback {
+  private resolve: (attempt: EngineCreateAttempt) => void;
+  constructor(resolve: (attempt: EngineCreateAttempt) => void) { this.resolve = resolve; }
+  onSuccess(engine: SpeechRecognitionEngine): void {
+    const attempt = new EngineCreateAttempt();
+    attempt.engine = engine;
+    this.resolve(attempt);
+  }
+  onError(errorCode: number, message: string): void {
+    const attempt = new EngineCreateAttempt();
+    attempt.errorCode = errorCode;
+    attempt.message = message;
+    this.resolve(attempt);
+  }
+}
+
+class PrepareCb implements PrepareRuntimeCallback {
+  private resolve: (ready: boolean) => void;
+  constructor(resolve: (ready: boolean) => void) { this.resolve = resolve; }
+  onReady(): void { this.resolve(true); }
+  onError(errorCode: number, message: string): void { this.resolve(false); }
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise<void>((resolve: () => void): void => { setTimeout(resolve, ms); });
 }
@@ -112,6 +142,18 @@ function setLicenseAsync(licPath: string): Promise<LicenseActivationResult> {
 function createEngineAsyncP(params: CreateEngineParams): Promise<SpeechRecognitionEngine | undefined> {
   return new Promise<SpeechRecognitionEngine | undefined>((resolve: (e: SpeechRecognitionEngine | undefined) => void): void => {
     SpeechRecognizeSdk.createEngineAsync(params, new CreateCb(resolve));
+  });
+}
+
+function inspectCreateEngineAsync(params: CreateEngineParams): Promise<EngineCreateAttempt> {
+  return new Promise<EngineCreateAttempt>((resolve: (attempt: EngineCreateAttempt) => void): void => {
+    SpeechRecognizeSdk.createEngineAsync(params, new InspectCreateCb(resolve));
+  });
+}
+
+function prepareRuntimeAsync(): Promise<boolean> {
+  return new Promise<boolean>((resolve: (ready: boolean) => void): void => {
+    SpeechRecognizeSdk.prepareRuntime(new PrepareCb(resolve));
   });
 }
 
@@ -176,6 +218,22 @@ export async function runSdkSelfTest(context: common.UIAbilityContext): Promise<
   r.check('setLicense bad path -> LICENSE_FILE_UNREADABLE', badLic.errorCode === DingqiaoErrorCode.LICENSE_FILE_UNREADABLE, `code=${badLic.errorCode}`);
   // re-activate the real license so the engine can be created
   await setLicenseAsync(licPath);
+
+  // --- Runtime is an explicit L1 lifecycle: neither init nor setLicense may prepare it. ---
+  const beforePrepare = await inspectCreateEngineAsync(buildCreateParams());
+  const correctlyRejected = beforePrepare.engine === undefined &&
+    beforePrepare.errorCode === DingqiaoErrorCode.CREATE_ENGINE_FAILED;
+  r.check('setLicense does not prepare Runtime', correctlyRejected,
+    `code=${beforePrepare.errorCode} msg=${beforePrepare.message}`);
+  if (beforePrepare.engine !== undefined) {
+    beforePrepare.engine.shutdown();
+    SpeechRecognizeSdk.unloadModel();
+  }
+
+  const runtimeReady = await prepareRuntimeAsync();
+  r.check('prepareRuntime -> onReady', runtimeReady, '');
+  const runtimeReadyAgain = await prepareRuntimeAsync();
+  r.check('prepareRuntime is idempotent', runtimeReadyAgain, '');
 
   // --- createEngine (sync) ---
   let engine: SpeechRecognitionEngine | undefined;
@@ -308,6 +366,23 @@ export async function runSdkSelfTest(context: common.UIAbilityContext): Promise<
   await sleep(150);
   const gotDestroyed = shutdownThrew || (evt.errors > destroyedBefore);
   r.check('shutdown -> subsequent call rejected', gotDestroyed, `code=${evt.lastErrorCode} threw=${shutdownThrew}`);
+
+  // --- L1 unload keeps the activated license and allows prepare without another setLicense. ---
+  SpeechRecognizeSdk.unloadModel();
+  SpeechRecognizeSdk.unloadRuntime();
+  let licenseRetained = false;
+  let retainedDetail = '';
+  try {
+    const retained = SpeechRecognizeSdk.getLicenseInfo();
+    licenseRetained = retained.status === 0 && retained.authorizedFeatures.includes('ASR');
+    retainedDetail = `status=${retained.status} features=${retained.authorizedFeatures.join(',')}`;
+  } catch (e) {
+    retainedDetail = `${e}`;
+  }
+  r.check('unloadRuntime retains activated license', licenseRetained, retainedDetail);
+  const reReady = await prepareRuntimeAsync();
+  r.check('prepareRuntime after unloadRuntime needs no setLicense', reReady, '');
+  SpeechRecognizeSdk.unloadRuntime();
 
   r.summary();
   hilog.info(DOMAIN, TAG, 'END self-test');
