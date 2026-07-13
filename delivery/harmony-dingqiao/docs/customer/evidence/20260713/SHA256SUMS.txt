@@ -1,0 +1,11 @@
+# Artifact provenance manifest for the 2026-07-13 lifecycle benchmark.
+# The first three entries are committed evidence and can be checked from a clean clone.
+# HAP/HAR/PCM/manifest entries below are reference-only because those artifacts are intentionally not committed.
+7e0134db6365bf70e73939e939d12d57e3ccaddadf0f27769e1542b8b01373f4  delivery/harmony-dingqiao/docs/customer/SDK_LIFECYCLE_PERFORMANCE_20260713.md
+b5f16ba5fb28737c27e8565056e9285884b9bdc7f2b68006d0e371e0bf32bf9c  delivery/harmony-dingqiao/docs/customer/evidence/20260713/sdk-lifecycle-10-round.log
+2647b216aa2c3c1e94b9f4326b7abe433adfd18f0c9ab722e8fe348b4c66ce3e  delivery/harmony-dingqiao/docs/customer/evidence/20260713/post-idle-memory.log
+# cfcce67fd1c0017b00b7967a868243dbc9f871f7c573a0cf249add1f8df63ef9  dingqiao_demo-default-signed.hap
+# 8a8e0d5655d9ea498beb9a63612563a669e593214219cb079e6167028a1b9526  amphion_dingqiao.har
+# 7beaa3cd253192e5cc449e44bc5971a4dc16a513e729faefec645dcd741787d0  amphion_asr.har
+# c4e22f496e043fc91c6a655775faf357790017e5e02299f33cd13b985abeb579  pcm.bin
+# 314a65601306b2e6f63b76de554cc5b72c525b6c984366a32aaca25af7ba0d02  manifest.jsonl
