@@ -390,7 +390,7 @@ export class AmphionRuntime {
       if (n <= 0) return;
       const stream = recognizer.createStream();
       try {
-        const wave: Samples = { samples: new Float32Array(n), sampleRate: 16000 } as Samples;
+        const wave: Samples = { samples: new Float32Array(n), sampleRate: ASR_SAMPLE_RATE_HZ } as Samples;
         stream.acceptWaveform(wave);
         while (recognizer.isReady(stream)) recognizer.decode(stream);
         recognizer.reset(stream);
@@ -410,6 +410,7 @@ export class AmphionRuntime {
    * the resourceManager loader — same rule as SpeakerEnroller (avoids the rawfile-loader crash).
    */
   static getOrCreateSpeakerExtractor(context: Context | undefined, modelPath: string, numThreads: number): SpeakerEmbeddingExtractor {
+    AmphionRuntime.checkInitialized();
     const key = `${modelPath}|${numThreads}`;
     const cached = AmphionRuntime.speakerExtractorPool.get(key);
     if (cached !== undefined) return cached;
@@ -431,6 +432,7 @@ export class AmphionRuntime {
    */
   static async getOrCreateSpeakerExtractorAsync(context: Context | undefined,
     modelPath: string, numThreads: number): Promise<SpeakerEmbeddingExtractor> {
+    AmphionRuntime.checkInitialized();
     const key = `${modelPath}|${numThreads}`;
     const cached = AmphionRuntime.speakerExtractorPool.get(key);
     if (cached !== undefined) return cached;
@@ -443,10 +445,18 @@ export class AmphionRuntime {
       cfg.numThreads = numThreads;
       cfg.debug = false;
       const rm = modelPath.startsWith('/') ? undefined : context?.resourceManager;
-      const newLoad = SpeakerEmbeddingExtractor.createAsync(cfg, rm, 16000)
+      const newLoad = SpeakerEmbeddingExtractor.createAsync(cfg, rm, ASR_SAMPLE_RATE_HZ)
         .then((extractor: SpeakerEmbeddingExtractor): SpeakerEmbeddingExtractor => {
           if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+            extractor.close();
             throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during speaker load`);
+          }
+          // A synchronous registration/Speaker-VAD load may have completed while this worker was
+          // running. Keep that published instance and deterministically release this late loser.
+          const winner = AmphionRuntime.speakerExtractorPool.get(key);
+          if (winner !== undefined) {
+            extractor.close();
+            return winner;
           }
           AmphionRuntime.speakerExtractorPool.set(key, extractor);
           return extractor;
@@ -476,7 +486,10 @@ export class AmphionRuntime {
     try {
       const stream = extractor.createStream();
       try {
-        const wave: Samples = { samples: new Float32Array(16000), sampleRate: 16000 } as Samples;
+        const wave: Samples = {
+          samples: new Float32Array(ASR_SAMPLE_RATE_HZ),
+          sampleRate: ASR_SAMPLE_RATE_HZ
+        } as Samples;
         stream.acceptWaveform(wave);
         extractor.compute(stream);
       } finally {
@@ -691,8 +704,8 @@ export class AmphionRuntime {
   }
   /**
    * 模型级卸载(两级加载的 L2)。清空所有模型池并 bump loadGeneration,使正在进行的 async 加载失效;
-   * 池化的 native session(recognizer / punctuation / extractor / vad)引用被丢弃后,由 NAPI finalizer
-   * 在 GC 时回收其 native 内存 —— 与 release() 释放模型的语义一致,区别在于本方法**保留运行时**
+   * 池化的 recognizer / punctuation / speaker extractor 会显式 close；VAD 引用清空后由 NAPI
+   * finalizer 回收。区别于 release() 的是本方法**保留运行时**
    * (initialized / appContext / license 不变),下次 create 只需重付模型加载,无需重建运行时。
    */
   static unloadModel(): void {
@@ -704,6 +717,9 @@ export class AmphionRuntime {
     });
     AmphionRuntime.punctuationPool.forEach((p: OfflinePunctuation): void => {
       try { p.close(); } catch (e) { Logger.w(`punctuation close failed: ${e}`); }
+    });
+    AmphionRuntime.speakerExtractorPool.forEach((extractor: SpeakerEmbeddingExtractor): void => {
+      try { extractor.close(); } catch (e) { Logger.w(`speaker extractor close failed: ${e}`); }
     });
     AmphionRuntime.asrPool.clear();
     AmphionRuntime.recognizerLoads.clear();
@@ -950,6 +966,11 @@ export class AsrEngine {
       callback,
       this.engineReadyMs
     );
+    const targetConfig = this.config.targetSpeaker;
+    if (targetConfig !== undefined && targetConfig.deferLoad) {
+      session.setTargetSpeakerExtractorAsync(AmphionRuntime.getOrCreateSpeakerExtractorAsync(
+        this.context, targetConfig.modelPath, targetConfig.numThreads));
+    }
     this.sessions.push(session);
     return session;
   }
@@ -1121,14 +1142,19 @@ export class AsrSession {
     this.targetExtractorLoad = load;
     load.then((extractor: SpeakerEmbeddingExtractor): void => {
       if (this.closed || this.targetExtractorLoad !== load) return;
-      this.targetExtractorLoad = undefined;
       this.setTargetSpeakerExtractor(extractor);
+      this.targetExtractorLoad = undefined;
     }).catch((e: Object): void => {
       if (this.closed || this.targetExtractorLoad !== load) return;
       this.targetExtractorLoad = undefined;
       this.pendingSpeakerFinals = [];
+      const stoppedWasPending = this.stopNotificationPending;
+      this.stopNotificationPending = false;
       this.callback.onError?.(new AsrError(
         AsrErrorCode.POSTPROCESS_FAILED, `speaker extractor load failed: ${e}`));
+      // A failed deferred load must still complete stop(). The error callback may close the session,
+      // in which case close() owns the stopped notification and this branch deliberately does nothing.
+      if (stoppedWasPending && !this.closed) this.notifyStopped();
     });
   }
   ensureTargetSpeakerExtractor(): void {

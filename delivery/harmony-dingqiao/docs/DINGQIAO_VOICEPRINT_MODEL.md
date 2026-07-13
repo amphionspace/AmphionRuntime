@@ -12,20 +12,21 @@ SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/dingqiao_work`);
 SpeechRecognizeSdk.prepareRuntime(callback);
 ```
 
-SDK 会把 HAR 内的模型幂等准备到 `{setWorkPath}/eres2net.onnx`。`prepareRuntime()` 会做一次尽力准备；注册声纹、预加载声纹和启用声纹识别时都会重试，因此声纹准备失败不会阻断纯 ASR 运行时。
+SDK 直接通过资源管理器加载 HAR 内模型，不复制到 `{setWorkPath}`。`setWorkPath` 只保存已注册的 embedding；`prepareRuntime()` 只准备 Runtime，不读取或加载声纹模型。
 
 ## 2. 生命周期
 
 | 资源 | 创建/加载时机 | 释放时机 |
 | --- | --- | --- |
 | HAR 内置 `eres2net.onnx` | 应用安装 | 应用卸载 |
-| 工作目录模型副本 | 首次 `prepareRuntime()` 或首次使用声纹 | 应用数据清理；`unloadModel()` 不删除 |
 | 内存声纹 extractor | 注册/显式预加载时同步加载；普通声纹识别后台加载；Speaker VAD 启动前同步加载 | `unloadModel()` / `unloadRuntime()` |
 | 已注册声纹 embedding | `registerVoiceprint()` | `deleteVoiceprint()` 或应用数据清理 |
 
-这样可以让 L1 `prepareRuntime()` 保持“运行时就绪、不加载推理权重”的语义；约 38 MB 的 extractor 只在声纹真正使用时进入 L2，并和 ASR 模型一起由 `unloadModel()` 卸载。磁盘模型和 embedding 属于持久状态，不应跟随内存模型周期删除。
+这样可以让 L1 `prepareRuntime()` 严格保持“只准备 Runtime”的语义；约 38 MB 的 extractor 只在声纹真正使用时进入 L2，并和 ASR 模型一起由 `unloadModel()` 确定性卸载。HAR 模型和 workPath 中的 embedding 属于持久状态，不跟随内存模型周期删除。
 
 普通 `enableVoiceprintVerification` 会在 ASR 会话启动后后台加载 extractor，ASR 音频写入和中间结果不等待；如果模型在 ASR final 产生时仍未就绪，只延后 final 和 `onComplete`，模型就绪后立即完成声纹打分。`enableSpeakerVad` 需要在流式阶段持续打分，因此冷态 `startListening()` 会同步等待 extractor。`preloadVoiceprintModel()` 仍是可选同步接口，可用于提前消除 final 等待或 Speaker VAD 冷启动，不是普通声纹识别的必需调用。
+
+注册、显式预加载和声纹识别都属于 L2，调用前必须先完成 `setLicense()` 和 `prepareRuntime()`。`unloadRuntime()` 保留已验证授权；重新 `prepareRuntime()` 后可继续使用，无需再次 `setLicense()`。
 
 ## 3. 注册约束
 

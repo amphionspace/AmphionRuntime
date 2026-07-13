@@ -13,7 +13,7 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0006-*` | Harmony online stream 增加显式幂等释放与存活计数，避免依赖 ArkTS GC 导致会话级泄漏 |
 | `0007-*` | Harmony 冷启动优化：已知模型跳过重复探测、API 11+ rawfile64 mmap + ORT 直载、Zipformer2 多 lane 建图，以及 ASR/标点异步工厂与可配置预热；当前 `zhen` 配置跳过 eager warmup |
 | `0008-*` | Harmony 模型显式卸载、异步句柄安全释放，以及 prepack 生命周期控制 |
-| `0009-*` | Harmony 声纹 extractor 的 N-API 异步工厂与后台静音预热，避免阻塞 ArkTS 音频链路 |
+| `0009-*` | Harmony 声纹 extractor 的 N-API 异步工厂、后台静音预热与幂等显式释放，避免阻塞 ArkTS 音频链路并保证卸载回收 |
 
 Apply automatically from the Harmony `04_build_harmony_so.sh` entry point (Android also applies the same series from its native build flow):
 
