@@ -35,6 +35,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | --- | --- |
 | `burst` | 快于实时喂入、尾部 flush、长音频、连续会话 |
 | `paced` | 20 ms 实时喂入，对照 burst 是否丢 backlog |
+| `vad-begin` | 真实语音启用 10 秒 `vadBegin`，验证真实起音事件优先于首段静音超时 |
 | `cancel` | 500 ms 后取消，验证无 final/complete 和短会话泄漏 |
 | `cancel-full` | 完整音频解码后取消，隔离正常 finish 路径 |
 | `max-duration` | 20 秒自动结束、80 个迟到帧、单次 complete、下一轮重启 |

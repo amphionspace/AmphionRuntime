@@ -29,7 +29,9 @@ BUNDLE = "com.amphion.dingqiao.harmony.demo"
 MODULE = "dingqiao_demo"
 ABILITY = "EntryAbility"
 REMOTE_ROOT = "/data/storage/el2/base/files/asr-stress"
-FINISH_MODES = {"burst", "paced", "reconfigure", "recreate", "max-duration", "numeric-edge"}
+FINISH_MODES = {
+    "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration", "numeric-edge"
+}
 MIN_MEMORY_SAMPLES = 6
 MIN_MEMORY_OBSERVATION_SECONDS = 15.0
 MIN_MEMORY_SLOPE_SECONDS = 60.0
@@ -70,6 +72,7 @@ def parse_args() -> argparse.Namespace:
         choices=(
             "burst",
             "paced",
+            "vad-begin",
             "cancel",
             "cancel-full",
             "recreate",

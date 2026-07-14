@@ -5,6 +5,7 @@ import {
   AudioInfo,
   CreateEngineParams,
   DingqiaoErrorCode,
+  DingqiaoEventCode,
   LicenseActivationCallback,
   LicenseActivationResult,
   PrepareRuntimeCallback,
@@ -44,6 +45,8 @@ class CorpusEntry {
 
 class SessionEvents {
   starts: number = 0;
+  speechBegins: number = 0;
+  speechEnds: number = 0;
   finals: number = 0;
   completes: number = 0;
   errors: number = 0;
@@ -70,6 +73,11 @@ class StressListener implements RecognitionListener {
 
   onStart(_sessionId: string, _eventMessage?: string): void {
     this.events.starts += 1;
+  }
+
+  onEvent(_sessionId: string, eventCode: number, _message: string): void {
+    if (eventCode === DingqiaoEventCode.SPEECH_BEGIN) this.events.speechBegins += 1;
+    if (eventCode === DingqiaoEventCode.SPEECH_END) this.events.speechEnds += 1;
   }
 
   onResult(_sessionId: string, result: SpeechRecognitionResult): void {
@@ -396,6 +404,7 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   params.audioInfo = new AudioInfo();
   params.extraParams['enablePartialResult'] = false;
   params.extraParams['maxAudioDuration'] = 60000;
+  if (mode === 'vad-begin') params.extraParams['vadBegin'] = 10000;
   if (mode === 'reconfigure') {
     const values: number[] = [500, 800, 1200];
     params.extraParams['vadEnd'] = values[cycle % values.length];
@@ -487,9 +496,14 @@ async function runRecognitionCycle(engine: SpeechRecognitionEngine, entry: Corpu
   if (options.settleMs > 0) await sleep(options.settleMs);
   engine.finish(sessionId);
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const speechContract = options.mode !== 'vad-begin' || events.speechBegins > 0;
   const ok = completed && events.starts === 1 && events.completes === 1 && events.errors === 0 &&
-    events.finals > 0 && events.lastIsLast && !engine.isBusy();
-  return finishCycle(index, entry.id, events, startedAt, ok, ok ? 'finished' : 'finish-contract');
+    events.finals > 0 && events.lastIsLast && speechContract && !engine.isBusy();
+  const passDetail = options.mode === 'vad-begin' ?
+    `vad-begin-speech-detected-${events.speechBegins}` : 'finished';
+  const failDetail = options.mode === 'vad-begin' && !speechContract ?
+    'vad-begin-no-speech-event' : 'finish-contract';
+  return finishCycle(index, entry.id, events, startedAt, ok, ok ? passDetail : failDetail);
 }
 
 async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,

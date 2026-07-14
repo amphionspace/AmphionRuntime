@@ -4,8 +4,8 @@
 
 | 文档项 | 值 |
 | --- | --- |
-| 文档版本 | v1.3（HarmonyOS 声纹模型生命周期扩展） |
-| 更新日期 | 2026-07-13 |
+| 文档版本 | v1.4（跨端 VAD 前端点与参数契约补齐） |
+| 更新日期 | 2026-07-14 |
 | SDK 依赖 | `amphion_dingqiao` |
 
 SDK 依赖名为 `amphion_dingqiao`，核心入口为 `SpeechRecognizeSdk`。本版包含 License、Runtime、Model 三层生命周期控制，以及内置声纹模型的按需加载策略，便于宿主控制模型内存和识别启动时延。
@@ -199,7 +199,13 @@ interface CreateEngineCallback {
 | `online` | `number` | `1` | 当前仅支持离线模式 `DingqiaoOnlineMode.OFFLINE` |
 | `extraParams` | `Record<string, Object>` | 空 | 扩展参数 |
 
-`extraParams['sysGeneralLexicon']` 可传入 `string[]` 作为系统热词。SDK 会将客户热词与警务域默认热词合并后用于 ASR 解码。
+常用 `extraParams`：
+
+| 参数 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `locate` | `string` | `CN` | 兼容字段；当前仅支持中国区，不改变模型选择 |
+| `recognizerMode` | `string` | `long` | 接受 `short`/`long`，当前均按长语音流式模式处理 |
+| `sysGeneralLexicon` | `string[]` | 空 | 系统热词；与警务域默认热词合并后用于解码 |
 
 ### 5.3 `StartParams`
 
@@ -213,9 +219,12 @@ interface CreateEngineCallback {
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `recognitionMode` | `number/string` | `1` | 仅支持 `1`（外部写入音频流）；`0`（SDK 内录音）暂不支持 |
+| `vadBegin` | `number/string` | 未启用 | 首次检测到语音前的静音超时，范围 500 到 10000 ms；仅显式传入时启用 |
 | `enablePartialResult` | `boolean` | `true` | 是否回调中间结果 |
-| `maxAudioDuration` | `number` | `20000` | 单会话最长音频毫秒数，有效值不小于 20000；达到上限后正常自动结束 |
+| `maxAudioDuration` | `number/string` | `20000` | 单会话最长音频毫秒数，范围 20000 到 28800000；达到上限后正常自动结束 |
 | `vadEnd` | `number/string` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
+| `sessionGeneralLexicon` | `string[]` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
 | `enableSpeakerVad` | `boolean` | `false` | 是否启用目标说话人离场提前 endpoint；冷态启动会同步等待声纹模型 |
 | `voiceprintIds` | `string[]` | 空 | 声纹 ID 列表；启用声纹校验或 Speaker VAD 时必填 |
@@ -241,7 +250,7 @@ interface RecognitionListener {
 | `onStart` | 会话启动成功 |
 | `onEvent` | 语音端点、声纹 VAD 状态等事件 |
 | `onResult` | 识别结果，包含 partial 与 final |
-| `onComplete` | 主动 `finish` 或达到 `maxAudioDuration` 上限自动结束后，识别完整结束 |
+| `onComplete` | 主动 `finish`、达到 `vadBegin` 首段静音阈值或达到 `maxAudioDuration` 上限后，识别完整结束 |
 | `onError` | 发生错误 |
 
 `SpeechRecognitionResult`：
@@ -264,6 +273,8 @@ interface RecognitionListener {
 | `20` | `SPEAKER_VAD_CHANGED` | 目标说话人 VAD 开关变化 |
 | `21` | `SPEAKER_VAD_DEBUG` | 目标说话人 VAD 调试信息 |
 | `22` | `SPEAKER_VAD_REJECTED` | 目标说话人 VAD 拒绝当前 final |
+
+`vadBegin` 按实际写入并由 VAD 处理的 PCM 时长计算；只调用 `startListening` 而不写入音频不会计时。达到阈值且始终未检测到语音时，SDK 回调空的 `onResult(isFinal=true,isLast=true)`，随后回调 `onComplete`，不回调 `SPEECH_BEGIN`、`SPEECH_END` 或错误。一旦检测到首个真实起音，本会话不再触发 `vadBegin`，后续停顿由 `vadEnd` 处理。该行为不依赖 `enablePartialResult`。
 
 ## 7. 声纹
 
@@ -324,6 +335,7 @@ interface LicenseActivationCallback {
 | `1002200009` | `INTERNAL_ERROR` | 内部错误 |
 | `1002200010` | `NOT_LISTENING` | 未处于识别中 |
 | `1002200011` | `RECOGNITION_ERROR` | 识别错误 |
+| `1002200012` | `NO_MIC_PERMISSION` | 兼容保留；当前不支持 SDK 内录音，因此不会主动发出 |
 | `1002200020` | `VOICEPRINT_REGISTER_FAILED` | 声纹注册失败 |
 | `1002200021` | `VOICEPRINT_SAMPLE_COUNT` | 声纹样本数量不足 |
 | `1002200022` | `VOICEPRINT_SAMPLE_DURATION` | 声纹样本时长不符合要求 |

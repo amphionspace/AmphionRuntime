@@ -21,6 +21,7 @@
 | INTERNAL_ERROR | 1002200009 |
 | NOT_LISTENING | 1002200010 |
 | RECOGNITION_ERROR | 1002200011 |
+| NO_MIC_PERMISSION | 1002200012 |
 | VOICEPRINT_REGISTER_FAILED | 1002200020 |
 | VOICEPRINT_SAMPLE_COUNT | 1002200021 |
 | VOICEPRINT_SAMPLE_DURATION | 1002200022 |
@@ -44,8 +45,21 @@
 2. 传 0、负数或小于 20000 的值时按 20000 ms。
 3. 达到上限后应回调 `onResult(isFinal=true,isLast=true)` 和 `onComplete`，不得回调 `MAX_AUDIO_DURATION`。
 4. 自动结束后 `isBusy()==false`，可立即再次 `startListening`。
+5. 数字、数字字符串均应解析；非有限值和非法字符串不得绕过 20000 ms 下限。
+6. 大于 28800000 ms 时按 28800000 ms 处理。
 
-## 4. 生命周期竞争窗口
+## 4. vadBegin 与参数兼容
+
+1. 未传 `vadBegin` 时禁用首段静音超时；只调用 `startListening` 而不写 PCM 不得超时。
+2. 数字和数字字符串均应解析，并钳制到 500 到 10000 ms；非法值按未启用处理。
+3. 持续写入静音 PCM 达到阈值后，必须依次回调空的 last final 和一次 `onComplete`，不得回调 speech 事件或错误。
+4. 阈值边界同时检测到真实语音时，语音优先；检测到首个 speech window 后，本会话不得再次触发 `vadBegin`。
+5. `enablePartialResult=false` 不得影响真实 VAD 起音和 `vadBegin` 取消。
+6. `recognitionMode` 缺省为 `STREAM=1`；传入 `RECORD=0` 应启动失败并明确提示不支持 SDK 内录音。
+7. `recognizerMode` 只接受 `short` / `long`，两者均使用现有长语音流式实现。
+8. `locate` 当前仅兼容接受 `CN`；`sessionGeneralLexicon` 明确为 V1 不支持，不得伪装生效。
+
+## 5. 生命周期竞争窗口
 
 1. 自动结束到 `onComplete` 之间继续写入少量帧，不得产生错误风暴或重复 `onComplete`。
 2. 重复 `finish(sessionId)` 只允许一次 `onComplete`。
@@ -53,7 +67,7 @@
 4. `onComplete` 后迟到的底层 final 不得再透出给客户。
 5. `shutdown()` 必须幂等。
 
-## 5. 声纹与 License
+## 6. 声纹与 License
 
 1. 声纹注册至少 1 条样本；0 条返回 `VOICEPRINT_SAMPLE_COUNT`。
 2. 样本时长小于 3 秒或大于 8 秒返回 `VOICEPRINT_SAMPLE_DURATION`。

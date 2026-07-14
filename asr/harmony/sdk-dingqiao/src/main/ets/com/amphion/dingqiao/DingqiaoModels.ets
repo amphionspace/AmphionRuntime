@@ -102,6 +102,7 @@ export class DingqiaoErrorCode {
   static readonly INTERNAL_ERROR: number = 1002200009;
   static readonly NOT_LISTENING: number = 1002200010;
   static readonly RECOGNITION_ERROR: number = 1002200011;
+  static readonly NO_MIC_PERMISSION: number = 1002200012;
   static readonly VOICEPRINT_REGISTER_FAILED: number = 1002200020;
   static readonly VOICEPRINT_SAMPLE_COUNT: number = 1002200021;
   static readonly VOICEPRINT_SAMPLE_DURATION: number = 1002200022;
@@ -127,7 +128,11 @@ export class DingqiaoOnlineMode {
 }
 
 export class DingqiaoRecognitionMode {
+  static readonly RECORD: number = 0;
+  static readonly STREAM: number = 1;
+  /** @deprecated Use RECORD. */
   static readonly SINGLE: number = 0;
+  /** @deprecated Use STREAM. */
   static readonly CONTINUOUS: number = 1;
 }
 

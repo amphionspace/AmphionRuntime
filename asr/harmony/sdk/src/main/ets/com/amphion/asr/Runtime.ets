@@ -30,6 +30,7 @@ import {
   Cancellable,
   EndpointRules,
   LicenseEnforcement,
+  SessionConfig,
   SpeakerVadConfig,
   TargetSpeakerConfig,
   VadConfig,
@@ -948,8 +949,9 @@ export class AsrEngine {
     }
   }
 
-  newSession(callback: AsrCallback): AsrSession {
+  newSession(callback: AsrCallback, sessionConfig: SessionConfig = new SessionConfig()): AsrSession {
     if (this.closed) throw new Error('AsrEngine is closed');
+    validateSessionConfig(sessionConfig);
     if (this.config.targetSpeaker !== undefined && this.targetExtractor === undefined &&
       !this.config.targetSpeaker.deferLoad) {
       this.targetExtractor = this.createSpeakerExtractor(this.config.targetSpeaker);
@@ -963,6 +965,7 @@ export class AsrEngine {
       this.recognizer,
       this.punctuation,
       this.targetExtractor,
+      sessionConfig,
       callback,
       this.engineReadyMs
     );
@@ -1019,6 +1022,10 @@ export class AsrSession {
   private vadSpeechActive: boolean = false;
   private trailingSilenceMs: number = 0;
   private vadCarry: Float32Array = new Float32Array(0);
+  private initialSilenceTimeoutSamples: number = 0;
+  private initialSilenceSamples: number = 0;
+  private initialSpeechDetected: boolean = false;
+  private initialSilenceTimeoutSent: boolean = false;
   // Speaker-VAD sliding-window state (Android-aligned two-phase: confirm target -> detect departure).
   private svSamplesSinceScore: number = 0;
   private svTargetConfirmed: boolean = false;
@@ -1043,8 +1050,9 @@ export class AsrSession {
   private stopNotificationPending: boolean = false;
   private pendingSpeakerFinals: PendingSpeakerFinal[] = [];
   private itnWarned: boolean = false;
+  private sessionConfig: SessionConfig;
 
-  constructor(sessionId: number, context: Context, language: AsrLanguage, config: AsrConfig, layout: InstalledLayout, recognizer: OnlineRecognizer, punctuation: OfflinePunctuation | undefined, targetExtractor: SpeakerEmbeddingExtractor | undefined, callback: AsrCallback, engineReadyMs: number) {
+  constructor(sessionId: number, context: Context, language: AsrLanguage, config: AsrConfig, layout: InstalledLayout, recognizer: OnlineRecognizer, punctuation: OfflinePunctuation | undefined, targetExtractor: SpeakerEmbeddingExtractor | undefined, sessionConfig: SessionConfig, callback: AsrCallback, engineReadyMs: number) {
     this.sessionId = sessionId;
     this.context = context;
     this.language = language;
@@ -1054,10 +1062,13 @@ export class AsrSession {
     this.stream = recognizer.createStream();
     this.punctuation = punctuation;
     this.targetExtractor = targetExtractor;
+    this.sessionConfig = sessionConfig;
     this.targetSpeakerEnabled = config.targetSpeaker?.enabledByDefault ?? false;
-    this.speakerVadEnabled = config.targetSpeaker?.speakerVad?.enabledByDefault ?? false;
+    this.speakerVadEnabled = this.effectiveSpeakerVad()?.enabledByDefault ?? false;
     this.callback = callback;
     this.engineReadyMs = engineReadyMs;
+    const initialSilenceTimeoutMs = sessionConfig.initialSilenceTimeoutMs ?? 0;
+    this.initialSilenceTimeoutSamples = Math.round(initialSilenceTimeoutMs * ASR_SAMPLE_RATE_HZ / 1000);
     if (config.vad) {
       this.vad = this.createVad();
     }
@@ -1177,7 +1188,7 @@ export class AsrSession {
     }
   }
   setSpeakerVadEnabled(enabled: boolean): void {
-    if (this.config.targetSpeaker?.speakerVad === undefined) {
+    if (this.effectiveSpeakerVad() === undefined) {
       this.callback.onDebug?.('speaker VAD is not configured for this session');
       return;
     }
@@ -1349,7 +1360,7 @@ export class AsrSession {
   // real-time) and let the VAD only gate / drive a more sensitive active endpoint. sherpa's own
   // endpoint rules stay enabled as a backstop in case the VAD active endpoint misses.
   private feedAndDecode(samples: Float32Array): void {
-    if (this.closed) return;
+    if (this.closed || this.initialSilenceTimeoutSent) return;
     if ((this.targetSpeakerEnabled || this.speakerVadEnabled) && this.utteranceLength() < UTT_MAX_SAMPLES) {
       // acceptPcmShort reuses one conversion buffer; speaker scoring needs an immutable snapshot.
       this.utteranceSamples.push(samples.slice());
@@ -1377,11 +1388,21 @@ export class AsrSession {
     this.vadCarry = i < merged.length ? merged.slice(i, merged.length) : new Float32Array(0);
 
     if (anySpeech) {
+      if (!this.vadSpeechActive) this.callback.onSpeechBegin?.();
       this.vadSpeechActive = true;
+      this.initialSpeechDetected = true;
       this.trailingSilenceMs = 0;
+    } else if (!this.initialSpeechDetected && !this.initialSilenceTimeoutSent &&
+      this.initialSilenceTimeoutSamples > 0) {
+      this.initialSilenceSamples += i;
+      if (this.initialSilenceSamples >= this.initialSilenceTimeoutSamples) {
+        this.initialSilenceTimeoutSent = true;
+        this.callback.onInitialSilenceTimeout?.();
+        return;
+      }
     } else if (anySilence && this.vadSpeechActive) {
       this.trailingSilenceMs += Math.round(samples.length * 1000 / 16000);
-      const activeEpMs = this.config.vadConfig.activeEndpointSilenceMs;
+      const activeEpMs = this.sessionConfig.endpointSilenceMs ?? this.config.vadConfig.activeEndpointSilenceMs;
       if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs) {
         this.vadSpeechActive = false;
         this.trailingSilenceMs = 0;
@@ -1490,7 +1511,7 @@ export class AsrSession {
   // (consecutive windows below threshold). Scored every hop while the utterance is long enough.
   private maybeTriggerSpeakerVadEndpoint(samplesInChunk: number): boolean {
     if (!this.speakerVadEnabled) return false;
-    const sv = this.config.targetSpeaker?.speakerVad;
+    const sv = this.effectiveSpeakerVad();
     if (sv === undefined || this.targetExtractor === undefined || this.targetSpeaker === undefined) return false;
     const winSamples = Math.max(1, Math.round(sv.winSec * 16000));
     const hopSamples = Math.max(1, Math.round(sv.hopSec * 16000));
@@ -1528,6 +1549,10 @@ export class AsrSession {
       this.svBelowCount = 0;
     }
     return false;
+  }
+
+  private effectiveSpeakerVad(): SpeakerVadConfig | undefined {
+    return this.sessionConfig?.speakerVad ?? this.config.targetSpeaker?.speakerVad;
   }
 
   private triggerSpeakerVadEndpoint(): void {
@@ -1612,6 +1637,17 @@ export class AsrSession {
     if (!this.closed || this.streamCallDepth > 0 || this.streamReleased) return;
     this.streamReleased = true;
     this.stream.close();
+  }
+}
+
+function validateSessionConfig(config: SessionConfig): void {
+  if (config.endpointSilenceMs !== undefined &&
+    (!Number.isFinite(config.endpointSilenceMs) || config.endpointSilenceMs < 0)) {
+    throw new Error('SessionConfig.endpointSilenceMs must be finite and >= 0');
+  }
+  if (config.initialSilenceTimeoutMs !== undefined &&
+    (!Number.isFinite(config.initialSilenceTimeoutMs) || config.initialSilenceTimeoutMs < 0)) {
+    throw new Error('SessionConfig.initialSilenceTimeoutMs must be finite and >= 0');
   }
 }
 

@@ -122,6 +122,12 @@ val engine = AmphionRuntime.create(
 )
 
 val session = engine.newSession(object : AsrCallback {
+    override fun onSpeechBegin() {
+        // 底层 VAD 首次确认真实语音；每个会话最多触发一次
+    }
+    override fun onInitialSilenceTimeout() {
+        // SessionConfig.initialSilenceTimeoutMs 命中；由上层决定如何结束会话
+    }
     override fun onPartial(text: String) {
         // 流式增量，UI 直接覆盖显示
     }
@@ -134,7 +140,7 @@ val session = engine.newSession(object : AsrCallback {
     override fun onError(error: AsrError) {
         // 错误码 见 §7
     }
-})
+}, SessionConfig(initialSilenceTimeoutMs = 3_000))
 
 // 业务自己的录音线程把 16kHz / 16-bit / 单声道 PCM 喂进来
 session.acceptPcmShort(samples)
@@ -143,6 +149,11 @@ session.stop()        // 触发尾段 final
 session.close()       // 释放 session
 engine.close()        // 不再识别时释放 ASR / 标点 / ITN / VAD 全部 native 资源
 ```
+
+`SessionConfig.initialSilenceTimeoutMs` 按底层实际处理的 PCM 时长计算，`null` 或 `0` 表示禁用。
+检测到首个 VAD speech window 后，本会话永久取消首段静音计时；阈值边界同时检测到语音时语音优先。
+底层 SDK 只回调 `onInitialSilenceTimeout()`，不会自行合成业务层的空 final 或 complete；鼎桥适配层会把它
+转换为一次空的 last final 和一次 `onComplete`。
 
 ## 6. 切换语言
 

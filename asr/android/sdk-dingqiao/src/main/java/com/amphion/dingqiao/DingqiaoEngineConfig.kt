@@ -17,6 +17,10 @@ internal object DingqiaoEngineConfig {
     private const val DEFAULT_VAD_END_MS = 800
     private const val MIN_VAD_END_MS = 500
     private const val MAX_VAD_END_MS = 10_000
+    private const val MIN_VAD_BEGIN_MS = 500
+    private const val MAX_VAD_BEGIN_MS = 10_000
+    private const val MIN_AUDIO_DURATION_MS = 20_000L
+    private const val MAX_AUDIO_DURATION_MS = 28_800_000L
     private const val DEFAULT_SPEAKER_VAD_THRESHOLD = 0.40f
     private const val DEFAULT_SPEAKER_VAD_WINDOW_MS = 1000
     private const val DEFAULT_SPEAKER_VAD_HOP_MS = 300
@@ -36,6 +40,7 @@ internal object DingqiaoEngineConfig {
         require(params.online == DingqiaoOnlineMode.OFFLINE) {
             "only offline mode is supported"
         }
+        validateRecognizerMode(params)
         @Suppress("UNCHECKED_CAST")
         val sysLexicon = params.extraParams["sysGeneralLexicon"] as? List<String>
             ?: (params.extraParams["sysGeneralLexicon"] as? List<*>)?.mapNotNull { it?.toString() }
@@ -85,8 +90,15 @@ internal object DingqiaoEngineConfig {
         }
         return SessionConfig(
             endpointSilenceMs = vadEndMs(startParams),
+            initialSilenceTimeoutMs = vadBeginMs(startParams),
             speakerVad = speakerVad,
         )
+    }
+
+    fun vadBeginMs(startParams: StartParams): Int? {
+        if (!startParams.extraParams.containsKey("vadBegin")) return null
+        val value = finiteLong(startParams.extraParams["vadBegin"]) ?: return null
+        return value.coerceIn(MIN_VAD_BEGIN_MS.toLong(), MAX_VAD_BEGIN_MS.toLong()).toInt()
     }
 
     fun vadEndMs(startParams: StartParams?): Int {
@@ -99,12 +111,17 @@ internal object DingqiaoEngineConfig {
     }
 
     fun maxAudioDurationMs(startParams: StartParams): Long {
-        val v = when (val raw = startParams.extraParams["maxAudioDuration"]) {
-            is Number -> raw.toLong()
-            is String -> raw.toLongOrNull()
-            else -> null
+        val value = finiteLong(startParams.extraParams["maxAudioDuration"])
+            ?: MIN_AUDIO_DURATION_MS
+        return value.coerceIn(MIN_AUDIO_DURATION_MS, MAX_AUDIO_DURATION_MS)
+    }
+
+    fun validateRecognitionMode(startParams: StartParams) {
+        val raw = startParams.extraParams["recognitionMode"] ?: DingqiaoRecognitionMode.STREAM
+        val mode = finiteDouble(raw)
+        require(mode == DingqiaoRecognitionMode.STREAM.toDouble()) {
+            "only recognitionMode=1 (external audio stream) is supported"
         }
-        return v?.coerceAtLeast(20_000L) ?: 20_000L
     }
 
     fun isSupportedAudioFrameBytes(byteSize: Int): Boolean =
@@ -183,5 +200,21 @@ internal object DingqiaoEngineConfig {
         is Number -> raw.toFloat()
         is String -> raw.toFloatOrNull() ?: defaultValue
         else -> defaultValue
+    }
+
+    private fun validateRecognizerMode(params: CreateEngineParams) {
+        val raw = params.extraParams["recognizerMode"] ?: return
+        val mode = raw.toString().trim().lowercase()
+        require(mode == "short" || mode == "long") {
+            "recognizerMode must be short or long"
+        }
+    }
+
+    private fun finiteLong(raw: Any?): Long? = finiteDouble(raw)?.toLong()
+
+    private fun finiteDouble(raw: Any?): Double? = when (raw) {
+        is Number -> raw.toDouble().takeIf { it.isFinite() }
+        is String -> raw.toDoubleOrNull()?.takeIf { it.isFinite() }
+        else -> null
     }
 }
