@@ -1,8 +1,9 @@
 # Harmony ASR 真机压力测试
 
 `delivery/run_device_stress.py` 将 PCM WAV 转为 16 kHz/mono/s16，推送到已连接的 Harmony
-设备，并以无 UI 模式驱动鼎桥 demo。每次运行会采集应用的 RSS、VmData、VmSwap、线程数、
-回调契约和 native online-stream 存活数。
+设备，并通过无 UI 的 HAP 载体直接调用鼎桥 SDK 公共 API。验收对象是 SDK，不是 demo 页面。
+每次运行会采集载体进程的 RSS、VmData、VmSwap、线程数、SDK 回调契约和 native
+online-stream 存活数。
 
 ## 运行
 
@@ -35,7 +36,9 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | --- | --- |
 | `burst` | 快于实时喂入、尾部 flush、长音频、连续会话 |
 | `paced` | 20 ms 实时喂入，对照 burst 是否丢 backlog |
-| `vad-begin` | 真实语音启用 10 秒 `vadBegin`，验证真实起音事件优先于首段静音超时 |
+| `vad-begin` | 真实语音启用 10 秒 `vadBegin`，验证即使辅助 VAD 漏检，显式 finish 前也不会提前 `isLast` |
+| `vad-begin-silence` | 纯静音命中 500 ms `vadBegin`，验证恰好一次 last/complete 且没有起音事件 |
+| `voiceprint` | 轮换验证 500 ms 短句、1.5 秒门槛、3 秒长句、前置静音、低音量、多句连续输入和非注册语料源；只检查分数可选性与生命周期，不判定相似度精度 |
 | `cancel` | 500 ms 后取消，验证无 final/complete 和短会话泄漏 |
 | `cancel-full` | 完整音频解码后取消，隔离正常 finish 路径 |
 | `max-duration` | 20 秒自动结束、80 个迟到帧、单次 complete、下一轮重启 |
@@ -44,6 +47,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | `edge` | 空闲调用、非法 session/帧、串 session、busy、重复 finish |
 | `reentrant` | `onComplete` 回调内立即再次 `startListening`，验证完成态可重入 |
 | `start-cancel` | `onStart` 回调内立即 `cancel`，验证取消后不再透出 start 后续事件 |
+| `user-sequence` | cancel 后零等待复用、finish 后立即重启、旧 session 迟到 write/finish/cancel 干扰当前 session；按 sessionId 校验回调归属和顺序 |
 | `numeric-edge` | `maxAudioDuration=NaN` 等非有限数输入，验证不会绕过 20 秒兜底上限 |
 
 默认门槛为 RSS 增长不超过 64 MiB、线程增长不超过 2、正常结束模式空 final
@@ -116,9 +120,67 @@ artifact：`delivery/harmony-dingqiao/build/device-stress/20260712-101550-burst-
 4. 达到 max duration 后，同 session 的迟到采集帧会被安静丢弃；任意真正的空闲写入仍返回
    `NOT_LISTENING`。
 
+## 2026-07-15 `isLast` / 声纹回归基线
+
+设备为 MIA-AL00（OpenHarmony 6.1.0.115）。使用 `$HOME/Downloads/testdata` 中的
+AISHELL-4 语料，以及从其中高能量语音段派生的 0.5–10 秒、前后静音和 -30 dB 边界片段，
+在修复版 signed HAP 上共执行 15 组、855 个 session，全部通过。
+
+| 覆盖 | 轮数 | 结果 | Artifact |
+| --- | ---: | --- | --- |
+| burst 短语音连续会话 | 100 | PASS，空 final 0，RSS +0.109 MiB | `20260715-002327-burst-72dbe5cf` |
+| `vadBegin` 短句/1.49–1.51 秒/-30 dB | 200 | PASS，显式 finish 前无 `isLast` | `20260715-002458-vad-begin-c985a7ef` |
+| paced 实时喂入 | 12 | PASS，空 final 0 | `20260715-002616-paced-8b9ab6eb` |
+| 声纹 500 ms/3 秒交替 | 30 | PASS，短段无分数、长段有分数 | `20260715-002748-voiceprint-e36bc36b` |
+| 纯静音 500 ms `vadBegin` | 200 | PASS，每轮恰好一次 last/complete | `20260715-002811-vad-begin-silence-8d9189d6` |
+| cancel / cancel-full | 100 / 20 | PASS，无泄漏和多余回调 | `20260715-002854-cancel-3f858c03` / `20260715-002917-cancel-full-4bd69561` |
+| max-duration / NaN 参数 | 10 / 10 | PASS，自动结束与默认兜底正确 | `20260715-002938-max-duration-592344c4` / `20260715-003012-numeric-edge-9da906f6` |
+| edge / complete 重入 / start-cancel | 20 / 20 / 100 | PASS | `20260715-003045-edge-26eeaa69` / `20260715-003057-reentrant-9f058485` / `20260715-003118-start-cancel-29508762` |
+| 重配 / 重建引擎 | 20 / 10 | PASS | `20260715-003138-reconfigure-3fcf8a0f` / `20260715-003201-recreate-55900a32` |
+| 原始 30/60/120 秒长音频 | 3 | PASS，空 final 0 | `20260715-003215-burst-acb94700` |
+
+本轮额外确认了两个测试方法问题：一是不能用“最终出现过 `isLast`”证明生命周期正确，必须在
+调用 `finish` 前快照 last 数量并断言为 0；二是 `vadBegin` 回归不能把 `SPEECH_BEGIN` 当作
+通过前提，因为要保护的正是辅助 VAD 漏检、但 ASR 已经识别的场景。纯静音自动结束必须由独立
+模式验证。短句和低音量集允许空文本，但仍严格检查 last/complete 次数；普通语音集继续保留
+空 final 门槛，避免用放宽识别质量指标掩盖问题。
+
+## 2026-07-15 SDK 真实调用序列补充
+
+在同一台 MIA-AL00（OpenHarmony 6.1.0.115）上补充调用方行为压力。`user-sequence` 每轮包含
+3 次 start、1 次 cancel、2 次正常结束，并在新 session 活跃期间故意发送 3 个旧 session
+调用。该模式不以识别文本或相似度精度作为 PASS 条件。
+
+| 覆盖 | 轮数 | SDK 操作/回调 | 结果 | Artifact |
+| --- | ---: | --- | --- | --- |
+| `user-sequence` | 300 | 900 start、300 cancel、600 last/complete、900 旧 session 干扰调用 | 300/300 PASS；串 session 0；native stream 存活 0；RSS -23.324 MiB | `20260715-010331-user-sequence-a4bb07eb` |
+| `edge` | 100 | 100 正常 session、800 个预期非法调用 | 100/100 PASS；native stream 存活 0 | `20260715-010911-edge-3c6a09c0` |
+| `reentrant` | 300 | `onComplete` 内立即启动，共 600 session | 300/300 PASS；RSS -23.004 MiB；此前 100 轮上升在长跑中确认平台化并回收 | `20260715-011137-reentrant-2aadbdfc` |
+| `paced` | 3 x 60 秒 | 20 ms 实时喂入，共 24 个句级 final | 3/3 PASS；调用 finish 前 `isLast` 为 0，结束后每轮恰好一次 last/complete | `20260715-011553-paced-147a7137` |
+
+合入 review 后又用当前 PR HEAD 的 signed HAP 复核了可审计门禁。逐轮结果新增按 sessionId
+记录的有序 callback trace 和意外 session 回调计数；`user-sequence` 只允许立即重启的单次
+`ENGINE_BUSY` 及故意发送的旧 session 调用对应错误，其他错误直接失败。
+
+| 覆盖 | 轮数 | 结果 | Artifact |
+| --- | ---: | --- | --- |
+| 声纹 7 类接口边界 | 7 | 7/7 PASS；短句省略分数，其余场景有分数；多句产生 3 个 final；串 session 0 | `20260715-065436-voiceprint-44a5556f` |
+| `user-sequence` | 30 | 30/30 PASS；错误集合精确受限；native stream 存活 0；RSS +15.160 MiB | `20260715-065505-user-sequence-4bcd4a2b` |
+| `max-duration` 迟到帧 | 2 | 2/2 PASS；80 个迟到帧后 final/last/complete/error 计数不变 | `20260715-065600-max-duration-7e369a38` |
+
+声纹和 `max-duration` 复核轮次短，资源判定为 `INCONCLUSIVE`；它们只作为 callback 契约证据，
+资源结论仍以长稳压结果为准。“非注册语料源”只证明未使用注册样本也不会丢失 final，不代表带身份
+标注的非目标说话人精度结论。
+
+这组结果提高了对高频调用时序的置信度，但不等于“所有边界已穷尽”。物理断连、系统杀进程、
+低内存回收、多个进程同时持有 SDK，以及客户线程真正并行调用同一 engine，仍需要独立故障注入
+或多线程载体验证。
+
 ## 剩余边界
 
 - 主稳压采用按采样率和时长分位抽取的 48 条 WAV，不等同于 1894 条逐文件准确率评测。
 - 本工具覆盖 ASR 会话和引擎生命周期，不覆盖声纹注册/删除压力；声纹需单独准备 3-8 秒样本
   和预期身份关系。
 - 物理 USB 断连、系统主动低内存回收和设备重启需要人工控制，不能由本脚本安全自动触发。
+- 当前 ArkTS 压测在单个 event runner 上交错 API 与回调，尚未覆盖多个客户线程真正同时调用同一 engine。
+- 当前载体是单进程，尚未覆盖两个进程同时初始化 SDK、争用 workPath 或模型资源。

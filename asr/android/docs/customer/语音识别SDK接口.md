@@ -138,6 +138,8 @@ interface RecognitionListener {
 | `endTime` | `Int?` | 结束时间毫秒，可能为空 |
 | `speakerSimilarity` | `Float?` | final 且启用声纹能力时返回 |
 
+> 交付批注 VP-20260715-01（2026-07-15）：`speakerSimilarity` 是可选值。有效语音短于 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时无法可靠打分，SDK 保留识别结果但省略该字段；调用方不得把字段缺失当作会话结束或识别失败。
+
 事件码：
 
 | 事件码 | 名称 | 说明 |
@@ -189,7 +191,7 @@ StartParams(
 )
 ```
 
-SDK 不在内部丢弃非目标说话人结果；final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧判定。启用 `enableSpeakerVad` 时，SDK 可在目标说话人离场后提前切句。
+SDK 不在内部丢弃非目标说话人结果；达到有效语音门槛的 final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧判定。未达到门槛的 final 仍返回识别结果，但省略相似度。启用 `enableSpeakerVad` 时，SDK 可在目标说话人离场后提前切句。
 
 ## 7. 授权
 

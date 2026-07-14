@@ -99,6 +99,8 @@
 
 > 批注（交付扩展，2026-06-29）：本交付的声纹核验为打分模式，SDK 不在内部丢弃非目标说话人 final 结果；是否接受该结果由客户业务根据 `speakerSimilarity` 判定。
 
+> 批注（交付澄清 VP-20260715-01，2026-07-15）：`speakerSimilarity` 是可选值。有效语音短于 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时无法可靠打分，SDK 保留 final 识别结果但省略该字段；调用方不得把字段缺失当作会话结束或识别失败。
+
 ## 7. License
 
 基线原文摘录：
