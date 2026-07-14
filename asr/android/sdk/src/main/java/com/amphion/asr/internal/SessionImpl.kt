@@ -546,6 +546,7 @@ internal class SessionImpl(
         if (recognizer.isEndpoint(stream)) {
             metrics.onEndpointDetected()
             val r = recognizer.getResult(stream)
+            markInitialSpeechDetected(r)
             metrics.onRawFinalReady()
             if (postEndpointOnEndpoint) postEndpoint()
             postFinalToProcessor(gateFinal(toAsrResult(r)).copy(isLast = isLastFinal))
@@ -554,6 +555,7 @@ internal class SessionImpl(
         }
 
         val r = recognizer.getResult(stream)
+        markInitialSpeechDetected(r)
         if (isFinal) {
             metrics.onRawFinalReady()
             postFinalToProcessor(gateFinal(toAsrResult(r)).copy(isLast = isLastFinal))
@@ -562,6 +564,12 @@ internal class SessionImpl(
             lastPartialText = r.text
             postPartial(toAsrResult(r))
         }
+    }
+
+    private fun markInitialSpeechDetected(result: OnlineRecognizerResult) {
+        if (result.text.isEmpty() && result.tokens.isEmpty()) return
+        initialSpeechDetected = true
+        initialSilenceSamples = 0L
     }
 
     /**

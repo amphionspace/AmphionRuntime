@@ -13,9 +13,11 @@ import {
   SpeechRecognitionEngine,
   SpeechRecognitionResult,
   SpeechRecognizeSdk,
-  StartParams
+  StartParams,
+  VoiceprintRegisterParams
 } from 'amphion_dingqiao';
 import { AmphionRuntime } from 'amphion_asr';
+import { WavIo } from './WavIo';
 
 const TAG: string = 'DeviceStressTest';
 const DOMAIN: number = 0x0000;
@@ -53,6 +55,9 @@ class SessionEvents {
   finalChars: number = 0;
   finalTexts: string[] = [];
   lastIsLast: boolean = false;
+  lastFinals: number = 0;
+  speakerScores: number = 0;
+  missingSpeakerScores: number = 0;
   errorCodes: number[] = [];
 }
 
@@ -86,6 +91,12 @@ class StressListener implements RecognitionListener {
     this.events.finalChars += result.result.length;
     this.events.finalTexts.push(result.result);
     this.events.lastIsLast = result.isLast;
+    if (result.isLast) this.events.lastFinals += 1;
+    if (result.speakerSimilarity === undefined) {
+      this.events.missingSpeakerScores += 1;
+    } else {
+      this.events.speakerScores += 1;
+    }
   }
 
   onComplete(_sessionId: string, _eventMessage?: string): void {
@@ -403,13 +414,37 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   params.sessionId = sessionId;
   params.audioInfo = new AudioInfo();
   params.extraParams['enablePartialResult'] = false;
-  params.extraParams['maxAudioDuration'] = 60000;
+  // Standard lifecycle tests must end only at their explicit finish. The max-duration mode overrides this.
+  params.extraParams['maxAudioDuration'] = 28800000;
   if (mode === 'vad-begin') params.extraParams['vadBegin'] = 10000;
+  if (mode === 'vad-begin-silence') params.extraParams['vadBegin'] = 500;
   if (mode === 'reconfigure') {
     const values: number[] = [500, 800, 1200];
     params.extraParams['vadEnd'] = values[cycle % values.length];
   }
   return params;
+}
+
+function prepareStressVoiceprint(workPath: string, entry: CorpusEntry): string {
+  const pcm = new ArrayBuffer(5 * 16000 * 2);
+  const fp = fs.openSync(entry.path);
+  let bytesRead = 0;
+  try {
+    bytesRead = fs.readSync(fp.fd, pcm);
+  } finally {
+    fs.closeSync(fp.fd);
+  }
+  if (bytesRead < 3 * 16000 * 2) throw new Error('voiceprint-enrollment-source-too-short');
+  const samplePath = `${workPath}/stress-voiceprint-enroll.wav`;
+  WavIo.writePcmBytes(samplePath, pcm.slice(0, bytesRead));
+  const params = new VoiceprintRegisterParams();
+  params.samplePaths = [samplePath];
+  const registered = SpeechRecognizeSdk.registerVoiceprint(params);
+  const ids = Object.keys(registered.voiceprintId);
+  if (registered.status !== 0 || ids.length !== 1) {
+    throw new Error(`voiceprint-register-${registered.status}-${safeDetail(registered.message)}`);
+  }
+  return ids[0];
 }
 
 async function feedPcmFile(engine: SpeechRecognitionEngine, sessionId: string, path: string,
@@ -494,16 +529,72 @@ async function runRecognitionCycle(engine: SpeechRecognitionEngine, entry: Corpu
     return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
   }
   if (options.settleMs > 0) await sleep(options.settleMs);
+  const lastFinalsBeforeFinish = events.lastFinals;
   engine.finish(sessionId);
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
-  const speechContract = options.mode !== 'vad-begin' || events.speechBegins > 0;
   const ok = completed && events.starts === 1 && events.completes === 1 && events.errors === 0 &&
-    events.finals > 0 && events.lastIsLast && speechContract && !engine.isBusy();
+    events.finals > 0 && events.lastIsLast && events.lastFinals === 1 && lastFinalsBeforeFinish === 0 &&
+    !engine.isBusy();
   const passDetail = options.mode === 'vad-begin' ?
-    `vad-begin-speech-detected-${events.speechBegins}` : 'finished';
-  const failDetail = options.mode === 'vad-begin' && !speechContract ?
-    'vad-begin-no-speech-event' : 'finish-contract';
+    `vad-begin-no-early-last-speech-events-${events.speechBegins}` : 'finished';
+  let failDetail = 'finish-contract';
+  if (lastFinalsBeforeFinish > 0) failDetail = 'is-last-before-finish';
   return finishCycle(index, entry.id, events, startedAt, ok, ok ? passDetail : failDetail);
+}
+
+async function runVadBeginSilenceCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  engine.setListener(new StressListener(events));
+  const sessionId = `vad-begin-silence-${index}`;
+  engine.startListening(startParams(sessionId, 'vad-begin-silence', index));
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+  for (let i = 0; i < 30 && events.completes === 0; i++) {
+    engine.writeAudio(sessionId, new ArrayBuffer(FRAME_BYTES));
+  }
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const ok = completed && events.starts === 1 && events.speechBegins === 0 && events.finals === 1 &&
+    events.lastFinals === 1 && events.completes === 1 && events.errors === 0 && !engine.isBusy();
+  return finishCycle(index, entry.id, events, startedAt, ok,
+    ok ? 'vad-begin-silence-auto-finished' : 'vad-begin-silence-contract');
+}
+
+async function runVoiceprintCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry, index: number,
+  voiceprintId: string): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  engine.setListener(new StressListener(events));
+  const shortSegment = index % 2 === 0;
+  const sessionId = `voiceprint-${shortSegment ? 'short' : 'long'}-${index}`;
+  const params = startParams(sessionId, 'voiceprint', index);
+  params.extraParams['enableVoiceprintVerification'] = true;
+  params.extraParams['voiceprintIds'] = [voiceprintId];
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+  const fed = await feedPcmFile(engine, sessionId, entry.path, shortSegment ? 25 : 150, 0);
+  if (fed === 0) {
+    engine.cancel(sessionId);
+    return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+  }
+  const lastFinalsBeforeFinish = events.lastFinals;
+  engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const scoreContract = shortSegment ? events.speakerScores === 0 : events.speakerScores > 0;
+  const ok = completed && events.starts === 1 && events.finals > 0 && events.lastFinals === 1 &&
+    lastFinalsBeforeFinish === 0 && events.completes === 1 && events.errors === 0 && scoreContract &&
+    !engine.isBusy();
+  let detail = shortSegment ? 'voiceprint-short-no-score' : 'voiceprint-long-scored';
+  if (!scoreContract) {
+    detail = `voiceprint-score-contract-short-${shortSegment}-scores-${events.speakerScores}`;
+  } else if (lastFinalsBeforeFinish > 0) {
+    detail = 'is-last-before-finish';
+  }
+  return finishCycle(index, entry.id, events, startedAt, ok, detail);
 }
 
 async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
@@ -703,6 +794,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
   const totals = new StressTotals();
   let entries: CorpusEntry[] = [];
   let engine: SpeechRecognitionEngine | undefined;
+  let stressVoiceprintId: string = '';
+  let stressVoiceprintSamplePath: string = '';
   let fatal = '';
   logLine(`BEGIN|runId=${options.runId}|mode=${options.mode}|cycles=${options.cycles}`);
 
@@ -717,6 +810,11 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     if (license.errorCode !== 0) throw new Error(`license-${license.errorCode}`);
     const runtimeError = await prepareRuntime();
     if (runtimeError !== 0) throw new Error(`runtime-${runtimeError}`);
+
+    if (options.mode === 'voiceprint') {
+      stressVoiceprintSamplePath = `${workPath}/stress-voiceprint-enroll.wav`;
+      stressVoiceprintId = prepareStressVoiceprint(workPath, entries[0]);
+    }
 
     if (options.mode !== 'recreate') engine = createEngine();
     for (let i = 0; i < options.cycles; i++) {
@@ -735,6 +833,10 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runReentrantCycle(engine, entry, i);
       } else if (options.mode === 'start-cancel') {
         result = await runStartCancelCycle(engine, entry, i);
+      } else if (options.mode === 'vad-begin-silence') {
+        result = await runVadBeginSilenceCycle(engine, entry, i);
+      } else if (options.mode === 'voiceprint') {
+        result = await runVoiceprintCycle(engine, entry, i, stressVoiceprintId);
       } else {
         result = await runRecognitionCycle(engine, entry, i, options);
       }
@@ -754,6 +856,12 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     logLine(`FATAL|runId=${options.runId}|detail=${fatal}`);
   } finally {
     if (engine !== undefined) engine.shutdown();
+    if (stressVoiceprintId.length > 0) {
+      try { SpeechRecognizeSdk.deleteVoiceprint(stressVoiceprintId); } catch (_e) {}
+    }
+    if (stressVoiceprintSamplePath.length > 0) {
+      try { if (fs.accessSync(stressVoiceprintSamplePath)) fs.unlinkSync(stressVoiceprintSamplePath); } catch (_e) {}
+    }
   }
 
   const status = fatal.length === 0 && totals.failed === 0 && totals.completed === options.cycles ? 'PASS' : 'FAIL';

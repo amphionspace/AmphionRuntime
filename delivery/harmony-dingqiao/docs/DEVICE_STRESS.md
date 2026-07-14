@@ -35,7 +35,9 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | --- | --- |
 | `burst` | 快于实时喂入、尾部 flush、长音频、连续会话 |
 | `paced` | 20 ms 实时喂入，对照 burst 是否丢 backlog |
-| `vad-begin` | 真实语音启用 10 秒 `vadBegin`，验证真实起音事件优先于首段静音超时 |
+| `vad-begin` | 真实语音启用 10 秒 `vadBegin`，验证即使辅助 VAD 漏检，显式 finish 前也不会提前 `isLast` |
+| `vad-begin-silence` | 纯静音命中 500 ms `vadBegin`，验证恰好一次 last/complete 且没有起音事件 |
+| `voiceprint` | 交替验证 500 ms 短句不返回不可靠分数、3 秒长句返回 `speakerSimilarity`，并检查 finish 前无 `isLast` |
 | `cancel` | 500 ms 后取消，验证无 final/complete 和短会话泄漏 |
 | `cancel-full` | 完整音频解码后取消，隔离正常 finish 路径 |
 | `max-duration` | 20 秒自动结束、80 个迟到帧、单次 complete、下一轮重启 |
@@ -115,6 +117,31 @@ artifact：`delivery/harmony-dingqiao/build/device-stress/20260712-101550-burst-
    的异步完成窗口一致。
 4. 达到 max duration 后，同 session 的迟到采集帧会被安静丢弃；任意真正的空闲写入仍返回
    `NOT_LISTENING`。
+
+## 2026-07-15 `isLast` / 声纹回归基线
+
+设备为 MIA-AL00（OpenHarmony 6.1.0.115）。使用 `/Users/mingdongyu/Downloads/testdata` 中的
+AISHELL-4 语料，以及从其中高能量语音段派生的 0.5–10 秒、前后静音和 -30 dB 边界片段，
+在修复版 signed HAP 上共执行 15 组、855 个 session，全部通过。
+
+| 覆盖 | 轮数 | 结果 | Artifact |
+| --- | ---: | --- | --- |
+| burst 短语音连续会话 | 100 | PASS，空 final 0，RSS +0.109 MiB | `20260715-002327-burst-72dbe5cf` |
+| `vadBegin` 短句/1.49–1.51 秒/-30 dB | 200 | PASS，显式 finish 前无 `isLast` | `20260715-002458-vad-begin-c985a7ef` |
+| paced 实时喂入 | 12 | PASS，空 final 0 | `20260715-002616-paced-8b9ab6eb` |
+| 声纹 500 ms/3 秒交替 | 30 | PASS，短段无分数、长段有分数 | `20260715-002748-voiceprint-e36bc36b` |
+| 纯静音 500 ms `vadBegin` | 200 | PASS，每轮恰好一次 last/complete | `20260715-002811-vad-begin-silence-8d9189d6` |
+| cancel / cancel-full | 100 / 20 | PASS，无泄漏和多余回调 | `20260715-002854-cancel-3f858c03` / `20260715-002917-cancel-full-4bd69561` |
+| max-duration / NaN 参数 | 10 / 10 | PASS，自动结束与默认兜底正确 | `20260715-002938-max-duration-592344c4` / `20260715-003012-numeric-edge-9da906f6` |
+| edge / complete 重入 / start-cancel | 20 / 20 / 100 | PASS | `20260715-003045-edge-26eeaa69` / `20260715-003057-reentrant-9f058485` / `20260715-003118-start-cancel-29508762` |
+| 重配 / 重建引擎 | 20 / 10 | PASS | `20260715-003138-reconfigure-3fcf8a0f` / `20260715-003201-recreate-55900a32` |
+| 原始 30/60/120 秒长音频 | 3 | PASS，空 final 0 | `20260715-003215-burst-acb94700` |
+
+本轮额外确认了两个测试方法问题：一是不能用“最终出现过 `isLast`”证明生命周期正确，必须在
+调用 `finish` 前快照 last 数量并断言为 0；二是 `vadBegin` 回归不能把 `SPEECH_BEGIN` 当作
+通过前提，因为要保护的正是辅助 VAD 漏检、但 ASR 已经识别的场景。纯静音自动结束必须由独立
+模式验证。短句和低音量集允许空文本，但仍严格检查 last/complete 次数；普通语音集继续保留
+空 final 门槛，避免用放宽识别质量指标掩盖问题。
 
 ## 剩余边界
 

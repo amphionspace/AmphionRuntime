@@ -262,7 +262,7 @@ interface RecognitionListener {
 | `result` | `string` | 识别文本；final 为警务增强后文本 |
 | `beginTime` | `number?` | 起始时间毫秒，可能为空 |
 | `endTime` | `number?` | 结束时间毫秒，可能为空 |
-| `speakerSimilarity` | `number?` | final 且启用声纹能力时返回 |
+| `speakerSimilarity` | `number?` | final 且启用声纹能力时返回；有效语音不足 1.5 秒时因无法可靠打分而省略 |
 
 事件码：
 
