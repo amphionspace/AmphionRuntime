@@ -55,6 +55,7 @@
 ```bash
 python3 -m unittest \
   asr.tools.tests.test_harmony_initial_silence_tracker \
+  asr.tools.tests.test_harmony_rejected_final_lifecycle \
   delivery.harmony-dingqiao.delivery.test_run_device_stress -v
 
 cd asr/android

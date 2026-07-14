@@ -2,12 +2,26 @@ package com.amphion.dingqiao
 
 import com.amphion.asr.AsrLanguage
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+
+class RejectedFinalLifecycleTest {
+
+    @Test
+    fun nonLastRejectedFinal_doesNotCompleteSession() {
+        assertFalse(RejectedFinalLifecycle.completesSession(false))
+    }
+
+    @Test
+    fun lastRejectedFinal_completesSession() {
+        assertTrue(RejectedFinalLifecycle.completesSession(true))
+    }
+}
 
 class DingqiaoEngineConfigTest {
 
