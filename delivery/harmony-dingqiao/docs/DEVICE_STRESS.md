@@ -1,8 +1,9 @@
 # Harmony ASR 真机压力测试
 
 `delivery/run_device_stress.py` 将 PCM WAV 转为 16 kHz/mono/s16，推送到已连接的 Harmony
-设备，并以无 UI 模式驱动鼎桥 demo。每次运行会采集应用的 RSS、VmData、VmSwap、线程数、
-回调契约和 native online-stream 存活数。
+设备，并通过无 UI 的 HAP 载体直接调用鼎桥 SDK 公共 API。验收对象是 SDK，不是 demo 页面。
+每次运行会采集载体进程的 RSS、VmData、VmSwap、线程数、SDK 回调契约和 native
+online-stream 存活数。
 
 ## 运行
 
@@ -46,6 +47,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | `edge` | 空闲调用、非法 session/帧、串 session、busy、重复 finish |
 | `reentrant` | `onComplete` 回调内立即再次 `startListening`，验证完成态可重入 |
 | `start-cancel` | `onStart` 回调内立即 `cancel`，验证取消后不再透出 start 后续事件 |
+| `user-sequence` | cancel 后零等待复用、finish 后立即重启、旧 session 迟到 write/finish/cancel 干扰当前 session；按 sessionId 校验回调归属和顺序 |
 | `numeric-edge` | `maxAudioDuration=NaN` 等非有限数输入，验证不会绕过 20 秒兜底上限 |
 
 默认门槛为 RSS 增长不超过 64 MiB、线程增长不超过 2、正常结束模式空 final
@@ -143,9 +145,28 @@ AISHELL-4 语料，以及从其中高能量语音段派生的 0.5–10 秒、前
 模式验证。短句和低音量集允许空文本，但仍严格检查 last/complete 次数；普通语音集继续保留
 空 final 门槛，避免用放宽识别质量指标掩盖问题。
 
+## 2026-07-15 SDK 真实调用序列补充
+
+在同一台 MIA-AL00（OpenHarmony 6.1.0.115）上补充调用方行为压力。`user-sequence` 每轮包含
+3 次 start、1 次 cancel、2 次正常结束，并在新 session 活跃期间故意发送 3 个旧 session
+调用。该模式不以识别文本或相似度精度作为 PASS 条件。
+
+| 覆盖 | 轮数 | SDK 操作/回调 | 结果 | Artifact |
+| --- | ---: | --- | --- | --- |
+| `user-sequence` | 300 | 900 start、300 cancel、600 last/complete、900 旧 session 干扰调用 | 300/300 PASS；串 session 0；native stream 存活 0；RSS -23.324 MiB | `20260715-010331-user-sequence-a4bb07eb` |
+| `edge` | 100 | 100 正常 session、800 个预期非法调用 | 100/100 PASS；native stream 存活 0 | `20260715-010911-edge-3c6a09c0` |
+| `reentrant` | 300 | `onComplete` 内立即启动，共 600 session | 300/300 PASS；RSS -23.004 MiB；此前 100 轮上升在长跑中确认平台化并回收 | `20260715-011137-reentrant-2aadbdfc` |
+| `paced` | 3 x 60 秒 | 20 ms 实时喂入，共 24 个句级 final | 3/3 PASS；调用 finish 前 `isLast` 为 0，结束后每轮恰好一次 last/complete | `20260715-011553-paced-147a7137` |
+
+这组结果提高了对高频调用时序的置信度，但不等于“所有边界已穷尽”。物理断连、系统杀进程、
+低内存回收、多个进程同时持有 SDK，以及客户线程真正并行调用同一 engine，仍需要独立故障注入
+或多线程载体验证。
+
 ## 剩余边界
 
 - 主稳压采用按采样率和时长分位抽取的 48 条 WAV，不等同于 1894 条逐文件准确率评测。
 - 本工具覆盖 ASR 会话和引擎生命周期，不覆盖声纹注册/删除压力；声纹需单独准备 3-8 秒样本
   和预期身份关系。
 - 物理 USB 断连、系统主动低内存回收和设备重启需要人工控制，不能由本脚本安全自动触发。
+- 当前 ArkTS 压测在单个 event runner 上交错 API 与回调，尚未覆盖多个客户线程真正同时调用同一 engine。
+- 当前载体是单进程，尚未覆盖两个进程同时初始化 SDK、争用 workPath 或模型资源。

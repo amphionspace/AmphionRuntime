@@ -33,6 +33,16 @@
 - 长稳压：按采样率、时长和音量分层抽样，不只取随机文件；报告 callback 契约、空 final、native stream、RSS 和线程变化。
 - 测试报告必须保留 `report.json`、逐轮结果、内存采样、hilog 和输入映射。失败 artifact 不得被后续运行覆盖。
 
+## SDK 真实调用方验收
+
+- 产品验收对象是 SDK 公共 API 和回调契约；demo/HAP 只是 USB 真机上的测试载体。UI 不崩溃、按钮可点击或识别文本正确，都不能替代 SDK 生命周期断言。
+- 真实用户操作必须翻译成调用方时序：快速开始/取消/重启、`finish` 后立即尝试下一 session、回调内重入、旧 session 迟到 `writeAudio/finish/cancel`、重复结束、运行中 shutdown 和失败后的下一轮恢复。
+- 每条压力用例必须按 `sessionId` 保存有序回调轨迹，分别统计 start、final、`isLast`、complete 和 error。聚合总数相等不能证明没有串 session。
+- cancel session 不得产生 final/complete；正常 session 必须只有一次 `isLast`，随后一次 complete；旧 session 的迟到调用不得终止或污染当前 session。
+- 现实操作压力与精度评测分开。生命周期用例只检查状态、归属、顺序、错误码、资源回收和可恢复性，不用文本正确率决定 PASS；声纹只检查“应有分数/应省略分数”的接口契约，不比较相似度精度。
+- `user-sequence`、`reentrant`、`start-cancel`、`edge` 和实时 `paced` 是发布前必跑门禁。至少一组运行超过 60 秒，以区分模型逐步驻留与持续内存泄漏。
+- 不得声称“覆盖所有边界”。报告必须列出已覆盖的调用序列、轮数、设备/系统版本、未覆盖的外部故障，以及任何仅为 `INCONCLUSIVE` 的资源指标。
+
 ## 推荐验证命令
 
 ```bash
@@ -46,6 +56,10 @@ cd asr/android
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --data-dir /Users/mingdongyu/Downloads/testdata \
   --mode vad-begin --cycles 100 --files 0
+
+python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
+  --data-dir /Users/mingdongyu/Downloads/testdata \
+  --mode user-sequence --cycles 300 --files 3
 ```
 
-真机命令中的次数和语料数量可按耗时调整，但合入前至少要覆盖 `burst`、`paced`、`vad-begin`、`vad-begin-silence`、`voiceprint`、`cancel`、`cancel-full`、`max-duration`、`edge`、`reentrant`、`start-cancel` 和 `numeric-edge`。任何模式失败都应先解释并修复，不能通过放宽全局空结果率掩盖生命周期错误。
+真机命令中的次数和语料数量可按耗时调整，但合入前至少要覆盖 `burst`、`paced`、`vad-begin`、`vad-begin-silence`、`voiceprint`、`cancel`、`cancel-full`、`max-duration`、`edge`、`reentrant`、`start-cancel`、`user-sequence` 和 `numeric-edge`。任何模式失败都应先解释并修复，不能通过放宽全局空结果率掩盖生命周期错误。
