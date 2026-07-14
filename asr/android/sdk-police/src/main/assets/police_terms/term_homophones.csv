@@ -429,3 +429,10 @@ We Space,WeSpace,term
 移动接触请,移动接处警,appname
 视频清诊,视频清整,appname
 狱警接收,预警接收,appname
+# ── 清查快采 真机同音误识（查↔茶、采↔彩/菜/餐；避开「清查快餐店」故不收清查快餐）──
+清查快彩,清查快采,appname
+清查快菜,清查快采,appname
+清茶快采,清查快采,appname
+清茶快彩,清查快采,appname
+清茶快菜,清查快采,appname
+清茶快餐,清查快采,appname
