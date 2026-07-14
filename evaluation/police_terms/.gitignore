@@ -6,3 +6,6 @@ round*/
 human_record_list.tsv
 human_record_mapping.tsv
 human_record_script.txt
+build_ui/
+int8_decoder_*.xlsx
+build_20260714_batch/
