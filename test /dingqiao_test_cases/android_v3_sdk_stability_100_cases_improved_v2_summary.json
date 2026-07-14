@@ -1,0 +1,200 @@
+{
+  "caseVersion": "dingqiao-stability-improved-v2-reduced100",
+  "categoryCounts": {
+    "engine-create-query": 7,
+    "error-validation-recovery": 7,
+    "fd-thread-process-leak": 8,
+    "lifecycle-state-machine": 8,
+    "listener-callback-contract": 5,
+    "longtext-tn-stability": 8,
+    "memory-leak-soak": 10,
+    "params-boundary-runtime": 6,
+    "playback-channel-audio-route": 6,
+    "request-queue-scheduler": 8,
+    "smoke-api": 5,
+    "streaming-config-buffering": 8,
+    "stress-recovery-regression": 7,
+    "workpath-resource-load": 7
+  },
+  "categorySummary": {
+    "engine-create-query": {
+      "avgTextLength": 49.14,
+      "count": 7,
+      "maxTextLength": 64,
+      "minTextLength": 36,
+      "operations": [
+        "create-engine",
+        "create-query-destroy",
+        "deferred-load-create",
+        "multi-engine-sequential",
+        "query-voices"
+      ]
+    },
+    "error-validation-recovery": {
+      "avgTextLength": 65.14,
+      "count": 7,
+      "maxTextLength": 96,
+      "minTextLength": 0,
+      "operations": [
+        "create-engine",
+        "create-engine-burst",
+        "duplicate-request-id-pair",
+        "speak",
+        "speak-after-shutdown"
+      ]
+    },
+    "fd-thread-process-leak": {
+      "avgTextLength": 235.5,
+      "count": 8,
+      "maxTextLength": 420,
+      "minTextLength": 72,
+      "operations": [
+        "create-shutdown-fd-loop",
+        "error-path-fd-loop",
+        "playback-audiotrack-loop",
+        "stderr-watcher-loop",
+        "streaming-pipe-loop",
+        "tn-fork-loop"
+      ]
+    },
+    "lifecycle-state-machine": {
+      "avgTextLength": 55.0,
+      "count": 8,
+      "maxTextLength": 96,
+      "minTextLength": 36,
+      "operations": [
+        "is-busy-transitions",
+        "set-listener-after-shutdown",
+        "shutdown-idle",
+        "shutdown-running",
+        "speak-after-listener",
+        "speak-after-shutdown",
+        "speak-before-listener",
+        "stop-idle"
+      ]
+    },
+    "listener-callback-contract": {
+      "avgTextLength": 68.0,
+      "count": 5,
+      "maxTextLength": 96,
+      "minTextLength": 36,
+      "operations": [
+        "callback-on-error",
+        "callback-order",
+        "callback-threading",
+        "late-listener-registration",
+        "listener-reuse-after-shutdown"
+      ]
+    },
+    "longtext-tn-stability": {
+      "avgTextLength": 1525.0,
+      "count": 8,
+      "maxTextLength": 3600,
+      "minTextLength": 600,
+      "operations": [
+        "longtext-speak"
+      ]
+    },
+    "memory-leak-soak": {
+      "avgTextLength": 403.2,
+      "count": 10,
+      "maxTextLength": 1600,
+      "minTextLength": 48,
+      "operations": [
+        "create-speak-shutdown-loop",
+        "deferred-load-loop",
+        "error-then-valid-loop",
+        "longtext-repeat-loop",
+        "playback-repeat-loop",
+        "same-engine-repeat-speak"
+      ]
+    },
+    "params-boundary-runtime": {
+      "avgTextLength": 49.33,
+      "count": 6,
+      "maxTextLength": 64,
+      "minTextLength": 36,
+      "operations": [
+        "parameter-boundary-speak"
+      ]
+    },
+    "playback-channel-audio-route": {
+      "avgTextLength": 79.33,
+      "count": 6,
+      "maxTextLength": 140,
+      "minTextLength": 48,
+      "operations": [
+        "synthesize-and-play-route"
+      ]
+    },
+    "request-queue-scheduler": {
+      "avgTextLength": 70.0,
+      "count": 8,
+      "maxTextLength": 128,
+      "minTextLength": 40,
+      "operations": [
+        "back-to-back-short",
+        "duplicate-id-burst",
+        "mixed-preempt-queue",
+        "preempt-burst",
+        "queue-burst",
+        "reentrant-submit",
+        "shutdown-during-burst",
+        "stop-during-burst"
+      ]
+    },
+    "smoke-api": {
+      "avgTextLength": 48.0,
+      "count": 5,
+      "maxTextLength": 64,
+      "minTextLength": 32,
+      "operations": [
+        "cold-create-speak",
+        "create-second-engine",
+        "create-third-engine",
+        "default-params",
+        "deferred-model-load"
+      ]
+    },
+    "streaming-config-buffering": {
+      "avgTextLength": 172.5,
+      "count": 8,
+      "maxTextLength": 360,
+      "minTextLength": 80,
+      "operations": [
+        "streaming-buffer-cycle"
+      ]
+    },
+    "stress-recovery-regression": {
+      "avgTextLength": 197.14,
+      "count": 7,
+      "maxTextLength": 420,
+      "minTextLength": 80,
+      "operations": [
+        "audio-track-release-regression",
+        "conv-invalid-input-guard",
+        "engine-limit-recovery",
+        "next-request-after-native-error",
+        "runner-background-freeze-guard",
+        "tn-broken-pipe-recovery"
+      ]
+    },
+    "workpath-resource-load": {
+      "avgTextLength": 47.43,
+      "count": 7,
+      "maxTextLength": 64,
+      "minTextLength": 36,
+      "operations": [
+        "resource-load-cycle"
+      ]
+    }
+  },
+  "jsonl": "/Users/amphion/Documents/Lits_delivery/dingqiao_test_cases/android_v3_sdk_stability_100_cases_improved_v2.jsonl",
+  "selectionPolicy": "round-robin by operation within fixed category quotas",
+  "sourceJsonl": "/Users/amphion/Documents/Lits_delivery/dingqiao_test_cases/android_v3_sdk_stability_1000_cases_improved.jsonl",
+  "statusCounts": {
+    "EXPECTED_ERROR": 9,
+    "PASS": 91
+  },
+  "total": 100
+}

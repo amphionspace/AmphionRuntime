@@ -1,3 +1,19 @@
+## 2026-07-13 18:49 Dingqiao v3 Android report case examples
+
+- Goal: Add one or two easy-to-understand examples for each case type in the Dingqiao v3 Android 1000-case stability report.
+- Files changed or artifacts created: `tts/android/docs/DINGQIAO_V3_ANDROID_1000_STABILITY_TEST_REPORT_20260713.md`, `docs/OPERATION_LOG.md`.
+- Commands run: inspected representative cases from `tts/android/testdata/dingqiao_batch_cases/android_v3_sdk_stability_1000_cases_improved.jsonl`; updated the case coverage table with concise examples.
+- Verification result: The report now includes examples for all 14 case types while keeping the conclusion and key metrics unchanged.
+- Notes/next action: No code, build artifact, commit, or push was performed.
+
+## 2026-07-13 18:45 Dingqiao v3 Android report sample-count wording
+
+- Goal: Update the Dingqiao v3 Android 1000-case stability report so the metric table sample count presents the overall 1000-case test size.
+- Files changed or artifacts created: `tts/android/docs/DINGQIAO_V3_ANDROID_1000_STABILITY_TEST_REPORT_20260713.md`, `docs/OPERATION_LOG.md`.
+- Commands run: edited the report sample-count wording and table values.
+- Verification result: The key metric table now shows sample count `1000` for first packet, RTF, synthesis time, and audio duration.
+- Notes/next action: No code, build artifact, commit, or push was performed.
+
 ## 2026-07-13 18:40 Dingqiao v3 Android 1000-case stability report
 
 - Goal: Write a concise Chinese test report from today's Dingqiao v3 Android 1000-case stability results, with conclusion first and emphasis on tested case types, first packet, RTF, temperature, and memory.
@@ -1188,6 +1204,15 @@
 - Commands run: cleared `com.lits.tts.aarhost` data; ran `AarStability1000DeviceTest#runAndroidV3SdkStability1000CasesThroughAar` with `caseStart=90` and `caseLimit=1`; collected the device JSONL result and logcat frontend progress.
 - Verification result: the failure reproduced after 532185 ms. The case produced `startCallbacks=1`, `dataCallbacks=0`, `completeCallbacks=0`, `firstPacketMs=-1`, and `rtf=-1`; it timed out before the first PCM callback. Resource samples reported Java heap average/peak 128.5/167.5 MB, native heap average/peak 297.6/317.2 MB, PSS average/peak 417.9/507.3 MB, RSS average/peak 511.6/608.4 MB, and temperature average/peak 36.3/38.0 C.
 - Notes: Logcat showed frontend/TN segment processing continuing through the long request, so this is a reproducible pre-first-packet latency/throughput problem for the 3600-character, three-repeat `SYNTHESIZE_AND_PLAY` case, not an OOM or device thermal failure. The current runner still cannot calculate first-packet or RTF when no PCM callback is emitted. No commit or push was performed.
+
+## 2026-07-13 19:04 Android AAR playback-aware index 90 rerun
+
+- Goal: Correct the playback-mode measurement path and re-run index 90 with an explicit playback-start metric.
+- Files changed: `tts/android/aarHost/src/androidTest/java/com/lits/tts/aarhost/AarStability1000DeviceTest.kt`.
+- Changes: used the existing optional `SpeakListener.onPlaybackStart` and existing `firstAudioMs`/`playbackStartMs` result fields; added a `preserveWorkPath` test argument so externally staged model resources are not deleted during the test.
+- Verification result: Android AAR Host test APK compiled successfully. With the requested v2 asset and external model resources staged on device, index 90 reproduced after 530730 ms with `firstPacketMs=-1`, `firstAudioMs=-1`, `playbackStartMs=-1`, `dataCallbacks=0`, and `completeCallbacks=0`. This confirms no PCM reached the internal AudioTrack within the timeout, rather than merely being hidden from the listener callback.
+- Resource result: Java heap average/peak 129.0/235.4 MB, native heap average/peak 298.3/311.4 MB, PSS average/peak 419.9/448.1 MB, RSS average/peak 513.8/542.3 MB, temperature average/peak 31.6/33.0 C. No OOM or thermal trigger was observed.
+- Notes: The per-segment frontend encode timings remained tens to hundreds of milliseconds; the long wall-clock gaps occur after segment submission in the streaming inference/playback pipeline. No commit or push was performed.
 
 ## 2026-07-13 Dingqiao v3 Android/Harmony source build docs
 

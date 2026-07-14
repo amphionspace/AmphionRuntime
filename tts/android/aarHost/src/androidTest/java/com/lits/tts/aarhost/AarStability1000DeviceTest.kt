@@ -56,7 +56,9 @@ class AarStability1000DeviceTest {
         )
 
         TextToSpeechSdk.setWorkPath(File(context.cacheDir, "aar-stability-1000-work").apply {
-            deleteRecursively()
+            if (instrumentationArg("preserveWorkPath") != "true") {
+                deleteRecursively()
+            }
             mkdirs()
         }.absolutePath)
 
