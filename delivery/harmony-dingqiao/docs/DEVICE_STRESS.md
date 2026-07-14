@@ -38,7 +38,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | `paced` | 20 ms 实时喂入，对照 burst 是否丢 backlog |
 | `vad-begin` | 真实语音启用 10 秒 `vadBegin`，验证即使辅助 VAD 漏检，显式 finish 前也不会提前 `isLast` |
 | `vad-begin-silence` | 纯静音命中 500 ms `vadBegin`，验证恰好一次 last/complete 且没有起音事件 |
-| `voiceprint` | 交替验证 500 ms 短句不返回不可靠分数、3 秒长句返回 `speakerSimilarity`，并检查 finish 前无 `isLast` |
+| `voiceprint` | 轮换验证 500 ms 短句、1.5 秒门槛、3 秒长句、前置静音、低音量、多句连续输入和非注册语料源；只检查分数可选性与生命周期，不判定相似度精度 |
 | `cancel` | 500 ms 后取消，验证无 final/complete 和短会话泄漏 |
 | `cancel-full` | 完整音频解码后取消，隔离正常 finish 路径 |
 | `max-duration` | 20 秒自动结束、80 个迟到帧、单次 complete、下一轮重启 |
@@ -157,6 +157,20 @@ AISHELL-4 语料，以及从其中高能量语音段派生的 0.5–10 秒、前
 | `edge` | 100 | 100 正常 session、800 个预期非法调用 | 100/100 PASS；native stream 存活 0 | `20260715-010911-edge-3c6a09c0` |
 | `reentrant` | 300 | `onComplete` 内立即启动，共 600 session | 300/300 PASS；RSS -23.004 MiB；此前 100 轮上升在长跑中确认平台化并回收 | `20260715-011137-reentrant-2aadbdfc` |
 | `paced` | 3 x 60 秒 | 20 ms 实时喂入，共 24 个句级 final | 3/3 PASS；调用 finish 前 `isLast` 为 0，结束后每轮恰好一次 last/complete | `20260715-011553-paced-147a7137` |
+
+合入 review 后又用当前 PR HEAD 的 signed HAP 复核了可审计门禁。逐轮结果新增按 sessionId
+记录的有序 callback trace 和意外 session 回调计数；`user-sequence` 只允许立即重启的单次
+`ENGINE_BUSY` 及故意发送的旧 session 调用对应错误，其他错误直接失败。
+
+| 覆盖 | 轮数 | 结果 | Artifact |
+| --- | ---: | --- | --- |
+| 声纹 7 类接口边界 | 7 | 7/7 PASS；短句省略分数，其余场景有分数；多句产生 3 个 final；串 session 0 | `20260715-065436-voiceprint-44a5556f` |
+| `user-sequence` | 30 | 30/30 PASS；错误集合精确受限；native stream 存活 0；RSS +15.160 MiB | `20260715-065505-user-sequence-4bcd4a2b` |
+| `max-duration` 迟到帧 | 2 | 2/2 PASS；80 个迟到帧后 final/last/complete/error 计数不变 | `20260715-065600-max-duration-7e369a38` |
+
+声纹和 `max-duration` 复核轮次短，资源判定为 `INCONCLUSIVE`；它们只作为 callback 契约证据，
+资源结论仍以长稳压结果为准。“非注册语料源”只证明未使用注册样本也不会丢失 final，不代表带身份
+标注的非目标说话人精度结论。
 
 这组结果提高了对高频调用时序的置信度，但不等于“所有边界已穷尽”。物理断连、系统杀进程、
 低内存回收、多个进程同时持有 SDK，以及客户线程真正并行调用同一 engine，仍需要独立故障注入
