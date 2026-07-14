@@ -98,11 +98,12 @@
   },
   "decoder_runtime_format": "ort",
   "android_decoder_models": [
-    "lits_stream_decoder_chunk.ort",
-    "lits_stream_decoder_final.ort"
+    "lits_stream_condition_chunk.onnx",
+    "lits_stream_decoder_step.onnx"
   ],
   "frontend_binary_assets": [
     "chinese_lexicon.bin",
     "cmudict.bin"
-  ]
+  ],
+  "stream_final_zero_pad_with_chunk_condition": true
 }

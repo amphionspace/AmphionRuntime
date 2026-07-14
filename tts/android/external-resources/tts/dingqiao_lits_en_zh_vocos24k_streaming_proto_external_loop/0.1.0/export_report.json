@@ -99,13 +99,13 @@
     "decoder_runtime_format": "ort",
     "android_decoder_models": [
         "lits_stream_condition_chunk.onnx",
-        "lits_stream_condition_final.onnx",
         "lits_stream_decoder_step.onnx"
     ],
     "frontend_binary_assets": [
         "chinese_lexicon.bin",
         "cmudict.bin"
     ],
+    "stream_final_zero_pad_with_chunk_condition": true,
     "frontend_text_assets": [
         "chinese_lexicon.txt",
         "cmudict.txt"
