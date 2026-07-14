@@ -13,15 +13,25 @@ import {
   SpeechRecognitionEngine,
   SpeechRecognitionResult,
   SpeechRecognizeSdk,
-  StartParams
+  StartParams,
+  VoiceprintRegisterParams
 } from 'amphion_dingqiao';
 import { AmphionRuntime } from 'amphion_asr';
+import { WavIo } from './WavIo';
 
 const TAG: string = 'DeviceStressTest';
 const DOMAIN: number = 0x0000;
 const FRAME_BYTES: number = 640;
 const START_TIMEOUT_MS: number = 10000;
 const COMPLETE_TIMEOUT_MS: number = 30000;
+const VOICEPRINT_SHORT_FRAMES: number = 25;
+const VOICEPRINT_THRESHOLD_FRAMES: number = 75;
+const VOICEPRINT_LONG_FRAMES: number = 150;
+const VOICEPRINT_LEADING_SILENCE_FRAMES: number = 50;
+const VOICEPRINT_LOW_GAIN: number = 0.15;
+const VOICEPRINT_SCENARIOS: string[] = [
+  'short', 'threshold', 'long', 'leading-silence', 'low-volume', 'multi-utterance', 'alternate-source'
+];
 
 export class DeviceStressOptions {
   runId: string = 'manual';
@@ -45,6 +55,7 @@ class CorpusEntry {
 
 class SessionEvents {
   starts: number = 0;
+  partials: number = 0;
   speechBegins: number = 0;
   speechEnds: number = 0;
   finals: number = 0;
@@ -53,7 +64,12 @@ class SessionEvents {
   finalChars: number = 0;
   finalTexts: string[] = [];
   lastIsLast: boolean = false;
+  lastFinals: number = 0;
+  speakerScores: number = 0;
+  missingSpeakerScores: number = 0;
   errorCodes: number[] = [];
+  callbackTrace: string[] = [];
+  unexpectedSessionCallbacks: number = 0;
 }
 
 function errorCount(events: SessionEvents, code: number): number {
@@ -66,13 +82,90 @@ function errorCount(events: SessionEvents, code: number): number {
 
 class StressListener implements RecognitionListener {
   private events: SessionEvents;
+  private expectedSessionId: string;
 
-  constructor(events: SessionEvents) {
+  constructor(events: SessionEvents, expectedSessionId: string = '') {
     this.events = events;
+    this.expectedSessionId = expectedSessionId;
   }
 
-  onStart(_sessionId: string, _eventMessage?: string): void {
+  private record(sessionId: string, kind: string, detail: string = ''): void {
+    this.events.callbackTrace.push(`${sessionId}:${kind}${detail}`);
+    if (this.expectedSessionId.length > 0 && sessionId !== this.expectedSessionId) {
+      this.events.unexpectedSessionCallbacks += 1;
+    }
+  }
+
+  onStart(sessionId: string, _eventMessage?: string): void {
     this.events.starts += 1;
+    this.record(sessionId, 'start');
+  }
+
+  onEvent(sessionId: string, eventCode: number, _message: string): void {
+    if (eventCode === DingqiaoEventCode.SPEECH_BEGIN) this.events.speechBegins += 1;
+    if (eventCode === DingqiaoEventCode.SPEECH_END) this.events.speechEnds += 1;
+    this.record(sessionId, 'event', `-${eventCode}`);
+  }
+
+  onResult(sessionId: string, result: SpeechRecognitionResult): void {
+    if (!result.isFinal) {
+      this.events.partials += 1;
+      this.record(sessionId, 'partial');
+      return;
+    }
+    this.events.finals += 1;
+    this.events.finalChars += result.result.length;
+    this.events.finalTexts.push(result.result);
+    this.events.lastIsLast = result.isLast;
+    if (result.isLast) this.events.lastFinals += 1;
+    if (result.speakerSimilarity === undefined) {
+      this.events.missingSpeakerScores += 1;
+    } else {
+      this.events.speakerScores += 1;
+    }
+    this.record(sessionId, 'final', result.isLast ? '-last' : '');
+  }
+
+  onComplete(sessionId: string, _eventMessage?: string): void {
+    this.events.completes += 1;
+    this.record(sessionId, 'complete');
+  }
+
+  onError(sessionId: string, errorCode: number, _message: string): void {
+    this.events.errors += 1;
+    this.events.errorCodes.push(errorCode);
+    this.record(sessionId, 'error', `-${errorCode}`);
+  }
+}
+
+class CallbackRecord {
+  sessionId: string;
+  kind: string;
+  isLast: boolean;
+  errorCode: number;
+
+  constructor(sessionId: string, kind: string, isLast: boolean = false, errorCode: number = 0) {
+    this.sessionId = sessionId;
+    this.kind = kind;
+    this.isLast = isLast;
+    this.errorCode = errorCode;
+  }
+}
+
+class SequenceListener implements RecognitionListener {
+  events: SessionEvents = new SessionEvents();
+  records: CallbackRecord[] = [];
+
+  private record(callback: CallbackRecord): void {
+    this.records.push(callback);
+    let detail = callback.isLast ? '-last' : '';
+    if (callback.kind === 'error') detail = `-${callback.errorCode}`;
+    this.events.callbackTrace.push(`${callback.sessionId}:${callback.kind}${detail}`);
+  }
+
+  onStart(sessionId: string, _eventMessage?: string): void {
+    this.events.starts += 1;
+    this.record(new CallbackRecord(sessionId, 'start'));
   }
 
   onEvent(_sessionId: string, eventCode: number, _message: string): void {
@@ -80,21 +173,98 @@ class StressListener implements RecognitionListener {
     if (eventCode === DingqiaoEventCode.SPEECH_END) this.events.speechEnds += 1;
   }
 
-  onResult(_sessionId: string, result: SpeechRecognitionResult): void {
-    if (!result.isFinal) return;
+  onResult(sessionId: string, result: SpeechRecognitionResult): void {
+    if (!result.isFinal) {
+      this.events.partials += 1;
+      this.record(new CallbackRecord(sessionId, 'partial'));
+      return;
+    }
     this.events.finals += 1;
     this.events.finalChars += result.result.length;
     this.events.finalTexts.push(result.result);
     this.events.lastIsLast = result.isLast;
+    if (result.isLast) this.events.lastFinals += 1;
+    this.record(new CallbackRecord(sessionId, 'final', result.isLast));
   }
 
-  onComplete(_sessionId: string, _eventMessage?: string): void {
+  onComplete(sessionId: string, _eventMessage?: string): void {
     this.events.completes += 1;
+    this.record(new CallbackRecord(sessionId, 'complete'));
   }
 
-  onError(_sessionId: string, errorCode: number, _message: string): void {
+  onError(sessionId: string, errorCode: number, _message: string): void {
     this.events.errors += 1;
     this.events.errorCodes.push(errorCode);
+    this.record(new CallbackRecord(sessionId, 'error', false, errorCode));
+  }
+
+  count(sessionId: string, kind: string): number {
+    let count = 0;
+    for (let i = 0; i < this.records.length; i++) {
+      if (this.records[i].sessionId === sessionId && this.records[i].kind === kind) count += 1;
+    }
+    return count;
+  }
+
+  lastCount(sessionId: string): number {
+    let count = 0;
+    for (let i = 0; i < this.records.length; i++) {
+      const record = this.records[i];
+      if (record.sessionId === sessionId && record.kind === 'final' && record.isLast) count += 1;
+    }
+    return count;
+  }
+
+  errorCount(sessionId: string, errorCode: number): number {
+    let count = 0;
+    for (let i = 0; i < this.records.length; i++) {
+      const record = this.records[i];
+      if (record.sessionId === sessionId && record.kind === 'error' && record.errorCode === errorCode) count += 1;
+    }
+    return count;
+  }
+
+  terminalOrderOk(sessionId: string): boolean {
+    let lastIndex = -1;
+    let completeIndex = -1;
+    for (let i = 0; i < this.records.length; i++) {
+      const record = this.records[i];
+      if (record.sessionId !== sessionId) continue;
+      if (record.kind === 'final' && record.isLast) {
+        if (lastIndex >= 0) return false;
+        lastIndex = i;
+      }
+      if (record.kind === 'complete') {
+        if (completeIndex >= 0) return false;
+        completeIndex = i;
+      }
+    }
+    if (lastIndex < 0 || completeIndex < 0 || lastIndex > completeIndex) return false;
+    for (let i = completeIndex + 1; i < this.records.length; i++) {
+      const record = this.records[i];
+      if (record.sessionId === sessionId &&
+        (record.kind === 'partial' || record.kind === 'final' || record.kind === 'complete')) return false;
+    }
+    return true;
+  }
+
+  errorsAreExpected(finishedSessionId: string, nextSessionId: string): boolean {
+    let nextBusyErrors = 0;
+    for (let i = 0; i < this.records.length; i++) {
+      const record = this.records[i];
+      if (record.kind !== 'error') continue;
+      if (record.sessionId === nextSessionId && record.errorCode === DingqiaoErrorCode.ENGINE_BUSY) {
+        nextBusyErrors += 1;
+        continue;
+      }
+      if (record.sessionId === finishedSessionId &&
+        (record.errorCode === DingqiaoErrorCode.NOT_LISTENING ||
+          record.errorCode === DingqiaoErrorCode.RECOGNITION_ERROR ||
+          record.errorCode === DingqiaoErrorCode.FINISH_FAILED ||
+          record.errorCode === DingqiaoErrorCode.CANCEL_FAILED)) continue;
+      return false;
+    }
+    return nextBusyErrors <= 1;
   }
 }
 
@@ -115,19 +285,23 @@ class ReentrantCompleteListener implements RecognitionListener {
     this.secondSessionId = secondSessionId;
   }
 
-  onStart(_sessionId: string, _eventMessage?: string): void {
+  onStart(sessionId: string, _eventMessage?: string): void {
     this.events.starts += 1;
+    this.events.callbackTrace.push(`${sessionId}:start`);
   }
 
-  onResult(_sessionId: string, result: SpeechRecognitionResult): void {
+  onResult(sessionId: string, result: SpeechRecognitionResult): void {
     if (!result.isFinal) return;
     this.events.finals += 1;
     this.events.finalChars += result.result.length;
     this.events.lastIsLast = result.isLast;
+    if (result.isLast) this.events.lastFinals += 1;
+    this.events.callbackTrace.push(`${sessionId}:final${result.isLast ? '-last' : ''}`);
   }
 
   onComplete(sessionId: string, _eventMessage?: string): void {
     this.events.completes += 1;
+    this.events.callbackTrace.push(`${sessionId}:complete`);
     if (sessionId !== this.firstSessionId || this.secondStartAttempted) return;
     this.firstCompleteBusy = this.engine.isBusy();
     this.secondStartAttempted = true;
@@ -138,9 +312,10 @@ class ReentrantCompleteListener implements RecognitionListener {
     }
   }
 
-  onError(_sessionId: string, errorCode: number, _message: string): void {
+  onError(sessionId: string, errorCode: number, _message: string): void {
     this.events.errors += 1;
     this.events.errorCodes.push(errorCode);
+    this.events.callbackTrace.push(`${sessionId}:error-${errorCode}`);
   }
 }
 
@@ -158,6 +333,7 @@ class StartCancelListener implements RecognitionListener {
 
   onStart(sessionId: string, _eventMessage?: string): void {
     this.events.starts += 1;
+    this.events.callbackTrace.push(`${sessionId}:start`);
     this.cancelledInStart = true;
     this.engine.cancel(sessionId);
   }
@@ -168,20 +344,24 @@ class StartCancelListener implements RecognitionListener {
     this.eventAfterCancelSessionId = sessionId;
   }
 
-  onResult(_sessionId: string, result: SpeechRecognitionResult): void {
+  onResult(sessionId: string, result: SpeechRecognitionResult): void {
     if (!result.isFinal) return;
     this.events.finals += 1;
     this.events.finalChars += result.result.length;
     this.events.lastIsLast = result.isLast;
+    if (result.isLast) this.events.lastFinals += 1;
+    this.events.callbackTrace.push(`${sessionId}:final${result.isLast ? '-last' : ''}`);
   }
 
-  onComplete(_sessionId: string, _eventMessage?: string): void {
+  onComplete(sessionId: string, _eventMessage?: string): void {
     this.events.completes += 1;
+    this.events.callbackTrace.push(`${sessionId}:complete`);
   }
 
-  onError(_sessionId: string, errorCode: number, _message: string): void {
+  onError(sessionId: string, errorCode: number, _message: string): void {
     this.events.errors += 1;
     this.events.errorCodes.push(errorCode);
+    this.events.callbackTrace.push(`${sessionId}:error-${errorCode}`);
   }
 }
 
@@ -225,6 +405,7 @@ class CycleResult {
   corpusId: string = '';
   ok: boolean = false;
   starts: number = 0;
+  partials: number = 0;
   finals: number = 0;
   completes: number = 0;
   errors: number = 0;
@@ -232,13 +413,16 @@ class CycleResult {
   liveStreams: number = 0;
   elapsedMs: number = 0;
   resultHex: string = '';
+  callbackTrace: string = '';
+  unexpectedSessionCallbacks: number = 0;
   detail: string = '';
 
   toLine(): string {
     return `CYCLE|index=${this.index}|id=${this.corpusId}|status=${this.ok ? 'PASS' : 'FAIL'}` +
-      `|starts=${this.starts}|finals=${this.finals}|completes=${this.completes}` +
+      `|starts=${this.starts}|partials=${this.partials}|finals=${this.finals}|completes=${this.completes}` +
       `|errors=${this.errors}|finalChars=${this.finalChars}|liveStreams=${this.liveStreams}` +
-      `|elapsedMs=${this.elapsedMs}|resultHex=${this.resultHex}|detail=${this.detail}`;
+      `|unexpectedCallbacks=${this.unexpectedSessionCallbacks}|elapsedMs=${this.elapsedMs}` +
+      `|resultHex=${this.resultHex}|trace=${this.callbackTrace}|detail=${this.detail}`;
   }
 }
 
@@ -247,6 +431,7 @@ class StressTotals {
   failed: number = 0;
   emptyFinals: number = 0;
   starts: number = 0;
+  partials: number = 0;
   finals: number = 0;
   completes: number = 0;
   errors: number = 0;
@@ -256,6 +441,7 @@ class StressTotals {
     if (!result.ok) this.failed += 1;
     if (result.finals > 0 && result.finalChars === 0) this.emptyFinals += 1;
     this.starts += result.starts;
+    this.partials += result.partials;
     this.finals += result.finals;
     this.completes += result.completes;
     this.errors += result.errors;
@@ -403,8 +589,10 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   params.sessionId = sessionId;
   params.audioInfo = new AudioInfo();
   params.extraParams['enablePartialResult'] = false;
-  params.extraParams['maxAudioDuration'] = 60000;
+  // Standard lifecycle tests must end only at their explicit finish. The max-duration mode overrides this.
+  params.extraParams['maxAudioDuration'] = 28800000;
   if (mode === 'vad-begin') params.extraParams['vadBegin'] = 10000;
+  if (mode === 'vad-begin-silence') params.extraParams['vadBegin'] = 500;
   if (mode === 'reconfigure') {
     const values: number[] = [500, 800, 1200];
     params.extraParams['vadEnd'] = values[cycle % values.length];
@@ -412,8 +600,30 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   return params;
 }
 
+function prepareStressVoiceprint(workPath: string, entry: CorpusEntry): string {
+  const pcm = new ArrayBuffer(5 * 16000 * 2);
+  const fp = fs.openSync(entry.path);
+  let bytesRead = 0;
+  try {
+    bytesRead = fs.readSync(fp.fd, pcm);
+  } finally {
+    fs.closeSync(fp.fd);
+  }
+  if (bytesRead < 3 * 16000 * 2) throw new Error('voiceprint-enrollment-source-too-short');
+  const samplePath = `${workPath}/stress-voiceprint-enroll.wav`;
+  WavIo.writePcmBytes(samplePath, pcm.slice(0, bytesRead));
+  const params = new VoiceprintRegisterParams();
+  params.samplePaths = [samplePath];
+  const registered = SpeechRecognizeSdk.registerVoiceprint(params);
+  const ids = Object.keys(registered.voiceprintId);
+  if (registered.status !== 0 || ids.length !== 1) {
+    throw new Error(`voiceprint-register-${registered.status}-${safeDetail(registered.message)}`);
+  }
+  return ids[0];
+}
+
 async function feedPcmFile(engine: SpeechRecognitionEngine, sessionId: string, path: string,
-  maxFrames: number, paceMs: number, stopWhen?: () => boolean): Promise<number> {
+  maxFrames: number, paceMs: number, stopWhen?: () => boolean, gain: number = 1): Promise<number> {
   const frame = new ArrayBuffer(FRAME_BYTES);
   const frameBytes = new Uint8Array(frame);
   let fed = 0;
@@ -424,6 +634,15 @@ async function feedPcmFile(engine: SpeechRecognitionEngine, sessionId: string, p
       frameBytes.fill(0);
       const bytesRead = fs.readSync(fp.fd, frame);
       if (bytesRead <= 0) break;
+      if (gain !== 1) {
+        for (let i = 0; i + 1 < bytesRead; i += 2) {
+          let sample = frameBytes[i] | (frameBytes[i + 1] << 8);
+          if ((sample & 0x8000) !== 0) sample -= 0x10000;
+          const scaled = Math.max(-32768, Math.min(32767, Math.round(sample * gain)));
+          frameBytes[i] = scaled & 0xFF;
+          frameBytes[i + 1] = (scaled >> 8) & 0xFF;
+        }
+      }
       engine.writeAudio(sessionId, frame);
       fed += 1;
       if (paceMs > 0) {
@@ -440,6 +659,10 @@ async function feedPcmFile(engine: SpeechRecognitionEngine, sessionId: string, p
   return fed;
 }
 
+function feedSilence(engine: SpeechRecognitionEngine, sessionId: string, frames: number): void {
+  for (let i = 0; i < frames; i++) engine.writeAudio(sessionId, new ArrayBuffer(FRAME_BYTES));
+}
+
 function finishCycle(index: number, corpusId: string, events: SessionEvents, startedAt: number,
   ok: boolean, detail: string): CycleResult {
   const result = new CycleResult();
@@ -447,6 +670,7 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.corpusId = corpusId;
   result.ok = ok;
   result.starts = events.starts;
+  result.partials = events.partials;
   result.finals = events.finals;
   result.completes = events.completes;
   result.errors = events.errors;
@@ -454,8 +678,16 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.liveStreams = AmphionRuntime.activeOnlineStreamCount();
   result.elapsedMs = Date.now() - startedAt;
   result.resultHex = stringToUtf16Hex(events.finalTexts.join(''));
-  result.ok = ok && result.liveStreams === 0;
-  result.detail = result.liveStreams === 0 ? detail : `live-streams-${result.liveStreams}`;
+  result.callbackTrace = events.callbackTrace.join('>');
+  result.unexpectedSessionCallbacks = events.unexpectedSessionCallbacks;
+  result.ok = ok && result.liveStreams === 0 && result.unexpectedSessionCallbacks === 0;
+  if (result.liveStreams !== 0) {
+    result.detail = `live-streams-${result.liveStreams}`;
+  } else if (result.unexpectedSessionCallbacks !== 0) {
+    result.detail = `unexpected-session-callbacks-${result.unexpectedSessionCallbacks}`;
+  } else {
+    result.detail = detail;
+  }
   return result;
 }
 
@@ -463,8 +695,8 @@ async function runRecognitionCycle(engine: SpeechRecognitionEngine, entry: Corpu
   options: DeviceStressOptions): Promise<CycleResult> {
   const startedAt = Date.now();
   const events = new SessionEvents();
-  engine.setListener(new StressListener(events));
   const sessionId = `stress-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
   engine.startListening(startParams(sessionId, options.mode, index));
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
@@ -478,10 +710,12 @@ async function runRecognitionCycle(engine: SpeechRecognitionEngine, entry: Corpu
       return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
     }
     const finalsBefore = events.finals;
+    const lastFinalsBefore = events.lastFinals;
     const completesBefore = events.completes;
     engine.cancel(sessionId);
     await sleep(100);
-    const ok = !engine.isBusy() && events.errors === 0 && events.finals === finalsBefore &&
+    const ok = !engine.isBusy() && events.errors === 0 && lastFinalsBefore === 0 &&
+      completesBefore === 0 && events.finals === finalsBefore && events.lastFinals === lastFinalsBefore &&
       events.completes === completesBefore;
     const detail = options.mode === 'cancel-full' ? 'cancelled-full' : 'cancelled';
     return finishCycle(index, entry.id, events, startedAt, ok, ok ? detail : 'cancel-contract');
@@ -494,24 +728,101 @@ async function runRecognitionCycle(engine: SpeechRecognitionEngine, entry: Corpu
     return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
   }
   if (options.settleMs > 0) await sleep(options.settleMs);
+  const lastFinalsBeforeFinish = events.lastFinals;
   engine.finish(sessionId);
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
-  const speechContract = options.mode !== 'vad-begin' || events.speechBegins > 0;
   const ok = completed && events.starts === 1 && events.completes === 1 && events.errors === 0 &&
-    events.finals > 0 && events.lastIsLast && speechContract && !engine.isBusy();
+    events.finals > 0 && events.lastIsLast && events.lastFinals === 1 && lastFinalsBeforeFinish === 0 &&
+    !engine.isBusy();
   const passDetail = options.mode === 'vad-begin' ?
-    `vad-begin-speech-detected-${events.speechBegins}` : 'finished';
-  const failDetail = options.mode === 'vad-begin' && !speechContract ?
-    'vad-begin-no-speech-event' : 'finish-contract';
+    `vad-begin-no-early-last-speech-events-${events.speechBegins}` : 'finished';
+  let failDetail = 'finish-contract';
+  if (lastFinalsBeforeFinish > 0) failDetail = 'is-last-before-finish';
   return finishCycle(index, entry.id, events, startedAt, ok, ok ? passDetail : failDetail);
+}
+
+async function runVadBeginSilenceCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const sessionId = `vad-begin-silence-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
+  engine.startListening(startParams(sessionId, 'vad-begin-silence', index));
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+  for (let i = 0; i < 30 && events.completes === 0; i++) {
+    engine.writeAudio(sessionId, new ArrayBuffer(FRAME_BYTES));
+  }
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const ok = completed && events.starts === 1 && events.speechBegins === 0 && events.finals === 1 &&
+    events.lastFinals === 1 && events.completes === 1 && events.errors === 0 && !engine.isBusy();
+  return finishCycle(index, entry.id, events, startedAt, ok,
+    ok ? 'vad-begin-silence-auto-finished' : 'vad-begin-silence-contract');
+}
+
+async function runVoiceprintCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry, index: number,
+  voiceprintId: string): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const scenario = VOICEPRINT_SCENARIOS[index % VOICEPRINT_SCENARIOS.length];
+  const sessionId = `voiceprint-${scenario}-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
+  const params = startParams(sessionId, 'voiceprint', index);
+  params.extraParams['enableVoiceprintVerification'] = true;
+  params.extraParams['voiceprintIds'] = [voiceprintId];
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+  let fed = 0;
+  if (scenario === 'short') {
+    fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_SHORT_FRAMES, 0);
+  } else if (scenario === 'threshold') {
+    fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_THRESHOLD_FRAMES, 0);
+  } else if (scenario === 'leading-silence') {
+    feedSilence(engine, sessionId, VOICEPRINT_LEADING_SILENCE_FRAMES);
+    fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, 0);
+  } else if (scenario === 'low-volume') {
+    fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, 0,
+      undefined, VOICEPRINT_LOW_GAIN);
+  } else if (scenario === 'multi-utterance') {
+    fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, 0);
+    feedSilence(engine, sessionId, VOICEPRINT_LEADING_SILENCE_FRAMES);
+    await sleep(100);
+    fed += await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, 0);
+  } else {
+    fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, 0);
+  }
+  if (fed === 0) {
+    engine.cancel(sessionId);
+    return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+  }
+  const lastFinalsBeforeFinish = events.lastFinals;
+  engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const scoreContract = scenario === 'short' ? events.speakerScores === 0 : events.speakerScores > 0;
+  const utteranceContract = scenario !== 'multi-utterance' || events.finals >= 2;
+  const ok = completed && events.starts === 1 && events.finals > 0 && events.lastFinals === 1 &&
+    lastFinalsBeforeFinish === 0 && events.completes === 1 && events.errors === 0 && scoreContract &&
+    utteranceContract && !engine.isBusy();
+  let detail = `voiceprint-${scenario}-${scenario === 'short' ? 'no-score' : 'scored'}`;
+  if (!scoreContract) {
+    detail = `voiceprint-score-contract-${scenario}-scores-${events.speakerScores}`;
+  } else if (!utteranceContract) {
+    detail = `voiceprint-multi-utterance-finals-${events.finals}`;
+  } else if (lastFinalsBeforeFinish > 0) {
+    detail = 'is-last-before-finish';
+  }
+  return finishCycle(index, entry.id, events, startedAt, ok, detail);
 }
 
 async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
   index: number): Promise<CycleResult> {
   const startedAt = Date.now();
   const events = new SessionEvents();
-  engine.setListener(new StressListener(events));
   const sessionId = `max-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
   const params = startParams(sessionId, 'max-duration', index);
   params.extraParams['maxAudioDuration'] = 20000;
   engine.startListening(params);
@@ -527,11 +838,20 @@ async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: Corpu
     fedFrames += fed;
   }
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const finalsBeforeLateFrames = events.finals;
+  const lastFinalsBeforeLateFrames = events.lastFinals;
+  const completesBeforeLateFrames = events.completes;
+  const errorsBeforeLateFrames = events.errors;
   for (let i = 0; i < 80; i++) {
     engine.writeAudio(sessionId, new ArrayBuffer(FRAME_BYTES));
   }
-  const ok = completed && events.completes === 1 && events.errors === 0 && events.lastIsLast &&
-    !engine.isBusy() && fedFrames >= 1000;
+  await sleep(150);
+  const lateFramesStable = events.finals === finalsBeforeLateFrames &&
+    events.lastFinals === lastFinalsBeforeLateFrames && events.completes === completesBeforeLateFrames &&
+    events.errors === errorsBeforeLateFrames;
+  const ok = completed && finalsBeforeLateFrames > 0 && lastFinalsBeforeLateFrames === 1 &&
+    completesBeforeLateFrames === 1 && errorsBeforeLateFrames === 0 && lateFramesStable &&
+    events.lastIsLast && !engine.isBusy() && fedFrames >= 1000;
   return finishCycle(index, entry.id, events, startedAt, ok, ok ? 'auto-finished' : 'max-duration-contract');
 }
 
@@ -539,8 +859,8 @@ async function runNumericEdgeCycle(engine: SpeechRecognitionEngine, entry: Corpu
   index: number): Promise<CycleResult> {
   const startedAt = Date.now();
   const events = new SessionEvents();
-  engine.setListener(new StressListener(events));
   const sessionId = `numeric-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
   const params = startParams(sessionId, 'numeric-edge', index);
   params.extraParams['maxAudioDuration'] = Number.NaN;
   engine.startListening(params);
@@ -645,6 +965,105 @@ async function runStartCancelCycle(engine: SpeechRecognitionEngine, entry: Corpu
   return finishCycle(index, entry.id, events, startedAt, ok, detail);
 }
 
+// Mirrors a real caller under impatient user input: cancel and immediately reuse the engine, try to
+// restart while finish is still settling, then deliver stale calls from the old session while the new
+// one is active. Text accuracy is deliberately irrelevant; only session isolation and callback order
+// are accepted as success criteria.
+async function runUserSequenceCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const listener = new SequenceListener();
+  engine.setListener(listener);
+  const cancelSession = `user-cancel-${index}`;
+  const finishSession = `user-finish-${index}`;
+  const nextSession = `user-next-${index}`;
+
+  const cancelParams = startParams(cancelSession, 'user-sequence', index);
+  cancelParams.extraParams['enablePartialResult'] = true;
+  engine.startListening(cancelParams);
+  if (!await waitFor((): boolean => listener.count(cancelSession, 'start') === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, listener.events, startedAt, false, 'cancel-start-timeout');
+  }
+  const cancelFrames: number[] = [0, 25, 150];
+  const cancelFrameCount = cancelFrames[index % cancelFrames.length];
+  if (cancelFrameCount > 0) {
+    await feedPcmFile(engine, cancelSession, entry.path, cancelFrameCount, 0);
+  }
+  const cancelPartialsBeforeCancel = listener.count(cancelSession, 'partial');
+  const cancelFinalsBeforeCancel = listener.count(cancelSession, 'final');
+  const cancelLastBeforeCancel = listener.lastCount(cancelSession);
+  const cancelCompletesBeforeCancel = listener.count(cancelSession, 'complete');
+  engine.cancel(cancelSession);
+  const idleAfterCancel = !engine.isBusy();
+
+  // No settling delay: this is the common stop/start gesture that exposes stale callback ownership.
+  const finishParams = startParams(finishSession, 'user-sequence', index);
+  finishParams.extraParams['enablePartialResult'] = true;
+  engine.startListening(finishParams);
+  if (!await waitFor((): boolean => listener.count(finishSession, 'start') === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, listener.events, startedAt, false, 'restart-after-cancel-timeout');
+  }
+  const firstFed = await feedPcmFile(engine, finishSession, entry.path, 150, 0);
+  if (firstFed === 0) {
+    engine.cancel(finishSession);
+    return finishCycle(index, entry.id, listener.events, startedAt, false, 'empty-pcm');
+  }
+  const finishLastBefore = listener.lastCount(finishSession);
+  engine.finish(finishSession);
+
+  // Depending on whether native stop completed synchronously, immediate restart may either start or
+  // return ENGINE_BUSY. Both are valid, but a silent lost request is not.
+  const nextParams = startParams(nextSession, 'user-sequence', index);
+  nextParams.extraParams['enablePartialResult'] = true;
+  engine.startListening(nextParams);
+  await waitFor((): boolean => listener.count(finishSession, 'complete') === 1, COMPLETE_TIMEOUT_MS);
+  let nextStarts = listener.count(nextSession, 'start');
+  const immediateBusy = listener.errorCount(nextSession, DingqiaoErrorCode.ENGINE_BUSY) > 0;
+  const immediateOutcome = nextStarts === 1 || immediateBusy;
+  if (nextStarts === 0) {
+    engine.startListening(nextParams);
+    await waitFor((): boolean => listener.count(nextSession, 'start') === 1, START_TIMEOUT_MS);
+    nextStarts = listener.count(nextSession, 'start');
+  }
+
+  if (nextStarts === 1) {
+    // Calls from the completed session must be rejected or ignored without touching the active one.
+    engine.writeAudio(finishSession, new ArrayBuffer(FRAME_BYTES));
+    engine.finish(finishSession);
+    engine.cancel(finishSession);
+  }
+  const busyAfterStaleCalls = nextStarts === 1 && engine.isBusy();
+  const secondFed = nextStarts === 1 ? await feedPcmFile(engine, nextSession, entry.path, 150, 0) : 0;
+  const nextLastBefore = listener.lastCount(nextSession);
+  if (nextStarts === 1 && secondFed > 0 && engine.isBusy()) engine.finish(nextSession);
+  await waitFor((): boolean => listener.count(nextSession, 'complete') === 1, COMPLETE_TIMEOUT_MS);
+  await sleep(150);
+
+  const cancelledCleanly = idleAfterCancel && cancelLastBeforeCancel === 0 && cancelCompletesBeforeCancel === 0 &&
+    listener.count(cancelSession, 'start') === 1 &&
+    listener.count(cancelSession, 'partial') === cancelPartialsBeforeCancel &&
+    listener.count(cancelSession, 'final') === cancelFinalsBeforeCancel &&
+    listener.count(cancelSession, 'complete') === cancelCompletesBeforeCancel;
+  const finishContract = finishLastBefore === 0 && listener.count(finishSession, 'start') === 1 &&
+    listener.lastCount(finishSession) === 1 && listener.count(finishSession, 'complete') === 1 &&
+    listener.terminalOrderOk(finishSession);
+  const nextContract = nextLastBefore === 0 && nextStarts === 1 && secondFed > 0 &&
+    listener.lastCount(nextSession) === 1 && listener.count(nextSession, 'complete') === 1 &&
+    listener.terminalOrderOk(nextSession);
+  const errorContract = listener.errorsAreExpected(finishSession, nextSession) &&
+    listener.errorCount(nextSession, DingqiaoErrorCode.ENGINE_BUSY) === (immediateBusy ? 1 : 0);
+  const ok = cancelledCleanly && immediateOutcome && finishContract && busyAfterStaleCalls &&
+    nextContract && errorContract && !engine.isBusy();
+  let detail = 'user-sequence';
+  if (!cancelledCleanly) detail = 'cancel-leaked-callback';
+  else if (!immediateOutcome) detail = 'immediate-restart-silently-lost';
+  else if (!finishContract) detail = 'finish-session-contract';
+  else if (!busyAfterStaleCalls) detail = 'stale-call-corrupted-active-session';
+  else if (!nextContract) detail = 'next-session-contract';
+  else if (!errorContract) detail = 'unexpected-sequence-error';
+  return finishCycle(index, entry.id, listener.events, startedAt, ok, detail);
+}
+
 async function runEdgeCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
   index: number): Promise<CycleResult> {
   const startedAt = Date.now();
@@ -703,6 +1122,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
   const totals = new StressTotals();
   let entries: CorpusEntry[] = [];
   let engine: SpeechRecognitionEngine | undefined;
+  let stressVoiceprintId: string = '';
+  let stressVoiceprintSamplePath: string = '';
   let fatal = '';
   logLine(`BEGIN|runId=${options.runId}|mode=${options.mode}|cycles=${options.cycles}`);
 
@@ -718,9 +1139,19 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     const runtimeError = await prepareRuntime();
     if (runtimeError !== 0) throw new Error(`runtime-${runtimeError}`);
 
+    if (options.mode === 'voiceprint') {
+      if (entries.length < 2) throw new Error('voiceprint-stress-requires-two-corpus-sources');
+      stressVoiceprintSamplePath = `${workPath}/stress-voiceprint-enroll.wav`;
+      stressVoiceprintId = prepareStressVoiceprint(workPath, entries[0]);
+    }
+
     if (options.mode !== 'recreate') engine = createEngine();
     for (let i = 0; i < options.cycles; i++) {
-      const entry = entries[i % entries.length];
+      let entry = entries[i % entries.length];
+      if (options.mode === 'voiceprint' &&
+        VOICEPRINT_SCENARIOS[i % VOICEPRINT_SCENARIOS.length] === 'alternate-source') {
+        entry = entries[1];
+      }
       if (options.mode === 'recreate') engine = createEngine();
       if (engine === undefined) throw new Error('engine-create-failed');
 
@@ -735,6 +1166,12 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runReentrantCycle(engine, entry, i);
       } else if (options.mode === 'start-cancel') {
         result = await runStartCancelCycle(engine, entry, i);
+      } else if (options.mode === 'user-sequence') {
+        result = await runUserSequenceCycle(engine, entry, i);
+      } else if (options.mode === 'vad-begin-silence') {
+        result = await runVadBeginSilenceCycle(engine, entry, i);
+      } else if (options.mode === 'voiceprint') {
+        result = await runVoiceprintCycle(engine, entry, i, stressVoiceprintId);
       } else {
         result = await runRecognitionCycle(engine, entry, i, options);
       }
@@ -754,12 +1191,18 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     logLine(`FATAL|runId=${options.runId}|detail=${fatal}`);
   } finally {
     if (engine !== undefined) engine.shutdown();
+    if (stressVoiceprintId.length > 0) {
+      try { SpeechRecognizeSdk.deleteVoiceprint(stressVoiceprintId); } catch (_e) {}
+    }
+    if (stressVoiceprintSamplePath.length > 0) {
+      try { if (fs.accessSync(stressVoiceprintSamplePath)) fs.unlinkSync(stressVoiceprintSamplePath); } catch (_e) {}
+    }
   }
 
   const status = fatal.length === 0 && totals.failed === 0 && totals.completed === options.cycles ? 'PASS' : 'FAIL';
   const summary = `SUMMARY|runId=${options.runId}|status=${status}|mode=${options.mode}` +
     `|requested=${options.cycles}|completed=${totals.completed}|failed=${totals.failed}` +
-    `|emptyFinals=${totals.emptyFinals}|starts=${totals.starts}|finals=${totals.finals}` +
+    `|emptyFinals=${totals.emptyFinals}|starts=${totals.starts}|partials=${totals.partials}|finals=${totals.finals}` +
     `|completes=${totals.completes}|errors=${totals.errors}|elapsedMs=${Date.now() - startedAt}` +
     `|fatal=${fatal}`;
   lines.push(summary);

@@ -37,6 +37,7 @@ import {
   VadModelType
 } from './Types';
 import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
+import { InitialSilenceTracker } from './InitialSilenceTracker';
 
 const ASR_SAMPLE_RATE_HZ: number = 16000;
 // ORT-format models are optimized and prepacked during Session creation. Device A/B testing showed
@@ -1022,10 +1023,7 @@ export class AsrSession {
   private vadSpeechActive: boolean = false;
   private trailingSilenceMs: number = 0;
   private vadCarry: Float32Array = new Float32Array(0);
-  private initialSilenceTimeoutSamples: number = 0;
-  private initialSilenceSamples: number = 0;
-  private initialSpeechDetected: boolean = false;
-  private initialSilenceTimeoutSent: boolean = false;
+  private initialSilenceTracker: InitialSilenceTracker = new InitialSilenceTracker(0, ASR_SAMPLE_RATE_HZ);
   // Speaker-VAD sliding-window state (Android-aligned two-phase: confirm target -> detect departure).
   private svSamplesSinceScore: number = 0;
   private svTargetConfirmed: boolean = false;
@@ -1068,7 +1066,7 @@ export class AsrSession {
     this.callback = callback;
     this.engineReadyMs = engineReadyMs;
     const initialSilenceTimeoutMs = sessionConfig.initialSilenceTimeoutMs ?? 0;
-    this.initialSilenceTimeoutSamples = Math.round(initialSilenceTimeoutMs * ASR_SAMPLE_RATE_HZ / 1000);
+    this.initialSilenceTracker = new InitialSilenceTracker(initialSilenceTimeoutMs, ASR_SAMPLE_RATE_HZ);
     if (config.vad) {
       this.vad = this.createVad();
     }
@@ -1226,6 +1224,7 @@ export class AsrSession {
     }
 
     const r = this.recognizer.getResult(this.stream);
+    this.initialSilenceTracker.observeAsrResult(r.text, r.tokens.length);
     if (isFinal) {
       this.dispatchFinal(false, decodeDurationMs, isLastFinal);
       if (!this.closed) this.finishUtterance(restartAfterFinal);
@@ -1248,6 +1247,7 @@ export class AsrSession {
 
   private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number, isLast: boolean = false): void {
     const native = this.recognizer.getResult(this.stream);
+    this.initialSilenceTracker.observeAsrResult(native.text, native.tokens.length);
     const result = new AsrResult();
     result.text = native.text;
     result.tokens = native.tokens;
@@ -1360,7 +1360,7 @@ export class AsrSession {
   // real-time) and let the VAD only gate / drive a more sensitive active endpoint. sherpa's own
   // endpoint rules stay enabled as a backstop in case the VAD active endpoint misses.
   private feedAndDecode(samples: Float32Array): void {
-    if (this.closed || this.initialSilenceTimeoutSent) return;
+    if (this.closed || this.initialSilenceTracker.hasTimedOut()) return;
     if ((this.targetSpeakerEnabled || this.speakerVadEnabled) && this.utteranceLength() < UTT_MAX_SAMPLES) {
       // acceptPcmShort reuses one conversion buffer; speaker scoring needs an immutable snapshot.
       this.utteranceSamples.push(samples.slice());
@@ -1387,19 +1387,14 @@ export class AsrSession {
     }
     this.vadCarry = i < merged.length ? merged.slice(i, merged.length) : new Float32Array(0);
 
+    const initialSilenceTimedOut = this.initialSilenceTracker.observeVad(i, anySpeech);
     if (anySpeech) {
       if (!this.vadSpeechActive) this.callback.onSpeechBegin?.();
       this.vadSpeechActive = true;
-      this.initialSpeechDetected = true;
       this.trailingSilenceMs = 0;
-    } else if (!this.initialSpeechDetected && !this.initialSilenceTimeoutSent &&
-      this.initialSilenceTimeoutSamples > 0) {
-      this.initialSilenceSamples += i;
-      if (this.initialSilenceSamples >= this.initialSilenceTimeoutSamples) {
-        this.initialSilenceTimeoutSent = true;
-        this.callback.onInitialSilenceTimeout?.();
-        return;
-      }
+    } else if (initialSilenceTimedOut) {
+      this.callback.onInitialSilenceTimeout?.();
+      return;
     } else if (anySilence && this.vadSpeechActive) {
       this.trailingSilenceMs += Math.round(samples.length * 1000 / 16000);
       const activeEpMs = this.sessionConfig.endpointSilenceMs ?? this.config.vadConfig.activeEndpointSilenceMs;
@@ -1492,7 +1487,13 @@ export class AsrSession {
 
   private applyTargetSpeaker(result: AsrResult, samples: Float32Array): void {
     if (this.config.targetSpeaker === undefined || this.targetExtractor === undefined || this.targetSpeaker === undefined) return;
-    if (samples.length < Math.round(this.config.targetSpeaker.minSegSec * 16000)) return;
+    const minSamples = Math.round(this.config.targetSpeaker.minSegSec * ASR_SAMPLE_RATE_HZ);
+    if (samples.length < minSamples) {
+      this.callback.onDebug?.(
+        `speaker score unavailable: segment=${Math.round(samples.length * 1000 / ASR_SAMPLE_RATE_HZ)}ms, ` +
+        `minimum=${Math.round(this.config.targetSpeaker.minSegSec * 1000)}ms`);
+      return;
+    }
     const stream = this.targetExtractor.createStream();
     try {
       const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
