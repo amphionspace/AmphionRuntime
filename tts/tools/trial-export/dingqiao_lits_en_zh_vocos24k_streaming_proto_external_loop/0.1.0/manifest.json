@@ -41,10 +41,6 @@
       "size_bytes": 15594490
     },
     {
-      "name": "lits_stream_condition_final.onnx",
-      "size_bytes": 15590083
-    },
-    {
       "name": "lits_stream_decoder_step.onnx",
       "size_bytes": 45044116
     },
@@ -112,12 +108,9 @@
     "file": "lits_stream_condition_chunk.onnx",
     "format": "onnx"
   },
-  "stream_condition_final_model": {
-    "file": "lits_stream_condition_final.onnx",
-    "format": "onnx"
-  },
   "stream_decoder_step_model": {
     "file": "lits_stream_decoder_step.onnx",
     "format": "onnx"
-  }
+  },
+  "stream_final_zero_pad_with_chunk_condition": true
 }

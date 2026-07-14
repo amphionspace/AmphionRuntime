@@ -41,7 +41,6 @@ internal object LitsTtsAssetRegistry {
         MANIFEST,
         HIDDEN_ENCODER_MODEL,
         STREAM_CONDITION_CHUNK_MODEL,
-        STREAM_CONDITION_FINAL_MODEL,
         STREAM_DECODER_STEP_MODEL,
         VOCODER_MODEL,
         FRONTEND_GOLDEN,

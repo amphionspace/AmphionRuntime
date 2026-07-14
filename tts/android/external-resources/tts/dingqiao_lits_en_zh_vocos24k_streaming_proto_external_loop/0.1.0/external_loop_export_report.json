@@ -27,17 +27,13 @@
         "size_bytes": 15594490,
         "node_count": 1101
       },
-      "condition_final": {
-        "path": "lits_stream_condition_final.onnx",
-        "size_bytes": 15590083,
-        "node_count": 1065
-      },
       "decoder_step": {
         "path": "lits_stream_decoder_step.onnx",
         "size_bytes": 45044116,
         "node_count": 1271
       }
-    }
+    },
+    "stream_final_zero_pad_with_chunk_condition": true
   },
   "validation": {
     "hidden_encoder": {
