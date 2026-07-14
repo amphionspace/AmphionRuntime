@@ -13,7 +13,7 @@
 
 - 公共字段名是 `speakerSimilarity`。新增或修改示例、文档和测试时必须使用该名称。
 - `speakerSimilarity` 是可选值。有效语音短于 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时不可靠，SDK 应省略分数并保留识别结果；不得填充假分数或通过补静音绕过门槛。
-- 声纹测试至少覆盖：小于门槛、恰好门槛、超过门槛、低音量、前置静音、非目标说话人和多句连续输入。
+- 声纹测试至少覆盖：小于门槛、恰好门槛、超过门槛、低音量、前置静音、非注册语料源和多句连续输入。生命周期门禁只判断分数可选性、回调顺序和会话恢复；目标/非目标相似度精度另走带身份标注的评测集。
 
 ## 缺陷处理流程
 
@@ -38,7 +38,7 @@
 - 产品验收对象是 SDK 公共 API 和回调契约；demo/HAP 只是 USB 真机上的测试载体。UI 不崩溃、按钮可点击或识别文本正确，都不能替代 SDK 生命周期断言。
 - 真实用户操作必须翻译成调用方时序：快速开始/取消/重启、`finish` 后立即尝试下一 session、回调内重入、旧 session 迟到 `writeAudio/finish/cancel`、重复结束、运行中 shutdown 和失败后的下一轮恢复。
 - 每条压力用例必须按 `sessionId` 保存有序回调轨迹，分别统计 start、final、`isLast`、complete 和 error。聚合总数相等不能证明没有串 session。
-- cancel session 不得产生 final/complete；正常 session 必须只有一次 `isLast`，随后一次 complete；旧 session 的迟到调用不得终止或污染当前 session。
+- cancel 生效后不得再新增 final/complete；取消前已经正常产生的非 last endpoint final 必须保留并计入快照，但取消前不得已有 `isLast` 或 complete。正常 session 必须只有一次 `isLast`，随后一次 complete；旧 session 的迟到调用不得终止或污染当前 session。
 - 现实操作压力与精度评测分开。生命周期用例只检查状态、归属、顺序、错误码、资源回收和可恢复性，不用文本正确率决定 PASS；声纹只检查“应有分数/应省略分数”的接口契约，不比较相似度精度。
 - `user-sequence`、`reentrant`、`start-cancel`、`edge` 和实时 `paced` 是发布前必跑门禁。至少一组运行超过 60 秒，以区分模型逐步驻留与持续内存泄漏。
 - 不得声称“覆盖所有边界”。报告必须列出已覆盖的调用序列、轮数、设备/系统版本、未覆盖的外部故障，以及任何仅为 `INCONCLUSIVE` 的资源指标。
