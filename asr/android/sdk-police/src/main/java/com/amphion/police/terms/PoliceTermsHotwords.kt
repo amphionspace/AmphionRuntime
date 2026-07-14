@@ -319,6 +319,23 @@ object PoliceTermsHotwords {
         "强制下岗提醒",
         "预警提醒查看",
         "预警提醒反馈",
+        // ── 甲方 teacher 批（0714）：漏词解码偏置 ──
+        "一报直报",
+        "一键求助",
+        "上勤次数",
+        "侦查需求",
+        "合成作战",
+        "岗位勤务",
+        "已完成",
+        "我的案件",
+        "指信",
+        "指信接收",
+        "支队案件",
+        "案件任务",
+        "案件列表",
+        "移动接处警",
+        "视频清整",
+        "预警接收",
     )
 
     fun mergeWithUserWords(userWords: List<String>, includePreset: Boolean): List<String> {

@@ -413,3 +413,19 @@ We Space,WeSpace,term
 和查详情,核查详情,appname
 与警惕性反馈,预警提醒反馈,appname
 近五次打卡记录,近5次打卡记录,appname
+# ── 甲方 teacher 批（0714）：TTS 复测漏词（from 无子串碰撞）──
+一暴直报,一报直报,appname
+上情次数,上勤次数,appname
+合乘作战,合成作战,appname
+岗位请勿,岗位勤务,appname
+请指心,情指行,appname
+只信接收,指信接收,appname
+纸信接收,指信接收,appname
+支队按键,支队案件,appname
+按键任务,案件任务,appname
+按键列表,案件列表,appname
+我的按键,我的案件,appname
+移动接触井,移动接处警,appname
+移动接触请,移动接处警,appname
+视频清诊,视频清整,appname
+狱警接收,预警接收,appname
