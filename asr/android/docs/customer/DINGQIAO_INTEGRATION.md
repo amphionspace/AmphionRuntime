@@ -55,7 +55,7 @@ createEngine → setListener → startListening
 | 语种 | `zh-CN`（离线中英 ASR） |
 | partial | ASR 原文 |
 | final | 警务增强后文本（术语 → 车牌 → 派出所） |
-| 声纹 | final 且开启校验时返回 `speakerSimilarity`；阈值由客户端判定 |
+| 声纹 | final 且开启校验、有效语音达到门槛时返回 `speakerSimilarity`；短句省略分数但仍返回识别结果，阈值由客户端判定 |
 
 ## 5. 声纹
 

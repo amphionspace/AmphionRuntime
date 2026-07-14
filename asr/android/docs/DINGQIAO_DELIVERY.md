@@ -164,7 +164,7 @@ createEngine → setListener → startListening
 | `writeAudio` | 仅接受 640 字节 PCM 帧 |
 | `finish` | 触发 final；`isLast=true` |
 | `onResult` | partial：ASR 原文；final：警务增强后文本 |
-| `speakerSimilarity` | final 且启用声纹校验时返回；SDK 不丢弃非目标人结果 |
+| `speakerSimilarity` | final 且启用声纹校验、有效语音达到门槛时返回；短句省略分数但仍返回识别结果，SDK 不丢弃非目标人结果 |
 
 警务后处理顺序：**术语 → 车牌 → 派出所**（`PoliceEnhancePipeline`）。
 
@@ -176,7 +176,7 @@ createEngine → setListener → startListening
 | `deleteVoiceprint(voiceprintId)` | 删除 `{workPath}/voiceprints/{id}/` |
 | 会话校验 | `startListening.extraParams`：`enableVoiceprintVerification=true`，`voiceprintIds=["vp-xxx"]` |
 
-判决阈值（典型 0.4）由**客户端**根据 `speakerSimilarity` 自行判断，SDK 不做 reject。
+有效语音达到 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时，判决阈值（典型 0.4）由**客户端**根据 `speakerSimilarity` 自行判断，SDK 不做 reject；短于门槛时该字段省略。
 
 ## 6. Demo 使用说明
 
