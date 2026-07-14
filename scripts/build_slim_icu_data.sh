@@ -2,106 +2,82 @@
 set -euo pipefail
 
 # =============================================================================
-# build_slim_icu_data.sh  —  PROPOSAL / UNVERIFIED
+# build_slim_icu_data.sh  —  build a TN-subset ICU 78.1 data library
 # =============================================================================
-# Produce a SLIM libicudata.a for the Dingqiao TN frontend, keeping only the
-# ICU data that the TN engine actually loads at runtime:
+# Produces a slim libicudata.a containing only the ICU data the TN engine loads:
+#   RBNF spellout (en/zh/root) + locale bundles (en/zh) + misc/supplemental +
+#   currency (REQUIRED by RBNF's DecimalFormatSymbols) + core uprops/nfc/regex.
+# Everything else (coll, brkitr, ~700 other locales, units, zones, regions,
+# languages, transliterators, converters) is dropped via ICU_DATA_FILTER_FILE.
 #
-#   * RBNF spellout data for en + zh (+ root fallback)
-#   * the locale resource bundles for en / zh
-#   * core uprops/ucase/unorm (nfc) data — required by ICU regex; kept by default
+# Filter spec: scripts/icu_tn_data_filter.json   (report: TN_SIZE_OPT_REPORT.md)
 #
-# and dropping everything else (~700 locales, collation, break iterators,
-# currency, units, timezones, transliterators, region/lang trees).
+# The HOST recipe below was executed and VERIFIED on macOS arm64: it yields
+# libicudata 31.57MB -> 2.55MB and byte-identical TN output vs full ICU across
+# 4426 corpus lines. For the actual arm64/OHOS delivery, run the SAME recipe
+# with runConfigureICU targeting the cross toolchain (see "TARGET" note), then
+# feed the result to build_dingqiao_harmony_tn.sh via SLIM_ICU_LIB_DIR.
 #
-# See scripts/icu_tn_data_filter.json for the exact filter spec, and
-# TN_SIZE_OPT_REPORT.md for how it was derived from the code's ICU call surface.
-#
-# STATUS: This script encodes the two supported build paths but has NOT been
-# executed here — the OHOS Native SDK and ICU tools are absent in the dev box
-# where the proposal was authored. It is meant to be run by someone who has:
-#   - the OHOS Native SDK (aarch64-unknown-linux-ohos toolchain), AND
-#   - either the ICU 78 source tree (Path A) or the ICU host tools
-#     icupkg / pkgdata built for the host (Path B).
-# After running, feed the resulting lib dir back into
-# build_dingqiao_harmony_tn.sh via SLIM_ICU_LIB_DIR (see that script) and run
-# the full zero-regression gate before shipping.
+# WARNING: do NOT drop curr_tree from the filter. Without it the RBNF spellout
+# constructor fails (U_MISSING_RESOURCE_ERROR) and every number silently
+# normalizes to an empty string. This is invisible to a build/smoke check and
+# only shows up in an output diff.
 # =============================================================================
 
 usage() {
   cat <<'EOF'
-Two mutually exclusive paths — pick one via MODE:
+Required:
+  ICU_SOURCES_TGZ  Path to icu4c-78.1-sources.tgz   (unicode-org/icu release-78.1)
+  ICU_DATA_ZIP     Path to icu4c-78.1-data.zip       (raw data sources, same release)
+Optional:
+  OUT_DIR          Output prefix (default: tts/harmony/build-ohos-tn/slim-icu)
+  ICU_PLATFORM     runConfigureICU platform (default: MacOSX). For the delivery,
+                   use the OHOS cross build instead (see TARGET note in-file).
 
-  # Path A: rebuild ICU 78 data from source with ICU_DATA_FILTER_FILE (cleanest).
-  MODE=source \
-  ICU_SRC=/path/to/icu/icu4c/source \
-  OHOS_NATIVE_SDK=/path/to/openharmony/native \
+Example (host verification build):
+  ICU_SOURCES_TGZ=~/dl/icu4c-78.1-sources.tgz \
+  ICU_DATA_ZIP=~/dl/icu4c-78.1-data.zip \
   scripts/build_slim_icu_data.sh
-
-  # Path B: subset the ALREADY-VENDORED icudt78l.dat with icupkg, then repackage
-  # for the target with pkgdata (no full ICU source rebuild).
-  MODE=subset \
-  ICUPKG=/path/to/host/bin/icupkg \
-  PKGDATA=/path/to/host/bin/pkgdata \
-  OHOS_NATIVE_SDK=/path/to/openharmony/native \
-  scripts/build_slim_icu_data.sh
-
-Output: $OUT_DIR/libicudata.a (default: tts/harmony/build-ohos-tn/slim-icu/lib)
 EOF
 }
-
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; exit 0; fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FILTER_FILE="$REPO_ROOT/scripts/icu_tn_data_filter.json"
-OHOS_ICU_ROOT="$REPO_ROOT/tts/harmony/sdk/src/main/cpp/third_party/ohos-icu"
 OUT_DIR="${OUT_DIR:-$REPO_ROOT/tts/harmony/build-ohos-tn/slim-icu}"
-MODE="${MODE:-}"
-
+ICU_PLATFORM="${ICU_PLATFORM:-MacOSX}"
+: "${ICU_SOURCES_TGZ:?set ICU_SOURCES_TGZ to icu4c-78.1-sources.tgz}"
+: "${ICU_DATA_ZIP:?set ICU_DATA_ZIP to icu4c-78.1-data.zip}"
 [[ -f "$FILTER_FILE" ]] || { echo "Missing filter: $FILTER_FILE" >&2; exit 1; }
-mkdir -p "$OUT_DIR/lib"
 
-case "$MODE" in
-  source)
-    : "${ICU_SRC:?set ICU_SRC to icu4c/source}"
-    : "${OHOS_NATIVE_SDK:?set OHOS_NATIVE_SDK}"
-    echo ">> Path A: rebuild ICU 78 data with data filter"
-    echo "   ICU_DATA_FILTER_FILE=$FILTER_FILE"
-    echo
-    echo "   The canonical ICU cross-data build is:"
-    echo "     1. Build ICU once for the HOST to get the data-gen tools."
-    echo "     2. Reconfigure for the target (aarch64-unknown-linux-ohos) with"
-    echo "        --with-cross-build=<host-build> and static data packaging,"
-    echo "        exporting ICU_DATA_FILTER_FILE so only the TN subset is built."
-    echo "     3. Copy the produced libicudata.a to \$OUT_DIR/lib."
-    echo
-    echo "   Verify the ICU 78 source version matches the vendored icudt78l."
-    echo "   (Left as explicit manual steps — must not be guessed/automated blind.)"
-    exit 3
-    ;;
-  subset)
-    : "${ICUPKG:?set ICUPKG (host icupkg)}"
-    : "${PKGDATA:?set PKGDATA (host pkgdata)}"
-    : "${OHOS_NATIVE_SDK:?set OHOS_NATIVE_SDK}"
-    echo ">> Path B: subset vendored icudt78l.dat with icupkg"
-    echo "   1. Extract icudt78l_dat.o from $OHOS_ICU_ROOT/lib/libicudata.a and"
-    echo "      recover the raw icudt78l.dat payload."
-    echo "   2. '$ICUPKG -l' to list items; build a remove-list of every"
-    echo "      coll/*, brkitr/*, curr/*, unit/*, zone/*, region/*, lang/*,"
-    echo "      translit/* and every non en/zh/root locale .res."
-    echo "   3. '$ICUPKG -r <removelist> icudt78l.dat icudt78l_slim.dat'."
-    echo "   4. Repackage for the target with '$PKGDATA -m static' using the"
-    echo "      OHOS aarch64 assembler → \$OUT_DIR/lib/libicudata.a."
-    echo
-    echo "   NOTE: the remove-list MUST be exhaustive; anything left in that TN"
-    echo "   never loads is pure dead weight, anything wrongly removed that RBNF"
-    echo "   spellout depends on will fail the regression gate. Keep root+en+zh"
-    echo "   rbnf, keep uprops/ucase/nfc core, and validate before shipping."
-    exit 3
-    ;;
-  *)
-    echo "Set MODE=source or MODE=subset" >&2
-    usage
-    exit 1
-    ;;
-esac
+WORK="$OUT_DIR/work"
+rm -rf "$WORK" && mkdir -p "$WORK" "$OUT_DIR/lib"
+
+echo ">> unpacking ICU sources + raw data"
+tar xzf "$ICU_SOURCES_TGZ" -C "$WORK"          # -> $WORK/icu
+SRC="$WORK/icu/source"
+# Force a FROM-SOURCE data build (the prebuilt data/in/icudt78l.dat would
+# bypass the filter). Drop in the raw data sources, remove the prebuilt blob.
+rm -f "$SRC/data/in/icudt78l.dat"
+unzip -oq "$ICU_DATA_ZIP" -d "$SRC"            # -> $SRC/data/{locales,rbnf,curr,misc,...}
+rm -f "$SRC/data/in/icudt78l.dat"
+
+echo ">> configure + build filtered data ($ICU_PLATFORM)"
+cd "$SRC"
+chmod +x runConfigureICU configure config.guess config.sub install-sh 2>/dev/null || true
+# TARGET/OHOS: replace the runConfigureICU line with an ICU cross-build:
+#   1. build ICU once for the host to get the data tools, then
+#   2. ./configure --host=aarch64-linux-ohos --with-cross-build=<hostbuild> \
+#        CC=.../aarch64-unknown-linux-ohos-clang CXX=.../...-clang++ \
+#        --enable-static --disable-shared ...   (ICU_DATA_FILTER_FILE still set)
+export ICU_DATA_FILTER_FILE="$FILTER_FILE"
+CXXFLAGS="-O2 -std=c++17" CFLAGS="-O2" \
+  ./runConfigureICU "$ICU_PLATFORM" --prefix="$OUT_DIR" \
+  --enable-static --disable-shared --disable-samples --disable-tests --disable-extras --disable-icuio
+make -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)"
+make install
+
+echo ">> slim ICU data ready:"
+ls -la "$OUT_DIR/lib/libicudata.a"
+echo ">> next: SLIM_ICU_LIB_DIR=$OUT_DIR/lib OHOS_NATIVE_SDK=<sdk> scripts/build_dingqiao_harmony_tn.sh"
+echo ">> then run scripts/tn_icu_slim/verify_zero_regression.sh before shipping."
