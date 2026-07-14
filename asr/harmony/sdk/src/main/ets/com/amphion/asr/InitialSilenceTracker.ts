@@ -13,6 +13,10 @@ export class InitialSilenceTracker {
     this.silenceSamples = 0;
   }
 
+  observeAsrResult(text: string, tokenCount: number): void {
+    if (text.length > 0 || tokenCount > 0) this.markSpeechDetected();
+  }
+
   observeVad(processedSamples: number, speechDetected: boolean): boolean {
     if (this.timeoutSent || this.speechDetected || this.thresholdSamples === 0) return false;
     if (speechDetected) {
