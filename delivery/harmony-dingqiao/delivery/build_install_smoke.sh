@@ -59,7 +59,7 @@ done
 [[ "$TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || { echo "[ERROR] --timeout must be a positive integer" >&2; exit 2; }
 
 if [[ -z "$DEVICE" ]]; then
-  TARGETS="$($HDC list targets | tr -d '\r' | awk 'NF')"
+  TARGETS="$($HDC list targets | tr -d '\r' | awk 'NF && $0 != "[Empty]"')"
   TARGET_COUNT="$(printf '%s\n' "$TARGETS" | awk 'NF {count++} END {print count+0}')"
   [[ "$TARGET_COUNT" -eq 1 ]] || {
     echo "[ERROR] expected exactly one HDC target; found $TARGET_COUNT. Pass --device SERIAL." >&2
