@@ -25,6 +25,18 @@
 
 > 批注（参数边界，2026-06-29）：`maxAudioDuration` 默认值为 20000 ms。传入小于 20000 ms 的值时按 20000 ms 处理；当前交付不开放 0 表示不限时。
 
+> 批注（参数上限，2026-07-14）：当前 Android 与 Harmony 均统一按长语音流式实现，`maxAudioDuration` 上限为 28800000 ms；数字与数字字符串均可解析，非有限值或非法字符串不得绕过默认下限。
+
+## 2.1 首段静音与识别模式参数
+
+> 批注（`vadBegin`，2026-07-14）：两端支持显式会话参数 `vadBegin`，范围 500 到 10000 ms；未传时保持禁用。计时依据是写入并被底层 VAD 处理的 PCM 时长，只启动会话而不写音频不会超时。
+
+> 批注（回调顺序，2026-07-14）：持续静音达到 `vadBegin` 后，正常回调一个空的 `onResult(isFinal=true,isLast=true)`，随后回调一次 `onComplete`；不得回调 `SPEECH_BEGIN`、`SPEECH_END` 或 `onError`。阈值边界同时检测到真实语音时语音优先；首次真实起音后，本会话永久取消首段静音计时。
+
+> 批注（模式兼容，2026-07-14）：`recognitionMode` 缺省为 `STREAM=1`，当前不支持 `RECORD=0` 的 SDK 内录音；`recognizerMode` 接受 `short` / `long`，两者均使用长语音流式实现。`locate` 当前仅兼容 `CN`，`sessionGeneralLexicon` 在 V1 不生效。
+
+> 批注（错误码兼容，2026-07-14）：增加 `NO_MIC_PERMISSION=1002200012` 常量；由于当前不支持 SDK 内录音，两端不会主动发出该错误。
+
 ## 3. 写入音频帧
 
 基线原文摘录：

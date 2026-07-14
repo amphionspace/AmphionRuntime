@@ -69,7 +69,7 @@ internal class DingqiaoRecognitionEngine(
     private var voiceprintEnabled = false
     private var speakerVadEnabled = false
     private var voiceprintIds: List<String> = emptyList()
-    private var speechStarted = false
+    private var speechActive = false
 
     init {
         try {
@@ -96,6 +96,7 @@ internal class DingqiaoRecognitionEngine(
         try {
             params.audioInfo.validate()
             params.sessionId.requireValidId()
+            DingqiaoEngineConfig.validateRecognitionMode(params)
             validateVoiceprintParams(params)
 
             maxAudioDurationMs = DingqiaoEngineConfig.maxAudioDurationMs(params)
@@ -106,7 +107,7 @@ internal class DingqiaoRecognitionEngine(
             finishRequested = false
             completeSent = false
             audioMsWritten = 0L
-            speechStarted = false
+            speechActive = false
 
             val eng = engine
                 ?: throw DingqiaoEngineException(
@@ -242,12 +243,20 @@ internal class DingqiaoRecognitionEngine(
     }
 
     private fun createAsrCallback(sessionId: String): AsrCallback = object : AsrCallback {
+        override fun onSpeechBegin() {
+            if (!listening || activeSessionId != sessionId) return
+            speechActive = true
+            notifyEvent(sessionId, DingqiaoEventCode.SPEECH_BEGIN, "speech started.")
+        }
+
+        override fun onInitialSilenceTimeout() {
+            if (!listening || finishRequested || activeSessionId != sessionId) return
+            finishRequested = true
+            session?.stop()
+        }
+
         override fun onPartial(text: String) {
             if (!enablePartial) return
-            if (!speechStarted && text.isNotEmpty()) {
-                speechStarted = true
-                notifyEvent(sessionId, DingqiaoEventCode.SPEECH_BEGIN, "speech started.")
-            }
             dispatchResult(
                 sessionId = sessionId,
                 asrResult = AsrResult(text = text),
@@ -257,7 +266,11 @@ internal class DingqiaoRecognitionEngine(
         }
 
         override fun onEndpoint() {
-            notifyEvent(sessionId, DingqiaoEventCode.SPEECH_END, "speech stopped.")
+            if (!listening || activeSessionId != sessionId) return
+            if (speechActive) {
+                speechActive = false
+                notifyEvent(sessionId, DingqiaoEventCode.SPEECH_END, "speech stopped.")
+            }
         }
 
         override fun onDebug(message: String) {
@@ -409,7 +422,7 @@ internal class DingqiaoRecognitionEngine(
         listening = false
         activeSessionId = null
         finishRequested = false
-        speechStarted = false
+        speechActive = false
         try {
             session?.close()
         } catch (_: Throwable) {
