@@ -262,7 +262,9 @@ interface RecognitionListener {
 | `result` | `string` | 识别文本；final 为警务增强后文本 |
 | `beginTime` | `number?` | 起始时间毫秒，可能为空 |
 | `endTime` | `number?` | 结束时间毫秒，可能为空 |
-| `speakerSimilarity` | `number?` | final 且启用声纹能力时返回；有效语音不足 1.5 秒时因无法可靠打分而省略 |
+| `speakerSimilarity` | `number?` | final 且启用声纹能力时返回 |
+
+> 交付批注 VP-20260715-01（2026-07-15）：`speakerSimilarity` 是可选值。有效语音短于 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时无法可靠打分，SDK 保留识别结果但省略该字段；调用方不得把字段缺失当作会话结束或识别失败。
 
 事件码：
 
@@ -299,7 +301,7 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 内存声纹 extractor 由 `unloadModel()` / `unloadRuntime()` 一并释放；HAR 内置的模型文件和已注册的 embedding 属于持久数据，不随内存模型卸载。调用 `unloadModel()` 后再次使用声纹能力会重新按需加载 extractor，但无需重新注册声纹。
 
-仅启用 `enableVoiceprintVerification` 时，SDK 不依据相似度丢弃识别结果；final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧判定。启用 `enableSpeakerVad` 时，SDK 会在流式阶段执行目标说话人判断，可拒绝非目标说话人片段，并在目标说话人离场后提前切句。
+仅启用 `enableVoiceprintVerification` 时，SDK 不依据相似度丢弃识别结果；达到有效语音门槛的 final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧判定。未达到门槛的 final 仍返回识别结果，但省略相似度。启用 `enableSpeakerVad` 时，SDK 会在流式阶段执行目标说话人判断，可拒绝非目标说话人片段，并在目标说话人离场后提前切句。
 
 ## 8. 授权
 
