@@ -406,3 +406,10 @@ from,to,category
 # WeSpace 归一（ASR 常输出 WE SPACE；WeComm 截断成 WE 暂不修，裸 WE 无法安全映射）
 WE SPACE,WeSpace,term
 We Space,WeSpace,term
+# ── 甲方 0713 UI 术语 TTS 复测漏词（from 无子串碰撞）──
+暗流圈,交流圈,appname
+梨园核查,人员核查,appname
+请勿打卡,勤务打卡,appname
+和查详情,核查详情,appname
+与警惕性反馈,预警提醒反馈,appname
+近五次打卡记录,近5次打卡记录,appname
