@@ -136,6 +136,10 @@ class AarStability1000DeviceTest {
         val leakChecks = case.optJSONArray("leak_checks") ?: JSONArray()
         val before = Snapshot.capture()
         var leakCheckBefore = before
+        var leakBaselineMode = "cold"
+        var leakWarmupBefore: Snapshot? = null
+        var leakWarmupAfter: Snapshot? = null
+        var leakWarmupError = ""
         val sampler = ResourceSampler(context).also { it.start() }
         val startedAt = SystemClock.elapsedRealtime()
         val errors = mutableListOf<String>()
@@ -161,6 +165,21 @@ class AarStability1000DeviceTest {
             val lifecycleRequired = requiresIsolatedEngine(operation)
             if (lifecycleRequired && !lifecyclePolicy.allowInline()) {
                 return skippedLifecycleResult(index, id, category, operation, expectedStatus, before, startedAt)
+            }
+
+            if (shouldWarmLeakBaseline(leakChecks, expectedStatus)) {
+                val warmup = runCatching {
+                    warmUpLeakBaseline(sharedEngineHolder, id, params, expectedStatus, text)
+                }
+                warmup.onSuccess { snapshots ->
+                    leakWarmupBefore = snapshots.first
+                    leakWarmupAfter = snapshots.second
+                    leakCheckBefore = snapshots.second
+                    leakBaselineMode = "warm"
+                }.onFailure { error ->
+                    leakWarmupError = "${error::class.java.simpleName}:${error.message}"
+                    errors += "leak warmup failed: $leakWarmupError"
+                }
             }
 
             if (operation.contains("query", ignoreCase = true)) {
@@ -538,6 +557,10 @@ class AarStability1000DeviceTest {
             .put("profilingInfo", profilingInfo)
             .put("loopDetails", loopDetails)
             .put("before", before.toJson())
+            .put("leakBaselineMode", leakBaselineMode)
+            .put("leakWarmupBefore", leakWarmupBefore?.toJson() ?: JSONObject.NULL)
+            .put("leakWarmupAfter", leakWarmupAfter?.toJson() ?: JSONObject.NULL)
+            .put("leakWarmupError", leakWarmupError)
             .put("leakCheckBaseline", leakCheckBefore.toJson())
             .put("after", after.toJson())
             .put("resourceStats", resourceStats.toJson())
@@ -739,6 +762,42 @@ class AarStability1000DeviceTest {
         }
         return errors
     }
+
+    private fun shouldWarmLeakBaseline(checks: JSONArray, expectedStatus: String): Boolean =
+        expectedStatus == "PASS" &&
+            checks.length() > 0 &&
+            instrumentationArg("warmLeakBaseline") != "false"
+
+    private fun warmUpLeakBaseline(
+        sharedEngineHolder: SharedEngineHolder,
+        id: String,
+        params: JSONObject,
+        expectedStatus: String,
+        text: String,
+    ): Pair<Snapshot, Snapshot> {
+        val beforeWarmup = Snapshot.capture()
+        val engine = sharedEngineHolder.get()
+        val listener = RecordingListener()
+        engine.setListener(listener)
+        val requestId = "leak-warmup-$id-${SystemClock.elapsedRealtime()}"
+        engine.speak(
+            text,
+            speakParams(requestId, params.withoutRequestId(), expectedStatus, text),
+        )
+        if (!listener.terminalLatch.await(SHARED_ENGINE_WARMUP_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            throw IllegalStateException("leak warmup terminal callback timeout")
+        }
+        if (listener.errorCallbacks > 0 || listener.errors.isNotEmpty()) {
+            throw IllegalStateException("leak warmup callback error: ${listener.errors.joinToString(";")}")
+        }
+        SystemClock.sleep(LEAK_BASELINE_SETTLE_MS)
+        return beforeWarmup to Snapshot.capture()
+    }
+
+    private fun JSONObject.withoutRequestId(): JSONObject =
+        JSONObject(toString()).also { copy ->
+            copy.remove("requestId")
+        }
 
     private fun loadCases(): List<JSONObject> =
         InstrumentationRegistry.getInstrumentation().context.assets.open(inputAssetName()).bufferedReader(Charsets.UTF_8).useLines { lines ->
@@ -1154,6 +1213,7 @@ class AarStability1000DeviceTest {
         const val LIFECYCLE_LOOP_COOLDOWN_MS = 250L
         const val SHARED_ENGINE_WARMUP_TIMEOUT_MS = 30_000L
         const val SHARED_ENGINE_WARMUP_TEXT = "预热。"
+        const val LEAK_BASELINE_SETTLE_MS = 1_000L
         const val ASYNC_ERROR_SETTLE_MS = 300L
         val HAN_RANGE = 0x4E00..0x9FFF
     }
