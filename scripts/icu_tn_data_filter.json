@@ -1,0 +1,33 @@
+{
+  "//": "ICU_DATA_FILTER_FILE for the Dingqiao TN frontend (en_tts / zh_tts).",
+  "//scope": "Derived from the ACTUAL ICU call surface of the TN engine (see TN_SIZE_OPT_REPORT.md). TN uses ONLY: RuleBasedNumberFormat(URBNF_SPELLOUT) for Locale::getEnglish() + Locale::getChinese(), plus ICU regex, UnicodeString and Locale. No collation / break-iterator / date / calendar / currency / units / transliterator / other locales are used.",
+  "//status": "PROPOSAL — NOT built, NOT verified. Must pass the byte-for-byte + latency regression gate (report section 5) before it can replace the vendored full libicudata.a.",
+  "//tighten": "Start permissive (this file). After the regression gate is green, tighten by removing any tree still shown unused.",
+
+  "localeFilter": {
+    "filterType": "language",
+    "includelist": [
+      "en",
+      "zh"
+    ]
+  },
+
+  "featureFilters": {
+    "rbnf_tree": "include",
+    "locales_tree": "include",
+    "misc": "include",
+
+    "coll_tree": "exclude",
+    "brkitr_tree": "exclude",
+    "brkitr_rules": "exclude",
+    "brkitr_dictionaries": "exclude",
+    "curr_tree": "exclude",
+    "curr_supplemental": "exclude",
+    "lang_tree": "exclude",
+    "region_tree": "exclude",
+    "unit_tree": "exclude",
+    "zone_tree": "exclude",
+    "translit": "exclude",
+    "conversion_mappings": "exclude"
+  }
+}
