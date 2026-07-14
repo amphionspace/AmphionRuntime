@@ -20,12 +20,15 @@ class PronunciationRound15FrontendDeviceTest {
     fun currentDeviceFrontendMatchesRound15GoldenPinyin() {
         val inputAsset = instrumentationArg("inputAsset")
             ?: "pronunciation-golden-round3-results-with-pinyin-fixed-round15.jsonl"
+        val useTn = instrumentationArg("useTn")?.toBooleanStrictOrNull() ?: true
+        val workPath = instrumentationArg("workPath")
+            ?: File(context.cacheDir, "round15-device-work").absolutePath
         val runId = "pronunciation-round15-device-${System.currentTimeMillis()}"
         val resultFile = File(outputDir, "results-$runId.jsonl")
         val failFile = File(outputDir, "fail-cases-with-error-pinyin-$runId.jsonl")
         val summaryFile = File(outputDir, "summary-$runId.json")
 
-        val layout = LitsTtsAssetInstaller.ensureInstalled(context, File(context.cacheDir, "round15-device-work").absolutePath)
+        val layout = LitsTtsAssetInstaller.ensureInstalled(context, workPath)
         val reversePinyin = reversePinyinMap(layout.rootDir.resolve(LitsTtsAssetRegistry.PINYIN_TO_TOKENS))
         val summary = Summary()
         val byCategory = linkedMapOf<String, Summary>()
@@ -38,21 +41,31 @@ class PronunciationRound15FrontendDeviceTest {
                 val row = JSONObject(line)
                 val id = row.getString("id")
                 val category = row.getString("category")
-                val language = row.optString("language", "zh-en")
-                val languageContext = row.optString("languageContext", row.optString("language_context", language))
-                val tnText = row.getString("tnText")
-                val goldenPinyin = row.optJSONArray("golden_pinyin").toStringList()
+                val defaultLanguage = if (category == "en-core") "en-US" else "zh-en"
+                val language = row.optionalString("language") ?: defaultLanguage
+                val languageContext = row.optionalString("languageContext")
+                    ?: row.optionalString("language_context")
+                    ?: language
+                val rawText = row.optString("text", row.optString("tnText"))
+                val tnText = row.optString("tnText", rawText)
+                val expectedPinyin = expectedPronunciation(row)
                 val result = try {
-                    val currentTokens = LitsTtsFrontend.debugTokensForNormalizedForTest(layout, tnText, language, languageContext)
+                    val currentTokens = if (useTn) {
+                        LitsTtsFrontend.debugTokensForTest(layout, rawText, language, languageContext)
+                    } else {
+                        LitsTtsFrontend.debugTokensForNormalizedForTest(layout, tnText, language, languageContext)
+                    }
                     val currentPinyin = tokensToPronunciationSequence(currentTokens, reversePinyin)
-                    val errorPinyin = diffPinyin(currentPinyin, goldenPinyin)
-                    val matched = currentPinyin == goldenPinyin
+                    val errorPinyin = diffPinyin(currentPinyin, expectedPinyin)
+                    val matched = currentPinyin == expectedPinyin
                     JSONObject()
                         .put("id", id)
                         .put("category", category)
-                        .put("text", row.optString("text"))
+                        .put("text", rawText)
                         .put("tnText", tnText)
-                        .put("golden_pinyin", JSONArray(goldenPinyin))
+                        .put("expected_pinyin", JSONArray(expectedPinyin))
+                        .put("expected_source", expectedSource(row))
+                        .put("golden_pinyin", row.optJSONArray("golden_pinyin") ?: JSONArray())
                         .put("current_pinyin", JSONArray(currentPinyin))
                         .put("round15_actual_pinyin", row.optJSONArray("actual_pinyin") ?: JSONArray())
                         .put("pinyin_match", matched)
@@ -63,7 +76,7 @@ class PronunciationRound15FrontendDeviceTest {
                     JSONObject()
                         .put("id", id)
                         .put("category", category)
-                        .put("text", row.optString("text"))
+                        .put("text", rawText)
                         .put("tnText", tnText)
                         .put("status", "ERROR")
                         .put("error", "${error::class.java.simpleName}:${error.message}")
@@ -84,7 +97,10 @@ class PronunciationRound15FrontendDeviceTest {
         val summaryJson = JSONObject()
             .put("inputAsset", inputAsset)
             .put("devicePackage", context.packageName)
-            .put("integrationPath", "sdk connectedDebugAndroidTest on device")
+            .put("integrationPath", "sdk connectedDebugAndroidTest with external workPath")
+            .put("useTn", useTn)
+            .put("workPath", workPath)
+            .put("modelLayout", layout.debugSummary())
             .put("resultFile", resultFile.absolutePath)
             .put("failFile", failFile.absolutePath)
             .put("total", summary.total)
@@ -135,6 +151,26 @@ class PronunciationRound15FrontendDeviceTest {
 
         private fun instrumentationArg(name: String): String? =
             InstrumentationRegistry.getArguments().getString(name)?.takeIf { it.isNotBlank() }
+
+        private fun expectedPronunciation(row: JSONObject): List<String> =
+            row.optJSONObject("actual_sandhi_pronunciation")
+                ?.optJSONArray("phonemes")
+                .toStringList()
+                .ifEmpty {
+                    row.optJSONObject("correct_annotation")
+                        ?.optJSONArray("phonemes")
+                        .toStringList()
+                }
+                .ifEmpty { row.optJSONArray("golden_pinyin").toStringList() }
+
+        private fun expectedSource(row: JSONObject): String =
+            when {
+                row.optJSONObject("actual_sandhi_pronunciation")?.optJSONArray("phonemes") != null ->
+                    "actual_sandhi_pronunciation.phonemes"
+                row.optJSONObject("correct_annotation")?.optJSONArray("phonemes") != null ->
+                    "correct_annotation.phonemes"
+                else -> "golden_pinyin"
+            }
 
         private fun reversePinyinMap(file: File): Map<List<String>, String> {
             val obj = JSONObject(file.readText(Charsets.UTF_8)).getJSONObject("pinyin_to_tokens")
@@ -215,5 +251,8 @@ class PronunciationRound15FrontendDeviceTest {
             if (this == null) return emptyList()
             return (0 until length()).map { getString(it) }
         }
+
+        private fun JSONObject.optionalString(name: String): String? =
+            if (has(name) && !isNull(name)) optString(name).takeIf { it.isNotBlank() } else null
     }
 }

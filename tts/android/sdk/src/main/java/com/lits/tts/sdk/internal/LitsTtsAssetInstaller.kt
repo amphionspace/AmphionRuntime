@@ -175,10 +175,6 @@ internal object LitsTtsAssetInstaller {
 
     private fun discoverExternalLayout(installRoot: File): InstalledLayout? {
         if (!installRoot.isDirectory) return null
-        val bundledRoot = installRoot
-            .resolve(LitsTtsAssetRegistry.MODEL_ID)
-            .resolve(LitsTtsAssetRegistry.MODEL_VERSION)
-            .absoluteFile
         val manifests = installRoot.walkTopDown()
             .maxDepth(3)
             .filter { it.isFile && it.name == LitsTtsAssetRegistry.MANIFEST }
@@ -186,7 +182,6 @@ internal object LitsTtsAssetInstaller {
         return manifests
             .mapNotNull { manifestFile ->
                 val rootDir = manifestFile.parentFile?.absoluteFile ?: return@mapNotNull null
-                if (rootDir == bundledRoot) return@mapNotNull null
                 if (rootDir.resolve(".version").isFile || rootDir.resolve(".asset_signature").isFile) {
                     return@mapNotNull null
                 }
