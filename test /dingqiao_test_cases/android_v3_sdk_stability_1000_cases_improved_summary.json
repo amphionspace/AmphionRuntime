@@ -1,0 +1,119 @@
+{
+  "caseVersion": "dingqiao-stability-improved-v2",
+  "categorySummary": {
+    "engine-create-query": {
+      "avgTextLength": 49.33,
+      "count": 75,
+      "leakCheckCases": 25,
+      "maxTextLength": 64,
+      "minTextLength": 36
+    },
+    "error-validation-recovery": {
+      "avgTextLength": 758.71,
+      "count": 75,
+      "leakCheckCases": 75,
+      "maxTextLength": 20000,
+      "minTextLength": 0
+    },
+    "fd-thread-process-leak": {
+      "avgTextLength": 210.4,
+      "count": 90,
+      "leakCheckCases": 90,
+      "maxTextLength": 420,
+      "minTextLength": 72
+    },
+    "lifecycle-state-machine": {
+      "avgTextLength": 60.71,
+      "count": 85,
+      "leakCheckCases": 43,
+      "maxTextLength": 96,
+      "minTextLength": 36
+    },
+    "listener-callback-contract": {
+      "avgTextLength": 60.36,
+      "count": 55,
+      "leakCheckCases": 19,
+      "maxTextLength": 96,
+      "minTextLength": 36
+    },
+    "longtext-tn-stability": {
+      "avgTextLength": 1757.5,
+      "count": 80,
+      "leakCheckCases": 80,
+      "maxTextLength": 3600,
+      "minTextLength": 600
+    },
+    "memory-leak-soak": {
+      "avgTextLength": 357.16,
+      "count": 110,
+      "leakCheckCases": 110,
+      "maxTextLength": 1600,
+      "minTextLength": 48
+    },
+    "params-boundary-runtime": {
+      "avgTextLength": 49.11,
+      "count": 65,
+      "leakCheckCases": 0,
+      "maxTextLength": 64,
+      "minTextLength": 36
+    },
+    "playback-channel-audio-route": {
+      "avgTextLength": 88.09,
+      "count": 45,
+      "leakCheckCases": 45,
+      "maxTextLength": 140,
+      "minTextLength": 48
+    },
+    "request-queue-scheduler": {
+      "avgTextLength": 78.4,
+      "count": 80,
+      "leakCheckCases": 80,
+      "maxTextLength": 128,
+      "minTextLength": 40
+    },
+    "smoke-api": {
+      "avgTextLength": 47.36,
+      "count": 25,
+      "leakCheckCases": 0,
+      "maxTextLength": 64,
+      "minTextLength": 32
+    },
+    "streaming-config-buffering": {
+      "avgTextLength": 200.0,
+      "count": 80,
+      "leakCheckCases": 80,
+      "maxTextLength": 360,
+      "minTextLength": 80
+    },
+    "stress-recovery-regression": {
+      "avgTextLength": 225.0,
+      "count": 60,
+      "leakCheckCases": 60,
+      "maxTextLength": 420,
+      "minTextLength": 80
+    },
+    "workpath-resource-load": {
+      "avgTextLength": 49.33,
+      "count": 75,
+      "leakCheckCases": 75,
+      "maxTextLength": 64,
+      "minTextLength": 36
+    }
+  },
+  "improvements": [
+    "ordinary API/state/callback/queue/playback cases use short focused text",
+    "long text is retained only for longtext, long-soak, selected resource, and stress scenarios",
+    "timeouts are tuned from text length, speed, and scenario cost",
+    "setup contains actualTextLength, textProfile, expected loop/burst counts, and resource snapshot requirements",
+    "setup contains testPoint and diversityKey to avoid duplicate scenario intent",
+    "error cases preserve invalid text payloads while strengthening recovery-context payloads"
+  ],
+  "jsonl": "/Users/amphion/Documents/Lits_delivery/dingqiao_test_cases/android_v3_sdk_stability_1000_cases_improved.jsonl",
+  "operationCount": 81,
+  "sourceGenerator": "/Users/amphion/Documents/Lits_delivery/docs/android-harmony-v3-parity-1000/generate_v3_sdk_stability_1000_cases.py",
+  "statusCounts": {
+    "EXPECTED_ERROR": 103,
+    "PASS": 897
+  },
+  "total": 1000
+}
