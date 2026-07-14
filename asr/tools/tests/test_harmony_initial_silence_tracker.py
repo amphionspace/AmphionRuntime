@@ -23,12 +23,23 @@ class HarmonyInitialSilenceTrackerTest(unittest.TestCase):
             cwd=REPO_ROOT,
         )
 
-    def test_asr_speech_evidence_permanently_disarms_timeout(self) -> None:
+    def test_text_evidence_permanently_disarms_timeout(self) -> None:
         self.run_tracker(
             """
             const tracker = new InitialSilenceTracker(500, 16000);
             assert.equal(tracker.observeVad(6400, false), false);
-            tracker.markSpeechDetected();
+            tracker.observeAsrResult('hello', 0);
+            assert.equal(tracker.observeVad(16000, false), false);
+            assert.equal(tracker.hasTimedOut(), false);
+            """
+        )
+
+    def test_token_only_evidence_permanently_disarms_timeout(self) -> None:
+        self.run_tracker(
+            """
+            const tracker = new InitialSilenceTracker(500, 16000);
+            assert.equal(tracker.observeVad(6400, false), false);
+            tracker.observeAsrResult('', 1);
             assert.equal(tracker.observeVad(16000, false), false);
             assert.equal(tracker.hasTimedOut(), false);
             """

@@ -1224,11 +1224,11 @@ export class AsrSession {
     }
 
     const r = this.recognizer.getResult(this.stream);
+    this.initialSilenceTracker.observeAsrResult(r.text, r.tokens.length);
     if (isFinal) {
       this.dispatchFinal(false, decodeDurationMs, isLastFinal);
       if (!this.closed) this.finishUtterance(restartAfterFinal);
     } else if (r.text !== this.lastPartialText) {
-      if (r.text.length > 0 || r.tokens.length > 0) this.initialSilenceTracker.markSpeechDetected();
       this.lastPartialText = r.text;
       // When speaker VAD is on, hold partials until the target speaker is confirmed so a non-target
       // prefix never leaks to the UI (Android postPartial gate).
@@ -1247,9 +1247,7 @@ export class AsrSession {
 
   private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number, isLast: boolean = false): void {
     const native = this.recognizer.getResult(this.stream);
-    if (native.text.length > 0 || native.tokens.length > 0) {
-      this.initialSilenceTracker.markSpeechDetected();
-    }
+    this.initialSilenceTracker.observeAsrResult(native.text, native.tokens.length);
     const result = new AsrResult();
     result.text = native.text;
     result.tokens = native.tokens;
