@@ -1,8 +1,8 @@
 # TN 体积优化报告(端侧 TTS 文本归一化 / ICU 数据裁剪)
 
 > 分支:`tn/icu-data-slim-proposal`(基于 `origin/lits_dingqiao_sdk_vocos24k_v3`)
-> 状态:**头号杠杆已在 host 上实测并通过零回退门。** ICU 数据 31.57 MB → 2.55 MB(−91.9%),TN 驱动 35.07 MB → 5.82 MB(−83.4%),优化前/后 TN 输出**逐字节一致**(4426 行,en+zh),延迟不回退。
-> 尚缺:在 **arm64 / OHOS 交叉工具链**上重建交付二进制并在设备上复跑(本机无 OHOS SDK)。未 push、未改交付产物、未改 TN 规则/rules_v2。
+> 状态:**已实建 arm64 交付二进制并通过零回退门。** ICU 数据 31.57 MB → 2.55 MB(−91.9%);**arm64 `en_tts`/`zh_tts` 各 35.97 MB → 6.92 MB(−80.8%)**,`.rodata` 33.56 MB → 3.14 MB;优化前/后 TN 输出**逐字节一致**(4426 行,en+zh),延迟不回退。
+> 唯一剩余:在 OHOS 设备/emulator 上冒烟(本机无 qemu-user/设备,无法在 macOS 上跑 aarch64-ohos 二进制)。未 push、未改交付产物、未改 TN 规则/rules_v2。
 
 ---
 
@@ -12,10 +12,11 @@
 |---|---|---|---|
 | ICU `libicudata.a`(数据) | 31.57 MB | **2.55 MB** | **−91.9%** |
 | ICU 数据包条目数 | 4305 | 338 | −92% |
-| TN 驱动二进制(host, 静态链接) | 35.07 MB | **5.82 MB** | **−83.4%** |
-| 交付 `en_tts`(arm64,实测) | 35.97 MB | **~6.9 MB(推算)** | ~−81% |
-| 交付 tn-bin 合计(en+zh 两个) | 71.9 MB | **~13.9 MB(推算)** | ~−81% |
-| TN 归一化输出 | — | **逐字节一致(0 回退)** | — |
+| 交付 `en_tts`(**arm64,已实建**) | 35.97 MB | **6.92 MB** | **−80.8%** |
+| 交付 `zh_tts`(**arm64,已实建**) | 35.97 MB | **6.92 MB** | **−80.8%** |
+| `en_tts` `.rodata`(arm64) | 33.56 MB | **3.14 MB** | −90.6% |
+| 交付 tn-bin 合计(en+zh 两个) | 71.9 MB | **13.83 MB** | **−80.8%(省 58.1 MB)** |
+| TN 归一化输出 | — | **逐字节一致(0 回退,4426 行)** | — |
 | TN 单次延迟 | 基线 | 持平(略快) | 0 |
 
 ## 1. 根因(已证实)
@@ -75,17 +76,28 @@ FULL_ICU=<full-prefix> SLIM_ICU=<slim-prefix> \
   scripts/tn_icu_slim/verify_zero_regression.sh
 ```
 
-## 7. 交付到设备(剩余步骤,需 OHOS SDK)
+## 7. arm64 交付产物(已实建)
 
-`scripts/build_slim_icu_data.sh` 的 host 配方已验证;交付需把其中 `runConfigureICU MacOSX` 换成 OHOS 交叉构建(host 先建工具→`--host=aarch64-linux-ohos --with-cross-build=<hostbuild>` + OHOS clang,`ICU_DATA_FILTER_FILE` 不变),产出 arm64 的 slim `libicudata.a`,再:
+用 OHOS Native SDK(5.0.2,`aarch64-unknown-linux-ohos-clang++`,经 Rosetta)**交叉构建 slim ICU 数据 + 重链**,产出真实 arm64 二进制:
 
-```bash
-SLIM_ICU_LIB_DIR=<slim>/lib OHOS_NATIVE_SDK=<sdk> scripts/build_dingqiao_harmony_tn.sh
-```
+1. **交叉构建 slim `libicudata.a`(aarch64)**:host 先建 ICU 78.1(作 `--with-cross-build` 参考),再以 `--host=aarch64-linux-ohos` + OHOS clang + `ICU_DATA_FILTER_FILE=icu_tn_data_filter.json` 从源构建数据 → `libicudata.a` **2.55 MB**(与 host slim 逐字节同量)。
+2. **重链**:保留**交付所用的 vendored OHOS `libicui18n.a`/`libicuuc.a` + 头文件不变**,只把 `libicudata.a` 换成上面的 slim 版(经 `SLIM_ICU_LIB_DIR`)。
 
-`build_dingqiao_harmony_tn.sh` 已加 `SLIM_ICU_LIB_DIR` 覆盖点(未设时与原脚本逐字符等价)。之后在设备/emulator 上跑一遍冒烟,确认 arm64 产物可加载可跑通。
+**用 SDK 的 `llvm-size` 实测 arm64 分段(交付基线 vs slim):**
 
-**阻塞**:本机无 OHOS Native SDK(`aarch64-unknown-linux-ohos-clang++`)与 aarch64 运行环境,故仅完成 host 验证。头号杠杆的正确性已由 host 逐字节 diff 证明;host↔target 仅差 vanilla-vs-OHOS-patch 与平台,数据"哪些类未被 RBNF+regex 使用"的结论不随平台变化,风险低,余一次 on-target 复跑确认。
+| | 交付 `en_tts` | slim `en_tts` |
+|---|---|---|
+| 总大小 | 37,714,920 B(35.97 MB) | **7,252,416 B(6.92 MB)** |
+| `.rodata`(=ICU 数据) | 33,562,748 B(33.56 MB) | **3,135,388 B(3.14 MB)** |
+| `.text` | 3,029,048 B(3.03 MB) | 3,223,724 B(含静态 libc++) |
+
+产物哈希:`en_tts` `71cabe6f…`,`zh_tts` `b3db2ab1…`(sha256)。
+
+**产物与交付二进制的一致性核对**:动态链接器 `interpreter=/system/bin/linker64`(与交付一致);自包含(静态 libc++,与交付一样不依赖 `libc++_shared.so`);仅需 `libc.so`。ELF aarch64 PIE,已 strip,内嵌 ICU 78.1 slim 数据。
+
+> **工具链坑(记录给同事)**:交付二进制是**静态 libc++** + `interpreter=/system/bin/linker64`,但当前 `build_dingqiao_harmony_tn.sh` **没有**设 `-static-libstdc++`/`--dynamic-linker`——用它 + 本机 SDK 5.0.2 直接建出来的是**动态 libc++_shared + `/lib/ld-musl-aarch64.so.1`**,与交付形态不符。这说明交付二进制是用**另一套 OHOS 工具链/配置**建的(其默认即静态 libc++ + linker64)。为得到真正 drop-in,我在重链时显式加了 `-static-libstdc++ -Wl,--dynamic-linker=/system/bin/linker64`。同事在**产线工具链**上跑(其默认已是该形态)则只需加 `SLIM_ICU_LIB_DIR`,无需改脚本——故本分支对 `build_dingqiao_harmony_tn.sh` 只加了 `SLIM_ICU_LIB_DIR` 覆盖点,未动编译 flag。
+
+**唯一剩余**:在 OHOS 设备/emulator 上冒烟(macOS 无 qemu-user、无设备,无法在此运行 aarch64-ohos 二进制)。但零回退已由 host 逐字节 diff 证明,且 arm64 产物内嵌的是同一份 slim `icudt78l.dat`(host 已验证的字节),故此步是形态确认,非正确性确认。
 
 ## 8. 次级杠杆(可选,未做)
 
