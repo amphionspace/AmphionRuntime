@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run repeatable real-audio stress tests against the Harmony Dingqiao demo."""
+"""Run repeatable real-audio stress tests against the Harmony Dingqiao SDK."""
 
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ class StressFailure(RuntimeError):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Convert local WAVs, run the headless Harmony ASR stress mode, and check RSS growth."
+        description="Drive the Harmony ASR SDK through a headless test carrier and check its contracts."
     )
     parser.add_argument("--data-dir", type=Path, default=Path.home() / "Downloads" / "testdata")
     parser.add_argument(
@@ -83,6 +83,7 @@ def parse_args() -> argparse.Namespace:
             "edge",
             "reentrant",
             "start-cancel",
+            "user-sequence",
             "numeric-edge",
         ),
         default="burst",
@@ -467,7 +468,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         f"{inventory['total_valid_duration_seconds'] / 3600:.2f} h; selected {len(selected)} files"
     )
     if not args.skip_build_install:
-        print("[INFO] building, installing, and smoke-testing the Harmony demo")
+        print("[INFO] building, installing, and smoke-testing the Harmony SDK test carrier")
         build_install(device)
 
     print(f"[INFO] sending {sum(int(item['pcm_bytes']) for item in mapping) / 1024 / 1024:.1f} MiB PCM payload")
@@ -508,7 +509,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         elif process_seen:
             capture_hilog(hdc, artifact_dir / "hilog.txt")
             write_samples(artifact_dir / "memory.csv", samples)
-            raise StressFailure("demo process exited before the stress summary was written")
+            raise StressFailure("SDK test carrier exited before the stress summary was written")
 
         temporary_result = artifact_dir / "result.tmp"
         if hdc.app_recv(remote_result, temporary_result):
@@ -554,7 +555,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     failures: list[str] = []
     if app_summary.get("status") != "PASS":
         overall = "FAIL"
-        failures.append("app contract checks failed")
+        failures.append("SDK contract checks failed")
     if memory.get("status") == "FAIL":
         overall = "FAIL"
         failures.append("RSS/thread growth exceeded threshold")
@@ -596,7 +597,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     }
     (artifact_dir / "report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2) + "\n")
     print(
-        f"[{overall}] app={app_summary.get('status')} memory={memory.get('status')} "
+        f"[{overall}] sdk={app_summary.get('status')} memory={memory.get('status')} "
         f"emptyFinalRate={empty_rate:.3f} artifacts={artifact_dir}"
     )
     if "rss_growth_mb" in memory:

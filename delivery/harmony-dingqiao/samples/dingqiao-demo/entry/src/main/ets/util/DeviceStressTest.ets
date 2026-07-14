@@ -109,6 +109,105 @@ class StressListener implements RecognitionListener {
   }
 }
 
+class CallbackRecord {
+  sessionId: string;
+  kind: string;
+  isLast: boolean;
+  errorCode: number;
+
+  constructor(sessionId: string, kind: string, isLast: boolean = false, errorCode: number = 0) {
+    this.sessionId = sessionId;
+    this.kind = kind;
+    this.isLast = isLast;
+    this.errorCode = errorCode;
+  }
+}
+
+class SequenceListener implements RecognitionListener {
+  events: SessionEvents = new SessionEvents();
+  records: CallbackRecord[] = [];
+
+  onStart(sessionId: string, _eventMessage?: string): void {
+    this.events.starts += 1;
+    this.records.push(new CallbackRecord(sessionId, 'start'));
+  }
+
+  onEvent(_sessionId: string, eventCode: number, _message: string): void {
+    if (eventCode === DingqiaoEventCode.SPEECH_BEGIN) this.events.speechBegins += 1;
+    if (eventCode === DingqiaoEventCode.SPEECH_END) this.events.speechEnds += 1;
+  }
+
+  onResult(sessionId: string, result: SpeechRecognitionResult): void {
+    if (!result.isFinal) return;
+    this.events.finals += 1;
+    this.events.finalChars += result.result.length;
+    this.events.finalTexts.push(result.result);
+    this.events.lastIsLast = result.isLast;
+    if (result.isLast) this.events.lastFinals += 1;
+    this.records.push(new CallbackRecord(sessionId, 'final', result.isLast));
+  }
+
+  onComplete(sessionId: string, _eventMessage?: string): void {
+    this.events.completes += 1;
+    this.records.push(new CallbackRecord(sessionId, 'complete'));
+  }
+
+  onError(sessionId: string, errorCode: number, _message: string): void {
+    this.events.errors += 1;
+    this.events.errorCodes.push(errorCode);
+    this.records.push(new CallbackRecord(sessionId, 'error', false, errorCode));
+  }
+
+  count(sessionId: string, kind: string): number {
+    let count = 0;
+    for (let i = 0; i < this.records.length; i++) {
+      if (this.records[i].sessionId === sessionId && this.records[i].kind === kind) count += 1;
+    }
+    return count;
+  }
+
+  lastCount(sessionId: string): number {
+    let count = 0;
+    for (let i = 0; i < this.records.length; i++) {
+      const record = this.records[i];
+      if (record.sessionId === sessionId && record.kind === 'final' && record.isLast) count += 1;
+    }
+    return count;
+  }
+
+  errorCount(sessionId: string, errorCode: number): number {
+    let count = 0;
+    for (let i = 0; i < this.records.length; i++) {
+      const record = this.records[i];
+      if (record.sessionId === sessionId && record.kind === 'error' && record.errorCode === errorCode) count += 1;
+    }
+    return count;
+  }
+
+  terminalOrderOk(sessionId: string): boolean {
+    let lastIndex = -1;
+    let completeIndex = -1;
+    for (let i = 0; i < this.records.length; i++) {
+      const record = this.records[i];
+      if (record.sessionId !== sessionId) continue;
+      if (record.kind === 'final' && record.isLast) {
+        if (lastIndex >= 0) return false;
+        lastIndex = i;
+      }
+      if (record.kind === 'complete') {
+        if (completeIndex >= 0) return false;
+        completeIndex = i;
+      }
+    }
+    if (lastIndex < 0 || completeIndex < 0 || lastIndex > completeIndex) return false;
+    for (let i = completeIndex + 1; i < this.records.length; i++) {
+      const record = this.records[i];
+      if (record.sessionId === sessionId && (record.kind === 'final' || record.kind === 'complete')) return false;
+    }
+    return true;
+  }
+}
+
 class ReentrantCompleteListener implements RecognitionListener {
   private events: SessionEvents;
   private engine: SpeechRecognitionEngine;
@@ -736,6 +835,89 @@ async function runStartCancelCycle(engine: SpeechRecognitionEngine, entry: Corpu
   return finishCycle(index, entry.id, events, startedAt, ok, detail);
 }
 
+// Mirrors a real caller under impatient user input: cancel and immediately reuse the engine, try to
+// restart while finish is still settling, then deliver stale calls from the old session while the new
+// one is active. Text accuracy is deliberately irrelevant; only session isolation and callback order
+// are accepted as success criteria.
+async function runUserSequenceCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const listener = new SequenceListener();
+  engine.setListener(listener);
+  const cancelSession = `user-cancel-${index}`;
+  const finishSession = `user-finish-${index}`;
+  const nextSession = `user-next-${index}`;
+
+  engine.startListening(startParams(cancelSession, 'user-sequence', index));
+  if (!await waitFor((): boolean => listener.count(cancelSession, 'start') === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, listener.events, startedAt, false, 'cancel-start-timeout');
+  }
+  const cancelFrames: number[] = [0, 1, 25];
+  const cancelFrameCount = cancelFrames[index % cancelFrames.length];
+  if (cancelFrameCount > 0) {
+    await feedPcmFile(engine, cancelSession, entry.path, cancelFrameCount, 0);
+  }
+  engine.cancel(cancelSession);
+  const idleAfterCancel = !engine.isBusy();
+
+  // No settling delay: this is the common stop/start gesture that exposes stale callback ownership.
+  engine.startListening(startParams(finishSession, 'user-sequence', index));
+  if (!await waitFor((): boolean => listener.count(finishSession, 'start') === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, listener.events, startedAt, false, 'restart-after-cancel-timeout');
+  }
+  const firstFed = await feedPcmFile(engine, finishSession, entry.path, 80, 0);
+  if (firstFed === 0) {
+    engine.cancel(finishSession);
+    return finishCycle(index, entry.id, listener.events, startedAt, false, 'empty-pcm');
+  }
+  const finishLastBefore = listener.lastCount(finishSession);
+  engine.finish(finishSession);
+
+  // Depending on whether native stop completed synchronously, immediate restart may either start or
+  // return ENGINE_BUSY. Both are valid, but a silent lost request is not.
+  engine.startListening(startParams(nextSession, 'user-sequence', index));
+  await waitFor((): boolean => listener.count(finishSession, 'complete') === 1, COMPLETE_TIMEOUT_MS);
+  let nextStarts = listener.count(nextSession, 'start');
+  const immediateBusy = listener.errorCount(nextSession, DingqiaoErrorCode.ENGINE_BUSY) > 0;
+  const immediateOutcome = nextStarts === 1 || immediateBusy;
+  if (nextStarts === 0) {
+    engine.startListening(startParams(nextSession, 'user-sequence', index));
+    await waitFor((): boolean => listener.count(nextSession, 'start') === 1, START_TIMEOUT_MS);
+    nextStarts = listener.count(nextSession, 'start');
+  }
+
+  if (nextStarts === 1) {
+    // Calls from the completed session must be rejected or ignored without touching the active one.
+    engine.writeAudio(finishSession, new ArrayBuffer(FRAME_BYTES));
+    engine.finish(finishSession);
+    engine.cancel(finishSession);
+  }
+  const busyAfterStaleCalls = nextStarts === 1 && engine.isBusy();
+  const secondFed = nextStarts === 1 ? await feedPcmFile(engine, nextSession, entry.path, 80, 0) : 0;
+  const nextLastBefore = listener.lastCount(nextSession);
+  if (nextStarts === 1 && secondFed > 0 && engine.isBusy()) engine.finish(nextSession);
+  await waitFor((): boolean => listener.count(nextSession, 'complete') === 1, COMPLETE_TIMEOUT_MS);
+  await sleep(150);
+
+  const cancelledCleanly = idleAfterCancel && listener.count(cancelSession, 'start') === 1 &&
+    listener.count(cancelSession, 'final') === 0 && listener.count(cancelSession, 'complete') === 0;
+  const finishContract = finishLastBefore === 0 && listener.count(finishSession, 'start') === 1 &&
+    listener.lastCount(finishSession) === 1 && listener.count(finishSession, 'complete') === 1 &&
+    listener.terminalOrderOk(finishSession);
+  const nextContract = nextLastBefore === 0 && nextStarts === 1 && secondFed > 0 &&
+    listener.lastCount(nextSession) === 1 && listener.count(nextSession, 'complete') === 1 &&
+    listener.terminalOrderOk(nextSession);
+  const ok = cancelledCleanly && immediateOutcome && finishContract && busyAfterStaleCalls &&
+    nextContract && !engine.isBusy();
+  let detail = 'user-sequence';
+  if (!cancelledCleanly) detail = 'cancel-leaked-callback';
+  else if (!immediateOutcome) detail = 'immediate-restart-silently-lost';
+  else if (!finishContract) detail = 'finish-session-contract';
+  else if (!busyAfterStaleCalls) detail = 'stale-call-corrupted-active-session';
+  else if (!nextContract) detail = 'next-session-contract';
+  return finishCycle(index, entry.id, listener.events, startedAt, ok, detail);
+}
+
 async function runEdgeCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
   index: number): Promise<CycleResult> {
   const startedAt = Date.now();
@@ -833,6 +1015,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runReentrantCycle(engine, entry, i);
       } else if (options.mode === 'start-cancel') {
         result = await runStartCancelCycle(engine, entry, i);
+      } else if (options.mode === 'user-sequence') {
+        result = await runUserSequenceCycle(engine, entry, i);
       } else if (options.mode === 'vad-begin-silence') {
         result = await runVadBeginSilenceCycle(engine, entry, i);
       } else if (options.mode === 'voiceprint') {
