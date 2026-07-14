@@ -1,6 +1,6 @@
 LOCAL_PATH := $(call my-dir)
 
-TRANSSION_TN_ROOT := $(LOCAL_PATH)/../cpp/third_party/transsion_tn
+TN_ENGINE_ROOT := $(LOCAL_PATH)/../cpp/third_party/tn-engine
 ANDROID_ICU_ROOT := $(LOCAL_PATH)/../cpp/third_party/android-icu
 ANDROID_ICU_LIB_DIR := $(ANDROID_ICU_ROOT)/lib
 
@@ -23,10 +23,10 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := lits_tn
 LOCAL_SRC_FILES := \
     ../cpp/lits_tn_jni.cpp \
-    $(TRANSSION_TN_ROOT)/tts_normalizer_engine.cpp \
-    $(TRANSSION_TN_ROOT)/ru_year_spellout.cpp
+    $(TN_ENGINE_ROOT)/tts_normalizer_engine.cpp \
+    $(TN_ENGINE_ROOT)/ru_year_spellout.cpp
 LOCAL_C_INCLUDES := \
-    $(TRANSSION_TN_ROOT) \
+    $(TN_ENGINE_ROOT) \
     $(ANDROID_ICU_ROOT)/include
 LOCAL_CPPFLAGS := -std=c++17 -fexceptions -frtti -DU_STATIC_IMPLEMENTATION
 LOCAL_LDLIBS := -llog -landroid

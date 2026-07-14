@@ -3,7 +3,7 @@ package com.lits.tts.sdk.internal
 internal object LitsTtsAssetRegistry {
     const val ASSET_ROOT: String = "lits-models"
     const val MODEL_ROOT: String = "tts"
-    const val MODEL_ID: String = "transsion_lits_en_zh_vocos24k_streaming_proto_external_loop"
+    const val MODEL_ID: String = "dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop"
     const val MODEL_VERSION: String = "0.1.0"
     const val ASSET_SIGNATURE_VERSION: String = "20260701-chunk50-polyphone-v1"
 
@@ -33,7 +33,7 @@ internal object LitsTtsAssetRegistry {
     const val TN_EN_TTS: String = "tn-bin/arm64-v8a/en_tts"
     const val TN_RULES_ZH: String = "rules/zh.json"
     const val TN_RULES_EN: String = "rules/en.json"
-    const val TN_RULES_ZH_PINYIN: String = "rules/zh_pinyin.json"
+    const val TN_RULES_ZH_PINYIN: String = "rules_v2/zh_pinyin.json"
     const val TN_RULES_V2_ZH: String = "rules_v2/zh.full.json"
     const val TN_RULES_V2_EN: String = "rules_v2/en.full.json"
 

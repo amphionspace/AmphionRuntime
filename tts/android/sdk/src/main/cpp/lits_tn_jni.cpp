@@ -51,7 +51,7 @@ public:
             throw std::runtime_error("failed to load TN rules_v2: " + err);
         }
         if (lang_ == "zh") {
-            const std::string pinyin_path = rules_root_ + "/rules/zh_pinyin.json";
+            const std::string pinyin_path = rules_root_ + "/rules_v2/zh_pinyin.json";
             if (!engine_.loadPinyinMap(pinyin_path, err)) {
                 throw std::runtime_error("failed to load TN pinyin map: " + err);
             }

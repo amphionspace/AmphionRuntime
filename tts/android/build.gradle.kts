@@ -5,10 +5,10 @@ plugins {
 }
 
 val sdkVersion = "3.0"
-val modelId = "transsion_lits_en_zh_vocos24k_streaming_proto_external_loop"
+val modelId = "dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop"
 val modelVersion = "0.1.0"
-val deliveryDirName = "lits-transsion-tts-android-sdk-vocos24k-$sdkVersion"
-val deliveryAarName = "lits-transsion-tts-sdk-vocos24k-$sdkVersion.aar"
+val deliveryDirName = "lits-tts-android-sdk-vocos24k-$sdkVersion"
+val deliveryAarName = "lits-tts-sdk-vocos24k-$sdkVersion.aar"
 val litsModelDir = rootDir.resolve("../../tools/trial-export/$modelId/$modelVersion")
 val litsAssetDir = rootDir.resolve(
     "sdk/src/main/assets/lits-models/tts/$modelId/$modelVersion",
@@ -50,19 +50,19 @@ val validateLitsTtsModelPackage = tasks.register("validateLitsTtsModelPackage") 
     }
 }
 
-tasks.register("syncTranssionTnAssets") {
+tasks.register("syncTnAssets") {
     group = "build"
     description = "Compatibility alias; validates TN assets already bundled in the model package."
     dependsOn(validateLitsTtsModelPackage)
 }
 
-tasks.register("syncTranssionTnBinaries") {
+tasks.register("syncTnBinaries") {
     group = "build"
     description = "Compatibility alias; validates Android TN binaries already bundled in the model package."
     dependsOn(validateLitsTtsModelPackage)
 }
 
-tasks.register("syncTranssionTnRules") {
+tasks.register("syncTnRules") {
     group = "build"
     description = "Compatibility alias; validates TN rules already bundled in the model package."
     dependsOn(validateLitsTtsModelPackage)
@@ -70,7 +70,7 @@ tasks.register("syncTranssionTnRules") {
 
 val packLitsTtsSdkAssets = tasks.register<Copy>("packLitsTtsSdkAssets") {
     group = "build"
-    description = "Pack exported Transsion LITS TTS assets into the Android SDK AAR."
+    description = "Pack exported LITS TTS assets into the Android SDK AAR."
     dependsOn(validateLitsTtsModelPackage)
     from(litsModelDir)
     into(litsAssetDir)

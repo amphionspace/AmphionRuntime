@@ -3,7 +3,7 @@ import * as path from 'path';
 
 import { appTasks } from '@ohos/hvigor-ohos-plugin';
 
-const MODEL_ID = 'transsion_lits_en_zh_vocos24k_streaming_proto_external_loop';
+const MODEL_ID = 'dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop';
 const MODEL_VERSION = '0.1.0';
 const MODEL_FILES = [
   'manifest.json',

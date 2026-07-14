@@ -18,7 +18,7 @@ set(CMAKE_SKIP_INSTALL_RPATH TRUE)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/include)
 
-set(TN_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/transsion_tn)
+set(TN_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tn-engine)
 set(OHOS_ICU_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ohos-icu)
 include_directories(${TN_ROOT})
 include_directories(${TN_ROOT}/third_party)

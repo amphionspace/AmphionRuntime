@@ -34,6 +34,24 @@ class LitsTtsFrontendTest {
     }
 
     @Test
+    fun enUsCodeAndLeadingZeroNumbersUseDigitReadings() {
+        val layout = testLayout()
+
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "Please call four zero zero eight zero zero zero zero zero six.", "en-US", "en-US"),
+            LitsTtsFrontend.encode(layout, "Please call four zero zero eight zero zero 0006.", "en-US", "en-US"),
+        )
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "The verification code is A nine B eight C seven one five.", "en-US", "en-US"),
+            LitsTtsFrontend.encode(layout, "The verification code is A nine B eight C seven 15.", "en-US", "en-US"),
+        )
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "Can we start the meeting at twenty six fifteen this afternoon?", "en-US", "en-US"),
+            LitsTtsFrontend.encode(layout, "Can we start the meeting at 26 fifteen this afternoon?", "en-US", "en-US"),
+        )
+    }
+
+    @Test
     fun zhEnPlateAlnumRunsReadLettersAndDigits() {
         val layout = testLayout()
 
@@ -126,6 +144,42 @@ class LitsTtsFrontendTest {
             expected,
             LitsTtsFrontend.encodeNormalized(layout, "电量68％。", "zh-en", "zh-en"),
         )
+        assertArrayEquals(
+            expected,
+            LitsTtsFrontend.encodeNormalized(layout, "电量68 %。", "zh-en", "zh-en"),
+        )
+        assertArrayEquals(
+            expected,
+            LitsTtsFrontend.encodeNormalized(layout, "电量68百分号。", "zh-en", "zh-en"),
+        )
+    }
+
+    @Test
+    fun zhEnNumericTnContextsUseSemanticDigitReadings() {
+        val layout = testLayout()
+
+        assertNormalizedTokenSequence(layout, "今天是 2026 年 7 月 2 日,下午 3:05 开会.", "ㄦ ˋ _ ㄌ ㄧ ㄥ ˊ _ ㄦ ˋ _ ㄌ ㄧ ㄡ ˋ _ ㄋ ㄧ ㄢ ˊ")
+        assertNormalizedTokenSequence(layout, "今天是 2026 年 7 月 2 日,下午 3:05 开会.", "ㄙ ㄢ ˉ _ ㄉ ㄧ ㄢ ˇ _ ㄌ ㄧ ㄥ ˊ _ ㄨ ˇ")
+        assertNormalizedTokenSequence(layout, "股票 600519 今日上涨 5.23百分号.", "ㄌ ㄧ ㄡ ˋ _ ㄌ ㄧ ㄥ ˊ _ ㄌ ㄧ ㄥ ˊ _ ㄨ ˇ _ ㄧ ˉ _ ㄐ ㄧ ㄡ ˇ")
+        assertNormalizedTokenSequence(layout, "股票 600519 今日上涨 5.23百分号.", "ㄅ ㄞ ˇ _ ㄈ ㄣ ˉ _ ㄓ ˉ _ ㄨ ˊ _ ㄉ ㄧ ㄢ ˇ _ ㄦ ˋ _ ㄙ ㄢ ˉ")
+        assertNormalizedTokenSequence(layout, "编号 1 的房间是 204,温度 -24.5 度.", "ㄦ ˋ _ ㄌ ㄧ ㄥ ˊ _ ㄙ ˋ")
+        assertNormalizedTokenSequence(layout, "车牌号粤 B00009 已经入场.", "B IY1 _ ㄌ ㄧ ㄥ ˊ _ ㄌ ㄧ ㄥ ˊ _ ㄌ ㄧ ㄥ ˊ _ ㄌ ㄧ ㄥ ˊ _ ㄐ ㄧ ㄡ ˇ")
+        assertNormalizedTokenSequence(layout, "身份证尾号 010X,请核对.", "ㄌ ㄧ ㄥ ˊ _ ㄧ ˉ _ ㄌ ㄧ ㄥ ˊ _ EH1 K S")
+        assertNormalizedTokenSequence(layout, "版本 v3.0.7 与 build 20260702 对齐.", "V IY1 _ ㄙ ㄢ ˉ _ ㄉ ㄧ ㄢ ˇ _ ㄌ ㄧ ㄥ ˊ _ ㄉ ㄧ ㄢ ˇ _ ㄑ ㄧ ˉ")
+        assertNormalizedTokenSequence(layout, "路径 斜杠sdcard斜杠test斜杠18斜杠audio.wav 已生成.", "ㄧ ˉ _ ㄅ ㄚ ˉ")
+        assertNormalizedTokenSequence(layout, "坐标 N22.12 E113.11,导航继续.", "ㄅ ㄟ ˊ _ ㄨ ㄟ ˇ _ ㄦ ˋ _ ㄕ ˊ _ ㄦ ˋ _ ㄉ ㄧ ㄢ ˇ _ ㄧ ˉ _ ㄦ ˋ")
+        assertNormalizedTokenSequence(layout, "速度 80km斜杠h,距离目的地 11.5 公里.", "ㄅ ㄚ ˉ _ ㄕ ˊ _ ㄑ ㄧ ㄢ ˉ _ ㄇ ㄧ ˊ _ ㄇ ㄟ ˊ _ ㄒ ㄧ ㄠ ˇ _ ㄕ ˊ")
+    }
+
+    @Test
+    fun zhEnTechnicalTnContextsUseCodeAndSymbolReadings() {
+        val layout = testLayout()
+
+        assertNormalizedTokenSequence(layout, "请访问 https:斜杠斜杠example.com斜杠help斜杠1?q等于lits-v3.", "ㄧ ˉ _ , _ ㄨ ㄣ ˋ _ ㄏ ㄠ ˋ")
+        assertNormalizedTokenSequence(layout, "请访问 https:斜杠斜杠example.com斜杠help斜杠1?q等于lits-v3.", "EH1 L AY1 T IY1 EH1 S")
+        assertNormalizedTokenSequence(layout, "A斜杠B 测试组 16 的 F1-score 是 0.16.", "EH1 F _ ㄧ ˉ _ , _ ㄍ ㄤ ˋ _ S K AO1 R")
+        assertNormalizedTokenSequence(layout, "错误码 TTS_8_TIMEOUT 只作为普通文本.", "T IY1 T IY1 EH1 S _ AH2 N D ER0 S K AO1 R _ ㄅ ㄚ ˉ _ , _ AH2 N D ER0 S K AO1 R _ T AY1 M AW1 T")
+        assertNormalizedTokenSequence(layout, "包名 com.lits.tts.sample9 应按规则处理.", "K AA1 M _ ㄉ ㄧ ㄢ ˇ _ EH1 L AY1 T IY1 EH1 S")
     }
 
     @Test
@@ -185,8 +239,16 @@ class LitsTtsFrontendTest {
             LitsTtsFrontend.encode(layout, "气温-24.5度", "zh-en", "zh-en"),
         )
         assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "气温零下二十四点五度", "zh-en", "zh-en"),
+            LitsTtsFrontend.encode(layout, "气温 -24.5 度", "zh-en", "zh-en"),
+        )
+        assertArrayEquals(
             LitsTtsFrontend.encode(layout, "温度范围是零下五到十度", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "温度范围是-5到10度", "zh-en", "zh-en"),
+        )
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "温度范围是零下五到十度", "zh-en", "zh-en"),
+            LitsTtsFrontend.encode(layout, "温度范围是 -5 到 10 度", "zh-en", "zh-en"),
         )
         assertArrayEquals(
             LitsTtsFrontend.encode(layout, "闹钟设为七点零五分", "zh-en", "zh-en"),
@@ -450,7 +512,7 @@ class LitsTtsFrontendTest {
     @Test
     fun tnSegmentWhitespaceIsPreservedAroundNormalizedSegment() {
         assertTrue(
-            TranssionTnNormalizer.preserveSegmentWhitespace(" 204 ", "二百零四") == " 二百零四 ",
+            LitsTnNormalizer.preserveSegmentWhitespace(" 204 ", "二百零四") == " 二百零四 ",
         )
     }
 
@@ -494,6 +556,18 @@ class LitsTtsFrontendTest {
         assertNormalizedTokenSequence(layout, "盖姓同学在名册里排在前面", "ㄍ ㄜ ˇ _ ㄒ ㄧ ㄥ ˋ")
         assertNormalizedTokenSequence(layout, "吴堡县名出现在这册旧志里", "ㄨ ˊ _ ㄅ ㄨ ˇ _ ㄒ ㄧ ㄢ ˋ")
         assertNormalizedTokenSequence(layout, "棋盘上那枚车守住了边线", "ㄋ ㄚ ˋ _ ㄇ ㄟ ˊ _ ㄐ ㄩ ˉ")
+        assertNormalizedTokenSequence(layout, "区老师住在区庄附近", "ㄡ ˉ _ ㄌ ㄠ ˇ _ ㄕ ˉ")
+        assertNormalizedTokenSequence(layout, "曾参和曾老师都在名单里", "ㄗ ㄥ ˉ _ ㄕ ㄣ ˉ _ ㄏ ㄜ ˊ _ ㄗ ㄥ ˉ _ ㄌ ㄠ ˇ _ ㄕ ˉ")
+        assertNormalizedTokenSequence(layout, "解经理正在解释合同", "ㄒ ㄧ ㄝ ˋ _ ㄐ ㄧ ㄥ ˉ _ ㄌ ㄧ ˇ")
+        assertNormalizedTokenSequence(layout, "薄荷味很淡，薄书记也在现场", "ㄅ ㄛ ˋ _ ㄏ ㄜ ˙")
+        assertNormalizedTokenSequence(layout, "薄荷味很淡，薄书记也在现场", "ㄅ ㄛ ˊ _ ㄕ ㄨ ˉ _ ㄐ ㄧ ˋ")
+        assertNormalizedTokenSequence(layout, "任先生负责本次任务", "ㄖ ㄣ ˊ _ ㄒ ㄧ ㄢ ˉ _ ㄕ ㄥ ˉ")
+        assertNormalizedTokenSequence(layout, "朴老师介绍朴素的设计", "ㄆ ㄧ ㄠ ˊ _ ㄌ ㄠ ˇ _ ㄕ ˉ")
+        assertNormalizedTokenSequence(layout, "区先生和区主任都到了", "ㄡ ˉ _ ㄒ ㄧ ㄢ ˉ _ ㄕ ㄥ ˉ")
+        assertNormalizedTokenSequence(layout, "区先生和区主任都到了", "ㄡ ˉ _ ㄓ ㄨ ˇ _ ㄖ ㄣ ˋ")
+        assertNormalizedTokenSequence(layout, "区域里的任务需要解释清楚", "ㄑ ㄩ ˉ _ ㄩ ˋ")
+        assertNormalizedTokenSequence(layout, "区域里的任务需要解释清楚", "ㄖ ㄣ ˋ _ ㄨ ˋ")
+        assertNormalizedTokenSequence(layout, "区域里的任务需要解释清楚", "ㄐ ㄧ ㄝ ˇ _ ㄕ ˋ")
     }
 
     @Test
@@ -650,7 +724,7 @@ class LitsTtsFrontendTest {
                 "rules_v2/en.full.json",
                 "tn-bin/arm64-v8a/zh_tts",
                 "tn-bin/arm64-v8a/en_tts",
-            ).forEach { copyAsset(root, it) }
+            ).forEach { copyAssetIfExists(root, it) }
             LitsTtsAssetInstaller.InstalledLayout.of(
                 rootDir = root,
                 manifest = fakeManifest(),
@@ -661,6 +735,13 @@ class LitsTtsFrontendTest {
         private fun copyAsset(root: File, name: String) {
             root.resolve(name).parentFile?.mkdirs()
             assetRoot.resolve(name).copyTo(root.resolve(name), overwrite = true)
+        }
+
+        private fun copyAssetIfExists(root: File, name: String) {
+            val source = assetRoot.resolve(name)
+            if (!source.isFile) return
+            root.resolve(name).parentFile?.mkdirs()
+            source.copyTo(root.resolve(name), overwrite = true)
         }
 
         private fun fakeManifest(): LitsTtsAssetInstaller.ManifestInfo =
