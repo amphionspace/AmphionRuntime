@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-teacher 批 UI 术语测试集接入（asr_ui_terms_teacher，manifest 含 target_word）。
+甲方 20260714 批 UI 术语测试集接入（交付文件名 asr_ui_terms_teacher，manifest 含 target_word）。
 manifest 每行：{utt_id, text, target_word, wav, asr, cer, ...}（asr/cer 为对方参考引擎结果，忽略）。
 wav 文件名带说话人后缀（ui_tNN_sM_sK.wav），故设备 utt_id 用 wav basename 保唯一。
 
-产物（build_teacher/，git 忽略）：metadata.jsonl + push/wavs（硬链接）+ termmap.tsv
-设备过滤：orig_utt_id = "police_ui_teacher"
+产物（build_20260714_batch/，git 忽略）：metadata.jsonl + push/wavs（硬链接）+ termmap.tsv
+设备过滤：orig_utt_id = "police_ui_20260714"
 """
 import argparse, json, os, sys
 
-ORIG = "police_ui_teacher"
+ORIG = "police_ui_20260714"
 
 
 def link_or_copy(src, dst):
@@ -28,7 +28,7 @@ def main():
     ap.add_argument("--src", default="/Users/amphion/Desktop/work/projects/鼎桥/test_data/asr_ui_terms_teacher")
     ap.add_argument("--manifest", default="manifest_asr_test_teacher.jsonl")
     ap.add_argument("--wavs", default="wavs_teacher")
-    ap.add_argument("--out", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "build_teacher"))
+    ap.add_argument("--out", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "build_20260714_batch"))
     args = ap.parse_args()
     src, out = os.path.abspath(args.src), os.path.abspath(args.out)
     wavs_dir = os.path.join(src, args.wavs)
@@ -67,7 +67,7 @@ def main():
         f.write("utt_id\tterm\ttext\n")
         for u, t, x in termmap:
             f.write(f"{u}\t{t}\t{x}\n")
-    print(f"[build_teacher] {len(meta)} 条, {len(set(t for _, t, _ in termmap))} 词 -> {out}")
+    print(f"[build_20260714_batch] {len(meta)} 条, {len(set(t for _, t, _ in termmap))} 词 -> {out}")
     if missing:
         print(f"[warn] 缺 wav {len(missing)}: {missing[:3]}", file=sys.stderr)
 
