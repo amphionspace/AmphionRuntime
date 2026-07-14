@@ -47,6 +47,7 @@ class CorpusEntry {
 
 class SessionEvents {
   starts: number = 0;
+  partials: number = 0;
   speechBegins: number = 0;
   speechEnds: number = 0;
   finals: number = 0;
@@ -86,7 +87,10 @@ class StressListener implements RecognitionListener {
   }
 
   onResult(_sessionId: string, result: SpeechRecognitionResult): void {
-    if (!result.isFinal) return;
+    if (!result.isFinal) {
+      this.events.partials += 1;
+      return;
+    }
     this.events.finals += 1;
     this.events.finalChars += result.result.length;
     this.events.finalTexts.push(result.result);
@@ -138,7 +142,11 @@ class SequenceListener implements RecognitionListener {
   }
 
   onResult(sessionId: string, result: SpeechRecognitionResult): void {
-    if (!result.isFinal) return;
+    if (!result.isFinal) {
+      this.events.partials += 1;
+      this.records.push(new CallbackRecord(sessionId, 'partial'));
+      return;
+    }
     this.events.finals += 1;
     this.events.finalChars += result.result.length;
     this.events.finalTexts.push(result.result);
@@ -202,7 +210,8 @@ class SequenceListener implements RecognitionListener {
     if (lastIndex < 0 || completeIndex < 0 || lastIndex > completeIndex) return false;
     for (let i = completeIndex + 1; i < this.records.length; i++) {
       const record = this.records[i];
-      if (record.sessionId === sessionId && (record.kind === 'final' || record.kind === 'complete')) return false;
+      if (record.sessionId === sessionId &&
+        (record.kind === 'partial' || record.kind === 'final' || record.kind === 'complete')) return false;
     }
     return true;
   }
@@ -335,6 +344,7 @@ class CycleResult {
   corpusId: string = '';
   ok: boolean = false;
   starts: number = 0;
+  partials: number = 0;
   finals: number = 0;
   completes: number = 0;
   errors: number = 0;
@@ -346,7 +356,7 @@ class CycleResult {
 
   toLine(): string {
     return `CYCLE|index=${this.index}|id=${this.corpusId}|status=${this.ok ? 'PASS' : 'FAIL'}` +
-      `|starts=${this.starts}|finals=${this.finals}|completes=${this.completes}` +
+      `|starts=${this.starts}|partials=${this.partials}|finals=${this.finals}|completes=${this.completes}` +
       `|errors=${this.errors}|finalChars=${this.finalChars}|liveStreams=${this.liveStreams}` +
       `|elapsedMs=${this.elapsedMs}|resultHex=${this.resultHex}|detail=${this.detail}`;
   }
@@ -357,6 +367,7 @@ class StressTotals {
   failed: number = 0;
   emptyFinals: number = 0;
   starts: number = 0;
+  partials: number = 0;
   finals: number = 0;
   completes: number = 0;
   errors: number = 0;
@@ -366,6 +377,7 @@ class StressTotals {
     if (!result.ok) this.failed += 1;
     if (result.finals > 0 && result.finalChars === 0) this.emptyFinals += 1;
     this.starts += result.starts;
+    this.partials += result.partials;
     this.finals += result.finals;
     this.completes += result.completes;
     this.errors += result.errors;
@@ -581,6 +593,7 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.corpusId = corpusId;
   result.ok = ok;
   result.starts = events.starts;
+  result.partials = events.partials;
   result.finals = events.finals;
   result.completes = events.completes;
   result.errors = events.errors;
@@ -848,24 +861,31 @@ async function runUserSequenceCycle(engine: SpeechRecognitionEngine, entry: Corp
   const finishSession = `user-finish-${index}`;
   const nextSession = `user-next-${index}`;
 
-  engine.startListening(startParams(cancelSession, 'user-sequence', index));
+  const cancelParams = startParams(cancelSession, 'user-sequence', index);
+  cancelParams.extraParams['enablePartialResult'] = true;
+  engine.startListening(cancelParams);
   if (!await waitFor((): boolean => listener.count(cancelSession, 'start') === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, listener.events, startedAt, false, 'cancel-start-timeout');
   }
-  const cancelFrames: number[] = [0, 1, 25];
+  const cancelFrames: number[] = [0, 25, 150];
   const cancelFrameCount = cancelFrames[index % cancelFrames.length];
   if (cancelFrameCount > 0) {
     await feedPcmFile(engine, cancelSession, entry.path, cancelFrameCount, 0);
   }
+  const cancelPartialsBeforeCancel = listener.count(cancelSession, 'partial');
+  const cancelFinalsBeforeCancel = listener.count(cancelSession, 'final');
+  const cancelCompletesBeforeCancel = listener.count(cancelSession, 'complete');
   engine.cancel(cancelSession);
   const idleAfterCancel = !engine.isBusy();
 
   // No settling delay: this is the common stop/start gesture that exposes stale callback ownership.
-  engine.startListening(startParams(finishSession, 'user-sequence', index));
+  const finishParams = startParams(finishSession, 'user-sequence', index);
+  finishParams.extraParams['enablePartialResult'] = true;
+  engine.startListening(finishParams);
   if (!await waitFor((): boolean => listener.count(finishSession, 'start') === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, listener.events, startedAt, false, 'restart-after-cancel-timeout');
   }
-  const firstFed = await feedPcmFile(engine, finishSession, entry.path, 80, 0);
+  const firstFed = await feedPcmFile(engine, finishSession, entry.path, 150, 0);
   if (firstFed === 0) {
     engine.cancel(finishSession);
     return finishCycle(index, entry.id, listener.events, startedAt, false, 'empty-pcm');
@@ -875,13 +895,15 @@ async function runUserSequenceCycle(engine: SpeechRecognitionEngine, entry: Corp
 
   // Depending on whether native stop completed synchronously, immediate restart may either start or
   // return ENGINE_BUSY. Both are valid, but a silent lost request is not.
-  engine.startListening(startParams(nextSession, 'user-sequence', index));
+  const nextParams = startParams(nextSession, 'user-sequence', index);
+  nextParams.extraParams['enablePartialResult'] = true;
+  engine.startListening(nextParams);
   await waitFor((): boolean => listener.count(finishSession, 'complete') === 1, COMPLETE_TIMEOUT_MS);
   let nextStarts = listener.count(nextSession, 'start');
   const immediateBusy = listener.errorCount(nextSession, DingqiaoErrorCode.ENGINE_BUSY) > 0;
   const immediateOutcome = nextStarts === 1 || immediateBusy;
   if (nextStarts === 0) {
-    engine.startListening(startParams(nextSession, 'user-sequence', index));
+    engine.startListening(nextParams);
     await waitFor((): boolean => listener.count(nextSession, 'start') === 1, START_TIMEOUT_MS);
     nextStarts = listener.count(nextSession, 'start');
   }
@@ -893,14 +915,16 @@ async function runUserSequenceCycle(engine: SpeechRecognitionEngine, entry: Corp
     engine.cancel(finishSession);
   }
   const busyAfterStaleCalls = nextStarts === 1 && engine.isBusy();
-  const secondFed = nextStarts === 1 ? await feedPcmFile(engine, nextSession, entry.path, 80, 0) : 0;
+  const secondFed = nextStarts === 1 ? await feedPcmFile(engine, nextSession, entry.path, 150, 0) : 0;
   const nextLastBefore = listener.lastCount(nextSession);
   if (nextStarts === 1 && secondFed > 0 && engine.isBusy()) engine.finish(nextSession);
   await waitFor((): boolean => listener.count(nextSession, 'complete') === 1, COMPLETE_TIMEOUT_MS);
   await sleep(150);
 
   const cancelledCleanly = idleAfterCancel && listener.count(cancelSession, 'start') === 1 &&
-    listener.count(cancelSession, 'final') === 0 && listener.count(cancelSession, 'complete') === 0;
+    listener.count(cancelSession, 'partial') === cancelPartialsBeforeCancel &&
+    listener.count(cancelSession, 'final') === cancelFinalsBeforeCancel &&
+    listener.count(cancelSession, 'complete') === cancelCompletesBeforeCancel;
   const finishContract = finishLastBefore === 0 && listener.count(finishSession, 'start') === 1 &&
     listener.lastCount(finishSession) === 1 && listener.count(finishSession, 'complete') === 1 &&
     listener.terminalOrderOk(finishSession);
@@ -1051,7 +1075,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
   const status = fatal.length === 0 && totals.failed === 0 && totals.completed === options.cycles ? 'PASS' : 'FAIL';
   const summary = `SUMMARY|runId=${options.runId}|status=${status}|mode=${options.mode}` +
     `|requested=${options.cycles}|completed=${totals.completed}|failed=${totals.failed}` +
-    `|emptyFinals=${totals.emptyFinals}|starts=${totals.starts}|finals=${totals.finals}` +
+    `|emptyFinals=${totals.emptyFinals}|starts=${totals.starts}|partials=${totals.partials}|finals=${totals.finals}` +
     `|completes=${totals.completes}|errors=${totals.errors}|elapsedMs=${Date.now() - startedAt}` +
     `|fatal=${fatal}`;
   lines.push(summary);
