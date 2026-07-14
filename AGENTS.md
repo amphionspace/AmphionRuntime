@@ -54,11 +54,11 @@ cd asr/android
 ./gradlew --no-daemon :sdk:testDebugUnitTest :sdk-dingqiao:testDebugUnitTest --console=plain
 
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --data-dir /Users/mingdongyu/Downloads/testdata \
+  --data-dir "$HOME/Downloads/testdata" \
   --mode vad-begin --cycles 100 --files 0
 
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --data-dir /Users/mingdongyu/Downloads/testdata \
+  --data-dir "$HOME/Downloads/testdata" \
   --mode user-sequence --cycles 300 --files 3
 ```
 

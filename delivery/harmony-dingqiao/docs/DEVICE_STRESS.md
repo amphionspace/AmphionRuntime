@@ -122,7 +122,7 @@ artifact：`delivery/harmony-dingqiao/build/device-stress/20260712-101550-burst-
 
 ## 2026-07-15 `isLast` / 声纹回归基线
 
-设备为 MIA-AL00（OpenHarmony 6.1.0.115）。使用 `/Users/mingdongyu/Downloads/testdata` 中的
+设备为 MIA-AL00（OpenHarmony 6.1.0.115）。使用 `$HOME/Downloads/testdata` 中的
 AISHELL-4 语料，以及从其中高能量语音段派生的 0.5–10 秒、前后静音和 -30 dB 边界片段，
 在修复版 signed HAP 上共执行 15 组、855 个 session，全部通过。
 
