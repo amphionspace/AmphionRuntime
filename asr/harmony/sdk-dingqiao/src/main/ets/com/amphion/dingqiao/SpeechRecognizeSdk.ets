@@ -3,6 +3,7 @@ import { PoliceEngineConfig, PoliceEnhanceOptions, PoliceEnhancePipeline } from 
 import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
+import { rejectedFinalCompletesSession } from './RejectedFinalLifecycle';
 import { VoiceprintStore } from './VoiceprintStore';
 import {
   AudioInfo,
@@ -657,7 +658,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     // can show the target speaker left without polluting the recognized text.
     const detail = result.speakerScore !== undefined ? `score=${result.speakerScore.toFixed(2)}` : 'target speaker absent';
     this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEAKER_VAD_REJECTED, `speaker vad rejected: ${detail}`);
-    if (result.isLast) {
+    if (rejectedFinalCompletesSession(result.isLast)) {
       const payload = new SpeechRecognitionResult();
       payload.isFinal = true;
       payload.isLast = true;
