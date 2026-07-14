@@ -31,9 +31,11 @@ internal object LitsTtsAssetRegistry {
     const val ARPABET_TO_TOKENS: String = "arpabet_to_tokens.json"
     const val TN_ZH_TTS: String = "tn-bin/arm64-v8a/zh_tts"
     const val TN_EN_TTS: String = "tn-bin/arm64-v8a/en_tts"
+    const val TN_RULES_ZH: String = "rules/zh.json"
+    const val TN_RULES_EN: String = "rules/en.json"
+    const val TN_RULES_ZH_PINYIN: String = "rules_v2/zh_pinyin.json"
     const val TN_RULES_V2_ZH: String = "rules_v2/zh.full.json"
     const val TN_RULES_V2_EN: String = "rules_v2/en.full.json"
-    const val TN_RULES_V2_ZH_PINYIN: String = "rules_v2/zh_pinyin.json"
 
     val files: List<String> = listOf(
         MANIFEST,
@@ -59,9 +61,11 @@ internal object LitsTtsAssetRegistry {
         ARPABET_TO_TOKENS,
         TN_ZH_TTS,
         TN_EN_TTS,
+        TN_RULES_ZH,
+        TN_RULES_EN,
+        TN_RULES_ZH_PINYIN,
         TN_RULES_V2_ZH,
         TN_RULES_V2_EN,
-        TN_RULES_V2_ZH_PINYIN,
     )
 
     val tnBinaryFiles: List<String> = listOf(

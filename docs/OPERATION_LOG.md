@@ -1,3 +1,11 @@
+## 2026-07-14 Dingqiao v3 branch external-resource frontend merge
+
+- Goal: Merge the current `codex/lits-delivery-external-resources-aar` frontend/resource pronunciation fixes into `lits_dingqiao_sdk_vocos24k_v3` and prepare that branch for push to the AmphionRuntime GitHub remote.
+- Files changed or artifacts created: merged Android external-resource pronunciation assets, reviewed golden test assets, Kotlin TN/frontend fixes, Android instrumentation tests, TN route logging, and Harmony/Android delivery-compatible conflict resolutions into `lits_dingqiao_sdk_vocos24k_v3`.
+- Commands run: committed the current branch as `75e48ae`; switched to `lits_dingqiao_sdk_vocos24k_v3`; ran `git merge --no-ff codex/lits-delivery-external-resources-aar`; resolved build/resource/TN naming conflicts by keeping Dingqiao delivery build structure and applying the current branch pronunciation/frontend fixes.
+- Verification result: merge conflicts were resolved and Android Kotlin compilation reached `:sdk:compileDebugUnitTestKotlin` through the frontend unit-test task. The full `LitsTtsFrontendTest` run was not a valid pass/fail signal in this merge checkout because `cleanBundledTtsResources` removed bundled assets while external resource staging was intentionally skipped; runtime failures were missing-resource `NoSuchFileException`/`FileNotFoundException`, not Kotlin compilation errors.
+- Notes/next action: Local-only caches, signing material, and exported work directories remain untracked and are intentionally not part of the pushed branch.
+
 ## 2026-07-13 18:49 Dingqiao v3 Android report case examples
 
 - Goal: Add one or two easy-to-understand examples for each case type in the Dingqiao v3 Android 1000-case stability report.

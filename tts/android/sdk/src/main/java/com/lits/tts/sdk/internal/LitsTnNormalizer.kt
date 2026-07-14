@@ -37,12 +37,21 @@ internal object LitsTnNormalizer {
 
         @Synchronized
         fun normalize(text: String, language: String, languageContext: String): String {
-            val input = prepareInputForTn(Normalizer.normalize(text, Normalizer.Form.NFKC)
+            val cleaned = Normalizer.normalize(text, Normalizer.Form.NFKC)
                 .replace(Regex("[\\x00-\\x1f\\x7f-\\x9f]"), "")
                 .replace(Regex("\\s+"), " ")
-                .trim())
-            if (input.isEmpty() || !hasTnRules()) return text
-            return if (language == "en-US" || languageContext == "en-US") {
+                .trim()
+            val isEnglishContext = language == "en-US" || languageContext == "en-US"
+            val input = if (isEnglishContext) {
+                prepareEnglishInputForTn(cleaned)
+            } else {
+                prepareInputForTn(cleaned)
+            }
+            val hasRules = hasTnRules()
+            logInfo("TN normalize request language=$language languageContext=$languageContext hasRules=$hasRules input=${input.takeForLog()}")
+            if (input.isEmpty()) return text
+            if (!hasRules) return input
+            return if (isEnglishContext) {
                 normalizeSegment(input, "en")
             } else {
                 segmentZhEn(input).joinToString("") { (segment, lang) ->
@@ -56,10 +65,128 @@ internal object LitsTnNormalizer {
                 "${match.groupValues[1]}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}分"
             }
             output = frontendRules.apply("pre_tn", output)
+            output = protectSemanticNumericReadings(output)
+            output = protectTechnicalAsciiReadings(output)
             output = protectVinCodes(output)
             output = protectProductCodes(output)
             output = serialCodeRegex.replace(output) { match ->
                 match.groupValues[1] + match.groupValues[2] + normalizeSerialCode(match.groupValues[3])
+            }
+            return output
+        }
+
+        private fun prepareEnglishInputForTn(text: String): String {
+            var output = englishAtNumberFifteenRegex.replace(text) { match ->
+                match.groupValues[1] + integerTextToEnglishWords(match.groupValues[2]) + match.groupValues[3]
+            }
+            output = englishLeadingZeroNumberRegex.replace(output) { match ->
+                digitSequenceToEnglishWords(match.value)
+            }
+            output = englishVerificationCodeTailRegex.replace(output) { match ->
+                match.groupValues[1] + digitSequenceToEnglishWords(match.groupValues[2])
+            }
+            return output
+        }
+
+        private fun protectTechnicalAsciiReadings(text: String): String {
+            var output = chemicalFormulaRegex.replace(text) { match ->
+                match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + match.groupValues[3]
+            }
+            output = technicalAsciiTokenRegex.replace(output) { match ->
+                val token = match.groupValues[1]
+                if (!token.any { isAsciiLetter(it) } || !token.any { it in technicalSymbolChars }) {
+                    token
+                } else {
+                    normalizeTechnicalAsciiTokenForTn(token)
+                }
+            }
+            return output
+        }
+
+        private fun normalizeTechnicalAsciiTokenForTn(token: String): String {
+            val output = StringBuilder(token.length)
+            var index = 0
+            while (index < token.length) {
+                val char = token[index]
+                when {
+                    char.isDigit() -> {
+                        val start = index
+                        while (index < token.length && token[index].isDigit()) {
+                            index += 1
+                        }
+                        output.append(digitSequenceToHanzi(token.substring(start, index)))
+                        if (index < token.length && (token[index] in technicalSymbolChars || isAsciiLetter(token[index]))) {
+                            output.append(",")
+                        }
+                    }
+                    isAsciiLetter(char) -> {
+                        val start = index
+                        while (index < token.length && isAsciiLetter(token[index])) {
+                            index += 1
+                        }
+                        val word = token.substring(start, index)
+                        output.append(if (word.equals("lits", ignoreCase = true)) "LITS" else word)
+                    }
+                    char == '@' -> output.append(" at ")
+                    char == '_' -> output.append(" UNDERSCORE ")
+                    char == '+' -> output.append("加")
+                    char == '-' -> output.append("杠")
+                    char == '.' -> output.append("点")
+                    char == ':' -> output.append("冒号")
+                    char == '/' || char == '\\' -> output.append("斜杠")
+                    char == '?' -> output.append("问号")
+                    char == '=' -> output.append("等于")
+                    char == '&' -> output.append("和")
+                    else -> output.append(char)
+                }
+                if (!char.isDigit() && !isAsciiLetter(char)) {
+                    index += 1
+                }
+            }
+            return output.toString().replace(Regex("\\s+"), " ")
+        }
+
+        private fun protectSemanticNumericReadings(text: String): String {
+            var output = percentNumberRegex.replace(text) { match ->
+                "百分之${numberTextToHanzi(match.groupValues[1])}"
+            }
+            output = percentNumberTextRegex.replace(output) { match ->
+                "百分之${numberTextToHanzi(match.groupValues[1])}"
+            }
+            output = coordinateRegex.replace(output) { match ->
+                val prefix = when (match.groupValues[1].uppercase()) {
+                    "N" -> "北纬"
+                    "E" -> "东经"
+                    else -> match.groupValues[1]
+                }
+                prefix + numberTextToHanzi(match.groupValues[2])
+            }
+            output = semanticVersionRegex.replace(output) { match ->
+                match.groupValues[1] + versionNumberToHanzi(match.groupValues[2])
+            }
+            output = stockCodeRegex.replace(output) { match ->
+                match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2])
+            }
+            output = roomNumberRegex.replace(output) { match ->
+                match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2])
+            }
+            output = plateCodeRegex.replace(output) { match ->
+                match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + ","
+            }
+            output = idTailRegex.replace(output) { match ->
+                match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + match.groupValues[3] + ","
+            }
+            output = pathSlashNumberRegex.replace(output) { match ->
+                match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + ","
+            }
+            output = kmPerHourRegex.replace(output) { match ->
+                numberTextToHanzi(match.groupValues[1]) + "千米每小时"
+            }
+            output = clockColonMinuteLeadingZeroRegex.replace(output) { match ->
+                "${numberTextToHanzi(match.groupValues[1])}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}"
+            }
+            output = yearBeforeNianRegex.replace(output) { match ->
+                digitSequenceToHanzi(match.groupValues[1]) + "年"
             }
             return output
         }
@@ -80,16 +207,73 @@ internal object LitsTnNormalizer {
             }
         }
 
+        private fun numberTextToHanzi(text: String): String {
+            val parts = text.split('.', limit = 2)
+            val integer = integerTextToHanzi(parts[0])
+            if (parts.size == 1) return integer
+            return integer + "点" + parts[1].map { chineseDigitTextByChar.getValue(it) }.joinToString("")
+        }
+
+        private fun integerTextToHanzi(text: String): String {
+            val value = text.toIntOrNull() ?: return digitSequenceToHanzi(text)
+            if (value == 0) return "零"
+            if (value < 10) return chineseDigitTextByChar.getValue(value.digitToChar())
+            if (value < 20) {
+                val ones = value % 10
+                return "十" + if (ones == 0) "" else chineseDigitTextByChar.getValue(ones.digitToChar())
+            }
+            if (value < 100) {
+                val tens = value / 10
+                val ones = value % 10
+                return chineseDigitTextByChar.getValue(tens.digitToChar()) + "十" +
+                    if (ones == 0) "" else chineseDigitTextByChar.getValue(ones.digitToChar())
+            }
+            val hundreds = value / 100
+            val remainder = value % 100
+            return chineseDigitTextByChar.getValue(hundreds.digitToChar()) + "百" +
+                when {
+                    remainder == 0 -> ""
+                    remainder < 10 -> "零" + chineseDigitTextByChar.getValue(remainder.digitToChar())
+                    else -> integerTextToHanzi(remainder.toString())
+                }
+        }
+
+        private fun digitSequenceToHanzi(text: String): String =
+            text.map { chineseDigitTextByChar.getValue(it) }.joinToString("")
+
+        private fun digitSequenceToEnglishWords(text: String): String =
+            text.map { englishDigitWordByChar.getValue(it) }.joinToString(" ")
+
+        private fun integerTextToEnglishWords(text: String): String {
+            val value = text.toIntOrNull() ?: return digitSequenceToEnglishWords(text)
+            if (value < 10) return englishDigitWordByChar.getValue(value.digitToChar())
+            englishTeenWordByValue[value]?.let { return it }
+            if (value < 100) {
+                val tens = (value / 10) * 10
+                val ones = value % 10
+                return if (ones == 0) {
+                    englishTensWordByValue.getValue(tens)
+                } else {
+                    englishTensWordByValue.getValue(tens) + " " + englishDigitWordByChar.getValue(ones.digitToChar())
+                }
+            }
+            return digitSequenceToEnglishWords(text)
+        }
+
+        private fun versionNumberToHanzi(text: String): String =
+            text.split('.').joinToString("点", transform = ::digitSequenceToHanzi)
+
         private fun hasTnRules(): Boolean =
             layout.rootDir.resolve(LitsTtsAssetRegistry.TN_RULES_V2_ZH).isFile &&
                 layout.rootDir.resolve(LitsTtsAssetRegistry.TN_RULES_V2_EN).isFile &&
-                layout.rootDir.resolve(LitsTtsAssetRegistry.TN_RULES_V2_ZH_PINYIN).isFile
+                layout.rootDir.resolve(LitsTtsAssetRegistry.TN_RULES_ZH_PINYIN).isFile
 
         private fun normalizeSegment(text: String, lang: String): String {
             if (text.isBlank()) return text
             if (lang in disabledLanguages) return text
             try {
                 NativeTnNormalizer.normalize(layout.rootDir, lang, text)?.let { normalized ->
+                    logInfo("TN native path used lang=$lang input=${text.takeForLog()} output=${normalized.takeForLog()}")
                     return normalized
                 }
             } catch (error: Throwable) {
@@ -103,14 +287,18 @@ internal object LitsTnNormalizer {
                 val process = processes.getOrPut(lang) {
                     TnProcess.start(binary, layout.rootDir)
                 }
-                process.normalize(text)
+                process.normalize(text).also { normalized ->
+                    logInfo("TN process path used lang=$lang binary=${binary.absolutePath} input=${text.takeForLog()} output=${normalized.takeForLog()}")
+                }
             } catch (error: Throwable) {
                 logWarning("TN normalize failed; restarting lang=$lang binary=${binary.absolutePath}", error)
                 processes.remove(lang)?.close()
                 try {
                     val restarted = TnProcess.start(binary, layout.rootDir)
                     processes[lang] = restarted
-                    restarted.normalize(text)
+                    restarted.normalize(text).also { normalized ->
+                        logInfo("TN process retry path used lang=$lang binary=${binary.absolutePath} input=${text.takeForLog()} output=${normalized.takeForLog()}")
+                    }
                 } catch (retryError: Throwable) {
                     logError("TN normalize retry failed; disabling TN for lang=$lang", retryError)
                     processes.remove(lang)?.close()
@@ -202,9 +390,30 @@ internal object LitsTnNormalizer {
             private const val PLATE_PROVINCES = "京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼"
             private val PERCENTILE_CODE = Regex("P\\d{1,3}")
             private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点0([1-9])分")
+            private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?[%％]")
+            private val percentNumberTextRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?百分号")
+            private val clockColonMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2}):0([0-9])(?!\\d)")
+            private val yearBeforeNianRegex = Regex("(?<!\\d)(\\d{4})\\s*年")
+            private val semanticVersionRegex = Regex("(?<![A-Za-z0-9])([vV])(\\d+(?:\\.\\d+)+)(?![A-Za-z0-9])")
+            private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])([A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
+            private val technicalSymbolChars = setOf('.', '/', '\\', '_', '@', ':', '?', '=', '&', '#', '%', '+', '-')
+            private val chemicalFormulaRegex = Regex("\\b(H|CO)(\\d+)(O?)\\b")
+            private val roomNumberRegex = Regex("((?:房间|房号)(?:是|为)?\\s*)(\\d{3,4})(?!\\d)")
+            private val stockCodeRegex = Regex("(股票\\s*)(\\d{6})(?!\\d)")
+            private val plateCodeRegex = Regex("((?:车牌号?|号牌)\\s*[\\u4e00-\\u9fff]?\\s*[A-Za-z])(\\d{3,6})(?!\\d)")
+            private val idTailRegex = Regex("((?:身份证尾号|尾号)\\s*)(\\d+)([A-Za-z])(?![A-Za-z0-9])")
+            private val pathSlashNumberRegex = Regex("(/)(\\d+)(?=/)")
+            private val kmPerHourRegex = Regex("(\\d+)\\s*km/h", RegexOption.IGNORE_CASE)
+            private val coordinateRegex = Regex("(?<![A-Za-z])([NE])\\s*(\\d+(?:\\.\\d+)?)", RegexOption.IGNORE_CASE)
             private val vinCodeRegex = Regex("((?:车架号\\s*)?(?:VIN\\s+))([A-HJ-NPR-Z0-9]{8,17})(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
             private val productCodeRegex = Regex("(?<![A-Za-z0-9])(vocos|Office)(\\d+)(k?)(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
             private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
+            private val englishAtNumberFifteenRegex = Regex("\\b(at\\s+)(\\d{2})(\\s+fifteen\\b)", RegexOption.IGNORE_CASE)
+            private val englishLeadingZeroNumberRegex = Regex("\\b0\\d+\\b")
+            private val englishVerificationCodeTailRegex = Regex(
+                "\\b((?:verification\\s+)?code\\s+is\\s+(?:(?:[A-Z]|zero|one|two|three|four|five|six|seven|eight|nine)\\s+){2,})(\\d{1,4})(?=\\b)",
+                RegexOption.IGNORE_CASE,
+            )
             private val chineseDigitTextByChar = mapOf(
                 '0' to "零",
                 '1' to "一",
@@ -216,6 +425,40 @@ internal object LitsTnNormalizer {
                 '7' to "七",
                 '8' to "八",
                 '9' to "九",
+            )
+            private val englishDigitWordByChar = mapOf(
+                '0' to "zero",
+                '1' to "one",
+                '2' to "two",
+                '3' to "three",
+                '4' to "four",
+                '5' to "five",
+                '6' to "six",
+                '7' to "seven",
+                '8' to "eight",
+                '9' to "nine",
+            )
+            private val englishTeenWordByValue = mapOf(
+                10 to "ten",
+                11 to "eleven",
+                12 to "twelve",
+                13 to "thirteen",
+                14 to "fourteen",
+                15 to "fifteen",
+                16 to "sixteen",
+                17 to "seventeen",
+                18 to "eighteen",
+                19 to "nineteen",
+            )
+            private val englishTensWordByValue = mapOf(
+                20 to "twenty",
+                30 to "thirty",
+                40 to "forty",
+                50 to "fifty",
+                60 to "sixty",
+                70 to "seventy",
+                80 to "eighty",
+                90 to "ninety",
             )
         }
     }
@@ -255,6 +498,7 @@ internal object LitsTnNormalizer {
         companion object {
             fun start(binary: File, workingDir: File): TnProcess {
                 binary.setExecutable(true, true)
+                logInfo("TN process start binary=${binary.absolutePath} exists=${binary.isFile} canExecute=${binary.canExecute()} workingDir=${workingDir.absolutePath}")
                 val process = ProcessBuilder(binary.absolutePath)
                     .directory(workingDir)
                     .apply {
@@ -300,6 +544,14 @@ internal object LitsTnNormalizer {
         }
     }
 
+    private fun logInfo(message: String) {
+        try {
+            Log.i(TAG, message)
+        } catch (_: Throwable) {
+            // Android Log is not mocked in local JVM tests; TN should still be testable there.
+        }
+    }
+
     private fun logError(message: String, error: Throwable) {
         try {
             Log.e(TAG, message, error)
@@ -307,6 +559,9 @@ internal object LitsTnNormalizer {
             // Android Log is not mocked in local JVM tests; TN should still be testable there.
         }
     }
+
+    private fun String.takeForLog(maxLength: Int = 160): String =
+        if (length <= maxLength) this else take(maxLength) + "...(len=$length)"
 
     private const val TAG = "LitsTn"
 }

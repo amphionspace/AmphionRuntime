@@ -49,7 +49,7 @@
 千乘	qian1 sheng4
 卡住	qia3 zhu4
 色儿	shai3 er5
-薄荷	bo4 he2
+薄荷	bo4 he5
 
 # --- Reading corrections ---
 削苹果	xiao1 ping2 guo3
@@ -93,6 +93,14 @@
 载客	zai4 ke4
 场院	chang2 yuan4
 倒温水	dao4 wen1 shui3
+
+# --- Reviewed surname/proper-name contexts 2026-07-14 ---
+区老师	ou1 lao3 shi1
+曾老师	zeng1 lao3 shi1
+解经理	xie4 jing1 li3
+薄书记	bo2 shu1 ji4
+任先生	ren2 xian1 sheng1
+朴老师	piao2 lao3 shi1
 论语	lun2 yu3
 言语	yan2 yu3
 给予	ji3 yu3
