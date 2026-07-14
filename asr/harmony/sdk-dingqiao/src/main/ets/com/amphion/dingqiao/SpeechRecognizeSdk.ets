@@ -1,4 +1,4 @@
-import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
+import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SessionConfig, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
 import { PoliceEngineConfig, PoliceEnhanceOptions, PoliceEnhancePipeline } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
@@ -75,6 +75,16 @@ function numberParam(params: Record<string, Object>, key: string, defaultValue: 
   return defaultValue;
 }
 
+function optionalNumberParam(params: Record<string, Object>, key: string): number | undefined {
+  const value = params[key];
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -83,14 +93,34 @@ function vadEndMs(params?: StartParams): number {
   return clamp(numberParam(params?.extraParams ?? {}, 'vadEnd', 800), 500, 10000);
 }
 
+function vadBeginMs(params: StartParams): number | undefined {
+  if (params.extraParams['vadBegin'] === undefined) return undefined;
+  const value = optionalNumberParam(params.extraParams, 'vadBegin');
+  return value === undefined ? undefined : Math.round(clamp(value, 500, 10000));
+}
+
 function isSupportedAudioFrameBytes(byteLength: number): boolean {
   return byteLength === DINGQIAO_AUDIO_FRAME_BYTES_20MS;
 }
 
 function maxAudioBytesOf(params: StartParams): number {
-  const ms = Math.max(numberParam(params.extraParams, 'maxAudioDuration', 20000), 20000);
+  const ms = clamp(numberParam(params.extraParams, 'maxAudioDuration', 20000), 20000, 28800000);
   // 16 kHz mono 16-bit PCM = 32 bytes per millisecond.
   return Math.round(ms * 32);
+}
+
+function validateRecognitionMode(params: StartParams): string {
+  const raw = params.extraParams['recognitionMode'];
+  if (raw === undefined) return '';
+  const mode = optionalNumberParam(params.extraParams, 'recognitionMode');
+  return mode === 1 ? '' : 'only recognitionMode=1 (external audio stream) is supported';
+}
+
+function validateRecognizerMode(params: CreateEngineParams): void {
+  const raw = params.extraParams['recognizerMode'];
+  if (raw === undefined) return;
+  const mode = `${raw}`.trim().toLowerCase();
+  if (mode !== 'short' && mode !== 'long') throw new Error('recognizerMode must be short or long');
 }
 
 function validateAudioInfo(audioInfo: AudioInfo): string {
@@ -197,6 +227,7 @@ function mapLicenseErrorCode(asrCode: number): number {
 function buildAsrConfig(context: Context, params: CreateEngineParams, startParams?: StartParams,
   withTargetSpeaker: boolean = false, withSpeakerVad: boolean = false,
   speakerModelPath?: string): AsrConfig {
+  validateRecognizerMode(params);
   const plate = booleanParam(params.extraParams, 'plateNormalizeEnabled', true);
   const station = booleanParam(params.extraParams, 'stationNormalizeEnabled', true);
   const terms = booleanParam(params.extraParams, 'termsNormalizeEnabled', true);
@@ -241,7 +272,6 @@ function snapshotCreateEngineParams(source: CreateEngineParams): CreateEnginePar
 
 function buildTargetSpeakerConfig(startParams: StartParams | undefined, withSpeakerVad: boolean,
   speakerModelPath: string): TargetSpeakerConfig {
-  const extra = startParams?.extraParams ?? {};
   const cfg = new TargetSpeakerConfig();
   cfg.modelPath = speakerModelPath;
   // Score-only: never reject on segment-end verification so onFinal always carries speakerSimilarity
@@ -254,14 +284,26 @@ function buildTargetSpeakerConfig(startParams: StartParams | undefined, withSpea
   cfg.deferLoad = !withSpeakerVad;
   // Keep Speaker VAD configured even when initially disabled so the Android-aligned runtime toggle
   // can enable it later in the same session. Only an initially enabled Speaker VAD makes load sync.
-  const sv = new SpeakerVadConfig();
-  sv.threshold = clamp(numberParam(extra, 'speakerVadThreshold', 0.40), -1.0, 1.0);
-  sv.winSec = clamp(numberParam(extra, 'speakerVadWindowMs', 1000), 500, 5000) / 1000;
-  sv.hopSec = clamp(numberParam(extra, 'speakerVadHopMs', 300), 100, 2000) / 1000;
-  sv.consecutiveBelow = Math.round(clamp(numberParam(extra, 'speakerVadConsecutiveBelow', 2), 1, 5));
-  sv.enabledByDefault = false;
-  cfg.speakerVad = sv;
+  cfg.speakerVad = buildSpeakerVadConfig(startParams?.extraParams ?? {});
   return cfg;
+}
+
+function buildSpeakerVadConfig(extra: Record<string, Object>): SpeakerVadConfig {
+  const config = new SpeakerVadConfig();
+  config.threshold = clamp(numberParam(extra, 'speakerVadThreshold', 0.40), -1.0, 1.0);
+  config.winSec = clamp(numberParam(extra, 'speakerVadWindowMs', 1000), 500, 5000) / 1000;
+  config.hopSec = clamp(numberParam(extra, 'speakerVadHopMs', 300), 100, 2000) / 1000;
+  config.consecutiveBelow = Math.round(clamp(numberParam(extra, 'speakerVadConsecutiveBelow', 2), 1, 5));
+  config.enabledByDefault = false;
+  return config;
+}
+
+function buildSessionConfig(params: StartParams, withTargetSpeaker: boolean): SessionConfig {
+  const config = new SessionConfig();
+  config.endpointSilenceMs = vadEndMs(params);
+  config.initialSilenceTimeoutMs = vadBeginMs(params);
+  if (withTargetSpeaker) config.speakerVad = buildSpeakerVadConfig(params.extraParams);
+  return config;
 }
 
 function buildEnhanceOptions(params: CreateEngineParams): PoliceEnhanceOptions {
@@ -293,6 +335,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private maxAudioBytes: number = 0;
   private audioBytesWritten: number = 0;
   private voiceprintIds: string[] = [];
+  private speechActive: boolean = false;
   private startingSession: boolean = false;
   private cancelRequestedDuringStart: boolean = false;
   // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
@@ -304,21 +347,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.pipeline = PoliceEnhancePipeline.create(context, buildEnhanceOptions(this.params));
     this.asrEngine = preloadedEngine ??
       AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(context, this.params));
-    this.engineCfgKey = this.computeEngineCfgKey(undefined, false, false);
+    this.engineCfgKey = this.computeEngineCfgKey(false, false);
   }
 
-  // 会话级配置指纹:只含影响引擎构建的可变项(VAD 端点、目标说话人/说话人VAD)。
-  // recognizer(模型)级配置由 CreateEngineParams 固定,不随 startListening 变。
-  private computeEngineCfgKey(sp: StartParams | undefined, withTargetSpeaker: boolean, withSpeakerVad: boolean): string {
-    const extra: Record<string, Object> = sp?.extraParams ?? {};
-    const parts: string[] = [`${withTargetSpeaker}`, `${withSpeakerVad}`, `${vadEndMs(sp)}`];
-    if (withTargetSpeaker) {
-      parts.push(`${numberParam(extra, 'speakerVadThreshold', 0.40)}`);
-      parts.push(`${numberParam(extra, 'speakerVadWindowMs', 1000)}`);
-      parts.push(`${numberParam(extra, 'speakerVadHopMs', 300)}`);
-      parts.push(`${numberParam(extra, 'speakerVadConsecutiveBelow', 2)}`);
-    }
-    return parts.join('|');
+  // vadBegin/vadEnd/speaker 窗口均由 SessionConfig 覆盖；只有目标说话人能力和同步加载策略需要重建引擎。
+  private computeEngineCfgKey(withTargetSpeaker: boolean, withSpeakerVad: boolean): string {
+    return [`${withTargetSpeaker}`, `${withSpeakerVad}`].join('|');
   }
 
   setListener(listener: RecognitionListener): void { this.listener = listener; }
@@ -332,6 +366,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const audioError = validateAudioInfo(params.audioInfo);
     if (audioError.length > 0) {
       this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, audioError);
+      return;
+    }
+    const recognitionModeError = validateRecognitionMode(params);
+    if (recognitionModeError.length > 0) {
+      this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, recognitionModeError);
       return;
     }
     if (!isValidSessionId(params.sessionId)) {
@@ -379,11 +418,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.maxAudioBytes = maxAudioBytesOf(params);
       this.audioBytesWritten = 0;
       this.voiceprintIds = voiceprintIds;
+      this.speechActive = false;
       this.busy = true;
       const callback: AsrCallback = new DingqiaoAsrCallback(this);
       this.startingSession = true;
       this.cancelRequestedDuringStart = false;
-      const createdSession = this.asrEngine.newSession(callback);
+      const createdSession = this.asrEngine.newSession(callback, buildSessionConfig(params, configureTarget));
       this.startingSession = false;
       if (this.cancelRequestedDuringStart || this.destroyed || !this.busy || this.currentSessionId !== params.sessionId) {
         this.cancelRequestedDuringStart = false;
@@ -544,6 +584,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finalResultSent = false;
     this.completeSent = false;
     this.voiceprintIds = [];
+    this.speechActive = false;
   }
 
   private tearDownSession(): void {
@@ -554,7 +595,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
 
   private rebuildEngine(params: StartParams, withTargetSpeaker: boolean, withSpeakerVad: boolean,
     speakerModelPath?: string): void {
-    const newKey = this.computeEngineCfgKey(params, withTargetSpeaker, withSpeakerVad);
+    const newKey = this.computeEngineCfgKey(withTargetSpeaker, withSpeakerVad);
     if (newKey === this.engineCfgKey) {
       // 会话配置未变(纯 ASR 反复开始/结束):复用已加载的引擎与模型,避免每次点"开始识别"重载模型卡 3~4 秒。
       return;
@@ -580,8 +621,30 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.listener?.onResult?.(this.currentSessionId, result);
   }
 
+  handleSpeechBegin(): void {
+    if (!this.busy || this.currentSessionId.length === 0) return;
+    this.speechActive = true;
+    this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEECH_BEGIN, 'speech started.');
+  }
+
+  handleInitialSilenceTimeout(): void {
+    if (!this.busy || this.finishRequested || this.session === undefined) return;
+    const sessionId = this.currentSessionId;
+    const session = this.session;
+    this.finishRequested = true;
+    this.lastFinishedSessionId = sessionId;
+    this.lastAutoFinishedSessionId = sessionId;
+    // VAD callback runs inside acceptPcmBytes; defer stop to avoid re-entering the native stream.
+    setTimeout((): void => {
+      if (!this.busy || this.session !== session || this.currentSessionId !== sessionId) return;
+      session.stop();
+    }, 0);
+  }
+
   handleEndpoint(): void {
     if (!this.busy || this.currentSessionId.length === 0) return;
+    if (!this.speechActive) return;
+    this.speechActive = false;
     this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEECH_END, 'speech stopped.');
   }
 
@@ -616,8 +679,6 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const sessionId = this.currentSessionId;
     if (!this.busy || sessionId.length === 0) return;
     this.listener?.onStart?.(sessionId, 'startListening success.');
-    if (!this.busy || this.currentSessionId !== sessionId) return;
-    this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEECH_BEGIN, 'speech started.');
   }
 
   handleSessionStopped(): void {
@@ -648,6 +709,14 @@ class DingqiaoAsrCallback implements AsrCallback {
 
   constructor(owner: DingqiaoRecognitionEngineImpl) {
     this.owner = owner;
+  }
+
+  onSpeechBegin(): void {
+    this.owner.handleSpeechBegin();
+  }
+
+  onInitialSilenceTimeout(): void {
+    this.owner.handleInitialSilenceTimeout();
   }
 
   onPartial(text: string): void {

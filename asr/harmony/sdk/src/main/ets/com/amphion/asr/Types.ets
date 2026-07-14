@@ -61,6 +61,13 @@ export class SpeakerVadConfig {
   enabledByDefault: boolean = false;
 }
 
+/** Per-session runtime thresholds. Undefined fields inherit the engine configuration. */
+export class SessionConfig {
+  endpointSilenceMs?: number;
+  initialSilenceTimeoutMs?: number;
+  speakerVad?: SpeakerVadConfig;
+}
+
 export class TargetSpeakerConfig {
   modelPath: string = '';
   threshold: number = 0.30;
@@ -256,6 +263,8 @@ export class AmphionMetrics {
 }
 
 export interface AsrCallback {
+  onSpeechBegin?(): void;
+  onInitialSilenceTimeout?(): void;
   onPartial?(text: string): void;
   onPartialResult?(result: AsrResult): void;
   onFinal?(text: string, confidence: number): void;

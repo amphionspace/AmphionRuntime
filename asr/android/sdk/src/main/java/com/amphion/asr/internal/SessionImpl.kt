@@ -121,6 +121,20 @@ internal class SessionImpl(
     private val activeEpSilenceMs: Int =
         sessionConfig?.endpointSilenceMs ?: engineImpl.vadConfig.activeEndpointSilenceMs
 
+    /** 首次起音前允许处理的真实 PCM 时长；0 = 禁用。 */
+    private val initialSilenceTimeoutSamples: Long =
+        ((sessionConfig?.initialSilenceTimeoutMs ?: 0).toLong() * sampleRate / 1000L)
+
+    /** 首次 speech onset 前已经送入 VAD 的完整窗口样本数。 */
+    private var initialSilenceSamples: Long = 0L
+
+    /** 一旦检测到过 speech，本会话不再触发首段静音超时。 */
+    private var initialSpeechDetected: Boolean = false
+
+    /** 防止超时回调和后续排队音频重复触发生命周期结束。 */
+    @Volatile
+    private var initialSilenceTimeoutSent: Boolean = false
+
     /** 当前是否处于 speech 段内（VAD onset 后 → 主动 endpoint / hard restart 之间）。 */
     @Volatile
     private var vadSpeechActive: Boolean = false
@@ -403,7 +417,7 @@ internal class SessionImpl(
     }
 
     private fun feedAndDecode(samples: FloatArray) {
-        if (closed.get()) return
+        if (closed.get() || initialSilenceTimeoutSent) return
 
         // 声纹门控 / speaker vad 开启时，累积当前段 PCM 供段末或实时滑窗打分（decoder 线程独占）。
         if (targetSpeakerEnabled || speakerVadEnabled) appendUtterance(samples)
@@ -446,8 +460,23 @@ internal class SessionImpl(
                 if (!vadSpeechActive) {
                     vadSpeechActive = true
                     Logger.d("session $sessionId VAD speech onset")
+                    callbackHandler.post {
+                        safeCallback { callback.onSpeechBegin() }
+                    }
                 }
+                initialSpeechDetected = true
                 trailingSilenceMs = 0
+            }
+            !initialSpeechDetected && !initialSilenceTimeoutSent && initialSilenceTimeoutSamples > 0L -> {
+                initialSilenceSamples += i.toLong()
+                if (initialSilenceSamples >= initialSilenceTimeoutSamples) {
+                    initialSilenceTimeoutSent = true
+                    Logger.i("session $sessionId VAD initial silence timeout")
+                    callbackHandler.post {
+                        safeCallback { callback.onInitialSilenceTimeout() }
+                    }
+                    return
+                }
             }
             anySilence && vadSpeechActive -> {
                 // 仅在曾经有 speech 之后才累计静音；进入主动 endpoint 判定。

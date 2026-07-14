@@ -41,6 +41,11 @@ python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --skip-build-install --device <HDC_TARGET> --data-dir <WAV_DIR> \
   --mode burst --cycles 48 --files 24
+
+# vadBegin 专项：真实起音必须优先于 10 秒首段静音阈值
+python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
+  --skip-build-install --device <HDC_TARGET> --data-dir <WAV_DIR> \
+  --mode vad-begin --cycles 3 --files 3
 ```
 
 加载基准和压力测试均通过后再执行客户打包。基准身份和当前验收值见
@@ -131,6 +136,7 @@ bash asr/tools/08_pack_harmony_assets.sh
 | native 加载 | `libamphion_asr.so`、`libsherpa-onnx-c-api.so`、`libonnxruntime.so` 可加载 |
 | 实时识别 | HAP demo 麦克风实时出 partial/final |
 | final 增强 | final 走警务增强，中间结果保持 ASR 原文 |
+| `vadBegin` | 持续静音只产生一个空 last final 和一次 complete；真实语音先到时产生真实 `SPEECH_BEGIN` 且不触发首段超时 |
 | TTS 合成 | demo 输入文本可合成 PCM（`onData` 逐块回调），`SYNTHESIZE_AND_PLAY` 可内置播放 |
 | 声纹 | 注册/删除接口可调用，embedding native 接入后返回相似度 |
 | license | 接口保留，正式包注入鸿蒙公钥验签 |

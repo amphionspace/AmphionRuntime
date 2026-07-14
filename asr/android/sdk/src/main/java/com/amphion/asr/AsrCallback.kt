@@ -23,6 +23,12 @@ package com.amphion.asr
  */
 public interface AsrCallback {
 
+    /** VAD 检测到一段语音真正开始。 */
+    public fun onSpeechBegin() {}
+
+    /** 会话配置的首段静音时限已到，且尚未检测到任何语音。 */
+    public fun onInitialSilenceTimeout() {}
+
     /**
      * 部分识别结果（流式增量）。
      *

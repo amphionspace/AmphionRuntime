@@ -2,6 +2,7 @@ package com.amphion.dingqiao
 
 import com.amphion.asr.AsrLanguage
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -59,6 +60,30 @@ class DingqiaoEngineConfigTest {
         )
 
         assertEquals(800, config.vadConfig.activeEndpointSilenceMs)
+    }
+
+    @Test
+    fun buildAsrConfig_acceptsDocumentedRecognizerModes() {
+        for (mode in listOf("short", "long")) {
+            DingqiaoEngineConfig.buildAsrConfig(
+                CreateEngineParams(
+                    language = "zh-CN",
+                    extraParams = mapOf("recognizerMode" to mode),
+                ),
+                speakerModelPath = null,
+            )
+        }
+
+        val rejected = runCatching {
+            DingqiaoEngineConfig.buildAsrConfig(
+                CreateEngineParams(
+                    language = "zh-CN",
+                    extraParams = mapOf("recognizerMode" to "invalid"),
+                ),
+                speakerModelPath = null,
+            )
+        }
+        assertTrue(rejected.isFailure)
     }
 
     @Test
@@ -145,6 +170,39 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun vadBeginMs_isOptInAndClampsToDocumentRange() {
+        assertNull(DingqiaoEngineConfig.vadBeginMs(StartParams("s1", AudioInfo())))
+        assertNull(
+            DingqiaoEngineConfig.vadBeginMs(
+                StartParams("s1", AudioInfo(), mapOf("vadBegin" to "invalid")),
+            ),
+        )
+        assertEquals(
+            500,
+            DingqiaoEngineConfig.vadBeginMs(
+                StartParams("s1", AudioInfo(), mapOf("vadBegin" to 100)),
+            ),
+        )
+        assertEquals(
+            10_000,
+            DingqiaoEngineConfig.vadBeginMs(
+                StartParams("s1", AudioInfo(), mapOf("vadBegin" to "20000")),
+            ),
+        )
+    }
+
+    @Test
+    fun buildSessionConfig_carriesVadBeginWithoutRebuildingEngine() {
+        val sc = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams("s1", AudioInfo(), mapOf("vadBegin" to 2_000, "vadEnd" to 900)),
+            speakerModelPath = null,
+        )
+
+        assertEquals(2_000, sc.initialSilenceTimeoutMs)
+        assertEquals(900, sc.endpointSilenceMs)
+    }
+
+    @Test
     fun audioFrameBytes_acceptsDocumentedFrameSizeOnly() {
         assertTrue(DingqiaoEngineConfig.isSupportedAudioFrameBytes(640))
         assertTrue(!DingqiaoEngineConfig.isSupportedAudioFrameBytes(1280))
@@ -169,6 +227,33 @@ class DingqiaoEngineConfigTest {
             60_000L,
             DingqiaoEngineConfig.maxAudioDurationMs(StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to 60_000))),
         )
+        assertEquals(
+            20_000L,
+            DingqiaoEngineConfig.maxAudioDurationMs(
+                StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to Double.POSITIVE_INFINITY)),
+            ),
+        )
+        assertEquals(
+            28_800_000L,
+            DingqiaoEngineConfig.maxAudioDurationMs(
+                StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to 99_999_999)),
+            ),
+        )
+    }
+
+    @Test
+    fun recognitionMode_acceptsExternalStreamOnly() {
+        DingqiaoEngineConfig.validateRecognitionMode(StartParams("s1", AudioInfo()))
+        DingqiaoEngineConfig.validateRecognitionMode(
+            StartParams("s1", AudioInfo(), mapOf("recognitionMode" to "1")),
+        )
+
+        val rejected = runCatching {
+            DingqiaoEngineConfig.validateRecognitionMode(
+                StartParams("s1", AudioInfo(), mapOf("recognitionMode" to DingqiaoRecognitionMode.RECORD)),
+            )
+        }
+        assertTrue(rejected.isFailure)
     }
 
     @Test

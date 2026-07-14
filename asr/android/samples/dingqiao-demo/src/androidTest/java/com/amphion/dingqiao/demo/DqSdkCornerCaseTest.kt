@@ -6,6 +6,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.amphion.dingqiao.AudioInfo
 import com.amphion.dingqiao.CreateEngineParams
 import com.amphion.dingqiao.DingqiaoErrorCode
+import com.amphion.dingqiao.DingqiaoEventCode
 import com.amphion.dingqiao.DingqiaoOnlineMode
 import com.amphion.dingqiao.SpeechRecognitionEngine
 import com.amphion.dingqiao.SpeechRecognizeSdk
@@ -380,6 +381,34 @@ class DqSdkCornerCaseTest {
             "thrown" to thrown, "thrownMsg" to thrownMsg, "callbackErrors" to listener.errorCodes().toString()))
         assertNotNull("post-shutdown writeAudio should throw (not deliver onError)", thrown)
         assertTrue("post-shutdown should NOT deliver onError callback", listener.errors.isEmpty())
+    }
+
+    // ---------- a11: vadBegin 首段静音自动结束 ----------
+    @Test
+    fun a11_vadBegin_initialSilenceAutoFinish() {
+        val engine = sharedEngine()
+        awaitIdle(engine)
+        val listener = CapturingListener().also { engine.setListener(it) }
+        val sid = "vadbegin-${System.currentTimeMillis()}"
+        engine.startListening(
+            StartParams(
+                sid,
+                AudioInfo(),
+                mapOf("vadBegin" to 500, "enablePartialResult" to false),
+            ),
+        )
+        assertTrue(listener.awaitStarted(10_000))
+        feedSilence(engine, sid, 700)
+        val completed = listener.awaitComplete(10_000)
+        awaitIdle(engine)
+
+        assertTrue("vadBegin should complete a no-input session", completed)
+        assertEquals("no-input final must be empty", "", listener.lastFinal()?.result)
+        assertTrue("no-input final must close the session", listener.lastFinal()?.isLast == true)
+        assertFalse(listener.events.any { it.first == DingqiaoEventCode.SPEECH_BEGIN })
+        assertFalse(listener.events.any { it.first == DingqiaoEventCode.SPEECH_END })
+        assertTrue(listener.errors.isEmpty())
+        assertFalse(engine.isBusy())
     }
 
     // ---------- helpers ----------

@@ -42,7 +42,7 @@ bash asr/tools/08_pack_harmony_assets.sh
 ## 通用 ASR API
 
 ```ts
-import { AmphionRuntime, AsrConfig, AsrLanguage, AmphionLogLevel } from 'amphion_asr';
+import { AmphionRuntime, AsrConfig, AsrLanguage, AmphionLogLevel, SessionConfig } from 'amphion_asr';
 
 AmphionRuntime.init(context, {
   logLevel: AmphionLogLevel.INFO
@@ -58,14 +58,18 @@ const config = AsrConfig.builder()
   .build();
 
 const engine = AmphionRuntime.create(context, AsrLanguage.ZH_EN, config);
+const sessionConfig = new SessionConfig();
+sessionConfig.initialSilenceTimeoutMs = 3000;
 const session = engine.newSession({
+  onSpeechBegin: () => {},
+  onInitialSilenceTimeout: () => {},
   onPartial: (text: string) => {},
   onFinal: (text: string, confidence: number) => {},
   onFinalResult: (result) => {},
   onEndpoint: () => {},
   onMetrics: (metrics) => {},
   onError: (error) => {}
-});
+}, sessionConfig);
 session.acceptPcmShort(pcm16kMono);
 session.stop();
 session.close();
@@ -73,6 +77,9 @@ engine.close();
 ```
 
 SDK 不接管录音，业务方需自行使用 `AudioCapturer` 获取 16 kHz、16-bit、mono PCM。
+`SessionConfig.initialSilenceTimeoutMs` 按底层实际处理的 PCM 时长计算，`undefined` 或 `0` 表示禁用；
+真实起音优先于同一边界帧的超时，并永久关闭本会话的首段静音计时。底层仅发出可选的
+`onInitialSilenceTimeout` 通知，鼎桥适配层负责转换为空 last final 和 `onComplete`。
 
 ## 预加载与释放
 

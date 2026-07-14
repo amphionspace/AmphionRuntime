@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0 - hotfix 2026-07-14（跨端参数与 VAD 前端点）
+
+- Android 与 Harmony 补齐 `vadBegin`：仅显式传入时启用，按底层实际处理的 PCM 时长计时，真实起音优先于阈值边界。
+- 首段持续静音达到阈值后正常返回一个空的 last final 和一次 `onComplete`，不发送 speech 事件或错误；结束后可立即启动下一会话。
+- 补齐 `recognitionMode`、`recognizerMode`、`locate`、`maxAudioDuration` 上限和 `NO_MIC_PERMISSION=1002200012` 兼容契约；`sessionGeneralLexicon` 仍明确为 V1 不支持。
+- 增加 USB 真机 `vad-begin` 模式，使用真实 WAV 验证起音事件，并在 SDK 自测中覆盖持续静音自动结束。
+
 ## 0.1.0 — hotfix 2026-07-13（License / Runtime / Model 生命周期）
 
 - `setLicense` 只执行离线授权校验与缓存，不再隐式拉起 Runtime。

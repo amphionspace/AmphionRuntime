@@ -16,7 +16,8 @@ import {
   SpeechRecognitionResult,
   SpeechRecognitionEngine,
   LicenseInfo,
-  DingqiaoErrorCode
+  DingqiaoErrorCode,
+  DingqiaoEventCode
 } from 'amphion_dingqiao';
 
 const TAG: string = 'SdkSelfTest';
@@ -47,22 +48,34 @@ class Report {
 class EventLog {
   starts: number = 0;
   events: number = 0;
+  speechBegins: number = 0;
+  speechEnds: number = 0;
   results: number = 0;
   finals: number = 0;
   completes: number = 0;
   errors: number = 0;
   lastErrorCode: number = 0;
   lastText: string = '';
+  lastFinalIsLast: boolean = false;
+  lastFinalText: string = '';
 }
 
 class TestListener implements RecognitionListener {
   private log: EventLog;
   constructor(log: EventLog) { this.log = log; }
   onStart(sessionId: string, eventMessage?: string): void { this.log.starts += 1; }
-  onEvent(sessionId: string, eventCode: number, message: string): void { this.log.events += 1; }
+  onEvent(sessionId: string, eventCode: number, message: string): void {
+    this.log.events += 1;
+    if (eventCode === DingqiaoEventCode.SPEECH_BEGIN) this.log.speechBegins += 1;
+    if (eventCode === DingqiaoEventCode.SPEECH_END) this.log.speechEnds += 1;
+  }
   onResult(sessionId: string, result: SpeechRecognitionResult): void {
     this.log.results += 1;
-    if (result.isFinal) this.log.finals += 1;
+    if (result.isFinal) {
+      this.log.finals += 1;
+      this.log.lastFinalIsLast = result.isLast;
+      this.log.lastFinalText = result.result;
+    }
     if (result.result.length > 0) this.log.lastText = result.result;
   }
   onComplete(sessionId: string, eventMessage?: string): void { this.log.completes += 1; }
@@ -261,7 +274,7 @@ export async function runSdkSelfTest(context: common.UIAbilityContext): Promise<
   engine.startListening(sp);
   const started = await waitFor((): boolean => evt.starts > 0, 8000);
   r.check('startListening -> onStart', started, `starts=${evt.starts}`);
-  r.check('onEvent SPEECH_BEGIN fired', evt.events > 0, `events=${evt.events}`);
+  r.check('session start does not fake SPEECH_BEGIN', evt.speechBegins === 0, `speechBegins=${evt.speechBegins}`);
   r.check('isBusy() true during session', engine.isBusy(), '');
 
   // --- startListening while busy -> ENGINE_BUSY ---
@@ -295,6 +308,27 @@ export async function runSdkSelfTest(context: common.UIAbilityContext): Promise<
   r.check('finish -> onComplete', completed, `completes=${evt.completes}`);
   r.check('isBusy() false after complete', !engine.isBusy(), '');
   hilog.info(DOMAIN, TAG, 'INFO results=%{public}d finals=%{public}d lastText="%{public}s"', evt.results, evt.finals, evt.lastText);
+
+  // --- vadBegin: accepted silence reaches the threshold and closes normally with an empty last final. ---
+  const vadEvt = new EventLog();
+  engine.setListener(new TestListener(vadEvt));
+  const vadSid = 'selftest-vadbegin';
+  const vadParams = new StartParams();
+  vadParams.sessionId = vadSid;
+  vadParams.audioInfo = new AudioInfo();
+  vadParams.extraParams['vadBegin'] = 500;
+  vadParams.extraParams['enablePartialResult'] = false;
+  engine.startListening(vadParams);
+  const vadStarted = await waitFor((): boolean => vadEvt.starts > 0, 8000);
+  for (let i = 0; i < 35; i++) engine.writeAudio(vadSid, frame640());
+  const vadCompleted = await waitFor((): boolean => vadEvt.completes > 0, 8000);
+  r.check('vadBegin silence -> onComplete', vadStarted && vadCompleted, `completes=${vadEvt.completes}`);
+  r.check('vadBegin silence -> empty last final', vadEvt.finals === 1 && vadEvt.lastFinalIsLast &&
+    vadEvt.lastFinalText.length === 0, `finals=${vadEvt.finals} isLast=${vadEvt.lastFinalIsLast}`);
+  r.check('vadBegin silence -> no speech events', vadEvt.speechBegins === 0 && vadEvt.speechEnds === 0,
+    `begin=${vadEvt.speechBegins} end=${vadEvt.speechEnds}`);
+  r.check('vadBegin silence -> engine idle', !engine.isBusy(), '');
+  engine.setListener(new TestListener(evt));
 
   // --- re-startListening (reuse; should be fast, not a 3s reload) ---
   const t0 = Date.now();
