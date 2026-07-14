@@ -19,6 +19,48 @@ internal object LitsTtsFrontend {
     private val resourcesByRoot = ConcurrentHashMap<String, FrontendResources>()
     private val pinyinSyllableRegex = Regex("^[a-z]+[0-6]$")
     private val hanziRegex = Regex("[\\u4e00-\\u9fff]")
+    private val polyphonicSurnamePinyin = mapOf(
+        '区' to "ou1",
+        '曾' to "zeng1",
+        '解' to "xie4",
+        '任' to "ren2",
+        '朴' to "piao2",
+        '薄' to "bo2",
+        '单' to "shan4",
+        '仇' to "qiu2",
+        '盖' to "ge3",
+        '查' to "zha1",
+        '乐' to "yue4",
+        '覃' to "qin2",
+        '尉' to "yu4",
+        '卜' to "bu3",
+        '车' to "ju1",
+        '石' to "dan4",
+        '华' to "hua4",
+        '燕' to "yan1",
+        '殷' to "yin1",
+        '柏' to "bo2",
+        '秘' to "bi4",
+        '翟' to "zhai2",
+        '长' to "zhang3",
+        '纪' to "ji3",
+    )
+    private val surnameTitleSuffixes = listOf(
+        "老师",
+        "先生",
+        "女士",
+        "经理",
+        "主任",
+        "书记",
+        "医生",
+        "同学",
+        "教授",
+        "师傅",
+        "老板",
+    )
+    private val surnameTitlePinyinOverrides = mapOf(
+        "先生" to listOf("xian1", "sheng1"),
+    )
     private val punctuation = setOf(',', '.', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '<', '>', '-')
     private val sentenceEndPunctuation = setOf('.', '!', '?', ';', ',', '\u2026')
     private val attachedSentenceSuffix = setOf('"', '\'', ')', ']', '}', '>', '\u201D', '\u2019', '\u300B', '\u3011')
@@ -137,18 +179,22 @@ internal object LitsTtsFrontend {
         '\u2715' to ",",
         '\u2716' to ",",
     )
-    private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)[%％]")
+    private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?[%％]")
+    private val percentNumberTextRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?百分号")
     private val commaIntegerCurrencyRegex = Regex("(?<!\\d)(\\d{1,3}(?:,\\d{3})+)\\.00(?=元)")
     private val thousandsSeparatorRegex = Regex("(?<=\\d),(?=\\d{3}(?:\\D|$))")
-    private val clockMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2})点0([1-9])分")
-    private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点0([1-9])分")
+    private val clockColonMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2}):0([0-9])(?!\\d)")
+    private val clockMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2})点\\s?0([1-9])分")
+    private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点\\s?0([1-9])分")
     private val durationMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d+)小时0([1-9])分钟")
+    private val yearBeforeNianRegex = Regex("(?<!\\d)(\\d{4})\\s*年")
     private val yearMonthLeadingZeroRegex = Regex("(\\d{2,4}年)0([1-9])月")
     private val yearMonthRegex = Regex("(\\d{2,4}年)(\\d{1,2})月")
     private val monthDayLeadingZeroRegex = Regex("(月)0([1-9])日")
     private val monthDayRegex = Regex("(月)(\\d{1,2})(日|号)")
-    private val negativeTemperatureRegex = Regex("((?:气温|温度|体温))-(\\d+(?:\\.\\d+)?)(度|℃)")
-    private val negativeTemperatureRangeRegex = Regex("(温度范围是)-(\\d+(?:\\.\\d+)?)到(\\d+(?:\\.\\d+)?)(度|℃)")
+    private val negativeTemperatureRegex = Regex("((?:气温|温度|体温))\\s?-\\s?(\\d+(?:\\.\\d+)?)\\s?(度|℃)")
+    private val negativeTemperatureRangeRegex = Regex("(温度范围是)\\s?-\\s?(\\d+(?:\\.\\d+)?)\\s?到\\s?(\\d+(?:\\.\\d+)?)\\s?(度|℃)")
+    private val semanticVersionRegex = Regex("(?<![A-Za-z0-9])([vV])(\\d+(?:\\.\\d+)+)(?![A-Za-z0-9])")
     private val versionNumberWithSuffixRegex = Regex("(?<!\\d)(\\d+(?:\\.\\d+){2,})(?=[-A-Za-z])")
     private val digitDotRegex = Regex("(?<=\\d)\\.(?=\\d)")
     private val hanziDigitDotRegex = Regex("(?<=[零一二三四五六七八九十百千万两])\\.(?=[零一二三四五六七八九十百千万两])")
@@ -156,11 +202,20 @@ internal object LitsTtsFrontend {
     private val urlSchemeSeparatorRegex = Regex("(?<![A-Za-z0-9])(https?|ftp)://", RegexOption.IGNORE_CASE)
     private val caretPowerTwoRegex = Regex("\\^(?:2|二)")
     private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])([A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
+    private val technicalSymbolChars = setOf('.', '/', '\\', '_', '@', ':', '?', '=', '&', '#', '%', '+', '-')
     private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
+    private val roomNumberRegex = Regex("((?:房间|房号)(?:是|为)?\\s*)(\\d{3,4})(?!\\d)")
+    private val stockCodeRegex = Regex("(股票\\s*)(\\d{6})(?!\\d)")
+    private val plateCodeRegex = Regex("((?:车牌号?|号牌)\\s*[\\u4e00-\\u9fff]?\\s*[A-Za-z])(\\d{3,6})(?!\\d)")
+    private val idTailRegex = Regex("((?:身份证尾号|尾号)\\s*)(\\d+)([A-Za-z])(?![A-Za-z0-9])")
+    private val slashDelimitedNumberRegex = Regex("(斜杠)(\\d+)(?=斜杠)")
+    private val kmPerHourRegex = Regex("(\\d+)\\s*km斜杠h", RegexOption.IGNORE_CASE)
+    private val coordinateRegex = Regex("(?<![A-Za-z])([NE])\\s*(\\d+(?:\\.\\d+)?)", RegexOption.IGNORE_CASE)
     private val vinCodeRegex = Regex("((?:车架号\\s*)?(?:VIN\\s+))([A-HJ-NPR-Z0-9]{8,17})(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
     private val productCodeRegex = Regex("(?<![A-Za-z0-9])(vocos|Office)(\\d+)(k?)(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
     private val arpabetBoundaryTokens = setOf("/", "|", "_")
     private const val CHINESE_DIGIT_SEQUENCE_CHARS = "零〇一二三四五六七八九两幺"
+    private const val CHINESE_NUMBER_CONTEXT_CHARS = "零〇一二三四五六七八九十百千万亿两点负"
     private val technicalSymbolReadings = mapOf(
         '.' to "点",
         ':' to "冒号",
@@ -170,7 +225,7 @@ internal object LitsTtsFrontend {
         '=' to "等于",
         '&' to "和",
         '@' to "艾特",
-        '_' to "下划线",
+        '_' to " UNDERSCORE ",
         '#' to "井号",
         '+' to "加",
         '-' to "杠",
@@ -227,7 +282,25 @@ internal object LitsTtsFrontend {
         'Y' to listOf("W", "AY1"),
         'Z' to listOf("Z", "IY1"),
     )
-    private val acronymWordReadings = setOf("SIM")
+    private val acronymWordReadings = setOf("SIM", "TIMEOUT", "UNDERSCORE")
+    private val technicalEnglishPhoneOverrides = mapOf(
+        "AUDIO" to listOf("AO1", "D", "IY0", "OW2"),
+        "UNDERSCORE" to listOf("AH2", "N", "D", "ER0", "S", "K", "AO1", "R"),
+        "WIFI" to listOf("W", "AY1", "F", "AY1"),
+        "WI-FI" to listOf("W", "AY1", "F", "AY1"),
+        "TIMEOUT" to listOf("T", "AY1", "M", "AW1", "T"),
+        "ONE" to listOf("W", "AH1", "N"),
+        "TWO" to listOf("T", "UW1"),
+        "THREE" to listOf("TH", "R", "IY1"),
+        "FOUR" to listOf("F", "AO1", "R"),
+        "FIVE" to listOf("F", "AY1", "V"),
+        "SIX" to listOf("S", "IH1", "K", "S"),
+        "NINE" to listOf("N", "AY1", "N"),
+        "TWENTY" to listOf("T", "W", "EH1", "N", "T", "IY0"),
+        "THIRTY" to listOf("TH", "ER1", "D", "IY2"),
+        "FORTY" to listOf("F", "AO1", "R", "T", "IY0"),
+        "FIFTY" to listOf("F", "IH1", "F", "T", "IY0"),
+    )
     private val englishMergeRules = listOf(
         listOf("t", "\u0279") to "t\u0279",
         listOf("d", "\u0279") to "d\u0279",
@@ -244,7 +317,7 @@ internal object LitsTtsFrontend {
         languageContext: String,
     ): LongArray {
         val traceId = nextTraceId()
-        val normalizedText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        val normalizedText = LitsTnNormalizer.normalize(layout, text, language, languageContext)
         return encodeNormalizedInternal(
             layout = layout,
             rawText = text,
@@ -308,7 +381,7 @@ internal object LitsTtsFrontend {
         languageContext: String,
     ): List<String> {
         val resources = resources(layout)
-        val normalizedText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        val normalizedText = LitsTnNormalizer.normalize(layout, text, language, languageContext)
         return tokenize(resources, normalizedText, language, languageContext)
     }
 
@@ -397,7 +470,7 @@ internal object LitsTtsFrontend {
         languageContext: String = "zh-en",
         wordsPerSegment: Int = 7,
     ): List<String> {
-        val tnText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        val tnText = LitsTnNormalizer.normalize(layout, text, language, languageContext)
         val normalized = normalizeText(preprocessZhMixedInput(tnText), languageContext).trim()
         if (normalized.isEmpty()) return emptyList()
         val segments = mutableListOf<String>()
@@ -880,10 +953,16 @@ internal object LitsTtsFrontend {
         normalized = percentNumberRegex.replace(normalized) { match ->
             "百分之${numberTextToHanzi(match.groupValues[1])}"
         }
+        normalized = percentNumberTextRegex.replace(normalized) { match ->
+            "百分之${numberTextToHanzi(match.groupValues[1])}"
+        }
+        normalized = semanticVersionRegex.replace(normalized) { match ->
+            match.groupValues[1] + versionNumberToHanzi(match.groupValues[2])
+        }
         normalized = normalized.replace(Regex("\\b(?:dot|point)\\b", RegexOption.IGNORE_CASE), "点")
-        normalized = normalized.replace(Regex("\\bunderscore\\b", RegexOption.IGNORE_CASE), "下划线")
+        normalized = normalized.replace(Regex("\\bunderscore\\b"), "下划线")
         normalized = versionNumberWithSuffixRegex.replace(normalized) { match ->
-            match.value.split('.').joinToString("点", transform = ::numberTextToHanzi)
+            versionNumberToHanzi(match.value)
         }
         normalized = digitDotRegex.replace(normalized, "点")
         normalized = hanziDigitDotRegex.replace(normalized, "点")
@@ -898,11 +977,7 @@ internal object LitsTtsFrontend {
             if (looksLikeIpv6(token) || token.none { it in technicalSymbolReadings }) {
                 token
             } else {
-                buildString {
-                    token.forEach { char ->
-                        append(technicalSymbolReadings[char] ?: char)
-                    }
-                }
+                normalizeTechnicalAsciiTokenForFrontend(token)
             }
         }
         return normalizeResidualSymbols(normalized, languageContext)
@@ -948,11 +1023,40 @@ internal object LitsTtsFrontend {
             compactIntegerCurrencyWithCommas(match.groupValues[1])
         }
         normalized = thousandsSeparatorRegex.replace(normalized, "")
+        normalized = coordinateRegex.replace(normalized) { match ->
+            val prefix = when (match.groupValues[1].uppercase()) {
+                "N" -> "北纬"
+                "E" -> "东经"
+                else -> match.groupValues[1]
+            }
+            prefix + numberTextToHanzi(match.groupValues[2])
+        }
+        normalized = stockCodeRegex.replace(normalized) { match ->
+            match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2])
+        }
+        normalized = roomNumberRegex.replace(normalized) { match ->
+            match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2])
+        }
+        normalized = plateCodeRegex.replace(normalized) { match ->
+            match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + ","
+        }
+        normalized = idTailRegex.replace(normalized) { match ->
+            match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + match.groupValues[3] + ","
+        }
+        normalized = slashDelimitedNumberRegex.replace(normalized) { match ->
+            match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + ","
+        }
+        normalized = kmPerHourRegex.replace(normalized) { match ->
+            numberTextToHanzi(match.groupValues[1]) + "千米每小时"
+        }
         normalized = negativeTemperatureRangeRegex.replace(normalized) { match ->
             "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}到${numberTextToHanzi(match.groupValues[3])}${match.groupValues[4]}"
         }
         normalized = negativeTemperatureRegex.replace(normalized) { match ->
             "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
+        }
+        normalized = clockColonMinuteLeadingZeroRegex.replace(normalized) { match ->
+            "${numberTextToHanzi(match.groupValues[1])}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}"
         }
         normalized = clockMinuteLeadingZeroRegex.replace(normalized) { match ->
             "${numberTextToHanzi(match.groupValues[1])}点零${numberTextToHanzi(match.groupValues[2])}分"
@@ -962,6 +1066,9 @@ internal object LitsTtsFrontend {
         }
         normalized = durationMinuteLeadingZeroRegex.replace(normalized) { match ->
             "${numberTextToHanzi(match.groupValues[1])}小时零${numberTextToHanzi(match.groupValues[2])}分钟"
+        }
+        normalized = yearBeforeNianRegex.replace(normalized) { match ->
+            digitSequenceToHanzi(match.groupValues[1]) + "年"
         }
         normalized = yearMonthLeadingZeroRegex.replace(normalized) { match ->
             "${match.groupValues[1]}零${numberTextToHanzi(match.groupValues[2])}月"
@@ -993,6 +1100,42 @@ internal object LitsTtsFrontend {
         }
     }
 
+    private fun normalizeTechnicalAsciiTokenForFrontend(token: String): String {
+        val output = StringBuilder(token.length)
+        var index = 0
+        while (index < token.length) {
+            val char = token[index]
+            when {
+                char.isDigit() -> {
+                    val start = index
+                    while (index < token.length && token[index].isDigit()) {
+                        index += 1
+                    }
+                    output.append(digitSequenceToHanzi(token.substring(start, index)))
+                    if (index < token.length && (token[index] in technicalSymbolChars || isEnglishLetter(token[index]))) {
+                        output.append(",")
+                    }
+                }
+                isEnglishLetter(char) -> {
+                    val start = index
+                    while (index < token.length && isEnglishLetter(token[index])) {
+                        index += 1
+                    }
+                    val word = token.substring(start, index)
+                    output.append(if (word.equals("lits", ignoreCase = true)) "LITS" else word)
+                }
+                char == '@' -> output.append(" at ")
+                char == '_' -> output.append(" UNDERSCORE ")
+                char == '/' || char == '\\' -> output.append("斜杠")
+                else -> output.append(technicalSymbolReadings[char] ?: char)
+            }
+            if (!char.isDigit() && !isEnglishLetter(char)) {
+                index += 1
+            }
+        }
+        return output.toString().replace(Regex("\\s+"), " ")
+    }
+
     private fun compactIntegerCurrencyWithCommas(text: String): String {
         val value = text.replace(",", "").toLongOrNull() ?: return text.replace(",", "")
         return when {
@@ -1011,6 +1154,12 @@ internal object LitsTtsFrontend {
         if (parts.size == 1) return integer
         return integer + "点" + parts[1].map { chineseDigitTextByChar.getValue(it) }.joinToString("")
     }
+
+    private fun digitSequenceToHanzi(text: String): String =
+        text.map { chineseDigitTextByChar.getValue(it) }.joinToString("")
+
+    private fun versionNumberToHanzi(text: String): String =
+        text.split('.').joinToString("点", transform = ::digitSequenceToHanzi)
 
     private fun integerTextToHanzi(text: String): String {
         val value = text.toIntOrNull() ?: return text.map { chineseDigitTextByChar.getValue(it) }.joinToString("")
@@ -1063,11 +1212,25 @@ internal object LitsTtsFrontend {
         val output = mutableListOf<String>()
         var index = 0
         while (index < text.length) {
+            val surnameTitle = surnameTitlePinyin(resources, text, index)
+            if (surnameTitle != null) {
+                output += surnameTitle.pinyin
+                index += surnameTitle.length
+                continue
+            }
             val word = longestWord(resources, text, index)
             output += lexiconPinyinForWord(resources, word)
             index += word.length
         }
         return output
+    }
+
+    private fun surnameTitlePinyin(resources: FrontendResources, text: String, start: Int): SurnameTitleMatch? {
+        val surnamePinyin = polyphonicSurnamePinyin[text.getOrNull(start)] ?: return null
+        val title = surnameTitleSuffixes.firstOrNull { text.startsWith(it, start + 1) } ?: return null
+        val titlePinyin = surnameTitlePinyinOverrides[title] ?: lexiconPinyinForWord(resources, title)
+        if (titlePinyin.size != title.length || titlePinyin.any { !pinyinSyllableRegex.matches(it) }) return null
+        return SurnameTitleMatch(length = 1 + title.length, pinyin = listOf(surnamePinyin) + titlePinyin)
     }
 
     private fun longestWord(resources: FrontendResources, text: String, start: Int): String {
@@ -1185,8 +1348,17 @@ internal object LitsTtsFrontend {
             if (current == null || next == null || !pinyinSyllableRegex.matches(current) || !pinyinSyllableRegex.matches(next)) {
                 return@forEachIndexed
             }
+            if (isYiInChineseNumberContext(text, index)) {
+                tokens[index] = changePinyinTone(current, '1')
+                return@forEachIndexed
+            }
             tokens[index] = changePinyinTone(current, if (next.last() == '4') '2' else '4')
         }
+    }
+
+    private fun isYiInChineseNumberContext(text: String, index: Int): Boolean {
+        val next = text.getOrNull(index + 1)
+        return next != null && next in CHINESE_NUMBER_CONTEXT_CHARS
     }
 
     private fun applyErSandhi(text: String, tokens: MutableList<String>) {
@@ -1217,8 +1389,24 @@ internal object LitsTtsFrontend {
         preferLetterName: Boolean = false,
     ): List<String> {
         val normalized = rawWord.uppercase()
+        technicalEnglishPhoneOverrides[normalized]?.let { return it }
         if (preferLetterName && rawWord.length == 1) {
             letterPhonesByChar[normalized.single()]?.let { return it }
+        }
+        if ('-' in normalized) {
+            val output = mutableListOf<String>()
+            for (part in normalized.split('-')) {
+                if (part.isEmpty()) continue
+                val phones = technicalEnglishPhoneOverrides[part]
+                    ?: resources.supplementLexicon[part]
+                    ?: resources.englishLexicon[part]
+                    ?: spellEnglishWord(resources, part)
+                if (phones.isEmpty()) {
+                    continue
+                }
+                output += phones
+            }
+            if (output.isNotEmpty()) return output
         }
         resources.supplementLexicon[normalized]?.let { return it }
         if (shouldSpellUppercaseWord(rawWord, normalized)) {
@@ -1387,12 +1575,22 @@ internal object LitsTtsFrontend {
                 appendPunctuation(output, ",")
                 return@forEach
             }
+            if (syllable.lastOrNull() == '3') {
+                applyPreviousThirdToneSandhi(output)
+            }
             val tokens = resources.pinyinToTokens[syllable]
             if (tokens == null) {
                 appendPunctuation(output, ",")
                 return@forEach
             }
             output += tokens
+        }
+    }
+
+    private fun applyPreviousThirdToneSandhi(output: MutableList<String>) {
+        val index = output.lastIndex
+        if (index >= 0 && output[index] == "ˇ") {
+            output[index] = "ˊ"
         }
     }
 
@@ -1726,6 +1924,11 @@ internal object LitsTtsFrontend {
         val symbolToId: Map<String, Int>,
         val pinyinToTokens: Map<String, List<String>>,
         val arpabetToTokens: Map<String, List<String>>,
+    )
+
+    private data class SurnameTitleMatch(
+        val length: Int,
+        val pinyin: List<String>,
     )
 
     private const val FRONTEND_LOAD_THREADS = 4

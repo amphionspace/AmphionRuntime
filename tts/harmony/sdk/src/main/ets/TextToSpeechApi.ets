@@ -4,7 +4,7 @@ import { audio } from '@kit.AudioKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { HarmonyLicenseVerifier, AmphionLicenseStatus } from './License';
 
-const MODEL_ID: string = 'transsion_lits_en_zh_vocos24k_streaming_proto_external_loop';
+const MODEL_ID: string = 'dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop';
 const MODEL_VERSION: string = '0.1.0';
 const FRONTEND_ASSET_SIGNATURE_VERSION: string = '20260701-chunk50-polyphone-v1';
 const BUNDLED_MODEL_RAWFILE_DIR: string = `lits-models/tts/${MODEL_ID}/${MODEL_VERSION}`;
@@ -1027,25 +1027,25 @@ class FrontendResources {
   }
 }
 
-class TranssionTnNormalizer {
+class LitsTnNormalizer {
   static normalize(resources: LoadedPackage, text: string, language: string, languageContext: string): string {
-    const input = TranssionTnNormalizer.prepareInput(resources, text, languageContext);
+    const input = LitsTnNormalizer.prepareInput(resources, text, languageContext);
     console.info(`${TN_LOG_TAG} normalize start language=${language} languageContext=${languageContext} inputLen=${input.length} root=${resources.rootDir}`);
     if (input.length === 0) {
       console.info(`${TN_LOG_TAG} normalize skip empty input`);
       return text;
     }
-    if (!TranssionTnNormalizer.hasTnBinaries(resources)) {
-      console.error(`${TN_LOG_TAG} normalize skip missing binaries zh=${TranssionTnNormalizer.binaryPath(resources, 'zh')} en=${TranssionTnNormalizer.binaryPath(resources, 'en')}`);
+    if (!LitsTnNormalizer.hasTnBinaries(resources)) {
+      console.error(`${TN_LOG_TAG} normalize skip missing binaries zh=${LitsTnNormalizer.binaryPath(resources, 'zh')} en=${LitsTnNormalizer.binaryPath(resources, 'en')}`);
       return text;
     }
     let output: string;
     try {
       if (language === 'en-US' || languageContext === 'en-US') {
-        output = TranssionTnNormalizer.normalizeSegment(resources, input, 'en');
+        output = LitsTnNormalizer.normalizeSegment(resources, input, 'en');
       } else {
-        output = TranssionTnNormalizer.segmentZhEn(input)
-          .map((segment: TnTextSegment): string => TranssionTnNormalizer.normalizeSegment(resources, segment.text, segment.lang))
+        output = LitsTnNormalizer.segmentZhEn(input)
+          .map((segment: TnTextSegment): string => LitsTnNormalizer.normalizeSegment(resources, segment.text, segment.lang))
           .join('');
       }
     } catch (error) {
@@ -1077,8 +1077,8 @@ class TranssionTnNormalizer {
   }
 
   private static hasTnBinaries(resources: LoadedPackage): boolean {
-    const zhPath = TranssionTnNormalizer.binaryPath(resources, 'zh');
-    const enPath = TranssionTnNormalizer.binaryPath(resources, 'en');
+    const zhPath = LitsTnNormalizer.binaryPath(resources, 'zh');
+    const enPath = LitsTnNormalizer.binaryPath(resources, 'en');
     const zhExists = isRegularFile(zhPath);
     const enExists = isRegularFile(enPath);
     console.info(`${TN_LOG_TAG} binary check zh=${zhExists} path=${zhPath} en=${enExists} path=${enPath}`);
@@ -1089,15 +1089,15 @@ class TranssionTnNormalizer {
     if (text.trim().length === 0) {
       return text;
     }
-    const binaryPath = TranssionTnNormalizer.binaryPath(resources, lang);
-    console.info(`${TN_LOG_TAG} segment start lang=${lang} textLen=${text.length} binary=${binaryPath} root=${resources.rootDir} preview=${TranssionTnNormalizer.preview(text)}`);
+    const binaryPath = LitsTnNormalizer.binaryPath(resources, lang);
+    console.info(`${TN_LOG_TAG} segment start lang=${lang} textLen=${text.length} binary=${binaryPath} root=${resources.rootDir} preview=${LitsTnNormalizer.preview(text)}`);
     try {
       const normalized = resolveNativeTtsModule().normalizeTnSegment(
         binaryPath,
         resources.rootDir,
         text
       );
-      console.info(`${TN_LOG_TAG} segment success lang=${lang} outputLen=${normalized.length} preview=${TranssionTnNormalizer.preview(normalized)}`);
+      console.info(`${TN_LOG_TAG} segment success lang=${lang} outputLen=${normalized.length} preview=${LitsTnNormalizer.preview(normalized)}`);
       return normalized;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1122,13 +1122,13 @@ class TranssionTnNormalizer {
     while (index < text.length) {
       const char = text[index];
       if (LitsTtsFrontend.isEnglishLetter(char)) {
-        const end = TranssionTnNormalizer.scanAsciiRun(text, index);
+        const end = LitsTnNormalizer.scanAsciiRun(text, index);
         const segment = text.substring(index, end);
-        const lang = TranssionTnNormalizer.protectedAsciiRunLang(text, index, end, segment) ?? 'en';
+        const lang = LitsTnNormalizer.protectedAsciiRunLang(text, index, end, segment) ?? 'en';
         segments.push({ text: segment, lang });
         index = end;
       } else {
-        const end = TranssionTnNormalizer.scanNonAsciiRun(text, index);
+        const end = LitsTnNormalizer.scanNonAsciiRun(text, index);
         segments.push({ text: text.substring(index, end), lang: 'zh' });
         index = end;
       }
@@ -1153,7 +1153,7 @@ class TranssionTnNormalizer {
     let index = start;
     while (
       index < text.length &&
-      (!LitsTtsFrontend.isEnglishLetter(text[index]) || TranssionTnNormalizer.isAsciiCelsiusUnit(text, index))
+      (!LitsTtsFrontend.isEnglishLetter(text[index]) || LitsTnNormalizer.isAsciiCelsiusUnit(text, index))
     ) {
       index += 1;
     }
@@ -1165,10 +1165,10 @@ class TranssionTnNormalizer {
   }
 
   private static protectedAsciiRunLang(text: string, start: number, end: number, run: string): string | undefined {
-    if (TranssionTnNormalizer.isProtectedChemicalFormula(run)) {
+    if (LitsTnNormalizer.isProtectedChemicalFormula(run)) {
       return 'en';
     }
-    if (TranssionTnNormalizer.isChineseContextCode(text, start, end, run)) {
+    if (LitsTnNormalizer.isChineseContextCode(text, start, end, run)) {
       return 'zh';
     }
     return undefined;
@@ -1220,7 +1220,7 @@ class LitsTtsFrontend {
     languageContext: string,
     alreadyNormalized: boolean = false
   ): TextMetric {
-    const tnText = alreadyNormalized ? text : TranssionTnNormalizer.normalize(resources, text, language, languageContext);
+    const tnText = alreadyNormalized ? text : LitsTnNormalizer.normalize(resources, text, language, languageContext);
     const arpabetTokens = LitsTtsFrontend.tokenizeArpabetInput(resources, tnText);
     if (arpabetTokens !== undefined) {
       return LitsTtsFrontend.metricFromTokens(text, tnText, arpabetTokens, resources);
@@ -1477,7 +1477,7 @@ class LitsTtsFrontend {
     languageContext: string = 'zh-en',
     wordsPerSegment: number = DEFAULT_WORDS_PER_STREAMING_SEGMENT
   ): Array<string> {
-    const tnText = TranssionTnNormalizer.normalize(resources, text, language, languageContext);
+    const tnText = LitsTnNormalizer.normalize(resources, text, language, languageContext);
     const normalized = LitsTtsFrontend.normalizeText(LitsTtsFrontend.preprocessZhMixedInput(tnText), languageContext).trim();
     if (normalized.length === 0) {
       return [];
