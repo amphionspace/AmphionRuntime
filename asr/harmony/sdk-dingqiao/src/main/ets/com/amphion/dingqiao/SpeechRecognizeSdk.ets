@@ -657,7 +657,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     // can show the target speaker left without polluting the recognized text.
     const detail = result.speakerScore !== undefined ? `score=${result.speakerScore.toFixed(2)}` : 'target speaker absent';
     this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEAKER_VAD_REJECTED, `speaker vad rejected: ${detail}`);
-    if (this.finishRequested || result.isLast) {
+    if (result.isLast) {
       const payload = new SpeechRecognitionResult();
       payload.isFinal = true;
       payload.isLast = true;

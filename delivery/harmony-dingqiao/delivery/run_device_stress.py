@@ -73,6 +73,8 @@ def parse_args() -> argparse.Namespace:
             "burst",
             "paced",
             "vad-begin",
+            "vad-begin-silence",
+            "voiceprint",
             "cancel",
             "cancel-full",
             "recreate",

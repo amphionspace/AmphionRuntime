@@ -287,7 +287,7 @@ internal class DingqiaoRecognitionEngine(
                 DingqiaoEventCode.SPEAKER_VAD_REJECTED,
                 "speaker vad rejected final; score=${result.speakerScore ?: "n/a"}",
             )
-            if (finishRequested || result.isLast) {
+            if (result.isLast) {
                 dispatchResult(
                     sessionId = sessionId,
                     asrResult = AsrResult(text = ""),
