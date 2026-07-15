@@ -1,7 +1,16 @@
 diff --git a/rules_v2/zh.full.json b/rules_v2/zh.full.json
-index 61f0d7d..227f73c 100644
+index 61f0d7d..e32b8d9 100644
 --- a/rules_v2/zh.full.json
 +++ b/rules_v2/zh.full.json
+@@ -36,7 +36,7 @@
+       "HKD": "港元",
+       "¥": "元",
+       "￥": "元",
+-      "CNY": "元",
++      "CNY": "人民币",
+       "JPY": "日元",
+       "AU$": "澳元",
+       "A$": "澳元",
 @@ -202,7 +202,7 @@
        "ZH_PHONE_EXT_IS": "(?<!\\d)(分机是)(\\d{1,4})(?!\\d)",
        "ZH_PHONE_EXT_FENJI": "(转分机)(\\d{1,6})(?![0-9])",
