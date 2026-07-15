@@ -72,6 +72,10 @@
 5. `shutdown()` 必须幂等。
 6. `onStart` 回调表示 session 已可用；在该回调调用栈内同步写入 32/88 个 640 字节缓存帧，不得返回 `NOT_LISTENING`；分别验证继续写入后结束和回调内立即 `finish`，后者不得返回 `FINISH_FAILED`。
 7. `onStart` 内立即 `cancel` 仍不得遗留 native stream、final 或 `onComplete`。
+8. 首次冷加载及每轮 `shutdown -> unloadModel -> createEngine` 后必须重复第 6 条；底层 started 信号无论发生在 session 发布前还是发布后，对外都只能发送一次 `onStart`。
+
+主机可执行的初始静音、final 完成策略和 session 发布状态机测试由 Android CI 的
+`Run cross-platform ASR lifecycle contracts` 步骤执行；Harmony 真机发布门禁仍按本节完整执行。
 
 ## 6. 声纹与 License
 

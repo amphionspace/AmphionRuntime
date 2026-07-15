@@ -35,6 +35,26 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run cross-platform ASR lifecycle contracts
+        run: |
+          python3 -m unittest \
+            asr.tools.tests.test_harmony_initial_silence_tracker \
+            asr.tools.tests.test_harmony_rejected_final_lifecycle \
+            asr.tools.tests.test_harmony_session_start_gate \
+            delivery.harmony-dingqiao.delivery.test_run_device_stress -v
+
+      - name: Check customer delivery redaction
+        run: |
+          python3 -m unittest \
+            delivery/harmony-dingqiao/delivery/test_check_customer_delivery_redaction.py -v
+          python3 delivery/harmony-dingqiao/delivery/check_customer_delivery_redaction.py \
+            delivery/harmony-dingqiao/docs/customer
+
       - name: Set up Android SDK + NDK
         uses: android-actions/setup-android@v3
         with:
@@ -79,7 +99,9 @@ jobs:
       - name: Gradle assemble + unit test
         working-directory: ${{ env.SDK_BUILD_DIR }}
         run: |
-          ./gradlew --no-daemon :sdk:assembleRelease :sdk:testReleaseUnitTest
+          ./gradlew --no-daemon \
+            :sdk:assembleRelease :sdk:testReleaseUnitTest \
+            :sdk-dingqiao:assembleRelease :sdk-dingqiao:testReleaseUnitTest
 
       - name: Verify AAR contents
         working-directory: ${{ env.SDK_BUILD_DIR }}

@@ -2,7 +2,7 @@
 
 交付前置资料清单见 [`../../docs/dingqiao-offline-license.md`](../../docs/dingqiao-offline-license.md)。组包前需确认鼎桥提供的设备 SN 清单、授权功能范围、维护期和 license 固定路径；bundleName 和签名证书指纹仅作可选记录。
 
-完整 API、回调、参数、错误码和新增生命周期控制契约见 [`语音识别SDK接口.md`](语音识别SDK接口.md)。
+完整 API、回调、参数、错误码和新增生命周期控制契约见 [`语音识别SDK接口.md`](语音识别SDK接口.md)。历史生命周期问题的修复保证、时序图和脱敏真机验证摘要见交付包内 `ASR_LIFECYCLE_ASSURANCE_20260716.md`。
 
 ## 交付文件
 
