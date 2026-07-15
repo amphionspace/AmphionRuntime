@@ -111,19 +111,23 @@ def bu_sandhi(text,t):
     for i,c in enumerate(text):
         if c=='不' and i+1<len(t) and t[i+1].endswith('4'): t[i]=change_tone(t[i],'2')
 
+NUMBER_CHARS=set("零〇一二三四五六七八九十百千万亿两")
+MULTIPLIERS=set("十百千万亿")
 def yi_sandhi(text,t):
     if len(text)==3 and text[1]=='一' and text[0]==text[2]:
         if len(t)>1: t[1]=change_tone(t[1],'5')
         return
-    if text.startswith("第一") and len(t)>1: t[1]=change_tone(t[1],'1')
-    if text.startswith("一月") or text.startswith("一日") or text.startswith("一号"): t[0]=change_tone(t[0],'1')
     for i,c in enumerate(text):
         if c!='一' or i+1>=len(text) or (i-1>=0 and text[i-1]=='第'): continue
         cur=t[i] if i<len(t) else None; nxt=t[i+1] if i+1<len(t) else None
         if cur is None or nxt is None or not PINYIN.match(cur) or not PINYIN.match(nxt): continue
-        nx=text[i+1] if i+1<len(text) else None
-        if nx in CHINESE_DIGIT_ONLY: t[i]=change_tone(cur,'1'); continue
-        t[i]=change_tone(cur, '2' if nxt.endswith('4') else '4')
+        nx=text[i+1]; prev=text[i-1] if i>0 else ''
+        if nx in MULTIPLIERS: t[i]=change_tone(cur,'2' if nxt.endswith('4') else '4'); continue  # 一百/一十/一千/一万
+        if nx in '月日号': t[i]=change_tone(cur,'1'); continue           # date label 一月/一日/一号
+        if nx in CHINESE_DIGIT_ONLY: t[i]=change_tone(cur,'1'); continue # digit sequence 一二三
+        if nx in '加减乘除': t[i]=change_tone(cur,'1'); continue          # arithmetic operand (1+2)
+        if prev in NUMBER_CHARS: t[i]=change_tone(cur,'1'); continue     # trailing units digit (八十一号)
+        t[i]=change_tone(cur, '2' if nxt.endswith('4') else '4')         # leading quantity 一天/一个/一样
 
 def er_sandhi(text,t):
     if len(text)>1 and text[-1]=='儿' and t and t[-1].startswith("er"): t[-1]=change_tone(t[-1],'5')

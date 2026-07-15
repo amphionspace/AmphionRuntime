@@ -217,6 +217,7 @@ internal object LitsTtsFrontend {
     private const val CHINESE_DIGIT_SEQUENCE_CHARS = "零〇一二三四五六七八九两幺"
     private const val CHINESE_NUMBER_CONTEXT_CHARS = "零〇一二三四五六七八九十百千万亿两点负"
     private const val CHINESE_DIGIT_ONLY_CHARS = "零〇一二三四五六七八九两"
+    private const val CHINESE_MULTIPLIER_CHARS = "十百千万亿"
     private val technicalSymbolReadings = mapOf(
         '.' to "点",
         ':' to "冒号",
@@ -1398,12 +1399,6 @@ internal object LitsTtsFrontend {
             tokens[1] = changePinyinTone(tokens[1], '5')
             return
         }
-        if (text.startsWith("第一") && tokens.size > 1) {
-            tokens[1] = changePinyinTone(tokens[1], '1')
-        }
-        if (text.startsWith("一月") || text.startsWith("一日") || text.startsWith("一号")) {
-            tokens[0] = changePinyinTone(tokens[0], '1')
-        }
         text.forEachIndexed { index, char ->
             if (char != '一' || index + 1 >= text.length || text.getOrNull(index - 1) == '第') return@forEachIndexed
             val current = tokens.getOrNull(index)
@@ -1411,21 +1406,23 @@ internal object LitsTtsFrontend {
             if (current == null || next == null || !pinyinSyllableRegex.matches(current) || !pinyinSyllableRegex.matches(next)) {
                 return@forEachIndexed
             }
-            if (isYiInChineseNumberContext(text, index)) {
-                tokens[index] = changePinyinTone(current, '1')
-                return@forEachIndexed
+            // Modern-Mandarin 一 sandhi. 一 takes sandhi (yì/yí) as a leading number
+            // word (一百/一十/一千, 一天/一个/一样) and stays yī otherwise: in a digit
+            // sequence (一二三), as a date label (一月/一日/一号), an arithmetic operand
+            // (1+2), or a trailing units digit (八十一号).
+            val nx = text[index + 1]
+            val prev = text.getOrNull(index - 1)
+            val sandhi = if (next.last() == '4') '2' else '4'
+            val tone = when {
+                nx in CHINESE_MULTIPLIER_CHARS -> sandhi              // 一百/一十/一千/一万
+                nx == '月' || nx == '日' || nx == '号' -> '1'          // date label
+                nx in CHINESE_DIGIT_ONLY_CHARS -> '1'                 // digit sequence 一二三
+                nx == '加' || nx == '减' || nx == '乘' || nx == '除' -> '1' // arithmetic operand
+                prev != null && prev in CHINESE_NUMBER_CONTEXT_CHARS -> '1' // trailing units digit 八十一号
+                else -> sandhi                                        // leading quantity 一天/一个/一样
             }
-            tokens[index] = changePinyinTone(current, if (next.last() == '4') '2' else '4')
+            tokens[index] = changePinyinTone(current, tone)
         }
-    }
-
-    private fun isYiInChineseNumberContext(text: String, index: Int): Boolean {
-        // Keep 一 as yī (tone 1) only inside a pure digit sequence (一二三, phone
-        // numbers). Before a multiplier (十百千万亿), 一 is a number word and takes
-        // normal sandhi: 一百=yì bǎi, 一万=yí wàn. Using the full number-context set
-        // here wrongly kept 一百 as yī bǎi.
-        val next = text.getOrNull(index + 1)
-        return next != null && next in CHINESE_DIGIT_ONLY_CHARS
     }
 
     private fun applyErSandhi(text: String, tokens: MutableList<String>) {
