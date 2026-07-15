@@ -75,6 +75,7 @@ Harmony core 的同步 started 信号在 `newSession()` 返回前只被暂存。
 | `start-write` | 在 `onStart` 调用栈内写入 32/88 个真实 PCM 帧，不得出现 `NOT_LISTENING` |
 | `start-write` + continue | 冲刷缓存后继续写入并正常结束，恰好一次 last 和 complete |
 | `start-write` + finish | 冲刷缓存后在回调内立即 `finish`，不得出现 `FINISH_FAILED` |
+| `start-write-reload` | 每轮卸载模型并重新 createEngine，重新冷加载后的 `onStart` 仍满足同一可用性契约 |
 | `start-cancel` | 回调内立即取消，不得遗留 final、complete 或 native stream |
 | cold start | 隔离构建和重新安装后首轮执行上述门禁，不能只测 warm session |
 | cross-platform | 同时核对 Android/Harmony 的成功回调发布顺序和公共语义 |
@@ -87,6 +88,8 @@ Harmony core 的同步 started 信号在 `newSession()` 返回前只被暂存。
 - 修复前最小复现：5/5 FAIL，每轮均出现 `start > error-1002200010`；
 - 最终 0.2.4 HAP：隔离构建、签名、安装通过；
 - USB `start-write`：100/100 PASS，32/88 帧 x continue/finish 四种组合各 25 轮；
+- USB `start-write-reload`：20/20 PASS；每轮显式卸载模型并重新 createEngine，20 次冷加载
+  `engineReadyMs=681..828`，错误 0，native stream 0；
 - 首轮冷加载 `engineReadyMs=804`，错误 0，native stream 0；
 - `start-cancel`、`reentrant`、`edge`、`user-sequence` 相邻门禁全部通过；
 - Android 已在发布 session 状态后异步发送 `onStart`，单测通过，无需修改。
