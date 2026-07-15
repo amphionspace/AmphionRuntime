@@ -97,6 +97,26 @@ class VerifyPackedModelAssetsTest(unittest.TestCase):
             write_fixture(root, 2)
             self.assertEqual(verifier.verify_directory(root), 14)
 
+    def test_harmony_manifest_v2_allows_sdk_only_profile_without_yue(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            manifest = write_fixture(root, 2)
+            manifest["bundles"].pop("yue-en/v1")
+            for path in (root / "yue-en").rglob("*"):
+                if path.is_file():
+                    path.unlink()
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            self.assertEqual(verifier.verify_directory(root), 9)
+
+    def test_harmony_manifest_v2_still_requires_zh_en(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            manifest = write_fixture(root, 2)
+            manifest["bundles"].pop("zh-en/v1")
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "manifest bundle mismatch"):
+                verifier.verify_directory(root)
+
     def test_harmony_manifest_v2_rejects_legacy_target_file(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

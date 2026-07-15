@@ -52,6 +52,7 @@ EXPECTED_BUNDLES_V2 = {
     "itn-zh/v1": ["zh_itn_tagger.fst", "zh_itn_verbalizer.fst"],
     "vad/v1": ["silero_vad.onnx"],
 }
+HARMONY_OPTIONAL_BUNDLES = {"yue-en/v1"}
 
 EXPECTED_HARMONY_TARGET = {
     "platform": "HarmonyOS",
@@ -115,11 +116,20 @@ def validate_manifest(
     bundles = manifest.get("bundles")
     if not isinstance(bundles, dict):
         fail("manifest bundles must be an object")
-    if set(bundles) != set(expected_bundles):
-        missing = sorted(set(expected_bundles) - set(bundles))
-        extra = sorted(set(bundles) - set(expected_bundles))
+    actual_bundles = set(bundles)
+    required_bundles = set(expected_bundles)
+    if version == 2:
+        required_bundles -= HARMONY_OPTIONAL_BUNDLES
+    if not required_bundles.issubset(actual_bundles) or not actual_bundles.issubset(
+        expected_bundles
+    ):
+        missing = sorted(required_bundles - actual_bundles)
+        extra = sorted(actual_bundles - set(expected_bundles))
         fail(f"manifest bundle mismatch: missing={missing} extra={extra}")
-    return version, bundles, expected_bundles
+    selected_bundles = {
+        bundle: names for bundle, names in expected_bundles.items() if bundle in actual_bundles
+    }
+    return version, bundles, selected_bundles
 
 
 def _expected_v2_format(name: str) -> str:
