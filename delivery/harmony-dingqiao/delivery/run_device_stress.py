@@ -75,6 +75,8 @@ def parse_args() -> argparse.Namespace:
             "vad-begin",
             "vad-begin-silence",
             "voiceprint",
+            "voiceprint-vad-begin",
+            "voiceprint-vad-begin-idle",
             "cancel",
             "cancel-full",
             "recreate",
@@ -238,6 +240,15 @@ def representative_sources(sources: list[AudioSource], count: int) -> list[Audio
     for rate in sorted(rates):
         picked.extend(quantile_pick(rates[rate], min(quotas[rate], len(rates[rate]))))
     return sorted(picked, key=lambda item: (item.sample_rate, item.duration_seconds, str(item.path)))
+
+
+def initial_signal_level(source: AudioSource, seconds: float = 3.0) -> float:
+    with wave.open(str(source.path), "rb") as wav:
+        raw = wav.readframes(min(wav.getnframes(), round(wav.getframerate() * seconds)))
+    if not raw:
+        return 0.0
+    full_scale = float((1 << (source.sample_width * 8 - 1)) - 1)
+    return audioop.rms(raw, source.sample_width) / full_scale
 
 
 def convert_to_pcm(source: AudioSource, destination: Path) -> int:
@@ -441,6 +452,17 @@ def run_stress(args: argparse.Namespace) -> Path:
     hdc = Hdc(hdc_path, device)
     all_sources = inspect_wavs(args.data_dir.expanduser().resolve())
     selected = representative_sources(all_sources, args.files)
+    if args.mode == "voiceprint-vad-begin":
+        # The carrier adds 800 ms leading silence in half the cycles. Keep only sources whose own
+        # first 200 ms already contain signal, so that case still places speech before vadBegin.
+        # Otherwise the test would correctly time out before the source itself starts speaking.
+        selected.sort(key=initial_signal_level, reverse=True)
+        selected = [source for source in selected if initial_signal_level(source, 0.2) >= 0.015][:8]
+        if not selected:
+            raise StressFailure("voiceprint-vad-begin requires a source with a non-silent onset")
+    elif args.mode == "voiceprint-vad-begin-idle":
+        selected.sort(key=initial_signal_level, reverse=True)
+        selected = selected[:1]
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     entropy = hashlib.sha256(f"{time.time_ns()}-{args.mode}".encode()).hexdigest()[:8]

@@ -65,6 +65,7 @@ export class SpeakerVadConfig {
 export class SessionConfig {
   endpointSilenceMs?: number;
   initialSilenceTimeoutMs?: number;
+  initialSilenceConfirmationGraceMs?: number;
   speakerVad?: SpeakerVadConfig;
 }
 

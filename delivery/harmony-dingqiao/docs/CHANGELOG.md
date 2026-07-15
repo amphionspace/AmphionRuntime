@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0 - hotfix 2026-07-15（声纹与首段超时组合边界）
+
+- 修复 `vadBegin=1000` 下 VAD/流式 ASR 暂未暴露起音、停止刷新却已有文本时，真实首句被错误标成 `isLast=true` 的竞态。
+- 声纹校验或 Speaker VAD 开启时，纯静音仍按 `vadBegin` 结束；初始窗内存在连续未决声学活动时才使用一次默认 1.5 秒确认窗，窗末只接受近期语音型活动或 ASR text/token，避免旧脉冲永久解除计时。
+- 声学 backstop 使用固定 20 ms 窗、连续活动、能量变化和过零率联合判定；不依赖调用方分帧，不把稳态高能非语音永久当作 speech，也不伪造 speech 事件。
+- Core SDK 在首段计时 armed 时按固定 20 ms slice 推进 ASR/VAD 决策，避免大块输入中 deadline 之后的音频回看并改变之前的超时结果。
+- 增加 `voiceprint-vad-begin` 与 `voiceprint-vad-begin-idle` 真机模式，分别验证真实语音在显式 `finish` 前无 `isLast`，以及纯静音/稳态高能非语音仍有界自动结束。
+- 明确 `vadBegin` 上限是 10000 ms，调用方传入 60000 ms 并不代表等待 60 秒。
+
 ## 0.1.0 - hotfix 2026-07-14（跨端参数与 VAD 前端点）
 
 - Android 与 Harmony 补齐 `vadBegin`：仅显式传入时启用，按底层实际处理的 PCM 时长计时，真实起音优先于阈值边界。
