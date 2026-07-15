@@ -69,6 +69,57 @@ index 53c4f93..1e47a99 100644
      }
      return 0;
  }
+diff --git a/tts_normalizer_engine.cpp b/tts_normalizer_engine.cpp
+index a6052b7..bbd759f 100644
+--- a/tts_normalizer_engine.cpp
++++ b/tts_normalizer_engine.cpp
+@@ -8,6 +8,7 @@
+ #include <iostream>
+ #include <sstream>
+ #include <string>
++#include <memory>
+ #include <unordered_map>
+ 
+ #include <unicode/regex.h>
+@@ -339,10 +340,36 @@ icu::UnicodeString processRegex(
+     const std::function<icu::UnicodeString(icu::RegexMatcher&, UErrorCode&)>& callback,
+     const std::function<void(icu::RegexMatcher&, UErrorCode&)>* onMatch = nullptr) {
+     UErrorCode status = U_ZERO_ERROR;
+-    icu::RegexMatcher matcher(pattern, 0, status);
+-    if (U_FAILURE(status)) {
++    // Compiled-pattern cache. Rule patterns are fixed after load, so compiling
++    // each one on every call is pure waste; cache the compiled RegexPattern and
++    // reuse it. thread_local keeps this lock-free and safe even if an engine is
++    // shared across threads (the JNI path) — each thread keeps its own cache.
++    // Behaviour is identical: RegexPattern::compile(pattern,0,...) then
++    // pattern->matcher() matches exactly like RegexMatcher(pattern,0,...).
++    static thread_local std::unordered_map<std::string, std::unique_ptr<icu::RegexPattern>> patternCache;
++    std::string patternKey;
++    pattern.toUTF8String(patternKey);
++    icu::RegexPattern* compiled = nullptr;
++    auto cacheIt = patternCache.find(patternKey);
++    if (cacheIt != patternCache.end()) {
++        compiled = cacheIt->second.get();
++    } else {
++        UParseError parseError;
++        UErrorCode compileStatus = U_ZERO_ERROR;
++        icu::RegexPattern* built = icu::RegexPattern::compile(pattern, 0, parseError, compileStatus);
++        if (U_SUCCESS(compileStatus) && built != nullptr) {
++            compiled = built;
++            patternCache.emplace(std::move(patternKey), std::unique_ptr<icu::RegexPattern>(built));
++        }
++    }
++    if (compiled == nullptr) {
+         return input;
+     }
++    std::unique_ptr<icu::RegexMatcher> matcherPtr(compiled->matcher(status));
++    if (U_FAILURE(status) || matcherPtr == nullptr) {
++        return input;
++    }
++    icu::RegexMatcher& matcher = *matcherPtr;
+     matcher.reset(input);
+     icu::UnicodeString result;
+     int32_t lastEnd = 0;
 diff --git a/zh.cpp b/zh.cpp
 index 3771001..77beae6 100644
 --- a/zh.cpp
