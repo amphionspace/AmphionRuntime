@@ -61,7 +61,8 @@ internal object LitsTnNormalizer {
         }
 
         private fun prepareInputForTn(text: String): String {
-            var output = hanziClockMinuteLeadingZeroRegex.replace(text) { match ->
+            var output = expandDates(text)
+            output = hanziClockMinuteLeadingZeroRegex.replace(output) { match ->
                 "${match.groupValues[1]}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}分"
             }
             output = frontendRules.apply("pre_tn", output)
@@ -205,6 +206,48 @@ internal object LitsTnNormalizer {
             code.forEach { char ->
                 append(chineseDigitTextByChar[char] ?: char)
             }
+        }
+
+        // Dates with -, /, . separators. Run first, before the fraction/range/decimal/path
+        // rules that otherwise read 2008/08 as 八分之二千零八, 2008-08 as 二千零八至八, etc.
+        // Segments are a 4-digit year or exactly 2 digits; month 1-12 / day 1-31 gate out
+        // scores/fractions/decimals/IPs (1/2, 中国1-2, 13.5, 127.0.0.1 each have a 1-digit seg).
+        private fun dateYmd(year: String, month: String, day: String): String =
+            digitSequenceToHanzi(year) + "年" + integerTextToHanzi(month) + "月" +
+                integerTextToHanzi(day) + "日"
+
+        private fun dateYm(year: String, month: String): String =
+            digitSequenceToHanzi(year) + "年" + integerTextToHanzi(month) + "月"
+
+        private fun isDateMonth(text: String): Boolean = (text.toIntOrNull() ?: -1) in 1..12
+        private fun isDateDay(text: String): Boolean = (text.toIntOrNull() ?: -1) in 1..31
+
+        private fun expandDates(text: String): String {
+            var output = dateYmdSepRegex.replace(text) { m ->
+                val (y, mo, d) = m.destructured
+                if (isDateMonth(mo) && isDateDay(d)) dateYmd(y, mo, d) else m.value
+            }
+            output = dateMdySepRegex.replace(output) { m ->
+                val (mo, d, y) = m.destructured
+                if (isDateMonth(mo) && isDateDay(d)) dateYmd(y, mo, d) else m.value
+            }
+            output = dateYmSepRegex.replace(output) { m ->
+                val (y, mo) = m.destructured
+                if (isDateMonth(mo)) dateYm(y, mo) else m.value
+            }
+            output = dateMySepRegex.replace(output) { m ->
+                val (mo, y) = m.destructured
+                if (isDateMonth(mo)) dateYm(y, mo) else m.value
+            }
+            output = dateMdSepRegex.replace(output) { m ->
+                val (mo, d) = m.destructured
+                if (isDateMonth(mo) && isDateDay(d)) {
+                    integerTextToHanzi(mo) + "月" + integerTextToHanzi(d) + "日"
+                } else {
+                    m.value
+                }
+            }
+            return output
         }
 
         private fun expandSuperscriptUnits(text: String): String =
@@ -411,6 +454,13 @@ internal object LitsTnNormalizer {
             private val idTailRegex = Regex("((?:身份证尾号|尾号)\\s*)(\\d+)([A-Za-z])(?![A-Za-z0-9])")
             private val pathSlashNumberRegex = Regex("(/)(\\d+)(?=/)")
             private val kmPerHourRegex = Regex("(\\d+)\\s*km/h", RegexOption.IGNORE_CASE)
+            private val dateYmdSepRegex =
+                Regex("(?<![0-9A-Za-z])(\\d{4})[-/.](\\d{1,2})[-/.](\\d{1,2})(?![0-9])")
+            private val dateMdySepRegex =
+                Regex("(?<![0-9A-Za-z])(\\d{1,2})[-/.](\\d{1,2})[-/.](\\d{4})(?![0-9])")
+            private val dateYmSepRegex = Regex("(?<![0-9A-Za-z])(\\d{4})[-/.](\\d{1,2})(?![0-9])")
+            private val dateMySepRegex = Regex("(?<![0-9A-Za-z])(\\d{1,2})[-/.](\\d{4})(?![0-9])")
+            private val dateMdSepRegex = Regex("(?<![0-9A-Za-z])(\\d{2})[-/.](\\d{2})(?![0-9])")
             // Superscript area/volume units: NFKC folds ²->2 / ³->3, so expand before cleaning.
             private val superscriptUnitRegex =
                 Regex("(\\d+(?:\\.\\d+)?)\\s*(km|cm|mm|dm|m)([\\u00B2\\u00B3])")
