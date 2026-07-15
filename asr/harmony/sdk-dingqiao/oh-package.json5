@@ -1,6 +1,6 @@
 {
   "name": "amphion_dingqiao",
-  "version": "0.1.0",
+  "version": "0.2.5",
   "description": "Dingqiao ASR adapter for HarmonyOS",
   "main": "Index.ets",
   "author": "Amphion",

@@ -5,7 +5,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-VERSION="${AMPHION_RUNTIME_VERSION:-0.1.0}"
+VERSION="${AMPHION_RUNTIME_VERSION:-0.2.5}"
 FINAL_OUT_ROOT=""
 ASR_ONLY=false
 ALLOW_DIRTY=false
@@ -137,6 +137,19 @@ copy_har() {
 # (幽灵依赖)——只有自包含两头都成立。详见 assemble_selfcontained_dingqiao_har.sh。
 bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh" "$OUT_ROOT/har/amphion_dingqiao.har"
 "$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" "$OUT_ROOT/har/amphion_dingqiao.har"
+python3 - "$OUT_ROOT/har/amphion_dingqiao.har" "$VERSION" <<'PY'
+import json
+import sys
+import tarfile
+
+with tarfile.open(sys.argv[1], "r:gz") as package:
+    metadata = json.loads(package.extractfile("package/oh-package.json5").read())
+if metadata.get("version") != sys.argv[2]:
+    raise SystemExit(
+        f"[ERROR] HAR version {metadata.get('version')} does not match delivery version {sys.argv[2]}"
+    )
+print(f"[OK] HAR version matches delivery version {sys.argv[2]}")
+PY
 if [[ "$ASR_ONLY" != true ]]; then
   # TTS 本就自包含(模型+.so 内置,无外部 HAR 依赖),直接拷。
   copy_har "$REPO_ROOT/tts/harmony/sdk/build/default/outputs/default" "$OUT_ROOT/har/amphion_tts.har"
@@ -162,6 +175,18 @@ fi
 "$SCRIPT_DIR/verify_demo_inputs.sh" \
   --hap "$HAP_SRC" \
   --signing-config "$SIGNING_CONFIG"
+python3 - "$HAP_SRC" "$VERSION" <<'PY'
+import json
+import sys
+import zipfile
+
+with zipfile.ZipFile(sys.argv[1]) as package:
+    metadata = json.loads(package.read("pack.info"))
+version = metadata["summary"]["app"]["version"]["name"]
+if version != sys.argv[2]:
+    raise SystemExit(f"[ERROR] HAP version {version} does not match delivery version {sys.argv[2]}")
+print(f"[OK] HAP version matches delivery version {sys.argv[2]}")
+PY
 copy_required "$HAP_SRC" "$OUT_ROOT/demo/dingqiao-demo.hap"
 
 if [[ "$ASR_ONLY" != true ]]; then
@@ -172,12 +197,17 @@ if [[ "$ASR_ONLY" != true ]]; then
   fi
 fi
 
+python3 "$SCRIPT_DIR/check_customer_delivery_redaction.py" \
+  "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer"
+
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/DINGQIAO_INTEGRATION.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/DINGQIAO_LICENSE_SCHEME.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/语音识别SDK接口.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/LICENSE.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/SDK_LIFECYCLE_PERFORMANCE_20260713.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md" "$OUT_ROOT/docs/"
+cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/ASR_LIFECYCLE_ASSURANCE_20260716.md" "$OUT_ROOT/docs/"
+cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/ASR_LIFECYCLE_ASSURANCE_EVIDENCE_20260716.json" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/NOTICE" "$OUT_ROOT/docs/"
 mkdir -p "$OUT_ROOT/docs/third-party"
 cp -v "$REPO_ROOT/LICENSE" "$OUT_ROOT/docs/third-party/Apache-2.0.txt"
@@ -274,6 +304,8 @@ payload = {
     json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
 )
 PY
+
+python3 "$SCRIPT_DIR/check_customer_delivery_redaction.py" "$OUT_ROOT/docs"
 
 (
   cd "$OUT_ROOT"

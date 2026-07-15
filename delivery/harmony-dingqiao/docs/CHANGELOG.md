@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.5 - 2026-07-16（生命周期回归防护与交付证据）
+
+- 修复 `onStart` 会话发布门禁的跨 session 代次隔离，旧 session 的迟到 started 信号不能解锁新 session。
+- 增加历史生命周期问题闭环说明、客户脱敏验证摘要和机器可读证据，并在组包与 CI 中执行脱敏检查。
+- 发布包、`amphion_dingqiao` HAR、核心 ASR/Police HAR 和 Demo HAP 的版本统一为 0.2.5。
+
 ## 0.1.0 - hotfix 2026-07-15（声纹与首段超时组合边界）
 
 - 修复底层 session 构造同步触发 `onStart` 时，鼎桥适配层尚未发布 session，调用方在 `onStart` 内冲刷录音缓存会收到 `1002200010 NOT_LISTENING`、导致首次识别失败的问题。
