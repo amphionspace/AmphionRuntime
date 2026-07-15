@@ -1373,14 +1373,15 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       stressVoiceprintId = prepareStressVoiceprint(workPath, entries[0]);
     }
 
-    if (options.mode !== 'recreate') engine = createEngine();
+    const recreateEachCycle = options.mode === 'recreate' || options.mode === 'start-write-reload';
+    if (!recreateEachCycle) engine = createEngine();
     for (let i = 0; i < options.cycles; i++) {
       let entry = entries[i % entries.length];
       if (options.mode === 'voiceprint' &&
         VOICEPRINT_SCENARIOS[i % VOICEPRINT_SCENARIOS.length] === 'alternate-source') {
         entry = entries[1];
       }
-      if (options.mode === 'recreate') engine = createEngine();
+      if (recreateEachCycle) engine = createEngine();
       if (engine === undefined) throw new Error('engine-create-failed');
 
       let result: CycleResult;
@@ -1394,7 +1395,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runReentrantCycle(engine, entry, i);
       } else if (options.mode === 'start-cancel') {
         result = await runStartCancelCycle(engine, entry, i);
-      } else if (options.mode === 'start-write') {
+      } else if (options.mode === 'start-write' || options.mode === 'start-write-reload') {
         result = await runStartWriteCycle(engine, entry, i);
       } else if (options.mode === 'user-sequence') {
         result = await runUserSequenceCycle(engine, entry, i);
@@ -1417,6 +1418,10 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         engine.shutdown();
         engine.shutdown();
         engine = undefined;
+      } else if (options.mode === 'start-write-reload') {
+        engine.shutdown();
+        engine = undefined;
+        SpeechRecognizeSdk.unloadModel();
       }
       await sleep(10);
     }
