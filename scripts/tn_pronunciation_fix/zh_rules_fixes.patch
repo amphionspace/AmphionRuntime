@@ -1,17 +1,8 @@
 diff --git a/rules_v2/zh.full.json b/rules_v2/zh.full.json
-index 61f0d7d..6ea923e 100644
+index 61f0d7d..db36f43 100644
 --- a/rules_v2/zh.full.json
 +++ b/rules_v2/zh.full.json
-@@ -75,7 +75,7 @@
-       "km": "千米",
-       "nm": "纳米",
-       "μm": "微米",
--      "km/h": "千米每时",
-+      "km/h": "千米每小时",
-       "ml": "毫升",
-       "mL": "毫升",
-       "mg": "毫克",
-@@ -202,18 +202,19 @@
+@@ -202,7 +202,7 @@
        "ZH_PHONE_EXT_IS": "(?<!\\d)(分机是)(\\d{1,4})(?!\\d)",
        "ZH_PHONE_EXT_FENJI": "(转分机)(\\d{1,6})(?![0-9])",
        "ZH_PHONE_ZHUAN_EXT": "(?<=[0-9零一二三四五六七八九])(转)(\\d{1,6})(?![0-9])",
@@ -20,30 +11,15 @@ index 61f0d7d..6ea923e 100644
        "ZH_BANK_CARD_CTX": "((?:收款账号|银行账号|银行卡号|借记卡号|信用卡号)\\s*(?:[:：]\\s*|是|为)\\s*)(\\d{4}(?:\\s*\\d{4}){3,6})(?!\\d)",
        "ZH_CARDNUM_KAH_COMMA_CTX": "(卡号[^，。\\n]{0,48}?[，,]\\s*)(\\d{4}(?:\\s*\\d{4}){3,})(?![0-9])",
        "ZH_CARDNUM_SPACED_AFTER_KAH": "(卡号\\s*)(\\d{4}(?:\\s+\\d{4}){2,})(?![0-9])",
-       "ZH_VIN_CTX": "((?:VIN码|车架号)\\s*(?:[:：]\\s*|为|是)\\s*)([A-HJ-NPR-Z0-9]{17})(?![A-Za-z0-9])",
-       "ZH_SECRET_CODE_CTX": "((?:(?:短信)?验证码|校验码|动态码|口令|PIN码|PIN|密码)\\s*(?:[:：]|是|为)?\\s*)(\\d{4,12})(?![0-9])",
--      "ZH_DATE_YMD": "{{SH_CAP_D4}}年{{SH_CAP_D12}}月{{SH_CAP_D12}}[日号]",
-+      "ZH_DATE_YMD": "{{SH_CAP_D4}}\\s*年\\s*{{SH_CAP_D12}}\\s*月\\s*{{SH_CAP_D12}}\\s*[日号]",
+@@ -211,6 +211,7 @@
+       "ZH_DATE_YMD": "{{SH_CAP_D4}}年{{SH_CAP_D12}}月{{SH_CAP_D12}}[日号]",
        "ZH_DATE_DMY_DASH": "(?<!\\d)(\\d{1,2})[-/](\\d{1,2})[-/](\\d{4})(?!\\d)",
        "ZH_DATE_YMD_DOT": "(?<![0-9A-Za-z])(\\d{4})\\.(\\d{1,2})\\.(\\d{1,2})(?![0-9])",
 +      "ZH_DATE_YMD_SEP": "(?<![0-9A-Za-z])(\\d{4})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\\d|3[01])(?![0-9])",
        "ZH_VERSION_YEAR_COMPARE": "(?<!\\d)(\\d{4})\\s*比\\s*(\\d{4})(版)(?!\\d)",
--      "ZH_YEAR_2_APOS": "(?<![0-9A-Za-z])[\\'’](\\d{2})年",
--      "ZH_YEAR_4": "(?<!\\d)(\\d{4})年",
-+      "ZH_YEAR_2_APOS": "(?<![0-9A-Za-z])[\\'’](\\d{2})\\s*年",
-+      "ZH_YEAR_4": "(?<!\\d)(\\d{4})\\s*年",
-       "ZH_STD_GBT_CODE": "(GB/T)\\s*(\\d+)\\s*[-—]\\s*(\\d+)",
-       "ZH_BERNOULLI_EQ": "P\\s*\\+\\s*(?:1/2|½)\\s*ρ\\s*v²\\s*\\+\\s*ρ\\s*gh\\s*=\\s*常数",
-       "ZH_KINETIC_ENERGY": "Ek\\s*=\\s*1/2\\s*mv(?:²|\\^2)",
-@@ -269,6 +270,7 @@
-       "ZH_ALPHA_NUM_CODE": "(?<![0-9A-Za-z])([A-Z]{1,6}\\d{3,8})(?![0-9A-Za-z])",
-       "ZH_STOCK_PAIR_AND": "(?<!\\d)([036]\\d{5})\\s*和\\s*([036]\\d{5})(?!\\d)",
-       "ZH_STOCK_RANGE_CTX": "((?:沪市|深市(?:主板)?|代码)\\s*)([036]\\d{5})\\s*(?:至|[—-])\\s*([036]\\d{5})",
-+      "ZH_STOCK_CODE_PREFIX": "(股票\\s*)(\\d{6})(?!\\d)",
-       "ZH_STOCK_CODE_IS": "(?<!\\d)([036]\\d{5})(?=是[\\u4e00-\\u9fff]{2,8})",
-       "ZH_STOCK_CODE_NAME": "(?<!\\d)([036]\\d{5})(?=[\\u4e00-\\u9fff]{2,8})",
-       "ZH_STOCK_CODE_FROM_YEAR": "(?<!\\d)([036]\\d{5})(?=自\\d{4}年)",
-@@ -2240,6 +2242,42 @@
+       "ZH_YEAR_2_APOS": "(?<![0-9A-Za-z])[\\'’](\\d{2})年",
+       "ZH_YEAR_4": "(?<!\\d)(\\d{4})年",
+@@ -2240,6 +2241,42 @@
            ]
          }
        },
@@ -86,38 +62,3 @@ index 61f0d7d..6ea923e 100644
        {
          "id": "zh_112",
          "pattern": "{{ZH_VERSION_YEAR_COMPARE}}",
-@@ -2409,6 +2447,25 @@
-           ]
-         }
-       },
-+      {
-+        "id": "zh_118b",
-+        "pattern": "{{ZH_STOCK_CODE_PREFIX}}",
-+        "action": "exec",
-+        "params": {
-+          "steps": [
-+            {
-+              "op": "grp",
-+              "g": 1,
-+              "as": "raw"
-+            },
-+            {
-+              "op": "grp",
-+              "g": 2,
-+              "as": "digits"
-+            }
-+          ]
-+        }
-+      },
-       {
-         "id": "zh_119",
-         "pattern": "{{ZH_STOCK_CODE_NAME}}",
-@@ -5094,7 +5151,7 @@
-       {
-         "id": "zh_320",
-         "pattern": "km/h",
--        "replace": "千米每时"
-+        "replace": "千米每小时"
-       },
-       {
-         "id": "zh_321",
