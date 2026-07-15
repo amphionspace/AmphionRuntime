@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.amphion.dingqiao.harmony.demo",
     "vendor": "amphion",
-    "versionCode": 1,
-    "versionName": "0.1.0",
+    "versionCode": 4,
+    "versionName": "0.2.4",
     "icon": "$media:app_icon",
     "label": "$string:EntryAbility_label"
   }

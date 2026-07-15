@@ -122,9 +122,9 @@ class Logger {
 }
 
 export class AmphionRuntime {
-  private static readonly SDK_VERSION: string = '0.2.0-harmony';
+  private static readonly SDK_VERSION: string = '0.2.4-harmony';
   private static readonly SDK_MAJOR: number = 0;
-  private static readonly SDK_RELEASE_DATE: string = '2026-06-24';
+  private static readonly SDK_RELEASE_DATE: string = '2026-07-15';
   private static initialized: boolean = false;
   private static appContext?: Context;
   private static options: AmphionOptions = new AmphionOptions();
