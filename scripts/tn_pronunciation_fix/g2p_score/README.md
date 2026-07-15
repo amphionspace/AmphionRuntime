@@ -25,3 +25,20 @@
 - 残留阿拉伯数字/`幺`(phone 里的 1)等未完全建模 → **绝对通过率仅供参考,
   可靠信号是"某个 TN 改动前后的通过率变化(delta)"**。
 - polyphone/多音字的对错属于 G2P,不是 TN 该修的。
+
+## v2: FULL pipeline (Kotlin frontend layer added)
+`frontend.py` ports the Kotlin `LitsTnNormalizer` pre-processing (NFKC clean +
+`prepareInputForTn`: percent/coord/room/stock/km-h/clock-colon/year/tech-ascii/
+VIN/serial protectors + `FrontendRuleSet` from frontend_rules.json). Pipeline is
+now: `text -> frontend.py (Kotlin layer) -> zh_tts (native rules_v2) -> g2p.py`.
+
+Validated: G2P port is token-identical to device on pure-hanzi. FULL-pipeline
+score vs golden: round15 69%, hardcases-500 46%.
+
+### What the full pipeline revealed
+Most number normalization lives in the **Kotlin layer**, not rules_v2. Several
+native-rule fixes I made were redundant (Kotlin already does year/km-h/stock/
+room/coord) or defeated by Kotlin (slash-date `2008/08/08` is mangled by Kotlin's
+path rule; bare `km/h` -> `km斜杠h` by the tech-ascii rule). So the remaining real
+TN bugs are largely in the **Kotlin layer (LitsTnNormalizer.kt)**, and this
+harness now scores that layer too.
