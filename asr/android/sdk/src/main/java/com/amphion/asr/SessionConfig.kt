@@ -13,11 +13,14 @@ package com.amphion.asr
  * @property endpointSilenceMs 覆盖 [VadConfig.activeEndpointSilenceMs]；null = 用 engine 默认
  * @property speakerVad 覆盖 [TargetSpeakerConfig.speakerVad] 滑窗参数；null = 用 engine 默认
  * @property initialSilenceTimeoutMs 首次检测到语音前允许的静音时长；null 或 0 = 禁用
+ * @property initialSilenceConfirmationGraceMs 初始等待窗内存在声学活动但 VAD/ASR 尚未确认时，
+ *   允许的一次性有界确认窗口；仅配置 target speaker 时生效，并钳制到其 minSegSec；null 或 0 = 不延长
  */
 public data class SessionConfig(
     public val endpointSilenceMs: Int? = null,
     public val speakerVad: SpeakerVadConfig? = null,
     public val initialSilenceTimeoutMs: Int? = null,
+    public val initialSilenceConfirmationGraceMs: Int? = null,
 ) {
     init {
         require(endpointSilenceMs == null || endpointSilenceMs >= 0) {
@@ -25,6 +28,9 @@ public data class SessionConfig(
         }
         require(initialSilenceTimeoutMs == null || initialSilenceTimeoutMs >= 0) {
             "SessionConfig.initialSilenceTimeoutMs must be >= 0"
+        }
+        require(initialSilenceConfirmationGraceMs == null || initialSilenceConfirmationGraceMs >= 0) {
+            "SessionConfig.initialSilenceConfirmationGraceMs must be >= 0"
         }
     }
 }

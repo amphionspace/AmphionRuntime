@@ -40,6 +40,8 @@ import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 import { InitialSilenceTracker } from './InitialSilenceTracker';
 
 const ASR_SAMPLE_RATE_HZ: number = 16000;
+// Advance armed initial-silence decisions in fixed 20 ms slices so caller chunking cannot move a deadline.
+const INITIAL_DECISION_CHUNK_SAMPLES: number = ASR_SAMPLE_RATE_HZ / 50;
 // ORT-format models are optimized and prepacked during Session creation. Device A/B testing showed
 // that an eager silence decode adds ~93 ms to engine readiness but saves only ~9 ms on first audio.
 const EAGER_WARMUP_DURATION_MS: number = 0;
@@ -1066,7 +1068,13 @@ export class AsrSession {
     this.callback = callback;
     this.engineReadyMs = engineReadyMs;
     const initialSilenceTimeoutMs = sessionConfig.initialSilenceTimeoutMs ?? 0;
-    this.initialSilenceTracker = new InitialSilenceTracker(initialSilenceTimeoutMs, ASR_SAMPLE_RATE_HZ);
+    const requestedConfirmationGraceMs = sessionConfig.initialSilenceConfirmationGraceMs ?? 0;
+    const maxConfirmationGraceMs = config.targetSpeaker === undefined ? 0 :
+      Math.max(0, Math.round(config.targetSpeaker.minSegSec * 1000));
+    const initialSilenceConfirmationGraceMs = Math.min(
+      requestedConfirmationGraceMs, maxConfirmationGraceMs);
+    this.initialSilenceTracker = new InitialSilenceTracker(
+      initialSilenceTimeoutMs, ASR_SAMPLE_RATE_HZ, initialSilenceConfirmationGraceMs);
     if (config.vad) {
       this.vad = this.createVad();
     }
@@ -1245,8 +1253,10 @@ export class AsrSession {
     }
   }
 
-  private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number, isLast: boolean = false): void {
+  private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number, isLast: boolean = false,
+    suppressEmpty: boolean = false): boolean {
     const native = this.recognizer.getResult(this.stream);
+    const hasEvidence = native.text.length > 0 || native.tokens.length > 0;
     this.initialSilenceTracker.observeAsrResult(native.text, native.tokens.length);
     const result = new AsrResult();
     result.text = native.text;
@@ -1284,12 +1294,15 @@ export class AsrSession {
     this.firstPartialLatencyMs = -1;
     this.utteranceSamples = [];
 
+    if (suppressEmpty && !hasEvidence) return false;
+
     if (this.targetSpeakerEnabled && this.targetExtractor === undefined &&
       this.targetExtractorLoad !== undefined) {
       this.pendingSpeakerFinals.push(pending);
-      return;
+      return hasEvidence;
     }
     this.deliverSpeakerFinal(pending);
+    return hasEvidence;
   }
 
   private deliverSpeakerFinal(pending: PendingSpeakerFinal): void {
@@ -1360,7 +1373,19 @@ export class AsrSession {
   // real-time) and let the VAD only gate / drive a more sensitive active endpoint. sherpa's own
   // endpoint rules stay enabled as a backstop in case the VAD active endpoint misses.
   private feedAndDecode(samples: Float32Array): void {
+    let offset = 0;
+    while (offset < samples.length && !this.closed && !this.initialSilenceTracker.hasTimedOut()) {
+      const remaining = samples.length - offset;
+      const chunkSize = this.initialSilenceTracker.isArmed() ?
+        Math.min(remaining, INITIAL_DECISION_CHUNK_SAMPLES) : remaining;
+      this.feedChunkAndDecode(samples.slice(offset, offset + chunkSize));
+      offset += chunkSize;
+    }
+  }
+
+  private feedChunkAndDecode(samples: Float32Array): void {
     if (this.closed || this.initialSilenceTracker.hasTimedOut()) return;
+    this.initialSilenceTracker.observeAcousticSamples(samples);
     if ((this.targetSpeakerEnabled || this.speakerVadEnabled) && this.utteranceLength() < UTT_MAX_SAMPLES) {
       // acceptPcmShort reuses one conversion buffer; speaker scoring needs an immutable snapshot.
       this.utteranceSamples.push(samples.slice());
@@ -1393,7 +1418,9 @@ export class AsrSession {
       this.vadSpeechActive = true;
       this.trailingSilenceMs = 0;
     } else if (initialSilenceTimedOut) {
-      this.callback.onInitialSilenceTimeout?.();
+      if (this.initialSilenceTracker.confirmSpeechLikeActivity()) return;
+      if (this.initialSilenceTracker.needsAsrProbe() && this.probeInitialSpeechAtTimeout()) return;
+      if (this.initialSilenceTracker.confirmTimeout()) this.callback.onInitialSilenceTimeout?.();
       return;
     } else if (anySilence && this.vadSpeechActive) {
       this.trailingSilenceMs += Math.round(samples.length * 1000 / 16000);
@@ -1406,6 +1433,21 @@ export class AsrSession {
       }
     }
     this.maybeTriggerSpeakerVadEndpoint(samples.length);
+  }
+
+  // Acoustic activity only grants one bounded confirmation window. At its boundary, flush ASR to
+  // distinguish delayed real speech from noise; real text is emitted as a non-last final.
+  private probeInitialSpeechAtTimeout(): boolean {
+    const decodeStartMs = Date.now();
+    this.appendFinalTailSilence();
+    this.stream.inputFinished();
+    while (this.recognizer.isReady(this.stream)) this.recognizer.decode(this.stream);
+    const hasEvidence = this.dispatchFinal(false, Date.now() - decodeStartMs, false, true);
+    if (!this.closed) {
+      this.finishUtterance(true);
+      this.resetVadGateState();
+    }
+    return hasEvidence;
   }
 
   // VAD detected enough trailing silence: cut the utterance now and start the next one on a fresh
@@ -1649,6 +1691,10 @@ function validateSessionConfig(config: SessionConfig): void {
   if (config.initialSilenceTimeoutMs !== undefined &&
     (!Number.isFinite(config.initialSilenceTimeoutMs) || config.initialSilenceTimeoutMs < 0)) {
     throw new Error('SessionConfig.initialSilenceTimeoutMs must be finite and >= 0');
+  }
+  if (config.initialSilenceConfirmationGraceMs !== undefined &&
+    (!Number.isFinite(config.initialSilenceConfirmationGraceMs) || config.initialSilenceConfirmationGraceMs < 0)) {
+    throw new Error('SessionConfig.initialSilenceConfirmationGraceMs must be finite and >= 0');
   }
 }
 

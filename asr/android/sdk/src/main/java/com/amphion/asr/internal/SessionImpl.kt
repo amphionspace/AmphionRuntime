@@ -125,8 +125,22 @@ internal class SessionImpl(
     private val initialSilenceTimeoutSamples: Long =
         ((sessionConfig?.initialSilenceTimeoutMs ?: 0).toLong() * sampleRate / 1000L)
 
+    /** 声纹等慢证据场景的一次性确认窗口；没有声纹能力时忽略，并钳制到声纹最短片段。 */
+    private val initialSilenceConfirmationGraceSamples: Long = run {
+        val requestedMs = (sessionConfig?.initialSilenceConfirmationGraceMs ?: 0).toLong()
+        val maxMs = engineImpl.targetSpeakerConfig
+            ?.let { (it.minSegSec * 1000).toLong().coerceAtLeast(0L) }
+            ?: 0L
+        minOf(requestedMs, maxMs) * sampleRate / 1000L
+    }
+
     /** 首次 speech onset 前已经送入 VAD 的完整窗口样本数。 */
     private var initialSilenceSamples: Long = 0L
+
+    /** 当前超时判定边界；只有阈值附近存在连续声学活动时才会扩展一次。 */
+    private var initialSilenceDeadlineSamples: Long = initialSilenceTimeoutSamples
+
+    private var initialSilenceGraceGranted: Boolean = false
 
     /** 一旦检测到过 speech，本会话不再触发首段静音超时。 */
     private var initialSpeechDetected: Boolean = false
@@ -134,6 +148,11 @@ internal class SessionImpl(
     /** 防止超时回调和后续排队音频重复触发生命周期结束。 */
     @Volatile
     private var initialSilenceTimeoutSent: Boolean = false
+
+    /** 声能只触发有界确认，不会直接或永久标记 speech。 */
+    private val initialAcousticActivity = if (
+        initialSilenceTimeoutSamples > 0L && initialSilenceConfirmationGraceSamples > 0L
+    ) InitialAcousticActivityTracker(sampleRate) else null
 
     /** 当前是否处于 speech 段内（VAD onset 后 → 主动 endpoint / hard restart 之间）。 */
     @Volatile
@@ -417,7 +436,25 @@ internal class SessionImpl(
     }
 
     private fun feedAndDecode(samples: FloatArray) {
-        if (closed.get() || initialSilenceTimeoutSent) return
+        var offset = 0
+        val initialDecisionChunkSamples = (sampleRate / INITIAL_DECISION_CHUNKS_PER_SECOND).coerceAtLeast(1)
+        while (offset < samples.size && !closed.get() && !initialSilenceTimeoutSent) {
+            val remaining = samples.size - offset
+            val chunkSize = if (!initialSpeechDetected && initialSilenceTimeoutSamples > 0L) {
+                minOf(remaining, initialDecisionChunkSamples)
+            } else {
+                remaining
+            }
+            if (!feedChunkAndDecode(samples.copyOfRange(offset, offset + chunkSize))) break
+            offset += chunkSize
+        }
+    }
+
+    /** Fixed slices prevent audio after an armed deadline from changing the decision at that deadline. */
+    private fun feedChunkAndDecode(samples: FloatArray): Boolean {
+        if (closed.get() || initialSilenceTimeoutSent) return false
+
+        if (!initialSpeechDetected) initialAcousticActivity?.observe(samples)
 
         // 声纹门控 / speaker vad 开启时，累积当前段 PCM 供段末或实时滑窗打分（decoder 线程独占）。
         if (targetSpeakerEnabled || speakerVadEnabled) appendUtterance(samples)
@@ -431,13 +468,13 @@ internal class SessionImpl(
         }
         if (asrR is NativeResult.Err) {
             postError(asrR.error)
-            return
+            return false
         }
 
         // drainDecoder 已经处理了 endpoint，stream 可能已被重建（hardRestart）
         // 这种情况下当前 chunk 仍按 onset 路径继续判定，与已 reset 的状态一致。
 
-        val v = vad ?: return
+        val v = vad ?: return true
 
         // silero 的 acceptWaveform 强约束 windowSize=512；按 chunk 切片喂入，剩余样本
         // 进 vadCarry 等下次拼回。两次 chunk 的 VAD speech/silence 状态由 v 自己维护。
@@ -469,13 +506,39 @@ internal class SessionImpl(
             }
             !initialSpeechDetected && !initialSilenceTimeoutSent && initialSilenceTimeoutSamples > 0L -> {
                 initialSilenceSamples += i.toLong()
-                if (initialSilenceSamples >= initialSilenceTimeoutSamples) {
+                if (
+                    initialSilenceSamples >= initialSilenceDeadlineSamples &&
+                    !initialSilenceGraceGranted &&
+                    initialSilenceConfirmationGraceSamples > 0L &&
+                    (initialAcousticActivity?.hasRecentActivity() == true ||
+                        initialAcousticActivity?.hasSpeechLikeActivity() == true)
+                ) {
+                    initialSilenceGraceGranted = true
+                    initialSilenceDeadlineSamples += initialSilenceConfirmationGraceSamples
+                    Logger.d(
+                        "session $sessionId initial silence confirmation grace granted: " +
+                            "deadlineSamples=$initialSilenceDeadlineSamples",
+                    )
+                } else if (initialSilenceSamples >= initialSilenceDeadlineSamples) {
+                    if (initialSilenceGraceGranted &&
+                        initialAcousticActivity?.hasRecentSpeechLikeActivity() == true
+                    ) {
+                        initialSpeechDetected = true
+                        initialSilenceSamples = 0L
+                        Logger.d("session $sessionId initial silence disarmed by speech-like acoustic activity")
+                        return true
+                    }
+                    if (initialSilenceGraceGranted) {
+                        val probe = probeInitialSpeechAtTimeout()
+                        if (probe == true) return true
+                        if (probe == null) return false
+                    }
                     initialSilenceTimeoutSent = true
                     Logger.i("session $sessionId VAD initial silence timeout")
                     callbackHandler.post {
                         safeCallback { callback.onInitialSilenceTimeout() }
                     }
-                    return
+                    return false
                 }
             }
             anySilence && vadSpeechActive -> {
@@ -491,7 +554,27 @@ internal class SessionImpl(
                 }
             }
         }
-        if (maybeTriggerSpeakerVadEndpoint(samples.size)) return
+        maybeTriggerSpeakerVadEndpoint(samples.size)
+        return true
+    }
+
+    /**
+     * 声学活动只说明“可能有人说话”。有界确认窗结束时强制刷新 ASR：有 text/token 时保留为
+     * non-last final 并继续 session；仍为空才允许上层按初始静音结束。
+     */
+    private fun probeInitialSpeechAtTimeout(): Boolean? {
+        val r = NativeGuard.run("initialSilence.inputFinished+probe") {
+            appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
+            stream.inputFinished()
+            drainDecoder(isFinal = true, postEndpointOnEndpoint = false, suppressEmptyFinal = true)
+        }
+        return when (r) {
+            is NativeResult.Ok -> r.value
+            is NativeResult.Err -> {
+                postError(r.error)
+                null
+            }
+        }
     }
 
     /**
@@ -538,7 +621,8 @@ internal class SessionImpl(
         postEndpointOnEndpoint: Boolean = true,
         restartAfterFinal: Boolean = true,
         isLastFinal: Boolean = false,
-    ) {
+        suppressEmptyFinal: Boolean = false,
+    ): Boolean {
         while (recognizer.isReady(stream)) {
             recognizer.decode(stream)
         }
@@ -547,23 +631,28 @@ internal class SessionImpl(
             metrics.onEndpointDetected()
             val r = recognizer.getResult(stream)
             markInitialSpeechDetected(r)
+            val hasEvidence = r.text.isNotEmpty() || r.tokens.isNotEmpty()
             metrics.onRawFinalReady()
             if (postEndpointOnEndpoint) postEndpoint()
-            postFinalToProcessor(gateFinal(toAsrResult(r)).copy(isLast = isLastFinal))
+            val finalResult = gateFinal(toAsrResult(r)).copy(isLast = isLastFinal)
+            if (!suppressEmptyFinal || hasEvidence) postFinalToProcessor(finalResult)
             if (restartAfterFinal) restartStreamAfterUtterance(r) else lastPartialText = ""
-            return
+            return hasEvidence
         }
 
         val r = recognizer.getResult(stream)
         markInitialSpeechDetected(r)
+        val hasEvidence = r.text.isNotEmpty() || r.tokens.isNotEmpty()
         if (isFinal) {
             metrics.onRawFinalReady()
-            postFinalToProcessor(gateFinal(toAsrResult(r)).copy(isLast = isLastFinal))
+            val finalResult = gateFinal(toAsrResult(r)).copy(isLast = isLastFinal)
+            if (!suppressEmptyFinal || hasEvidence) postFinalToProcessor(finalResult)
             if (restartAfterFinal) restartStreamAfterUtterance(r) else lastPartialText = ""
         } else if (r.text != lastPartialText) {
             lastPartialText = r.text
             postPartial(toAsrResult(r))
         }
+        return hasEvidence
     }
 
     private fun markInitialSpeechDetected(result: OnlineRecognizerResult) {
@@ -902,6 +991,9 @@ internal class SessionImpl(
     }
 
     private companion object {
+        /** Initial-silence decisions advance in fixed 20 ms slices, independent of caller chunk size. */
+        const val INITIAL_DECISION_CHUNKS_PER_SECOND = 50
+
         /** 静音预热 encoder 的时长（ms）。≈ 2.5 chunk @chunk_size=32, 16kHz。 */
         const val WARMUP_DURATION_MS = 800
 

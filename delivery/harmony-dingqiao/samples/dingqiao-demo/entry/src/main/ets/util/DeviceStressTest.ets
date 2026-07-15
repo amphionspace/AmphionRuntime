@@ -67,6 +67,7 @@ class SessionEvents {
   lastFinals: number = 0;
   speakerScores: number = 0;
   missingSpeakerScores: number = 0;
+  firstNonEmptyFinalHasScore?: boolean;
   errorCodes: number[] = [];
   callbackTrace: string[] = [];
   unexpectedSessionCallbacks: number = 0;
@@ -122,6 +123,9 @@ class StressListener implements RecognitionListener {
       this.events.missingSpeakerScores += 1;
     } else {
       this.events.speakerScores += 1;
+    }
+    if (result.result.length > 0 && this.events.firstNonEmptyFinalHasScore === undefined) {
+      this.events.firstNonEmptyFinalHasScore = result.speakerSimilarity !== undefined;
     }
     this.record(sessionId, 'final', result.isLast ? '-last' : '');
   }
@@ -410,6 +414,14 @@ class CycleResult {
   completes: number = 0;
   errors: number = 0;
   finalChars: number = 0;
+  speakerScores: number = 0;
+  missingSpeakerScores: number = 0;
+  firstNonEmptyFinalHasScore: number = -1;
+  requestedVadBeginMs: number = -1;
+  confirmationGraceMs: number = -1;
+  voiceprintIdCount: number = 0;
+  fedFrames: number = 0;
+  lastFinalsBeforeFinish: number = -1;
   liveStreams: number = 0;
   elapsedMs: number = 0;
   resultHex: string = '';
@@ -420,7 +432,12 @@ class CycleResult {
   toLine(): string {
     return `CYCLE|index=${this.index}|id=${this.corpusId}|status=${this.ok ? 'PASS' : 'FAIL'}` +
       `|starts=${this.starts}|partials=${this.partials}|finals=${this.finals}|completes=${this.completes}` +
-      `|errors=${this.errors}|finalChars=${this.finalChars}|liveStreams=${this.liveStreams}` +
+      `|errors=${this.errors}|finalChars=${this.finalChars}|speakerScores=${this.speakerScores}` +
+      `|missingSpeakerScores=${this.missingSpeakerScores}` +
+      `|firstNonEmptyFinalHasScore=${this.firstNonEmptyFinalHasScore}` +
+      `|requestedVadBeginMs=${this.requestedVadBeginMs}|confirmationGraceMs=${this.confirmationGraceMs}` +
+      `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
+      `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}|liveStreams=${this.liveStreams}` +
       `|unexpectedCallbacks=${this.unexpectedSessionCallbacks}|elapsedMs=${this.elapsedMs}` +
       `|resultHex=${this.resultHex}|trace=${this.callbackTrace}|detail=${this.detail}`;
   }
@@ -675,6 +692,10 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.completes = events.completes;
   result.errors = events.errors;
   result.finalChars = events.finalChars;
+  result.speakerScores = events.speakerScores;
+  result.missingSpeakerScores = events.missingSpeakerScores;
+  result.firstNonEmptyFinalHasScore = events.firstNonEmptyFinalHasScore === undefined ? -1 :
+    (events.firstNonEmptyFinalHasScore ? 1 : 0);
   result.liveStreams = AmphionRuntime.activeOnlineStreamCount();
   result.elapsedMs = Date.now() - startedAt;
   result.resultHex = stringToUtf16Hex(events.finalTexts.join(''));
@@ -815,6 +836,93 @@ async function runVoiceprintCycle(engine: SpeechRecognitionEngine, entry: Corpus
     detail = 'is-last-before-finish';
   }
   return finishCycle(index, entry.id, events, startedAt, ok, detail);
+}
+
+async function runVoiceprintVadBeginCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry, index: number,
+  voiceprintId: string): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const paced = index % 2 === 1;
+  const leadingSilence = index % 4 >= 2;
+  const sessionId = `voiceprint-vad-begin-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
+  const params = startParams(sessionId, 'voiceprint-vad-begin', index);
+  params.extraParams['vadBegin'] = 1000;
+  params.extraParams['enableVoiceprintVerification'] = true;
+  params.extraParams['voiceprintIds'] = [voiceprintId];
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+  if (leadingSilence) feedSilence(engine, sessionId, 40);
+  const fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, paced ? 20 : 0);
+  if (fed === 0) {
+    engine.cancel(sessionId);
+    return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+  }
+  const lastFinalsBeforeFinish = events.lastFinals;
+  engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const ok = completed && events.starts === 1 && events.finals > 0 && events.speakerScores > 0 &&
+    events.firstNonEmptyFinalHasScore === true &&
+    events.lastFinals === 1 && lastFinalsBeforeFinish === 0 && events.completes === 1 &&
+    events.errors === 0 && !engine.isBusy();
+  let detail = `voiceprint-vad-begin-${paced ? 'paced' : 'burst'}-${leadingSilence ? 'leading' : 'direct'}`;
+  if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
+  else if (events.firstNonEmptyFinalHasScore !== true) detail = 'first-final-missing-speaker-score';
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.requestedVadBeginMs = 1000;
+  result.confirmationGraceMs = 1500;
+  result.voiceprintIdCount = 1;
+  result.fedFrames = fed;
+  result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  return result;
+}
+
+async function runVoiceprintVadBeginIdleCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry, index: number,
+  voiceprintId: string): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const noisy = index % 2 === 1;
+  const sessionId = `voiceprint-vad-begin-idle-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
+  const params = startParams(sessionId, 'voiceprint-vad-begin-idle', index);
+  params.extraParams['vadBegin'] = 1000;
+  params.extraParams['enableVoiceprintVerification'] = true;
+  params.extraParams['voiceprintIds'] = [voiceprintId];
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+
+  const frame = new ArrayBuffer(FRAME_BYTES);
+  if (noisy) {
+    const samples = new Int16Array(frame);
+    for (let i = 0; i < samples.length; i++) samples[i] = i % 2 === 0 ? 700 : -700;
+  }
+  let fed = 0;
+  while (events.completes === 0 && fed < 160) {
+    engine.writeAudio(sessionId, frame);
+    fed += 1;
+    if (fed % 10 === 0) await sleep(1);
+  }
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const timingOk = noisy ? fed >= 110 && fed <= 150 : fed >= 45 && fed <= 70;
+  const ok = completed && timingOk && events.starts === 1 && events.finals === 1 &&
+    events.lastFinals === 1 && events.finalChars === 0 && events.speechBegins === 0 &&
+    events.completes === 1 && events.errors === 0 && !engine.isBusy();
+  let detail = `voiceprint-vad-begin-${noisy ? 'bounded-noise' : 'pure-silence'}`;
+  if (!completed) detail = 'auto-complete-timeout';
+  else if (!timingOk) detail = `unexpected-auto-finish-frame-${fed}`;
+  else if (events.finals !== 1) detail = `unexpected-final-count-${events.finals}`;
+  else if (events.speechBegins !== 0) detail = `unexpected-speech-begin-${events.speechBegins}`;
+  else if (events.finalChars !== 0) detail = `unexpected-final-chars-${events.finalChars}`;
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.requestedVadBeginMs = 1000;
+  result.confirmationGraceMs = 1500;
+  result.voiceprintIdCount = 1;
+  result.fedFrames = fed;
+  return result;
 }
 
 async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
@@ -1139,8 +1247,11 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     const runtimeError = await prepareRuntime();
     if (runtimeError !== 0) throw new Error(`runtime-${runtimeError}`);
 
-    if (options.mode === 'voiceprint') {
-      if (entries.length < 2) throw new Error('voiceprint-stress-requires-two-corpus-sources');
+    if (options.mode === 'voiceprint' || options.mode === 'voiceprint-vad-begin' ||
+      options.mode === 'voiceprint-vad-begin-idle') {
+      if (options.mode === 'voiceprint' && entries.length < 2) {
+        throw new Error('voiceprint-stress-requires-two-corpus-sources');
+      }
       stressVoiceprintSamplePath = `${workPath}/stress-voiceprint-enroll.wav`;
       stressVoiceprintId = prepareStressVoiceprint(workPath, entries[0]);
     }
@@ -1172,6 +1283,10 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runVadBeginSilenceCycle(engine, entry, i);
       } else if (options.mode === 'voiceprint') {
         result = await runVoiceprintCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'voiceprint-vad-begin') {
+        result = await runVoiceprintVadBeginCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'voiceprint-vad-begin-idle') {
+        result = await runVoiceprintVadBeginIdleCycle(engine, entry, i, stressVoiceprintId);
       } else {
         result = await runRecognitionCycle(engine, entry, i, options);
       }
