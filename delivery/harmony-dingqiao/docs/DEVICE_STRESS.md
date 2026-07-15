@@ -50,6 +50,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | `reentrant` | `onComplete` 回调内立即再次 `startListening`，验证完成态可重入 |
 | `start-cancel` | `onStart` 回调内立即 `cancel`，验证取消后不再透出 start 后续事件 |
 | `start-write` | `onStart` 调用栈内交替同步写入 32/88 个真实 PCM 缓存帧，并交替继续识别或立即 `finish`；验证成功回调前 session 已可用，且不返回 `NOT_LISTENING` / `FINISH_FAILED` |
+| `start-write-reload` | 每轮执行 `shutdown -> unloadModel -> createEngine` 后复用 `start-write` 四种组合，等价覆盖业务空闲定时卸载后的再次冷加载 |
 | `user-sequence` | cancel 后零等待复用、finish 后立即重启、旧 session 迟到 write/finish/cancel 干扰当前 session；按 sessionId 校验回调归属和顺序 |
 | `numeric-edge` | `maxAudioDuration=NaN` 等非有限数输入，验证不会绕过 20 秒兜底上限 |
 
@@ -223,6 +224,7 @@ session、active sessionId 和 listening 状态，再通过 executor 异步发�
 | 回调返回后普通 burst 对照 | 5 | 5/5 PASS；证明模型 ready 和 sessionId 正常 | `20260715-232519-burst-5138af17` |
 | 修复后，交替同步冲刷 32/88 帧 | 100 | 100/100 PASS；错误 0，native stream 存活 0，RSS +35.547 MiB | `20260715-233830-start-write-d96f87fd` |
 | 0.2.4 修复分支隔离构建、签名并安装后，以真实 PCM 冲刷复验 | 100 | 100/100 PASS；32/88 帧 x 继续/回调内 finish 各 25 轮；首轮冷加载 `engineReadyMs=804`，错误 0，native stream 存活 0，RSS +32.074 MiB | `20260716-002108-start-write-b00040e2` |
+| 每轮 `shutdown -> unloadModel -> createEngine` 后重新冲刷 | 20 | 20/20 PASS；四种组合各 5 轮，20 次均为真实冷加载，`engineReadyMs=681..828`，错误 0，native stream 存活 0 | `20260716-011122-start-write-reload-8782a5ee` |
 | 修复后 `start-cancel` / `reentrant` / `edge` | 100 / 100 / 100 | 全部 PASS，确认既有回调重入语义未回归 | `20260715-233159-start-cancel-da161eca` / `20260715-233237-reentrant-d886eba9` / `20260715-234107-edge-3e1fc223` |
 | 0.2.4 修复分支相邻生命周期复验 | 50 / 50 / 50 / 30 | `start-cancel` / `reentrant` / `edge` / `user-sequence` 全部 PASS | `20260716-000224-start-cancel-2aae8fbe` / `20260716-000258-reentrant-2bb53260` / `20260716-000358-edge-cb8b2452` / `20260716-000439-user-sequence-12218b68` |
 
