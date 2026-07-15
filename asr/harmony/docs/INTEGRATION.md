@@ -80,6 +80,9 @@ SDK 不接管录音，业务方需自行使用 `AudioCapturer` 获取 16 kHz、1
 `SessionConfig.initialSilenceTimeoutMs` 按底层实际处理的 PCM 时长计算，`undefined` 或 `0` 表示禁用；
 真实起音优先于同一边界帧的超时，并永久关闭本会话的首段静音计时。底层仅发出可选的
 `onInitialSilenceTimeout` 通知，鼎桥适配层负责转换为空 last final 和 `onComplete`。
+`initialSilenceConfirmationGraceMs` 是目标说话人能力的一次性确认窗；没有配置 `targetSpeaker` 时忽略，
+并钳制到 `TargetSpeakerConfig.minSegSec`。初始窗内的连续未决活动只获得有界确认，只有确认窗末仍存在
+近期语音型活动，或强制刷新得到 text/token，才解除计时。
 
 ## 预加载与释放
 

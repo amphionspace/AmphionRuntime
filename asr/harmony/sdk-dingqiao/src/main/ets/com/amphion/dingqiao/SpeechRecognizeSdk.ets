@@ -299,10 +299,15 @@ function buildSpeakerVadConfig(extra: Record<string, Object>): SpeakerVadConfig 
   return config;
 }
 
-function buildSessionConfig(params: StartParams, withTargetSpeaker: boolean): SessionConfig {
+function buildSessionConfig(params: StartParams, withTargetSpeaker: boolean,
+  needsVoiceprintAudio: boolean): SessionConfig {
   const config = new SessionConfig();
   config.endpointSilenceMs = vadEndMs(params);
   config.initialSilenceTimeoutMs = vadBeginMs(params);
+  if (needsVoiceprintAudio) {
+    const targetSpeakerDefaults = new TargetSpeakerConfig();
+    config.initialSilenceConfirmationGraceMs = Math.round(targetSpeakerDefaults.minSegSec * 1000);
+  }
   if (withTargetSpeaker) config.speakerVad = buildSpeakerVadConfig(params.extraParams);
   return config;
 }
@@ -424,7 +429,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       const callback: AsrCallback = new DingqiaoAsrCallback(this);
       this.startingSession = true;
       this.cancelRequestedDuringStart = false;
-      const createdSession = this.asrEngine.newSession(callback, buildSessionConfig(params, configureTarget));
+      const createdSession = this.asrEngine.newSession(
+        callback,
+        buildSessionConfig(params, configureTarget, verify || speakerVad)
+      );
       this.startingSession = false;
       if (this.cancelRequestedDuringStart || this.destroyed || !this.busy || this.currentSessionId !== params.sessionId) {
         this.cancelRequestedDuringStart = false;

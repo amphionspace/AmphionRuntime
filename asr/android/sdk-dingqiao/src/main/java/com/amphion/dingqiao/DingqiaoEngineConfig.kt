@@ -91,8 +91,16 @@ internal object DingqiaoEngineConfig {
         return SessionConfig(
             endpointSilenceMs = vadEndMs(startParams),
             initialSilenceTimeoutMs = vadBeginMs(startParams),
+            initialSilenceConfirmationGraceMs = voiceprintConfirmationGraceMs(startParams, speakerModelPath),
             speakerVad = speakerVad,
         )
+    }
+
+    private fun voiceprintConfirmationGraceMs(startParams: StartParams, speakerModelPath: String?): Int? {
+        val needsVoiceprintAudio = enableVoiceprintVerification(startParams) || enableSpeakerVad(startParams)
+        if (!needsVoiceprintAudio || speakerModelPath.isNullOrBlank()) return null
+
+        return (TargetSpeakerConfig(speakerModelPath).minSegSec * 1000).toInt()
     }
 
     fun vadBeginMs(startParams: StartParams): Int? {

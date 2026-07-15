@@ -39,6 +39,8 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | `vad-begin` | 真实语音启用 10 秒 `vadBegin`，验证即使辅助 VAD 漏检，显式 finish 前也不会提前 `isLast` |
 | `vad-begin-silence` | 纯静音命中 500 ms `vadBegin`，验证恰好一次 last/complete 且没有起音事件 |
 | `voiceprint` | 轮换验证 500 ms 短句、1.5 秒门槛、3 秒长句、前置静音、低音量、多句连续输入和非注册语料源；只检查分数可选性与生命周期，不判定相似度精度 |
+| `voiceprint-vad-begin` | 选择自身前 200 ms 已起音的真实语料，声纹开启且传入 1000 ms `vadBegin`，交替实时/突发喂入和直接起音/800 ms 前置静音；验证显式 finish 前无 `isLast`，足够长语音出现带分数 final |
+| `voiceprint-vad-begin-idle` | 声纹开启且传入 1000 ms `vadBegin`，交替写入纯静音和稳态高能非语音；验证前者约 1000 ms、后者在一次 1500 ms 确认窗后有界结束 |
 | `cancel` | 500 ms 后取消，验证无 final/complete 和短会话泄漏 |
 | `cancel-full` | 完整音频解码后取消，隔离正常 finish 路径 |
 | `max-duration` | 20 秒自动结束、80 个迟到帧、单次 complete、下一轮重启 |
@@ -171,6 +173,33 @@ AISHELL-4 语料，以及从其中高能量语音段派生的 0.5–10 秒、前
 声纹和 `max-duration` 复核轮次短，资源判定为 `INCONCLUSIVE`；它们只作为 callback 契约证据，
 资源结论仍以长稳压结果为准。“非注册语料源”只证明未使用注册样本也不会丢失 final，不代表带身份
 标注的非目标说话人精度结论。
+
+## 2026-07-15 声纹与 `vadBegin=1000` 竞态复现
+
+针对“首句已有识别文本，但 `speakerSimilarity=undefined` 且提前 `isLast=true`”建立了独立
+`voiceprint-vad-begin` 门禁。该门禁只选择自身前 200 ms 已起音的真实语料，交替突发/实时喂入、
+直接起音/800 ms 前置静音，并在调用 `finish` 前快照 `isLast` 数量。这个筛选很重要：如果载体注入
+800 ms 后源文件自身还静音超过 200 ms，讲话实际晚于 1000 ms，自动结束本来就是正确行为。
+
+| 阶段 | 轮数 | 结果 | Artifact |
+| --- | ---: | --- | --- |
+| 仅把有效等待钳制为 1500 ms | 20 | 20/20 提前结束，集中在约 1520 ms PCM | `20260715-153610-voiceprint-vad-begin-8a3ebbdc` |
+| 改为 1000+1500 ms 静态证据窗口 | 40 | 8/40 提前结束；其中 4 轮 final 已有文本“提。” | `20260715-154224-voiceprint-vad-begin-24feed45` |
+| “高能即永久起音”候选方案 | 40 | 40/40 PASS，但 review 发现稳态噪声会永久关闭超时，方案淘汰 | `20260715-154905-voiceprint-vad-begin-2d562386` |
+| 纯静音/稳态高能非语音有界对照 | 100 | 100/100 PASS；恰好一次 last/complete；RSS +24.727 MiB | `20260715-171246-voiceprint-vad-begin-idle-ca698bb3` |
+| 有界确认 + 语音型声学证据，短句多源 | 40 | 40/40 PASS；提前 last 0，空 final 0；RSS +31.434 MiB | `20260715-164326-voiceprint-vad-begin-bc146fc6` |
+| `$HOME/Downloads/testdata` 长稳压 | 100 | 100/100 PASS；提前 last 0；RSS -4.305 MiB，斜率 -2.462 MiB/min | `20260715-170619-voiceprint-vad-begin-46ef77ac` |
+| 最终分帧无关版本，短句多源组合回归 | 40 | 40/40 PASS；首个非空 final 带分数；提前 last 0 | `20260715-182307-voiceprint-vad-begin-27989eec` |
+| 最终分帧无关版本，纯静音/稳态高能非语音 | 40 | 40/40 PASS；无 phantom final/SPEECH_BEGIN；均有界结束 | `20260715-182522-voiceprint-vad-begin-idle-c251101f` |
+
+前两阶段证明只延长定时器不能消除竞态。第三阶段又证明只按音量永久解除计时会把提前结束换成
+噪声环境无法结束。最终状态机保留 `vadBegin` 的纯静音语义：初始窗内有连续未决活动时只增加一次有界
+确认；确认窗末仍有近期语音型能量变化和合格过零率时才解除计时，否则强制刷新 ASR，有 text/token 才
+继续 session，仍为空就结束。零散或已经过去的脉冲不能直接解除计时，声学证据也不产生伪造的
+`SPEECH_BEGIN`。100 轮长稳压约 4 分钟，
+SDK 契约和资源门禁均通过；该生命周期模式的空文本率不作为 PASS 条件，避免混入精度评测。
+完整根因、被淘汰方案和防复发清单见
+[`VAD_BEGIN_VOICEPRINT_POSTMORTEM.md`](./VAD_BEGIN_VOICEPRINT_POSTMORTEM.md)。
 
 这组结果提高了对高频调用时序的置信度，但不等于“所有边界已穷尽”。物理断连、系统杀进程、
 低内存回收、多个进程同时持有 SDK，以及客户线程真正并行调用同一 engine，仍需要独立故障注入
