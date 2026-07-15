@@ -1,0 +1,145 @@
+diff --git a/en.cpp b/en.cpp
+index 53c4f93..1e47a99 100644
+--- a/en.cpp
++++ b/en.cpp
+@@ -1,5 +1,7 @@
+ // TTS English text normalization — rules live in rules_v2/en.full.json.
+ #include <cstdlib>
++#include <cstdio>
++#include <chrono>
+ #include <filesystem>
+ #include <iostream>
+ #include <string>
+@@ -17,6 +19,19 @@ std::filesystem::path rulesV2Dir() {
+     return std::filesystem::path(__FILE__).parent_path() / "rules_v2";
+ }
+ 
++// Lightweight startup profiling, gated by the TN_TIMING env var. Writes to
++// stderr only (stdout stays byte-identical), so it never affects TN output.
++// kTnStart is initialized during C++ static init (~process start, after the
++// dynamic loader), so marks measure elapsed-since-load in milliseconds.
++const std::chrono::steady_clock::time_point kTnStart = std::chrono::steady_clock::now();
++void tnMark(const char* label) {
++    static const bool on = std::getenv("TN_TIMING") != nullptr;
++    if (!on) return;
++    const double ms = std::chrono::duration<double, std::milli>(
++        std::chrono::steady_clock::now() - kTnStart).count();
++    std::fprintf(stderr, "[tn-timing] %-14s %8.2f ms\n", label, ms);
++}
++
+ } // namespace
+ 
+ class TextNormalizer {
+@@ -65,13 +80,16 @@ private:
+ 
+ public:
+     TextNormalizer() {
++        tnMark("ctor_start");
+         UErrorCode status = U_ZERO_ERROR;
+         spelloutFmt = new icu::RuleBasedNumberFormat(icu::URBNF_SPELLOUT, icu::Locale::getEnglish(), status);
++        tnMark("rbnf_init");
+         std::string err;
+         if (!engine_.loadRulesV2((rulesV2Dir() / "en.full.json").string(), err)) {
+             std::cerr << "Failed to load TTS rules v2: " << err << std::endl;
+             std::abort();
+         }
++        tnMark("rules_loaded");
+         engine_.loadPinyinMap("", err);
+     }
+ 
+@@ -92,14 +110,21 @@ public:
+ };
+ 
+ int main() {
++    tnMark("main_entry");
+     TextNormalizer normalizer;
++    tnMark("ready");
+     std::string line;
++    bool firstLine = true;
+     while (std::getline(std::cin, line)) {
+         if (line.empty()) {
+             std::cout << std::endl;
+             continue;
+         }
+         std::cout << normalizer.normalizeLine(line) << std::endl;
++        if (firstLine) {
++            tnMark("first_line");
++            firstLine = false;
++        }
+     }
+     return 0;
+ }
+diff --git a/zh.cpp b/zh.cpp
+index 3771001..77beae6 100644
+--- a/zh.cpp
++++ b/zh.cpp
+@@ -1,5 +1,7 @@
+ // TTS Chinese text normalization — rules in rules_v2/zh.full.json, pinyin map in rules_v2/zh_pinyin.json.
+ #include <cstdlib>
++#include <cstdio>
++#include <chrono>
+ #include <filesystem>
+ #include <iostream>
+ #include <string>
+@@ -16,6 +18,17 @@ std::filesystem::path rulesV2Dir() {
+     return std::filesystem::path(__FILE__).parent_path() / "rules_v2";
+ }
+ 
++// Lightweight startup profiling, gated by the TN_TIMING env var. Writes to
++// stderr only (stdout stays byte-identical), so it never affects TN output.
++const std::chrono::steady_clock::time_point kTnStart = std::chrono::steady_clock::now();
++void tnMark(const char* label) {
++    static const bool on = std::getenv("TN_TIMING") != nullptr;
++    if (!on) return;
++    const double ms = std::chrono::duration<double, std::milli>(
++        std::chrono::steady_clock::now() - kTnStart).count();
++    std::fprintf(stderr, "[tn-timing] %-14s %8.2f ms\n", label, ms);
++}
++
+ } // namespace
+ 
+ class TextNormalizer {
+@@ -39,17 +52,21 @@ private:
+ 
+ public:
+     TextNormalizer() {
++        tnMark("ctor_start");
+         UErrorCode status = U_ZERO_ERROR;
+         spelloutFmt = new icu::RuleBasedNumberFormat(icu::URBNF_SPELLOUT, icu::Locale::getChinese(), status);
++        tnMark("rbnf_init");
+         std::string err;
+         if (!engine_.loadRulesV2((rulesV2Dir() / "zh.full.json").string(), err)) {
+             std::cerr << "Failed to load TTS rules v2: " << err << std::endl;
+             std::abort();
+         }
++        tnMark("rules_loaded");
+         if (!engine_.loadPinyinMap((rulesV2Dir() / "zh_pinyin.json").string(), err)) {
+             std::cerr << "Failed to load pinyin map: " << err << std::endl;
+             std::abort();
+         }
++        tnMark("pinyin_loaded");
+     }
+ 
+     ~TextNormalizer() { delete spelloutFmt; }
+@@ -70,14 +87,21 @@ public:
+ };
+ 
+ int main() {
++    tnMark("main_entry");
+     TextNormalizer normalizer;
++    tnMark("ready");
+     std::string line;
++    bool firstLine = true;
+     while (std::getline(std::cin, line)) {
+         if (line.empty()) {
+             std::cout << std::endl;
+             continue;
+         }
+         std::cout << normalizer.normalizeLine(line) << std::endl;
++        if (firstLine) {
++            tnMark("first_line");
++            firstLine = false;
++        }
+     }
+     return 0;
+ }
