@@ -30,6 +30,24 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 设备写出结果后会删除本轮 PCM、manifest 和 corpus 映射，避免重复压测持续占用应用存储；
 主机侧 artifact 保留完整输入映射用于复核。
 
+### 测试对象身份
+
+发布验收不能只写“测试了当前代码”。每次运行前必须记录：
+
+- release commit 和工作区状态。
+- 最终交付 ZIP 的 SHA-256。
+- 从该 ZIP 解出的 `amphion_dingqiao.har` SHA-256。
+- 压测载体实际依赖的 HAR SHA-256。
+- 设备型号、系统版本、HDC target 和测试数据清单。
+
+后三个 HAR 哈希必须相同。源码构建目录中的 HAR、上一版本 ZIP 中的 HAR 或旧设备上残留的 HAP
+都不能作为本次发布证据。`--skip-build-install` 只表示复用设备上已安装载体，不证明载体来自当前
+交付 ZIP；使用该选项前必须已有可审计的安装记录和相同 HAR hash。
+
+当前脚本尚无 `--sdk-har` 参数。正式发布若要求用最终 ZIP HAR 做完整压力测试，release 分支必须
+先增加 artifact-driven 载体构建入口，或用临时客户宿主显式只依赖该 HAR 并归档构建记录。不能
+通过参照上一版交付包、替换仓库构建输出或口头确认来跨过这个缺口。
+
 ## 模式
 
 | 模式 | 覆盖边界 |
@@ -56,6 +74,67 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 不超过 5%。少于 15 秒的采样只报告 `INCONCLUSIVE`，避免把模型冷启动误判为泄漏。
 `rss_slope_mb_per_minute` 和三段 RSS 中位数用于识别缓慢线性增长；斜率至少需要 60 秒观测，
 且当前不单独作为硬门槛。
+
+## 发布测试矩阵
+
+发布前至少跑完下表。轮数是生命周期覆盖预算，不是精度样本量；语料数量应按模式目的选择，
+不能统一写成 `--files 0` 后等待全库跑完。
+
+| 模式 | 建议发布轮数 | 语料要求 | 主要断言 |
+| --- | ---: | --- | --- |
+| `burst` | 48-100 | 按时长、采样率分层的 24-48 条 | 快灌不丢回调，finish 前无 last |
+| `paced` | 3-10 | 受控短集，累计实时音频至少 60 秒 | 20 ms 实时写入无 backlog 异常 |
+| `vad-begin` | 40-100 | 直接起音和小于 1 秒前置静音 | 真实语音不自动结束 |
+| `vad-begin-silence` | 40-100 | 纯静音 | 按配置恰好一次 last/complete |
+| `voiceprint` | 至少 7 | 与七类接口边界一一对应 | 短句可无分数，足长语音应有分数 |
+| `voiceprint-vad-begin` | 100 | 连续有效语音满足门槛 | 1000 ms 入参下无提前 last |
+| `voiceprint-vad-begin-idle` | 40-100 | 纯静音和稳态高能非语音 | 有界自动结束，无伪 speech |
+| `cancel` | 100 | 任意有效短集 | cancel 后无新增 final/complete |
+| `cancel-full` | 20-40 | 完整解码后取消 | 与正常 finish 路径隔离 |
+| `max-duration` | 2-5 | 任意有效语音 | 20 秒上限、迟到帧、重启契约 |
+| `edge` | 100 | 无精度要求 | 非法调用和重复结束错误精确匹配 |
+| `reentrant` | 100-300 | 无精度要求 | complete 回调内可立即重启 |
+| `start-cancel` | 100-300 | 无精度要求 | start 回调内取消后无残留流 |
+| `user-sequence` | 300 | 3 条受控短语料即可 | 旧 session 不污染当前 session |
+| `numeric-edge` | 2-10 | 无精度要求 | `NaN` 等输入仍受默认上限约束 |
+
+`reconfigure` 和 `recreate` 在引擎配置、模型、native 或资源所有权变更时也必须运行。至少一组
+长稳压超过 60 秒；推荐用 `user-sequence`、`reentrant` 或受控 `paced` 集完成，不要靠增加
+`max-duration` 轮数凑时长。
+
+### 时间预算
+
+- `paced` 按 20 ms 实时喂入，耗时约等于所选 WAV 总时长乘轮数。分位抽样可能选中超长文件，
+  运行前先检查 corpus 映射和总时长。
+- `max-duration` 每轮必须真实等待约 20 秒。2-5 轮足够验证回调契约；40 轮理论下限约 13 分钟，
+  不应作为常规门禁。
+- `vad-begin-silence`、`voiceprint-vad-begin-idle` 和 `numeric-edge` 也包含真实计时等待，先用少量
+  红灯复现，再按发布预算运行。
+- 高频竞态模式单轮短，适合用 100-300 轮换取时序覆盖。任何超时都应保留当轮 artifact，不能
+  通过无限增大 `--timeout` 掩盖。
+
+## 测试数据准入
+
+生命周期压力与精度评测使用不同语料清单。`$HOME/Downloads/testdata` 只是候选池，不能默认每个
+WAV 都适合所有模式。
+
+- `voiceprint-vad-begin` 的“应有分数”语料必须在 `vadBegin` 到期前已经起音，并具有连续、有效的
+  目标语音，长度达到 `TargetSpeakerConfig.minSegSec`；总文件时长或开头 RMS 高不等价于满足条件。
+- 含短 endpoint、多说话人切换或不足 1.5 秒有效语音的文件进入“允许省略分数”集合。此时
+  `speakerSimilarity=undefined` 是接口契约，不是失败；但 finish 前出现 `isLast=true` 仍是失败。
+- 直接起音、800 ms 前置静音、纯静音、稳态高能非语音、低音量和零散脉冲分别建清单，不能用
+  一个宽松筛选器混跑后再放宽全局阈值。
+- 同一语料在 burst 和 paced 下应得到相同生命周期决定。若不同，先排查分帧/时序状态机，不把
+  差异归为识别精度。
+- 每次运行保留 `payload/corpus.json`。失败后先核对实际 PCM、前置静音、有效语音时长和回调
+  时间线，再判断 SDK 缺陷或语料预期错误。
+
+### 失败分类
+
+1. `FAIL`：违反 last/complete 次数、顺序、session 归属、错误码或明确的声纹分数可选性契约。
+2. `INCONCLUSIVE`：运行过短，无法判断 RSS/线程趋势；不能写成资源 PASS。
+3. 语料预期不成立：保留失败 artifact，修正语料分组后重跑；不得删除记录或降低全局门槛。
+4. 外部故障：USB 断连、设备离线、系统杀进程等单独记录，不能计为 SDK PASS。
 
 ## 2026-07-10 基线
 

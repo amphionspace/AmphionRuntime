@@ -53,6 +53,17 @@
 - 推送修复后必须重新获取 review threads，确认旧评论已失效或已处理，并检查新提交是否产生新的有效建议。
 - 只有当前 PR HEAD 的必需 CI、对应平台构建和约定的真机 SDK 门禁全部通过，且没有未处理的阻断评论，才允许合入主分支。
 
+## Harmony SDK 交付门禁
+
+- 交付流程和目录清单以 `delivery/harmony-dingqiao/docs/DELIVERY.md` 及当前分支打包脚本为准。上一版本 ZIP/HAR/HAP 只能用于历史差异对照，不得作为模型、native、文档、构建产物或目录结构的输入。
+- 正式交付必须从最新 `main` 建立独立 release 分支/worktree，保持工作区干净，并统一检查 Harmony package、应用 `versionName`、SDK 公共版本、CHANGELOG 和打包版本。不得只改 ZIP 文件名或 `AMPHION_RUNTIME_VERSION`。
+- 客户要求的交付形态必须由打包脚本提供显式、已测试的模式。脚本不支持 SDK-only 时，应先补工具和回归测试；禁止先打大包再参照旧包手工删除文件。
+- 打包后必须解压最终 ZIP，校验 `docs/checksum.txt`、`BUILD_PROVENANCE.json`、规范清单、ZIP SHA-256 和 HAR SHA-256。验收记录必须能从 ZIP hash 追溯到 release commit、模型/native 身份和测试载体。
+- 真机发布门禁必须使用从最终 ZIP 解出的 `amphion_dingqiao.har` 构建测试载体；源码构建 HAR、旧 ZIP HAR 或设备残留 HAP 的结果不能替代。若工具尚不能指定外部 HAR，必须先补 artifact-driven 入口或保留可审计的临时客户宿主构建记录。
+- 真机轮数按模式成本分配：`max-duration` 每轮约 20 秒，常规契约门禁 2-5 轮即可；资源结论用超过 60 秒的 `user-sequence`、`reentrant` 或受控 `paced` 长稳压，不靠堆自动结束轮数。
+- 生命周期语料和精度评测语料分开准入。声纹“应有分数”样本必须满足连续有效语音门槛；短 endpoint 或多说话人切换允许省略分数，但任何普通连续 session 在显式 `finish` 前出现 `isLast=true` 仍必须失败。
+- 每版归档最终 ZIP/HAR hash、设备/系统版本、逐模式命令与轮数、`report.json`、逐轮结果、内存采样、hilog、输入映射以及未覆盖风险。不得声称覆盖所有边界，也不得把 `INCONCLUSIVE` 写成 PASS。
+
 ## 推荐验证命令
 
 ```bash

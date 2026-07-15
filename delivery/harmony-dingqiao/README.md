@@ -30,11 +30,22 @@ bash tts/tools/harmony/pack_harmony_tts_assets.sh # TTS 模型 -> tts/harmony（
 
 ## 交付打包
 
+完整流程、规范清单、版本检查、最终 ZIP 校验和放行条件见
+[`docs/DELIVERY.md`](docs/DELIVERY.md)。交付包必须从当前 release commit 和受控输入生成；
+不得把上一版本 ZIP/HAR/HAP 当作模板或构建输入。
+
 ```bash
-bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh
+# 查看当前分支真实支持的交付形态
+bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh --help
+
+# ASR SDK + demo
+AMPHION_RUNTIME_VERSION=<version> \
+  bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh --asr-only
 ```
 
-脚本只收集已构建产物（HAR/HAP/模型/文档），不负责启动 DevEco 构建。
+脚本只收集已构建产物，不负责启动 DevEco 构建。当前 `main` 支持完整 ASR + TTS 和
+`--asr-only`（ASR + demo）；若合同要求 SDK-only，必须先给脚本增加显式、已测试的模式，
+不能从大包手工删除文件。
 
 ## 真机压力测试
 
@@ -47,6 +58,9 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 
 模式、门槛、artifact 结构和已验证基线见
 [`docs/DEVICE_STRESS.md`](docs/DEVICE_STRESS.md)。
+
+发布验收必须记录最终 ZIP 与其中 HAR 的 SHA-256，并使用该 HAR 构建真机载体。测试源码构建
+HAR 或设备残留 HAP，只能作为打包前回归，不能证明最终交付物通过。
 
 ## 模型加载验收
 
