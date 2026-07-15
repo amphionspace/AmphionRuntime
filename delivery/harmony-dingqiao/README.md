@@ -48,6 +48,9 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 模式、门槛、artifact 结构和已验证基线见
 [`docs/DEVICE_STRESS.md`](docs/DEVICE_STRESS.md)。
 
+当前 USB 问题验证只使用配置为中英 `ZH_EN` 的单个 HAP，不为无关语种重复构建或安装。
+单问题先跑最小复现和直接相邻状态，完整矩阵只在合入或交付门禁执行一次。
+
 ## 模型加载验收
 
 使用独立进程冷启动测量 `createEngineAsync`，并记录设备、系统构建、模型源哈希、native/HAP

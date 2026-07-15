@@ -28,6 +28,10 @@ bash tts/tools/harmony/pack_harmony_tts_assets.sh
 `08_pack_harmony_assets.sh` 使用固定 ONNX Runtime 1.16.3 环境并行生成 ARM CPU ORT 模型；
 不要手工复制旧 HAP/HAR 中的模型代替该步骤。随后执行：
 
+当前 USB 问题验证只构建并安装一个配置为 `zh-CN`（`ZH_EN`）的 `dingqiao_demo` HAP，不为
+无关语种另建或安装验收 HAP。该约束不删除 HAR 已声明的粤英能力；语种能力变化必须作为独立
+交付范围评审，不能在测试组包时静默改变。
+
 ```bash
 # 构建、签名、校验并安装当前 HAP
 HARMONY_SIGNING_CONFIG=.secure/harmony-signing.json \
@@ -48,7 +52,9 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --mode vad-begin --cycles 3 --files 3
 ```
 
-加载基准和压力测试均通过后再执行客户打包。基准身份和当前验收值见
+针对当前改动的加载基准和压力测试均通过后再执行客户打包。单问题验证只运行能证明根因的
+最小用例和直接相邻状态；完整发布矩阵在同一 commit、HAP 和设备上执行一次，已有匹配 artifact
+不重复运行。基准身份和当前验收值见
 [`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)。
 
 然后在 DevEco Studio 中构建 HAR 与 HAP：
