@@ -216,6 +216,7 @@ internal object LitsTtsFrontend {
     private val arpabetBoundaryTokens = setOf("/", "|", "_")
     private const val CHINESE_DIGIT_SEQUENCE_CHARS = "零〇一二三四五六七八九两幺"
     private const val CHINESE_NUMBER_CONTEXT_CHARS = "零〇一二三四五六七八九十百千万亿两点负"
+    private const val CHINESE_DIGIT_ONLY_CHARS = "零〇一二三四五六七八九两"
     private val technicalSymbolReadings = mapOf(
         '.' to "点",
         ':' to "冒号",
@@ -1419,8 +1420,12 @@ internal object LitsTtsFrontend {
     }
 
     private fun isYiInChineseNumberContext(text: String, index: Int): Boolean {
+        // Keep 一 as yī (tone 1) only inside a pure digit sequence (一二三, phone
+        // numbers). Before a multiplier (十百千万亿), 一 is a number word and takes
+        // normal sandhi: 一百=yì bǎi, 一万=yí wàn. Using the full number-context set
+        // here wrongly kept 一百 as yī bǎi.
         val next = text.getOrNull(index + 1)
-        return next != null && next in CHINESE_NUMBER_CONTEXT_CHARS
+        return next != null && next in CHINESE_DIGIT_ONLY_CHARS
     }
 
     private fun applyErSandhi(text: String, tokens: MutableList<String>) {
