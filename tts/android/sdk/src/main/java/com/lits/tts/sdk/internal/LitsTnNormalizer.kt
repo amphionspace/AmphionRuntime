@@ -30,6 +30,27 @@ internal object LitsTnNormalizer {
         NativeTnNormalizer.clear(layout.rootDir)
     }
 
+    /**
+     * Warm the TN path off the main thread: this pays the one-time startup cost
+     * (native lib / child-process spawn + ICU RBNF init + rules-JSON parse +
+     * first-time regex-pattern compilation) in the background so it does not land
+     * on the critical path of the user's first synthesis. Runs whichever path
+     * (JNI in-process or child process) the real requests use, for both en and
+     * zh. Idempotent via the per-root cache; best-effort, failures are ignored.
+     */
+    fun prewarm(layout: LitsTtsAssetInstaller.InstalledLayout) {
+        Thread({
+            runCatching {
+                normalize(layout, "123", "en-US", "en-US")
+                normalize(layout, "预热1", "zh-CN", "zh-CN")
+                logInfo("TN prewarm complete root=${layout.rootDir.absolutePath}")
+            }.onFailure { logWarning("TN prewarm failed", it) }
+        }, "lits-tts-tn-prewarm").apply {
+            isDaemon = true
+            start()
+        }
+    }
+
     private class LayoutNormalizer(private val layout: LitsTtsAssetInstaller.InstalledLayout) {
         private val processes = mutableMapOf<String, TnProcess>()
         private val disabledLanguages = mutableSetOf<String>()

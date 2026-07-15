@@ -265,7 +265,13 @@ internal class LitsDeliveryPcmSynthesizer(
     private fun ensureLayout(): LitsTtsAssetInstaller.InstalledLayout {
         val cached = layout
         if (cached != null) return cached
-        return LitsTtsAssetInstaller.ensureInstalled(context, workPath).also { layout = it }
+        return LitsTtsAssetInstaller.ensureInstalled(context, workPath).also {
+            layout = it
+            // Fire-and-forget: warm the TN frontend in the background (overlaps
+            // the heavier ONNX model load) so its one-time ~100 ms startup is off
+            // the first synthesis's critical path.
+            LitsTnNormalizer.prewarm(it)
+        }
     }
 
     private fun obtainRuntime(layout: LitsTtsAssetInstaller.InstalledLayout): LitsTtsOrtRuntime {
