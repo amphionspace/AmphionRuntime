@@ -1,7 +1,16 @@
 diff --git a/rules_v2/zh.full.json b/rules_v2/zh.full.json
-index 61f0d7d..ead81ac 100644
+index 61f0d7d..6ea923e 100644
 --- a/rules_v2/zh.full.json
 +++ b/rules_v2/zh.full.json
+@@ -75,7 +75,7 @@
+       "km": "千米",
+       "nm": "纳米",
+       "μm": "微米",
+-      "km/h": "千米每时",
++      "km/h": "千米每小时",
+       "ml": "毫升",
+       "mL": "毫升",
+       "mg": "毫克",
 @@ -202,18 +202,19 @@
        "ZH_PHONE_EXT_IS": "(?<!\\d)(分机是)(\\d{1,4})(?!\\d)",
        "ZH_PHONE_EXT_FENJI": "(转分机)(\\d{1,6})(?![0-9])",
@@ -26,7 +35,15 @@ index 61f0d7d..ead81ac 100644
        "ZH_STD_GBT_CODE": "(GB/T)\\s*(\\d+)\\s*[-—]\\s*(\\d+)",
        "ZH_BERNOULLI_EQ": "P\\s*\\+\\s*(?:1/2|½)\\s*ρ\\s*v²\\s*\\+\\s*ρ\\s*gh\\s*=\\s*常数",
        "ZH_KINETIC_ENERGY": "Ek\\s*=\\s*1/2\\s*mv(?:²|\\^2)",
-@@ -2240,6 +2241,42 @@
+@@ -269,6 +270,7 @@
+       "ZH_ALPHA_NUM_CODE": "(?<![0-9A-Za-z])([A-Z]{1,6}\\d{3,8})(?![0-9A-Za-z])",
+       "ZH_STOCK_PAIR_AND": "(?<!\\d)([036]\\d{5})\\s*和\\s*([036]\\d{5})(?!\\d)",
+       "ZH_STOCK_RANGE_CTX": "((?:沪市|深市(?:主板)?|代码)\\s*)([036]\\d{5})\\s*(?:至|[—-])\\s*([036]\\d{5})",
++      "ZH_STOCK_CODE_PREFIX": "(股票\\s*)(\\d{6})(?!\\d)",
+       "ZH_STOCK_CODE_IS": "(?<!\\d)([036]\\d{5})(?=是[\\u4e00-\\u9fff]{2,8})",
+       "ZH_STOCK_CODE_NAME": "(?<!\\d)([036]\\d{5})(?=[\\u4e00-\\u9fff]{2,8})",
+       "ZH_STOCK_CODE_FROM_YEAR": "(?<!\\d)([036]\\d{5})(?=自\\d{4}年)",
+@@ -2240,6 +2242,42 @@
            ]
          }
        },
@@ -69,3 +86,38 @@ index 61f0d7d..ead81ac 100644
        {
          "id": "zh_112",
          "pattern": "{{ZH_VERSION_YEAR_COMPARE}}",
+@@ -2409,6 +2447,25 @@
+           ]
+         }
+       },
++      {
++        "id": "zh_118b",
++        "pattern": "{{ZH_STOCK_CODE_PREFIX}}",
++        "action": "exec",
++        "params": {
++          "steps": [
++            {
++              "op": "grp",
++              "g": 1,
++              "as": "raw"
++            },
++            {
++              "op": "grp",
++              "g": 2,
++              "as": "digits"
++            }
++          ]
++        }
++      },
+       {
+         "id": "zh_119",
+         "pattern": "{{ZH_STOCK_CODE_NAME}}",
+@@ -5094,7 +5151,7 @@
+       {
+         "id": "zh_320",
+         "pattern": "km/h",
+-        "replace": "千米每时"
++        "replace": "千米每小时"
+       },
+       {
+         "id": "zh_321",
