@@ -70,6 +70,8 @@
 3. `cancel(sessionId)` 后不得再回 final result 或 `onComplete`。
 4. `onComplete` 后迟到的底层 final 不得再透出给客户。
 5. `shutdown()` 必须幂等。
+6. `onStart` 回调表示 session 已可用；在该回调调用栈内同步写入 32/88 个 640 字节缓存帧，不得返回 `NOT_LISTENING`；分别验证继续写入后结束和回调内立即 `finish`，后者不得返回 `FINISH_FAILED`。
+7. `onStart` 内立即 `cancel` 仍不得遗留 native stream、final 或 `onComplete`。
 
 ## 6. 声纹与 License
 
