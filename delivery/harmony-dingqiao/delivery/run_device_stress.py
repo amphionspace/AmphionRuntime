@@ -85,6 +85,7 @@ def parse_args() -> argparse.Namespace:
             "edge",
             "reentrant",
             "start-cancel",
+            "start-write",
             "user-sequence",
             "numeric-edge",
         ),

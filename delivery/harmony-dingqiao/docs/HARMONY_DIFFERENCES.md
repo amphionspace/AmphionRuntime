@@ -12,6 +12,7 @@
 - **警务增强与 Android 鼎桥 V2 对齐**：final 依次执行术语、全国车牌、派出所 V2；共用 Android 词表、同音表、GA36 车牌知识库和 235 条预设热词，包含电台数字归一与 GB28181 防误纠。`sync_harmony_police_assets.py --check` 校验资源同步，跨端共同执行 `police_v2_parity.tsv` 行为契约。
 - `SpeechRecognitionResult.beginTime` / `endTime` 已填（由 token 时间戳换算，单位 ms，仅 `isFinal=true` 保证有效）。
 - `onStart(sessionId, eventMessage)` / `onComplete(sessionId, eventMessage)` 回调携带 `eventMessage`（`"startListening success."` / `"recognize complete"`），与接口文档一致。
+- 虽然 Harmony core 在构造 session 时同步产生 started 信号，鼎桥适配层只会在 session 已发布且会话级配置完成后发送 `onStart`；因此其公共语义与 Android 一致，回调内可立即调用该 session 的 `writeAudio`、`finish` 或 `cancel`。
 - 音频：PCM 16 kHz / 16 bit / mono；交付接口每帧固定 **640 字节(20ms)**。
 - `vadBegin` / `vadEnd` 均按会话级 VAD 状态生效，不依赖 partial 文本；未显式传入 `vadBegin` 时保持禁用。
 

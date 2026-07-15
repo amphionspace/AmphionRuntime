@@ -178,6 +178,8 @@ interface CreateEngineCallback {
 
 一个 `SpeechRecognitionEngine` 同时只处理一个活跃会话。`startListening` 成功后才能写入音频；`finish` 或 `cancel` 后如需继续识别，请重新调用 `startListening` 创建新会话。
 
+`onStart(sessionId)` 是该 session 已可调用的边界。宿主可以在 `onStart` 回调调用栈内同步冲刷此前缓存的 640 字节 PCM 帧，也可以立即 `finish` 或 `cancel`；SDK 不得在成功回调后返回 `NOT_LISTENING`。在收到 `onStart` 之前不要写入音频。
+
 运行时调用 `setSpeakerVadEnabled(true)` 时，本次会话的 `StartParams.extraParams` 必须已经提供有效的 `voiceprintIds`，即使会话启动时 `enableSpeakerVad=false`。冷态启用 Speaker VAD 会同步等待声纹 extractor 就绪，因此该调用可能阻塞；关闭操作不加载模型。
 
 ## 5. 参数对象
@@ -247,7 +249,7 @@ interface RecognitionListener {
 
 | 回调 | 说明 |
 | --- | --- |
-| `onStart` | 会话启动成功 |
+| `onStart` | 会话已启动且可立即调用该 session 的 `writeAudio`、`finish`、`cancel` |
 | `onEvent` | 语音端点、声纹 VAD 状态等事件 |
 | `onResult` | 识别结果，包含 partial 与 final |
 | `onComplete` | 主动 `finish`、达到 `vadBegin` 首段静音阈值或达到 `maxAudioDuration` 上限后，识别完整结束 |

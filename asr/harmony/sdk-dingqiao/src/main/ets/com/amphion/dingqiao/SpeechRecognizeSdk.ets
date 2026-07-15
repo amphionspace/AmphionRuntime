@@ -343,6 +343,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private voiceprintIds: string[] = [];
   private speechActive: boolean = false;
   private startingSession: boolean = false;
+  private sessionStartedDuringCreate: boolean = false;
   private cancelRequestedDuringStart: boolean = false;
   // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
   private engineCfgKey: string = '';
@@ -428,6 +429,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.busy = true;
       const callback: AsrCallback = new DingqiaoAsrCallback(this);
       this.startingSession = true;
+      this.sessionStartedDuringCreate = false;
       this.cancelRequestedDuringStart = false;
       const createdSession = this.asrEngine.newSession(
         callback,
@@ -435,6 +437,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       );
       this.startingSession = false;
       if (this.cancelRequestedDuringStart || this.destroyed || !this.busy || this.currentSessionId !== params.sessionId) {
+        this.sessionStartedDuringCreate = false;
         this.cancelRequestedDuringStart = false;
         createdSession.close();
         return;
@@ -447,8 +450,13 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           this.session.setSpeakerVadEnabled(true);
         }
       }
+      if (this.sessionStartedDuringCreate) {
+        this.sessionStartedDuringCreate = false;
+        this.handleSessionStarted();
+      }
     } catch (e) {
       this.startingSession = false;
+      this.sessionStartedDuringCreate = false;
       this.cancelRequestedDuringStart = false;
       this.tearDownSession();
       this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, `${e}`);
@@ -594,6 +602,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.completeSent = false;
     this.voiceprintIds = [];
     this.speechActive = false;
+    this.sessionStartedDuringCreate = false;
   }
 
   private tearDownSession(): void {
@@ -685,8 +694,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   }
 
   handleSessionStarted(): void {
+    if (this.startingSession) {
+      this.sessionStartedDuringCreate = true;
+      return;
+    }
     const sessionId = this.currentSessionId;
-    if (!this.busy || sessionId.length === 0) return;
+    if (!this.busy || this.session === undefined || sessionId.length === 0) return;
     this.listener?.onStart?.(sessionId, 'startListening success.');
   }
 

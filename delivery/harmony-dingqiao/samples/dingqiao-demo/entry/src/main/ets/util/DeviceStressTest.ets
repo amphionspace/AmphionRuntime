@@ -369,6 +369,67 @@ class StartCancelListener implements RecognitionListener {
   }
 }
 
+class StartWriteListener implements RecognitionListener {
+  private events: SessionEvents;
+  private engine: SpeechRecognitionEngine;
+  private bufferedFrames: ArrayBuffer[];
+  private finishInStart: boolean;
+  framesWrittenInStart: number = 0;
+  finishCalledInStart: boolean = false;
+
+  constructor(events: SessionEvents, engine: SpeechRecognitionEngine, bufferedFrames: ArrayBuffer[],
+    finishInStart: boolean) {
+    this.events = events;
+    this.engine = engine;
+    this.bufferedFrames = bufferedFrames;
+    this.finishInStart = finishInStart;
+  }
+
+  onStart(sessionId: string, _eventMessage?: string): void {
+    this.events.starts += 1;
+    this.events.callbackTrace.push(`${sessionId}:start`);
+    for (let i = 0; i < this.bufferedFrames.length; i++) {
+      this.engine.writeAudio(sessionId, this.bufferedFrames[i]);
+      this.framesWrittenInStart += 1;
+    }
+    if (this.finishInStart) {
+      this.finishCalledInStart = true;
+      this.engine.finish(sessionId);
+    }
+  }
+
+  onEvent(sessionId: string, eventCode: number, _message: string): void {
+    if (eventCode === DingqiaoEventCode.SPEECH_BEGIN) this.events.speechBegins += 1;
+    if (eventCode === DingqiaoEventCode.SPEECH_END) this.events.speechEnds += 1;
+    this.events.callbackTrace.push(`${sessionId}:event-${eventCode}`);
+  }
+
+  onResult(sessionId: string, result: SpeechRecognitionResult): void {
+    if (!result.isFinal) {
+      this.events.partials += 1;
+      this.events.callbackTrace.push(`${sessionId}:partial`);
+      return;
+    }
+    this.events.finals += 1;
+    this.events.finalChars += result.result.length;
+    this.events.finalTexts.push(result.result);
+    this.events.lastIsLast = result.isLast;
+    if (result.isLast) this.events.lastFinals += 1;
+    this.events.callbackTrace.push(`${sessionId}:final${result.isLast ? '-last' : ''}`);
+  }
+
+  onComplete(sessionId: string, _eventMessage?: string): void {
+    this.events.completes += 1;
+    this.events.callbackTrace.push(`${sessionId}:complete`);
+  }
+
+  onError(sessionId: string, errorCode: number, _message: string): void {
+    this.events.errors += 1;
+    this.events.errorCodes.push(errorCode);
+    this.events.callbackTrace.push(`${sessionId}:error-${errorCode}`);
+  }
+}
+
 class LicenseCb implements LicenseActivationCallback {
   private resolve: (result: LicenseActivationResult) => void;
 
@@ -674,6 +735,22 @@ async function feedPcmFile(engine: SpeechRecognitionEngine, sessionId: string, p
     fs.closeSync(fp);
   }
   return fed;
+}
+
+function readPcmFrames(path: string, count: number): ArrayBuffer[] {
+  const frames: ArrayBuffer[] = [];
+  const fp = fs.openSync(path);
+  try {
+    for (let i = 0; i < count; i++) {
+      const frame = new ArrayBuffer(FRAME_BYTES);
+      const bytesRead = fs.readSync(fp.fd, frame);
+      if (bytesRead <= 0) break;
+      frames.push(frame);
+    }
+  } finally {
+    fs.closeSync(fp);
+  }
+  return frames;
 }
 
 function feedSilence(engine: SpeechRecognitionEngine, sessionId: string, frames: number): void {
@@ -1073,6 +1150,46 @@ async function runStartCancelCycle(engine: SpeechRecognitionEngine, entry: Corpu
   return finishCycle(index, entry.id, events, startedAt, ok, detail);
 }
 
+async function runStartWriteCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const bufferedFrameCount = index % 2 === 0 ? 32 : 88;
+  const finishInStart = index % 4 >= 2;
+  const bufferedFrames = readPcmFrames(entry.path, bufferedFrameCount);
+  if (bufferedFrames.length !== bufferedFrameCount) {
+    return finishCycle(index, entry.id, events, startedAt, false,
+      `buffer-source-too-short-${bufferedFrames.length}-${bufferedFrameCount}`);
+  }
+  const listener = new StartWriteListener(events, engine, bufferedFrames, finishInStart);
+  engine.setListener(listener);
+  const sessionId = `start-write-${index}`;
+  engine.startListening(startParams(sessionId, 'start-write', index));
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+
+  if (!finishInStart) {
+    const fed = await feedPcmFile(engine, sessionId, entry.path, 80, 0);
+    if (fed === 0) {
+      engine.cancel(sessionId);
+      return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+    }
+    engine.finish(sessionId);
+  }
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const notListening = errorCount(events, DingqiaoErrorCode.NOT_LISTENING);
+  const finishFailed = errorCount(events, DingqiaoErrorCode.FINISH_FAILED);
+  const ok = listener.framesWrittenInStart === bufferedFrameCount && completed && events.starts === 1 &&
+    listener.finishCalledInStart === finishInStart && events.completes === 1 && events.lastFinals === 1 &&
+    events.errors === 0 && !engine.isBusy();
+  let detail = ok ? `onstart-write-${bufferedFrameCount}-frames-${finishInStart ? 'finish' : 'continue'}` :
+    'onstart-write-contract';
+  if (notListening > 0) detail = 'onstart-write-not-listening';
+  if (finishFailed > 0) detail = 'onstart-finish-failed';
+  return finishCycle(index, entry.id, events, startedAt, ok, detail);
+}
+
 // Mirrors a real caller under impatient user input: cancel and immediately reuse the engine, try to
 // restart while finish is still settling, then deliver stale calls from the old session while the new
 // one is active. Text accuracy is deliberately irrelevant; only session isolation and callback order
@@ -1277,6 +1394,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runReentrantCycle(engine, entry, i);
       } else if (options.mode === 'start-cancel') {
         result = await runStartCancelCycle(engine, entry, i);
+      } else if (options.mode === 'start-write') {
+        result = await runStartWriteCycle(engine, entry, i);
       } else if (options.mode === 'user-sequence') {
         result = await runUserSequenceCycle(engine, entry, i);
       } else if (options.mode === 'vad-begin-silence') {

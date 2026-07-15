@@ -83,6 +83,9 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 });
 ```
 
+`onStart(sessionId)` 表示对应 session 已经可用。宿主若在模型冷加载期间缓存了录音数据，可以在
+`onStart` 回调内直接同步写入这些 640 字节 PCM 帧，无需额外延时；收到 `onStart` 前不要写入。
+
 三层状态彼此独立：
 
 | 层级 | 加载接口 | 卸载接口 | 说明 |
