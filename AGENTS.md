@@ -63,6 +63,7 @@ python3 -m unittest \
 
 cd asr/android
 ./gradlew --no-daemon :sdk:testDebugUnitTest :sdk-dingqiao:testDebugUnitTest --console=plain
+./gradlew --no-daemon :sdk:testReleaseUnitTest :sdk-dingqiao:testReleaseUnitTest --rerun-tasks --console=plain
 
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --data-dir "$HOME/Downloads/testdata" \
