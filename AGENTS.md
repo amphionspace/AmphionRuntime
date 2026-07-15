@@ -45,7 +45,7 @@
 - 每条压力用例必须按 `sessionId` 保存有序回调轨迹，分别统计 start、final、`isLast`、complete 和 error。聚合总数相等不能证明没有串 session。
 - cancel 生效后不得再新增 final/complete；取消前已经正常产生的非 last endpoint final 必须保留并计入快照，但取消前不得已有 `isLast` 或 complete。正常 session 必须只有一次 `isLast`，随后一次 complete；旧 session 的迟到调用不得终止或污染当前 session。
 - 现实操作压力与精度评测分开。生命周期用例只检查状态、归属、顺序、错误码、资源回收和可恢复性，不用文本正确率决定 PASS；声纹只检查“应有分数/应省略分数”的接口契约，不比较相似度精度。
-- `user-sequence`、`reentrant`、`start-cancel`、`start-write`、`edge` 和实时 `paced` 是发布前必跑门禁。至少一组运行超过 60 秒，以区分模型逐步驻留与持续内存泄漏。
+- `user-sequence`、`reentrant`、`start-cancel`、`start-write`、`start-write-reload`、`edge` 和实时 `paced` 是发布前必跑门禁。`start-write-reload` 必须在每轮结束后执行 `shutdown -> unloadModel -> createEngine`，验证首次冷加载和业务空闲卸载后的重新冷加载具有相同的 `onStart` 可用性。至少一组运行超过 60 秒，以区分模型逐步驻留与持续内存泄漏。
 - 不得声称“覆盖所有边界”。报告必须列出已覆盖的调用序列、轮数、设备/系统版本、未覆盖的外部故障，以及任何仅为 `INCONCLUSIVE` 的资源指标。
 
 ## PR 合入门禁
@@ -80,4 +80,4 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --mode user-sequence --cycles 300 --files 3
 ```
 
-真机命令中的次数和语料数量可按耗时调整，但合入前至少要覆盖 `burst`、`paced`、`vad-begin`、`vad-begin-silence`、`voiceprint`、`voiceprint-vad-begin`、`voiceprint-vad-begin-idle`、`cancel`、`cancel-full`、`max-duration`、`edge`、`reentrant`、`start-cancel`、`start-write`、`user-sequence` 和 `numeric-edge`。任何模式失败都应先解释并修复，不能通过放宽全局空结果率掩盖生命周期错误。
+真机命令中的次数和语料数量可按耗时调整，但合入前至少要覆盖 `burst`、`paced`、`vad-begin`、`vad-begin-silence`、`voiceprint`、`voiceprint-vad-begin`、`voiceprint-vad-begin-idle`、`cancel`、`cancel-full`、`max-duration`、`edge`、`reentrant`、`start-cancel`、`start-write`、`start-write-reload`、`user-sequence` 和 `numeric-edge`。任何模式失败都应先解释并修复，不能通过放宽全局空结果率掩盖生命周期错误。
