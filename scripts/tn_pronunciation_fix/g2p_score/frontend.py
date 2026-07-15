@@ -74,6 +74,16 @@ R_vin=re.compile(r'((?:车架号\s*)?(?:VIN\s+))([A-HJ-NPR-Z0-9]{8,17})(?![A-Za-
 R_product=re.compile(r'(?<![A-Za-z0-9])(vocos|Office)(\d+)(k?)(?![A-Za-z0-9])', re.I)
 R_serial=re.compile(r'((?:设备)?(?:序列号|编号)|S/N|SN)(\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\d[A-Z0-9]*)')
 
+# Superscript area/volume units (m²/km²/m³...). NFKC folds ²->2 and ³->3, destroying
+# the exponent, so expand BEFORE clean(): <num><unit><²|³> -> <num>(平方|立方)<unit_zh>.
+UNIT_ZH={'km':'千米','cm':'厘米','mm':'毫米','dm':'分米','m':'米'}
+R_supUnit=re.compile(r'(\d+(?:\.\d+)?)\s*(km|cm|mm|dm|m)([²³])')
+def expandSuperscriptUnits(text):
+    def rep(m):
+        exp='平方' if m.group(3)=='²' else '立方'
+        return numberTextToHanzi(m.group(1))+exp+UNIT_ZH[m.group(2).lower()]
+    return R_supUnit.sub(rep, text)
+
 def isAsciiLetter(c): return 'a'<=c<='z' or 'A'<=c<='Z'
 
 def normalizeTechnicalAsciiToken(token):
@@ -147,7 +157,7 @@ def clean(text):
     return t
 
 def frontend_prepare(text, english=False):
-    return prepare_input(clean(text))
+    return prepare_input(clean(expandSuperscriptUnits(text)))
 
 if __name__=='__main__':
     import sys
