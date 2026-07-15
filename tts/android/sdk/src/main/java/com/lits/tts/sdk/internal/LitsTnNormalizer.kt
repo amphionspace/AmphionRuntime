@@ -37,7 +37,7 @@ internal object LitsTnNormalizer {
 
         @Synchronized
         fun normalize(text: String, language: String, languageContext: String): String {
-            val cleaned = Normalizer.normalize(text, Normalizer.Form.NFKC)
+            val cleaned = Normalizer.normalize(expandSuperscriptUnits(text), Normalizer.Form.NFKC)
                 .replace(Regex("[\\x00-\\x1f\\x7f-\\x9f]"), "")
                 .replace(Regex("\\s+"), " ")
                 .trim()
@@ -206,6 +206,13 @@ internal object LitsTnNormalizer {
                 append(chineseDigitTextByChar[char] ?: char)
             }
         }
+
+        private fun expandSuperscriptUnits(text: String): String =
+            superscriptUnitRegex.replace(text) { match ->
+                val exponent = if (match.groupValues[3] == "²") "平方" else "立方"
+                numberTextToHanzi(match.groupValues[1]) + exponent +
+                    superscriptUnitTextByChar.getValue(match.groupValues[2].lowercase())
+            }
 
         private fun numberTextToHanzi(text: String): String {
             val parts = text.split('.', limit = 2)
@@ -404,6 +411,16 @@ internal object LitsTnNormalizer {
             private val idTailRegex = Regex("((?:身份证尾号|尾号)\\s*)(\\d+)([A-Za-z])(?![A-Za-z0-9])")
             private val pathSlashNumberRegex = Regex("(/)(\\d+)(?=/)")
             private val kmPerHourRegex = Regex("(\\d+)\\s*km/h", RegexOption.IGNORE_CASE)
+            // Superscript area/volume units: NFKC folds ²->2 / ³->3, so expand before cleaning.
+            private val superscriptUnitRegex =
+                Regex("(\\d+(?:\\.\\d+)?)\\s*(km|cm|mm|dm|m)([\\u00B2\\u00B3])")
+            private val superscriptUnitTextByChar = mapOf(
+                "km" to "千米",
+                "cm" to "厘米",
+                "mm" to "毫米",
+                "dm" to "分米",
+                "m" to "米",
+            )
             private val coordinateRegex = Regex("(?<![A-Za-z])([NE])\\s*(\\d+(?:\\.\\d+)?)", RegexOption.IGNORE_CASE)
             private val vinCodeRegex = Regex("((?:车架号\\s*)?(?:VIN\\s+))([A-HJ-NPR-Z0-9]{8,17})(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
             private val productCodeRegex = Regex("(?<![A-Za-z0-9])(vocos|Office)(\\d+)(k?)(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
