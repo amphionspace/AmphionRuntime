@@ -49,6 +49,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | `edge` | 空闲调用、非法 session/帧、串 session、busy、重复 finish |
 | `reentrant` | `onComplete` 回调内立即再次 `startListening`，验证完成态可重入 |
 | `start-cancel` | `onStart` 回调内立即 `cancel`，验证取消后不再透出 start 后续事件 |
+| `start-write` | `onStart` 调用栈内交替同步写入 32/88 个真实 PCM 缓存帧，并交替继续识别或立即 `finish`；验证成功回调前 session 已可用，且不返回 `NOT_LISTENING` / `FINISH_FAILED` |
 | `user-sequence` | cancel 后零等待复用、finish 后立即重启、旧 session 迟到 write/finish/cancel 干扰当前 session；按 sessionId 校验回调归属和顺序 |
 | `numeric-edge` | `maxAudioDuration=NaN` 等非有限数输入，验证不会绕过 20 秒兜底上限 |
 
@@ -200,6 +201,38 @@ AISHELL-4 语料，以及从其中高能量语音段派生的 0.5–10 秒、前
 SDK 契约和资源门禁均通过；该生命周期模式的空文本率不作为 PASS 条件，避免混入精度评测。
 完整根因、被淘汰方案和防复发清单见
 [`VAD_BEGIN_VOICEPRINT_POSTMORTEM.md`](./VAD_BEGIN_VOICEPRINT_POSTMORTEM.md)。
+
+## 2026-07-15 `onStart` 同步写入竞态
+
+客户首轮冷加载期间会先缓存麦克风 PCM，收到 `onStart` 后在同一调用栈内冲刷 32 或 88 帧。
+旧实现的 core session 构造函数同步触发 `onSessionStarted`，但鼎桥适配层要等 `newSession()` 返回后
+才把返回值保存到 `this.session`。因此调用方已经收到成功回调，`writeAudio()` 却仍观察到
+`session === undefined`，返回 `1002200010 NOT_LISTENING`。冷加载只会增加缓存帧数和首轮命中率，
+不是模型加载失败；普通 burst 在回调返回后写入一直正常。
+
+此前已有的 `start-cancel` 没有暴露这个缺陷，因为 `cancel()` 专门兼容了
+`startingSession && session === undefined` 的半初始化状态；`writeAudio()` 和 `finish()` 没有这条补偿路径。
+普通 burst 又是在 `onStart` 返回后才喂入，两个门禁都绕过了真正的失败窗口。Android 适配层则先发布
+session、active sessionId 和 listening 状态，再通过 executor 异步发送 `onStart`，不存在同一时序缺口。
+因此防复发重点是按每一种公共 API 分别验证回调内重入，而不是用一条 `start-cancel` 代表整个
+`onStart` 可用性契约。
+
+| 阶段 | 轮数 | 结果 | Artifact |
+| --- | ---: | --- | --- |
+| 修复前，`onStart` 内立即写第一帧 | 5 | 5/5 FAIL；每轮轨迹均为 `start > error-1002200010 > final-last > complete` | `20260715-232223-start-write-22c8cbfa` |
+| 回调返回后普通 burst 对照 | 5 | 5/5 PASS；证明模型 ready 和 sessionId 正常 | `20260715-232519-burst-5138af17` |
+| 修复后，交替同步冲刷 32/88 帧 | 100 | 100/100 PASS；错误 0，native stream 存活 0，RSS +35.547 MiB | `20260715-233830-start-write-d96f87fd` |
+| 0.2.4 修复分支隔离构建、签名并安装后，以真实 PCM 冲刷复验 | 100 | 100/100 PASS；32/88 帧 x 继续/回调内 finish 各 25 轮；首轮冷加载 `engineReadyMs=804`，错误 0，native stream 存活 0，RSS +32.074 MiB | `20260716-002108-start-write-b00040e2` |
+| 修复后 `start-cancel` / `reentrant` / `edge` | 100 / 100 / 100 | 全部 PASS，确认既有回调重入语义未回归 | `20260715-233159-start-cancel-da161eca` / `20260715-233237-reentrant-d886eba9` / `20260715-234107-edge-3e1fc223` |
+| 0.2.4 修复分支相邻生命周期复验 | 50 / 50 / 50 / 30 | `start-cancel` / `reentrant` / `edge` / `user-sequence` 全部 PASS | `20260716-000224-start-cancel-2aae8fbe` / `20260716-000258-reentrant-2bb53260` / `20260716-000358-edge-cb8b2452` / `20260716-000439-user-sequence-12218b68` |
+
+修复策略不是吞掉 `NOT_LISTENING` 或在调用方加延时，而是在同步底层回调期间暂存 started 信号；
+待 session 已发布且会话级目标说话人配置完成后，再对外发送一次 `onStart`。因此 `onStart` 恢复为
+“所有 session API 已可调用”的公共契约。
+
+最终复验前有一轮 HDC 短暂掉线，artifact `20260716-002011-start-write-cadce3cf` 只有
+`Device not found or connected`，未生成 SDK summary，记为外部环境 `INCONCLUSIVE`，不计作通过也不计作
+SDK 失败；设备恢复后用相同 HAP、参数和语料完整重跑得到上表 100/100 PASS。
 
 这组结果提高了对高频调用时序的置信度，但不等于“所有边界已穷尽”。物理断连、系统杀进程、
 低内存回收、多个进程同时持有 SDK，以及客户线程真正并行调用同一 engine，仍需要独立故障注入
