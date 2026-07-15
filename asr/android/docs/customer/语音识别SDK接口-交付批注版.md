@@ -33,6 +33,8 @@
 
 > 批注（回调顺序，2026-07-14）：持续静音达到 `vadBegin` 后，正常回调一个空的 `onResult(isFinal=true,isLast=true)`，随后回调一次 `onComplete`；不得回调 `SPEECH_BEGIN`、`SPEECH_END` 或 `onError`。阈值边界同时检测到真实语音时语音优先；首次真实起音后，本会话永久取消首段静音计时。
 
+> 批注（交付澄清 VP-20260715-02，2026-07-15）：参数按范围钳制；传入 `vadBegin=60000` 时实际按 10000 ms 计算，并非 60 秒。启用声纹校验或 Speaker VAD 后，纯静音仍在该阈值结束。初始等待窗内存在连续但未决的声学活动时，SDK 最多使用一次 `TargetSpeakerConfig.minSegSec`（默认 1500 ms）确认窗；只有确认窗末仍存在近期语音型活动，或强制刷新 ASR 得到非空 text/token，才解除计时。稳态高能非语音仍有界结束，声学证据不单独产生 `SPEECH_BEGIN`。
+
 > 批注（模式兼容，2026-07-14）：`recognitionMode` 缺省为 `STREAM=1`，当前不支持 `RECORD=0` 的 SDK 内录音；`recognizerMode` 接受 `short` / `long`，两者均使用长语音流式实现。`locate` 当前仅兼容 `CN`，`sessionGeneralLexicon` 在 V1 不生效。
 
 > 批注（错误码兼容，2026-07-14）：增加 `NO_MIC_PERMISSION=1002200012` 常量；由于当前不支持 SDK 内录音，两端不会主动发出该错误。

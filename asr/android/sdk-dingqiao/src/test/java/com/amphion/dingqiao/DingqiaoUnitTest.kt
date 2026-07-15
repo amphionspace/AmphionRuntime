@@ -217,6 +217,50 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildSessionConfig_voiceprintKeepsVadBeginAndAddsBoundedConfirmationGrace() {
+        val sc = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams(
+                "s1",
+                AudioInfo(),
+                mapOf(
+                    "vadBegin" to 1_000,
+                    "enableVoiceprintVerification" to true,
+                    "voiceprintIds" to listOf("vp-1"),
+                ),
+            ),
+            speakerModelPath = "/tmp/eres2net.onnx",
+        )
+        assertEquals(1_000, sc.initialSilenceTimeoutMs)
+        assertEquals(1_500, sc.initialSilenceConfirmationGraceMs)
+    }
+
+    @Test
+    fun buildSessionConfig_plainAsrKeepsRequestedVadBegin() {
+        val sc = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams("s1", AudioInfo(), mapOf("vadBegin" to 1_000)),
+            speakerModelPath = "/tmp/eres2net.onnx",
+        )
+
+        assertEquals(1_000, sc.initialSilenceTimeoutMs)
+        assertNull(sc.initialSilenceConfirmationGraceMs)
+    }
+
+    @Test
+    fun buildSessionConfig_withoutSpeakerCapabilityDropsConfirmationGrace() {
+        val sc = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams(
+                "s1",
+                AudioInfo(),
+                mapOf("vadBegin" to 1_000, "enableVoiceprintVerification" to true),
+            ),
+            speakerModelPath = null,
+        )
+
+        assertEquals(1_000, sc.initialSilenceTimeoutMs)
+        assertNull(sc.initialSilenceConfirmationGraceMs)
+    }
+
+    @Test
     fun audioFrameBytes_acceptsDocumentedFrameSizeOnly() {
         assertTrue(DingqiaoEngineConfig.isSupportedAudioFrameBytes(640))
         assertTrue(!DingqiaoEngineConfig.isSupportedAudioFrameBytes(1280))

@@ -77,6 +77,8 @@
 -keep public class com.amphion.asr.AsrLanguage { *; }
 -keep public class com.amphion.asr.AsrConfig { *; }
 -keep public class com.amphion.asr.AsrConfig$Builder { *; }
+-keep public class com.amphion.asr.SessionConfig { *; }
+-keep public class com.amphion.asr.SpeakerVadConfig { *; }
 -keep public class com.amphion.asr.VadConfig { *; }
 -keep public class com.amphion.asr.VadModelType { *; }
 -keep public class com.amphion.asr.EndpointRules { *; }

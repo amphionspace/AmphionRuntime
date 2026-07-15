@@ -53,11 +53,15 @@
 1. 未传 `vadBegin` 时禁用首段静音超时；只调用 `startListening` 而不写 PCM 不得超时。
 2. 数字和数字字符串均应解析，并钳制到 500 到 10000 ms；非法值按未启用处理。
 3. 持续写入静音 PCM 达到阈值后，必须依次回调空的 last final 和一次 `onComplete`，不得回调 speech 事件或错误。
-4. 阈值边界同时检测到真实语音时，语音优先；检测到首个 speech window 后，本会话不得再次触发 `vadBegin`。
+4. 阈值边界同时检测到真实语音时，语音优先；VAD 或 ASR text/token 出现后，本会话不得再次触发 `vadBegin`。
 5. `enablePartialResult=false` 不得影响真实 VAD 起音和 `vadBegin` 取消。
 6. `recognitionMode` 缺省为 `STREAM=1`；传入 `RECORD=0` 应启动失败并明确提示不支持 SDK 内录音。
 7. `recognizerMode` 只接受 `short` / `long`，两者均使用现有长语音流式实现。
 8. `locate` 当前仅兼容接受 `CN`；`sessionGeneralLexicon` 明确为 V1 不支持，不得伪装生效。
+9. 启用声纹校验或 Speaker VAD 时，纯静音仍按钳制后的 `vadBegin` 结束；初始等待窗内存在连续声学活动但 VAD/ASR 未决时，才增加一次默认 1500 ms 确认窗。
+10. 组合回归必须交替覆盖实时/突发喂入和直接起音/前置静音；足够长语音在显式 `finish` 前不得出现 `isLast`，第一个非空 final 必须带分数；probe 可产生 non-last final，因此不能把总 final 数硬编码为 1。
+11. 声学 backstop 必须与调用方分帧无关。低于 -40 dBFS 的噪声、被静音打断的短脉冲和零散变幅脉冲不能误判；稳态高能非语音只允许延时一次并最终结束；确认窗末只有近期连续活动兼具语音型能量变化和过零率范围时才能直接解除计时，旧活动必须由 ASR probe 确认，且声学证据不单独产生 speech 事件。
+12. `voiceprint-vad-begin-idle` 必须交替验证纯静音约在 1000 ms 结束、稳态高能非语音约在 2500 ms 有界结束；均没有 speech 事件或非空文本，且只有一次 last final/complete。
 
 ## 5. 生命周期竞争窗口
 
