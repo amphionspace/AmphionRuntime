@@ -234,6 +234,9 @@ session、active sessionId 和 listening 状态，再通过 executor 异步发�
 `Device not found or connected`，未生成 SDK summary，记为外部环境 `INCONCLUSIVE`，不计作通过也不计作
 SDK 失败；设备恢复后用相同 HAP、参数和语料完整重跑得到上表 100/100 PASS。
 
+完整的五问分析、测试漏检原因和永久回调门禁见
+[`ONSTART_SESSION_PUBLICATION_POSTMORTEM.md`](./ONSTART_SESSION_PUBLICATION_POSTMORTEM.md)。
+
 这组结果提高了对高频调用时序的置信度，但不等于“所有边界已穷尽”。物理断连、系统杀进程、
 低内存回收、多个进程同时持有 SDK，以及客户线程真正并行调用同一 engine，仍需要独立故障注入
 或多线程载体验证。
