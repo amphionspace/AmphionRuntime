@@ -1,6 +1,6 @@
 import json,re,subprocess,sys,importlib
 sys.path.insert(0,'.'); import frontend, g2p; importlib.reload(frontend); importlib.reload(g2p)
-ZH="/private/tmp/claude-501/-Users-amphion-Desktop-work-reference/9cf64b2f-2741-48cc-8f55-27abd8a871b1/scratchpad/zh_tts_cur"
+ZH=__import__("os").environ.get("ZH_TTS") or __import__("os").path.join(__import__("os").path.dirname(__file__),"..","..","..","dingqiao_lits","build","host-tn","zh_tts")
 PIN=re.compile(r'^[a-z]+[0-6]$'); pins=lambda l:[x for x in l if PIN.match(x)]
 B="/Users/amphion/Desktop/work/reference/AmphionRuntime/tts_tn_bugfix/"
 SETS=[("round15",B+"pronunciation-golden-round3-results-with-pinyin-fixed-round15.jsonl"),

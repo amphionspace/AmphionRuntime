@@ -42,3 +42,17 @@ room/coord) or defeated by Kotlin (slash-date `2008/08/08` is mangled by Kotlin'
 path rule; bare `km/h` -> `km斜杠h` by the tech-ascii rule). So the remaining real
 TN bugs are largely in the **Kotlin layer (LitsTnNormalizer.kt)**, and this
 harness now scores that layer too.
+
+## Rebuilding the host zh_tts (one command)
+The harness needs a host (macOS) `zh_tts` native TN binary. It's not committed
+(it's a build artifact). Rebuild it self-contained:
+
+```bash
+scripts/tn_pronunciation_fix/g2p_score/build_host_zh_tts.sh
+# -> writes dingqiao_lits/build/host-tn/zh_tts (gitignored); auto-downloads ICU 78.1
+```
+
+`score_all.py` / `score.py` read `$ZH_TTS`, falling back to that default path, so
+after building just run `python3 score_all.py`. Rebuild only when the C++ engine
+(tts_normalizer_engine.cpp / zh.cpp) changes — rules_v2 JSON is loaded at runtime.
+Requires the TN submodule checked out (git submodule update --init …).
