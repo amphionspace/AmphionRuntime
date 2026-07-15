@@ -74,6 +74,35 @@ R_vin=re.compile(r'((?:车架号\s*)?(?:VIN\s+))([A-HJ-NPR-Z0-9]{8,17})(?![A-Za-
 R_product=re.compile(r'(?<![A-Za-z0-9])(vocos|Office)(\d+)(k?)(?![A-Za-z0-9])', re.I)
 R_serial=re.compile(r'((?:设备)?(?:序列号|编号)|S/N|SN)(\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\d[A-Z0-9]*)')
 
+# Dates with -, /, . separators. Run BEFORE the fraction/range/decimal/path rules
+# (which otherwise read 2008/08 as 八分之二千零八, 2008-08 as 二千零八至八, etc.).
+# Segments must be a 4-digit year or exactly 2 digits; month 1-12, day 1-31 gate out
+# scores/fractions/decimals/IPs (1/2, 中国1-2, 13.5, 127.0.0.1 all have a 1-digit seg).
+R_dateYMD=re.compile(r'(?<![0-9A-Za-z])(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?![0-9])')
+R_dateMDY=re.compile(r'(?<![0-9A-Za-z])(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?![0-9])')
+R_dateYM =re.compile(r'(?<![0-9A-Za-z])(\d{4})[-/.](\d{1,2})(?![0-9])')
+R_dateMY =re.compile(r'(?<![0-9A-Za-z])(\d{1,2})[-/.](\d{4})(?![0-9])')
+R_dateMD =re.compile(r'(?<![0-9A-Za-z])(\d{2})[-/.](\d{2})(?![0-9])')
+def _vMonth(mo): return 1<=int(mo)<=12
+def _vDay(d):    return 1<=int(d)<=31
+def _ym(y,mo):   return digitSeqToHanzi(y)+'年'+intToHanzi(str(int(mo)))+'月'
+def expandDates(text):
+    def ymd(m):
+        y,mo,d=m.groups()
+        return _ym(y,mo)+intToHanzi(str(int(d)))+'日' if _vMonth(mo) and _vDay(d) else m.group(0)
+    text=R_dateYMD.sub(ymd, text)
+    def mdy(m):
+        mo,d,y=m.groups()
+        return _ym(y,mo)+intToHanzi(str(int(d)))+'日' if _vMonth(mo) and _vDay(d) else m.group(0)
+    text=R_dateMDY.sub(mdy, text)
+    text=R_dateYM.sub(lambda m:_ym(m.group(1),m.group(2)) if _vMonth(m.group(2)) else m.group(0), text)
+    text=R_dateMY.sub(lambda m:_ym(m.group(2),m.group(1)) if _vMonth(m.group(1)) else m.group(0), text)
+    def md(m):
+        mo,d=m.groups()
+        return intToHanzi(str(int(mo)))+'月'+intToHanzi(str(int(d)))+'日' if _vMonth(mo) and _vDay(d) else m.group(0)
+    text=R_dateMD.sub(md, text)
+    return text
+
 # Superscript area/volume units (m²/km²/m³...). NFKC folds ²->2 and ³->3, destroying
 # the exponent, so expand BEFORE clean(): <num><unit><²|³> -> <num>(平方|立方)<unit_zh>.
 UNIT_ZH={'km':'千米','cm':'厘米','mm':'毫米','dm':'分米','m':'米'}
@@ -141,6 +170,7 @@ def protectSemanticNumeric(text):
     return text
 
 def prepare_input(text):
+    text=expandDates(text)
     text=R_hanziClock.sub(lambda m:m.group(1)+'点零'+CH[m.group(2)]+'分', text)
     text=frontend_apply('pre_tn', text)
     text=protectSemanticNumeric(text)
