@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "report_date": "2026-07-16",
+  "product": "Harmony Offline ASR SDK",
+  "build_identity": {
+    "artifact_checksums": "docs/checksum.txt",
+    "provenance": "docs/BUILD_PROVENANCE.json"
+  },
+  "environment": {
+    "platform": "HarmonyOS",
+    "os_family_version": "6.1",
+    "architecture": "arm64",
+    "physical_device_count": 1,
+    "device_model": "REDACTED",
+    "device_identifier": "REDACTED"
+  },
+  "corpus": {
+    "audio_format": "PCM 16 kHz, 16-bit, mono",
+    "duration_tiers_seconds": [30, 60, 120],
+    "source_identifiers": "REDACTED"
+  },
+  "summary": {
+    "test_cycles": 1366,
+    "completed_cycles": 1366,
+    "failed_cycles": 0,
+    "session_starts": 2266,
+    "unexpected_callbacks": 0,
+    "early_last_before_finish": 0,
+    "duplicate_terminal_callbacks": 0,
+    "cross_session_contamination": 0,
+    "crash_signatures": 0
+  },
+  "release_candidate_targeted_regression": {
+    "version": "0.2.5",
+    "test_cycles": 360,
+    "completed_cycles": 360,
+    "failed_cycles": 0,
+    "session_starts": 960,
+    "unexpected_callbacks": 0,
+    "early_last_before_finish": 0,
+    "modes": [
+      {
+        "name": "start-write-reload",
+        "cycles": 20
+      },
+      {
+        "name": "user-sequence",
+        "cycles": 300
+      },
+      {
+        "name": "voiceprint-vad-begin",
+        "cycles": 40
+      }
+    ]
+  },
+  "modes": [
+    {"name": "burst", "cycles": 3},
+    {"name": "paced", "cycles": 3},
+    {"name": "vad-begin", "cycles": 20},
+    {"name": "vad-begin-silence", "cycles": 50},
+    {"name": "voiceprint", "cycles": 20},
+    {"name": "voiceprint-vad-begin", "cycles": 40},
+    {"name": "voiceprint-vad-begin-idle", "cycles": 40},
+    {"name": "max-duration", "cycles": 50},
+    {"name": "cancel", "cycles": 100},
+    {"name": "cancel-full", "cycles": 50},
+    {"name": "recreate", "cycles": 20},
+    {"name": "reconfigure", "cycles": 50},
+    {"name": "edge", "cycles": 100},
+    {"name": "numeric-edge", "cycles": 100},
+    {"name": "reentrant", "cycles": 100},
+    {"name": "start-cancel", "cycles": 100},
+    {"name": "start-write", "cycles": 100},
+    {"name": "start-write-reload", "cycles": 20},
+    {"name": "user-sequence", "cycles": 400}
+  ],
+  "voiceprint_vad_begin": {
+    "cycles": 40,
+    "variants": [
+      "burst-direct",
+      "paced-direct",
+      "burst-leading-silence",
+      "paced-leading-silence"
+    ],
+    "cycles_per_variant": 10,
+    "first_non_empty_final_with_similarity": 40,
+    "cycles_without_last_before_finish": 40
+  },
+  "long_running_resource_observations": [
+    {"scenario": "paced", "seconds": 313.9, "rss_growth_mib": 6.24, "thread_growth": 0},
+    {"scenario": "cancel-full", "seconds": 533.0, "rss_growth_mib": 0.52, "thread_growth": 0},
+    {"scenario": "reconfigure", "seconds": 541.9, "rss_growth_mib": 1.26, "thread_growth": 0},
+    {"scenario": "user-sequence-300", "seconds": 437.3, "rss_growth_mib": 5.55, "thread_growth": 0}
+  ],
+  "scope_exclusions": [
+    "ASR accuracy and speaker similarity accuracy",
+    "physical disconnect and operating-system process termination",
+    "dynamic microphone permission revocation and audio route switching",
+    "hardware and operating-system versions outside the tested environment"
+  ],
+  "redaction": {
+    "device_identifiers_removed": true,
+    "local_paths_removed": true,
+    "source_audio_identifiers_removed": true,
+    "internal_run_identifiers_removed": true,
+    "license_identifiers_removed": true
+  }
+}

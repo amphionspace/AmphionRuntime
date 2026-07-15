@@ -36,8 +36,8 @@
 
 | 项目 | 测试配置 |
 | --- | --- |
-| 设备 | HUAWEI Mate 70 Pro（PLR-AL00） |
-| 系统 | HarmonyOS 6.1.0.117，API 23，arm64 |
+| 设备 | HarmonyOS arm64 真机（型号与设备标识已脱敏） |
+| 系统 | HarmonyOS 6.1，API 23，arm64 |
 | 模型 | INT8 encoder/joiner + FP32 decoder（ONNX Runtime） |
 | Prepack | off（`DisablePrepacking=1`） |
 | 测试方式 | Headless Demo；每轮强制停止旧进程并拉起新进程 |
@@ -45,7 +45,7 @@
 | 每进程 Session 数 | 1 |
 | PCM 输入 | 16 kHz、16-bit、单声道；不按实时速度限速，以最大吞吐写入 SDK |
 | 测试语料 | 10 轮重复同一条 1.62 秒 PCM |
-| 语料 ID | `zhaidatatang_G0002_T0055G0002S0183` |
+| 语料 ID | 已脱敏；内部报告保留可追溯映射 |
 | 参考文本 | `你能识别多音字吗` |
 | 内存来源 | `/proc/self/status` 的 VmRSS、RssAnon、RssFile |
 | 换算方式 | 1024 KiB = 1 MiB，四舍五入到整数 MiB |
