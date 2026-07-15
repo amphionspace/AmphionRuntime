@@ -88,7 +88,8 @@ python3 - \
   "$CUSTOMER_PROJECT/build-profile.json5" \
   "$CUSTOMER_PROJECT/oh-package.json5" \
   "$ENTRY/oh-package.json5" \
-  "$ENTRY/src/main/ets/entryability/EntryAbility.ets" <<'PY'
+  "$ENTRY/src/main/ets/entryability/EntryAbility.ets" \
+  "$CUSTOMER_PROJECT/hvigor/hvigor-config.json5" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -97,6 +98,26 @@ profile_path = Path(sys.argv[1])
 root_package_path = Path(sys.argv[2])
 entry_package_path = Path(sys.argv[3])
 entry_ability_path = Path(sys.argv[4])
+hvigor_config_path = Path(sys.argv[5])
+
+# This local DevEco file is intentionally ignored by the repository. Generate it so the clean
+# customer-host check does not depend on a developer workstation's untracked configuration.
+hvigor_config_path.parent.mkdir(parents=True, exist_ok=True)
+hvigor_config_path.write_text(
+    json.dumps(
+        {
+            "modelVersion": "5.0.0",
+            "dependencies": {},
+            "execution": {},
+            "logging": {},
+            "debugging": {},
+            "nodeOptions": {},
+        },
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
 
 profile = json.loads(profile_path.read_text(encoding="utf-8"))
 profile["app"]["signingConfigs"] = []

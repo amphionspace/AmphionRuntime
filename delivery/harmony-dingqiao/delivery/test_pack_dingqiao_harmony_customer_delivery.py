@@ -63,6 +63,14 @@ class PackDingqiaoHarmonyCustomerDeliveryTest(unittest.TestCase):
         self.assertIn('"$OUT_ROOT/docs/third-party/ONNX-Runtime-MIT.txt"', self.source)
         self.assertIn('"$OUT_ROOT/README.md"', self.source)
 
+    def test_clean_customer_host_generates_ignored_hvigor_config(self) -> None:
+        verifier = SCRIPT.with_name("verify_selfcontained_dingqiao_har.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"$CUSTOMER_PROJECT/hvigor/hvigor-config.json5"', verifier)
+        self.assertIn('hvigor_config_path.parent.mkdir(parents=True, exist_ok=True)', verifier)
+        self.assertIn('"modelVersion": "5.0.0"', verifier)
+
     def test_public_versions_are_consistent(self) -> None:
         version = "0.2.4"
         relative_files = [
