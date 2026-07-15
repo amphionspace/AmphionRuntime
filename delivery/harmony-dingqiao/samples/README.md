@@ -9,3 +9,6 @@
 3. `bash asr/tools/08_pack_harmony_assets.sh`
 4. `bash tts/tools/harmony/pack_harmony_tts_assets.sh`（如需 TTS）
 5. 用 DevEco Studio 打开 `delivery/harmony-dingqiao/`，运行 `dingqiao_demo` 模块。
+
+当前 USB 问题验证只构建和安装一个参数为 `zh-CN`（`ZH_EN`）的 `dingqiao_demo` HAP；除非
+问题明确涉及其他语种，不额外生成或安装其他语种测试 HAP。SDK/HAR 的公开语种能力不因此改变。
