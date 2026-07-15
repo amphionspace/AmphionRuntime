@@ -13,6 +13,18 @@ import java.util.concurrent.TimeUnit
 internal object LitsTnNormalizer {
     private val normalizersByRoot = ConcurrentHashMap<String, LayoutNormalizer>()
 
+    /**
+     * Opt-in TN prewarm. DEFAULT OFF so it never affects a strict cold-start
+     * benchmark: with this false, prewarm() is a no-op and startup follows the
+     * pure lazy cold path. Enable it ONLY when the target metric is end-to-end
+     * first-synthesis latency and background pre-initialization is allowed — then
+     * the TN warm-up overlaps the (heavier) ONNX model load. Note: when enabled,
+     * warm-up shares the per-layout normalize lock, so a first request in the
+     * other language may briefly wait behind the warm-up.
+     */
+    @Volatile
+    var prewarmEnabled: Boolean = false
+
     fun normalize(
         layout: LitsTtsAssetInstaller.InstalledLayout,
         text: String,
@@ -39,6 +51,7 @@ internal object LitsTnNormalizer {
      * zh. Idempotent via the per-root cache; best-effort, failures are ignored.
      */
     fun prewarm(layout: LitsTtsAssetInstaller.InstalledLayout) {
+        if (!prewarmEnabled) return
         Thread({
             runCatching {
                 normalize(layout, "123", "en-US", "en-US")

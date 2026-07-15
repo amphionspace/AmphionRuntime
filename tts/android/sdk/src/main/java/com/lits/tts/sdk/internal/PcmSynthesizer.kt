@@ -267,9 +267,10 @@ internal class LitsDeliveryPcmSynthesizer(
         if (cached != null) return cached
         return LitsTtsAssetInstaller.ensureInstalled(context, workPath).also {
             layout = it
-            // Fire-and-forget: warm the TN frontend in the background (overlaps
-            // the heavier ONNX model load) so its one-time ~100 ms startup is off
-            // the first synthesis's critical path.
+            // Opt-in only (LitsTnNormalizer.prewarmEnabled, default false): a no-op
+            // unless explicitly enabled, so the strict cold-start path is unchanged.
+            // When enabled, warms the TN frontend in the background (overlapping the
+            // heavier ONNX model load) to hide its one-time startup cost.
             LitsTnNormalizer.prewarm(it)
         }
     }
