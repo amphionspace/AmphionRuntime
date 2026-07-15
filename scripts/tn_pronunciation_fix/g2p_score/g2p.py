@@ -7,7 +7,8 @@ import re, os, sys
 D = "/Users/amphion/Desktop/work/reference/AmphionRuntime/tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0"
 PINYIN = re.compile(r'^[a-z]+[0-6]$')
 CHINESE_DIGIT_SEQUENCE = set("零〇一二三四五六七八九两幺")
-CHINESE_NUMBER_CONTEXT = set("零〇一二三四五六七八九十百千万亿两点分")  # approx for 一-sandhi
+CHINESE_NUMBER_CONTEXT = set("零〇一二三四五六七八九十百千万亿两点负")  # device constant
+CHINESE_DIGIT_ONLY = set("零〇一二三四五六七八九两")  # fix: only pure digits keep 一=yi1 (multipliers 百千万 get sandhi)
 POLY_SURNAME = {'区':'ou1','曾':'zeng1','解':'xie4','任':'ren2','朴':'piao2','薄':'bo2','单':'shan4','仇':'qiu2','盖':'ge3','查':'zha1','乐':'yue4','覃':'qin2','尉':'yu4','卜':'bu3','车':'ju1','石':'dan4','华':'hua4','燕':'yan1','殷':'yin1','柏':'bo2','秘':'bi4','翟':'zhai2','长':'zhang3','纪':'ji3'}
 SURNAME_TITLES = ["老师","先生","女士","经理","主任","书记","医生","同学","教授","师傅","老板"]
 SURNAME_TITLE_OVERRIDE = {"先生":["xian1","sheng1"]}
@@ -121,7 +122,7 @@ def yi_sandhi(text,t):
         cur=t[i] if i<len(t) else None; nxt=t[i+1] if i+1<len(t) else None
         if cur is None or nxt is None or not PINYIN.match(cur) or not PINYIN.match(nxt): continue
         nx=text[i+1] if i+1<len(text) else None
-        if nx in CHINESE_NUMBER_CONTEXT: t[i]=change_tone(cur,'1'); continue
+        if nx in CHINESE_DIGIT_ONLY: t[i]=change_tone(cur,'1'); continue
         t[i]=change_tone(cur, '2' if nxt.endswith('4') else '4')
 
 def er_sandhi(text,t):
