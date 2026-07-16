@@ -3,7 +3,7 @@
   "cmudict": "data/cmudict-0.7b",
   "pair_count": 1981,
   "aligned_line_count": 1935,
-  "entry_count": 1050,
+  "entry_count": 1058,
   "entries": {
     "A-WEEK": {
       "phones": [
@@ -13009,6 +13009,110 @@
       "count": 1,
       "example": "SPARQL",
       "source": "kaikki-pronounceable"
+    },
+    "DECI": {
+      "phones": [
+        "D",
+        "EH1",
+        "S",
+        "IH0"
+      ],
+      "count": 1,
+      "example": "deci",
+      "source": "kaikki-unit-word"
+    },
+    "LUMENS": {
+      "phones": [
+        "L",
+        "UW1",
+        "M",
+        "AH0",
+        "N",
+        "Z"
+      ],
+      "count": 1,
+      "example": "lumens",
+      "source": "kaikki-unit-word"
+    },
+    "GIGA": {
+      "phones": [
+        "G",
+        "IH1",
+        "G",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "giga",
+      "source": "kaikki-unit-word"
+    },
+    "GIGABYTES": {
+      "phones": [
+        "G",
+        "IH1",
+        "G",
+        "AH0",
+        "B",
+        "AY2",
+        "T",
+        "S"
+      ],
+      "count": 1,
+      "example": "gigabytes",
+      "source": "kaikki-unit-word"
+    },
+    "KILOHERTZ": {
+      "phones": [
+        "K",
+        "IH1",
+        "L",
+        "AH0",
+        "HH",
+        "ER2",
+        "T",
+        "S"
+      ],
+      "count": 1,
+      "example": "kilohertz",
+      "source": "kaikki-unit-word"
+    },
+    "KILOBITS": {
+      "phones": [
+        "K",
+        "IH1",
+        "L",
+        "AH0",
+        "B",
+        "IH2",
+        "T",
+        "S"
+      ],
+      "count": 1,
+      "example": "kilobits",
+      "source": "kaikki-unit-word"
+    },
+    "ZEROTH": {
+      "phones": [
+        "Z",
+        "IH1",
+        "R",
+        "OW0",
+        "TH"
+      ],
+      "count": 1,
+      "example": "zeroth",
+      "source": "kaikki-unit-word"
+    },
+    "OCLOCK": {
+      "phones": [
+        "AH0",
+        "K",
+        "L",
+        "AA1",
+        "K"
+      ],
+      "count": 1,
+      "example": "oclock",
+      "source": "kaikki-unit-word"
     }
   }
 }
