@@ -117,6 +117,7 @@ R_dateMDY=re.compile(r'(?<![0-9A-Za-z])(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?![0-
 R_dateYM =re.compile(r'(?<![0-9A-Za-z])(\d{4})[-/.](0[1-9]|1[0-2])(?![0-9])')
 R_dateMY =re.compile(r'(?<![0-9A-Za-z])(0[1-9]|1[0-2])[-/.](\d{4})(?![0-9])')
 R_dateMD =re.compile(r'(?<![0-9A-Za-z])(\d{2})[-/.](\d{2})(?![0-9])')
+R_haori=re.compile(r'(月\d{1,2})号')  # date 号->日 ONLY with 月 anchor (not 3号线 / bare 6号)
 R_time=re.compile(r'(?<!\d)(\d{1,2}):([0-5]\d)(?::([0-5]\d))?(?!\d)')  # HH:MM[:SS] -> H点M分[S秒]
 def expandTime(text):
     def rep(m):
@@ -216,6 +217,7 @@ def protectSemanticNumeric(text):
 def prepare_input(text):
     text=expandTime(text)
     text=expandDates(text)
+    text=R_haori.sub(lambda m:m.group(1)+'日', text)
     text=R_hanziClock.sub(lambda m:m.group(1)+'点零'+CH[m.group(2)]+'分', text)
     text=frontend_apply('pre_tn', text)
     text=protectSemanticNumeric(text)

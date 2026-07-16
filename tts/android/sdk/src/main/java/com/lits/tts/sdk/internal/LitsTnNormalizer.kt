@@ -71,6 +71,7 @@ internal object LitsTnNormalizer {
         private fun prepareInputForTn(text: String): String {
             var output = expandTime(text)
             output = expandDates(output)
+            output = dateHaoToRiRegex.replace(output) { it.groupValues[1] + "日" }
             output = hanziClockMinuteLeadingZeroRegex.replace(output) { match ->
                 "${match.groupValues[1]}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}分"
             }
@@ -490,6 +491,7 @@ internal object LitsTnNormalizer {
             private val percentNumberTextRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?百分号")
             private val clockColonMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2}):0([0-9])(?!\\d)")
             private val timeColonRegex = Regex("(?<!\\d)(\\d{1,2}):([0-5]\\d)(?::([0-5]\\d))?(?!\\d)")  // HH:MM[:SS] -> H点M分[S秒]
+            private val dateHaoToRiRegex = Regex("(月\\d{1,2})号")  // date 号->日 only with 月 anchor
             private val yearBeforeNianRegex = Regex("(?<!\\d)(\\d{4})\\s*年")
             private val yearBeforeNianTwoRegex = Regex("(?<!\\d)(0\\d)年")  // 05年->零五年 (leading-zero only)
             // leading minus before a number / percent -> 负 (not a range like 1-2)
