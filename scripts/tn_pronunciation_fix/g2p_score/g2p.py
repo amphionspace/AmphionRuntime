@@ -101,7 +101,8 @@ def third_tone_sandhi(tokens):
     o=list(tokens); idx=[i for i,t in enumerate(o) if PINYIN.match(t)]
     for p in range(len(idx)-1):
         c,n=idx[p],idx[p+1]
-        if o[c].endswith('3') and o[n].endswith('3'): o[c]=o[c][:-1]+'2'
+        # 点(dian3) as decimal-point / time marker keeps citation tone (golden wants dian3)
+        if o[c].endswith('3') and o[n].endswith('3') and o[c]!='dian3': o[c]=o[c][:-1]+'2'
     return o
 
 def bu_sandhi(text,t):
