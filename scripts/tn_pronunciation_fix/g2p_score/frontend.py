@@ -37,7 +37,11 @@ def _fourHanzi(n):
             if started: zero=True
         else:
             if zero: s+='零'; zero=False
-            s+=CH[str(d)]+['','十','百','千'][pos]; started=True
+            if pos==1 and d==1 and not started:  # 10-19 read 十X, not 一十X
+                s+='十'
+            else:
+                s+=CH[str(d)]+['','十','百','千'][pos]
+            started=True
     return s
 def bigCardinal(n):
     if n==0: return '零'
@@ -110,13 +114,20 @@ R_serial=re.compile(r'((?:设备)?(?:序列号|编号)|S/N|SN)(\s*)([A-Z0-9]*[A-
 # (which otherwise read 2008/08 as 八分之二千零八, 2008-08 as 二千零八至八, etc.).
 # Segments must be a 4-digit year or exactly 2 digits; month 1-12, day 1-31 gate out
 # scores/fractions/decimals/IPs (1/2, 中国1-2, 13.5, 127.0.0.1 all have a 1-digit seg).
-R_dateYMD=re.compile(r'(?<![0-9A-Za-z])(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?![0-9])')
-R_dateMDY=re.compile(r'(?<![0-9A-Za-z])(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?![0-9])')
+R_dateYMD=re.compile(r'(?<![0-9A-Za-z])(\d{4})[-/.·](\d{1,2})[-/.·](\d{1,2})(?![0-9])')
+R_dateMDY=re.compile(r'(?<![0-9A-Za-z])(\d{1,2})[-/.·](\d{1,2})[-/.·](\d{4})(?![0-9])')
 # two-segment YM/MY: month must be zero-padded 2 digits (golden always is), so
 # a decimal like 5.5555 (1-digit + 4-digit) is NOT mistaken for MM.YYYY.
-R_dateYM =re.compile(r'(?<![0-9A-Za-z])(\d{4})[-/.](0[1-9]|1[0-2])(?![0-9])')
-R_dateMY =re.compile(r'(?<![0-9A-Za-z])(0[1-9]|1[0-2])[-/.](\d{4})(?![0-9])')
-R_dateMD =re.compile(r'(?<![0-9A-Za-z])(\d{2})[-/.](\d{2})(?![0-9])')
+R_dateYM =re.compile(r'(?<![0-9A-Za-z])(\d{4})[-/.·](0[1-9]|1[0-2])(?![0-9])')
+R_dateMY =re.compile(r'(?<![0-9A-Za-z])(0[1-9]|1[0-2])[-/.·](\d{4})(?![0-9])')
+R_dateMD =re.compile(r'(?<![0-9A-Za-z])(\d{2})[-/.·](\d{2})(?![0-9])')
+# AD/BC era: 2934a.d.->公元二九三四年, 2334bc->公元前二三三四年 (digit-by-digit year)
+R_bc=re.compile(r'(?<![0-9A-Za-z])(\d{1,4})\s*b\.?c\.?(?![A-Za-z0-9])', re.I)
+R_ad=re.compile(r'(?<![0-9A-Za-z])(\d{1,4})\s*a\.?d\.?(?![A-Za-z0-9])', re.I)
+def expandEra(text):
+    text=R_bc.sub(lambda m:'公元前'+digitSeqToHanzi(m.group(1))+'年', text)
+    text=R_ad.sub(lambda m:'公元'+digitSeqToHanzi(m.group(1))+'年', text)
+    return text
 R_haori=re.compile(r'(月\d{1,2})号')  # date 号->日 ONLY with 月 anchor (not 3号线 / bare 6号)
 R_time=re.compile(r'(?<!\d)(\d{1,2}):([0-5]\d)(?::([0-5]\d))?(?!\d)')  # HH:MM[:SS] -> H点M分[S秒]
 def expandTime(text):
@@ -215,6 +226,7 @@ def protectSemanticNumeric(text):
     return text
 
 def prepare_input(text):
+    text=expandEra(text)
     text=expandTime(text)
     text=expandDates(text)
     text=R_haori.sub(lambda m:m.group(1)+'日', text)
