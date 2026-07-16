@@ -2,6 +2,7 @@ import { AsrErrorCode } from './Types';
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { util } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { evaluateLicenseIdentity, LicenseIdentityFailure } from './RuntimeIdentity';
 
 // Offline-license public key (X.509 SubjectPublicKeyInfo DER, base64). Empty = development/unarmed build.
 // PRODUCTION key — same keypair as the Android SDK (asr/android/gradle.properties AMPHION_LICENSE_PUBLIC_KEY),
@@ -115,14 +116,16 @@ export class HarmonyLicenseVerifier {
       return status;
     }
     const claimSdkMajor = HarmonyLicenseVerifier.numberValue(claims, 'sdkMajor');
-    if (claimSdkMajor > 0 && sdkMajor > 0 && claimSdkMajor !== sdkMajor) {
+    const maintenanceUntil = status.maintenanceUntil ?? '';
+    const identityFailure = evaluateLicenseIdentity(
+      claimSdkMajor, sdkMajor, maintenanceUntil, sdkReleaseDate);
+    if (identityFailure === LicenseIdentityFailure.SDK_MAJOR_MISMATCH) {
       status.state = AmphionLicenseState.INVALID;
       status.errorCode = AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH;
       status.message = `license sdkMajor=${claimSdkMajor} runtime=${sdkMajor}`;
       return status;
     }
-    const maintenanceUntil = status.maintenanceUntil ?? '';
-    if (sdkReleaseDate.length > 0 && maintenanceUntil.length > 0 && sdkReleaseDate > maintenanceUntil) {
+    if (identityFailure === LicenseIdentityFailure.MAINTENANCE_EXPIRED) {
       status.state = AmphionLicenseState.INVALID;
       status.errorCode = AsrErrorCode.LICENSE_MAINTENANCE_EXPIRED;
       status.message = `license maintenanceUntil=${maintenanceUntil} runtimeRelease=${sdkReleaseDate}`;
@@ -235,12 +238,14 @@ export class HarmonyLicenseVerifier {
       return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_DEVICE_MISMATCH, 'device SN unavailable');
     }
     const claimSdkMajor = HarmonyLicenseVerifier.numberValue(claims, 'sdkMajor');
-    if (claimSdkMajor > 0 && sdkMajor > 0 && claimSdkMajor !== sdkMajor) {
+    const maintenanceUntil = status.maintenanceUntil ?? '';
+    const identityFailure = evaluateLicenseIdentity(
+      claimSdkMajor, sdkMajor, maintenanceUntil, sdkReleaseDate);
+    if (identityFailure === LicenseIdentityFailure.SDK_MAJOR_MISMATCH) {
       return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH,
         `license sdkMajor=${claimSdkMajor} runtime=${sdkMajor}`);
     }
-    const maintenanceUntil = status.maintenanceUntil ?? '';
-    if (sdkReleaseDate.length > 0 && maintenanceUntil.length > 0 && sdkReleaseDate > maintenanceUntil) {
+    if (identityFailure === LicenseIdentityFailure.MAINTENANCE_EXPIRED) {
       return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_MAINTENANCE_EXPIRED,
         `license maintenanceUntil=${maintenanceUntil} runtimeRelease=${sdkReleaseDate}`);
     }

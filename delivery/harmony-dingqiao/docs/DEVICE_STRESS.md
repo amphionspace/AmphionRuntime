@@ -68,13 +68,28 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | `start-cancel` | `onStart` 回调内立即 `cancel`，验证取消后不再透出 start 后续事件 |
 | `start-write` | `onStart` 调用栈内交替同步写入 32/88 个真实 PCM 缓存帧，并交替继续识别或立即 `finish`；验证成功回调前 session 已可用，且不返回 `NOT_LISTENING` / `FINISH_FAILED` |
 | `start-write-reload` | 每轮执行 `shutdown -> unloadModel -> createEngine` 后复用 `start-write` 四种组合，等价覆盖业务空闲定时卸载后的再次冷加载 |
+| `speaker-vad-onstart` | `StartParams` 只预置 `voiceprintIds`，两个声纹开关保持关闭；在 `onStart` 调用栈内同步启用 Speaker VAD，覆盖 burst/paced 与直接起音/800 ms 前置静音四种组合；足够长的同源有效语音必须至少产生一个带 `speakerSimilarity` 的非空 final，并在正常结束后立即启动恢复 session |
+| `callback-api-reentrant` | 分别在同一 session 的 `SPEECH_BEGIN`、`SPEECH_END`、非 last `onResult` 回调内同步执行 `writeAudio -> finish`，验证 begin、terminal final、complete 不重复且 sessionId 归属不丢失 |
+| `endpoint-reentrant` | 交替在旧 session 的 `SPEECH_END` 与 last `onResult` 回调内同步执行 `cancel(old) -> startListening(new)`；按 sessionId 对 start/partial/event/final/complete/error 的完整有序轨迹做切换前后快照，验证旧回调不污染新 session，且新 session 首帧前只有 start |
 | `user-sequence` | cancel 后零等待复用、finish 后立即重启、旧 session 迟到 write/finish/cancel 干扰当前 session；按 sessionId 校验回调归属和顺序 |
-| `numeric-edge` | `maxAudioDuration=NaN` 等非有限数输入，验证不会绕过 20 秒兜底上限 |
+| `numeric-edge` | 交替省略 `maxAudioDuration` 和传入 `NaN`，写入超过 20 秒后仍保持活动，随后显式 finish 并验证一次 last/complete |
 
 默认门槛为 RSS 增长不超过 64 MiB、线程增长不超过 2、正常结束模式空 final
 不超过 5%。少于 15 秒的采样只报告 `INCONCLUSIVE`，避免把模型冷启动误判为泄漏。
 `rss_slope_mb_per_minute` 和三段 RSS 中位数用于识别缓慢线性增长；斜率至少需要 60 秒观测，
 且当前不单独作为硬门槛。
+
+`speaker-vad-onstart` 的四个 cycle 恰好对应四种时序组合，每种只跑一轮；Speaker VAD 必须使用
+注册时的同一语料源，因此这四轮不机械更换说话人。`callback-api-reentrant` 的三个 cycle 分别对应
+三个回调入口，并通过 `--files 3` 映射到 30/60/120 秒分层语料。定向验收命令：
+
+```bash
+DATA="$HOME/Downloads/testdata/aishell4/prepared/test-d30x60x120-n4/cases"
+python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
+  --data-dir "$DATA" --mode speaker-vad-onstart --cycles 4 --files 0 --skip-build-install
+python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
+  --data-dir "$DATA" --mode callback-api-reentrant --cycles 3 --files 3 --skip-build-install
+```
 
 ## 2026-07-10 基线
 
@@ -105,6 +120,10 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | `reentrant` 3 轮 | 3/3 FAIL | `onComplete` 回调内 `isBusy()==true`，立即 `startListening` 触发 `ENGINE_BUSY` | `20260711-112219-reentrant-4ff47443` |
 | `numeric-edge` 3 轮 | 3/3 FAIL | `maxAudioDuration=Number.NaN` 后喂入 1168 帧仍无 `onComplete`，会话上限被绕过 | `20260711-112231-numeric-edge-f5bf6f84` |
 | `start-cancel` 3 轮 | 3/3 FAIL | `onStart` 内立即 `cancel` 后，每轮仍有 1 个 native stream 存活 | `20260711-112628-start-cancel-dfa83bdb` |
+
+其中 `numeric-edge` 是按当时“非法值回退到默认上限”的旧契约判定的历史红灯。0.2.5 已明确改为
+“缺省或非法值不启用自动上限”，当前同名门禁因此要求写入超过 20 秒后仍保持活动，并由调用方显式
+`finish`；这条历史记录不代表 0.2.5 的现存失败。
 
 对照结果：单独重跑 `edge` 通过（`20260711-112205-edge-71f55e92`），标准
 `max-duration` 通过（`20260711-111857-max-duration-457e0da3`）。因此新增失败集中在

@@ -1,16 +1,20 @@
-const ACOUSTIC_WINDOWS_PER_SECOND: number = 50;
+import {
+  ACOUSTIC_WINDOWS_PER_SECOND,
+  acousticRms,
+  isAcousticallyActive,
+  isSpeechShapedWindow,
+  MIN_SPEECH_ENERGY_RATIO,
+  REQUIRED_SPEECH_LIKE_WINDOWS
+} from './EffectiveSpeechBuffer';
+
 const RECENT_ACTIVITY_MS: number = 300;
-const ACTIVE_RMS_THRESHOLD: number = 0.01;
-const REQUIRED_ACTIVE_WINDOWS: number = 3;
-const MIN_SPEECH_ZCR: number = 0.005;
-const MAX_SPEECH_ZCR: number = 0.35;
-const MIN_SPEECH_ENERGY_RATIO: number = 3;
 
 export class InitialSilenceTracker {
   private thresholdSamples: number;
   private confirmationGraceSamples: number;
   private deadlineSamples: number;
-  private silenceSamples: number = 0;
+  private audioSamplesObserved: number = 0;
+  private vadSamplesProcessed: number = 0;
   private speechDetected: boolean = false;
   private timeoutSent: boolean = false;
   private graceGranted: boolean = false;
@@ -24,9 +28,7 @@ export class InitialSilenceTracker {
   private hasPreviousSample: boolean = false;
   private consecutiveActiveWindows: number = 0;
   private samplesSinceActivity: number = Number.MAX_SAFE_INTEGER;
-  private consecutiveSpeechLikeWindows: number = 0;
-  private speechLikeMinRms: number = Number.MAX_VALUE;
-  private speechLikeMaxRms: number = 0;
+  private recentSpeechLikeRms: number[] = [];
   private speechLikeActivityDetected: boolean = false;
   private samplesSinceSpeechLikeActivity: number = Number.MAX_SAFE_INTEGER;
 
@@ -40,17 +42,24 @@ export class InitialSilenceTracker {
 
   markSpeechDetected(): void {
     this.speechDetected = true;
-    this.silenceSamples = 0;
   }
 
   observeAsrResult(text: string, tokenCount: number): void {
-    if (text.length > 0 || tokenCount > 0) this.markSpeechDetected();
+    if ((text.length > 0 || tokenCount > 0) &&
+      (this.thresholdSamples === 0 || this.evidenceSamplePosition() <= this.deadlineSamples)) {
+      this.markSpeechDetected();
+    }
   }
 
   observeAcousticSamples(samples: Float32Array): void {
+    const observedBefore = this.audioSamplesObserved;
+    this.audioSamplesObserved += samples.length;
     if (this.timeoutSent || this.speechDetected || this.thresholdSamples === 0 ||
       this.confirmationGraceSamples === 0) return;
-    for (let i = 0; i < samples.length; i++) {
+    // The caller's frame may straddle the exact deadline. Only its prefix can influence the decision
+    // at that deadline; a later grace grant starts from subsequent input rather than looking back.
+    const eligibleSamples = Math.max(0, Math.min(samples.length, this.deadlineSamples - observedBefore));
+    for (let i = 0; i < eligibleSamples; i++) {
       this.acousticSquareSum += samples[i] * samples[i];
       if (this.hasPreviousSample && (samples[i] >= 0) !== (this.previousSample >= 0)) {
         this.zeroCrossingsInWindow += 1;
@@ -60,35 +69,38 @@ export class InitialSilenceTracker {
       this.samplesInAcousticWindow += 1;
       if (this.samplesInAcousticWindow < this.acousticWindowSamples) continue;
 
-      const rms = Math.sqrt(this.acousticSquareSum / this.samplesInAcousticWindow);
-      const active = rms >= ACTIVE_RMS_THRESHOLD;
+      const rms = acousticRms(this.acousticSquareSum, this.samplesInAcousticWindow);
+      const active = isAcousticallyActive(rms);
       this.consecutiveActiveWindows = active ? this.consecutiveActiveWindows + 1 : 0;
-      if (this.consecutiveActiveWindows >= REQUIRED_ACTIVE_WINDOWS) {
+      if (this.consecutiveActiveWindows >= REQUIRED_SPEECH_LIKE_WINDOWS) {
         this.samplesSinceActivity = 0;
       } else if (this.samplesSinceActivity !== Number.MAX_SAFE_INTEGER) {
         this.samplesSinceActivity += this.samplesInAcousticWindow;
       }
       const zcr = this.zeroCrossingsInWindow / Math.max(1, this.samplesInAcousticWindow - 1);
-      const speechLikeWindow = active && zcr >= MIN_SPEECH_ZCR && zcr <= MAX_SPEECH_ZCR;
+      const speechLikeWindow = isSpeechShapedWindow(rms, zcr);
+      if (this.samplesSinceSpeechLikeActivity !== Number.MAX_SAFE_INTEGER) {
+        this.samplesSinceSpeechLikeActivity += this.samplesInAcousticWindow;
+      }
       if (speechLikeWindow) {
-        this.consecutiveSpeechLikeWindows += 1;
-        this.speechLikeMinRms = Math.min(this.speechLikeMinRms, rms);
-        this.speechLikeMaxRms = Math.max(this.speechLikeMaxRms, rms);
-        if (this.consecutiveSpeechLikeWindows >= REQUIRED_ACTIVE_WINDOWS &&
-          this.speechLikeMaxRms >= this.speechLikeMinRms * MIN_SPEECH_ENERGY_RATIO) {
+        // Only fresh envelope variation refreshes recency; steady shaped windows must age out old evidence.
+        this.recentSpeechLikeRms.push(rms);
+        if (this.recentSpeechLikeRms.length > REQUIRED_SPEECH_LIKE_WINDOWS) {
+          this.recentSpeechLikeRms.shift();
+        }
+        let minRms = Number.MAX_VALUE;
+        let maxRms = 0;
+        for (let j = 0; j < this.recentSpeechLikeRms.length; j++) {
+          minRms = Math.min(minRms, this.recentSpeechLikeRms[j]);
+          maxRms = Math.max(maxRms, this.recentSpeechLikeRms[j]);
+        }
+        if (this.recentSpeechLikeRms.length >= REQUIRED_SPEECH_LIKE_WINDOWS &&
+          maxRms >= minRms * MIN_SPEECH_ENERGY_RATIO) {
           this.speechLikeActivityDetected = true;
           this.samplesSinceSpeechLikeActivity = 0;
         }
       } else {
-        this.consecutiveSpeechLikeWindows = 0;
-        this.speechLikeMinRms = Number.MAX_VALUE;
-        this.speechLikeMaxRms = 0;
-      }
-      if (this.samplesSinceSpeechLikeActivity !== Number.MAX_SAFE_INTEGER &&
-        this.samplesSinceSpeechLikeActivity !== 0) {
-        this.samplesSinceSpeechLikeActivity += this.samplesInAcousticWindow;
-      } else if (this.samplesSinceSpeechLikeActivity === 0 && !speechLikeWindow) {
-        this.samplesSinceSpeechLikeActivity += this.samplesInAcousticWindow;
+        this.recentSpeechLikeRms = [];
       }
       this.acousticSquareSum = 0;
       this.samplesInAcousticWindow = 0;
@@ -99,17 +111,22 @@ export class InitialSilenceTracker {
 
   observeVad(processedSamples: number, speechDetected: boolean): boolean {
     if (this.timeoutSent || this.speechDetected || this.thresholdSamples === 0) return false;
-    if (speechDetected) {
+    const processed = Math.max(0, processedSamples);
+    const evidenceWindowEnd = this.vadSamplesProcessed + processed;
+    this.vadSamplesProcessed = evidenceWindowEnd;
+    if (speechDetected && evidenceWindowEnd <= this.deadlineSamples) {
       this.markSpeechDetected();
       return false;
     }
-    this.silenceSamples += Math.max(0, processedSamples);
-    if (this.silenceSamples < this.deadlineSamples) return false;
+    if (this.evidenceSamplePosition() < this.deadlineSamples) return false;
 
     if (!this.graceGranted && this.confirmationGraceSamples > 0 &&
       (this.samplesSinceActivity <= this.recentActivitySamples || this.hasSpeechLikeActivity())) {
       this.graceGranted = true;
       this.deadlineSamples += this.confirmationGraceSamples;
+      // A VAD window that crossed the original deadline is valid only after independently observed
+      // pre-deadline activity granted the bounded confirmation interval.
+      if (speechDetected && evidenceWindowEnd <= this.deadlineSamples) this.markSpeechDetected();
       return false;
     }
     return true;
@@ -135,6 +152,10 @@ export class InitialSilenceTracker {
 
   private hasRecentSpeechLikeActivity(): boolean {
     return this.samplesSinceSpeechLikeActivity <= this.recentActivitySamples;
+  }
+
+  private evidenceSamplePosition(): number {
+    return Math.max(this.audioSamplesObserved, this.vadSamplesProcessed);
   }
 
   confirmTimeout(): boolean {

@@ -224,7 +224,7 @@ interface CreateEngineCallback {
 | `recognitionMode` | `number/string` | `1` | 仅支持 `1`（外部写入音频流）；`0`（SDK 内录音）暂不支持 |
 | `vadBegin` | `number/string` | 未启用 | 首次检测到语音前的静音超时，范围 500 到 10000 ms；仅显式传入时启用 |
 | `enablePartialResult` | `boolean` | `true` | 是否回调中间结果 |
-| `maxAudioDuration` | `number/string` | `20000` | 单会话最长音频毫秒数，范围 20000 到 28800000；达到上限后正常自动结束 |
+| `maxAudioDuration` | `number/string` | 未启用 | 单会话最长音频毫秒数；仅显式传入有限数值时启用，并钳制到 20000 到 28800000；达到上限后正常自动结束，非法值按未启用处理 |
 | `vadEnd` | `number/string` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `sessionGeneralLexicon` | `string[]` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
@@ -254,6 +254,9 @@ interface RecognitionListener {
 | `onResult` | 识别结果，包含 partial 与 final |
 | `onComplete` | 主动 `finish`、达到 `vadBegin` 首段静音阈值或达到 `maxAudioDuration` 上限后，识别完整结束 |
 | `onError` | 发生错误 |
+
+所有回调均归属于创建它们的 session。调用方可以在回调内 `cancel` 当前 session 并立即启动下一
+session；被取消 session 的迟到回调不会改用新 sessionId 发送，也不会结束新 session。
 
 `SpeechRecognitionResult`：
 

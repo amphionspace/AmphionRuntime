@@ -351,17 +351,21 @@ if [[ "$SKIP_BUILD" != true ]]; then
     export DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
     export JAVA_HOME="$JAVA_HOME_VALUE"
     cd "$BUILD_PROJECT_ROOT"
-    "$NODE" "$HVIGOR" assembleHap --mode module \
+    if ! "$NODE" "$HVIGOR" assembleHap --mode module \
       -p product=default \
       -p module=dingqiao_demo@default \
       -p buildMode=debug \
-      --no-daemon --stacktrace
+      --no-daemon --stacktrace; then
+      exit 1
+    fi
     for har_module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
-      "$NODE" "$HVIGOR" assembleHar --mode module \
+      if ! "$NODE" "$HVIGOR" assembleHar --mode module \
         -p product=default \
         -p module="${har_module}@default" \
         -p buildMode=debug \
-        --no-daemon --stacktrace
+        --no-daemon --stacktrace; then
+        exit 1
+      fi
     done
   ) >"$BUILD_LOG" 2>&1; then
     tail -120 "$BUILD_LOG" >&2

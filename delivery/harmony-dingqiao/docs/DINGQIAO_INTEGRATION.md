@@ -86,6 +86,11 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 `onStart(sessionId)` 表示对应 session 已经可用。宿主若在模型冷加载期间缓存了录音数据，可以在
 `onStart` 回调内直接同步写入这些 640 字节 PCM 帧，无需额外延时；收到 `onStart` 前不要写入。
 
+`StartParams.extraParams['maxAudioDuration']` 缺省时不启用自动上限。只有显式传入有限数字或
+可解析为有限数字的非空字符串才启用，并钳制到 20000 到 28800000 ms；非法值按未启用处理。
+每个底层回调绑定其创建时的 session，业务在回调内取消旧 session 并立即启动新 session 时，
+旧 session 的迟到结果不会改用新 sessionId 发送。
+
 三层状态彼此独立：
 
 | 层级 | 加载接口 | 卸载接口 | 说明 |

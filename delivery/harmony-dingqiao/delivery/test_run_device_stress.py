@@ -6,10 +6,15 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import wave
 
 
 SCRIPT = Path(__file__).with_name("run_device_stress.py")
+CARRIER = (
+    SCRIPT.parents[1]
+    / "samples/dingqiao-demo/entry/src/main/ets/util/DeviceStressTest.ets"
+)
 SPEC = importlib.util.spec_from_file_location("run_device_stress", SCRIPT)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError(f"cannot load {SCRIPT}")
@@ -19,6 +24,79 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_endpoint_reentrant_snapshots_every_callback_kind(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        sequence_listener = source.split("class SequenceListener", 1)[1].split(
+            "class CallbackApiReentrantListener", 1
+        )[0]
+        endpoint_listener = source.split("class EndpointReentrantListener", 1)[1].split(
+            "class ReentrantCompleteListener", 1
+        )[0]
+        endpoint_cycle = source.split("async function runEndpointReentrantCycle", 1)[1].split(
+            "async function runUserSequenceCycle", 1
+        )[0]
+
+        self.assertIn("sessionTrace(sessionId: string): string", sequence_listener)
+        for kind in ("start", "partial", "event", "final", "complete", "error"):
+            self.assertIn(f"'{kind}'", sequence_listener)
+        for kind in ("event", "final", "error"):
+            self.assertIn(f"record.kind === '{kind}'", sequence_listener)
+        self.assertIn(
+            "this.oldTraceAtSwitch = this.sessionTrace(this.oldSessionId)",
+            endpoint_listener,
+        )
+        self.assertIn("callback.kind !== 'start'", endpoint_listener)
+        self.assertIn("oldStableBeforeNewAudio", endpoint_cycle)
+        self.assertIn("oldStableAfterNewSession", endpoint_cycle)
+        self.assertIn("listener.sessionTrace(newSessionId) === 'start'", endpoint_cycle)
+
+    def test_speaker_vad_onstart_requires_a_scored_nonempty_final(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runSpeakerVadOnStartCycle", 1)[1].split(
+            "async function runCallbackApiReentrantCycle", 1
+        )[0]
+
+        self.assertIn("events.nonEmptySpeakerScores > 0", cycle)
+        self.assertIn("speaker-vad-missing-nonempty-speaker-score", cycle)
+
+    def test_voiceprint_vad_begin_scores_speech_even_when_asr_text_is_empty(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runVoiceprintVadBeginCycle", 1)[1].split(
+            "async function runVoiceprintVadBeginIdleCycle", 1
+        )[0]
+        normalized = " ".join(cycle.split())
+
+        self.assertIn("events.speakerScores > 0", cycle)
+        self.assertIn(
+            "events.finalChars === 0 || events.firstNonEmptyFinalHasScore === true",
+            normalized,
+        )
+        self.assertIn(
+            "events.finalChars > 0 && events.firstNonEmptyFinalHasScore !== true",
+            cycle,
+        )
+        self.assertNotIn(
+            "events.speakerScores > 0 && events.firstNonEmptyFinalHasScore === true",
+            normalized,
+        )
+
+    def test_public_api_reentrant_modes_are_lifecycle_only(self) -> None:
+        for mode in ("speaker-vad-onstart", "callback-api-reentrant"):
+            with self.subTest(mode=mode), mock.patch.object(
+                sys, "argv", [str(SCRIPT), "--mode", mode]
+            ):
+                args = MODULE.parse_args()
+
+            self.assertEqual(mode, args.mode)
+            self.assertNotIn(mode, MODULE.FINISH_MODES)
+
+    def test_endpoint_reentrant_is_lifecycle_only_not_text_quality(self) -> None:
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "endpoint-reentrant"]):
+            args = MODULE.parse_args()
+
+        self.assertEqual("endpoint-reentrant", args.mode)
+        self.assertNotIn("endpoint-reentrant", MODULE.FINISH_MODES)
+
     def test_invalid_utf8_from_hdc_is_replaced(self) -> None:
         result = MODULE.run(
             [sys.executable, "-c", "import os; os.write(1, b'valid\\xfftail')"]

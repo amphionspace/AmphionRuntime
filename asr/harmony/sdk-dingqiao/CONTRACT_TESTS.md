@@ -41,11 +41,11 @@
 
 ## 3. maxAudioDuration 增补
 
-1. 未传 `maxAudioDuration` 时按 20000 ms。
-2. 传 0、负数或小于 20000 的值时按 20000 ms。
+1. 未传 `maxAudioDuration` 时不启用单会话自动上限；连续写入超过 20000 ms 后仍须保持活动，直到显式 `finish` 或命中其他显式终止条件。
+2. 显式传入有限数字、或非空且可解析为有限数字的字符串时启用；传 0、负数或小于 20000 的值时按 20000 ms。
 3. 达到上限后应回调 `onResult(isFinal=true,isLast=true)` 和 `onComplete`，不得回调 `MAX_AUDIO_DURATION`。
 4. 自动结束后 `isBusy()==false`，可立即再次 `startListening`。
-5. 数字、数字字符串均应解析；非有限值和非法字符串不得绕过 20000 ms 下限。
+5. `NaN`、正负无穷、空字符串、非法字符串及非数字类型均视为未配置，不得隐式启用 20000 ms 上限。
 6. 大于 28800000 ms 时按 28800000 ms 处理。
 
 ## 4. vadBegin 与参数兼容
@@ -73,8 +73,11 @@
 6. `onStart` 回调表示 session 已可用；在该回调调用栈内同步写入 32/88 个 640 字节缓存帧，不得返回 `NOT_LISTENING`；分别验证继续写入后结束和回调内立即 `finish`，后者不得返回 `FINISH_FAILED`。
 7. `onStart` 内立即 `cancel` 仍不得遗留 native stream、final 或 `onComplete`。
 8. 首次冷加载及每轮 `shutdown -> unloadModel -> createEngine` 后必须重复第 6 条；底层 started 信号无论发生在 session 发布前还是发布后，对外都只能发送一次 `onStart`。
+9. 所有底层回调必须绑定创建该 native session 时的 generation。旧 session 被 cancel/结束后，其迟到的 partial、event、final、error、started、stopped 均不得使用新 sessionId 对外发送，也不得结束新 session。
+10. 在 `SPEECH_END` 或 last `onResult` 回调内执行 `cancel(old) -> startListening(new)` 后，旧回调处理栈恢复执行时必须重新校验 generation；新 session 写入首帧前不得出现 final 或 complete。
+11. `writeAudio(old, frame)` 进入 Core 后若同步回调触发上述切换，Core 返回时不得把该帧累计到新 session，也不得据此触发新 session 的 `maxAudioDuration`。
 
-主机可执行的初始静音、final 完成策略和 session 发布状态机测试由 Android CI 的
+主机可执行的初始静音、final 完成策略、session generation 和发布状态机测试由 Android CI 的
 `Run cross-platform ASR lifecycle contracts` 步骤执行；Harmony 真机发布门禁仍按本节完整执行。
 
 ## 6. 声纹与 License
