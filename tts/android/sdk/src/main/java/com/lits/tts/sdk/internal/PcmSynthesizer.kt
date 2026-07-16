@@ -265,7 +265,14 @@ internal class LitsDeliveryPcmSynthesizer(
     private fun ensureLayout(): LitsTtsAssetInstaller.InstalledLayout {
         val cached = layout
         if (cached != null) return cached
-        return LitsTtsAssetInstaller.ensureInstalled(context, workPath).also { layout = it }
+        return LitsTtsAssetInstaller.ensureInstalled(context, workPath).also {
+            layout = it
+            // Opt-in only (LitsTnNormalizer.prewarmEnabled, default false): a no-op
+            // unless explicitly enabled, so the strict cold-start path is unchanged.
+            // When enabled, warms the TN frontend in the background (overlapping the
+            // heavier ONNX model load) to hide its one-time startup cost.
+            LitsTnNormalizer.prewarm(it)
+        }
     }
 
     private fun obtainRuntime(layout: LitsTtsAssetInstaller.InstalledLayout): LitsTtsOrtRuntime {
