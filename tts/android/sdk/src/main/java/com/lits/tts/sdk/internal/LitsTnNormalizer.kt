@@ -68,8 +68,15 @@ internal object LitsTnNormalizer {
                 sb.toString()
             }
 
+        private fun expandEra(text: String): String {
+            var out = bcEraRegex.replace(text) { "公元前" + digitSequenceToHanzi(it.groupValues[1]) + "年" }
+            out = adEraRegex.replace(out) { "公元" + digitSequenceToHanzi(it.groupValues[1]) + "年" }
+            return out
+        }
+
         private fun prepareInputForTn(text: String): String {
-            var output = expandTime(text)
+            var output = expandEra(text)
+            output = expandTime(output)
             output = expandDates(output)
             output = dateHaoToRiRegex.replace(output) { it.groupValues[1] + "日" }
             output = hanziClockMinuteLeadingZeroRegex.replace(output) { match ->
@@ -305,7 +312,9 @@ internal object LitsTnNormalizer {
                 val d = (n / div) % 10
                 if (d == 0) { if (started) zero = true } else {
                     if (zero) { sb.append("零"); zero = false }
-                    sb.append(chineseDigitTextByChar.getValue(d.digitToChar())).append(units[pos]); started = true
+                    if (pos == 1 && d == 1 && !started) sb.append("十")  // 10-19 read 十X not 一十X
+                    else sb.append(chineseDigitTextByChar.getValue(d.digitToChar())).append(units[pos])
+                    started = true
                 }
             }
             return sb.toString()
@@ -492,6 +501,9 @@ internal object LitsTnNormalizer {
             private val clockColonMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2}):0([0-9])(?!\\d)")
             private val timeColonRegex = Regex("(?<!\\d)(\\d{1,2}):([0-5]\\d)(?::([0-5]\\d))?(?!\\d)")  // HH:MM[:SS] -> H点M分[S秒]
             private val dateHaoToRiRegex = Regex("(月\\d{1,2})号")  // date 号->日 only with 月 anchor
+            // AD/BC era: 2934a.d.->公元二九三四年, 2334bc->公元前二三三四年
+            private val bcEraRegex = Regex("(?<![0-9A-Za-z])(\\d{1,4})\\s*b\\.?c\\.?(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
+            private val adEraRegex = Regex("(?<![0-9A-Za-z])(\\d{1,4})\\s*a\\.?d\\.?(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
             private val yearBeforeNianRegex = Regex("(?<!\\d)(\\d{4})\\s*年")
             private val yearBeforeNianTwoRegex = Regex("(?<!\\d)(0\\d)年")  // 05年->零五年 (leading-zero only)
             // leading minus before a number / percent -> 负 (not a range like 1-2)
@@ -509,14 +521,14 @@ internal object LitsTnNormalizer {
             private val pathSlashNumberRegex = Regex("(/)(\\d+)(?=/)")
             private val kmPerHourRegex = Regex("(\\d+)\\s*km/h", RegexOption.IGNORE_CASE)
             private val dateYmdSepRegex =
-                Regex("(?<![0-9A-Za-z])(\\d{4})[-/.](\\d{1,2})[-/.](\\d{1,2})(?![0-9])")
+                Regex("(?<![0-9A-Za-z])(\\d{4})[-/.·](\\d{1,2})[-/.·](\\d{1,2})(?![0-9])")
             private val dateMdySepRegex =
-                Regex("(?<![0-9A-Za-z])(\\d{1,2})[-/.](\\d{1,2})[-/.](\\d{4})(?![0-9])")
+                Regex("(?<![0-9A-Za-z])(\\d{1,2})[-/.·](\\d{1,2})[-/.·](\\d{4})(?![0-9])")
             // two-segment YM/MY: month is zero-padded 2 digits (golden always is), so a
             // decimal like 5.5555 (1-digit + 4-digit) is not mistaken for MM.YYYY.
-            private val dateYmSepRegex = Regex("(?<![0-9A-Za-z])(\\d{4})[-/.](0[1-9]|1[0-2])(?![0-9])")
-            private val dateMySepRegex = Regex("(?<![0-9A-Za-z])(0[1-9]|1[0-2])[-/.](\\d{4})(?![0-9])")
-            private val dateMdSepRegex = Regex("(?<![0-9A-Za-z])(\\d{2})[-/.](\\d{2})(?![0-9])")
+            private val dateYmSepRegex = Regex("(?<![0-9A-Za-z])(\\d{4})[-/.·](0[1-9]|1[0-2])(?![0-9])")
+            private val dateMySepRegex = Regex("(?<![0-9A-Za-z])(0[1-9]|1[0-2])[-/.·](\\d{4})(?![0-9])")
+            private val dateMdSepRegex = Regex("(?<![0-9A-Za-z])(\\d{2})[-/.·](\\d{2})(?![0-9])")
             // Superscript area/volume units: NFKC folds ²->2 / ³->3, so expand before cleaning.
             private val superscriptUnitRegex =
                 Regex("(\\d+(?:\\.\\d+)?)\\s*(km|cm|mm|dm|m)([\\u00B2\\u00B3])")
