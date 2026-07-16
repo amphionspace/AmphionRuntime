@@ -1,0 +1,49 @@
+0
+7
+42
+100
+1000
+1000000
+1234567890
+-5
+3.14
+0.5
+100.001
+0.001
+$3.50
+$1,000,000.00
+£42
+€99.99
+$0.99
+2024-03-15
+March 5, 2023
+12/31/1999
+January 1st, 2000
+3:45 PM
+09:00
+23:59:59
+12:00 AM
+1st
+2nd
+3rd
+21st
+100th
+1000th
+555-1234
++1 (800) 123-4567
+911
+1990
+2000
+in 1984
+the year 1066
+50%
+3/4
+1/2
+7/8
+The temperature is -40 degrees.
+Room 101, floor 3, building 7.
+Version 2.10.5 released.
+He scored 98.6 out of 100.
+Call 1-800-FLOWERS or 867-5309.
+Chapter 12, page 345, line 6789.
+It cost $19.99 plus 8.25% tax.
