@@ -32864,7 +32864,7 @@
 乐居	le4 ju1
 乐属	le4 shu3
 乐山	le4 shan1
-乐山乐水	le4 shan1 le4 shui3
+乐山乐水	yao4 shan1 yao4 shui3
 乐山地区	le4 shan1 di4 qu1
 乐山大佛	le4 shan1 da4 fo2
 乐山市	le4 shan1 shi4
@@ -55785,7 +55785,7 @@
 似然比	shi4 ran2 bi3
 似玻璃地	shi4 bo1 li2 de5
 似的	shi4 de5
-似真似假	shi4 zhen1 si4 jia3
+似真似假	si4 zhen1 si4 jia3
 似真地	shi4 zhen1 de5
 似神非神	shi4 shen2 fei1 shen2
 似笑非笑	si4 xiao4 fei1 xiao4
@@ -547287,7 +547287,7 @@
 还奉	huan2 feng4
 还好	hai2 hao3
 还好好地	hai2 hao3 hao1 de5
-还如	huan2 ru2
+还如	hai2 ru2
 还妾	huan2 qie4
 还姓	huan2 xing4
 还婴	hai2 ying1
@@ -665007,3 +665007,4 @@
 
 好儿子	hao3 er2 zi5
 人为什么	ren2 wei4 shen2 me5
+三角地带	san1 jiao3 di4 dai4
