@@ -15,14 +15,22 @@ export class SessionStartGate {
     this.clearSignals();
   }
 
+  currentGeneration(): number {
+    return this.generation;
+  }
+
+  isCurrent(generation: number): boolean {
+    return generation === this.generation;
+  }
+
   observeNativeStarted(generation: number): boolean {
-    if (generation !== this.generation) return false;
+    if (!this.isCurrent(generation)) return false;
     this.nativeStarted = true;
     return this.claimDelivery();
   }
 
   publishSession(generation: number): boolean {
-    if (generation !== this.generation) return false;
+    if (!this.isCurrent(generation)) return false;
     this.sessionPublished = true;
     return this.claimDelivery();
   }

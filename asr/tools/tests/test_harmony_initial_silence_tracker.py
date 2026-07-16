@@ -6,6 +6,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TRACKER = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/InitialSilenceTracker.ts"
+RUNTIME = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
+TS_LOADER = REPO_ROOT / "asr/tools/tests/ts_extension_loader.mjs"
 
 
 class HarmonyInitialSilenceTrackerTest(unittest.TestCase):
@@ -18,7 +20,15 @@ class HarmonyInitialSilenceTrackerTest(unittest.TestCase):
             """
         )
         subprocess.run(
-            ["node", "--experimental-strip-types", "--input-type=module", "-e", script],
+            [
+                "node",
+                "--experimental-strip-types",
+                "--experimental-loader",
+                str(TS_LOADER),
+                "--input-type=module",
+                "-e",
+                script,
+            ],
             check=True,
             cwd=REPO_ROOT,
         )
@@ -104,6 +114,85 @@ class HarmonyInitialSilenceTrackerTest(unittest.TestCase):
             """
         )
 
+    def test_runtime_320_sample_chunks_timeout_before_512_sample_vad_carry_can_look_ahead(self) -> None:
+        self.run_tracker(
+            """
+            const tracker = new InitialSilenceTracker(1000, 16000);
+            const state = { carry: 0, vadSamples: 0 };
+            const feedRuntimeFrame = (speechDetected) => {
+              tracker.observeAcousticSamples(new Float32Array(320));
+              const merged = state.carry + 320;
+              const processed = Math.floor(merged / 512) * 512;
+              state.carry = merged - processed;
+              state.vadSamples += processed;
+              return tracker.observeVad(processed, speechDetected);
+            };
+
+            let reachedDeadline = false;
+            for (let frame = 0; frame < 50; frame++) {
+              reachedDeadline = feedRuntimeFrame(false);
+              assert.equal(reachedDeadline, frame === 49);
+            }
+            assert.equal(state.vadSamples, 15872);
+            assert.equal(state.carry, 128);
+            assert.equal(tracker.confirmTimeout(), true);
+
+            // Speech arriving after sample 16000 cannot use the unresolved carry to reverse the decision.
+            assert.equal(feedRuntimeFrame(true), false);
+            assert.equal(tracker.hasTimedOut(), true);
+            """
+        )
+
+    def test_vad_window_ending_exactly_at_deadline_keeps_boundary_speech_priority(self) -> None:
+        self.run_tracker(
+            """
+            const tracker = new InitialSilenceTracker(512, 16000);
+            let carry = 0;
+            let vadSamples = 0;
+            const feedRuntimeFrame = (speechDetected) => {
+              tracker.observeAcousticSamples(new Float32Array(320));
+              const merged = carry + 320;
+              const processed = Math.floor(merged / 512) * 512;
+              carry = merged - processed;
+              vadSamples += processed;
+              return tracker.observeVad(processed, speechDetected);
+            };
+
+            for (let frame = 0; frame < 25; frame++) {
+              assert.equal(feedRuntimeFrame(false), false);
+            }
+            // Frame 26 carries 128 samples after the deadline, but the completed VAD window itself
+            // ends exactly at sample 8192. Its speech evidence must win at the boundary.
+            assert.equal(feedRuntimeFrame(true), false);
+            assert.equal(vadSamples, 8192);
+            assert.equal(carry, 128);
+            assert.equal(tracker.isArmed(), false);
+            assert.equal(tracker.hasTimedOut(), false);
+            """
+        )
+
+    def test_asr_evidence_after_deadline_cannot_reverse_pending_timeout(self) -> None:
+        self.run_tracker(
+            """
+            const tracker = new InitialSilenceTracker(1000, 16000);
+            tracker.observeAcousticSamples(new Float32Array(16000));
+            assert.equal(tracker.observeVad(15872, false), true);
+            tracker.observeAcousticSamples(new Float32Array(320));
+            tracker.observeAsrResult('late', 1);
+            assert.equal(tracker.confirmTimeout(), true);
+            assert.equal(tracker.hasTimedOut(), true);
+            """
+        )
+
+    def test_runtime_uses_the_chunk_and_vad_window_sizes_exercised_above(self) -> None:
+        runtime = RUNTIME.read_text(encoding="utf-8")
+        self.assertIn("const INITIAL_DECISION_CHUNK_SAMPLES: number = ASR_SAMPLE_RATE_HZ / 50;", runtime)
+        self.assertIn("this.vadWindowSize = 512;", runtime)
+        self.assertLess(
+            runtime.index("this.initialSilenceTracker.observeAcousticSamples(samples)"),
+            runtime.index("const initialSilenceTimedOut = this.initialSilenceTracker.observeVad(i, anySpeech)"),
+        )
+
     def test_low_noise_and_interrupted_clicks_do_not_grant_grace(self) -> None:
         self.run_tracker(
             """
@@ -170,6 +259,38 @@ class HarmonyInitialSilenceTrackerTest(unittest.TestCase):
             for (let i = 0; i < 320; i++) pulse[i] = i % 20 < 10 ? 0.08 : -0.08;
             tracker.observeAcousticSamples(pulse);
             assert.equal(tracker.confirmSpeechLikeActivity(), false);
+            """
+        )
+
+    def test_old_variation_cannot_be_kept_recent_by_a_steady_tone(self) -> None:
+        self.run_tracker(
+            """
+            const tracker = new InitialSilenceTracker(1000, 16000, 1500);
+            for (const level of [0.02, 0.08, 0.03, 0.12]) {
+              const frame = new Float32Array(320);
+              for (let i = 0; i < frame.length; i++) {
+                frame[i] = i % 20 < 10 ? level : -level;
+              }
+              tracker.observeAcousticSamples(frame);
+            }
+
+            const steadyTone = new Float32Array(320);
+            for (let i = 0; i < steadyTone.length; i++) {
+              steadyTone[i] = Math.sin(2 * Math.PI * 100 * i / 16000) * 0.04;
+            }
+            for (let frame = 4; frame < 50; frame++) {
+              tracker.observeAcousticSamples(steadyTone);
+            }
+            assert.equal(tracker.observeVad(16000, false), false);
+            assert.equal(tracker.needsAsrProbe(), true);
+
+            for (let frame = 0; frame < 75; frame++) {
+              tracker.observeAcousticSamples(steadyTone);
+            }
+            assert.equal(tracker.observeVad(24000, false), true);
+            assert.equal(tracker.confirmSpeechLikeActivity(), false);
+            assert.equal(tracker.confirmTimeout(), true);
+            assert.equal(tracker.hasTimedOut(), true);
             """
         )
 

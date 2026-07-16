@@ -7,10 +7,14 @@ import argparse
 import json
 import re
 from pathlib import Path
+import tarfile
 from typing import Iterable
 
 
 TEXT_SUFFIXES = {"", ".json", ".md", ".txt"}
+ARCHIVE_TEXT_SUFFIXES = TEXT_SUFFIXES | {
+    ".csv", ".ets", ".json5", ".ts", ".tsv", ".xml", ".yaml", ".yml"
+}
 REDACTED_VALUES = {"REDACTED", "已脱敏"}
 SENSITIVE_JSON_KEYS = {
     "deviceid",
@@ -86,15 +90,14 @@ def _json_violations(value: object, location: str = "$") -> list[str]:
     return violations
 
 
-def find_violations(path: Path) -> list[str]:
-    text = path.read_text(encoding="utf-8")
+def find_text_violations(text: str, suffix: str) -> list[str]:
     violations: list[str] = []
     for label, pattern in PATTERNS:
         match = pattern.search(text)
         if match:
             line = text.count("\n", 0, match.start()) + 1
             violations.append(f"{label} at line {line}")
-    if path.suffix == ".json":
+    if suffix == ".json":
         try:
             payload = json.loads(text)
         except json.JSONDecodeError as error:
@@ -104,13 +107,45 @@ def find_violations(path: Path) -> list[str]:
     return violations
 
 
+def find_violations(path: Path) -> list[str]:
+    return find_text_violations(path.read_text(encoding="utf-8"), path.suffix)
+
+
+def find_archive_violations(path: Path) -> list[str]:
+    violations: list[str] = []
+    try:
+        archive = tarfile.open(path, "r:gz")
+    except (OSError, tarfile.TarError) as error:
+        return [f"invalid HAR archive: {error}"]
+    with archive:
+        for member in archive.getmembers():
+            if not member.isfile():
+                continue
+            member_path = Path(member.name)
+            if member_path.suffix not in ARCHIVE_TEXT_SUFFIXES and member_path.name not in {
+                "LICENSE", "NOTICE"
+            }:
+                continue
+            stream = archive.extractfile(member)
+            if stream is None:
+                continue
+            try:
+                text = stream.read().decode("utf-8")
+            except UnicodeDecodeError:
+                continue
+            for violation in find_text_violations(text, member_path.suffix):
+                violations.append(f"{member.name}: {violation}")
+    return violations
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("paths", nargs="+", type=Path)
     args = parser.parse_args()
 
-    files = list(iter_text_files(args.paths))
-    if not files:
+    archives = [path for path in args.paths if path.is_file() and path.suffix == ".har"]
+    files = list(iter_text_files(path for path in args.paths if path not in archives))
+    if not files and not archives:
         parser.error("no customer text files found")
 
     failed = False
@@ -118,10 +153,17 @@ def main() -> int:
         for violation in find_violations(path):
             failed = True
             print(f"[ERROR] {path}: {violation}")
+    for path in archives:
+        for violation in find_archive_violations(path):
+            failed = True
+            print(f"[ERROR] {path}!/{violation}")
     if failed:
         return 1
 
-    print(f"[OK] customer delivery redaction check passed: {len(files)} files")
+    print(
+        f"[OK] customer delivery redaction check passed: "
+        f"{len(files)} files, {len(archives)} HAR archives"
+    )
     return 0
 
 

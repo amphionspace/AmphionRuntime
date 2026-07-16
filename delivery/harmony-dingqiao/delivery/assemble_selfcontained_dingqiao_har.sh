@@ -8,12 +8,20 @@
 #   - 剥离 -> HAP 编译期 amphion_dingqiao 找不到 amphion_asr(幽灵依赖);
 #   只有自包含(file:./ 内部路径)两头都成立。
 #
-# 用法: assemble_selfcontained_dingqiao_har.sh <输出 har 路径>
+# 用法: assemble_selfcontained_dingqiao_har.sh [--zh-en-only] <输出 har 路径>
 # 依赖: 四个 HAR 已由 DevEco 构建(见各模块 build/default/outputs/default/)。
 set -euo pipefail
-OUT="${1:?用法: $0 <输出 har 路径>}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+ZH_EN_ONLY=false
+if [[ "${1:-}" == "--zh-en-only" ]]; then
+  ZH_EN_ONLY=true
+  shift
+fi
+OUT="${1:?用法: $0 [--zh-en-only] <输出 har 路径>}"
+[[ $# -eq 1 ]] || { echo "[ERROR] unexpected arguments" >&2; exit 2; }
+mkdir -p "$(dirname "$OUT")"
+OUT="$(cd "$(dirname "$OUT")" && pwd)/$(basename "$OUT")"
 
 har_of() {  # 取模块构建输出目录里唯一的 .har
   local dir="$1"
@@ -83,7 +91,12 @@ set_dependencies("_bundled/amphion_police", {
 })
 PY
 
-# HAR 内容位于 package/ 下,打回 tgz
-mkdir -p "$(dirname "$OUT")"
-( cd "$WORK" && mv sc package && tar czf "$OUT" package )
+if [[ "$ZH_EN_ONLY" == true ]]; then
+  python3 "$SCRIPT_DIR/filter_zh_en_model_payload.py" \
+    "$WORK/sc/_bundled/amphion_asr/src/main/resources/rawfile/amphion-models"
+  python3 "$SCRIPT_DIR/sanitize_public_har_payload.py" "$WORK/sc"
+fi
+
+# HAR 内容位于 package/ 下；由归一化 writer 固定 uid/gid/mtime，并禁止 xattr/AppleDouble 泄漏。
+python3 "$SCRIPT_DIR/create_normalized_tar.py" "$WORK/sc" "$OUT"
 echo "[DONE] 自包含 amphion_dingqiao.har -> $OUT ($(du -h "$OUT" | cut -f1))"

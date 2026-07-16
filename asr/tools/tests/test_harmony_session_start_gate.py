@@ -100,6 +100,37 @@ class HarmonySessionStartGateTest(unittest.TestCase):
             """
         )
 
+    def test_reset_invalidates_every_callback_from_the_old_session(self) -> None:
+        self.run_gate(
+            """
+            const gate = new SessionStartGate();
+            const oldGeneration = gate.begin();
+            assert.equal(gate.isCurrent(oldGeneration), true);
+
+            gate.reset();
+            const newGeneration = gate.begin();
+            assert.equal(gate.isCurrent(oldGeneration), false);
+            assert.equal(gate.isCurrent(newGeneration), true);
+            assert.equal(gate.currentGeneration(), newGeneration);
+            """
+        )
+
+    def test_listener_reentry_must_be_observable_before_terminal_follow_up(self) -> None:
+        self.run_gate(
+            """
+            const gate = new SessionStartGate();
+            const callbackGeneration = gate.begin();
+            assert.equal(gate.isCurrent(callbackGeneration), true);
+
+            // Models cancel(old) -> startListening(new) inside onEvent/onResult.
+            gate.reset();
+            const newGeneration = gate.begin();
+
+            assert.equal(gate.isCurrent(callbackGeneration), false);
+            assert.equal(gate.isCurrent(newGeneration), true);
+            """
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

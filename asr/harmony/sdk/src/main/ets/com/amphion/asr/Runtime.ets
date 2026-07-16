@@ -38,6 +38,14 @@ import {
 } from './Types';
 import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 import { InitialSilenceTracker } from './InitialSilenceTracker';
+import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
+import { SessionCallbackGate } from './SessionCallbackGate';
+import { SessionReentryQueue } from './SessionReentryQueue';
+import {
+  HARMONY_SDK_MAJOR,
+  HARMONY_SDK_RELEASE_DATE,
+  HARMONY_SDK_VERSION
+} from './RuntimeIdentity';
 
 const ASR_SAMPLE_RATE_HZ: number = 16000;
 // Advance armed initial-silence decisions in fixed 20 ms slices so caller chunking cannot move a deadline.
@@ -122,9 +130,9 @@ class Logger {
 }
 
 export class AmphionRuntime {
-  private static readonly SDK_VERSION: string = '0.2.0-harmony';
-  private static readonly SDK_MAJOR: number = 0;
-  private static readonly SDK_RELEASE_DATE: string = '2026-06-24';
+  private static readonly SDK_VERSION: string = HARMONY_SDK_VERSION;
+  private static readonly SDK_MAJOR: number = HARMONY_SDK_MAJOR;
+  private static readonly SDK_RELEASE_DATE: string = HARMONY_SDK_RELEASE_DATE;
   private static initialized: boolean = false;
   private static appContext?: Context;
   private static options: AmphionOptions = new AmphionOptions();
@@ -1032,7 +1040,8 @@ export class AsrSession {
   private svBelowCount: number = 0;
   private svRejectCurrentUtterance: boolean = false;
   private callback: AsrCallback;
-  private closed: boolean = false;
+  private callbackGate: SessionCallbackGate = new SessionCallbackGate();
+  private reentryQueue: SessionReentryQueue = new SessionReentryQueue();
   private streamCallDepth: number = 0;
   private streamReleased: boolean = false;
   private pcmFloatScratch: Float32Array = new Float32Array(0);
@@ -1040,11 +1049,14 @@ export class AsrSession {
   private pcmBytesAccepted: number = 0;
   private totalPcmBytes: number = 0;
   private utteranceIndex: number = 0;
+  private recognizerResetGeneration: number = 0;
   private utteranceStartMs: number = Date.now();
   private firstPcmMs: number = -1;
   private firstPartialLatencyMs: number = -1;
   private rtfValues: number[] = [];
   private utteranceSamples: Float32Array[] = [];
+  private effectiveSpeechBuffer: EffectiveSpeechBuffer =
+    new EffectiveSpeechBuffer(ASR_SAMPLE_RATE_HZ, UTT_MAX_SAMPLES);
   private engineReadyMs: number = -1;
   private stoppedNotified: boolean = false;
   private stopNotificationPending: boolean = false;
@@ -1080,28 +1092,48 @@ export class AsrSession {
     }
     // 预热已前移到 recognizer 创建处一次性完成(见 AmphionRuntime.warmUpRecognizer),
     // 这里不再每次 startListening 都跑 encoder,避免每次点"开始识别"卡 3~4 秒。
-    this.callback.onSessionStarted?.();
+    this.callbackGate.invoke((): void => { this.callback.onSessionStarted?.(); });
   }
 
   acceptPcmShort(samples: Int16Array): void {
-    if (this.closed) return;
-    if (this.pcmFloatScratch.length !== samples.length) {
-      this.pcmFloatScratch = new Float32Array(samples.length);
+    if (this.callbackGate.isClosed()) return;
+    const reentrant = this.shouldDeferSessionOperation();
+    let converted: Float32Array;
+    if (reentrant) {
+      // Never overwrite the scratch buffer still owned by the outer acceptPcmShort call.
+      converted = new Float32Array(samples.length);
+    } else {
+      if (this.pcmFloatScratch.length !== samples.length) {
+        this.pcmFloatScratch = new Float32Array(samples.length);
+      }
+      converted = this.pcmFloatScratch;
     }
-    for (let i = 0; i < samples.length; i++) this.pcmFloatScratch[i] = samples[i] / 32768.0;
-    this.acceptPcmFloat(this.pcmFloatScratch);
+    for (let i = 0; i < samples.length; i++) converted[i] = samples[i] / 32768.0;
+    this.acceptPcmFloat(converted);
   }
 
   acceptPcmBytes(bytes: ArrayBuffer): void {
     if (bytes.byteLength % 2 !== 0) {
-      this.callback.onError?.(new AsrError(AsrErrorCode.INVALID_ARGUMENT, 'PCM byte length must be even for int16 samples'));
+      this.callbackGate.invoke((): void => {
+        this.callback.onError?.(new AsrError(
+          AsrErrorCode.INVALID_ARGUMENT, 'PCM byte length must be even for int16 samples'));
+      });
       return;
     }
     this.acceptPcmShort(new Int16Array(bytes));
   }
 
   acceptPcmFloat(samples: Float32Array): void {
-    if (this.closed || samples.length === 0) return;
+    if (this.callbackGate.isClosed() || samples.length === 0) return;
+    if (this.shouldDeferSessionOperation()) {
+      this.reentryQueue.enqueueAudio(samples);
+      return;
+    }
+    this.acceptPcmFloatNow(samples);
+  }
+
+  private acceptPcmFloatNow(samples: Float32Array): void {
+    if (this.callbackGate.isClosed() || samples.length === 0) return;
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
     this.pcmBytesAccepted += samples.length * 2;
     this.totalPcmBytes += samples.length * 2;
@@ -1109,15 +1141,27 @@ export class AsrSession {
     try {
       this.feedAndDecode(samples);
     } catch (e) {
-      this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
+      this.callbackGate.invoke((): void => {
+        this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
+      });
     } finally {
       this.streamCallDepth -= 1;
+      this.drainReentryQueue();
       this.releaseStreamIfClosed();
     }
   }
 
   stop(): void {
-    if (this.closed) return;
+    if (this.callbackGate.isClosed()) return;
+    if (this.shouldDeferSessionOperation()) {
+      this.reentryQueue.enqueueStop();
+      return;
+    }
+    this.stopNow();
+  }
+
+  private stopNow(): void {
+    if (this.callbackGate.isClosed()) return;
     this.streamCallDepth += 1;
     try {
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
@@ -1125,11 +1169,14 @@ export class AsrSession {
       this.appendFinalTailSilence();
       this.stream.inputFinished();
       this.drain(true, false, true);
-      this.notifyStopped();
+      if (!this.callbackGate.isClosed()) this.notifyStopped();
     } catch (e) {
-      this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
+      this.callbackGate.invoke((): void => {
+        this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
+      });
     } finally {
       this.streamCallDepth -= 1;
+      this.drainReentryQueue();
       this.releaseStreamIfClosed();
     }
   }
@@ -1151,17 +1198,24 @@ export class AsrSession {
     if (this.targetSpeaker !== undefined && this.targetSpeaker.length !== extractor.dim) {
       throw new Error(`target speaker embedding dim=${this.targetSpeaker.length}, expected=${extractor.dim}`);
     }
-    this.targetExtractor = extractor;
-    this.flushPendingSpeakerFinals();
+    this.streamCallDepth += 1;
+    try {
+      this.targetExtractor = extractor;
+      this.flushPendingSpeakerFinals();
+    } finally {
+      this.streamCallDepth -= 1;
+      this.drainReentryQueue();
+      this.releaseStreamIfClosed();
+    }
   }
   setTargetSpeakerExtractorAsync(load: Promise<SpeakerEmbeddingExtractor>): void {
     this.targetExtractorLoad = load;
     load.then((extractor: SpeakerEmbeddingExtractor): void => {
-      if (this.closed || this.targetExtractorLoad !== load) return;
+      if (this.callbackGate.isClosed() || this.targetExtractorLoad !== load) return;
       this.setTargetSpeakerExtractor(extractor);
       this.targetExtractorLoad = undefined;
     }).catch((e: Object): void => {
-      if (this.closed || this.targetExtractorLoad !== load) return;
+      if (this.callbackGate.isClosed() || this.targetExtractorLoad !== load) return;
       this.targetExtractorLoad = undefined;
       const shouldReport = this.targetSpeakerEnabled || this.speakerVadEnabled ||
         this.pendingSpeakerFinals.length > 0;
@@ -1169,12 +1223,14 @@ export class AsrSession {
       const stoppedWasPending = this.stopNotificationPending;
       this.stopNotificationPending = false;
       if (shouldReport) {
-        this.callback.onError?.(new AsrError(
-          AsrErrorCode.POSTPROCESS_FAILED, `speaker extractor load failed: ${e}`));
+        this.callbackGate.invoke((): void => {
+          this.callback.onError?.(new AsrError(
+            AsrErrorCode.POSTPROCESS_FAILED, `speaker extractor load failed: ${e}`));
+        });
       }
       // A failed deferred load must still complete stop(). The error callback may close the session,
       // in which case close() owns the stopped notification and this branch deliberately does nothing.
-      if (stoppedWasPending && !this.closed) this.notifyStopped();
+      if (stoppedWasPending && !this.callbackGate.isClosed()) this.notifyStopped();
     });
   }
   ensureTargetSpeakerExtractor(): void {
@@ -1195,17 +1251,21 @@ export class AsrSession {
   }
   setSpeakerVadEnabled(enabled: boolean): void {
     if (this.effectiveSpeakerVad() === undefined) {
-      this.callback.onDebug?.('speaker VAD is not configured for this session');
+      this.callbackGate.invoke((): void => {
+        this.callback.onDebug?.('speaker VAD is not configured for this session');
+      });
       return;
     }
     this.speakerVadEnabled = enabled;
   }
-  isClosed(): boolean { return this.closed; }
+  isClosed(): boolean { return this.callbackGate.isClosed(); }
   close(): void {
-    if (this.closed) return;
-    this.closed = true;
+    if (!this.callbackGate.close()) return;
+    this.reentryQueue.clear();
     this.targetExtractorLoad = undefined;
     this.pendingSpeakerFinals = [];
+    this.utteranceSamples = [];
+    this.effectiveSpeechBuffer.reset();
     // 归还 VAD 到空闲池,供后续会话复用(顺序场景保持 RSS 平)。closed 早退保证同一实例只归还一次,
     // 避免重复入池后被两个会话同时取出而重现共享污染。
     if (this.vad !== undefined) {
@@ -1217,6 +1277,18 @@ export class AsrSession {
     this.releaseStreamIfClosed();
   }
 
+  private shouldDeferSessionOperation(): boolean {
+    return this.streamCallDepth > 0 || this.callbackGate.isInvoking();
+  }
+
+  private drainReentryQueue(): void {
+    if (this.streamCallDepth > 0 || this.callbackGate.isInvoking()) return;
+    this.reentryQueue.drain(
+      (): boolean => this.callbackGate.isClosed(),
+      (samples: Float32Array): void => { this.acceptPcmFloatNow(samples); },
+      (): void => { this.stopNow(); });
+  }
+
   private drain(isFinal: boolean, restartAfterFinal: boolean = true, isLastFinal: boolean = false): void {
     const decodeStartMs = Date.now();
     while (this.recognizer.isReady(this.stream)) {
@@ -1225,9 +1297,9 @@ export class AsrSession {
     const decodeDurationMs = Date.now() - decodeStartMs;
 
     if (this.recognizer.isEndpoint(this.stream)) {
-      this.callback.onEndpoint?.();
+      if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
       this.dispatchFinal(true, decodeDurationMs, isLastFinal);
-      if (!this.closed) this.finishUtterance(restartAfterFinal);
+      if (!this.callbackGate.isClosed()) this.finishUtterance(restartAfterFinal);
       return;
     }
 
@@ -1235,7 +1307,7 @@ export class AsrSession {
     this.initialSilenceTracker.observeAsrResult(r.text, r.tokens.length);
     if (isFinal) {
       this.dispatchFinal(false, decodeDurationMs, isLastFinal);
-      if (!this.closed) this.finishUtterance(restartAfterFinal);
+      if (!this.callbackGate.isClosed()) this.finishUtterance(restartAfterFinal);
     } else if (r.text !== this.lastPartialText) {
       this.lastPartialText = r.text;
       // When speaker VAD is on, hold partials until the target speaker is confirmed so a non-target
@@ -1248,13 +1320,13 @@ export class AsrSession {
       if (this.firstPartialLatencyMs < 0 && this.firstPcmMs >= 0) {
         this.firstPartialLatencyMs = Date.now() - this.firstPcmMs;
       }
-      this.callback.onPartial?.(result.text);
-      this.callback.onPartialResult?.(result);
+      if (!this.callbackGate.invoke((): void => { this.callback.onPartial?.(result.text); })) return;
+      this.callbackGate.invoke((): void => { this.callback.onPartialResult?.(result); });
     }
   }
 
-  private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number, isLast: boolean = false,
-    suppressEmpty: boolean = false): boolean {
+  private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number,
+    isLast: boolean = false): boolean {
     const native = this.recognizer.getResult(this.stream);
     const hasEvidence = native.text.length > 0 || native.tokens.length > 0;
     this.initialSilenceTracker.observeAsrResult(native.text, native.tokens.length);
@@ -1265,21 +1337,33 @@ export class AsrSession {
     result.isLast = isLast;
     const postStartMs = Date.now();
     if (this.config.itn && this.language === AsrLanguage.ZH_EN && !this.itnWarned) {
-      this.callback.onDebug?.('Harmony WeText ITN NAPI is not packaged; final text keeps raw ITN form before punctuation.');
+      if (!this.callbackGate.invoke((): void => {
+        this.callback.onDebug?.(
+          'Harmony WeText ITN NAPI is not packaged; final text keeps raw ITN form before punctuation.');
+      })) return false;
       this.itnWarned = true;
     }
     if (this.punctuation !== undefined && result.text.length > 0) {
       try {
         result.text = this.punctuation.addPunct(result.text);
       } catch (e) {
-        this.callback.onError?.(new AsrError(AsrErrorCode.POSTPROCESS_FAILED, `${e}`));
+        if (!this.callbackGate.invoke((): void => {
+          this.callback.onError?.(new AsrError(AsrErrorCode.POSTPROCESS_FAILED, `${e}`));
+        })) return false;
       }
     }
     const postProcessMs = Date.now() - postStartMs;
+    const boundary = this.effectiveSpeechBuffer.resolveFinal(result.text, hasEvidence, isLast);
+    // Speaker VAD's raw tail belongs to the native stream. The effective scoring buffer deliberately
+    // spans a suppressed token-only endpoint, but the next stream must not score this segment again.
+    if (!boundary.publish) {
+      this.utteranceSamples = [];
+      return hasEvidence;
+    }
     this.utteranceIndex += 1;
     const pending = new PendingSpeakerFinal(
       result,
-      concatFloat32(this.utteranceSamples),
+      boundary.samples,
       endpointTriggered ? Date.now() : -1,
       decodeDurationMs,
       postProcessMs,
@@ -1294,9 +1378,8 @@ export class AsrSession {
     this.firstPartialLatencyMs = -1;
     this.utteranceSamples = [];
 
-    if (suppressEmpty && !hasEvidence) return false;
-
-    if (this.targetSpeakerEnabled && this.targetExtractor === undefined &&
+    if ((boundary.samples.length > 0 || this.pendingSpeakerFinals.length > 0) &&
+      this.targetSpeakerEnabled && this.targetExtractor === undefined &&
       this.targetExtractorLoad !== undefined) {
       this.pendingSpeakerFinals.push(pending);
       return hasEvidence;
@@ -1307,11 +1390,18 @@ export class AsrSession {
 
   private deliverSpeakerFinal(pending: PendingSpeakerFinal): void {
     this.applyTargetSpeaker(pending.result, pending.samples);
+    if (this.callbackGate.isClosed()) return;
     if (this.targetSpeakerEnabled && pending.result.isTargetSpeaker === false) {
-      this.callback.onFinalRejected?.(pending.result);
+      if (!this.callbackGate.invoke((): void => {
+        this.callback.onFinalRejected?.(pending.result);
+      })) return;
     } else {
-      this.callback.onFinal?.(pending.result.text, pending.result.confidence);
-      this.callback.onFinalResult?.(pending.result);
+      if (!this.callbackGate.invoke((): void => {
+        this.callback.onFinal?.(pending.result.text, pending.result.confidence);
+      })) return;
+      if (!this.callbackGate.invoke((): void => {
+        this.callback.onFinalResult?.(pending.result);
+      })) return;
     }
 
     const metrics = new AmphionMetrics();
@@ -1334,7 +1424,7 @@ export class AsrSession {
       metrics.nativeRssMbAtReady = -1;
     }
     if (metrics.rtf >= 0) this.rtfValues.push(metrics.rtf);
-    this.callback.onMetrics?.(metrics);
+    this.callbackGate.invoke((): void => { this.callback.onMetrics?.(metrics); });
     Logger.metric(metrics.toLogLine());
   }
 
@@ -1343,10 +1433,10 @@ export class AsrSession {
     const pending = this.pendingSpeakerFinals;
     this.pendingSpeakerFinals = [];
     for (let i = 0; i < pending.length; i++) {
-      if (this.closed) break;
+      if (this.callbackGate.isClosed()) break;
       this.deliverSpeakerFinal(pending[i]);
     }
-    if (this.stopNotificationPending && !this.closed) {
+    if (this.stopNotificationPending && !this.callbackGate.isClosed()) {
       this.stopNotificationPending = false;
       this.notifyStopped();
     }
@@ -1374,7 +1464,8 @@ export class AsrSession {
   // endpoint rules stay enabled as a backstop in case the VAD active endpoint misses.
   private feedAndDecode(samples: Float32Array): void {
     let offset = 0;
-    while (offset < samples.length && !this.closed && !this.initialSilenceTracker.hasTimedOut()) {
+    while (offset < samples.length && !this.callbackGate.isClosed() &&
+      !this.initialSilenceTracker.hasTimedOut()) {
       const remaining = samples.length - offset;
       const chunkSize = this.initialSilenceTracker.isArmed() ?
         Math.min(remaining, INITIAL_DECISION_CHUNK_SAMPLES) : remaining;
@@ -1384,17 +1475,22 @@ export class AsrSession {
   }
 
   private feedChunkAndDecode(samples: Float32Array): void {
-    if (this.closed || this.initialSilenceTracker.hasTimedOut()) return;
+    if (this.callbackGate.isClosed() || this.initialSilenceTracker.hasTimedOut()) return;
     this.initialSilenceTracker.observeAcousticSamples(samples);
-    if ((this.targetSpeakerEnabled || this.speakerVadEnabled) && this.utteranceLength() < UTT_MAX_SAMPLES) {
+    if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
+      this.effectiveSpeechBuffer.observe(samples);
+    }
+    if (this.speakerVadEnabled && this.utteranceLength() < UTT_MAX_SAMPLES) {
       // acceptPcmShort reuses one conversion buffer; speaker scoring needs an immutable snapshot.
-      this.utteranceSamples.push(samples.slice());
+      const retained = Math.min(samples.length, UTT_MAX_SAMPLES - this.utteranceLength());
+      this.utteranceSamples.push(samples.slice(0, retained));
     }
 
-    const utteranceBefore = this.utteranceIndex;
+    const resetGenerationBefore = this.recognizerResetGeneration;
     this.feedRecognizer(samples, false);
+    if (this.callbackGate.isClosed()) return;
     if (this.vad === undefined) return;
-    if (this.utteranceIndex !== utteranceBefore) {
+    if (this.recognizerResetGeneration !== resetGenerationBefore) {
       // sherpa endpoint already cut + reset the stream; resync VAD/speaker state to segment start.
       this.resetVadGateState();
       return;
@@ -1414,13 +1510,21 @@ export class AsrSession {
 
     const initialSilenceTimedOut = this.initialSilenceTracker.observeVad(i, anySpeech);
     if (anySpeech) {
-      if (!this.vadSpeechActive) this.callback.onSpeechBegin?.();
+      this.effectiveSpeechBuffer.confirmSpeech();
+      const notifySpeechBegin = !this.vadSpeechActive;
+      // Publish state before the callback. Reentrant writes are queued, but cancel/shutdown may still
+      // close this session synchronously and must observe a coherent transition.
       this.vadSpeechActive = true;
       this.trailingSilenceMs = 0;
+      if (notifySpeechBegin && !this.callbackGate.invoke((): void => {
+        this.callback.onSpeechBegin?.();
+      })) return;
     } else if (initialSilenceTimedOut) {
       if (this.initialSilenceTracker.confirmSpeechLikeActivity()) return;
       if (this.initialSilenceTracker.needsAsrProbe() && this.probeInitialSpeechAtTimeout()) return;
-      if (this.initialSilenceTracker.confirmTimeout()) this.callback.onInitialSilenceTimeout?.();
+      if (this.initialSilenceTracker.confirmTimeout()) {
+        this.callbackGate.invoke((): void => { this.callback.onInitialSilenceTimeout?.(); });
+      }
       return;
     } else if (anySilence && this.vadSpeechActive) {
       this.trailingSilenceMs += Math.round(samples.length * 1000 / 16000);
@@ -1442,8 +1546,8 @@ export class AsrSession {
     this.appendFinalTailSilence();
     this.stream.inputFinished();
     while (this.recognizer.isReady(this.stream)) this.recognizer.decode(this.stream);
-    const hasEvidence = this.dispatchFinal(false, Date.now() - decodeStartMs, false, true);
-    if (!this.closed) {
+    const hasEvidence = this.dispatchFinal(false, Date.now() - decodeStartMs);
+    if (!this.callbackGate.isClosed()) {
       this.finishUtterance(true);
       this.resetVadGateState();
     }
@@ -1454,9 +1558,11 @@ export class AsrSession {
   // stream (Android parity), then resync the VAD/speaker gate. No inputFinished is used here, which
   // is the verified-safe native ordering on Harmony.
   private triggerVadActiveEndpoint(): void {
-    this.callback.onEndpoint?.();
+    if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
     this.dispatchFinal(true, 0);
+    if (this.callbackGate.isClosed()) return;
     this.finishUtterance(true);
+    if (this.callbackGate.isClosed()) return;
     this.resetVadGateState();
   }
 
@@ -1466,15 +1572,17 @@ export class AsrSession {
   // short-command case). Rebuilding gives the next utterance a clean encoder (Android parity).
   private finishUtterance(restart: boolean): void {
     if (!restart) {
-      if (!this.closed) this.recognizer.reset(this.stream);
+      if (!this.callbackGate.isClosed()) this.recognizer.reset(this.stream);
       this.lastPartialText = '';
+      this.recognizerResetGeneration += 1;
       return;
     }
     this.restartStreamAfterUtterance();
+    this.recognizerResetGeneration += 1;
   }
 
   private restartStreamAfterUtterance(): void {
-    if (this.closed) return;
+    if (this.callbackGate.isClosed()) return;
     let hadContent = false;
     try {
       const r = this.recognizer.getResult(this.stream);
@@ -1491,7 +1599,7 @@ export class AsrSession {
   }
 
   private hardRestartStream(): void {
-    if (this.closed) return;
+    if (this.callbackGate.isClosed()) return;
     try {
       const next = this.recognizer.createStream();
       const previous = this.stream;
@@ -1500,7 +1608,9 @@ export class AsrSession {
       // recognizer 已在创建时预热,新 stream 复用暖模型,无需再逐次预热。
     } catch (e) {
       // If rebuilding fails, fall back to a soft reset so the session keeps running.
-      this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `hardRestartStream: ${e}`));
+      if (!this.callbackGate.invoke((): void => {
+        this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `hardRestartStream: ${e}`));
+      })) return;
       this.recognizer.reset(this.stream);
     }
     this.lastPartialText = '';
@@ -1528,22 +1638,27 @@ export class AsrSession {
   }
 
   private applyTargetSpeaker(result: AsrResult, samples: Float32Array): void {
-    if (this.config.targetSpeaker === undefined || this.targetExtractor === undefined || this.targetSpeaker === undefined) return;
-    const minSamples = Math.round(this.config.targetSpeaker.minSegSec * ASR_SAMPLE_RATE_HZ);
+    const config = this.config.targetSpeaker;
+    const extractor = this.targetExtractor;
+    const targetSpeaker = this.targetSpeaker;
+    if (config === undefined || extractor === undefined || targetSpeaker === undefined) return;
+    const minSamples = Math.round(config.minSegSec * ASR_SAMPLE_RATE_HZ);
     if (samples.length < minSamples) {
-      this.callback.onDebug?.(
-        `speaker score unavailable: segment=${Math.round(samples.length * 1000 / ASR_SAMPLE_RATE_HZ)}ms, ` +
-        `minimum=${Math.round(this.config.targetSpeaker.minSegSec * 1000)}ms`);
+      this.callbackGate.invoke((): void => {
+        this.callback.onDebug?.(
+          `speaker score unavailable: effectiveSpeech=${Math.round(samples.length * 1000 / ASR_SAMPLE_RATE_HZ)}ms, ` +
+          `minimum=${Math.round(config.minSegSec * 1000)}ms`);
+      });
       return;
     }
-    const stream = this.targetExtractor.createStream();
+    const stream = extractor.createStream();
     try {
       const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
       stream.acceptWaveform(wave);
-      const embedding = this.targetExtractor.compute(stream);
-      const score = cosineSimilarity(embedding, this.targetSpeaker);
+      const embedding = extractor.compute(stream);
+      const score = cosineSimilarity(embedding, targetSpeaker);
       result.speakerScore = score;
-      result.isTargetSpeaker = score >= this.config.targetSpeaker.threshold;
+      result.isTargetSpeaker = score >= config.threshold;
     } finally {
       stream.close();
     }
@@ -1599,22 +1714,28 @@ export class AsrSession {
   }
 
   private triggerSpeakerVadEndpoint(): void {
-    this.callback.onEndpoint?.();
+    if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
     if (this.svRejectCurrentUtterance) {
       // Target never showed up in this segment: drop the transcription, surface a rejected result.
       // Rebuild the stream so the rejected (non-target) audio doesn't bias the next utterance.
       const rejected = new AsrResult();
       rejected.speakerScore = this.lastSpeakerVadScore;
       rejected.isTargetSpeaker = false;
-      this.callback.onFinalRejected?.(rejected);
+      if (!this.callbackGate.invoke((): void => {
+        this.callback.onFinalRejected?.(rejected);
+      })) return;
       this.restartStreamAfterUtterance();
+      if (this.callbackGate.isClosed()) return;
       this.utteranceSamples = [];
+      this.effectiveSpeechBuffer.reset();
       this.pcmBytesAccepted = 0;
       this.firstPcmMs = -1;
       this.firstPartialLatencyMs = -1;
     } else {
       this.dispatchFinal(true, 0);
+      if (this.callbackGate.isClosed()) return;
       this.restartStreamAfterUtterance();
+      if (this.callbackGate.isClosed()) return;
     }
     this.resetVadGateState();
   }
@@ -1677,7 +1798,7 @@ export class AsrSession {
   }
 
   private releaseStreamIfClosed(): void {
-    if (!this.closed || this.streamCallDepth > 0 || this.streamReleased) return;
+    if (!this.callbackGate.isClosed() || this.streamCallDepth > 0 || this.streamReleased) return;
     this.streamReleased = true;
     this.stream.close();
   }

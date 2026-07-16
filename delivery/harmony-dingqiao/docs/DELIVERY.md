@@ -116,9 +116,13 @@ bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.
 
 # 本次 ASR SDK + demo 交付，不依赖 TTS 构建产物
 bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh --asr-only
+
+# 中英 ASR SDK-only 客户包：不包含 Demo、签名、License、粤英模型或 TTS
+bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh \
+  --sdk-only build/dingqiao-harmony-asr-sdk-0.2.5-20260716
 ```
 
-脚本只收集已构建产物，不负责启动各 SDK 的 DevEco 构建。默认完整模式要求 ASR 和 TTS HAR；`--asr-only` 明确生成只含 ASR SDK/demo 的交付包。正式打包默认要求干净工作区；`--allow-dirty` 只用于本地非发布验收，并会在 `BUILD_PROVENANCE.json` 标记。provenance 记录 Git commit/branch、sherpa submodule 与 patch series、模型源哈希、转换器、native、HAR/HAP 哈希。自包含 ASR HAR 无法被干净宿主安装或编译、所选模式的 HAR 缺失、signed HAP 无效、HAP/HAR 模型 manifest/native 与本地已验收产物不一致或 HAP 内必需资源缺失时都会直接失败，不再生成残缺交付包。
+脚本只收集已构建产物，不负责启动各 SDK 的 DevEco 构建。默认完整模式要求 ASR 和 TTS HAR；`--asr-only` 生成 ASR SDK + demo；`--sdk-only` 生成与客户 0.2.4 参考包同形态的中英 SDK-only 包，只保留一个自包含 HAR 和公开文档。SDK-only 组包会逐项拒绝 Demo HAP、License、TTS、粤英模型、未声明文件、版本不一致、模型清单缺项和 checksum 不一致。正式打包默认要求干净工作区；`--allow-dirty` 只用于本地非发布验收，并会在 `BUILD_PROVENANCE.json` 标记。provenance 记录 Git commit/branch、sherpa submodule 与 patch series、模型源哈希、转换器、native 和实际交付产物哈希。自包含 ASR HAR 无法被干净宿主安装或编译、所选模式的 HAR 缺失、signed HAP 无效、HAP/HAR 模型 manifest/native 与本地已验收产物不一致或 HAP 内必需资源缺失时都会直接失败，不再生成残缺交付包。
 
 客户生命周期闭环说明和机器可读证据摘要在组包前统一执行脱敏检查。检查会拒绝本机用户目录、临时目录、内部压力测试 run ID、明文设备标识、硬件型号代码、测试授权标识和私钥材料；正式版本身份仍由 `BUILD_PROVENANCE.json` 与 `checksum.txt` 提供。
 

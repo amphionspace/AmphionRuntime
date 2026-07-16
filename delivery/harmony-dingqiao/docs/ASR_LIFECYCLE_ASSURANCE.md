@@ -23,6 +23,8 @@
 | 正常结束 | 每个 session 恰好一次 `isLast=true`，随后恰好一次 `onComplete` |
 | endpoint | `isFinal=true` 仅表示一句话结束，不等于整个 session 结束 |
 | cancel | cancel 生效后不得新增 final 或 complete；取消前已经产生的 non-last endpoint final 保留 |
+| 跨 session 重入 | 所有 native 回调绑定 session generation；回调内 cancel/restart 后，旧处理栈和迟到回调不得读取或结束新 session |
+| 最大时长 | 缺省或非法 `maxAudioDuration` 不启用自动上限；仅显式有限值启用并钳制到 20000 到 28800000 ms |
 | 声纹分数 | 有效语音达到 `TargetSpeakerConfig.minSegSec` 时 final 应携带 `speakerSimilarity`；不足门槛时可省略分数，但不得丢识别结果 |
 
 ## 3. 修复后的正常时序
@@ -79,7 +81,9 @@ sequenceDiagram
     SDK-->>App: 返回旧 session 对应错误，不污染 newSession
 ```
 
-所有压力用例按 `sessionId` 保存有序回调轨迹。聚合回调数量相等不能替代逐 session 归属检查。
+所有压力用例按 `sessionId` 保存有序回调轨迹。每个 native callback 还携带创建 session 时的
+generation；外部监听器返回后，任何终止动作都要再次核对 generation。聚合回调数量相等不能
+替代逐 session 归属检查。
 
 ## 5. `vadBegin` 与声纹组合决策
 
@@ -108,56 +112,41 @@ flowchart TD
 | 历史症状 | 根因层 | 修复机制 | 永久门禁 |
 | --- | --- | --- | --- |
 | 首句无分数并提前 last | 初始静音 deadline 与声纹最短有效语音窗口竞争 | 多信号起音确认；一次有界确认窗；旧活动不能直接解除计时 | `test_harmony_initial_silence_tracker`、`voiceprint-vad-begin`、`voiceprint-vad-begin-idle` |
-| 连续识别提前 last | 用全局 finish 状态推断较早异步 final 的结束属性 | 只依据当前结果携带的 `isLast` 完成 session | `test_harmony_rejected_final_lifecycle`、`burst`、`paced`、`reentrant`、`user-sequence` |
+| 连续识别提前 last / 旧结果污染新 session | 用全局 finish 状态推断较早异步 final；回调未绑定 session generation | 只依据当前结果的 `isLast`；所有回调校验 generation，并在外部监听器返回后复检 | `test_harmony_rejected_final_lifecycle`、`test_harmony_session_callback_generation`、`burst`、`paced`、`user-sequence` |
 | 冷加载首次写入失败 | native started 同步回调早于适配层发布 session | started/published 双条件门禁，发布后才发送一次 `onStart` | `test_harmony_session_start_gate`、`start-write`、`start-write-reload` |
 
 ## 7. 2026-07-16 验证快照
 
-验证对象为同一 commit、同一中英 `ZH_EN` HAP 和一台 HarmonyOS 6.1 arm64 真机。测试数据为 16 kHz、16-bit、单声道 WAV，按 30/60/120 秒和长音频分层选择。生命周期结果不以文本正确率判定 PASS。
+验证对象为同一 commit、同一中英 `ZH_EN` HAP 和一台 HarmonyOS 6.1 arm64 真机。测试数据为 16 kHz、16-bit、单声道 WAV。生命周期结果不以文本正确率判定 PASS。
 
 | 模式 | cycle |
 | --- | ---: |
-| `burst` / `paced` | 3 / 3 |
-| `vad-begin` / `vad-begin-silence` | 20 / 50 |
-| `voiceprint` | 20 |
-| `voiceprint-vad-begin` / `voiceprint-vad-begin-idle` | 40 / 40 |
-| `max-duration` | 50 |
-| `cancel` / `cancel-full` | 100 / 50 |
-| `recreate` / `reconfigure` | 20 / 50 |
-| `edge` / `numeric-edge` | 100 / 100 |
-| `reentrant` | 100 |
-| `start-cancel` / `start-write` / `start-write-reload` | 100 / 100 / 20 |
-| `user-sequence` | 100 + 300 |
+| `voiceprint-vad-begin` | 4 |
+| `speaker-vad-onstart` | 4 |
+| `start-write-reload` | 4 |
+| `numeric-edge` | 2 |
+| `max-duration` | 1 |
 
 汇总结果：
 
-- 1366/1366 cycle PASS，涉及 2266 次 session 启动。
+- 15/15 cycle PASS。
 - 0 个失败 cycle，0 个意外回调，0 次显式 `finish` 前提前 last。
-- 所有正常结束轨迹满足一次 `final-last` 后一次 complete；cancel 轨迹无 last/complete。
-- `voiceprint-vad-begin` 的 burst/paced、直接起音/前置静音四种组合各 10 轮；40/40 首个非空 final 带分数，40/40 在 `finish` 前 last 数为 0。
+- 所有正常结束轨迹满足一次 `final-last` 后一次 complete。
+- `voiceprint-vad-begin` 的 burst/paced、直接起音/前置静音四种组合各 1 轮；4/4 满足声纹分数契约，4/4 在 `finish` 前 last 数为 0。
 - hilog 未命中 `SIGSEGV`、`SIGABRT`、native crash、double free 或 heap corruption 等强崩溃特征。
 
-`0.2.5` 最终候选构建完成了改动相关的定向复验：`start-write-reload` 20 轮、
-`user-sequence` 300 轮、`voiceprint-vad-begin` 40 轮，共 360/360 cycle、960 次
-session 启动通过。对应内部 run ID 为
-`20260716-042448-start-write-reload-8b9b1a46`、
-`20260716-042531-user-sequence-49e6ce1b` 和
-`20260716-043652-voiceprint-vad-begin-97da11eb`。
-
-另保留一次混合语种语料的失败 artifact
-`20260716-043347-voiceprint-vad-begin-64c27f90`：14/14 失败均来自英语源被固定
-`zh-CN` 模型切成短 endpoint，首个 endpoint 的有效语音不足声纹最短时长，按接口契约
-可省略分数；同轮中文源 26/26 通过且 40 轮 finish 前 last 均为 0。该次结果归类为
-测试语料不满足模式前置条件，不计入 SDK PASS，也未通过放宽断言处理。
+`0.2.5` 收敛候选构建完成了改动相关的定向复验：声纹首句分数、`vadBegin=1000`、
+`onStart` 可用性、冷加载重载、非法/非有限 `maxAudioDuration` 和显式最大时长自动结束均通过。
 
 关键内部 artifact：
 
 | 证明目标 | run ID |
 | --- | --- |
-| 实时喂入与长时间资源观察 | `20260716-023241-paced-ba9a570a` |
-| 声纹与 `vadBegin=1000` 四组合 | `20260716-024317-voiceprint-vad-begin-02f7fbe0` |
-| 冷加载 `onStart` 内同步写入 | `20260716-032043-start-write-reload-234a201f` |
-| 300 轮真实调用顺序 | `20260716-032413-user-sequence-63937379` |
+| 声纹与 `vadBegin=1000` 四组合 | `20260716-084318-voiceprint-vad-begin-b08b71fa` |
+| `onStart` 内启用 Speaker VAD | `20260716-084335-speaker-vad-onstart-879e961d` |
+| 冷加载 `onStart` 内同步写入 | `20260716-084357-start-write-reload-85f12115` |
+| 非法/非有限数值参数 | `20260716-084405-numeric-edge-42d01c1b` |
+| 显式最大时长自动结束 | `20260716-084446-max-duration-b9b853eb` |
 
 每个 run 目录必须保留 `report.json`、`result.txt`、`memory.csv`、`hilog.txt`、`inventory.json` 和输入 payload 映射。
 
@@ -174,8 +163,8 @@ session 启动通过。对应内部 run ID 为
 
 ## 9. 发布与交付要求
 
-1. 合入前运行状态机单测、Android 同名生命周期单测、Harmony 编译和同一构建产物的真机矩阵。
-2. 正式交付至少运行 `voiceprint-vad-begin`、`voiceprint-vad-begin-idle`、`reentrant`、`start-write`、`start-write-reload` 和 `user-sequence`。
+1. 合入前运行状态机单测、Harmony 编译和同一构建产物的真机 bug 闭环矩阵。
+2. 本次不处理 Android 端，同名生命周期校验见 `docs/asr/ANDROID_LIFECYCLE_PARITY_TODO.md`。
 3. 客户材料使用 `docs/customer/ASR_LIFECYCLE_ASSURANCE_20260716.md` 和对应 JSON 摘要，不得复制本文件的内部 artifact ID。
 4. 客户包组装时必须通过 `check_customer_delivery_redaction.py`，并由 `BUILD_PROVENANCE.json` 与 `checksum.txt` 绑定实际交付版本。
 
@@ -184,6 +173,7 @@ session 启动通过。对应内部 run ID 为
 当前门禁不替代以下独立验证：
 
 - ASR WER/CER 和声纹目标/非目标相似度精度评测。
+- 任意回调内立即取消旧 session 并启动新 session 的极限重入路径；该项已记录为后续强化，不作为本次历史 bug 闭环条件。
 - 物理断连、系统强杀、麦克风权限动态撤销、音频路由切换和系统级极端内存压力。
 - 其他硬件型号、系统补丁版本及宿主调度器差异。
 

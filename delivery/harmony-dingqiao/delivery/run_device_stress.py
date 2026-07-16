@@ -30,7 +30,7 @@ MODULE = "dingqiao_demo"
 ABILITY = "EntryAbility"
 REMOTE_ROOT = "/data/storage/el2/base/files/asr-stress"
 FINISH_MODES = {
-    "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration", "numeric-edge"
+    "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration", "numeric-edge",
 }
 MIN_MEMORY_SAMPLES = 6
 MIN_MEMORY_OBSERVATION_SECONDS = 15.0
@@ -87,6 +87,9 @@ def parse_args() -> argparse.Namespace:
             "start-cancel",
             "start-write",
             "start-write-reload",
+            "speaker-vad-onstart",
+            "callback-api-reentrant",
+            "endpoint-reentrant",
             "user-sequence",
             "numeric-edge",
         ),
@@ -454,14 +457,17 @@ def run_stress(args: argparse.Namespace) -> Path:
     hdc = Hdc(hdc_path, device)
     all_sources = inspect_wavs(args.data_dir.expanduser().resolve())
     selected = representative_sources(all_sources, args.files)
-    if args.mode == "voiceprint-vad-begin":
+    if args.mode in ("voiceprint-vad-begin", "speaker-vad-onstart"):
         # The carrier adds 800 ms leading silence in half the cycles. Keep only sources whose own
         # first 200 ms already contain signal, so that case still places speech before vadBegin.
         # Otherwise the test would correctly time out before the source itself starts speaking.
         selected.sort(key=initial_signal_level, reverse=True)
-        selected = [source for source in selected if initial_signal_level(source, 0.2) >= 0.015][:8]
+        selected = [source for source in selected if initial_signal_level(source, 0.2) >= 0.015]
+        # Runtime Speaker VAD rejects non-target speakers, so its enrollment and recognition source
+        # must be identical. Verification-only mode can intentionally span several sources.
+        selected = selected[:1] if args.mode == "speaker-vad-onstart" else selected[:8]
         if not selected:
-            raise StressFailure("voiceprint-vad-begin requires a source with a non-silent onset")
+            raise StressFailure(f"{args.mode} requires a source with a non-silent onset")
     elif args.mode == "voiceprint-vad-begin-idle":
         selected.sort(key=initial_signal_level, reverse=True)
         selected = selected[:1]

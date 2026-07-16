@@ -6,7 +6,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 SOURCE_PROJECT="$REPO_ROOT/delivery/harmony-dingqiao"
-HAR="${1:?Usage: verify_selfcontained_dingqiao_har.sh HAR}"
+ZH_EN_ONLY=false
+if [[ "${1:-}" == "--zh-en-only" ]]; then
+  ZH_EN_ONLY=true
+  shift
+fi
+HAR="${1:?Usage: verify_selfcontained_dingqiao_har.sh [--zh-en-only] HAR}"
+[[ $# -eq 1 ]] || { echo "[ERROR] unexpected arguments" >&2; exit 2; }
 DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
 NODE="$DEVECO_HOME/tools/node/bin/node"
 HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
@@ -34,17 +40,23 @@ python3 - \
   "$REPO_ROOT/asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police" \
   "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
-  "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" <<'PY'
+  "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
+  "$ZH_EN_ONLY" \
+  "$SCRIPT_DIR" <<'PY'
 import sys
 import tarfile
 import json
 import hashlib
+import importlib.util
 from pathlib import Path
+import shutil
+import tempfile
 
 har = Path(sys.argv[1])
 police_root = Path(sys.argv[3])
+zh_en_only = sys.argv[7] == "true"
+script_dir = Path(sys.argv[8])
 expected = {
-    "package/_bundled/amphion_asr/src/main/resources/rawfile/amphion-models/manifest.json": Path(sys.argv[2]),
     "package/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx": Path(sys.argv[4]),
     "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[5]),
     "package/_bundled/amphion_asr/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[6]),
@@ -52,6 +64,22 @@ expected = {
     "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[6]),
 }
 with tarfile.open(har, "r:gz") as package:
+    manifest_member = package.extractfile(
+        "package/_bundled/amphion_asr/src/main/resources/rawfile/amphion-models/manifest.json"
+    )
+    if manifest_member is None:
+        raise SystemExit("[ERROR] self-contained HAR is missing model manifest")
+    embedded_manifest = json.loads(manifest_member.read())
+    local_manifest = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+    if zh_en_only:
+        allowed = {"zh-en/v1", "punct-zhen/v1", "itn-zh/v1", "vad/v1"}
+        local_manifest["bundles"] = {
+            name: entries
+            for name, entries in local_manifest["bundles"].items()
+            if name in allowed
+        }
+    if embedded_manifest != local_manifest:
+        raise SystemExit("[ERROR] self-contained HAR model manifest differs from expected delivery selection")
     for member_name, local_path in expected.items():
         member = package.extractfile(member_name)
         if member is None:
@@ -60,7 +88,31 @@ with tarfile.open(har, "r:gz") as package:
             raise SystemExit(
                 f"[ERROR] self-contained HAR entry differs from verified local artifact: {member_name}"
             )
-    police_manifest = json.loads((police_root / "manifest.json").read_text(encoding="utf-8"))
+    if zh_en_only:
+        module_path = script_dir / "sanitize_public_har_payload.py"
+        spec = importlib.util.spec_from_file_location("sanitize_public_har_payload", module_path)
+        if spec is None or spec.loader is None:
+            raise SystemExit(f"[ERROR] cannot load public HAR sanitizer: {module_path}")
+        sanitizer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sanitizer)
+        with tempfile.TemporaryDirectory() as directory:
+            package_root = Path(directory) / "package"
+            public_police_root = package_root / sanitizer.POLICE_RELATIVE_ROOT
+            shutil.copytree(police_root, public_police_root)
+            sanitizer.sanitize_payload(package_root)
+            police_manifest = json.loads(
+                (public_police_root / "manifest.json").read_text(encoding="utf-8")
+            )
+    else:
+        police_manifest = json.loads((police_root / "manifest.json").read_text(encoding="utf-8"))
+    embedded_police_manifest_name = (
+        "package/_bundled/amphion_police/src/main/resources/rawfile/amphion-police/manifest.json"
+    )
+    embedded_police_manifest = package.extractfile(embedded_police_manifest_name)
+    if embedded_police_manifest is None:
+        raise SystemExit("[ERROR] self-contained HAR is missing police manifest")
+    if json.loads(embedded_police_manifest.read()) != police_manifest:
+        raise SystemExit("[ERROR] self-contained HAR police manifest differs from public selection")
     for relative, expected_sha256 in police_manifest["files"].items():
         member_name = f"package/_bundled/amphion_police/src/main/resources/rawfile/amphion-police/{relative}"
         member = package.extractfile(member_name)
@@ -68,6 +120,8 @@ with tarfile.open(har, "r:gz") as package:
             raise SystemExit(f"[ERROR] self-contained HAR is missing police asset: {member_name}")
         if hashlib.sha256(member.read()).hexdigest() != expected_sha256:
             raise SystemExit(f"[ERROR] self-contained HAR police asset differs from Android: {member_name}")
+    if zh_en_only and any("yue-en" in member.name.lower() for member in package.getmembers()):
+        raise SystemExit("[ERROR] zh-en-only HAR still contains Yue model content")
 print("[OK] self-contained HAR ASR/voiceprint models, police assets, and native libraries match local artifacts")
 PY
 
@@ -88,7 +142,8 @@ python3 - \
   "$CUSTOMER_PROJECT/build-profile.json5" \
   "$CUSTOMER_PROJECT/oh-package.json5" \
   "$ENTRY/oh-package.json5" \
-  "$ENTRY/src/main/ets/entryability/EntryAbility.ets" <<'PY'
+  "$ENTRY/src/main/ets/entryability/EntryAbility.ets" \
+  "$CUSTOMER_PROJECT/hvigor/hvigor-config.json5" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -97,6 +152,25 @@ profile_path = Path(sys.argv[1])
 root_package_path = Path(sys.argv[2])
 entry_package_path = Path(sys.argv[3])
 entry_ability_path = Path(sys.argv[4])
+hvigor_config_path = Path(sys.argv[5])
+
+# Generate this ignored DevEco file so the clean-host check never depends on workstation state.
+hvigor_config_path.parent.mkdir(parents=True, exist_ok=True)
+hvigor_config_path.write_text(
+    json.dumps(
+        {
+            "modelVersion": "5.0.0",
+            "dependencies": {},
+            "execution": {},
+            "logging": {},
+            "debugging": {},
+            "nodeOptions": {},
+        },
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
 
 profile = json.loads(profile_path.read_text(encoding="utf-8"))
 profile["app"]["signingConfigs"] = []
