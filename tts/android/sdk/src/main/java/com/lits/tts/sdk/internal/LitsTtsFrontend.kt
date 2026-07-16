@@ -1440,7 +1440,8 @@ internal object LitsTtsFrontend {
         for (position in 0 until pinyinIndices.lastIndex) {
             val current = pinyinIndices[position]
             val next = pinyinIndices[position + 1]
-            if (output[current].last() == '3' && output[next].last() == '3') {
+            // 点(dian3) as decimal-point / time marker keeps citation tone (golden wants dian3)
+            if (output[current].last() == '3' && output[next].last() == '3' && output[current] != "dian3") {
                 output[current] = output[current].dropLast(1) + "2"
             }
         }

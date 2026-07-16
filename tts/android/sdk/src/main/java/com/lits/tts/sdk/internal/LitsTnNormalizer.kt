@@ -67,6 +67,7 @@ internal object LitsTnNormalizer {
             }
             output = frontendRules.apply("pre_tn", output)
             output = protectSemanticNumericReadings(output)
+            output = bigCardinalRegex.replace(output) { m -> bigCardinalToHanzi(m.groupValues[1]) ?: m.value }
             output = protectTechnicalAsciiReadings(output)
             output = protectVinCodes(output)
             output = protectProductCodes(output)
@@ -189,6 +190,10 @@ internal object LitsTnNormalizer {
             output = yearBeforeNianRegex.replace(output) { match ->
                 digitSequenceToHanzi(match.groupValues[1]) + "年"
             }
+            output = yearBeforeNianTwoRegex.replace(output) { match ->
+                digitSequenceToHanzi(match.groupValues[1]) + "年"
+            }
+            output = negBeforeNumberRegex.replace(output) { "负" }
             return output
         }
 
@@ -262,6 +267,38 @@ internal object LitsTnNormalizer {
             val integer = integerTextToHanzi(parts[0])
             if (parts.size == 1) return integer
             return integer + "点" + parts[1].map { chineseDigitTextByChar.getValue(it) }.joinToString("")
+        }
+
+        // Big-number cardinal: standard 万/亿 segmentation with correct 零 handling.
+        private fun bigCardinalToHanzi(text: String): String? {
+            val v = text.toLongOrNull() ?: return null
+            if (v == 0L) return "零"
+            val big = listOf("", "万", "亿", "万亿", "亿亿")
+            val segs = mutableListOf<Int>(); var x = v
+            while (x > 0) { segs.add((x % 10000).toInt()); x /= 10000 }
+            if (segs.size > big.size) return null
+            val sb = StringBuilder()
+            for (i in segs.indices.reversed()) {
+                val seg = segs[i]
+                if (seg == 0) continue
+                if (sb.isNotEmpty() && seg < 1000) sb.append("零")
+                sb.append(fourDigitCardinal(seg)).append(big[i])
+            }
+            return sb.toString()
+        }
+
+        private fun fourDigitCardinal(n: Int): String {
+            val sb = StringBuilder(); var zero = false; var started = false
+            val units = listOf("", "十", "百", "千")
+            for (pos in 3 downTo 0) {
+                var div = 1; repeat(pos) { div *= 10 }
+                val d = (n / div) % 10
+                if (d == 0) { if (started) zero = true } else {
+                    if (zero) { sb.append("零"); zero = false }
+                    sb.append(chineseDigitTextByChar.getValue(d.digitToChar())).append(units[pos]); started = true
+                }
+            }
+            return sb.toString()
         }
 
         private fun integerTextToHanzi(text: String): String {
@@ -444,6 +481,11 @@ internal object LitsTnNormalizer {
             private val percentNumberTextRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?百分号")
             private val clockColonMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2}):0([0-9])(?!\\d)")
             private val yearBeforeNianRegex = Regex("(?<!\\d)(\\d{4})\\s*年")
+            private val yearBeforeNianTwoRegex = Regex("(?<!\\d)(0\\d)年")  // 05年->零五年 (leading-zero only)
+            // leading minus before a number / percent -> 负 (not a range like 1-2)
+            private val negBeforeNumberRegex = Regex("(?<![0-9A-Za-z\\u4e00-\\u9fff])[-\\u2212](?=\\d|百分之)")
+            // >=7-digit isolated number (native only spells out <=6 digits); not after '.' (decimal tail)
+            private val bigCardinalRegex = Regex("(?<![0-9A-Za-z.])(\\d{7,15})(?![0-9])")
             private val semanticVersionRegex = Regex("(?<![A-Za-z0-9])([vV])(\\d+(?:\\.\\d+)+)(?![A-Za-z0-9])")
             private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])([A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
             private val technicalSymbolChars = setOf('.', '/', '\\', '_', '@', ':', '?', '=', '&', '#', '%', '+', '-')
@@ -458,8 +500,10 @@ internal object LitsTnNormalizer {
                 Regex("(?<![0-9A-Za-z])(\\d{4})[-/.](\\d{1,2})[-/.](\\d{1,2})(?![0-9])")
             private val dateMdySepRegex =
                 Regex("(?<![0-9A-Za-z])(\\d{1,2})[-/.](\\d{1,2})[-/.](\\d{4})(?![0-9])")
-            private val dateYmSepRegex = Regex("(?<![0-9A-Za-z])(\\d{4})[-/.](\\d{1,2})(?![0-9])")
-            private val dateMySepRegex = Regex("(?<![0-9A-Za-z])(\\d{1,2})[-/.](\\d{4})(?![0-9])")
+            // two-segment YM/MY: month is zero-padded 2 digits (golden always is), so a
+            // decimal like 5.5555 (1-digit + 4-digit) is not mistaken for MM.YYYY.
+            private val dateYmSepRegex = Regex("(?<![0-9A-Za-z])(\\d{4})[-/.](0[1-9]|1[0-2])(?![0-9])")
+            private val dateMySepRegex = Regex("(?<![0-9A-Za-z])(0[1-9]|1[0-2])[-/.](\\d{4})(?![0-9])")
             private val dateMdSepRegex = Regex("(?<![0-9A-Za-z])(\\d{2})[-/.](\\d{2})(?![0-9])")
             // Superscript area/volume units: NFKC folds ²->2 / ³->3, so expand before cleaning.
             private val superscriptUnitRegex =

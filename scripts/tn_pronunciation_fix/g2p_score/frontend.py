@@ -26,6 +26,35 @@ def numberTextToHanzi(t):
     p=t.split('.',1); integer=intToHanzi(p[0])
     if len(p)==1: return integer
     return integer+'点'+''.join(CH[c] for c in p[1])
+# Big-number cardinal reading (native RBNF only spells out <=6 digits; >=7 read
+# digit-by-digit). Standard 万/亿 segmentation with correct 零 handling.
+_BIG=['','万','亿','万亿','亿亿']
+def _fourHanzi(n):
+    s=''; zero=False; started=False
+    for pos in range(3,-1,-1):
+        d=(n//(10**pos))%10
+        if d==0:
+            if started: zero=True
+        else:
+            if zero: s+='零'; zero=False
+            s+=CH[str(d)]+['','十','百','千'][pos]; started=True
+    return s
+def bigCardinal(n):
+    if n==0: return '零'
+    segs=[]; x=n
+    while x>0: segs.append(x%10000); x//=10000
+    if len(segs)>len(_BIG): return None
+    res=''
+    for i in range(len(segs)-1,-1,-1):
+        seg=segs[i]
+        if seg==0: continue
+        if res and seg<1000: res+='零'
+        res+=_fourHanzi(seg)+_BIG[i]
+    return res
+R_bigcardinal=re.compile(r'(?<![0-9A-Za-z.])(\d{7,15})(?![0-9])')  # not after '.' (decimal tail reads digit-by-digit)
+def expandBigCardinal(text):
+    return R_bigcardinal.sub(lambda m: bigCardinal(int(m.group(1))) or m.group(0), text)
+
 def versionToHanzi(t): return '点'.join(digitSeqToHanzi(x) for x in t.split('.'))
 def normSerial(code): return ''.join(CH.get(c,c) for c in code)
 
@@ -60,6 +89,9 @@ R_percent=re.compile(r'(\d+(?:\.\d+)?)\s?[%％]')
 R_percentText=re.compile(r'(\d+(?:\.\d+)?)\s?百分号')
 R_clockColon=re.compile(r'(?<!\d)(\d{1,2}):0([0-9])(?!\d)')
 R_year=re.compile(r'(?<!\d)(\d{4})\s*年')
+R_year2=re.compile(r'(?<!\d)(0\d)年')  # leading-zero 2-digit year digit-by-digit: 05年->零五年 (not 35年)
+# leading minus before a number / percent -> 负 (not a range like 1-2, whose - follows a digit)
+R_neg=re.compile(r'(?<![0-9A-Za-z一-鿿])[-−](?=\d|百分之)')
 R_semver=re.compile(r'(?<![A-Za-z0-9])([vV])(\d+(?:\.\d+)+)(?![A-Za-z0-9])')
 R_techToken=re.compile(r'(?<![A-Za-z0-9])([A-Za-z0-9./\\_@:?=&#%+\-]*[A-Za-z0-9])(?![A-Za-z0-9])')
 R_chem=re.compile(r'\b(H|CO)(\d+)(O?)\b')
@@ -80,8 +112,10 @@ R_serial=re.compile(r'((?:设备)?(?:序列号|编号)|S/N|SN)(\s*)([A-Z0-9]*[A-
 # scores/fractions/decimals/IPs (1/2, 中国1-2, 13.5, 127.0.0.1 all have a 1-digit seg).
 R_dateYMD=re.compile(r'(?<![0-9A-Za-z])(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?![0-9])')
 R_dateMDY=re.compile(r'(?<![0-9A-Za-z])(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?![0-9])')
-R_dateYM =re.compile(r'(?<![0-9A-Za-z])(\d{4})[-/.](\d{1,2})(?![0-9])')
-R_dateMY =re.compile(r'(?<![0-9A-Za-z])(\d{1,2})[-/.](\d{4})(?![0-9])')
+# two-segment YM/MY: month must be zero-padded 2 digits (golden always is), so
+# a decimal like 5.5555 (1-digit + 4-digit) is NOT mistaken for MM.YYYY.
+R_dateYM =re.compile(r'(?<![0-9A-Za-z])(\d{4})[-/.](0[1-9]|1[0-2])(?![0-9])')
+R_dateMY =re.compile(r'(?<![0-9A-Za-z])(0[1-9]|1[0-2])[-/.](\d{4})(?![0-9])')
 R_dateMD =re.compile(r'(?<![0-9A-Za-z])(\d{2})[-/.](\d{2})(?![0-9])')
 def _vMonth(mo): return 1<=int(mo)<=12
 def _vDay(d):    return 1<=int(d)<=31
@@ -167,6 +201,8 @@ def protectSemanticNumeric(text):
     text=R_kmh.sub(lambda m:numberTextToHanzi(m.group(1))+'千米每小时', text)
     text=R_clockColon.sub(lambda m:numberTextToHanzi(m.group(1))+'点零'+CH[m.group(2)], text)
     text=R_year.sub(lambda m:digitSeqToHanzi(m.group(1))+'年', text)
+    text=R_year2.sub(lambda m:digitSeqToHanzi(m.group(1))+'年', text)
+    text=R_neg.sub('负', text)
     return text
 
 def prepare_input(text):
@@ -174,6 +210,7 @@ def prepare_input(text):
     text=R_hanziClock.sub(lambda m:m.group(1)+'点零'+CH[m.group(2)]+'分', text)
     text=frontend_apply('pre_tn', text)
     text=protectSemanticNumeric(text)
+    text=expandBigCardinal(text)   # >=7-digit isolated numbers -> cardinal (after ID/phone rules)
     text=protectTechnicalAscii(text)
     text=R_vin.sub(lambda m:m.group(1)+normSerial(m.group(2)), text)
     text=R_product.sub(lambda m:m.group(1)+normSerial(m.group(2))+m.group(3), text)
