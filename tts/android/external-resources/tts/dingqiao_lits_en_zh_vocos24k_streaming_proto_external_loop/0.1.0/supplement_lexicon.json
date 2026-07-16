@@ -3,7 +3,7 @@
   "cmudict": "data/cmudict-0.7b",
   "pair_count": 1981,
   "aligned_line_count": 1935,
-  "entry_count": 986,
+  "entry_count": 1050,
   "entries": {
     "A-WEEK": {
       "phones": [
@@ -12260,6 +12260,755 @@
       "count": 1,
       "example": "WYSIWYG",
       "source": "kaikki-common-acronym"
+    },
+    "AACOM": {
+      "phones": [
+        "EY1",
+        "K",
+        "AA0",
+        "M"
+      ],
+      "count": 1,
+      "example": "AACOM",
+      "source": "kaikki-pronounceable"
+    },
+    "AACU": {
+      "phones": [
+        "AE1",
+        "K",
+        "UH0"
+      ],
+      "count": 1,
+      "example": "AACU",
+      "source": "kaikki-pronounceable"
+    },
+    "ACAB": {
+      "phones": [
+        "EY1",
+        "K",
+        "AE0",
+        "B"
+      ],
+      "count": 1,
+      "example": "ACAB",
+      "source": "kaikki-pronounceable"
+    },
+    "ACARS": {
+      "phones": [
+        "EY1",
+        "K",
+        "AA0",
+        "R",
+        "S"
+      ],
+      "count": 1,
+      "example": "ACARS",
+      "source": "kaikki-pronounceable"
+    },
+    "ACOTAR": {
+      "phones": [
+        "AE1",
+        "K",
+        "AH0",
+        "T",
+        "AA2",
+        "R"
+      ],
+      "count": 1,
+      "example": "ACOTAR",
+      "source": "kaikki-pronounceable"
+    },
+    "AFOL": {
+      "phones": [
+        "AE1",
+        "F",
+        "AA0",
+        "L"
+      ],
+      "count": 1,
+      "example": "AFOL",
+      "source": "kaikki-pronounceable"
+    },
+    "AFRICOM": {
+      "phones": [
+        "AE1",
+        "F",
+        "R",
+        "IH0",
+        "K",
+        "AA0",
+        "M"
+      ],
+      "count": 1,
+      "example": "AFRICOM",
+      "source": "kaikki-pronounceable"
+    },
+    "AGR": {
+      "phones": [
+        "EY2",
+        "JH",
+        "IY0",
+        "AA1",
+        "R"
+      ],
+      "count": 1,
+      "example": "AGR",
+      "source": "kaikki-pronounceable"
+    },
+    "AMAB": {
+      "phones": [
+        "EY1",
+        "M",
+        "AE0",
+        "B"
+      ],
+      "count": 1,
+      "example": "AMAB",
+      "source": "kaikki-pronounceable"
+    },
+    "AMOC": {
+      "phones": [
+        "EY1",
+        "M",
+        "AA0",
+        "K"
+      ],
+      "count": 1,
+      "example": "AMOC",
+      "source": "kaikki-pronounceable"
+    },
+    "AMPAS": {
+      "phones": [
+        "AE1",
+        "M",
+        "P",
+        "AE0",
+        "S"
+      ],
+      "count": 1,
+      "example": "AMPAS",
+      "source": "kaikki-pronounceable"
+    },
+    "APUSH": {
+      "phones": [
+        "EY1",
+        "P",
+        "UH0",
+        "SH"
+      ],
+      "count": 1,
+      "example": "APUSH",
+      "source": "kaikki-pronounceable"
+    },
+    "CAML": {
+      "phones": [
+        "K",
+        "AE1",
+        "M",
+        "AH0",
+        "L"
+      ],
+      "count": 1,
+      "example": "Caml",
+      "source": "kaikki-pronounceable"
+    },
+    "CAVOK": {
+      "phones": [
+        "K",
+        "AE0",
+        "V",
+        "OW2",
+        "K",
+        "EY1"
+      ],
+      "count": 1,
+      "example": "CAVOK",
+      "source": "kaikki-pronounceable"
+    },
+    "CELTA": {
+      "phones": [
+        "S",
+        "EH1",
+        "L",
+        "T",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "CELTA",
+      "source": "kaikki-pronounceable"
+    },
+    "CFIT": {
+      "phones": [
+        "S",
+        "IY1",
+        "F",
+        "IH0",
+        "T"
+      ],
+      "count": 1,
+      "example": "CFIT",
+      "source": "kaikki-pronounceable"
+    },
+    "CIVETS": {
+      "phones": [
+        "S",
+        "IH1",
+        "V",
+        "IH0",
+        "T",
+        "S"
+      ],
+      "count": 1,
+      "example": "CIVETS",
+      "source": "kaikki-pronounceable"
+    },
+    "CRINK": {
+      "phones": [
+        "K",
+        "R",
+        "IH1",
+        "NG",
+        "K"
+      ],
+      "count": 1,
+      "example": "CRINK",
+      "source": "kaikki-pronounceable"
+    },
+    "CSIS": {
+      "phones": [
+        "S",
+        "IY1",
+        "S",
+        "IH0",
+        "S"
+      ],
+      "count": 1,
+      "example": "CSIS",
+      "source": "kaikki-pronounceable"
+    },
+    "CTAB": {
+      "phones": [
+        "S",
+        "IY1",
+        "T",
+        "AE0",
+        "B"
+      ],
+      "count": 1,
+      "example": "CTAB",
+      "source": "kaikki-pronounceable"
+    },
+    "DOGSO": {
+      "phones": [
+        "D",
+        "AA1",
+        "G",
+        "S",
+        "OW0"
+      ],
+      "count": 1,
+      "example": "DOGSO",
+      "source": "kaikki-pronounceable"
+    },
+    "DOTA": {
+      "phones": [
+        "D",
+        "OW1",
+        "T",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "DotA",
+      "source": "kaikki-pronounceable"
+    },
+    "EDCA": {
+      "phones": [
+        "EH1",
+        "D",
+        "K",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "EDCA",
+      "source": "kaikki-pronounceable"
+    },
+    "EDRO": {
+      "phones": [
+        "IY1",
+        "D",
+        "R",
+        "OW0"
+      ],
+      "count": 1,
+      "example": "EDRO",
+      "source": "kaikki-pronounceable"
+    },
+    "EFTPOS": {
+      "phones": [
+        "EH0",
+        "F",
+        "T",
+        "P",
+        "AA1",
+        "S"
+      ],
+      "count": 1,
+      "example": "EFTPOS",
+      "source": "kaikki-pronounceable"
+    },
+    "FAFO": {
+      "phones": [
+        "F",
+        "EY1",
+        "F",
+        "OW0"
+      ],
+      "count": 1,
+      "example": "FAFO",
+      "source": "kaikki-pronounceable"
+    },
+    "FDII": {
+      "phones": [
+        "F",
+        "IH1",
+        "D",
+        "IY0"
+      ],
+      "count": 1,
+      "example": "FDII",
+      "source": "kaikki-pronounceable"
+    },
+    "FIP": {
+      "phones": [
+        "F",
+        "IH1",
+        "P"
+      ],
+      "count": 1,
+      "example": "FIP",
+      "source": "kaikki-pronounceable"
+    },
+    "FODMAP": {
+      "phones": [
+        "F",
+        "AA1",
+        "D",
+        "M",
+        "AE0",
+        "P"
+      ],
+      "count": 1,
+      "example": "FODMAP",
+      "source": "kaikki-pronounceable"
+    },
+    "FSMA": {
+      "phones": [
+        "F",
+        "IH1",
+        "Z",
+        "M",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "FSMA",
+      "source": "kaikki-pronounceable"
+    },
+    "IJBOL": {
+      "phones": [
+        "IY1",
+        "JH",
+        "B",
+        "OW0",
+        "L"
+      ],
+      "count": 1,
+      "example": "IJBOL",
+      "source": "kaikki-pronounceable"
+    },
+    "IMSI": {
+      "phones": [
+        "IH1",
+        "M",
+        "Z",
+        "IY0"
+      ],
+      "count": 1,
+      "example": "IMSI",
+      "source": "kaikki-pronounceable"
+    },
+    "IUPAC": {
+      "phones": [
+        "AY1",
+        "Y",
+        "UW0",
+        "P",
+        "AE0",
+        "K"
+      ],
+      "count": 1,
+      "example": "IUPAC",
+      "source": "kaikki-pronounceable"
+    },
+    "MAHA": {
+      "phones": [
+        "M",
+        "AA1",
+        "HH",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "MAHA",
+      "source": "kaikki-pronounceable"
+    },
+    "MICLIC": {
+      "phones": [
+        "M",
+        "IH1",
+        "K",
+        "L",
+        "IH0",
+        "K"
+      ],
+      "count": 1,
+      "example": "MICLIC",
+      "source": "kaikki-pronounceable"
+    },
+    "MOBA": {
+      "phones": [
+        "M",
+        "OW1",
+        "B",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "MOBA",
+      "source": "kaikki-pronounceable"
+    },
+    "MORB": {
+      "phones": [
+        "M",
+        "AO1",
+        "R",
+        "B"
+      ],
+      "count": 1,
+      "example": "MORB",
+      "source": "kaikki-pronounceable"
+    },
+    "MSHA": {
+      "phones": [
+        "EH1",
+        "M",
+        "SH",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "MSHA",
+      "source": "kaikki-pronounceable"
+    },
+    "MTSO": {
+      "phones": [
+        "M",
+        "EH1",
+        "T",
+        "S",
+        "OW0"
+      ],
+      "count": 1,
+      "example": "MTSO",
+      "source": "kaikki-pronounceable"
+    },
+    "MUSTIE": {
+      "phones": [
+        "M",
+        "AH1",
+        "S",
+        "T",
+        "IH0"
+      ],
+      "count": 1,
+      "example": "MUSTIE",
+      "source": "kaikki-pronounceable"
+    },
+    "NLEA": {
+      "phones": [
+        "EH0",
+        "N",
+        "L",
+        "IY1",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "NLEA",
+      "source": "kaikki-pronounceable"
+    },
+    "OSINT": {
+      "phones": [
+        "OW1",
+        "S",
+        "IH0",
+        "N",
+        "T"
+      ],
+      "count": 1,
+      "example": "OSINT",
+      "source": "kaikki-pronounceable"
+    },
+    "PAPI": {
+      "phones": [
+        "P",
+        "AE1",
+        "P",
+        "IY0"
+      ],
+      "count": 1,
+      "example": "PAPI",
+      "source": "kaikki-pronounceable"
+    },
+    "POSIC": {
+      "phones": [
+        "P",
+        "OW1",
+        "S",
+        "IH0",
+        "K"
+      ],
+      "count": 1,
+      "example": "POSIC",
+      "source": "kaikki-pronounceable"
+    },
+    "QDRO": {
+      "phones": [
+        "K",
+        "W",
+        "AA1",
+        "D",
+        "R",
+        "OW0"
+      ],
+      "count": 1,
+      "example": "QDRO",
+      "source": "kaikki-pronounceable"
+    },
+    "QEF": {
+      "phones": [
+        "K",
+        "W",
+        "EH1",
+        "F"
+      ],
+      "count": 1,
+      "example": "QEF",
+      "source": "kaikki-pronounceable"
+    },
+    "ROSR": {
+      "phones": [
+        "R",
+        "OW1",
+        "Z",
+        "ER0"
+      ],
+      "count": 1,
+      "example": "ROSR",
+      "source": "kaikki-pronounceable"
+    },
+    "SIOP": {
+      "phones": [
+        "S",
+        "AY1",
+        "AO0",
+        "P"
+      ],
+      "count": 1,
+      "example": "SIOP",
+      "source": "kaikki-pronounceable"
+    },
+    "SLO": {
+      "phones": [
+        "S",
+        "L",
+        "OW1"
+      ],
+      "count": 1,
+      "example": "SLO",
+      "source": "kaikki-pronounceable"
+    },
+    "SORN": {
+      "phones": [
+        "S",
+        "AO1",
+        "N"
+      ],
+      "count": 1,
+      "example": "SORN",
+      "source": "kaikki-pronounceable"
+    },
+    "TMTOWTDI": {
+      "phones": [
+        "T",
+        "IH0",
+        "M",
+        "T",
+        "OW1",
+        "D",
+        "IY0"
+      ],
+      "count": 1,
+      "example": "TMTOWTDI",
+      "source": "kaikki-pronounceable"
+    },
+    "TODS": {
+      "phones": [
+        "T",
+        "AA1",
+        "D",
+        "Z"
+      ],
+      "count": 1,
+      "example": "TODS",
+      "source": "kaikki-pronounceable"
+    },
+    "ULEZ": {
+      "phones": [
+        "Y",
+        "UW1",
+        "L",
+        "EH0",
+        "Z"
+      ],
+      "count": 1,
+      "example": "ULEZ",
+      "source": "kaikki-pronounceable"
+    },
+    "WACC": {
+      "phones": [
+        "W",
+        "AE1",
+        "K"
+      ],
+      "count": 1,
+      "example": "WACC",
+      "source": "kaikki-pronounceable"
+    },
+    "ZOG": {
+      "phones": [
+        "Z",
+        "AA1",
+        "G"
+      ],
+      "count": 1,
+      "example": "ZOG",
+      "source": "kaikki-pronounceable"
+    },
+    "BSON": {
+      "phones": [
+        "B",
+        "IY1",
+        "S",
+        "AH0",
+        "N"
+      ],
+      "count": 1,
+      "example": "BSON",
+      "source": "kaikki-pronounceable"
+    },
+    "CLU": {
+      "phones": [
+        "K",
+        "L",
+        "UW1"
+      ],
+      "count": 1,
+      "example": "CLU",
+      "source": "kaikki-pronounceable"
+    },
+    "EAC": {
+      "phones": [
+        "IY1",
+        "EY1",
+        "S",
+        "IY1"
+      ],
+      "count": 1,
+      "example": "EAC",
+      "source": "kaikki-pronounceable"
+    },
+    "FATX": {
+      "phones": [
+        "F",
+        "AE0",
+        "T",
+        "EH1",
+        "K",
+        "S"
+      ],
+      "count": 1,
+      "example": "FATX",
+      "source": "kaikki-pronounceable"
+    },
+    "GEGL": {
+      "phones": [
+        "G",
+        "EH1",
+        "G",
+        "AH0",
+        "L"
+      ],
+      "count": 1,
+      "example": "GEGL",
+      "source": "kaikki-pronounceable"
+    },
+    "LNAV": {
+      "phones": [
+        "EH1",
+        "L",
+        "N",
+        "EY0",
+        "V"
+      ],
+      "count": 1,
+      "example": "LNAV",
+      "source": "kaikki-pronounceable"
+    },
+    "PEBCAK": {
+      "phones": [
+        "P",
+        "EH1",
+        "B",
+        "K",
+        "AE0",
+        "K"
+      ],
+      "count": 1,
+      "example": "PEBCAK",
+      "source": "kaikki-pronounceable"
+    },
+    "SIGINT": {
+      "phones": [
+        "S",
+        "IH1",
+        "G",
+        "IH0",
+        "N",
+        "T"
+      ],
+      "count": 1,
+      "example": "SIGINT",
+      "source": "kaikki-pronounceable"
+    },
+    "SPARQL": {
+      "phones": [
+        "S",
+        "P",
+        "AA1",
+        "R",
+        "K",
+        "AH0",
+        "L"
+      ],
+      "count": 1,
+      "example": "SPARQL",
+      "source": "kaikki-pronounceable"
     }
   }
 }
