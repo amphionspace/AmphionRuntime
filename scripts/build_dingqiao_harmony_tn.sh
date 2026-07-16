@@ -12,6 +12,10 @@ Usage:
 
 Optional environment variables:
   HARMONY_TN_OUTPUT_DIR  Output directory (default: tts/harmony/build-ohos-tn)
+  SLIM_ICU_LIB_DIR       Directory holding a slimmed libicudata.a/libicui18n.a/
+                         libicuuc.a (see scripts/build_slim_icu_data.sh). When
+                         unset, links the vendored full ohos-icu libs exactly as
+                         before — this override changes nothing by default.
 EOF
 }
 
@@ -26,6 +30,11 @@ OHOS_ICU_ROOT="$REPO_ROOT/tts/harmony/sdk/src/main/cpp/third_party/ohos-icu"
 OUTPUT_DIR="${HARMONY_TN_OUTPUT_DIR:-$REPO_ROOT/tts/harmony/build-ohos-tn}"
 OHOS_NATIVE_SDK="${OHOS_NATIVE_SDK:-}"
 
+# Directory of the ICU archives to link. Defaults to the vendored full libs;
+# point SLIM_ICU_LIB_DIR at a TN-subset build to shrink .rodata (headers are
+# taken from OHOS_ICU_ROOT/include regardless — the API surface is unchanged).
+ICU_LIB_DIR="${SLIM_ICU_LIB_DIR:-$OHOS_ICU_ROOT/lib}"
+
 if [[ -z "$OHOS_NATIVE_SDK" ]]; then
   printf 'Set OHOS_NATIVE_SDK to the DevEco OpenHarmony native SDK directory.\n' >&2
   exit 1
@@ -35,8 +44,8 @@ CXX="$OHOS_NATIVE_SDK/llvm/bin/aarch64-unknown-linux-ohos-clang++"
 STRIP="$OHOS_NATIVE_SDK/llvm/bin/llvm-strip"
 for required in "$CXX" "$STRIP" "$TN_ROOT/zh.cpp" "$TN_ROOT/en.cpp" \
   "$TN_ROOT/tts_normalizer_engine.cpp" "$TN_ROOT/ru_year_spellout.cpp" \
-  "$OHOS_ICU_ROOT/include/unicode/utypes.h" "$OHOS_ICU_ROOT/lib/libicui18n.a" \
-  "$OHOS_ICU_ROOT/lib/libicuuc.a" "$OHOS_ICU_ROOT/lib/libicudata.a"; do
+  "$OHOS_ICU_ROOT/include/unicode/utypes.h" "$ICU_LIB_DIR/libicui18n.a" \
+  "$ICU_LIB_DIR/libicuuc.a" "$ICU_LIB_DIR/libicudata.a"; do
   if [[ ! -f "$required" ]]; then
     printf 'Missing file: %s\n' "$required" >&2
     exit 1
@@ -57,7 +66,7 @@ for language in zh en; do
     "$TN_ROOT/$language.cpp" \
     "$TN_ROOT/tts_normalizer_engine.cpp" \
     "$TN_ROOT/ru_year_spellout.cpp" \
-    -L"$OHOS_ICU_ROOT/lib" \
+    -L"$ICU_LIB_DIR" \
     -Wl,--start-group -licui18n -licuuc -licudata -Wl,--end-group \
     -fPIE -pie \
     -o "$output"

@@ -13,6 +13,18 @@ import java.util.concurrent.TimeUnit
 internal object LitsTnNormalizer {
     private val normalizersByRoot = ConcurrentHashMap<String, LayoutNormalizer>()
 
+    /**
+     * Opt-in TN prewarm. DEFAULT OFF so it never affects a strict cold-start
+     * benchmark: with this false, prewarm() is a no-op and startup follows the
+     * pure lazy cold path. Enable it ONLY when the target metric is end-to-end
+     * first-synthesis latency and background pre-initialization is allowed — then
+     * the TN warm-up overlaps the (heavier) ONNX model load. Note: when enabled,
+     * warm-up shares the per-layout normalize lock, so a first request in the
+     * other language may briefly wait behind the warm-up.
+     */
+    @Volatile
+    var prewarmEnabled: Boolean = false
+
     fun normalize(
         layout: LitsTtsAssetInstaller.InstalledLayout,
         text: String,
@@ -28,6 +40,28 @@ internal object LitsTnNormalizer {
     fun shutdown(layout: LitsTtsAssetInstaller.InstalledLayout) {
         normalizersByRoot.remove(layout.rootDir.absolutePath)?.close()
         NativeTnNormalizer.clear(layout.rootDir)
+    }
+
+    /**
+     * Warm the TN path off the main thread: this pays the one-time startup cost
+     * (native lib / child-process spawn + ICU RBNF init + rules-JSON parse +
+     * first-time regex-pattern compilation) in the background so it does not land
+     * on the critical path of the user's first synthesis. Runs whichever path
+     * (JNI in-process or child process) the real requests use, for both en and
+     * zh. Idempotent via the per-root cache; best-effort, failures are ignored.
+     */
+    fun prewarm(layout: LitsTtsAssetInstaller.InstalledLayout) {
+        if (!prewarmEnabled) return
+        Thread({
+            runCatching {
+                normalize(layout, "123", "en-US", "en-US")
+                normalize(layout, "预热1", "zh-CN", "zh-CN")
+                logInfo("TN prewarm complete root=${layout.rootDir.absolutePath}")
+            }.onFailure { logWarning("TN prewarm failed", it) }
+        }, "lits-tts-tn-prewarm").apply {
+            isDaemon = true
+            start()
+        }
     }
 
     private class LayoutNormalizer(private val layout: LitsTtsAssetInstaller.InstalledLayout) {

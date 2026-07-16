@@ -208,3 +208,6 @@ asr/android/keystore/
 **/resources/rawfile/msbench/
 **/ets/util/TtsBench.ets
 **/ets/util/AsrBench.ets
+
+# TN slim build outputs (arm64 ICU cross-build + relinked binaries)
+tts/harmony/build-ohos-tn/
