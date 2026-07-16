@@ -117,6 +117,14 @@ R_dateMDY=re.compile(r'(?<![0-9A-Za-z])(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?![0-
 R_dateYM =re.compile(r'(?<![0-9A-Za-z])(\d{4})[-/.](0[1-9]|1[0-2])(?![0-9])')
 R_dateMY =re.compile(r'(?<![0-9A-Za-z])(0[1-9]|1[0-2])[-/.](\d{4})(?![0-9])')
 R_dateMD =re.compile(r'(?<![0-9A-Za-z])(\d{2})[-/.](\d{2})(?![0-9])')
+R_time=re.compile(r'(?<!\d)(\d{1,2}):([0-5]\d)(?::([0-5]\d))?(?!\d)')  # HH:MM[:SS] -> H点M分[S秒]
+def expandTime(text):
+    def rep(m):
+        h,mm,ss=m.group(1),m.group(2),m.group(3)
+        s=intToHanzi(h)+'点'+intToHanzi(str(int(mm)))+'分'
+        if ss is not None: s+=intToHanzi(str(int(ss)))+'秒'
+        return s
+    return R_time.sub(rep,text)
 def _vMonth(mo): return 1<=int(mo)<=12
 def _vDay(d):    return 1<=int(d)<=31
 def _ym(y,mo):   return digitSeqToHanzi(y)+'年'+intToHanzi(str(int(mo)))+'月'
@@ -206,6 +214,7 @@ def protectSemanticNumeric(text):
     return text
 
 def prepare_input(text):
+    text=expandTime(text)
     text=expandDates(text)
     text=R_hanziClock.sub(lambda m:m.group(1)+'点零'+CH[m.group(2)]+'分', text)
     text=frontend_apply('pre_tn', text)
