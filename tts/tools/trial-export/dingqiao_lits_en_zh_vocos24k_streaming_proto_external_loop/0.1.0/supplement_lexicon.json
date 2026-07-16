@@ -3,7 +3,7 @@
   "cmudict": "data/cmudict-0.7b",
   "pair_count": 1981,
   "aligned_line_count": 1935,
-  "entry_count": 974,
+  "entry_count": 986,
   "entries": {
     "A-WEEK": {
       "phones": [
@@ -12122,6 +12122,143 @@
       ],
       "count": 1,
       "example": "YAML",
+      "source": "kaikki-common-acronym"
+    },
+    "FUBAR": {
+      "phones": [
+        "F",
+        "UW1",
+        "B",
+        "AA0",
+        "R"
+      ],
+      "count": 1,
+      "example": "FUBAR",
+      "source": "kaikki-common-acronym"
+    },
+    "FUD": {
+      "phones": [
+        "F",
+        "AH1",
+        "D"
+      ],
+      "count": 1,
+      "example": "FUD",
+      "source": "kaikki-common-acronym"
+    },
+    "GAAP": {
+      "phones": [
+        "G",
+        "AE1",
+        "P"
+      ],
+      "count": 1,
+      "example": "GAAP",
+      "source": "kaikki-common-acronym"
+    },
+    "HIPAA": {
+      "phones": [
+        "HH",
+        "IH1",
+        "P",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "HIPAA",
+      "source": "kaikki-common-acronym"
+    },
+    "LARP": {
+      "phones": [
+        "L",
+        "AA1",
+        "R",
+        "P"
+      ],
+      "count": 1,
+      "example": "LARP",
+      "source": "kaikki-common-acronym"
+    },
+    "LINQ": {
+      "phones": [
+        "L",
+        "IH1",
+        "NG",
+        "K"
+      ],
+      "count": 1,
+      "example": "LINQ",
+      "source": "kaikki-common-acronym"
+    },
+    "NSAID": {
+      "phones": [
+        "EH1",
+        "N",
+        "S",
+        "EH0",
+        "D"
+      ],
+      "count": 1,
+      "example": "NSAID",
+      "source": "kaikki-common-acronym"
+    },
+    "POSIX": {
+      "phones": [
+        "P",
+        "AA1",
+        "Z",
+        "IH0",
+        "K",
+        "S"
+      ],
+      "count": 1,
+      "example": "POSIX",
+      "source": "kaikki-common-acronym"
+    },
+    "SAAS": {
+      "phones": [
+        "S",
+        "AE1",
+        "S"
+      ],
+      "count": 1,
+      "example": "SaaS",
+      "source": "kaikki-common-acronym"
+    },
+    "SPAC": {
+      "phones": [
+        "S",
+        "P",
+        "AE1",
+        "K"
+      ],
+      "count": 1,
+      "example": "SPAC",
+      "source": "kaikki-common-acronym"
+    },
+    "UEFA": {
+      "phones": [
+        "Y",
+        "UW0",
+        "EY1",
+        "F",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "UEFA",
+      "source": "kaikki-common-acronym"
+    },
+    "WYSIWYG": {
+      "phones": [
+        "W",
+        "IH1",
+        "Z",
+        "IY0",
+        "W",
+        "IH2",
+        "G"
+      ],
+      "count": 1,
+      "example": "WYSIWYG",
       "source": "kaikki-common-acronym"
     }
   }
