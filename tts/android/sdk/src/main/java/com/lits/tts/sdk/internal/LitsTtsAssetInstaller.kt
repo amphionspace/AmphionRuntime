@@ -87,6 +87,8 @@ internal object LitsTtsAssetInstaller {
         val streamConditionChunkFile = json.optJSONObject("stream_condition_chunk_model")?.optString("file")
         val streamConditionFinalFile = json.optJSONObject("stream_condition_final_model")?.optString("file")
         val streamDecoderStepFile = json.optJSONObject("stream_decoder_step_model")?.optString("file")
+        val streamFinalZeroPadWithChunkCondition =
+            json.optBoolean("stream_final_zero_pad_with_chunk_condition", false)
         val streamingChunkSize = json.optInt("streaming_chunk_size", -1)
         val streamingPreLookaheadLen = json.optInt("streaming_pre_lookahead_len", -1)
         val streamingMelCacheLen = json.optInt("streaming_mel_cache_len", -1)
@@ -127,7 +129,7 @@ internal object LitsTtsAssetInstaller {
                         streamDecoderExternalLoop &&
                             (
                                 streamConditionChunkFile.isNullOrBlank() ||
-                                    streamConditionFinalFile.isNullOrBlank() ||
+                                    (!streamFinalZeroPadWithChunkCondition && streamConditionFinalFile.isNullOrBlank()) ||
                                     streamDecoderStepFile.isNullOrBlank() ||
                                     streamDecoderTimesteps <= 0 ||
                                     streamDecoderTemperature.isNaN()
@@ -160,6 +162,7 @@ internal object LitsTtsAssetInstaller {
             streamDecoderTemperature = streamDecoderTemperature,
             streamConditionChunkModelFile = streamConditionChunkFile,
             streamConditionFinalModelFile = streamConditionFinalFile,
+            streamFinalZeroPadWithChunkCondition = streamFinalZeroPadWithChunkCondition,
             streamDecoderStepModelFile = streamDecoderStepFile,
             streamingChunkSize = streamingChunkSize,
             streamingPreLookaheadLen = streamingPreLookaheadLen,
@@ -303,7 +306,10 @@ internal object LitsTtsAssetInstaller {
                 if (manifest.streamDecoderExternalLoop) {
                     hiddenEncoderModel?.isFile == true &&
                         streamConditionChunkModel?.isFile == true &&
-                        streamConditionFinalModel?.isFile == true &&
+                        (
+                            manifest.streamFinalZeroPadWithChunkCondition ||
+                                streamConditionFinalModel?.isFile == true
+                            ) &&
                         streamDecoderStepModel?.isFile == true
                 } else {
                     hiddenEncoderModel?.isFile == true &&
@@ -356,6 +362,7 @@ internal object LitsTtsAssetInstaller {
         val streamDecoderTemperature: Float,
         val streamConditionChunkModelFile: String?,
         val streamConditionFinalModelFile: String?,
+        val streamFinalZeroPadWithChunkCondition: Boolean,
         val streamDecoderStepModelFile: String?,
         val streamingChunkSize: Int,
         val streamingPreLookaheadLen: Int,

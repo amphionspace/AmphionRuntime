@@ -1,0 +1,34 @@
+{
+  "//": "ICU_DATA_FILTER_FILE for the Dingqiao TN frontend (en_tts / zh_tts), ICU 78.1.",
+  "//scope": "TN uses ONLY RuleBasedNumberFormat(URBNF_SPELLOUT) for Locale::getEnglish()+getChinese(), plus ICU regex, UnicodeString and Locale. See TN_SIZE_OPT_REPORT.md.",
+  "//status": "VERIFIED on host (macOS arm64, ICU 78.1 from-source build): produces byte-identical TN output vs full ICU across 4426 corpus lines (stability+golden+spellout, en+zh); libicudata 31.57MB -> 2.55MB. Still must pass the on-target (aarch64-ohos) build+run before shipping.",
+  "//CRITICAL-curr": "curr_tree + curr_supplemental MUST be kept. RBNF spellout's DecimalFormatSymbols loads the locale currency symbol; excluding curr makes the RBNF constructor fail with U_MISSING_RESOURCE_ERROR and EVERY spellout silently returns an empty string (no crash). This was caught only by end-to-end output diff.",
+  "//tighten": "This is already the verified-minimal set. Do not drop curr. coll/brkitr confirmed unused by RBNF+regex and safe to exclude.",
+
+  "localeFilter": {
+    "filterType": "language",
+    "includelist": [
+      "en",
+      "zh"
+    ]
+  },
+
+  "featureFilters": {
+    "rbnf_tree": "include",
+    "locales_tree": "include",
+    "misc": "include",
+    "curr_tree": "include",
+    "curr_supplemental": "include",
+
+    "coll_tree": "exclude",
+    "brkitr_tree": "exclude",
+    "brkitr_rules": "exclude",
+    "brkitr_dictionaries": "exclude",
+    "lang_tree": "exclude",
+    "region_tree": "exclude",
+    "unit_tree": "exclude",
+    "zone_tree": "exclude",
+    "translit": "exclude",
+    "conversion_mappings": "exclude"
+  }
+}

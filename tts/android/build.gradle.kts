@@ -165,12 +165,14 @@ val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources"
         "lits_hidden_encoder.onnx",
         "external_loop_export_report.json",
         "lits_stream_condition_chunk.onnx",
-        "lits_stream_condition_final.onnx",
         "lits_stream_decoder_step.onnx",
         "vocos_vocoder.onnx",
     )
     inputs.dir(litsModelDir)
     outputs.dir(externalResourceDir)
+    doFirst {
+        externalResourceDir.resolve("lits_stream_condition_final.onnx").delete()
+    }
     doLast {
         val sourceBaseModelId = "dingqiao_lits_en_zh_vocos24k_streaming_proto"
         val publicBaseModelId = "dingqiao_lits_en_zh_vocos24k_streaming_proto"
@@ -208,7 +210,6 @@ val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources"
             exportReport["frontend_text_assets"] = listOf("chinese_lexicon.txt", "cmudict.txt")
             exportReport["android_decoder_models"] = listOf(
                 "lits_stream_condition_chunk.onnx",
-                "lits_stream_condition_final.onnx",
                 "lits_stream_decoder_step.onnx",
             )
             exportReportFile.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(exportReport)) + "\n")

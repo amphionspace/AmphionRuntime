@@ -141,7 +141,7 @@ internal class LitsTtsOrtRuntime(
         } else {
             null
         }
-        val conditionFinalSession = if (externalLoop) {
+        val conditionFinalSession = if (externalLoop && !manifest.streamFinalZeroPadWithChunkCondition) {
             streamConditionFinalSession ?: error("stream condition final session is unavailable")
         } else {
             null
@@ -217,10 +217,11 @@ internal class LitsTtsOrtRuntime(
                 min(melLength, startIdx + currentChunkSize + preLookaheadLen)
             }
             val windowFrames = max(0, windowEndIdx - windowStartIdx)
+            val channels = hidden.muYShape[1].toInt()
             var windowMuY = hidden.muY.sliceFrameRange(
                 startFrame = windowStartIdx,
                 frameCount = windowFrames,
-                channels = hidden.muYShape[1].toInt(),
+                channels = channels,
             )
             val outputFrames = if (finalize) {
                 windowFrames
@@ -228,18 +229,28 @@ internal class LitsTtsOrtRuntime(
                 max(1, windowFrames - preLookaheadLen)
             }
             val windowMask = hidden.yMask.copyOfRange(windowStartIdx, windowStartIdx + outputFrames)
+            val conditionFrames = if (externalLoop && finalize && manifest.streamFinalZeroPadWithChunkCondition) {
+                windowMuY = windowMuY.padTrailingFrames(preLookaheadLen, channels)
+                windowFrames + preLookaheadLen
+            } else {
+                windowFrames
+            }
             val speakerEmbedding = hidden.speakerEmbedding
             val decoderStartedAt = System.nanoTime()
             val melWindow = if (externalLoop) {
                 runExternalLoopDecoder(
                     conditionSession = if (finalize) {
-                        conditionFinalSession ?: error("stream condition final session is unavailable")
+                        if (manifest.streamFinalZeroPadWithChunkCondition) {
+                            conditionChunkSession ?: error("stream condition chunk session is unavailable")
+                        } else {
+                            conditionFinalSession ?: error("stream condition final session is unavailable")
+                        }
                     } else {
                         conditionChunkSession ?: error("stream condition chunk session is unavailable")
                     },
                     stepSession = stepSession ?: error("stream decoder step session is unavailable"),
                     muY = windowMuY,
-                    muFrames = windowFrames,
+                    muFrames = conditionFrames,
                     yMask = windowMask,
                     maskFrames = outputFrames,
                     speakerEmbedding = speakerEmbedding,
@@ -331,7 +342,11 @@ internal class LitsTtsOrtRuntime(
             steadyChunkSize = steadyChunkSize ?: chunkSize,
             chunkGrowthFactor = chunkGrowthFactor ?: 1,
             maxChunkSize = maxChunkSize ?: 0,
-            finalDecoderMode = if (externalLoop) "external_loop" else "final_session_preloaded",
+            finalDecoderMode = if (externalLoop) {
+                if (manifest.streamFinalZeroPadWithChunkCondition) "external_loop_zero_final" else "external_loop"
+            } else {
+                "final_session_preloaded"
+            },
             powerMode = powerConfig.mode,
             cpuBudgetCore = powerConfig.cpuBudgetCore,
             throttleMs = throttler.throttleMs,
@@ -895,6 +910,19 @@ internal class LitsTtsOrtRuntime(
                 startIndex = channel * rightFrames,
                 endIndex = channel * rightFrames + rightFrames,
             )
+        }
+        return output
+    }
+
+    private fun FloatArray.padTrailingFrames(frameCount: Int, channels: Int): FloatArray {
+        if (frameCount <= 0 || isEmpty()) return this
+        val currentFrames = size / channels
+        val outputFrames = currentFrames + frameCount
+        val output = FloatArray(channels * outputFrames)
+        for (channel in 0 until channels) {
+            val srcStart = channel * currentFrames
+            val dstStart = channel * outputFrames
+            copyInto(output, destinationOffset = dstStart, startIndex = srcStart, endIndex = srcStart + currentFrames)
         }
         return output
     }
