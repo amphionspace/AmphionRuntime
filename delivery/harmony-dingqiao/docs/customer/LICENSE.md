@@ -2,7 +2,7 @@
 
 > 本 SDK、模型与文档仅限授权客户在授权项目中使用。未经书面许可，不得复制、转售、转授权或用于其他项目。
 
-本发行包内的 `amphion_asr.har` 已启用离线授权校验，并内置**生产验签公钥（与 Android SDK 同一把）**。集成方**无需**也**不应**自行配置验签公钥；只需按本章放置我方签发的授权文件。同一份 `amphion-license.lic` 在 Android 与鸿蒙上验签一致。
+本发行包内的 `amphion_dingqiao.har` 已启用离线授权校验，并内置**生产验签公钥（与 Android SDK 同一把）**。集成方**无需**也**不应**自行配置验签公钥；只需按本章放置我方签发的授权文件。同一份 `amphion-license.lic` 在 Android 与鸿蒙上验签一致。
 
 ## 1. 获取授权文件
 
@@ -10,14 +10,14 @@
 
 | 信息 | 说明 |
 |------|------|
-| applicationId | 可选记录字段，不作为授权限制；本次宿主为 com.tdtech.tiassistant |
+| applicationId | 可选记录字段，不作为授权限制 |
 | 签名证书 SHA-256 | 可选记录字段；正式设备白名单 license 默认不绑定签名 |
 | 设备标识清单 | 正式宿主优先提供设备 SN；普通应用可约定 ODID。一行一个，用于生成设备白名单 |
-| 授权能力 | 本次正式授权为 ASR,TTS，ASR 与 TTS 共用同一份 amphion-license.lic |
+| 授权能力 | 本 SDK-only 交付申请 ASR 能力 |
 
 我方将签发 `amphion-license.lic` 并通过安全渠道单独下发。本次正式授权仅限制**设备 SN 白名单和到期时间**，不按 App 包名 / 签名证书限制宿主应用。
 
-Demo HAP 内自带的授权仅用于体验，不可用于贵司正式 App。Demo 是否绑定设备以 HAP 内实际 license 声明为准：标准体验包可使用不绑定设备的试用授权；设备验收包可绑定 Demo 的 ODID。正式授权必须在贵司正式宿主中验证，并确保签发清单与运行时注入的是同一种设备标识。
+本 SDK-only 包不包含 Demo HAP 或实际授权文件。正式授权必须在贵司正式宿主中验证，并确保签发清单与运行时注入的是同一种设备标识。
 
 ## 2. 集成方式（ArkTS）
 
@@ -29,7 +29,7 @@ import { LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
 
 class HostDeviceIdProvider implements LicenseDeviceIdProvider {
   getDeviceSerial(_context: Context): string | undefined {
-    // 系统/预置宿主使用 deviceInfo.serial；普通 Demo 可改用 deviceInfo.ODID。
+    // 系统/预置宿主通常使用 deviceInfo.serial；普通应用可与签发方约定 ODID。
     const deviceId = deviceInfo.serial;
     return deviceId.length > 0 ? deviceId : undefined;
   }
@@ -76,8 +76,8 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 ## 4. 注意事项
 
 - 正式授权不按包名限制宿主应用；授权边界为**设备标识白名单、有效期、授权能力**。
-- 读取 `deviceInfo.serial` 需 `ohos.permission.sec.ACCESS_UDID`（system_basic），普通三方 App 无法获得。系统 / 预置宿主可注入 SN；普通 Demo 可注入无需该权限的 `deviceInfo.ODID`，但签发清单也必须使用该 ODID。
+- 读取 `deviceInfo.serial` 需 `ohos.permission.sec.ACCESS_UDID`（system_basic），普通三方 App 无法获得。系统 / 预置宿主可注入 SN；普通应用可与签发方约定 `deviceInfo.ODID`，但签发清单也必须使用该 ODID。
 - ODID 按开发者和设备隔离；恢复出厂、更换开发者签名，或卸载该开发者在设备上的全部应用后可能重置，届时需要重新签发。
 - `getDeviceSerial` 是兼容既有接口的方法名，返回值可为双方约定的稳定设备标识，不应把明文标识硬编码进 HAP。
-- 独立下发的正式 license 不用于 Demo；不要用 Demo 通过替代正式宿主的授权验收。
+- 独立下发的正式 license 必须在正式宿主验收，不能用其他测试宿主的结果替代。
 - 请勿将授权文件提交到公开代码仓库；勿在交付包内查找或替换验签密钥。

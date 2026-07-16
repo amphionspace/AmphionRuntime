@@ -3,8 +3,11 @@ import { PoliceEngineConfig, PoliceEnhanceOptions, PoliceEnhancePipeline } from 
 import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
+import { finiteNumberParam } from './NumericParam';
 import { rejectedFinalCompletesSession } from './RejectedFinalLifecycle';
+import { maxAudioBytesOf } from './SessionAudioLimit';
 import { SessionStartGate } from './SessionStartGate';
+import { hasVoiceprintCapability } from './VoiceprintCapability';
 import { VoiceprintStore } from './VoiceprintStore';
 import {
   AudioInfo,
@@ -68,23 +71,11 @@ function booleanParam(params: Record<string, Object>, key: string, defaultValue:
 }
 
 function numberParam(params: Record<string, Object>, key: string, defaultValue: number): number {
-  const value = params[key];
-  if (typeof value === 'number') return Number.isFinite(value) ? value : defaultValue;
-  if (typeof value === 'string') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : defaultValue;
-  }
-  return defaultValue;
+  return finiteNumberParam(params, key) ?? defaultValue;
 }
 
 function optionalNumberParam(params: Record<string, Object>, key: string): number | undefined {
-  const value = params[key];
-  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
-  if (typeof value === 'string') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-  return undefined;
+  return finiteNumberParam(params, key);
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -103,12 +94,6 @@ function vadBeginMs(params: StartParams): number | undefined {
 
 function isSupportedAudioFrameBytes(byteLength: number): boolean {
   return byteLength === DINGQIAO_AUDIO_FRAME_BYTES_20MS;
-}
-
-function maxAudioBytesOf(params: StartParams): number {
-  const ms = clamp(numberParam(params.extraParams, 'maxAudioDuration', 20000), 20000, 28800000);
-  // 16 kHz mono 16-bit PCM = 32 bytes per millisecond.
-  return Math.round(ms * 32);
 }
 
 function validateRecognitionMode(params: StartParams): string {
@@ -408,8 +393,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     // Android builds the session with voiceprint capability whenever IDs are supplied, even if both
     // switches start disabled. This preserves setSpeakerVadEnabled(true) for a running session without
     // loading the model for ordinary sessions that have no voiceprint IDs.
-    const configureTarget = verify || speakerVad || voiceprintIds.length > 0;
+    const configureTarget = hasVoiceprintCapability(verify, speakerVad, voiceprintIds.length);
     const useTarget = embedding !== undefined && (verify || speakerVad);
+    let startGeneration: number = -1;
 
     try {
       if (configureTarget && speakerModelPath === undefined) {
@@ -423,22 +409,24 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.finalResultSent = false;
       this.completeSent = false;
       this.partialEnabled = params.extraParams['enablePartialResult'] !== false;
-      this.maxAudioBytes = maxAudioBytesOf(params);
+      this.maxAudioBytes = maxAudioBytesOf(params.extraParams);
       this.audioBytesWritten = 0;
       this.voiceprintIds = voiceprintIds;
       this.speechActive = false;
       this.busy = true;
-      const startGeneration = this.sessionStartGate.begin();
+      startGeneration = this.sessionStartGate.begin();
       const callback: AsrCallback = new DingqiaoAsrCallback(this, startGeneration);
       this.startingSession = true;
       this.cancelRequestedDuringStart = false;
       const createdSession = this.asrEngine.newSession(
         callback,
-        buildSessionConfig(params, configureTarget, verify || speakerVad)
+        buildSessionConfig(params, configureTarget, configureTarget)
       );
       this.startingSession = false;
       if (this.cancelRequestedDuringStart || this.destroyed || !this.busy || this.currentSessionId !== params.sessionId) {
-        this.sessionStartGate.reset();
+        // A synchronous native callback may let the customer start a replacement session before
+        // newSession returns. Old construction cleanup must not invalidate that replacement.
+        if (this.sessionStartGate.isCurrent(startGeneration)) this.sessionStartGate.reset();
         this.cancelRequestedDuringStart = false;
         createdSession.close();
         return;
@@ -451,10 +439,13 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           this.session.setSpeakerVadEnabled(true);
         }
       }
-      if (this.sessionStartGate.publishSession(startGeneration)) this.deliverSessionStarted();
+      if (this.sessionStartGate.publishSession(startGeneration)) this.deliverSessionStarted(startGeneration);
     } catch (e) {
       this.startingSession = false;
-      this.sessionStartGate.reset();
+      const ownsFailedStart = startGeneration < 0 || this.sessionStartGate.isCurrent(startGeneration);
+      // A replacement started from a synchronous callback owns both state and subsequent listener
+      // traffic. Suppress the superseded start's cleanup and error after ownership has moved on.
+      if (!ownsFailedStart) return;
       this.cancelRequestedDuringStart = false;
       this.tearDownSession();
       this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, `${e}`);
@@ -478,15 +469,25 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       return;
     }
     if (this.finishRequested) return;
-    this.session.acceptPcmBytes(audio);
+    const session = this.session;
+    const generation = this.sessionStartGate.currentGeneration();
+    // Reserve the frame before entering native code. A customer callback can synchronously write a
+    // second frame; it must see the first frame in the same session's max-duration accounting.
+    // A replacement session resets this counter during startListening, so the old reservation cannot
+    // leak across generations.
     this.audioBytesWritten += audio.byteLength;
+    session.acceptPcmBytes(audio);
+    // acceptPcmBytes may synchronously invoke a customer listener that cancels this session and starts
+    // another one. Never auto-stop the replacement session from the old call stack.
+    if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
+      this.session !== session || this.currentSessionId !== sessionId) return;
     if (!this.finishRequested && this.maxAudioBytes > 0 && this.audioBytesWritten >= this.maxAudioBytes) {
       // 达到单会话上限是正常的生命周期终止，不是错误：等价于自动 finish，
       // flush 出最终 onResult + onComplete 并清理会话，使引擎可被再次 startListening。
       this.finishRequested = true;
       this.lastFinishedSessionId = sessionId;
       this.lastAutoFinishedSessionId = sessionId;
-      this.session.stop();
+      session.stop();
     }
   }
 
@@ -561,8 +562,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.pipeline.close();
   }
 
-  private deliverFinal(result: AsrResult): void {
-    if (!this.busy || this.currentSessionId.length === 0 || this.completeSent) return;
+  private deliverFinal(generation: number, result: AsrResult): void {
+    if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
+      this.currentSessionId.length === 0 || this.completeSent) return;
+    const sessionId = this.currentSessionId;
     const enhanced = this.pipeline.enhance(result.text);
     const payload = new SpeechRecognitionResult();
     payload.isFinal = true;
@@ -576,14 +579,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       payload.endTime = Math.round(ts[ts.length - 1] * 1000);
     }
     this.finalResultSent = true;
-    this.listener?.onResult?.(this.currentSessionId, payload);
-    if (result.isLast) {
-      this.completeCurrentSession();
+    this.listener?.onResult?.(sessionId, payload);
+    if (result.isLast && this.sessionStartGate.isCurrent(generation) &&
+      this.currentSessionId === sessionId) {
+      this.completeCurrentSession(generation);
     }
   }
 
-  private completeCurrentSession(): void {
-    if (this.completeSent) return;
+  private completeCurrentSession(generation: number): void {
+    if (!this.sessionStartGate.isCurrent(generation) || this.completeSent) return;
     const sessionId = this.currentSessionId;
     if (sessionId.length === 0) return;
     this.completeSent = true;
@@ -627,8 +631,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.engineCfgKey = newKey;
   }
 
-  handlePartial(text: string): void {
-    if (!this.busy || this.currentSessionId.length === 0) return;
+  handlePartial(generation: number, text: string): void {
+    if (!this.sessionStartGate.isCurrent(generation) || !this.busy || this.currentSessionId.length === 0) return;
     if (!this.partialEnabled || text.length === 0) return;
     const result = new SpeechRecognitionResult();
     result.isFinal = false;
@@ -637,14 +641,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.listener?.onResult?.(this.currentSessionId, result);
   }
 
-  handleSpeechBegin(): void {
-    if (!this.busy || this.currentSessionId.length === 0) return;
+  handleSpeechBegin(generation: number): void {
+    if (!this.sessionStartGate.isCurrent(generation) || !this.busy || this.currentSessionId.length === 0) return;
     this.speechActive = true;
     this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEECH_BEGIN, 'speech started.');
   }
 
-  handleInitialSilenceTimeout(): void {
-    if (!this.busy || this.finishRequested || this.session === undefined) return;
+  handleInitialSilenceTimeout(generation: number): void {
+    if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
+      this.finishRequested || this.session === undefined) return;
     const sessionId = this.currentSessionId;
     const session = this.session;
     this.finishRequested = true;
@@ -652,27 +657,32 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.lastAutoFinishedSessionId = sessionId;
     // VAD callback runs inside acceptPcmBytes; defer stop to avoid re-entering the native stream.
     setTimeout((): void => {
-      if (!this.busy || this.session !== session || this.currentSessionId !== sessionId) return;
+      if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
+        this.session !== session || this.currentSessionId !== sessionId) return;
       session.stop();
     }, 0);
   }
 
-  handleEndpoint(): void {
-    if (!this.busy || this.currentSessionId.length === 0) return;
+  handleEndpoint(generation: number): void {
+    if (!this.sessionStartGate.isCurrent(generation) || !this.busy || this.currentSessionId.length === 0) return;
     if (!this.speechActive) return;
     this.speechActive = false;
     this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEECH_END, 'speech stopped.');
   }
 
-  handleFinalResult(result: AsrResult): void {
-    this.deliverFinal(result);
+  handleFinalResult(generation: number, result: AsrResult): void {
+    if (!this.sessionStartGate.isCurrent(generation)) return;
+    this.deliverFinal(generation, result);
   }
 
-  handleFinalRejected(result: AsrResult): void {
+  handleFinalRejected(generation: number, result: AsrResult): void {
+    if (!this.sessionStartGate.isCurrent(generation) || !this.busy || this.currentSessionId.length === 0) return;
+    const sessionId = this.currentSessionId;
     // Speaker VAD dropped a non-target span (no transcription emitted); surface as an event so the UI
     // can show the target speaker left without polluting the recognized text.
     const detail = result.speakerScore !== undefined ? `score=${result.speakerScore.toFixed(2)}` : 'target speaker absent';
-    this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEAKER_VAD_REJECTED, `speaker vad rejected: ${detail}`);
+    this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEAKER_VAD_REJECTED, `speaker vad rejected: ${detail}`);
+    if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
     if (rejectedFinalCompletesSession(result.isLast)) {
       const payload = new SpeechRecognitionResult();
       payload.isFinal = true;
@@ -680,40 +690,47 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       payload.result = '';
       payload.speakerSimilarity = result.speakerScore;
       this.finalResultSent = true;
-      this.listener?.onResult?.(this.currentSessionId, payload);
-      this.completeCurrentSession();
+      this.listener?.onResult?.(sessionId, payload);
+      if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
+      this.completeCurrentSession(generation);
     }
   }
 
-  handleAsrError(error: AsrError): void {
+  handleAsrError(generation: number, error: AsrError): void {
+    if (!this.sessionStartGate.isCurrent(generation)) return;
     const sessionId = this.currentSessionId;
     this.tearDownSession();
     this.listener?.onError?.(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, `${error.code}: ${error.message}`);
   }
 
-  handleSessionStarted(startGeneration: number): void {
-    if (!this.sessionStartGate.observeNativeStarted(startGeneration)) return;
-    this.deliverSessionStarted();
+  handleSessionStarted(generation: number): void {
+    if (!this.sessionStartGate.isCurrent(generation)) return;
+    if (!this.sessionStartGate.observeNativeStarted(generation)) return;
+    this.deliverSessionStarted(generation);
   }
 
-  private deliverSessionStarted(): void {
+  private deliverSessionStarted(generation: number): void {
+    if (!this.sessionStartGate.isCurrent(generation)) return;
     const sessionId = this.currentSessionId;
     if (!this.busy || this.session === undefined || sessionId.length === 0) return;
     this.listener?.onStart?.(sessionId, 'startListening success.');
   }
 
-  handleSessionStopped(): void {
+  handleSessionStopped(generation: number): void {
+    if (!this.sessionStartGate.isCurrent(generation)) return;
     if (this.finishRequested) {
       const sessionId = this.currentSessionId;
       setTimeout((): void => {
-        if (!this.busy || !this.finishRequested || this.completeSent || this.currentSessionId !== sessionId) return;
+        if (!this.sessionStartGate.isCurrent(generation) || !this.busy || !this.finishRequested ||
+          this.completeSent || this.currentSessionId !== sessionId) return;
         const result = new SpeechRecognitionResult();
         result.isFinal = true;
         result.isLast = true;
         result.result = '';
         this.finalResultSent = true;
         this.listener?.onResult?.(sessionId, result);
-        this.completeCurrentSession();
+        if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
+        this.completeCurrentSession(generation);
       }, STOP_FALLBACK_DELAY_MS);
     } else {
       this.tearDownSession();
@@ -723,6 +740,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private ensureAlive(): void {
     if (this.destroyed) throw new Error('engine destroyed');
   }
+
 }
 
 class DingqiaoAsrCallback implements AsrCallback {
@@ -735,31 +753,31 @@ class DingqiaoAsrCallback implements AsrCallback {
   }
 
   onSpeechBegin(): void {
-    this.owner.handleSpeechBegin();
+    this.owner.handleSpeechBegin(this.startGeneration);
   }
 
   onInitialSilenceTimeout(): void {
-    this.owner.handleInitialSilenceTimeout();
+    this.owner.handleInitialSilenceTimeout(this.startGeneration);
   }
 
   onPartial(text: string): void {
-    this.owner.handlePartial(text);
+    this.owner.handlePartial(this.startGeneration, text);
   }
 
   onEndpoint(): void {
-    this.owner.handleEndpoint();
+    this.owner.handleEndpoint(this.startGeneration);
   }
 
   onFinalResult(result: AsrResult): void {
-    this.owner.handleFinalResult(result);
+    this.owner.handleFinalResult(this.startGeneration, result);
   }
 
   onFinalRejected(result: AsrResult): void {
-    this.owner.handleFinalRejected(result);
+    this.owner.handleFinalRejected(this.startGeneration, result);
   }
 
   onError(error: AsrError): void {
-    this.owner.handleAsrError(error);
+    this.owner.handleAsrError(this.startGeneration, error);
   }
 
   onSessionStarted(): void {
@@ -767,7 +785,7 @@ class DingqiaoAsrCallback implements AsrCallback {
   }
 
   onSessionStopped(): void {
-    this.owner.handleSessionStopped();
+    this.owner.handleSessionStopped(this.startGeneration);
   }
 }
 

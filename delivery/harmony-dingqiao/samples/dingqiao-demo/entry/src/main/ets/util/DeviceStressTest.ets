@@ -66,6 +66,7 @@ class SessionEvents {
   lastIsLast: boolean = false;
   lastFinals: number = 0;
   speakerScores: number = 0;
+  nonEmptySpeakerScores: number = 0;
   missingSpeakerScores: number = 0;
   firstNonEmptyFinalHasScore?: boolean;
   errorCodes: number[] = [];
@@ -123,6 +124,7 @@ class StressListener implements RecognitionListener {
       this.events.missingSpeakerScores += 1;
     } else {
       this.events.speakerScores += 1;
+      if (result.result.length > 0) this.events.nonEmptySpeakerScores += 1;
     }
     if (result.result.length > 0 && this.events.firstNonEmptyFinalHasScore === undefined) {
       this.events.firstNonEmptyFinalHasScore = result.speakerSimilarity !== undefined;
@@ -142,17 +144,49 @@ class StressListener implements RecognitionListener {
   }
 }
 
+class OnStartSpeakerVadListener extends StressListener {
+  private engine: SpeechRecognitionEngine;
+  enableAttempted: boolean = false;
+  enableReturned: boolean = false;
+  speakerVadChangedEvents: number = 0;
+  enableThrowMessage: string = '';
+
+  constructor(events: SessionEvents, expectedSessionId: string, engine: SpeechRecognitionEngine) {
+    super(events, expectedSessionId);
+    this.engine = engine;
+  }
+
+  onStart(sessionId: string, eventMessage?: string): void {
+    super.onStart(sessionId, eventMessage);
+    this.enableAttempted = true;
+    try {
+      this.engine.setSpeakerVadEnabled(true);
+      this.enableReturned = true;
+    } catch (e) {
+      this.enableThrowMessage = safeDetail(`${e}`);
+    }
+  }
+
+  onEvent(sessionId: string, eventCode: number, message: string): void {
+    if (eventCode === DingqiaoEventCode.SPEAKER_VAD_CHANGED) this.speakerVadChangedEvents += 1;
+    super.onEvent(sessionId, eventCode, message);
+  }
+}
+
 class CallbackRecord {
   sessionId: string;
   kind: string;
   isLast: boolean;
   errorCode: number;
+  eventCode: number;
 
-  constructor(sessionId: string, kind: string, isLast: boolean = false, errorCode: number = 0) {
+  constructor(sessionId: string, kind: string, isLast: boolean = false, errorCode: number = 0,
+    eventCode: number = -1) {
     this.sessionId = sessionId;
     this.kind = kind;
     this.isLast = isLast;
     this.errorCode = errorCode;
+    this.eventCode = eventCode;
   }
 }
 
@@ -160,10 +194,11 @@ class SequenceListener implements RecognitionListener {
   events: SessionEvents = new SessionEvents();
   records: CallbackRecord[] = [];
 
-  private record(callback: CallbackRecord): void {
+  protected record(callback: CallbackRecord): void {
     this.records.push(callback);
     let detail = callback.isLast ? '-last' : '';
     if (callback.kind === 'error') detail = `-${callback.errorCode}`;
+    if (callback.kind === 'event') detail = `-${callback.eventCode}`;
     this.events.callbackTrace.push(`${callback.sessionId}:${callback.kind}${detail}`);
   }
 
@@ -175,6 +210,7 @@ class SequenceListener implements RecognitionListener {
   onEvent(_sessionId: string, eventCode: number, _message: string): void {
     if (eventCode === DingqiaoEventCode.SPEECH_BEGIN) this.events.speechBegins += 1;
     if (eventCode === DingqiaoEventCode.SPEECH_END) this.events.speechEnds += 1;
+    this.record(new CallbackRecord(_sessionId, 'event', false, 0, eventCode));
   }
 
   onResult(sessionId: string, result: SpeechRecognitionResult): void {
@@ -228,6 +264,20 @@ class SequenceListener implements RecognitionListener {
     return count;
   }
 
+  sessionTrace(sessionId: string): string {
+    const trace: string[] = [];
+    for (let i = 0; i < this.records.length; i++) {
+      const record = this.records[i];
+      if (record.sessionId !== sessionId) continue;
+      let detail = record.kind;
+      if (record.kind === 'event') detail += `-${record.eventCode}`;
+      if (record.kind === 'final' && record.isLast) detail += '-last';
+      if (record.kind === 'error') detail += `-${record.errorCode}`;
+      trace.push(detail);
+    }
+    return trace.join(',');
+  }
+
   terminalOrderOk(sessionId: string): boolean {
     let lastIndex = -1;
     let completeIndex = -1;
@@ -269,6 +319,134 @@ class SequenceListener implements RecognitionListener {
       return false;
     }
     return nextBusyErrors <= 1;
+  }
+}
+
+class CallbackApiReentrantListener extends SequenceListener {
+  private engine: SpeechRecognitionEngine;
+  private expectedSessionId: string;
+  private trigger: string;
+  reentryAttempted: boolean = false;
+  writeCalls: number = 0;
+  finishCalls: number = 0;
+  reentryThrowMessage: string = '';
+
+  constructor(engine: SpeechRecognitionEngine, expectedSessionId: string, trigger: string) {
+    super();
+    this.engine = engine;
+    this.expectedSessionId = expectedSessionId;
+    this.trigger = trigger;
+  }
+
+  private checkOwnership(sessionId: string): void {
+    if (sessionId !== this.expectedSessionId) this.events.unexpectedSessionCallbacks += 1;
+  }
+
+  private reenter(sessionId: string): void {
+    if (this.reentryAttempted) return;
+    this.reentryAttempted = true;
+    try {
+      this.writeCalls += 1;
+      this.engine.writeAudio(sessionId, new ArrayBuffer(FRAME_BYTES));
+      this.finishCalls += 1;
+      this.engine.finish(sessionId);
+    } catch (e) {
+      this.reentryThrowMessage = safeDetail(`${e}`);
+    }
+  }
+
+  onStart(sessionId: string, eventMessage?: string): void {
+    this.checkOwnership(sessionId);
+    super.onStart(sessionId, eventMessage);
+  }
+
+  onEvent(sessionId: string, eventCode: number, message: string): void {
+    this.checkOwnership(sessionId);
+    super.onEvent(sessionId, eventCode, message);
+    if (this.trigger === 'speech-begin' && eventCode === DingqiaoEventCode.SPEECH_BEGIN) {
+      this.reenter(sessionId);
+    } else if (this.trigger === 'speech-end' && eventCode === DingqiaoEventCode.SPEECH_END) {
+      this.reenter(sessionId);
+    }
+  }
+
+  onResult(sessionId: string, result: SpeechRecognitionResult): void {
+    this.checkOwnership(sessionId);
+    super.onResult(sessionId, result);
+    if (this.trigger === 'result' && result.isFinal && !result.isLast) this.reenter(sessionId);
+  }
+
+  onComplete(sessionId: string, eventMessage?: string): void {
+    this.checkOwnership(sessionId);
+    super.onComplete(sessionId, eventMessage);
+  }
+
+  onError(sessionId: string, errorCode: number, message: string): void {
+    this.checkOwnership(sessionId);
+    super.onError(sessionId, errorCode, message);
+  }
+}
+
+class EndpointReentrantListener extends SequenceListener {
+  private engine: SpeechRecognitionEngine;
+  private oldSessionId: string;
+  private newSessionId: string;
+  private switchOnLast: boolean;
+  switchAttempted: boolean = false;
+  idleAfterCancel: boolean = false;
+  startThrowMessage: string = '';
+  oldFinalsAtSwitch: number = 0;
+  oldLastAtSwitch: number = 0;
+  oldCompletesAtSwitch: number = 0;
+  oldTraceAtSwitch: string = '';
+  newAudioStarted: boolean = false;
+  newCallbackBeforeAudio: boolean = false;
+
+  constructor(engine: SpeechRecognitionEngine, oldSessionId: string, newSessionId: string,
+    switchOnLast: boolean) {
+    super();
+    this.engine = engine;
+    this.oldSessionId = oldSessionId;
+    this.newSessionId = newSessionId;
+    this.switchOnLast = switchOnLast;
+  }
+
+  protected record(callback: CallbackRecord): void {
+    if (callback.sessionId === this.newSessionId && !this.newAudioStarted && callback.kind !== 'start') {
+      this.newCallbackBeforeAudio = true;
+    }
+    super.record(callback);
+  }
+
+  onEvent(sessionId: string, eventCode: number, message: string): void {
+    super.onEvent(sessionId, eventCode, message);
+    if (this.switchOnLast || sessionId !== this.oldSessionId || eventCode !== DingqiaoEventCode.SPEECH_END ||
+      this.switchAttempted) return;
+
+    this.switchSession();
+  }
+
+  private switchSession(): void {
+    this.switchAttempted = true;
+    this.oldFinalsAtSwitch = this.count(this.oldSessionId, 'final');
+    this.oldLastAtSwitch = this.lastCount(this.oldSessionId);
+    this.oldCompletesAtSwitch = this.count(this.oldSessionId, 'complete');
+    this.oldTraceAtSwitch = this.sessionTrace(this.oldSessionId);
+    try {
+      this.engine.cancel(this.oldSessionId);
+      this.idleAfterCancel = !this.engine.isBusy();
+      this.engine.startListening(startParams(this.newSessionId, 'endpoint-reentrant', 0));
+    } catch (e) {
+      this.startThrowMessage = safeDetail(`${e}`);
+    }
+  }
+
+  onResult(sessionId: string, result: SpeechRecognitionResult): void {
+    super.onResult(sessionId, result);
+    if (this.switchOnLast && sessionId === this.oldSessionId && result.isFinal && result.isLast &&
+      !this.switchAttempted) {
+      this.switchSession();
+    }
   }
 }
 
@@ -476,6 +654,7 @@ class CycleResult {
   errors: number = 0;
   finalChars: number = 0;
   speakerScores: number = 0;
+  nonEmptySpeakerScores: number = 0;
   missingSpeakerScores: number = 0;
   firstNonEmptyFinalHasScore: number = -1;
   requestedVadBeginMs: number = -1;
@@ -494,6 +673,7 @@ class CycleResult {
     return `CYCLE|index=${this.index}|id=${this.corpusId}|status=${this.ok ? 'PASS' : 'FAIL'}` +
       `|starts=${this.starts}|partials=${this.partials}|finals=${this.finals}|completes=${this.completes}` +
       `|errors=${this.errors}|finalChars=${this.finalChars}|speakerScores=${this.speakerScores}` +
+      `|nonEmptySpeakerScores=${this.nonEmptySpeakerScores}` +
       `|missingSpeakerScores=${this.missingSpeakerScores}` +
       `|firstNonEmptyFinalHasScore=${this.firstNonEmptyFinalHasScore}` +
       `|requestedVadBeginMs=${this.requestedVadBeginMs}|confirmationGraceMs=${this.confirmationGraceMs}` +
@@ -757,6 +937,30 @@ function feedSilence(engine: SpeechRecognitionEngine, sessionId: string, frames:
   for (let i = 0; i < frames; i++) engine.writeAudio(sessionId, new ArrayBuffer(FRAME_BYTES));
 }
 
+function mergeSessionEvents(target: SessionEvents, source: SessionEvents): void {
+  target.starts += source.starts;
+  target.partials += source.partials;
+  target.speechBegins += source.speechBegins;
+  target.speechEnds += source.speechEnds;
+  target.finals += source.finals;
+  target.completes += source.completes;
+  target.errors += source.errors;
+  target.finalChars += source.finalChars;
+  target.lastFinals += source.lastFinals;
+  target.speakerScores += source.speakerScores;
+  target.nonEmptySpeakerScores += source.nonEmptySpeakerScores;
+  target.missingSpeakerScores += source.missingSpeakerScores;
+  target.unexpectedSessionCallbacks += source.unexpectedSessionCallbacks;
+  for (let i = 0; i < source.finalTexts.length; i++) target.finalTexts.push(source.finalTexts[i]);
+  for (let i = 0; i < source.errorCodes.length; i++) target.errorCodes.push(source.errorCodes[i]);
+  for (let i = 0; i < source.callbackTrace.length; i++) target.callbackTrace.push(source.callbackTrace[i]);
+  if (source.finals > 0) target.lastIsLast = source.lastIsLast;
+  if (target.firstNonEmptyFinalHasScore === undefined &&
+    source.firstNonEmptyFinalHasScore !== undefined) {
+    target.firstNonEmptyFinalHasScore = source.firstNonEmptyFinalHasScore;
+  }
+}
+
 function finishCycle(index: number, corpusId: string, events: SessionEvents, startedAt: number,
   ok: boolean, detail: string): CycleResult {
   const result = new CycleResult();
@@ -770,6 +974,7 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.errors = events.errors;
   result.finalChars = events.finalChars;
   result.speakerScores = events.speakerScores;
+  result.nonEmptySpeakerScores = events.nonEmptySpeakerScores;
   result.missingSpeakerScores = events.missingSpeakerScores;
   result.firstNonEmptyFinalHasScore = events.firstNonEmptyFinalHasScore === undefined ? -1 :
     (events.firstNonEmptyFinalHasScore ? 1 : 0);
@@ -940,13 +1145,18 @@ async function runVoiceprintVadBeginCycle(engine: SpeechRecognitionEngine, entry
   const lastFinalsBeforeFinish = events.lastFinals;
   engine.finish(sessionId);
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const nonEmptyFinalScoreContract = events.finalChars === 0 ||
+    events.firstNonEmptyFinalHasScore === true;
   const ok = completed && events.starts === 1 && events.finals > 0 && events.speakerScores > 0 &&
-    events.firstNonEmptyFinalHasScore === true &&
+    nonEmptyFinalScoreContract &&
     events.lastFinals === 1 && lastFinalsBeforeFinish === 0 && events.completes === 1 &&
     events.errors === 0 && !engine.isBusy();
   let detail = `voiceprint-vad-begin-${paced ? 'paced' : 'burst'}-${leadingSilence ? 'leading' : 'direct'}`;
   if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
-  else if (events.firstNonEmptyFinalHasScore !== true) detail = 'first-final-missing-speaker-score';
+  else if (events.speakerScores === 0) detail = 'missing-speaker-score';
+  else if (events.finalChars > 0 && events.firstNonEmptyFinalHasScore !== true) {
+    detail = 'first-final-missing-speaker-score';
+  }
   const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
   result.requestedVadBeginMs = 1000;
   result.confirmationGraceMs = 1500;
@@ -1002,6 +1212,137 @@ async function runVoiceprintVadBeginIdleCycle(engine: SpeechRecognitionEngine, e
   return result;
 }
 
+async function runSpeakerVadOnStartCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry, index: number,
+  voiceprintId: string): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const paced = index % 2 === 1;
+  const leadingSilence = index % 4 >= 2;
+  const sessionId = `speaker-vad-onstart-${index}`;
+  const listener = new OnStartSpeakerVadListener(events, sessionId, engine);
+  engine.setListener(listener);
+  const params = startParams(sessionId, 'speaker-vad-onstart', index);
+  params.extraParams['vadBegin'] = 1000;
+  params.extraParams['enableVoiceprintVerification'] = false;
+  params.extraParams['enableSpeakerVad'] = false;
+  params.extraParams['voiceprintIds'] = [voiceprintId];
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+
+  const lastFinalsAfterStart = events.lastFinals;
+  if (leadingSilence && engine.isBusy()) feedSilence(engine, sessionId, 40);
+  const fed = engine.isBusy() ? await feedPcmFile(
+    engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, paced ? 20 : 0
+  ) : 0;
+  const lastFinalsBeforeFinish = events.lastFinals;
+  if (engine.isBusy()) engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+
+  const primaryContract = completed && events.starts === 1 && events.finals > 0 &&
+    events.nonEmptySpeakerScores > 0 &&
+    events.lastFinals === 1 && lastFinalsAfterStart === 0 && lastFinalsBeforeFinish === 0 &&
+    events.completes === 1 && events.errors === 0 && listener.enableAttempted &&
+    listener.enableReturned && listener.enableThrowMessage.length === 0 &&
+    listener.speakerVadChangedEvents === 1 && !engine.isBusy();
+
+  const recoveryEvents = new SessionEvents();
+  const recoveryId = `speaker-vad-recovery-${index}`;
+  let recovered = false;
+  if (primaryContract) {
+    engine.setListener(new StressListener(recoveryEvents, recoveryId));
+    engine.startListening(startParams(recoveryId, 'speaker-vad-onstart', index));
+    const recoveryStarted = await waitFor((): boolean => recoveryEvents.starts === 1, START_TIMEOUT_MS);
+    if (recoveryStarted && engine.isBusy()) engine.cancel(recoveryId);
+    await sleep(100);
+    recovered = recoveryStarted && recoveryEvents.starts === 1 && recoveryEvents.finals === 0 &&
+      recoveryEvents.completes === 0 && recoveryEvents.errors === 0 && !engine.isBusy();
+  }
+  mergeSessionEvents(events, recoveryEvents);
+
+  const ok = primaryContract && recovered;
+  let detail = `speaker-vad-onstart-${paced ? 'paced' : 'burst'}-${leadingSilence ? 'leading' : 'direct'}`;
+  if (listener.enableThrowMessage.length > 0) detail = `speaker-vad-enable-throw-${listener.enableThrowMessage}`;
+  else if (!listener.enableReturned || listener.speakerVadChangedEvents !== 1) {
+    detail = `speaker-vad-enable-contract-${listener.speakerVadChangedEvents}`;
+  } else if (lastFinalsAfterStart > 0 || lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
+  else if (events.nonEmptySpeakerScores === 0) detail = 'speaker-vad-missing-nonempty-speaker-score';
+  else if (!primaryContract) detail = 'speaker-vad-onstart-session-contract';
+  else if (!recovered) detail = 'speaker-vad-onstart-recovery-contract';
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.requestedVadBeginMs = 1000;
+  result.confirmationGraceMs = 1500;
+  result.voiceprintIdCount = 1;
+  result.fedFrames = fed;
+  result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  return result;
+}
+
+async function runCallbackApiReentrantCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const triggers: string[] = ['speech-begin', 'speech-end', 'result'];
+  const trigger = triggers[index % triggers.length];
+  const sessionId = `callback-api-${trigger}-${index}`;
+  const listener = new CallbackApiReentrantListener(engine, sessionId, trigger);
+  const events = listener.events;
+  engine.setListener(listener);
+  const params = startParams(sessionId, 'callback-api-reentrant', index);
+  params.extraParams['vadEnd'] = 500;
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 150, 0,
+    (): boolean => listener.reentryAttempted || events.completes > 0);
+  let silenceFed = 0;
+  while (!listener.reentryAttempted && events.completes === 0 && silenceFed < 100) {
+    engine.writeAudio(sessionId, new ArrayBuffer(FRAME_BYTES));
+    silenceFed += 1;
+    if (silenceFed % 10 === 0) await sleep(1);
+  }
+  if (!listener.reentryAttempted) {
+    await waitFor((): boolean => listener.reentryAttempted, 1000);
+  }
+  const completed = listener.reentryAttempted &&
+    await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  if (!completed && engine.isBusy()) engine.cancel(sessionId);
+
+  const finalsAtTerminal = events.finals;
+  const beginsAtTerminal = events.speechBegins;
+  const endsAtTerminal = events.speechEnds;
+  const completesAtTerminal = events.completes;
+  await sleep(100);
+  const callbacksStable = events.finals === finalsAtTerminal &&
+    events.speechBegins === beginsAtTerminal && events.speechEnds === endsAtTerminal &&
+    events.completes === completesAtTerminal;
+  let eventContract = events.speechBegins <= 1 && events.speechEnds <= 1;
+  if (trigger === 'speech-begin') eventContract = events.speechBegins === 1 && events.speechEnds <= 1;
+  else if (trigger === 'speech-end') eventContract = events.speechBegins === 1 && events.speechEnds === 1;
+  let finalContract = events.lastFinals === 1;
+  if (trigger === 'speech-begin') finalContract = finalContract && events.finals === 1;
+  else if (trigger === 'result') finalContract = finalContract && events.finals === 2;
+  else finalContract = finalContract && events.finals >= 1 && events.finals <= 2;
+  const ok = completed && listener.reentryAttempted && listener.writeCalls === 1 &&
+    listener.finishCalls === 1 && listener.reentryThrowMessage.length === 0 && events.starts === 1 &&
+    eventContract && finalContract && events.completes === 1 && events.errors === 0 &&
+    events.unexpectedSessionCallbacks === 0 && listener.terminalOrderOk(sessionId) &&
+    callbacksStable && !engine.isBusy();
+  let detail = `callback-api-reentrant-${trigger}`;
+  if (!listener.reentryAttempted) detail = `${trigger}-callback-not-observed-${fed}-${silenceFed}`;
+  else if (listener.reentryThrowMessage.length > 0) detail = `callback-api-throw-${listener.reentryThrowMessage}`;
+  else if (listener.writeCalls !== 1 || listener.finishCalls !== 1) detail = 'callback-api-call-count';
+  else if (!eventContract) detail = `callback-event-count-${events.speechBegins}-${events.speechEnds}`;
+  else if (!finalContract) detail = `callback-final-count-${events.finals}-${events.lastFinals}`;
+  else if (!callbacksStable) detail = 'callback-count-changed-after-terminal';
+  else if (!listener.terminalOrderOk(sessionId)) detail = 'callback-terminal-order';
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.fedFrames = fed + silenceFed;
+  return result;
+}
+
 async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
   index: number): Promise<CycleResult> {
   const startedAt = Date.now();
@@ -1047,7 +1388,12 @@ async function runNumericEdgeCycle(engine: SpeechRecognitionEngine, entry: Corpu
   const sessionId = `numeric-${index}`;
   engine.setListener(new StressListener(events, sessionId));
   const params = startParams(sessionId, 'numeric-edge', index);
-  params.extraParams['maxAudioDuration'] = Number.NaN;
+  if (index % 2 === 0) {
+    params.extraParams = {};
+    params.extraParams['enablePartialResult'] = false;
+  } else {
+    params.extraParams['maxAudioDuration'] = Number.NaN;
+  }
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
@@ -1060,15 +1406,17 @@ async function runNumericEdgeCycle(engine: SpeechRecognitionEngine, entry: Corpu
     if (fed === 0) break;
     fedFrames += fed;
   }
-  const completed = await waitFor((): boolean => events.completes === 1, 1000);
-  if (!completed && engine.isBusy()) {
-    engine.cancel(sessionId);
-    await sleep(100);
-  }
+  const autoCompleted = await waitFor((): boolean => events.completes > 0, 1000);
+  const activeBeforeFinish = !autoCompleted && events.lastFinals === 0 && events.completes === 0 &&
+    events.errors === 0 && engine.isBusy();
+  if (activeBeforeFinish) engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  if (!completed && engine.isBusy()) engine.cancel(sessionId);
 
-  const ok = completed && events.completes === 1 && events.errors === 0 && events.lastIsLast &&
-    !engine.isBusy() && fedFrames >= 1000;
-  const detail = ok ? 'nan-max-duration-defaulted' : `nan-max-duration-bypass-fed-${fedFrames}`;
+  const ok = activeBeforeFinish && completed && events.completes === 1 && events.lastFinals === 1 &&
+    events.errors === 0 && events.lastIsLast && !engine.isBusy() && fedFrames >= 1000;
+  const variant = index % 2 === 0 ? 'omitted' : 'nan';
+  const detail = ok ? `${variant}-max-duration-disabled` : `${variant}-max-duration-contract-fed-${fedFrames}`;
   return finishCycle(index, entry.id, events, startedAt, ok, detail);
 }
 
@@ -1188,6 +1536,78 @@ async function runStartWriteCycle(engine: SpeechRecognitionEngine, entry: Corpus
   if (notListening > 0) detail = 'onstart-write-not-listening';
   if (finishFailed > 0) detail = 'onstart-finish-failed';
   return finishCycle(index, entry.id, events, startedAt, ok, detail);
+}
+
+async function runEndpointReentrantCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const oldSessionId = `endpoint-old-${index}`;
+  const newSessionId = `endpoint-new-${index}`;
+  const switchOnLast = index % 2 === 1;
+  const listener = new EndpointReentrantListener(engine, oldSessionId, newSessionId, switchOnLast);
+  engine.setListener(listener);
+  engine.startListening(startParams(oldSessionId, 'endpoint-reentrant', index));
+  if (!await waitFor((): boolean => listener.count(oldSessionId, 'start') === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, listener.events, startedAt, false, 'old-start-timeout');
+  }
+
+  let oldFed = 0;
+  let silenceFed = 0;
+  if (switchOnLast) {
+    oldFed = await feedPcmFile(engine, oldSessionId, entry.path, 150, 0);
+    if (oldFed > 0 && engine.isBusy()) engine.finish(oldSessionId);
+  } else {
+    oldFed = await feedPcmFile(engine, oldSessionId, entry.path, 300, 0,
+      (): boolean => listener.switchAttempted);
+    while (!listener.switchAttempted && silenceFed < 100) {
+      engine.writeAudio(oldSessionId, new ArrayBuffer(FRAME_BYTES));
+      silenceFed += 1;
+      if (silenceFed % 10 === 0) await sleep(1);
+    }
+  }
+  const newStarted = await waitFor((): boolean => listener.count(newSessionId, 'start') === 1,
+    START_TIMEOUT_MS);
+  // Old Core processing resumes only after onEvent returns. Give deferred native callbacks a chance
+  // to prove they cannot be attributed to the newly published session.
+  await sleep(100);
+  const oldStableBeforeNewAudio = listener.sessionTrace(oldSessionId) === listener.oldTraceAtSwitch;
+  const oldSwitchContract = listener.oldCompletesAtSwitch === 0 &&
+    (!switchOnLast || listener.oldLastAtSwitch === 1);
+  const cleanBeforeNewAudio = !listener.newCallbackBeforeAudio &&
+    listener.sessionTrace(newSessionId) === 'start';
+
+  let newFed = 0;
+  if (newStarted && engine.isBusy()) {
+    listener.newAudioStarted = true;
+    newFed = await feedPcmFile(engine, newSessionId, entry.path, 150, 0);
+    if (newFed > 0 && engine.isBusy()) engine.finish(newSessionId);
+  }
+  const newCompleted = await waitFor((): boolean => listener.count(newSessionId, 'complete') === 1,
+    COMPLETE_TIMEOUT_MS);
+  if (engine.isBusy()) engine.cancel(newSessionId);
+  await sleep(100);
+
+  const oldStableAfterNewSession = listener.sessionTrace(oldSessionId) === listener.oldTraceAtSwitch;
+  const oldCallbacksStable = oldStableBeforeNewAudio && oldStableAfterNewSession;
+  const newContract = newStarted && newFed > 0 && newCompleted &&
+    listener.lastCount(newSessionId) === 1 && listener.count(newSessionId, 'complete') === 1 &&
+    listener.terminalOrderOk(newSessionId);
+  const ok = oldFed > 0 && listener.switchAttempted && listener.idleAfterCancel &&
+    listener.startThrowMessage.length === 0 && oldCallbacksStable && oldSwitchContract && cleanBeforeNewAudio &&
+    newContract && listener.events.errors === 0 && !engine.isBusy();
+  const variant = switchOnLast ? 'last-result' : 'speech-end';
+  let detail = `endpoint-reentrant-${variant}`;
+  if (!listener.switchAttempted) detail = `${variant}-not-observed-${oldFed}-${silenceFed}`;
+  else if (!listener.idleAfterCancel) detail = 'cancel-did-not-publish-idle';
+  else if (listener.startThrowMessage.length > 0) detail = `new-start-throw-${listener.startThrowMessage}`;
+  else if (!oldStableBeforeNewAudio) detail = 'old-callback-before-new-audio';
+  else if (!oldStableAfterNewSession) detail = 'old-callback-during-new-session';
+  else if (!oldSwitchContract) detail = `old-${variant}-contract`;
+  else if (!cleanBeforeNewAudio) detail = 'callback-attributed-to-new-session-before-audio';
+  else if (!newContract) detail = 'new-session-contract';
+  const result = finishCycle(index, entry.id, listener.events, startedAt, ok, detail);
+  result.fedFrames = oldFed + silenceFed + newFed;
+  return result;
 }
 
 // Mirrors a real caller under impatient user input: cancel and immediately reuse the engine, try to
@@ -1365,7 +1785,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     if (runtimeError !== 0) throw new Error(`runtime-${runtimeError}`);
 
     if (options.mode === 'voiceprint' || options.mode === 'voiceprint-vad-begin' ||
-      options.mode === 'voiceprint-vad-begin-idle') {
+      options.mode === 'voiceprint-vad-begin-idle' || options.mode === 'speaker-vad-onstart') {
       if (options.mode === 'voiceprint' && entries.length < 2) {
         throw new Error('voiceprint-stress-requires-two-corpus-sources');
       }
@@ -1397,6 +1817,12 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runStartCancelCycle(engine, entry, i);
       } else if (options.mode === 'start-write' || options.mode === 'start-write-reload') {
         result = await runStartWriteCycle(engine, entry, i);
+      } else if (options.mode === 'speaker-vad-onstart') {
+        result = await runSpeakerVadOnStartCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'callback-api-reentrant') {
+        result = await runCallbackApiReentrantCycle(engine, entry, i);
+      } else if (options.mode === 'endpoint-reentrant') {
+        result = await runEndpointReentrantCycle(engine, entry, i);
       } else if (options.mode === 'user-sequence') {
         result = await runUserSequenceCycle(engine, entry, i);
       } else if (options.mode === 'vad-begin-silence') {

@@ -1,5 +1,7 @@
 import json
+import io
 import importlib.util
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +14,7 @@ if SPEC is None or SPEC.loader is None:
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 find_violations = MODULE.find_violations
+find_archive_violations = MODULE.find_archive_violations
 
 
 class CustomerDeliveryRedactionTest(unittest.TestCase):
@@ -67,6 +70,18 @@ class CustomerDeliveryRedactionTest(unittest.TestCase):
         violations = find_violations(path)
         sensitive = [item for item in violations if "sensitive JSON value" in item]
         self.assertEqual(len(sensitive), 3)
+
+    def test_rejects_sensitive_text_inside_har(self) -> None:
+        directory = Path(tempfile.mkdtemp())
+        path = directory / "sdk.har"
+        with tarfile.open(path, "w:gz") as archive:
+            payload = b"local example: /Users/example/Downloads/input.wav\n"
+            info = tarfile.TarInfo("package/CONTRACT_TESTS.md")
+            info.size = len(payload)
+            archive.addfile(info, io.BytesIO(payload))
+        violations = find_archive_violations(path)
+        self.assertTrue(any("CONTRACT_TESTS.md" in item for item in violations))
+        self.assertTrue(any("local user home path" in item for item in violations))
 
 
 if __name__ == "__main__":

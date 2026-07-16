@@ -3,6 +3,9 @@
 ## 0.2.5 - 2026-07-16（生命周期回归防护与交付证据）
 
 - 修复 `onStart` 会话发布门禁的跨 session 代次隔离，旧 session 的迟到 started 信号不能解锁新 session。
+- 将同一 generation 校验扩展到全部 native 回调，并在客户 listener 返回后复检；回调内 cancel/restart 时，旧 final/error/stopped 不再污染新 session。
+- `maxAudioDuration` 改为仅在显式传入有限值时启用；缺省或非法值不再隐式触发 20 秒自动结束。
+- 增加 `speaker-vad-onstart`、`numeric-edge` 和 `max-duration` 真机门禁，覆盖声纹运行期开关、非法数值参数和显式最大时长自动结束。
 - 增加历史生命周期问题闭环说明、客户脱敏验证摘要和机器可读证据，并在组包与 CI 中执行脱敏检查。
 - 发布包、`amphion_dingqiao` HAR、核心 ASR/Police HAR 和 Demo HAP 的版本统一为 0.2.5。
 
