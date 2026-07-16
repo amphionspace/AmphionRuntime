@@ -3,7 +3,7 @@
   "cmudict": "data/cmudict-0.7b",
   "pair_count": 1981,
   "aligned_line_count": 1935,
-  "entry_count": 966,
+  "entry_count": 974,
   "entries": {
     "A-WEEK": {
       "phones": [
@@ -12029,6 +12029,100 @@
       "count": 1,
       "example": "Zeddy",
       "source": "kaikki-proper-terms"
+    },
+    "AMOLED": {
+      "phones": [
+        "AE1",
+        "M",
+        "OW0",
+        "L",
+        "EH2",
+        "D"
+      ],
+      "count": 1,
+      "example": "AMOLED",
+      "source": "kaikki-common-acronym"
+    },
+    "CAPTCHA": {
+      "phones": [
+        "K",
+        "AE1",
+        "P",
+        "CH",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "CAPTCHA",
+      "source": "kaikki-common-acronym"
+    },
+    "GIF": {
+      "phones": [
+        "G",
+        "IH1",
+        "F"
+      ],
+      "count": 1,
+      "example": "GIF",
+      "source": "kaikki-common-acronym"
+    },
+    "JPEG": {
+      "phones": [
+        "JH",
+        "EY1",
+        "P",
+        "EH2",
+        "G"
+      ],
+      "count": 1,
+      "example": "JPEG",
+      "source": "kaikki-common-acronym"
+    },
+    "QWERTY": {
+      "phones": [
+        "K",
+        "W",
+        "ER1",
+        "T",
+        "IY0"
+      ],
+      "count": 1,
+      "example": "QWERTY",
+      "source": "kaikki-common-acronym"
+    },
+    "SATA": {
+      "phones": [
+        "S",
+        "EY1",
+        "T",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "SATA",
+      "source": "kaikki-common-acronym"
+    },
+    "XOR": {
+      "phones": [
+        "EH1",
+        "K",
+        "S",
+        "AO1",
+        "R"
+      ],
+      "count": 1,
+      "example": "XOR",
+      "source": "kaikki-common-acronym"
+    },
+    "YAML": {
+      "phones": [
+        "Y",
+        "AE1",
+        "M",
+        "AH0",
+        "L"
+      ],
+      "count": 1,
+      "example": "YAML",
+      "source": "kaikki-common-acronym"
     }
   }
 }
