@@ -5755,7 +5755,7 @@
 一万两	yi2 wan4 liang3
 一万两万	yi2 wan4 liang3 wan4
 一万两千	yi2 wan4 liang3 qian1
-一万个	yi2 wan4 ge5
+一万个	yi2 wan4 ge4
 一万九千	yi1 wan4 jiu3 qian1
 一万九千余	yi2 wan4 jiu3 qian1 yu2
 一万二	yi2 wan4 er4
@@ -11597,7 +11597,7 @@
 万世流芳	wan4 shi4 liu2 fang1
 万两	wan4 liang3
 万两左右	wan4 liang3 zuo3 you4
-万个	wan4 ge5
+万个	wan4 ge4
 万串	wan4 chuan4
 万丹	wan4 dan1
 万丹乡	wan4 dan1 xiang1
@@ -213757,7 +213757,7 @@
 干家	gan4 jia1
 干寒	gan1 han2
 干寤	gan4 wu4
-干将	gan4 jiang1
+干将	gan4 jiang4
 干将莫邪	gan1 jiang1 mo4 ye2
 干尸	gan1 shi1
 干尼亚	gan1 ni2 ya4
@@ -297104,7 +297104,7 @@
 晞阳	xi1 yang2
 晞露	xi1 lu4
 晞风	xi1 feng1
-晟	cheng2
+晟	sheng4
 晠	sheng4
 晡	bu1
 晡夕	bu1 xi1
@@ -405878,7 +405878,6 @@
 的应	de5 ying1
 的彀	de5 gou4
 的役	de5 yi4
-的情	di2 qing2
 的意	de5 yi4
 的据	de5 ju4
 的旨	de5 zhi3
@@ -664992,3 +664991,6 @@
 星转斗移	xing1 zhuan3 dou3 yi2
 京藏	jing1 zang4
 京藏高速	jing1 zang4 gao1 su4
+
+好儿子	hao3 er2 zi5
+人为什么	ren2 wei4 shen2 me5
