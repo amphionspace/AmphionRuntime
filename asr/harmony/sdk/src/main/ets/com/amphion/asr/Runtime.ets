@@ -1298,8 +1298,16 @@ export class AsrSession {
 
     if (this.recognizer.isEndpoint(this.stream)) {
       if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
-      this.dispatchFinal(true, decodeDurationMs, isLastFinal);
-      if (!this.callbackGate.isClosed()) this.finishUtterance(restartAfterFinal);
+      // A stop requested synchronously by this endpoint callback belongs to this exact result. It is
+      // safe to promote here because the core is constructing the current final; the adapter still
+      // never infers last-ness from its broader, asynchronous finishRequested flag.
+      const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
+      this.dispatchFinal(true, decodeDurationMs, isLastFinal || stopAtEndpoint);
+      if (stopAtEndpoint) {
+        if (!this.callbackGate.isClosed()) this.notifyStopped();
+      } else if (!this.callbackGate.isClosed()) {
+        this.finishUtterance(restartAfterFinal);
+      }
       return;
     }
 
@@ -1559,8 +1567,13 @@ export class AsrSession {
   // is the verified-safe native ordering on Harmony.
   private triggerVadActiveEndpoint(): void {
     if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
-    this.dispatchFinal(true, 0);
+    const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
+    this.dispatchFinal(true, 0, stopAtEndpoint);
     if (this.callbackGate.isClosed()) return;
+    if (stopAtEndpoint) {
+      this.notifyStopped();
+      return;
+    }
     this.finishUtterance(true);
     if (this.callbackGate.isClosed()) return;
     this.resetVadGateState();
@@ -1715,15 +1728,21 @@ export class AsrSession {
 
   private triggerSpeakerVadEndpoint(): void {
     if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
+    const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
     if (this.svRejectCurrentUtterance) {
       // Target never showed up in this segment: drop the transcription, surface a rejected result.
       // Rebuild the stream so the rejected (non-target) audio doesn't bias the next utterance.
       const rejected = new AsrResult();
       rejected.speakerScore = this.lastSpeakerVadScore;
       rejected.isTargetSpeaker = false;
+      rejected.isLast = stopAtEndpoint;
       if (!this.callbackGate.invoke((): void => {
         this.callback.onFinalRejected?.(rejected);
       })) return;
+      if (stopAtEndpoint) {
+        if (!this.callbackGate.isClosed()) this.notifyStopped();
+        return;
+      }
       this.restartStreamAfterUtterance();
       if (this.callbackGate.isClosed()) return;
       this.utteranceSamples = [];
@@ -1732,8 +1751,12 @@ export class AsrSession {
       this.firstPcmMs = -1;
       this.firstPartialLatencyMs = -1;
     } else {
-      this.dispatchFinal(true, 0);
+      this.dispatchFinal(true, 0, stopAtEndpoint);
       if (this.callbackGate.isClosed()) return;
+      if (stopAtEndpoint) {
+        this.notifyStopped();
+        return;
+      }
       this.restartStreamAfterUtterance();
       if (this.callbackGate.isClosed()) return;
     }
