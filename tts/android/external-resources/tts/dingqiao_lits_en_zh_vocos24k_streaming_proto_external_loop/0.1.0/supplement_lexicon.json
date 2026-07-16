@@ -3,7 +3,7 @@
   "cmudict": "data/cmudict-0.7b",
   "pair_count": 1981,
   "aligned_line_count": 1935,
-  "entry_count": 915,
+  "entry_count": 966,
   "entries": {
     "A-WEEK": {
       "phones": [
@@ -11364,6 +11364,671 @@
       ],
       "count": 1,
       "example": "Zwingli"
+    },
+    "ARECIBO": {
+      "phones": [
+        "AE2",
+        "R",
+        "AH0",
+        "S",
+        "IY1",
+        "B",
+        "OW0"
+      ],
+      "count": 1,
+      "example": "Arecibo",
+      "source": "kaikki-proper-terms"
+    },
+    "ASCIIBETICAL": {
+      "phones": [
+        "AE2",
+        "S",
+        "K",
+        "IY0",
+        "B",
+        "EH1",
+        "T",
+        "AH0",
+        "K",
+        "AH0",
+        "L"
+      ],
+      "count": 1,
+      "example": "ASCIIbetical",
+      "source": "kaikki-proper-terms"
+    },
+    "CNILE": {
+      "phones": [
+        "S",
+        "IY1",
+        "N",
+        "AY0",
+        "L"
+      ],
+      "count": 1,
+      "example": "Cnile",
+      "source": "kaikki-proper-terms"
+    },
+    "COFFEESCRIPT": {
+      "phones": [
+        "K",
+        "AO1",
+        "F",
+        "IY0",
+        "S",
+        "K",
+        "R",
+        "IH0",
+        "P",
+        "T"
+      ],
+      "count": 1,
+      "example": "CoffeeScript",
+      "source": "kaikki-proper-terms"
+    },
+    "CPYTHON": {
+      "phones": [
+        "S",
+        "IY1",
+        "P",
+        "AY2",
+        "TH",
+        "AA0",
+        "N"
+      ],
+      "count": 1,
+      "example": "CPython",
+      "source": "kaikki-proper-terms"
+    },
+    "CYTHON": {
+      "phones": [
+        "S",
+        "AY1",
+        "TH",
+        "AA0",
+        "N"
+      ],
+      "count": 1,
+      "example": "Cython",
+      "source": "kaikki-proper-terms"
+    },
+    "DEFRAG": {
+      "phones": [
+        "D",
+        "IY0",
+        "F",
+        "R",
+        "AE1",
+        "G"
+      ],
+      "count": 1,
+      "example": "defrag",
+      "source": "kaikki-proper-terms"
+    },
+    "DIJKSTRA": {
+      "phones": [
+        "D",
+        "AY1",
+        "K",
+        "S",
+        "T",
+        "R",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "Dijkstra",
+      "source": "kaikki-proper-terms"
+    },
+    "DJVU": {
+      "phones": [
+        "D",
+        "IY2",
+        "JH",
+        "EY0",
+        "V",
+        "IY1",
+        "Y",
+        "UW0"
+      ],
+      "count": 1,
+      "example": "DjVu",
+      "source": "kaikki-proper-terms"
+    },
+    "DOCO": {
+      "phones": [
+        "D",
+        "AA1",
+        "K",
+        "OW0"
+      ],
+      "count": 1,
+      "example": "doco",
+      "source": "kaikki-proper-terms"
+    },
+    "ECMASCRIPT": {
+      "phones": [
+        "EH1",
+        "K",
+        "M",
+        "AH0",
+        "S",
+        "K",
+        "R",
+        "IH2",
+        "P",
+        "T"
+      ],
+      "count": 1,
+      "example": "ECMAScript",
+      "source": "kaikki-proper-terms"
+    },
+    "ERLANG": {
+      "phones": [
+        "ER1",
+        "R",
+        "L",
+        "AE0",
+        "NG"
+      ],
+      "count": 1,
+      "example": "Erlang",
+      "source": "kaikki-proper-terms"
+    },
+    "FORTRAN": {
+      "phones": [
+        "F",
+        "AO1",
+        "R",
+        "T",
+        "R",
+        "AE0",
+        "N"
+      ],
+      "count": 1,
+      "example": "Fortran",
+      "source": "kaikki-proper-terms"
+    },
+    "HACKINTOSH": {
+      "phones": [
+        "HH",
+        "AE1",
+        "K",
+        "IH0",
+        "N",
+        "T",
+        "AA0",
+        "SH"
+      ],
+      "count": 1,
+      "example": "Hackintosh",
+      "source": "kaikki-proper-terms"
+    },
+    "INIT": {
+      "phones": [
+        "IH1",
+        "N",
+        "IH0",
+        "T"
+      ],
+      "count": 1,
+      "example": "init",
+      "source": "kaikki-proper-terms"
+    },
+    "ISO": {
+      "phones": [
+        "AY1",
+        "S",
+        "OW0"
+      ],
+      "count": 1,
+      "example": "iso",
+      "source": "kaikki-proper-terms"
+    },
+    "ITANIC": {
+      "phones": [
+        "AY0",
+        "T",
+        "AE1",
+        "N",
+        "IH0",
+        "K"
+      ],
+      "count": 1,
+      "example": "Itanic",
+      "source": "kaikki-proper-terms"
+    },
+    "JPEGGED": {
+      "phones": [
+        "JH",
+        "EY1",
+        "P",
+        "EH0",
+        "G",
+        "D"
+      ],
+      "count": 1,
+      "example": "JPEGged",
+      "source": "kaikki-proper-terms"
+    },
+    "KEEB": {
+      "phones": [
+        "K",
+        "IY1",
+        "B"
+      ],
+      "count": 1,
+      "example": "keeb",
+      "source": "kaikki-proper-terms"
+    },
+    "KERBEROS": {
+      "phones": [
+        "K",
+        "ER1",
+        "B",
+        "AH0",
+        "R",
+        "AH0",
+        "S"
+      ],
+      "count": 1,
+      "example": "Kerberos",
+      "source": "kaikki-proper-terms"
+    },
+    "MACHEPS": {
+      "phones": [
+        "M",
+        "AE1",
+        "SH",
+        "EH2",
+        "P",
+        "S"
+      ],
+      "count": 1,
+      "example": "macheps",
+      "source": "kaikki-proper-terms"
+    },
+    "MACROHARD": {
+      "phones": [
+        "M",
+        "AE1",
+        "K",
+        "R",
+        "OW0",
+        "HH",
+        "AA2",
+        "R",
+        "D"
+      ],
+      "count": 1,
+      "example": "Macrohard",
+      "source": "kaikki-proper-terms"
+    },
+    "MEM": {
+      "phones": [
+        "M",
+        "EH1",
+        "M"
+      ],
+      "count": 1,
+      "example": "mem",
+      "source": "kaikki-proper-terms"
+    },
+    "MICROSHAFT": {
+      "phones": [
+        "M",
+        "AY1",
+        "K",
+        "R",
+        "OW0",
+        "SH",
+        "AE2",
+        "F",
+        "T"
+      ],
+      "count": 1,
+      "example": "Microshaft",
+      "source": "kaikki-proper-terms"
+    },
+    "MODIFIER": {
+      "phones": [
+        "M",
+        "AA1",
+        "D",
+        "IH0",
+        "F",
+        "AY0",
+        "ER0"
+      ],
+      "count": 1,
+      "example": "modifier",
+      "source": "kaikki-proper-terms"
+    },
+    "MULGA": {
+      "phones": [
+        "M",
+        "AH1",
+        "L",
+        "G",
+        "AH0"
+      ],
+      "count": 1,
+      "example": "mulga",
+      "source": "kaikki-proper-terms"
+    },
+    "MULTICS": {
+      "phones": [
+        "M",
+        "AH1",
+        "L",
+        "T",
+        "IH0",
+        "K",
+        "S"
+      ],
+      "count": 1,
+      "example": "Multics",
+      "source": "kaikki-proper-terms"
+    },
+    "OB": {
+      "phones": [
+        "AA1",
+        "B"
+      ],
+      "count": 1,
+      "example": "Ob",
+      "source": "kaikki-proper-terms"
+    },
+    "OCAML": {
+      "phones": [
+        "OW0",
+        "K",
+        "AE1",
+        "M",
+        "AH0",
+        "L"
+      ],
+      "count": 1,
+      "example": "OCaml",
+      "source": "kaikki-proper-terms"
+    },
+    "OPENTYPE": {
+      "phones": [
+        "OW1",
+        "P",
+        "AH0",
+        "N",
+        "T",
+        "AY2",
+        "P"
+      ],
+      "count": 1,
+      "example": "OpenType",
+      "source": "kaikki-proper-terms"
+    },
+    "PRIV": {
+      "phones": [
+        "P",
+        "R",
+        "IH1",
+        "V"
+      ],
+      "count": 1,
+      "example": "priv",
+      "source": "kaikki-proper-terms"
+    },
+    "PROC": {
+      "phones": [
+        "P",
+        "R",
+        "AA1",
+        "K"
+      ],
+      "count": 1,
+      "example": "proc",
+      "source": "kaikki-proper-terms"
+    },
+    "PROSIOPESIS": {
+      "phones": [
+        "P",
+        "R",
+        "AA2",
+        "S",
+        "IY0",
+        "OW0",
+        "P",
+        "IY1",
+        "S",
+        "IH0",
+        "S"
+      ],
+      "count": 1,
+      "example": "prosiopesis",
+      "source": "kaikki-proper-terms"
+    },
+    "PTR": {
+      "phones": [
+        "P",
+        "IY1",
+        "T",
+        "ER0"
+      ],
+      "count": 1,
+      "example": "ptr",
+      "source": "kaikki-proper-terms"
+    },
+    "PYTHONIC": {
+      "phones": [
+        "P",
+        "AY0",
+        "TH",
+        "AA1",
+        "N",
+        "IH0",
+        "K"
+      ],
+      "count": 1,
+      "example": "Pythonic",
+      "source": "kaikki-proper-terms"
+    },
+    "QT": {
+      "phones": [
+        "K",
+        "Y",
+        "UW1",
+        "T"
+      ],
+      "count": 1,
+      "example": "Qt",
+      "source": "kaikki-proper-terms"
+    },
+    "REGEX": {
+      "phones": [
+        "R",
+        "EH1",
+        "G",
+        "EH2",
+        "K",
+        "S"
+      ],
+      "count": 1,
+      "example": "regex",
+      "source": "kaikki-proper-terms"
+    },
+    "RUSTACEAN": {
+      "phones": [
+        "R",
+        "AH0",
+        "S",
+        "T",
+        "EY1",
+        "SH",
+        "AH0",
+        "N"
+      ],
+      "count": 1,
+      "example": "Rustacean",
+      "source": "kaikki-proper-terms"
+    },
+    "SAWZALL": {
+      "phones": [
+        "S",
+        "AO1",
+        "Z",
+        "AO2",
+        "L"
+      ],
+      "count": 1,
+      "example": "Sawzall",
+      "source": "kaikki-proper-terms"
+    },
+    "STR": {
+      "phones": [
+        "S",
+        "T",
+        "ER1"
+      ],
+      "count": 1,
+      "example": "str",
+      "source": "kaikki-proper-terms"
+    },
+    "TCLER": {
+      "phones": [
+        "T",
+        "IH1",
+        "K",
+        "L",
+        "AH0",
+        "R"
+      ],
+      "count": 1,
+      "example": "Tcler",
+      "source": "kaikki-proper-terms"
+    },
+    "TENERIFE": {
+      "phones": [
+        "T",
+        "EH2",
+        "N",
+        "AH0",
+        "R",
+        "IY1",
+        "F"
+      ],
+      "count": 1,
+      "example": "Tenerife",
+      "source": "kaikki-proper-terms"
+    },
+    "TRUETYPE": {
+      "phones": [
+        "T",
+        "R",
+        "UW1",
+        "T",
+        "AY2",
+        "P"
+      ],
+      "count": 1,
+      "example": "TrueType",
+      "source": "kaikki-proper-terms"
+    },
+    "UINT": {
+      "phones": [
+        "Y",
+        "UW1",
+        "IH0",
+        "N",
+        "T"
+      ],
+      "count": 1,
+      "example": "uint",
+      "source": "kaikki-proper-terms"
+    },
+    "UNICODE": {
+      "phones": [
+        "Y",
+        "UW1",
+        "N",
+        "IH0",
+        "K",
+        "OW2",
+        "D"
+      ],
+      "count": 1,
+      "example": "Unicode",
+      "source": "kaikki-proper-terms"
+    },
+    "VHOST": {
+      "phones": [
+        "V",
+        "IY1",
+        "HH",
+        "OW0",
+        "S",
+        "T"
+      ],
+      "count": 1,
+      "example": "vhost",
+      "source": "kaikki-proper-terms"
+    },
+    "VID": {
+      "phones": [
+        "V",
+        "IH1",
+        "D"
+      ],
+      "count": 1,
+      "example": "vid",
+      "source": "kaikki-proper-terms"
+    },
+    "VULN": {
+      "phones": [
+        "V",
+        "AH1",
+        "L",
+        "N"
+      ],
+      "count": 1,
+      "example": "vuln",
+      "source": "kaikki-proper-terms"
+    },
+    "WINBLOWS": {
+      "phones": [
+        "W",
+        "IH1",
+        "N",
+        "B",
+        "L",
+        "OW0",
+        "Z"
+      ],
+      "count": 1,
+      "example": "Winblows",
+      "source": "kaikki-proper-terms"
+    },
+    "YANDEX": {
+      "phones": [
+        "Y",
+        "AE1",
+        "N",
+        "D",
+        "EH0",
+        "K",
+        "S"
+      ],
+      "count": 1,
+      "example": "Yandex",
+      "source": "kaikki-proper-terms"
+    },
+    "ZEDDY": {
+      "phones": [
+        "Z",
+        "EH1",
+        "D",
+        "IY0"
+      ],
+      "count": 1,
+      "example": "Zeddy",
+      "source": "kaikki-proper-terms"
     }
   }
 }
