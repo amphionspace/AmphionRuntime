@@ -162,3 +162,30 @@ HAP SHA-256 为 `52b44f61ed32b2fde516f697f479ba46ba02b2c86384bacec9f47186e1fd856
 增量回退模式按硬阈值为 PASS，但 62.8 秒内 RSS +46.605 MiB、斜率 41.347 MiB/min，三段中位数
 仍为 672.578/677.117/682.074 MiB，资源趋势继续记为 `INCONCLUSIVE`。需要同输入、同节奏的旧/新
 实现长轮 A/B 并观察尾部平台化，才能得出持续内存是否回退的结论。
+
+同一 HAP 随后补完其余发布门禁，SDK 契约全部 PASS：
+
+| 模式 | 轮数 | Artifact |
+| --- | ---: | --- |
+| `burst` | 20 | `20260717-192518-burst-67e53a90` |
+| `paced` | 2 | `20260717-192622-paced-7e982292` |
+| `vad-begin` | 8 | `20260717-192650-vad-begin-deb665e2` |
+| `vad-begin-silence` | 10 | `20260717-192814-vad-begin-silence-da22a7e3` |
+| `cancel` | 10 | `20260717-192829-cancel-b8d4265a` |
+| `cancel-full` | 4 | `20260717-192840-cancel-full-f08f3da6` |
+| `numeric-edge` | 2 | `20260717-192854-numeric-edge-e633882f` |
+| `edge` | 4 | `20260717-192913-edge-44198466` |
+| `reentrant` | 5 | `20260717-192925-reentrant-e1d6a7ce` |
+| `start-cancel` | 8 | `20260717-192938-start-cancel-1fa66836` |
+| `start-write` | 4 | `20260717-192949-start-write-5e5067d1` |
+| `start-write-reload` | 4 | `20260717-193001-start-write-reload-8d7c39dd` |
+| `user-sequence` | 10 | `20260717-193016-user-sequence-dad64bb2` |
+| `reconfigure` | 4 | `20260717-193039-reconfigure-6c9155ef` |
+| `recreate` | 3 | `20260717-193053-recreate-c276cbdf` |
+| `callback-api-reentrant` | 3 | `20260717-193105-callback-api-reentrant-997ef17b` |
+| `endpoint-reentrant` | 4 | `20260717-193118-endpoint-reentrant-e7d65a15` |
+
+`vad-begin-silence` 首次命令误传 `--files 0`，主机将其解释为全部 1894 个 WAV，并在设备执行前的
+无关 payload 传输阶段人工中止；该轮没有 SDK 结果。随后改为 `--files 1`，按原参数完成 10/10。
+最终 HEAD 的规范 fallback 文件名复播为 1/1 PASS：
+`20260717-192347-voiceprint-fallback-eb404b75`。

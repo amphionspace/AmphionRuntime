@@ -20,6 +20,8 @@
 `run_device_stress.py` 会校验 `build/smoke/build-identity.json` 与当前源码/HAP/HAR 一致，并把完整
 build identity、设备 ID、源 WAV 和转换后 PCM 的 SHA-256 写入 `report.json` / `corpus.json`。
 identity 缺失或过期时测试必须停止，不能复用无法归属到当前源码的旧 HAP。
+`--files 0` 表示选择并传输目录内全部 WAV，只允许用于文件数已固定为 2 的 `voiceprint-fallback`
+目录；纯静音或单文件模式必须传入有界文件数，避免无关 payload 传输。
 
 真机只使用 `ZH_EN` 测试 HAP。`voiceprint-fallback` 数据目录必须只包含：
 
