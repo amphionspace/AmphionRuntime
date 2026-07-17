@@ -231,8 +231,22 @@ def protectSemanticNumeric(text):
 EN_TECH_SYM={'@':' at ','\\':' backslash ','/':' slash ','.':' dot ','_':' underscore ',
              '(':' left paren ',')':' right paren ',':':' ','?':' question mark ',
              '=':' equals ','&':' and ','#':' hash '}
+R_enDotCtx=re.compile(r'\.(com|net|org|io|edu|gov|co|uk|cn|jp|de|fr|ru|dev|app|ai|me'
+                      r'|jpg|jpeg|png|gif|pdf|docx?|xlsx?|pptx?|txt|csv|json|xml|zip|tar|gz'
+                      r'|py|js|ts|java|cpp|sh|md|log|exe|dll)\b', re.I)
+def _needsDotReading(token):
+    """'.' reads as "dot" only in a real domain/file/URL/email token — NOT in an
+    abbreviation like p.m. / Mr. / U.S., whose dots are silent."""
+    if '@' in token or '/' in token or '\\' in token: return True
+    return bool(R_enDotCtx.search(token))
 def normalizeEnglishTechnicalToken(token):
-    return re.sub(r'\s+',' ',''.join(EN_TECH_SYM.get(c,c) for c in token)).strip()
+    sym=dict(EN_TECH_SYM)
+    if not _needsDotReading(token): sym.pop('.', None)
+    if re.match(r'^[A-Za-z]:[\\/]', token):        # Windows drive: C:\ -> "C drive backslash"
+        token=token[0]+' drive '+token[2:]
+    elif '//' in token:                             # URL scheme: https:// -> "https colon slash slash"
+        sym[':']=' colon '
+    return re.sub(r'\s+',' ',''.join(sym.get(c,c) for c in token)).strip()
 def protectEnglishTechnical(text):
     def tok(m):
         t=m.group(1)
@@ -240,6 +254,7 @@ def protectEnglishTechnical(text):
         return ' '+normalizeEnglishTechnicalToken(t)+' '
     return re.sub(r'\s+',' ', R_techToken.sub(tok, text)).strip()
 def prepare_english_input(text):
+    text=text.replace('~',' tilde ')   # ~/projects -> "tilde slash projects"
     return protectEnglishTechnical(text)
 
 def prepare_input(text):

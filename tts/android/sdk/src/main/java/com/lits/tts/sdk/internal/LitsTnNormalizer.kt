@@ -131,12 +131,27 @@ internal object LitsTnNormalizer {
         // English technical-symbol TN (URL/email/path/code): symbols must be spoken.
         // Only inside a technical token (letters + tech symbols), so a sentence-final
         // "." in "today." is untouched (the token regex requires an alnum ending).
-        private fun normalizeEnglishTechnicalToken(token: String): String =
-            token.map { englishTechSymbolText[it] ?: it.toString() }.joinToString("")
+        // "." reads as "dot" only in a real domain/file/URL/email token — NOT in an
+        // abbreviation like p.m. / Mr. / U.S., whose dots stay silent.
+        private fun needsDotReading(token: String): Boolean =
+            token.contains('@') || token.contains('/') || token.contains('\\') ||
+                englishDotContextRegex.containsMatchIn(token)
+
+        private fun normalizeEnglishTechnicalToken(token: String): String {
+            val sym = englishTechSymbolText.toMutableMap()
+            if (!needsDotReading(token)) sym.remove('.')
+            var t = token
+            if (windowsDriveRegex.containsMatchIn(t)) {      // C:\ -> "C drive backslash"
+                t = t[0] + " drive " + t.substring(2)
+            } else if (t.contains("//")) {                   // https:// -> "https colon slash slash"
+                sym[':'] = " colon "
+            }
+            return t.map { sym[it] ?: it.toString() }.joinToString("")
                 .replace(Regex("\\s+"), " ").trim()
+        }
 
         private fun protectEnglishTechnicalReadings(text: String): String =
-            technicalAsciiTokenRegex.replace(text) { match ->
+            technicalAsciiTokenRegex.replace(text.replace("~", " tilde ")) { match ->
                 val token = match.groupValues[1]
                 if (!token.any { isAsciiLetter(it) } || !token.any { it in technicalSymbolChars }) {
                     token
@@ -601,6 +616,14 @@ internal object LitsTnNormalizer {
                 "\\b((?:verification\\s+)?code\\s+is\\s+(?:(?:[A-Z]|zero|one|two|three|four|five|six|seven|eight|nine)\\s+){2,})(\\d{1,4})(?=\\b)",
                 RegexOption.IGNORE_CASE,
             )
+            // domain / file-extension context where "." must be read as "dot"
+            private val englishDotContextRegex = Regex(
+                "\\.(com|net|org|io|edu|gov|co|uk|cn|jp|de|fr|ru|dev|app|ai|me" +
+                    "|jpe?g|png|gif|pdf|docx?|xlsx?|pptx?|txt|csv|json|xml|zip|tar|gz" +
+                    "|py|js|ts|java|cpp|sh|md|log|exe|dll)\\b",
+                RegexOption.IGNORE_CASE,
+            )
+            private val windowsDriveRegex = Regex("^[A-Za-z]:[\\\\/]")
             // English readings for technical symbols (URL/email/path/code)
             private val englishTechSymbolText = mapOf(
                 '@' to " at ", '\\' to " backslash ", '/' to " slash ", '.' to " dot ",
