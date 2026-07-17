@@ -271,6 +271,8 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 
 > 交付批注 VP-20260715-01（2026-07-15）：`speakerSimilarity` 是可选值。有效语音短于 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时无法可靠打分，SDK 保留识别结果但省略该字段；调用方不得把字段缺失当作会话结束或识别失败。
 
+> 交付批注 LC-20260716-02（v0.2.6）：调用方在 `SPEECH_END` 回调内同步调用 `finish()`，且没有更早排队的音频时，当前带文本 final 同时标记 `isLast=true`，不会再追加空的 last final。`vadBegin` 命中或确实没有可识别语音时，last final 仍允许为空。
+
 事件码：
 
 | 事件码 | 名称 | 说明 |

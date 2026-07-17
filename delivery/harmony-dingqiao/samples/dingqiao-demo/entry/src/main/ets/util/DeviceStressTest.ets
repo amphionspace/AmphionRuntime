@@ -355,6 +355,17 @@ class CallbackApiReentrantListener extends SequenceListener {
     }
   }
 
+  private finishOnly(sessionId: string): void {
+    if (this.reentryAttempted) return;
+    this.reentryAttempted = true;
+    try {
+      this.finishCalls += 1;
+      this.engine.finish(sessionId);
+    } catch (e) {
+      this.reentryThrowMessage = safeDetail(`${e}`);
+    }
+  }
+
   onStart(sessionId: string, eventMessage?: string): void {
     this.checkOwnership(sessionId);
     super.onStart(sessionId, eventMessage);
@@ -366,7 +377,9 @@ class CallbackApiReentrantListener extends SequenceListener {
     if (this.trigger === 'speech-begin' && eventCode === DingqiaoEventCode.SPEECH_BEGIN) {
       this.reenter(sessionId);
     } else if (this.trigger === 'speech-end' && eventCode === DingqiaoEventCode.SPEECH_END) {
-      this.reenter(sessionId);
+      // Customer integration calls finish() synchronously from SPEECH_END without writing another frame.
+      // Keep this path exact so an empty trailing isLast result cannot hide behind synthetic audio.
+      this.finishOnly(sessionId);
     }
   }
 
@@ -1324,8 +1337,10 @@ async function runCallbackApiReentrantCycle(engine: SpeechRecognitionEngine, ent
   let finalContract = events.lastFinals === 1;
   if (trigger === 'speech-begin') finalContract = finalContract && events.finals === 1;
   else if (trigger === 'result') finalContract = finalContract && events.finals === 2;
-  else finalContract = finalContract && events.finals >= 1 && events.finals <= 2;
-  const ok = completed && listener.reentryAttempted && listener.writeCalls === 1 &&
+  else finalContract = finalContract && events.finals === 1 && events.finalTexts.length === 1 &&
+    events.finalTexts[0].length > 0;
+  const expectedWriteCalls = trigger === 'speech-end' ? 0 : 1;
+  const ok = completed && listener.reentryAttempted && listener.writeCalls === expectedWriteCalls &&
     listener.finishCalls === 1 && listener.reentryThrowMessage.length === 0 && events.starts === 1 &&
     eventContract && finalContract && events.completes === 1 && events.errors === 0 &&
     events.unexpectedSessionCallbacks === 0 && listener.terminalOrderOk(sessionId) &&
@@ -1333,7 +1348,7 @@ async function runCallbackApiReentrantCycle(engine: SpeechRecognitionEngine, ent
   let detail = `callback-api-reentrant-${trigger}`;
   if (!listener.reentryAttempted) detail = `${trigger}-callback-not-observed-${fed}-${silenceFed}`;
   else if (listener.reentryThrowMessage.length > 0) detail = `callback-api-throw-${listener.reentryThrowMessage}`;
-  else if (listener.writeCalls !== 1 || listener.finishCalls !== 1) detail = 'callback-api-call-count';
+  else if (listener.writeCalls !== expectedWriteCalls || listener.finishCalls !== 1) detail = 'callback-api-call-count';
   else if (!eventContract) detail = `callback-event-count-${events.speechBegins}-${events.speechEnds}`;
   else if (!finalContract) detail = `callback-final-count-${events.finals}-${events.lastFinals}`;
   else if (!callbacksStable) detail = 'callback-count-changed-after-terminal';

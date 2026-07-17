@@ -68,12 +68,53 @@ class HarmonySessionReentryQueueTest(unittest.TestCase):
             """
         )
 
+    def test_endpoint_consumes_a_synchronous_stop_without_creating_an_empty_stream(self) -> None:
+        self.run_queue(
+            """
+            const queue = new SessionReentryQueue();
+            const events = [];
+            queue.enqueueStop();
+            assert.equal(queue.consumeStopAtEndpoint(), true);
+            queue.drain(() => false,
+              samples => events.push(`audio-${samples[0]}`),
+              () => events.push('stop'));
+            assert.deepEqual(events, []);
+            """
+        )
+
+    def test_endpoint_does_not_skip_audio_queued_before_stop(self) -> None:
+        self.run_queue(
+            """
+            const queue = new SessionReentryQueue();
+            const events = [];
+            queue.enqueueAudio(new Float32Array([1]));
+            queue.enqueueStop();
+            assert.equal(queue.consumeStopAtEndpoint(), false);
+            queue.drain(() => false,
+              samples => events.push(`audio-${samples[0]}`),
+              () => events.push('stop'));
+            assert.deepEqual(events, ['audio-1', 'stop']);
+            """
+        )
+
     def test_runtime_defers_stream_calls_made_inside_callbacks(self) -> None:
         runtime = RUNTIME.read_text(encoding="utf-8")
         self.assertIn("from './SessionReentryQueue'", runtime)
         self.assertIn("this.callbackGate.isInvoking()", runtime)
         self.assertIn("this.reentryQueue.enqueueAudio(samples)", runtime)
         self.assertIn("this.reentryQueue.enqueueStop()", runtime)
+
+    def test_runtime_promotes_the_current_endpoint_when_its_callback_requests_stop(self) -> None:
+        runtime = RUNTIME.read_text(encoding="utf-8")
+        self.assertIn(
+            "const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();",
+            runtime,
+        )
+        self.assertIn(
+            "this.dispatchFinal(true, decodeDurationMs, isLastFinal || stopAtEndpoint);",
+            runtime,
+        )
+        self.assertIn("if (stopAtEndpoint)", runtime)
 
 
 if __name__ == "__main__":
