@@ -187,5 +187,56 @@ HAP SHA-256 为 `52b44f61ed32b2fde516f697f479ba46ba02b2c86384bacec9f47186e1fd856
 
 `vad-begin-silence` 首次命令误传 `--files 0`，主机将其解释为全部 1894 个 WAV，并在设备执行前的
 无关 payload 传输阶段人工中止；该轮没有 SDK 结果。随后改为 `--files 1`，按原参数完成 10/10。
-最终 HEAD 的规范 fallback 文件名复播为 1/1 PASS：
+当时增量实现 HEAD 的规范 fallback 文件名复播为 1/1 PASS：
 `20260717-192347-voiceprint-fallback-eb404b75`。
+
+## PR 合入前最终代码复核
+
+警务增强 Demo 开关加入后的代码 commit `c4473e7` 重新执行隔离构建、签名、安装和完整 USB
+门禁。设备为 `MIA-AL00`，OpenHarmony `6.1.0.115`；所有报告都内嵌 commit、设备 ID、源码
+fingerprint 和产物哈希。
+
+| 产物 | SHA-256 |
+| --- | --- |
+| 签名 HAP | `a7ba600f74581f1db3fab11a08f74cf95d8b30b45a4478a2418f003c87a8cf63` |
+| `amphion_asr.har` | `5caea6bdc922d834908fc14413e14d2a4796cebc857551e9b6fad0fe109d3818` |
+| `amphion_dingqiao.har` | `df0d61f454923fe5278a923fc228695074a1e31d1a2e4d325809aae5a4769a5d` |
+| `amphion_police.har` | `534f781ea38df677a35aed8bd476fae18cd1cc0c5c5904af26081a61ba2e0035` |
+
+问题定向结果：
+
+- `voiceprint-fallback` 6/6 PASS，第一条非空 endpoint final 均有真实分数，artifact
+  `20260717-210016-voiceprint-fallback-c92762f6`；
+- `voiceprint` 七场景 7/7 PASS，逐条非空 final 检查通过，artifact
+  `20260717-210344-voiceprint-d03b90e4`；
+- `max-duration` burst/paced 均在 400 帧结束，请求值和生效值均为 8000 ms，墙钟耗时分别为
+  1314/11709 ms，artifact `20260717-210537-max-duration-cfc249e9`。
+
+同一 HAP 的其余发布门禁：
+
+| 模式 | 轮数 | Artifact |
+| --- | ---: | --- |
+| `burst` | 20 | `20260717-210144-burst-54903176` |
+| `paced` | 2 | `20260717-210248-paced-01cad023` |
+| `vad-begin` | 8 | `20260717-210315-vad-begin-b284466a` |
+| `vad-begin-silence` | 10 | `20260717-210332-vad-begin-silence-ef6d009b` |
+| `voiceprint-vad-begin` | 8 | `20260717-210400-voiceprint-vad-begin-b3546d3d` |
+| `voiceprint-vad-begin-idle` | 4 | `20260717-210434-voiceprint-vad-begin-idle-0b3d15b7` |
+| `speaker-vad-onstart` | 4 | `20260717-210446-speaker-vad-onstart-eb946a1e` |
+| `cancel` | 10 | `20260717-210514-cancel-2a2f4a0f` |
+| `cancel-full` | 4 | `20260717-210525-cancel-full-f128d852` |
+| `numeric-edge` | 2 | `20260717-210601-numeric-edge-95fcf175` |
+| `edge` | 4 | `20260717-210620-edge-c2fb29ea` |
+| `reentrant` | 5 | `20260717-210632-reentrant-af60df24` |
+| `start-cancel` | 8 | `20260717-210645-start-cancel-51f30f72` |
+| `start-write` | 4 | `20260717-210657-start-write-b43b1fda` |
+| `start-write-reload` | 4 | `20260717-210708-start-write-reload-3aeb592a` |
+| `user-sequence` | 10 | `20260717-210723-user-sequence-644e9ec5` |
+| `reconfigure` | 4 | `20260717-210747-reconfigure-220ab5ce` |
+| `recreate` | 3 | `20260717-210801-recreate-4cafc4f7` |
+| `callback-api-reentrant` | 3 | `20260717-210813-callback-api-reentrant-9d6acf49` |
+| `endpoint-reentrant` | 4 | `20260717-210824-endpoint-reentrant-cb04e6f8` |
+
+以上模式 SDK 契约全部 PASS。短于 60 秒的资源采样仍按规则记为 `INCONCLUSIVE`；62.9 秒
+`voiceprint-fallback` 在既有硬阈值内 PASS，但 RSS 斜率仍不足以单独证明长期平台化，持续内存风险
+边界不变。
