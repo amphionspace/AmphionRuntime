@@ -14,7 +14,10 @@
 ## 声纹结果契约
 
 - 公共字段名是 `speakerSimilarity`。新增或修改示例、文档和测试时必须使用该名称。
-- `speakerSimilarity` 是可选值。有效语音短于 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时不可靠，SDK 应省略分数并保留识别结果；不得填充假分数或通过补静音绕过门槛。
+- `speakerSimilarity` 的严格评分优先使用筛选后的有效语音。严格样本短于
+  `TargetSpeakerConfig.minSegSec`（默认 1.5 秒），但 ASR 已产生非空 text/token 且本句实际 PCM
+  达到门槛时，SDK 必须退化为本句真实 PCM 评分；不得填充假分数、复制上一句分数或通过补静音
+  绕过门槛。没有 ASR 语音证据或本句实际 PCM 仍短于门槛时，SDK 保留识别结果并省略分数。
 - 排查 `speakerSimilarity=undefined` 时，必须同时记录 `enableVoiceprintVerification`、`enableSpeakerVad`、`voiceprintIds` 数量、调用方传入和 SDK 生效后的 `vadBegin`、实际写入 PCM 时长以及该 final 的有效语音时长。缺少声纹开关或有效 ID 时不得归因为打分异常。
 - 声纹测试至少覆盖：小于门槛、恰好门槛、超过门槛、低音量、前置静音、非注册语料源和多句连续输入。生命周期门禁只判断分数可选性、回调顺序和会话恢复；目标/非目标相似度精度另走带身份标注的评测集。
 

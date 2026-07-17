@@ -49,11 +49,14 @@ class HarmonyMaxAudioDurationPolicyTest(unittest.TestCase):
             """
         )
 
-    def test_explicit_finite_values_are_clamped_and_converted_to_pcm_bytes(self) -> None:
+    def test_positive_finite_values_are_capped_and_converted_to_pcm_bytes(self) -> None:
         self.run_policy(
             """
             const bytesPerMs = 32;
-            assert.equal(maxAudioBytesOf({ maxAudioDuration: -1 }), 20_000 * bytesPerMs);
+            assert.equal(maxAudioBytesOf({ maxAudioDuration: -1 }), 0);
+            assert.equal(maxAudioBytesOf({ maxAudioDuration: 0 }), 0);
+            assert.equal(maxAudioBytesOf({ maxAudioDuration: 0.001 }), 1);
+            assert.equal(maxAudioBytesOf({ maxAudioDuration: 8000 }), 8_000 * bytesPerMs);
             assert.equal(maxAudioBytesOf({ maxAudioDuration: '25000' }), 25_000 * bytesPerMs);
             assert.equal(maxAudioBytesOf({ maxAudioDuration: 28_800_001 }), 28_800_000 * bytesPerMs);
             """

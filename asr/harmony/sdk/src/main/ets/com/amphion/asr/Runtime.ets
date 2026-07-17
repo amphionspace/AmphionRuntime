@@ -39,6 +39,7 @@ import {
 import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 import { InitialSilenceTracker } from './InitialSilenceTracker';
 import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
+import { selectSpeakerScoreSamples } from './SpeakerScoreFallback';
 import { SessionCallbackGate } from './SessionCallbackGate';
 import { SessionReentryQueue } from './SessionReentryQueue';
 import {
@@ -1365,13 +1366,28 @@ export class AsrSession {
     // Speaker VAD's raw tail belongs to the native stream. The effective scoring buffer deliberately
     // spans a suppressed token-only endpoint, but the next stream must not score this segment again.
     if (!boundary.publish) {
-      this.utteranceSamples = [];
+      if (this.speakerVadEnabled) this.utteranceSamples = [];
       return hasEvidence;
+    }
+    const targetConfig = this.config.targetSpeaker;
+    const minSpeakerSamples = targetConfig === undefined ? Number.MAX_SAFE_INTEGER :
+      Math.round(targetConfig.minSegSec * ASR_SAMPLE_RATE_HZ);
+    const utteranceSamples = this.targetSpeakerEnabled ?
+      concatFloat32(this.utteranceSamples) : new Float32Array(0);
+    const scoreSelection =
+      selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence);
+    if (scoreSelection.source === 'utterance') {
+      if (!this.callbackGate.invoke((): void => {
+        this.callback.onDebug?.(
+          `speaker score fallback: effectiveSpeech=${Math.round(
+            boundary.samples.length * 1000 / ASR_SAMPLE_RATE_HZ)}ms, ` +
+          `utterancePcm=${Math.round(utteranceSamples.length * 1000 / ASR_SAMPLE_RATE_HZ)}ms`);
+      })) return false;
     }
     this.utteranceIndex += 1;
     const pending = new PendingSpeakerFinal(
       result,
-      boundary.samples,
+      scoreSelection.samples,
       endpointTriggered ? Date.now() : -1,
       decodeDurationMs,
       postProcessMs,
@@ -1386,7 +1402,7 @@ export class AsrSession {
     this.firstPartialLatencyMs = -1;
     this.utteranceSamples = [];
 
-    if ((boundary.samples.length > 0 || this.pendingSpeakerFinals.length > 0) &&
+    if ((scoreSelection.samples.length > 0 || this.pendingSpeakerFinals.length > 0) &&
       this.targetSpeakerEnabled && this.targetExtractor === undefined &&
       this.targetExtractorLoad !== undefined) {
       this.pendingSpeakerFinals.push(pending);
@@ -1488,7 +1504,8 @@ export class AsrSession {
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
       this.effectiveSpeechBuffer.observe(samples);
     }
-    if (this.speakerVadEnabled && this.utteranceLength() < UTT_MAX_SAMPLES) {
+    if ((this.targetSpeakerEnabled || this.speakerVadEnabled) &&
+      this.utteranceLength() < UTT_MAX_SAMPLES) {
       // acceptPcmShort reuses one conversion buffer; speaker scoring needs an immutable snapshot.
       const retained = Math.min(samples.length, UTT_MAX_SAMPLES - this.utteranceLength());
       this.utteranceSamples.push(samples.slice(0, retained));

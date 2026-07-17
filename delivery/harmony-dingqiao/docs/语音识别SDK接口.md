@@ -224,7 +224,7 @@ interface CreateEngineCallback {
 | `recognitionMode` | `number/string` | `1` | 仅支持 `1`（外部写入音频流）；`0`（SDK 内录音）暂不支持 |
 | `vadBegin` | `number/string` | 未启用 | 首次检测到语音前的静音超时，范围 500 到 10000 ms；仅显式传入时启用 |
 | `enablePartialResult` | `boolean` | `true` | 是否回调中间结果 |
-| `maxAudioDuration` | `number/string` | 未启用 | 单会话最长音频毫秒数；仅显式传入有限数值时启用，并钳制到 20000 到 28800000；达到上限后正常自动结束，非法值按未启用处理 |
+| `maxAudioDuration` | `number/string` | 未启用 | 单会话最长音频毫秒数；显式正有限值按调用值生效，上限 28800000；达到上限后正常自动结束，非正数或非法值按未启用处理 |
 | `vadEnd` | `number/string` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `sessionGeneralLexicon` | `string[]` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
@@ -269,7 +269,10 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `endTime` | `number?` | 结束时间毫秒，可能为空 |
 | `speakerSimilarity` | `number?` | final 且启用声纹能力时返回 |
 
-> 交付批注 VP-20260715-01（2026-07-15）：`speakerSimilarity` 是可选值。有效语音短于 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时无法可靠打分，SDK 保留识别结果但省略该字段；调用方不得把字段缺失当作会话结束或识别失败。
+> 声纹评分优先使用严格筛选的有效语音。严格语音短于 `TargetSpeakerConfig.minSegSec`
+>（默认 1.5 秒），但 ASR 已产生非空 text/token 且当前句实际 PCM 达到门槛时，SDK 使用当前句
+> 真实 PCM 计算回退分数。没有 ASR 语音证据、实际 PCM 仍短于门槛或空 terminal final 时，
+> `speakerSimilarity` 可以省略；SDK 不填充假分数或复制上一句分数。
 
 > 交付批注 LC-20260716-02（v0.2.6）：调用方在 `SPEECH_END` 回调内同步调用 `finish()`，且没有更早排队的音频时，当前带文本 final 同时标记 `isLast=true`，不会再追加空的 last final。`vadBegin` 命中或确实没有可识别语音时，last final 仍允许为空。
 
@@ -308,7 +311,10 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 内存声纹 extractor 由 `unloadModel()` / `unloadRuntime()` 一并释放；HAR 内置的模型文件和已注册的 embedding 属于持久数据，不随内存模型卸载。调用 `unloadModel()` 后再次使用声纹能力会重新按需加载 extractor，但无需重新注册声纹。
 
-仅启用 `enableVoiceprintVerification` 时，SDK 不依据相似度丢弃识别结果；达到有效语音门槛的 final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧判定。未达到门槛的 final 仍返回识别结果，但省略相似度。启用 `enableSpeakerVad` 时，SDK 会在流式阶段执行目标说话人判断，可拒绝非目标说话人片段，并在目标说话人离场后提前切句。
+仅启用 `enableVoiceprintVerification` 时，SDK 不依据相似度丢弃识别结果；有 ASR 语音证据且
+当前句实际 PCM 达到门槛的 final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧
+判定。实际 PCM 未达到门槛的 final 仍返回识别结果，但省略相似度。启用 `enableSpeakerVad`
+时，SDK 会在流式阶段执行目标说话人判断，可拒绝非目标说话人片段，并在目标说话人离场后提前切句。
 
 ## 8. 授权
 

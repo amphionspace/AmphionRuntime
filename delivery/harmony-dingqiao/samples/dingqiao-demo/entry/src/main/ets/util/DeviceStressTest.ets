@@ -1365,14 +1365,14 @@ async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: Corpu
   const sessionId = `max-${index}`;
   engine.setListener(new StressListener(events, sessionId));
   const params = startParams(sessionId, 'max-duration', index);
-  params.extraParams['maxAudioDuration'] = 20000;
+  params.extraParams['maxAudioDuration'] = 8000;
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
   }
 
   let fedFrames = 0;
-  while (events.completes === 0 && fedFrames < 1100) {
+  while (events.completes === 0 && fedFrames < 500) {
     const fed = await feedPcmFile(engine, sessionId, entry.path, 0, 0,
       (): boolean => events.completes > 0);
     if (fed === 0) break;
@@ -1392,8 +1392,11 @@ async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: Corpu
     events.errors === errorsBeforeLateFrames;
   const ok = completed && finalsBeforeLateFrames > 0 && lastFinalsBeforeLateFrames === 1 &&
     completesBeforeLateFrames === 1 && errorsBeforeLateFrames === 0 && lateFramesStable &&
-    events.lastIsLast && !engine.isBusy() && fedFrames >= 1000;
-  return finishCycle(index, entry.id, events, startedAt, ok, ok ? 'auto-finished' : 'max-duration-contract');
+    events.lastIsLast && !engine.isBusy() && fedFrames >= 400 && fedFrames < 500;
+  const result = finishCycle(index, entry.id, events, startedAt, ok,
+    ok ? 'auto-finished' : 'max-duration-contract');
+  result.fedFrames = fedFrames;
+  return result;
 }
 
 async function runNumericEdgeCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
