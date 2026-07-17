@@ -31,9 +31,11 @@ bash tts/tools/harmony/pack_harmony_tts_assets.sh # TTS 模型 -> tts/harmony（
 鼎桥交付额外使用
 `delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json`
 固定批准的中英模型身份。`verify_demo_inputs.sh`、自包含 HAR 验收和 SDK-only
-客户包终检都会校验 `zh-en/v1` 五个运行时文件的 MD5；模型文件与 manifest
-即使一起替换且 SHA-256 自洽，只要不属于该批准版本，交付仍会失败。更换模型时必须先完成
-模型验收，再在同一变更中更新该白名单及对应测试，不能通过跳过门禁交付。
+客户包终检都会校验 `zh-en/v1` 五个运行时文件在 manifest 中记录的源 ONNX
+SHA-256，并单独校验实际 ORT 与 manifest 的输出 SHA-256。ORT 会受转换宿主影响，
+不作为模型身份；模型文件与 manifest 即使一起替换且输出哈希自洽，只要源 ONNX
+不属于该批准版本，交付仍会失败。更换模型时必须先完成模型验收，再在同一变更中
+更新该白名单及对应测试，不能通过跳过门禁交付。
 
 ## 交付打包
 
