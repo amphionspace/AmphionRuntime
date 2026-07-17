@@ -42,11 +42,16 @@
 ## 3. maxAudioDuration 增补
 
 1. 未传 `maxAudioDuration` 时不启用单会话自动上限；连续写入超过 20000 ms 后仍须保持活动，直到显式 `finish` 或命中其他显式终止条件。
-2. 显式传入有限数字、或非空且可解析为有限数字的字符串时启用；传 0、负数或小于 20000 的值时按 20000 ms。
+2. 显式传入正有限数字、或非空且可解析为正有限数字的字符串时启用并按调用值生效；
+   `maxAudioDuration=8000` 必须在累计写入 8000 ms PCM（400 个 20 ms 帧）时结束。
+   0、负数、非有限值和非法类型按未启用处理，不得回退到隐式 20000 ms。
 3. 达到上限后应回调 `onResult(isFinal=true,isLast=true)` 和 `onComplete`，不得回调 `MAX_AUDIO_DURATION`。
 4. 自动结束后 `isBusy()==false`，可立即再次 `startListening`。
 5. `NaN`、正负无穷、空字符串、非法字符串及非数字类型均视为未配置，不得隐式启用 20000 ms 上限。
 6. 大于 28800000 ms 时按 28800000 ms 处理。
+7. `max-duration` 真机门禁必须分别覆盖 burst 与 20 ms paced 写入，两者都在第 400 帧结束；
+   paced 场景墙钟时间不得明显早于 8 秒。结束后 80 个迟到帧不能新增 final、complete 或 error，
+   下一轮必须能立即启动。
 
 ## 4. vadBegin 与参数兼容
 
@@ -88,3 +93,14 @@
 4. 删除不存在的声纹应返回或抛出 `VOICEPRINT_NOT_FOUND` 语义，不得静默成功。
 5. `LicenseInfo` 必须包含 `status`、`expireTime`、`remainingDays`、`authorizedFeatures`。
 6. `LicenseActivationResult` 必须包含 `errorCode`、`errorMessage`、`remainingDays`、`authorizedFeatures`。
+7. `enableVoiceprintVerification=true`、有效 `voiceprintIds` 且
+   `enableSpeakerVad=false` 时仍必须执行 final 声纹评分；Speaker VAD 不是返回
+   `speakerSimilarity` 的前置条件。
+8. 声纹评分优先使用严格筛选后的有效语音。严格样本不足 `minSegSec`，但 ASR 已产生非空
+   text/token 且当前句真实 PCM 达到门槛时，必须使用当前句 PCM 计算真实分数。不得填充固定值、
+   复制上一句分数或补静音绕过门槛。
+9. ASR 没有 text/token 证据、当前句 PCM 短于门槛或空 terminal final 时仍允许省略分数，
+   但不得丢失识别结果或改变 final/last/complete 顺序。
+10. `voiceprint-fallback` 使用两条固定顺序语料：`000_enroll.wav` 注册，
+    `001_recognize.wav` 识别。第一条非空 endpoint final 必须带分数，显式 `finish` 前
+    `isLast` 必须为 0；该模式不得配置短 `maxAudioDuration`，避免把两个终止条件混在一个断言中。

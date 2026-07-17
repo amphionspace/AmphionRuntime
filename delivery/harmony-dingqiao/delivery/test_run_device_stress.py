@@ -24,6 +24,41 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_voiceprint_fallback_is_a_dedicated_endpoint_score_gate(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runVoiceprintFallbackCycle", 1)[1].split(
+            "async function runVoiceprintVadBeginIdleCycle", 1
+        )[0]
+
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "voiceprint-fallback"]
+        ):
+            args = MODULE.parse_args()
+
+        self.assertEqual("voiceprint-fallback", args.mode)
+        self.assertIn("events.firstNonEmptyFinalHasScore === true", cycle)
+        self.assertIn("lastFinalsBeforeFinish === 0", cycle)
+        self.assertIn("params.extraParams['enableSpeakerVad'] = false", cycle)
+        self.assertIn("params.extraParams['maxAudioDuration'] = 28800000", cycle)
+        self.assertNotIn("MAX_DURATION_TEST_MS", cycle)
+        runner = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            'required_names = ("000_enroll.wav", "001_recognize.wav")',
+            runner,
+        )
+
+    def test_max_duration_gate_covers_burst_and_paced_at_exact_frame_count(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runMaxDurationCycle", 1)[1].split(
+            "async function runNumericEdgeCycle", 1
+        )[0]
+
+        self.assertIn("const MAX_DURATION_TEST_MS: number = 8000;", source)
+        self.assertIn("const paced = index % 2 === 1;", cycle)
+        self.assertIn("fedFrames === MAX_DURATION_TEST_FRAMES", cycle)
+        self.assertIn("result.requestedMaxAudioDurationMs = MAX_DURATION_TEST_MS", cycle)
+        self.assertIn("result.effectiveMaxAudioDurationMs = MAX_DURATION_TEST_MS", cycle)
+
     def test_endpoint_reentrant_snapshots_every_callback_kind(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
         sequence_listener = source.split("class SequenceListener", 1)[1].split(

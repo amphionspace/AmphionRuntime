@@ -75,6 +75,7 @@ def parse_args() -> argparse.Namespace:
             "vad-begin",
             "vad-begin-silence",
             "voiceprint",
+            "voiceprint-fallback",
             "voiceprint-vad-begin",
             "voiceprint-vad-begin-idle",
             "cancel",
@@ -457,7 +458,15 @@ def run_stress(args: argparse.Namespace) -> Path:
     hdc = Hdc(hdc_path, device)
     all_sources = inspect_wavs(args.data_dir.expanduser().resolve())
     selected = representative_sources(all_sources, args.files)
-    if args.mode in ("voiceprint-vad-begin", "speaker-vad-onstart"):
+    if args.mode == "voiceprint-fallback":
+        sources_by_name = {source.path.name: source for source in all_sources}
+        required_names = ("000_enroll.wav", "001_recognize.wav")
+        if any(name not in sources_by_name for name in required_names):
+            raise StressFailure(
+                "voiceprint-fallback requires 000_enroll.wav and 001_recognize.wav"
+            )
+        selected = [sources_by_name[name] for name in required_names]
+    elif args.mode in ("voiceprint-vad-begin", "speaker-vad-onstart"):
         # The carrier adds 800 ms leading silence in half the cycles. Keep only sources whose own
         # first 200 ms already contain signal, so that case still places speech before vadBegin.
         # Otherwise the test would correctly time out before the source itself starts speaking.

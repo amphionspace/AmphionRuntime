@@ -54,6 +54,11 @@ class HarmonySpeakerScoreFallbackTest(unittest.TestCase):
             const selected = selectSpeakerScoreSamples(strict, utterance, 24_000, true);
             assert.equal(selected.samples, utterance);
             assert.equal(selected.source, 'utterance');
+
+            const exactThreshold = new Float32Array(24_000);
+            const exact = selectSpeakerScoreSamples(strict, exactThreshold, 24_000, true);
+            assert.equal(exact.samples, exactThreshold);
+            assert.equal(exact.source, 'utterance');
             """
         )
 

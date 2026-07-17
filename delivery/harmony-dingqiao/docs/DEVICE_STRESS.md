@@ -56,11 +56,12 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 | `vad-begin` | 真实语音启用 10 秒 `vadBegin`，验证即使辅助 VAD 漏检，显式 finish 前也不会提前 `isLast` |
 | `vad-begin-silence` | 纯静音命中 500 ms `vadBegin`，验证恰好一次 last/complete 且没有起音事件 |
 | `voiceprint` | 轮换验证 500 ms 短句、1.5 秒门槛、3 秒长句、前置静音、低音量、多句连续输入和非注册语料源；只检查分数可选性与生命周期，不判定相似度精度 |
+| `voiceprint-fallback` | 固定使用 `000_enroll.wav` 注册、`001_recognize.wav` 识别，覆盖严格窗口不足但 ASR 有非空 text/token 且整句 PCM 达标时的真实 PCM 回退；要求 cold/warm 第一条非空 endpoint final 均带分数 |
 | `voiceprint-vad-begin` | 选择自身前 200 ms 已起音的真实语料，声纹开启且传入 1000 ms `vadBegin`，交替实时/突发喂入和直接起音/800 ms 前置静音；验证显式 finish 前无 `isLast`，足够长语音出现带分数 final |
 | `voiceprint-vad-begin-idle` | 声纹开启且传入 1000 ms `vadBegin`，交替写入纯静音和稳态高能非语音；验证前者约 1000 ms、后者在一次 1500 ms 确认窗后有界结束 |
 | `cancel` | 500 ms 后取消，验证无 final/complete 和短会话泄漏 |
 | `cancel-full` | 完整音频解码后取消，隔离正常 finish 路径 |
-| `max-duration` | 显式配置 8 秒后自动结束、80 个迟到帧、单次 complete、下一轮重启 |
+| `max-duration` | 显式配置 8 秒，交替 burst/paced 并精确在 400 个 20 ms 帧后自动结束；验证 80 个迟到帧、单次 complete 和下一轮重启 |
 | `reconfigure` | 轮换 VAD 参数，覆盖引擎替换和旧引擎释放 |
 | `recreate` | 每轮创建引擎并连续 shutdown 两次 |
 | `edge` | 空闲调用、非法 session/帧、串 session、busy、重复 finish |

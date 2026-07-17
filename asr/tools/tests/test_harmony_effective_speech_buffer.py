@@ -337,6 +337,16 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
             "(scoreSelection.samples.length > 0 || this.pendingSpeakerFinals.length > 0)",
             runtime,
         )
+        self.assertIn(
+            "(this.targetSpeakerEnabled || this.speakerVadEnabled) &&\n"
+            "      this.utteranceLength() < UTT_MAX_SAMPLES",
+            runtime,
+        )
+        self.assertIn(
+            "Math.min(samples.length, UTT_MAX_SAMPLES - this.utteranceLength())",
+            runtime,
+        )
+        self.assertIn("this.utteranceSamples = [];", runtime)
         self.assertNotIn("this.effectiveSpeechBuffer.take(hasEvidence)", runtime)
         self.assertNotIn("suppressEmpty", runtime)
 

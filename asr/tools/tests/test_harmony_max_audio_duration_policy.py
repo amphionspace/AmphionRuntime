@@ -9,6 +9,10 @@ POLICY = (
     REPO_ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SessionAudioLimit.ts"
 )
+ADAPTER = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
+)
 TS_LOADER = REPO_ROOT / "asr/tools/tests/ts_extension_loader.mjs"
 
 
@@ -61,6 +65,19 @@ class HarmonyMaxAudioDurationPolicyTest(unittest.TestCase):
             assert.equal(maxAudioBytesOf({ maxAudioDuration: 28_800_001 }), 28_800_000 * bytesPerMs);
             """
         )
+
+    def test_adapter_checks_the_reserved_frame_without_cross_session_leakage(self) -> None:
+        source = ADAPTER.read_text(encoding="utf-8")
+        reserve = source.index("this.audioBytesWritten += audio.byteLength;")
+        accept = source.index("session.acceptPcmBytes(audio);", reserve)
+        generation = source.index("if (!this.sessionStartGate.isCurrent(generation)", accept)
+        limit = source.index("this.audioBytesWritten >= this.maxAudioBytes", generation)
+        stop = source.index("session.stop();", limit)
+
+        self.assertLess(reserve, accept)
+        self.assertLess(accept, generation)
+        self.assertLess(generation, limit)
+        self.assertLess(limit, stop)
 
 
 if __name__ == "__main__":

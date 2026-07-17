@@ -22,8 +22,11 @@ import { WavIo } from './WavIo';
 const TAG: string = 'DeviceStressTest';
 const DOMAIN: number = 0x0000;
 const FRAME_BYTES: number = 640;
+const FRAME_DURATION_MS: number = 20;
 const START_TIMEOUT_MS: number = 10000;
 const COMPLETE_TIMEOUT_MS: number = 30000;
+const MAX_DURATION_TEST_MS: number = 8000;
+const MAX_DURATION_TEST_FRAMES: number = MAX_DURATION_TEST_MS / FRAME_DURATION_MS;
 const VOICEPRINT_SHORT_FRAMES: number = 25;
 const VOICEPRINT_THRESHOLD_FRAMES: number = 75;
 const VOICEPRINT_LONG_FRAMES: number = 150;
@@ -672,6 +675,8 @@ class CycleResult {
   firstNonEmptyFinalHasScore: number = -1;
   requestedVadBeginMs: number = -1;
   confirmationGraceMs: number = -1;
+  requestedMaxAudioDurationMs: number = -1;
+  effectiveMaxAudioDurationMs: number = -1;
   voiceprintIdCount: number = 0;
   fedFrames: number = 0;
   lastFinalsBeforeFinish: number = -1;
@@ -690,6 +695,8 @@ class CycleResult {
       `|missingSpeakerScores=${this.missingSpeakerScores}` +
       `|firstNonEmptyFinalHasScore=${this.firstNonEmptyFinalHasScore}` +
       `|requestedVadBeginMs=${this.requestedVadBeginMs}|confirmationGraceMs=${this.confirmationGraceMs}` +
+      `|requestedMaxAudioDurationMs=${this.requestedMaxAudioDurationMs}` +
+      `|effectiveMaxAudioDurationMs=${this.effectiveMaxAudioDurationMs}` +
       `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
       `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}|liveStreams=${this.liveStreams}` +
       `|unexpectedCallbacks=${this.unexpectedSessionCallbacks}|elapsedMs=${this.elapsedMs}` +
@@ -1179,6 +1186,60 @@ async function runVoiceprintVadBeginCycle(engine: SpeechRecognitionEngine, entry
   return result;
 }
 
+async function runVoiceprintFallbackCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry, index: number,
+  voiceprintId: string): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const sessionId = `voiceprint-fallback-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
+  const params = startParams(sessionId, 'voiceprint-fallback', index);
+  // Isolate sample selection from automatic-last behavior; max duration has its own dedicated mode.
+  params.extraParams['maxAudioDuration'] = 28800000;
+  params.extraParams['vadBegin'] = 5000;
+  params.extraParams['vadEnd'] = 1600;
+  params.extraParams['enablePartialResult'] = true;
+  params.extraParams['enableVoiceprintVerification'] = true;
+  params.extraParams['enableSpeakerVad'] = false;
+  params.extraParams['voiceprintIds'] = [voiceprintId];
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 300, FRAME_DURATION_MS);
+  if (fed === 0) {
+    engine.cancel(sessionId);
+    return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+  }
+  let silenceFed = 0;
+  while (events.finals === 0 && silenceFed < 320) {
+    engine.writeAudio(sessionId, new ArrayBuffer(FRAME_BYTES));
+    silenceFed += 1;
+    await sleep(FRAME_DURATION_MS);
+  }
+  await waitFor((): boolean => events.finals > 0, 5000);
+  const endpointFinals = events.finals;
+  const lastFinalsBeforeFinish = events.lastFinals;
+  engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const endpointScoreContract = endpointFinals > 0 && events.firstNonEmptyFinalHasScore === true;
+  const ok = completed && events.starts === 1 && endpointScoreContract && events.speakerScores > 0 &&
+    events.lastFinals === 1 && lastFinalsBeforeFinish === 0 &&
+    events.completes === 1 && events.errors === 0 && !engine.isBusy();
+  let detail = index === 0 ? 'voiceprint-fallback-cold-scored' : 'voiceprint-fallback-warm-scored';
+  if (endpointFinals === 0) detail = 'missing-endpoint-final';
+  else if (!endpointScoreContract) detail = 'endpoint-final-missing-speaker-score';
+  else if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.requestedVadBeginMs = 5000;
+  result.confirmationGraceMs = 1500;
+  result.requestedMaxAudioDurationMs = 28800000;
+  result.effectiveMaxAudioDurationMs = 28800000;
+  result.voiceprintIdCount = 1;
+  result.fedFrames = fed + silenceFed;
+  result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  return result;
+}
+
 async function runVoiceprintVadBeginIdleCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry, index: number,
   voiceprintId: string): Promise<CycleResult> {
   const startedAt = Date.now();
@@ -1365,15 +1426,16 @@ async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: Corpu
   const sessionId = `max-${index}`;
   engine.setListener(new StressListener(events, sessionId));
   const params = startParams(sessionId, 'max-duration', index);
-  params.extraParams['maxAudioDuration'] = 8000;
+  const paced = index % 2 === 1;
+  params.extraParams['maxAudioDuration'] = MAX_DURATION_TEST_MS;
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
   }
 
   let fedFrames = 0;
-  while (events.completes === 0 && fedFrames < 500) {
-    const fed = await feedPcmFile(engine, sessionId, entry.path, 0, 0,
+  while (events.completes === 0 && fedFrames < MAX_DURATION_TEST_FRAMES + 100) {
+    const fed = await feedPcmFile(engine, sessionId, entry.path, 0, paced ? FRAME_DURATION_MS : 0,
       (): boolean => events.completes > 0);
     if (fed === 0) break;
     fedFrames += fed;
@@ -1392,9 +1454,12 @@ async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: Corpu
     events.errors === errorsBeforeLateFrames;
   const ok = completed && finalsBeforeLateFrames > 0 && lastFinalsBeforeLateFrames === 1 &&
     completesBeforeLateFrames === 1 && errorsBeforeLateFrames === 0 && lateFramesStable &&
-    events.lastIsLast && !engine.isBusy() && fedFrames >= 400 && fedFrames < 500;
+    events.lastIsLast && !engine.isBusy() && fedFrames === MAX_DURATION_TEST_FRAMES &&
+    (!paced || Date.now() - startedAt >= MAX_DURATION_TEST_MS - 1000);
   const result = finishCycle(index, entry.id, events, startedAt, ok,
-    ok ? 'auto-finished' : 'max-duration-contract');
+    ok ? `auto-finished-${paced ? 'paced' : 'burst'}` : 'max-duration-contract');
+  result.requestedMaxAudioDurationMs = MAX_DURATION_TEST_MS;
+  result.effectiveMaxAudioDurationMs = MAX_DURATION_TEST_MS;
   result.fedFrames = fedFrames;
   return result;
 }
@@ -1802,13 +1867,16 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     const runtimeError = await prepareRuntime();
     if (runtimeError !== 0) throw new Error(`runtime-${runtimeError}`);
 
-    if (options.mode === 'voiceprint' || options.mode === 'voiceprint-vad-begin' ||
+    if (options.mode === 'voiceprint' || options.mode === 'voiceprint-fallback' ||
+      options.mode === 'voiceprint-vad-begin' ||
       options.mode === 'voiceprint-vad-begin-idle' || options.mode === 'speaker-vad-onstart') {
-      if (options.mode === 'voiceprint' && entries.length < 2) {
+      if ((options.mode === 'voiceprint' || options.mode === 'voiceprint-fallback') &&
+        entries.length < 2) {
         throw new Error('voiceprint-stress-requires-two-corpus-sources');
       }
       stressVoiceprintSamplePath = `${workPath}/stress-voiceprint-enroll.wav`;
       stressVoiceprintId = prepareStressVoiceprint(workPath, entries[0]);
+      if (options.mode === 'voiceprint-fallback') SpeechRecognizeSdk.unloadModel();
     }
 
     const recreateEachCycle = options.mode === 'recreate' || options.mode === 'start-write-reload';
@@ -1817,6 +1885,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       let entry = entries[i % entries.length];
       if (options.mode === 'voiceprint' &&
         VOICEPRINT_SCENARIOS[i % VOICEPRINT_SCENARIOS.length] === 'alternate-source') {
+        entry = entries[1];
+      } else if (options.mode === 'voiceprint-fallback') {
         entry = entries[1];
       }
       if (recreateEachCycle) engine = createEngine();
@@ -1847,6 +1917,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runVadBeginSilenceCycle(engine, entry, i);
       } else if (options.mode === 'voiceprint') {
         result = await runVoiceprintCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'voiceprint-fallback') {
+        result = await runVoiceprintFallbackCycle(engine, entry, i, stressVoiceprintId);
       } else if (options.mode === 'voiceprint-vad-begin') {
         result = await runVoiceprintVadBeginCycle(engine, entry, i, stressVoiceprintId);
       } else if (options.mode === 'voiceprint-vad-begin-idle') {
