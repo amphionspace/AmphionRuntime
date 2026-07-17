@@ -128,8 +128,26 @@ internal object LitsTnNormalizer {
             return output
         }
 
+        // English technical-symbol TN (URL/email/path/code): symbols must be spoken.
+        // Only inside a technical token (letters + tech symbols), so a sentence-final
+        // "." in "today." is untouched (the token regex requires an alnum ending).
+        private fun normalizeEnglishTechnicalToken(token: String): String =
+            token.map { englishTechSymbolText[it] ?: it.toString() }.joinToString("")
+                .replace(Regex("\\s+"), " ").trim()
+
+        private fun protectEnglishTechnicalReadings(text: String): String =
+            technicalAsciiTokenRegex.replace(text) { match ->
+                val token = match.groupValues[1]
+                if (!token.any { isAsciiLetter(it) } || !token.any { it in technicalSymbolChars }) {
+                    token
+                } else {
+                    " " + normalizeEnglishTechnicalToken(token) + " "
+                }
+            }.replace(Regex("\\s+"), " ").trim()
+
         private fun prepareEnglishInputForTn(text: String): String {
-            var output = englishAtNumberFifteenRegex.replace(text) { match ->
+            var output = protectEnglishTechnicalReadings(text)
+            output = englishAtNumberFifteenRegex.replace(output) { match ->
                 match.groupValues[1] + integerTextToEnglishWords(match.groupValues[2]) + match.groupValues[3]
             }
             output = englishLeadingZeroNumberRegex.replace(output) { match ->
@@ -582,6 +600,13 @@ internal object LitsTnNormalizer {
             private val englishVerificationCodeTailRegex = Regex(
                 "\\b((?:verification\\s+)?code\\s+is\\s+(?:(?:[A-Z]|zero|one|two|three|four|five|six|seven|eight|nine)\\s+){2,})(\\d{1,4})(?=\\b)",
                 RegexOption.IGNORE_CASE,
+            )
+            // English readings for technical symbols (URL/email/path/code)
+            private val englishTechSymbolText = mapOf(
+                '@' to " at ", '\\' to " backslash ", '/' to " slash ", '.' to " dot ",
+                '_' to " underscore ", '(' to " left paren ", ')' to " right paren ",
+                ':' to " ", '?' to " question mark ", '=' to " equals ", '&' to " and ",
+                '#' to " hash ",
             )
             private val chineseDigitTextByChar = mapOf(
                 '0' to "零",
