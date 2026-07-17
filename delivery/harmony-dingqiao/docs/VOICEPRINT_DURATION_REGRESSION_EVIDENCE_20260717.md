@@ -6,7 +6,7 @@
 
 | 项目 | 值 |
 | --- | --- |
-| Source commit | `5c6a3ae` |
+| Initial full-matrix source commit | `5c6a3ae` |
 | Branch | `fix/voiceprint-score-max-duration` |
 | Device | `MIA-AL00` |
 | OpenHarmony | `6.1.0.115` |
@@ -135,3 +135,30 @@ Artifact：`20260717-173513-voiceprint-31688e04`。
 未覆盖物理 USB 断连、系统杀进程、多进程争用和声纹目标/非目标精度。持续内存趋势仍为
 `INCONCLUSIVE`。客户识别阶段原始 PCM 未提供，因此本报告不声称覆盖客户现场全部声学前处理特征，
 也不声称声纹精度已完成评测。
+
+## 复盘后的增量验证
+
+代码复盘发现声纹回退与 Speaker VAD 共用一个 PCM 缓存时，token-only native endpoint 会按
+Speaker VAD 边界清空尚未形成公开 final 的回退音频。修复后用独立有界缓存分别维护 native stream
+和公开 utterance 边界，并把多句门禁从“整轮至少一个分数”收紧为逐条非空 final 检查。
+
+增量 HAP 从 commit `e3a2fae` 干净构建、签名并安装；`report.json` 已内嵌完整 build identity，
+HAP SHA-256 为 `52b44f61ed32b2fde516f697f479ba46ba02b2c86384bacec9f47186e1fd8564`，
+`amphion_asr.har` SHA-256 为
+`fa4d3bbf1bf994b7351269feeca8e985a596902082c1b24b9e19fa15c0c37cec`。
+
+| 模式 | 结果 | 关键断言 | Artifact |
+| --- | --- | --- | --- |
+| `voiceprint-fallback` 6 轮 | SDK PASS / 资源 INCONCLUSIVE | 6/6 第一条非空 endpoint final 有分数 | `20260717-191759-voiceprint-fallback-cab0c493` |
+| `voiceprint` 7 场景 | PASS | multi-utterance 两条非空 final 均有分数，短句仍无分数 | `20260717-191911-voiceprint-e83795d2` |
+| `speaker-vad-onstart` 4 轮 | PASS | burst/paced、直接起音/前置静音及恢复 session | `20260717-191941-speaker-vad-onstart-f4609540` |
+| `voiceprint-vad-begin` 4 轮 | PASS | burst/paced、直接起音/前置静音均有分数且无提前 last | `20260717-192058-voiceprint-vad-begin-6bd15773` |
+| `voiceprint-vad-begin-idle` 4 轮 | PASS | 纯静音/稳态噪声有界结束 | `20260717-192125-voiceprint-vad-begin-idle-c1617c9e` |
+| `max-duration` 2 轮 | PASS | burst/paced 均恰好 400 帧，一次 last/complete | `20260717-192027-max-duration-6fb9cff5` |
+
+`max-duration` 的 burst/paced 墙钟耗时分别为 1336/11820 ms；它证明 8000 ms PCM 接收边界，
+不代表 `onComplete` 的 8 秒墙钟 SLA。
+
+增量回退模式按硬阈值为 PASS，但 62.8 秒内 RSS +46.605 MiB、斜率 41.347 MiB/min，三段中位数
+仍为 672.578/677.117/682.074 MiB，资源趋势继续记为 `INCONCLUSIVE`。需要同输入、同节奏的旧/新
+实现长轮 A/B 并观察尾部平台化，才能得出持续内存是否回退的结论。

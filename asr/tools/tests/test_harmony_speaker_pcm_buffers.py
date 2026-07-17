@@ -9,6 +9,10 @@ BUFFERS = (
     REPO_ROOT
     / "asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerPcmBuffers.ts"
 )
+SELECTION = (
+    REPO_ROOT
+    / "asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerScoreFallback.ts"
+)
 TS_LOADER = REPO_ROOT / "asr/tools/tests/ts_extension_loader.mjs"
 
 
@@ -18,6 +22,7 @@ class HarmonySpeakerPcmBuffersTest(unittest.TestCase):
             f"""
             import assert from 'node:assert/strict';
             import {{ SpeakerPcmBuffers }} from {BUFFERS.as_uri()!r};
+            import {{ selectSpeakerScoreSamples }} from {SELECTION.as_uri()!r};
             {body}
             """
         )
@@ -49,6 +54,29 @@ class HarmonySpeakerPcmBuffersTest(unittest.TestCase):
             buffers.observe(new Float32Array(0.8 * sampleRate), true, true);
             assert.equal(buffers.speakerVadLength(), 0.8 * sampleRate);
             assert.equal(buffers.fallbackSamples().length, 1.6 * sampleRate);
+            """
+        )
+
+    def test_two_short_native_segments_form_one_scored_public_utterance(self) -> None:
+        self.run_buffers(
+            """
+            const sampleRate = 16_000;
+            const buffers = new SpeakerPcmBuffers(25 * sampleRate);
+            buffers.observe(new Float32Array(0.8 * sampleRate), true, true);
+
+            // A token-only native endpoint is suppressed: Speaker VAD starts a new stream,
+            // while the public voiceprint utterance remains open.
+            buffers.clearNativeSegment();
+            buffers.observe(new Float32Array(0.8 * sampleRate), true, true);
+
+            const selected = selectSpeakerScoreSamples(
+              new Float32Array(0.4 * sampleRate),
+              buffers.fallbackSamples(),
+              1.5 * sampleRate,
+              true
+            );
+            assert.equal(selected.source, 'utterance');
+            assert.equal(selected.samples.length, 1.6 * sampleRate);
             """
         )
 
