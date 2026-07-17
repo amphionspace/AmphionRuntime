@@ -299,7 +299,7 @@ internal object LitsTtsFrontend {
         "SIX" to listOf("S", "IH1", "K", "S"),
         "NINE" to listOf("N", "AY1", "N"),
         "TWENTY" to listOf("T", "W", "EH1", "N", "T", "IY0"),
-        "THIRTY" to listOf("TH", "ER1", "D", "IY2"),
+        "THIRTY" to listOf("TH", "ER1", "D", "IY0"),
         "FORTY" to listOf("F", "AO1", "R", "T", "IY0"),
         "FIFTY" to listOf("F", "IH1", "F", "T", "IY0"),
     )
