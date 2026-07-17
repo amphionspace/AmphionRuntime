@@ -67,6 +67,9 @@
 10. 组合回归必须交替覆盖实时/突发喂入和直接起音/前置静音；足够长语音在显式 `finish` 前不得出现 `isLast`，第一个非空 final 必须带分数；probe 可产生 non-last final，因此不能把总 final 数硬编码为 1。
 11. 声学 backstop 必须与调用方分帧无关。低于 -40 dBFS 的噪声、被静音打断的短脉冲和零散变幅脉冲不能误判；稳态高能非语音只允许延时一次并最终结束；确认窗末只有近期连续活动兼具语音型能量变化和过零率范围时才能直接解除计时，旧活动必须由 ASR probe 确认，且声学证据不单独产生 speech 事件。
 12. `voiceprint-vad-begin-idle` 必须交替验证纯静音约在 1000 ms 结束、稳态高能非语音约在 2500 ms 有界结束；均没有 speech 事件或非空文本，且只有一次 last final/complete。
+13. 同时开启声纹校验和 Speaker VAD 时，token-only native endpoint 被抑制只能清理 Speaker VAD
+    当前流窗口，不能清理尚未形成公开 final 的声纹回退 PCM。两个各约 800 ms 的 native segment
+    合并成一条非空公开 final 时，回退候选必须达到约 1600 ms。
 
 ## 5. 生命周期竞争窗口
 

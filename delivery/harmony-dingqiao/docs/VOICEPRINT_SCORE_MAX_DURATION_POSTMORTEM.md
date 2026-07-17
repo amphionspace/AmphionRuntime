@@ -72,6 +72,10 @@ terminal final 生命周期。
 `enableSpeakerVad` 不需要开启。`enableVoiceprintVerification` 控制 final 评分；
 `enableSpeakerVad` 额外控制流式目标说话人门禁和拒绝行为，两者不能混作一个开关。
 
+两者同时开启时存在两套不同边界：Speaker VAD 窗口随 native stream 重置，声纹回退 PCM 只能在
+公开 final、明确拒绝或 session 关闭时重置。实现将两者拆成独立且各自最多 25 秒的有界缓存，避免
+token-only endpoint 被抑制后误删尚未发布句子的回退 PCM。
+
 `maxAudioDuration` 修复为：
 
 - 缺省、非正数、非有限或非法值：不启用；
@@ -80,8 +84,9 @@ terminal final 生命周期。
 - 受 20 ms/640 字节公共帧约束，实际结束精度为一帧。
 
 因此 8000 ms 对应 400 个 20 ms 帧。该参数按**累计写入 PCM 时长**计数，不按 ASR 是否说完一句，
-也不按 burst 写入时的墙钟时间计数。paced 麦克风输入约 8 秒结束，burst 回放可在更短墙钟时间内
-写满同等 PCM 并结束。
+也不按 burst 写入时的墙钟时间计数。第 400 帧后 SDK 停止接受该 session 的后续音频并开始 flush；
+last final / `onComplete` 还包含解码和回调延迟，不承诺在 8 秒墙钟时刻同步到达。burst 回放可在
+更短墙钟时间内写满同等 PCM 并触发结束。
 
 ## 6. 被否决的方案
 
@@ -117,15 +122,19 @@ terminal final 生命周期。
 5. 回退复现模式最初同时配置 8000 ms，并仍断言显式 `finish` 前无 `isLast`。修复时长语义后，
    该测试会正确自动结束，暴露了测试把两个独立终止条件混在一起。
 6. `CONTRACT_TESTS.md` 仍保留“小于 20 秒钳制到 20 秒”，说明文档、实现和测试没有单一外部契约源。
+7. 多句用例只断言整轮至少出现一次分数，且 `voiceprint-fallback` 明确关闭 Speaker VAD，未覆盖
+   token-only native endpoint 在双开模式下跨流保留回退 PCM。
 
 ## 8. 永久门禁
 
-- 主机单测覆盖严格优先、恰好门槛回退、实际 PCM 不足、无 ASR 证据、非法和极小正时长。
+- 主机单测覆盖严格优先、恰好门槛回退、实际 PCM 不足、无 ASR 证据、双开模式的跨 native stream
+  缓存边界、非法和极小正时长。
 - `voiceprint-fallback` 使用 `000_enroll.wav` 和 `001_recognize.wav`，要求第一条非空 endpoint
   final 带真实分数，显式 `finish` 前无 `isLast`，并分别覆盖 cold/warm extractor。
 - `max-duration` 交替 burst/paced，均必须在第 400 帧结束；只有一次 last/complete，80 个迟到帧
   不改变计数，下一轮可启动。
-- 常规 `voiceprint` 继续保护短句无分数、门槛、长句、前置静音、低音量、多句和非注册语料。
+- 常规 `voiceprint` 继续保护短句无分数、门槛、长句、前置静音、低音量、多句和非注册语料；多句
+  必须逐条检查每个非空 final，而不是只看整轮分数总数。
 - 完整发布矩阵继续保护 cancel、重入、初始静音、冷加载、跨 session 和资源回收。
 
 详细命令、停止条件和 artifact 要求见

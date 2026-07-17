@@ -39,6 +39,7 @@ import {
 import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 import { InitialSilenceTracker } from './InitialSilenceTracker';
 import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
+import { SpeakerPcmBuffers } from './SpeakerPcmBuffers';
 import { selectSpeakerScoreSamples } from './SpeakerScoreFallback';
 import { SessionCallbackGate } from './SessionCallbackGate';
 import { SessionReentryQueue } from './SessionReentryQueue';
@@ -1055,7 +1056,7 @@ export class AsrSession {
   private firstPcmMs: number = -1;
   private firstPartialLatencyMs: number = -1;
   private rtfValues: number[] = [];
-  private utteranceSamples: Float32Array[] = [];
+  private speakerPcmBuffers: SpeakerPcmBuffers = new SpeakerPcmBuffers(UTT_MAX_SAMPLES);
   private effectiveSpeechBuffer: EffectiveSpeechBuffer =
     new EffectiveSpeechBuffer(ASR_SAMPLE_RATE_HZ, UTT_MAX_SAMPLES);
   private engineReadyMs: number = -1;
@@ -1265,7 +1266,7 @@ export class AsrSession {
     this.reentryQueue.clear();
     this.targetExtractorLoad = undefined;
     this.pendingSpeakerFinals = [];
-    this.utteranceSamples = [];
+    this.speakerPcmBuffers.clearAll();
     this.effectiveSpeechBuffer.reset();
     // 归还 VAD 到空闲池,供后续会话复用(顺序场景保持 RSS 平)。closed 早退保证同一实例只归还一次,
     // 避免重复入池后被两个会话同时取出而重现共享污染。
@@ -1366,14 +1367,14 @@ export class AsrSession {
     // Speaker VAD's raw tail belongs to the native stream. The effective scoring buffer deliberately
     // spans a suppressed token-only endpoint, but the next stream must not score this segment again.
     if (!boundary.publish) {
-      if (this.speakerVadEnabled) this.utteranceSamples = [];
+      if (this.speakerVadEnabled) this.speakerPcmBuffers.clearNativeSegment();
       return hasEvidence;
     }
     const targetConfig = this.config.targetSpeaker;
     const minSpeakerSamples = targetConfig === undefined ? Number.MAX_SAFE_INTEGER :
       Math.round(targetConfig.minSegSec * ASR_SAMPLE_RATE_HZ);
     const utteranceSamples = this.targetSpeakerEnabled ?
-      concatFloat32(this.utteranceSamples) : new Float32Array(0);
+      this.speakerPcmBuffers.fallbackSamples() : new Float32Array(0);
     const scoreSelection =
       selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence);
     if (scoreSelection.source === 'utterance') {
@@ -1400,7 +1401,7 @@ export class AsrSession {
     this.pcmBytesAccepted = 0;
     this.firstPcmMs = -1;
     this.firstPartialLatencyMs = -1;
-    this.utteranceSamples = [];
+    this.speakerPcmBuffers.clearAll();
 
     if ((scoreSelection.samples.length > 0 || this.pendingSpeakerFinals.length > 0) &&
       this.targetSpeakerEnabled && this.targetExtractor === undefined &&
@@ -1504,12 +1505,9 @@ export class AsrSession {
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
       this.effectiveSpeechBuffer.observe(samples);
     }
-    if ((this.targetSpeakerEnabled || this.speakerVadEnabled) &&
-      this.utteranceLength() < UTT_MAX_SAMPLES) {
-      // acceptPcmShort reuses one conversion buffer; speaker scoring needs an immutable snapshot.
-      const retained = Math.min(samples.length, UTT_MAX_SAMPLES - this.utteranceLength());
-      this.utteranceSamples.push(samples.slice(0, retained));
-    }
+    // Speaker VAD resets at native stream boundaries; fallback scoring resets only at a public final.
+    // The two buffers must remain independent when a token-only native endpoint is suppressed.
+    this.speakerPcmBuffers.observe(samples, this.speakerVadEnabled, this.targetSpeakerEnabled);
 
     const resetGenerationBefore = this.recognizerResetGeneration;
     this.feedRecognizer(samples, false);
@@ -1704,11 +1702,11 @@ export class AsrSession {
     const winSamples = Math.max(1, Math.round(sv.winSec * 16000));
     const hopSamples = Math.max(1, Math.round(sv.hopSec * 16000));
     this.svSamplesSinceScore += samplesInChunk;
-    if (this.utteranceLength() < winSamples) return false;
+    if (this.speakerPcmBuffers.speakerVadLength() < winSamples) return false;
     if (this.svSamplesSinceScore < hopSamples) return false;
     this.svSamplesSinceScore = this.svSamplesSinceScore % hopSamples;
 
-    const score = this.scoreSamples(this.currentUtteranceTail(winSamples));
+    const score = this.scoreSamples(this.speakerPcmBuffers.speakerVadTail(winSamples));
     if (!this.svTargetConfirmed) {
       if (score >= sv.threshold) {
         this.svTargetConfirmed = true;
@@ -1762,7 +1760,7 @@ export class AsrSession {
       }
       this.restartStreamAfterUtterance();
       if (this.callbackGate.isClosed()) return;
-      this.utteranceSamples = [];
+      this.speakerPcmBuffers.clearAll();
       this.effectiveSpeechBuffer.reset();
       this.pcmBytesAccepted = 0;
       this.firstPcmMs = -1;
@@ -1778,18 +1776,6 @@ export class AsrSession {
       if (this.callbackGate.isClosed()) return;
     }
     this.resetVadGateState();
-  }
-
-  private utteranceLength(): number {
-    let total = 0;
-    for (let i = 0; i < this.utteranceSamples.length; i++) total += this.utteranceSamples[i].length;
-    return total;
-  }
-
-  private currentUtteranceTail(n: number): Float32Array {
-    const all = concatFloat32(this.utteranceSamples);
-    if (all.length <= n) return all;
-    return all.slice(all.length - n, all.length);
   }
 
   private resetSpeakerVadState(): void {

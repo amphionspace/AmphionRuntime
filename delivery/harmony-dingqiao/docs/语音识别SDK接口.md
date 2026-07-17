@@ -267,7 +267,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `result` | `string` | 识别文本；final 为警务增强后文本 |
 | `beginTime` | `number?` | 起始时间毫秒，可能为空 |
 | `endTime` | `number?` | 结束时间毫秒，可能为空 |
-| `speakerSimilarity` | `number?` | final 且启用声纹能力时返回 |
+| `speakerSimilarity` | `number?` | final 且启用声纹校验，并有达到门槛的评分 PCM 时返回 |
 
 > 声纹评分优先使用严格筛选的有效语音。严格语音短于 `TargetSpeakerConfig.minSegSec`
 >（默认 1.5 秒），但 ASR 已产生非空 text/token 且当前句实际 PCM 达到门槛时，SDK 使用当前句

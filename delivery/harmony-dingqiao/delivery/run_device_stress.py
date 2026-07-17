@@ -25,6 +25,8 @@ from typing import Iterable
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[2]
 PROJECT_ROOT = REPO_ROOT / "delivery" / "harmony-dingqiao"
+BUILD_IDENTITY = PROJECT_ROOT / "build" / "smoke" / "build-identity.json"
+BUILD_IDENTITY_TOOL = SCRIPT_DIR / "harmony_build_identity.py"
 BUNDLE = "com.amphion.dingqiao.harmony.demo"
 MODULE = "dingqiao_demo"
 ABILITY = "EntryAbility"
@@ -140,6 +142,34 @@ def run(command: list[str], *, check: bool = True, capture: bool = True) -> subp
         stdout=subprocess.PIPE if capture else None,
         stderr=subprocess.PIPE if capture else None,
     )
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def verified_build_identity() -> dict[str, object]:
+    if not BUILD_IDENTITY.is_file():
+        raise StressFailure(
+            "missing Harmony build identity; build and install the current source before stress testing"
+        )
+    result = run(
+        [sys.executable, str(BUILD_IDENTITY_TOOL), "--verify", str(BUILD_IDENTITY)],
+        check=False,
+    )
+    if result.returncode != 0:
+        raise StressFailure((result.stdout + result.stderr).strip())
+    try:
+        identity = json.loads(BUILD_IDENTITY.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise StressFailure(f"cannot read Harmony build identity: {error}") from error
+    if not isinstance(identity, dict):
+        raise StressFailure("Harmony build identity must be a JSON object")
+    return identity
 
 
 class Hdc:
@@ -284,17 +314,20 @@ def prepare_payload(
     for index, source in enumerate(sources):
         corpus_id = f"{index:06d}"
         filename = f"{corpus_id}.pcm"
-        output_bytes = convert_to_pcm(source, audio_dir / filename)
+        pcm_path = audio_dir / filename
+        output_bytes = convert_to_pcm(source, pcm_path)
         manifest_lines.append(f"{corpus_id}\t{remote_dir}/audio/{filename}")
         mapping.append(
             {
                 "id": corpus_id,
                 "source": str(source.path.relative_to(corpus_root)),
+                "source_sha256": sha256_file(source.path),
                 "sample_rate": source.sample_rate,
                 "channels": source.channels,
                 "sample_width": source.sample_width,
                 "duration_seconds": round(source.duration_seconds, 6),
                 "pcm_bytes": output_bytes,
+                "pcm_sha256": sha256_file(pcm_path),
             }
         )
     (payload / "manifest.txt").write_text("\n".join(manifest_lines) + "\n", encoding="ascii")
@@ -509,6 +542,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     if not args.skip_build_install:
         print("[INFO] building, installing, and smoke-testing the Harmony SDK test carrier")
         build_install(device)
+    build_identity = verified_build_identity()
 
     print(f"[INFO] sending {sum(int(item['pcm_bytes']) for item in mapping) / 1024 / 1024:.1f} MiB PCM payload")
     hdc.app_send(payload, remote_dir)
@@ -610,6 +644,8 @@ def run_stress(args: argparse.Namespace) -> Path:
         "mode": args.mode,
         "overall_status": overall,
         "failures": failures,
+        "device": device,
+        "build_identity": build_identity,
         "configuration": {
             "cycles": args.cycles,
             "settle_ms": args.settle_ms,

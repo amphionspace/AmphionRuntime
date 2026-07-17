@@ -1124,14 +1124,19 @@ async function runVoiceprintCycle(engine: SpeechRecognitionEngine, entry: Corpus
   const lastFinalsBeforeFinish = events.lastFinals;
   engine.finish(sessionId);
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
-  const scoreContract = scenario === 'short' ? events.speakerScores === 0 : events.speakerScores > 0;
-  const utteranceContract = scenario !== 'multi-utterance' || events.finals >= 2;
+  let nonEmptyFinals = 0;
+  for (let i = 0; i < events.finalTexts.length; i++) {
+    if (events.finalTexts[i].length > 0) nonEmptyFinals += 1;
+  }
+  const scoreContract = scenario === 'short' ? events.speakerScores === 0 :
+    events.speakerScores > 0 && events.nonEmptySpeakerScores === nonEmptyFinals;
+  const utteranceContract = scenario !== 'multi-utterance' || nonEmptyFinals >= 2;
   const ok = completed && events.starts === 1 && events.finals > 0 && events.lastFinals === 1 &&
     lastFinalsBeforeFinish === 0 && events.completes === 1 && events.errors === 0 && scoreContract &&
     utteranceContract && !engine.isBusy();
   let detail = `voiceprint-${scenario}-${scenario === 'short' ? 'no-score' : 'scored'}`;
   if (!scoreContract) {
-    detail = `voiceprint-score-contract-${scenario}-scores-${events.speakerScores}`;
+    detail = `voiceprint-score-contract-${scenario}-nonempty-${nonEmptyFinals}-scored-${events.nonEmptySpeakerScores}`;
   } else if (!utteranceContract) {
     detail = `voiceprint-multi-utterance-finals-${events.finals}`;
   } else if (lastFinalsBeforeFinish > 0) {
@@ -1218,10 +1223,16 @@ async function runVoiceprintFallbackCycle(engine: SpeechRecognitionEngine, entry
   }
   await waitFor((): boolean => events.finals > 0, 5000);
   const endpointFinals = events.finals;
+  let endpointNonEmptyFinals = 0;
+  for (let i = 0; i < events.finalTexts.length; i++) {
+    if (events.finalTexts[i].length > 0) endpointNonEmptyFinals += 1;
+  }
+  const endpointNonEmptySpeakerScores = events.nonEmptySpeakerScores;
   const lastFinalsBeforeFinish = events.lastFinals;
   engine.finish(sessionId);
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
-  const endpointScoreContract = endpointFinals > 0 && events.firstNonEmptyFinalHasScore === true;
+  const endpointScoreContract = endpointNonEmptyFinals > 0 &&
+    endpointNonEmptySpeakerScores === endpointNonEmptyFinals;
   const ok = completed && events.starts === 1 && endpointScoreContract && events.speakerScores > 0 &&
     events.lastFinals === 1 && lastFinalsBeforeFinish === 0 &&
     events.completes === 1 && events.errors === 0 && !engine.isBusy();

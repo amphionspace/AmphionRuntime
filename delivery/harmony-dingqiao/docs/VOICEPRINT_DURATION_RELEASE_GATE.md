@@ -17,6 +17,10 @@
 - requested/effective `maxAudioDuration`、`vadBegin`、`vadEnd`；
 - `enableVoiceprintVerification`、`enableSpeakerVad` 和 voiceprint ID 数量。
 
+`run_device_stress.py` 会校验 `build/smoke/build-identity.json` 与当前源码/HAP/HAR 一致，并把完整
+build identity、设备 ID、源 WAV 和转换后 PCM 的 SHA-256 写入 `report.json` / `corpus.json`。
+identity 缺失或过期时测试必须停止，不能复用无法归属到当前源码的旧 HAP。
+
 真机只使用 `ZH_EN` 测试 HAP。`voiceprint-fallback` 数据目录必须只包含：
 
 ```text
@@ -46,6 +50,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 
 ```bash
 python3 -m unittest \
+  asr.tools.tests.test_harmony_speaker_pcm_buffers \
   asr.tools.tests.test_harmony_speaker_score_fallback \
   asr.tools.tests.test_harmony_effective_speech_buffer \
   asr.tools.tests.test_harmony_max_audio_duration_policy \
@@ -132,7 +137,8 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 ```
 
 短句允许无分数；门槛、长句、前置静音、低音量、多句和 alternate-source 必须按各自契约通过。
-该模式不比较目标/非目标分数高低。
+多句场景必须至少产生两条非空 final，且每条都带分数；不能只断言整轮出现过一次分数。该模式不比较
+目标/非目标分数高低。
 
 ## 6. 阶段 E：完整 USB 回归
 
@@ -157,7 +163,9 @@ RSS 增长。
 - **FAIL**：SDK 或测试断言明确失败，必须修复或解释测试预期错误后原参数重跑。
 - **INCONCLUSIVE**：HDC 断连、系统杀进程、资源观察不足等无法判断 SDK 的情况；不得记作 PASS。
 
-短轮资源指标为 `INCONCLUSIVE` 不影响其生命周期结论；资源是否回退必须由超过 60 秒的长轮次决定。
+短轮资源指标为 `INCONCLUSIVE` 不影响其生命周期结论。超过 60 秒只是资源观察的最低投入，不是自动
+PASS 条件；如果 RSS 斜率和分段中位数仍持续上升，应记为 `INCONCLUSIVE`，继续做更长轮次或与未修改
+版本同输入对照，不能直接归因为模型驻留。
 
 ## 8. 合入检查
 

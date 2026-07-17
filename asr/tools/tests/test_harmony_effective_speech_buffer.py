@@ -324,7 +324,7 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
         self.assertIn("this.effectiveSpeechBuffer.confirmSpeech()", runtime)
         self.assertIn("this.effectiveSpeechBuffer.resolveFinal(result.text, hasEvidence, isLast)", runtime)
         suppressed_final = """if (!boundary.publish) {
-      if (this.speakerVadEnabled) this.utteranceSamples = [];
+      if (this.speakerVadEnabled) this.speakerPcmBuffers.clearNativeSegment();
       return hasEvidence;
     }"""
         self.assertIn(suppressed_final, runtime)
@@ -338,15 +338,14 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
             runtime,
         )
         self.assertIn(
-            "(this.targetSpeakerEnabled || this.speakerVadEnabled) &&\n"
-            "      this.utteranceLength() < UTT_MAX_SAMPLES",
+            "this.speakerPcmBuffers.observe(samples, this.speakerVadEnabled, this.targetSpeakerEnabled)",
             runtime,
         )
         self.assertIn(
-            "Math.min(samples.length, UTT_MAX_SAMPLES - this.utteranceLength())",
+            "this.speakerPcmBuffers.fallbackSamples()",
             runtime,
         )
-        self.assertIn("this.utteranceSamples = [];", runtime)
+        self.assertIn("this.speakerPcmBuffers.clearAll();", runtime)
         self.assertNotIn("this.effectiveSpeechBuffer.take(hasEvidence)", runtime)
         self.assertNotIn("suppressEmpty", runtime)
 

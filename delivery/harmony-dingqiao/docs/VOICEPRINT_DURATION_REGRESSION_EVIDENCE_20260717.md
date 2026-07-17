@@ -53,7 +53,9 @@ Artifact：`20260717-155922-voiceprint-cold-e04fd4a8`。
 - 每轮 `speakerScores=1`；
 - 显式 `finish` 前 `lastFinalsBeforeFinish=0`；
 - 每轮 native stream 为 0，无串 session 回调；
-- 170.6 秒资源观察 PASS，RSS +37.074 MiB、VmData +42.719 MiB、线程变化 0。
+- 170.6 秒按现有硬阈值 PASS，RSS +37.074 MiB、VmData +42.719 MiB、线程变化 0；但 RSS
+  斜率为 20.729 MiB/min，三段中位数仍为 718.055/738.898/749.086 MiB，因此趋势判断为
+  `INCONCLUSIVE`。
 
 Artifact：`20260717-173106-voiceprint-fallback-17027908`。
 
@@ -62,8 +64,9 @@ Artifact：`20260717-173106-voiceprint-fallback-17027908`。
 
 先执行的 6 轮短压中，SDK 契约 6/6 PASS，但 RSS +66.086 MiB 超出 64 MiB 门槛，整体记为 FAIL，
 artifact `20260717-172911-voiceprint-fallback-615aaa49`。没有放宽阈值或覆盖该 artifact；
-随后同 HAP、同输入扩展到 12 轮和 170.6 秒，增长降到 +37.074 MiB、线程稳定并按原门槛 PASS，
-因此归因为模型页逐步驻留，不作为 SDK 生命周期失败。
+随后同 HAP、同输入扩展到 12 轮和 170.6 秒，增长降到 +37.074 MiB、线程稳定并按原硬门槛 PASS。
+这足以说明该次 6 轮超阈值不能直接判为生命周期失败，但不足以证明增长已经平台化，也不能仅据此归因
+为模型页驻留。当前把生命周期结论记为 PASS，持续内存泄漏风险记为 `INCONCLUSIVE`。
 
 ### `maxAudioDuration=8000`
 
@@ -96,7 +99,7 @@ Artifact：`20260717-173513-voiceprint-31688e04`。
 | `vad-begin` | 8 | PASS | PASS | `20260717-173715-vad-begin-06029e63` |
 | `vad-begin-silence` | 10 | PASS | INCONCLUSIVE | `20260717-173742-vad-begin-silence-2743ad2f` |
 | `voiceprint` | 7 | PASS | INCONCLUSIVE | `20260717-173513-voiceprint-31688e04` |
-| `voiceprint-fallback` | 12 | PASS | PASS | `20260717-173106-voiceprint-fallback-17027908` |
+| `voiceprint-fallback` | 12 | PASS | INCONCLUSIVE | `20260717-173106-voiceprint-fallback-17027908` |
 | `voiceprint-vad-begin` | 8 | PASS | PASS | `20260717-173850-voiceprint-vad-begin-bf700644` |
 | `voiceprint-vad-begin-idle` | 4 | PASS | INCONCLUSIVE | `20260717-173924-voiceprint-vad-begin-idle-07a9bbe1` |
 | `speaker-vad-onstart` | 4 | PASS | PASS | `20260717-173937-speaker-vad-onstart-acb80140` |
@@ -115,8 +118,9 @@ Artifact：`20260717-173513-voiceprint-31688e04`。
 | `callback-api-reentrant` | 3 | PASS | INCONCLUSIVE | `20260717-174256-callback-api-reentrant-2d7143cd` |
 | `endpoint-reentrant` | 4 | PASS | INCONCLUSIVE | `20260717-174307-endpoint-reentrant-3248b8de` |
 
-`INCONCLUSIVE` 表示该短模式的资源采样时间不足，不表示 SDK 契约失败。资源结论由 170.6 秒
-`voiceprint-fallback` 长轮、20 轮 burst 及其他达到观察门槛的模式承担。
+`INCONCLUSIVE` 表示资源证据不足，不表示 SDK 契约失败。170.6 秒 `voiceprint-fallback` 已超过最低
+观察时间，但斜率和分段中位数仍上升，因此仍需更长轮次或与旧实现同输入对照；20 轮 burst 及其他
+模式只能证明各自负载下未越过硬阈值，不能替代该对照。
 
 ## 结论与边界
 
@@ -125,7 +129,9 @@ Artifact：`20260717-173513-voiceprint-31688e04`。
 - 原始 `speakerSimilarity=undefined` 状态在同输入下由 3/3 FAIL 变为 12/12 PASS；
 - strict 主路径、短句可选值和真实 PCM 门槛保持不变；
 - `maxAudioDuration=8000` 在 burst/paced 都按 8000 ms PCM 生效；
-- final/last/complete、cancel、回调重入、冷加载、跨 session、迟到帧和资源所有权未发现回退。
+- final/last/complete、cancel、回调重入、冷加载、跨 session、迟到帧和 native stream 所有权未发现
+  回退。
 
-未覆盖物理 USB 断连、系统杀进程、多进程争用和声纹目标/非目标精度。客户识别阶段原始 PCM 未提供，
-因此本报告不声称覆盖客户现场全部声学前处理特征，也不声称声纹精度已完成评测。
+未覆盖物理 USB 断连、系统杀进程、多进程争用和声纹目标/非目标精度。持续内存趋势仍为
+`INCONCLUSIVE`。客户识别阶段原始 PCM 未提供，因此本报告不声称覆盖客户现场全部声学前处理特征，
+也不声称声纹精度已完成评测。
