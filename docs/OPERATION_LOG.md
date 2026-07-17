@@ -1269,3 +1269,7 @@
 - Commands run: inspected local `test /dingqiao_test_cases/` and `Lits_delivery/dingqiao_test_cases/`; copied the selected JSONL/summary/script files into repository-scoped paths; ran `python3 -m py_compile` on Dingqiao Android helper scripts; ran `git diff --check`; checked line counts for the copied corpora.
 - Verification result: script syntax checks passed; `git diff --check` passed; copied corpus counts are 100 for `android_v3_sdk_stability_100_cases_improved_v2.jsonl`, 424 for `android_v3_sdk_stability_424_cases_improved_v3.jsonl`, 1000 for `android_v3_sdk_stability_1000_cases_improved.jsonl`, and 675 for `pronunciation-golden-round3-results-with-pinyin-fixed-round15.jsonl`. No Android device batch test was run in this documentation/data import step.
 - Notes/next action: No 432-case corpus was found in the workspace or `Lits_delivery`; the available middle corpus is 424 cases and is documented as such. Build outputs, pulled device reports, model binaries, license files, and signing materials remain local-only.
+2026-07-17 CST - Import current two-stage startup API from standalone SDK
+
+- Added the public first-stage preload API and its frontend/TN resource preloader to the local v3 branch.
+- Kept the branch's existing parallel ONNX-session loader unchanged; the standalone version is older and would regress that implementation if copied wholesale.
