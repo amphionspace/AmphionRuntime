@@ -9,6 +9,10 @@ POLICY = (
     REPO_ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SessionAudioLimit.ts"
 )
+ADAPTER = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
+)
 TS_LOADER = REPO_ROOT / "asr/tools/tests/ts_extension_loader.mjs"
 
 
@@ -49,15 +53,31 @@ class HarmonyMaxAudioDurationPolicyTest(unittest.TestCase):
             """
         )
 
-    def test_explicit_finite_values_are_clamped_and_converted_to_pcm_bytes(self) -> None:
+    def test_positive_finite_values_are_capped_and_converted_to_pcm_bytes(self) -> None:
         self.run_policy(
             """
             const bytesPerMs = 32;
-            assert.equal(maxAudioBytesOf({ maxAudioDuration: -1 }), 20_000 * bytesPerMs);
+            assert.equal(maxAudioBytesOf({ maxAudioDuration: -1 }), 0);
+            assert.equal(maxAudioBytesOf({ maxAudioDuration: 0 }), 0);
+            assert.equal(maxAudioBytesOf({ maxAudioDuration: 0.001 }), 1);
+            assert.equal(maxAudioBytesOf({ maxAudioDuration: 8000 }), 8_000 * bytesPerMs);
             assert.equal(maxAudioBytesOf({ maxAudioDuration: '25000' }), 25_000 * bytesPerMs);
             assert.equal(maxAudioBytesOf({ maxAudioDuration: 28_800_001 }), 28_800_000 * bytesPerMs);
             """
         )
+
+    def test_adapter_checks_the_reserved_frame_without_cross_session_leakage(self) -> None:
+        source = ADAPTER.read_text(encoding="utf-8")
+        reserve = source.index("this.audioBytesWritten += audio.byteLength;")
+        accept = source.index("session.acceptPcmBytes(audio);", reserve)
+        generation = source.index("if (!this.sessionStartGate.isCurrent(generation)", accept)
+        limit = source.index("this.audioBytesWritten >= this.maxAudioBytes", generation)
+        stop = source.index("session.stop();", limit)
+
+        self.assertLess(reserve, accept)
+        self.assertLess(accept, generation)
+        self.assertLess(generation, limit)
+        self.assertLess(limit, stop)
 
 
 if __name__ == "__main__":

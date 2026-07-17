@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 from array import array
+import hashlib
 from pathlib import Path
 import sys
 import tempfile
@@ -24,6 +25,58 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_voiceprint_fallback_is_a_dedicated_endpoint_score_gate(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runVoiceprintFallbackCycle", 1)[1].split(
+            "async function runVoiceprintVadBeginIdleCycle", 1
+        )[0]
+
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "voiceprint-fallback"]
+        ):
+            args = MODULE.parse_args()
+
+        self.assertEqual("voiceprint-fallback", args.mode)
+        self.assertIn(
+            "endpointNonEmptySpeakerScores === endpointNonEmptyFinals", cycle
+        )
+        self.assertIn("lastFinalsBeforeFinish === 0", cycle)
+        self.assertIn("params.extraParams['enableSpeakerVad'] = false", cycle)
+        self.assertIn("params.extraParams['maxAudioDuration'] = 28800000", cycle)
+        self.assertNotIn("MAX_DURATION_TEST_MS", cycle)
+        runner = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            'required_names = ("000_enroll.wav", "001_recognize.wav")',
+            runner,
+        )
+
+    def test_voiceprint_multi_utterance_requires_every_nonempty_final_to_be_scored(
+        self,
+    ) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runVoiceprintCycle", 1)[1].split(
+            "async function runVoiceprintVadBeginCycle", 1
+        )[0]
+
+        self.assertIn(
+            "events.nonEmptySpeakerScores === nonEmptyFinals", cycle
+        )
+        self.assertIn(
+            "scenario !== 'multi-utterance' || nonEmptyFinals >= 2", cycle
+        )
+
+    def test_max_duration_gate_covers_burst_and_paced_at_exact_frame_count(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runMaxDurationCycle", 1)[1].split(
+            "async function runNumericEdgeCycle", 1
+        )[0]
+
+        self.assertIn("const MAX_DURATION_TEST_MS: number = 8000;", source)
+        self.assertIn("const paced = index % 2 === 1;", cycle)
+        self.assertIn("fedFrames === MAX_DURATION_TEST_FRAMES", cycle)
+        self.assertIn("result.requestedMaxAudioDurationMs = MAX_DURATION_TEST_MS", cycle)
+        self.assertIn("result.effectiveMaxAudioDurationMs = MAX_DURATION_TEST_MS", cycle)
+
     def test_endpoint_reentrant_snapshots_every_callback_kind(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
         sequence_listener = source.split("class SequenceListener", 1)[1].split(
@@ -119,6 +172,32 @@ class RunCommandTest(unittest.TestCase):
 
             self.assertAlmostEqual(0.5, first_second, places=3)
             self.assertAlmostEqual(0.5 / 2**0.5, full_file, places=3)
+
+    def test_payload_records_source_and_converted_pcm_hashes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "source.wav"
+            with wave.open(str(path), "wb") as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(16_000)
+                wav.writeframes(array("h", [1, -1] * 320).tobytes())
+            source = MODULE.AudioSource(path, 16_000, 1, 2, 640, 0.04)
+            payload = root / "payload"
+
+            mapping = MODULE.prepare_payload(
+                [source], payload, "/remote/run", root
+            )
+
+            self.assertEqual(
+                hashlib.sha256(path.read_bytes()).hexdigest(),
+                mapping[0]["source_sha256"],
+            )
+            pcm = payload / "audio" / "000000.pcm"
+            self.assertEqual(
+                hashlib.sha256(pcm.read_bytes()).hexdigest(),
+                mapping[0]["pcm_sha256"],
+            )
 
 
 if __name__ == "__main__":

@@ -105,7 +105,9 @@ engine.finish(start.sessionId);
 
 音频格式固定为 16 kHz、16-bit、单声道 PCM，小端序。标准实时帧为 20 ms，即 640 字节。
 
-`maxAudioDuration` 缺省、非有限或不可解析时不启用自动上限；仅显式有限值启用，并限制在 20,000 到 28,800,000 ms。显式配置并命中 `vadBegin` 或 `maxAudioDuration` 时，SDK 才允许自动结束。
+`maxAudioDuration` 缺省、非正数、非有限或不可解析时不启用自动上限；显式正有限值按调用值
+生效，并限制在不超过 28,800,000 ms。显式配置并命中 `vadBegin` 或 `maxAudioDuration`
+时，SDK 才允许自动结束。
 
 ## 6. 生命周期契约
 
@@ -114,7 +116,9 @@ engine.finish(start.sessionId);
 - 正常 session 恰好一次 `isLast=true`，随后恰好一次 `onComplete`。
 - `cancel(sessionId)` 生效后不得新增 final 或 complete。
 - 每次启动使用唯一 `sessionId`。旧 session 的迟到调用或回调不会终止、污染或借用新 sessionId。
-- 声纹有效语音短于 `minSegSec` 时 `speakerSimilarity` 可以省略，但识别结果仍保留。
+- 启用声纹校验后，SDK 优先使用严格筛选的有效语音评分。严格语音短于 `minSegSec`，但 final
+  已有非空 ASR text/token 且当前句实际 PCM 达到门槛时，SDK 使用当前句真实 PCM 回退评分。
+  没有 ASR 语音证据、实际 PCM 仍短于门槛或空 terminal final 时，`speakerSimilarity` 可以省略。
 
 ## 7. 释放与重新加载
 

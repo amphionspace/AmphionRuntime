@@ -65,6 +65,7 @@ struct Index {
   @State loadingHint: string = '正在初始化运行时…';
   @State voiceprintInfo: string = '';
   @State voiceprintId: string = '';
+  @State policeEnhanceDesired: boolean = true;
   @State voiceprintVerifyDesired: boolean = false;
   @State speakerVadDesired: boolean = false;
   @State captureReady: boolean = false;
@@ -112,6 +113,7 @@ struct Index {
   private recorderStats: AudioRecorderStats = new AudioRecorderStats();
   private replaySessionId: string = '';
   private capturedHotwords: string[] = [];
+  private capturedPoliceEnhance: boolean = true;
   private capturedVoiceprintId: string = '';
   private capturedVoiceprintVerify: boolean = false;
   private capturedSpeakerVad: boolean = false;
@@ -286,7 +288,8 @@ struct Index {
     }
   }
 
-  private buildCreateEngineParams(hotwordsOverride?: string[]): CreateEngineParams {
+  private buildCreateEngineParams(hotwordsOverride?: string[],
+    policeEnhanceOverride?: boolean): CreateEngineParams {
     const params = new CreateEngineParams();
     params.language = 'zh-CN';
     params.online = 1; // DingqiaoOnlineMode.OFFLINE
@@ -300,6 +303,10 @@ struct Index {
     // 关 prepack:按需加载工况下每次「开始识别」都冷加载模型,关掉 INT8 权重 prepack 可省 ~91-156ms
     // 冷加载并降低峰值内存(交付方向 = prepack off,详见两级加载 A/B)。
     extra['disablePrepack'] = true;
+    const policeEnhance = policeEnhanceOverride ?? this.policeEnhanceDesired;
+    extra['plateNormalizeEnabled'] = policeEnhance;
+    extra['stationNormalizeEnabled'] = policeEnhance;
+    extra['termsNormalizeEnabled'] = policeEnhance;
     params.extraParams = extra;
     return params;
   }
@@ -329,6 +336,7 @@ struct Index {
     this.resetSdkCapture();
     const ctx = getContext(this) as common.UIAbilityContext;
     this.capturedHotwords = DemoPrefs.getUserHotwords(ctx);
+    this.capturedPoliceEnhance = this.policeEnhanceDesired;
     this.capturedVoiceprintId = DemoPrefs.getVoiceprintId(ctx);
     this.capturedVoiceprintVerify = this.voiceprintVerifyDesired && this.capturedVoiceprintId.length > 0;
     this.capturedSpeakerVad = this.speakerVadDesired && this.capturedVoiceprintId.length > 0;
@@ -352,7 +360,8 @@ struct Index {
       this.loadingHint = '模型加载中（语音已在缓存,加载完立即识别）…';
       this.status = '录音中 · 模型加载中（语音已缓存,加载完立即识别）…';
       SpeechRecognizeSdk.createEngineAsync(
-        this.buildCreateEngineParams(this.capturedHotwords), new DemoCreateEngineCallback(this));
+        this.buildCreateEngineParams(this.capturedHotwords, this.capturedPoliceEnhance),
+        new DemoCreateEngineCallback(this));
     }
   }
 
@@ -598,6 +607,7 @@ struct Index {
     meta['captureMaxCallbackWorkMs'] = this.recorderStats.maxCallbackWorkMs;
     meta['disablePrepack'] = true;
     meta['hotwords'] = this.capturedHotwords;
+    meta['policeEnhance'] = this.capturedPoliceEnhance;
     meta['voiceprintId'] = this.capturedVoiceprintId;
     meta['voiceprintVerify'] = this.capturedVoiceprintVerify;
     meta['speakerVad'] = this.capturedSpeakerVad;
@@ -659,7 +669,8 @@ struct Index {
     this.loadingHint = '正在加载模型以原样复测上次 SDK PCM…';
     this.status = this.compareInfo;
     SpeechRecognizeSdk.createEngineAsync(
-      this.buildCreateEngineParams(this.capturedHotwords), new DemoCreateEngineCallback(this));
+      this.buildCreateEngineParams(this.capturedHotwords, this.capturedPoliceEnhance),
+      new DemoCreateEngineCallback(this));
   }
 
   private async startSavedPcmReplay(): Promise<void> {
@@ -904,6 +915,16 @@ struct Index {
 
   // ---- voiceprint UI ----
 
+  private onPoliceEnhanceSwitch(checked: boolean): void {
+    this.policeEnhanceDesired = checked;
+    if (this.engine !== undefined) {
+      this.releaseModel(checked ?
+        '警务增强已开启 · 下次识别生效' :
+        '警务增强已关闭 · 下次识别返回原始文本');
+    }
+    this.toast(checked ? '警务增强已开启' : '警务增强已关闭');
+  }
+
   private refreshVoiceprintUi(): void {
     const ctx = getContext(this) as common.UIAbilityContext;
     this.voiceprintId = DemoPrefs.getVoiceprintId(ctx);
@@ -1001,6 +1022,20 @@ struct Index {
       .alignItems(VerticalAlign.Center)
 
       Row() {
+        Column() {
+          Text('警务增强').fontSize(15)
+          Text('警务术语、车牌和单位名称归一化').fontSize(12).fontColor(Color.Gray)
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        Toggle({ type: ToggleType.Switch, isOn: this.policeEnhanceDesired })
+          .enabled(!this.listening && !this.replaying && !this.playingCapture && !this.loading)
+          .onChange((isOn: boolean): void => this.onPoliceEnhanceSwitch(isOn))
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Row() {
         Text('声纹校验').fontSize(15).layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.voiceprintVerifyDesired })
           .enabled(this.voiceprintId.length > 0 && !this.listening && !this.replaying)
@@ -1046,7 +1081,10 @@ struct Index {
       Scroll() {
         Column({ space: 6 }) {
           if (this.finalSegments.length === 0) {
-            Text('识别结果（警务增强）将累积显示在这里。').fontSize(14).fontColor(Color.Gray).width('100%')
+            Text(this.policeEnhanceDesired ?
+              '识别结果（警务增强）将累积显示在这里。' :
+              '原始识别结果将累积显示在这里。')
+              .fontSize(14).fontColor(Color.Gray).width('100%')
           }
           ForEach(this.finalSegments, (item: FinalSegment, index: number) => {
             Text() {
