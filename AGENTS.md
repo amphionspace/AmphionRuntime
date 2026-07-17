@@ -14,9 +14,13 @@
 ## 声纹结果契约
 
 - 公共字段名是 `speakerSimilarity`。新增或修改示例、文档和测试时必须使用该名称。
-- `speakerSimilarity` 是可选值。有效语音短于 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时不可靠，SDK 应省略分数并保留识别结果；不得填充假分数或通过补静音绕过门槛。
+- `speakerSimilarity` 的严格评分优先使用筛选后的有效语音。严格样本短于
+  `TargetSpeakerConfig.minSegSec`（默认 1.5 秒），但 ASR 已产生非空 text/token 且本句实际 PCM
+  达到门槛时，SDK 必须退化为本句真实 PCM 评分；不得填充假分数、复制上一句分数或通过补静音
+  绕过门槛。没有 ASR 语音证据或本句实际 PCM 仍短于门槛时，SDK 保留识别结果并省略分数。
 - 排查 `speakerSimilarity=undefined` 时，必须同时记录 `enableVoiceprintVerification`、`enableSpeakerVad`、`voiceprintIds` 数量、调用方传入和 SDK 生效后的 `vadBegin`、实际写入 PCM 时长以及该 final 的有效语音时长。缺少声纹开关或有效 ID 时不得归因为打分异常。
-- 声纹测试至少覆盖：小于门槛、恰好门槛、超过门槛、低音量、前置静音、非注册语料源和多句连续输入。生命周期门禁只判断分数可选性、回调顺序和会话恢复；目标/非目标相似度精度另走带身份标注的评测集。
+- 声纹测试至少覆盖：小于门槛、恰好门槛、超过门槛、低音量、前置静音、非注册语料源和多句连续输入。多句用例必须逐条核对每个达到门槛的非空 final 都有分数，不能用“整轮至少一个分数”代替。生命周期门禁只判断分数可选性、回调顺序和会话恢复；目标/非目标相似度精度另走带身份标注的评测集。
+- 同时启用声纹校验和 Speaker VAD 时，必须区分 native stream 边界与公开 final 边界。token-only endpoint 被抑制时可以清理 Speaker VAD 当前流窗口，但不得丢弃声纹回退 PCM；测试至少覆盖两个各短于门槛、合并后达到门槛的 native segment。
 
 ## 缺陷处理流程
 
@@ -49,6 +53,7 @@
 - `cancel`、`start-cancel`、`start-write`、重复 `finish`、回调内重入、非法 session/frame 和 `NaN` 参数必须分别验证，不得合并成单一“edge passed”。`start-write` 必须在 `onStart` 调用栈内同步写入多帧真实 PCM 缓存，不能延迟到回调返回后；还要分别覆盖继续识别和回调内立即 `finish`。
 - `vad-begin`：使用真实语音和纯静音分别测试。真实语音不得自动结束；纯静音必须按配置结束。
 - 声纹与 `vadBegin` 必须组合测试 1000 ms 入参、实时/突发喂入、直接起音/前置静音；前置静音与源文件自身静音之和必须小于 1000 ms，否则自动结束是正确结果。显式 `finish` 前不得有 `isLast`，足够长的有效语音必须出现带分数的 final。另用纯静音/稳态高能非语音验证有界自动结束。参数上层改大只能作为规避，不能替代此门禁。
+- `voiceprint-fallback` 必须使用能在旧版本稳定产生“非空 endpoint final 但分数缺失”的双文件语料，分别覆盖 cold/warm extractor；第一条非空 final 必须带分数，显式 `finish` 前不得有 `isLast`。该模式不得配置短 `maxAudioDuration`，避免把声纹样本选择与自动结束混成一个断言。
 - 长稳压：按采样率、时长和音量分层抽样，不只取随机文件；报告 callback 契约、空 final、native stream、RSS 和线程变化。
 - 测试报告必须保留 `report.json`、逐轮结果、内存采样、hilog 和输入映射。失败 artifact 不得被后续运行覆盖。
 
@@ -95,4 +100,4 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --mode user-sequence --cycles 300 --files 3
 ```
 
-真机命令中的次数和语料数量可按耗时调整，但合入前至少要覆盖 `burst`、`paced`、`vad-begin`、`vad-begin-silence`、`voiceprint`、`voiceprint-vad-begin`、`voiceprint-vad-begin-idle`、`cancel`、`cancel-full`、`max-duration`、`edge`、`reentrant`、`start-cancel`、`start-write`、`start-write-reload`、`user-sequence` 和 `numeric-edge`。任何模式失败都应先解释并修复，不能通过放宽全局空结果率掩盖生命周期错误。
+真机命令中的次数和语料数量可按耗时调整，但合入前至少要覆盖 `burst`、`paced`、`vad-begin`、`vad-begin-silence`、`voiceprint`、`voiceprint-fallback`、`voiceprint-vad-begin`、`voiceprint-vad-begin-idle`、`cancel`、`cancel-full`、`max-duration`、`edge`、`reentrant`、`start-cancel`、`start-write`、`start-write-reload`、`user-sequence` 和 `numeric-edge`。任何模式失败都应先解释并修复，不能通过放宽全局空结果率掩盖生命周期错误。

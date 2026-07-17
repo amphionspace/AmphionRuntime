@@ -318,23 +318,35 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
             """
         )
 
-    def test_runtime_applies_minimum_to_effective_speech_samples(self) -> None:
+    def test_runtime_falls_back_to_confirmed_utterance_pcm_for_scoring(self) -> None:
         runtime = RUNTIME.read_text(encoding="utf-8")
         self.assertIn("this.effectiveSpeechBuffer.observe(samples)", runtime)
         self.assertIn("this.effectiveSpeechBuffer.confirmSpeech()", runtime)
         self.assertIn("this.effectiveSpeechBuffer.resolveFinal(result.text, hasEvidence, isLast)", runtime)
         suppressed_final = """if (!boundary.publish) {
-      this.utteranceSamples = [];
+      if (this.speakerVadEnabled) this.speakerPcmBuffers.clearNativeSegment();
       return hasEvidence;
     }"""
         self.assertIn(suppressed_final, runtime)
-        self.assertIn("boundary.samples,", runtime)
         self.assertIn(
-            "(boundary.samples.length > 0 || this.pendingSpeakerFinals.length > 0)",
+            "selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence)",
             runtime,
         )
+        self.assertIn("scoreSelection.samples,", runtime)
+        self.assertIn(
+            "(scoreSelection.samples.length > 0 || this.pendingSpeakerFinals.length > 0)",
+            runtime,
+        )
+        self.assertIn(
+            "this.speakerPcmBuffers.observe(samples, this.speakerVadEnabled, this.targetSpeakerEnabled)",
+            runtime,
+        )
+        self.assertIn(
+            "this.speakerPcmBuffers.fallbackSamples()",
+            runtime,
+        )
+        self.assertIn("this.speakerPcmBuffers.clearAll();", runtime)
         self.assertNotIn("this.effectiveSpeechBuffer.take(hasEvidence)", runtime)
-        self.assertNotIn("concatFloat32(this.utteranceSamples),", runtime)
         self.assertNotIn("suppressEmpty", runtime)
 
         boundary = runtime.index(

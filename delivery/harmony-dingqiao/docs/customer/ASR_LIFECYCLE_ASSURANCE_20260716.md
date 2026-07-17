@@ -4,6 +4,12 @@
 
 **适用版本：以交付包 `BUILD_PROVENANCE.json` 和 `checksum.txt` 记录为准**
 
+> 历史证据说明：本文冻结 2026-07-16 构建当时的契约和结果。2026-07-17 已移除
+> `maxAudioDuration` 的 20000 ms 最小钳制，并新增 ASR 有证据时的声纹真实 PCM 回退。
+> 当前口径和发布门禁以
+> [`VOICEPRINT_SCORE_MAX_DURATION_POSTMORTEM.md`](../VOICEPRINT_SCORE_MAX_DURATION_POSTMORTEM.md)
+> 与 [`VOICEPRINT_DURATION_RELEASE_GATE.md`](../VOICEPRINT_DURATION_RELEASE_GATE.md) 为准。
+
 ## 1. 结论
 
 针对历史反馈的提前结束、声纹分数缺失及冷加载首次调用失败问题，SDK 已完成根因级修复，并建立自动化与 HarmonyOS 真机回归门禁。

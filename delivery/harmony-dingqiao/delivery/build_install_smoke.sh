@@ -9,6 +9,7 @@ PROJECT_ROOT="$REPO_ROOT/delivery/harmony-dingqiao"
 DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
 NODE="$DEVECO_HOME/tools/node/bin/node"
 HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
+OHPM="$DEVECO_HOME/tools/ohpm/bin/ohpm"
 HDC="$DEVECO_HOME/sdk/default/openharmony/toolchains/hdc"
 JAVA_HOME_VALUE="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
 HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap"
@@ -53,7 +54,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-for tool in "$NODE" "$HVIGOR" "$HDC"; do
+for tool in "$NODE" "$HVIGOR" "$OHPM" "$HDC"; do
   [[ -x "$tool" || -f "$tool" ]] || { echo "[ERROR] missing DevEco tool: $tool" >&2; exit 1; }
 done
 [[ "$TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || { echo "[ERROR] --timeout must be a positive integer" >&2; exit 2; }
@@ -351,6 +352,11 @@ if [[ "$SKIP_BUILD" != true ]]; then
     export DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
     export JAVA_HOME="$JAVA_HOME_VALUE"
     cd "$BUILD_PROJECT_ROOT"
+    # The isolated workspace intentionally excludes ignored oh_modules. Recreate file dependencies
+    # before Hvigor so a clean checkout cannot accidentally rely on packages from a developer tree.
+    if ! "$OHPM" install --all; then
+      exit 1
+    fi
     if ! "$NODE" "$HVIGOR" assembleHap --mode module \
       -p product=default \
       -p module=dingqiao_demo@default \

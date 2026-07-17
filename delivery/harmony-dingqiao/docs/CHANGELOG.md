@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- 声纹严格有效语音不足 `minSegSec`，但 ASR 已确认非空 text/token 且当前句真实 PCM 达到门槛时，
+  改用当前句 PCM 计算 `speakerSimilarity`；严格评分仍为主路径，短句、纯静音和空 terminal final
+  不填充或复制分数。
+- `maxAudioDuration` 移除 20000 ms 最小钳制；显式正有限值按调用值生效，`8000` 即在写入约
+  8000 ms PCM 后自动结束，仍保留 28800000 ms 上限。
+- 新增 `voiceprint-fallback` cold/warm 真机门禁、8 秒 burst/paced 精确帧数门禁，以及本次问题的
+  根因复盘和发布测试流程。
+
 ## 0.2.6 - 2026-07-16（端点回调内结束兼容）
 
 - 修复调用方在 `SPEECH_END`（`eventCode=3`）回调内同步调用 `finish()` 时，SDK 先返回带文本的

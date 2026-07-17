@@ -24,8 +24,8 @@
 | endpoint | `isFinal=true` 仅表示一句话结束，不等于整个 session 结束 |
 | cancel | cancel 生效后不得新增 final 或 complete；取消前已经产生的 non-last endpoint final 保留 |
 | 跨 session 重入 | 所有 native 回调绑定 session generation；回调内 cancel/restart 后，旧处理栈和迟到回调不得读取或结束新 session |
-| 最大时长 | 缺省或非法 `maxAudioDuration` 不启用自动上限；仅显式有限值启用并钳制到 20000 到 28800000 ms |
-| 声纹分数 | 有效语音达到 `TargetSpeakerConfig.minSegSec` 时 final 应携带 `speakerSimilarity`；不足门槛时可省略分数，但不得丢识别结果 |
+| 最大时长 | 缺省、非正数或非法 `maxAudioDuration` 不启用自动上限；显式正有限值按调用值生效，上限 28800000 ms |
+| 声纹分数 | 严格有效语音优先；不足门槛但 ASR 有证据且本句实际 PCM 达到 `minSegSec` 时用真实 PCM 回退评分；实际 PCM 仍不足时可省略分数 |
 
 ## 3. 修复后的正常时序
 
@@ -98,11 +98,14 @@ flowchart TD
     F -->|是| C
     F -->|否| E
     C --> G[继续正常识别]
-    G --> H{有效语音达到 minSegSec}
-    H -->|是| I[final 携带 speakerSimilarity]
-    H -->|否| J[保留识别结果并省略分数]
+    G --> H{严格有效语音达到 minSegSec}
+    H -->|是| I[严格样本计算 speakerSimilarity]
+    H -->|否| J{ASR 有证据且本句 PCM 达标}
+    J -->|是| L[本句真实 PCM 回退评分]
+    J -->|否| M[保留识别结果并省略分数]
     I --> K[等待显式 finish]
-    J --> K
+    L --> K
+    M --> K
 ```
 
 声学 backstop 不能把固定高能直接当作 speech。它只允许触发一次确认窗，最终仍需近期语音型能量变化、合理过零率或 ASR 非空 text/token 才能解除初始静音计时。
