@@ -1,0 +1,115 @@
+diff --git a/rules_v2/en.full.json b/rules_v2/en.full.json
+index d0a7e39..4e1db93 100644
+--- a/rules_v2/en.full.json
++++ b/rules_v2/en.full.json
+@@ -99,7 +99,12 @@
+       "lbs": "  pounds ",
+       "ft": "  feet ",
+       "yd": "  yards ",
+-      "oz": "  ounces "
++      "oz": "  ounces ",
++      "KB": "  kilobytes ",
++      "MB": "  megabytes ",
++      "GB": "  gigabytes ",
++      "TB": "  terabytes ",
++      "PB": "  petabytes "
+     },
+     "unit_single": {
+       "s": "  seconds ",
+@@ -132,7 +137,8 @@
+       "°C": "  degrees Celsius ",
+       "°F": "  degrees Fahrenheit ",
+       "mol": "  moles ",
+-      "M": "  million "
++      "M": "  million ",
++      "V": "  volts "
+     },
+     "pattern_defs": {
+       "SH_LB_ND": "(?<!\\d)",
+@@ -189,8 +195,8 @@
+       "EN_LETTER_PLUS_NUM_PLURAL_S": "(?<=[A-Z]{2})(\\d{2,}|\\d)s\\b",
+       "EN_PERCENT": "{{SH_NUM_DEC_CAP}}\\s*%",
+       "EN_PER_MILLE": "{{SH_NUM_DEC_CAP}}\\s*‰",
+-      "EN_COMPOSITE_UNIT": "{{SH_PREFIX_NUM_UNIT}}(J\\s*/\\s*\\(kg·℃\\)|kg\\s*/\\s*m³|rad\\s*/\\s*s|km\\s*/\\s*h|kW·h|m\\s*/\\s*s²|kcal|cm\\s*/\\s*s|km\\s*/\\s*s|mi\\s*/\\s*s|mi\\s*/\\s*h|m\\s*/\\s*s|min|kPa|cm³|cm²|MHz|GHz|kHz|MPa|hPa|rpm|N·m|mph|lbs|mm|bn|nm|kg|km|μm|ml|mL|mA|kΩ|kW|m²|m³|kJ|eV|ms|μs|ns|mV|kV|MΩ|pF|μF|nF|mH|μH|mW|MW|dB|kN|dm|cm|mi|lb|ft|yd|oz)(?=[\\s]|[.,，。：；！？”“‘’《》;:!?\\\"')\\]»]|$)",
+-      "EN_SINGLE_UNIT": "{{SH_PREFIX_NUM_UNIT}}(°C|°F|cal|mol|Pa|Hz|㎡|℃|℉|Ω|W|M|N|J|T|K|H|G|L|l|t|b|s|h|m|g|°|′|″|'|\\\")(?=[\\s]|[.,，。：；！？”“‘’《》;:!?\\\"')\\]»]|$)",
++      "EN_COMPOSITE_UNIT": "{{SH_PREFIX_NUM_UNIT}}(J\\s*/\\s*\\(kg·℃\\)|kg\\s*/\\s*m³|rad\\s*/\\s*s|km\\s*/\\s*h|kW·h|m\\s*/\\s*s²|kcal|cm\\s*/\\s*s|km\\s*/\\s*s|mi\\s*/\\s*s|mi\\s*/\\s*h|m\\s*/\\s*s|min|kPa|cm³|cm²|MHz|GHz|kHz|MPa|hPa|rpm|N·m|mph|lbs|mm|bn|nm|kg|km|μm|ml|mL|mA|kΩ|kW|m²|m³|kJ|eV|ms|μs|ns|mV|kV|MΩ|pF|μF|nF|mH|μH|mW|MW|KB|MB|GB|TB|PB|dB|kN|dm|cm|mi|lb|ft|yd|oz)(?=[\\s]|[.,，。：；！？”“‘’《》;:!?\\\"')\\]»]|$)",
++      "EN_SINGLE_UNIT": "{{SH_PREFIX_NUM_UNIT}}(°C|°F|cal|mol|Pa|Hz|㎡|℃|℉|Ω|V|W|M|N|J|T|K|H|G|L|l|t|b|s|h|m|g|°|′|″|'|\\\")(?=[\\s]|[.,，。：；！？”“‘’《》;:!?\\\"')\\]»]|$)",
+       "EN_INCH_UNIT": "(\\d+(?:\\.\\d+)?)\\s*(in)\\b\\s*(?=[.,;:)\\]\\}\\\"'»。，；：！？”’》]|$)",
+       "EN_AIRBUS_A_SERIES": "(?i)(\\b(?:Airbus\\s+)?A)(\\d{3})\\b",
+       "EN_BOEING_787_DREAMLINER": "(?i)\\b(787)\\s+(Dreamliner)\\b",
+@@ -2438,7 +2444,7 @@
+       },
+       {
+         "id": "en_068a_html_tag_strip",
+-        "pattern": "<[^>]+>",
++        "pattern": "</?[A-Za-z!?][^>]*>",
+         "replace": " "
+       },
+       {
+@@ -2779,6 +2785,16 @@
+         "pattern": ">=",
+         "replace": " greater than or equals "
+       },
++      {
++        "id": "en_068pz_lt",
++        "pattern": "<",
++        "replace": " less than "
++      },
++      {
++        "id": "en_068pz_gt",
++        "pattern": ">",
++        "replace": " greater than "
++      },
+       {
+         "id": "en_068pz_ne_unicode",
+         "pattern": "≠",
+@@ -2889,6 +2905,11 @@
+         "pattern": "([A-Za-z])\\^([A-Za-z])",
+         "replace": "$1 to the power $2"
+       },
++      {
++        "id": "en_068qs2_caret_general",
++        "pattern": "(?<=[0-9A-Za-z])\\^(?=[0-9A-Za-z])",
++        "replace": " to the power of "
++      },
+       {
+         "id": "en_068qt_letter_plus",
+         "pattern": "([A-Za-z])\\+",
+@@ -3226,7 +3247,7 @@
+       },
+       {
+         "id": "en_070",
+-        "pattern": "\\bNo\\.\\s*(?=\\d)",
++        "pattern": "(?i)\\bNo\\.\\s*(?=\\d)",
+         "replace": " number "
+       },
+       {
+diff --git a/tts_normalizer_engine.cpp b/tts_normalizer_engine.cpp
+index a6052b7..0e19679 100644
+--- a/tts_normalizer_engine.cpp
++++ b/tts_normalizer_engine.cpp
+@@ -413,8 +413,23 @@ std::string formatArabicDateDayGenitive(int day) {
+ bool numericIsOne(const icu::UnicodeString& s) {
+     std::string utf8;
+     s.toUTF8String(utf8);
++    // std::stod stops at a thousands separator, so "1,299" would parse as 1.0 and be treated as
++    // singular ("$1,299" -> "one thousand two hundred ninety-nine dollar"). Drop the separators
++    // and require the whole string to be consumed before trusting the value.
++    std::string cleaned;
++    cleaned.reserve(utf8.size());
++    for (char c : utf8) {
++        if (c == ',' || c == ' ' || c == '\t') {
++            continue;
++        }
++        cleaned.push_back(c);
++    }
+     try {
+-        double v = std::stod(utf8);
++        std::size_t pos = 0;
++        double v = std::stod(cleaned, &pos);
++        if (pos != cleaned.size()) {
++            return false;
++        }
+         return std::abs(v - 1.0) < 1e-9;
+     } catch (...) {
+         return false;
