@@ -225,6 +225,23 @@ def protectSemanticNumeric(text):
     text=R_neg.sub('负', text)
     return text
 
+# --- English technical-symbol TN (URL/email/path/code): symbols must be spoken.
+# Only inside a technical token (letters + tech symbols), so a sentence-final
+# "." in "today." is untouched (R_techToken requires the token to end alnum).
+EN_TECH_SYM={'@':' at ','\\':' backslash ','/':' slash ','.':' dot ','_':' underscore ',
+             '(':' left paren ',')':' right paren ',':':' ','?':' question mark ',
+             '=':' equals ','&':' and ','#':' hash '}
+def normalizeEnglishTechnicalToken(token):
+    return re.sub(r'\s+',' ',''.join(EN_TECH_SYM.get(c,c) for c in token)).strip()
+def protectEnglishTechnical(text):
+    def tok(m):
+        t=m.group(1)
+        if not any(isAsciiLetter(c) for c in t) or not any(c in TECH_SYM for c in t): return t
+        return ' '+normalizeEnglishTechnicalToken(t)+' '
+    return re.sub(r'\s+',' ', R_techToken.sub(tok, text)).strip()
+def prepare_english_input(text):
+    return protectEnglishTechnical(text)
+
 def prepare_input(text):
     text=expandEra(text)
     text=expandTime(text)
@@ -247,7 +264,8 @@ def clean(text):
     return t
 
 def frontend_prepare(text, english=False):
-    return prepare_input(clean(expandSuperscriptUnits(text)))
+    cleaned=clean(expandSuperscriptUnits(text))
+    return prepare_english_input(cleaned) if english else prepare_input(cleaned)
 
 if __name__=='__main__':
     import sys
