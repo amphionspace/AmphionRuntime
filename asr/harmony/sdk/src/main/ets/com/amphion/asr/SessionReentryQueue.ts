@@ -29,6 +29,17 @@ export class SessionReentryQueue {
     this.operations.push(new SessionOperation(SESSION_OPERATION_STOP));
   }
 
+  // If an endpoint callback synchronously requested only stop(), the endpoint that produced the
+  // callback is already the terminal speech boundary. Consume that exact request so its text can be
+  // published as isLast instead of resetting the stream and manufacturing a second empty final.
+  // Audio queued before stop must retain FIFO semantics and therefore prevents boundary consumption.
+  consumeStopAtEndpoint(): boolean {
+    if (this.operations.length !== 1 || this.operations[0].kind !== SESSION_OPERATION_STOP) return false;
+    this.operations = [];
+    this.stopQueued = false;
+    return true;
+  }
+
   drain(isClosed: () => boolean, acceptAudio: (samples: Float32Array) => void,
     stop: () => void): void {
     if (this.draining) return;

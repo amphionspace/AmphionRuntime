@@ -1,4 +1,4 @@
-export const HARMONY_SDK_VERSION: string = '0.2.5';
+export const HARMONY_SDK_VERSION: string = '0.2.6';
 export const HARMONY_SDK_MAJOR: number = 1;
 export const HARMONY_SDK_RELEASE_DATE: string = '2026-07-16';
 

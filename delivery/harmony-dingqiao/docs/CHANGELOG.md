@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.6 - 2026-07-16（端点回调内结束兼容）
+
+- 修复调用方在 `SPEECH_END`（`eventCode=3`）回调内同步调用 `finish()` 时，SDK 先返回带文本的
+  `isLast=false` final、随后又返回空 `isLast=true` final 的兼容性回退。
+- 当该端点回调只请求结束且没有更早排队的音频时，当前带文本 final 直接成为本 session 唯一的
+  `isLast=true` 结果，随后仍只回调一次 `onComplete`。
+- 保留回调重入隔离与 FIFO 顺序；`writeAudio -> finish` 已排队时不会跳过待处理音频，也不使用全局
+  `finishRequested` 把较早的异步 final 误标为 last。
+
 ## 0.2.5 - 2026-07-16（生命周期回归防护与交付证据）
 
 - 修复 `onStart` 会话发布门禁的跨 session 代次隔离，旧 session 的迟到 started 信号不能解锁新 session。
