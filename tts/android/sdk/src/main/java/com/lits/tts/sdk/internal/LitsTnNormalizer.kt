@@ -71,7 +71,7 @@ internal object LitsTnNormalizer {
 
         @Synchronized
         fun normalize(text: String, language: String, languageContext: String): String {
-            val cleaned = Normalizer.normalize(text, Normalizer.Form.NFKC)
+            val cleaned = Normalizer.normalize(expandSuperscriptUnits(text), Normalizer.Form.NFKC)
                 .replace(Regex("[\\x00-\\x1f\\x7f-\\x9f]"), "")
                 .replace(Regex("\\s+"), " ")
                 .trim()
@@ -94,12 +94,31 @@ internal object LitsTnNormalizer {
             }
         }
 
+        private fun expandTime(text: String): String =
+            timeColonRegex.replace(text) { m ->
+                val sb = StringBuilder(integerTextToHanzi(m.groupValues[1])).append("点")
+                    .append(integerTextToHanzi(m.groupValues[2])).append("分")
+                if (m.groupValues[3].isNotEmpty()) sb.append(integerTextToHanzi(m.groupValues[3])).append("秒")
+                sb.toString()
+            }
+
+        private fun expandEra(text: String): String {
+            var out = bcEraRegex.replace(text) { "公元前" + digitSequenceToHanzi(it.groupValues[1]) + "年" }
+            out = adEraRegex.replace(out) { "公元" + digitSequenceToHanzi(it.groupValues[1]) + "年" }
+            return out
+        }
+
         private fun prepareInputForTn(text: String): String {
-            var output = hanziClockMinuteLeadingZeroRegex.replace(text) { match ->
+            var output = expandEra(text)
+            output = expandTime(output)
+            output = expandDates(output)
+            output = dateHaoToRiRegex.replace(output) { it.groupValues[1] + "日" }
+            output = hanziClockMinuteLeadingZeroRegex.replace(output) { match ->
                 "${match.groupValues[1]}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}分"
             }
             output = frontendRules.apply("pre_tn", output)
             output = protectSemanticNumericReadings(output)
+            output = bigCardinalRegex.replace(output) { m -> bigCardinalToHanzi(m.groupValues[1]) ?: m.value }
             output = protectTechnicalAsciiReadings(output)
             output = protectVinCodes(output)
             output = protectProductCodes(output)
@@ -109,8 +128,26 @@ internal object LitsTnNormalizer {
             return output
         }
 
+        // English technical-symbol TN (URL/email/path/code): symbols must be spoken.
+        // Only inside a technical token (letters + tech symbols), so a sentence-final
+        // "." in "today." is untouched (the token regex requires an alnum ending).
+        private fun normalizeEnglishTechnicalToken(token: String): String =
+            token.map { englishTechSymbolText[it] ?: it.toString() }.joinToString("")
+                .replace(Regex("\\s+"), " ").trim()
+
+        private fun protectEnglishTechnicalReadings(text: String): String =
+            technicalAsciiTokenRegex.replace(text) { match ->
+                val token = match.groupValues[1]
+                if (!token.any { isAsciiLetter(it) } || !token.any { it in technicalSymbolChars }) {
+                    token
+                } else {
+                    " " + normalizeEnglishTechnicalToken(token) + " "
+                }
+            }.replace(Regex("\\s+"), " ").trim()
+
         private fun prepareEnglishInputForTn(text: String): String {
-            var output = englishAtNumberFifteenRegex.replace(text) { match ->
+            var output = protectEnglishTechnicalReadings(text)
+            output = englishAtNumberFifteenRegex.replace(output) { match ->
                 match.groupValues[1] + integerTextToEnglishWords(match.groupValues[2]) + match.groupValues[3]
             }
             output = englishLeadingZeroNumberRegex.replace(output) { match ->
@@ -222,6 +259,10 @@ internal object LitsTnNormalizer {
             output = yearBeforeNianRegex.replace(output) { match ->
                 digitSequenceToHanzi(match.groupValues[1]) + "年"
             }
+            output = yearBeforeNianTwoRegex.replace(output) { match ->
+                digitSequenceToHanzi(match.groupValues[1]) + "年"
+            }
+            output = negBeforeNumberRegex.replace(output) { "负" }
             return output
         }
 
@@ -241,11 +282,94 @@ internal object LitsTnNormalizer {
             }
         }
 
+        // Dates with -, /, . separators. Run first, before the fraction/range/decimal/path
+        // rules that otherwise read 2008/08 as 八分之二千零八, 2008-08 as 二千零八至八, etc.
+        // Segments are a 4-digit year or exactly 2 digits; month 1-12 / day 1-31 gate out
+        // scores/fractions/decimals/IPs (1/2, 中国1-2, 13.5, 127.0.0.1 each have a 1-digit seg).
+        private fun dateYmd(year: String, month: String, day: String): String =
+            digitSequenceToHanzi(year) + "年" + integerTextToHanzi(month) + "月" +
+                integerTextToHanzi(day) + "日"
+
+        private fun dateYm(year: String, month: String): String =
+            digitSequenceToHanzi(year) + "年" + integerTextToHanzi(month) + "月"
+
+        private fun isDateMonth(text: String): Boolean = (text.toIntOrNull() ?: -1) in 1..12
+        private fun isDateDay(text: String): Boolean = (text.toIntOrNull() ?: -1) in 1..31
+
+        private fun expandDates(text: String): String {
+            var output = dateYmdSepRegex.replace(text) { m ->
+                val (y, mo, d) = m.destructured
+                if (isDateMonth(mo) && isDateDay(d)) dateYmd(y, mo, d) else m.value
+            }
+            output = dateMdySepRegex.replace(output) { m ->
+                val (mo, d, y) = m.destructured
+                if (isDateMonth(mo) && isDateDay(d)) dateYmd(y, mo, d) else m.value
+            }
+            output = dateYmSepRegex.replace(output) { m ->
+                val (y, mo) = m.destructured
+                if (isDateMonth(mo)) dateYm(y, mo) else m.value
+            }
+            output = dateMySepRegex.replace(output) { m ->
+                val (mo, y) = m.destructured
+                if (isDateMonth(mo)) dateYm(y, mo) else m.value
+            }
+            output = dateMdSepRegex.replace(output) { m ->
+                val (mo, d) = m.destructured
+                if (isDateMonth(mo) && isDateDay(d)) {
+                    integerTextToHanzi(mo) + "月" + integerTextToHanzi(d) + "日"
+                } else {
+                    m.value
+                }
+            }
+            return output
+        }
+
+        private fun expandSuperscriptUnits(text: String): String =
+            superscriptUnitRegex.replace(text) { match ->
+                val exponent = if (match.groupValues[3] == "²") "平方" else "立方"
+                numberTextToHanzi(match.groupValues[1]) + exponent +
+                    superscriptUnitTextByChar.getValue(match.groupValues[2].lowercase())
+            }
+
         private fun numberTextToHanzi(text: String): String {
             val parts = text.split('.', limit = 2)
             val integer = integerTextToHanzi(parts[0])
             if (parts.size == 1) return integer
             return integer + "点" + parts[1].map { chineseDigitTextByChar.getValue(it) }.joinToString("")
+        }
+
+        // Big-number cardinal: standard 万/亿 segmentation with correct 零 handling.
+        private fun bigCardinalToHanzi(text: String): String? {
+            val v = text.toLongOrNull() ?: return null
+            if (v == 0L) return "零"
+            val big = listOf("", "万", "亿", "万亿", "亿亿")
+            val segs = mutableListOf<Int>(); var x = v
+            while (x > 0) { segs.add((x % 10000).toInt()); x /= 10000 }
+            if (segs.size > big.size) return null
+            val sb = StringBuilder()
+            for (i in segs.indices.reversed()) {
+                val seg = segs[i]
+                if (seg == 0) continue
+                if (sb.isNotEmpty() && seg < 1000) sb.append("零")
+                sb.append(fourDigitCardinal(seg)).append(big[i])
+            }
+            return sb.toString()
+        }
+
+        private fun fourDigitCardinal(n: Int): String {
+            val sb = StringBuilder(); var zero = false; var started = false
+            val units = listOf("", "十", "百", "千")
+            for (pos in 3 downTo 0) {
+                var div = 1; repeat(pos) { div *= 10 }
+                val d = (n / div) % 10
+                if (d == 0) { if (started) zero = true } else {
+                    if (zero) { sb.append("零"); zero = false }
+                    if (pos == 1 && d == 1 && !started) sb.append("十")  // 10-19 read 十X not 一十X
+                    else sb.append(chineseDigitTextByChar.getValue(d.digitToChar())).append(units[pos])
+                    started = true
+                }
+            }
+            return sb.toString()
         }
 
         private fun integerTextToHanzi(text: String): String {
@@ -427,7 +551,17 @@ internal object LitsTnNormalizer {
             private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?[%％]")
             private val percentNumberTextRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?百分号")
             private val clockColonMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2}):0([0-9])(?!\\d)")
+            private val timeColonRegex = Regex("(?<!\\d)(\\d{1,2}):([0-5]\\d)(?::([0-5]\\d))?(?!\\d)")  // HH:MM[:SS] -> H点M分[S秒]
+            private val dateHaoToRiRegex = Regex("(月\\d{1,2})号")  // date 号->日 only with 月 anchor
+            // AD/BC era: 2934a.d.->公元二九三四年, 2334bc->公元前二三三四年
+            private val bcEraRegex = Regex("(?<![0-9A-Za-z])(\\d{1,4})\\s*b\\.?c\\.?(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
+            private val adEraRegex = Regex("(?<![0-9A-Za-z])(\\d{1,4})\\s*a\\.?d\\.?(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
             private val yearBeforeNianRegex = Regex("(?<!\\d)(\\d{4})\\s*年")
+            private val yearBeforeNianTwoRegex = Regex("(?<!\\d)(0\\d)年")  // 05年->零五年 (leading-zero only)
+            // leading minus before a number / percent -> 负 (not a range like 1-2)
+            private val negBeforeNumberRegex = Regex("(?<![0-9A-Za-z\\u4e00-\\u9fff])[-\\u2212](?=\\d|百分之)")
+            // >=7-digit isolated number (native only spells out <=6 digits); not after '.' (decimal tail)
+            private val bigCardinalRegex = Regex("(?<![0-9A-Za-z.])(\\d{7,15})(?![0-9])")
             private val semanticVersionRegex = Regex("(?<![A-Za-z0-9])([vV])(\\d+(?:\\.\\d+)+)(?![A-Za-z0-9])")
             private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])([A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
             private val technicalSymbolChars = setOf('.', '/', '\\', '_', '@', ':', '?', '=', '&', '#', '%', '+', '-')
@@ -438,6 +572,25 @@ internal object LitsTnNormalizer {
             private val idTailRegex = Regex("((?:身份证尾号|尾号)\\s*)(\\d+)([A-Za-z])(?![A-Za-z0-9])")
             private val pathSlashNumberRegex = Regex("(/)(\\d+)(?=/)")
             private val kmPerHourRegex = Regex("(\\d+)\\s*km/h", RegexOption.IGNORE_CASE)
+            private val dateYmdSepRegex =
+                Regex("(?<![0-9A-Za-z])(\\d{4})[-/.·](\\d{1,2})[-/.·](\\d{1,2})(?![0-9])")
+            private val dateMdySepRegex =
+                Regex("(?<![0-9A-Za-z])(\\d{1,2})[-/.·](\\d{1,2})[-/.·](\\d{4})(?![0-9])")
+            // two-segment YM/MY: month is zero-padded 2 digits (golden always is), so a
+            // decimal like 5.5555 (1-digit + 4-digit) is not mistaken for MM.YYYY.
+            private val dateYmSepRegex = Regex("(?<![0-9A-Za-z])(\\d{4})[-/.·](0[1-9]|1[0-2])(?![0-9])")
+            private val dateMySepRegex = Regex("(?<![0-9A-Za-z])(0[1-9]|1[0-2])[-/.·](\\d{4})(?![0-9])")
+            private val dateMdSepRegex = Regex("(?<![0-9A-Za-z])(\\d{2})[-/.·](\\d{2})(?![0-9])")
+            // Superscript area/volume units: NFKC folds ²->2 / ³->3, so expand before cleaning.
+            private val superscriptUnitRegex =
+                Regex("(\\d+(?:\\.\\d+)?)\\s*(km|cm|mm|dm|m)([\\u00B2\\u00B3])")
+            private val superscriptUnitTextByChar = mapOf(
+                "km" to "千米",
+                "cm" to "厘米",
+                "mm" to "毫米",
+                "dm" to "分米",
+                "m" to "米",
+            )
             private val coordinateRegex = Regex("(?<![A-Za-z])([NE])\\s*(\\d+(?:\\.\\d+)?)", RegexOption.IGNORE_CASE)
             private val vinCodeRegex = Regex("((?:车架号\\s*)?(?:VIN\\s+))([A-HJ-NPR-Z0-9]{8,17})(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
             private val productCodeRegex = Regex("(?<![A-Za-z0-9])(vocos|Office)(\\d+)(k?)(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
@@ -447,6 +600,13 @@ internal object LitsTnNormalizer {
             private val englishVerificationCodeTailRegex = Regex(
                 "\\b((?:verification\\s+)?code\\s+is\\s+(?:(?:[A-Z]|zero|one|two|three|four|five|six|seven|eight|nine)\\s+){2,})(\\d{1,4})(?=\\b)",
                 RegexOption.IGNORE_CASE,
+            )
+            // English readings for technical symbols (URL/email/path/code)
+            private val englishTechSymbolText = mapOf(
+                '@' to " at ", '\\' to " backslash ", '/' to " slash ", '.' to " dot ",
+                '_' to " underscore ", '(' to " left paren ", ')' to " right paren ",
+                ':' to " ", '?' to " question mark ", '=' to " equals ", '&' to " and ",
+                '#' to " hash ",
             )
             private val chineseDigitTextByChar = mapOf(
                 '0' to "零",
