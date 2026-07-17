@@ -3,7 +3,7 @@
   "cmudict": "data/cmudict-0.7b",
   "pair_count": 1981,
   "aligned_line_count": 1935,
-  "entry_count": 1244,
+  "entry_count": 1261,
   "entries": {
     "A-WEEK": {
       "phones": [
@@ -15264,6 +15264,334 @@
       "count": 1,
       "example": "Blowfish",
       "source": "kaikki-additional-pronounceable"
+    },
+    "ELECTROENCEPHALOGRAPHY": {
+      "phones": [
+        "IH0",
+        "L",
+        "EH2",
+        "K",
+        "T",
+        "R",
+        "OW0",
+        "EH0",
+        "N",
+        "S",
+        "EH2",
+        "F",
+        "AH0",
+        "L",
+        "AA1",
+        "G",
+        "R",
+        "AH0",
+        "F",
+        "IY0"
+      ],
+      "count": 1,
+      "example": "electroencephalography",
+      "source": "oov-proper-terms"
+    },
+    "ETHYLENEDIAMINETETRAACETIC": {
+      "phones": [
+        "EH1",
+        "TH",
+        "AH0",
+        "L",
+        "IY2",
+        "N",
+        "D",
+        "AY2",
+        "AH0",
+        "M",
+        "IY0",
+        "N",
+        "T",
+        "EH2",
+        "T",
+        "R",
+        "AH0",
+        "AH0",
+        "S",
+        "IY1",
+        "T",
+        "IH0",
+        "K"
+      ],
+      "count": 1,
+      "example": "ethylenediaminetetraacetic",
+      "source": "oov-proper-terms"
+    },
+    "GASTROENTERITIS": {
+      "phones": [
+        "G",
+        "AE2",
+        "S",
+        "T",
+        "R",
+        "OW0",
+        "EH2",
+        "N",
+        "T",
+        "ER0",
+        "AY1",
+        "T",
+        "AH0",
+        "S"
+      ],
+      "count": 1,
+      "example": "gastroenteritis",
+      "source": "oov-proper-terms"
+    },
+    "GLOUCESTERSHIRE": {
+      "phones": [
+        "G",
+        "L",
+        "AA1",
+        "S",
+        "T",
+        "ER0",
+        "SH",
+        "ER0"
+      ],
+      "count": 1,
+      "example": "Gloucestershire",
+      "source": "oov-proper-terms"
+    },
+    "HYDROCHLORIC": {
+      "phones": [
+        "HH",
+        "AY2",
+        "D",
+        "R",
+        "AH0",
+        "K",
+        "L",
+        "AO1",
+        "R",
+        "IH0",
+        "K"
+      ],
+      "count": 1,
+      "example": "hydrochloric",
+      "source": "oov-proper-terms"
+    },
+    "HYPERPARAMETER": {
+      "phones": [
+        "HH",
+        "AY2",
+        "P",
+        "ER0",
+        "P",
+        "AE1",
+        "R",
+        "AH0",
+        "M",
+        "AH0",
+        "T",
+        "ER0"
+      ],
+      "count": 1,
+      "example": "hyperparameter",
+      "source": "oov-proper-terms"
+    },
+    "LEICESTERSHIRE": {
+      "phones": [
+        "L",
+        "EH1",
+        "S",
+        "T",
+        "ER0",
+        "SH",
+        "ER0"
+      ],
+      "count": 1,
+      "example": "Leicestershire",
+      "source": "oov-proper-terms"
+    },
+    "METHYLPREDNISOLONE": {
+      "phones": [
+        "M",
+        "EH2",
+        "TH",
+        "AH0",
+        "L",
+        "P",
+        "R",
+        "EH0",
+        "D",
+        "N",
+        "IH1",
+        "S",
+        "AH0",
+        "L",
+        "OW2",
+        "N"
+      ],
+      "count": 1,
+      "example": "methylprednisolone",
+      "source": "oov-proper-terms"
+    },
+    "MICROARCHITECTURE": {
+      "phones": [
+        "M",
+        "AY2",
+        "K",
+        "R",
+        "OW0",
+        "AA1",
+        "R",
+        "K",
+        "AH0",
+        "T",
+        "EH2",
+        "K",
+        "CH",
+        "ER0"
+      ],
+      "count": 1,
+      "example": "microarchitecture",
+      "source": "oov-proper-terms"
+    },
+    "OTOLARYNGOLOGY": {
+      "phones": [
+        "OW2",
+        "T",
+        "OW0",
+        "L",
+        "EH2",
+        "R",
+        "IH0",
+        "NG",
+        "G",
+        "AA1",
+        "L",
+        "AH0",
+        "JH",
+        "IY0"
+      ],
+      "count": 1,
+      "example": "otolaryngology",
+      "source": "oov-proper-terms"
+    },
+    "PHOTOLITHOGRAPHY": {
+      "phones": [
+        "F",
+        "OW2",
+        "T",
+        "OW0",
+        "L",
+        "IH0",
+        "TH",
+        "AA1",
+        "G",
+        "R",
+        "AH0",
+        "F",
+        "IY0"
+      ],
+      "count": 1,
+      "example": "photolithography",
+      "source": "oov-proper-terms"
+    },
+    "PHUKET": {
+      "phones": [
+        "F",
+        "UW2",
+        "K",
+        "EH1",
+        "T"
+      ],
+      "count": 1,
+      "example": "Phuket",
+      "source": "oov-proper-terms"
+    },
+    "QUATERNION": {
+      "phones": [
+        "K",
+        "W",
+        "AH0",
+        "T",
+        "ER1",
+        "N",
+        "IY0",
+        "AH0",
+        "N"
+      ],
+      "count": 1,
+      "example": "quaternion",
+      "source": "oov-proper-terms"
+    },
+    "SPECTROPHOTOMETER": {
+      "phones": [
+        "S",
+        "P",
+        "EH2",
+        "K",
+        "T",
+        "R",
+        "OW0",
+        "F",
+        "AH0",
+        "T",
+        "AA1",
+        "M",
+        "AH0",
+        "T",
+        "ER0"
+      ],
+      "count": 1,
+      "example": "spectrophotometer",
+      "source": "oov-proper-terms"
+    },
+    "STOICHIOMETRY": {
+      "phones": [
+        "S",
+        "T",
+        "OY2",
+        "K",
+        "IY0",
+        "AA1",
+        "M",
+        "AH0",
+        "T",
+        "R",
+        "IY0"
+      ],
+      "count": 1,
+      "example": "stoichiometry",
+      "source": "oov-proper-terms"
+    },
+    "SZCZECIN": {
+      "phones": [
+        "SH",
+        "CH",
+        "EH1",
+        "T",
+        "CH",
+        "IY0",
+        "N"
+      ],
+      "count": 1,
+      "example": "Szczecin",
+      "source": "oov-proper-terms"
+    },
+    "THESSALONIKI": {
+      "phones": [
+        "TH",
+        "EH2",
+        "S",
+        "AH0",
+        "L",
+        "AH0",
+        "N",
+        "IY1",
+        "K",
+        "IY0"
+      ],
+      "count": 1,
+      "example": "Thessaloniki",
+      "source": "oov-proper-terms"
     }
   }
 }

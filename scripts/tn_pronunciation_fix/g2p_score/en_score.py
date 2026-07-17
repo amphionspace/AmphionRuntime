@@ -12,7 +12,7 @@ for line in open(D+"/cmudict.txt", encoding='utf-8', errors='replace'):
 supp={k:v['phones'] for k,v in json.load(open(D+"/supplement_lexicon.json",encoding='utf-8'))['entries'].items()}
 
 LP={'A':['EY1'],'B':['B','IY1'],'C':['S','IY1'],'D':['D','IY1'],'E':['IY1'],'F':['EH1','F'],'G':['JH','IY1'],'H':['EY1','CH'],'I':['AY1'],'J':['JH','EY1'],'K':['K','EY1'],'L':['EH1','L'],'M':['EH1','M'],'N':['EH1','N'],'O':['OW1'],'P':['P','IY1'],'Q':['K','Y','UW1'],'R':['AA1','R'],'S':['EH1','S'],'T':['T','IY1'],'U':['Y','UW1'],'V':['V','IY1'],'W':['D','AH1','B','AH0','L','Y','UW0'],'X':['EH1','K','S'],'Y':['W','AY1'],'Z':['Z','IY1']}
-OVR={"AUDIO":["AO1","D","IY0","OW2"],"UNDERSCORE":["AH2","N","D","ER0","S","K","AO1","R"],"WIFI":["W","AY1","F","AY1"],"WI-FI":["W","AY1","F","AY1"],"TIMEOUT":["T","AY1","M","AW1","T"],"ONE":["W","AH1","N"],"TWO":["T","UW1"],"THREE":["TH","R","IY1"],"FOUR":["F","AO1","R"],"FIVE":["F","AY1","V"],"SIX":["S","IH1","K","S"],"NINE":["N","AY1","N"],"TWENTY":["T","W","EH1","N","T","IY0"],"THIRTY":["TH","ER1","D","IY2"],"FORTY":["F","AO1","R","T","IY0"],"FIFTY":["F","IH1","F","T","IY0"]}
+OVR={"AUDIO":["AO1","D","IY0","OW2"],"UNDERSCORE":["AH2","N","D","ER0","S","K","AO1","R"],"WIFI":["W","AY1","F","AY1"],"WI-FI":["W","AY1","F","AY1"],"TIMEOUT":["T","AY1","M","AW1","T"],"ONE":["W","AH1","N"],"TWO":["T","UW1"],"THREE":["TH","R","IY1"],"FOUR":["F","AO1","R"],"FIVE":["F","AY1","V"],"SIX":["S","IH1","K","S"],"NINE":["N","AY1","N"],"TWENTY":["T","W","EH1","N","T","IY0"],"THIRTY":["TH","ER1","D","IY0"],"FORTY":["F","AO1","R","T","IY0"],"FIFTY":["F","IH1","F","T","IY0"]}
 ACR={"SIM","TIMEOUT","UNDERSCORE"}
 
 def spell(w):
