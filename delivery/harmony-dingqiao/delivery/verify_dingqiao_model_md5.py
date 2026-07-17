@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify that a Dingqiao delivery contains the approved ZH_EN model bytes."""
+"""Verify Dingqiao ZH_EN model identity from stable ONNX source hashes."""
 
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ import zipfile
 
 
 DEFAULT_POLICY_PATH = Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
-REQUIRED_RUNTIME_FILES = {
-    "zh-en/v1/bbpe.vocab",
-    "zh-en/v1/decoder.ort",
-    "zh-en/v1/encoder.int8.ort",
-    "zh-en/v1/joiner.int8.ort",
-    "zh-en/v1/tokens.txt",
+RUNTIME_TO_SOURCE = {
+    "encoder.int8.ort": "encoder.int8.onnx",
+    "decoder.ort": "decoder.onnx",
+    "joiner.int8.ort": "joiner.onnx",
+    "tokens.txt": "tokens.txt",
+    "bbpe.vocab": "bbpe.vocab",
 }
-MD5_RE = re.compile(r"[0-9a-f]{32}")
+SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
 
 class ModelIdentityError(RuntimeError):
@@ -29,62 +29,86 @@ class ModelIdentityError(RuntimeError):
 
 
 def _validate_expected(expected: dict[str, str]) -> dict[str, str]:
-    if not expected:
-        raise ModelIdentityError("model MD5 policy is empty")
-    normalized = {}
-    for relative, digest in expected.items():
-        path = PurePosixPath(relative)
-        if path.is_absolute() or ".." in path.parts or not relative.startswith("zh-en/v1/"):
-            raise ModelIdentityError(f"unsafe model MD5 path: {relative}")
-        if not isinstance(digest, str) or MD5_RE.fullmatch(digest) is None:
-            raise ModelIdentityError(f"invalid model MD5 value: {relative}")
-        normalized[relative] = digest
-    return normalized
+    if set(expected) != set(RUNTIME_TO_SOURCE.values()):
+        missing = sorted(set(RUNTIME_TO_SOURCE.values()) - set(expected))
+        extra = sorted(set(expected) - set(RUNTIME_TO_SOURCE.values()))
+        detail = missing[0] if missing else extra[0]
+        raise ModelIdentityError(f"model source SHA-256 file set mismatch: {detail}")
+    for name, digest in expected.items():
+        if PurePosixPath(name).name != name or SHA256_RE.fullmatch(digest) is None:
+            raise ModelIdentityError(f"invalid model source SHA-256 entry: {name}")
+    return dict(expected)
 
 
 def load_policy(path: Path = DEFAULT_POLICY_PATH) -> tuple[str, dict[str, str]]:
     try:
         policy = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise ModelIdentityError(f"cannot read model MD5 policy: {path}") from error
-    if not isinstance(policy, dict) or policy.get("schema_version") != 1:
-        raise ModelIdentityError(f"unsupported model MD5 policy: {path}")
+        raise ModelIdentityError(f"cannot read model identity policy: {path}") from error
+    if not isinstance(policy, dict) or policy.get("schema_version") != 2:
+        raise ModelIdentityError(f"unsupported model identity policy: {path}")
     model_id = policy.get("model_id")
     if not isinstance(model_id, str) or not model_id:
-        raise ModelIdentityError(f"model MD5 policy has no model_id: {path}")
-    runtime = policy.get("runtime_files_md5")
-    if not isinstance(runtime, dict):
-        raise ModelIdentityError(f"model MD5 policy has no runtime_files_md5: {path}")
-    expected = _validate_expected(runtime)
-    if set(expected) != REQUIRED_RUNTIME_FILES:
-        missing = sorted(REQUIRED_RUNTIME_FILES - set(expected))
-        extra = sorted(set(expected) - REQUIRED_RUNTIME_FILES)
-        detail = missing[0] if missing else extra[0]
-        raise ModelIdentityError(f"model MD5 policy file set mismatch: {detail}")
-    return model_id, expected
+        raise ModelIdentityError(f"model identity policy has no model_id: {path}")
+    expected = policy.get("source_files_sha256")
+    if not isinstance(expected, dict):
+        raise ModelIdentityError(f"model identity policy has no source_files_sha256: {path}")
+    return model_id, _validate_expected(expected)
 
 
-def _md5_stream(stream: BinaryIO) -> str:
-    digest = hashlib.md5()
+def _sha256_stream(stream: BinaryIO) -> str:
+    digest = hashlib.sha256()
     for chunk in iter(lambda: stream.read(1024 * 1024), b""):
         digest.update(chunk)
     return digest.hexdigest()
 
 
-def verify_root(root: Path, expected_md5: dict[str, str] | None = None) -> None:
-    if expected_md5 is None:
-        _, expected_md5 = load_policy()
-    expected = _validate_expected(expected_md5)
-    for relative, approved_md5 in sorted(expected.items()):
-        path = root / relative
-        if not path.is_file():
-            raise ModelIdentityError(f"missing pinned model file: {path}")
-        with path.open("rb") as stream:
-            actual_md5 = _md5_stream(stream)
-        if actual_md5 != approved_md5:
+def _validated_entries(manifest: object, expected: dict[str, str]) -> dict[str, dict]:
+    if not isinstance(manifest, dict) or manifest.get("manifest_version") != 2:
+        raise ModelIdentityError("invalid model manifest")
+    bundles = manifest.get("bundles")
+    entries = bundles.get("zh-en/v1") if isinstance(bundles, dict) else None
+    if not isinstance(entries, list):
+        raise ModelIdentityError("model manifest has no zh-en/v1 bundle")
+    by_name = {
+        entry.get("name"): entry
+        for entry in entries
+        if isinstance(entry, dict) and isinstance(entry.get("name"), str)
+    }
+    if set(by_name) != set(RUNTIME_TO_SOURCE):
+        raise ModelIdentityError("ZH_EN runtime file set mismatch")
+    for runtime_name, source_name in RUNTIME_TO_SOURCE.items():
+        entry = by_name[runtime_name]
+        if entry.get("source_name") != source_name:
+            raise ModelIdentityError(f"model source name mismatch: {runtime_name}")
+        actual_source = entry.get("source_sha256")
+        if actual_source != expected[source_name]:
             raise ModelIdentityError(
-                f"model MD5 mismatch: {relative}: {actual_md5} != {approved_md5}"
+                f"model source SHA-256 mismatch: {source_name}: "
+                f"{actual_source} != {expected[source_name]}"
             )
+        if SHA256_RE.fullmatch(str(entry.get("output_sha256"))) is None:
+            raise ModelIdentityError(f"invalid runtime SHA-256: {runtime_name}")
+    return by_name
+
+
+def verify_root(root: Path, expected_sha256: dict[str, str] | None = None) -> None:
+    if expected_sha256 is None:
+        _, expected_sha256 = load_policy()
+    expected = _validate_expected(expected_sha256)
+    try:
+        manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ModelIdentityError("cannot read model manifest") from error
+    entries = _validated_entries(manifest, expected)
+    for runtime_name, entry in entries.items():
+        path = root / "zh-en/v1" / runtime_name
+        if not path.is_file():
+            raise ModelIdentityError(f"missing model runtime file: {path}")
+        with path.open("rb") as stream:
+            actual = _sha256_stream(stream)
+        if actual != entry["output_sha256"]:
+            raise ModelIdentityError(f"runtime SHA-256 mismatch: {runtime_name}")
 
 
 def _is_model_member(name: str, relative: str) -> bool:
@@ -93,63 +117,61 @@ def _is_model_member(name: str, relative: str) -> bool:
     return normalized == expected or normalized.endswith(f"/{expected}")
 
 
-def _verify_tar(path: Path, expected: dict[str, str]) -> None:
+def _verify_archive_members(
+    members: list[tuple[str, BinaryIO]], expected: dict[str, str]
+) -> None:
+    manifest_matches = [stream for name, stream in members if _is_model_member(name, "manifest.json")]
+    if len(manifest_matches) != 1:
+        raise ModelIdentityError("archive must contain exactly one model manifest")
+    try:
+        manifest = json.load(manifest_matches[0])
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ModelIdentityError("invalid archive model manifest") from error
+    entries = _validated_entries(manifest, expected)
+    for runtime_name, entry in entries.items():
+        relative = f"zh-en/v1/{runtime_name}"
+        matches = [stream for name, stream in members if _is_model_member(name, relative)]
+        if len(matches) != 1:
+            raise ModelIdentityError(
+                f"archive must contain exactly one model runtime file: {relative}"
+            )
+        if _sha256_stream(matches[0]) != entry["output_sha256"]:
+            raise ModelIdentityError(f"runtime SHA-256 mismatch: {runtime_name}")
+
+
+def verify_archive(path: Path, expected_sha256: dict[str, str] | None = None) -> None:
+    if expected_sha256 is None:
+        _, expected_sha256 = load_policy()
+    expected = _validate_expected(expected_sha256)
+    if zipfile.is_zipfile(path):
+        with zipfile.ZipFile(path) as archive:
+            opened = [
+                (member.filename, archive.open(member))
+                for member in archive.infolist()
+                if not member.is_dir()
+            ]
+            try:
+                _verify_archive_members(opened, expected)
+            finally:
+                for _, stream in opened:
+                    stream.close()
+        return
     try:
         archive = tarfile.open(path, "r:*")
     except (OSError, tarfile.TarError) as error:
         raise ModelIdentityError(f"invalid model archive: {path}") from error
     with archive:
-        members = [member for member in archive.getmembers() if member.isfile()]
-        for relative, approved_md5 in sorted(expected.items()):
-            matches = [member for member in members if _is_model_member(member.name, relative)]
-            if not matches:
-                raise ModelIdentityError(f"archive missing pinned model file: {relative}")
-            if len(matches) != 1:
-                raise ModelIdentityError(
-                    f"multiple archive members for pinned model file: {relative}"
-                )
-            stream = archive.extractfile(matches[0])
-            if stream is None:
-                raise ModelIdentityError(f"archive model member is not readable: {relative}")
-            with stream:
-                actual_md5 = _md5_stream(stream)
-            if actual_md5 != approved_md5:
-                raise ModelIdentityError(
-                    f"model MD5 mismatch: {relative}: {actual_md5} != {approved_md5}"
-                )
-
-
-def _verify_zip(path: Path, expected: dict[str, str]) -> None:
-    try:
-        archive = zipfile.ZipFile(path)
-    except (OSError, zipfile.BadZipFile) as error:
-        raise ModelIdentityError(f"invalid model archive: {path}") from error
-    with archive:
-        members = [member for member in archive.infolist() if not member.is_dir()]
-        for relative, approved_md5 in sorted(expected.items()):
-            matches = [member for member in members if _is_model_member(member.filename, relative)]
-            if not matches:
-                raise ModelIdentityError(f"archive missing pinned model file: {relative}")
-            if len(matches) != 1:
-                raise ModelIdentityError(
-                    f"multiple archive members for pinned model file: {relative}"
-                )
-            with archive.open(matches[0]) as stream:
-                actual_md5 = _md5_stream(stream)
-            if actual_md5 != approved_md5:
-                raise ModelIdentityError(
-                    f"model MD5 mismatch: {relative}: {actual_md5} != {approved_md5}"
-                )
-
-
-def verify_archive(path: Path, expected_md5: dict[str, str] | None = None) -> None:
-    if expected_md5 is None:
-        _, expected_md5 = load_policy()
-    expected = _validate_expected(expected_md5)
-    if zipfile.is_zipfile(path):
-        _verify_zip(path, expected)
-    else:
-        _verify_tar(path, expected)
+        opened = []
+        for member in archive.getmembers():
+            if member.isfile():
+                stream = archive.extractfile(member)
+                if stream is not None:
+                    opened.append((member.name, stream))
+        try:
+            _verify_archive_members(opened, expected)
+        finally:
+            for _, stream in opened:
+                stream.close()
 
 
 def main() -> int:
@@ -169,7 +191,7 @@ def main() -> int:
             location = args.archive
     except ModelIdentityError as error:
         parser.error(str(error))
-    print(f"[OK] pinned Dingqiao ZH_EN model MD5 verified: {model_id}: {location}")
+    print(f"[OK] pinned Dingqiao ZH_EN ONNX identity verified: {model_id}: {location}")
     return 0
 
 

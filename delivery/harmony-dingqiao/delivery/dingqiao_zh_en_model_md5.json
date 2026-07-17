@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "model_id": "transducer-chunk32-lc256-260717",
   "source_bundle": {
     "name": "bundle.tar.gz",
@@ -13,11 +13,11 @@
       "tokens.txt": "814e4cecb1a34633434e624b0c9d3a93"
     }
   },
-  "runtime_files_md5": {
-    "zh-en/v1/bbpe.vocab": "09638658a4217d431c8c043c36deee00",
-    "zh-en/v1/decoder.ort": "8a88b33fe31a35bd51e8aa7395e8020e",
-    "zh-en/v1/encoder.int8.ort": "7a0ca1c0f7c9e4b70de28059c02dc832",
-    "zh-en/v1/joiner.int8.ort": "907bfc32eca11130e37340c3c5ed673b",
-    "zh-en/v1/tokens.txt": "814e4cecb1a34633434e624b0c9d3a93"
+  "source_files_sha256": {
+    "bbpe.vocab": "aa7a1b34d6a10e666f32dd7bc34599f16bd7602a3ed67602873c603dae978514",
+    "decoder.onnx": "519597bb518f9dacb01d0acc9c8d9fb6d8fb03b3f993bbcf99eb6d42ea79c286",
+    "encoder.int8.onnx": "0e86d904862c53e9bdff44df0650a109d61783cb262a7233742f68198abbcbba",
+    "joiner.onnx": "bfbd996a09853f43600b37b6d4332968e280498b4fbf23a2db374d6a8f31d2da",
+    "tokens.txt": "29a20d469f044011706d9720ff31770e5dcd6c30714943282e9563a55c6918f5"
   }
 }

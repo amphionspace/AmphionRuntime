@@ -12,12 +12,12 @@ import tarfile
 
 
 MODEL_MD5_POLICY_PATH = Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
-PINNED_MODEL_FILES = {
-    "zh-en/v1/bbpe.vocab",
-    "zh-en/v1/decoder.ort",
-    "zh-en/v1/encoder.int8.ort",
-    "zh-en/v1/joiner.int8.ort",
-    "zh-en/v1/tokens.txt",
+PINNED_MODEL_SOURCES = {
+    "bbpe.vocab",
+    "decoder.onnx",
+    "encoder.int8.onnx",
+    "joiner.onnx",
+    "tokens.txt",
 }
 MODEL_MANIFEST_PATH = (
     "package/_bundled/amphion_asr/src/main/resources/rawfile/"
@@ -88,34 +88,34 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _load_pinned_model_md5() -> dict[str, str]:
+def _load_pinned_model_sha256() -> dict[str, str]:
     try:
         policy = json.loads(MODEL_MD5_POLICY_PATH.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise DeliveryValidationError("pinned model MD5 policy is invalid") from error
-    if not isinstance(policy, dict) or policy.get("schema_version") != 1:
-        raise DeliveryValidationError("unsupported pinned model MD5 policy")
+        raise DeliveryValidationError("pinned model identity policy is invalid") from error
+    if not isinstance(policy, dict) or policy.get("schema_version") != 2:
+        raise DeliveryValidationError("unsupported pinned model identity policy")
     model_id = policy.get("model_id")
     if not isinstance(model_id, str) or not model_id:
-        raise DeliveryValidationError("pinned model MD5 policy has no model_id")
-    expected = policy.get("runtime_files_md5")
+        raise DeliveryValidationError("pinned model identity policy has no model_id")
+    expected = policy.get("source_files_sha256")
     if not isinstance(expected, dict) or not expected:
-        raise DeliveryValidationError("pinned model MD5 policy has no runtime files")
+        raise DeliveryValidationError("pinned model identity policy has no source files")
     for relative, digest in expected.items():
         path = PurePosixPath(relative)
         if (
             path.is_absolute()
             or ".." in path.parts
-            or not relative.startswith("zh-en/v1/")
+            or path.name != relative
             or not isinstance(digest, str)
-            or re.fullmatch(r"[0-9a-f]{32}", digest) is None
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
         ):
-            raise DeliveryValidationError(f"invalid pinned model MD5 entry: {relative}")
-    if set(expected) != PINNED_MODEL_FILES:
-        missing = sorted(PINNED_MODEL_FILES - set(expected))
-        extra = sorted(set(expected) - PINNED_MODEL_FILES)
+            raise DeliveryValidationError(f"invalid pinned model SHA-256 entry: {relative}")
+    if set(expected) != PINNED_MODEL_SOURCES:
+        missing = sorted(PINNED_MODEL_SOURCES - set(expected))
+        extra = sorted(set(expected) - PINNED_MODEL_SOURCES)
         detail = missing[0] if missing else extra[0]
-        raise DeliveryValidationError(f"pinned model MD5 file set mismatch: {detail}")
+        raise DeliveryValidationError(f"pinned model source file set mismatch: {detail}")
     return expected
 
 
@@ -280,7 +280,7 @@ def _validate_police_assets(archive: tarfile.TarFile, names: set[str]) -> None:
 
 
 def _validate_har(
-    root: Path, expected_version: str, expected_model_md5: dict[str, str]
+    root: Path, expected_version: str, expected_model_sha256: dict[str, str]
 ) -> dict:
     har_path = root / "har/amphion_dingqiao.har"
     try:
@@ -361,27 +361,23 @@ def _validate_har(
             missing = sorted(expected_model_files - actual_model_files)
             detail = extra[0] if extra else missing[0]
             raise DeliveryValidationError(f"model asset file set mismatch: {detail}")
-        for relative, approved_md5 in sorted(expected_model_md5.items()):
-            member_name = (model_root / relative).as_posix()
-            try:
-                member = archive.getmember(member_name)
-            except KeyError as error:
+        zh_entries = bundles["zh-en/v1"]
+        actual_sources = {}
+        for entry in zh_entries:
+            source_name = entry.get("source_name")
+            source_sha256 = entry.get("source_sha256")
+            if not isinstance(source_name, str) or not isinstance(source_sha256, str):
+                raise DeliveryValidationError("ZH_EN manifest lacks source identity")
+            if source_name in actual_sources:
+                raise DeliveryValidationError(f"duplicate ZH_EN model source: {source_name}")
+            actual_sources[source_name] = source_sha256
+        if set(actual_sources) != set(expected_model_sha256):
+            raise DeliveryValidationError("pinned ZH_EN model source file set mismatch")
+        for source_name, approved_sha256 in expected_model_sha256.items():
+            if actual_sources[source_name] != approved_sha256:
                 raise DeliveryValidationError(
-                    f"HAR missing pinned model asset: {member_name}"
-                ) from error
-            stream = archive.extractfile(member)
-            if stream is None:
-                raise DeliveryValidationError(
-                    f"HAR model asset is not a file: {member_name}"
-                )
-            digest = hashlib.md5()
-            with stream:
-                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                    digest.update(chunk)
-            actual_md5 = digest.hexdigest()
-            if actual_md5 != approved_md5:
-                raise DeliveryValidationError(
-                    f"model MD5 mismatch: {relative}: {actual_md5} != {approved_md5}"
+                    f"model source SHA-256 mismatch: {source_name}: "
+                    f"{actual_sources[source_name]} != {approved_sha256}"
                 )
         _validate_police_assets(archive, names)
         return {
@@ -462,7 +458,7 @@ def validate_delivery(
     expected_model_md5: dict[str, str] | None = None,
 ) -> None:
     if expected_model_md5 is None:
-        expected_model_md5 = _load_pinned_model_md5()
+        expected_model_md5 = _load_pinned_model_sha256()
     _validate_layout(root)
     _validate_checksums(root)
     har_evidence = _validate_har(root, expected_version, expected_model_md5)
