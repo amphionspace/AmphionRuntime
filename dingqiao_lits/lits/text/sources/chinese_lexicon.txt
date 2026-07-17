@@ -16595,7 +16595,6 @@
 上邪	shang4 xie2
 上邸	shang4 di3
 上部	shang4 bu4
-上都	shang4 du1
 上酒家	shang4 jiu3 jia1
 上釉	shang4 you4
 上野	shang4 ye3
@@ -22789,7 +22788,7 @@
 东净	dong1 jing4
 东力	dong1 li4
 东加	dong1 jia1
-东加勒比元	dong1 jia1 lei1 bi3 yuan2
+东加勒比元	dong1 jia1 le4 bi3 yuan2
 东加王国	dong1 jia1 wang2 guo2
 东劳西燕	dong1 lao2 xi1 yan4
 东势	dong1 shi4
@@ -32063,7 +32062,7 @@
 乌力马	wu1 li4 ma3
 乌加河	wu1 jia1 he2
 乌加里	wu1 jia1 li3
-乌勒吉	wu1 lei1 ji2
+乌勒吉	wu1 le4 ji2
 乌勒格	wu1 le4 ge2
 乌匼	wu1 ke1
 乌卡亚	wu1 ka3 ya4
@@ -32195,7 +32194,7 @@
 乌弗埃	wu1 fu2 ai1
 乌当	wu1 dang1
 乌当区	wu1 dang1 qu1
-乌得勒	wu1 de2 lei1
+乌得勒	wu1 de2 le4
 乌德丁	wu1 de2 ding1
 乌德勒	wu1 de2 le4
 乌德勒支	wu1 de2 le4 zhi1
@@ -49625,7 +49624,7 @@
 代数闭域	dai4 shu4 bi4 yu4
 代数集	dai4 shu4 ji2
 代文臣	dai4 wen2 chen2
-代斯勒	dai4 si1 lei1
+代斯勒	dai4 si1 le4
 代斵	dai4 zhuo2
 代旗	dai4 qi2
 代明	dai4 ming2
@@ -52479,7 +52478,7 @@
 伏寇	fu2 kou4
 伏小	fu2 xiao3
 伏尔加	fu2 er3 jia1
-伏尔加格勒	fu2 er3 jia1 ge2 lei1
+伏尔加格勒	fu2 er3 jia1 ge2 le4
 伏尔加河	fu2 er3 jia1 he2
 伏尔加河纤夫	fu2 er3 jia1 he2 qian4 fu1
 伏尔塔	fu2 er2 ta3
@@ -56602,7 +56601,7 @@
 佐券	zuo3 quan4
 佐剂	zuo3 ji4
 佐助	zuo3 zhu4
-佐勒菲卡尔	zuo3 lei1 fei1 ka2 er3
+佐勒菲卡尔	zuo3 le4 fei1 ka2 er3
 佐史	zuo3 shi3
 佐吏	zuo3 li4
 佐命	zuo3 ming4
@@ -72121,10 +72120,10 @@
 克威尔	ke4 wei1 er3
 克娄巴特拉	ke4 lou2 ba1 te4 la1
 克嫩	ke4 nen4
-克孜勒	ke4 zi1 lei1
+克孜勒	ke4 zi1 le4
 克孜勒河	ke4 zi1 le4 he2
 克孜勒苏	ke4 zi1 le4 su1
-克孜勒苏地区	ke4 zi1 lei1 su1 di4 qu1
+克孜勒苏地区	ke4 zi1 le4 su1 di4 qu1
 克孜勒苏柯尔克孜自治州	ke4 zi1 le4 su1 ke1 er3 ke4 zi1 zi4 zhi4 zhou1
 克孜勒苏河	ke4 zi1 le4 su1 he2
 克孜尔	ke4 zi1 er3
@@ -72438,9 +72437,9 @@
 克莱德河	ke4 lai2 de2 he2
 克莱恩	ke4 lai2 en1
 克莱斯	ke4 lai2 si1
-克莱斯勒	ke4 lai2 si1 lei1
-克莱斯勒公司	ke4 lai2 si1 lei1 gong1 si1
-克莱斯勒汽车公司	ke4 lai2 si1 lei1 qi4 che1 gong1 si1
+克莱斯勒	ke4 lai2 si1 le4
+克莱斯勒公司	ke4 lai2 si1 le4 gong1 si1
+克莱斯勒汽车公司	ke4 lai2 si1 le4 qi4 che1 gong1 si1
 克莱斯特	ke4 lai2 si1 te4
 克莱斯蒂尔	ke4 lai2 si1 di4 er3
 克莱昂	ke4 lai2 ang2
@@ -80121,7 +80120,7 @@
 兹夷	zi1 yi2
 兹将	zi1 jiang1
 兹曼	zi1 man4
-兹沃勒	zi1 wo4 lei1
+兹沃勒	zi1 wo4 le4
 兹泉	zi1 quan2
 兹洛夫	zi1 luo4 fu1
 兹白	zi1 bai2
@@ -89169,7 +89168,7 @@
 凯凯	kai3 kai3
 凯切	kai3 qie1
 凯利	kai3 li4
-凯勒	kai3 lei1
+凯勒	kai3 le4
 凯华	kai3 hua2
 凯南	kai3 nan2
 凯厄	kai3 e4
@@ -92666,7 +92665,7 @@
 刊削	kan1 xue1
 刊剟	kan1 duo1
 刊剥	kan1 bao1
-刊勒	kan1 lei1
+刊勒	kan1 le4
 刊印	kan1 yin4
 刊发	kan1 fa1
 刊号	kan1 hao4
@@ -93184,7 +93183,7 @@
 列宁全集	lie4 ning2 quan2 ji2
 列宁室	lie4 ning2 shi4
 列宁服	lie4 ning2 fu2
-列宁格勒	lie4 ning2 ge2 lei1
+列宁格勒	lie4 ning2 ge2 le4
 列宁格勒大学	lie4 ning2 ge2 le4 da4 xue2
 列宁格勒州	lie4 ning2 ge2 le4 zhou1
 列宁装	lie4 ning2 zhuang1
@@ -100562,7 +100561,7 @@
 加勒斯	jia1 le4 si1
 加勒比	jia1 le4 bi3
 加勒比国家联盟	jia1 le4 bi3 guo2 jia1 lian2 meng2
-加勒比地区	jia1 lei1 bi3 di4 qu1
+加勒比地区	jia1 le4 bi3 di4 qu1
 加勒比海	jia1 le4 bi2 hai3
 加勒特	jia1 le4 te4
 加升	jia1 sheng1
@@ -100732,7 +100731,7 @@
 加廷根	jia1 ting2 gen1
 加开	jia1 kai1
 加开班次	jia1 kai1 ban1 ci4
-加异勒	jia1 yi4 lei1
+加异勒	jia1 yi4 le4
 加强	jia1 qiang2
 加强免疫	jia1 qiang2 mian3 yi4
 加强力量	jia1 qiang2 li4 liang4
@@ -101149,7 +101148,7 @@
 加里东	jia1 li3 dong1
 加里克	jia1 li3 ke4
 加里宁	jia1 li3 ning2
-加里宁格勒	jia1 li3 ning2 ge2 lei1
+加里宁格勒	jia1 li3 ning2 ge2 le4
 加里宁格勒州	jia1 li3 ning2 ge2 le4 zhou1
 加里曼丹	jia1 li3 man4 dan1
 加里曼丹岛	jia1 li3 man4 dan1 dao3
@@ -102739,7 +102738,7 @@
 勑诫	chi4 jie4
 勑身	chi4 shen1
 勑额	chi4 e2
-勒	lei1
+勒	le4
 勒乌	le4 wu1
 勒令	le4 ling4
 勒休	lei1 xiu1
@@ -113263,7 +113262,7 @@
 卜从善	bu3 cong2 shan4
 卜儿	bu3 er2
 卜凤	bu3 feng4
-卜加勒	bu3 jia1 lei1
+卜加勒	bu3 jia1 le4
 卜卜	bu2 bu3
 卜卜地	bu3 bu5 de5
 卜卜米	bu2 bu5 mi3
@@ -113643,7 +113642,7 @@
 卡努里	ka3 nu2 li3
 卡劳河	ka3 lao2 he2
 卡勒	ka3 le4
-卡勒瓦拉	ka3 lei1 wa3 la1
+卡勒瓦拉	ka3 le4 wa3 la1
 卡南加	ka3 nan2 jia1
 卡博特	ka3 bo2 te4
 卡卡	ka2 ka3
@@ -113759,7 +113758,7 @@
 卡尔诺	ka2 er3 nuo4
 卡尔达	ka2 er3 da2
 卡尔达诺	ka2 er3 da2 nuo4
-卡尔迈勒	ka2 er3 mai4 lei1
+卡尔迈勒	ka2 er3 mai4 le4
 卡尔逊	ka2 er3 xun4
 卡尔霍恩	ka2 er3 huo4 en1
 卡尔顿	ka2 er3 dun4
@@ -113892,7 +113891,7 @@
 卡明斯基	ka3 ming2 si1 ji1
 卡普亚	ka2 pu3 ya4
 卡普兰	ka2 pu3 lan2
-卡普勒	ka2 pu3 lei1
+卡普勒	ka2 pu3 le4
 卡普尔	ka3 pu2 er3
 卡普拉	ka2 pu3 la1
 卡普斯	ka2 pu3 si1
@@ -113964,8 +113963,8 @@
 卡特兰	ka3 te4 lan2
 卡特加	ka3 te4 jia1
 卡特尔	ka3 te4 er3
-卡特彼勒	ka3 te4 bi3 lei1
-卡特彼勒公司	ka3 te4 bi3 lei1 gong1 si1
+卡特彼勒	ka3 te4 bi3 le4
+卡特彼勒公司	ka3 te4 bi3 le4 gong1 si1
 卡特森	ka3 te4 sen1
 卡特琳	ka3 te4 lin2
 卡特维	ka3 te4 wei2
@@ -114004,7 +114003,7 @@
 卡管理	ka3 guan2 li3
 卡簧	ka3 huang2
 卡米	ka2 mi3
-卡米勒	ka2 mi3 lei1
+卡米勒	ka2 mi3 le4
 卡米尔	ka2 mi2 er3
 卡米拉	ka2 mi3 la1
 卡米洛	ka2 mi3 luo4
@@ -114081,7 +114080,7 @@
 卡西亚诺夫	ka3 xi1 ya4 nuo4 fu1
 卡西克	ka3 xi1 ke4
 卡西利	ka3 xi1 li4
-卡西勒	ka3 xi1 lei1
+卡西勒	ka3 xi1 le4
 卡西基亚雷河	ka3 xi1 ji1 ya4 lei2 he2
 卡西姆	ka3 xi1 mu3
 卡西尔	ka3 xi1 er3
@@ -114116,7 +114115,7 @@
 卡达	ka3 da2
 卡达姆	ka3 da2 mu3
 卡达尔	ka3 da2 er3
-卡迈勒	ka3 mai4 lei1
+卡迈勒	ka3 mai4 le4
 卡连柯	ka3 lian2 ke1
 卡迪亚	ka3 di2 ya4
 卡迪威	ka3 di2 wei1
@@ -116016,7 +116015,7 @@
 厄什塔	e4 shen2 ta3
 厄会	e4 hui4
 厄利垂亚	e4 li4 chui2 ya4
-厄加勒斯角	e4 jia1 lei1 si1 jiao3
+厄加勒斯角	e4 jia1 le4 si1 jiao3
 厄劫	e4 jie2
 厄勒	e4 le4
 厄勒布鲁	e4 le4 bu4 lu3
@@ -157726,7 +157725,7 @@
 塞维利	sai4 wei2 li4
 塞维利亚	sai4 wei2 li4 ya4
 塞维利亚队	sai4 wei2 li4 ya4 dui4
-塞维勒的理发师	sai1 wei2 lei1 de5 li3 fa4 shi1
+塞维勒的理发师	sai1 wei2 le4 de5 li3 fa4 shi1
 塞维奇	sai4 wei2 qi2
 塞维斯	sai4 wei2 si1
 塞维里亚	sai4 wei2 li3 ya4
@@ -221930,7 +221929,7 @@
 开晓	kai1 xiao3
 开晦	kai1 hui4
 开晨	kai1 chen2
-开普勒	kai1 pu3 lei1
+开普勒	kai1 pu3 le4
 开普敦	kai1 pu3 dun1
 开普省	kai1 pu2 sheng3
 开普顿	kai1 pu3 dun4
@@ -223386,7 +223385,7 @@
 弓弦	gong1 xian2
 弓弦乐器	gong1 xian2 yue4 qi4
 弓弦儿	gong1 xian2 er2
-弓弦勒	gong1 xian2 lei1
+弓弦勒	gong1 xian2 le4
 弓弦响	gong1 xian2 xiang3
 弓弧	gong1 hu2
 弓弩	gong1 nu3
@@ -224997,7 +224996,7 @@
 张微黑	zhang1 wei1 hei1
 张德伍	zhang1 de2 wu3
 张德刚	zhang1 de2 gang1
-张德勒	zhang1 de2 lei1
+张德勒	zhang1 de2 le4
 张德厚	zhang1 de2 hou4
 张德培	zhang1 de2 pei2
 张德广	zhang1 de2 guang3
@@ -229275,7 +229274,7 @@
 彼得斯	bi3 de2 si1
 彼得松	bi3 de2 song1
 彼得松图	bi3 de2 song1 tu2
-彼得格勒	bi3 de2 ge2 lei1
+彼得格勒	bi3 de2 ge2 le4
 彼得森	bi3 de2 sen1
 彼得洛夫	bi3 de2 luo4 fu1
 彼得潘	bi3 de2 pan1
@@ -284276,7 +284275,7 @@
 斯大林	si1 da4 lin2
 斯大林主义	si1 da4 lin2 zhu3 yi4
 斯大林格勒	si1 da4 lin2 ge2 le4
-斯大林格勒会战	si1 da4 lin2 ge2 lei1 hui4 zhan4
+斯大林格勒会战	si1 da4 lin2 ge2 le4 hui4 zhan4
 斯大林格勒战役	si1 da4 lin2 ge2 le4 zhan4 yi4
 斯太尔	si1 tai4 er3
 斯夸啉	si1 kua1 lin2
@@ -285569,7 +285568,7 @@
 新疆维吾尔自治区	xin1 jiang1 wei2 wu2 er3 zi4 zhi4 qu1
 新疆维族	xin1 jiang1 wei2 zu2
 新疆自治区	xin1 jiang1 zi4 zhi4 qu1
-新疆阿勒泰地区	xin1 jiang1 a1 lei1 tai4 di4 qu1
+新疆阿勒泰地区	xin1 jiang1 a1 le4 tai4 di4 qu1
 新疗法	xin1 liao2 fa3
 新病毒	xin1 bing4 du2
 新痕	xin1 hen2
@@ -301110,7 +301109,7 @@
 曼彻斯特维多利亚大学	man4 che4 si1 te4 wei2 duo1 li4 ya4 da4 xue2
 曼彻斯特编码	man4 che4 si1 te4 bian1 ma3
 曼得拉	man4 de2 la1
-曼德勒	man4 de2 lei1
+曼德勒	man4 de2 le4
 曼德尔	man4 de2 er3
 曼德拉	man4 de2 la1
 曼德琳	man4 de2 lin2
@@ -305274,7 +305273,7 @@
 木本油料	mu4 ben3 you2 liao4
 木本油料林	mu4 ben3 you2 liao4 lin2
 木札	mu4 zha2
-木札勒	mu4 zha2 lei1
+木札勒	mu4 zha2 le4
 木札尔	mu4 zha2 er3
 木朴	mu4 pu3
 木机	mu4 ji1
@@ -307148,7 +307147,7 @@
 朱剑慧	zhu1 jian4 hui4
 朱剑红	zhu1 jian4 hong2
 朱力亚	zhu1 li4 ya4
-朱勒迪	zhu1 lei1 di2
+朱勒迪	zhu1 le4 di2
 朱化麟	zhu1 hua4 lin2
 朱华	zhu1 hua2
 朱华奎	zhu1 hua2 kui2
@@ -307374,7 +307373,7 @@
 朱拉隆功	zhu1 la1 long2 gong1
 朱拉隆功大学	zhu1 la1 long2 gong1 da4 xue2
 朱拉霍	zhu1 la1 huo4
-朱拜勒	zhu1 bai4 lei1
+朱拜勒	zhu1 bai4 le4
 朱拜尔	zhu1 bai4 er3
 朱拱之	zhu1 gong3 zhi1
 朱振中	zhu1 zhen4 zhong1
@@ -318098,7 +318097,7 @@
 某队	mou3 dui4
 某项	mou3 xiang4
 柑	gan1
-柑勒	gan1 lei1
+柑勒	gan1 le4
 柑口	gan1 kou3
 柑园	gan1 yuan2
 柑子	gan1 zi5
@@ -318677,7 +318676,7 @@
 查到	cha2 dao4
 查办	cha2 ban4
 查加斯病	cha2 jia1 si1 bing4
-查勒斯	cha2 lei1 si1
+查勒斯	cha2 le4 si1
 查勘	cha2 kan1
 查勤	cha2 qin2
 查卷	cha2 juan3
@@ -318988,7 +318987,7 @@
 柯切托	ke1 qie4 tuo1
 柯则	ke1 ze2
 柯劭忞	ke1 shao4 min2
-柯勒律治	ke1 lei1 lv4 zhi4
+柯勒律治	ke1 le4 lv4 zhi4
 柯半	ke1 ban4
 柯华松	ke1 hua2 song1
 柯南道	ke1 nan2 dao4
@@ -321732,7 +321731,7 @@
 格列柯	ge2 lie4 ke1
 格列科	ge2 lie4 ke1
 格列高利历	ge2 lie4 gao1 li4 li4
-格则勒	ge2 ze2 lei1
+格则勒	ge2 ze2 le4
 格利	ge2 li4
 格利哈	ge2 li4 ha5
 格利维	ge2 li4 wei2
@@ -321747,16 +321746,16 @@
 格劳斯	ge2 lao2 si1
 格劳秀	ge2 lao2 xiu4
 格劳秀斯	ge2 lao2 xiu4 si1
-格勒	ge2 lei1
-格勒兹	ge2 lei1 zi1
-格勒山	ge2 lei1 shan1
-格勒诺	ge2 lei1 nuo4
-格勒诺布尔	ge2 lei1 nuo4 bu4 er3
+格勒	ge2 le4
+格勒兹	ge2 le4 zi1
+格勒山	ge2 le4 shan1
+格勒诺	ge2 le4 nuo4
+格勒诺布尔	ge2 le4 nuo4 bu4 er3
 格化	ge2 hua4
 格化处理	ge2 hua4 chu2 li3
 格卡农	ge2 ka3 nong2
 格卢克	ge2 lu2 ke4
-格卢勒	ge2 lu2 lei1
+格卢勒	ge2 lu2 le4
 格卢斯曼	ge2 lu2 si1 man4
 格古通今	ge2 gu3 tong1 jin1
 格号	ge2 hao4
@@ -323241,7 +323240,7 @@
 桑德丽	sang1 de2 li4
 桑德伊	sang1 de2 yi1
 桑德兰	sang1 de2 lan2
-桑德勒	sang1 de2 lei1
+桑德勒	sang1 de2 le4
 桑德奇	sang1 de2 qi2
 桑德尔	sang1 de2 er3
 桑德尔福德	sang1 de2 er3 fu2 de2
@@ -324326,9 +324325,9 @@
 梅剑和	mei2 jian4 he2
 梅加拉	mei2 jia1 la1
 梅加瓦蒂	mei2 jia1 wa3 di4
-梅勒章	mei2 lei1 zhang1
-梅勒章京	mei2 lei1 zhang1 jing1
-梅勒额真	mei2 lei1 e2 zhen1
+梅勒章	mei2 le4 zhang1
+梅勒章京	mei2 le4 zhang1 jing1
+梅勒额真	mei2 le4 e2 zhen1
 梅华	mei2 hua2
 梅卡瓦	mei2 ka2 wa3
 梅卤	mei2 lu3
@@ -324516,7 +324515,7 @@
 梅溪	mei2 xi1
 梅煎	mei2 jian1
 梅片	mei2 pian4
-梅特勒	mei2 te4 lei1
+梅特勒	mei2 te4 le4
 梅特卡夫	mei2 te4 ka3 fu1
 梅特林	mei2 te4 lin2
 梅特涅	mei2 te4 nie4
@@ -325534,7 +325533,7 @@
 检务	jian3 wu4
 检劾	jian3 he2
 检勑	jian3 chi4
-检勒	jian3 lei1
+检勒	jian3 le4
 检勘	jian3 kan1
 检勾	jian3 gou1
 检印	jian3 yin4
@@ -335565,10 +335564,10 @@
 比到	bi3 dao4
 比剑夺	bi3 jian4 duo2
 比势	bi3 shi4
-比勒	bi3 lei1
-比勒菲	bi3 lei1 fei1
-比勒菲尔德	bi3 lei1 fei1 er3 de2
-比勒费尔德	bi3 lei1 fei4 er3 de2
+比勒	bi3 le4
+比勒菲	bi3 le4 fei1
+比勒菲尔德	bi3 le4 fei1 er3 de2
+比勒费尔德	bi3 le4 fei4 er3 de2
 比勒陀利亚	bi3 le4 tuo2 li4 ya4
 比勘	bi3 kan1
 比卡丘	bi2 ka3 qiu1
@@ -343125,8 +343124,8 @@
 沃兹涅	wo4 zi1 nie4
 沃兹登	wo4 zi1 deng1
 沃利斯	wo4 li4 si1
-沃勒尔	wo4 lei1 er3
-沃勒贝克	wo4 lei1 bei4 ke4
+沃勒尔	wo4 le4 er3
+沃勒贝克	wo4 le4 bei4 ke4
 沃台公司	wo4 tai2 gong1 si1
 沃吕维	wo4 lv3 wei2
 沃土	wo4 tu3
@@ -343178,7 +343177,7 @@
 沃州	wo4 zhou1
 沃州人	wo4 zhou1 ren2
 沃库	wo4 ku4
-沃库勒	wo4 ku4 lei1
+沃库勒	wo4 ku4 le4
 沃德姆	wo4 de2 mu3
 沃德金	wo4 de2 jin1
 沃心	wo4 xin1
@@ -343195,7 +343194,7 @@
 沃日	wo4 ri4
 沃林岛	wo4 lin2 dao3
 沃林格	wo4 lin2 ge2
-沃格勒	wo4 ge2 lei1
+沃格勒	wo4 ge2 le4
 沃格尔	wo4 ge2 er3
 沃格岛	wo4 ge2 dao3
 沃格恩	wo4 ge2 en1
@@ -347744,8 +347743,8 @@
 法务局	fa3 wu4 ju2
 法务部	fa3 wu4 bu4
 法势	fa3 shi4
-法勒	fa3 lei1
-法勒斯	fa3 lei1 si1
+法勒	fa3 le4
+法勒斯	fa3 le4 si1
 法化	fa3 hua4
 法匠	fa3 jiang4
 法医	fa3 yi1
@@ -347984,7 +347983,7 @@
 法律顾问	fa3 lv4 gu4 wen4
 法徒	fa3 tu2
 法循	fa3 xun2
-法德勒	fa3 de2 lei1
+法德勒	fa3 de2 le4
 法德意	fa3 de2 yi4
 法志	fa3 zhi4
 法性	fa3 xing4
@@ -348683,7 +348682,7 @@
 波动声学	bo1 dong4 sheng1 xue2
 波动性	bo1 dong4 xing4
 波势	bo1 shi4
-波勒	bo1 lei1
+波勒	bo1 le4
 波包	bo1 bao1
 波卡	bo1 ka3
 波卡尔	bo1 ka2 er3
@@ -349729,11 +349728,11 @@
 泰利特	tai4 li4 te4
 泰加	tai4 jia1
 泰加林	tai4 jia1 lin2
-泰勒	tai4 lei1
-泰勒展	tai4 lei1 zhan3
-泰勒斯	tai4 lei1 si1
-泰勒柱	tai4 lei1 zhu4
-泰勒阿	tai4 lei1 a1
+泰勒	tai4 le4
+泰勒展	tai4 le4 zhan3
+泰勒斯	tai4 le4 si1
+泰勒柱	tai4 le4 zhu4
+泰勒阿	tai4 le4 a1
 泰北	tai4 bei3
 泰半	tai4 ban4
 泰华	tai4 hua2
@@ -351171,12 +351170,12 @@
 洛克先生	luo4 ke4 xian1 sheng5
 洛克希	luo4 ke4 xi1
 洛克希德	luo4 ke4 xi1 de2
-洛克斐勒	luo4 ke4 fei3 lei1
+洛克斐勒	luo4 ke4 fei3 le4
 洛克比	luo4 ke4 bi3
 洛克纳	luo4 ke4 na4
 洛克耶	luo4 ke4 ye5
 洛克色	luo4 ke4 se4
-洛克菲勒	luo4 ke4 fei1 lei1
+洛克菲勒	luo4 ke4 fei1 le4
 洛克西德	luo4 ke4 xi1 de2
 洛克里	luo4 ke4 li3
 洛克齐	luo4 ke4 qi2
@@ -351187,7 +351186,7 @@
 洛加尼斯	luo4 jia1 ni2 si1
 洛加文	luo4 jia1 wen2
 洛劳斯	luo4 lao2 si1
-洛勒斯	luo4 lei1 si1
+洛勒斯	luo4 le4 si1
 洛南	luo4 nan2
 洛南县	luo4 nan2 xian4
 洛博夫	luo4 bo2 fu1
@@ -356111,7 +356110,7 @@
 海牛	hai3 niu2
 海物	hai3 wu4
 海特	hai3 te4
-海特勒	hai3 te4 lei1
+海特勒	hai3 te4 le4
 海狗	hai3 gou3
 海狗肾	hai2 gou3 shen4
 海狮	hai3 shi1
@@ -375169,7 +375168,7 @@
 燕溺	yan4 ni4
 燕濯	yan4 zhuo2
 燕然	yan1 ran2
-燕然勒	yan4 ran2 lei1
+燕然勒	yan4 ran2 le4
 燕然山	yan4 ran2 shan1
 燕然石	yan4 ran2 shi2
 燕然笔	yan4 ran2 bi3
@@ -375927,7 +375926,7 @@
 爱动肝火	ai4 dong4 gan1 huo3
 爱劳动	ai4 lao2 dong4
 爱势贪财	ai4 shi4 tan1 cai2
-爱勒特	ai4 lei1 te4
+爱勒特	ai4 le4 te4
 爱华	ai4 hua2
 爱华顿	ai4 hua2 dun4
 爱博而情不专	ai4 bo2 er2 qing2 bu4 zhuan1
@@ -378799,9 +378798,9 @@
 特务间谍	te4 wu5 jian4 die2
 特劳斯	te4 lao2 si1
 特勑	te4 chi4
-特勒	te4 lei1
+特勒	te4 le4
 特勒克	te4 le4 ke4
-特勒基	te4 lei1 ji1
+特勒基	te4 le4 ji1
 特勒姆	te4 le4 mu3
 特勒斯	te4 le4 si1
 特勒根	te4 le4 gen1
@@ -384484,8 +384483,8 @@
 玉剪	yu4 jian3
 玉努斯	yu4 nu3 si1
 玉勅	yu4 chi4
-玉勒	yu4 lei1
-玉勒吏	yu4 lei1 li4
+玉勒	yu4 le4
+玉勒吏	yu4 le4 li4
 玉勾斜	yu4 gou1 xie2
 玉匕	yu4 bi3
 玉化	yu4 hua4
@@ -386021,7 +386020,7 @@
 王勃	wang2 bo2
 王勇平	wang2 yong3 ping2
 王勇钢	wang2 yong3 gang1
-王勒尔	wang2 lei1 er3
+王勒尔	wang2 le4 er3
 王化	wang2 hua4
 王化澄	wang2 hua4 cheng2
 王化贞	wang2 hua4 zhen1
@@ -387054,7 +387053,7 @@
 王毓秀	wang2 yu4 xiu4
 王毓铨	wang2 yu4 quan2
 王比学	wang2 bi3 xue2
-王毕勒	wang2 bi4 lei1
+王毕勒	wang2 bi4 le4
 王毡	wang2 zhan1
 王氏乃	wang2 shi4 nai3
 王氏之	wang2 shi4 zhi1
@@ -392299,7 +392298,7 @@
 瓦努阿	wa3 nu3 a1
 瓦努阿图	wa3 nu3 a1 tu2
 瓦努阿图共和国	wa2 nu3 a1 tu2 gong4 he2 guo2
-瓦勒	wa3 lei1
+瓦勒	wa3 le4
 瓦勒伦	wa3 le4 lun2
 瓦勒拉	wa3 le4 la1
 瓦勒海	wa3 le4 hai3
@@ -396103,7 +396102,7 @@
 申励	shen1 li4
 申勅	shen1 chi4
 申勑	shen1 chi4
-申勒	shen1 lei1
+申勒	shen1 le4
 申包胥	shen1 bao1 xu1
 申发	shen1 fa1
 申叔	shen1 shu1
@@ -424960,7 +424959,7 @@
 福柄	fu2 bing3
 福柑	fu2 gan1
 福柯	fu2 ke1
-福格勒	fu2 ge2 lei1
+福格勒	fu2 ge2 le4
 福格尔	fu2 ge2 er3
 福格森	fu2 ge2 sen1
 福格特	fu2 ge2 te4
@@ -427952,8 +427951,8 @@
 科迪亚	ke1 di2 ya4
 科迪亚克	ke1 di2 ya4 ke4
 科迪亚克岛	ke1 di2 ya4 ke4 dao3
-科迪勒拉	ke1 di2 lei1 la1
-科迪勒拉山系	ke1 di2 lei1 la1 shan1 xi4
+科迪勒拉	ke1 di2 le4 la1
+科迪勒拉山系	ke1 di2 le4 la1 shan1 xi4
 科适	ke1 shi4
 科道	ke1 dao4
 科道两衙门	ke1 dao4 liang3 ya2 men2
@@ -428580,7 +428579,7 @@
 秦文君	qin2 wen2 jun1
 秦日纲	qin2 ri4 gang1
 秦明力	qin2 ming2 li4
-秦明勒	qin2 ming2 lei1
+秦明勒	qin2 ming2 le4
 秦明回	qin2 ming2 hui2
 秦明带	qin2 ming2 dai4
 秦明引	qin2 ming2 yin3
@@ -439655,7 +439654,7 @@
 策励	ce4 li4
 策勉	ce4 mian3
 策勋	ce4 xun1
-策勒	ce4 lei1
+策勒	ce4 le4
 策勒县	ce4 le4 xian4
 策厉	ce4 li4
 策反	ce4 fan3
@@ -442421,8 +442420,8 @@
 米勒	mi3 le4
 米勒兰	mi3 le4 lan2
 米勒德	mi3 le4 de2
-米勒指数	mi3 lei1 zhi3 shu4
-米勒教官	mi3 lei1 jiao4 guan1
+米勒指数	mi3 le4 zhi3 shu4
+米勒教官	mi3 le4 jiao4 guan1
 米勒特	mi3 le4 te4
 米千石	mi3 qian1 dan4
 米南加	mi3 nan2 jia1
@@ -442524,7 +442523,7 @@
 米德	mi3 de2
 米德公理	mi3 de2 gong1 li3
 米德兰	mi3 de2 lan2
-米德勒	mi3 de2 lei1
+米德勒	mi3 de2 le4
 米德哈	mi3 de2 ha5
 米德堡	mi3 de2 bao3
 米德尔	mi3 de2 er3
@@ -442636,7 +442635,7 @@
 米罗	mi3 luo2
 米罗西	mi3 luo2 xi1
 米老鼠	mi3 lao3 shu3
-米耶勒	mi3 ye2 lei1
+米耶勒	mi3 ye2 le4
 米脂	mi3 zhi1
 米脂县	mi3 zhi1 xian4
 米色	mi3 se4
@@ -442678,7 +442677,7 @@
 米输纳	mi3 shu1 na4
 米达斯	mi3 da2 si1
 米达麦亚	mi3 da2 mai4 ya4
-米迦勒	mi3 jia1 lei1
+米迦勒	mi3 jia1 le4
 米道	mi3 dao4
 米酒	mi3 jiu3
 米醋	mi3 cu4
@@ -449526,7 +449525,7 @@
 纳巴拉	na4 ba1 la1
 纳币	na4 bi4
 纳布	na4 bu4
-纳布勒	na4 bu4 lei1
+纳布勒	na4 bu4 le4
 纳布卢斯	na4 bu4 lu2 si1
 纳布科	na4 bu4 ke1
 纳希切	na4 xi1 qie4
@@ -454456,7 +454455,7 @@
 维制	wei2 zhi4
 维加	wei2 jia1
 维加斯	wei2 jia1 si1
-维勒	wei2 lei1
+维勒	wei2 le4
 维匡	wei2 kuang1
 维华	wei2 hua2
 维南	wei2 nan2
@@ -461201,7 +461200,7 @@
 翁方纲	weng1 fang1 gang1
 翁昕歆	weng1 xin1 xin1
 翁母	weng1 mu3
-翁法勒	weng1 fa3 lei1
+翁法勒	weng1 fa3 le4
 翁波意	weng1 bo1 yi4
 翁清海	weng1 qing1 hai3
 翁源	weng1 yuan2
@@ -486448,7 +486447,7 @@
 菲力普	fei1 li4 pu3
 菲力浦	fei1 li4 pu3
 菲力牛排	fei1 li4 niu2 pai2
-菲勒	fei1 lei1
+菲勒	fei1 le4
 菲卡	fei1 ka3
 菲咯啉	fei1 lo5 lin2
 菲国	fei1 guo2
@@ -487495,8 +487494,8 @@
 萨利纳斯	sa4 li4 na4 si1
 萨利赫	sa4 li4 he4
 萨加玛	sa4 jia1 ma3
-萨勒河	sa4 lei1 he2
-萨勒诺	sa4 lei1 nuo4
+萨勒河	sa4 le4 he2
+萨勒诺	sa4 le4 nuo4
 萨华滋	sa4 hua2 zi1
 萨南诸	sa4 nan2 zhu1
 萨博	sa4 bo2
@@ -487597,7 +487596,7 @@
 萨德	sa4 de2
 萨德伯	sa4 de2 bo2
 萨德克	sa4 de2 ke4
-萨德勒	sa4 de2 lei1
+萨德勒	sa4 de2 le4
 萨德夫人	sa4 de2 fu1 ren2
 萨德尔	sa4 de2 er3
 萨德尔市	sa4 de2 er3 shi4
@@ -487611,7 +487610,7 @@
 萨拉丁	sa4 la1 ding1
 萨拉乌	sa4 la1 wu1
 萨拉伊	sa4 la1 yi1
-萨拉勒	sa4 la1 lei1
+萨拉勒	sa4 la1 le4
 萨拉卡	sa4 la1 ka3
 萨拉夫	sa4 la1 fu1
 萨拉姆	sa4 la1 mu3
@@ -487667,8 +487666,8 @@
 萨杭	sa4 hang2
 萨林斯	sa4 lin2 si1
 萨查利	sa4 cha2 li4
-萨格勒	sa4 ge2 lei1
-萨格勒布	sa4 ge2 lei1 bu4
+萨格勒	sa4 ge2 le4
+萨格勒布	sa4 ge2 le4 bu4
 萨格尔	sa4 ge2 er3
 萨桑王朝	sa4 sang1 wang2 chao2
 萨比	sa4 bi3
@@ -487747,7 +487746,7 @@
 萨诸邦	sa4 zhu1 bang1
 萨诺夫	sa4 nuo4 fu1
 萨贾德	sa4 jia3 de2
-萨赫勒	sa4 he4 lei1
+萨赫勒	sa4 he4 le4
 萨赫尔	sa4 he4 er3
 萨赫蛋糕	sa4 he4 dan4 gao1
 萨达姆	sa4 da2 mu3
@@ -488745,7 +488744,7 @@
 蒀	yun1
 蒁	shu4
 蒂	di4
-蒂勒	di4 lei1
+蒂勒	di4 le4
 蒂华纳	di4 hua2 na4
 蒂博	di4 bo2
 蒂卡	di4 ka3
@@ -489133,7 +489132,7 @@
 蒙特利	meng2 te4 li4
 蒙特利尔	meng2 te4 li4 er3
 蒙特利尔市	meng2 te4 li4 er3 shi4
-蒙特勒	meng2 te4 lei1
+蒙特勒	meng2 te4 le4
 蒙特卡洛	meng2 te4 ka3 luo4
 蒙特卡洛法	meng2 te4 ka3 luo4 fa3
 蒙特卡罗	meng2 te4 ka3 luo2
@@ -502822,7 +502821,7 @@
 西科尔斯基	xi1 ke1 er3 si1 ji1
 西科斯	xi1 ke1 si1
 西科斯基	xi1 ke1 si1 ji1
-西科迪勒	xi1 ke1 di2 lei1
+西科迪勒	xi1 ke1 di2 le4
 西秦	xi1 qin2
 西秦亦	xi1 qin2 yi4
 西秦会	xi1 qin2 hui4
@@ -522359,7 +522358,7 @@
 贝克	bei4 ke4
 贝克兰	bei4 ke4 lan2
 贝克勒尔	bei4 ke4 le4 er3
-贝克勒耳	bei4 ke4 lei1 er3
+贝克勒耳	bei4 ke4 le4 er3
 贝克姆	bei4 ke4 mu3
 贝克将军	bei4 ke4 jiang1 jun1
 贝克尔	bei4 ke4 er3
@@ -529510,7 +529509,7 @@
 赛依特	sai4 yi1 te4
 赛先生	sai4 xian1 sheng1
 赛克	sai4 ke4
-赛克勒	sai4 ke4 lei1
+赛克勒	sai4 ke4 le4
 赛克尔	sai4 ke4 er3
 赛克斯	sai4 ke4 si1
 赛兰	sai4 lan2
@@ -529524,7 +529523,7 @@
 赛力散	sai4 li4 san3
 赛力斯	sai4 li4 si1
 赛努西	sai4 nu3 xi1
-赛勒	sai4 lei1
+赛勒	sai4 le4
 赛区	sai4 qu1
 赛博	sai4 bo2
 赛博数码	sai4 bo2 shu4 ma3
@@ -544436,7 +544435,7 @@
 达努彪	da2 nu3 biao1
 达努节	da2 nu3 jie2
 达勒	da2 le4
-达勒姆	da2 lei1 mu3
+达勒姆	da2 le4 mu3
 达南	da2 nan2
 达占	da2 zhan1
 达卡	da2 ka3
@@ -546004,7 +546003,7 @@
 迈出	mai4 chu1
 迈动	mai4 dong4
 迈勋	mai4 xun1
-迈勒	mai4 lei1
+迈勒	mai4 le4
 迈古	mai4 gu3
 迈古超今	mai4 gu3 chao1 jin1
 迈向	mai4 xiang4
@@ -550440,8 +550439,8 @@
 迦兰陀	jia1 lan2 tuo2
 迦兰陁	jia1 lan2 tuo2
 迦利	jia1 li4
-迦勒	jia1 lei1
-迦勒氏	jia1 lei1 shi4
+迦勒	jia1 le4
+迦勒氏	jia1 le4 shi4
 迦南	jia1 nan2
 迦南人	jia1 nan2 ren2
 迦卫	jia1 wei4
@@ -563456,8 +563455,8 @@
 郭凤莲	guo1 feng4 lian2
 郭利君	guo1 li4 jun1
 郭力群	guo1 li4 qun2
-郭勒县	guo1 lei1 xian4
-郭勒河	guo1 lei1 he2
+郭勒县	guo1 le4 xian4
+郭勒河	guo1 le4 he2
 郭化若	guo1 hua4 ruo4
 郭南垣	guo1 nan2 yuan2
 郭卫华	guo1 wei4 hua2
@@ -563989,7 +563988,7 @@
 都匀	du1 yun2
 都匀市	du1 yun2 shi4
 都匠	dou1 jiang4
-都卜勒	du1 bo5 lei1
+都卜勒	du1 bo5 le4
 都卢	dou1 lu2
 都卢伎	dou1 lu2 ji4
 都卢橦	dou1 lu2 tong2
@@ -569655,7 +569654,7 @@
 金前线	jin1 qian2 xian4
 金剪书	jin1 jian3 shu1
 金勒	jin1 le4
-金勒银	jin1 lei1 yin2
+金勒银	jin1 le4 yin2
 金匏	jin1 pao2
 金匕药	jin1 bi3 yao4
 金化	jin1 hua4
@@ -586767,7 +586766,7 @@
 阿勒河	a1 le4 he2
 阿勒波	a1 le4 bo1
 阿勒泰	a1 le4 tai4
-阿勒泰地区	a1 lei1 tai4 di4 qu1
+阿勒泰地区	a1 le4 tai4 di4 qu1
 阿勒泰市	a1 le4 tai4 shi4
 阿勒班	a1 le4 ban1
 阿勒纳哈扬	a1 le4 na4 ha1 yang2
