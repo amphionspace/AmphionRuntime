@@ -34,6 +34,8 @@ done
 command -v rsync >/dev/null || { echo "[ERROR] rsync is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "[ERROR] python3 is required" >&2; exit 1; }
 
+python3 "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --archive "$HAR"
+
 python3 - \
   "$HAR" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json" \

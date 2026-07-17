@@ -70,6 +70,7 @@ require_file "$LICENSE_FILE"
 
 "$PYTHON" "$REPO_ROOT/asr/tools/sync_harmony_police_assets.py" --check
 "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --root "$MODEL_ROOT"
+"$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --root "$MODEL_ROOT"
 
 "$PYTHON" - "$REPO_ROOT" <<'PY'
 import struct
@@ -165,6 +166,7 @@ if [[ -n "$HAP" ]]; then
   fi
 
   "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --archive "$HAP"
+  "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --archive "$HAP"
   "$PYTHON" - \
     "$HAP" \
     "$LICENSE_FILE" \

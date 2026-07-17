@@ -19,6 +19,10 @@ MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
+FIXTURE_MODEL_MD5 = {
+    "zh-en/v1/asset.bin": hashlib.md5(b"model").hexdigest(),
+}
+
 
 class ValidateAsrSdkDeliveryTest(unittest.TestCase):
     def _write_fixture(
@@ -144,7 +148,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root)
-            MODULE.validate_delivery(root, "0.2.5")
+            MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
     def test_rejects_demo_or_tts_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -154,14 +158,14 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             demo.parent.mkdir()
             demo.write_bytes(b"hap")
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "unexpected file"):
-                MODULE.validate_delivery(root, "0.2.5")
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
     def test_rejects_yue_model_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, include_yue=True)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "Yue|model bundles"):
-                MODULE.validate_delivery(root, "0.2.5")
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
     def test_rejects_checksum_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -169,35 +173,45 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             self._write_fixture(root)
             (root / "README.md").write_text("tampered\n", encoding="utf-8")
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "checksum mismatch"):
-                MODULE.validate_delivery(root, "0.2.5")
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
     def test_rejects_model_content_that_does_not_match_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, bad_model_hash=True)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "model asset hash"):
-                MODULE.validate_delivery(root, "0.2.5")
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
+
+    def test_rejects_self_consistent_model_that_is_not_pinned(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root)
+            wrong_identity = {
+                "zh-en/v1/asset.bin": hashlib.md5(b"other-model").hexdigest(),
+            }
+            with self.assertRaisesRegex(MODULE.DeliveryValidationError, "MD5 mismatch"):
+                MODULE.validate_delivery(root, "0.2.5", wrong_identity)
 
     def test_rejects_duplicate_model_root(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, duplicate_model_root=True)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "model root"):
-                MODULE.validate_delivery(root, "0.2.5")
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
     def test_rejects_embedded_license(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, embedded_license=True)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "forbidden HAR member"):
-                MODULE.validate_delivery(root, "0.2.5")
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
     def test_rejects_nested_package_version_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, nested_version="0.2.4")
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "nested HAR version"):
-                MODULE.validate_delivery(root, "0.2.5")
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
 
 if __name__ == "__main__":
