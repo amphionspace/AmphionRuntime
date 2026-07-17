@@ -11,6 +11,14 @@ import re
 import tarfile
 
 
+MODEL_MD5_POLICY_PATH = Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
+PINNED_MODEL_FILES = {
+    "zh-en/v1/bbpe.vocab",
+    "zh-en/v1/decoder.ort",
+    "zh-en/v1/encoder.int8.ort",
+    "zh-en/v1/joiner.int8.ort",
+    "zh-en/v1/tokens.txt",
+}
 MODEL_MANIFEST_PATH = (
     "package/_bundled/amphion_asr/src/main/resources/rawfile/"
     "amphion-models/manifest.json"
@@ -78,6 +86,37 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _load_pinned_model_md5() -> dict[str, str]:
+    try:
+        policy = json.loads(MODEL_MD5_POLICY_PATH.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise DeliveryValidationError("pinned model MD5 policy is invalid") from error
+    if not isinstance(policy, dict) or policy.get("schema_version") != 1:
+        raise DeliveryValidationError("unsupported pinned model MD5 policy")
+    model_id = policy.get("model_id")
+    if not isinstance(model_id, str) or not model_id:
+        raise DeliveryValidationError("pinned model MD5 policy has no model_id")
+    expected = policy.get("runtime_files_md5")
+    if not isinstance(expected, dict) or not expected:
+        raise DeliveryValidationError("pinned model MD5 policy has no runtime files")
+    for relative, digest in expected.items():
+        path = PurePosixPath(relative)
+        if (
+            path.is_absolute()
+            or ".." in path.parts
+            or not relative.startswith("zh-en/v1/")
+            or not isinstance(digest, str)
+            or re.fullmatch(r"[0-9a-f]{32}", digest) is None
+        ):
+            raise DeliveryValidationError(f"invalid pinned model MD5 entry: {relative}")
+    if set(expected) != PINNED_MODEL_FILES:
+        missing = sorted(PINNED_MODEL_FILES - set(expected))
+        extra = sorted(set(expected) - PINNED_MODEL_FILES)
+        detail = missing[0] if missing else extra[0]
+        raise DeliveryValidationError(f"pinned model MD5 file set mismatch: {detail}")
+    return expected
 
 
 def _validate_layout(root: Path) -> None:
@@ -240,7 +279,9 @@ def _validate_police_assets(archive: tarfile.TarFile, names: set[str]) -> None:
         raise DeliveryValidationError(f"police asset file set mismatch: {detail}")
 
 
-def _validate_har(root: Path, expected_version: str) -> dict:
+def _validate_har(
+    root: Path, expected_version: str, expected_model_md5: dict[str, str]
+) -> dict:
     har_path = root / "har/amphion_dingqiao.har"
     try:
         archive = tarfile.open(har_path, "r:gz")
@@ -320,6 +361,28 @@ def _validate_har(root: Path, expected_version: str) -> dict:
             missing = sorted(expected_model_files - actual_model_files)
             detail = extra[0] if extra else missing[0]
             raise DeliveryValidationError(f"model asset file set mismatch: {detail}")
+        for relative, approved_md5 in sorted(expected_model_md5.items()):
+            member_name = (model_root / relative).as_posix()
+            try:
+                member = archive.getmember(member_name)
+            except KeyError as error:
+                raise DeliveryValidationError(
+                    f"HAR missing pinned model asset: {member_name}"
+                ) from error
+            stream = archive.extractfile(member)
+            if stream is None:
+                raise DeliveryValidationError(
+                    f"HAR model asset is not a file: {member_name}"
+                )
+            digest = hashlib.md5()
+            with stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            actual_md5 = digest.hexdigest()
+            if actual_md5 != approved_md5:
+                raise DeliveryValidationError(
+                    f"model MD5 mismatch: {relative}: {actual_md5} != {approved_md5}"
+                )
         _validate_police_assets(archive, names)
         return {
             "manifest_sha256": hashlib.sha256(manifest_payload).hexdigest(),
@@ -393,10 +456,16 @@ def _validate_documents(root: Path) -> None:
                 )
 
 
-def validate_delivery(root: Path, expected_version: str) -> None:
+def validate_delivery(
+    root: Path,
+    expected_version: str,
+    expected_model_md5: dict[str, str] | None = None,
+) -> None:
+    if expected_model_md5 is None:
+        expected_model_md5 = _load_pinned_model_md5()
     _validate_layout(root)
     _validate_checksums(root)
-    har_evidence = _validate_har(root, expected_version)
+    har_evidence = _validate_har(root, expected_version, expected_model_md5)
     _validate_provenance(root, expected_version, har_evidence)
     _validate_documents(root)
 

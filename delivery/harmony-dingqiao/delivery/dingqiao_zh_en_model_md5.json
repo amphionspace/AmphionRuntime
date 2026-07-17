@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "model_id": "transducer-chunk32-lc256-260717",
+  "source_bundle": {
+    "name": "bundle.tar.gz",
+    "md5": "54c30cddf6bc942108ab040f0c27dc61",
+    "files_md5": {
+      "bbpe.model": "068588683487c7bd78dc72f4127a770b",
+      "bbpe.vocab": "09638658a4217d431c8c043c36deee00",
+      "decoder.onnx": "b611c745441dcb22819a4fa8e08793ad",
+      "encoder.int8.onnx": "5abc7875f335cd48599ed1c2ccebe00e",
+      "joiner.onnx": "5d5aa5348d56ac3182287280de0595e4",
+      "tokens.txt": "814e4cecb1a34633434e624b0c9d3a93"
+    }
+  },
+  "runtime_files_md5": {
+    "zh-en/v1/bbpe.vocab": "09638658a4217d431c8c043c36deee00",
+    "zh-en/v1/decoder.ort": "8a88b33fe31a35bd51e8aa7395e8020e",
+    "zh-en/v1/encoder.int8.ort": "7a0ca1c0f7c9e4b70de28059c02dc832",
+    "zh-en/v1/joiner.int8.ort": "907bfc32eca11130e37340c3c5ed673b",
+    "zh-en/v1/tokens.txt": "814e4cecb1a34633434e624b0c9d3a93"
+  }
+}
