@@ -503039,7 +503039,6 @@
 西邻责言	xi1 lin2 ze2 yan2
 西郊	xi1 jiao1
 西部	xi1 bu4
-西部地	xi1 bu4 de5
 西部开发办	xi1 bu4 kai1 fa1 ban4
 西部数据	xi1 bu4 shu4 ju4
 西部旅游	xi1 bu4 lv3 you2
@@ -664995,3 +664994,4 @@
 好儿子	hao3 er2 zi5
 人为什么	ren2 wei4 shen2 me5
 三角地带	san1 jiao3 di4 dai4
+长电	chang2 dian4

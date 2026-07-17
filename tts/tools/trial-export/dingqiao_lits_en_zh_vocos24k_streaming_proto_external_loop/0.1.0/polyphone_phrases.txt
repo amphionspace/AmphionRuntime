@@ -70,7 +70,6 @@
 道行	dao4 heng5
 
 # --- Polyphone cases 2026-06-30 ---
-的决	di2 jue2
 朝阳	zhao1 yang2
 盛热粥	cheng2 re4 zhou1
 和成	huo2 cheng2
@@ -140,3 +139,5 @@
 操场	cao1 chang3
 笼住	long3 zhu4
 个	ge4
+
+朝阳区	chao2 yang2 qu1
