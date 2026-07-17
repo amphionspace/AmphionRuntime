@@ -3,6 +3,9 @@
 本文定义 Harmony 鼎桥 SDK 声纹分数和 `maxAudioDuration` 的可重复测试流程。目标是证明原始症状
 已修复、相邻生命周期没有回退，并留下可审计 artifact；不以 Demo UI 或文本准确率代替 SDK 契约。
 
+2026-07-17 当前修复的完整执行记录见
+[`VOICEPRINT_DURATION_REGRESSION_EVIDENCE_20260717.md`](./VOICEPRINT_DURATION_REGRESSION_EVIDENCE_20260717.md)。
+
 ## 1. 输入与环境
 
 固定记录：
