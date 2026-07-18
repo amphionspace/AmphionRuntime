@@ -19,6 +19,10 @@ def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def md5(data: bytes) -> str:
+    return hashlib.md5(data).hexdigest()
+
+
 def write_fixture(root: Path, version: int) -> dict:
     expected = (
         verifier.EXPECTED_BUNDLES_V1 if version == 1 else verifier.EXPECTED_BUNDLES_V2
@@ -47,6 +51,7 @@ def write_fixture(root: Path, version: int) -> dict:
                     "name": name,
                     "size_bytes": len(data),
                     "source_name": name.replace(".ort", ".onnx"),
+                    "source_md5": md5(f"source/{bundle}/{name}".encode("utf-8")),
                     "source_sha256": source_sha256,
                     "output_sha256": output_sha256,
                     "format": verifier._expected_v2_format(name),
@@ -113,6 +118,15 @@ class VerifyPackedModelAssetsTest(unittest.TestCase):
             manifest["bundles"]["zh-en/v1"][0].pop("source_sha256")
             (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "invalid source_sha256"):
+                verifier.verify_directory(root)
+
+    def test_harmony_manifest_v2_requires_source_md5(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            manifest = write_fixture(root, 2)
+            manifest["bundles"]["zh-en/v1"][0].pop("source_md5")
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "invalid source_md5"):
                 verifier.verify_directory(root)
 
 

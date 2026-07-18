@@ -71,6 +71,7 @@ EXPECTED_HARMONY_CONVERTER = {
     "disabled_optimizers": ["NchwcTransformer"],
 }
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+MD5_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 
 
 def fail(message: str) -> None:
@@ -142,7 +143,10 @@ def _validate_v2_entry(entry: dict, name: str, relative_path: str) -> str:
     ):
         fail(f"invalid source_name: {relative_path}")
     source_sha256 = entry.get("source_sha256")
+    source_md5 = entry.get("source_md5")
     output_sha256 = entry.get("output_sha256")
+    if not isinstance(source_md5, str) or not MD5_PATTERN.fullmatch(source_md5):
+        fail(f"invalid source_md5: {relative_path}")
     if not isinstance(source_sha256, str) or not SHA256_PATTERN.fullmatch(source_sha256):
         fail(f"invalid source_sha256: {relative_path}")
     if not isinstance(output_sha256, str) or not SHA256_PATTERN.fullmatch(output_sha256):

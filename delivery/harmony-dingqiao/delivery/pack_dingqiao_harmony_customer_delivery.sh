@@ -343,7 +343,11 @@ with tarfile.open(out / "har/amphion_dingqiao.har", "r:gz") as archive:
         "package/_bundled/amphion_asr/src/main/resources/rawfile/amphion-models/manifest.json"
     ).read()
 delivered_manifest = json.loads(delivered_manifest_bytes)
-source_hashes: dict[str, str] = {}
+model_policy = json.loads(
+    (repo / "delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json")
+    .read_text(encoding="utf-8")
+)
+approved_onnx_md5 = model_policy["onnx_files_md5"]
 converter_ids: set[str] = set()
 sdk_bundles = {"zh-en/v1", "punct-zhen/v1", "itn-zh/v1", "vad/v1"}
 selected_bundles = set(delivered_manifest["bundles"])
@@ -352,9 +356,6 @@ if sdk_only and selected_bundles != sdk_bundles:
 for bundle_name in sorted(selected_bundles):
     entries = manifest["bundles"][bundle_name]
     for entry in entries:
-        source_hash = entry.get("source_sha256")
-        if source_hash:
-            source_hashes[f"{bundle_name}/{entry['name']}"] = source_hash
         converter = entry.get("converter")
         if converter:
             converter_ids.add(converter)
@@ -392,7 +393,8 @@ payload = {
         "source_manifest_sha256": sha256(manifest_path),
         "manifest_version": delivered_manifest["manifest_version"],
         "converter_ids": sorted(converter_ids),
-        "source_sha256": dict(sorted(source_hashes.items())),
+        "model_id": model_policy["model_id"],
+        "onnx_md5": dict(sorted(approved_onnx_md5.items())),
     },
     "local_native": {
         "libsherpa-onnx-c-api.so": sha256(repo / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so"),

@@ -20,7 +20,7 @@ sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 FIXTURE_MODEL_MD5 = {
-    "asset.onnx": hashlib.sha256(b"approved source").hexdigest(),
+    "asset.onnx": hashlib.md5(b"approved source").hexdigest(),
 }
 
 
@@ -59,7 +59,8 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
                     "size_bytes": len(model_payload),
                     "output_sha256": model_digest,
                     "source_name": "asset.onnx",
-                    "source_sha256": FIXTURE_MODEL_MD5["asset.onnx"],
+                    "source_md5": FIXTURE_MODEL_MD5["asset.onnx"],
+                    "source_sha256": hashlib.sha256(b"unrelated diagnostic").hexdigest(),
                 }
             ]
             for bundle in ("zh-en/v1", "punct-zhen/v1", "itn-zh/v1", "vad/v1")
@@ -119,6 +120,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
                 "bundles": sorted(MODULE.ALLOWED_MODEL_BUNDLES),
                 "manifest_sha256": hashlib.sha256(model_manifest_payload).hexdigest(),
                 "manifest_version": 2,
+                "onnx_md5": dict(sorted(FIXTURE_MODEL_MD5.items())),
             },
         }
         provenance_path = root / "docs/BUILD_PROVENANCE.json"
@@ -190,10 +192,10 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             root = Path(directory)
             self._write_fixture(root)
             wrong_identity = {
-                "asset.onnx": hashlib.sha256(b"other-model").hexdigest(),
+                "asset.onnx": hashlib.md5(b"other-model").hexdigest(),
             }
             with self.assertRaisesRegex(
-                MODULE.DeliveryValidationError, "source SHA-256 mismatch"
+                MODULE.DeliveryValidationError, "ONNX MD5 mismatch"
             ):
                 MODULE.validate_delivery(root, "0.2.5", wrong_identity)
 
