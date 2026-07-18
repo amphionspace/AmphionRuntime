@@ -324,6 +324,30 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun nonFiniteSessionNumbersFallBackToDocumentedDefaults() {
+        val config = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams(
+                "s1",
+                AudioInfo(),
+                mapOf(
+                    "vadEnd" to Double.NaN,
+                    "speakerVadThreshold" to Float.NaN,
+                    "speakerVadWindowMs" to Double.POSITIVE_INFINITY,
+                    "speakerVadHopMs" to "NaN",
+                    "speakerVadConsecutiveBelow" to Double.NEGATIVE_INFINITY,
+                ),
+            ),
+            speakerModelPath = "/tmp/eres2net.onnx",
+        )
+
+        assertEquals(800, config.endpointSilenceMs)
+        assertEquals(0.40f, config.speakerVad?.threshold)
+        assertEquals(1.0f, config.speakerVad?.winSec)
+        assertEquals(0.3f, config.speakerVad?.hopSec)
+        assertEquals(2, config.speakerVad?.consecutiveBelow)
+    }
+
+    @Test
     fun recognitionMode_acceptsExternalStreamOnly() {
         DingqiaoEngineConfig.validateRecognitionMode(StartParams("s1", AudioInfo()))
         DingqiaoEngineConfig.validateRecognitionMode(
@@ -366,40 +390,6 @@ class CallbackEpochTest {
 
         assertFalse(gate.isCurrent(old))
         assertTrue(gate.isCurrent(replacement))
-    }
-
-    @Test
-    fun listenerReentryIsVisibleBeforeTerminalFollowUp() {
-        val gate = CallbackEpoch()
-        val terminalCallback = gate.beginSession()
-        var oldCompleteCount = 0
-
-        gate.invokeThenIfCurrent(
-            terminalCallback,
-            callback = {
-                gate.invalidate()
-                gate.beginSession()
-            },
-            followUp = { oldCompleteCount += 1 },
-        )
-
-        assertFalse(gate.isCurrent(terminalCallback))
-        assertEquals(0, oldCompleteCount)
-    }
-
-    @Test
-    fun terminalFollowUpRunsOnceWhenListenerKeepsOwnership() {
-        val gate = CallbackEpoch()
-        val terminalCallback = gate.beginSession()
-        var completeCount = 0
-
-        gate.invokeThenIfCurrent(
-            terminalCallback,
-            callback = {},
-            followUp = { completeCount += 1 },
-        )
-
-        assertEquals(1, completeCount)
     }
 
     @Test

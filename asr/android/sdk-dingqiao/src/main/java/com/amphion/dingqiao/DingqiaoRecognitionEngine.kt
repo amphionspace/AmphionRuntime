@@ -68,6 +68,9 @@ internal class DingqiaoRecognitionEngine(
     @Volatile
     private var activeEpoch = callbackEpoch.current()
 
+    @Volatile
+    private var terminalCallbackSessionId: String? = null
+
     private var audioMsWritten = 0L
     private var maxAudioDurationMs = 0L
     private var enablePartial = true
@@ -146,9 +149,11 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
+    @Synchronized
     override fun writeAudio(sessionId: String, audio: ByteArray) {
         ensureAlive()
         if (!listening) {
+            if (terminalCallbackSessionId == sessionId) return
             notifyError(
                 callbackEpoch.current(),
                 sessionId,
@@ -196,9 +201,11 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
+    @Synchronized
     override fun finish(sessionId: String) {
         ensureAlive()
         if (!listening || sessionId != activeSessionId) {
+            if (!listening && terminalCallbackSessionId == sessionId) return
             notifyError(callbackEpoch.current(), sessionId, DingqiaoErrorCode.FINISH_FAILED, "finish failed")
             return
         }
@@ -206,9 +213,11 @@ internal class DingqiaoRecognitionEngine(
         session?.stop()
     }
 
+    @Synchronized
     override fun cancel(sessionId: String) {
         ensureAlive()
         if (!listening || sessionId != activeSessionId) {
+            if (!listening && terminalCallbackSessionId == sessionId) return
             notifyError(callbackEpoch.current(), sessionId, DingqiaoErrorCode.CANCEL_FAILED, "cancel failed")
             return
         }
@@ -402,25 +411,25 @@ internal class DingqiaoRecognitionEngine(
             speakerSimilarity = asrResult.speakerScore,
         )
         callbackExecutor.execute {
-            if (!ownsSession(epoch, sessionId)) return@execute
-            runCatching {
-                callbackEpoch.invokeThenIfCurrent(
-                    epoch,
-                    callback = { listener?.onResult(sessionId, payload) },
-                    followUp = {
-                        // The listener may cancel this session and publish a replacement synchronously.
-                        // Only the still-owning generation may close and complete the old session.
-                        if (ownsSession(epoch, sessionId)) {
-                            completeSent = true
-                            val completionListener = listener
-                            if (tearDownSession(epoch) != null) {
-                                runCatching {
-                                    completionListener?.onComplete(sessionId, "recognize complete")
-                                }
-                            }
-                        }
-                    },
-                )
+            val completionListener = synchronized(this) {
+                if (!ownsSession(epoch, sessionId)) return@execute
+                completeSent = true
+                terminalCallbackSessionId = sessionId
+                val captured = listener
+                if (tearDownSession(epoch) == null) return@execute
+                captured
+            }
+            try {
+                runCatching { completionListener?.onResult(sessionId, payload) }
+            } finally {
+                runCatching {
+                    completionListener?.onComplete(sessionId, "recognize complete")
+                }
+                synchronized(this) {
+                    if (terminalCallbackSessionId == sessionId) {
+                        terminalCallbackSessionId = null
+                    }
+                }
             }
         }
     }

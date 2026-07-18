@@ -359,23 +359,27 @@ class DqSdkCornerCaseTest {
         assertFalse("engine must be idle after duplicate finish", engine.isBusy())
     }
 
-    // ---------- a10d: 最终结果回调内 cancel + start 不得被旧会话 complete 污染 ----------
+    // ---------- a10d: 最终结果回调内用相同 sessionId 重启，旧会话仍须完整 complete ----------
     @Test
     fun a10d_terminalCallback_reentrantReplacementOwnsCompletion() {
         val engine = sharedEngine()
         awaitIdle(engine)
         val oldSid = "reentrant-old-${System.currentTimeMillis()}"
-        val newSid = "reentrant-new-${System.currentTimeMillis()}"
+        val newSid = oldSid
         val oldStarted = CountDownLatch(1)
         val oldLast = CountDownLatch(1)
         val newStarted = CountDownLatch(1)
         val oldCompleteCount = AtomicInteger(0)
         val oldLastCount = AtomicInteger(0)
         val callbackErrors = mutableListOf<Int>()
+        val timeline = mutableListOf<String>()
 
         val replacementListener = object : RecognitionListener {
             override fun onStart(sessionId: String, eventMessage: String) {
-                if (sessionId == newSid) newStarted.countDown()
+                if (sessionId == newSid) {
+                    synchronized(timeline) { timeline += "new:start" }
+                    newStarted.countDown()
+                }
             }
 
             override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
@@ -396,6 +400,7 @@ class DqSdkCornerCaseTest {
             override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
                 if (!result.isLast) return
                 oldLastCount.incrementAndGet()
+                synchronized(timeline) { timeline += "old:last" }
                 engine.cancel(oldSid)
                 engine.setListener(replacementListener)
                 engine.startListening(StartParams(newSid, AudioInfo()))
@@ -404,6 +409,7 @@ class DqSdkCornerCaseTest {
 
             override fun onComplete(sessionId: String, eventMessage: String) {
                 oldCompleteCount.incrementAndGet()
+                synchronized(timeline) { timeline += "old:complete" }
             }
 
             override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
@@ -420,9 +426,15 @@ class DqSdkCornerCaseTest {
 
         DqReport.append(ctx, mapOf("case" to "a10d_terminalReentry",
             "oldLastCount" to oldLastCount.get(), "oldCompleteCount" to oldCompleteCount.get(),
+            "timeline" to synchronized(timeline) { timeline.toString() },
             "callbackErrors" to synchronized(callbackErrors) { callbackErrors.toString() }))
         assertEquals("old session must emit exactly one last result", 1, oldLastCount.get())
-        assertEquals("cancel in terminal callback must suppress old onComplete", 0, oldCompleteCount.get())
+        assertEquals("old last result must be followed by exactly one onComplete", 1, oldCompleteCount.get())
+        assertEquals(
+            "old terminal callbacks must finish before replacement onStart",
+            listOf("old:last", "old:complete", "new:start"),
+            synchronized(timeline) { timeline.toList() },
+        )
         assertTrue("reentrant replacement must not report callback errors",
             synchronized(callbackErrors) { callbackErrors.isEmpty() })
         engine.cancel(newSid)
@@ -484,6 +496,54 @@ class DqSdkCornerCaseTest {
         assertEquals("finish must emit exactly one last", 1, listener.finals.count { it.isLast })
         assertFalse("onStart API calls must not observe NOT_LISTENING",
             listener.errorCodes().contains(DingqiaoErrorCode.NOT_LISTENING))
+    }
+
+    // ---------- a10g: shutdown 后重新冷建引擎，onStart 内同步写入仍可用 ----------
+    @Test
+    fun a10g_onStartSynchronousWrite_afterEngineReload() {
+        val engine = reloadEngine()
+        val pcm = readAssetPcm(testCtx, mainWavs(testCtx).first())
+        val cached = pcm.copyOfRange(0, minOf(pcm.size, DQ_SR * 3))
+        val sid = "start-write-reload-${System.currentTimeMillis()}"
+        val listener = CapturingListener { callbackSid ->
+            feedFrames(engine, callbackSid, cached, 0)
+            engine.finish(callbackSid)
+        }.also { engine.setListener(it) }
+
+        engine.startListening(StartParams(sid, AudioInfo(), mapOf("vadEnd" to 800)))
+        assertTrue("reloaded engine onStart write+finish did not return", listener.awaitStarted(20_000))
+        val completed = listener.awaitComplete(30_000)
+        awaitIdle(engine)
+
+        DqReport.append(ctx, mapOf("case" to "a10g_startWriteReload",
+            "completed" to completed, "completeCount" to listener.completes.size,
+            "lastCount" to listener.finals.count { it.isLast },
+            "errorCodes" to listener.errorCodes().toString()))
+        assertTrue("reloaded engine session must complete", completed)
+        assertEquals("reloaded engine must emit one complete", 1, listener.completes.size)
+        assertEquals("reloaded engine must emit one last", 1, listener.finals.count { it.isLast })
+        assertTrue("reloaded engine must not report errors", listener.errors.isEmpty())
+    }
+
+    @Test
+    fun a10h_lateOldWrite_doesNotAffectReplacement() {
+        assertLateOldCallDoesNotAffectReplacement("write") { engine, sid ->
+            engine.writeAudio(sid, ByteArray(DQ_FRAME))
+        }
+    }
+
+    @Test
+    fun a10i_lateOldFinish_doesNotAffectReplacement() {
+        assertLateOldCallDoesNotAffectReplacement("finish") { engine, sid ->
+            engine.finish(sid)
+        }
+    }
+
+    @Test
+    fun a10j_lateOldCancel_doesNotAffectReplacement() {
+        assertLateOldCallDoesNotAffectReplacement("cancel") { engine, sid ->
+            engine.cancel(sid)
+        }
     }
 
     // ---------- a11: 不支持的语言 ----------
@@ -598,6 +658,62 @@ class DqSdkCornerCaseTest {
 
     private fun idOf(wav: String): String = Integer.toHexString(wav.hashCode()) + "-" + (seq++)
 
+    private fun assertLateOldCallDoesNotAffectReplacement(
+        operationName: String,
+        lateCall: (SpeechRecognitionEngine, String) -> Unit,
+    ) {
+        val engine = sharedEngine()
+        awaitIdle(engine)
+        val oldSid = "late-$operationName-old-${System.currentTimeMillis()}"
+        val oldListener = CapturingListener().also { engine.setListener(it) }
+        engine.startListening(StartParams(oldSid, AudioInfo()))
+        assertTrue("old session did not start", oldListener.awaitStarted(10_000))
+        engine.cancel(oldSid)
+        awaitIdle(engine)
+
+        val newSid = "late-$operationName-new-${System.currentTimeMillis()}"
+        val newStarted = CountDownLatch(1)
+        val newComplete = CountDownLatch(1)
+        val newLastCount = AtomicInteger(0)
+        val newCompleteCount = AtomicInteger(0)
+        val newErrors = mutableListOf<Int>()
+        engine.setListener(object : RecognitionListener {
+            override fun onStart(sessionId: String, eventMessage: String) {
+                if (sessionId == newSid) newStarted.countDown()
+            }
+
+            override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+
+            override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
+                if (sessionId == newSid && result.isLast) newLastCount.incrementAndGet()
+            }
+
+            override fun onComplete(sessionId: String, eventMessage: String) {
+                if (sessionId == newSid) {
+                    newCompleteCount.incrementAndGet()
+                    newComplete.countDown()
+                }
+            }
+
+            override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+                if (sessionId == newSid) synchronized(newErrors) { newErrors += errorCode }
+            }
+        })
+        engine.startListening(StartParams(newSid, AudioInfo()))
+        assertTrue("replacement session did not start", newStarted.await(10_000, TimeUnit.MILLISECONDS))
+
+        lateCall(engine, oldSid)
+        assertTrue("late old $operationName ended replacement", engine.isBusy())
+        engine.finish(newSid)
+        assertTrue("replacement did not complete", newComplete.await(20_000, TimeUnit.MILLISECONDS))
+        awaitIdle(engine)
+
+        assertEquals("replacement must emit one last", 1, newLastCount.get())
+        assertEquals("replacement must emit one complete", 1, newCompleteCount.get())
+        assertTrue("replacement must not receive old-call errors",
+            synchronized(newErrors) { newErrors.isEmpty() })
+    }
+
     companion object {
         @Volatile private var engine: SpeechRecognitionEngine? = null
         @Volatile private var seq = 0
@@ -615,6 +731,13 @@ class DqSdkCornerCaseTest {
             return SpeechRecognizeSdk.createEngine(
                 CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE, extraParams = mapOf("vadEnd" to 800)),
             ).also { engine = it }
+        }
+
+        @Synchronized
+        fun reloadEngine(): SpeechRecognitionEngine {
+            engine?.shutdown()
+            engine = null
+            return sharedEngine()
         }
     }
 }
