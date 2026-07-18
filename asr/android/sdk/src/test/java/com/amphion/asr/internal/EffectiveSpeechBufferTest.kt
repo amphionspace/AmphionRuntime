@@ -89,11 +89,17 @@ class EffectiveSpeechBufferTest {
             minimum,
             asrSpeechConfirmed = true,
         )
-        val exactStrict = selectSpeakerScoreSamples(
+        val exactStrictWithoutAsr = selectSpeakerScoreSamples(
             FloatArray(minimum),
             FloatArray(0),
             minimum,
             asrSpeechConfirmed = false,
+        )
+        val exactStrictWithAsr = selectSpeakerScoreSamples(
+            FloatArray(minimum),
+            FloatArray(0),
+            minimum,
+            asrSpeechConfirmed = true,
         )
         val longStrict = selectSpeakerScoreSamples(
             FloatArray(minimum + sampleRate),
@@ -107,7 +113,8 @@ class EffectiveSpeechBufferTest {
         assertEquals(SpeakerScoreSource.INSUFFICIENT, denied.source)
         assertEquals(strict.size, denied.samples.size)
         assertEquals(SpeakerScoreSource.INSUFFICIENT, stillShort.source)
-        assertEquals(SpeakerScoreSource.STRICT, exactStrict.source)
+        assertEquals(SpeakerScoreSource.INSUFFICIENT, exactStrictWithoutAsr.source)
+        assertEquals(SpeakerScoreSource.STRICT, exactStrictWithAsr.source)
         assertEquals(SpeakerScoreSource.STRICT, longStrict.source)
         assertEquals(minimum + sampleRate, longStrict.samples.size)
     }

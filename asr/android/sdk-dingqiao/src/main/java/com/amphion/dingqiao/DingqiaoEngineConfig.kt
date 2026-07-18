@@ -112,11 +112,8 @@ internal object DingqiaoEngineConfig {
 
     fun vadEndMs(startParams: StartParams?): Int {
         val raw = startParams?.extraParams?.get("vadEnd") ?: return DEFAULT_VAD_END_MS
-        return when (raw) {
-            is Number -> raw.toInt()
-            is String -> raw.toIntOrNull() ?: DEFAULT_VAD_END_MS
-            else -> DEFAULT_VAD_END_MS
-        }.coerceIn(MIN_VAD_END_MS, MAX_VAD_END_MS)
+        val value = finiteDouble(raw) ?: return DEFAULT_VAD_END_MS
+        return value.toInt().coerceIn(MIN_VAD_END_MS, MAX_VAD_END_MS)
     }
 
     fun maxAudioDurationMs(startParams: StartParams): Long {
@@ -199,17 +196,11 @@ internal object DingqiaoEngineConfig {
         else -> false
     }
 
-    private fun asInt(raw: Any?, defaultValue: Int): Int = when (raw) {
-        is Number -> raw.toInt()
-        is String -> raw.toIntOrNull() ?: defaultValue
-        else -> defaultValue
-    }
+    private fun asInt(raw: Any?, defaultValue: Int): Int =
+        finiteDouble(raw)?.toInt() ?: defaultValue
 
-    private fun asFloat(raw: Any?, defaultValue: Float): Float = when (raw) {
-        is Number -> raw.toFloat()
-        is String -> raw.toFloatOrNull() ?: defaultValue
-        else -> defaultValue
-    }
+    private fun asFloat(raw: Any?, defaultValue: Float): Float =
+        finiteDouble(raw)?.toFloat() ?: defaultValue
 
     private fun validateRecognizerMode(params: CreateEngineParams) {
         val raw = params.extraParams["recognizerMode"] ?: return

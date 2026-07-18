@@ -19,20 +19,4 @@ internal class CallbackEpoch {
 
     fun isCurrent(epoch: Long): Boolean = value.get() == epoch
 
-    /**
-     * Runs terminal follow-up only if customer callback reentry did not replace the owning state.
-     */
-    fun invokeThenIfCurrent(
-        epoch: Long,
-        callback: () -> Unit,
-        followUp: () -> Unit,
-    ): Boolean {
-        if (!isCurrent(epoch)) return false
-        try {
-            callback()
-        } finally {
-            if (isCurrent(epoch)) followUp()
-        }
-        return true
-    }
 }
