@@ -44,6 +44,9 @@ if [[ "$ASR_ONLY" == true && "$SDK_ONLY" == true ]]; then
 fi
 
 FINAL_OUT_ROOT="${FINAL_OUT_ROOT:-$REPO_ROOT/build/dingqiao-harmony-delivery-$VERSION}"
+if [[ "$FINAL_OUT_ROOT" != /* ]]; then
+  FINAL_OUT_ROOT="$PWD/$FINAL_OUT_ROOT"
+fi
 OUT_ROOT="${FINAL_OUT_ROOT}.tmp.$$"
 BACKUP_OUT_ROOT="${FINAL_OUT_ROOT}.backup.$$"
 LOCK_DIR="${FINAL_OUT_ROOT}.lock"
