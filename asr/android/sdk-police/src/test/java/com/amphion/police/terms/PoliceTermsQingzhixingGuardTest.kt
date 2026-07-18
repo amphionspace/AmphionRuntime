@@ -62,4 +62,23 @@ class PoliceTermsQingzhixingGuardTest {
         val n = v2()
         assertEquals("请在手机上打开情指行客户端。", n.normalize("请在手机上打开情指行客户端。").text)
     }
+
+    @Test
+    fun recovers_qingzhixing_new_model_retest_variants() {
+        val n = v2()
+        // 真机复测新残留：请指刑（罕见串，全局纠）
+        assertTrue(n.normalize("请指刑。").text.contains("情指行"))
+        // 请执行：仅 App 语境纠（打开X APP / …平台）
+        assertTrue(n.normalize("打开请执行APP。").text.contains("情指行"))
+        assertTrue(n.normalize("登录请执行平台上报。").text.contains("情指行"))
+    }
+
+    @Test
+    fun does_not_touch_generic_qingzhixing() {
+        val n = v2()
+        // 请执行=通用高频词，无 App 语境或后跟命令/任务等 —— 一律不纠
+        assertFalse(n.normalize("请执行以下命令。").text.contains("情指行"))
+        assertFalse(n.normalize("收到指令后请执行。").text.contains("情指行"))
+        assertFalse(n.normalize("打开，请执行任务。").text.contains("情指行"))
+    }
 }

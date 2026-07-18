@@ -89,6 +89,8 @@ class PoliceTermsNormalizerV2 private constructor(
      */
     private val qingZhiXingVariants: Map<String, Set<Char>> = mapOf(
         "请指信" to setOf('息'),
+        // 请执行=通用高频词，只在 App 语境（打开X/…平台）下纠；后紧跟 命令/任务/操作/程序… 时是真·请执行，不纠。
+        "请执行" to setOf('命', '任', '操', '程', '死', '判', '完', '以', '方', '决', '计', '的', '了', '过', '结'),
         "停止行" to setOf('动', '为', '走', '驶', '车', '列', '进'),
         "停止航" to setOf('班', '行', '道', '向', '线'),
     )
