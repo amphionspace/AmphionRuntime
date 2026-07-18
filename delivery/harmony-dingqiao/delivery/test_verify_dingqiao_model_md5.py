@@ -13,6 +13,7 @@ import zipfile
 
 
 SCRIPT = Path(__file__).with_name("verify_dingqiao_model_md5.py")
+ASSET_PACKER = SCRIPT.parents[3] / "asr/tools/08_pack_harmony_assets.sh"
 SPEC = importlib.util.spec_from_file_location("verify_dingqiao_model_md5", SCRIPT)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError(f"cannot load {SCRIPT}")
@@ -39,6 +40,11 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
         model_id, expected = MODULE.load_policy()
         self.assertEqual("transducer-chunk32-lc256-260717", model_id)
         self.assertEqual(set(MODULE.RUNTIME_TO_SOURCE.values()), set(expected))
+
+    def test_asset_packer_uses_the_pinned_fp32_joiner(self) -> None:
+        script = ASSET_PACKER.read_text(encoding="utf-8")
+        self.assertIn('convert_one "${ZH_EN_DIR}/joiner.onnx"', script)
+        self.assertNotIn('convert_one "${ZH_EN_DIR}/joiner.int8.onnx"', script)
 
     def _manifest(self, payloads: dict[str, bytes] | None = None) -> dict:
         payloads = payloads or self.payloads
