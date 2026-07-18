@@ -1,6 +1,6 @@
 {
   "name": "libamphion_asr.so",
-  "version": "0.2.6",
+  "version": "0.2.8",
   "description": "Type declarations for Amphion ASR Harmony native library",
   "main": "index.d.ts",
   "types": "index.d.ts",

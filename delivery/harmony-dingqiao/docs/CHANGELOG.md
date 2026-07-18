@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.8 - 2026-07-18（新声学模型适配与交付校验）
 
 - 声纹严格有效语音不足 `minSegSec`，但 ASR 已确认非空 text/token 且当前句真实 PCM 达到门槛时，
   改用当前句 PCM 计算 `speakerSimilarity`；严格评分仍为主路径，短句、纯静音和空 terminal final
@@ -9,6 +9,9 @@
   8000 ms PCM 后自动结束，仍保留 28800000 ms 上限。
 - 新增 `voiceprint-fallback` cold/warm 真机门禁、8 秒 burst/paced 精确帧数门禁，以及本次问题的
   根因复盘和发布测试流程。
+- 适配 0718 新声学模型的警务术语后处理，补充易混词归一化并同步 Harmony 与 Android 行为。
+- 中英 joiner 使用 FP32 `joiner.onnx` 生成运行时 ORT；交付校验固定 ONNX 源模型身份并核对
+  运行时清单，避免转换产物差异影响版本确认。
 
 ## 0.2.6 - 2026-07-16（端点回调内结束兼容）
 
