@@ -96,6 +96,7 @@ class ConvertHarmonyOrtTest(unittest.TestCase):
 
             self.assertTrue(cache_hit)
             self.assertEqual(output.read_bytes(), b"converted-model")
+            self.assertEqual(result["source_md5"], converter.md5_file(source))
             self.assertEqual(result["output_sha256"], converter.sha256_file(output))
             self.assertEqual(json.loads(metadata_output.read_text()), result)
 

@@ -48,6 +48,14 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def md5_file(path: Path) -> str:
+    digest = hashlib.md5()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(COPY_CHUNK_SIZE), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def cache_key(source_sha256: str) -> str:
     payload = {
         "source_sha256": source_sha256,
@@ -224,6 +232,7 @@ def convert_model(
         raise ValueError("model output and metadata output must be different files")
 
     source_sha256 = sha256_file(source)
+    source_md5 = md5_file(source)
     key = cache_key(source_sha256)
     entry_dir = cache_dir.resolve() / key
     lock_path = cache_dir.resolve() / f"{key}.lock"
@@ -265,6 +274,7 @@ def convert_model(
         # A content-addressed entry can be shared by equal models with different filenames.
         metadata = dict(metadata)
         metadata["source_name"] = source.name
+        metadata["source_md5"] = source_md5
         _atomic_copy(entry_dir / "model.ort", output)
         _atomic_write_json(metadata, metadata_output)
 

@@ -6,12 +6,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
-from convert_harmony_ort import CONVERTER_CONFIG, CONVERTER_ID, sha256_file
+from convert_harmony_ort import CONVERTER_CONFIG, CONVERTER_ID, md5_file, sha256_file
 
 
 HARMONY_BUNDLES = {
@@ -119,6 +120,9 @@ def build_manifest(
                     raise ValueError(f"converted output size mismatch for {target}")
                 source_name = metadata.get("source_name")
                 source_sha256 = metadata.get("source_sha256")
+                source_md5 = metadata.get("source_md5")
+                if not isinstance(source_md5, str) or re.fullmatch(r"[0-9a-f]{32}", source_md5) is None:
+                    raise ValueError(f"invalid converted source MD5 for {target}")
                 converter = CONVERTER_ID
             else:
                 source_path = copied_sources[target]
@@ -126,6 +130,7 @@ def build_manifest(
                     raise FileNotFoundError(f"missing source asset: {source_path}")
                 source_name = source_path.name
                 source_sha256 = sha256_file(source_path)
+                source_md5 = md5_file(source_path)
                 if source_sha256 != output_sha256:
                     raise ValueError(f"copied output differs from source for {target}")
                 converter = "copy"
@@ -135,6 +140,7 @@ def build_manifest(
                     "name": name,
                     "size_bytes": output_size,
                     "source_name": source_name,
+                    "source_md5": source_md5,
                     "source_sha256": source_sha256,
                     "output_sha256": output_sha256,
                     "format": file_format(name),
