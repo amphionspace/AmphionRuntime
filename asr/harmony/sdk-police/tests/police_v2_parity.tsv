@@ -40,6 +40,15 @@ terms	contains	调解的目的是定分值征。	定纷止争
 terms	contains	规范接触井流程。	接处警流程
 terms	contains	持续开展制爆机枪。	治爆缉枪
 terms	contains	景增系统正在维护。	警综
+terms	equals	打开停止行客户端	打开情指行客户端
+terms	equals	请指信平台正在运行	情指行平台正在运行
+terms	equals	进入、停止航	进入、情指行
+terms	equals	停止行动必须服从指挥	停止行动必须服从指挥
+terms	equals	停止航班已经恢复	停止航班已经恢复
+terms	equals	请指信息中心确认	请指信息中心确认
+terms	equals	停止行	停止行
+terms	equals	登陆系统后查看首页	登录系统后查看首页
+terms	equals	台风登陆沿海地区	台风登陆沿海地区
 station	contains	帮我查一下武汉市洪善区冠善派出所今天晚高峰按日期汇总的接警数据。	武汉市洪山区关山派出所
 station	contains	给我看一下南昌市西湖区神经塔派出所近五个工作日分辖区的接警。	南昌市西湖区绳金塔派出所
 station	contains	请把银川市金凤区、上海西路派出所上周的接警情况整理一下。	银川市金凤区上海西路派出所

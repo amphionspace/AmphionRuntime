@@ -136,6 +136,71 @@ class RadioDigits {
   }
 }
 
+class QingZhiXingGuard {
+  private static readonly VARIANT_NAMES: string[] = ['请指信', '停止行', '停止航'];
+  private static readonly VARIANTS: Map<string, Set<string>> = new Map<string, Set<string>>([
+    ['请指信', new Set<string>(['息'])],
+    ['停止行', new Set<string>(['动', '为', '走', '驶', '车', '列', '进'])],
+    ['停止航', new Set<string>(['班', '行', '道', '向', '线'])]
+  ]);
+  private static readonly OPEN_VERBS: string[] = ['打开', '登录', '进入', '启动', '点击', '使用'];
+  private static readonly APP_CONTEXT: string[] = [
+    '客户端', '平台', '系统', '首页', '模块', '上报',
+    '签收', '下发', '指令', '勤务', '版本', '核心'
+  ];
+
+  static apply(text: string): string {
+    if (text.length < 3) return text;
+    let output = text;
+    for (let variantIndex = 0; variantIndex < QingZhiXingGuard.VARIANT_NAMES.length; variantIndex++) {
+      const variant = QingZhiXingGuard.VARIANT_NAMES[variantIndex];
+      const collisions = QingZhiXingGuard.VARIANTS.get(variant);
+      if (collisions === undefined) continue;
+      if (output.indexOf(variant) < 0) continue;
+      let replaced = '';
+      let cursor = 0;
+      while (cursor <= output.length) {
+        const index = output.indexOf(variant, cursor);
+        if (index < 0) {
+          replaced += output.substring(cursor);
+          break;
+        }
+        replaced += output.substring(cursor, index);
+        const end = index + variant.length;
+        const after = end < output.length ? output.charAt(end) : '';
+        const collides = after.length > 0 && collisions.has(after);
+        const afterContext = output.substring(end, Math.min(end + 5, output.length));
+        const hasAfterContext = QingZhiXingGuard.containsAny(
+          afterContext, QingZhiXingGuard.APP_CONTEXT);
+        const before = output.substring(0, index);
+        const hasOpenVerb = QingZhiXingGuard.endsWithOpenVerb(before);
+        replaced += !collides && (hasAfterContext || hasOpenVerb) ? '情指行' : variant;
+        cursor = end;
+      }
+      output = replaced;
+    }
+    return output;
+  }
+
+  private static containsAny(text: string, values: string[]): boolean {
+    for (let i = 0; i < values.length; i++) {
+      if (text.indexOf(values[i]) >= 0) return true;
+    }
+    return false;
+  }
+
+  private static endsWithOpenVerb(text: string): boolean {
+    for (let i = 0; i < QingZhiXingGuard.OPEN_VERBS.length; i++) {
+      const verb = QingZhiXingGuard.OPEN_VERBS[i];
+      if (text.endsWith(verb) || text.endsWith(`${verb}，`) ||
+        text.endsWith(`${verb},`) || text.endsWith(`${verb}、`)) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
 class DengluGuard {
   private static readonly VARIANT: string = '登陆';
   // 登录语境词（近窗 6 字内出现才纠 登陆→登录）。
@@ -196,9 +261,9 @@ export class PoliceTermsV2 {
 
   normalize(text: string): string {
     if (text.length === 0) return text;
-    // 顺序对齐 Android：同音映射 → 登录语境护栏(登陆→登录) → 保守模糊层 → 电台音标数字。
+    // 顺序对齐 Android：同音映射 → 情指行/登录语境护栏 → 保守模糊层 → 电台音标数字。
     return RadioDigits.normalize(
-      this.fuzzyCorrect(DengluGuard.apply(this.homophones.apply(text))));
+      this.fuzzyCorrect(DengluGuard.apply(QingZhiXingGuard.apply(this.homophones.apply(text)))));
   }
 
   private maxSubsFor(length: number): number {
