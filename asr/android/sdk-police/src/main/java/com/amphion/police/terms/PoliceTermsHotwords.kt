@@ -21,7 +21,6 @@ object PoliceTermsHotwords {
         "待办",
         "情指中心",
         "到岗",
-        "WeConmm",
         "创建警单",
         "查看报警现场视频",
         // P0/P1：警单系长短语优先

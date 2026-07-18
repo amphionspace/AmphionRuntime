@@ -20,7 +20,7 @@ import com.amphion.asr.AsrLanguage
 import com.amphion.asr.sample.AmphionApp
 import com.amphion.asr.sample.R
 import com.amphion.police.plate.PlateEnhancePrefs
-import com.amphion.police.plate.PlateNormalizer
+import com.amphion.police.plate.PlateNormalizerV2
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -48,7 +48,7 @@ class PlateBatchEvalActivity : AppCompatActivity() {
         Thread(r, "plate-batch-eval").apply { isDaemon = true }
     }
 
-    private lateinit var plateNormalizer: PlateNormalizer
+    private lateinit var plateNormalizer: PlateNormalizerV2
     private lateinit var plateEvalRecorder: PlateEvalRecorder
 
     private var engine: AsrEngine? = null
@@ -75,11 +75,10 @@ class PlateBatchEvalActivity : AppCompatActivity() {
         btnStop = findViewById(R.id.btn_batch_stop)
         batchScroll = findViewById(R.id.batch_scroll)
 
-        val prefs = PlateEnhancePrefs(applicationContext)
-        val useFst = intent.getBooleanExtra(EXTRA_USE_FST, prefs.plateFstEnabled)
-        plateNormalizer = PlateNormalizer.create(this, useFst = useFst)
+        // 交付版本口径：plate V2 + 部署辖区省份先验（冀R/辽B，同 PoliceEnhancePipeline 默认）。
+        plateNormalizer = PlateNormalizerV2.create(this, listOf('冀', '辽'))
         plateEvalRecorder = PlateEvalRecorder(this)
-        Log.i(TAG, "normalize plate_fst=${plateNormalizer.fstEnabled}")
+        Log.i(TAG, "normalize plate_v2 contextProvinces=冀,辽")
 
         filterPrefix = intent.getStringExtra(EXTRA_FILTER)
         autoStart = intent.getBooleanExtra(EXTRA_AUTO_START, false)

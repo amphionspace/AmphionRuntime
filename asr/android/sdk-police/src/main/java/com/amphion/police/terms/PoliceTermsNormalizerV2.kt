@@ -69,12 +69,107 @@ class PoliceTermsNormalizerV2 private constructor(
 
         // 1) 复用 V1 全局谐音（高置信人工对），保证不回退。
         val global = homophones.applyPhrases(text)
+        // 1.5) 「情指行」上下文护栏纠正：仅在 App 语境下把 请指信/停止行/停止航 纠回 情指行，
+        //      并排除 停止行动/停止航班/请指信息 等碰撞词，避免误伤通用句子。
+        val guarded = applyQingZhiXingGuard(global)
+        // 1.6) 「登录」上下文护栏：仅在登录语境（后随 系统/平台/门户/客户端… ）下把 登陆 纠回 登录，
+        //      排除 登陆作战/抢滩登陆/台风登陆沿海 等通用义，避免误伤。
+        val guarded2 = applyDengluGuard(guarded)
         // 2) 叠加保守模糊层（仅长术语、等长近音、唯一）。
-        val fuzzy = fuzzyCorrect(global)
+        val fuzzy = fuzzyCorrect(guarded2)
         // 3) 电台音标数字归一（洞0幺1两2拐7勾9…），严格数字上下文门控。
         val corrected = PoliceTermsRadioDigits.normalize(fuzzy)
         val spans = locateSpans(corrected)
         return PoliceTermsNormalizeResult(corrected, spans)
+    }
+
+    /**
+     * 「情指行」误识变体（真人/TTS 常见），值为「碰撞后继字」黑名单：
+     * 变体后紧跟这些字时说明是通用词（如 停止行→动/为、停止航→班/行、请指信→息），一律不纠。
+     */
+    private val qingZhiXingVariants: Map<String, Set<Char>> = mapOf(
+        "请指信" to setOf('息'),
+        "停止行" to setOf('动', '为', '走', '驶', '车', '列', '进'),
+        "停止航" to setOf('班', '行', '道', '向', '线'),
+    )
+
+    /** 变体前的「打开类」动词触发（允许中间夹一个标点）。 */
+    private val qingZhiXingOpenVerbs = listOf("打开", "登录", "进入", "启动", "点击", "使用")
+
+    /** 变体后近窗内的 App 语境词触发。 */
+    private val qingZhiXingAppCtx =
+        listOf("客户端", "平台", "系统", "首页", "模块", "上报", "签收", "下发", "指令", "勤务", "版本", "核心")
+
+    /**
+     * 上下文受限地把 情指行 的误识变体纠回。命中条件（且未撞黑名单后继字）：
+     * 变体后 5 字窗口内出现 App 语境词，或变体前紧邻打开类动词（可夹一个标点）。
+     */
+    private fun applyQingZhiXingGuard(text: String): String {
+        if (text.length < 3) return text
+        var out = text
+        for ((variant, neg) in qingZhiXingVariants) {
+            if (!out.contains(variant)) continue
+            val sb = StringBuilder(out.length)
+            var i = 0
+            while (i <= out.length) {
+                val idx = out.indexOf(variant, i)
+                if (idx < 0) {
+                    sb.append(out, i, out.length)
+                    break
+                }
+                sb.append(out, i, idx)
+                val end = idx + variant.length
+                val after = out.getOrNull(end)
+                val collide = after != null && after in neg
+                val ctxAfter = out.substring(end, (end + 5).coerceAtMost(out.length))
+                val hasAfterCtx = qingZhiXingAppCtx.any { ctxAfter.contains(it) }
+                val before = out.substring(0, idx)
+                val hasOpenVerb = qingZhiXingOpenVerbs.any {
+                    before.endsWith(it) ||
+                        before.endsWith("$it，") || before.endsWith("$it,") || before.endsWith("$it、")
+                }
+                sb.append(if (!collide && (hasAfterCtx || hasOpenVerb)) "情指行" else variant)
+                i = end
+            }
+            out = sb.toString()
+        }
+        return out
+    }
+
+    /** 「登录」误识 登陆 的登录语境词（近窗触发）。 */
+    private val dengluCtx = listOf(
+        "系统", "平台", "客户端", "门户", "账号", "帐号", "后台",
+        "应用", "界面", "首页", "模块", "网站", "网页",
+    )
+
+    /** 登陆 后紧跟这些字时是通用义（登陆作战/舰/艇/沿海/岛/部队/战役/地点），一律不纠。 */
+    private val dengluCollide = setOf('作', '演', '舰', '艇', '部', '战', '岛', '滩', '沿', '海', '月')
+
+    /**
+     * 上下文受限地把「登陆」纠回「登录」：仅当其后近窗（6 字内）出现登录语境词、
+     * 且紧邻后继字不在 [dengluCollide] 黑名单时才替换。
+     */
+    private fun applyDengluGuard(text: String): String {
+        if (!text.contains("登陆")) return text
+        val variant = "登陆"
+        val sb = StringBuilder(text.length)
+        var i = 0
+        while (i <= text.length) {
+            val idx = text.indexOf(variant, i)
+            if (idx < 0) {
+                sb.append(text, i, text.length)
+                break
+            }
+            sb.append(text, i, idx)
+            val end = idx + variant.length
+            val after = text.getOrNull(end)
+            val collide = after != null && after in dengluCollide
+            val ctxAfter = text.substring(end, (end + 6).coerceAtMost(text.length))
+            val hasCtx = dengluCtx.any { ctxAfter.contains(it) }
+            sb.append(if (!collide && hasCtx) "登录" else variant)
+            i = end
+        }
+        return sb.toString()
     }
 
     /** 命中的标准术语 + 它在原文里实际吃掉的字数（等长档 = 术语长度；变长档可能 ±1）。 */

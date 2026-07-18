@@ -19,11 +19,9 @@ import com.amphion.asr.sample.AmphionApp
 import com.amphion.asr.sample.R
 import com.amphion.asr.sample.SceneAsrConfig
 import com.amphion.police.plate.PlateEnhancePrefs
-import com.amphion.police.plate.PlateNormalizer
 import com.amphion.police.station.PoliceStationEnhancePrefs
-import com.amphion.police.station.PoliceStationNormalizer
+import com.amphion.police.station.PoliceStationNormalizerV2
 import com.amphion.police.terms.PoliceTermsEnhancePrefs
-import com.amphion.police.terms.PoliceTermsNormalizer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -50,9 +48,7 @@ class PoliceStationBatchEvalActivity : AppCompatActivity() {
         Thread(r, "police-station-batch-eval").apply { isDaemon = true }
     }
 
-    private lateinit var termsNormalizer: PoliceTermsNormalizer
-    private lateinit var plateNormalizer: PlateNormalizer
-    private lateinit var stationNormalizer: PoliceStationNormalizer
+    private lateinit var stationNormalizer: PoliceStationNormalizerV2
     private lateinit var evalRecorder: PoliceStationEvalRecorder
 
     private var engine: AsrEngine? = null
@@ -79,13 +75,10 @@ class PoliceStationBatchEvalActivity : AppCompatActivity() {
         btnStart = findViewById(R.id.btn_batch_start)
         btnStop = findViewById(R.id.btn_batch_stop)
 
-        val stationPrefs = PoliceStationEnhancePrefs(applicationContext)
-        val useStationFst = intent.getBooleanExtra(EXTRA_USE_FST, stationPrefs.stationFstEnabled)
-        termsNormalizer = PoliceTermsNormalizer.create(this)
-        plateNormalizer = PlateNormalizer.create(this)
-        stationNormalizer = PoliceStationNormalizer.create(this, useFst = useStationFst)
+        // 交付版本口径：派出所 V2 后处理（PoliceStationNormalizerV2，同 PoliceEnhancePipeline）。
+        stationNormalizer = PoliceStationNormalizerV2.create(this)
         evalRecorder = PoliceStationEvalRecorder(this)
-        Log.i(TAG, "normalize station_fst=${stationNormalizer.fstEnabled}")
+        Log.i(TAG, "normalize station_v2")
 
         filterPrefix = intent.getStringExtra(EXTRA_FILTER) ?: "police_station_v2"
         autoStart = intent.getBooleanExtra(EXTRA_AUTO_START, false)
@@ -106,9 +99,6 @@ class PoliceStationBatchEvalActivity : AppCompatActivity() {
             engine?.close()
         } catch (_: Throwable) {}
         engine = null
-        try {
-            stationNormalizer.close()
-        } catch (_: Throwable) {}
         exec.shutdownNow()
         super.onDestroy()
     }
@@ -198,20 +188,8 @@ class PoliceStationBatchEvalActivity : AppCompatActivity() {
             PoliceStationBatchEvalManifest.clearProgress(this)
         }
 
-        val stationPrefs = PoliceStationEnhancePrefs(applicationContext)
-        val platePrefs = PlateEnhancePrefs(applicationContext)
-        val termsPrefs = PoliceTermsEnhancePrefs(applicationContext)
         val skipIds = PoliceStationBatchEvalManifest.loadDoneIds(this)
-        val runner = PoliceStationBatchEvalRunner(
-            eng,
-            termsNormalizer,
-            termsPrefs.termsNormalizeEnabled,
-            plateNormalizer,
-            platePrefs.plateNormalizeEnabled,
-            stationNormalizer,
-            stationPrefs.stationNormalizeEnabled,
-            evalRecorder,
-        )
+        val runner = PoliceStationBatchEvalRunner(eng, stationNormalizer, evalRecorder)
 
         exec.execute {
             val result = runner.run(
