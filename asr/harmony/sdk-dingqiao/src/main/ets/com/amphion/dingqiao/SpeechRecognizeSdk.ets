@@ -277,9 +277,9 @@ function buildTargetSpeakerConfig(startParams: StartParams | undefined, withSpea
 
 function buildSpeakerVadConfig(extra: Record<string, Object>): SpeakerVadConfig {
   const config = new SpeakerVadConfig();
-  config.threshold = clamp(numberParam(extra, 'speakerVadThreshold', 0.40), -1.0, 1.0);
-  config.winSec = clamp(numberParam(extra, 'speakerVadWindowMs', 1000), 500, 5000) / 1000;
-  config.hopSec = clamp(numberParam(extra, 'speakerVadHopMs', 300), 100, 2000) / 1000;
+  config.threshold = clamp(numberParam(extra, 'speakerVadThreshold', 0.35), -1.0, 1.0);
+  config.winSec = clamp(numberParam(extra, 'speakerVadWindowMs', 1500), 500, 5000) / 1000;
+  config.hopSec = clamp(numberParam(extra, 'speakerVadHopMs', 500), 100, 2000) / 1000;
   config.consecutiveBelow = Math.round(clamp(numberParam(extra, 'speakerVadConsecutiveBelow', 2), 1, 5));
   config.enabledByDefault = false;
   return config;
