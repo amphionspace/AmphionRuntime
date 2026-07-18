@@ -34,6 +34,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         duplicate_model_root: bool = False,
         embedded_license: bool = False,
         nested_version: str = "0.2.5",
+        release_date: str = "2026-07-18",
     ) -> None:
         required = set(MODULE.REQUIRED_FILES)
         required.remove("har/amphion_dingqiao.har")
@@ -77,7 +78,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
                 (
                     "export const HARMONY_SDK_VERSION: string = '0.2.5';\n"
                     "export const HARMONY_SDK_MAJOR: number = 1;\n"
-                    "export const HARMONY_SDK_RELEASE_DATE: string = '2026-07-16';\n"
+                    f"export const HARMONY_SDK_RELEASE_DATE: string = '{release_date}';\n"
                 ).encode("utf-8"),
             )
             self._add_bytes(archive, MODULE.MODEL_MANIFEST_PATH, model_manifest_payload)
@@ -215,6 +216,13 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             root = Path(directory)
             self._write_fixture(root, nested_version="0.2.4")
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "nested HAR version"):
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
+
+    def test_rejects_stale_release_date(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root, release_date="2026-07-16")
+            with self.assertRaisesRegex(MODULE.DeliveryValidationError, "runtime identity"):
                 MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
 
