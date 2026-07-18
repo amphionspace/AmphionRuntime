@@ -162,6 +162,9 @@ class PoliceTermsBatchEvalActivity : AppCompatActivity() {
 
     private fun buildConfig(): AsrConfig {
         val prefs = PoliceTermsEnhancePrefs(applicationContext)
+        // 端点实验：--ei endpoint_ms N 覆盖主动 endpoint 尾静音阈值（<0 = 沿用 batchMode 默认 0=关闭）
+        val epMs = intent.getIntExtra(EXTRA_ENDPOINT_MS, -1).takeIf { it >= 0 }
+        Log.i(TAG, "buildConfig activeEndpointMs=${epMs ?: "default(batch=0/关闭)"}")
         return PoliceTermsAsrConfig.build(
             applicationContext,
             AsrLanguage.ZH_EN,
@@ -170,6 +173,7 @@ class PoliceTermsBatchEvalActivity : AppCompatActivity() {
                 termsNormalize = prefs.termsNormalizeEnabled,
                 itn = true,
                 batchMode = true,
+                activeEndpointMs = epMs,
             ),
         )
     }
@@ -268,5 +272,6 @@ class PoliceTermsBatchEvalActivity : AppCompatActivity() {
         const val EXTRA_AUTO_START = "auto_start"
         const val EXTRA_FRESH = "fresh"
         const val EXTRA_USE_FST = "use_fst"
+        const val EXTRA_ENDPOINT_MS = "endpoint_ms"
     }
 }
