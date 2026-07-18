@@ -177,6 +177,80 @@ class DengluGuard {
   }
 }
 
+class QzxVariant {
+  variant: string;
+  collide: Set<string>;
+
+  constructor(variant: string, collide: string[]) {
+    this.variant = variant;
+    this.collide = new Set<string>(collide);
+  }
+}
+
+// 「情指行」上下文护栏：App 语境（前有打开X/后近窗出现平台等）下把误识变体纠回，
+// 且未撞黑名单后继字（通用义）。与 Android PoliceTermsNormalizerV2.applyQingZhiXingGuard 对齐。
+class QingZhiXingGuard {
+  private static readonly TARGET: string = '情指行';
+  private static readonly OPEN_VERBS: string[] = ['打开', '登录', '进入', '启动', '点击', '使用'];
+  private static readonly APP_CTX: string[] = [
+    '客户端', '平台', '系统', '首页', '模块', '上报', '签收', '下发', '指令', '勤务', '版本', '核心'
+  ];
+  // 误识变体 + 碰撞后继字黑名单（后紧跟这些字为通用义，不纠）。
+  // 请执行=通用高频词，仅 App 语境纠；黑名单为真·动宾字(命令/任务/操作/结果/判决…)，
+  // 不含 的/了/过 虚词——打开X 已是强 App 信号。
+  private static readonly VARIANTS: QzxVariant[] = [
+    new QzxVariant('请指信', ['息']),
+    new QzxVariant('请执行', ['命', '任', '操', '程', '死', '判', '完', '以', '方', '决', '计', '结']),
+    new QzxVariant('停止行', ['动', '为', '走', '驶', '车', '列', '进']),
+    new QzxVariant('停止航', ['班', '行', '道', '向', '线'])
+  ];
+
+  static apply(text: string): string {
+    if (text.length < 3) return text;
+    let out = text;
+    for (let v = 0; v < QingZhiXingGuard.VARIANTS.length; v++) {
+      const item = QingZhiXingGuard.VARIANTS[v];
+      const variant = item.variant;
+      if (out.indexOf(variant) < 0) continue;
+      let sb = '';
+      let i = 0;
+      while (i <= out.length) {
+        const idx = out.indexOf(variant, i);
+        if (idx < 0) {
+          sb += out.substring(i);
+          break;
+        }
+        sb += out.substring(i, idx);
+        const end = idx + variant.length;
+        const after = end < out.length ? out.charAt(end) : '';
+        const collide = after.length > 0 && item.collide.has(after);
+        const ctxAfter = out.substring(end, Math.min(end + 5, out.length));
+        let hasAfterCtx = false;
+        for (let c = 0; c < QingZhiXingGuard.APP_CTX.length; c++) {
+          if (ctxAfter.indexOf(QingZhiXingGuard.APP_CTX[c]) >= 0) {
+            hasAfterCtx = true;
+            break;
+          }
+        }
+        const before = out.substring(0, idx);
+        let hasOpenVerb = false;
+        for (let o = 0; o < QingZhiXingGuard.OPEN_VERBS.length; o++) {
+          const verb = QingZhiXingGuard.OPEN_VERBS[o];
+          if (before.endsWith(verb) || before.endsWith(verb + '，') ||
+            before.endsWith(verb + ',') || before.endsWith(verb + '、')) {
+            hasOpenVerb = true;
+            break;
+          }
+        }
+        sb += (!collide && (hasAfterCtx || hasOpenVerb)) ? QingZhiXingGuard.TARGET : variant;
+        i = end;
+      }
+      out = sb;
+    }
+    return out;
+  }
+}
+
 export class PoliceTermsV2 {
   private static readonly MIN_FUZZY_LEN: number = 4;
   private static readonly MIN_VAR_LEN: number = 5;
@@ -196,9 +270,10 @@ export class PoliceTermsV2 {
 
   normalize(text: string): string {
     if (text.length === 0) return text;
-    // 顺序对齐 Android：同音映射 → 登录语境护栏(登陆→登录) → 保守模糊层 → 电台音标数字。
+    // 顺序对齐 Android：同音映射 → 情指行护栏 → 登录护栏(登陆→登录) → 保守模糊层 → 电台音标数字。
     return RadioDigits.normalize(
-      this.fuzzyCorrect(DengluGuard.apply(this.homophones.apply(text))));
+      this.fuzzyCorrect(
+        DengluGuard.apply(QingZhiXingGuard.apply(this.homophones.apply(text)))));
   }
 
   private maxSubsFor(length: number): number {
