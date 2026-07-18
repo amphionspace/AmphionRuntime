@@ -308,7 +308,7 @@ def _validate_har(
         expected_identity = (
             f"HARMONY_SDK_VERSION: string = '{expected_version}'",
             "HARMONY_SDK_MAJOR: number = 1",
-            "HARMONY_SDK_RELEASE_DATE: string = '2026-07-16'",
+            "HARMONY_SDK_RELEASE_DATE: string = '2026-07-18'",
         )
         if any(value not in identity for value in expected_identity):
             raise DeliveryValidationError("HAR runtime identity does not match release")
