@@ -35,9 +35,9 @@ const SDK_CAPTURE_EXPORT_META = '/data/storage/el2/base/files/last_sdk_input.jso
 const REPLAY_YIELD_EVERY_FRAMES = 50;
 // pre-roll 缓存上限:模型冷加载 ~0.5s,正常只缓存 ~25 帧;给 10s(500 帧)裕量防加载异常久时无界增长。
 const MAX_PREROLL_FRAMES = 500;
-const SPEAKER_VAD_THRESHOLD = 0.40;
-const SPEAKER_VAD_WINDOW_MS = 1000;
-const SPEAKER_VAD_HOP_MS = 300;
+const SPEAKER_VAD_THRESHOLD = 0.35;
+const SPEAKER_VAD_WINDOW_MS = 1500;
+const SPEAKER_VAD_HOP_MS = 500;
 const SPEAKER_VAD_CONSECUTIVE_BELOW = 2;
 const BRAND_ACCENT = '#2E6BE6';
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.8 - 2026-07-18（警务术语增强与交付校验）
 
 - 声纹严格有效语音不足 `minSegSec`，但 ASR 已确认非空 text/token 且当前句真实 PCM 达到门槛时，
   改用当前句 PCM 计算 `speakerSimilarity`；严格评分仍为主路径，短句、纯静音和空 terminal final
@@ -9,6 +9,14 @@
   8000 ms PCM 后自动结束，仍保留 28800000 ms 上限。
 - 新增 `voiceprint-fallback` cold/warm 真机门禁、8 秒 burst/paced 精确帧数门禁，以及本次问题的
   根因复盘和发布测试流程。
+- 基于 0.2.7 已使用的 260717 模型补齐警务术语后处理，增加易混词归一化以及“情指行”“登录”
+  语境护栏，并同步 Harmony 与 Android 行为。
+- Speaker VAD 默认参数延续 0.2.7：阈值 `0.35`、窗口 `1500 ms`、步长 `500 ms`。
+- 中英 joiner 使用 FP32 `joiner.onnx` 生成运行时 ORT；交付校验固定 ONNX 源模型身份并核对
+  运行时清单，避免转换产物差异影响版本确认。
+- 交付模型门禁以 0.2.8 encoder、decoder、joiner 原始 ONNX MD5 为准；ORT 仅做文件完整性
+  校验，不再参与模型版本判断。
+- 组包脚本统一将输出目录转为绝对路径，修复使用相对输出目录时校验清单写入错误的问题。
 
 ## 0.2.6 - 2026-07-16（端点回调内结束兼容）
 

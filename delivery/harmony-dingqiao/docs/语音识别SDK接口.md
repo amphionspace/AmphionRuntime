@@ -230,9 +230,9 @@ interface CreateEngineCallback {
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
 | `enableSpeakerVad` | `boolean` | `false` | 是否启用目标说话人离场提前 endpoint；冷态启动会同步等待声纹模型 |
 | `voiceprintIds` | `string[]` | 空 | 声纹 ID 列表；启用声纹校验或 Speaker VAD 时必填 |
-| `speakerVadThreshold` | `number/string` | `0.40` | 目标说话人 VAD 阈值 |
-| `speakerVadWindowMs` | `number/string` | `1000` | 目标说话人 VAD 窗长 |
-| `speakerVadHopMs` | `number/string` | `300` | 目标说话人 VAD 步长 |
+| `speakerVadThreshold` | `number/string` | `0.35` | 目标说话人 VAD 阈值 |
+| `speakerVadWindowMs` | `number/string` | `1500` | 目标说话人 VAD 窗长 |
+| `speakerVadHopMs` | `number/string` | `500` | 目标说话人 VAD 步长 |
 | `speakerVadConsecutiveBelow` | `number/string` | `2` | 连续低于阈值多少次触发 endpoint |
 
 ## 6. 回调

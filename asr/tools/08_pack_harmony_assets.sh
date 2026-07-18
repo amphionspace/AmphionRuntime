@@ -35,9 +35,9 @@ usage() {
 Usage: bash asr/tools/08_pack_harmony_assets.sh
 
 Inputs can be overridden with ZH_EN_DIR, YUE_EN_DIR, PUNCT_DIR, ITN_DIR,
-and VAD_FILE. The zhen input intentionally uses the FP32 decoder.onnx with
-an INT8 encoder and joiner; decoder INT8 quantization causes severe Chinese
-token deletion on the police corpus. Set HARMONY_ORT_PYTHON to reuse an
+and VAD_FILE. The zhen input intentionally uses the FP32 decoder.onnx and
+joiner.onnx with an INT8 encoder; decoder INT8 quantization causes severe
+Chinese token deletion on the police corpus. Set HARMONY_ORT_PYTHON to reuse an
 existing Python environment containing onnxruntime==1.16.3, onnx==1.15.0,
 and numpy==1.26.4.
 
@@ -141,7 +141,7 @@ fi
 ensure_dir "$ZH_EN_DIR" "请设置 ZH_EN_DIR 或准备 asr/tools/demo-model/zhen"
 ensure_dir "$YUE_EN_DIR" "请设置 YUE_EN_DIR 或准备 asr/tools/demo-model/yueen"
 ensure_file "${ZH_EN_DIR}/encoder.int8.onnx" "zhen 缺 encoder.int8.onnx"
-ensure_file "${ZH_EN_DIR}/joiner.int8.onnx" "zhen 缺 joiner.int8.onnx"
+ensure_file "${ZH_EN_DIR}/joiner.onnx" "zhen 缺 FP32 joiner.onnx"
 ensure_file "${ZH_EN_DIR}/tokens.txt" "zhen 缺 tokens.txt"
 ensure_file "${ZH_EN_DIR}/bbpe.vocab" "zhen 缺 bbpe.vocab"
 ensure_file "${ZH_EN_DIR}/decoder.onnx" "zhen 缺 FP32 decoder.onnx"
@@ -235,7 +235,7 @@ convert_one "$ZH_DECODER" \
   "$ASSET_ROOT/zh-en/v1/decoder.ort" \
   "$ASSET_ROOT/.conversion-metadata/zh-decoder.json" &
 pids+=("$!")
-convert_one "${ZH_EN_DIR}/joiner.int8.onnx" \
+convert_one "${ZH_EN_DIR}/joiner.onnx" \
   "$ASSET_ROOT/zh-en/v1/joiner.int8.ort" \
   "$ASSET_ROOT/.conversion-metadata/zh-joiner.json" &
 pids+=("$!")
