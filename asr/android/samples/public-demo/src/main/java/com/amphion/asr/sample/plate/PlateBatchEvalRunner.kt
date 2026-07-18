@@ -8,8 +8,7 @@ import com.amphion.asr.AsrResult
 import com.amphion.asr.AsrSession
 import com.amphion.asr.sample.AudioRecorder
 import com.amphion.asr.sample.WavIo
-import com.amphion.police.plate.PlateEnhance
-import com.amphion.police.plate.PlateNormalizer
+import com.amphion.police.plate.PlateNormalizerV2
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -23,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class PlateBatchEvalRunner(
     private val engine: AsrEngine,
-    private val normalizer: PlateNormalizer,
+    private val normalizer: PlateNormalizerV2,
     private val evalRecorder: PlateEvalRecorder,
     private val gainDb: Float = 10f,
 ) {
@@ -66,7 +65,7 @@ class PlateBatchEvalRunner(
             val outcome = decodeOne(case, gain)
             when (outcome.kind) {
                 OutcomeKind.OK -> {
-                    val norm = PlateEnhance.apply(outcome.text, normalizer, normalizeEnabled = true)
+                    val norm = normalizer.normalize(outcome.text)
                     evalRecorder.append(outcome.text, norm, case.expectedPlate)
                     processed++
                     onProgress(

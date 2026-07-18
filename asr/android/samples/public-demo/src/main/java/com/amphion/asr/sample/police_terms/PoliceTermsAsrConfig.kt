@@ -21,6 +21,8 @@ object PoliceTermsAsrConfig {
         val termsNormalize: Boolean = true,
         val itn: Boolean = true,
         val batchMode: Boolean = false,
+        /** 主动 endpoint 尾静音阈值（ms）；null=沿用默认（batchMode 下为 0=关闭）。仅端点实验用。 */
+        val activeEndpointMs: Int? = null,
     )
 
     fun effectiveHotwords(
@@ -48,8 +50,9 @@ object PoliceTermsAsrConfig {
             .itn(options.itn)
             .vad(true)
             .endpoint(true)
-        if (options.batchMode) {
-            b.vadConfig(VadConfig(activeEndpointSilenceMs = 0))
+        val epMs = options.activeEndpointMs ?: if (options.batchMode) 0 else null
+        if (epMs != null) {
+            b.vadConfig(VadConfig(activeEndpointSilenceMs = epMs))
         }
         if (words.isNotEmpty()) {
             b.hotwords(words, hotwordsScore)

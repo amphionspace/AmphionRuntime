@@ -136,6 +136,47 @@ class RadioDigits {
   }
 }
 
+class DengluGuard {
+  private static readonly VARIANT: string = '登陆';
+  // 登录语境词（近窗 6 字内出现才纠 登陆→登录）。
+  private static readonly CTX: string[] = [
+    '系统', '平台', '客户端', '门户', '账号', '帐号', '后台',
+    '应用', '界面', '首页', '模块', '网站', '网页'
+  ];
+  // 登陆 后紧跟这些字为通用义（登陆作战/舰/艇/沿海/岛…），一律不纠。
+  private static readonly COLLIDE: Set<string> = new Set<string>([
+    '作', '演', '舰', '艇', '部', '战', '岛', '滩', '沿', '海', '月'
+  ]);
+
+  static apply(text: string): string {
+    if (text.indexOf(DengluGuard.VARIANT) < 0) return text;
+    let output = '';
+    let i = 0;
+    while (i <= text.length) {
+      const idx = text.indexOf(DengluGuard.VARIANT, i);
+      if (idx < 0) {
+        output += text.substring(i);
+        break;
+      }
+      output += text.substring(i, idx);
+      const end = idx + DengluGuard.VARIANT.length;
+      const after = end < text.length ? text.charAt(end) : '';
+      const collide = after.length > 0 && DengluGuard.COLLIDE.has(after);
+      const ctxAfter = text.substring(end, Math.min(end + 6, text.length));
+      let hasCtx = false;
+      for (let c = 0; c < DengluGuard.CTX.length; c++) {
+        if (ctxAfter.indexOf(DengluGuard.CTX[c]) >= 0) {
+          hasCtx = true;
+          break;
+        }
+      }
+      output += (!collide && hasCtx) ? '登录' : DengluGuard.VARIANT;
+      i = end;
+    }
+    return output;
+  }
+}
+
 export class PoliceTermsV2 {
   private static readonly MIN_FUZZY_LEN: number = 4;
   private static readonly MIN_VAR_LEN: number = 5;
@@ -155,7 +196,9 @@ export class PoliceTermsV2 {
 
   normalize(text: string): string {
     if (text.length === 0) return text;
-    return RadioDigits.normalize(this.fuzzyCorrect(this.homophones.apply(text)));
+    // 顺序对齐 Android：同音映射 → 登录语境护栏(登陆→登录) → 保守模糊层 → 电台音标数字。
+    return RadioDigits.normalize(
+      this.fuzzyCorrect(DengluGuard.apply(this.homophones.apply(text))));
   }
 
   private maxSubsFor(length: number): number {

@@ -6,13 +6,10 @@ import com.amphion.asr.AsrEngine
 import com.amphion.asr.AsrError
 import com.amphion.asr.AsrResult
 import com.amphion.asr.AsrSession
-import com.amphion.asr.sample.AsrTextEnhance
 import com.amphion.asr.sample.AudioRecorder
 import com.amphion.asr.sample.WavIo
-import com.amphion.police.plate.PlateNormalizer
 import com.amphion.police.station.PoliceStationNormalizeResult
-import com.amphion.police.station.PoliceStationNormalizer
-import com.amphion.police.terms.PoliceTermsNormalizer
+import com.amphion.police.station.PoliceStationNormalizerV2
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -23,12 +20,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class PoliceStationBatchEvalRunner(
     private val engine: AsrEngine,
-    private val termsNormalizer: PoliceTermsNormalizer,
-    private val termsNormalizeEnabled: Boolean,
-    private val plateNormalizer: PlateNormalizer,
-    private val plateNormalizeEnabled: Boolean,
-    private val stationNormalizer: PoliceStationNormalizer,
-    private val stationNormalizeEnabled: Boolean,
+    private val stationNormalizer: PoliceStationNormalizerV2,
     private val evalRecorder: PoliceStationEvalRecorder,
     private val gainDb: Float = 10f,
 ) {
@@ -71,16 +63,7 @@ class PoliceStationBatchEvalRunner(
             val outcome = decodeOne(case, gain)
             when (outcome.kind) {
                 OutcomeKind.OK -> {
-                    val enhanced = AsrTextEnhance.apply(
-                        outcome.text,
-                        termsNormalizer,
-                        termsNormalizeEnabled,
-                        plateNormalizer,
-                        plateNormalizeEnabled,
-                        stationNormalizer,
-                        stationNormalizeEnabled,
-                    )
-                    val norm = enhanced.station
+                    val norm = stationNormalizer.normalize(outcome.text)
                     evalRecorder.append(
                         uttId = case.uttId,
                         refText = case.refText,
