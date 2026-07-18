@@ -42,6 +42,7 @@ class BuildHarmonyAssetManifestTest(unittest.TestCase):
                             json.dumps(
                                 {
                                     "source_name": source_name,
+                                    "source_md5": converter.md5_file(source_path),
                                     "source_sha256": converter.sha256_file(source_path),
                                     "output_sha256": converter.sha256_file(output_path),
                                     "output_size_bytes": output_path.stat().st_size,
@@ -66,6 +67,10 @@ class BuildHarmonyAssetManifestTest(unittest.TestCase):
             encoder = manifest["bundles"]["zh-en/v1"][0]
             self.assertEqual(encoder["format"], "ort")
             self.assertEqual(encoder["converter"], converter.CONVERTER_ID)
+            self.assertEqual(
+                encoder["source_md5"],
+                converter.md5_file(sources / "zh-en/v1/encoder.int8.onnx"),
+            )
             self.assertNotEqual(encoder["source_sha256"], encoder["output_sha256"])
             copied["zh-en/v1/tokens.txt"].write_bytes(b"different")
             with self.assertRaisesRegex(ValueError, "copied output differs"):

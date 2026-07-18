@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
+import shutil
 import sys
+import tarfile
 import tempfile
 import unittest
 import zipfile
@@ -17,6 +20,10 @@ import verify_packed_model_assets as verifier  # noqa: E402
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def md5(data: bytes) -> str:
+    return hashlib.md5(data).hexdigest()
 
 
 def write_fixture(root: Path, version: int) -> dict:
@@ -47,6 +54,7 @@ def write_fixture(root: Path, version: int) -> dict:
                     "name": name,
                     "size_bytes": len(data),
                     "source_name": name.replace(".ort", ".onnx"),
+                    "source_md5": md5(f"source/{bundle}/{name}".encode("utf-8")),
                     "source_sha256": source_sha256,
                     "output_sha256": output_sha256,
                     "format": verifier._expected_v2_format(name),
@@ -97,6 +105,46 @@ class VerifyPackedModelAssetsTest(unittest.TestCase):
             write_fixture(root, 2)
             self.assertEqual(verifier.verify_directory(root), 14)
 
+    def test_harmony_manifest_v2_tar_archive_checks_runtime_integrity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            workspace = Path(temporary_directory)
+            root = workspace / "amphion-models"
+            write_fixture(root, 2)
+            archive = workspace / "sdk.har"
+            prefix = "package/_bundled/amphion_asr/resources/rawfile/amphion-models"
+            with tarfile.open(archive, "w:gz") as package:
+                for path in root.rglob("*"):
+                    if not path.is_file():
+                        continue
+                    payload = path.read_bytes()
+                    if path.name == "encoder.int8.ort":
+                        payload = b"tampered ORT"
+                    info = tarfile.TarInfo(
+                        f"{prefix}/{path.relative_to(root).as_posix()}"
+                    )
+                    info.size = len(payload)
+                    package.addfile(info, io.BytesIO(payload))
+            with self.assertRaisesRegex(ValueError, "size mismatch|sha256 mismatch"):
+                verifier.verify_archive(archive, prefix)
+
+    def test_harmony_manifest_v2_zh_en_only_tar_archive_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            workspace = Path(temporary_directory)
+            root = workspace / "amphion-models"
+            manifest = write_fixture(root, 2)
+            manifest["bundles"].pop("yue-en/v1")
+            shutil.rmtree(root / "yue-en")
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            archive = workspace / "sdk.har"
+            prefix = "package/_bundled/amphion_asr/resources/rawfile/amphion-models"
+            with tarfile.open(archive, "w:gz") as package:
+                for path in root.rglob("*"):
+                    if path.is_file():
+                        package.add(
+                            path, f"{prefix}/{path.relative_to(root).as_posix()}"
+                        )
+            self.assertEqual(verifier.verify_archive(archive, prefix, True), 9)
+
     def test_harmony_manifest_v2_rejects_legacy_target_file(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -113,6 +161,15 @@ class VerifyPackedModelAssetsTest(unittest.TestCase):
             manifest["bundles"]["zh-en/v1"][0].pop("source_sha256")
             (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "invalid source_sha256"):
+                verifier.verify_directory(root)
+
+    def test_harmony_manifest_v2_requires_source_md5(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            manifest = write_fixture(root, 2)
+            manifest["bundles"]["zh-en/v1"][0].pop("source_md5")
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "invalid source_md5"):
                 verifier.verify_directory(root)
 
 

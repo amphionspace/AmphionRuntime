@@ -34,6 +34,14 @@ done
 command -v rsync >/dev/null || { echo "[ERROR] rsync is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "[ERROR] python3 is required" >&2; exit 1; }
 
+MODEL_VERIFY_ARGS=(
+  --archive "$HAR"
+  --prefix "package/_bundled/amphion_asr/src/main/resources/rawfile/amphion-models"
+)
+if [[ "$ZH_EN_ONLY" == true ]]; then
+  MODEL_VERIFY_ARGS+=(--zh-en-only)
+fi
+python3 "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${MODEL_VERIFY_ARGS[@]}"
 python3 "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --archive "$HAR"
 
 python3 - \
