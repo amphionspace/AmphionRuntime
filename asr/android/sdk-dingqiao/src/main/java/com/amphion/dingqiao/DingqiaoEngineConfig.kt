@@ -19,7 +19,6 @@ internal object DingqiaoEngineConfig {
     private const val MAX_VAD_END_MS = 10_000
     private const val MIN_VAD_BEGIN_MS = 500
     private const val MAX_VAD_BEGIN_MS = 10_000
-    private const val MIN_AUDIO_DURATION_MS = 20_000L
     private const val MAX_AUDIO_DURATION_MS = 28_800_000L
     private const val DEFAULT_SPEAKER_VAD_THRESHOLD = 0.40f
     private const val DEFAULT_SPEAKER_VAD_WINDOW_MS = 1000
@@ -97,7 +96,9 @@ internal object DingqiaoEngineConfig {
     }
 
     private fun voiceprintConfirmationGraceMs(startParams: StartParams, speakerModelPath: String?): Int? {
-        val needsVoiceprintAudio = enableVoiceprintVerification(startParams) || enableSpeakerVad(startParams)
+        val needsVoiceprintAudio = enableVoiceprintVerification(startParams) ||
+            enableSpeakerVad(startParams) ||
+            voiceprintIds(startParams).isNotEmpty()
         if (!needsVoiceprintAudio || speakerModelPath.isNullOrBlank()) return null
 
         return (TargetSpeakerConfig(speakerModelPath).minSegSec * 1000).toInt()
@@ -119,9 +120,9 @@ internal object DingqiaoEngineConfig {
     }
 
     fun maxAudioDurationMs(startParams: StartParams): Long {
-        val value = finiteLong(startParams.extraParams["maxAudioDuration"])
-            ?: MIN_AUDIO_DURATION_MS
-        return value.coerceIn(MIN_AUDIO_DURATION_MS, MAX_AUDIO_DURATION_MS)
+        val value = finiteDouble(startParams.extraParams["maxAudioDuration"]) ?: return 0L
+        if (value <= 0.0) return 0L
+        return value.coerceAtMost(MAX_AUDIO_DURATION_MS.toDouble()).toLong().coerceAtLeast(1L)
     }
 
     fun validateRecognitionMode(startParams: StartParams) {

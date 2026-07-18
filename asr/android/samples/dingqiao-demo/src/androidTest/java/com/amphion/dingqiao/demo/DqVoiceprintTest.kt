@@ -88,8 +88,8 @@ class DqVoiceprintTest {
     @Test
     fun v04_verification_similarityReturned() {
         ensureReady()
-        val main = mainWavs(testCtx).first()
-        val sample = voiceprintSampleFor(testCtx, main) ?: testCtx.assets.list("").orEmpty().first { it.contains("声纹") }
+        val main = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
+        val sample = voiceprintSampleFor(testCtx, main) ?: main
         val id = registerFromSample(sample)
         val engine = engine()
         val listener = CapturingListener().also { engine.setListener(it) }
@@ -115,6 +115,174 @@ class DqVoiceprintTest {
         DqReport.append(ctx, mapOf("case" to "v04_verification", "main" to main, "sample" to sample,
             "finalCount" to listener.finals.size, "similarities" to sims.toString(), "finalText" to listener.finalText()))
         assertTrue("expected at least one final with non-null speakerSimilarity", sims.isNotEmpty())
+    }
+
+    // ---------- v04b: voiceprint + vadBegin，前置静音后真实语音不得提前结束 ----------
+    @Test
+    fun v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly() {
+        ensureReady()
+        val main = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
+        val sample = voiceprintSampleFor(testCtx, main) ?: main
+        val id = registerFromSample(sample)
+        val engine = engine()
+        awaitIdle(engine)
+        val listener = CapturingListener().also { engine.setListener(it) }
+        val sid = "vp-vadbegin-${System.currentTimeMillis()}"
+        engine.startListening(
+            StartParams(
+                sid,
+                AudioInfo(),
+                extraParams = mapOf(
+                    "enableVoiceprintVerification" to true,
+                    "voiceprintIds" to listOf(id),
+                    "vadBegin" to 1_000,
+                    "vadEnd" to 800,
+                ),
+            ),
+        )
+        assertTrue("start failed: ${listener.errorCodes()}", listener.awaitStarted(15_000))
+        feedSilence(engine, sid, 300)
+        feedFrames(engine, sid, readAssetPcm(testCtx, main), 20)
+        assertTrue("voiceprint vadBegin must not auto-finish real speech",
+            listener.finals.none { it.isLast } && listener.completes.isEmpty())
+        engine.finish(sid)
+        val completed = listener.awaitComplete(25_000)
+        awaitIdle(engine)
+        val eligible = listener.finals.filter { it.result.isNotBlank() }
+
+        DqReport.append(ctx, mapOf("case" to "v04b_voiceprintVadBegin",
+            "main" to main, "completed" to completed,
+            "lastCount" to listener.finals.count { it.isLast },
+            "scoredFinalCount" to eligible.count { it.speakerSimilarity != null },
+            "errorCodes" to listener.errorCodes().toString()))
+        assertTrue("voiceprint vadBegin session must complete after explicit finish", completed)
+        assertTrue("expected a non-empty final", eligible.isNotEmpty())
+        assertTrue("every eligible final must carry speakerSimilarity",
+            eligible.all { it.speakerSimilarity != null })
+    }
+
+    // ---------- v04c: 有 ASR 证据且有效语音短于门槛时，退化到本句真实 PCM ----------
+    @Test
+    fun v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm() {
+        ensureReady()
+        val main = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
+        val full = readAssetPcm(testCtx, main)
+        val sample = voiceprintSampleFor(testCtx, main) ?: main
+        val id = registerFromSample(sample)
+        val engine = engine()
+        awaitIdle(engine)
+        val listener = CapturingListener().also { engine.setListener(it) }
+        val sid = "vp-fallback-${System.currentTimeMillis()}"
+        engine.startListening(
+            StartParams(
+                sid,
+                AudioInfo(),
+                extraParams = mapOf(
+                    "enableVoiceprintVerification" to true,
+                    "voiceprintIds" to listOf(id),
+                    "vadEnd" to 800,
+                ),
+            ),
+        )
+        assertTrue("start failed: ${listener.errorCodes()}", listener.awaitStarted(15_000))
+        feedSilence(engine, sid, 350)
+        val speechBytes = minOf(full.size, (DQ_SR * 2 * 1.4).toInt())
+        feedFrames(engine, sid, full.copyOfRange(0, speechBytes), 20)
+        engine.finish(sid)
+        val completed = listener.awaitComplete(25_000)
+        awaitIdle(engine)
+        val firstNonEmpty = listener.finals.firstOrNull { it.result.isNotBlank() }
+
+        DqReport.append(ctx, mapOf("case" to "v04c_voiceprintFallback",
+            "main" to main, "completed" to completed,
+            "finalText" to firstNonEmpty?.result,
+            "speakerSimilarity" to firstNonEmpty?.speakerSimilarity,
+            "errorCodes" to listener.errorCodes().toString()))
+        assertTrue("voiceprint fallback session must complete", completed)
+        assertTrue("fallback corpus must produce a non-empty final", firstNonEmpty != null)
+        assertTrue("real utterance PCM fallback must produce speakerSimilarity",
+            firstNonEmpty?.speakerSimilarity != null)
+    }
+
+    // ---------- v04d: 仅预置 voiceprintIds，在 onStart 内开启 Speaker VAD ----------
+    @Test
+    fun v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad() {
+        ensureReady()
+        val main = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
+        val sample = voiceprintSampleFor(testCtx, main) ?: main
+        val id = registerFromSample(sample)
+        val engine = engine()
+        awaitIdle(engine)
+        val sid = "vp-onstart-svad-${System.currentTimeMillis()}"
+        val listener = CapturingListener {
+            engine.setSpeakerVadEnabled(true)
+        }.also { engine.setListener(it) }
+        engine.startListening(
+            StartParams(
+                sid,
+                AudioInfo(),
+                extraParams = mapOf(
+                    "voiceprintIds" to listOf(id),
+                    "vadBegin" to 1_000,
+                    "vadEnd" to 800,
+                ),
+            ),
+        )
+        assertTrue("onStart Speaker VAD enable failed: ${listener.errorCodes()}",
+            listener.awaitStarted(15_000))
+        feedSilence(engine, sid, 300)
+        feedFrames(engine, sid, readAssetPcm(testCtx, main), 20)
+        assertTrue("runtime Speaker VAD must not let vadBegin end real speech",
+            listener.finals.none { it.isLast } && listener.completes.isEmpty())
+        engine.finish(sid)
+        val completed = listener.awaitComplete(25_000)
+        awaitIdle(engine)
+
+        DqReport.append(ctx, mapOf("case" to "v04d_onStartSpeakerVad",
+            "main" to main, "completed" to completed,
+            "lastCount" to listener.finals.count { it.isLast },
+            "errorCodes" to listener.errorCodes().toString()))
+        assertTrue("runtime Speaker VAD session must complete after explicit finish", completed)
+        assertTrue("runtime Speaker VAD must not report errors", listener.errors.isEmpty())
+        assertTrue("normal finish must emit exactly one last",
+            listener.finals.count { it.isLast } == 1)
+    }
+
+    // ---------- v04e: 声纹确认窗有界，纯静音最终仍按 vadBegin 自动结束 ----------
+    @Test
+    fun v04e_voiceprintVadBegin_pureSilenceEndsOnce() {
+        ensureReady()
+        val sample = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
+        val id = registerFromSample(sample)
+        val engine = engine()
+        awaitIdle(engine)
+        val listener = CapturingListener().also { engine.setListener(it) }
+        val sid = "vp-vadbegin-silence-${System.currentTimeMillis()}"
+        engine.startListening(
+            StartParams(
+                sid,
+                AudioInfo(),
+                extraParams = mapOf(
+                    "enableVoiceprintVerification" to true,
+                    "voiceprintIds" to listOf(id),
+                    "vadBegin" to 1_000,
+                ),
+            ),
+        )
+        assertTrue("start failed: ${listener.errorCodes()}", listener.awaitStarted(15_000))
+        feedSilence(engine, sid, 2_700)
+        val completed = listener.awaitComplete(15_000)
+        awaitIdle(engine)
+
+        DqReport.append(ctx, mapOf("case" to "v04e_voiceprintVadBeginSilence",
+            "completed" to completed, "completeCount" to listener.completes.size,
+            "lastCount" to listener.finals.count { it.isLast },
+            "errorCodes" to listener.errorCodes().toString()))
+        assertTrue("voiceprint confirmation window must remain bounded", completed)
+        assertTrue("pure silence must emit one empty last",
+            listener.finals.count { it.isLast && it.result.isEmpty() } == 1)
+        assertTrue("pure silence must complete exactly once", listener.completes.size == 1)
+        assertTrue("pure silence must not report errors", listener.errors.isEmpty())
     }
 
     // ---------- v05: enableSpeakerVad 但无 voiceprintIds ----------

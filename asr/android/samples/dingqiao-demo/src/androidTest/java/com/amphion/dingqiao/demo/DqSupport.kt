@@ -22,7 +22,9 @@ const val DQ_FRAME = 640
 const val DQ_FRAME_MS = 20L
 
 /** 线程安全采集所有回调，供断言与报告使用。 */
-class CapturingListener : RecognitionListener {
+class CapturingListener(
+    private val onStartAction: ((sessionId: String) -> Unit)? = null,
+) : RecognitionListener {
     val partials: MutableList<String> = Collections.synchronizedList(mutableListOf())
     val finals: MutableList<SpeechRecognitionResult> = Collections.synchronizedList(mutableListOf())
     val events: MutableList<Pair<Int, String>> = Collections.synchronizedList(mutableListOf())
@@ -34,6 +36,7 @@ class CapturingListener : RecognitionListener {
     @Volatile var firstError = CountDownLatch(1)
 
     override fun onStart(sessionId: String, eventMessage: String) {
+        onStartAction?.invoke(sessionId)
         started.countDown()
     }
 

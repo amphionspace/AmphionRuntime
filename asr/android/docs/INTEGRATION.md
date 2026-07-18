@@ -155,6 +155,8 @@ engine.close()        // 不再识别时释放 ASR / 标点 / ITN / VAD 全部 n
 `initialSilenceConfirmationGraceMs` 是目标说话人能力的一次性确认窗；没有配置 `targetSpeaker` 时忽略，
 并钳制到 `TargetSpeakerConfig.minSegSec`。初始窗内的连续未决活动只获得有界确认，只有确认窗末仍存在
 近期语音型活动，或强制刷新得到 text/token，才解除计时。普通调用保持为 `null`。
+鼎桥适配层在传入 `voiceprintIds` 时也会配置该确认窗，使调用方能在 `onStart` 内同步启用 Speaker VAD；
+纯静音和稳态高能非语音不会因此永久解除计时。
 底层 SDK 只回调 `onInitialSilenceTimeout()`，不会自行合成业务层的空 final 或 complete；鼎桥适配层会把它
 转换为一次空的 last final 和一次 `onComplete`。
 
