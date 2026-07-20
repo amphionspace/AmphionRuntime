@@ -4,7 +4,6 @@
 # --- Segmentation: longer phrases beat erroneous partial lexicon entries ---
 已为你	yi3 wei4 ni3
 已为您	yi3 wei4 nin2
-的音乐	yin1 yue4
 优美的音乐	you1 mei3 de5 yin1 yue4
 音乐	yin1 yue4
 步行在	bu4 xing2 zai4
@@ -168,3 +167,32 @@
 得赶快	dei3 gan3 kuai4
 一行文字	yi1 hang2 wen2 zi4
 一行业务	yi1 hang2 ye4 wu4
+# --- Polyphone-750 hijack fixes: restore correct lexicon readings via substring override (长/藏/角/差/着/重/行=首长-生长-数量-官差-著-重复-银行 senses) + 得=děi collocations ---
+行长	hang2 zhang3
+班长	ban1 zhang3
+董事长	dong3 shi4 zhang3
+园长	yuan2 zhang3
+家长	jia1 zhang3
+长高	zhang3 gao1
+长大	zhang3 da4
+长出	zhang3 chu1
+收藏	shou1 cang2
+隐藏	yin3 cang2
+角色	jue2 se4
+主角	zhu3 jue2
+配角	pei4 jue2
+着凉	zhao2 liang2
+钦差	qin1 chai1
+官差	guan1 chai1
+差遣	chai1 qian3
+重整	chong2 zheng3
+重读	chong2 du2
+行号	hang2 hao4
+逐行	zhu2 hang2
+首行	shou3 hang2
+下一行	xia4 yi4 hang2
+得重新	dei3 chong2 xin1
+得继续	dei3 ji4 xu4
+得立即	dei3 li4 ji2
+得抓紧	dei3 zhua1 jin3
+得赶	dei3 gan3

@@ -8,7 +8,7 @@ import g2p
 PIN = re.compile(r'^[a-z]+[0-6]$')
 pins = lambda l: [x for x in l if PIN.match(x)]
 strip = lambda s: s[:-1] if PIN.match(s) else s
-PATH = "/Users/amphion/Desktop/work/reference/AmphionRuntime/tts_tn_bugfix/高频多音字复杂句子语料500条-逐句独立版.jsonl"
+PATH = sys.argv[1] if len(sys.argv) > 1 else "/Users/amphion/Desktop/work/reference/AmphionRuntime/tts_tn_bugfix/高频多音字复杂句子语料500条-逐句独立版.jsonl"
 
 rows = [json.loads(l) for l in open(PATH, encoding='utf-8') if l.strip()]
 n = 0

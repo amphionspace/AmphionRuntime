@@ -36894,7 +36894,6 @@
 亃	lin3
 亄费	yi4 fei4
 了	le5
-了不	liao3 bu4
 了不可见	liao3 bu4 ke3 jian4
 了不得	liao3 bu4 de2
 了不成	le5 bu4 cheng2
@@ -74412,7 +74411,6 @@
 全营	quan2 ying2
 全蚀	quan2 shi2
 全蝎	quan2 xie1
-全行	quan2 xing2
 全衡	quan2 heng2
 全衣	quan2 yi1
 全裂地	quan2 lie4 de5
@@ -137777,7 +137775,6 @@
 和义妹	he2 yi4 mei4
 和义律	he2 yi4 lv4
 和义渠	he2 yi4 qu2
-和乐	he2 le4
 和乐且孺	he2 le4 qie3 ru2
 和乐蟹	he2 le4 xie4
 和习	he4 xi2
@@ -151648,7 +151645,6 @@
 在上文	zai4 shang4 wen2
 在上流地	zai4 shang4 liu2 de5
 在上面地	zai4 shang4 mian4 de5
-在下	zai4 xia4
 在下文	zai4 xia4 wen2
 在下方	zai4 xia4 fang1
 在下面	zai4 xia4 mian4
@@ -152729,7 +152725,6 @@
 地覆天翻	di4 fu4 tian1 fan1
 地角	di4 jiao3
 地角天涯	di4 jiao3 tian1 ya2
-地记	di4 ji4
 地论宗	di4 lun4 zong1
 地讼	di4 song4
 地调	di4 diao4
@@ -497098,7 +497093,6 @@
 行不顾言	xing2 bu4 gu4 yan2
 行与	xing2 yu3
 行丐	xing2 gai4
-行专	xing2 zhuan1
 行且	xing2 qie3
 行世	xing2 shi4
 行业	hang2 ye4
@@ -497821,7 +497815,6 @@
 行藏用舍	xing2 cang2 yong4 she3
 行虫	xing2 chong2
 行血	xing2 xue4
-行行	xing2 xing2
 行行行	xing2 xing2 xing2
 行行出状元	hang2 hang2 chu1 zhuang4 yuan2
 行行好	xing2 xing5 hao3
@@ -547178,7 +547171,6 @@
 还东山	huan2 dong1 shan1
 还丹	huan2 dan1
 还为	hai2 wei4
-还主	huan2 zhu3
 还乡	huan2 xiang1
 还乡团	huan2 xiang1 tuan2
 还乡女	huan2 xiang1 nv3
@@ -547309,7 +547301,6 @@
 还情	huan2 qing2
 还惺	hai2 xing1
 还愉快地	hai2 yu2 kuai4 de5
-还意	huan2 yi4
 还愿	huan2 yuan4
 还愿心	huan2 yuan4 xin1
 还我河山	huan2 wo3 he2 shan1
@@ -547491,7 +547482,6 @@
 还辟	hai2 pi4
 还过得去	hai2 guo4 de2 qu4
 还迊	hai2 bi4
-还返	huan2 fan3
 还迳	hai2 jing4
 还退	hai2 tui4
 还适当地	hai2 shi4 dang4 de5
@@ -548148,7 +548138,6 @@
 进荐	jin4 jian4
 进荣退辱	jin4 rong2 tui4 ru3
 进营	jin4 ying2
-进薄	jin4 bo2
 进藏	jin4 zang4
 进行	jin4 xing2
 进行交易	jin4 xing2 jiao1 yi4
@@ -653721,7 +653710,6 @@
 莝草	cuo4 cao3
 错叠	cuo4 die2
 错季	cuo4 ji4
-错银	cuo4 yin2
 搭碴儿	da1 cha2 er5
 搭脚儿	da1 jiao3 er5
 搭戏	da1 xi4
