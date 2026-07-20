@@ -26615,7 +26615,6 @@
 中县	zhong1 xian4
 中参	zhong1 can1
 中友	zhong1 you3
-中发	zhong1 fa1
 中叔	zhong1 shu1
 中叔皇	zhong1 shu1 huang2
 中变	zhong1 bian4
@@ -36964,7 +36963,6 @@
 了望塔	liao4 wang4 ta3
 了望所	liao4 wang4 suo3
 了期	le5 qi1
-了案	liao3 an4
 了楼	le5 lou2
 了歇	le5 xie1
 了歌	le5 ge1
@@ -36981,7 +36979,6 @@
 了理	le5 li3
 了的	le5 de5
 了眊	le5 mao4
-了知	liao3 zhi1
 了竟	le5 jing4
 了纳	liao3 na4
 了结	liao3 jie2
@@ -54131,7 +54128,6 @@
 传世之作	chuan2 shi4 zhi1 zuo4
 传世古	chuan2 shi4 gu3
 传业	chuan2 ye4
-传中	chuan2 zhong1
 传中球	chuan2 zhong1 qiu2
 传为	chuan2 wei2
 传为佳话	chuan2 wei2 jia1 hua4
@@ -71211,7 +71207,6 @@
 先笑后号	xian1 xiao4 hou4 hao4
 先策	xian1 ce4
 先签	xian1 qian1
-先系	xian1 xi4
 先縠	xian1 hu2
 先约略地	xian1 yue1 lve4 de5
 先纳	xian1 na4
@@ -115645,7 +115640,6 @@
 却走	que4 zou3
 却足	que4 zu2
 却运劲	que4 yun4 jin4
-却还	que4 huan2
 却退	que4 tui4
 却道	que4 dao4
 却避	que4 bi4
@@ -131542,7 +131536,6 @@
 后词汇加工	hou4 ci2 hui4 jia1 gong1
 后话	hou4 hua4
 后语	hou4 yu3
-后调	hou4 diao4
 后负荷	hou4 fu4 he4
 后贤	hou4 xian2
 后账	hou4 zhang4
@@ -131599,7 +131592,6 @@
 后里	hou4 li3
 后里乡	hou4 li3 xiang1
 后里头	hou4 li3 tou5
-后重	hou4 zhong4
 后金	hou4 jin1
 后金刃	hou4 jin1 ren4
 后録	hou4 lu4
@@ -151795,7 +151787,6 @@
 在昔	zai4 xi1
 在服	zai4 fu2
 在望	zai4 wang4
-在朝	zai4 chao2
 在朝党	zai4 chao2 dang3
 在本国地	zai4 ben3 guo2 de5
 在机械地	zai4 ji1 xie4 de5
@@ -196186,7 +196177,6 @@
 小主教	xiao2 zhu3 jiao4
 小么儿	xiao3 me5 er2
 小义	xiao3 yi4
-小乐	xiao3 le4
 小乐府	xiao3 yue4 fu3
 小乔	xiao3 qiao2
 小乔木	xiao3 qiao2 mu4
@@ -215875,7 +215865,6 @@
 并迭	bing4 die2
 并邀	bing4 yao1
 并邻	bing4 lin2
-并重	bing4 zhong4
 并门	bing4 men2
 并闻	bing4 wen2
 并闾	bing4 lv2
@@ -284798,7 +284787,6 @@
 新义州	xin1 yi4 zhou1
 新义州市	xin1 yi4 zhou1 shi4
 新乌	xin1 wu1
-新乐	xin1 le4
 新乐县	xin1 le4 xian4
 新乐市	xin1 le4 shi4
 新乐府	xin1 yue4 fu3
@@ -388844,7 +388832,6 @@
 现钟弗打	xian4 zhong1 fu2 da3
 现钱	xian4 qian2
 现钱交易	xian4 qian2 jiao1 yi4
-现银	xian4 yin2
 现银子	xian4 yin2 zi5
 现阶段	xian4 jie1 duan4
 现露	xian4 lu4
@@ -405851,7 +405838,6 @@
 的一确二	di2 yi1 que4 er4
 的乳茶	de5 ru3 cha2
 的亲	de5 qin1
-的传	de5 chuan2
 的便	de5 bian4
 的保	de5 bao3
 的信	de5 xin4
@@ -405861,7 +405847,6 @@
 的博	de5 bo2
 的卡	de5 ka3
 的卢	di4 lu2
-的历	di4 li4
 的历都卢	de5 li4 dou1 lu2
 的句	de5 ju4
 的哥	di1 ge1
@@ -405920,7 +405905,6 @@
 的花海	de5 hua1 hai3
 的见	de5 jian4
 的论	de5 lun4
-的证	di2 zheng4
 的识	de5 shi2
 的话	de5 hua4
 的语	de5 yu3
@@ -409638,7 +409622,6 @@
 直眉楞眼	zhi2 mei2 leng2 yan3
 直眉睖眼	zhi2 mei2 leng4 yan3
 直眉瞪眼	zhi2 mei2 deng4 yan3
-直着	zhi2 zhe5
 直瞪瞪	zhi2 deng4 deng4
 直瞪瞪地	zhi2 deng4 deng4 de5
 直矗矗	zhi2 chu4 chu4
@@ -413158,7 +413141,6 @@
 着眼	zhuo2 yan3
 着眼于	zhuo2 yan3 yu2
 着眼点	zhuo2 yan2 dian3
-着着	zhe5 zhe5
 着着失败	zhe5 zhe5 shi1 bai4
 着着实实	zhuo2 zhuo2 shi2 shi2
 着积	zhe5 ji1
@@ -497323,7 +497305,6 @@
 行同狗豨	xing2 tong2 gou3 xi1
 行同能偶	xing2 tong2 neng2 ou3
 行同陌路	xing2 tong2 mo4 lu4
-行名	xing2 ming2
 行吏	xing2 li4
 行向量	xing2 xiang4 liang4
 行君臣	xing2 jun1 chen2
@@ -602211,7 +602192,6 @@
 面瘫	mian4 tan1
 面白	mian4 bai2
 面皂	mian4 zao4
-面的	mian4 di1
 面皮	mian4 pi2
 面皰	mian4 pao4
 面盆	mian4 pen2

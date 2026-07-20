@@ -140,6 +140,25 @@ def mandarin_sandhi(text,tokens):
     bu_sandhi(text,o); yi_sandhi(text,o); er_sandhi(text,o)
     return o
 
+def restore_override_pinyin(text,tokens):
+    # Faithful port of LitsTtsFrontend.restoreOverridePinyin: after segmentation +
+    # sandhi, re-apply multi-char polyphone_phrases/surname overrides by SUBSTRING
+    # search (longest-first, non-overlapping). This bypasses greedy mis-segmentation,
+    # so an override phrase corrects readings even when a spurious lexicon word split it.
+    if len(text)!=len(tokens) or not OVR: return tokens
+    out=list(tokens); occupied=[False]*len(out)
+    for word in sorted((k for k in OVR if len(k)>1), key=len, reverse=True):
+        syl=norm_pinyin(OVR[word])
+        if len(syl)!=len(word): continue
+        start=text.find(word)
+        while start>=0:
+            end=start+len(word)
+            if not any(occupied[start:end]):
+                for off in range(len(syl)):
+                    out[start+off]=syl[off]; occupied[start+off]=True
+            start=text.find(word,start+1)
+    return out
+
 HANZI=re.compile(r'[㐀-鿿]')
 def text_to_pinyin(text):
     # split into hanzi runs; hanzi -> g2p+sandhi; keep ,/. tokens; skip others
@@ -150,7 +169,7 @@ def text_to_pinyin(text):
             while j<n and HANZI.match(text[j]): j+=1
             chunk=text[i:j]
             py=hanzi_chunk_to_pinyin(chunk)
-            py=mandarin_sandhi(chunk,py)
+            py=restore_override_pinyin(chunk,mandarin_sandhi(chunk,py))
             out+=py; i=j
         else:
             c=text[i]

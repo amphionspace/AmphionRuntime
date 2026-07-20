@@ -141,3 +141,30 @@
 个	ge4
 
 朝阳区	chao2 yang2 qu1
+
+# --- Polyphone-500 collocation fixes 2026-07-20 (applied via restoreOverridePinyin
+#     substring override, robust to greedy mis-segmentation; verified 0 regression
+#     on round15/hard500/addl500) ---
+系牢	ji4 lao2
+系安全带	ji4 an1 quan2 dai4
+系围裙	ji4 wei2 qun2
+系好	ji4 hao3
+重播	chong2 bo1
+重新	chong2 xin1
+重复	chong2 fu4
+列传	lie4 zhuan4
+传记	zhuan4 ji4
+自传	zi4 zhuan4
+经传	jing1 zhuan4
+出差	chu1 chai1
+着急	zhao2 ji2
+调解	tiao2 jie3
+薄片	bao2 pian4
+薄饼	bao2 bing3
+乐曲	yue4 qu3
+
+# --- Polyphone-500 context reads (得=děi 助动词; 一行=yì háng "a line/row") ---
+得注意	dei3 zhu4 yi4
+得赶快	dei3 gan3 kuai4
+一行文字	yi1 hang2 wen2 zi4
+一行业务	yi1 hang2 ye4 wu4
