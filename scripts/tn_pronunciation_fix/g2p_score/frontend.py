@@ -272,9 +272,56 @@ def prepare_input(text):
     text=R_serial.sub(lambda m:m.group(1)+m.group(2)+normSerial(m.group(3)), text)
     return text
 
+# A char is an ANCHOR (real spoken content) if it is an ASCII alphanumeric, a CJK
+# ideograph, or a fullwidth/halfwidth form. A decorative/symbol char is treated as
+# NOISE only when it is ISOLATED, i.e. has no anchor on either side (spaces skipped).
+# This "isolated = noise" rule guarantees we never touch a symbol that sits next to
+# real content, so anchored uses (第①条, 2 ≤ 4, ±2, π是圆周率, 5₽) are preserved.
+def _is_anchor(c):
+    return bool(c) and ((ord(c) < 0x80 and c.isalnum()) or ('\u4e00' <= c <= '\u9fff')
+                        or 0xFF00 <= ord(c) <= 0xFFEF)
+def _isolated(chars, i):
+    left = next((chars[j] for j in range(i - 1, -1, -1) if not chars[j].isspace()), '')
+    right = next((chars[j] for j in range(i + 1, len(chars)) if not chars[j].isspace()), '')
+    return not (_is_anchor(left) or _is_anchor(right))
+
+# Decorative Unicode chars that NFKC folds into speakable ASCII letters/digits and
+# thus get mis-vocalized: roman numerals (Ⅲ->III), enclosed/circled/parenthesized
+# numbers & letters (⑹->6, ⒛->20, ⓐ->a), letterlike symbols (℃->°C, ℡->TEL, ™->TM)
+# and super/subscripts & fractions (²->2, ½->1⁄2). Dropped BEFORE NFKC (so they can
+# never fold) but ONLY when isolated, so an anchored ①/Ⅲ next to real text is kept.
+# Fullwidth/halfwidth forms are always kept (they SHOULD fold: Ａ->A, ０->0), and
+# every NON-folding symbol native TN reads (¥ € ± × ÷ ° ≤ ≥ ...) is untouched here.
+def strip_decorative(text):
+    chars = list(text)
+    keep = [True] * len(chars)
+    for i, c in enumerate(chars):
+        o = ord(c)
+        if o <= 0x7f or 0xFF00 <= o <= 0xFFEF:
+            continue
+        if re.search(r'[A-Za-z0-9]', unicodedata.normalize('NFKC', c)) and _isolated(chars, i):
+            keep[i] = False
+    return ''.join(c for c, k in zip(chars, keep) if k)
+
+# Symbols that native TN voices unconditionally (math ∑ √ ≤ ≥ ± × ÷, Greek α-ω, some
+# currency ₽ ₩ £, ® · ...) are meaningful only in a real math/technical context. In a
+# pure symbol-soup ("garbled" noise) they must stay silent. Drop such a symbol only
+# when ISOLATED, keeping "2 ≤ 4", "±2", "3×4", "π是圆周率", "5₽" intact.
+_SYM_CATS = frozenset(("So", "Sm", "Sk", "Sc", "No", "Nl"))
+def strip_isolated_symbols(text):
+    chars = list(text)
+    keep = [True] * len(chars)
+    for i, c in enumerate(chars):
+        if ord(c) > 0x7f and unicodedata.category(c) in _SYM_CATS and _isolated(chars, i):
+            keep[i] = False
+    return ''.join(c for c, k in zip(chars, keep) if k)
+
 def clean(text):
-    t=unicodedata.normalize('NFKC', text)
+    t=strip_decorative(text)
+    t=unicodedata.normalize('NFKC', t)
     t=re.sub(r'[\x00-\x1f\x7f-\x9f]','',t)
+    t=re.sub(r'\s+',' ',t).strip()
+    t=strip_isolated_symbols(t)
     t=re.sub(r'\s+',' ',t).strip()
     return t
 

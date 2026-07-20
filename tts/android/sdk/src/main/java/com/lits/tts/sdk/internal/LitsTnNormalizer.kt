@@ -71,10 +71,12 @@ internal object LitsTnNormalizer {
 
         @Synchronized
         fun normalize(text: String, language: String, languageContext: String): String {
-            val cleaned = Normalizer.normalize(expandSuperscriptUnits(text), Normalizer.Form.NFKC)
-                .replace(Regex("[\\x00-\\x1f\\x7f-\\x9f]"), "")
-                .replace(Regex("\\s+"), " ")
-                .trim()
+            val cleaned = stripIsolatedSymbols(
+                Normalizer.normalize(stripDecorative(expandSuperscriptUnits(text)), Normalizer.Form.NFKC)
+                    .replace(Regex("[\\x00-\\x1f\\x7f-\\x9f]"), "")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+            ).replace(Regex("\\s+"), " ").trim()
             val isEnglishContext = language == "en-US" || languageContext == "en-US"
             val input = if (isEnglishContext) {
                 prepareEnglishInputForTn(cleaned)
@@ -83,7 +85,11 @@ internal object LitsTnNormalizer {
             }
             val hasRules = hasTnRules()
             logInfo("TN normalize request language=$language languageContext=$languageContext hasRules=$hasRules input=${input.takeForLog()}")
-            if (input.isEmpty()) return text
+            // Empty after cleaning: if the ORIGINAL had real content that was entirely
+            // filtered out as decorative/garbled symbols, return "" (silence) instead of the
+            // raw text — otherwise the downstream g2p stage re-applies NFKC and would fold &
+            // vocalize those symbols again (Ⅲ->III, ⑵->2). Blank input keeps its old value.
+            if (input.isEmpty()) return if (text.isBlank()) text else ""
             if (!hasRules) return input
             return if (isEnglishContext) {
                 normalizeSegment(input, "en")
@@ -346,6 +352,79 @@ internal object LitsTnNormalizer {
                     superscriptUnitTextByChar.getValue(match.groupValues[2].lowercase())
             }
 
+        // A codepoint is an ANCHOR (real spoken content) if it is an ASCII alphanumeric, a
+        // CJK ideograph, or a fullwidth/halfwidth form. A decorative/symbol char is NOISE
+        // only when ISOLATED — no anchor on either side (whitespace skipped). This
+        // "isolated = noise" rule means we never touch a symbol adjacent to real content,
+        // so anchored uses (第①条, 2 ≤ 4, ±2, π是圆周率, 5₽, H₂O) are all preserved.
+        private fun isAnchorCodePoint(cp: Int): Boolean =
+            (cp < 0x80 && Character.isLetterOrDigit(cp)) ||
+                cp in 0x4E00..0x9FFF || cp in 0xFF00..0xFFEF
+
+        private fun isIsolatedCodePoint(cps: IntArray, idx: Int): Boolean {
+            var l = idx - 1
+            while (l >= 0 && Character.isWhitespace(cps[l])) l--
+            var r = idx + 1
+            while (r < cps.size && Character.isWhitespace(cps[r])) r++
+            val anchored = (l >= 0 && isAnchorCodePoint(cps[l])) ||
+                (r < cps.size && isAnchorCodePoint(cps[r]))
+            return !anchored
+        }
+
+        // Strip decorative Unicode chars that NFKC would fold into speakable ASCII
+        // letters/digits: roman numerals (Ⅲ->III), enclosed/circled/parenthesized numbers
+        // & letters (⑹->6, ⒛->20, ⓐ->a), letterlike symbols (℃->°C, ℡->TEL, ™->TM) and
+        // super/subscripts & fractions (²->2, ½->1⁄2). They would otherwise be mis-vocalized,
+        // so drop them BEFORE NFKC (so they can never fold) — but ONLY when isolated, so an
+        // anchored ①/⒛ next to real text is kept (第①条->第1条, reads 一). Fullwidth/halfwidth
+        // forms are always kept (they SHOULD fold: Ａ->A, ０->0); meaningful superscript units
+        // (5m²) are already expanded upstream. Every NON-folding symbol that native TN reads
+        // (¥ € ± × ÷ ° ≤ ≥ ...) is untouched here, since it has no ASCII decomposition.
+        private fun stripDecorative(text: String): String {
+            val cps = text.codePoints().toArray()
+            val keep = BooleanArray(cps.size) { true }
+            for (idx in cps.indices) {
+                val cp = cps[idx]
+                if (cp <= 0x7f || cp in 0xFF00..0xFFEF) continue
+                val folds = decorativeFoldRegex.containsMatchIn(
+                    Normalizer.normalize(String(Character.toChars(cp)), Normalizer.Form.NFKC)
+                )
+                if (folds && isIsolatedCodePoint(cps, idx)) keep[idx] = false
+            }
+            val sb = StringBuilder(text.length)
+            for (idx in cps.indices) if (keep[idx]) sb.appendCodePoint(cps[idx])
+            return sb.toString()
+        }
+
+        // Symbols that native TN voices unconditionally (math ∑ √ ≤ ≥ ± × ÷, Greek α-ω,
+        // some currency ₽ ₩ £, ® · ...) are meaningful only in a real math/technical
+        // context. In pure symbol-soup ("garbled" noise) they must stay silent: drop such
+        // a symbol only when ISOLATED. Keeps "2 ≤ 4", "±2", "3×4", "π是圆周率", "5₽".
+        private fun stripIsolatedSymbols(text: String): String {
+            val cps = text.codePoints().toArray()
+            val keep = BooleanArray(cps.size) { true }
+            for (idx in cps.indices) {
+                if (cps[idx] > 0x7f && isConditionalSymbol(cps[idx]) &&
+                    isIsolatedCodePoint(cps, idx)
+                ) {
+                    keep[idx] = false
+                }
+            }
+            val sb = StringBuilder(text.length)
+            for (idx in cps.indices) if (keep[idx]) sb.appendCodePoint(cps[idx])
+            return sb.toString()
+        }
+
+        private fun isConditionalSymbol(cp: Int): Boolean = when (Character.getType(cp)) {
+            Character.MATH_SYMBOL.toInt(),
+            Character.CURRENCY_SYMBOL.toInt(),
+            Character.MODIFIER_SYMBOL.toInt(),
+            Character.OTHER_SYMBOL.toInt(),
+            Character.LETTER_NUMBER.toInt(),
+            Character.OTHER_NUMBER.toInt() -> true
+            else -> false
+        }
+
         private fun numberTextToHanzi(text: String): String {
             val parts = text.split('.', limit = 2)
             val integer = integerTextToHanzi(parts[0])
@@ -562,6 +641,8 @@ internal object LitsTnNormalizer {
         companion object {
             private const val PLATE_PROVINCES = "京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼"
             private val PERCENTILE_CODE = Regex("P\\d{1,3}")
+            // A char is "fold-decorative" iff its NFKC form introduces an ASCII letter/digit.
+            private val decorativeFoldRegex = Regex("[A-Za-z0-9]")
             private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点0([1-9])分")
             private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?[%％]")
             private val percentNumberTextRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?百分号")
