@@ -33,8 +33,23 @@ internal class SpeakerPcmBuffers(maxSamples: Int) {
     fun speakerVadLength(): Int = speakerVadSampleCount
 
     fun speakerVadTail(sampleCount: Int): FloatArray {
-        val all = concatenate(speakerVadParts, speakerVadSampleCount)
-        return if (all.size <= sampleCount) all else all.copyOfRange(all.size - sampleCount, all.size)
+        val retained = sampleCount.coerceIn(0, speakerVadSampleCount)
+        val output = FloatArray(retained)
+        var destinationEnd = retained
+        for (index in speakerVadParts.indices.reversed()) {
+            if (destinationEnd == 0) break
+            val part = speakerVadParts[index]
+            val copied = minOf(part.size, destinationEnd)
+            System.arraycopy(
+                part,
+                part.size - copied,
+                output,
+                destinationEnd - copied,
+                copied,
+            )
+            destinationEnd -= copied
+        }
+        return output
     }
 
     fun fallbackSamples(): FloatArray = concatenate(fallbackParts, fallbackSampleCount)

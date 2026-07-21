@@ -272,10 +272,25 @@ class DingqiaoEngineConfigTest {
                 ),
             ),
             speakerModelPath = "/tmp/eres2net.onnx",
+            voiceprintCapabilityProvisioned = true,
         )
 
         assertEquals(1_000, sc.initialSilenceTimeoutMs)
         assertEquals(1_500, sc.initialSilenceConfirmationGraceMs)
+    }
+
+    @Test
+    fun buildSessionConfig_unvalidatedVoiceprintIdsDoNotReserveConfirmationGrace() {
+        val sc = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams(
+                "s1",
+                AudioInfo(),
+                mapOf("vadBegin" to 1_000, "voiceprintIds" to listOf("missing")),
+            ),
+            speakerModelPath = "/tmp/eres2net.onnx",
+        )
+
+        assertNull(sc.initialSilenceConfirmationGraceMs)
     }
 
     @Test
@@ -400,6 +415,50 @@ class CallbackEpochTest {
         gate.invalidate()
 
         assertFalse(gate.isCurrent(queuedError))
+    }
+
+    @Test
+    fun staleTerminalClaimCannotBlockReplacementSession() {
+        val gate = CallbackEpoch()
+        val old = gate.beginSession()
+        assertTrue(gate.claimTerminal(old))
+
+        val replacement = gate.beginSession()
+
+        assertFalse(gate.claimTerminal(old))
+        assertTrue(gate.claimTerminal(replacement))
+        assertFalse(gate.claimTerminal(replacement))
+    }
+}
+
+class CallbackInvocationContextTest {
+    @Test
+    fun replacementCanBeAdoptedWithinResultButOldCompletionIsRestored() {
+        val context = CallbackInvocationContext()
+
+        context.withEpoch(7L) {
+            context.adopt(8L)
+            assertFalse(context.isStaleForActiveSession(activeEpoch = 8L, listening = true))
+        }
+        context.withEpoch(7L) {
+            assertTrue(context.isStaleForActiveSession(activeEpoch = 8L, listening = true))
+        }
+    }
+
+    @Test
+    fun longLivedAudioThreadDoesNotInheritOneSessionsCallbackEpoch() {
+        val context = CallbackInvocationContext()
+        val stale = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        context.withEpoch(7L) {
+            val worker = Thread {
+                stale.set(context.isStaleForActiveSession(activeEpoch = 8L, listening = true))
+            }
+            worker.start()
+            worker.join()
+        }
+
+        assertFalse(stale.get())
     }
 }
 

@@ -81,7 +81,11 @@ internal object DingqiaoEngineConfig {
      * 会话级覆盖参数：vadEnd 与 speaker VAD 窗口都是运行时阈值，逐会话直接生效，不触发引擎重建。
      * speakerModelPath 为空时不下发 speakerVad（engine 未配置声纹能力）。
      */
-    fun buildSessionConfig(startParams: StartParams, speakerModelPath: String?): SessionConfig {
+    fun buildSessionConfig(
+        startParams: StartParams,
+        speakerModelPath: String?,
+        voiceprintCapabilityProvisioned: Boolean = false,
+    ): SessionConfig {
         val speakerVad = if (!speakerModelPath.isNullOrBlank()) {
             speakerVadConfig(startParams)
         } else {
@@ -90,15 +94,23 @@ internal object DingqiaoEngineConfig {
         return SessionConfig(
             endpointSilenceMs = vadEndMs(startParams),
             initialSilenceTimeoutMs = vadBeginMs(startParams),
-            initialSilenceConfirmationGraceMs = voiceprintConfirmationGraceMs(startParams, speakerModelPath),
+            initialSilenceConfirmationGraceMs = voiceprintConfirmationGraceMs(
+                startParams,
+                speakerModelPath,
+                voiceprintCapabilityProvisioned,
+            ),
             speakerVad = speakerVad,
         )
     }
 
-    private fun voiceprintConfirmationGraceMs(startParams: StartParams, speakerModelPath: String?): Int? {
+    private fun voiceprintConfirmationGraceMs(
+        startParams: StartParams,
+        speakerModelPath: String?,
+        voiceprintCapabilityProvisioned: Boolean,
+    ): Int? {
         val needsVoiceprintAudio = enableVoiceprintVerification(startParams) ||
             enableSpeakerVad(startParams) ||
-            voiceprintIds(startParams).isNotEmpty()
+            voiceprintCapabilityProvisioned
         if (!needsVoiceprintAudio || speakerModelPath.isNullOrBlank()) return null
 
         return (TargetSpeakerConfig(speakerModelPath).minSegSec * 1000).toInt()

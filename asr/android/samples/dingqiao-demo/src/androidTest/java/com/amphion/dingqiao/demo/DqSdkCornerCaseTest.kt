@@ -15,6 +15,7 @@ import com.amphion.dingqiao.SpeechRecognizeSdk
 import com.amphion.dingqiao.StartParams
 import java.io.File
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
@@ -237,6 +238,31 @@ class DqSdkCornerCaseTest {
             listener.finals.count { it.isLast })
     }
 
+    // ---------- a09b: 非有限 maxAudioDuration 必须视为未配置 ----------
+    @Test
+    fun a09b_maxAudioDuration_nonFiniteValuesStayDisabled() {
+        val engine = sharedEngine()
+        val pcm = readAssetPcm(testCtx, mainWavs(testCtx).first())
+        for ((label, value) in listOf("nan" to Double.NaN, "infinity" to Double.POSITIVE_INFINITY)) {
+            awaitIdle(engine)
+            val listener = CapturingListener().also { engine.setListener(it) }
+            val sid = "max-$label-${System.currentTimeMillis()}"
+            engine.startListening(
+                StartParams(sid, AudioInfo(), mapOf("maxAudioDuration" to value)),
+            )
+            assertTrue("$label start failed", listener.awaitStarted(10_000))
+            feedFrames(engine, sid, pcm.copyOfRange(0, minOf(pcm.size, DQ_SR * 4)), 0)
+            Thread.sleep(300)
+            assertTrue("$label must not auto-finish the session", engine.isBusy())
+            assertTrue("$label must not emit complete before explicit finish",
+                listener.completes.isEmpty())
+            engine.finish(sid)
+            assertTrue("$label explicit finish must complete", listener.awaitComplete(20_000))
+            awaitIdle(engine)
+            assertTrue("$label must not report errors", listener.errors.isEmpty())
+        }
+    }
+
     // ---------- a10: 达到 maxAudioDuration 自动结束（出最终 onResult/onComplete，且可重新 start）----------
     @Test
     fun a10_maxAudioDuration_autoFinish() {
@@ -369,8 +395,10 @@ class DqSdkCornerCaseTest {
         val oldStarted = CountDownLatch(1)
         val oldLast = CountDownLatch(1)
         val newStarted = CountDownLatch(1)
+        val newCompleted = CountDownLatch(1)
         val oldCompleteCount = AtomicInteger(0)
         val oldLastCount = AtomicInteger(0)
+        val newCompleteCount = AtomicInteger(0)
         val callbackErrors = mutableListOf<Int>()
         val timeline = mutableListOf<String>()
 
@@ -384,7 +412,10 @@ class DqSdkCornerCaseTest {
 
             override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
             override fun onResult(sessionId: String, result: SpeechRecognitionResult) = Unit
-            override fun onComplete(sessionId: String, eventMessage: String) = Unit
+            override fun onComplete(sessionId: String, eventMessage: String) {
+                newCompleteCount.incrementAndGet()
+                newCompleted.countDown()
+            }
             override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
                 synchronized(callbackErrors) { callbackErrors += errorCode }
             }
@@ -404,12 +435,17 @@ class DqSdkCornerCaseTest {
                 engine.cancel(oldSid)
                 engine.setListener(replacementListener)
                 engine.startListening(StartParams(newSid, AudioInfo()))
+                engine.writeAudio(newSid, ByteArray(DQ_FRAME))
+                engine.finish(newSid)
                 oldLast.countDown()
             }
 
             override fun onComplete(sessionId: String, eventMessage: String) {
                 oldCompleteCount.incrementAndGet()
                 synchronized(timeline) { timeline += "old:complete" }
+                engine.cancel(oldSid)
+                engine.finish(oldSid)
+                engine.setSpeakerVadEnabled(false)
             }
 
             override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
@@ -422,14 +458,19 @@ class DqSdkCornerCaseTest {
         assertTrue("old onStart not delivered", oldStarted.await(10_000, TimeUnit.MILLISECONDS))
         assertTrue("old terminal result not delivered", oldLast.await(10_000, TimeUnit.MILLISECONDS))
         assertTrue("replacement onStart not delivered", newStarted.await(10_000, TimeUnit.MILLISECONDS))
+        assertTrue("replacement did not complete after same-stack write+finish",
+            newCompleted.await(10_000, TimeUnit.MILLISECONDS))
         Thread.sleep(500)
 
         DqReport.append(ctx, mapOf("case" to "a10d_terminalReentry",
             "oldLastCount" to oldLastCount.get(), "oldCompleteCount" to oldCompleteCount.get(),
+            "newCompleteCount" to newCompleteCount.get(),
             "timeline" to synchronized(timeline) { timeline.toString() },
             "callbackErrors" to synchronized(callbackErrors) { callbackErrors.toString() }))
         assertEquals("old session must emit exactly one last result", 1, oldLastCount.get())
         assertEquals("old last result must be followed by exactly one onComplete", 1, oldCompleteCount.get())
+        assertEquals("replacement must complete after same-stack write+finish", 1,
+            newCompleteCount.get())
         assertEquals(
             "old terminal callbacks must finish before replacement onStart",
             listOf("old:last", "old:complete", "new:start"),
@@ -437,7 +478,6 @@ class DqSdkCornerCaseTest {
         )
         assertTrue("reentrant replacement must not report callback errors",
             synchronized(callbackErrors) { callbackErrors.isEmpty() })
-        engine.cancel(newSid)
         awaitIdle(engine)
     }
 
@@ -523,6 +563,95 @@ class DqSdkCornerCaseTest {
         assertEquals("reloaded engine must emit one complete", 1, listener.completes.size)
         assertEquals("reloaded engine must emit one last", 1, listener.finals.count { it.isLast })
         assertTrue("reloaded engine must not report errors", listener.errors.isEmpty())
+    }
+
+    // ---------- a10ga: onStart 内 cancel 并复用相同 ID，新会话不得收到旧回调 ----------
+    @Test
+    fun a10ga_onStartCancel_sameIdReplacementOwnsCallbacks() {
+        val engine = sharedEngine()
+        awaitIdle(engine)
+        val sid = "start-cancel-${System.currentTimeMillis()}"
+        val replacementStarted = CountDownLatch(1)
+        val replacement = CapturingListener { replacementSid ->
+            replacementStarted.countDown()
+            engine.finish(replacementSid)
+        }
+        val oldErrors = mutableListOf<Int>()
+        val oldListener = object : RecognitionListener {
+            override fun onStart(sessionId: String, eventMessage: String) {
+                engine.cancel(sessionId)
+                engine.setListener(replacement)
+                engine.startListening(StartParams(sessionId, AudioInfo()))
+            }
+
+            override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+            override fun onResult(sessionId: String, result: SpeechRecognitionResult) = Unit
+            override fun onComplete(sessionId: String, eventMessage: String) = Unit
+            override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+                synchronized(oldErrors) { oldErrors += errorCode }
+            }
+        }
+
+        engine.setListener(oldListener)
+        engine.startListening(StartParams(sid, AudioInfo()))
+        assertTrue("replacement onStart not delivered",
+            replacementStarted.await(15_000, TimeUnit.MILLISECONDS))
+        assertTrue("replacement did not complete", replacement.awaitComplete(15_000))
+        awaitIdle(engine)
+
+        DqReport.append(ctx, mapOf("case" to "a10ga_onStartCancelReplacement",
+            "replacementCompleteCount" to replacement.completes.size,
+            "replacementLastCount" to replacement.finals.count { it.isLast },
+            "replacementErrors" to replacement.errorCodes().toString(),
+            "oldErrors" to synchronized(oldErrors) { oldErrors.toString() }))
+        assertEquals("replacement must complete once", 1, replacement.completes.size)
+        assertEquals("replacement must emit one last", 1,
+            replacement.finals.count { it.isLast })
+        assertTrue("old session must not emit an error after cancel",
+            synchronized(oldErrors) { oldErrors.isEmpty() })
+        assertTrue("replacement must not report errors", replacement.errors.isEmpty())
+    }
+
+    // ---------- a10gb: 客户回调不得持有 engine monitor 阻塞其他录音线程 ----------
+    @Test
+    fun a10gb_onStartCanWaitForOtherThreadWriteAudio() {
+        val engine = sharedEngine()
+        val worker = Executors.newSingleThreadExecutor()
+        try {
+            repeat(2) { round ->
+                awaitIdle(engine)
+                val sid = "callback-worker-$round-${System.currentTimeMillis()}"
+                val workerReturned = CountDownLatch(1)
+                val listener = CapturingListener { callbackSid ->
+                    worker.execute {
+                        engine.writeAudio(callbackSid, ByteArray(DQ_FRAME))
+                        engine.finish(callbackSid)
+                        workerReturned.countDown()
+                    }
+                    assertTrue("recording worker was blocked by the customer callback",
+                        workerReturned.await(2_000, TimeUnit.MILLISECONDS))
+                }.also { engine.setListener(it) }
+
+                engine.startListening(StartParams(sid, AudioInfo()))
+                assertTrue("round $round onStart worker did not return",
+                    listener.awaitStarted(10_000))
+                assertTrue("round $round did not complete after worker write",
+                    listener.awaitComplete(15_000))
+                awaitIdle(engine)
+
+                DqReport.append(ctx, mapOf("case" to "a10gb_callbackWorkerWrite",
+                    "round" to round,
+                    "completeCount" to listener.completes.size,
+                    "lastCount" to listener.finals.count { it.isLast },
+                    "errorCodes" to listener.errorCodes().toString()))
+                assertEquals("round $round must complete once", 1, listener.completes.size)
+                assertEquals("round $round must emit one last", 1,
+                    listener.finals.count { it.isLast })
+                assertTrue("round $round must not report errors", listener.errors.isEmpty())
+            }
+        } finally {
+            worker.shutdownNow()
+        }
     }
 
     @Test
