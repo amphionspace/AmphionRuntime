@@ -235,7 +235,7 @@ internal fun selectSpeakerScoreSamples(
     val minimum = minSamples.coerceAtLeast(1)
     return when {
         !asrSpeechConfirmed ->
-            SpeakerScoreSelection(strictSamples, SpeakerScoreSource.INSUFFICIENT)
+            SpeakerScoreSelection(FloatArray(0), SpeakerScoreSource.INSUFFICIENT)
         strictSamples.size >= minimum ->
             SpeakerScoreSelection(strictSamples, SpeakerScoreSource.STRICT)
         utteranceSamples.size >= minimum ->

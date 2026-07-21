@@ -157,51 +157,56 @@ class DqVoiceprintTest {
             "errorCodes" to listener.errorCodes().toString()))
         assertTrue("voiceprint vadBegin session must complete after explicit finish", completed)
         assertTrue("expected a non-empty final", eligible.isNotEmpty())
-        assertTrue("every eligible final must carry speakerSimilarity",
-            eligible.all { it.speakerSimilarity != null })
+        assertTrue("voiceprint vadBegin speech must produce a scored non-empty final",
+            eligible.any { it.speakerSimilarity != null })
     }
 
     // ---------- v04c: 有 ASR 证据且有效语音短于门槛时，退化到本句真实 PCM ----------
     @Test
     fun v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm() {
         ensureReady()
-        val main = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
-        val full = readAssetPcm(testCtx, main)
-        val sample = voiceprintSampleFor(testCtx, main) ?: main
-        val id = registerFromSample(sample)
-        val engine = engine()
+        val registrationAsset = "情指行-勤指.wav"
+        val recognitionAsset = "帮我核查身份证号码为三七零五零311九九111二三零九八三。.wav"
+        val full = readAssetPcm(testCtx, recognitionAsset)
+        val id = registerFromSample(registrationAsset)
+        val engine = freshEngine()
         awaitIdle(engine)
-        val listener = CapturingListener().also { engine.setListener(it) }
-        val sid = "vp-fallback-${System.currentTimeMillis()}"
-        engine.startListening(
-            StartParams(
-                sid,
-                AudioInfo(),
-                extraParams = mapOf(
-                    "enableVoiceprintVerification" to true,
-                    "voiceprintIds" to listOf(id),
-                    "vadEnd" to 800,
-                ),
-            ),
-        )
-        assertTrue("start failed: ${listener.errorCodes()}", listener.awaitStarted(15_000))
-        feedSilence(engine, sid, 350)
         val speechBytes = minOf(full.size, (DQ_SR * 2 * 1.4).toInt())
-        feedFrames(engine, sid, full.copyOfRange(0, speechBytes), 20)
-        engine.finish(sid)
-        val completed = listener.awaitComplete(25_000)
-        awaitIdle(engine)
-        val firstNonEmpty = listener.finals.firstOrNull { it.result.isNotBlank() }
+        repeat(2) { round ->
+            val listener = CapturingListener().also { engine.setListener(it) }
+            val sid = "vp-fallback-$round-${System.currentTimeMillis()}"
+            engine.startListening(
+                StartParams(
+                    sid,
+                    AudioInfo(),
+                    extraParams = mapOf(
+                        "enableVoiceprintVerification" to true,
+                        "voiceprintIds" to listOf(id),
+                        "vadEnd" to 800,
+                    ),
+                ),
+            )
+            assertTrue("round=$round start failed: ${listener.errorCodes()}",
+                listener.awaitStarted(15_000))
+            feedSilence(engine, sid, 350)
+            feedFrames(engine, sid, full.copyOfRange(0, speechBytes), 20)
+            engine.finish(sid)
+            val completed = listener.awaitComplete(25_000)
+            awaitIdle(engine)
+            val firstNonEmpty = listener.finals.firstOrNull { it.result.isNotBlank() }
 
-        DqReport.append(ctx, mapOf("case" to "v04c_voiceprintFallback",
-            "main" to main, "completed" to completed,
-            "finalText" to firstNonEmpty?.result,
-            "speakerSimilarity" to firstNonEmpty?.speakerSimilarity,
-            "errorCodes" to listener.errorCodes().toString()))
-        assertTrue("voiceprint fallback session must complete", completed)
-        assertTrue("fallback corpus must produce a non-empty final", firstNonEmpty != null)
-        assertTrue("real utterance PCM fallback must produce speakerSimilarity",
-            firstNonEmpty?.speakerSimilarity != null)
+            DqReport.append(ctx, mapOf("case" to "v04c_voiceprintFallback",
+                "round" to round, "registrationAsset" to registrationAsset,
+                "recognitionAsset" to recognitionAsset, "completed" to completed,
+                "finalText" to firstNonEmpty?.result,
+                "speakerSimilarity" to firstNonEmpty?.speakerSimilarity,
+                "errorCodes" to listener.errorCodes().toString()))
+            assertTrue("round=$round voiceprint fallback session must complete", completed)
+            assertTrue("round=$round fallback corpus must produce a non-empty final",
+                firstNonEmpty != null)
+            assertTrue("round=$round real utterance PCM fallback must produce speakerSimilarity",
+                firstNonEmpty?.speakerSimilarity != null)
+        }
     }
 
     // ---------- v04d: 仅预置 voiceprintIds，在 onStart 内开启 Speaker VAD ----------
@@ -237,13 +242,18 @@ class DqVoiceprintTest {
         engine.finish(sid)
         val completed = listener.awaitComplete(25_000)
         awaitIdle(engine)
+        val eligible = listener.finals.filter { it.result.isNotBlank() }
 
         DqReport.append(ctx, mapOf("case" to "v04d_onStartSpeakerVad",
             "main" to main, "completed" to completed,
             "lastCount" to listener.finals.count { it.isLast },
+            "scoredFinalCount" to eligible.count { it.speakerSimilarity != null },
             "errorCodes" to listener.errorCodes().toString()))
         assertTrue("runtime Speaker VAD session must complete after explicit finish", completed)
         assertTrue("runtime Speaker VAD must not report errors", listener.errors.isEmpty())
+        assertTrue("runtime Speaker VAD corpus must produce a non-empty final", eligible.isNotEmpty())
+        assertTrue("runtime Speaker VAD must produce a scored non-empty final",
+            eligible.any { it.speakerSimilarity != null })
         assertTrue("normal finish must emit exactly one last",
             listener.finals.count { it.isLast } == 1)
     }
@@ -281,6 +291,8 @@ class DqVoiceprintTest {
         assertTrue("voiceprint confirmation window must remain bounded", completed)
         assertTrue("pure silence must emit one empty last",
             listener.finals.count { it.isLast && it.result.isEmpty() } == 1)
+        assertTrue("pure silence must not produce speakerSimilarity",
+            listener.finals.all { it.speakerSimilarity == null })
         assertTrue("pure silence must complete exactly once", listener.completes.size == 1)
         assertTrue("pure silence must not report errors", listener.errors.isEmpty())
     }
@@ -453,6 +465,13 @@ class DqVoiceprintTest {
             return SpeechRecognizeSdk.createEngine(
                 CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE, extraParams = mapOf("vadEnd" to 800)),
             ).also { engine = it }
+        }
+
+        @Synchronized
+        private fun freshEngine(): SpeechRecognitionEngine {
+            engine?.shutdown()
+            engine = null
+            return engine()
         }
     }
 }

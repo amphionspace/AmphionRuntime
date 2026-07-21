@@ -774,11 +774,11 @@ internal class SessionImpl(
         speakerPcmBuffers.clearAll()
 
         if (speakerVadEnabled && svRejectCurrentUtterance) {
-            val score = svLastScore
+            val score = svLastScore.takeIf { hasEvidence }
             return terminal.copy(speakerScore = score, isTargetSpeaker = false)
         }
         if (speakerVadEnabled && !svTargetConfirmed) {
-            val score = svLastScore
+            val score = svLastScore.takeIf { hasEvidence }
             return terminal.copy(speakerScore = score, isTargetSpeaker = false)
         }
         if (!targetSpeakerEnabled) return terminal

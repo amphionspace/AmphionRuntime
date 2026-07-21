@@ -111,7 +111,7 @@ class EffectiveSpeechBufferTest {
         assertEquals(SpeakerScoreSource.UTTERANCE, fallback.source)
         assertEquals(utterance.size, fallback.samples.size)
         assertEquals(SpeakerScoreSource.INSUFFICIENT, denied.source)
-        assertEquals(strict.size, denied.samples.size)
+        assertEquals(0, denied.samples.size)
         assertEquals(SpeakerScoreSource.INSUFFICIENT, stillShort.source)
         assertEquals(SpeakerScoreSource.INSUFFICIENT, exactStrictWithoutAsr.source)
         assertEquals(SpeakerScoreSource.STRICT, exactStrictWithAsr.source)
@@ -176,5 +176,27 @@ class SpeakerPcmBuffersTest {
 
         assertEquals(50, buffers.speakerVadLength())
         assertEquals(50, buffers.fallbackSamples().size)
+    }
+
+    @Test
+    fun speakerVadTailCopiesOnlyTheRequestedSuffixAcrossParts() {
+        val buffers = SpeakerPcmBuffers(maxSamples = 100)
+        buffers.observe(
+            FloatArray(40) { it.toFloat() },
+            captureSpeakerVad = true,
+            captureFallback = false,
+        )
+        buffers.observe(
+            FloatArray(40) { (40 + it).toFloat() },
+            captureSpeakerVad = true,
+            captureFallback = false,
+        )
+
+        assertArrayEquals(
+            FloatArray(25) { (55 + it).toFloat() },
+            buffers.speakerVadTail(25),
+            0.0f,
+        )
+        assertEquals(0, buffers.speakerVadTail(0).size)
     }
 }

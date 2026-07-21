@@ -15,8 +15,9 @@ completion.
 - [x] Treat omitted and non-finite `maxAudioDuration` as disabled; only an explicit positive finite value may
   auto-finish a session.
 - [x] Compute `speakerSimilarity` eligibility from fixed-window effective speech rather than raw VAD
-  segments, which contain leading context. Native VAD or non-empty ASR output may confirm low-volume
-  candidates; steady high-energy non-speech must still be rejected without that evidence.
+  segments, which contain leading context. Native VAD may retain low-volume candidate PCM, but a
+  non-empty ASR text/token result remains the final scoring gate; steady high-energy non-speech and
+  empty ASR finals must not receive a score.
 - [x] When ASR creates an endpoint inside a PCM chunk, do not replay that old chunk into the reset VAD or
   count it toward the next utterance.
 - [x] Reserve the bounded `vadBegin` confirmation window when `voiceprintIds` provision runtime Speaker
@@ -37,8 +38,9 @@ produce exactly one last result followed by one complete; cancel must produce ne
 The focused Android parity gate passed on 2026-07-19 using a Vivo V2505A running Android 16:
 `max-duration`, `cancel`, `reentrant`, both `start-write` paths, `voiceprint-fallback`, and
 `voiceprint-vad-begin`. A 25-cycle terminal-callback reentry run also passed over approximately
-99 seconds. Evidence is retained in
-`asr/android/reports/android-parity-usb-20260719/report.json`.
+99 seconds. The later expanded run and filtered evidence are retained in the local validation
+archive; device identifiers and unfiltered system logs are intentionally excluded from version
+control.
 
 The Vivo process freezer suspends instrumentation processes that have no visible activity. Device
 tests on this model must bring the demo `MainActivity` to the foreground after instrumentation starts;
