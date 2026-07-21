@@ -380,15 +380,18 @@ internal object LitsTnNormalizer {
         // forms are always kept (they SHOULD fold: Ａ->A, ０->0); meaningful superscript units
         // (5m²) are already expanded upstream. Every NON-folding symbol that native TN reads
         // (¥ € ± × ÷ ° ≤ ≥ ...) is untouched here, since it has no ASCII decomposition.
-        private fun stripDecorative(text: String): String {
+        private fun stripDecorative(rawText: String): String {
+            val text = keycapRegex.replace(rawText, "")
             val cps = text.codePoints().toArray()
             val keep = BooleanArray(cps.size) { true }
             for (idx in cps.indices) {
                 val cp = cps[idx]
                 if (cp <= 0x7f || cp in 0xFF00..0xFFEF) continue
-                val folds = decorativeFoldRegex.containsMatchIn(
-                    Normalizer.normalize(String(Character.toChars(cp)), Normalizer.Form.NFKC)
-                )
+                val original = String(Character.toChars(cp))
+                val folded = Normalizer.normalize(original, Normalizer.Form.NFKC)
+                // Require NFKC to actually change the char; otherwise a genuine isolated CJK
+                // char (指 folds to itself) would match decorativeFoldRegex and be dropped.
+                val folds = folded != original && decorativeFoldRegex.containsMatchIn(folded)
                 if (folds && isIsolatedCodePoint(cps, idx)) keep[idx] = false
             }
             val sb = StringBuilder(text.length)
@@ -641,8 +644,14 @@ internal object LitsTnNormalizer {
         companion object {
             private const val PLATE_PROVINCES = "京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼"
             private val PERCENTILE_CODE = Regex("P\\d{1,3}")
-            // A char is "fold-decorative" iff its NFKC form introduces an ASCII letter/digit.
-            private val decorativeFoldRegex = Regex("[A-Za-z0-9]")
+            // A char is "fold-decorative" iff its NFKC form introduces a speakable ASCII
+            // letter/digit OR a CJK ideograph (🈯->指, ㊗->祝, ㈠->一). Paired with a
+            // "NFKC actually changed the char" guard so a genuine CJK char is never dropped.
+            private val decorativeFoldRegex = Regex("[A-Za-z0-9\\u4e00-\\u9fff]")
+            // Emoji keycap sequences (7️⃣ = '7' + optional VS16 + U+20E3, also #️⃣ *️⃣) fold to
+            // a bare ASCII digit/'#'/'*'. The base is ASCII so stripDecorative's cp<=0x7f skip
+            // would leave it speakable; drop the whole keycap up front.
+            private val keycapRegex = Regex("[0-9#*]\\uFE0F?\\u20E3")
             private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点0([1-9])分")
             private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?[%％]")
             private val percentNumberTextRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?百分号")

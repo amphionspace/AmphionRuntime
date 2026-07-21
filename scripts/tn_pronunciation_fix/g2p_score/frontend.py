@@ -292,14 +292,22 @@ def _isolated(chars, i):
 # never fold) but ONLY when isolated, so an anchored ①/Ⅲ next to real text is kept.
 # Fullwidth/halfwidth forms are always kept (they SHOULD fold: Ａ->A, ０->0), and
 # every NON-folding symbol native TN reads (¥ € ± × ÷ ° ≤ ≥ ...) is untouched here.
+# Emoji keycap sequences (7️⃣ = '7' + VS16? + U+20E3, also #️⃣ *️⃣) fold to a bare ASCII
+# digit/'#'/'*'. The base is ASCII so strip_decorative skips it; drop the whole keycap here.
+_KEYCAP = re.compile(r'[0-9#*]\uFE0F?\u20E3')
 def strip_decorative(text):
+    text = _KEYCAP.sub('', text)
     chars = list(text)
     keep = [True] * len(chars)
     for i, c in enumerate(chars):
         o = ord(c)
         if o <= 0x7f or 0xFF00 <= o <= 0xFFEF:
             continue
-        if re.search(r'[A-Za-z0-9]', unicodedata.normalize('NFKC', c)) and _isolated(chars, i):
+        folded = unicodedata.normalize('NFKC', c)
+        # Strip only when NFKC actually CHANGES the char into speakable ASCII alnum OR a
+        # CJK ideograph (e.g. Ⅲ->III, ①->1, 🈯->指, ㊗->祝). The '!= c' guard protects a
+        # genuine isolated CJK char (指 folds to itself) from being removed.
+        if folded != c and re.search(r'[A-Za-z0-9\u4e00-\u9fff]', folded) and _isolated(chars, i):
             keep[i] = False
     return ''.join(c for c, k in zip(chars, keep) if k)
 
