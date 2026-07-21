@@ -282,3 +282,131 @@
 侧缝	ce4 feng4
 衣缝	yi1 feng4
 鞋缝	xie2 feng4
+单于	chan2 yu2
+单县	shan4 xian4
+姓单	xing4 shan4
+单教练	shan4 jiao4 lian4
+单警官	shan4 jing3 guan1
+单律师	shan4 lv4 shi1
+盛着	cheng2 zhe5
+盛了	cheng2 le5
+盛出	cheng2 chu1
+盛来	cheng2 lai2
+盛取	cheng2 qu3
+盛上	cheng2 shang4
+盛接	cheng2 jie1
+盛足	cheng2 zu2
+盛水	cheng2 shui3
+盛饭	cheng2 fan4
+盛粥	cheng2 zhou1
+盛汤	cheng2 tang1
+盛小吃	cheng2 xiao3 chi1
+盛肥料	cheng2 fei2 liao4
+盛热茶	cheng2 re4 cha2
+测量	ce4 liang2
+称量	cheng1 liang2
+丈量	zhang4 liang2
+量了	liang2 le5
+量出	liang2 chu1
+量体温	liang2 ti3 wen1
+量血压	liang2 xue4 ya1
+量身高	liang2 shen1 gao1
+量尺寸	liang2 chi3 cun5
+量一量	liang2 yi2 liang2
+笔杆	bi2 gan3
+枪杆	qiang1 gan3
+秤杆	cheng4 gan3
+烟杆	yan1 gan3
+转动	zhuan4 dong4
+打转	da3 zhuan4
+转圈	zhuan4 quan1
+团团转	tuan2 tuan2 zhuan4
+率领	shuai4 ling3
+直率	zhi2 shuai4
+率先	shuai4 xian1
+坦率	tan3 shuai4
+轻率	qing1 shuai4
+统率	tong3 shuai4
+表率	biao3 shuai4
+率真	shuai4 zhen1
+率队	shuai4 dui4
+率团	shuai4 tuan2
+划船	hua2 chuan2
+划水	hua2 shui3
+划桨	hua2 jiang3
+划着	hua2 zhe5
+划艇	hua2 ting3
+睡觉	shui4 jiao4
+午觉	wu3 jiao4
+好觉	hao3 jiao4
+小觉	xiao3 jiao4
+一觉	yi2 jiao4
+相称	xiang1 chen4
+称心	chen4 xin1
+对称	dui4 chen4
+匀称	yun2 chen4
+称职	chen4 zhi2
+称身	chen4 shen1
+扎牢	za1 lao2
+扎紧	za1 jin3
+扎成	za1 cheng2
+扎住	za1 zhu4
+扎起	za1 qi3
+扎好	za1 hao3
+扎染	za1 ran3
+包扎	bao1 za1
+扎辫	za1 bian4
+扎马尾	za1 ma3 yi3
+模型	mo2 xing2
+模范	mo2 fan4
+模仿	mo2 fang3
+模糊	mo2 hu2
+楷模	kai3 mo2
+鼻塞	bi2 se4
+堵塞	du3 se4
+阻塞	zu3 se4
+闭塞	bi4 se4
+搪塞	tang2 se4
+茅塞	mao2 se4
+露水	lu4 shui3
+露珠	lu4 zhu1
+寒露	han2 lu4
+秋露	qiu1 lu4
+晨露	chen2 lu4
+白露	bai2 lu4
+暴露	bao4 lu4
+揭露	jie1 lu4
+透露	tou4 lu4
+披露	pi1 lu4
+裸露	luo3 lu4
+流露	liu2 lu4
+显露	xian3 lu4
+吐露	tu3 lu4
+表露	biao3 lu4
+露出	lu4 chu1
+露天	lu4 tian1
+露宿	lu4 su4
+旋转	xuan2 zhuan4
+量过	liang2 guo4
+量得	liang2 de5
+运转	yun4 zhuan4
+转得	zhuan4 de5
+空转	kong1 zhuan4
+划火柴	hua2 huo3 chai2
+率技术	shuai4 ji4 shu4
+率医疗	shuai4 yi1 liao2
+率船队	shuai4 chuan2 dui4
+率工作	shuai4 gong1 zuo4
+只凭	zhi3 ping2
+只记	zhi3 ji4
+单主任	shan4 zhu3 ren4
+称合	chen4 he2
+称适	chen4 shi4
+盛茶	cheng2 cha2
+盛粮	cheng2 liang2
+盛进	cheng2 jin4
+盛海水	cheng2 hai3 shui3
+盛花瓣	cheng2 hua1 ban4
+率学员	shuai4 xue2 yuan2
+率村民	shuai4 cun1 min2
+率检查	shuai4 jian3 cha2
