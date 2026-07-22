@@ -9,3 +9,10 @@
 # Release unit tests instantiate this internal state tracker directly. Keep the class boundary in
 # the minified test artifact instead of letting R8 inline it into SessionImpl and remove the class.
 -keep class com.amphion.asr.internal.InitialAcousticActivityTracker { *; }
+-keep class com.amphion.asr.internal.EffectiveSpeechBuffer { *; }
+-keep class com.amphion.asr.internal.EffectiveSpeechFinalDecision { *; }
+-keep class com.amphion.asr.internal.SpeakerScoreSelection { *; }
+-keep class com.amphion.asr.internal.SpeakerScoreSource { *; }
+-keep class com.amphion.asr.internal.EffectiveSpeechBufferKt { *; }
+-keep class com.amphion.asr.internal.RecognizerResetGeneration { *; }
+-keep class com.amphion.asr.internal.SpeakerPcmBuffers { *; }

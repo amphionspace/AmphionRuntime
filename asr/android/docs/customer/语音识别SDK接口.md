@@ -96,7 +96,7 @@ engine.shutdown()
 | `recognitionMode` | `Number/String` | `1` | 仅支持 `1`（外部写入音频流）；`0`（SDK 内录音）暂不支持 |
 | `vadBegin` | `Number/String` | 未启用 | 首次检测到语音前的静音超时，范围 500 到 10000 ms；仅显式传入时启用 |
 | `enablePartialResult` | `Boolean` | `true` | 是否回调中间结果 |
-| `maxAudioDuration` | `Number/String` | `20000` | 单会话最长音频毫秒数，范围 20000 到 28800000；达到上限后正常自动结束 |
+| `maxAudioDuration` | `Number/String` | 未启用 | 单会话最长音频毫秒数；仅显式传入正有限值时启用，上限 28800000；达到上限后正常自动结束 |
 | `vadEnd` | `Number/String` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `sessionGeneralLexicon` | `List<String>` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `Boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
@@ -124,7 +124,7 @@ interface RecognitionListener {
 | `onStart` | 会话启动成功 |
 | `onEvent` | 语音端点、声纹 VAD 状态等事件 |
 | `onResult` | 识别结果，包含 partial 与 final |
-| `onComplete` | 主动 `finish`、达到 `vadBegin` 首段静音阈值或达到 `maxAudioDuration` 上限后，识别完整结束 |
+| `onComplete` | 主动 `finish`、达到 `vadBegin` 首段静音阈值或达到显式 `maxAudioDuration` 上限后，识别完整结束 |
 | `onError` | 发生错误 |
 
 `SpeechRecognitionResult`：
@@ -140,6 +140,8 @@ interface RecognitionListener {
 
 > 交付批注 VP-20260715-01（2026-07-15）：`speakerSimilarity` 是可选值。有效语音短于 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时无法可靠打分，SDK 保留识别结果但省略该字段；调用方不得把字段缺失当作会话结束或识别失败。
 
+严格有效语音优先用于 `speakerSimilarity`。若严格样本不足，但 ASR 已产生非空 text/token，且本句实际 PCM 已达到 `minSegSec`，SDK 回退到本句真实 PCM 打分；不会填充假分数、复制上一句分数或补静音。非 last 的 token-only native endpoint 不会形成公开 final，其 PCM 会保留到下一条公开结果。
+
 事件码：
 
 | 事件码 | 名称 | 说明 |
@@ -151,6 +153,8 @@ interface RecognitionListener {
 | `22` | `SPEAKER_VAD_REJECTED` | 目标说话人 VAD 拒绝当前 final |
 
 `vadBegin` 按实际写入并由 VAD 处理的 PCM 时长计算；只调用 `startListening` 而不写入音频不会计时。达到阈值且始终未检测到语音时，SDK 回调空的 `onResult(isFinal=true,isLast=true)`，随后回调 `onComplete`，不回调 `SPEECH_BEGIN`、`SPEECH_END` 或错误。一旦检测到首个真实起音，本会话不再触发 `vadBegin`，后续停顿由 `vadEnd` 处理。该行为不依赖 `enablePartialResult`。
+
+传入可用的 `voiceprintIds` 时，即使初始声纹开关为关闭，SDK 也会为 `onStart` 内同步调用 `setSpeakerVadEnabled(true)` 保留最多一次 `minSegSec` 确认窗。纯静音和稳态高能非语音仍会有界结束。
 
 ## 6. 声纹
 

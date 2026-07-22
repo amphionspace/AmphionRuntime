@@ -84,10 +84,9 @@ internal class SessionImpl(
     private val effectiveSpeakerVad: SpeakerVadConfig?
         get() = sessionConfig?.speakerVad ?: engineImpl.targetSpeakerConfig?.speakerVad
 
-    /** 当前 utterance 的 PCM 缓冲（decoder 线程独占）；声纹门控 / speaker vad 开启时累积。 */
-    private var uttBuf = FloatArray(0)
-    private var uttLen = 0
-    private var uttOverflowWarned = false
+    private val speakerPcmBuffers = SpeakerPcmBuffers(UTT_MAX_SAMPLES)
+    private val effectiveSpeechBuffer = EffectiveSpeechBuffer(sampleRate, UTT_MAX_SAMPLES)
+    private val recognizerResetGeneration = RecognizerResetGeneration()
 
     /** speaker vad 状态：距上次声纹窗打分已累计的 sample 数。 */
     private var svSamplesSinceScore = 0
@@ -271,7 +270,8 @@ internal class SessionImpl(
                     trailingSilenceMs = 0
                     vadCarry = FloatArray(0)
                     resetSpeakerVadState()
-                    resetUtteranceBuffer()
+                    speakerPcmBuffers.clearAll()
+                    effectiveSpeechBuffer.reset()
                     Logger.i("updateHotwords applied: ${words.size} words")
                 }
                 is NativeResult.Err -> {
@@ -348,6 +348,8 @@ internal class SessionImpl(
             trailingSilenceMs = 0
             vadCarry = FloatArray(0)
             resetSpeakerVadState()
+            speakerPcmBuffers.clearAll()
+            effectiveSpeechBuffer.reset()
             callbackHandler.post {
                 safeCallback { callback.onSessionStopped() }
             }
@@ -364,6 +366,8 @@ internal class SessionImpl(
             // VAD 是 per-engine 共享的，session 关闭只 reset（清内部 buffer），不 release
             NativeGuard.runQuietly("vad.reset(close)") { vad?.reset() }
             resetSpeakerVadState()
+            speakerPcmBuffers.clearAll()
+            effectiveSpeechBuffer.reset()
             decoderThread.quitSafely()
         }
 
@@ -456,12 +460,17 @@ internal class SessionImpl(
 
         if (!initialSpeechDetected) initialAcousticActivity?.observe(samples)
 
-        // 声纹门控 / speaker vad 开启时，累积当前段 PCM 供段末或实时滑窗打分（decoder 线程独占）。
-        if (targetSpeakerEnabled || speakerVadEnabled) appendUtterance(samples)
+        if (targetSpeakerEnabled || speakerVadEnabled) effectiveSpeechBuffer.observe(samples)
+        speakerPcmBuffers.observe(
+            samples,
+            captureSpeakerVad = speakerVadEnabled,
+            captureFallback = targetSpeakerEnabled,
+        )
 
         // 保持 PCM 全量进 ASR，让 partial 实时性不受 VAD 抖动影响。VAD 只做 gate
         // + 主动 endpoint（更敏感的尾静音切分），它们与 sherpa endpoint 规则并存：
         // 谁先触发以谁为准。
+        val resetGenerationBefore = recognizerResetGeneration.snapshot()
         val asrR = NativeGuard.run("stream.acceptWaveform+drain") {
             stream.acceptWaveform(samples, sampleRate)
             drainDecoder(isFinal = false)
@@ -471,10 +480,11 @@ internal class SessionImpl(
             return false
         }
 
-        // drainDecoder 已经处理了 endpoint，stream 可能已被重建（hardRestart）
-        // 这种情况下当前 chunk 仍按 onset 路径继续判定，与已 reset 的状态一致。
-
         val v = vad ?: return true
+        if (recognizerResetGeneration.changedSince(resetGenerationBefore)) {
+            resetVadGateState()
+            return true
+        }
 
         // silero 的 acceptWaveform 强约束 windowSize=512；按 chunk 切片喂入，剩余样本
         // 进 vadCarry 等下次拼回。两次 chunk 的 VAD speech/silence 状态由 v 自己维护。
@@ -492,6 +502,7 @@ internal class SessionImpl(
 
         when {
             anySpeech -> {
+                effectiveSpeechBuffer.confirmSpeech()
                 // 任何一个窗口看到 speech，就把累计静音清零。中间夹杂少量静音窗口
                 // （正常说话时 vad 在 0.5 阈值附近抖动）不会被误判成结束。
                 if (!vadSpeechActive) {
@@ -634,8 +645,10 @@ internal class SessionImpl(
             val hasEvidence = r.text.isNotEmpty() || r.tokens.isNotEmpty()
             metrics.onRawFinalReady()
             if (postEndpointOnEndpoint) postEndpoint()
-            val finalResult = gateFinal(toAsrResult(r)).copy(isLast = isLastFinal)
-            if (!suppressEmptyFinal || hasEvidence) postFinalToProcessor(finalResult)
+            val finalResult = prepareFinal(toAsrResult(r), hasEvidence, isLastFinal)
+            if ((!suppressEmptyFinal || hasEvidence) && finalResult != null) {
+                postFinalToProcessor(finalResult)
+            }
             if (restartAfterFinal) restartStreamAfterUtterance(r) else lastPartialText = ""
             return hasEvidence
         }
@@ -645,8 +658,10 @@ internal class SessionImpl(
         val hasEvidence = r.text.isNotEmpty() || r.tokens.isNotEmpty()
         if (isFinal) {
             metrics.onRawFinalReady()
-            val finalResult = gateFinal(toAsrResult(r)).copy(isLast = isLastFinal)
-            if (!suppressEmptyFinal || hasEvidence) postFinalToProcessor(finalResult)
+            val finalResult = prepareFinal(toAsrResult(r), hasEvidence, isLastFinal)
+            if ((!suppressEmptyFinal || hasEvidence) && finalResult != null) {
+                postFinalToProcessor(finalResult)
+            }
             if (restartAfterFinal) restartStreamAfterUtterance(r) else lastPartialText = ""
         } else if (r.text != lastPartialText) {
             lastPartialText = r.text
@@ -680,6 +695,7 @@ internal class SessionImpl(
             NativeGuard.runQuietly("vad.reset") { vad?.reset() }
             resetSpeakerVadState()
         }
+        recognizerResetGeneration.markReset()
         lastPartialText = ""
     }
 
@@ -743,29 +759,51 @@ internal class SessionImpl(
      * 段太短无法判定。真正"过滤非目标"由 [dispatchFinal] 依据 isTargetSpeaker==false 改派
      * onFinalRejected 完成；这里只负责打分与打标，保证 metrics / 后处理时序与未启用时一致。
      */
-    private fun gateFinal(raw: AsrResult): AsrResult {
+    private fun prepareFinal(raw: AsrResult, hasEvidence: Boolean, isLast: Boolean): AsrResult? {
+        val terminal = raw.copy(isLast = isLast)
+        val boundary = effectiveSpeechBuffer.resolveFinal(terminal.text, hasEvidence, isLast)
+        if (!boundary.publish) {
+            if (speakerVadEnabled) speakerPcmBuffers.clearNativeSegment()
+            return null
+        }
+        val fallbackSamples = if (targetSpeakerEnabled) {
+            speakerPcmBuffers.fallbackSamples()
+        } else {
+            FloatArray(0)
+        }
+        speakerPcmBuffers.clearAll()
+
         if (speakerVadEnabled && svRejectCurrentUtterance) {
-            val score = svLastScore
-            resetUtteranceBuffer()
-            return raw.copy(speakerScore = score, isTargetSpeaker = false)
+            val score = svLastScore.takeIf { hasEvidence }
+            return terminal.copy(speakerScore = score, isTargetSpeaker = false)
         }
         if (speakerVadEnabled && !svTargetConfirmed) {
-            val score = svLastScore
-            resetUtteranceBuffer()
-            return raw.copy(speakerScore = score, isTargetSpeaker = false)
+            val score = svLastScore.takeIf { hasEvidence }
+            return terminal.copy(speakerScore = score, isTargetSpeaker = false)
         }
-        if (!targetSpeakerEnabled) {
-            resetUtteranceBuffer()
-            return raw
+        if (!targetSpeakerEnabled) return terminal
+        val target = targetEmbedding ?: return terminal
+        val verifier = ensureVerifier() ?: return terminal
+        val minSamples = engineImpl.targetSpeakerConfig
+            ?.let { (it.minSegSec * sampleRate).toInt().coerceAtLeast(1) }
+            ?: Int.MAX_VALUE
+        val selection = selectSpeakerScoreSamples(
+            boundary.samples,
+            fallbackSamples,
+            minSamples,
+            hasEvidence,
+        )
+        if (selection.source == SpeakerScoreSource.UTTERANCE) {
+            postDebug(
+                "speaker score fallback: effectiveSpeech=" +
+                    "${boundary.samples.size * 1000L / sampleRate}ms, " +
+                    "utterancePcm=${fallbackSamples.size * 1000L / sampleRate}ms",
+            )
         }
-        val target = targetEmbedding ?: run { resetUtteranceBuffer(); return raw }
-        val verifier = ensureVerifier() ?: run { resetUtteranceBuffer(); return raw }
-        val seg = currentUtterance()
-        resetUtteranceBuffer()
-        if (seg.isEmpty()) return raw
-        val score = verifier.segmentScore(seg, target) ?: return raw
+        if (selection.samples.isEmpty()) return terminal
+        val score = verifier.segmentScore(selection.samples, target) ?: return terminal
         val threshold = engineImpl.targetSpeakerConfig?.threshold ?: DEFAULT_TS_THRESHOLD
-        return raw.copy(speakerScore = score, isTargetSpeaker = score >= threshold)
+        return terminal.copy(speakerScore = score, isTargetSpeaker = score >= threshold)
     }
 
     /** 懒加载声纹打分器（仅 decoder 线程）。extractor 不可用时返回 null（门控降级为放行）。 */
@@ -801,12 +839,13 @@ internal class SessionImpl(
         val winSamples = (speakerVad.winSec * sampleRate).toInt().coerceAtLeast(1)
         val hopSamples = (speakerVad.hopSec * sampleRate).toInt().coerceAtLeast(1)
         svSamplesSinceScore += samplesInChunk
-        if (uttLen < winSamples) return false
+        if (speakerPcmBuffers.speakerVadLength() < winSamples) return false
         if (svSamplesSinceScore < hopSamples) return false
         svSamplesSinceScore %= hopSamples
 
         val scoreStartNs = System.nanoTime()
-        val score = verifier.windowScore(currentUtteranceTail(winSamples), target) ?: return false
+        val score = verifier.windowScore(speakerPcmBuffers.speakerVadTail(winSamples), target)
+            ?: return false
         svLastScore = score
         val scoreElapsedMs = (System.nanoTime() - scoreStartNs) / 1_000_000.0
         val scoreAudioMs = winSamples * 1000.0 / sampleRate
@@ -884,42 +923,6 @@ internal class SessionImpl(
         }
     }
 
-    private fun appendUtterance(samples: FloatArray) {
-        if (uttLen >= UTT_MAX_SAMPLES) {
-            if (!uttOverflowWarned) {
-                Logger.w(
-                    "session $sessionId utterance buffer hit cap ($UTT_MAX_SAMPLES samples); " +
-                        "extra audio ignored for speaker scoring",
-                )
-                uttOverflowWarned = true
-            }
-            return
-        }
-        val take = minOf(samples.size, UTT_MAX_SAMPLES - uttLen)
-        if (uttBuf.size < uttLen + take) {
-            var newCap = if (uttBuf.isEmpty()) UTT_INIT_CAP else uttBuf.size
-            while (newCap < uttLen + take) newCap *= 2
-            uttBuf = uttBuf.copyOf(newCap)
-        }
-        System.arraycopy(samples, 0, uttBuf, uttLen, take)
-        uttLen += take
-    }
-
-    private fun currentUtterance(): FloatArray =
-        if (uttLen == 0) FloatArray(0) else uttBuf.copyOf(uttLen)
-
-    private fun currentUtteranceTail(n: Int): FloatArray {
-        val take = minOf(n, uttLen)
-        val out = FloatArray(take)
-        if (take > 0) System.arraycopy(uttBuf, uttLen - take, out, 0, take)
-        return out
-    }
-
-    private fun resetUtteranceBuffer() {
-        uttLen = 0
-        uttOverflowWarned = false
-    }
-
     private fun resetSpeakerVadState() {
         svSamplesSinceScore = 0
         svTargetConfirmed = false
@@ -977,6 +980,20 @@ internal class SessionImpl(
         }
     }
 
+    private fun postDebug(message: String) {
+        callbackHandler.post {
+            safeCallback { callback.onDebug(message) }
+        }
+    }
+
+    private fun resetVadGateState() {
+        NativeGuard.runQuietly("vad.reset(streamBoundary)") { vad?.reset() }
+        vadSpeechActive = false
+        trailingSilenceMs = 0
+        vadCarry = FloatArray(0)
+        resetSpeakerVadState()
+    }
+
     private inline fun safeCallback(block: () -> Unit) {
         try {
             block()
@@ -1005,9 +1022,6 @@ internal class SessionImpl(
          * 16 kHz 下 512 个 sample = 32 ms。本 SDK 锁 silero，常量值与 EngineImpl 一致。
          */
         const val VAD_WINDOW_SIZE = 512
-
-        /** utterance 缓冲初始容量（1s @16k）。 */
-        const val UTT_INIT_CAP = 16000
 
         /** utterance 缓冲上限（25s @16k）；endpoint rule3 20s 会先强制 final，此为防御性上限。 */
         const val UTT_MAX_SAMPLES = 25 * 16000

@@ -19,7 +19,6 @@ internal object DingqiaoEngineConfig {
     private const val MAX_VAD_END_MS = 10_000
     private const val MIN_VAD_BEGIN_MS = 500
     private const val MAX_VAD_BEGIN_MS = 10_000
-    private const val MIN_AUDIO_DURATION_MS = 20_000L
     private const val MAX_AUDIO_DURATION_MS = 28_800_000L
     private const val DEFAULT_SPEAKER_VAD_THRESHOLD = 0.40f
     private const val DEFAULT_SPEAKER_VAD_WINDOW_MS = 1000
@@ -82,7 +81,11 @@ internal object DingqiaoEngineConfig {
      * 会话级覆盖参数：vadEnd 与 speaker VAD 窗口都是运行时阈值，逐会话直接生效，不触发引擎重建。
      * speakerModelPath 为空时不下发 speakerVad（engine 未配置声纹能力）。
      */
-    fun buildSessionConfig(startParams: StartParams, speakerModelPath: String?): SessionConfig {
+    fun buildSessionConfig(
+        startParams: StartParams,
+        speakerModelPath: String?,
+        voiceprintCapabilityProvisioned: Boolean = false,
+    ): SessionConfig {
         val speakerVad = if (!speakerModelPath.isNullOrBlank()) {
             speakerVadConfig(startParams)
         } else {
@@ -91,13 +94,23 @@ internal object DingqiaoEngineConfig {
         return SessionConfig(
             endpointSilenceMs = vadEndMs(startParams),
             initialSilenceTimeoutMs = vadBeginMs(startParams),
-            initialSilenceConfirmationGraceMs = voiceprintConfirmationGraceMs(startParams, speakerModelPath),
+            initialSilenceConfirmationGraceMs = voiceprintConfirmationGraceMs(
+                startParams,
+                speakerModelPath,
+                voiceprintCapabilityProvisioned,
+            ),
             speakerVad = speakerVad,
         )
     }
 
-    private fun voiceprintConfirmationGraceMs(startParams: StartParams, speakerModelPath: String?): Int? {
-        val needsVoiceprintAudio = enableVoiceprintVerification(startParams) || enableSpeakerVad(startParams)
+    private fun voiceprintConfirmationGraceMs(
+        startParams: StartParams,
+        speakerModelPath: String?,
+        voiceprintCapabilityProvisioned: Boolean,
+    ): Int? {
+        val needsVoiceprintAudio = enableVoiceprintVerification(startParams) ||
+            enableSpeakerVad(startParams) ||
+            voiceprintCapabilityProvisioned
         if (!needsVoiceprintAudio || speakerModelPath.isNullOrBlank()) return null
 
         return (TargetSpeakerConfig(speakerModelPath).minSegSec * 1000).toInt()
@@ -111,17 +124,14 @@ internal object DingqiaoEngineConfig {
 
     fun vadEndMs(startParams: StartParams?): Int {
         val raw = startParams?.extraParams?.get("vadEnd") ?: return DEFAULT_VAD_END_MS
-        return when (raw) {
-            is Number -> raw.toInt()
-            is String -> raw.toIntOrNull() ?: DEFAULT_VAD_END_MS
-            else -> DEFAULT_VAD_END_MS
-        }.coerceIn(MIN_VAD_END_MS, MAX_VAD_END_MS)
+        val value = finiteDouble(raw) ?: return DEFAULT_VAD_END_MS
+        return value.toInt().coerceIn(MIN_VAD_END_MS, MAX_VAD_END_MS)
     }
 
     fun maxAudioDurationMs(startParams: StartParams): Long {
-        val value = finiteLong(startParams.extraParams["maxAudioDuration"])
-            ?: MIN_AUDIO_DURATION_MS
-        return value.coerceIn(MIN_AUDIO_DURATION_MS, MAX_AUDIO_DURATION_MS)
+        val value = finiteDouble(startParams.extraParams["maxAudioDuration"]) ?: return 0L
+        if (value <= 0.0) return 0L
+        return value.coerceAtMost(MAX_AUDIO_DURATION_MS.toDouble()).toLong().coerceAtLeast(1L)
     }
 
     fun validateRecognitionMode(startParams: StartParams) {
@@ -198,17 +208,11 @@ internal object DingqiaoEngineConfig {
         else -> false
     }
 
-    private fun asInt(raw: Any?, defaultValue: Int): Int = when (raw) {
-        is Number -> raw.toInt()
-        is String -> raw.toIntOrNull() ?: defaultValue
-        else -> defaultValue
-    }
+    private fun asInt(raw: Any?, defaultValue: Int): Int =
+        finiteDouble(raw)?.toInt() ?: defaultValue
 
-    private fun asFloat(raw: Any?, defaultValue: Float): Float = when (raw) {
-        is Number -> raw.toFloat()
-        is String -> raw.toFloatOrNull() ?: defaultValue
-        else -> defaultValue
-    }
+    private fun asFloat(raw: Any?, defaultValue: Float): Float =
+        finiteDouble(raw)?.toFloat() ?: defaultValue
 
     private fun validateRecognizerMode(params: CreateEngineParams) {
         val raw = params.extraParams["recognizerMode"] ?: return
