@@ -53,6 +53,12 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
         self.assertIn('convert_one "${ZH_EN_DIR}/joiner.onnx"', script)
         self.assertNotIn('convert_one "${ZH_EN_DIR}/joiner.int8.onnx"', script)
 
+    def test_asset_packer_supports_zh_en_only_delivery(self) -> None:
+        script = ASSET_PACKER.read_text(encoding="utf-8")
+        self.assertIn("--zh-en-only", script)
+        self.assertIn('if [[ "$ZH_EN_ONLY" != true ]]; then', script)
+        self.assertIn("verify_args+=(--zh-en-only)", script)
+
     def _manifest(self, *, wrong_source_md5: bool = False) -> dict:
         entries = []
         for relative, payload in self.payloads.items():
