@@ -365,7 +365,8 @@ version = sys.argv[3]
 asr_only = sys.argv[4] == "true"
 sdk_only = sys.argv[5] == "true"
 git_dirty = sys.argv[6] == "true"
-build_identity = json.loads(Path(sys.argv[7]).read_text(encoding="utf-8"))
+build_identity_path = Path(sys.argv[7])
+build_identity = {} if sdk_only else json.loads(build_identity_path.read_text(encoding="utf-8"))
 
 
 def run(*args: str) -> str:
