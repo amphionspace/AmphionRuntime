@@ -6765,7 +6765,7 @@
 一切照旧	yi2 qie4 zhao4 jiu4
 一切种智	yi2 qie4 zhong3 zhi4
 一切经	yi2 qie4 jing1
-一切诸佛	yi2 qie4 zhu1 fu2
+一切诸佛	yi2 qie4 zhu1 fo2
 一切都在	yi2 qie4 dou1 zai4
 一切都是	yi2 qie4 dou1 shi4
 一切险	yi2 qie4 xian3
@@ -10679,7 +10679,7 @@
 七位数	qi1 wei4 shu4
 七佐	qi1 zuo3
 七体	qi1 ti3
-七佛	qi1 fu2
+七佛	qi1 fo2
 七侠五义	qi1 xia2 wu3 yi4
 七倍	qi1 bei4
 七倍地	qi1 bei4 de5
@@ -11715,9 +11715,9 @@
 万余首	wan4 yu2 shou3
 万佛塔	wan4 fo2 ta3
 万佛寺	wan4 fo2 si4
-万佛峡	wan4 fu2 xia2
+万佛峡	wan4 fo2 xia2
 万佛洞	wan4 fo2 dong4
-万佛阁	wan4 fu2 ge2
+万佛阁	wan4 fo2 ge2
 万佳	wan4 jia1
 万佳乐	wan4 jia1 le4
 万例	wan4 li4
@@ -12550,7 +12550,7 @@
 三专生	san1 zhuan1 sheng1
 三世	san1 shi4
 三世一爨	san1 shi4 yi1 cuan4
-三世佛	san1 shi4 fu2
+三世佛	san1 shi4 fo2
 三世同爨	san1 shi4 tong2 cuan4
 三世同财	san1 shi4 tong2 cai2
 三世执戟	san1 shi4 zhi2 ji3
@@ -23335,7 +23335,7 @@
 东方通信	dong1 fang1 tong1 xin4
 东方闻樱	dong1 fang1 wen2 ying1
 东方队	dong1 fang1 dui4
-东方阿閦佛	dong1 fang1 a1 chu4 fu2
+东方阿閦佛	dong1 fang1 a1 chu4 fo2
 东方集团	dong1 fang1 ji2 tuan2
 东方青龙	dong1 fang1 qing1 long2
 东方马脑炎病毒	dong1 fang1 ma3 nao3 yan2 bing4 du2
@@ -29434,7 +29434,7 @@
 临时地	lin2 shi2 de5
 临时工	lin2 shi2 gong1
 临时性	lin2 shi2 xing4
-临时抱佛	lin2 shi2 bao4 fu2
+临时抱佛	lin2 shi2 bao4 fo2
 临时抱佛脚	lin2 shi2 bao4 fo2 jiao3
 临时政府	lin2 shi2 zheng4 fu3
 临时文件	lin2 shi2 wen2 jian4
@@ -29766,9 +29766,9 @@
 丹仙	dan1 xian1
 丹伯	dan1 bo2
 丹佛	dan1 fo2
-丹佛市	dan1 fu2 shi4
-丹佛掘金	dan1 fu2 jue2 jin1
-丹佛斯	dan1 fu2 si1
+丹佛市	dan1 fo2 shi4
+丹佛掘金	dan1 fo2 jue2 jin1
+丹佛斯	dan1 fo2 si1
 丹侣	dan1 lv3
 丹元	dan1 yuan2
 丹光	dan1 guang1
@@ -34838,7 +34838,7 @@
 乞人	qi3 ren2
 乞伏	qi3 fu2
 乞休	qi3 xiu1
-乞佛	qi3 fu2
+乞佛	qi3 fo2
 乞俭	qi3 jian3
 乞借	qi3 jie4
 乞假	qi2 jia3
@@ -37793,10 +37793,10 @@
 二体	er4 ti3
 二体问题	er4 ti3 wen4 ti2
 二何	er4 he2
-二佛升天	er4 fu2 sheng1 tian1
-二佛涅槃	er4 fu2 nie4 pan2
-二佛涅盘	er4 fu2 nie4 pan2
-二佛生天	er4 fu2 sheng1 tian1
+二佛升天	er4 fo2 sheng1 tian1
+二佛涅槃	er4 fo2 nie4 pan2
+二佛涅盘	er4 fo2 nie4 pan2
+二佛生天	er4 fo2 sheng1 tian1
 二使星	er4 shi3 xing1
 二侧	er4 ce4
 二便	er4 bian4
@@ -39475,7 +39475,7 @@
 于会芳	yu2 hui4 fang1
 于体节	yu2 ti3 jie2
 于何	yu2 he2
-于佛义	yu2 fu2 yi4
+于佛义	yu2 fo2 yi4
 于佩尔	yu2 pei4 er3
 于修礼	yu2 xiu1 li3
 于儒伯	yu2 ru2 bo2
@@ -40240,7 +40240,7 @@
 云兴	yun2 xing1
 云兴霞蔚	yun2 xing1 xia2 wei4
 云冈	yun2 gang1
-云冈石佛	yun2 gang1 shi2 fu2
+云冈石佛	yun2 gang1 shi2 fo2
 云冈石窟	yun2 gang1 shi2 ku1
 云冕	yun2 mian3
 云冠	yun2 guan1
@@ -40356,7 +40356,7 @@
 云宫	yun2 gong1
 云容月貌	yun2 rong2 yue4 mao4
 云寺	yun2 si4
-云寺佛	yun2 si4 fu2
+云寺佛	yun2 si4 fo2
 云封雾	yun2 feng1 wu4
 云将	yun2 jiang1
 云尔	yun2 er3
@@ -47379,7 +47379,7 @@
 仁仁义	ren2 ren5 yi4
 仁以恤民	ren2 yi3 xu4 min2
 仁体	ren2 ti3
-仁佛阁	ren2 fu2 ge2
+仁佛阁	ren2 fo2 ge2
 仁信	ren2 xin4
 仁儿	ren2 er5
 仁兄	ren2 xiong1
@@ -49092,7 +49092,7 @@
 仙伎	xian1 ji4
 仙传	xian1 chuan2
 仙伯	xian1 bo2
-仙佛	xian1 fu2
+仙佛	xian1 fo2
 仙使	xian1 shi3
 仙侠	xian1 xia2
 仙侣	xian1 lv3
@@ -58208,123 +58208,123 @@
 佚闻	yi4 wen2
 佚饱	yi4 bao3
 佚马	yi4 ma3
-佛	fu2
-佛义	fu2 yi4
-佛乐	fu2 yue4
-佛乘	fu2 cheng2
-佛书	fu2 shu1
+佛	fo2
+佛义	fo2 yi4
+佛乐	fo2 yue4
+佛乘	fo2 cheng2
+佛书	fo2 shu1
 佛事	fo2 shi4
-佛人	fu2 ren2
-佛仪	fu2 yi2
+佛人	fo2 ren2
+佛仪	fo2 yi2
 佛会	fo2 hui4
-佛伞	fu2 san3
-佛位	fu2 wei4
-佛佗	fu2 tuo2
-佛佛	fu2 fu2
-佛偈	fu2 ji4
+佛伞	fo2 san3
+佛位	fo2 wei4
+佛佗	fo2 tuo2
+佛佛	fo2 fo2
+佛偈	fo2 ji4
 佛像	fo2 xiang4
 佛像卡	fo2 xiang4 ka3
 佛光	fo2 guang1
 佛光寺	fo2 guang1 si4
 佛光山	fo2 guang1 shan1
 佛光袴	fo2 guang1 ku4
-佛兰克林	fu2 lan2 ke4 lin2
-佛兰德	fu2 lan2 de2
-佛兰德斯美术	fu2 lan2 de2 si1 mei3 shu4
-佛兰芒语	fu2 lan2 mang2 yu3
-佛兰西	fu2 lan2 xi1
+佛兰克林	fo2 lan2 ke4 lin2
+佛兰德	fo2 lan2 de2
+佛兰德斯美术	fo2 lan2 de2 si1 mei3 shu4
+佛兰芒语	fo2 lan2 mang2 yu3
+佛兰西	fo2 lan2 xi1
 佛典	fo2 dian3
-佛冈	fu2 gang1
-佛冈县	fu2 gang1 xian4
-佛出世	fu2 chu1 shi4
-佛利	fu2 li4
-佛刹	fu2 sha1
-佛力	fu2 li4
-佛劳伦斯	fu2 lao2 lun2 si1
-佛化	fu2 hua4
+佛冈	fo2 gang1
+佛冈县	fo2 gang1 xian4
+佛出世	fo2 chu1 shi4
+佛利	fo2 li4
+佛刹	fo2 sha1
+佛力	fo2 li4
+佛劳伦斯	fo2 lao2 lun2 si1
+佛化	fo2 hua4
 佛协	fo2 xie2
 佛卡夏	fo2 ka3 xia4
 佛印	fo2 yin4
-佛历	fu2 li4
-佛双陆	fu2 shuang1 lu4
+佛历	fo2 li4
+佛双陆	fo2 shuang1 lu4
 佛发	fo2 fa1
 佛口蛇心	fo2 kou3 she2 xin1
 佛号	fo2 hao4
-佛吉尼亚	fu2 ji2 ni2 ya4
+佛吉尼亚	fo2 ji2 ni2 ya4
 佛国	fo2 guo2
-佛图	fu2 tu2
-佛图户	fu2 tu2 hu4
-佛土	fu2 tu3
-佛地	fu2 di4
-佛场	fu2 chang3
-佛坛	fu2 tan2
+佛图	fo2 tu2
+佛图户	fo2 tu2 hu4
+佛土	fo2 tu3
+佛地	fo2 di4
+佛场	fo2 chang3
+佛坛	fo2 tan2
 佛坪	fo2 ping2
 佛坪县	fo2 ping2 xian4
 佛堂	fo2 tang2
 佛塔	fo2 ta3
-佛境	fu2 jing4
-佛多	fu2 duo1
-佛天	fu2 tian1
-佛头	fu2 tou2
+佛境	fo2 jing4
+佛多	fo2 duo1
+佛天	fo2 tian1
+佛头	fo2 tou2
 佛头加秽	fo2 tou2 jia1 hui4
 佛头着粪	fo2 tou2 zhuo2 fen4
-佛头石	fu2 tou2 shi2
-佛头菊	fu2 tou2 ju2
+佛头石	fo2 tou2 shi2
+佛头菊	fo2 tou2 ju2
 佛头著粪	fo2 tou2 zhuo2 fen4
-佛头青	fu2 tou2 qing1
-佛如	fu2 ru2
-佛妆	fu2 zhuang1
-佛婆	fu2 po2
+佛头青	fo2 tou2 qing1
+佛如	fo2 ru2
+佛妆	fo2 zhuang1
+佛婆	fo2 po2
 佛子	fo2 zi3
 佛学	fo2 xue2
 佛学界	fo2 xue2 jie4
 佛学院	fo2 xue2 yuan4
-佛宇	fu2 yu3
-佛宝	fu2 bao3
-佛宫	fu2 gong1
+佛宇	fo2 yu3
+佛宝	fo2 bao3
+佛宫	fo2 gong1
 佛家	fo2 jia1
 佛家弟子	fo2 jia1 di4 zi5
 佛家语	fo2 jia1 yu3
 佛寺	fo2 si4
-佛尔	fu2 er3
+佛尔	fo2 er3
 佛山	fo2 shan1
 佛山人	fo2 shan1 ren2
 佛山地区	fo2 shan1 di4 qu1
 佛山市	fo2 shan1 shi4
-佛州	fu2 zhou1
-佛幌	fu2 huang3
-佛幔	fu2 man4
-佛幡	fu2 fan1
-佛庐	fu2 lu2
-佛庙	fu2 miao4
-佛座	fu2 zuo4
-佛座须	fu2 zuo4 xu1
-佛弟子	fu2 di4 zi3
-佛影	fu2 ying3
-佛影蔬	fu2 ying3 shu1
-佛律	fu2 lv4
-佛徒	fu2 tu2
-佛得角	fu2 de2 jiao3
+佛州	fo2 zhou1
+佛幌	fo2 huang3
+佛幔	fo2 man4
+佛幡	fo2 fan1
+佛庐	fo2 lu2
+佛庙	fo2 miao4
+佛座	fo2 zuo4
+佛座须	fo2 zuo4 xu1
+佛弟子	fo2 di4 zi3
+佛影	fo2 ying3
+佛影蔬	fo2 ying3 shu1
+佛律	fo2 lv4
+佛徒	fo2 tu2
+佛得角	fo2 de2 jiao3
 佛得角共和国	fo2 de2 jiao3 gong4 he2 guo2
-佛得角非洲独立党	fu2 de2 jiao3 fei1 zhou1 du2 li4 dang3
-佛心	fu2 xin1
-佛心天子	fu2 xin1 tian1 zi5
+佛得角非洲独立党	fo2 de2 jiao3 fei1 zhou1 du2 li4 dang3
+佛心	fo2 xin1
+佛心天子	fo2 xin1 tian1 zi5
 佛心蛇口	fo2 xin1 she2 kou3
 佛性	fo2 xing4
 佛性禅心	fo2 xing4 chan2 xin1
-佛慧	fu2 hui4
-佛戒	fu2 jie4
-佛戾	fu2 li4
-佛扃	fu2 jiong1
+佛慧	fo2 hui4
+佛戒	fo2 jie4
+佛戾	fo2 li4
+佛扃	fo2 jiong1
 佛手	fo2 shou3
 佛手柑	fo2 shou3 gan1
 佛手瓜	fo2 shou3 gua1
 佛手蕉	fo2 shou3 jiao1
 佛手麦	fo2 shou3 mai4
-佛拉	fu2 la1
-佛拉明戈	fu2 la1 ming2 ge1
-佛拉芒	fu2 la1 mang2
-佛提树	fu2 ti2 shu4
+佛拉	fo2 la1
+佛拉明戈	fo2 la1 ming2 ge1
+佛拉芒	fo2 la1 mang2
+佛提树	fo2 ti2 shu4
 佛教	fo2 jiao4
 佛教协会	fo2 jiao4 xie2 hui4
 佛教史	fo2 jiao4 shi3
@@ -58333,138 +58333,138 @@
 佛教界	fo2 jiao4 jie4
 佛教论坛	fo2 jiao4 lun4 tan2
 佛教语	fo2 jiao4 yu3
-佛日	fu2 ri4
-佛旨	fu2 zhi3
-佛是金妆	fu2 shi4 jin1 zhuang1
-佛是金装	fu2 shi4 jin1 zhuang1
+佛日	fo2 ri4
+佛旨	fo2 zhi3
+佛是金妆	fo2 shi4 jin1 zhuang1
+佛是金装	fo2 shi4 jin1 zhuang1
 佛曲	fo2 qu3
 佛朗哥	fo2 lang3 ge1
-佛朗明哥	fu2 lang3 ming2 ge1
-佛朗机	fu2 lang3 ji1
-佛朗机炮	fu2 lang3 ji1 pao4
-佛朗机铳	fu2 lang3 ji1 chong4
-佛果	fu2 guo3
-佛柜	fu2 gui4
-佛树	fu2 shu4
-佛桌儿	fu2 zhuo1 er2
-佛桑	fu2 sang1
-佛森	fu2 sen1
-佛欢喜日	fu2 huan1 xi3 ri4
+佛朗明哥	fo2 lang3 ming2 ge1
+佛朗机	fo2 lang3 ji1
+佛朗机炮	fo2 lang3 ji1 pao4
+佛朗机铳	fo2 lang3 ji1 chong4
+佛果	fo2 guo3
+佛柜	fo2 gui4
+佛树	fo2 shu4
+佛桌儿	fo2 zhuo1 er2
+佛桑	fo2 sang1
+佛森	fo2 sen1
+佛欢喜日	fo2 huan1 xi3 ri4
 佛殿	fo2 dian4
-佛母	fu2 mu3
-佛氏	fu2 shi4
-佛气	fu2 qi4
-佛汗	fu2 han4
+佛母	fo2 mu3
+佛氏	fo2 shi4
+佛气	fo2 qi4
+佛汗	fo2 han4
 佛法	fo2 fa3
 佛法僧	fo2 fa3 seng1
 佛法僧目	fo2 fa3 seng1 mu4
 佛法徒	fo2 fa3 tu2
 佛法无边	fo2 fa3 wu2 bian1
-佛波醇	fu2 bo1 chun2
-佛泥	fu2 ni2
-佛洛伊德	fu2 luo4 yi1 de2
-佛洛依德	fu2 luo4 yi1 de2
-佛洛斯特	fu2 luo4 si1 te4
-佛海	fu2 hai3
+佛波醇	fo2 bo1 chun2
+佛泥	fo2 ni2
+佛洛伊德	fo2 luo4 yi1 de2
+佛洛依德	fo2 luo4 yi1 de2
+佛洛斯特	fo2 luo4 si1 te4
+佛海	fo2 hai3
 佛湾	fo2 wan1
-佛火	fu2 huo3
-佛灯	fu2 deng1
+佛火	fo2 huo3
+佛灯	fo2 deng1
 佛爷	fo2 ye5
 佛爷桌儿	fo2 ye2 zhuo1 er2
 佛牙	fo2 ya2
 佛牙舍利	fo2 ya2 she4 li4
-佛狸	fu2 li2
-佛狸祠	fu2 li2 ci2
-佛现鸟	fu2 xian4 niao3
+佛狸	fo2 li2
+佛狸祠	fo2 li2 ci2
+佛现鸟	fo2 xian4 niao3
 佛珠	fo2 zhu1
-佛理	fu2 li3
-佛生日	fu2 sheng1 ri4
+佛理	fo2 li3
+佛生日	fo2 sheng1 ri4
 佛甲草	fo2 jia2 cao3
-佛男	fu2 nan2
-佛画	fu2 hua4
-佛界	fu2 jie4
-佛盘	fu2 pan2
-佛眼	fu2 yan3
+佛男	fo2 nan2
+佛画	fo2 hua4
+佛界	fo2 jie4
+佛盘	fo2 pan2
+佛眼	fo2 yan3
 佛眼佛心	fo2 yan3 fo2 xin1
 佛眼相看	fo2 yan3 xiang1 kan4
 佛祖	fo2 zu3
-佛祠	fu2 ci2
-佛种	fu2 zhong3
-佛窟	fu2 ku1
+佛祠	fo2 ci2
+佛种	fo2 zhong3
+佛窟	fo2 ku1
 佛粥	fo2 zhou1
 佛系	fo2 xi4
 佛经	fo2 jing1
-佛罗伦	fu2 luo2 lun2
-佛罗伦斯	fu2 luo2 lun2 si1
+佛罗伦	fo2 luo2 lun2
+佛罗伦斯	fo2 luo2 lun2 si1
 佛罗伦萨	fo2 luo2 lun2 sa4
 佛罗伦萨大教堂	fo2 luo2 lun2 sa4 da4 jiao4 tang2
 佛罗伦萨队	fo2 luo2 lun2 sa4 dui4
-佛罗多	fu2 luo2 duo1
-佛罗安国	fu2 luo2 an1 guo2
-佛罗棱萨	fu2 luo2 leng2 sa4
-佛罗里	fu2 luo2 li3
+佛罗多	fo2 luo2 duo1
+佛罗安国	fo2 luo2 an1 guo2
+佛罗棱萨	fo2 luo2 leng2 sa4
+佛罗里	fo2 luo2 li3
 佛罗里达	fo2 luo2 li3 da2
-佛罗里达半岛	fu2 luo2 li3 da2 ban4 dao3
+佛罗里达半岛	fo2 luo2 li3 da2 ban4 dao3
 佛罗里达州	fo2 luo2 li3 da2 zhou1
-佛罗里达海峡	fu2 luo2 li3 da2 hai3 xia2
-佛老	fu2 lao3
-佛耳草	fu2 er3 cao3
-佛肚竹	fu2 du4 zhu2
-佛肸	fu2 xi1
-佛脚	fu2 jiao3
-佛腊日	fu2 la4 ri4
+佛罗里达海峡	fo2 luo2 li3 da2 hai3 xia2
+佛老	fo2 lao3
+佛耳草	fo2 er3 cao3
+佛肚竹	fo2 du4 zhu2
+佛肸	fo2 xi1
+佛脚	fo2 jiao3
+佛腊日	fo2 la4 ri4
 佛舍	fo2 she4
 佛舍利	fo2 she4 li4
-佛草	fu2 cao3
+佛草	fo2 cao3
 佛蒙特	fo2 meng2 te4
 佛蒙特州	fo2 meng2 te4 zhou1
-佛藏	fu2 zang4
-佛螺	fu2 luo2
-佛衣	fu2 yi1
-佛袈裟	fu2 jia1 sha1
+佛藏	fo2 zang4
+佛螺	fo2 luo2
+佛衣	fo2 yi1
+佛袈裟	fo2 jia1 sha1
 佛要金装	fo2 yao4 jin1 zhuang1
-佛记	fu2 ji4
-佛证	fu2 zheng4
-佛诞	fu2 dan4
-佛诞日	fu2 dan4 ri4
-佛诞节	fu2 dan4 jie2
-佛语	fu2 yu3
+佛记	fo2 ji4
+佛证	fo2 zheng4
+佛诞	fo2 dan4
+佛诞日	fo2 dan4 ri4
+佛诞节	fo2 dan4 jie2
+佛语	fo2 yu3
 佛说	fo2 shuo1
-佛谛	fu2 di4
-佛豆	fu2 dou4
+佛谛	fo2 di4
+佛豆	fo2 dou4
 佛跳墙	fo2 tiao4 qiang2
-佛迹	fu2 ji4
-佛退	fu2 tui4
-佛逝国	fu2 shi4 guo2
+佛迹	fo2 ji4
+佛退	fo2 tui4
+佛逝国	fo2 shi4 guo2
 佛道	fo2 dao4
-佛道艾	fu2 dao4 ai4
-佛郁	fu2 yu4
-佛郎	fu2 lang2
-佛郎嵌	fu2 lang2 qian4
-佛郎机	fu2 lang2 ji1
-佛郎机炮	fu2 lang2 ji1 pao4
-佛释	fu2 shi4
-佛钵	fu2 bo1
+佛道艾	fo2 dao4 ai4
+佛郁	fo2 yu4
+佛郎	fo2 lang2
+佛郎嵌	fo2 lang2 qian4
+佛郎机	fo2 lang2 ji1
+佛郎机炮	fo2 lang2 ji1 pao4
+佛释	fo2 shi4
+佛钵	fo2 bo1
 佛门	fo2 men2
 佛门弟子	fo2 men2 di4 zi3
-佛阁	fu2 ge2
-佛阑克	fu2 lan2 ke4
+佛阁	fo2 ge2
+佛阑克	fo2 lan2 ke4
 佛陀	fo2 tuo2
-佛陇	fu2 long3
-佛院	fu2 yuan4
-佛雷泽尔	fu2 lei2 ze2 er3
-佛青	fu2 qing1
+佛陇	fo2 long3
+佛院	fo2 yuan4
+佛雷泽尔	fo2 lei2 ze2 er3
+佛青	fo2 qing1
 佛面	fo2 mian4
-佛面竹	fu2 mian4 zhu2
-佛顶珠	fu2 ding3 zhu1
-佛顶菊	fu2 ding3 ju2
-佛饼	fu2 bing3
-佛香阁	fu2 xiang1 ge2
-佛骨	fu2 gu3
-佛骨塔	fu2 gu3 ta3
-佛高一尺	fu2 gao1 yi1 chi3
-佛髻	fu2 ji4
-佛齿	fu2 chi3
+佛面竹	fo2 mian4 zhu2
+佛顶珠	fo2 ding3 zhu1
+佛顶菊	fo2 ding3 ju2
+佛饼	fo2 bing3
+佛香阁	fo2 xiang1 ge2
+佛骨	fo2 gu3
+佛骨塔	fo2 gu3 ta3
+佛高一尺	fo2 gao1 yi1 chi3
+佛髻	fo2 ji4
+佛齿	fo2 chi3
 佛龛	fo2 kan1
 作	zuo4
 作一	zuo4 yi1
@@ -58965,7 +58965,7 @@
 佝瞀	gou1 mao4
 佞	ning4
 佞人	ning4 ren2
-佞佛	ning4 fu2
+佞佛	ning4 fo2
 佞侻	ning4 tui4
 佞兑	ning4 dui4
 佞口	ning4 kou3
@@ -60418,8 +60418,8 @@
 依仗	yi1 zhang4
 依仰	yi1 yang3
 依仿	yi1 fang3
-依佛	yi1 fu2
-依佛哪	yi1 fu2 na3
+依佛	yi1 fo2
+依佛哪	yi1 fo2 na3
 依例	yi1 li4
 依侍	yi1 shi4
 依依	yi1 yi1
@@ -71356,7 +71356,7 @@
 光会	guang1 hui4
 光伴	guang1 ban4
 光体	guang1 ti3
-光佛	guang1 fu2
+光佛	guang1 fo2
 光信号	guang1 xin4 hao4
 光傥	guang1 tang3
 光催化	guang1 cui1 hua4
@@ -72119,7 +72119,7 @@
 克孜勒苏柯尔克孜自治州	ke4 zi1 le4 su1 ke1 er3 ke4 zi1 zi4 zhi4 zhou1
 克孜勒苏河	ke4 zi1 le4 su1 he2
 克孜尔	ke4 zi1 er3
-克孜尔千佛洞	ke4 zi1 er3 qian1 fu2 dong4
+克孜尔千佛洞	ke4 zi1 er3 qian1 fo2 dong4
 克孜尔尕哈	ke4 zi1 er3 ga3 ha1
 克孜尔尕哈烽火台	ke4 zi1 er3 ga3 ha1 feng1 huo3 tai2
 克孜族	ke4 zi1 zu2
@@ -72508,7 +72508,7 @@
 克里斯丹	ke4 li3 si1 dan1
 克里斯塔	ke4 li3 si1 ta3
 克里斯多	ke4 li3 si1 duo1
-克里斯多佛	ke4 li3 si1 duo1 fu2
+克里斯多佛	ke4 li3 si1 duo1 fo2
 克里斯托	ke4 li3 si1 tuo1
 克里斯托夫	ke4 li3 si1 tuo1 fu1
 克里斯托弗	ke4 li3 si1 tuo1 fu2
@@ -102049,7 +102049,7 @@
 劳伤	lao2 shang1
 劳伦斯	lao2 lun2 si1
 劳伦斯伯克利	lao2 lun2 si1 bo2 ke4 li4
-劳佛尔	lao2 fu2 er3
+劳佛尔	lao2 fo2 er3
 劳作	lao2 zuo4
 劳作室	lao2 zuo4 shi4
 劳作课	lao2 zuo4 ke4
@@ -108048,12 +108048,12 @@
 千余艘	qian1 yu2 sou1
 千余里	qian1 yu2 li3
 千余间	qian1 yu2 jian1
-千佛名经	qian1 fu2 ming2 jing1
-千佛土	qian1 fu2 tu3
+千佛名经	qian1 fo2 ming2 jing1
+千佛土	qian1 fo2 tu3
 千佛山	qian1 fo2 shan1
-千佛岩	qian1 fu2 yan2
+千佛岩	qian1 fo2 yan2
 千佛殿	qian1 fo2 dian4
-千佛洞	qian1 fu2 dong4
+千佛洞	qian1 fo2 dong4
 千例	qian1 li4
 千依万顺	qian1 yi1 wan4 shun4
 千依百顺	qian1 yi1 bai3 shun4
@@ -108307,7 +108307,7 @@
 千户所	qian1 hu4 suo3
 千所	qian1 suo3
 千手	qian1 shou3
-千手佛	qian1 shou3 fu2
+千手佛	qian1 shou3 fo2
 千手千眼观音	qian1 shou3 qian1 yan3 guan1 yin1
 千手堂	qian1 shou3 tang2
 千手观音	qian1 shou3 guan1 yin1
@@ -114514,7 +114514,7 @@
 卧云	wo4 yun2
 卧伏	wo4 fu2
 卧位	wo4 wei4
-卧佛	wo4 fu2
+卧佛	wo4 fo2
 卧佛寺	wo4 fo2 si4
 卧倒	wo4 dao3
 卧倒在地	wo4 dao3 zai4 di4
@@ -115472,8 +115472,8 @@
 即席讲演	ji2 xi2 jiang2 yan3
 即序	ji2 xu4
 即度	ji2 du4
-即心即佛	ji2 xin1 ji2 fu2
-即心是佛	ji2 xin1 shi4 fu2
+即心即佛	ji2 xin1 ji2 fo2
+即心是佛	ji2 xin1 shi4 fo2
 即忙	ji2 mang2
 即戎	ji2 rong2
 即成	ji2 cheng2
@@ -123433,7 +123433,7 @@
 古体	gu2 ti3
 古体文	gu2 ti3 wen2
 古体诗	gu3 ti3 shi1
-古佛	gu3 fu2
+古佛	gu3 fo2
 古假	gu2 jia3
 古健	gu3 jian4
 古健杰	gu3 jian4 jie2
@@ -126044,8 +126044,8 @@
 史丞相	shi3 cheng2 xiang4
 史严云	shi3 yan2 yun2
 史中臣	shi3 zhong1 chen2
-史丹佛	shi3 dan1 fu2
-史丹佛大	shi3 dan1 fu2 da4
+史丹佛	shi3 dan1 fo2
+史丹佛大	shi3 dan1 fo2 da4
 史丹利	shi3 dan1 li4
 史丹福	shi3 dan1 fu2
 史丹福大学	shi3 dan1 fu2 da4 xue2
@@ -127535,7 +127535,7 @@
 叹企	tan4 qi3
 叹伏	tan4 fu2
 叹伤	tan4 shang1
-叹佛	tan4 fu2
+叹佛	tan4 fo2
 叹佩	tan4 pei4
 叹凤	tan4 feng4
 叹口气	tan4 kou3 qi4
@@ -131043,7 +131043,7 @@
 后会无期	hou4 hui4 wu2 qi1
 后会有期	hou4 hui4 you3 qi1
 后传	hou4 zhuan4
-后佛	hou4 fu2
+后佛	hou4 fo2
 后作	hou4 zuo4
 后作物	hou4 zuo4 wu4
 后侧	hou4 ce4
@@ -135891,7 +135891,7 @@
 呖	li4
 呖呖	li4 li4
 呗	bei5
-呗佛	bei5 fu2
+呗佛	bei5 fo2
 呗偈	bei5 ji4
 呗唱	bai4 chang4
 呗声	bei5 sheng1
@@ -136123,7 +136123,7 @@
 周伯华	zhou1 bo2 hua2
 周伯通	zhou1 bo2 tong1
 周伯齐	zhou1 bo2 qi2
-周佛海	zhou1 fu2 hai3
+周佛海	zhou1 fo2 hai3
 周作人	zhou1 zuo4 ren2
 周作民	zhou1 zuo4 min2
 周俊伟	zhou1 jun4 wei3
@@ -139893,10 +139893,10 @@
 哈伯玛斯	ha1 bo2 ma3 si1
 哈佐尔	ha1 zuo2 er3
 哈佛	ha1 fo2
-哈佛商学院	ha1 fu2 shang1 xue2 yuan4
+哈佛商学院	ha1 fo2 shang1 xue2 yuan4
 哈佛大学	ha1 fo2 da4 xue2
-哈佛大学医学院	ha1 fu2 da4 xue2 yi1 xue2 yuan4
-哈佛大学商学院	ha1 fu2 da4 xue2 shang1 xue2 yuan4
+哈佛大学医学院	ha1 fo2 da4 xue2 yi1 xue2 yuan4
+哈佛大学商学院	ha1 fo2 da4 xue2 shang1 xue2 yuan4
 哈依尔	ha1 yi1 er3
 哈依洛	ha1 yi1 luo4
 哈依纳	ha1 yi1 na4
@@ -142236,7 +142236,7 @@
 唸下去	nian4 xia4 qu5
 唸书	nian4 shu1
 唸书下去	nian4 shu1 xia4 qu5
-唸佛	nian4 fu2
+唸佛	nian4 fo2
 唸作	nian4 zuo4
 唸到	nian4 dao4
 唸咒	nian4 zhou4
@@ -146938,7 +146938,7 @@
 四集	si4 ji2
 四面	si4 mian4
 四面体	si4 mian4 ti3
-四面佛	si4 mian4 fu2
+四面佛	si4 mian4 fo2
 四面八方	si4 mian4 ba1 fang1
 四面出击	si4 mian4 chu1 ji1
 四面受困	si4 mian4 shou4 kun4
@@ -151218,7 +151218,7 @@
 圣体节	sheng4 ti3 jie2
 圣体血	sheng4 ti3 xue4
 圣何塞	sheng4 he2 sai4
-圣佛明节	sheng4 fu2 ming2 jie2
+圣佛明节	sheng4 fo2 ming2 jie2
 圣作	sheng4 zuo4
 圣佩德罗	sheng4 pei4 de2 luo2
 圣使	sheng4 shi3
@@ -155995,7 +155995,7 @@
 基体	ji1 ti3
 基体干扰	ji1 ti3 gan1 rao3
 基体效应	ji1 ti3 xiao4 ying4
-基佛	ji1 fu2
+基佛	ji1 fo2
 基作用	ji1 zuo4 yong4
 基佬	ji1 lao3
 基元	ji1 yuan2
@@ -157444,7 +157444,7 @@
 塔迪兰	ta3 di2 lan2
 塔迪奇	ta3 di2 qi2
 塔那摩	ta3 na4 mo2
-塔那那利佛	ta3 na4 na4 li4 fu2
+塔那那利佛	ta3 na4 na4 li4 fo2
 塔里	ta2 li3
 塔里亚	ta2 li3 ya4
 塔里寒	ta2 li3 han2
@@ -162118,9 +162118,9 @@
 多余因数	duo1 yu2 yin1 shu4
 多余的人	duo1 yu2 de5 ren2
 多佛	duo1 fo2
-多佛尔	duo1 fu2 er3
-多佛尔海峡	duo1 fu2 er3 hai3 xia2
-多佛尔港	duo1 fu2 er2 gang3
+多佛尔	duo1 fo2 er3
+多佛尔海峡	duo1 fo2 er3 hai3 xia2
+多佛尔港	duo1 fo2 er2 gang3
 多例	duo1 li4
 多侧面	duo1 ce4 mian4
 多保忠	duo1 bao3 zhong1
@@ -163668,8 +163668,8 @@
 大佛寺	da4 fo2 si4
 大佛山	da4 fo2 shan1
 大佛殿	da4 fo2 dian4
-大佛湾	da4 fu2 wan1
-大佛阁	da4 fu2 ge2
+大佛湾	da4 fo2 wan1
+大佛阁	da4 fo2 ge2
 大作	da4 zuo4
 大作文章	da4 zuo4 wen2 zhang1
 大佬	da4 lao3
@@ -165041,7 +165041,7 @@
 大方地	da4 fang1 de5
 大方地拿出	da4 fang1 de5 na2 chu1
 大方地讲	da4 fang1 de5 jiang3
-大方广佛华严经	da4 fang1 guang3 fu2 hua2 yan2 jing1
+大方广佛华严经	da4 fang1 guang3 fo2 hua2 yan2 jing1
 大旅	da4 lv3
 大旋涡	da4 xuan2 wo1
 大族	da4 zu2
@@ -166656,7 +166656,7 @@
 大雁	da4 yan4
 大雁塔	da4 yan4 ta3
 大雄	da4 xiong2
-大雄佛	da4 xiong2 fu2
+大雄佛	da4 xiong2 fo2
 大雄宝殿	da4 xiong2 bao3 dian4
 大雄殿	da4 xiong2 dian4
 大雅	da4 ya3
@@ -172273,7 +172273,7 @@
 奥列格	ao4 lie4 ge2
 奥创	ao4 chuang4
 奥利	ao4 li4
-奥利佛	ao4 li4 fu2
+奥利佛	ao4 li4 fo2
 奥利力	ao4 li4 li4
 奥利地	ao4 li4 di4
 奥利塔	ao4 li4 ta3
@@ -172625,7 +172625,7 @@
 奥窍	ao4 qiao4
 奥窔	ao4 yao4
 奥窟	ao4 ku1
-奥立佛	ao4 li4 fu2
+奥立佛	ao4 li4 fo2
 奥立弗	ao4 li4 fu2
 奥米伽	ao4 mi3 ga1
 奥米可戎	ao4 mi3 ke3 rong2
@@ -173340,7 +173340,7 @@
 奴书	nu2 shu1
 奴产子	nu2 chan3 zi5
 奴仆	nu2 pu2
-奴佛卡因	nu2 fu2 ka3 yin1
+奴佛卡因	nu2 fo2 ka3 yin1
 奴使	nu2 shi3
 奴僇	nu2 lu4
 奴儿干	nu2 er2 gan4
@@ -176848,7 +176848,7 @@
 威震天下	wei1 zhen4 tian1 xia4
 威露士	wei1 lu4 shi4
 威音	wei1 yin1
-威音王佛	wei1 yin1 wang2 fu2
+威音王佛	wei1 yin1 wang2 fo2
 威风	wei1 feng1
 威风八面	wei1 feng1 ba1 mian4
 威风凛冽	wei1 feng1 lin3 lie4
@@ -183321,7 +183321,7 @@
 安塔利亚	an1 ta3 li4 ya4
 安塔基	an1 ta3 ji1
 安塔拉	an1 ta3 la1
-安塔那那利佛	an1 ta3 na4 na4 li4 fu2
+安塔那那利佛	an1 ta3 na4 na4 li4 fo2
 安塞	an1 sai4
 安塞县	an1 sai4 xian4
 安塞尔米	an1 sai4 er2 mi3
@@ -186151,7 +186151,7 @@
 定做	ding4 zuo4
 定僧	ding4 seng1
 定光	ding4 guang1
-定光佛杖	ding4 guang1 fu2 zhang4
+定光佛杖	ding4 guang1 fo2 zhang4
 定兴	ding4 xing1
 定兴县	ding4 xing1 xian4
 定册	ding4 ce4
@@ -186996,7 +186996,7 @@
 宝瓶	bao3 ping2
 宝瓶口	bao3 ping2 kou3
 宝瓶座	bao3 ping2 zuo4
-宝生佛	bao3 sheng1 fu2
+宝生佛	bao3 sheng1 fo2
 宝生舞	bao3 sheng1 wu3
 宝用	bao3 yong4
 宝界	bao3 jie4
@@ -191538,7 +191538,7 @@
 寄臣	ji4 chen2
 寄自	ji4 zi4
 寄至	ji4 zhi4
-寄花献佛	ji4 hua1 xian4 fu2
+寄花献佛	ji4 hua1 xian4 fo2
 寄菆	ji4 zou1
 寄藏	ji4 cang2
 寄蝇	ji4 ying2
@@ -200231,7 +200231,7 @@
 尼伯尔	ni2 bo2 er3
 尼伯龙	ni2 bo2 long2
 尼僧	ni2 seng1
-尼光佛	ni2 guang1 fu2
+尼光佛	ni2 guang1 fo2
 尼克	ni2 ke4
 尼克会	ni2 ke4 hui4
 尼克坦	ni2 ke4 tan3
@@ -216757,7 +216757,7 @@
 广会	guang3 hui4
 广会师	guang3 hui4 shi1
 广传	guang3 chuan2
-广佛华	guang3 fu2 hua2
+广佛华	guang3 fo2 hua2
 广侈	guang3 chi3
 广信军	guang3 xin4 jun1
 广修	guang3 xiu1
@@ -218055,7 +218055,7 @@
 库朗特	ku4 lang3 te4
 库木吐	ku4 mu4 tu3
 库木吐拉	ku4 mu4 tu3 la1
-库木吐拉千佛洞	ku4 mu4 tu3 la1 qian1 fu2 dong4
+库木吐拉千佛洞	ku4 mu4 tu3 la1 qian1 fo2 dong4
 库木塔格	ku4 mu4 ta3 ge2
 库本	ku4 ben3
 库杜古	ku4 du4 gu3
@@ -224445,7 +224445,7 @@
 张佐华	zhang1 zuo3 hua2
 张佑才	zhang1 you4 cai2
 张佑赫	zhang1 you4 he4
-张佛泉	zhang1 fu2 quan2
+张佛泉	zhang1 fo2 quan2
 张作梅	zhang1 zuo4 mei2
 张作相	zhang1 zuo4 xiang4
 张作霖	zhang1 zuo4 lin2
@@ -230995,7 +230995,7 @@
 得住	de5 zhu4
 得体	de2 ti3
 得体歌	de2 ti3 ge1
-得佛	de2 fu2
+得佛	de2 fo2
 得使	de2 shi3
 得便	de2 bian4
 得便儿	de2 bian4 er5
@@ -233077,7 +233077,7 @@
 心体	xin1 ti3
 心余力竭	xin1 yu2 li4 jie2
 心余力绌	xin1 yu2 li4 chu4
-心佛	xin1 fu2
+心佛	xin1 fo2
 心佷	xin1 hen3
 心倕	xin1 chui2
 心倾	xin1 qing1
@@ -240583,7 +240583,7 @@
 悟	wu4
 悟主	wu4 zhu3
 悟会	wu4 hui4
-悟佛	wu4 fu2
+悟佛	wu4 fo2
 悟入	wu4 ru4
 悟净	wu4 jing4
 悟出	wu4 chu1
@@ -257857,7 +257857,7 @@
 护路队	hu4 lu4 dui4
 护跸	hu4 bi4
 护身	hu4 shen1
-护身佛	hu4 shen1 fu2
+护身佛	hu4 shen1 fo2
 护身咒	hu4 shen1 zhou4
 护身枷	hu4 shen1 jia1
 护身法	hu4 shen1 fa3
@@ -257923,7 +257923,7 @@
 报低	bao4 di1
 报佑	bao4 you4
 报体	bao4 ti3
-报佛	bao4 fu2
+报佛	bao4 fo2
 报佳音	bao4 jia1 yin1
 报信	bao4 xin4
 报修	bao4 xiu1
@@ -258163,7 +258163,7 @@
 报赛	bao4 sai4
 报路	bao4 lu4
 报身	bao4 shen1
-报身佛	bao4 shen1 fu2
+报身佛	bao4 shen1 fo2
 报载	bao4 zai3
 报送	bao4 song4
 报道	bao4 dao4
@@ -284178,8 +284178,8 @@
 斯坎纳	si1 kan3 na4
 斯坦人	si1 tan3 ren2
 斯坦伯格	si1 tan3 bo2 ge2
-斯坦佛	si1 tan3 fu2
-斯坦佛大学	si1 tan3 fu2 da4 xue2
+斯坦佛	si1 tan3 fo2
+斯坦佛大学	si1 tan3 fo2 da4 xue2
 斯坦利	si1 tan3 li4
 斯坦利港	si1 tan3 li4 gang3
 斯坦努	si1 tan3 nu3
@@ -290131,7 +290131,7 @@
 无里	wu2 li3
 无量	wu2 liang4
 无量井	wu2 liang4 jing3
-无量佛	wu2 liang4 fu2
+无量佛	wu2 liang4 fo2
 无量劫	wu2 liang4 jie2
 无量塔	wu2 liang4 ta3
 无量寿	wu2 liang4 shou4
@@ -292895,7 +292895,7 @@
 昌平区	chang1 ping2 qu1
 昌平县	chang1 ping2 xian4
 昌年	chang1 nian2
-昌废佛	chang1 fei4 fu2
+昌废佛	chang1 fei4 fo2
 昌庭	chang1 ting2
 昌延	chang1 yan2
 昌当岭	chang1 dang1 ling3
@@ -304966,7 +304966,7 @@
 木仙庵	mu4 xian1 an1
 木伦河	mu4 lun2 he2
 木位	mu4 wei4
-木佛	mu4 fu2
+木佛	mu4 fo2
 木作	mu4 zuo4
 木佬佬	mu4 lao3 lao3
 木侯	mu4 hou2
@@ -309625,7 +309625,7 @@
 李佐贤	li3 zuo3 xian2
 李体林	li3 ti3 lin2
 李何王李	li3 he2 wang2 li3
-李佛子	li3 fu2 zi5
+李佛子	li3 fo2 zi5
 李作同	li3 zuo4 tong2
 李作荣	li3 zuo4 rong2
 李作见	li3 zuo4 jian4
@@ -313406,7 +313406,7 @@
 杨朱泪	yang2 zhu1 lei4
 杨朱路	yang2 zhu1 lu4
 杨朱陌	yang2 zhu1 mo4
-杨杏佛	yang2 xing4 fu2
+杨杏佛	yang2 xing4 fo2
 杨杏忙	yang2 xing4 mang2
 杨杏才	yang2 xing4 cai2
 杨杏接	yang2 xing4 jie1
@@ -313978,8 +313978,8 @@
 杰伊汉	jie2 yi1 han4
 杰伊汉港	jie2 yi1 han4 gang3
 杰伟	jie2 wei3
-杰佛兹	jie2 fu2 zi1
-杰佛逊	jie2 fu2 xun4
+杰佛兹	jie2 fo2 zi1
+杰佛逊	jie2 fo2 xun4
 杰作	jie2 zuo4
 杰俊	jie2 jun4
 杰儁	jie2 jun4
@@ -317904,7 +317904,7 @@
 柏子禅	bai3 zi5 chan2
 柏子香	bai3 zi5 xiang1
 柏子高	bai3 zi5 gao1
-柏孜克里克千佛洞	bai3 zi1 ke4 li3 ke4 qian1 fu2 dong4
+柏孜克里克千佛洞	bai3 zi1 ke4 li3 ke4 qian1 fo2 dong4
 柏孜克里克石窟	bai3 zi1 ke4 li3 ke4 shi2 ku1
 柏宁队	bai3 ning2 dui4
 柏安妮	bai3 an1 ni1
@@ -318236,8 +318236,8 @@
 柔伏	rou2 fu2
 柔伸	rou2 shen1
 柔佛	rou2 fo2
-柔佛州	rou2 fu2 zhou1
-柔佛海峡	rou2 fu2 hai3 xia2
+柔佛州	rou2 fo2 zhou1
+柔佛海峡	rou2 fo2 hai3 xia2
 柔佞	rou2 ning4
 柔儿	rou2 er2
 柔兆	rou2 zhao4
@@ -321703,8 +321703,8 @@
 格准	ge2 zhun3
 格凛凛	ge2 lin3 lin3
 格击	ge2 ji1
-格列佛	ge2 lie4 fu2
-格列佛游记	ge2 lie4 fu2 you2 ji4
+格列佛	ge2 lie4 fo2
+格列佛游记	ge2 lie4 fo2 you2 ji4
 格列卫	ge2 lie4 wei4
 格列朗	ge2 lie4 lang3
 格列柯	ge2 lie4 ke1
@@ -329413,7 +329413,7 @@
 欢唱	huan1 chang4
 欢啸	huan1 xiao4
 欢喜	huan1 xi3
-欢喜佛	huan1 xi3 fu2
+欢喜佛	huan1 xi3 fo2
 欢喜冤家	huan1 xi3 yuan1 jia1
 欢喜地	huan1 xi3 de5
 欢喜岭	huan1 xi3 ling3
@@ -335483,7 +335483,7 @@
 比体	bi3 ti3
 比体积	bi2 ti3 ji1
 比余	bi3 yu2
-比佛利山	bi3 fu2 li4 shan1
+比佛利山	bi3 fo2 li4 shan1
 比作	bi3 zuo4
 比你早	bi3 ni3 zao3
 比佽	bi3 ci4
@@ -341599,7 +341599,7 @@
 江北区	jiang1 bei3 qu1
 江北地区	jiang1 bei3 di4 qu1
 江北岸	jiang1 bei3 an4
-江千佛	jiang1 qian1 fu2
+江千佛	jiang1 qian1 fo2
 江华	jiang1 hua2
 江华县	jiang1 hua2 xian4
 江华瑶族自治县	jiang1 hua2 yao2 zu2 zi4 zhi4 xian4
@@ -349140,8 +349140,8 @@
 泥人儿	ni2 ren2 er2
 泥人张	ni2 ren2 zhang1
 泥伏	ni2 fu2
-泥佛	ni2 fu2
-泥佛劝土佛	ni2 fu2 quan4 tu3 fu2
+泥佛	ni2 fo2
+泥佛劝土佛	ni2 fo2 quan4 tu3 fo2
 泥俑	ni2 yong3
 泥信	ni2 xin4
 泥像	ni2 xiang4
@@ -351672,7 +351672,7 @@
 洪伐	hong2 fa2
 洪休	hong2 xiu1
 洪伟烈	hong2 wei3 lie4
-洪佛	hong2 fu2
+洪佛	hong2 fo2
 洪儒	hong2 ru2
 洪元	hong2 yuan2
 洪兴祖	hong2 xing1 zu3
@@ -373959,7 +373959,7 @@
 熊井启	xiong2 jing3 qi3
 熊亲戚	xiong2 qin1 qi1
 熊任	xiong2 ren4
-熊佛西	xiong2 fu2 xi1
+熊佛西	xiong2 fo2 xi1
 熊侯	xiong2 hou2
 熊俊峰	xiong2 jun4 feng1
 熊倪	xiong2 ni2
@@ -374747,7 +374747,7 @@
 燃油锅炉	ran2 you2 guo1 lu2
 燃火	ran2 huo3
 燃灯	ran2 deng1
-燃灯佛	ran2 deng1 fu2
+燃灯佛	ran2 deng1 fo2
 燃灰	ran2 hui1
 燃灼	ran2 zhuo2
 燃点	ran2 dian3
@@ -377741,7 +377741,7 @@
 牟定县	mou2 ding4 xian4
 牟寿	mou2 shou4
 牟尼	mou2 ni2
-牟尼佛	mou2 ni2 fu2
+牟尼佛	mou2 ni2 fo2
 牟尼合	mou2 ni2 he2
 牟尼堂	mou2 ni2 tang2
 牟尼子	mou2 ni2 zi5
@@ -389125,7 +389125,7 @@
 珍奶	zhen1 nai3
 珍好	zhen1 hao3
 珍妮	zhen1 ni1
-珍妮佛	zhen1 ni1 fu2
+珍妮佛	zhen1 ni1 fo2
 珍妮弗	zhen1 ni1 fu2
 珍妮特	zhen1 ni1 te4
 珍妮花	zhen1 ni1 hua1
@@ -393576,7 +393576,7 @@
 生伦	sheng1 lun2
 生位	sheng1 wei4
 生体	sheng1 ti3
-生佛	sheng1 fu2
+生佛	sheng1 fo2
 生作	sheng1 zuo4
 生俘	sheng1 fu2
 生做	sheng1 zuo4
@@ -399108,7 +399108,7 @@
 番代	fan1 dai4
 番休	fan1 xiu1
 番伪	fan1 wei3
-番佛	fan1 fu2
+番佛	fan1 fo2
 番使	fan1 shi3
 番修	fan1 xiu1
 番假	fan1 jia4
@@ -402644,7 +402644,7 @@
 白令陆	bai2 ling4 lu4
 白住	bai2 zhu4
 白体	bai2 ti3
-白佛	bai2 fu2
+白佛	bai2 fo2
 白侯	bai2 hou2
 白俄	bai2 e2
 白俄罗斯	bai2 e2 luo2 si1
@@ -407327,7 +407327,7 @@
 盐槽	yan2 cao2
 盐民	yan2 min2
 盐水	yan2 shui3
-盐水佛	yan2 shui3 fu2
+盐水佛	yan2 shui3 fo2
 盐水妹	yan2 shui3 mei4
 盐水镇	yan2 shui3 zhen4
 盐水顶替	yan2 shui3 ding3 ti4
@@ -408010,7 +408010,7 @@
 盗伐林木	dao4 fa2 lin2 mu4
 盗伙	dao4 huo3
 盗位	dao4 wei4
-盗佛线	dao4 fu2 xian4
+盗佛线	dao4 fo2 xian4
 盗例	dao4 li4
 盗侠	dao4 xia2
 盗儒	dao4 ru2
@@ -415772,7 +415772,7 @@
 石仲泉	shi2 zhong4 quan2
 石似玉	shi2 shi4 yu4
 石佛寺	shi2 fo2 si4
-石佛镇	shi2 fu2 zhen4
+石佛镇	shi2 fo2 zhen4
 石作	shi2 zuo4
 石像	shi2 xiang4
 石像鬼	shi2 xiang4 gui3
@@ -435821,7 +435821,7 @@
 竹亭	zhu2 ting2
 竹人	zhu2 ren2
 竹伞	zhu2 san3
-竹佛子	zhu2 fu2 zi5
+竹佛子	zhu2 fo2 zi5
 竹作	zhu2 zuo4
 竹使	zhu2 shi3
 竹使符	zhu2 shi3 fu2
@@ -440147,7 +440147,7 @@
 简体中文版	jian2 ti3 zhong1 wen2 ban3
 简体字	jian3 ti3 zi4
 简体版	jian2 ti2 ban3
-简作佛	jian3 zuo4 fu2
+简作佛	jian3 zuo4 fo2
 简作兴	jian3 zuo4 xing1
 简佩	jian3 pei4
 简侮	jian3 wu3
@@ -442450,7 +442450,7 @@
 米家镇	mi3 jia1 zhen4
 米尔	mi2 er3
 米尔一世	mi2 er3 yi2 shi4
-米尔佛	mi2 er3 fu2
+米尔佛	mi2 er3 fo2
 米尔克	mi2 er3 ke4
 米尔城	mi2 er3 cheng2
 米尔奇	mi2 er3 qi2
@@ -449402,7 +449402,7 @@
 纳伊夫	na4 yi1 fu1
 纳佑	na4 you4
 纳余庆	na4 yu2 qing4
-纳佛莱	na4 fu2 lai2
+纳佛莱	na4 fo2 lai2
 纳克	na4 ke4
 纳克会	na4 ke4 hui4
 纳克斯	na4 ke4 si1
@@ -453637,7 +453637,7 @@
 绣	xiu4
 绣丝	xiu4 si1
 绣丸	xiu4 wan2
-绣佛	xiu4 fu2
+绣佛	xiu4 fo2
 绣作	xiu4 zuo4
 绣使	xiu4 shi3
 绣像	xiu4 xiang4
@@ -459742,8 +459742,8 @@
 美国参议院	mei3 guo2 can1 yi4 yuan4
 美国参谋长联席会议	mei3 guo2 can1 mou2 zhang3 lian2 xi2 hui4 yi4
 美国司法部	mei3 guo2 si1 fa3 bu4
-美国哈佛大学	mei3 guo2 ha1 fu2 da4 xue2
-美国哈佛大学医学院	mei3 guo2 ha1 fu2 da4 xue2 yi1 xue2 yuan4
+美国哈佛大学	mei3 guo2 ha1 fo2 da4 xue2
+美国哈佛大学医学院	mei3 guo2 ha1 fo2 da4 xue2 yi1 xue2 yuan4
 美国哥伦比亚大学	mei3 guo2 ge1 lun2 bi3 ya4 da4 xue2
 美国哥伦比亚广播公司	mei3 guo2 ge1 lun2 bi3 ya4 guang3 bo1 gong1 si1
 美国商业部	mei3 guo2 shang1 ye4 bu4
@@ -462516,7 +462516,7 @@
 老住户	lao3 zhu4 hu4
 老体面	lao3 ti3 mian4
 老何	lao3 he2
-老佛	lao3 fu2
+老佛	lao3 fo2
 老佛爷	lao3 fo2 ye5
 老佣	lao3 yong1
 老佬	lao2 lao3
@@ -469080,7 +469080,7 @@
 胡伦课	hu2 lun2 ke4
 胡伶	hu2 ling2
 胡佛	hu2 fo2
-胡佛坝	hu2 fu2 ba4
+胡佛坝	hu2 fo2 ba4
 胡作乱为	hu2 zuo4 luan4 wei2
 胡作胡为	hu2 zuo4 hu2 wei2
 胡作非为	hu2 zuo4 fei1 wei2
@@ -470491,7 +470491,7 @@
 能愿动词	neng2 yuan4 dong4 ci2
 能成	neng2 cheng2
 能成仙	neng2 cheng2 xian1
-能成佛	neng2 cheng2 fu2
+能成佛	neng2 cheng2 fo2
 能成善	neng2 cheng2 shan4
 能所	neng2 suo3
 能手	neng2 shou3
@@ -477774,7 +477774,7 @@
 艾伯塔省	ai4 bo2 ta2 sheng3
 艾伯特	ai4 bo2 te4
 艾伯特湖	ai4 bo2 te4 hu2
-艾佛森	ai4 fu2 sen1
+艾佛森	ai4 fo2 sen1
 艾儒略	ai4 ru2 lve4
 艾克伯格	ai4 ke4 bo2 ge2
 艾克尔	ai4 ke4 er3
@@ -482361,7 +482361,7 @@
 范任	fan4 ren4
 范伟赢	fan4 wei3 ying2
 范伦铁	fan4 lun2 tie3
-范佛里	fan4 fu2 li3
+范佛里	fan4 fo2 li3
 范佩西	fan4 pei4 xi1
 范例	fan4 li4
 范例修正	fan4 li4 xiu1 zheng4
@@ -484691,7 +484691,7 @@
 药工	yao4 gong1
 药市	yao4 shi4
 药师	yao4 shi1
-药师佛	yao4 shi1 fu2
+药师佛	yao4 shi1 fo2
 药师如来	yao4 shi1 ru2 lai2
 药师经	yao4 shi1 jing1
 药帖	yao4 tie1
@@ -490247,7 +490247,7 @@
 蔡显枫	cai4 xian3 feng1
 蔡晓仪	cai4 xiao3 yi2
 蔡智恒	cai4 zhi4 heng2
-蔡李佛	cai4 li3 fu2
+蔡李佛	cai4 li3 fo2
 蔡松坡	cai4 song1 po1
 蔡松龄	cai4 song1 ling2
 蔡枫华	cai4 feng1 hua2
@@ -503775,7 +503775,7 @@
 见喜	jian4 xi3
 见噎废食	jian4 ye1 fei4 shi2
 见在	jian4 zai4
-见在佛	jian4 zai4 fu2
+见在佛	jian4 zai4 fo2
 见在身	jian4 zai4 shen1
 见地	jian4 di4
 见墙见羹	jian4 qiang2 jian4 geng1
@@ -506965,7 +506965,7 @@
 詹大同	zhan1 da4 tong2
 詹大悲	zhan1 da4 bei1
 詹天佑	zhan1 tian1 you4
-詹妮佛	zhan1 ni1 fu2
+詹妮佛	zhan1 ni1 fo2
 詹妮弗	zhan1 ni1 fu2
 詹姆士	zhan1 mu3 shi4
 詹姆斯	zhan1 mu3 si1
@@ -511241,7 +511241,7 @@
 设伏	she4 fu2
 设会	she4 hui4
 设位	she4 wei4
-设佛	she4 fu2
+设佛	she4 fo2
 设作	she4 zuo4
 设佩	she4 pei4
 设使	she4 shi3
@@ -511808,7 +511808,7 @@
 诃	he1
 诃伽国	he1 ga1 guo2
 诃佛诋巫	he1 fo2 di3 wu1
-诃佛骂祖	he1 fu2 ma4 zu3
+诃佛骂祖	he1 fo2 ma4 zu3
 诃利帝母	he1 li4 di4 mu3
 诃叱	he1 chi4
 诃咄	he1 duo1
@@ -513344,7 +513344,7 @@
 诗伴	shi1 ban4
 诗体	shi1 ti3
 诗余	shi1 yu2
-诗佛	shi1 fu2
+诗佛	shi1 fo2
 诗作	shi1 zuo4
 诗佣	shi1 yong1
 诗侠	shi1 xia2
@@ -527579,7 +527579,7 @@
 贾尔德	jia2 er3 de2
 贾尼丝	jia3 ni2 si1
 贾屈	jia3 qu1
-贾岛佛	jia3 dao3 fu2
+贾岛佛	jia3 dao3 fo2
 贾岛诗	jia3 dao3 shi1
 贾巧姐	jia3 qiao3 jie3
 贾巴尔	jia3 ba1 er3
@@ -529205,7 +529205,7 @@
 赔额	pei2 e5
 赔饷	pei2 xiang3
 赕	dan3
-赕佛	dan3 fu2
+赕佛	dan3 fo2
 赕布	dan3 bu4
 赕物	dan3 wu4
 赕税	dan3 shui4
@@ -529666,7 +529666,7 @@
 赞仰	zan4 yang3
 赞佐	zan4 zuo3
 赞佑	zan4 you4
-赞佛	zan4 fu2
+赞佛	zan4 fo2
 赞佩	zan4 pei4
 赞元	zan4 yuan2
 赞公	zan4 gong1
@@ -543034,7 +543034,7 @@
 辟仗箭	pi4 zhang4 jian4
 辟任	pi4 ren4
 辟位	pi4 wei4
-辟佛	pi4 fu2
+辟佛	pi4 fo2
 辟作	pi4 zuo4
 辟倚	pi4 yi3
 辟倪	pi4 ni2
@@ -543105,7 +543105,7 @@
 辟摽	pi4 biao1
 辟支	pi4 zhi1
 辟支下乘	pi4 zhi1 xia4 sheng4
-辟支佛	pi4 zhi1 fu2
+辟支佛	pi4 zhi1 fo2
 辟支小乘	pi4 zhi1 xiao3 cheng2
 辟支果	pi4 zhi1 guo3
 辟斥	pi4 chi4
@@ -544366,7 +544366,7 @@
 达令港	da2 ling4 gang3
 达伊	da2 yi1
 达伦	da2 lun2
-达佛涅	da2 fu2 nie4
+达佛涅	da2 fo2 nie4
 达例	da2 li4
 达保土	da2 bao2 tu3
 达信	da2 xin4
@@ -545338,7 +545338,7 @@
 过厚	guo4 hou4
 过去	guo4 qu4
 过去世	guo4 qu4 shi4
-过去佛	guo4 qu4 fu2
+过去佛	guo4 qu4 fo2
 过去分词	guo4 qu4 fen1 ci2
 过去式	guo4 qu4 shi4
 过去时	guo4 qu4 shi2
@@ -546060,7 +546060,7 @@
 迎人	ying2 ren2
 迎仙客	ying2 xian1 ke4
 迎会	ying2 hui4
-迎佛骨	ying2 fu2 gu3
+迎佛骨	ying2 fo2 gu3
 迎侍	ying2 shi4
 迎候	ying2 hou4
 迎养	ying2 yang3
@@ -550407,7 +550407,7 @@
 迦南人	jia1 nan2 ren2
 迦卫	jia1 wei4
 迦叶	jia1 ye4
-迦叶佛	jia1 ye4 fu2
+迦叶佛	jia1 ye4 fo2
 迦坚茶寒	jia1 jian1 cha2 han2
 迦太基	jia1 tai4 ji1
 迦奢草	jia1 she1 cao3
@@ -552099,8 +552099,8 @@
 送任	song4 ren4
 送传	song4 chuan2
 送似	song4 shi4
-送佛	song4 fu2
-送佛送到西	song4 fu2 song4 dao4 xi1
+送佛	song4 fo2
+送佛送到西	song4 fo2 song4 dao4 xi1
 送佛送到西天	song4 fo2 song4 dao4 xi1 tian1
 送佥	song4 qian1
 送使	song4 shi3
@@ -553065,7 +553065,7 @@
 选优淘劣	xuan3 you1 tao2 lie4
 选住	xuan3 zhu4
 选体	xuan3 ti3
-选佛场	xuan3 fu2 chang3
+选佛场	xuan3 fo2 chang3
 选作	xuan3 zuo4
 选例	xuan3 li4
 选侍	xuan3 shi4
@@ -557400,7 +557400,7 @@
 道伦	dao4 lun2
 道伴	dao4 ban4
 道体	dao4 ti3
-道佛	dao4 fu2
+道佛	dao4 fo2
 道依茨	dao4 yi1 ci2
 道侣	dao4 lv3
 道俗	dao4 su2
@@ -559449,7 +559449,7 @@
 遵钦	zun1 qin1
 遵陆	zun1 lu4
 遵鸿	zun1 hong2
-遶佛	rao4 fu2
+遶佛	rao4 fo2
 遶围	rao4 wei2
 遶圜	rao4 huan2
 遶弄	rao4 nong4
@@ -567338,7 +567338,7 @@
 释軷	shi4 ba2
 释迎牟	shi4 ying2 mou2
 释迦	shi4 jia1
-释迦佛	shi4 jia1 fu2
+释迦佛	shi4 jia1 fo2
 释迦多	shi4 jia1 duo1
 释迦方	shi4 jia1 fang1
 释迦族	shi4 jia1 zu2
@@ -571453,7 +571453,7 @@
 金非玉	jin1 fei1 yu4
 金非铁	jin1 fei1 tie3
 金面	jin1 mian4
-金面佛	jin1 mian4 fu2
+金面佛	jin1 mian4 fo2
 金靥	jin1 ye4
 金革	jin1 ge2
 金革亡难	jin1 ge2 wang2 nan4
@@ -586566,8 +586566,8 @@
 阿伽	a1 ga1
 阿伽门农	a1 ga1 men2 nong2
 阿伽陀药	a1 ga1 tuo2 yao4
-阿佛洛	a1 fu2 luo4
-阿佛洛狄忒	a1 fu2 luo4 di2 te4
+阿佛洛	a1 fo2 luo4
+阿佛洛狄忒	a1 fo2 luo4 di2 te4
 阿佤	a1 wa3
 阿佩伊伦	a1 pei4 yi1 lun2
 阿佩尔	a1 pei4 er3
@@ -586670,7 +586670,7 @@
 阿列克谢耶芙娜	a1 lie4 ke4 xie4 ye1 fu2 na4
 阿列夫	a1 lie4 fu1
 阿列曼	a1 lie4 man4
-阿初佛	a1 chu1 fu2
+阿初佛	a1 chu1 fo2
 阿利	a1 li4
 阿利乌	a1 li4 wu1
 阿利亚	a1 li4 ya4
@@ -588083,7 +588083,7 @@
 阿铺	a1 pu4
 阿锡	a1 xi1
 阿閦	a1 chu4
-阿閦佛	a1 chu4 fu2
+阿閦佛	a1 chu4 fo2
 阿门	a1 men2
 阿门诗	a1 men2 shi1
 阿阁	a1 ge2
@@ -589032,7 +589032,7 @@
 陈义	chen2 yi4
 陈义勇	chen2 yi4 yong3
 陈义甚高	chen2 yi4 shen4 gao1
-陈之佛	chen2 zhi1 fu2
+陈之佛	chen2 zhi1 fo2
 陈之制	chen2 zhi1 zhi4
 陈之才	chen2 zhi1 cai2
 陈之罡	chen2 zhi1 gang1
@@ -594199,7 +594199,7 @@
 雀盲眼	que4 mang2 yan3
 雀眼	que4 yan3
 雀离	que4 li2
-雀离佛图	que4 li2 fu2 tu2
+雀离佛图	que4 li2 fo2 tu2
 雀离浮图	que4 li2 fu2 tu2
 雀稗	que4 bai4
 雀窝	que4 wo1
@@ -596281,12 +596281,12 @@
 雪人兄弟	xue3 ren2 xiong1 di5
 雪仇	xue3 chou2
 雪仗	xue3 zhang4
-雪佛兰	xue3 fu2 lan2
-雪佛兰车	xue3 fu2 lan2 che1
-雪佛莱	xue3 fu2 lai2
-雪佛龙	xue3 fu2 long2
-雪佛龙公司	xue3 fu2 long2 gong1 si1
-雪佛龙石油公司	xue3 fu2 long2 shi2 you2 gong1 si1
+雪佛兰	xue3 fo2 lan2
+雪佛兰车	xue3 fo2 lan2 che1
+雪佛莱	xue3 fo2 lai2
+雪佛龙	xue3 fo2 long2
+雪佛龙公司	xue3 fo2 long2 gong1 si1
+雪佛龙石油公司	xue3 fo2 long2 shi2 you2 gong1 si1
 雪停了	xue3 ting2 le5
 雪儿	xue3 er2
 雪兆丰年	xue3 zhao4 feng1 nian2
@@ -604567,7 +604567,7 @@
 顶住	ding3 zhu4
 顶体反应	ding2 ti2 fan3 ying4
 顶体蛋白	ding2 ti3 dan4 bai2
-顶佛	ding3 fu2
+顶佛	ding3 fo2
 顶债	ding3 zhai4
 顶儿	ding3 er2
 顶入	ding3 ru4
@@ -623789,7 +623789,7 @@
 鲁伯特	lu3 bo2 te4
 鲁伯鲁	lu3 bo2 lu3
 鲁佐将军	lu2 zuo3 jiang1 jun1
-鲁佛尔宫	lu3 fu2 er3 gong1
+鲁佛尔宫	lu3 fo2 er3 gong1
 鲁僖公	lu3 xi1 gong1
 鲁儒	lu3 ru2
 鲁儿虎	lu3 er2 hu3
