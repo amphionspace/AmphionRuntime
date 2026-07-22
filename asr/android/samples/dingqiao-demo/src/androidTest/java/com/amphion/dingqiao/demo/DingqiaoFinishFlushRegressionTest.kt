@@ -88,6 +88,14 @@ class DingqiaoFinishFlushRegressionTest {
         }
     }
 
+    @Test
+    fun generatedSessionTagIsValidForUnicodeAssetName() {
+        val tag = "你可真会挑时候啊.wav".sessionTag()
+
+        assertTrue("session tag must satisfy the public SDK contract: $tag",
+            tag.matches(Regex("^[A-Za-z0-9_-]+$")))
+    }
+
     private fun createEngine(): SpeechRecognitionEngine {
         SpeechRecognizeSdk.init(targetContext)
         SpeechRecognizeSdk.setWorkPath(File(targetContext.getExternalFilesDir(null), "dingqiao_work_finish_flush").absolutePath)
@@ -208,7 +216,7 @@ class DingqiaoFinishFlushRegressionTest {
         }.getOrDefault(false)
 
     private fun String.sessionTag(): String =
-        substringBefore('_').ifBlank { Integer.toHexString(hashCode()) } + "-" + System.nanoTime()
+        "${hashCode().toUInt().toString(16)}-${System.nanoTime().toULong().toString(16)}"
 
     private fun readMonoPcm16As16k(name: String, bytes: ByteArray): ByteArray {
         require(bytes.size >= 44) { "wav too small: $name" }
