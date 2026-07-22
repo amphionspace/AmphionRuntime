@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import calendar
 import hashlib
 import json
+from datetime import date
 from pathlib import Path, PurePosixPath
 import re
 import tarfile
@@ -23,16 +26,11 @@ MODEL_MANIFEST_PATH = (
 )
 VERSIONED_PACKAGE_PATHS = (
     "package/_bundled/amphion_asr/oh-package.json5",
-    "package/_bundled/amphion_police/oh-package.json5",
     "package/_bundled/amphion_asr/src/main/cpp/types/libamphion_asr/oh-package.json5",
 )
 RUNTIME_IDENTITY_PATH = (
     "package/_bundled/amphion_asr/src/main/ets/com/amphion/asr/RuntimeIdentity.ts"
 )
-POLICE_ROOT = (
-    "package/_bundled/amphion_police/src/main/resources/rawfile/amphion-police"
-)
-POLICE_MANIFEST_PATH = f"{POLICE_ROOT}/manifest.json"
 ALLOWED_MODEL_BUNDLES = {
     "zh-en/v1",
     "punct-zhen/v1",
@@ -42,13 +40,14 @@ ALLOWED_MODEL_BUNDLES = {
 REQUIRED_FILES = {
     "README.md",
     "har/amphion_dingqiao.har",
+    "license/amphion-license.lic",
     "docs/LICENSE.md",
-    "docs/DINGQIAO_LICENSE_SCHEME.md",
+    "docs/LICENSE_SCHEME.md",
     "docs/CHANGELOG.md",
     "docs/TROUBLESHOOTING.md",
     "docs/ASR_LIFECYCLE_ASSURANCE_20260716.md",
     "docs/ASR_LIFECYCLE_ASSURANCE_EVIDENCE_20260716.json",
-    "docs/DINGQIAO_INTEGRATION.md",
+    "docs/INTEGRATION.md",
     "docs/PRIVACY.md",
     "docs/NOTICE",
     "docs/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md",
@@ -244,41 +243,6 @@ def _validate_member_policy(archive: tarfile.TarFile) -> set[str]:
     return names
 
 
-def _validate_police_assets(archive: tarfile.TarFile, names: set[str]) -> None:
-    manifest = _read_tar_json(archive, POLICE_MANIFEST_PATH)
-    files = manifest.get("files")
-    if not isinstance(files, dict):
-        raise DeliveryValidationError("police manifest files must be an object")
-    expected = {POLICE_MANIFEST_PATH}
-    for relative, expected_hash in files.items():
-        path = PurePosixPath(relative)
-        if path.is_absolute() or ".." in path.parts:
-            raise DeliveryValidationError(f"unsafe police asset path: {relative}")
-        member_name = f"{POLICE_ROOT}/{relative}"
-        expected.add(member_name)
-        if member_name not in names:
-            raise DeliveryValidationError(f"HAR missing police asset: {member_name}")
-        if not isinstance(expected_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_hash):
-            raise DeliveryValidationError(f"invalid police asset hash: {relative}")
-        payload = _read_tar_bytes(archive, member_name)
-        if hashlib.sha256(payload).hexdigest() != expected_hash:
-            raise DeliveryValidationError(f"police asset hash mismatch: {relative}")
-        if path.suffix in {".csv", ".tsv", ".txt"}:
-            text = payload.decode("utf-8")
-            if any(line.startswith("#") for line in text.splitlines()):
-                raise DeliveryValidationError(f"internal police comment leaked: {relative}")
-    actual = {
-        member.name
-        for member in archive.getmembers()
-        if member.isfile() and member.name.startswith(f"{POLICE_ROOT}/")
-    }
-    if actual != expected:
-        extra = sorted(actual - expected)
-        missing = sorted(expected - actual)
-        detail = extra[0] if extra else missing[0]
-        raise DeliveryValidationError(f"police asset file set mismatch: {detail}")
-
-
 def _validate_har(
     root: Path, expected_version: str, expected_model_md5: dict[str, str]
 ) -> dict:
@@ -289,6 +253,9 @@ def _validate_har(
         raise DeliveryValidationError(f"invalid HAR archive: {har_path}") from error
     with archive:
         names = _validate_member_policy(archive)
+        police = sorted(name for name in names if "amphion_police" in name.lower())
+        if police:
+            raise DeliveryValidationError(f"HAR contains police enhancement content: {police[0]}")
         forbidden = sorted(name for name in names if "yue-en" in name.lower())
         if forbidden:
             raise DeliveryValidationError(f"HAR contains Yue model content: {forbidden[0]}")
@@ -383,7 +350,6 @@ def _validate_har(
                     f"model ONNX MD5 mismatch: {source_name}: "
                     f"{actual_sources[source_name]} != {approved_md5}"
                 )
-        _validate_police_assets(archive, names)
         return {
             "manifest_sha256": hashlib.sha256(manifest_payload).hexdigest(),
             "manifest_version": manifest.get("manifest_version"),
@@ -440,6 +406,10 @@ def _validate_documents(root: Path) -> None:
         raise DeliveryValidationError("README does not state the SDK-only TTS boundary")
     for markdown in root.rglob("*.md"):
         text = markdown.read_text(encoding="utf-8")
+        if "鼎桥" in text or "警务" in text or re.search(r"\bpolice\b", text, re.IGNORECASE):
+            raise DeliveryValidationError(
+                f"customer-facing document contains excluded branding or capability: {markdown}"
+            )
         for raw_target in MARKDOWN_LINK_RE.findall(text):
             target = raw_target.strip().strip("<>").split("#", 1)[0]
             if not target or re.match(r"^[a-z][a-z0-9+.-]*:", target, re.IGNORECASE):
@@ -457,6 +427,43 @@ def _validate_documents(root: Path) -> None:
                 )
 
 
+def _validate_license(root: Path) -> None:
+    try:
+        envelope = json.loads(
+            (root / "license/amphion-license.lic").read_text(encoding="utf-8")
+        )
+        claims = json.loads(base64.b64decode(envelope["payload_b64"], validate=True))
+    except (OSError, UnicodeDecodeError, ValueError, KeyError, json.JSONDecodeError) as error:
+        raise DeliveryValidationError("evaluation license is malformed") from error
+    if envelope.get("alg") != "SHA256withECDSA" or not envelope.get("sig_b64"):
+        raise DeliveryValidationError("evaluation license has no supported signature")
+    unbound = (
+        claims.get("applicationId") == ""
+        and claims.get("bundleName") == ""
+        and claims.get("certSha256") == ""
+        and claims.get("signingCertDigest") == ""
+        and claims.get("authorizedDeviceHashes") == []
+        and claims.get("deviceIdSaltId") == ""
+        and claims.get("installTier") == ""
+        and claims.get("maintenanceUntil") == ""
+    )
+    if not unbound:
+        raise DeliveryValidationError("evaluation license must not bind app, certificate, device, install tier, or maintenance")
+    if claims.get("features") != ["ASR"]:
+        raise DeliveryValidationError("evaluation license must grant exactly ASR")
+    try:
+        issued = date.fromisoformat(claims["issuedAt"])
+        expires = date.fromisoformat(claims["expiresAt"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise DeliveryValidationError("evaluation license dates are invalid") from error
+    month_index = issued.month - 1 + 4
+    expected_year = issued.year + month_index // 12
+    expected_month = month_index % 12 + 1
+    expected_day = min(issued.day, calendar.monthrange(expected_year, expected_month)[1])
+    if expires != date(expected_year, expected_month, expected_day):
+        raise DeliveryValidationError("evaluation license must expire after exactly four calendar months")
+
+
 def validate_delivery(
     root: Path,
     expected_version: str,
@@ -466,6 +473,7 @@ def validate_delivery(
         expected_model_md5 = _load_pinned_model_md5()
     _validate_layout(root)
     _validate_checksums(root)
+    _validate_license(root)
     har_evidence = _validate_har(root, expected_version, expected_model_md5)
     _validate_provenance(root, expected_version, har_evidence)
     _validate_documents(root)

@@ -1,6 +1,6 @@
 # 语音识别 SDK 接口（HarmonyOS 交付版）
 
-> 本文件描述鼎桥 HarmonyOS 离线语音识别 SDK 的客户集成接口，并已纳入跨平台《语音识别SDK接口-交付批注版.md》的 HarmonyOS 扩展约束。Android 集成请使用 Android 交付文档。
+> 本文件描述 Amphion HarmonyOS 离线语音识别 SDK 的客户集成接口，并已纳入跨平台接口的 HarmonyOS 扩展约束。Android 集成请使用 Android 交付文档。
 
 | 文档项 | 值 |
 | --- | --- |
@@ -207,7 +207,7 @@ interface CreateEngineCallback {
 | --- | --- | --- | --- |
 | `locate` | `string` | `CN` | 兼容字段；当前仅支持中国区，不改变模型选择 |
 | `recognizerMode` | `string` | `long` | 接受 `short`/`long`，当前均按长语音流式模式处理 |
-| `sysGeneralLexicon` | `string[]` | 空 | 系统热词；与警务域默认热词合并后用于解码 |
+| `sysGeneralLexicon` | `string[]` | 空 | 调用方热词，用于解码 |
 
 ### 5.3 `StartParams`
 
@@ -264,7 +264,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | --- | --- | --- |
 | `isFinal` | `boolean` | 是否最终结果 |
 | `isLast` | `boolean` | 是否本次会话的最后一条结果 |
-| `result` | `string` | 识别文本；final 为警务增强后文本 |
+| `result` | `string` | 识别文本 |
 | `beginTime` | `number?` | 起始时间毫秒，可能为空 |
 | `endTime` | `number?` | 结束时间毫秒，可能为空 |
 | `speakerSimilarity` | `number?` | final 且启用声纹校验，并有达到门槛的评分 PCM 时返回 |

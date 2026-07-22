@@ -1,12 +1,11 @@
 {
   "name": "amphion_dingqiao",
   "version": "0.2.8",
-  "description": "Dingqiao ASR adapter for HarmonyOS",
+  "description": "Amphion ASR compatibility adapter for HarmonyOS",
   "main": "Index.ets",
   "author": "Amphion",
   "license": "Commercial",
   "dependencies": {
-    "amphion_asr": "file:../sdk",
-    "amphion_police": "file:../sdk-police"
+    "amphion_asr": "file:../sdk"
   }
 }

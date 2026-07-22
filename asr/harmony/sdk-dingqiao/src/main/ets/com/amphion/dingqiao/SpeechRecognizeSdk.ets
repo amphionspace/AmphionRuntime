@@ -1,5 +1,4 @@
 import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SessionConfig, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
-import { PoliceEngineConfig, PoliceEnhanceOptions, PoliceEnhancePipeline } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
@@ -215,11 +214,14 @@ function buildAsrConfig(context: Context, params: CreateEngineParams, startParam
   withTargetSpeaker: boolean = false, withSpeakerVad: boolean = false,
   speakerModelPath?: string): AsrConfig {
   validateRecognizerMode(params);
-  const plate = booleanParam(params.extraParams, 'plateNormalizeEnabled', true);
-  const station = booleanParam(params.extraParams, 'stationNormalizeEnabled', true);
-  const terms = booleanParam(params.extraParams, 'termsNormalizeEnabled', true);
-  const config = PoliceEngineConfig.build(
-    context, parseLexicon(params.extraParams['sysGeneralLexicon']), plate, station, terms);
+  const config = new AsrConfig();
+  config.numThreads = 4;
+  config.punctuation = true;
+  config.itn = true;
+  config.vad = true;
+  config.endpoint = true;
+  config.hotwordsScore = 3.0;
+  config.hotwords = parseLexicon(params.extraParams['sysGeneralLexicon']);
   config.vadConfig.activeEndpointSilenceMs = vadEndMs(startParams);
   config.endpointRules.rule2MinTrailingSilenceSec = 2.0;
   // 低内存/快加载模式开关(默认关=保留 prepack)。host 传 extraParams["disablePrepack"]=true 启用。
@@ -298,14 +300,6 @@ function buildSessionConfig(params: StartParams, withTargetSpeaker: boolean,
   return config;
 }
 
-function buildEnhanceOptions(params: CreateEngineParams): PoliceEnhanceOptions {
-  const options = new PoliceEnhanceOptions();
-  options.plateNormalizeEnabled = booleanParam(params.extraParams, 'plateNormalizeEnabled', true);
-  options.stationNormalizeEnabled = booleanParam(params.extraParams, 'stationNormalizeEnabled', true);
-  options.termsNormalizeEnabled = booleanParam(params.extraParams, 'termsNormalizeEnabled', true);
-  return options;
-}
-
 const STOP_FALLBACK_DELAY_MS: number = 1500;
 
 class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
@@ -314,7 +308,6 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private listener?: RecognitionListener;
   private asrEngine: AsrEngine;
   private session?: AsrSession;
-  private pipeline: PoliceEnhancePipeline;
   private busy: boolean = false;
   private destroyed: boolean = false;
   private currentSessionId: string = '';
@@ -337,7 +330,6 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   constructor(context: Context, params: CreateEngineParams, preloadedEngine?: AsrEngine) {
     this.context = context;
     this.params = snapshotCreateEngineParams(params);
-    this.pipeline = PoliceEnhancePipeline.create(context, buildEnhanceOptions(this.params));
     this.asrEngine = preloadedEngine ??
       AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(context, this.params));
     this.engineCfgKey = this.computeEngineCfgKey(false, false);
@@ -559,18 +551,16 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.destroyed = true;
     this.tearDownSession();
     this.asrEngine.close();
-    this.pipeline.close();
   }
 
   private deliverFinal(generation: number, result: AsrResult): void {
     if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
       this.currentSessionId.length === 0 || this.completeSent) return;
     const sessionId = this.currentSessionId;
-    const enhanced = this.pipeline.enhance(result.text);
     const payload = new SpeechRecognitionResult();
     payload.isFinal = true;
     payload.isLast = result.isLast;
-    payload.result = enhanced.text;
+    payload.result = result.text;
     payload.speakerSimilarity = result.speakerScore;
     // beginTime/endTime from token timestamps (seconds -> ms), aligned with Android dispatchResult.
     const ts = result.timestamps;
