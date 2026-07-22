@@ -8,10 +8,16 @@ import com.amphion.dingqiao.CreateEngineParams
 import com.amphion.dingqiao.DingqiaoErrorCode
 import com.amphion.dingqiao.DingqiaoEventCode
 import com.amphion.dingqiao.DingqiaoOnlineMode
+import com.amphion.dingqiao.RecognitionListener
 import com.amphion.dingqiao.SpeechRecognitionEngine
+import com.amphion.dingqiao.SpeechRecognitionResult
 import com.amphion.dingqiao.SpeechRecognizeSdk
 import com.amphion.dingqiao.StartParams
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -205,24 +211,56 @@ class DqSdkCornerCaseTest {
         assertTrue("expected RECOGNITION_ERROR", listener.errorCodes().contains(DingqiaoErrorCode.RECOGNITION_ERROR))
     }
 
-    // ---------- a09: maxAudioDuration 低于下限被静默抬到 20000 ----------
+    // ---------- a09: 正数 maxAudioDuration 原样生效，不再静默抬到 20 秒 ----------
     @Test
-    fun a09_maxAudioDuration_coercedBelowMin() {
+    fun a09_maxAudioDuration_explicitShortLimitAutoFinishes() {
         val engine = sharedEngine()
         awaitIdle(engine)
-        // 选最长的主场景（~11.8s）：5000 应被 coerce 到 20000。若未 coerce（5000 当真），会在 5s
-        // 自动结束，decode 后续帧会落到已结束会话而报 NOT_LISTENING，且只识别前 5s。
-        val longest = mainWavs(testCtx).maxByOrNull { readAssetPcm(testCtx, it).size } ?: mainWavs(testCtx).first()
-        val outcome = decode(engine, "maxcoerce-${idOf(longest)}", readAssetPcm(testCtx, longest),
-            frameSleepMs = 0, tailSilenceMs = 300, drainMs = 200, maxAudioDuration = 5_000)
-        DqReport.append(ctx, mapOf("case" to "a09_maxDurationCoercion", "file" to longest,
-            "errorCodes" to outcome.errorCodes.toString(), "finalText" to outcome.finalText, "completed" to outcome.completed))
+        val listener = CapturingListener().also { engine.setListener(it) }
+        val sid = "maxshort-${System.currentTimeMillis()}"
+        engine.startListening(
+            StartParams(sid, AudioInfo(), mapOf("maxAudioDuration" to 5_000)),
+        )
+        assertTrue(listener.awaitStarted(10_000))
+        feedSilence(engine, sid, 5_200)
+        val completed = listener.awaitComplete(10_000)
+        awaitIdle(engine)
+
+        DqReport.append(ctx, mapOf("case" to "a09_maxDurationShort",
+            "errorCodes" to listener.errorCodes().toString(), "completed" to completed,
+            "completeCount" to listener.completes.size,
+            "lastCount" to listener.finals.count { it.isLast }))
         assertFalse("MAX_AUDIO_DURATION must not be delivered anymore",
-            outcome.errorCodes.contains(DingqiaoErrorCode.MAX_AUDIO_DURATION))
-        assertFalse("session must not auto-finish at 5s (would cause NOT_LISTENING on later frames)",
-            outcome.errorCodes.contains(DingqiaoErrorCode.NOT_LISTENING))
-        assertTrue("~12s audio should be fully recognized when 5000 is coerced to 20000",
-            outcome.completed && outcome.finalText.isNotEmpty())
+            listener.errorCodes().contains(DingqiaoErrorCode.MAX_AUDIO_DURATION))
+        assertTrue("explicit 5000ms maxAudioDuration should auto-finish", completed)
+        assertEquals("auto-finish must complete exactly once", 1, listener.completes.size)
+        assertEquals("auto-finish must emit exactly one last result", 1,
+            listener.finals.count { it.isLast })
+    }
+
+    // ---------- a09b: 非有限 maxAudioDuration 必须视为未配置 ----------
+    @Test
+    fun a09b_maxAudioDuration_nonFiniteValuesStayDisabled() {
+        val engine = sharedEngine()
+        val pcm = readAssetPcm(testCtx, mainWavs(testCtx).first())
+        for ((label, value) in listOf("nan" to Double.NaN, "infinity" to Double.POSITIVE_INFINITY)) {
+            awaitIdle(engine)
+            val listener = CapturingListener().also { engine.setListener(it) }
+            val sid = "max-$label-${System.currentTimeMillis()}"
+            engine.startListening(
+                StartParams(sid, AudioInfo(), mapOf("maxAudioDuration" to value)),
+            )
+            assertTrue("$label start failed", listener.awaitStarted(10_000))
+            feedFrames(engine, sid, pcm.copyOfRange(0, minOf(pcm.size, DQ_SR * 4)), 0)
+            Thread.sleep(300)
+            assertTrue("$label must not auto-finish the session", engine.isBusy())
+            assertTrue("$label must not emit complete before explicit finish",
+                listener.completes.isEmpty())
+            engine.finish(sid)
+            assertTrue("$label explicit finish must complete", listener.awaitComplete(20_000))
+            awaitIdle(engine)
+            assertTrue("$label must not report errors", listener.errors.isEmpty())
+        }
     }
 
     // ---------- a10: 达到 maxAudioDuration 自动结束（出最终 onResult/onComplete，且可重新 start）----------
@@ -234,12 +272,14 @@ class DqSdkCornerCaseTest {
         val pcm = readAssetPcm(testCtx, longest)
         val listener = CapturingListener().also { engine.setListener(it) }
         val sid = "maxexceed-${System.currentTimeMillis()}"
-        engine.startListening(StartParams(sid, AudioInfo())) // default cap 20000
+        engine.startListening(
+            StartParams(sid, AudioInfo(), mapOf("maxAudioDuration" to 8_000)),
+        )
         assertTrue(listener.awaitStarted(10_000))
-        // 喂入越过 20s 上限的音频；SDK 应在 20s 处自动结束，故喂到刚过上限或收到 onComplete 即停，
+        // 喂入越过 8s 上限；SDK 应在 8s 处自动结束，故喂到刚过上限或收到 onComplete 即停，
         // 避免继续向已结束的会话喂帧。
         var fedMs = 0L
-        val targetMs = 22_000L
+        val targetMs = 9_000L
         outer@ while (fedMs < targetMs) {
             var off = 0
             while (off < pcm.size) {
@@ -286,14 +326,16 @@ class DqSdkCornerCaseTest {
         val pcm = readAssetPcm(testCtx, mainWavs(testCtx).first())
         val listener = CapturingListener().also { engine.setListener(it) }
         val sid = "maxlate-${System.currentTimeMillis()}"
-        engine.startListening(StartParams(sid, AudioInfo()))
+        engine.startListening(
+            StartParams(sid, AudioInfo(), mapOf("maxAudioDuration" to 8_000)),
+        )
         assertTrue(listener.awaitStarted(10_000))
 
-        // 先快速喂到刚超过 20s，上限触发后继续补少量帧，模拟采集线程尚未停止的窗口。
+        // 先快速喂到刚超过 8s，上限触发后继续补少量帧，模拟采集线程尚未停止的窗口。
         var fedMs = 0L
-        while (fedMs < 21_000L) {
+        while (fedMs < 8_400L) {
             var off = 0
-            while (off < pcm.size && fedMs < 21_000L) {
+            while (off < pcm.size && fedMs < 8_400L) {
                 val n = minOf(DQ_FRAME, pcm.size - off)
                 val f = ByteArray(DQ_FRAME)
                 System.arraycopy(pcm, off, f, 0, n)
@@ -341,6 +383,296 @@ class DqSdkCornerCaseTest {
         assertTrue("finish should complete", completed)
         assertEquals("duplicate finish must not duplicate onComplete", 1, listener.completes.size)
         assertFalse("engine must be idle after duplicate finish", engine.isBusy())
+    }
+
+    // ---------- a10d: 最终结果回调内用相同 sessionId 重启，旧会话仍须完整 complete ----------
+    @Test
+    fun a10d_terminalCallback_reentrantReplacementOwnsCompletion() {
+        val engine = sharedEngine()
+        awaitIdle(engine)
+        val oldSid = "reentrant-old-${System.currentTimeMillis()}"
+        val newSid = oldSid
+        val oldStarted = CountDownLatch(1)
+        val oldLast = CountDownLatch(1)
+        val newStarted = CountDownLatch(1)
+        val newCompleted = CountDownLatch(1)
+        val oldCompleteCount = AtomicInteger(0)
+        val oldLastCount = AtomicInteger(0)
+        val newCompleteCount = AtomicInteger(0)
+        val callbackErrors = mutableListOf<Int>()
+        val timeline = mutableListOf<String>()
+
+        val replacementListener = object : RecognitionListener {
+            override fun onStart(sessionId: String, eventMessage: String) {
+                if (sessionId == newSid) {
+                    synchronized(timeline) { timeline += "new:start" }
+                    newStarted.countDown()
+                }
+            }
+
+            override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+            override fun onResult(sessionId: String, result: SpeechRecognitionResult) = Unit
+            override fun onComplete(sessionId: String, eventMessage: String) {
+                newCompleteCount.incrementAndGet()
+                newCompleted.countDown()
+            }
+            override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+                synchronized(callbackErrors) { callbackErrors += errorCode }
+            }
+        }
+        val oldListener = object : RecognitionListener {
+            override fun onStart(sessionId: String, eventMessage: String) {
+                oldStarted.countDown()
+                engine.finish(oldSid)
+            }
+
+            override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+
+            override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
+                if (!result.isLast) return
+                oldLastCount.incrementAndGet()
+                synchronized(timeline) { timeline += "old:last" }
+                engine.cancel(oldSid)
+                engine.setListener(replacementListener)
+                engine.startListening(StartParams(newSid, AudioInfo()))
+                engine.writeAudio(newSid, ByteArray(DQ_FRAME))
+                engine.finish(newSid)
+                oldLast.countDown()
+            }
+
+            override fun onComplete(sessionId: String, eventMessage: String) {
+                oldCompleteCount.incrementAndGet()
+                synchronized(timeline) { timeline += "old:complete" }
+                engine.cancel(oldSid)
+                engine.finish(oldSid)
+                engine.setSpeakerVadEnabled(false)
+            }
+
+            override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+                synchronized(callbackErrors) { callbackErrors += errorCode }
+            }
+        }
+
+        engine.setListener(oldListener)
+        engine.startListening(StartParams(oldSid, AudioInfo()))
+        assertTrue("old onStart not delivered", oldStarted.await(10_000, TimeUnit.MILLISECONDS))
+        assertTrue("old terminal result not delivered", oldLast.await(10_000, TimeUnit.MILLISECONDS))
+        assertTrue("replacement onStart not delivered", newStarted.await(10_000, TimeUnit.MILLISECONDS))
+        assertTrue("replacement did not complete after same-stack write+finish",
+            newCompleted.await(10_000, TimeUnit.MILLISECONDS))
+        Thread.sleep(500)
+
+        DqReport.append(ctx, mapOf("case" to "a10d_terminalReentry",
+            "oldLastCount" to oldLastCount.get(), "oldCompleteCount" to oldCompleteCount.get(),
+            "newCompleteCount" to newCompleteCount.get(),
+            "timeline" to synchronized(timeline) { timeline.toString() },
+            "callbackErrors" to synchronized(callbackErrors) { callbackErrors.toString() }))
+        assertEquals("old session must emit exactly one last result", 1, oldLastCount.get())
+        assertEquals("old last result must be followed by exactly one onComplete", 1, oldCompleteCount.get())
+        assertEquals("replacement must complete after same-stack write+finish", 1,
+            newCompleteCount.get())
+        assertEquals(
+            "old terminal callbacks must finish before replacement onStart",
+            listOf("old:last", "old:complete", "new:start"),
+            synchronized(timeline) { timeline.toList() },
+        )
+        assertTrue("reentrant replacement must not report callback errors",
+            synchronized(callbackErrors) { callbackErrors.isEmpty() })
+        awaitIdle(engine)
+    }
+
+    // ---------- a10e: onStart 调用栈内回放真实 PCM，返回后继续识别 ----------
+    @Test
+    fun a10e_onStartSynchronousWrite_thenContinue() {
+        val engine = sharedEngine()
+        awaitIdle(engine)
+        val pcm = readAssetPcm(testCtx, mainWavs(testCtx).first())
+        val split = minOf(pcm.size, DQ_SR * 2)
+        val sid = "start-write-${System.currentTimeMillis()}"
+        val listener = CapturingListener { callbackSid ->
+            feedFrames(engine, callbackSid, pcm.copyOfRange(0, split), 0)
+        }.also { engine.setListener(it) }
+
+        engine.startListening(StartParams(sid, AudioInfo(), mapOf("vadEnd" to 800)))
+        assertTrue("onStart stack write did not return", listener.awaitStarted(15_000))
+        feedFrames(engine, sid, pcm.copyOfRange(split, pcm.size), 0)
+        engine.finish(sid)
+        val completed = listener.awaitComplete(25_000)
+        awaitIdle(engine)
+
+        DqReport.append(ctx, mapOf("case" to "a10e_startWriteContinue",
+            "completed" to completed, "lastCount" to listener.finals.count { it.isLast },
+            "errorCodes" to listener.errorCodes().toString()))
+        assertTrue("start-write continuation must complete", completed)
+        assertEquals("normal session must emit exactly one last", 1, listener.finals.count { it.isLast })
+        assertFalse("onStart write must not observe NOT_LISTENING",
+            listener.errorCodes().contains(DingqiaoErrorCode.NOT_LISTENING))
+    }
+
+    // ---------- a10f: onStart 调用栈内回放真实 PCM 后立即 finish ----------
+    @Test
+    fun a10f_onStartSynchronousWrite_thenImmediateFinish() {
+        val engine = sharedEngine()
+        awaitIdle(engine)
+        val pcm = readAssetPcm(testCtx, mainWavs(testCtx).first())
+        val cached = pcm.copyOfRange(0, minOf(pcm.size, DQ_SR * 3))
+        val sid = "start-write-finish-${System.currentTimeMillis()}"
+        val listener = CapturingListener { callbackSid ->
+            feedFrames(engine, callbackSid, cached, 0)
+            engine.finish(callbackSid)
+        }.also { engine.setListener(it) }
+
+        engine.startListening(StartParams(sid, AudioInfo(), mapOf("vadEnd" to 800)))
+        assertTrue("onStart stack write+finish did not return", listener.awaitStarted(15_000))
+        val completed = listener.awaitComplete(25_000)
+        awaitIdle(engine)
+
+        DqReport.append(ctx, mapOf("case" to "a10f_startWriteFinish",
+            "completed" to completed, "completeCount" to listener.completes.size,
+            "lastCount" to listener.finals.count { it.isLast },
+            "errorCodes" to listener.errorCodes().toString()))
+        assertTrue("onStart immediate finish must complete", completed)
+        assertEquals("finish must complete exactly once", 1, listener.completes.size)
+        assertEquals("finish must emit exactly one last", 1, listener.finals.count { it.isLast })
+        assertFalse("onStart API calls must not observe NOT_LISTENING",
+            listener.errorCodes().contains(DingqiaoErrorCode.NOT_LISTENING))
+    }
+
+    // ---------- a10g: shutdown 后重新冷建引擎，onStart 内同步写入仍可用 ----------
+    @Test
+    fun a10g_onStartSynchronousWrite_afterEngineReload() {
+        val engine = reloadEngine()
+        val pcm = readAssetPcm(testCtx, mainWavs(testCtx).first())
+        val cached = pcm.copyOfRange(0, minOf(pcm.size, DQ_SR * 3))
+        val sid = "start-write-reload-${System.currentTimeMillis()}"
+        val listener = CapturingListener { callbackSid ->
+            feedFrames(engine, callbackSid, cached, 0)
+            engine.finish(callbackSid)
+        }.also { engine.setListener(it) }
+
+        engine.startListening(StartParams(sid, AudioInfo(), mapOf("vadEnd" to 800)))
+        assertTrue("reloaded engine onStart write+finish did not return", listener.awaitStarted(20_000))
+        val completed = listener.awaitComplete(30_000)
+        awaitIdle(engine)
+
+        DqReport.append(ctx, mapOf("case" to "a10g_startWriteReload",
+            "completed" to completed, "completeCount" to listener.completes.size,
+            "lastCount" to listener.finals.count { it.isLast },
+            "errorCodes" to listener.errorCodes().toString()))
+        assertTrue("reloaded engine session must complete", completed)
+        assertEquals("reloaded engine must emit one complete", 1, listener.completes.size)
+        assertEquals("reloaded engine must emit one last", 1, listener.finals.count { it.isLast })
+        assertTrue("reloaded engine must not report errors", listener.errors.isEmpty())
+    }
+
+    // ---------- a10ga: onStart 内 cancel 并复用相同 ID，新会话不得收到旧回调 ----------
+    @Test
+    fun a10ga_onStartCancel_sameIdReplacementOwnsCallbacks() {
+        val engine = sharedEngine()
+        awaitIdle(engine)
+        val sid = "start-cancel-${System.currentTimeMillis()}"
+        val replacementStarted = CountDownLatch(1)
+        val replacement = CapturingListener { replacementSid ->
+            replacementStarted.countDown()
+            engine.finish(replacementSid)
+        }
+        val oldErrors = mutableListOf<Int>()
+        val oldListener = object : RecognitionListener {
+            override fun onStart(sessionId: String, eventMessage: String) {
+                engine.cancel(sessionId)
+                engine.setListener(replacement)
+                engine.startListening(StartParams(sessionId, AudioInfo()))
+            }
+
+            override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+            override fun onResult(sessionId: String, result: SpeechRecognitionResult) = Unit
+            override fun onComplete(sessionId: String, eventMessage: String) = Unit
+            override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+                synchronized(oldErrors) { oldErrors += errorCode }
+            }
+        }
+
+        engine.setListener(oldListener)
+        engine.startListening(StartParams(sid, AudioInfo()))
+        assertTrue("replacement onStart not delivered",
+            replacementStarted.await(15_000, TimeUnit.MILLISECONDS))
+        assertTrue("replacement did not complete", replacement.awaitComplete(15_000))
+        awaitIdle(engine)
+
+        DqReport.append(ctx, mapOf("case" to "a10ga_onStartCancelReplacement",
+            "replacementCompleteCount" to replacement.completes.size,
+            "replacementLastCount" to replacement.finals.count { it.isLast },
+            "replacementErrors" to replacement.errorCodes().toString(),
+            "oldErrors" to synchronized(oldErrors) { oldErrors.toString() }))
+        assertEquals("replacement must complete once", 1, replacement.completes.size)
+        assertEquals("replacement must emit one last", 1,
+            replacement.finals.count { it.isLast })
+        assertTrue("old session must not emit an error after cancel",
+            synchronized(oldErrors) { oldErrors.isEmpty() })
+        assertTrue("replacement must not report errors", replacement.errors.isEmpty())
+    }
+
+    // ---------- a10gb: 客户回调不得持有 engine monitor 阻塞其他录音线程 ----------
+    @Test
+    fun a10gb_onStartCanWaitForOtherThreadWriteAudio() {
+        val engine = sharedEngine()
+        val worker = Executors.newSingleThreadExecutor()
+        try {
+            repeat(2) { round ->
+                awaitIdle(engine)
+                val sid = "callback-worker-$round-${System.currentTimeMillis()}"
+                val workerReturned = CountDownLatch(1)
+                val listener = CapturingListener { callbackSid ->
+                    worker.execute {
+                        engine.writeAudio(callbackSid, ByteArray(DQ_FRAME))
+                        engine.finish(callbackSid)
+                        workerReturned.countDown()
+                    }
+                    assertTrue("recording worker was blocked by the customer callback",
+                        workerReturned.await(2_000, TimeUnit.MILLISECONDS))
+                }.also { engine.setListener(it) }
+
+                engine.startListening(StartParams(sid, AudioInfo()))
+                assertTrue("round $round onStart worker did not return",
+                    listener.awaitStarted(10_000))
+                assertTrue("round $round did not complete after worker write",
+                    listener.awaitComplete(15_000))
+                awaitIdle(engine)
+
+                DqReport.append(ctx, mapOf("case" to "a10gb_callbackWorkerWrite",
+                    "round" to round,
+                    "completeCount" to listener.completes.size,
+                    "lastCount" to listener.finals.count { it.isLast },
+                    "errorCodes" to listener.errorCodes().toString()))
+                assertEquals("round $round must complete once", 1, listener.completes.size)
+                assertEquals("round $round must emit one last", 1,
+                    listener.finals.count { it.isLast })
+                assertTrue("round $round must not report errors", listener.errors.isEmpty())
+            }
+        } finally {
+            worker.shutdownNow()
+        }
+    }
+
+    @Test
+    fun a10h_lateOldWrite_doesNotAffectReplacement() {
+        assertLateOldCallDoesNotAffectReplacement("write") { engine, sid ->
+            engine.writeAudio(sid, ByteArray(DQ_FRAME))
+        }
+    }
+
+    @Test
+    fun a10i_lateOldFinish_doesNotAffectReplacement() {
+        assertLateOldCallDoesNotAffectReplacement("finish") { engine, sid ->
+            engine.finish(sid)
+        }
+    }
+
+    @Test
+    fun a10j_lateOldCancel_doesNotAffectReplacement() {
+        assertLateOldCallDoesNotAffectReplacement("cancel") { engine, sid ->
+            engine.cancel(sid)
+        }
     }
 
     // ---------- a11: 不支持的语言 ----------
@@ -455,6 +787,62 @@ class DqSdkCornerCaseTest {
 
     private fun idOf(wav: String): String = Integer.toHexString(wav.hashCode()) + "-" + (seq++)
 
+    private fun assertLateOldCallDoesNotAffectReplacement(
+        operationName: String,
+        lateCall: (SpeechRecognitionEngine, String) -> Unit,
+    ) {
+        val engine = sharedEngine()
+        awaitIdle(engine)
+        val oldSid = "late-$operationName-old-${System.currentTimeMillis()}"
+        val oldListener = CapturingListener().also { engine.setListener(it) }
+        engine.startListening(StartParams(oldSid, AudioInfo()))
+        assertTrue("old session did not start", oldListener.awaitStarted(10_000))
+        engine.cancel(oldSid)
+        awaitIdle(engine)
+
+        val newSid = "late-$operationName-new-${System.currentTimeMillis()}"
+        val newStarted = CountDownLatch(1)
+        val newComplete = CountDownLatch(1)
+        val newLastCount = AtomicInteger(0)
+        val newCompleteCount = AtomicInteger(0)
+        val newErrors = mutableListOf<Int>()
+        engine.setListener(object : RecognitionListener {
+            override fun onStart(sessionId: String, eventMessage: String) {
+                if (sessionId == newSid) newStarted.countDown()
+            }
+
+            override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+
+            override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
+                if (sessionId == newSid && result.isLast) newLastCount.incrementAndGet()
+            }
+
+            override fun onComplete(sessionId: String, eventMessage: String) {
+                if (sessionId == newSid) {
+                    newCompleteCount.incrementAndGet()
+                    newComplete.countDown()
+                }
+            }
+
+            override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+                if (sessionId == newSid) synchronized(newErrors) { newErrors += errorCode }
+            }
+        })
+        engine.startListening(StartParams(newSid, AudioInfo()))
+        assertTrue("replacement session did not start", newStarted.await(10_000, TimeUnit.MILLISECONDS))
+
+        lateCall(engine, oldSid)
+        assertTrue("late old $operationName ended replacement", engine.isBusy())
+        engine.finish(newSid)
+        assertTrue("replacement did not complete", newComplete.await(20_000, TimeUnit.MILLISECONDS))
+        awaitIdle(engine)
+
+        assertEquals("replacement must emit one last", 1, newLastCount.get())
+        assertEquals("replacement must emit one complete", 1, newCompleteCount.get())
+        assertTrue("replacement must not receive old-call errors",
+            synchronized(newErrors) { newErrors.isEmpty() })
+    }
+
     companion object {
         @Volatile private var engine: SpeechRecognitionEngine? = null
         @Volatile private var seq = 0
@@ -472,6 +860,13 @@ class DqSdkCornerCaseTest {
             return SpeechRecognizeSdk.createEngine(
                 CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE, extraParams = mapOf("vadEnd" to 800)),
             ).also { engine = it }
+        }
+
+        @Synchronized
+        fun reloadEngine(): SpeechRecognitionEngine {
+            engine?.shutdown()
+            engine = null
+            return sharedEngine()
         }
     }
 }

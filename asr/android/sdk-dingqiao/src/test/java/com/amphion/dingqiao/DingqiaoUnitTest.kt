@@ -261,6 +261,39 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildSessionConfig_voiceprintIdsReserveConfirmationGraceForOnStartEnablement() {
+        val sc = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams(
+                "s1",
+                AudioInfo(),
+                mapOf(
+                    "vadBegin" to 1_000,
+                    "voiceprintIds" to listOf("vp-1"),
+                ),
+            ),
+            speakerModelPath = "/tmp/eres2net.onnx",
+            voiceprintCapabilityProvisioned = true,
+        )
+
+        assertEquals(1_000, sc.initialSilenceTimeoutMs)
+        assertEquals(1_500, sc.initialSilenceConfirmationGraceMs)
+    }
+
+    @Test
+    fun buildSessionConfig_unvalidatedVoiceprintIdsDoNotReserveConfirmationGrace() {
+        val sc = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams(
+                "s1",
+                AudioInfo(),
+                mapOf("vadBegin" to 1_000, "voiceprintIds" to listOf("missing")),
+            ),
+            speakerModelPath = "/tmp/eres2net.onnx",
+        )
+
+        assertNull(sc.initialSilenceConfirmationGraceMs)
+    }
+
+    @Test
     fun audioFrameBytes_acceptsDocumentedFrameSizeOnly() {
         assertTrue(DingqiaoEngineConfig.isSupportedAudioFrameBytes(640))
         assertTrue(!DingqiaoEngineConfig.isSupportedAudioFrameBytes(1280))
@@ -268,17 +301,17 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
-    fun maxAudioDuration_defaultsAndClampsToDeliveryMinimum() {
+    fun maxAudioDuration_isOptInFiniteAndCapped() {
         assertEquals(
-            20_000L,
+            0L,
             DingqiaoEngineConfig.maxAudioDurationMs(StartParams("s1", AudioInfo())),
         )
         assertEquals(
-            20_000L,
+            0L,
             DingqiaoEngineConfig.maxAudioDurationMs(StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to 0))),
         )
         assertEquals(
-            20_000L,
+            5_000L,
             DingqiaoEngineConfig.maxAudioDurationMs(StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to "5000"))),
         )
         assertEquals(
@@ -286,9 +319,15 @@ class DingqiaoEngineConfigTest {
             DingqiaoEngineConfig.maxAudioDurationMs(StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to 60_000))),
         )
         assertEquals(
-            20_000L,
+            0L,
             DingqiaoEngineConfig.maxAudioDurationMs(
                 StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to Double.POSITIVE_INFINITY)),
+            ),
+        )
+        assertEquals(
+            0L,
+            DingqiaoEngineConfig.maxAudioDurationMs(
+                StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to Double.NaN)),
             ),
         )
         assertEquals(
@@ -297,6 +336,30 @@ class DingqiaoEngineConfigTest {
                 StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to 99_999_999)),
             ),
         )
+    }
+
+    @Test
+    fun nonFiniteSessionNumbersFallBackToDocumentedDefaults() {
+        val config = DingqiaoEngineConfig.buildSessionConfig(
+            StartParams(
+                "s1",
+                AudioInfo(),
+                mapOf(
+                    "vadEnd" to Double.NaN,
+                    "speakerVadThreshold" to Float.NaN,
+                    "speakerVadWindowMs" to Double.POSITIVE_INFINITY,
+                    "speakerVadHopMs" to "NaN",
+                    "speakerVadConsecutiveBelow" to Double.NEGATIVE_INFINITY,
+                ),
+            ),
+            speakerModelPath = "/tmp/eres2net.onnx",
+        )
+
+        assertEquals(800, config.endpointSilenceMs)
+        assertEquals(0.40f, config.speakerVad?.threshold)
+        assertEquals(1.0f, config.speakerVad?.winSec)
+        assertEquals(0.3f, config.speakerVad?.hopSec)
+        assertEquals(2, config.speakerVad?.consecutiveBelow)
     }
 
     @Test
@@ -327,6 +390,75 @@ class DingqiaoEngineConfigTest {
             ),
         )
         assertEquals(listOf("vp-1", "vp-2"), ids)
+    }
+}
+
+class CallbackEpochTest {
+
+    @Test
+    fun replacementInvalidatesEveryQueuedCallbackFromTheOldSession() {
+        val gate = CallbackEpoch()
+        val old = gate.beginSession()
+        assertTrue(gate.isCurrent(old))
+
+        val replacement = gate.beginSession()
+
+        assertFalse(gate.isCurrent(old))
+        assertTrue(gate.isCurrent(replacement))
+    }
+
+    @Test
+    fun shutdownInvalidatesQueuedEngineErrors() {
+        val gate = CallbackEpoch()
+        val queuedError = gate.current()
+
+        gate.invalidate()
+
+        assertFalse(gate.isCurrent(queuedError))
+    }
+
+    @Test
+    fun staleTerminalClaimCannotBlockReplacementSession() {
+        val gate = CallbackEpoch()
+        val old = gate.beginSession()
+        assertTrue(gate.claimTerminal(old))
+
+        val replacement = gate.beginSession()
+
+        assertFalse(gate.claimTerminal(old))
+        assertTrue(gate.claimTerminal(replacement))
+        assertFalse(gate.claimTerminal(replacement))
+    }
+}
+
+class CallbackInvocationContextTest {
+    @Test
+    fun replacementCanBeAdoptedWithinResultButOldCompletionIsRestored() {
+        val context = CallbackInvocationContext()
+
+        context.withEpoch(7L) {
+            context.adopt(8L)
+            assertFalse(context.isStaleForActiveSession(activeEpoch = 8L, listening = true))
+        }
+        context.withEpoch(7L) {
+            assertTrue(context.isStaleForActiveSession(activeEpoch = 8L, listening = true))
+        }
+    }
+
+    @Test
+    fun longLivedAudioThreadDoesNotInheritOneSessionsCallbackEpoch() {
+        val context = CallbackInvocationContext()
+        val stale = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        context.withEpoch(7L) {
+            val worker = Thread {
+                stale.set(context.isStaleForActiveSession(activeEpoch = 8L, listening = true))
+            }
+            worker.start()
+            worker.join()
+        }
+
+        assertFalse(stale.get())
     }
 }
 

@@ -23,9 +23,9 @@
 
 > 批注（增补 S1，2026-06-29）：达到 `maxAudioDuration` 上限不再作为错误回调 `onError(1002200003)`，改为正常生命周期结束，等同 SDK 自动调用 `finish(sessionId)`：回调 `onResult(isFinal=true,isLast=true)` 后回调 `onComplete`，随后 `isBusy()==false` 且可立即再次 `startListening`。`1002200003` 保留为兼容占位，不再主动触发。
 
-> 批注（参数边界，2026-06-29）：`maxAudioDuration` 默认值为 20000 ms。传入小于 20000 ms 的值时按 20000 ms 处理；当前交付不开放 0 表示不限时。
+> 批注（参数边界，2026-07-18）：`maxAudioDuration` 改为显式启用。未传、非法、非有限或小于等于 0 时禁用自动结束；显式正有限值按毫秒生效。
 
-> 批注（参数上限，2026-07-14）：当前 Android 与 Harmony 均统一按长语音流式实现，`maxAudioDuration` 上限为 28800000 ms；数字与数字字符串均可解析，非有限值或非法字符串不得绕过默认下限。
+> 批注（参数上限，2026-07-18）：当前 Android 与 Harmony 均统一按长语音流式实现，`maxAudioDuration` 上限为 28800000 ms；数字与数字字符串均可解析，超过上限时钳制到上限。
 
 ## 2.1 首段静音与识别模式参数
 
@@ -34,6 +34,8 @@
 > 批注（回调顺序，2026-07-14）：持续静音达到 `vadBegin` 后，正常回调一个空的 `onResult(isFinal=true,isLast=true)`，随后回调一次 `onComplete`；不得回调 `SPEECH_BEGIN`、`SPEECH_END` 或 `onError`。阈值边界同时检测到真实语音时语音优先；首次真实起音后，本会话永久取消首段静音计时。
 
 > 批注（交付澄清 VP-20260715-02，2026-07-15）：参数按范围钳制；传入 `vadBegin=60000` 时实际按 10000 ms 计算，并非 60 秒。启用声纹校验或 Speaker VAD 后，纯静音仍在该阈值结束。初始等待窗内存在连续但未决的声学活动时，SDK 最多使用一次 `TargetSpeakerConfig.minSegSec`（默认 1500 ms）确认窗；只有确认窗末仍存在近期语音型活动，或强制刷新 ASR 得到非空 text/token，才解除计时。稳态高能非语音仍有界结束，声学证据不单独产生 `SPEECH_BEGIN`。
+
+> 批注（运行时启用，2026-07-18）：只要会话传入可用 `voiceprintIds`，即使两个声纹开关初始均为关闭，也会预留上述一次性确认窗，以支持调用方在 `onStart` 内同步启用 Speaker VAD。
 
 > 批注（模式兼容，2026-07-14）：`recognitionMode` 缺省为 `STREAM=1`，当前不支持 `RECORD=0` 的 SDK 内录音；`recognizerMode` 接受 `short` / `long`，两者均使用长语音流式实现。`locate` 当前仅兼容 `CN`，`sessionGeneralLexicon` 在 V1 不生效。
 

@@ -13,6 +13,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * 鼎桥 [SpeechRecognitionEngine] 实现：
@@ -41,6 +43,9 @@ internal class DingqiaoRecognitionEngine(
         termsV2Enabled = true,
     )
     private val destroyed = AtomicBoolean(false)
+    private val callbackEpoch = CallbackEpoch()
+    private val lifecycleCallbackLock = ReentrantLock(true)
+    private val callbackInvocation = CallbackInvocationContext()
 
     @Volatile
     private var listener: RecognitionListener? = null
@@ -63,8 +68,14 @@ internal class DingqiaoRecognitionEngine(
     @Volatile
     private var completeSent = false
 
+    @Volatile
+    private var activeEpoch = callbackEpoch.current()
+
+    @Volatile
+    private var terminalCallbackSessionId: String? = null
+
     private var audioMsWritten = 0L
-    private var maxAudioDurationMs = 20_000L
+    private var maxAudioDurationMs = 0L
     private var enablePartial = true
     private var voiceprintEnabled = false
     private var speakerVadEnabled = false
@@ -83,16 +94,30 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
+    @Synchronized
     override fun setListener(listener: RecognitionListener?) {
+        if (staleCallbackTargetsReplacement()) return
         this.listener = listener
     }
 
-    override fun startListening(params: StartParams) {
+    override fun startListening(params: StartParams) = lifecycleCallbackLock.withLock {
+        synchronized(this) { startListeningLocked(params) }
+    }
+
+    private fun startListeningLocked(params: StartParams) {
+        if (staleCallbackTargetsReplacement()) return
         ensureAlive()
         if (listening) {
-            notifyError(params.sessionId, DingqiaoErrorCode.ENGINE_BUSY, "engine is busy")
+            notifyError(
+                callbackEpoch.current(),
+                params.sessionId,
+                DingqiaoErrorCode.ENGINE_BUSY,
+                "engine is busy",
+            )
             return
         }
+        val epoch = callbackEpoch.beginSession()
+        activeEpoch = epoch
         try {
             params.audioInfo.validate()
             params.sessionId.requireValidId()
@@ -114,39 +139,56 @@ internal class DingqiaoRecognitionEngine(
                     DingqiaoErrorCode.START_LISTENING_FAILED,
                     "engine not ready",
                 )
-            val sessionConfig = DingqiaoEngineConfig.buildSessionConfig(params, speakerModelPath)
-            val s = eng.newSession(createAsrCallback(params.sessionId), sessionConfig)
+            val sessionConfig = DingqiaoEngineConfig.buildSessionConfig(
+                params,
+                speakerModelPath,
+                voiceprintCapabilityProvisioned = voiceprintIds.isNotEmpty(),
+            )
+            val s = eng.newSession(createAsrCallback(params.sessionId, epoch), sessionConfig)
             // session 必须在 listening=true 之前对外可见：否则录音线程早到的 writeAudio
             // 会落到 session==null 的空安全调用上被静默丢弃，导致首字丢失。
             session = s
             configureVoiceprint(s)
             activeSessionId = params.sessionId
             listening = true
-            notifyStart(params.sessionId)
+            notifyStart(epoch, params.sessionId)
+            callbackInvocation.adopt(epoch)
         } catch (t: Throwable) {
-            listening = false
-            activeSessionId = null
-            session?.close()
-            session = null
+            if (!callbackEpoch.isCurrent(epoch)) return
+            val errorEpoch = tearDownSession(epoch) ?: return
             val code = (t as? DingqiaoEngineException)?.errorCode
                 ?: DingqiaoErrorCode.START_LISTENING_FAILED
-            notifyError(params.sessionId, code, t.message ?: "startListening failed")
+            notifyError(errorEpoch, params.sessionId, code, t.message ?: "startListening failed")
         }
     }
 
+    @Synchronized
     override fun writeAudio(sessionId: String, audio: ByteArray) {
+        if (staleCallbackTargetsReplacement()) return
         ensureAlive()
         if (!listening) {
-            notifyError(sessionId, DingqiaoErrorCode.NOT_LISTENING, "startListening not succeeded")
+            if (terminalCallbackSessionId == sessionId) return
+            notifyError(
+                callbackEpoch.current(),
+                sessionId,
+                DingqiaoErrorCode.NOT_LISTENING,
+                "startListening not succeeded",
+            )
             return
         }
         if (sessionId != activeSessionId) {
-            notifyError(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, "sessionId mismatch")
+            notifyError(
+                activeEpoch,
+                sessionId,
+                DingqiaoErrorCode.RECOGNITION_ERROR,
+                "sessionId mismatch",
+            )
             return
         }
         if (audio.isEmpty()) return
         if (!DingqiaoEngineConfig.isSupportedAudioFrameBytes(audio.size)) {
             notifyError(
+                activeEpoch,
                 sessionId,
                 DingqiaoErrorCode.RECOGNITION_ERROR,
                 "audio frame must be $DINGQIAO_AUDIO_FRAME_BYTES bytes",
@@ -154,44 +196,65 @@ internal class DingqiaoRecognitionEngine(
             return
         }
         if (finishRequested) return
+        val epoch = activeEpoch
+        val currentSession = session ?: return
         val samples = PcmIo.bytesToShortsLE(audio)
         audioMsWritten += samples.size * 1000L / 16000
-        session?.acceptPcmShort(samples)
-        if (!finishRequested && audioMsWritten >= maxAudioDurationMs) {
+        currentSession.acceptPcmShort(samples)
+        if (
+            ownsSession(epoch, sessionId) &&
+            session === currentSession &&
+            !finishRequested &&
+            maxAudioDurationMs > 0L &&
+            audioMsWritten >= maxAudioDurationMs
+        ) {
             // 达到单会话上限是正常的生命周期终止，不是错误：等价于自动 finish，
             // flush 出最终 onResult + onComplete 并清理会话，使引擎可被再次 startListening。
             finishRequested = true
-            session?.stop()
+            currentSession.stop()
         }
     }
 
+    @Synchronized
     override fun finish(sessionId: String) {
+        if (staleCallbackTargetsReplacement()) return
         ensureAlive()
         if (!listening || sessionId != activeSessionId) {
-            notifyError(sessionId, DingqiaoErrorCode.FINISH_FAILED, "finish failed")
+            if (!listening && terminalCallbackSessionId == sessionId) return
+            notifyError(callbackEpoch.current(), sessionId, DingqiaoErrorCode.FINISH_FAILED, "finish failed")
             return
         }
         finishRequested = true
         session?.stop()
     }
 
-    override fun cancel(sessionId: String) {
-        ensureAlive()
-        if (!listening || sessionId != activeSessionId) {
-            notifyError(sessionId, DingqiaoErrorCode.CANCEL_FAILED, "cancel failed")
-            return
-        }
-        finishRequested = false
-        tearDownSession()
+    override fun cancel(sessionId: String) = lifecycleCallbackLock.withLock {
+        synchronized(this) { cancelLocked(sessionId) }
     }
 
-    override fun setSpeakerVadEnabled(enabled: Boolean) {
+    private fun cancelLocked(sessionId: String) {
+        if (staleCallbackTargetsReplacement()) return
         ensureAlive()
-        speakerVadEnabled = enabled
+        if (!listening || sessionId != activeSessionId) {
+            if (!listening && terminalCallbackSessionId == sessionId) return
+            notifyError(callbackEpoch.current(), sessionId, DingqiaoErrorCode.CANCEL_FAILED, "cancel failed")
+            return
+        }
+        val cancelledEpoch = activeEpoch
+        finishRequested = false
+        tearDownSession(cancelledEpoch)
+    }
+
+    @Synchronized
+    override fun setSpeakerVadEnabled(enabled: Boolean) {
+        if (staleCallbackTargetsReplacement()) return
+        ensureAlive()
         val currentSession = session ?: return
         val sid = activeSessionId ?: return
+        val epoch = activeEpoch
         try {
             if (enabled) {
+                requireSpeakerModel("speaker VAD")
                 val embedding = voiceprintStore.loadMergedEmbedding(voiceprintIds)
                     ?: throw DingqiaoEngineException(
                         DingqiaoErrorCode.VOICEPRINT_NOT_FOUND,
@@ -199,15 +262,20 @@ internal class DingqiaoRecognitionEngine(
                     )
                 currentSession.setTargetSpeaker(embedding)
             }
+            currentSession.setTargetSpeakerEnabled(voiceprintEnabled || enabled)
             currentSession.setSpeakerVadEnabled(enabled)
+            speakerVadEnabled = enabled
             notifyEvent(
+                epoch,
                 sid,
                 DingqiaoEventCode.SPEAKER_VAD_CHANGED,
                 "speaker vad ${if (enabled) "enabled" else "disabled"}.",
             )
         } catch (t: Throwable) {
             speakerVadEnabled = false
+            currentSession.setTargetSpeakerEnabled(voiceprintEnabled)
             notifyError(
+                epoch,
                 sid,
                 (t as? DingqiaoEngineException)?.errorCode ?: DingqiaoErrorCode.RECOGNITION_ERROR,
                 t.message ?: "setSpeakerVadEnabled failed",
@@ -217,9 +285,15 @@ internal class DingqiaoRecognitionEngine(
 
     override fun isBusy(): Boolean = listening
 
-    override fun shutdown() {
+    override fun shutdown() = lifecycleCallbackLock.withLock {
+        synchronized(this) { shutdownLocked() }
+    }
+
+    private fun shutdownLocked() {
+        if (staleCallbackTargetsReplacement()) return
         if (!destroyed.compareAndSet(false, true)) return
-        tearDownSession()
+        val shutdownEpoch = activeEpoch
+        tearDownSession(shutdownEpoch)
         try {
             engine?.close()
         } catch (_: Throwable) {
@@ -242,22 +316,28 @@ internal class DingqiaoRecognitionEngine(
         engine = AmphionRuntime.create(appContext, lang, config)
     }
 
-    private fun createAsrCallback(sessionId: String): AsrCallback = object : AsrCallback {
+    private fun createAsrCallback(sessionId: String, epoch: Long): AsrCallback = object : AsrCallback {
         override fun onSpeechBegin() {
-            if (!listening || activeSessionId != sessionId) return
-            speechActive = true
-            notifyEvent(sessionId, DingqiaoEventCode.SPEECH_BEGIN, "speech started.")
+            synchronized(this@DingqiaoRecognitionEngine) {
+                if (!ownsSessionLocked(epoch, sessionId)) return
+                speechActive = true
+                notifyEvent(epoch, sessionId, DingqiaoEventCode.SPEECH_BEGIN, "speech started.")
+            }
         }
 
         override fun onInitialSilenceTimeout() {
-            if (!listening || finishRequested || activeSessionId != sessionId) return
-            finishRequested = true
-            session?.stop()
+            synchronized(this@DingqiaoRecognitionEngine) {
+                if (!ownsSessionLocked(epoch, sessionId) || finishRequested) return
+                val ownedSession = session ?: return
+                finishRequested = true
+                ownedSession.stop()
+            }
         }
 
         override fun onPartial(text: String) {
             if (!enablePartial) return
             dispatchResult(
+                epoch = epoch,
                 sessionId = sessionId,
                 asrResult = AsrResult(text = text),
                 isFinal = false,
@@ -266,97 +346,144 @@ internal class DingqiaoRecognitionEngine(
         }
 
         override fun onEndpoint() {
-            if (!listening || activeSessionId != sessionId) return
-            if (speechActive) {
-                speechActive = false
-                notifyEvent(sessionId, DingqiaoEventCode.SPEECH_END, "speech stopped.")
+            synchronized(this@DingqiaoRecognitionEngine) {
+                if (!ownsSessionLocked(epoch, sessionId)) return
+                if (speechActive) {
+                    speechActive = false
+                    notifyEvent(epoch, sessionId, DingqiaoEventCode.SPEECH_END, "speech stopped.")
+                }
             }
         }
 
         override fun onDebug(message: String) {
-            notifyEvent(sessionId, DingqiaoEventCode.SPEAKER_VAD_DEBUG, message)
+            notifyEvent(epoch, sessionId, DingqiaoEventCode.SPEAKER_VAD_DEBUG, message)
         }
 
         override fun onFinal(result: AsrResult) {
-            deliverFinal(sessionId, result)
+            deliverFinal(epoch, sessionId, result)
         }
 
         override fun onFinalRejected(result: AsrResult) {
             notifyEvent(
+                epoch,
                 sessionId,
                 DingqiaoEventCode.SPEAKER_VAD_REJECTED,
                 "speaker vad rejected final; score=${result.speakerScore ?: "n/a"}",
             )
             if (RejectedFinalLifecycle.completesSession(result.isLast)) {
-                dispatchResult(
+                enqueueTerminalResult(
+                    epoch = epoch,
                     sessionId = sessionId,
                     asrResult = AsrResult(text = ""),
-                    isFinal = true,
-                    isLast = true,
                 )
-                maybeComplete(sessionId)
-                tearDownSession()
             }
         }
 
         override fun onError(error: AsrError) {
-            notifyError(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, "${error.code}: ${error.message}")
-            tearDownSession()
+            if (!ownsSession(epoch, sessionId)) return
+            val errorEpoch = tearDownSession(epoch) ?: return
+            notifyError(
+                errorEpoch,
+                sessionId,
+                DingqiaoErrorCode.RECOGNITION_ERROR,
+                "${error.code}: ${error.message}",
+            )
         }
 
         override fun onSessionStopped() {
-            if (finishRequested) {
-                // SessionImpl.stop() 的 onSessionStopped 可能早于后处理后的 onFinal 到达。
-                // 先短暂等待真实 final；若底层没有产出 final（例如强制达到 maxAudioDuration 时），
-                // 再补一个空的 isLast final + onComplete，保证所有正常终止路径都能闭环并释放 busy。
-                scheduleStoppedFallback(sessionId)
-                return
-            }
-            if (listening) {
-                tearDownSession()
+            synchronized(this@DingqiaoRecognitionEngine) {
+                if (!ownsSessionLocked(epoch, sessionId)) return
+                if (finishRequested) {
+                    // SessionImpl.stop() 的 onSessionStopped 可能早于后处理后的 onFinal 到达。
+                    // 先短暂等待真实 final；若底层没有产出 final（例如强制达到 maxAudioDuration 时），
+                    // 再补一个空的 isLast final + onComplete，保证所有正常终止路径都能闭环并释放 busy。
+                    scheduleStoppedFallback(epoch, sessionId)
+                    return
+                }
+                tearDownSession(epoch)
             }
         }
     }
 
-    private fun scheduleStoppedFallback(sessionId: String) {
+    private fun scheduleStoppedFallback(epoch: Long, sessionId: String) {
         stopFallbackExecutor.schedule({
-            if (!listening || !finishRequested || completeSent || activeSessionId != sessionId) return@schedule
-            dispatchResult(
+            val shouldComplete = synchronized(this@DingqiaoRecognitionEngine) {
+                ownsSessionLocked(epoch, sessionId) && finishRequested && !completeSent
+            }
+            if (!shouldComplete) return@schedule
+            enqueueTerminalResult(
+                epoch = epoch,
                 sessionId = sessionId,
                 asrResult = AsrResult(text = ""),
-                isFinal = true,
-                isLast = true,
             )
-            maybeComplete(sessionId)
-            tearDownSession()
         }, STOP_FALLBACK_DELAY_MS, TimeUnit.MILLISECONDS)
     }
 
-    private fun deliverFinal(sessionId: String, result: AsrResult) {
-        if (!listening || activeSessionId != sessionId || completeSent) return
+    private fun deliverFinal(epoch: Long, sessionId: String, result: AsrResult) {
+        if (!ownsSession(epoch, sessionId) || completeSent) return
         val enhanced = enhancePipeline.enhance(result.text)
-        val isLast = result.isLast
-        dispatchResult(
-            sessionId = sessionId,
-            asrResult = result,
-            isFinal = true,
-            isLast = isLast,
-            enhancedText = enhanced.text,
-            speakerSimilarity = result.speakerScore,
-        )
-        if (isLast) {
-            maybeComplete(sessionId)
-            tearDownSession()
+        if (result.isLast) {
+            enqueueTerminalResult(epoch, sessionId, result, enhanced.text)
+        } else {
+            dispatchResult(
+                epoch = epoch,
+                sessionId = sessionId,
+                asrResult = result,
+                isFinal = true,
+                isLast = false,
+                enhancedText = enhanced.text,
+                speakerSimilarity = result.speakerScore,
+            )
         }
     }
 
-    private fun maybeComplete(sessionId: String) {
-        if (completeSent) return
-        completeSent = true
-        notifyComplete(sessionId)
+    private fun enqueueTerminalResult(
+        epoch: Long,
+        sessionId: String,
+        asrResult: AsrResult,
+        enhancedText: String? = null,
+    ) {
+        synchronized(this) {
+            if (!ownsSessionLocked(epoch, sessionId) || completeSent) return
+            if (!callbackEpoch.claimTerminal(epoch)) return
+        }
+        val payload = resultPayload(
+            asrResult = asrResult,
+            isFinal = true,
+            isLast = true,
+            enhancedText = enhancedText,
+            speakerSimilarity = asrResult.speakerScore,
+        )
+        callbackExecutor.execute {
+            lifecycleCallbackLock.withLock {
+                val completionListener = synchronized(this@DingqiaoRecognitionEngine) {
+                    if (!ownsSessionLocked(epoch, sessionId)) return@execute
+                    completeSent = true
+                    terminalCallbackSessionId = sessionId
+                    val captured = listener
+                    if (tearDownSession(epoch) == null) return@execute
+                    captured
+                }
+                try {
+                    callbackInvocation.withEpoch(epoch) {
+                        runCatching { completionListener?.onResult(sessionId, payload) }
+                    }
+                } finally {
+                    callbackInvocation.withEpoch(epoch) {
+                        runCatching { completionListener?.onComplete(sessionId, "recognize complete") }
+                    }
+                    synchronized(this@DingqiaoRecognitionEngine) {
+                        if (terminalCallbackSessionId == sessionId) {
+                            terminalCallbackSessionId = null
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun dispatchResult(
+        epoch: Long,
         sessionId: String,
         asrResult: AsrResult,
         isFinal: Boolean,
@@ -364,11 +491,38 @@ internal class DingqiaoRecognitionEngine(
         enhancedText: String? = null,
         speakerSimilarity: Float? = null,
     ) {
-        if (!listening || activeSessionId != sessionId || completeSent) return
+        if (!ownsSession(epoch, sessionId) || completeSent) return
+        val payload = resultPayload(
+            asrResult,
+            isFinal,
+            isLast,
+            enhancedText,
+            speakerSimilarity,
+        )
+        callbackExecutor.execute {
+            lifecycleCallbackLock.withLock {
+                val captured = synchronized(this@DingqiaoRecognitionEngine) {
+                    if (!ownsSessionLocked(epoch, sessionId) || completeSent) return@execute
+                    listener
+                }
+                callbackInvocation.withEpoch(epoch) {
+                    captured?.onResult(sessionId, payload)
+                }
+            }
+        }
+    }
+
+    private fun resultPayload(
+        asrResult: AsrResult,
+        isFinal: Boolean,
+        isLast: Boolean,
+        enhancedText: String?,
+        speakerSimilarity: Float?,
+    ): SpeechRecognitionResult {
         val text = if (isFinal) enhancedText ?: asrResult.text else asrResult.text
         val begin = asrResult.timestamps.firstOrNull()?.let { (it * 1000f).toInt() }
         val end = asrResult.timestamps.lastOrNull()?.let { (it * 1000f).toInt() }
-        val payload = SpeechRecognitionResult(
+        return SpeechRecognitionResult(
             isFinal = isFinal,
             isLast = isLast,
             result = text,
@@ -376,9 +530,6 @@ internal class DingqiaoRecognitionEngine(
             endTime = end,
             speakerSimilarity = if (isFinal) speakerSimilarity else null,
         )
-        callbackExecutor.execute {
-            listener?.onResult(sessionId, payload)
-        }
     }
 
     private fun configureVoiceprint(session: AsrSession) {
@@ -390,21 +541,16 @@ internal class DingqiaoRecognitionEngine(
         val embedding = voiceprintStore.loadMergedEmbedding(voiceprintIds)
             ?: throw IllegalStateException("voiceprint not found")
         session.setTargetSpeaker(embedding)
-        session.setTargetSpeakerEnabled(voiceprintEnabled)
+        session.setTargetSpeakerEnabled(needsVoiceprint)
         session.setSpeakerVadEnabled(speakerVadEnabled)
     }
 
     private fun validateVoiceprintParams(params: StartParams) {
         val speakerVad = DingqiaoEngineConfig.enableSpeakerVad(params)
         val voiceprint = DingqiaoEngineConfig.enableVoiceprintVerification(params)
-        if (!voiceprint && !speakerVad) return
-        if (speakerVad && speakerModelPath.isNullOrBlank()) {
-            throw DingqiaoEngineException(
-                DingqiaoErrorCode.START_LISTENING_FAILED,
-                "speaker model not found; enableSpeakerVad requires ${DINGQIAO_SPEAKER_MODEL_FILENAME}",
-            )
-        }
         val ids = DingqiaoEngineConfig.voiceprintIds(params)
+        if (!voiceprint && !speakerVad && ids.isEmpty()) return
+        requireSpeakerModel("voiceprint capability")
         require(ids.isNotEmpty()) {
             "voiceprintIds required when enableVoiceprintVerification=true or enableSpeakerVad=true"
         }
@@ -418,17 +564,43 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
-    private fun tearDownSession() {
+    private fun requireSpeakerModel(capability: String) {
+        if (speakerModelPath.isNullOrBlank() || !java.io.File(speakerModelPath).isFile) {
+            throw DingqiaoEngineException(
+                DingqiaoErrorCode.START_LISTENING_FAILED,
+                "speaker model not found; $capability requires $DINGQIAO_SPEAKER_MODEL_FILENAME",
+            )
+        }
+    }
+
+    @Synchronized
+    private fun tearDownSession(expectedEpoch: Long): Long? {
+        if (!callbackEpoch.isCurrent(expectedEpoch)) return null
+        val oldSession = session
         listening = false
         activeSessionId = null
         finishRequested = false
         speechActive = false
+        val idleEpoch = callbackEpoch.invalidate()
+        activeEpoch = idleEpoch
         try {
-            session?.close()
+            oldSession?.close()
         } catch (_: Throwable) {
         }
         session = null
+        return idleEpoch
     }
+
+    @Synchronized
+    private fun ownsSession(epoch: Long, sessionId: String): Boolean =
+        ownsSessionLocked(epoch, sessionId)
+
+    private fun ownsSessionLocked(epoch: Long, sessionId: String): Boolean =
+        !destroyed.get() &&
+            callbackEpoch.isCurrent(epoch) &&
+            listening &&
+            activeEpoch == epoch &&
+            activeSessionId == sessionId
 
     private fun ensureAlive() {
         if (destroyed.get()) {
@@ -436,29 +608,50 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
-    private fun notifyStart(sessionId: String) {
+    private fun notifyStart(epoch: Long, sessionId: String) {
         callbackExecutor.execute {
-            listener?.onStart(sessionId, "startListening success.")
+            lifecycleCallbackLock.withLock {
+                val captured = synchronized(this@DingqiaoRecognitionEngine) {
+                    if (!ownsSessionLocked(epoch, sessionId)) return@execute
+                    listener
+                }
+                callbackInvocation.withEpoch(epoch) {
+                    captured?.onStart(sessionId, "startListening success.")
+                }
+            }
         }
     }
 
-    private fun notifyEvent(sessionId: String, code: Int, message: String) {
+    private fun notifyEvent(epoch: Long, sessionId: String, code: Int, message: String) {
         callbackExecutor.execute {
-            listener?.onEvent(sessionId, code, message)
+            lifecycleCallbackLock.withLock {
+                val captured = synchronized(this@DingqiaoRecognitionEngine) {
+                    if (!ownsSessionLocked(epoch, sessionId)) return@execute
+                    listener
+                }
+                callbackInvocation.withEpoch(epoch) {
+                    captured?.onEvent(sessionId, code, message)
+                }
+            }
         }
     }
 
-    private fun notifyComplete(sessionId: String) {
+    private fun notifyError(epoch: Long, sessionId: String, code: Int, message: String) {
         callbackExecutor.execute {
-            listener?.onComplete(sessionId, "recognize complete")
+            lifecycleCallbackLock.withLock {
+                val captured = synchronized(this@DingqiaoRecognitionEngine) {
+                    if (destroyed.get() || !callbackEpoch.isCurrent(epoch)) return@execute
+                    listener
+                }
+                callbackInvocation.withEpoch(epoch) {
+                    captured?.onError(sessionId, code, message)
+                }
+            }
         }
     }
 
-    private fun notifyError(sessionId: String, code: Int, message: String) {
-        callbackExecutor.execute {
-            listener?.onError(sessionId, code, message)
-        }
-    }
+    private fun staleCallbackTargetsReplacement(): Boolean =
+        callbackInvocation.isStaleForActiveSession(activeEpoch, listening)
 
     private fun String.requireValidId() {
         require(isNotBlank() && matches(SESSION_ID_PATTERN)) {

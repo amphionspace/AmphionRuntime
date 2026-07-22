@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
 
     private val worker = Executors.newSingleThreadExecutor()
     private val sessionLock = Any()
+    private val engineRequests = AsyncResourceRequestGate<SpeechRecognitionEngine> { it.shutdown() }
     private var engine: SpeechRecognitionEngine? = null
     private var recorder: AudioRecorder? = null
     private var frameWriter: PcmFrameWriter? = null
@@ -121,6 +122,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        engineRequests.invalidate()
         stopListening()
         finishActiveDebugRecord(DebugRecordStore.STATUS_ABORTED)
         engine?.shutdown()
@@ -129,6 +131,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initEngine() {
+        val requestGeneration = engineRequests.begin()
         progress.visibility = android.view.View.VISIBLE
         setStatus(getString(R.string.status_loading_engine))
         btnTalk.isEnabled = false
@@ -137,7 +140,13 @@ class MainActivity : AppCompatActivity() {
             buildCreateEngineParams(),
             object : CreateEngineCallback {
                 override fun onResult(engine: SpeechRecognitionEngine) {
+                    if (!engineRequests.accept(requestGeneration, engine)) {
+                        return
+                    }
                     runOnUiThread {
+                        if (!engineRequests.accept(requestGeneration, engine)) {
+                            return@runOnUiThread
+                        }
                         this@MainActivity.engine = engine
                         this@MainActivity.engine?.setListener(createListener())
                         progress.visibility = android.view.View.GONE
@@ -149,6 +158,9 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onError(errorCode: Int, errorMessage: String) {
                     runOnUiThread {
+                        if (!engineRequests.isCurrent(requestGeneration)) {
+                            return@runOnUiThread
+                        }
                         progress.visibility = android.view.View.GONE
                         setStatus(getString(R.string.status_engine_failed, "$errorCode $errorMessage"))
                     }
