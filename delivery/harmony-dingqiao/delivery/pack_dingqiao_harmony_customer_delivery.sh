@@ -55,7 +55,37 @@ SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-$REPO_ROOT/.secure/harmony-signing.jso
 BUILD_IDENTITY="$REPO_ROOT/delivery/harmony-dingqiao/build/smoke/build-identity.json"
 
 GIT_DIRTY=false
-if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
+# Unrelated diagnostics and local customer notes do not affect the SDK-only payload. Gate release
+# reproducibility on the exact source inputs consumed below so user work elsewhere is preserved.
+RELEASE_INPUTS=(
+  LICENSE
+  asr/harmony/sdk
+  asr/harmony/sdk-dingqiao
+  third_party/sherpa-onnx
+  third_party/patches/sherpa-amphion
+  delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh
+  delivery/harmony-dingqiao/delivery/check_customer_delivery_redaction.py
+  delivery/harmony-dingqiao/delivery/create_normalized_tar.py
+  delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json
+  delivery/harmony-dingqiao/delivery/filter_zh_en_model_payload.py
+  delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh
+  delivery/harmony-dingqiao/delivery/sanitize_public_har_payload.py
+  delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py
+  delivery/harmony-dingqiao/delivery/verify_dingqiao_model_md5.py
+  delivery/harmony-dingqiao/delivery/verify_selfcontained_dingqiao_har.sh
+  delivery/harmony-dingqiao/docs/customer/LICENSE.md
+  delivery/harmony-dingqiao/docs/customer/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md
+  delivery/harmony-dingqiao/docs/customer/ASR_LIFECYCLE_ASSURANCE_20260716.md
+  delivery/harmony-dingqiao/docs/customer/ASR_LIFECYCLE_ASSURANCE_EVIDENCE_20260716.json
+  delivery/harmony-dingqiao/docs/customer/NOTICE
+  delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_INTEGRATION.md
+  delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_LICENSE_SCHEME.md
+  delivery/harmony-dingqiao/docs/customer/ASR_TROUBLESHOOTING.md
+  delivery/harmony-dingqiao/docs/PRIVACY.md
+  delivery/harmony-dingqiao/docs/语音识别SDK接口.md
+  tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/LICENSE
+)
+if [[ -n "$(git -C "$REPO_ROOT" status --porcelain -- "${RELEASE_INPUTS[@]}")" ]]; then
   GIT_DIRTY=true
 fi
 if [[ "$GIT_DIRTY" == true && "$ALLOW_DIRTY" != true ]]; then
