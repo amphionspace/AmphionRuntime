@@ -47,7 +47,6 @@ python3 "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --archive "$HAR"
 python3 - \
   "$HAR" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json" \
-  "$REPO_ROOT/asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police" \
   "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
@@ -63,15 +62,13 @@ import shutil
 import tempfile
 
 har = Path(sys.argv[1])
-police_root = Path(sys.argv[3])
-zh_en_only = sys.argv[7] == "true"
-script_dir = Path(sys.argv[8])
+zh_en_only = sys.argv[6] == "true"
 expected = {
-    "package/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx": Path(sys.argv[4]),
-    "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[5]),
-    "package/_bundled/amphion_asr/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[6]),
-    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[5]),
-    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[6]),
+    "package/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx": Path(sys.argv[3]),
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[4]),
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[5]),
+    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[4]),
+    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[5]),
 }
 with tarfile.open(har, "r:gz") as package:
     manifest_member = package.extractfile(
@@ -98,41 +95,11 @@ with tarfile.open(har, "r:gz") as package:
             raise SystemExit(
                 f"[ERROR] self-contained HAR entry differs from verified local artifact: {member_name}"
             )
-    if zh_en_only:
-        module_path = script_dir / "sanitize_public_har_payload.py"
-        spec = importlib.util.spec_from_file_location("sanitize_public_har_payload", module_path)
-        if spec is None or spec.loader is None:
-            raise SystemExit(f"[ERROR] cannot load public HAR sanitizer: {module_path}")
-        sanitizer = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(sanitizer)
-        with tempfile.TemporaryDirectory() as directory:
-            package_root = Path(directory) / "package"
-            public_police_root = package_root / sanitizer.POLICE_RELATIVE_ROOT
-            shutil.copytree(police_root, public_police_root)
-            sanitizer.sanitize_payload(package_root)
-            police_manifest = json.loads(
-                (public_police_root / "manifest.json").read_text(encoding="utf-8")
-            )
-    else:
-        police_manifest = json.loads((police_root / "manifest.json").read_text(encoding="utf-8"))
-    embedded_police_manifest_name = (
-        "package/_bundled/amphion_police/src/main/resources/rawfile/amphion-police/manifest.json"
-    )
-    embedded_police_manifest = package.extractfile(embedded_police_manifest_name)
-    if embedded_police_manifest is None:
-        raise SystemExit("[ERROR] self-contained HAR is missing police manifest")
-    if json.loads(embedded_police_manifest.read()) != police_manifest:
-        raise SystemExit("[ERROR] self-contained HAR police manifest differs from public selection")
-    for relative, expected_sha256 in police_manifest["files"].items():
-        member_name = f"package/_bundled/amphion_police/src/main/resources/rawfile/amphion-police/{relative}"
-        member = package.extractfile(member_name)
-        if member is None:
-            raise SystemExit(f"[ERROR] self-contained HAR is missing police asset: {member_name}")
-        if hashlib.sha256(member.read()).hexdigest() != expected_sha256:
-            raise SystemExit(f"[ERROR] self-contained HAR police asset differs from Android: {member_name}")
+    if any("amphion_police" in member.name.lower() for member in package.getmembers()):
+        raise SystemExit("[ERROR] self-contained HAR contains police enhancement content")
     if zh_en_only and any("yue-en" in member.name.lower() for member in package.getmembers()):
         raise SystemExit("[ERROR] zh-en-only HAR still contains Yue model content")
-print("[OK] self-contained HAR ASR/voiceprint models, police assets, and native libraries match local artifacts")
+print("[OK] self-contained HAR ASR/voiceprint models and native libraries match local artifacts; police enhancement is absent")
 PY
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/amphion-har-customer.XXXXXX")"
@@ -262,4 +229,4 @@ fi
 
 HAP_COUNT="$(find "$ENTRY/build/default/outputs/default" -maxdepth 1 -type f -name '*.hap' | wc -l | tr -d ' ')"
 [[ "$HAP_COUNT" -ge 1 ]] || { echo "[ERROR] customer host build produced no HAP" >&2; exit 1; }
-echo "[OK] self-contained Dingqiao HAR installed and compiled in a clean customer host"
+echo "[OK] self-contained compatibility HAR installed and compiled in a clean customer host"

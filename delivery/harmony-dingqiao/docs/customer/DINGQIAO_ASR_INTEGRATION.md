@@ -1,4 +1,4 @@
-# 鼎桥 HarmonyOS 离线 ASR SDK 集成指南
+# Amphion HarmonyOS 离线 ASR SDK 集成指南
 
 ## 1. 交付范围
 
@@ -6,7 +6,7 @@
 
 | 路径 | 内容 |
 | --- | --- |
-| `../har/amphion_dingqiao.har` | 自包含 ASR SDK，内置中英模型、声纹、标点、ITN、VAD 和警务文本增强 |
+| `../har/amphion_dingqiao.har` | 自包含 ASR SDK，内置中英模型、声纹、标点、ITN 和 VAD |
 | `ASR_SDK_API_HARMONY.md` | 公共 API、参数、错误码和回调契约 |
 | `LICENSE.md` | 离线授权接入 |
 | `ASR_LIFECYCLE_ASSURANCE_20260716.md` | 历史问题闭环、时序图和验证边界 |
@@ -26,7 +26,7 @@
 }
 ```
 
-该 HAR 已包含所需的 ASR core、警务能力和 native runtime，不需要再声明其他 Amphion HAR。
+该 HAR 已包含所需的 ASR core 和 native runtime，不需要再声明其他 Amphion HAR。为保持既有接口兼容，模块名仍为 `amphion_dingqiao`；本交付不包含行业专用文本增强资源或后处理。
 
 ## 3. 初始化与授权
 

@@ -33,10 +33,6 @@
       "srcPath": "../../asr/harmony/sdk"
     },
     {
-      "name": "amphion_police",
-      "srcPath": "../../asr/harmony/sdk-police"
-    },
-    {
       "name": "amphion_dingqiao",
       "srcPath": "../../asr/harmony/sdk-dingqiao"
     },
