@@ -95,7 +95,7 @@ def main() -> None:
             sys.exit(f"[FAIL 6006] LICENSE_EXPIRED：expiresAt={expires}")
 
     sdk_major = claims.get("sdkMajor", -1)
-    if sdk_major >= 0 and sdk_major != args.sdk_major:
+    if sdk_major > 0 and args.sdk_major > 0 and sdk_major != args.sdk_major:
         sys.exit(f"[FAIL 6008] LICENSE_SDK_MAJOR_MISMATCH：license={sdk_major} host={args.sdk_major}")
     maintenance_until = claims.get("maintenanceUntil", "")
     if maintenance_until and args.sdk_release_date:
