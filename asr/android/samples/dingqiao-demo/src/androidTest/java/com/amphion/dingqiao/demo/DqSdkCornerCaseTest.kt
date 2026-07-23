@@ -8,6 +8,9 @@ import com.amphion.dingqiao.CreateEngineParams
 import com.amphion.dingqiao.DingqiaoErrorCode
 import com.amphion.dingqiao.DingqiaoEventCode
 import com.amphion.dingqiao.DingqiaoOnlineMode
+import com.amphion.dingqiao.LicenseActivationCallback
+import com.amphion.dingqiao.LicenseActivationResult
+import com.amphion.dingqiao.PrepareRuntimeCallback
 import com.amphion.dingqiao.RecognitionListener
 import com.amphion.dingqiao.SpeechRecognitionEngine
 import com.amphion.dingqiao.SpeechRecognitionResult
@@ -849,8 +852,40 @@ class DqSdkCornerCaseTest {
 
         private fun ensureSdkReady() {
             val target = InstrumentationRegistry.getInstrumentation().targetContext
+            val test = InstrumentationRegistry.getInstrumentation().context
             SpeechRecognizeSdk.init(target)
             SpeechRecognizeSdk.setWorkPath(File(target.getExternalFilesDir(null), "dq_corner_work").absolutePath)
+
+            val licenseDone = CountDownLatch(1)
+            var licenseError: String? = null
+            val licensePath = stageAsset(test, target, "licenses/valid.lic", "lic/corner-valid.lic")
+            SpeechRecognizeSdk.setLicense(licensePath, object : LicenseActivationCallback {
+                override fun onResult(result: LicenseActivationResult) {
+                    licenseDone.countDown()
+                }
+
+                override fun onError(errorCode: Int, errorMessage: String) {
+                    licenseError = "$errorCode $errorMessage"
+                    licenseDone.countDown()
+                }
+            })
+            check(licenseDone.await(20, TimeUnit.SECONDS)) { "setLicense callback timed out" }
+            check(licenseError == null) { "setLicense failed: $licenseError" }
+
+            val runtimeDone = CountDownLatch(1)
+            var runtimeError: String? = null
+            SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+                override fun onReady() {
+                    runtimeDone.countDown()
+                }
+
+                override fun onError(errorCode: Int, errorMessage: String) {
+                    runtimeError = "$errorCode $errorMessage"
+                    runtimeDone.countDown()
+                }
+            })
+            check(runtimeDone.await(20, TimeUnit.SECONDS)) { "prepareRuntime callback timed out" }
+            check(runtimeError == null) { "prepareRuntime failed: $runtimeError" }
         }
 
         @Synchronized
@@ -866,6 +901,7 @@ class DqSdkCornerCaseTest {
         fun reloadEngine(): SpeechRecognitionEngine {
             engine?.shutdown()
             engine = null
+            SpeechRecognizeSdk.unloadModel()
             return sharedEngine()
         }
     }
