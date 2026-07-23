@@ -1,0 +1,84 @@
+{
+  "date": "2026-07-23",
+  "branch": "feat/android-runtime-api-alignment",
+  "testedSdkCommit": "7016f135496136490271768e79a64dd1ebc69fd4",
+  "device": {
+    "manufacturer": "vivo",
+    "model": "V2505A",
+    "android": "16",
+    "api": 36,
+    "serial": "10AFBE032Z0040F"
+  },
+  "language": "ZH_EN",
+  "status": "BLOCKED",
+  "blockingGates": [
+    {
+      "name": "voiceprint-fallback",
+      "reason": "Required fixed two-file corpus is unavailable",
+      "missingFiles": [
+        "情指行-勤指.wav",
+        "帮我核查身份证号码为三七零五零311九九111二三零九八三。.wav"
+      ]
+    }
+  ],
+  "passed": {
+    "androidUnitTests": true,
+    "harmonyAdjacentStateTests": {
+      "passed": 32,
+      "total": 32
+    },
+    "cornerCases": {
+      "passed": 25,
+      "total": 25
+    },
+    "voiceprintAvailableCases": {
+      "passed": 12,
+      "total": 12
+    },
+    "license": {
+      "passed": 12,
+      "total": 12
+    },
+    "audioCorpus": {
+      "ok": 24,
+      "total": 24
+    },
+    "finishFlush": {
+      "ok": 4,
+      "total": 4
+    },
+    "userSequence": {
+      "cycles": 300,
+      "cancelSessions": 300,
+      "normallyCompletedSessions": 600,
+      "elapsedSeconds": 205.822
+    },
+    "runtimeFastLoadMs": {
+      "cold": 1892,
+      "warm": 39,
+      "modelReload": 1283,
+      "runtimeReload": 1299
+    }
+  },
+  "resourceObservation": {
+    "corpusElapsedSeconds": 209.127,
+    "rssStartKiB": 475084,
+    "rssPeakKiB": 588732,
+    "rssAfterPeakKiB": 492164,
+    "rssEndRangeKiB": [
+      493392,
+      503844
+    ],
+    "threadTypicalRange": [
+      49,
+      50
+    ],
+    "threadEnd": 47
+  },
+  "notCoveredExternalFailures": [
+    "system OOM killer",
+    "low storage",
+    "USB disconnect",
+    "audio driver failure"
+  ]
+}

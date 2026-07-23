@@ -446,16 +446,20 @@ class DqVoiceprintTest {
 
     companion object {
         @Volatile private var engine: SpeechRecognitionEngine? = null
+        @Volatile private var runtimePrepared: Boolean = false
 
         private fun workDir(): File {
             val target = InstrumentationRegistry.getInstrumentation().targetContext
             return File(target.getExternalFilesDir(null), "dq_vp_work")
         }
 
+        @Synchronized
         private fun ensureReady() {
+            if (runtimePrepared) return
             val target = InstrumentationRegistry.getInstrumentation().targetContext
-            SpeechRecognizeSdk.init(target)
-            SpeechRecognizeSdk.setWorkPath(workDir().absolutePath)
+            val test = InstrumentationRegistry.getInstrumentation().context
+            prepareSdkRuntime(test, target, workDir())
+            runtimePrepared = true
         }
 
         @Synchronized

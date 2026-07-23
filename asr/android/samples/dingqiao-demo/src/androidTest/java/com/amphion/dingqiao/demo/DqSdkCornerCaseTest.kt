@@ -8,9 +8,6 @@ import com.amphion.dingqiao.CreateEngineParams
 import com.amphion.dingqiao.DingqiaoErrorCode
 import com.amphion.dingqiao.DingqiaoEventCode
 import com.amphion.dingqiao.DingqiaoOnlineMode
-import com.amphion.dingqiao.LicenseActivationCallback
-import com.amphion.dingqiao.LicenseActivationResult
-import com.amphion.dingqiao.PrepareRuntimeCallback
 import com.amphion.dingqiao.RecognitionListener
 import com.amphion.dingqiao.SpeechRecognitionEngine
 import com.amphion.dingqiao.SpeechRecognitionResult
@@ -718,6 +715,122 @@ class DqSdkCornerCaseTest {
         assertTrue("post-shutdown should NOT deliver onError callback", listener.errors.isEmpty())
     }
 
+    // ---------- a13: 真实调用方连续 cancel / finish / 立即替换 / 旧 session 迟到调用 ----------
+    @Test
+    fun a13_userSequenceStress_300Cycles() {
+        val engine = sharedEngine()
+        val source = readAssetPcm(testCtx, mainWavs(testCtx).first())
+        val pcm = source.copyOfRange(0, minOf(source.size, DQ_SR * 3))
+        var completedSessions = 0
+
+        repeat(300) { cycle ->
+            awaitIdle(engine)
+
+            val cancelSid = "useq-c-$cycle-${System.currentTimeMillis()}"
+            val cancelListener = CapturingListener().also { engine.setListener(it) }
+            engine.startListening(StartParams(cancelSid, AudioInfo()))
+            assertTrue("cycle=$cycle cancel session did not start",
+                cancelListener.awaitStarted(10_000))
+            feedFrames(engine, cancelSid, pcm.copyOfRange(0, minOf(pcm.size, DQ_SR)), 0)
+            engine.cancel(cancelSid)
+            Thread.sleep(20)
+            assertTrue("cycle=$cycle cancel must not emit final", cancelListener.finals.isEmpty())
+            assertTrue("cycle=$cycle cancel must not emit complete",
+                cancelListener.completes.isEmpty())
+            awaitIdle(engine)
+
+            val oldSid = "useq-old-$cycle-${System.currentTimeMillis()}"
+            val oldListener = CapturingListener().also { engine.setListener(it) }
+            engine.startListening(StartParams(oldSid, AudioInfo()))
+            assertTrue("cycle=$cycle old session did not start", oldListener.awaitStarted(10_000))
+            feedFrames(engine, oldSid, pcm, 0)
+            engine.finish(oldSid)
+            assertTrue("cycle=$cycle old session did not complete",
+                oldListener.awaitComplete(20_000))
+            assertEquals("cycle=$cycle old session last count", 1,
+                oldListener.finals.count { it.isLast })
+            assertEquals("cycle=$cycle old session complete count", 1,
+                oldListener.completes.size)
+            assertTrue("cycle=$cycle old session errors=${oldListener.errors}",
+                oldListener.errors.isEmpty())
+            awaitIdle(engine)
+            completedSessions++
+
+            val replacementSid = "useq-new-$cycle-${System.currentTimeMillis()}"
+            val replacementStarted = CountDownLatch(1)
+            val replacementComplete = CountDownLatch(1)
+            val replacementLastCount = AtomicInteger(0)
+            val replacementCompleteCount = AtomicInteger(0)
+            val replacementErrors = mutableListOf<Int>()
+            val unexpectedTerminalCallbacks = AtomicInteger(0)
+            engine.setListener(object : RecognitionListener {
+                override fun onStart(sessionId: String, eventMessage: String) {
+                    if (sessionId == replacementSid) replacementStarted.countDown()
+                }
+
+                override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+
+                override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
+                    if (sessionId == replacementSid) {
+                        if (result.isLast) replacementLastCount.incrementAndGet()
+                    } else if (result.isLast) {
+                        unexpectedTerminalCallbacks.incrementAndGet()
+                    }
+                }
+
+                override fun onComplete(sessionId: String, eventMessage: String) {
+                    if (sessionId == replacementSid) {
+                        replacementCompleteCount.incrementAndGet()
+                        replacementComplete.countDown()
+                    } else {
+                        unexpectedTerminalCallbacks.incrementAndGet()
+                    }
+                }
+
+                override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+                    if (sessionId == replacementSid) {
+                        synchronized(replacementErrors) { replacementErrors += errorCode }
+                    }
+                }
+            })
+            engine.startListening(StartParams(replacementSid, AudioInfo()))
+            assertTrue("cycle=$cycle replacement did not start",
+                replacementStarted.await(10_000, TimeUnit.MILLISECONDS))
+
+            engine.writeAudio(oldSid, ByteArray(DQ_FRAME))
+            engine.finish(oldSid)
+            engine.cancel(oldSid)
+            assertTrue("cycle=$cycle late old calls ended replacement", engine.isBusy())
+
+            feedFrames(engine, replacementSid, pcm, 0)
+            engine.finish(replacementSid)
+            assertTrue("cycle=$cycle replacement did not complete",
+                replacementComplete.await(20_000, TimeUnit.MILLISECONDS))
+            assertEquals("cycle=$cycle replacement last count", 1,
+                replacementLastCount.get())
+            assertEquals("cycle=$cycle replacement complete count", 1,
+                replacementCompleteCount.get())
+            assertEquals("cycle=$cycle old terminal callback polluted replacement", 0,
+                unexpectedTerminalCallbacks.get())
+            assertTrue(
+                "cycle=$cycle replacement errors=$replacementErrors",
+                synchronized(replacementErrors) { replacementErrors.isEmpty() },
+            )
+            awaitIdle(engine)
+            completedSessions++
+        }
+
+        DqReport.append(
+            ctx,
+            mapOf(
+                "case" to "a13_userSequenceStress",
+                "cycles" to 300,
+                "completedSessions" to completedSessions,
+            ),
+        )
+        assertEquals(600, completedSessions)
+    }
+
     // ---------- a11: vadBegin 首段静音自动结束 ----------
     @Test
     fun a11_vadBegin_initialSilenceAutoFinish() {
@@ -853,39 +966,11 @@ class DqSdkCornerCaseTest {
         private fun ensureSdkReady() {
             val target = InstrumentationRegistry.getInstrumentation().targetContext
             val test = InstrumentationRegistry.getInstrumentation().context
-            SpeechRecognizeSdk.init(target)
-            SpeechRecognizeSdk.setWorkPath(File(target.getExternalFilesDir(null), "dq_corner_work").absolutePath)
-
-            val licenseDone = CountDownLatch(1)
-            var licenseError: String? = null
-            val licensePath = stageAsset(test, target, "licenses/valid.lic", "lic/corner-valid.lic")
-            SpeechRecognizeSdk.setLicense(licensePath, object : LicenseActivationCallback {
-                override fun onResult(result: LicenseActivationResult) {
-                    licenseDone.countDown()
-                }
-
-                override fun onError(errorCode: Int, errorMessage: String) {
-                    licenseError = "$errorCode $errorMessage"
-                    licenseDone.countDown()
-                }
-            })
-            check(licenseDone.await(20, TimeUnit.SECONDS)) { "setLicense callback timed out" }
-            check(licenseError == null) { "setLicense failed: $licenseError" }
-
-            val runtimeDone = CountDownLatch(1)
-            var runtimeError: String? = null
-            SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
-                override fun onReady() {
-                    runtimeDone.countDown()
-                }
-
-                override fun onError(errorCode: Int, errorMessage: String) {
-                    runtimeError = "$errorCode $errorMessage"
-                    runtimeDone.countDown()
-                }
-            })
-            check(runtimeDone.await(20, TimeUnit.SECONDS)) { "prepareRuntime callback timed out" }
-            check(runtimeError == null) { "prepareRuntime failed: $runtimeError" }
+            prepareSdkRuntime(
+                test,
+                target,
+                File(target.getExternalFilesDir(null), "dq_corner_work"),
+            )
         }
 
         @Synchronized

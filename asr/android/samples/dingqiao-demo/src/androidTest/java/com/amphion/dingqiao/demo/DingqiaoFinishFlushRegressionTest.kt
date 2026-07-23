@@ -71,8 +71,11 @@ class DingqiaoFinishFlushRegressionTest {
 
     @Test
     fun assetLicenseInfoReflectsRuntimeLicense() {
-        SpeechRecognizeSdk.init(targetContext)
-        SpeechRecognizeSdk.setWorkPath(File(targetContext.getExternalFilesDir(null), "dingqiao_work_license").absolutePath)
+        prepareSdkRuntime(
+            testContext,
+            targetContext,
+            File(targetContext.getExternalFilesDir(null), "dingqiao_work_license"),
+        )
         val engine = SpeechRecognizeSdk.createEngine(
             CreateEngineParams(
                 language = "zh-CN",
@@ -97,8 +100,11 @@ class DingqiaoFinishFlushRegressionTest {
     }
 
     private fun createEngine(): SpeechRecognitionEngine {
-        SpeechRecognizeSdk.init(targetContext)
-        SpeechRecognizeSdk.setWorkPath(File(targetContext.getExternalFilesDir(null), "dingqiao_work_finish_flush").absolutePath)
+        prepareSdkRuntime(
+            testContext,
+            targetContext,
+            File(targetContext.getExternalFilesDir(null), "dingqiao_work_finish_flush"),
+        )
         return SpeechRecognizeSdk.createEngine(
             CreateEngineParams(
                 language = "zh-CN",

@@ -1,9 +1,13 @@
 package com.amphion.dingqiao.demo
 
 import android.content.Context
+import com.amphion.dingqiao.LicenseActivationCallback
+import com.amphion.dingqiao.LicenseActivationResult
+import com.amphion.dingqiao.PrepareRuntimeCallback
 import com.amphion.dingqiao.RecognitionListener
 import com.amphion.dingqiao.SpeechRecognitionEngine
 import com.amphion.dingqiao.SpeechRecognitionResult
+import com.amphion.dingqiao.SpeechRecognizeSdk
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -154,6 +158,51 @@ fun stageAsset(testContext: Context, targetContext: Context, assetName: String, 
     out.parentFile?.mkdirs()
     testContext.assets.open(assetName).use { input -> out.outputStream().use { input.copyTo(it) } }
     return out.absolutePath
+}
+
+/** 按公共生命周期契约激活测试 License 并准备 Runtime。 */
+fun prepareSdkRuntime(testContext: Context, targetContext: Context, workPath: File) {
+    SpeechRecognizeSdk.init(targetContext)
+    SpeechRecognizeSdk.setWorkPath(workPath.absolutePath)
+
+    val licenseDone = CountDownLatch(1)
+    var licenseResultCode: Int? = null
+    var licenseError: String? = null
+    val licensePath = stageAsset(
+        testContext,
+        targetContext,
+        "licenses/valid.lic",
+        "lic/runtime-valid.lic",
+    )
+    SpeechRecognizeSdk.setLicense(licensePath, object : LicenseActivationCallback {
+        override fun onResult(result: LicenseActivationResult) {
+            licenseResultCode = result.errorCode
+            licenseDone.countDown()
+        }
+
+        override fun onError(errorCode: Int, errorMessage: String) {
+            licenseError = "$errorCode $errorMessage"
+            licenseDone.countDown()
+        }
+    })
+    check(licenseDone.await(20, TimeUnit.SECONDS)) { "setLicense callback timed out" }
+    check(licenseError == null) { "setLicense failed: $licenseError" }
+    check(licenseResultCode == 0) { "setLicense returned errorCode=$licenseResultCode" }
+
+    val runtimeDone = CountDownLatch(1)
+    var runtimeError: String? = null
+    SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+        override fun onReady() {
+            runtimeDone.countDown()
+        }
+
+        override fun onError(errorCode: Int, errorMessage: String) {
+            runtimeError = "$errorCode $errorMessage"
+            runtimeDone.countDown()
+        }
+    })
+    check(runtimeDone.await(20, TimeUnit.SECONDS)) { "prepareRuntime callback timed out" }
+    check(runtimeError == null) { "prepareRuntime failed: $runtimeError" }
 }
 
 /** 追加一行 JSONL 报告到 targetContext.filesDir/dq_corner/report.jsonl。 */
