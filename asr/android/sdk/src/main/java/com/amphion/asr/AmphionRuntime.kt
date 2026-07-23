@@ -2,6 +2,7 @@ package com.amphion.asr
 
 import android.content.Context
 import com.amphion.asr.internal.AssetInstaller
+import com.amphion.asr.internal.AssetRegistry
 import com.amphion.asr.internal.DeviceLicenseFingerprint
 import com.amphion.asr.internal.EngineImpl
 import com.amphion.asr.internal.LicenseVerifier
@@ -123,6 +124,7 @@ public object AmphionRuntime {
         onProgress: ((stage: String, percent: Int) -> Unit)? = null,
     ): Cancellable {
         checkInitialized()
+        languages.forEach(::requireLanguageAvailable)
         val ctx = context.applicationContext ?: context
         val cancelFlag = AtomicBoolean(false)
         val handle = PreloadCancellable(cancelFlag)
@@ -159,6 +161,7 @@ public object AmphionRuntime {
         config: AsrConfig = AsrConfig.Builder().build(),
     ): AsrEngine {
         checkInitialized()
+        requireLanguageAvailable(language)
         val ctx = context.applicationContext ?: context
         val createStartElapsed = android.os.SystemClock.elapsedRealtime()
 
@@ -388,6 +391,15 @@ public object AmphionRuntime {
         // 记录池模板 config，create 时按它判断是否能复用
         poolConfig = config
         Logger.i("preload done: languages=${languages.joinToString(",") { it.name }} pool=${asrPool.keys}")
+    }
+
+    private fun requireLanguageAvailable(language: AsrLanguage) {
+        if (!AssetRegistry.isLanguageAvailable(language)) {
+            throw IllegalStateException(
+                "code=${AsrErrorCode.LANGUAGE_UNAVAILABLE}: language $language is not included " +
+                    "in this zh-en-only SDK build",
+            )
+        }
     }
 
     private class PreloadCancellable(private val flag: AtomicBoolean) : Cancellable {

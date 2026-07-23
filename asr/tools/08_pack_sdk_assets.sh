@@ -31,6 +31,7 @@
 #
 # 用法：
 #   bash asr/tools/08_pack_sdk_assets.sh
+#   bash asr/tools/08_pack_sdk_assets.sh --zh-en-only
 #   ZH_EN_DIR=/path/to/zh_en bash asr/tools/08_pack_sdk_assets.sh
 #
 # 输出：
@@ -59,6 +60,7 @@ ASSET_ROOT="${FINAL_ASSET_ROOT}.tmp.$$"
 BACKUP_ASSET_ROOT="${FINAL_ASSET_ROOT}.backup.$$"
 LOCK_DIR="${FINAL_ASSET_ROOT}.lock"
 LOCK_HELD=false
+ZH_EN_ONLY=false
 
 DEFAULT_VAD_URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
 DEFAULT_VAD_SHA256="a4a060cb50f7464b7e6da6a5df1c3a6b4c4a4ca1f0f5e7a2cf2a1d2e0fbe93d5"
@@ -67,6 +69,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help)
       sed -n '2,40p' "$0"; exit 0 ;;
+    --zh-en-only)
+      ZH_EN_ONLY=true; shift ;;
     *)
       echo "[ERROR] unknown argument: $1" >&2; exit 1 ;;
   esac
@@ -87,6 +91,16 @@ ensure_dir() {
   local path="$1"
   local hint="$2"
   [[ -d "$path" ]] || err "缺少目录 $path; $hint"
+}
+
+resolve_joiner() {
+  local model_dir="$1"
+  local candidate="$model_dir/joiner.int8.onnx"
+  if [[ ! -f "$candidate" ]]; then
+    candidate="$model_dir/joiner.onnx"
+  fi
+  ensure_file "$candidate" "ASR 缺 joiner.int8.onnx 或 joiner.onnx"
+  printf '%s\n' "$candidate"
 }
 
 # -------- 1. 准备 PUNCT --------
@@ -124,13 +138,19 @@ ensure_file "${VAD_FILE}" "请检查 VAD_FILE 路径是否正确"
 # -------- 4. 准备 ASR （zh-en / yue-en） --------
 ensure_dir "${ZH_EN_DIR}" \
   "请用 asr/tools/00_fetch_demo_model.sh 拉 demo 模型，或把自有模型目录设到 ZH_EN_DIR 环境变量"
-ensure_dir "${YUE_EN_DIR}" \
-  "请用 asr/tools/00_fetch_demo_model.sh 拉 demo 模型，或把自有模型目录设到 YUE_EN_DIR 环境变量"
 
-for f in encoder.int8.onnx decoder.onnx joiner.int8.onnx tokens.txt bbpe.vocab; do
+for f in encoder.int8.onnx decoder.onnx tokens.txt bbpe.vocab; do
   ensure_file "${ZH_EN_DIR}/${f}" "中英 ASR 缺 ${f}（bbpe.vocab 用 asr/tools/09_export_bbpe_vocab.py 从 bbpe.model 导出）"
-  ensure_file "${YUE_EN_DIR}/${f}" "粤英 ASR 缺 ${f}（同上）"
 done
+ZH_JOINER="$(resolve_joiner "$ZH_EN_DIR")"
+if [[ "$ZH_EN_ONLY" != true ]]; then
+  ensure_dir "${YUE_EN_DIR}" \
+    "请用 asr/tools/00_fetch_demo_model.sh 拉 demo 模型，或把自有模型目录设到 YUE_EN_DIR 环境变量"
+  for f in encoder.int8.onnx decoder.onnx tokens.txt bbpe.vocab; do
+    ensure_file "${YUE_EN_DIR}/${f}" "粤英 ASR 缺 ${f}（同上）"
+  done
+  YUE_JOINER="$(resolve_joiner "$YUE_EN_DIR")"
+fi
 
 # -------- 5. 在临时目录组装 SDK assets --------
 cleanup_asset_publish() {
@@ -169,7 +189,11 @@ mkdir -p "$ASSET_ROOT"
 if [[ -f "$FINAL_ASSET_ROOT/README.md" ]]; then
   cp "$FINAL_ASSET_ROOT/README.md" "$ASSET_ROOT/README.md"
 fi
-for sub in zh-en yue-en punct-zhen itn-zh vad; do
+model_subdirs=(zh-en punct-zhen itn-zh vad)
+if [[ "$ZH_EN_ONLY" != true ]]; then
+  model_subdirs+=(yue-en)
+fi
+for sub in "${model_subdirs[@]}"; do
   local_dst="${ASSET_ROOT}/${sub}/v1"
   mkdir -p "${local_dst}"
   touch "${local_dst}/.gitkeep"
@@ -185,16 +209,18 @@ copy_one() {
 # zh-en
 copy_one "${ZH_EN_DIR}/encoder.int8.onnx" "${ASSET_ROOT}/zh-en/v1/encoder.int8.onnx"
 copy_one "${ZH_EN_DIR}/decoder.onnx"      "${ASSET_ROOT}/zh-en/v1/decoder.onnx"
-copy_one "${ZH_EN_DIR}/joiner.int8.onnx"  "${ASSET_ROOT}/zh-en/v1/joiner.int8.onnx"
+copy_one "$ZH_JOINER"                     "${ASSET_ROOT}/zh-en/v1/joiner.int8.onnx"
 copy_one "${ZH_EN_DIR}/tokens.txt"        "${ASSET_ROOT}/zh-en/v1/tokens.txt"
 copy_one "${ZH_EN_DIR}/bbpe.vocab"        "${ASSET_ROOT}/zh-en/v1/bbpe.vocab"
 
-# yue-en
-copy_one "${YUE_EN_DIR}/encoder.int8.onnx" "${ASSET_ROOT}/yue-en/v1/encoder.int8.onnx"
-copy_one "${YUE_EN_DIR}/decoder.onnx"      "${ASSET_ROOT}/yue-en/v1/decoder.onnx"
-copy_one "${YUE_EN_DIR}/joiner.int8.onnx"  "${ASSET_ROOT}/yue-en/v1/joiner.int8.onnx"
-copy_one "${YUE_EN_DIR}/tokens.txt"        "${ASSET_ROOT}/yue-en/v1/tokens.txt"
-copy_one "${YUE_EN_DIR}/bbpe.vocab"        "${ASSET_ROOT}/yue-en/v1/bbpe.vocab"
+if [[ "$ZH_EN_ONLY" != true ]]; then
+  # yue-en
+  copy_one "${YUE_EN_DIR}/encoder.int8.onnx" "${ASSET_ROOT}/yue-en/v1/encoder.int8.onnx"
+  copy_one "${YUE_EN_DIR}/decoder.onnx"      "${ASSET_ROOT}/yue-en/v1/decoder.onnx"
+  copy_one "$YUE_JOINER"                     "${ASSET_ROOT}/yue-en/v1/joiner.int8.onnx"
+  copy_one "${YUE_EN_DIR}/tokens.txt"        "${ASSET_ROOT}/yue-en/v1/tokens.txt"
+  copy_one "${YUE_EN_DIR}/bbpe.vocab"        "${ASSET_ROOT}/yue-en/v1/bbpe.vocab"
+fi
 
 # punct
 copy_one "${PUNCT_DIR}/model.int8.onnx" "${ASSET_ROOT}/punct-zhen/v1/model.int8.onnx"
@@ -249,8 +275,10 @@ MANIFEST="${ASSET_ROOT}/manifest.json"
   echo '  "manifest_version": 1,'
   echo '  "bundles": {'
   write_entry "zh-en/v1"      encoder.int8.onnx decoder.onnx joiner.int8.onnx tokens.txt bbpe.vocab
-  echo ','
-  write_entry "yue-en/v1"     encoder.int8.onnx decoder.onnx joiner.int8.onnx tokens.txt bbpe.vocab
+  if [[ "$ZH_EN_ONLY" != true ]]; then
+    echo ','
+    write_entry "yue-en/v1" encoder.int8.onnx decoder.onnx joiner.int8.onnx tokens.txt bbpe.vocab
+  fi
   echo ','
   write_entry "punct-zhen/v1" model.int8.onnx
   echo ','
@@ -262,7 +290,11 @@ MANIFEST="${ASSET_ROOT}/manifest.json"
   echo '}'
 } >"${MANIFEST}"
 
-python3 "${SCRIPT_DIR}/verify_packed_model_assets.py" --root "${ASSET_ROOT}"
+verify_args=(--root "${ASSET_ROOT}")
+if [[ "$ZH_EN_ONLY" == true ]]; then
+  verify_args+=(--zh-en-only)
+fi
+python3 "${SCRIPT_DIR}/verify_packed_model_assets.py" "${verify_args[@]}"
 
 if [[ -e "$FINAL_ASSET_ROOT" ]]; then
   mv "$FINAL_ASSET_ROOT" "$BACKUP_ASSET_ROOT"
