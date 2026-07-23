@@ -19,3 +19,4 @@
 -keep class com.amphion.asr.internal.AssetRegistry { *; }
 -keep class com.amphion.asr.internal.AssetRegistry$Bundle { *; }
 -keep class com.amphion.asr.internal.LicenseVerifier { *; }
+-keep class com.amphion.asr.internal.FinalCallbackOrderGate { *; }
