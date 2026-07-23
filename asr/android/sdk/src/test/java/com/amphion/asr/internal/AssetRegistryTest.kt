@@ -3,9 +3,27 @@ package com.amphion.asr.internal
 import com.amphion.asr.AsrLanguage
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AssetRegistryTest {
+    @Test
+    fun `android fast-load models use ORT assets`() {
+        assertEquals(
+            listOf(
+                "encoder.int8.ort",
+                "decoder.ort",
+                "joiner.int8.ort",
+                "tokens.txt",
+                "bbpe.vocab",
+            ),
+            AssetRegistry.asrBundle(AsrLanguage.ZH_EN).files,
+        )
+        assertEquals(
+            listOf("model.int8.ort"),
+            AssetRegistry.punctuationBundle().files,
+        )
+    }
 
     @Test
     fun `zh-en-only build keeps preinstall within delivered assets`() {

@@ -9,11 +9,13 @@
 ```kotlin
 SpeechRecognizeSdk.init(applicationContext)
 SpeechRecognizeSdk.setWorkPath(filesDir.resolve("dingqiao_asr").absolutePath)
-SpeechRecognizeSdk.setLicense(licensePath, licenseCallback) // 正式宿主需要
-
-val engine = SpeechRecognizeSdk.createEngine(
-    CreateEngineParams(language = "zh-CN")
-)
+SpeechRecognizeSdk.setLicense(licensePath, licenseCallback)
+// licenseCallback.onResult 后：
+SpeechRecognizeSdk.prepareRuntime(runtimeCallback)
+// runtimeCallback.onReady 后（推荐异步加载模型）：
+SpeechRecognizeSdk.createEngineAsync(CreateEngineParams(language = "zh-CN"), engineCallback)
+// engineCallback.onSuccess 后：
+val engine = readyEngine
 engine.setListener(listener)
 engine.startListening(StartParams(sessionId, AudioInfo()))
 engine.writeAudio(sessionId, pcmFrame640Bytes)
@@ -29,15 +31,23 @@ engine.shutdown()
 |------|------|
 | `SpeechRecognizeSdk.init(context: Context)` | 初始化 SDK，必须在 `createEngine`、`registerVoiceprint` 前调用 |
 | `SpeechRecognizeSdk.setWorkPath(path: String)` | 设置可读写工作目录，必须在 `createEngine` 前调用 |
-| `SpeechRecognizeSdk.setLicense(licensePath: String, callback: LicenseActivationCallback)` | 激活正式授权文件，正式宿主建议在 `createEngine` 前调用 |
+| `SpeechRecognizeSdk.setLicense(licensePath: String, callback: LicenseActivationCallback)` | 校验并缓存授权，不启动 Runtime、不加载模型 |
+| `SpeechRecognizeSdk.prepareRuntime(callback: PrepareRuntimeCallback)` | 准备 Runtime，不加载模型；并发调用 single-flight |
 | `SpeechRecognizeSdk.getLicenseInfo(): LicenseInfo` | 查询当前已激活授权信息 |
 | `SpeechRecognizeSdk.createEngine(params: CreateEngineParams): SpeechRecognitionEngine` | 同步创建识别引擎 |
-| `SpeechRecognizeSdk.createEngine(params: CreateEngineParams, callback: CreateEngineCallback)` | 异步创建识别引擎 |
+| `SpeechRecognizeSdk.createEngineAsync(params: CreateEngineParams, callback: CreateEngineCallback)` | 异步加载/复用模型并创建引擎；成功回调 `onSuccess` |
+| `SpeechRecognizeSdk.unloadModel()` | 卸载内存模型，保留 Runtime 与授权 |
+| `SpeechRecognizeSdk.unloadRuntime()` | 卸载 Runtime 和模型，保留已验证授权 |
+| `SpeechRecognizeSdk.preloadVoiceprintModel(): Boolean` | 按需预装声纹模型；普通 ASR 不隐式加载 |
 | `SpeechRecognizeSdk.registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult` | 注册本地声纹 |
 | `SpeechRecognizeSdk.deleteVoiceprint(voiceprintId: String)` | 删除本地声纹 |
 | `SpeechRecognizeSdk.deviceLicenseFingerprint(deviceSerial: String, deviceIdSaltId: String): String` | 计算设备 SN 授权白名单哈希 |
 
 `setWorkPath` 指向的目录用于保存声纹 embedding，并承载 SDK 自动准备的声纹模型 `eres2net.onnx`。自 v0.2.7 起，声纹模型已内置在 `dingqiao-asr-v*.aar` 中，客户无需单独下发 `models/eres2net.onnx`。
+
+中英 ASR 三图和标点以 Android ONNX Runtime 1.24.3 生成的 ORT 格式随 AAR
+交付。首次创建完成后，同语言、兼容配置的模型由 Runtime 复用；调用
+`unloadModel()` 后下一次创建重新冷加载。
 
 ## 3. 引擎接口
 

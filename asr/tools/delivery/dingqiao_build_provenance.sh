@@ -180,6 +180,7 @@ dingqiao_verify_aar_provenance() {
 dingqiao_verify_aar_native_libs() {
   local aar_path="$1"
   python3 - "$aar_path" <<'PY'
+import json
 import sys
 import zipfile
 
@@ -192,6 +193,7 @@ required = [
 try:
     with zipfile.ZipFile(aar_path) as aar:
         sizes = {info.filename: info.file_size for info in aar.infolist()}
+        manifest = json.loads(aar.read("assets/amphion-models/manifest.json"))
 except zipfile.BadZipFile as exc:
     print(f"[ERROR] invalid AAR zip: {aar_path}: {exc}", file=sys.stderr)
     sys.exit(1)
@@ -246,6 +248,7 @@ PY
 dingqiao_verify_aar_asr_models() {
   local aar_path="$1"
   python3 - "$aar_path" <<'PY'
+import json
 import sys
 import zipfile
 
@@ -254,26 +257,31 @@ required = {
     "assets/amphion-models/manifest.json": 100,
     "assets/amphion-models/itn-zh/v1/zh_itn_tagger.fst": 1024 * 1024,
     "assets/amphion-models/itn-zh/v1/zh_itn_verbalizer.fst": 100 * 1024,
-    "assets/amphion-models/punct-zhen/v1/model.int8.onnx": 50 * 1024 * 1024,
+    "assets/amphion-models/punct-zhen/v1/model.int8.ort": 50 * 1024 * 1024,
     "assets/amphion-models/vad/v1/silero_vad.onnx": 500 * 1024,
-    "assets/amphion-models/zh-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
-    "assets/amphion-models/zh-en/v1/decoder.onnx": 10 * 1024 * 1024,
-    "assets/amphion-models/zh-en/v1/joiner.int8.onnx": 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/encoder.int8.ort": 100 * 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/decoder.ort": 10 * 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/joiner.int8.ort": 1024 * 1024,
     "assets/amphion-models/zh-en/v1/tokens.txt": 10 * 1024,
     "assets/amphion-models/zh-en/v1/bbpe.vocab": 10 * 1024,
-    "assets/amphion-models/yue-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
-    "assets/amphion-models/yue-en/v1/decoder.onnx": 10 * 1024 * 1024,
-    "assets/amphion-models/yue-en/v1/joiner.int8.onnx": 1024 * 1024,
-    "assets/amphion-models/yue-en/v1/tokens.txt": 10 * 1024,
-    "assets/amphion-models/yue-en/v1/bbpe.vocab": 10 * 1024,
 }
 
 try:
     with zipfile.ZipFile(aar_path) as aar:
         sizes = {info.filename: info.file_size for info in aar.infolist()}
+        manifest = json.loads(aar.read("assets/amphion-models/manifest.json"))
 except zipfile.BadZipFile as exc:
     print(f"[ERROR] invalid AAR zip: {aar_path}: {exc}", file=sys.stderr)
     sys.exit(1)
+
+if "yue-en/v1" in manifest.get("bundles", {}):
+    required.update({
+        "assets/amphion-models/yue-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
+        "assets/amphion-models/yue-en/v1/decoder.onnx": 10 * 1024 * 1024,
+        "assets/amphion-models/yue-en/v1/joiner.int8.onnx": 1024 * 1024,
+        "assets/amphion-models/yue-en/v1/tokens.txt": 10 * 1024,
+        "assets/amphion-models/yue-en/v1/bbpe.vocab": 10 * 1024,
+    })
 
 for path, min_bytes in required.items():
     size = sizes.get(path)
@@ -290,6 +298,7 @@ PY
 dingqiao_verify_apk_native_libs() {
   local apk_path="$1"
   python3 - "$apk_path" <<'PY'
+import json
 import sys
 import zipfile
 
@@ -302,6 +311,7 @@ required = [
 try:
     with zipfile.ZipFile(apk_path) as apk:
         sizes = {info.filename: info.file_size for info in apk.infolist()}
+        manifest = json.loads(apk.read("assets/amphion-models/manifest.json"))
 except zipfile.BadZipFile as exc:
     print(f"[ERROR] invalid APK zip: {apk_path}: {exc}", file=sys.stderr)
     sys.exit(1)
@@ -356,6 +366,7 @@ PY
 dingqiao_verify_apk_asr_models() {
   local apk_path="$1"
   python3 - "$apk_path" <<'PY'
+import json
 import sys
 import zipfile
 
@@ -364,26 +375,31 @@ required = {
     "assets/amphion-models/manifest.json": 100,
     "assets/amphion-models/itn-zh/v1/zh_itn_tagger.fst": 1024 * 1024,
     "assets/amphion-models/itn-zh/v1/zh_itn_verbalizer.fst": 100 * 1024,
-    "assets/amphion-models/punct-zhen/v1/model.int8.onnx": 50 * 1024 * 1024,
+    "assets/amphion-models/punct-zhen/v1/model.int8.ort": 50 * 1024 * 1024,
     "assets/amphion-models/vad/v1/silero_vad.onnx": 500 * 1024,
-    "assets/amphion-models/zh-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
-    "assets/amphion-models/zh-en/v1/decoder.onnx": 10 * 1024 * 1024,
-    "assets/amphion-models/zh-en/v1/joiner.int8.onnx": 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/encoder.int8.ort": 100 * 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/decoder.ort": 10 * 1024 * 1024,
+    "assets/amphion-models/zh-en/v1/joiner.int8.ort": 1024 * 1024,
     "assets/amphion-models/zh-en/v1/tokens.txt": 10 * 1024,
     "assets/amphion-models/zh-en/v1/bbpe.vocab": 10 * 1024,
-    "assets/amphion-models/yue-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
-    "assets/amphion-models/yue-en/v1/decoder.onnx": 10 * 1024 * 1024,
-    "assets/amphion-models/yue-en/v1/joiner.int8.onnx": 1024 * 1024,
-    "assets/amphion-models/yue-en/v1/tokens.txt": 10 * 1024,
-    "assets/amphion-models/yue-en/v1/bbpe.vocab": 10 * 1024,
 }
 
 try:
     with zipfile.ZipFile(apk_path) as apk:
         sizes = {info.filename: info.file_size for info in apk.infolist()}
+        manifest = json.loads(apk.read("assets/amphion-models/manifest.json"))
 except zipfile.BadZipFile as exc:
     print(f"[ERROR] invalid APK zip: {apk_path}: {exc}", file=sys.stderr)
     sys.exit(1)
+
+if "yue-en/v1" in manifest.get("bundles", {}):
+    required.update({
+        "assets/amphion-models/yue-en/v1/encoder.int8.onnx": 100 * 1024 * 1024,
+        "assets/amphion-models/yue-en/v1/decoder.onnx": 10 * 1024 * 1024,
+        "assets/amphion-models/yue-en/v1/joiner.int8.onnx": 1024 * 1024,
+        "assets/amphion-models/yue-en/v1/tokens.txt": 10 * 1024,
+        "assets/amphion-models/yue-en/v1/bbpe.vocab": 10 * 1024,
+    })
 
 for path, min_bytes in required.items():
     size = sizes.get(path)

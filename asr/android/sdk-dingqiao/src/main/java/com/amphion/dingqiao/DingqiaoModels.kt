@@ -73,13 +73,28 @@ data class LicenseActivationResult(
 
 /** 异步创建引擎回调。 */
 interface CreateEngineCallback {
-    fun onResult(engine: SpeechRecognitionEngine)
+    fun onSuccess(engine: SpeechRecognitionEngine) {
+        onResult(engine)
+    }
+
+    /**
+     * 旧版 Android 回调名。新代码应实现 [onSuccess]；保留默认实现以维持二进制源代码兼容。
+     */
+    @Deprecated("Use onSuccess(engine)")
+    fun onResult(engine: SpeechRecognitionEngine) {}
+
     fun onError(errorCode: Int, errorMessage: String) {}
 }
 
 /** License 异步激活回调。 */
 interface LicenseActivationCallback {
     fun onResult(result: LicenseActivationResult)
+    fun onError(errorCode: Int, errorMessage: String) {}
+}
+
+/** Runtime 准备回调；本阶段只建立运行时状态，不加载识别模型。 */
+interface PrepareRuntimeCallback {
+    fun onReady()
     fun onError(errorCode: Int, errorMessage: String) {}
 }
 

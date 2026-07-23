@@ -96,6 +96,7 @@
 -keep public class com.amphion.asr.AmphionLicenseStatus { *; }
 -keep public class com.amphion.asr.AmphionLicenseStatus$State { *; }
 -keep public class com.amphion.asr.LicenseEnforcement { *; }
+-keep public interface com.amphion.asr.AmphionDeviceIdProvider { *; }
 
 # 保留所有 enum 内部 value/valueOf
 -keepclassmembers enum com.amphion.asr.** {

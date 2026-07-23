@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from convert_harmony_ort import CONVERTER_CONFIG, CONVERTER_ID, md5_file, sha256_file
+from convert_harmony_ort import CONVERTER_CONFIG, CONVERTER_ID, PROFILE, md5_file, sha256_file
 
 
 HARMONY_BUNDLES = {
@@ -158,8 +158,8 @@ def build_manifest(
     return {
         "manifest_version": 2,
         "target": {
-            "platform": "HarmonyOS",
-            "architecture": "arm64",
+            "platform": "Android" if PROFILE == "android" else "HarmonyOS",
+            "architecture": "arm64-v8a" if PROFILE == "android" else "arm64",
             "execution_provider": "CPUExecutionProvider",
         },
         "converters": {
@@ -204,7 +204,7 @@ def main() -> None:
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"[ERROR] {error}", file=sys.stderr)
         raise SystemExit(1) from error
-    print(f"[OK] Harmony manifest v2 -> {destination}")
+    print(f"[OK] {PROFILE} manifest v2 -> {destination}")
 
 
 if __name__ == "__main__":

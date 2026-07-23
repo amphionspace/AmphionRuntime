@@ -104,6 +104,7 @@ asr/android/sdk/src/main/assets/lits-models/
 # - 但目录骨架（README.md / manifest.json / .gitkeep）需要进 git，
 #   见 asr/android/sdk/src/main/assets/amphion-models/README.md
 asr/android/sdk/src/main/assets/amphion-models/**/*.onnx
+asr/android/sdk/src/main/assets/amphion-models/**/*.ort
 asr/android/sdk/src/main/assets/amphion-models/**/*.fst
 asr/android/sdk/src/main/assets/amphion-models/**/tokens.txt
 # bbpe.vocab 与 tokens.txt 同源、与 encoder ONNX 严格配对，必须走单一发布渠道

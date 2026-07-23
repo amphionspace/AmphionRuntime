@@ -26,7 +26,7 @@ def md5(data: bytes) -> str:
     return hashlib.md5(data).hexdigest()
 
 
-def write_fixture(root: Path, version: int) -> dict:
+def write_fixture(root: Path, version: int, target_platform: str = "harmony") -> dict:
     expected = (
         verifier.EXPECTED_BUNDLES_V1 if version == 1 else verifier.EXPECTED_BUNDLES_V2
     )
@@ -65,12 +65,29 @@ def write_fixture(root: Path, version: int) -> dict:
 
     manifest = {"manifest_version": version, "bundles": bundles}
     if version == 2:
+        android = target_platform == "android"
+        converter_id = (
+            verifier.ANDROID_CONVERTER_ID if android else verifier.HARMONY_CONVERTER_ID
+        )
+        converter_config = (
+            verifier.EXPECTED_ANDROID_CONVERTER
+            if android
+            else verifier.EXPECTED_HARMONY_CONVERTER
+        )
+        for entries in bundles.values():
+            for entry in entries:
+                if entry["name"].endswith(".ort"):
+                    entry["converter"] = converter_id
         manifest.update(
             {
-                "target": verifier.EXPECTED_HARMONY_TARGET,
+                "target": (
+                    verifier.EXPECTED_ANDROID_TARGET
+                    if android
+                    else verifier.EXPECTED_HARMONY_TARGET
+                ),
                 "converters": {
                     "copy": {"mode": "byte-for-byte"},
-                    verifier.HARMONY_CONVERTER_ID: verifier.EXPECTED_HARMONY_CONVERTER,
+                    converter_id: converter_config,
                 },
             }
         )
@@ -79,6 +96,17 @@ def write_fixture(root: Path, version: int) -> dict:
 
 
 class VerifyPackedModelAssetsTest(unittest.TestCase):
+    def test_android_manifest_v2_requires_android_ort_1_24_3(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            write_fixture(root, 2, target_platform="android")
+            self.assertEqual(
+                verifier.verify_directory(root, target_platform="android"),
+                14,
+            )
+            with self.assertRaisesRegex(ValueError, "target must match harmony"):
+                verifier.verify_directory(root)
+
     def test_android_manifest_v1_directory_still_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

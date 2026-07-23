@@ -15,6 +15,7 @@ import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * 鼎桥语音识别 SDK 入口，对齐 [语音识别SDK接口.md]。
@@ -33,7 +34,21 @@ object SpeechRecognizeSdk {
     private var licenseInfo: LicenseInfo? = null
 
     @Volatile
+    private var activatedLicenseText: String? = null
+
+    @Volatile
     private var runtimeInitialized: Boolean = false
+
+    @Volatile
+    private var runtimeGeneration: Long = 0
+
+    @Volatile
+    private var modelGeneration: Long = 0
+
+    private val licenseRequestGeneration = AtomicLong()
+
+    @Volatile
+    private var runtimeBridge: RuntimeLifecycleBridge = AndroidRuntimeLifecycleBridge
 
     private val engineExecutor: ExecutorService = Executors.newCachedThreadPool { r ->
         Thread(r, "dingqiao-engine").apply { isDaemon = true }
@@ -63,18 +78,6 @@ object SpeechRecognizeSdk {
         dir.mkdirs()
         require(dir.isDirectory && dir.canWrite()) { "workPath must be writable: $path" }
         workPath = dir
-        // 预安装声纹模型放后台执行：~38MB 拷贝不再阻塞调用线程（demo 常从 Application.onCreate 主线程调用，
-        // 主线程拷贝会造成首启白屏/ANR）。ensureInstalled 幂等且 @Synchronized，若随后 createEngine /
-        // registerVoiceprint 抢先到达，会各自安全地等待或跳过；预安装失败不致命（正式调用会再次尝试并报明确错误）。
-        appContext?.let { ctx ->
-            engineExecutor.execute {
-                try {
-                    DingqiaoSpeakerModelAssets.ensureInstalled(ctx, File(dir, DINGQIAO_SPEAKER_MODEL_FILENAME))
-                } catch (_: Throwable) {
-                    // best-effort 预热：忽略；createEngine/registerVoiceprint 会再次安装并给出明确错误。
-                }
-            }
-        }
     }
 
     /**
@@ -90,9 +93,8 @@ object SpeechRecognizeSdk {
     @JvmStatic
     fun createEngine(params: CreateEngineParams): SpeechRecognitionEngine {
         val ctx = requireContext()
-        ensureRuntimeInitialized(ctx)
+        requireRuntimeReady()
         val store = requireStore()
-        DingqiaoSpeakerModelAssets.ensureInstalled(ctx, store.speakerModelPath())
         val speakerModel = store.speakerModelPath().takeIf { it.isFile }?.absolutePath
         return DingqiaoRecognitionEngine.create(
             appContext = ctx,
@@ -106,12 +108,31 @@ object SpeechRecognizeSdk {
      * 创建识别引擎（异步回调）。
      */
     @JvmStatic
-    fun createEngine(params: CreateEngineParams, callback: CreateEngineCallback) {
+    fun createEngineAsync(params: CreateEngineParams, callback: CreateEngineCallback) {
+        val generation = runtimeGeneration
+        val createModelGeneration = modelGeneration
         engineExecutor.execute {
+            var delivered = false
             try {
                 val engine = createEngine(params)
-                callback.onResult(engine)
+                synchronized(this) {
+                    if (
+                        generation != runtimeGeneration ||
+                        createModelGeneration != modelGeneration ||
+                        !runtimeInitialized ||
+                        !runtimeBridge.isRuntimeReady()
+                    ) {
+                        engine.shutdown()
+                        throw DingqiaoEngineException(
+                            DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
+                            "createEngineAsync cancelled by unloadRuntime",
+                        )
+                    }
+                    delivered = true
+                    callback.onSuccess(engine)
+                }
             } catch (t: Throwable) {
+                if (delivered) return@execute
                 val code = (t as? DingqiaoEngineException)?.errorCode
                     ?: DingqiaoErrorCode.CREATE_ENGINE_FAILED
                 callback.onError(code, t.message ?: "createEngine failed")
@@ -120,16 +141,90 @@ object SpeechRecognizeSdk {
     }
 
     /**
+     * 旧版 Android 异步重载，保留给已有调用方。
+     */
+    @JvmStatic
+    @Deprecated("Use createEngineAsync(params, callback)")
+    fun createEngine(params: CreateEngineParams, callback: CreateEngineCallback) {
+        createEngineAsync(params, callback)
+    }
+
+    /**
      * 设置 License 文件路径并异步激活。须在 [createEngine] 前调用；再次调用会覆盖当前进程内状态。
      */
     @JvmStatic
     fun setLicense(licensePath: String, callback: LicenseActivationCallback) {
+        val requestGeneration = licenseRequestGeneration.incrementAndGet()
         engineExecutor.execute {
-            val result = activateLicense(licensePath)
+            val result = activateLicense(licensePath, requestGeneration)
             if (result.errorCode == 0) {
                 callback.onResult(result)
             } else {
                 callback.onError(result.errorCode, result.errorMessage ?: "license activation failed")
+            }
+        }
+    }
+
+    /**
+     * 准备 SDK Runtime，不加载识别模型。调用前必须完成 [init] 和成功的 [setLicense]。
+     */
+    @JvmStatic
+    fun prepareRuntime(callback: PrepareRuntimeCallback) {
+        val ctx = appContext
+        if (ctx == null) {
+            callback.onError(
+                DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
+                "SpeechRecognizeSdk.init must be called first",
+            )
+            return
+        }
+        val licenseText = activatedLicenseText
+        if (licenseText == null || licenseInfo == null) {
+            callback.onError(
+                DingqiaoErrorCode.LICENSE_NOT_SET,
+                "setLicense must succeed before prepareRuntime",
+            )
+            return
+        }
+        if (runtimeBridge.isRuntimeReady()) {
+            runtimeInitialized = true
+            callback.onReady()
+            return
+        }
+        val generation = runtimeGeneration
+        engineExecutor.execute {
+            var delivered = false
+            try {
+                synchronized(this) {
+                    if (generation != runtimeGeneration) {
+                        throw IllegalStateException("prepareRuntime cancelled by unloadRuntime")
+                    }
+                    if (!runtimeBridge.isRuntimeReady()) {
+                        runtimeBridge.prepareRuntime(
+                            ctx,
+                            AmphionOptions(
+                                license = licenseText,
+                                licenseAssetName = null,
+                                deviceIdProvider = DingqiaoDeviceIdProvider,
+                            ),
+                        )
+                    }
+                    if (generation != runtimeGeneration) {
+                        runtimeBridge.unloadRuntime()
+                        throw IllegalStateException("prepareRuntime cancelled by unloadRuntime")
+                    }
+                    runtimeInitialized = true
+                    delivered = true
+                    callback.onReady()
+                }
+            } catch (t: Throwable) {
+                if (delivered) return@execute
+                callback.onError(
+                    mapLicenseErrorCode(extractAsrErrorCode(t.message))
+                        .takeUnless { it == DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED }
+                        ?: DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
+                    t.message ?: "prepareRuntime failed",
+                )
             }
         }
     }
@@ -233,19 +328,37 @@ object SpeechRecognizeSdk {
         }
     }
 
-    private fun requireContext(): Context =
-        appContext ?: throw IllegalStateException("SpeechRecognizeSdk.init(context) must be called first")
-
-    private fun ensureRuntimeInitialized(ctx: Context) {
-        if (runtimeInitialized) return
-        synchronized(this) {
-            if (runtimeInitialized) return
-            AmphionRuntime.init(ctx)
-            runtimeInitialized = true
+    /**
+     * 显式安装声纹模型，避免把 38MB 声纹资产复制计入普通 ASR createEngine 冷启动。
+     */
+    @JvmStatic
+    fun preloadVoiceprintModel(): Boolean {
+        return try {
+            val store = requireStore()
+            val modelPath = store.speakerModelPath()
+            DingqiaoSpeakerModelAssets.ensureInstalled(requireContext(), modelPath)
+            DingqiaoSpeakerModelAssets.isReady(modelPath)
+        } catch (_: Throwable) {
+            false
         }
     }
 
-    private fun activateLicense(licensePath: String): LicenseActivationResult {
+    private fun requireContext(): Context =
+        appContext ?: throw IllegalStateException("SpeechRecognizeSdk.init(context) must be called first")
+
+    private fun requireRuntimeReady() {
+        if (!runtimeInitialized || !runtimeBridge.isRuntimeReady()) {
+            throw DingqiaoEngineException(
+                DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
+                "prepareRuntime.onReady must complete before createEngine",
+            )
+        }
+    }
+
+    private fun activateLicense(
+        licensePath: String,
+        requestGeneration: Long,
+    ): LicenseActivationResult {
         val ctx = try {
             requireContext()
         } catch (t: Throwable) {
@@ -270,21 +383,30 @@ object SpeechRecognizeSdk {
             )
         }
         return try {
+            val status = runtimeBridge.validateLicense(
+                ctx,
+                AmphionOptions(
+                    license = text,
+                    licenseAssetName = null,
+                    deviceIdProvider = DingqiaoDeviceIdProvider,
+                ),
+            )
+            if (status.errorCode != AsrErrorCode.OK) {
+                throw IllegalStateException("code=${status.errorCode}: ${status.state}")
+            }
             synchronized(this) {
-                if (runtimeInitialized) {
-                    AmphionRuntime.release()
-                    runtimeInitialized = false
+                if (requestGeneration != licenseRequestGeneration.get()) {
+                    return LicenseActivationResult(
+                        errorCode = DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED,
+                        errorMessage = "superseded by a newer setLicense request",
+                    )
                 }
-                AmphionRuntime.init(
-                    ctx,
-                    AmphionOptions(
-                        license = text,
-                        licenseAssetName = null,
-                        deviceIdProvider = DingqiaoDeviceIdProvider,
-                    ),
-                )
-                runtimeInitialized = true
-                val info = AmphionRuntime.licenseStatus().toDingqiaoLicenseInfo()
+                runtimeGeneration += 1
+                modelGeneration += 1
+                if (runtimeBridge.isRuntimeReady()) runtimeBridge.unloadRuntime()
+                runtimeInitialized = false
+                activatedLicenseText = text
+                val info = status.toDingqiaoLicenseInfo()
                 licenseInfo = info
                 LicenseActivationResult(
                     errorCode = 0,
@@ -294,17 +416,56 @@ object SpeechRecognizeSdk {
             }
         } catch (t: Throwable) {
             val code = mapLicenseErrorCode(extractAsrErrorCode(t.message))
-            licenseInfo = LicenseInfo(
-                status = licenseStatusForError(code),
-                expireTime = -1,
-                remainingDays = -1,
-                authorizedFeatures = emptyList(),
-            )
+            if (activatedLicenseText == null) {
+                licenseInfo = LicenseInfo(
+                    status = licenseStatusForError(code),
+                    expireTime = -1,
+                    remainingDays = -1,
+                    authorizedFeatures = emptyList(),
+                )
+            }
             LicenseActivationResult(
                 errorCode = code,
                 errorMessage = t.message ?: "license activation failed",
             )
         }
+    }
+
+    @JvmStatic
+    fun unloadModel() {
+        synchronized(this) {
+            modelGeneration += 1
+            runtimeBridge.unloadModel()
+        }
+    }
+
+    @JvmStatic
+    fun unloadRuntime() {
+        synchronized(this) {
+            runtimeGeneration += 1
+            modelGeneration += 1
+            runtimeBridge.unloadRuntime()
+            runtimeInitialized = false
+        }
+    }
+
+    internal fun resetForTests() {
+        synchronized(this) {
+            licenseRequestGeneration.incrementAndGet()
+            runtimeGeneration += 1
+            modelGeneration += 1
+            runtimeBridge.unloadRuntime()
+            runtimeInitialized = false
+            activatedLicenseText = null
+            licenseInfo = null
+            workPath = null
+            appContext = null
+            runtimeBridge = AndroidRuntimeLifecycleBridge
+        }
+    }
+
+    internal fun setRuntimeBridgeForTests(bridge: RuntimeLifecycleBridge) {
+        runtimeBridge = bridge
     }
 
     private fun requireStore(): VoiceprintStore {
