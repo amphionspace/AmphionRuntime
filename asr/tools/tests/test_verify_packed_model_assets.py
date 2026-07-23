@@ -128,6 +128,27 @@ class VerifyPackedModelAssetsTest(unittest.TestCase):
                     target_platform="android",
                 )
 
+    def test_android_manifest_v2_aar_allows_intermediate_compression(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            workspace = Path(temporary_directory)
+            root = workspace / "assets" / "amphion-models"
+            write_fixture(root, 2, target_platform="android")
+            archive = workspace / "sdk.aar"
+            with zipfile.ZipFile(
+                archive, "w", compression=zipfile.ZIP_DEFLATED
+            ) as package:
+                for path in root.rglob("*"):
+                    if path.is_file():
+                        package.write(path, path.relative_to(workspace).as_posix())
+            self.assertEqual(
+                verifier.verify_archive(
+                    archive,
+                    "assets/amphion-models",
+                    target_platform="android",
+                ),
+                14,
+            )
+
     def test_android_manifest_v1_directory_still_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
