@@ -79,9 +79,15 @@ def build_manifest(
     root: Path,
     copied_sources: dict[str, Path],
     converted_metadata: dict[str, Path],
+    zh_en_only: bool = False,
 ) -> dict[str, Any]:
+    selected_bundles = {
+        name: files
+        for name, files in HARMONY_BUNDLES.items()
+        if not zh_en_only or name != "yue-en/v1"
+    }
     expected_targets = {
-        f"{bundle}/{name}" for bundle, names in HARMONY_BUNDLES.items() for name in names
+        f"{bundle}/{name}" for bundle, names in selected_bundles.items() for name in names
     }
     provided_targets = set(copied_sources) | set(converted_metadata)
     if provided_targets != expected_targets:
@@ -93,7 +99,7 @@ def build_manifest(
         raise ValueError(f"manifest targets provided twice: {sorted(overlap)}")
 
     bundles: dict[str, list[dict[str, Any]]] = {}
-    for bundle, names in HARMONY_BUNDLES.items():
+    for bundle, names in selected_bundles.items():
         entries: list[dict[str, Any]] = []
         for name in names:
             target = f"{bundle}/{name}"
@@ -168,6 +174,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", required=True, type=Path, help="staged amphion-models root")
     parser.add_argument(
+        "--zh-en-only", action="store_true", help="omit the Yue model bundle"
+    )
+    parser.add_argument(
         "--copy", action="append", default=[], type=parse_mapping, metavar="TARGET=SOURCE"
     )
     parser.add_argument(
@@ -187,7 +196,9 @@ def main() -> None:
         converted_metadata = dict(args.converted)
         if len(copied_sources) != len(args.copy) or len(converted_metadata) != len(args.converted):
             raise ValueError("duplicate manifest target")
-        manifest = build_manifest(args.root, copied_sources, converted_metadata)
+        manifest = build_manifest(
+            args.root, copied_sources, converted_metadata, zh_en_only=args.zh_en_only
+        )
         destination = args.root / "manifest.json"
         _atomic_write_json(manifest, destination)
     except (OSError, ValueError, json.JSONDecodeError) as error:

@@ -49,6 +49,8 @@ def _remove_internal_files(package_root: Path) -> None:
 
 def _sanitize_police_assets(package_root: Path) -> None:
     police_root = package_root / POLICE_RELATIVE_ROOT
+    if not police_root.exists():
+        return
     manifest_path = police_root / "manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

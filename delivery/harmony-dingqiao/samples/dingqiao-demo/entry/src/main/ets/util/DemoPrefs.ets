@@ -1,6 +1,6 @@
 import { preferences } from '@kit.ArkData';
 
-const STORE_NAME = 'dingqiao_demo';
+const STORE_NAME = 'amphion_asr_demo';
 const KEY_VOICEPRINT_ID = 'voiceprint_id';
 const KEY_HOTWORDS = 'user_hotwords';
 

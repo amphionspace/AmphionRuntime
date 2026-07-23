@@ -1,13 +1,12 @@
 {
-  "name": "dingqiao_demo",
+  "name": "amphion_asr_demo",
   "version": "0.2.8",
-  "description": "Dingqiao ASR HarmonyOS demo",
+  "description": "Amphion ASR HarmonyOS demo",
   "main": "",
   "author": "Amphion",
   "license": "Commercial",
   "dependencies": {
     "amphion_dingqiao": "file:../../../../../asr/harmony/sdk-dingqiao",
-    "amphion_asr": "file:../../../../../asr/harmony/sdk",
-    "amphion_police": "file:../../../../../asr/harmony/sdk-police"
+    "amphion_asr": "file:../../../../../asr/harmony/sdk"
   }
 }

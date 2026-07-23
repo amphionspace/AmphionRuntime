@@ -25,16 +25,12 @@
   },
   "modules": [
     {
-      "name": "dingqiao_demo",
+      "name": "amphion_asr_demo",
       "srcPath": "./samples/dingqiao-demo/entry"
     },
     {
       "name": "amphion_asr",
       "srcPath": "../../asr/harmony/sdk"
-    },
-    {
-      "name": "amphion_police",
-      "srcPath": "../../asr/harmony/sdk-police"
     },
     {
       "name": "amphion_dingqiao",

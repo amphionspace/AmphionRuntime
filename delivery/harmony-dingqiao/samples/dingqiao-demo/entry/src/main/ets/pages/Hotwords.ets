@@ -61,7 +61,7 @@ struct Hotwords {
       .width('100%')
       .alignItems(VerticalAlign.Center)
 
-      Text('此处添加的词会作为 sysGeneralLexicon 传入 SDK；警务车牌/派出所/术语预设热词仍默认开启。')
+      Text('此处添加的词会作为 sysGeneralLexicon 传入 SDK。')
         .fontSize(12)
         .fontColor(Color.Gray)
         .width('100%')

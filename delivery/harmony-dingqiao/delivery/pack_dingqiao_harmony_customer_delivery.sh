@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 打包鼎桥纯血鸿蒙客户交付包（默认 ASR + TTS，可选择 ASR-only 或 SDK-only）。
+# 打包 HarmonyOS 客户交付包（默认 ASR + TTS，可选择 ASR-only 或 SDK-only）。
 # 该脚本收集 DevEco/Hvigor 已构建的 HAR/HAP、TTS 模型与文档，不负责启动 DevEco 构建。
 
 set -euo pipefail
@@ -43,7 +43,7 @@ if [[ "$ASR_ONLY" == true && "$SDK_ONLY" == true ]]; then
   exit 2
 fi
 
-FINAL_OUT_ROOT="${FINAL_OUT_ROOT:-$REPO_ROOT/build/dingqiao-harmony-delivery-$VERSION}"
+FINAL_OUT_ROOT="${FINAL_OUT_ROOT:-$REPO_ROOT/build/amphion-harmony-asr-sdk-$VERSION}"
 if [[ "$FINAL_OUT_ROOT" != /* ]]; then
   FINAL_OUT_ROOT="$PWD/$FINAL_OUT_ROOT"
 fi
@@ -55,14 +55,47 @@ SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-$REPO_ROOT/.secure/harmony-signing.jso
 BUILD_IDENTITY="$REPO_ROOT/delivery/harmony-dingqiao/build/smoke/build-identity.json"
 
 GIT_DIRTY=false
-if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
+# Unrelated diagnostics and local customer notes do not affect the SDK-only payload. Gate release
+# reproducibility on the exact source inputs consumed below so user work elsewhere is preserved.
+RELEASE_INPUTS=(
+  LICENSE
+  asr/harmony/sdk
+  asr/harmony/sdk-dingqiao
+  third_party/sherpa-onnx
+  third_party/patches/sherpa-amphion
+  delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh
+  delivery/harmony-dingqiao/delivery/check_customer_delivery_redaction.py
+  delivery/harmony-dingqiao/delivery/create_normalized_tar.py
+  delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json
+  delivery/harmony-dingqiao/delivery/filter_zh_en_model_payload.py
+  delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh
+  delivery/harmony-dingqiao/delivery/pack_harmony_asr_customer_delivery.sh
+  delivery/harmony-dingqiao/delivery/sanitize_public_har_payload.py
+  delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py
+  delivery/harmony-dingqiao/delivery/verify_dingqiao_model_md5.py
+  delivery/harmony-dingqiao/delivery/verify_selfcontained_dingqiao_har.sh
+  delivery/harmony-dingqiao/docs/customer/LICENSE.md
+  delivery/harmony-dingqiao/docs/customer/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md
+  delivery/harmony-dingqiao/docs/customer/ASR_LIFECYCLE_ASSURANCE_20260716.md
+  delivery/harmony-dingqiao/docs/customer/ASR_LIFECYCLE_ASSURANCE_EVIDENCE_20260716.json
+  delivery/harmony-dingqiao/docs/customer/NOTICE
+  delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_INTEGRATION.md
+  delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_LICENSE_SCHEME.md
+  delivery/harmony-dingqiao/docs/customer/ASR_TROUBLESHOOTING.md
+  delivery/harmony-dingqiao/docs/PRIVACY.md
+  delivery/harmony-dingqiao/docs/语音识别SDK接口.md
+  tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/LICENSE
+)
+if [[ -n "$(git -C "$REPO_ROOT" status --porcelain -- "${RELEASE_INPUTS[@]}")" ]]; then
   GIT_DIRTY=true
 fi
 if [[ "$GIT_DIRTY" == true && "$ALLOW_DIRTY" != true ]]; then
   echo "[ERROR] release packaging requires a clean worktree; commit/stash changes or pass --allow-dirty for a non-release package" >&2
   exit 1
 fi
-python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"
+if [[ "$SDK_ONLY" != true ]]; then
+  python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"
+fi
 
 cleanup() {
   rm -rf "$OUT_ROOT"
@@ -96,6 +129,9 @@ fi
 trap cleanup EXIT
 trap 'cleanup; exit 130' INT TERM
 mkdir -p "$OUT_ROOT/har" "$OUT_ROOT/docs"
+if [[ "$SDK_ONLY" == true ]]; then
+  mkdir -p "$OUT_ROOT/license"
+fi
 if [[ "$SDK_ONLY" != true ]]; then
   mkdir -p "$OUT_ROOT/demo"
 fi
@@ -145,7 +181,7 @@ copy_har() {
   cp -v "$har" "$dst"
 }
 
-# ASR:交付"自包含" amphion_dingqiao.har(内部打包 amphion_asr/police/sherpa_onnx,file:./ 相对依赖)。
+# ASR:交付"自包含" amphion_dingqiao.har(内部打包 amphion_asr/sherpa_onnx,file:./ 相对依赖)。
 # 客户只需声明这一个 HAR,纯本地离线可解析,且 HAP 全量编译整链可解析(已真机验证)。
 # 为何不发分层 HAR:各 HAR 用仓库本地 file: 路径互依赖,外部工程既装不上(死路径)、剥离后又编不过
 # (幽灵依赖)——只有自包含两头都成立。详见 assemble_selfcontained_dingqiao_har.sh。
@@ -181,7 +217,7 @@ fi
 if [[ "$SDK_ONLY" != true ]]; then
   HAP_SRC=""
   for candidate in \
-    "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap" \
+    "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap" \
     "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/entry-default-signed.hap"; do
     if [[ -f "$candidate" ]]; then
       HAP_SRC="$candidate"
@@ -222,9 +258,6 @@ if [[ "$ASR_ONLY" != true && "$SDK_ONLY" != true ]]; then
   fi
 fi
 
-python3 "$SCRIPT_DIR/check_customer_delivery_redaction.py" \
-  "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer"
-
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/LICENSE.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md" "$OUT_ROOT/docs/"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/ASR_LIFECYCLE_ASSURANCE_20260716.md" "$OUT_ROOT/docs/"
@@ -233,13 +266,25 @@ cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/NOTICE" "$OUT_ROOT/doc
 mkdir -p "$OUT_ROOT/docs/third-party"
 cp -v "$REPO_ROOT/LICENSE" "$OUT_ROOT/docs/third-party/Apache-2.0.txt"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/PRIVACY.md" "$OUT_ROOT/docs/"
-cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/CHANGELOG.md" "$OUT_ROOT/docs/"
+python3 - "$OUT_ROOT/docs/CHANGELOG.md" "$VERSION" <<'PY'
+import sys
+from pathlib import Path
+
+Path(sys.argv[1]).write_text(f"""# Change log
+
+## {sys.argv[2]}
+
+- Deliver the HarmonyOS zh-en offline ASR SDK with the existing public compatibility API.
+- Exclude industry-specific preset hotwords, resources, and text post-processing.
+- Include an ASR-only four-calendar-month evaluation license without app, certificate, or device binding.
+""", encoding="utf-8")
+PY
 
 if [[ "$SDK_ONLY" == true ]]; then
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_INTEGRATION.md" \
-    "$OUT_ROOT/docs/DINGQIAO_INTEGRATION.md"
+    "$OUT_ROOT/docs/INTEGRATION.md"
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_LICENSE_SCHEME.md" \
-    "$OUT_ROOT/docs/DINGQIAO_LICENSE_SCHEME.md"
+    "$OUT_ROOT/docs/LICENSE_SCHEME.md"
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/语音识别SDK接口.md" "$OUT_ROOT/docs/ASR_SDK_API_HARMONY.md"
   python3 - "$OUT_ROOT/docs/ASR_SDK_API_HARMONY.md" <<'PY'
 import sys
@@ -268,15 +313,17 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 version = sys.argv[2]
-path.write_text(f"""# 鼎桥 HarmonyOS 离线 ASR SDK {version}
+path.write_text(f"""# Amphion HarmonyOS 离线 ASR SDK {version}
 
-本包为 SDK-only 交付，只包含一个自包含 HAR 和客户文档；不包含 Demo HAP、实际授权文件、粤英模型、独立 TTS SDK 或 TTS 模型。
-本交付内置 `zh-en` 中英识别模型，并保留声纹、标点、ITN、VAD 和警务术语能力。
+本包为 SDK-only 交付，包含一个自包含 HAR、四个月体验授权和客户文档；不包含 Demo HAP、粤英模型、独立 TTS SDK 或 TTS 模型。
+本交付内置 `zh-en` 中英识别模型，并保留声纹、标点、ITN 和 VAD；不包含行业专用热词、资源或文本后处理。
+为保持现有公共接口不变，HAR 内部模块名和类型名中的兼容标识保持原样。
 
 | 路径 | 内容 |
 | --- | --- |
 | `har/amphion_dingqiao.har` | HarmonyOS API 12+、`arm64-v8a` 离线 ASR SDK |
-| `docs/DINGQIAO_INTEGRATION.md` | 集成入口与调用顺序 |
+| `license/amphion-license.lic` | ASR-only、四个月、无包名和设备绑定的体验授权 |
+| `docs/INTEGRATION.md` | 集成入口与调用顺序 |
 | `docs/ASR_SDK_API_HARMONY.md` | 完整公开 API 契约 |
 | `docs/ASR_LIFECYCLE_ASSURANCE_20260716.md` | 生命周期修复保证、时序图和验证摘要 |
 | `docs/LICENSE.md` | 商用授权接入 |
@@ -290,10 +337,12 @@ path.write_text(f"""# 鼎桥 HarmonyOS 离线 ASR SDK {version}
 shasum -a 256 -c docs/checksum.txt
 ```
 
-授权文件 `amphion-license.lic` 通过安全渠道单独下发。按硬件 SN 签发的 license 必须在能读取
-同一 SN 的正式系统或预置宿主中验证，普通 Demo 的 ODID 不能替代硬件 SN。
+授权文件 `amphion-license.lic` 不绑定应用包名、签名证书或设备；从签发日起四个自然月内有效。
 """, encoding="utf-8")
 PY
+
+  LICENSE_SRC="${HARMONY_ASR_LICENSE_FILE:-$REPO_ROOT/../delivery/amphion-harmony-asr-eval.lic}"
+  copy_required "$LICENSE_SRC" "$OUT_ROOT/license/amphion-license.lic"
 else
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/DINGQIAO_INTEGRATION.md" "$OUT_ROOT/docs/"
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/DINGQIAO_LICENSE_SCHEME.md" "$OUT_ROOT/docs/"
@@ -317,7 +366,8 @@ version = sys.argv[3]
 asr_only = sys.argv[4] == "true"
 sdk_only = sys.argv[5] == "true"
 git_dirty = sys.argv[6] == "true"
-build_identity = json.loads(Path(sys.argv[7]).read_text(encoding="utf-8"))
+build_identity_path = Path(sys.argv[7])
+build_identity = {} if sdk_only else json.loads(build_identity_path.read_text(encoding="utf-8"))
 
 
 def run(*args: str) -> str:
@@ -380,7 +430,7 @@ payload = {
     "schema_version": 1,
     "created_at": datetime.now(timezone.utc).isoformat(),
     "delivery_version": version,
-    "asr_only": asr_only,
+    "asr_only": asr_only or sdk_only,
     "sdk_only": sdk_only,
     "source": {
         "repository": run("git", "remote", "get-url", "origin"),
@@ -415,8 +465,8 @@ if sdk_only:
         "punctuation",
         "itn",
         "vad",
-        "police-text-enhancement",
     ]
+    payload["excluded_capabilities"] = ["industry-text-enhancement"]
 (out / "docs/BUILD_PROVENANCE.json").write_text(
     json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
 )

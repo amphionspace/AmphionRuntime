@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import base64
 import importlib.util
 import io
 import json
@@ -47,6 +48,27 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         (root / "README.md").write_text(
             "SDK-only，不包含独立 TTS SDK 或 TTS 模型。\n", encoding="utf-8"
         )
+        claims = {
+            "applicationId": "",
+            "bundleName": "",
+            "certSha256": "",
+            "signingCertDigest": "",
+            "authorizedDeviceHashes": [],
+            "deviceIdSaltId": "",
+            "installTier": "",
+            "maintenanceUntil": "",
+            "features": ["ASR"],
+            "sdkMajor": 0,
+            "issuedAt": "2026-07-22",
+            "expiresAt": "2026-11-22",
+        }
+        license_path = root / "license/amphion-license.lic"
+        license_path.parent.mkdir(parents=True, exist_ok=True)
+        license_path.write_text(json.dumps({
+            "payload_b64": base64.b64encode(json.dumps(claims).encode()).decode(),
+            "alg": "SHA256withECDSA",
+            "sig_b64": "fixture",
+        }), encoding="utf-8")
 
         har_path = root / "har/amphion_dingqiao.har"
         har_path.parent.mkdir(parents=True, exist_ok=True)
@@ -83,7 +105,6 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
                 ).encode("utf-8"),
             )
             self._add_bytes(archive, MODULE.MODEL_MANIFEST_PATH, model_manifest_payload)
-            self._add_json(archive, MODULE.POLICE_MANIFEST_PATH, {"files": {}})
             for bundle in bundles:
                 self._add_bytes(
                     archive,
@@ -106,7 +127,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
 
         provenance = {
             "delivery_version": "0.2.5",
-            "asr_only": False,
+            "asr_only": True,
             "sdk_only": True,
             "languages": ["zh-en"],
             "artifacts": [
@@ -213,11 +234,59 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "forbidden HAR member"):
                 MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
+    def test_rejects_police_enhancement_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root)
+            har_path = root / "har/amphion_dingqiao.har"
+            replacement = root / "har/replacement.har"
+            with tarfile.open(har_path, "r:gz") as source, tarfile.open(replacement, "w:gz") as target:
+                for member in source.getmembers():
+                    target.addfile(member, source.extractfile(member) if member.isfile() else None)
+                self._add_bytes(target, "package/_bundled/amphion_police/Index.ets", b"export {}")
+            replacement.replace(har_path)
+            provenance_path = root / "docs/BUILD_PROVENANCE.json"
+            provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+            provenance["artifacts"][0]["size_bytes"] = har_path.stat().st_size
+            provenance["artifacts"][0]["sha256"] = hashlib.sha256(har_path.read_bytes()).hexdigest()
+            provenance_path.write_text(json.dumps(provenance), encoding="utf-8")
+            self._write_checksums(root)
+            with self.assertRaisesRegex(MODULE.DeliveryValidationError, "police enhancement"):
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
+
     def test_rejects_nested_package_version_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, nested_version="0.2.4")
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "nested HAR version"):
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
+
+    def test_rejects_device_bound_license(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root)
+            license_path = root / "license/amphion-license.lic"
+            envelope = json.loads(license_path.read_text(encoding="utf-8"))
+            claims = json.loads(base64.b64decode(envelope["payload_b64"]))
+            claims["authorizedDeviceHashes"] = ["A" * 64]
+            envelope["payload_b64"] = base64.b64encode(json.dumps(claims).encode()).decode()
+            license_path.write_text(json.dumps(envelope), encoding="utf-8")
+            self._write_checksums(root)
+            with self.assertRaisesRegex(MODULE.DeliveryValidationError, "must not bind"):
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
+
+    def test_rejects_sdk_major_bound_license(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root)
+            license_path = root / "license/amphion-license.lic"
+            envelope = json.loads(license_path.read_text(encoding="utf-8"))
+            claims = json.loads(base64.b64decode(envelope["payload_b64"]))
+            claims["sdkMajor"] = 1
+            envelope["payload_b64"] = base64.b64encode(json.dumps(claims).encode()).decode()
+            license_path.write_text(json.dumps(envelope), encoding="utf-8")
+            self._write_checksums(root)
+            with self.assertRaisesRegex(MODULE.DeliveryValidationError, "SDK major"):
                 MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
     def test_rejects_stale_release_date(self) -> None:

@@ -28,7 +28,7 @@ bash tts/tools/harmony/pack_harmony_tts_assets.sh
 `08_pack_harmony_assets.sh` 使用固定 ONNX Runtime 1.16.3 环境并行生成 ARM CPU ORT 模型；
 不要手工复制旧 HAP/HAR 中的模型代替该步骤。随后执行：
 
-当前 USB 问题验证只构建并安装一个配置为 `zh-CN`（`ZH_EN`）的 `dingqiao_demo` HAP，不为
+当前 USB 问题验证只构建并安装一个配置为 `zh-CN`（`ZH_EN`）的 `amphion_asr_demo` HAP，不为
 无关语种另建或安装验收 HAP。该约束不删除 HAR 已声明的粤英能力；语种能力变化必须作为独立
 交付范围评审，不能在测试组包时静默改变。
 
@@ -61,7 +61,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 
 - `asr/harmony`：`sdk`、`sdk-police`、`sdk-dingqiao`
 - `tts/harmony`：`sdk`
-- `delivery/harmony-dingqiao`：`dingqiao_demo`（demo 通过 file: 依赖自动拉起上述 HAR）
+- `delivery/harmony-dingqiao`：`amphion_asr_demo`（demo 通过 file: 依赖自动拉起上述 HAR）
 
 推荐使用自动验收入口代替手工构建：
 
@@ -69,14 +69,14 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 # 只检查模型、native、license 和已有 HAP
 HARMONY_SIGNING_CONFIG=.secure/harmony-signing.json \
   delivery/harmony-dingqiao/delivery/verify_demo_inputs.sh \
-  --hap delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap
+  --hap delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap
 
 # 构建、检查 HAP、覆盖安装到唯一 USB 设备，并等待页面进入“引擎就绪”
 HARMONY_SIGNING_CONFIG=.secure/harmony-signing.json \
   delivery/harmony-dingqiao/delivery/build_install_smoke.sh
 ```
 
-本地签名文件结构见 `delivery/harmony-dingqiao/delivery/harmony-signing.example.json`，应放在 `.secure/` 下并执行 `chmod 600`。构建脚本把工程复制到系统临时目录后再注入签名配置，仓库内的 `build-profile.json5` 不会接触口令。普通 Demo 运行时固定注入 ODID，因此设备绑定 license 默认读取 `.secure/dingqiao_demo_device_ids.txt`，该清单必须包含运行时 `deviceInfo.ODID`；正式系统宿主使用 SN 时应通过 `DINGQIAO_DEVICE_ID_FILE` 显式指定另一份清单，两种标识不可混用。license 缺失时，smoke 脚本会从 `.secure/amphion-license-private.pem` 与设备清单本地签发；已有 license 与清单不一致时仍会失败，避免静默改写授权范围。脚本不会输出口令或明文设备标识。
+本地签名文件结构见 `delivery/harmony-dingqiao/delivery/harmony-signing.example.json`，应放在 `.secure/` 下并执行 `chmod 600`。构建脚本把工程复制到系统临时目录后再注入签名配置，仓库内的 `build-profile.json5` 不会接触口令。普通 Demo 运行时固定注入 ODID，因此设备绑定 license 默认读取 `.secure/amphion_asr_demo_device_ids.txt`，该清单必须包含运行时 `deviceInfo.ODID`；正式系统宿主使用 SN 时应通过 `DINGQIAO_DEVICE_ID_FILE` 显式指定另一份清单，两种标识不可混用。license 缺失时，smoke 脚本会从 `.secure/amphion-license-private.pem` 与设备清单本地签发；已有 license 与清单不一致时仍会失败，避免静默改写授权范围。脚本不会输出口令或明文设备标识。
 
 HAP 预检使用 DevEco Studio 自带的 `hap-sign-tool.jar` 校验应用签名和 profile，并核对 bundle、module、license、arm64 native 库及预期证书链。客户包组装自包含 ASR HAR 后，会在临时宿主中仅声明该 HAR，执行本地安装和 HAP 编译；`docs/checksum.txt` 不包含自身，打包脚本会在替换旧交付目录前执行一次完整 `shasum -c`。
 

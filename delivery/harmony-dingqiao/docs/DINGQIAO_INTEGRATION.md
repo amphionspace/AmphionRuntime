@@ -50,7 +50,7 @@ class HostDeviceIdProvider implements LicenseDeviceIdProvider {
 }
 
 SpeechRecognizeSdk.init(context, new HostDeviceIdProvider());
-SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/dingqiao_work`);
+SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/amphion_asr_work`);
 
 let engine: SpeechRecognitionEngine | undefined;
 SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
