@@ -11,16 +11,16 @@ class AssetRegistryTest {
     fun `android fast-load models use ORT assets`() {
         assertEquals(
             listOf(
-                "encoder.int8.ort",
-                "decoder.ort",
-                "joiner.int8.ort",
+                "encoder.int8.ort.mp3",
+                "decoder.ort.mp3",
+                "joiner.int8.ort.mp3",
                 "tokens.txt",
                 "bbpe.vocab",
             ),
             AssetRegistry.asrBundle(AsrLanguage.ZH_EN).files,
         )
         assertEquals(
-            listOf("model.int8.ort"),
+            listOf("model.int8.ort.mp3"),
             AssetRegistry.punctuationBundle().files,
         )
     }

@@ -10,7 +10,9 @@ import com.amphion.asr.internal.Logger
 import com.amphion.asr.internal.SharedPostProcessor
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -113,7 +115,7 @@ public object AmphionRuntime {
      * （preload 内部已经使用专用线程，但本方法是同步分派的）。
      *
      * 内部三阶段：
-     * 1. 解包 assets（与 [preInstall] 等价）
+     * 1. 准备必须落盘的小型 ITN assets（与 [preInstall] 等价）
      * 2. 共享 punct/itn 单例加载
      * 3. 并行加载每个 language 的 OnlineRecognizer
      *
@@ -154,7 +156,8 @@ public object AmphionRuntime {
      * 创建一个 ASR 引擎实例。
      *
      * 当池命中时（已经 [preload] 过且 config 兼容）O(ms) 返回；否则同步走完
-     * 解包 + 加载流程（5~30s 的解包 + 1~3s 的加载，建议放子线程）。
+     * 小型 ITN 资产准备与 native 模型加载。ASR / 标点 / VAD 直接从 APK assets 加载，
+     * 且识别器与后处理并行初始化；调用方仍建议从后台线程调用。
      *
      * @return 已就绪的 [AsrEngine]
      * @throws IllegalStateException 如果 [init] 未调用，或资产解包失败
@@ -194,8 +197,7 @@ public object AmphionRuntime {
             }
             val layout = AssetInstaller.ensureInstalled(ctx, language, config)
             installStats = layout.installStats
-            ensureSharedPostProcessor(layout, config, language)
-            val built = EngineImpl.buildRecognizer(layout, config, language)
+            val built = loadColdModelsInParallel(layout, config, language)
             // L2 模型由 Runtime 持有：首个 create 完成后，后续同配置 create 直接热命中；
             // unloadModel/release 才释放。@Synchronized 保证并发首次调用只构建一次。
             val published = asrPool.putIfAbsent(language, PoolEntry(built, config))
@@ -230,11 +232,12 @@ public object AmphionRuntime {
     }
 
     /**
-     * 主动把 SDK 内置模型从 APK assets 解包到 internal storage（不加载 native）。
+     * 主动准备 native 只支持文件路径的 ITN 资产（不加载 native）。ASR / 标点 / VAD
+     * 始终由 SDK 直接从 APK assets 加载，无需预先复制。
      *
      * 与 [preload] 的区别：
-     * - [preInstall]：只解包到磁盘；不占 native 内存；适合"想 splash 阶段把磁盘 IO 做掉"的场景
-     * - [preload]：解包 + 加载 native 模型到池里；常驻 native 内存；适合"需要语言切换 0 延迟"
+     * - [preInstall]：只准备 ITN 文件；不占 native 内存
+     * - [preload]：准备 ITN + 加载 native 模型到池里；常驻 native 内存
      *
      * 多次调用是幂等的；SDK 升级到新版本时只会解包变化的部分。
      */
@@ -360,7 +363,7 @@ public object AmphionRuntime {
         language: AsrLanguage,
     ) {
         if (config.punctuation && layout.punctuationModel != null) {
-            SharedPostProcessor.ensurePunctuation(layout.punctuationModel)
+            SharedPostProcessor.ensurePunctuation(layout.assetManager, layout.punctuationModel)
         }
         if (config.itn && layout.itnTaggerFst != null && layout.itnVerbalizerFst != null) {
             // ITN 当前只对 ZH_EN 启用；YUE_EN 不会走到这里（layout.itnTaggerFst = null）
@@ -397,7 +400,7 @@ public object AmphionRuntime {
         // 任意一个 language 的 layout 都能拿到 punct/itn 路径（与 language 无关）
         val refLayout = AssetInstaller.InstalledLayout.of(ctx, languages.first(), config, stats)
         if (config.punctuation && refLayout.punctuationModel != null) {
-            SharedPostProcessor.ensurePunctuation(refLayout.punctuationModel)
+            SharedPostProcessor.ensurePunctuation(refLayout.assetManager, refLayout.punctuationModel)
         }
         if (config.itn) {
             // ITN 仅 ZH_EN 启用；通过显式构造 ZH_EN layout 拿到 fst 路径
@@ -447,6 +450,66 @@ public object AmphionRuntime {
         }
 
         Logger.i("preload done: languages=${languages.joinToString(",") { it.name }} pool=${asrPool.keys}")
+    }
+
+    /**
+     * 首次加载时让 ASR recognizer 与共享后处理并行构造。两组模型没有可变状态依赖，
+     * 串行加载只会把两段 ORT 初始化耗时相加；并行后仍在全部 future 成功后才发布 engine。
+     */
+    private fun loadColdModelsInParallel(
+        layout: AssetInstaller.InstalledLayout,
+        config: AsrConfig,
+        language: AsrLanguage,
+    ): OnlineRecognizer {
+        val executor = Executors.newFixedThreadPool(2) { runnable ->
+            Thread(runnable, "amphion-cold-load").apply { isDaemon = true }
+        }
+        val abort = AtomicBoolean(false)
+        var recognizerFuture: Future<Pair<OnlineRecognizer, Long>>? = null
+        var postProcessorFuture: Future<Long>? = null
+        var builtRecognizer: OnlineRecognizer? = null
+        try {
+            recognizerFuture = executor.submit<Pair<OnlineRecognizer, Long>> {
+                val start = android.os.SystemClock.elapsedRealtime()
+                val recognizer = EngineImpl.buildRecognizer(layout, config, language)
+                if (abort.get()) {
+                    try { recognizer.release() } catch (_: Throwable) {}
+                    throw InterruptedException("cold model load cancelled")
+                }
+                recognizer to (android.os.SystemClock.elapsedRealtime() - start)
+            }
+            postProcessorFuture = executor.submit<Long> {
+                val start = android.os.SystemClock.elapsedRealtime()
+                ensureSharedPostProcessor(layout, config, language)
+                android.os.SystemClock.elapsedRealtime() - start
+            }
+
+            val (recognizer, recognizerMs) = recognizerFuture.get()
+            builtRecognizer = recognizer
+            val postProcessorMs = postProcessorFuture.get()
+            Logger.metric(
+                "kind=COLD_MODEL_LOAD language=$language recognizerMs=$recognizerMs " +
+                    "postProcessorMs=$postProcessorMs assetInstallMs=${layout.installStats.installMs}",
+            )
+            return recognizer
+        } catch (t: Throwable) {
+            abort.set(true)
+            recognizerFuture?.cancel(true)
+            postProcessorFuture?.cancel(true)
+            try { builtRecognizer?.release() } catch (_: Throwable) {}
+            val cause = if (t is ExecutionException) t.cause ?: t else t
+            if (cause is InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+            throw cause
+        } finally {
+            executor.shutdownNow()
+            try {
+                executor.awaitTermination(1, TimeUnit.SECONDS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
     }
 
     private fun requireLanguageAvailable(language: AsrLanguage) {

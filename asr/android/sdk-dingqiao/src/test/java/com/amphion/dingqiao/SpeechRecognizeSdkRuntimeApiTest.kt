@@ -179,6 +179,15 @@ class SpeechRecognizeSdkRuntimeApiTest {
 
         assertTrue(prepared.await(5, TimeUnit.SECONDS))
         assertEquals(1, runtime.prepareCalls.get())
+
+        SpeechRecognizeSdk.unloadModel()
+        val modelRePrepared = CountDownLatch(1)
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() = modelRePrepared.countDown()
+        })
+        assertTrue(modelRePrepared.await(5, TimeUnit.SECONDS))
+        assertEquals(2, runtime.prepareCalls.get())
+
         SpeechRecognizeSdk.unloadRuntime()
         assertEquals(0, SpeechRecognizeSdk.getLicenseInfo().status)
 
@@ -187,7 +196,61 @@ class SpeechRecognizeSdkRuntimeApiTest {
             override fun onReady() = rePrepared.countDown()
         })
         assertTrue(rePrepared.await(5, TimeUnit.SECONDS))
-        assertEquals(2, runtime.prepareCalls.get())
+        assertEquals(3, runtime.prepareCalls.get())
+        licenseFile.delete()
+    }
+
+    @Test
+    fun unloadRuntimeSerializesWithBlockedPrepareAndLeavesRuntimeUnloaded() {
+        val context = mock<Context> {
+            on { applicationContext } doReturn null
+            on { packageName } doReturn "com.amphion.test"
+        }
+        val licenseFile = kotlin.io.path.createTempFile(suffix = ".lic").toFile()
+        licenseFile.writeText("development-license")
+        val runtime = FakeRuntimeLifecycleBridge().apply {
+            blockPrepare = true
+        }
+        SpeechRecognizeSdk.setRuntimeBridgeForTests(runtime)
+        SpeechRecognizeSdk.init(context)
+        val licensed = CountDownLatch(1)
+        SpeechRecognizeSdk.setLicense(
+            licenseFile.absolutePath,
+            object : LicenseActivationCallback {
+                override fun onResult(result: LicenseActivationResult) = licensed.countDown()
+                override fun onError(errorCode: Int, errorMessage: String) = licensed.countDown()
+            },
+        )
+        assertTrue(licensed.await(5, TimeUnit.SECONDS))
+
+        val prepareCallback = CountDownLatch(1)
+        var prepareReady = false
+        var prepareError: Int? = null
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() {
+                prepareReady = true
+                prepareCallback.countDown()
+            }
+
+            override fun onError(errorCode: Int, errorMessage: String) {
+                prepareError = errorCode
+                prepareCallback.countDown()
+            }
+        })
+        assertTrue(runtime.prepareStarted.await(5, TimeUnit.SECONDS))
+
+        val unload = Thread { SpeechRecognizeSdk.unloadRuntime() }
+        unload.start()
+        unload.join(200)
+        assertTrue("unloadRuntime must serialize behind an active prepare", unload.isAlive)
+
+        runtime.releasePrepare.countDown()
+        assertTrue(prepareCallback.await(5, TimeUnit.SECONDS))
+        unload.join(5_000)
+        assertFalse("unloadRuntime must finish after prepare exits", unload.isAlive)
+        assertTrue(prepareReady)
+        assertEquals(null, prepareError)
+        assertFalse("unloadRuntime return must leave native runtime unloaded", runtime.ready)
         licenseFile.delete()
     }
 
@@ -233,11 +296,14 @@ class SpeechRecognizeSdkRuntimeApiTest {
         }
 
     private class FakeRuntimeLifecycleBridge : RuntimeLifecycleBridge {
-        var ready: Boolean = false
+        @Volatile var ready: Boolean = false
         val prepareCalls = AtomicInteger()
         var blockedLicenseText: String? = null
+        @Volatile var blockPrepare: Boolean = false
         val validationStarted = CountDownLatch(1)
         val releaseValidation = CountDownLatch(1)
+        val prepareStarted = CountDownLatch(1)
+        val releasePrepare = CountDownLatch(1)
         @Volatile var lastPreparedLicense: String? = null
 
         override fun validateLicense(
@@ -271,6 +337,10 @@ class SpeechRecognizeSdkRuntimeApiTest {
         override fun prepareRuntime(context: Context, options: AmphionOptions) {
             prepareCalls.incrementAndGet()
             lastPreparedLicense = options.license
+            if (blockPrepare) {
+                prepareStarted.countDown()
+                releasePrepare.await(5, TimeUnit.SECONDS)
+            }
             ready = true
         }
 

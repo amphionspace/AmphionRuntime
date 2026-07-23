@@ -27,9 +27,12 @@ def md5(data: bytes) -> str:
 
 
 def write_fixture(root: Path, version: int, target_platform: str = "harmony") -> dict:
-    expected = (
-        verifier.EXPECTED_BUNDLES_V1 if version == 1 else verifier.EXPECTED_BUNDLES_V2
-    )
+    if version == 1:
+        expected = verifier.EXPECTED_BUNDLES_V1
+    elif target_platform == "android":
+        expected = verifier.EXPECTED_ANDROID_BUNDLES_V2
+    else:
+        expected = verifier.EXPECTED_BUNDLES_V2
     bundles = {}
     for bundle, names in expected.items():
         entries = []
@@ -42,12 +45,11 @@ def write_fixture(root: Path, version: int, target_platform: str = "harmony") ->
                 entry = {"name": name, "size_bytes": len(data), "sha256": sha256(data)}
             else:
                 output_sha256 = sha256(data)
-                converter = (
-                    verifier.HARMONY_CONVERTER_ID if name.endswith(".ort") else "copy"
-                )
+                is_ort = name.removesuffix(".mp3").endswith(".ort")
+                converter = verifier.HARMONY_CONVERTER_ID if is_ort else "copy"
                 source_sha256 = (
                     sha256(f"source/{bundle}/{name}".encode("utf-8"))
-                    if name.endswith(".ort")
+                    if is_ort
                     else output_sha256
                 )
                 entry = {
@@ -76,7 +78,7 @@ def write_fixture(root: Path, version: int, target_platform: str = "harmony") ->
         )
         for entries in bundles.values():
             for entry in entries:
-                if entry["name"].endswith(".ort"):
+                if entry["name"].removesuffix(".mp3").endswith(".ort"):
                     entry["converter"] = converter_id
         manifest.update(
             {
@@ -106,6 +108,25 @@ class VerifyPackedModelAssetsTest(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "target must match harmony"):
                 verifier.verify_directory(root)
+
+    def test_android_manifest_v2_archive_rejects_deflated_models(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            workspace = Path(temporary_directory)
+            root = workspace / "assets" / "amphion-models"
+            write_fixture(root, 2, target_platform="android")
+            archive = workspace / "sdk.apk"
+            with zipfile.ZipFile(
+                archive, "w", compression=zipfile.ZIP_DEFLATED
+            ) as package:
+                for path in root.rglob("*"):
+                    if path.is_file():
+                        package.write(path, path.relative_to(workspace).as_posix())
+            with self.assertRaisesRegex(ValueError, "must be ZIP_STORED"):
+                verifier.verify_archive(
+                    archive,
+                    "assets/amphion-models",
+                    target_platform="android",
+                )
 
     def test_android_manifest_v1_directory_still_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

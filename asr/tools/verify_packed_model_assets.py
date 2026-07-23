@@ -53,6 +53,16 @@ EXPECTED_BUNDLES_V2 = {
     "itn-zh/v1": ["zh_itn_tagger.fst", "zh_itn_verbalizer.fst"],
     "vad/v1": ["silero_vad.onnx"],
 }
+EXPECTED_ANDROID_BUNDLES_V2 = {
+    bundle: [
+        f"{name}.mp3"
+        if bundle in {"zh-en/v1", "yue-en/v1", "punct-zhen/v1"}
+        and name.endswith((".ort", ".onnx"))
+        else name
+        for name in names
+    ]
+    for bundle, names in EXPECTED_BUNDLES_V2.items()
+}
 
 EXPECTED_HARMONY_TARGET = {
     "platform": "HarmonyOS",
@@ -136,7 +146,11 @@ def validate_manifest(
             expected_bundles.pop("yue-en/v1")
     elif version == 2:
         _validate_v2_header(manifest, target_platform)
-        expected_bundles = dict(EXPECTED_BUNDLES_V2)
+        expected_bundles = dict(
+            EXPECTED_ANDROID_BUNDLES_V2
+            if target_platform == "android"
+            else EXPECTED_BUNDLES_V2
+        )
         if zh_en_only:
             expected_bundles.pop("yue-en/v1")
     else:
@@ -153,7 +167,7 @@ def validate_manifest(
 
 
 def _expected_v2_format(name: str) -> str:
-    suffix = Path(name).suffix.lower()
+    suffix = Path(name.removesuffix(".mp3")).suffix.lower()
     return {
         ".ort": "ort",
         ".onnx": "onnx",
@@ -188,7 +202,7 @@ def _validate_v2_entry(
     if entry.get("format") != _expected_v2_format(name):
         fail(f"format mismatch: {relative_path}")
 
-    expected_converter = converter_id if name.endswith(".ort") else "copy"
+    expected_converter = converter_id if name.removesuffix(".mp3").endswith(".ort") else "copy"
     if entry.get("converter") != expected_converter:
         fail(f"converter mismatch: {relative_path}")
     if expected_converter == "copy" and source_sha256 != output_sha256:
@@ -313,6 +327,19 @@ def _verify_zip_archive(
         manifest_name = f"{normalized_prefix}/manifest.json"
         if manifest_name not in names:
             fail(f"missing manifest in archive: {manifest_name}")
+        if target_platform == "android":
+            compressed_transport_assets = sorted(
+                name
+                for name in names
+                if name.startswith(f"{normalized_prefix}/")
+                and name.endswith(".mp3")
+                and package.getinfo(name).compress_type != zipfile.ZIP_STORED
+            )
+            if compressed_transport_assets:
+                fail(
+                    "Android direct-load model assets must be ZIP_STORED: "
+                    f"{compressed_transport_assets}"
+                )
 
         def open_asset(relative_path: str) -> BinaryIO:
             return package.open(f"{normalized_prefix}/{relative_path}")

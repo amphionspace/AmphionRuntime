@@ -92,7 +92,7 @@ interface LicenseActivationCallback {
     fun onError(errorCode: Int, errorMessage: String) {}
 }
 
-/** Runtime 准备回调；本阶段只建立运行时状态，不加载识别模型。 */
+/** Runtime 准备回调；[onReady] 表示默认中英识别模型已在 SDK 内部就绪。 */
 interface PrepareRuntimeCallback {
     fun onReady()
     fun onError(errorCode: Int, errorMessage: String) {}

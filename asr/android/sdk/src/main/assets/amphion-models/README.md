@@ -11,17 +11,17 @@
 amphion-models/
 ├── manifest.json          # 由 08_pack_sdk_assets.sh 自动生成；记录每份资产的 sha256
 ├── zh-en/v1/              # 中英流式 ASR
-│   ├── encoder.int8.ort
-│   ├── decoder.ort
-│   ├── joiner.int8.ort
+│   ├── encoder.int8.ort.mp3
+│   ├── decoder.ort.mp3
+│   ├── joiner.int8.ort.mp3
 │   └── tokens.txt
 ├── yue-en/v1/             # 粤英流式 ASR
-│   ├── encoder.int8.onnx
-│   ├── decoder.onnx
-│   ├── joiner.int8.onnx
+│   ├── encoder.int8.onnx.mp3
+│   ├── decoder.onnx.mp3
+│   ├── joiner.int8.onnx.mp3
 │   └── tokens.txt
 ├── punct-zhen/v1/         # CT-Transformer 中英标点
-│   └── model.int8.ort
+│   └── model.int8.ort.mp3
 ├── itn-zh/v1/             # WeText 中文 ITN
 │   ├── zh_itn_tagger.fst
 │   └── zh_itn_verbalizer.fst
@@ -39,8 +39,9 @@ amphion-models/
 | itn-zh | 2~4 | tagger + verbalizer fst |
 | vad | 2 | silero |
 
-合计 ~270 MB；AAR 体积约 280 MB（含 native .so）。安装后首次启动会一次性
-拷贝到 `<filesDir>/amphion-runtime/`，耗时 5~30s（视磁盘速度），之后启动秒开。
+合计 ~270 MB；AAR 体积约 280 MB（含 native .so）。ASR / 标点模型直接从 APK
+assets 加载，不再在首次启动时复制到 `<filesDir>`。`.mp3` 只是让 aapt 在任何宿主工程
+中保持 STORE 的传输后缀，文件内容仍是 ORT / ONNX；native 加载不依赖扩展名。
 
 ## 不入库
 

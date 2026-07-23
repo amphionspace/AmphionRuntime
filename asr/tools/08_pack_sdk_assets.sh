@@ -242,9 +242,9 @@ copy_one "${ZH_EN_DIR}/bbpe.vocab"        "${ASSET_ROOT}/zh-en/v1/bbpe.vocab"
 
 if [[ "$ZH_EN_ONLY" != true ]]; then
   # yue-en
-  copy_one "${YUE_EN_DIR}/encoder.int8.onnx" "${ASSET_ROOT}/yue-en/v1/encoder.int8.onnx"
-  copy_one "${YUE_EN_DIR}/decoder.onnx"      "${ASSET_ROOT}/yue-en/v1/decoder.onnx"
-  copy_one "$YUE_JOINER"                     "${ASSET_ROOT}/yue-en/v1/joiner.int8.onnx"
+  copy_one "${YUE_EN_DIR}/encoder.int8.onnx" "${ASSET_ROOT}/yue-en/v1/encoder.int8.onnx.mp3"
+  copy_one "${YUE_EN_DIR}/decoder.onnx"      "${ASSET_ROOT}/yue-en/v1/decoder.onnx.mp3"
+  copy_one "$YUE_JOINER"                     "${ASSET_ROOT}/yue-en/v1/joiner.int8.onnx.mp3"
   copy_one "${YUE_EN_DIR}/tokens.txt"        "${ASSET_ROOT}/yue-en/v1/tokens.txt"
   copy_one "${YUE_EN_DIR}/bbpe.vocab"        "${ASSET_ROOT}/yue-en/v1/bbpe.vocab"
 fi
@@ -259,19 +259,22 @@ copy_one "${VAD_FILE}" "${ASSET_ROOT}/vad/v1/silero_vad.onnx"
 # -------- 6. Android ORT 1.24.3 转换与 manifest v2 --------
 mkdir -p "$ASSET_ROOT/.conversion-metadata"
 convert_one() {
+  local final_output="$2"
+  local converter_output="${final_output%.mp3}"
   AMPHION_ORT_PROFILE=android "$CONVERTER_PYTHON" "$CONVERTER" \
-    --input "$1" --output "$2" --metadata-output "$3" --cache-dir "$ORT_CACHE_DIR"
+    --input "$1" --output "$converter_output" --metadata-output "$3" --cache-dir "$ORT_CACHE_DIR"
+  mv "$converter_output" "$final_output"
 }
 
-info "并行预优化中英三图与标点（Android ORT 1.24.3 / ARM CPU）"
+info "并行预优化中英三图与标点（Android ORT 1.24.3 / ARM CPU；.mp3 为 aapt 免压缩传输后缀）"
 pids=()
-convert_one "${ZH_EN_DIR}/encoder.int8.onnx" "$ASSET_ROOT/zh-en/v1/encoder.int8.ort" \
+convert_one "${ZH_EN_DIR}/encoder.int8.onnx" "$ASSET_ROOT/zh-en/v1/encoder.int8.ort.mp3" \
   "$ASSET_ROOT/.conversion-metadata/zh-encoder.json" & pids+=("$!")
-convert_one "${ZH_EN_DIR}/decoder.onnx" "$ASSET_ROOT/zh-en/v1/decoder.ort" \
+convert_one "${ZH_EN_DIR}/decoder.onnx" "$ASSET_ROOT/zh-en/v1/decoder.ort.mp3" \
   "$ASSET_ROOT/.conversion-metadata/zh-decoder.json" & pids+=("$!")
-convert_one "$ZH_JOINER" "$ASSET_ROOT/zh-en/v1/joiner.int8.ort" \
+convert_one "$ZH_JOINER" "$ASSET_ROOT/zh-en/v1/joiner.int8.ort.mp3" \
   "$ASSET_ROOT/.conversion-metadata/zh-joiner.json" & pids+=("$!")
-convert_one "${PUNCT_DIR}/model.int8.onnx" "$ASSET_ROOT/punct-zhen/v1/model.int8.ort" \
+convert_one "${PUNCT_DIR}/model.int8.onnx" "$ASSET_ROOT/punct-zhen/v1/model.int8.ort.mp3" \
   "$ASSET_ROOT/.conversion-metadata/punct.json" & pids+=("$!")
 conversion_failed=0
 for pid in "${pids[@]}"; do
@@ -281,10 +284,10 @@ done
 
 manifest_args=(
   --root "$ASSET_ROOT"
-  --converted "zh-en/v1/encoder.int8.ort=$ASSET_ROOT/.conversion-metadata/zh-encoder.json"
-  --converted "zh-en/v1/decoder.ort=$ASSET_ROOT/.conversion-metadata/zh-decoder.json"
-  --converted "zh-en/v1/joiner.int8.ort=$ASSET_ROOT/.conversion-metadata/zh-joiner.json"
-  --converted "punct-zhen/v1/model.int8.ort=$ASSET_ROOT/.conversion-metadata/punct.json"
+  --converted "zh-en/v1/encoder.int8.ort.mp3=$ASSET_ROOT/.conversion-metadata/zh-encoder.json"
+  --converted "zh-en/v1/decoder.ort.mp3=$ASSET_ROOT/.conversion-metadata/zh-decoder.json"
+  --converted "zh-en/v1/joiner.int8.ort.mp3=$ASSET_ROOT/.conversion-metadata/zh-joiner.json"
+  --converted "punct-zhen/v1/model.int8.ort.mp3=$ASSET_ROOT/.conversion-metadata/punct.json"
   --copy "zh-en/v1/tokens.txt=${ZH_EN_DIR}/tokens.txt"
   --copy "zh-en/v1/bbpe.vocab=${ZH_EN_DIR}/bbpe.vocab"
   --copy "itn-zh/v1/zh_itn_tagger.fst=${ITN_DIR}/zh_itn_tagger.fst"
@@ -295,9 +298,9 @@ if [[ "$ZH_EN_ONLY" == true ]]; then
   manifest_args+=(--zh-en-only)
 else
   manifest_args+=(
-    --copy "yue-en/v1/encoder.int8.onnx=${YUE_EN_DIR}/encoder.int8.onnx"
-    --copy "yue-en/v1/decoder.onnx=${YUE_EN_DIR}/decoder.onnx"
-    --copy "yue-en/v1/joiner.int8.onnx=$YUE_JOINER"
+    --copy "yue-en/v1/encoder.int8.onnx.mp3=${YUE_EN_DIR}/encoder.int8.onnx"
+    --copy "yue-en/v1/decoder.onnx.mp3=${YUE_EN_DIR}/decoder.onnx"
+    --copy "yue-en/v1/joiner.int8.onnx.mp3=$YUE_JOINER"
     --copy "yue-en/v1/tokens.txt=${YUE_EN_DIR}/tokens.txt"
     --copy "yue-en/v1/bbpe.vocab=${YUE_EN_DIR}/bbpe.vocab"
   )

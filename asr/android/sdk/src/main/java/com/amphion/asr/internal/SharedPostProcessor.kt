@@ -1,5 +1,6 @@
 package com.amphion.asr.internal
 
+import android.content.res.AssetManager
 import java.io.File
 
 /**
@@ -31,12 +32,12 @@ internal object SharedPostProcessor {
      * 确保标点引擎已就绪。失败则保持 null，调用方按 nullable 处理。
      * 多次调用幂等：punctuation 已加载时直接返回。
      */
-    fun ensurePunctuation(modelFile: File) {
+    fun ensurePunctuation(assetManager: AssetManager, modelPath: String) {
         if (punctuation != null) return
         synchronized(lock) {
             if (punctuation != null) return
             punctuation = try {
-                InternalPunctuationEngine(modelFile, numThreads = 1)
+                InternalPunctuationEngine(assetManager, modelPath, numThreads = 1)
             } catch (t: Throwable) {
                 Logger.w("SharedPostProcessor: punctuation init failed, will retry next time: ${t.message}")
                 null

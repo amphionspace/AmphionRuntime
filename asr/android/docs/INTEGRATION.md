@@ -99,16 +99,16 @@ class App : Application() {
 
 | 路径 | 触发后做的事 | 占内存 | 切语言耗时 |
 | --- | --- | --- | --- |
-| 仅 init | 什么都不做 | ~0 | 第一次 create 1~3s + 解包 5~30s |
-| init + preInstall | 把模型解包到磁盘 | ~0（不加载 native） | 第一次 create 1~3s |
-| init + preload（推荐） | 解包 + 加载 N 个语言到 ASR 池 | ~180 MB native | 切语言 ~100 ms（VAD 重建） |
+| 仅 init | 什么都不做 | ~0 | 第一次 create 约 1s（依设备） |
+| init + preInstall | 仅准备需文件路径的 ITN；大模型直接读 APK assets | ~0（不加载 native） | 第一次 create 约 1s（依设备） |
+| init + preload（推荐） | 准备 ITN + 加载 N 个语言到 ASR 池 | ~180 MB native | 切语言 ~100 ms（VAD 重建） |
 
 详见 §11。
 
 ## 5. 创建引擎 + 识别一段话
 
 ```kotlin
-// 已经 preload 时这一步是 O(ms)；未 preload 时同步走解包 + 加载，建议放子线程
+// 已经 preload 时这一步是 O(ms)；未 preload 时同步加载，建议放子线程
 val engine = AmphionRuntime.create(
     context,
     AsrLanguage.ZH_EN,
@@ -303,7 +303,7 @@ handle.cancel()
 
 | stage | 含义 | 典型耗时（HarmonyOS 4.3） |
 | --- | --- | --- |
-| install | 把全部 5 类模型从 APK assets 解包到 internal storage | 首装 4~6 s；已 cache 0 s |
+| install | 仅把需要文件路径的 ITN FST 准备到 internal storage；ORT/ONNX 直接读取未压缩 APK assets | 通常 <100 ms；已 cache 近 0 ms |
 | shared | 加载共享 punct + itn 单例（进程级一份，跨语言共享） | 0.5~1 s |
 | asr-ZH_EN / asr-YUE_EN | 并行加载每个语言的 OnlineRecognizer | 1~2 s/份（并行） |
 
@@ -311,7 +311,7 @@ handle.cancel()
 
 | 调用 | 池命中（preload 过且 config 兼容） | 未命中 |
 | --- | --- | --- |
-| AmphionRuntime.create | O(ms)：池里借 recognizer + 现场建 VAD | 同步走解包 + 加载 |
+| AmphionRuntime.create | O(ms)：池里借 recognizer + 现场建 VAD | 同步加载；不再复制大模型 |
 | AsrEngine.close | 释放 sessions 与 VAD；recognizer 留在池里 | 释放 sessions / recognizer / VAD |
 | AmphionRuntime.release | 真的清空 ASR 池 + 释放共享 punct/itn | 同左 |
 

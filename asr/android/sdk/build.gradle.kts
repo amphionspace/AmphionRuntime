@@ -13,7 +13,7 @@ val sdkVersion: String = providers.gradleProperty("AMPHION_RUNTIME_VERSION").get
 val sdkMajor: String = providers.gradleProperty("AMPHION_SDK_MAJOR").orElse("1").get()
 val sdkReleaseDate: String = providers.gradleProperty("AMPHION_SDK_RELEASE_DATE").orElse("2026-06-23").get()
 val zhEnOnly: Boolean =
-    !file("src/main/assets/amphion-models/yue-en/v1/encoder.int8.onnx").isFile
+    !file("src/main/assets/amphion-models/yue-en/v1/encoder.int8.onnx.mp3").isFile
 
 // 离线 license 公钥（base64 of X.509 SubjectPublicKeyInfo DER，单行）。
 // 空 = 不武装 license（开发 / 内部构建）；正式交付构建必须注入真实公钥（见 gradle.properties）。
@@ -98,10 +98,8 @@ android {
     // 把 native .so 打到 AAR 里：jniLibs 目录是 SDK 工程内的 sdk/src/main/jniLibs/<abi>/
     sourceSets["main"].jniLibs.srcDirs("src/main/jniLibs")
 
-    // 模型文件 (onnx / fst) 不要被 aapt2 zip-deflate；
-    // 原因：onnx int8 + sherpa fst 都已经是高熵二进制，再 deflate 通常 -1% ~ +5%；
-    //       但运行期 AssetManager 解压会把整文件读进堆，给 ZH-EN 这种 ~120MB 的模型直接 OOM。
-    //       禁用压缩后 first-run 的拷贝走 mmap streaming，常驻内存只有 IO 缓冲。
+    // 本模块自身构建时禁止模型压缩；大模型另外使用 .mp3 传输后缀，确保该属性不会传播到
+    // 宿主 App 时仍保持 STORE，从而允许 SDK 直接通过 AssetManager 快速加载。
     androidResources {
         noCompress += listOf("ort", "onnx", "fst")
     }
