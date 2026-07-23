@@ -29,7 +29,7 @@ export default class EntryAbility extends UIAbility {
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     // Process-level SDK init + work directory live here (mirrors Android DingqiaoApp) so every page
-    // shares one SpeechRecognizeSdk instance and the same {filesDir}/dingqiao_work path.
+    // shares one SpeechRecognizeSdk instance and the same {filesDir}/amphion_asr_work path.
     // 载体基线:任何 SDK 调用之前从 /proc 采一次 VmRSS + 私有 anon(纯宿主,无 SDK native/模型),供内存减法。
     // 用 /proc 内核账,不用 hidebug.getPss()(实测低估)。
     let carrierBaselinePss = 0;   // 实为 VmRSS,沿用字段名传给 bench
@@ -54,13 +54,13 @@ export default class EntryAbility extends UIAbility {
       'STAGE=00_carrier_baseline(纯载体_SDK_init前) | vmRssMb=%{public}d | anonMb=%{public}d',
       carrierBaselinePss, carrierBaselineAnon);
     try {
-      const workPath = `${this.context.filesDir}/dingqiao_work`;
+      const workPath = `${this.context.filesDir}/amphion_asr_work`;
       const deviceIdProvider = new DemoDeviceIdProvider();
       SpeechRecognizeSdk.init(this.context, deviceIdProvider);
       SpeechRecognizeSdk.setWorkPath(workPath);
-      hilog.info(0x0000, 'DingqiaoDemo', 'SpeechRecognizeSdk init done, workPath=%{public}s', workPath);
+      hilog.info(0x0000, 'AmphionAsrDemo', 'SpeechRecognizeSdk init done, workPath=%{public}s', workPath);
     } catch (e) {
-      hilog.error(0x0000, 'DingqiaoDemo', 'SpeechRecognizeSdk init failed: %{public}s', `${e}`);
+      hilog.error(0x0000, 'AmphionAsrDemo', 'SpeechRecognizeSdk init failed: %{public}s', `${e}`);
     }
     // Headless SDK contract self-test: `aa start ... --ps selftest true`. Runs every public API and
     // logs a PASS/FAIL matrix under tag SdkSelfTest, without loading the UI.
@@ -116,21 +116,21 @@ export default class EntryAbility extends UIAbility {
       if (!this.stressFinished) this.setStressKeepScreenOn(true);
       windowStage.loadContent('pages/DeviceTest', (err: BusinessError): void => {
         if (err.code !== 0) {
-          hilog.error(0x0000, 'DingqiaoDemo', 'Failed to load device test page: %{public}s', JSON.stringify(err));
+          hilog.error(0x0000, 'AmphionAsrDemo', 'Failed to load device test page: %{public}s', JSON.stringify(err));
         }
       });
       return;
     }
     if (this.selfTest || this.loadBench || this.lifecycleBench) {
-      hilog.info(0x0000, 'DingqiaoDemo', 'headless test mode: skipping UI');
+      hilog.info(0x0000, 'AmphionAsrDemo', 'headless test mode: skipping UI');
       return;
     }
     windowStage.loadContent('pages/Index', (err: BusinessError) => {
       if (err.code !== 0) {
-        hilog.error(0x0000, 'DingqiaoDemo', 'Failed to load pages/Index. Cause: %{public}s', JSON.stringify(err));
+        hilog.error(0x0000, 'AmphionAsrDemo', 'Failed to load pages/Index. Cause: %{public}s', JSON.stringify(err));
         return;
       }
-      hilog.info(0x0000, 'DingqiaoDemo', 'Succeeded in loading pages/Index.');
+      hilog.info(0x0000, 'AmphionAsrDemo', 'Succeeded in loading pages/Index.');
     });
   }
 
@@ -151,7 +151,7 @@ export default class EntryAbility extends UIAbility {
 
   private setStressKeepScreenOn(enabled: boolean): void {
     this.stressWindow?.setWindowKeepScreenOn(enabled).catch((e: Object): void => {
-      hilog.error(0x0000, 'DingqiaoDemo', 'Failed to set test screen state: %{public}s', `${e}`);
+      hilog.error(0x0000, 'AmphionAsrDemo', 'Failed to set test screen state: %{public}s', `${e}`);
     });
   }
 }

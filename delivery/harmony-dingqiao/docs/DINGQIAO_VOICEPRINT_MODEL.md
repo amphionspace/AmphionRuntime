@@ -8,7 +8,7 @@
 
 ```ts
 SpeechRecognizeSdk.init(context);
-SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/dingqiao_work`);
+SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/amphion_asr_work`);
 SpeechRecognizeSdk.prepareRuntime(callback);
 ```
 

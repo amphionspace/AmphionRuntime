@@ -101,7 +101,7 @@ class StatisticsTest(unittest.TestCase):
 
 
 class ModelIdentityTest(unittest.TestCase):
-    def test_records_the_dingqiao_worker_count(self) -> None:
+    def test_records_the_amphion_asr_worker_count(self) -> None:
         identity = MODULE.comparison_identity("serial", "build", {}, 2, 10, 4, 0)
 
         self.assertEqual(4, identity["profile"]["num_threads"])

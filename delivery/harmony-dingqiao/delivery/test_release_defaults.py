@@ -6,6 +6,16 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
+    def test_sdk_only_packaging_does_not_require_demo_build_identity(self) -> None:
+        script = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "build_identity = {} if sdk_only else json.loads",
+            script,
+        )
+
     def test_speaker_vad_defaults_match_sdk_demo_and_public_docs(self) -> None:
         sdk = (
             REPO_ROOT

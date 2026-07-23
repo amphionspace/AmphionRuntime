@@ -1,6 +1,6 @@
 # 语音识别 SDK 接口（HarmonyOS 交付版）
 
-> 本文件描述鼎桥 HarmonyOS 离线语音识别 SDK 的客户集成接口，并已纳入跨平台《语音识别SDK接口-交付批注版.md》的 HarmonyOS 扩展约束。Android 集成请使用 Android 交付文档。
+> 本文件描述 Amphion HarmonyOS 离线语音识别 SDK 的客户集成接口，并已纳入跨平台接口的 HarmonyOS 扩展约束。Android 集成请使用 Android 交付文档。
 
 | 文档项 | 值 |
 | --- | --- |
@@ -76,7 +76,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 
 | 接口 | 说明 |
 | --- | --- |
-| `SpeechRecognizeSdk.init(context: Context, deviceIdProvider?: LicenseDeviceIdProvider)` | 初始化 SDK；设备白名单授权建议由正式宿主注入稳定设备 SN |
+| `SpeechRecognizeSdk.init(context: Context, deviceIdProvider?: LicenseDeviceIdProvider)` | 初始化 SDK；本交付的无设备绑定授权无需传 `deviceIdProvider` |
 | `SpeechRecognizeSdk.setWorkPath(path: string)` | 设置可读写工作目录，必须在创建引擎或注册声纹前调用 |
 | `SpeechRecognizeSdk.getWorkPath(): string` | 查询当前工作目录 |
 | `SpeechRecognizeSdk.setLicense(licensePath: string, callback: LicenseActivationCallback)` | 离线校验并缓存正式授权；不拉起 Runtime、不加载模型 |
@@ -207,7 +207,7 @@ interface CreateEngineCallback {
 | --- | --- | --- | --- |
 | `locate` | `string` | `CN` | 兼容字段；当前仅支持中国区，不改变模型选择 |
 | `recognizerMode` | `string` | `long` | 接受 `short`/`long`，当前均按长语音流式模式处理 |
-| `sysGeneralLexicon` | `string[]` | 空 | 系统热词；与警务域默认热词合并后用于解码 |
+| `sysGeneralLexicon` | `string[]` | 空 | 调用方热词，用于解码 |
 
 ### 5.3 `StartParams`
 
@@ -264,7 +264,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | --- | --- | --- |
 | `isFinal` | `boolean` | 是否最终结果 |
 | `isLast` | `boolean` | 是否本次会话的最后一条结果 |
-| `result` | `string` | 识别文本；final 为警务增强后文本 |
+| `result` | `string` | 识别文本 |
 | `beginTime` | `number?` | 起始时间毫秒，可能为空 |
 | `endTime` | `number?` | 结束时间毫秒，可能为空 |
 | `speakerSimilarity` | `number?` | final 且启用声纹校验，并有达到门槛的评分 PCM 时返回 |
@@ -318,9 +318,9 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 ## 8. 授权
 
-正式 App 授权文件名默认为 `amphion-license.lic`。`setLicense` 为异步回调，但鉴权为离线本地完整校验，不发起网络请求。校验范围包括授权结构、ECDSA 签名、ASR 能力、有效期、维护期、SDK 主版本和设备白名单；如 License 写入签名证书 SHA-256，则同时校验证书。
+授权文件名为 `amphion-license.lic`。`setLicense` 为异步回调，但鉴权为离线本地完整校验，不发起网络请求。本交付校验授权结构、ECDSA 签名、ASR 能力和四个月有效期；包内授权不绑定包名、签名证书、设备、SDK 主版本或维护期。
 
-设备绑定哈希规则为 `SHA-256(normalizedSn + deviceIdSaltId)`，其中 `normalizedSn` 为 trim 后转大写。正式系统宿主应通过 `LicenseDeviceIdProvider` 注入与签发清单一致的设备 SN。普通 Demo 可使用 ODID 签发体验授权，但 ODID 与 SN 不可混用。
+`LicenseDeviceIdProvider` 为兼容既有公共接口而保留；本交付授权的设备白名单为空，宿主无需读取或注入 SN/ODID。
 
 ```ts
 interface LicenseDeviceIdProvider {

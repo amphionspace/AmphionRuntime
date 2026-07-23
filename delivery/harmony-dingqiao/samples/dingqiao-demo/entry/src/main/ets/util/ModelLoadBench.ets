@@ -10,12 +10,12 @@ import {
   SpeechRecognitionEngine,
   SpeechRecognizeSdk
 } from 'amphion_dingqiao';
-import { PoliceEngineConfig } from 'amphion_police';
 import { AmphionRuntime } from 'amphion_asr';
 
 const TAG: string = 'ModelLoadBench';
 const DOMAIN: number = 0x0000;
 const POOL_HIT_CREATES: number = 3;
+const ASR_NUM_THREADS: number = 4;
 
 export class ModelLoadBenchOptions {
   runId: string = 'manual';
@@ -158,14 +158,14 @@ export async function runModelLoadBench(context: common.UIAbilityContext,
 
   try {
     if (options.resultPath.length === 0) throw new Error('resultPath is required');
-    const workPath = `${context.filesDir}/dingqiao_work`;
+    const workPath = `${context.filesDir}/amphion_asr_work`;
     SpeechRecognizeSdk.setWorkPath(workPath);
     const license = await activateLicense(prepareLicense(context, workPath));
     if (license.errorCode !== 0) throw new Error(`license-${license.errorCode}`);
     const runtimeError = await prepareRuntime();
     if (runtimeError !== 0) throw new Error(`runtime-${runtimeError}`);
 
-    // PoliceEngineConfig always enables punctuation. Keep parameter construction and license work out
+    // The compatibility adapter always enables punctuation. Keep parameter construction and license work out
     // of the interval so this measures the public async path from invocation through its callback,
     // including concurrent ASR construction/warm-up and punctuation construction.
     const params = createParams();
@@ -209,7 +209,7 @@ export async function runModelLoadBench(context: common.UIAbilityContext,
     'PASS' : 'FAIL';
   const result = `LOADBENCH|version=2|api=createEngineAsync|runId=${safeDetail(options.runId)}|status=${status}` +
     `|punctuationRequested=true|punctuationLoaded=${punctuationLoaded}` +
-    `|numThreads=${PoliceEngineConfig.NUM_THREADS}|warmupSamples=${AmphionRuntime.eagerWarmupSamples()}` +
+    `|numThreads=${ASR_NUM_THREADS}|warmupSamples=${AmphionRuntime.eagerWarmupSamples()}` +
     `|coldMs=${coldMs}|poolHitMs=${poolHitMs.join(',')}|fatal=${fatal}`;
   try {
     writeText(options.resultPath, `${result}\n`);

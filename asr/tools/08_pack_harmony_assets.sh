@@ -32,7 +32,7 @@ DEFAULT_VAD_SHA256="9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb
 
 usage() {
   cat <<'EOF'
-Usage: bash asr/tools/08_pack_harmony_assets.sh
+Usage: bash asr/tools/08_pack_harmony_assets.sh [--zh-en-only]
 
 Inputs can be overridden with ZH_EN_DIR, YUE_EN_DIR, PUNCT_DIR, ITN_DIR,
 and VAD_FILE. The zhen input intentionally uses the FP32 decoder.onnx and
@@ -43,12 +43,15 @@ and numpy==1.26.4.
 
 The script converts zhen encoder/decoder/joiner and punctuation to ARM CPU
 Fixed-optimization ORT files, verifies a manifest v2, then atomically replaces
-the Harmony amphion-models directory.
+the Harmony amphion-models directory. --zh-en-only omits the unrelated Yue
+model input and payload for a zh-en-only delivery.
 EOF
 }
 
+ZH_EN_ONLY=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --zh-en-only) ZH_EN_ONLY=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 1 ;;
   esac
@@ -139,7 +142,6 @@ if [[ "$VAD_FILE" == "$DEFAULT_VAD_FILE" ]] &&
 fi
 
 ensure_dir "$ZH_EN_DIR" "请设置 ZH_EN_DIR 或准备 asr/tools/demo-model/zhen"
-ensure_dir "$YUE_EN_DIR" "请设置 YUE_EN_DIR 或准备 asr/tools/demo-model/yueen"
 ensure_file "${ZH_EN_DIR}/encoder.int8.onnx" "zhen 缺 encoder.int8.onnx"
 ensure_file "${ZH_EN_DIR}/joiner.onnx" "zhen 缺 FP32 joiner.onnx"
 ensure_file "${ZH_EN_DIR}/tokens.txt" "zhen 缺 tokens.txt"
@@ -147,9 +149,12 @@ ensure_file "${ZH_EN_DIR}/bbpe.vocab" "zhen 缺 bbpe.vocab"
 ensure_file "${ZH_EN_DIR}/decoder.onnx" "zhen 缺 FP32 decoder.onnx"
 ZH_DECODER="${ZH_EN_DIR}/decoder.onnx"
 
-for file in encoder.int8.onnx decoder.onnx joiner.int8.onnx tokens.txt bbpe.vocab; do
-  ensure_file "${YUE_EN_DIR}/${file}" "yueen 缺 ${file}"
-done
+if [[ "$ZH_EN_ONLY" != true ]]; then
+  ensure_dir "$YUE_EN_DIR" "请设置 YUE_EN_DIR 或准备 asr/tools/demo-model/yueen"
+  for file in encoder.int8.onnx decoder.onnx joiner.int8.onnx tokens.txt bbpe.vocab; do
+    ensure_file "${YUE_EN_DIR}/${file}" "yueen 缺 ${file}"
+  done
+fi
 ensure_file "${PUNCT_DIR}/model.int8.onnx" "请检查 PUNCT_DIR"
 ensure_file "${ITN_DIR}/zh_itn_tagger.fst" "请检查 ITN_DIR"
 ensure_file "${ITN_DIR}/zh_itn_verbalizer.fst" "请检查 ITN_DIR"
@@ -191,7 +196,11 @@ mkdir -p "$ASSET_ROOT/.conversion-metadata"
 if [[ -f "$FINAL_ASSET_ROOT/README.md" ]]; then
   cp "$FINAL_ASSET_ROOT/README.md" "$ASSET_ROOT/README.md"
 fi
-for bundle in zh-en yue-en punct-zhen itn-zh vad; do
+bundles=(zh-en punct-zhen itn-zh vad)
+if [[ "$ZH_EN_ONLY" != true ]]; then
+  bundles+=(yue-en)
+fi
+for bundle in "${bundles[@]}"; do
   mkdir -p "$ASSET_ROOT/$bundle/v1"
   touch "$ASSET_ROOT/$bundle/v1/.gitkeep"
 done
@@ -205,11 +214,13 @@ copy_one() {
 
 copy_one "${ZH_EN_DIR}/tokens.txt" "$ASSET_ROOT/zh-en/v1/tokens.txt"
 copy_one "${ZH_EN_DIR}/bbpe.vocab" "$ASSET_ROOT/zh-en/v1/bbpe.vocab"
-copy_one "${YUE_EN_DIR}/encoder.int8.onnx" "$ASSET_ROOT/yue-en/v1/encoder.int8.onnx"
-copy_one "${YUE_EN_DIR}/decoder.onnx" "$ASSET_ROOT/yue-en/v1/decoder.onnx"
-copy_one "${YUE_EN_DIR}/joiner.int8.onnx" "$ASSET_ROOT/yue-en/v1/joiner.int8.onnx"
-copy_one "${YUE_EN_DIR}/tokens.txt" "$ASSET_ROOT/yue-en/v1/tokens.txt"
-copy_one "${YUE_EN_DIR}/bbpe.vocab" "$ASSET_ROOT/yue-en/v1/bbpe.vocab"
+if [[ "$ZH_EN_ONLY" != true ]]; then
+  copy_one "${YUE_EN_DIR}/encoder.int8.onnx" "$ASSET_ROOT/yue-en/v1/encoder.int8.onnx"
+  copy_one "${YUE_EN_DIR}/decoder.onnx" "$ASSET_ROOT/yue-en/v1/decoder.onnx"
+  copy_one "${YUE_EN_DIR}/joiner.int8.onnx" "$ASSET_ROOT/yue-en/v1/joiner.int8.onnx"
+  copy_one "${YUE_EN_DIR}/tokens.txt" "$ASSET_ROOT/yue-en/v1/tokens.txt"
+  copy_one "${YUE_EN_DIR}/bbpe.vocab" "$ASSET_ROOT/yue-en/v1/bbpe.vocab"
+fi
 copy_one "${ITN_DIR}/zh_itn_tagger.fst" "$ASSET_ROOT/itn-zh/v1/zh_itn_tagger.fst"
 copy_one "${ITN_DIR}/zh_itn_verbalizer.fst" "$ASSET_ROOT/itn-zh/v1/zh_itn_verbalizer.fst"
 copy_one "$VAD_FILE" "$ASSET_ROOT/vad/v1/silero_vad.onnx"
@@ -260,19 +271,30 @@ manifest_args=(
   --converted "punct-zhen/v1/model.int8.ort=$ASSET_ROOT/.conversion-metadata/punct.json"
   --copy "zh-en/v1/tokens.txt=${ZH_EN_DIR}/tokens.txt"
   --copy "zh-en/v1/bbpe.vocab=${ZH_EN_DIR}/bbpe.vocab"
-  --copy "yue-en/v1/encoder.int8.onnx=${YUE_EN_DIR}/encoder.int8.onnx"
-  --copy "yue-en/v1/decoder.onnx=${YUE_EN_DIR}/decoder.onnx"
-  --copy "yue-en/v1/joiner.int8.onnx=${YUE_EN_DIR}/joiner.int8.onnx"
-  --copy "yue-en/v1/tokens.txt=${YUE_EN_DIR}/tokens.txt"
-  --copy "yue-en/v1/bbpe.vocab=${YUE_EN_DIR}/bbpe.vocab"
   --copy "itn-zh/v1/zh_itn_tagger.fst=${ITN_DIR}/zh_itn_tagger.fst"
   --copy "itn-zh/v1/zh_itn_verbalizer.fst=${ITN_DIR}/zh_itn_verbalizer.fst"
   --copy "vad/v1/silero_vad.onnx=$VAD_FILE"
 )
+if [[ "$ZH_EN_ONLY" == true ]]; then
+  manifest_args+=(--zh-en-only)
+fi
+if [[ "$ZH_EN_ONLY" != true ]]; then
+  manifest_args+=(
+    --copy "yue-en/v1/encoder.int8.onnx=${YUE_EN_DIR}/encoder.int8.onnx"
+    --copy "yue-en/v1/decoder.onnx=${YUE_EN_DIR}/decoder.onnx"
+    --copy "yue-en/v1/joiner.int8.onnx=${YUE_EN_DIR}/joiner.int8.onnx"
+    --copy "yue-en/v1/tokens.txt=${YUE_EN_DIR}/tokens.txt"
+    --copy "yue-en/v1/bbpe.vocab=${YUE_EN_DIR}/bbpe.vocab"
+  )
+fi
 python3 "$MANIFEST_BUILDER" "${manifest_args[@]}"
 
 rm -rf "$ASSET_ROOT/.conversion-metadata"
-python3 "$VERIFY" --root "$ASSET_ROOT"
+verify_args=(--root "$ASSET_ROOT")
+if [[ "$ZH_EN_ONLY" == true ]]; then
+  verify_args+=(--zh-en-only)
+fi
+python3 "$VERIFY" "${verify_args[@]}"
 
 if [[ -e "$FINAL_ASSET_ROOT" ]]; then
   mv "$FINAL_ASSET_ROOT" "$BACKUP_ASSET_ROOT"
