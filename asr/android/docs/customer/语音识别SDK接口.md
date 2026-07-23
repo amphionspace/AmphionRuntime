@@ -32,10 +32,10 @@ engine.shutdown()
 | `SpeechRecognizeSdk.init(context: Context)` | 初始化 SDK，必须在 `createEngine`、`registerVoiceprint` 前调用 |
 | `SpeechRecognizeSdk.setWorkPath(path: String)` | 设置可读写工作目录，必须在 `createEngine` 前调用 |
 | `SpeechRecognizeSdk.setLicense(licensePath: String, callback: LicenseActivationCallback)` | 校验并缓存授权，不启动 Runtime、不加载模型 |
-| `SpeechRecognizeSdk.prepareRuntime(callback: PrepareRuntimeCallback)` | 准备 Runtime，不加载模型；并发调用 single-flight |
+| `SpeechRecognizeSdk.prepareRuntime(callback: PrepareRuntimeCallback)` | 准备 Runtime 并由 SDK 预加载默认中英模型；并发调用 single-flight |
 | `SpeechRecognizeSdk.getLicenseInfo(): LicenseInfo` | 查询当前已激活授权信息 |
 | `SpeechRecognizeSdk.createEngine(params: CreateEngineParams): SpeechRecognitionEngine` | 同步创建识别引擎 |
-| `SpeechRecognizeSdk.createEngineAsync(params: CreateEngineParams, callback: CreateEngineCallback)` | 异步加载/复用模型并创建引擎；成功回调 `onSuccess` |
+| `SpeechRecognizeSdk.createEngineAsync(params: CreateEngineParams, callback: CreateEngineCallback)` | 异步复用已准备模型并创建引擎；成功回调 `onSuccess` |
 | `SpeechRecognizeSdk.unloadModel()` | 卸载内存模型，保留 Runtime 与授权 |
 | `SpeechRecognizeSdk.unloadRuntime()` | 卸载 Runtime 和模型，保留已验证授权 |
 | `SpeechRecognizeSdk.preloadVoiceprintModel(): Boolean` | 按需预装声纹模型；普通 ASR 不隐式加载 |

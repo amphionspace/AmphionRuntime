@@ -35,9 +35,21 @@ HARMONY_BUNDLES = {
     "vad/v1": ["silero_vad.onnx"],
 }
 
+ANDROID_BUNDLES = {
+    bundle: [
+        f"{name}.mp3"
+        if bundle in {"zh-en/v1", "yue-en/v1", "punct-zhen/v1"}
+        and name.endswith((".ort", ".onnx"))
+        else name
+        for name in names
+    ]
+    for bundle, names in HARMONY_BUNDLES.items()
+}
+
 
 def file_format(name: str) -> str:
-    suffix = Path(name).suffix.lower()
+    logical_name = name.removesuffix(".mp3")
+    suffix = Path(logical_name).suffix.lower()
     formats = {
         ".ort": "ort",
         ".onnx": "onnx",
@@ -81,9 +93,10 @@ def build_manifest(
     converted_metadata: dict[str, Path],
     zh_en_only: bool = False,
 ) -> dict[str, Any]:
+    platform_bundles = ANDROID_BUNDLES if PROFILE == "android" else HARMONY_BUNDLES
     selected_bundles = {
         name: files
-        for name, files in HARMONY_BUNDLES.items()
+        for name, files in platform_bundles.items()
         if not zh_en_only or name != "yue-en/v1"
     }
     expected_targets = {

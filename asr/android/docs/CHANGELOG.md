@@ -26,6 +26,10 @@
 
 变更
 
+- Android 大模型改为从 APK `AssetManager` 直接加载，ASR 与标点/ITN 并行初始化；模型使用
+  aapt 固定免压缩传输后缀，避免首次启动复制约 260 MiB，也避免宿主未配置 `noCompress`
+  时的整段解压。native 层直接 `mmap` APK 中的未压缩模型区间，并保留 ORT 快速会话选项。
+  鼎桥 `prepareRuntime.onReady` 现在承诺默认中英模型已进入 SDK 模型池。
 - 0.1.x ~ 0.2.0 期间 `vad(true)` 实际只构造了 silero `Vad` 对象但没参与解码；本版本起 `vad(true)` 真的会改变识别行为。开关含义不变；如果不想要新的主动 endpoint 行为，把 `activeEndpointSilenceMs` 设为 0 即可退化成「只做 gate / 不主动切」。
 - 热词 tokenization 由 `cjkchar` 切换到 `bbpe`：之前用 `cjkchar` 是因为缺词表，sherpa-onnx 把汉字按 UTF-8 char 拆，但模型本身是 byte-level BPE，多数热词 OOV 后被静默 skip；现在配合 `bbpe.vocab` 走 byte-level BPE，热词真正映射到模型 token，`hotwords()` + `hotwordsScore` 才有放大效果。开关 / API 不变，业务方代码不动。
 - AAR 体积小幅增加（~460 KB），首次启动会重新解包 zh-en / yue-en 两份 `bbpe.vocab`（SDK_VERSION bump 到 0.2.2）。注意中间一版 0.2.1 误把 google SentencePiece protobuf `.model` 当词表直接打进 AAR，会让 ssentencepiece 解析 segfault；0.2.2 改用同源导出的 `.vocab` 文本格式，闪退修复。

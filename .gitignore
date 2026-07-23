@@ -105,6 +105,9 @@ asr/android/sdk/src/main/assets/lits-models/
 #   见 asr/android/sdk/src/main/assets/amphion-models/README.md
 asr/android/sdk/src/main/assets/amphion-models/**/*.onnx
 asr/android/sdk/src/main/assets/amphion-models/**/*.ort
+# Android 直读模型使用受 aapt 固定免压缩的传输后缀；内容仍是 ORT / ONNX。
+asr/android/sdk/src/main/assets/amphion-models/**/*.onnx.mp3
+asr/android/sdk/src/main/assets/amphion-models/**/*.ort.mp3
 asr/android/sdk/src/main/assets/amphion-models/**/*.fst
 asr/android/sdk/src/main/assets/amphion-models/**/tokens.txt
 # bbpe.vocab 与 tokens.txt 同源、与 encoder ONNX 严格配对，必须走单一发布渠道
