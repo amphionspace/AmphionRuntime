@@ -57,9 +57,9 @@ internal object AssetRegistry {
             bundleId = "zh-en/v1",
             assetSubPath = "zh-en/v1",
             files = listOf(
-                "encoder.int8.onnx",
-                "decoder.onnx",
-                "joiner.int8.onnx",
+                "encoder.int8.ort",
+                "decoder.ort",
+                "joiner.int8.ort",
                 "tokens.txt",
                 "bbpe.vocab",
             ),
@@ -81,7 +81,7 @@ internal object AssetRegistry {
     internal fun punctuationBundle(): Bundle = Bundle(
         bundleId = "punct-zhen/v1",
         assetSubPath = "punct-zhen/v1",
-        files = listOf("model.int8.onnx"),
+        files = listOf("model.int8.ort"),
     )
 
     /** 中文 ITN bundle（仅 ZH_EN 启用）。 */

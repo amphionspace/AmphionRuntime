@@ -26,6 +26,10 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        // 新接口方法必须是真正的 JVM default method，旧版只实现 onResult 的客户类
+        // 才能在新版 SDK 调用 onSuccess 时安全继承默认桥接，避免 AbstractMethodError。
+        // compatibility 同时保留旧 Kotlin 调用方引用的 *$DefaultImpls 类。
+        freeCompilerArgs += listOf("-Xjvm-default=all-compatibility")
     }
 
     testOptions {

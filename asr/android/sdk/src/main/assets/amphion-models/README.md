@@ -11,9 +11,9 @@
 amphion-models/
 ├── manifest.json          # 由 08_pack_sdk_assets.sh 自动生成；记录每份资产的 sha256
 ├── zh-en/v1/              # 中英流式 ASR
-│   ├── encoder.int8.onnx
-│   ├── decoder.onnx
-│   ├── joiner.int8.onnx
+│   ├── encoder.int8.ort
+│   ├── decoder.ort
+│   ├── joiner.int8.ort
 │   └── tokens.txt
 ├── yue-en/v1/             # 粤英流式 ASR
 │   ├── encoder.int8.onnx
@@ -21,7 +21,7 @@ amphion-models/
 │   ├── joiner.int8.onnx
 │   └── tokens.txt
 ├── punct-zhen/v1/         # CT-Transformer 中英标点
-│   └── model.int8.onnx
+│   └── model.int8.ort
 ├── itn-zh/v1/             # WeText 中文 ITN
 │   ├── zh_itn_tagger.fst
 │   └── zh_itn_verbalizer.fst
@@ -44,7 +44,7 @@ amphion-models/
 
 ## 不入库
 
-实际模型资产（`*.onnx`, `*.fst`, `tokens.txt`, `bbpe.vocab`）走 `.gitignore`：
+实际模型资产（`*.ort`, `*.onnx`, `*.fst`, `tokens.txt`, `bbpe.vocab`）走 `.gitignore`：
 都是与 encoder ONNX 严格配对的、由 `asr/tools/08_pack_sdk_assets.sh` 一次性
 写入的产物，与 git 走不同发布渠道易产生 sha256 错位。只有 `README.md` /
 运行期生成的 `manifest.json` 与各级目录占位 `.gitkeep` 进 git。

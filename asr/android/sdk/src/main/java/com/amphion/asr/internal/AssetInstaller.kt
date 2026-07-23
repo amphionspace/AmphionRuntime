@@ -124,12 +124,12 @@ internal object AssetInstaller {
                 val vadDir = File(root, AssetRegistry.vadBundle().installSubDir)
                 val itnUsed = config.itn && AssetRegistry.itnEnabledFor(language)
                 return InstalledLayout(
-                    asrEncoder = File(asrDir, "encoder.int8.onnx"),
-                    asrDecoder = File(asrDir, "decoder.onnx"),
-                    asrJoiner = File(asrDir, "joiner.int8.onnx"),
+                    asrEncoder = File(asrDir, "encoder.int8.ort"),
+                    asrDecoder = File(asrDir, "decoder.ort"),
+                    asrJoiner = File(asrDir, "joiner.int8.ort"),
                     asrTokens = File(asrDir, "tokens.txt"),
                     asrBpeVocab = File(asrDir, "bbpe.vocab"),
-                    punctuationModel = if (config.punctuation) File(punctDir, "model.int8.onnx") else null,
+                    punctuationModel = if (config.punctuation) File(punctDir, "model.int8.ort") else null,
                     itnTaggerFst = if (itnUsed) File(itnDir, "zh_itn_tagger.fst") else null,
                     itnVerbalizerFst = if (itnUsed) File(itnDir, "zh_itn_verbalizer.fst") else null,
                     vadModel = if (config.vad) File(vadDir, "silero_vad.onnx") else null,
@@ -278,7 +278,7 @@ internal object AssetInstaller {
         return try {
             ctx.assets.openFd(path).use { afd -> afd.length }
         } catch (_: IOException) {
-            // .onnx / .fst 是 noCompress 的，理论上必然能 openFd；此处兜底走 InputStream
+            // .ort / .onnx / .fst 是 noCompress 的，理论上必然能 openFd；此处兜底走 InputStream
             ctx.assets.open(path).use { input ->
                 var total = 0L
                 val buf = ByteArray(64 * 1024)

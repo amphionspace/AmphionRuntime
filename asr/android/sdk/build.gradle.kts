@@ -103,7 +103,7 @@ android {
     //       但运行期 AssetManager 解压会把整文件读进堆，给 ZH-EN 这种 ~120MB 的模型直接 OOM。
     //       禁用压缩后 first-run 的拷贝走 mmap streaming，常驻内存只有 IO 缓冲。
     androidResources {
-        noCompress += listOf("onnx", "fst")
+        noCompress += listOf("ort", "onnx", "fst")
     }
 
     publishing {

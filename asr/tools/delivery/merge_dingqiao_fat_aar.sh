@@ -96,6 +96,15 @@ dingqiao_verify_aar_provenance "$OUT_PATH" "$SDK_VERSION" "$GIT_COMMIT_FULL"
 dingqiao_verify_aar_native_libs "$OUT_PATH"
 dingqiao_verify_aar_speaker_model "$OUT_PATH"
 dingqiao_verify_aar_asr_models "$OUT_PATH"
+verify_args=(
+  --archive "$OUT_PATH"
+  --prefix assets/amphion-models
+  --target-platform android
+)
+if ! unzip -p "$OUT_PATH" assets/amphion-models/manifest.json | grep -q '"yue-en/v1"'; then
+  verify_args+=(--zh-en-only)
+fi
+python3 "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${verify_args[@]}"
 
 SIZE_MB="$(du -m "$OUT_PATH" | awk '{print $1}')"
 echo "[OK] $OUT_PATH (${SIZE_MB} MB) sdk=$SDK_VERSION git=$GIT_COMMIT_SHORT"
