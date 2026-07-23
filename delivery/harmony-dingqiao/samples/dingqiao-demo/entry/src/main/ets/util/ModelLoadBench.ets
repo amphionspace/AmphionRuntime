@@ -158,7 +158,7 @@ export async function runModelLoadBench(context: common.UIAbilityContext,
 
   try {
     if (options.resultPath.length === 0) throw new Error('resultPath is required');
-    const workPath = `${context.filesDir}/dingqiao_work`;
+    const workPath = `${context.filesDir}/amphion_asr_work`;
     SpeechRecognizeSdk.setWorkPath(workPath);
     const license = await activateLicense(prepareLicense(context, workPath));
     if (license.errorCode !== 0) throw new Error(`license-${license.errorCode}`);

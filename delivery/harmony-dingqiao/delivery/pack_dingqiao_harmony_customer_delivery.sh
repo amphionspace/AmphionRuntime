@@ -217,7 +217,7 @@ fi
 if [[ "$SDK_ONLY" != true ]]; then
   HAP_SRC=""
   for candidate in \
-    "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap" \
+    "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap" \
     "$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/entry-default-signed.hap"; do
     if [[ -f "$candidate" ]]; then
       HAP_SRC="$candidate"

@@ -19,7 +19,7 @@ HARMONY_SIGNING_CONFIG=.secure/harmony-signing.json \
 检查：
 
 ```bash
-unzip -l path/to/dingqiao_demo-default-signed.hap | grep amphion-license.lic
+unzip -l path/to/amphion_asr_demo-default-signed.hap | grep amphion-license.lic
 ```
 
 不要只检查源码目录；最终验收对象是 signed HAP。
@@ -33,7 +33,7 @@ unzip -l path/to/dingqiao_demo-default-signed.hap | grep amphion-license.lic
 - 当前设备尚未加入签发清单。
 - 普通应用尝试读取需要 `ohos.permission.sec.ACCESS_UDID` 的 `deviceInfo.serial`。
 
-普通 Demo 固定使用 `deviceInfo.ODID`，其签发清单默认是 `.secure/dingqiao_demo_device_ids.txt`；系统/预置宿主使用硬件 SN，并通过 `DINGQIAO_DEVICE_ID_FILE` 指定独立清单。不要把两类标识混在同一验收流程中，也不要把明文设备标识写入源码、HAP 或公开日志。
+普通 Demo 固定使用 `deviceInfo.ODID`，其签发清单默认是 `.secure/amphion_asr_demo_device_ids.txt`；系统/预置宿主使用硬件 SN，并通过 `DINGQIAO_DEVICE_ID_FILE` 指定独立清单。不要把两类标识混在同一验收流程中，也不要把明文设备标识写入源码、HAP 或公开日志。
 
 ## `No graph was found in the protobuf`
 

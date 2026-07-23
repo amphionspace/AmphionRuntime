@@ -286,7 +286,7 @@ export async function runLifecycleBench(context: common.UIAbilityContext,
   let iterOk = 0;
   try {
     if (options.resultPath.length === 0) throw new Error('resultPath required');
-    const workPath = `${context.filesDir}/dingqiao_work`;
+    const workPath = `${context.filesDir}/amphion_asr_work`;
     SpeechRecognizeSdk.setWorkPath(workPath);
     try { writeText(`${options.resultPath}.iters`, ''); } catch (e) { /* ignore */ }
 

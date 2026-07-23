@@ -12,13 +12,13 @@ HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
 OHPM="$DEVECO_HOME/tools/ohpm/bin/ohpm"
 HDC="$DEVECO_HOME/sdk/default/openharmony/toolchains/hdc"
 JAVA_HOME_VALUE="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
-HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap"
+HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap"
 BUILD_IDENTITY="$PROJECT_ROOT/build/smoke/build-identity.json"
 LICENSE_FILE="$PROJECT_ROOT/samples/dingqiao-demo/entry/src/main/resources/rawfile/amphion-license.lic"
-DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/dingqiao_demo_device_ids.txt}"
+DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/amphion_asr_demo_device_ids.txt}"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$REPO_ROOT/.secure/amphion-license-private.pem}"
 BUNDLE="com.amphion.asr.harmony.demo"
-MODULE="dingqiao_demo"
+MODULE="amphion_asr_demo"
 ABILITY="EntryAbility"
 DEVICE=""
 TIMEOUT_SECONDS=30
@@ -218,7 +218,7 @@ PY
   fi
   BUILD_PROJECT_ROOT="$temp_repo/delivery/harmony-dingqiao"
   BUILD_PROFILE="$BUILD_PROJECT_ROOT/build-profile.json5"
-  BUILD_HAP="$BUILD_PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap"
+  BUILD_HAP="$BUILD_PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap"
 }
 
 apply_local_signing() {
@@ -359,7 +359,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
     fi
     if ! "$NODE" "$HVIGOR" assembleHap --mode module \
       -p product=default \
-      -p module=dingqiao_demo@default \
+      -p module=amphion_asr_demo@default \
       -p buildMode=debug \
       --no-daemon --stacktrace; then
       exit 1

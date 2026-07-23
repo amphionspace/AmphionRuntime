@@ -3,7 +3,7 @@ import worker, { ErrorEvent, MessageEvents } from '@ohos.worker';
 export type PcmListener = (samples: Int16Array) => void;
 export type RecorderErrorListener = (message: string) => void;
 
-const CAPTURE_WORKER_URL = 'dingqiao_demo/ets/workers/AudioCaptureWorker.ets';
+const CAPTURE_WORKER_URL = 'amphion_asr_demo/ets/workers/AudioCaptureWorker.ets';
 
 /** Diagnostics returned after the worker has completely stopped and emitted every queued PCM block. */
 export class AudioRecorderStats {
