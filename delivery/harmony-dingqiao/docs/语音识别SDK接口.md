@@ -76,7 +76,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 
 | 接口 | 说明 |
 | --- | --- |
-| `SpeechRecognizeSdk.init(context: Context, deviceIdProvider?: LicenseDeviceIdProvider)` | 初始化 SDK；设备白名单授权建议由正式宿主注入稳定设备 SN |
+| `SpeechRecognizeSdk.init(context: Context, deviceIdProvider?: LicenseDeviceIdProvider)` | 初始化 SDK；本交付的无设备绑定授权无需传 `deviceIdProvider` |
 | `SpeechRecognizeSdk.setWorkPath(path: string)` | 设置可读写工作目录，必须在创建引擎或注册声纹前调用 |
 | `SpeechRecognizeSdk.getWorkPath(): string` | 查询当前工作目录 |
 | `SpeechRecognizeSdk.setLicense(licensePath: string, callback: LicenseActivationCallback)` | 离线校验并缓存正式授权；不拉起 Runtime、不加载模型 |
@@ -318,9 +318,9 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 ## 8. 授权
 
-正式 App 授权文件名默认为 `amphion-license.lic`。`setLicense` 为异步回调，但鉴权为离线本地完整校验，不发起网络请求。校验范围包括授权结构、ECDSA 签名、ASR 能力、有效期、维护期、SDK 主版本和设备白名单；如 License 写入签名证书 SHA-256，则同时校验证书。
+授权文件名为 `amphion-license.lic`。`setLicense` 为异步回调，但鉴权为离线本地完整校验，不发起网络请求。本交付校验授权结构、ECDSA 签名、ASR 能力和四个月有效期；包内授权不绑定包名、签名证书、设备、SDK 主版本或维护期。
 
-设备绑定哈希规则为 `SHA-256(normalizedSn + deviceIdSaltId)`，其中 `normalizedSn` 为 trim 后转大写。正式系统宿主应通过 `LicenseDeviceIdProvider` 注入与签发清单一致的设备 SN。普通 Demo 可使用 ODID 签发体验授权，但 ODID 与 SN 不可混用。
+`LicenseDeviceIdProvider` 为兼容既有公共接口而保留；本交付授权的设备白名单为空，宿主无需读取或注入 SN/ODID。
 
 ```ts
 interface LicenseDeviceIdProvider {

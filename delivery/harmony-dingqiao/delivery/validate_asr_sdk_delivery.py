@@ -369,8 +369,8 @@ def _validate_provenance(root: Path, expected_version: str, har_evidence: dict) 
         raise DeliveryValidationError("provenance delivery version mismatch")
     if provenance.get("sdk_only") is not True:
         raise DeliveryValidationError("provenance must declare sdk_only=true")
-    if provenance.get("asr_only") is not False:
-        raise DeliveryValidationError("SDK-only provenance must declare asr_only=false")
+    if provenance.get("asr_only") is not True:
+        raise DeliveryValidationError("SDK-only ASR provenance must declare asr_only=true")
     if provenance.get("languages") != ["zh-en"]:
         raise DeliveryValidationError("provenance languages must be exactly ['zh-en']")
     artifacts = provenance.get("artifacts")
@@ -451,6 +451,8 @@ def _validate_license(root: Path) -> None:
         raise DeliveryValidationError("evaluation license must not bind app, certificate, device, install tier, or maintenance")
     if claims.get("features") != ["ASR"]:
         raise DeliveryValidationError("evaluation license must grant exactly ASR")
+    if claims.get("sdkMajor") != 0:
+        raise DeliveryValidationError("evaluation license must not restrict the SDK major version")
     try:
         issued = date.fromisoformat(claims["issuedAt"])
         expires = date.fromisoformat(claims["expiresAt"])

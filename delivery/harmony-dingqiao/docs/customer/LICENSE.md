@@ -1,41 +1,22 @@
-# 商用授权接入说明（纯血鸿蒙）
+# 四个月体验授权接入说明（HarmonyOS）
 
 > 本 SDK、模型与文档仅限授权客户在授权项目中使用。未经书面许可，不得复制、转售、转授权或用于其他项目。
 
 本发行包内的 `amphion_dingqiao.har` 已启用离线授权校验，并内置**生产验签公钥（与 Android SDK 同一把）**。集成方**无需**也**不应**自行配置验签公钥；只需按本章放置我方签发的授权文件。同一份 `amphion-license.lic` 在 Android 与鸿蒙上验签一致。
 
-## 1. 获取授权文件
+## 1. 授权范围
 
-正式集成前，请向我方商务 / 技术支持提供：
-
-| 信息 | 说明 |
-|------|------|
-| applicationId | 可选记录字段，不作为授权限制 |
-| 签名证书 SHA-256 | 可选记录字段；正式设备白名单 license 默认不绑定签名 |
-| 设备标识清单 | 正式宿主优先提供设备 SN；普通应用可约定 ODID。一行一个，用于生成设备白名单 |
-| 授权能力 | 本 SDK-only 交付申请 ASR 能力 |
-
-我方将签发 `amphion-license.lic` 并通过安全渠道单独下发。本次正式授权仅限制**设备 SN 白名单和到期时间**，不按 App 包名 / 签名证书限制宿主应用。
-
-本 SDK-only 包不包含 Demo HAP 或实际授权文件。正式授权必须在贵司正式宿主中验证，并确保签发清单与运行时注入的是同一种设备标识。
+授权文件位于 `license/amphion-license.lic`，仅授予 ASR 能力，从签发日起四个自然月有效。
+它不绑定 applicationId、bundleName、签名证书、设备、装机量、SDK 主版本或维护期，同一份文件可用于不同包名和设备。
 
 ## 2. 集成方式（ArkTS）
 
 将 `amphion-license.lic` 放入宿主可读路径（如打包进 rawfile 后复制到 `setWorkPath` 目录，或应用私有可读目录），随后：
 
 ```typescript
-import deviceInfo from '@ohos.deviceInfo';
-import { LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
+import { SpeechRecognizeSdk } from 'amphion_dingqiao';
 
-class HostDeviceIdProvider implements LicenseDeviceIdProvider {
-  getDeviceSerial(_context: Context): string | undefined {
-    // 系统/预置宿主通常使用 deviceInfo.serial；普通应用可与签发方约定 ODID。
-    const deviceId = deviceInfo.serial;
-    return deviceId.length > 0 ? deviceId : undefined;
-  }
-}
-
-SpeechRecognizeSdk.init(context, new HostDeviceIdProvider());
+SpeechRecognizeSdk.init(context);
 SpeechRecognizeSdk.setWorkPath(workPath);
 SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
   onResult: (r) => {
@@ -50,7 +31,7 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 });
 ```
 
-`setLicense` 为异步回调，鉴权为**离线本地完整校验，无网络请求**，覆盖授权格式、ECDSA 签名、ASR 能力、有效期、维护期、SDK 主版本和设备白名单。它只缓存已验证授权，不会拉起 Runtime，也不会加载模型。必须在授权成功后调用 `prepareRuntime()`；收到 `onReady()` 后，才可调用 `createEngine()` / `createEngineAsync()` 加载或复用模型。
+`setLicense` 为异步回调，鉴权为**离线本地完整校验，无网络请求**，覆盖授权格式、ECDSA 签名、ASR 能力和有效期。它只缓存已验证授权，不会拉起 Runtime，也不会加载模型。必须在授权成功后调用 `prepareRuntime()`；收到 `onReady()` 后，才可调用 `createEngine()` / `createEngineAsync()` 加载或复用模型。
 
 生命周期与内存控制粒度如下：
 
@@ -69,15 +50,12 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 | 1002200030 | 授权文件不存在 / 不可读 | 确认路径正确、文件可读 |
 | 1002200031 | 授权格式无效 / 验签失败（被篡改或非我方签发） | 向我方重新获取 |
 | 1002200032 | 授权已过期 | 联系续期 |
-| 1002200033 | 设备不匹配（标识不在白名单，或运行时无法读取标识） | 确认签发清单与 `deviceIdProvider` 返回同一种标识 |
+| 1002200033 | 设备或证书不匹配 | 本体验授权不应触发；确认使用的是随包授权文件 |
 | 1002200034 | 尚未设置授权（getLicenseInfo 时） | 先调用 setLicense |
 | 1002200035 | 激活失败（离线实现下作兜底语义，非"服务器不可达"） | 参考 message 排查 |
 
 ## 4. 注意事项
 
-- 正式授权不按包名限制宿主应用；授权边界为**设备标识白名单、有效期、授权能力**。
-- 读取 `deviceInfo.serial` 需 `ohos.permission.sec.ACCESS_UDID`（system_basic），普通三方 App 无法获得。系统 / 预置宿主可注入 SN；普通应用可与签发方约定 `deviceInfo.ODID`，但签发清单也必须使用该 ODID。
-- ODID 按开发者和设备隔离；恢复出厂、更换开发者签名，或卸载该开发者在设备上的全部应用后可能重置，届时需要重新签发。
-- `getDeviceSerial` 是兼容既有接口的方法名，返回值可为双方约定的稳定设备标识，不应把明文标识硬编码进 HAP。
-- 独立下发的正式 license 必须在正式宿主验收，不能用其他测试宿主的结果替代。
+- 本体验授权只受 ASR 能力和四个自然月有效期限制。
+- `getDeviceSerial` 是兼容既有接口的方法名；本授权不绑定设备，因此无需实现或申请设备标识权限。
 - 请勿将授权文件提交到公开代码仓库；勿在交付包内查找或替换验签密钥。

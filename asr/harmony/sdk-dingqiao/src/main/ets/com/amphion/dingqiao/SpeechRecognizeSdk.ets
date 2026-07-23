@@ -210,17 +210,20 @@ function mapLicenseErrorCode(asrCode: number): number {
   return DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED;
 }
 
-function buildAsrConfig(context: Context, params: CreateEngineParams, startParams?: StartParams,
+const DEFAULT_ASR_NUM_THREADS: number = 4;
+const DEFAULT_HOTWORDS_SCORE: number = 3.0;
+
+function buildAsrConfig(params: CreateEngineParams, startParams?: StartParams,
   withTargetSpeaker: boolean = false, withSpeakerVad: boolean = false,
   speakerModelPath?: string): AsrConfig {
   validateRecognizerMode(params);
   const config = new AsrConfig();
-  config.numThreads = 4;
+  config.numThreads = DEFAULT_ASR_NUM_THREADS;
   config.punctuation = true;
   config.itn = true;
   config.vad = true;
   config.endpoint = true;
-  config.hotwordsScore = 3.0;
+  config.hotwordsScore = DEFAULT_HOTWORDS_SCORE;
   config.hotwords = parseLexicon(params.extraParams['sysGeneralLexicon']);
   config.vadConfig.activeEndpointSilenceMs = vadEndMs(startParams);
   config.endpointRules.rule2MinTrailingSilenceSec = 2.0;
@@ -331,7 +334,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.context = context;
     this.params = snapshotCreateEngineParams(params);
     this.asrEngine = preloadedEngine ??
-      AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(context, this.params));
+      AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(this.params));
     this.engineCfgKey = this.computeEngineCfgKey(false, false);
   }
 
@@ -615,7 +618,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     // 复用这个已关闭的引擎(newSession on closed engine)→ native use-after-close 崩溃且不可恢复。
     // create-before-close 保证 create 抛出时旧引擎仍可用、engineCfgKey 不变。create() 复用池化 recognizer,不会重载大模型。
     const next = AmphionRuntime.create(this.context, languageOf(this.params.language),
-      buildAsrConfig(this.context, this.params, params, withTargetSpeaker, withSpeakerVad, speakerModelPath));
+      buildAsrConfig(this.params, params, withTargetSpeaker, withSpeakerVad, speakerModelPath));
     this.asrEngine.close();
     this.asrEngine = next;
     this.engineCfgKey = newKey;
@@ -1094,7 +1097,7 @@ export class SpeechRecognizeSdk {
     try {
       const paramsSnapshot = snapshotCreateEngineParams(params);
       const language: AsrLanguage = languageOf(paramsSnapshot.language);
-      const config: AsrConfig = buildAsrConfig(context, paramsSnapshot);
+      const config: AsrConfig = buildAsrConfig(paramsSnapshot);
       AmphionRuntime.createAsync(context, language, config)
         .then((engine: AsrEngine): void => {
           callback.onSuccess(new DingqiaoRecognitionEngineImpl(context, paramsSnapshot, engine));
