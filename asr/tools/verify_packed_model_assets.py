@@ -327,7 +327,10 @@ def _verify_zip_archive(
         manifest_name = f"{normalized_prefix}/manifest.json"
         if manifest_name not in names:
             fail(f"missing manifest in archive: {manifest_name}")
-        if target_platform == "android":
+        # AAR is an intermediate dependency archive: AGP extracts its assets
+        # and repackages them into the host APK. Only the final APK compression
+        # method determines whether AssetManager can expose an fd for mmap.
+        if target_platform == "android" and archive.suffix.lower() == ".apk":
             compressed_transport_assets = sorted(
                 name
                 for name in names
