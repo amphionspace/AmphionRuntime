@@ -35,6 +35,10 @@ def _device_hash(device_id: str, salt_id: str) -> str:
     return hashlib.sha256(f"{device_id.strip().upper()}{salt_id}".encode("utf-8")).hexdigest().upper()
 
 
+def _sdk_major_matches(licensed_major: int, runtime_major: int) -> bool:
+    return licensed_major <= 0 or runtime_major <= 0 or licensed_major == runtime_major
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="本地校验 Amphion .lic")
     ap.add_argument("--license", required=True, help=".lic 路径")
@@ -95,7 +99,7 @@ def main() -> None:
             sys.exit(f"[FAIL 6006] LICENSE_EXPIRED：expiresAt={expires}")
 
     sdk_major = claims.get("sdkMajor", -1)
-    if sdk_major > 0 and args.sdk_major > 0 and sdk_major != args.sdk_major:
+    if not _sdk_major_matches(sdk_major, args.sdk_major):
         sys.exit(f"[FAIL 6008] LICENSE_SDK_MAJOR_MISMATCH：license={sdk_major} host={args.sdk_major}")
     maintenance_until = claims.get("maintenanceUntil", "")
     if maintenance_until and args.sdk_release_date:

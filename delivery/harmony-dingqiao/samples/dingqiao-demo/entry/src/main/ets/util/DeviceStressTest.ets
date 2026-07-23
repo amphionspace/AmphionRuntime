@@ -1871,7 +1871,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       throw new Error('manifestPath and resultPath are required');
     }
     entries = readManifest(options.manifestPath);
-    const workPath = `${context.filesDir}/dingqiao_work`;
+    const workPath = `${context.filesDir}/amphion_asr_work`;
     SpeechRecognizeSdk.setWorkPath(workPath);
     const license = await activateLicense(prepareLicense(context, workPath));
     if (license.errorCode !== 0) throw new Error(`license-${license.errorCode}`);

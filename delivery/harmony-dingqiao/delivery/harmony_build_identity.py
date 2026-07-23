@@ -16,7 +16,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[2]
 HAP = SCRIPT_DIR.parent / (
     "samples/dingqiao-demo/entry/build/default/outputs/default/"
-    "dingqiao_demo-default-signed.hap"
+    "amphion_asr_demo-default-signed.hap"
 )
 ARTIFACT_DIRS = {
     "amphion_asr.har": REPO_ROOT / "asr/harmony/sdk/build/default/outputs/default",
@@ -106,7 +106,7 @@ def source_fingerprint() -> str:
 
 def current_identity() -> dict[str, object]:
     artifacts: dict[str, dict[str, object]] = {
-        "dingqiao_demo.hap": {
+        "amphion_asr_demo.hap": {
             "path": str(HAP.relative_to(REPO_ROOT)),
             "sha256": sha256_file(HAP),
             "size_bytes": HAP.stat().st_size,

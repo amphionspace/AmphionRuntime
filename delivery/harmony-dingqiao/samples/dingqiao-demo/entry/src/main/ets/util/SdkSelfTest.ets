@@ -200,7 +200,7 @@ export async function runSdkSelfTest(context: common.UIAbilityContext): Promise<
   hilog.info(DOMAIN, TAG, 'BEGIN self-test');
 
   // --- setWorkPath / getWorkPath ---
-  const workPath = `${context.filesDir}/dingqiao_work`;
+  const workPath = `${context.filesDir}/amphion_asr_work`;
   SpeechRecognizeSdk.setWorkPath(workPath);
   r.check('setWorkPath/getWorkPath', SpeechRecognizeSdk.getWorkPath() === workPath, workPath);
 

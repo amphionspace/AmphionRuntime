@@ -153,7 +153,7 @@ profile = json.loads(profile_path.read_text(encoding="utf-8"))
 profile["app"]["signingConfigs"] = []
 for product in profile["app"].get("products", []):
     product.pop("signingConfig", None)
-profile["modules"] = [module for module in profile["modules"] if module["name"] == "dingqiao_demo"]
+profile["modules"] = [module for module in profile["modules"] if module["name"] == "amphion_asr_demo"]
 profile_path.write_text(json.dumps(profile, indent=2) + "\n", encoding="utf-8")
 
 root_package = json.loads(root_package_path.read_text(encoding="utf-8"))
@@ -184,7 +184,7 @@ class CustomerDeviceIdProvider implements LicenseDeviceIdProvider {
 export default class EntryAbility extends UIAbility {
   onCreate(): void {
     SpeechRecognizeSdk.init(this.context, new CustomerDeviceIdProvider());
-    SpeechRecognizeSdk.setWorkPath(`${this.context.filesDir}/dingqiao_work`);
+    SpeechRecognizeSdk.setWorkPath(`${this.context.filesDir}/amphion_asr_work`);
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
@@ -218,7 +218,7 @@ if ! (
   cd "$CUSTOMER_PROJECT"
   "$NODE" "$HVIGOR" assembleHap --mode module \
     -p product=default \
-    -p module=dingqiao_demo@default \
+    -p module=amphion_asr_demo@default \
     -p buildMode=debug \
     --no-daemon --stacktrace
 ) >"$WORK/build.log" 2>&1; then

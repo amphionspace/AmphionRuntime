@@ -23,7 +23,7 @@ REPO_ROOT = SCRIPT_DIR.parents[2]
 PROJECT_ROOT = REPO_ROOT / "delivery" / "harmony-dingqiao"
 HAP = (
     PROJECT_ROOT
-    / "samples/dingqiao-demo/entry/build/default/outputs/default/dingqiao_demo-default-signed.hap"
+    / "samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap"
 )
 PACKED_MANIFEST = (
     REPO_ROOT
@@ -35,7 +35,7 @@ NATIVE_LIBRARY = REPO_ROOT / (
 HAP_MANIFEST_MEMBER = "resources/rawfile/amphion-models/manifest.json"
 HAP_NATIVE_MEMBER = "libs/arm64-v8a/libsherpa-onnx-c-api.so"
 BUNDLE = "com.amphion.asr.harmony.demo"
-MODULE = "dingqiao_demo"
+MODULE = "amphion_asr_demo"
 ABILITY = "EntryAbility"
 REMOTE_RESULT_PREFIX = "/data/storage/el2/base/files/asr-loadbench"
 POOL_HIT_CREATES = 3
