@@ -1,6 +1,6 @@
 {
   "app": {
-    "bundleName": "com.amphion.dingqiao.harmony.demo",
+    "bundleName": "com.amphion.asr.harmony.demo",
     "vendor": "amphion",
     "versionCode": 208,
     "versionName": "0.2.8",

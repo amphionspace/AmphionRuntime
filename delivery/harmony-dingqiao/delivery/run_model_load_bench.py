@@ -34,7 +34,7 @@ NATIVE_LIBRARY = REPO_ROOT / (
 )
 HAP_MANIFEST_MEMBER = "resources/rawfile/amphion-models/manifest.json"
 HAP_NATIVE_MEMBER = "libs/arm64-v8a/libsherpa-onnx-c-api.so"
-BUNDLE = "com.amphion.dingqiao.harmony.demo"
+BUNDLE = "com.amphion.asr.harmony.demo"
 MODULE = "dingqiao_demo"
 ABILITY = "EntryAbility"
 REMOTE_RESULT_PREFIX = "/data/storage/el2/base/files/asr-loadbench"

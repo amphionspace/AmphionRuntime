@@ -37,6 +37,7 @@ mkdir -p "$(dirname "$OUT")"
   --expires "$EXPIRES" \
   --device-id-salt-id "" \
   --features ASR \
+  --sdk-major 0 \
   --out "$OUT"
 
 echo "[ok] generic HarmonyOS ASR license: issued=$ISSUED expires=$EXPIRES app=unbound device=unbound"

@@ -7,12 +7,13 @@
 | 路径 | 内容 |
 | --- | --- |
 | `../har/amphion_dingqiao.har` | 自包含 ASR SDK，内置中英模型、声纹、标点、ITN 和 VAD |
+| `../license/amphion-license.lic` | 四个自然月体验授权，不绑定包名、证书、设备或 SDK 主版本 |
 | `ASR_SDK_API_HARMONY.md` | 公共 API、参数、错误码和回调契约 |
 | `LICENSE.md` | 离线授权接入 |
 | `ASR_LIFECYCLE_ASSURANCE_20260716.md` | 历史问题闭环、时序图和验证边界 |
 | `checksum.txt` | 交付文件 SHA-256 |
 
-包内不含 Demo HAP、实际授权文件、粤英模型、独立 TTS SDK 或 TTS 模型。授权文件通过安全渠道单独下发。
+包内不含 Demo HAP、粤英模型、独立 TTS SDK 或 TTS 模型。体验授权已随包提供。
 
 ## 2. 添加依赖
 
@@ -31,20 +32,10 @@
 ## 3. 初始化与授权
 
 ```typescript
-import {
-  CreateEngineParams,
-  LicenseDeviceIdProvider,
-  SpeechRecognizeSdk
-} from 'amphion_dingqiao';
+import { CreateEngineParams, SpeechRecognizeSdk } from 'amphion_dingqiao';
 
-class HostDeviceIdProvider implements LicenseDeviceIdProvider {
-  getDeviceSerial(_context: Context): string | undefined {
-    return readStableDeviceIdFromHost();
-  }
-}
-
-SpeechRecognizeSdk.init(context, new HostDeviceIdProvider());
-SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/dingqiao_work`);
+SpeechRecognizeSdk.init(context);
+SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/amphion_asr_work`);
 SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
   onResult: () => {
     SpeechRecognizeSdk.prepareRuntime({

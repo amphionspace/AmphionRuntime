@@ -69,6 +69,7 @@ RELEASE_INPUTS=(
   delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json
   delivery/harmony-dingqiao/delivery/filter_zh_en_model_payload.py
   delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh
+  delivery/harmony-dingqiao/delivery/pack_harmony_asr_customer_delivery.sh
   delivery/harmony-dingqiao/delivery/sanitize_public_har_payload.py
   delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py
   delivery/harmony-dingqiao/delivery/verify_dingqiao_model_md5.py
@@ -429,7 +430,7 @@ payload = {
     "schema_version": 1,
     "created_at": datetime.now(timezone.utc).isoformat(),
     "delivery_version": version,
-    "asr_only": asr_only,
+    "asr_only": asr_only or sdk_only,
     "sdk_only": sdk_only,
     "source": {
         "repository": run("git", "remote", "get-url", "origin"),

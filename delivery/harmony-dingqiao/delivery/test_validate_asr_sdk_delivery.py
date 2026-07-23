@@ -58,6 +58,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             "installTier": "",
             "maintenanceUntil": "",
             "features": ["ASR"],
+            "sdkMajor": 0,
             "issuedAt": "2026-07-22",
             "expiresAt": "2026-11-22",
         }
@@ -126,7 +127,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
 
         provenance = {
             "delivery_version": "0.2.5",
-            "asr_only": False,
+            "asr_only": True,
             "sdk_only": True,
             "languages": ["zh-en"],
             "artifacts": [
@@ -272,6 +273,20 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             license_path.write_text(json.dumps(envelope), encoding="utf-8")
             self._write_checksums(root)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "must not bind"):
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
+
+    def test_rejects_sdk_major_bound_license(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root)
+            license_path = root / "license/amphion-license.lic"
+            envelope = json.loads(license_path.read_text(encoding="utf-8"))
+            claims = json.loads(base64.b64decode(envelope["payload_b64"]))
+            claims["sdkMajor"] = 1
+            envelope["payload_b64"] = base64.b64encode(json.dumps(claims).encode()).decode()
+            license_path.write_text(json.dumps(envelope), encoding="utf-8")
+            self._write_checksums(root)
+            with self.assertRaisesRegex(MODULE.DeliveryValidationError, "SDK major"):
                 MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
     def test_rejects_stale_release_date(self) -> None:
