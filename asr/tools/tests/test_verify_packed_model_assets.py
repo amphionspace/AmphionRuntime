@@ -99,6 +99,16 @@ class VerifyPackedModelAssetsTest(unittest.TestCase):
                 verifier.verify_archive(archive, "assets/amphion-models"), 14
             )
 
+    def test_android_manifest_v1_zh_en_only_directory_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            manifest = write_fixture(root, 1)
+            manifest["bundles"].pop("yue-en/v1")
+            shutil.rmtree(root / "yue-en")
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+            self.assertEqual(verifier.verify_directory(root, zh_en_only=True), 9)
+
     def test_harmony_manifest_v2_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

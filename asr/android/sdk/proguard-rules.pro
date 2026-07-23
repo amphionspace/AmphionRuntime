@@ -16,3 +16,5 @@
 -keep class com.amphion.asr.internal.EffectiveSpeechBufferKt { *; }
 -keep class com.amphion.asr.internal.RecognizerResetGeneration { *; }
 -keep class com.amphion.asr.internal.SpeakerPcmBuffers { *; }
+-keep class com.amphion.asr.internal.AssetRegistry { *; }
+-keep class com.amphion.asr.internal.AssetRegistry$Bundle { *; }

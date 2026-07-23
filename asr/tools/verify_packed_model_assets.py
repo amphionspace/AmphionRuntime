@@ -108,7 +108,9 @@ def validate_manifest(
 ) -> tuple[int, dict[str, list[dict]], dict[str, list[str]]]:
     version = manifest.get("manifest_version")
     if version == 1:
-        expected_bundles = EXPECTED_BUNDLES_V1
+        expected_bundles = dict(EXPECTED_BUNDLES_V1)
+        if zh_en_only:
+            expected_bundles.pop("yue-en/v1")
     elif version == 2:
         _validate_v2_header(manifest)
         expected_bundles = dict(EXPECTED_BUNDLES_V2)
@@ -359,7 +361,7 @@ def main() -> None:
     parser.add_argument(
         "--zh-en-only",
         action="store_true",
-        help="expect the Harmony v2 bundle set without yue-en/v1",
+        help="expect the platform bundle set without yue-en/v1",
     )
     args = parser.parse_args()
 
