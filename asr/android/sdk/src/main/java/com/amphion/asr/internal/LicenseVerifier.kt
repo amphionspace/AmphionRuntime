@@ -136,7 +136,7 @@ internal object LicenseVerifier {
         }
 
         // 8. SDK 大版本和维护期校验。维护期控制可升级版本，不影响已授权旧版本运行。
-        if (claims.sdkMajor >= 0 && claims.sdkMajor != sdkMajor) {
+        if (!sdkMajorMatches(claims.sdkMajor, sdkMajor)) {
             return failWith(
                 claims,
                 AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH,
@@ -244,6 +244,9 @@ internal object LicenseVerifier {
             sdkMajor = o.optInt("sdkMajor", -1),
         )
     }
+
+    internal fun sdkMajorMatches(licensedMajor: Int, runtimeMajor: Int): Boolean =
+        licensedMajor <= 0 || runtimeMajor <= 0 || licensedMajor == runtimeMajor
 
     private fun parseStringArray(o: JSONObject, key: String): List<String> {
         val arr = o.optJSONArray(key) ?: return emptyList()
