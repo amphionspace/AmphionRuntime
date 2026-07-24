@@ -468,6 +468,7 @@ public object AmphionRuntime {
         var recognizerFuture: Future<Pair<OnlineRecognizer, Long>>? = null
         var postProcessorFuture: Future<Long>? = null
         var builtRecognizer: OnlineRecognizer? = null
+        var restoreInterrupt = false
         try {
             recognizerFuture = executor.submit<Pair<OnlineRecognizer, Long>> {
                 val start = android.os.SystemClock.elapsedRealtime()
@@ -499,14 +500,22 @@ public object AmphionRuntime {
             try { builtRecognizer?.release() } catch (_: Throwable) {}
             val cause = if (t is ExecutionException) t.cause ?: t else t
             if (cause is InterruptedException) {
-                Thread.currentThread().interrupt()
+                restoreInterrupt = true
             }
             throw cause
         } finally {
             executor.shutdownNow()
-            try {
-                executor.awaitTermination(1, TimeUnit.SECONDS)
-            } catch (_: InterruptedException) {
+            // A native constructor may ignore interruption. Do not let create() return while a
+            // cancelled task can still publish shared state after unloadModel()/release().
+            restoreInterrupt = restoreInterrupt || Thread.interrupted()
+            while (!executor.isTerminated) {
+                try {
+                    executor.awaitTermination(1, TimeUnit.SECONDS)
+                } catch (_: InterruptedException) {
+                    restoreInterrupt = true
+                }
+            }
+            if (restoreInterrupt) {
                 Thread.currentThread().interrupt()
             }
         }

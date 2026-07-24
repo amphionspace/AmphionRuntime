@@ -79,7 +79,7 @@ engine.shutdown()
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `language` | `String` | 无 | 支持 `zh-CN`、`zh-en`、`zh_en`、`zh-yue`、`zh_yue` |
+| `language` | `String` | 无 | 当前 Android 交付包仅支持 `zh-CN`、`zh-en`、`zh_en` |
 | `online` | `Int` | `1` | 当前仅支持离线模式 `DingqiaoOnlineMode.OFFLINE` |
 | `extraParams` | `Map<String, Any>` | 空 | 扩展参数 |
 

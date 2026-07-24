@@ -230,14 +230,23 @@ object SpeechRecognizeSdk {
                         !runtimeBridge.isRuntimeReady() || !defaultModelPrepared
                     }
                     if (needsPrepare) {
-                        runtimeBridge.prepareRuntime(
-                            ctx,
-                            AmphionOptions(
-                                license = licenseText,
-                                licenseAssetName = null,
-                                deviceIdProvider = DingqiaoDeviceIdProvider,
-                            ),
-                        )
+                        try {
+                            runtimeBridge.prepareRuntime(
+                                ctx,
+                                AmphionOptions(
+                                    license = licenseText,
+                                    licenseAssetName = null,
+                                    deviceIdProvider = DingqiaoDeviceIdProvider,
+                                ),
+                            )
+                        } catch (prepareFailure: Throwable) {
+                            try {
+                                runtimeBridge.unloadRuntime()
+                            } catch (cleanupFailure: Throwable) {
+                                prepareFailure.addSuppressed(cleanupFailure)
+                            }
+                            throw prepareFailure
+                        }
                     }
                     synchronized(this) {
                         if (
