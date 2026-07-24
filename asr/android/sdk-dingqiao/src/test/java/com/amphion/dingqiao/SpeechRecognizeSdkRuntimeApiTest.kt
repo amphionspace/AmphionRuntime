@@ -255,6 +255,53 @@ class SpeechRecognizeSdkRuntimeApiTest {
     }
 
     @Test
+    fun failedPrepareRollsBackRuntimeAndCanRetry() {
+        val context = mock<Context> {
+            on { applicationContext } doReturn null
+            on { packageName } doReturn "com.amphion.test"
+        }
+        val licenseFile = kotlin.io.path.createTempFile(suffix = ".lic").toFile()
+        licenseFile.writeText("development-license")
+        val runtime = FakeRuntimeLifecycleBridge().apply {
+            failPrepareAfterReady = true
+        }
+        SpeechRecognizeSdk.setRuntimeBridgeForTests(runtime)
+        SpeechRecognizeSdk.init(context)
+        val licensed = CountDownLatch(1)
+        SpeechRecognizeSdk.setLicense(
+            licenseFile.absolutePath,
+            object : LicenseActivationCallback {
+                override fun onResult(result: LicenseActivationResult) = licensed.countDown()
+                override fun onError(errorCode: Int, errorMessage: String) = licensed.countDown()
+            },
+        )
+        assertTrue(licensed.await(5, TimeUnit.SECONDS))
+
+        val failed = CountDownLatch(1)
+        var errorCode: Int? = null
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() = failed.countDown()
+            override fun onError(errorCodeValue: Int, errorMessage: String) {
+                errorCode = errorCodeValue
+                failed.countDown()
+            }
+        })
+        assertTrue(failed.await(5, TimeUnit.SECONDS))
+        assertEquals(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, errorCode)
+        assertFalse("failed prepare must roll back native runtime", runtime.ready)
+        assertEquals(1, runtime.unloadCalls.get())
+
+        runtime.failPrepareAfterReady = false
+        val retried = CountDownLatch(1)
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() = retried.countDown()
+        })
+        assertTrue(retried.await(5, TimeUnit.SECONDS))
+        assertTrue(runtime.ready)
+        licenseFile.delete()
+    }
+
+    @Test
     fun latestSetLicenseWinsWhenOlderValidationFinishesLast() {
         val context = mock<Context> {
             on { applicationContext } doReturn null
@@ -300,10 +347,12 @@ class SpeechRecognizeSdkRuntimeApiTest {
         val prepareCalls = AtomicInteger()
         var blockedLicenseText: String? = null
         @Volatile var blockPrepare: Boolean = false
+        @Volatile var failPrepareAfterReady: Boolean = false
         val validationStarted = CountDownLatch(1)
         val releaseValidation = CountDownLatch(1)
         val prepareStarted = CountDownLatch(1)
         val releasePrepare = CountDownLatch(1)
+        val unloadCalls = AtomicInteger()
         @Volatile var lastPreparedLicense: String? = null
 
         override fun validateLicense(
@@ -342,6 +391,9 @@ class SpeechRecognizeSdkRuntimeApiTest {
                 releasePrepare.await(5, TimeUnit.SECONDS)
             }
             ready = true
+            if (failPrepareAfterReady) {
+                throw IllegalStateException("prepare failed after runtime init")
+            }
         }
 
         override fun isRuntimeReady(): Boolean = ready
@@ -349,6 +401,7 @@ class SpeechRecognizeSdkRuntimeApiTest {
         override fun unloadModel() = Unit
 
         override fun unloadRuntime() {
+            unloadCalls.incrementAndGet()
             ready = false
         }
     }
