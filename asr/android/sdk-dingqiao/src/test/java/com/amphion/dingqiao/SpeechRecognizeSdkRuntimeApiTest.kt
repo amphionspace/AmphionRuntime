@@ -5,6 +5,7 @@ import com.amphion.asr.AmphionLicenseStatus
 import com.amphion.asr.AmphionOptions
 import com.amphion.asr.AsrErrorCode
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
@@ -302,6 +303,241 @@ class SpeechRecognizeSdkRuntimeApiTest {
     }
 
     @Test
+    fun concurrentFailedPrepareSharesOneFailureAndCanRetryLater() {
+        val context = mock<Context> {
+            on { applicationContext } doReturn null
+            on { packageName } doReturn "com.amphion.test"
+        }
+        val licenseFile = kotlin.io.path.createTempFile(suffix = ".lic").toFile()
+        licenseFile.writeText("development-license")
+        val runtime = FakeRuntimeLifecycleBridge().apply {
+            blockPrepare = true
+            failPrepareAfterReady = true
+        }
+        SpeechRecognizeSdk.setRuntimeBridgeForTests(runtime)
+        SpeechRecognizeSdk.init(context)
+        val licensed = CountDownLatch(1)
+        SpeechRecognizeSdk.setLicense(
+            licenseFile.absolutePath,
+            object : LicenseActivationCallback {
+                override fun onResult(result: LicenseActivationResult) = licensed.countDown()
+                override fun onError(errorCode: Int, errorMessage: String) = licensed.countDown()
+            },
+        )
+        assertTrue(licensed.await(5, TimeUnit.SECONDS))
+
+        val failed = CountDownLatch(2)
+        val readyCount = AtomicInteger()
+        val errorCodes = mutableListOf<Int>()
+        val callback = object : PrepareRuntimeCallback {
+            override fun onReady() {
+                readyCount.incrementAndGet()
+                failed.countDown()
+            }
+
+            override fun onError(errorCode: Int, errorMessage: String) {
+                synchronized(errorCodes) {
+                    errorCodes += errorCode
+                }
+                failed.countDown()
+            }
+        }
+        SpeechRecognizeSdk.prepareRuntime(callback)
+        assertTrue(runtime.prepareStarted.await(5, TimeUnit.SECONDS))
+        SpeechRecognizeSdk.prepareRuntime(callback)
+        runtime.releasePrepare.countDown()
+
+        assertTrue(failed.await(5, TimeUnit.SECONDS))
+        assertEquals(0, readyCount.get())
+        assertEquals(
+            listOf(
+                DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
+                DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
+            ),
+            synchronized(errorCodes) { errorCodes.toList() },
+        )
+        assertEquals(1, runtime.prepareCalls.get())
+        assertEquals(1, runtime.unloadCalls.get())
+        assertFalse("failed prepare must leave native runtime unloaded", runtime.ready)
+
+        runtime.blockPrepare = false
+        runtime.failPrepareAfterReady = false
+        val retried = CountDownLatch(1)
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() = retried.countDown()
+        })
+        assertTrue(retried.await(5, TimeUnit.SECONDS))
+        assertEquals(2, runtime.prepareCalls.get())
+        assertTrue(runtime.ready)
+        licenseFile.delete()
+    }
+
+    @Test
+    fun reentrantUnloadInvalidatesRemainingPrepareWaiters() {
+        val context = mock<Context> {
+            on { applicationContext } doReturn null
+            on { packageName } doReturn "com.amphion.test"
+        }
+        val licenseFile = kotlin.io.path.createTempFile(suffix = ".lic").toFile()
+        licenseFile.writeText("development-license")
+        val runtime = FakeRuntimeLifecycleBridge().apply {
+            blockPrepare = true
+        }
+        SpeechRecognizeSdk.setRuntimeBridgeForTests(runtime)
+        SpeechRecognizeSdk.init(context)
+        val licensed = CountDownLatch(1)
+        SpeechRecognizeSdk.setLicense(
+            licenseFile.absolutePath,
+            object : LicenseActivationCallback {
+                override fun onResult(result: LicenseActivationResult) = licensed.countDown()
+                override fun onError(errorCode: Int, errorMessage: String) = licensed.countDown()
+            },
+        )
+        assertTrue(licensed.await(5, TimeUnit.SECONDS))
+
+        val callbacks = CountDownLatch(2)
+        var firstReady = false
+        var secondReady = false
+        var secondError: Int? = null
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() {
+                firstReady = true
+                SpeechRecognizeSdk.unloadRuntime()
+                callbacks.countDown()
+            }
+        })
+        assertTrue(runtime.prepareStarted.await(5, TimeUnit.SECONDS))
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() {
+                secondReady = true
+                callbacks.countDown()
+            }
+
+            override fun onError(errorCode: Int, errorMessage: String) {
+                secondError = errorCode
+                callbacks.countDown()
+            }
+        })
+        runtime.releasePrepare.countDown()
+
+        assertTrue(callbacks.await(5, TimeUnit.SECONDS))
+        assertTrue(firstReady)
+        assertFalse(secondReady)
+        assertEquals(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, secondError)
+        assertFalse(runtime.ready)
+        assertEquals(1, runtime.prepareCalls.get())
+        licenseFile.delete()
+    }
+
+    @Test
+    fun unloadModelInvalidatesQueuedFlightWithoutLateStateRollback() {
+        val context = mock<Context> {
+            on { applicationContext } doReturn null
+            on { packageName } doReturn "com.amphion.test"
+        }
+        val licenseFile = kotlin.io.path.createTempFile(suffix = ".lic").toFile()
+        licenseFile.writeText("development-license")
+        val runtime = FakeRuntimeLifecycleBridge()
+        SpeechRecognizeSdk.setRuntimeBridgeForTests(runtime)
+        SpeechRecognizeSdk.init(context)
+        val licensed = CountDownLatch(1)
+        SpeechRecognizeSdk.setLicense(
+            licenseFile.absolutePath,
+            object : LicenseActivationCallback {
+                override fun onResult(result: LicenseActivationResult) = licensed.countDown()
+                override fun onError(errorCode: Int, errorMessage: String) = licensed.countDown()
+            },
+        )
+        assertTrue(licensed.await(5, TimeUnit.SECONDS))
+
+        val executor = ManuallyOrderedExecutor()
+        SpeechRecognizeSdk.setEngineExecutorForTests(executor)
+        var oldError: Int? = null
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() = Unit
+
+            override fun onError(errorCode: Int, errorMessage: String) {
+                oldError = errorCode
+            }
+        })
+        assertEquals(1, executor.size)
+
+        SpeechRecognizeSdk.unloadModel()
+        var newReady = false
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() {
+                newReady = true
+            }
+        })
+        assertEquals(2, executor.size)
+
+        executor.runAt(1)
+        assertTrue(newReady)
+        assertEquals(1, runtime.prepareCalls.get())
+        executor.runAt(0)
+        assertEquals(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, oldError)
+
+        var stillReady = false
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() {
+                stillReady = true
+            }
+        })
+        assertTrue("stale flight failure must not clear the newer ready state", stillReady)
+        assertEquals(0, executor.size)
+        assertEquals(1, runtime.prepareCalls.get())
+        licenseFile.delete()
+    }
+
+    @Test
+    fun reentrantUnloadModelInvalidatesRemainingPrepareWaiters() {
+        val context = mock<Context> {
+            on { applicationContext } doReturn null
+            on { packageName } doReturn "com.amphion.test"
+        }
+        val licenseFile = kotlin.io.path.createTempFile(suffix = ".lic").toFile()
+        licenseFile.writeText("development-license")
+        val runtime = FakeRuntimeLifecycleBridge().apply {
+            blockPrepare = true
+        }
+        SpeechRecognizeSdk.setRuntimeBridgeForTests(runtime)
+        SpeechRecognizeSdk.init(context)
+        val licensed = CountDownLatch(1)
+        SpeechRecognizeSdk.setLicense(
+            licenseFile.absolutePath,
+            object : LicenseActivationCallback {
+                override fun onResult(result: LicenseActivationResult) = licensed.countDown()
+                override fun onError(errorCode: Int, errorMessage: String) = licensed.countDown()
+            },
+        )
+        assertTrue(licensed.await(5, TimeUnit.SECONDS))
+
+        val callbacks = CountDownLatch(2)
+        var secondError: Int? = null
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() {
+                SpeechRecognizeSdk.unloadModel()
+                callbacks.countDown()
+            }
+        })
+        assertTrue(runtime.prepareStarted.await(5, TimeUnit.SECONDS))
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() = Unit
+
+            override fun onError(errorCode: Int, errorMessage: String) {
+                secondError = errorCode
+                callbacks.countDown()
+            }
+        })
+        runtime.releasePrepare.countDown()
+
+        assertTrue(callbacks.await(5, TimeUnit.SECONDS))
+        assertEquals(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, secondError)
+        assertEquals(1, runtime.prepareCalls.get())
+        licenseFile.delete()
+    }
+
+    @Test
     fun latestSetLicenseWinsWhenOlderValidationFinishesLast() {
         val context = mock<Context> {
             on { applicationContext } doReturn null
@@ -341,6 +577,26 @@ class SpeechRecognizeSdkRuntimeApiTest {
             override fun onResult(result: LicenseActivationResult) = done.countDown()
             override fun onError(errorCode: Int, errorMessage: String) = done.countDown()
         }
+
+    private class ManuallyOrderedExecutor : Executor {
+        private val tasks = mutableListOf<Runnable>()
+
+        val size: Int
+            get() = synchronized(tasks) { tasks.size }
+
+        override fun execute(command: Runnable) {
+            synchronized(tasks) {
+                tasks += command
+            }
+        }
+
+        fun runAt(index: Int) {
+            val task = synchronized(tasks) {
+                tasks.removeAt(index)
+            }
+            task.run()
+        }
+    }
 
     private class FakeRuntimeLifecycleBridge : RuntimeLifecycleBridge {
         @Volatile var ready: Boolean = false
