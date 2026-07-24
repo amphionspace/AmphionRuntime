@@ -733,17 +733,25 @@ class DqSdkCornerCaseTest {
                 cancelListener.awaitStarted(10_000))
             feedFrames(engine, cancelSid, pcm.copyOfRange(0, minOf(pcm.size, DQ_SR)), 0)
             engine.cancel(cancelSid)
-            Thread.sleep(20)
+            awaitIdle(engine)
+            assertFalse("cycle=$cycle cancel session remained busy", engine.isBusy())
+            // Keep the cancel listener installed through a short quiescence window so callbacks
+            // queued immediately before the state transition cannot escape the assertion.
+            Thread.sleep(100)
             assertTrue("cycle=$cycle cancel must not emit final", cancelListener.finals.isEmpty())
             assertTrue("cycle=$cycle cancel must not emit complete",
                 cancelListener.completes.isEmpty())
-            awaitIdle(engine)
 
             val oldSid = "useq-old-$cycle-${System.currentTimeMillis()}"
             val oldListener = CapturingListener().also { engine.setListener(it) }
             engine.startListening(StartParams(oldSid, AudioInfo()))
             assertTrue("cycle=$cycle old session did not start", oldListener.awaitStarted(10_000))
             feedFrames(engine, oldSid, pcm, 0)
+            assertEquals(
+                "cycle=$cycle old session emitted isLast before finish",
+                0,
+                oldListener.finals.count { it.isLast },
+            )
             engine.finish(oldSid)
             assertTrue("cycle=$cycle old session did not complete",
                 oldListener.awaitComplete(20_000))
@@ -803,6 +811,11 @@ class DqSdkCornerCaseTest {
             assertTrue("cycle=$cycle late old calls ended replacement", engine.isBusy())
 
             feedFrames(engine, replacementSid, pcm, 0)
+            assertEquals(
+                "cycle=$cycle replacement emitted isLast before finish",
+                0,
+                replacementLastCount.get(),
+            )
             engine.finish(replacementSid)
             assertTrue("cycle=$cycle replacement did not complete",
                 replacementComplete.await(20_000, TimeUnit.MILLISECONDS))
