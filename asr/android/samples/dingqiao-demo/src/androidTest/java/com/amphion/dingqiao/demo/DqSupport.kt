@@ -219,7 +219,11 @@ object DqReport {
 /** 列出主场景 wav（排除 _声纹 注册样本），按名排序。 */
 fun mainWavs(testContext: Context): List<String> =
     testContext.assets.list("").orEmpty()
-        .filter { it.endsWith(".wav", true) && !it.contains("声纹") }
+        .filter {
+            it.endsWith(".wav", true) &&
+                !it.contains("声纹") &&
+                it != "000_enroll.wav"
+        }
         .sorted()
 
 /** 对应主场景的 _声纹 注册样本名；找不到返回 null。 */

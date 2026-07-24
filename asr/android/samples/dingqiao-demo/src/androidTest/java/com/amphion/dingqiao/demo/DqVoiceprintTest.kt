@@ -165,8 +165,8 @@ class DqVoiceprintTest {
     @Test
     fun v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm() {
         ensureReady()
-        val registrationAsset = "情指行-勤指.wav"
-        val recognitionAsset = "帮我核查身份证号码为三七零五零311九九111二三零九八三。.wav"
+        val registrationAsset = "000_enroll.wav"
+        val recognitionAsset = "001_recognize.wav"
         val full = readAssetPcm(testCtx, recognitionAsset)
         val id = registerFromSample(registrationAsset)
         val engine = freshEngine()
