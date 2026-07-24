@@ -31,8 +31,22 @@ identity 缺失或过期时测试必须停止，不能复用无法归属到当�
 ```
 
 第一条用于注册，第二条必须是已确认满足以下红灯的识别语料：旧版本产生非空 endpoint final 但
-`speakerSimilarity` 缺失。客户语料不得提交仓库；artifact 的 `payload/corpus.json` 和外部受控
-存储中的 SHA-256 用于复播。
+`speakerSimilarity` 缺失。本门禁固定使用仓库目录
+`asr/test-fixtures/voiceprint-fallback/`，不得临时替换成其他语料：
+
+```text
+000_enroll.wav     SHA-256 406027619ac5356b902338e50c7c4ec665e86de1c205835216dde89a3cda67bc
+001_recognize.wav  SHA-256 3b8255aed49b90df4bdbd5ae626f37c94da318a4b2f3bd0c746ef2dbc8a7f8fc
+```
+
+运行文档命令前设置：
+
+```bash
+FALLBACK_CORPUS="$PWD/asr/test-fixtures/voiceprint-fallback"
+```
+
+其他客户语料仍不得提交仓库；artifact 的 `payload/corpus.json` 和外部受控存储中的 SHA-256
+用于复播。
 
 ## 2. 阶段 A：修复前红灯
 
