@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amphion.example/schemas/voiceprint-traffic-manifest-1.0.json",
+  "title": "Traffic voiceprint evaluation recording",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "recording_id",
+    "source_recording_id",
+    "split",
+    "domain",
+    "purpose",
+    "audio_path",
+    "audio_sha256",
+    "session_id",
+    "site_id",
+    "target_speaker_id",
+    "speaker_ids",
+    "target_present",
+    "speech_mode",
+    "audio",
+    "capture",
+    "turns",
+    "overlap_regions"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "recording_id": { "$ref": "#/$defs/id" },
+    "source_recording_id": { "$ref": "#/$defs/id" },
+    "split": { "enum": ["pilot", "dev", "blind"] },
+    "domain": { "enum": ["office", "traffic"] },
+    "purpose": { "enum": ["enrollment", "probe"] },
+    "audio_path": { "type": "string", "minLength": 5 },
+    "audio_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "session_id": { "$ref": "#/$defs/id" },
+    "site_id": { "$ref": "#/$defs/id" },
+    "recorded_date": { "type": "string", "format": "date" },
+    "language": { "type": "string", "minLength": 1 },
+    "dialect": { "type": ["string", "null"] },
+    "content_mode": { "enum": ["scripted", "semi_spontaneous", "spontaneous"] },
+    "target_speaker_id": { "$ref": "#/$defs/id" },
+    "speaker_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/id" }
+    },
+    "target_present": { "type": "boolean" },
+    "speech_mode": { "enum": ["separate", "sequential", "overlap"] },
+    "prompt_id": { "type": ["string", "null"] },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sample_rate_hz", "channels", "sample_width_bits", "duration_ms"],
+      "properties": {
+        "sample_rate_hz": { "const": 16000 },
+        "channels": { "const": 1 },
+        "sample_width_bits": { "const": 16 },
+        "duration_ms": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "device_model",
+        "device_batch",
+        "os_version",
+        "sdk_version",
+        "mic_placement",
+        "distance_cm",
+        "scene",
+        "snr_db",
+        "wind_level",
+        "traffic_level"
+      ],
+      "properties": {
+        "device_model": { "type": "string", "minLength": 1 },
+        "device_batch": { "type": "string", "minLength": 1 },
+        "os_version": { "type": "string", "minLength": 1 },
+        "sdk_version": { "type": "string", "minLength": 1 },
+        "mic_placement": { "type": "string", "minLength": 1 },
+        "distance_cm": { "type": "number", "minimum": 0 },
+        "scene": { "type": "string", "minLength": 1 },
+        "snr_db": { "type": ["number", "null"] },
+        "wind_level": { "enum": ["none", "low", "medium", "high"] },
+        "traffic_level": { "enum": ["none", "low", "medium", "high"] },
+        "weather": { "type": ["string", "null"] },
+        "quality_flags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "turns": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/turn" }
+    },
+    "overlap_regions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/region" }
+    },
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "annotator_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "adjudicated": { "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$" },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_ms", "end_ms"],
+      "properties": {
+        "start_ms": { "type": "integer", "minimum": 0 },
+        "end_ms": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "turn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_ms", "end_ms", "speaker_id", "text"],
+      "properties": {
+        "start_ms": { "type": "integer", "minimum": 0 },
+        "end_ms": { "type": "integer", "minimum": 1 },
+        "speaker_id": { "$ref": "#/$defs/id" },
+        "text": { "type": "string" },
+        "uncertain": { "type": "boolean" }
+      }
+    }
+  }
+}

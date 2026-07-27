@@ -1,0 +1,80 @@
+{
+  "protocol_version": "1.0",
+  "status": "draft",
+  "study_id": "REPLACE_WITH_FROZEN_STUDY_ID",
+  "use_case": "target_speaker_filter_with_reversible_fallback",
+  "decision_unit": "REPLACE_WITH_UTTERANCE_OR_ACCUMULATED_SPEECH_WINDOW",
+  "primary_domain": "traffic",
+  "primary_metrics": [
+    "frozen_policy_false_accept_rate",
+    "frozen_policy_false_reject_rate",
+    "coverage_and_abstention_rate",
+    "target_speech_retention",
+    "non_target_speech_leakage"
+  ],
+  "diagnostic_metrics": [
+    "ROC_DET",
+    "EER",
+    "minDCF",
+    "duration_SNR_distance_device_buckets"
+  ],
+  "operating_point": {
+    "target_prior_source": null,
+    "false_accept_cost": null,
+    "false_reject_cost": null,
+    "abstain_policy": null,
+    "threshold_selection_split": "dev"
+  },
+  "confidence": {
+    "method": "cluster_bootstrap",
+    "level": 0.95,
+    "cluster_keys": [
+      "target_speaker_id",
+      "session_id"
+    ]
+  },
+  "evidence_requirements": {
+    "basis": "REPLACE_WITH_PILOT_POWER_ANALYSIS_AND_WORST_CASE_BUCKET_JUSTIFICATION",
+    "totals": {
+      "dev_owners": null,
+      "dev_separate_positive": null,
+      "dev_separate_negative": null,
+      "dev_sequential": null,
+      "dev_overlap": null,
+      "blind_owners": null,
+      "blind_separate_positive": null,
+      "blind_separate_negative": null,
+      "blind_sequential": null,
+      "blind_overlap": null
+    },
+    "per_target": {
+      "dev": {
+        "separate_positive": null,
+        "separate_negative": null,
+        "sequential": null,
+        "overlap": null
+      },
+      "blind": {
+        "separate_positive": null,
+        "separate_negative": null,
+        "sequential": null,
+        "overlap": null
+      }
+    },
+    "min_enrollment_sessions_per_target": {
+      "dev": null,
+      "blind": null
+    },
+    "min_probe_sessions_per_target": {
+      "dev": null,
+      "blind": null
+    },
+    "min_probe_dates_per_target": {
+      "dev": null,
+      "blind": null
+    },
+    "require_unseen_blind_site": true
+  },
+  "external_claims_to_report": [],
+  "blind_usage": "single_pass"
+}
