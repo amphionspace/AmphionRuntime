@@ -45,6 +45,19 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildAsrConfig_matchesHarmonyDefaultThreadCount() {
+        val config = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(
+                language = "zh-CN",
+                online = DingqiaoOnlineMode.OFFLINE,
+            ),
+            speakerModelPath = null,
+        )
+
+        assertEquals(4, config.numThreads)
+    }
+
+    @Test
     fun buildAsrConfig_readsVadEndFromStartParams() {
         val config = DingqiaoEngineConfig.buildAsrConfig(
             CreateEngineParams(
