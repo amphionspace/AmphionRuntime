@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Convert one ONNX model to an ARM CPU ORT model with a content cache.
 
-The output is built with the same ONNX Runtime version used by the Harmony
-native runtime. Conversion happens in a temporary directory and both the
-cache entry and requested output are published atomically.
+The default profile matches the Harmony native runtime. Set
+``AMPHION_ORT_PROFILE=android`` to build a cache-incompatible artifact with
+the exact ONNX Runtime version shipped by Android.
 """
 
 from __future__ import annotations
@@ -21,10 +21,26 @@ from pathlib import Path
 from typing import Any, Iterator
 
 
-REQUIRED_ONNXRUNTIME_VERSION = "1.16.3"
-REQUIRED_ONNX_VERSION = "1.15.0"
-REQUIRED_NUMPY_VERSION = "1.26.4"
-CONVERTER_ID = "onnxruntime-1.16.3-fixed-arm-cpu-v1"
+PROFILE = os.environ.get("AMPHION_ORT_PROFILE", "harmony")
+PROFILES = {
+    "harmony": {
+        "onnxruntime": "1.16.3",
+        "onnx": "1.15.0",
+        "numpy": "1.26.4",
+    },
+    "android": {
+        "onnxruntime": "1.24.3",
+        "onnx": "1.19.1",
+        "numpy": "2.0.2",
+    },
+}
+if PROFILE not in PROFILES:
+    raise RuntimeError(f"unsupported AMPHION_ORT_PROFILE: {PROFILE}")
+PROFILE_VERSIONS = PROFILES[PROFILE]
+REQUIRED_ONNXRUNTIME_VERSION = PROFILE_VERSIONS["onnxruntime"]
+REQUIRED_ONNX_VERSION = PROFILE_VERSIONS["onnx"]
+REQUIRED_NUMPY_VERSION = PROFILE_VERSIONS["numpy"]
+CONVERTER_ID = f"onnxruntime-{REQUIRED_ONNXRUNTIME_VERSION}-fixed-arm-cpu-v1"
 CONVERTER_CONFIG = {
     "id": CONVERTER_ID,
     "onnxruntime_version": REQUIRED_ONNXRUNTIME_VERSION,
@@ -34,7 +50,7 @@ CONVERTER_CONFIG = {
     "graph_optimization_level": "all",
     "target_platform": "arm",
     "execution_provider": "CPUExecutionProvider",
-    # ONNX Runtime 1.16.3's converter applies this filter for target_platform=arm.
+    # ONNX Runtime's converter applies this filter for target_platform=arm.
     "disabled_optimizers": ["NchwcTransformer"],
 }
 COPY_CHUNK_SIZE = 1024 * 1024
@@ -142,7 +158,7 @@ def _load_converter_dependencies() -> tuple[Any, Any, str]:
         import numpy
     except ImportError as error:
         raise RuntimeError(
-            "numpy is missing; install asr/tools/requirements-harmony-ort.txt"
+            f"numpy is missing; install asr/tools/requirements-{PROFILE}-ort.txt"
         ) from error
 
     if numpy.__version__ != REQUIRED_NUMPY_VERSION:
@@ -154,7 +170,7 @@ def _load_converter_dependencies() -> tuple[Any, Any, str]:
         import onnxruntime as ort
     except ImportError as error:
         raise RuntimeError(
-            "onnxruntime is missing; install asr/tools/requirements-harmony-ort.txt"
+            f"onnxruntime is missing; install asr/tools/requirements-{PROFILE}-ort.txt"
         ) from error
 
     if ort.__version__ != REQUIRED_ONNXRUNTIME_VERSION:
@@ -173,7 +189,7 @@ def _load_converter_dependencies() -> tuple[Any, Any, str]:
     except ImportError as error:
         raise RuntimeError(
             "ONNX converter dependencies are missing; install "
-            "asr/tools/requirements-harmony-ort.txt"
+            f"asr/tools/requirements-{PROFILE}-ort.txt"
         ) from error
     if onnx.__version__ != REQUIRED_ONNX_VERSION:
         raise RuntimeError(

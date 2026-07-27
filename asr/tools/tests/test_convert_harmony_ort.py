@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -16,6 +17,39 @@ import convert_harmony_ort as converter  # noqa: E402
 
 
 class ConvertHarmonyOrtTest(unittest.TestCase):
+    def test_android_profile_is_cache_incompatible_with_harmony(self) -> None:
+        environment = dict(os.environ)
+        environment["AMPHION_ORT_PROFILE"] = "android"
+        output = subprocess.check_output(
+            [
+                sys.executable,
+                "-c",
+                "import convert_harmony_ort as c; "
+                "print(c.REQUIRED_ONNXRUNTIME_VERSION, c.CONVERTER_ID)",
+            ],
+            cwd=TOOLS_DIR,
+            env=environment,
+            text=True,
+        ).strip()
+
+        self.assertEqual(
+            output,
+            "1.24.3 onnxruntime-1.24.3-fixed-arm-cpu-v1",
+        )
+        self.assertNotEqual(
+            converter.cache_key("a" * 64),
+            subprocess.check_output(
+                [
+                    sys.executable,
+                    "-c",
+                    "import convert_harmony_ort as c; print(c.cache_key('a' * 64))",
+                ],
+                cwd=TOOLS_DIR,
+                env=environment,
+                text=True,
+            ).strip(),
+        )
+
     def test_conversion_forces_all_optimization_and_restores_environment(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

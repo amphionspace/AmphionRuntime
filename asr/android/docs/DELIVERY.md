@@ -36,7 +36,7 @@ amphion-runtime-android-0.2.0-2026-05-25/
 | 项 | 增量 (~MB) |
 | --- | --- |
 | AAR 本身 | ~280 |
-| 安装到 internal storage | ~270（首次启动时解包） |
+| 安装到 internal storage | ~2（仅 ITN FST；ORT/ONNX 直接读取 APK assets） |
 | 运行时 native 内存（仅中英 ASR + VAD，无后处理） | ~55 |
 | 运行时 native 内存（中英 + 标点 + ITN + VAD 全开） | ~150 |
 | 运行时 native 内存（preload 中英 + 粤英 + 共享 punct/itn + VAD） | ~180 |
@@ -46,11 +46,14 @@ amphion-runtime-android-0.2.0-2026-05-25/
 | 阶段 | 耗时 |
 | --- | --- |
 | 应用安装（adb install） | 30-60 s（解压 280 MB APK） |
-| 首次启动 → preInstall 完成 | 5-30 s（解 onnx/fst 到 filesDir） |
-| 首次启动 → preload 全部完成（含解包） | 4-6 s（cache 命中后） |
+| 首次启动 → preInstall 完成 | 通常 <100 ms（仅准备 ITN FST） |
+| 首次启动 → preload 默认中英完成 | MIA-AL00 实测约 1.1-1.3 s，依设备而异 |
 | 后续启动 → 模型加载就绪（无 preload） | 1-3 s |
 | 切换语言（已 preload） | ≤ 100 ms |
 | 单段语音 final 出来 | 端点 → ITN+标点 ≈ 50-150 ms |
+
+> 大模型条目必须保持 `ZIP_STORED`。SDK native 层会直接 `mmap` APK 中的资源区间；
+> 若宿主二次打包时将这些条目压缩，既无法走直读路径，也会被交付校验脚本拒绝。
 
 ## 3. 准备 AAR 的完整流程
 
@@ -216,7 +219,7 @@ Subject: Amphion ASR Android SDK v0.2.0 交付
    - 是否兼容旧 AAR（API 层面）
    - 端上需不需要重新解包（一般是要）
 
-升级 AAR 给业务方时，因为 SDK_VERSION 已经写到 install.flag，用户首次启动新版本自动会触发重新解包；业务方代码不用改。
+升级 AAR 给业务方时，因为 SDK_VERSION 已经写到 install.flag，用户首次启动新版本会自动刷新 ITN 文件；业务方代码不用改。大模型不落盘复制。
 
 ## 7. 故障常见 case
 
@@ -228,11 +231,11 @@ Subject: Amphion ASR Android SDK v0.2.0 交付
 
 ### 7.2 业务方装包后首次启动 ANR
 
-最大原因：业务方在主线程调了 `AmphionRuntime.create`，触发了同步解包阻塞 UI。
+最大原因：业务方在主线程调了 `AmphionRuntime.create`，同步执行 native 模型加载阻塞 UI。
 
 修复：
 - 让业务方把 `create` 放子线程
-- 或者在 splash 阶段调 `AmphionRuntime.preInstall(ctx) { ... }`，把解包前置
+- 或者在合适的业务时机调用 SDK 的 `prepareRuntime` / `preload`，把模型加载前置
 
 ### 7.3 业务方反馈识别效果差
 

@@ -136,10 +136,23 @@ class MainActivity : AppCompatActivity() {
         setStatus(getString(R.string.status_loading_engine))
         btnTalk.isEnabled = false
 
-        SpeechRecognizeSdk.createEngine(
+        (application as DingqiaoApp).whenRuntimeReady { runtime ->
+            if (!engineRequests.isCurrent(requestGeneration)) {
+                return@whenRuntimeReady
+            }
+            if (!runtime.isReady) {
+                showEngineError(requestGeneration, runtime.errorCode, runtime.errorMessage)
+                return@whenRuntimeReady
+            }
+            createEngine(requestGeneration)
+        }
+    }
+
+    private fun createEngine(requestGeneration: Long) {
+        SpeechRecognizeSdk.createEngineAsync(
             buildCreateEngineParams(),
             object : CreateEngineCallback {
-                override fun onResult(engine: SpeechRecognitionEngine) {
+                override fun onSuccess(engine: SpeechRecognitionEngine) {
                     if (!engineRequests.accept(requestGeneration, engine)) {
                         return
                     }
@@ -157,16 +170,20 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onError(errorCode: Int, errorMessage: String) {
-                    runOnUiThread {
-                        if (!engineRequests.isCurrent(requestGeneration)) {
-                            return@runOnUiThread
-                        }
-                        progress.visibility = android.view.View.GONE
-                        setStatus(getString(R.string.status_engine_failed, "$errorCode $errorMessage"))
-                    }
+                    showEngineError(requestGeneration, errorCode, errorMessage)
                 }
             },
         )
+    }
+
+    private fun showEngineError(requestGeneration: Long, errorCode: Int, errorMessage: String) {
+        runOnUiThread {
+            if (!engineRequests.isCurrent(requestGeneration)) {
+                return@runOnUiThread
+            }
+            progress.visibility = android.view.View.GONE
+            setStatus(getString(R.string.status_engine_failed, "$errorCode $errorMessage"))
+        }
     }
 
     private fun buildCreateEngineParams(): CreateEngineParams {

@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from convert_harmony_ort import CONVERTER_CONFIG, CONVERTER_ID, md5_file, sha256_file
+from convert_harmony_ort import CONVERTER_CONFIG, CONVERTER_ID, PROFILE, md5_file, sha256_file
 
 
 HARMONY_BUNDLES = {
@@ -35,9 +35,21 @@ HARMONY_BUNDLES = {
     "vad/v1": ["silero_vad.onnx"],
 }
 
+ANDROID_BUNDLES = {
+    bundle: [
+        f"{name}.mp3"
+        if bundle in {"zh-en/v1", "yue-en/v1", "punct-zhen/v1"}
+        and name.endswith((".ort", ".onnx"))
+        else name
+        for name in names
+    ]
+    for bundle, names in HARMONY_BUNDLES.items()
+}
+
 
 def file_format(name: str) -> str:
-    suffix = Path(name).suffix.lower()
+    logical_name = name.removesuffix(".mp3")
+    suffix = Path(logical_name).suffix.lower()
     formats = {
         ".ort": "ort",
         ".onnx": "onnx",
@@ -81,9 +93,10 @@ def build_manifest(
     converted_metadata: dict[str, Path],
     zh_en_only: bool = False,
 ) -> dict[str, Any]:
+    platform_bundles = ANDROID_BUNDLES if PROFILE == "android" else HARMONY_BUNDLES
     selected_bundles = {
         name: files
-        for name, files in HARMONY_BUNDLES.items()
+        for name, files in platform_bundles.items()
         if not zh_en_only or name != "yue-en/v1"
     }
     expected_targets = {
@@ -158,8 +171,8 @@ def build_manifest(
     return {
         "manifest_version": 2,
         "target": {
-            "platform": "HarmonyOS",
-            "architecture": "arm64",
+            "platform": "Android" if PROFILE == "android" else "HarmonyOS",
+            "architecture": "arm64-v8a" if PROFILE == "android" else "arm64",
             "execution_provider": "CPUExecutionProvider",
         },
         "converters": {
@@ -204,7 +217,7 @@ def main() -> None:
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"[ERROR] {error}", file=sys.stderr)
         raise SystemExit(1) from error
-    print(f"[OK] Harmony manifest v2 -> {destination}")
+    print(f"[OK] {PROFILE} manifest v2 -> {destination}")
 
 
 if __name__ == "__main__":

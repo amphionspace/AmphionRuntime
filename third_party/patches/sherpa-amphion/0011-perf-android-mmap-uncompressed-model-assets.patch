@@ -1,0 +1,204 @@
+From b1e18b22a88990f727a356a7049d212b74029408 Mon Sep 17 00:00:00 2001
+From: Boxp <boxp@BoxpdeMacBook-Air.local>
+Date: Thu, 23 Jul 2026 18:05:28 +0800
+Subject: [PATCH] perf(android): mmap uncompressed model assets
+
+---
+ sherpa-onnx/csrc/file-utils.cc | 80 +++++++++++++++++++++++++++++++---
+ sherpa-onnx/csrc/file-utils.h  | 22 ++++++++--
+ 2 files changed, 91 insertions(+), 11 deletions(-)
+
+diff --git a/sherpa-onnx/csrc/file-utils.cc b/sherpa-onnx/csrc/file-utils.cc
+index df1adde8..5d815d39 100644
+--- a/sherpa-onnx/csrc/file-utils.cc
++++ b/sherpa-onnx/csrc/file-utils.cc
+@@ -22,7 +22,7 @@
+ #include <stdlib.h>
+ #endif
+ 
+-#if __OHOS__
++#if __OHOS__ || __ANDROID_API__ >= 24
+ #include <sys/mman.h>
+ #include <unistd.h>
+ #endif
+@@ -41,18 +41,27 @@ ModelData &ModelData::operator=(ModelData &&other) noexcept {
+   Reset();
+   buffer_ = std::move(other.buffer_);
+ 
+-#if __OHOS__
++#if __OHOS__ || __ANDROID_API__ >= 24
+   mapped_region_ = other.mapped_region_;
+   mapped_region_size_ = other.mapped_region_size_;
+   data_offset_ = other.data_offset_;
+   data_size_ = other.data_size_;
+-  descriptor_ = other.descriptor_;
+-  owns_descriptor_ = other.owns_descriptor_;
+ 
+   other.mapped_region_ = nullptr;
+   other.mapped_region_size_ = 0;
+   other.data_offset_ = 0;
+   other.data_size_ = 0;
++#endif
++
++#if __ANDROID_API__ >= 24
++  mapped_fd_ = other.mapped_fd_;
++  other.mapped_fd_ = -1;
++#endif
++
++#if __OHOS__
++  descriptor_ = other.descriptor_;
++  owns_descriptor_ = other.owns_descriptor_;
++
+   other.owns_descriptor_ = false;
+ #endif
+ 
+@@ -62,7 +71,7 @@ ModelData &ModelData::operator=(ModelData &&other) noexcept {
+ ModelData::~ModelData() { Reset(); }
+ 
+ const void *ModelData::Data() const {
+-#if __OHOS__
++#if __OHOS__ || __ANDROID_API__ >= 24
+   if (mapped_region_ != nullptr) {
+     return static_cast<const char *>(mapped_region_) + data_offset_;
+   }
+@@ -71,7 +80,7 @@ const void *ModelData::Data() const {
+ }
+ 
+ size_t ModelData::Size() const {
+-#if __OHOS__
++#if __OHOS__ || __ANDROID_API__ >= 24
+   if (mapped_region_ != nullptr) {
+     return data_size_;
+   }
+@@ -80,7 +89,7 @@ size_t ModelData::Size() const {
+ }
+ 
+ void ModelData::Reset() {
+-#if __OHOS__
++#if __OHOS__ || __ANDROID_API__ >= 24
+   if (mapped_region_ != nullptr) {
+     munmap(mapped_region_, mapped_region_size_);
+     mapped_region_ = nullptr;
+@@ -88,7 +97,16 @@ void ModelData::Reset() {
+     data_offset_ = 0;
+     data_size_ = 0;
+   }
++#endif
+ 
++#if __ANDROID_API__ >= 24
++  if (mapped_fd_ >= 0) {
++    close(mapped_fd_);
++    mapped_fd_ = -1;
++  }
++#endif
++
++#if __OHOS__
+   if (owns_descriptor_) {
+     OH_ResourceManager_ReleaseRawFileDescriptor64(&descriptor_);
+     owns_descriptor_ = false;
+@@ -160,6 +178,54 @@ std::vector<char> ReadFile(AAssetManager *mgr, const std::string &filename) {
+ }
+ 
+ ModelData ReadModelData(AAssetManager *mgr, const std::string &filename) {
++#if __ANDROID_API__ >= 24
++  AAsset *asset = AAssetManager_open(mgr, filename.c_str(), AASSET_MODE_RANDOM);
++  if (asset != nullptr) {
++    off64_t start = 0;
++    off64_t length = 0;
++    int fd = AAsset_openFileDescriptor64(asset, &start, &length);
++    AAsset_close(asset);
++
++    if (fd >= 0 && start >= 0 && length > 0) {
++      const long page_size_value = sysconf(_SC_PAGESIZE);
++      if (page_size_value > 0) {
++        const uint64_t page_size = static_cast<uint64_t>(page_size_value);
++        const uint64_t asset_start = static_cast<uint64_t>(start);
++        const uint64_t asset_length = static_cast<uint64_t>(length);
++        const uint64_t aligned_start = asset_start - asset_start % page_size;
++        const uint64_t data_offset = asset_start - aligned_start;
++        const uint64_t max_size =
++            static_cast<uint64_t>(std::numeric_limits<size_t>::max());
++        const uint64_t max_offset =
++            static_cast<uint64_t>(std::numeric_limits<off_t>::max());
++
++        if (aligned_start <= max_offset && data_offset <= max_size &&
++            asset_length <= max_size - data_offset) {
++          const size_t mapping_size =
++              static_cast<size_t>(data_offset + asset_length);
++          void *mapping = mmap(nullptr, mapping_size, PROT_READ, MAP_PRIVATE, fd,
++                               static_cast<off_t>(aligned_start));
++          if (mapping != MAP_FAILED) {
++            ModelData ans;
++            ans.mapped_region_ = mapping;
++            ans.mapped_region_size_ = mapping_size;
++            ans.data_offset_ = static_cast<size_t>(data_offset);
++            ans.data_size_ = static_cast<size_t>(asset_length);
++            ans.mapped_fd_ = fd;
++            return ans;
++          }
++
++          SHERPA_ONNX_LOGE("mmap asset '%s' failed: %s. Falling back to read",
++                           filename.c_str(), std::strerror(errno));
++        }
++      }
++      close(fd);
++    }
++  }
++#endif
++
++  // Compressed assets do not expose an fd. Preserve compatibility with
++  // existing callers by falling back to the copy-based path.
+   return ModelData(ReadFile(mgr, filename));
+ }
+ #endif
+diff --git a/sherpa-onnx/csrc/file-utils.h b/sherpa-onnx/csrc/file-utils.h
+index 885423bc..4101f640 100644
+--- a/sherpa-onnx/csrc/file-utils.h
++++ b/sherpa-onnx/csrc/file-utils.h
+@@ -22,10 +22,10 @@
+ 
+ namespace sherpa_onnx {
+ 
+-// Owns model bytes loaded from an asset/rawfile. On HarmonyOS, uncompressed
+-// rawfiles are mmap'ed directly from the HAP. The mapping intentionally stays
+-// alive for as long as this object does so ORT-format sessions can refer to the
+-// model bytes without copying them.
++// Owns model bytes loaded from an asset/rawfile. On Android and HarmonyOS,
++// uncompressed resources are mmap'ed directly from the package. The mapping
++// intentionally stays alive for as long as this object does so ORT-format
++// sessions can refer to the model bytes without copying them.
+ class ModelData {
+  public:
+   ModelData() = default;
+@@ -45,14 +45,28 @@ class ModelData {
+   void Reset();
+ 
+  private:
++#if __ANDROID_API__ >= 24
++  friend ModelData ReadModelData(AAssetManager *mgr,
++                                 const std::string &filename);
++#endif
++
+ #if __OHOS__
+   friend ModelData ReadModelData(NativeResourceManager *mgr,
+                                  const std::string &filename);
++#endif
+ 
++#if __OHOS__ || __ANDROID_API__ >= 24
+   void *mapped_region_ = nullptr;
+   size_t mapped_region_size_ = 0;
+   size_t data_offset_ = 0;
+   size_t data_size_ = 0;
++#endif
++
++#if __ANDROID_API__ >= 24
++  int mapped_fd_ = -1;
++#endif
++
++#if __OHOS__
+   RawFileDescriptor64 descriptor_{};
+   bool owns_descriptor_ = false;
+ #endif
+-- 
+2.50.1 (Apple Git-155)
+

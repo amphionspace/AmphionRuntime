@@ -75,6 +75,9 @@ android {
     }
 
     sourceSets {
+        getByName("androidTest").assets.srcDir(
+            rootProject.file("../test-fixtures/voiceprint-fallback"),
+        )
         demoAssetDir
             ?.takeIf { it.isNotBlank() }
             ?.let { getByName("main").assets.srcDir(it) }

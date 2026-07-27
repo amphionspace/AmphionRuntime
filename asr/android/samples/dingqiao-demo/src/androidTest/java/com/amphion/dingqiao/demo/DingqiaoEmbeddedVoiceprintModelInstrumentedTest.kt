@@ -29,9 +29,13 @@ class DingqiaoEmbeddedVoiceprintModelInstrumentedTest {
         val model = File(workDir, DINGQIAO_SPEAKER_MODEL_FILENAME)
         assertFalse("test must start without external speaker model", model.exists())
 
-        SpeechRecognizeSdk.init(context)
-        SpeechRecognizeSdk.setWorkPath(workDir.absolutePath)
+        val testContext = InstrumentationRegistry.getInstrumentation().context
+        prepareSdkRuntime(testContext, context, workDir)
 
+        assertTrue(
+            "preloadVoiceprintModel should install the embedded model",
+            SpeechRecognizeSdk.preloadVoiceprintModel(),
+        )
         assertTrue("embedded speaker model should be installed to workPath", model.isFile)
         assertTrue("embedded speaker model should be readable", model.canRead())
         assertTrue("embedded speaker model looks too small: ${model.length()}", model.length() > MIN_MODEL_BYTES)

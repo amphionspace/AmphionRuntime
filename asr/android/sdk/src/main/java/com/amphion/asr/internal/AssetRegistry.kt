@@ -1,6 +1,7 @@
 package com.amphion.asr.internal
 
 import com.amphion.asr.AsrLanguage
+import com.amphion.asr.BuildConfig
 
 /**
  * SDK 内部资产清单：每一类资产（ASR 模型 / 标点 / ITN / VAD）都在 APK assets 下有
@@ -28,6 +29,11 @@ internal object AssetRegistry {
     /** 安装完成后写入的 flag 文件名；内容为 SDK_VERSION。 */
     const val INSTALL_FLAG: String = "install.flag"
 
+    internal fun isLanguageAvailable(
+        language: AsrLanguage,
+        zhEnOnly: Boolean = BuildConfig.ZH_EN_ONLY,
+    ): Boolean = language == AsrLanguage.ZH_EN || !zhEnOnly
+
     /** 单份资产 bundle 的元数据：assets 子路径 + 内部文件清单。 */
     internal data class Bundle(
         val bundleId: String,
@@ -51,9 +57,9 @@ internal object AssetRegistry {
             bundleId = "zh-en/v1",
             assetSubPath = "zh-en/v1",
             files = listOf(
-                "encoder.int8.onnx",
-                "decoder.onnx",
-                "joiner.int8.onnx",
+                "encoder.int8.ort.mp3",
+                "decoder.ort.mp3",
+                "joiner.int8.ort.mp3",
                 "tokens.txt",
                 "bbpe.vocab",
             ),
@@ -62,9 +68,9 @@ internal object AssetRegistry {
             bundleId = "yue-en/v1",
             assetSubPath = "yue-en/v1",
             files = listOf(
-                "encoder.int8.onnx",
-                "decoder.onnx",
-                "joiner.int8.onnx",
+                "encoder.int8.onnx.mp3",
+                "decoder.onnx.mp3",
+                "joiner.int8.onnx.mp3",
                 "tokens.txt",
                 "bbpe.vocab",
             ),
@@ -75,7 +81,7 @@ internal object AssetRegistry {
     internal fun punctuationBundle(): Bundle = Bundle(
         bundleId = "punct-zhen/v1",
         assetSubPath = "punct-zhen/v1",
-        files = listOf("model.int8.onnx"),
+        files = listOf("model.int8.ort.mp3"),
     )
 
     /** 中文 ITN bundle（仅 ZH_EN 启用）。 */
@@ -98,12 +104,13 @@ internal object AssetRegistry {
         AsrLanguage.YUE_EN -> false
     }
 
-    /** 全部 bundle（preInstall 用）。 */
-    internal fun allBundles(): List<Bundle> = listOf(
-        asrBundle(AsrLanguage.ZH_EN),
-        asrBundle(AsrLanguage.YUE_EN),
-        punctuationBundle(),
-        itnBundle(),
-        vadBundle(),
-    )
+    /** 当前构建实际携带的全部 bundle（preInstall 用）。 */
+    internal fun allBundles(zhEnOnly: Boolean = BuildConfig.ZH_EN_ONLY): List<Bundle> =
+        buildList {
+            add(asrBundle(AsrLanguage.ZH_EN))
+            if (!zhEnOnly) add(asrBundle(AsrLanguage.YUE_EN))
+            add(punctuationBundle())
+            add(itnBundle())
+            add(vadBundle())
+        }
 }

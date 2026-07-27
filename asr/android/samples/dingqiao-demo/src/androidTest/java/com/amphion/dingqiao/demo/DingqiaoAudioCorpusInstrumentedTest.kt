@@ -48,8 +48,11 @@ class DingqiaoAudioCorpusInstrumentedTest {
             wavFiles.isNotEmpty(),
         )
 
-        SpeechRecognizeSdk.init(context)
-        SpeechRecognizeSdk.setWorkPath(File(context.getExternalFilesDir(null), "dingqiao_work_eval").absolutePath)
+        prepareSdkRuntime(
+            testContext,
+            context,
+            File(context.getExternalFilesDir(null), "dingqiao_work_eval"),
+        )
         val engine = SpeechRecognizeSdk.createEngine(
             CreateEngineParams(
                 language = "zh-CN",
