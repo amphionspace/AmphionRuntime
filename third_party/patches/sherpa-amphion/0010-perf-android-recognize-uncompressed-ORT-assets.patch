@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Amphion <dev@amphion.local>
+Date: Thu, 23 Jul 2026 18:00:00 +0800
+Subject: [PATCH 10/10] perf(android): recognize uncompressed ORT assets
+
+---
+ sherpa-onnx/csrc/session.cc | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/sherpa-onnx/csrc/session.cc b/sherpa-onnx/csrc/session.cc
+index e2b89f64..825b0d69 100755
+--- a/sherpa-onnx/csrc/session.cc
++++ b/sherpa-onnx/csrc/session.cc
+@@ -35,7 +35,10 @@
+ namespace sherpa_onnx {
+ 
+ bool IsOrtModel(const std::string &model_path) {
+-  return EndsWith(model_path, ".ort");
++  // Android SDK assets use .mp3 as an aapt transport suffix so the host APK
++  // keeps large model files uncompressed. The bytes are still ORT and need
++  // the same direct-model options as a logical .ort path.
++  return EndsWith(model_path, ".ort") || EndsWith(model_path, ".ort.mp3");
+ }
+ 
+ void ConfigureSessionOptionsForModel(const std::string &model_path,
+-- 
+2.39.5
+

@@ -60,9 +60,11 @@ class DqLicenseTest {
     // ---------- L01: 资产 license 已授权且 getLicenseInfo 可读 ----------
     @Test
     fun L01_assetLicensed_engineWorks_andInfoReadable() {
-        SpeechRecognizeSdk.init(ctx)
-        SpeechRecognizeSdk.setWorkPath(File(ctx.getExternalFilesDir(null), "dq_lic_work").absolutePath)
-        // 资产内置 license 使引擎可创建（武装 AAR 必须通过授权才会成功）。
+        prepareSdkRuntime(
+            testCtx,
+            ctx,
+            File(ctx.getExternalFilesDir(null), "dq_lic_work"),
+        )
         val engine = SpeechRecognizeSdk.createEngine(
             CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE),
         )

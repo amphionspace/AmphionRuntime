@@ -14,6 +14,7 @@ internal object DingqiaoEngineConfig {
 
     /** 门控阈值设为 -1，保证始终走 onFinal 路径但仍计算 speakerScore。 */
     private const val SCORE_ONLY_THRESHOLD = -1.0f
+    private const val DEFAULT_ASR_NUM_THREADS = 4
     private const val DEFAULT_VAD_END_MS = 800
     private const val MIN_VAD_END_MS = 500
     private const val MAX_VAD_END_MS = 10_000
@@ -53,7 +54,7 @@ internal object DingqiaoEngineConfig {
         )
 
         val builder = AsrConfig.Builder()
-            .numThreads(2)
+            .numThreads(DEFAULT_ASR_NUM_THREADS)
             .punctuation(true)
             .itn(true)
             .vad(true)

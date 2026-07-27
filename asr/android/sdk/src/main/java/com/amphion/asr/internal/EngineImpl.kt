@@ -1,5 +1,6 @@
 package com.amphion.asr.internal
 
+import android.content.res.AssetManager
 import com.amphion.asr.AsrCallback
 import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrErrorCode
@@ -99,7 +100,7 @@ internal class EngineImpl(
         // VAD：可选，per-engine（sherpa-onnx VAD 是 stateful，不能跨 session 共享）
         // 0.2.x 起 SessionImpl 真正接入了 VAD 管线（Gate + 主动 endpoint）
         vad = if (config.vad && layout.vadModel != null) {
-            buildVad(config.vadConfig, layout.vadModel.absolutePath)
+            buildVad(config.vadConfig, layout.vadModel, layout.assetManager)
         } else {
             null
         }
@@ -235,7 +236,11 @@ internal class EngineImpl(
          * `TenVadModelConfig` 即可。
          */
         @Throws(UnsupportedOperationException::class)
-        fun buildVad(vadConfig: VadConfig, modelPath: String): Vad? {
+        fun buildVad(
+            vadConfig: VadConfig,
+            modelPath: String,
+            assetManager: AssetManager,
+        ): Vad? {
             val sherpaConfig = when (vadConfig.modelType) {
                 VadModelType.SILERO -> VadModelConfig(
                     sileroVadModelConfig = SileroVadModelConfig(
@@ -256,7 +261,7 @@ internal class EngineImpl(
                 )
             }
             return NativeGuard.runQuietly("Vad.<init>") {
-                Vad(assetManager = null, config = sherpaConfig)
+                Vad(assetManager = assetManager, config = sherpaConfig)
             }
         }
 
@@ -270,7 +275,7 @@ internal class EngineImpl(
         ): OnlineRecognizer {
             val recognizerConfig = buildOnlineRecognizerConfig(layout, config)
             return when (val r = NativeGuard.run("OnlineRecognizer.<init>") {
-                OnlineRecognizer(assetManager = null, config = recognizerConfig)
+                OnlineRecognizer(assetManager = layout.assetManager, config = recognizerConfig)
             }) {
                 is NativeResult.Ok -> {
                     // 显式把热词链路的关键参数打出来；同音字纠错效果不达预期时直接看这一行
@@ -315,11 +320,11 @@ internal class EngineImpl(
             // 模型族固定 zipformer2 transducer：业务方在 SDK 边界看不到 model_type 这一层
             val modelConfig = OnlineModelConfig(
                 transducer = OnlineTransducerModelConfig(
-                    encoder = layout.asrEncoder.absolutePath,
-                    decoder = layout.asrDecoder.absolutePath,
-                    joiner = layout.asrJoiner.absolutePath,
+                    encoder = layout.asrEncoder,
+                    decoder = layout.asrDecoder,
+                    joiner = layout.asrJoiner,
                 ),
-                tokens = layout.asrTokens.absolutePath,
+                tokens = layout.asrTokens,
                 numThreads = c.numThreads,
                 debug = false,
                 provider = "cpu",
@@ -332,7 +337,7 @@ internal class EngineImpl(
                 // 空 modeling_unit 会触发 SHERPA_ONNX_EXIT(-1)；vocab 文件格式不对会让
                 // ssentencepiece::Build 的 darts trie 构造 segfault；都是直接 native 退出
                 modelingUnit = "bbpe",
-                bpeVocab = layout.asrBpeVocab.absolutePath,
+                bpeVocab = layout.asrBpeVocab,
             )
 
             val featureConfig = FeatureConfig(

@@ -13,8 +13,10 @@ import java.io.File
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * 鼎桥语音识别 SDK 入口，对齐 [语音识别SDK接口.md]。
@@ -33,11 +35,57 @@ object SpeechRecognizeSdk {
     private var licenseInfo: LicenseInfo? = null
 
     @Volatile
+    private var activatedLicenseText: String? = null
+
+    @Volatile
     private var runtimeInitialized: Boolean = false
 
-    private val engineExecutor: ExecutorService = Executors.newCachedThreadPool { r ->
+    @Volatile
+    private var defaultModelPrepared: Boolean = false
+
+    @Volatile
+    private var runtimeGeneration: Long = 0
+
+    @Volatile
+    private var modelGeneration: Long = 0
+
+    private class PrepareFlight(
+        val runtimeGeneration: Long,
+        val modelGeneration: Long,
+        val licenseText: String,
+        initialCallback: PrepareRuntimeCallback,
+    ) {
+        val callbacks = mutableListOf(initialCallback)
+    }
+
+    private var activePrepareFlight: PrepareFlight? = null
+
+    private val licenseRequestGeneration = AtomicLong()
+
+    /**
+     * 串行化 native runtime 的准备、发布与卸载，但不充当状态锁。
+     *
+     * unload 返回后不会被更早提交的 prepare 重新加载；成功回调也不会与卸载交错。
+     * Java monitor 可重入，因此调用方仍可在成功回调内同步执行 unload。
+     */
+    private val lifecycleOperationLock = Any()
+
+    @Volatile
+    private var runtimeBridge: RuntimeLifecycleBridge = AndroidRuntimeLifecycleBridge
+
+    private val defaultEngineExecutor: Executor = Executors.newCachedThreadPool { r ->
         Thread(r, "dingqiao-engine").apply { isDaemon = true }
     }
+
+    @Volatile
+    private var engineExecutor: Executor = defaultEngineExecutor
+
+    /**
+     * Runtime/model generations own every published engine. A lifecycle reset must close these
+     * handles before releasing the pooled native recognizer; otherwise a stale engine can enter
+     * OnlineRecognizer.createStream() with a freed native pointer.
+     */
+    private val activeEngines: MutableSet<SpeechRecognitionEngine> = ConcurrentHashMap.newKeySet()
 
     /**
      * Android 平台初始化（须在 [createEngine] / [registerVoiceprint] 之前调用一次）。
@@ -63,18 +111,6 @@ object SpeechRecognizeSdk {
         dir.mkdirs()
         require(dir.isDirectory && dir.canWrite()) { "workPath must be writable: $path" }
         workPath = dir
-        // 预安装声纹模型放后台执行：~38MB 拷贝不再阻塞调用线程（demo 常从 Application.onCreate 主线程调用，
-        // 主线程拷贝会造成首启白屏/ANR）。ensureInstalled 幂等且 @Synchronized，若随后 createEngine /
-        // registerVoiceprint 抢先到达，会各自安全地等待或跳过；预安装失败不致命（正式调用会再次尝试并报明确错误）。
-        appContext?.let { ctx ->
-            engineExecutor.execute {
-                try {
-                    DingqiaoSpeakerModelAssets.ensureInstalled(ctx, File(dir, DINGQIAO_SPEAKER_MODEL_FILENAME))
-                } catch (_: Throwable) {
-                    // best-effort 预热：忽略；createEngine/registerVoiceprint 会再次安装并给出明确错误。
-                }
-            }
-        }
     }
 
     /**
@@ -89,29 +125,56 @@ object SpeechRecognizeSdk {
      */
     @JvmStatic
     fun createEngine(params: CreateEngineParams): SpeechRecognitionEngine {
-        val ctx = requireContext()
-        ensureRuntimeInitialized(ctx)
-        val store = requireStore()
-        DingqiaoSpeakerModelAssets.ensureInstalled(ctx, store.speakerModelPath())
-        val speakerModel = store.speakerModelPath().takeIf { it.isFile }?.absolutePath
-        return DingqiaoRecognitionEngine.create(
-            appContext = ctx,
-            params = params,
-            voiceprintStore = store,
-            speakerModelPath = speakerModel,
-        )
+        return synchronized(lifecycleOperationLock) {
+            val ctx = requireContext()
+            requireRuntimeReady()
+            val store = requireStore()
+            val speakerModel = store.speakerModelPath().takeIf { it.isFile }?.absolutePath
+            lateinit var created: DingqiaoRecognitionEngine
+            created = DingqiaoRecognitionEngine.create(
+                appContext = ctx,
+                params = params,
+                voiceprintStore = store,
+                speakerModelPath = speakerModel,
+                onShutdown = { activeEngines.remove(it) },
+            )
+            activeEngines.add(created)
+            created
+        }
     }
 
     /**
      * 创建识别引擎（异步回调）。
      */
     @JvmStatic
-    fun createEngine(params: CreateEngineParams, callback: CreateEngineCallback) {
+    fun createEngineAsync(params: CreateEngineParams, callback: CreateEngineCallback) {
+        val generation = runtimeGeneration
+        val createModelGeneration = modelGeneration
         engineExecutor.execute {
+            var delivered = false
             try {
                 val engine = createEngine(params)
-                callback.onResult(engine)
+                synchronized(lifecycleOperationLock) {
+                    val accepted = synchronized(this) {
+                        !(
+                            generation != runtimeGeneration ||
+                            createModelGeneration != modelGeneration ||
+                            !runtimeInitialized ||
+                            !runtimeBridge.isRuntimeReady()
+                        )
+                    }
+                    if (!accepted) {
+                        engine.shutdown()
+                        throw DingqiaoEngineException(
+                            DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
+                            "createEngineAsync cancelled by unloadRuntime",
+                        )
+                    }
+                    delivered = true
+                    callback.onSuccess(engine)
+                }
             } catch (t: Throwable) {
+                if (delivered) return@execute
                 val code = (t as? DingqiaoEngineException)?.errorCode
                     ?: DingqiaoErrorCode.CREATE_ENGINE_FAILED
                 callback.onError(code, t.message ?: "createEngine failed")
@@ -120,16 +183,201 @@ object SpeechRecognizeSdk {
     }
 
     /**
+     * 旧版 Android 异步重载，保留给已有调用方。
+     */
+    @JvmStatic
+    @Deprecated("Use createEngineAsync(params, callback)")
+    fun createEngine(params: CreateEngineParams, callback: CreateEngineCallback) {
+        createEngineAsync(params, callback)
+    }
+
+    /**
      * 设置 License 文件路径并异步激活。须在 [createEngine] 前调用；再次调用会覆盖当前进程内状态。
      */
     @JvmStatic
     fun setLicense(licensePath: String, callback: LicenseActivationCallback) {
+        val requestGeneration = licenseRequestGeneration.incrementAndGet()
         engineExecutor.execute {
-            val result = activateLicense(licensePath)
+            val result = activateLicense(licensePath, requestGeneration)
             if (result.errorCode == 0) {
                 callback.onResult(result)
             } else {
                 callback.onError(result.errorCode, result.errorMessage ?: "license activation failed")
+            }
+        }
+    }
+
+    /**
+     * 准备 SDK Runtime，并在 SDK 内部预加载默认中英识别模型。调用前必须完成 [init] 和
+     * 成功的 [setLicense]；[PrepareRuntimeCallback.onReady] 返回后，默认
+     * `createEngineAsync(language="zh-CN")` 走模型池快路径。
+     */
+    @JvmStatic
+    fun prepareRuntime(callback: PrepareRuntimeCallback) {
+        val ctx = appContext
+        if (ctx == null) {
+            callback.onError(
+                DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
+                "SpeechRecognizeSdk.init must be called first",
+            )
+            return
+        }
+        synchronized(this) {
+            val flight = activePrepareFlight
+            if (
+                flight != null &&
+                flight.runtimeGeneration == runtimeGeneration &&
+                flight.modelGeneration == modelGeneration &&
+                flight.licenseText == activatedLicenseText
+            ) {
+                flight.callbacks += callback
+                return
+            }
+        }
+        var flightToStart: PrepareFlight? = null
+        var immediateError: Pair<Int, String>? = null
+        var alreadyReady = false
+        synchronized(lifecycleOperationLock) {
+            synchronized(this) {
+                val activeLicense = activatedLicenseText
+                if (activeLicense == null || licenseInfo == null) {
+                    immediateError = DingqiaoErrorCode.LICENSE_NOT_SET to
+                        "setLicense must succeed before prepareRuntime"
+                } else {
+                    val flight = activePrepareFlight
+                    if (
+                        flight != null &&
+                        flight.runtimeGeneration == runtimeGeneration &&
+                        flight.modelGeneration == modelGeneration &&
+                        flight.licenseText == activeLicense
+                    ) {
+                        flight.callbacks += callback
+                    } else if (runtimeBridge.isRuntimeReady() && defaultModelPrepared) {
+                        runtimeInitialized = true
+                        alreadyReady = true
+                    } else {
+                        PrepareFlight(
+                            runtimeGeneration = runtimeGeneration,
+                            modelGeneration = modelGeneration,
+                            licenseText = activeLicense,
+                            initialCallback = callback,
+                        ).also {
+                            activePrepareFlight = it
+                            flightToStart = it
+                        }
+                    }
+                }
+            }
+            if (immediateError != null) {
+                callback.onError(immediateError!!.first, immediateError!!.second)
+                return
+            }
+            if (alreadyReady) {
+                callback.onReady()
+                return
+            }
+        }
+        val flight = flightToStart ?: return
+
+        engineExecutor.execute {
+            synchronized(lifecycleOperationLock) {
+                var errorCode: Int? = null
+                var errorMessage = ""
+                var preparedModelGeneration: Long? = null
+                try {
+                    val needsPrepare = synchronized(this) {
+                        if (flight.runtimeGeneration != runtimeGeneration) {
+                            throw IllegalStateException("prepareRuntime cancelled by unloadRuntime")
+                        }
+                        if (flight.modelGeneration != modelGeneration) {
+                            throw IllegalStateException("prepareRuntime cancelled by unloadModel")
+                        }
+                        !runtimeBridge.isRuntimeReady() || !defaultModelPrepared
+                    }
+                    if (needsPrepare) {
+                        try {
+                            runtimeBridge.prepareRuntime(
+                                ctx,
+                                AmphionOptions(
+                                    license = flight.licenseText,
+                                    licenseAssetName = null,
+                                    deviceIdProvider = DingqiaoDeviceIdProvider,
+                                ),
+                            )
+                        } catch (prepareFailure: Throwable) {
+                            try {
+                                runtimeBridge.unloadRuntime()
+                            } catch (cleanupFailure: Throwable) {
+                                prepareFailure.addSuppressed(cleanupFailure)
+                            }
+                            throw prepareFailure
+                        }
+                    }
+                    synchronized(this) {
+                        if (
+                            flight.runtimeGeneration != runtimeGeneration ||
+                            flight.modelGeneration != modelGeneration ||
+                            !runtimeBridge.isRuntimeReady()
+                        ) {
+                            throw IllegalStateException("prepareRuntime cancelled by unloadRuntime")
+                        }
+                        runtimeInitialized = true
+                        defaultModelPrepared = true
+                        preparedModelGeneration = modelGeneration
+                    }
+                } catch (t: Throwable) {
+                    synchronized(this) {
+                        if (
+                            flight.runtimeGeneration == runtimeGeneration &&
+                            flight.modelGeneration == modelGeneration
+                        ) {
+                            runtimeInitialized = false
+                            defaultModelPrepared = false
+                        }
+                    }
+                    errorCode = mapLicenseErrorCode(extractAsrErrorCode(t.message))
+                        .takeUnless { it == DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED }
+                        ?: DingqiaoErrorCode.ENGINE_NOT_INITIALIZED
+                    errorMessage = t.message ?: "prepareRuntime failed"
+                }
+
+                val callbacks = synchronized(this) {
+                    if (activePrepareFlight === flight) {
+                        activePrepareFlight = null
+                    }
+                    flight.callbacks.toList().also {
+                        flight.callbacks.clear()
+                    }
+                }
+                callbacks.forEach { pendingCallback ->
+                    try {
+                        val callbackError = if (errorCode != null) {
+                            errorCode to errorMessage
+                        } else {
+                            val stillReady = synchronized(this) {
+                                flight.runtimeGeneration == runtimeGeneration &&
+                                    flight.modelGeneration == modelGeneration &&
+                                    preparedModelGeneration == flight.modelGeneration &&
+                                    runtimeInitialized &&
+                                    defaultModelPrepared &&
+                                    runtimeBridge.isRuntimeReady()
+                            }
+                            if (stillReady) {
+                                null
+                            } else {
+                                DingqiaoErrorCode.ENGINE_NOT_INITIALIZED to
+                                    "prepareRuntime result invalidated by lifecycle change"
+                            }
+                        }
+                        if (callbackError == null) {
+                            pendingCallback.onReady()
+                        } else {
+                            pendingCallback.onError(callbackError.first, callbackError.second)
+                        }
+                    } catch (_: Throwable) {
+                        // One caller callback must not prevent the remaining single-flight waiters.
+                    }
+                }
             }
         }
     }
@@ -233,19 +481,37 @@ object SpeechRecognizeSdk {
         }
     }
 
-    private fun requireContext(): Context =
-        appContext ?: throw IllegalStateException("SpeechRecognizeSdk.init(context) must be called first")
-
-    private fun ensureRuntimeInitialized(ctx: Context) {
-        if (runtimeInitialized) return
-        synchronized(this) {
-            if (runtimeInitialized) return
-            AmphionRuntime.init(ctx)
-            runtimeInitialized = true
+    /**
+     * 显式安装声纹模型，避免把 38MB 声纹资产复制计入普通 ASR createEngine 冷启动。
+     */
+    @JvmStatic
+    fun preloadVoiceprintModel(): Boolean {
+        return try {
+            val store = requireStore()
+            val modelPath = store.speakerModelPath()
+            DingqiaoSpeakerModelAssets.ensureInstalled(requireContext(), modelPath)
+            DingqiaoSpeakerModelAssets.isReady(modelPath)
+        } catch (_: Throwable) {
+            false
         }
     }
 
-    private fun activateLicense(licensePath: String): LicenseActivationResult {
+    private fun requireContext(): Context =
+        appContext ?: throw IllegalStateException("SpeechRecognizeSdk.init(context) must be called first")
+
+    private fun requireRuntimeReady() {
+        if (!runtimeInitialized || !runtimeBridge.isRuntimeReady()) {
+            throw DingqiaoEngineException(
+                DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
+                "prepareRuntime.onReady must complete before createEngine",
+            )
+        }
+    }
+
+    private fun activateLicense(
+        licensePath: String,
+        requestGeneration: Long,
+    ): LicenseActivationResult {
         val ctx = try {
             requireContext()
         } catch (t: Throwable) {
@@ -270,41 +536,137 @@ object SpeechRecognizeSdk {
             )
         }
         return try {
-            synchronized(this) {
-                if (runtimeInitialized) {
-                    AmphionRuntime.release()
-                    runtimeInitialized = false
-                }
-                AmphionRuntime.init(
-                    ctx,
-                    AmphionOptions(
-                        license = text,
-                        licenseAssetName = null,
-                        deviceIdProvider = DingqiaoDeviceIdProvider,
-                    ),
-                )
-                runtimeInitialized = true
-                val info = AmphionRuntime.licenseStatus().toDingqiaoLicenseInfo()
-                licenseInfo = info
-                LicenseActivationResult(
-                    errorCode = 0,
-                    remainingDays = info.remainingDays,
-                    authorizedFeatures = info.authorizedFeatures,
-                )
+            val status = runtimeBridge.validateLicense(
+                ctx,
+                AmphionOptions(
+                    license = text,
+                    licenseAssetName = null,
+                    deviceIdProvider = DingqiaoDeviceIdProvider,
+                ),
+            )
+            if (status.errorCode != AsrErrorCode.OK) {
+                throw IllegalStateException("code=${status.errorCode}: ${status.state}")
             }
+            val result: LicenseActivationResult
+            synchronized(lifecycleOperationLock) {
+                val shouldUnloadRuntime: Boolean
+                synchronized(this) {
+                    if (requestGeneration != licenseRequestGeneration.get()) {
+                        return LicenseActivationResult(
+                            errorCode = DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED,
+                            errorMessage = "superseded by a newer setLicense request",
+                        )
+                    }
+                    runtimeGeneration += 1
+                    modelGeneration += 1
+                    shouldUnloadRuntime = runtimeBridge.isRuntimeReady()
+                    runtimeInitialized = false
+                    defaultModelPrepared = false
+                    activatedLicenseText = text
+                    val info = status.toDingqiaoLicenseInfo()
+                    licenseInfo = info
+                    result = LicenseActivationResult(
+                        errorCode = 0,
+                        remainingDays = info.remainingDays,
+                        authorizedFeatures = info.authorizedFeatures,
+                    )
+                }
+                if (shouldUnloadRuntime) {
+                    shutdownActiveEngines()
+                    runtimeBridge.unloadRuntime()
+                }
+            }
+            result
         } catch (t: Throwable) {
             val code = mapLicenseErrorCode(extractAsrErrorCode(t.message))
-            licenseInfo = LicenseInfo(
-                status = licenseStatusForError(code),
-                expireTime = -1,
-                remainingDays = -1,
-                authorizedFeatures = emptyList(),
-            )
+            if (activatedLicenseText == null) {
+                licenseInfo = LicenseInfo(
+                    status = licenseStatusForError(code),
+                    expireTime = -1,
+                    remainingDays = -1,
+                    authorizedFeatures = emptyList(),
+                )
+            }
             LicenseActivationResult(
                 errorCode = code,
                 errorMessage = t.message ?: "license activation failed",
             )
         }
+    }
+
+    @JvmStatic
+    fun unloadModel() {
+        synchronized(lifecycleOperationLock) {
+            synchronized(this) {
+                modelGeneration += 1
+                defaultModelPrepared = false
+            }
+            shutdownActiveEngines()
+            runtimeBridge.unloadModel()
+        }
+    }
+
+    @JvmStatic
+    fun unloadRuntime() {
+        synchronized(lifecycleOperationLock) {
+            synchronized(this) {
+                runtimeGeneration += 1
+                modelGeneration += 1
+                runtimeInitialized = false
+                defaultModelPrepared = false
+            }
+            shutdownActiveEngines()
+            runtimeBridge.unloadRuntime()
+        }
+    }
+
+    internal fun resetForTests() {
+        synchronized(lifecycleOperationLock) {
+            synchronized(this) {
+                licenseRequestGeneration.incrementAndGet()
+                runtimeGeneration += 1
+                modelGeneration += 1
+                runtimeInitialized = false
+                defaultModelPrepared = false
+                activatedLicenseText = null
+                licenseInfo = null
+                workPath = null
+                appContext = null
+                engineExecutor = defaultEngineExecutor
+            }
+            shutdownActiveEngines()
+            runtimeBridge.unloadRuntime()
+            runtimeBridge = AndroidRuntimeLifecycleBridge
+        }
+    }
+
+    internal fun trackEngine(engine: SpeechRecognitionEngine) {
+        activeEngines.add(engine)
+    }
+
+    private fun shutdownActiveEngines() {
+        activeEngines.toList().forEach { engine ->
+            try {
+                if (engine is DingqiaoRecognitionEngine) {
+                    engine.invalidateFromRuntime()
+                } else {
+                    engine.shutdown()
+                }
+            } catch (_: Throwable) {
+                // Runtime invalidation still has to release the native pool. The handle is removed
+                // even if a customer implementation throws from its idempotent shutdown method.
+            } finally {
+                activeEngines.remove(engine)
+            }
+        }
+    }
+
+    internal fun setRuntimeBridgeForTests(bridge: RuntimeLifecycleBridge) {
+        runtimeBridge = bridge
+    }
+
+    internal fun setEngineExecutorForTests(executor: Executor) {
+        engineExecutor = executor
     }
 
     private fun requireStore(): VoiceprintStore {

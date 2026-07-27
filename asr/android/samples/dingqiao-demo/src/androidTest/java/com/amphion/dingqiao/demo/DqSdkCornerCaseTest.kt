@@ -694,7 +694,10 @@ class DqSdkCornerCaseTest {
     // ---------- a12: shutdown 后调用抛异常而非回调 onError ----------
     @Test
     fun a12_postShutdown_throwsInsteadOfCallback() {
-        ensureSdkReady()
+        // Reuse the already licensed/prepared Runtime. Repeating setLicense here would correctly
+        // invalidate the shared engine and make the following ordered stress case reuse a stale
+        // test fixture rather than exercise a live SDK engine.
+        sharedEngine()
         val throwaway = SpeechRecognizeSdk.createEngine(
             CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE),
         )
@@ -713,6 +716,135 @@ class DqSdkCornerCaseTest {
             "thrown" to thrown, "thrownMsg" to thrownMsg, "callbackErrors" to listener.errorCodes().toString()))
         assertNotNull("post-shutdown writeAudio should throw (not deliver onError)", thrown)
         assertTrue("post-shutdown should NOT deliver onError callback", listener.errors.isEmpty())
+    }
+
+    // ---------- a13: 真实调用方连续 cancel / finish / 立即替换 / 旧 session 迟到调用 ----------
+    @Test
+    fun a13_userSequenceStress_300Cycles() {
+        val engine = sharedEngine()
+        val source = readAssetPcm(testCtx, mainWavs(testCtx).first())
+        val pcm = source.copyOfRange(0, minOf(source.size, DQ_SR * 3))
+        var completedSessions = 0
+
+        repeat(300) { cycle ->
+            awaitIdle(engine)
+
+            val cancelSid = "useq-c-$cycle-${System.currentTimeMillis()}"
+            val cancelListener = CapturingListener().also { engine.setListener(it) }
+            engine.startListening(StartParams(cancelSid, AudioInfo()))
+            assertTrue("cycle=$cycle cancel session did not start",
+                cancelListener.awaitStarted(10_000))
+            feedFrames(engine, cancelSid, pcm.copyOfRange(0, minOf(pcm.size, DQ_SR)), 0)
+            engine.cancel(cancelSid)
+            awaitIdle(engine)
+            assertFalse("cycle=$cycle cancel session remained busy", engine.isBusy())
+            // Keep the cancel listener installed through a short quiescence window so callbacks
+            // queued immediately before the state transition cannot escape the assertion.
+            Thread.sleep(100)
+            assertTrue("cycle=$cycle cancel must not emit final", cancelListener.finals.isEmpty())
+            assertTrue("cycle=$cycle cancel must not emit complete",
+                cancelListener.completes.isEmpty())
+
+            val oldSid = "useq-old-$cycle-${System.currentTimeMillis()}"
+            val oldListener = CapturingListener().also { engine.setListener(it) }
+            engine.startListening(StartParams(oldSid, AudioInfo()))
+            assertTrue("cycle=$cycle old session did not start", oldListener.awaitStarted(10_000))
+            feedFrames(engine, oldSid, pcm, 0)
+            assertEquals(
+                "cycle=$cycle old session emitted isLast before finish",
+                0,
+                oldListener.finals.count { it.isLast },
+            )
+            engine.finish(oldSid)
+            assertTrue("cycle=$cycle old session did not complete",
+                oldListener.awaitComplete(20_000))
+            assertEquals("cycle=$cycle old session last count", 1,
+                oldListener.finals.count { it.isLast })
+            assertEquals("cycle=$cycle old session complete count", 1,
+                oldListener.completes.size)
+            assertTrue("cycle=$cycle old session errors=${oldListener.errors}",
+                oldListener.errors.isEmpty())
+            awaitIdle(engine)
+            completedSessions++
+
+            val replacementSid = "useq-new-$cycle-${System.currentTimeMillis()}"
+            val replacementStarted = CountDownLatch(1)
+            val replacementComplete = CountDownLatch(1)
+            val replacementLastCount = AtomicInteger(0)
+            val replacementCompleteCount = AtomicInteger(0)
+            val replacementErrors = mutableListOf<Int>()
+            val unexpectedTerminalCallbacks = AtomicInteger(0)
+            engine.setListener(object : RecognitionListener {
+                override fun onStart(sessionId: String, eventMessage: String) {
+                    if (sessionId == replacementSid) replacementStarted.countDown()
+                }
+
+                override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+
+                override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
+                    if (sessionId == replacementSid) {
+                        if (result.isLast) replacementLastCount.incrementAndGet()
+                    } else if (result.isLast) {
+                        unexpectedTerminalCallbacks.incrementAndGet()
+                    }
+                }
+
+                override fun onComplete(sessionId: String, eventMessage: String) {
+                    if (sessionId == replacementSid) {
+                        replacementCompleteCount.incrementAndGet()
+                        replacementComplete.countDown()
+                    } else {
+                        unexpectedTerminalCallbacks.incrementAndGet()
+                    }
+                }
+
+                override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+                    if (sessionId == replacementSid) {
+                        synchronized(replacementErrors) { replacementErrors += errorCode }
+                    }
+                }
+            })
+            engine.startListening(StartParams(replacementSid, AudioInfo()))
+            assertTrue("cycle=$cycle replacement did not start",
+                replacementStarted.await(10_000, TimeUnit.MILLISECONDS))
+
+            engine.writeAudio(oldSid, ByteArray(DQ_FRAME))
+            engine.finish(oldSid)
+            engine.cancel(oldSid)
+            assertTrue("cycle=$cycle late old calls ended replacement", engine.isBusy())
+
+            feedFrames(engine, replacementSid, pcm, 0)
+            assertEquals(
+                "cycle=$cycle replacement emitted isLast before finish",
+                0,
+                replacementLastCount.get(),
+            )
+            engine.finish(replacementSid)
+            assertTrue("cycle=$cycle replacement did not complete",
+                replacementComplete.await(20_000, TimeUnit.MILLISECONDS))
+            assertEquals("cycle=$cycle replacement last count", 1,
+                replacementLastCount.get())
+            assertEquals("cycle=$cycle replacement complete count", 1,
+                replacementCompleteCount.get())
+            assertEquals("cycle=$cycle old terminal callback polluted replacement", 0,
+                unexpectedTerminalCallbacks.get())
+            assertTrue(
+                "cycle=$cycle replacement errors=$replacementErrors",
+                synchronized(replacementErrors) { replacementErrors.isEmpty() },
+            )
+            awaitIdle(engine)
+            completedSessions++
+        }
+
+        DqReport.append(
+            ctx,
+            mapOf(
+                "case" to "a13_userSequenceStress",
+                "cycles" to 300,
+                "completedSessions" to completedSessions,
+            ),
+        )
+        assertEquals(600, completedSessions)
     }
 
     // ---------- a11: vadBegin 首段静音自动结束 ----------
@@ -849,8 +981,12 @@ class DqSdkCornerCaseTest {
 
         private fun ensureSdkReady() {
             val target = InstrumentationRegistry.getInstrumentation().targetContext
-            SpeechRecognizeSdk.init(target)
-            SpeechRecognizeSdk.setWorkPath(File(target.getExternalFilesDir(null), "dq_corner_work").absolutePath)
+            val test = InstrumentationRegistry.getInstrumentation().context
+            prepareSdkRuntime(
+                test,
+                target,
+                File(target.getExternalFilesDir(null), "dq_corner_work"),
+            )
         }
 
         @Synchronized
@@ -866,6 +1002,7 @@ class DqSdkCornerCaseTest {
         fun reloadEngine(): SpeechRecognitionEngine {
             engine?.shutdown()
             engine = null
+            SpeechRecognizeSdk.unloadModel()
             return sharedEngine()
         }
     }

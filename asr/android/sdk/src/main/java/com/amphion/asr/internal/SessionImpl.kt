@@ -50,6 +50,7 @@ internal class SessionImpl(
 
     private val callbackThread = HandlerThread("asr-callback-$sessionId").apply { start() }
     private val callbackHandler = Handler(callbackThread.looper)
+    private val finalCallbackOrderGate = FinalCallbackOrderGate()
 
     @Volatile
     private var stream: OnlineStream
@@ -350,9 +351,7 @@ internal class SessionImpl(
             resetSpeakerVadState()
             speakerPcmBuffers.clearAll()
             effectiveSpeechBuffer.reset()
-            callbackHandler.post {
-                safeCallback { callback.onSessionStopped() }
-            }
+            if (finalCallbackOrderGate.requestStopped()) postSessionStopped()
         }
     }
 
@@ -946,6 +945,7 @@ internal class SessionImpl(
      * 如果 ITN / 标点都没启用，PostProcessor 的处理是 no-op，链路一致但不增加耗时。
      */
     private fun postFinalToProcessor(raw: AsrResult) {
+        finalCallbackOrderGate.onFinalQueued()
         postProcessor.postFinal(raw)
     }
 
@@ -965,6 +965,13 @@ internal class SessionImpl(
                     callback.onFinal(processed)
                 }
             }
+        }
+        if (finalCallbackOrderGate.onFinalEnqueued()) postSessionStopped()
+    }
+
+    private fun postSessionStopped() {
+        callbackHandler.post {
+            safeCallback { callback.onSessionStopped() }
         }
     }
 

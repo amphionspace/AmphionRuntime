@@ -81,8 +81,12 @@ class DqFeedRateTest {
         private fun engine(): SpeechRecognitionEngine {
             engine?.let { return it }
             val target = InstrumentationRegistry.getInstrumentation().targetContext
-            SpeechRecognizeSdk.init(target)
-            SpeechRecognizeSdk.setWorkPath(File(target.getExternalFilesDir(null), "dq_feedrate_work").absolutePath)
+            val test = InstrumentationRegistry.getInstrumentation().context
+            prepareSdkRuntime(
+                test,
+                target,
+                File(target.getExternalFilesDir(null), "dq_feedrate_work"),
+            )
             return SpeechRecognizeSdk.createEngine(
                 CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE, extraParams = mapOf("vadEnd" to 800)),
             ).also { engine = it }

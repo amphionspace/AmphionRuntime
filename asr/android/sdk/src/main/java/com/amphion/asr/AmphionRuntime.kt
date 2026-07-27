@@ -2,6 +2,7 @@ package com.amphion.asr
 
 import android.content.Context
 import com.amphion.asr.internal.AssetInstaller
+import com.amphion.asr.internal.AssetRegistry
 import com.amphion.asr.internal.DeviceLicenseFingerprint
 import com.amphion.asr.internal.EngineImpl
 import com.amphion.asr.internal.LicenseVerifier
@@ -9,7 +10,9 @@ import com.amphion.asr.internal.Logger
 import com.amphion.asr.internal.SharedPostProcessor
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -43,11 +46,7 @@ public object AmphionRuntime {
      *
      * preload 后驻留在这里；create(language) 优先从这里拿（O(ms)）。release() 时清空。
      */
-    private val asrPool: ConcurrentHashMap<AsrLanguage, OnlineRecognizer> = ConcurrentHashMap()
-
-    /** 池里 recognizer 的"模板 config"。create 时用它判断是否能复用 */
-    @Volatile
-    private var poolConfig: AsrConfig? = null
+    private val asrPool: ConcurrentHashMap<AsrLanguage, PoolEntry> = ConcurrentHashMap()
 
     /**
      * 初始化 SDK。重复调用是幂等的（后续调用会被忽略并打 WARN 日志）。
@@ -69,15 +68,7 @@ public object AmphionRuntime {
 
             // 离线 license 校验。仅当构建期注入了 LICENSE_PUBLIC_KEY_B64（武装态）才真正生效；
             // 开发 / 内部构建（公钥为空）下结果为 DEV_UNLICENSED，result.ok=true，不影响使用。
-            val result = LicenseVerifier.verify(
-                ctx = ctx,
-                licenseText = resolveLicenseText(ctx, options),
-                publicKeyB64 = BuildConfig.LICENSE_PUBLIC_KEY_B64,
-                expiryGraceDays = options.expiryGraceDays,
-                deviceIdProvider = options.deviceIdProvider,
-                sdkMajor = BuildConfig.SDK_MAJOR,
-                sdkReleaseDate = BuildConfig.SDK_RELEASE_DATE,
-            )
+            val result = verifyLicense(ctx, options)
             licenseStatusHolder = result.status
             if (!result.ok) {
                 Logger.e("license check failed: code=${result.errorCode} ${result.errorMessage}")
@@ -99,6 +90,24 @@ public object AmphionRuntime {
     }
 
     /**
+     * 完整校验 License，但不改变 Runtime、模型池或全局配置。
+     *
+     * 武装构建返回 LICENSED/INVALID；未武装的开发构建返回 DEV_UNLICENSED。
+     */
+    @JvmStatic
+    public fun validateLicense(
+        context: Context,
+        options: AmphionOptions,
+    ): AmphionLicenseStatus {
+        val ctx = context.applicationContext ?: context
+        return verifyLicense(ctx, options).status
+    }
+
+    /** 当前 Runtime 是否已经完成 [init]。 */
+    @JvmStatic
+    public fun isRuntimeReady(): Boolean = initialized
+
+    /**
      * 多语言预加载。
      *
      * 调用一次后池里就常驻全部 [languages] 的 OnlineRecognizer + 共享后处理；之后
@@ -106,7 +115,7 @@ public object AmphionRuntime {
      * （preload 内部已经使用专用线程，但本方法是同步分派的）。
      *
      * 内部三阶段：
-     * 1. 解包 assets（与 [preInstall] 等价）
+     * 1. 准备必须落盘的小型 ITN assets（与 [preInstall] 等价）
      * 2. 共享 punct/itn 单例加载
      * 3. 并行加载每个 language 的 OnlineRecognizer
      *
@@ -123,6 +132,7 @@ public object AmphionRuntime {
         onProgress: ((stage: String, percent: Int) -> Unit)? = null,
     ): Cancellable {
         checkInitialized()
+        languages.forEach(::requireLanguageAvailable)
         val ctx = context.applicationContext ?: context
         val cancelFlag = AtomicBoolean(false)
         val handle = PreloadCancellable(cancelFlag)
@@ -146,33 +156,35 @@ public object AmphionRuntime {
      * 创建一个 ASR 引擎实例。
      *
      * 当池命中时（已经 [preload] 过且 config 兼容）O(ms) 返回；否则同步走完
-     * 解包 + 加载流程（5~30s 的解包 + 1~3s 的加载，建议放子线程）。
+     * 小型 ITN 资产准备与 native 模型加载。ASR / 标点 / VAD 直接从 APK assets 加载，
+     * 且识别器与后处理并行初始化；调用方仍建议从后台线程调用。
      *
      * @return 已就绪的 [AsrEngine]
      * @throws IllegalStateException 如果 [init] 未调用，或资产解包失败
      */
     @JvmStatic
     @JvmOverloads
+    @Synchronized
     public fun create(
         context: Context,
         language: AsrLanguage,
         config: AsrConfig = AsrConfig.Builder().build(),
     ): AsrEngine {
         checkInitialized()
+        requireLanguageAvailable(language)
         val ctx = context.applicationContext ?: context
         val createStartElapsed = android.os.SystemClock.elapsedRealtime()
 
         val pooled = asrPool[language]
-        val poolCfg = poolConfig
-        val canReusePool = pooled != null && poolCfg != null &&
-            EngineImpl.isRecognizerConfigCompatible(poolCfg, config)
+        val canReusePool = pooled != null &&
+            EngineImpl.isRecognizerConfigCompatible(pooled.config, config)
 
         val recognizer: OnlineRecognizer
         val ownsRecognizer: Boolean
         val installStats: AssetInstaller.InstallStats
 
         if (canReusePool) {
-            recognizer = pooled!!
+            recognizer = pooled!!.recognizer
             ownsRecognizer = false
             installStats = AssetInstaller.InstallStats.ZERO
             Logger.i("create: pool-hit for $language, reusing pooled recognizer")
@@ -185,9 +197,23 @@ public object AmphionRuntime {
             }
             val layout = AssetInstaller.ensureInstalled(ctx, language, config)
             installStats = layout.installStats
-            ensureSharedPostProcessor(layout, config, language)
-            recognizer = EngineImpl.buildRecognizer(layout, config, language)
-            ownsRecognizer = true
+            val built = loadColdModelsInParallel(layout, config, language)
+            // L2 模型由 Runtime 持有：首个 create 完成后，后续同配置 create 直接热命中；
+            // unloadModel/release 才释放。@Synchronized 保证并发首次调用只构建一次。
+            val published = asrPool.putIfAbsent(language, PoolEntry(built, config))
+            if (published == null) {
+                recognizer = built
+                ownsRecognizer = false
+                Logger.i("create: cached first recognizer for $language")
+            } else if (EngineImpl.isRecognizerConfigCompatible(published.config, config)) {
+                try { built.release() } catch (_: Throwable) {}
+                recognizer = published.recognizer
+                ownsRecognizer = false
+                Logger.i("create: concurrent pool winner reused for $language")
+            } else {
+                recognizer = built
+                ownsRecognizer = true
+            }
         }
 
         val layout = AssetInstaller.InstalledLayout.of(ctx, language, config, installStats)
@@ -206,11 +232,12 @@ public object AmphionRuntime {
     }
 
     /**
-     * 主动把 SDK 内置模型从 APK assets 解包到 internal storage（不加载 native）。
+     * 主动准备 native 只支持文件路径的 ITN 资产（不加载 native）。ASR / 标点 / VAD
+     * 始终由 SDK 直接从 APK assets 加载，无需预先复制。
      *
      * 与 [preload] 的区别：
-     * - [preInstall]：只解包到磁盘；不占 native 内存；适合"想 splash 阶段把磁盘 IO 做掉"的场景
-     * - [preload]：解包 + 加载 native 模型到池里；常驻 native 内存；适合"需要语言切换 0 延迟"
+     * - [preInstall]：只准备 ITN 文件；不占 native 内存
+     * - [preload]：准备 ITN + 加载 native 模型到池里；常驻 native 内存
      *
      * 多次调用是幂等的；SDK 升级到新版本时只会解包变化的部分。
      */
@@ -258,20 +285,23 @@ public object AmphionRuntime {
     public fun release() {
         synchronized(this) {
             if (!initialized) return
-            for ((lang, recognizer) in asrPool) {
-                try {
-                    recognizer.release()
-                } catch (t: Throwable) {
-                    Logger.w("release pooled recognizer for $lang failed: ${t.message}")
-                }
-            }
-            asrPool.clear()
-            poolConfig = null
-            SharedPostProcessor.release()
+            unloadModelLocked()
             appContext = null
             licenseStatusHolder = null
             initialized = false
             Logger.i("AmphionRuntime released.")
+        }
+    }
+
+    /**
+     * 卸载进程内模型，保留 Runtime 与已验证授权。调用前必须先关闭所有 session/engine。
+     */
+    @JvmStatic
+    public fun unloadModel() {
+        synchronized(this) {
+            if (!initialized) return
+            unloadModelLocked()
+            Logger.i("AmphionRuntime models unloaded.")
         }
     }
 
@@ -288,6 +318,32 @@ public object AmphionRuntime {
         } catch (_: Throwable) {
             null
         }
+    }
+
+    private fun verifyLicense(
+        ctx: Context,
+        options: AmphionOptions,
+    ): LicenseVerifier.Result =
+        LicenseVerifier.verify(
+            ctx = ctx,
+            licenseText = resolveLicenseText(ctx, options),
+            publicKeyB64 = BuildConfig.LICENSE_PUBLIC_KEY_B64,
+            expiryGraceDays = options.expiryGraceDays,
+            deviceIdProvider = options.deviceIdProvider,
+            sdkMajor = BuildConfig.SDK_MAJOR,
+            sdkReleaseDate = BuildConfig.SDK_RELEASE_DATE,
+        )
+
+    private fun unloadModelLocked() {
+        for ((lang, entry) in asrPool) {
+            try {
+                entry.recognizer.release()
+            } catch (t: Throwable) {
+                Logger.w("release pooled recognizer for $lang failed: ${t.message}")
+            }
+        }
+        asrPool.clear()
+        SharedPostProcessor.release()
     }
 
     internal fun checkInitialized() {
@@ -307,7 +363,7 @@ public object AmphionRuntime {
         language: AsrLanguage,
     ) {
         if (config.punctuation && layout.punctuationModel != null) {
-            SharedPostProcessor.ensurePunctuation(layout.punctuationModel)
+            SharedPostProcessor.ensurePunctuation(layout.assetManager, layout.punctuationModel)
         }
         if (config.itn && layout.itnTaggerFst != null && layout.itnVerbalizerFst != null) {
             // ITN 当前只对 ZH_EN 启用；YUE_EN 不会走到这里（layout.itnTaggerFst = null）
@@ -344,7 +400,7 @@ public object AmphionRuntime {
         // 任意一个 language 的 layout 都能拿到 punct/itn 路径（与 language 无关）
         val refLayout = AssetInstaller.InstalledLayout.of(ctx, languages.first(), config, stats)
         if (config.punctuation && refLayout.punctuationModel != null) {
-            SharedPostProcessor.ensurePunctuation(refLayout.punctuationModel)
+            SharedPostProcessor.ensurePunctuation(refLayout.assetManager, refLayout.punctuationModel)
         }
         if (config.itn) {
             // ITN 仅 ZH_EN 启用；通过显式构造 ZH_EN layout 拿到 fst 路径
@@ -363,18 +419,26 @@ public object AmphionRuntime {
                 executor.submit {
                     if (cancelFlag.get()) return@submit
                     onProgress?.invoke("asr-${lang.name}", 0)
-                    if (asrPool[lang] != null) {
-                        Logger.i("preload: $lang already in pool, skipping")
+                    val existing = asrPool[lang]
+                    if (existing != null) {
+                        check(EngineImpl.isRecognizerConfigCompatible(existing.config, config)) {
+                            "preload: $lang already loaded with an incompatible config; " +
+                                "call unloadModel before changing model config"
+                        }
+                        Logger.i("preload: $lang already in compatible pool, skipping")
                         onProgress?.invoke("asr-${lang.name}", 100)
                         return@submit
                     }
                     val layout = AssetInstaller.InstalledLayout.of(ctx, lang, config, stats)
                     val recognizer = EngineImpl.buildRecognizer(layout, config, lang)
-                    val prev = asrPool.put(lang, recognizer)
+                    val entry = PoolEntry(recognizer, config)
+                    val prev = asrPool.putIfAbsent(lang, entry)
                     if (prev != null) {
-                        // 极端竞争：同时两次 preload；保留先放进去那份，把刚加载的 release 掉
+                        // 同时 preload/create：保留先发布的实例，释放 loser。
                         try { recognizer.release() } catch (_: Throwable) {}
-                        asrPool[lang] = prev
+                        check(EngineImpl.isRecognizerConfigCompatible(prev.config, config)) {
+                            "preload: concurrent incompatible config for $lang"
+                        }
                     }
                     onProgress?.invoke("asr-${lang.name}", 100)
                 }
@@ -385,9 +449,85 @@ public object AmphionRuntime {
             executor.awaitTermination(1, TimeUnit.SECONDS)
         }
 
-        // 记录池模板 config，create 时按它判断是否能复用
-        poolConfig = config
         Logger.i("preload done: languages=${languages.joinToString(",") { it.name }} pool=${asrPool.keys}")
+    }
+
+    /**
+     * 首次加载时让 ASR recognizer 与共享后处理并行构造。两组模型没有可变状态依赖，
+     * 串行加载只会把两段 ORT 初始化耗时相加；并行后仍在全部 future 成功后才发布 engine。
+     */
+    private fun loadColdModelsInParallel(
+        layout: AssetInstaller.InstalledLayout,
+        config: AsrConfig,
+        language: AsrLanguage,
+    ): OnlineRecognizer {
+        val executor = Executors.newFixedThreadPool(2) { runnable ->
+            Thread(runnable, "amphion-cold-load").apply { isDaemon = true }
+        }
+        val abort = AtomicBoolean(false)
+        var recognizerFuture: Future<Pair<OnlineRecognizer, Long>>? = null
+        var postProcessorFuture: Future<Long>? = null
+        var builtRecognizer: OnlineRecognizer? = null
+        var restoreInterrupt = false
+        try {
+            recognizerFuture = executor.submit<Pair<OnlineRecognizer, Long>> {
+                val start = android.os.SystemClock.elapsedRealtime()
+                val recognizer = EngineImpl.buildRecognizer(layout, config, language)
+                if (abort.get()) {
+                    try { recognizer.release() } catch (_: Throwable) {}
+                    throw InterruptedException("cold model load cancelled")
+                }
+                recognizer to (android.os.SystemClock.elapsedRealtime() - start)
+            }
+            postProcessorFuture = executor.submit<Long> {
+                val start = android.os.SystemClock.elapsedRealtime()
+                ensureSharedPostProcessor(layout, config, language)
+                android.os.SystemClock.elapsedRealtime() - start
+            }
+
+            val (recognizer, recognizerMs) = recognizerFuture.get()
+            builtRecognizer = recognizer
+            val postProcessorMs = postProcessorFuture.get()
+            Logger.metric(
+                "kind=COLD_MODEL_LOAD language=$language recognizerMs=$recognizerMs " +
+                    "postProcessorMs=$postProcessorMs assetInstallMs=${layout.installStats.installMs}",
+            )
+            return recognizer
+        } catch (t: Throwable) {
+            abort.set(true)
+            recognizerFuture?.cancel(true)
+            postProcessorFuture?.cancel(true)
+            try { builtRecognizer?.release() } catch (_: Throwable) {}
+            val cause = if (t is ExecutionException) t.cause ?: t else t
+            if (cause is InterruptedException) {
+                restoreInterrupt = true
+            }
+            throw cause
+        } finally {
+            executor.shutdownNow()
+            // A native constructor may ignore interruption. Do not let create() return while a
+            // cancelled task can still publish shared state after unloadModel()/release().
+            restoreInterrupt = restoreInterrupt || Thread.interrupted()
+            while (!executor.isTerminated) {
+                try {
+                    executor.awaitTermination(1, TimeUnit.SECONDS)
+                } catch (_: InterruptedException) {
+                    restoreInterrupt = true
+                }
+            }
+            if (restoreInterrupt) {
+                Thread.currentThread().interrupt()
+            }
+        }
+    }
+
+    private fun requireLanguageAvailable(language: AsrLanguage) {
+        if (!AssetRegistry.isLanguageAvailable(language)) {
+            throw IllegalStateException(
+                "code=${AsrErrorCode.LANGUAGE_UNAVAILABLE}: language $language is not included " +
+                    "in this zh-en-only SDK build",
+            )
+        }
     }
 
     private class PreloadCancellable(private val flag: AtomicBoolean) : Cancellable {
@@ -405,6 +545,11 @@ public object AmphionRuntime {
             done = true
         }
     }
+
+    private data class PoolEntry(
+        val recognizer: OnlineRecognizer,
+        val config: AsrConfig,
+    )
 }
 
 /**

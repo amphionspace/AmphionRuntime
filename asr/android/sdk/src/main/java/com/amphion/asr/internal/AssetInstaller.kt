@@ -1,6 +1,7 @@
 package com.amphion.asr.internal
 
 import android.content.Context
+import android.content.res.AssetManager
 import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrErrorCode
 import com.amphion.asr.AsrLanguage
@@ -12,27 +13,29 @@ import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * 把 APK 内置 assets 解包到 [Context.getFilesDir]/[AssetRegistry.INSTALL_ROOT]/。
+ * 为 native 模型建立可用布局，并把只支持文件路径的 ITN 资产解包到
+ * [Context.getFilesDir]/[AssetRegistry.INSTALL_ROOT]/。
  *
  * 工作流程：
- * 1. 计算需要哪些 bundle（[ensureInstalled]: 当前 language + 业务开关；[preInstallAll]: 全部）
- * 2. 检查 install.flag 是否与当前 SDK_VERSION 匹配；不匹配则清空 install root 重新解包
- * 3. 流式从 AssetManager 拷贝到 internal 路径，每 64KB 累加进度
- * 4. 全部成功后写 install.flag = SDK_VERSION
+ * 1. ASR / 标点 / VAD 直接通过 [AssetManager] 交给 sherpa-onnx，避免首次使用复制大模型
+ * 2. 计算需要落盘的 bundle（当前仅 ITN）
+ * 3. 检查 install.flag 是否与当前 SDK_VERSION 匹配；不匹配则清空 install root 重新解包
+ * 4. 流式从 AssetManager 拷贝到 internal 路径，每 64KB 累加进度
+ * 5. 全部成功后写带布局版本的 install.flag
  *
  * # 设计考虑
  *
  * - 不做单文件 sha256：APK 内的资产是只读的，只要 SDK_VERSION 一致就保证内容一致；
  *   sha256 只作为 [PackSdkAssets] 脚本生成 manifest.json 时的一次性校验，运行期不再校验
  * - 解包失败时不留半成品：任何一步出错都把 install root 整个清空，避免下次启动用到坏文件
- * - 以 SDK_VERSION 为单位整体 invalidate：任何一份模型变了都强制重新解包；
- *   省得为了少量改动写复杂 diff 逻辑
+ * - 以 SDK_VERSION + 布局版本为单位整体 invalidate，确保旧版遗留的大模型副本会被清理
  */
 internal object AssetInstaller {
 
     /**
-     * 同步把当前 [language] + [config] 真正需要的全部 bundle 解包好，返回内部路径布局。
-     * 已经安装且 SDK_VERSION 一致时本调用是 O(1) 的（[InstallStats.installMs] = 0）。
+     * 同步准备当前 [language] + [config] 所需布局。ASR / 标点 / VAD 保持在 APK assets；
+     * 只有 WeText ITN 仍需真实文件路径，因此按需解包该小 bundle。
+     * 已经安装且布局标记一致时本调用是 O(1) 的（[InstallStats.installMs] = 0）。
      */
     @Throws(IllegalStateException::class)
     fun ensureInstalled(
@@ -40,17 +43,15 @@ internal object AssetInstaller {
         language: AsrLanguage,
         config: AsrConfig,
     ): InstalledLayout {
-        val bundles = mutableListOf(AssetRegistry.asrBundle(language))
-        if (config.punctuation) bundles += AssetRegistry.punctuationBundle()
+        val bundles = mutableListOf<AssetRegistry.Bundle>()
         if (config.itn && AssetRegistry.itnEnabledFor(language)) bundles += AssetRegistry.itnBundle()
-        if (config.vad) bundles += AssetRegistry.vadBundle()
 
         val stats = installAll(ctx, bundles, onProgress = null, cancelFlag = AtomicBoolean(false))
         return InstalledLayout.of(ctx, language, config, stats)
     }
 
     /**
-     * 异步解包 [AssetRegistry.allBundles] 全部资产；返回的 [Cancellable] 可在中途取消。
+     * 异步准备所有必须落盘的资产；ASR / 标点 / VAD 保持在 APK 内，仅解包 ITN。
      *
      * 进度回调单调递增 0..100，最后一个值一定是 100；调用线程 = 调用 [Cancellable] 的线程。
      * 解包过程在 SDK 自己的后台线程执行；onProgress 在该线程触发。
@@ -60,7 +61,7 @@ internal object AssetInstaller {
         val handle = CancellableImpl(cancelFlag)
         val thread = Thread({
             try {
-                installAll(ctx, AssetRegistry.allBundles(), onProgress, cancelFlag)
+                installAll(ctx, fileBackedBundles(), onProgress, cancelFlag)
             } catch (t: Throwable) {
                 Logger.e("preInstallAll failed: ${t.message}", t)
             } finally {
@@ -76,7 +77,7 @@ internal object AssetInstaller {
      */
     @Throws(IllegalStateException::class)
     fun preInstallAllSync(ctx: Context, onProgress: ((Int) -> Unit)? = null): InstallStats {
-        return installAll(ctx, AssetRegistry.allBundles(), onProgress, AtomicBoolean(false))
+        return installAll(ctx, fileBackedBundles(), onProgress, AtomicBoolean(false))
     }
 
     /** 描述一次 installAll 的副作用：耗时 + 拷贝字节数（已经 short-circuit 时全 0）。 */
@@ -89,12 +90,18 @@ internal object AssetInstaller {
         }
     }
 
-    /** 已安装资产的真实 [File] 路径，按业务关心的字段聚合，传给 [EngineImpl]。 */
+    /**
+     * native 模型使用 APK asset 相对路径；ITN 保留真实 [File] 路径。
+     *
+     * sherpa-onnx 的 Android JNI 原生支持 [AssetManager]，因此 ASR / 标点 / VAD 无需先复制
+     * 约 260 MiB 到应用私有目录。WeText 当前只接受文件路径，所以只解包约 1.3 MiB FST。
+     */
     internal class InstalledLayout(
-        val asrEncoder: File,
-        val asrDecoder: File,
-        val asrJoiner: File,
-        val asrTokens: File,
+        val assetManager: AssetManager,
+        val asrEncoder: String,
+        val asrDecoder: String,
+        val asrJoiner: String,
+        val asrTokens: String,
         /**
          * 两列文本 BPE 词表（每行 `<piece> <score>`），sherpa-onnx 自带的 ssentencepiece
          * 库专用格式；不是 Google SentencePiece protobuf `.model`。
@@ -103,11 +110,11 @@ internal object AssetInstaller {
          * 构造时拿这个路径去 darts trie build，文件不存在 / 格式不对都会 segfault。
          * 如果手头只有 `.model`，用 `asr/tools/09_export_bbpe_vocab.py` 转换。
          */
-        val asrBpeVocab: File,
-        val punctuationModel: File?,
+        val asrBpeVocab: String,
+        val punctuationModel: String?,
         val itnTaggerFst: File?,
         val itnVerbalizerFst: File?,
-        val vadModel: File?,
+        val vadModel: String?,
         val installStats: InstallStats,
     ) {
         companion object {
@@ -118,23 +125,53 @@ internal object AssetInstaller {
                 installStats: InstallStats = InstallStats.ZERO,
             ): InstalledLayout {
                 val root = installRoot(ctx)
-                val asrDir = File(root, AssetRegistry.asrBundle(language).installSubDir)
-                val punctDir = File(root, AssetRegistry.punctuationBundle().installSubDir)
                 val itnDir = File(root, AssetRegistry.itnBundle().installSubDir)
-                val vadDir = File(root, AssetRegistry.vadBundle().installSubDir)
                 val itnUsed = config.itn && AssetRegistry.itnEnabledFor(language)
+                val asrBundle = AssetRegistry.asrBundle(language)
+                val punctuationBundle = AssetRegistry.punctuationBundle()
+                val vadBundle = AssetRegistry.vadBundle()
+                val asrPaths = asrBundle.files.map { assetPath(asrBundle, it) }
+                val punctuationPath = if (config.punctuation) {
+                    assetPath(punctuationBundle, punctuationBundle.files.single())
+                } else {
+                    null
+                }
+                val vadPath = if (config.vad) {
+                    assetPath(vadBundle, vadBundle.files.single())
+                } else {
+                    null
+                }
+                (asrPaths + listOfNotNull(punctuationPath, vadPath)).forEach { path ->
+                    requireAsset(ctx.assets, path)
+                }
                 return InstalledLayout(
-                    asrEncoder = File(asrDir, "encoder.int8.onnx"),
-                    asrDecoder = File(asrDir, "decoder.onnx"),
-                    asrJoiner = File(asrDir, "joiner.int8.onnx"),
-                    asrTokens = File(asrDir, "tokens.txt"),
-                    asrBpeVocab = File(asrDir, "bbpe.vocab"),
-                    punctuationModel = if (config.punctuation) File(punctDir, "model.int8.onnx") else null,
+                    assetManager = ctx.assets,
+                    asrEncoder = asrPaths[0],
+                    asrDecoder = asrPaths[1],
+                    asrJoiner = asrPaths[2],
+                    asrTokens = asrPaths[3],
+                    asrBpeVocab = asrPaths[4],
+                    punctuationModel = punctuationPath,
                     itnTaggerFst = if (itnUsed) File(itnDir, "zh_itn_tagger.fst") else null,
                     itnVerbalizerFst = if (itnUsed) File(itnDir, "zh_itn_verbalizer.fst") else null,
-                    vadModel = if (config.vad) File(vadDir, "silero_vad.onnx") else null,
+                    vadModel = vadPath,
                     installStats = installStats,
                 )
+            }
+
+            private fun assetPath(bundle: AssetRegistry.Bundle, name: String): String =
+                "${AssetRegistry.ASSET_ROOT}/${bundle.assetSubPath}/$name"
+
+            private fun requireAsset(assetManager: AssetManager, path: String) {
+                try {
+                    assetManager.open(path, AssetManager.ACCESS_STREAMING).use { }
+                } catch (t: IOException) {
+                    throw illegalState(
+                        AsrErrorCode.ASSET_INSTALL_FAILED,
+                        "required APK asset is missing or unreadable: $path",
+                        t,
+                    )
+                }
             }
         }
     }
@@ -143,6 +180,12 @@ internal object AssetInstaller {
 
     private fun installRoot(ctx: Context): File =
         File(ctx.filesDir, AssetRegistry.INSTALL_ROOT)
+
+    private fun fileBackedBundles(): List<AssetRegistry.Bundle> =
+        listOf(AssetRegistry.itnBundle())
+
+    private fun installMarker(): String =
+        "${BuildConfig.SDK_VERSION}:itn-only-v1"
 
     @Throws(IllegalStateException::class)
     @Synchronized
@@ -157,14 +200,14 @@ internal object AssetInstaller {
         val flagFile = File(root, AssetRegistry.INSTALL_FLAG)
 
         // 已安装且 SDK_VERSION 匹配：检查目标文件是否齐全；齐全直接 short-circuit
-        if (flagFile.isFile && flagFile.readTextSafely() == BuildConfig.SDK_VERSION) {
+        if (flagFile.isFile && flagFile.readTextSafely() == installMarker()) {
             val allReady = bundles.all { bundle ->
                 val dir = File(root, bundle.installSubDir)
                 bundle.files.all { File(dir, it).isFile }
             }
             if (allReady) {
                 onProgress?.invoke(100)
-                Logger.i("AssetInstaller: bundles already installed for SDK ${BuildConfig.SDK_VERSION}")
+                Logger.i("AssetInstaller: bundles already installed for ${installMarker()}")
                 return InstallStats.ZERO
             }
             Logger.w("AssetInstaller: install.flag matches but files missing, re-installing")
@@ -256,7 +299,7 @@ internal object AssetInstaller {
         }
 
         try {
-            flagFile.writeText(BuildConfig.SDK_VERSION)
+            flagFile.writeText(installMarker())
         } catch (t: Throwable) {
             root.deleteRecursively()
             throw illegalState(
@@ -278,7 +321,7 @@ internal object AssetInstaller {
         return try {
             ctx.assets.openFd(path).use { afd -> afd.length }
         } catch (_: IOException) {
-            // .onnx / .fst 是 noCompress 的，理论上必然能 openFd；此处兜底走 InputStream
+            // .ort / .onnx / .fst 是 noCompress 的，理论上必然能 openFd；此处兜底走 InputStream
             ctx.assets.open(path).use { input ->
                 var total = 0L
                 val buf = ByteArray(64 * 1024)

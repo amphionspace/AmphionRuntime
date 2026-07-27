@@ -1,11 +1,11 @@
 package com.amphion.asr.internal
 
+import android.content.res.AssetManager
 import com.amphion.asr.AsrError
 import com.amphion.asr.AsrErrorCode
 import com.k2fsa.sherpa.onnx.OfflinePunctuation
 import com.k2fsa.sherpa.onnx.OfflinePunctuationConfig
 import com.k2fsa.sherpa.onnx.OfflinePunctuationModelConfig
-import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -20,27 +20,31 @@ import java.util.concurrent.atomic.AtomicBoolean
  * 仅在 [com.amphion.asr.AsrConfig.punctuation] = true 时由 [EngineImpl] 创建；
  * [PostProcessor] 串行调用，[com.amphion.asr.AsrEngine.close] 时统一 release。
  */
-internal class InternalPunctuationEngine(modelFile: File, numThreads: Int) : AutoCloseable {
+internal class InternalPunctuationEngine(
+    assetManager: AssetManager,
+    modelPath: String,
+    numThreads: Int,
+) : AutoCloseable {
 
     private val nativeImpl: OfflinePunctuation = run {
         val cfg = OfflinePunctuationConfig(
             model = OfflinePunctuationModelConfig(
-                ctTransformer = modelFile.absolutePath,
+                ctTransformer = modelPath,
                 numThreads = numThreads,
                 debug = false,
                 provider = "cpu",
             ),
         )
         when (val r = NativeGuard.run("OfflinePunctuation.<init>") {
-            OfflinePunctuation(assetManager = null, config = cfg)
+            OfflinePunctuation(assetManager = assetManager, config = cfg)
         }) {
             is NativeResult.Ok -> {
-                Logger.i("InternalPunctuationEngine loaded from ${modelFile.absolutePath}")
+                Logger.i("InternalPunctuationEngine loaded from APK asset $modelPath")
                 r.value
             }
             is NativeResult.Err -> throw IllegalStateException(
                 "code=${AsrErrorCode.ASSET_INSTALL_FAILED}: " +
-                    "failed to load punctuation model ${modelFile.absolutePath}: ${r.error.message}",
+                    "failed to load punctuation model $modelPath: ${r.error.message}",
                 r.error.cause,
             )
         }

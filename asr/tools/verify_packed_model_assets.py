@@ -53,10 +53,25 @@ EXPECTED_BUNDLES_V2 = {
     "itn-zh/v1": ["zh_itn_tagger.fst", "zh_itn_verbalizer.fst"],
     "vad/v1": ["silero_vad.onnx"],
 }
+EXPECTED_ANDROID_BUNDLES_V2 = {
+    bundle: [
+        f"{name}.mp3"
+        if bundle in {"zh-en/v1", "yue-en/v1", "punct-zhen/v1"}
+        and name.endswith((".ort", ".onnx"))
+        else name
+        for name in names
+    ]
+    for bundle, names in EXPECTED_BUNDLES_V2.items()
+}
 
 EXPECTED_HARMONY_TARGET = {
     "platform": "HarmonyOS",
     "architecture": "arm64",
+    "execution_provider": "CPUExecutionProvider",
+}
+EXPECTED_ANDROID_TARGET = {
+    "platform": "Android",
+    "architecture": "arm64-v8a",
     "execution_provider": "CPUExecutionProvider",
 }
 HARMONY_CONVERTER_ID = "onnxruntime-1.16.3-fixed-arm-cpu-v1"
@@ -70,6 +85,14 @@ EXPECTED_HARMONY_CONVERTER = {
     "target_platform": "arm",
     "execution_provider": "CPUExecutionProvider",
     "disabled_optimizers": ["NchwcTransformer"],
+}
+ANDROID_CONVERTER_ID = "onnxruntime-1.24.3-fixed-arm-cpu-v1"
+EXPECTED_ANDROID_CONVERTER = {
+    **EXPECTED_HARMONY_CONVERTER,
+    "id": ANDROID_CONVERTER_ID,
+    "onnxruntime_version": "1.24.3",
+    "onnx_version": "1.19.1",
+    "numpy_version": "2.0.2",
 }
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 MD5_PATTERN = re.compile(r"^[0-9a-f]{32}$")
@@ -88,30 +111,46 @@ def sha256_and_size(stream: BinaryIO) -> tuple[str, int]:
     return digest.hexdigest(), size
 
 
-def _validate_v2_header(manifest: dict) -> None:
-    if manifest.get("target") != EXPECTED_HARMONY_TARGET:
-        fail("manifest v2 target must be HarmonyOS arm64 CPUExecutionProvider")
+def _validate_v2_header(manifest: dict, target_platform: str) -> str:
+    if target_platform == "android":
+        expected_target = EXPECTED_ANDROID_TARGET
+        converter_id = ANDROID_CONVERTER_ID
+        expected_converter = EXPECTED_ANDROID_CONVERTER
+    else:
+        expected_target = EXPECTED_HARMONY_TARGET
+        converter_id = HARMONY_CONVERTER_ID
+        expected_converter = EXPECTED_HARMONY_CONVERTER
+    if manifest.get("target") != expected_target:
+        fail(f"manifest v2 target must match {target_platform} arm64 CPUExecutionProvider")
     converters = manifest.get("converters")
     if not isinstance(converters, dict):
         fail("manifest v2 converters must be an object")
     if converters.get("copy") != {"mode": "byte-for-byte"}:
         fail("manifest v2 copy converter is invalid")
-    if converters.get(HARMONY_CONVERTER_ID) != EXPECTED_HARMONY_CONVERTER:
+    if converters.get(converter_id) != expected_converter:
         fail("manifest v2 ONNX Runtime converter is invalid")
-    if set(converters) != {"copy", HARMONY_CONVERTER_ID}:
+    if set(converters) != {"copy", converter_id}:
         fail("manifest v2 converter list is invalid")
+    return converter_id
 
 
 def validate_manifest(
     manifest: dict,
     zh_en_only: bool = False,
+    target_platform: str = "harmony",
 ) -> tuple[int, dict[str, list[dict]], dict[str, list[str]]]:
     version = manifest.get("manifest_version")
     if version == 1:
-        expected_bundles = EXPECTED_BUNDLES_V1
+        expected_bundles = dict(EXPECTED_BUNDLES_V1)
+        if zh_en_only:
+            expected_bundles.pop("yue-en/v1")
     elif version == 2:
-        _validate_v2_header(manifest)
-        expected_bundles = dict(EXPECTED_BUNDLES_V2)
+        _validate_v2_header(manifest, target_platform)
+        expected_bundles = dict(
+            EXPECTED_ANDROID_BUNDLES_V2
+            if target_platform == "android"
+            else EXPECTED_BUNDLES_V2
+        )
         if zh_en_only:
             expected_bundles.pop("yue-en/v1")
     else:
@@ -128,7 +167,7 @@ def validate_manifest(
 
 
 def _expected_v2_format(name: str) -> str:
-    suffix = Path(name).suffix.lower()
+    suffix = Path(name.removesuffix(".mp3")).suffix.lower()
     return {
         ".ort": "ort",
         ".onnx": "onnx",
@@ -138,7 +177,12 @@ def _expected_v2_format(name: str) -> str:
     }[suffix]
 
 
-def _validate_v2_entry(entry: dict, name: str, relative_path: str) -> str:
+def _validate_v2_entry(
+    entry: dict,
+    name: str,
+    relative_path: str,
+    converter_id: str,
+) -> str:
     source_name = entry.get("source_name")
     if (
         not isinstance(source_name, str)
@@ -158,7 +202,7 @@ def _validate_v2_entry(entry: dict, name: str, relative_path: str) -> str:
     if entry.get("format") != _expected_v2_format(name):
         fail(f"format mismatch: {relative_path}")
 
-    expected_converter = HARMONY_CONVERTER_ID if name.endswith(".ort") else "copy"
+    expected_converter = converter_id if name.removesuffix(".mp3").endswith(".ort") else "copy"
     if entry.get("converter") != expected_converter:
         fail(f"converter mismatch: {relative_path}")
     if expected_converter == "copy" and source_sha256 != output_sha256:
@@ -192,9 +236,15 @@ def verify_assets(
     list_assets: Callable[[], Iterable[str]],
     source_label: str,
     zh_en_only: bool = False,
+    target_platform: str = "harmony",
 ) -> int:
     manifest = json.loads(manifest_bytes.decode("utf-8"))
-    version, bundles, expected_bundles = validate_manifest(manifest, zh_en_only)
+    version, bundles, expected_bundles = validate_manifest(
+        manifest, zh_en_only, target_platform
+    )
+    converter_id = (
+        ANDROID_CONVERTER_ID if target_platform == "android" else HARMONY_CONVERTER_ID
+    )
     if version == 2:
         _validate_exact_v2_assets(list_assets(), expected_bundles)
     verified = 0
@@ -224,7 +274,7 @@ def verify_assets(
             expected_digest = (
                 str(entry.get("sha256", "")).lower()
                 if version == 1
-                else _validate_v2_entry(entry, name, relative_path)
+                else _validate_v2_entry(entry, name, relative_path, converter_id)
             )
             if digest != expected_digest:
                 fail(f"sha256 mismatch: {relative_path}")
@@ -239,7 +289,11 @@ def verify_assets(
     return verified
 
 
-def verify_directory(root: Path, zh_en_only: bool = False) -> int:
+def verify_directory(
+    root: Path,
+    zh_en_only: bool = False,
+    target_platform: str = "harmony",
+) -> int:
     manifest_path = root / "manifest.json"
     if not manifest_path.is_file():
         fail(f"missing manifest: {manifest_path}")
@@ -260,16 +314,35 @@ def verify_directory(root: Path, zh_en_only: bool = False) -> int:
         list_assets,
         str(root),
         zh_en_only,
+        target_platform,
     )
 
 
-def _verify_zip_archive(archive: Path, prefix: str, zh_en_only: bool) -> int:
+def _verify_zip_archive(
+    archive: Path, prefix: str, zh_en_only: bool, target_platform: str
+) -> int:
     normalized_prefix = prefix.strip("/")
     with zipfile.ZipFile(archive) as package:
         names = set(package.namelist())
         manifest_name = f"{normalized_prefix}/manifest.json"
         if manifest_name not in names:
             fail(f"missing manifest in archive: {manifest_name}")
+        # AAR is an intermediate dependency archive: AGP extracts its assets
+        # and repackages them into the host APK. Only the final APK compression
+        # method determines whether AssetManager can expose an fd for mmap.
+        if target_platform == "android" and archive.suffix.lower() == ".apk":
+            compressed_transport_assets = sorted(
+                name
+                for name in names
+                if name.startswith(f"{normalized_prefix}/")
+                and name.endswith(".mp3")
+                and package.getinfo(name).compress_type != zipfile.ZIP_STORED
+            )
+            if compressed_transport_assets:
+                fail(
+                    "Android direct-load model assets must be ZIP_STORED: "
+                    f"{compressed_transport_assets}"
+                )
 
         def open_asset(relative_path: str) -> BinaryIO:
             return package.open(f"{normalized_prefix}/{relative_path}")
@@ -292,10 +365,13 @@ def _verify_zip_archive(archive: Path, prefix: str, zh_en_only: bool) -> int:
             list_assets,
             str(archive),
             zh_en_only,
+            target_platform,
         )
 
 
-def _verify_tar_archive(archive: Path, prefix: str, zh_en_only: bool) -> int:
+def _verify_tar_archive(
+    archive: Path, prefix: str, zh_en_only: bool, target_platform: str
+) -> int:
     normalized_prefix = prefix.strip("/")
     with tarfile.open(archive, "r:*") as package:
         file_members = [member for member in package.getmembers() if member.isfile()]
@@ -337,13 +413,19 @@ def _verify_tar_archive(archive: Path, prefix: str, zh_en_only: bool) -> int:
             list_assets,
             str(archive),
             zh_en_only,
+            target_platform,
         )
 
 
-def verify_archive(archive: Path, prefix: str, zh_en_only: bool = False) -> int:
+def verify_archive(
+    archive: Path,
+    prefix: str,
+    zh_en_only: bool = False,
+    target_platform: str = "harmony",
+) -> int:
     if zipfile.is_zipfile(archive):
-        return _verify_zip_archive(archive, prefix, zh_en_only)
-    return _verify_tar_archive(archive, prefix, zh_en_only)
+        return _verify_zip_archive(archive, prefix, zh_en_only, target_platform)
+    return _verify_tar_archive(archive, prefix, zh_en_only, target_platform)
 
 
 def main() -> None:
@@ -359,15 +441,22 @@ def main() -> None:
     parser.add_argument(
         "--zh-en-only",
         action="store_true",
-        help="expect the Harmony v2 bundle set without yue-en/v1",
+        help="expect the platform bundle set without yue-en/v1",
+    )
+    parser.add_argument(
+        "--target-platform",
+        choices=("harmony", "android"),
+        default="harmony",
     )
     args = parser.parse_args()
 
     try:
         if args.root is not None:
-            verify_directory(args.root, args.zh_en_only)
+            verify_directory(args.root, args.zh_en_only, args.target_platform)
         else:
-            verify_archive(args.archive, args.prefix, args.zh_en_only)
+            verify_archive(
+                args.archive, args.prefix, args.zh_en_only, args.target_platform
+            )
     except (
         OSError,
         TypeError,

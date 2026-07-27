@@ -26,10 +26,13 @@ def md5(data: bytes) -> str:
     return hashlib.md5(data).hexdigest()
 
 
-def write_fixture(root: Path, version: int) -> dict:
-    expected = (
-        verifier.EXPECTED_BUNDLES_V1 if version == 1 else verifier.EXPECTED_BUNDLES_V2
-    )
+def write_fixture(root: Path, version: int, target_platform: str = "harmony") -> dict:
+    if version == 1:
+        expected = verifier.EXPECTED_BUNDLES_V1
+    elif target_platform == "android":
+        expected = verifier.EXPECTED_ANDROID_BUNDLES_V2
+    else:
+        expected = verifier.EXPECTED_BUNDLES_V2
     bundles = {}
     for bundle, names in expected.items():
         entries = []
@@ -42,12 +45,11 @@ def write_fixture(root: Path, version: int) -> dict:
                 entry = {"name": name, "size_bytes": len(data), "sha256": sha256(data)}
             else:
                 output_sha256 = sha256(data)
-                converter = (
-                    verifier.HARMONY_CONVERTER_ID if name.endswith(".ort") else "copy"
-                )
+                is_ort = name.removesuffix(".mp3").endswith(".ort")
+                converter = verifier.HARMONY_CONVERTER_ID if is_ort else "copy"
                 source_sha256 = (
                     sha256(f"source/{bundle}/{name}".encode("utf-8"))
-                    if name.endswith(".ort")
+                    if is_ort
                     else output_sha256
                 )
                 entry = {
@@ -65,12 +67,29 @@ def write_fixture(root: Path, version: int) -> dict:
 
     manifest = {"manifest_version": version, "bundles": bundles}
     if version == 2:
+        android = target_platform == "android"
+        converter_id = (
+            verifier.ANDROID_CONVERTER_ID if android else verifier.HARMONY_CONVERTER_ID
+        )
+        converter_config = (
+            verifier.EXPECTED_ANDROID_CONVERTER
+            if android
+            else verifier.EXPECTED_HARMONY_CONVERTER
+        )
+        for entries in bundles.values():
+            for entry in entries:
+                if entry["name"].removesuffix(".mp3").endswith(".ort"):
+                    entry["converter"] = converter_id
         manifest.update(
             {
-                "target": verifier.EXPECTED_HARMONY_TARGET,
+                "target": (
+                    verifier.EXPECTED_ANDROID_TARGET
+                    if android
+                    else verifier.EXPECTED_HARMONY_TARGET
+                ),
                 "converters": {
                     "copy": {"mode": "byte-for-byte"},
-                    verifier.HARMONY_CONVERTER_ID: verifier.EXPECTED_HARMONY_CONVERTER,
+                    converter_id: converter_config,
                 },
             }
         )
@@ -79,6 +98,57 @@ def write_fixture(root: Path, version: int) -> dict:
 
 
 class VerifyPackedModelAssetsTest(unittest.TestCase):
+    def test_android_manifest_v2_requires_android_ort_1_24_3(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            write_fixture(root, 2, target_platform="android")
+            self.assertEqual(
+                verifier.verify_directory(root, target_platform="android"),
+                14,
+            )
+            with self.assertRaisesRegex(ValueError, "target must match harmony"):
+                verifier.verify_directory(root)
+
+    def test_android_manifest_v2_archive_rejects_deflated_models(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            workspace = Path(temporary_directory)
+            root = workspace / "assets" / "amphion-models"
+            write_fixture(root, 2, target_platform="android")
+            archive = workspace / "sdk.apk"
+            with zipfile.ZipFile(
+                archive, "w", compression=zipfile.ZIP_DEFLATED
+            ) as package:
+                for path in root.rglob("*"):
+                    if path.is_file():
+                        package.write(path, path.relative_to(workspace).as_posix())
+            with self.assertRaisesRegex(ValueError, "must be ZIP_STORED"):
+                verifier.verify_archive(
+                    archive,
+                    "assets/amphion-models",
+                    target_platform="android",
+                )
+
+    def test_android_manifest_v2_aar_allows_intermediate_compression(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            workspace = Path(temporary_directory)
+            root = workspace / "assets" / "amphion-models"
+            write_fixture(root, 2, target_platform="android")
+            archive = workspace / "sdk.aar"
+            with zipfile.ZipFile(
+                archive, "w", compression=zipfile.ZIP_DEFLATED
+            ) as package:
+                for path in root.rglob("*"):
+                    if path.is_file():
+                        package.write(path, path.relative_to(workspace).as_posix())
+            self.assertEqual(
+                verifier.verify_archive(
+                    archive,
+                    "assets/amphion-models",
+                    target_platform="android",
+                ),
+                14,
+            )
+
     def test_android_manifest_v1_directory_still_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -98,6 +168,16 @@ class VerifyPackedModelAssetsTest(unittest.TestCase):
             self.assertEqual(
                 verifier.verify_archive(archive, "assets/amphion-models"), 14
             )
+
+    def test_android_manifest_v1_zh_en_only_directory_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            manifest = write_fixture(root, 1)
+            manifest["bundles"].pop("yue-en/v1")
+            shutil.rmtree(root / "yue-en")
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+            self.assertEqual(verifier.verify_directory(root, zh_en_only=True), 9)
 
     def test_harmony_manifest_v2_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
