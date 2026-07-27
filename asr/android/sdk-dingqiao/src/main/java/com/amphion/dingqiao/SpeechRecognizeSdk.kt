@@ -13,6 +13,7 @@ import java.io.File
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
@@ -80,6 +81,13 @@ object SpeechRecognizeSdk {
     private var engineExecutor: Executor = defaultEngineExecutor
 
     /**
+     * Runtime/model generations own every published engine. A lifecycle reset must close these
+     * handles before releasing the pooled native recognizer; otherwise a stale engine can enter
+     * OnlineRecognizer.createStream() with a freed native pointer.
+     */
+    private val activeEngines: MutableSet<SpeechRecognitionEngine> = ConcurrentHashMap.newKeySet()
+
+    /**
      * Android 平台初始化（须在 [createEngine] / [registerVoiceprint] 之前调用一次）。
      */
     @JvmStatic
@@ -122,12 +130,16 @@ object SpeechRecognizeSdk {
             requireRuntimeReady()
             val store = requireStore()
             val speakerModel = store.speakerModelPath().takeIf { it.isFile }?.absolutePath
-            DingqiaoRecognitionEngine.create(
+            lateinit var created: DingqiaoRecognitionEngine
+            created = DingqiaoRecognitionEngine.create(
                 appContext = ctx,
                 params = params,
                 voiceprintStore = store,
                 speakerModelPath = speakerModel,
+                onShutdown = { activeEngines.remove(it) },
             )
+            activeEngines.add(created)
+            created
         }
     }
 
@@ -559,7 +571,10 @@ object SpeechRecognizeSdk {
                         authorizedFeatures = info.authorizedFeatures,
                     )
                 }
-                if (shouldUnloadRuntime) runtimeBridge.unloadRuntime()
+                if (shouldUnloadRuntime) {
+                    shutdownActiveEngines()
+                    runtimeBridge.unloadRuntime()
+                }
             }
             result
         } catch (t: Throwable) {
@@ -586,6 +601,7 @@ object SpeechRecognizeSdk {
                 modelGeneration += 1
                 defaultModelPrepared = false
             }
+            shutdownActiveEngines()
             runtimeBridge.unloadModel()
         }
     }
@@ -599,6 +615,7 @@ object SpeechRecognizeSdk {
                 runtimeInitialized = false
                 defaultModelPrepared = false
             }
+            shutdownActiveEngines()
             runtimeBridge.unloadRuntime()
         }
     }
@@ -617,8 +634,30 @@ object SpeechRecognizeSdk {
                 appContext = null
                 engineExecutor = defaultEngineExecutor
             }
+            shutdownActiveEngines()
             runtimeBridge.unloadRuntime()
             runtimeBridge = AndroidRuntimeLifecycleBridge
+        }
+    }
+
+    internal fun trackEngine(engine: SpeechRecognitionEngine) {
+        activeEngines.add(engine)
+    }
+
+    private fun shutdownActiveEngines() {
+        activeEngines.toList().forEach { engine ->
+            try {
+                if (engine is DingqiaoRecognitionEngine) {
+                    engine.invalidateFromRuntime()
+                } else {
+                    engine.shutdown()
+                }
+            } catch (_: Throwable) {
+                // Runtime invalidation still has to release the native pool. The handle is removed
+                // even if a customer implementation throws from its idempotent shutdown method.
+            } finally {
+                activeEngines.remove(engine)
+            }
         }
     }
 
