@@ -16,6 +16,7 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 
 class SpeechRecognizeSdkRuntimeApiTest {
     @Before
@@ -131,6 +132,35 @@ class SpeechRecognizeSdkRuntimeApiTest {
 
         assertTrue(done.await(5, TimeUnit.SECONDS))
         assertEquals(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, errorCode)
+    }
+
+    @Test
+    fun successfulSetLicenseShutsDownPublishedEngineBeforeRuntimeReset() {
+        val context = mock<Context> {
+            on { applicationContext } doReturn null
+            on { packageName } doReturn "com.amphion.test"
+        }
+        val licenseFile = kotlin.io.path.createTempFile(suffix = ".lic").toFile()
+        licenseFile.writeText("development-license")
+        val runtime = FakeRuntimeLifecycleBridge().apply { ready = true }
+        val engine = mock<SpeechRecognitionEngine>()
+        val done = CountDownLatch(1)
+        SpeechRecognizeSdk.setRuntimeBridgeForTests(runtime)
+        SpeechRecognizeSdk.init(context)
+        SpeechRecognizeSdk.trackEngine(engine)
+
+        SpeechRecognizeSdk.setLicense(
+            licenseFile.absolutePath,
+            object : LicenseActivationCallback {
+                override fun onResult(result: LicenseActivationResult) = done.countDown()
+                override fun onError(errorCode: Int, errorMessage: String) = done.countDown()
+            },
+        )
+
+        assertTrue(done.await(5, TimeUnit.SECONDS))
+        verify(engine).shutdown()
+        assertFalse(runtime.ready)
+        licenseFile.delete()
     }
 
     @Test

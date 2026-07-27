@@ -29,6 +29,7 @@ internal class DingqiaoRecognitionEngine(
     private val voiceprintStore: VoiceprintStore,
     private val speakerModelPath: String?,
     private val callbackExecutor: ExecutorService,
+    private val onShutdown: (SpeechRecognitionEngine) -> Unit,
 ) : SpeechRecognitionEngine {
 
     /**
@@ -286,22 +287,33 @@ internal class DingqiaoRecognitionEngine(
     override fun isBusy(): Boolean = listening
 
     override fun shutdown() = lifecycleCallbackLock.withLock {
-        synchronized(this) { shutdownLocked() }
+        synchronized(this) { shutdownLocked(force = false) }
     }
 
-    private fun shutdownLocked() {
-        if (staleCallbackTargetsReplacement()) return
+    internal fun invalidateFromRuntime() = lifecycleCallbackLock.withLock {
+        synchronized(this) { shutdownLocked(force = true) }
+    }
+
+    private fun shutdownLocked(force: Boolean) {
+        if (!force && staleCallbackTargetsReplacement()) return
         if (!destroyed.compareAndSet(false, true)) return
-        val shutdownEpoch = activeEpoch
-        tearDownSession(shutdownEpoch)
         try {
-            engine?.close()
-        } catch (_: Throwable) {
-        }
-        engine = null
-        try {
-            enhancePipeline.close()
-        } catch (_: Throwable) {
+            val shutdownEpoch = activeEpoch
+            try {
+                tearDownSession(shutdownEpoch)
+            } catch (_: Throwable) {
+            }
+            try {
+                engine?.close()
+            } catch (_: Throwable) {
+            }
+            engine = null
+            try {
+                enhancePipeline.close()
+            } catch (_: Throwable) {
+            }
+        } finally {
+            onShutdown(this)
         }
     }
 
@@ -675,12 +687,14 @@ internal class DingqiaoRecognitionEngine(
             params: CreateEngineParams,
             voiceprintStore: VoiceprintStore,
             speakerModelPath: String?,
+            onShutdown: (SpeechRecognitionEngine) -> Unit,
         ): DingqiaoRecognitionEngine = DingqiaoRecognitionEngine(
             appContext = appContext,
             createParams = params,
             voiceprintStore = voiceprintStore,
             speakerModelPath = speakerModelPath,
             callbackExecutor = sharedExecutor,
+            onShutdown = onShutdown,
         )
     }
 }

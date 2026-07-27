@@ -694,7 +694,10 @@ class DqSdkCornerCaseTest {
     // ---------- a12: shutdown 后调用抛异常而非回调 onError ----------
     @Test
     fun a12_postShutdown_throwsInsteadOfCallback() {
-        ensureSdkReady()
+        // Reuse the already licensed/prepared Runtime. Repeating setLicense here would correctly
+        // invalidate the shared engine and make the following ordered stress case reuse a stale
+        // test fixture rather than exercise a live SDK engine.
+        sharedEngine()
         val throwaway = SpeechRecognizeSdk.createEngine(
             CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE),
         )
