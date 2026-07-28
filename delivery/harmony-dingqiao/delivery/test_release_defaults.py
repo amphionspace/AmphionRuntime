@@ -6,6 +6,26 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
+    def test_prepack_is_disabled_by_default_across_public_harmony_layers(self) -> None:
+        core = (
+            REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets"
+        ).read_text(encoding="utf-8")
+        dingqiao = (
+            REPO_ROOT
+            / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/"
+            "SpeechRecognizeSdk.ets"
+        ).read_text(encoding="utf-8")
+        docs = (
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/语音识别SDK接口.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("disablePrepack: boolean = true;", core)
+        self.assertIn(
+            "compatibleBooleanParam(params.extraParams, 'disablePrepack', true)",
+            dingqiao,
+        )
+        self.assertIn("| `disablePrepack` | `boolean/number/string` | `true` |", docs)
+
     def test_sdk_only_packaging_does_not_require_demo_build_identity(self) -> None:
         script = (
             REPO_ROOT
