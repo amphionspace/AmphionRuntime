@@ -61,6 +61,9 @@ internal object DingqiaoEngineConfig {
             .vadConfig(VadConfig(activeEndpointSilenceMs = vadEndMs(startParams)))
             .endpoint(true)
             .endpointRules(EndpointRules(rule2MinTrailingSilenceSec = 2.0f))
+            .disablePrepack(
+                params.extraParams["disablePrepack"]?.let(::asBoolean) ?: true,
+            )
         if (hotwords.isNotEmpty()) {
             builder.hotwords(hotwords, PoliceEngineConfig.HOTWORDS_SCORE_DEFAULT)
         }
