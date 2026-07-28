@@ -1,0 +1,446 @@
+From 27104e94c24f9e39c65490d7c4f18747836248eb Mon Sep 17 00:00:00 2001
+From: Amphion CI <ci@amphion.local>
+Date: Tue, 28 Jul 2026 12:03:43 +0800
+Subject: [PATCH] feat(harmony): enable shared WeText ITN normalization
+
+---
+ .../SherpaOnnxHar/sherpa_onnx/Index.ets       |  3 +
+ .../sherpa_onnx/src/main/cpp/CMakeLists.txt   |  1 +
+ .../main/cpp/sherpa-onnx-node-addon-api.cc    |  3 +
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |  3 +
+ .../src/main/cpp/wetext-itn-handle.h          | 36 ++++++++
+ .../sherpa_onnx/src/main/cpp/wetext-itn.cc    | 84 +++++++++++++++++++
+ .../src/main/ets/components/WetextItn.ets     | 30 +++++++
+ sherpa-onnx/c-api/CMakeLists.txt              |  3 +
+ sherpa-onnx/c-api/c-api.cc                    | 37 ++++++++
+ sherpa-onnx/c-api/c-api.h                     | 18 ++++
+ .../csrc/wetext/processor/wetext_processor.cc | 69 +++++++++++++++
+ 11 files changed, 287 insertions(+)
+ create mode 100644 harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn-handle.h
+ create mode 100644 harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc
+ create mode 100644 harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/WetextItn.ets
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
+index 93ea7575..eba21eb6 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
+@@ -71,6 +71,9 @@ export { OnlinePunctuationModelConfig,
+   OnlinePunctuation,
+ } from './src/main/ets/components/OnlinePunctuation';
+ 
++export { WetextItnConfig, WetextItn,
++} from './src/main/ets/components/WetextItn';
++
+ export { SpeakerEmbeddingExtractorConfig,
+   SpeakerEmbeddingExtractor,
+   SpeakerEmbeddingManager,
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt
+index 5880e7a6..163ebc27 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt
+@@ -58,6 +58,7 @@ add_library(sherpa_onnx SHARED
+   version.cc
+   wave-reader.cc
+   wave-writer.cc
++  wetext-itn.cc
+ )
+ 
+ add_library(sherpa_onnx_c_api SHARED IMPORTED)
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/sherpa-onnx-node-addon-api.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/sherpa-onnx-node-addon-api.cc
+index b732d4fb..da25a7a9 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/sherpa-onnx-node-addon-api.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/sherpa-onnx-node-addon-api.cc
+@@ -35,6 +35,8 @@ void InitOnlineSpeechDenoiser(Napi::Env env, Napi::Object exports);
+ 
+ void InitVersion(Napi::Env env, Napi::Object exports);
+ 
++void InitWetextItn(Napi::Env env, Napi::Object exports);
++
+ #if __OHOS__
+ void InitUtils(Napi::Env env, Napi::Object exports);
+ #endif
+@@ -56,6 +58,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
+   InitNonStreamingSpeechDenoiser(env, exports);
+   InitOnlineSpeechDenoiser(env, exports);
+   InitVersion(env, exports);
++  InitWetextItn(env, exports);
+ 
+ #if __OHOS__
+   InitUtils(env, exports);
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index 79de3624..f62a2401 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -61,6 +61,9 @@ export const createOfflinePunctuationAsync: (config: object,
+   mgr?: object) => Promise<object>;
+ export const offlinePunctuationAddPunct: (handle: object, text: string) => string;
+ export const destroyOfflinePunctuation: (handle: object) => void;
++export const createWetextItn: (config: object) => object;
++export const wetextItnNormalize: (handle: object, text: string) => string;
++export const destroyWetextItn: (handle: object) => void;
+ export const createOnlinePunctuation: (config: object, mgr?: object) => object;
+ export const onlinePunctuationAddPunct: (handle: object, text: string) => string;
+ 
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn-handle.h b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn-handle.h
+new file mode 100644
+index 00000000..f98c8a2d
+--- /dev/null
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn-handle.h
+@@ -0,0 +1,36 @@
++#ifndef SHERPA_ONNX_HARMONY_WETEXT_ITN_HANDLE_H_
++#define SHERPA_ONNX_HARMONY_WETEXT_ITN_HANDLE_H_
++
++#include "napi.h"  // NOLINT
++#include "sherpa-onnx/c-api/c-api.h"
++
++class WetextItnHandle {
++ public:
++  explicit WetextItnHandle(const SherpaOnnxWetextItn *itn) : itn_(itn) {}
++  ~WetextItnHandle() { Close(); }
++
++  const SherpaOnnxWetextItn *Get() const { return itn_; }
++
++  void Close() {
++    if (itn_ == nullptr) return;
++    SherpaOnnxDestroyWetextItn(itn_);
++    itn_ = nullptr;
++  }
++
++ private:
++  const SherpaOnnxWetextItn *itn_;
++};
++
++inline Napi::External<WetextItnHandle> WrapWetextItn(
++    Napi::Env env, const SherpaOnnxWetextItn *itn) {
++  auto *handle = new WetextItnHandle(itn);
++  return Napi::External<WetextItnHandle>::New(
++      env, handle, [](Napi::Env, WetextItnHandle *value) { delete value; });
++}
++
++inline WetextItnHandle *GetWetextItnHandle(const Napi::CallbackInfo &info,
++                                           size_t index) {
++  return info[index].As<Napi::External<WetextItnHandle>>().Data();
++}
++
++#endif  // SHERPA_ONNX_HARMONY_WETEXT_ITN_HANDLE_H_
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc
+new file mode 100644
+index 00000000..e1511968
+--- /dev/null
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc
+@@ -0,0 +1,84 @@
++#include <sstream>
++#include <string>
++
++#include "napi.h"  // NOLINT
++#include "sherpa-onnx/c-api/c-api.h"
++#include "wetext-itn-handle.h"  // NOLINT
++
++static Napi::External<WetextItnHandle> CreateWetextItnWrapper(
++    const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 1 || !info[0].IsObject()) {
++    Napi::TypeError::New(env, "Expected one WeText ITN config object")
++        .ThrowAsJavaScriptException();
++    return {};
++  }
++  const Napi::Object config = info[0].As<Napi::Object>();
++  if (!config.Has("taggerFst") || !config.Get("taggerFst").IsString() ||
++      !config.Has("verbalizerFst") ||
++      !config.Get("verbalizerFst").IsString()) {
++    Napi::TypeError::New(env, "taggerFst and verbalizerFst must be strings")
++        .ThrowAsJavaScriptException();
++    return {};
++  }
++
++  const std::string tagger =
++      config.Get("taggerFst").As<Napi::String>().Utf8Value();
++  const std::string verbalizer =
++      config.Get("verbalizerFst").As<Napi::String>().Utf8Value();
++  const SherpaOnnxWetextItn *itn =
++      SherpaOnnxCreateWetextItn(tagger.c_str(), verbalizer.c_str());
++  if (itn == nullptr) {
++    Napi::Error::New(env, "Failed to create WeText ITN processor")
++        .ThrowAsJavaScriptException();
++    return {};
++  }
++  return WrapWetextItn(env, itn);
++}
++
++static Napi::String WetextItnNormalizeWrapper(
++    const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 2 || !info[0].IsExternal() || !info[1].IsString()) {
++    Napi::TypeError::New(env, "Expected WeText ITN handle and text")
++        .ThrowAsJavaScriptException();
++    return {};
++  }
++  WetextItnHandle *handle = GetWetextItnHandle(info, 0);
++  if (handle == nullptr || handle->Get() == nullptr) {
++    Napi::Error::New(env, "WeText ITN processor is closed")
++        .ThrowAsJavaScriptException();
++    return {};
++  }
++  const std::string text = info[1].As<Napi::String>().Utf8Value();
++  const char *normalized =
++      SherpaOnnxWetextItnNormalize(handle->Get(), text.c_str());
++  if (normalized == nullptr) {
++    Napi::Error::New(env, "WeText ITN normalization failed")
++        .ThrowAsJavaScriptException();
++    return {};
++  }
++  const Napi::String result = Napi::String::New(env, normalized);
++  SherpaOnnxWetextItnFreeText(normalized);
++  return result;
++}
++
++static void DestroyWetextItnWrapper(const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 1 || !info[0].IsExternal()) {
++    Napi::TypeError::New(env, "Expected one WeText ITN handle")
++        .ThrowAsJavaScriptException();
++    return;
++  }
++  WetextItnHandle *handle = GetWetextItnHandle(info, 0);
++  if (handle != nullptr) handle->Close();
++}
++
++void InitWetextItn(Napi::Env env, Napi::Object exports) {
++  exports.Set(Napi::String::New(env, "createWetextItn"),
++              Napi::Function::New(env, CreateWetextItnWrapper));
++  exports.Set(Napi::String::New(env, "wetextItnNormalize"),
++              Napi::Function::New(env, WetextItnNormalizeWrapper));
++  exports.Set(Napi::String::New(env, "destroyWetextItn"),
++              Napi::Function::New(env, DestroyWetextItnWrapper));
++}
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/WetextItn.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/WetextItn.ets
+new file mode 100644
+index 00000000..55b93c88
+--- /dev/null
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/WetextItn.ets
+@@ -0,0 +1,30 @@
++import {
++  createWetextItn,
++  destroyWetextItn,
++  wetextItnNormalize,
++} from 'libsherpa_onnx.so';
++
++export class WetextItnConfig {
++  public taggerFst: string = '';
++  public verbalizerFst: string = '';
++}
++
++export class WetextItn {
++  private handle: object;
++  private closed: boolean = false;
++
++  constructor(config: WetextItnConfig) {
++    this.handle = createWetextItn(config);
++  }
++
++  normalize(text: string): string {
++    if (this.closed) return text;
++    return wetextItnNormalize(this.handle, text);
++  }
++
++  close(): void {
++    if (this.closed) return;
++    destroyWetextItn(this.handle);
++    this.closed = true;
++  }
++}
+diff --git a/sherpa-onnx/c-api/CMakeLists.txt b/sherpa-onnx/c-api/CMakeLists.txt
+index cbb81dfb..58a5700a 100644
+--- a/sherpa-onnx/c-api/CMakeLists.txt
++++ b/sherpa-onnx/c-api/CMakeLists.txt
+@@ -2,6 +2,9 @@ include_directories(${PROJECT_SOURCE_DIR})
+ add_library(sherpa-onnx-c-api c-api.cc)
+ target_link_libraries(sherpa-onnx-c-api sherpa-onnx-core)
+ target_include_directories(sherpa-onnx-c-api PUBLIC ${PROJECT_SOURCE_DIR})
++target_include_directories(sherpa-onnx-c-api PRIVATE
++  ${PROJECT_SOURCE_DIR}/sherpa-onnx/csrc/wetext
++)
+ 
+ if(BUILD_SHARED_LIBS)
+   target_compile_definitions(sherpa-onnx-c-api PUBLIC SHERPA_ONNX_BUILD_SHARED_LIBS=1)
+diff --git a/sherpa-onnx/c-api/c-api.cc b/sherpa-onnx/c-api/c-api.cc
+index cc808c1a..6722b848 100644
+--- a/sherpa-onnx/c-api/c-api.cc
++++ b/sherpa-onnx/c-api/c-api.cc
+@@ -40,6 +40,7 @@
+ #include "sherpa-onnx/csrc/voice-activity-detector.h"
+ #include "sherpa-onnx/csrc/wave-reader.h"
+ #include "sherpa-onnx/csrc/wave-writer.h"
++#include "sherpa-onnx/csrc/wetext/processor/wetext_processor.h"
+ 
+ #if SHERPA_ONNX_ENABLE_TTS == 1
+ #include "sherpa-onnx/csrc/offline-tts.h"
+@@ -67,6 +68,10 @@ struct SherpaOnnxDisplay {
+   std::unique_ptr<sherpa_onnx::Display> impl;
+ };
+ 
++struct SherpaOnnxWetextItn {
++  std::unique_ptr<wetext::Processor> impl;
++};
++
+ #define SHERPA_ONNX_OR(x, y) (x ? x : y)
+ 
+ static sherpa_onnx::OnlineRecognizerConfig GetOnlineRecognizerConfig(
+@@ -2623,6 +2628,38 @@ void SherpaOfflinePunctuationFreeText(const char *text) {
+   delete[] text;
+ }
+ 
++const SherpaOnnxWetextItn *SherpaOnnxCreateWetextItn(
++    const char *tagger_fst, const char *verbalizer_fst) {
++  if (tagger_fst == nullptr || verbalizer_fst == nullptr) return nullptr;
++  try {
++    auto *itn = new SherpaOnnxWetextItn;
++    itn->impl =
++        std::make_unique<wetext::Processor>(tagger_fst, verbalizer_fst);
++    return itn;
++  } catch (...) {
++    return nullptr;
++  }
++}
++
++void SherpaOnnxDestroyWetextItn(const SherpaOnnxWetextItn *itn) {
++  delete itn;
++}
++
++const char *SherpaOnnxWetextItnNormalize(const SherpaOnnxWetextItn *itn,
++                                        const char *text) {
++  if (itn == nullptr || text == nullptr) return nullptr;
++  try {
++    const std::string normalized = itn->impl->Normalize(text);
++    char *result = new char[normalized.size() + 1];
++    std::memcpy(result, normalized.c_str(), normalized.size() + 1);
++    return result;
++  } catch (...) {
++    return nullptr;
++  }
++}
++
++void SherpaOnnxWetextItnFreeText(const char *text) { delete[] text; }
++
+ struct SherpaOnnxOnlinePunctuation {
+   std::unique_ptr<sherpa_onnx::OnlinePunctuation> impl;
+ };
+diff --git a/sherpa-onnx/c-api/c-api.h b/sherpa-onnx/c-api/c-api.h
+index 8ec1646f..fe7c2e79 100644
+--- a/sherpa-onnx/c-api/c-api.h
++++ b/sherpa-onnx/c-api/c-api.h
+@@ -3576,6 +3576,24 @@ SHERPA_ONNX_API const char *SherpaOfflinePunctuationAddPunct(
+  */
+ SHERPA_ONNX_API void SherpaOfflinePunctuationFreeText(const char *text);
+ 
++// --------------------------- WeText ITN ---------------------------------
++
++typedef struct SherpaOnnxWetextItn SherpaOnnxWetextItn;
++
++/** Create a WeText inverse-text-normalization processor from two FST files. */
++SHERPA_ONNX_API const SherpaOnnxWetextItn *SherpaOnnxCreateWetextItn(
++    const char *tagger_fst, const char *verbalizer_fst);
++
++/** Destroy a processor returned by SherpaOnnxCreateWetextItn(). */
++SHERPA_ONNX_API void SherpaOnnxDestroyWetextItn(
++    const SherpaOnnxWetextItn *itn);
++
++/** Normalize UTF-8 text. Free the returned string with the function below. */
++SHERPA_ONNX_API const char *SherpaOnnxWetextItnNormalize(
++    const SherpaOnnxWetextItn *itn, const char *text);
++
++SHERPA_ONNX_API void SherpaOnnxWetextItnFreeText(const char *text);
++
+ /**
+  * @brief Online punctuation model configuration.
+  *
+diff --git a/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc b/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
+index dd342b4f..9cee475d 100644
+--- a/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
++++ b/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
+@@ -14,6 +14,72 @@
+ 
+ #include "processor/wetext_processor.h"
+ 
++namespace {
++
++// "么" is a common ASR spelling for spoken digit one (yao), but it is also a
++// normal Chinese suffix. Restrict the alias to long, contiguous digit-like
++// runs so phrases such as "什么" and "这么多" remain untouched. Five digits
++// is the shortest identifier-like run we support here; shorter unambiguous
++// forms are already handled by the WeText grammar via "一" and "幺".
++constexpr int32_t kMinAmbiguousDigitRunLength = 5;
++
++bool MatchDigitToken(const std::string &input, size_t offset,
++                     std::string *token, bool *is_ambiguous_one) {
++  static const char *kDigitTokens[] = {
++      "零", "〇", "一", "二", "三", "四", "五", "六", "七",
++      "八", "九", "幺", "么", "两"};
++  if (offset < input.size() && input[offset] >= '0' && input[offset] <= '9') {
++    *token = input.substr(offset, 1);
++    *is_ambiguous_one = false;
++    return true;
++  }
++  for (const char *candidate : kDigitTokens) {
++    const std::string value(candidate);
++    if (input.compare(offset, value.size(), value) == 0) {
++      *token = value;
++      *is_ambiguous_one = value == "么";
++      return true;
++    }
++  }
++  return false;
++}
++
++std::string CanonicalizeAmbiguousDigitOne(const std::string &input) {
++  std::string output;
++  output.reserve(input.size());
++  size_t offset = 0;
++  while (offset < input.size()) {
++    std::string token;
++    bool is_ambiguous_one = false;
++    if (!MatchDigitToken(input, offset, &token, &is_ambiguous_one)) {
++      output.push_back(input[offset++]);
++      continue;
++    }
++
++    const size_t run_start = offset;
++    int32_t run_length = 0;
++    bool has_ambiguous_one = false;
++    bool has_unambiguous_digit = false;
++    std::string canonical_run;
++    while (MatchDigitToken(input, offset, &token, &is_ambiguous_one)) {
++      ++run_length;
++      has_ambiguous_one = has_ambiguous_one || is_ambiguous_one;
++      has_unambiguous_digit = has_unambiguous_digit || !is_ambiguous_one;
++      canonical_run.append(is_ambiguous_one ? "幺" : token);
++      offset += token.size();
++    }
++    if (run_length >= kMinAmbiguousDigitRunLength && has_ambiguous_one &&
++        has_unambiguous_digit) {
++      output.append(canonical_run);
++    } else {
++      output.append(input, run_start, offset - run_start);
++    }
++  }
++  return output;
++}
++
++}  // namespace
++
+ namespace wetext {
+ Processor::Processor(const std::string& tagger_path,
+                      const std::string& verbalizer_path) {
+@@ -75,6 +141,9 @@ std::string Processor::Verbalize(const std::string& input) {
+ }
+ 
+ std::string Processor::Normalize(const std::string& input) {
++  if (parse_type_ == ParseType::kZH_ITN) {
++    return Verbalize(Tag(CanonicalizeAmbiguousDigitOne(input)));
++  }
+   return Verbalize(Tag(input));
+ }
+ 
+-- 
+2.50.1 (Apple Git-155)
+
