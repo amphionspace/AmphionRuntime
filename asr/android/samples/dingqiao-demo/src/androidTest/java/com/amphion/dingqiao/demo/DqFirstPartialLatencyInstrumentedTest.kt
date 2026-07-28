@@ -15,6 +15,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -65,13 +66,13 @@ class DqFirstPartialLatencyInstrumentedTest {
         })
 
         val sessionId = "first-partial-${System.currentTimeMillis()}"
-        engine.startListening(
-            StartParams(
-                sessionId,
-                AudioInfo(),
-                extraParams = mapOf("enablePartialResult" to true, "vadEnd" to 800),
-            ),
+        val startParams = StartParams(
+            sessionId,
+            AudioInfo(),
+            extraParams = mapOf("enablePartialResult" to true, "vadEnd" to 800),
         )
+        assertFalse("first-partial probe must not configure vadBegin", startParams.extraParams.containsKey("vadBegin"))
+        engine.startListening(startParams)
         assertTrue("onStart timed out", started.await(20, TimeUnit.SECONDS))
 
         firstPcmElapsedMs.set(SystemClock.elapsedRealtime())
@@ -102,7 +103,14 @@ class DqFirstPartialLatencyInstrumentedTest {
         DqReport.append(target, report)
         Log.i("DqFirstPartialLatency", report.toString())
         assertTrue("first partial wall latency must be non-negative: $report", wallMs >= 0L)
-        assertTrue("first partial must follow accepted audio: $report", audioMs > 0L)
+        assertTrue(
+            "first partial must follow the model's expected acoustic-context band: $report",
+            audioMs in 1_000L..2_500L,
+        )
+        assertTrue(
+            "runtime overhead beyond accepted audio must stay bounded: $report",
+            wallMs - audioMs in -DQ_FRAME_MS.toLong()..500L,
+        )
         engine.shutdown()
     }
 }
