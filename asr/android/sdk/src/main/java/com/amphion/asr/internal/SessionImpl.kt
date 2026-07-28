@@ -201,13 +201,11 @@ internal class SessionImpl(
         callbackHandler.post {
             safeCallback { callback.onSessionStarted() }
         }
-        // streaming zipformer 的 encoder 在 stream 刚创建时 left-context cache 全 0，
-        // 直接送真实音频会让前 ~2s 的 hypothesis 全部坍缩到 blank，导致「第一句被吞」。
-        // 这里在 decoder 线程上抢先投递一段静音 PCM，让 encoder 把 cache 跑起来；
-        // 由于 sherpa-onnx 默认 reset_encoder=false（online-recognizer.h:115）+ 当前
-        // result 为空时不会触发 SetStates，所以紧跟的 recognizer.reset 只清 decoder hyps，
-        // encoder buffer 保留 → 下一段真实 PCM 第一个 chunk 起就能拿到正常 logits。
-        decoderHandler.post { warmUpEncoder(WARMUP_DURATION_MS) }
+        // 与 Harmony zhen 配置对齐：首次 stream 不做合成静音预热。ORT Session 已在 engine
+        // 创建阶段完成，直接接收调用方真实 PCM，避免 session ready 后再排入额外 decode 工作。
+        if (INITIAL_STREAM_WARMUP_DURATION_MS > 0) {
+            decoderHandler.post { warmUpEncoder(INITIAL_STREAM_WARMUP_DURATION_MS) }
+        }
     }
 
     val isClosed: Boolean
@@ -715,7 +713,7 @@ internal class SessionImpl(
                 vadCarry = FloatArray(0)
                 resetSpeakerVadState()
                 Logger.i("session $sessionId hard-restarted stream after long utterance")
-                warmUpEncoder(WARMUP_DURATION_MS)
+                warmUpEncoder(RESTART_STREAM_WARMUP_DURATION_MS)
             }
             is NativeResult.Err -> {
                 Logger.w(
@@ -1018,8 +1016,11 @@ internal class SessionImpl(
         /** Initial-silence decisions advance in fixed 20 ms slices, independent of caller chunk size. */
         const val INITIAL_DECISION_CHUNKS_PER_SECOND = 50
 
-        /** 静音预热 encoder 的时长（ms）。≈ 2.5 chunk @chunk_size=32, 16kHz。 */
-        const val WARMUP_DURATION_MS = 800
+        /** 首次 stream 不预热；与 Harmony zhen 真机 A/B 后的默认策略一致。 */
+        const val INITIAL_STREAM_WARMUP_DURATION_MS = 0
+
+        /** 句间硬重启仍需恢复 encoder cache，避免连续短指令吞掉下一句开头。 */
+        const val RESTART_STREAM_WARMUP_DURATION_MS = 800
 
         /** 手动 stop/final flush 的尾部静音；与整段流式评估口径一致，避免末尾 token 被截断。 */
         const val FINAL_TAIL_SILENCE_MS = 500

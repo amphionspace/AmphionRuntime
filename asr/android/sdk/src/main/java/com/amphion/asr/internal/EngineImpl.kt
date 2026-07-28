@@ -285,7 +285,8 @@ internal class EngineImpl(
                             "maxActivePaths=${recognizerConfig.maxActivePaths} " +
                             "modelingUnit=${recognizerConfig.modelConfig.modelingUnit} " +
                             "hotwordsCount=${config.hotwords.size} " +
-                            "hotwordsScore=${config.hotwordsScore}",
+                            "hotwordsScore=${config.hotwordsScore} " +
+                            "disablePrepack=${config.disablePrepack}",
                     )
                     r.value
                 }
@@ -305,6 +306,7 @@ internal class EngineImpl(
         fun isRecognizerConfigCompatible(pool: AsrConfig, other: AsrConfig): Boolean {
             if (pool.numThreads != other.numThreads) return false
             if (pool.endpoint != other.endpoint) return false
+            if (pool.disablePrepack != other.disablePrepack) return false
             // decodingMethod 在 buildOnlineRecognizerConfig 内由 hotwords 是否为空决定
             val poolHasHotwords = pool.hotwords.isNotEmpty()
             val otherHasHotwords = other.hotwords.isNotEmpty()
@@ -327,7 +329,7 @@ internal class EngineImpl(
                 tokens = layout.asrTokens,
                 numThreads = c.numThreads,
                 debug = false,
-                provider = "cpu",
+                provider = if (c.disablePrepack) "cpu;DisablePrepacking=1" else "cpu",
                 modelType = "zipformer2",
                 // 我们的 zipformer2 是 byte-level BPE，tokens.txt 没有独立汉字/字母 token；
                 // 必须用 bbpe：sherpa-onnx 内部先把每个 byte 转成 byte-level 符号，再用
