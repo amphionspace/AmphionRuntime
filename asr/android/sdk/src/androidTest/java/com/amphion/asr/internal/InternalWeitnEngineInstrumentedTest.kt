@@ -36,12 +36,20 @@ class InternalWeitnEngineInstrumentedTest {
                 "identity number must be a contiguous Arabic digit sequence: $outputs",
                 outputs.all { expected in it },
             )
-            val ordinaryText = "你这么说是什么意思"
-            assertEquals(
-                "ambiguous 么 outside an identifier-like digit run must remain text",
-                ordinaryText,
-                itn.normalize(ordinaryText),
+            val ordinaryTexts = mapOf(
+                "你这么说是什么意思" to "你这么说是什么意思",
+                "这么1234" to "这么1234",
+                "这么12345678901234567" to "这么12345678901234567",
+                // Unambiguous following digits may still normalize; only grammatical 么 is protected.
+                "什么两三四五" to "什么2345",
             )
+            ordinaryTexts.forEach { (ordinaryText, expectedText) ->
+                assertEquals(
+                    "grammatical 么 outside a numeric field must remain text",
+                    expectedText,
+                    itn.normalize(ordinaryText),
+                )
+            }
         }
     }
 
