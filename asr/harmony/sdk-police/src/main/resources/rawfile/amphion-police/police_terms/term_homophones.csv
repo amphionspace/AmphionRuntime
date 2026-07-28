@@ -342,20 +342,31 @@ from,to,category
 代办公文,待办公文,term
 # round08：甲方真人测 — 警信发消息/情指/到岗/创建警单/报警现场视频
 打开景信发消息,打开警信发消息,term
-用维康姆想,用WeConmm向,term
-用维康姆向,用WeConmm向,term
+用维康姆想,用WeCom向,term
+用维康姆向,用WeCom向,term
 呼叫停止中心,呼叫情指中心,term
 我已到港,我已到岗,term
 创建一个简单,创建一个警单,term
 创建简单,创建警单,term
 查看报警人现场视频,查看报警现场视频,term
-# round09：甲方真人测 — WeConmm 英文误识(WE COMME→WeConmm)、打卡误识为打开
+# round09：甲方真人测 — WeCom 英文误识、打卡误识为打开
 # 注：打卡仅保留「我已到岗，帮我打开→打卡」精确规则，避免误伤「打开设置/打开警信」等正常「打开X」指令。
-用WE COMME向,用WeConmm向,term
-用WE COM向,用WeConmm向,term
-用V COM向,用WeConmm向,term
-用微胖向,用WeConmm向,term
-用微COM向,用WeConmm向,term
+用WE COMME向,用WeCom向,term
+用WE COM向,用WeCom向,term
+用V COM向,用WeCom向,term
+用微胖向,用WeCom向,term
+用微COM向,用WeCom向,term
+用VCOOM向,用WeCom向,term
+用VCOM向,用WeCom向,term
+用VCOM想,用WeCom向,term
+用WeConmm向,用WeCom向,term
+用WEConmm向,用WeCom向,term
+用Weconmm向,用WeCom向,term
+用WeComm向,用WeCom向,term
+用Wecom向,用WeCom向,term
+VCOM向,WeCom向,term
+Weconmm向,WeCom向,term
+WeConmm向,WeCom向,term
 我已到岗，帮我打开,我已到岗，帮我打卡,term
 # ── Phase 1（20260711 批）：警务 App/系统名 误识纠正（from 均为罕见无歧义串，全局替换安全）──
 # 情指行（qíng zhǐ xíng）
@@ -471,3 +482,28 @@ We Space,WeSpace,term
 即强制暴,缉枪治爆,term
 # 登录移动警务门户：登录常被听成 登陆（整串锚，规避 台风登陆/抢滩登陆 等通用义）
 登陆移动警务门户,登录移动警务门户,appname
+# round10：20260727 新增指令 TTS 评测 — 术语命中补洞
+打开帮把,打开帮填把,term
+打开警信发消息给刘队长内容，为,打开警信发消息给刘队长，内容为：,term
+帮我导航，去,帮我导航去,term
+我已到场帮我反馈,我已到场，帮我反馈,term
+查看报案，现场视频,查看报案现场视频,term
+打开报案，现场视频,打开报案现场视频,term
+查看报警，现场视频,查看报警现场视频,term
+打开报警，现场视频,打开报警现场视频,term
+清场结束，盘查任务,清场，结束盘查任务,term
+结束，盘查任务,结束盘查任务,term
+内容为：今天几点集合。,内容为：今天几点集合？,term
+帮我核查身份证号码为,帮我核查身份证，号码为：,term
+请帮我核查身份证号码为,请帮我核查身份证，号码为：,term
+核查身份证号37050319911230983,核查身份证号：37050319911230983,term
+立即核查身份证号37050319911230983,立即核查身份证号：37050319911230983,term
+查检身份证号37050319911230983,查检身份证号：37050319911230983,term
+请查检身份证号37050319911230983,请查检身份证号：37050319911230983,term
+帮我核查车牌号川A F,帮我核查车牌号：川A F,term
+请帮我核查车牌号川A F,请帮我核查车牌号：川A F,term
+核查车牌号川A F,核查车牌号：川A F,term
+立即核查车牌号川A F,立即核查车牌号：川A F,term
+查检车牌号川A F,查检车牌号：川A F,term
+请查检车牌号川A F,请查检车牌号：川A F,term
+请查检车牌号，川A F,请查检车牌号：川A F,term
