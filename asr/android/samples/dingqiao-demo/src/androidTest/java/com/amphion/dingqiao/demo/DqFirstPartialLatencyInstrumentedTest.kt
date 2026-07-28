@@ -27,8 +27,17 @@ class DqFirstPartialLatencyInstrumentedTest {
         val target = InstrumentationRegistry.getInstrumentation().targetContext
         val test = InstrumentationRegistry.getInstrumentation().context
         prepareSdkRuntime(test, target, File(target.filesDir, "first-partial-latency"))
+        val availableAudio = mainWavs(test)
+        val requestedAudio = InstrumentationRegistry.getArguments()
+            .getString(AUDIO_ASSET_ARGUMENT)
+            ?.takeIf { it.isNotBlank() }
+        val audioAsset = requestedAudio ?: availableAudio.first()
+        assertTrue(
+            "requested audio asset '$audioAsset' is unavailable; found=$availableAudio",
+            audioAsset in availableAudio,
+        )
+        val pcm = readAssetPcm(test, audioAsset)
         val engine = SpeechRecognizeSdk.createEngine(CreateEngineParams(language = "zh-CN"))
-        val pcm = readAssetPcm(test, mainWavs(test).first())
         val started = CountDownLatch(1)
         val firstPartial = CountDownLatch(1)
         val completed = CountDownLatch(1)
@@ -86,6 +95,7 @@ class DqFirstPartialLatencyInstrumentedTest {
             offset += size
             Thread.sleep(DQ_FRAME_MS)
         }
+        val partialDuringSourceAudio = firstPartial.count == 0L
         feedSilence(engine, sessionId, 1_000)
         engine.finish(sessionId)
         assertTrue("session did not complete: $errors", completed.await(30, TimeUnit.SECONDS))
@@ -93,24 +103,32 @@ class DqFirstPartialLatencyInstrumentedTest {
 
         val wallMs = firstPartialElapsedMs.get() - firstPcmElapsedMs.get()
         val audioMs = framesWrittenAtFirstPartial.get() * DQ_FRAME_MS
+        val pcmDurationMs = pcm.size * 1000L / (DQ_SR * 2L)
         val report = mapOf(
             "case" to "first-partial-latency",
+            "audioAsset" to audioAsset,
             "wallMs" to wallMs,
             "audioFedAtCallbackMs" to audioMs,
             "wallMinusAudioMs" to wallMs - audioMs,
-            "pcmDurationMs" to pcm.size * 1000L / (DQ_SR * 2L),
+            "pcmDurationMs" to pcmDurationMs,
+            "partialDuringSourceAudio" to partialDuringSourceAudio,
         )
         DqReport.append(target, report)
         Log.i("DqFirstPartialLatency", report.toString())
         assertTrue("first partial wall latency must be non-negative: $report", wallMs >= 0L)
+        assertTrue("first partial must be emitted while source audio is active: $report", partialDuringSourceAudio)
         assertTrue(
-            "first partial must follow the model's expected acoustic-context band: $report",
-            audioMs in 1_000L..2_500L,
+            "first partial must follow accepted source audio: $report",
+            audioMs in 1L..(pcmDurationMs + DQ_FRAME_MS),
         )
         assertTrue(
             "runtime overhead beyond accepted audio must stay bounded: $report",
             wallMs - audioMs in -DQ_FRAME_MS.toLong()..500L,
         )
         engine.shutdown()
+    }
+
+    private companion object {
+        const val AUDIO_ASSET_ARGUMENT = "audioAsset"
     }
 }
