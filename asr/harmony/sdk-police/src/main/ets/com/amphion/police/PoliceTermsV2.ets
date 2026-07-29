@@ -254,6 +254,22 @@ class QingZhiXingGuard {
 export class PoliceTermsV2 {
   private static readonly MIN_FUZZY_LEN: number = 4;
   private static readonly MIN_VAR_LEN: number = 5;
+  private static readonly ID_DIGIT_SPACES: RegExp = new RegExp(
+    '(身份证号|号码为|身份证号码为)[：:]?([0-9][0-9 ]{14,30})',
+    'g'
+  );
+  private static readonly PLATE_CMD_COMPACT: RegExp = new RegExp(
+    '((?:帮我)?(?:核查|查检)车牌号)[：:，,]?(川)([A-HJ-NP-Z])\\s*([A-HJ-NP-Z])\\s*([0-9]{5})',
+    'g'
+  );
+  private static readonly WECOM_AFTER_YONG: RegExp = new RegExp(
+    '用\\s*(v\\s*c+o+m+|we\\s*c+o+n*m+|微\\s*com|维康姆)\\s*(想|向)',
+    'gi'
+  );
+  private static readonly WECOM_BEFORE_CALL: RegExp = new RegExp(
+    '(v\\s*c+o+m+|we\\s*c+o+n*m+)(\\s*(?:向|发起呼叫))',
+    'gi'
+  );
   private terms: string[];
   private known: Set<string>;
   private homophones: TermsHomophones;
@@ -271,9 +287,42 @@ export class PoliceTermsV2 {
   normalize(text: string): string {
     if (text.length === 0) return text;
     // 顺序对齐 Android：同音映射 → 情指行护栏 → 登录护栏(登陆→登录) → 保守模糊层 → 电台音标数字。
-    return RadioDigits.normalize(
+    const corrected = RadioDigits.normalize(
       this.fuzzyCorrect(
         DengluGuard.apply(QingZhiXingGuard.apply(this.homophones.apply(text)))));
+    return this.polish(corrected);
+  }
+
+  /** 管线末段润色；与 Android PoliceTermsNormalizerV2.polish 保持同序。 */
+  polish(text: string): string {
+    if (text.length === 0) return text;
+    const formatted = this.formatVoiceCommands(text);
+    return this.homophones.apply(formatted);
+  }
+
+  private formatVoiceCommands(text: string): string {
+    let output = text;
+    output = output.replace(
+      PoliceTermsV2.ID_DIGIT_SPACES,
+      (_match: string, prefix: string, digits: string): string =>
+        `${prefix}：${digits.split(' ').join('')}`
+    );
+    output = output.replace(
+      PoliceTermsV2.PLATE_CMD_COMPACT,
+      (_match: string, prefix: string, province: string, city: string,
+        serial: string, digits: string): string =>
+        `${prefix}：${province}${city} ${serial}${digits}`
+    );
+    return this.normalizeWeComNames(output);
+  }
+
+  private normalizeWeComNames(text: string): string {
+    let output = text.replace(PoliceTermsV2.WECOM_AFTER_YONG, '用WeCom向');
+    output = output.replace(
+      PoliceTermsV2.WECOM_BEFORE_CALL,
+      (_match: string, _name: string, suffix: string): string => `WeCom${suffix}`
+    );
+    return output;
   }
 
   private maxSubsFor(length: number): number {
@@ -325,20 +374,17 @@ export class PoliceTermsV2 {
     for (let i = 0; i < this.terms.length; i++) {
       const term = this.terms[i];
       if (term.length < PoliceTermsV2.MIN_VAR_LEN) break;
-      const widths = [term.length - 1, term.length + 1];
-      for (let w = 0; w < widths.length; w++) {
-        const width = widths[w];
-        if (start + width > text.length) continue;
-        const cost = this.varCost(text, start, term, width);
-        if (cost < 0) continue;
-        if (best.length === 0 || term.length > best.length) {
-          best = term; bestConsumed = width; bestCost = cost; ambiguous = false;
-        } else if (term.length === best.length && cost < bestCost) {
-          best = term; bestConsumed = width; bestCost = cost; ambiguous = false;
-        } else if (term.length === best.length && cost === bestCost &&
-          (term !== best || width !== bestConsumed)) {
-          ambiguous = true;
-        }
+      const width = term.length - 1;
+      if (width < 1 || start + width > text.length) continue;
+      const cost = this.varCost(text, start, term, width);
+      if (cost < 0) continue;
+      if (best.length === 0 || term.length > best.length) {
+        best = term; bestConsumed = width; bestCost = cost; ambiguous = false;
+      } else if (term.length === best.length && cost < bestCost) {
+        best = term; bestConsumed = width; bestCost = cost; ambiguous = false;
+      } else if (term.length === best.length && cost === bestCost &&
+        (term !== best || width !== bestConsumed)) {
+        ambiguous = true;
       }
     }
     return best.length > 0 && !ambiguous ? new TermMatch(best, bestConsumed) : undefined;

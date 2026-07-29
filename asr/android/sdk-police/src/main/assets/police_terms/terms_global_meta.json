@@ -1,10 +1,12 @@
 {
-  "source_csv": "/Users/amphion/Desktop/work/projects/鼎桥/AmphionRuntime/asr/android/sdk-police/src/main/assets/police_terms/term_homophones.csv",
+  "status": "legacy_frozen_prepass",
+  "source_commit": "452efbc8b86e766660f95b486f71397926e607ab",
   "scope": "global",
-  "pair_count": 316,
-  "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_terms_fst_experiment/output/terms_global.fst",
+  "embedded_pair_count": 316,
+  "embedded_pairs_sha256": "8aaefdef0b165fd1143eb8d8a6b34033ce0c2f9aa857523d4127780cb605d32a",
+  "fst_sha256": "9ca73a0417713e7940a82d32a77eab161d1b8f05e5aefaa04281365af686c81b",
   "phase": "p0",
-  "note": "gazetteer longest-match stays in host (scheme A); sequential cdrewrite compose",
+  "note": "Frozen compatibility prepass from the embedded pairs below; current term_homophones.csv always runs afterwards and is the maintained rule source.",
   "pairs": [
     {
       "from": "签收。 注意查看报警人补充内容",

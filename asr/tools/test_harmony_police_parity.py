@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -13,8 +16,55 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "asr/harmony/sdk-police/src/main/ets/com/amphion/police"
 RAWFILE = ROOT / "asr/harmony/sdk-police/src/main/resources/rawfile"
 CASES = ROOT / "asr/harmony/sdk-police/tests/police_v2_parity.tsv"
-NODE = Path("/Applications/DevEco-Studio.app/Contents/tools/node/bin/node")
-TSC = Path("/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript/bin/tsc")
+FST = ROOT / "asr/android/sdk-police/src/main/assets/police_terms/terms_global.fst"
+FST_META = ROOT / "asr/android/sdk-police/src/main/assets/police_terms/terms_global_meta.json"
+FST_REPO_PATH = FST.relative_to(ROOT).as_posix()
+FST_META_REPO_PATH = FST_META.relative_to(ROOT).as_posix()
+DEVECO_HOME = Path(os.environ.get("DEVECO_HOME", "/Applications/DevEco-Studio.app/Contents"))
+
+
+def resolve_tool(env_name: str, command: str, deveco_relative: str) -> Path | None:
+    configured = os.environ.get(env_name)
+    if configured:
+        path = Path(configured)
+        return path if path.is_file() else None
+    on_path = shutil.which(command)
+    if on_path:
+        return Path(on_path)
+    bundled = DEVECO_HOME / deveco_relative
+    return bundled if bundled.is_file() else None
+
+
+def verify_frozen_fst_metadata() -> None:
+    metadata = json.loads(FST_META.read_text(encoding="utf-8"))
+    pairs = metadata["pairs"]
+    canonical_pairs = json.dumps(
+        pairs,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    assert metadata["status"] == "legacy_frozen_prepass"
+    assert metadata["embedded_pair_count"] == len(pairs)
+    assert metadata["embedded_pairs_sha256"] == hashlib.sha256(canonical_pairs).hexdigest()
+    assert metadata["fst_sha256"] == hashlib.sha256(FST.read_bytes()).hexdigest()
+
+    source_commit = metadata["source_commit"]
+    source_fst = subprocess.run(
+        ["git", "show", f"{source_commit}:{FST_REPO_PATH}"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
+    source_meta_raw = subprocess.run(
+        ["git", "show", f"{source_commit}:{FST_META_REPO_PATH}"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
+    source_pairs = json.loads(source_meta_raw)["pairs"]
+    assert hashlib.sha256(source_fst).hexdigest() == metadata["fst_sha256"]
+    assert source_pairs == pairs
 
 
 def write_mocks(work: Path) -> None:
@@ -53,7 +103,7 @@ const lines = fs.readFileSync(casesPath, 'utf8').split(/\r?\n/).filter((line) =>
 let failures = 0;
 for (const [index, line] of lines.entries()) {
   const [domain, assertion, input, expected] = line.split('\t');
-  const actual = engines[domain].normalize(input);
+  const actual = domain === 'terms-polish' ? engines.terms.polish(input) : engines[domain].normalize(input);
   const ok = assertion === 'contains' ? actual.includes(expected) : actual === expected;
   if (!ok) {
     failures++;
@@ -67,8 +117,18 @@ console.log(`[OK] Harmony police V2 parity corpus: ${lines.length} cases`);
 
 
 def main() -> None:
-    if not NODE.is_file() or not TSC.is_file():
-        raise SystemExit("DevEco Studio Node/TypeScript toolchain is required")
+    verify_frozen_fst_metadata()
+    node = resolve_tool("HARMONY_NODE", "node", "tools/node/bin/node")
+    tsc = resolve_tool(
+        "HARMONY_TSC",
+        "tsc",
+        "tools/hvigor/hvigor/node_modules/typescript/bin/tsc",
+    )
+    if node is None or tsc is None:
+        raise SystemExit(
+            "Node.js and TypeScript are required; set HARMONY_NODE/HARMONY_TSC, "
+            "put node/tsc on PATH, or set DEVECO_HOME",
+        )
     with tempfile.TemporaryDirectory(prefix="harmony-police-parity.") as temp:
         work = Path(temp)
         source = work / "src"
@@ -79,12 +139,12 @@ def main() -> None:
         write_runner(work)
         sources = [str(path.relative_to(work)) for path in sorted(source.glob("*.ts"))]
         subprocess.run(
-            [str(NODE), str(TSC), "--target", "ES2020", "--module", "commonjs", "--skipLibCheck", *sources],
+            [str(node), str(tsc), "--target", "ES2020", "--module", "commonjs", "--skipLibCheck", *sources],
             cwd=work,
             check=True,
             shell=False,
         )
-        subprocess.run([str(NODE), "runner.js", str(RAWFILE), str(CASES)], cwd=work, check=True)
+        subprocess.run([str(node), "runner.js", str(RAWFILE), str(CASES)], cwd=work, check=True)
 
 
 if __name__ == "__main__":
