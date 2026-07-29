@@ -221,6 +221,25 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun policeEnhancement_defaultsOnAndCanBeDisabledPerSession() {
+        val defaults = StartParams("default", AudioInfo(), emptyMap())
+        val disabled = StartParams(
+            "disabled",
+            AudioInfo(),
+            mapOf("enablePoliceEnhancement" to false),
+        )
+        val invalid = StartParams(
+            "invalid",
+            AudioInfo(),
+            mapOf("enablePoliceEnhancement" to "false"),
+        )
+
+        assertTrue(DingqiaoEngineConfig.enablePoliceEnhancement(defaults))
+        assertFalse(DingqiaoEngineConfig.enablePoliceEnhancement(disabled))
+        assertTrue(DingqiaoEngineConfig.enablePoliceEnhancement(invalid))
+    }
+
+    @Test
     fun vadEndMs_clampsToDocumentRange() {
         val low = DingqiaoEngineConfig.vadEndMs(
             StartParams("s1", AudioInfo(), mapOf("vadEnd" to 100)),

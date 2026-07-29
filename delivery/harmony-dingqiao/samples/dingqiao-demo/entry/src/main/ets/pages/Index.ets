@@ -67,6 +67,7 @@ struct Index {
   @State voiceprintId: string = '';
   @State voiceprintVerifyDesired: boolean = false;
   @State speakerVadDesired: boolean = false;
+  @State policeEnhancementDesired: boolean = true;
   @State captureReady: boolean = false;
   @State captureInfo: string = '尚未保存 SDK 输入 PCM';
   @State replaying: boolean = false;
@@ -115,9 +116,12 @@ struct Index {
   private capturedVoiceprintId: string = '';
   private capturedVoiceprintVerify: boolean = false;
   private capturedSpeakerVad: boolean = false;
+  private capturedPoliceEnhancement: boolean = true;
 
   aboutToAppear(): void {
     this.workPath = SpeechRecognizeSdk.getWorkPath();
+    this.policeEnhancementDesired = DemoPrefs.getPoliceEnhancementEnabled(
+      getContext(this) as common.UIAbilityContext);
     this.initWithPermission();
   }
 
@@ -332,6 +336,7 @@ struct Index {
     this.capturedVoiceprintId = DemoPrefs.getVoiceprintId(ctx);
     this.capturedVoiceprintVerify = this.voiceprintVerifyDesired && this.capturedVoiceprintId.length > 0;
     this.capturedSpeakerVad = this.speakerVadDesired && this.capturedVoiceprintId.length > 0;
+    this.capturedPoliceEnhancement = this.policeEnhancementDesired;
     this.liveCompareText = '';
     this.liveHasCompleted = false;
     this.replayCompareText = '';
@@ -422,6 +427,7 @@ struct Index {
     const extra: Record<string, Object> = {};
     extra['enablePartialResult'] = true;
     extra['maxAudioDuration'] = SESSION_MAX_AUDIO_MS;
+    extra['enablePoliceEnhancement'] = this.capturedPoliceEnhancement;
     if (this.capturedVoiceprintVerify) {
       extra['enableVoiceprintVerification'] = true;
     }
@@ -602,6 +608,7 @@ struct Index {
     meta['voiceprintId'] = this.capturedVoiceprintId;
     meta['voiceprintVerify'] = this.capturedVoiceprintVerify;
     meta['speakerVad'] = this.capturedSpeakerVad;
+    meta['policeEnhancement'] = this.capturedPoliceEnhancement;
     meta['liveText'] = this.liveCompareText;
     meta['replayText'] = this.replayCompareText;
     meta['comparison'] = !this.replayHasCompleted ? 'pending' :
@@ -942,6 +949,11 @@ struct Index {
     this.toast(checked ? '说话人 VAD 已开启' : '说话人 VAD 已关闭');
   }
 
+  private onPoliceEnhancementSwitch(checked: boolean): void {
+    this.policeEnhancementDesired = checked;
+    DemoPrefs.setPoliceEnhancementEnabled(getContext(this) as common.UIAbilityContext, checked);
+  }
+
   // ---- menu actions ----
 
   private openHotwords(): void {
@@ -1021,6 +1033,20 @@ struct Index {
         Toggle({ type: ToggleType.Switch, isOn: this.speakerVadDesired })
           .enabled(this.voiceprintId.length > 0 && !this.listening && !this.replaying)
           .onChange((isOn: boolean): void => this.onSpeakerVadSwitch(isOn))
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Row() {
+        Column() {
+          Text('警务增强').fontSize(15)
+          Text('术语、车牌和派出所文本归一化').fontSize(12).fontColor(Color.Gray)
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        Toggle({ type: ToggleType.Switch, isOn: this.policeEnhancementDesired })
+          .enabled(!this.listening && !this.replaying)
+          .onChange((isOn: boolean): void => this.onPoliceEnhancementSwitch(isOn))
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)

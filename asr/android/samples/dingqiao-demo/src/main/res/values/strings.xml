@@ -16,6 +16,8 @@
     <string name="cap_voiceprint_title">声纹校验</string>
     <string name="cap_speaker_vad_title">说话人VAD</string>
     <string name="speaker_vad_hint">目标说话人离开时提前截断当前句</string>
+    <string name="cap_police_enhancement_title">警务增强</string>
+    <string name="police_enhancement_hint">术语、车牌和派出所文本归一化</string>
     <string name="speaker_vad_enabled_hint">说话人 VAD 已开启</string>
     <string name="speaker_vad_disabled_hint">说话人 VAD 已关闭</string>
     <string name="menu_more">更多</string>

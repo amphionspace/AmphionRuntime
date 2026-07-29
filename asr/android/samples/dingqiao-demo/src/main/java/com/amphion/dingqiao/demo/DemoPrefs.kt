@@ -7,6 +7,7 @@ object DemoPrefs {
     private const val PREFS = "dingqiao_demo"
     private const val KEY_VOICEPRINT_ID = "voiceprint_id"
     private const val KEY_HOTWORDS = "user_hotwords"
+    private const val KEY_POLICE_ENHANCEMENT = "police_enhancement"
 
     fun getVoiceprintId(context: Context): String? =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -33,6 +34,17 @@ object DemoPrefs {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putStringSet(KEY_HOTWORDS, normalized)
+            .apply()
+    }
+
+    fun getPoliceEnhancementEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_POLICE_ENHANCEMENT, true)
+
+    fun setPoliceEnhancementEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_POLICE_ENHANCEMENT, enabled)
             .apply()
     }
 }
