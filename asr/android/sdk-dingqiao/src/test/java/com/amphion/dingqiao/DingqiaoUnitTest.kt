@@ -77,6 +77,24 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildAsrConfig_invalidDisablePrepackValuesKeepDefault() {
+        val invalidValues = listOf(Double.NaN, Any())
+
+        invalidValues.forEach { value ->
+            val config = DingqiaoEngineConfig.buildAsrConfig(
+                CreateEngineParams(
+                    language = "zh-CN",
+                    online = DingqiaoOnlineMode.OFFLINE,
+                    extraParams = mapOf("disablePrepack" to value),
+                ),
+                speakerModelPath = null,
+            )
+
+            assertTrue("invalid disablePrepack=$value must keep the true default", config.disablePrepack)
+        }
+    }
+
+    @Test
     fun buildAsrConfig_readsVadEndFromStartParams() {
         val config = DingqiaoEngineConfig.buildAsrConfig(
             CreateEngineParams(

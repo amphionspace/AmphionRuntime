@@ -14,8 +14,8 @@ Subject: [PATCH] feat(harmony): enable shared WeText ITN normalization
  sherpa-onnx/c-api/CMakeLists.txt              |   3 +
  sherpa-onnx/c-api/c-api.cc                    |  37 ++++++
  sherpa-onnx/c-api/c-api.h                     |  18 +++
- .../csrc/wetext/processor/wetext_processor.cc | 111 ++++++++++++++++++
- 11 files changed, 329 insertions(+)
+ .../csrc/wetext/processor/wetext_processor.cc | 135 ++++++++++++++++++
+ 11 files changed, 353 insertions(+)
  create mode 100644 harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn-handle.h
  create mode 100644 harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc
  create mode 100644 harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/WetextItn.ets
@@ -358,7 +358,7 @@ diff --git a/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc b/sherpa-onnx
 index dd342b4f..61526643 100644
 --- a/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
 +++ b/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
-@@ -14,6 +14,114 @@
+@@ -14,6 +14,138 @@
  
  #include "processor/wetext_processor.h"
  
@@ -367,11 +367,32 @@ index dd342b4f..61526643 100644
 +// "么" is a common ASR spelling for spoken digit one (yao), but it is also a
 +// normal Chinese suffix. Length alone is insufficient: "这么1234" is a
 +// five-token digit-like run but is still grammatical text. Require either a
-+// numeric-field context, a standard identifier length, or an ambiguous token
-+// inside an already numeric run.
++// numeric-field context separated only by punctuation/whitespace, a standard
++// identifier length, or an ambiguous token inside an already numeric run.
 +constexpr int32_t kMinAmbiguousDigitRunLength = 5;
 +constexpr int32_t kMinEmbeddedAmbiguousDigitRunLength = 7;
 +constexpr size_t kMaxNumericContextGapBytes = 9;
++
++bool HasOnlyNumericFieldSeparators(const std::string &input, size_t begin,
++                                   size_t end) {
++  static const char *kSeparators[] = {
++      " ", "\t", "\r", "\n", ":", "：", ",", "，", "、",
++      "-", "－", ".", "。"};
++  size_t offset = begin;
++  while (offset < end) {
++    bool matched = false;
++    for (const char *separator : kSeparators) {
++      const std::string value(separator);
++      if (input.compare(offset, value.size(), value) == 0) {
++        offset += value.size();
++        matched = true;
++        break;
++      }
++    }
++    if (!matched) return false;
++  }
++  return true;
++}
 +
 +bool HasRecentNumericField(const std::string &input, size_t run_start) {
 +  static const char *kNumericFields[] = {
@@ -381,8 +402,10 @@ index dd342b4f..61526643 100644
 +  for (const char *field : kNumericFields) {
 +    const std::string value(field);
 +    const size_t pos = input.rfind(value, run_start);
-+    if (pos != std::string::npos && pos + value.size() <= run_start &&
-+        run_start - pos - value.size() <= kMaxNumericContextGapBytes) {
++    const size_t field_end = pos == std::string::npos ? 0 : pos + value.size();
++    if (pos != std::string::npos && field_end <= run_start &&
++        run_start - field_end <= kMaxNumericContextGapBytes &&
++        HasOnlyNumericFieldSeparators(input, field_end, run_start)) {
 +      return true;
 +    }
 +  }
@@ -452,12 +475,13 @@ index dd342b4f..61526643 100644
 +      canonical_run.append(is_ambiguous_one ? "幺" : token);
 +      offset += token.size();
 +    }
-+    const bool trusted_numeric_shape =
-+        HasRecentNumericField(input, run_start) ||
-+        (IsStandardIdentifierLength(run_length) &&
-+         !HasGrammaticalPrefix(input, run_start)) ||
-+        (!ambiguous_at_run_start &&
-+         run_length >= kMinEmbeddedAmbiguousDigitRunLength);
++    const bool grammatical_ambiguous_start =
++        ambiguous_at_run_start && HasGrammaticalPrefix(input, run_start);
++    const bool trusted_numeric_shape = !grammatical_ambiguous_start &&
++        (HasRecentNumericField(input, run_start) ||
++         IsStandardIdentifierLength(run_length) ||
++         (!ambiguous_at_run_start &&
++          run_length >= kMinEmbeddedAmbiguousDigitRunLength));
 +    if (run_length >= kMinAmbiguousDigitRunLength && has_ambiguous_one &&
 +        has_unambiguous_digit && trusted_numeric_shape) {
 +      output.append(canonical_run);
@@ -473,7 +497,7 @@ index dd342b4f..61526643 100644
  namespace wetext {
  Processor::Processor(const std::string& tagger_path,
                       const std::string& verbalizer_path) {
-@@ -75,6 +183,9 @@ std::string Processor::Verbalize(const std::string& input) {
+@@ -75,6 +207,9 @@ std::string Processor::Verbalize(const std::string& input) {
  }
  
  std::string Processor::Normalize(const std::string& input) {
@@ -485,4 +509,3 @@ index dd342b4f..61526643 100644
  
 -- 
 2.50.1 (Apple Git-155)
-
