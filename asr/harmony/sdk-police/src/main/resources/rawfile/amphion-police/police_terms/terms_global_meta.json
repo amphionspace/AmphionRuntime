@@ -1,6 +1,6 @@
 {
   "status": "legacy_frozen_prepass",
-  "source_commit": "414d886b4630804344c43e08664dd43ed27aa4c5",
+  "source_commit": "452efbc8b86e766660f95b486f71397926e607ab",
   "scope": "global",
   "embedded_pair_count": 316,
   "embedded_pairs_sha256": "8aaefdef0b165fd1143eb8d8a6b34033ce0c2f9aa857523d4127780cb605d32a",

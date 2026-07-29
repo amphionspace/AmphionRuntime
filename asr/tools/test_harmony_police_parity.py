@@ -18,6 +18,8 @@ RAWFILE = ROOT / "asr/harmony/sdk-police/src/main/resources/rawfile"
 CASES = ROOT / "asr/harmony/sdk-police/tests/police_v2_parity.tsv"
 FST = ROOT / "asr/android/sdk-police/src/main/assets/police_terms/terms_global.fst"
 FST_META = ROOT / "asr/android/sdk-police/src/main/assets/police_terms/terms_global_meta.json"
+FST_REPO_PATH = FST.relative_to(ROOT).as_posix()
+FST_META_REPO_PATH = FST_META.relative_to(ROOT).as_posix()
 DEVECO_HOME = Path(os.environ.get("DEVECO_HOME", "/Applications/DevEco-Studio.app/Contents"))
 
 
@@ -46,7 +48,23 @@ def verify_frozen_fst_metadata() -> None:
     assert metadata["embedded_pair_count"] == len(pairs)
     assert metadata["embedded_pairs_sha256"] == hashlib.sha256(canonical_pairs).hexdigest()
     assert metadata["fst_sha256"] == hashlib.sha256(FST.read_bytes()).hexdigest()
-    assert len(metadata["source_commit"]) == 40
+
+    source_commit = metadata["source_commit"]
+    source_fst = subprocess.run(
+        ["git", "show", f"{source_commit}:{FST_REPO_PATH}"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
+    source_meta_raw = subprocess.run(
+        ["git", "show", f"{source_commit}:{FST_META_REPO_PATH}"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout
+    source_pairs = json.loads(source_meta_raw)["pairs"]
+    assert hashlib.sha256(source_fst).hexdigest() == metadata["fst_sha256"]
+    assert source_pairs == pairs
 
 
 def write_mocks(work: Path) -> None:
