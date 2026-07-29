@@ -1,6 +1,7 @@
 import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SessionConfig, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
+import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
 import { finiteNumberParam } from './NumericParam';
 import { rejectedFinalCompletesSession } from './RejectedFinalLifecycle';
@@ -62,11 +63,6 @@ function stringArrayParam(params: Record<string, Object>, key: string): string[]
     return value.split(/[\n,，]/).map((s: string): string => s.trim()).filter((s: string): boolean => s.length > 0);
   }
   return [];
-}
-
-function booleanParam(params: Record<string, Object>, key: string, defaultValue: boolean): boolean {
-  const value = params[key];
-  return typeof value === 'boolean' ? value : defaultValue;
 }
 
 function numberParam(params: Record<string, Object>, key: string, defaultValue: number): number {
@@ -227,8 +223,8 @@ function buildAsrConfig(params: CreateEngineParams, startParams?: StartParams,
   config.hotwords = parseLexicon(params.extraParams['sysGeneralLexicon']);
   config.vadConfig.activeEndpointSilenceMs = vadEndMs(startParams);
   config.endpointRules.rule2MinTrailingSilenceSec = 2.0;
-  // 低内存/快加载模式开关(默认关=保留 prepack)。host 传 extraParams["disablePrepack"]=true 启用。
-  config.disablePrepack = booleanParam(params.extraParams, 'disablePrepack', false);
+  // 默认跳过 prepack，优先降低冷启动和峰值内存；host 可显式传 false 恢复吞吐优先模式。
+  config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', true);
   if (withTargetSpeaker) {
     if (speakerModelPath === undefined) throw new Error('voiceprint model path is required');
     config.targetSpeaker = buildTargetSpeakerConfig(startParams, withSpeakerVad, speakerModelPath);
@@ -366,8 +362,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       return;
     }
 
-    const verify = booleanParam(params.extraParams, 'enableVoiceprintVerification', false);
-    const speakerVad = booleanParam(params.extraParams, 'enableSpeakerVad', false);
+    const verify = strictBooleanParam(params.extraParams, 'enableVoiceprintVerification', false);
+    const speakerVad = strictBooleanParam(params.extraParams, 'enableSpeakerVad', false);
     const voiceprintIds = stringArrayParam(params.extraParams, 'voiceprintIds');
     let embedding: Float32Array | undefined;
     let speakerModelPath: string | undefined;

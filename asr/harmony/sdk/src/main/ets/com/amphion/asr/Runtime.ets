@@ -12,7 +12,9 @@ import {
   SpeakerEmbeddingExtractorConfig,
   TenVadConfig,
   Vad as SherpaVad,
-  VadConfig as SherpaVadConfig
+  VadConfig as SherpaVadConfig,
+  WetextItn,
+  WetextItnConfig
 } from 'sherpa_onnx';
 import { InstalledLayout } from './AssetRegistry';
 import { AssetInstaller } from './AssetInstaller';
@@ -160,6 +162,7 @@ export class AmphionRuntime {
   private static punctuationPool: Map<string, OfflinePunctuation> = new Map<string, OfflinePunctuation>();
   private static punctuationLoads: Map<string, Promise<OfflinePunctuation>> =
     new Map<string, Promise<OfflinePunctuation>>();
+  private static itnPool: Map<string, WetextItn> = new Map<string, WetextItn>();
   // VAD free-list, keyed by config. A SherpaVad carries cross-call state (endpoint + ring buffer),
   // so it must NOT be shared by two concurrently-active sessions — reset()/acceptWaveform from one
   // would corrupt the other's endpoint detection. But a fresh SherpaVad (silero ONNX session + a
@@ -236,6 +239,7 @@ export class AmphionRuntime {
       if (c.isCancelled()) break;
       const language = languageSnapshot[i];
       const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
+      AmphionRuntime.getOrCreateItn(language, layout, effectiveConfig);
       onProgress?.('install', Math.round(((i + 1) / Math.max(languageSnapshot.length, 1)) * 100));
       const stage = `asr-${language}`;
       onProgress?.(stage, 0);
@@ -268,6 +272,7 @@ export class AmphionRuntime {
     for (let i = 0; i < languageSnapshot.length; i++) {
       const language = languageSnapshot[i];
       const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
+      AmphionRuntime.getOrCreateItn(language, layout, effectiveConfig);
       const recognizerTask = AmphionRuntime.getOrCreateRecognizerAsync(
         context, language, layout, effectiveConfig);
       const punctuationTask = AmphionRuntime.timedPunctuationLoadAsync(
@@ -313,6 +318,7 @@ export class AmphionRuntime {
       AmphionRuntime.poolConfigKey.set(language, requestedConfigKey);
     }
     let punctuation: OfflinePunctuation | undefined;
+    const itn = AmphionRuntime.getOrCreateItn(language, layout, effectiveConfig);
     let punctuationLoadMs = 0;
     if (effectiveConfig.punctuation && layout.punctModel !== undefined) {
       const punctuationStartMs = Date.now();
@@ -334,6 +340,7 @@ export class AmphionRuntime {
       !canReusePool,
       -1,
       punctuation,
+      itn,
       punctuationLoadMs
     );
     const engineReadyMs = Date.now() - createStartMs;
@@ -371,6 +378,7 @@ export class AmphionRuntime {
       context, layout, effectiveConfig);
     const recognizerLoad = await recognizerTask;
     const punctuationLoad = await punctuationTask;
+    const itn = AmphionRuntime.getOrCreateItn(language, layout, effectiveConfig);
     if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
       throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during model load`);
     }
@@ -384,6 +392,7 @@ export class AmphionRuntime {
       !canReusePool,
       -1,
       punctuationLoad.punctuation,
+      itn,
       punctuationLoad.elapsedMs
     );
     const engineReadyMs = Date.now() - createStartMs;
@@ -526,6 +535,24 @@ export class AmphionRuntime {
     const punctuation = new OfflinePunctuation(pc, context.resourceManager);
     AmphionRuntime.punctuationPool.set(key, punctuation);
     return punctuation;
+  }
+
+  private static getOrCreateItn(
+    language: AsrLanguage,
+    layout: InstalledLayout,
+    config: AsrConfig
+  ): WetextItn | undefined {
+    if (!config.itn || language !== AsrLanguage.ZH_EN ||
+      layout.itnTagger === undefined || layout.itnVerbalizer === undefined) return undefined;
+    const key = `${layout.itnTagger}|${layout.itnVerbalizer}`;
+    const cached = AmphionRuntime.itnPool.get(key);
+    if (cached !== undefined) return cached;
+    const itnConfig = new WetextItnConfig();
+    itnConfig.taggerFst = layout.itnTagger;
+    itnConfig.verbalizerFst = layout.itnVerbalizer;
+    const itn = new WetextItn(itnConfig);
+    AmphionRuntime.itnPool.set(key, itn);
+    return itn;
   }
 
   private static async timedRecognizerLoadAsync(
@@ -732,6 +759,9 @@ export class AmphionRuntime {
     AmphionRuntime.punctuationPool.forEach((p: OfflinePunctuation): void => {
       try { p.close(); } catch (e) { Logger.w(`punctuation close failed: ${e}`); }
     });
+    AmphionRuntime.itnPool.forEach((itn: WetextItn): void => {
+      try { itn.close(); } catch (e) { Logger.w(`ITN close failed: ${e}`); }
+    });
     AmphionRuntime.speakerExtractorPool.forEach((extractor: SpeakerEmbeddingExtractor): void => {
       try { extractor.close(); } catch (e) { Logger.w(`speaker extractor close failed: ${e}`); }
     });
@@ -741,6 +771,7 @@ export class AmphionRuntime {
     AmphionRuntime.speakerExtractorLoads.clear();
     AmphionRuntime.punctuationPool.clear();
     AmphionRuntime.punctuationLoads.clear();
+    AmphionRuntime.itnPool.clear();
     AmphionRuntime.vadPool.clear();
     AmphionRuntime.poolConfigKey.clear();
   }
@@ -749,6 +780,7 @@ export class AmphionRuntime {
   static isModelLoaded(): boolean {
     return AmphionRuntime.asrPool.size > 0 ||
       AmphionRuntime.punctuationPool.size > 0 ||
+      AmphionRuntime.itnPool.size > 0 ||
       AmphionRuntime.speakerExtractorPool.size > 0;
   }
 
@@ -929,6 +961,7 @@ export class AsrEngine {
   private layout: InstalledLayout;
   private recognizer: OnlineRecognizer;
   private punctuation?: OfflinePunctuation;
+  private itn?: WetextItn;
   private targetExtractor?: SpeakerEmbeddingExtractor;
   private closed: boolean = false;
   private sessions: AsrSession[] = [];
@@ -945,6 +978,7 @@ export class AsrEngine {
     ownsRecognizer: boolean,
     engineReadyMs: number,
     punctuation?: OfflinePunctuation,
+    itn?: WetextItn,
     punctuationLoadMs: number = 0
   ) {
     this.context = context;
@@ -955,6 +989,7 @@ export class AsrEngine {
     this.ownsRecognizer = ownsRecognizer;
     this.engineReadyMs = engineReadyMs;
     this.punctuation = punctuation;
+    this.itn = itn;
     this.punctuationLoadMs = punctuationLoadMs;
     if (config.targetSpeaker !== undefined && config.targetSpeaker.preload &&
       !config.targetSpeaker.deferLoad) {
@@ -977,6 +1012,7 @@ export class AsrEngine {
       this.layout,
       this.recognizer,
       this.punctuation,
+      this.itn,
       this.targetExtractor,
       sessionConfig,
       callback,
@@ -1021,6 +1057,7 @@ export class AsrSession {
   private recognizer: OnlineRecognizer;
   private stream: OnlineStream;
   private punctuation?: OfflinePunctuation;
+  private itn?: WetextItn;
   private vad?: SherpaVad;
   private vadKey: string = '';
   private vadWindowSize: number = 512;
@@ -1063,10 +1100,9 @@ export class AsrSession {
   private stoppedNotified: boolean = false;
   private stopNotificationPending: boolean = false;
   private pendingSpeakerFinals: PendingSpeakerFinal[] = [];
-  private itnWarned: boolean = false;
   private sessionConfig: SessionConfig;
 
-  constructor(sessionId: number, context: Context, language: AsrLanguage, config: AsrConfig, layout: InstalledLayout, recognizer: OnlineRecognizer, punctuation: OfflinePunctuation | undefined, targetExtractor: SpeakerEmbeddingExtractor | undefined, sessionConfig: SessionConfig, callback: AsrCallback, engineReadyMs: number) {
+  constructor(sessionId: number, context: Context, language: AsrLanguage, config: AsrConfig, layout: InstalledLayout, recognizer: OnlineRecognizer, punctuation: OfflinePunctuation | undefined, itn: WetextItn | undefined, targetExtractor: SpeakerEmbeddingExtractor | undefined, sessionConfig: SessionConfig, callback: AsrCallback, engineReadyMs: number) {
     this.sessionId = sessionId;
     this.context = context;
     this.language = language;
@@ -1075,6 +1111,7 @@ export class AsrSession {
     this.recognizer = recognizer;
     this.stream = recognizer.createStream();
     this.punctuation = punctuation;
+    this.itn = itn;
     this.targetExtractor = targetExtractor;
     this.sessionConfig = sessionConfig;
     this.targetSpeakerEnabled = config.targetSpeaker?.enabledByDefault ?? false;
@@ -1346,12 +1383,14 @@ export class AsrSession {
     result.timestamps = native.timestamps;
     result.isLast = isLast;
     const postStartMs = Date.now();
-    if (this.config.itn && this.language === AsrLanguage.ZH_EN && !this.itnWarned) {
-      if (!this.callbackGate.invoke((): void => {
-        this.callback.onDebug?.(
-          'Harmony WeText ITN NAPI is not packaged; final text keeps raw ITN form before punctuation.');
-      })) return false;
-      this.itnWarned = true;
+    if (this.itn !== undefined && result.text.length > 0) {
+      try {
+        result.text = this.itn.normalize(result.text);
+      } catch (e) {
+        if (!this.callbackGate.invoke((): void => {
+          this.callback.onError?.(new AsrError(AsrErrorCode.POSTPROCESS_FAILED, `ITN failed: ${e}`));
+        })) return false;
+      }
     }
     if (this.punctuation !== undefined && result.text.length > 0) {
       try {
