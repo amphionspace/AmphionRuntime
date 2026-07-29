@@ -91,4 +91,21 @@ class PoliceTermsNormalizerTest {
         val input = "处警反馈显示当事人对事实说法不一致暂不需要增派警力。"
         assertEquals(input, n.normalize(input).text)
     }
+
+    @Test
+    fun normalize_fstPrepassDoesNotBypassCurrentCsvRules() {
+        val fstPrepass = object : PoliceTermsGlobalRewriter {
+            override fun applyGlobal(text: String): String = text.replace("旧警单", "签收经单")
+            override fun close() = Unit
+        }
+        val n = PoliceTermsNormalizer.create(
+            homophones = PoliceTermsHomophoneDict.loadFromReader(
+                BufferedReader(StringReader("签收经单,签收警单,term")),
+            ),
+            gazetteer = gazetteer,
+            fstRuntime = fstPrepass,
+        )
+
+        assertEquals("签收警单", n.normalize("旧警单").text)
+    }
 }
