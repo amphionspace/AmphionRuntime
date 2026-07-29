@@ -34,6 +34,8 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         bad_model_hash: bool = False,
         duplicate_model_root: bool = False,
         embedded_license: bool = False,
+        police_dependency: str = "file:./_bundled/amphion_police",
+        police_asset_payload: bytes = b"police-asset",
         nested_version: str = "0.2.5",
         release_date: str = "2026-07-18",
     ) -> None:
@@ -92,9 +94,38 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         model_manifest = {"manifest_version": 2, "bundles": bundles}
         model_manifest_payload = json.dumps(model_manifest).encode("utf-8")
         with tarfile.open(har_path, "w:gz") as archive:
-            self._add_json(archive, "package/oh-package.json5", {"version": "0.2.5"})
+            self._add_json(archive, "package/oh-package.json5", {
+                "version": "0.2.5",
+                "dependencies": {"amphion_police": police_dependency},
+            })
             for name in MODULE.VERSIONED_PACKAGE_PATHS:
                 self._add_json(archive, name, {"version": nested_version})
+            self._add_json(archive, MODULE.POLICE_PACKAGE_PATH, {
+                "version": "0.2.5",
+                "dependencies": {"amphion_asr": "file:../amphion_asr"},
+            })
+            self._add_bytes(
+                archive,
+                "package/_bundled/amphion_police/Index.ets",
+                b"export * from './src/main/ets/com/amphion/police/PoliceEnhancePipeline';\n",
+            )
+            self._add_bytes(
+                archive,
+                "package/_bundled/amphion_police/src/main/ets/com/amphion/police/PoliceEnhancePipeline.ets",
+                b"export class PoliceEnhancePipeline {}\n",
+            )
+            police_asset_name = "police_terms/terms.tsv"
+            self._add_json(archive, MODULE.POLICE_MANIFEST_PATH, {
+                "schema_version": 1,
+                "files": {
+                    police_asset_name: hashlib.sha256(b"police-asset").hexdigest(),
+                },
+            })
+            self._add_bytes(
+                archive,
+                f"{MODULE.POLICE_ASSET_ROOT.as_posix()}/{police_asset_name}",
+                police_asset_payload,
+            )
             self._add_bytes(
                 archive,
                 MODULE.RUNTIME_IDENTITY_PATH,
@@ -130,6 +161,15 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             "asr_only": True,
             "sdk_only": True,
             "languages": ["zh-en"],
+            "capabilities": [
+                "asr",
+                "voiceprint",
+                "punctuation",
+                "itn",
+                "vad",
+                "industry-text-enhancement",
+            ],
+            "excluded_capabilities": [],
             "artifacts": [
                 {
                     "path": "har/amphion_dingqiao.har",
@@ -174,6 +214,18 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root)
+            MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
+
+    def test_accepts_documented_police_enhancement_capability(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root)
+            integration = root / "docs/INTEGRATION.md"
+            integration.write_text(
+                "警务增强可通过 enablePoliceEnhancement 开关控制。\n",
+                encoding="utf-8",
+            )
+            self._write_checksums(root)
             MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
     def test_rejects_demo_or_tts_artifacts(self) -> None:
@@ -234,24 +286,22 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "forbidden HAR member"):
                 MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
-    def test_rejects_police_enhancement_payload(self) -> None:
+    def test_rejects_tampered_police_enhancement_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            self._write_fixture(root)
-            har_path = root / "har/amphion_dingqiao.har"
-            replacement = root / "har/replacement.har"
-            with tarfile.open(har_path, "r:gz") as source, tarfile.open(replacement, "w:gz") as target:
-                for member in source.getmembers():
-                    target.addfile(member, source.extractfile(member) if member.isfile() else None)
-                self._add_bytes(target, "package/_bundled/amphion_police/Index.ets", b"export {}")
-            replacement.replace(har_path)
-            provenance_path = root / "docs/BUILD_PROVENANCE.json"
-            provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
-            provenance["artifacts"][0]["size_bytes"] = har_path.stat().st_size
-            provenance["artifacts"][0]["sha256"] = hashlib.sha256(har_path.read_bytes()).hexdigest()
-            provenance_path.write_text(json.dumps(provenance), encoding="utf-8")
-            self._write_checksums(root)
-            with self.assertRaisesRegex(MODULE.DeliveryValidationError, "police enhancement"):
+            self._write_fixture(root, police_asset_payload=b"tampered")
+            with self.assertRaisesRegex(
+                MODULE.DeliveryValidationError, "police enhancement asset hash mismatch"
+            ):
+                MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
+
+    def test_rejects_external_police_enhancement_dependency(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root, police_dependency="file:../amphion_police")
+            with self.assertRaisesRegex(
+                MODULE.DeliveryValidationError, "does not link bundled police enhancement"
+            ):
                 MODULE.validate_delivery(root, "0.2.5", FIXTURE_MODEL_MD5)
 
     def test_rejects_nested_package_version_mismatch(self) -> None:

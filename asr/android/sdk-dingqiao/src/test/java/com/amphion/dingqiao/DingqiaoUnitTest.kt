@@ -462,6 +462,35 @@ class DingqiaoEngineConfigTest {
     }
 }
 
+class PoliceEnhancementPolicyTest {
+
+    @Test
+    fun enabledFinalUsesEnhancerAndDisabledFinalReturnsRawText() {
+        var calls = 0
+        val enhance: (String) -> String = { raw ->
+            calls += 1
+            "增强:$raw"
+        }
+
+        assertEquals("增强:原文", PoliceEnhancementPolicy.finalText("原文", true, enhance))
+        assertEquals("原文", PoliceEnhancementPolicy.finalText("原文", false, enhance))
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun consecutiveSessionsWithOppositeSettingsDoNotSharePolicyState() {
+        val disabled = DingqiaoEngineConfig.enablePoliceEnhancement(
+            StartParams("off", AudioInfo(), mapOf("enablePoliceEnhancement" to false)),
+        )
+        val enabled = DingqiaoEngineConfig.enablePoliceEnhancement(
+            StartParams("on", AudioInfo(), emptyMap()),
+        )
+
+        assertEquals("第一句", PoliceEnhancementPolicy.finalText("第一句", disabled) { "错误增强" })
+        assertEquals("第二句-增强", PoliceEnhancementPolicy.finalText("第二句", enabled) { "$it-增强" })
+    }
+}
+
 class CallbackEpochTest {
 
     @Test

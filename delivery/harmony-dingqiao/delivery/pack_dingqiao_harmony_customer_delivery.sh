@@ -61,6 +61,7 @@ RELEASE_INPUTS=(
   LICENSE
   asr/harmony/sdk
   asr/harmony/sdk-dingqiao
+  asr/harmony/sdk-police
   third_party/sherpa-onnx
   third_party/patches/sherpa-amphion
   delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh
@@ -465,8 +466,9 @@ if sdk_only:
         "punctuation",
         "itn",
         "vad",
+        "industry-text-enhancement",
     ]
-    payload["excluded_capabilities"] = ["industry-text-enhancement"]
+    payload["excluded_capabilities"] = []
 (out / "docs/BUILD_PROVENANCE.json").write_text(
     json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
 )

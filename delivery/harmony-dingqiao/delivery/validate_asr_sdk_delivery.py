@@ -31,6 +31,11 @@ VERSIONED_PACKAGE_PATHS = (
 RUNTIME_IDENTITY_PATH = (
     "package/_bundled/amphion_asr/src/main/ets/com/amphion/asr/RuntimeIdentity.ts"
 )
+POLICE_PACKAGE_PATH = "package/_bundled/amphion_police/oh-package.json5"
+POLICE_ASSET_ROOT = PurePosixPath(
+    "package/_bundled/amphion_police/src/main/resources/rawfile/amphion-police"
+)
+POLICE_MANIFEST_PATH = (POLICE_ASSET_ROOT / "manifest.json").as_posix()
 ALLOWED_MODEL_BUNDLES = {
     "zh-en/v1",
     "punct-zhen/v1",
@@ -253,9 +258,6 @@ def _validate_har(
         raise DeliveryValidationError(f"invalid HAR archive: {har_path}") from error
     with archive:
         names = _validate_member_policy(archive)
-        police = sorted(name for name in names if "amphion_police" in name.lower())
-        if police:
-            raise DeliveryValidationError(f"HAR contains police enhancement content: {police[0]}")
         forbidden = sorted(name for name in names if "yue-en" in name.lower())
         if forbidden:
             raise DeliveryValidationError(f"HAR contains Yue model content: {forbidden[0]}")
@@ -271,6 +273,58 @@ def _validate_har(
                 raise DeliveryValidationError(
                     f"nested HAR version {nested.get('version')} != {expected_version}: {path}"
                 )
+        dependencies = metadata.get("dependencies")
+        if not isinstance(dependencies, dict) or dependencies.get("amphion_police") != \
+                "file:./_bundled/amphion_police":
+            raise DeliveryValidationError("HAR does not link bundled police enhancement")
+        police_metadata = _read_tar_json(archive, POLICE_PACKAGE_PATH)
+        if police_metadata.get("version") != expected_version:
+            raise DeliveryValidationError(
+                f"bundled police enhancement version {police_metadata.get('version')} "
+                f"!= {expected_version}"
+            )
+        police_dependencies = police_metadata.get("dependencies")
+        if not isinstance(police_dependencies, dict) or police_dependencies.get("amphion_asr") != \
+                "file:../amphion_asr":
+            raise DeliveryValidationError("bundled police enhancement does not link bundled ASR")
+        for required_police_member in (
+            "package/_bundled/amphion_police/Index.ets",
+            "package/_bundled/amphion_police/src/main/ets/com/amphion/police/PoliceEnhancePipeline.ets",
+        ):
+            _read_tar_bytes(archive, required_police_member)
+
+        police_manifest = _read_tar_json(archive, POLICE_MANIFEST_PATH)
+        police_files = police_manifest.get("files")
+        if not isinstance(police_files, dict) or not police_files:
+            raise DeliveryValidationError("police enhancement manifest has no assets")
+        expected_police_assets = {POLICE_MANIFEST_PATH}
+        for relative, expected_hash in police_files.items():
+            if not isinstance(relative, str) or not isinstance(expected_hash, str):
+                raise DeliveryValidationError("invalid police enhancement manifest entry")
+            relative_path = PurePosixPath(relative)
+            if relative_path.is_absolute() or ".." in relative_path.parts:
+                raise DeliveryValidationError(
+                    f"unsafe police enhancement asset path: {relative}"
+                )
+            asset_path = (POLICE_ASSET_ROOT / relative_path).as_posix()
+            expected_police_assets.add(asset_path)
+            payload = _read_tar_bytes(archive, asset_path)
+            if hashlib.sha256(payload).hexdigest() != expected_hash:
+                raise DeliveryValidationError(
+                    f"police enhancement asset hash mismatch: {asset_path}"
+                )
+        actual_police_assets = {
+            member.name
+            for member in archive.getmembers()
+            if member.isfile() and member.name.startswith(f"{POLICE_ASSET_ROOT.as_posix()}/")
+        }
+        if actual_police_assets != expected_police_assets:
+            extra = sorted(actual_police_assets - expected_police_assets)
+            missing = sorted(expected_police_assets - actual_police_assets)
+            detail = extra[0] if extra else missing[0]
+            raise DeliveryValidationError(
+                f"police enhancement asset file set mismatch: {detail}"
+            )
         identity = _read_tar_bytes(archive, RUNTIME_IDENTITY_PATH).decode("utf-8")
         expected_identity = (
             f"HARMONY_SDK_VERSION: string = '{expected_version}'",
@@ -373,6 +427,17 @@ def _validate_provenance(root: Path, expected_version: str, har_evidence: dict) 
         raise DeliveryValidationError("SDK-only ASR provenance must declare asr_only=true")
     if provenance.get("languages") != ["zh-en"]:
         raise DeliveryValidationError("provenance languages must be exactly ['zh-en']")
+    if provenance.get("capabilities") != [
+        "asr",
+        "voiceprint",
+        "punctuation",
+        "itn",
+        "vad",
+        "industry-text-enhancement",
+    ]:
+        raise DeliveryValidationError("provenance capabilities do not include police enhancement")
+    if provenance.get("excluded_capabilities") != []:
+        raise DeliveryValidationError("provenance incorrectly excludes a bundled capability")
     artifacts = provenance.get("artifacts")
     if not isinstance(artifacts, list) or [item.get("path") for item in artifacts] != [
         "har/amphion_dingqiao.har"
@@ -406,9 +471,9 @@ def _validate_documents(root: Path) -> None:
         raise DeliveryValidationError("README does not state the SDK-only TTS boundary")
     for markdown in root.rglob("*.md"):
         text = markdown.read_text(encoding="utf-8")
-        if "鼎桥" in text or "警务" in text or re.search(r"\bpolice\b", text, re.IGNORECASE):
+        if "鼎桥" in text:
             raise DeliveryValidationError(
-                f"customer-facing document contains excluded branding or capability: {markdown}"
+                f"customer-facing document contains excluded branding: {markdown}"
             )
         for raw_target in MARKDOWN_LINK_RE.findall(text):
             target = raw_target.strip().strip("<>").split("#", 1)[0]
