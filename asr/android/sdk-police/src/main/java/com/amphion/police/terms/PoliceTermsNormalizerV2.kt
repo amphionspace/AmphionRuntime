@@ -12,8 +12,8 @@ import java.io.InputStreamReader
  * 1. 先复用 V1 全局谐音替换（[PoliceTermsHomophoneDict.applyPhrases]）做安全的人工高置信纠正；
  * 2. 再叠加**保守**的「字级候选格 ∩ gazetteer 校验器」模糊层：
  *    - 第一档（主）：长度 ≥ [minFuzzyLen] 的术语做**等长纯近音替换**，替换数 ≤ [maxSubsFor]；
- *    - 第二档（变长兜底）：仅当第一档在该位置无唯一解时才尝试，处理上游多/漏一字的误识：
- *      长度 ≥ [minVarLen]、**只允许 1 次增删字**（|Δ长度| = 1）、其余位仍须近音、总编辑 ≤ [maxSubsFor]；
+ *    - 第二档（变长兜底）：仅当第一档在该位置无唯一解时才尝试，处理上游漏一字的误识：
+ *      长度 ≥ [minVarLen]、原文只允许比术语少 1 字、其余位仍须近音、总编辑 ≤ [maxSubsFor]；
  *    - 两档都要求同位置能匹配的标准术语**唯一**，并列即放弃（不臆造）。
  *
  * V1 文件完全未改，可随时切回（[PoliceTermsEnhancePrefs.termsV2Enabled]）。
@@ -39,6 +39,30 @@ class PoliceTermsNormalizerV2 private constructor(
 
     companion object {
         private const val GAZETTEER_ASSET = "police_terms/term_gazetteer.txt"
+
+        /** 身份证号/号码为 后的数字串里去掉空格（允许中间已有冒号）。 */
+        private val ID_DIGIT_SPACES = Regex(
+            "(身份证号|号码为|身份证号码为)[：:]?([0-9][0-9 ]{14,30})",
+        )
+
+        /**
+         * 语音指令「核查/查检车牌号」后的紧凑车牌：川AF60080 / 川AF 60080 / 川A F60080 → 川A F60080。
+         */
+        private val PLATE_CMD_COMPACT = Regex(
+            "((?:帮我)?(?:核查|查检)车牌号)[：:，,]?(川)([A-HJ-NP-Z])\\s*([A-HJ-NP-Z])\\s*([0-9]{5})",
+        )
+
+        /**
+         * 用 + WeCom误识族 + 向/想。误识族含：VCOM/VCOOM/V COM、Weconmm/WeConmm/WeComm、微COM、维康姆。
+         */
+        private val WECOM_AFTER_YONG = Regex(
+            "用\\s*(?i:v\\s*c+o+m+|we\\s*c+o+n*m+|微\\s*com|维康姆)\\s*(?:想|向)",
+        )
+
+        /** WeCom误识族紧跟「向…」或「发起呼叫」。 */
+        private val WECOM_BEFORE_CALL = Regex(
+            "(?i)(v\\s*c+o+m+|we\\s*c+o+n*m+)(\\s*(?:向|发起呼叫))",
+        )
 
         fun create(context: Context): PoliceTermsNormalizerV2 {
             val terms = context.assets.open(GAZETTEER_ASSET).use { input ->
@@ -79,8 +103,59 @@ class PoliceTermsNormalizerV2 private constructor(
         val fuzzy = fuzzyCorrect(guarded2)
         // 3) 电台音标数字归一（洞0幺1两2拐7勾9…），严格数字上下文门控。
         val corrected = PoliceTermsRadioDigits.normalize(fuzzy)
-        val spans = locateSpans(corrected)
-        return PoliceTermsNormalizeResult(corrected, spans)
+        // 4) 指令格式润色 + 再跑一遍谐音（供身份证空格合并、车牌号格式等落地）。
+        val polished = polish(corrected)
+        val spans = locateSpans(polished)
+        return PoliceTermsNormalizeResult(polished, spans)
+    }
+
+    /**
+     * 管线末段润色（车牌/派出所之后再调一次）：合并证件号空格、规范语音指令里的车牌书写，
+     * 并再应用谐音表（例如把「号码为3705…」补成「，号码为：3705…」）。
+     */
+    fun polish(text: String): String {
+        if (text.isEmpty()) return text
+        val formatted = formatVoiceCommands(text)
+        return homophones.applyPhrases(formatted)
+    }
+
+    /**
+     * 语音指令格式归一（不做模糊匹配，避免再删虚词）：
+     * - 身份证号语境下去掉数字间空格；
+     * - 「核查/查检车牌号」后的 川AF60080 / 川A F60080 → 川A F60080，并补冒号；
+     * - WeCom 英文误识族（VCOM/Weconmm/…）大小写不敏感收成 WeCom。
+     */
+    private fun formatVoiceCommands(text: String): String {
+        var t = text
+        t = ID_DIGIT_SPACES.replace(t) { m ->
+            val prefix = m.groupValues[1]
+            val digits = m.groupValues[2].replace(" ", "")
+            // 统一成「前缀：数字」，与甲方指令书写一致
+            "$prefix：$digits"
+        }
+        t = PLATE_CMD_COMPACT.replace(t) { m ->
+            val prefix = m.groupValues[1]
+            val prov = m.groupValues[2]
+            val city = m.groupValues[3]
+            val serial = m.groupValues[4]
+            val digits = m.groupValues[5]
+            "$prefix：$prov$city $serial$digits"
+        }
+        t = normalizeWeComNames(t)
+        return t
+    }
+
+    /**
+     * WeCom 产品名归一。谐音 CSV 对大小写敏感，真人/ASR 常出 VCOM、Weconmm、WE COM 等，
+     * 在「用…向/想」或「…向/发起呼叫」锚点下做大小写不敏感替换。
+     */
+    private fun normalizeWeComNames(text: String): String {
+        var t = text
+        // 用 VCOM/Weconmm/微COM/维康姆 向|想 → 用WeCom向
+        t = WECOM_AFTER_YONG.replace(t) { "用WeCom向" }
+        // 句中裸写：VCOM向 / Weconmm发起呼叫
+        t = WECOM_BEFORE_CALL.replace(t) { "WeCom${it.groupValues[2]}" }
+        return t
     }
 
     /**
@@ -222,8 +297,11 @@ class PoliceTermsNormalizerV2 private constructor(
     }
 
     /**
-     * 第二档（变长兜底）：术语长度 ≥ [minVarLen]，原文窗口取 len±1（恰好 1 次增删字），
-     * 其余位须近音、总编辑 ≤ 预算。要求 (术语, 窗口) 唯一最优；并列即放弃。
+     * 第二档（变长兜底）：术语长度 ≥ [minVarLen]，原文窗口仅取 **len-1**
+     * （ASR 漏识术语中的 1 字，需补回）。
+     *
+     * 刻意不用 len+1：否则会把「请/在/上/我」等句首虚词当成多余字删掉
+     * （如「现在帮我打开时钟」→「现帮我打开时钟」）。
      */
     private fun bestVarLenAt(text: String, start: Int): TermMatch? {
         var best: String? = null
@@ -233,19 +311,18 @@ class PoliceTermsNormalizerV2 private constructor(
         for (g in terms) {
             val len = g.length
             if (len < minVarLen) break            // 降序，后续更短，直接停
-            for (width in intArrayOf(len - 1, len + 1)) {
-                if (width < 1 || start + width > text.length) continue
-                val cost = varCost(text, start, g, width) ?: continue
-                when {
-                    best == null || len > best!!.length -> {
-                        best = g; bestConsumed = width; bestCost = cost; ambiguous = false
-                    }
-                    len == best!!.length && cost < bestCost -> {
-                        bestConsumed = width; bestCost = cost; best = g; ambiguous = false
-                    }
-                    len == best!!.length && cost == bestCost &&
-                        (g != best || width != bestConsumed) -> ambiguous = true
+            val width = len - 1
+            if (width < 1 || start + width > text.length) continue
+            val cost = varCost(text, start, g, width) ?: continue
+            when {
+                best == null || len > best!!.length -> {
+                    best = g; bestConsumed = width; bestCost = cost; ambiguous = false
                 }
+                len == best!!.length && cost < bestCost -> {
+                    bestConsumed = width; bestCost = cost; best = g; ambiguous = false
+                }
+                len == best!!.length && cost == bestCost &&
+                    (g != best || width != bestConsumed) -> ambiguous = true
             }
         }
         return if (best != null && !ambiguous) TermMatch(best!!, bestConsumed) else null

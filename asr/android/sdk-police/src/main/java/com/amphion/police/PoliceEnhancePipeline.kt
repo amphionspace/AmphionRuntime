@@ -76,8 +76,14 @@ class PoliceEnhancePipeline private constructor(
             stationV2 != null -> stationV2.normalize(plate.text)
             else -> PoliceStationEnhance.apply(plate.text, stationNormalizer, stationNormalizeEnabled)
         }
+        // 车牌后处理会把「川A F60080」收成「川AF60080」等；术语末润色再拉回语音指令书写。
+        val finalText = when {
+            !termsNormalizeEnabled -> station.text
+            termsV2 != null -> termsV2.polish(station.text)
+            else -> station.text
+        }
         return Result(
-            text = station.text,
+            text = finalText,
             terms = terms,
             plate = plate,
             station = station,
