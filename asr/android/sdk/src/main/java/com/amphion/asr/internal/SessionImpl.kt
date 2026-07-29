@@ -572,7 +572,7 @@ internal class SessionImpl(
      */
     private fun probeInitialSpeechAtTimeout(): Boolean? {
         val r = NativeGuard.run("initialSilence.inputFinished+probe") {
-            appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
+            appendFinalTailSilence(INITIAL_SILENCE_PROBE_TAIL_MS)
             stream.inputFinished()
             drainDecoder(isFinal = true, postEndpointOnEndpoint = false, suppressEmptyFinal = true)
         }
@@ -1022,8 +1022,14 @@ internal class SessionImpl(
         /** 句间硬重启仍需恢复 encoder cache，避免连续短指令吞掉下一句开头。 */
         const val RESTART_STREAM_WARMUP_DURATION_MS = 800
 
-        /** 手动 stop/final flush 的尾部静音；与整段流式评估口径一致，避免末尾 token 被截断。 */
-        const val FINAL_TAIL_SILENCE_MS = 500
+        /** 保持 vadBegin 强制探测的既有 500 ms 合成输入，不随手动 finish 的尾上下文调整。 */
+        const val INITIAL_SILENCE_PROBE_TAIL_MS = 500
+
+        /**
+         * 手动 stop 经常正好落在语音末尾。zh-en encoder 每个 chunk 约 640 ms；补足两个完整
+         * chunk，保证无论当前 chunk 相位如何都还有两次解码机会。这里是合成输入，不是墙钟等待。
+         */
+        const val FINAL_TAIL_SILENCE_MS = 1280
 
         /**
          * silero VAD 强约束：必须按窗口对齐喂入 [Vad.acceptWaveform]。
