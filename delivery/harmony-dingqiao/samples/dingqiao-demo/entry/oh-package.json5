@@ -7,6 +7,7 @@
   "license": "Commercial",
   "dependencies": {
     "amphion_dingqiao": "file:../../../../../asr/harmony/sdk-dingqiao",
-    "amphion_asr": "file:../../../../../asr/harmony/sdk"
+    "amphion_asr": "file:../../../../../asr/harmony/sdk",
+    "amphion_police": "file:../../../../../asr/harmony/sdk-police"
   }
 }

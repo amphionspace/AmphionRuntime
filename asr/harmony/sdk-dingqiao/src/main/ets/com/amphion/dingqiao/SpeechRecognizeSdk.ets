@@ -1,4 +1,5 @@
 import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SessionConfig, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
+import { PoliceEnhancePipeline } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
@@ -306,6 +307,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private params: CreateEngineParams;
   private listener?: RecognitionListener;
   private asrEngine: AsrEngine;
+  private enhancePipeline: PoliceEnhancePipeline;
   private session?: AsrSession;
   private busy: boolean = false;
   private destroyed: boolean = false;
@@ -314,6 +316,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private lastAutoFinishedSessionId: string = '';
   private finishRequested: boolean = false;
   private partialEnabled: boolean = true;
+  private policeEnhancementEnabled: boolean = true;
   private finalResultSent: boolean = false;
   private completeSent: boolean = false;
   private maxAudioBytes: number = 0;
@@ -329,6 +332,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   constructor(context: Context, params: CreateEngineParams, preloadedEngine?: AsrEngine) {
     this.context = context;
     this.params = snapshotCreateEngineParams(params);
+    this.enhancePipeline = PoliceEnhancePipeline.create(context);
     this.asrEngine = preloadedEngine ??
       AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(this.params));
     this.engineCfgKey = this.computeEngineCfgKey(false, false);
@@ -400,6 +404,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.finalResultSent = false;
       this.completeSent = false;
       this.partialEnabled = params.extraParams['enablePartialResult'] !== false;
+      this.policeEnhancementEnabled =
+        strictBooleanParam(params.extraParams, 'enablePoliceEnhancement', true);
       this.maxAudioBytes = maxAudioBytesOf(params.extraParams);
       this.audioBytesWritten = 0;
       this.voiceprintIds = voiceprintIds;
@@ -550,6 +556,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.destroyed = true;
     this.tearDownSession();
     this.asrEngine.close();
+    this.enhancePipeline.close();
   }
 
   private deliverFinal(generation: number, result: AsrResult): void {
@@ -559,7 +566,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const payload = new SpeechRecognitionResult();
     payload.isFinal = true;
     payload.isLast = result.isLast;
-    payload.result = result.text;
+    payload.result = this.policeEnhancementEnabled ?
+      this.enhancePipeline.enhance(result.text).text : result.text;
     payload.speakerSimilarity = result.speakerScore;
     // beginTime/endTime from token timestamps (seconds -> ms), aligned with Android dispatchResult.
     const ts = result.timestamps;
@@ -591,6 +599,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finishRequested = false;
     this.finalResultSent = false;
     this.completeSent = false;
+    this.policeEnhancementEnabled = true;
     this.voiceprintIds = [];
     this.speechActive = false;
     this.sessionStartGate.reset();

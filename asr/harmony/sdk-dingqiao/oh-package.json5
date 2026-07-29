@@ -6,6 +6,7 @@
   "author": "Amphion",
   "license": "Commercial",
   "dependencies": {
-    "amphion_asr": "file:../sdk"
+    "amphion_asr": "file:../sdk",
+    "amphion_police": "file:../sdk-police"
   }
 }
