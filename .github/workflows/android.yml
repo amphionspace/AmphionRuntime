@@ -47,6 +47,7 @@ jobs:
             asr.tools.tests.test_harmony_rejected_final_lifecycle \
             asr.tools.tests.test_harmony_session_start_gate \
             delivery.harmony-dingqiao.delivery.test_run_device_stress -v
+          python3 asr/tools/sync_harmony_police_assets.py --check
 
       - name: Check customer delivery redaction
         run: |

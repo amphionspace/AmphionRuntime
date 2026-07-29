@@ -79,6 +79,7 @@ class PoliceV2CrossPlatformParityTest {
                 val actual = when (domain) {
                     "plate" -> plate.normalize(input).text
                     "terms" -> terms.normalize(input).text
+                    "terms-polish" -> terms.polish(input)
                     "station" -> station.normalize(input).text
                     else -> error("unknown domain: $domain")
                 }

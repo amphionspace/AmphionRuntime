@@ -53,6 +53,11 @@ export class PoliceEnhancePipeline {
       result.stationChanged = normalized !== text;
       text = normalized;
     }
+    if (this.options.termsNormalizeEnabled) {
+      const polished = this.terms.polish(text);
+      result.termsChanged = result.termsChanged || polished !== text;
+      text = polished;
+    }
     result.text = text;
     return result;
   }

@@ -12,8 +12,8 @@ import java.io.InputStreamReader
  * 1. 先复用 V1 全局谐音替换（[PoliceTermsHomophoneDict.applyPhrases]）做安全的人工高置信纠正；
  * 2. 再叠加**保守**的「字级候选格 ∩ gazetteer 校验器」模糊层：
  *    - 第一档（主）：长度 ≥ [minFuzzyLen] 的术语做**等长纯近音替换**，替换数 ≤ [maxSubsFor]；
- *    - 第二档（变长兜底）：仅当第一档在该位置无唯一解时才尝试，处理上游多/漏一字的误识：
- *      长度 ≥ [minVarLen]、**只允许 1 次增删字**（|Δ长度| = 1）、其余位仍须近音、总编辑 ≤ [maxSubsFor]；
+ *    - 第二档（变长兜底）：仅当第一档在该位置无唯一解时才尝试，处理上游漏一字的误识：
+ *      长度 ≥ [minVarLen]、原文只允许比术语少 1 字、其余位仍须近音、总编辑 ≤ [maxSubsFor]；
  *    - 两档都要求同位置能匹配的标准术语**唯一**，并列即放弃（不臆造）。
  *
  * V1 文件完全未改，可随时切回（[PoliceTermsEnhancePrefs.termsV2Enabled]）。
