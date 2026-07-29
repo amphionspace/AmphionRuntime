@@ -66,6 +66,9 @@ class SessionEvents {
   errors: number = 0;
   finalChars: number = 0;
   finalTexts: string[] = [];
+  audioFeedStartedAtMs: number = -1;
+  speechBeginAtMs: number = -1;
+  firstNonEmptyResultAtMs: number = -1;
   lastIsLast: boolean = false;
   lastFinals: number = 0;
   speakerScores: number = 0;
@@ -107,12 +110,20 @@ class StressListener implements RecognitionListener {
   }
 
   onEvent(sessionId: string, eventCode: number, _message: string): void {
-    if (eventCode === DingqiaoEventCode.SPEECH_BEGIN) this.events.speechBegins += 1;
+    if (eventCode === DingqiaoEventCode.SPEECH_BEGIN) {
+      this.events.speechBegins += 1;
+      const expectedSession = this.expectedSessionId.length === 0 || sessionId === this.expectedSessionId;
+      if (expectedSession && this.events.speechBeginAtMs < 0) this.events.speechBeginAtMs = Date.now();
+    }
     if (eventCode === DingqiaoEventCode.SPEECH_END) this.events.speechEnds += 1;
     this.record(sessionId, 'event', `-${eventCode}`);
   }
 
   onResult(sessionId: string, result: SpeechRecognitionResult): void {
+    const expectedSession = this.expectedSessionId.length === 0 || sessionId === this.expectedSessionId;
+    if (expectedSession && result.result.length > 0 && this.events.firstNonEmptyResultAtMs < 0) {
+      this.events.firstNonEmptyResultAtMs = Date.now();
+    }
     if (!result.isFinal) {
       this.events.partials += 1;
       this.record(sessionId, 'partial');
@@ -682,6 +693,10 @@ class CycleResult {
   lastFinalsBeforeFinish: number = -1;
   liveStreams: number = 0;
   elapsedMs: number = 0;
+  firstNonEmptyResultMs: number = -1;
+  audioStartToFirstNonEmptyResultMs: number = -1;
+  audioStartToSpeechBeginMs: number = -1;
+  speechBeginToFirstNonEmptyResultMs: number = -1;
   resultHex: string = '';
   callbackTrace: string = '';
   unexpectedSessionCallbacks: number = 0;
@@ -700,6 +715,10 @@ class CycleResult {
       `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
       `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}|liveStreams=${this.liveStreams}` +
       `|unexpectedCallbacks=${this.unexpectedSessionCallbacks}|elapsedMs=${this.elapsedMs}` +
+      `|firstNonEmptyResultMs=${this.firstNonEmptyResultMs}` +
+      `|audioStartToFirstNonEmptyResultMs=${this.audioStartToFirstNonEmptyResultMs}` +
+      `|audioStartToSpeechBeginMs=${this.audioStartToSpeechBeginMs}` +
+      `|speechBeginToFirstNonEmptyResultMs=${this.speechBeginToFirstNonEmptyResultMs}` +
       `|resultHex=${this.resultHex}|trace=${this.callbackTrace}|detail=${this.detail}`;
   }
 }
@@ -901,7 +920,8 @@ function prepareStressVoiceprint(workPath: string, entry: CorpusEntry): string {
 }
 
 async function feedPcmFile(engine: SpeechRecognitionEngine, sessionId: string, path: string,
-  maxFrames: number, paceMs: number, stopWhen?: () => boolean, gain: number = 1): Promise<number> {
+  maxFrames: number, paceMs: number, stopWhen?: () => boolean, gain: number = 1,
+  onFirstFrame?: () => void): Promise<number> {
   const frame = new ArrayBuffer(FRAME_BYTES);
   const frameBytes = new Uint8Array(frame);
   let fed = 0;
@@ -921,6 +941,7 @@ async function feedPcmFile(engine: SpeechRecognitionEngine, sessionId: string, p
           frameBytes[i + 1] = (scaled >> 8) & 0xFF;
         }
       }
+      if (fed === 0) onFirstFrame?.();
       engine.writeAudio(sessionId, frame);
       fed += 1;
       if (paceMs > 0) {
@@ -1000,6 +1021,20 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
     (events.firstNonEmptyFinalHasScore ? 1 : 0);
   result.liveStreams = AmphionRuntime.activeOnlineStreamCount();
   result.elapsedMs = Date.now() - startedAt;
+  if (events.firstNonEmptyResultAtMs >= 0) {
+    result.firstNonEmptyResultMs = events.firstNonEmptyResultAtMs - startedAt;
+    if (events.audioFeedStartedAtMs >= 0) {
+      result.audioStartToFirstNonEmptyResultMs =
+        events.firstNonEmptyResultAtMs - events.audioFeedStartedAtMs;
+    }
+    if (events.speechBeginAtMs >= 0 && events.speechBeginAtMs <= events.firstNonEmptyResultAtMs) {
+      result.speechBeginToFirstNonEmptyResultMs =
+        events.firstNonEmptyResultAtMs - events.speechBeginAtMs;
+    }
+  }
+  if (events.audioFeedStartedAtMs >= 0 && events.speechBeginAtMs >= events.audioFeedStartedAtMs) {
+    result.audioStartToSpeechBeginMs = events.speechBeginAtMs - events.audioFeedStartedAtMs;
+  }
   result.resultHex = stringToUtf16Hex(events.finalTexts.join(''));
   result.callbackTrace = events.callbackTrace.join('>');
   result.unexpectedSessionCallbacks = events.unexpectedSessionCallbacks;
@@ -1020,7 +1055,9 @@ async function runRecognitionCycle(engine: SpeechRecognitionEngine, entry: Corpu
   const events = new SessionEvents();
   const sessionId = `stress-${index}`;
   engine.setListener(new StressListener(events, sessionId));
-  engine.startListening(startParams(sessionId, options.mode, index));
+  const params = startParams(sessionId, options.mode, index);
+  if (options.mode === 'paced') params.extraParams['enablePartialResult'] = true;
+  engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
   }
@@ -1045,7 +1082,8 @@ async function runRecognitionCycle(engine: SpeechRecognitionEngine, entry: Corpu
   }
 
   const paceMs = options.mode === 'paced' ? options.paceMs : 0;
-  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, paceMs);
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, paceMs, undefined, 1,
+    (): void => { events.audioFeedStartedAtMs = Date.now(); });
   if (fed === 0) {
     engine.cancel(sessionId);
     return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');

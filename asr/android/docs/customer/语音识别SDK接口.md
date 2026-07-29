@@ -90,6 +90,7 @@ engine.shutdown()
 | `locate` | `String` | `CN` | 兼容字段；当前仅支持中国区，不改变模型选择 |
 | `recognizerMode` | `String` | `long` | 接受 `short`/`long`，当前均按长语音流式模式处理 |
 | `sysGeneralLexicon` | `List<String>` | 空 | 系统热词；与警务域默认热词合并后用于解码 |
+| `disablePrepack` | `Boolean/Number/String` | `true` | 默认跳过 ORT INT8 权重 prepack，降低冷加载时间和峰值内存；设为 `false` 可恢复吞吐优先模式 |
 
 ### StartParams
 
