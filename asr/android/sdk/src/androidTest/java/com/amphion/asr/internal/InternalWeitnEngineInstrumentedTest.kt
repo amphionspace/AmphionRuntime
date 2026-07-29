@@ -29,6 +29,7 @@ class InternalWeitnEngineInstrumentedTest {
                 "查询身份证一三零四二一一九九二一一零一一八五四，身份证对应的手机号码。",
                 "查询身份证幺三零四二幺幺九九二幺幺零幺幺八五四，身份证对应的手机号码。",
                 "查询身份证么三零四二么么九九二么么零么么八五四，身份证对应的手机号码。",
+                "查询身份证号码：么三零四二么么九九二么么零么么八五四。",
             )
             val outputs = inputs.map(itn::normalize)
 
@@ -40,6 +41,7 @@ class InternalWeitnEngineInstrumentedTest {
                 "你这么说是什么意思" to "你这么说是什么意思",
                 "这么1234" to "这么1234",
                 "这么12345678901234567" to "这么12345678901234567",
+                "身份证为什么1234" to "身份证为什么1234",
                 // Unambiguous following digits may still normalize; only grammatical 么 is protected.
                 "什么两三四五" to "什么2345",
             )
