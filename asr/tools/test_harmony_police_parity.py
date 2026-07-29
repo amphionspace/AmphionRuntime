@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -14,6 +16,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "asr/harmony/sdk-police/src/main/ets/com/amphion/police"
 RAWFILE = ROOT / "asr/harmony/sdk-police/src/main/resources/rawfile"
 CASES = ROOT / "asr/harmony/sdk-police/tests/police_v2_parity.tsv"
+FST = ROOT / "asr/android/sdk-police/src/main/assets/police_terms/terms_global.fst"
+FST_META = ROOT / "asr/android/sdk-police/src/main/assets/police_terms/terms_global_meta.json"
 DEVECO_HOME = Path(os.environ.get("DEVECO_HOME", "/Applications/DevEco-Studio.app/Contents"))
 
 
@@ -27,6 +31,22 @@ def resolve_tool(env_name: str, command: str, deveco_relative: str) -> Path | No
         return Path(on_path)
     bundled = DEVECO_HOME / deveco_relative
     return bundled if bundled.is_file() else None
+
+
+def verify_frozen_fst_metadata() -> None:
+    metadata = json.loads(FST_META.read_text(encoding="utf-8"))
+    pairs = metadata["pairs"]
+    canonical_pairs = json.dumps(
+        pairs,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    assert metadata["status"] == "legacy_frozen_prepass"
+    assert metadata["embedded_pair_count"] == len(pairs)
+    assert metadata["embedded_pairs_sha256"] == hashlib.sha256(canonical_pairs).hexdigest()
+    assert metadata["fst_sha256"] == hashlib.sha256(FST.read_bytes()).hexdigest()
+    assert len(metadata["source_commit"]) == 40
 
 
 def write_mocks(work: Path) -> None:
@@ -79,6 +99,7 @@ console.log(`[OK] Harmony police V2 parity corpus: ${lines.length} cases`);
 
 
 def main() -> None:
+    verify_frozen_fst_metadata()
     node = resolve_tool("HARMONY_NODE", "node", "tools/node/bin/node")
     tsc = resolve_tool(
         "HARMONY_TSC",
