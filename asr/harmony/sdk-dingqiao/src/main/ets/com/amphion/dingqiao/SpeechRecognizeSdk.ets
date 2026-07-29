@@ -8,6 +8,7 @@ import { finiteNumberParam } from './NumericParam';
 import { rejectedFinalCompletesSession } from './RejectedFinalLifecycle';
 import { maxAudioBytesOf } from './SessionAudioLimit';
 import { SessionStartGate } from './SessionStartGate';
+import { PoliceFinalSession } from './PoliceEnhancementPolicy';
 import { hasVoiceprintCapability } from './VoiceprintCapability';
 import { VoiceprintStore } from './VoiceprintStore';
 import {
@@ -316,7 +317,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private lastAutoFinishedSessionId: string = '';
   private finishRequested: boolean = false;
   private partialEnabled: boolean = true;
-  private policeEnhancementEnabled: boolean = true;
+  private policeFinalSession?: PoliceFinalSession;
   private finalResultSent: boolean = false;
   private completeSent: boolean = false;
   private maxAudioBytes: number = 0;
@@ -404,8 +405,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.finalResultSent = false;
       this.completeSent = false;
       this.partialEnabled = params.extraParams['enablePartialResult'] !== false;
-      this.policeEnhancementEnabled =
-        strictBooleanParam(params.extraParams, 'enablePoliceEnhancement', true);
+      this.policeFinalSession = new PoliceFinalSession(
+        strictBooleanParam(params.extraParams, 'enablePoliceEnhancement', true),
+        (rawText: string): string => this.enhancePipeline.enhance(rawText).text
+      );
       this.maxAudioBytes = maxAudioBytesOf(params.extraParams);
       this.audioBytesWritten = 0;
       this.voiceprintIds = voiceprintIds;
@@ -566,8 +569,6 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const payload = new SpeechRecognitionResult();
     payload.isFinal = true;
     payload.isLast = result.isLast;
-    payload.result = this.policeEnhancementEnabled ?
-      this.enhancePipeline.enhance(result.text).text : result.text;
     payload.speakerSimilarity = result.speakerScore;
     // beginTime/endTime from token timestamps (seconds -> ms), aligned with Android dispatchResult.
     const ts = result.timestamps;
@@ -576,11 +577,18 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       payload.endTime = Math.round(ts[ts.length - 1] * 1000);
     }
     this.finalResultSent = true;
-    this.listener?.onResult?.(sessionId, payload);
-    if (result.isLast && this.sessionStartGate.isCurrent(generation) &&
-      this.currentSessionId === sessionId) {
-      this.completeCurrentSession(generation);
-    }
+    const finalSession = this.policeFinalSession;
+    if (finalSession === undefined) return;
+    finalSession.dispatch(
+      payload,
+      result.text,
+      (): void => { this.listener?.onResult?.(sessionId, payload); },
+      (): void => {
+        if (this.sessionStartGate.isCurrent(generation) && this.currentSessionId === sessionId) {
+          this.completeCurrentSession(generation);
+        }
+      }
+    );
   }
 
   private completeCurrentSession(generation: number): void {
@@ -599,7 +607,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finishRequested = false;
     this.finalResultSent = false;
     this.completeSent = false;
-    this.policeEnhancementEnabled = true;
+    this.policeFinalSession = undefined;
     this.voiceprintIds = [];
     this.speechActive = false;
     this.sessionStartGate.reset();

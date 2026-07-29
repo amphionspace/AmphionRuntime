@@ -8,6 +8,11 @@
 
 ## [Unreleased]
 
+新增
+
+- 鼎桥适配层新增会话参数 `StartParams.extraParams["enablePoliceEnhancement"]`。默认 `true`
+  保持既有行为；显式传 `false` 时 final 返回原始 ASR 文本，不执行警务术语、车牌和派出所归一化。
+
 修复
 
 - 修复 `EngineImpl.close()` 与 `SessionImpl.feedAndDecode()` 之间的 race：旧路径下主线程调 `engine.close()` 后立即 `vad.release()`，但 decoder 线程上「正在执行」的 feedAndDecode 仍可能调用 `Vad.isSpeechDetected()`，拿到已释放的 native pointer 直接 SIGSEGV（fault addr 0x0）。现在 `EngineImpl.close()` 会在 release vad 前 join 所有 session 的 decoder thread（超时 500 ms），确保「当前 feedAndDecode」跑完才释放 vad。
