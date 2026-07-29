@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -13,8 +14,19 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "asr/harmony/sdk-police/src/main/ets/com/amphion/police"
 RAWFILE = ROOT / "asr/harmony/sdk-police/src/main/resources/rawfile"
 CASES = ROOT / "asr/harmony/sdk-police/tests/police_v2_parity.tsv"
-NODE = Path("/Applications/DevEco-Studio.app/Contents/tools/node/bin/node")
-TSC = Path("/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/node_modules/typescript/bin/tsc")
+DEVECO_HOME = Path(os.environ.get("DEVECO_HOME", "/Applications/DevEco-Studio.app/Contents"))
+
+
+def resolve_tool(env_name: str, command: str, deveco_relative: str) -> Path | None:
+    configured = os.environ.get(env_name)
+    if configured:
+        path = Path(configured)
+        return path if path.is_file() else None
+    on_path = shutil.which(command)
+    if on_path:
+        return Path(on_path)
+    bundled = DEVECO_HOME / deveco_relative
+    return bundled if bundled.is_file() else None
 
 
 def write_mocks(work: Path) -> None:
@@ -67,8 +79,17 @@ console.log(`[OK] Harmony police V2 parity corpus: ${lines.length} cases`);
 
 
 def main() -> None:
-    if not NODE.is_file() or not TSC.is_file():
-        raise SystemExit("DevEco Studio Node/TypeScript toolchain is required")
+    node = resolve_tool("HARMONY_NODE", "node", "tools/node/bin/node")
+    tsc = resolve_tool(
+        "HARMONY_TSC",
+        "tsc",
+        "tools/hvigor/hvigor/node_modules/typescript/bin/tsc",
+    )
+    if node is None or tsc is None:
+        raise SystemExit(
+            "Node.js and TypeScript are required; set HARMONY_NODE/HARMONY_TSC, "
+            "put node/tsc on PATH, or set DEVECO_HOME",
+        )
     with tempfile.TemporaryDirectory(prefix="harmony-police-parity.") as temp:
         work = Path(temp)
         source = work / "src"
@@ -79,12 +100,12 @@ def main() -> None:
         write_runner(work)
         sources = [str(path.relative_to(work)) for path in sorted(source.glob("*.ts"))]
         subprocess.run(
-            [str(NODE), str(TSC), "--target", "ES2020", "--module", "commonjs", "--skipLibCheck", *sources],
+            [str(node), str(tsc), "--target", "ES2020", "--module", "commonjs", "--skipLibCheck", *sources],
             cwd=work,
             check=True,
             shell=False,
         )
-        subprocess.run([str(NODE), "runner.js", str(RAWFILE), str(CASES)], cwd=work, check=True)
+        subprocess.run([str(node), "runner.js", str(RAWFILE), str(CASES)], cwd=work, check=True)
 
 
 if __name__ == "__main__":
