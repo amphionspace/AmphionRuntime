@@ -33,6 +33,7 @@ package com.amphion.asr
  * @property hotwords 热词列表，提升业务领域词识别率
  * @property hotwordsScore 热词加权分数，[0.0, 5.0]，越大越倾向于命中
  * @property targetSpeaker 目标说话人能力配置；null 表示不启用（默认）。详见 [TargetSpeakerConfig]
+ * @property disablePrepack 是否跳过 ORT INT8 权重 prepack；默认 true，以降低冷加载时间和峰值内存
  */
 public class AsrConfig private constructor(
     public val numThreads: Int,
@@ -45,6 +46,7 @@ public class AsrConfig private constructor(
     public val hotwords: List<String>,
     public val hotwordsScore: Float,
     public val targetSpeaker: TargetSpeakerConfig?,
+    public val disablePrepack: Boolean,
 ) {
 
     override fun equals(other: Any?): Boolean {
@@ -60,7 +62,8 @@ public class AsrConfig private constructor(
             endpointRules == other.endpointRules &&
             hotwords == other.hotwords &&
             hotwordsScore == other.hotwordsScore &&
-            targetSpeaker == other.targetSpeaker
+            targetSpeaker == other.targetSpeaker &&
+            disablePrepack == other.disablePrepack
     }
 
     override fun hashCode(): Int {
@@ -74,6 +77,7 @@ public class AsrConfig private constructor(
         result = 31 * result + hotwords.hashCode()
         result = 31 * result + hotwordsScore.hashCode()
         result = 31 * result + (targetSpeaker?.hashCode() ?: 0)
+        result = 31 * result + disablePrepack.hashCode()
         return result
     }
 
@@ -102,6 +106,7 @@ public class AsrConfig private constructor(
         private var hotwords: List<String> = emptyList()
         private var hotwordsScore: Float = 1.5f
         private var targetSpeaker: TargetSpeakerConfig? = null
+        private var disablePrepack: Boolean = true
 
         /** 推理线程数，[1, 8]；默认 2，建议 1~4。 */
         public fun numThreads(value: Int): Builder = apply {
@@ -180,6 +185,11 @@ public class AsrConfig private constructor(
             this.targetSpeaker = config
         }
 
+        /** 是否跳过 ORT INT8 权重 prepack；默认 true，优先降低冷加载时间和峰值内存。 */
+        public fun disablePrepack(value: Boolean): Builder = apply {
+            this.disablePrepack = value
+        }
+
         public fun build(): AsrConfig = AsrConfig(
             numThreads = numThreads,
             punctuation = punctuation,
@@ -191,6 +201,7 @@ public class AsrConfig private constructor(
             hotwords = hotwords,
             hotwordsScore = hotwordsScore,
             targetSpeaker = targetSpeaker,
+            disablePrepack = disablePrepack,
         )
     }
 }

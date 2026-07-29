@@ -14,6 +14,9 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0007-*` | Harmony 冷启动优化：已知模型跳过重复探测、API 11+ rawfile64 mmap + ORT 直载、Zipformer2 多 lane 建图，以及 ASR/标点异步工厂与可配置预热；当前 `zhen` 配置跳过 eager warmup |
 | `0008-*` | Harmony 模型显式卸载、异步句柄安全释放，以及 prepack 生命周期控制 |
 | `0009-*` | Harmony 声纹 extractor 的 N-API 异步工厂、后台静音预热与幂等显式释放，避免阻塞 ArkTS 音频链路并保证卸载回收 |
+| `0010-*` | Android 识别无需解压的 ORT 资源，降低首次模型准备的文件复制开销 |
+| `0011-*` | Android 直接 mmap 未压缩 ORT 资源，避免首次启动重复落盘 |
+| `0012-*` | 共享 WeText 在标识符数字串中兼容 ASR 的“么/幺”同音输出，并向 Harmony HAR 暴露同一 ITN 实现 |
 
 Apply automatically from the Harmony `04_build_harmony_so.sh` entry point (Android also applies the same series from its native build flow):
 

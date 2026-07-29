@@ -208,6 +208,7 @@ interface CreateEngineCallback {
 | `locate` | `string` | `CN` | 兼容字段；当前仅支持中国区，不改变模型选择 |
 | `recognizerMode` | `string` | `long` | 接受 `short`/`long`，当前均按长语音流式模式处理 |
 | `sysGeneralLexicon` | `string[]` | 空 | 调用方热词，用于解码 |
+| `disablePrepack` | `boolean/number/string` | `true` | 默认跳过 ORT INT8 权重 prepack，降低冷加载时间和峰值内存；设为 `false` 恢复吞吐优先模式 |
 
 ### 5.3 `StartParams`
 
