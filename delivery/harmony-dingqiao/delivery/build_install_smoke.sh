@@ -331,7 +331,7 @@ PY
 }
 
 ensure_demo_license
-"$SCRIPT_DIR/verify_demo_inputs.sh"
+"$SCRIPT_DIR/verify_demo_inputs.sh" --zh-en-only
 
 if [[ -z "$SIGNING_CONFIG" && -f "$REPO_ROOT/.secure/harmony-signing.json" ]]; then
   SIGNING_CONFIG="$REPO_ROOT/.secure/harmony-signing.json"
@@ -379,6 +379,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
   fi
   resolve_built_hap
   "$SCRIPT_DIR/verify_demo_inputs.sh" \
+    --zh-en-only \
     --hap "$BUILD_HAP" \
     --signing-config "$SIGNING_CONFIG"
   publish_har \
@@ -402,7 +403,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
   echo "[OK] HAP build succeeded"
 fi
 
-VERIFY_ARGS=(--hap "$HAP")
+VERIFY_ARGS=(--zh-en-only --hap "$HAP")
 if [[ -n "$SIGNING_CONFIG" ]]; then
   VERIFY_ARGS+=(--signing-config "$SIGNING_CONFIG")
 fi
