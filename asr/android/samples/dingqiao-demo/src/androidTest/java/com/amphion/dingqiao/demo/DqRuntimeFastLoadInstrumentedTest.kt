@@ -228,6 +228,10 @@ class DqRuntimeFastLoadInstrumentedTest {
         assertEquals("$label must emit exactly one last", 1, listener.finals.count { it.isLast })
         assertEquals("$label must emit exactly one complete", 1, listener.completes.size)
         assertTrue("$label must not report errors: ${listener.errors}", listener.errors.isEmpty())
+        assertTrue(
+            "$label cold/reloaded stream must recognize the 1.5 s command prefix",
+            listener.finalText().isNotBlank(),
+        )
     }
 
     private data class TimedEngine(

@@ -42,11 +42,14 @@ jobs:
 
       - name: Run cross-platform ASR lifecycle contracts
         run: |
+          npm install --global typescript@4.9.5
           python3 -m unittest \
             asr.tools.tests.test_harmony_initial_silence_tracker \
             asr.tools.tests.test_harmony_rejected_final_lifecycle \
             asr.tools.tests.test_harmony_session_start_gate \
             delivery.harmony-dingqiao.delivery.test_run_device_stress -v
+          python3 asr/tools/sync_harmony_police_assets.py --check
+          python3 asr/tools/test_harmony_police_parity.py
 
       - name: Check customer delivery redaction
         run: |

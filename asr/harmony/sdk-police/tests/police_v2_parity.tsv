@@ -58,6 +58,23 @@ terms	equals	收到指令后请执行。	收到指令后请执行。
 terms	equals	打开，请执行任务。	打开，请执行任务。
 terms	equals	请执行的任务已完成。	请执行的任务已完成。
 terms	equals	打开请执行结果页。	打开请执行结果页。
+terms	equals	现在打开帮把字段填上。	现在打开帮填把字段填上。
+terms	equals	打开警信发消息给刘队长内容，为今天几点集合？	打开警信发消息给刘队长，内容为：今天几点集合？
+terms	equals	用VCOOM向张伟发起呼叫。	用WeCom向张伟发起呼叫。
+terms	equals	请用微COM向张伟发起呼叫。	请用WeCom向张伟发起呼叫。
+terms	equals	现在帮我导航，去高新区软件园。	现在帮我导航去高新区软件园。
+terms	equals	我已到场帮我反馈。	我已到场，帮我反馈。
+terms	equals	请查看报案，现场视频核对经过。	请查看报案现场视频核对经过。
+terms	equals	现场清场结束，盘查任务。	现场清场，结束盘查任务。
+terms	equals	帮我核查身份证号码为370 503 19911230983。	帮我核查身份证，号码为：37050319911230983。
+terms	equals	核查身份证号370 503 19911230983。	核查身份证号：37050319911230983。
+terms	equals	帮我核查车牌号川AF60080。	帮我核查车牌号：川A F60080。
+terms-polish	equals	帮我核查车牌号川AF60080。	帮我核查车牌号：川A F60080。
+terms	equals	用Weconmm向张伟发起呼叫。	用WeCom向张伟发起呼叫。
+terms	equals	现在帮我打开时钟设个提醒。	现在帮我打开时钟设个提醒。
+terms	equals	马上启动帮写功能，生成文本。	马上启动帮写功能，生成文本。
+terms	equals	请打开帮填功能，补全表单。	请打开帮填功能，补全表单。
+terms	equals	请创建一个警单登记情况。	请创建一个警单登记情况。
 station	contains	帮我查一下武汉市洪善区冠善派出所今天晚高峰按日期汇总的接警数据。	武汉市洪山区关山派出所
 station	contains	给我看一下南昌市西湖区神经塔派出所近五个工作日分辖区的接警。	南昌市西湖区绳金塔派出所
 station	contains	请把银川市金凤区、上海西路派出所上周的接警情况整理一下。	银川市金凤区上海西路派出所

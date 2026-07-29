@@ -74,7 +74,7 @@ class JingxinCommandReplayTest {
             "打开景信发消息给刘队长，内容为：今天几点集合？",
             "打开警信发消息给刘队长，内容为：今天几点集合？",
         )
-        assertFixed("用维康姆想张伟发起呼叫", "用WeConmm向张伟发起呼叫")
+        assertFixed("用维康姆想张伟发起呼叫", "用WeCom向张伟发起呼叫")
         assertFixed("呼叫停止中心", "呼叫情指中心")
         assertFixed("我已到港，帮我打卡", "我已到岗，帮我打卡")
         assertFixed("创建一个简单", "创建一个警单")

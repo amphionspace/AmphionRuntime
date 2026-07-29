@@ -4,12 +4,16 @@ import android.content.Context
 import com.k2fsa.sherpa.onnx.TextRewriteFst
 import java.io.Closeable
 
+internal interface PoliceTermsGlobalRewriter : Closeable {
+    fun applyGlobal(text: String): String
+}
+
 /** 警务术语 global rewrite FST（方案 A：gazetteer 仍在 [PoliceTermsGazetteer]）。 */
 internal class PoliceTermsFstRuntime private constructor(
     private val globalFst: TextRewriteFst,
-) : Closeable {
+) : PoliceTermsGlobalRewriter {
 
-    fun applyGlobal(text: String): String =
+    override fun applyGlobal(text: String): String =
         if (text.isEmpty()) text else globalFst.normalize(text)
 
     override fun close() {

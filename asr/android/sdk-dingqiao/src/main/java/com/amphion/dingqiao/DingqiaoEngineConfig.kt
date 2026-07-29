@@ -61,6 +61,7 @@ internal object DingqiaoEngineConfig {
             .vadConfig(VadConfig(activeEndpointSilenceMs = vadEndMs(startParams)))
             .endpoint(true)
             .endpointRules(EndpointRules(rule2MinTrailingSilenceSec = 2.0f))
+            .disablePrepack(compatibleBoolean(params.extraParams["disablePrepack"], true))
         if (hotwords.isNotEmpty()) {
             builder.hotwords(hotwords, PoliceEngineConfig.HOTWORDS_SCORE_DEFAULT)
         }
@@ -207,6 +208,14 @@ internal object DingqiaoEngineConfig {
         is String -> raw.equals("true", ignoreCase = true) || raw == "1"
         is Number -> raw.toInt() != 0
         else -> false
+    }
+
+    /** Mirrors Harmony's tolerant host-parameter policy without changing strict capability flags. */
+    private fun compatibleBoolean(raw: Any?, defaultValue: Boolean): Boolean = when (raw) {
+        is Boolean -> raw
+        is Number -> raw.toDouble().takeIf { it.isFinite() }?.let { it != 0.0 } ?: defaultValue
+        is String -> raw.trim().equals("true", ignoreCase = true) || raw.trim() == "1"
+        else -> defaultValue
     }
 
     private fun asInt(raw: Any?, defaultValue: Int): Int =

@@ -5,12 +5,13 @@ import android.content.Context
 /**
  * 警用 ASR final 文本的术语后处理：谐音替换 → gazetteer 最长匹配 → 记录 span。
  *
- * 方案 A：[useFst]=true 时 global 谐音走 FST，gazetteer 仍在 Kotlin 宿主。
+ * [useFst]=true 时先走旧 FST，再始终应用当前 CSV 规则；gazetteer 仍在 Kotlin 宿主。
+ * FST 是可选加速/兼容层，不得成为另一份会绕过最新术语规则的事实源。
  */
 class PoliceTermsNormalizer private constructor(
     private val homophones: PoliceTermsHomophoneDict,
     private val gazetteer: PoliceTermsGazetteer,
-    private val fstRuntime: PoliceTermsFstRuntime?,
+    private val fstRuntime: PoliceTermsGlobalRewriter?,
 ) : AutoCloseable {
 
     companion object {
@@ -24,7 +25,7 @@ class PoliceTermsNormalizer private constructor(
         internal fun create(
             homophones: PoliceTermsHomophoneDict,
             gazetteer: PoliceTermsGazetteer,
-            fstRuntime: PoliceTermsFstRuntime? = null,
+            fstRuntime: PoliceTermsGlobalRewriter? = null,
         ): PoliceTermsNormalizer = PoliceTermsNormalizer(homophones, gazetteer, fstRuntime)
     }
 
@@ -40,11 +41,8 @@ class PoliceTermsNormalizer private constructor(
         if (text.isEmpty()) {
             return PoliceTermsNormalizeResult(text, emptyList())
         }
-        val corrected = if (fstRuntime != null) {
-            fstRuntime.applyGlobal(text)
-        } else {
-            homophones.applyPhrases(text)
-        }
+        val fstCorrected = fstRuntime?.applyGlobal(text) ?: text
+        val corrected = homophones.applyPhrases(fstCorrected)
         val spans = locateSpans(corrected)
         return PoliceTermsNormalizeResult(corrected, spans)
     }
