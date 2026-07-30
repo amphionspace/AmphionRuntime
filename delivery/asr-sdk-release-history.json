@@ -20,6 +20,26 @@
       "artifact_sha256": "981e27d780e43d9a9325005395b144e655e9071a444fdd773b1d142866a35090",
       "artifact_size_bytes": 263552078,
       "provenance_sha256": "18fe14825eecc13d9356cc27e6dd4d982dd5d596f244dd6a5a8750e4fcedc1b3"
+    },
+    {
+      "platform": "android",
+      "version": "0.3.3",
+      "source_commit": "eb7ebcf66a0b2062079b3fbd17203d4f3867c03d",
+      "delivered_at": "2026-07-30",
+      "artifact": "amphion-dingqiao-asr-sdk-v0.3.3-20260730.zip",
+      "artifact_sha256": "46d6007c4c9292d51e5c9a4439fa5f89da843c338a95fcc4a4ef56c4b0478243",
+      "artifact_size_bytes": 262217041,
+      "provenance_sha256": "f3779a8acaa8d1532c188912db7451c0658e7c111cb18a56401946369112876f"
+    },
+    {
+      "platform": "harmony",
+      "version": "0.2.9",
+      "source_commit": "eb7ebcf66a0b2062079b3fbd17203d4f3867c03d",
+      "delivered_at": "2026-07-30",
+      "artifact": "amphion-harmony-asr-sdk-v0.2.9-20260730.zip",
+      "artifact_sha256": "69c88816766c887d42c09eaa82e68860206eff66cf6c15e953e9a6f6802730b8",
+      "artifact_size_bytes": 263812380,
+      "provenance_sha256": "c93093e148575dc77406bbcbf779d651cb0a16aa34e339d38d36b5f2ce067dfb"
     }
   ]
 }
