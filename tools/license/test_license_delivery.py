@@ -11,6 +11,7 @@ import unittest
 import warnings
 import zipfile
 from pathlib import Path
+from typing import Optional
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -62,9 +63,19 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         path.write_text(json.dumps(request), encoding="utf-8")
         return path
 
-    def run_cli(self, *args: str) -> subprocess.CompletedProcess[str]:
+    def run_cli(
+        self, *args: str, script: Optional[Path] = None
+    ) -> subprocess.CompletedProcess[str]:
+        selected_script = Path(script) if script is not None else SCRIPT
+        if script is None and "--repo" in args:
+            repo_index = args.index("--repo") + 1
+            tracked_script = (
+                Path(args[repo_index]) / "tools/license/license_delivery.py"
+            )
+            if tracked_script.is_file():
+                selected_script = tracked_script
         return subprocess.run(
-            [sys.executable, str(SCRIPT), *args],
+            [sys.executable, str(selected_script), *args],
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -104,6 +115,10 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             path = repo / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
+        tool_dir = repo / "tools/license"
+        tool_dir.mkdir(parents=True)
+        shutil.copyfile(SCRIPT, tool_dir / "license_delivery.py")
+        shutil.copyfile(SCRIPT.with_name("issue_license.py"), tool_dir / "issue_license.py")
         (repo / ".gitignore").write_text(".secure/\n", encoding="utf-8")
         subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
         subprocess.run(
@@ -179,6 +194,34 @@ class LicenseDeliveryCliTest(unittest.TestCase):
 
         self.assertNotEqual(0, result.returncode)
         self.assertIn("must be text", result.stderr)
+
+    def test_plan_rejects_macro_content_renamed_to_xlsx(self) -> None:
+        source = self.input_dir / "devices.xlsx"
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Sheet1"
+        sheet.append(["SN"])
+        sheet.append(["7GK0226310007121"])
+        workbook.save(source)
+        with zipfile.ZipFile(source, "a") as archive:
+            archive.writestr("xl/vbaProject.bin", b"macro-placeholder")
+        request = self.write_request(
+            source.name,
+            hashlib.sha256(source.read_bytes()).hexdigest(),
+        )
+
+        result = self.run_cli(
+            "plan",
+            "--request",
+            str(request),
+            "--input-dir",
+            str(self.input_dir),
+            "--out",
+            str(self.root / "plan.json"),
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("macro", result.stderr.lower())
 
     def test_plan_reads_explicit_columns_across_multiple_excel_sheets(self) -> None:
         source = self.input_dir / "devices.xlsx"
@@ -714,6 +757,48 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         )
         self.assertFalse(receipt["production"])
 
+    def test_issue_rejects_external_tool_for_production(self) -> None:
+        source = self.input_dir / "devices.csv"
+        source.write_text("SN\n7GK0226310007121\n", encoding="utf-8")
+        request = self.write_request(
+            source.name,
+            hashlib.sha256(source.read_bytes()).hexdigest(),
+        )
+        plan_path = self.root / "plan.json"
+        self.assertEqual(
+            0,
+            self.run_cli(
+                "plan",
+                "--request",
+                str(request),
+                "--input-dir",
+                str(self.input_dir),
+                "--out",
+                str(plan_path),
+            ).returncode,
+        )
+        repo = self.create_signing_repo()
+
+        result = self.run_cli(
+            "issue",
+            "--repo",
+            str(repo),
+            "--request",
+            str(request),
+            "--plan",
+            str(plan_path),
+            "--input-dir",
+            str(self.input_dir),
+            "--operator",
+            "issuer@example.com",
+            "--out-dir",
+            str(self.root / "output"),
+            script=SCRIPT,
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("executing tool", result.stderr)
+
     def test_issue_rejects_non_p256_signing_key(self) -> None:
         source = self.input_dir / "devices.csv"
         source.write_text("SN\n7GK0226310007121\n", encoding="utf-8")
@@ -1203,6 +1288,36 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         verification_payload["status"] = "PASS"
         verification_path.write_text(json.dumps(verification_payload), encoding="utf-8")
 
+        issuance_path = output_dir / "DEL-DQ-COMMERCIAL-20260730-001.issuance.json"
+        issuance_payload = json.loads(issuance_path.read_text(encoding="utf-8"))
+        issuance_payload["customerId"] = "rewritten-customer"
+        verification_payload["customerId"] = "rewritten-customer"
+        issuance_path.write_text(json.dumps(issuance_payload), encoding="utf-8")
+        verification_path.write_text(json.dumps(verification_payload), encoding="utf-8")
+        inconsistent = self.run_cli(
+            "record",
+            "--repo",
+            str(repo),
+            "--plan",
+            str(plan_path),
+            "--zip",
+            str(zip_path),
+            "--issuance",
+            str(issuance_path),
+            "--verification",
+            str(verification_path),
+            "--operator",
+            "delivery@example.com",
+            "--delivered-at",
+            "2026-07-30",
+        )
+        self.assertNotEqual(0, inconsistent.returncode)
+        self.assertIn("manifest", inconsistent.stderr)
+        issuance_payload["customerId"] = "tdtech"
+        verification_payload["customerId"] = "tdtech"
+        issuance_path.write_text(json.dumps(issuance_payload), encoding="utf-8")
+        verification_path.write_text(json.dumps(verification_payload), encoding="utf-8")
+
         result = self.run_cli(
             "record",
             "--repo",
@@ -1212,7 +1327,7 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             "--zip",
             str(zip_path),
             "--issuance",
-            str(output_dir / "DEL-DQ-COMMERCIAL-20260730-001.issuance.json"),
+            str(issuance_path),
             "--verification",
             str(verification_path),
             "--operator",
@@ -1252,7 +1367,7 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             "--zip",
             str(zip_path),
             "--issuance",
-            str(output_dir / "DEL-DQ-COMMERCIAL-20260730-001.issuance.json"),
+            str(issuance_path),
             "--verification",
             str(verification_path),
             "--operator",

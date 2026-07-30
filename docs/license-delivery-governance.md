@@ -122,7 +122,7 @@ flowchart LR
 3. SN 集合、统计、warning 和差分与计划一致；
 4. 所有 warning 已由命令行显式确认；
 5. 唯一 SN 数量大于零；
-6. Git 工作区干净，并能记录当前工具 commit；
+6. 正在执行的脚本就是当前仓库已跟踪的工具副本，Git 工作区干净，并能记录当前工具 commit；
 7. `.secure/amphion-license-private.pem` 是 ECDSA P-256 私钥；
 8. 该私钥推导出的公钥与 Android ASR/TTS、HarmonyOS ASR/TTS 四端内置公钥完全一致。
 

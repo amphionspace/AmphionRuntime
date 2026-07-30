@@ -125,6 +125,16 @@ def _read_xlsx_source(
             "XLSX input requires openpyxl; install tools/license/requirements.txt"
         ) from error
     try:
+        with zipfile.ZipFile(path) as package:
+            member_names = {name.lower() for name in package.namelist()}
+            content_types = package.read("[Content_Types].xml").lower()
+    except (OSError, KeyError, zipfile.BadZipFile) as error:
+        raise LicenseDeliveryError(f"cannot inspect XLSX package {path.name}") from error
+    if any("vbaproject" in name for name in member_names) or any(
+        marker in content_types for marker in (b"macroenabled", b"vbaproject")
+    ):
+        raise LicenseDeliveryError(f"macro-enabled workbook is not allowed: {path.name}")
+    try:
         workbook = load_workbook(path, read_only=False, data_only=False, keep_links=False)
     except (OSError, ValueError) as error:
         raise LicenseDeliveryError(f"cannot read XLSX {path.name}: {error}") from error
@@ -515,6 +525,22 @@ def _git(repo: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
+def _executing_tool_matches_repo(repo: Path) -> bool:
+    expected_tool = (repo / "tools/license/license_delivery.py").resolve()
+    if Path(__file__).resolve() != expected_tool:
+        return False
+    try:
+        tracked = _git(
+            repo,
+            "ls-files",
+            "--error-unmatch",
+            "tools/license/license_delivery.py",
+        )
+    except LicenseDeliveryError:
+        return False
+    return tracked == "tools/license/license_delivery.py"
+
+
 def _embedded_public_keys(repo: Path) -> Dict[str, str]:
     sources = {
         "androidAsr": repo / "asr/android/gradle.properties",
@@ -762,8 +788,13 @@ def _issue_delivery(
     dirty = bool(_git(repo, "status", "--porcelain"))
     if dirty and not allow_dirty:
         raise LicenseDeliveryError("production issue requires a clean Git worktree")
+    tool_matches_repo = _executing_tool_matches_repo(repo)
+    if not tool_matches_repo and not allow_dirty:
+        raise LicenseDeliveryError(
+            "production issue requires the executing tool to be the tracked repository copy"
+        )
     tool_commit = _git(repo, "rev-parse", "HEAD")
-    production = not dirty and not allow_dirty
+    production = not dirty and tool_matches_repo and not allow_dirty
     private_key_path = repo / ".secure/amphion-license-private.pem"
     public_b64 = _derive_public_key_b64(private_key_path)
     embedded_keys = _embedded_public_keys(repo)
@@ -855,6 +886,7 @@ def _issue_delivery(
         "customerId": request["customerId"],
         "projectId": request["projectId"],
         "previousLicenseId": request["previousLicenseId"],
+        "policy": request["policy"],
         "snSetId": plan["snSetId"],
         "snSetDigest": plan["snSetDigest"],
         "uniqueSnCount": len(device_ids),
@@ -1085,6 +1117,7 @@ def _verify_delivery(
         "customerId": request["customerId"],
         "projectId": request["projectId"],
         "previousLicenseId": request["previousLicenseId"],
+        "policy": request["policy"],
         "snSetId": plan["snSetId"],
         "uniqueSnCount": len(device_ids),
         "planSha256": plan["planSha256"],
@@ -1176,6 +1209,7 @@ def _record_delivery(
         "customerId",
         "projectId",
         "previousLicenseId",
+        "policy",
         "snSetId",
         "planSha256",
         "planReceiptSha256",
@@ -1208,6 +1242,27 @@ def _record_delivery(
     manifest = _parse_json_bytes(manifest_bytes, "delivery manifest")
     if manifest.get("production") is not True:
         raise LicenseDeliveryError("manifest is not a production delivery")
+    for field in (
+        "requestId",
+        "licenseId",
+        "deliveryId",
+        "customerId",
+        "projectId",
+        "previousLicenseId",
+        "policy",
+        "snSetId",
+        "toolCommit",
+        "licenseSha256",
+    ):
+        if manifest.get(field) != verification.get(field):
+            raise LicenseDeliveryError(f"manifest and receipts disagree: {field}")
+    manifest_sn_summary = manifest.get("snSummary")
+    if not isinstance(manifest_sn_summary, dict) or manifest_sn_summary.get(
+        "uniqueCount"
+    ) != verification.get("uniqueSnCount"):
+        raise LicenseDeliveryError("manifest and receipts disagree: uniqueSnCount")
+    if manifest.get("production") != verification.get("production"):
+        raise LicenseDeliveryError("manifest and receipts disagree: production")
     if _sha256_bytes(license_bytes) != verification["licenseSha256"]:
         raise LicenseDeliveryError("License SHA-256 does not match verification receipt")
     entry: Dict[str, Any] = {
