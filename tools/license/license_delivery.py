@@ -239,6 +239,10 @@ def _validate_request(request: Dict[str, Any]) -> None:
     ):
         if not isinstance(request[field], str) or not request[field].strip():
             raise LicenseDeliveryError(f"request {field} must be a non-empty string")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", request["deliveryId"]):
+        raise LicenseDeliveryError(
+            "request deliveryId must be a safe file identifier using A-Z, 0-9, dot, underscore, or hyphen"
+        )
     try:
         issued_at = datetime.strptime(request["issuedAt"], "%Y-%m-%d").date()
     except (TypeError, ValueError) as error:
@@ -892,6 +896,8 @@ def _verify_delivery(
 ) -> Dict[str, Any]:
     if not operator.strip():
         raise LicenseDeliveryError("operator is required")
+    if out_prefix != zip_path:
+        raise LicenseDeliveryError("--out-prefix must equal the final ZIP path")
     plan, device_ids = _load_approved_plan_context(
         plan_path=plan_path,
         request_path=request_path,
