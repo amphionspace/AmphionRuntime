@@ -50,6 +50,7 @@ python3 - \
   "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
+  "$REPO_ROOT/asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police" \
   "$ZH_EN_ONLY" \
   "$SCRIPT_DIR" <<'PY'
 import sys
@@ -62,7 +63,8 @@ import shutil
 import tempfile
 
 har = Path(sys.argv[1])
-zh_en_only = sys.argv[6] == "true"
+local_police_root = Path(sys.argv[6])
+zh_en_only = sys.argv[7] == "true"
 expected = {
     "package/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx": Path(sys.argv[3]),
     "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[4]),
@@ -71,6 +73,7 @@ expected = {
     "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[5]),
 }
 with tarfile.open(har, "r:gz") as package:
+    package_names = {member.name for member in package.getmembers() if member.isfile()}
     manifest_member = package.extractfile(
         "package/_bundled/amphion_asr/src/main/resources/rawfile/amphion-models/manifest.json"
     )
@@ -95,11 +98,61 @@ with tarfile.open(har, "r:gz") as package:
             raise SystemExit(
                 f"[ERROR] self-contained HAR entry differs from verified local artifact: {member_name}"
             )
-    if any("amphion_police" in member.name.lower() for member in package.getmembers()):
-        raise SystemExit("[ERROR] self-contained HAR contains police enhancement content")
+    outer_package = json.loads(package.extractfile("package/oh-package.json5").read())
+    if outer_package.get("dependencies", {}).get("amphion_police") != \
+            "file:./_bundled/amphion_police":
+        raise SystemExit("[ERROR] self-contained HAR does not link bundled police dependency")
+    police_package = json.loads(
+        package.extractfile("package/_bundled/amphion_police/oh-package.json5").read()
+    )
+    if police_package.get("dependencies", {}).get("amphion_asr") != "file:../amphion_asr":
+        raise SystemExit("[ERROR] bundled police dependency does not link bundled ASR")
+
+    expected_police_root = local_police_root
+    temp_root = None
+    if zh_en_only:
+        temp_root = Path(tempfile.mkdtemp(prefix="amphion-police-verify."))
+        expected_police_root = (
+            temp_root / "_bundled/amphion_police/src/main/resources/rawfile/amphion-police"
+        )
+        expected_police_root.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(local_police_root, expected_police_root)
+        sanitizer_path = Path(sys.argv[8]) / "sanitize_public_har_payload.py"
+        spec = importlib.util.spec_from_file_location("sanitize_public_har_payload", sanitizer_path)
+        if spec is None or spec.loader is None:
+            raise SystemExit("[ERROR] cannot load public HAR sanitizer")
+        sanitizer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sanitizer)
+        sanitizer.sanitize_payload(temp_root)
+
+    police_prefix = "package/_bundled/amphion_police/src/main/resources/rawfile/amphion-police/"
+    expected_police_files = {
+        path.relative_to(expected_police_root).as_posix(): path
+        for path in expected_police_root.rglob("*")
+        if path.is_file()
+    }
+    actual_police_files = {
+        name.removeprefix(police_prefix)
+        for name in package_names
+        if name.startswith(police_prefix)
+    }
+    if actual_police_files != set(expected_police_files):
+        missing = sorted(set(expected_police_files) - actual_police_files)
+        extra = sorted(actual_police_files - set(expected_police_files))
+        raise SystemExit(
+            f"[ERROR] self-contained HAR police assets mismatch: missing={missing} extra={extra}"
+        )
+    for relative, local_path in expected_police_files.items():
+        member = package.extractfile(f"{police_prefix}{relative}")
+        if member is None or member.read() != local_path.read_bytes():
+            raise SystemExit(
+                f"[ERROR] self-contained HAR police asset differs from expected: {relative}"
+            )
+    if temp_root is not None:
+        shutil.rmtree(temp_root)
     if zh_en_only and any("yue-en" in member.name.lower() for member in package.getmembers()):
         raise SystemExit("[ERROR] zh-en-only HAR still contains Yue model content")
-print("[OK] self-contained HAR ASR/voiceprint models and native libraries match local artifacts; police enhancement is absent")
+print("[OK] self-contained HAR police assets, ASR/voiceprint models, and native libraries match local artifacts")
 PY
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/amphion-har-customer.XXXXXX")"
