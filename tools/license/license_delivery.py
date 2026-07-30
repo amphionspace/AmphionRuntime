@@ -32,6 +32,25 @@ from issue_license import DEFAULT_DEVICE_ID_SALT_ID, create_license_envelope
 
 SCHEMA_VERSION = 1
 SN_PATTERN = re.compile(r"^[A-Z0-9]+$")
+APPROVED_PLAN_FIELDS = (
+    "request",
+    "requestSha256",
+    "sources",
+    "snSetDigest",
+    "snSummary",
+    "diff",
+    "warnings",
+)
+DELIVERY_MEMBER_NAMES = frozenset(
+    {
+        "amphion-license.lic",
+        "README.md",
+        "LICENSE_MANIFEST.json",
+        "LICENSE_VERIFICATION.json",
+        "LICENSE_VERIFICATION.md",
+        "SHA256SUMS.txt",
+    }
+)
 
 
 class LicenseDeliveryError(RuntimeError):
@@ -288,6 +307,8 @@ def _build_plan_with_values(
             selected_columns = details["selectedColumns"]
         else:
             raise LicenseDeliveryError(f"unsupported source type: {suffix or '(none)'}")
+        if _sha256_bytes(path.read_bytes()) != actual_sha256:
+            raise LicenseDeliveryError(f"source changed while it was being read: {file_name}")
         all_values.extend(values)
         source_summaries.append(
             {
@@ -452,6 +473,28 @@ def _verify_plan_integrity(plan: Dict[str, Any]) -> None:
         raise LicenseDeliveryError("plan receipt SHA-256 mismatch")
 
 
+def _load_approved_plan_context(
+    *,
+    plan_path: Path,
+    request_path: Path,
+    input_dir: Path,
+    previous_request_path: Optional[Path],
+    previous_input_dir: Optional[Path],
+) -> Tuple[Dict[str, Any], List[str]]:
+    plan = _load_json(plan_path)
+    _verify_plan_integrity(plan)
+    recalculated, device_ids = _build_plan_snapshot(
+        request_path,
+        input_dir,
+        previous_request_path,
+        previous_input_dir,
+    )
+    for field in APPROVED_PLAN_FIELDS:
+        if recalculated.get(field) != plan.get(field):
+            raise LicenseDeliveryError(f"current inputs do not match approved plan: {field}")
+    return plan, device_ids
+
+
 def _git(repo: Path, *args: str) -> str:
     try:
         result = subprocess.run(
@@ -514,13 +557,28 @@ def _derive_public_key_b64(private_key_path: Path) -> str:
 
 
 def _policy_claims(policy: Dict[str, Any]) -> Dict[str, Any]:
+    allowed_policy_fields = {
+        "features",
+        "sdkMajor",
+        "installTier",
+        "applicationRecord",
+        "certificateBinding",
+        "runtimeExpiry",
+        "maintenance",
+        "deviceBinding",
+    }
+    unknown_policy_fields = set(policy) - allowed_policy_fields
+    if unknown_policy_fields:
+        raise LicenseDeliveryError(
+            "unknown policy fields: " + ",".join(sorted(unknown_policy_fields))
+        )
     features = policy.get("features")
     if not isinstance(features, list) or not features or any(
         feature not in {"ASR", "TTS"} for feature in features
     ) or len(features) != len(set(features)):
         raise LicenseDeliveryError("policy.features must be unique ASR/TTS values")
     sdk_major = policy.get("sdkMajor")
-    if not isinstance(sdk_major, int) or sdk_major <= 0:
+    if isinstance(sdk_major, bool) or not isinstance(sdk_major, int) or sdk_major <= 0:
         raise LicenseDeliveryError("policy.sdkMajor must be a positive integer")
     application = policy.get("applicationRecord")
     if not isinstance(application, dict) or application.get("mode") not in {
@@ -528,6 +586,13 @@ def _policy_claims(policy: Dict[str, Any]) -> Dict[str, Any]:
         "record-only",
     }:
         raise LicenseDeliveryError("policy.applicationRecord mode is invalid")
+    allowed_application_fields = (
+        {"mode"}
+        if application["mode"] == "none"
+        else {"mode", "applicationId", "bundleName"}
+    )
+    if set(application) - allowed_application_fields:
+        raise LicenseDeliveryError("policy.applicationRecord contains unknown fields")
     application_id = ""
     bundle_name = ""
     if application["mode"] == "record-only":
@@ -541,6 +606,11 @@ def _policy_claims(policy: Dict[str, Any]) -> Dict[str, Any]:
         "sha256",
     }:
         raise LicenseDeliveryError("policy.certificateBinding mode is invalid")
+    allowed_certificate_fields = (
+        {"mode"} if certificate["mode"] == "none" else {"mode", "value"}
+    )
+    if set(certificate) - allowed_certificate_fields:
+        raise LicenseDeliveryError("policy.certificateBinding contains unknown fields")
     cert_sha256 = ""
     if certificate["mode"] == "sha256":
         cert_sha256 = certificate.get("value", "")
@@ -554,6 +624,11 @@ def _policy_claims(policy: Dict[str, Any]) -> Dict[str, Any]:
         "date",
     }:
         raise LicenseDeliveryError("policy.runtimeExpiry mode is invalid")
+    allowed_runtime_fields = (
+        {"mode"} if runtime["mode"] == "perpetual" else {"mode", "date"}
+    )
+    if set(runtime) - allowed_runtime_fields:
+        raise LicenseDeliveryError("policy.runtimeExpiry contains unknown fields")
     expires = "" if runtime["mode"] == "perpetual" else runtime.get("date", "")
     maintenance = policy.get("maintenance")
     if not isinstance(maintenance, dict) or maintenance.get("mode") not in {
@@ -561,6 +636,11 @@ def _policy_claims(policy: Dict[str, Any]) -> Dict[str, Any]:
         "date",
     }:
         raise LicenseDeliveryError("policy.maintenance mode is invalid")
+    allowed_maintenance_fields = (
+        {"mode"} if maintenance["mode"] == "unlimited" else {"mode", "date"}
+    )
+    if set(maintenance) - allowed_maintenance_fields:
+        raise LicenseDeliveryError("policy.maintenance contains unknown fields")
     maintenance_until = (
         "" if maintenance["mode"] == "unlimited" else maintenance.get("date", "")
     )
@@ -570,6 +650,9 @@ def _policy_claims(policy: Dict[str, Any]) -> Dict[str, Any]:
                 datetime.strptime(value, "%Y-%m-%d")
             except (TypeError, ValueError) as error:
                 raise LicenseDeliveryError(f"{label} must be YYYY-MM-DD") from error
+    install_tier = policy.get("installTier", "")
+    if not isinstance(install_tier, str):
+        raise LicenseDeliveryError("policy.installTier must be a string")
     return {
         "features": features,
         "sdkMajor": sdk_major,
@@ -578,8 +661,67 @@ def _policy_claims(policy: Dict[str, Any]) -> Dict[str, Any]:
         "certSha256": cert_sha256.replace(":", "").upper(),
         "expiresAt": expires,
         "maintenanceUntil": maintenance_until,
-        "installTier": policy.get("installTier", ""),
+        "installTier": install_tier,
     }
+
+
+def _expected_authorized_hashes(device_ids: Sequence[str]) -> set[str]:
+    return {
+        hashlib.sha256(
+            f"{device}{DEFAULT_DEVICE_ID_SALT_ID}".encode("utf-8")
+        ).hexdigest().upper()
+        for device in device_ids
+    }
+
+
+def _build_internal_verification(
+    claims: Dict[str, Any], device_count: int, payload_bytes: bytes
+) -> Dict[str, Any]:
+    return {
+        "status": "PASS",
+        "signatureAndClaims": "PASS",
+        "embeddedPublicKeys": "4/4",
+        "exactDeviceSet": True,
+        "authorizedDeviceCount": device_count,
+        "authorizedHashUniqueCount": device_count,
+        "features": claims["features"],
+        "permanent": claims["expiresAt"] == "",
+        "packageBinding": (
+            "none"
+            if not claims["applicationId"] and not claims["bundleName"]
+            else "record-only"
+        ),
+        "certificateBinding": bool(claims["signingCertDigest"]),
+        "payloadSha256": _sha256_bytes(payload_bytes),
+    }
+
+
+def _build_customer_readme(
+    request: Dict[str, Any], claims: Dict[str, Any], device_count: int
+) -> bytes:
+    return (
+        "# 商用离线 License\n\n"
+        f"- License ID：`{request['licenseId']}`\n"
+        f"- 授权能力：{', '.join(claims['features'])}\n"
+        f"- 授权设备：{device_count} 台\n"
+        f"- 有效期：{'永久' if not claims['expiresAt'] else claims['expiresAt']}\n"
+        f"- SDK 维护期：{'不限制' if not claims['maintenanceUntil'] else claims['maintenanceUntil']}\n"
+        "- 明文 SN：不包含\n\n"
+        "请保持授权文件内容不变；任何修改都会导致签名校验失败。\n"
+    ).encode("utf-8")
+
+
+def _build_internal_verification_markdown(
+    license_sha256: str, device_count: int
+) -> bytes:
+    return (
+        "# License 验签报告\n\n"
+        "- 结论：PASS\n"
+        f"- 唯一授权设备：{device_count}\n"
+        f"- License SHA-256：`{license_sha256}`\n"
+        "- Excel SN 与 License 哈希集合：精确一致\n"
+        "- 生产私钥和明文 SN：未包含\n"
+    ).encode("utf-8")
 
 
 def _issue_delivery(
@@ -597,25 +739,14 @@ def _issue_delivery(
 ) -> Dict[str, Any]:
     if not operator.strip():
         raise LicenseDeliveryError("operator is required")
-    plan = _load_json(plan_path)
-    _verify_plan_integrity(plan)
-    recalculated, device_ids = _build_plan_snapshot(
-        request_path,
-        input_dir,
-        previous_request_path,
-        previous_input_dir,
+    plan, device_ids = _load_approved_plan_context(
+        plan_path=plan_path,
+        request_path=request_path,
+        input_dir=input_dir,
+        previous_request_path=previous_request_path,
+        previous_input_dir=previous_input_dir,
     )
-    for field in (
-        "request",
-        "requestSha256",
-        "sources",
-        "snSetDigest",
-        "snSummary",
-        "diff",
-        "warnings",
-    ):
-        if recalculated.get(field) != plan.get(field):
-            raise LicenseDeliveryError(f"current inputs do not match approved plan: {field}")
+    plan_receipt_sha256 = _sha256_bytes(plan_path.read_bytes())
     required_warnings = {warning["code"] for warning in plan.get("warnings", [])}
     acknowledged = set(acknowledgements)
     unknown = acknowledged - required_warnings
@@ -653,6 +784,14 @@ def _issue_delivery(
         features=policy["features"],
         sdk_major=policy["sdkMajor"],
     )
+    authorized_hashes = claims.get("authorizedDeviceHashes")
+    expected_hashes = _expected_authorized_hashes(device_ids)
+    if (
+        not isinstance(authorized_hashes, list)
+        or len(authorized_hashes) != len(expected_hashes)
+        or set(authorized_hashes) != expected_hashes
+    ):
+        raise LicenseDeliveryError("new License device hashes do not exactly match the SN set")
     license_bytes = (json.dumps(envelope, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     license_sha256 = _sha256_bytes(license_bytes)
     delivery_id = request["deliveryId"]
@@ -674,38 +813,14 @@ def _issue_delivery(
         "production": production,
         "containsPlaintextSn": False,
     }
-    verification = {
-        "status": "PASS",
-        "signatureAndClaims": "PASS",
-        "embeddedPublicKeys": "4/4",
-        "exactDeviceSet": len(claims["authorizedDeviceHashes"]) == len(device_ids),
-        "authorizedDeviceCount": len(device_ids),
-        "authorizedHashUniqueCount": len(set(claims["authorizedDeviceHashes"])),
-        "features": claims["features"],
-        "permanent": claims["expiresAt"] == "",
-        "packageBinding": "none" if not claims["applicationId"] and not claims["bundleName"] else "record-only",
-        "certificateBinding": bool(claims["signingCertDigest"]),
-        "payloadSha256": _sha256_bytes(payload_bytes),
-    }
-    readme = (
-        "# 商用离线 License\n\n"
-        f"- License ID：`{request['licenseId']}`\n"
-        f"- 授权能力：{', '.join(claims['features'])}\n"
-        f"- 授权设备：{len(device_ids)} 台\n"
-        f"- 有效期：{'永久' if not claims['expiresAt'] else claims['expiresAt']}\n"
-        f"- SDK 维护期：{'不限制' if not claims['maintenanceUntil'] else claims['maintenanceUntil']}\n"
-        "- 明文 SN：不包含\n\n"
-        "请保持授权文件内容不变；任何修改都会导致签名校验失败。\n"
-    ).encode("utf-8")
+    verification = _build_internal_verification(
+        claims, len(device_ids), payload_bytes
+    )
+    readme = _build_customer_readme(request, claims, len(device_ids))
     verification_json = (json.dumps(verification, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-    verification_md = (
-        "# License 验签报告\n\n"
-        "- 结论：PASS\n"
-        f"- 唯一授权设备：{len(device_ids)}\n"
-        f"- License SHA-256：`{license_sha256}`\n"
-        "- Excel SN 与 License 哈希集合：精确一致\n"
-        "- 生产私钥和明文 SN：未包含\n"
-    ).encode("utf-8")
+    verification_md = _build_internal_verification_markdown(
+        license_sha256, len(device_ids)
+    )
     manifest_json = (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     members = {
         "amphion-license.lic": license_bytes,
@@ -741,6 +856,7 @@ def _issue_delivery(
         "uniqueSnCount": len(device_ids),
         "sourceSha256": [source["sha256"] for source in plan["sources"]],
         "planSha256": plan["planSha256"],
+        "planReceiptSha256": plan_receipt_sha256,
         "toolCommit": tool_commit,
         "licenseSha256": license_sha256,
         "zipFileName": zip_path.name,
@@ -776,43 +892,31 @@ def _verify_delivery(
 ) -> Dict[str, Any]:
     if not operator.strip():
         raise LicenseDeliveryError("operator is required")
-    plan = _load_json(plan_path)
-    _verify_plan_integrity(plan)
-    recalculated, device_ids = _build_plan_snapshot(
-        request_path,
-        input_dir,
-        previous_request_path,
-        previous_input_dir,
+    plan, device_ids = _load_approved_plan_context(
+        plan_path=plan_path,
+        request_path=request_path,
+        input_dir=input_dir,
+        previous_request_path=previous_request_path,
+        previous_input_dir=previous_input_dir,
     )
-    for field in (
-        "request",
-        "requestSha256",
-        "sources",
-        "snSetDigest",
-        "snSummary",
-        "diff",
-        "warnings",
-    ):
-        if recalculated.get(field) != plan.get(field):
-            raise LicenseDeliveryError(f"current inputs do not match approved plan: {field}")
+    plan_receipt_sha256 = _sha256_bytes(plan_path.read_bytes())
     request = _load_json(request_path)
     delivery_id = request["deliveryId"]
+    expected_zip_name = f"{delivery_id}.zip"
+    if zip_path.name != expected_zip_name:
+        raise LicenseDeliveryError(f"final ZIP file name must be {expected_zip_name}")
     root = f"{delivery_id}/"
-    member_names = {
-        "amphion-license.lic",
-        "README.md",
-        "LICENSE_MANIFEST.json",
-        "LICENSE_VERIFICATION.json",
-        "LICENSE_VERIFICATION.md",
-        "SHA256SUMS.txt",
-    }
+    member_names = DELIVERY_MEMBER_NAMES
     expected_names = {root + name for name in member_names}
     try:
         with zipfile.ZipFile(zip_path) as archive:
             bad = archive.testzip()
             if bad is not None:
                 raise LicenseDeliveryError(f"ZIP CRC failed: {bad}")
-            actual_names = set(archive.namelist())
+            archive_names = archive.namelist()
+            if len(archive_names) != len(set(archive_names)):
+                raise LicenseDeliveryError("final ZIP contains duplicate ZIP entries")
+            actual_names = set(archive_names)
             if actual_names != expected_names:
                 raise LicenseDeliveryError("final ZIP file set does not match the delivery contract")
             for info in archive.infolist():
@@ -837,6 +941,8 @@ def _verify_delivery(
         parts = line.split("  ", 1)
         if len(parts) != 2 or not re.fullmatch(r"[0-9a-f]{64}", parts[0]):
             raise LicenseDeliveryError("SHA256SUMS.txt is malformed")
+        if parts[1] in parsed_checksums:
+            raise LicenseDeliveryError("SHA256SUMS.txt contains duplicate entries")
         parsed_checksums[parts[1]] = parts[0]
     if set(parsed_checksums) != expected_checksum_names:
         raise LicenseDeliveryError("SHA256SUMS.txt file set is invalid")
@@ -865,8 +971,6 @@ def _verify_delivery(
     internal_verification = _parse_json_bytes(
         members["LICENSE_VERIFICATION.json"], "internal verification"
     )
-    if internal_verification.get("status") != "PASS":
-        raise LicenseDeliveryError("internal License verification is not PASS")
     envelope = _parse_json_bytes(members["amphion-license.lic"], "License envelope")
     try:
         payload_bytes = base64.b64decode(envelope["payload_b64"], validate=True)
@@ -882,6 +986,10 @@ def _verify_delivery(
         public_key = serialization.load_der_public_key(
             base64.b64decode(next(iter(embedded_keys.values())), validate=True)
         )
+        if not isinstance(public_key, ec.EllipticCurvePublicKey) or not isinstance(
+            public_key.curve, ec.SECP256R1
+        ):
+            raise LicenseDeliveryError("SDK License public key must use ECDSA P-256")
         public_key.verify(signature, payload_bytes, ec.ECDSA(hashes.SHA256()))
     except (ValueError, TypeError, InvalidSignature) as error:
         raise LicenseDeliveryError("License signature verification failed") from error
@@ -903,6 +1011,8 @@ def _verify_delivery(
         "maintenanceUntil": policy["maintenanceUntil"],
         "sdkMajor": policy["sdkMajor"],
     }
+    if set(claims) != set(expected_claims) | {"authorizedDeviceHashes"}:
+        raise LicenseDeliveryError("License claims contain unknown or missing fields")
     for field, expected in expected_claims.items():
         if claims.get(field) != expected:
             raise LicenseDeliveryError(f"License claim does not match request: {field}")
@@ -911,12 +1021,7 @@ def _verify_delivery(
         raise LicenseDeliveryError("authorizedDeviceHashes must be a string array")
     if len(raw_hashes) != len(set(raw_hashes)):
         raise LicenseDeliveryError("License contains duplicate authorized device hashes")
-    expected_hashes = {
-        hashlib.sha256(f"{device}{DEFAULT_DEVICE_ID_SALT_ID}".encode("utf-8"))
-        .hexdigest()
-        .upper()
-        for device in device_ids
-    }
+    expected_hashes = _expected_authorized_hashes(device_ids)
     if set(raw_hashes) != expected_hashes or len(raw_hashes) != len(device_ids):
         raise LicenseDeliveryError("License device hashes do not exactly match the SN set")
     unauthorized = hashlib.sha256(
@@ -925,7 +1030,26 @@ def _verify_delivery(
     if unauthorized in expected_hashes:
         raise LicenseDeliveryError("unauthorized verification sentinel is present")
     license_sha256 = _sha256_bytes(members["amphion-license.lic"])
+    expected_internal_verification = _build_internal_verification(
+        claims, len(device_ids), payload_bytes
+    )
+    if internal_verification != expected_internal_verification:
+        raise LicenseDeliveryError("LICENSE_VERIFICATION.json does not match verified facts")
+    expected_readme = _build_customer_readme(request, claims, len(device_ids))
+    if members["README.md"] != expected_readme:
+        raise LicenseDeliveryError("README.md does not match the verified delivery")
+    expected_verification_markdown = _build_internal_verification_markdown(
+        license_sha256, len(device_ids)
+    )
+    if members["LICENSE_VERIFICATION.md"] != expected_verification_markdown:
+        raise LicenseDeliveryError("LICENSE_VERIFICATION.md does not match verified facts")
+    tool_commit = manifest.get("toolCommit")
+    if not isinstance(tool_commit, str) or not re.fullmatch(r"[0-9a-f]{40,64}", tool_commit):
+        raise LicenseDeliveryError("delivery manifest toolCommit is invalid")
+    if not isinstance(manifest.get("production"), bool):
+        raise LicenseDeliveryError("delivery manifest production flag is invalid")
     manifest_expected = {
+        "schemaVersion": SCHEMA_VERSION,
         "requestId": request["requestId"],
         "licenseId": request["licenseId"],
         "deliveryId": delivery_id,
@@ -937,11 +1061,12 @@ def _verify_delivery(
         "snSummary": plan["snSummary"],
         "policy": request["policy"],
         "licenseSha256": license_sha256,
+        "toolCommit": tool_commit,
+        "production": manifest["production"],
         "containsPlaintextSn": False,
     }
-    for field, expected in manifest_expected.items():
-        if manifest.get(field) != expected:
-            raise LicenseDeliveryError(f"delivery manifest mismatch: {field}")
+    if manifest != manifest_expected:
+        raise LicenseDeliveryError("delivery manifest does not exactly match verified facts")
     zip_sha256 = _sha256_bytes(zip_path.read_bytes())
     receipt: Dict[str, Any] = {
         "schemaVersion": SCHEMA_VERSION,
@@ -957,6 +1082,7 @@ def _verify_delivery(
         "snSetId": plan["snSetId"],
         "uniqueSnCount": len(device_ids),
         "planSha256": plan["planSha256"],
+        "planReceiptSha256": plan_receipt_sha256,
         "licenseSha256": license_sha256,
         "zipFileName": zip_path.name,
         "zipSha256": zip_sha256,
@@ -1013,13 +1139,14 @@ def _load_history(path: Path) -> Dict[str, Any]:
 def _record_delivery(
     *,
     repo: Path,
-    history_path: Path,
+    plan_path: Path,
     zip_path: Path,
     issuance_path: Path,
     verification_path: Path,
     operator: str,
     delivered_at: str,
 ) -> Dict[str, Any]:
+    history_path = repo / "delivery/license-delivery-history.json"
     if not operator.strip():
         raise LicenseDeliveryError("operator is required")
     try:
@@ -1045,6 +1172,7 @@ def _record_delivery(
         "previousLicenseId",
         "snSetId",
         "planSha256",
+        "planReceiptSha256",
         "licenseSha256",
         "zipFileName",
         "zipSha256",
@@ -1054,6 +1182,9 @@ def _record_delivery(
     for field in identity_fields:
         if issuance.get(field) != verification.get(field):
             raise LicenseDeliveryError(f"issuance and verification receipts disagree: {field}")
+    actual_plan_receipt_sha256 = _sha256_bytes(plan_path.read_bytes())
+    if actual_plan_receipt_sha256 != verification["planReceiptSha256"]:
+        raise LicenseDeliveryError("plan receipt SHA-256 does not match the recorded receipts")
     actual_zip_sha256 = _sha256_bytes(zip_path.read_bytes())
     if actual_zip_sha256 != verification["zipSha256"]:
         raise LicenseDeliveryError("final ZIP SHA-256 does not match verification receipt")
@@ -1088,6 +1219,7 @@ def _record_delivery(
         "artifactSizeBytes": zip_path.stat().st_size,
         "licenseSha256": verification["licenseSha256"],
         "planSha256": verification["planSha256"],
+        "planReceiptSha256": actual_plan_receipt_sha256,
         "issuanceReceiptSha256": _sha256_bytes(issuance_path.read_bytes()),
         "verificationReceiptSha256": _sha256_bytes(verification_path.read_bytes()),
         "toolCommit": verification["toolCommit"],
@@ -1169,7 +1301,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     verify_parser.add_argument("--out-prefix", required=True, type=Path)
     record_parser = subparsers.add_parser("record")
     record_parser.add_argument("--repo", required=True, type=Path)
-    record_parser.add_argument("--history", type=Path)
+    record_parser.add_argument("--plan", required=True, type=Path)
     record_parser.add_argument("--zip", required=True, type=Path)
     record_parser.add_argument("--issuance", required=True, type=Path)
     record_parser.add_argument("--verification", required=True, type=Path)
@@ -1229,14 +1361,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
         elif args.command == "record":
             repo = args.repo.resolve()
-            history_path = (
-                args.history.resolve()
-                if args.history is not None
-                else repo / "delivery/license-delivery-history.json"
-            )
             entry = _record_delivery(
                 repo=repo,
-                history_path=history_path,
+                plan_path=args.plan.resolve(),
                 zip_path=args.zip.resolve(),
                 issuance_path=args.issuance.resolve(),
                 verification_path=args.verification.resolve(),

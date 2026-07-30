@@ -52,20 +52,6 @@ def _normalize_device_id(value: str) -> str:
     return value.strip().upper()
 
 
-def _read_device_hashes(device_file: str, salt_id: str) -> list[str]:
-    if not device_file:
-        return []
-    devices = [
-        _normalize_device_id(line)
-        for line in Path(device_file).read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
-    return [
-        hashlib.sha256(f"{device}{salt_id}".encode("utf-8")).hexdigest().upper()
-        for device in devices
-    ]
-
-
 def _device_hashes(device_ids: Sequence[str], salt_id: str) -> List[str]:
     return [
         hashlib.sha256(

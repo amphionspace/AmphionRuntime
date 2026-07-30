@@ -36,7 +36,7 @@ flowchart LR
 | `plan` | 申请 JSON、当前完整 SN 输入、可选上一版完整输入 | 不含明文 SN 的计划回执 | 否 |
 | `issue` | 原始输入、已确认计划、warning 确认 | 客户 ZIP、签发回执 | 是 |
 | `verify` | 最终 ZIP、原始输入、计划、四端公钥 | ZIP 外验收回执 | 否 |
-| `record` | PASS 验收回执、签发回执、最终 ZIP | Git 元数据记录 | 否 |
+| `record` | PASS 验收回执、签发回执、计划回执、最终 ZIP | Git 元数据记录 | 否 |
 
 `issue` 和 `verify` 都重新读取原始输入，不使用计划阶段留下的临时明文清单。请求、源文件、SN 集合、warning 或上一版差分任一项变化都会阻断。
 
