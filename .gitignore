@@ -148,6 +148,10 @@ shared/regression-set/audio/
 bpe.model
 bpe.vocab
 
+# --- 客户交付产物（本地归档，不入库） ---
+# 最终 ZIP、解压目录和验收报告都由交付脚本生成；版本、commit、hash 和大小只记入台账。
+asr/delivery/
+
 # --- demo 模型目录：整体不入库 ---
 # 元数据（manifest.json / tokens.txt / export_meta.json）也排除，理由：
 #   1. manifest.files[].url 在产线里通常是 file:// 私人路径或内部 CDN，留在 git 历史里会泄露内部目录结构

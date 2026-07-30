@@ -4,17 +4,19 @@
 from __future__ import annotations
 
 import argparse
-import base64
-import calendar
 import hashlib
 import json
-from datetime import date
 from pathlib import Path, PurePosixPath
 import re
+import shutil
+import stat
 import tarfile
+import tempfile
+import zipfile
 
 
 MODEL_MD5_POLICY_PATH = Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
+MAX_SDK_ONLY_ZIP_BYTES = 320 * 1024 * 1024
 RUNTIME_IDENTITY_SOURCE_PATH = (
     Path(__file__).resolve().parents[3]
     / "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts"
@@ -49,7 +51,6 @@ ALLOWED_MODEL_BUNDLES = {
 REQUIRED_FILES = {
     "README.md",
     "har/amphion_dingqiao.har",
-    "license/amphion-license.lic",
     "docs/LICENSE.md",
     "docs/LICENSE_SCHEME.md",
     "docs/CHANGELOG.md",
@@ -497,6 +498,11 @@ def _validate_documents(root: Path) -> None:
     readme = (root / "README.md").read_text(encoding="utf-8")
     if "独立 TTS SDK 或 TTS 模型" not in readme:
         raise DeliveryValidationError("README does not state the SDK-only TTS boundary")
+    for statement in ("警务文本增强", "enablePoliceEnhancement", "不包含", "授权文件"):
+        if statement not in readme:
+            raise DeliveryValidationError(
+                f"README does not match SDK-only capability boundary: {statement}"
+            )
     for markdown in root.rglob("*.md"):
         text = markdown.read_text(encoding="utf-8")
         if "鼎桥" in text:
@@ -520,45 +526,6 @@ def _validate_documents(root: Path) -> None:
                 )
 
 
-def _validate_license(root: Path) -> None:
-    try:
-        envelope = json.loads(
-            (root / "license/amphion-license.lic").read_text(encoding="utf-8")
-        )
-        claims = json.loads(base64.b64decode(envelope["payload_b64"], validate=True))
-    except (OSError, UnicodeDecodeError, ValueError, KeyError, json.JSONDecodeError) as error:
-        raise DeliveryValidationError("evaluation license is malformed") from error
-    if envelope.get("alg") != "SHA256withECDSA" or not envelope.get("sig_b64"):
-        raise DeliveryValidationError("evaluation license has no supported signature")
-    unbound = (
-        claims.get("applicationId") == ""
-        and claims.get("bundleName") == ""
-        and claims.get("certSha256") == ""
-        and claims.get("signingCertDigest") == ""
-        and claims.get("authorizedDeviceHashes") == []
-        and claims.get("deviceIdSaltId") == ""
-        and claims.get("installTier") == ""
-        and claims.get("maintenanceUntil") == ""
-    )
-    if not unbound:
-        raise DeliveryValidationError("evaluation license must not bind app, certificate, device, install tier, or maintenance")
-    if claims.get("features") != ["ASR"]:
-        raise DeliveryValidationError("evaluation license must grant exactly ASR")
-    if claims.get("sdkMajor") != 0:
-        raise DeliveryValidationError("evaluation license must not restrict the SDK major version")
-    try:
-        issued = date.fromisoformat(claims["issuedAt"])
-        expires = date.fromisoformat(claims["expiresAt"])
-    except (KeyError, TypeError, ValueError) as error:
-        raise DeliveryValidationError("evaluation license dates are invalid") from error
-    month_index = issued.month - 1 + 4
-    expected_year = issued.year + month_index // 12
-    expected_month = month_index % 12 + 1
-    expected_day = min(issued.day, calendar.monthrange(expected_year, expected_month)[1])
-    if expires != date(expected_year, expected_month, expected_day):
-        raise DeliveryValidationError("evaluation license must expire after exactly four calendar months")
-
-
 def validate_delivery(
     root: Path,
     expected_version: str,
@@ -573,7 +540,6 @@ def validate_delivery(
         )
     _validate_layout(root)
     _validate_checksums(root)
-    _validate_license(root)
     har_evidence = _validate_har(
         root, expected_version, expected_model_md5, expected_identity
     )
@@ -581,16 +547,66 @@ def validate_delivery(
     _validate_documents(root)
 
 
+def validate_delivery_path(
+    path: Path,
+    expected_version: str,
+    expected_model_md5: dict[str, str] | None = None,
+) -> None:
+    if path.is_dir():
+        validate_delivery(path, expected_version, expected_model_md5)
+        return
+    if not path.is_file() or path.suffix.lower() != ".zip":
+        raise DeliveryValidationError(f"delivery must be a directory or final ZIP: {path}")
+    if path.stat().st_size > MAX_SDK_ONLY_ZIP_BYTES:
+        raise DeliveryValidationError(
+            f"SDK-only ZIP exceeds {MAX_SDK_ONLY_ZIP_BYTES} bytes: {path.stat().st_size}"
+        )
+    try:
+        archive = zipfile.ZipFile(path)
+    except (OSError, zipfile.BadZipFile) as error:
+        raise DeliveryValidationError(f"invalid delivery ZIP: {path}") from error
+    with archive, tempfile.TemporaryDirectory() as directory:
+        bad = archive.testzip()
+        if bad is not None:
+            raise DeliveryValidationError(f"delivery ZIP CRC failed: {bad}")
+        infos = archive.infolist()
+        names = [info.filename for info in infos]
+        if len(names) != len(set(names)):
+            raise DeliveryValidationError("delivery ZIP contains duplicate member names")
+        roots: set[str] = set()
+        destination = Path(directory)
+        for info in infos:
+            if "\\" in info.filename:
+                raise DeliveryValidationError(f"unsafe ZIP member path: {info.filename}")
+            member = PurePosixPath(info.filename)
+            if member.is_absolute() or ".." in member.parts or not member.parts:
+                raise DeliveryValidationError(f"unsafe ZIP member path: {info.filename}")
+            roots.add(member.parts[0])
+            mode = info.external_attr >> 16
+            if stat.S_ISLNK(mode):
+                raise DeliveryValidationError(f"delivery ZIP contains symlink: {info.filename}")
+            target = destination.joinpath(*member.parts)
+            if info.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(info) as source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+        if len(roots) != 1:
+            raise DeliveryValidationError("delivery ZIP must contain exactly one root directory")
+        validate_delivery(destination / roots.pop(), expected_version, expected_model_md5)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("delivery_dir", type=Path)
+    parser.add_argument("delivery_path", type=Path)
     parser.add_argument("--version", required=True)
     args = parser.parse_args()
     try:
-        validate_delivery(args.delivery_dir, args.version)
-    except DeliveryValidationError as error:
+        validate_delivery_path(args.delivery_path, args.version)
+    except (DeliveryValidationError, OSError, UnicodeError, zipfile.BadZipFile) as error:
         parser.error(str(error))
-    print(f"[OK] zh-en SDK-only delivery validated: {args.delivery_dir}")
+    print(f"[OK] zh-en SDK-only delivery validated: {args.delivery_path}")
     return 0
 
 

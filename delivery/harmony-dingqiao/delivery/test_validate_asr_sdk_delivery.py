@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import base64
 import importlib.util
 import io
 import json
@@ -10,6 +9,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+import zipfile
 
 
 SCRIPT = Path(__file__).with_name("validate_asr_sdk_delivery.py")
@@ -48,30 +48,10 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(f"fixture for {relative}\n", encoding="utf-8")
         (root / "README.md").write_text(
-            "SDK-only，不包含独立 TTS SDK 或 TTS 模型。\n", encoding="utf-8"
+            "SDK-only，不包含独立 TTS SDK 或 TTS 模型，也不包含授权文件。"
+            "内置警务文本增强，可通过 enablePoliceEnhancement 关闭。\n",
+            encoding="utf-8",
         )
-        claims = {
-            "applicationId": "",
-            "bundleName": "",
-            "certSha256": "",
-            "signingCertDigest": "",
-            "authorizedDeviceHashes": [],
-            "deviceIdSaltId": "",
-            "installTier": "",
-            "maintenanceUntil": "",
-            "features": ["ASR"],
-            "sdkMajor": 0,
-            "issuedAt": "2026-07-22",
-            "expiresAt": "2026-11-22",
-        }
-        license_path = root / "license/amphion-license.lic"
-        license_path.parent.mkdir(parents=True, exist_ok=True)
-        license_path.write_text(json.dumps({
-            "payload_b64": base64.b64encode(json.dumps(claims).encode()).decode(),
-            "alg": "SHA256withECDSA",
-            "sig_b64": "fixture",
-        }), encoding="utf-8")
-
         har_path = root / "har/amphion_dingqiao.har"
         har_path.parent.mkdir(parents=True, exist_ok=True)
         model_payload = b"model"
@@ -210,11 +190,40 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             lines.append(f"{digest}  ./{relative}\n")
         (root / "docs/checksum.txt").write_text("".join(lines), encoding="utf-8")
 
+    @staticmethod
+    def _write_zip(root: Path, destination: Path) -> None:
+        with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for path in sorted(root.rglob("*")):
+                if path.is_file():
+                    archive.write(path, f"{root.name}/{path.relative_to(root).as_posix()}")
+
     def test_accepts_exact_zh_en_sdk_only_layout(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root)
             MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+
+    def test_accepts_final_zh_en_sdk_only_zip(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / "amphion-harmony-asr-sdk-v0.2.9-20260730"
+            self._write_fixture(root)
+            delivery_zip = base / "delivery.zip"
+            self._write_zip(root, delivery_zip)
+            MODULE.validate_delivery_path(delivery_zip, "0.2.9", FIXTURE_MODEL_MD5)
+
+    def test_rejects_final_zip_with_unexpected_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / "amphion-harmony-asr-sdk-v0.2.9-20260730"
+            self._write_fixture(root)
+            demo = root / "demo/dingqiao-demo.hap"
+            demo.parent.mkdir()
+            demo.write_bytes(b"hap")
+            delivery_zip = base / "delivery.zip"
+            self._write_zip(root, delivery_zip)
+            with self.assertRaisesRegex(MODULE.DeliveryValidationError, "unexpected file"):
+                MODULE.validate_delivery_path(delivery_zip, "0.2.9", FIXTURE_MODEL_MD5)
 
     def test_accepts_documented_police_enhancement_capability(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -311,32 +320,14 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "nested HAR version"):
                 MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
 
-    def test_rejects_device_bound_license(self) -> None:
+    def test_rejects_external_license_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root)
             license_path = root / "license/amphion-license.lic"
-            envelope = json.loads(license_path.read_text(encoding="utf-8"))
-            claims = json.loads(base64.b64decode(envelope["payload_b64"]))
-            claims["authorizedDeviceHashes"] = ["A" * 64]
-            envelope["payload_b64"] = base64.b64encode(json.dumps(claims).encode()).decode()
-            license_path.write_text(json.dumps(envelope), encoding="utf-8")
-            self._write_checksums(root)
-            with self.assertRaisesRegex(MODULE.DeliveryValidationError, "must not bind"):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
-
-    def test_rejects_sdk_major_bound_license(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            self._write_fixture(root)
-            license_path = root / "license/amphion-license.lic"
-            envelope = json.loads(license_path.read_text(encoding="utf-8"))
-            claims = json.loads(base64.b64decode(envelope["payload_b64"]))
-            claims["sdkMajor"] = 1
-            envelope["payload_b64"] = base64.b64encode(json.dumps(claims).encode()).decode()
-            license_path.write_text(json.dumps(envelope), encoding="utf-8")
-            self._write_checksums(root)
-            with self.assertRaisesRegex(MODULE.DeliveryValidationError, "SDK major"):
+            license_path.parent.mkdir(parents=True)
+            license_path.write_text("license", encoding="utf-8")
+            with self.assertRaisesRegex(MODULE.DeliveryValidationError, "unexpected file"):
                 MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
 
     def test_rejects_stale_release_date(self) -> None:

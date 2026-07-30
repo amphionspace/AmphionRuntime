@@ -11,6 +11,7 @@ bash asr/tools/delivery/<script>.sh [交付版本号]
 | 脚本 | 说明 |
 |------|------|
 | `pack_dingqiao_customer_delivery.sh` | 鼎桥正式客户包 |
+| `pack_dingqiao_customer_delivery.sh --sdk-only` | 中英 SDK-only 包（无 Demo/授权/TTS/粤英） |
 | `pack_dingqiao_delivery_scheme_a_aligned.sh` | 内部 scheme A aligned |
 | `pack_dingqiao_delivery.sh` | 内部 scheme A（含 LICENSING） |
 | `pack_dingqiao_delivery_scheme_b.sh` | scheme B 三 AAR |
@@ -21,7 +22,8 @@ bash asr/tools/delivery/<script>.sh [交付版本号]
 
 正式交付包会通过 `tools/delivery/asr_release_tracker.py` 自动生成
 `docs/CHANGELOG.md`，范围是台账中同平台上一交付 commit 到当前构建 commit。
-交付终检通过后，再用实际包内的 `VERSION.txt` 登记版本；完整流程见
+交付终检通过后，再用最终 ZIP 登记版本；台账会从包内 `VERSION.txt` 读取 provenance 并记录
+附件 SHA-256/字节数。完整流程见
 [`delivery/ASR_SDK_RELEASE_TRACKING.md`](../../../delivery/ASR_SDK_RELEASE_TRACKING.md)。
 
 溯源逻辑见 `asr/android/docs/DINGQIAO_DELIVERY.md` §4.1。
