@@ -114,6 +114,13 @@ cp "$FAT_AAR" "$OUT_ROOT/aar/"
 cp "$DEMO_APK_SRC" "$OUT_ROOT/demo/dingqiao-demo-release.apk"
 
 dingqiao_stage_customer_docs "$OUT_ROOT/docs" "$CUSTOMER_DOCS" "$DQ_ROOT"
+python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
+  --repo "$REPO_ROOT" \
+  changelog \
+  --platform android \
+  --version "$VERSION" \
+  --source-commit "$GIT_COMMIT_FULL" \
+  --output "$OUT_ROOT/docs/CHANGELOG.md"
 
 AAR_MB="$(du -m "$OUT_ROOT/aar/$AAR_NAME" | awk '{print $1}')"
 APK_MB="$(du -m "$OUT_ROOT/demo/dingqiao-demo-release.apk" | awk '{print $1}')"
