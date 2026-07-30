@@ -3,10 +3,12 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+import warnings
 import zipfile
 from pathlib import Path
 
@@ -310,6 +312,30 @@ class LicenseDeliveryCliTest(unittest.TestCase):
 
         self.assertNotEqual(0, result.returncode)
         self.assertIn("runtimeExpiry", result.stderr)
+
+    def test_plan_rejects_unknown_policy_fields_before_they_can_leak(self) -> None:
+        source = self.input_dir / "devices.csv"
+        source.write_text("SN\n7GK0226310007121\n", encoding="utf-8")
+        request_path = self.write_request(
+            source.name,
+            hashlib.sha256(source.read_bytes()).hexdigest(),
+        )
+        request = json.loads(request_path.read_text(encoding="utf-8"))
+        request["policy"]["authorizedDeviceHashes"] = ["sensitive-value"]
+        request_path.write_text(json.dumps(request), encoding="utf-8")
+
+        result = self.run_cli(
+            "plan",
+            "--request",
+            str(request_path),
+            "--input-dir",
+            str(self.input_dir),
+            "--out",
+            str(self.root / "plan.json"),
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("unknown policy fields", result.stderr)
 
     def test_plan_rejects_future_issue_date(self) -> None:
         source = self.input_dir / "devices.csv"
@@ -806,6 +832,28 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         zip_path = output_dir / "DEL-DQ-COMMERCIAL-20260730-001.zip"
         prefix = output_dir / "DEL-DQ-COMMERCIAL-20260730-001.zip"
 
+        renamed_zip = output_dir / "renamed.zip"
+        shutil.copyfile(zip_path, renamed_zip)
+        renamed = self.run_cli(
+            "verify",
+            "--repo",
+            str(repo),
+            "--request",
+            str(request),
+            "--plan",
+            str(plan_path),
+            "--input-dir",
+            str(self.input_dir),
+            "--zip",
+            str(renamed_zip),
+            "--operator",
+            "verifier@example.com",
+            "--out-prefix",
+            str(output_dir / "renamed.zip"),
+        )
+        self.assertNotEqual(0, renamed.returncode)
+        self.assertIn("file name", renamed.stderr)
+
         result = self.run_cli(
             "verify",
             "--repo",
@@ -834,6 +882,112 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         )
         self.assertEqual("verifier@example.com", receipt["operator"])
         self.assertTrue(report_path.is_file())
+
+        root = "DEL-DQ-COMMERCIAL-20260730-001/"
+        with zipfile.ZipFile(zip_path) as archive:
+            readme = archive.read(root + "README.md")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            with zipfile.ZipFile(zip_path, "a") as archive:
+                archive.writestr(root + "README.md", readme)
+        duplicate = self.run_cli(
+            "verify",
+            "--repo",
+            str(repo),
+            "--request",
+            str(request),
+            "--plan",
+            str(plan_path),
+            "--input-dir",
+            str(self.input_dir),
+            "--zip",
+            str(zip_path),
+            "--operator",
+            "verifier@example.com",
+            "--out-prefix",
+            str(output_dir / "duplicate"),
+        )
+        self.assertNotEqual(0, duplicate.returncode)
+        self.assertIn("duplicate ZIP", duplicate.stderr)
+
+    def test_verify_requires_p256_even_when_all_sdk_keys_match(self) -> None:
+        source = self.input_dir / "devices.csv"
+        source.write_text("SN\n7GK0226310007121\n", encoding="utf-8")
+        request = self.write_request(
+            source.name,
+            hashlib.sha256(source.read_bytes()).hexdigest(),
+        )
+        plan_path = self.root / "plan.json"
+        self.assertEqual(
+            0,
+            self.run_cli(
+                "plan",
+                "--request",
+                str(request),
+                "--input-dir",
+                str(self.input_dir),
+                "--out",
+                str(plan_path),
+            ).returncode,
+        )
+        repo = self.create_signing_repo()
+        output_dir = self.root / "output"
+        self.assertEqual(
+            0,
+            self.run_cli(
+                "issue",
+                "--repo",
+                str(repo),
+                "--request",
+                str(request),
+                "--plan",
+                str(plan_path),
+                "--input-dir",
+                str(self.input_dir),
+                "--operator",
+                "issuer@example.com",
+                "--out-dir",
+                str(output_dir),
+            ).returncode,
+        )
+        public_der = ec.generate_private_key(ec.SECP384R1()).public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        public_b64 = base64.b64encode(public_der).decode("ascii")
+        replacements = {
+            "asr/android/gradle.properties": f"AMPHION_LICENSE_PUBLIC_KEY={public_b64}\n",
+            "tts/android/gradle.properties": f"AMPHION_LICENSE_PUBLIC_KEY={public_b64}\n",
+            "asr/harmony/sdk/src/main/ets/com/amphion/asr/License.ets": (
+                f"const LICENSE_PUBLIC_KEY_B64: string = '{public_b64}';\n"
+            ),
+            "tts/harmony/sdk/src/main/ets/License.ets": (
+                f"const LICENSE_PUBLIC_KEY_B64: string = '{public_b64}';\n"
+            ),
+        }
+        for relative, content in replacements.items():
+            (repo / relative).write_text(content, encoding="utf-8")
+
+        result = self.run_cli(
+            "verify",
+            "--repo",
+            str(repo),
+            "--request",
+            str(request),
+            "--plan",
+            str(plan_path),
+            "--input-dir",
+            str(self.input_dir),
+            "--zip",
+            str(output_dir / "DEL-DQ-COMMERCIAL-20260730-001.zip"),
+            "--operator",
+            "verifier@example.com",
+            "--out-prefix",
+            str(output_dir / "p384"),
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("P-256", result.stderr)
 
     def test_verify_rejects_tampered_zip_member(self) -> None:
         source = self.input_dir / "devices.csv"
@@ -881,7 +1035,7 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             members = {
                 name: source_zip.read(name) for name in source_zip.namelist()
             }
-        members[root + "README.md"] += b"7GK0226310007121\n"
+        members[root + "README.md"] += b"customer-facing text changed\n"
         checksum_members = {
             name.removeprefix(root): content
             for name, content in members.items()
@@ -914,7 +1068,7 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         )
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("plaintext SN", result.stderr)
+        self.assertIn("README.md", result.stderr)
 
     def test_record_appends_verified_delivery_without_sensitive_sn_metadata(self) -> None:
         source = self.input_dir / "devices.csv"
@@ -987,8 +1141,8 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             "record",
             "--repo",
             str(repo),
-            "--history",
-            str(history),
+            "--plan",
+            str(plan_path),
             "--zip",
             str(zip_path),
             "--issuance",
@@ -1009,8 +1163,8 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             "record",
             "--repo",
             str(repo),
-            "--history",
-            str(history),
+            "--plan",
+            str(plan_path),
             "--zip",
             str(zip_path),
             "--issuance",
@@ -1034,6 +1188,10 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         self.assertNotIn("snSetDigest", serialized)
         self.assertNotIn("sourceSha256", serialized)
         self.assertNotIn("7GK0226310007121", serialized)
+        self.assertEqual(
+            hashlib.sha256(plan_path.read_bytes()).hexdigest(),
+            entry["planReceiptSha256"],
+        )
 
         subprocess.run(["git", "add", str(history)], cwd=repo, check=True)
         subprocess.run(
@@ -1045,8 +1203,8 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             "record",
             "--repo",
             str(repo),
-            "--history",
-            str(history),
+            "--plan",
+            str(plan_path),
             "--zip",
             str(zip_path),
             "--issuance",

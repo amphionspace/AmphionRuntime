@@ -43,6 +43,7 @@ python3 -m venv .venv
 
 .venv/bin/python license_delivery.py record \
   --repo "$(git rev-parse --show-toplevel)" \
+  --plan /受控目录/plan.json \
   --zip /受控目录/output/<deliveryId>.zip \
   --issuance /受控目录/output/<deliveryId>.issuance.json \
   --verification /受控目录/output/<deliveryId>.zip.verification.json \
