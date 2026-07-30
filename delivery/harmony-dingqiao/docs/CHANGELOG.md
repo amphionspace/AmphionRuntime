@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.9 - 2026-07-30（警务增强开关与交付追踪）
 
 - Android 与 Harmony 鼎桥 Demo 均新增持久化“警务增强”开关，并在每次会话启动时通过
   `enablePoliceEnhancement` 固定本轮配置。默认开启；显式关闭时 final 返回原始 ASR 文本，
