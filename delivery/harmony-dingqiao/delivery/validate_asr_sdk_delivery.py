@@ -496,7 +496,7 @@ def _validate_documents(root: Path) -> None:
     if any(value in api for value in ("zh-yue", "zh_yue")):
         raise DeliveryValidationError("SDK-only API document still advertises Yue")
     readme = (root / "README.md").read_text(encoding="utf-8")
-    if "独立 TTS SDK 或 TTS 模型" not in readme:
+    if not all(value in readme for value in ("不包含", "独立 TTS SDK", "TTS 模型")):
         raise DeliveryValidationError("README does not state the SDK-only TTS boundary")
     for statement in ("警务文本增强", "enablePoliceEnhancement", "不包含", "授权文件"):
         if statement not in readme:

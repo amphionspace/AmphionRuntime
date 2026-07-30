@@ -48,7 +48,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(f"fixture for {relative}\n", encoding="utf-8")
         (root / "README.md").write_text(
-            "SDK-only，不包含独立 TTS SDK 或 TTS 模型，也不包含授权文件。"
+            "SDK-only，不包含独立 TTS SDK、TTS 模型或授权文件。"
             "内置警务文本增强，可通过 enablePoliceEnhancement 关闭。\n",
             encoding="utf-8",
         )
