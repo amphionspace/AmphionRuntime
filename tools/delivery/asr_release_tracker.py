@@ -57,6 +57,7 @@ PLATFORM_SOURCE_PREFIXES = {
 SEMVER = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 FULL_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
+PLATFORM_SCOPE = re.compile(r"^[a-z0-9-]+(?:!)?\((android|harmony)\)(?:!)?:")
 REQUIRED_ENTRY_FIELDS = {
     "platform",
     "version",
@@ -147,8 +148,11 @@ def _changed_paths(repo: Path, commit: str) -> List[str]:
 
 
 def _commit_affects_platform(
-    repo: Path, commit: str, history_path: Path, platform: str
+    repo: Path, commit: str, subject: str, history_path: Path, platform: str
 ) -> bool:
+    scoped_platform = PLATFORM_SCOPE.match(subject)
+    if scoped_platform is not None and scoped_platform.group(1) != platform:
+        return False
     try:
         relative_history = history_path.resolve().relative_to(repo.resolve()).as_posix()
     except ValueError:
@@ -216,7 +220,7 @@ def render_changelog(
         if not row:
             continue
         commit, subject = row.split("\x1f", 1)
-        if not _commit_affects_platform(repo, commit, history_path, platform):
+        if not _commit_affects_platform(repo, commit, subject, history_path, platform):
             continue
         changes.append(f"- `{commit[:12]}` {subject}")
     lines.extend(changes or ["- 本次交付没有新的源码 commit。"])

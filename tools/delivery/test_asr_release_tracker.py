@@ -139,6 +139,24 @@ class AsrReleaseTrackerTest(unittest.TestCase):
 
         self.assertIn("update model asset packer", rendered)
 
+    def test_explicit_platform_scope_excludes_opposite_platform(self) -> None:
+        harmony_tool = self.repo / "asr" / "tools" / "build_harmony_asset_manifest.py"
+        harmony_tool.parent.mkdir(parents=True, exist_ok=True)
+        harmony_tool.write_text("android asset support\n", encoding="utf-8")
+        self.git("add", "asr/tools/build_harmony_asset_manifest.py")
+        self.git("commit", "-q", "-m", "perf(android): accelerate model loading")
+        latest = self.git("rev-parse", "HEAD")
+
+        rendered = MODULE.render_changelog(
+            repo=self.repo,
+            history_path=self.history_path,
+            platform="harmony",
+            version="0.2.9",
+            source_commit=latest,
+        )
+
+        self.assertNotIn("accelerate model loading", rendered)
+
     def test_rejects_previous_delivery_commit_from_another_history(self) -> None:
         self.git("checkout", "--orphan", "side")
         self.git("rm", "-q", "-rf", ".")
