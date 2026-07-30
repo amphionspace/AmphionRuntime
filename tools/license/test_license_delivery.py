@@ -361,6 +361,30 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("future", result.stderr)
 
+    def test_plan_rejects_delivery_id_that_is_unsafe_for_zip_paths(self) -> None:
+        source = self.input_dir / "devices.csv"
+        source.write_text("SN\n7GK0226310007121\n", encoding="utf-8")
+        request_path = self.write_request(
+            source.name,
+            hashlib.sha256(source.read_bytes()).hexdigest(),
+        )
+        request = json.loads(request_path.read_text(encoding="utf-8"))
+        request["deliveryId"] = "../../outside"
+        request_path.write_text(json.dumps(request), encoding="utf-8")
+
+        result = self.run_cli(
+            "plan",
+            "--request",
+            str(request_path),
+            "--input-dir",
+            str(self.input_dir),
+            "--out",
+            str(self.root / "plan.json"),
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("deliveryId", result.stderr)
+
     def test_plan_accepts_utf8_text_with_one_sn_per_line(self) -> None:
         source = self.input_dir / "devices.txt"
         source.write_text(
@@ -832,6 +856,26 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         zip_path = output_dir / "DEL-DQ-COMMERCIAL-20260730-001.zip"
         prefix = output_dir / "DEL-DQ-COMMERCIAL-20260730-001.zip"
 
+        unrelated_receipt = self.run_cli(
+            "verify",
+            "--repo",
+            str(repo),
+            "--request",
+            str(request),
+            "--plan",
+            str(plan_path),
+            "--input-dir",
+            str(self.input_dir),
+            "--zip",
+            str(zip_path),
+            "--operator",
+            "verifier@example.com",
+            "--out-prefix",
+            str(output_dir / "unrelated-name"),
+        )
+        self.assertNotEqual(0, unrelated_receipt.returncode)
+        self.assertIn("out-prefix", unrelated_receipt.stderr)
+
         renamed_zip = output_dir / "renamed.zip"
         shutil.copyfile(zip_path, renamed_zip)
         renamed = self.run_cli(
@@ -905,7 +949,7 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             "--operator",
             "verifier@example.com",
             "--out-prefix",
-            str(output_dir / "duplicate"),
+            str(zip_path),
         )
         self.assertNotEqual(0, duplicate.returncode)
         self.assertIn("duplicate ZIP", duplicate.stderr)
@@ -983,7 +1027,7 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             "--operator",
             "verifier@example.com",
             "--out-prefix",
-            str(output_dir / "p384"),
+            str(output_dir / "DEL-DQ-COMMERCIAL-20260730-001.zip"),
         )
 
         self.assertNotEqual(0, result.returncode)
