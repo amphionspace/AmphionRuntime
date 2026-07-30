@@ -1,9 +1,11 @@
 import fcntl
+import hashlib
 import importlib.util
 import json
 import subprocess
 import tempfile
 import unittest
+import zipfile
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from pathlib import Path
 
@@ -33,7 +35,7 @@ class AsrReleaseTrackerTest(unittest.TestCase):
         self.history_path.write_text(
             json.dumps(
                 {
-                    "schema_version": 1,
+                    "schema_version": 2,
                     "deliveries": [
                         {
                             "platform": "android",
@@ -41,6 +43,8 @@ class AsrReleaseTrackerTest(unittest.TestCase):
                             "source_commit": self.android_base,
                             "delivered_at": "2026-07-24",
                             "artifact": "android-0.3.2.zip",
+                            "artifact_sha256": "b" * 64,
+                            "artifact_size_bytes": 123,
                             "provenance_sha256": "a" * 64,
                         }
                     ],
@@ -68,6 +72,17 @@ class AsrReleaseTrackerTest(unittest.TestCase):
             text=True,
             stdout=subprocess.PIPE,
         ).stdout.strip()
+
+    def artifact(self, platform: str, provenance: Path, name: str) -> Path:
+        path = self.repo / name
+        member = (
+            "delivery/VERSION.txt"
+            if platform == "android"
+            else "delivery/docs/BUILD_PROVENANCE.json"
+        )
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr(member, provenance.read_bytes())
+        return path
 
     def test_renders_changes_since_previous_platform_delivery(self) -> None:
         rendered = MODULE.render_changelog(
@@ -185,6 +200,9 @@ class AsrReleaseTrackerTest(unittest.TestCase):
             f"git_commit_full={self.current_commit}\n",
             encoding="utf-8",
         )
+        artifact = self.artifact(
+            "android", provenance, "amphion-dingqiao-asr-sdk-v0.3.3-20260730.zip"
+        )
 
         entry = MODULE.record_delivery(
             repo=self.repo,
@@ -193,12 +211,13 @@ class AsrReleaseTrackerTest(unittest.TestCase):
             version="0.3.3",
             source_commit=self.current_commit,
             delivered_at="2026-07-30",
-            artifact="amphion-dingqiao-v0.3.3-customer-20260730.zip",
-            provenance_path=provenance,
+            artifact_path=artifact,
         )
 
         self.assertEqual("android", entry["platform"])
         self.assertEqual(self.current_commit, entry["source_commit"])
+        self.assertEqual(hashlib.sha256(artifact.read_bytes()).hexdigest(), entry["artifact_sha256"])
+        self.assertEqual(artifact.stat().st_size, entry["artifact_size_bytes"])
         self.assertEqual(2, len(MODULE.load_history(self.history_path)["deliveries"]))
         with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "already recorded"):
             MODULE.record_delivery(
@@ -208,8 +227,7 @@ class AsrReleaseTrackerTest(unittest.TestCase):
                 version="0.3.3",
                 source_commit=self.current_commit,
                 delivered_at="2026-07-30",
-                artifact="duplicate.zip",
-                provenance_path=provenance,
+                artifact_path=artifact,
             )
 
     def test_rejects_harmony_provenance_commit_mismatch(self) -> None:
@@ -223,6 +241,7 @@ class AsrReleaseTrackerTest(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        artifact = self.artifact("harmony", provenance, "amphion-harmony-asr-sdk-v0.2.9.zip")
 
         with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "provenance commit"):
             MODULE.record_delivery(
@@ -232,8 +251,23 @@ class AsrReleaseTrackerTest(unittest.TestCase):
                 version="0.2.9",
                 source_commit=self.current_commit,
                 delivered_at="2026-07-30",
-                artifact="amphion-harmony-asr-sdk-0.2.9",
-                provenance_path=provenance,
+                artifact_path=artifact,
+            )
+
+    def test_rejects_artifact_without_embedded_provenance(self) -> None:
+        artifact = self.repo / "amphion-dingqiao-asr-sdk-v0.3.3.zip"
+        with zipfile.ZipFile(artifact, "w") as archive:
+            archive.writestr("delivery/README.txt", "missing provenance\n")
+
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "exactly one VERSION.txt"):
+            MODULE.record_delivery(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.3",
+                source_commit=self.current_commit,
+                delivered_at="2026-07-30",
+                artifact_path=artifact,
             )
 
     def test_record_waits_for_history_lock(self) -> None:
@@ -243,6 +277,7 @@ class AsrReleaseTrackerTest(unittest.TestCase):
             f"git_commit_full={self.current_commit}\n",
             encoding="utf-8",
         )
+        artifact = self.artifact("android", provenance, "android-0.3.3.zip")
         lock_path = MODULE._history_lock_path(self.history_path)
         with lock_path.open("a+") as lock:
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
@@ -255,8 +290,7 @@ class AsrReleaseTrackerTest(unittest.TestCase):
                     version="0.3.3",
                     source_commit=self.current_commit,
                     delivered_at="2026-07-30",
-                    artifact="android-0.3.3.zip",
-                    provenance_path=provenance,
+                    artifact_path=artifact,
                 )
                 with self.assertRaises(TimeoutError):
                     future.result(timeout=0.2)
@@ -280,18 +314,18 @@ class AsrReleaseTrackerTest(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        android_artifact = self.artifact("android", android_provenance, "android-0.3.3.zip")
+        harmony_artifact = self.artifact("harmony", harmony_provenance, "harmony-0.2.9.zip")
         calls = (
             {
                 "platform": "android",
                 "version": "0.3.3",
-                "artifact": "android-0.3.3.zip",
-                "provenance_path": android_provenance,
+                "artifact_path": android_artifact,
             },
             {
                 "platform": "harmony",
                 "version": "0.2.9",
-                "artifact": "harmony-0.2.9",
-                "provenance_path": harmony_provenance,
+                "artifact_path": harmony_artifact,
             },
         )
 

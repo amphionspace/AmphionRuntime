@@ -12,11 +12,12 @@ import re
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 PLATFORMS = {"android": "Android", "harmony": "HarmonyOS"}
 COMMON_SOURCE_PREFIXES = (
     "asr/common/",
@@ -64,6 +65,8 @@ REQUIRED_ENTRY_FIELDS = {
     "source_commit",
     "delivered_at",
     "artifact",
+    "artifact_sha256",
+    "artifact_size_bytes",
     "provenance_sha256",
 }
 
@@ -129,6 +132,18 @@ def load_history(path: Path) -> Dict[str, Any]:
             raise ReleaseTrackerError(f"delivery #{index + 1} has invalid delivered_at")
         if not isinstance(entry["artifact"], str) or not entry["artifact"]:
             raise ReleaseTrackerError(f"delivery #{index + 1} has invalid artifact")
+        if Path(entry["artifact"]).name != entry["artifact"] or not entry["artifact"].endswith(
+            ".zip"
+        ):
+            raise ReleaseTrackerError(f"delivery #{index + 1} artifact must be a ZIP basename")
+        if not isinstance(entry["artifact_sha256"], str) or not SHA256.fullmatch(
+            entry["artifact_sha256"]
+        ):
+            raise ReleaseTrackerError(f"delivery #{index + 1} has invalid artifact_sha256")
+        if not isinstance(entry["artifact_size_bytes"], int) or entry[
+            "artifact_size_bytes"
+        ] <= 0:
+            raise ReleaseTrackerError(f"delivery #{index + 1} has invalid artifact_size_bytes")
         if not isinstance(entry["provenance_sha256"], str) or not SHA256.fullmatch(
             entry["provenance_sha256"]
         ):
@@ -227,25 +242,46 @@ def render_changelog(
     return "\n".join(lines) + "\n"
 
 
-def _read_provenance(path: Path) -> Dict[str, str]:
-    if path.suffix.lower() == ".json":
+def _read_provenance(payload_bytes: bytes, name: str) -> Dict[str, str]:
+    if name.lower().endswith(".json"):
         try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
+            payload = json.loads(payload_bytes.decode("utf-8"))
             return {
                 "version": payload["delivery_version"],
                 "commit": payload["source"]["commit"],
             }
-        except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
-            raise ReleaseTrackerError(f"invalid Harmony provenance {path}: {error}") from error
+        except (UnicodeError, json.JSONDecodeError, KeyError, TypeError) as error:
+            raise ReleaseTrackerError(f"invalid Harmony provenance in {name}: {error}") from error
     try:
         fields = {}
-        for line in path.read_text(encoding="utf-8").splitlines():
+        for line in payload_bytes.decode("utf-8").splitlines():
             if "=" in line:
                 key, value = line.split("=", 1)
                 fields[key] = value
         return {"version": fields["delivery_version"], "commit": fields["git_commit_full"]}
-    except (OSError, KeyError) as error:
-        raise ReleaseTrackerError(f"invalid Android provenance {path}: {error}") from error
+    except (UnicodeError, KeyError) as error:
+        raise ReleaseTrackerError(f"invalid Android provenance in {name}: {error}") from error
+
+
+def _read_artifact_provenance(artifact_path: Path, platform: str) -> tuple[Dict[str, str], bytes]:
+    if not artifact_path.is_file() or artifact_path.suffix.lower() != ".zip":
+        raise ReleaseTrackerError("artifact must be an existing final ZIP")
+    suffix = "VERSION.txt" if platform == "android" else "docs/BUILD_PROVENANCE.json"
+    try:
+        with zipfile.ZipFile(artifact_path) as archive:
+            bad = archive.testzip()
+            if bad is not None:
+                raise ReleaseTrackerError(f"artifact ZIP CRC failed: {bad}")
+            matches = [name for name in archive.namelist() if name.endswith(f"/{suffix}")]
+            if len(matches) != 1:
+                raise ReleaseTrackerError(
+                    f"artifact must contain exactly one {suffix}, found {len(matches)}"
+                )
+            name = matches[0]
+            payload = archive.read(name)
+    except (OSError, zipfile.BadZipFile) as error:
+        raise ReleaseTrackerError(f"cannot read artifact ZIP {artifact_path}: {error}") from error
+    return _read_provenance(payload, name), payload
 
 
 def _history_lock_path(history_path: Path) -> Path:
@@ -261,8 +297,7 @@ def record_delivery(
     version: str,
     source_commit: str,
     delivered_at: str,
-    artifact: str,
-    provenance_path: Path,
+    artifact_path: Path,
 ) -> Dict[str, str]:
     if platform not in PLATFORMS:
         raise ReleaseTrackerError(f"unsupported platform: {platform}")
@@ -271,7 +306,8 @@ def record_delivery(
     if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", delivered_at):
         raise ReleaseTrackerError(f"delivered_at must be YYYY-MM-DD: {delivered_at}")
     resolved = resolve_commit(repo, source_commit)
-    provenance = _read_provenance(provenance_path)
+    artifact_path = artifact_path.resolve()
+    provenance, provenance_payload = _read_artifact_provenance(artifact_path, platform)
     if provenance["version"] != version:
         raise ReleaseTrackerError(
             f"provenance version {provenance['version']} does not match {version}"
@@ -281,16 +317,18 @@ def record_delivery(
         raise ReleaseTrackerError(
             f"provenance commit {provenance_commit} does not match {resolved}"
         )
-    if not artifact or Path(artifact).name != artifact:
-        raise ReleaseTrackerError("artifact must be a portable basename")
-    digest = hashlib.sha256(provenance_path.read_bytes()).hexdigest()
+    artifact = artifact_path.name
+    artifact_digest = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+    provenance_digest = hashlib.sha256(provenance_payload).hexdigest()
     entry = {
         "platform": platform,
         "version": version,
         "source_commit": resolved,
         "delivered_at": delivered_at,
         "artifact": artifact,
-        "provenance_sha256": digest,
+        "artifact_sha256": artifact_digest,
+        "artifact_size_bytes": artifact_path.stat().st_size,
+        "provenance_sha256": provenance_digest,
     }
     history_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path = _history_lock_path(history_path)
@@ -347,8 +385,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     record.add_argument("--version", required=True)
     record.add_argument("--source-commit", default="HEAD")
     record.add_argument("--delivered-at", required=True)
-    record.add_argument("--artifact", required=True)
-    record.add_argument("--provenance", type=Path, required=True)
+    record.add_argument("--artifact", type=Path, required=True)
 
     args = parser.parse_args(argv)
     repo = args.repo.resolve()
@@ -376,8 +413,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 version=args.version,
                 source_commit=args.source_commit,
                 delivered_at=args.delivered_at,
-                artifact=args.artifact,
-                provenance_path=args.provenance.resolve(),
+                artifact_path=args.artifact,
             )
             print(
                 f"[OK] recorded {entry['platform']} {entry['version']} "
