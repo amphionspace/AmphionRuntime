@@ -29,6 +29,7 @@ import json
 import sys
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 try:
     from cryptography.hazmat.primitives import hashes, serialization
@@ -65,6 +66,15 @@ def _read_device_hashes(device_file: str, salt_id: str) -> list[str]:
     ]
 
 
+def _device_hashes(device_ids: Sequence[str], salt_id: str) -> List[str]:
+    return [
+        hashlib.sha256(
+            f"{_normalize_device_id(device)}{salt_id}".encode("utf-8")
+        ).hexdigest().upper()
+        for device in device_ids
+    ]
+
+
 def _parse_features(raw: str) -> list[str]:
     allowed = {"ASR", "TTS"}
     features = [f.strip().upper() for f in raw.split(",") if f.strip()]
@@ -72,6 +82,63 @@ def _parse_features(raw: str) -> list[str]:
     if bad:
         sys.exit(f"--features 只允许 ASR,TTS：{','.join(bad)}")
     return features
+
+
+def create_license_envelope(
+    *,
+    private_key_path: Path,
+    password: Optional[str],
+    application_id: str,
+    bundle_name: str,
+    customer: str,
+    license_id: str,
+    cert_sha256: str,
+    device_ids: Sequence[str],
+    device_id_salt_id: str,
+    issued: str,
+    expires: str,
+    maintenance_until: str,
+    install_tier: str,
+    features: Sequence[str],
+    sdk_major: int,
+) -> Tuple[Dict[str, str], Dict[str, Any], bytes]:
+    """Create a signed license envelope without writing plaintext device IDs."""
+    normalized_features = _parse_features(",".join(features))
+    payload: Dict[str, Any] = {
+        "applicationId": application_id,
+        "bundleName": bundle_name,
+        "certSha256": cert_sha256,
+        "signingCertDigest": cert_sha256,
+        "customer": customer,
+        "deviceIdHashAlg": "SHA-256",
+        "deviceIdSaltId": device_id_salt_id,
+        "authorizedDeviceHashes": _device_hashes(device_ids, device_id_salt_id),
+        "expiresAt": expires,
+        "features": normalized_features,
+        "installTier": install_tier,
+        "issuedAt": issued,
+        "licenseId": license_id,
+        "maintenanceUntil": maintenance_until,
+        "sdkMajor": sdk_major,
+    }
+    payload_bytes = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    priv = serialization.load_pem_private_key(
+        private_key_path.read_bytes(),
+        password=password.encode("utf-8") if password else None,
+    )
+    if not isinstance(priv, ec.EllipticCurvePrivateKey):
+        raise ValueError("private key must be an EC key")
+    if not isinstance(priv.curve, ec.SECP256R1):
+        raise ValueError("private key must use ECDSA P-256")
+    signature = priv.sign(payload_bytes, ec.ECDSA(hashes.SHA256()))
+    envelope = {
+        "payload_b64": base64.b64encode(payload_bytes).decode("ascii"),
+        "alg": "SHA256withECDSA",
+        "sig_b64": base64.b64encode(signature).decode("ascii"),
+    }
+    return envelope, payload, payload_bytes
 
 
 def main() -> None:
@@ -112,44 +179,31 @@ def main() -> None:
     features = _parse_features(args.features)
     if args.device_id_file and not args.device_id_salt_id:
         sys.exit("--device-id-file 非空时必须提供 --device-id-salt-id")
-    device_hashes = _read_device_hashes(args.device_id_file, args.device_id_salt_id)
-
-    payload = {
-        "applicationId": args.application_id,
-        "bundleName": args.bundle_name,
-        "certSha256": args.cert_sha256,
-        "signingCertDigest": args.cert_sha256,
-        "customer": args.customer,
-        "deviceIdHashAlg": "SHA-256",
-        "deviceIdSaltId": args.device_id_salt_id,
-        "authorizedDeviceHashes": device_hashes,
-        "expiresAt": expires,
-        "features": features,
-        "installTier": args.install_tier,
-        "issuedAt": issued,
-        "licenseId": args.license_id,
-        "maintenanceUntil": maintenance_until,
-        "sdkMajor": args.sdk_major,
-    }
-    # 紧凑 + key 排序：确定性序列化（SDK 端不依赖此格式，仅为产物可复现 / 可 diff）
-    payload_bytes = json.dumps(
-        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-    ).encode("utf-8")
-
-    priv = serialization.load_pem_private_key(
-        Path(args.private_key).read_bytes(),
-        password=args.password.encode("utf-8") if args.password else None,
-    )
-    if not isinstance(priv, ec.EllipticCurvePrivateKey):
-        sys.exit("私钥不是 EC 密钥；请用 gen_keypair.py 生成的 P-256 私钥")
-
-    signature = priv.sign(payload_bytes, ec.ECDSA(hashes.SHA256()))
-
-    envelope = {
-        "payload_b64": base64.b64encode(payload_bytes).decode("ascii"),
-        "alg": "SHA256withECDSA",
-        "sig_b64": base64.b64encode(signature).decode("ascii"),
-    }
+    devices = [
+        _normalize_device_id(line)
+        for line in Path(args.device_id_file).read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ] if args.device_id_file else []
+    try:
+        envelope, payload, _ = create_license_envelope(
+            private_key_path=Path(args.private_key),
+            password=args.password,
+            application_id=args.application_id,
+            bundle_name=args.bundle_name,
+            customer=args.customer,
+            license_id=args.license_id,
+            cert_sha256=args.cert_sha256,
+            device_ids=devices,
+            device_id_salt_id=args.device_id_salt_id,
+            issued=issued,
+            expires=expires,
+            maintenance_until=maintenance_until,
+            install_tier=args.install_tier,
+            features=features,
+            sdk_major=args.sdk_major,
+        )
+    except ValueError as error:
+        sys.exit(f"私钥不是 EC 密钥：{error}")
 
     out = Path(args.out or (f"{args.application_id}.lic" if args.application_id else "amphion-license.lic"))
     out.write_text(json.dumps(envelope, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -160,7 +214,7 @@ def main() -> None:
     print(f"     customer      = {args.customer}")
     print(f"     expiresAt     = {expires or '(永久)'}")
     print(f"     maintenance   = {maintenance_until or '(不限制)'}")
-    print(f"     deviceHashes  = {len(device_hashes)}")
+    print(f"     deviceHashes  = {len(payload['authorizedDeviceHashes'])}")
     print(f"     installTier   = {args.install_tier}")
     print(f"     features      = {','.join(features) or '(无)'}")
     print("     交付给业务方放进 app 的 assets/（默认文件名 amphion-license.lic）。")
