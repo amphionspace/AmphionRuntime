@@ -6,7 +6,7 @@
 - MINOR：新增公开 API 但保持向后兼容
 - PATCH：仅 bug 修复，公开 API 与行为不变
 
-## [Unreleased]
+## [0.3.3] - 2026-07-30
 
 新增
 
