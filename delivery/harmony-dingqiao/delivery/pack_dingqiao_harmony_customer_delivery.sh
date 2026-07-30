@@ -5,7 +5,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-VERSION="${AMPHION_RUNTIME_VERSION:-0.2.8}"
+VERSION="${AMPHION_RUNTIME_VERSION:-0.2.9}"
 FINAL_OUT_ROOT=""
 ASR_ONLY=false
 SDK_ONLY=false
@@ -75,6 +75,8 @@ RELEASE_INPUTS=(
   delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py
   delivery/harmony-dingqiao/delivery/verify_dingqiao_model_md5.py
   delivery/harmony-dingqiao/delivery/verify_selfcontained_dingqiao_har.sh
+  delivery/asr-sdk-release-history.json
+  tools/delivery/asr_release_tracker.py
   delivery/harmony-dingqiao/docs/customer/LICENSE.md
   delivery/harmony-dingqiao/docs/customer/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md
   delivery/harmony-dingqiao/docs/customer/ASR_LIFECYCLE_ASSURANCE_20260716.md
@@ -267,19 +269,13 @@ cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/NOTICE" "$OUT_ROOT/doc
 mkdir -p "$OUT_ROOT/docs/third-party"
 cp -v "$REPO_ROOT/LICENSE" "$OUT_ROOT/docs/third-party/Apache-2.0.txt"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/PRIVACY.md" "$OUT_ROOT/docs/"
-python3 - "$OUT_ROOT/docs/CHANGELOG.md" "$VERSION" <<'PY'
-import sys
-from pathlib import Path
-
-Path(sys.argv[1]).write_text(f"""# Change log
-
-## {sys.argv[2]}
-
-- Deliver the HarmonyOS zh-en offline ASR SDK with the existing public compatibility API.
-- Exclude industry-specific preset hotwords, resources, and text post-processing.
-- Include an ASR-only four-calendar-month evaluation license without app, certificate, or device binding.
-""", encoding="utf-8")
-PY
+python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
+  --repo "$REPO_ROOT" \
+  changelog \
+  --platform harmony \
+  --version "$VERSION" \
+  --source-commit HEAD \
+  --output "$OUT_ROOT/docs/CHANGELOG.md"
 
 if [[ "$SDK_ONLY" == true ]]; then
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_INTEGRATION.md" \
