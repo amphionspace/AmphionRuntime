@@ -85,6 +85,7 @@ start.audioInfo.sampleBit = 16;
 start.audioInfo.soundChannel = 1;
 start.extraParams = {
   enablePartialResult: true,
+  enablePoliceEnhancement: true,
   vadBegin: 1000,
   vadEnd: 1000
 };
@@ -99,6 +100,9 @@ engine.finish(start.sessionId);
 `maxAudioDuration` 缺省、非正数、非有限或不可解析时不启用自动上限；显式正有限值按调用值
 生效，并限制在不超过 28,800,000 ms。显式配置并命中 `vadBegin` 或 `maxAudioDuration`
 时，SDK 才允许自动结束。
+
+`enablePoliceEnhancement` 是会话级布尔参数，默认 `true`。显式传 `false` 时 final 返回原始
+ASR 文本，不执行警务术语、车牌和派出所归一化；不会触发引擎重建，也不改变生命周期回调顺序。
 
 ## 6. 生命周期契约
 
