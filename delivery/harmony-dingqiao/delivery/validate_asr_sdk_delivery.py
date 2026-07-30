@@ -15,6 +15,10 @@ import tarfile
 
 
 MODEL_MD5_POLICY_PATH = Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
+RUNTIME_IDENTITY_SOURCE_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts"
+)
 PINNED_MODEL_ONNX_SOURCES = {
     "decoder.onnx",
     "encoder.int8.onnx",
@@ -80,6 +84,27 @@ HAR_TEXT_PATTERNS = (
 
 class DeliveryValidationError(RuntimeError):
     pass
+
+
+def _load_expected_runtime_identity() -> dict[str, str]:
+    try:
+        source = RUNTIME_IDENTITY_SOURCE_PATH.read_text(encoding="utf-8")
+    except OSError as error:
+        raise DeliveryValidationError(
+            f"cannot read runtime identity source: {RUNTIME_IDENTITY_SOURCE_PATH}"
+        ) from error
+    patterns = {
+        "version": r"HARMONY_SDK_VERSION: string = '([^']+)'",
+        "major": r"HARMONY_SDK_MAJOR: number = ([0-9]+)",
+        "release_date": r"HARMONY_SDK_RELEASE_DATE: string = '([0-9]{4}-[0-9]{2}-[0-9]{2})'",
+    }
+    identity: dict[str, str] = {}
+    for field, pattern in patterns.items():
+        match = re.search(pattern, source)
+        if match is None:
+            raise DeliveryValidationError(f"runtime identity source is missing {field}")
+        identity[field] = match.group(1)
+    return identity
 
 
 def sha256(path: Path) -> str:
@@ -249,7 +274,10 @@ def _validate_member_policy(archive: tarfile.TarFile) -> set[str]:
 
 
 def _validate_har(
-    root: Path, expected_version: str, expected_model_md5: dict[str, str]
+    root: Path,
+    expected_version: str,
+    expected_model_md5: dict[str, str],
+    expected_identity: dict[str, str],
 ) -> dict:
     har_path = root / "har/amphion_dingqiao.har"
     try:
@@ -326,12 +354,12 @@ def _validate_har(
                 f"police enhancement asset file set mismatch: {detail}"
             )
         identity = _read_tar_bytes(archive, RUNTIME_IDENTITY_PATH).decode("utf-8")
-        expected_identity = (
+        expected_identity_tokens = (
             f"HARMONY_SDK_VERSION: string = '{expected_version}'",
-            "HARMONY_SDK_MAJOR: number = 1",
-            "HARMONY_SDK_RELEASE_DATE: string = '2026-07-18'",
+            f"HARMONY_SDK_MAJOR: number = {expected_identity['major']}",
+            f"HARMONY_SDK_RELEASE_DATE: string = '{expected_identity['release_date']}'",
         )
-        if any(value not in identity for value in expected_identity):
+        if any(value not in identity for value in expected_identity_tokens):
             raise DeliveryValidationError("HAR runtime identity does not match release")
 
         manifest_payload = _read_tar_bytes(archive, MODEL_MANIFEST_PATH)
@@ -538,10 +566,17 @@ def validate_delivery(
 ) -> None:
     if expected_model_md5 is None:
         expected_model_md5 = _load_pinned_model_md5()
+    expected_identity = _load_expected_runtime_identity()
+    if expected_identity["version"] != expected_version:
+        raise DeliveryValidationError(
+            f"runtime identity source version {expected_identity['version']} != {expected_version}"
+        )
     _validate_layout(root)
     _validate_checksums(root)
     _validate_license(root)
-    har_evidence = _validate_har(root, expected_version, expected_model_md5)
+    har_evidence = _validate_har(
+        root, expected_version, expected_model_md5, expected_identity
+    )
     _validate_provenance(root, expected_version, har_evidence)
     _validate_documents(root)
 

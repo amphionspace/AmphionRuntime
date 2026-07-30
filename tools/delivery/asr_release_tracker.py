@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -17,14 +20,39 @@ SCHEMA_VERSION = 1
 PLATFORMS = {"android": "Android", "harmony": "HarmonyOS"}
 COMMON_SOURCE_PREFIXES = (
     "asr/common/",
-    "asr/tools/",
     "shared/",
     "third_party/patches/sherpa-amphion/",
     "tools/delivery/",
 )
 PLATFORM_SOURCE_PREFIXES = {
-    "android": ("asr/android/",),
-    "harmony": ("asr/harmony/", "delivery/harmony-dingqiao/"),
+    "android": (
+        "asr/android/",
+        "asr/tools/delivery/",
+        "asr/tools/04_build_android_so.sh",
+        "asr/tools/05_package_aar_libs.sh",
+        "asr/tools/08_pack_sdk_assets.sh",
+        "asr/tools/requirements-android-ort.txt",
+        "asr/tools/license/issue_android_asr_eval.sh",
+        "asr/tools/verify_packed_model_assets.py",
+        "asr/tools/tests/test_verify_packed_model_assets.py",
+    ),
+    "harmony": (
+        "asr/harmony/",
+        "delivery/harmony-dingqiao/",
+        "asr/tools/demo-model/",
+        "asr/tools/04_build_harmony_so.sh",
+        "asr/tools/05_package_har_libs.sh",
+        "asr/tools/08_pack_harmony_assets.sh",
+        "asr/tools/build_harmony_asset_manifest.py",
+        "asr/tools/convert_harmony_ort.py",
+        "asr/tools/requirements-harmony-ort.txt",
+        "asr/tools/sync_harmony_police_assets.py",
+        "asr/tools/test_harmony_police_parity.py",
+        "asr/tools/tests/test_build_harmony_asset_manifest.py",
+        "asr/tools/tests/test_convert_harmony_ort.py",
+        "asr/tools/tests/test_harmony_",
+        "asr/tools/license/issue_harmony_asr_eval.sh",
+    ),
 }
 SEMVER = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 FULL_COMMIT = re.compile(r"^[0-9a-f]{40}$")
@@ -216,6 +244,11 @@ def _read_provenance(path: Path) -> Dict[str, str]:
         raise ReleaseTrackerError(f"invalid Android provenance {path}: {error}") from error
 
 
+def _history_lock_path(history_path: Path) -> Path:
+    identity = hashlib.sha256(str(history_path.resolve()).encode("utf-8")).hexdigest()
+    return Path(tempfile.gettempdir()) / f"amphion-asr-release-history-{identity}.lock"
+
+
 def record_delivery(
     *,
     repo: Path,
@@ -227,18 +260,12 @@ def record_delivery(
     artifact: str,
     provenance_path: Path,
 ) -> Dict[str, str]:
-    history = load_history(history_path)
     if platform not in PLATFORMS:
         raise ReleaseTrackerError(f"unsupported platform: {platform}")
     if not SEMVER.fullmatch(version):
         raise ReleaseTrackerError(f"version must be SemVer MAJOR.MINOR.PATCH: {version}")
     if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", delivered_at):
         raise ReleaseTrackerError(f"delivered_at must be YYYY-MM-DD: {delivered_at}")
-    if any(
-        entry["platform"] == platform and entry["version"] == version
-        for entry in history["deliveries"]
-    ):
-        raise ReleaseTrackerError(f"{platform} {version} is already recorded")
     resolved = resolve_commit(repo, source_commit)
     provenance = _read_provenance(provenance_path)
     if provenance["version"] != version:
@@ -261,13 +288,37 @@ def record_delivery(
         "artifact": artifact,
         "provenance_sha256": digest,
     }
-    history["deliveries"].append(entry)
     history_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = history_path.with_suffix(history_path.suffix + ".tmp")
-    temporary.write_text(
-        json.dumps(history, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
-    temporary.replace(history_path)
+    lock_path = _history_lock_path(history_path)
+    with lock_path.open("a+") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        history = load_history(history_path)
+        if any(
+            delivery["platform"] == platform and delivery["version"] == version
+            for delivery in history["deliveries"]
+        ):
+            raise ReleaseTrackerError(f"{platform} {version} is already recorded")
+        history["deliveries"].append(entry)
+        temporary_path: Optional[Path] = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=history_path.parent,
+                prefix=f".{history_path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as temporary:
+                temporary_path = Path(temporary.name)
+                json.dump(history, temporary, ensure_ascii=False, indent=2)
+                temporary.write("\n")
+                temporary.flush()
+                os.fsync(temporary.fileno())
+            os.replace(temporary_path, history_path)
+            temporary_path = None
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
     return entry
 
 
