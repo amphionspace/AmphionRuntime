@@ -20,6 +20,7 @@ JAVA_BIN="${JAVA_HOME:+$JAVA_HOME/bin/java}"
 JAVA_BIN="${JAVA_BIN:-$DEVECO_HOME/jbr/Contents/Home/bin/java}"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
 VERIFY_DIR=""
+ZH_EN_ONLY=false
 
 usage() {
   cat <<'EOF'
@@ -31,6 +32,7 @@ Options:
   --device-id-file PATH  Authorized device identifiers, one per line.
   --private-key PATH     Optional private key; verifies it matches the embedded public key.
   --signing-config PATH  Expected signing config; required with --hap, defaults to .secure.
+  --zh-en-only            Verify a ZH_EN-only model payload.
   -h, --help             Show this help.
 EOF
 }
@@ -42,6 +44,7 @@ while [[ $# -gt 0 ]]; do
     --device-id-file) DEVICE_ID_FILE="$2"; shift 2 ;;
     --private-key) PRIVATE_KEY="$2"; shift 2 ;;
     --signing-config) SIGNING_CONFIG="$2"; shift 2 ;;
+    --zh-en-only) ZH_EN_ONLY=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -69,7 +72,11 @@ PYTHON="$LICENSE_VENV/bin/python"
 require_file "$LICENSE_FILE"
 
 "$PYTHON" "$REPO_ROOT/asr/tools/sync_harmony_police_assets.py" --check
-"$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --root "$MODEL_ROOT"
+MODEL_VERIFY_ARGS=(--root "$MODEL_ROOT")
+if [[ "$ZH_EN_ONLY" == true ]]; then
+  MODEL_VERIFY_ARGS+=(--zh-en-only)
+fi
+"$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${MODEL_VERIFY_ARGS[@]}"
 "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --root "$MODEL_ROOT"
 
 "$PYTHON" - "$REPO_ROOT" <<'PY'
@@ -165,7 +172,11 @@ if [[ -n "$HAP" ]]; then
     exit 1
   fi
 
-  "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --archive "$HAP"
+  ARCHIVE_VERIFY_ARGS=(--archive "$HAP")
+  if [[ "$ZH_EN_ONLY" == true ]]; then
+    ARCHIVE_VERIFY_ARGS+=(--zh-en-only)
+  fi
+  "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${ARCHIVE_VERIFY_ARGS[@]}"
   "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --archive "$HAP"
   "$PYTHON" - \
     "$HAP" \
@@ -177,7 +188,8 @@ if [[ -n "$HAP" ]]; then
     "$POLICE_ROOT" \
     "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx" \
     "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
-    "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" <<'PY'
+    "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
+    "$ZH_EN_ONLY" <<'PY'
 import json
 import hashlib
 import sys
@@ -194,6 +206,7 @@ police_root = Path(sys.argv[7])
 local_voiceprint = Path(sys.argv[8])
 local_sherpa = Path(sys.argv[9])
 local_ort = Path(sys.argv[10])
+zh_en_only = sys.argv[11] == "true"
 required = {
     "libs/arm64-v8a/libamphion_asr.so",
     "libs/arm64-v8a/libonnxruntime.so",
@@ -215,13 +228,14 @@ with zipfile.ZipFile(hap) as package:
         raise SystemExit("[ERROR] HAP model manifest differs from the verified local manifest")
     if package.read("resources/rawfile/amphion-dingqiao/eres2net.onnx") != local_voiceprint.read_bytes():
         raise SystemExit("[ERROR] HAP voiceprint model differs from the verified SDK asset")
-    police_manifest = json.loads((police_root / "manifest.json").read_text(encoding="utf-8"))
-    for relative, expected_sha256 in police_manifest["files"].items():
-        member = f"resources/rawfile/amphion-police/{relative}"
-        if member not in names:
-            raise SystemExit(f"[ERROR] HAP missing police asset: {member}")
-        if hashlib.sha256(package.read(member)).hexdigest() != expected_sha256:
-            raise SystemExit(f"[ERROR] HAP police asset differs from Android source: {member}")
+    if not zh_en_only:
+        police_manifest = json.loads((police_root / "manifest.json").read_text(encoding="utf-8"))
+        for relative, expected_sha256 in police_manifest["files"].items():
+            member = f"resources/rawfile/amphion-police/{relative}"
+            if member not in names:
+                raise SystemExit(f"[ERROR] HAP missing police asset: {member}")
+            if hashlib.sha256(package.read(member)).hexdigest() != expected_sha256:
+                raise SystemExit(f"[ERROR] HAP police asset differs from Android source: {member}")
     if package.read("libs/arm64-v8a/libsherpa-onnx-c-api.so") != local_sherpa.read_bytes():
         raise SystemExit("[ERROR] HAP sherpa native library differs from the verified local library")
     if package.read("libs/arm64-v8a/libonnxruntime.so") != local_ort.read_bytes():

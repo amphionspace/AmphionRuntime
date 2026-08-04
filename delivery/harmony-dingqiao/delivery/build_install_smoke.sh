@@ -23,6 +23,7 @@ ABILITY="EntryAbility"
 DEVICE=""
 TIMEOUT_SECONDS=30
 SKIP_BUILD=false
+ZH_EN_ONLY=false
 SMOKE_DIR="$PROJECT_ROOT/build/smoke"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
@@ -38,6 +39,7 @@ Options:
   --device SERIAL   HDC target. Auto-detected when exactly one device is connected.
   --timeout SEC     Engine-ready timeout; default 30 seconds.
   --skip-build      Reuse the existing signed HAP.
+  --zh-en-only      Verify and build the current USB carrier without unrelated Yue-English assets.
   --signing-config  Local signing material JSON; defaults to .secure/harmony-signing.json.
   -h, --help        Show this help.
 EOF
@@ -48,6 +50,7 @@ while [[ $# -gt 0 ]]; do
     --device) DEVICE="$2"; shift 2 ;;
     --timeout) TIMEOUT_SECONDS="$2"; shift 2 ;;
     --skip-build) SKIP_BUILD=true; shift ;;
+    --zh-en-only) ZH_EN_ONLY=true; shift ;;
     --signing-config) SIGNING_CONFIG="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -331,7 +334,11 @@ PY
 }
 
 ensure_demo_license
-"$SCRIPT_DIR/verify_demo_inputs.sh"
+VERIFY_SCOPE_ARGS=()
+if [[ "$ZH_EN_ONLY" == true ]]; then
+  VERIFY_SCOPE_ARGS+=(--zh-en-only)
+fi
+"$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_SCOPE_ARGS[@]}"
 
 if [[ -z "$SIGNING_CONFIG" && -f "$REPO_ROOT/.secure/harmony-signing.json" ]]; then
   SIGNING_CONFIG="$REPO_ROOT/.secure/harmony-signing.json"
@@ -364,7 +371,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
       --no-daemon --stacktrace; then
       exit 1
     fi
-    for har_module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
+    for har_module in sherpa_onnx amphion_asr amphion_dingqiao; do
       if ! "$NODE" "$HVIGOR" assembleHar --mode module \
         -p product=default \
         -p module="${har_module}@default" \
@@ -379,14 +386,12 @@ if [[ "$SKIP_BUILD" != true ]]; then
   fi
   resolve_built_hap
   "$SCRIPT_DIR/verify_demo_inputs.sh" \
+    "${VERIFY_SCOPE_ARGS[@]}" \
     --hap "$BUILD_HAP" \
     --signing-config "$SIGNING_CONFIG"
   publish_har \
     "$BUILD_WORKSPACE/repo/asr/harmony/sdk/build/default/outputs/default" \
     "$REPO_ROOT/asr/harmony/sdk/build/default/outputs/default"
-  publish_har \
-    "$BUILD_WORKSPACE/repo/asr/harmony/sdk-police/build/default/outputs/default" \
-    "$REPO_ROOT/asr/harmony/sdk-police/build/default/outputs/default"
   publish_har \
     "$BUILD_WORKSPACE/repo/asr/harmony/sdk-dingqiao/build/default/outputs/default" \
     "$REPO_ROOT/asr/harmony/sdk-dingqiao/build/default/outputs/default"
@@ -398,11 +403,16 @@ if [[ "$SKIP_BUILD" != true ]]; then
   cp "$BUILD_HAP" "$TEMP_HAP_COPY"
   mv -f "$TEMP_HAP_COPY" "$HAP"
   TEMP_HAP_COPY=""
-  python3 "$SCRIPT_DIR/harmony_build_identity.py" --write "$BUILD_IDENTITY"
+  IDENTITY_ARGS=(--write "$BUILD_IDENTITY")
+  if [[ "$ZH_EN_ONLY" == true ]]; then
+    IDENTITY_ARGS+=(--zh-en-only)
+  fi
+  python3 "$SCRIPT_DIR/harmony_build_identity.py" "${IDENTITY_ARGS[@]}"
   echo "[OK] HAP build succeeded"
 fi
 
 VERIFY_ARGS=(--hap "$HAP")
+VERIFY_ARGS+=("${VERIFY_SCOPE_ARGS[@]}")
 if [[ -n "$SIGNING_CONFIG" ]]; then
   VERIFY_ARGS+=(--signing-config "$SIGNING_CONFIG")
 fi

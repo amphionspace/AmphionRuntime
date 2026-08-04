@@ -1,5 +1,11 @@
 # 声纹模型 A/B 与训练路线（2026-07-28）
 
+> 2026-08-04 范围校正：本文只规划轨 A“已切好单人 final 的 speaker verification”模型与 scorer。
+> 客户 C1 的轮流讲话尾音、C2/C3 的重叠 target-only ASR 分别属于 endpoint/缓冲和目标语音提取问题，
+> 见 [客户样例证据](VOICEPRINT_CUSTOMER_CASE_EVIDENCE_20260804.md) 与
+> [下一阶段路线图](VOICEPRINT_NEXT_STEP_MAP_20260804.md)。在真实设备非重叠基线证明 verification
+> 是主瓶颈前，T2 不再是整个机主识别问题的默认下一步。
+
 ## 决策摘要
 
 继续使用当前 `ERes2Net-base 3D-Speaker` 作为端侧 baseline。三款可直接加载的中文预训练候选均未在
@@ -147,9 +153,14 @@ training recipe。若引入官方 3D-Speaker 或 WeSpeaker，需要新增 PyTorc
 ## 下一实验
 
 在当前“仅本机合成数据”范围内，三段 enrollment 已作为默认配置收口，不继续调 DPDFNet、全局阈值
-或规则型质量救援。如果继续优化，下一实验应单独启动 T2 pilot：使用 source/speaker-disjoint 的
-train/dev/holdout、clean anchor 与合成交通噪声一致性约束，按固定 clean FAR 比较 traffic FRR，
-并验证 ONNX 导出前后分数一致。已经参与本轮决策的 AISHELL-2、KeSpeech 条件不得再标为 blind。
+或规则型质量救援。下一项不是立即启动 T2，而是按
+[机主识别下一阶段路线图](VOICEPRINT_NEXT_STEP_MAP_20260804.md) 完成 target-only 契约和 C1～C3
+同设备基线，判断主失败层属于 verification、endpoint/尾音，还是 overlap 架构缺失。
+
+只有真实设备、非重叠、跨 session 结果在受保护 clean FAR 下仍显示 verification FRR/actual DCF 是
+主瓶颈，才独立启动 T2 pilot：使用 source/speaker/session-disjoint 的 train/dev/holdout、clean anchor
+与合成/真实交通退化一致性约束，按固定 clean FAR/coverage 比较 traffic FRR，并验证 checkpoint、
+ONNX、Android 与 Harmony 分数一致。已经参与本轮决策的 AISHELL-2、KeSpeech 条件不得再标为 blind。
 
 ## 实验资产
 

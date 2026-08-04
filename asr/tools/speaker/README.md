@@ -29,6 +29,7 @@ asr/tools/speaker/
 ├── 09_eval_threshold_stability.py  speaker-cluster bootstrap 阈值稳定性诊断
 ├── 10_eval_convtasnet_frontend.py  冻结 trial 的 Conv-TasNet → ERes2Net paired A/B
 ├── 11_eval_convtasnet_ablations.py 拆分 8 kHz 带宽与两人分离任务匹配的消融
+├── 12_eval_overlap_rescue.py       Linux CPU 复验固定 2 秒 Conv-TasNet 选流/拼接/ASR 全链路
 ├── ts_asr/
 │   ├── __init__.py
 │   ├── core.py                     调研文档第 5 节 5 段骨架函数
@@ -220,6 +221,14 @@ python asr/tools/speaker/07_eval_voiceprint_verification.py \
 
 跨语料复验时，使用 `--fixed-threshold <dev 阈值>` 固定前一语料 dev 选择的工作点；
 当前语料的 EER 只作为诊断，不能反过来改部署阈值。
+
+### 9. 在 Linux 复验重叠语音 rescue
+
+`12_eval_overlap_rescue.py` 复刻 Mate 80 pilot 的平台无关部分：固定 2 秒 Conv-TasNet、0.5 秒交叠、
+每块两路 ERes2Net 选流、cosine crossfade、ZH_EN ASR 重识别、target-only/other-only、RTF 与配对 RSS
+门。先跑 `--mode baseline`，再用 `--mode full --baseline-report ...`；模型和音频只传路径并记录哈希，
+不得提交仓库。完整目录约定、命令和判定规则见
+[Conv-TasNet Linux 服务器复验](../../../docs/speaker/CONVTASNET_LINUX_REPRODUCTION.md)。
 
 可用 `--denoiser-model <dpdfnet.onnx>` 做前端降噪 A/B；`--denoiser-scope all` 同时处理
 enrollment/probe（默认），`probe` 只处理 probe。当前中型 paired 结果中，不降噪在

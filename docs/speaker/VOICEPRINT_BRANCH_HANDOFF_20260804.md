@@ -14,6 +14,19 @@
 - 低信噪比主要表现为 target score 下移。下调全局阈值虽能降低 FRR，但会提高 clean 或跨语料 FAR。
 - Android/Harmony 评分选择要求 ASR 已有非空 text/token 语音证据；证据或真实 PCM 时长不足时保留
   识别结果并省略 `speakerSimilarity`，不填充、复制或补静音制造分数。
+- 2026-07-29 客户 C1～C3 真实回放样例把下一阶段拆成两类不同问题：C1 是轮流讲话时 Speaker VAD
+  决策延迟内的尾音泄漏；C2/C3 是单通道重叠语音的目标内容提取。现有句级 verification 优化不能
+  回答“哪些字属于机主”，不得把 embedding fine-tuning 作为三类问题共同的默认下一步。
+- 2026-08-04 已在 Harmony 真机 `7GK…5655` 上用 `origin/main@1ca9108`、SDK `0.2.9`、唯一 `ZH_EN`
+  HAP 和实时 20 ms 喂入复现：`1500/500 ms` 基线为 C1/C2/C3 全失败；`1000/300 ms` 只让 C1 满足
+  “含上海、无你好”，C2/C3 仍失败。诊断 HAP 已移除，设备恢复为无 debug 标记的 0.2.9 交付 HAP。
+- WeSep TSE、RE-SepFormer 与 Conv-TasNet 两路分离都在主机离线让 C1/C2/C3 逐条通过严格文本门。
+  固定 2 秒 Conv-TasNet ONNX 为 20.15 MB，桌面 ORT 1.16.3 中位 RTF 0.0583，是唯一值得进入 Mate 80
+  真机资源 pilot 的无训练候选；它仍受非因果 2 秒 look-ahead、target-absent 和 CC BY-SA 许可约束。
+- 固定 2 秒 Conv-TasNet 已在 Mate 80 完成异步全链路：C1～C3、target-only/other-only、p95 RTF、
+  同产物 RSS 基线和 ASR 生命周期门均通过；短期定位为高端机离线 opt-in pilot，不是默认实时能力。
+  Linux 同口径复验入口为 `asr/tools/speaker/12_eval_overlap_rescue.py`，只覆盖算法/资源门，不替代
+  Harmony `isLast/onComplete/cancel`。
 
 ## 已冻结决策
 
@@ -51,6 +64,18 @@
   session 关联诊断；诊断不包含文本、声纹 ID 或音频内容。
 - `docs/speaker/VOICEPRINT_PILOT_PROGRESS_20260728.md`：完整实验进展、指标和限制。
 - `docs/speaker/VOICEPRINT_MODEL_AND_TRAINING_PLAN_20260728.md`：模型 A/B 与后续训练门禁。
+- `docs/speaker/VOICEPRINT_CUSTOMER_CASE_EVIDENCE_20260804.md`：C1～C3 固定症状、离线复算、阈值
+  无解证明和仍缺的真机时间线。
+- `docs/speaker/VOICEPRINT_NEXT_STEP_MAP_20260804.md`：下一阶段路线图、决策前沿、阻塞关系和停止条件。
+- `docs/speaker/TARGET_SPEAKER_EXTRACTION_RESEARCH_20260804.md`：2026 年公开 TSE 权重、一手来源、许可和
+  Go/No-Go 矩阵。
+- `docs/speaker/VOICEPRINT_OVERLAP_FRONTEND_EXPERIMENT_20260804.md`：WeSep/RE-SepFormer/Conv-TasNet
+  逐例文本、声纹分数、RTF/RSS、模型哈希、ONNX parity 与停止理由。
+- `docs/speaker/SHORT_TERM_EDGE_FRONTEND_DECISION_20260804.md`：当前真机预算、候选分级、短期接入形态和
+  下一轮真机停止条件。
+- `docs/speaker/CONVTASNET_HARMONY_FULL_CHAIN_20260804.md`：C1～C3 全链路、负向门、资源基线、评分 A/B
+  和实验后恢复证据。
+- `docs/speaker/CONVTASNET_LINUX_REPRODUCTION.md`：Linux 配对基线/完整链路命令、输入约定和回传清单。
 - `asr/tools/speaker/README.md`：工具使用与推荐配置。
 
 实验目录位于 `asr/tools/speaker/results/voiceprint_pilot_*`，按仓库规则忽略，不提交 Git。每个正式目录
@@ -75,7 +100,8 @@ cd asr/android
 ```
 
 Harmony 命令行构建和自包含 HAR 验证所需的 `asr/harmony/hvigor/hvigor-config.json5` 已纳入仓库。
-此前 Linux 正式工具链和干净宿主编译通过，但没有签名或连接 Harmony 真机，不能写成真机验收通过。
+2026-08-04 已完成签名 HAP 构建、安装和 C1～C3 真机回放；这证明当前 USB 设备上的调用链和回调证据，
+不等于完成全部发布真机矩阵或证明离线 TSE 候选可在 Harmony 运行。
 
 2026-08-04 提交前复跑：声纹评测工具 23 项、Harmony 声纹评分/PCM 缓冲 28 项、初始静音/
 final 生命周期/交付压力工具 28 项通过，脚本语法、Python 编译和 `git diff --check` 通过。本次容器
@@ -85,10 +111,18 @@ final 生命周期/交付压力工具 28 项通过，脚本语法、Python 编�
 ## 剩余工作、风险和建议流程
 
 - 本阶段不再继续调 DPDFNet、全局阈值或规则型质量救援；重复同类合成 A/B 不会改变当前选择。
-- 若继续限定本机合成数据，下一项应独立启动 embedding fine-tuning：使用 clean anchor、交通噪声、
-  混响、距离、codec 和短语音增强，并严格隔离 source/speaker 的 train/dev/holdout。
-- 成功门必须在固定 clean FAR 下比较 traffic FRR，并保护短时、低音量、方言和 ASR gated CER；
-  还要验证 checkpoint 与 ONNX 导出分数一致。已参与本轮决策的 AISHELL-2/KeSpeech 不得再称 blind。
+- C1～C3 当前 0.2.9 真机基线和严格业务红灯已经捕获；下一步先冻结 target-only 产品契约，并补齐
+  带 target/other 独立源、对齐文本、enrollment 和受控 SIR/SNR 的中文真实域小集。
+- C1 优先比较当前参数上限与“缓冲提交 + 尾部回退/重解码”，同时保护 partial、目标连续语音、
+  分帧无关和 final/last 生命周期。
+- C2/C3 的固定 2 秒 Conv-TasNet 真机 pilot 已过第一资源/内容/生命周期门。下一门是在 Linux 和真机补
+  30 轮、超过 60 秒的稳压，并用不少于 20 个非注册身份做开放集阈值复验；许可不合适则回退到
+  Apache-2.0 RE-SepFormer 高端机 PoC。
+- 长期下一实现候选仍应是 `<30 MB`、额外 RSS `<150 MB`、有界 look-ahead 的中文真实域 causal TSE，
+  主门为 target CER/WER 与 non-target lexical leakage。
+- embedding fine-tuning 改为条件分支：只有真实设备非重叠基线证明在受保护 clean FAR 下 verification
+  FRR/DCF 仍是主瓶颈时才启动。若启动，仍须使用 clean anchor、交通噪声、混响、距离、codec 和
+  短语音增强，严格隔离 source/speaker/session，并验证 checkpoint/ONNX/platform score parity。
 - overlap、反欺骗和声纹分数可选性的生命周期门禁继续独立验收，不用 verification 精度互相替代。
-- 建议下一阶段先使用 `plan` 固化 fine-tuning 数据切分、损失函数、资源预算和停止条件，再用
-  `implement` 落地训练与导出链路。
+- 具体票据、阻塞关系和退出条件见 `docs/speaker/VOICEPRINT_NEXT_STEP_MAP_20260804.md`；每次只推进
+  一个已解除阻塞的决策，不在路线尚未冻结时直接开始生产实现或完整发布矩阵。
