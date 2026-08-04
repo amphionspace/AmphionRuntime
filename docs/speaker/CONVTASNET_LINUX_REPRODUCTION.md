@@ -1,5 +1,9 @@
 # Conv-TasNet 全链路 Linux 服务器复验
 
+> 本文给出 exact 16 kHz 配对复验的执行命令。为什么既有 8 kHz WHAM 实验并非错误、下一轮怎样扩展到
+> 开放集、应如何解释结果和何时停止，见
+> [`CONVTASNET_LINUX_NEXT_EXPERIMENT_20260804.md`](CONVTASNET_LINUX_NEXT_EXPERIMENT_20260804.md)。
+
 ## 1. 复验目标
 
 Linux 复验与 Mate 80 真机使用同一组平台无关断言：
