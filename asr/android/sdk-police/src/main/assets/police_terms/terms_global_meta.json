@@ -1,7 +1,7 @@
 {
   "source_csv": "/Users/amphion/Desktop/work/projects/鼎桥/AmphionRuntime/asr/android/sdk-police/src/main/assets/police_terms/term_homophones.csv",
   "scope": "global",
-  "pair_count": 428,
+  "pair_count": 453,
   "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_terms_fst_experiment/output/terms_global.fst",
   "phase": "p0",
   "note": "gazetteer longest-match stays in host (scheme A); sequential cdrewrite compose",
@@ -147,6 +147,10 @@
       "to": "用WeCom向"
     },
     {
+      "from": "用Weconmm向",
+      "to": "用WeCom向"
+    },
+    {
       "from": "我已到岗，帮我打开",
       "to": "我已到岗，帮我打卡"
     },
@@ -177,6 +181,10 @@
     {
       "from": "查检车牌号川A F",
       "to": "查检车牌号：川A F"
+    },
+    {
+      "from": "处理完了，把我反馈",
+      "to": "处理完了，帮我反馈"
     },
     {
       "from": "请尽快签收。简单",
@@ -223,6 +231,18 @@
       "to": "用WeCom向"
     },
     {
+      "from": "用WeComm向",
+      "to": "用WeCom向"
+    },
+    {
+      "from": "Weconmm向",
+      "to": "WeCom向"
+    },
+    {
+      "from": "WeConmm向",
+      "to": "WeCom向"
+    },
+    {
       "from": "WE SPACE",
       "to": "WeSpace"
     },
@@ -237,6 +257,14 @@
     {
       "from": "我已到场帮我反馈",
       "to": "我已到场，帮我反馈"
+    },
+    {
+      "from": "为到场，帮我反馈",
+      "to": "我已到场，帮我反馈"
+    },
+    {
+      "from": "处理完了把我反馈",
+      "to": "处理完了帮我反馈"
     },
     {
       "from": "签收，紧点操作",
@@ -347,12 +375,20 @@
       "to": "用WeCom向"
     },
     {
+      "from": "用Wecom向",
+      "to": "用WeCom向"
+    },
+    {
       "from": "近五次打卡记录",
       "to": "近5次打卡记录"
     },
     {
       "from": "结束，盘查任务",
       "to": "结束盘查任务"
+    },
+    {
+      "from": "为到场帮我反馈",
+      "to": "我已到场，帮我反馈"
     },
     {
       "from": "路面纠纷简单",
@@ -547,6 +583,14 @@
       "to": "用WeCom向"
     },
     {
+      "from": "用VCOM向",
+      "to": "用WeCom向"
+    },
+    {
+      "from": "用VCOM想",
+      "to": "用WeCom向"
+    },
+    {
       "from": "一栋警务门户",
       "to": "移动警务门户"
     },
@@ -557,6 +601,14 @@
     {
       "from": "帮我导航，去",
       "to": "帮我导航去"
+    },
+    {
+      "from": "我以到达现场",
+      "to": "我已到达现场"
+    },
+    {
+      "from": "把我反馈一下",
+      "to": "帮我反馈一下"
     },
     {
       "from": "已签收订单",
@@ -1007,6 +1059,10 @@
       "to": "用WeCom向"
     },
     {
+      "from": "VCOM向",
+      "to": "WeCom向"
+    },
+    {
       "from": "停止请平台",
       "to": "勤指情平台"
     },
@@ -1041,6 +1097,22 @@
     {
       "from": "秦子晴平台",
       "to": "勤指情平台"
+    },
+    {
+      "from": "接收简单后",
+      "to": "签收警单后"
+    },
+    {
+      "from": "接收警单后",
+      "to": "签收警单后"
+    },
+    {
+      "from": "为到达现场",
+      "to": "我已到达现场"
+    },
+    {
+      "from": "已到达现场",
+      "to": "我已到达现场"
     },
     {
       "from": "from",
@@ -1359,6 +1431,10 @@
       "to": "打开帮填"
     },
     {
+      "from": "启动帮田",
+      "to": "启动帮填"
+    },
+    {
       "from": "启动邦田",
       "to": "启动帮填"
     },
@@ -1561,6 +1637,30 @@
     {
       "from": "打开帮把",
       "to": "打开帮填把"
+    },
+    {
+      "from": "接收简单",
+      "to": "签收警单"
+    },
+    {
+      "from": "接收警单",
+      "to": "签收警单"
+    },
+    {
+      "from": "接收订单",
+      "to": "签收警单"
+    },
+    {
+      "from": "接收紧单",
+      "to": "签收警单"
+    },
+    {
+      "from": "接收金单",
+      "to": "签收警单"
+    },
+    {
+      "from": "把我反馈",
+      "to": "帮我反馈"
     },
     {
       "from": "正处警",
