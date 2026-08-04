@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
@@ -55,6 +56,20 @@ def _l2_normalize(v: np.ndarray) -> np.ndarray:
     return v / (np.linalg.norm(v) + 1e-9)
 
 
+def aggregate_window_scores(scores: Sequence[float], method: str = "max") -> float:
+    """Aggregate window similarities with an explicit, reproducible rule."""
+    if not scores:
+        raise ValueError("scores must not be empty")
+    values = np.asarray(scores, dtype=np.float64)
+    if method == "max":
+        return float(np.max(values))
+    if method == "mean":
+        return float(np.mean(values))
+    if method == "median":
+        return float(np.median(values))
+    raise ValueError(f"unsupported score aggregation: {method}")
+
+
 def load_audio_mono16k(path: Path | str) -> Tuple[np.ndarray, int]:
     """读 wav 成单通道 float32，并在采样率不一致时重采样到 16k。
 
@@ -65,15 +80,22 @@ def load_audio_mono16k(path: Path | str) -> Tuple[np.ndarray, int]:
     data, sr = sf.read(str(path), always_2d=True, dtype="float32")
     samples = np.ascontiguousarray(data[:, 0])
     if sr != TARGET_SAMPLE_RATE:
-        # 调研期允许非 16k 输入，运行时统一上采到 16k；生产期上游应保证 16k
+        # 调研期允许非 16k 输入，运行时统一到 16k；生产期上游应保证 16k。
+        # scipy 是当前评测环境的既有依赖，避免为了单个重采样入口强制安装 librosa。
         try:
-            import librosa
+            from scipy.signal import resample_poly
         except ImportError as e:  # pragma: no cover
             raise RuntimeError(
-                f"输入采样率 {sr} != 16000 且未安装 librosa；"
-                "请 `pip install librosa` 或预先用 ffmpeg 重采样到 16k。"
+                f"输入采样率 {sr} != 16000 且未安装 scipy；"
+                "请安装 scipy 或预先用 ffmpeg 重采样到 16k。"
             ) from e
-        samples = librosa.resample(samples, orig_sr=sr, target_sr=TARGET_SAMPLE_RATE)
+        divisor = math.gcd(sr, TARGET_SAMPLE_RATE)
+        samples = resample_poly(
+            samples,
+            TARGET_SAMPLE_RATE // divisor,
+            sr // divisor,
+        ).astype(np.float32, copy=False)
+        samples = np.ascontiguousarray(samples)
     return samples, sr
 
 
@@ -90,7 +112,7 @@ def build_recognizer(
     asr_model_dir 必须含 4 个固定文件名（与 [asr/tools/MODEL_LAYOUT.md] 一致）：
     - encoder.int8.onnx（int8 量化的 encoder）
     - decoder.onnx（fp32，体积小不量化）
-    - joiner.int8.onnx
+    - joiner.int8.onnx（优先）或 joiner.onnx（FP32 joiner）
     - tokens.txt
 
     决策原因（对应调研文档推导链第 1 步）：流式 onnx 模型可以直接吃整段，不需要再加非流式模型。
@@ -98,7 +120,9 @@ def build_recognizer(
     asr_model_dir = Path(asr_model_dir)
     encoder = asr_model_dir / "encoder.int8.onnx"
     decoder = asr_model_dir / "decoder.onnx"
-    joiner = asr_model_dir / "joiner.int8.onnx"
+    joiner_int8 = asr_model_dir / "joiner.int8.onnx"
+    joiner_fp32 = asr_model_dir / "joiner.onnx"
+    joiner = joiner_int8 if joiner_int8.is_file() else joiner_fp32
     tokens = asr_model_dir / "tokens.txt"
     for p in (encoder, decoder, joiner, tokens):
         if not p.is_file():
@@ -129,8 +153,10 @@ def build_speaker(
     """加载声纹 embedding 模型。
 
     speaker_model 推荐：
-    - 中文：3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx（27 MB，sherpa-onnx Android sample 默认款）
-    - 中英混合 / 通用：wespeaker_en_voxceleb_CAM++.onnx
+    - 中文：3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx（38 MB，sherpa-onnx Android sample 默认款）
+    - 轻量中文候选：3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx
+    - `wespeaker_en_voxceleb_CAM++.onnx` 的 metadata 为 normalize_samples=0，
+      当前 pipeline 实测不可分；不得仅因模型可加载就当作可替换候选。
     其它候选见 https://github.com/k2-fsa/sherpa-onnx/releases/tag/speaker-recongition-models
     """
     speaker_model = Path(speaker_model)
@@ -145,6 +171,45 @@ def build_speaker(
     if not cfg.validate():
         raise ValueError(f"声纹模型配置无效: {cfg}")
     return sherpa_onnx.SpeakerEmbeddingExtractor(cfg)
+
+
+def build_denoiser(
+    model: Path | str,
+    *,
+    num_threads: int = 1,
+    provider: str = "cpu",
+    debug: bool = False,
+) -> "sherpa_onnx.OfflineSpeechDenoiser":
+    """Build an offline DPDFNet denoiser for controlled front-end A/B tests."""
+    model = Path(model)
+    if not model.is_file():
+        raise FileNotFoundError(f"降噪模型不存在: {model}")
+    cfg = sherpa_onnx.OfflineSpeechDenoiserConfig(
+        model=sherpa_onnx.OfflineSpeechDenoiserModelConfig(
+            dpdfnet=sherpa_onnx.OfflineSpeechDenoiserDpdfNetModelConfig(
+                model=str(model),
+            ),
+            num_threads=num_threads,
+            provider=provider,
+            debug=debug,
+        )
+    )
+    if not cfg.validate():
+        raise ValueError(f"降噪模型配置无效: {cfg}")
+    return sherpa_onnx.OfflineSpeechDenoiser(cfg)
+
+
+def denoise_audio(
+    denoiser: "sherpa_onnx.OfflineSpeechDenoiser",
+    samples: np.ndarray,
+    sample_rate: int,
+) -> Tuple[np.ndarray, int]:
+    """Run denoising and enforce the waveform contract used by speaker extraction."""
+    output = denoiser.run(np.ascontiguousarray(samples, dtype=np.float32), sample_rate)
+    denoised = np.ascontiguousarray(output.samples, dtype=np.float32)
+    if not len(denoised) or not np.isfinite(denoised).all():
+        raise RuntimeError("denoiser returned empty or non-finite audio")
+    return denoised, int(output.sample_rate)
 
 
 def enroll(
@@ -183,18 +248,21 @@ def segment_score(
     win_sec: float = DEFAULT_WIN_SEC,
     hop_sec: float = DEFAULT_HOP_SEC,
     min_seg_sec: float = DEFAULT_MIN_SEG_SEC,
+    score_aggregation: str = "max",
 ) -> Optional[float]:
     """对 VAD 切出的一段语音打目标说话人余弦相似度。
 
     返回：
     - None：段长 < min_seg_sec，调用方应丢弃或累积到下一段
-    - float：窗内余弦最大值；若段长 ≥ min_seg_sec 但 < win_sec，回落到整段单次打分
+    - float：按 score_aggregation 聚合窗分数；若选择 whole 或段长不足 win_sec，整段打分
 
     决策原因（对应调研文档推导链第 4 步与第 4.1 节加固点 2/3）：
     - 短音频 EER 暴增（VoxCeleb1 baseline 1s 20.41%），统一 1.5s 兜底
     - overlap 段 embedding 被污染，滑窗 max 比单次打分更稳
     """
     target_emb = _l2_normalize(np.asarray(target_emb, dtype=np.float32))
+    if score_aggregation not in {"max", "mean", "median", "whole"}:
+        raise ValueError(f"unsupported score aggregation: {score_aggregation}")
     n_min = int(min_seg_sec * sr)
     if len(samples) < n_min:
         return None
@@ -202,7 +270,7 @@ def segment_score(
     n_win = int(win_sec * sr)
     n_hop = int(hop_sec * sr)
 
-    if len(samples) < n_win:
+    if score_aggregation == "whole" or len(samples) < n_win:
         # 段长够 1.5s 但不够 2.5s，回落到整段单次打分
         s = extractor.create_stream()
         s.accept_waveform(sample_rate=sr, waveform=samples)
@@ -232,7 +300,7 @@ def segment_score(
             return None
         emb = _l2_normalize(np.asarray(extractor.compute(s), dtype=np.float32))
         return float(np.dot(emb, target_emb))
-    return max(scores)
+    return aggregate_window_scores(scores, score_aggregation)
 
 
 def asr_decode_full_segment(

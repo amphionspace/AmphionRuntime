@@ -14,7 +14,7 @@
 ```
 asr/tools/speaker/
 ├── README.md                       本文件
-├── 00_download_models.sh           下载 silero_vad / 3D-Speaker eres2net / CAM++
+├── 00_download_models.sh           下载 silero_vad / 3D-Speaker ERes2Net / 中文 CampPlus
 ├── 01_enroll_target.py             多模板注册 → target_embedding.npy
 ├── 02_ts_asr_offline.py            加固版完整 pipeline，输入 wav，输出 [target]/[other] 标签转写
 ├── 03_eval.py                      ts_hw_test 全量评估：每条 cut 跑 verify + ASR，输出 jsonl
@@ -23,6 +23,10 @@ asr/tools/speaker/
 ├── 05_rtf_local.py                 主机 CPU 上 bench 声纹模型 RTF（量级参考）
 ├── 06_eval_speaker_vad_aidatatang.py
 │                                   Aidatatang 500 人 speaker-VAD endpoint 收益评测
+├── 07_eval_voiceprint_verification.py
+│                                   speaker-disjoint clean/noisy pilot，dev 冻结阈值后评 test
+├── 08_eval_quality_abstention.py   CPU-only 错误风险排序与 abstention 外部复验
+├── 09_eval_threshold_stability.py  speaker-cluster bootstrap 阈值稳定性诊断
 ├── ts_asr/
 │   ├── __init__.py
 │   ├── core.py                     调研文档第 5 节 5 段骨架函数
@@ -119,7 +123,7 @@ python asr/tools/speaker/04_check_zipformer_drc.py \
 python asr/tools/speaker/05_rtf_local.py \
   --speaker-models \
     asr/tools/speaker/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx \
-    asr/tools/speaker/models/wespeaker_en_voxceleb_CAM++.onnx \
+    asr/tools/speaker/models/3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx \
   --bench-wav path/to/any_clean_speech.wav \
   --window-secs 1.0 2.5 5.0 \
   --warmup 2 --runs 10 \
@@ -179,6 +183,101 @@ python3 asr/tools/speaker/06_eval_speaker_vad_aidatatang.py \
 
 默认阈值 0.40 的实测结论：平均非目标泄露从 2.337s 降到 0.917s，降幅 60.74%；speaker endpoint 触发率 93.20%；target 确认率 99.00%；target 截断率 1.00%。完整指标定义、场景说明和限制见 [docs/speaker/AIDATATANG_SPEAKER_VAD_EVAL.md](../../../docs/speaker/AIDATATANG_SPEAKER_VAD_EVAL.md)。
 
+### 8. 跑 speaker-disjoint clean/noisy pilot
+
+`07_eval_voiceprint_verification.py` 从 Lhotse cut shards 流式选取带 speaker ID 的
+独立 utterance，以不同 recording 做 enrollment/probe，并将 speaker 分成互不重叠的
+dev/test。阈值只在 dev 选择，test 同时报告 clean 与合成交通噪声压力结果；如果提供
+ASR modelDir，还会报告目标 CER 和被接受非目标文本泄漏。
+
+```bash
+python asr/tools/speaker/07_eval_voiceprint_verification.py \
+  --cuts /path/to/aishell2/shards/*.jsonl.gz \
+  --speaker-model /path/to/eres2net.onnx \
+  --asr-model-dir /path/to/streaming-asr-model \
+  --noise-cuts /path/to/traffic_noise_cuts.jsonl.gz \
+  --snr-db 20 10 5 0 \
+  --enroll-utterances 3 \
+  --scan-all \
+  --out-dir asr/tools/speaker/results/voiceprint-pilot
+```
+
+本地合成评测默认使用 3 段 enrollment。公共 SDK 仍兼容单段注册；3 段是当前评测推荐配置，
+不是新的接口最低要求。对比注册段数时必须用 `--probe-start` 固定 probe 起点，并用
+`--fixed-threshold` 复用同一工作点，避免把样本变化和阈值重选混在一起。
+
+在 30 个 dev / 60 个 test speaker、120 个 target / 300 个 non-target trial 的 paired 数据上，
+固定阈值 `0.4343833029` 的结果为：
+
+| Enrollment | clean FAR / FRR | traffic 0 dB FAR / FRR |
+| --- | ---: | ---: |
+| 1 段 | 0.33% / 5.00% | 0% / 25.83% |
+| 3 段 | 0.67% / 0% | 0% / 8.33% |
+
+因此当前本机合成优化选择“3 段注册 + 保持固定阈值”，不通过下调全局阈值换取噪声 FRR。
+
+跨语料复验时，使用 `--fixed-threshold <dev 阈值>` 固定前一语料 dev 选择的工作点；
+当前语料的 EER 只作为诊断，不能反过来改部署阈值。
+
+可用 `--denoiser-model <dpdfnet.onnx>` 做前端降噪 A/B；`--denoiser-scope all` 同时处理
+enrollment/probe（默认），`probe` 只处理 probe。当前中型 paired 结果中，不降噪在
+clean/5/0 dB 的 FAR/FRR 分别为 `0/1%`、`0/12%`、`0/40%`；DPDFNet baseline 为
+`0/1%`、`0/24%`、`0/43%`，且平均增加约 `286.7 ms` 处理时间，因此不纳入推荐配置。
+
+如果 recording ID 可解析 session，可用命名组 `session`（或第一个捕获组）强制 enrollment/probe
+跨 session。例如 LibriSpeech 的 `speaker-chapter-utterance`：
+
+```bash
+python asr/tools/speaker/07_eval_voiceprint_verification.py \
+  ... \
+  --session-id-regex '^[^-]+-(?P<session>[^-]+)-'
+```
+
+该参数只保证提取出的 session ID 不相交；chapter/call ID 是否等同真实日期、设备或现场 session，
+仍需由语料 provenance 证明。
+
+WeSpeaker CAM++ release 的 metadata 为 `normalize_samples=0`，与本工具默认的
+`[-1, 1]` float PCM 契约不同。即使显式使用 `--waveform-scale 32768`，当前 runtime/scorer
+组合的同人/异人分数仍接近随机，因此不能作为替换候选。3D-Speaker 系列 metadata 为
+`normalize_samples=1`，保持默认 `--waveform-scale 1`。完整模型 A/B 与训练路线见
+[VOICEPRINT_MODEL_AND_TRAINING_PLAN_20260728.md](../../../docs/speaker/VOICEPRINT_MODEL_AND_TRAINING_PLAN_20260728.md)。
+
+该模式只用于跑通评测链路和发现 clean→noise 退化。ASR corpus 通常没有跨日/session
+真值，合成加噪也不包含真实设备、距离、混响、AGC 和风噪耦合，不能作为交通现场
+blind test 或商用声明。
+
+2026-07-28 至 2026-07-30 的 AISHELL-2 扩样、KeSpeech 外部固定阈值复验、paired enrollment
+ablation 见 [VOICEPRINT_PILOT_PROGRESS_20260728.md](../../../docs/speaker/VOICEPRINT_PILOT_PROGRESS_20260728.md)。
+
+### 9. 跑质量感知 abstention T0
+
+该实验冻结原始 `speakerSimilarity` 和声纹阈值，只用 score 与线上可观测波形特征排序高风险决定。
+condition/SNR 仅用于报告，不进入模型。AISHELL-2 用作开发集，KeSpeech 仅为 external diagnostic：
+
+```bash
+python asr/tools/speaker/08_eval_quality_abstention.py \
+  --train-trials asr/tools/speaker/results/voiceprint_pilot_20260728_aishell2_large_traffic/trials.jsonl \
+  --external-trials asr/tools/speaker/results/voiceprint_pilot_20260728_kespeech_external_traffic/trials.jsonl \
+  --speaker-threshold 0.4343833029 \
+  --abstain-budgets 0.05 0.10 0.20 \
+  --out-dir asr/tools/speaker/results/voiceprint-quality-abstention
+```
+
+报告必须同时读取 coverage、target/non-target coverage、error capture 和 conditional FAR/FRR；
+不能只报告 abstain 后下降的错误率。
+
+### 10. 诊断 calibration threshold 稳定性
+
+对 dev 的 target/enrollment speaker 整簇重采样；每轮重新选择阈值，再投到固定 test。该工具只回答
+阈值选择对 calibration speaker 抽样是否敏感，不为产品自动选择阈值：
+
+```bash
+python asr/tools/speaker/09_eval_threshold_stability.py \
+  --trials /path/to/session-disjoint/trials.jsonl \
+  --iterations 500 --far-limit 0.05 \
+  --out-dir asr/tools/speaker/results/voiceprint-threshold-bootstrap
+```
+
 ## 决策门（参考 [plan](../../.cursor/plans/ts-asr_feasibility_on_sherpa-onnx_75e72f53.plan.md) 第 5 节）
 
 跑完 03 + 05 后按以下结论分支：
@@ -188,7 +287,7 @@ python3 asr/tools/speaker/06_eval_speaker_vad_aidatatang.py \
 - 重叠 FAR > 20% AND 实时性硬要求 → 阶段 2 候选 a（自训 PVAD 130K，单独立项）
 - 整体 EER > 10% → 先排查注册质量 / 声学差距，再考虑换 embedding 模型
 - zipformer 未启用 DRC AND 业务对 WER 敏感 → 评估"verify 通过段离线复识"加非流式模型
-- 主机 CPU RTF（1s 窗）> 0.3 → 优先换 CAM++ INT8 替代 eres2net
+- 当前 ERes2Net 在目标设备上阻塞 RTF、冷启动或包体门限 → 单独评测中文 CampPlus；不得以主机 RTF 直接换默认模型
 
 ## 已知与未知（执行期跟踪）
 
@@ -200,7 +299,7 @@ ts_hw_test 6555 条 cuts 全量跑完，实测结果如下（完整 markdown 报
 | 切片长度中位数 / p10 / p90 / <1.5s 占比 | median 5.19s / 1.14s min / 29.6s max / <1.5s 占 0.3% | dataset.stats() | 不触发"切片 < 1.5s 占比 > 30%"决策门，无需 PVAD 重切 |
 | 重叠占比 | 0.1-0.2 22% / 0.2-0.3 16% / 0.3-0.5 35% / ≥0.5 22% | dataset.stats() | 这是合成强制重叠的 stress test，业务真实场景重叠可能更低 |
 | eres2net 主机 CPU RTF（pipeline 总） | 0.053 | 03_eval.py timings | 通过决策门 0.20，端侧无瓶颈 |
-| CAM++ 主机 CPU RTF | 待 ablation 跑 | 05 / 03 切换 model | 预期减半至 0.025，非阻塞，可后置 |
+| 中文 CampPlus 2.5s 单核 RTF | 0.0141（当前 ERes2Net 为 0.0365） | paired model A/B + 05 | 约快 2.59x，但 0 dB FRR 更高，只作性能备选 |
 | positive vs negative score 中位数 | positive p50=0.54 / negative p50=0.10 | 04_eval_summary.py | 区分度足够，EER 7.36%，但未通过 ≤5% 决策门 |
 | 推荐阈值 | EER 单阈值 0.26 / 双阈值 LOW 0.20 HIGH 0.30 | 04_eval_summary.py 阈值扫描 | PIPELINE.md 起点 LOW 0.25 / HIGH 0.55 偏严，建议改为 0.30 单阈值或 0.20/0.30 双阈值 |
 | 整体 EER | 7.36% @thr=0.26 | 04_eval_summary.py | 不通过 PIPELINE.md "≤5%"决策门，但未到 "> 10%"红线；进多模板 ablation 优化 |
