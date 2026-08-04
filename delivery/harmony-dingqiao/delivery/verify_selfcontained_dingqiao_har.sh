@@ -201,7 +201,7 @@ rm -f \
   "$ENTRY/src/main/ets/util/ModelLoadBench.ets" \
   "$ENTRY/src/main/ets/util/SdkSelfTest.ets"
 
-if ! (cd "$ENTRY" && "$OHPM" install --no-link --log_level warn) >"$WORK/ohpm.log" 2>&1; then
+if ! (cd "$ENTRY" && "$OHPM" install --no-link) >"$WORK/ohpm.log" 2>&1; then
   tail -100 "$WORK/ohpm.log" >&2
   echo "[ERROR] customer host could not install the self-contained HAR" >&2
   exit 1
