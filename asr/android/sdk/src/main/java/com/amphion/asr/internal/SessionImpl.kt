@@ -790,6 +790,16 @@ internal class SessionImpl(
             minSamples,
             hasEvidence,
         )
+        Logger.d(
+            "session $sessionId " + speakerScoreSelectionDiagnostic(
+                selection,
+                boundary.samples.size,
+                fallbackSamples.size,
+                minSamples,
+                sampleRate,
+                hasEvidence,
+            ),
+        )
         if (selection.source == SpeakerScoreSource.UTTERANCE) {
             postDebug(
                 "speaker score fallback: effectiveSpeech=" +

@@ -42,7 +42,7 @@ import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 import { InitialSilenceTracker } from './InitialSilenceTracker';
 import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
 import { SpeakerPcmBuffers } from './SpeakerPcmBuffers';
-import { selectSpeakerScoreSamples } from './SpeakerScoreFallback';
+import { selectSpeakerScoreSamples, speakerScoreSelectionDiagnostic } from './SpeakerScoreFallback';
 import { SessionCallbackGate } from './SessionCallbackGate';
 import { SessionReentryQueue } from './SessionReentryQueue';
 import {
@@ -1416,6 +1416,11 @@ export class AsrSession {
       this.speakerPcmBuffers.fallbackSamples() : new Float32Array(0);
     const scoreSelection =
       selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence);
+    if (this.targetSpeakerEnabled) {
+      Logger.d(`session ${this.sessionId} ` + speakerScoreSelectionDiagnostic(
+        scoreSelection, boundary.samples.length, utteranceSamples.length,
+        minSpeakerSamples, ASR_SAMPLE_RATE_HZ, hasEvidence));
+    }
     if (scoreSelection.source === 'utterance') {
       if (!this.callbackGate.invoke((): void => {
         this.callback.onDebug?.(
