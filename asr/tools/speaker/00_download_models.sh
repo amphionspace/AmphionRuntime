@@ -3,10 +3,13 @@
 #
 #   1. silero_vad.onnx                                              ~1.8 MB
 #      VAD 切段，行业标杆
-#   2. 3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx   ~27  MB
+#   2. 3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx   ~38  MB
 #      声纹 embedding（中文优先），sherpa-onnx Android sample 默认款
-#   3. wespeaker_en_voxceleb_CAM++.onnx                             ~28  MB
-#      声纹 embedding（中英 / 通用），调研文档推荐做端侧 RTF 候选
+#   3. 3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx           ~27  MB
+#      中文 CampPlus（200k speaker），端侧速度候选
+#
+# 可选 A/B 候选（用 --only 单独下载，不随默认集合下载）：
+#   campp（仅兼容性诊断）/ eres2net-200k / eres2netv2
 #
 # 都来自 sherpa-onnx 官方 releases（k2-fsa），不修改、不再分发。
 #
@@ -48,7 +51,7 @@ mkdir -p "$DEST"
 ALL_NAMES=(
   "silero_vad.onnx"
   "3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"
-  "wespeaker_en_voxceleb_CAM++.onnx"
+  "3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
 )
 
 name_to_base() {
@@ -63,6 +66,9 @@ kind_to_name() {
     vad)      echo "silero_vad.onnx" ;;
     eres2net) echo "3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx" ;;
     campp)    echo "wespeaker_en_voxceleb_CAM++.onnx" ;;
+    campplus-zh) echo "3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx" ;;
+    eres2net-200k) echo "3dspeaker_speech_eres2net_base_200k_sv_zh-cn_16k-common.onnx" ;;
+    eres2netv2) echo "3dspeaker_speech_eres2netv2_sv_zh-cn_16k-common.onnx" ;;
     *)        return 1 ;;
   esac
 }
@@ -71,7 +77,10 @@ declare -a TARGETS=()
 if [[ -z "$ONLY" ]]; then
   TARGETS=("${ALL_NAMES[@]}")
 else
-  name="$(kind_to_name "$ONLY")" || { echo "[ERROR] --only 取值必须是: vad / eres2net / campp"; exit 1; }
+  name="$(kind_to_name "$ONLY")" || {
+    echo "[ERROR] --only 取值必须是: vad / eres2net / campp / campplus-zh / eres2net-200k / eres2netv2"
+    exit 1
+  }
   TARGETS=("$name")
 fi
 
@@ -119,7 +128,7 @@ cat <<EOF
   $DEST/
   ├── silero_vad.onnx
   ├── 3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx
-  └── wespeaker_en_voxceleb_CAM++.onnx
+  └── 3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx
 
 下一步：
   1. 准备 enrollment 音频（≥3 段，每段 5-10s，单通道；不同语速/距离/设备）
