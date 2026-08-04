@@ -13,6 +13,16 @@
 3. 如果继续限定本机合成数据，下一训练候选是带 clean anchor 的 embedding fine-tuning；
 4. 从头训练和多模型 fusion 暂不启动。
 
+2026-08-04 补充：WHAM `sep_clean` 的 8 kHz Conv-TasNet 作为 ERes2Net 前端，在同一 1,320 条
+合成 trial 上也未通过。原阈值的 clean/5/0 dB FRR 为 `63%/83%/90%`；clean-dev 重校准虽把
+0 dB FRR 从 baseline 40% 降到 29%，却引入 3.67% 的 0 dB FAR、4.33% clean FAR，并将 5 dB
+FRR 从 12% 提高到 23%。这不是净收益，不进入 T0/T2 默认路线。
+
+后续带宽/人数消融进一步确认：单人 clean diagnostic EER 为原始 16 kHz `0.17%`、仅
+`16k→8k→16k` `2.00%`、Conv-TasNet `4.17%`；两人 0 dB 全时重叠则为 `9%/16%/20%`。
+所以当前负结果不只是“输入人数不匹配”，也不能靠换成双人输入恢复；如继续分离路线，应改为
+16 kHz、目标说话人条件化且直接约束 speaker embedding 保真的模型，不再投入该 checkpoint。
+
 ## A/B 协议
 
 - 50 个 dev speaker、100 个独立 test speaker；speaker-disjoint。

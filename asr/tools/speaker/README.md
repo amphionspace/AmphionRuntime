@@ -27,6 +27,8 @@ asr/tools/speaker/
 │                                   speaker-disjoint clean/noisy pilot，dev 冻结阈值后评 test
 ├── 08_eval_quality_abstention.py   CPU-only 错误风险排序与 abstention 外部复验
 ├── 09_eval_threshold_stability.py  speaker-cluster bootstrap 阈值稳定性诊断
+├── 10_eval_convtasnet_frontend.py  冻结 trial 的 Conv-TasNet → ERes2Net paired A/B
+├── 11_eval_convtasnet_ablations.py 拆分 8 kHz 带宽与两人分离任务匹配的消融
 ├── ts_asr/
 │   ├── __init__.py
 │   ├── core.py                     调研文档第 5 节 5 段骨架函数
@@ -277,6 +279,58 @@ python asr/tools/speaker/09_eval_threshold_stability.py \
   --iterations 500 --far-limit 0.05 \
   --out-dir asr/tools/speaker/results/voiceprint-threshold-bootstrap
 ```
+
+### 11. 复验 Conv-TasNet 前端
+
+Conv-TasNet 是两路语音分离前端，不是声纹 embedding 模型。该工具读取已完成的 baseline result，
+逐条复用 speaker、enrollment、probe、noise 和 SNR；两路输出都交给 ERes2Net，并对 target 和
+non-target 一律取最大相似度。checkpoint 使用 Asteroid 的 WHAM `sep_clean` 8 kHz 研究模型：
+
+运行环境需自行提供 `torch`、`asteroid`、`scipy` 和 `sherpa-onnx`；这些只用于本机诊断，不加入
+产品依赖。checkpoint 不进入仓库，可从模型卡
+`https://huggingface.co/mpariente/ConvTasNet_WHAM_sepclean` 获取；本轮文件 SHA256 为
+`db8de6c4d9075c484760dbe6106a544e3cd8f22b69f91868ecabc8b869f9a5a5`。输出目录必须为空或不存在，
+避免后续运行覆盖已有成功/失败 artifact。
+
+```bash
+python asr/tools/speaker/10_eval_convtasnet_frontend.py \
+  --baseline-dir asr/tools/speaker/results/voiceprint_pilot_20260730_medium_baseline \
+  --conv-tasnet-model asr/tools/speaker/models/convtasnet_wham_sepclean.pt \
+  --out-dir asr/tools/speaker/results/voiceprint-convtasnet \
+  --device cuda:0
+```
+
+在 30 dev / 100 test speaker、1,320 个冻结 trial 上，ERes2Net baseline 的 clean/5/0 dB
+FAR/FRR 为 `0/1%`、`0/12%`、`0/40%`。Conv-TasNet 使用原阈值时变为
+`0.33/63%`、`0.33/83%`、`0.33/90%`；用 clean dev EER 重校准后仍为
+`4.33/5%`、`4.33/23%`、`3.67/29%`。按 baseline dev FAR=0 约束选点时，test clean/5/0 dB
+为 `0.67/26%`、`0.67/49%`、`0.67/59%`。因此该 checkpoint 不改善当前合成交通噪声声纹，
+不纳入端侧候选。
+
+该负结果只覆盖英文 WHAM 训练的 8 kHz 两人分离模型；不能外推为所有目标说话人提取模型均无效。
+checkpoint 的研究数据许可也不满足直接商用分发结论。
+
+### 12. 拆分 Conv-TasNet 的退化来源
+
+下面的消融先对全部 1,320 条 trial 只执行 `16k→8k→16k`，再从 clean trial 中固定抽取每个
+target 的一正一负，合成 260 条 0 dB 全时双人重叠。双人实验分别比较直接 16 kHz、8 kHz
+往返、Conv-TasNet 三条路径；干扰人不允许是 enrolled target 或原 probe speaker：
+
+```bash
+python asr/tools/speaker/11_eval_convtasnet_ablations.py \
+  --baseline-dir asr/tools/speaker/results/voiceprint_pilot_20260730_medium_baseline \
+  --existing-convtasnet-dir \
+    asr/tools/speaker/results/voiceprint_pilot_20260804_medium_convtasnet_wham_sepclean \
+  --conv-tasnet-model asr/tools/speaker/models/convtasnet_wham_sepclean.pt \
+  --out-dir asr/tools/speaker/results/voiceprint-convtasnet-ablations \
+  --device cuda:0 --sir-db 0 --negatives-per-target 1
+```
+
+单人 clean diagnostic EER 从原始 16 kHz 的 `0.17%` 变为仅 8 kHz 往返的 `2.00%`，再变为
+Conv-TasNet 的 `4.17%`。双人 0 dB 重叠 test diagnostic EER 依次为 `9%/16%/20%`；按各自
+dev 阈值，FAR/FRR 为 `4%/11%`、`8%/21%`、`20%/22%`。因此 8 kHz 带宽是主要退化源之一，
+但即使人数与两源分离任务匹配，该 checkpoint 仍比单纯带宽对照更差，不能把负结果只归因于
+“输入只有一个人”。
 
 ## 决策门（参考 [plan](../../.cursor/plans/ts-asr_feasibility_on_sherpa-onnx_75e72f53.plan.md) 第 5 节）
 

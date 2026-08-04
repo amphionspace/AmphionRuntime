@@ -28,6 +28,10 @@
 
 - DPDFNet baseline：中型 paired A/B 的 5/0 dB FRR 从 `12%/40%` 退化到 `24%/43%`，平均增加
   约 `286.7 ms`；更大 DPDFNet 约 `746 ms`，无主指标收益。
+- WHAM `sep_clean` 8 kHz Conv-TasNet：作为 ERes2Net 前端时，原阈值 clean/5/0 dB FRR
+  退化到 `63%/83%/90%`；clean-dev 重校准后仍以 clean FAR `4.33%` 换取 0 dB FRR `29%`，
+  不进入候选。带宽/人数消融中，单人 clean diagnostic EER 为 `0.17%→2.00%→4.17%`
+  （原始/8 kHz 往返/Conv-TasNet），双人 0 dB 重叠为 `9%→16%→20%`，否定“只因人数错配”。
 - probe-only 降噪、注册语音加噪、mean/median/whole window aggregation：均无稳定收益。
 - 全局降阈值、quality logistic 和规则型救援：AISHELL-2 同域可改善 FRR，但 KeSpeech 或独立 holdout
   出现 FAR/FRR 回归，不能作为跨语料默认策略。
@@ -40,6 +44,8 @@
   paired enrollment、跨 session、score aggregation、可选 DPDFNet A/B；默认 3 段 enrollment。
 - `asr/tools/speaker/08_eval_quality_abstention.py`：质量感知错误排序与 coverage/conditional error 报告。
 - `asr/tools/speaker/09_eval_threshold_stability.py`：speaker-cluster bootstrap 阈值稳定性。
+- `asr/tools/speaker/10_eval_convtasnet_frontend.py`：冻结旧 trial map 的 Conv-TasNet 前端 paired A/B。
+- `asr/tools/speaker/11_eval_convtasnet_ablations.py`：拆分 8 kHz 带宽损失与双人分离任务匹配。
 - `asr/tools/speaker/ts_asr/core.py`：显式 aggregation、scipy 重采样、FP32 joiner 兼容和降噪 A/B 入口。
 - `asr/android/sdk/.../EffectiveSpeechBuffer.kt`、`SessionImpl.kt` 和 Harmony 同名逻辑：评分样本选择与
   session 关联诊断；诊断不包含文本、声纹 ID 或音频内容。
