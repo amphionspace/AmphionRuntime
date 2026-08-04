@@ -229,6 +229,8 @@ python asr/tools/speaker/07_eval_voiceprint_verification.py \
 门。先跑 `--mode baseline`，再用 `--mode full --baseline-report ...`；模型和音频只传路径并记录哈希，
 不得提交仓库。完整目录约定、命令和判定规则见
 [Conv-TasNet Linux 服务器复验](../../../docs/speaker/CONVTASNET_LINUX_REPRODUCTION.md)。
+既有 8 kHz WHAM 实验的适用边界、exact 16 kHz 复验后的开放集扩展、选流消融和停止条件见
+[Linux 下一轮实验决策](../../../docs/speaker/CONVTASNET_LINUX_NEXT_EXPERIMENT_20260804.md)。
 
 可用 `--denoiser-model <dpdfnet.onnx>` 做前端降噪 A/B；`--denoiser-scope all` 同时处理
 enrollment/probe（默认），`probe` 只处理 probe。当前中型 paired 结果中，不降噪在

@@ -76,6 +76,8 @@
 - `docs/speaker/CONVTASNET_HARMONY_FULL_CHAIN_20260804.md`：C1～C3 全链路、负向门、资源基线、评分 A/B
   和实验后恢复证据。
 - `docs/speaker/CONVTASNET_LINUX_REPRODUCTION.md`：Linux 配对基线/完整链路命令、输入约定和回传清单。
+- `docs/speaker/CONVTASNET_LINUX_NEXT_EXPERIMENT_20260804.md`：澄清 8 kHz WHAM 负结果与 16 kHz 按需
+  救援是两个实验问题，并冻结下一轮开放集、SIR、选流消融、解释矩阵和停止条件。
 - `asr/tools/speaker/README.md`：工具使用与推荐配置。
 
 实验目录位于 `asr/tools/speaker/results/voiceprint_pilot_*`，按仓库规则忽略，不提交 Git。每个正式目录
