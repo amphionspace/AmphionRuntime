@@ -80,6 +80,63 @@ Harmony 真机，因此可以表述为“Linux 正式工具链和干净宿主编
 这些负结果表明，本轮根因层的安全改动是改善 enrollment 表征，而不是在 probe 前端或决策阈值上
 增加条件分支。
 
+## 2026-08-04 Conv-TasNet 前端复验
+
+分支拉取后无新增提交。本轮使用既有 `voiceprint_pilot_20260730_medium_baseline` 的 1,320 条
+trial map，固定 30 dev / 100 test speaker、2 段 enrollment、同一 probe/noise/SNR/seed，评估
+Asteroid `mpariente/ConvTasNet_WHAM_sepclean` 前置于现有 ERes2Net。该模型为 8 kHz 两路输出；
+每一路分别滑窗提取 ERes2Net embedding，并在 target/non-target 上一律取最大分数。
+
+| 配置 | clean FAR/FRR | 5 dB FAR/FRR | 0 dB FAR/FRR |
+| --- | ---: | ---: | ---: |
+| ERes2Net baseline，阈值 `0.484805` | 0% / 1% | 0% / 12% | 0% / 40% |
+| Conv-TasNet → ERes2Net，原阈值 | 0.33% / 63% | 0.33% / 83% | 0.33% / 90% |
+| Conv-TasNet → ERes2Net，clean dev EER 阈值 `0.303837` | 4.33% / 5% | 4.33% / 23% | 3.67% / 29% |
+| Conv-TasNet → ERes2Net，dev FAR=0 阈值 `0.397106` | 0.67% / 26% | 0.67% / 49% | 0.67% / 59% |
+
+原阈值 paired score 显示，target 平均分在 clean/5/0 dB 分别下降 `0.251/0.206/0.167`，
+non-target 平均分反而上升 `0.027/0.036/0.034`。该分布压缩与 8 kHz 下采样、两人分离训练任务
+不匹配一致，但本轮没有单独拆分两项因素的贡献；即使重校准，0 dB FRR 的 11 点改善也以 clean FAR
+4.33%、clean FRR 5% 和 5 dB FRR 23% 为代价，不是净收益。
+
+结论：当前 WHAM `sep_clean` Conv-TasNet 不纳入声纹候选，ERes2Net 单独评分仍更好。该结论只针对
+此 checkpoint 和“中文单人语音 + 合成交通噪声”，不能外推到 16 kHz、目标说话人条件化或目标域
+微调的 TasNet。完整 artifact 位于
+`asr/tools/speaker/results/voiceprint_pilot_20260804_medium_convtasnet_wham_sepclean/`，按规则不提交 Git。
+
+## 2026-08-04 Conv-TasNet 带宽 / 人数消融
+
+为拆分上节仍混杂的两个因素，本轮补做两项冻结实验：
+
+1. 对原 1,320 条单人 clean/交通噪声 trial 只做 `16k→8k→16k`，不经过分离网络；
+2. 从 clean trial 为 30 dev / 100 test target 各保留一正一负，加入同 split、不同 speaker 的
+   0 dB 全时语音干扰，共 260 条双人 trial。负例干扰人排除 enrolled target，标签保持不变。
+
+| 单人条件 diagnostic EER | clean | 5 dB | 0 dB |
+| --- | ---: | ---: | ---: |
+| 原始 16 kHz ERes2Net | 0.17% | 3.00% | 3.83% |
+| 仅 16k→8k→16k | 2.00% | 5.00% | 12.17% |
+| Conv-TasNet→ERes2Net | 4.17% | 11.17% | 14.00% |
+
+在 clean target 上，单纯带宽往返使平均分下降 `0.164`，Conv-TasNet 在此基础上再下降 `0.087`；
+即原先总平均降幅 `0.251` 中约 65% 已由 8 kHz 往返解释，但分离网络仍有额外损伤。
+
+| 双人 0 dB 全时重叠 | dev 阈值 | test FAR/FRR | test diagnostic EER |
+| --- | ---: | ---: | ---: |
+| 直接 16 kHz ERes2Net | 0.291210 | 4% / 11% | 9% |
+| 仅 16k→8k→16k | 0.236171 | 8% / 21% | 16% |
+| Conv-TasNet→ERes2Net | 0.215729 | 20% / 22% | 20% |
+
+按各自 dev 阈值进行 paired 决策审计，8 kHz 对照到 Conv-TasNet 有 20 条由对变错、7 条由错变对，
+exact McNemar `p=0.019`；直接 16 kHz 到 Conv-TasNet 为 30/3，`p=1.4e-6`。该显著性只按 trial
+计算，未纳入 speaker cluster 和 dev 阈值不确定性，因此仍标为 diagnostic。
+
+结论：人数错配不是主要解释。8 kHz 带宽损失已被实验证实；即便输入改成模型声明的两人重叠，
+当前英文 WHAM `sep_clean` checkpoint 仍进一步压缩 target/non-target 可分性。剩余原因与训练域
+错配、SI-SDR 分离目标不约束声纹表征，以及两路 max scoring 增加 non-target 命中机会一致；本实验
+没有继续把这三项逐一隔离。完整 artifact 位于
+`asr/tools/speaker/results/voiceprint_pilot_20260804_medium_convtasnet_ablations/`，按规则不提交 Git。
+
 ## 扩样主结果
 
 工作点由 AISHELL-2 dev 冻结为 `0.4343833029`。每个 test 条件包含 100 个 speaker、
