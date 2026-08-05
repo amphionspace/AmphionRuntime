@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -22,7 +23,7 @@ constexpr int32_t kSampleRate = 16000;
 constexpr int64_t kChunkSamples = 32000;
 constexpr int64_t kOutputStreams = 2;
 constexpr float kDefaultThreshold = 0.25F;
-constexpr int32_t kSeparatorThreads = 6;
+constexpr int32_t kSeparatorThreads = 4;
 
 void ThrowJsError(napi_env env, const std::string& message) {
   napi_throw_error(env, nullptr, message.c_str());
@@ -136,21 +137,32 @@ class TargetSpeakerEnhancer {
     config.num_threads = 1;
     config.debug = 0;
     config.provider = "cpu";
-    const SherpaOnnxSpeakerEmbeddingExtractor* extractor =
-        SherpaOnnxCreateSpeakerEmbeddingExtractorOHOS(&config, resource_manager);
-    if (extractor == nullptr) throw std::runtime_error("failed to create speaker embedding extractor");
-    const int32_t dimension = SherpaOnnxSpeakerEmbeddingExtractorDim(extractor);
-    if (dimension <= 0 || static_cast<size_t>(dimension) != target_embedding_.size()) {
-      SherpaOnnxDestroySpeakerEmbeddingExtractor(extractor);
-      throw std::runtime_error(
-          "target embedding dimension=" + std::to_string(target_embedding_.size()) +
-          " does not match speaker model dimension=" + std::to_string(dimension));
+    for (auto& extractor : extractors_) {
+      extractor = SherpaOnnxCreateSpeakerEmbeddingExtractorOHOS(&config, resource_manager);
+      if (extractor == nullptr) {
+        for (const auto* created : extractors_) {
+          if (created != nullptr) SherpaOnnxDestroySpeakerEmbeddingExtractor(created);
+        }
+        extractors_.fill(nullptr);
+        throw std::runtime_error("failed to create speaker embedding extractor");
+      }
+      const int32_t dimension = SherpaOnnxSpeakerEmbeddingExtractorDim(extractor);
+      if (dimension <= 0 || static_cast<size_t>(dimension) != target_embedding_.size()) {
+        for (const auto* created : extractors_) {
+          if (created != nullptr) SherpaOnnxDestroySpeakerEmbeddingExtractor(created);
+        }
+        extractors_.fill(nullptr);
+        throw std::runtime_error(
+            "target embedding dimension=" + std::to_string(target_embedding_.size()) +
+            " does not match speaker model dimension=" + std::to_string(dimension));
+      }
     }
-    extractor_ = extractor;
   }
 
   ~TargetSpeakerEnhancer() {
-    if (extractor_ != nullptr) SherpaOnnxDestroySpeakerEmbeddingExtractor(extractor_);
+    for (const auto* extractor : extractors_) {
+      if (extractor != nullptr) SherpaOnnxDestroySpeakerEmbeddingExtractor(extractor);
+    }
   }
 
   EnhancementResult Process(const std::vector<float>& input) {
@@ -189,8 +201,12 @@ class TargetSpeakerEnhancer {
       for (float& sample : candidates[stream_index]) {
         sample = std::clamp(sample * scale, -1.0F, 1.0F);
       }
-      result.similarities[stream_index] = Score(candidates[stream_index]);
     }
+    auto first_score = std::async(std::launch::async, [this, &candidates]() {
+      return Score(candidates[0], extractors_[0]);
+    });
+    result.similarities[1] = Score(candidates[1], extractors_[1]);
+    result.similarities[0] = first_score.get();
     const int32_t best = result.similarities[1] > result.similarities[0] ? 1 : 0;
     if (result.similarities[best] >= threshold_) {
       result.selected_stream = best;
@@ -202,9 +218,10 @@ class TargetSpeakerEnhancer {
   }
 
  private:
-  float Score(const std::vector<float>& samples) const {
+  float Score(const std::vector<float>& samples,
+              const SherpaOnnxSpeakerEmbeddingExtractor* extractor) const {
     const SherpaOnnxOnlineStream* stream =
-        SherpaOnnxSpeakerEmbeddingExtractorCreateStream(extractor_);
+        SherpaOnnxSpeakerEmbeddingExtractorCreateStream(extractor);
     if (stream == nullptr) throw std::runtime_error("failed to create speaker embedding stream");
     struct StreamGuard {
       const SherpaOnnxOnlineStream* value;
@@ -212,9 +229,9 @@ class TargetSpeakerEnhancer {
     } stream_guard{stream};
     SherpaOnnxOnlineStreamAcceptWaveform(stream, kSampleRate, samples.data(), samples.size());
     SherpaOnnxOnlineStreamInputFinished(stream);
-    if (!SherpaOnnxSpeakerEmbeddingExtractorIsReady(extractor_, stream)) return -1.0F;
+    if (!SherpaOnnxSpeakerEmbeddingExtractorIsReady(extractor, stream)) return -1.0F;
     const float* embedding =
-        SherpaOnnxSpeakerEmbeddingExtractorComputeEmbedding(extractor_, stream);
+        SherpaOnnxSpeakerEmbeddingExtractorComputeEmbedding(extractor, stream);
     if (embedding == nullptr) throw std::runtime_error("speaker embedding computation failed");
     struct EmbeddingGuard {
       const float* value;
@@ -225,7 +242,7 @@ class TargetSpeakerEnhancer {
 
   Ort::Env env_;
   Ort::Session separator_{nullptr};
-  const SherpaOnnxSpeakerEmbeddingExtractor* extractor_ = nullptr;
+  std::array<const SherpaOnnxSpeakerEmbeddingExtractor*, kOutputStreams> extractors_{};
   std::vector<float> target_embedding_;
   float threshold_;
   std::string input_name_;
