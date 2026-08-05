@@ -30,10 +30,10 @@
 08-05 18:43:46.589  7605  7605 W A01B01/com.ohos.sceneboard/HOME: SCBSCS: initCompanionIconInfo companionIconInfo: com.amphion.asr.harmony.demo, EntryAbility, amphion_asr_demo, iconId: AppIcon_Image_com.amphion.asr.harmony.demoEntryAbilityamphion_asr_demo0_undefined_0; persistentId: 89
 08-05 18:43:46.589  7605  7605 W A01B01/com.ohos.sceneboard/HOME: QuitAppRectViewModel --> buildAppExitInfoInExit iconId AppIcon_Image_com.amphion.asr.harmony.demoEntryAbilityamphion_asr_demo0_undefined_0
 08-05 18:43:46.589  7605  7605 W A01B01/com.ohos.sceneboard/HOME: QuitAppRectViewModel --> startAppType 0, iconId AppIcon_Image_com.amphion.asr.harmony.demoEntryAbilityamphion_asr_demo0_undefined_0
-08-05 18:43:46.589  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentShowingPage bundleName: com.amphion.asr.harmony.demoabilityName: EntryAbility, moduleName: amphion_asr_demo;startAppType: 0; cardId: undefined appIndex: 0, shortcutId: 
+08-05 18:43:46.589  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentShowingPage bundleName: com.amphion.asr.harmony.demoabilityName: EntryAbility, moduleName: amphion_asr_demo;startAppType: 0; cardId: undefined appIndex: 0, shortcutId:
 08-05 18:43:46.589  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentShowingPageWithMethod page: 1 msg:findAppInfo
 08-05 18:43:46.589  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentPage, eleInCurrentPage length: 19
-08-05 18:43:46.590  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: isFoundApp bundleName: com.amphion.asr.harmony.demo abilityName: EntryAbility, moduleName: amphion_asr_demo; appIconId: 33554434; cardId: undefined appIndex: 0, shortcutId: 
+08-05 18:43:46.590  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: isFoundApp bundleName: com.amphion.asr.harmony.demo abilityName: EntryAbility, moduleName: amphion_asr_demo; appIconId: 33554434; cardId: undefined appIndex: 0, shortcutId:
 08-05 18:43:46.590  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentPage icon 33554434, 33554434,undefined, com.amphion.asr.harmony.demo
 08-05 18:43:46.590  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentShowingPageWithMethod page: 1 componentId:undefined msg:findAppInfo
 08-05 18:43:46.590  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: searchInCurrentDeskTopPage 33554434, true, 0
@@ -94,7 +94,7 @@
 08-05 18:43:46.616  7605  7605 W A01C06/com.ohos.sceneboard/ICON: AppIconClockEvent --> success to updateTimer, reason:onFocus
 08-05 18:43:46.616  7605  7605 W A01C06/com.ohos.sceneboard/ICON: AppIconClockModel --> success to startTimer, timerID is 44890
 08-05 18:43:46.616  7605  7605 W A01C06/com.ohos.sceneboard/ICON: AppIconWeatherCache --> success to updateWeather, focus is true
-08-05 18:43:46.616  7605  7605 W A01C06/com.ohos.sceneboard/ICON: AppIconWeatherCache --> weather is not updated: fore: , back: 
+08-05 18:43:46.616  7605  7605 W A01C06/com.ohos.sceneboard/ICON: AppIconWeatherCache --> weather is not updated: fore: , back:
 08-05 18:43:46.616  7605  7605 I A0420A/com.ohos.sceneboard/WMSLife: onSessionStateChange state:5
 08-05 18:43:46.616  7605  7605 I A04209/com.ohos.sceneboard/WMSImms: win:89 background
 08-05 18:43:46.617  7605  7605 I A04209/com.ohos.sceneboard/WMSImms: update prop to callbacks. screenId:0 mainscreenId:0 window:0, prop:[5,true,"#00FFFFFF","#FFFFFFFF",true,true,null], size:4 reason: desktop
@@ -291,7 +291,7 @@
 08-05 18:43:47.562  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: [SearchCaller], pollingReleaseSearch invoke
 08-05 18:43:47.562  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1878 to wheelType:MINUTE window:6.total taskCount:4
 08-05 18:43:47.562  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, register taskName:EfficiencyResourcesUtil_resetEfficiencyResourceLatter success taskId:1878!
-08-05 18:43:47.563  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch 
+08-05 18:43:47.563  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch
 08-05 18:43:47.573  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: LiveCapsuleListVm: start to toggleCapsuleList, param:  {"isUpwards":true,"isUpdateImmediately":false,"needAnimation":true,"needShowStatusBar":false}
 08-05 18:43:47.573  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: LiveCapsuleListVm: Visible is not changed, stop toggleCapsuleList. isForceUpdate: undefined
 08-05 18:43:47.618 24880 25584 I A06666/com.huawei.hmos.calendar:form/PafLog_CPP: [FileUtil.cpp(DeleteExpiredFiles:374)] deleteExpiredFiles.
@@ -330,7 +330,7 @@
 08-05 18:43:48.207 25813 25813 I A03D00/com.amphion.asr.harmony.demo/JSAPP: [AmphionMetrics] kind=LOAD language=ZH_EN pooled=true assetLayoutMs=0 recognizerLoadMs=0 warmupMs=0 punctuationLoadMs=0 engineReadyMs=0
 08-05 18:43:49.203  7605  7605 W A04200/com.ohos.sceneboard/WINDOW: SCBScenePersistent: The alive status remains unchanged
 08-05 18:43:49.203  7605  7605 I A04209/com.ohos.sceneboard/WMSImms: win:89 app prop is applied
-08-05 18:43:49.204  7605  7605 I A04209/com.ohos.sceneboard/WMSImms: update prop to callbacks. screenId:0 mainscreenId:0 window:89, prop:[5,true,"#00FFFFFF","#FF000000",false,false,null], size:4 reason: sceneSession isSetEnable:false isSetColor:false isLand:false 
+08-05 18:43:49.204  7605  7605 I A04209/com.ohos.sceneboard/WMSImms: update prop to callbacks. screenId:0 mainscreenId:0 window:89, prop:[5,true,"#00FFFFFF","#FF000000",false,false,null], size:4 reason: sceneSession isSetEnable:false isSetColor:false isLand:false
 08-05 18:43:49.205  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: SCBStatusBarView: isEnable changed: true, statusBarOpacity is 1, immersive is false, enable animation: false
 08-05 18:43:49.205  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: StatusBarVMV2: System bar property change from #FFFFFFFF to #FF000000 #00FFFFFF
 08-05 18:43:49.205  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: StatusBarBridgeView: onPluginContentColorChange #FF000000
@@ -379,7 +379,7 @@
 08-05 18:43:50.421  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [PeriodicTimeAbility:140]: subscribeInfo subscribeId:screenStatusAbilityPeriodicTime, dataName:PeriodicTime
 08-05 18:43:50.421  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AwarenessItemManager:157]: Process cur: PeriodicTimeAbility, sub: 0, unsub: 0, queries: 0, publish: 3
 08-05 18:43:50.421  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AbilityGraph:328]: pd: PeriodicTime, ct: -1, ld: permanent, s: DataStorageOperator|StorageAwarenessData|Timer, d: DataStorageOperator, c: PeriodicTimeAbility
-08-05 18:43:50.421  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:31]: storageType is cycle, isInnerStorage : 1, triggerDataName : 
+08-05 18:43:50.421  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:31]: storageType is cycle, isInnerStorage : 1, triggerDataName :
 08-05 18:43:50.421  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:49]: data cache didnt update
 08-05 18:43:50.421  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AbilityGraph:328]: pd: PeriodicTime, ct: -1, ld: permanent, s: AppUsageDurationPeriodicTime, d: ForegroundAppAbility, c: PeriodicTimeAbility
 08-05 18:43:50.421  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [ForegroundAppAbility:529]: usageAppCacheMap is empty return
@@ -395,7 +395,7 @@
 08-05 18:43:57.619  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, cancel taskId:1878 success.
 08-05 18:43:57.619  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1879 to wheelType:MINUTE window:6.total taskCount:4
 08-05 18:43:57.619  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, register taskName:EfficiencyResourcesUtil_resetEfficiencyResourceLatter success taskId:1879!
-08-05 18:43:57.619  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch 
+08-05 18:43:57.619  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch
 08-05 18:44:00.007  9578 30079 I A03D00/com.ohos.formrenderservice/JSAPP: WeatherCardClockCardTag useOffsetFormat with form=1111276256,offset=999,type=0.
 08-05 18:44:00.009  9578 30079 W A03D00/com.ohos.formrenderservice/JSAPP: WeatherCardClockCardTag TextBuilder with form=1111276256,value=1785926640,clockTime=06:44|8月5日周三 六月廿三
 08-05 18:44:00.512 25813 25813 I A03D00/com.amphion.asr.harmony.demo/JSAPP: [AmphionMetrics] kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=2 utteranceDurationMs=3500 decodeDurationMs=0 postProcessMs=7 firstPartialLatencyMs=2787 endpointToFinalLatencyMs=165 utteranceE2eLatencyMs=3458 rtf=0.000 nativeRssMb=-1 nativeRssMbDelta=0 pcmBytesAccepted=112000
@@ -405,7 +405,7 @@
 08-05 18:44:00.656  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, cancel taskId:1879 success.
 08-05 18:44:00.656  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1880 to wheelType:MINUTE window:6.total taskCount:4
 08-05 18:44:00.656  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, register taskName:EfficiencyResourcesUtil_resetEfficiencyResourceLatter success taskId:1880!
-08-05 18:44:00.656  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1877 taskName:releaseMemory 
+08-05 18:44:00.656  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1877 taskName:releaseMemory
 08-05 18:44:02.850 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1137|queued=0|maxQueued=1
 08-05 18:44:04.262  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:8 to wheelType:SECOND window:46.total taskCount:3
 08-05 18:44:04.263  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1880 to wheelType:MINUTE window:7.total taskCount:3
@@ -418,7 +418,7 @@
 08-05 18:44:07.696  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, cancel taskId:1880 success.
 08-05 18:44:07.696  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1881 to wheelType:MINUTE window:7.total taskCount:3
 08-05 18:44:07.696  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, register taskName:EfficiencyResourcesUtil_resetEfficiencyResourceLatter success taskId:1881!
-08-05 18:44:07.697  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch 
+08-05 18:44:07.697  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch
 08-05 18:44:09.596 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1151|queued=0|maxQueued=1
 08-05 18:44:12.439 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1620|queued=0|maxQueued=1
 08-05 18:44:15.070 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1367|queued=0|maxQueued=1
@@ -428,7 +428,7 @@
 08-05 18:44:17.759  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, cancel taskId:1881 success.
 08-05 18:44:17.760  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1882 to wheelType:MINUTE window:7.total taskCount:3
 08-05 18:44:17.760  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, register taskName:EfficiencyResourcesUtil_resetEfficiencyResourceLatter success taskId:1882!
-08-05 18:44:17.760  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch 
+08-05 18:44:17.760  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch
 08-05 18:44:17.915  7605  7605 I A01B05/com.ohos.sceneboard/AOD: AodBatteryIconModel --> battery state changed
 08-05 18:44:17.967 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1647|queued=0|maxQueued=1
 08-05 18:44:20.598 25813 25813 I A03D00/com.amphion.asr.harmony.demo/JSAPP: [AmphionMetrics] kind=UTTERANCE language=ZH_EN sessionId=2 utteranceIndex=2 utteranceDurationMs=1750 decodeDurationMs=0 postProcessMs=5 firstPartialLatencyMs=339 endpointToFinalLatencyMs=128 utteranceE2eLatencyMs=713 rtf=0.000 nativeRssMb=-1 nativeRssMbDelta=0 pcmBytesAccepted=56000
@@ -439,7 +439,7 @@
 08-05 18:44:23.804  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, cancel taskId:1882 success.
 08-05 18:44:23.804  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1883 to wheelType:MINUTE window:7.total taskCount:3
 08-05 18:44:23.804  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, register taskName:EfficiencyResourcesUtil_resetEfficiencyResourceLatter success taskId:1883!
-08-05 18:44:23.804  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1877 taskName:releaseMemory 
+08-05 18:44:23.804  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1877 taskName:releaseMemory
 08-05 18:44:25.750 25813 25813 I A03D00/com.amphion.asr.harmony.demo/JSAPP: [AmphionMetrics] kind=UTTERANCE language=ZH_EN sessionId=2 utteranceIndex=3 utteranceDurationMs=3500 decodeDurationMs=0 postProcessMs=4 firstPartialLatencyMs=2617 endpointToFinalLatencyMs=145 utteranceE2eLatencyMs=3259 rtf=0.000 nativeRssMb=-1 nativeRssMbDelta=0 pcmBytesAccepted=112000
 08-05 18:44:25.753 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1468|queued=0|maxQueued=1
 08-05 18:44:27.851  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, start process taskId:1876 taskName:releaseSearch
@@ -447,7 +447,7 @@
 08-05 18:44:27.851  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, cancel taskId:1883 success.
 08-05 18:44:27.852  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1884 to wheelType:MINUTE window:7.total taskCount:3
 08-05 18:44:27.852  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, register taskName:EfficiencyResourcesUtil_resetEfficiencyResourceLatter success taskId:1884!
-08-05 18:44:27.852  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch 
+08-05 18:44:27.852  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch
 08-05 18:44:28.308 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1261|queued=1|maxQueued=2
 08-05 18:44:29.183 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=875|queued=0|maxQueued=2
 08-05 18:44:29.426 25813 25813 I A03D00/com.amphion.asr.harmony.demo/JSAPP: [AmphionMetrics] kind=SESSION language=ZH_EN sessionId=2 totalUtterances=4 totalPcmBytes=464000 avgRtf=0.000 p95Rtf=0.000 peakNativeRssMb=-1 nativeRssMb=-1
@@ -462,17 +462,17 @@
 08-05 18:44:37.915  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1885 to wheelType:MINUTE window:7.total taskCount:3
 08-05 18:44:37.915  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, register taskName:EfficiencyResourcesUtil_resetEfficiencyResourceLatter success taskId:1885!
 08-05 18:44:37.916  7746  7746 W A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: [SystemLoadManagerCore], current LoadLevel is 0,not start level is 2 ReleaseSearch not need pause.
-08-05 18:44:37.918  7746 26495 I A02112/com.ohos.FusionSearch/FusionSearchCore: DataProcessor::GetAiDataRemaining start 
+08-05 18:44:37.918  7746 26495 I A02112/com.ohos.FusionSearch/FusionSearchCore: DataProcessor::GetAiDataRemaining start
 08-05 18:44:37.918  7746 26495 I A02112/com.ohos.FusionSearch/FusionSearchCore: DataProcessor::GetAiDataRemaining end,count  0
 08-05 18:44:37.946  7746  7746 W A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: [SearchCaller], binlog remained
 08-05 18:44:37.947  7746  7746 W A02114/com.ohos.FusionSearch/[FusionSearch]: [SearchCaller], [release] connectionIdRemoteMap size is 0
-08-05 18:44:37.947  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: SystemLoadTask, SearchEngineConnectTaskis running. 
+08-05 18:44:37.947  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: SystemLoadTask, SearchEngineConnectTaskis running.
 08-05 18:44:37.948  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, cancel taskId:1885 success.
 08-05 18:44:37.948  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1886 to wheelType:MINUTE window:7.total taskCount:3
 08-05 18:44:37.948  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, register taskName:EfficiencyResourcesUtil_resetEfficiencyResourceLatter success taskId:1886!
 08-05 18:44:37.948  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, cancel taskId:1876 success.
 08-05 18:44:37.948  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: [SearchCaller], pollingReleaseSearch end
-08-05 18:44:37.948  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch 
+08-05 18:44:37.948  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1876 taskName:releaseSearch
 08-05 18:44:39.148 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1366|queued=0|maxQueued=1
 08-05 18:44:41.993 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1602|queued=0|maxQueued=1
 08-05 18:44:44.747 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1506|queued=0|maxQueued=1
@@ -481,7 +481,7 @@
 08-05 18:44:46.968  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, cancel taskId:1886 success.
 08-05 18:44:46.968  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1887 to wheelType:MINUTE window:7.total taskCount:3
 08-05 18:44:46.968  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, register taskName:EfficiencyResourcesUtil_resetEfficiencyResourceLatter success taskId:1887!
-08-05 18:44:46.968  7746  7746 I A02112/com.ohos.FusionSearch/FusionSearchCore: DataProcessor::GetAiDataRemaining start 
+08-05 18:44:46.968  7746  7746 I A02112/com.ohos.FusionSearch/FusionSearchCore: DataProcessor::GetAiDataRemaining start
 08-05 18:44:46.968  7746  7746 I A02112/com.ohos.FusionSearch/FusionSearchCore: DataProcessor::GetAiDataRemaining end,count  0
 08-05 18:44:46.968  7746  7746 I A02112/com.ohos.FusionSearch/FusionSearchCore: DataProcessor::UnloadFeaPluginWhenNoDataConsume will unloadFeaLibrary
 08-05 18:44:46.968  7746  7746 I A02112/com.ohos.FusionSearch/FusionSearchCore: [fea compute] Unload Fea Library
@@ -496,7 +496,7 @@
 08-05 18:44:47.030  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: [SearchCaller], pollingReleaseCoreMemory end
 08-05 18:44:47.087 25813 25813 I A03D00/com.amphion.asr.harmony.demo/JSAPP: [AmphionMetrics] kind=UTTERANCE language=ZH_EN sessionId=3 utteranceIndex=1 utteranceDurationMs=7000 decodeDurationMs=0 postProcessMs=53 firstPartialLatencyMs=208 endpointToFinalLatencyMs=370 utteranceE2eLatencyMs=8640 rtf=0.000 nativeRssMb=-1 nativeRssMbDelta=0 pcmBytesAccepted=224000 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=0 nativeRssMbAtReady=-1
 08-05 18:44:47.100  7746  7746 W A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: MemOpt, releaseLibraryMemory duration: 69 ms
-08-05 18:44:47.101  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1877 taskName:releaseMemory 
+08-05 18:44:47.101  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:1877 taskName:releaseMemory
 08-05 18:44:47.475 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1491|queued=0|maxQueued=1
 08-05 18:44:47.990  7605  7605 I A01B05/com.ohos.sceneboard/AOD: AodBatteryIconModel --> battery state changed
 08-05 18:44:49.200 25813 25813 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1139|queued=0|maxQueued=1
@@ -532,7 +532,7 @@
 08-05 18:44:50.426  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AwarenessItemManager:157]: Process cur: PeriodicTimeAbility, sub: 0, unsub: 0, queries: 0, publish: 3
 08-05 18:44:50.426  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AbilityGraph:328]: pd: PeriodicTime, ct: -1, ld: permanent, s: DataStorageOperator|StorageAwarenessData|Timer, d: DataStorageOperator, c: PeriodicTimeAbility
 08-05 18:44:50.426  7815 26699 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AwarenessAnalysisModule:229]: dataName: WakeupTimer, subscribeId: , type: SubscribeDataItem
-08-05 18:44:50.426  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:31]: storageType is cycle, isInnerStorage : 1, triggerDataName : 
+08-05 18:44:50.426  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:31]: storageType is cycle, isInnerStorage : 1, triggerDataName :
 08-05 18:44:50.426  7815 25610 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:49]: data cache didnt update
 08-05 18:44:50.426  7815 26699 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [FFRTWrapper:133]: GetQueue: ffrt_queue_6
 08-05 18:44:50.426  7815 26699 W A00F00/com.huawei.hmos.aidataservice/CA160003329: [TimerOperator:134]: awarenessDataList is empty
@@ -548,7 +548,7 @@
 08-05 18:44:50.429  7815 10423 I A00F00/com.huawei.hmos.aidataservice/BaseWorker: worker1-onmessage name: SubscribeDataItem
 08-05 18:44:50.988  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, start process taskId:8 taskName:El5Switch-interval
 08-05 18:44:50.988  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, wheelType:SECOND have no Task,will clear interval
-08-05 18:44:50.990  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:8 taskName:El5Switch-interval 
+08-05 18:44:50.990  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, end process taskId:8 taskName:El5Switch-interval
 08-05 18:45:00.010  9578 30079 I A03D00/com.ohos.formrenderservice/JSAPP: WeatherCardClockCardTag useOffsetFormat with form=1111276256,offset=999,type=0.
 08-05 18:45:00.013  9578 30079 W A03D00/com.ohos.formrenderservice/JSAPP: WeatherCardClockCardTag TextBuilder with form=1111276256,value=1785926700,clockTime=06:45|8月5日周三 六月廿三
 08-05 18:45:04.263  7746  7746 I A02112/com.ohos.FusionSearch/[FusionSearch]100_3.6.3.301.009: TimeWheelManager, success add taskId:1888 to wheelType:MINUTE window:8.total taskCount:3
@@ -922,7 +922,7 @@
 08-05 18:45:16.746   589 26849 W C02D15/hiview/XPower: [task_145]#ThermalHandler wifiState 4 is invalid!
 08-05 18:45:16.746  1404  1954 I C01FFF/riladapter_host/BRIL: T00 CHAN done for modem:0, index:0, atResponse: ^BOOSTERNTF: 3, 20,"06001000010000040000000001029BFF0202F3FF"
 08-05 18:45:16.749   589 26849 E C02D15/hiview/XPower: [task_145]#HighTempMonitor: no camera data found
-08-05 18:45:16.750   589 26849 I C01650/hiview/Config: Log:Error(284) aut***tic index on lat***(for***und) 
+08-05 18:45:16.750   589 26849 I C01650/hiview/Config: Log:Error(284) aut***tic index on lat***(for***und)
 08-05 18:45:16.751   589 26849 E C02D15/hiview/XPower: [task_145]#HighTempMonitor: no Window data found
 08-05 18:45:16.754  1536 26896 I C02986/powermgr/DisplayPowerBrightness: PrintCurrentLuxLog, lux=[60.7/240, 60.7/359, 60.7/240, 60.7/361, 60.8/240, 60.8|694011424], slux=121.0, blux=2.1, oLux=121.0, bTh=381.5, bTh2=146.8, sbTh=277.3, dTh=22.1, dTh2=110.2, bt=1000, dt=1000, pxs=0, sz=35, bl=47, scene=DefaultMode, als=1, als1=0, color=0, pxa=0, locked=0, dl=41.2
 08-05 18:45:16.788  1309  1332 W C01C42/time_service/TimeService: t3 694013477
@@ -1075,7 +1075,7 @@
 08-05 18:45:18.071  1677 26966 I C01120/foundation/BMS: Refresh conditions not met
 08-05 18:45:18.074  1536 55586 I C0290C/powermgr/PowerMode: GetDeviceMode: pid: 7605, uid: 20020020, mode: 600
 08-05 18:45:18.075  1738 26854 I C02931/batterycare_service/BCS/BatteryCareService: [14720][HandleSystemEvent:213]: Event: usual.event.BATTERY_CHANGED
-08-05 18:45:18.075  1738 26854 I C02931/batterycare_service/BCS/BatteryCareService: [14721][PostUevent:270]: update uevent: SUBSYSTEM=power_supply 
+08-05 18:45:18.075  1738 26854 I C02931/batterycare_service/BCS/BatteryCareService: [14721][PostUevent:270]: update uevent: SUBSYSTEM=power_supply
 08-05 18:45:18.076  1738  2429 I C02930/batterycare_service/BCS/Base/Event: [120734][Dispatch:181]: to dispatch event:2026-08-05 18:45:18/BattTemp=330
 08-05 18:45:18.076   586 26958 I C01800/samgr/SAMGR: RecvEvent:usual.event.BATTERY_CHANGED,0_5154
 08-05 18:45:18.076   586 26958 W C01800/samgr/SAMGR: CheckCondition:usual.event.SCREEN_OFF, value:0 not pass
@@ -4052,7 +4052,7 @@
 08-05 18:45:41.385  1404  1954 I C01FFF/riladapter_host/BRIL: T00 CHAN done for modem:0, index:0, atResponse: ^BOOSTERNTF: 3, 20,"06001000010000040000000001029BFF0202F2FF"
 08-05 18:45:41.704  1404  1954 I C01FFF/riladapter_host/BRIL: T00 AT m0_0<^BOOSTERNTF: 3, 20,"06001000010000040000000001029AFF0202F2FF"
 08-05 18:45:41.704  1404  1954 I C01FFF/riladapter_host/BRIL: T00 CHAN done for modem:0, index:0, atResponse: ^BOOSTERNTF: 3, 20,"06001000010000040000000001029AFF0202F2FF"
-08-05 18:45:41.918  1402  1500 I C02516/sensor_host/cb: {-1,8,0,1}: s=132297 r=1510-131277 
+08-05 18:45:41.918  1402  1500 I C02516/sensor_host/cb: {-1,8,0,1}: s=132297 r=1510-131277
 08-05 18:45:42.010 23483 23507 I C02D13/hdcd/HDC_LOG: [FetchCommand:1142] FetchCommand channelId:0 command:5000
 08-05 18:45:42.010 23483 23507 I C02D13/hdcd/HDC_LOG: [FetchCommand:1163] recv heartbeat count is 20629 for session 120******189(L:10)
 08-05 18:45:42.010 23483 23507 I C02D13/hdcd/HDC_LOG: [SendHeartbeatMsg:1519] send heartbeat count is 20629 and messages count is 260319 for session 120******189(L:10)
@@ -4793,7 +4793,7 @@
 08-05 18:45:48.162   586 27234 W C01800/samgr/SAMGR: CheckCondition:usual.event.SCREEN_OFF, value:0 not pass
 08-05 18:45:48.162   586 27234 W C01800/samgr/SAMGR: CheckCondition:usual.event.SCREEN_OFF, value:0 not pass
 08-05 18:45:48.163  1738 26851 I C02931/batterycare_service/BCS/BatteryCareService: [14723][HandleSystemEvent:213]: Event: usual.event.BATTERY_CHANGED
-08-05 18:45:48.163  1738 26851 I C02931/batterycare_service/BCS/BatteryCareService: [14724][PostUevent:270]: update uevent: SUBSYSTEM=power_supply 
+08-05 18:45:48.163  1738 26851 I C02931/batterycare_service/BCS/BatteryCareService: [14724][PostUevent:270]: update uevent: SUBSYSTEM=power_supply
 08-05 18:45:48.165   755 24971 I C02B87/audio_server/CommonEventSupervisor: [OnReceiveEvent]stateCode = 0, action = usual.event.BATTERY_CHANGED
 08-05 18:45:48.165   755 24971 I C02B87/audio_server/CommonEventSupervisor: [AddCoolCaseParam]data.GetWant().GetStringParam = SUBSYSTEM=power_supply
 08-05 18:45:48.165   755 24971 I C02B87/audio_server/CommonEventSupervisor: [CommonEventSetExtraParameters]CommonEvent SetExtraParameters Start
@@ -5045,7 +5045,7 @@
 08-05 18:45:49.482 23483 27278 I C02D13/hdcd/HDC_LOG: [Popen:225] Popen pipe fds[pipeRead]:38 fds[pipeWrite]:42, mode 0
 08-05 18:45:49.488 23483 23507 I C02D13/hdcd/HDC_LOG: [ExecuteCommand:286] ExecuteCommand cmd:cat******tus(L:22) fd:38 pid:27279
 08-05 18:45:49.489 23483 23507 I C02D13/hdcd/HDC_LOG: [CommandDispatch:486] Unity CommandDispatch command:1001 finish cid:2871506002 sid:120******189(L:10)
-08-05 18:45:49.494  1402  1499 I C02516/sensor_host/cb: {-1,5,0,1}: s=144415 r=1510-143560 
+08-05 18:45:49.494  1402  1499 I C02516/sensor_host/cb: {-1,5,0,1}: s=144415 r=1510-143560
 08-05 18:45:49.494  1510 20829 I C02700/sensors/PrintSensorData: in ControlSensorHdiPrint, sensorType:5, hdiTimes:501
 08-05 18:45:49.495  1700 27237 I C02700/display_engine_service/PrintSensorData: in ControlSensorClientPrint, sensorType:5, clientTimes:501
 08-05 18:45:49.495  1536 27256 I C02700/powermgr/PrintSensorData: in ControlSensorClientPrint, sensorType:5, clientTimes:501
@@ -5129,7 +5129,7 @@
 08-05 18:45:50.448  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [PeriodicTimeAbility:140]: subscribeInfo subscribeId:screenStatusAbilityPeriodicTime, dataName:PeriodicTime
 08-05 18:45:50.449  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AwarenessItemManager:157]: Process cur: PeriodicTimeAbility, sub: 0, unsub: 0, queries: 0, publish: 3
 08-05 18:45:50.449  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AbilityGraph:328]: pd: PeriodicTime, ct: -1, ld: permanent, s: DataStorageOperator|StorageAwarenessData|Timer, d: DataStorageOperator, c: PeriodicTimeAbility
-08-05 18:45:50.449  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:31]: storageType is cycle, isInnerStorage : 1, triggerDataName : 
+08-05 18:45:50.449  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:31]: storageType is cycle, isInnerStorage : 1, triggerDataName :
 08-05 18:45:50.449  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:49]: data cache didnt update
 08-05 18:45:50.449  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AbilityGraph:328]: pd: PeriodicTime, ct: -1, ld: permanent, s: AppUsageDurationPeriodicTime, d: ForegroundAppAbility, c: PeriodicTimeAbility
 08-05 18:45:50.449  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [ForegroundAppAbility:529]: usageAppCacheMap is empty return

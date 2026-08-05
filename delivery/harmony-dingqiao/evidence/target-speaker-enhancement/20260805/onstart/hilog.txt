@@ -173,7 +173,7 @@
 08-05 18:46:44.891  1677 27865 E C01311/foundation/AppMS: [AMSI4467]terminateAbility app unexist
 08-05 18:46:44.892  7605  7605 I A04223/com.ohos.sceneboard/SCBMain: [id:89]on sessionException errorReason: onAbilityDied, shouldSkipKillInStartup: false, needRemoveSession: false needClearCallerLink: true
 08-05 18:46:44.892   945   945 I C01710/resource_schedule_service/BUNDLE_ACTIVE: [bundle_active_app_state_obsever.cpp(OnAbilityStateChanged):61]OnAblityStateChanged userid is 100, bundle name is com.amphion.asr.harmony.demo, uid is 20020215, event is 4, timestamp is 694099582
-08-05 18:46:44.892   945  1757 I C01710/resource_schedule_service/BUNDLE_ACTIVE: [bundle_active_bundle_mgr_helper.cpp(GetApplicationInfo):65]bundleMgr is null: 0 
+08-05 18:46:44.892   945  1757 I C01710/resource_schedule_service/BUNDLE_ACTIVE: [bundle_active_bundle_mgr_helper.cpp(GetApplicationInfo):65]bundleMgr is null: 0
 08-05 18:46:44.892  7605  7605 I A04223/com.ohos.sceneboard/SCBMain: Request to handle session exception, persistentId: 89
 08-05 18:46:44.893  7605  7605 I A04223/com.ohos.sceneboard/SCBMain: getSceneSessionByPersistentId from containerSessionList id: 89
 08-05 18:46:44.893  1677 27868 W C01335/foundation/Connection: [connection_state_manager.cpp421]callerPid:25910
@@ -209,15 +209,15 @@
 08-05 18:46:44.897  1535 18359 I C05A02/privacy_service/PRIVACY: [OnAppStopped]OnChange(id=537879842, state=5).
 08-05 18:46:44.897  1535 18359 I C05A02/privacy_service/PRIVACY: [RemoveRecordFromStartListByToken]TokenId 537879842
 08-05 18:46:44.897  7605  7605 W A01B01/com.ohos.sceneboard/HOME: SCBSCS: initCompanionIconInfo companionIconInfo: com.amphion.asr.harmony.demo, EntryAbility, amphion_asr_demo, iconId: AppIcon_Image_com.amphion.asr.harmony.demoEntryAbilityamphion_asr_demo0_undefined_0; persistentId: 89
-08-05 18:46:44.897  1535 21123 I C05610/privacy_service/ASP: [PrivacyIndicator]OnAppStopped: OnAppStopped: com.amphion.asr.harmony.demo, 
+08-05 18:46:44.897  1535 21123 I C05610/privacy_service/ASP: [PrivacyIndicator]OnAppStopped: OnAppStopped: com.amphion.asr.harmony.demo,
 08-05 18:46:44.897  7605  7605 W A01B01/com.ohos.sceneboard/HOME: QuitAppRectViewModel --> buildAppExitInfoInExit iconId AppIcon_Image_com.amphion.asr.harmony.demoEntryAbilityamphion_asr_demo0_undefined_0
 08-05 18:46:44.897  7605  7605 W A01B01/com.ohos.sceneboard/HOME: QuitAppRectViewModel --> startAppType 0, iconId AppIcon_Image_com.amphion.asr.harmony.demoEntryAbilityamphion_asr_demo0_undefined_0
 08-05 18:46:44.898  1781 22125 I C01409/aps_manager/APS_MANAGER: FrameRateControl clear mWaitSceneQueue(0)
 08-05 18:46:44.898  1781 22125 I C01409/aps_manager/APS_MANAGER: FrameRateControl clear mEnabledScene(0)
-08-05 18:46:44.898  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentShowingPage bundleName: com.amphion.asr.harmony.demoabilityName: EntryAbility, moduleName: amphion_asr_demo;startAppType: 0; cardId: undefined appIndex: 0, shortcutId: 
+08-05 18:46:44.898  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentShowingPage bundleName: com.amphion.asr.harmony.demoabilityName: EntryAbility, moduleName: amphion_asr_demo;startAppType: 0; cardId: undefined appIndex: 0, shortcutId:
 08-05 18:46:44.898  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentShowingPageWithMethod page: 1 msg:findAppInfo
 08-05 18:46:44.898  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentPage, eleInCurrentPage length: 19
-08-05 18:46:44.898  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: isFoundApp bundleName: com.amphion.asr.harmony.demo abilityName: EntryAbility, moduleName: amphion_asr_demo; appIconId: 33554434; cardId: undefined appIndex: 0, shortcutId: 
+08-05 18:46:44.898  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: isFoundApp bundleName: com.amphion.asr.harmony.demo abilityName: EntryAbility, moduleName: amphion_asr_demo; appIconId: 33554434; cardId: undefined appIndex: 0, shortcutId:
 08-05 18:46:44.898  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentPage icon 33554434, 33554434,undefined, com.amphion.asr.harmony.demo
 08-05 18:46:44.898  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: findAppInCurrentShowingPageWithMethod page: 1 componentId:undefined msg:findAppInfo
 08-05 18:46:44.898  7605  7605 W A01B01/com.ohos.sceneboard/HOME: PageDesktopModel: searchInCurrentDeskTopPage 33554434, true, 0
@@ -286,11 +286,11 @@
 08-05 18:46:44.913  1352 22139 I A03101/tp_host/aptouch_daemon: Print:[54] ThpSpace::ExecuteCmdParms[204] +
 08-05 18:46:44.913  7605  7605 I C0392C/com.ohos.sceneboard/AceForEach: [(100000:100000:scope)] ForEachNode skip mark dirty. Id[222151], Ids.size[1]
 08-05 18:46:44.914  1343 25932 I C02503/aptouch_daemon/Server: HandleCmd[294] cmd:power_time, param:
-08-05 18:46:44.914  1663  1663 I C01406/render_service/RSUniRenderVisitor: [comm]OcclusionInfo [SCBGestureBack22, 32663226286300, 0], [SCBStatusBar18, 32663226286288, 0], [SCBGestureNavBar16, 32663226286283, 0], [BackgroundBlurView2, 32663226286088, 0], [SCBDesktop7, 32663226286108, 0], [SCBWallpaper5, 32663226286091, 0], 
+08-05 18:46:44.914  1663  1663 I C01406/render_service/RSUniRenderVisitor: [comm]OcclusionInfo [SCBGestureBack22, 32663226286300, 0], [SCBStatusBar18, 32663226286288, 0], [SCBGestureNavBar16, 32663226286283, 0], [BackgroundBlurView2, 32663226286088, 0], [SCBDesktop7, 32663226286108, 0], [SCBWallpaper5, 32663226286091, 0],
 08-05 18:46:44.914  7605  7605 W C0393B/com.ohos.sceneboard/AceWindowScene: [(100000:100000:scope)] parentId:222193, nodeId:222194, sessionId:89
 08-05 18:46:44.914  1352 22139 I A03101/tp_host/aptouch_daemon: Print:[54] *RunCmdParms[115] ret = ap:core:active:339011+idle:16612892#side:active:0+idle:0#O2:0#U2:24,37,37,16,20,25,24,13,20,14,19,10,13,18,8,12,15,9,7,247,#GI:0#
 08-05 18:46:44.914  1352 22139 I C02597/tp_host/TS_Service: HwExcuteAptouchCommand end
-08-05 18:46:44.914  7605  8258 I C04217/com.ohos.sceneboard/WMSAttribute: Visibility changed, size: 4, WindowVisibilityInfos [name, winId, visibleState]: [BackgroundBlurView2, 8, 0], [SCBWallpaper5, 11, 0], [SCBDesktop7, 14, 0], [demo0, 89, 2], 
+08-05 18:46:44.914  7605  8258 I C04217/com.ohos.sceneboard/WMSAttribute: Visibility changed, size: 4, WindowVisibilityInfos [name, winId, visibleState]: [BackgroundBlurView2, 8, 0], [SCBWallpaper5, 11, 0], [SCBDesktop7, 14, 0], [demo0, 89, 2],
 08-05 18:46:44.914  7605  8258 I C04202/com.ohos.sceneboard/WMSMain: NotifyRSSWindowModeTypeUpdate: Notify RSS Window Mode Type Update, type : 5
 08-05 18:46:44.914   945   961 I C04202/resource_schedule_service/WMSMain: NotifyWindowModeChange: WindowManager::Impl UpdateWindowModeTypeInfo type: 5
 08-05 18:46:44.915  1663  1883 I C01406/render_service/skia: RSSurfaceRenderNodeDrawable::OnDraw name:BackgroundBlurView2, the number of total processedNodes: 1
@@ -328,7 +328,7 @@
 08-05 18:46:44.917   754 27869 I C01D00/accessibility/accessibility: [(WindowUpdateAll:1027)]WindowUpdateAll start activeWindowId_: 89
 08-05 18:46:44.917  1627 17759 I C04707/hianalytics/HaService: pid: 7605, winId: 14.
 08-05 18:46:44.917  7605  8258 E C04207/com.ohos.sceneboard/WMSFocus: NotifyHighlightChange: SendRequest failed
-08-05 18:46:44.917  7605  8258 I C04207/com.ohos.sceneboard/WMSFocus: RemoveHighlightSessionIds: 
+08-05 18:46:44.917  7605  8258 I C04207/com.ohos.sceneboard/WMSFocus: RemoveHighlightSessionIds:
 08-05 18:46:44.917  7605  8258 W C04207/com.ohos.sceneboard/WMSFocus: NotifyHighlightChange: Invalid [14, 0]
 08-05 18:46:44.917  7605  8258 I C04207/com.ohos.sceneboard/WMSFocus: SetHighlightSessionIds: 14
 08-05 18:46:44.917  7605  8258 I C03900/com.ohos.sceneboard/Ace: [(-1:100000:singleton)] [com.ohos.sceneboard][phone_sceneboard][100000]: window focus
@@ -358,7 +358,7 @@
 08-05 18:46:44.920  7605  8258 I C0420A/com.ohos.sceneboard/WMSLife: The windows of pid 25910 change to invisibility.
 08-05 18:46:44.920  7605  8258 I C0420A/com.ohos.sceneboard/WMSLife: SetAbilitySessionInfo: Is SCB Call, set flag:1, persistentId:89, requestId:-1
 08-05 18:46:44.920  7605  7605 W A01C06/com.ohos.sceneboard/ICON: AppIconCommonEvent --> onActive bundleName:com.amphion.asr.harmony.demo, [SCBTM] set icon from hidden to [hidden], caller: notifySceneTransitionOut, extra info: undefined.
-08-05 18:46:44.920  7605  8258 I C04202/com.ohos.sceneboard/WMSMain: ResetSceneSessionInfoWant: keySessionId: 
+08-05 18:46:44.920  7605  8258 I C04202/com.ohos.sceneboard/WMSMain: ResetSceneSessionInfoWant: keySessionId:
 08-05 18:46:44.920  7605  8258 I C0420A/com.ohos.sceneboard/WMSLife: MoveStartLifeCycleTask: id:89 is not pc window
 08-05 18:46:44.920  7605  8258 I C04202/com.ohos.sceneboard/WMSMain: RequestSceneSessionDestructionInner: [id: 89] Begin CloseUIAbility, system: 0
 08-05 18:46:44.920  1700 11198 I C0140D/display_engine_service/DE N: [a92ab01494e014b 0 0]D NotifySceneMsg<232>: window info: {"oh":["-1","com.ohos.sceneboard"]} size: 1
@@ -484,7 +484,7 @@
 08-05 18:46:44.928  1535 18359 I C05A02/privacy_service/PRIVACY: [NotifyAppStateChange]Id 537511244, pid 7605, status 1
 08-05 18:46:44.928  7605  7605 W A01C06/com.ohos.sceneboard/ICON: AppIconClockModel --> success to startTimer, timerID is 44962
 08-05 18:46:44.928  7605  7605 W A01C06/com.ohos.sceneboard/ICON: AppIconWeatherCache --> success to updateWeather, focus is true
-08-05 18:46:44.928  7605  7605 W A01C06/com.ohos.sceneboard/ICON: AppIconWeatherCache --> weather is not updated: fore: , back: 
+08-05 18:46:44.928  7605  7605 W A01C06/com.ohos.sceneboard/ICON: AppIconWeatherCache --> weather is not updated: fore: , back:
 08-05 18:46:44.928   840   840 I C02801/multimodalinput/AppStateObserver: [|39]Process state change app name:com.ohos.sceneboard, uid:20020020, state:2
 08-05 18:46:44.928  7605  7605 I A0420A/com.ohos.sceneboard/WMSLife: onSessionStateChange state:5
 08-05 18:46:44.928  7605  7605 I A04209/com.ohos.sceneboard/WMSImms: win:89 background
@@ -507,14 +507,14 @@
 08-05 18:46:44.929  7605  7605 I C0391C/com.ohos.sceneboard/AceFocus: [(100000:100000:scope)] Window: 1 get focus.
 08-05 18:46:44.929  7605  7605 I C0391C/com.ohos.sceneboard/AceFocus: [(100000:100000:scope)] Request focus on rootFocusHub: root/0
 08-05 18:46:44.929  1663  1663 I C01406/render_service/RSUifirstManager: [comm]uifirst disable -> enable. WindowScene_demo89 id:32663226379921
-08-05 18:46:44.929  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: GetCallerSessionColorMode: bundle com.amphion.asr.harmony.demo, caller 
+08-05 18:46:44.929  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: GetCallerSessionColorMode: bundle com.amphion.asr.harmony.demo, caller
 08-05 18:46:44.929  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: GetIsDarkFromConfiguration: colorMode: light
 08-05 18:46:44.929  1806 27850 I C04619/CollaborationFwk/Common: [common_event_receiver.cpp:54]HandleScenePanelStateEvent# HandleScenePanelStateEvent eventType: SCENE_PANEL_STATE_CHANGE.
 08-05 18:46:44.929  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: GetIsDarkFromConfiguration: colorMode: light
 08-05 18:46:44.929  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: GetStartWindowColorFollowApp: follow sys: com.amphion.asr.harmony.demo
 08-05 18:46:44.929  7605  7605 W C04216/com.ohos.sceneboard/WMSPattern: GetStartingWindowInfoFromCache: ffffffff, resource:///33554434.svg, 0, , 0
 08-05 18:46:44.929  1806 27850 I C04619/CollaborationFwk/Common: [common_event_receiver.cpp:56]HandleScenePanelStateEvent# HandleScenePanelStateEvent state: 0.
-08-05 18:46:44.929  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: GetCallerSessionColorMode: bundle com.amphion.asr.harmony.demo, caller 
+08-05 18:46:44.929  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: GetCallerSessionColorMode: bundle com.amphion.asr.harmony.demo, caller
 08-05 18:46:44.929  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: GetIsDarkFromConfiguration: colorMode: light
 08-05 18:46:44.929  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: GetIsDarkFromConfiguration: colorMode: light
 08-05 18:46:44.929  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: GetStartWindowColorFollowApp: follow sys: com.amphion.asr.harmony.demo
@@ -790,7 +790,7 @@
 08-05 18:46:45.165  7605  7605 I A04222/com.ohos.sceneboard/WMSMission: [a92ab1149526d6e 5275ff 2982885][Screen:0][Panel:1] get existing session from usage-total list.
 08-05 18:46:45.166  7605  7605 I A04223/com.ohos.sceneboard/SCBMain: [a92ab1149526d6e 5275ff 2982885]requestSceneSession using exist persistentId: 89
 08-05 18:46:45.166  7605  7605 I A04223/com.ohos.sceneboard/SCBMain: [a92ab1149526d6e 5275ff 2982885]getSceneSessionByPersistentId from containerSessionList id: 89
-08-05 18:46:45.166  7605 27889 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 263749e 5275ff]GetCallerSessionColorMode: bundle com.amphion.asr.harmony.demo, caller 
+08-05 18:46:45.166  7605 27889 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 263749e 5275ff]GetCallerSessionColorMode: bundle com.amphion.asr.harmony.demo, caller
 08-05 18:46:45.166  7605 27889 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 263749e 5275ff]GetIsDarkFromConfiguration: colorMode: light
 08-05 18:46:45.166  7605 27889 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 263749e 5275ff]GetIsDarkFromConfiguration: colorMode: light
 08-05 18:46:45.166  7605 27889 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 263749e 5275ff]GetStartWindowColorFollowApp: follow sys: com.amphion.asr.harmony.demo
@@ -894,7 +894,7 @@
 08-05 18:46:45.173   945 27881 I C01705/resource_schedule_service/EXACT_PREREAD: [a92ab1149526d6e edcfc1 edd3ae][(StartAppStartupPrereadWork):630] uid: 20020215 pid: 0 appStartupScene: com.amphion.asr.harmony.demo/com.amphion.asr.harmony.demo
 08-05 18:46:45.173  7605  7605 W A01A01/com.ohos.sceneboard/NC: [a92ab1149526d6e 1dac444 5275ff]DropdownPanelView: onStartSceneFromOtherEvent return. event: com.amphion.asr.harmony.demo isViewShowing:false
 08-05 18:46:45.173  1677 18925 W C01336/foundation/AMS: [a92ab1149526d6e 12d3b53 1bfbff5][app_exit_reason_data_manager.cpp659]KEY_NOT_FOUND
-08-05 18:46:45.173  1677 18925 I C01336/foundation/AMS: [a92ab1149526d6e 12d3b53 1bfbff5][app_exit_reason_data_manager.cpp590]tokenId <private> module amphion_asr_demo ability EntryAbility 
+08-05 18:46:45.173  1677 18925 I C01336/foundation/AMS: [a92ab1149526d6e 12d3b53 1bfbff5][app_exit_reason_data_manager.cpp590]tokenId <private> module amphion_asr_demo ability EntryAbility
 08-05 18:46:45.173   945 27881 I C01705/resource_schedule_service/EXACT_PREREAD: [a92ab1149526d6e edcfc1 edd3ae][(WriteSceneInfoToMonitor):1052] uid: 20020215 pid: 0 sceneName: com.amphion.asr.harmony.demo/com.amphion.asr.harmony.demo
 08-05 18:46:45.173  1677 18925 W C01336/foundation/AMS: [a92ab1149526d6e 12d3b53 1bfbff5][app_exit_reason_data_manager.cpp607]DBStatus:27459591
 08-05 18:46:45.173  1345 15880 I C01708/perfgenius_host/PF_: [a92ab1149526d6e 180d76d c2831d]qosId not exist, qosId = 103!
@@ -903,24 +903,24 @@
 08-05 18:46:45.173  1345 15880 W C01708/perfgenius_host/PF_: [a92ab1149526d6e 180d76d c2831d]ConvertValueToNew failed, qosId = 104!
 08-05 18:46:45.173  1345 15880 I C01708/perfgenius_host/PF_: [a92ab1149526d6e 180d76d c2831d]qosId not exist, qosId = 105!
 08-05 18:46:45.173  1345 15880 W C01708/perfgenius_host/PF_: [a92ab1149526d6e 180d76d c2831d]ConvertValueToNew failed, qosId = 105!
-08-05 18:46:45.174   945 27881 I C01705/resource_schedule_service/EXACT_PREREAD: [a92ab1149526d6e edcfc1 edd3ae][(ChangeMonitorState):740] option:PAUSED 
+08-05 18:46:45.174   945 27881 I C01705/resource_schedule_service/EXACT_PREREAD: [a92ab1149526d6e edcfc1 edd3ae][(ChangeMonitorState):740] option:PAUSED
 08-05 18:46:45.174  7605  7605 E C03939/com.ohos.sceneboard/AceGeometryTransition: [a92ab1149526d6e 5275ff 2982885][(100000:100000:scope)] redundant node222293 has same geoid: navBarId
 08-05 18:46:45.174  1677 18925 W C01336/foundation/AMS: [a92ab1149526d6e 12d3b53 1bfbff5][ability_start_with_wait_observer_manager.cpp193]invaid observerId
 08-05 18:46:45.174   945 27881 I C01705/resource_schedule_service/IOLIMIT: [a92ab1149526d6e edcfc1 edd3ae][(SendWriteCmd):440] SendRequestAsync node iocontrol/iolimit.offon content 0
 08-05 18:46:45.174   945 27881 I C01705/resource_schedule_service/IOLIMIT: [a92ab1149526d6e edcfc1 edd3ae][(SendWriteCmd):440] SendRequestAsync node heavyio/iolimit.offon content 0
-08-05 18:46:45.174   945 27881 I C01705/resource_schedule_service/IOLIMIT: [a92ab1149526d6e edcfc1 edd3ae][(SendWriteCmd):440] SendRequestAsync node iocontrol/cgroup.procs content 9578 16732 
+08-05 18:46:45.174   945 27881 I C01705/resource_schedule_service/IOLIMIT: [a92ab1149526d6e edcfc1 edd3ae][(SendWriteCmd):440] SendRequestAsync node iocontrol/cgroup.procs content 9578 16732
 08-05 18:46:45.174   945 27881 I C01705/resource_schedule_service/IOLIMIT: [a92ab1149526d6e edcfc1 edd3ae][(SendWriteCmd):440] SendRequestAsync node iocontrol/iolimit.offon content 1
 08-05 18:46:45.174   945 27881 I C01705/resource_schedule_service/IOLIMIT: [a92ab1149526d6e edcfc1 edd3ae][(SendWriteCmd):440] SendRequestAsync node heavyio/iolimit.offon content 1
 08-05 18:46:45.174  1677 18925 W C01336/foundation/AMS: [a92ab1149526d6e 12d3b53 1bfbff5][ABR1600]nullptr
 08-05 18:46:45.174  1677 18925 I C01336/foundation/AMS: [a92ab1149526d6e 12d3b53 1bfbff5][ABR287]LoadLifecycle: abilityName:EntryAbility
-08-05 18:46:45.174   909 27803 I C01705/resource_schedule_executor/EXACT_PREREAD: [a92ab1149526d6e 621dbb 1431c9e][(ChangeMonitorState):224] option:PREREAD 
+08-05 18:46:45.174   909 27803 I C01705/resource_schedule_executor/EXACT_PREREAD: [a92ab1149526d6e 621dbb 1431c9e][(ChangeMonitorState):224] option:PREREAD
 08-05 18:46:45.174  1806 27850 I C04619/CollaborationFwk/Common: [a92ab1149526d6e 139714f 77f6a0][common_event_receiver.cpp:54]HandleScenePanelStateEvent# HandleScenePanelStateEvent eventType: SCENE_PANEL_STATE_CHANGE.
 08-05 18:46:45.174  1806 27850 I C04619/CollaborationFwk/Common: [a92ab1149526d6e 139714f 77f6a0][common_event_receiver.cpp:56]HandleScenePanelStateEvent# HandleScenePanelStateEvent state: 1.
 08-05 18:46:45.175  1677 27883 I C01202/foundation/Unordered: [a92ab1149526d6e 16dcb32 5e2978]Pid 7605 publish SCENE_PANEL_EVENT to 100 end(4,4,0,0)
 08-05 18:46:45.175  1677 18925 I C0135B/foundation/KeepAlive: [a92ab1149526d6e 12d3b53 1bfbff5][keep_alive_process_manager.cpp336]not supported
 08-05 18:46:45.175  1677 18925 I C01357/foundation/ProcessMgr: [a92ab1149526d6e 12d3b53 1bfbff5][ams_mgr_scheduler.cpp90]SubmitLoadTask: com.amphion.asr.harmony.demo-EntryAbility
 08-05 18:46:45.175  1677 18925 W C01311/foundation/AppMS: [a92ab1149526d6e 12d3b53 1bfbff5][AMSI9920]caller token not SA
-08-05 18:46:45.175   909 27803 I C01705/resource_schedule_executor/IOSched: [a92ab1149526d6e 15a903d b06bf0][ProcessAfterLimit:]ProcessAfterLimit control pids:16732 9578 
+08-05 18:46:45.175   909 27803 I C01705/resource_schedule_executor/IOSched: [a92ab1149526d6e 15a903d b06bf0][ProcessAfterLimit:]ProcessAfterLimit control pids:16732 9578
 08-05 18:46:45.175   909 27803 I C01705/resource_schedule_executor/IOSched: [a92ab1149526d6e 15a903d b06bf0][ProcessAfterLimit:]ProcessAfterLimit control pids:
 08-05 18:46:45.176  7605 27889 I C0420A/com.ohos.sceneboard/WMSLife: [a92ab1149526d6e 1bfbff5 31d0a22]start ui ability sceneFlag:4 isRestart:0 pageConfig:0 retCode: 0
 08-05 18:46:45.176  7605  8258 I C0420A/com.ohos.sceneboard/WMSLife: [a92ab1149526d6e 31d0a22 5275ff]ResetSessionInfoAfterStartUIAbility: in
@@ -1021,12 +1021,12 @@
 08-05 18:46:45.184  7605  7605 I C01406/com.ohos.sceneboard/RSNode: [a92ab1149526d6e 31d0a22 5275ff]RSNode::AddChild, Id: 32663226379872, SurfaceNode:[Id: 32663226379944, name: WindowScene_demo89]
 08-05 18:46:45.184  7605  7605 I C04204/com.ohos.sceneboard/WMSScb: [a92ab1149526d6e 31d0a22 5275ff]GetSurfaceNode: id: 89, surfaceNode: RSNode is null, original: RSUIContext [token: 32663226286081, tid: 7605]
 08-05 18:46:45.184  7605  7605 W C0393B/com.ohos.sceneboard/AceWindowScene: [a92ab1149526d6e 31d0a22 5275ff][(100000:100000:scope)] OnAttachToFrameNode id: 89, node id: 222194, name: com.amphion.asr.harmony.demo, state: 0, in recents: 0, appLockControl: 0, prelaunch: 0
-08-05 18:46:45.184  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 31d0a22 5275ff]GetCallerSessionColorMode: bundle com.amphion.asr.harmony.demo, caller 
+08-05 18:46:45.184  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 31d0a22 5275ff]GetCallerSessionColorMode: bundle com.amphion.asr.harmony.demo, caller
 08-05 18:46:45.184  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 31d0a22 5275ff]GetIsDarkFromConfiguration: colorMode: light
 08-05 18:46:45.184  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 31d0a22 5275ff]GetIsDarkFromConfiguration: colorMode: light
 08-05 18:46:45.184  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 31d0a22 5275ff]GetStartWindowColorFollowApp: follow sys: com.amphion.asr.harmony.demo
 08-05 18:46:45.184  7605  7605 W C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 31d0a22 5275ff]GetStartingWindowInfoFromCache: ffffffff, resource:///33554434.svg, 0, , 0
-08-05 18:46:45.184  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 31d0a22 5275ff]GetCallerSessionColorMode: bundle com.amphion.asr.harmony.demo, caller 
+08-05 18:46:45.184  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 31d0a22 5275ff]GetCallerSessionColorMode: bundle com.amphion.asr.harmony.demo, caller
 08-05 18:46:45.184  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 31d0a22 5275ff]GetIsDarkFromConfiguration: colorMode: light
 08-05 18:46:45.184  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 31d0a22 5275ff]GetIsDarkFromConfiguration: colorMode: light
 08-05 18:46:45.184  7605  7605 I C04216/com.ohos.sceneboard/WMSPattern: [a92ab1149526d6e 31d0a22 5275ff]GetStartWindowColorFollowApp: follow sys: com.amphion.asr.harmony.demo
@@ -1131,7 +1131,7 @@
 08-05 18:46:45.202   755 20837 I C02B83/audio_server/AudioServiceAppStateListener: [a92ab1149526d6e 2a6a930 15a9d16][OnAppStateChanged]app state changed, bundleName=com.amphion.asr.harmony.demo uid=20020215 pid=27410 state=99
 08-05 18:46:45.202   755 20837 I C02B83/audio_server/AudioServiceAppStateListener: [OnAppStateChanged]app state changed, bundleName=com.ohos.sceneboard uid=20020020 pid=7605 state=2
 08-05 18:46:45.202  1765 18356 I C02B91/av_session/AVSession: [HandleAppStateChanged]uid=20020020|pid=7605|state=2
-08-05 18:46:45.202  1677 27868 W C01300/foundation/AAFwk: [event_handler_wrap.cpp118]can't find event: 14_27410 
+08-05 18:46:45.202  1677 27868 W C01300/foundation/AAFwk: [event_handler_wrap.cpp118]can't find event: 14_27410
 08-05 18:46:45.202  1677 27868 I C01311/foundation/AppMS: [AMSI2585]attach com.amphion.asr.harmony.demo pid:27410
 08-05 18:46:45.202  1663  1883 I C01406/render_service/RsSubThreadCache: ClearCacheSurfaceInThread id:32663226379921
 08-05 18:46:45.203   945 27882 I C0470A/resource_schedule_service/GameServicePerf: [a92ab1149526d6e 327830 d165ad][(DispatchResource:273)]GameServiceScenePlugin recv event: type=1 value=0 payload=<private>
@@ -1150,7 +1150,7 @@
 08-05 18:46:45.204   945 27830 I C01705/resource_schedule_service/EXACT_PREREAD: [a92ab1149526d6e 1d58686 2d44228][(StartAppStartupCollectWork):678] uid: 20020215 pid: 27410 appStartupScene: com.amphion.asr.harmony.demo/com.amphion.asr.harmony.demo
 08-05 18:46:45.204   945 27350 I C01702/resource_schedule_service/CgroupEventHandler: [a92ab1149526d6e 21e6db1 28a8ec8]HandleProcessCreated : 20020215, 27410, 0, 0, com.amphion.asr.harmony.demo, 255, com.amphion.asr.harmony.demo
 08-05 18:46:45.204   945 27830 I C01705/resource_schedule_service/EXACT_PREREAD: [a92ab1149526d6e 1d58686 2d44228][(WriteSceneInfoToMonitor):1052] uid: 20020215 pid: 27410 sceneName: com.amphion.asr.harmony.demo/com.amphion.asr.harmony.demo
-08-05 18:46:45.204   945 27830 I C01705/resource_schedule_service/EXACT_PREREAD: [a92ab1149526d6e 1d58686 2d44228][(ChangeMonitorState):740] option:INWORKING 
+08-05 18:46:45.204   945 27830 I C01705/resource_schedule_service/EXACT_PREREAD: [a92ab1149526d6e 1d58686 2d44228][(ChangeMonitorState):740] option:INWORKING
 08-05 18:46:45.204   945 27830 I C01705/resource_schedule_service/EXACT_PREREAD: [a92ab1149526d6e 1d58686 2d44228][(StartAppStartupCollectWork):219] recordState is UPTODATE.
 08-05 18:46:45.204   945 27350 I C01702/resource_schedule_service/CgroupAdjuster: [a92ab1149526d6e 21e6db1 28a8ec8]ApplyProcessGroup:27410's cgroup from 255 to 0. Reason:20002. Event:3
 08-05 18:46:45.204   945 27829 I C01704/resource_schedule_service/TagSched: [a92ab1149526d6e 3339cd 21e6db1][ReportCgroupInfo]ReportCgroupInfo: pid:27410 from 255 to 0 withSuppressType: 0
@@ -1284,7 +1284,7 @@
 08-05 18:46:45.228 27934 27934 W C02C02/PARAM: Selinux check name persist.init.debug.loglevel in u:object_r:startup_init_param:s0 [27934 2000 2000] failed
 08-05 18:46:45.229 27934 27934 W C02C02/PARAM: SystemReadParam failed!name is:persist.init.debug.loglevel,err:1002
 08-05 18:46:45.229  1677 15270 I C011FC/foundation/BMSExt: [GetBundleInfo:523]GetBundleInfo ret 0
-08-05 18:46:45.229  1677 15270 I C011FC/foundation/BMSExt: [GetCompatibleDeviceType:65]calc deviceType bundleName: com.amphion.asr.harmony.demo, deviceType: 
+08-05 18:46:45.229  1677 15270 I C011FC/foundation/BMSExt: [GetCompatibleDeviceType:65]calc deviceType bundleName: com.amphion.asr.harmony.demo, deviceType:
 08-05 18:46:45.229 27410 27410 E C01301/com.amphion.asr.harmony.demo/CompatiblePolicyDeviceType: [calculateResourceType:81]deviceType is empty.
 08-05 18:46:45.230 27410 27410 W C01301/com.amphion.asr.harmony.demo/Ability: [resource_config_helper.cpp183]invalid source:
 08-05 18:46:45.230 27410 27410 W C01301/com.amphion.asr.harmony.demo/Ability: [resource_config_helper.cpp183]invalid source:
@@ -1400,7 +1400,7 @@
 08-05 18:46:45.269  1806 25378 I C04621/CollaborationFwk/CFWKService: [dynamic_thread_pool.cpp:131]RaiseThread# thread 394041108816 raise to thread pool
 08-05 18:46:45.269  1806 25378 I C04621/CollaborationFwk/CFWKService: [dynamic_thread_pool.cpp:131]RaiseThread# thread 394042169680 raise to thread pool
 08-05 18:46:45.269  1806 25378 I C04621/CollaborationFwk/CFWKService: [dynamic_thread_pool.cpp:131]RaiseThread# thread 394043230544 raise to thread pool
-08-05 18:46:45.269   945  1757 I C01710/resource_schedule_service/BUNDLE_ACTIVE: [bundle_active_bundle_mgr_helper.cpp(GetApplicationInfo):65]bundleMgr is null: 0 
+08-05 18:46:45.269   945  1757 I C01710/resource_schedule_service/BUNDLE_ACTIVE: [bundle_active_bundle_mgr_helper.cpp(GetApplicationInfo):65]bundleMgr is null: 0
 08-05 18:46:45.269  1806 25378 I C04621/CollaborationFwk/CFWKService: [dynamic_thread_pool.cpp:131]RaiseThread# thread 394046388560 raise to thread pool
 08-05 18:46:45.269  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: LiveCapsuleListVm: onAppForegroundStateChange foreground: true, uid: 20020215, bundleName: com.amphion.asr.harmony.demo, orientation: 0
 08-05 18:46:45.269  1806 25378 I C04621/CollaborationFwk/CFWKService: [dynamic_thread_pool.cpp:131]RaiseThread# thread 394205546832 raise to thread pool
@@ -1411,7 +1411,7 @@
 08-05 18:46:45.270  1806 25378 I C04621/CollaborationFwk/CFWKService: [dynamic_thread_pool.cpp:131]RaiseThread# thread 394228500816 raise to thread pool
 08-05 18:46:45.270  1806 25378 I C04621/CollaborationFwk/CFWKService: [dynamic_thread_pool.cpp:131]RaiseThread# thread 394229561680 raise to thread pool
 08-05 18:46:45.270  1806 25378 I C04621/CollaborationFwk/CFWKService: [dynamic_thread_pool.cpp:131]RaiseThread# thread 394233149776 raise to thread pool
-08-05 18:46:45.270  1806 25378 I C04621/CollaborationFwk/CFWKService: [dynamic_thread_pool.cpp:163]AddTask# thread pool size created to 10 
+08-05 18:46:45.270  1806 25378 I C04621/CollaborationFwk/CFWKService: [dynamic_thread_pool.cpp:163]AddTask# thread pool size created to 10
 08-05 18:46:45.270  1806 25378 I C04619/CollaborationFwk/Publish: [system_ability_adapter.cpp:48]HandleAbilityStateChange# add task: 1
 08-05 18:46:45.270 15318 17800 I C01C50/download_server/RequestCxx: OnAppStateChanged uid=20020215, bundleName=com.amphion.asr.harmony.demo,state=2
 08-05 18:46:45.270  1021  1140 I C01F0B/telephony/DcCall: receive event 6
@@ -1669,9 +1669,9 @@
 08-05 18:46:45.296  7605  8342 I C01406/com.ohos.sceneboard/OHOS::RS: RSTransactionHandler::Commit transactionHandler:11717603552487964755
 08-05 18:46:45.297  1677 27883 I C01202/foundation/Subscriber: Subscribe com.amphion.asr.harmony.demo(userId = 100, subId = 27410_20020215_-1_10321_111491246, ffrtCost 0 ms, taskCost 1 ms)
 08-05 18:46:45.297 27410 27410 I C01332/com.amphion.asr.harmony.demo/UIAbility: [JUA2036]JsUIAbility call js, name: onWindowStageCreate
-08-05 18:46:45.297  1663  1663 I C01406/render_service/RSUniRenderVisitor: [comm]OcclusionInfo [SCBGestureBack22, 32663226286300, 0], [SCBStatusBar18, 32663226286288, 0], [SCBGestureNavBar16, 32663226286283, 0], [demo0, 117725053583362, 0], [BackgroundBlurView2, 32663226286088, 0], [SCBDesktop7, 32663226286108, 0], [SCBWallpaper5, 32663226286091, 0], 
+08-05 18:46:45.297  1663  1663 I C01406/render_service/RSUniRenderVisitor: [comm]OcclusionInfo [SCBGestureBack22, 32663226286300, 0], [SCBStatusBar18, 32663226286288, 0], [SCBGestureNavBar16, 32663226286283, 0], [demo0, 117725053583362, 0], [BackgroundBlurView2, 32663226286088, 0], [SCBDesktop7, 32663226286108, 0], [SCBWallpaper5, 32663226286091, 0],
 08-05 18:46:45.297 27410 27410 I C04200/com.amphion.asr.harmony.demo/JsWindow: CreateJsWindow demo0
-08-05 18:46:45.297  7605  8258 I C04217/com.ohos.sceneboard/WMSAttribute: Visibility changed, size: 1, WindowVisibilityInfos [name, winId, visibleState]: [demo0, 89, 0], 
+08-05 18:46:45.297  7605  8258 I C04217/com.ohos.sceneboard/WMSAttribute: Visibility changed, size: 1, WindowVisibilityInfos [name, winId, visibleState]: [demo0, 89, 0],
 08-05 18:46:45.297 27410 27410 I C0420A/com.amphion.asr.harmony.demo/WMSLife: JsWindow: window: demo0, ctorCnt: 1
 08-05 18:46:45.297  7605  8260 I C04217/com.ohos.sceneboard/WMSAttribute: operator(): memMgrWindowInfos size: 1
 08-05 18:46:45.297   945 27882 I C01731/resource_schedule_service/SUSPEND_MSG: [a92abe149548a89 0 0]20020215_com.amphion.asr.harmony.demo_27410 windowNum:0->1 id:89; callingPid:-1
@@ -1781,7 +1781,7 @@
 08-05 18:46:45.303 27410 27410 I C0420A/com.amphion.asr.harmony.demo/WMSLife: SetUIContentInner: pages/DeviceTest, state:2, persistentId: 89
 08-05 18:46:45.303  7605  8342 I C04200/com.ohos.sceneboard/SessionListenerController: NotifySessionMovedToFront: Id:89
 08-05 18:46:45.303 27410 27410 I C0420A/com.amphion.asr.harmony.demo/WMSLife: SetUIContentComplete: persistentId=89
-08-05 18:46:45.303   945  1757 I C01710/resource_schedule_service/BUNDLE_ACTIVE: [bundle_active_bundle_mgr_helper.cpp(GetApplicationInfo):65]bundleMgr is null: 0 
+08-05 18:46:45.303   945  1757 I C01710/resource_schedule_service/BUNDLE_ACTIVE: [bundle_active_bundle_mgr_helper.cpp(GetApplicationInfo):65]bundleMgr is null: 0
 08-05 18:46:45.304   787 27901 I C01707/concurrent_task_service/CONCUR: [a92ab0149549709 0 0][ProcMgr] auth status 5 for app 27410, ret = 0
 08-05 18:46:45.304  1700 27855 E C0140D/display_engine_service/DE N SwingEP: [a92ab0149549709 0 0]E OnChange<206>: id:47 is not valid
 08-05 18:46:45.304  7815  7815 I A00F00/com.huawei.hmos.aidataservice/160003329: AppUsageAbility: get self process userId is: 100, userId is: 100
@@ -2029,11 +2029,11 @@
 08-05 18:46:45.335 27410 27410 I C03900/com.amphion.asr.harmony.demo/Ace: [(-2:100000:singleton)] [com.amphion.asr.harmony.demo][amphion_asr_demo][100000]:window active
 08-05 18:46:45.335 27410 27410 W C01320/com.amphion.asr.harmony.demo/JsEnv: [source_map.cpp145]the stack without line info
 08-05 18:46:45.335 27410 27410 I C04200/com.amphion.asr.harmony.demo/JsWindowStage: Window [89, demo0] load content end, ret=0
-08-05 18:46:45.335 27410 27410 I C04209/com.amphion.asr.harmony.demo/WMSImms: NotifyAvoidAreaChange: win 89 api 12 type 0 area top [0 0 1280 136] 
-08-05 18:46:45.336 27410 27410 I C04209/com.amphion.asr.harmony.demo/WMSImms: NotifyAvoidAreaChange: win 89 api 12 type 1 area top [464 38 352 84] 
+08-05 18:46:45.335 27410 27410 I C04209/com.amphion.asr.harmony.demo/WMSImms: NotifyAvoidAreaChange: win 89 api 12 type 0 area top [0 0 1280 136]
+08-05 18:46:45.336 27410 27410 I C04209/com.amphion.asr.harmony.demo/WMSImms: NotifyAvoidAreaChange: win 89 api 12 type 1 area top [464 38 352 84]
 08-05 18:46:45.336 27410 27410 I C04209/com.amphion.asr.harmony.demo/WMSImms: NotifyAvoidAreaChange: win 89 api 12 type 2 area empty
 08-05 18:46:45.336 27410 27410 I C04209/com.amphion.asr.harmony.demo/WMSImms: NotifyAvoidAreaChange: win 89 api 12 type 3 area empty
-08-05 18:46:45.336 27410 27410 I C04209/com.amphion.asr.harmony.demo/WMSImms: NotifyAvoidAreaChange: win 89 api 12 type 4 area bottom [416 2734 448 98] 
+08-05 18:46:45.336 27410 27410 I C04209/com.amphion.asr.harmony.demo/WMSImms: NotifyAvoidAreaChange: win 89 api 12 type 4 area bottom [416 2734 448 98]
 08-05 18:46:45.336 27410 27410 I C04208/com.amphion.asr.harmony.demo/WMSLayout: UpdateViewportConfig: Id: 89, reason: 23, windowRect: [0 0 1280 2832], displayOrientation: 0, config[0, 0, 0, 3.500000]
 08-05 18:46:45.336 23483 23507 I C02D13/hdcd/HDC_LOG: [FetchCommand:1142] FetchCommand channelId:2569774160 command:2
 08-05 18:46:45.336 27410 27410 I C03900/com.amphion.asr.harmony.demo/Ace: [(100000:100000:scope)] Update application state , state: ON_ACTIVE
@@ -2131,7 +2131,7 @@
 08-05 18:46:45.348  7605  8258 I C04200/com.ohos.sceneboard/SessionListenerController: NotifySessionCreated: Id:89
 08-05 18:46:45.348  7605  8258 I C0420A/com.ohos.sceneboard/WMSLife: operator(): start notify listeners, bundleName:com.amphion.asr.harmony.demo, Id:89, event:0, reason: 0
 08-05 18:46:45.348  1677 15270 W C01336/foundation/AMS: [ability_start_with_wait_observer_manager.cpp139]invaid observerId
-08-05 18:46:45.348  7605  7605 I A04209/com.ohos.sceneboard/WMSImms: update prop to callbacks. screenId:0 mainscreenId:0 window:89, prop:[5,true,"#00FFFFFF","#FF000000",false,false,null], size:4 reason: sceneSession isSetEnable:false isSetColor:false isLand:false 
+08-05 18:46:45.348  7605  7605 I A04209/com.ohos.sceneboard/WMSImms: update prop to callbacks. screenId:0 mainscreenId:0 window:89, prop:[5,true,"#00FFFFFF","#FF000000",false,false,null], size:4 reason: sceneSession isSetEnable:false isSetColor:false isLand:false
 08-05 18:46:45.348  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: SCBStatusBarView: isEnable changed: true, statusBarOpacity is 1, immersive is false, enable animation: false
 08-05 18:46:45.348  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: StatusBarVMV2: System bar property change from #FFFFFFFF to #FF000000 #00FFFFFF
 08-05 18:46:45.348  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: StatusBarBridgeView: onPluginContentColorChange #FF000000
@@ -2156,7 +2156,7 @@
 08-05 18:46:45.352 28010 28010 W C02C02/PARAM: Selinux check name debug.hitrace.tags.enableflags in u:object_r:hitrace_param:s0 [28010 2000 2000] failed
 08-05 18:46:45.352 28010 28010 E C02C02/PARAM: Forbid to read parameter debug.hitrace.tags.enableflags
 08-05 18:46:45.352 28010 28010 E C02C02/PARAM: Forbid to access parameter debug.hitrace.tags.enableflags
-08-05 18:46:45.354   945 27879 I C01722/resource_schedule_service/AppPreload: [a92ab21495567ad 0 0][UserUnLock]user unlock 0 
+08-05 18:46:45.354   945 27879 I C01722/resource_schedule_service/AppPreload: [a92ab21495567ad 0 0][UserUnLock]user unlock 0
 08-05 18:46:45.355  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: SignalStatus-SignalModel: updateCellularType regState no service with slotId  --0
 08-05 18:46:45.355  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: SignalStatus-SignalModel: updateCellularType regState no service with slotId  --0
 08-05 18:46:45.355  7605  7605 W A01A00/com.ohos.sceneboard/SYS_UI: SignalComponent-StackSignalIcon --> refreshCelluarDisplay: 0, -1, false， 8
@@ -2257,11 +2257,11 @@
 08-05 18:46:45.783  1663  1663 I C01406/render_service/OHOS::RS: RSFilterDrawable::PrintDebugInfo nodeID: 32663226286116, forceUseCache_:0, forceClearCache_:0, belowDirty_:1, cacheUpdateInterval_:1, pendingPurge_:0,
 08-05 18:46:45.788  1663  1663 I C01406/render_service/OHOS::RS: RSFilterDrawable::PrintDebugInfo nodeID: 32663226286116, forceUseCache_:0, forceClearCache_:0, belowDirty_:0, cacheUpdateInterval_:0, pendingPurge_:1,
 08-05 18:46:45.796  1663  1663 I C01406/render_service/RSUifirstManager: [comm]uifirst enable -> disable. WindowScene_demo89 id:32663226379944
-08-05 18:46:45.796  1663  1663 I C01406/render_service/RSUniRenderVisitor: [comm]OcclusionInfo [SCBGestureBack22, 32663226286300, 0], [SCBStatusBar18, 32663226286288, 0], [SCBGestureNavBar16, 32663226286283, 0], [demo0, 117725053583362, 0], [BackgroundBlurView2, 32663226286088, 1], [SCBDesktop7, 32663226286108, 1], [SCBWallpaper5, 32663226286091, 1], 
+08-05 18:46:45.796  1663  1663 I C01406/render_service/RSUniRenderVisitor: [comm]OcclusionInfo [SCBGestureBack22, 32663226286300, 0], [SCBStatusBar18, 32663226286288, 0], [SCBGestureNavBar16, 32663226286283, 0], [demo0, 117725053583362, 0], [BackgroundBlurView2, 32663226286088, 1], [SCBDesktop7, 32663226286108, 1], [SCBWallpaper5, 32663226286091, 1],
 08-05 18:46:45.796  1663  1883 I C01406/render_service/RSUifirstManager: ResetUifirstNode name:WindowScene_demo89,id:32663226379944,isOnTheTree:1,toBeCaptured:0
 08-05 18:46:45.796  1663  1883 I C01406/render_service/RsSubThreadCache: [comm]ResetUifirst id:32663226379944, isOnlyClearCache:0
 08-05 18:46:45.796  1663  1883 I C01406/render_service/RsSubThreadCache: ClearCacheSurfaceInThread id:32663226379944
-08-05 18:46:45.797  7605  8258 I C04217/com.ohos.sceneboard/WMSAttribute: Visibility changed, size: 3, WindowVisibilityInfos [name, winId, visibleState]: [BackgroundBlurView2, 8, 1], [SCBWallpaper5, 11, 1], [SCBDesktop7, 14, 1], 
+08-05 18:46:45.797  7605  8258 I C04217/com.ohos.sceneboard/WMSAttribute: Visibility changed, size: 3, WindowVisibilityInfos [name, winId, visibleState]: [BackgroundBlurView2, 8, 1], [SCBWallpaper5, 11, 1], [SCBDesktop7, 14, 1],
 08-05 18:46:45.797  7605  8260 I C04217/com.ohos.sceneboard/WMSAttribute: operator(): memMgrWindowInfos size: 3
 08-05 18:46:45.797  1677 27883 I C01311/foundation/AppMS: [ARR2195]wnd call, com.ohos.sceneboard_7605, isEmpty_0, c_2 -> p_0
 08-05 18:46:45.798  7605  7605 I C03930/com.ohos.sceneboard/AceAnimation: [(100000:100000:scope)] animateTo finish, cnt:6455
@@ -2288,13 +2288,13 @@
 08-05 18:46:45.802  1677 27883 I C01202/foundation/Unordered: Pid 7605 publish COMMON_EVENT_TOP_APP_CHANGE to 100 end(0,0,0,0)
 08-05 18:46:45.802   787   789 I C02C02/PARAM: SystemSetParameter name persist.ffrt.interval.appRate id:6729 ret:0
 08-05 18:46:45.803   787   789 I C02C02/PARAM: SystemSetParameter name persist.ffrt.interval.rsRate id:6730 ret:0
-08-05 18:46:45.821  1663  1663 I C01406/render_service/RSUniRenderVisitor: [comm]OcclusionInfo [SCBGestureBack22, 32663226286300, 0], [SCBStatusBar18, 32663226286288, 0], [SCBGestureNavBar16, 32663226286283, 0], [demo0, 117725053583362, 0], [BackgroundBlurView2, 32663226286088, 2], [SCBDesktop7, 32663226286108, 2], [SCBWallpaper5, 32663226286091, 2], 
-08-05 18:46:45.821  7605  8258 I C04217/com.ohos.sceneboard/WMSAttribute: Visibility changed, size: 3, WindowVisibilityInfos [name, winId, visibleState]: [BackgroundBlurView2, 8, 2], [SCBWallpaper5, 11, 2], [SCBDesktop7, 14, 2], 
+08-05 18:46:45.821  1663  1663 I C01406/render_service/RSUniRenderVisitor: [comm]OcclusionInfo [SCBGestureBack22, 32663226286300, 0], [SCBStatusBar18, 32663226286288, 0], [SCBGestureNavBar16, 32663226286283, 0], [demo0, 117725053583362, 0], [BackgroundBlurView2, 32663226286088, 2], [SCBDesktop7, 32663226286108, 2], [SCBWallpaper5, 32663226286091, 2],
+08-05 18:46:45.821  7605  8258 I C04217/com.ohos.sceneboard/WMSAttribute: Visibility changed, size: 3, WindowVisibilityInfos [name, winId, visibleState]: [BackgroundBlurView2, 8, 2], [SCBWallpaper5, 11, 2], [SCBDesktop7, 14, 2],
 08-05 18:46:45.822  7605  8260 I C04217/com.ohos.sceneboard/WMSAttribute: operator(): memMgrWindowInfos size: 3
 08-05 18:46:45.822  1677 27883 I C01311/foundation/AppMS: [ARR2195]wnd call, com.ohos.sceneboard_7605, isEmpty_0, c_2 -> p_0
 08-05 18:46:45.902   839 27784 I C02699/memmgrservice/MM: HandleAppDied appName=com.amphion.asr.harmony.demo appId=20020215
 08-05 18:46:45.902   839 27784 E C03D00/utils_base: Couldn't unlinkat subFile procs: Operation not permitted
-08-05 18:46:45.902   839 27784 E C03D00/utils_base: Failed to remove root dir: /dev/memcg/100/com.amphion.asr.harmony.demo_20020215: Resource busy 
+08-05 18:46:45.902   839 27784 E C03D00/utils_base: Failed to remove root dir: /dev/memcg/100/com.amphion.asr.harmony.demo_20020215: Resource busy
 08-05 18:46:45.902   839 27784 E C02699/memmgrservice/MM: RemoveDirRecursively (Resource busy)remove(/dev/memcg/100/com.amphion.asr.harmony.demo_20020215) fail
 08-05 18:46:45.911   589 27895 I C02D15/hiview/XPower: [task_102]#ffrt [DisplayHandler] [108] timeout [600]. queue size:3
 08-05 18:46:45.926   589 27895 I C02D15/hiview/XPower: [task_102]#ffrt [DisplayHandler] [108] timeout [14]. queue size:2
@@ -2485,7 +2485,7 @@
 08-05 18:46:47.308  1021  1140 E C01F04/telephony/MultiSimontroller: failed by nullptr
 08-05 18:46:47.308  1021  1140 E C01F04/telephony/TelephonySubsystem: slotId is invalid by vec.size(), slotId = -1
 08-05 18:46:47.308  1021  1140 E C01F04/telephony/TelephonySubsystem: simStateManager is null!
-08-05 18:46:47.308  1021  1140 I C01F0B/telephony/ConnCure: IsTestSimCard: -1, 
+08-05 18:46:47.308  1021  1140 I C01F0B/telephony/ConnCure: IsTestSimCard: -1,
 08-05 18:46:47.308  1021  1140 E C01F0B/telephony/ConnCure: getSimOperator error
 08-05 18:46:47.308  1021  1140 I C01F0B/telephony/ConnCure: get isInPunishTime_: 0
 08-05 18:46:47.308  1021  1140 I C01F0B/telephony/ConnCure: isVSimEnabled: 0
@@ -2742,7 +2742,7 @@
 08-05 18:46:48.298  1234  1763 I C0430A/file_monitor_service/file_monitor_service: [SetStates:262]SetStates:1,1,100,0,0,0
 08-05 18:46:48.298  1738 26854 I C02931/batterycare_service/BCS/BatteryCareService: [14729][HandleSystemEvent:213]: Event: usual.event.BATTERY_CHANGED
 08-05 18:46:48.298   755 22665 I C02B87/audio_server/CommonEventSupervisor: [OnReceiveEvent]stateCode = 0, action = usual.event.BATTERY_CHANGED
-08-05 18:46:48.299  1738 26854 I C02931/batterycare_service/BCS/BatteryCareService: [14730][PostUevent:270]: update uevent: SUBSYSTEM=power_supply 
+08-05 18:46:48.299  1738 26854 I C02931/batterycare_service/BCS/BatteryCareService: [14730][PostUevent:270]: update uevent: SUBSYSTEM=power_supply
 08-05 18:46:48.299   755 22665 I C02B87/audio_server/CommonEventSupervisor: [AddCoolCaseParam]data.GetWant().GetStringParam = SUBSYSTEM=power_supply
 08-05 18:46:48.299   755 22665 I C02B87/audio_server/CommonEventSupervisor: [CommonEventSetExtraParameters]CommonEvent SetExtraParameters Start
 08-05 18:46:48.299   755 22665 E C02B87/audio_server/AudioServer: [SetExtraParameters]invalid subkey or value
@@ -2933,7 +2933,7 @@
 08-05 18:46:49.544  1404  1954 I C01FFF/riladapter_host/BRIL: T00 AT m0_0<^BOOSTERNTF: 3, 20,"06001000010000040000000001029AFF0202F1FF"
 08-05 18:46:49.544  1404  1954 I C01FFF/riladapter_host/BRIL: T00 CHAN done for modem:0, index:0, atResponse: ^BOOSTERNTF: 3, 20,"06001000010000040000000001029AFF0202F1FF"
 08-05 18:46:49.562  1003  1915 I C015B5/netmanager/NetMgrEnhanced: QOE: DumpData# DNS:0,0,0 UID:1051 UID:0 UID:20020215 Mov:528
-08-05 18:46:49.620  1402  1499 I C02516/sensor_host/cb: {-1,5,0,1}: s=144916 r=1510-144061 
+08-05 18:46:49.620  1402  1499 I C02516/sensor_host/cb: {-1,5,0,1}: s=144916 r=1510-144061
 08-05 18:46:49.621  1510 20829 I C02700/sensors/PrintSensorData: in ControlSensorHdiPrint, sensorType:5, hdiTimes:501
 08-05 18:46:49.621  1700 27855 I C02700/display_engine_service/PrintSensorData: in ControlSensorClientPrint, sensorType:5, clientTimes:501
 08-05 18:46:49.622  1536 27801 I C02700/powermgr/PrintSensorData: in ControlSensorClientPrint, sensorType:5, clientTimes:501
@@ -3090,7 +3090,7 @@
 08-05 18:46:50.310  1309  1332 W C01C42/time_service/TimeService: uid:1096 id:1789968615 wk:0
 08-05 18:46:50.310  1309  1332 W C01C42/time_service/TimeService: id:1789968615 we:694109999
 08-05 18:46:50.310  1309  1332 W C01C42/time_service/TimeService: t3 694105477
-08-05 18:46:50.340   945 27830 I C01705/resource_schedule_service/EXACT_PREREAD: [a92abe149552ba2 0 0][(ChangeMonitorState):740] option:STOP 
+08-05 18:46:50.340   945 27830 I C01705/resource_schedule_service/EXACT_PREREAD: [a92abe149552ba2 0 0][(ChangeMonitorState):740] option:STOP
 08-05 18:46:50.340 27410 27410 I A00000/com.amphion.asr.harmony.demo/TargetSpeakerEnhancement: TARGET_SPEAKER_ENHANCEMENT|processingMs=1452|queued=1|maxQueued=3
 08-05 18:46:50.341   945 27830 I C01705/resource_schedule_service/EXACT_PREREAD: [a92abe149552ba2 0 0][(StopCurrentWork):352] current work has send stop command
 08-05 18:46:50.420  7815  7815 I A00F00/com.huawei.hmos.aidataservice/160003329: SetIntervalAbility: publishData= {"dataName":"SetIntervalTimer","timestamp":1785926810420,"captureParam":{"triggerTime":60000}}, request= {"dataName":"SetIntervalTimer","captureParam":{"triggerTime":60000}}
@@ -3116,7 +3116,7 @@
 08-05 18:46:50.430  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [PeriodicTimeAbility:140]: subscribeInfo subscribeId:screenStatusAbilityPeriodicTime, dataName:PeriodicTime
 08-05 18:46:50.430  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AwarenessItemManager:157]: Process cur: PeriodicTimeAbility, sub: 0, unsub: 0, queries: 0, publish: 3
 08-05 18:46:50.430  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AbilityGraph:328]: pd: PeriodicTime, ct: -1, ld: permanent, s: DataStorageOperator|StorageAwarenessData|Timer, d: DataStorageOperator, c: PeriodicTimeAbility
-08-05 18:46:50.430  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:31]: storageType is cycle, isInnerStorage : 1, triggerDataName : 
+08-05 18:46:50.430  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:31]: storageType is cycle, isInnerStorage : 1, triggerDataName :
 08-05 18:46:50.431  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [SituationStorageOperator:49]: data cache didnt update
 08-05 18:46:50.431  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [AbilityGraph:328]: pd: PeriodicTime, ct: -1, ld: permanent, s: AppUsageDurationPeriodicTime, d: ForegroundAppAbility, c: PeriodicTimeAbility
 08-05 18:46:50.431  7815 26697 I A00F00/com.huawei.hmos.aidataservice/CA160003329: [ForegroundAppAbility:529]: usageAppCacheMap is empty return
@@ -3309,7 +3309,7 @@
 08-05 18:46:52.299 23483 23507 I C02D13/hdcd/HDC_LOG: [CommandDispatch:414] Unity CommandDispatch command:1001 cid:2583873891 sid:120******189(L:10)
 08-05 18:46:52.299 23483 23507 W C02D13/hdcd/HDC_LOG: [GetDevItem:114] GetDevItem false key:persist.hdc.root
 08-05 18:46:52.301 23483 28132 I C02D13/hdcd/HDC_LOG: [Popen:225] Popen pipe fds[pipeRead]:38 fds[pipeWrite]:42, mode 0
-08-05 18:46:52.305  1343  1995 E C02503/aptouch_daemon/PreTp: CheckMemory[830] used 4586 Kb(max 61440 Kb), power 47, 
+08-05 18:46:52.305  1343  1995 E C02503/aptouch_daemon/PreTp: CheckMemory[830] used 4586 Kb(max 61440 Kb), power 47,
 08-05 18:46:52.308 23483 23507 I C02D13/hdcd/HDC_LOG: [ExecuteCommand:286] ExecuteCommand cmd:pid******emo(L:34) fd:38 pid:28133
 08-05 18:46:52.308 23483 23507 I C02D13/hdcd/HDC_LOG: [CommandDispatch:486] Unity CommandDispatch command:1001 finish cid:2583873891 sid:120******189(L:10)
 08-05 18:46:52.336 28133 28133 W C02C02/PARAM: Selinux check name persist.init.debug.loglevel in u:object_r:startup_init_param:s0 [28133 2000 2000] failed
@@ -3811,7 +3811,7 @@
 08-05 18:46:54.931 27410 27410 I A00000/com.amphion.asr.harmony.demo/DeviceStressTest: ASR_STRESS|CYCLE|index=1|id=000002|status=PASS|starts=1|partials=0|finals=1|completes=1|errors=0|finalChars=9|speakerScores=1|nonEmptySpeakerScores=1|missingSpeakerScores=0|firstNonEmptyFinalHasScore=1|requestedVadBeginMs=-1|confirmationGraceMs=-1|requestedMaxAudioDurationMs=-1|effectiveMaxAudioDurationMs=-1|voiceprintIdCount=0|fedFrames=0|lastFinalsBeforeFinish=-1|liveStreams=0|unexpectedCallbacks=0|elapsedMs=3480|firstNonEmptyResultMs=3442|audioStartToFirstNonEmptyResultMs=-1|audioStartToSpeechBeginMs=-1|speechBeginToFirstNonEmptyResultMs=1438|resultHex=621151c65907660e592953bb53174eac3002|trace=target-speaker-enhancement-onstart-finish-1:start>target-speaker-enhancement-onstart-finish-1:event-1>target-speaker-enhancement-onstart-finish-1:final-last>target-speaker-enhancement-onstart-finish-1:complete|detail=target-speaker-enhancement-onstart-finish
 08-05 18:46:54.984  1404  1954 I C01FFF/riladapter_host/BRIL: T00 AT m0_0<^BOOSTERNTF: 3, 20,"060010000100000400000000010299FF0202F3FF"
 08-05 18:46:54.985  1404  1954 I C01FFF/riladapter_host/BRIL: T00 CHAN done for modem:0, index:0, atResponse: ^BOOSTERNTF: 3, 20,"060010000100000400000000010299FF0202F3FF"
-08-05 18:46:55.155  1402  1500 I C02516/sensor_host/cb: {-1,1,0,1}: s=643125 r=1510-572177 
+08-05 18:46:55.155  1402  1500 I C02516/sensor_host/cb: {-1,1,0,1}: s=643125 r=1510-572177
 08-05 18:46:55.305  1404  1954 I C01FFF/riladapter_host/BRIL: T00 AT m0_0<^BOOSTERNTF: 3, 20,"060010000100000400000000010299FF0202F2FF"
 08-05 18:46:55.306  1404  1954 I C01FFF/riladapter_host/BRIL: T00 CHAN done for modem:0, index:0, atResponse: ^BOOSTERNTF: 3, 20,"060010000100000400000000010299FF0202F2FF"
 08-05 18:46:55.310  1309  1332 W C01C42/time_service/TimeService: uid:1096 id:1789968615 wk:0
@@ -4449,7 +4449,7 @@
 08-05 18:46:58.824  1404  1954 I C01FFF/riladapter_host/BRIL: T00 AT m0_0<^BOOSTERNTF: 3, 20,"06001000010000040000000001029AFF0202F2FF"
 08-05 18:46:58.825  1404  1954 I C01FFF/riladapter_host/BRIL: T00 CHAN done for modem:0, index:0, atResponse: ^BOOSTERNTF: 3, 20,"06001000010000040000000001029AFF0202F2FF"
 08-05 18:46:58.921  1003  1915 I C015B5/netmanager/NetMgrEnhanced: QOE: DumpData# DNS:0,0,0 UID:1051 UID:0 UID:20020215 Mov:528
-08-05 18:46:59.142  7605 27922 I C04707/com.ohos.sceneboard/HaEcc: consumeQueue_ = 0 1 1 1 0 
+08-05 18:46:59.142  7605 27922 I C04707/com.ohos.sceneboard/HaEcc: consumeQueue_ = 0 1 1 1 0
 08-05 18:46:59.147  1404  1954 I C01FFF/riladapter_host/BRIL: T00 AT m0_0<^BOOSTERNTF: 3, 20,"060010000100000400000000010299FF0202F3FF"
 08-05 18:46:59.147  1404  1954 I C01FFF/riladapter_host/BRIL: T00 CHAN done for modem:0, index:0, atResponse: ^BOOSTERNTF: 3, 20,"060010000100000400000000010299FF0202F3FF"
 08-05 18:46:59.392  7605 27839 I C03F05/com.ohos.sceneboard/NAPI: taskpool::Task PerformTask End: 236221103, 05 18:46:45.184
