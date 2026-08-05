@@ -9,8 +9,11 @@ if(DEFINED PACKAGE_FIND_FILE)
 endif()
 
 include_directories(${NATIVERENDER_ROOT_PATH})
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/sherpa-onnx)
 
-add_library(amphion_asr SHARED napi_init.cpp)
+add_library(amphion_asr SHARED napi_init.cpp target_speaker_enhancer.cpp)
 
 add_library(sherpa_onnx_c_api SHARED IMPORTED)
 set_target_properties(sherpa_onnx_c_api PROPERTIES
@@ -20,4 +23,4 @@ add_library(onnxruntime SHARED IMPORTED)
 set_target_properties(onnxruntime PROPERTIES
   IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/libs/${OHOS_ARCH}/libonnxruntime.so)
 
-target_link_libraries(amphion_asr PUBLIC libace_napi.z.so libhilog_ndk.z.so sherpa_onnx_c_api onnxruntime)
+target_link_libraries(amphion_asr PUBLIC libace_napi.z.so libhilog_ndk.z.so librawfile.z.so sherpa_onnx_c_api onnxruntime)

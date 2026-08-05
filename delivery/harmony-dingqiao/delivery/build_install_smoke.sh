@@ -28,6 +28,7 @@ SMOKE_DIR="$PROJECT_ROOT/build/smoke"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
 NODE_ADDON_API_CACHE="${NODE_ADDON_API_CACHE:-$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/.cxx/default/default/debug/arm64-v8a/_deps/node_addon_api-src}"
+TARGET_SPEAKER_SEPARATOR_MODEL="${TARGET_SPEAKER_SEPARATOR_MODEL:-}"
 BUILD_WORKSPACE=""
 TEMP_HAP_COPY=""
 
@@ -193,6 +194,9 @@ prepare_build_workspace() {
   clone_tree "$REPO_ROOT/asr/harmony/sdk-police" "$temp_repo/asr/harmony/sdk-police"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-dingqiao" "$temp_repo/asr/harmony/sdk-dingqiao"
   clone_tree \
+    "$REPO_ROOT/tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include" \
+    "$temp_repo/tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include"
+  clone_tree \
     "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx" \
     "$temp_repo/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx"
   clone_tree \
@@ -201,6 +205,16 @@ prepare_build_workspace() {
   find "$temp_repo/asr/harmony" \
     "$temp_repo/third_party/sherpa-onnx" \
     -type d \( -name build -o -name .cxx -o -name .hvigor \) -prune -exec rm -rf {} +
+  if [[ -n "$TARGET_SPEAKER_SEPARATOR_MODEL" ]]; then
+    [[ -s "$TARGET_SPEAKER_SEPARATOR_MODEL" ]] || {
+      echo "[ERROR] target-speaker separator model is unreadable: $TARGET_SPEAKER_SEPARATOR_MODEL" >&2
+      exit 1
+    }
+    local separator_destination="$temp_repo/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx"
+    mkdir -p "$(dirname "$separator_destination")"
+    cp "$TARGET_SPEAKER_SEPARATOR_MODEL" "$separator_destination"
+    echo "[INFO] injected target-speaker separator into the isolated test build"
+  fi
   if [[ -d "$NODE_ADDON_API_CACHE/.git" ]] && \
       [[ "$(git -C "$NODE_ADDON_API_CACHE" rev-parse HEAD 2>/dev/null)" == "c679f6f4c9dc6bf9fc0d99cbe5982bd24a5e2c7b" ]]; then
     "$LICENSE_PYTHON" - \

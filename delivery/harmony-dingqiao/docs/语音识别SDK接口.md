@@ -230,6 +230,7 @@ interface CreateEngineCallback {
 | `sessionGeneralLexicon` | `string[]` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
 | `enableSpeakerVad` | `boolean` | `false` | 是否启用目标说话人离场提前 endpoint；冷态启动会同步等待声纹模型 |
+| `enableTargetSpeakerEnhancement` | `boolean` | `false` | 是否在 ASR 前启用目标说话人增强；必须同时启用 Speaker VAD 并提供有效声纹 ID；仅在已包含获准商用模型的设备包中可用 |
 | `voiceprintIds` | `string[]` | 空 | 声纹 ID 列表；启用声纹校验或 Speaker VAD 时必填 |
 | `speakerVadThreshold` | `number/string` | `0.35` | 目标说话人 VAD 阈值 |
 | `speakerVadWindowMs` | `number/string` | `1500` | 目标说话人 VAD 窗长 |
@@ -269,11 +270,17 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `beginTime` | `number?` | 起始时间毫秒，可能为空 |
 | `endTime` | `number?` | 结束时间毫秒，可能为空 |
 | `speakerSimilarity` | `number?` | final 且启用声纹校验，并有达到门槛的评分 PCM 时返回 |
+| `targetSpeakerEnhancementApplied` | `boolean?` | 当前 session 启用目标说话人增强时为 `true`；未启用时省略 |
 
 > 声纹评分优先使用严格筛选的有效语音。严格语音短于 `TargetSpeakerConfig.minSegSec`
 >（默认 1.5 秒），但 ASR 已产生非空 text/token 且当前句实际 PCM 达到门槛时，SDK 使用当前句
 > 真实 PCM 计算回退分数。没有 ASR 语音证据、实际 PCM 仍短于门槛或空 terminal final 时，
 > `speakerSimilarity` 可以省略；SDK 不填充假分数或复制上一句分数。
+
+> `enableTargetSpeakerEnhancement` 是正式接口预留，但开源 Conv-TasNet 权重没有默认进入商用 HAR。
+> 客户包必须先完成模型商用授权、固定模型哈希并重跑对应真机门禁；缺少模型时启动会明确失败，
+> 不会静默退回普通 Speaker VAD。实现与当前真机证据见
+> [`TARGET_SPEAKER_ENHANCEMENT_HARMONY_20260805.md`](../../../docs/speaker/TARGET_SPEAKER_ENHANCEMENT_HARMONY_20260805.md)。
 
 > 交付批注 LC-20260716-02（v0.2.6）：调用方在 `SPEECH_END` 回调内同步调用 `finish()`，且没有更早排队的音频时，当前带文本 final 同时标记 `isLast=true`，不会再追加空的 last final。`vadBegin` 命中或确实没有可识别语音时，last final 仍允许为空。
 

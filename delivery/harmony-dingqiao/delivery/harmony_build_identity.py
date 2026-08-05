@@ -8,6 +8,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -35,6 +36,10 @@ NATIVE_LIBRARIES = {
     / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so",
     "libonnxruntime.so": REPO_ROOT
     / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so",
+}
+OPTIONAL_HAP_MODELS = {
+    "target_speaker_separator":
+        "resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx",
 }
 TRACKED_BUILD_INPUTS = (
     "asr/harmony",
@@ -104,6 +109,27 @@ def source_fingerprint() -> str:
     return digest.hexdigest()
 
 
+def optional_hap_models() -> dict[str, dict[str, object]]:
+    models: dict[str, dict[str, object]] = {}
+    with zipfile.ZipFile(HAP) as archive:
+        names = set(archive.namelist())
+        for logical_name, member in OPTIONAL_HAP_MODELS.items():
+            if member not in names:
+                continue
+            digest = hashlib.sha256()
+            size = 0
+            with archive.open(member) as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+                    size += len(chunk)
+            models[logical_name] = {
+                "hap_path": member,
+                "sha256": digest.hexdigest(),
+                "size_bytes": size,
+            }
+    return models
+
+
 def current_identity(zh_en_only: bool = False) -> dict[str, object]:
     artifacts: dict[str, dict[str, object]] = {
         "amphion_asr_demo.hap": {
@@ -133,6 +159,7 @@ def current_identity(zh_en_only: bool = False) -> dict[str, object]:
         "native_sha256": {
             name: sha256_file(path) for name, path in sorted(NATIVE_LIBRARIES.items())
         },
+        "optional_models": optional_hap_models(),
         "artifacts": artifacts,
     }
 
