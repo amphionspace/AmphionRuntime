@@ -8,6 +8,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -35,6 +36,10 @@ NATIVE_LIBRARIES = {
     / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so",
     "libonnxruntime.so": REPO_ROOT
     / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so",
+}
+OPTIONAL_HAP_MODELS = {
+    "target_speaker_separator":
+        "resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx",
 }
 TRACKED_BUILD_INPUTS = (
     "asr/harmony",
@@ -104,7 +109,28 @@ def source_fingerprint() -> str:
     return digest.hexdigest()
 
 
-def current_identity() -> dict[str, object]:
+def optional_hap_models() -> dict[str, dict[str, object]]:
+    models: dict[str, dict[str, object]] = {}
+    with zipfile.ZipFile(HAP) as archive:
+        names = set(archive.namelist())
+        for logical_name, member in OPTIONAL_HAP_MODELS.items():
+            if member not in names:
+                continue
+            digest = hashlib.sha256()
+            size = 0
+            with archive.open(member) as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+                    size += len(chunk)
+            models[logical_name] = {
+                "hap_path": member,
+                "sha256": digest.hexdigest(),
+                "size_bytes": size,
+            }
+    return models
+
+
+def current_identity(zh_en_only: bool = False) -> dict[str, object]:
     artifacts: dict[str, dict[str, object]] = {
         "amphion_asr_demo.hap": {
             "path": str(HAP.relative_to(REPO_ROOT)),
@@ -112,7 +138,12 @@ def current_identity() -> dict[str, object]:
             "size_bytes": HAP.stat().st_size,
         }
     }
-    for logical_name, directory in ARTIFACT_DIRS.items():
+    artifact_dirs = {
+        name: directory
+        for name, directory in ARTIFACT_DIRS.items()
+        if not (zh_en_only and name == "amphion_police.har")
+    }
+    for logical_name, directory in artifact_dirs.items():
         path = sole_har(directory)
         artifacts[logical_name] = {
             "path": str(path.relative_to(REPO_ROOT)),
@@ -121,18 +152,20 @@ def current_identity() -> dict[str, object]:
         }
     return {
         "schema_version": 1,
+        "zh_en_only": zh_en_only,
         "git_commit": run(["git", "rev-parse", "HEAD"]).decode().strip(),
         "source_fingerprint_sha256": source_fingerprint(),
         "model_manifest_sha256": sha256_file(MODEL_MANIFEST),
         "native_sha256": {
             name: sha256_file(path) for name, path in sorted(NATIVE_LIBRARIES.items())
         },
+        "optional_models": optional_hap_models(),
         "artifacts": artifacts,
     }
 
 
-def write_identity(output: Path) -> None:
-    identity = current_identity()
+def write_identity(output: Path, zh_en_only: bool = False) -> None:
+    identity = current_identity(zh_en_only)
     identity["created_at"] = datetime.now(timezone.utc).isoformat()
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(f".{output.name}.tmp")
@@ -147,7 +180,7 @@ def verify_identity(identity_path: Path) -> None:
     except (OSError, json.JSONDecodeError) as error:
         raise IdentityFailure(f"cannot read Harmony build identity: {error}") from error
     recorded.pop("created_at", None)
-    current = current_identity()
+    current = current_identity(bool(recorded.get("zh_en_only", False)))
     if recorded != current:
         raise IdentityFailure(
             "Harmony HAR/HAP build identity is stale; rerun build_install_smoke.sh before packaging"
@@ -160,10 +193,11 @@ def main() -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--write", type=Path)
     group.add_argument("--verify", type=Path)
+    parser.add_argument("--zh-en-only", action="store_true")
     args = parser.parse_args()
     try:
         if args.write is not None:
-            write_identity(args.write)
+            write_identity(args.write, args.zh_en_only)
         else:
             verify_identity(args.verify)
         return 0

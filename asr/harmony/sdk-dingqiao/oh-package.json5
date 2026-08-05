@@ -7,6 +7,7 @@
   "license": "Commercial",
   "dependencies": {
     "amphion_asr": "file:../sdk",
+    "libamphion_asr.so": "file:../sdk/src/main/cpp/types/libamphion_asr",
     "amphion_police": "file:../sdk-police"
   }
 }

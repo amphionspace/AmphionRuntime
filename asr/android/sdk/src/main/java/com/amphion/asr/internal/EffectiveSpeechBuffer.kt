@@ -245,6 +245,23 @@ internal fun selectSpeakerScoreSamples(
     }
 }
 
+internal fun speakerScoreSelectionDiagnostic(
+    selection: SpeakerScoreSelection,
+    strictSampleCount: Int,
+    utteranceSampleCount: Int,
+    minimumSampleCount: Int,
+    sampleRate: Int,
+    asrSpeechConfirmed: Boolean,
+): String {
+    val rate = sampleRate.coerceAtLeast(1)
+    fun durationMs(samples: Int): Long = samples.coerceAtLeast(0) * 1000L / rate
+    return "voiceprint score selection: source=${selection.source.name.lowercase()} " +
+        "effectiveSpeechMs=${durationMs(strictSampleCount)} " +
+        "utterancePcmMs=${durationMs(utteranceSampleCount)} " +
+        "minimumMs=${durationMs(minimumSampleCount)} " +
+        "asrEvidence=$asrSpeechConfirmed"
+}
+
 internal class RecognizerResetGeneration {
     private var value = 0L
 

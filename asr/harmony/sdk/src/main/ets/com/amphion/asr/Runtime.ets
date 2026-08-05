@@ -42,7 +42,8 @@ import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 import { InitialSilenceTracker } from './InitialSilenceTracker';
 import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
 import { SpeakerPcmBuffers } from './SpeakerPcmBuffers';
-import { selectSpeakerScoreSamples } from './SpeakerScoreFallback';
+import { SpeakerVadScoreScheduler } from './SpeakerVadScoreScheduler';
+import { selectSpeakerScoreSamples, speakerScoreSelectionDiagnostic } from './SpeakerScoreFallback';
 import { SessionCallbackGate } from './SessionCallbackGate';
 import { SessionReentryQueue } from './SessionReentryQueue';
 import {
@@ -1074,7 +1075,7 @@ export class AsrSession {
   private vadCarry: Float32Array = new Float32Array(0);
   private initialSilenceTracker: InitialSilenceTracker = new InitialSilenceTracker(0, ASR_SAMPLE_RATE_HZ);
   // Speaker-VAD sliding-window state (Android-aligned two-phase: confirm target -> detect departure).
-  private svSamplesSinceScore: number = 0;
+  private svScoreScheduler?: SpeakerVadScoreScheduler;
   private svTargetConfirmed: boolean = false;
   private svBelowCount: number = 0;
   private svRejectCurrentUtterance: boolean = false;
@@ -1416,6 +1417,11 @@ export class AsrSession {
       this.speakerPcmBuffers.fallbackSamples() : new Float32Array(0);
     const scoreSelection =
       selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence);
+    if (this.targetSpeakerEnabled) {
+      Logger.d(`session ${this.sessionId} ` + speakerScoreSelectionDiagnostic(
+        scoreSelection, boundary.samples.length, utteranceSamples.length,
+        minSpeakerSamples, ASR_SAMPLE_RATE_HZ, hasEvidence));
+    }
     if (scoreSelection.source === 'utterance') {
       if (!this.callbackGate.invoke((): void => {
         this.callback.onDebug?.(
@@ -1531,8 +1537,14 @@ export class AsrSession {
     while (offset < samples.length && !this.callbackGate.isClosed() &&
       !this.initialSilenceTracker.hasTimedOut()) {
       const remaining = samples.length - offset;
-      const chunkSize = this.initialSilenceTracker.isArmed() ?
+      let chunkSize = this.initialSilenceTracker.isArmed() ?
         Math.min(remaining, INITIAL_DECISION_CHUNK_SAMPLES) : remaining;
+      if (this.speakerVadEnabled) {
+        const speakerVad = this.effectiveSpeakerVad();
+        if (speakerVad !== undefined) {
+          chunkSize = Math.min(chunkSize, this.speakerVadScoreScheduler(speakerVad).samplesUntilNextScore());
+        }
+      }
       this.feedChunkAndDecode(samples.slice(offset, offset + chunkSize));
       offset += chunkSize;
     }
@@ -1737,13 +1749,10 @@ export class AsrSession {
   private maybeTriggerSpeakerVadEndpoint(samplesInChunk: number): boolean {
     if (!this.speakerVadEnabled) return false;
     const sv = this.effectiveSpeakerVad();
-    if (sv === undefined || this.targetExtractor === undefined || this.targetSpeaker === undefined) return false;
+    if (sv === undefined) return false;
+    if (!this.speakerVadScoreScheduler(sv).observe(samplesInChunk)) return false;
+    if (this.targetExtractor === undefined || this.targetSpeaker === undefined) return false;
     const winSamples = Math.max(1, Math.round(sv.winSec * 16000));
-    const hopSamples = Math.max(1, Math.round(sv.hopSec * 16000));
-    this.svSamplesSinceScore += samplesInChunk;
-    if (this.speakerPcmBuffers.speakerVadLength() < winSamples) return false;
-    if (this.svSamplesSinceScore < hopSamples) return false;
-    this.svSamplesSinceScore = this.svSamplesSinceScore % hopSamples;
 
     const score = this.scoreSamples(this.speakerPcmBuffers.speakerVadTail(winSamples));
     if (!this.svTargetConfirmed) {
@@ -1774,6 +1783,19 @@ export class AsrSession {
       this.svBelowCount = 0;
     }
     return false;
+  }
+
+  private speakerVadScoreScheduler(config: SpeakerVadConfig): SpeakerVadScoreScheduler {
+    const windowSamples = Math.max(1, Math.round(config.winSec * ASR_SAMPLE_RATE_HZ));
+    const hopSamples = Math.max(1, Math.round(config.hopSec * ASR_SAMPLE_RATE_HZ));
+    const current = this.svScoreScheduler;
+    if (current !== undefined &&
+      current.windowSamples === windowSamples && current.hopSamples === hopSamples) {
+      return current;
+    }
+    const scheduler = new SpeakerVadScoreScheduler(windowSamples, hopSamples);
+    this.svScoreScheduler = scheduler;
+    return scheduler;
   }
 
   private effectiveSpeakerVad(): SpeakerVadConfig | undefined {
@@ -1818,7 +1840,7 @@ export class AsrSession {
   }
 
   private resetSpeakerVadState(): void {
-    this.svSamplesSinceScore = 0;
+    this.svScoreScheduler?.reset();
     this.svTargetConfirmed = false;
     this.svBelowCount = 0;
     this.svRejectCurrentUtterance = false;

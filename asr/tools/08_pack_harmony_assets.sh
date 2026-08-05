@@ -196,10 +196,7 @@ mkdir -p "$ASSET_ROOT/.conversion-metadata"
 if [[ -f "$FINAL_ASSET_ROOT/README.md" ]]; then
   cp "$FINAL_ASSET_ROOT/README.md" "$ASSET_ROOT/README.md"
 fi
-bundles=(zh-en punct-zhen itn-zh vad)
-if [[ "$ZH_EN_ONLY" != true ]]; then
-  bundles+=(yue-en)
-fi
+bundles=(zh-en punct-zhen itn-zh vad yue-en)
 for bundle in "${bundles[@]}"; do
   mkdir -p "$ASSET_ROOT/$bundle/v1"
   touch "$ASSET_ROOT/$bundle/v1/.gitkeep"

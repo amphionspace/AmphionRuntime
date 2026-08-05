@@ -2,6 +2,8 @@
 #include <node_api.h>
 #include <string>
 
+#include "target_speaker_enhancer.h"
+
 static napi_value NativeVersion(napi_env env, napi_callback_info info) {
   napi_value value;
   napi_create_string_utf8(env, "amphion-harmony-native-0.1.0", NAPI_AUTO_LENGTH, &value);
@@ -22,6 +24,7 @@ static napi_value Init(napi_env env, napi_value exports) {
     {"probe", nullptr, Probe, nullptr, nullptr, nullptr, napi_default, nullptr},
   };
   napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
+  RegisterTargetSpeakerEnhancer(env, exports);
   return exports;
 }
 EXTERN_C_END

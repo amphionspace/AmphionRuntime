@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
+import zipfile
 
 
 SCRIPT = Path(__file__).with_name("harmony_build_identity.py")
@@ -48,6 +49,23 @@ class VerifyIdentityTest(unittest.TestCase):
             )
             with mock.patch.object(MODULE, "current_identity", return_value={"git_commit": "same"}):
                 MODULE.verify_identity(path)
+
+
+class OptionalModelIdentityTest(unittest.TestCase):
+    def test_records_separator_bytes_from_hap(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            hap = Path(directory) / "test.hap"
+            member = MODULE.OPTIONAL_HAP_MODELS["target_speaker_separator"]
+            with zipfile.ZipFile(hap, "w") as archive:
+                archive.writestr(member, b"separator-model")
+            with mock.patch.object(MODULE, "HAP", hap):
+                models = MODULE.optional_hap_models()
+            self.assertEqual(15, models["target_speaker_separator"]["size_bytes"])
+            self.assertEqual(member, models["target_speaker_separator"]["hap_path"])
+            self.assertEqual(
+                "92cf99547b8f6e437b108d8ac0abd3bb47844e446c8ead8fba17a2ce917534a2",
+                models["target_speaker_separator"]["sha256"],
+            )
 
 
 if __name__ == "__main__":
