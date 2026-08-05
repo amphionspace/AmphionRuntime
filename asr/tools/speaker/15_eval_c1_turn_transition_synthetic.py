@@ -3,9 +3,9 @@
 
 The experiment reuses the three-enrollment AISHELL-2 verification pilot and
 constructs target-to-other sessions with controlled overlap/gap, other-tail
-duration, gain, and caller PCM partitioning. It mirrors the current Android and
-Harmony scheduling rule exactly: each public audio call can produce at most one
-Speaker VAD score, even when that call crosses multiple hop boundaries.
+duration, gain, and caller PCM partitioning. By default it mirrors the fixed Android and
+Harmony scheduling rule: score deadlines are anchored to absolute PCM sample positions.
+The historical one-score-per-public-call behavior remains available for before/after replay.
 
 This is a local synthetic diagnostic. It freezes threshold=0.35, win=1.0 s,
 hop=0.3 s, and consecutiveBelow=2; it neither tunes SDK parameters nor changes
@@ -149,20 +149,38 @@ def build_sdk_timeline(
     session: np.ndarray,
     *,
     chunk_pattern: str,
+    score_schedule: str = "absolute_samples",
     target_end_sample: int,
     other_start_sample: int,
     score_window: Callable[[np.ndarray], float | None],
 ) -> list[speaker_vad.TimelinePoint]:
-    """Mirror maybeTriggerSpeakerVadEndpoint's current per-call score schedule."""
+    """Mirror the selected SDK Speaker VAD score schedule."""
     points: list[speaker_vad.TimelinePoint] = []
-    consumed = 0
-    samples_since_score = 0
-    for size in partition_sizes(len(session), chunk_pattern):
-        consumed += size
-        samples_since_score += size
-        if consumed < WIN_SAMPLES or samples_since_score < HOP_SAMPLES:
-            continue
-        samples_since_score %= HOP_SAMPLES
+    if score_schedule == "absolute_samples":
+        score_ends: list[int] = []
+        consumed = WIN_SAMPLES
+        if consumed <= len(session):
+            score_ends.append(consumed)
+            remainder = WIN_SAMPLES % HOP_SAMPLES
+            consumed += HOP_SAMPLES if remainder == 0 else HOP_SAMPLES - remainder
+        while consumed <= len(session):
+            score_ends.append(consumed)
+            consumed += HOP_SAMPLES
+    elif score_schedule == "legacy_per_call":
+        score_ends = []
+        consumed = 0
+        samples_since_score = 0
+        for size in partition_sizes(len(session), chunk_pattern):
+            consumed += size
+            samples_since_score += size
+            if consumed < WIN_SAMPLES or samples_since_score < HOP_SAMPLES:
+                continue
+            samples_since_score %= HOP_SAMPLES
+            score_ends.append(consumed)
+    else:
+        raise ValueError(f"unsupported score schedule: {score_schedule}")
+
+    for consumed in score_ends:
         start = consumed - WIN_SAMPLES
         score = score_window(np.ascontiguousarray(session[start:consumed], dtype=np.float32))
         if score is None:
@@ -480,6 +498,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--speaker-threads", type=int, default=2)
     parser.add_argument("--asr-threads", type=int, default=2)
     parser.add_argument("--progress-every", type=int, default=5)
+    parser.add_argument(
+        "--score-schedule",
+        choices=("absolute_samples", "legacy_per_call"),
+        default="absolute_samples",
+        help="fixed SDK behavior or historical per-public-call replay",
+    )
     args = parser.parse_args()
     if args.dev_speakers is not None and args.dev_speakers < 2:
         parser.error("--dev-speakers must be at least 2")
@@ -641,6 +665,7 @@ def main() -> int:
                 points = build_sdk_timeline(
                     session,
                     chunk_pattern=str(spec["pattern"]),
+                    score_schedule=args.score_schedule,
                     target_end_sample=int(timing["target_end_sample"]),
                     other_start_sample=int(timing["other_start_sample"]),
                     score_window=lambda window: score_window(
@@ -723,6 +748,7 @@ def main() -> int:
                     points = build_sdk_timeline(
                         source,
                         chunk_pattern=pattern,
+                        score_schedule=args.score_schedule,
                         target_end_sample=target_end_sample,
                         other_start_sample=other_start_sample,
                         score_window=lambda window: score_window(
@@ -798,7 +824,7 @@ def main() -> int:
             "other_gains_db": OTHER_GAINS_DB,
             "frame_tails_sec": FRAME_TAILS_SEC,
             "chunk_patterns": ["realtime_20ms", "irregular", "single_block"],
-            "score_schedule": "current_Android_Harmony_at_most_one_score_per_public_audio_call",
+            "score_schedule": args.score_schedule,
             "seed": args.seed,
         },
         "artifacts": {
