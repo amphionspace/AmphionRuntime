@@ -1,7 +1,7 @@
 # 捕获 C1～C3 当前真机基线
 
 - 类型：`wayfinder:task`（AFK，需可用 Harmony USB 设备）
-- 状态：in progress / unblocked
+- 状态：closed / 已保留 0.2.9 基线，0.2.8 差分随回归主张撤销
 - 路线图：[机主识别下一阶段路线图](../VOICEPRINT_NEXT_STEP_MAP_20260804.md)
 
 ## Question
@@ -30,5 +30,12 @@
 - 已完成固定阈值的 `1000/300 ms` 短窗探针；精确业务门为 `C1 PASS / C2 FAIL / C3 FAIL`。
 - 已记录窗口 score、target-confirmed、低分计数、endpoint 来源、公开 final 文本与分数；见
   [客户样例证据](../VOICEPRINT_CUSTOMER_CASE_EVIDENCE_20260804.md)。
-- 尚未完成 0.2.8 同设备诊断 HAP 差分和 burst 对照，因此本票据保持 in progress；这两项不再阻塞
+- 当时尚未完成 0.2.8 同设备诊断 HAP 差分和 burst 对照，因此本票据在该阶段保持 in progress；两项不再阻塞
   C2/C3 进入 TSE 离线可行性准备，但在声称版本回归或关闭票据前必须补齐。
+
+## 收口（2026-08-05）
+
+本分支最终没有把 C1～C3 归因为 0.2.8→0.2.9 版本回归：C1 的参数与 buffered-tail 严格门失败，C2/C3
+的无训练盲分离开放集门失败，均被归类为能力边界。因而不再为不存在的回归主张恢复 0.2.8 诊断 HAP
+或补 burst 差分。已保存的 0.2.9 逐窗基线、输入映射和失败 artifact 保留；未来若重新提出版本回归，
+必须以新的同输入差分票据重开，不能引用本次未执行的 0.2.8 对照。本票据没有未完成的本机动作。

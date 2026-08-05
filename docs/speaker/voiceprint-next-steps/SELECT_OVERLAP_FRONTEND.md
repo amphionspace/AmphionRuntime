@@ -1,8 +1,8 @@
 # 选择 C2/C3 重叠前端
 
 - 类型：`wayfinder:prototype`（HITL）
-- 状态：open / offline feasibility proven; production data and resource path pending
-- 生产选择仍依赖：`冻结 target-only 产品契约与成功门`
+- 状态：closed / 无训练候选未通过开放集与资源门
+- 未来训练路线仍依赖：`冻结 target-only 产品契约与成功门`
 - 路线图：[机主识别下一阶段路线图](../VOICEPRINT_NEXT_STEP_MAP_20260804.md)
 
 ## Question
@@ -63,3 +63,10 @@ FP32→量化 ONNX parity。完整数据见
    不能作为规避该根因的替代。
 4. 下一生产候选仍是 enrollment-conditioned、小型 causal TSE；Conv-TasNet 只保留为内容可恢复和
    teacher/负对照证据。
+
+## 收口（2026-08-05）
+
+当前分支限定为本机合成和无训练公开模型验证，已满足停止条件：公开 TSE 资源门失败，通用盲分离在
+speaker-disjoint target-absent 门失败，且归因不能由 RMS、阈值或更多同类样本修复。因此本票据以
+“冻结预算下没有无训练可行候选”关闭，不再等待本机实验。小型 causal、enrollment-conditioned TSE
+属于需要产品契约、受控独立源数据和训练预算的新项目，必须另开范围后重启，不能保留为本分支待办。
