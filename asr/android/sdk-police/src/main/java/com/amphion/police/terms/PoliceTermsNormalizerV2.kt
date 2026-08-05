@@ -93,9 +93,12 @@ class PoliceTermsNormalizerV2 private constructor(
 
         // 1) 复用 V1 全局谐音（高置信人工对），保证不回退。
         val global = homophones.applyPhrases(text)
+        // 1.2) 客户端真人短词反馈：只在整句或警务锚点下纠正拘传/接处警近音串，
+        //      避免把接触景点、接触警报、接触井下设备等通用表达误改。
+        val shortGuarded = PoliceTermsShortGuard.apply(global)
         // 1.5) 「情指行」上下文护栏纠正：仅在 App 语境下把 请指信/停止行/停止航 纠回 情指行，
         //      并排除 停止行动/停止航班/请指信息 等碰撞词，避免误伤通用句子。
-        val guarded = applyQingZhiXingGuard(global)
+        val guarded = applyQingZhiXingGuard(shortGuarded)
         // 1.6) 「登录」上下文护栏：仅在登录语境（后随 系统/平台/门户/客户端… ）下把 登陆 纠回 登录，
         //      排除 登陆作战/抢滩登陆/台风登陆沿海 等通用义，避免误伤。
         val guarded2 = applyDengluGuard(guarded)

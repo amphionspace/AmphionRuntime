@@ -40,11 +40,12 @@ class PoliceTermsNormalizer private constructor(
         if (text.isEmpty()) {
             return PoliceTermsNormalizeResult(text, emptyList())
         }
-        val corrected = if (fstRuntime != null) {
+        val homophoneCorrected = if (fstRuntime != null) {
             fstRuntime.applyGlobal(text)
         } else {
             homophones.applyPhrases(text)
         }
+        val corrected = PoliceTermsShortGuard.apply(homophoneCorrected)
         val spans = locateSpans(corrected)
         return PoliceTermsNormalizeResult(corrected, spans)
     }
