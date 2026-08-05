@@ -495,16 +495,16 @@ def target_speaker_realtime_verdict(hilog_path: Path, required: bool) -> dict[st
     p95_index = min(len(processing) - 1, math.ceil(len(processing) * 0.95) - 1)
     maximum_processing_ms = max(processing)
     maximum_queued_chunks = max(record[2] for record in records)
-    # After the first 2 s window, a new chunk arrives every 1.5 s. A final short chunk may briefly
+    # After the first 2 s window, a new chunk arrives every 1.75 s. A final short chunk may briefly
     # coexist with the last full chunk, so a depth of two is bounded and does not indicate drift.
-    status = "PASS" if maximum_processing_ms < 1500 and maximum_queued_chunks <= 2 else "FAIL"
+    status = "PASS" if maximum_processing_ms < 1750 and maximum_queued_chunks <= 2 else "FAIL"
     return {
         "status": status,
         "chunk_count": len(records),
         "maximum_processing_ms": maximum_processing_ms,
         "p95_processing_ms": processing[p95_index],
         "maximum_queued_chunks": maximum_queued_chunks,
-        "steady_state_chunk_interval_ms": 1500,
+        "steady_state_chunk_interval_ms": 1750,
     }
 
 
