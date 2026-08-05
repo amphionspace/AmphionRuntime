@@ -155,8 +155,10 @@ speaker-disjoint、冻结输入/模型哈希和新旧同键差分审计。ignore
 - C1～C3 当前 0.2.9 真机基线和严格业务红灯已经捕获；下一步先冻结 target-only 产品契约，并补齐
   带 target/other 独立源、对齐文本、enrollment 和受控 SIR/SNR 的中文真实域小集。
 - C1 参数上限已在冻结合成集失败；Android/Harmony 的绝对 PCM hop 调度及同输入差分重放均已完成，
-  分帧门通过但模型层 anchor 仍失败。下一最小实验是“缓冲提交 + 尾部回退/重解码”，同时保护
-  partial、目标连续语音和 final/last 生命周期；不再对同一 test 调阈值。
+  分帧门通过但模型层 anchor 仍失败。工具 15 已冻结 `buffered_tail_commit`：保留 600 ms 尾部，离场或
+  未决低分 finish 时丢弃并重解码提交前缀，clean finish 提交尾部，partial 只来自已提交前缀。下一最小
+  实验是在 Linux 同一冻结集全量 replay；任一目标截断、非目标文本或 anchor 失败即关闭该无训练 C1
+  正式默认路线，不再对同一 test 调阈值或 holdback。
 - C2/C3 的固定 2 秒 Conv-TasNet 已在扩大到 60 个 test 非注册身份后触发开放集停止门；不再跑 30 轮
   稳压、真机扩身份、阈值/margin 搜索，也不以无 target identity 的 RE-SepFormer 规避同一根因。
 - 长期下一实现候选仍应是 `<30 MB`、额外 RSS `<150 MB`、有界 look-ahead 的中文真实域 causal TSE，

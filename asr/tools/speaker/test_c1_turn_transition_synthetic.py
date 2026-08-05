@@ -143,6 +143,78 @@ class C1TurnTransitionSyntheticTest(unittest.TestCase):
         self.assertEqual(metrics["published_other_text_trials"], 1)
         self.assertEqual(metrics["target_regression_trials"], 2)
 
+    def test_buffered_commit_rolls_endpoint_back_by_the_frozen_tail(self) -> None:
+        result = evaluation.speaker_vad.SimResult(
+            state="endpoint",
+            endpoint_sec=2.4,
+            target_confirm_sec=1.0,
+            below_count=2,
+        )
+
+        decision = evaluation.buffered_commit_decision(result, total_samples=48_000)
+
+        self.assertEqual(decision.publish_samples, 28_800)
+        self.assertEqual(decision.rollback_samples, 9_600)
+        self.assertEqual(decision.reason, "confirmed_departure")
+
+    def test_buffered_commit_flushes_continuous_target_on_finish(self) -> None:
+        result = evaluation.speaker_vad.SimResult(
+            state="target_confirmed_no_endpoint",
+            endpoint_sec=3.0,
+            target_confirm_sec=1.0,
+            below_count=0,
+        )
+
+        decision = evaluation.buffered_commit_decision(result, total_samples=48_000)
+
+        self.assertEqual(decision.publish_samples, 48_000)
+        self.assertEqual(decision.rollback_samples, 0)
+        self.assertEqual(decision.reason, "clean_finish")
+
+    def test_buffered_commit_discards_unresolved_low_tail_on_finish(self) -> None:
+        result = evaluation.speaker_vad.SimResult(
+            state="target_confirmed_no_endpoint",
+            endpoint_sec=3.0,
+            target_confirm_sec=1.0,
+            below_count=1,
+        )
+
+        decision = evaluation.buffered_commit_decision(result, total_samples=48_000)
+
+        self.assertEqual(decision.publish_samples, 38_400)
+        self.assertEqual(decision.rollback_samples, 9_600)
+        self.assertEqual(decision.reason, "unresolved_departure_at_finish")
+
+    def test_buffered_commit_rejects_segment_without_target_confirmation(self) -> None:
+        result = evaluation.speaker_vad.SimResult(
+            state="pre_target_endpoint",
+            endpoint_sec=1.2,
+            target_confirm_sec=None,
+            below_count=2,
+        )
+
+        decision = evaluation.buffered_commit_decision(result, total_samples=32_000)
+
+        self.assertEqual(decision.publish_samples, 0)
+        self.assertEqual(decision.reason, "target_not_confirmed")
+
+    def test_direct_publication_policy_preserves_the_detected_endpoint(self) -> None:
+        result = evaluation.speaker_vad.SimResult(
+            state="endpoint",
+            endpoint_sec=2.4,
+            target_confirm_sec=1.0,
+            below_count=2,
+        )
+
+        decision = evaluation.publication_decision(
+            result,
+            total_samples=48_000,
+            policy="direct_endpoint",
+        )
+
+        self.assertEqual(decision.publish_samples, 38_400)
+        self.assertEqual(decision.rollback_samples, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

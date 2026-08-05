@@ -57,6 +57,34 @@ hop 调度修复和冻结重放均已完成，模型层 anchor 仍失败。纯 S
 下一候选固定为“缓冲提交 + 尾部回退/重解码”，并把 partial 一并置于确认门后。实现前必须冻结最多
 可接受提交延迟、回退 PCM 边界以及 finish/cancel/reentrant 时未提交缓冲的归属。
 
+## 缓冲提交实验冻结（2026-08-05）
+
+工具 15 已增加 `--publication-policy buffered_tail_commit`，只改变离线公开前缀的选择，不改
+`0.35 / 1000/300 ms / 连续 2 窗` 和 score timeline。策略固定如下：
+
+- 保留 `2 × 300 ms = 600 ms` 尾部；持续目标的已提交 partial 稳态最多延迟 600 ms，首次 partial 仍须
+  等 1 秒窗口确认目标。
+- 两个低分窗确认离场时丢弃保留尾部，只用提交前缀重新解码并形成 final；不允许已丢弃文本进入 partial。
+- 显式 `finish` 时，若没有未决低分则提交尾部；已有一个未决低分则丢弃尾部；从未确认目标则拒绝。
+- `cancel` 丢弃未提交缓冲且不产生 final/complete；reentrant 写入仍归当前串行 session 队列。离线工具
+  只验证 PCM 水位和重解码文本，生命周期后置条件留给进入 SDK 实现后的状态机/真机门。
+
+Linux 使用同一 baseline、模型哈希、seed 和新目录执行：
+
+```bash
+python asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py \
+  --baseline-dir <frozen-baseline-dir> \
+  --speaker-model <eres2net.onnx> \
+  --asr-model-dir <ZH_EN-model-dir> \
+  --output-dir <new-buffered-tail-result-dir> \
+  --score-schedule absolute_samples \
+  --publication-policy buffered_tail_commit
+```
+
+停止条件不变：`target truncation > 0`、`published other text > 0`、target-only 提前 endpoint 或
+other-only 误确认任一出现即为 **FAIL**，关闭无训练 C1 正式默认路线；不以扩大 holdback、改阈值或
+覆盖旧 artifact 规避失败。
+
 ## Hop 调度修复状态（2026-08-05）
 
 Android/Harmony 已新增同语义的 `SpeakerVadScoreScheduler`：评分终点锚定 native segment 内的绝对 PCM
