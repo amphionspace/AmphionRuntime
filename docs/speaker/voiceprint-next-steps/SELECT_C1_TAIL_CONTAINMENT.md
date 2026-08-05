@@ -109,3 +109,28 @@ absolute ignored artifact 为
 `trials.jsonl` SHA256 分别为 `93edbfb5…dfc2` / `3387daf7…94c3`。当前 USB 设备 `7GK…5655` 不在任何
 本地授权清单中，签名 HAP 构建/安装仍在 license 校验前停止；没有修改白名单、重签或覆盖设备产物。
 本轮没有覆盖 Silero/ASR 更早 endpoint、真实设备声学或 `isLast/onComplete/cancel` 真机生命周期。
+
+## Harmony 真机生命周期补验（2026-08-05）
+
+设备 `VYG-AL30 / HarmonyOS 6.1.0.135` 已加入本机私有 demo 授权，授权文件和完整设备标识未提交。
+分支 `94e8e8c` 仅构建、签名并安装 `ZH_EN` HAP；模型、native、签名、license、安装和 runtime-ready
+smoke 全部通过。被测 HAP SHA256 为
+`a41bba39067f9e9edaee363044420453173b1a5c9d7b7086fb132010893cce64`。
+
+先误用 `voiceprint-fallback/000_enroll.wav` 执行 `speaker-vad-onstart`。该文件总长 3.28 秒，但按
+20 ms 能量窗统计只有约 0.70～0.94 秒活动，低于 `minSegSec=1.5`；4 轮因此都没有满足“足够长的
+同源有效语音必须产生带分数非空 final”的输入前提。失败 artifact
+`20260805-160056-speaker-vad-onstart-9c5c8491` 保留，不把它覆盖或归因为 SDK 回归。
+
+纠正后从固定 `001_recognize.wav` 截取 `[0.5s, 3.5s)` 作为同源注册/识别输入；SHA256 为
+`247c08578ef2bb7beb0ba33632643ede15f85b46264300a1fe683757db5c0815`，前 200 ms RMS 为
+`0.022`，3 秒内约 2.22 秒活动。`speaker-vad-onstart` 的 burst/paced × 直接起音/800 ms 前置静音
+四种组合 **4/4 PASS**：每轮第一条非空 final 都有 `speakerSimilarity`，显式 `finish` 前
+`isLast=0`，结束时恰好一次 last/complete，无 error、跨 session 回调或 live native stream，并且每轮
+都能立即启动并取消恢复 session。RSS `+8.914 MiB`、线程 `-6`，按硬门 PASS；观察仅 21.8 秒，资源
+斜率仍为 `INCONCLUSIVE`。有效 artifact 为
+`20260805-160600-speaker-vad-onstart-80ad4882`。
+
+该补验关闭了“绝对 PCM hop 调度是否破坏 Harmony 公共 API 生命周期/运行期开关”的风险，不改变
+参数候选的业务 **FAIL**：它没有客户 C1 原始 PCM，不证明尾音泄漏已解决，也不替代完整发布真机矩阵。
+下一步仍是 Linux 冻结集的 `buffered_tail_commit` 全量 replay，而不是重复真机 Speaker VAD 参数矩阵。
