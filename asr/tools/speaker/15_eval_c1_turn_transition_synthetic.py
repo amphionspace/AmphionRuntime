@@ -8,7 +8,9 @@ Harmony scheduling rule: score deadlines are anchored to absolute PCM sample pos
 The historical one-score-per-public-call behavior remains available for before/after replay.
 
 This is a local synthetic diagnostic. It freezes threshold=0.35, win=1.0 s,
-hop=0.3 s, and consecutiveBelow=2; it neither tunes SDK parameters nor changes
+hop=0.3 s, and consecutiveBelow=2. The optional buffered_tail_commit publication
+policy holds two hops (600 ms), drops that tail when departure is confirmed, and
+re-decodes only the committed prefix. It neither tunes SDK parameters nor changes
 SDK behavior.
 """
 
@@ -23,7 +25,7 @@ import shlex
 import statistics
 import sys
 import time
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
@@ -69,6 +71,7 @@ HOP_SEC = 0.3
 CONSECUTIVE_BELOW = 2
 WIN_SAMPLES = int(WIN_SEC * SAMPLE_RATE)
 HOP_SAMPLES = int(HOP_SEC * SAMPLE_RATE)
+TAIL_HOLDBACK_SAMPLES = CONSECUTIVE_BELOW * HOP_SAMPLES
 REALTIME_SAMPLES = int(0.02 * SAMPLE_RATE)
 TEMPORAL_GAPS_SEC = (-0.3, 0.0, 0.3, 0.6)
 OTHER_TAILS_SEC = (0.3, 0.6, 1.0, 2.0)
@@ -78,6 +81,61 @@ FRAME_TAILS_SEC = (0.6, 2.0)
 IRREGULAR_CHUNKS = (160, 2720, 640, 8000, 480, 3680)
 SHORT_TARGET_MAX_SEC = 2.5
 LONG_TARGET_MIN_SEC = 4.0
+
+
+@dataclass(frozen=True)
+class TailCommitDecision:
+    publish_samples: int
+    rollback_samples: int
+    reason: str
+
+
+def buffered_commit_decision(result: Any, *, total_samples: int) -> TailCommitDecision:
+    """Choose the public PCM prefix for the frozen 600 ms tail-commit prototype.
+
+    The recognizer may inspect all input privately, but public partial/final results are decoded only
+    from this committed prefix. A confirmed departure or an unresolved low score at explicit finish
+    discards the entire two-hop tail. Clean explicit finish commits it; an unconfirmed segment is
+    rejected. This is an experiment policy, not a new SDK default.
+    """
+    total = max(0, int(total_samples))
+    if result.target_confirm_sec is None:
+        return TailCommitDecision(0, 0, "target_not_confirmed")
+    if result.state == "endpoint":
+        endpoint = min(
+            total,
+            max(0, int(round(float(result.endpoint_sec or 0.0) * SAMPLE_RATE))),
+        )
+        published = max(0, endpoint - TAIL_HOLDBACK_SAMPLES)
+        return TailCommitDecision(published, endpoint - published, "confirmed_departure")
+    if int(result.below_count) > 0:
+        published = max(0, total - TAIL_HOLDBACK_SAMPLES)
+        return TailCommitDecision(
+            published,
+            total - published,
+            "unresolved_departure_at_finish",
+        )
+    return TailCommitDecision(total, 0, "clean_finish")
+
+
+def publication_decision(
+    result: Any,
+    *,
+    total_samples: int,
+    policy: str,
+) -> TailCommitDecision:
+    if policy == "buffered_tail_commit":
+        return buffered_commit_decision(result, total_samples=total_samples)
+    if policy != "direct_endpoint":
+        raise ValueError(f"unsupported publication policy: {policy}")
+    total = max(0, int(total_samples))
+    if result.target_confirm_sec is None:
+        return TailCommitDecision(0, 0, "target_not_confirmed")
+    endpoint = min(
+        total,
+        max(0, int(round(float(result.endpoint_sec or total / SAMPLE_RATE) * SAMPLE_RATE))),
+    )
+    return TailCommitDecision(endpoint, 0, "direct_endpoint")
 
 
 def db_gain(db: float) -> float:
@@ -221,6 +279,11 @@ def decision_metrics(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     baseline_leaks = [float(row["other_actual_sec"]) for row in rows]
     truncations = [float(row["target_truncated_sec"]) for row in rows]
     endpoint_delays = [float(row["endpoint_sec"]) - float(row["target_end_sec"]) for row in rows]
+    publication_delays = [
+        float(row.get("publication_cutoff_sec", row["endpoint_sec"]))
+        - float(row["target_end_sec"])
+        for row in rows
+    ]
     total_baseline = sum(baseline_leaks)
     return {
         "trials": len(rows),
@@ -236,6 +299,7 @@ def decision_metrics(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
         ),
         "target_truncated_sec": describe(truncations),
         "endpoint_delay_from_target_end_sec": describe(endpoint_delays),
+        "publication_delay_from_target_end_sec": describe(publication_delays),
     }
 
 
@@ -445,6 +509,8 @@ def render_report(summary: dict[str, Any]) -> str:
         "# C1 target→other 合成 Speaker VAD 评测",
         "",
         f"> 冻结配置：threshold `{FROZEN_THRESHOLD}`，window `{WIN_SEC:.1f}s`，hop `{HOP_SEC:.1f}s`，连续低分 `{CONSECUTIVE_BELOW}`。",
+        f"> 发布策略：`{summary['configuration']['publication_policy']}`；最大稳态 partial 延迟 "
+        f"`{summary['configuration']['maximum_steady_partial_delay_sec']:.1f}s`。",
         f"> 严格门：**{summary['decision']['status']}**。",
         "",
         "| test gap/tail | target确认率 | target截断率 | 平均 other 泄漏/实际(s) | 泄漏降幅 | 发布空文本 | 发布 other 文本 | published CER |",
@@ -479,6 +545,8 @@ def render_report(summary: dict[str, Any]) -> str:
             "- 合成直接拼接/重叠不包含真实设备、距离、混响、AGC、codec 或自然对话韵律。",
             "- lexical leakage 使用完整 other 文本做保守 LCS 归因；裁剪尾段没有字级时间戳。",
             "- 只复刻 Speaker VAD 分数调度和两阶段状态，不模拟 Silero/ASR 自身更早 endpoint。",
+            "- buffered policy 的 partial 只来自已提交前缀；本工具以提交水位和前缀重解码验证文本，"
+            "不模拟 UI 回调时间线。",
             "- 本报告不修改 SDK 默认值，也不验证 isLast/onComplete/cancel 真机契约。",
             "",
         ]
@@ -503,6 +571,12 @@ def parse_args() -> argparse.Namespace:
         choices=("absolute_samples", "legacy_per_call"),
         default="absolute_samples",
         help="fixed SDK behavior or historical per-public-call replay",
+    )
+    parser.add_argument(
+        "--publication-policy",
+        choices=("direct_endpoint", "buffered_tail_commit"),
+        default="direct_endpoint",
+        help="current endpoint publication or frozen two-hop tail holdback prototype",
     )
     args = parser.parse_args()
     if args.dev_speakers is not None and args.dev_speakers < 2:
@@ -679,7 +753,18 @@ def main() -> int:
                     total_sec=len(session) / SAMPLE_RATE,
                 )
                 endpoint_sec = float(result.endpoint_sec or len(session) / SAMPLE_RATE)
-                endpoint_sample = min(len(session), max(0, int(round(endpoint_sec * SAMPLE_RATE))))
+                commit = publication_decision(
+                    result,
+                    total_samples=len(session),
+                    policy=args.publication_policy,
+                )
+                endpoint_sample = commit.publish_samples
+                publication_cutoff_sec = endpoint_sample / SAMPLE_RATE
+                public_boundary_sec = (
+                    publication_cutoff_sec
+                    if args.publication_policy == "buffered_tail_commit"
+                    else endpoint_sec
+                )
                 target_end_sec = int(timing["target_end_sample"]) / SAMPLE_RATE
                 other_start_sec = int(timing["other_start_sample"]) / SAMPLE_RATE
                 other_end_sec = int(timing["other_end_sample"]) / SAMPLE_RATE
@@ -716,9 +801,12 @@ def main() -> int:
                     "target_confirmed": target_confirmed,
                     "target_confirm_sec": result.target_confirm_sec,
                     "endpoint_sec": endpoint_sec,
-                    "target_truncated_sec": max(0.0, target_end_sec - endpoint_sec),
+                    "publication_cutoff_sec": publication_cutoff_sec,
+                    "publication_reason": commit.reason,
+                    "tail_rollback_sec": commit.rollback_samples / SAMPLE_RATE,
+                    "target_truncated_sec": max(0.0, target_end_sec - public_boundary_sec),
                     "other_leak_sec": max(
-                        0.0, min(endpoint_sec, other_end_sec) - other_start_sec
+                        0.0, min(public_boundary_sec, other_end_sec) - other_start_sec
                     ),
                     "timeline": [asdict(point) for point in points],
                     "target_only_text": None,
@@ -762,6 +850,17 @@ def main() -> int:
                         total_sec=len(source) / SAMPLE_RATE,
                     )
                     endpoint_sec = float(result.endpoint_sec or len(source) / SAMPLE_RATE)
+                    commit = publication_decision(
+                        result,
+                        total_samples=len(source),
+                        policy=args.publication_policy,
+                    )
+                    publication_cutoff_sec = commit.publish_samples / SAMPLE_RATE
+                    public_boundary_sec = (
+                        publication_cutoff_sec
+                        if args.publication_policy == "buffered_tail_commit"
+                        else endpoint_sec
+                    )
                     output_rows.append(
                         {
                             "split": split,
@@ -779,14 +878,17 @@ def main() -> int:
                             "target_confirmed": result.target_confirm_sec is not None,
                             "target_confirm_sec": result.target_confirm_sec,
                             "endpoint_sec": endpoint_sec,
+                            "publication_cutoff_sec": publication_cutoff_sec,
+                            "publication_reason": commit.reason,
+                            "tail_rollback_sec": commit.rollback_samples / SAMPLE_RATE,
                             "target_end_sec": len(source) / SAMPLE_RATE if kind == "target_only" else 0.0,
                             "target_truncated_sec": (
-                                max(0.0, len(source) / SAMPLE_RATE - endpoint_sec)
+                                max(0.0, len(source) / SAMPLE_RATE - public_boundary_sec)
                                 if kind == "target_only"
                                 else 0.0
                             ),
                             "other_actual_sec": len(source) / SAMPLE_RATE if kind == "other_only" else 0.0,
-                            "other_leak_sec": endpoint_sec if kind == "other_only" else 0.0,
+                            "other_leak_sec": public_boundary_sec if kind == "other_only" else 0.0,
                             "timeline": [asdict(point) for point in points],
                         }
                     )
@@ -825,6 +927,13 @@ def main() -> int:
             "frame_tails_sec": FRAME_TAILS_SEC,
             "chunk_patterns": ["realtime_20ms", "irregular", "single_block"],
             "score_schedule": args.score_schedule,
+            "publication_policy": args.publication_policy,
+            "tail_holdback_sec": TAIL_HOLDBACK_SAMPLES / SAMPLE_RATE,
+            "maximum_steady_partial_delay_sec": (
+                TAIL_HOLDBACK_SAMPLES / SAMPLE_RATE
+                if args.publication_policy == "buffered_tail_commit"
+                else 0.0
+            ),
             "seed": args.seed,
         },
         "artifacts": {

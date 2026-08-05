@@ -292,6 +292,24 @@ python asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py \
   --score-schedule absolute_samples
 ```
 
+调度门通过后，用同一工具和冻结输入比较尾部提交策略；不改阈值，也不复用旧输出目录：
+
+```bash
+python asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py \
+  --baseline-dir asr/tools/speaker/results/voiceprint_pilot_20260728_aishell2_enroll3_paired \
+  --speaker-model /private/path/eres2net.onnx \
+  --asr-model-dir /private/path/zh_en_streaming_model \
+  --output-dir asr/tools/speaker/results/c1-turn-transition-buffered-tail \
+  --score-schedule absolute_samples \
+  --publication-policy buffered_tail_commit
+```
+
+`buffered_tail_commit` 固定保留 `consecutiveBelow × hop = 600 ms` PCM。目标持续时 partial 只从已提交
+前缀产生，稳态最多增加 600 ms；确认离场或 `finish` 时已有未决低分则丢弃尾部，并只重解码提交前缀；
+clean `finish` 提交尾部，未确认目标则拒绝，`cancel` 直接丢弃且不产生 final/complete。该选项只做离线
+架构实验，不修改 SDK 默认行为；若目标截断、非目标文本或 target-only/other-only anchor 任一仍失败，
+停止该无训练 C1 默认路线，不在 test 上调整 holdback 或阈值。
+
 2026-08-05 `legacy_per_call` 全量结果为 30 dev / 60 test speaker、3060 行；test 主矩阵 960 行。实时 20 ms
 喂入时目标确认率 `100%`，平均非目标音频泄漏从 `0.973s` 降到 `0.455s`（降幅 `53.24%`），
 session CER 从 `14.09%` 降到 `4.17%`，但仍有 `30/960` 行发布了可归因的非目标文本，且

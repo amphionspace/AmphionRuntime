@@ -55,7 +55,8 @@
 - [选择 C1 尾音控制架构](voiceprint-next-steps/SELECT_C1_TAIL_CONTAINMENT.md) — 独立 target→other 集已
   否决把 `1000/300 ms` 直接设为正式默认值。Android/Harmony 绝对 PCM hop 调度、构建门和冻结
   `absolute_samples` replay 均已完成；分帧门通过但 anchor 仍失败。下一步验证“缓冲提交 + 尾部
-  回退/重解码”和 partial 门控，不再调 Speaker VAD 阈值。
+  回退/重解码”和 partial 门控。离线策略已冻结为 600 ms 尾部保留并加入工具 15，等待同一 Linux
+  冻结集全量 replay；不再调 Speaker VAD 阈值或 holdback。
 - [选择 C2/C3 重叠前端](voiceprint-next-steps/SELECT_OVERLAP_FRONTEND.md) — 首个主候选固定为
   speaker-conditioned TSE；公开 offline TSE 与通用分离正对照已通过三条黑盒回归但资源门失败。下一输入
   不是更多混合 WAV，而是带 target/other 独立源、对齐文本和 enrollment 的受控重叠小集，以及可训练/
