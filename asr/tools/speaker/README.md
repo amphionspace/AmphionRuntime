@@ -322,8 +322,15 @@ other-only anchor 中 `2/60` 被误确认。相对实时 20 ms，irregular 分�
 与 legacy 逐行一致；720 条 irregular/single-block 对照全部收敛到实时参考，两个模式的 state mismatch
 均为 `0%`、exact endpoint match 均为 `100%`。严格门仍为 **FAIL**：上述 `16/960` 目标截断、
 `30/960` 非目标文本、target-only `1/60` 提前 endpoint 和 other-only `2/60` 误确认均未改变。
-因此 hop 调度根因已修复，剩余失败归属模型/窗口判决能力；下一候选是缓冲提交与尾部回退，不再在
-同一 test 上调阈值。
+因此 hop 调度根因已修复，剩余失败归属模型/窗口判决能力；随后冻结缓冲提交与尾部回退作为最后一个
+候选，不再在同一 test 上调阈值。
+
+同日 `buffered_tail_commit` 使用相同输入和时间线完成 3060 行重放，严格门仍为 **FAIL**。test 主矩阵
+的平均非目标音频泄漏从 absolute 的 `0.455s` 降到 `0.133s`，发布非目标文本从 `30/960` 降到
+`1/960`；代价是目标截断从 `16/960` 增至 `242/960`（`1.67% → 25.21%`），published CER 从
+`4.17%` 微升到 `4.25%`。target-only `1/60` 提前 endpoint 和 other-only `2/60` 误确认也未消失，
+分帧一致性保持 `100%`。按预先冻结的停止条件，不扩大 600 ms holdback、不改阈值，C1 无训练正式
+默认路线关闭。
 
 可用 `--denoiser-model <dpdfnet.onnx>` 做前端降噪 A/B；`--denoiser-scope all` 同时处理
 enrollment/probe（默认），`probe` 只处理 probe。当前中型 paired 结果中，不降噪在
