@@ -79,18 +79,24 @@ class DqSdkCornerCaseTest {
                     "abrupt_errors" to abrupt.errorCodes.toString(),
                 ),
             )
-            // 关键不变量：充分补静音能出 final 的句子，突然结束也必须出非空 final（尾帧未被整段丢弃）。
+            // 关键不变量：同一 PCM 的立即 finish 必须逐字等于充分尾上下文基线；只检查非空或长度比例
+            // 会漏掉客户反馈的单个尾字丢失。
             if (padded.finalText.isNotEmpty()) {
                 assertTrue("abrupt finish produced empty final for $wav (tail dropped)", abrupt.finalText.isNotEmpty())
                 assertTrue("abrupt finish missing onComplete for $wav", abrupt.completed)
                 assertTrue("abrupt finish last result not isLast for $wav", abrupt.lastIsLast)
+                assertEquals(
+                    "$wav abrupt finish must preserve the padded-reference tail",
+                    padded.finalText,
+                    abrupt.finalText,
+                )
             }
             totalRatio += ratio
             counted++
         }
         val avg = totalRatio / counted
         DqReport.append(ctx, mapOf("case" to "a01_tailFrame_summary", "files" to counted, "avg_len_ratio" to avg))
-        // 仅在明显塌缩时硬失败；细粒度差异留报告人工复核。
+        // 保留汇总指标用于报告，但逐文件逐字断言才是发布门禁。
         assertTrue("avg abrupt/padded length ratio too low: $avg", avg >= 0.5)
     }
 

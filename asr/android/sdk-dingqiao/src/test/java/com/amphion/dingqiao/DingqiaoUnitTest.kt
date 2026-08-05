@@ -58,6 +58,43 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildAsrConfig_disablesPrepackByDefaultAndAllowsExplicitFallback() {
+        val defaultConfig = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE),
+            speakerModelPath = null,
+        )
+        val fallbackConfig = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(
+                language = "zh-CN",
+                online = DingqiaoOnlineMode.OFFLINE,
+                extraParams = mapOf("disablePrepack" to false),
+            ),
+            speakerModelPath = null,
+        )
+
+        assertTrue(defaultConfig.disablePrepack)
+        assertFalse(fallbackConfig.disablePrepack)
+    }
+
+    @Test
+    fun buildAsrConfig_invalidDisablePrepackValuesKeepDefault() {
+        val invalidValues = listOf(Double.NaN, Any())
+
+        invalidValues.forEach { value ->
+            val config = DingqiaoEngineConfig.buildAsrConfig(
+                CreateEngineParams(
+                    language = "zh-CN",
+                    online = DingqiaoOnlineMode.OFFLINE,
+                    extraParams = mapOf("disablePrepack" to value),
+                ),
+                speakerModelPath = null,
+            )
+
+            assertTrue("invalid disablePrepack=$value must keep the true default", config.disablePrepack)
+        }
+    }
+
+    @Test
     fun buildAsrConfig_readsVadEndFromStartParams() {
         val config = DingqiaoEngineConfig.buildAsrConfig(
             CreateEngineParams(
@@ -181,6 +218,25 @@ class DingqiaoEngineConfigTest {
         )
         assertEquals(800, sc.endpointSilenceMs)
         assertEquals(0.40f, sc.speakerVad!!.threshold, 1e-6f)
+    }
+
+    @Test
+    fun policeEnhancement_defaultsOnAndCanBeDisabledPerSession() {
+        val defaults = StartParams("default", AudioInfo(), emptyMap())
+        val disabled = StartParams(
+            "disabled",
+            AudioInfo(),
+            mapOf("enablePoliceEnhancement" to false),
+        )
+        val invalid = StartParams(
+            "invalid",
+            AudioInfo(),
+            mapOf("enablePoliceEnhancement" to "false"),
+        )
+
+        assertTrue(DingqiaoEngineConfig.enablePoliceEnhancement(defaults))
+        assertFalse(DingqiaoEngineConfig.enablePoliceEnhancement(disabled))
+        assertTrue(DingqiaoEngineConfig.enablePoliceEnhancement(invalid))
     }
 
     @Test
@@ -403,6 +459,35 @@ class DingqiaoEngineConfigTest {
             ),
         )
         assertEquals(listOf("vp-1", "vp-2"), ids)
+    }
+}
+
+class PoliceEnhancementPolicyTest {
+
+    @Test
+    fun enabledFinalUsesEnhancerAndDisabledFinalReturnsRawText() {
+        var calls = 0
+        val enhance: (String) -> String = { raw ->
+            calls += 1
+            "增强:$raw"
+        }
+
+        assertEquals("增强:原文", PoliceEnhancementPolicy.finalText("原文", true, enhance))
+        assertEquals("原文", PoliceEnhancementPolicy.finalText("原文", false, enhance))
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun consecutiveSessionsWithOppositeSettingsDoNotSharePolicyState() {
+        val disabled = DingqiaoEngineConfig.enablePoliceEnhancement(
+            StartParams("off", AudioInfo(), mapOf("enablePoliceEnhancement" to false)),
+        )
+        val enabled = DingqiaoEngineConfig.enablePoliceEnhancement(
+            StartParams("on", AudioInfo(), emptyMap()),
+        )
+
+        assertEquals("第一句", PoliceEnhancementPolicy.finalText("第一句", disabled) { "错误增强" })
+        assertEquals("第二句-增强", PoliceEnhancementPolicy.finalText("第二句", enabled) { "$it-增强" })
     }
 }
 

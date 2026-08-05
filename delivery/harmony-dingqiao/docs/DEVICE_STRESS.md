@@ -38,11 +38,20 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 `--skip-build-install`。结果写入
 `delivery/harmony-dingqiao/build/device-stress/<run-id>/`：
 
+如果目标是测量设备上已经存在、但本地没有对应 build identity 的 HAP，使用
+`--installed-package`。该模式不会构建或安装，会把设备 `bm dump` 中的版本、签名指纹和完整
+bundle 信息写入 artifact；它不能证明已安装 HAP 与当前源码一致，因此不能替代发布门禁的
+构建身份校验。
+
 - `report.json`：总体结论、回调计数、空结果率、native 流和内存判定。
-- `memory.csv`：按时间采集的 `/proc/<pid>/status`。
+- `memory.csv`：按时间采集的 `/proc/<pid>/status`，并保留进程/整机 CPU tick 与逻辑 CPU 数。
 - `result.txt`：设备端逐轮契约结果。
 - `hilog.txt`：本轮系统和应用日志。
 - `payload/corpus.json`：源 WAV 到设备 PCM 的映射。
+
+`report.json.cpu` 同时给出单核等效 CPU 百分比和整机容量百分比。前者 100% 表示占满一个
+逻辑核，可以超过 100%；后者以全部逻辑核为 100%。CPU 统计只覆盖应用写出结果前的工作窗口，
+不把结束后的空闲观察计入均值。
 
 设备写出结果后会删除本轮 PCM、manifest 和 corpus 映射，避免重复压测持续占用应用存储；
 主机侧 artifact 保留完整输入映射用于复核。

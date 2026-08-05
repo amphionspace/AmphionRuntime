@@ -4,17 +4,23 @@
 from __future__ import annotations
 
 import argparse
-import base64
-import calendar
 import hashlib
 import json
-from datetime import date
 from pathlib import Path, PurePosixPath
 import re
+import shutil
+import stat
 import tarfile
+import tempfile
+import zipfile
 
 
 MODEL_MD5_POLICY_PATH = Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
+MAX_SDK_ONLY_ZIP_BYTES = 320 * 1024 * 1024
+RUNTIME_IDENTITY_SOURCE_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts"
+)
 PINNED_MODEL_ONNX_SOURCES = {
     "decoder.onnx",
     "encoder.int8.onnx",
@@ -31,6 +37,11 @@ VERSIONED_PACKAGE_PATHS = (
 RUNTIME_IDENTITY_PATH = (
     "package/_bundled/amphion_asr/src/main/ets/com/amphion/asr/RuntimeIdentity.ts"
 )
+POLICE_PACKAGE_PATH = "package/_bundled/amphion_police/oh-package.json5"
+POLICE_ASSET_ROOT = PurePosixPath(
+    "package/_bundled/amphion_police/src/main/resources/rawfile/amphion-police"
+)
+POLICE_MANIFEST_PATH = (POLICE_ASSET_ROOT / "manifest.json").as_posix()
 ALLOWED_MODEL_BUNDLES = {
     "zh-en/v1",
     "punct-zhen/v1",
@@ -40,7 +51,6 @@ ALLOWED_MODEL_BUNDLES = {
 REQUIRED_FILES = {
     "README.md",
     "har/amphion_dingqiao.har",
-    "license/amphion-license.lic",
     "docs/LICENSE.md",
     "docs/LICENSE_SCHEME.md",
     "docs/CHANGELOG.md",
@@ -75,6 +85,27 @@ HAR_TEXT_PATTERNS = (
 
 class DeliveryValidationError(RuntimeError):
     pass
+
+
+def _load_expected_runtime_identity() -> dict[str, str]:
+    try:
+        source = RUNTIME_IDENTITY_SOURCE_PATH.read_text(encoding="utf-8")
+    except OSError as error:
+        raise DeliveryValidationError(
+            f"cannot read runtime identity source: {RUNTIME_IDENTITY_SOURCE_PATH}"
+        ) from error
+    patterns = {
+        "version": r"HARMONY_SDK_VERSION: string = '([^']+)'",
+        "major": r"HARMONY_SDK_MAJOR: number = ([0-9]+)",
+        "release_date": r"HARMONY_SDK_RELEASE_DATE: string = '([0-9]{4}-[0-9]{2}-[0-9]{2})'",
+    }
+    identity: dict[str, str] = {}
+    for field, pattern in patterns.items():
+        match = re.search(pattern, source)
+        if match is None:
+            raise DeliveryValidationError(f"runtime identity source is missing {field}")
+        identity[field] = match.group(1)
+    return identity
 
 
 def sha256(path: Path) -> str:
@@ -244,7 +275,10 @@ def _validate_member_policy(archive: tarfile.TarFile) -> set[str]:
 
 
 def _validate_har(
-    root: Path, expected_version: str, expected_model_md5: dict[str, str]
+    root: Path,
+    expected_version: str,
+    expected_model_md5: dict[str, str],
+    expected_identity: dict[str, str],
 ) -> dict:
     har_path = root / "har/amphion_dingqiao.har"
     try:
@@ -253,9 +287,6 @@ def _validate_har(
         raise DeliveryValidationError(f"invalid HAR archive: {har_path}") from error
     with archive:
         names = _validate_member_policy(archive)
-        police = sorted(name for name in names if "amphion_police" in name.lower())
-        if police:
-            raise DeliveryValidationError(f"HAR contains police enhancement content: {police[0]}")
         forbidden = sorted(name for name in names if "yue-en" in name.lower())
         if forbidden:
             raise DeliveryValidationError(f"HAR contains Yue model content: {forbidden[0]}")
@@ -271,13 +302,65 @@ def _validate_har(
                 raise DeliveryValidationError(
                     f"nested HAR version {nested.get('version')} != {expected_version}: {path}"
                 )
+        dependencies = metadata.get("dependencies")
+        if not isinstance(dependencies, dict) or dependencies.get("amphion_police") != \
+                "file:./_bundled/amphion_police":
+            raise DeliveryValidationError("HAR does not link bundled police enhancement")
+        police_metadata = _read_tar_json(archive, POLICE_PACKAGE_PATH)
+        if police_metadata.get("version") != expected_version:
+            raise DeliveryValidationError(
+                f"bundled police enhancement version {police_metadata.get('version')} "
+                f"!= {expected_version}"
+            )
+        police_dependencies = police_metadata.get("dependencies")
+        if not isinstance(police_dependencies, dict) or police_dependencies.get("amphion_asr") != \
+                "file:../amphion_asr":
+            raise DeliveryValidationError("bundled police enhancement does not link bundled ASR")
+        for required_police_member in (
+            "package/_bundled/amphion_police/Index.ets",
+            "package/_bundled/amphion_police/src/main/ets/com/amphion/police/PoliceEnhancePipeline.ets",
+        ):
+            _read_tar_bytes(archive, required_police_member)
+
+        police_manifest = _read_tar_json(archive, POLICE_MANIFEST_PATH)
+        police_files = police_manifest.get("files")
+        if not isinstance(police_files, dict) or not police_files:
+            raise DeliveryValidationError("police enhancement manifest has no assets")
+        expected_police_assets = {POLICE_MANIFEST_PATH}
+        for relative, expected_hash in police_files.items():
+            if not isinstance(relative, str) or not isinstance(expected_hash, str):
+                raise DeliveryValidationError("invalid police enhancement manifest entry")
+            relative_path = PurePosixPath(relative)
+            if relative_path.is_absolute() or ".." in relative_path.parts:
+                raise DeliveryValidationError(
+                    f"unsafe police enhancement asset path: {relative}"
+                )
+            asset_path = (POLICE_ASSET_ROOT / relative_path).as_posix()
+            expected_police_assets.add(asset_path)
+            payload = _read_tar_bytes(archive, asset_path)
+            if hashlib.sha256(payload).hexdigest() != expected_hash:
+                raise DeliveryValidationError(
+                    f"police enhancement asset hash mismatch: {asset_path}"
+                )
+        actual_police_assets = {
+            member.name
+            for member in archive.getmembers()
+            if member.isfile() and member.name.startswith(f"{POLICE_ASSET_ROOT.as_posix()}/")
+        }
+        if actual_police_assets != expected_police_assets:
+            extra = sorted(actual_police_assets - expected_police_assets)
+            missing = sorted(expected_police_assets - actual_police_assets)
+            detail = extra[0] if extra else missing[0]
+            raise DeliveryValidationError(
+                f"police enhancement asset file set mismatch: {detail}"
+            )
         identity = _read_tar_bytes(archive, RUNTIME_IDENTITY_PATH).decode("utf-8")
-        expected_identity = (
+        expected_identity_tokens = (
             f"HARMONY_SDK_VERSION: string = '{expected_version}'",
-            "HARMONY_SDK_MAJOR: number = 1",
-            "HARMONY_SDK_RELEASE_DATE: string = '2026-07-18'",
+            f"HARMONY_SDK_MAJOR: number = {expected_identity['major']}",
+            f"HARMONY_SDK_RELEASE_DATE: string = '{expected_identity['release_date']}'",
         )
-        if any(value not in identity for value in expected_identity):
+        if any(value not in identity for value in expected_identity_tokens):
             raise DeliveryValidationError("HAR runtime identity does not match release")
 
         manifest_payload = _read_tar_bytes(archive, MODEL_MANIFEST_PATH)
@@ -373,6 +456,17 @@ def _validate_provenance(root: Path, expected_version: str, har_evidence: dict) 
         raise DeliveryValidationError("SDK-only ASR provenance must declare asr_only=true")
     if provenance.get("languages") != ["zh-en"]:
         raise DeliveryValidationError("provenance languages must be exactly ['zh-en']")
+    if provenance.get("capabilities") != [
+        "asr",
+        "voiceprint",
+        "punctuation",
+        "itn",
+        "vad",
+        "industry-text-enhancement",
+    ]:
+        raise DeliveryValidationError("provenance capabilities do not include police enhancement")
+    if provenance.get("excluded_capabilities") != []:
+        raise DeliveryValidationError("provenance incorrectly excludes a bundled capability")
     artifacts = provenance.get("artifacts")
     if not isinstance(artifacts, list) or [item.get("path") for item in artifacts] != [
         "har/amphion_dingqiao.har"
@@ -402,13 +496,18 @@ def _validate_documents(root: Path) -> None:
     if any(value in api for value in ("zh-yue", "zh_yue")):
         raise DeliveryValidationError("SDK-only API document still advertises Yue")
     readme = (root / "README.md").read_text(encoding="utf-8")
-    if "独立 TTS SDK 或 TTS 模型" not in readme:
+    if not all(value in readme for value in ("不包含", "独立 TTS SDK", "TTS 模型")):
         raise DeliveryValidationError("README does not state the SDK-only TTS boundary")
+    for statement in ("警务文本增强", "enablePoliceEnhancement", "不包含", "授权文件"):
+        if statement not in readme:
+            raise DeliveryValidationError(
+                f"README does not match SDK-only capability boundary: {statement}"
+            )
     for markdown in root.rglob("*.md"):
         text = markdown.read_text(encoding="utf-8")
-        if "鼎桥" in text or "警务" in text or re.search(r"\bpolice\b", text, re.IGNORECASE):
+        if "鼎桥" in text:
             raise DeliveryValidationError(
-                f"customer-facing document contains excluded branding or capability: {markdown}"
+                f"customer-facing document contains excluded branding: {markdown}"
             )
         for raw_target in MARKDOWN_LINK_RE.findall(text):
             target = raw_target.strip().strip("<>").split("#", 1)[0]
@@ -427,45 +526,6 @@ def _validate_documents(root: Path) -> None:
                 )
 
 
-def _validate_license(root: Path) -> None:
-    try:
-        envelope = json.loads(
-            (root / "license/amphion-license.lic").read_text(encoding="utf-8")
-        )
-        claims = json.loads(base64.b64decode(envelope["payload_b64"], validate=True))
-    except (OSError, UnicodeDecodeError, ValueError, KeyError, json.JSONDecodeError) as error:
-        raise DeliveryValidationError("evaluation license is malformed") from error
-    if envelope.get("alg") != "SHA256withECDSA" or not envelope.get("sig_b64"):
-        raise DeliveryValidationError("evaluation license has no supported signature")
-    unbound = (
-        claims.get("applicationId") == ""
-        and claims.get("bundleName") == ""
-        and claims.get("certSha256") == ""
-        and claims.get("signingCertDigest") == ""
-        and claims.get("authorizedDeviceHashes") == []
-        and claims.get("deviceIdSaltId") == ""
-        and claims.get("installTier") == ""
-        and claims.get("maintenanceUntil") == ""
-    )
-    if not unbound:
-        raise DeliveryValidationError("evaluation license must not bind app, certificate, device, install tier, or maintenance")
-    if claims.get("features") != ["ASR"]:
-        raise DeliveryValidationError("evaluation license must grant exactly ASR")
-    if claims.get("sdkMajor") != 0:
-        raise DeliveryValidationError("evaluation license must not restrict the SDK major version")
-    try:
-        issued = date.fromisoformat(claims["issuedAt"])
-        expires = date.fromisoformat(claims["expiresAt"])
-    except (KeyError, TypeError, ValueError) as error:
-        raise DeliveryValidationError("evaluation license dates are invalid") from error
-    month_index = issued.month - 1 + 4
-    expected_year = issued.year + month_index // 12
-    expected_month = month_index % 12 + 1
-    expected_day = min(issued.day, calendar.monthrange(expected_year, expected_month)[1])
-    if expires != date(expected_year, expected_month, expected_day):
-        raise DeliveryValidationError("evaluation license must expire after exactly four calendar months")
-
-
 def validate_delivery(
     root: Path,
     expected_version: str,
@@ -473,24 +533,80 @@ def validate_delivery(
 ) -> None:
     if expected_model_md5 is None:
         expected_model_md5 = _load_pinned_model_md5()
+    expected_identity = _load_expected_runtime_identity()
+    if expected_identity["version"] != expected_version:
+        raise DeliveryValidationError(
+            f"runtime identity source version {expected_identity['version']} != {expected_version}"
+        )
     _validate_layout(root)
     _validate_checksums(root)
-    _validate_license(root)
-    har_evidence = _validate_har(root, expected_version, expected_model_md5)
+    har_evidence = _validate_har(
+        root, expected_version, expected_model_md5, expected_identity
+    )
     _validate_provenance(root, expected_version, har_evidence)
     _validate_documents(root)
 
 
+def validate_delivery_path(
+    path: Path,
+    expected_version: str,
+    expected_model_md5: dict[str, str] | None = None,
+) -> None:
+    if path.is_dir():
+        validate_delivery(path, expected_version, expected_model_md5)
+        return
+    if not path.is_file() or path.suffix.lower() != ".zip":
+        raise DeliveryValidationError(f"delivery must be a directory or final ZIP: {path}")
+    if path.stat().st_size > MAX_SDK_ONLY_ZIP_BYTES:
+        raise DeliveryValidationError(
+            f"SDK-only ZIP exceeds {MAX_SDK_ONLY_ZIP_BYTES} bytes: {path.stat().st_size}"
+        )
+    try:
+        archive = zipfile.ZipFile(path)
+    except (OSError, zipfile.BadZipFile) as error:
+        raise DeliveryValidationError(f"invalid delivery ZIP: {path}") from error
+    with archive, tempfile.TemporaryDirectory() as directory:
+        bad = archive.testzip()
+        if bad is not None:
+            raise DeliveryValidationError(f"delivery ZIP CRC failed: {bad}")
+        infos = archive.infolist()
+        names = [info.filename for info in infos]
+        if len(names) != len(set(names)):
+            raise DeliveryValidationError("delivery ZIP contains duplicate member names")
+        roots: set[str] = set()
+        destination = Path(directory)
+        for info in infos:
+            if "\\" in info.filename:
+                raise DeliveryValidationError(f"unsafe ZIP member path: {info.filename}")
+            member = PurePosixPath(info.filename)
+            if member.is_absolute() or ".." in member.parts or not member.parts:
+                raise DeliveryValidationError(f"unsafe ZIP member path: {info.filename}")
+            roots.add(member.parts[0])
+            mode = info.external_attr >> 16
+            if stat.S_ISLNK(mode):
+                raise DeliveryValidationError(f"delivery ZIP contains symlink: {info.filename}")
+            target = destination.joinpath(*member.parts)
+            if info.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(info) as source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+        if len(roots) != 1:
+            raise DeliveryValidationError("delivery ZIP must contain exactly one root directory")
+        validate_delivery(destination / roots.pop(), expected_version, expected_model_md5)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("delivery_dir", type=Path)
+    parser.add_argument("delivery_path", type=Path)
     parser.add_argument("--version", required=True)
     args = parser.parse_args()
     try:
-        validate_delivery(args.delivery_dir, args.version)
-    except DeliveryValidationError as error:
+        validate_delivery_path(args.delivery_path, args.version)
+    except (DeliveryValidationError, OSError, UnicodeError, zipfile.BadZipFile) as error:
         parser.error(str(error))
-    print(f"[OK] zh-en SDK-only delivery validated: {args.delivery_dir}")
+    print(f"[OK] zh-en SDK-only delivery validated: {args.delivery_path}")
     return 0
 
 

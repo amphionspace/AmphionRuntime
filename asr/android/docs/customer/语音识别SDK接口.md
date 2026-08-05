@@ -90,6 +90,7 @@ engine.shutdown()
 | `locate` | `String` | `CN` | 兼容字段；当前仅支持中国区，不改变模型选择 |
 | `recognizerMode` | `String` | `long` | 接受 `short`/`long`，当前均按长语音流式模式处理 |
 | `sysGeneralLexicon` | `List<String>` | 空 | 系统热词；与警务域默认热词合并后用于解码 |
+| `disablePrepack` | `Boolean/Number/String` | `true` | 默认跳过 ORT INT8 权重 prepack，降低冷加载时间和峰值内存；设为 `false` 可恢复吞吐优先模式 |
 
 ### StartParams
 
@@ -106,6 +107,7 @@ engine.shutdown()
 | `recognitionMode` | `Number/String` | `1` | 仅支持 `1`（外部写入音频流）；`0`（SDK 内录音）暂不支持 |
 | `vadBegin` | `Number/String` | 未启用 | 首次检测到语音前的静音超时，范围 500 到 10000 ms；仅显式传入时启用 |
 | `enablePartialResult` | `Boolean` | `true` | 是否回调中间结果 |
+| `enablePoliceEnhancement` | `Boolean` | `true` | 是否对 final 文本执行警务术语、车牌和派出所归一化；`false` 返回原始 ASR 文本 |
 | `maxAudioDuration` | `Number/String` | 未启用 | 单会话最长音频毫秒数；仅显式传入正有限值时启用，上限 28800000；达到上限后正常自动结束 |
 | `vadEnd` | `Number/String` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `sessionGeneralLexicon` | `List<String>` | 空 | V1 暂不支持；传入不会作为会话热词生效 |

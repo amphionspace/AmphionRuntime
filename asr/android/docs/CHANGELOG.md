@@ -6,7 +6,12 @@
 - MINOR：新增公开 API 但保持向后兼容
 - PATCH：仅 bug 修复，公开 API 与行为不变
 
-## [Unreleased]
+## [0.3.3] - 2026-07-30
+
+新增
+
+- 鼎桥适配层新增会话参数 `StartParams.extraParams["enablePoliceEnhancement"]`。默认 `true`
+  保持既有行为；显式传 `false` 时 final 返回原始 ASR 文本，不执行警务术语、车牌和派出所归一化。
 
 修复
 

@@ -16,8 +16,8 @@
     "police_station/station_polish_meta.json": "8af1cff73623650f6e368c7cc91a4e87e89c377afe665c5470b2305404adb10d",
     "police_terms/term_gazetteer.txt": "edbfc58be9c207c724d3594e458060fbe6ebb849aa69fcee5a0366a8154c63e6",
     "police_terms/term_homophones.csv": "0971862ea9a1320fabafd30f069c5d9bf56a862d51b717c6e9ae423e5b1e2773",
-    "police_terms/terms_global.fst": "ba125e74422587906778c5ca022289d7cf95122024976af59831c37406d48e14",
-    "police_terms/terms_global_meta.json": "144b9592a451dcc56f05187e667a5db3452d815e6bcf5d38a43532f548915da1"
+    "police_terms/terms_global.fst": "9ca73a0417713e7940a82d32a77eab161d1b8f05e5aefaa04281365af686c81b",
+    "police_terms/terms_global_meta.json": "abc6c4566e451fd6152e9b00c0ed14c412d73033c9a320a5fd00035f7cba21f4"
   },
   "hotword_counts": {
     "plate": 6,

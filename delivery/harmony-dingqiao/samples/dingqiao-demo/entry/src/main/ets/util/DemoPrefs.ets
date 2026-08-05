@@ -3,6 +3,7 @@ import { preferences } from '@kit.ArkData';
 const STORE_NAME = 'amphion_asr_demo';
 const KEY_VOICEPRINT_ID = 'voiceprint_id';
 const KEY_HOTWORDS = 'user_hotwords';
+const KEY_POLICE_ENHANCEMENT = 'police_enhancement';
 
 /**
  * Lightweight persistence for the demo: the registered voiceprint id and the user's custom hotwords.
@@ -34,6 +35,16 @@ export class DemoPrefs {
     const normalized = words.map((s: string): string => s.trim()).filter((s: string): boolean => s.length > 0);
     const store = DemoPrefs.store(context);
     store.putSync(KEY_HOTWORDS, normalized.join('\n'));
+    store.flush();
+  }
+
+  static getPoliceEnhancementEnabled(context: Context): boolean {
+    return DemoPrefs.store(context).getSync(KEY_POLICE_ENHANCEMENT, true) as boolean;
+  }
+
+  static setPoliceEnhancementEnabled(context: Context, enabled: boolean): void {
+    const store = DemoPrefs.store(context);
+    store.putSync(KEY_POLICE_ENHANCEMENT, enabled);
     store.flush();
   }
 }

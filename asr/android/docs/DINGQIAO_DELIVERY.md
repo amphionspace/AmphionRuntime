@@ -195,6 +195,7 @@ createEngine → setListener → startListening
 - 离线 only；警务三场景 normalize **默认开启**
 - FST 后处理默认关（可在 `sdk-police` prefs 层扩展）
 - 系统热词：`CreateEngineParams.extraParams["sysGeneralLexicon"]`
+- 冷启动默认跳过 ORT INT8 prepack；如需吞吐优先可设置 `CreateEngineParams.extraParams["disablePrepack"]=false`
 
 ## 8. License 与 Release 打包
 

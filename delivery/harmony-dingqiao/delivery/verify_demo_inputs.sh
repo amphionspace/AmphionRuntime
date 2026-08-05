@@ -14,6 +14,7 @@ HAP=""
 BUNDLE_NAME="com.amphion.asr.harmony.demo"
 MODULE_NAME="amphion_asr_demo"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
+ZH_EN_ONLY=false
 DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
 HAP_SIGN_TOOL_JAR="${HAP_SIGN_TOOL_JAR:-$DEVECO_HOME/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar}"
 JAVA_BIN="${JAVA_HOME:+$JAVA_HOME/bin/java}"
@@ -31,6 +32,7 @@ Options:
   --device-id-file PATH  Authorized device identifiers, one per line.
   --private-key PATH     Optional private key; verifies it matches the embedded public key.
   --signing-config PATH  Expected signing config; required with --hap, defaults to .secure.
+  --zh-en-only           Verify the demo's ZH_EN-only model payload.
   -h, --help             Show this help.
 EOF
 }
@@ -42,6 +44,7 @@ while [[ $# -gt 0 ]]; do
     --device-id-file) DEVICE_ID_FILE="$2"; shift 2 ;;
     --private-key) PRIVATE_KEY="$2"; shift 2 ;;
     --signing-config) SIGNING_CONFIG="$2"; shift 2 ;;
+    --zh-en-only) ZH_EN_ONLY=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -69,7 +72,11 @@ PYTHON="$LICENSE_VENV/bin/python"
 require_file "$LICENSE_FILE"
 
 "$PYTHON" "$REPO_ROOT/asr/tools/sync_harmony_police_assets.py" --check
-"$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --root "$MODEL_ROOT"
+MODEL_VERIFY_ARGS=(--root "$MODEL_ROOT")
+if [[ "$ZH_EN_ONLY" == true ]]; then
+  MODEL_VERIFY_ARGS+=(--zh-en-only)
+fi
+"$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${MODEL_VERIFY_ARGS[@]}"
 "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --root "$MODEL_ROOT"
 
 "$PYTHON" - "$REPO_ROOT" <<'PY'
@@ -165,7 +172,11 @@ if [[ -n "$HAP" ]]; then
     exit 1
   fi
 
-  "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" --archive "$HAP"
+  HAP_MODEL_VERIFY_ARGS=(--archive "$HAP")
+  if [[ "$ZH_EN_ONLY" == true ]]; then
+    HAP_MODEL_VERIFY_ARGS+=(--zh-en-only)
+  fi
+  "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${HAP_MODEL_VERIFY_ARGS[@]}"
   "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --archive "$HAP"
   "$PYTHON" - \
     "$HAP" \
