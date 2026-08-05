@@ -8,8 +8,9 @@ Harmony 已实现可选接口 `enableTargetSpeakerEnhancement`。它在现有 AS
 可见的状态机。
 
 Mate 80 真机上的客户 C1/C2/C3 完整音频均满足业务断言：最终文本包含“上海”，不包含“你好”；
-3 个 session 均恰好一次 `isLast`、一次 `onComplete`，错误数为 0。取消推理中的 session 后立即开始
-下一 session 也通过，旧任务没有产生迟到回调或污染新 session。
+3 个 session 均恰好一次 `isLast`、一次 `onComplete`，错误数为 0。20 ms 实时喂入时，22 个处理块
+最慢 1.701 秒，低于 1.75 秒步长，最大排队数为 2。取消推理中的 session 后立即开始下一 session
+也通过，旧任务没有产生迟到回调或污染新 session。
 
 技术实现和真机验证已完成，但当前 Conv-TasNet 权重没有进入源码或正式 HAR。公开模型页面同时出现
 CC BY-SA 4.0 与基于 LibriSpeech 的 CC BY-SA 3.0 两种描述，商用权利范围不够明确。因此，本实现目前
@@ -79,50 +80,65 @@ params.extraParams['voiceprintIds'] = ['vp-...'];
 
 ### 4.2 C1/C2/C3 完整音频
 
-正式结果：
-[`20260805-181558-target-speaker-enhancement-355be9f0/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260805-181558-target-speaker-enhancement-355be9f0/report.json)
+最终结果：
+[`realtime/report.json`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805/realtime/report.json)
 
 | 用例 | 最终文本 | 业务断言 | 生命周期 |
 |---|---|---|---|
 | C1 | 帮我查收明天的景单。然后准备明天去上海。 | 含上海、无你好 | PASS |
-| C2 | 我准备明天去北京，我看明去北京的机票。你帮我定一下。准备去上海。 | 含上海、无你好 | PASS |
-| C3 | 我准备去上海，你帮我准备一下飞。你不要多少钱？ | 含上海、无你好 | PASS |
+| C2 | 我准备明天去北京，我看明去北京的机票。你帮我定一下。坐车去上海。 | 含上海、无你好 | PASS |
+| C3 | 我准备去上海，你帮我准备一下。怎么多少钱？ | 含上海、无你好 | PASS |
 
-汇总：`starts=3`、`finals=10`、`completes=3`、`errors=0`、`emptyFinals=0`。每个 session
+汇总：`starts=3`、`finals=9`、`completes=3`、`errors=0`、`emptyFinals=0`。每个 session
 恰好一次 `isLast`，其后恰好一次 `onComplete`；所有公开 final 均带增强标记。C3 后半句仍有识别
 错误，因此本结果证明重叠场景的重要内容被保留，不代表整句准确率已经达到产品终点。
 
-资源观察持续 67.88 秒：
+输入按 20 ms 节奏喂入。22 个处理块的最慢耗时为 1.701 秒、95 分位为 1.647 秒，均低于
+1.75 秒步长；最大排队数为 2，没有逐块累积。资源观察持续 122.68 秒：
 
-- 峰值 RSS：725.48 MiB；峰值 HWM：733.34 MiB。
-- 稳定窗口头部 RSS：612.22 MiB；尾部 RSS：456.80 MiB，增长为 -155.42 MiB。
-- 线程数从 50 回落到 43；未观察到持续增长。
+- 峰值 RSS：806.99 MiB；峰值 HWM：822.55 MiB。
+- 稳定窗口头部 RSS：708.91 MiB；尾部 RSS：450.22 MiB，增长为 -258.69 MiB。
+- 线程数从稳定窗口的 49 回落到 41；未观察到持续增长。
 - 当前只证明 12 GB Mate 80 可运行；8 GB 和中端设备尚未验证，不能列入支持范围。
 
-### 4.3 取消和立即恢复
+### 4.3 `onStart` 同步调用
 
 结果：
-[`20260805-181908-target-speaker-enhancement-cancel-8068c533/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260805-181908-target-speaker-enhancement-cancel-8068c533/report.json)
+[`onstart/report.json`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805/onstart/report.json)
+
+增强开启时分别在 `onStart` 调用栈内同步写入 100 个真实 20 ms PCM 帧，然后继续识别、立即
+`finish`、立即 `cancel`。三种路径全部通过：继续和结束路径各恰好一次 last/complete；取消路径没有
+final/complete；均没有 `NOT_LISTENING` 或其他错误。
+
+### 4.4 取消和立即恢复
+
+结果：
+[`cancel-recovery/report.json`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805/cancel-recovery/report.json)
 
 第一 session 写满 2 秒并启动原生任务后立即 `cancel`；取消返回时没有 final/complete。随后立即启动同配置
 的第二 session 并识别完整 C1：旧 session 没有迟到回调，第二 session 正常一次 last 后一次 complete，
 业务文本门通过。
 
-### 4.4 默认关闭时的相邻回归
+### 4.5 证据留存
 
-- `onStart` 内同步写入、继续识别和立即 finish 的 4 个变体：
-  [`20260805-181827-start-write-de5a6148/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260805-181827-start-write-de5a6148/report.json)，PASS。
-- 普通 cancel 两轮：
-  [`20260805-181833-cancel-43253090/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260805-181833-cancel-43253090/report.json)，PASS。
-- 36 个 Harmony/交付脚本单测通过，其中新增 8 个增强分块、拼接、异步顺序、finish、cancel、
-  参数约束和 Harmony `Float32Array` 边界用例。
+三轮的 `report.json`、`result.txt`、`memory.csv`、`hilog.txt`、`inventory.json` 和
+`payload/corpus.json` 均保存在分支的
+[`delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805)
+目录。最终 HAP SHA-256 为
+`caec34fb8489a33b7c1ba6c68900acf44460e186a90e64107415b0061ede0293`；实时主轮绑定代码提交
+`a9e0c829bd7dcf371121246ce2bc34029377abb7`，后续两轮只增加了主机报告门禁修正，使用同一 HAP。
 
 ## 5. 本轮发现并修复的问题
 
 首次真机启动时，Harmony 原生 N-API 把 512 维 `Float32Array` 的长度报告为 2048 字节；若按标准
 Node-API 的“元素数”直接读取，会把声纹误判为 2048 维，并把 32000 个音频采样误判为 128000。
-修复后同时接受两种平台语义：先用底层 `ArrayBuffer` 的字节数计算最大元素数，只有报告值超过最大
-元素数时才按字节数除以 `sizeof(float)`，随后再次做越界校验。同一 C1 输入从启动失败变为全链路通过。
+修复后读取 TypedArray 视图自身的 `byteLength` 计算元素数，再用 `byteOffset` 和底层
+`ArrayBuffer` 校验边界；因此即使输入是较大 buffer 的 subarray，也不会误把整个 buffer 当成视图。
+同一 C1 输入从启动失败变为全链路通过。
+
+实时测试最初也发现 0.5 秒重叠对应的 1.5 秒步长余量不足：25 块中最慢 1.607 秒。工程优化包括
+并行计算两路 ERes2Net 分数，并把重叠缩短为 0.25 秒、步长增至 1.75 秒。最终三轮最慢 1.701 秒，
+在不改变 2 秒模型输入和公开接口的前提下通过实时门禁。
 
 ## 6. 使用建议和妥协
 
@@ -153,3 +169,9 @@ Node-API 的“元素数”直接读取，会把声纹误判为 2048 维，并�
 
 模型页顶部标为 CC BY-SA 4.0，而说明末尾又称衍生自 LibriSpeech 并按 CC BY-SA 3.0 授权；在权利方
 或法务书面确认前，不把该权重放入正式商用包。
+
+正式组包脚本已增加双重保护：默认从自包含 HAR 删除任何测试遗留的 Conv-TasNet；只有显式传入并
+匹配已批准 SHA-256 才允许保留。无模型的自包含商用 HAR 已在干净客户工程完成安装和编译验证；
+本轮产物大小为 `263,772,830 bytes`，SHA-256 为
+`cd1b3ebee3da8c87834ce40b50d964e4e73db39c7b4e472b88eebbc44565d310`，归档内确认不存在
+`convtasnet_16k.onnx`。

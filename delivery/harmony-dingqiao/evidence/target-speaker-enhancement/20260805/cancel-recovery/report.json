@@ -1,0 +1,160 @@
+{
+  "run_id": "20260805-184705-target-speaker-enhancement-cancel-802b270a",
+  "mode": "target-speaker-enhancement-cancel",
+  "overall_status": "PASS",
+  "failures": [],
+  "device": "7GK0226326015655",
+  "build_identity": {
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+        "sha256": "cc682cc5fec7927262fb3e9f755ccb8b0b1dcb8d047124dc62da360eabd3311f",
+        "size_bytes": 218936340
+      },
+      "amphion_asr_demo.hap": {
+        "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+        "sha256": "caec34fb8489a33b7c1ba6c68900acf44460e186a90e64107415b0061ede0293",
+        "size_bytes": 354384863
+      },
+      "amphion_dingqiao.har": {
+        "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+        "sha256": "fae753b5122c2e2536782c3e89c07c44dbb29b90ad0add07ccac1c0f19385d90",
+        "size_bytes": 55387634
+      },
+      "sherpa_onnx.har": {
+        "path": "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+        "sha256": "bddcceb5af930a6f6a13dbbf51643547c6b7195db0a506f170d413be8dcf6da7",
+        "size_bytes": 6910838
+      }
+    },
+    "created_at": "2026-08-05T10:46:38.836918+00:00",
+    "git_commit": "d37099bf8fdaf9931fae06b0d1eb18148ad726d9",
+    "model_manifest_sha256": "8a515097588b033a867feb71c5036fdfdc3e118b294392d3beb060871cce1343",
+    "native_sha256": {
+      "libonnxruntime.so": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
+      "libsherpa-onnx-c-api.so": "19191654ad7c1de988459d42648f1fe3115f2989f2bdfb01c48b2859cc8855fd"
+    },
+    "optional_models": {
+      "target_speaker_separator": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx",
+        "sha256": "22185d8e13bf5251c0eeab09e52099ac76c063cd9a5e5df1f5c242f535f6f151",
+        "size_bytes": 20154131
+      }
+    },
+    "schema_version": 1,
+    "source_fingerprint_sha256": "7b265b8ededc45880784f48112825f99652329eaea1deb69aed6421e4326119c",
+    "zh_en_only": true
+  },
+  "configuration": {
+    "cycles": 1,
+    "settle_ms": 0,
+    "pace_ms": 20,
+    "sample_interval_seconds": 1.0,
+    "post_run_observe_seconds": 5.0
+  },
+  "inventory": {
+    "valid_wavs": 4,
+    "selected_wavs": 4,
+    "total_valid_duration_seconds": 43.84,
+    "selected_duration_seconds": 43.84,
+    "sample_rates": {
+      "16000": 4
+    }
+  },
+  "application": {
+    "runId": "20260805-184705-target-speaker-enhancement-cancel-802b270a",
+    "status": "PASS",
+    "mode": "target-speaker-enhancement-cancel",
+    "requested": "1",
+    "completed": "1",
+    "failed": "0",
+    "emptyFinals": "0",
+    "starts": "1",
+    "partials": "0",
+    "finals": "3",
+    "completes": "1",
+    "errors": "0",
+    "elapsedMs": "11840",
+    "fatal": ""
+  },
+  "empty_finals": {
+    "status": "PASS",
+    "count": 0,
+    "rate": 0.0,
+    "max_rate": 0.05
+  },
+  "native_streams": {
+    "status": "PASS",
+    "observed_cycles": 1,
+    "nonzero_cycles": 0,
+    "max_live_streams": 0
+  },
+  "target_speaker_realtime": {
+    "status": "OBSERVED",
+    "chunk_count": 7,
+    "maximum_processing_ms": 1640,
+    "p95_processing_ms": 1640,
+    "maximum_queued_chunks": 6,
+    "steady_state_chunk_interval_ms": 1750
+  },
+  "memory": {
+    "status": "PASS",
+    "sample_count": 16,
+    "observation_seconds": 16.926,
+    "warmup_samples_excluded": 3,
+    "head_rss_mb": 698.59,
+    "tail_rss_mb": 476.75,
+    "rss_growth_mb": -221.84,
+    "rss_slope_mb_per_minute": null,
+    "rss_third_medians_mb": [
+      707.701,
+      678.809,
+      485.014
+    ],
+    "peak_rss_mb": 720.766,
+    "peak_hwm_mb": 804.0,
+    "head_vm_data_mb": 3458.023,
+    "tail_vm_data_mb": 3454.617,
+    "vm_data_growth_mb": -3.406,
+    "peak_swap_mb": 75.113,
+    "head_threads": 53,
+    "tail_threads": 48,
+    "thread_growth": -5,
+    "max_rss_growth_mb": 64.0,
+    "max_thread_growth": 2
+  },
+  "cycles": [
+    {
+      "index": "0",
+      "id": "000001",
+      "status": "PASS",
+      "starts": "1",
+      "partials": "0",
+      "finals": "3",
+      "completes": "1",
+      "errors": "0",
+      "finalChars": "20",
+      "speakerScores": "1",
+      "nonEmptySpeakerScores": "1",
+      "missingSpeakerScores": "2",
+      "firstNonEmptyFinalHasScore": "0",
+      "requestedVadBeginMs": "-1",
+      "confirmationGraceMs": "-1",
+      "requestedMaxAudioDurationMs": "-1",
+      "effectiveMaxAudioDurationMs": "-1",
+      "voiceprintIdCount": "0",
+      "fedFrames": "0",
+      "lastFinalsBeforeFinish": "-1",
+      "liveStreams": "0",
+      "unexpectedCallbacks": "0",
+      "elapsedMs": "10424",
+      "firstNonEmptyResultMs": "4669",
+      "audioStartToFirstNonEmptyResultMs": "-1",
+      "audioStartToSpeechBeginMs": "-1",
+      "speechBeginToFirstNonEmptyResultMs": "1481",
+      "resultHex": "5e2e621167e56536660e592976848b66535530027136540e51c65907660e592953bb4e0a6d773002",
+      "trace": "target-speaker-enhancement-recovery-0:start>target-speaker-enhancement-recovery-0:event-1>target-speaker-enhancement-recovery-0:event-3>target-speaker-enhancement-recovery-0:final>target-speaker-enhancement-recovery-0:event-1>target-speaker-enhancement-recovery-0:event-3>target-speaker-enhancement-recovery-0:final>target-speaker-enhancement-recovery-0:event-22>target-speaker-enhancement-recovery-0:final-last>target-speaker-enhancement-recovery-0:complete",
+      "detail": "target-speaker-enhancement-cancel-recovered"
+    }
+  ]
+}
