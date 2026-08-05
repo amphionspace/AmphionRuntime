@@ -23,7 +23,7 @@ ABILITY="EntryAbility"
 DEVICE=""
 TIMEOUT_SECONDS=30
 SKIP_BUILD=false
-ZH_EN_ONLY=false
+ZH_EN_ONLY=true
 SMOKE_DIR="$PROJECT_ROOT/build/smoke"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
@@ -348,10 +348,7 @@ PY
 }
 
 ensure_demo_license
-VERIFY_SCOPE_ARGS=()
-if [[ "$ZH_EN_ONLY" == true ]]; then
-  VERIFY_SCOPE_ARGS+=(--zh-en-only)
-fi
+VERIFY_SCOPE_ARGS=(--zh-en-only)
 "$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_SCOPE_ARGS[@]}"
 
 if [[ -z "$SIGNING_CONFIG" && -f "$REPO_ROOT/.secure/harmony-signing.json" ]]; then
@@ -385,7 +382,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
       --no-daemon --stacktrace; then
       exit 1
     fi
-    for har_module in sherpa_onnx amphion_asr amphion_dingqiao; do
+    for har_module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
       if ! "$NODE" "$HVIGOR" assembleHar --mode module \
         -p product=default \
         -p module="${har_module}@default" \
@@ -406,6 +403,9 @@ if [[ "$SKIP_BUILD" != true ]]; then
   publish_har \
     "$BUILD_WORKSPACE/repo/asr/harmony/sdk/build/default/outputs/default" \
     "$REPO_ROOT/asr/harmony/sdk/build/default/outputs/default"
+  publish_har \
+    "$BUILD_WORKSPACE/repo/asr/harmony/sdk-police/build/default/outputs/default" \
+    "$REPO_ROOT/asr/harmony/sdk-police/build/default/outputs/default"
   publish_har \
     "$BUILD_WORKSPACE/repo/asr/harmony/sdk-dingqiao/build/default/outputs/default" \
     "$REPO_ROOT/asr/harmony/sdk-dingqiao/build/default/outputs/default"

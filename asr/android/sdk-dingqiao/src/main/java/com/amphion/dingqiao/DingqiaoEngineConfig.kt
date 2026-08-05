@@ -155,6 +155,11 @@ internal object DingqiaoEngineConfig {
         }
     }
 
+    /** Police text normalization is enabled by default for delivery compatibility. */
+    fun enablePoliceEnhancement(startParams: StartParams): Boolean {
+        return startParams.extraParams["enablePoliceEnhancement"] as? Boolean ?: true
+    }
+
     fun enableVoiceprintVerification(startParams: StartParams): Boolean {
         return startParams.extraParams["enableVoiceprintVerification"] == true
     }
