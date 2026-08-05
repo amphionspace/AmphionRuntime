@@ -178,3 +178,8 @@ speaker-disjoint、冻结输入/模型哈希和新旧同键差分审计。ignore
 - overlap、反欺骗和声纹分数可选性的生命周期门禁继续独立验收，不用 verification 精度互相替代。
 - 具体票据、阻塞关系和退出条件见 `docs/speaker/VOICEPRINT_NEXT_STEP_MAP_20260804.md`；每次只推进
   一个已解除阻塞的决策，不在路线尚未冻结时直接开始生产实现或完整发布矩阵。
+
+Linux 收尾只剩一项，完整冻结命令、输入身份、artifact 审计和一次性 PASS/FAIL 解释见
+[`BUFFERED_TAIL_LINUX_COMPLETION_20260805.md`](BUFFERED_TAIL_LINUX_COMPLETION_20260805.md)。该任务完成后
+无论业务门 PASS 或 FAIL，本调研分支都停止继续滚动；PASS 只创建独立 SDK 实施候选，FAIL 直接关闭
+C1 无训练默认路线。
