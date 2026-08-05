@@ -642,15 +642,18 @@ class StartWriteListener implements RecognitionListener {
 }
 
 class TargetSpeakerEnhancementOnStartListener extends StressListener {
+  private targetEvents: SessionEvents;
   private engine: SpeechRecognitionEngine;
   private bufferedFrames: ArrayBuffer[];
   private action: string;
   framesWrittenInStart: number = 0;
   actionCalledInStart: boolean = false;
+  lastFinalsBeforeAction: number = -1;
 
   constructor(events: SessionEvents, expectedSessionId: string, engine: SpeechRecognitionEngine,
     bufferedFrames: ArrayBuffer[], action: string) {
     super(events, expectedSessionId);
+    this.targetEvents = events;
     this.engine = engine;
     this.bufferedFrames = bufferedFrames;
     this.action = action;
@@ -662,6 +665,7 @@ class TargetSpeakerEnhancementOnStartListener extends StressListener {
       this.engine.writeAudio(sessionId, this.bufferedFrames[i]);
       this.framesWrittenInStart += 1;
     }
+    this.lastFinalsBeforeAction = this.targetEvents.lastFinals;
     if (this.action === 'finish') {
       this.actionCalledInStart = true;
       this.engine.finish(sessionId);
@@ -1261,7 +1265,11 @@ async function runTargetSpeakerEnhancementCycle(engine: SpeechRecognitionEngine,
   if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
   else if (events.targetSpeakerEnhancementResults !== events.finals) detail = 'enhancement-marker-missing';
   else if (!businessTextPassed) detail = 'target-text-contract';
-  return finishCycle(index, entry.id, events, startedAt, ok, detail);
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.voiceprintIdCount = 1;
+  result.fedFrames = fed;
+  result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  return result;
 }
 
 function enableTargetSpeakerEnhancement(params: StartParams, voiceprintId: string): void {
@@ -1293,12 +1301,16 @@ async function runTargetSpeakerEnhancementOnStartCycle(engine: SpeechRecognition
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
   }
+  let fedFrames = listener.framesWrittenInStart;
+  let lastFinalsBeforeFinish = listener.lastFinalsBeforeAction;
   if (action === 'continue') {
     const fed = await feedPcmFile(engine, sessionId, entry.path, 80, 0);
     if (fed === 0) {
       engine.cancel(sessionId);
       return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
     }
+    fedFrames += fed;
+    lastFinalsBeforeFinish = events.lastFinals;
     engine.finish(sessionId);
   }
   if (action === 'cancel') await sleep(500);
@@ -1312,9 +1324,13 @@ async function runTargetSpeakerEnhancementOnStartCycle(engine: SpeechRecognition
       events.targetSpeakerEnhancementResults === events.finals;
   const ok = listener.framesWrittenInStart === bufferedFrameCount && actionContract &&
     events.starts === 1 && events.errors === 0 && lifecycleContract && !engine.isBusy();
-  return finishCycle(index, entry.id, events, startedAt, ok,
+  const result = finishCycle(index, entry.id, events, startedAt, ok,
     ok ? `target-speaker-enhancement-onstart-${action}` :
       `target-speaker-enhancement-onstart-${action}-contract`);
+  result.voiceprintIdCount = 1;
+  result.fedFrames = fedFrames;
+  result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  return result;
 }
 
 async function runTargetSpeakerEnhancementCancelCycle(engine: SpeechRecognitionEngine,
@@ -1360,7 +1376,11 @@ async function runTargetSpeakerEnhancementCancelCycle(engine: SpeechRecognitionE
     'target-speaker-enhancement-cancel-contract';
   if (!canceledStableAtReturn) detail = 'callback-before-cancel-return';
   else if (recoveryEvents.unexpectedSessionCallbacks > 0) detail = 'late-canceled-session-callback';
-  return finishCycle(index, entry.id, recoveryEvents, startedAt, ok, detail);
+  const result = finishCycle(index, entry.id, recoveryEvents, startedAt, ok, detail);
+  result.voiceprintIdCount = 1;
+  result.fedFrames = canceledFed + recoveryFed;
+  result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  return result;
 }
 
 async function runVoiceprintVadBeginCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry, index: number,
