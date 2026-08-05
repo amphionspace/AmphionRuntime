@@ -1,5 +1,5 @@
 export const TARGET_SPEAKER_CHUNK_SAMPLES: number = 32000;
-export const TARGET_SPEAKER_OVERLAP_SAMPLES: number = 8000;
+export const TARGET_SPEAKER_OVERLAP_SAMPLES: number = 4000;
 export const TARGET_SPEAKER_HOP_SAMPLES: number =
   TARGET_SPEAKER_CHUNK_SAMPLES - TARGET_SPEAKER_OVERLAP_SAMPLES;
 
@@ -11,7 +11,7 @@ export interface TargetSpeakerEnhancementChunk {
 }
 
 /**
- * Converts arbitrarily framed 16 kHz PCM into the fixed 2 s / 0.5 s-overlap
+ * Converts arbitrarily framed 16 kHz PCM into the fixed 2 s / 0.25 s-overlap
  * input expected by the target-speaker enhancement model.
  */
 export class TargetSpeakerEnhancementInput {

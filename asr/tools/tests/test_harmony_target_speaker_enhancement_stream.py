@@ -45,9 +45,9 @@ class HarmonyTargetSpeakerEnhancementStreamTest(unittest.TestCase):
             }
             framedChunks.push(...framed.finish());
 
-            assert.deepEqual(wholeChunks.map(c => c.startSample), [0, 24000, 48000]);
-            assert.deepEqual(framedChunks.map(c => c.startSample), [0, 24000, 48000]);
-            assert.deepEqual(framedChunks.map(c => c.availableSamples), [32000, 32000, 22000]);
+            assert.deepEqual(wholeChunks.map(c => c.startSample), [0, 28000, 56000]);
+            assert.deepEqual(framedChunks.map(c => c.startSample), [0, 28000, 56000]);
+            assert.deepEqual(framedChunks.map(c => c.availableSamples), [32000, 32000, 14000]);
             assert.equal(wholeChunks.at(-1).isFinal, true);
             assert.equal(framedChunks.at(-1).isFinal, true);
             for (let i = 0; i < wholeChunks.length; i++) {
@@ -85,7 +85,7 @@ class HarmonyTargetSpeakerEnhancementStreamTest(unittest.TestCase):
             const headOutput = stitcher.append(first, new Float32Array(32000).fill(1));
             const tailOutput = stitcher.append(tail, new Float32Array(32000).fill(0));
             assert.equal(headOutput.length, TARGET_SPEAKER_HOP_SAMPLES);
-            assert.equal(tailOutput.length, 8000);
+            assert.equal(tailOutput.length, 4000);
             assert.equal(headOutput[0], 1);
             assert.ok(tailOutput[0] > 0.9999);
             assert.ok(tailOutput.at(-1) < 0.0001);

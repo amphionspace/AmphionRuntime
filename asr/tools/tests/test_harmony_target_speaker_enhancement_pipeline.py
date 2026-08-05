@@ -41,7 +41,7 @@ class HarmonyTargetSpeakerEnhancementPipelineTest(unittest.TestCase):
               process: async (chunk) => {
                 active += 1;
                 maxActive = Math.max(maxActive, active);
-                const index = chunk.startSample / 24000;
+                const index = chunk.startSample / 28000;
                 calls.push(index);
                 await new Promise((resolve) => setTimeout(resolve, index === 0 ? 20 : 1));
                 active -= 1;
@@ -58,15 +58,15 @@ class HarmonyTargetSpeakerEnhancementPipelineTest(unittest.TestCase):
             const finishing = pipeline.finish();
             assert.equal(finished, 0);
             await finishing;
-            assert.deepEqual(calls, [0, 1, 2]);
+            assert.deepEqual(calls, [0, 1]);
             assert.equal(maxActive, 1);
             assert.equal(finished, 1);
             assert.equal(outputs.reduce((sum, item) => sum + item.length, 0), 56000);
-            assert.equal(metrics.length, 3);
-            assert.equal(metrics[0].maxQueued, 3);
-            assert.equal(metrics[2].queued, 0);
+            assert.equal(metrics.length, 2);
+            assert.equal(metrics[0].maxQueued, 2);
+            assert.equal(metrics[1].queued, 0);
             assert.equal(outputs[0][0], 2);
-            assert.ok(Math.abs(outputs[1][4000] - 2.5) < 0.001);
+            assert.ok(Math.abs(outputs[1][2000] - 2.5) < 0.001);
             await pipeline.finish();
             assert.equal(finished, 1);
             """

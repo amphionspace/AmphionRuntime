@@ -3,7 +3,7 @@
 ## 未发布 - 2026-08-05（Harmony 目标说话人增强接口预留）
 
 - 新增默认关闭的 `enableTargetSpeakerEnhancement`，在现有 Speaker VAD/ASR 前执行 2 秒分块的
-  双人语音分离、逐块声纹选流和 0.5 秒平滑拼接；客户接口不暴露具体模型和内部阈值。
+  双人语音分离、逐块声纹选流和 0.25 秒平滑拼接；客户接口不暴露具体模型和内部阈值。
 - 新增 `targetSpeakerEnhancementApplied` 结果标记；保持单 session、单 ASR 回调链以及既有
   `isFinal/isLast/onComplete/cancel` 语义。
 - 新增 C1/C2/C3 完整音频与推理中 cancel 后立即恢复的真机门禁；12 GB Mate 80 上文本、生命周期
