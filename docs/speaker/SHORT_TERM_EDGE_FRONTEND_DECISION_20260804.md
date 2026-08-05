@@ -1,9 +1,8 @@
 # 短期重叠语音前端：端侧算力与接入决策（2026-08-04）
 
-> 2026-08-04 后续状态：Conv-TasNet 的异步端侧完整链路、C1～C3 重识别、同产物资源基线、评分 A/B
-> 和 target-only/other-only 门已完成。短期结论从“继续 worker 验证”更新为“Mate 80 高端机离线 opt-in
-> pilot 可用，开放集阈值、60 秒以上稳压和许可仍阻断外部交付”。详见
-> [`CONVTASNET_HARMONY_FULL_CHAIN_20260804.md`](CONVTASNET_HARMONY_FULL_CHAIN_20260804.md)。
+> 2026-08-05 后续状态：Conv-TasNet 虽通过 Mate 80 小样本资源/内容门，但在 60 个 speaker-disjoint
+> other-only test 中产生 8 个非空 false rescue，当前无训练 C2/C3 路线已停止。C1 `1000/300 ms` 也只
+> 保留为 prototype；绝对 PCM hop 调度已修复，等待冻结集重放，未升级为正式默认值。
 
 ## 1. 问题重述
 
@@ -116,11 +115,11 @@ WeSep 官方实现可直接看到 `torch.stft/istft`、双向 LSTM、动态 padd
 
 | 候选 | 已知资源/效果 | 当前 Mate 80（12 GB/12 logical CPUs） | 8 GB 高端机 | 中端/≤6 GB | 短期结论 |
 | --- | --- | --- | --- | --- | --- |
-| 现有 Speaker VAD `1000/300` | 真机 peak 552 MiB；平均约 1.10 核；C1 PASS、C2/C3 FAIL | **已满足** | 未测，但没有新增模型 | 未测 | **立即可用，只覆盖 C1 型轮流讲话尾音** |
+| 现有 Speaker VAD `1000/300` | 真机 peak 552 MiB；平均约 1.10 核；C1 单例 PASS、独立合成严格门 FAIL | **算力满足，业务门未满足** | 未测，但没有新增模型 | 未测 | **仅 prototype；等待修复后冻结集重放** |
 | WeSep BSRNN+ECAPA | 27.63M 推理参数；checkpoint 282.6 MB；M5 RTF 0.302～0.322；进程 peak RSS 1.94 GB；C1～C3 PASS | 内存物理上装得下，但 Harmony runtime/ONNX/延迟均不满足 | 不建议 | 不满足 | **不满足短期交付** |
 | SpeechBrain SepFormer 16 kHz | 官方 PyTorch/GPU 路径；mask network 约 113 MB；无本项目 ONNX/RTF/RSS；非 target-conditioned | 可能装得下，但没有可交付证据 | 不建议 | 不满足 | **不满足；不继续投入** |
-| RE-SepFormer 固定 4 秒 ONNX + ERes2Net 选流 | ONNX 83.58 MB；M5 ORT 4 线程中位 RTF 0.0276；独立进程 peak RSS 429.65 MB；C1～C3 PASS | **高概率算力/内存可跑，必须真机验证**；产品上仍有 4 秒块延迟和选流风险 | 内存可能可跑，但无证据 | 不建议 | **Apache-2.0 资源备选，不先做** |
-| Conv-TasNet 固定 2 秒 ONNX + ERes2Net 逐块选流 | ONNX 20.15 MB；Mate 80 中位 RTF 0.144～0.162、最差 p95 RTF 0.295；进程 peak RSS 519.4 MiB；桌面完整分块 C1～C3 PASS | **ARM CPU 原始计算门已满足**；异步完整 rescue 尚未验收 | 可能，必须实测 | 未知 | **短期首选；下一步转 worker 完整链路** |
+| RE-SepFormer 固定 4 秒 ONNX + ERes2Net 选流 | ONNX 83.58 MB；M5 ORT 4 线程中位 RTF 0.0276；独立进程 peak RSS 429.65 MB；C1～C3 PASS | 资源可能可跑，但同为无 target identity 的盲分离 | 内存可能可跑，但无证据 | 不建议 | **开放集根因相同，不再作为回退** |
+| Conv-TasNet 固定 2 秒 ONNX + ERes2Net 逐块选流 | ONNX 20.15 MB；Mate 80 中位 RTF 0.144～0.162、最差 p95 RTF 0.295；进程 peak RSS 519.4 MiB；桌面完整分块 C1～C3 PASS | **ARM CPU 资源门满足，开放集业务门失败** | 不再扩展 | 不再扩展 | **无训练路线停止；仅保留研究证据** |
 
 分级里的“物理上装得下”不代表产品可用。现有基线 peak RSS 约 552 MiB；如果把 RE-SepFormer 主机
 独立进程的 430 MiB 粗略视为上界线索，总进程很可能进入约 0.8～1.0 GiB 档。共享 ORT、allocator 和
@@ -229,7 +228,8 @@ ERes2Net 工作点接受原始非目标语音，而 RE-SepFormer 同样是无 en
 
 ## 7. 最终短期建议
 
-1. **今天能交付的只有 C1 策略：**Mate 80 上 `1000/300 ms` 已满足算力，且不增加包体。
+1. **今天没有新的默认策略可交付：**C1 `1000/300 ms` 已满足算力但独立严格门失败；hop 调度修复仍需
+   冻结集和真机复验，不能把 C1 单例 PASS 写成正式能力。
 2. **C2/C3 无训练路径停止：**60 个 other-only test 已出现 8 个非空 false rescue；不再运行
    Conv-TasNet 阈值搜索、稳压或真机扩身份，保留原始 ASR/fallback。
 3. **RE-SepFormer 不作为许可回退：**它同样没有 target identity，无法修复已定位的开放集根因。

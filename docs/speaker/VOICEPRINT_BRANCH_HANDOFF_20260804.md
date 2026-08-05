@@ -137,14 +137,19 @@ final 生命周期/交付压力工具 28 项通过，脚本语法、Python 编�
 60 对 test speaker-disjoint 配对和哈希完整性审计通过。`summary.json` / `trials.jsonl` SHA256 分别为
 `76504b16…3858` / `37f7d2a3…d1c7`。该结果只覆盖本机合成 Speaker VAD 调度，不替代真机生命周期门。
 
+2026-08-05 已实现 Android/Harmony 绝对 PCM sample 的 Speaker VAD hop 调度，并把工具 15 默认切换为
+`absolute_samples`，同时保留 `legacy_per_call` 重放修复前结果。Android Debug/Release 两模块、Harmony
+两份 HAR 编译和 31 项相邻状态测试通过。本机缺少上述 ignored baseline/trials，尚未生成修复后 3060 行
+业务结果；当前 USB 设备也不在本地授权清单，真机构建/安装在 license 校验前停止且未改白名单。
+
 ## 剩余工作、风险和建议流程
 
 - 本阶段不再继续调 DPDFNet、全局阈值或规则型质量救援；重复同类合成 A/B 不会改变当前选择。
 - C1～C3 当前 0.2.9 真机基线和严格业务红灯已经捕获；下一步先冻结 target-only 产品契约，并补齐
   带 target/other 独立源、对齐文本、enrollment 和受控 SIR/SNR 的中文真实域小集。
-- C1 参数上限已在冻结合成集失败。下一最小实验是先让 Android/Harmony 的 hop 打分按绝对 PCM 时间
-  处理所有跨越点并满足分帧无关，使用同一输入差分重放且不改阈值；模型层 anchor 仍失败时，再比较
-  “缓冲提交 + 尾部回退/重解码”，同时保护 partial、目标连续语音和 final/last 生命周期。
+- C1 参数上限已在冻结合成集失败；Android/Harmony 的绝对 PCM hop 调度已实现。下一最小实验是在保留
+  artifact 的 Linux 服务器使用同一输入做 `absolute_samples` 差分重放且不改阈值；模型层 anchor 仍
+  失败时，再比较“缓冲提交 + 尾部回退/重解码”，同时保护 partial、目标连续语音和 final/last 生命周期。
 - C2/C3 的固定 2 秒 Conv-TasNet 已在扩大到 60 个 test 非注册身份后触发开放集停止门；不再跑 30 轮
   稳压、真机扩身份、阈值/margin 搜索，也不以无 target identity 的 RE-SepFormer 规避同一根因。
 - 长期下一实现候选仍应是 `<30 MB`、额外 RSS `<150 MB`、有界 look-ahead 的中文真实域 causal TSE，
