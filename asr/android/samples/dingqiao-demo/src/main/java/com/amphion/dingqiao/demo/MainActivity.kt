@@ -46,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progress: ProgressBar
     private lateinit var swVoiceprint: SwitchCompat
     private lateinit var swSpeakerVad: SwitchCompat
+    private lateinit var swPoliceEnhancement: SwitchCompat
 
     private val worker = Executors.newSingleThreadExecutor()
     private val sessionLock = Any()
@@ -68,6 +69,7 @@ class MainActivity : AppCompatActivity() {
 
     private var voiceprintVerifyDesired = false
     private var speakerVadDesired = false
+    private var policeEnhancementDesired = true
     private val finalLines = SpannableStringBuilder()
 
     private val permLauncher = registerForActivityResult(
@@ -99,12 +101,20 @@ class MainActivity : AppCompatActivity() {
         progress = findViewById(R.id.progress)
         swVoiceprint = findViewById(R.id.sw_voiceprint)
         swSpeakerVad = findViewById(R.id.sw_speaker_vad)
+        swPoliceEnhancement = findViewById(R.id.sw_police_enhancement)
         debugRecordStore = DebugRecordStore(File(DingqiaoApp.workPath(), "debug_records"))
+
+        policeEnhancementDesired = DemoPrefs.getPoliceEnhancementEnabled(this)
+        swPoliceEnhancement.isChecked = policeEnhancementDesired
 
         btnTalk.setOnClickListener { if (listening) stopListening() else startListening() }
         btnMenu.setOnClickListener { showMenu(it) }
         swVoiceprint.setOnCheckedChangeListener { _, checked -> onVoiceprintSwitch(checked) }
         swSpeakerVad.setOnCheckedChangeListener { _, checked -> onSpeakerVadSwitch(checked) }
+        swPoliceEnhancement.setOnCheckedChangeListener { _, checked ->
+            policeEnhancementDesired = checked
+            DemoPrefs.setPoliceEnhancementEnabled(this, checked)
+        }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
@@ -273,6 +283,7 @@ class MainActivity : AppCompatActivity() {
         if (listening) return
 
         listening = true
+        swPoliceEnhancement.isEnabled = false
         finalLines.clear()
         tvPartial.text = ""
         tvFinal.text = ""
@@ -301,6 +312,7 @@ class MainActivity : AppCompatActivity() {
             "enablePartialResult" to true,
             "maxAudioDuration" to SESSION_MAX_AUDIO_MS,
         )
+        extra["enablePoliceEnhancement"] = policeEnhancementDesired
         if (verify) {
             extra["enableVoiceprintVerification"] = true
         }
@@ -536,6 +548,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setTalkButtonRecording(recording: Boolean) {
+        swPoliceEnhancement.isEnabled = !recording
         if (recording) {
             btnTalk.setText(R.string.btn_talk_stop)
             btnTalk.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_mic_stop, 0, 0, 0)

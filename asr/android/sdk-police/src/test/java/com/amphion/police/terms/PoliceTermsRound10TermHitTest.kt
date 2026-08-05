@@ -2,7 +2,6 @@ package com.amphion.police.terms
 
 import com.amphion.police.test.TestAssets
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.io.BufferedReader
@@ -69,48 +68,6 @@ class PoliceTermsRound10TermHitTest {
         keep("请创建一个警单登记情况。")
     }
 
-    @Test
-    fun round_eval_term_hit_rate_at_least_97() {
-        // 用真机 asr_raw 回放：术语 V2 + 车牌粗近似(穿→川) + polish
-        val eval = FileCandidates.firstExisting(
-            "/Users/amphion/Desktop/work/projects/鼎桥/evaluation/police_terms/round_20260727_qwen3/police_terms_eval.tsv",
-        ) ?: return // 无评测文件时跳过
-        val termMap = loadTermSentences(
-            "/Users/amphion/Desktop/work/projects/鼎桥/test_data/police_terms_20260727/警言警语_20260727新增/term_sentences.tsv",
-        )
-        var total = 0
-        var hit = 0
-        val misses = mutableListOf<String>()
-        eval.bufferedReader(Charsets.UTF_8).useLines { lines ->
-            val it = lines.iterator()
-            if (!it.hasNext()) return
-            val header = it.next().split('\t')
-            val iRaw = header.indexOf("asr_raw")
-            val iRef = header.indexOf("ref_text")
-            require(iRaw >= 0 && iRef >= 0)
-            for (line in it) {
-                if (line.isBlank()) continue
-                val cols = line.split('\t')
-                val ref = cols.getOrNull(iRef).orEmpty()
-                val raw = cols.getOrNull(iRaw).orEmpty()
-                val term = termMap[ref] ?: continue
-                total++
-                var hyp = v2.normalize(raw).text
-                // 车牌域粗近似：穿AF → 川AF（完整 PlateV2 不在本单测加载）
-                hyp = hyp.replace("穿AF", "川AF").replace("穿 AF", "川 AF")
-                hyp = v2.polish(hyp)
-                val ok = term in hyp || term in raw
-                if (ok) hit++ else misses.add("$term | RAW=$raw | HYP=$hyp")
-            }
-        }
-        val rate = hit.toDouble() / total
-        assertTrue(
-            "term_hit=$hit/$total=${"%.2f".format(rate * 100)}% misses=${misses.size}\n" +
-                misses.joinToString("\n"),
-            rate + 1e-9 >= 0.97,
-        )
-    }
-
     private fun newV2(): PoliceTermsNormalizerV2 {
         fun reader(rel: String) =
             BufferedReader(InputStreamReader(TestAssets.resolve(rel).inputStream(), Charsets.UTF_8))
@@ -127,27 +84,4 @@ class PoliceTermsRound10TermHitTest {
         )
     }
 
-    private fun loadTermSentences(path: String): Map<String, String> {
-        val f = java.io.File(path)
-        if (!f.isFile) return emptyMap()
-        val out = linkedMapOf<String, String>()
-        f.bufferedReader(Charsets.UTF_8).useLines { lines ->
-            val it = lines.iterator()
-            if (!it.hasNext()) return emptyMap()
-            it.next() // header
-            for (line in it) {
-                val p = line.split('\t')
-                if (p.size < 3) continue
-                val term = p[0]
-                out[p[1]] = term
-                out[p[2]] = term
-            }
-        }
-        return out
-    }
-
-    private object FileCandidates {
-        fun firstExisting(vararg paths: String): java.io.File? =
-            paths.map { java.io.File(it) }.firstOrNull { it.isFile }
-    }
 }

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "requestId": "REQ-CUSTOMER-PROJECT-YYYYMMDD-001",
+  "licenseId": "LIC-CUSTOMER-PROJECT-000001",
+  "deliveryId": "DEL-CUSTOMER-PROJECT-YYYYMMDD-001",
+  "customerId": "customer-id",
+  "projectId": "project-id",
+  "reason": "initial-commercial-rollout",
+  "issuedAt": "2026-07-30",
+  "sources": [
+    {
+      "fileName": "devices.xlsx",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sheets": [
+        {
+          "name": "Sheet1",
+          "columns": [
+            "SN"
+          ]
+        }
+      ]
+    }
+  ],
+  "policy": {
+    "features": [
+      "ASR",
+      "TTS"
+    ],
+    "sdkMajor": 1,
+    "installTier": "",
+    "applicationRecord": {
+      "mode": "none"
+    },
+    "certificateBinding": {
+      "mode": "none"
+    },
+    "runtimeExpiry": {
+      "mode": "perpetual"
+    },
+    "maintenance": {
+      "mode": "unlimited"
+    },
+    "deviceBinding": "required"
+  },
+  "previousLicenseId": null
+}

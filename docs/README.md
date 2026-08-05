@@ -81,6 +81,8 @@
 | delivery-email-template.md | Android SDK 交付邮件模板：更新点、license 策略、测试数据、验证结论和复现说明 |
 | delivery-zip-verification.md | 所有客户交付包的 zip-only 验证流程：以最终 zip 为唯一真相，生成 JSON/Markdown 验收报告 |
 | dingqiao-offline-license.md | 鼎桥专网离线 license 当前前置清单：SN、App 标识记录、可选签名证书、授权范围、维护期和期限策略 |
+| license-delivery-governance.md | SN、License 与交付批次治理方案：完整快照、显式策略、角色分离、最终 ZIP 门禁和可审计登记簿 |
+| license-delivery-industry-practices.md | License 签发与交付方案的业界实践核对：密钥生命周期、签名证明、标识符保护和离线防回退差距 |
 
 ### 历史交付记录
 
@@ -106,6 +108,7 @@
 | 工具 | 说明 |
 | --- | --- |
 | ../tools/delivery/generate_delivery_manifest.py | 扫描交付目录内的 zip，生成包含大小、SHA-256 和 verification 报告路径的 `MANIFEST.md` |
+| ../tools/license/license_delivery.py | 正式商用 License 的计划、签发、最终 ZIP 验收和 Git 元数据登记统一入口 |
 | ../asr/tools/decode_offline.py | 一次性投递 wav 到 sherpa-onnx Python OnlineRecognizer，观察模型上限 |
 | ../asr/tools/decode_streaming.py | 模拟 Android streaming：100ms chunk、endpoint、encoder warmup、greedy/beam 对比 |
 

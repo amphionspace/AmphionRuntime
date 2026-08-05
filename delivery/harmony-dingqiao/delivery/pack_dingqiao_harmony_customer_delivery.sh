@@ -5,7 +5,8 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-VERSION="${AMPHION_RUNTIME_VERSION:-0.2.8}"
+VERSION="${AMPHION_RUNTIME_VERSION:-0.2.9}"
+BUILD_DATE="${AMPHION_BUILD_DATE:-$(date +%Y%m%d)}"
 FINAL_OUT_ROOT=""
 ASR_ONLY=false
 SDK_ONLY=false
@@ -43,7 +44,13 @@ if [[ "$ASR_ONLY" == true && "$SDK_ONLY" == true ]]; then
   exit 2
 fi
 
-FINAL_OUT_ROOT="${FINAL_OUT_ROOT:-$REPO_ROOT/build/amphion-harmony-asr-sdk-$VERSION}"
+if [[ -z "$FINAL_OUT_ROOT" ]]; then
+  if [[ "$SDK_ONLY" == true ]]; then
+    FINAL_OUT_ROOT="$REPO_ROOT/build/amphion-harmony-asr-sdk-v${VERSION}-${BUILD_DATE}"
+  else
+    FINAL_OUT_ROOT="$REPO_ROOT/build/amphion-harmony-asr-sdk-$VERSION"
+  fi
+fi
 if [[ "$FINAL_OUT_ROOT" != /* ]]; then
   FINAL_OUT_ROOT="$PWD/$FINAL_OUT_ROOT"
 fi
@@ -61,6 +68,7 @@ RELEASE_INPUTS=(
   LICENSE
   asr/harmony/sdk
   asr/harmony/sdk-dingqiao
+  asr/harmony/sdk-police
   third_party/sherpa-onnx
   third_party/patches/sherpa-amphion
   delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh
@@ -74,6 +82,8 @@ RELEASE_INPUTS=(
   delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py
   delivery/harmony-dingqiao/delivery/verify_dingqiao_model_md5.py
   delivery/harmony-dingqiao/delivery/verify_selfcontained_dingqiao_har.sh
+  delivery/asr-sdk-release-history.json
+  tools/delivery/asr_release_tracker.py
   delivery/harmony-dingqiao/docs/customer/LICENSE.md
   delivery/harmony-dingqiao/docs/customer/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md
   delivery/harmony-dingqiao/docs/customer/ASR_LIFECYCLE_ASSURANCE_20260716.md
@@ -129,9 +139,6 @@ fi
 trap cleanup EXIT
 trap 'cleanup; exit 130' INT TERM
 mkdir -p "$OUT_ROOT/har" "$OUT_ROOT/docs"
-if [[ "$SDK_ONLY" == true ]]; then
-  mkdir -p "$OUT_ROOT/license"
-fi
 if [[ "$SDK_ONLY" != true ]]; then
   mkdir -p "$OUT_ROOT/demo"
 fi
@@ -266,19 +273,13 @@ cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/NOTICE" "$OUT_ROOT/doc
 mkdir -p "$OUT_ROOT/docs/third-party"
 cp -v "$REPO_ROOT/LICENSE" "$OUT_ROOT/docs/third-party/Apache-2.0.txt"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/PRIVACY.md" "$OUT_ROOT/docs/"
-python3 - "$OUT_ROOT/docs/CHANGELOG.md" "$VERSION" <<'PY'
-import sys
-from pathlib import Path
-
-Path(sys.argv[1]).write_text(f"""# Change log
-
-## {sys.argv[2]}
-
-- Deliver the HarmonyOS zh-en offline ASR SDK with the existing public compatibility API.
-- Exclude industry-specific preset hotwords, resources, and text post-processing.
-- Include an ASR-only four-calendar-month evaluation license without app, certificate, or device binding.
-""", encoding="utf-8")
-PY
+python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
+  --repo "$REPO_ROOT" \
+  changelog \
+  --platform harmony \
+  --version "$VERSION" \
+  --source-commit HEAD \
+  --output "$OUT_ROOT/docs/CHANGELOG.md"
 
 if [[ "$SDK_ONLY" == true ]]; then
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_INTEGRATION.md" \
@@ -315,14 +316,13 @@ path = Path(sys.argv[1])
 version = sys.argv[2]
 path.write_text(f"""# Amphion HarmonyOS 离线 ASR SDK {version}
 
-本包为 SDK-only 交付，包含一个自包含 HAR、四个月体验授权和客户文档；不包含 Demo HAP、粤英模型、独立 TTS SDK 或 TTS 模型。
-本交付内置 `zh-en` 中英识别模型，并保留声纹、标点、ITN 和 VAD；不包含行业专用热词、资源或文本后处理。
+本包为 SDK-only 交付，包含一个自包含 HAR 和客户文档；不包含 Demo HAP、粤英模型、独立 TTS SDK、TTS 模型或授权文件。
+本交付内置 `zh-en` 中英识别模型，并保留声纹、标点、ITN、VAD 和警务文本增强；警务增强默认开启，可通过 `enablePoliceEnhancement` 按会话关闭。
 为保持现有公共接口不变，HAR 内部模块名和类型名中的兼容标识保持原样。
 
 | 路径 | 内容 |
 | --- | --- |
 | `har/amphion_dingqiao.har` | HarmonyOS API 12+、`arm64-v8a` 离线 ASR SDK |
-| `license/amphion-license.lic` | ASR-only、四个月、无包名和设备绑定的体验授权 |
 | `docs/INTEGRATION.md` | 集成入口与调用顺序 |
 | `docs/ASR_SDK_API_HARMONY.md` | 完整公开 API 契约 |
 | `docs/ASR_LIFECYCLE_ASSURANCE_20260716.md` | 生命周期修复保证、时序图和验证摘要 |
@@ -337,12 +337,9 @@ path.write_text(f"""# Amphion HarmonyOS 离线 ASR SDK {version}
 shasum -a 256 -c docs/checksum.txt
 ```
 
-授权文件 `amphion-license.lic` 不绑定应用包名、签名证书或设备；从签发日起四个自然月内有效。
+公共商用授权文件 `amphion-license.lic` 不在本包内，继续使用既有交付版本。
 """, encoding="utf-8")
 PY
-
-  LICENSE_SRC="${HARMONY_ASR_LICENSE_FILE:-$REPO_ROOT/../delivery/amphion-harmony-asr-eval.lic}"
-  copy_required "$LICENSE_SRC" "$OUT_ROOT/license/amphion-license.lic"
 else
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/DINGQIAO_INTEGRATION.md" "$OUT_ROOT/docs/"
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/DINGQIAO_LICENSE_SCHEME.md" "$OUT_ROOT/docs/"
@@ -465,8 +462,9 @@ if sdk_only:
         "punctuation",
         "itn",
         "vad",
+        "industry-text-enhancement",
     ]
-    payload["excluded_capabilities"] = ["industry-text-enhancement"]
+    payload["excluded_capabilities"] = []
 (out / "docs/BUILD_PROVENANCE.json").write_text(
     json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
 )
@@ -498,3 +496,11 @@ rm -rf "$LOCK_DIR"
 LOCK_HELD=false
 trap - EXIT INT TERM
 echo "[DONE] $FINAL_OUT_ROOT"
+if [[ "$SDK_ONLY" == true ]]; then
+  FINAL_ZIP_PATH="${HARMONY_SDK_ZIP_PATH:-${FINAL_OUT_ROOT}.zip}"
+  python3 "$REPO_ROOT/asr/tools/delivery/dingqiao_zip_utf8.py" \
+    create "$FINAL_OUT_ROOT" "$FINAL_ZIP_PATH"
+  python3 "$SCRIPT_DIR/validate_asr_sdk_delivery.py" \
+    "$FINAL_ZIP_PATH" --version "$VERSION"
+  echo "[DONE] $FINAL_ZIP_PATH"
+fi

@@ -37,6 +37,10 @@
       "srcPath": "../../asr/harmony/sdk-dingqiao"
     },
     {
+      "name": "amphion_police",
+      "srcPath": "../../asr/harmony/sdk-police"
+    },
+    {
       "name": "sherpa_onnx",
       "srcPath": "../../third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx"
     }

@@ -58,6 +58,9 @@ class MemorySample:
     vm_data_kb: int
     vm_swap_kb: int
     threads: int
+    process_cpu_ticks: int = -1
+    system_cpu_ticks: int = -1
+    logical_cpus: int = 0
 
 
 class StressFailure(RuntimeError):
@@ -114,6 +117,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-thread-growth", type=int, default=2)
     parser.add_argument("--max-empty-final-rate", type=float, default=0.05)
     parser.add_argument("--skip-build-install", action="store_true")
+    parser.add_argument(
+        "--installed-package",
+        action="store_true",
+        help=(
+            "Test the package already installed on the device and record its bundle identity; "
+            "do not require or install a local build."
+        ),
+    )
     parser.add_argument("--device", default="", help=argparse.SUPPRESS)
     parser.add_argument(
         "--output-root",
@@ -129,6 +140,8 @@ def parse_args() -> argparse.Namespace:
         parser.error("--timeout and --sample-interval must be positive")
     if args.settle_ms < 0 or args.pace_ms < 0 or args.post_run_observe < 0:
         parser.error("timing values must be non-negative")
+    if args.skip_build_install and args.installed_package:
+        parser.error("--skip-build-install and --installed-package are mutually exclusive")
     return args
 
 
@@ -170,6 +183,45 @@ def verified_build_identity() -> dict[str, object]:
     if not isinstance(identity, dict):
         raise StressFailure("Harmony build identity must be a JSON object")
     return identity
+
+
+def parse_installed_bundle_info(text: str) -> dict[str, object]:
+    start = text.find("{")
+    if start < 0:
+        raise StressFailure("installed bundle dump did not contain JSON")
+    try:
+        bundle = json.loads(text[start:])
+    except json.JSONDecodeError as error:
+        raise StressFailure(f"installed bundle dump is not valid JSON: {error}") from error
+    if not isinstance(bundle, dict):
+        raise StressFailure("installed bundle dump must be a JSON object")
+    application = bundle.get("applicationInfo")
+    if not isinstance(application, dict):
+        raise StressFailure("installed bundle dump is missing applicationInfo")
+    if application.get("bundleName") != BUNDLE:
+        raise StressFailure(f"installed bundle identity does not match {BUNDLE}")
+    return bundle
+
+
+def installed_package_identity(hdc: Hdc) -> tuple[dict[str, object], dict[str, object]]:
+    result = hdc.shell("bm", "dump", "-n", BUNDLE, check=False)
+    if result.returncode != 0:
+        raise StressFailure(f"cannot inspect installed bundle: {(result.stdout + result.stderr).strip()}")
+    bundle = parse_installed_bundle_info(result.stdout)
+    application = bundle["applicationInfo"]
+    assert isinstance(application, dict)
+    identity = {
+        "source": "installed_package",
+        "bundle_name": application.get("bundleName"),
+        "version_name": application.get("versionName"),
+        "version_code": application.get("versionCode"),
+        "fingerprint": application.get("fingerprint"),
+        "compile_sdk_version": application.get("compileSdkVersion"),
+        "api_target_version": application.get("apiTargetVersion"),
+        "cpu_abi": application.get("cpuAbi"),
+        "debug": application.get("debug"),
+    }
+    return identity, bundle
 
 
 class Hdc:
@@ -367,7 +419,115 @@ def read_process_sample(hdc: Hdc, started_at: float) -> MemorySample | None:
     status = hdc.shell("cat", f"/proc/{pid}/status", check=False)
     if status.returncode != 0:
         return None
-    return parse_status(status.stdout, time.monotonic() - started_at, pid)
+    sample = parse_status(status.stdout, time.monotonic() - started_at, pid)
+    if sample is None:
+        return None
+    process_stat = hdc.shell("cat", f"/proc/{pid}/stat", check=False)
+    system_stat = hdc.shell("cat", "/proc/stat", check=False)
+    if process_stat.returncode == 0 and system_stat.returncode == 0:
+        process_ticks = parse_process_cpu_ticks(process_stat.stdout)
+        system_cpu = parse_system_cpu_ticks(system_stat.stdout)
+        if process_ticks is not None and system_cpu is not None:
+            sample.process_cpu_ticks = process_ticks
+            sample.system_cpu_ticks = system_cpu[0]
+            sample.logical_cpus = system_cpu[1]
+    return sample
+
+
+def parse_process_cpu_ticks(text: str) -> int | None:
+    closing_paren = text.rfind(")")
+    if closing_paren < 0:
+        return None
+    fields = text[closing_paren + 1 :].strip().split()
+    # The first field after comm is process state (field 3); utime/stime are fields 14/15.
+    if len(fields) <= 12:
+        return None
+    try:
+        return int(fields[11]) + int(fields[12])
+    except ValueError:
+        return None
+
+
+def parse_system_cpu_ticks(text: str) -> tuple[int, int] | None:
+    lines = text.replace("\r", "").splitlines()
+    if not lines:
+        return None
+    aggregate = lines[0].split()
+    if not aggregate or aggregate[0] != "cpu":
+        return None
+    try:
+        counters = [int(value) for value in aggregate[1:]]
+    except ValueError:
+        return None
+    # Linux reports guest/guest_nice as fields 9/10, but those ticks are already
+    # included in user/nice. Counting them again would inflate the denominator
+    # and under-report the application CPU percentage.
+    total_ticks = sum(counters[:8])
+    logical_cpus = sum(
+        1 for line in lines[1:] if line.split() and line.split()[0][3:].isdigit()
+        and line.split()[0].startswith("cpu")
+    )
+    return (total_ticks, logical_cpus) if total_ticks >= 0 and logical_cpus > 0 else None
+
+
+def percentile(values: list[float], probability: float) -> float:
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * probability
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return ordered[lower]
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+
+
+def cpu_statistics(samples: list[MemorySample]) -> dict[str, object]:
+    valid = [
+        sample
+        for sample in samples
+        if sample.process_cpu_ticks >= 0 and sample.system_cpu_ticks >= 0 and sample.logical_cpus > 0
+    ]
+    intervals: list[float] = []
+    for previous, current in zip(valid, valid[1:]):
+        if previous.pid != current.pid or previous.logical_cpus != current.logical_cpus:
+            continue
+        process_delta = current.process_cpu_ticks - previous.process_cpu_ticks
+        system_delta = current.system_cpu_ticks - previous.system_cpu_ticks
+        if process_delta < 0 or system_delta <= 0:
+            continue
+        intervals.append(process_delta / system_delta * current.logical_cpus * 100.0)
+    if len(valid) < 2 or not intervals:
+        return {
+            "status": "INCONCLUSIVE",
+            "reason": "fewer than two comparable CPU samples",
+            "sample_count": len(valid),
+        }
+    first = valid[0]
+    last = valid[-1]
+    process_delta = last.process_cpu_ticks - first.process_cpu_ticks
+    system_delta = last.system_cpu_ticks - first.system_cpu_ticks
+    if process_delta < 0 or system_delta <= 0 or first.pid != last.pid:
+        return {
+            "status": "INCONCLUSIVE",
+            "reason": "CPU counters were not monotonic for one process",
+            "sample_count": len(valid),
+        }
+    logical_cpus = last.logical_cpus
+    mean_single_core = process_delta / system_delta * logical_cpus * 100.0
+    return {
+        "status": "MEASURED",
+        "sample_count": len(valid),
+        "interval_count": len(intervals),
+        "observation_seconds": round(last.elapsed_seconds - first.elapsed_seconds, 3),
+        "logical_cpus": logical_cpus,
+        "mean_single_core_equivalent_percent": round(mean_single_core, 3),
+        "p50_single_core_equivalent_percent": round(percentile(intervals, 0.50), 3),
+        "p95_single_core_equivalent_percent": round(percentile(intervals, 0.95), 3),
+        "peak_single_core_equivalent_percent": round(max(intervals), 3),
+        "mean_device_capacity_percent": round(mean_single_core / logical_cpus, 3),
+        "p50_device_capacity_percent": round(percentile(intervals, 0.50) / logical_cpus, 3),
+        "p95_device_capacity_percent": round(percentile(intervals, 0.95) / logical_cpus, 3),
+        "peak_device_capacity_percent": round(max(intervals) / logical_cpus, 3),
+    }
 
 
 def parse_result(path: Path, run_id: str) -> tuple[dict[str, str], list[dict[str, str]]] | None:
@@ -539,10 +699,17 @@ def run_stress(args: argparse.Namespace) -> Path:
         f"[INFO] corpus: {inventory['valid_wavs']} valid WAVs, "
         f"{inventory['total_valid_duration_seconds'] / 3600:.2f} h; selected {len(selected)} files"
     )
-    if not args.skip_build_install:
+    installed_bundle: dict[str, object] | None = None
+    if not args.skip_build_install and not args.installed_package:
         print("[INFO] building, installing, and smoke-testing the Harmony SDK test carrier")
         build_install(device)
-    build_identity = verified_build_identity()
+    if args.installed_package:
+        build_identity, installed_bundle = installed_package_identity(hdc)
+        (artifact_dir / "installed-bundle.json").write_text(
+            json.dumps(installed_bundle, ensure_ascii=True, indent=2) + "\n"
+        )
+    else:
+        build_identity = verified_build_identity()
 
     print(f"[INFO] sending {sum(int(item['pcm_bytes']) for item in mapping) / 1024 / 1024:.1f} MiB PCM payload")
     hdc.app_send(payload, remote_dir)
@@ -598,6 +765,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         write_samples(artifact_dir / "memory.csv", samples)
         raise StressFailure(f"timed out after {args.timeout}s waiting for the stress summary")
 
+    workload_samples = list(samples)
     observe_until = time.monotonic() + args.post_run_observe
     while time.monotonic() < observe_until:
         sample = read_process_sample(hdc, started_at)
@@ -609,6 +777,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     write_samples(artifact_dir / "memory.csv", samples)
     app_summary, cycle_results = parsed
     memory = memory_verdict(samples, args.max_rss_growth_mb, args.max_thread_growth)
+    cpu = cpu_statistics(workload_samples)
     completed = int(app_summary.get("completed", "0"))
     empty_finals = int(app_summary.get("emptyFinals", "0"))
     empty_rate = empty_finals / completed if completed else 1.0
@@ -668,6 +837,7 @@ def run_stress(args: argparse.Namespace) -> Path:
             "max_live_streams": max(live_stream_counts, default=0),
         },
         "memory": memory,
+        "cpu": cpu,
         "cycles": cycle_results,
     }
     (artifact_dir / "report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2) + "\n")

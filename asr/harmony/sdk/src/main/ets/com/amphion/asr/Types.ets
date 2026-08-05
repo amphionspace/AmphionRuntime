@@ -96,8 +96,9 @@ export class AsrConfig {
   hotwordsScore: number = 1.5;
   targetSpeaker?: TargetSpeakerConfig;
   // 低内存/快加载模式:跳过 INT8 权重 prepack。冷加载 ~-156ms、峰值内存 ~-176MB;推理吞吐 ~-24%
-  // (由 ASR ~7.5x 实时余量吸收)。默认 false(保留 prepack,吞吐优先)。经 provider 内联配置下发到 native。
-  disablePrepack: boolean = false;
+  // (由 ASR ~7.5x 实时余量吸收)。默认 true(冷启动/峰值内存优先);可显式设 false 恢复吞吐优先。
+  // 经 provider 内联配置下发到 native。
+  disablePrepack: boolean = true;
 
   static builder(): AsrConfigBuilder {
     return new AsrConfigBuilder();

@@ -1,11 +1,14 @@
 import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SessionConfig, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
+import { PoliceEnhancePipeline } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import deviceInfo from '@ohos.deviceInfo';
+import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
 import { finiteNumberParam } from './NumericParam';
 import { rejectedFinalCompletesSession } from './RejectedFinalLifecycle';
 import { maxAudioBytesOf } from './SessionAudioLimit';
 import { SessionStartGate } from './SessionStartGate';
+import { PoliceFinalSession } from './PoliceEnhancementPolicy';
 import { hasVoiceprintCapability } from './VoiceprintCapability';
 import { VoiceprintStore } from './VoiceprintStore';
 import {
@@ -62,11 +65,6 @@ function stringArrayParam(params: Record<string, Object>, key: string): string[]
     return value.split(/[\n,，]/).map((s: string): string => s.trim()).filter((s: string): boolean => s.length > 0);
   }
   return [];
-}
-
-function booleanParam(params: Record<string, Object>, key: string, defaultValue: boolean): boolean {
-  const value = params[key];
-  return typeof value === 'boolean' ? value : defaultValue;
 }
 
 function numberParam(params: Record<string, Object>, key: string, defaultValue: number): number {
@@ -227,8 +225,8 @@ function buildAsrConfig(params: CreateEngineParams, startParams?: StartParams,
   config.hotwords = parseLexicon(params.extraParams['sysGeneralLexicon']);
   config.vadConfig.activeEndpointSilenceMs = vadEndMs(startParams);
   config.endpointRules.rule2MinTrailingSilenceSec = 2.0;
-  // 低内存/快加载模式开关(默认关=保留 prepack)。host 传 extraParams["disablePrepack"]=true 启用。
-  config.disablePrepack = booleanParam(params.extraParams, 'disablePrepack', false);
+  // 默认跳过 prepack，优先降低冷启动和峰值内存；host 可显式传 false 恢复吞吐优先模式。
+  config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', true);
   if (withTargetSpeaker) {
     if (speakerModelPath === undefined) throw new Error('voiceprint model path is required');
     config.targetSpeaker = buildTargetSpeakerConfig(startParams, withSpeakerVad, speakerModelPath);
@@ -310,6 +308,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private params: CreateEngineParams;
   private listener?: RecognitionListener;
   private asrEngine: AsrEngine;
+  private enhancePipeline: PoliceEnhancePipeline;
   private session?: AsrSession;
   private busy: boolean = false;
   private destroyed: boolean = false;
@@ -318,6 +317,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private lastAutoFinishedSessionId: string = '';
   private finishRequested: boolean = false;
   private partialEnabled: boolean = true;
+  private policeFinalSession?: PoliceFinalSession;
   private finalResultSent: boolean = false;
   private completeSent: boolean = false;
   private maxAudioBytes: number = 0;
@@ -333,6 +333,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   constructor(context: Context, params: CreateEngineParams, preloadedEngine?: AsrEngine) {
     this.context = context;
     this.params = snapshotCreateEngineParams(params);
+    this.enhancePipeline = PoliceEnhancePipeline.create(context);
     this.asrEngine = preloadedEngine ??
       AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(this.params));
     this.engineCfgKey = this.computeEngineCfgKey(false, false);
@@ -366,8 +367,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       return;
     }
 
-    const verify = booleanParam(params.extraParams, 'enableVoiceprintVerification', false);
-    const speakerVad = booleanParam(params.extraParams, 'enableSpeakerVad', false);
+    const verify = strictBooleanParam(params.extraParams, 'enableVoiceprintVerification', false);
+    const speakerVad = strictBooleanParam(params.extraParams, 'enableSpeakerVad', false);
     const voiceprintIds = stringArrayParam(params.extraParams, 'voiceprintIds');
     let embedding: Float32Array | undefined;
     let speakerModelPath: string | undefined;
@@ -404,6 +405,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.finalResultSent = false;
       this.completeSent = false;
       this.partialEnabled = params.extraParams['enablePartialResult'] !== false;
+      this.policeFinalSession = new PoliceFinalSession(
+        strictBooleanParam(params.extraParams, 'enablePoliceEnhancement', true),
+        (rawText: string): string => this.enhancePipeline.enhance(rawText).text
+      );
       this.maxAudioBytes = maxAudioBytesOf(params.extraParams);
       this.audioBytesWritten = 0;
       this.voiceprintIds = voiceprintIds;
@@ -554,6 +559,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.destroyed = true;
     this.tearDownSession();
     this.asrEngine.close();
+    this.enhancePipeline.close();
   }
 
   private deliverFinal(generation: number, result: AsrResult): void {
@@ -563,7 +569,6 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const payload = new SpeechRecognitionResult();
     payload.isFinal = true;
     payload.isLast = result.isLast;
-    payload.result = result.text;
     payload.speakerSimilarity = result.speakerScore;
     // beginTime/endTime from token timestamps (seconds -> ms), aligned with Android dispatchResult.
     const ts = result.timestamps;
@@ -572,11 +577,18 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       payload.endTime = Math.round(ts[ts.length - 1] * 1000);
     }
     this.finalResultSent = true;
-    this.listener?.onResult?.(sessionId, payload);
-    if (result.isLast && this.sessionStartGate.isCurrent(generation) &&
-      this.currentSessionId === sessionId) {
-      this.completeCurrentSession(generation);
-    }
+    const finalSession = this.policeFinalSession;
+    if (finalSession === undefined) return;
+    finalSession.dispatch(
+      payload,
+      result.text,
+      (): void => { this.listener?.onResult?.(sessionId, payload); },
+      (): void => {
+        if (this.sessionStartGate.isCurrent(generation) && this.currentSessionId === sessionId) {
+          this.completeCurrentSession(generation);
+        }
+      }
+    );
   }
 
   private completeCurrentSession(generation: number): void {
@@ -595,6 +607,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finishRequested = false;
     this.finalResultSent = false;
     this.completeSent = false;
+    this.policeFinalSession = undefined;
     this.voiceprintIds = [];
     this.speechActive = false;
     this.sessionStartGate.reset();
