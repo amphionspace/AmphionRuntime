@@ -292,15 +292,20 @@ python asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py \
   --score-schedule absolute_samples
 ```
 
-2026-08-05 全量结果为 30 dev / 60 test speaker、3060 行；test 主矩阵 960 行。实时 20 ms
+2026-08-05 `legacy_per_call` 全量结果为 30 dev / 60 test speaker、3060 行；test 主矩阵 960 行。实时 20 ms
 喂入时目标确认率 `100%`，平均非目标音频泄漏从 `0.973s` 降到 `0.455s`（降幅 `53.24%`），
 session CER 从 `14.09%` 降到 `4.17%`，但仍有 `30/960` 行发布了可归因的非目标文本，且
 `16/960` 行发生目标截断。独立 target-only anchor 中实时喂入 `1/60` 被提前 endpoint；
 other-only anchor 中 `2/60` 被误确认。相对实时 20 ms，irregular 分帧的 state mismatch 为
 `13.33%`，single-block 为 `99.17%`。因此该参数只能作为 C1 prototype 证据，未通过正式默认门；
 结果目录保留 `trials.jsonl`、`summary.json`、`report.md` 和环境/模型哈希，不应用 test 重调阈值。
-上述数字来自 `legacy_per_call`。修复后的 absolute replay 必须使用同一 baseline/trials、模型哈希和 seed，
-写入新目录；它只允许消除 framing mismatch，不能覆盖既有 target-only/other-only 模型层失败。
+
+同日 `absolute_samples` 使用相同 baseline/trials、模型哈希、seed 和参数完成差分重放。2340 条实时路径
+与 legacy 逐行一致；720 条 irregular/single-block 对照全部收敛到实时参考，两个模式的 state mismatch
+均为 `0%`、exact endpoint match 均为 `100%`。严格门仍为 **FAIL**：上述 `16/960` 目标截断、
+`30/960` 非目标文本、target-only `1/60` 提前 endpoint 和 other-only `2/60` 误确认均未改变。
+因此 hop 调度根因已修复，剩余失败归属模型/窗口判决能力；下一候选是缓冲提交与尾部回退，不再在
+同一 test 上调阈值。
 
 可用 `--denoiser-model <dpdfnet.onnx>` 做前端降噪 A/B；`--denoiser-scope all` 同时处理
 enrollment/probe（默认），`probe` 只处理 probe。当前中型 paired 结果中，不降噪在

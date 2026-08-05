@@ -39,6 +39,10 @@
   `14.09%` 降到 `4.17%`，但仍有 `30/960` 非目标文本、`16/960` 目标截断；target-only/other-only
   anchor 分别有 `1/60` 提前 endpoint 和 `2/60` 误确认。irregular/single-block 的 state mismatch 为
   `13.33%/99.17%`，所以该参数不升级为正式默认值。
+- 绝对 PCM hop 修复后的同输入 replay 已完成：2340 条实时路径相对 legacy 零漂移，720 条分帧对照
+  全部收敛到实时参考，irregular/single-block state mismatch 均为 `0%`、exact endpoint match 均为
+  `100%`。严格门仍因同一组目标截断、非目标文本和 anchor 误判失败；调度根因收口，下一候选转为
+  缓冲提交/尾部回退，不再调 Speaker VAD 阈值。
 
 ## 已冻结决策
 
@@ -139,17 +143,20 @@ final 生命周期/交付压力工具 28 项通过，脚本语法、Python 编�
 
 2026-08-05 已实现 Android/Harmony 绝对 PCM sample 的 Speaker VAD hop 调度，并把工具 15 默认切换为
 `absolute_samples`，同时保留 `legacy_per_call` 重放修复前结果。Android Debug/Release 两模块、Harmony
-两份 HAR 编译和 31 项相邻状态测试通过。本机缺少上述 ignored baseline/trials，尚未生成修复后 3060 行
-业务结果；当前 USB 设备也不在本地授权清单，真机构建/安装在 license 校验前停止且未改白名单。
+两份 HAR 编译和 31 项相邻状态测试通过。修复后 3060 行业务 replay 已生成并通过唯一性、有限值、
+speaker-disjoint、冻结输入/模型哈希和新旧同键差分审计。ignored artifact 为
+`asr/tools/speaker/results/voiceprint_pilot_20260805_c1_turn_transition_absolute_full/`，`summary.json` /
+`trials.jsonl` SHA256 分别为 `93edbfb5…dfc2` / `3387daf7…94c3`。当前 USB 设备仍不在本地授权清单，
+真机构建/安装在 license 校验前停止且未改白名单。
 
 ## 剩余工作、风险和建议流程
 
 - 本阶段不再继续调 DPDFNet、全局阈值或规则型质量救援；重复同类合成 A/B 不会改变当前选择。
 - C1～C3 当前 0.2.9 真机基线和严格业务红灯已经捕获；下一步先冻结 target-only 产品契约，并补齐
   带 target/other 独立源、对齐文本、enrollment 和受控 SIR/SNR 的中文真实域小集。
-- C1 参数上限已在冻结合成集失败；Android/Harmony 的绝对 PCM hop 调度已实现。下一最小实验是在保留
-  artifact 的 Linux 服务器使用同一输入做 `absolute_samples` 差分重放且不改阈值；模型层 anchor 仍
-  失败时，再比较“缓冲提交 + 尾部回退/重解码”，同时保护 partial、目标连续语音和 final/last 生命周期。
+- C1 参数上限已在冻结合成集失败；Android/Harmony 的绝对 PCM hop 调度及同输入差分重放均已完成，
+  分帧门通过但模型层 anchor 仍失败。下一最小实验是“缓冲提交 + 尾部回退/重解码”，同时保护
+  partial、目标连续语音和 final/last 生命周期；不再对同一 test 调阈值。
 - C2/C3 的固定 2 秒 Conv-TasNet 已在扩大到 60 个 test 非注册身份后触发开放集停止门；不再跑 30 轮
   稳压、真机扩身份、阈值/margin 搜索，也不以无 target identity 的 RE-SepFormer 规避同一根因。
 - 长期下一实现候选仍应是 `<30 MB`、额外 RSS `<150 MB`、有界 look-ahead 的中文真实域 causal TSE，
