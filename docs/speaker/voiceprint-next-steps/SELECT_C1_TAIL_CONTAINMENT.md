@@ -47,16 +47,15 @@ test 主矩阵结果：
   single-block state mismatch `99.17%`。这与 Android/Harmony 当前每次公开 `writeAudio` 最多处理一个
   跨越 hop 的分数一致，违反同一 PCM 不应随调用方分帧改变决定的不变量。
 
-严格门结论为 **FAIL**：`1000/300 ms` 能明显减少 C1 拖尾，但不能作为正式默认值。失败同时包含
-模型层的目标误拒/非目标误接收和调度层的分帧依赖；继续在同一 test 上搜索阈值不能解决后一问题，
-也会污染开放集结论。
+严格门结论为 **FAIL**：`1000/300 ms` 能明显减少 C1 拖尾，但不能作为正式默认值。legacy 结果同时包含
+模型层的目标误拒/非目标误接收和调度层的分帧依赖；后续 absolute replay 已把两层分离。继续在同一
+test 上搜索阈值不能解决尾音提交问题，也会污染开放集结论。
 
 ## 下一候选
 
-先修正并单测 Android/Harmony 的 hop 调度，使一次大块写入能够按绝对 PCM 时间处理所有跨越的 hop，
-且与 20 ms/irregular 分帧得到相同决定；该修改必须作为独立生命周期/状态机工作，不夹带阈值变化。
-随后在同一冻结输入上重放参数基线。若模型层 anchor 仍失败，则不再把纯 Speaker VAD 参数路线作为
-默认方案，转去比较“缓冲提交 + 尾部回退/重解码”，并把 partial 一并置于确认门后。
+hop 调度修复和冻结重放均已完成，模型层 anchor 仍失败。纯 Speaker VAD 参数路线不再作为默认方案；
+下一候选固定为“缓冲提交 + 尾部回退/重解码”，并把 partial 一并置于确认门后。实现前必须冻结最多
+可接受提交延迟、回退 PCM 边界以及 finish/cancel/reentrant 时未提交缓冲的归属。
 
 ## Hop 调度修复状态（2026-08-05）
 
@@ -68,11 +67,17 @@ sample；一次大块写入会在喂入 ASR 前切到每个 score deadline，end
 三种分块均固定为 `16000/19200/24000/28800`。Android Debug/Release 的 `sdk`、`sdk-dingqiao`
 单测和 Harmony `amphion_asr`、`amphion_dingqiao` HAR 编译通过；Python/Harmony 相邻状态测试 31 项通过。
 
-尚未宣告业务 PASS：本机没有 Linux 生成的冻结 baseline/trials，因此 3060 行 absolute replay 必须在
-保留 artifact 的服务器用 `15_eval_c1_turn_transition_synthetic.py --score-schedule absolute_samples`
-写入新目录。当前 USB 设备 `7GK…5655` 不在任何本地授权清单中，签名 HAP 构建/安装在 license 校验前
-停止；没有修改白名单、重签或覆盖设备产物。absolute replay 若仍命中 target-only/other-only anchor，
-下一候选仍是缓冲提交/尾部回退，而不是继续调阈值。
+冻结 3060 行 `absolute_samples` replay 已在保留 baseline/trials 的 Linux 服务器完成。2340 条实时路径
+与 legacy 逐行一致；720 条 irregular/single-block 对照全部与实时参考一致，state mismatch 从
+`13.33%/99.17%` 降到 `0%/0%`，exact endpoint match 均为 `100%`。这证明调度修复没有改变实时路径，
+且消除了调用方分帧依赖。
 
-本轮已完成 SDK hop 调度修复和本地构建门，但尚未完成冻结全量 replay，也没有覆盖 Silero/ASR 更早
-endpoint、真实设备声学或 `isLast/onComplete/cancel` 真机生命周期。
+严格业务门仍为 **FAIL**：test 主矩阵仍有 `16/960` 目标截断和 `30/960` 非目标文本；target-only
+仍有 `1/60` 提前 endpoint，other-only 仍有 `2/60` 误确认。结果符合修复前对模型层 anchor 的预测，
+因此调度票据可以收口，参数候选保持否决，下一实验进入缓冲提交/尾部回退。
+
+absolute ignored artifact 为
+`asr/tools/speaker/results/voiceprint_pilot_20260805_c1_turn_transition_absolute_full/`；`summary.json` /
+`trials.jsonl` SHA256 分别为 `93edbfb5…dfc2` / `3387daf7…94c3`。当前 USB 设备 `7GK…5655` 不在任何
+本地授权清单中，签名 HAP 构建/安装仍在 license 校验前停止；没有修改白名单、重签或覆盖设备产物。
+本轮没有覆盖 Silero/ASR 更早 endpoint、真实设备声学或 `isLast/onComplete/cancel` 真机生命周期。

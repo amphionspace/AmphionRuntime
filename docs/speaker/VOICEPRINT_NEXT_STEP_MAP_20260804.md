@@ -45,16 +45,17 @@
 - [C1 独立 target→other 合成复验](voiceprint-next-steps/SELECT_C1_TAIL_CONTAINMENT.md) — 冻结
   `0.35 / 1000/300 ms / 连续 2 窗` 在 60 个 test speaker 的实时 20 ms 主矩阵中把平均非目标音频
   泄漏降低 `53.24%`，但 `30/960` 行仍有非目标文本、`16/960` 行目标截断；target-only/other-only
-  anchor 分别有 `1/60` 提前 endpoint 和 `2/60` 误确认。irregular/single-block 相对实时分帧的 state
-  mismatch 为 `13.33%/99.17%`，参数候选未通过正式默认门。
+  anchor 分别有 `1/60` 提前 endpoint 和 `2/60` 误确认。修复前 irregular/single-block 相对实时分帧的
+  state mismatch 为 `13.33%/99.17%`；absolute replay 已降为 `0%/0%` 且 2340 条实时路径零漂移，
+  但模型层失败完全保留，因此参数候选仍未通过正式默认门。
 
 ## Frontier
 
 - [冻结 target-only 产品契约与成功门](voiceprint-next-steps/FREEZE_TARGET_ONLY_CONTRACT.md)
 - [选择 C1 尾音控制架构](voiceprint-next-steps/SELECT_C1_TAIL_CONTAINMENT.md) — 独立 target→other 集已
-  否决把 `1000/300 ms` 直接设为正式默认值。Android/Harmony 绝对 PCM hop 调度和本地构建门已完成；
-  下一步在 Linux 用同一冻结 baseline/trials 做 `absolute_samples` replay。若 anchor 仍失败，再验证
-  “缓冲提交 + 尾部回退/重解码”和 partial 门控。
+  否决把 `1000/300 ms` 直接设为正式默认值。Android/Harmony 绝对 PCM hop 调度、构建门和冻结
+  `absolute_samples` replay 均已完成；分帧门通过但 anchor 仍失败。下一步验证“缓冲提交 + 尾部
+  回退/重解码”和 partial 门控，不再调 Speaker VAD 阈值。
 - [选择 C2/C3 重叠前端](voiceprint-next-steps/SELECT_OVERLAP_FRONTEND.md) — 首个主候选固定为
   speaker-conditioned TSE；公开 offline TSE 与通用分离正对照已通过三条黑盒回归但资源门失败。下一输入
   不是更多混合 WAV，而是带 target/other 独立源、对齐文本和 enrollment 的受控重叠小集，以及可训练/
@@ -62,8 +63,8 @@
 
 ## Short-term no-training path
 
-- C1：`1000/300 ms` 只保留为已知 C1 单例和实时 20 ms prototype，不改正式默认值。分帧相关的 hop
-  调度已修复，等待冻结集 absolute replay；模型层 anchor 失败未消除前，不升级为交付能力。
+- C1：`1000/300 ms` 只保留为已知 C1 单例和 prototype，不改正式默认值。hop 调度已通过冻结集
+  分帧无关门，但模型层 anchor 仍失败；短期下一候选是缓冲提交/尾部回退，不升级参数方案为交付能力。
 - C2/C3：保留原始 ASR/fallback，不用 Conv-TasNet 或 RE-SepFormer 的不确定增强文本覆盖结果。当前没有
   通过 target-absent/open-set 门的无训练端侧候选。
 - 不跑 Conv-TasNet L4 稳压或更多真机身份扩展；人数扩充只能收紧失败率估计，不能修复已经出现的
