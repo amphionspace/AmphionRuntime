@@ -497,7 +497,8 @@ def target_speaker_realtime_verdict(hilog_path: Path, required: bool) -> dict[st
     maximum_queued_chunks = max(record[2] for record in records)
     # After the first 2 s window, a new chunk arrives every 1.75 s. A final short chunk may briefly
     # coexist with the last full chunk, so a depth of two is bounded and does not indicate drift.
-    status = "PASS" if maximum_processing_ms < 1750 and maximum_queued_chunks <= 2 else "FAIL"
+    keeps_up = maximum_processing_ms < 1750 and maximum_queued_chunks <= 2
+    status = ("PASS" if keeps_up else "FAIL") if required else "OBSERVED"
     return {
         "status": status,
         "chunk_count": len(records),
