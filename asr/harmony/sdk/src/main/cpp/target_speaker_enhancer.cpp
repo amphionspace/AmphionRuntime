@@ -22,6 +22,7 @@ constexpr int32_t kSampleRate = 16000;
 constexpr int64_t kChunkSamples = 32000;
 constexpr int64_t kOutputStreams = 2;
 constexpr float kDefaultThreshold = 0.25F;
+constexpr int32_t kSeparatorThreads = 6;
 
 void ThrowJsError(napi_env env, const std::string& message) {
   napi_throw_error(env, nullptr, message.c_str());
@@ -117,7 +118,7 @@ class TargetSpeakerEnhancer {
 
     Ort::SessionOptions options;
     options.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
-    options.SetIntraOpNumThreads(4);
+    options.SetIntraOpNumThreads(kSeparatorThreads);
     options.SetInterOpNumThreads(1);
     options.DisableCpuMemArena();
     options.DisableMemPattern();
