@@ -24,6 +24,7 @@ export class SpeechRecognitionResult {
   beginTime?: number;
   endTime?: number;
   speakerSimilarity?: number;
+  targetSpeakerEnhancementApplied?: boolean;
 }
 
 export class VoiceprintRegisterParams {

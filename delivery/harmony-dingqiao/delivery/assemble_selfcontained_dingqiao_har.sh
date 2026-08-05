@@ -8,18 +8,32 @@
 #   - 剥离 -> HAP 编译期 amphion_dingqiao 找不到 amphion_asr(幽灵依赖);
 #   只有自包含(file:./ 内部路径)两头都成立。
 #
-# 用法: assemble_selfcontained_dingqiao_har.sh [--zh-en-only] <输出 har 路径>
+# 用法: assemble_selfcontained_dingqiao_har.sh [--zh-en-only]
+#   [--approved-target-speaker-model-sha256 HASH] <输出 har 路径>
 # 依赖: 四个 HAR 已由 DevEco 构建(见各模块 build/default/outputs/default/)。
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 ZH_EN_ONLY=false
-if [[ "${1:-}" == "--zh-en-only" ]]; then
-  ZH_EN_ONLY=true
-  shift
-fi
-OUT="${1:?用法: $0 [--zh-en-only] <输出 har 路径>}"
+APPROVED_TARGET_SPEAKER_MODEL_SHA256=""
+while [[ $# -gt 1 ]]; do
+  case "$1" in
+    --zh-en-only) ZH_EN_ONLY=true; shift ;;
+    --approved-target-speaker-model-sha256)
+      [[ $# -ge 3 ]] || { echo "[ERROR] missing approved model SHA-256" >&2; exit 2; }
+      APPROVED_TARGET_SPEAKER_MODEL_SHA256="$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')"
+      shift 2
+      ;;
+    *) echo "[ERROR] unexpected argument: $1" >&2; exit 2 ;;
+  esac
+done
+OUT="${1:?用法: $0 [--zh-en-only] [--approved-target-speaker-model-sha256 HASH] <输出 har 路径>}"
 [[ $# -eq 1 ]] || { echo "[ERROR] unexpected arguments" >&2; exit 2; }
+if [[ -n "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" &&
+  ! "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "[ERROR] approved target-speaker model SHA-256 must be 64 hexadecimal characters" >&2
+  exit 2
+fi
 mkdir -p "$(dirname "$OUT")"
 OUT="$(cd "$(dirname "$OUT")" && pwd)/$(basename "$OUT")"
 
@@ -80,6 +94,7 @@ def set_dependencies(relative_path: str, dependencies: dict[str, str]) -> None:
 
 set_dependencies(".", {
     "amphion_asr": "file:./_bundled/amphion_asr",
+    "libamphion_asr.so": "file:./_bundled/amphion_asr/src/main/cpp/types/libamphion_asr",
     "amphion_police": "file:./_bundled/amphion_police",
 })
 set_dependencies("_bundled/amphion_asr", {
@@ -90,6 +105,29 @@ set_dependencies("_bundled/amphion_police", {
     "amphion_asr": "file:../amphion_asr",
 })
 PY
+
+# Conv-TasNet is never inherited accidentally from a developer/test HAR. Commercial delivery keeps
+# it only when release engineering supplies the exact separately-approved model digest.
+TARGET_SPEAKER_MODEL="$WORK/sc/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx"
+if [[ -z "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" ]]; then
+  rm -f "$TARGET_SPEAKER_MODEL"
+elif [[ ! -f "$TARGET_SPEAKER_MODEL" ]]; then
+  echo "[ERROR] approved target-speaker model is not present in the source HAR" >&2
+  exit 1
+else
+  ACTUAL_TARGET_SPEAKER_MODEL_SHA256="$(python3 - "$TARGET_SPEAKER_MODEL" <<'PY'
+import hashlib
+import sys
+from pathlib import Path
+
+print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())
+PY
+)"
+  if [[ "$ACTUAL_TARGET_SPEAKER_MODEL_SHA256" != "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" ]]; then
+    echo "[ERROR] target-speaker model SHA-256 differs from the separately approved artifact" >&2
+    exit 1
+  fi
+fi
 
 if [[ "$ZH_EN_ONLY" == true ]]; then
   python3 "$SCRIPT_DIR/filter_zh_en_model_payload.py" \

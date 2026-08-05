@@ -89,8 +89,8 @@ internal class SessionImpl(
     private val effectiveSpeechBuffer = EffectiveSpeechBuffer(sampleRate, UTT_MAX_SAMPLES)
     private val recognizerResetGeneration = RecognizerResetGeneration()
 
-    /** speaker vad 状态：距上次声纹窗打分已累计的 sample 数。 */
-    private var svSamplesSinceScore = 0
+    /** speaker vad 打分终点按 native segment 的绝对 sample 位置推进，不依赖调用方 PCM 分块。 */
+    private var svScoreScheduler: SpeakerVadScoreScheduler? = null
 
     /** speaker vad 状态：当前 speech 段内是否已经确认目标人出现。 */
     private var svTargetConfirmed = false
@@ -441,10 +441,18 @@ internal class SessionImpl(
         val initialDecisionChunkSamples = (sampleRate / INITIAL_DECISION_CHUNKS_PER_SECOND).coerceAtLeast(1)
         while (offset < samples.size && !closed.get() && !initialSilenceTimeoutSent) {
             val remaining = samples.size - offset
-            val chunkSize = if (!initialSpeechDetected && initialSilenceTimeoutSamples > 0L) {
+            var chunkSize = if (!initialSpeechDetected && initialSilenceTimeoutSamples > 0L) {
                 minOf(remaining, initialDecisionChunkSamples)
             } else {
                 remaining
+            }
+            if (speakerVadEnabled) {
+                effectiveSpeakerVad?.let { speakerVad ->
+                    chunkSize = minOf(
+                        chunkSize,
+                        speakerVadScoreScheduler(speakerVad).samplesUntilNextScore(),
+                    )
+                }
             }
             if (!feedChunkAndDecode(samples.copyOfRange(offset, offset + chunkSize))) break
             offset += chunkSize
@@ -790,6 +798,16 @@ internal class SessionImpl(
             minSamples,
             hasEvidence,
         )
+        Logger.d(
+            "session $sessionId " + speakerScoreSelectionDiagnostic(
+                selection,
+                boundary.samples.size,
+                fallbackSamples.size,
+                minSamples,
+                sampleRate,
+                hasEvidence,
+            ),
+        )
         if (selection.source == SpeakerScoreSource.UTTERANCE) {
             postDebug(
                 "speaker score fallback: effectiveSpeech=" +
@@ -830,15 +848,11 @@ internal class SessionImpl(
     private fun maybeTriggerSpeakerVadEndpoint(samplesInChunk: Int): Boolean {
         if (!speakerVadEnabled) return false
         val speakerVad = effectiveSpeakerVad ?: return false
+        if (!speakerVadScoreScheduler(speakerVad).observe(samplesInChunk)) return false
         val target = targetEmbedding ?: return false
         val verifier = ensureVerifier() ?: return false
 
         val winSamples = (speakerVad.winSec * sampleRate).toInt().coerceAtLeast(1)
-        val hopSamples = (speakerVad.hopSec * sampleRate).toInt().coerceAtLeast(1)
-        svSamplesSinceScore += samplesInChunk
-        if (speakerPcmBuffers.speakerVadLength() < winSamples) return false
-        if (svSamplesSinceScore < hopSamples) return false
-        svSamplesSinceScore %= hopSamples
 
         val scoreStartNs = System.nanoTime()
         val score = verifier.windowScore(speakerPcmBuffers.speakerVadTail(winSamples), target)
@@ -895,6 +909,19 @@ internal class SessionImpl(
         return false
     }
 
+    private fun speakerVadScoreScheduler(config: SpeakerVadConfig): SpeakerVadScoreScheduler {
+        val windowSamples = (config.winSec * sampleRate).toInt().coerceAtLeast(1)
+        val hopSamples = (config.hopSec * sampleRate).toInt().coerceAtLeast(1)
+        val current = svScoreScheduler
+        if (current != null &&
+            current.windowSamples == windowSamples &&
+            current.hopSamples == hopSamples
+        ) {
+            return current
+        }
+        return SpeakerVadScoreScheduler(windowSamples, hopSamples).also { svScoreScheduler = it }
+    }
+
     private fun postSpeakerVadDebug(
         state: String,
         score: Float,
@@ -921,7 +948,7 @@ internal class SessionImpl(
     }
 
     private fun resetSpeakerVadState() {
-        svSamplesSinceScore = 0
+        svScoreScheduler?.reset()
         svTargetConfirmed = false
         svBelowCount = 0
         svRejectCurrentUtterance = false

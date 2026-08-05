@@ -1,0 +1,35 @@
+[
+  {
+    "id": "000000",
+    "source": "101_C1.wav",
+    "source_sha256": "a687cb55710bb3ef1771717d74bdf3e974653bd004bf490200ed9a3c86ddab9b",
+    "sample_rate": 16000,
+    "channels": 1,
+    "sample_width": 2,
+    "duration_seconds": 10.34,
+    "pcm_bytes": 330880,
+    "pcm_sha256": "ee07b7a5fe61735c88e2281b9c049e826d8c269173aa33f254ccc629e88e4ada"
+  },
+  {
+    "id": "000001",
+    "source": "102_C2.wav",
+    "source_sha256": "e12589eb974e422349d26b4b3b1bb41735b2cbb60744ce5cfdb1b4ff7cc41b59",
+    "sample_rate": 16000,
+    "channels": 1,
+    "sample_width": 2,
+    "duration_seconds": 14.5,
+    "pcm_bytes": 464000,
+    "pcm_sha256": "b96e7bfb813f25d364a3565a59bfd0bd06a12fe31da6feb66f2e9145c5d674b5"
+  },
+  {
+    "id": "000002",
+    "source": "103_C3.wav",
+    "source_sha256": "f556c1ca7226678bbd448156a724b0e372c8ec8fe1c758c0fc042afa44502b00",
+    "sample_rate": 16000,
+    "channels": 1,
+    "sample_width": 2,
+    "duration_seconds": 11.88,
+    "pcm_bytes": 380160,
+    "pcm_sha256": "8597952844df7cc8809308a9439b93a1d7b59863db5f383db8eac5f9ace8e418"
+  }
+]

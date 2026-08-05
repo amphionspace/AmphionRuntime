@@ -1,5 +1,16 @@
 # Changelog
 
+## 未发布 - 2026-08-05（Harmony 目标说话人增强接口预留）
+
+- 新增默认关闭的 `enableTargetSpeakerEnhancement`，在现有 Speaker VAD/ASR 前执行 2 秒分块的
+  双人语音分离、逐块声纹选流和 0.25 秒平滑拼接；客户接口不暴露具体模型和内部阈值。
+- 新增 `targetSpeakerEnhancementApplied` 结果标记；保持单 session、单 ASR 回调链以及既有
+  `isFinal/isLast/onComplete/cancel` 语义。
+- 新增 C1/C2/C3 完整音频与推理中 cancel 后立即恢复的真机门禁；12 GB Mate 80 上文本、生命周期
+  和 67 秒资源观察通过。
+- Conv-TasNet 测试权重未提交、未默认进入商用 HAR；正式发布仍以书面商用授权或许可清晰的替换模型
+  为硬门禁。
+
 ## 0.2.9 - 2026-07-30（警务增强开关与交付追踪）
 
 - Android 与 Harmony 鼎桥 Demo 均新增持久化“警务增强”开关，并在每次会话启动时通过

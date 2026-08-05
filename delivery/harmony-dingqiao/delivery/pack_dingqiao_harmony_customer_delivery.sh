@@ -249,6 +249,10 @@ import zipfile
 
 with zipfile.ZipFile(sys.argv[1]) as package:
     metadata = json.loads(package.read("pack.info"))
+    if any(name.endswith("/convtasnet_16k.onnx") for name in package.namelist()):
+        raise SystemExit(
+            "[ERROR] signed demo HAP contains an unapproved target-speaker model; rebuild the commercial HAP without test injection"
+        )
 version = metadata["summary"]["app"]["version"]["name"]
 if version != sys.argv[2]:
     raise SystemExit(f"[ERROR] HAP version {version} does not match delivery version {sys.argv[2]}")

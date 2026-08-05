@@ -23,10 +23,12 @@ ABILITY="EntryAbility"
 DEVICE=""
 TIMEOUT_SECONDS=30
 SKIP_BUILD=false
+ZH_EN_ONLY=true
 SMOKE_DIR="$PROJECT_ROOT/build/smoke"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
 NODE_ADDON_API_CACHE="${NODE_ADDON_API_CACHE:-$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/.cxx/default/default/debug/arm64-v8a/_deps/node_addon_api-src}"
+TARGET_SPEAKER_SEPARATOR_MODEL="${TARGET_SPEAKER_SEPARATOR_MODEL:-}"
 BUILD_WORKSPACE=""
 TEMP_HAP_COPY=""
 
@@ -38,6 +40,7 @@ Options:
   --device SERIAL   HDC target. Auto-detected when exactly one device is connected.
   --timeout SEC     Engine-ready timeout; default 30 seconds.
   --skip-build      Reuse the existing signed HAP.
+  --zh-en-only      Verify and build the current USB carrier without unrelated Yue-English assets.
   --signing-config  Local signing material JSON; defaults to .secure/harmony-signing.json.
   -h, --help        Show this help.
 EOF
@@ -48,6 +51,7 @@ while [[ $# -gt 0 ]]; do
     --device) DEVICE="$2"; shift 2 ;;
     --timeout) TIMEOUT_SECONDS="$2"; shift 2 ;;
     --skip-build) SKIP_BUILD=true; shift ;;
+    --zh-en-only) ZH_EN_ONLY=true; shift ;;
     --signing-config) SIGNING_CONFIG="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -190,6 +194,9 @@ prepare_build_workspace() {
   clone_tree "$REPO_ROOT/asr/harmony/sdk-police" "$temp_repo/asr/harmony/sdk-police"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-dingqiao" "$temp_repo/asr/harmony/sdk-dingqiao"
   clone_tree \
+    "$REPO_ROOT/tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include" \
+    "$temp_repo/tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include"
+  clone_tree \
     "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx" \
     "$temp_repo/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx"
   clone_tree \
@@ -198,6 +205,16 @@ prepare_build_workspace() {
   find "$temp_repo/asr/harmony" \
     "$temp_repo/third_party/sherpa-onnx" \
     -type d \( -name build -o -name .cxx -o -name .hvigor \) -prune -exec rm -rf {} +
+  if [[ -n "$TARGET_SPEAKER_SEPARATOR_MODEL" ]]; then
+    [[ -s "$TARGET_SPEAKER_SEPARATOR_MODEL" ]] || {
+      echo "[ERROR] target-speaker separator model is unreadable: $TARGET_SPEAKER_SEPARATOR_MODEL" >&2
+      exit 1
+    }
+    local separator_destination="$temp_repo/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx"
+    mkdir -p "$(dirname "$separator_destination")"
+    cp "$TARGET_SPEAKER_SEPARATOR_MODEL" "$separator_destination"
+    echo "[INFO] injected target-speaker separator into the isolated test build"
+  fi
   if [[ -d "$NODE_ADDON_API_CACHE/.git" ]] && \
       [[ "$(git -C "$NODE_ADDON_API_CACHE" rev-parse HEAD 2>/dev/null)" == "c679f6f4c9dc6bf9fc0d99cbe5982bd24a5e2c7b" ]]; then
     "$LICENSE_PYTHON" - \
@@ -331,7 +348,8 @@ PY
 }
 
 ensure_demo_license
-"$SCRIPT_DIR/verify_demo_inputs.sh" --zh-en-only
+VERIFY_SCOPE_ARGS=(--zh-en-only)
+"$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_SCOPE_ARGS[@]}"
 
 if [[ -z "$SIGNING_CONFIG" && -f "$REPO_ROOT/.secure/harmony-signing.json" ]]; then
   SIGNING_CONFIG="$REPO_ROOT/.secure/harmony-signing.json"
@@ -379,7 +397,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
   fi
   resolve_built_hap
   "$SCRIPT_DIR/verify_demo_inputs.sh" \
-    --zh-en-only \
+    "${VERIFY_SCOPE_ARGS[@]}" \
     --hap "$BUILD_HAP" \
     --signing-config "$SIGNING_CONFIG"
   publish_har \
@@ -399,11 +417,16 @@ if [[ "$SKIP_BUILD" != true ]]; then
   cp "$BUILD_HAP" "$TEMP_HAP_COPY"
   mv -f "$TEMP_HAP_COPY" "$HAP"
   TEMP_HAP_COPY=""
-  python3 "$SCRIPT_DIR/harmony_build_identity.py" --write "$BUILD_IDENTITY"
+  IDENTITY_ARGS=(--write "$BUILD_IDENTITY")
+  if [[ "$ZH_EN_ONLY" == true ]]; then
+    IDENTITY_ARGS+=(--zh-en-only)
+  fi
+  python3 "$SCRIPT_DIR/harmony_build_identity.py" "${IDENTITY_ARGS[@]}"
   echo "[OK] HAP build succeeded"
 fi
 
-VERIFY_ARGS=(--zh-en-only --hap "$HAP")
+VERIFY_ARGS=(--hap "$HAP")
+VERIFY_ARGS+=("${VERIFY_SCOPE_ARGS[@]}")
 if [[ -n "$SIGNING_CONFIG" ]]; then
   VERIFY_ARGS+=(--signing-config "$SIGNING_CONFIG")
 fi

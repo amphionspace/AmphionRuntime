@@ -119,6 +119,26 @@ class EffectiveSpeechBufferTest {
         assertEquals(minimum + sampleRate, longStrict.samples.size)
     }
 
+    @Test
+    fun scoreSelectionDiagnosticExplainsMissingScoreWithoutTextOrIdentity() {
+        val selection = SpeakerScoreSelection(FloatArray(0), SpeakerScoreSource.INSUFFICIENT)
+
+        val diagnostic = speakerScoreSelectionDiagnostic(
+            selection,
+            strictSampleCount = sampleRate,
+            utteranceSampleCount = sampleRate + sampleRate / 4,
+            minimumSampleCount = sampleRate + sampleRate / 2,
+            sampleRate = sampleRate,
+            asrSpeechConfirmed = false,
+        )
+
+        assertEquals(
+            "voiceprint score selection: source=insufficient effectiveSpeechMs=1000 " +
+                "utterancePcmMs=1250 minimumMs=1500 asrEvidence=false",
+            diagnostic,
+        )
+    }
+
     private fun constantEnvelope(size: Int, level: Float): FloatArray =
         FloatArray(size) { index -> if (index % 16 < 8) level else -level }
 

@@ -79,6 +79,9 @@ bundle 信息写入 artifact；它不能证明已安装 HAP 与当前源码一�
 | `start-write` | `onStart` 调用栈内交替同步写入 32/88 个真实 PCM 缓存帧，并交替继续识别或立即 `finish`；验证成功回调前 session 已可用，且不返回 `NOT_LISTENING` / `FINISH_FAILED` |
 | `start-write-reload` | 每轮执行 `shutdown -> unloadModel -> createEngine` 后复用 `start-write` 四种组合，等价覆盖业务空闲定时卸载后的再次冷加载 |
 | `speaker-vad-onstart` | `StartParams` 只预置 `voiceprintIds`，两个声纹开关保持关闭；在 `onStart` 调用栈内同步启用 Speaker VAD，覆盖 burst/paced 与直接起音/800 ms 前置静音四种组合；足够长的同源有效语音必须至少产生一个带 `speakerSimilarity` 的非空 final，并在正常结束后立即启动恢复 session |
+| `target-speaker-enhancement` | 使用第一个 WAV 注册声纹，其余 WAV 按 20 ms 节奏逐轮进行目标说话人增强；完整写入后要求逐条文本含“上海”且不含“你好”，每个 session 恰好一次 last/complete，所有 final 均带增强标记，并检查块耗时和最大排队数 |
+| `target-speaker-enhancement-onstart` | 增强开启时在 `onStart` 调用栈内同步写入 100 个真实 PCM 帧，分别继续识别、立即 finish、立即 cancel，验证 session 在回调前已经可用 |
+| `target-speaker-enhancement-cancel` | 写入 2 秒并启动后台增强后立即 cancel，随后零等待启动同配置恢复 session；验证取消会话无 final/complete、迟到任务不串入新 session，恢复会话正常结束 |
 | `callback-api-reentrant` | 分别在同一 session 的 `SPEECH_BEGIN`、`SPEECH_END`、非 last `onResult` 回调内同步结束；其中 `SPEECH_END` 精确模拟客户只调用 `finish()` 的场景，其余入口执行 `writeAudio -> finish`，验证非空 terminal final、complete 不重复且 sessionId 归属不丢失 |
 | `endpoint-reentrant` | 交替在旧 session 的 `SPEECH_END` 与 last `onResult` 回调内同步执行 `cancel(old) -> startListening(new)`；按 sessionId 对 start/partial/event/final/complete/error 的完整有序轨迹做切换前后快照，验证旧回调不污染新 session，且新 session 首帧前只有 start |
 | `user-sequence` | cancel 后零等待复用、finish 后立即重启、旧 session 迟到 write/finish/cancel 干扰当前 session；按 sessionId 校验回调归属和顺序 |

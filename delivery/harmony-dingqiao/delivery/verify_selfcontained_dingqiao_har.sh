@@ -7,12 +7,25 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 SOURCE_PROJECT="$REPO_ROOT/delivery/harmony-dingqiao"
 ZH_EN_ONLY=false
-if [[ "${1:-}" == "--zh-en-only" ]]; then
-  ZH_EN_ONLY=true
-  shift
-fi
-HAR="${1:?Usage: verify_selfcontained_dingqiao_har.sh [--zh-en-only] HAR}"
+APPROVED_TARGET_SPEAKER_MODEL_SHA256=""
+while [[ $# -gt 1 ]]; do
+  case "$1" in
+    --zh-en-only) ZH_EN_ONLY=true; shift ;;
+    --approved-target-speaker-model-sha256)
+      [[ $# -ge 3 ]] || { echo "[ERROR] missing approved model SHA-256" >&2; exit 2; }
+      APPROVED_TARGET_SPEAKER_MODEL_SHA256="$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')"
+      shift 2
+      ;;
+    *) echo "[ERROR] unexpected argument: $1" >&2; exit 2 ;;
+  esac
+done
+HAR="${1:?Usage: verify_selfcontained_dingqiao_har.sh [--zh-en-only] [--approved-target-speaker-model-sha256 HASH] HAR}"
 [[ $# -eq 1 ]] || { echo "[ERROR] unexpected arguments" >&2; exit 2; }
+if [[ -n "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" &&
+  ! "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "[ERROR] approved target-speaker model SHA-256 must be 64 hexadecimal characters" >&2
+  exit 2
+fi
 DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
 NODE="$DEVECO_HOME/tools/node/bin/node"
 HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
@@ -52,6 +65,7 @@ python3 - \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
   "$REPO_ROOT/asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police" \
   "$ZH_EN_ONLY" \
+  "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" \
   "$SCRIPT_DIR" <<'PY'
 import sys
 import tarfile
@@ -65,6 +79,7 @@ import tempfile
 har = Path(sys.argv[1])
 local_police_root = Path(sys.argv[6])
 zh_en_only = sys.argv[7] == "true"
+approved_target_speaker_model_sha256 = sys.argv[8]
 expected = {
     "package/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx": Path(sys.argv[3]),
     "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[4]),
@@ -117,7 +132,7 @@ with tarfile.open(har, "r:gz") as package:
         )
         expected_police_root.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(local_police_root, expected_police_root)
-        sanitizer_path = Path(sys.argv[8]) / "sanitize_public_har_payload.py"
+        sanitizer_path = Path(sys.argv[9]) / "sanitize_public_har_payload.py"
         spec = importlib.util.spec_from_file_location("sanitize_public_har_payload", sanitizer_path)
         if spec is None or spec.loader is None:
             raise SystemExit("[ERROR] cannot load public HAR sanitizer")
@@ -152,7 +167,18 @@ with tarfile.open(har, "r:gz") as package:
         shutil.rmtree(temp_root)
     if zh_en_only and any("yue-en" in member.name.lower() for member in package.getmembers()):
         raise SystemExit("[ERROR] zh-en-only HAR still contains Yue model content")
-print("[OK] self-contained HAR police assets, ASR/voiceprint models, and native libraries match local artifacts")
+    separator_name = "package/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx"
+    separator = package.extractfile(separator_name) if separator_name in package.getnames() else None
+    if not approved_target_speaker_model_sha256:
+        if separator is not None:
+            raise SystemExit("[ERROR] unapproved target-speaker model is present in commercial HAR")
+    else:
+        if separator is None:
+            raise SystemExit("[ERROR] approved target-speaker model is missing from commercial HAR")
+        actual = hashlib.sha256(separator.read()).hexdigest()
+        if actual != approved_target_speaker_model_sha256:
+            raise SystemExit("[ERROR] commercial HAR target-speaker model digest is not approved")
+print("[OK] self-contained HAR police assets, ASR/voiceprint models, native libraries, and target-speaker model policy match local artifacts")
 PY
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/amphion-har-customer.XXXXXX")"
@@ -254,7 +280,7 @@ rm -f \
   "$ENTRY/src/main/ets/util/ModelLoadBench.ets" \
   "$ENTRY/src/main/ets/util/SdkSelfTest.ets"
 
-if ! (cd "$ENTRY" && "$OHPM" install --no-link --log_level warn) >"$WORK/ohpm.log" 2>&1; then
+if ! (cd "$ENTRY" && "$OHPM" install --no-link) >"$WORK/ohpm.log" 2>&1; then
   tail -100 "$WORK/ohpm.log" >&2
   echo "[ERROR] customer host could not install the self-contained HAR" >&2
   exit 1
