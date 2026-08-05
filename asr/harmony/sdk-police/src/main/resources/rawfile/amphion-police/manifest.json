@@ -1,6 +1,6 @@
 {
   "files": {
-    "hotwords.json": "e8c56055a268acb02a608f61d4b0de00d1c36f76c043ae080384e885d941c868",
+    "hotwords.json": "c42b8715cb3bd37ff4d7e8f5435d5107633d5fd66b35e57dfca700a3a3c9906a",
     "plate/plate_homophone.fst": "ca66df413305d970bf742d0cf15c980933b2acbf37b8224e1aa501e85894217a",
     "plate/plate_homophone_meta.json": "30dc5fe5d989fa0bff336f576efc3d166fd525604b541cf4b31e968ceadfa3ca",
     "plate/plate_homophones.csv": "6e2d509db8a3bd1b595168befd0963787d4f5ebec102a24656b19e74c7684603",
@@ -14,15 +14,15 @@
     "police_station/station_homophones.csv": "936b285546695af9e4b2725458c737bcee970d30c28cf388d217078394f78008",
     "police_station/station_polish.fst": "5a6518395173e262697f8005dd7234b692d75d7b52e8d8c0603aae381a8b5256",
     "police_station/station_polish_meta.json": "8af1cff73623650f6e368c7cc91a4e87e89c377afe665c5470b2305404adb10d",
-    "police_terms/term_gazetteer.txt": "0f3bf007d01b5d7e4f369433878d94792b7f10a49fc1986c9c88a84b93e10db6",
-    "police_terms/term_homophones.csv": "f241cc36aff09fe221f641b0837aae8c5d7f16881406324a362674b3c28ca2cd",
+    "police_terms/term_gazetteer.txt": "edbfc58be9c207c724d3594e458060fbe6ebb849aa69fcee5a0366a8154c63e6",
+    "police_terms/term_homophones.csv": "0971862ea9a1320fabafd30f069c5d9bf56a862d51b717c6e9ae423e5b1e2773",
     "police_terms/terms_global.fst": "9ca73a0417713e7940a82d32a77eab161d1b8f05e5aefaa04281365af686c81b",
     "police_terms/terms_global_meta.json": "abc6c4566e451fd6152e9b00c0ed14c412d73033c9a320a5fd00035f7cba21f4"
   },
   "hotword_counts": {
     "plate": 6,
     "station": 10,
-    "terms": 313
+    "terms": 326
   },
   "schema_version": 1,
   "source": "asr/android/sdk-police/src/main"
