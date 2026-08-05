@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import statistics
 import subprocess
@@ -91,6 +92,9 @@ def parse_args() -> argparse.Namespace:
             "start-write",
             "start-write-reload",
             "speaker-vad-onstart",
+            "target-speaker-enhancement",
+            "target-speaker-enhancement-onstart",
+            "target-speaker-enhancement-cancel",
             "callback-api-reentrant",
             "endpoint-reentrant",
             "user-sequence",
@@ -473,8 +477,44 @@ def write_samples(path: Path, samples: Iterable[MemorySample]) -> None:
             writer.writerow(asdict(sample))
 
 
+def target_speaker_realtime_verdict(hilog_path: Path, required: bool) -> dict[str, object]:
+    pattern = re.compile(
+        r"TARGET_SPEAKER_ENHANCEMENT\|processingMs=(\d+)\|queued=(\d+)\|maxQueued=(\d+)"
+    )
+    records = [
+        tuple(int(value) for value in match.groups())
+        for match in pattern.finditer(hilog_path.read_text(encoding="utf-8", errors="replace"))
+    ]
+    if not records:
+        return {
+            "status": "FAIL" if required else "NOT_APPLICABLE",
+            "reason": "no target-speaker processing metrics observed" if required else "mode disabled",
+            "chunk_count": 0,
+        }
+    processing = sorted(record[0] for record in records)
+    p95_index = min(len(processing) - 1, math.ceil(len(processing) * 0.95) - 1)
+    maximum_processing_ms = max(processing)
+    maximum_queued_chunks = max(record[2] for record in records)
+    # After the first 2 s window, a new chunk arrives every 1.5 s. A final short chunk may briefly
+    # coexist with the last full chunk, so a depth of two is bounded and does not indicate drift.
+    status = "PASS" if maximum_processing_ms < 1500 and maximum_queued_chunks <= 2 else "FAIL"
+    return {
+        "status": status,
+        "chunk_count": len(records),
+        "maximum_processing_ms": maximum_processing_ms,
+        "p95_processing_ms": processing[p95_index],
+        "maximum_queued_chunks": maximum_queued_chunks,
+        "steady_state_chunk_interval_ms": 1500,
+    }
+
+
 def build_install(device: str) -> None:
-    command = [str(SCRIPT_DIR / "build_install_smoke.sh"), "--device", device]
+    command = [
+        str(SCRIPT_DIR / "build_install_smoke.sh"),
+        "--device",
+        device,
+        "--zh-en-only",
+    ]
     result = run(command, check=False, capture=False)
     if result.returncode != 0:
         raise StressFailure("Harmony demo build/install smoke test failed")
@@ -513,6 +553,16 @@ def run_stress(args: argparse.Namespace) -> Path:
     elif args.mode == "voiceprint-vad-begin-idle":
         selected.sort(key=initial_signal_level, reverse=True)
         selected = selected[:1]
+    elif args.mode in (
+        "target-speaker-enhancement",
+        "target-speaker-enhancement-onstart",
+        "target-speaker-enhancement-cancel",
+    ):
+        selected = sorted(selected, key=lambda source: str(source.path))
+        if len(selected) < 2:
+            raise StressFailure(
+                "target-speaker-enhancement requires an enrollment WAV followed by at least one test WAV"
+            )
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     entropy = hashlib.sha256(f"{time.time_ns()}-{args.mode}".encode()).hexdigest()[:8]
@@ -609,6 +659,10 @@ def run_stress(args: argparse.Namespace) -> Path:
     write_samples(artifact_dir / "memory.csv", samples)
     app_summary, cycle_results = parsed
     memory = memory_verdict(samples, args.max_rss_growth_mb, args.max_thread_growth)
+    realtime_required = args.mode == "target-speaker-enhancement" and args.pace_ms >= 20
+    target_speaker_realtime = target_speaker_realtime_verdict(
+        artifact_dir / "hilog.txt", realtime_required
+    )
     completed = int(app_summary.get("completed", "0"))
     empty_finals = int(app_summary.get("emptyFinals", "0"))
     empty_rate = empty_finals / completed if completed else 1.0
@@ -638,6 +692,9 @@ def run_stress(args: argparse.Namespace) -> Path:
     if empty_status == "FAIL":
         overall = "FAIL"
         failures.append("empty-final rate exceeded threshold")
+    if target_speaker_realtime.get("status") == "FAIL":
+        overall = "FAIL"
+        failures.append("target-speaker processing did not keep up with real-time input")
 
     report = {
         "run_id": run_id,
@@ -667,6 +724,7 @@ def run_stress(args: argparse.Namespace) -> Path:
             "nonzero_cycles": nonzero_live_stream_cycles,
             "max_live_streams": max(live_stream_counts, default=0),
         },
+        "target_speaker_realtime": target_speaker_realtime,
         "memory": memory,
         "cycles": cycle_results,
     }

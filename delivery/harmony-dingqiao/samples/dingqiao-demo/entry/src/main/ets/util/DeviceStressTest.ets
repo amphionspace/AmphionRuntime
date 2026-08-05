@@ -75,7 +75,9 @@ class SessionEvents {
   nonEmptySpeakerScores: number = 0;
   missingSpeakerScores: number = 0;
   firstNonEmptyFinalHasScore?: boolean;
+  targetSpeakerEnhancementResults: number = 0;
   errorCodes: number[] = [];
+  errorMessages: string[] = [];
   callbackTrace: string[] = [];
   unexpectedSessionCallbacks: number = 0;
 }
@@ -129,6 +131,9 @@ class StressListener implements RecognitionListener {
       this.record(sessionId, 'partial');
       return;
     }
+    if (result.targetSpeakerEnhancementApplied === true) {
+      this.events.targetSpeakerEnhancementResults += 1;
+    }
     this.events.finals += 1;
     this.events.finalChars += result.result.length;
     this.events.finalTexts.push(result.result);
@@ -151,9 +156,10 @@ class StressListener implements RecognitionListener {
     this.record(sessionId, 'complete');
   }
 
-  onError(sessionId: string, errorCode: number, _message: string): void {
+  onError(sessionId: string, errorCode: number, message: string): void {
     this.events.errors += 1;
     this.events.errorCodes.push(errorCode);
+    this.events.errorMessages.push(safeDetail(message));
     this.record(sessionId, 'error', `-${errorCode}`);
   }
 }
@@ -635,6 +641,37 @@ class StartWriteListener implements RecognitionListener {
   }
 }
 
+class TargetSpeakerEnhancementOnStartListener extends StressListener {
+  private engine: SpeechRecognitionEngine;
+  private bufferedFrames: ArrayBuffer[];
+  private action: string;
+  framesWrittenInStart: number = 0;
+  actionCalledInStart: boolean = false;
+
+  constructor(events: SessionEvents, expectedSessionId: string, engine: SpeechRecognitionEngine,
+    bufferedFrames: ArrayBuffer[], action: string) {
+    super(events, expectedSessionId);
+    this.engine = engine;
+    this.bufferedFrames = bufferedFrames;
+    this.action = action;
+  }
+
+  onStart(sessionId: string, eventMessage?: string): void {
+    super.onStart(sessionId, eventMessage);
+    for (let i = 0; i < this.bufferedFrames.length; i++) {
+      this.engine.writeAudio(sessionId, this.bufferedFrames[i]);
+      this.framesWrittenInStart += 1;
+    }
+    if (this.action === 'finish') {
+      this.actionCalledInStart = true;
+      this.engine.finish(sessionId);
+    } else if (this.action === 'cancel') {
+      this.actionCalledInStart = true;
+      this.engine.cancel(sessionId);
+    }
+  }
+}
+
 class LicenseCb implements LicenseActivationCallback {
   private resolve: (result: LicenseActivationResult) => void;
 
@@ -1059,7 +1096,9 @@ async function runRecognitionCycle(engine: SpeechRecognitionEngine, entry: Corpu
   if (options.mode === 'paced') params.extraParams['enablePartialResult'] = true;
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
-    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+    const startDetail = events.errorMessages.length > 0 ?
+      `start-${events.errorMessages[0]}` : 'start-timeout';
+    return finishCycle(index, entry.id, events, startedAt, false, startDetail);
   }
 
   if (options.mode === 'cancel' || options.mode === 'cancel-full') {
@@ -1134,7 +1173,9 @@ async function runVoiceprintCycle(engine: SpeechRecognitionEngine, entry: Corpus
   params.extraParams['voiceprintIds'] = [voiceprintId];
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
-    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+    const startDetail = events.errorMessages.length > 0 ?
+      `start-${events.errorMessages[0]}` : 'start-timeout';
+    return finishCycle(index, entry.id, events, startedAt, false, startDetail);
   }
   let fed = 0;
   if (scenario === 'short') {
@@ -1181,6 +1222,145 @@ async function runVoiceprintCycle(engine: SpeechRecognitionEngine, entry: Corpus
     detail = 'is-last-before-finish';
   }
   return finishCycle(index, entry.id, events, startedAt, ok, detail);
+}
+
+async function runTargetSpeakerEnhancementCycle(engine: SpeechRecognitionEngine,
+  entry: CorpusEntry, index: number, voiceprintId: string,
+  options: DeviceStressOptions): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const sessionId = `target-speaker-enhancement-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
+  const params = startParams(sessionId, 'target-speaker-enhancement', index);
+  params.extraParams['enableSpeakerVad'] = true;
+  params.extraParams['enableTargetSpeakerEnhancement'] = true;
+  params.extraParams['voiceprintIds'] = [voiceprintId];
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    const startDetail = events.errorMessages.length > 0 ?
+      `start-${events.errorMessages[0]}` : 'start-timeout';
+    return finishCycle(index, entry.id, events, startedAt, false, startDetail);
+  }
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, options.paceMs);
+  if (fed === 0) {
+    engine.cancel(sessionId);
+    return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+  }
+  const lastFinalsBeforeFinish = events.lastFinals;
+  engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const text = events.finalTexts.join('');
+  const businessTextPassed = text.includes('上海') && !text.includes('你好');
+  const ok = completed && events.starts === 1 && events.finals > 0 &&
+    events.lastFinals === 1 && lastFinalsBeforeFinish === 0 && events.completes === 1 &&
+    events.errors === 0 && events.targetSpeakerEnhancementResults === events.finals && businessTextPassed &&
+    !engine.isBusy();
+  let detail = ok ?
+    `target-speaker-enhancement-applied-${events.targetSpeakerEnhancementResults}` :
+    'target-speaker-enhancement-contract';
+  if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
+  else if (events.targetSpeakerEnhancementResults !== events.finals) detail = 'enhancement-marker-missing';
+  else if (!businessTextPassed) detail = 'target-text-contract';
+  return finishCycle(index, entry.id, events, startedAt, ok, detail);
+}
+
+function enableTargetSpeakerEnhancement(params: StartParams, voiceprintId: string): void {
+  params.extraParams['enableSpeakerVad'] = true;
+  params.extraParams['enableTargetSpeakerEnhancement'] = true;
+  params.extraParams['voiceprintIds'] = [voiceprintId];
+}
+
+async function runTargetSpeakerEnhancementOnStartCycle(engine: SpeechRecognitionEngine,
+  entry: CorpusEntry, index: number, voiceprintId: string): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const actions: string[] = ['continue', 'finish', 'cancel'];
+  const action = actions[index % actions.length];
+  const bufferedFrameCount = 100;
+  const bufferedFrames = readPcmFrames(entry.path, bufferedFrameCount);
+  if (bufferedFrames.length !== bufferedFrameCount) {
+    return finishCycle(index, entry.id, events, startedAt, false,
+      `buffer-source-too-short-${bufferedFrames.length}-${bufferedFrameCount}`);
+  }
+  const sessionId = `target-speaker-enhancement-onstart-${action}-${index}`;
+  const listener = new TargetSpeakerEnhancementOnStartListener(
+    events, sessionId, engine, bufferedFrames, action
+  );
+  engine.setListener(listener);
+  const params = startParams(sessionId, 'target-speaker-enhancement-onstart', index);
+  enableTargetSpeakerEnhancement(params, voiceprintId);
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+  if (action === 'continue') {
+    const fed = await feedPcmFile(engine, sessionId, entry.path, 80, 0);
+    if (fed === 0) {
+      engine.cancel(sessionId);
+      return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+    }
+    engine.finish(sessionId);
+  }
+  if (action === 'cancel') await sleep(500);
+  else await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+
+  const actionContract = action === 'continue' ? !listener.actionCalledInStart :
+    listener.actionCalledInStart;
+  const lifecycleContract = action === 'cancel' ?
+    events.finals === 0 && events.completes === 0 :
+    events.lastFinals === 1 && events.completes === 1 &&
+      events.targetSpeakerEnhancementResults === events.finals;
+  const ok = listener.framesWrittenInStart === bufferedFrameCount && actionContract &&
+    events.starts === 1 && events.errors === 0 && lifecycleContract && !engine.isBusy();
+  return finishCycle(index, entry.id, events, startedAt, ok,
+    ok ? `target-speaker-enhancement-onstart-${action}` :
+      `target-speaker-enhancement-onstart-${action}-contract`);
+}
+
+async function runTargetSpeakerEnhancementCancelCycle(engine: SpeechRecognitionEngine,
+  entry: CorpusEntry, index: number, voiceprintId: string): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const canceledEvents = new SessionEvents();
+  const canceledSessionId = `target-speaker-enhancement-cancel-${index}`;
+  engine.setListener(new StressListener(canceledEvents, canceledSessionId));
+  const canceledParams = startParams(canceledSessionId, 'target-speaker-enhancement-cancel', index);
+  enableTargetSpeakerEnhancement(canceledParams, voiceprintId);
+  engine.startListening(canceledParams);
+  if (!await waitFor((): boolean => canceledEvents.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, canceledEvents, startedAt, false, 'cancel-start-timeout');
+  }
+  const canceledFed = await feedPcmFile(engine, canceledSessionId, entry.path, 100, 0);
+  engine.cancel(canceledSessionId);
+  const canceledStableAtReturn = canceledEvents.finals === 0 && canceledEvents.completes === 0 &&
+    canceledEvents.errors === 0 && !engine.isBusy();
+
+  const recoveryEvents = new SessionEvents();
+  const recoverySessionId = `target-speaker-enhancement-recovery-${index}`;
+  engine.setListener(new StressListener(recoveryEvents, recoverySessionId));
+  const recoveryParams = startParams(recoverySessionId, 'target-speaker-enhancement-cancel', index);
+  enableTargetSpeakerEnhancement(recoveryParams, voiceprintId);
+  engine.startListening(recoveryParams);
+  if (!await waitFor((): boolean => recoveryEvents.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, recoveryEvents, startedAt, false, 'recovery-start-timeout');
+  }
+  const recoveryFed = await feedPcmFile(engine, recoverySessionId, entry.path, 0, 0);
+  const lastFinalsBeforeFinish = recoveryEvents.lastFinals;
+  engine.finish(recoverySessionId);
+  const recovered = await waitFor((): boolean => recoveryEvents.completes === 1, COMPLETE_TIMEOUT_MS);
+  await sleep(500);
+  const recoveryText = recoveryEvents.finalTexts.join('');
+  const ok = canceledFed === 100 && canceledStableAtReturn && recoveryFed > 0 && recovered &&
+    recoveryEvents.starts === 1 && recoveryEvents.lastFinals === 1 && lastFinalsBeforeFinish === 0 &&
+    recoveryEvents.completes === 1 && recoveryEvents.errors === 0 &&
+    recoveryEvents.unexpectedSessionCallbacks === 0 &&
+    recoveryEvents.targetSpeakerEnhancementResults === recoveryEvents.finals &&
+    recoveryText.includes('上海') &&
+    !recoveryText.includes('你好') && !engine.isBusy();
+  let detail = ok ? 'target-speaker-enhancement-cancel-recovered' :
+    'target-speaker-enhancement-cancel-contract';
+  if (!canceledStableAtReturn) detail = 'callback-before-cancel-return';
+  else if (recoveryEvents.unexpectedSessionCallbacks > 0) detail = 'late-canceled-session-callback';
+  return finishCycle(index, entry.id, recoveryEvents, startedAt, ok, detail);
 }
 
 async function runVoiceprintVadBeginCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry, index: number,
@@ -1918,7 +2098,10 @@ export async function runDeviceStress(context: common.UIAbilityContext,
 
     if (options.mode === 'voiceprint' || options.mode === 'voiceprint-fallback' ||
       options.mode === 'voiceprint-vad-begin' ||
-      options.mode === 'voiceprint-vad-begin-idle' || options.mode === 'speaker-vad-onstart') {
+      options.mode === 'voiceprint-vad-begin-idle' || options.mode === 'speaker-vad-onstart' ||
+      options.mode === 'target-speaker-enhancement' ||
+      options.mode === 'target-speaker-enhancement-onstart' ||
+      options.mode === 'target-speaker-enhancement-cancel') {
       if ((options.mode === 'voiceprint' || options.mode === 'voiceprint-fallback') &&
         entries.length < 2) {
         throw new Error('voiceprint-stress-requires-two-corpus-sources');
@@ -1937,6 +2120,10 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entry = entries[1];
       } else if (options.mode === 'voiceprint-fallback') {
         entry = entries[1];
+      } else if (options.mode === 'target-speaker-enhancement' ||
+        options.mode === 'target-speaker-enhancement-onstart' ||
+        options.mode === 'target-speaker-enhancement-cancel') {
+        entry = entries[1 + (i % (entries.length - 1))];
       }
       if (recreateEachCycle) engine = createEngine();
       if (engine === undefined) throw new Error('engine-create-failed');
@@ -1972,6 +2159,12 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runVoiceprintVadBeginCycle(engine, entry, i, stressVoiceprintId);
       } else if (options.mode === 'voiceprint-vad-begin-idle') {
         result = await runVoiceprintVadBeginIdleCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'target-speaker-enhancement') {
+        result = await runTargetSpeakerEnhancementCycle(engine, entry, i, stressVoiceprintId, options);
+      } else if (options.mode === 'target-speaker-enhancement-onstart') {
+        result = await runTargetSpeakerEnhancementOnStartCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'target-speaker-enhancement-cancel') {
+        result = await runTargetSpeakerEnhancementCancelCycle(engine, entry, i, stressVoiceprintId);
       } else {
         result = await runRecognitionCycle(engine, entry, i, options);
       }
