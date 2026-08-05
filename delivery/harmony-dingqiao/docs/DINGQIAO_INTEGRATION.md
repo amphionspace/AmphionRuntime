@@ -89,6 +89,9 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 `StartParams.extraParams['maxAudioDuration']` 缺省时不启用自动上限。只有显式传入正有限数字或
 可解析为正有限数字的非空字符串才启用，按调用值生效且上限为 28800000 ms；非正数或非法值
 按未启用处理。
+`StartParams.extraParams['enablePoliceEnhancement']` 为会话级布尔参数，默认 `true`。显式传
+`false` 时该会话的 final 返回原始 ASR 文本，不执行警务术语、车牌和派出所归一化；该参数
+不触发引擎重建，也不改变 partial、`isFinal`、`isLast` 或 `onComplete` 时序。
 每个底层回调绑定其创建时的 session，业务在回调内取消旧 session 并立即启动新 session 时，
 旧 session 的迟到结果不会改用新 sessionId 发送。
 

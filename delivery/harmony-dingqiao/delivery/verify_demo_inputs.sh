@@ -14,6 +14,7 @@ HAP=""
 BUNDLE_NAME="com.amphion.asr.harmony.demo"
 MODULE_NAME="amphion_asr_demo"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
+ZH_EN_ONLY=false
 DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
 HAP_SIGN_TOOL_JAR="${HAP_SIGN_TOOL_JAR:-$DEVECO_HOME/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar}"
 JAVA_BIN="${JAVA_HOME:+$JAVA_HOME/bin/java}"
@@ -32,7 +33,7 @@ Options:
   --device-id-file PATH  Authorized device identifiers, one per line.
   --private-key PATH     Optional private key; verifies it matches the embedded public key.
   --signing-config PATH  Expected signing config; required with --hap, defaults to .secure.
-  --zh-en-only            Verify a ZH_EN-only model payload.
+  --zh-en-only           Verify the demo's ZH_EN-only model payload.
   -h, --help             Show this help.
 EOF
 }
@@ -172,11 +173,11 @@ if [[ -n "$HAP" ]]; then
     exit 1
   fi
 
-  ARCHIVE_VERIFY_ARGS=(--archive "$HAP")
+  HAP_MODEL_VERIFY_ARGS=(--archive "$HAP")
   if [[ "$ZH_EN_ONLY" == true ]]; then
-    ARCHIVE_VERIFY_ARGS+=(--zh-en-only)
+    HAP_MODEL_VERIFY_ARGS+=(--zh-en-only)
   fi
-  "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${ARCHIVE_VERIFY_ARGS[@]}"
+  "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${HAP_MODEL_VERIFY_ARGS[@]}"
   "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --archive "$HAP"
   "$PYTHON" - \
     "$HAP" \

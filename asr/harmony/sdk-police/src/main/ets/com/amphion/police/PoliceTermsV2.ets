@@ -187,6 +187,134 @@ class QzxVariant {
   }
 }
 
+// 二至三字警务短词缺少足够上下文，不能进入全局模糊层。这里只纠正整句命中，
+// 或紧邻明确警务业务锚点的已知误识串；规则与 Android PoliceTermsShortGuard 对齐。
+class PoliceShortTermGuard {
+  private static readonly SENTENCE_END: Set<string> = new Set<string>([
+    '。', '！', '？', '!', '?', '，', ',', '、', '；', ';', '：', ':'
+  ]);
+
+  private static readonly JUCHUAN_VARIANTS: string[] = ['喻传', '居传', '拒传'];
+  private static readonly JUCHUAN_BEFORE: string[] = [
+    '办理', '依法', '进行', '执行', '实施', '采取', '决定', '批准', '审批', '申请', '可以'
+  ];
+  private static readonly JUCHUAN_AFTER: string[] = [
+    '到案', '审批', '手续', '措施', '决定', '对象', '期间', '期限', '程序', '执行'
+  ];
+
+  private static readonly JIECHUJING_VARIANTS: string[] = [
+    '接触景', '接触警', '接触井', '接触颈', '接出警', '街处警'
+  ];
+  private static readonly JIECHUJING_BEFORE: string[] = ['移动', '指信'];
+  private static readonly JIECHUJING_AFTER: string[] = [
+    '流程', '记录', '规范', '工作', '机制', '系统', '平台', '业务', '要求', '要及时', '已上传'
+  ];
+
+  // 图片中「指信接处警」整词被听成「女性接触颈」；只在整句命中时纠正。
+  private static readonly ZHIXIN_JIECHUJING_VARIANTS: string[] = [
+    '女性接触颈', '女性接触景', '女性接触警', '女性接触井'
+  ];
+
+  static apply(text: string): string {
+    if (text.length === 0) return text;
+
+    let whole = PoliceShortTermGuard.replaceWholeUtterance(
+      text, PoliceShortTermGuard.ZHIXIN_JIECHUJING_VARIANTS, '指信接处警');
+    if (whole !== undefined) return whole;
+    whole = PoliceShortTermGuard.replaceWholeUtterance(
+      text, PoliceShortTermGuard.JUCHUAN_VARIANTS, '拘传');
+    if (whole !== undefined) return whole;
+    whole = PoliceShortTermGuard.replaceWholeUtterance(
+      text, PoliceShortTermGuard.JIECHUJING_VARIANTS, '接处警');
+    if (whole !== undefined) return whole;
+
+    let output = PoliceShortTermGuard.replaceWithAnchors(
+      text,
+      PoliceShortTermGuard.JUCHUAN_VARIANTS,
+      '拘传',
+      PoliceShortTermGuard.JUCHUAN_BEFORE,
+      PoliceShortTermGuard.JUCHUAN_AFTER);
+    output = PoliceShortTermGuard.replaceWithAnchors(
+      output,
+      PoliceShortTermGuard.JIECHUJING_VARIANTS,
+      '接处警',
+      PoliceShortTermGuard.JIECHUJING_BEFORE,
+      PoliceShortTermGuard.JIECHUJING_AFTER);
+    return output;
+  }
+
+  private static replaceWholeUtterance(
+    text: string,
+    variants: string[],
+    target: string
+  ): string | undefined {
+    let start = 0;
+    while (start < text.length && PoliceShortTermGuard.isWhitespace(text.charAt(start))) start++;
+    if (start >= text.length) return undefined;
+
+    let end = text.length;
+    while (end > start) {
+      const value = text.charAt(end - 1);
+      if (!PoliceShortTermGuard.isWhitespace(value) &&
+        !PoliceShortTermGuard.SENTENCE_END.has(value)) break;
+      end--;
+    }
+    if (end <= start) return undefined;
+
+    const core = text.substring(start, end);
+    if (variants.indexOf(core) < 0) return undefined;
+    return text.substring(0, start) + target + text.substring(end);
+  }
+
+  private static replaceWithAnchors(
+    text: string,
+    variants: string[],
+    target: string,
+    beforeAnchors: string[],
+    afterAnchors: string[]
+  ): string {
+    let output = text;
+    for (let v = 0; v < variants.length; v++) {
+      const variant = variants[v];
+      let from = 0;
+      while (from < output.length) {
+        const index = output.indexOf(variant, from);
+        if (index < 0) break;
+        const end = index + variant.length;
+        const before = output.substring(0, index);
+        const after = output.substring(end);
+        const accepted = PoliceShortTermGuard.endsWithAny(before, beforeAnchors) ||
+          PoliceShortTermGuard.startsWithAny(after, afterAnchors);
+        if (accepted) {
+          output = output.substring(0, index) + target + output.substring(end);
+          from = index + target.length;
+        } else {
+          from = end;
+        }
+      }
+    }
+    return output;
+  }
+
+  private static endsWithAny(text: string, anchors: string[]): boolean {
+    for (let i = 0; i < anchors.length; i++) {
+      if (text.endsWith(anchors[i])) return true;
+    }
+    return false;
+  }
+
+  private static startsWithAny(text: string, anchors: string[]): boolean {
+    for (let i = 0; i < anchors.length; i++) {
+      if (text.startsWith(anchors[i])) return true;
+    }
+    return false;
+  }
+
+  private static isWhitespace(value: string): boolean {
+    return value.trim().length === 0;
+  }
+}
+
 // 「情指行」上下文护栏：App 语境（前有打开X/后近窗出现平台等）下把误识变体纠回，
 // 且未撞黑名单后继字（通用义）。与 Android PoliceTermsNormalizerV2.applyQingZhiXingGuard 对齐。
 class QingZhiXingGuard {
@@ -286,10 +414,12 @@ export class PoliceTermsV2 {
 
   normalize(text: string): string {
     if (text.length === 0) return text;
-    // 顺序对齐 Android：同音映射 → 情指行护栏 → 登录护栏(登陆→登录) → 保守模糊层 → 电台音标数字。
+    // 顺序对齐 Android：同音映射 → 短词护栏 → 情指行护栏 → 登录护栏 → 保守模糊层 → 电台音标数字。
+    const global = this.homophones.apply(text);
+    const shortGuarded = PoliceShortTermGuard.apply(global);
     const corrected = RadioDigits.normalize(
       this.fuzzyCorrect(
-        DengluGuard.apply(QingZhiXingGuard.apply(this.homophones.apply(text)))));
+        DengluGuard.apply(QingZhiXingGuard.apply(shortGuarded))));
     return this.polish(corrected);
   }
 
@@ -374,6 +504,7 @@ export class PoliceTermsV2 {
     for (let i = 0; i < this.terms.length; i++) {
       const term = this.terms[i];
       if (term.length < PoliceTermsV2.MIN_VAR_LEN) break;
+      // 与 Android 对齐：只允许 raw 少 1 字（补字），不允许 len+1 吞掉句首/术语前的普通字。
       const width = term.length - 1;
       if (width < 1 || start + width > text.length) continue;
       const cost = this.varCost(text, start, term, width);

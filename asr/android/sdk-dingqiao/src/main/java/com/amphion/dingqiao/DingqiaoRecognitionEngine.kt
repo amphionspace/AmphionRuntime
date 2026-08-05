@@ -20,8 +20,8 @@ import kotlin.concurrent.withLock
  * 鼎桥 [SpeechRecognitionEngine] 实现：
  * Amphion ASR + 可选声纹打分 + 警务三域后处理。
  *
- * 声纹策略（鼎桥交付约定）：始终回调增强文本与 [SpeechRecognitionResult.speakerSimilarity]，
- * 不在 SDK 内丢弃非目标说话人结果。
+ * 声纹策略（鼎桥交付约定）：按会话配置回调原始或增强文本，并携带
+ * [SpeechRecognitionResult.speakerSimilarity]；不在 SDK 内丢弃非目标说话人结果。
  */
 internal class DingqiaoRecognitionEngine(
     private val appContext: Context,
@@ -30,6 +30,8 @@ internal class DingqiaoRecognitionEngine(
     private val speakerModelPath: String?,
     private val callbackExecutor: ExecutorService,
     private val onShutdown: (SpeechRecognitionEngine) -> Unit,
+    private val preloadedEngine: AsrEngine? = null,
+    private val injectedTextEnhancer: ((String) -> String)? = null,
 ) : SpeechRecognitionEngine {
 
     /**
@@ -37,12 +39,16 @@ internal class DingqiaoRecognitionEngine(
      * 默认仍为 false（内部 sample 等不受影响）；如需回退到 V1，将下面三个 *V2Enabled 改回 false 即可。
      * normalize 默认全开、FST 默认关，与交付基线一致。
      */
-    private val enhancePipeline: PoliceEnhancePipeline = PoliceEnhancePipeline.create(
-        context = appContext,
-        plateV2Enabled = true,
-        stationV2Enabled = true,
-        termsV2Enabled = true,
-    )
+    private val enhancePipeline: PoliceEnhancePipeline? = if (injectedTextEnhancer == null) {
+        PoliceEnhancePipeline.create(
+            context = appContext,
+            plateV2Enabled = true,
+            stationV2Enabled = true,
+            termsV2Enabled = true,
+        )
+    } else {
+        null
+    }
     private val destroyed = AtomicBoolean(false)
     private val callbackEpoch = CallbackEpoch()
     private val lifecycleCallbackLock = ReentrantLock(true)
@@ -78,6 +84,7 @@ internal class DingqiaoRecognitionEngine(
     private var audioMsWritten = 0L
     private var maxAudioDurationMs = 0L
     private var enablePartial = true
+    private var policeEnhancementEnabled = true
     private var voiceprintEnabled = false
     private var speakerVadEnabled = false
     private var voiceprintIds: List<String> = emptyList()
@@ -127,6 +134,7 @@ internal class DingqiaoRecognitionEngine(
 
             maxAudioDurationMs = DingqiaoEngineConfig.maxAudioDurationMs(params)
             enablePartial = DingqiaoEngineConfig.enablePartialResult(params)
+            policeEnhancementEnabled = DingqiaoEngineConfig.enablePoliceEnhancement(params)
             voiceprintEnabled = DingqiaoEngineConfig.enableVoiceprintVerification(params)
             speakerVadEnabled = DingqiaoEngineConfig.enableSpeakerVad(params)
             voiceprintIds = DingqiaoEngineConfig.voiceprintIds(params)
@@ -309,7 +317,7 @@ internal class DingqiaoRecognitionEngine(
             }
             engine = null
             try {
-                enhancePipeline.close()
+                enhancePipeline?.close()
             } catch (_: Throwable) {
             }
         } finally {
@@ -323,6 +331,10 @@ internal class DingqiaoRecognitionEngine(
      * 逐会话生效（见 [startListening]），因此启动识别恒走快路径，不再触发 native 冷重建。
      */
     private fun buildEngine() {
+        preloadedEngine?.let {
+            engine = it
+            return
+        }
         val lang = DingqiaoEngineConfig.mapLanguage(createParams.language)
         val config = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath)
         engine = AmphionRuntime.create(appContext, lang, config)
@@ -433,9 +445,14 @@ internal class DingqiaoRecognitionEngine(
 
     private fun deliverFinal(epoch: Long, sessionId: String, result: AsrResult) {
         if (!ownsSession(epoch, sessionId) || completeSent) return
-        val enhanced = enhancePipeline.enhance(result.text)
+        val outputText = PoliceEnhancementPolicy.finalText(
+            rawText = result.text,
+            enabled = policeEnhancementEnabled,
+        ) { rawText ->
+            injectedTextEnhancer?.invoke(rawText) ?: enhancePipeline!!.enhance(rawText).text
+        }
         if (result.isLast) {
-            enqueueTerminalResult(epoch, sessionId, result, enhanced.text)
+            enqueueTerminalResult(epoch, sessionId, result, outputText)
         } else {
             dispatchResult(
                 epoch = epoch,
@@ -443,7 +460,7 @@ internal class DingqiaoRecognitionEngine(
                 asrResult = result,
                 isFinal = true,
                 isLast = false,
-                enhancedText = enhanced.text,
+                enhancedText = outputText,
                 speakerSimilarity = result.speakerScore,
             )
         }
@@ -592,6 +609,7 @@ internal class DingqiaoRecognitionEngine(
         listening = false
         activeSessionId = null
         finishRequested = false
+        policeEnhancementEnabled = true
         speechActive = false
         val idleEpoch = callbackEpoch.invalidate()
         activeEpoch = idleEpoch

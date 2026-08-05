@@ -25,6 +25,57 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_installed_package_mode_is_explicit_and_exclusive(self) -> None:
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--installed-package"]):
+            args = MODULE.parse_args()
+        self.assertTrue(args.installed_package)
+        self.assertFalse(args.skip_build_install)
+
+        with mock.patch.object(
+            sys,
+            "argv",
+            [str(SCRIPT), "--installed-package", "--skip-build-install"],
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+
+    def test_installed_bundle_identity_uses_device_metadata(self) -> None:
+        bundle = {
+            "applicationInfo": {
+                "bundleName": MODULE.BUNDLE,
+                "versionName": "0.2.8",
+                "versionCode": 208,
+                "fingerprint": "abc",
+            }
+        }
+        parsed = MODULE.parse_installed_bundle_info(
+            f"{MODULE.BUNDLE}:\n" + __import__("json").dumps(bundle)
+        )
+        self.assertEqual(bundle, parsed)
+
+    def test_cpu_statistics_reports_single_core_and_device_capacity(self) -> None:
+        first = MODULE.MemorySample(0.0, 7, 1, 1, 1, 0, 1, 100, 1000, 4)
+        second = MODULE.MemorySample(1.0, 7, 1, 1, 1, 0, 1, 120, 1200, 4)
+        third = MODULE.MemorySample(2.0, 7, 1, 1, 1, 0, 1, 140, 1400, 4)
+
+        result = MODULE.cpu_statistics([first, second, third])
+
+        self.assertEqual("MEASURED", result["status"])
+        self.assertEqual(40.0, result["mean_single_core_equivalent_percent"])
+        self.assertEqual(10.0, result["mean_device_capacity_percent"])
+
+    def test_proc_cpu_parsers_handle_process_name_and_logical_cpus(self) -> None:
+        fields = ["S"] + ["0"] * 10 + ["12", "8"] + ["0"] * 8
+        self.assertEqual(
+            20,
+            MODULE.parse_process_cpu_ticks("42 (demo process) " + " ".join(fields)),
+        )
+        self.assertEqual(
+            (210, 2),
+            MODULE.parse_system_cpu_ticks(
+                "cpu 100 20 30 40 10 10 0 0 50 25\ncpu0 1\ncpu1 1\n"
+            ),
+        )
+
     def test_voiceprint_fallback_is_a_dedicated_endpoint_score_gate(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
         cycle = source.split("async function runVoiceprintFallbackCycle", 1)[1].split(
