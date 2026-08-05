@@ -1,8 +1,8 @@
 # 选择 C1 尾音控制架构
 
 - 类型：`wayfinder:prototype`（HITL）
-- 状态：open / 参数候选已否决，缓冲候选待验证
-- 生产选择仍依赖：`冻结 target-only 产品契约与成功门`
+- 状态：closed / 参数与缓冲候选均未通过冻结门
+- 生产结论：当前无训练候选关闭；未来训练路线需重新冻结产品契约
 - 路线图：[机主识别下一阶段路线图](../VOICEPRINT_NEXT_STEP_MAP_20260804.md)
 
 ## Question
@@ -51,11 +51,11 @@ test 主矩阵结果：
 模型层的目标误拒/非目标误接收和调度层的分帧依赖；后续 absolute replay 已把两层分离。继续在同一
 test 上搜索阈值不能解决尾音提交问题，也会污染开放集结论。
 
-## 下一候选
+## 缓冲候选输入
 
 hop 调度修复和冻结重放均已完成，模型层 anchor 仍失败。纯 Speaker VAD 参数路线不再作为默认方案；
-下一候选固定为“缓冲提交 + 尾部回退/重解码”，并把 partial 一并置于确认门后。实现前必须冻结最多
-可接受提交延迟、回退 PCM 边界以及 finish/cancel/reentrant 时未提交缓冲的归属。
+后续候选曾固定为“缓冲提交 + 尾部回退/重解码”，并把 partial 一并置于确认门后。实验前已冻结最多
+可接受提交延迟、回退 PCM 边界以及 finish/cancel/reentrant 时未提交缓冲的归属；结果见下一节。
 
 ## 缓冲提交实验冻结（2026-08-05）
 
@@ -84,6 +84,29 @@ python asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py \
 停止条件不变：`target truncation > 0`、`published other text > 0`、target-only 提前 endpoint 或
 other-only 误确认任一出现即为 **FAIL**，关闭无训练 C1 正式默认路线；不以扩大 holdback、改阈值或
 覆盖旧 artifact 规避失败。
+
+## 缓冲提交全量结果（2026-08-05）
+
+同一 3060 行冻结矩阵已使用 `absolute_samples + buffered_tail_commit` 完成。baseline、ERes2Net、ASR
+artifact 哈希与 absolute 对照一致；3060 条 state、target confirmation、endpoint 和 score timeline
+零漂移，分帧一致性继续为 `100%`，因此差异只来自 600 ms 公开尾部回退。
+
+test 主矩阵结果：
+
+- 平均非目标音频泄漏 `0.455s → 0.133s`，可归因非目标文本 `30/960 → 1/960`。
+- 目标截断 `16/960 → 242/960`（`1.67% → 25.21%`），涉及 22/60 个 target speaker；短、中、长
+  目标桶均超过 `23%`，不是单一长语音异常。
+- published CER `4.17% → 4.25%`；target-only 仍有 `1/60` 提前 endpoint，other-only 仍有
+  `2/60` 误确认。
+- 唯一非目标文本残留发生在 `-0.3s` 重叠、`2.0s` other tail，发布前缀仍包含 4 个可归因 other 字。
+
+严格门为 **FAIL**。固定 600 ms 回退把拖尾压低，但系统性截断目标尾音，且不能修复 Speaker VAD 的
+开放集误判。按冻结停止条件，参数和缓冲两条 C1 无训练正式默认路线均关闭；不扩大 holdback、不改阈值、
+不使用 test 搜索新规则。本票据不进入 SDK 实现。
+
+ignored artifact 为
+`asr/tools/speaker/results/voiceprint_pilot_20260805_c1_turn_transition_buffered_tail_full/`；`summary.json` /
+`trials.jsonl` SHA256 分别为 `dfd77bf5…5c30` / `8ab81ce9…dbf7`。
 
 ## Hop 调度修复状态（2026-08-05）
 
@@ -133,4 +156,4 @@ smoke 全部通过。被测 HAP SHA256 为
 
 该补验关闭了“绝对 PCM hop 调度是否破坏 Harmony 公共 API 生命周期/运行期开关”的风险，不改变
 参数候选的业务 **FAIL**：它没有客户 C1 原始 PCM，不证明尾音泄漏已解决，也不替代完整发布真机矩阵。
-下一步仍是 Linux 冻结集的 `buffered_tail_commit` 全量 replay，而不是重复真机 Speaker VAD 参数矩阵。
+Linux 冻结集的 `buffered_tail_commit` 已按严格门失败并关闭路线；不再重复真机 Speaker VAD 参数矩阵。

@@ -48,35 +48,34 @@
   anchor 分别有 `1/60` 提前 endpoint 和 `2/60` 误确认。修复前 irregular/single-block 相对实时分帧的
   state mismatch 为 `13.33%/99.17%`；absolute replay 已降为 `0%/0%` 且 2340 条实时路径零漂移，
   但模型层失败完全保留，因此参数候选仍未通过正式默认门。
+- [C1 buffered-tail 收尾](BUFFERED_TAIL_LINUX_COMPLETION_20260805.md) — 固定 600 ms 回退把 test
+  非目标文本从 `30/960` 降到 `1/960`，但目标截断从 `16/960` 增至 `242/960`，短/中/长桶均超过
+  `23%`；target-only/other-only anchor 失败也未消失。按冻结停止条件关闭 C1 无训练默认路线。
 
-## Frontier
+## Closure status
 
-- [冻结 target-only 产品契约与成功门](voiceprint-next-steps/FREEZE_TARGET_ONLY_CONTRACT.md)
-- [选择 C1 尾音控制架构](voiceprint-next-steps/SELECT_C1_TAIL_CONTAINMENT.md) — 独立 target→other 集已
-  否决把 `1000/300 ms` 直接设为正式默认值。Android/Harmony 绝对 PCM hop 调度、构建门和冻结
-  `absolute_samples` replay 均已完成；分帧门通过但 anchor 仍失败。下一步验证“缓冲提交 + 尾部
-  回退/重解码”和 partial 门控。离线策略已冻结为 600 ms 尾部保留并加入工具 15，等待同一 Linux
-  冻结集全量 replay；唯一命令和收尾规则见
-  [Linux 收尾任务](BUFFERED_TAIL_LINUX_COMPLETION_20260805.md)，不再调 Speaker VAD 阈值或 holdback。
-- [选择 C2/C3 重叠前端](voiceprint-next-steps/SELECT_OVERLAP_FRONTEND.md) — 首个主候选固定为
-  speaker-conditioned TSE；公开 offline TSE 与通用分离正对照已通过三条黑盒回归但资源门失败。下一输入
-  不是更多混合 WAV，而是带 target/other 独立源、对齐文本和 enrollment 的受控重叠小集，以及可训练/
-  蒸馏为 `<30 MB`、有界 look-ahead、可导出 ONNX 的 causal recipe。
+- [冻结 target-only 产品契约与成功门](voiceprint-next-steps/FREEZE_TARGET_ONLY_CONTRACT.md) — deferred；
+  需要产品、业务风险和测试负责人选择，当前没有生产候选，不是本分支本机待办。
+- [选择 C1 尾音控制架构](voiceprint-next-steps/SELECT_C1_TAIL_CONTAINMENT.md) — 参数候选和
+  `buffered_tail_commit` 均已完成冻结重放并 FAIL；C1 无训练正式默认路线关闭，本票据不进入 SDK 实现。
+- [选择 C2/C3 重叠前端](voiceprint-next-steps/SELECT_OVERLAP_FRONTEND.md) — 无训练候选已因开放集或资源门
+  关闭；训练型 speaker-conditioned TSE 需要独立项目、受控数据和预算，不是本分支本机待办。
 
 ## Short-term no-training path
 
-- C1：`1000/300 ms` 只保留为已知 C1 单例和 prototype，不改正式默认值。hop 调度已通过冻结集
-  分帧无关门，但模型层 anchor 仍失败；短期下一候选是缓冲提交/尾部回退，不升级参数方案为交付能力。
+- C1：`1000/300 ms` 只保留为已知 C1 单例和研究证据，不改正式默认值。hop 调度修复保留，但参数与
+  600 ms buffered-tail 都未通过业务门；当前没有无训练端侧默认候选。
 - C2/C3：保留原始 ASR/fallback，不用 Conv-TasNet 或 RE-SepFormer 的不确定增强文本覆盖结果。当前没有
   通过 target-absent/open-set 门的无训练端侧候选。
 - 不跑 Conv-TasNet L4 稳压或更多真机身份扩展；人数扩充只能收紧失败率估计，不能修复已经出现的
-  target-absent 误接收。下一项可能改变结论的工作是带 enrollment conditioning 的 causal TSE 训练/蒸馏。
+  target-absent 误接收。只有新立项的 enrollment-conditioned causal TSE 训练/蒸馏才可能改变结论。
 
-## Blocked tickets
+## Deferred external gates
 
-- [冻结真实设备双域 pilot](voiceprint-next-steps/FREEZE_REAL_DEVICE_PILOT.md) — 被两项架构选择阻塞。
+- [冻结真实设备双域 pilot](voiceprint-next-steps/FREEZE_REAL_DEVICE_PILOT.md) — 当前无候选，已关闭；未来
+  训练路线产出新候选后必须以新 protocol 重新开票。
 
-## Not yet specified
+## Future work requiring a new scope
 
 - **轨 A embedding fine-tuning 是否启动。** 只有真实设备、非重叠、跨 session 基线在受保护 clean FAR
   下仍显示 verification FRR/DCF 是主要瓶颈，才把 T2 从训练候选提升为下一实验；C1～C3 本身不是
