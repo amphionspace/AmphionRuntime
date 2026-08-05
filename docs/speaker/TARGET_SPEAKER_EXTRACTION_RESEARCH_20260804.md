@@ -20,7 +20,9 @@
 另设一个**短期无训练候选：Asteroid Conv-TasNet Libri2Mix 16 kHz 两人分离 + 当前 ERes2Net 选择目标流**。
 它不是真正 TSE，但权重只有约 20.4 MB，能回答“通用分离是否已经足以让 C2/C3 的目标字词恢复”。
 2026-08-04 补测后，整段和固定 2 秒分块形态都让 C1～C3 通过严格文本门，因此它从负对照提升为唯一
-值得进入 Harmony 真机资源 pilot 的短期候选；许可与 target-absent 风险仍未解除。
+需要进入开放集 L2 的短期候选。后续 60 个 other-only test 出现 8 个非空 false rescue，归因证实错误
+来自冻结 ERes2Net 短块工作点已接受原始非目标语音，而不是 RMS 残留放大；因此该候选已停止，不进入
+Harmony 扩展 pilot。
 
 这三个候选都只适合先证明算法可行性。当前没有一个同时满足“中文真实重叠、外部 enrollment、流式、
 Harmony 端侧、官方 ONNX、可直接商用交付”。正式端侧目标仍应是 purpose-trained causal TSE；Google
@@ -93,7 +95,7 @@ target-conditioned、流式端侧方案：256 节点版本量化后 2.2 MB，并
 | --- | --- | --- | --- | --- | --- | --- |
 | **WeSep BSRNN + ECAPA Vox1** | 是；混合波形 + enrollment → 目标波形 | 有；ModelScope 标记 Apache-2.0，生产前仍核对 VoxCeleb/LibriMix 派生条款 | 16 kHz；英语 VoxCeleb1 动态混合，LibriMix 验证 | 默认双向 LSTM，offline；官方 TorchScript + LibTorch runtime；未发现官方 ONNX | `avg_model.pt` 282.6 MB（含 optimizer），推理模型 27.63M 参数；实测 RTF 约 0.31、RSS 约 1.94 GB | **算法门 PASS、资源门 FAIL**；不直接进 Harmony |
 | **ClearerVoice SpEx+** | 是；真正 reference-conditioned TSE | 有；HF 模型卡 Apache-2.0 | 8 kHz；英语 WSJ0-2mix-extr | 非因果；官方为 PyTorch 训练/评测代码；无官方 ONNX/runtime | best checkpoint 134.3 MB；RTF 未发布 | **GO P1：独立交叉验证**；**NO-GO：直接端侧** |
-| **Asteroid Conv-TasNet Libri2Mix 16k + ERes2Net 选流** | 否；先盲分两路，再按 enrollment 选目标流 | 有；[官方模型卡](https://huggingface.co/JorisCos/ConvTasNet_Libri2Mix_sepclean_16k) 的 metadata 与历史正文分别写 CC BY-SA 4.0/3.0，生产前必须澄清 | 16 kHz；英语 Libri2Mix clean；checkpoint 内 sample-rate metadata 为 8 kHz，需澄清 | 非因果；本轮已导出固定 2 秒 ONNX | 20.15 MB ONNX、5.07M 参数；桌面 ORT 1.16.3 RTF 0.0583 / RSS 267 MB；C1～C3 PASS | **GO：短期真机 pilot**；正式交付受许可、ARM 资源和 target-absent 门约束 |
+| **Asteroid Conv-TasNet Libri2Mix 16k + ERes2Net 选流** | 否；先盲分两路，再按 enrollment 选目标流 | 有；[官方模型卡](https://huggingface.co/JorisCos/ConvTasNet_Libri2Mix_sepclean_16k) 的 metadata 与历史正文分别写 CC BY-SA 4.0/3.0，生产前必须澄清 | 16 kHz；英语 Libri2Mix clean；checkpoint 内 sample-rate metadata 为 8 kHz，需澄清 | 非因果；本轮已导出固定 2 秒 ONNX | 20.15 MB ONNX、5.07M 参数；桌面 ORT 1.16.3 RTF 0.0583 / RSS 267 MB；C1～C3 PASS，但 L2 other-only 8/60 false rescue | **NO-GO：开放集门失败**；只保留诊断/teacher 价值 |
 | **ClearerVoice MossFormer2 SS 16K + ERes2Net 选流** | 否；通用两人分离 | 有；[官方权重](https://huggingface.co/alibabasglab/MossFormer2_SS_16K) Apache-2.0 | 16 kHz；公开和私有大规模数据，多基准统一模型 | 非因果、24 层；官方 PyTorch，未见 ONNX | checkpoint 670.4 MB；远超当前端侧预算 | **HOLD**：只有轻量负对照明显欠拟合时再跑 |
 | **SpeechBrain SepFormer** | 否；通用两人分离 | 有；[16 kHz WHAMR 模型](https://huggingface.co/speechbrain/sepformer-whamr16k) Apache-2.0 | 16 kHz 英语 noisy/reverb；另有 8 kHz Libri2Mix | offline PyTorch；无官方端侧导出 | mask network 约 113 MB，完整训练仓库 319 MB | **NO-GO**：与 MossFormer/Conv-TasNet 重复，先不增加实验枝杈 |
 | **REAL-TSE BSRNN causal/offline baselines** | 是；且评测含普通话、英语真实会话 | 官方有，但只发已注册团队；当前不可公开取得 | 16 kHz；Libri2Mix-100 baseline，REAL-T 评测 | 同时有 causal/offline recipe | 官方公开页未给可下载体积/RTF | **NO-GO 当前下载**；**GO 训练设计参考** |
@@ -237,11 +239,7 @@ RSS 约 430 MB。它不带 enrollment identity、非因果且资源仍超预算�
 
 ## 推荐的立即动作
 
-短期不训练时，先做一个只含 `ZH_EN` 的诊断 HAP：把固定 2 秒 Conv-TasNet ONNX 作为按需离线 rescue，
-用现有 ERes2Net 每块选流，关闭 ORT arena/memory pattern，用 C1～C3、target-only、target-absent 和
-other-only 验收 create-session、RTF、增量 RSS 与生命周期。它不是 always-on 流式路径；只有当前 session
-已有明确目标滑窗证据、但 whole final 因混合被拒绝时才触发，运行后立即释放。
-
-闭源客户交付前必须完成 CC BY-SA checkpoint/派生 ONNX 许可审查。许可不合适则回退到 Apache-2.0 的
-固定 4 秒 RE-SepFormer 高端机 PoC；WeSep、SpEx+、MossFormer 和标准 SepFormer 不再进入短期端侧实验。
-长期有训练时间后，仍回到带独立源中文真实域数据和 `<30 MB`、有界 look-ahead 的 causal TSE。
+短期不训练时停止 C2/C3 盲分离前端，把原始 ASR/fallback 保留为公开结果；C1 继续独立验证
+`1000/300 ms` Speaker VAD。Conv-TasNet、RE-SepFormer 和 WeSep 只保留为内容可恢复/teacher 证据，
+不再做真机资源或生命周期扩展。后续若投入训练，使用带独立源中文数据和 enrollment conditioning，目标
+为 `<30 MB`、额外 RSS `<150 MB`、有界 look-ahead 的 causal TSE。

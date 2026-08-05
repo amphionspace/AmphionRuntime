@@ -50,14 +50,16 @@ permutation 风险。它只能证明“内容可恢复”和“模型图可导�
 FP32→量化 ONNX parity。完整数据见
 [重叠前端离线实验](../VOICEPRINT_OVERLAP_FRONTEND_EXPERIMENT_20260804.md)。
 
-## 短期无训练分支
+## 短期无训练分支的停止结果
 
-补测 16 kHz Conv-TasNet 后，短期顺序调整为：
+16 kHz Conv-TasNet 的三条黑盒样例虽通过，但 speaker-disjoint 合成 L2 已触发 target-absent 停止门：
+60 个 test other-only 中 9 个至少接收一块，8 个产生非空文本。冻结归因显示 15 个相关 accepted blocks
+全部选择能量主导的非目标流，统一增益后 8 条文本一条未消失；15/15 个原始 other 块在进入 separator
+前已经超过 `0.25`，不是 separator 或 RMS 才制造的过门。
 
 1. C1 继续走 `1000/300 ms` Speaker VAD，不为已能解决的问题增加分离延迟。
-2. C2/C3 首先验证固定 2 秒 Conv-TasNet ONNX + 当前 ERes2Net 逐块选流。模型为 20.1 MB，三条黑盒
-   回归均通过，桌面 ORT 1.16.3 RTF `0.0583`；这只是“高概率算力可满足”，不是 ARM 真机结论。
-3. 只在句内已有明确 target window evidence、但 whole final 因混合被拒绝时按需运行；session 完成后
-   释放 separator，避免常驻内存和 target-absent 幻觉救援。
-4. 模型卡 CC BY-SA 的版本和 ShareAlike 义务必须先通过交付许可审查。许可不通过时，Apache-2.0
-   RE-SepFormer 为资源更重的备选；WeSep 不再作为端侧候选。
+2. C2/C3 在无训练路径保留原始 ASR/fallback，不让盲分离增强文本覆盖结果。
+3. 不进入 Conv-TasNet 阈值/margin 搜索、L4 稳压或真机扩身份；RE-SepFormer 同样没有 target identity，
+   不能作为规避该根因的替代。
+4. 下一生产候选仍是 enrollment-conditioned、小型 causal TSE；Conv-TasNet 只保留为内容可恢复和
+   teacher/负对照证据。

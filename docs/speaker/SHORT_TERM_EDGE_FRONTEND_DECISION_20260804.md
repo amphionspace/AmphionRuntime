@@ -221,20 +221,20 @@ ORT 1.16.3 桌面兼容门，同时把模型从 83.6 MB 降到 20.1 MB、look-ah
 三例任一业务失败、target-absent 误救援或生命周期错误，则不再对该模型做参数搜索，转 B 或只保留
 C1 策略。这是本次高端机应急门，不是全产品长期预算。
 
-### B. RE-SepFormer 许可回退门
+### B. RE-SepFormer 许可回退门（已被开放集根因否决）
 
-只有 Conv-TasNet 许可链不适合闭源交付、且业务仍接受 4 秒 look-ahead 时，才把固定 4 秒
-RE-SepFormer ONNX 放入同类临时 HAP。沿用 A 的回调与恢复门，资源上限放宽为总进程 peak RSS
-`<1.2 GiB`、p95 RTF `<0.5`；超过即停止，不再尝试 WeSep 或标准 SepFormer。
+该回退原本只处理 Conv-TasNet 许可问题。2026-08-05 开放集归因确认 target-absent 错误来自当前
+ERes2Net 工作点接受原始非目标语音，而 RE-SepFormer 同样是无 enrollment identity 的盲分离，不能
+规避根因。因此不再把它放入临时 HAP；历史资源上限只保留为已执行实验记录。
 
 ## 7. 最终短期建议
 
 1. **今天能交付的只有 C1 策略：**Mate 80 上 `1000/300 ms` 已满足算力，且不增加包体。
-2. **C2/C3 继续固定 2 秒 Conv-TasNet ONNX：**20.1 MB 图已通过 Mate 80 ARM CPU 资源门；下一门是在
-   worker 内完成逐块选流、拼接与重识别，仍只作为按需 opt-in rescue。
-3. **许可优先于正式交付：**CC BY-SA 与采样率 metadata 未澄清前只做内部 pilot；若许可不合适，回退
-   到 Apache-2.0 的 RE-SepFormer，但限定高端机并接受 83.6 MB/4 秒块成本。
-4. **WeSep、标准 SepFormer 不进入短期 Harmony：**它们可以保留为算法 reference，不是可交付端侧方案。
+2. **C2/C3 无训练路径停止：**60 个 other-only test 已出现 8 个非空 false rescue；不再运行
+   Conv-TasNet 阈值搜索、稳压或真机扩身份，保留原始 ASR/fallback。
+3. **RE-SepFormer 不作为许可回退：**它同样没有 target identity，无法修复已定位的开放集根因。
+4. **公开大模型只保留 reference：**Conv-TasNet、WeSep、RE-SepFormer 和标准 SepFormer 只证明内容
+   可恢复；下一交付候选必须是 enrollment-conditioned、小型 causal TSE。
 
 对应的主机效果、哈希、RTF 和逐例文本见
 [`VOICEPRINT_OVERLAP_FRONTEND_EXPERIMENT_20260804.md`](VOICEPRINT_OVERLAP_FRONTEND_EXPERIMENT_20260804.md)。
