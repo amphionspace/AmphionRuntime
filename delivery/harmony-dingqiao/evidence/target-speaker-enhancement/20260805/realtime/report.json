@@ -1,5 +1,5 @@
 {
-  "run_id": "20260805-184345-target-speaker-enhancement-ca29d598",
+  "run_id": "20260805-194220-target-speaker-enhancement-0ce4197f",
   "mode": "target-speaker-enhancement",
   "overall_status": "PASS",
   "failures": [],
@@ -8,27 +8,27 @@
     "artifacts": {
       "amphion_asr.har": {
         "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
-        "sha256": "cc682cc5fec7927262fb3e9f755ccb8b0b1dcb8d047124dc62da360eabd3311f",
-        "size_bytes": 218936340
+        "sha256": "bf39c7b8edc7a84e373148ad47511f49ea9de46f3c6c121359a26a5f73e3899b",
+        "size_bytes": 218936523
       },
       "amphion_asr_demo.hap": {
         "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
-        "sha256": "caec34fb8489a33b7c1ba6c68900acf44460e186a90e64107415b0061ede0293",
-        "size_bytes": 354384863
+        "sha256": "9dd070743ff1dba597631446e15fb5a5c062a999077bdc02c8c8097dd4aa611f",
+        "size_bytes": 359405436
       },
       "amphion_dingqiao.har": {
         "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
-        "sha256": "fae753b5122c2e2536782c3e89c07c44dbb29b90ad0add07ccac1c0f19385d90",
-        "size_bytes": 55387634
+        "sha256": "ccfdabc48a507ac979d122c48900fcbbeb78a188d94e5ea42860bb05fe438c64",
+        "size_bytes": 55388058
       },
       "sherpa_onnx.har": {
         "path": "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
-        "sha256": "bddcceb5af930a6f6a13dbbf51643547c6b7195db0a506f170d413be8dcf6da7",
-        "size_bytes": 6910838
+        "sha256": "4ed9e993586fe4591a782d77e6d523be3e0d99b2f7c4b00f005481a205a1aeb9",
+        "size_bytes": 6910832
       }
     },
-    "created_at": "2026-08-05T10:43:22.030483+00:00",
-    "git_commit": "a9e0c829bd7dcf371121246ce2bc34029377abb7",
+    "created_at": "2026-08-05T11:41:30.358313+00:00",
+    "git_commit": "9d276554c686aea31db17354b7f5ece74ea35077",
     "model_manifest_sha256": "8a515097588b033a867feb71c5036fdfdc3e118b294392d3beb060871cce1343",
     "native_sha256": {
       "libonnxruntime.so": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
@@ -42,7 +42,7 @@
       }
     },
     "schema_version": 1,
-    "source_fingerprint_sha256": "7b265b8ededc45880784f48112825f99652329eaea1deb69aed6421e4326119c",
+    "source_fingerprint_sha256": "629dc2bef13a09003416a34c246febaae1aeeda7e3617092d0bf6d86dfef0a75",
     "zh_en_only": true
   },
   "configuration": {
@@ -62,7 +62,7 @@
     }
   },
   "application": {
-    "runId": "20260805-184345-target-speaker-enhancement-ca29d598",
+    "runId": "20260805-194220-target-speaker-enhancement-0ce4197f",
     "status": "PASS",
     "mode": "target-speaker-enhancement",
     "requested": "3",
@@ -74,7 +74,7 @@
     "finals": "9",
     "completes": "3",
     "errors": "0",
-    "elapsedMs": "62681",
+    "elapsedMs": "62023",
     "fatal": ""
   },
   "empty_finals": {
@@ -92,36 +92,51 @@
   "target_speaker_realtime": {
     "status": "PASS",
     "chunk_count": 22,
-    "maximum_processing_ms": 1701,
-    "p95_processing_ms": 1647,
+    "maximum_processing_ms": 1695,
+    "p95_processing_ms": 1664,
     "maximum_queued_chunks": 2,
     "steady_state_chunk_interval_ms": 1750
   },
   "memory": {
     "status": "PASS",
-    "sample_count": 104,
-    "observation_seconds": 122.677,
-    "warmup_samples_excluded": 20,
-    "head_rss_mb": 708.906,
-    "tail_rss_mb": 450.219,
-    "rss_growth_mb": -258.688,
-    "rss_slope_mb_per_minute": -225.838,
+    "sample_count": 93,
+    "observation_seconds": 122.192,
+    "warmup_samples_excluded": 18,
+    "head_rss_mb": 722.164,
+    "tail_rss_mb": 460.781,
+    "rss_growth_mb": -261.383,
+    "rss_slope_mb_per_minute": -236.42,
     "rss_third_medians_mb": [
-      707.826,
-      538.0,
-      450.252
+      722.164,
+      545.285,
+      460.789
     ],
-    "peak_rss_mb": 806.992,
-    "peak_hwm_mb": 822.547,
-    "head_vm_data_mb": 3166.398,
-    "tail_vm_data_mb": 3154.367,
-    "vm_data_growth_mb": -12.031,
-    "peak_swap_mb": 75.078,
+    "peak_rss_mb": 839.316,
+    "peak_hwm_mb": 857.504,
+    "head_vm_data_mb": 3178.906,
+    "tail_vm_data_mb": 3162.625,
+    "vm_data_growth_mb": -16.281,
+    "peak_swap_mb": 74.996,
     "head_threads": 49,
     "tail_threads": 41,
     "thread_growth": -8,
     "max_rss_growth_mb": 64.0,
     "max_thread_growth": 2
+  },
+  "cpu": {
+    "status": "MEASURED",
+    "sample_count": 48,
+    "interval_count": 47,
+    "observation_seconds": 62.748,
+    "logical_cpus": 12,
+    "mean_single_core_equivalent_percent": 166.377,
+    "p50_single_core_equivalent_percent": 165.544,
+    "p95_single_core_equivalent_percent": 289.553,
+    "peak_single_core_equivalent_percent": 320.0,
+    "mean_device_capacity_percent": 13.865,
+    "p50_device_capacity_percent": 13.795,
+    "p95_device_capacity_percent": 24.129,
+    "peak_device_capacity_percent": 26.667
   },
   "cycles": [
     {
@@ -142,16 +157,16 @@
       "confirmationGraceMs": "-1",
       "requestedMaxAudioDurationMs": "-1",
       "effectiveMaxAudioDurationMs": "-1",
-      "voiceprintIdCount": "0",
-      "fedFrames": "0",
-      "lastFinalsBeforeFinish": "-1",
+      "voiceprintIdCount": "1",
+      "fedFrames": "517",
+      "lastFinalsBeforeFinish": "0",
       "liveStreams": "0",
       "unexpectedCallbacks": "0",
-      "elapsedMs": "16923",
-      "firstNonEmptyResultMs": "6999",
+      "elapsedMs": "16642",
+      "firstNonEmptyResultMs": "6758",
       "audioStartToFirstNonEmptyResultMs": "-1",
       "audioStartToSpeechBeginMs": "-1",
-      "speechBeginToFirstNonEmptyResultMs": "2809",
+      "speechBeginToFirstNonEmptyResultMs": "2801",
       "resultHex": "5e2e621167e56536660e592976848b66535530027136540e51c65907660e592953bb4e0a6d773002",
       "trace": "target-speaker-enhancement-0:start>target-speaker-enhancement-0:event-1>target-speaker-enhancement-0:event-3>target-speaker-enhancement-0:final>target-speaker-enhancement-0:event-1>target-speaker-enhancement-0:event-3>target-speaker-enhancement-0:final>target-speaker-enhancement-0:event-22>target-speaker-enhancement-0:final-last>target-speaker-enhancement-0:complete",
       "detail": "target-speaker-enhancement-applied-3"
@@ -174,16 +189,16 @@
       "confirmationGraceMs": "-1",
       "requestedMaxAudioDurationMs": "-1",
       "effectiveMaxAudioDurationMs": "-1",
-      "voiceprintIdCount": "0",
-      "fedFrames": "0",
-      "lastFinalsBeforeFinish": "-1",
+      "voiceprintIdCount": "1",
+      "fedFrames": "725",
+      "lastFinalsBeforeFinish": "0",
       "liveStreams": "0",
       "unexpectedCallbacks": "0",
-      "elapsedMs": "24326",
-      "firstNonEmptyResultMs": "12456",
+      "elapsedMs": "24129",
+      "firstNonEmptyResultMs": "12336",
       "audioStartToFirstNonEmptyResultMs": "-1",
       "audioStartToSpeechBeginMs": "-1",
-      "speechBeginToFirstNonEmptyResultMs": "8124",
+      "speechBeginToFirstNonEmptyResultMs": "8095",
       "resultHex": "621151c65907660e592953bb53174eacff0c6211770b660e53bb53174eac7684673a796830024f605e2e62115b9a4e004e0b30025bf9636e4e0a6d773002",
       "trace": "target-speaker-enhancement-1:start>target-speaker-enhancement-1:event-1>target-speaker-enhancement-1:event-3>target-speaker-enhancement-1:final>target-speaker-enhancement-1:event-1>target-speaker-enhancement-1:event-3>target-speaker-enhancement-1:final>target-speaker-enhancement-1:event-1>target-speaker-enhancement-1:event-3>target-speaker-enhancement-1:final>target-speaker-enhancement-1:event-22>target-speaker-enhancement-1:final-last>target-speaker-enhancement-1:complete",
       "detail": "target-speaker-enhancement-applied-4"
@@ -206,17 +221,17 @@
       "confirmationGraceMs": "-1",
       "requestedMaxAudioDurationMs": "-1",
       "effectiveMaxAudioDurationMs": "-1",
-      "voiceprintIdCount": "0",
-      "fedFrames": "0",
-      "lastFinalsBeforeFinish": "-1",
+      "voiceprintIdCount": "1",
+      "fedFrames": "594",
+      "lastFinalsBeforeFinish": "0",
       "liveStreams": "0",
       "unexpectedCallbacks": "0",
-      "elapsedMs": "19994",
-      "firstNonEmptyResultMs": "17613",
+      "elapsedMs": "19843",
+      "firstNonEmptyResultMs": "17525",
       "audioStartToFirstNonEmptyResultMs": "-1",
       "audioStartToSpeechBeginMs": "-1",
-      "speechBeginToFirstNonEmptyResultMs": "10667",
-      "resultHex": "621151c6590753bb4e0a6d77ff0c4f605e2e621151c659074e004e0b98de673a7968591a5c1194b1ff1f",
+      "speechBeginToFirstNonEmptyResultMs": "10670",
+      "resultHex": "621151c6590753bb4e0a6d77ff0c4f605e2e621151c659074e004e0b98de673a7968591a5c1194b13002",
       "trace": "target-speaker-enhancement-2:start>target-speaker-enhancement-2:event-22>target-speaker-enhancement-2:event-1>target-speaker-enhancement-2:event-3>target-speaker-enhancement-2:final>target-speaker-enhancement-2:event-22>target-speaker-enhancement-2:final-last>target-speaker-enhancement-2:complete",
       "detail": "target-speaker-enhancement-applied-2"
     }
