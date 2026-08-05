@@ -279,15 +279,17 @@ p50/p95 仅 `1.00x/1.04x`。15/15 个块的原始 other PCM 在进入 separator 
 
 `15_eval_c1_turn_transition_synthetic.py` 固定 `threshold=0.35`、`window=1.0s`、`hop=0.3s`、
 连续低分窗 `2`，使用同一 speaker-disjoint AISHELL-2 enrollment/probe 构造 target→other 的
-重叠/零间隔/静音间隔、音量和调用方分帧矩阵。它复刻 Android/Harmony 当前“每次公开
-`writeAudio` 最多触发一次打分”的调度，用来验收目标截断、非目标词泄漏和分帧无关性：
+重叠/零间隔/静音间隔、音量和调用方分帧矩阵。默认 `--score-schedule absolute_samples` 复刻修复后的
+Android/Harmony 绝对 PCM sample deadline；`--score-schedule legacy_per_call` 只用于重放修复前“每次
+公开 `writeAudio` 最多触发一次打分”的历史结果：
 
 ```bash
 python asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py \
   --baseline-dir asr/tools/speaker/results/voiceprint_pilot_20260728_aishell2_enroll3_paired \
   --speaker-model /private/path/eres2net.onnx \
   --asr-model-dir /private/path/zh_en_streaming_model \
-  --output-dir asr/tools/speaker/results/c1-turn-transition
+  --output-dir asr/tools/speaker/results/c1-turn-transition-absolute \
+  --score-schedule absolute_samples
 ```
 
 2026-08-05 全量结果为 30 dev / 60 test speaker、3060 行；test 主矩阵 960 行。实时 20 ms
@@ -297,6 +299,8 @@ session CER 从 `14.09%` 降到 `4.17%`，但仍有 `30/960` 行发布了可归�
 other-only anchor 中 `2/60` 被误确认。相对实时 20 ms，irregular 分帧的 state mismatch 为
 `13.33%`，single-block 为 `99.17%`。因此该参数只能作为 C1 prototype 证据，未通过正式默认门；
 结果目录保留 `trials.jsonl`、`summary.json`、`report.md` 和环境/模型哈希，不应用 test 重调阈值。
+上述数字来自 `legacy_per_call`。修复后的 absolute replay 必须使用同一 baseline/trials、模型哈希和 seed，
+写入新目录；它只允许消除 framing mismatch，不能覆盖既有 target-only/other-only 模型层失败。
 
 可用 `--denoiser-model <dpdfnet.onnx>` 做前端降噪 A/B；`--denoiser-scope all` 同时处理
 enrollment/probe（默认），`probe` 只处理 probe。当前中型 paired 结果中，不降噪在

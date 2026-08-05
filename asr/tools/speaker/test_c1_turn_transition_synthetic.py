@@ -50,12 +50,13 @@ class C1TurnTransitionSyntheticTest(unittest.TestCase):
         self.assertEqual(evaluation.target_duration_bucket(2.5), "medium_2.5_to_4s")
         self.assertEqual(evaluation.target_duration_bucket(4.0), "long_ge_4s")
 
-    def test_sdk_score_schedule_matches_current_one_score_per_call_semantics(self) -> None:
+    def test_legacy_score_schedule_preserves_one_score_per_call_semantics(self) -> None:
         session = np.ones(32_000, dtype=np.float32)
 
         realtime = evaluation.build_sdk_timeline(
             session,
             chunk_pattern="realtime_20ms",
+            score_schedule="legacy_per_call",
             target_end_sample=16_000,
             other_start_sample=16_000,
             score_window=lambda window: float(np.mean(window)),
@@ -63,6 +64,7 @@ class C1TurnTransitionSyntheticTest(unittest.TestCase):
         single = evaluation.build_sdk_timeline(
             session,
             chunk_pattern="single_block",
+            score_schedule="legacy_per_call",
             target_end_sample=16_000,
             other_start_sample=16_000,
             score_window=lambda window: float(np.mean(window)),
@@ -71,7 +73,26 @@ class C1TurnTransitionSyntheticTest(unittest.TestCase):
         self.assertEqual([round(point.time_sec, 1) for point in realtime], [1.0, 1.2, 1.5, 1.8])
         self.assertEqual([point.time_sec for point in single], [2.0])
 
-    def test_large_block_can_change_two_phase_decision(self) -> None:
+    def test_absolute_score_schedule_is_independent_of_caller_partitioning(self) -> None:
+        session = np.arange(32_000, dtype=np.float32)
+
+        def score_times(pattern: str) -> list[float]:
+            points = evaluation.build_sdk_timeline(
+                session,
+                chunk_pattern=pattern,
+                score_schedule="absolute_samples",
+                target_end_sample=16_000,
+                other_start_sample=16_000,
+                score_window=lambda window: float(window[-1]),
+            )
+            return [point.time_sec for point in points]
+
+        expected = [1.0, 1.2, 1.5, 1.8]
+        self.assertEqual(score_times("realtime_20ms"), expected)
+        self.assertEqual(score_times("irregular"), expected)
+        self.assertEqual(score_times("single_block"), expected)
+
+    def test_legacy_large_block_can_change_two_phase_decision(self) -> None:
         session = np.concatenate(
             [np.ones(19_200, dtype=np.float32), np.zeros(25_600, dtype=np.float32)]
         )
@@ -80,6 +101,7 @@ class C1TurnTransitionSyntheticTest(unittest.TestCase):
             points = evaluation.build_sdk_timeline(
                 session,
                 chunk_pattern=pattern,
+                score_schedule="legacy_per_call",
                 target_end_sample=19_200,
                 other_start_sample=19_200,
                 score_window=lambda window: float(np.mean(window)),
