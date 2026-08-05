@@ -58,5 +58,21 @@ test 主矩阵结果：
 随后在同一冻结输入上重放参数基线。若模型层 anchor 仍失败，则不再把纯 Speaker VAD 参数路线作为
 默认方案，转去比较“缓冲提交 + 尾部回退/重解码”，并把 partial 一并置于确认门后。
 
-本轮只完成本机合成诊断，没有修改 SDK，也没有覆盖 Silero/ASR 更早 endpoint、真实设备声学或
-`isLast/onComplete/cancel` 真机生命周期。
+## Hop 调度修复状态（2026-08-05）
+
+Android/Harmony 已新增同语义的 `SpeakerVadScoreScheduler`：评分终点锚定 native segment 内的绝对 PCM
+sample；一次大块写入会在喂入 ASR 前切到每个 score deadline，endpoint 后的剩余 PCM 由重置后的新段
+继续处理。没有修改 `0.35 / 1000/300 ms / 连续 2 窗`、ERes2Net 或 final 状态机。
+
+修复前红灯证明 320-sample、irregular、single-block 对同一 32000-sample PCM 产生不同时间线；修复后
+三种分块均固定为 `16000/19200/24000/28800`。Android Debug/Release 的 `sdk`、`sdk-dingqiao`
+单测和 Harmony `amphion_asr`、`amphion_dingqiao` HAR 编译通过；Python/Harmony 相邻状态测试 31 项通过。
+
+尚未宣告业务 PASS：本机没有 Linux 生成的冻结 baseline/trials，因此 3060 行 absolute replay 必须在
+保留 artifact 的服务器用 `15_eval_c1_turn_transition_synthetic.py --score-schedule absolute_samples`
+写入新目录。当前 USB 设备 `7GK…5655` 不在任何本地授权清单中，签名 HAP 构建/安装在 license 校验前
+停止；没有修改白名单、重签或覆盖设备产物。absolute replay 若仍命中 target-only/other-only anchor，
+下一候选仍是缓冲提交/尾部回退，而不是继续调阈值。
+
+本轮已完成 SDK hop 调度修复和本地构建门，但尚未完成冻结全量 replay，也没有覆盖 Silero/ASR 更早
+endpoint、真实设备声学或 `isLast/onComplete/cancel` 真机生命周期。
