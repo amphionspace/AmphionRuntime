@@ -39,14 +39,21 @@
   但 WeSep 峰值 RSS 约 1.94 GB，固定 4 秒 RE-SepFormer ONNX 仍为 83.6 MB/约 430 MB 且没有 target
   identity。公开大模型直接进 Harmony 的路线停止，下一阶段转为中文真实域小型 causal TSE 训练/蒸馏。
 - 用户短期不投入训练后，补测 16 kHz Conv-TasNet：5.07M 参数、20.1 MB 固定 2 秒 ONNX，C1/C2/C3
-  分块后逐条满足“含上海、无你好”；桌面 ORT 1.16.3 中位 RTF `0.0583`。它是当前唯一值得推进真机
-  pilot 的无训练重叠候选，但模型卡 CC BY-SA 的 ShareAlike 义务必须在客户交付前澄清。
+  分块后逐条满足“含上海、无你好”；但 60 个 speaker-disjoint other-only test 中 8 个产生非空 false
+  rescue，开放集 L2 已按冻结门失败。归因进一步证明 15/15 个误接收块的原始 other 分数在 separator 前
+  已超过 `0.25`，统一增益不能消除任何一条；因此停止无训练盲分离真机扩展，不能用三条小样例覆盖该结论。
+- [C1 独立 target→other 合成复验](voiceprint-next-steps/SELECT_C1_TAIL_CONTAINMENT.md) — 冻结
+  `0.35 / 1000/300 ms / 连续 2 窗` 在 60 个 test speaker 的实时 20 ms 主矩阵中把平均非目标音频
+  泄漏降低 `53.24%`，但 `30/960` 行仍有非目标文本、`16/960` 行目标截断；target-only/other-only
+  anchor 分别有 `1/60` 提前 endpoint 和 `2/60` 误确认。irregular/single-block 相对实时分帧的 state
+  mismatch 为 `13.33%/99.17%`，参数候选未通过正式默认门。
 
 ## Frontier
 
 - [冻结 target-only 产品契约与成功门](voiceprint-next-steps/FREEZE_TARGET_ONLY_CONTRACT.md)
-- [选择 C1 尾音控制架构](voiceprint-next-steps/SELECT_C1_TAIL_CONTAINMENT.md) — 首个候选固定为
-  `1000/300 ms`，需用独立 target→other 集保护目标截断与 partial 泄漏，不能只凭 C1 改正式默认值。
+- [选择 C1 尾音控制架构](voiceprint-next-steps/SELECT_C1_TAIL_CONTAINMENT.md) — 独立 target→other 集已
+  否决把 `1000/300 ms` 直接设为正式默认值。下一步先把 Android/Harmony 打分 hop 调度改成与调用方
+  分帧无关并重放冻结输入；若 anchor 仍失败，再验证“缓冲提交 + 尾部回退/重解码”和 partial 门控。
 - [选择 C2/C3 重叠前端](voiceprint-next-steps/SELECT_OVERLAP_FRONTEND.md) — 首个主候选固定为
   speaker-conditioned TSE；公开 offline TSE 与通用分离正对照已通过三条黑盒回归但资源门失败。下一输入
   不是更多混合 WAV，而是带 target/other 独立源、对齐文本和 enrollment 的受控重叠小集，以及可训练/
@@ -54,13 +61,12 @@
 
 ## Short-term no-training path
 
-- C1：继续使用已经真机通过的 `1000/300 ms` Speaker VAD 候选，不引入分离模型。
-- C2/C3：先做一个 20.1 MB Conv-TasNet 2 秒按需 rescue HAP，仅处理“存在目标滑窗证据但 whole final
-  因混合被拒绝”的句子；0.5 秒交叠、现有 `0.35` 声纹门、关闭 separator session 的 ORT arena。
-- 真机只跑一个 `ZH_EN` HAP，停止条件为：任一 C1～C3 严格门失败、额外 RSS 不可接受、分离+重识别
-  延迟超过产品预算、迟到回调污染 session，或许可证不能用于预期交付。
-- 若 Conv-TasNet 许可不可接受：备选是 Apache-2.0 RE-SepFormer，但仅限内存更充足且能接受 4 秒级
-  look-ahead 的设备；WeSep/SepFormer 不进入端侧候选。
+- C1：`1000/300 ms` 只保留为已知 C1 单例和实时 20 ms prototype，不改正式默认值。短期先修复
+  分帧相关的 hop 调度并重放冻结集；模型层 anchor 失败未消除前，不把参数候选升级为交付能力。
+- C2/C3：保留原始 ASR/fallback，不用 Conv-TasNet 或 RE-SepFormer 的不确定增强文本覆盖结果。当前没有
+  通过 target-absent/open-set 门的无训练端侧候选。
+- 不跑 Conv-TasNet L4 稳压或更多真机身份扩展；人数扩充只能收紧失败率估计，不能修复已经出现的
+  target-absent 误接收。下一项可能改变结论的工作是带 enrollment conditioning 的 causal TSE 训练/蒸馏。
 
 ## Blocked tickets
 

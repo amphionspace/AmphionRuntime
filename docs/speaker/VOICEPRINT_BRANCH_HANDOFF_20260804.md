@@ -21,12 +21,24 @@
   HAP 和实时 20 ms 喂入复现：`1500/500 ms` 基线为 C1/C2/C3 全失败；`1000/300 ms` 只让 C1 满足
   “含上海、无你好”，C2/C3 仍失败。诊断 HAP 已移除，设备恢复为无 debug 标记的 0.2.9 交付 HAP。
 - WeSep TSE、RE-SepFormer 与 Conv-TasNet 两路分离都在主机离线让 C1/C2/C3 逐条通过严格文本门。
-  固定 2 秒 Conv-TasNet ONNX 为 20.15 MB，桌面 ORT 1.16.3 中位 RTF 0.0583，是唯一值得进入 Mate 80
-  真机资源 pilot 的无训练候选；它仍受非因果 2 秒 look-ahead、target-absent 和 CC BY-SA 许可约束。
+  固定 2 秒 Conv-TasNet ONNX 为 20.15 MB，桌面 ORT 1.16.3 中位 RTF 0.0583，曾是唯一进入 Mate 80
+  真机资源 pilot 的无训练候选；后续开放集 L2 已命中 target-absent 停止条件，不再作为交付候选。
 - 固定 2 秒 Conv-TasNet 已在 Mate 80 完成异步全链路：C1～C3、target-only/other-only、p95 RTF、
   同产物 RSS 基线和 ASR 生命周期门均通过；短期定位为高端机离线 opt-in pilot，不是默认实时能力。
   Linux 同口径复验入口为 `asr/tools/speaker/12_eval_overlap_rescue.py`，只覆盖算法/资源门，不替代
   Harmony `isLast/onComplete/cancel`。
+- 正确 16 kHz Libri2Mix checkpoint 的 AISHELL-2 合成 L2 已完成：-5/0 dB test target CER 从
+  `101.72%/63.96%` 降到 `24.65%/13.10%`，但 60 个 other-only 中 8 个产生非空 false rescue，
+  target-only CER 也从 `2.96%` 微升到 `3.43%`。按冻结停止条件不再搜索 blind separator 选流规则，
+  短期回退 C1-only，C2/C3 转 enrollment-conditioned causal TSE。
+- 2026-08-05 冻结归因已把这 8 条错误定位到 ERes2Net 短块开放集工作点：15/15 个相关块的原始 other
+  PCM 在 separator 前已超过 `0.25`；统一增益后仍为 8/60，15 个块全部选择能量主导非目标流，RMS
+  boost p50/p95 仅 `1.00x/1.04x`。因此人数只影响失败率置信度，RMS/低能残留和 separator 推分不是根因。
+- 2026-08-05 已完成冻结 `0.35 / 1000/300 ms / 连续 2 窗` 的 C1 target→other 合成矩阵：30 dev /
+  60 test speaker、3060 行。test 实时 20 ms 主矩阵把平均非目标音频泄漏降低 `53.24%`、CER 从
+  `14.09%` 降到 `4.17%`，但仍有 `30/960` 非目标文本、`16/960` 目标截断；target-only/other-only
+  anchor 分别有 `1/60` 提前 endpoint 和 `2/60` 误确认。irregular/single-block 的 state mismatch 为
+  `13.33%/99.17%`，所以该参数不升级为正式默认值。
 
 ## 已冻结决策
 
@@ -59,6 +71,12 @@
 - `asr/tools/speaker/09_eval_threshold_stability.py`：speaker-cluster bootstrap 阈值稳定性。
 - `asr/tools/speaker/10_eval_convtasnet_frontend.py`：冻结旧 trial map 的 Conv-TasNet 前端 paired A/B。
 - `asr/tools/speaker/11_eval_convtasnet_ablations.py`：拆分 8 kHz 带宽损失与双人分离任务匹配。
+- `asr/tools/speaker/12_eval_overlap_rescue.py`：C1～C3 exact Linux 全链路复验。
+- `asr/tools/speaker/13_eval_overlap_rescue_synthetic.py`：16 kHz checkpoint 的合成 L2 开放集/SIR 门。
+- `asr/tools/speaker/14_diagnose_overlap_rescue_attribution.py`：冻结 L2 的 oracle 选流、raw-other score 与
+  统一增益根因归因。
+- `asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py`：冻结 C1 target→other、音量、分帧和
+  target-only/other-only anchor；复刻当前 Android/Harmony 每次公开写入最多一次打分的调度。
 - `asr/tools/speaker/ts_asr/core.py`：显式 aggregation、scipy 重采样、FP32 joiner 兼容和降噪 A/B 入口。
 - `asr/android/sdk/.../EffectiveSpeechBuffer.kt`、`SessionImpl.kt` 和 Harmony 同名逻辑：评分样本选择与
   session 关联诊断；诊断不包含文本、声纹 ID 或音频内容。
@@ -110,16 +128,25 @@ final 生命周期/交付压力工具 28 项通过，脚本语法、Python 编�
 没有 `java`，Android Gradle 未重跑；Android Debug/Release 的历史通过记录见 pilot 进展文档，
 合入门禁仍应在具备 JDK 17 和 Android SDK 34 的环境重新执行上述命令。
 
+2026-08-05 L2 归因后复跑 speaker 工具 55 项全部通过；新增文件 `ruff check`、Python 编译、
+`git diff --check` 和 450 条 artifact 有限值/唯一性/冻结重放审计通过。最终 ignored artifact 的
+`summary.json` / `trials.jsonl` SHA256 分别为 `23e2a7d6…235f` / `37530ca1…f508`。
+
+2026-08-05 C1 全量 ignored artifact 为
+`asr/tools/speaker/results/voiceprint_pilot_20260805_c1_turn_transition_full/`；3060 条唯一性、有限值、
+60 对 test speaker-disjoint 配对和哈希完整性审计通过。`summary.json` / `trials.jsonl` SHA256 分别为
+`76504b16…3858` / `37f7d2a3…d1c7`。该结果只覆盖本机合成 Speaker VAD 调度，不替代真机生命周期门。
+
 ## 剩余工作、风险和建议流程
 
 - 本阶段不再继续调 DPDFNet、全局阈值或规则型质量救援；重复同类合成 A/B 不会改变当前选择。
 - C1～C3 当前 0.2.9 真机基线和严格业务红灯已经捕获；下一步先冻结 target-only 产品契约，并补齐
   带 target/other 独立源、对齐文本、enrollment 和受控 SIR/SNR 的中文真实域小集。
-- C1 优先比较当前参数上限与“缓冲提交 + 尾部回退/重解码”，同时保护 partial、目标连续语音、
-  分帧无关和 final/last 生命周期。
-- C2/C3 的固定 2 秒 Conv-TasNet 真机 pilot 已过第一资源/内容/生命周期门。下一门是在 Linux 和真机补
-  30 轮、超过 60 秒的稳压，并用不少于 20 个非注册身份做开放集阈值复验；许可不合适则回退到
-  Apache-2.0 RE-SepFormer 高端机 PoC。
+- C1 参数上限已在冻结合成集失败。下一最小实验是先让 Android/Harmony 的 hop 打分按绝对 PCM 时间
+  处理所有跨越点并满足分帧无关，使用同一输入差分重放且不改阈值；模型层 anchor 仍失败时，再比较
+  “缓冲提交 + 尾部回退/重解码”，同时保护 partial、目标连续语音和 final/last 生命周期。
+- C2/C3 的固定 2 秒 Conv-TasNet 已在扩大到 60 个 test 非注册身份后触发开放集停止门；不再跑 30 轮
+  稳压、真机扩身份、阈值/margin 搜索，也不以无 target identity 的 RE-SepFormer 规避同一根因。
 - 长期下一实现候选仍应是 `<30 MB`、额外 RSS `<150 MB`、有界 look-ahead 的中文真实域 causal TSE，
   主门为 target CER/WER 与 non-target lexical leakage。
 - embedding fine-tuning 改为条件分支：只有真实设备非重叠基线证明在受保护 clean FAR 下 verification

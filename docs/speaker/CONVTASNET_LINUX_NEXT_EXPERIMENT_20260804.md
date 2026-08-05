@@ -141,6 +141,65 @@ L2/L3 的冻结方案通过后，再运行 30 cycles 且总观察超过 60 秒�
 不把不确定的增强文本覆盖原结果。长期路线转到 16 kHz、目标条件化、小型 causal TSE，而不是继续训练
 通用盲分离的后处理阈值。
 
+### 2026-08-04 合成 L2 执行结果
+
+使用正确的 `JorisCos/ConvTasNet_Libri2Mix_sepclean_16k` checkpoint（权重 SHA256
+`8d97f012…30adce`）和 ORT 1.16.3，在既有 AISHELL-2 三段 enrollment trial 上构造 30 dev / 60 test
+speaker、每人 target-only / other-only / `-5/0/+5 dB` 全时重叠，共 450 条 trial。dev/test speaker
+隔离，test 有 60 个相对当前 enrollment 未注册的 other identity。阈值固定 `0.25`，未用 test 调参。
+
+本机固定 2 秒 ONNX SHA256 为 `861a476e…80599`，与 Mate 80 的 `f5b040d3…b7ab` 序列化身份不同；
+RMS 归一化后 PyTorch/ONNX 两路相关系数为 `0.99999936/0.99999999`。因此本轮是明确命名的
+export-variant L2，不替代 exact L1 paired parity。
+
+| test 条件 | raw target CER | rescued target CER | raw other recall | rescued other recall | false rescue | false reject |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| target-only | 2.96% | 3.43% | - | - | 0 | 0 |
+| other-only | - | - | 97.19% | 10.76% | 8/60 | 0 |
+| overlap -5 dB | 101.72% | 24.65% | 69.27% | 3.12% | 0 | 2/60 |
+| overlap 0 dB | 63.96% | 13.10% | 38.69% | 2.96% | 0 | 1/60 |
+| overlap +5 dB | 6.24% | 5.93% | 1.09% | 0.62% | 0 | 0 |
+
+`other recall` 的保守定义是：先从 hypothesis 去掉可由 target reference 的 LCS 解释的字符，再计算残余
+与 other reference 的 LCS recall。other-only 中共有 9/60 至少选择过一路，8/60 同时产生非空文本，
+后者按冻结定义计为 false rescue。逐例 target CER 对比中，-5/0/+5 dB 的改善/退化/不变分别为
+`54/2/4`、`41/4/15`、`9/10/41`；target-only 为 `1/2/57`。
+
+结论按本节既定停止条件执行：正确 16 kHz 模型证实盲分离能显著恢复强重叠目标内容，说明旧 8 kHz
+常驻前端负结果不能外推；但 frozen test 已出现新增 other-only 非目标文本泄漏，并有轻微 target-only
+退化，因此 L2 不通过，不进入 L3 B/C 阈值或 margin 规则搜索，也不跑 L4 稳压。短期回退 C1-only；
+C2/C3 长期转向 enrollment-conditioned、小型 causal TSE。原始 artifact 位于
+`asr/tools/speaker/results/voiceprint_pilot_20260804_libri2mix16k_l2_full/`，按仓库规则不提交 Git。
+
+### 2026-08-05 L2 失败归因
+
+`14_diagnose_overlap_rescue_attribution.py` 对上述 450 条 trial 做确定性重放：混合 PCM 哈希和逐块选择
+均 0 漂移，ERes2Net score 最大绝对误差 `6.56e-7`。归因没有新增可调参数，使用两项生产时不可用或
+不采用的反事实：独立源 PIT SI-SDR oracle 选流，以及保持两路相对能量的统一 reconstruction gain。
+
+| test 条件 | 当前 target CER | oracle target CER | 当前 other recall | oracle other recall | oracle 改善/退化/不变 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| overlap -5 dB | 24.65% | 20.90% | 3.12% | 2.03% | 10/4/46 |
+| overlap 0 dB | 13.10% | 11.39% | 2.96% | 1.72% | 8/0/52 |
+| overlap +5 dB | 5.93% | 6.40% | 0.62% | 1.09% | 5/3/52 |
+| target-only | 3.43% | 3.43% | - | - | 1/1/58 |
+
+oracle 在 -5/0 dB 只额外降低 `3.75/1.71` 个 CER 百分点，说明 ERes2Net 的错流/拒绝确有贡献，但不是
+强重叠剩余错误的唯一来源；separator 失真和下游 ASR 仍决定大部分 ceiling。+5 dB 与 target-only 不因
+oracle 改善，符合“不应在轻重叠或 clean 上强制救援”的既有边界。
+
+other-only 根因更明确：当前 test false rescue 为 8/60，统一增益后仍为 8/60；对应 15 个 accepted
+blocks 全部是能量主导的非目标流，逐路 RMS 相对统一增益的 boost p50/p95 仅 `1.00x/1.04x`。15/15
+块的原始 other PCM 在 separator 前已经超过冻结 `0.25`，经 separator 后才过门为 0。因此本轮证伪
+“低能分离残留被 RMS 放大”与“separator 把未过门 other 推过门”两个假设；直接原因是当前 ERes2Net
+短块开放集工作点会接受部分非目标身份，而盲分离没有 enrollment conditioning，无法在 target-absent
+时生成可安全拒绝的目标输出。
+
+人数只影响该失败率估计的置信度，不产生或消除这 8 个错误。该结果强化而非撤销 L2 停止决定：不进入
+L3 阈值/margin 搜索，不做 L4 稳压或 Conv-TasNet 真机扩展；短期 C1-only，C2/C3 保留原始 ASR/fallback，
+长期进入 enrollment-conditioned causal TSE。完整 ignored artifact 位于
+`asr/tools/speaker/results/voiceprint_pilot_20260805_libri2mix16k_l2_attribution_full_v2/`。
+
 ## 6. 结果解释矩阵
 
 | 结果 | 正确解释 | 下一步 |

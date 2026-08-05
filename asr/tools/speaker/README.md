@@ -30,6 +30,12 @@ asr/tools/speaker/
 ├── 10_eval_convtasnet_frontend.py  冻结 trial 的 Conv-TasNet → ERes2Net paired A/B
 ├── 11_eval_convtasnet_ablations.py 拆分 8 kHz 带宽与两人分离任务匹配的消融
 ├── 12_eval_overlap_rescue.py       Linux CPU 复验固定 2 秒 Conv-TasNet 选流/拼接/ASR 全链路
+├── 13_eval_overlap_rescue_synthetic.py
+│                                   正确 16 kHz checkpoint 的 speaker-disjoint 合成 L2
+├── 14_diagnose_overlap_rescue_attribution.py
+│                                   冻结 L2 的 oracle 选流、原始分数和 RMS 归因
+├── 15_eval_c1_turn_transition_synthetic.py
+│                                   C1 target→other、音量与调用方分帧冻结评测
 ├── ts_asr/
 │   ├── __init__.py
 │   ├── core.py                     调研文档第 5 节 5 段骨架函数
@@ -231,6 +237,66 @@ python asr/tools/speaker/07_eval_voiceprint_verification.py \
 [Conv-TasNet Linux 服务器复验](../../../docs/speaker/CONVTASNET_LINUX_REPRODUCTION.md)。
 既有 8 kHz WHAM 实验的适用边界、exact 16 kHz 复验后的开放集扩展、选流消融和停止条件见
 [Linux 下一轮实验决策](../../../docs/speaker/CONVTASNET_LINUX_NEXT_EXPERIMENT_20260804.md)。
+
+`13_eval_overlap_rescue_synthetic.py` 使用既有三段 enrollment 的冻结 AISHELL-2 trial，构造
+target-only、other-only 和 `-5/0/+5 dB` 全时双人重叠；同一 PCM 分别跑 raw ASR 与固定
+`0.25` 逐块选流 rescue，报告 target CER、保守归因的 other lexical leakage、false rescue 和
+false rejection。它用于 L2 开放集诊断，不替代上述 C1～C3 exact L1：
+
+```bash
+python asr/tools/speaker/13_eval_overlap_rescue_synthetic.py \
+  --baseline-dir asr/tools/speaker/results/voiceprint_pilot_20260728_aishell2_enroll3_paired \
+  --checkpoint /private/path/pytorch_model.bin \
+  --separator-model /private/path/convtasnet_2s.onnx \
+  --speaker-model /private/path/eres2net.onnx \
+  --asr-model-dir /private/path/zh_en_streaming_model \
+  --output-dir asr/tools/speaker/results/convtasnet-libri2mix16k-l2 \
+  --threshold 0.25 --sir-db -5 0 5
+```
+
+本轮 checkpoint SHA256 为 `8d97f012…30adce`。本机导出 ONNX 为 `861a476e…80599`，与 Mate 80
+冻结的 `f5b040d3…b7ab` 序列化身份不同；RMS 归一化后的 PyTorch/ONNX 两路相关系数均超过
+`0.999999`，但报告仍明确标为 export variant，不能冒充 exact L1 parity。
+
+`14_diagnose_overlap_rescue_attribution.py` 确定性重放上述 L2 artifact，不开放阈值参数。它使用合成
+独立源做逐块 PIT SI-SDR oracle 选流，并用“两路共享同一 reconstruction gain”替代逐路 RMS 归一化，
+只回答 separator、ERes2Net 选流和增益处理分别贡献了什么：
+
+```bash
+python asr/tools/speaker/14_diagnose_overlap_rescue_attribution.py \
+  --l2-result-dir asr/tools/speaker/results/convtasnet-libri2mix16k-l2 \
+  --separator-model /private/path/convtasnet_2s.onnx \
+  --speaker-model /private/path/eres2net.onnx \
+  --asr-model-dir /private/path/zh_en_streaming_model \
+  --output-dir asr/tools/speaker/results/convtasnet-libri2mix16k-l2-attribution
+```
+
+当前 450 条冻结重放的 PCM/选择漂移均为 0，最大 score 误差 `6.56e-7`。test other-only 的 8/60
+false rescue 在共享增益反事实下仍为 8/60；15 个被接收块全部选择能量主导的非目标流，独立 RMS boost
+p50/p95 仅 `1.00x/1.04x`。15/15 个块的原始 other PCM 在进入 separator 前已经超过 `0.25`，没有一块
+是 separator 才推过门。因此 RMS/低能残留假设被证伪，根因位于冻结 ERes2Net 工作点的开放集误接收与
+盲分离缺少 target identity 的组合；该结论不授权继续用 test 搜阈值。
+
+`15_eval_c1_turn_transition_synthetic.py` 固定 `threshold=0.35`、`window=1.0s`、`hop=0.3s`、
+连续低分窗 `2`，使用同一 speaker-disjoint AISHELL-2 enrollment/probe 构造 target→other 的
+重叠/零间隔/静音间隔、音量和调用方分帧矩阵。它复刻 Android/Harmony 当前“每次公开
+`writeAudio` 最多触发一次打分”的调度，用来验收目标截断、非目标词泄漏和分帧无关性：
+
+```bash
+python asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py \
+  --baseline-dir asr/tools/speaker/results/voiceprint_pilot_20260728_aishell2_enroll3_paired \
+  --speaker-model /private/path/eres2net.onnx \
+  --asr-model-dir /private/path/zh_en_streaming_model \
+  --output-dir asr/tools/speaker/results/c1-turn-transition
+```
+
+2026-08-05 全量结果为 30 dev / 60 test speaker、3060 行；test 主矩阵 960 行。实时 20 ms
+喂入时目标确认率 `100%`，平均非目标音频泄漏从 `0.973s` 降到 `0.455s`（降幅 `53.24%`），
+session CER 从 `14.09%` 降到 `4.17%`，但仍有 `30/960` 行发布了可归因的非目标文本，且
+`16/960` 行发生目标截断。独立 target-only anchor 中实时喂入 `1/60` 被提前 endpoint；
+other-only anchor 中 `2/60` 被误确认。相对实时 20 ms，irregular 分帧的 state mismatch 为
+`13.33%`，single-block 为 `99.17%`。因此该参数只能作为 C1 prototype 证据，未通过正式默认门；
+结果目录保留 `trials.jsonl`、`summary.json`、`report.md` 和环境/模型哈希，不应用 test 重调阈值。
 
 可用 `--denoiser-model <dpdfnet.onnx>` 做前端降噪 A/B；`--denoiser-scope all` 同时处理
 enrollment/probe（默认），`probe` 只处理 probe。当前中型 paired 结果中，不降噪在
