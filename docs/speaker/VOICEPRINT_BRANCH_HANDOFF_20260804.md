@@ -43,6 +43,9 @@
   全部收敛到实时参考，irregular/single-block state mismatch 均为 `0%`、exact endpoint match 均为
   `100%`。严格门仍因同一组目标截断、非目标文本和 anchor 误判失败；调度根因收口，下一候选转为
   缓冲提交/尾部回退，不再调 Speaker VAD 阈值。
+- 600 ms `buffered_tail_commit` 全量 replay 已完成：test 非目标文本 `30/960 → 1/960`、平均泄漏
+  `0.455s → 0.133s`，但目标截断 `16/960 → 242/960`，涉及 22/60 个 target speaker，短/中/长桶
+  均超过 `23%`；anchor 失败未消失。按预先冻结停止条件，C1 无训练正式默认路线关闭。
 
 ## 已冻结决策
 
@@ -158,28 +161,27 @@ speaker-disjoint、冻结输入/模型哈希和新旧同键差分审计。ignore
 输入前提不成立，不能作为 SDK 回归证据。该真机补验只关闭 absolute hop 的 Harmony 生命周期风险；
 客户 C1 原始 PCM 仍不可用，C1 严格业务门和完整发布矩阵均未由本轮覆盖。
 
-## 剩余工作、风险和建议流程
+buffered-tail ignored artifact 为
+`asr/tools/speaker/results/voiceprint_pilot_20260805_c1_turn_transition_buffered_tail_full/`；3060 条唯一性、
+有限值、冻结输入/模型哈希和 absolute 时间线零漂移审计通过。`summary.json` / `trials.jsonl` SHA256
+分别为 `dfd77bf5…5c30` / `8ab81ce9…dbf7`。完成任务中原先指向仓库 Harmony `.ort` ASR 的命令不满足
+absolute `.onnx` 哈希门，实际从 absolute `summary.json` 复用冻结模型目录；文档已纠正且未提交私有路径。
+
+## 收口状态、风险和未来新范围
 
 - 本阶段不再继续调 DPDFNet、全局阈值或规则型质量救援；重复同类合成 A/B 不会改变当前选择。
-- C1～C3 当前 0.2.9 真机基线和严格业务红灯已经捕获；下一步先冻结 target-only 产品契约，并补齐
-  带 target/other 独立源、对齐文本、enrollment 和受控 SIR/SNR 的中文真实域小集。
-- C1 参数上限已在冻结合成集失败；Android/Harmony 的绝对 PCM hop 调度及同输入差分重放均已完成，
-  分帧门通过但模型层 anchor 仍失败。工具 15 已冻结 `buffered_tail_commit`：保留 600 ms 尾部，离场或
-  未决低分 finish 时丢弃并重解码提交前缀，clean finish 提交尾部，partial 只来自已提交前缀。下一最小
-  实验是在 Linux 同一冻结集全量 replay；任一目标截断、非目标文本或 anchor 失败即关闭该无训练 C1
-  正式默认路线，不再对同一 test 调阈值或 holdback。
+- C1～C3 当前 0.2.9 真机基线和严格业务红灯已经捕获；本分支没有剩余本机算法或验证待办。
+  target-only 产品契约需要产品/业务/测试负责人决策，受控中文真实域数据和训练预算需要另行立项。
+- C1 参数、绝对 hop 和 600 ms buffered-tail 均已在同一冻结集收口。分帧门通过，但参数候选有模型层
+  anchor/泄漏失败，buffered-tail 又把目标截断放大到 `25.21%`。C1 无训练正式默认路线关闭，不进入 SDK
+  实现，不再对同一 test 调阈值、holdback 或发布规则。
 - C2/C3 的固定 2 秒 Conv-TasNet 已在扩大到 60 个 test 非注册身份后触发开放集停止门；不再跑 30 轮
   稳压、真机扩身份、阈值/margin 搜索，也不以无 target identity 的 RE-SepFormer 规避同一根因。
-- 长期下一实现候选仍应是 `<30 MB`、额外 RSS `<150 MB`、有界 look-ahead 的中文真实域 causal TSE，
-  主门为 target CER/WER 与 non-target lexical leakage。
+- 若未来新立项，候选应是 `<30 MB`、额外 RSS `<150 MB`、有界 look-ahead 的中文真实域 causal TSE，
+  主门为 target CER/WER 与 non-target lexical leakage；该工作不在本分支继续滚动。
 - embedding fine-tuning 改为条件分支：只有真实设备非重叠基线证明在受保护 clean FAR 下 verification
   FRR/DCF 仍是主瓶颈时才启动。若启动，仍须使用 clean anchor、交通噪声、混响、距离、codec 和
   短语音增强，严格隔离 source/speaker/session，并验证 checkpoint/ONNX/platform score parity。
 - overlap、反欺骗和声纹分数可选性的生命周期门禁继续独立验收，不用 verification 精度互相替代。
-- 具体票据、阻塞关系和退出条件见 `docs/speaker/VOICEPRINT_NEXT_STEP_MAP_20260804.md`；每次只推进
-  一个已解除阻塞的决策，不在路线尚未冻结时直接开始生产实现或完整发布矩阵。
-
-Linux 收尾只剩一项，完整冻结命令、输入身份、artifact 审计和一次性 PASS/FAIL 解释见
-[`BUFFERED_TAIL_LINUX_COMPLETION_20260805.md`](BUFFERED_TAIL_LINUX_COMPLETION_20260805.md)。该任务完成后
-无论业务门 PASS 或 FAIL，本调研分支都停止继续滚动；PASS 只创建独立 SDK 实施候选，FAIL 直接关闭
-C1 无训练默认路线。
+- 具体收口状态和未来外部前置条件见 `docs/speaker/VOICEPRINT_NEXT_STEP_MAP_20260804.md`。本分支停止
+  继续滚动；未来工作必须新开范围，不能把 deferred HITL 或训练项目误记为本机遗留项。

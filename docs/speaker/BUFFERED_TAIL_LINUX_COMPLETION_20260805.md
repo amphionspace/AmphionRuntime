@@ -1,5 +1,7 @@
 # C1 buffered-tail Linux 收尾任务
 
+- 状态：**complete / FAIL，C1 无训练正式默认路线关闭**
+
 ## 目的
 
 这是本分支无训练路线的最后一次算法实验。它只回答冻结的 `buffered_tail_commit` 能否在同一
@@ -19,8 +21,8 @@ RE-SepFormer、阈值/margin 搜索、真机扩身份或稳压。
   `asr/tools/speaker/results/voiceprint_pilot_20260805_c1_turn_transition_absolute_full/`
 - ERes2Net：
   `asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx`
-- ZH_EN ASR：
-  `asr/harmony/sdk/src/main/resources/rawfile/amphion-models/zh-en/v1/`
+- ZH_EN ASR：必须复用 absolute 对照 `summary.json` 的 `artifacts.asr_model_dir` 及其 `.onnx` 四件套。
+  仓库 Harmony `zh-en/v1` 是 `.ort` 交付格式，文件哈希和本工具输入契约都不同，不能替代冻结对照。
 - 固定参数：`threshold=0.35`、`win=1.0s`、`hop=0.3s`、连续低分窗 `2`、tail holdback
   `600 ms`、`seed=73`、30 dev / 60 test speaker、`absolute_samples`。
 
@@ -43,11 +45,12 @@ python3 -m unittest \
 export C1_BASELINE_DIR="asr/tools/speaker/results/voiceprint_pilot_20260728_aishell2_enroll3_paired"
 export C1_ABSOLUTE_DIR="asr/tools/speaker/results/voiceprint_pilot_20260805_c1_turn_transition_absolute_full"
 export C1_BUFFERED_RESULT_DIR="asr/tools/speaker/results/voiceprint_pilot_20260805_c1_turn_transition_buffered_tail_full"
+export C1_ASR_MODEL_DIR="$(jq -r '.artifacts.asr_model_dir' "$C1_ABSOLUTE_DIR/summary.json")"
 
 python3 asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py \
   --baseline-dir "$C1_BASELINE_DIR" \
   --speaker-model asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx \
-  --asr-model-dir asr/harmony/sdk/src/main/resources/rawfile/amphion-models/zh-en/v1 \
+  --asr-model-dir "$C1_ASR_MODEL_DIR" \
   --output-dir "$C1_BUFFERED_RESULT_DIR" \
   --seed 73 \
   --dev-speakers 30 \
@@ -90,3 +93,27 @@ python3 asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py \
   把业务 FAIL 改记为 INCONCLUSIVE。
 
 Linux 回填提交应只修改结论文档，不提交语料、模型、完整 trials 或任何私有路径。
+
+## 执行结果（2026-08-05）
+
+冻结矩阵已完成，artifact 审计通过：3060 条唯一试验、所有数值有限，30/60 个 dev/test speaker、
+60 个不同 test other speaker；baseline、ERes2Net 和 ASR 哈希与 absolute 对照一致。两轮 3060 条
+Speaker VAD state、target confirmation、endpoint 和 timeline 零漂移，确认唯一变量是发布策略。
+
+test 主矩阵从 absolute 到 buffered：
+
+- 平均非目标音频泄漏 `0.455s → 0.133s`，相对完整 other 尾音的降幅 `53.24% → 86.34%`。
+- 可归因非目标文本 `30/960 → 1/960`；剩余一条为 `-0.3s` 重叠、`2.0s` other tail，泄漏 4 字。
+- 目标截断 `16/960 → 242/960`（`1.67% → 25.21%`），涉及 22/60 个 target speaker；短/中/长
+  目标桶分别为 `29.17%/24.65%/23.38%`。
+- published CER `4.17% → 4.25%`；target-only `1/60` 提前 endpoint、other-only `2/60` 误确认
+  均未消失；irregular/single-block 仍与实时 20 ms 完全一致。
+
+`decision.status == FAIL`。600 ms 固定回退虽然接近消除非目标文本，却系统性切掉目标尾音；按一次性
+决策关闭 C1 无训练正式默认路线，不扩大 holdback、不改阈值、不用 test 搜索替代策略。本分支算法实验
+到此收尾。
+
+ignored artifact：
+`asr/tools/speaker/results/voiceprint_pilot_20260805_c1_turn_transition_buffered_tail_full/`。
+`summary.json` / `trials.jsonl` SHA256 分别为 `dfd77bf5…5c30` / `8ab81ce9…dbf7`；`report.md` /
+`environment.txt` 分别为 `bac6c4b4…9416` / `c57739ed…20b8`。

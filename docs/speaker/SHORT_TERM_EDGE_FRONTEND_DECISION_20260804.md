@@ -3,7 +3,8 @@
 > 2026-08-05 后续状态：Conv-TasNet 虽通过 Mate 80 小样本资源/内容门，但在 60 个 speaker-disjoint
 > other-only test 中产生 8 个非空 false rescue，当前无训练 C2/C3 路线已停止。C1 `1000/300 ms` 也只
 > 保留为 prototype；绝对 PCM hop 调度及冻结集重放已完成，分帧门通过但模型层严格门仍失败，未升级
-> 为正式默认值。
+> 为正式默认值。后续 600 ms buffered-tail 又以 `25.21%` 目标截断换取拖尾下降，C1 无训练默认路线
+> 同样关闭。
 
 ## 1. 问题重述
 
@@ -116,7 +117,7 @@ WeSep 官方实现可直接看到 `torch.stft/istft`、双向 LSTM、动态 padd
 
 | 候选 | 已知资源/效果 | 当前 Mate 80（12 GB/12 logical CPUs） | 8 GB 高端机 | 中端/≤6 GB | 短期结论 |
 | --- | --- | --- | --- | --- | --- |
-| 现有 Speaker VAD `1000/300` | 真机 peak 552 MiB；平均约 1.10 核；C1 单例 PASS、absolute 合成严格门 FAIL | **算力满足，业务门未满足** | 未测，但没有新增模型 | 未测 | **仅 prototype；下一候选转缓冲提交/尾部回退** |
+| 现有 Speaker VAD `1000/300` | 真机 peak 552 MiB；平均约 1.10 核；absolute 与 buffered-tail 严格门均 FAIL | **算力满足，业务门未满足** | 未测，但没有新增模型 | 未测 | **仅研究证据；无训练路线关闭** |
 | WeSep BSRNN+ECAPA | 27.63M 推理参数；checkpoint 282.6 MB；M5 RTF 0.302～0.322；进程 peak RSS 1.94 GB；C1～C3 PASS | 内存物理上装得下，但 Harmony runtime/ONNX/延迟均不满足 | 不建议 | 不满足 | **不满足短期交付** |
 | SpeechBrain SepFormer 16 kHz | 官方 PyTorch/GPU 路径；mask network 约 113 MB；无本项目 ONNX/RTF/RSS；非 target-conditioned | 可能装得下，但没有可交付证据 | 不建议 | 不满足 | **不满足；不继续投入** |
 | RE-SepFormer 固定 4 秒 ONNX + ERes2Net 选流 | ONNX 83.58 MB；M5 ORT 4 线程中位 RTF 0.0276；独立进程 peak RSS 429.65 MB；C1～C3 PASS | 资源可能可跑，但同为无 target identity 的盲分离 | 内存可能可跑，但无证据 | 不建议 | **开放集根因相同，不再作为回退** |
@@ -172,8 +173,8 @@ Asteroid 官方模型卡给出 16 kHz、512 filters、`8 blocks × 3 repeats`；
 不能作为立即交付或全局默认策略。它复用当前 ERes2Net，不新增模型、runtime 或内存边界，且 hop 调度
 已满足分帧无关；但独立 target→other absolute replay 仍出现目标截断、非目标文本和 anchor 误判。
 
-下一候选是缓冲提交 + 尾部回退/重解码，并把 partial 置于确认门后。C2/C3 是同时重叠，不应被宣传为
-这一策略可以解决。
+600 ms 缓冲提交/尾部回退已完成冻结重放：非目标文本降到 `1/960`，但目标截断升到 `242/960`，
+短/中/长目标桶均失败。因此该候选也不进入 SDK；C2/C3 是同时重叠，更不应被宣传为这一策略可以解决。
 
 ### 5.2 高端机应急：固定块分离作为 opt-in 增强模式
 
@@ -229,8 +230,8 @@ ERes2Net 工作点接受原始非目标语音，而 RE-SepFormer 同样是无 en
 
 ## 7. 最终短期建议
 
-1. **今天没有新的默认策略可交付：**C1 `1000/300 ms` 已满足算力和分帧门，但 absolute replay 的
-   模型层严格门仍失败；不能把 C1 单例 PASS 写成正式能力，下一候选转缓冲提交/尾部回退。
+1. **今天没有新的默认策略可交付：**C1 `1000/300 ms` 已满足算力和分帧门，但 absolute 与
+   buffered-tail replay 均未通过业务门；C1 无训练正式默认路线关闭。
 2. **C2/C3 无训练路径停止：**60 个 other-only test 已出现 8 个非空 false rescue；不再运行
    Conv-TasNet 阈值搜索、稳压或真机扩身份，保留原始 ASR/fallback。
 3. **RE-SepFormer 不作为许可回退：**它同样没有 target identity，无法修复已定位的开放集根因。
