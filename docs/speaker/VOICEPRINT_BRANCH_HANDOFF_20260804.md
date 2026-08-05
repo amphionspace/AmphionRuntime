@@ -149,6 +149,15 @@ speaker-disjoint、冻结输入/模型哈希和新旧同键差分审计。ignore
 `trials.jsonl` SHA256 分别为 `93edbfb5…dfc2` / `3387daf7…94c3`。当前 USB 设备仍不在本地授权清单，
 真机构建/安装在 license 校验前停止且未改白名单。
 
+2026-08-05 随后已把 USB 设备加入本机私有 demo 授权，授权文件和完整设备标识没有提交。分支
+`94e8e8c` 的唯一 `ZH_EN` 签名 HAP 已完成 build/install/runtime-ready smoke；同产物执行
+`speaker-vad-onstart` 四种时序 4/4 PASS，每轮非空 final 均带 `speakerSimilarity`，显式 `finish`
+前无 last，结束恰好一次 last/complete，并通过下一 session 恢复。有效 artifact 为
+`20260805-160600-speaker-vad-onstart-80ad4882`。首次误用仅含约 0.70～0.94 秒活动的 enrollment 文件，
+不满足 1.5 秒门槛；其 4/4 FAIL artifact `20260805-160056-speaker-vad-onstart-9c5c8491` 仍保留并标记为
+输入前提不成立，不能作为 SDK 回归证据。该真机补验只关闭 absolute hop 的 Harmony 生命周期风险；
+客户 C1 原始 PCM 仍不可用，C1 严格业务门和完整发布矩阵均未由本轮覆盖。
+
 ## 剩余工作、风险和建议流程
 
 - 本阶段不再继续调 DPDFNet、全局阈值或规则型质量救援；重复同类合成 A/B 不会改变当前选择。
