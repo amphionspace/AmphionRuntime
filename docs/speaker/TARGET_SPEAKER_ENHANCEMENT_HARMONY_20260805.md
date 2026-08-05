@@ -9,7 +9,7 @@ Harmony 已实现可选接口 `enableTargetSpeakerEnhancement`。它在现有 AS
 
 Mate 80 真机上的客户 C1/C2/C3 完整音频均满足业务断言：最终文本包含“上海”，不包含“你好”；
 3 个 session 均恰好一次 `isLast`、一次 `onComplete`，错误数为 0。20 ms 实时喂入时，22 个处理块
-最慢 1.701 秒，低于 1.75 秒步长，最大排队数为 2。取消推理中的 session 后立即开始下一 session
+最慢 1.695 秒，低于 1.75 秒步长，最大排队数为 2。取消推理中的 session 后立即开始下一 session
 也通过，旧任务没有产生迟到回调或污染新 session。
 
 技术实现和真机验证已完成，但当前 Conv-TasNet 权重没有进入源码或正式 HAR。公开模型页面同时出现
@@ -93,11 +93,11 @@ params.extraParams['voiceprintIds'] = ['vp-...'];
 恰好一次 `isLast`，其后恰好一次 `onComplete`；所有公开 final 均带增强标记。C3 后半句仍有识别
 错误，因此本结果证明重叠场景的重要内容被保留，不代表整句准确率已经达到产品终点。
 
-输入按 20 ms 节奏喂入。22 个处理块的最慢耗时为 1.701 秒、95 分位为 1.647 秒，均低于
-1.75 秒步长；最大排队数为 2，没有逐块累积。资源观察持续 122.68 秒：
+输入按 20 ms 节奏喂入。22 个处理块的最慢耗时为 1.695 秒、95 分位为 1.664 秒，均低于
+1.75 秒步长；最大排队数为 2，没有逐块累积。资源观察持续 122.19 秒：
 
-- 峰值 RSS：806.99 MiB；峰值 HWM：822.55 MiB。
-- 稳定窗口头部 RSS：708.91 MiB；尾部 RSS：450.22 MiB，增长为 -258.69 MiB。
+- 峰值 RSS：839.32 MiB；峰值 HWM：857.50 MiB。
+- 稳定窗口头部 RSS：722.16 MiB；尾部 RSS：460.78 MiB，增长为 -261.38 MiB。
 - 线程数从稳定窗口的 49 回落到 41；未观察到持续增长。
 - 当前只证明 12 GB Mate 80 可运行；8 GB 和中端设备尚未验证，不能列入支持范围。
 
@@ -125,8 +125,16 @@ final/complete；均没有 `NOT_LISTENING` 或其他错误。
 `payload/corpus.json` 均保存在分支的
 [`delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805)
 目录。最终 HAP SHA-256 为
-`caec34fb8489a33b7c1ba6c68900acf44460e186a90e64107415b0061ede0293`；实时主轮绑定代码提交
-`a9e0c829bd7dcf371121246ce2bc34029377abb7`，后续两轮只增加了主机报告门禁修正，使用同一 HAP。
+`9dd070743ff1dba597631446e15fb5a5c062a999077bdc02c8c8097dd4aa611f`；三轮均绑定代码提交
+`9d276554c686aea31db17354b7f5ece74ea35077`，报告中的 `voiceprintIdCount`、`fedFrames` 和
+`lastFinalsBeforeFinish` 已与真实输入及生命周期断言一致。
+
+### 4.6 合入前完整回归
+
+同一 HAP 还完成了 21 个通用真机发布模式，全部 `overall_status=PASS`，包括基础实时/突发识别、
+`vadBegin` 真实语音和纯静音、声纹评分与 cold/warm 回退、Speaker VAD、取消、最大时长、数值边界、
+`onStart` 同步写入和卸载后冷加载，以及回调内重入和真实用户快速操作序列。完整模式清单与逐轮证据见
+[`release-gate/20260805-9d27655`](../../delivery/harmony-dingqiao/evidence/release-gate/20260805-9d27655/README.md)。
 
 ## 5. 本轮发现并修复的问题
 
