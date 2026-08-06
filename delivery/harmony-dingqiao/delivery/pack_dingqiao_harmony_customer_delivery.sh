@@ -403,7 +403,29 @@ with tarfile.open(out / "har/amphion_dingqiao.har", "r:gz") as archive:
     delivered_manifest_bytes = archive.extractfile(
         "package/_bundled/amphion_asr/src/main/resources/rawfile/amphion-models/manifest.json"
     ).read()
+    target_speaker_member = (
+        "package/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.ort"
+    )
+    target_speaker_bytes = archive.extractfile(target_speaker_member).read()
 delivered_manifest = json.loads(delivered_manifest_bytes)
+target_speaker_metadata = json.loads(
+    (repo / "delivery/harmony-dingqiao/delivery/convtasnet_16k_ort.json")
+    .read_text(encoding="utf-8")
+)
+target_speaker_identity = {
+    "path": target_speaker_member,
+    "format": target_speaker_metadata["format"],
+    "size_bytes": len(target_speaker_bytes),
+    "sha256": hashlib.sha256(target_speaker_bytes).hexdigest(),
+    "converter_id": target_speaker_metadata["converter_id"],
+    "source_name": target_speaker_metadata["source_name"],
+    "source_sha256": target_speaker_metadata["source_sha256"],
+}
+if (
+    target_speaker_identity["size_bytes"] != target_speaker_metadata["output_size_bytes"]
+    or target_speaker_identity["sha256"] != target_speaker_metadata["output_sha256"]
+):
+    raise SystemExit("[ERROR] delivered target-speaker ORT differs from pinned metadata")
 model_policy = json.loads(
     (repo / "delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json")
     .read_text(encoding="utf-8")
@@ -456,6 +478,7 @@ payload = {
         "converter_ids": sorted(converter_ids),
         "model_id": model_policy["model_id"],
         "onnx_md5": dict(sorted(approved_onnx_md5.items())),
+        "target_speaker_separator": target_speaker_identity,
     },
     "local_native": {
         "libsherpa-onnx-c-api.so": sha256(repo / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so"),
@@ -474,6 +497,7 @@ if sdk_only:
         "itn",
         "vad",
         "industry-text-enhancement",
+        "target-speaker-enhancement",
     ]
     payload["excluded_capabilities"] = []
 (out / "docs/BUILD_PROVENANCE.json").write_text(

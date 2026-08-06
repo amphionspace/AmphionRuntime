@@ -16,6 +16,7 @@ import zipfile
 
 
 MODEL_MD5_POLICY_PATH = Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
+TARGET_SPEAKER_METADATA_PATH = Path(__file__).with_name("convtasnet_16k_ort.json")
 MAX_SDK_ONLY_ZIP_BYTES = 320 * 1024 * 1024
 RUNTIME_IDENTITY_SOURCE_PATH = (
     Path(__file__).resolve().parents[3]
@@ -29,6 +30,9 @@ PINNED_MODEL_ONNX_SOURCES = {
 MODEL_MANIFEST_PATH = (
     "package/_bundled/amphion_asr/src/main/resources/rawfile/"
     "amphion-models/manifest.json"
+)
+TARGET_SPEAKER_MODEL_PATH = (
+    "package/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.ort"
 )
 VERSIONED_PACKAGE_PATHS = (
     "package/_bundled/amphion_asr/oh-package.json5",
@@ -147,6 +151,38 @@ def _load_pinned_model_md5() -> dict[str, str]:
         detail = missing[0] if missing else extra[0]
         raise DeliveryValidationError(f"pinned model ONNX file set mismatch: {detail}")
     return expected
+
+
+def _load_pinned_target_speaker_identity() -> dict[str, object]:
+    try:
+        metadata = json.loads(TARGET_SPEAKER_METADATA_PATH.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise DeliveryValidationError(
+            "target-speaker ORT identity metadata is invalid"
+        ) from error
+    identity = {
+        "path": TARGET_SPEAKER_MODEL_PATH,
+        "format": metadata.get("format"),
+        "size_bytes": metadata.get("output_size_bytes"),
+        "sha256": metadata.get("output_sha256"),
+        "converter_id": metadata.get("converter_id"),
+        "source_name": metadata.get("source_name"),
+        "source_sha256": metadata.get("source_sha256"),
+    }
+    if identity["format"] != "ort":
+        raise DeliveryValidationError("target-speaker model format must be ort")
+    if identity["converter_id"] != "onnxruntime-1.16.3-fixed-arm-cpu-v1":
+        raise DeliveryValidationError("target-speaker ORT converter identity mismatch")
+    if not isinstance(identity["size_bytes"], int) or identity["size_bytes"] <= 0:
+        raise DeliveryValidationError("target-speaker ORT size identity is invalid")
+    for field in ("sha256", "source_sha256"):
+        if not isinstance(identity[field], str) or re.fullmatch(
+            r"[0-9a-f]{64}", identity[field]
+        ) is None:
+            raise DeliveryValidationError(f"target-speaker ORT {field} is invalid")
+    if identity["source_name"] != "convtasnet_16k.onnx":
+        raise DeliveryValidationError("target-speaker ORT source identity mismatch")
+    return identity
 
 
 def _validate_layout(root: Path) -> None:
@@ -279,6 +315,7 @@ def _validate_har(
     expected_version: str,
     expected_model_md5: dict[str, str],
     expected_identity: dict[str, str],
+    expected_target_speaker: dict[str, object],
 ) -> dict:
     har_path = root / "har/amphion_dingqiao.har"
     try:
@@ -363,6 +400,12 @@ def _validate_har(
         if any(value not in identity for value in expected_identity_tokens):
             raise DeliveryValidationError("HAR runtime identity does not match release")
 
+        target_speaker = _read_tar_bytes(archive, TARGET_SPEAKER_MODEL_PATH)
+        if len(target_speaker) != expected_target_speaker.get("size_bytes"):
+            raise DeliveryValidationError("target-speaker ORT size mismatch")
+        if hashlib.sha256(target_speaker).hexdigest() != expected_target_speaker.get("sha256"):
+            raise DeliveryValidationError("target-speaker ORT hash mismatch")
+
         manifest_payload = _read_tar_bytes(archive, MODEL_MANIFEST_PATH)
         try:
             manifest = json.loads(manifest_payload)
@@ -438,6 +481,7 @@ def _validate_har(
             "manifest_version": manifest.get("manifest_version"),
             "bundles": sorted(bundles),
             "onnx_md5": dict(sorted(actual_sources.items())),
+            "target_speaker_separator": dict(expected_target_speaker),
         }
 
 
@@ -463,8 +507,9 @@ def _validate_provenance(root: Path, expected_version: str, har_evidence: dict) 
         "itn",
         "vad",
         "industry-text-enhancement",
+        "target-speaker-enhancement",
     ]:
-        raise DeliveryValidationError("provenance capabilities do not include police enhancement")
+        raise DeliveryValidationError("provenance capabilities do not match bundled SDK features")
     if provenance.get("excluded_capabilities") != []:
         raise DeliveryValidationError("provenance incorrectly excludes a bundled capability")
     artifacts = provenance.get("artifacts")
@@ -481,7 +526,13 @@ def _validate_provenance(root: Path, expected_version: str, har_evidence: dict) 
     model = provenance.get("model")
     if not isinstance(model, dict):
         raise DeliveryValidationError("provenance model evidence is missing")
-    for field in ("manifest_sha256", "manifest_version", "bundles", "onnx_md5"):
+    for field in (
+        "manifest_sha256",
+        "manifest_version",
+        "bundles",
+        "onnx_md5",
+        "target_speaker_separator",
+    ):
         if model.get(field) != har_evidence[field]:
             raise DeliveryValidationError(f"provenance model {field} mismatch")
     if "verified_build_identity" in provenance:
@@ -530,9 +581,12 @@ def validate_delivery(
     root: Path,
     expected_version: str,
     expected_model_md5: dict[str, str] | None = None,
+    expected_target_speaker: dict[str, object] | None = None,
 ) -> None:
     if expected_model_md5 is None:
         expected_model_md5 = _load_pinned_model_md5()
+    if expected_target_speaker is None:
+        expected_target_speaker = _load_pinned_target_speaker_identity()
     expected_identity = _load_expected_runtime_identity()
     if expected_identity["version"] != expected_version:
         raise DeliveryValidationError(
@@ -541,7 +595,11 @@ def validate_delivery(
     _validate_layout(root)
     _validate_checksums(root)
     har_evidence = _validate_har(
-        root, expected_version, expected_model_md5, expected_identity
+        root,
+        expected_version,
+        expected_model_md5,
+        expected_identity,
+        expected_target_speaker,
     )
     _validate_provenance(root, expected_version, har_evidence)
     _validate_documents(root)
@@ -551,9 +609,12 @@ def validate_delivery_path(
     path: Path,
     expected_version: str,
     expected_model_md5: dict[str, str] | None = None,
+    expected_target_speaker: dict[str, object] | None = None,
 ) -> None:
     if path.is_dir():
-        validate_delivery(path, expected_version, expected_model_md5)
+        validate_delivery(
+            path, expected_version, expected_model_md5, expected_target_speaker
+        )
         return
     if not path.is_file() or path.suffix.lower() != ".zip":
         raise DeliveryValidationError(f"delivery must be a directory or final ZIP: {path}")
@@ -594,7 +655,12 @@ def validate_delivery_path(
                 shutil.copyfileobj(source, output)
         if len(roots) != 1:
             raise DeliveryValidationError("delivery ZIP must contain exactly one root directory")
-        validate_delivery(destination / roots.pop(), expected_version, expected_model_md5)
+        validate_delivery(
+            destination / roots.pop(),
+            expected_version,
+            expected_model_md5,
+            expected_target_speaker,
+        )
 
 
 def main() -> int:

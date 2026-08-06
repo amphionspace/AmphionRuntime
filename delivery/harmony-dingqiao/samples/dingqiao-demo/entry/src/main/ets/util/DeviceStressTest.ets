@@ -58,6 +58,7 @@ class CorpusEntry {
 
 class SessionEvents {
   starts: number = 0;
+  startCallbackAtMs: number = -1;
   partials: number = 0;
   speechBegins: number = 0;
   speechEnds: number = 0;
@@ -108,6 +109,7 @@ class StressListener implements RecognitionListener {
 
   onStart(sessionId: string, _eventMessage?: string): void {
     this.events.starts += 1;
+    if (this.events.startCallbackAtMs < 0) this.events.startCallbackAtMs = Date.now();
     this.record(sessionId, 'start');
   }
 
@@ -734,6 +736,7 @@ class CycleResult {
   lastFinalsBeforeFinish: number = -1;
   liveStreams: number = 0;
   elapsedMs: number = 0;
+  startCallbackMs: number = -1;
   firstNonEmptyResultMs: number = -1;
   audioStartToFirstNonEmptyResultMs: number = -1;
   audioStartToSpeechBeginMs: number = -1;
@@ -756,6 +759,7 @@ class CycleResult {
       `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
       `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}|liveStreams=${this.liveStreams}` +
       `|unexpectedCallbacks=${this.unexpectedSessionCallbacks}|elapsedMs=${this.elapsedMs}` +
+      `|startCallbackMs=${this.startCallbackMs}` +
       `|firstNonEmptyResultMs=${this.firstNonEmptyResultMs}` +
       `|audioStartToFirstNonEmptyResultMs=${this.audioStartToFirstNonEmptyResultMs}` +
       `|audioStartToSpeechBeginMs=${this.audioStartToSpeechBeginMs}` +
@@ -1062,6 +1066,9 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
     (events.firstNonEmptyFinalHasScore ? 1 : 0);
   result.liveStreams = AmphionRuntime.activeOnlineStreamCount();
   result.elapsedMs = Date.now() - startedAt;
+  if (events.startCallbackAtMs >= 0) {
+    result.startCallbackMs = events.startCallbackAtMs - startedAt;
+  }
   if (events.firstNonEmptyResultAtMs >= 0) {
     result.firstNonEmptyResultMs = events.firstNonEmptyResultAtMs - startedAt;
     if (events.audioFeedStartedAtMs >= 0) {
@@ -1279,11 +1286,12 @@ function enableTargetSpeakerEnhancement(params: StartParams, voiceprintId: strin
 }
 
 async function runTargetSpeakerEnhancementOnStartCycle(engine: SpeechRecognitionEngine,
-  entry: CorpusEntry, index: number, voiceprintId: string): Promise<CycleResult> {
+  entry: CorpusEntry, index: number, voiceprintId: string,
+  actionOverride: string = ''): Promise<CycleResult> {
   const startedAt = Date.now();
   const events = new SessionEvents();
   const actions: string[] = ['continue', 'finish', 'cancel'];
-  const action = actions[index % actions.length];
+  const action = actionOverride.length > 0 ? actionOverride : actions[index % actions.length];
   const bufferedFrameCount = 100;
   const bufferedFrames = readPcmFrames(entry.path, bufferedFrameCount);
   if (bufferedFrames.length !== bufferedFrameCount) {
@@ -2121,7 +2129,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       options.mode === 'voiceprint-vad-begin-idle' || options.mode === 'speaker-vad-onstart' ||
       options.mode === 'target-speaker-enhancement' ||
       options.mode === 'target-speaker-enhancement-onstart' ||
-      options.mode === 'target-speaker-enhancement-cancel') {
+      options.mode === 'target-speaker-enhancement-cancel' ||
+      options.mode === 'target-speaker-enhancement-reload') {
       if ((options.mode === 'voiceprint' || options.mode === 'voiceprint-fallback') &&
         entries.length < 2) {
         throw new Error('voiceprint-stress-requires-two-corpus-sources');
@@ -2129,6 +2138,10 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       stressVoiceprintSamplePath = `${workPath}/stress-voiceprint-enroll.wav`;
       stressVoiceprintId = prepareStressVoiceprint(workPath, entries[0]);
       if (options.mode === 'voiceprint-fallback') SpeechRecognizeSdk.unloadModel();
+      if (options.mode === 'target-speaker-enhancement-reload') {
+        // Registration loads ERes2Net; clear all L2 models so cycle 0 proves a true cold load.
+        SpeechRecognizeSdk.unloadModel();
+      }
     }
 
     const recreateEachCycle = options.mode === 'recreate' || options.mode === 'start-write-reload';
@@ -2142,8 +2155,24 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entry = entries[1];
       } else if (options.mode === 'target-speaker-enhancement' ||
         options.mode === 'target-speaker-enhancement-onstart' ||
-        options.mode === 'target-speaker-enhancement-cancel') {
+        options.mode === 'target-speaker-enhancement-cancel' ||
+        options.mode === 'target-speaker-enhancement-reload') {
         entry = entries[1 + (i % (entries.length - 1))];
+      }
+      if (options.mode === 'target-speaker-enhancement-reload' && i === 2) {
+        engine?.shutdown();
+        engine = undefined;
+        SpeechRecognizeSdk.unloadModel();
+        logLine('MODEL_LIFECYCLE|phase=target-speaker-model-reload');
+        engine = createEngine();
+      } else if (options.mode === 'target-speaker-enhancement-reload' && i === 3) {
+        engine?.shutdown();
+        engine = undefined;
+        SpeechRecognizeSdk.unloadRuntime();
+        logLine('MODEL_LIFECYCLE|phase=target-speaker-runtime-reload');
+        const reloadRuntimeError = await prepareRuntime();
+        if (reloadRuntimeError !== 0) throw new Error(`runtime-reload-${reloadRuntimeError}`);
+        engine = createEngine();
       }
       if (recreateEachCycle) engine = createEngine();
       if (engine === undefined) throw new Error('engine-create-failed');
@@ -2185,6 +2214,17 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runTargetSpeakerEnhancementOnStartCycle(engine, entry, i, stressVoiceprintId);
       } else if (options.mode === 'target-speaker-enhancement-cancel') {
         result = await runTargetSpeakerEnhancementCancelCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'target-speaker-enhancement-reload') {
+        result = await runTargetSpeakerEnhancementOnStartCycle(
+          engine, entry, i, stressVoiceprintId, 'continue'
+        );
+        const reloadPhases: string[] = [
+          'target-speaker-cold-load',
+          'target-speaker-warm-reuse',
+          'target-speaker-model-reload',
+          'target-speaker-runtime-reload'
+        ];
+        result.detail = result.ok ? reloadPhases[i] : `${reloadPhases[i]}-${result.detail}`;
       } else {
         result = await runRecognitionCycle(engine, entry, i, options);
       }

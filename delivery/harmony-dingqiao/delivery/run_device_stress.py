@@ -98,6 +98,7 @@ def parse_args() -> argparse.Namespace:
             "target-speaker-enhancement",
             "target-speaker-enhancement-onstart",
             "target-speaker-enhancement-cancel",
+            "target-speaker-enhancement-reload",
             "callback-api-reentrant",
             "endpoint-reentrant",
             "user-sequence",
@@ -144,6 +145,8 @@ def parse_args() -> argparse.Namespace:
         parser.error("--timeout and --sample-interval must be positive")
     if args.settle_ms < 0 or args.pace_ms < 0 or args.post_run_observe < 0:
         parser.error("timing values must be non-negative")
+    if args.mode == "target-speaker-enhancement-reload" and args.cycles != 4:
+        parser.error("target-speaker-enhancement-reload requires exactly 4 cycles")
     if args.skip_build_install and args.installed_package:
         parser.error("--skip-build-install and --installed-package are mutually exclusive")
     return args
@@ -718,6 +721,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         "target-speaker-enhancement",
         "target-speaker-enhancement-onstart",
         "target-speaker-enhancement-cancel",
+        "target-speaker-enhancement-reload",
     ):
         selected = sorted(selected, key=lambda source: str(source.path))
         if len(selected) < 2:

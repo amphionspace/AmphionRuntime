@@ -20,6 +20,9 @@ class ReleaseDefaultsTest(unittest.TestCase):
             self.assertIn("convtasnet_16k.ort", source)
             self.assertNotIn("convtasnet_16k.onnx", source)
         self.assertNotIn("unapproved target-speaker model", package)
+        self.assertGreaterEqual(assemble.count("verify_target_speaker_model.py"), 2)
+        self.assertIn('"target_speaker_separator": target_speaker_identity', package)
+        self.assertIn('"target-speaker-enhancement"', package)
 
     def test_prepack_is_disabled_by_default_across_public_harmony_layers(self) -> None:
         core = (

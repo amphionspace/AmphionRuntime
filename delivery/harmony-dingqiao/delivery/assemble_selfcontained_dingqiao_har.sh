@@ -107,6 +107,9 @@ PACKAGED_TARGET_SPEAKER_MODEL="$WORK/sc/src/main/resources/rawfile/amphion-dingq
   echo "[ERROR] required target-speaker ORT model is missing from the source HAR" >&2
   exit 1
 }
+python3 "$SCRIPT_DIR/verify_target_speaker_model.py" \
+  --model "$PACKAGED_TARGET_SPEAKER_MODEL" \
+  --metadata "$TARGET_SPEAKER_METADATA"
 
 if [[ "$ZH_EN_ONLY" == true ]]; then
   python3 "$SCRIPT_DIR/filter_zh_en_model_payload.py" \

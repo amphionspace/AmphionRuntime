@@ -194,6 +194,29 @@ class RunCommandTest(unittest.TestCase):
             self.assertEqual(mode, args.mode)
             self.assertNotIn(mode, MODULE.FINISH_MODES)
 
+    def test_target_speaker_reload_covers_model_and_runtime_cold_loads(self) -> None:
+        with mock.patch.object(
+            sys,
+            "argv",
+            [
+                str(SCRIPT),
+                "--mode",
+                "target-speaker-enhancement-reload",
+                "--cycles",
+                "4",
+            ],
+        ):
+            args = MODULE.parse_args()
+
+        source = CARRIER.read_text(encoding="utf-8")
+        self.assertEqual("target-speaker-enhancement-reload", args.mode)
+        self.assertNotIn(args.mode, MODULE.FINISH_MODES)
+        self.assertIn("SpeechRecognizeSdk.unloadModel();", source)
+        self.assertIn("SpeechRecognizeSdk.unloadRuntime();", source)
+        self.assertIn("target-speaker-model-reload", source)
+        self.assertIn("target-speaker-runtime-reload", source)
+        self.assertIn("startCallbackMs", source)
+
     def test_endpoint_reentrant_is_lifecycle_only_not_text_quality(self) -> None:
         with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "endpoint-reentrant"]):
             args = MODULE.parse_args()

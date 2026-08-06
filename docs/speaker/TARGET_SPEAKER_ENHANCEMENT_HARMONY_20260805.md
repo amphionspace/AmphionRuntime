@@ -193,8 +193,9 @@ Conv-TasNet 已用 Harmony 设备同版本 ONNX Runtime 1.16.3 转换为固定 A
 | `unloadRuntime` | 与 ERes2Net 一样随 L2 模型一起释放 | Runtime 回到未初始化态 |
 | 卸载后再次启用增强 | 重新从 HAR 冷加载 | 创建全新 session 状态 |
 
-最终交付仍需用固定 ORT 资产执行 C1/C2/C3、目标不在场负例、目标单独说话、cancel、onStart
-同步写入、卸载后重载、60 秒以上资源观察和默认关闭回归。当前设备支持范围仍以真机报告为准。
+最终交付仍需用固定 ORT 资产执行 C1/C2/C3、目标不在场负例、目标单独说话和默认关闭精度回归。
+生命周期的 cancel、onStart 同步写入、卸载后重载和 60 秒以上资源观察已由第 8 节覆盖。
+当前设备支持范围仍以真机报告为准。
 
 ## 8. 2026-08-06 ORT 真机生命周期验证
 
@@ -215,3 +216,18 @@ Conv-TasNet 已用 Harmony 设备同版本 ONNX Runtime 1.16.3 转换为固定 A
 [`20260806-ort-lifecycle`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260806-ort-lifecycle)，
 包括 `report.json`、逐轮结果、内存采样、完整 hilog、设备包身份和输入映射。该轮总时长不足 15 秒，
 因此内存趋势结论为 `INCONCLUSIVE`，不替代既有 122 秒资源观察。
+
+审查补充门禁随后又执行了固定 4 阶段流程，证据见
+[`20260806-ort-reload`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260806-ort-reload)：
+
+| 阶段 | `startListening` 到 `onStart` | 生命周期结果 |
+|---|---:|---|
+| 首次冷加载 | 1028 ms | 一次 last 后一次 complete，0 error |
+| 同进程复用 | 617 ms | 一次 last 后一次 complete，0 error |
+| `shutdown → unloadModel → createEngine` | 1305 ms | 重新加载成功，一次 last 后一次 complete，0 error |
+| `shutdown → unloadRuntime → prepareRuntime → createEngine` | 1305 ms | 重新加载成功，一次 last 后一次 complete，0 error |
+
+四轮都在 `onStart` 调用栈内同步写入 100 帧，显式 `finish` 前 `isLast` 数为 0，结束后 native
+stream 为 0，且无跨 session 回调。资源采样持续 `75.882 秒`：峰值 RSS `723.062 MiB`，稳定窗口
+头部/尾部为 `492.424/478.600 MiB`，变化 `-13.824 MiB`，线程变化 `-5.5`，内存门禁为 PASS。
+该语料只用于生命周期，4 个 terminal final 均为空，不能替代客户 C1/C2/C3 的内容精度回归。
