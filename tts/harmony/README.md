@@ -23,7 +23,7 @@ D:\work\LitsTtsSdk
 | 项 | 值 |
 | --- | --- |
 | SDK 版本 | `0.1.0` |
-| 模型 ID | `transsion_lits_en_zh_vocos24k_streaming_proto_external_loop` |
+| 模型 ID | `dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop` |
 | 模型版本 | `0.1.0` |
 | 支持语种 | `zh-en`, `en-US` |
 | 输出格式 | `pcm`, 24000 Hz, 16-bit, mono |
@@ -51,6 +51,7 @@ D:\work\LitsTtsSdk
 
 ## 文档导航
 
+- Dingqiao v3 源码编译说明：[docs/BUILD_FROM_SOURCE.md](docs/BUILD_FROM_SOURCE.md)
 - 构建与验证：[docs/BUILD.md](docs/BUILD.md)
 - API 说明：[docs/API.md](docs/API.md)
 - Git 上传与模型交接：[docs/DELIVERY.md](docs/DELIVERY.md)
@@ -62,7 +63,7 @@ D:\work\LitsTtsSdk
 1. 把完整模型包放到：
 
 ```text
-LitsTtsSdk\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0\
+LitsTtsSdk\tools\trial-export\dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0\
 ```
 
 2. 进入：
@@ -74,7 +75,7 @@ LitsTtsSdk\HarmonyOS\AmphionRuntime
 3. 先执行宿主侧预检：
 
 ```powershell
-node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0 --out-dir .\verification\out --text "Hello world." --mode en-US
+node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-export\dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0 --out-dir .\verification\out --text "Hello world." --mode en-US
 ```
 
 4. 设置构建环境：
@@ -101,7 +102,7 @@ sdk/build/default/outputs/default/sdk.har
 源码仓库不存真实模型文件。构建前，你需要把完整模型包放到固定目录：
 
 ```text
-LitsTtsSdk\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0\
+LitsTtsSdk\tools\trial-export\dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0\
 ```
 
 最少需要以下文件：
@@ -126,11 +127,9 @@ LitsTtsSdk\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_exte
 - `arpabet_to_tokens.json`
 - `tn-bin/arm64-v8a/zh_tts`
 - `tn-bin/arm64-v8a/en_tts`
-- `rules/zh.json`
-- `rules/en.json`
-- `rules/zh_pinyin.json`
 - `rules_v2/zh.full.json`
 - `rules_v2/en.full.json`
+- `rules_v2/zh_pinyin.json`
 
 构建时，HarmonyOS SDK 会把这份模型包同步到 `sdk/src/main/resources/rawfile/...` 并打进 HAR。运行时如果宿主没有显式传入模型目录，SDK 会先把 HAR 内置模型自动解包到可写目录；如需覆盖默认行为，仍可通过以下任一方式指定外部模型目录：
 

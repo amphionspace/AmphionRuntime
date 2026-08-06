@@ -30,6 +30,7 @@ declare const nativeModule: {
     chunkCount: number;
   }>;
   normalizeTnSegment: (binaryPath: string, workingDir: string, text: string) => string;
+  releaseTnResources: () => void;
 };
 
 export default nativeModule;

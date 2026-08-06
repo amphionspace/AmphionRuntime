@@ -19,13 +19,13 @@ internal object EngineRegistry {
         RegisteredVoice(
             voiceId = "lits-female-01",
             gender = "Female",
-            description = "Lits_delivery female speaker 01",
+            description = "Dingqiao female speaker 01",
             speakerId = 0,
         ),
         RegisteredVoice(
             voiceId = "lits-female-02",
             gender = "Female",
-            description = "Lits_delivery female speaker 02",
+            description = "Dingqiao female speaker 02",
             speakerId = 1,
         ),
     )
@@ -57,11 +57,11 @@ internal object EngineRegistry {
                 voice = speaker.toVoiceInfo(params.language),
                 engineName = engineName,
                 workPath = workPath,
-                onRelease = { instanceCount.decrementAndGet() },
+                onRelease = { instanceCount.decrementAndGet() <= 0 },
                 synthesizer = synthesizer,
             )
         } catch (error: Throwable) {
-            runCatching { synthesizer.close() }
+            runCatching { synthesizer.close(releaseSharedResources = instanceCount.get() <= 1) }
             instanceCount.decrementAndGet()
             throw TextToSpeechException(
                 TtsErrorCode.CREATE_ENGINE_FAILED,

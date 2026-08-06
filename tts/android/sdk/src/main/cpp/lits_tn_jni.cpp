@@ -4,6 +4,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <android/log.h>
 #include <unicode/locid.h>
@@ -51,7 +52,7 @@ public:
             throw std::runtime_error("failed to load TN rules_v2: " + err);
         }
         if (lang_ == "zh") {
-            const std::string pinyin_path = rules_root_ + "/rules/zh_pinyin.json";
+            const std::string pinyin_path = rules_root_ + "/rules_v2/zh_pinyin.json";
             if (!engine_.loadPinyinMap(pinyin_path, err)) {
                 throw std::runtime_error("failed to load TN pinyin map: " + err);
             }
@@ -140,6 +141,18 @@ NativeTnNormalizer& GetNormalizer(const std::string& rules_root, const std::stri
     return *cached;
 }
 
+void ClearNormalizers(const std::string& rules_root) {
+    const std::string prefix = rules_root + "\n";
+    std::lock_guard<std::mutex> lock(g_normalizers_mutex);
+    for (auto it = g_normalizers.begin(); it != g_normalizers.end();) {
+        if (it->first.rfind(prefix, 0) == 0) {
+            it = g_normalizers.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 }  // namespace
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -172,5 +185,89 @@ Java_com_lits_tts_sdk_internal_NativeTnNormalizer_normalizeNative(
             env->ThrowNew(exception_class, "native TN normalize failed");
         }
         return nullptr;
+    }
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_lits_tts_sdk_internal_NativeTnNormalizer_normalizeBatchNative(
+    JNIEnv* env,
+    jobject /* thiz */,
+    jstring rules_root,
+    jobjectArray langs,
+    jobjectArray texts) {
+    try {
+        const jsize lang_count = env->GetArrayLength(langs);
+        const jsize text_count = env->GetArrayLength(texts);
+        if (lang_count != text_count) {
+            jclass exception_class = env->FindClass("java/lang/IllegalArgumentException");
+            if (exception_class != nullptr) {
+                env->ThrowNew(exception_class, "TN batch languages/texts size mismatch");
+            }
+            return nullptr;
+        }
+
+        const std::string rules_root_utf8 = ToUtf8(env, rules_root);
+        std::vector<std::string> lang_values;
+        std::vector<std::string> text_values;
+        lang_values.reserve(lang_count);
+        text_values.reserve(text_count);
+        for (jsize i = 0; i < lang_count; ++i) {
+            auto lang = static_cast<jstring>(env->GetObjectArrayElement(langs, i));
+            auto text = static_cast<jstring>(env->GetObjectArrayElement(texts, i));
+            lang_values.push_back(ToUtf8(env, lang));
+            text_values.push_back(ToUtf8(env, text));
+            env->DeleteLocalRef(lang);
+            env->DeleteLocalRef(text);
+        }
+
+        jclass string_class = env->FindClass("java/lang/String");
+        if (string_class == nullptr) {
+            return nullptr;
+        }
+        jobjectArray output = env->NewObjectArray(text_count, string_class, nullptr);
+        if (output == nullptr) {
+            return nullptr;
+        }
+        for (jsize i = 0; i < text_count; ++i) {
+            const std::string normalized =
+                text_values[i].empty()
+                    ? text_values[i]
+                    : GetNormalizer(rules_root_utf8, lang_values[i]).Normalize(text_values[i]);
+            jstring value = ToJString(env, normalized.empty() ? text_values[i] : normalized);
+            if (value == nullptr) {
+                return nullptr;
+            }
+            env->SetObjectArrayElement(output, i, value);
+            env->DeleteLocalRef(value);
+        }
+        return output;
+    } catch (const std::exception& error) {
+        __android_log_print(ANDROID_LOG_ERROR, kLogTag, "batch normalize failed: %s", error.what());
+        jclass exception_class = env->FindClass("java/lang/IllegalStateException");
+        if (exception_class != nullptr) {
+            env->ThrowNew(exception_class, error.what());
+        }
+        return nullptr;
+    } catch (...) {
+        __android_log_print(ANDROID_LOG_ERROR, kLogTag, "batch normalize failed: unknown error");
+        jclass exception_class = env->FindClass("java/lang/IllegalStateException");
+        if (exception_class != nullptr) {
+            env->ThrowNew(exception_class, "native TN batch normalize failed");
+        }
+        return nullptr;
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_lits_tts_sdk_internal_NativeTnNormalizer_clearCacheNative(
+    JNIEnv* env,
+    jobject /* thiz */,
+    jstring rules_root) {
+    try {
+        ClearNormalizers(ToUtf8(env, rules_root));
+    } catch (const std::exception& error) {
+        __android_log_print(ANDROID_LOG_ERROR, kLogTag, "clear cache failed: %s", error.what());
+    } catch (...) {
+        __android_log_print(ANDROID_LOG_ERROR, kLogTag, "clear cache failed: unknown error");
     }
 }

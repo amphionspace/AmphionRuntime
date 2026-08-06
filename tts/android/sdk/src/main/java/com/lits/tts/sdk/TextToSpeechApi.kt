@@ -5,6 +5,7 @@ import com.lits.tts.sdk.internal.AndroidAppContext
 import com.lits.tts.sdk.internal.DeviceLicenseFingerprint
 import com.lits.tts.sdk.internal.EngineRegistry
 import com.lits.tts.sdk.internal.LicenseGuard
+import com.lits.tts.sdk.internal.TtsResourcePreloader
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -157,6 +158,8 @@ data class StopResponse(
 interface SpeakListener {
     fun onStart(requestId: String, response: StartResponse) = Unit
     fun onData(requestId: String, audio: ByteArray, response: SynthesisResponse) = Unit
+    /** Called when the first PCM bytes are written to the internal AudioTrack. */
+    fun onPlaybackStart(requestId: String, elapsedMs: Long) = Unit
     fun onComplete(requestId: String, response: CompleteResponse) = Unit
     fun onStop(requestId: String, response: StopResponse) = Unit
     fun onError(requestId: String, errorCode: Int, errorMessage: String) = Unit
@@ -301,6 +304,17 @@ object TextToSpeechSdk {
             )
         }
         this.workPath = workPath
+    }
+
+    /**
+     * First stage of two-stage loading. Call after [setWorkPath] and before
+     * [createEngine] when background preparation is allowed. It caches frontend
+     * resources and starts TN initialization; it does not load ONNX models.
+     */
+    @JvmStatic
+    fun preloadFrontendAndTn() {
+        LicenseGuard.gate()
+        TtsResourcePreloader.preload(AndroidAppContext.tryGet(), workPath)
     }
 
     @JvmStatic
