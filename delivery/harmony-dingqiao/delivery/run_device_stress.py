@@ -134,6 +134,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--sample-interval", type=float, default=1.0)
     parser.add_argument("--post-run-observe", type=float, default=5.0)
+    parser.add_argument(
+        "--speaker-vad-threshold",
+        type=float,
+        help="Override speakerVadThreshold for target-speaker device experiments.",
+    )
+    parser.add_argument(
+        "--skip-target-content-check",
+        action="store_true",
+        help=(
+            "Keep target-speaker lifecycle/realtime checks but skip the C1-C3-specific "
+            "required/forbidden text assertion. Intended for exploratory corpora."
+        ),
+    )
     parser.add_argument("--max-rss-growth-mb", type=float, default=64.0)
     parser.add_argument("--max-thread-growth", type=int, default=2)
     parser.add_argument("--max-empty-final-rate", type=float, default=0.05)
@@ -165,6 +178,13 @@ def parse_args() -> argparse.Namespace:
         parser.error("target-speaker-enhancement-reload requires exactly 4 cycles")
     if args.target_speaker_manifest is not None and args.mode not in TARGET_SPEAKER_MODES:
         parser.error("--target-speaker-manifest requires a target-speaker-enhancement mode")
+    if args.skip_target_content_check and args.mode != "target-speaker-enhancement":
+        parser.error("--skip-target-content-check requires --mode target-speaker-enhancement")
+    if args.speaker_vad_threshold is not None:
+        if args.mode != "target-speaker-enhancement":
+            parser.error("--speaker-vad-threshold requires --mode target-speaker-enhancement")
+        if not -1.0 <= args.speaker_vad_threshold <= 1.0:
+            parser.error("--speaker-vad-threshold must be within [-1, 1]")
     if args.skip_build_install and args.installed_package:
         parser.error("--skip-build-install and --installed-package are mutually exclusive")
     return args
@@ -919,6 +939,10 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressSettleMs", str(args.settle_ms),
         "--ps", "stressPaceMs", str(args.pace_ms),
         "--ps", "stressEnrollmentCount", str(target_speaker_enrollment_count),
+        "--ps", "stressEnforceTargetSpeakerBusinessText",
+        "false" if args.skip_target_content_check else "true",
+        "--ps", "stressSpeakerVadThreshold",
+        str(args.speaker_vad_threshold) if args.speaker_vad_threshold is not None else "-2",
         check=False,
     )
     if start_result.returncode != 0 or "error" in (start_result.stdout + start_result.stderr).lower():
@@ -974,11 +998,20 @@ def run_stress(args: argparse.Namespace) -> Path:
     target_speaker_realtime = target_speaker_realtime_verdict(
         artifact_dir / "hilog.txt", realtime_required
     )
-    target_speaker_content = (
-        target_speaker_content_verdict(cycle_results, mapping, args.target_speaker_manifest)
-        if args.mode == "target-speaker-enhancement"
-        else {"status": "NOT_APPLICABLE", "reason": "mode is lifecycle-only", "cases": []}
-    )
+    if args.mode != "target-speaker-enhancement":
+        target_speaker_content = {
+            "status": "NOT_APPLICABLE", "reason": "mode is lifecycle-only", "cases": []
+        }
+    elif args.skip_target_content_check:
+        target_speaker_content = {
+            "status": "NOT_APPLICABLE",
+            "reason": "C1-C3 content assertion explicitly disabled for exploratory corpus",
+            "cases": [],
+        }
+    else:
+        target_speaker_content = target_speaker_content_verdict(
+            cycle_results, mapping, args.target_speaker_manifest
+        )
     cpu = cpu_statistics(workload_samples)
     completed = int(app_summary.get("completed", "0"))
     empty_finals = int(app_summary.get("emptyFinals", "0"))
@@ -1029,6 +1062,8 @@ def run_stress(args: argparse.Namespace) -> Path:
             "pace_ms": args.pace_ms,
             "sample_interval_seconds": args.sample_interval,
             "post_run_observe_seconds": args.post_run_observe,
+            "target_content_check_enabled": not args.skip_target_content_check,
+            "speaker_vad_threshold": args.speaker_vad_threshold,
         },
         "inventory": inventory,
         "application": app_summary,

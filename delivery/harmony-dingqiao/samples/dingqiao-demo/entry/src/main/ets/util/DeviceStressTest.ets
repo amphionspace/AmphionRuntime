@@ -45,6 +45,8 @@ export class DeviceStressOptions {
   settleMs: number = 0;
   paceMs: number = 20;
   enrollmentCount: number = 1;
+  enforceTargetSpeakerBusinessText: boolean = true;
+  speakerVadThreshold: number = -2;
 }
 
 class CorpusEntry {
@@ -1324,6 +1326,9 @@ async function runTargetSpeakerEnhancementCycle(engine: SpeechRecognitionEngine,
   params.extraParams['enableTargetSpeakerEnhancement'] = true;
   params.extraParams['enablePartialResult'] = true;
   params.extraParams['voiceprintIds'] = [voiceprintId];
+  if (options.speakerVadThreshold >= -1 && options.speakerVadThreshold <= 1) {
+    params.extraParams['speakerVadThreshold'] = options.speakerVadThreshold;
+  }
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     const startDetail = events.errorMessages.length > 0 ?
@@ -1340,7 +1345,8 @@ async function runTargetSpeakerEnhancementCycle(engine: SpeechRecognitionEngine,
   engine.finish(sessionId);
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
   const text = events.finalTexts.join('');
-  const businessTextPassed = text.includes('上海') && !text.includes('你好');
+  const businessTextPassed = !options.enforceTargetSpeakerBusinessText ||
+    (text.includes('上海') && !text.includes('你好'));
   const ok = completed && events.starts === 1 && events.finals > 0 &&
     events.lastFinals === 1 && lastFinalsBeforeFinish === 0 && events.completes === 1 &&
     events.errors === 0 && events.targetSpeakerEnhancementResults === events.finals && businessTextPassed &&

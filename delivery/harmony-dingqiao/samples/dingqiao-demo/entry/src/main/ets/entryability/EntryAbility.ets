@@ -100,6 +100,9 @@ export default class EntryAbility extends UIAbility {
       options.settleMs = this.numberParameter(want, 'stressSettleMs', 0);
       options.paceMs = this.numberParameter(want, 'stressPaceMs', 20);
       options.enrollmentCount = this.numberParameter(want, 'stressEnrollmentCount', 1);
+      options.enforceTargetSpeakerBusinessText =
+        this.stringParameter(want, 'stressEnforceTargetSpeakerBusinessText', 'true') === 'true';
+      options.speakerVadThreshold = this.floatParameter(want, 'stressSpeakerVadThreshold', -2);
       runDeviceStress(this.context, options).catch((e: Object): void => {
         hilog.error(0x0000, 'DeviceStressTest', 'stress test crashed: %{public}s', `${e}`);
       }).finally((): void => {
@@ -146,6 +149,16 @@ export default class EntryAbility extends UIAbility {
     if (typeof value === 'string') {
       const parsed = Number(value);
       if (Number.isFinite(parsed)) return Math.max(0, Math.floor(parsed));
+    }
+    return fallback;
+  }
+
+  private floatParameter(want: Want, key: string, fallback: number): number {
+    const value = want.parameters?.[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
     }
     return fallback;
   }

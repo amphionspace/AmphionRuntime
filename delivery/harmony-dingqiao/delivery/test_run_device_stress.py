@@ -374,6 +374,50 @@ class RunCommandTest(unittest.TestCase):
             self.assertEqual("FAIL", verdict["cases"][1]["status"])
             self.assertEqual("准备去上海你好。", verdict["cases"][1]["text"])
 
+    def test_target_speaker_exploratory_corpus_can_skip_c1_c3_text_gate(self) -> None:
+        with mock.patch.object(
+            sys,
+            "argv",
+            [
+                str(SCRIPT),
+                "--mode",
+                "target-speaker-enhancement",
+                "--skip-target-content-check",
+            ],
+        ):
+            args = MODULE.parse_args()
+
+        self.assertTrue(args.skip_target_content_check)
+        carrier = CARRIER.read_text(encoding="utf-8")
+        self.assertIn("enforceTargetSpeakerBusinessText: boolean = true", carrier)
+        self.assertIn("!options.enforceTargetSpeakerBusinessText", carrier)
+        runner = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('"stressEnforceTargetSpeakerBusinessText"', runner)
+
+    def test_target_speaker_experiment_can_override_speaker_vad_threshold(self) -> None:
+        with mock.patch.object(
+            sys,
+            "argv",
+            [
+                str(SCRIPT),
+                "--mode",
+                "target-speaker-enhancement",
+                "--speaker-vad-threshold",
+                "0.45",
+            ],
+        ):
+            args = MODULE.parse_args()
+
+        self.assertEqual(0.45, args.speaker_vad_threshold)
+        carrier = CARRIER.read_text(encoding="utf-8")
+        self.assertIn("params.extraParams['speakerVadThreshold']", carrier)
+        self.assertIn("options.speakerVadThreshold", carrier)
+        entry_ability = CARRIER.parents[1] / "entryability" / "EntryAbility.ets"
+        entry_source = entry_ability.read_text(encoding="utf-8")
+        self.assertIn(
+            "options.speakerVadThreshold = this.floatParameter", entry_source
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
