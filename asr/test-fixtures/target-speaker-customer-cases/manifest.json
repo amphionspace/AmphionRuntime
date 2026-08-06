@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "source_date": "2026-07-29",
+  "description": "Harmony target-speaker customer cases C1-C3",
+  "business_assertion": {
+    "required_text": "上海",
+    "forbidden_text": "你好"
+  },
+  "files": [
+    {
+      "path": "enrollment/enrollment_far.wav",
+      "role": "enrollment",
+      "sample_rate": 16000,
+      "channels": 1,
+      "sample_width_bytes": 2,
+      "frames": 113920,
+      "duration_seconds": 7.12,
+      "sha256": "a50064cd01bc16e9bbdb58b4cf5d21a6fb13d7346e8e1de48c4890334a9e456e"
+    },
+    {
+      "path": "enrollment/enrollment_mid.wav",
+      "role": "enrollment",
+      "sample_rate": 16000,
+      "channels": 1,
+      "sample_width_bytes": 2,
+      "frames": 110720,
+      "duration_seconds": 6.92,
+      "sha256": "9d35c3ff1c404f6edc5b70b49197307c36fa645701ce71513e9520250a880969"
+    },
+    {
+      "path": "enrollment/enrollment_near.wav",
+      "role": "enrollment",
+      "sample_rate": 16000,
+      "channels": 1,
+      "sample_width_bytes": 2,
+      "frames": 110720,
+      "duration_seconds": 6.92,
+      "sha256": "5c3f33e6c7eb85fcf9277ac705da736108355a90a658b54c8c1716cf46733463"
+    },
+    {
+      "path": "cases/C1.wav",
+      "role": "case",
+      "case_id": "C1",
+      "sample_rate": 16000,
+      "channels": 1,
+      "sample_width_bytes": 2,
+      "frames": 165440,
+      "duration_seconds": 10.34,
+      "sha256": "a687cb55710bb3ef1771717d74bdf3e974653bd004bf490200ed9a3c86ddab9b"
+    },
+    {
+      "path": "cases/C2.wav",
+      "role": "case",
+      "case_id": "C2",
+      "sample_rate": 16000,
+      "channels": 1,
+      "sample_width_bytes": 2,
+      "frames": 232000,
+      "duration_seconds": 14.5,
+      "sha256": "e12589eb974e422349d26b4b3b1bb41735b2cbb60744ce5cfdb1b4ff7cc41b59"
+    },
+    {
+      "path": "cases/C3.wav",
+      "role": "case",
+      "case_id": "C3",
+      "sample_rate": 16000,
+      "channels": 1,
+      "sample_width_bytes": 2,
+      "frames": 190080,
+      "duration_seconds": 11.88,
+      "sha256": "f556c1ca7226678bbd448156a724b0e372c8ec8fe1c758c0fc042afa44502b00"
+    },
+    {
+      "path": "logs/C1.txt",
+      "role": "source_log",
+      "case_id": "C1",
+      "sha256": "0228ccaef832305780cf2f969137f99377eda716dd52405f5b8cff7fd562937a"
+    },
+    {
+      "path": "logs/C2.txt",
+      "role": "source_log",
+      "case_id": "C2",
+      "sha256": "9a290806a390526eb37bc9dec14127f7be4a13eafb57fc716425a7da9d62f939"
+    },
+    {
+      "path": "logs/C3.txt",
+      "role": "source_log",
+      "case_id": "C3",
+      "sha256": "f5925775fdb5a8b97d1af1765cb07632ea88fd916b25fc0d746499dee9b99203"
+    },
+    {
+      "path": "problem-description.txt",
+      "role": "source_description",
+      "sha256": "974847d05cc7602252dd41132086a3e28715812697158379fb06cf0fbf052b99"
+    }
+  ]
+}

@@ -2,8 +2,10 @@
 
 ## 证据范围
 
-本说明只沉淀客户提供的 3 段注册语音、C1～C3 三段回放 WAV 与回调日志得到的工程判断。
-原始 WAV 和日志不提交仓库；源压缩包 SHA-256 为
+本说明沉淀客户提供的 3 段注册语音、C1～C3 三段回放 WAV 与回调日志得到的工程判断。
+经项目负责人确认，固定输入已纳入
+[`asr/test-fixtures/target-speaker-customer-cases`](../../asr/test-fixtures/target-speaker-customer-cases)，
+逐文件身份以其中的 `manifest.json` 为准。源压缩包 SHA-256 为
 `b7fc381c443eeec9b2b9385114c3713f431c1eb9c0c80a1d9fa057707cde5267`。
 
 这些样例能复现产品症状并区分失败层，但样本量不足以估计 FAR、FRR、CER/WER 或选择商用阈值。

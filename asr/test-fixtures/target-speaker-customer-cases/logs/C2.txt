@@ -1,0 +1,27 @@
+Line 1749: 07-29 17:11:15.850   4426-4426     [WavReplay] createEngine success
+Line 1750: 07-29 17:11:15.850   4426-4426     [WavReplay] gate for startListening active=true ids=["vp-d6e1f0e1-4a95-4925-bb7f-59f8c9e46558"]
+Line 1751: 07-29 17:11:15.850   4426-4426     [WavReplay] startListening extra={"enablePartialResult":true,"maxAudioDuration":62000,"vadBegin":60000,"vadEnd":60000,"enableVoiceprintVerification":true,"enableSpeakerVad":true,"voiceprintIds":["vp-d6e1f0e1-4a95-4925-bb7f-59f8c9e46558"],"speakerVadThreshold":0.35}
+Line 1753: 07-29 17:11:15.877   4426-4426     [WavReplay] onStart sessionId=WavReplay_1785316275039
+Line 1758: 07-29 17:11:16.936   4426-4426     [WavReplay] onEvent code=1 msg=speech started.
+Line 1797: 07-29 17:11:19.046   4426-4426     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="我准备明天去"
+Line 1798: 07-29 17:11:20.237   4426-4426     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="我准备明天去北京"
+Line 1800: 07-29 17:11:21.387   4426-4426     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="我准备明天去北京我看"
+Line 1821: 07-29 17:11:22.556   4426-4426     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="我准备明天去北京我看明去北京"
+Line 1840: 07-29 17:11:23.825   4426-4426     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="我准备明天去北京我看明去北京的机票"
+Line 1841: 07-29 17:11:26.414   4426-4426     [WavReplay] onEvent code=3 msg=speech stopped.
+Line 1843: 07-29 17:11:26.912   4426-4426     [WavReplay] onResult isFinal=true isLast=false speakerSimilarity=0.5600501465686396 gate=pass text="我准备明天去北京，我看明去北京的机票。"
+Line 1845: 07-29 17:11:27.397   4426-4426     [WavReplay] onEvent code=1 msg=speech started.
+Line 1847: 07-29 17:11:30.306   4426-4426     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="帮我定一下"
+Line 1848: 07-29 17:11:31.051   4426-4426     [WavReplay] onEvent code=3 msg=speech stopped.
+Line 1849: 07-29 17:11:31.269   4426-4426     [WavReplay] onResult isFinal=true isLast=false speakerSimilarity=0.3575770723178748 gate=pass text="帮我定一下。"
+Line 1856: 07-29 17:11:31.785   4426-4426     [WavReplay] onEvent code=1 msg=speech started.
+Line 1858: 07-29 17:11:34.561   4426-4426     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="准备去"
+Line 1859: 07-29 17:11:35.729   4426-4426     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="准备去上海你好"
+Line 1860: 07-29 17:11:36.291   4426-4426     [WavReplay] onEvent code=3 msg=speech stopped.
+Line 1861: 07-29 17:11:36.537   4426-4426     [WavReplay] onResult isFinal=true isLast=false speakerSimilarity=0.3087284175504803 gate=drop text="准备去上海，你好。"
+Line 1863: 07-29 17:11:39.629   4426-4426     [WavReplay] onEvent code=22 msg=speaker vad rejected: score=0.19
+Line 1864: 07-29 17:11:41.138   4426-4426     [WavReplay] fed fullFrames=725 tailBytes=0 totalBytes=464000
+Line 1865: 07-29 17:11:41.389   4426-4426     [WavReplay] onResult isFinal=true isLast=true speakerSimilarity=undefined gate=pass text=""
+Line 1867: 07-29 17:11:41.389   4426-4426     [WavReplay] onComplete
+Line 1868: 07-29 17:11:41.389   4426-4426     [WavReplay] done finalText="" similarity=undefined error=
+Line 1869: 07-29 17:11:41.389   4426-4426     [WavReplay] engine.shutdown done

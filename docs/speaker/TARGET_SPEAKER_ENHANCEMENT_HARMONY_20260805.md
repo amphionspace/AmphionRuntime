@@ -193,7 +193,9 @@ Conv-TasNet 已用 Harmony 设备同版本 ONNX Runtime 1.16.3 转换为固定 A
 | `unloadRuntime` | 与 ERes2Net 一样随 L2 模型一起释放 | Runtime 回到未初始化态 |
 | 卸载后再次启用增强 | 重新从 HAR 冷加载 | 创建全新 session 状态 |
 
-最终交付仍需用固定 ORT 资产执行 C1/C2/C3、目标不在场负例、目标单独说话和默认关闭精度回归。
+固定 C1/C2/C3 输入和三段注册音频已纳入
+`asr/test-fixtures/target-speaker-customer-cases`。最终交付仍需用固定 ORT 资产执行 C1/C2/C3、
+目标不在场负例、目标单独说话和默认关闭精度回归。
 生命周期的 cancel、onStart 同步写入、卸载后重载和 60 秒以上资源观察已由第 8 节覆盖。
 当前设备支持范围仍以真机报告为准。
 
@@ -209,8 +211,8 @@ Conv-TasNet 已用 Harmony 设备同版本 ONNX Runtime 1.16.3 转换为固定 A
 
 三轮均无 error、无跨 session 回调、结束后 native stream 数为 0；实际 Conv-TasNet 处理耗时为
 `547～1,211 ms/2 秒块`。本轮使用固定声纹生命周期语料，只验证 ORT 可加载、同进程复用和回调契约，
-不以空文本判断识别精度；C1/C2/C3 的内容收益仍由第 4 节固定 ONNX 实验支撑，需另用相同客户音频补做
-正式 ORT 的输出回归。
+不以空文本判断识别精度；C1/C2/C3 的内容收益仍由第 4 节固定 ONNX 实验支撑。相同客户输入现已固定
+入库，正式 ORT 的输出回归仍需在对应设备产物上补做并另存证据。
 
 证据保存在
 [`20260806-ort-lifecycle`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260806-ort-lifecycle)，

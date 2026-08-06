@@ -1,0 +1,19 @@
+
+
+鸿蒙声纹：
+C1:  机主 → 他人 → 机主 → 他人， 机主说完"准备明天去上海" 后旁边人说"你好你好", 
+得到结果："准备明天去上海你好你好你好。"（相似度0.46，最终显示到UI包含”你好“）
+onResult isFinal=true isLast=false speakerSimilarity=0.4678333143485098 
+gate=pass text="准备明天去上海你好你好你好。"
+
+C2： 机主说话时他人插话，机主说“准备去上海”旁边人说“你好你好”，
+得到结果："准备去上海，你好。" （相似度0.30，最终丢弃，UI最终不显示）
+onResult isFinal=true isLast=false speakerSimilarity=0.3087284175504803 
+gate=drop text="准备去上海，你好。"
+
+C3： 他人近麦、机主远， 其他人离麦克风更近说“你好你好”，机主说“准备去上海报准备一下飞机”，
+得到结果：""（UI最终不显示）
+onResult isFinal=true isLast=false speakerSimilarity=0.2968242778156718 
+gate=drop text="准备去上海报，准备一下飞机。"
+onResult isFinal=true isLast=false speakerSimilarity=0.32570111793871387 
+gate=drop text="你好你好。"

@@ -1,0 +1,21 @@
+Line 3611: 07-29 17:15:22.697   7777-7777     [WavReplay] createEngine success
+Line 3612: 07-29 17:15:22.697   7777-7777     [WavReplay] gate for startListening active=true ids=["vp-d6e1f0e1-4a95-4925-bb7f-59f8c9e46558"]
+Line 3613: 07-29 17:15:22.697   7777-7777     [WavReplay] startListening extra={"enablePartialResult":true,"maxAudioDuration":62000,"vadBegin":60000,"vadEnd":60000,"enableVoiceprintVerification":true,"enableSpeakerVad":true,"voiceprintIds":["vp-d6e1f0e1-4a95-4925-bb7f-59f8c9e46558"],"speakerVadThreshold":0.35}
+Line 3615: 07-29 17:15:22.717   7777-7777     [WavReplay] onStart sessionId=WavReplay_1785316521864
+Line 3656: 07-29 17:15:23.622   7777-7777     [WavReplay] onEvent code=1 msg=speech started.
+Line 3695: 07-29 17:15:25.896   7777-7777     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="帮我查收明天"
+Line 3732: 07-29 17:15:27.019   7777-7777     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="帮我查收明天的警单"
+Line 3734: 07-29 17:15:29.506   7777-7777     [WavReplay] onEvent code=3 msg=speech stopped.
+Line 3735: 07-29 17:15:29.824   7777-7777     [WavReplay] onResult isFinal=true isLast=false speakerSimilarity=0.4454385886014307 gate=pass text="帮我查收明天的警单。"
+Line 3737: 07-29 17:15:30.515   7777-7777     [WavReplay] onEvent code=1 msg=speech started.
+Line 3775: 07-29 17:15:33.208   7777-7777     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="准备明天去上"
+Line 3776: 07-29 17:15:34.339   7777-7777     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="准备明天去上海你好"
+Line 3777: 07-29 17:15:35.510   7777-7777     [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="准备明天去上海你好你好你好"
+Line 3778: 07-29 17:15:35.898   7777-7777     [WavReplay] onEvent code=3 msg=speech stopped.
+Line 3779: 07-29 17:15:36.167   7777-7777     [WavReplay] onResult isFinal=true isLast=false speakerSimilarity=0.4678333143485098 gate=pass text="准备明天去上海你好你好你好。"
+Line 3786: 07-29 17:15:39.350   7777-7777     [WavReplay] onEvent code=22 msg=speaker vad rejected: score=0.23
+Line 3787: 07-29 17:15:40.622   7777-7777     [WavReplay] fed fullFrames=517 tailBytes=0 totalBytes=330880
+Line 3788: 07-29 17:15:40.884   7777-7777     [WavReplay] onResult isFinal=true isLast=true speakerSimilarity=undefined gate=pass text=""
+Line 3790: 07-29 17:15:40.884   7777-7777     [WavReplay] onComplete
+Line 3791: 07-29 17:15:40.885   7777-7777     [WavReplay] done finalText="" similarity=undefined error=
+Line 3792: 07-29 17:15:40.885   7777-7777     [WavReplay] engine.shutdown done

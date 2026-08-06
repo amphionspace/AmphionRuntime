@@ -1,0 +1,26 @@
+Line 1604: 07-29 17:03:11.361   63546-63546  [WavReplay] createEngine success
+Line 1605: 07-29 17:03:11.361   63546-63546  [WavReplay] gate for startListening active=true ids=["vp-d6e1f0e1-4a95-4925-bb7f-59f8c9e46558"]
+Line 1606: 07-29 17:03:11.361   63546-63546  [WavReplay] startListening extra={"enablePartialResult":true,"maxAudioDuration":62000,"vadBegin":60000,"vadEnd":60000,"enableVoiceprintVerification":true,"enableSpeakerVad":true,"voiceprintIds":["vp-d6e1f0e1-4a95-4925-bb7f-59f8c9e46558"],"speakerVadThreshold":0.35}
+Line 1609: 07-29 17:03:11.392   63546-63546  [WavReplay] onStart sessionId=WavReplay_1785315790541
+Line 1630: 07-29 17:03:12.208   63546-63546  [WavReplay] onEvent code=1 msg=speech started.
+Line 1669: 07-29 17:03:14.394   63546-63546  [WavReplay] onEvent code=3 msg=speech stopped.
+Line 1670: 07-29 17:03:14.395   63546-63546  [WavReplay] onEvent code=22 msg=speaker vad rejected: score=-0.12
+Line 1671: 07-29 17:03:14.966   63546-63546  [WavReplay] onEvent code=1 msg=speech started.
+Line 1674: 07-29 17:03:17.594   63546-63546  [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="准备去上海"
+Line 1712: 07-29 17:03:19.904   63546-63546  [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="准备去上海报"
+Line 1713: 07-29 17:03:21.062   63546-63546  [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="准备去上海报准备一下飞机"
+Line 1714: 07-29 17:03:22.042   63546-63546  [WavReplay] onEvent code=3 msg=speech stopped.
+Line 1715: 07-29 17:03:22.418   63546-63546  [WavReplay] onResult isFinal=true isLast=false speakerSimilarity=0.2968242778156718 gate=drop text="准备去上海报，准备一下飞机。"
+Line 1717: 07-29 17:03:22.974   63546-63546  [WavReplay] onEvent code=1 msg=speech started.
+Line 1720: 07-29 17:03:25.789   63546-63546  [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="你好"
+Line 1721: 07-29 17:03:26.939   63546-63546  [WavReplay] onResult isFinal=false isLast=false speakerSimilarity=undefined gate=n/a text="你好你好"
+Line 1722: 07-29 17:03:27.504   63546-63546  [WavReplay] onEvent code=3 msg=speech stopped.
+Line 1723: 07-29 17:03:27.694   63546-63546  [WavReplay] onResult isFinal=true isLast=false speakerSimilarity=0.32570111793871387 gate=drop text="你好你好。"
+Line 1725: 07-29 17:03:28.213   63546-63546  [WavReplay] onEvent code=1 msg=speech started.
+Line 1732: 07-29 17:03:30.802   63546-63546  [WavReplay] onEvent code=3 msg=speech stopped.
+Line 1733: 07-29 17:03:30.802   63546-63546  [WavReplay] onEvent code=22 msg=speaker vad rejected: score=0.08
+Line 1734: 07-29 17:03:31.278   63546-63546  [WavReplay] fed fullFrames=594 tailBytes=0 totalBytes=380160
+Line 1735: 07-29 17:03:31.539   63546-63546  [WavReplay] onResult isFinal=true isLast=true speakerSimilarity=undefined gate=pass text=""
+Line 1737: 07-29 17:03:31.539   63546-63546  [WavReplay] onComplete
+Line 1738: 07-29 17:03:31.540   63546-63546  [WavReplay] done finalText="" similarity=undefined error=
+Line 1739: 07-29 17:03:31.540   63546-63546  [WavReplay] engine.shutdown done

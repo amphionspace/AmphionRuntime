@@ -1,0 +1,3 @@
+*.wav -text -diff
+logs/*.txt -text -diff
+problem-description.txt -text -diff

@@ -163,6 +163,7 @@ C3 的目标流在不同块之间由输出 1 换到输出 0；逐块 ERes2Net �
 5. **C1 保持独立轨。** 现有 `1000/300 ms` Speaker VAD 是更低成本的 C1 候选；只有独立
    target→other 集保护目标截断后，才考虑修改正式默认值。
 
-原始客户 WAV、提取 WAV、模型与临时 Python 环境均不提交仓库。客户源压缩包和输入映射见
+原始客户 WAV 与日志现已纳入 `asr/test-fixtures/target-speaker-customer-cases`；提取 WAV、实验模型与
+临时 Python 环境仍不提交仓库。客户源压缩包和输入映射见
 [客户样例证据](VOICEPRINT_CUSTOMER_CASE_EVIDENCE_20260804.md)；公开候选与许可核查见
 [TSE 候选调研](TARGET_SPEAKER_EXTRACTION_RESEARCH_20260804.md)。
