@@ -55,7 +55,10 @@ class AarStability1000DeviceTest {
             cases.size == 1000 || cases.size == 424 || cases.size == 100,
         )
 
-        TextToSpeechSdk.setWorkPath(File(context.cacheDir, "aar-stability-1000-work").apply {
+        applyRuntimeOptions()
+        TextToSpeechSdk.setWorkPath(File(
+            instrumentationArg("workPath") ?: File(context.cacheDir, "aar-stability-1000-work").absolutePath,
+        ).apply {
             if (instrumentationArg("preserveWorkPath") != "true") {
                 deleteRecursively()
             }
@@ -806,6 +809,21 @@ class AarStability1000DeviceTest {
 
     private fun instrumentationArg(name: String): String? =
         InstrumentationRegistry.getArguments().getString(name)
+
+    private fun applyRuntimeOptions() {
+        instrumentationArg("decoderCacheEnabled")?.let { value ->
+            runCatching {
+                val clazz = Class.forName("com.lits.tts.sdk.internal.LitsTtsRuntimeOptions")
+                val instance = clazz.getField("INSTANCE").get(null)
+                clazz.getMethod("setDecoderCacheEnabled", Boolean::class.javaPrimitiveType).invoke(instance, value == "true")
+            }.onFailure { error ->
+                Log.w(TAG, "failed to set decoderCacheEnabled=$value", error)
+            }
+        }
+        instrumentationArg("ortOptimization")?.let { optimization ->
+            System.setProperty("lits.ort.optimization", optimization)
+        }
+    }
 
     private fun inputAssetName(): String =
         instrumentationArg("inputAsset")?.takeIf { it.isNotBlank() } ?: ASSET_NAME

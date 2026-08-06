@@ -18,6 +18,7 @@ import argparse
 import importlib.util
 import json
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -68,6 +69,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_DINGQIAO_ROOT / "lits-en-zh.ckpt",
         help="LITS acoustic/decoder checkpoint. Do not pass vocos-24k/last.ckpt here; that is the vocoder checkpoint.",
+    )
+    parser.add_argument(
+        "--reference-checkpoint",
+        type=Path,
+        default=None,
+        help="Lightning LITS checkpoint used only when --checkpoint is a raw mean-flow student .pt payload.",
     )
     parser.add_argument("--base-package-dir", type=Path, default=DEFAULT_BASE_PACKAGE)
     parser.add_argument("--model-dir", type=Path, default=DEFAULT_MODEL_DIR)
@@ -148,6 +155,99 @@ class StreamDecoderStepWrapper(torch.nn.Module):
         x_next = x + dt_scalar * dphi_dt
         mel = x_next * self.model.mel_std + self.model.mel_mean
         return x_next, mel
+
+
+@dataclass(frozen=True)
+class DecoderCacheLayout:
+    """Stable flat ONNX contract for one ODE step's decoder state."""
+
+    att_count: int
+    conv_count: int
+    ds_count: int
+    us_count: int
+
+    @property
+    def count(self) -> int:
+        return self.att_count + self.conv_count + self.ds_count + self.us_count
+
+    def names(self, prefix: str) -> list[str]:
+        return (
+            [f"{prefix}_att_{index}" for index in range(self.att_count)]
+            + [f"{prefix}_conv_{index}" for index in range(self.conv_count)]
+            + [f"{prefix}_ds_{index}" for index in range(self.ds_count)]
+            + [f"{prefix}_us_{index}" for index in range(self.us_count)]
+        )
+
+    @classmethod
+    def from_cache(cls, cache: dict) -> "DecoderCacheLayout":
+        return cls(
+            att_count=len(cache["att"]),
+            conv_count=len(cache["conv"]),
+            ds_count=len(cache["ds"]),
+            us_count=len(cache["us"]),
+        )
+
+    def flatten(self, cache: dict) -> tuple[torch.Tensor, ...]:
+        return tuple(cache["att"] + cache["conv"] + cache["ds"] + cache["us"])
+
+    def inflate(self, tensors: tuple[torch.Tensor, ...]) -> dict:
+        if len(tensors) != self.count:
+            raise ValueError(f"decoder cache tensor count mismatch: {len(tensors)} != {self.count}")
+        cursor = 0
+        att = list(tensors[cursor:cursor + self.att_count]); cursor += self.att_count
+        conv = list(tensors[cursor:cursor + self.conv_count]); cursor += self.conv_count
+        ds = list(tensors[cursor:cursor + self.ds_count]); cursor += self.ds_count
+        us = list(tensors[cursor:cursor + self.us_count])
+        # Explicit ONNX cache state keeps only the bounded left window.  Offset
+        # is intentionally absent; relative_cache_mode derives the same mask.
+        return {"att": att, "att_offset": [0] * self.att_count, "conv": conv, "ds": ds, "us": us}
+
+
+class StreamDecoderStepInitCacheWrapper(torch.nn.Module):
+    """First chunk decoder step: create explicit cache tensors for Android."""
+
+    def __init__(self, model: torch.nn.Module, cache_layout: DecoderCacheLayout):
+        super().__init__()
+        self.model = model
+        self.cache_layout = cache_layout
+
+    def forward(self, x, encoded_mu, y_mask, speaker_embedding, t, dt):
+        spks = speaker_embedding
+        if spks.numel() == 0:
+            spks = None
+        t_scalar = t.reshape(())
+        dt_scalar = dt.reshape(())
+        dphi_dt, cache = self.model.decoder.estimator.forward_streaming(
+            x, y_mask, encoded_mu, t_scalar, spks, None, step_cache=None,
+            relative_cache_mode=True,
+        )
+        x_next = x + dt_scalar * dphi_dt
+        mel = x_next * self.model.mel_std + self.model.mel_mean
+        return (x_next, mel, *self.cache_layout.flatten(cache))
+
+
+class StreamDecoderStepCachedWrapper(torch.nn.Module):
+    """Subsequent chunk decoder step with explicit ONNX state input/output."""
+
+    def __init__(self, model: torch.nn.Module, cache_layout: DecoderCacheLayout):
+        super().__init__()
+        self.model = model
+        self.cache_layout = cache_layout
+
+    def forward(self, x, encoded_mu, y_mask, speaker_embedding, t, dt, *cache_tensors):
+        spks = speaker_embedding
+        if spks.numel() == 0:
+            spks = None
+        t_scalar = t.reshape(())
+        dt_scalar = dt.reshape(())
+        dphi_dt, cache = self.model.decoder.estimator.forward_streaming(
+            x, y_mask, encoded_mu, t_scalar, spks, None,
+            step_cache=self.cache_layout.inflate(cache_tensors),
+            relative_cache_mode=True,
+        )
+        x_next = x + dt_scalar * dphi_dt
+        mel = x_next * self.model.mel_std + self.model.mel_mean
+        return (x_next, mel, *self.cache_layout.flatten(cache))
 
 
 class FullDecoderWithNoiseWrapper(torch.nn.Module):
@@ -278,6 +378,74 @@ def export_decoder_step(
     return out_path
 
 
+def export_decoder_step_cache_models(
+    args: argparse.Namespace,
+    model: torch.nn.Module,
+    encoded_mu: torch.Tensor,
+    y_mask: torch.Tensor,
+    speaker_embedding: torch.Tensor,
+) -> tuple[Path, Path, DecoderCacheLayout]:
+    """Export first-chunk and cached decoder-step graphs.
+
+    The cache graphs are intentionally additional assets.  The existing
+    ``lits_stream_decoder_step.onnx`` remains the compatibility fallback for
+    packages and runtimes that do not opt into the explicit state contract.
+    """
+    x = torch.zeros_like(encoded_mu)
+    t = torch.tensor([0.0], dtype=torch.float32, device=encoded_mu.device)
+    dt = torch.tensor([1.0 / args.n_timesteps], dtype=torch.float32, device=encoded_mu.device)
+    with torch.inference_mode():
+        _, cache = model.decoder.estimator.forward_streaming(
+            x, y_mask, encoded_mu, t.reshape(()), speaker_embedding, None,
+            step_cache=None, relative_cache_mode=True,
+        )
+    layout = DecoderCacheLayout.from_cache(cache)
+    init_wrapper = StreamDecoderStepInitCacheWrapper(model, layout).eval()
+    cached_wrapper = StreamDecoderStepCachedWrapper(model, layout).eval()
+    cache_tensors = tuple(tensor.detach().clone() for tensor in layout.flatten(cache))
+    input_names = ["x", "encoded_mu", "y_mask", "speaker_embedding", "t", "dt"]
+    output_names = ["x_next", "mel"]
+    base_dynamic_axes = {
+        "x": {2: "mel_frames"},
+        "encoded_mu": {2: "mel_frames"},
+        "y_mask": {2: "mel_frames"},
+        "speaker_embedding": {0: "batch_size"},
+        "x_next": {2: "mel_frames"},
+        "mel": {2: "mel_frames"},
+    }
+    init_dynamic_axes = dict(base_dynamic_axes)
+    cached_dynamic_axes = dict(base_dynamic_axes)
+    for name, tensor in zip(layout.names("cache"), cache_tensors):
+        # Attention caches vary along time.  Other state buffers have a fixed
+        # tail size, but dynamic time is harmless and keeps the ABI uniform.
+        cached_dynamic_axes[name] = {2: f"{name}_frames"} if tensor.ndim >= 3 else {}
+    for name, tensor in zip(layout.names("next_cache"), cache_tensors):
+        init_dynamic_axes[name] = {2: f"{name}_frames"} if tensor.ndim >= 3 else {}
+        cached_dynamic_axes[name] = {2: f"{name}_frames"} if tensor.ndim >= 3 else {}
+
+    init_path = args.model_dir / "lits_stream_decoder_step_init_cache.onnx"
+    cached_path = args.model_dir / "lits_stream_decoder_step_cached.onnx"
+    export_onnx(
+        init_wrapper,
+        (x, encoded_mu, y_mask, speaker_embedding, t, dt),
+        str(init_path),
+        input_names=input_names,
+        output_names=output_names + layout.names("next_cache"),
+        dynamic_axes=init_dynamic_axes,
+        opset_version=args.opset,
+    )
+    export_onnx(
+        cached_wrapper,
+        (x, encoded_mu, y_mask, speaker_embedding, t, dt, *cache_tensors),
+        str(cached_path),
+        input_names=input_names + layout.names("cache"),
+        output_names=output_names + layout.names("next_cache"),
+        dynamic_axes=cached_dynamic_axes,
+        opset_version=args.opset,
+    )
+    return init_path, cached_path, layout
+
+
 def run_external_loop(
     condition_path: Path,
     step_path: Path,
@@ -383,6 +551,9 @@ def write_manifest(
     condition_chunk_path: Path,
     condition_final_path: Path,
     step_path: Path,
+    cache_init_path: Path | None,
+    cache_step_path: Path | None,
+    cache_layout: DecoderCacheLayout | None,
     copied_assets: list[Path],
 ) -> Path:
     base_manifest = json.loads((args.base_package_dir / "manifest.json").read_text(encoding="utf-8"))
@@ -411,12 +582,23 @@ def write_manifest(
             "notes": "Experimental external-loop decoder package for Android/HarmonyOS validation.",
         }
     )
+    if cache_init_path is not None and cache_step_path is not None and cache_layout is not None:
+        manifest["stream_decoder_cache"] = {
+            "init_model": {"file": cache_init_path.name, "format": "onnx"},
+            "step_model": {"file": cache_step_path.name, "format": "onnx"},
+            "state_count": cache_layout.count,
+            "state_names": cache_layout.names("cache"),
+            "mode": "relative_left_window_v1",
+            "requires_fixed_chunk_size": args.chunk_size,
+        }
     files = [
         hidden_path,
         condition_chunk_path,
         condition_final_path,
         step_path,
     ] + copied_assets
+    if cache_init_path is not None and cache_step_path is not None:
+        files.extend([cache_init_path, cache_step_path])
     manifest["files"] = [{"name": path.name, "size_bytes": path.stat().st_size} for path in files]
     out = args.model_dir / "manifest.json"
     out.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -427,6 +609,8 @@ def main() -> int:
     args = parse_args()
     args.dingqiao_root = args.dingqiao_root.resolve()
     args.checkpoint = args.checkpoint.resolve()
+    if args.reference_checkpoint is not None:
+        args.reference_checkpoint = args.reference_checkpoint.resolve()
     args.base_package_dir = args.base_package_dir.resolve()
     args.model_dir = args.model_dir.resolve()
     args.model_dir.mkdir(parents=True, exist_ok=True)
@@ -437,7 +621,12 @@ def main() -> int:
     base_export.ensure_imports(args.dingqiao_root)
     stubbed_monotonic_align = base_export.install_monotonic_align_stub()
 
-    model = base_export.load_lits(args.checkpoint, args.device, args.num_decoding_left_chunks)
+    model = base_export.load_lits(
+        args.checkpoint,
+        args.device,
+        args.num_decoding_left_chunks,
+        args.reference_checkpoint,
+    )
     tokens_np, lengths_np, cleaned_text, token_ids = base_export.process_text(args.smoke_text, args.model_lang, args.device)
     speakers_np = np.asarray([args.speaker_id], dtype=np.int64)
 
@@ -468,6 +657,9 @@ def main() -> int:
         out_name="lits_stream_condition_final.onnx",
     )
     step_path = export_decoder_step(args, model, encoded_chunk, y_mask_chunk, speaker_embedding)
+    cache_init_path, cache_step_path, cache_layout = export_decoder_step_cache_models(
+        args, model, encoded_chunk, y_mask_chunk, speaker_embedding,
+    )
 
     z_chunk = make_noise_like(encoded_chunk, args.temperature, args.seed)
     z_final = make_noise_like(encoded_final, args.temperature, args.seed)
@@ -516,6 +708,9 @@ def main() -> int:
         condition_chunk_path=condition_chunk_path,
         condition_final_path=condition_final_path,
         step_path=step_path,
+        cache_init_path=cache_init_path,
+        cache_step_path=cache_step_path,
+        cache_layout=cache_layout,
         copied_assets=copied_assets,
     )
     report = {
@@ -544,6 +739,11 @@ def main() -> int:
                     "path": step_path.name,
                     "size_bytes": step_path.stat().st_size,
                     "node_count": node_count(step_path),
+                },
+                "decoder_cache": {
+                    "init_path": cache_init_path.name,
+                    "step_path": cache_step_path.name,
+                    "state_count": cache_layout.count,
                 },
             },
         },

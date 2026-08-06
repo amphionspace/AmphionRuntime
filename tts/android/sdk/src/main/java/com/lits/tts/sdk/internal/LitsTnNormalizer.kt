@@ -1,17 +1,12 @@
 package com.lits.tts.sdk.internal
 
 import android.util.Log
-import java.io.BufferedReader
-import java.io.BufferedWriter
-import java.io.File
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 import java.text.Normalizer
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 
 internal object LitsTnNormalizer {
     private val normalizersByRoot = ConcurrentHashMap<String, LayoutNormalizer>()
+    private val lastProfileByThread = ThreadLocal<TnNormalizeProfile?>()
 
     /**
      * Opt-in TN prewarm. DEFAULT OFF so it never affects a strict cold-start
@@ -24,6 +19,19 @@ internal object LitsTnNormalizer {
      */
     @Volatile
     var prewarmEnabled: Boolean = false
+
+    @Volatile
+    var batchNativeEnabled: Boolean = false
+
+    /**
+     * Opt-in TN fast path. When enabled, text that contains ONLY hanzi and a
+     * small set of common Chinese sentence punctuation skips the native TN call
+     * entirely (native TN rules target digits/ASCII/symbols, so the call would
+     * be an identity transform for such input). Any digit, letter, symbol, or
+     * uncommon character routes back to the full native path.
+     */
+    @Volatile
+    var fastPathEnabled: Boolean = false
 
     fun normalize(
         layout: LitsTtsAssetInstaller.InstalledLayout,
@@ -64,34 +72,140 @@ internal object LitsTnNormalizer {
         }
     }
 
+    fun lastProfileSummary(): String? =
+        lastProfileByThread.get()?.toSummary()
+
     private class LayoutNormalizer(private val layout: LitsTtsAssetInstaller.InstalledLayout) {
-        private val processes = mutableMapOf<String, TnProcess>()
         private val disabledLanguages = mutableSetOf<String>()
         private val frontendRules = FrontendRuleSet.load(layout.frontendRules)
 
         @Synchronized
         fun normalize(text: String, language: String, languageContext: String): String {
+            val totalStartedAt = System.nanoTime()
+            val cleanStartedAt = System.nanoTime()
             val cleaned = Normalizer.normalize(text, Normalizer.Form.NFKC)
                 .replace(Regex("[\\x00-\\x1f\\x7f-\\x9f]"), "")
                 .replace(Regex("\\s+"), " ")
                 .trim()
+            val cleanMs = elapsedMs(cleanStartedAt)
             val isEnglishContext = language == "en-US" || languageContext == "en-US"
+            val prepareStartedAt = System.nanoTime()
             val input = if (isEnglishContext) {
                 prepareEnglishInputForTn(cleaned)
             } else {
                 prepareInputForTn(cleaned)
             }
+            val prepareMs = elapsedMs(prepareStartedAt)
+            val hasRulesStartedAt = System.nanoTime()
             val hasRules = hasTnRules()
+            val hasRulesMs = elapsedMs(hasRulesStartedAt)
             logInfo("TN normalize request language=$language languageContext=$languageContext hasRules=$hasRules input=${input.takeForLog()}")
-            if (input.isEmpty()) return text
-            if (!hasRules) return input
-            return if (isEnglishContext) {
-                normalizeSegment(input, "en")
-            } else {
-                segmentZhEn(input).joinToString("") { (segment, lang) ->
-                    preserveSegmentWhitespace(segment, normalizeSegment(segment, lang))
-                }
+            if (input.isEmpty()) {
+                lastProfileByThread.set(
+                    TnNormalizeProfile(
+                        totalMs = elapsedMs(totalStartedAt),
+                        cleanMs = cleanMs,
+                        prepareMs = prepareMs,
+                        hasRulesMs = hasRulesMs,
+                        segmentMs = 0L,
+                        nativeMs = 0L,
+                        joinMs = 0L,
+                        preserveWhitespaceMs = 0L,
+                        appendMs = 0L,
+                        segmentCount = 0,
+                        nativeCalls = emptyList(),
+                    ),
+                )
+                return text
             }
+            if (!hasRules) {
+                lastProfileByThread.set(
+                    TnNormalizeProfile(
+                        totalMs = elapsedMs(totalStartedAt),
+                        cleanMs = cleanMs,
+                        prepareMs = prepareMs,
+                        hasRulesMs = hasRulesMs,
+                        segmentMs = 0L,
+                        nativeMs = 0L,
+                        joinMs = 0L,
+                        preserveWhitespaceMs = 0L,
+                        appendMs = 0L,
+                        segmentCount = 0,
+                        nativeCalls = emptyList(),
+                    ),
+                )
+                return input
+            }
+            if (fastPathEnabled && input.all(::isTnFastPathSafe)) {
+                lastProfileByThread.set(
+                    TnNormalizeProfile(
+                        totalMs = elapsedMs(totalStartedAt),
+                        cleanMs = cleanMs,
+                        prepareMs = prepareMs,
+                        hasRulesMs = hasRulesMs,
+                        segmentMs = 0L,
+                        nativeMs = 0L,
+                        joinMs = 0L,
+                        preserveWhitespaceMs = 0L,
+                        appendMs = 0L,
+                        segmentCount = 0,
+                        nativeCalls = emptyList(),
+                        fastPath = true,
+                    ),
+                )
+                return input
+            }
+            val nativeCalls = mutableListOf<TnNativeCallProfile>()
+            val segmentStartedAt = System.nanoTime()
+            // Match the Python one-shot TN path: choose one locale for the
+            // complete utterance, then send the complete utterance through TN.
+            // For zh-en, Chinese script selects zh_tts; otherwise en_tts.
+            val tnLang = if (isEnglishContext || input.none(::isHanziForTn)) "en" else "zh"
+            val segments = listOf(input to tnLang)
+            val segmentMs = elapsedMs(segmentStartedAt)
+            val joinStartedAt = System.nanoTime()
+            // Keep the existing optional JNI batch path for benchmark
+            // compatibility, but it now contains exactly one utterance.
+            val batchOutputsByIndex = if (batchNativeEnabled) {
+                runCatching {
+                    NativeTnNormalizer.normalizeBatch(
+                        layout.rootDir,
+                        arrayOf(tnLang),
+                        arrayOf(input),
+                    )
+                }.onFailure {
+                    logWarning("native TN batch normalize failed; falling back to scalar call", it)
+                }.getOrNull()
+                    ?.takeIf { it.size == 1 }
+                    ?.let { outputs -> mapOf(0 to outputs[0]) }
+                    ?: emptyMap()
+            } else {
+                emptyMap()
+            }
+            val batchProfile = if (batchOutputsByIndex.isNotEmpty()) {
+                NativeTnNormalizer.lastBatchCallProfile()
+            } else {
+                null
+            }
+            val output = batchOutputsByIndex[0] ?: normalizeSegment(input, tnLang, nativeCalls)
+            val joinMs = elapsedMs(joinStartedAt)
+            lastProfileByThread.set(
+                TnNormalizeProfile(
+                    totalMs = elapsedMs(totalStartedAt),
+                    cleanMs = cleanMs,
+                    prepareMs = prepareMs,
+                    hasRulesMs = hasRulesMs,
+                    segmentMs = segmentMs,
+                    nativeMs = batchProfile?.wallMs ?: nativeCalls.sumOf { it.elapsedMs },
+                    joinMs = joinMs,
+                    preserveWhitespaceMs = 0L,
+                    appendMs = 0L,
+                    segmentCount = segments.size,
+                    nativeCalls = nativeCalls,
+                    batchProfile = batchProfile,
+                ),
+            )
+            return output
         }
 
         private fun prepareInputForTn(text: String): String {
@@ -302,52 +416,43 @@ internal object LitsTnNormalizer {
                 layout.rootDir.resolve(LitsTtsAssetRegistry.TN_RULES_V2_EN).isFile &&
                 layout.rootDir.resolve(LitsTtsAssetRegistry.TN_RULES_ZH_PINYIN).isFile
 
-        private fun normalizeSegment(text: String, lang: String): String {
+        private fun isHanziForTn(char: Char): Boolean =
+            char in '\u4e00'..'\u9fff'
+
+        private fun isTnFastPathSafe(char: Char): Boolean =
+            isHanziForTn(char) || char in " ，。！？；：、（）《》「」『』“”‘’—…,.!?;:()[]<>\"'"
+
+        private fun normalizeSegment(
+            text: String,
+            lang: String,
+            nativeCalls: MutableList<TnNativeCallProfile>,
+        ): String {
             if (text.isBlank()) return text
             if (lang in disabledLanguages) return text
             try {
+                val startedAt = System.nanoTime()
                 NativeTnNormalizer.normalize(layout.rootDir, lang, text)?.let { normalized ->
+                    val nativeProfile = NativeTnNormalizer.lastCallProfile()
+                    nativeCalls += TnNativeCallProfile(
+                        lang = lang,
+                        inputLength = text.length,
+                        outputLength = normalized.length,
+                        elapsedMs = elapsedMs(startedAt),
+                        availabilityMs = nativeProfile?.availabilityMs ?: 0L,
+                        jniMs = nativeProfile?.jniMs ?: 0L,
+                    )
                     logInfo("TN native path used lang=$lang input=${text.takeForLog()} output=${normalized.takeForLog()}")
                     return normalized
                 }
             } catch (error: Throwable) {
-                logWarning("native TN normalize failed; falling back to process lang=$lang", error)
+                logWarning("native TN normalize failed; disabling TN for lang=$lang", error)
             }
-            val binary = when (lang) {
-                "en" -> layout.tnEnTts
-                else -> layout.tnZhTts
-            }
-            return try {
-                val process = processes.getOrPut(lang) {
-                    TnProcess.start(binary, layout.rootDir)
-                }
-                process.normalize(text).also { normalized ->
-                    logInfo("TN process path used lang=$lang binary=${binary.absolutePath} input=${text.takeForLog()} output=${normalized.takeForLog()}")
-                }
-            } catch (error: Throwable) {
-                logWarning("TN normalize failed; restarting lang=$lang binary=${binary.absolutePath}", error)
-                processes.remove(lang)?.close()
-                try {
-                    val restarted = TnProcess.start(binary, layout.rootDir)
-                    processes[lang] = restarted
-                    restarted.normalize(text).also { normalized ->
-                        logInfo("TN process retry path used lang=$lang binary=${binary.absolutePath} input=${text.takeForLog()} output=${normalized.takeForLog()}")
-                    }
-                } catch (retryError: Throwable) {
-                    logError("TN normalize retry failed; disabling TN for lang=$lang", retryError)
-                    processes.remove(lang)?.close()
-                    disabledLanguages += lang
-                    text
-                }
-            }
+            disabledLanguages += lang
+            return text
         }
 
         @Synchronized
         fun close() {
-            processes.values.forEach { process ->
-                runCatching { process.close() }
-            }
-            processes.clear()
             disabledLanguages.clear()
         }
 
@@ -497,68 +602,6 @@ internal object LitsTnNormalizer {
         }
     }
 
-    private class TnProcess private constructor(
-        private val process: Process,
-        private val writer: BufferedWriter,
-        private val reader: BufferedReader,
-    ) {
-        @Synchronized
-        fun normalize(text: String): String {
-            if (!process.isAlive) {
-                throw IllegalStateException("TN process exited before normalize")
-            }
-            writer.write(text)
-            writer.newLine()
-            writer.flush()
-            val normalized = reader.readLine()
-                ?: throw IllegalStateException("TN process exited without output")
-            return normalized.trim().takeUnless { it.isEmpty() } ?: text
-        }
-
-        @Synchronized
-        fun close() {
-            runCatching { writer.close() }
-            runCatching { reader.close() }
-            if (process.isAlive) {
-                process.destroy()
-                runCatching {
-                    if (!process.waitFor(200, TimeUnit.MILLISECONDS)) {
-                        process.destroyForcibly()
-                    }
-                }
-            }
-        }
-
-        companion object {
-            fun start(binary: File, workingDir: File): TnProcess {
-                binary.setExecutable(true, true)
-                logInfo("TN process start binary=${binary.absolutePath} exists=${binary.isFile} canExecute=${binary.canExecute()} workingDir=${workingDir.absolutePath}")
-                val process = ProcessBuilder(binary.absolutePath)
-                    .directory(workingDir)
-                    .apply {
-                        environment()["TTS_RULES_ROOT"] = workingDir.absolutePath
-                        environment()["TTS_RULES_FORMAT"] = "v2"
-                    }
-                    .start()
-                Thread({
-                    process.errorStream.bufferedReader().use { error ->
-                        while (error.readLine() != null) {
-                            // Drain stderr so the TN process cannot block on a full error pipe.
-                        }
-                    }
-                }, "lits-tts-tn-stderr-${binary.name}").apply {
-                    isDaemon = true
-                    start()
-                }
-                return TnProcess(
-                    process = process,
-                    writer = BufferedWriter(OutputStreamWriter(process.outputStream, Charsets.UTF_8)),
-                    reader = BufferedReader(InputStreamReader(process.inputStream, Charsets.UTF_8)),
-                )
-            }
-        }
-    }
-
     internal fun preserveSegmentWhitespace(segment: String, normalized: String): String {
         var output = normalized
         if (segment.firstOrNull()?.isWhitespace() == true && output.firstOrNull()?.isWhitespace() != true) {
@@ -596,6 +639,66 @@ internal object LitsTnNormalizer {
 
     private fun String.takeForLog(maxLength: Int = 160): String =
         if (length <= maxLength) this else take(maxLength) + "...(len=$length)"
+
+    private data class TnNormalizeProfile(
+        val totalMs: Long,
+        val cleanMs: Long,
+        val prepareMs: Long,
+        val hasRulesMs: Long,
+        val segmentMs: Long,
+        val nativeMs: Long,
+        val joinMs: Long,
+        val preserveWhitespaceMs: Long,
+        val appendMs: Long,
+            val segmentCount: Int,
+            val nativeCalls: List<TnNativeCallProfile>,
+            val batchProfile: NativeTnNormalizer.BatchCallProfile? = null,
+            val fastPath: Boolean = false,
+        ) {
+        fun toSummary(): String = buildString {
+            append("total=").append(totalMs).append("ms")
+            append(",clean=").append(cleanMs).append("ms")
+            append(",prepare=").append(prepareMs).append("ms")
+            append(",hasRules=").append(hasRulesMs).append("ms")
+            append(",segment=").append(segmentMs).append("ms")
+            append(",native=").append(nativeMs).append("ms")
+            append(",nativeJni=").append(batchProfile?.jniMs ?: nativeCalls.sumOf { it.jniMs }).append("ms")
+            append(",nativeAvailability=").append(
+                batchProfile?.availabilityMs ?: nativeCalls.sumOf { it.availabilityMs },
+            ).append("ms")
+            append(",nativeBatch=").append(batchProfile != null)
+            append(",fastPath=").append(fastPath)
+            batchProfile?.let {
+                append(",batchItems=").append(it.itemCount)
+            }
+            append(",joinWall=").append(joinMs).append("ms")
+            append(",preserveWhitespace=").append(preserveWhitespaceMs).append("ms")
+            append(",append=").append(appendMs).append("ms")
+            append(",joinOverhead=").append(
+                (joinMs - nativeMs - preserveWhitespaceMs - appendMs).coerceAtLeast(0L),
+            ).append("ms")
+            append(",segments=").append(segmentCount)
+            if (nativeCalls.isNotEmpty()) {
+                append(",nativeCalls=")
+                append(
+                    nativeCalls.joinToString("|") { call ->
+                        "${call.lang}:wall=${call.elapsedMs}ms,jni=${call.jniMs}ms,available=${call.availabilityMs}ms,${call.inputLength}->${call.outputLength}"
+                    },
+                )
+            }
+        }
+    }
+
+    private data class TnNativeCallProfile(
+        val lang: String,
+        val inputLength: Int,
+        val outputLength: Int,
+        val elapsedMs: Long,
+        val availabilityMs: Long,
+        val jniMs: Long,
+    )
+
+    private fun elapsedMs(startedAt: Long): Long = (System.nanoTime() - startedAt) / 1_000_000L
 
     private const val TAG = "LitsTn"
 }
