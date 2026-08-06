@@ -1,5 +1,11 @@
 # 目标说话人提取与重叠语音候选调研（2026-08-04）
 
+> **2026-08-06 更新：** 本文保留 2026-08-04 当时的候选状态与已完成实验。REAL-TSE baseline
+> checkpoint 后续已在官方 baseline 仓库提供公开下载入口，且补充调研发现了更多 causal、offline
+> teacher 和研究级候选。最新模型图谱、可用性分级与统一 Linux 验证计划见
+> [Causal Target-Speaker TSE 开源模型图谱与端侧可用性结论](CAUSAL_TSE_MODEL_LANDSCAPE_20260806.md)。
+> 下文“checkpoint 仅发注册团队/当前不可公开取得”只描述 2026-08-04 的信息状态，不再作为当前结论。
+
 ## 结论摘要
 
 客户 C2/C3 的失败层不是句末声纹阈值，也不是 diarization，而是单通道重叠语音中的内容归属。当前
