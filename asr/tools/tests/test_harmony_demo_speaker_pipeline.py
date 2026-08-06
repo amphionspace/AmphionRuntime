@@ -111,6 +111,11 @@ class HarmonyDemoSpeakerPipelineTest(unittest.TestCase):
         self.assertIn("return engine.isBusy() && this.sessionId === sid", demo)
         self.assertIn("stage=config_snapshot", demo)
         self.assertIn("stage=audio_progress", demo)
+        self.assertIn("@State errorCleanupInProgress: boolean = false", demo)
+        self.assertIn("if (this.errorCleanupInProgress) return", demo)
+        self.assertIn("this.errorCleanupInProgress = true", demo)
+        self.assertIn("this.errorCleanupInProgress = false", demo)
+        self.assertIn("if (this.captureReady)", demo)
         self.assertIn("getTargetSpeakerEnhancementEnabled", prefs)
         self.assertIn("setTargetSpeakerEnhancementEnabled", prefs)
 

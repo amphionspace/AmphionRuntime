@@ -85,6 +85,7 @@ struct Index {
   @State debugExpanded: boolean = false;
   @State debugSummary: string = '尚未开始识别';
   @State debugTrace: string = '';
+  @State errorCleanupInProgress: boolean = false;
 
   private engine?: SpeechRecognitionEngine;
   private recorder?: AudioRecorder;
@@ -344,6 +345,7 @@ struct Index {
 
   private startListening(): void {
     if (!this.runtimeReady) return;
+    if (this.errorCleanupInProgress) return;
     if (this.listening || this.replaying || this.playingCapture) return;
     this.startTapMs = Date.now();
     this.finalSegments = [];
@@ -633,8 +635,10 @@ struct Index {
   private writeSdkCaptureMetadata(): void {
     const samples = Math.floor(this.sdkCaptureBytes / 2);
     const meta: Record<string, Object> = {};
-    meta['wavPath'] = this.sdkCaptureWavPath();
-    meta['hdcPullPath'] = SDK_CAPTURE_EXPORT_WAV;
+    if (this.captureReady) {
+      meta['wavPath'] = this.sdkCaptureWavPath();
+      meta['hdcPullPath'] = SDK_CAPTURE_EXPORT_WAV;
+    }
     meta['sampleRate'] = 16000;
     meta['channels'] = 1;
     meta['sampleFormat'] = 's16le';
@@ -875,6 +879,8 @@ struct Index {
   }
 
   private async saveLiveErrorArtifacts(): Promise<void> {
+    if (this.errorCleanupInProgress) return;
+    this.errorCleanupInProgress = true;
     try {
       await this.stopCapture();
       if (this.sdkCaptureFrames.length > 0) {
@@ -888,6 +894,8 @@ struct Index {
       hilog.warn(0x0000, 'DemoDebug',
         'stage=error_artifact_failed|detail=%{public}s', `${e}`);
       this.writeSdkCaptureMetadataBestEffort();
+    } finally {
+      this.errorCleanupInProgress = false;
     }
   }
 
@@ -1336,7 +1344,8 @@ struct Index {
       Button(this.replaying ? '正在原样复测…' : (this.listening ? '停止识别' : '开始识别'))
         .width('100%')
         .height(48)
-        .enabled(this.runtimeReady && !this.replaying && !this.playingCapture)
+        .enabled(this.runtimeReady && !this.replaying && !this.playingCapture &&
+          !this.errorCleanupInProgress)
         .backgroundColor(this.listening ? '#E5533C' : BRAND_ACCENT)
         .onClick((): void => {
           if (this.listening) {
