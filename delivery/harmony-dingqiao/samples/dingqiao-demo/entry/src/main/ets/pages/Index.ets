@@ -21,6 +21,7 @@ import { AudioRecorder, AudioRecorderStats } from '../util/AudioRecorder';
 import { PcmPlayer } from '../util/PcmPlayer';
 import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
+import { DemoErrorCleanupGate } from '../util/DemoErrorCleanupGate';
 import { DemoSessionDebug } from '../util/DemoSessionDebug';
 import {
   applySpeakerPipelineConfig,
@@ -129,6 +130,7 @@ struct Index {
   private capturedPoliceEnhancement: boolean = true;
   private capturedSpeakerPipeline: SpeakerPipelineConfig = new SpeakerPipelineConfig();
   private sessionDebug: DemoSessionDebug = new DemoSessionDebug();
+  private errorCleanupGate: DemoErrorCleanupGate = new DemoErrorCleanupGate();
 
   aboutToAppear(): void {
     this.workPath = SpeechRecognizeSdk.getWorkPath();
@@ -345,7 +347,7 @@ struct Index {
 
   private startListening(): void {
     if (!this.runtimeReady) return;
-    if (this.errorCleanupInProgress) return;
+    if (!this.errorCleanupGate.canStart()) return;
     if (this.listening || this.replaying || this.playingCapture) return;
     this.startTapMs = Date.now();
     this.finalSegments = [];
@@ -879,7 +881,7 @@ struct Index {
   }
 
   private async saveLiveErrorArtifacts(): Promise<void> {
-    if (this.errorCleanupInProgress) return;
+    if (!this.errorCleanupGate.tryBeginCleanup()) return;
     this.errorCleanupInProgress = true;
     try {
       await this.stopCapture();
@@ -895,6 +897,7 @@ struct Index {
         'stage=error_artifact_failed|detail=%{public}s', `${e}`);
       this.writeSdkCaptureMetadataBestEffort();
     } finally {
+      this.errorCleanupGate.finishCleanup();
       this.errorCleanupInProgress = false;
     }
   }

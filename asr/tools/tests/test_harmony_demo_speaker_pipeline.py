@@ -21,6 +21,10 @@ SESSION_DEBUG = REPO_ROOT / (
     "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/util/"
     "DemoSessionDebug.ts"
 )
+ERROR_CLEANUP_GATE = REPO_ROOT / (
+    "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/util/"
+    "DemoErrorCleanupGate.ts"
+)
 
 
 class HarmonyDemoSpeakerPipelineTest(unittest.TestCase):
@@ -100,6 +104,24 @@ class HarmonyDemoSpeakerPipelineTest(unittest.TestCase):
         )
         self.run_node(script)
 
+    def test_error_cleanup_gate_rejects_immediate_retry_and_recovers(self) -> None:
+        script = textwrap.dedent(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ DemoErrorCleanupGate }} from {ERROR_CLEANUP_GATE.as_uri()!r};
+
+            const gate = new DemoErrorCleanupGate();
+            assert.equal(gate.canStart(), true);
+            assert.equal(gate.tryBeginCleanup(), true);
+            assert.equal(gate.canStart(), false);
+            assert.equal(gate.tryBeginCleanup(), false);
+            gate.finishCleanup();
+            assert.equal(gate.canStart(), true);
+            assert.equal(gate.tryBeginCleanup(), true);
+            """
+        )
+        self.run_node(script)
+
     def test_demo_exposes_switch_and_exports_debug_snapshot(self) -> None:
         demo = DEMO_PAGE.read_text(encoding="utf-8")
         prefs = DEMO_PREFS.read_text(encoding="utf-8")
@@ -112,7 +134,7 @@ class HarmonyDemoSpeakerPipelineTest(unittest.TestCase):
         self.assertIn("stage=config_snapshot", demo)
         self.assertIn("stage=audio_progress", demo)
         self.assertIn("@State errorCleanupInProgress: boolean = false", demo)
-        self.assertIn("if (this.errorCleanupInProgress) return", demo)
+        self.assertIn("this.errorCleanupGate.canStart()", demo)
         self.assertIn("this.errorCleanupInProgress = true", demo)
         self.assertIn("this.errorCleanupInProgress = false", demo)
         self.assertIn("if (this.captureReady)", demo)
