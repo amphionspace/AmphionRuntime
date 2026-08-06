@@ -35,6 +35,12 @@ REMOTE_ROOT = "/data/storage/el2/base/files/asr-stress"
 FINISH_MODES = {
     "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration", "numeric-edge",
 }
+TARGET_SPEAKER_MODES = {
+    "target-speaker-enhancement",
+    "target-speaker-enhancement-onstart",
+    "target-speaker-enhancement-cancel",
+    "target-speaker-enhancement-reload",
+}
 MIN_MEMORY_SAMPLES = 6
 MIN_MEMORY_OBSERVATION_SECONDS = 15.0
 MIN_MEMORY_SLOPE_SECONDS = 60.0
@@ -73,6 +79,14 @@ def parse_args() -> argparse.Namespace:
         description="Drive the Harmony ASR SDK through a headless test carrier and check its contracts."
     )
     parser.add_argument("--data-dir", type=Path, default=Path.home() / "Downloads" / "testdata")
+    parser.add_argument(
+        "--target-speaker-manifest",
+        type=Path,
+        help=(
+            "Role manifest for target-speaker fixtures. All role=enrollment WAVs are registered "
+            "together and only role=case WAVs are replayed."
+        ),
+    )
     parser.add_argument(
         "--mode",
         choices=(
@@ -147,6 +161,8 @@ def parse_args() -> argparse.Namespace:
         parser.error("timing values must be non-negative")
     if args.mode == "target-speaker-enhancement-reload" and args.cycles != 4:
         parser.error("target-speaker-enhancement-reload requires exactly 4 cycles")
+    if args.target_speaker_manifest is not None and args.mode not in TARGET_SPEAKER_MODES:
+        parser.error("--target-speaker-manifest requires a target-speaker-enhancement mode")
     if args.skip_build_install and args.installed_package:
         parser.error("--skip-build-install and --installed-package are mutually exclusive")
     return args
@@ -335,6 +351,123 @@ def representative_sources(sources: list[AudioSource], count: int) -> list[Audio
     for rate in sorted(rates):
         picked.extend(quantile_pick(rates[rate], min(quotas[rate], len(rates[rate]))))
     return sorted(picked, key=lambda item: (item.sample_rate, item.duration_seconds, str(item.path)))
+
+
+def select_target_speaker_manifest_sources(
+    corpus_root: Path, sources: list[AudioSource], manifest_path: Path
+) -> tuple[list[AudioSource], int]:
+    root = corpus_root.expanduser().resolve()
+    try:
+        manifest = json.loads(manifest_path.expanduser().resolve().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise StressFailure(f"cannot read target-speaker manifest: {error}") from error
+    items = manifest.get("files") if isinstance(manifest, dict) else None
+    if not isinstance(items, list):
+        raise StressFailure("target-speaker manifest must contain a files array")
+
+    source_by_path = {source.path.resolve(): source for source in sources}
+    enrollment: list[AudioSource] = []
+    cases: list[tuple[str, AudioSource]] = []
+    selected_paths: set[Path] = set()
+    for item in items:
+        if not isinstance(item, dict) or item.get("role") not in {"enrollment", "case"}:
+            continue
+        relative_path = item.get("path")
+        if not isinstance(relative_path, str) or not relative_path.lower().endswith(".wav"):
+            raise StressFailure("target-speaker manifest audio entries require relative WAV paths")
+        path = (root / relative_path).resolve()
+        try:
+            path.relative_to(root)
+        except ValueError as error:
+            raise StressFailure(f"target-speaker manifest path escapes data directory: {relative_path}") from error
+        source = source_by_path.get(path)
+        if source is None:
+            raise StressFailure(f"target-speaker manifest WAV is missing or invalid: {relative_path}")
+        if path in selected_paths:
+            raise StressFailure(f"duplicate target-speaker manifest WAV: {relative_path}")
+        selected_paths.add(path)
+        if item["role"] == "enrollment":
+            enrollment.append(source)
+        else:
+            case_id = item.get("case_id")
+            if not isinstance(case_id, str) or not case_id:
+                raise StressFailure(f"target-speaker case is missing case_id: {relative_path}")
+            cases.append((case_id, source))
+    if not enrollment or not cases:
+        raise StressFailure("target-speaker manifest requires enrollment and case WAVs")
+    cases.sort(key=lambda item: item[0])
+    return enrollment + [source for _, source in cases], len(enrollment)
+
+
+def target_speaker_content_verdict(
+    cycles: list[dict[str, str]],
+    mapping: list[dict[str, object]],
+    manifest_path: Path | None,
+) -> dict[str, object]:
+    if manifest_path is None:
+        return {"status": "NOT_APPLICABLE", "reason": "no role manifest configured", "cases": []}
+    try:
+        manifest = json.loads(manifest_path.expanduser().resolve().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        return {"status": "FAIL", "reason": f"cannot read role manifest: {error}", "cases": []}
+    assertion = manifest.get("business_assertion") if isinstance(manifest, dict) else None
+    items = manifest.get("files") if isinstance(manifest, dict) else None
+    if not isinstance(assertion, dict) or not isinstance(items, list):
+        return {"status": "FAIL", "reason": "manifest is missing business_assertion/files", "cases": []}
+    required = assertion.get("required_text")
+    forbidden = assertion.get("forbidden_text")
+    if not isinstance(required, str) or not required or not isinstance(forbidden, str) or not forbidden:
+        return {"status": "FAIL", "reason": "manifest text assertions must be non-empty strings", "cases": []}
+
+    case_by_source: dict[str, str] = {}
+    for item in items:
+        if isinstance(item, dict) and item.get("role") == "case":
+            path = item.get("path")
+            case_id = item.get("case_id")
+            if isinstance(path, str) and isinstance(case_id, str) and case_id:
+                case_by_source[path] = case_id
+    expected_case_ids = sorted(case_by_source.values())
+    source_by_id = {
+        str(item.get("id")): str(item.get("source"))
+        for item in mapping
+        if "id" in item and "source" in item
+    }
+    results: list[dict[str, object]] = []
+    observed_case_ids: list[str] = []
+    for cycle in cycles:
+        source = source_by_id.get(cycle.get("id", ""), "")
+        case_id = case_by_source.get(source, "")
+        text = ""
+        decode_error = ""
+        try:
+            text = bytes.fromhex(cycle.get("resultHex", "")).decode("utf-16-be")
+        except (UnicodeDecodeError, ValueError) as error:
+            decode_error = str(error)
+        passed = bool(case_id) and not decode_error and required in text and forbidden not in text
+        if case_id:
+            observed_case_ids.append(case_id)
+        results.append(
+            {
+                "case_id": case_id,
+                "source": source,
+                "status": "PASS" if passed else "FAIL",
+                "text": text,
+                "required_text_present": required in text,
+                "forbidden_text_absent": forbidden not in text,
+                "decode_error": decode_error,
+            }
+        )
+    coverage_passed = sorted(observed_case_ids) == expected_case_ids
+    passed = coverage_passed and bool(results) and all(item["status"] == "PASS" for item in results)
+    return {
+        "status": "PASS" if passed else "FAIL",
+        "required_text": required,
+        "forbidden_text": forbidden,
+        "expected_case_ids": expected_case_ids,
+        "observed_case_ids": observed_case_ids,
+        "coverage_passed": coverage_passed,
+        "cases": results,
+    }
 
 
 def initial_signal_level(source: AudioSource, seconds: float = 3.0) -> float:
@@ -695,6 +828,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     hdc = Hdc(hdc_path, device)
     all_sources = inspect_wavs(args.data_dir.expanduser().resolve())
     selected = representative_sources(all_sources, args.files)
+    target_speaker_enrollment_count = 1
     if args.mode == "voiceprint-fallback":
         sources_by_name = {source.path.name: source for source in all_sources}
         required_names = ("000_enroll.wav", "001_recognize.wav")
@@ -717,13 +851,13 @@ def run_stress(args: argparse.Namespace) -> Path:
     elif args.mode == "voiceprint-vad-begin-idle":
         selected.sort(key=initial_signal_level, reverse=True)
         selected = selected[:1]
-    elif args.mode in (
-        "target-speaker-enhancement",
-        "target-speaker-enhancement-onstart",
-        "target-speaker-enhancement-cancel",
-        "target-speaker-enhancement-reload",
-    ):
-        selected = sorted(selected, key=lambda source: str(source.path))
+    elif args.mode in TARGET_SPEAKER_MODES:
+        if args.target_speaker_manifest is not None:
+            selected, target_speaker_enrollment_count = select_target_speaker_manifest_sources(
+                args.data_dir, all_sources, args.target_speaker_manifest
+            )
+        else:
+            selected = sorted(selected, key=lambda source: str(source.path))
         if len(selected) < 2:
             raise StressFailure(
                 "target-speaker-enhancement requires an enrollment WAV followed by at least one test WAV"
@@ -746,6 +880,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         "selected_wavs": len(selected),
         "total_valid_duration_seconds": round(sum(item.duration_seconds for item in all_sources), 3),
         "selected_duration_seconds": round(sum(item.duration_seconds for item in selected), 3),
+        "target_speaker_enrollment_wavs": target_speaker_enrollment_count,
         "sample_rates": {str(rate): sum(1 for item in all_sources if item.sample_rate == rate) for rate in sorted({item.sample_rate for item in all_sources})},
     }
     (artifact_dir / "inventory.json").write_text(json.dumps(inventory, indent=2) + "\n")
@@ -781,6 +916,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressCycles", str(args.cycles),
         "--ps", "stressSettleMs", str(args.settle_ms),
         "--ps", "stressPaceMs", str(args.pace_ms),
+        "--ps", "stressEnrollmentCount", str(target_speaker_enrollment_count),
         check=False,
     )
     if start_result.returncode != 0 or "error" in (start_result.stdout + start_result.stderr).lower():
@@ -836,6 +972,11 @@ def run_stress(args: argparse.Namespace) -> Path:
     target_speaker_realtime = target_speaker_realtime_verdict(
         artifact_dir / "hilog.txt", realtime_required
     )
+    target_speaker_content = (
+        target_speaker_content_verdict(cycle_results, mapping, args.target_speaker_manifest)
+        if args.mode == "target-speaker-enhancement"
+        else {"status": "NOT_APPLICABLE", "reason": "mode is lifecycle-only", "cases": []}
+    )
     cpu = cpu_statistics(workload_samples)
     completed = int(app_summary.get("completed", "0"))
     empty_finals = int(app_summary.get("emptyFinals", "0"))
@@ -869,6 +1010,9 @@ def run_stress(args: argparse.Namespace) -> Path:
     if target_speaker_realtime.get("status") == "FAIL":
         overall = "FAIL"
         failures.append("target-speaker processing did not keep up with real-time input")
+    if target_speaker_content.get("status") == "FAIL":
+        overall = "FAIL"
+        failures.append("target-speaker content accuracy assertion failed")
 
     report = {
         "run_id": run_id,
@@ -899,6 +1043,7 @@ def run_stress(args: argparse.Namespace) -> Path:
             "max_live_streams": max(live_stream_counts, default=0),
         },
         "target_speaker_realtime": target_speaker_realtime,
+        "target_speaker_content_accuracy": target_speaker_content,
         "memory": memory,
         "cpu": cpu,
         "cycles": cycle_results,

@@ -99,6 +99,7 @@ export default class EntryAbility extends UIAbility {
       options.cycles = this.numberParameter(want, 'stressCycles', 1);
       options.settleMs = this.numberParameter(want, 'stressSettleMs', 0);
       options.paceMs = this.numberParameter(want, 'stressPaceMs', 20);
+      options.enrollmentCount = this.numberParameter(want, 'stressEnrollmentCount', 1);
       runDeviceStress(this.context, options).catch((e: Object): void => {
         hilog.error(0x0000, 'DeviceStressTest', 'stress test crashed: %{public}s', `${e}`);
       }).finally((): void => {

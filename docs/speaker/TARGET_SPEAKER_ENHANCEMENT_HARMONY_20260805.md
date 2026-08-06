@@ -196,6 +196,9 @@ Conv-TasNet 已用 Harmony 设备同版本 ONNX Runtime 1.16.3 转换为固定 A
 固定 C1/C2/C3 输入和三段注册音频已纳入
 `asr/test-fixtures/target-speaker-customer-cases`。最终交付仍需用固定 ORT 资产执行 C1/C2/C3、
 目标不在场负例、目标单独说话和默认关闭精度回归。
+
+C1/C2/C3 使用该目录的 `manifest.json` 驱动 `run_device_stress.py`：所有 `role=enrollment` 输入作为
+同一个声纹一次注册，只回放 `role=case` 输入，避免目录排序把混合语音误作注册样本。
 生命周期的 cancel、onStart 同步写入、卸载后重载和 60 秒以上资源观察已由第 8 节覆盖。
 当前设备支持范围仍以真机报告为准。
 
@@ -233,3 +236,24 @@ Conv-TasNet 已用 Harmony 设备同版本 ONNX Runtime 1.16.3 转换为固定 A
 stream 为 0，且无跨 session 回调。资源采样持续 `75.882 秒`：峰值 RSS `723.062 MiB`，稳定窗口
 头部/尾部为 `492.424/478.600 MiB`，变化 `-13.824 MiB`，线程变化 `-5.5`，内存门禁为 PASS。
 该语料只用于生命周期，4 个 terminal final 均为空，不能替代客户 C1/C2/C3 的内容精度回归。
+
+## 9. 2026-08-06 正式 ORT 客户 C1/C2/C3 回归
+
+使用入库的三段 enrollment 一次性注册同一个声纹，并按 20 ms 实时喂入 C1、C2、C3。测试 HAP
+只包含 `ZH_EN`，包内 `convtasnet_16k.ort` SHA-256 仍为
+`921dc579ae7fdff42b5b53d6d3408c520121c6292d2c69d5d8dc92908b05ad13`。
+
+| 用例 | 正式 ORT 最终放行文本 | 业务断言 |
+|---|---|---|
+| C1 | 帮我查收明天的警单。然后准备明天去上海。 | 含上海、无你好，PASS |
+| C2 | 我准备明天去北京，我看明去北京的机票。你帮我定一下。准备据上海。 | 含上海、无你好，PASS |
+| C3 | 我准备去上海，你帮我准备一下飞机票多少钱。 | 含上海、无你好，PASS |
+
+三轮共 `starts=3`、`finals=9`、`completes=3`、`errors=0`；每轮显式 `finish` 前 `isLast=0`，
+结束后恰好一次 last、随后一次 complete，native stream 归零且无跨 session 回调。C2 仍有“准备据上海”
+的识别错误，因此这里只证明目标关键词保留和非目标“你好”去除，不把三条样例扩大为整体准确率结论。
+
+22 个增强块的最大处理耗时为 `1644 ms`、P95 为 `1638 ms`、最大排队为 `2`，低于 `1750 ms`
+稳态步长。资源观察 `78.025 s`，峰值 RSS `871.879 MiB`，稳定窗口 RSS 变化 `-180.428 MiB`、
+线程变化 `-2`，资源门通过。完整证据见
+[`20260806-ort-customer-cases`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260806-ort-customer-cases)。

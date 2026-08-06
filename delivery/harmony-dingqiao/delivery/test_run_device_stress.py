@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 from array import array
 import hashlib
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -272,6 +273,81 @@ class RunCommandTest(unittest.TestCase):
                 hashlib.sha256(pcm.read_bytes()).hexdigest(),
                 mapping[0]["pcm_sha256"],
             )
+
+    def test_target_speaker_manifest_orders_all_enrollment_before_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ("enroll-a.wav", "enroll-b.wav", "C1.wav", "C2.wav"):
+                with wave.open(str(root / name), "wb") as wav:
+                    wav.setnchannels(1)
+                    wav.setsampwidth(2)
+                    wav.setframerate(16_000)
+                    wav.writeframes(array("h", [1, -1] * 24_000).tobytes())
+            manifest = root / "manifest.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "files": [
+                            {"path": "C1.wav", "role": "case", "case_id": "C1"},
+                            {"path": "enroll-a.wav", "role": "enrollment"},
+                            {"path": "C2.wav", "role": "case", "case_id": "C2"},
+                            {"path": "enroll-b.wav", "role": "enrollment"},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            selected, enrollment_count = MODULE.select_target_speaker_manifest_sources(
+                root, MODULE.inspect_wavs(root), manifest
+            )
+
+            self.assertEqual(2, enrollment_count)
+            self.assertEqual(
+                ["enroll-a.wav", "enroll-b.wav", "C1.wav", "C2.wav"],
+                [source.path.name for source in selected],
+            )
+            carrier = CARRIER.read_text(encoding="utf-8")
+            self.assertIn("options.enrollmentCount", carrier)
+            self.assertIn("entries.slice(0, options.enrollmentCount)", carrier)
+
+    def test_target_speaker_content_verdict_is_separate_and_manifest_driven(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "manifest.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "business_assertion": {
+                            "required_text": "上海",
+                            "forbidden_text": "你好",
+                        },
+                        "files": [
+                            {"path": "enroll.wav", "role": "enrollment"},
+                            {"path": "C1.wav", "role": "case", "case_id": "C1"},
+                            {"path": "C2.wav", "role": "case", "case_id": "C2"},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            mapping = [
+                {"id": "000000", "source": "enroll.wav"},
+                {"id": "000001", "source": "C1.wav"},
+                {"id": "000002", "source": "C2.wav"},
+            ]
+            cycles = [
+                {"id": "000001", "resultHex": "准备去上海。".encode("utf-16-be").hex()},
+                {"id": "000002", "resultHex": "准备去上海你好。".encode("utf-16-be").hex()},
+            ]
+
+            verdict = MODULE.target_speaker_content_verdict(cycles, mapping, manifest)
+
+            self.assertEqual("FAIL", verdict["status"])
+            self.assertEqual(["C1", "C2"], verdict["expected_case_ids"])
+            self.assertEqual("PASS", verdict["cases"][0]["status"])
+            self.assertEqual("FAIL", verdict["cases"][1]["status"])
+            self.assertEqual("准备去上海你好。", verdict["cases"][1]["text"])
 
 
 if __name__ == "__main__":

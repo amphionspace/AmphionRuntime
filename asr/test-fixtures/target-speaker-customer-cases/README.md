@@ -17,8 +17,18 @@ FAR、FRR、CER/WER 或选择商用阈值。
 生命周期仍需分别检查显式 `finish` 前没有 `isLast=true`，结束后恰好一次 `isLast`、随后一次
 `onComplete`，且没有错误或跨 session 回调。
 
+正式 ORT 真机回归使用清单驱动，runner 会把三条 `role=enrollment` 音频一次性注册为同一个声纹，
+并且只把三条 `role=case` 音频送入增强链路：
+
+```bash
+python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
+  --data-dir asr/test-fixtures/target-speaker-customer-cases \
+  --target-speaker-manifest asr/test-fixtures/target-speaker-customer-cases/manifest.json \
+  --mode target-speaker-enhancement --cycles 3 --files 0 --pace-ms 20
+```
+
 ## 使用限制
 
-这些文件包含真实人声和声纹注册样本，仅作为仓库内的内部回归资产使用。不得复制进 SDK、HAR、HAP、
-客户交付包、公开样例或日志附件。替换任何文件时必须同步更新 `manifest.json`、对应证据文档和真机差分
-报告；不得以重新编码后的 WAV 冒充相同输入。
+这些文件包含客户真实人声和声纹注册样本。不得复制进 SDK、HAR、HAP、客户交付包、公开样例或日志
+附件；公开远端仓库只有在取得客户对这些音频和日志的公开再分发授权后才能接收本目录。替换任何文件时
+必须同步更新 `manifest.json`、对应证据文档和真机差分报告；不得以重新编码后的 WAV 冒充相同输入。

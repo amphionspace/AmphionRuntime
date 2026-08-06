@@ -44,6 +44,7 @@ export class DeviceStressOptions {
   cycles: number = 1;
   settleMs: number = 0;
   paceMs: number = 20;
+  enrollmentCount: number = 1;
 }
 
 class CorpusEntry {
@@ -942,20 +943,27 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   return params;
 }
 
-function prepareStressVoiceprint(workPath: string, entry: CorpusEntry): string {
-  const pcm = new ArrayBuffer(5 * 16000 * 2);
-  const fp = fs.openSync(entry.path);
-  let bytesRead = 0;
-  try {
-    bytesRead = fs.readSync(fp.fd, pcm);
-  } finally {
-    fs.closeSync(fp.fd);
+function prepareStressVoiceprint(workPath: string, entries: CorpusEntry[]): string {
+  const samplePaths: string[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    const fp = fs.openSync(entries[i].path);
+    let pcm: ArrayBuffer;
+    let bytesRead = 0;
+    try {
+      const sourceBytes = fs.statSync(fp.fd).size;
+      const readBytes = entries.length > 1 ? sourceBytes : Math.min(sourceBytes, 5 * 16000 * 2);
+      pcm = new ArrayBuffer(readBytes);
+      bytesRead = fs.readSync(fp.fd, pcm);
+    } finally {
+      fs.closeSync(fp);
+    }
+    if (bytesRead < 3 * 16000 * 2) throw new Error('voiceprint-enrollment-source-too-short');
+    const samplePath = `${workPath}/stress-voiceprint-enroll-${i}.wav`;
+    WavIo.writePcmBytes(samplePath, pcm.slice(0, bytesRead));
+    samplePaths.push(samplePath);
   }
-  if (bytesRead < 3 * 16000 * 2) throw new Error('voiceprint-enrollment-source-too-short');
-  const samplePath = `${workPath}/stress-voiceprint-enroll.wav`;
-  WavIo.writePcmBytes(samplePath, pcm.slice(0, bytesRead));
   const params = new VoiceprintRegisterParams();
-  params.samplePaths = [samplePath];
+  params.samplePaths = samplePaths;
   const registered = SpeechRecognizeSdk.registerVoiceprint(params);
   const ids = Object.keys(registered.voiceprintId);
   if (registered.status !== 0 || ids.length !== 1) {
@@ -2108,7 +2116,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
   let entries: CorpusEntry[] = [];
   let engine: SpeechRecognitionEngine | undefined;
   let stressVoiceprintId: string = '';
-  let stressVoiceprintSamplePath: string = '';
+  const stressVoiceprintSamplePaths: string[] = [];
   let fatal = '';
   logLine(`BEGIN|runId=${options.runId}|mode=${options.mode}|cycles=${options.cycles}`);
 
@@ -2135,8 +2143,15 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entries.length < 2) {
         throw new Error('voiceprint-stress-requires-two-corpus-sources');
       }
-      stressVoiceprintSamplePath = `${workPath}/stress-voiceprint-enroll.wav`;
-      stressVoiceprintId = prepareStressVoiceprint(workPath, entries[0]);
+      if (options.enrollmentCount < 1 || options.enrollmentCount >= entries.length) {
+        throw new Error('invalid-stress-enrollment-count');
+      }
+      stressVoiceprintId = prepareStressVoiceprint(
+        workPath, entries.slice(0, options.enrollmentCount)
+      );
+      for (let i = 0; i < options.enrollmentCount; i++) {
+        stressVoiceprintSamplePaths.push(`${workPath}/stress-voiceprint-enroll-${i}.wav`);
+      }
       if (options.mode === 'voiceprint-fallback') SpeechRecognizeSdk.unloadModel();
       if (options.mode === 'target-speaker-enhancement-reload') {
         // Registration loads ERes2Net; clear all L2 models so cycle 0 proves a true cold load.
@@ -2157,7 +2172,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         options.mode === 'target-speaker-enhancement-onstart' ||
         options.mode === 'target-speaker-enhancement-cancel' ||
         options.mode === 'target-speaker-enhancement-reload') {
-        entry = entries[1 + (i % (entries.length - 1))];
+        entry = entries[options.enrollmentCount +
+          (i % (entries.length - options.enrollmentCount))];
       }
       if (options.mode === 'target-speaker-enhancement-reload' && i === 2) {
         engine?.shutdown();
@@ -2251,8 +2267,9 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     if (stressVoiceprintId.length > 0) {
       try { SpeechRecognizeSdk.deleteVoiceprint(stressVoiceprintId); } catch (_e) {}
     }
-    if (stressVoiceprintSamplePath.length > 0) {
-      try { if (fs.accessSync(stressVoiceprintSamplePath)) fs.unlinkSync(stressVoiceprintSamplePath); } catch (_e) {}
+    for (let i = 0; i < stressVoiceprintSamplePaths.length; i++) {
+      const samplePath = stressVoiceprintSamplePaths[i];
+      try { if (fs.accessSync(samplePath)) fs.unlinkSync(samplePath); } catch (_e) {}
     }
   }
 
