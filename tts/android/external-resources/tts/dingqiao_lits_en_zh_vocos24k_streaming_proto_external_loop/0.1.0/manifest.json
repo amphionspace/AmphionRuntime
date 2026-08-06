@@ -20,7 +20,7 @@
     "vocoder_type": "vocos",
     "streaming_chunk_size": 50,
     "streaming_pre_lookahead_len": 3,
-    "streaming_mel_cache_len": 8,
+    "streaming_mel_cache_len": 16,
     "num_decoding_left_chunks": 1,
     "hidden_encoder_model": {
         "file": "lits_hidden_encoder.onnx",
@@ -34,19 +34,19 @@
     "files": [
         {
             "name": "lits_hidden_encoder.onnx",
-            "size_bytes": 29101412
+            "size_bytes": 14974972
         },
         {
             "name": "lits_stream_condition_chunk.onnx",
-            "size_bytes": 15594490
+            "size_bytes": 8021065
         },
         {
             "name": "lits_stream_decoder_step.onnx",
-            "size_bytes": 45044116
+            "size_bytes": 22754464
         },
         {
             "name": "vocos_vocoder.onnx",
-            "size_bytes": 61513246
+            "size_bytes": 30838557
         },
         {
             "name": "frontend_golden.json",
@@ -86,11 +86,11 @@
         },
         {
             "name": "polyphone_phrases.txt",
-            "size_bytes": 1798
+            "size_bytes": 3323
         },
         {
             "name": "chinese_surname_lexicon.txt",
-            "size_bytes": 854
+            "size_bytes": 1043
         },
         {
             "name": "chinese_lexicon.bin",
@@ -102,7 +102,7 @@
         }
     ],
     "stream_decoder_external_loop": true,
-    "stream_decoder_n_timesteps": 10,
+    "stream_decoder_n_timesteps": 2,
     "stream_decoder_temperature": 0.667,
     "stream_condition_chunk_model": {
         "file": "lits_stream_condition_chunk.onnx",
@@ -112,5 +112,24 @@
         "file": "lits_stream_decoder_step.onnx",
         "format": "onnx"
     },
-    "stream_final_zero_pad_with_chunk_condition": true
+    "stream_final_zero_pad_with_chunk_condition": true,
+    "precision": "mixed_fp16_io_fp32",
+    "fp16_converter": "onnxruntime.transformers.float16",
+    "fp16_force_initializers": true,
+    "fp16_keep_io_types": true,
+    "fp16_op_block_list": [
+        "__default__",
+        "Mul",
+        "Add",
+        "LayerNormalization",
+        "Sin",
+        "Softplus",
+        "ConvTranspose"
+    ],
+    "fp16_conversion": [
+        "lits_hidden_encoder.onnx",
+        "lits_stream_condition_chunk.onnx",
+        "lits_stream_decoder_step.onnx",
+        "vocos_vocoder.onnx"
+    ]
 }

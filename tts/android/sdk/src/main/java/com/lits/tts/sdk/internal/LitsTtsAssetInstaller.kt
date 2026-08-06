@@ -42,13 +42,6 @@ internal object LitsTtsAssetInstaller {
         return InstalledLayout.of(rootDir, manifest, LayoutSource.BUNDLED_ASSET)
     }
 
-    fun ensureTnBinariesInstalled(context: Context, layout: InstalledLayout) {
-        if (layout.tnZhTts.isFile && layout.tnEnTts.isFile) return
-        for (name in LitsTtsAssetRegistry.tnBinaryFiles) {
-            copyAssetFile(context, layout.rootDir, name)
-        }
-    }
-
     private fun copyAssetFile(context: Context, rootDir: File, name: String) {
         val assetPath = "${LitsTtsAssetRegistry.ASSET_ROOT}/${LitsTtsAssetRegistry.assetSubPath}/$name"
         val outFile = rootDir.resolve(name)
@@ -87,6 +80,7 @@ internal object LitsTtsAssetInstaller {
         val streamConditionChunkFile = json.optJSONObject("stream_condition_chunk_model")?.optString("file")
         val streamConditionFinalFile = json.optJSONObject("stream_condition_final_model")?.optString("file")
         val streamDecoderStepFile = json.optJSONObject("stream_decoder_step_model")?.optString("file")
+        val streamDecoderCacheInfo = parseStreamDecoderCacheInfo(json.optJSONObject("stream_decoder_cache"))
         val streamFinalZeroPadWithChunkCondition =
             json.optBoolean("stream_final_zero_pad_with_chunk_condition", false)
         val streamingChunkSize = json.optInt("streaming_chunk_size", -1)
@@ -164,9 +158,44 @@ internal object LitsTtsAssetInstaller {
             streamConditionFinalModelFile = streamConditionFinalFile,
             streamFinalZeroPadWithChunkCondition = streamFinalZeroPadWithChunkCondition,
             streamDecoderStepModelFile = streamDecoderStepFile,
+            streamDecoderCacheInfo = streamDecoderCacheInfo,
             streamingChunkSize = streamingChunkSize,
             streamingPreLookaheadLen = streamingPreLookaheadLen,
             streamingMelCacheLen = streamingMelCacheLen,
+        )
+    }
+
+    private fun parseStreamDecoderCacheInfo(json: JSONObject?): StreamDecoderCacheInfo? {
+        if (json == null) return null
+        val initFile = json.optJSONObject("init_model")?.optString("file").orEmpty()
+        val stepFile = json.optJSONObject("step_model")?.optString("file").orEmpty()
+        val stateNamesJson = json.optJSONArray("state_names")
+        val stateNames = mutableListOf<String>()
+        if (stateNamesJson != null) {
+            for (index in 0 until stateNamesJson.length()) {
+                val name = stateNamesJson.optString(index)
+                if (name.isNotBlank()) stateNames += name
+            }
+        }
+        val stateCount = json.optInt("state_count", -1)
+        val mode = json.optString("mode")
+        val fixedChunkSize = json.optInt("requires_fixed_chunk_size", -1)
+        if (
+            initFile.isBlank() ||
+            stepFile.isBlank() ||
+            stateNames.isEmpty() ||
+            stateCount != stateNames.size ||
+            mode != "relative_left_window_v1" ||
+            fixedChunkSize <= 0
+        ) {
+            throw illegalState(TtsErrorCode.CREATE_ENGINE_FAILED, "TTS stream decoder cache fields are invalid")
+        }
+        return StreamDecoderCacheInfo(
+            initModelFile = initFile,
+            stepModelFile = stepFile,
+            stateNames = stateNames,
+            mode = mode,
+            requiresFixedChunkSize = fixedChunkSize,
         )
     }
 
@@ -243,6 +272,8 @@ internal object LitsTtsAssetInstaller {
         val streamConditionChunkModel: File?,
         val streamConditionFinalModel: File?,
         val streamDecoderStepModel: File?,
+        val streamDecoderCacheInitModel: File?,
+        val streamDecoderCacheStepModel: File?,
         val frontendGolden: File,
         val frontendRules: File,
         val chineseLexicon: File,
@@ -254,8 +285,6 @@ internal object LitsTtsAssetInstaller {
         val pinyinToTokens: File,
         val arpabetToTokens: File,
         val polychar: File,
-        val tnZhTts: File,
-        val tnEnTts: File,
     ) {
         companion object {
             fun of(rootDir: File, manifest: ManifestInfo, source: LayoutSource): InstalledLayout = InstalledLayout(
@@ -274,6 +303,8 @@ internal object LitsTtsAssetInstaller {
                 streamConditionChunkModel = manifest.streamConditionChunkModelFile?.let(rootDir::resolve),
                 streamConditionFinalModel = manifest.streamConditionFinalModelFile?.let(rootDir::resolve),
                 streamDecoderStepModel = manifest.streamDecoderStepModelFile?.let(rootDir::resolve),
+                streamDecoderCacheInitModel = manifest.streamDecoderCacheInfo?.initModelFile?.let(rootDir::resolve),
+                streamDecoderCacheStepModel = manifest.streamDecoderCacheInfo?.stepModelFile?.let(rootDir::resolve),
                 frontendGolden = rootDir.resolve(LitsTtsAssetRegistry.FRONTEND_GOLDEN),
                 frontendRules = rootDir.resolve(LitsTtsAssetRegistry.FRONTEND_RULES),
                 chineseLexicon = rootDir.resolve(LitsTtsAssetRegistry.CHINESE_LEXICON),
@@ -285,8 +316,6 @@ internal object LitsTtsAssetInstaller {
                 pinyinToTokens = rootDir.resolve(LitsTtsAssetRegistry.PINYIN_TO_TOKENS),
                 arpabetToTokens = rootDir.resolve(LitsTtsAssetRegistry.ARPABET_TO_TOKENS),
                 polychar = rootDir.resolve(LitsTtsAssetRegistry.POLYCHAR),
-                tnZhTts = rootDir.resolve(LitsTtsAssetRegistry.TN_ZH_TTS),
-                tnEnTts = rootDir.resolve(LitsTtsAssetRegistry.TN_EN_TTS),
             )
         }
 
@@ -304,13 +333,19 @@ internal object LitsTtsAssetInstaller {
             if (coreFiles.any { !it.isFile }) return false
             return if (manifest.supportsStreaming) {
                 if (manifest.streamDecoderExternalLoop) {
+                    val cacheFilesReady = manifest.streamDecoderCacheInfo == null ||
+                        (
+                            streamDecoderCacheInitModel?.isFile == true &&
+                                streamDecoderCacheStepModel?.isFile == true
+                            )
                     hiddenEncoderModel?.isFile == true &&
                         streamConditionChunkModel?.isFile == true &&
                         (
                             manifest.streamFinalZeroPadWithChunkCondition ||
                                 streamConditionFinalModel?.isFile == true
                             ) &&
-                        streamDecoderStepModel?.isFile == true
+                        streamDecoderStepModel?.isFile == true &&
+                        cacheFilesReady
                 } else {
                     hiddenEncoderModel?.isFile == true &&
                         streamDecoderChunkModel?.isFile == true &&
@@ -362,10 +397,21 @@ internal object LitsTtsAssetInstaller {
         val streamDecoderTemperature: Float,
         val streamConditionChunkModelFile: String?,
         val streamConditionFinalModelFile: String?,
-        val streamFinalZeroPadWithChunkCondition: Boolean,
+        val streamFinalZeroPadWithChunkCondition: Boolean = false,
         val streamDecoderStepModelFile: String?,
+        // Optional so manifests/tests without the explicit decoder-state cache
+        // remain compatible with the ordinary no-cache streaming path.
+        val streamDecoderCacheInfo: StreamDecoderCacheInfo? = null,
         val streamingChunkSize: Int,
         val streamingPreLookaheadLen: Int,
         val streamingMelCacheLen: Int,
+    )
+
+    internal data class StreamDecoderCacheInfo(
+        val initModelFile: String,
+        val stepModelFile: String,
+        val stateNames: List<String>,
+        val mode: String,
+        val requiresFixedChunkSize: Int,
     )
 }

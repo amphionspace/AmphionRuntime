@@ -17,16 +17,21 @@ class TnEngineLogDeviceTest {
         val layout = LitsTtsAssetInstaller.ensureInstalled(context, workPath)
 
         Log.i(TAG, "layout=${layout.debugSummary()}")
-        Log.i(TAG, "zh_tts=${layout.tnZhTts.absolutePath} exists=${layout.tnZhTts.isFile} canExecute=${layout.tnZhTts.canExecute()}")
-        Log.i(TAG, "en_tts=${layout.tnEnTts.absolutePath} exists=${layout.tnEnTts.isFile} canExecute=${layout.tnEnTts.canExecute()}")
+        Log.i(TAG, "native_tn=liblits_tn.so")
 
         val zh = LitsTnNormalizer.normalize(layout, "编号 1 的房间是 204，温度 -24.5 度。", "zh-en", "zh-en")
+        val zhProfile = LitsTnNormalizer.lastProfileSummary()
         val en = LitsTnNormalizer.normalize(layout, "status is pending.", "en-US", "en-US")
+        val enProfile = LitsTnNormalizer.lastProfileSummary()
         Log.i(TAG, "zhOutput=$zh")
+        Log.i(TAG, "zhProfile=$zhProfile")
         Log.i(TAG, "enOutput=$en")
+        Log.i(TAG, "enProfile=$enProfile")
 
         assertTrue(zh.isNotBlank())
         assertTrue(en.isNotBlank())
+        assertTrue("zh TN should use one utterance segment: $zhProfile", zhProfile?.contains(",segments=1") == true)
+        assertTrue("en TN should use one utterance segment: $enProfile", enProfile?.contains(",segments=1") == true)
     }
 
     private companion object {

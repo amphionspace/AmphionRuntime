@@ -17,6 +17,9 @@ internal object LitsTtsFrontend {
     private const val LOG_CHUNK_SIZE = 3200
     private val traceSequence = AtomicLong(0L)
     private val resourcesByRoot = ConcurrentHashMap<String, FrontendResources>()
+    private val wordPinyinBinByPath = ConcurrentHashMap<String, Map<String, String>>()
+    private val cmudictBinByPath = ConcurrentHashMap<String, Map<String, List<String>>>()
+    private val lastEncodeProfileByThread = ThreadLocal<FrontendEncodeProfile?>()
     private val pinyinSyllableRegex = Regex("^[a-z]+[0-6]$")
     private val hanziRegex = Regex("[\\u4e00-\\u9fff]")
     private val polyphonicSurnamePinyin = mapOf(
@@ -319,7 +322,11 @@ internal object LitsTtsFrontend {
         languageContext: String,
     ): LongArray {
         val traceId = nextTraceId()
+        val totalStartedAt = System.nanoTime()
+        val tnStartedAt = System.nanoTime()
         val normalizedText = LitsTnNormalizer.normalize(layout, text, language, languageContext)
+        val tnMs = elapsedMs(tnStartedAt)
+        val tnProfile = LitsTnNormalizer.lastProfileSummary()
         return encodeNormalizedInternal(
             layout = layout,
             rawText = text,
@@ -328,6 +335,9 @@ internal object LitsTtsFrontend {
             languageContext = languageContext,
             alreadyNormalized = false,
             traceId = traceId,
+            totalStartedAt = totalStartedAt,
+            tnMs = tnMs,
+            tnProfile = tnProfile,
         )
     }
 
@@ -345,6 +355,9 @@ internal object LitsTtsFrontend {
             languageContext = languageContext,
             alreadyNormalized = true,
             traceId = nextTraceId(),
+            totalStartedAt = System.nanoTime(),
+            tnMs = 0L,
+            tnProfile = null,
         )
     }
 
@@ -356,13 +369,32 @@ internal object LitsTtsFrontend {
         languageContext: String,
         alreadyNormalized: Boolean,
         traceId: Long,
+        totalStartedAt: Long,
+        tnMs: Long,
+        tnProfile: String?,
     ): LongArray {
+        val resourcesStartedAt = System.nanoTime()
         val resources = resources(layout)
+        val resourcesMs = elapsedMs(resourcesStartedAt)
+        val tokenizeStartedAt = System.nanoTime()
         val tokenization = tokenizeDetailed(resources, normalizedText, language, languageContext, traceId)
+        val tokenizeMs = elapsedMs(tokenizeStartedAt)
+        val tokenToIdsStartedAt = System.nanoTime()
         val ids = tokenization.tokens.map { token ->
             resources.symbolToId[token] ?: throw unsupported("frontend token is not in zh_en_symbols.json: $token")
         }
         val tokenIds = ids.map { it.toLong() }.toLongArray()
+        val tokenToIdsMs = elapsedMs(tokenToIdsStartedAt)
+        val profile = FrontendEncodeProfile(
+            totalMs = elapsedMs(totalStartedAt),
+            tnMs = tnMs,
+            resourcesMs = resourcesMs,
+            tokenizeMs = tokenizeMs,
+            tokenToIdsMs = tokenToIdsMs,
+            tokenizeProfile = tokenization.profile,
+            tnProfile = tnProfile,
+        )
+        lastEncodeProfileByThread.set(profile)
         logFrontendMetric(
             traceId = traceId,
             rawText = rawText,
@@ -375,6 +407,9 @@ internal object LitsTtsFrontend {
         )
         return tokenIds
     }
+
+    fun lastEncodeProfileSummary(): String? =
+        lastEncodeProfileByThread.get()?.toSummary()
 
     internal fun debugTokensForTest(
         layout: LitsTtsAssetInstaller.InstalledLayout,
@@ -401,12 +436,79 @@ internal object LitsTtsFrontend {
         resources(layout)
     }
 
+    internal fun preloadLargeBinaryLexicons(layout: LitsTtsAssetInstaller.InstalledLayout): LargeBinaryLexiconPreloadResult {
+        val startedAt = System.nanoTime()
+        val wordPinyinStartedAt = System.nanoTime()
+        val wordPinyinEntries = if (layout.chineseLexiconBin.isFile) {
+            cachedWordPinyinBin(layout.chineseLexiconBin).size
+        } else {
+            0
+        }
+        val wordPinyinMs = elapsedMs(wordPinyinStartedAt)
+
+        val cmudictStartedAt = System.nanoTime()
+        val cmudictEntries = if (layout.cmudictBin.isFile) {
+            cachedCmudictBin(layout.cmudictBin).size
+        } else {
+            0
+        }
+        val cmudictMs = elapsedMs(cmudictStartedAt)
+        return LargeBinaryLexiconPreloadResult(
+            totalMs = elapsedMs(startedAt),
+            wordPinyinMs = wordPinyinMs,
+            wordPinyinEntries = wordPinyinEntries,
+            cmudictMs = cmudictMs,
+            cmudictEntries = cmudictEntries,
+        )
+    }
+
     private data class TokenizationResult(
         val inputText: String,
         val preprocessedText: String,
         val normalizedText: String,
         val tokens: List<String>,
+        val profile: TokenizeProfile,
     )
+
+    private data class FrontendEncodeProfile(
+        val totalMs: Long,
+        val tnMs: Long,
+        val resourcesMs: Long,
+        val tokenizeMs: Long,
+        val tokenToIdsMs: Long,
+        val tokenizeProfile: TokenizeProfile,
+        val tnProfile: String?,
+    ) {
+        fun toSummary(): String = buildString {
+            append("total=").append(totalMs).append("ms")
+            append(",tn=").append(tnMs).append("ms")
+            append(",resources=").append(resourcesMs).append("ms")
+            append(",tokenize=").append(tokenizeMs).append("ms")
+            append(",tokenToIds=").append(tokenToIdsMs).append("ms")
+            tnProfile?.let {
+                append(",tnProfile=[").append(it).append("]")
+            }
+            append(",tokenizeBreakdown=").append(tokenizeProfile.toSummary())
+        }
+    }
+
+    private data class TokenizeProfile(
+        val arpabetProbeMs: Long = 0L,
+        val preprocessMs: Long = 0L,
+        val normalizeTextMs: Long = 0L,
+        val technicalNormalizeMs: Long = 0L,
+        val tokenLoopMs: Long = 0L,
+        val trimMs: Long = 0L,
+    ) {
+        fun toSummary(): String = buildString {
+            append("arpabetProbe=").append(arpabetProbeMs).append("ms")
+            append(",preprocess=").append(preprocessMs).append("ms")
+            append(",normalizeText=").append(normalizeTextMs).append("ms")
+            append(",technicalNormalize=").append(technicalNormalizeMs).append("ms")
+            append(",tokenLoop=").append(tokenLoopMs).append("ms")
+            append(",trim=").append(trimMs).append("ms")
+        }
+    }
 
     private fun nextTraceId(): Long = traceSequence.incrementAndGet()
 
@@ -737,17 +839,29 @@ internal object LitsTtsFrontend {
         languageContext: String,
         traceId: Long,
     ): TokenizationResult {
+        val arpabetProbeStartedAt = System.nanoTime()
         tokenizeArpabetInput(resources, text, traceId)?.let {
             return TokenizationResult(
                 inputText = text,
                 preprocessedText = text,
                 normalizedText = text,
                 tokens = it,
+                profile = TokenizeProfile(arpabetProbeMs = elapsedMs(arpabetProbeStartedAt)),
             )
         }
+        val arpabetProbeMs = elapsedMs(arpabetProbeStartedAt)
+        val preprocessStartedAt = System.nanoTime()
         val preprocessed = resources.frontendRules.apply("pre_frontend", preprocessZhMixedInput(text))
+        val preprocessMs = elapsedMs(preprocessStartedAt)
+        val normalizeTextStartedAt = System.nanoTime()
         val normalizedText = normalizeText(preprocessed, languageContext)
-        val normalized = normalizeTechnicalText(resources, normalizedText, languageContext).trim()
+        val normalizeTextMs = elapsedMs(normalizeTextStartedAt)
+        val technicalNormalizeStartedAt = System.nanoTime()
+        val normalizedWithWhitespace = normalizeTechnicalText(resources, normalizedText, languageContext)
+        val technicalNormalizeMs = elapsedMs(technicalNormalizeStartedAt)
+        val trimStartedAt = System.nanoTime()
+        val normalized = normalizedWithWhitespace.trim()
+        val trimMs = elapsedMs(trimStartedAt)
         if (normalized.isEmpty()) {
             throw unsupported("text must not be empty after trim")
         }
@@ -762,6 +876,7 @@ internal object LitsTtsFrontend {
         }
         val output = mutableListOf<String>()
         var index = 0
+        val tokenLoopStartedAt = System.nanoTime()
         while (index < normalized.length) {
             val char = normalized[index]
             if (languageContext == "zh-en" && isAsciiAlnum(char)) {
@@ -901,6 +1016,7 @@ internal object LitsTtsFrontend {
                 }
             }
         }
+        val tokenLoopMs = elapsedMs(tokenLoopStartedAt)
         while (output.lastOrNull() == "_") {
             output.removeAt(output.lastIndex)
         }
@@ -909,6 +1025,14 @@ internal object LitsTtsFrontend {
             preprocessedText = preprocessed,
             normalizedText = normalized,
             tokens = output,
+            profile = TokenizeProfile(
+                arpabetProbeMs = arpabetProbeMs,
+                preprocessMs = preprocessMs,
+                normalizeTextMs = normalizeTextMs,
+                technicalNormalizeMs = technicalNormalizeMs,
+                tokenLoopMs = tokenLoopMs,
+                trimMs = trimMs,
+            ),
         )
     }
 
@@ -1830,7 +1954,7 @@ internal object LitsTtsFrontend {
     private fun loadWordPinyin(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> {
         val base = if (layout.chineseLexiconBin.isFile) {
             try {
-                loadWordPinyinBin(layout.chineseLexiconBin)
+                cachedWordPinyinBin(layout.chineseLexiconBin)
             } catch (exception: Exception) {
                 loadWordPinyinText(layout)
             }
@@ -1876,7 +2000,7 @@ internal object LitsTtsFrontend {
     private fun loadCmudict(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, List<String>> =
         if (layout.cmudictBin.isFile) {
             try {
-                loadCmudictBin(layout.cmudictBin)
+                cachedCmudictBin(layout.cmudictBin)
             } catch (exception: Exception) {
                 loadCmudictText(layout)
             }
@@ -1899,6 +2023,12 @@ internal object LitsTtsFrontend {
                 }
             }
         }
+
+    private fun cachedWordPinyinBin(file: File): Map<String, String> =
+        wordPinyinBinByPath.getOrPut(file.absolutePath) { loadWordPinyinBin(file) }
+
+    private fun cachedCmudictBin(file: File): Map<String, List<String>> =
+        cmudictBinByPath.getOrPut(file.absolutePath) { loadCmudictBin(file) }
 
     private fun loadWordPinyinBin(file: File): Map<String, String> =
         BinaryReader(file.readBytes()).let { input ->
@@ -1991,6 +2121,14 @@ internal object LitsTtsFrontend {
         val arpabetToTokens: Map<String, List<String>>,
     )
 
+    internal data class LargeBinaryLexiconPreloadResult(
+        val totalMs: Long,
+        val wordPinyinMs: Long,
+        val wordPinyinEntries: Int,
+        val cmudictMs: Long,
+        val cmudictEntries: Int,
+    )
+
     private data class SurnameTitleMatch(
         val length: Int,
         val pinyin: List<String>,
@@ -2000,3 +2138,5 @@ internal object LitsTtsFrontend {
     private const val WORD_PINYIN_BIN_MAGIC = 0x4C505931
     private const val CMUDICT_BIN_MAGIC = 0x434D4431
 }
+
+private fun elapsedMs(startedAt: Long): Long = (System.nanoTime() - startedAt) / 1_000_000L

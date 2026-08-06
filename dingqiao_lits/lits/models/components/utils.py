@@ -233,6 +233,26 @@ def build_streaming_decoder_attn_mask(
     return mask_to_bias(mask, dtype).unsqueeze(1)
 
 
+def build_relative_cache_attn_mask(
+    new_len: int,
+    cached_len: int,
+    device: torch.device,
+) -> torch.Tensor:
+    """Return the chunk-level mask for an explicit exported KV cache.
+
+    The streaming decoder's cache is already trimmed to exactly the configured
+    number of left chunks.  Once that state is passed across an ONNX boundary,
+    its absolute frame offset is no longer needed: every key in the retained
+    cache is visible to the current chunk, as is every key in the current
+    chunk.  Keeping this mask boolean also matches Conformer cache callers.
+    """
+    return torch.ones(
+        (1, new_len, cached_len + new_len),
+        dtype=torch.bool,
+        device=device,
+    )
+
+
 class SinusoidalPosEmb(torch.nn.Module):
     """Sinusoidal positional embedding for time steps."""
     def __init__(self, dim):

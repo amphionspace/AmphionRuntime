@@ -112,7 +112,12 @@ internal class LitsDeliveryPcmSynthesizer(
         val runtimeStartedAt = System.nanoTime()
         val activeRuntime = obtainRuntime(activeLayout)
         val runtimeMs = elapsedMs(runtimeStartedAt)
-        loadProfileInfo = buildLoadProfile(layoutMs, frontendMs, runtimeMs, activeRuntime.loadProfileInfo)
+        val warmupStartedAt = System.nanoTime()
+        if (LitsTtsRuntimeOptions.ortWarmupOnCreate) {
+            activeRuntime.warmup(activeLayout.manifest)
+        }
+        val warmupMs = elapsedMs(warmupStartedAt)
+        loadProfileInfo = buildLoadProfile(layoutMs, frontendMs, runtimeMs, activeRuntime.loadProfileInfo, warmupMs)
     }
 
     override fun synthesize(text: String, params: SpeakParams, engineParams: CreateEngineParams): SynthesizedAudio {
@@ -184,6 +189,7 @@ internal class LitsDeliveryPcmSynthesizer(
         var firstChunkMs = -1L
         var frontendMs = 0L
         var firstPacketFrontendMs = -1L
+        var firstPacketFrontendProfile: String? = null
         var runtimeMetrics: LitsTtsOrtRuntime.StreamingRuntimeMetrics? = null
         val chunkSizeOverride = streamingChunkSizeOverride(params)
         val firstChunkSizeOverride = streamingFirstChunkSizeOverride(params)
@@ -209,7 +215,10 @@ internal class LitsDeliveryPcmSynthesizer(
                 "stream segment frontendMs=$segmentFrontendMs tokenCount=${tokenIds.size} segment=$segment tokenIds=${tokenIds.joinToString(" ")}",
             )
             frontendMs += segmentFrontendMs
-            if (firstPacketFrontendMs < 0L) firstPacketFrontendMs = segmentFrontendMs
+            if (firstPacketFrontendMs < 0L) {
+                firstPacketFrontendMs = segmentFrontendMs
+                firstPacketFrontendProfile = LitsTtsFrontend.lastEncodeProfileSummary()
+            }
             val segmentMetrics = activeRuntime.synthesizeStreaming(
                 tokenIds = tokenIds,
                 speakerId = speakerId,
@@ -253,6 +262,7 @@ internal class LitsDeliveryPcmSynthesizer(
                 textSegments = textSegments.size,
                 firstPacketMs = firstChunkMs,
                 firstPacketFrontendMs = firstPacketFrontendMs,
+                firstPacketFrontendProfile = firstPacketFrontendProfile,
                 splitMs = splitMs,
             ),
         )
@@ -302,6 +312,7 @@ internal class LitsDeliveryPcmSynthesizer(
         textSegments: Int,
         firstPacketMs: Long,
         firstPacketFrontendMs: Long,
+        firstPacketFrontendProfile: String?,
         splitMs: Long,
     ): String = buildString {
         append("frontend=").append(frontendMs).append("ms")
@@ -318,6 +329,9 @@ internal class LitsDeliveryPcmSynthesizer(
                 vocoderMs = runtimeMetrics.firstVocoderMs,
             ),
         )
+        firstPacketFrontendProfile?.let {
+            append(" frontendProfile=").append(it)
+        }
         append(" onnxHiddenEncoder=").append(formatModuleTiming(runtimeMetrics.hiddenEncoderMs, runtimeMetrics.hiddenEncoderCalls))
         append(" onnxStreamDecoderChunk=").append(formatModuleTiming(runtimeMetrics.decoderMs, runtimeMetrics.decoderCalls))
         append(" onnxVocoder=").append(formatModuleTiming(runtimeMetrics.vocoderMs, runtimeMetrics.vocoderCalls))
@@ -338,6 +352,12 @@ internal class LitsDeliveryPcmSynthesizer(
         }
         if (runtimeMetrics.maxChunkSize > 0) {
             append(" maxChunkSize=").append(runtimeMetrics.maxChunkSize)
+        }
+        if (runtimeMetrics.melCacheLen > 0) {
+            append(" melCacheLen=").append(runtimeMetrics.melCacheLen)
+        }
+        if (runtimeMetrics.flowStep > 0) {
+            append(" flowStep=").append(runtimeMetrics.flowStep)
         }
         append(" finalDecoder=").append(runtimeMetrics.finalDecoderMode)
         append(" runtimeFirstChunk=").append(runtimeMetrics.firstChunkMs).append("ms")
@@ -401,6 +421,8 @@ internal class LitsDeliveryPcmSynthesizer(
         steadyChunkSize = other.steadyChunkSize,
         chunkGrowthFactor = other.chunkGrowthFactor,
         maxChunkSize = other.maxChunkSize,
+        melCacheLen = other.melCacheLen,
+        flowStep = other.flowStep,
         finalDecoderMode = other.finalDecoderMode,
         powerMode = other.powerMode,
         cpuBudgetCore = other.cpuBudgetCore,
@@ -413,10 +435,14 @@ internal class LitsDeliveryPcmSynthesizer(
         frontendMs: Long,
         runtimeMs: Long,
         runtimeProfile: String,
+        warmupMs: Long = -1L,
     ): String = buildString {
         append("layout=").append(layoutMs).append("ms")
         append(" frontendPreload=").append(frontendMs).append("ms")
         append(" ortCreate=").append(runtimeMs).append("ms")
+        if (warmupMs >= 0L) {
+            append(" ortWarmup=").append(warmupMs).append("ms")
+        }
         if (runtimeProfile.isNotBlank()) {
             append(" sessions=").append(runtimeProfile)
         }
