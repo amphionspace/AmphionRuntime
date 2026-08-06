@@ -301,7 +301,13 @@ struct Index {
       this.compareInfo = `原样复测失败：${errorCode} ${message}`;
       this.status = this.compareInfo;
     } else {
-      this.status = `模型加载失败：${errorCode} ${message}`;
+      const errorStatus = `模型加载失败：${errorCode} ${message}`;
+      this.listening = false;
+      this.modelReady = false;
+      this.preRoll = [];
+      this.sessionId = '';
+      this.releaseModel(errorStatus);
+      this.saveLiveErrorArtifacts();
     }
   }
 
@@ -365,6 +371,14 @@ struct Index {
       this.capturedSpeakerVad,
       this.capturedTargetSpeakerEnhancement,
       this.capturedPoliceEnhancement);
+    hilog.info(0x0000, 'DemoDebug',
+      'stage=config_snapshot|voiceprintIdCount=%{public}d|voiceprintVerify=%{public}s' +
+      '|speakerVad=%{public}s|targetSpeakerEnhancement=%{public}s|policeEnhancement=%{public}s' +
+      '|hotwordCount=%{public}d',
+      this.capturedVoiceprintId.length > 0 ? 1 : 0,
+      String(this.capturedVoiceprintVerify), String(this.capturedSpeakerVad),
+      String(this.capturedTargetSpeakerEnhancement), String(this.capturedPoliceEnhancement),
+      this.capturedHotwords.length);
     this.debugRecord('start_tap', '', `engineReady=${this.engine !== undefined}`);
     this.liveCompareText = '';
     this.liveHasCompleted = false;
@@ -393,7 +407,14 @@ struct Index {
 
   // 建会话 → 把加载期间缓存的 pre-roll 帧按序回灌 → 转 live。模型就绪(冷加载完 or 已在内存)后调用。
   private startSessionAndFlush(): void {
-    this.startRecognitionSession();                // 设 sessionId + engine.startListening(同步 busy=true)+ onStart
+    if (!this.startRecognitionSession()) {
+      // startListening may synchronously call onError (for example, enhancement model missing).
+      // Keep that error state and never overwrite it with a false "recognizing" state.
+      this.preRoll = [];
+      this.modelReady = false;
+      this.loading = false;
+      return;
+    }
     const buffered = this.preRoll;
     this.preRoll = [];
     this.modelReady = true;
@@ -444,15 +465,16 @@ struct Index {
     if (m[1] > this.peakAnonMb) this.peakAnonMb = m[1];
   }
 
-  private startRecognitionSession(): void {
+  private startRecognitionSession(): boolean {
     const engine = this.engine;
-    if (engine === undefined) return;
+    if (engine === undefined) return false;
     const sid = `demo-${Date.now()}`;
     this.sessionId = sid;
     this.sessionAudioMs = 0;
     this.debugRecord('startListening', sid,
       `targetEnhancement=${this.capturedTargetSpeakerEnhancement} speakerVad=${this.capturedSpeakerVad}`);
     engine.startListening(this.buildCapturedStartParams(sid));
+    return engine.isBusy() && this.sessionId === sid;
   }
 
   private buildCapturedStartParams(sessionId: string): StartParams {
@@ -507,7 +529,15 @@ struct Index {
       // afterwards could miss the final frame. This is the exact payload attempted at the SDK gate.
       this.captureSdkFrame(frame);
       this.sessionDebug.addAudioFrame(frame.byteLength);
-      if (this.sessionAudioMs % 1000 === 0) this.refreshSessionDebugUi();
+      if (this.sessionAudioMs % 1000 === 0) {
+        hilog.info(0x0000, 'DemoDebug',
+          'stage=audio_progress|sessionId=%{public}s|frames=%{public}d|bytes=%{public}d' +
+          '|durationMs=%{public}d|resultCallbacks=%{public}d|partialResults=%{public}d',
+          this.sessionId, this.sessionDebug.audioFrameCount(), this.sessionDebug.audioByteCount(),
+          Math.round(this.sessionDebug.audioByteCount() / 32),
+          this.sessionDebug.resultCallbackCount(), this.sessionDebug.partialResultCount());
+        this.refreshSessionDebugUi();
+      }
       this.engine?.writeAudio(this.sessionId, frame);
     }
   }
@@ -601,7 +631,6 @@ struct Index {
   }
 
   private writeSdkCaptureMetadata(): void {
-    if (!this.captureReady) return;
     const samples = Math.floor(this.sdkCaptureBytes / 2);
     const meta: Record<string, Object> = {};
     meta['wavPath'] = this.sdkCaptureWavPath();
@@ -620,6 +649,7 @@ struct Index {
     meta['clipSamples'] = this.sdkCaptureClipSamples;
     meta['clipRate'] = samples > 0 ? this.sdkCaptureClipSamples / samples : 0;
     meta['truncated'] = this.sdkCaptureTruncated;
+    meta['captureReady'] = this.captureReady;
     meta['captureThread'] = 'ThreadWorker';
     meta['capturerOverflowCount'] = this.recorderStats.overflowCount;
     meta['captureCallbackCount'] = this.recorderStats.callbackCount;
@@ -844,6 +874,23 @@ struct Index {
     this.frameWriter = undefined;
   }
 
+  private async saveLiveErrorArtifacts(): Promise<void> {
+    try {
+      await this.stopCapture();
+      if (this.sdkCaptureFrames.length > 0) {
+        this.saveSdkCapture();
+      } else {
+        this.captureReady = false;
+        this.captureInfo = '本轮没有 PCM 通过 SDK writeAudio 门口；请查看错误与 pre-roll 时间线';
+        this.writeSdkCaptureMetadataBestEffort();
+      }
+    } catch (e) {
+      hilog.warn(0x0000, 'DemoDebug',
+        'stage=error_artifact_failed|detail=%{public}s', `${e}`);
+      this.writeSdkCaptureMetadataBestEffort();
+    }
+  }
+
   // ---- listener bridge (called by DemoRecognitionListener) ----
 
   handleStart(sessionId: string, eventMessage: string): void {
@@ -865,15 +912,20 @@ struct Index {
       result.isLast,
       result.speakerSimilarity,
       result.targetSpeakerEnhancementApplied === true);
-    if (result.isFinal || result.isLast) {
+    const partialCount = this.sessionDebug.partialResultCount();
+    if (result.isFinal || result.isLast || partialCount === 1 || partialCount % 10 === 0) {
+      const loggedText = result.result.length <= 160 ? result.result :
+        `${result.result.substring(0, 160)}…(len=${result.result.length})`;
       hilog.info(0x0000, 'DemoDebug',
-        'stage=result|sessionId=%{public}s|isFinal=%{public}s|isLast=%{public}s' +
-        '|similarity=%{public}s|targetEnhancementApplied=%{public}s|text=%{public}s',
-        sessionId, String(result.isFinal), String(result.isLast),
+        'stage=result_milestone|sessionId=%{public}s|callbackCount=%{public}d|partialCount=%{public}d' +
+        '|isFinal=%{public}s|isLast=%{public}s|similarity=%{public}s' +
+        '|targetEnhancementApplied=%{public}s|text=%{public}s',
+        sessionId, this.sessionDebug.resultCallbackCount(), partialCount,
+        String(result.isFinal), String(result.isLast),
         result.speakerSimilarity === undefined ? 'undefined' : result.speakerSimilarity.toFixed(4),
-        String(result.targetSpeakerEnhancementApplied === true), result.result);
+        String(result.targetSpeakerEnhancementApplied === true), loggedText);
     }
-    this.refreshSessionDebugUi();
+    if (this.debugExpanded || result.isFinal || result.isLast) this.refreshSessionDebugUi();
     if (result.isFinal) {
       if (sessionId === this.replaySessionId) {
         this.replayCompareText += result.result;
@@ -938,7 +990,6 @@ struct Index {
       this.releaseModel(this.compareInfo);
       return;
     }
-    this.stopCapture();
     this.listening = false;
     this.modelReady = false;
     this.preRoll = [];
@@ -946,6 +997,7 @@ struct Index {
     this.startPending = false;
     // 出错后引擎状态可能不可靠:卸掉模型,下次开始识别干净重载。
     this.releaseModel(`错误 ${errorCode}：${message}`);
+    this.saveLiveErrorArtifacts();
   }
 
   // 释放 L2 模型:关引擎/会话(把池化 recognizer 归还)后 unloadModel 显式释放 native 权重(~283MB),

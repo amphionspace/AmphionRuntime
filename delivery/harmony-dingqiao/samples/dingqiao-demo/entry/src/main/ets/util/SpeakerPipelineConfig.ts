@@ -3,7 +3,7 @@ const SPEAKER_VAD_WINDOW_MS = 1500;
 const SPEAKER_VAD_HOP_MS = 500;
 const SPEAKER_VAD_CONSECUTIVE_BELOW = 2;
 
-/** Immutable per-session selection captured when the user taps Start. */
+/** Per-session selection captured when the user taps Start. */
 export class SpeakerPipelineConfig {
   voiceprintId: string = '';
   voiceprintVerify: boolean = false;

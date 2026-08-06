@@ -92,6 +92,10 @@ class HarmonyDemoSpeakerPipelineTest(unittest.TestCase):
             assert.equal(snapshot.droppedTraceEntries, 2);
             assert.match(debug.summary(1070), /增强=开/);
             assert.match(debug.traceText(), /finish/);
+
+            const longPartial = '长'.repeat(500);
+            debug.addResult('session-1', longPartial, false, false, undefined, true, 1080);
+            assert.equal(debug.traceText().includes(longPartial), false);
             """
         )
         self.run_node(script)
@@ -103,6 +107,10 @@ class HarmonyDemoSpeakerPipelineTest(unittest.TestCase):
         self.assertIn("enableTargetSpeakerEnhancement", demo)
         self.assertIn("targetSpeakerEnhancementApplied", demo)
         self.assertIn("meta['sessionDebug']", demo)
+        self.assertIn("if (!this.startRecognitionSession())", demo)
+        self.assertIn("return engine.isBusy() && this.sessionId === sid", demo)
+        self.assertIn("stage=config_snapshot", demo)
+        self.assertIn("stage=audio_progress", demo)
         self.assertIn("getTargetSpeakerEnhancementEnabled", prefs)
         self.assertIn("setTargetSpeakerEnhancementEnabled", prefs)
 

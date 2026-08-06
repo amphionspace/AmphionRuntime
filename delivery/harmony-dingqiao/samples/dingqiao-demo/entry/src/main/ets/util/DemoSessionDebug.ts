@@ -78,11 +78,28 @@ export class DemoSessionDebug {
     if (isLast) this.lastResults += 1;
     if (targetSpeakerEnhancementApplied) this.enhancedResults += 1;
     if (speakerSimilarity !== undefined) this.lastSpeakerSimilarity = speakerSimilarity;
-    this.lastResultText = text;
+    const traceText = this.truncateText(text, 160);
+    this.lastResultText = this.truncateText(text, 500);
     this.record(isFinal ? 'final' : 'partial', sessionId,
-      `isLast=${isLast} text=${text}` +
+      `isLast=${isLast} text=${traceText}` +
       `${speakerSimilarity === undefined ? '' : ` similarity=${speakerSimilarity.toFixed(4)}`}` +
       ` enhanced=${targetSpeakerEnhancementApplied}`, nowMs);
+  }
+
+  audioFrameCount(): number {
+    return this.audioFrames;
+  }
+
+  audioByteCount(): number {
+    return this.audioBytes;
+  }
+
+  resultCallbackCount(): number {
+    return this.resultCallbacks;
+  }
+
+  partialResultCount(): number {
+    return this.partialResults;
   }
 
   summary(nowMs: number = Date.now()): string {
@@ -124,5 +141,10 @@ export class DemoSessionDebug {
     snapshot['trace'] = this.traceEntries.slice();
     snapshot['droppedTraceEntries'] = this.droppedTraceEntries;
     return snapshot;
+  }
+
+  private truncateText(text: string, maxLength: number): string {
+    if (text.length <= maxLength) return text;
+    return `${text.substring(0, maxLength)}…(len=${text.length})`;
   }
 }
