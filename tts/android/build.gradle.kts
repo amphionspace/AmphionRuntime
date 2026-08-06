@@ -20,7 +20,6 @@ val sourceDirName = "dingqiao_lits"
 val tnPackageDirName = "Dingqiao_Multilingual_Text_Normalization_for_TTS"
 val litsSourceRoot = rootDir.resolve("../../$sourceDirName")
 val tnSourceRoot = litsSourceRoot.resolve(tnPackageDirName)
-val tnAndroidBinDir = litsSourceRoot.resolve("e2e_infer/bin-android-arm64")
 val bundledAssetRoot = rootDir.resolve("sdk/src/main/assets/lits-models/tts")
 
 fun ByteArray.replacingAscii(oldValue: String, newValue: String): ByteArray {
@@ -84,25 +83,6 @@ val buildFrontendBinaryAssets = tasks.register<Exec>("buildFrontendBinaryAssets"
     )
 }
 
-val syncLitsTnBinaries = tasks.register<Sync>("syncLitsTnBinaries") {
-    group = "build"
-    description = "Sync Android TN binaries into the TTS model assets."
-    from(tnAndroidBinDir) {
-        include("zh_tts", "en_tts")
-    }
-    into(litsModelDir.resolve("tn-bin/arm64-v8a"))
-    inputs.dir(tnAndroidBinDir)
-    outputs.dir(litsModelDir.resolve("tn-bin/arm64-v8a"))
-    doFirst {
-        if (!tnAndroidBinDir.isDirectory) {
-            throw GradleException(
-                "Missing TN Android binaries: $tnAndroidBinDir. " +
-                    "Build them before assembling the SDK.",
-            )
-        }
-    }
-}
-
 val syncLitsTnRules = tasks.register<Copy>("syncLitsTnRules") {
     group = "build"
     description = "Sync TN rules into the TTS model assets."
@@ -129,8 +109,8 @@ buildFrontendBinaryAssets.configure {
 
 val syncLitsTnAssets = tasks.register("syncLitsTnAssets") {
     group = "build"
-    description = "Sync Android TN binaries and rules into the TTS model assets."
-    dependsOn(buildFrontendBinaryAssets, syncLitsTnBinaries, syncLitsTnRules)
+    description = "Sync Android TN rules into the TTS model assets."
+    dependsOn(buildFrontendBinaryAssets, syncLitsTnRules)
 }
 
 val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources") {
@@ -158,7 +138,6 @@ val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources"
         "zh_en_symbols.json",
         "pinyin_to_tokens.json",
         "arpabet_to_tokens.json",
-        "tn-bin/arm64-v8a/**",
         "rules_v2/zh.full.json",
         "rules_v2/en.full.json",
         "rules_v2/zh_pinyin.json",

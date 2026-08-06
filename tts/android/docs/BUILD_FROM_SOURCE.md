@@ -64,12 +64,11 @@ sdk.dir=/path/to/android-sdk
 tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
 
-至少应包含：
+当前 Dingqiao v3 分支使用单 decoder / final-zero 导出包。至少应包含：
 
 - `manifest.json`
 - `lits_hidden_encoder.onnx`
 - `lits_stream_condition_chunk.onnx`
-- `lits_stream_condition_final.onnx`
 - `lits_stream_decoder_step.onnx`
 - `vocos_vocoder.onnx`
 - `frontend_golden.json`
@@ -86,17 +85,23 @@ tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loo
 - `rules_v2/en.full.json`
 - `rules_v2/zh_pinyin.json`
 
+不再需要 `lits_stream_condition_final.onnx`。`manifest.json` 应包含：
+
+```json
+"stream_final_zero_pad_with_chunk_condition": true
+```
+
 Gradle 会在构建阶段生成或同步前端 `.bin` 资源，并把运行时需要的外部资源整理到：
 
 ```text
 tts/android/external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
 
-宿主集成时需要把这个 `external-resources/tts/...` 目录复制到 SDK 工作目录，使运行时能看到 `<workPath>/tts/...`。
+宿主集成时需要把这个 `external-resources/tts/...` 目录复制到 SDK 工作目录，使运行时能看到 `<workPath>/tts/...`。Android 当前使用 AAR 内的 native TN/JNI，外部资源目录不需要携带 `tn-bin/arm64-v8a/zh_tts` 或 `tn-bin/arm64-v8a/en_tts`。
 
-## 4. 构建 Android ICU 和 TN 可执行文件
+## 4. 构建 Android ICU 和 native TN
 
-如果模型包里没有可用的 `tn-bin/arm64-v8a/zh_tts`、`tn-bin/arm64-v8a/en_tts`，或需要从源码重建 Android TN 运行文件，准备 ICU 源码压缩包后执行：
+Android 运行时通过 AAR 内的 `liblits_tn.so` 调用 native TN，不再要求外部资源携带 `zh_tts` / `en_tts` 可执行文件。若需要从源码重建 Android ICU 依赖和 native TN 构建输入，准备 ICU 源码压缩包后执行：
 
 ```bash
 ANDROID_NDK=/path/to/android-sdk/ndk/27.2.12479018 \
@@ -108,8 +113,6 @@ scripts/build_dingqiao_android_native.sh
 
 ```text
 dingqiao_lits/build/android-icu/
-dingqiao_lits/e2e_infer/bin-android-arm64/zh_tts
-dingqiao_lits/e2e_infer/bin-android-arm64/en_tts
 ```
 
 Android CMake 会从 `dingqiao_lits/build/android-icu/` 读取 ICU 头文件和静态库来编译 `liblits_tn.so`。
@@ -154,8 +157,6 @@ AAR 不应包含：
 - `.onnx`
 - `assets/lits-models`
 - `chinese_lexicon.txt` / `cmudict.txt`
-- `tn-bin/arm64-v8a/zh_tts`
-- `tn-bin/arm64-v8a/en_tts`
 - `.lic`
 
 ## 7. 常见问题

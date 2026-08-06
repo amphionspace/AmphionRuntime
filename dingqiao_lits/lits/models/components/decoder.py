@@ -24,6 +24,7 @@ from lits.models.components.utils import (
     expand_spk_emb,
     build_decoder_attn_mask,
     build_streaming_decoder_attn_mask,
+    build_relative_cache_attn_mask,
     decoder_kv_cache_limit,
     trim_decoder_kv_cache,
 )
@@ -442,6 +443,7 @@ class CausalConditionalDecoder(ConditionalDecoder):
         transformer_blocks: nn.ModuleList,
         att_caches: List[Optional[torch.Tensor]],
         att_offsets: Optional[List[int]] = None,
+        relative_cache_mode: bool = False,
     ) -> Tuple[torch.Tensor, list, list]:
         """Run transformer blocks with streaming KV-cache.
 
@@ -464,12 +466,25 @@ class CausalConditionalDecoder(ConditionalDecoder):
                 else torch.zeros(0, 0, 0, 0, device=x.device)
             cache_offset = att_offsets[i] if att_offsets and i < len(att_offsets) else 0
             cached_len = cache.size(2) if cache.size(0) > 0 else 0
-            attn_mask = build_streaming_decoder_attn_mask(
-                x.size(1), cached_len,
-                self.static_chunk_size, self.num_decoding_left_chunks,
-                x.dtype, x.device,
-                cache_offset=cache_offset,
-            )
+            if relative_cache_mode:
+                # Explicit ONNX state retains exactly the bounded left window;
+                # its absolute offset is not part of the runtime contract.
+                attn_mask = build_relative_cache_attn_mask(
+                    x.size(1), cached_len, x.device,
+                )
+                # BasicTransformerBlock expects the decoder's additive bias.
+                attn_mask = torch.where(
+                    attn_mask,
+                    torch.zeros((), dtype=x.dtype, device=x.device),
+                    torch.full((), torch.finfo(x.dtype).min, dtype=x.dtype, device=x.device),
+                ).unsqueeze(1)
+            else:
+                attn_mask = build_streaming_decoder_attn_mask(
+                    x.size(1), cached_len,
+                    self.static_chunk_size, self.num_decoding_left_chunks,
+                    x.dtype, x.device,
+                    cache_offset=cache_offset,
+                )
             x, new_cache = tb.forward_streaming(x, attention_mask=attn_mask, kv_cache=cache)
             new_cache, new_offset = trim_decoder_kv_cache(
                 new_cache, max_cache_size, cache_offset,
@@ -487,11 +502,15 @@ class CausalConditionalDecoder(ConditionalDecoder):
         spks: Optional[torch.Tensor] = None,
         cond: Optional[torch.Tensor] = None,
         step_cache: Optional[dict] = None,
+        relative_cache_mode: bool = False,
     ) -> Tuple[torch.Tensor, dict]:
         """Streaming forward: only process *new* frames using cached state."""
         t_emb = self.time_embeddings(t)
         t_emb = self.time_mlp(t_emb)
-        return self.forward_core_streaming(x_new, mask_new, mu_new, t_emb, spks, cond, step_cache)
+        return self.forward_core_streaming(
+            x_new, mask_new, mu_new, t_emb, spks, cond, step_cache,
+            relative_cache_mode=relative_cache_mode,
+        )
 
     def forward_core_streaming(
         self,
@@ -502,6 +521,7 @@ class CausalConditionalDecoder(ConditionalDecoder):
         spks: Optional[torch.Tensor],
         cond: Optional[torch.Tensor],
         step_cache: Optional[dict],
+        relative_cache_mode: bool = False,
     ) -> Tuple[torch.Tensor, dict]:
         """Core streaming forward with per-step cache management.
 
@@ -548,7 +568,9 @@ class CausalConditionalDecoder(ConditionalDecoder):
 
             ac = [att_c[ai + j] if ai + j < len(att_c) else None for j in range(len(tblocks))]
             aoff = [att_off[ai + j] if ai + j < len(att_off) else 0 for j in range(len(tblocks))]
-            x, nac, nacoff = self._transformer_blocks_streaming(x, tblocks, ac, aoff)
+            x, nac, nacoff = self._transformer_blocks_streaming(
+                x, tblocks, ac, aoff, relative_cache_mode=relative_cache_mode,
+            )
             na.extend(nac); naoff.extend(nacoff); ai += len(tblocks)
 
             new_skips.append(x)
@@ -576,7 +598,9 @@ class CausalConditionalDecoder(ConditionalDecoder):
 
             ac = [att_c[ai + j] if ai + j < len(att_c) else None for j in range(len(tblocks))]
             aoff = [att_off[ai + j] if ai + j < len(att_off) else 0 for j in range(len(tblocks))]
-            x, nac, nacoff = self._transformer_blocks_streaming(x, tblocks, ac, aoff)
+            x, nac, nacoff = self._transformer_blocks_streaming(
+                x, tblocks, ac, aoff, relative_cache_mode=relative_cache_mode,
+            )
             na.extend(nac); naoff.extend(nacoff); ai += len(tblocks)
 
         # ---------- up path ----------
@@ -594,7 +618,9 @@ class CausalConditionalDecoder(ConditionalDecoder):
 
             ac = [att_c[ai + j] if ai + j < len(att_c) else None for j in range(len(tblocks))]
             aoff = [att_off[ai + j] if ai + j < len(att_off) else 0 for j in range(len(tblocks))]
-            x, nac, nacoff = self._transformer_blocks_streaming(x, tblocks, ac, aoff)
+            x, nac, nacoff = self._transformer_blocks_streaming(
+                x, tblocks, ac, aoff, relative_cache_mode=relative_cache_mode,
+            )
             na.extend(nac); naoff.extend(nacoff); ai += len(tblocks)
 
             if not is_last:
