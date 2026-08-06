@@ -218,6 +218,31 @@ class RunCommandTest(unittest.TestCase):
         self.assertIn("target-speaker-runtime-reload", source)
         self.assertIn("startCallbackMs", source)
 
+    def test_target_speaker_preview_reentrant_is_a_dedicated_lifecycle_gate(self) -> None:
+        with mock.patch.object(
+            sys,
+            "argv",
+            [str(SCRIPT), "--mode", "target-speaker-preview-reentrant"],
+        ):
+            args = MODULE.parse_args()
+
+        source = CARRIER.read_text(encoding="utf-8")
+        self.assertEqual("target-speaker-preview-reentrant", args.mode)
+        self.assertIn(args.mode, MODULE.TARGET_SPEAKER_MODES)
+        self.assertNotIn(args.mode, MODULE.FINISH_MODES)
+        self.assertIn("class TargetSpeakerPreviewReentrantListener", source)
+        self.assertIn("this.engine.writeAudio(sessionId, this.reentrantFrame);", source)
+        self.assertIn("this.engine.finish(sessionId);", source)
+        self.assertIn("target-speaker-preview-reentrant-write-finish", source)
+
+    def test_paced_mode_requires_a_measured_nonempty_partial(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        start = source.index("async function runRecognitionCycle")
+        end = source.index("async function runVadBeginSilenceCycle", start)
+        body = source[start:end]
+        self.assertIn("options.mode === 'paced'", body)
+        self.assertIn("result.audioStartToFirstNonEmptyPartialMs < 0", body)
+
     def test_endpoint_reentrant_is_lifecycle_only_not_text_quality(self) -> None:
         with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "endpoint-reentrant"]):
             args = MODULE.parse_args()

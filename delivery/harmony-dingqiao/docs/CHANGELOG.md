@@ -4,8 +4,10 @@
 
 - 新增默认关闭的 `enableTargetSpeakerEnhancement`，在现有 Speaker VAD/ASR 前执行 2 秒分块的
   双人语音分离、逐块声纹选流和 0.25 秒平滑拼接；客户接口不暴露具体模型和内部阈值。
-- 新增 `targetSpeakerEnhancementApplied` 结果标记；保持单 session、单 ASR 回调链以及既有
+- 新增 `targetSpeakerEnhancementApplied` 结果标记；保持单公开 session、单客户回调链以及既有
   `isFinal/isLast/onComplete/cancel` 语义。
+- 增强 session 默认由原始音频快速产生仅供界面显示的 partial，增强音频独占 final；显式关闭
+  `enablePartialResult` 时不创建快速识别流，避免无用算力开销。
 - 新增 C1/C2/C3 完整音频与推理中 cancel 后立即恢复的真机门禁；12 GB Mate 80 上文本、生命周期
   和 67 秒资源观察通过。
 - Conv-TasNet 测试权重未提交、未默认进入商用 HAR；正式发布仍以书面商用授权或许可清晰的替换模型

@@ -4,8 +4,9 @@
 
 Harmony 已实现可选接口 `enableTargetSpeakerEnhancement`。它在现有 ASR 与 Speaker VAD
 之前实时处理音频：每 2 秒运行一次双人语音分离，再用已注册声纹从两路结果中选择目标说话人，
-相邻结果以 0.25 秒平滑拼接后送入原有 ASR。SDK 对外仍只有一个 session 和一套回调，不新增客户
-可见的状态机。
+相邻结果以 0.25 秒平滑拼接后送入原有 ASR。为避免 2 秒分块抬高界面首字延迟，默认同时把原始
+音频送入一条只产生临时文本的识别流；增强音频仍独占最终文本和会话结束。SDK 对外仍只有一个
+session 和一套回调，不新增客户可见的状态机。
 
 Mate 80 真机上的客户 C1/C2/C3 完整音频均满足业务断言：最终文本包含“上海”，不包含“你好”；
 3 个 session 均恰好一次 `isLast`、一次 `onComplete`，错误数为 0。20 ms 实时喂入时，22 个处理块
@@ -32,7 +33,9 @@ params.extraParams['voiceprintIds'] = ['vp-...'];
 - 只有布尔值 `true` 才启用；字符串 `"true"`、数字 `1` 不启用。
 - 启用时必须同时设置 `enableSpeakerVad=true`，并提供至少一个有效 `voiceprintId`。
 - 一个 session 内不能动态切换；需要改变时结束当前 session，再以新参数开始。
-- `SpeechRecognitionResult.targetSpeakerEnhancementApplied=true` 表示该结果来自已启用的增强链路。
+- `targetSpeakerEnhancementApplied=false` 的非 final 结果是原始音频快速临时文本，仅用于界面显示；
+  `targetSpeakerEnhancementApplied=true` 的 final 才是增强后的业务结果。
+- `enablePartialResult` 默认开启；显式设为 `false` 时不创建原始音频快速识别流。
 - 客户不需要配置模型名、分块长度、拼接长度、声纹阈值或线程数，这些属于 SDK 内部实现。
 
 ## 3. 实现边界
@@ -45,6 +48,9 @@ params.extraParams['voiceprintIds'] = ['vp-...'];
 - 选择相似度较高且不低于 0.25 的一路；两路均未达到阈值时输出等长静音。
 - 相邻块采用余弦形平滑拼接；末块可以补静音参与模型计算，但送给 ASR 的总采样数严格等于调用方
   实际写入的采样数。
+- 原始音频同时进入独立的 ASR stream，仅把非空 partial 映射到公开回调；其 endpoint、final、
+  speech、error 和 stopped 均不参与公开生命周期。增强 ASR 的 partial 不公开，避免两路临时文本
+  重复或乱序；所有公开 final 仍只来自增强音频。
 
 ### 3.2 线程和会话
 
@@ -151,8 +157,8 @@ Node-API 的“元素数”直接读取，会把声纹误判为 2048 维，并�
 ## 6. 使用建议和妥协
 
 - 该能力适合交警执法中“目标警员与他人同时说话”的重点场景，客户应在预期存在多人同时说话时开启。
-- 周围只有目标说话人、环境安静或希望最低延迟时保持关闭；单人场景没有必要承担额外约 2 秒首块等待
-  和数百 MiB 峰值内存。
+- 周围只有目标说话人或环境安静时仍建议关闭，避免没有分离收益却承担第二条 ASR stream 和数百
+  MiB 峰值内存。开启后的界面首字不再等待 2 秒增强首块，但最终结果仍需等待增强处理完成。
 - 目标说话人不在场时，公开模型在扩展负例中曾出现 `8/60` 个错误选中块，因此不能把该能力描述为
   “目标不在时绝对安全”。现有 Speaker VAD 会继续检查增强后的音频并可能拒绝片段，但不能把历史
   负例风险写成零。

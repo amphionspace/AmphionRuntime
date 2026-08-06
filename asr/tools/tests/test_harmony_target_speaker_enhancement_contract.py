@@ -57,6 +57,46 @@ class HarmonyTargetSpeakerEnhancementContractTest(unittest.TestCase):
         self.assertIn("!enabled && this.targetSpeakerEnhancementEnabled", sdk)
         self.assertIn("speaker VAD cannot be disabled", sdk)
 
+    def test_active_enhancement_uses_raw_audio_only_for_fast_partials(self) -> None:
+        sdk = SDK.read_text(encoding="utf-8")
+        self.assertIn("private targetSpeakerPreviewSession?: AsrSession;", sdk)
+        self.assertIn("new DingqiaoTargetSpeakerPreviewCallback", sdk)
+        self.assertIn("previewSession.acceptPcmBytes(audio);", sdk)
+        self.assertIn("this.targetSpeakerEnhancementPipeline.append(pcm16ToFloat(audio));", sdk)
+        self.assertIn("handleTargetSpeakerPreviewPartial", sdk)
+        self.assertIn("result.targetSpeakerEnhancementApplied = false;", sdk)
+        self.assertIn("pipeline.inputSamplesAccepted()", sdk)
+        self.assertIn("target speaker enhancement input mismatch", sdk)
+        self.assertIn(
+            "this.targetSpeakerFastPartialEnabled = enhancementEnabled && this.partialEnabled;",
+            sdk,
+        )
+
+        write_start = sdk.index("  writeAudio(sessionId: string, audio: ArrayBuffer): void {")
+        write_end = sdk.index("  setSpeakerVadEnabled(enabled: boolean): void {", write_start)
+        write_body = sdk[write_start:write_end]
+        self.assertLess(
+            write_body.index("this.targetSpeakerEnhancementPipeline.append(pcm16ToFloat(audio));"),
+            write_body.index("previewSession.acceptPcmBytes(audio);"),
+            "authoritative audio must be reserved before a reentrant preview callback",
+        )
+
+        preview_callback = sdk[sdk.index("class DingqiaoTargetSpeakerPreviewCallback") :]
+        self.assertIn("onPartial(text: string): void", preview_callback)
+        self.assertNotIn("handleFinalResult", preview_callback)
+        self.assertNotIn("handleSessionStopped", preview_callback)
+
+    def test_device_latency_probe_measures_enhanced_fast_partial_from_first_audio(self) -> None:
+        source = DEVICE_STRESS.read_text(encoding="utf-8")
+        start = source.index("async function runTargetSpeakerEnhancementCycle")
+        end = source.index("function enableTargetSpeakerEnhancement", start)
+        body = source[start:end]
+        self.assertIn("params.extraParams['enablePartialResult'] = true", body)
+        self.assertIn("events.audioFeedStartedAtMs = Date.now()", body)
+        self.assertIn("events.partials > 0", body)
+        self.assertIn("result.audioStartToFirstNonEmptyPartialMs < 0", body)
+        self.assertIn("events.liveStreamsAtStart === 2", body)
+
     def test_public_flag_is_strict_opt_in_and_requires_speaker_vad(self) -> None:
         script = textwrap.dedent(
             f"""

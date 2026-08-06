@@ -343,7 +343,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private cancelRequestedDuringStart: boolean = false;
   private targetSpeakerEnhancer?: TargetSpeakerEnhancer;
   private targetSpeakerEnhancementPipeline?: TargetSpeakerEnhancementPipeline;
+  private targetSpeakerPreviewSession?: AsrSession;
   private targetSpeakerEnhancementEnabled: boolean = false;
+  private targetSpeakerFastPartialEnabled: boolean = false;
   // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
   private engineCfgKey: string = '';
 
@@ -424,6 +426,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const useTarget = embedding !== undefined && (verify || speakerVad);
     let startGeneration: number = -1;
     let newEnhancer: TargetSpeakerEnhancer | undefined;
+    let newPreviewSession: AsrSession | undefined;
 
     try {
       if (configureTarget && speakerModelPath === undefined) {
@@ -454,6 +457,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.speechActive = false;
       this.targetSpeakerEnhancer = newEnhancer;
       this.targetSpeakerEnhancementEnabled = enhancementEnabled;
+      this.targetSpeakerFastPartialEnabled = enhancementEnabled && this.partialEnabled;
       this.busy = true;
       startGeneration = this.sessionStartGate.begin();
       const callback: AsrCallback = new DingqiaoAsrCallback(this, startGeneration);
@@ -479,6 +483,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         if (speakerVad) {
           this.session.setSpeakerVadEnabled(true);
         }
+      }
+      if (this.targetSpeakerFastPartialEnabled) {
+        const previewCallback: AsrCallback =
+          new DingqiaoTargetSpeakerPreviewCallback(this, startGeneration);
+        newPreviewSession = this.asrEngine.newSession(
+          previewCallback,
+          buildSessionConfig(params, false, false)
+        );
+        this.targetSpeakerPreviewSession = newPreviewSession;
       }
       if (newEnhancer !== undefined) {
         const enhancementGeneration = startGeneration;
@@ -520,6 +533,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       // traffic. Suppress the superseded start's cleanup and error after ownership has moved on.
       if (!ownsFailedStart) return;
       this.cancelRequestedDuringStart = false;
+      newPreviewSession?.close();
       newEnhancer?.close();
       this.tearDownSession();
       this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, `${e}`);
@@ -551,7 +565,13 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     // leak across generations.
     this.audioBytesWritten += audio.byteLength;
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
+      // Register the authoritative frame before preview can synchronously invoke customer code.
+      // A reentrant write must append after this frame, and a reentrant finish must include it.
       this.targetSpeakerEnhancementPipeline.append(pcm16ToFloat(audio));
+      const previewSession = this.targetSpeakerPreviewSession;
+      if (previewSession !== undefined) {
+        previewSession.acceptPcmBytes(audio);
+      }
     } else {
       session.acceptPcmBytes(audio);
     }
@@ -566,7 +586,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.lastFinishedSessionId = sessionId;
       this.lastAutoFinishedSessionId = sessionId;
       if (this.targetSpeakerEnhancementPipeline !== undefined) {
-        this.targetSpeakerEnhancementPipeline.finish();
+        this.finishTargetSpeakerEnhancement(sessionId);
       } else {
         session.stop();
       }
@@ -619,7 +639,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finishRequested = true;
     this.lastFinishedSessionId = sessionId;
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
-      this.targetSpeakerEnhancementPipeline.finish();
+      this.finishTargetSpeakerEnhancement(sessionId);
     } else {
       this.session.stop();
     }
@@ -704,7 +724,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.speechActive = false;
     this.targetSpeakerEnhancementPipeline = undefined;
     this.targetSpeakerEnhancer = undefined;
+    this.targetSpeakerPreviewSession = undefined;
     this.targetSpeakerEnhancementEnabled = false;
+    this.targetSpeakerFastPartialEnabled = false;
     this.sessionStartGate.reset();
   }
 
@@ -712,10 +734,36 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const oldSession = this.session;
     const oldPipeline = this.targetSpeakerEnhancementPipeline;
     const oldEnhancer = this.targetSpeakerEnhancer;
+    const oldPreviewSession = this.targetSpeakerPreviewSession;
     oldPipeline?.cancel();
     this.resetSessionState();
     oldEnhancer?.close();
+    oldPreviewSession?.close();
     oldSession?.close();
+  }
+
+  private closeTargetSpeakerPreview(): void {
+    const previewSession = this.targetSpeakerPreviewSession;
+    this.targetSpeakerPreviewSession = undefined;
+    previewSession?.close();
+  }
+
+  private finishTargetSpeakerEnhancement(sessionId: string): void {
+    const pipeline = this.targetSpeakerEnhancementPipeline;
+    if (pipeline === undefined) return;
+    this.closeTargetSpeakerPreview();
+    const writtenSamples = this.audioBytesWritten / 2;
+    const acceptedSamples = pipeline.inputSamplesAccepted();
+    if (acceptedSamples !== writtenSamples) {
+      this.tearDownSession();
+      this.listener?.onError?.(
+        sessionId,
+        DingqiaoErrorCode.RECOGNITION_ERROR,
+        `target speaker enhancement input mismatch: written=${writtenSamples}, accepted=${acceptedSamples}`
+      );
+      return;
+    }
+    pipeline.finish();
   }
 
   private handleTargetSpeakerEnhancementOutput(generation: number, sessionId: string,
@@ -766,6 +814,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
 
   handlePartial(generation: number, text: string): void {
     if (!this.sessionStartGate.isCurrent(generation) || !this.busy || this.currentSessionId.length === 0) return;
+    // Raw preview owns provisional text while target-speaker enhancement is active. Keeping the
+    // enhanced decoder's partials private avoids duplicate or reordered provisional callbacks.
+    if (this.targetSpeakerFastPartialEnabled) return;
     if (!this.partialEnabled || text.length === 0) return;
     const result = new SpeechRecognitionResult();
     result.isFinal = false;
@@ -773,6 +824,29 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     result.result = text;
     if (this.targetSpeakerEnhancementEnabled) result.targetSpeakerEnhancementApplied = true;
     this.listener?.onResult?.(this.currentSessionId, result);
+  }
+
+  handleTargetSpeakerPreviewPartial(generation: number, text: string): void {
+    if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
+      !this.targetSpeakerFastPartialEnabled || this.currentSessionId.length === 0 ||
+      text.length === 0) return;
+    const result = new SpeechRecognitionResult();
+    result.isFinal = false;
+    result.isLast = false;
+    result.result = text;
+    // Raw preview text has not passed target-speaker enhancement. It is suitable for immediate UI
+    // feedback only; authoritative target-speaker text remains on enhanced final callbacks.
+    result.targetSpeakerEnhancementApplied = false;
+    this.listener?.onResult?.(this.currentSessionId, result);
+  }
+
+  handleTargetSpeakerPreviewError(generation: number, error: AsrError): void {
+    if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
+      !this.targetSpeakerFastPartialEnabled) return;
+    hilog.warn(0x0000, 'TargetSpeakerEnhancement',
+      'raw preview disabled after ASR error code=%{public}d message=%{public}s',
+      error.code, error.message);
+    this.closeTargetSpeakerPreview();
   }
 
   handleSpeechBegin(generation: number): void {
@@ -789,6 +863,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finishRequested = true;
     this.lastFinishedSessionId = sessionId;
     this.lastAutoFinishedSessionId = sessionId;
+    this.closeTargetSpeakerPreview();
     this.targetSpeakerEnhancementPipeline?.cancel();
     // VAD callback runs inside acceptPcmBytes; defer stop to avoid re-entering the native stream.
     setTimeout((): void => {
@@ -923,6 +998,29 @@ class DingqiaoAsrCallback implements AsrCallback {
 
   onSessionStopped(): void {
     this.owner.handleSessionStopped(this.startGeneration);
+  }
+}
+
+/**
+ * Secondary raw-audio decoder used only for low-latency provisional text. Endpoint, final, speech,
+ * stopped, and completion callbacks deliberately stay private so the enhanced decoder remains the
+ * sole authority for the public session lifecycle and final transcript.
+ */
+class DingqiaoTargetSpeakerPreviewCallback implements AsrCallback {
+  private owner: DingqiaoRecognitionEngineImpl;
+  private startGeneration: number;
+
+  constructor(owner: DingqiaoRecognitionEngineImpl, startGeneration: number) {
+    this.owner = owner;
+    this.startGeneration = startGeneration;
+  }
+
+  onPartial(text: string): void {
+    this.owner.handleTargetSpeakerPreviewPartial(this.startGeneration, text);
+  }
+
+  onError(error: AsrError): void {
+    this.owner.handleTargetSpeakerPreviewError(this.startGeneration, error);
   }
 }
 

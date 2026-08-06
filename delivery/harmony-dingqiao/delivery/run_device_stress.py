@@ -37,6 +37,7 @@ FINISH_MODES = {
 }
 TARGET_SPEAKER_MODES = {
     "target-speaker-enhancement",
+    "target-speaker-preview-reentrant",
     "target-speaker-enhancement-onstart",
     "target-speaker-enhancement-cancel",
     "target-speaker-enhancement-reload",
@@ -110,6 +111,7 @@ def parse_args() -> argparse.Namespace:
             "start-write-reload",
             "speaker-vad-onstart",
             "target-speaker-enhancement",
+            "target-speaker-preview-reentrant",
             "target-speaker-enhancement-onstart",
             "target-speaker-enhancement-cancel",
             "target-speaker-enhancement-reload",

@@ -150,6 +150,7 @@ export class TargetSpeakerEnhancementPipeline {
   private failed: boolean = false;
   private queuedChunks: number = 0;
   private maxQueuedChunks: number = 0;
+  private acceptedSamples: number = 0;
 
   constructor(processor: TargetSpeakerEnhancementProcessor, observer: TargetSpeakerEnhancementObserver) {
     this.processor = processor;
@@ -159,7 +160,10 @@ export class TargetSpeakerEnhancementPipeline {
   append(samples: Float32Array): void {
     if (!this.accepting) throw new Error('target speaker enhancement pipeline is not accepting audio');
     this.enqueue(this.input.append(samples));
+    this.acceptedSamples += samples.length;
   }
+
+  inputSamplesAccepted(): number { return this.acceptedSamples; }
 
   finish(): Promise<void> {
     if (this.finishTask !== undefined) return this.finishTask;

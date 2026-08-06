@@ -61,6 +61,8 @@ class SessionEvents {
   starts: number = 0;
   startCallbackAtMs: number = -1;
   partials: number = 0;
+  targetSpeakerRawPreviewPartials: number = 0;
+  targetSpeakerEnhancedPartials: number = 0;
   speechBegins: number = 0;
   speechEnds: number = 0;
   finals: number = 0;
@@ -71,6 +73,8 @@ class SessionEvents {
   audioFeedStartedAtMs: number = -1;
   speechBeginAtMs: number = -1;
   firstNonEmptyResultAtMs: number = -1;
+  firstNonEmptyPartialAtMs: number = -1;
+  liveStreamsAtStart: number = -1;
   lastIsLast: boolean = false;
   lastFinals: number = 0;
   speakerScores: number = 0;
@@ -111,6 +115,9 @@ class StressListener implements RecognitionListener {
   onStart(sessionId: string, _eventMessage?: string): void {
     this.events.starts += 1;
     if (this.events.startCallbackAtMs < 0) this.events.startCallbackAtMs = Date.now();
+    if (this.events.liveStreamsAtStart < 0) {
+      this.events.liveStreamsAtStart = AmphionRuntime.activeOnlineStreamCount();
+    }
     this.record(sessionId, 'start');
   }
 
@@ -131,6 +138,14 @@ class StressListener implements RecognitionListener {
     }
     if (!result.isFinal) {
       this.events.partials += 1;
+      if (expectedSession && result.result.length > 0 && this.events.firstNonEmptyPartialAtMs < 0) {
+        this.events.firstNonEmptyPartialAtMs = Date.now();
+      }
+      if (result.targetSpeakerEnhancementApplied === false) {
+        this.events.targetSpeakerRawPreviewPartials += 1;
+      } else if (result.targetSpeakerEnhancementApplied === true) {
+        this.events.targetSpeakerEnhancedPartials += 1;
+      }
       this.record(sessionId, 'partial');
       return;
     }
@@ -679,6 +694,35 @@ class TargetSpeakerEnhancementOnStartListener extends StressListener {
   }
 }
 
+class TargetSpeakerPreviewReentrantListener extends StressListener {
+  private targetEvents: SessionEvents;
+  private engine: SpeechRecognitionEngine;
+  private reentrantFrame: ArrayBuffer;
+  actionCalled: boolean = false;
+  reentrantWrites: number = 0;
+  lastFinalsBeforeFinish: number = -1;
+
+  constructor(events: SessionEvents, expectedSessionId: string, engine: SpeechRecognitionEngine,
+    reentrantFrame: ArrayBuffer) {
+    super(events, expectedSessionId);
+    this.targetEvents = events;
+    this.engine = engine;
+    this.reentrantFrame = reentrantFrame;
+  }
+
+  onResult(sessionId: string, result: SpeechRecognitionResult): void {
+    super.onResult(sessionId, result);
+    if (result.isFinal || result.result.length === 0 || this.actionCalled) return;
+    // Mark first to prevent a nested partial from repeating the action. The frame that caused this
+    // callback must already be in the authoritative queue before this reentrant frame and finish.
+    this.actionCalled = true;
+    this.engine.writeAudio(sessionId, this.reentrantFrame);
+    this.reentrantWrites += 1;
+    this.lastFinalsBeforeFinish = this.targetEvents.lastFinals;
+    this.engine.finish(sessionId);
+  }
+}
+
 class LicenseCb implements LicenseActivationCallback {
   private resolve: (result: LicenseActivationResult) => void;
 
@@ -720,6 +764,8 @@ class CycleResult {
   ok: boolean = false;
   starts: number = 0;
   partials: number = 0;
+  targetSpeakerRawPreviewPartials: number = 0;
+  targetSpeakerEnhancedPartials: number = 0;
   finals: number = 0;
   completes: number = 0;
   errors: number = 0;
@@ -736,10 +782,13 @@ class CycleResult {
   fedFrames: number = 0;
   lastFinalsBeforeFinish: number = -1;
   liveStreams: number = 0;
+  liveStreamsAtStart: number = -1;
   elapsedMs: number = 0;
   startCallbackMs: number = -1;
   firstNonEmptyResultMs: number = -1;
   audioStartToFirstNonEmptyResultMs: number = -1;
+  firstNonEmptyPartialMs: number = -1;
+  audioStartToFirstNonEmptyPartialMs: number = -1;
   audioStartToSpeechBeginMs: number = -1;
   speechBeginToFirstNonEmptyResultMs: number = -1;
   resultHex: string = '';
@@ -750,6 +799,8 @@ class CycleResult {
   toLine(): string {
     return `CYCLE|index=${this.index}|id=${this.corpusId}|status=${this.ok ? 'PASS' : 'FAIL'}` +
       `|starts=${this.starts}|partials=${this.partials}|finals=${this.finals}|completes=${this.completes}` +
+      `|targetSpeakerRawPreviewPartials=${this.targetSpeakerRawPreviewPartials}` +
+      `|targetSpeakerEnhancedPartials=${this.targetSpeakerEnhancedPartials}` +
       `|errors=${this.errors}|finalChars=${this.finalChars}|speakerScores=${this.speakerScores}` +
       `|nonEmptySpeakerScores=${this.nonEmptySpeakerScores}` +
       `|missingSpeakerScores=${this.missingSpeakerScores}` +
@@ -759,10 +810,13 @@ class CycleResult {
       `|effectiveMaxAudioDurationMs=${this.effectiveMaxAudioDurationMs}` +
       `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
       `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}|liveStreams=${this.liveStreams}` +
+      `|liveStreamsAtStart=${this.liveStreamsAtStart}` +
       `|unexpectedCallbacks=${this.unexpectedSessionCallbacks}|elapsedMs=${this.elapsedMs}` +
       `|startCallbackMs=${this.startCallbackMs}` +
       `|firstNonEmptyResultMs=${this.firstNonEmptyResultMs}` +
       `|audioStartToFirstNonEmptyResultMs=${this.audioStartToFirstNonEmptyResultMs}` +
+      `|firstNonEmptyPartialMs=${this.firstNonEmptyPartialMs}` +
+      `|audioStartToFirstNonEmptyPartialMs=${this.audioStartToFirstNonEmptyPartialMs}` +
       `|audioStartToSpeechBeginMs=${this.audioStartToSpeechBeginMs}` +
       `|speechBeginToFirstNonEmptyResultMs=${this.speechBeginToFirstNonEmptyResultMs}` +
       `|resultHex=${this.resultHex}|trace=${this.callbackTrace}|detail=${this.detail}`;
@@ -1063,6 +1117,8 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.ok = ok;
   result.starts = events.starts;
   result.partials = events.partials;
+  result.targetSpeakerRawPreviewPartials = events.targetSpeakerRawPreviewPartials;
+  result.targetSpeakerEnhancedPartials = events.targetSpeakerEnhancedPartials;
   result.finals = events.finals;
   result.completes = events.completes;
   result.errors = events.errors;
@@ -1073,6 +1129,7 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.firstNonEmptyFinalHasScore = events.firstNonEmptyFinalHasScore === undefined ? -1 :
     (events.firstNonEmptyFinalHasScore ? 1 : 0);
   result.liveStreams = AmphionRuntime.activeOnlineStreamCount();
+  result.liveStreamsAtStart = events.liveStreamsAtStart;
   result.elapsedMs = Date.now() - startedAt;
   if (events.startCallbackAtMs >= 0) {
     result.startCallbackMs = events.startCallbackAtMs - startedAt;
@@ -1086,6 +1143,13 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
     if (events.speechBeginAtMs >= 0 && events.speechBeginAtMs <= events.firstNonEmptyResultAtMs) {
       result.speechBeginToFirstNonEmptyResultMs =
         events.firstNonEmptyResultAtMs - events.speechBeginAtMs;
+    }
+  }
+  if (events.firstNonEmptyPartialAtMs >= 0) {
+    result.firstNonEmptyPartialMs = events.firstNonEmptyPartialAtMs - startedAt;
+    if (events.audioFeedStartedAtMs >= 0) {
+      result.audioStartToFirstNonEmptyPartialMs =
+        events.firstNonEmptyPartialAtMs - events.audioFeedStartedAtMs;
     }
   }
   if (events.audioFeedStartedAtMs >= 0 && events.speechBeginAtMs >= events.audioFeedStartedAtMs) {
@@ -1157,7 +1221,12 @@ async function runRecognitionCycle(engine: SpeechRecognitionEngine, entry: Corpu
     `vad-begin-no-early-last-speech-events-${events.speechBegins}` : 'finished';
   let failDetail = 'finish-contract';
   if (lastFinalsBeforeFinish > 0) failDetail = 'is-last-before-finish';
-  return finishCycle(index, entry.id, events, startedAt, ok, ok ? passDetail : failDetail);
+  const result = finishCycle(index, entry.id, events, startedAt, ok, ok ? passDetail : failDetail);
+  if (options.mode === 'paced' && result.audioStartToFirstNonEmptyPartialMs < 0) {
+    result.ok = false;
+    result.detail = 'first-partial-latency-missing';
+  }
+  return result;
 }
 
 async function runVadBeginSilenceCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
@@ -1253,6 +1322,7 @@ async function runTargetSpeakerEnhancementCycle(engine: SpeechRecognitionEngine,
   const params = startParams(sessionId, 'target-speaker-enhancement', index);
   params.extraParams['enableSpeakerVad'] = true;
   params.extraParams['enableTargetSpeakerEnhancement'] = true;
+  params.extraParams['enablePartialResult'] = true;
   params.extraParams['voiceprintIds'] = [voiceprintId];
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
@@ -1260,7 +1330,8 @@ async function runTargetSpeakerEnhancementCycle(engine: SpeechRecognitionEngine,
       `start-${events.errorMessages[0]}` : 'start-timeout';
     return finishCycle(index, entry.id, events, startedAt, false, startDetail);
   }
-  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, options.paceMs);
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, options.paceMs, undefined, 1,
+    (): void => { events.audioFeedStartedAtMs = Date.now(); });
   if (fed === 0) {
     engine.cancel(sessionId);
     return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
@@ -1273,7 +1344,8 @@ async function runTargetSpeakerEnhancementCycle(engine: SpeechRecognitionEngine,
   const ok = completed && events.starts === 1 && events.finals > 0 &&
     events.lastFinals === 1 && lastFinalsBeforeFinish === 0 && events.completes === 1 &&
     events.errors === 0 && events.targetSpeakerEnhancementResults === events.finals && businessTextPassed &&
-    !engine.isBusy();
+    events.partials > 0 && events.targetSpeakerRawPreviewPartials === events.partials &&
+    events.targetSpeakerEnhancedPartials === 0 && events.liveStreamsAtStart === 2 && !engine.isBusy();
   let detail = ok ?
     `target-speaker-enhancement-applied-${events.targetSpeakerEnhancementResults}` :
     'target-speaker-enhancement-contract';
@@ -1284,6 +1356,68 @@ async function runTargetSpeakerEnhancementCycle(engine: SpeechRecognitionEngine,
   result.voiceprintIdCount = 1;
   result.fedFrames = fed;
   result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  if (result.audioStartToFirstNonEmptyPartialMs < 0) {
+    result.ok = false;
+    result.detail = 'first-partial-latency-missing';
+  } else if (events.partials === 0) {
+    result.ok = false;
+    result.detail = 'raw-preview-partial-missing';
+  } else if (events.targetSpeakerRawPreviewPartials !== events.partials ||
+    events.targetSpeakerEnhancedPartials !== 0) {
+    result.ok = false;
+    result.detail = 'partial-source-contract';
+  } else if (events.liveStreamsAtStart !== 2) {
+    result.ok = false;
+    result.detail = `fast-partial-stream-count-${events.liveStreamsAtStart}`;
+  }
+  return result;
+}
+
+async function runTargetSpeakerPreviewReentrantCycle(engine: SpeechRecognitionEngine,
+  entry: CorpusEntry, index: number, voiceprintId: string,
+  options: DeviceStressOptions): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const sessionId = `target-speaker-preview-reentrant-${index}`;
+  const frames = readPcmFrames(entry.path, 10000);
+  if (frames.length < 2) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'reentrant-source-too-short');
+  }
+  const listener = new TargetSpeakerPreviewReentrantListener(
+    events, sessionId, engine, frames[frames.length - 1]
+  );
+  engine.setListener(listener);
+  const params = startParams(sessionId, 'target-speaker-preview-reentrant', index);
+  enableTargetSpeakerEnhancement(params, voiceprintId);
+  params.extraParams['enablePartialResult'] = true;
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+  events.audioFeedStartedAtMs = Date.now();
+  let fedFrames = 0;
+  for (let i = 0; i < frames.length && !listener.actionCalled; i++) {
+    engine.writeAudio(sessionId, frames[i]);
+    fedFrames += 1;
+    if (options.paceMs > 0) await sleep(options.paceMs);
+  }
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const ok = listener.actionCalled && listener.reentrantWrites === 1 &&
+    listener.lastFinalsBeforeFinish === 0 && completed && events.starts === 1 &&
+    events.partials > 0 && events.targetSpeakerRawPreviewPartials === events.partials &&
+    events.targetSpeakerEnhancedPartials === 0 && events.liveStreamsAtStart === 2 &&
+    events.lastFinals === 1 && events.completes === 1 && events.errors === 0 &&
+    events.targetSpeakerEnhancementResults === events.finals && !engine.isBusy();
+  const result = finishCycle(index, entry.id, events, startedAt, ok,
+    ok ? 'target-speaker-preview-reentrant-write-finish' :
+      'target-speaker-preview-reentrant-contract');
+  result.voiceprintIdCount = 1;
+  result.fedFrames = fedFrames + listener.reentrantWrites;
+  result.lastFinalsBeforeFinish = listener.lastFinalsBeforeFinish;
+  if (result.audioStartToFirstNonEmptyPartialMs < 0) {
+    result.ok = false;
+    result.detail = 'first-partial-latency-missing';
+  }
   return result;
 }
 
@@ -1339,7 +1473,8 @@ async function runTargetSpeakerEnhancementOnStartCycle(engine: SpeechRecognition
     events.lastFinals === 1 && events.completes === 1 &&
       events.targetSpeakerEnhancementResults === events.finals;
   const ok = listener.framesWrittenInStart === bufferedFrameCount && actionContract &&
-    events.starts === 1 && events.errors === 0 && lifecycleContract && !engine.isBusy();
+    events.starts === 1 && events.errors === 0 && events.liveStreamsAtStart === 1 &&
+    lifecycleContract && !engine.isBusy();
   const result = finishCycle(index, entry.id, events, startedAt, ok,
     ok ? `target-speaker-enhancement-onstart-${action}` :
       `target-speaker-enhancement-onstart-${action}-contract`);
@@ -1384,6 +1519,7 @@ async function runTargetSpeakerEnhancementCancelCycle(engine: SpeechRecognitionE
   const ok = canceledFed === 100 && canceledStableAtReturn && recoveryFed > 0 && recovered &&
     recoveryEvents.starts === 1 && recoveryEvents.lastFinals === 1 && lastFinalsBeforeFinish === 0 &&
     recoveryEvents.completes === 1 && recoveryEvents.errors === 0 &&
+    canceledEvents.liveStreamsAtStart === 1 && recoveryEvents.liveStreamsAtStart === 1 &&
     recoveryEvents.unexpectedSessionCallbacks === 0 &&
     recoveryEvents.targetSpeakerEnhancementResults === recoveryEvents.finals &&
     recoveryText.includes('上海') &&
@@ -2136,6 +2272,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       options.mode === 'voiceprint-vad-begin' ||
       options.mode === 'voiceprint-vad-begin-idle' || options.mode === 'speaker-vad-onstart' ||
       options.mode === 'target-speaker-enhancement' ||
+      options.mode === 'target-speaker-preview-reentrant' ||
       options.mode === 'target-speaker-enhancement-onstart' ||
       options.mode === 'target-speaker-enhancement-cancel' ||
       options.mode === 'target-speaker-enhancement-reload') {
@@ -2169,6 +2306,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       } else if (options.mode === 'voiceprint-fallback') {
         entry = entries[1];
       } else if (options.mode === 'target-speaker-enhancement' ||
+        options.mode === 'target-speaker-preview-reentrant' ||
         options.mode === 'target-speaker-enhancement-onstart' ||
         options.mode === 'target-speaker-enhancement-cancel' ||
         options.mode === 'target-speaker-enhancement-reload') {
@@ -2226,6 +2364,10 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runVoiceprintVadBeginIdleCycle(engine, entry, i, stressVoiceprintId);
       } else if (options.mode === 'target-speaker-enhancement') {
         result = await runTargetSpeakerEnhancementCycle(engine, entry, i, stressVoiceprintId, options);
+      } else if (options.mode === 'target-speaker-preview-reentrant') {
+        result = await runTargetSpeakerPreviewReentrantCycle(
+          engine, entry, i, stressVoiceprintId, options
+        );
       } else if (options.mode === 'target-speaker-enhancement-onstart') {
         result = await runTargetSpeakerEnhancementOnStartCycle(engine, entry, i, stressVoiceprintId);
       } else if (options.mode === 'target-speaker-enhancement-cancel') {

@@ -236,7 +236,7 @@ interface CreateEngineCallback {
 | `sessionGeneralLexicon` | `string[]` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
 | `enableSpeakerVad` | `boolean` | `false` | 是否启用目标说话人离场提前 endpoint；冷态启动会同步等待声纹模型 |
-| `enableTargetSpeakerEnhancement` | `boolean` | `false` | 是否在 ASR 前启用目标说话人增强；必须同时启用 Speaker VAD 并提供有效声纹 ID；模型已包含在正式 HAR 中 |
+| `enableTargetSpeakerEnhancement` | `boolean` | `false` | 是否启用目标说话人增强；必须同时启用 Speaker VAD 并提供有效声纹 ID；模型已包含在正式 HAR 中。开启后，默认用原始音频快速返回 partial，增强音频只产生 final |
 | `voiceprintIds` | `string[]` | 空 | 声纹 ID 列表；启用声纹校验或 Speaker VAD 时必填 |
 | `speakerVadThreshold` | `number/string` | `0.35` | 目标说话人 VAD 阈值 |
 | `speakerVadWindowMs` | `number/string` | `1500` | 目标说话人 VAD 窗长 |
@@ -276,7 +276,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `beginTime` | `number?` | 起始时间毫秒，可能为空 |
 | `endTime` | `number?` | 结束时间毫秒，可能为空 |
 | `speakerSimilarity` | `number?` | final 且启用声纹校验，并有达到门槛的评分 PCM 时返回 |
-| `targetSpeakerEnhancementApplied` | `boolean?` | 当前 session 启用目标说话人增强时为 `true`；未启用时省略 |
+| `targetSpeakerEnhancementApplied` | `boolean?` | `true` 表示文本来自增强音频，`false` 表示目标增强 session 内由原始音频快速产生的临时文本；未启用增强时省略 |
 
 > 声纹评分优先使用严格筛选的有效语音。严格语音短于 `TargetSpeakerConfig.minSegSec`
 >（默认 1.5 秒），但 ASR 已产生非空 text/token 且当前句实际 PCM 达到门槛时，SDK 使用当前句
@@ -287,6 +287,12 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 > 模型首次在增强 session 启动时加载，结束、finish 或 cancel 只释放该 session 的目标声纹和队列状态；
 > 模型继续复用，直到调用 `unloadModel()` 或 `unloadRuntime()`。实现与当前真机证据见
 > [`TARGET_SPEAKER_ENHANCEMENT_HARMONY_20260805.md`](../../../docs/speaker/TARGET_SPEAKER_ENHANCEMENT_HARMONY_20260805.md)。
+
+> 开启目标说话人增强且 `enablePartialResult=true`（默认）时，SDK 同时把原始音频送入一条仅用于界面
+> 即时显示的识别流。该流只允许回调 `isFinal=false`、`isLast=false` 且
+> `targetSpeakerEnhancementApplied=false` 的结果；它可能包含非目标说话人的字，不能用于执法记录、
+> 指令触发或保存。所有 final、last、complete 仍只由增强后的音频产生，并标记
+> `targetSpeakerEnhancementApplied=true`。显式关闭 partial 时，不创建这条快速识别流。
 
 > 交付批注 LC-20260716-02（v0.2.6）：调用方在 `SPEECH_END` 回调内同步调用 `finish()`，且没有更早排队的音频时，当前带文本 final 同时标记 `isLast=true`，不会再追加空的 last final。`vadBegin` 命中或确实没有可识别语音时，last final 仍允许为空。
 

@@ -55,6 +55,7 @@ class HarmonyTargetSpeakerEnhancementPipelineTest(unittest.TestCase):
                 metrics.push({ processingMs, queued, maxQueued })
             });
             pipeline.append(new Float32Array(56000).fill(1));
+            assert.equal(pipeline.inputSamplesAccepted(), 56000);
             const finishing = pipeline.finish();
             assert.equal(finished, 0);
             await finishing;
@@ -87,12 +88,14 @@ class HarmonyTargetSpeakerEnhancementPipelineTest(unittest.TestCase):
               onError: (message) => assert.fail(message)
             });
             pipeline.append(new Float32Array(32000).fill(1));
+            assert.equal(pipeline.inputSamplesAccepted(), 32000);
             pipeline.cancel();
             release();
             await new Promise((resolve) => setTimeout(resolve, 10));
             assert.equal(outputs.length, 0);
             assert.equal(finished, 0);
             assert.throws(() => pipeline.append(new Float32Array(1)), /not accepting/);
+            assert.equal(pipeline.inputSamplesAccepted(), 32000);
             """
         )
 
