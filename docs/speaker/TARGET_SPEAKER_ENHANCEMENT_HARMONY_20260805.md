@@ -253,7 +253,8 @@ stream 为 0，且无跨 session 回调。资源采样持续 `75.882 秒`：峰�
 结束后恰好一次 last、随后一次 complete，native stream 归零且无跨 session 回调。C2 仍有“准备据上海”
 的识别错误，因此这里只证明目标关键词保留和非目标“你好”去除，不把三条样例扩大为整体准确率结论。
 
-22 个增强块的最大处理耗时为 `1644 ms`、P95 为 `1638 ms`、最大排队为 `2`，低于 `1750 ms`
-稳态步长。资源观察 `78.025 s`，峰值 RSS `871.879 MiB`，稳定窗口 RSS 变化 `-180.428 MiB`、
-线程变化 `-2`，资源门通过。完整证据见
+报告将内容精度单列为 `target_speaker_content_accuracy`，不与生命周期、实时性或资源结论混合。
+22 个增强块的最大处理耗时为 `1630 ms`、P95 为 `1616 ms`、最大排队为 `2`，低于 `1750 ms`
+稳态步长。资源观察 `78.438 s`，峰值 RSS `819.062 MiB`，稳定窗口 RSS 变化 `-180.070 MiB`、
+线程变化 `-3`，资源门通过。完整证据见
 [`20260806-ort-customer-cases`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260806-ort-customer-cases)。
