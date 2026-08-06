@@ -1,10 +1,39 @@
-# Causal Target-Speaker TSE 开源模型图谱与 Linux 验证计划（2026-08-06）
+# Causal Target-Speaker TSE 开源模型图谱与端侧可用性结论（2026-08-06）
 
 ## 结论摘要
 
-截至 2026-08-06，开源 target speaker extraction（TSE）并不是只有
-`tse-conv-tasnet-48k`。此前调研遗漏了 REAL-TSE 官方 causal BSRNN、PS4、DENSE、正负 enrollment
-TSE、ESPnet TD-SpeakerBeam、USEF-TSE、ConVoiFilter、SoloSpeech 等候选。
+**最终结论：截至 2026-08-06，目前没有可直接用于 AmphionRuntime Android/Harmony 端侧的开源
+target speaker extraction（TSE）模型。所有已取得公开代码和权重、且与本项目约束相关的候选，至少在
+target-absent、clean-preservation、stateful streaming、端侧资源或 runtime 可交付性中的一项命中硬失败。
+本轮开源候选筛选结论为 `NO-GO`，不选择任何现成 checkpoint 进入端侧 SDK 默认能力或生产 pilot。**
+
+这里的“没有”限定为：在当前可公开取得的代码、权重和许可证条件下，没有候选同时满足 16 kHz、独立
+enrollment、目标人重叠内容恢复、target-absent 不泄漏、clean 不退化、显式跨 chunk 状态、有界延迟以及
+项目端侧资源预算。它不表示 TSE 原理上不能在端侧成立，也不把只通过三条样例或只满足实时计算量的模型
+算作可用。
+
+本机与已有真机证据给出的关键否决项如下：
+
+| 候选 | 已证明的正向能力 | 硬失败 | 最终定位 |
+| --- | --- | --- | --- |
+| REAL-TSE `tfmap_context_causal_100` | 70 条 target-present 的 micro CER `15.65% → 5.79%`；网络时间方向 causal | 正式 negatives `98/328` 输出非空；clean `6/70` 变空；27.24M 参数、checkpoint 278 MB、进程 lifetime peak RSS 2.395 GB；无 state/flush API | Linux target-present 质量基线，端侧 `NO-GO` |
+| REAL-TSE `spk_emb_causal_100` | 网络时间方向 causal | 受控 clean target 输出空文本；无 state/flush API | 算法门失败 |
+| `tse-conv-tasnet-48k` v3 | 约 1.45M 参数，10 ms 输入和显式 89 个状态张量 | 受控 target-present CER 83.33%、target-absent 完整泄漏、纯静音产生非有限值 | 仅保留 stateful ABI 参考，算法门失败 |
+| PS4 | target-present 内容恢复有正信号 | 非因果；target-absent 仍输出干扰人内容；模型和运行时超过端侧边界 | offline 质量对照，端侧 `NO-GO` |
+| WeSep BSRNN + ECAPA | C1/C2/C3 内容恢复通过 | 双向、无 stateful API，约 1.94 GB peak RSS | offline 内容恢复证据，端侧 `NO-GO` |
+| 16 kHz Conv-TasNet + ERes2Net 选流 | 20.1 MB，Harmony 真机可按固定 2 秒块运行，C1/C2/C3 通过 | 不是 exact TSE；盲分离后选流，other-only `8/60` false rescue | 受控增强 demo，不改变开源 TSE `NO-GO` 结论 |
+
+因此，`causal`、`RTF < 1`、能导出 ONNX、能在手机上跑通和三条客户样例 PASS 都不能单独改变结论。
+端侧可用必须由同一个候选同时通过算法、stateful streaming、资源、runtime 和 SDK 生命周期门。
+
+为排除“在 tfmap 前后增加现有 ERes2Net 门控即可落地”的可能，本轮还固定阈值完成了 A/B。`0.25`
+pre-gate 把正式 negative 非空从 `98/328` 降到 `20/328`，同时拒绝 `3/70` 个 target-present；冻结的
+`0.434383` 高阈值把 negative 降到 `1/328`，但拒绝 `11/70` 个 target-present 和 `11/70` 个 clean。
+正负分数分布重叠，因此门控只能交换泄漏与目标误杀，不能把 tfmap 变成端侧可用候选。
+
+调研确认开源 TSE 并不是只有 `tse-conv-tasnet-48k`；候选还包括 REAL-TSE 官方 causal BSRNN、PS4、
+DENSE、正负 enrollment TSE、ESPnet TD-SpeakerBeam、USEF-TSE、ConVoiFilter、SoloSpeech 等。扩充候选
+集合改变了验证范围，但没有产生端侧可用候选。
 
 但必须区分三种不同的“可用”：
 
@@ -15,18 +44,18 @@ TSE、ESPnet TD-SpeakerBeam、USEF-TSE、ConVoiFilter、SoloSpeech 等候选。
 
 公开候选中，多数只满足第一项；REAL-TSE causal baseline、DENSE 等满足前两项，但官方推理仍以整段
 forward 为主；目前接口层最接近第三项的是 `penta2himajin/tse-conv-tasnet-48k`，它提供固定 10 ms
-输入和显式状态张量，但公开质量证据存在尚未解释的矛盾，不能未经独立评测直接定为生产模型。
+输入和显式状态张量。本轮独立评测已确认其 checkpoint 命中目标恢复、target-absent 和 silence 数值
+稳定性硬失败，因此只保留接口参考。
 
-面向 AmphionRuntime，推荐组合是：
+面向 AmphionRuntime，这些模型只保留为不同维度的研究基线，不是交付组合：
 
 - **causal 质量基线**：REAL-TSE `spk_emb_causal_100` 与 `tfmap_context_causal_100`；
-- **真实中英文、ASR-friendly teacher**：PS4；
+- **真实中英文、ASR-friendly offline 对照**：PS4；
 - **stateful runtime 原型**：`tse-conv-tasnet-48k` v3；
-- **后续训练参考**：REAL-TSE/WeSep recipe、DENSE、SpeakerBeam-SS；
 - **离线交叉基线**：ESPnet TD-SpeakerBeam、ClearerVoice SpEx+、USEF-TSE、ConVoiFilter。
 
-所有有公开代码和权重的候选都可以先在 Linux 服务器完成算法验证；但 Linux 结果不能代替
-Android/Harmony 的算子、内存、功耗、音频线程和热降频验收。
+Linux 可以完成算法筛选，但结果不能代替 Android/Harmony 的算子、内存、功耗、音频线程和热降频
+验收；本轮已在 Linux 命中算法或接口硬失败的候选，不再因“手机物理上可能装得下”进入端侧扩展。
 
 ## 本项目任务边界
 
@@ -49,19 +78,19 @@ Android/Harmony 的算子、内存、功耗、音频线程和热降频验收。
 | L3：stateful streaming 可运行 | 固定小 chunk，显式输入/输出状态和 flush | 可验证长期流式语义、分帧一致性和 RTF |
 | L4：端侧可交付 | 已通过目标 runtime 导出、量化和真机资源门 | 才能进入 Android/Harmony SDK pilot |
 
-当前没有公开候选可以未经适配直接标为 L4。
+当前没有公开候选达到 L4，也没有候选同时通过进入 L4 之前所需的算法、stateful 和资源门。
 
 ## 候选总表
 
 | 候选 | Exact TSE | 权重 | Causal | 公开 stateful chunk API | Linux 验证 | 当前定位 |
 | --- | --- | --- | --- | --- | --- | --- |
-| REAL-TSE `spk_emb_causal_100` | 是 | 有 | 是，online baseline | 无 | 可以 | causal 质量基线 |
-| REAL-TSE `tfmap_context_causal_100` | 是 | 有 | 是，online baseline | 无 | 可以 | causal 质量基线，优先于纯 embedding A/B |
-| `tse-conv-tasnet-48k` v3 | 是 | 有 | 是，zero-lookahead | **有，10 ms + 显式状态** | 可以，CPU/ORT 也可 | runtime ABI 原型；质量待独立确认 |
+| REAL-TSE `spk_emb_causal_100` | 是 | 有 | 是，online baseline | 无 | 已测，clean target 算法失败 | 不可用于端侧 |
+| REAL-TSE `tfmap_context_causal_100` | 是 | 有 | 是，online baseline | 无 | 已测，target-present 有效，target-absent/clean 失败 | Linux 质量基线；不可用于端侧 |
+| `tse-conv-tasnet-48k` v3 | 是 | 有 | 是，zero-lookahead | **有，10 ms + 显式状态** | 已测，质量/target-absent/silence 失败 | runtime ABI 原型；不可使用其音频输出 |
 | Positive/Negative Enrollment TSE | 是 | 有 | extraction branch 为 causal TF-GridNet | 无 | 可以 | 嘈杂 enrollment 专项候选 |
 | DENSE | 是 | 大文件/权重不完整 | 是 | 论文式 chunk-wise 评测，非部署 API | 部分可以 | 动态 embedding 与训练参考 |
 | SpeakerBeam-SS | 是 | 无可靠官方权重 | 是 | 未公开 | 不能可靠复现 | 轻量 SSM 架构参考 |
-| PS4 | 是 | 有 | 否 | 无 | 可以，推荐 GPU | 真实中英文、ASR-friendly teacher |
+| PS4 | 是 | 有 | 否 | 无 | 已测，target-absent 失败 | offline 质量对照；不可用于端侧 |
 | WeSep BSRNN + ECAPA Vox1 | 是 | 有 | 否，默认双向 LSTM | 无 | 已验证 | 内容恢复 teacher；资源门失败 |
 | ESPnet TD-SpeakerBeam | 是 | 有 | 否，公开配置为 `causal: false` | 无 | 可以 | 可复现标准基线 |
 | ClearerVoice SpEx+ | 是 | 有 | 否 | 无 | 可以 | 8 kHz 传统 TSE 上界 |
@@ -91,11 +120,11 @@ Libri2Mix-100 训练 150 epochs 的 baseline：
 2026-08-04 的旧调研写着 checkpoint 只通过邮件发给已注册团队；该信息随后发生变化。当前
 [REAL-TSE WeSep baseline 仓库](https://github.com/REAL-TSE/wesep-real-tse) 已在 README 提供四个目录对应的
 公开 Google Drive 下载入口，并给出 `mixture + enroll -> output` 的推理命令。因此两套 causal baseline
-现在应进入“Linux 可下载验证”集合。
+已进入本轮“Linux 可下载验证”集合并完成最小实验。
 
 限制：官方 `evaluate.py` 是整段文件推理，模型 forward 没有把 recurrent hidden/cell state 暴露为跨
 chunk 输入输出。它可以验证 causal 网络质量，但不能据此声称已经有 SDK 可用的持续流式实现。若质量门
-通过，还需要实现：
+通过，仍需要实现以下能力；本轮实际先命中 target-absent/clean 算法失败，因此没有继续端侧改造：
 
 - streaming STFT/iSTFT overlap-save；
 - 各层 LSTM 状态缓存与 session 隔离；
@@ -113,7 +142,7 @@ lower bound，而不是生产上限。
 接口：48 kHz 下固定 480 samples/10 ms 输入、89 个状态张量、zero lookahead、ONNX 和 Rust runtime
 示例，约 1.45M 参数，speaker condition 为 192 维 ECAPA embedding。
 
-它应进入第一轮，但定位是 **流式工程候选而不是默认质量冠军**：
+它已进入第一轮并完成独立验证，最终定位是 **流式工程接口参考，不使用当前 checkpoint 的音频输出**：
 
 - [PR #151](https://github.com/penta2himajin/mellonella/pull/151) 记录 v1/v2 的 EMA 在
   `torch.compile` 下静默失效，旧版本曾导出近似随机初始化权重；只允许测试修复后的 v3。
@@ -251,17 +280,18 @@ masked generative enhancement，并包含迭代 self-critic。它适合离线 de
 
 因此 Linux 是模型筛选门，不是发布门。
 
-## 统一 Linux 验证矩阵
+## 已执行的统一 Linux 验证矩阵
 
-第一轮只运行四个互补候选：
+第一轮按预定顺序运行了四个互补候选：
 
 1. REAL-TSE `spk_emb_causal_100`；
 2. REAL-TSE `tfmap_context_causal_100`；
 3. PS4；
 4. `tse-conv-tasnet-48k` v3。
 
-第二轮仅在第一轮结果需要解释时补充 ESPnet TD-SpeakerBeam、Positive/Negative Enrollment TSE 和
-ClearerVoice SpEx+。不并行搭建全部生成式模型。
+第一轮已经得到明确硬失败；按停止条件，没有继续搭建 ESPnet TD-SpeakerBeam、Positive/Negative
+Enrollment TSE、ClearerVoice SpEx+ 或全部生成式模型。它们分别存在非因果、非当前 enrollment API、
+缺 stateful runtime、许可或资源先验阻断，没有证据能推翻本轮“无端侧候选”的结论。
 
 每个模型使用独立 Conda/容器环境，避免 WeSep、ESPnet、ClearerVoice 和生成式栈的 PyTorch/CUDA 依赖
 互相污染。所有模型统一接收：
@@ -321,18 +351,20 @@ results/tse/<model>/<case>/
 任一公开模型若只在 C1～C3 三个案例通过、但 target-absent/open-set 失败，必须停止真机扩展，不能通过
 调能量、事后文本选流或放宽全局空结果率掩盖。
 
-## 推荐决策顺序
+## 实验完成后的最终决策
 
-1. **先在 Linux 复验 REAL-TSE 两套 causal baseline。** 它们最接近 16 kHz、enrollment-conditioned、
-   online TSE 目标，可回答公开 causal 模型的质量下限。
-2. **以 PS4 冻结真实中英文 offline 上界。** 若 PS4 显著改善 CER/目标泄漏，说明数据与 ASR-aware
-   训练比继续更换合成集 separator 更重要。
-3. **以 `tse-conv-tasnet-48k` v3 验证 stateful runtime。** 必须独立核对质量、独立 enrollment、
-   target-absent、silence NaN 和任意 chunk 切分，不复用模型卡单一指标。
-4. **若 REAL-TSE 质量可用但不满足资源门，启动 16 kHz 小模型训练/蒸馏。** teacher 可用 PS4/WeSep，
-   student 优先考虑 cached-state Conv-TasNet、TD-SpeakerBeam、DENSE 或轻量 BSRNN。
-5. **通过 Linux 算法与流式语义门后再进入 Harmony/Android。** 不把模型集成和 SDK 生命周期修改混成
-   一个补丁。
+1. **现成开源 TSE 端侧路线关闭。** REAL-TSE 两套 causal baseline、PS4 和
+   `tse-conv-tasnet-48k` v3 已完成最小可证伪实验；没有候选同时通过 target-present、target-absent、
+   clean、stateful 和资源门，不选择端侧模型。
+2. **`tfmap_context_causal_100` 只保留 Linux 基线。** 它证明目标确定存在时的重叠增强有效，但
+   `causal` 不等于已有流式接口，RTF `<1` 也不能覆盖 target-absent 和内存失败；不得包装成端侧可用结论。
+3. **公开 stateful Conv-TasNet 只保留 ABI 参考。** 10 ms 输入和显式状态证明公开流式接口存在，但当前
+   checkpoint 的目标恢复、target-absent 和 silence 数值稳定性均失败，不使用其音频输出。
+4. **Harmony 固定 2 秒 Conv-TasNet 增强不计为 TSE 候选。** 它是盲分离后用 ERes2Net 选流，虽然能在
+   Mate 80 跑通并覆盖 C1/C2/C3，但 other-only 已出现 `8/60` false rescue，且没有 enrollment-conditioned
+   分离语义；只能作为受控 demo，不能反证“当前没有端侧可用开源 TSE”。
+5. **停止继续横向扫描同类 checkpoint。** 新候选只有在公开权重、许可、exact TSE 语义、target-absent
+   证据和 stateful runtime 接口至少没有先验硬失败时，才重新进入评估；否则不做 Harmony/Android 集成。
 
 ## 调研更正与证据状态
 
@@ -344,8 +376,11 @@ results/tse/<model>/<case>/
   Harmony。
 - **保持不变**：盲 Conv-TasNet 的 open-set/target-absent 失败证明 enrollment-conditioned TSE 是必要
   条件。
-- **尚未证明**：上述新候选尚未在本项目相同 C1～C3、60 speaker open-set 和 ZH_EN ASR 上完成统一
-  实测；本文件是候选与验证计划，不把论文或模型卡结果写成项目 PASS。
+- **已完成**：REAL-TSE 两套 causal baseline、PS4 和 `tse-conv-tasnet-48k` v3 已按最小停止条件完成
+  本机实测；结果足以否决当前 checkpoint 的端侧使用，不需要为了把失败率估计得更精确而继续扩大矩阵。
+- **未外推**：没有对所有论文模型逐一复现；缺可靠权重、非因果、非商用许可、非 exact TSE、无公开
+  stateful 接口或资源量级已明显越界的候选，按硬约束直接排除。结论是“当前没有满足本项目约束的公开
+  候选”，不是声称穷举了所有未来实现。
 
 ## 一手来源
 

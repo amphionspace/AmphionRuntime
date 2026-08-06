@@ -84,7 +84,7 @@
   不满足资源/因果门。下一选择是以 WeSep/REAL-TSE recipe 为训练参考、用公开 offline 模型作 teacher，
   训练/蒸馏中文真实域小型 causal TSE；具体结构要等独立源受控集到位后冻结。2026-08-06 补充候选、
   causal/stateful 区分和服务器验证顺序见
-  [Causal Target-Speaker TSE 开源模型图谱与 Linux 验证计划](CAUSAL_TSE_MODEL_LANDSCAPE_20260806.md)。
+  [Causal Target-Speaker TSE 开源模型图谱与端侧可用性结论](CAUSAL_TSE_MODEL_LANDSCAPE_20260806.md)。
 - **生产接入和版本迁移。** 待架构、资源预算和真机 pilot 门冻结后再拆 Android/Harmony 实施；在此之前
   不承诺 0.2.9 或某个参数组合解决客户问题。
 - **正式 blind 规模。** 由真实设备 pilot 的 speaker/session cluster 方差和关键失败桶决定，不提前按
