@@ -7,6 +7,10 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 SDK = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
+ENHANCER = (
+    ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/TargetSpeakerEnhancer.ets"
+)
 CONFIG = (
     ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/TargetSpeakerEnhancementConfig.ts"
@@ -18,6 +22,12 @@ DEVICE_STRESS = (
 
 
 class HarmonyTargetSpeakerEnhancementContractTest(unittest.TestCase):
+    def test_missing_separator_reports_the_required_packaged_asset(self) -> None:
+        source = ENHANCER.read_text(encoding="utf-8")
+        self.assertIn("try {", source)
+        self.assertIn("target speaker enhancement model is not bundled", source)
+        self.assertIn("amphion-dingqiao/convtasnet_16k.onnx", source)
+
     def test_device_evidence_records_target_speaker_inputs_and_lifecycle(self) -> None:
         source = DEVICE_STRESS.read_text(encoding="utf-8")
         for function_name in (

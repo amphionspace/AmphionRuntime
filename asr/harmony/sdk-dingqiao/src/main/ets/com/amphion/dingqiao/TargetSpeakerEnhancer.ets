@@ -20,9 +20,17 @@ export class TargetSpeakerEnhancer implements TargetSpeakerEnhancementProcessor 
 
   constructor(context: Context, speakerModelPath: string,
     targetEmbedding: Float32Array) {
-    const separatorModel: Uint8Array = context.resourceManager.getRawFileContentSync(
-      TARGET_SPEAKER_SEPARATOR_RAWFILE
-    );
+    let separatorModel: Uint8Array;
+    try {
+      separatorModel = context.resourceManager.getRawFileContentSync(
+        TARGET_SPEAKER_SEPARATOR_RAWFILE
+      );
+    } catch (_) {
+      throw new Error(
+        'target speaker enhancement model is not bundled: ' +
+        TARGET_SPEAKER_SEPARATOR_RAWFILE
+      );
+    }
     this.handle = createTargetSpeakerEnhancer(
       separatorModel,
       speakerModelPath,
