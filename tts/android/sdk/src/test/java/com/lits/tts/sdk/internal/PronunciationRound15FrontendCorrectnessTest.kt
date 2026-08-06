@@ -147,8 +147,6 @@ class PronunciationRound15FrontendCorrectnessTest {
                 "rules_v2/zh.full.json",
                 "rules_v2/en.full.json",
                 "rules_v2/zh_pinyin.json",
-                "tn-bin/arm64-v8a/zh_tts",
-                "tn-bin/arm64-v8a/en_tts",
             ).forEach { copyAsset(root, it) }
             LitsTtsAssetInstaller.InstalledLayout.of(
                 rootDir = root,
