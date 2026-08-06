@@ -1,0 +1,24 @@
+{
+  "cache_key": "7bf4db8f7ec522832e02d6cc70fc87ef506e4ee112adbacca7aa196621835b16",
+  "converter": {
+    "disabled_optimizers": [
+      "NchwcTransformer"
+    ],
+    "execution_provider": "CPUExecutionProvider",
+    "graph_optimization_level": "all",
+    "id": "onnxruntime-1.16.3-fixed-arm-cpu-v1",
+    "numpy_version": "1.26.4",
+    "onnx_version": "1.15.0",
+    "onnxruntime_version": "1.16.3",
+    "optimization_style": "Fixed",
+    "target_platform": "arm"
+  },
+  "converter_id": "onnxruntime-1.16.3-fixed-arm-cpu-v1",
+  "format": "ort",
+  "numpy_version": "1.26.4",
+  "output_sha256": "921dc579ae7fdff42b5b53d6d3408c520121c6292d2c69d5d8dc92908b05ad13",
+  "output_size_bytes": 20500600,
+  "source_md5": "39640b7dac5350916627c0a5b14682b5",
+  "source_name": "convtasnet_16k.onnx",
+  "source_sha256": "8dcfdc69410fa4d4a3a945f6e61f6545e0c4cc6ed52b3a618e9e77807861aa4a"
+}

@@ -1202,10 +1202,11 @@ export class SpeechRecognizeSdk {
 
   /**
    * L2:从内存卸载模型(recognizer / punctuation / voiceprint extractor / vad),运行时保留常驻。
-   * SDK 包内及 workPath 中的模型文件、已注册声纹 embedding 都是持久数据,不会被删除。下次使用只重付
+   * SDK 包内及 workPath 中的模型文件、已注册声纹 embedding 都是持久数据,不会被删除。下次使用只重复
    * 内存模型加载,无需重建运行时。
    */
   static unloadModel(): void {
+    TargetSpeakerEnhancer.unloadModel();
     AmphionRuntime.unloadModel();
   }
 
@@ -1221,6 +1222,7 @@ export class SpeechRecognizeSdk {
     SpeechRecognizeSdk.runtimeGeneration += 1;
     // Promise 不可取消；清掉 wrapper 引用并让 core generation 拒绝旧任务提交。
     SpeechRecognizeSdk.prepareTask = undefined;
+    TargetSpeakerEnhancer.unloadModel();
     AmphionRuntime.release();
   }
 

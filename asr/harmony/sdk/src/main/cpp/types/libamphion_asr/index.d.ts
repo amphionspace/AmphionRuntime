@@ -10,8 +10,10 @@ export interface TargetSpeakerEnhancementNativeResult {
 
 export type TargetSpeakerEnhancerHandle = object;
 
+export const loadTargetSpeakerEnhancementModel: (model: Uint8Array) => void;
+export const isTargetSpeakerEnhancementModelLoaded: () => boolean;
+export const unloadTargetSpeakerEnhancementModel: () => void;
 export const createTargetSpeakerEnhancer: (
-  separatorModel: Uint8Array,
   speakerModel: string,
   resourceManager: object,
   targetEmbedding: Float32Array,

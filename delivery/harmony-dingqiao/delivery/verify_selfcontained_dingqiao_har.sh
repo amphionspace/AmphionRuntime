@@ -7,25 +7,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 SOURCE_PROJECT="$REPO_ROOT/delivery/harmony-dingqiao"
 ZH_EN_ONLY=false
-APPROVED_TARGET_SPEAKER_MODEL_SHA256=""
 while [[ $# -gt 1 ]]; do
   case "$1" in
     --zh-en-only) ZH_EN_ONLY=true; shift ;;
-    --approved-target-speaker-model-sha256)
-      [[ $# -ge 3 ]] || { echo "[ERROR] missing approved model SHA-256" >&2; exit 2; }
-      APPROVED_TARGET_SPEAKER_MODEL_SHA256="$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')"
-      shift 2
-      ;;
     *) echo "[ERROR] unexpected argument: $1" >&2; exit 2 ;;
   esac
 done
-HAR="${1:?Usage: verify_selfcontained_dingqiao_har.sh [--zh-en-only] [--approved-target-speaker-model-sha256 HASH] HAR}"
+HAR="${1:?Usage: verify_selfcontained_dingqiao_har.sh [--zh-en-only] HAR}"
 [[ $# -eq 1 ]] || { echo "[ERROR] unexpected arguments" >&2; exit 2; }
-if [[ -n "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" &&
-  ! "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
-  echo "[ERROR] approved target-speaker model SHA-256 must be 64 hexadecimal characters" >&2
-  exit 2
-fi
 DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
 NODE="$DEVECO_HOME/tools/node/bin/node"
 HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
@@ -61,31 +50,30 @@ python3 - \
   "$HAR" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json" \
   "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx" \
+  "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.ort" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
   "$REPO_ROOT/asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police" \
   "$ZH_EN_ONLY" \
-  "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" \
   "$SCRIPT_DIR" <<'PY'
 import sys
 import tarfile
 import json
-import hashlib
 import importlib.util
 from pathlib import Path
 import shutil
 import tempfile
 
 har = Path(sys.argv[1])
-local_police_root = Path(sys.argv[6])
-zh_en_only = sys.argv[7] == "true"
-approved_target_speaker_model_sha256 = sys.argv[8]
+local_police_root = Path(sys.argv[7])
+zh_en_only = sys.argv[8] == "true"
 expected = {
     "package/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx": Path(sys.argv[3]),
-    "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[4]),
-    "package/_bundled/amphion_asr/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[5]),
-    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[4]),
-    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[5]),
+    "package/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.ort": Path(sys.argv[4]),
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[5]),
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[6]),
+    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[5]),
+    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[6]),
 }
 with tarfile.open(har, "r:gz") as package:
     package_names = {member.name for member in package.getmembers() if member.isfile()}
@@ -167,18 +155,7 @@ with tarfile.open(har, "r:gz") as package:
         shutil.rmtree(temp_root)
     if zh_en_only and any("yue-en" in member.name.lower() for member in package.getmembers()):
         raise SystemExit("[ERROR] zh-en-only HAR still contains Yue model content")
-    separator_name = "package/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx"
-    separator = package.extractfile(separator_name) if separator_name in package.getnames() else None
-    if not approved_target_speaker_model_sha256:
-        if separator is not None:
-            raise SystemExit("[ERROR] unapproved target-speaker model is present in commercial HAR")
-    else:
-        if separator is None:
-            raise SystemExit("[ERROR] approved target-speaker model is missing from commercial HAR")
-        actual = hashlib.sha256(separator.read()).hexdigest()
-        if actual != approved_target_speaker_model_sha256:
-            raise SystemExit("[ERROR] commercial HAR target-speaker model digest is not approved")
-print("[OK] self-contained HAR police assets, ASR/voiceprint models, native libraries, and target-speaker model policy match local artifacts")
+print("[OK] self-contained HAR police assets, ASR/voiceprint models, native libraries, and target-speaker ORT match local artifacts")
 PY
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/amphion-har-customer.XXXXXX")"

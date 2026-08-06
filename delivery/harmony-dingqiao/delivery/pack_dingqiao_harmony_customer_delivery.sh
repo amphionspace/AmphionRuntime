@@ -74,6 +74,7 @@ RELEASE_INPUTS=(
   delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh
   delivery/harmony-dingqiao/delivery/check_customer_delivery_redaction.py
   delivery/harmony-dingqiao/delivery/create_normalized_tar.py
+  delivery/harmony-dingqiao/delivery/convtasnet_16k_ort.json
   delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json
   delivery/harmony-dingqiao/delivery/filter_zh_en_model_payload.py
   delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh
@@ -82,6 +83,7 @@ RELEASE_INPUTS=(
   delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py
   delivery/harmony-dingqiao/delivery/verify_dingqiao_model_md5.py
   delivery/harmony-dingqiao/delivery/verify_selfcontained_dingqiao_har.sh
+  delivery/harmony-dingqiao/delivery/verify_target_speaker_model.py
   delivery/asr-sdk-release-history.json
   tools/delivery/asr_release_tracker.py
   delivery/harmony-dingqiao/docs/customer/LICENSE.md
@@ -242,17 +244,22 @@ if [[ "$SDK_ONLY" != true ]]; then
   "$SCRIPT_DIR/verify_demo_inputs.sh" \
     --hap "$HAP_SRC" \
     --signing-config "$SIGNING_CONFIG"
-  python3 - "$HAP_SRC" "$VERSION" <<'PY'
+  python3 - \
+    "$HAP_SRC" \
+    "$VERSION" \
+    "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.ort" <<'PY'
 import json
 import sys
 import zipfile
+from pathlib import Path
 
 with zipfile.ZipFile(sys.argv[1]) as package:
     metadata = json.loads(package.read("pack.info"))
-    if any(name.endswith("/convtasnet_16k.onnx") for name in package.namelist()):
-        raise SystemExit(
-            "[ERROR] signed demo HAP contains an unapproved target-speaker model; rebuild the commercial HAP without test injection"
-        )
+    member = "resources/rawfile/amphion-dingqiao/convtasnet_16k.ort"
+    if member not in package.namelist():
+        raise SystemExit("[ERROR] signed demo HAP is missing the target-speaker ORT model")
+    if package.read(member) != Path(sys.argv[3]).read_bytes():
+        raise SystemExit("[ERROR] signed demo HAP target-speaker model differs from the SDK asset")
 version = metadata["summary"]["app"]["version"]["name"]
 if version != sys.argv[2]:
     raise SystemExit(f"[ERROR] HAP version {version} does not match delivery version {sys.argv[2]}")

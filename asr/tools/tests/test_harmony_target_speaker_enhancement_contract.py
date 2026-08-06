@@ -26,7 +26,16 @@ class HarmonyTargetSpeakerEnhancementContractTest(unittest.TestCase):
         source = ENHANCER.read_text(encoding="utf-8")
         self.assertIn("try {", source)
         self.assertIn("target speaker enhancement model is not bundled", source)
-        self.assertIn("amphion-dingqiao/convtasnet_16k.onnx", source)
+        self.assertIn("amphion-dingqiao/convtasnet_16k.ort", source)
+
+    def test_separator_model_is_pooled_until_sdk_model_unload(self) -> None:
+        enhancer = ENHANCER.read_text(encoding="utf-8")
+        sdk = SDK.read_text(encoding="utf-8")
+        self.assertIn("loadTargetSpeakerEnhancementModel", enhancer)
+        self.assertIn("isTargetSpeakerEnhancementModelLoaded", enhancer)
+        self.assertIn("static unloadModel(): void", enhancer)
+        self.assertIn("unloadTargetSpeakerEnhancementModel", enhancer)
+        self.assertGreaterEqual(sdk.count("TargetSpeakerEnhancer.unloadModel();"), 2)
 
     def test_device_evidence_records_target_speaker_inputs_and_lifecycle(self) -> None:
         source = DEVICE_STRESS.read_text(encoding="utf-8")

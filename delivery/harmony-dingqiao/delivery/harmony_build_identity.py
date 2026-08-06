@@ -37,9 +37,9 @@ NATIVE_LIBRARIES = {
     "libonnxruntime.so": REPO_ROOT
     / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so",
 }
-OPTIONAL_HAP_MODELS = {
+REQUIRED_HAP_MODELS = {
     "target_speaker_separator":
-        "resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx",
+        "resources/rawfile/amphion-dingqiao/convtasnet_16k.ort",
 }
 TRACKED_BUILD_INPUTS = (
     "asr/harmony",
@@ -109,13 +109,13 @@ def source_fingerprint() -> str:
     return digest.hexdigest()
 
 
-def optional_hap_models() -> dict[str, dict[str, object]]:
+def required_hap_models() -> dict[str, dict[str, object]]:
     models: dict[str, dict[str, object]] = {}
     with zipfile.ZipFile(HAP) as archive:
         names = set(archive.namelist())
-        for logical_name, member in OPTIONAL_HAP_MODELS.items():
+        for logical_name, member in REQUIRED_HAP_MODELS.items():
             if member not in names:
-                continue
+                raise IdentityFailure(f"HAP missing required model: {member}")
             digest = hashlib.sha256()
             size = 0
             with archive.open(member) as stream:
@@ -151,7 +151,7 @@ def current_identity(zh_en_only: bool = False) -> dict[str, object]:
             "size_bytes": path.stat().st_size,
         }
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "zh_en_only": zh_en_only,
         "git_commit": run(["git", "rev-parse", "HEAD"]).decode().strip(),
         "source_fingerprint_sha256": source_fingerprint(),
@@ -159,7 +159,7 @@ def current_identity(zh_en_only: bool = False) -> dict[str, object]:
         "native_sha256": {
             name: sha256_file(path) for name, path in sorted(NATIVE_LIBRARIES.items())
         },
-        "optional_models": optional_hap_models(),
+        "required_models": required_hap_models(),
         "artifacts": artifacts,
     }
 

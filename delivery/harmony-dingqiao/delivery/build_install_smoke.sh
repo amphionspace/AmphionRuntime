@@ -210,7 +210,7 @@ prepare_build_workspace() {
       echo "[ERROR] target-speaker separator model is unreadable: $TARGET_SPEAKER_SEPARATOR_MODEL" >&2
       exit 1
     }
-    local separator_destination="$temp_repo/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx"
+    local separator_destination="$temp_repo/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/convtasnet_16k.ort"
     mkdir -p "$(dirname "$separator_destination")"
     cp "$TARGET_SPEAKER_SEPARATOR_MODEL" "$separator_destination"
     echo "[INFO] injected target-speaker separator into the isolated test build"

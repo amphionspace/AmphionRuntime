@@ -126,6 +126,11 @@ ASR 文本，不执行警务术语、车牌和派出所归一化；不会触发�
 
 不要在活跃 session 中卸载模型或 runtime。业务空闲卸载后的首次 `onStart` 仍具备与冷启动相同的同步可用性保证。
 
+目标说话人增强使用 HAR 内置的 `convtasnet_16k.ort`。它与 `eres2net.onnx` 同属模型层：
+首次启用对应能力时按需加载，跨 session 复用，`finish`、`cancel` 和 engine `shutdown` 不卸载共享模型；
+只有 `SpeechRecognizeSdk.unloadModel()` 或 `unloadRuntime()` 清除共享模型。每个 session 的目标声纹、
+音频队列和回调状态仍独立销毁，不会跨 session 复用。
+
 ## 8. 验收建议
 
 集成后至少验证：冷启动首轮、`onStart` 内同步写入缓存、连续多句、显式 finish、cancel 后立即重启、回调内重启、重复 finish、`vadBegin` 真实语音/纯静音、显式最大时长、声纹门槛上下和卸载后重载。生命周期验收只判断状态、顺序和归属；识别字错率与声纹相似度精度应使用独立标注集评测。

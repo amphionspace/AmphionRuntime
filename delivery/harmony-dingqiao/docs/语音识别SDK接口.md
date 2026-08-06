@@ -90,7 +90,9 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | `SpeechRecognizeSdk.deleteVoiceprint(voiceprintId: string): boolean` | 删除本地声纹 |
 | `SpeechRecognizeSdk.preloadVoiceprintModel(): boolean` | 同步预加载并预热声纹模型；应在非 UI 关键路径调用 |
 
-声纹模型 `eres2net.onnx` 已内置在 `amphion_dingqiao.har`，宿主无需单独分发、导入或复制。`setWorkPath` 指向可读写目录，用于保存已注册的声纹 embedding；SDK 不会把 HAR 内模型复制到该目录。
+声纹模型 `eres2net.onnx` 和目标说话人分离模型 `convtasnet_16k.ort` 已内置在
+`amphion_dingqiao.har`，宿主无需单独分发、导入或复制。`setWorkPath` 指向可读写目录，
+用于保存已注册的声纹 embedding；SDK 不会把 HAR 内模型复制到该目录。
 
 ## 3. 生命周期控制
 
@@ -100,7 +102,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | --- | --- | --- | --- |
 | License | `setLicense()` | 重新设置授权 | 成功授权保存在当前进程内 |
 | Runtime | `prepareRuntime()` | `unloadRuntime()` | 已验证授权 |
-| Model | ASR：`createEngineAsync()` / `createEngine()`；声纹：注册、显式预加载或声纹会话按需加载 | `unloadModel()` | Runtime、已验证授权、HAR 内模型和已注册声纹 embedding |
+| Model | ASR：`createEngineAsync()` / `createEngine()`；声纹：注册、显式预加载或声纹会话按需加载；目标说话人增强：首次启用时按需加载 | `unloadModel()` | Runtime、已验证授权、HAR 内模型和已注册声纹 embedding |
 
 完整状态流转：
 
@@ -143,13 +145,16 @@ interface CreateEngineCallback {
 - 同语言、同配置模型已加载时直接复用模型，只创建新的引擎对象；会话对象在 `startListening()` 时创建。
 - `createEngine()` 在冷加载时会阻塞调用线程；客户业务优先使用 `createEngineAsync()`，不得在 UI 关键路径同步冷加载。
 - 创建识别引擎只加载 ASR 相关模型，不会因为 HAR 内置声纹资源而加载声纹 extractor。声纹 extractor 在注册、显式预加载或声纹会话中另行按需加载。
+- 创建普通识别引擎也不会加载 Conv-TasNet。首次启动启用了 `enableTargetSpeakerEnhancement`
+  的 session 时加载 `convtasnet_16k.ort`；后续增强 session 复用同一个模型 Session。
 
 ### 3.4 `unloadModel()`
 
 - 调用前应结束或取消所有会话，并对仍持有的 engine 调用 `shutdown()`。
 - 调用后已有 engine 不应继续使用；下次识别需重新调用 `createEngineAsync()` 或 `createEngine()`。
 - Runtime 与已验证授权保留，无需重新 `setLicense()` 或 `prepareRuntime()`。
-- ASR 模型、标点模型、VAD 和内存声纹 extractor 都在本层释放；HAR 内置模型文件及 `{workPath}/voiceprints/` 下的 embedding 不会删除。
+- ASR 模型、标点模型、VAD、内存声纹 extractor 和共享 Conv-TasNet Session 都在本层释放；
+  HAR 内置模型文件及 `{workPath}/voiceprints/` 下的 embedding 不会删除。
 - 接口返回表示 SDK 已释放模型持有关系；操作系统回收物理页可能延后，进程 RSS 不保证在返回瞬间下降到最终稳定值。
 
 ### 3.5 `unloadRuntime()`
@@ -231,7 +236,7 @@ interface CreateEngineCallback {
 | `sessionGeneralLexicon` | `string[]` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
 | `enableSpeakerVad` | `boolean` | `false` | 是否启用目标说话人离场提前 endpoint；冷态启动会同步等待声纹模型 |
-| `enableTargetSpeakerEnhancement` | `boolean` | `false` | 是否在 ASR 前启用目标说话人增强；必须同时启用 Speaker VAD 并提供有效声纹 ID；仅在已包含获准商用模型的设备包中可用 |
+| `enableTargetSpeakerEnhancement` | `boolean` | `false` | 是否在 ASR 前启用目标说话人增强；必须同时启用 Speaker VAD 并提供有效声纹 ID；模型已包含在正式 HAR 中 |
 | `voiceprintIds` | `string[]` | 空 | 声纹 ID 列表；启用声纹校验或 Speaker VAD 时必填 |
 | `speakerVadThreshold` | `number/string` | `0.35` | 目标说话人 VAD 阈值 |
 | `speakerVadWindowMs` | `number/string` | `1500` | 目标说话人 VAD 窗长 |
@@ -278,9 +283,9 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 > 真实 PCM 计算回退分数。没有 ASR 语音证据、实际 PCM 仍短于门槛或空 terminal final 时，
 > `speakerSimilarity` 可以省略；SDK 不填充假分数或复制上一句分数。
 
-> `enableTargetSpeakerEnhancement` 是正式接口预留，但开源 Conv-TasNet 权重没有默认进入商用 HAR。
-> 客户包必须先完成模型商用授权、固定模型哈希并重跑对应真机门禁；缺少模型时启动会明确失败，
-> 不会静默退回普通 Speaker VAD。实现与当前真机证据见
+> `enableTargetSpeakerEnhancement` 是正式的可选接口，所需 `convtasnet_16k.ort` 已进入商用 HAR。
+> 模型首次在增强 session 启动时加载，结束、finish 或 cancel 只释放该 session 的目标声纹和队列状态；
+> 模型继续复用，直到调用 `unloadModel()` 或 `unloadRuntime()`。实现与当前真机证据见
 > [`TARGET_SPEAKER_ENHANCEMENT_HARMONY_20260805.md`](../../../docs/speaker/TARGET_SPEAKER_ENHANCEMENT_HARMONY_20260805.md)。
 
 > 交付批注 LC-20260716-02（v0.2.6）：调用方在 `SPEECH_END` 回调内同步调用 `finish()`，且没有更早排队的音频时，当前带文本 final 同时标记 `isLast=true`，不会再追加空的 last final。`vadBegin` 命中或确实没有可识别语音时，last final 仍允许为空。
@@ -318,7 +323,9 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 启用 `enableVoiceprintVerification` 时，声纹 extractor 在 ASR 会话启动后后台加载，ASR 音频写入和 partial 结果不等待；如果 ASR final 产生时模型仍未就绪，只延后 final 和 `onComplete`，模型就绪后立即完成声纹打分。启用 `enableSpeakerVad` 时需要流式打分，因此冷态 `startListening()` 会同步等待 extractor。
 
-内存声纹 extractor 由 `unloadModel()` / `unloadRuntime()` 一并释放；HAR 内置的模型文件和已注册的 embedding 属于持久数据，不随内存模型卸载。调用 `unloadModel()` 后再次使用声纹能力会重新按需加载 extractor，但无需重新注册声纹。
+内存声纹 extractor 与共享 Conv-TasNet Session 都由 `unloadModel()` / `unloadRuntime()` 一并释放；
+HAR 内置的模型文件和已注册的 embedding 属于持久数据，不随内存模型卸载。调用 `unloadModel()`
+后再次使用相应能力会重新按需加载模型，但无需重新注册声纹。
 
 仅启用 `enableVoiceprintVerification` 时，SDK 不依据相似度丢弃识别结果；有 ASR 语音证据且
 当前句实际 PCM 达到门槛的 final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧

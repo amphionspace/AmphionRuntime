@@ -18,6 +18,11 @@ class BuildInstallSmokeTest(unittest.TestCase):
         self.assertIn('if ! "$NODE" "$HVIGOR" assembleHap', source)
         self.assertIn('if ! "$NODE" "$HVIGOR" assembleHar', source)
 
+    def test_target_speaker_override_uses_the_formal_ort_asset_name(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("convtasnet_16k.ort", source)
+        self.assertNotIn("convtasnet_16k.onnx", source)
+
 
 if __name__ == "__main__":
     unittest.main()

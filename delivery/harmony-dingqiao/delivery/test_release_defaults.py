@@ -6,6 +6,21 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
+    def test_target_speaker_ort_is_a_required_commercial_asset(self) -> None:
+        verify_demo = (
+            REPO_ROOT / "delivery/harmony-dingqiao/delivery/verify_demo_inputs.sh"
+        ).read_text(encoding="utf-8")
+        assemble = (
+            REPO_ROOT / "delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh"
+        ).read_text(encoding="utf-8")
+        package = (
+            REPO_ROOT / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
+        ).read_text(encoding="utf-8")
+        for source in (verify_demo, assemble, package):
+            self.assertIn("convtasnet_16k.ort", source)
+            self.assertNotIn("convtasnet_16k.onnx", source)
+        self.assertNotIn("unapproved target-speaker model", package)
+
     def test_prepack_is_disabled_by_default_across_public_harmony_layers(self) -> None:
         core = (
             REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets"

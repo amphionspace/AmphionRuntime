@@ -12,9 +12,9 @@ Mate 80 真机上的客户 C1/C2/C3 完整音频均满足业务断言：最终�
 最慢 1.695 秒，低于 1.75 秒步长，最大排队数为 2。取消推理中的 session 后立即开始下一 session
 也通过，旧任务没有产生迟到回调或污染新 session。
 
-技术实现和真机验证已完成，但当前 Conv-TasNet 权重没有进入源码或正式 HAR。公开模型页面同时出现
-CC BY-SA 4.0 与基于 LibriSpeech 的 CC BY-SA 3.0 两种描述，商用权利范围不够明确。因此，本实现目前
-是“代码可交付、模型待商用授权”的状态，不能把临时测试包作为正式客户包发布。
+2026-08-06 更新：Conv-TasNet 已转为与设备 Runtime 匹配的 ORT 格式并进入源码和正式 HAR；
+模型 Session 跨增强会话复用，并由 `unloadModel()` / `unloadRuntime()` 统一释放。第 3～6 节保留
+2026-08-05 ONNX 临时包的历史实验数据，第 7 节记录当前正式资产和生命周期。
 
 ## 2. 公共接口
 
@@ -158,28 +158,60 @@ Node-API 的“元素数”直接读取，会把声纹误判为 2048 维，并�
   负例风险写成零。
 - 当前只处理最多两路输出；三人及以上同时说话不在本实现承诺范围内。
 
-## 7. 正式商用发布门禁
+## 7. 2026-08-06 正式资产与模型生命周期
 
-当前代码故意不提交或默认打包 Conv-TasNet 权重。正式客户包发布前必须全部完成：
+Conv-TasNet 已用 Harmony 设备同版本 ONNX Runtime 1.16.3 转换为固定 ARM CPU 图的
+`amphion-dingqiao/convtasnet_16k.ort`，并纳入标准 SDK rawfile、自包含 HAR、Demo HAP 和客户包校验。
+正式组包不再允许缺少该文件，也不再依赖测试环境变量临时注入。
 
-1. 对目标 ONNX 获得权利方书面商用授权，或替换为许可清晰且允许闭源分发的自有/第三方模型。
-2. 固定最终模型文件、来源、版本、SHA-256、训练数据权利说明和随包声明。
-3. 将最终模型放入 `amphion-dingqiao/convtasnet_16k.onnx`，并让交付脚本验证文件哈希；没有模型时
-   启用接口必须明确返回 `START_LISTENING_FAILED`，不能静默退回原方案。
-4. 用最终模型重跑 C1/C2/C3、目标不在场负例、目标单独说话、cancel、onStart 同步写入、
-   60 秒以上资源观察和默认关闭回归。
-5. 只在通过上述门禁的设备档位开放接口；当前支持证据仅覆盖本报告的 12 GB Mate 80。
+正式 ORT 为 `20,500,600 bytes`，SHA-256 为
+`921dc579ae7fdff42b5b53d6d3408c520121c6292d2c69d5d8dc92908b05ad13`。在同一台 Apple Silicon
+开发机、同一 ONNX Runtime 1.16.3 和相同线程/内存选项下，连续 7 次内存字节加载的中位数从 ONNX
+的 `53.48 ms` 降为 ORT 的 `6.86 ms`，约 `7.80x`；固定随机输入的输出形状均为
+`[1, 2, 32000]`，最大绝对差和平均绝对差均为 `0`。这些数据只证明格式转换和桌面端加载优化，
+真机首会话耗时以第 8 节实测为准。
 
-授权核查来源：
+它与 ERes2Net 同属 SDK 的 L2 模型层：
 
-- 模型页：<https://huggingface.co/JorisCos/ConvTasNet_Libri2Mix_sepclean_16k>
-- CC BY-SA 4.0 条款：<https://creativecommons.org/licenses/by-sa/4.0/legalcode.en>
+1. 普通 ASR 和未开启增强的 session 不加载 Conv-TasNet。
+2. 第一个开启 `enableTargetSpeakerEnhancement` 的 session 按需加载 ORT 模型；ORT 图已离线优化，
+   加载时关闭重复图优化，并直接复用包内 FlatBuffer 字节，减少冷加载复制。
+3. 后续增强 session 复用同一个 native ORT Session。每个 session 仍单独持有目标声纹、两个候选流的
+   评分器、音频队列和回调状态；`finish`、`cancel` 或 engine `shutdown` 只释放这些 session 状态。
+4. `SpeechRecognizeSdk.unloadModel()` 清除 ASR、ERes2Net 与 Conv-TasNet 的共享模型；
+   `unloadRuntime()` 同样先清除模型。仍在执行的 native 任务通过共享引用安全完成，但调用方契约仍要求
+   卸载前结束或取消所有 session 并关闭 engine。
+5. 卸载不删除 HAR 内模型，也不删除已注册声纹 embedding；下次启用时重新冷加载，无需重新注册。
 
-模型页顶部标为 CC BY-SA 4.0，而说明末尾又称衍生自 LibriSpeech 并按 CC BY-SA 3.0 授权；在权利方
-或法务书面确认前，不把该权重放入正式商用包。
+| SDK 状态/操作 | Conv-TasNet 共享模型 | 增强 session 状态 |
+|---|---|---|
+| `init` / `prepareRuntime` | 未加载 | 不存在 |
+| 普通 ASR 或增强关闭 | 未加载或保持原状态，不触发加载 | 不创建 |
+| 首个增强 session 启动 | 从 HAR 首次加载，进入可复用状态 | 创建目标声纹、评分器和队列 |
+| `finish` / `cancel` / engine `shutdown` | 保持加载，供后续 session 复用 | 按各自契约关闭并释放 |
+| `unloadModel` | 释放；活动任务仅由内部引用延迟到安全点销毁 | 调用方须先结束或取消 session |
+| `unloadRuntime` | 与 ERes2Net 一样随 L2 模型一起释放 | Runtime 回到未初始化态 |
+| 卸载后再次启用增强 | 重新从 HAR 冷加载 | 创建全新 session 状态 |
 
-正式组包脚本已增加双重保护：默认从自包含 HAR 删除任何测试遗留的 Conv-TasNet；只有显式传入并
-匹配已批准 SHA-256 才允许保留。无模型的自包含商用 HAR 已在干净客户工程完成安装和编译验证；
-本轮产物大小为 `263,772,830 bytes`，SHA-256 为
-`cd1b3ebee3da8c87834ce40b50d964e4e73db39c7b4e472b88eebbc44565d310`，归档内确认不存在
-`convtasnet_16k.onnx`。
+最终交付仍需用固定 ORT 资产执行 C1/C2/C3、目标不在场负例、目标单独说话、cancel、onStart
+同步写入、卸载后重载、60 秒以上资源观察和默认关闭回归。当前设备支持范围仍以真机报告为准。
+
+## 8. 2026-08-06 ORT 真机生命周期验证
+
+正式资产已随 `ZH_EN` HAP 在 Mate 80（`VYG-AL30`，HarmonyOS `6.1.0.135`）完成编译、签名、
+安装和包内哈希校验。随后从全新应用进程连续执行 3 个增强 session：
+
+- 首轮首次加载 ORT，在 `onStart` 调用栈内写入 100 帧并继续写入，最终恰好一次 last、一次 complete；
+- 第二轮在同一进程复用已加载模型，在 `onStart` 调用栈内立即 `finish`，仍恰好一次 last 后一次
+  complete；
+- 第三轮在 `onStart` 调用栈内立即 `cancel`，没有 final、complete 或迟到回调。
+
+三轮均无 error、无跨 session 回调、结束后 native stream 数为 0；实际 Conv-TasNet 处理耗时为
+`547～1,211 ms/2 秒块`。本轮使用固定声纹生命周期语料，只验证 ORT 可加载、同进程复用和回调契约，
+不以空文本判断识别精度；C1/C2/C3 的内容收益仍由第 4 节固定 ONNX 实验支撑，需另用相同客户音频补做
+正式 ORT 的输出回归。
+
+证据保存在
+[`20260806-ort-lifecycle`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260806-ort-lifecycle)，
+包括 `report.json`、逐轮结果、内存采样、完整 hilog、设备包身份和输入映射。该轮总时长不足 15 秒，
+因此内存趋势结论为 `INCONCLUSIVE`，不替代既有 122 秒资源观察。

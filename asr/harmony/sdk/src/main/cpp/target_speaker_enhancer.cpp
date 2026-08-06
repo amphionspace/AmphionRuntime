@@ -104,18 +104,12 @@ struct EnhancementResult {
   int64_t duration_ms = 0;
 };
 
-class TargetSpeakerEnhancer {
+class TargetSpeakerSeparator {
  public:
-  TargetSpeakerEnhancer(const std::vector<uint8_t>& separator_model,
-                        const std::string& speaker_model,
-                        NativeResourceManager* resource_manager,
-                        std::vector<float> target_embedding,
-                        float threshold)
+  explicit TargetSpeakerSeparator(std::vector<uint8_t> model_bytes)
       : env_(ORT_LOGGING_LEVEL_WARNING, "amphion-target-speaker"),
-        target_embedding_(std::move(target_embedding)),
-        threshold_(threshold) {
-    if (separator_model.empty()) throw std::runtime_error("separator model is empty");
-    if (target_embedding_.empty()) throw std::runtime_error("target embedding is empty");
+        model_bytes_(std::move(model_bytes)) {
+    if (model_bytes_.empty()) throw std::runtime_error("separator model is empty");
 
     Ort::SessionOptions options;
     options.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
@@ -123,14 +117,78 @@ class TargetSpeakerEnhancer {
     options.SetInterOpNumThreads(1);
     options.DisableCpuMemArena();
     options.DisableMemPattern();
-    options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-    separator_ = Ort::Session(env_, separator_model.data(), separator_model.size(), options);
-    if (separator_.GetInputCount() != 1 || separator_.GetOutputCount() != 1) {
+    // The graph was fully optimized for ARM when converted to ORT format. Keeping the rawfile
+    // bytes alive lets ORT use FlatBuffer initializers directly and avoids both graph optimization
+    // and a second ~20 MB model copy during cold load.
+    options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
+    options.AddConfigEntry("session.load_model_format", "ORT");
+    options.AddConfigEntry("session.use_ort_model_bytes_directly", "1");
+    options.AddConfigEntry("session.use_ort_model_bytes_for_initializers", "1");
+    session_ = Ort::Session(env_, model_bytes_.data(), model_bytes_.size(), options);
+    if (session_.GetInputCount() != 1 || session_.GetOutputCount() != 1) {
       throw std::runtime_error("separator model must have exactly one input and one output");
     }
     Ort::AllocatorWithDefaultOptions allocator;
-    input_name_ = separator_.GetInputNameAllocated(0, allocator).get();
-    output_name_ = separator_.GetOutputNameAllocated(0, allocator).get();
+    input_name_ = session_.GetInputNameAllocated(0, allocator).get();
+    output_name_ = session_.GetOutputNameAllocated(0, allocator).get();
+  }
+
+  std::vector<float> Separate(const std::vector<float>& input) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (input.size() != kChunkSamples) {
+      throw std::runtime_error("enhancement input must contain 32000 samples");
+    }
+    std::array<int64_t, 2> input_shape{1, kChunkSamples};
+    Ort::MemoryInfo memory = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
+        memory, const_cast<float*>(input.data()), input.size(), input_shape.data(), input_shape.size());
+    const char* input_names[] = {input_name_.c_str()};
+    const char* output_names[] = {output_name_.c_str()};
+    std::vector<Ort::Value> outputs = session_.Run(
+        Ort::RunOptions{nullptr}, input_names, &input_tensor, 1, output_names, 1);
+    if (outputs.size() != 1 || !outputs[0].IsTensor()) {
+      throw std::runtime_error("separator returned an invalid output");
+    }
+    const size_t output_samples = outputs[0].GetTensorTypeAndShapeInfo().GetElementCount();
+    if (output_samples != static_cast<size_t>(kOutputStreams * kChunkSamples)) {
+      throw std::runtime_error("separator output must contain two 32000-sample streams");
+    }
+    const float* separated = outputs[0].GetTensorData<float>();
+    return std::vector<float>(separated, separated + output_samples);
+  }
+
+ private:
+  Ort::Env env_;
+  std::vector<uint8_t> model_bytes_;
+  Ort::Session session_{nullptr};
+  std::string input_name_;
+  std::string output_name_;
+  std::mutex mutex_;
+};
+
+std::mutex g_separator_model_mutex;
+std::shared_ptr<TargetSpeakerSeparator> g_separator_model;
+
+std::shared_ptr<TargetSpeakerSeparator> GetLoadedSeparatorModel() {
+  std::lock_guard<std::mutex> lock(g_separator_model_mutex);
+  if (g_separator_model == nullptr) {
+    throw std::runtime_error("target speaker enhancement model is not loaded");
+  }
+  return g_separator_model;
+}
+
+class TargetSpeakerEnhancer {
+ public:
+  TargetSpeakerEnhancer(std::shared_ptr<TargetSpeakerSeparator> separator,
+                        const std::string& speaker_model,
+                        NativeResourceManager* resource_manager,
+                        std::vector<float> target_embedding,
+                        float threshold)
+      : separator_(std::move(separator)),
+        target_embedding_(std::move(target_embedding)),
+        threshold_(threshold) {
+    if (separator_ == nullptr) throw std::runtime_error("separator model is not loaded");
+    if (target_embedding_.empty()) throw std::runtime_error("target embedding is empty");
 
     SherpaOnnxSpeakerEmbeddingExtractorConfig config{};
     config.model = speaker_model.c_str();
@@ -167,26 +225,8 @@ class TargetSpeakerEnhancer {
 
   EnhancementResult Process(const std::vector<float>& input) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (input.size() != kChunkSamples) {
-      throw std::runtime_error("enhancement input must contain 32000 samples");
-    }
     const auto started = std::chrono::steady_clock::now();
-    std::array<int64_t, 2> input_shape{1, kChunkSamples};
-    Ort::MemoryInfo memory = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-    Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
-        memory, const_cast<float*>(input.data()), input.size(), input_shape.data(), input_shape.size());
-    const char* input_names[] = {input_name_.c_str()};
-    const char* output_names[] = {output_name_.c_str()};
-    std::vector<Ort::Value> outputs = separator_.Run(
-        Ort::RunOptions{nullptr}, input_names, &input_tensor, 1, output_names, 1);
-    if (outputs.size() != 1 || !outputs[0].IsTensor()) {
-      throw std::runtime_error("separator returned an invalid output");
-    }
-    const size_t output_samples = outputs[0].GetTensorTypeAndShapeInfo().GetElementCount();
-    if (output_samples != static_cast<size_t>(kOutputStreams * kChunkSamples)) {
-      throw std::runtime_error("separator output must contain two 32000-sample streams");
-    }
-    const float* separated = outputs[0].GetTensorData<float>();
+    std::vector<float> separated = separator_->Separate(input);
     const float input_rms = RootMeanSquare(input);
 
     EnhancementResult result;
@@ -194,7 +234,7 @@ class TargetSpeakerEnhancer {
     result.similarities.resize(kOutputStreams, -1.0F);
     std::vector<std::vector<float>> candidates(kOutputStreams);
     for (int32_t stream_index = 0; stream_index < kOutputStreams; ++stream_index) {
-      const float* source = separated + stream_index * kChunkSamples;
+      const float* source = separated.data() + stream_index * kChunkSamples;
       candidates[stream_index].assign(source, source + kChunkSamples);
       const float candidate_rms = RootMeanSquare(candidates[stream_index]);
       const float scale = candidate_rms > 1.0e-6F ? input_rms / candidate_rms : 0.0F;
@@ -240,13 +280,10 @@ class TargetSpeakerEnhancer {
     return CosineSimilarity(embedding, target_embedding_);
   }
 
-  Ort::Env env_;
-  Ort::Session separator_{nullptr};
+  std::shared_ptr<TargetSpeakerSeparator> separator_;
   std::array<const SherpaOnnxSpeakerEmbeddingExtractor*, kOutputStreams> extractors_{};
   std::vector<float> target_embedding_;
   float threshold_;
-  std::string input_name_;
-  std::string output_name_;
   std::mutex mutex_;
 };
 
@@ -266,35 +303,76 @@ EnhancerHolder* GetHolder(napi_env env, napi_value value) {
   return static_cast<EnhancerHolder*>(data);
 }
 
+napi_value LoadTargetSpeakerEnhancementModel(napi_env env, napi_callback_info info) {
+  try {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (argc < 1) {
+      throw std::runtime_error("loadTargetSpeakerEnhancementModel expects model bytes");
+    }
+    std::vector<uint8_t> model =
+        CopyTypedArray<uint8_t>(env, args[0], napi_uint8_array, "separatorModel");
+    std::lock_guard<std::mutex> lock(g_separator_model_mutex);
+    if (g_separator_model == nullptr) {
+      g_separator_model = std::make_shared<TargetSpeakerSeparator>(std::move(model));
+    }
+    napi_value value = nullptr;
+    napi_get_undefined(env, &value);
+    return value;
+  } catch (const std::exception& error) {
+    ThrowJsError(env, error.what());
+    return nullptr;
+  }
+}
+
+napi_value IsTargetSpeakerEnhancementModelLoaded(napi_env env, napi_callback_info) {
+  std::lock_guard<std::mutex> lock(g_separator_model_mutex);
+  napi_value value = nullptr;
+  napi_get_boolean(env, g_separator_model != nullptr, &value);
+  return value;
+}
+
+napi_value UnloadTargetSpeakerEnhancementModel(napi_env env, napi_callback_info) {
+  {
+    std::lock_guard<std::mutex> lock(g_separator_model_mutex);
+    // Active per-session enhancers retain a shared reference until their normal close/cancel path.
+    // New sessions after unload must load the formal asset again, matching the core model pool.
+    g_separator_model.reset();
+  }
+  napi_value value = nullptr;
+  napi_get_undefined(env, &value);
+  return value;
+}
+
 napi_value CreateEnhancer(napi_env env, napi_callback_info info) {
   try {
-    size_t argc = 5;
-    napi_value args[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+    size_t argc = 4;
+    napi_value args[4] = {nullptr, nullptr, nullptr, nullptr};
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-    if (argc < 4) {
+    if (argc < 3) {
       throw std::runtime_error(
-          "createTargetSpeakerEnhancer expects separatorModel, speakerModel, resourceManager, targetEmbedding");
+          "createTargetSpeakerEnhancer expects speakerModel, resourceManager, targetEmbedding");
     }
-    std::vector<uint8_t> separator =
-        CopyTypedArray<uint8_t>(env, args[0], napi_uint8_array, "separatorModel");
-    const std::string speaker_model = GetString(env, args[1], "speakerModel");
+    const std::string speaker_model = GetString(env, args[0], "speakerModel");
     NativeResourceManager* resource_manager =
-        OH_ResourceManager_InitNativeResourceManager(env, args[2]);
+        OH_ResourceManager_InitNativeResourceManager(env, args[1]);
     if (resource_manager == nullptr) throw std::runtime_error("invalid resourceManager");
     struct ResourceManagerGuard {
       NativeResourceManager* value;
       ~ResourceManagerGuard() { OH_ResourceManager_ReleaseNativeResourceManager(value); }
     } manager_guard{resource_manager};
     std::vector<float> target =
-        CopyTypedArray<float>(env, args[3], napi_float32_array, "targetEmbedding");
+        CopyTypedArray<float>(env, args[2], napi_float32_array, "targetEmbedding");
     double threshold = kDefaultThreshold;
-    if (argc >= 5 && args[4] != nullptr &&
-        napi_get_value_double(env, args[4], &threshold) != napi_ok) {
+    if (argc >= 4 && args[3] != nullptr &&
+        napi_get_value_double(env, args[3], &threshold) != napi_ok) {
       throw std::runtime_error("threshold must be a number");
     }
     auto holder = std::make_unique<EnhancerHolder>();
     holder->enhancer = std::make_shared<TargetSpeakerEnhancer>(
-        separator, speaker_model, resource_manager, std::move(target), static_cast<float>(threshold));
+        GetLoadedSeparatorModel(), speaker_model, resource_manager, std::move(target),
+        static_cast<float>(threshold));
     napi_value external = nullptr;
     napi_create_external(env, holder.get(), FinalizeEnhancer, nullptr, &external);
     holder.release();
@@ -414,6 +492,12 @@ napi_value CloseEnhancer(napi_env env, napi_callback_info info) {
 
 void RegisterTargetSpeakerEnhancer(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
+      {"loadTargetSpeakerEnhancementModel", nullptr, LoadTargetSpeakerEnhancementModel,
+       nullptr, nullptr, nullptr, napi_default, nullptr},
+      {"isTargetSpeakerEnhancementModelLoaded", nullptr, IsTargetSpeakerEnhancementModelLoaded,
+       nullptr, nullptr, nullptr, napi_default, nullptr},
+      {"unloadTargetSpeakerEnhancementModel", nullptr, UnloadTargetSpeakerEnhancementModel,
+       nullptr, nullptr, nullptr, napi_default, nullptr},
       {"createTargetSpeakerEnhancer", nullptr, CreateEnhancer, nullptr, nullptr, nullptr,
        napi_default, nullptr},
       {"processTargetSpeakerChunk", nullptr, ProcessChunk, nullptr, nullptr, nullptr,
