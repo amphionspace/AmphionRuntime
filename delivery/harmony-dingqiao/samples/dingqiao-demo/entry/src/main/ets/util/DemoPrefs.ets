@@ -4,6 +4,7 @@ const STORE_NAME = 'amphion_asr_demo';
 const KEY_VOICEPRINT_ID = 'voiceprint_id';
 const KEY_HOTWORDS = 'user_hotwords';
 const KEY_POLICE_ENHANCEMENT = 'police_enhancement';
+const KEY_TARGET_SPEAKER_ENHANCEMENT = 'target_speaker_enhancement';
 
 /**
  * Lightweight persistence for the demo: the registered voiceprint id and the user's custom hotwords.
@@ -45,6 +46,16 @@ export class DemoPrefs {
   static setPoliceEnhancementEnabled(context: Context, enabled: boolean): void {
     const store = DemoPrefs.store(context);
     store.putSync(KEY_POLICE_ENHANCEMENT, enabled);
+    store.flush();
+  }
+
+  static getTargetSpeakerEnhancementEnabled(context: Context): boolean {
+    return DemoPrefs.store(context).getSync(KEY_TARGET_SPEAKER_ENHANCEMENT, false) as boolean;
+  }
+
+  static setTargetSpeakerEnhancementEnabled(context: Context, enabled: boolean): void {
+    const store = DemoPrefs.store(context);
+    store.putSync(KEY_TARGET_SPEAKER_ENHANCEMENT, enabled);
     store.flush();
   }
 }

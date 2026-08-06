@@ -21,6 +21,12 @@ import { AudioRecorder, AudioRecorderStats } from '../util/AudioRecorder';
 import { PcmPlayer } from '../util/PcmPlayer';
 import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
+import { DemoSessionDebug } from '../util/DemoSessionDebug';
+import {
+  applySpeakerPipelineConfig,
+  captureSpeakerPipelineConfig,
+  SpeakerPipelineConfig
+} from '../util/SpeakerPipelineConfig';
 import { WavIo } from '../util/WavIo';
 
 const SESSION_MAX_AUDIO_MS = 60000;
@@ -35,19 +41,17 @@ const SDK_CAPTURE_EXPORT_META = '/data/storage/el2/base/files/last_sdk_input.jso
 const REPLAY_YIELD_EVERY_FRAMES = 50;
 // pre-roll 缓存上限:模型冷加载 ~0.5s,正常只缓存 ~25 帧;给 10s(500 帧)裕量防加载异常久时无界增长。
 const MAX_PREROLL_FRAMES = 500;
-const SPEAKER_VAD_THRESHOLD = 0.35;
-const SPEAKER_VAD_WINDOW_MS = 1500;
-const SPEAKER_VAD_HOP_MS = 500;
-const SPEAKER_VAD_CONSECUTIVE_BELOW = 2;
 const BRAND_ACCENT = '#2E6BE6';
 
 class FinalSegment {
   text: string;
   score?: number;
+  targetSpeakerEnhancementApplied: boolean;
 
-  constructor(text: string, score?: number) {
+  constructor(text: string, score?: number, targetSpeakerEnhancementApplied: boolean = false) {
     this.text = text;
     this.score = score;
+    this.targetSpeakerEnhancementApplied = targetSpeakerEnhancementApplied;
   }
 }
 
@@ -67,6 +71,7 @@ struct Index {
   @State voiceprintId: string = '';
   @State voiceprintVerifyDesired: boolean = false;
   @State speakerVadDesired: boolean = false;
+  @State targetSpeakerEnhancementDesired: boolean = false;
   @State policeEnhancementDesired: boolean = true;
   @State captureReady: boolean = false;
   @State captureInfo: string = '尚未保存 SDK 输入 PCM';
@@ -77,6 +82,9 @@ struct Index {
   @State liveCompareText: string = '';
   @State replayCompareText: string = '';
   @State compareInfo: string = '';
+  @State debugExpanded: boolean = false;
+  @State debugSummary: string = '尚未开始识别';
+  @State debugTrace: string = '';
 
   private engine?: SpeechRecognitionEngine;
   private recorder?: AudioRecorder;
@@ -116,12 +124,16 @@ struct Index {
   private capturedVoiceprintId: string = '';
   private capturedVoiceprintVerify: boolean = false;
   private capturedSpeakerVad: boolean = false;
+  private capturedTargetSpeakerEnhancement: boolean = false;
   private capturedPoliceEnhancement: boolean = true;
+  private capturedSpeakerPipeline: SpeakerPipelineConfig = new SpeakerPipelineConfig();
+  private sessionDebug: DemoSessionDebug = new DemoSessionDebug();
 
   aboutToAppear(): void {
     this.workPath = SpeechRecognizeSdk.getWorkPath();
-    this.policeEnhancementDesired = DemoPrefs.getPoliceEnhancementEnabled(
-      getContext(this) as common.UIAbilityContext);
+    const context = getContext(this) as common.UIAbilityContext;
+    this.policeEnhancementDesired = DemoPrefs.getPoliceEnhancementEnabled(context);
+    this.targetSpeakerEnhancementDesired = DemoPrefs.getTargetSpeakerEnhancementEnabled(context);
     this.initWithPermission();
   }
 
@@ -266,6 +278,8 @@ struct Index {
     this.peakVmRssMb = 0;
     this.logStartTiming('model_loaded(模型冷加载完成)');
     this.logMem('02_model_loaded(L2冷加载完_关prepack)');
+    this.debugRecord('engine_created', this.replaySessionId,
+      `replay=${this.replaying} preRollFrames=${this.preRoll.length}`);
     if (this.replaying) {
       this.loading = false;
       this.loadingHint = '';
@@ -280,6 +294,7 @@ struct Index {
     this.loading = false;
     this.engineReady = false;
     this.startPending = false;
+    this.debugRecord('engine_create_error', this.replaySessionId, `code=${errorCode} message=${message}`);
     if (this.replaying) {
       this.replaying = false;
       this.replaySessionId = '';
@@ -334,9 +349,23 @@ struct Index {
     const ctx = getContext(this) as common.UIAbilityContext;
     this.capturedHotwords = DemoPrefs.getUserHotwords(ctx);
     this.capturedVoiceprintId = DemoPrefs.getVoiceprintId(ctx);
-    this.capturedVoiceprintVerify = this.voiceprintVerifyDesired && this.capturedVoiceprintId.length > 0;
-    this.capturedSpeakerVad = this.speakerVadDesired && this.capturedVoiceprintId.length > 0;
+    this.capturedSpeakerPipeline = captureSpeakerPipelineConfig(
+      this.capturedVoiceprintId,
+      this.voiceprintVerifyDesired,
+      this.speakerVadDesired,
+      this.targetSpeakerEnhancementDesired);
+    this.capturedVoiceprintVerify = this.capturedSpeakerPipeline.voiceprintVerify;
+    this.capturedSpeakerVad = this.capturedSpeakerPipeline.speakerVad;
+    this.capturedTargetSpeakerEnhancement = this.capturedSpeakerPipeline.targetSpeakerEnhancement;
     this.capturedPoliceEnhancement = this.policeEnhancementDesired;
+    this.sessionDebug = new DemoSessionDebug(this.startTapMs);
+    this.sessionDebug.configure(
+      this.capturedVoiceprintId,
+      this.capturedVoiceprintVerify,
+      this.capturedSpeakerVad,
+      this.capturedTargetSpeakerEnhancement,
+      this.capturedPoliceEnhancement);
+    this.debugRecord('start_tap', '', `engineReady=${this.engine !== undefined}`);
     this.liveCompareText = '';
     this.liveHasCompleted = false;
     this.replayCompareText = '';
@@ -373,6 +402,8 @@ struct Index {
     }
     this.loading = false;
     this.status = '识别中…（再次点击结束）';
+    this.debugRecord('pre_roll_flushed', this.sessionId,
+      `frames=${buffered.length} dropped=${this.preRollDroppedFrames}`);
     this.logStartTiming(`session_ready(回灌 preRoll=${buffered.length} 帧, 丢=${this.preRollDroppedFrames})`);
   }
 
@@ -419,7 +450,8 @@ struct Index {
     const sid = `demo-${Date.now()}`;
     this.sessionId = sid;
     this.sessionAudioMs = 0;
-
+    this.debugRecord('startListening', sid,
+      `targetEnhancement=${this.capturedTargetSpeakerEnhancement} speakerVad=${this.capturedSpeakerVad}`);
     engine.startListening(this.buildCapturedStartParams(sid));
   }
 
@@ -428,19 +460,7 @@ struct Index {
     extra['enablePartialResult'] = true;
     extra['maxAudioDuration'] = SESSION_MAX_AUDIO_MS;
     extra['enablePoliceEnhancement'] = this.capturedPoliceEnhancement;
-    if (this.capturedVoiceprintVerify) {
-      extra['enableVoiceprintVerification'] = true;
-    }
-    if (this.capturedSpeakerVad) {
-      extra['enableSpeakerVad'] = true;
-      extra['speakerVadThreshold'] = SPEAKER_VAD_THRESHOLD;
-      extra['speakerVadWindowMs'] = SPEAKER_VAD_WINDOW_MS;
-      extra['speakerVadHopMs'] = SPEAKER_VAD_HOP_MS;
-      extra['speakerVadConsecutiveBelow'] = SPEAKER_VAD_CONSECUTIVE_BELOW;
-    }
-    if (this.capturedVoiceprintId.length > 0) {
-      extra['voiceprintIds'] = [this.capturedVoiceprintId];
-    }
+    applySpeakerPipelineConfig(extra, this.capturedSpeakerPipeline);
 
     const startParams = new StartParams();
     startParams.sessionId = sessionId;
@@ -460,6 +480,9 @@ struct Index {
       if (this.preRoll.length < MAX_PREROLL_FRAMES) {
         this.preRoll.push(frame);
       } else {
+        if (this.preRollDroppedFrames === 0) {
+          this.debugRecord('pre_roll_full', '', `limitFrames=${MAX_PREROLL_FRAMES}`);
+        }
         this.preRollDroppedFrames += 1;   // 加载异常久(>10s)才会到这;正常不会。
       }
       return;
@@ -476,12 +499,15 @@ struct Index {
       const sid = this.sessionId;
       this.sessionId = '';
       this.sessionAudioMs = 0;
+      this.debugRecord('finish_requested', sid, 'reason=session_rotation');
       this.engine?.finish(sid);
     } else {
       this.sessionAudioMs += FRAME_AUDIO_MS;
       // Copy before writeAudio: the public call can synchronously finish at max duration, so saving
       // afterwards could miss the final frame. This is the exact payload attempted at the SDK gate.
       this.captureSdkFrame(frame);
+      this.sessionDebug.addAudioFrame(frame.byteLength);
+      if (this.sessionAudioMs % 1000 === 0) this.refreshSessionDebugUi();
       this.engine?.writeAudio(this.sessionId, frame);
     }
   }
@@ -608,11 +634,16 @@ struct Index {
     meta['voiceprintId'] = this.capturedVoiceprintId;
     meta['voiceprintVerify'] = this.capturedVoiceprintVerify;
     meta['speakerVad'] = this.capturedSpeakerVad;
+    meta['enableTargetSpeakerEnhancement'] = this.capturedTargetSpeakerEnhancement;
+    meta['speakerVadInput'] = this.capturedTargetSpeakerEnhancement ?
+      'target-speaker-enhanced-pcm' : 'original-pcm';
     meta['policeEnhancement'] = this.capturedPoliceEnhancement;
     meta['liveText'] = this.liveCompareText;
     meta['replayText'] = this.replayCompareText;
     meta['comparison'] = !this.replayHasCompleted ? 'pending' :
       (this.liveCompareText === this.replayCompareText ? 'exact-match' : 'different');
+    meta['startExtraParams'] = this.buildCapturedStartParams('metadata-snapshot').extraParams;
+    meta['sessionDebug'] = this.sessionDebug.snapshot();
     const encoded = new util.TextEncoder().encodeInto(`${JSON.stringify(meta)}\n`);
     const data = new ArrayBuffer(encoded.byteLength);
     new Uint8Array(data).set(encoded);
@@ -666,6 +697,7 @@ struct Index {
     this.loading = true;
     this.loadingHint = '正在加载模型以原样复测上次 SDK PCM…';
     this.status = this.compareInfo;
+    this.debugRecord('replay_requested', '', `frames=${this.sdkCaptureFrames.length}`);
     SpeechRecognizeSdk.createEngineAsync(
       this.buildCreateEngineParams(this.capturedHotwords),
       new DemoCreateEngineCallback(this));
@@ -683,6 +715,7 @@ struct Index {
       this.replaySessionId = sid;
       this.compareInfo = `正在原样复测 ${pcm.byteLength / SDK_FRAME_BYTES} 帧…`;
       this.status = this.compareInfo;
+      this.debugRecord('replay_startListening', sid, `frames=${pcm.byteLength / SDK_FRAME_BYTES}`);
       engine.startListening(this.buildCapturedStartParams(sid));
       if (!engine.isBusy()) throw new Error('replay startListening failed');
       const frames = pcm.byteLength / SDK_FRAME_BYTES;
@@ -693,6 +726,8 @@ struct Index {
         if ((i + 1) % REPLAY_YIELD_EVERY_FRAMES === 0) await this.yieldReplayLoop();
       }
       if (!this.replaying || this.replaySessionId !== sid) return;
+      this.debugRecord('replay_audio_written', sid, `frames=${frames} bytes=${pcm.byteLength}`);
+      this.debugRecord('finish_requested', sid, 'reason=replay_complete');
       engine.finish(sid);
     } catch (e) {
       this.failSavedPcmReplay(`${e}`);
@@ -713,6 +748,7 @@ struct Index {
     this.replaySessionId = '';
     this.loading = false;
     this.compareInfo = `原样复测失败：${message}`;
+    this.debugRecord('replay_failed', sid, message);
     this.writeSdkCaptureMetadataBestEffort();
     this.releaseModel(this.compareInfo);
   }
@@ -720,6 +756,18 @@ struct Index {
   private logStartTiming(label: string): void {
     if (this.startTapMs <= 0) return;
     hilog.info(0x0000, 'StartTiming', 'sinceTapMs=%{public}d | %{public}s', Date.now() - this.startTapMs, label);
+  }
+
+  private debugRecord(stage: string, sessionId: string, detail: string): void {
+    this.sessionDebug.record(stage, sessionId, detail);
+    hilog.info(0x0000, 'DemoDebug',
+      'stage=%{public}s|sessionId=%{public}s|detail=%{public}s', stage, sessionId, detail);
+    this.refreshSessionDebugUi();
+  }
+
+  private refreshSessionDebugUi(): void {
+    this.debugSummary = this.sessionDebug.summary();
+    if (this.debugExpanded) this.debugTrace = this.sessionDebug.traceText();
   }
 
   private async stopListening(): Promise<void> {
@@ -747,6 +795,7 @@ struct Index {
       this.stoppingListening = false;
     }
     if (sid.length > 0) {
+      this.debugRecord('finish_requested', sid, 'reason=user_stop');
       this.engine?.finish(sid);
     } else if (this.startPending) {
       // 模型还没加载完就点了停止:没有 session 可 finish。标记取消,
@@ -754,6 +803,7 @@ struct Index {
       this.startPending = false;
       this.loading = false;
       this.status = '已取消（模型未加载完成）';
+      this.debugRecord('start_cancelled', '', 'model_not_ready');
     }
   }
 
@@ -764,11 +814,13 @@ struct Index {
     const recorder = new AudioRecorder(
       (samples: Int16Array): void => writer.accept(samples),
       (msg: string): void => {
+        const sid = this.sessionId;
         this.stopCapture();
         this.listening = false;
         this.sessionId = '';
         this.engineReady = this.engine !== undefined;
         this.status = `录音错误：${msg}`;
+        this.debugRecord('capture_error', sid, msg);
       }
     );
     this.recorder = recorder;
@@ -794,7 +846,8 @@ struct Index {
 
   // ---- listener bridge (called by DemoRecognitionListener) ----
 
-  handleStart(sessionId: string): void {
+  handleStart(sessionId: string, eventMessage: string): void {
+    this.debugRecord('onStart', sessionId, eventMessage);
     if (sessionId === this.replaySessionId) {
       this.status = '正在用上次 SDK PCM 原样复测…';
       return;
@@ -805,6 +858,22 @@ struct Index {
 
   handleResult(sessionId: string, result: SpeechRecognitionResult): void {
     this.trackPeak();
+    this.sessionDebug.addResult(
+      sessionId,
+      result.result,
+      result.isFinal,
+      result.isLast,
+      result.speakerSimilarity,
+      result.targetSpeakerEnhancementApplied === true);
+    if (result.isFinal || result.isLast) {
+      hilog.info(0x0000, 'DemoDebug',
+        'stage=result|sessionId=%{public}s|isFinal=%{public}s|isLast=%{public}s' +
+        '|similarity=%{public}s|targetEnhancementApplied=%{public}s|text=%{public}s',
+        sessionId, String(result.isFinal), String(result.isLast),
+        result.speakerSimilarity === undefined ? 'undefined' : result.speakerSimilarity.toFixed(4),
+        String(result.targetSpeakerEnhancementApplied === true), result.result);
+    }
+    this.refreshSessionDebugUi();
     if (result.isFinal) {
       if (sessionId === this.replaySessionId) {
         this.replayCompareText += result.result;
@@ -818,13 +887,15 @@ struct Index {
     }
   }
 
-  handleEvent(eventCode: number, message: string): void {
+  handleEvent(sessionId: string, eventCode: number, message: string): void {
+    this.debugRecord('onEvent', sessionId, `code=${eventCode} message=${message}`);
     if (eventCode === DingqiaoEventCode.SPEAKER_VAD_REJECTED) {
       this.status = '说话人 VAD：检测到非目标说话人，已截断';
     }
   }
 
-  handleComplete(sessionId: string): void {
+  handleComplete(sessionId: string, eventMessage: string): void {
+    this.debugRecord('onComplete', sessionId, eventMessage);
     if (sessionId === this.replaySessionId) {
       const matched = this.liveCompareText === this.replayCompareText;
       this.replayHasCompleted = true;
@@ -857,6 +928,7 @@ struct Index {
   }
 
   handleError(sessionId: string, errorCode: number, message: string): void {
+    this.debugRecord('onError', sessionId, `code=${errorCode} message=${message}`);
     if (sessionId === this.replaySessionId) {
       this.replaying = false;
       this.replaySessionId = '';
@@ -907,7 +979,10 @@ struct Index {
   private appendFinal(result: SpeechRecognitionResult): void {
     if (result.result.length === 0) return;
     const next = this.finalSegments.slice();
-    next.push(new FinalSegment(result.result, result.speakerSimilarity));
+    next.push(new FinalSegment(
+      result.result,
+      result.speakerSimilarity,
+      result.targetSpeakerEnhancementApplied === true));
     this.finalSegments = next;
   }
 
@@ -924,6 +999,10 @@ struct Index {
     if (this.voiceprintId.length === 0) {
       this.voiceprintVerifyDesired = false;
       this.speakerVadDesired = false;
+      this.targetSpeakerEnhancementDesired = false;
+      DemoPrefs.setTargetSpeakerEnhancementEnabled(ctx, false);
+    } else if (this.targetSpeakerEnhancementDesired) {
+      this.speakerVadDesired = true;
     }
   }
 
@@ -942,11 +1021,28 @@ struct Index {
       this.toast('请先注册声纹');
       return;
     }
-    this.speakerVadDesired = checked;
-    if (this.listening) {
-      this.engine?.setSpeakerVadEnabled(checked);
+    if (!checked && this.targetSpeakerEnhancementDesired) {
+      this.speakerVadDesired = true;
+      this.toast('目标说话人增强依赖 Speaker VAD，请先关闭增强');
+      return;
     }
+    this.speakerVadDesired = checked;
     this.toast(checked ? '说话人 VAD 已开启' : '说话人 VAD 已关闭');
+  }
+
+  private onTargetSpeakerEnhancementSwitch(checked: boolean): void {
+    if (checked && this.voiceprintId.length === 0) {
+      this.targetSpeakerEnhancementDesired = false;
+      this.toast('请先注册声纹');
+      return;
+    }
+    this.targetSpeakerEnhancementDesired = checked;
+    if (checked) this.speakerVadDesired = true;
+    DemoPrefs.setTargetSpeakerEnhancementEnabled(
+      getContext(this) as common.UIAbilityContext, checked);
+    this.toast(checked ?
+      '目标说话人增强已开启：增强音频将进入 Speaker VAD 和 ASR' :
+      '目标说话人增强已关闭：Speaker VAD 和 ASR 使用原始音频');
   }
 
   private onPoliceEnhancementSwitch(checked: boolean): void {
@@ -979,6 +1075,8 @@ struct Index {
     DemoPrefs.setVoiceprintId(ctx, '');
     this.voiceprintVerifyDesired = false;
     this.speakerVadDesired = false;
+    this.targetSpeakerEnhancementDesired = false;
+    DemoPrefs.setTargetSpeakerEnhancementEnabled(ctx, false);
     this.refreshVoiceprintUi();
     this.toast(`已删除声纹：${id}`);
   }
@@ -1031,8 +1129,23 @@ struct Index {
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
         Toggle({ type: ToggleType.Switch, isOn: this.speakerVadDesired })
-          .enabled(this.voiceprintId.length > 0 && !this.listening && !this.replaying)
+          .enabled(this.voiceprintId.length > 0 && !this.targetSpeakerEnhancementDesired &&
+            !this.listening && !this.replaying)
           .onChange((isOn: boolean): void => this.onSpeakerVadSwitch(isOn))
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Row() {
+        Column() {
+          Text('目标说话人增强').fontSize(15)
+          Text('开启后，增强音频进入 Speaker VAD 和 ASR；默认关闭').fontSize(12).fontColor(Color.Gray)
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        Toggle({ type: ToggleType.Switch, isOn: this.targetSpeakerEnhancementDesired })
+          .enabled(this.voiceprintId.length > 0 && !this.listening && !this.replaying)
+          .onChange((isOn: boolean): void => this.onTargetSpeakerEnhancementSwitch(isOn))
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
@@ -1079,6 +1192,9 @@ struct Index {
           }
           ForEach(this.finalSegments, (item: FinalSegment, index: number) => {
             Text() {
+              if (item.targetSpeakerEnhancementApplied) {
+                Span('[目标说话人增强已应用] ').fontColor('#16803A').fontWeight(FontWeight.Bold)
+              }
               if (item.score !== undefined) {
                 Span(`[声纹相似度 ${item.score.toFixed(2)}] `).fontColor(BRAND_ACCENT).fontWeight(FontWeight.Bold)
               }
@@ -1139,6 +1255,32 @@ struct Index {
         .borderRadius(8)
       }
 
+      Column({ space: 4 }) {
+        Row() {
+          Text('调试信息').fontSize(13).fontWeight(FontWeight.Medium).layoutWeight(1)
+          Button(this.debugExpanded ? '收起' : '展开')
+            .height(30)
+            .onClick((): void => {
+              this.debugExpanded = !this.debugExpanded;
+              this.refreshSessionDebugUi();
+            })
+        }
+        .width('100%')
+        Text(this.debugSummary).fontSize(11).fontColor(Color.Gray).width('100%').maxLines(3)
+        if (this.debugExpanded) {
+          Scroll() {
+            Text(this.debugTrace.length > 0 ? this.debugTrace : '暂无回调记录')
+              .fontSize(10).fontColor('#3B4555').width('100%')
+          }
+          .height(120)
+          .width('100%')
+        }
+      }
+      .width('100%')
+      .padding(8)
+      .backgroundColor('#F4F6F8')
+      .borderRadius(8)
+
       Button(this.replaying ? '正在原样复测…' : (this.listening ? '停止识别' : '开始识别'))
         .width('100%')
         .height(48)
@@ -1166,20 +1308,20 @@ class DemoRecognitionListener implements RecognitionListener {
     this.owner = owner;
   }
 
-  onStart(sessionId: string, _eventMessage: string): void {
-    this.owner.handleStart(sessionId);
+  onStart(sessionId: string, eventMessage: string): void {
+    this.owner.handleStart(sessionId, eventMessage);
   }
 
-  onEvent(_sessionId: string, eventCode: number, message: string): void {
-    this.owner.handleEvent(eventCode, message);
+  onEvent(sessionId: string, eventCode: number, message: string): void {
+    this.owner.handleEvent(sessionId, eventCode, message);
   }
 
   onResult(sessionId: string, result: SpeechRecognitionResult): void {
     this.owner.handleResult(sessionId, result);
   }
 
-  onComplete(sessionId: string, _eventMessage: string): void {
-    this.owner.handleComplete(sessionId);
+  onComplete(sessionId: string, eventMessage: string): void {
+    this.owner.handleComplete(sessionId, eventMessage);
   }
 
   onError(sessionId: string, errorCode: number, message: string): void {
