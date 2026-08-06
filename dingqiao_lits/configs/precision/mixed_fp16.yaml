@@ -1,0 +1,30 @@
+# @package precision_policy
+
+# Shared LITS precision policy for training and ONNX deployment.
+#
+# Lightning's 16-mixed mode is runtime autocast, so this file describes the
+# common target dtype and the explicit FP32 safety boundary used by export.
+# It is not intended to be a literal per-operator copy of PyTorch AMP.
+
+name: lits_16_mixed
+trainer_precision: 16-mixed
+autocast_dtype: float16
+parameter_dtype: float32
+
+onnx:
+  target: mixed_fp16_io_fp32
+  keep_io_types: true
+  force_fp16_initializers: true
+  # ORT's safe list plus numerically sensitive ops kept in FP32.
+  op_block_list:
+    - __default__
+    - Mul
+    - Add
+    - LayerNormalization
+    - Sin
+    - Softplus
+    - ConvTranspose
+
+validation:
+  compare_against: fp32_onnx
+  require_integer_outputs_equal: true

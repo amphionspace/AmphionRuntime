@@ -1,0 +1,29 @@
+_target_: lits.data.text_mel_datamodule.TextMelDataModule
+name: bn-en_24k
+train_filelist_path: data/filelists/dingqiao_bn-en_mix24k_training.txt
+valid_filelist_path: data/filelists/dingqiao_bn-en_mix24k_validation.txt
+
+batch_size: 24
+num_workers: 8
+pin_memory: True
+n_spks: 3
+
+# 24k pupuvocoder mel config
+# to fit 16k-24k latest pupuvocoder
+n_fft: 2048
+n_feats: 100
+sample_rate: 24000
+hop_length: 384 # prev: 320
+win_length: 1536 # prev: 1280
+f_min: 0
+f_max: 12000
+cleaners: [bn_en_mixed_cleaners]
+add_blank: False
+text_normalization: False
+
+# TODO: recompute with lits/utils/generate_data_statistics.py -i bn-en_22k
+data_statistics: # {'mel_mean': -5.26301383972168, 'mel_std': 2.482417345046997} 
+  mel_mean: -5.26301383972168
+  mel_std: 2.482417345046997
+seed: ${seed}
+load_durations: false

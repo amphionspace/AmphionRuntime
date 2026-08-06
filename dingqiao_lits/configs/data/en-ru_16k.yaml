@@ -1,0 +1,30 @@
+_target_: lits.data.text_mel_datamodule.TextMelDataModule
+name: en-ru_16k
+train_filelist_path: data/filelists/en-ru_mix16k_arpa_LJPlus_training.txt
+valid_filelist_path: data/filelists/en-ru_mix16k_arpa_LJPlus_validation.txt
+
+batch_size: 48
+num_workers: 16
+pin_memory: True
+n_spks: 2
+
+# aligned with AFNAS mix16k24k_zeropad vocoder sr16k branch (n_mel=87)
+# n_feats rounded to 88 (even) because sinusoidal positional encoding
+# requires even dim; trim last band at inference before vocoder
+n_fft: 1024
+n_feats: 88
+sample_rate: 16000
+hop_length: 256
+win_length: 1024
+f_min: 0
+f_max: 8000
+cleaners: [en_ru_mixed_cleaners]
+add_blank: False
+text_normalization: False
+
+# TODO: recompute with lits/utils/generate_data_statistics.py -i en-ru_16k
+data_statistics: # {'mel_mean': -5.377407550811768, 'mel_std': 2.205859899520874}
+  mel_mean: -5.377407550811768
+  mel_std: 2.205859899520874
+seed: ${seed}
+load_durations: false

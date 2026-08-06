@@ -1,0 +1,41 @@
+__pycache__/
+logs/
+infer_output/
+check_utils/
+evaluation/
+.jieba_cache/
+
+###
+data_for_test/
+run_eval.sh
+text2id_debug.sh
+debug_frontend/
+evaluation_tools/
+long_utterances.txt
+infer_ar-en.sh
+docs/
+e2e_infer/
+
+# main: ignore e2e_test
+e2e_test/
+# e2e inference runtime (TN binaries copied after build; separate from e2e_test/)
+e2e_infer/bin/
+docs/
+afnas_pupuvocoder_mix22050_24k_100band/
+preflight_filelist.py
+mock_test*/
+test_ar_diac_ambiguity/
+# and profiling results
+profile_output/
+profile_cpu_inference*
+monitor_decoder_kv_cache.py
+
+# June 22 update: use vocos instead of hifigan / pupuvocoder
+hifigan/
+afnas_pupuvocoder_*/
+tools/
+infer_hifigan*
+
+
+# make sure to ignore all transsion's data
+transsion*

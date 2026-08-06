@@ -2,6 +2,8 @@
 
 本文面向第一次拿到这份 HarmonyOS 工程的协作者，目标是从 0 构建出 HAR，并理解 `sample` 这个宿主 HAP 的用途。
 
+Dingqiao v3 当前源码、submodule、TN 原生文件和 HAR 编译的完整说明见 [BUILD_FROM_SOURCE.md](BUILD_FROM_SOURCE.md)。
+
 最终 SDK 产物：
 
 ```text
@@ -21,7 +23,7 @@ sample/build/default/outputs/default/sample-default-unsigned.hap
 1. 把完整模型包放到：
 
 ```text
-LitsTtsSdk\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0\
+LitsTtsSdk\tools\trial-export\dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0\
 ```
 
 2. 进入：
@@ -33,7 +35,7 @@ LitsTtsSdk\HarmonyOS\AmphionRuntime
 3. 运行宿主侧预检：
 
 ```powershell
-node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0 --out-dir .\verification\out --text "Hello world." --mode en-US
+node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-export\dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0 --out-dir .\verification\out --text "Hello world." --mode en-US
 ```
 
 4. 设置环境变量：
@@ -57,7 +59,7 @@ $env:JAVA_HOME="C:\Program Files\Huawei\DevEco Studio\jbr"
 - HarmonyOS SDK `6.0.2.130`
 - Node.js
 - Java 17
-- 完整模型包 `transsion_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0`
+- 完整模型包 `dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0`
 
 建议显式设置：
 
@@ -73,7 +75,7 @@ $env:JAVA_HOME="C:\Program Files\Huawei\DevEco Studio\jbr"
 把完整模型包放到：
 
 ```text
-LitsTtsSdk\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0\
+LitsTtsSdk\tools\trial-export\dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0\
 ```
 
 最少需要以下文件：
@@ -98,11 +100,9 @@ LitsTtsSdk\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_exte
 - `arpabet_to_tokens.json`
 - `tn-bin/arm64-v8a/zh_tts`
 - `tn-bin/arm64-v8a/en_tts`
-- `rules/zh.json`
-- `rules/en.json`
-- `rules/zh_pinyin.json`
 - `rules_v2/zh.full.json`
 - `rules_v2/en.full.json`
+- `rules_v2/zh_pinyin.json`
 
 注意：
 
@@ -110,14 +110,14 @@ LitsTtsSdk\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_exte
 - 不需要执行任何导出脚本
 - 不要把模型手工拷进 `sdk/` 或 `sample/`
 
-HarmonyOS SDK 会在构建阶段把 `tools/trial-export/...` 同步进 `sdk/src/main/resources/rawfile/...`，并在运行时默认使用 HAR 内置模型；如果宿主显式传入外部模型目录，则显式路径优先。
+HarmonyOS SDK 会在构建阶段把 `tts/tools/trial-export/...` 同步进 `sdk/src/main/resources/rawfile/...`，并从文本词典生成前端 `.bin` 文件；运行时默认使用 HAR 内置模型，如果宿主显式传入外部模型目录，则显式路径优先。
 
 ## 3. 宿主侧预检
 
 执行：
 
 ```powershell
-node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-export\transsion_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0 --out-dir .\verification\out --text "Hello world." --mode en-US
+node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-export\dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0 --out-dir .\verification\out --text "Hello world." --mode en-US
 ```
 
 这个脚本只做宿主侧预检，验证：

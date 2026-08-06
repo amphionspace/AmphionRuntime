@@ -17,8 +17,53 @@ internal object LitsTtsFrontend {
     private const val LOG_CHUNK_SIZE = 3200
     private val traceSequence = AtomicLong(0L)
     private val resourcesByRoot = ConcurrentHashMap<String, FrontendResources>()
+    private val wordPinyinBinByPath = ConcurrentHashMap<String, Map<String, String>>()
+    private val cmudictBinByPath = ConcurrentHashMap<String, Map<String, List<String>>>()
+    private val lastEncodeProfileByThread = ThreadLocal<FrontendEncodeProfile?>()
     private val pinyinSyllableRegex = Regex("^[a-z]+[0-6]$")
     private val hanziRegex = Regex("[\\u4e00-\\u9fff]")
+    private val polyphonicSurnamePinyin = mapOf(
+        '区' to "ou1",
+        '曾' to "zeng1",
+        '解' to "xie4",
+        '任' to "ren2",
+        '朴' to "piao2",
+        '薄' to "bo2",
+        '单' to "shan4",
+        '仇' to "qiu2",
+        '盖' to "ge3",
+        '查' to "zha1",
+        '乐' to "yue4",
+        '覃' to "qin2",
+        '尉' to "yu4",
+        '卜' to "bu3",
+        '车' to "ju1",
+        '石' to "dan4",
+        '华' to "hua4",
+        '燕' to "yan1",
+        '殷' to "yin1",
+        '柏' to "bo2",
+        '秘' to "bi4",
+        '翟' to "zhai2",
+        '长' to "zhang3",
+        '纪' to "ji3",
+    )
+    private val surnameTitleSuffixes = listOf(
+        "老师",
+        "先生",
+        "女士",
+        "经理",
+        "主任",
+        "书记",
+        "医生",
+        "同学",
+        "教授",
+        "师傅",
+        "老板",
+    )
+    private val surnameTitlePinyinOverrides = mapOf(
+        "先生" to listOf("xian1", "sheng1"),
+    )
     private val punctuation = setOf(',', '.', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '<', '>', '-')
     private val sentenceEndPunctuation = setOf('.', '!', '?', ';', ',', '\u2026')
     private val attachedSentenceSuffix = setOf('"', '\'', ')', ']', '}', '>', '\u201D', '\u2019', '\u300B', '\u3011')
@@ -137,18 +182,22 @@ internal object LitsTtsFrontend {
         '\u2715' to ",",
         '\u2716' to ",",
     )
-    private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)[%％]")
+    private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?[%％]")
+    private val percentNumberTextRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?百分号")
     private val commaIntegerCurrencyRegex = Regex("(?<!\\d)(\\d{1,3}(?:,\\d{3})+)\\.00(?=元)")
     private val thousandsSeparatorRegex = Regex("(?<=\\d),(?=\\d{3}(?:\\D|$))")
-    private val clockMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2})点0([1-9])分")
-    private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点0([1-9])分")
+    private val clockColonMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2}):0([0-9])(?!\\d)")
+    private val clockMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2})点\\s?0([1-9])分")
+    private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点\\s?0([1-9])分")
     private val durationMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d+)小时0([1-9])分钟")
+    private val yearBeforeNianRegex = Regex("(?<!\\d)(\\d{4})\\s*年")
     private val yearMonthLeadingZeroRegex = Regex("(\\d{2,4}年)0([1-9])月")
     private val yearMonthRegex = Regex("(\\d{2,4}年)(\\d{1,2})月")
     private val monthDayLeadingZeroRegex = Regex("(月)0([1-9])日")
     private val monthDayRegex = Regex("(月)(\\d{1,2})(日|号)")
-    private val negativeTemperatureRegex = Regex("((?:气温|温度|体温))-(\\d+(?:\\.\\d+)?)(度|℃)")
-    private val negativeTemperatureRangeRegex = Regex("(温度范围是)-(\\d+(?:\\.\\d+)?)到(\\d+(?:\\.\\d+)?)(度|℃)")
+    private val negativeTemperatureRegex = Regex("((?:气温|温度|体温))\\s?-\\s?(\\d+(?:\\.\\d+)?)\\s?(度|℃)")
+    private val negativeTemperatureRangeRegex = Regex("(温度范围是)\\s?-\\s?(\\d+(?:\\.\\d+)?)\\s?到\\s?(\\d+(?:\\.\\d+)?)\\s?(度|℃)")
+    private val semanticVersionRegex = Regex("(?<![A-Za-z0-9])([vV])(\\d+(?:\\.\\d+)+)(?![A-Za-z0-9])")
     private val versionNumberWithSuffixRegex = Regex("(?<!\\d)(\\d+(?:\\.\\d+){2,})(?=[-A-Za-z])")
     private val digitDotRegex = Regex("(?<=\\d)\\.(?=\\d)")
     private val hanziDigitDotRegex = Regex("(?<=[零一二三四五六七八九十百千万两])\\.(?=[零一二三四五六七八九十百千万两])")
@@ -156,11 +205,22 @@ internal object LitsTtsFrontend {
     private val urlSchemeSeparatorRegex = Regex("(?<![A-Za-z0-9])(https?|ftp)://", RegexOption.IGNORE_CASE)
     private val caretPowerTwoRegex = Regex("\\^(?:2|二)")
     private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])([A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
+    private val technicalSymbolChars = setOf('.', '/', '\\', '_', '@', ':', '?', '=', '&', '#', '%', '+', '-')
     private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
+    private val roomNumberRegex = Regex("((?:房间|房号)(?:是|为)?\\s*)(\\d{3,4})(?!\\d)")
+    private val stockCodeRegex = Regex("(股票\\s*)(\\d{6})(?!\\d)")
+    private val plateCodeRegex = Regex("((?:车牌号?|号牌)\\s*[\\u4e00-\\u9fff]?\\s*[A-Za-z])(\\d{3,6})(?!\\d)")
+    private val idTailRegex = Regex("((?:身份证尾号|尾号)\\s*)(\\d+)([A-Za-z])(?![A-Za-z0-9])")
+    private val slashDelimitedNumberRegex = Regex("(斜杠)(\\d+)(?=斜杠)")
+    private val kmPerHourRegex = Regex("(\\d+)\\s*km斜杠h", RegexOption.IGNORE_CASE)
+    private val coordinateRegex = Regex("(?<![A-Za-z])([NE])\\s*(\\d+(?:\\.\\d+)?)", RegexOption.IGNORE_CASE)
     private val vinCodeRegex = Regex("((?:车架号\\s*)?(?:VIN\\s+))([A-HJ-NPR-Z0-9]{8,17})(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
     private val productCodeRegex = Regex("(?<![A-Za-z0-9])(vocos|Office)(\\d+)(k?)(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
     private val arpabetBoundaryTokens = setOf("/", "|", "_")
     private const val CHINESE_DIGIT_SEQUENCE_CHARS = "零〇一二三四五六七八九两幺"
+    private const val CHINESE_NUMBER_CONTEXT_CHARS = "零〇一二三四五六七八九十百千万亿两点负"
+    private const val CHINESE_DIGIT_ONLY_CHARS = "零〇一二三四五六七八九两"
+    private const val CHINESE_MULTIPLIER_CHARS = "十百千万亿"
     private val technicalSymbolReadings = mapOf(
         '.' to "点",
         ':' to "冒号",
@@ -170,7 +230,7 @@ internal object LitsTtsFrontend {
         '=' to "等于",
         '&' to "和",
         '@' to "艾特",
-        '_' to "下划线",
+        '_' to " UNDERSCORE ",
         '#' to "井号",
         '+' to "加",
         '-' to "杠",
@@ -227,7 +287,25 @@ internal object LitsTtsFrontend {
         'Y' to listOf("W", "AY1"),
         'Z' to listOf("Z", "IY1"),
     )
-    private val acronymWordReadings = setOf("SIM")
+    private val acronymWordReadings = setOf("SIM", "TIMEOUT", "UNDERSCORE")
+    private val technicalEnglishPhoneOverrides = mapOf(
+        "AUDIO" to listOf("AO1", "D", "IY0", "OW2"),
+        "UNDERSCORE" to listOf("AH2", "N", "D", "ER0", "S", "K", "AO1", "R"),
+        "WIFI" to listOf("W", "AY1", "F", "AY1"),
+        "WI-FI" to listOf("W", "AY1", "F", "AY1"),
+        "TIMEOUT" to listOf("T", "AY1", "M", "AW1", "T"),
+        "ONE" to listOf("W", "AH1", "N"),
+        "TWO" to listOf("T", "UW1"),
+        "THREE" to listOf("TH", "R", "IY1"),
+        "FOUR" to listOf("F", "AO1", "R"),
+        "FIVE" to listOf("F", "AY1", "V"),
+        "SIX" to listOf("S", "IH1", "K", "S"),
+        "NINE" to listOf("N", "AY1", "N"),
+        "TWENTY" to listOf("T", "W", "EH1", "N", "T", "IY0"),
+        "THIRTY" to listOf("TH", "ER1", "D", "IY2"),
+        "FORTY" to listOf("F", "AO1", "R", "T", "IY0"),
+        "FIFTY" to listOf("F", "IH1", "F", "T", "IY0"),
+    )
     private val englishMergeRules = listOf(
         listOf("t", "\u0279") to "t\u0279",
         listOf("d", "\u0279") to "d\u0279",
@@ -244,7 +322,11 @@ internal object LitsTtsFrontend {
         languageContext: String,
     ): LongArray {
         val traceId = nextTraceId()
-        val normalizedText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        val totalStartedAt = System.nanoTime()
+        val tnStartedAt = System.nanoTime()
+        val normalizedText = LitsTnNormalizer.normalize(layout, text, language, languageContext)
+        val tnMs = elapsedMs(tnStartedAt)
+        val tnProfile = LitsTnNormalizer.lastProfileSummary()
         return encodeNormalizedInternal(
             layout = layout,
             rawText = text,
@@ -253,6 +335,9 @@ internal object LitsTtsFrontend {
             languageContext = languageContext,
             alreadyNormalized = false,
             traceId = traceId,
+            totalStartedAt = totalStartedAt,
+            tnMs = tnMs,
+            tnProfile = tnProfile,
         )
     }
 
@@ -270,6 +355,9 @@ internal object LitsTtsFrontend {
             languageContext = languageContext,
             alreadyNormalized = true,
             traceId = nextTraceId(),
+            totalStartedAt = System.nanoTime(),
+            tnMs = 0L,
+            tnProfile = null,
         )
     }
 
@@ -281,13 +369,32 @@ internal object LitsTtsFrontend {
         languageContext: String,
         alreadyNormalized: Boolean,
         traceId: Long,
+        totalStartedAt: Long,
+        tnMs: Long,
+        tnProfile: String?,
     ): LongArray {
+        val resourcesStartedAt = System.nanoTime()
         val resources = resources(layout)
+        val resourcesMs = elapsedMs(resourcesStartedAt)
+        val tokenizeStartedAt = System.nanoTime()
         val tokenization = tokenizeDetailed(resources, normalizedText, language, languageContext, traceId)
+        val tokenizeMs = elapsedMs(tokenizeStartedAt)
+        val tokenToIdsStartedAt = System.nanoTime()
         val ids = tokenization.tokens.map { token ->
             resources.symbolToId[token] ?: throw unsupported("frontend token is not in zh_en_symbols.json: $token")
         }
         val tokenIds = ids.map { it.toLong() }.toLongArray()
+        val tokenToIdsMs = elapsedMs(tokenToIdsStartedAt)
+        val profile = FrontendEncodeProfile(
+            totalMs = elapsedMs(totalStartedAt),
+            tnMs = tnMs,
+            resourcesMs = resourcesMs,
+            tokenizeMs = tokenizeMs,
+            tokenToIdsMs = tokenToIdsMs,
+            tokenizeProfile = tokenization.profile,
+            tnProfile = tnProfile,
+        )
+        lastEncodeProfileByThread.set(profile)
         logFrontendMetric(
             traceId = traceId,
             rawText = rawText,
@@ -301,6 +408,9 @@ internal object LitsTtsFrontend {
         return tokenIds
     }
 
+    fun lastEncodeProfileSummary(): String? =
+        lastEncodeProfileByThread.get()?.toSummary()
+
     internal fun debugTokensForTest(
         layout: LitsTtsAssetInstaller.InstalledLayout,
         text: String,
@@ -308,7 +418,7 @@ internal object LitsTtsFrontend {
         languageContext: String,
     ): List<String> {
         val resources = resources(layout)
-        val normalizedText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        val normalizedText = LitsTnNormalizer.normalize(layout, text, language, languageContext)
         return tokenize(resources, normalizedText, language, languageContext)
     }
 
@@ -326,12 +436,79 @@ internal object LitsTtsFrontend {
         resources(layout)
     }
 
+    internal fun preloadLargeBinaryLexicons(layout: LitsTtsAssetInstaller.InstalledLayout): LargeBinaryLexiconPreloadResult {
+        val startedAt = System.nanoTime()
+        val wordPinyinStartedAt = System.nanoTime()
+        val wordPinyinEntries = if (layout.chineseLexiconBin.isFile) {
+            cachedWordPinyinBin(layout.chineseLexiconBin).size
+        } else {
+            0
+        }
+        val wordPinyinMs = elapsedMs(wordPinyinStartedAt)
+
+        val cmudictStartedAt = System.nanoTime()
+        val cmudictEntries = if (layout.cmudictBin.isFile) {
+            cachedCmudictBin(layout.cmudictBin).size
+        } else {
+            0
+        }
+        val cmudictMs = elapsedMs(cmudictStartedAt)
+        return LargeBinaryLexiconPreloadResult(
+            totalMs = elapsedMs(startedAt),
+            wordPinyinMs = wordPinyinMs,
+            wordPinyinEntries = wordPinyinEntries,
+            cmudictMs = cmudictMs,
+            cmudictEntries = cmudictEntries,
+        )
+    }
+
     private data class TokenizationResult(
         val inputText: String,
         val preprocessedText: String,
         val normalizedText: String,
         val tokens: List<String>,
+        val profile: TokenizeProfile,
     )
+
+    private data class FrontendEncodeProfile(
+        val totalMs: Long,
+        val tnMs: Long,
+        val resourcesMs: Long,
+        val tokenizeMs: Long,
+        val tokenToIdsMs: Long,
+        val tokenizeProfile: TokenizeProfile,
+        val tnProfile: String?,
+    ) {
+        fun toSummary(): String = buildString {
+            append("total=").append(totalMs).append("ms")
+            append(",tn=").append(tnMs).append("ms")
+            append(",resources=").append(resourcesMs).append("ms")
+            append(",tokenize=").append(tokenizeMs).append("ms")
+            append(",tokenToIds=").append(tokenToIdsMs).append("ms")
+            tnProfile?.let {
+                append(",tnProfile=[").append(it).append("]")
+            }
+            append(",tokenizeBreakdown=").append(tokenizeProfile.toSummary())
+        }
+    }
+
+    private data class TokenizeProfile(
+        val arpabetProbeMs: Long = 0L,
+        val preprocessMs: Long = 0L,
+        val normalizeTextMs: Long = 0L,
+        val technicalNormalizeMs: Long = 0L,
+        val tokenLoopMs: Long = 0L,
+        val trimMs: Long = 0L,
+    ) {
+        fun toSummary(): String = buildString {
+            append("arpabetProbe=").append(arpabetProbeMs).append("ms")
+            append(",preprocess=").append(preprocessMs).append("ms")
+            append(",normalizeText=").append(normalizeTextMs).append("ms")
+            append(",technicalNormalize=").append(technicalNormalizeMs).append("ms")
+            append(",tokenLoop=").append(tokenLoopMs).append("ms")
+            append(",trim=").append(trimMs).append("ms")
+        }
+    }
 
     private fun nextTraceId(): Long = traceSequence.incrementAndGet()
 
@@ -397,7 +574,7 @@ internal object LitsTtsFrontend {
         languageContext: String = "zh-en",
         wordsPerSegment: Int = 7,
     ): List<String> {
-        val tnText = TranssionTnNormalizer.normalize(layout, text, language, languageContext)
+        val tnText = LitsTnNormalizer.normalize(layout, text, language, languageContext)
         val normalized = normalizeText(preprocessZhMixedInput(tnText), languageContext).trim()
         if (normalized.isEmpty()) return emptyList()
         val segments = mutableListOf<String>()
@@ -434,6 +611,68 @@ internal object LitsTtsFrontend {
         flushSegment(segments, current)
         return segments.ifEmpty { listOf(normalized) }
     }
+
+    fun splitRawForStreaming(
+        text: String,
+        wordsPerSegment: Int = 7,
+        maxCharsPerSegment: Int = 50,
+    ): List<String> {
+        val normalized = text.trim()
+        if (normalized.isEmpty()) return emptyList()
+        val segmentLimit = maxCharsPerSegment.coerceAtLeast(1)
+        val segments = mutableListOf<String>()
+        val current = StringBuilder()
+        var index = 0
+        fun flushCurrentSegment() {
+            flushSegment(segments, current)
+        }
+        while (index < normalized.length) {
+            val char = normalized[index]
+            if (char.isWhitespace()) {
+                if (current.isNotEmpty() && current.last() != ' ') current.append(' ')
+                index += 1
+                continue
+            }
+            current.append(char)
+            if (shouldSplitRawAfterPunctuation(normalized, index, current, wordsPerSegment)) {
+                while (index + 1 < normalized.length && isAttachedSentenceSuffix(normalized[index + 1])) {
+                    index += 1
+                    current.append(normalized[index])
+                }
+                flushCurrentSegment()
+            } else if (current.length >= segmentLimit) {
+                flushCurrentSegment()
+            }
+            index += 1
+        }
+        flushSegment(segments, current)
+        return segments.ifEmpty { listOf(normalized) }
+    }
+
+    private fun shouldSplitRawAfterPunctuation(
+        text: String,
+        index: Int,
+        current: StringBuilder,
+        minWordsForWeakSplit: Int,
+    ): Boolean {
+        val char = text[index]
+        if (!isRawSentenceEndPunctuation(char)) return false
+        if (isPunctuationInsideTechnicalToken(text, index)) return false
+        if (wouldCreateShortSymbolSegment(current)) return false
+        if ((char == ',' || char == '\uFF0C' || char == '\u3001') &&
+            !shouldSplitAfterWeakComma(text, index, current, minWordsForWeakSplit)
+        ) {
+            return false
+        }
+        if ((char == '.' || char == '\u3002') && !shouldSplitAfterPeriod(text, index)) return false
+        return true
+    }
+
+    private fun isRawSentenceEndPunctuation(char: Char): Boolean =
+        char == '.' || char == '!' || char == '?' || char == ';' || char == ',' ||
+            char == '\u3002' || char == '\uFF01' || char == '\uFF1F' ||
+            char == '\uFF1B' || char == '\uFF0C' || char == '\u3001' ||
+            char == '\u2026'
 
     private fun shouldSplitAfterPunctuation(
         text: String,
@@ -600,17 +839,29 @@ internal object LitsTtsFrontend {
         languageContext: String,
         traceId: Long,
     ): TokenizationResult {
+        val arpabetProbeStartedAt = System.nanoTime()
         tokenizeArpabetInput(resources, text, traceId)?.let {
             return TokenizationResult(
                 inputText = text,
                 preprocessedText = text,
                 normalizedText = text,
                 tokens = it,
+                profile = TokenizeProfile(arpabetProbeMs = elapsedMs(arpabetProbeStartedAt)),
             )
         }
+        val arpabetProbeMs = elapsedMs(arpabetProbeStartedAt)
+        val preprocessStartedAt = System.nanoTime()
         val preprocessed = resources.frontendRules.apply("pre_frontend", preprocessZhMixedInput(text))
+        val preprocessMs = elapsedMs(preprocessStartedAt)
+        val normalizeTextStartedAt = System.nanoTime()
         val normalizedText = normalizeText(preprocessed, languageContext)
-        val normalized = normalizeTechnicalText(resources, normalizedText, languageContext).trim()
+        val normalizeTextMs = elapsedMs(normalizeTextStartedAt)
+        val technicalNormalizeStartedAt = System.nanoTime()
+        val normalizedWithWhitespace = normalizeTechnicalText(resources, normalizedText, languageContext)
+        val technicalNormalizeMs = elapsedMs(technicalNormalizeStartedAt)
+        val trimStartedAt = System.nanoTime()
+        val normalized = normalizedWithWhitespace.trim()
+        val trimMs = elapsedMs(trimStartedAt)
         if (normalized.isEmpty()) {
             throw unsupported("text must not be empty after trim")
         }
@@ -625,6 +876,7 @@ internal object LitsTtsFrontend {
         }
         val output = mutableListOf<String>()
         var index = 0
+        val tokenLoopStartedAt = System.nanoTime()
         while (index < normalized.length) {
             val char = normalized[index]
             if (languageContext == "zh-en" && isAsciiAlnum(char)) {
@@ -764,6 +1016,7 @@ internal object LitsTtsFrontend {
                 }
             }
         }
+        val tokenLoopMs = elapsedMs(tokenLoopStartedAt)
         while (output.lastOrNull() == "_") {
             output.removeAt(output.lastIndex)
         }
@@ -772,6 +1025,14 @@ internal object LitsTtsFrontend {
             preprocessedText = preprocessed,
             normalizedText = normalized,
             tokens = output,
+            profile = TokenizeProfile(
+                arpabetProbeMs = arpabetProbeMs,
+                preprocessMs = preprocessMs,
+                normalizeTextMs = normalizeTextMs,
+                technicalNormalizeMs = technicalNormalizeMs,
+                tokenLoopMs = tokenLoopMs,
+                trimMs = trimMs,
+            ),
         )
     }
 
@@ -880,10 +1141,16 @@ internal object LitsTtsFrontend {
         normalized = percentNumberRegex.replace(normalized) { match ->
             "百分之${numberTextToHanzi(match.groupValues[1])}"
         }
+        normalized = percentNumberTextRegex.replace(normalized) { match ->
+            "百分之${numberTextToHanzi(match.groupValues[1])}"
+        }
+        normalized = semanticVersionRegex.replace(normalized) { match ->
+            match.groupValues[1] + versionNumberToHanzi(match.groupValues[2])
+        }
         normalized = normalized.replace(Regex("\\b(?:dot|point)\\b", RegexOption.IGNORE_CASE), "点")
-        normalized = normalized.replace(Regex("\\bunderscore\\b", RegexOption.IGNORE_CASE), "下划线")
+        normalized = normalized.replace(Regex("\\bunderscore\\b"), "下划线")
         normalized = versionNumberWithSuffixRegex.replace(normalized) { match ->
-            match.value.split('.').joinToString("点", transform = ::numberTextToHanzi)
+            versionNumberToHanzi(match.value)
         }
         normalized = digitDotRegex.replace(normalized, "点")
         normalized = hanziDigitDotRegex.replace(normalized, "点")
@@ -898,11 +1165,7 @@ internal object LitsTtsFrontend {
             if (looksLikeIpv6(token) || token.none { it in technicalSymbolReadings }) {
                 token
             } else {
-                buildString {
-                    token.forEach { char ->
-                        append(technicalSymbolReadings[char] ?: char)
-                    }
-                }
+                normalizeTechnicalAsciiTokenForFrontend(token)
             }
         }
         return normalizeResidualSymbols(normalized, languageContext)
@@ -948,11 +1211,40 @@ internal object LitsTtsFrontend {
             compactIntegerCurrencyWithCommas(match.groupValues[1])
         }
         normalized = thousandsSeparatorRegex.replace(normalized, "")
+        normalized = coordinateRegex.replace(normalized) { match ->
+            val prefix = when (match.groupValues[1].uppercase()) {
+                "N" -> "北纬"
+                "E" -> "东经"
+                else -> match.groupValues[1]
+            }
+            prefix + numberTextToHanzi(match.groupValues[2])
+        }
+        normalized = stockCodeRegex.replace(normalized) { match ->
+            match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2])
+        }
+        normalized = roomNumberRegex.replace(normalized) { match ->
+            match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2])
+        }
+        normalized = plateCodeRegex.replace(normalized) { match ->
+            match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + ","
+        }
+        normalized = idTailRegex.replace(normalized) { match ->
+            match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + match.groupValues[3] + ","
+        }
+        normalized = slashDelimitedNumberRegex.replace(normalized) { match ->
+            match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + ","
+        }
+        normalized = kmPerHourRegex.replace(normalized) { match ->
+            numberTextToHanzi(match.groupValues[1]) + "千米每小时"
+        }
         normalized = negativeTemperatureRangeRegex.replace(normalized) { match ->
             "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}到${numberTextToHanzi(match.groupValues[3])}${match.groupValues[4]}"
         }
         normalized = negativeTemperatureRegex.replace(normalized) { match ->
             "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
+        }
+        normalized = clockColonMinuteLeadingZeroRegex.replace(normalized) { match ->
+            "${numberTextToHanzi(match.groupValues[1])}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}"
         }
         normalized = clockMinuteLeadingZeroRegex.replace(normalized) { match ->
             "${numberTextToHanzi(match.groupValues[1])}点零${numberTextToHanzi(match.groupValues[2])}分"
@@ -962,6 +1254,9 @@ internal object LitsTtsFrontend {
         }
         normalized = durationMinuteLeadingZeroRegex.replace(normalized) { match ->
             "${numberTextToHanzi(match.groupValues[1])}小时零${numberTextToHanzi(match.groupValues[2])}分钟"
+        }
+        normalized = yearBeforeNianRegex.replace(normalized) { match ->
+            digitSequenceToHanzi(match.groupValues[1]) + "年"
         }
         normalized = yearMonthLeadingZeroRegex.replace(normalized) { match ->
             "${match.groupValues[1]}零${numberTextToHanzi(match.groupValues[2])}月"
@@ -993,6 +1288,42 @@ internal object LitsTtsFrontend {
         }
     }
 
+    private fun normalizeTechnicalAsciiTokenForFrontend(token: String): String {
+        val output = StringBuilder(token.length)
+        var index = 0
+        while (index < token.length) {
+            val char = token[index]
+            when {
+                char.isDigit() -> {
+                    val start = index
+                    while (index < token.length && token[index].isDigit()) {
+                        index += 1
+                    }
+                    output.append(digitSequenceToHanzi(token.substring(start, index)))
+                    if (index < token.length && (token[index] in technicalSymbolChars || isEnglishLetter(token[index]))) {
+                        output.append(",")
+                    }
+                }
+                isEnglishLetter(char) -> {
+                    val start = index
+                    while (index < token.length && isEnglishLetter(token[index])) {
+                        index += 1
+                    }
+                    val word = token.substring(start, index)
+                    output.append(if (word.equals("lits", ignoreCase = true)) "LITS" else word)
+                }
+                char == '@' -> output.append(" at ")
+                char == '_' -> output.append(" UNDERSCORE ")
+                char == '/' || char == '\\' -> output.append("斜杠")
+                else -> output.append(technicalSymbolReadings[char] ?: char)
+            }
+            if (!char.isDigit() && !isEnglishLetter(char)) {
+                index += 1
+            }
+        }
+        return output.toString().replace(Regex("\\s+"), " ")
+    }
+
     private fun compactIntegerCurrencyWithCommas(text: String): String {
         val value = text.replace(",", "").toLongOrNull() ?: return text.replace(",", "")
         return when {
@@ -1011,6 +1342,12 @@ internal object LitsTtsFrontend {
         if (parts.size == 1) return integer
         return integer + "点" + parts[1].map { chineseDigitTextByChar.getValue(it) }.joinToString("")
     }
+
+    private fun digitSequenceToHanzi(text: String): String =
+        text.map { chineseDigitTextByChar.getValue(it) }.joinToString("")
+
+    private fun versionNumberToHanzi(text: String): String =
+        text.split('.').joinToString("点", transform = ::digitSequenceToHanzi)
 
     private fun integerTextToHanzi(text: String): String {
         val value = text.toIntOrNull() ?: return text.map { chineseDigitTextByChar.getValue(it) }.joinToString("")
@@ -1063,11 +1400,25 @@ internal object LitsTtsFrontend {
         val output = mutableListOf<String>()
         var index = 0
         while (index < text.length) {
+            val surnameTitle = surnameTitlePinyin(resources, text, index)
+            if (surnameTitle != null) {
+                output += surnameTitle.pinyin
+                index += surnameTitle.length
+                continue
+            }
             val word = longestWord(resources, text, index)
             output += lexiconPinyinForWord(resources, word)
             index += word.length
         }
         return output
+    }
+
+    private fun surnameTitlePinyin(resources: FrontendResources, text: String, start: Int): SurnameTitleMatch? {
+        val surnamePinyin = polyphonicSurnamePinyin[text.getOrNull(start)] ?: return null
+        val title = surnameTitleSuffixes.firstOrNull { text.startsWith(it, start + 1) } ?: return null
+        val titlePinyin = surnameTitlePinyinOverrides[title] ?: lexiconPinyinForWord(resources, title)
+        if (titlePinyin.size != title.length || titlePinyin.any { !pinyinSyllableRegex.matches(it) }) return null
+        return SurnameTitleMatch(length = 1 + title.length, pinyin = listOf(surnamePinyin) + titlePinyin)
     }
 
     private fun longestWord(resources: FrontendResources, text: String, start: Int): String {
@@ -1172,12 +1523,6 @@ internal object LitsTtsFrontend {
             tokens[1] = changePinyinTone(tokens[1], '5')
             return
         }
-        if (text.startsWith("第一") && tokens.size > 1) {
-            tokens[1] = changePinyinTone(tokens[1], '1')
-        }
-        if (text.startsWith("一月") || text.startsWith("一日") || text.startsWith("一号")) {
-            tokens[0] = changePinyinTone(tokens[0], '1')
-        }
         text.forEachIndexed { index, char ->
             if (char != '一' || index + 1 >= text.length || text.getOrNull(index - 1) == '第') return@forEachIndexed
             val current = tokens.getOrNull(index)
@@ -1185,7 +1530,22 @@ internal object LitsTtsFrontend {
             if (current == null || next == null || !pinyinSyllableRegex.matches(current) || !pinyinSyllableRegex.matches(next)) {
                 return@forEachIndexed
             }
-            tokens[index] = changePinyinTone(current, if (next.last() == '4') '2' else '4')
+            // Modern-Mandarin 一 sandhi. 一 takes sandhi (yì/yí) as a leading number
+            // word (一百/一十/一千, 一天/一个/一样) and stays yī otherwise: in a digit
+            // sequence (一二三), as a date label (一月/一日/一号), an arithmetic operand
+            // (1+2), or a trailing units digit (八十一号).
+            val nx = text[index + 1]
+            val prev = text.getOrNull(index - 1)
+            val sandhi = if (next.last() == '4') '2' else '4'
+            val tone = when {
+                nx in CHINESE_MULTIPLIER_CHARS -> sandhi              // 一百/一十/一千/一万
+                nx == '月' || nx == '日' || nx == '号' -> '1'          // date label
+                nx in CHINESE_DIGIT_ONLY_CHARS -> '1'                 // digit sequence 一二三
+                nx == '加' || nx == '减' || nx == '乘' || nx == '除' -> '1' // arithmetic operand
+                prev != null && prev in CHINESE_NUMBER_CONTEXT_CHARS -> '1' // trailing units digit 八十一号
+                else -> sandhi                                        // leading quantity 一天/一个/一样
+            }
+            tokens[index] = changePinyinTone(current, tone)
         }
     }
 
@@ -1204,7 +1564,8 @@ internal object LitsTtsFrontend {
         for (position in 0 until pinyinIndices.lastIndex) {
             val current = pinyinIndices[position]
             val next = pinyinIndices[position + 1]
-            if (output[current].last() == '3' && output[next].last() == '3') {
+            // 点(dian3) as decimal-point / time marker keeps citation tone (golden wants dian3)
+            if (output[current].last() == '3' && output[next].last() == '3' && output[current] != "dian3") {
                 output[current] = output[current].dropLast(1) + "2"
             }
         }
@@ -1217,8 +1578,24 @@ internal object LitsTtsFrontend {
         preferLetterName: Boolean = false,
     ): List<String> {
         val normalized = rawWord.uppercase()
+        technicalEnglishPhoneOverrides[normalized]?.let { return it }
         if (preferLetterName && rawWord.length == 1) {
             letterPhonesByChar[normalized.single()]?.let { return it }
+        }
+        if ('-' in normalized) {
+            val output = mutableListOf<String>()
+            for (part in normalized.split('-')) {
+                if (part.isEmpty()) continue
+                val phones = technicalEnglishPhoneOverrides[part]
+                    ?: resources.supplementLexicon[part]
+                    ?: resources.englishLexicon[part]
+                    ?: spellEnglishWord(resources, part)
+                if (phones.isEmpty()) {
+                    continue
+                }
+                output += phones
+            }
+            if (output.isNotEmpty()) return output
         }
         resources.supplementLexicon[normalized]?.let { return it }
         if (shouldSpellUppercaseWord(rawWord, normalized)) {
@@ -1387,12 +1764,22 @@ internal object LitsTtsFrontend {
                 appendPunctuation(output, ",")
                 return@forEach
             }
+            if (syllable.lastOrNull() == '3') {
+                applyPreviousThirdToneSandhi(output)
+            }
             val tokens = resources.pinyinToTokens[syllable]
             if (tokens == null) {
                 appendPunctuation(output, ",")
                 return@forEach
             }
             output += tokens
+        }
+    }
+
+    private fun applyPreviousThirdToneSandhi(output: MutableList<String>) {
+        val index = output.lastIndex
+        if (index >= 0 && output[index] == "ˇ") {
+            output[index] = "ˊ"
         }
     }
 
@@ -1567,7 +1954,7 @@ internal object LitsTtsFrontend {
     private fun loadWordPinyin(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> {
         val base = if (layout.chineseLexiconBin.isFile) {
             try {
-                loadWordPinyinBin(layout.chineseLexiconBin)
+                cachedWordPinyinBin(layout.chineseLexiconBin)
             } catch (exception: Exception) {
                 loadWordPinyinText(layout)
             }
@@ -1613,7 +2000,7 @@ internal object LitsTtsFrontend {
     private fun loadCmudict(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, List<String>> =
         if (layout.cmudictBin.isFile) {
             try {
-                loadCmudictBin(layout.cmudictBin)
+                cachedCmudictBin(layout.cmudictBin)
             } catch (exception: Exception) {
                 loadCmudictText(layout)
             }
@@ -1636,6 +2023,12 @@ internal object LitsTtsFrontend {
                 }
             }
         }
+
+    private fun cachedWordPinyinBin(file: File): Map<String, String> =
+        wordPinyinBinByPath.getOrPut(file.absolutePath) { loadWordPinyinBin(file) }
+
+    private fun cachedCmudictBin(file: File): Map<String, List<String>> =
+        cmudictBinByPath.getOrPut(file.absolutePath) { loadCmudictBin(file) }
 
     private fun loadWordPinyinBin(file: File): Map<String, String> =
         BinaryReader(file.readBytes()).let { input ->
@@ -1728,7 +2121,22 @@ internal object LitsTtsFrontend {
         val arpabetToTokens: Map<String, List<String>>,
     )
 
+    internal data class LargeBinaryLexiconPreloadResult(
+        val totalMs: Long,
+        val wordPinyinMs: Long,
+        val wordPinyinEntries: Int,
+        val cmudictMs: Long,
+        val cmudictEntries: Int,
+    )
+
+    private data class SurnameTitleMatch(
+        val length: Int,
+        val pinyin: List<String>,
+    )
+
     private const val FRONTEND_LOAD_THREADS = 4
     private const val WORD_PINYIN_BIN_MAGIC = 0x4C505931
     private const val CMUDICT_BIN_MAGIC = 0x434D4431
 }
+
+private fun elapsedMs(startedAt: Long): Long = (System.nanoTime() - startedAt) / 1_000_000L

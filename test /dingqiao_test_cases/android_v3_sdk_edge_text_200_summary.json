@@ -1,0 +1,36 @@
+{
+  "caseVersion": "dingqiao-edge-text-200-v1",
+  "categoryCounts": {
+    "edge-code-id-url-path": 28,
+    "edge-complex-symbols": 28,
+    "edge-emoji-mixed": 28,
+    "edge-numeric-heavy": 32,
+    "edge-punctuation-whitespace": 24,
+    "edge-random-text": 28,
+    "edge-zh-en-mixed": 32
+  },
+  "edgeTypeCounts": {
+    "code-id-url-path": 28,
+    "complex-symbols": 28,
+    "emoji-mixed": 28,
+    "numeric-heavy": 32,
+    "punctuation-whitespace": 24,
+    "random-text": 28,
+    "zh-en-mixed": 32
+  },
+  "jsonl": "/Users/amphion/Documents/AmphionRuntime/test /dingqiao_test_cases/android_v3_sdk_edge_text_200_cases.jsonl",
+  "maxTextChars": 500,
+  "notes": "Standalone compact edge-text corpus; Android runner currently whitelists 100/424/1000 sizes unless adjusted.",
+  "operationCounts": {
+    "parameter-boundary-speak": 4,
+    "speak": 175,
+    "streaming-buffer-cycle": 14,
+    "synthesize-and-play-route": 7
+  },
+  "textLength": {
+    "avg": 68.65,
+    "max": 107,
+    "min": 44
+  },
+  "total": 200
+}

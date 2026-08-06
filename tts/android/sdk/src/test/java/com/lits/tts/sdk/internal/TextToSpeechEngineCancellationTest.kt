@@ -26,7 +26,7 @@ class TextToSpeechEngineCancellationTest {
             voice = VoiceInfo("zh-en", "lits-female-01", "female"),
             engineName = null,
             workPath = null,
-            onRelease = {},
+            onRelease = { true },
             synthesizer = synthesizer,
         )
         val listener = StartLatchListener(newRequestId = "new")
@@ -60,7 +60,7 @@ class TextToSpeechEngineCancellationTest {
             voice = VoiceInfo("zh-en", "lits-female-01", "female"),
             engineName = null,
             workPath = null,
-            onRelease = {},
+            onRelease = { true },
             synthesizer = synthesizer,
         )
         val listener = StartLatchListener(newRequestId = "new")

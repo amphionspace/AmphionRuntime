@@ -1,0 +1,97 @@
+{
+  "model_id": "dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop",
+  "version": "0.1.0",
+  "smoke_text": "Hello world.",
+  "cleaned_text": "HH AH0 L OW1 _ W ER1 L D _ .",
+  "token_ids": [
+    114,
+    84,
+    123,
+    128,
+    3,
+    146,
+    107,
+    123,
+    101,
+    3,
+    49
+  ],
+  "stubbed_monotonic_align_core": false,
+  "external_loop": {
+    "n_timesteps": 10,
+    "temperature": 0.667,
+    "seed": 20260624,
+    "assets": {
+      "condition_chunk": {
+        "path": "lits_stream_condition_chunk.onnx",
+        "size_bytes": 15594490,
+        "node_count": 1101
+      },
+      "decoder_step": {
+        "path": "lits_stream_decoder_step.onnx",
+        "size_bytes": 45044116,
+        "node_count": 1271
+      }
+    },
+    "stream_final_zero_pad_with_chunk_condition": true
+  },
+  "validation": {
+    "hidden_encoder": {
+      "mu_y_shape": [
+        1,
+        100,
+        68
+      ],
+      "y_mask_shape": [
+        1,
+        1,
+        68
+      ],
+      "mel_length": [
+        [
+          67
+        ]
+      ],
+      "speaker_embedding_shape": [
+        1,
+        64
+      ],
+      "mu_y_max_abs": 1.0728836059570312e-06,
+      "y_mask_max_abs": 0.0,
+      "mel_length_match": true,
+      "speaker_embedding_max_abs": 0.0
+    },
+    "chunk_external_vs_full": {
+      "left_shape": [
+        1,
+        100,
+        64
+      ],
+      "right_shape": [
+        1,
+        100,
+        64
+      ],
+      "common_frames": 64,
+      "mean_abs": 9.223073789144109e-07,
+      "max_abs": 1.6689300537109375e-05,
+      "rms": 1.7287710534219514e-06
+    },
+    "final_external_vs_full": {
+      "left_shape": [
+        1,
+        100,
+        67
+      ],
+      "right_shape": [
+        1,
+        100,
+        67
+      ],
+      "common_frames": 67,
+      "mean_abs": 6.779272325729835e-07,
+      "max_abs": 5.0067901611328125e-06,
+      "rms": 9.309085271524964e-07
+    }
+  }
+}

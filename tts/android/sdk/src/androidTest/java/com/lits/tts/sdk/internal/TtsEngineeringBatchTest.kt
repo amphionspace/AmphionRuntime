@@ -16,6 +16,7 @@ import com.lits.tts.sdk.TextToSpeechEngine
 import com.lits.tts.sdk.TextToSpeechException
 import com.lits.tts.sdk.TextToSpeechSdk
 import com.lits.tts.sdk.TtsErrorCode
+import com.lits.tts.sdk.TtsStreamingConfig
 import com.lits.tts.sdk.VoiceQuery
 import java.io.File
 import java.util.Collections
@@ -446,10 +447,9 @@ class TtsEngineeringBatchTest {
                     audioType = case.audioType,
                     playType = case.playType,
                     queueMode = case.queueMode,
-                    extraParams = mapOf(
-                        "streamingChunkSize" to case.chunkSize,
-                        "streamingFirstChunkSize" to case.chunkSize,
-                        "pcmQueueCapacity" to case.pcmQueueCapacity,
+                    streamingConfig = TtsStreamingConfig(
+                        chunkSize = case.chunkSize,
+                        pcmQueueCapacity = case.pcmQueueCapacity,
                     ),
                 ),
             )

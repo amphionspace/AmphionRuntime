@@ -1,0 +1,13 @@
+# @package _global_
+
+defaults:
+  - override /data: en-zh_24k_pinyin
+
+model:
+  n_vocab: 150
+  optimizer:
+    lr: 2e-4
+
+tags: ["en-zh", "pinyin_input", "bopomofo_tokens", "pupu24k_mel"]
+name: en-zh-pinyin_bs${data.batch_size}_lr${model.optimizer.lr}_pupu16k_mel
+run_name: ${name}_${now:%Y%m%d_%H%M%S}

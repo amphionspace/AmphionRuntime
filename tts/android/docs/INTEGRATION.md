@@ -257,7 +257,7 @@ TextToSpeechSdk.init(
     context,
     TtsLicenseOptions(
         licenseAssetName = "amphion-license.lic",
-        enforcement = LicenseEnforcement.ENFORCE,
+        licenseEnforcement = LicenseEnforcement.ENFORCE,
         // 一般不需要传；仅当客户系统改用其他 SN API 时覆盖默认实现
         deviceIdProvider = TtsDeviceIdProvider { _ -> "DEVICE-SN-FROM-DINGQIAO" },
     ),
@@ -285,7 +285,6 @@ val deviceHash = TextToSpeechSdk.deviceLicenseFingerprint(
 ## 13. 混淆
 
 SDK AAR 自带 `consumer-rules.pro`，只保留公开 API（`com.lits.tts.sdk.*`）。宿主 App 开启 R8/minify
-时 Gradle 会自动合并这些规则。**SDK 库自身的 release 构建不做 minify/混淆**（本模块未配置
-`isMinifyEnabled`），因此 AAR 内 `com.lits.tts.sdk.internal.*`（含离线 license 验签逻辑）以未混淆形式交付；
-如需混淆这部分，由宿主 App 的 R8 在其 release 构建时完成（未被 `consumer-rules.pro` 保留的 internal
-类会随宿主构建被混淆）。交付前应至少跑一次宿主 App release 构建和真机合成 smoke。
+时 Gradle 会自动合并这些规则。SDK 自身 release 构建已开启 R8（`isMinifyEnabled=true`），
+`com.lits.tts.sdk.internal.*`（含离线 license 验签逻辑）会被混淆。交付前应至少跑一次宿主 App
+release 构建和真机合成 smoke。
