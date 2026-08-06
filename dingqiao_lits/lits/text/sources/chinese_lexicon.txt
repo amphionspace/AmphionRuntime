@@ -5755,7 +5755,7 @@
 一万两	yi2 wan4 liang3
 一万两万	yi2 wan4 liang3 wan4
 一万两千	yi2 wan4 liang3 qian1
-一万个	yi2 wan4 ge5
+一万个	yi2 wan4 ge4
 一万九千	yi1 wan4 jiu3 qian1
 一万九千余	yi2 wan4 jiu3 qian1 yu2
 一万二	yi2 wan4 er4
@@ -11597,7 +11597,7 @@
 万世流芳	wan4 shi4 liu2 fang1
 万两	wan4 liang3
 万两左右	wan4 liang3 zuo3 you4
-万个	wan4 ge5
+万个	wan4 ge4
 万串	wan4 chuan4
 万丹	wan4 dan1
 万丹乡	wan4 dan1 xiang1
@@ -32864,7 +32864,7 @@
 乐居	le4 ju1
 乐属	le4 shu3
 乐山	le4 shan1
-乐山乐水	le4 shan1 le4 shui3
+乐山乐水	yao4 shan1 yao4 shui3
 乐山地区	le4 shan1 di4 qu1
 乐山大佛	le4 shan1 da4 fo2
 乐山市	le4 shan1 shi4
@@ -55785,7 +55785,7 @@
 似然比	shi4 ran2 bi3
 似玻璃地	shi4 bo1 li2 de5
 似的	shi4 de5
-似真似假	shi4 zhen1 si4 jia3
+似真似假	si4 zhen1 si4 jia3
 似真地	shi4 zhen1 de5
 似神非神	shi4 shen2 fei1 shen2
 似笑非笑	si4 xiao4 fei1 xiao4
@@ -213757,7 +213757,7 @@
 干家	gan4 jia1
 干寒	gan1 han2
 干寤	gan4 wu4
-干将	gan4 jiang1
+干将	gan4 jiang4
 干将莫邪	gan1 jiang1 mo4 ye2
 干尸	gan1 shi1
 干尼亚	gan1 ni2 ya4
@@ -297104,7 +297104,7 @@
 晞阳	xi1 yang2
 晞露	xi1 lu4
 晞风	xi1 feng1
-晟	cheng2
+晟	sheng4
 晠	sheng4
 晡	bu1
 晡夕	bu1 xi1
@@ -405878,7 +405878,6 @@
 的应	de5 ying1
 的彀	de5 gou4
 的役	de5 yi4
-的情	di2 qing2
 的意	de5 yi4
 的据	de5 ju4
 的旨	de5 zhi3
@@ -503040,7 +503039,6 @@
 西邻责言	xi1 lin2 ze2 yan2
 西郊	xi1 jiao1
 西部	xi1 bu4
-西部地	xi1 bu4 de5
 西部开发办	xi1 bu4 kai1 fa1 ban4
 西部数据	xi1 bu4 shu4 ju4
 西部旅游	xi1 bu4 lv3 you2
@@ -517362,7 +517360,7 @@
 谀闻	yu2 wen2
 谀顺	yu2 shun4
 谀颂	yu2 song4
-谁	shei2
+谁	shui2
 谁个	shui2 ge4
 谁为谁	shei2 wei4 shei2
 谁主张	shei2 zhu3 zhang1
@@ -547289,7 +547287,7 @@
 还奉	huan2 feng4
 还好	hai2 hao3
 还好好地	hai2 hao3 hao1 de5
-还如	huan2 ru2
+还如	hai2 ru2
 还妾	huan2 qie4
 还姓	huan2 xing4
 还婴	hai2 ying1
@@ -664992,3 +664990,8 @@
 星转斗移	xing1 zhuan3 dou3 yi2
 京藏	jing1 zang4
 京藏高速	jing1 zang4 gao1 su4
+
+好儿子	hao3 er2 zi5
+人为什么	ren2 wei4 shen2 me5
+三角地带	san1 jiao3 di4 dai4
+长电	chang2 dian4
