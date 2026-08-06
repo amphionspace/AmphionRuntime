@@ -1,0 +1,10 @@
+{
+  "valid_wavs": 3,
+  "selected_wavs": 3,
+  "total_valid_duration_seconds": 36.72,
+  "selected_duration_seconds": 36.72,
+  "target_speaker_enrollment_wavs": 1,
+  "sample_rates": {
+    "16000": 3
+  }
+}

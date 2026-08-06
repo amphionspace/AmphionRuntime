@@ -1,0 +1,167 @@
+{
+  "run_id": "20260806-172646-target-speaker-enhancement-cancel-b80bfee8",
+  "mode": "target-speaker-enhancement-cancel",
+  "overall_status": "PASS",
+  "failures": [],
+  "device": "7GK0226326015655",
+  "build_identity": {
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+        "sha256": "9edc8b257969b390cb228d31ecffa9d3c2ca17470d7efb5a8a419aa2b91992e4",
+        "size_bytes": 218941358
+      },
+      "amphion_asr_demo.hap": {
+        "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+        "sha256": "b9da307ce6f72c568e9731bc8fd3f047c1b71b438bcfcd6a13eab00ad181a6a6",
+        "size_bytes": 359852404
+      },
+      "amphion_dingqiao.har": {
+        "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+        "sha256": "01c72f5ff13b4536416fbe1cb12915288921e11a78d873052e6a7fe27a1e35b7",
+        "size_bytes": 55495447
+      },
+      "sherpa_onnx.har": {
+        "path": "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+        "sha256": "556538f8d9dcca9058edf454fcf79254d8c138da0c440c8b14879eb0df3361e5",
+        "size_bytes": 6910821
+      }
+    },
+    "created_at": "2026-08-06T09:23:03.005530+00:00",
+    "git_commit": "115afa33205cf2865b66bc7d18fbbae9761f3a89",
+    "model_manifest_sha256": "8a515097588b033a867feb71c5036fdfdc3e118b294392d3beb060871cce1343",
+    "native_sha256": {
+      "libonnxruntime.so": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
+      "libsherpa-onnx-c-api.so": "19191654ad7c1de988459d42648f1fe3115f2989f2bdfb01c48b2859cc8855fd"
+    },
+    "required_models": {
+      "target_speaker_separator": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/convtasnet_16k.ort",
+        "sha256": "921dc579ae7fdff42b5b53d6d3408c520121c6292d2c69d5d8dc92908b05ad13",
+        "size_bytes": 20500600
+      }
+    },
+    "schema_version": 2,
+    "source_fingerprint_sha256": "3d0dd6131cf44802d09936d813f8c859b5bdb080d8061eab284aaa4d169e00e5",
+    "zh_en_only": true
+  },
+  "configuration": {
+    "cycles": 1,
+    "settle_ms": 0,
+    "pace_ms": 20,
+    "sample_interval_seconds": 1.0,
+    "post_run_observe_seconds": 2.0
+  },
+  "inventory": {
+    "valid_wavs": 6,
+    "selected_wavs": 6,
+    "total_valid_duration_seconds": 57.68,
+    "selected_duration_seconds": 57.68,
+    "target_speaker_enrollment_wavs": 3,
+    "sample_rates": {
+      "16000": 6
+    }
+  },
+  "application": {
+    "runId": "20260806-172646-target-speaker-enhancement-cancel-b80bfee8",
+    "status": "PASS",
+    "mode": "target-speaker-enhancement-cancel",
+    "requested": "1",
+    "completed": "1",
+    "failed": "0",
+    "emptyFinals": "0",
+    "starts": "1",
+    "partials": "0",
+    "finals": "3",
+    "completes": "1",
+    "errors": "0",
+    "elapsedMs": "12319",
+    "fatal": ""
+  },
+  "empty_finals": {
+    "status": "PASS",
+    "count": 0,
+    "rate": 0.0,
+    "max_rate": 0.05
+  },
+  "native_streams": {
+    "status": "PASS",
+    "observed_cycles": 1,
+    "nonzero_cycles": 0,
+    "max_live_streams": 0
+  },
+  "target_speaker_realtime": {
+    "status": "OBSERVED",
+    "chunk_count": 7,
+    "maximum_processing_ms": 1660,
+    "p95_processing_ms": 1660,
+    "maximum_queued_chunks": 6,
+    "steady_state_chunk_interval_ms": 1750
+  },
+  "target_speaker_content_accuracy": {
+    "status": "NOT_APPLICABLE",
+    "reason": "mode is lifecycle-only",
+    "cases": []
+  },
+  "memory": {
+    "status": "INCONCLUSIVE",
+    "reason": "observation shorter than 15s",
+    "sample_count": 13,
+    "observation_seconds": 14.751
+  },
+  "cpu": {
+    "status": "MEASURED",
+    "sample_count": 11,
+    "interval_count": 10,
+    "observation_seconds": 13.059,
+    "logical_cpus": 12,
+    "mean_single_core_equivalent_percent": 250.63,
+    "p50_single_core_equivalent_percent": 293.337,
+    "p95_single_core_equivalent_percent": 377.178,
+    "peak_single_core_equivalent_percent": 386.189,
+    "mean_device_capacity_percent": 20.886,
+    "p50_device_capacity_percent": 24.445,
+    "p95_device_capacity_percent": 31.432,
+    "peak_device_capacity_percent": 32.182
+  },
+  "cycles": [
+    {
+      "index": "0",
+      "id": "000003",
+      "status": "PASS",
+      "starts": "1",
+      "partials": "0",
+      "finals": "3",
+      "completes": "1",
+      "targetSpeakerRawPreviewPartials": "0",
+      "targetSpeakerEnhancedPartials": "0",
+      "errors": "0",
+      "finalChars": "20",
+      "speakerScores": "1",
+      "nonEmptySpeakerScores": "1",
+      "missingSpeakerScores": "2",
+      "firstNonEmptyFinalHasScore": "0",
+      "requestedVadBeginMs": "-1",
+      "confirmationGraceMs": "-1",
+      "requestedMaxAudioDurationMs": "-1",
+      "effectiveMaxAudioDurationMs": "-1",
+      "voiceprintIdCount": "1",
+      "fedFrames": "617",
+      "lastFinalsBeforeFinish": "0",
+      "liveStreams": "0",
+      "liveStreamsAtStart": "1",
+      "unexpectedCallbacks": "0",
+      "elapsedMs": "9767",
+      "startCallbackMs": "1333",
+      "firstNonEmptyResultMs": "3987",
+      "audioStartToFirstNonEmptyResultMs": "-1",
+      "firstNonEmptyPartialMs": "-1",
+      "audioStartToFirstNonEmptyPartialMs": "-1",
+      "audioStartToSpeechBeginMs": "-1",
+      "speechBeginToFirstNonEmptyResultMs": "1425",
+      "resultHex": "5e2e621167e56536660e592976848b66535530027136540e51c65907660e592953bb4e0a6d773002",
+      "trace": "target-speaker-enhancement-recovery-0:start>target-speaker-enhancement-recovery-0:event-1>target-speaker-enhancement-recovery-0:event-3>target-speaker-enhancement-recovery-0:final>target-speaker-enhancement-recovery-0:event-1>target-speaker-enhancement-recovery-0:event-3>target-speaker-enhancement-recovery-0:final>target-speaker-enhancement-recovery-0:event-22>target-speaker-enhancement-recovery-0:final-last>target-speaker-enhancement-recovery-0:complete",
+      "detail": "target-speaker-enhancement-cancel-recovered"
+    }
+  ]
+}

@@ -264,3 +264,32 @@ stream 为 0，且无跨 session 回调。资源采样持续 `75.882 秒`：峰�
 稳态步长。资源观察 `78.438 s`，峰值 RSS `819.062 MiB`，稳定窗口 RSS 变化 `-180.070 MiB`、
 线程变化 `-3`，资源门通过。完整证据见
 [`20260806-ort-customer-cases`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260806-ort-customer-cases)。
+
+## 10. 2026-08-06 默认快速 partial 与首字延迟
+
+增强开启且 `enablePartialResult` 未显式关闭时，SDK 复用同一个 ASR 模型创建两个独立 stream：
+
+- 原始音频 stream 只公开 `isFinal=false`、`isLast=false`、
+  `targetSpeakerEnhancementApplied=false` 的临时文本；
+- 增强音频 stream 独占所有 final、last、complete，final 标记
+  `targetSpeakerEnhancementApplied=true`；
+- 当前帧先进入增强队列，再进入临时 stream，防止临时回调内同步 `writeAudio` / `finish` 造成乱序
+  或丢帧；`finish` 还会核对增强队列实际接收采样数与 SDK 已接收 PCM 是否完全一致；
+- 显式 `enablePartialResult=false` 时不创建第二个 stream。
+
+Mate 80 上以同一 commit `115afa3`、同一 ZH_EN HAP、同一 C1/C2/C3 PCM 和 20 ms 实时喂入做 A/B：
+
+| 指标 | 普通 ASR | 增强默认快速 partial | 增量 |
+|---|---:|---:|---:|
+| C1 | 2136 ms | 2375 ms | +239 ms |
+| C2 | 2010 ms | 2139 ms | +129 ms |
+| C3 | 2079 ms | 2164 ms | +85 ms |
+| 中位数 | 2079 ms | 2164 ms | **+85 ms** |
+| 平均值 | 2075 ms | 2226 ms | **+151 ms** |
+
+计时从第一帧 `writeAudio` 前开始，到首个非空 partial；final 不参与。两轮 `corpus.json` 中三条
+源 WAV 和转换后 PCM 哈希逐条一致。增强轮 35 个 partial 全部来自原始 stream，增强 stream 没有
+公开 partial；final 内容门禁 3/3 PASS，生命周期和专用 partial 回调重入门禁均通过。该结果说明
+2 秒分块等待已从界面首字路径移除；当前固定语料的残余损耗为中位数 85 ms、平均 151 ms，不外推
+为所有设备和语料的统计上限。完整证据见
+[`20260806-fast-partial-ab`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260806-fast-partial-ab)。
