@@ -124,6 +124,9 @@ class RunCommandTest(unittest.TestCase):
 
         self.assertIn("const MAX_DURATION_TEST_MS: number = 8000;", source)
         self.assertIn("const paced = index % 2 === 1;", cycle)
+        self.assertIn("fedFrames < MAX_DURATION_TEST_FRAMES", cycle)
+        self.assertIn("MAX_DURATION_TEST_FRAMES - fedFrames", cycle)
+        self.assertNotIn("MAX_DURATION_TEST_FRAMES + 100", cycle)
         self.assertIn("fedFrames === MAX_DURATION_TEST_FRAMES", cycle)
         self.assertIn("result.requestedMaxAudioDurationMs = MAX_DURATION_TEST_MS", cycle)
         self.assertIn("result.effectiveMaxAudioDurationMs = MAX_DURATION_TEST_MS", cycle)
@@ -184,6 +187,34 @@ class RunCommandTest(unittest.TestCase):
             normalized,
         )
 
+    def test_voiceprint_vad_begin_idle_paces_frames_for_async_completion(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runVoiceprintVadBeginIdleCycle", 1)[1].split(
+            "async function runSpeakerVadOnStartCycle", 1
+        )[0]
+
+        self.assertIn("await sleep(IDLE_FRAME_PACE_MS);", cycle)
+        self.assertIn(
+            "const IDLE_FRAME_PACE_MS: number = FRAME_DURATION_MS + 5;", source
+        )
+        self.assertNotIn("if (fed % 10 === 0) await sleep(1);", cycle)
+
+    def test_cancel_waits_for_async_native_stream_drain_without_relaxing_callbacks(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runRecognitionCycle", 1)[1].split(
+            "async function runVadBeginSilenceCycle", 1
+        )[0]
+
+        self.assertIn(
+            "const drained = await waitFor((): boolean => "
+            "AmphionRuntime.activeOnlineStreamCount() === 0, CANCEL_DRAIN_TIMEOUT_MS);",
+            " ".join(cycle.split()),
+        )
+        self.assertIn("drained && !engine.isBusy()", cycle)
+        self.assertIn("events.finals === finalsBefore", cycle)
+        self.assertIn("events.completes === completesBefore", cycle)
+        self.assertIn("const CANCEL_DRAIN_TIMEOUT_MS: number = 2000;", source)
+
     def test_public_api_reentrant_modes_are_lifecycle_only(self) -> None:
         for mode in ("speaker-vad-onstart", "callback-api-reentrant"):
             with self.subTest(mode=mode), mock.patch.object(
@@ -193,6 +224,33 @@ class RunCommandTest(unittest.TestCase):
 
             self.assertEqual(mode, args.mode)
             self.assertNotIn(mode, MODULE.FINISH_MODES)
+
+    def test_callback_api_reentrant_waits_for_async_audio_before_cancel(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runCallbackApiReentrantCycle", 1)[1].split(
+            "async function runMaxDurationCycle", 1
+        )[0]
+        normalized = " ".join(cycle.split())
+
+        self.assertIn(
+            "waitFor((): boolean => listener.reentryAttempted, COMPLETE_TIMEOUT_MS)",
+            normalized,
+        )
+
+    def test_callback_api_reentrant_allows_endpoint_final_before_last(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runCallbackApiReentrantCycle", 1)[1].split(
+            "async function runMaxDurationCycle", 1
+        )[0]
+        normalized = " ".join(cycle.split())
+
+        self.assertIn("events.lastFinals === 1 && events.finals >= 1", normalized)
+        self.assertNotIn("trigger === 'speech-begin') finalContract = finalContract && events.finals === 1", normalized)
+        self.assertNotIn("events.finals === 1 && events.finalTexts.length === 1", normalized)
+        self.assertNotIn(
+            "waitFor((): boolean => listener.reentryAttempted, 1000)", normalized
+        )
+        self.assertIn("listener.terminalOrderOk(sessionId)", cycle)
 
     def test_endpoint_reentrant_is_lifecycle_only_not_text_quality(self) -> None:
         with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "endpoint-reentrant"]):
