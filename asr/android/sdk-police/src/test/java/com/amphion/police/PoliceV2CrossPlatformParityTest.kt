@@ -8,6 +8,7 @@ import com.amphion.police.station.PoliceStationHomophoneDict
 import com.amphion.police.station.PoliceStationNormalizerV2
 import com.amphion.police.station.StationReadingMap
 import com.amphion.police.terms.PoliceTermsGazetteer
+import com.amphion.police.terms.PoliceTermsExactHomophoneDict
 import com.amphion.police.terms.PoliceTermsHomophoneDict
 import com.amphion.police.terms.PoliceTermsNormalizerV2
 import com.amphion.police.terms.TermReadingMap
@@ -33,6 +34,9 @@ class PoliceV2CrossPlatformParityTest {
             PoliceTermsGazetteer.loadFromReader(reader("police_terms/term_gazetteer.txt")),
             values,
             TermReadingMap.loadFromReader(reader("police_terms/term_homophones.csv")),
+            PoliceTermsExactHomophoneDict.loadFromReader(
+                reader("police_terms/term_exact_homophones.csv"),
+            ),
         )
     }
 

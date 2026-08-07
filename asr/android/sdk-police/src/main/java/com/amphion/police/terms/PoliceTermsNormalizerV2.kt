@@ -23,6 +23,7 @@ class PoliceTermsNormalizerV2 private constructor(
     private val gazetteer: PoliceTermsGazetteer,
     private val terms: List<String>,
     private val readingMap: TermReadingMap,
+    private val exactHomophones: PoliceTermsExactHomophoneDict,
 ) {
 
     /** 低于此长度的术语不做模糊纠正（只精确匹配），避免 2–3 字短词过纠。 */
@@ -36,6 +37,9 @@ class PoliceTermsNormalizerV2 private constructor(
 
     /** 模糊层每个术语允许的最大编辑数（按长度放缩）；变长兜底里 1 次增删也计入此预算。 */
     private fun maxSubsFor(len: Int): Int = if (len >= 7) 2 else 1
+
+    /** 新增业务术语必须优先保留，禁止变长档把「已签警情」补成另一合法词「已签收警情」。 */
+    private val protectedShortTerms = listOf("已签警单", "已签警情", "签警单", "签警情")
 
     companion object {
         private const val GAZETTEER_ASSET = "police_terms/term_gazetteer.txt"
@@ -77,6 +81,7 @@ class PoliceTermsNormalizerV2 private constructor(
                 PoliceTermsGazetteer.load(context),
                 terms,
                 TermReadingMap.load(context),
+                PoliceTermsExactHomophoneDict.load(context),
             )
         }
 
@@ -85,14 +90,32 @@ class PoliceTermsNormalizerV2 private constructor(
             gazetteer: PoliceTermsGazetteer,
             terms: List<String>,
             readingMap: TermReadingMap,
-        ): PoliceTermsNormalizerV2 = PoliceTermsNormalizerV2(homophones, gazetteer, terms, readingMap)
+        ): PoliceTermsNormalizerV2 =
+            PoliceTermsNormalizerV2(
+                homophones,
+                gazetteer,
+                terms,
+                readingMap,
+                PoliceTermsExactHomophoneDict.EMPTY,
+            )
+
+        internal fun create(
+            homophones: PoliceTermsHomophoneDict,
+            gazetteer: PoliceTermsGazetteer,
+            terms: List<String>,
+            readingMap: TermReadingMap,
+            exactHomophones: PoliceTermsExactHomophoneDict,
+        ): PoliceTermsNormalizerV2 =
+            PoliceTermsNormalizerV2(homophones, gazetteer, terms, readingMap, exactHomophones)
     }
 
     fun normalize(text: String): PoliceTermsNormalizeResult {
         if (text.isEmpty()) return PoliceTermsNormalizeResult(text, emptyList())
 
-        // 1) 复用 V1 全局谐音（高置信人工对），保证不回退。
-        val global = homophones.applyPhrases(text)
+        // 0) 甲方已观测误识只做整句精确纠正；再复用 V1 全局谐音（高置信人工对）。
+        val exactCorrected = exactHomophones.applyWholeUtterance(text)
+        val exactMatched = exactCorrected != text
+        val global = homophones.applyPhrases(exactCorrected)
         // 1.2) 客户端真人短词反馈：只在整句或警务锚点下纠正拘传/接处警近音串，
         //      避免把接触景点、接触警报、接触井下设备等通用表达误改。
         val shortGuarded = PoliceTermsShortGuard.apply(global)
@@ -103,7 +126,9 @@ class PoliceTermsNormalizerV2 private constructor(
         //      排除 登陆作战/抢滩登陆/台风登陆沿海 等通用义，避免误伤。
         val guarded2 = applyDengluGuard(guarded)
         // 2) 叠加保守模糊层（仅长术语、等长近音、唯一）。
-        val fuzzy = fuzzyCorrect(guarded2)
+        // 整句精确映射优先级高于模糊补字：例如目标「已签警情」不能再次被
+        // gazetteer 的合法词「已签收警情」扩回去。
+        val fuzzy = if (exactMatched) guarded2 else fuzzyCorrect(guarded2)
         // 3) 电台音标数字归一（洞0幺1两2拐7勾9…），严格数字上下文门控。
         val corrected = PoliceTermsRadioDigits.normalize(fuzzy)
         // 4) 指令格式润色 + 再跑一遍谐音（供身份证空格合并、车牌号格式等落地）。
@@ -261,6 +286,12 @@ class PoliceTermsNormalizerV2 private constructor(
         val sb = StringBuilder(text.length)
         var i = 0
         while (i < text.length) {
+            val protected = protectedShortTerms.firstOrNull { text.startsWith(it, i) }
+            if (protected != null) {
+                sb.append(protected)
+                i += protected.length
+                continue
+            }
             val hit = bestTermAt(text, i)
             if (hit != null) {
                 sb.append(hit.term)

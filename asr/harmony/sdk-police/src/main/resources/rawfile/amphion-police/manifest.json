@@ -1,6 +1,6 @@
 {
   "files": {
-    "hotwords.json": "c42b8715cb3bd37ff4d7e8f5435d5107633d5fd66b35e57dfca700a3a3c9906a",
+    "hotwords.json": "b63c4bcd2176a3566c1ad1f5f4161a101c78d51aa1a62f7bc52065c3a74706cd",
     "plate/plate_homophone.fst": "ca66df413305d970bf742d0cf15c980933b2acbf37b8224e1aa501e85894217a",
     "plate/plate_homophone_meta.json": "30dc5fe5d989fa0bff336f576efc3d166fd525604b541cf4b31e968ceadfa3ca",
     "plate/plate_homophones.csv": "6e2d509db8a3bd1b595168befd0963787d4f5ebec102a24656b19e74c7684603",
@@ -14,6 +14,7 @@
     "police_station/station_homophones.csv": "936b285546695af9e4b2725458c737bcee970d30c28cf388d217078394f78008",
     "police_station/station_polish.fst": "5a6518395173e262697f8005dd7234b692d75d7b52e8d8c0603aae381a8b5256",
     "police_station/station_polish_meta.json": "8af1cff73623650f6e368c7cc91a4e87e89c377afe665c5470b2305404adb10d",
+    "police_terms/term_exact_homophones.csv": "137456ff0b258d237337014e01abb6ce8a296f9a295cbb1296f3d8f3ad6473dd",
     "police_terms/term_gazetteer.txt": "edbfc58be9c207c724d3594e458060fbe6ebb849aa69fcee5a0366a8154c63e6",
     "police_terms/term_homophones.csv": "e6604f2c9cdeee3ab3c217e3f40b0e7b5ca7c71e1b098c9b4725d7d742516b84",
     "police_terms/terms_global.fst": "9ca73a0417713e7940a82d32a77eab161d1b8f05e5aefaa04281365af686c81b",
@@ -22,7 +23,7 @@
   "hotword_counts": {
     "plate": 6,
     "station": 10,
-    "terms": 326
+    "terms": 355
   },
   "schema_version": 1,
   "source": "asr/android/sdk-police/src/main"
