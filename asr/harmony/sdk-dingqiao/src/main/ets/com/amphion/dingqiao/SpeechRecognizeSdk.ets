@@ -7,6 +7,7 @@ import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
 import { finiteNumberParam } from './NumericParam';
 import { rejectedFinalCompletesSession } from './RejectedFinalLifecycle';
+import { SessionAudioDispatcher } from './SessionAudioDispatcher';
 import { maxAudioBytesOf } from './SessionAudioLimit';
 import { SessionStartGate } from './SessionStartGate';
 import { targetSpeakerEnhancementConfig } from './TargetSpeakerEnhancementConfig';
@@ -324,6 +325,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private asrEngine: AsrEngine;
   private enhancePipeline: PoliceEnhancePipeline;
   private session?: AsrSession;
+  private audioDispatcher?: SessionAudioDispatcher;
   private busy: boolean = false;
   private destroyed: boolean = false;
   private currentSessionId: string = '';
@@ -512,6 +514,26 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         this.targetSpeakerEnhancementPipeline =
           new TargetSpeakerEnhancementPipeline(newEnhancer, observer);
       }
+      const session = createdSession;
+      const audioGeneration = startGeneration;
+      const audioSessionId = params.sessionId;
+      this.audioDispatcher = new SessionAudioDispatcher({
+        write: async (audio: ArrayBuffer): Promise<void> => {
+          if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
+          await session.acceptPcmBytesAsync(audio);
+        },
+        writeFloat: async (samples: Float32Array): Promise<void> => {
+          if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
+          await session.acceptPcmFloatAsync(samples);
+        },
+        finish: async (): Promise<void> => {
+          if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
+          await session.stopAsync();
+        }
+      }, (message: string): void => {
+        this.handleAsrError(audioGeneration,
+          new AsrError(AsrErrorCode.NATIVE_CRASH, `audio dispatch failed: ${message}`));
+      });
       if (this.sessionStartGate.publishSession(startGeneration)) this.deliverSessionStarted(startGeneration);
     } catch (e) {
       this.startingSession = false;
@@ -553,10 +575,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
       this.targetSpeakerEnhancementPipeline.append(pcm16ToFloat(audio));
     } else {
-      session.acceptPcmBytes(audio);
+      this.audioDispatcher?.write(audio);
     }
-    // acceptPcmBytes may synchronously invoke a customer listener that cancels this session and starts
-    // another one. Never auto-stop the replacement session from the old call stack.
+    // Keep max-duration ownership pinned to the session that reserved this frame. A concurrent
+    // cancel/restart must never let an old reservation auto-stop the replacement session.
     if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
       this.session !== session || this.currentSessionId !== sessionId) return;
     if (!this.finishRequested && this.maxAudioBytes > 0 && this.audioBytesWritten >= this.maxAudioBytes) {
@@ -568,7 +590,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       if (this.targetSpeakerEnhancementPipeline !== undefined) {
         this.targetSpeakerEnhancementPipeline.finish();
       } else {
-        session.stop();
+        this.audioDispatcher?.finish();
       }
     }
   }
@@ -621,7 +643,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
       this.targetSpeakerEnhancementPipeline.finish();
     } else {
-      this.session.stop();
+      this.audioDispatcher?.finish();
     }
   }
 
@@ -694,6 +716,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
 
   private resetSessionState(): void {
     this.session = undefined;
+    this.audioDispatcher = undefined;
     this.busy = false;
     this.currentSessionId = '';
     this.finishRequested = false;
@@ -710,9 +733,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
 
   private tearDownSession(): void {
     const oldSession = this.session;
+    const oldAudioDispatcher = this.audioDispatcher;
     const oldPipeline = this.targetSpeakerEnhancementPipeline;
     const oldEnhancer = this.targetSpeakerEnhancer;
     oldPipeline?.cancel();
+    oldAudioDispatcher?.cancel();
     this.resetSessionState();
     oldEnhancer?.close();
     oldSession?.close();
@@ -723,15 +748,13 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
       this.currentSessionId !== sessionId || this.finishRequested &&
       this.targetSpeakerEnhancementPipeline === undefined) return;
-    const session = this.session;
-    if (session === undefined) return;
-    session.acceptPcmFloat(samples);
+    this.audioDispatcher?.writeFloat(samples);
   }
 
   private handleTargetSpeakerEnhancementFinished(generation: number, sessionId: string): void {
     if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
       this.currentSessionId !== sessionId || !this.finishRequested) return;
-    this.session?.stop();
+    this.audioDispatcher?.finish();
   }
 
   private handleTargetSpeakerEnhancementError(generation: number, sessionId: string,
@@ -785,17 +808,16 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
       this.finishRequested || this.session === undefined) return;
     const sessionId = this.currentSessionId;
-    const session = this.session;
     this.finishRequested = true;
     this.lastFinishedSessionId = sessionId;
     this.lastAutoFinishedSessionId = sessionId;
     this.targetSpeakerEnhancementPipeline?.cancel();
-    // VAD callback runs inside acceptPcmBytes; defer stop to avoid re-entering the native stream.
-    setTimeout((): void => {
-      if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
-        this.session !== session || this.currentSessionId !== sessionId) return;
-      session.stop();
-    }, 0);
+    this.audioDispatcher?.finish();
+  }
+
+  private ownsAudioSession(generation: number, sessionId: string, session: AsrSession): boolean {
+    return this.sessionStartGate.isCurrent(generation) && this.busy &&
+      this.session === session && this.currentSessionId === sessionId;
   }
 
   handleEndpoint(generation: number): void {
