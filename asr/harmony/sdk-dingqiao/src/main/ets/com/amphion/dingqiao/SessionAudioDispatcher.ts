@@ -1,5 +1,6 @@
 export interface SessionAudioProcessor {
   write(audio: ArrayBuffer): Promise<void>;
+  writeFloat(samples: Float32Array): Promise<void>;
   finish(): Promise<void>;
 }
 
@@ -11,15 +12,17 @@ export interface SessionAudioProcessor {
 export class SessionAudioDispatcher {
   private processor: SessionAudioProcessor;
   private onError: (message: string) => void;
-  private pending: Promise<void> = Promise.resolve();
+  private pending: Promise<void>;
   private accepting: boolean = true;
   private canceled: boolean = false;
   private failed: boolean = false;
   private finishTask?: Promise<void>;
 
-  constructor(processor: SessionAudioProcessor, onError: (message: string) => void) {
+  constructor(processor: SessionAudioProcessor, onError: (message: string) => void,
+    initialBarrier: Promise<void> = Promise.resolve()) {
     this.processor = processor;
     this.onError = onError;
+    this.pending = initialBarrier;
   }
 
   write(audio: ArrayBuffer): boolean {
@@ -29,6 +32,20 @@ export class SessionAudioDispatcher {
       if (this.canceled || this.failed) return;
       try {
         await this.processor.write(snapshot);
+      } catch (e) {
+        this.fail(`${e}`);
+      }
+    });
+    return true;
+  }
+
+  writeFloat(samples: Float32Array): boolean {
+    if (!this.accepting || this.canceled || this.failed || samples.length === 0) return false;
+    const snapshot = samples.slice();
+    this.pending = this.pending.then(async (): Promise<void> => {
+      if (this.canceled || this.failed) return;
+      try {
+        await this.processor.writeFloat(snapshot);
       } catch (e) {
         this.fail(`${e}`);
       }

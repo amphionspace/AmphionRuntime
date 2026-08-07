@@ -102,12 +102,68 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
             """
         )
 
+    def test_replacement_session_waits_for_inflight_decode(self) -> None:
+        self.run_dispatcher(
+            """
+            const events = [];
+            let releaseOld;
+            const oldBlocked = new Promise(resolve => { releaseOld = resolve; });
+            const oldDispatcher = new SessionAudioDispatcher({
+              write: async () => {
+                events.push('old-start');
+                await oldBlocked;
+                events.push('old-end');
+              },
+              writeFloat: async () => {},
+              finish: async () => {},
+            }, message => events.push(`old-error-${message}`));
+
+            oldDispatcher.write(Uint8Array.from([1]).buffer);
+            await Promise.resolve();
+            oldDispatcher.cancel();
+            const replacement = new SessionAudioDispatcher({
+              write: async () => events.push('new-write'),
+              writeFloat: async () => {},
+              finish: async () => {},
+            }, message => events.push(`new-error-${message}`), oldDispatcher.whenIdle());
+            replacement.write(Uint8Array.from([2]).buffer);
+            await Promise.resolve();
+            assert.deepEqual(events, ['old-start']);
+
+            releaseOld();
+            await replacement.whenIdle();
+            assert.deepEqual(events, ['old-start', 'old-end', 'new-write']);
+            """
+        )
+
+    def test_float_audio_is_snapshotted_and_uses_the_same_fifo(self) -> None:
+        self.run_dispatcher(
+            """
+            const events = [];
+            const dispatcher = new SessionAudioDispatcher({
+              write: async () => {},
+              writeFloat: async samples => events.push(`float-${samples[0]}`),
+              finish: async () => events.push('finish'),
+            }, message => events.push(`error-${message}`));
+
+            const samples = Float32Array.from([0.25]);
+            assert.equal(dispatcher.writeFloat(samples), true);
+            samples[0] = 0.75;
+            await dispatcher.finish();
+            assert.deepEqual(events, ['float-0.25', 'finish']);
+            """
+        )
+
     def test_adapter_and_core_use_the_async_decode_path(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
         runtime = RUNTIME.read_text(encoding="utf-8")
         self.assertIn("from './SessionAudioDispatcher'", adapter)
         self.assertIn("session.acceptPcmBytesAsync(audio)", adapter)
         self.assertNotIn("session.acceptPcmBytes(audio)", adapter)
+        self.assertIn("session.acceptPcmFloatAsync(samples)", adapter)
+        self.assertNotIn("session.acceptPcmFloat(samples)", adapter)
+        self.assertNotIn("session.stop();", adapter)
+        self.assertIn("oldAudioDispatcher.whenIdle()", adapter)
         self.assertIn("async acceptPcmBytesAsync", runtime)
         self.assertIn("await this.recognizer.decodeAsync(this.stream)", runtime)
 

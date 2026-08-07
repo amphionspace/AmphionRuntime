@@ -72,12 +72,13 @@ class HarmonySessionCallbackGenerationTest(unittest.TestCase):
             "writeAudio(sessionId: string", 1
         )[0]
         async_accept_index = start_body.index("session.acceptPcmBytesAsync(audio)")
-        self.assertIn("isCurrent(audioGeneration)", start_body[:async_accept_index].rsplit(
+        self.assertIn("ownsAudioSession(audioGeneration, audioSessionId, session)",
+                      start_body[:async_accept_index].rsplit(
             "write: async", 1
         )[-1])
-        self.assertIn("this.session !== session", start_body[:async_accept_index].rsplit(
-            "write: async", 1
-        )[-1])
+        ownership_guard = self.source.split("private ownsAudioSession", 1)[1].split("\n  }", 1)[0]
+        self.assertIn("isCurrent(generation)", ownership_guard)
+        self.assertIn("this.session === session", ownership_guard)
 
     def test_terminal_handlers_recheck_generation_after_customer_listener(self) -> None:
         method_ranges = (
