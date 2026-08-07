@@ -43,7 +43,8 @@ class PoliceTermsNormalizer private constructor(
         }
         val fstCorrected = fstRuntime?.applyGlobal(text) ?: text
         val homophoneCorrected = homophones.applyPhrases(fstCorrected)
-        val corrected = PoliceTermsShortGuard.apply(homophoneCorrected)
+        val arrivalCorrected = PoliceTermsArrivalGuard.apply(homophoneCorrected)
+        val corrected = PoliceTermsShortGuard.apply(arrivalCorrected)
         val spans = locateSpans(corrected)
         return PoliceTermsNormalizeResult(corrected, spans)
     }

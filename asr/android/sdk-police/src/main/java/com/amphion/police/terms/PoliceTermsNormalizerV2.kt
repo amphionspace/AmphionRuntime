@@ -118,7 +118,7 @@ class PoliceTermsNormalizerV2 private constructor(
      */
     fun polish(text: String): String {
         if (text.isEmpty()) return text
-        val formatted = formatVoiceCommands(text)
+        val formatted = PoliceTermsArrivalGuard.apply(formatVoiceCommands(text))
         return homophones.applyPhrases(formatted)
     }
 

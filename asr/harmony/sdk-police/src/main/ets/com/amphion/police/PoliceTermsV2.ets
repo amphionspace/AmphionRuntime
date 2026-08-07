@@ -398,6 +398,14 @@ export class PoliceTermsV2 {
     '(v\\s*c+o+m+|we\\s*c+o+n*m+)(\\s*(?:向|发起呼叫))',
     'gi'
   );
+  /**
+   * 客户端到场回报只归一句首（或前接标点/空白）的主语，避免术语流水线重复执行时不断补「我」。
+   * 不做通用重复字清理，例如「我我觉得已经到达现场」应保持原文。
+   */
+  private static readonly ARRIVAL_SCENE_PREFIX: RegExp = new RegExp(
+    '(^|[，。！？!?；;、,\\s])我*已到达现场',
+    'g'
+  );
   private terms: string[];
   private known: Set<string>;
   private homophones: TermsHomophones;
@@ -426,8 +434,15 @@ export class PoliceTermsV2 {
   /** 管线末段润色；与 Android PoliceTermsNormalizerV2.polish 保持同序。 */
   polish(text: string): string {
     if (text.length === 0) return text;
-    const formatted = this.formatVoiceCommands(text);
+    const formatted = this.normalizeArrivalScenePrefix(this.formatVoiceCommands(text));
     return this.homophones.apply(formatted);
+  }
+
+  private normalizeArrivalScenePrefix(text: string): string {
+    return text.replace(
+      PoliceTermsV2.ARRIVAL_SCENE_PREFIX,
+      (_match: string, boundary: string): string => `${boundary}我已到达现场`
+    );
   }
 
   private formatVoiceCommands(text: string): string {

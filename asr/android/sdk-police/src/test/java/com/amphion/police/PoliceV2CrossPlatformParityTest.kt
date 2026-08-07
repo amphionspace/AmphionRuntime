@@ -80,6 +80,7 @@ class PoliceV2CrossPlatformParityTest {
                     "plate" -> plate.normalize(input).text
                     "terms" -> terms.normalize(input).text
                     "terms-polish" -> terms.polish(input)
+                    "terms-pipeline" -> terms.polish(terms.normalize(input).text)
                     "station" -> station.normalize(input).text
                     else -> error("unknown domain: $domain")
                 }
