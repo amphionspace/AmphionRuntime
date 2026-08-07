@@ -195,7 +195,7 @@ class RunCommandTest(unittest.TestCase):
 
         self.assertIn("await sleep(IDLE_FRAME_PACE_MS);", cycle)
         self.assertIn(
-            "const IDLE_FRAME_PACE_MS: number = FRAME_DURATION_MS + 5;", source
+            "const IDLE_FRAME_PACE_MS: number = FRAME_DURATION_MS + 10;", source
         )
         self.assertNotIn("if (fed % 10 === 0) await sleep(1);", cycle)
 
