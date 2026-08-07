@@ -17,6 +17,7 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0010-*` | Android 识别无需解压的 ORT 资源，降低首次模型准备的文件复制开销 |
 | `0011-*` | Android 直接 mmap 未压缩 ORT 资源，避免首次启动重复落盘 |
 | `0012-*` | 共享 WeText 在标识符数字串中兼容 ASR 的“么/幺”同音输出，并向 Harmony HAR 暴露同一 ITN 实现 |
+| `0013-*` | Harmony online decode 增加后台异步入口；recognizer/stream handle 使用共享租约，保证 cancel/unload 与在途 decode 不发生悬空访问 |
 
 Apply automatically from the Harmony `04_build_harmony_so.sh` entry point (Android also applies the same series from its native build flow):
 

@@ -62,11 +62,22 @@ class HarmonySessionCallbackGenerationTest(unittest.TestCase):
         )
         self.assertIsNotNone(match)
         body = match.group(1)
-        accept_index = body.index("acceptPcmBytes(audio)")
-        self.assertIn("currentGeneration()", body[:accept_index])
-        self.assertLess(body.index("this.audioBytesWritten += audio.byteLength"), accept_index)
-        self.assertIn("isCurrent(generation)", body[accept_index:])
-        self.assertIn("this.session !== session", body[accept_index:])
+        dispatch_index = body.index("this.audioDispatcher?.write(audio)")
+        self.assertIn("currentGeneration()", body[:dispatch_index])
+        self.assertLess(body.index("this.audioBytesWritten += audio.byteLength"), dispatch_index)
+        self.assertIn("isCurrent(generation)", body[dispatch_index:])
+        self.assertIn("this.session !== session", body[dispatch_index:])
+
+        start_body = self.source.split("startListening(params: StartParams): void", 1)[1].split(
+            "writeAudio(sessionId: string", 1
+        )[0]
+        async_accept_index = start_body.index("session.acceptPcmBytesAsync(audio)")
+        self.assertIn("isCurrent(audioGeneration)", start_body[:async_accept_index].rsplit(
+            "write: async", 1
+        )[-1])
+        self.assertIn("this.session !== session", start_body[:async_accept_index].rsplit(
+            "write: async", 1
+        )[-1])
 
     def test_terminal_handlers_recheck_generation_after_customer_listener(self) -> None:
         method_ranges = (
@@ -90,7 +101,7 @@ class HarmonySessionCallbackGenerationTest(unittest.TestCase):
         stale_cleanup = body.split("createdSession.close()", 1)[0].rsplit("if (", 1)[-1]
         self.assertIn("isCurrent(startGeneration)", stale_cleanup)
 
-        catch_body = body.split("} catch (e) {", 1)[1]
+        catch_body = body.rsplit("} catch (e) {", 1)[1]
         tear_down_index = catch_body.index("tearDownSession()")
         self.assertIn("isCurrent(startGeneration)", catch_body[:tear_down_index])
         error_index = catch_body.index("this.listener?.onError?")

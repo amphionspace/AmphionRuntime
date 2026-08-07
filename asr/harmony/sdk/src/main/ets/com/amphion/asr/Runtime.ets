@@ -1163,6 +1163,20 @@ export class AsrSession {
     this.acceptPcmShort(new Int16Array(bytes));
   }
 
+  async acceptPcmBytesAsync(bytes: ArrayBuffer): Promise<void> {
+    if (bytes.byteLength % 2 !== 0) {
+      this.callbackGate.invoke((): void => {
+        this.callback.onError?.(new AsrError(
+          AsrErrorCode.INVALID_ARGUMENT, 'PCM byte length must be even for int16 samples'));
+      });
+      return;
+    }
+    const pcm = new Int16Array(bytes);
+    const samples = new Float32Array(pcm.length);
+    for (let i = 0; i < pcm.length; i++) samples[i] = pcm[i] / 32768.0;
+    await this.acceptPcmFloatAsync(samples);
+  }
+
   acceptPcmFloat(samples: Float32Array): void {
     if (this.callbackGate.isClosed() || samples.length === 0) return;
     if (this.shouldDeferSessionOperation()) {
@@ -1170,6 +1184,11 @@ export class AsrSession {
       return;
     }
     this.acceptPcmFloatNow(samples);
+  }
+
+  async acceptPcmFloatAsync(samples: Float32Array): Promise<void> {
+    if (this.callbackGate.isClosed() || samples.length === 0) return;
+    await this.acceptPcmFloatNowAsync(samples);
   }
 
   private acceptPcmFloatNow(samples: Float32Array): void {
@@ -1191,6 +1210,25 @@ export class AsrSession {
     }
   }
 
+  private async acceptPcmFloatNowAsync(samples: Float32Array): Promise<void> {
+    if (this.callbackGate.isClosed() || samples.length === 0) return;
+    if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
+    this.pcmBytesAccepted += samples.length * 2;
+    this.totalPcmBytes += samples.length * 2;
+    this.streamCallDepth += 1;
+    try {
+      await this.feedAndDecodeAsync(samples);
+    } catch (e) {
+      this.callbackGate.invoke((): void => {
+        this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
+      });
+    } finally {
+      this.streamCallDepth -= 1;
+      this.drainReentryQueue();
+      this.releaseStreamIfClosed();
+    }
+  }
+
   stop(): void {
     if (this.callbackGate.isClosed()) return;
     if (this.shouldDeferSessionOperation()) {
@@ -1198,6 +1236,11 @@ export class AsrSession {
       return;
     }
     this.stopNow();
+  }
+
+  async stopAsync(): Promise<void> {
+    if (this.callbackGate.isClosed()) return;
+    await this.stopNowAsync();
   }
 
   private stopNow(): void {
@@ -1209,6 +1252,25 @@ export class AsrSession {
       this.appendFinalTailSilence();
       this.stream.inputFinished();
       this.drain(true, false, true);
+      if (!this.callbackGate.isClosed()) this.notifyStopped();
+    } catch (e) {
+      this.callbackGate.invoke((): void => {
+        this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
+      });
+    } finally {
+      this.streamCallDepth -= 1;
+      this.drainReentryQueue();
+      this.releaseStreamIfClosed();
+    }
+  }
+
+  private async stopNowAsync(): Promise<void> {
+    if (this.callbackGate.isClosed()) return;
+    this.streamCallDepth += 1;
+    try {
+      this.appendFinalTailSilence();
+      this.stream.inputFinished();
+      await this.drainAsync(true, false, true);
       if (!this.callbackGate.isClosed()) this.notifyStopped();
     } catch (e) {
       this.callbackGate.invoke((): void => {
@@ -1335,6 +1397,19 @@ export class AsrSession {
       this.recognizer.decode(this.stream);
     }
     const decodeDurationMs = Date.now() - decodeStartMs;
+
+    this.processDecodedResult(isFinal, restartAfterFinal, isLastFinal, decodeDurationMs);
+  }
+
+  private async drainAsync(isFinal: boolean, restartAfterFinal: boolean = true,
+    isLastFinal: boolean = false): Promise<void> {
+    const decodeDurationMs = await this.recognizer.decodeAsync(this.stream);
+    if (this.callbackGate.isClosed()) return;
+    this.processDecodedResult(isFinal, restartAfterFinal, isLastFinal, decodeDurationMs);
+  }
+
+  private processDecodedResult(isFinal: boolean, restartAfterFinal: boolean,
+    isLastFinal: boolean, decodeDurationMs: number): void {
 
     if (this.recognizer.isEndpoint(this.stream)) {
       if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
@@ -1550,6 +1625,24 @@ export class AsrSession {
     }
   }
 
+  private async feedAndDecodeAsync(samples: Float32Array): Promise<void> {
+    let offset = 0;
+    while (offset < samples.length && !this.callbackGate.isClosed() &&
+      !this.initialSilenceTracker.hasTimedOut()) {
+      const remaining = samples.length - offset;
+      let chunkSize = this.initialSilenceTracker.isArmed() ?
+        Math.min(remaining, INITIAL_DECISION_CHUNK_SAMPLES) : remaining;
+      if (this.speakerVadEnabled) {
+        const speakerVad = this.effectiveSpeakerVad();
+        if (speakerVad !== undefined) {
+          chunkSize = Math.min(chunkSize, this.speakerVadScoreScheduler(speakerVad).samplesUntilNextScore());
+        }
+      }
+      await this.feedChunkAndDecodeAsync(samples.slice(offset, offset + chunkSize));
+      offset += chunkSize;
+    }
+  }
+
   private feedChunkAndDecode(samples: Float32Array): void {
     if (this.callbackGate.isClosed() || this.initialSilenceTracker.hasTimedOut()) return;
     this.initialSilenceTracker.observeAcousticSamples(samples);
@@ -1613,6 +1706,63 @@ export class AsrSession {
     this.maybeTriggerSpeakerVadEndpoint(samples.length);
   }
 
+  private async feedChunkAndDecodeAsync(samples: Float32Array): Promise<void> {
+    if (this.callbackGate.isClosed() || this.initialSilenceTracker.hasTimedOut()) return;
+    this.initialSilenceTracker.observeAcousticSamples(samples);
+    if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
+      this.effectiveSpeechBuffer.observe(samples);
+    }
+    this.speakerPcmBuffers.observe(samples, this.speakerVadEnabled, this.targetSpeakerEnabled);
+
+    const resetGenerationBefore = this.recognizerResetGeneration;
+    await this.feedRecognizerAsync(samples, false);
+    if (this.callbackGate.isClosed()) return;
+    if (this.vad === undefined) return;
+    if (this.recognizerResetGeneration !== resetGenerationBefore) {
+      this.resetVadGateState();
+      return;
+    }
+
+    const merged = this.vadCarry.length === 0 ? samples : concatFloat32([this.vadCarry, samples]);
+    let i = 0;
+    let anySpeech = false;
+    let anySilence = false;
+    while (i + this.vadWindowSize <= merged.length) {
+      this.vad.acceptWaveform(merged.slice(i, i + this.vadWindowSize));
+      if (this.vad.isDetected()) anySpeech = true; else anySilence = true;
+      i += this.vadWindowSize;
+    }
+    this.vadCarry = i < merged.length ? merged.slice(i, merged.length) : new Float32Array(0);
+
+    const initialSilenceTimedOut = this.initialSilenceTracker.observeVad(i, anySpeech);
+    if (anySpeech) {
+      this.effectiveSpeechBuffer.confirmSpeech();
+      const notifySpeechBegin = !this.vadSpeechActive;
+      this.vadSpeechActive = true;
+      this.trailingSilenceMs = 0;
+      if (notifySpeechBegin && !this.callbackGate.invoke((): void => {
+        this.callback.onSpeechBegin?.();
+      })) return;
+    } else if (initialSilenceTimedOut) {
+      if (this.initialSilenceTracker.confirmSpeechLikeActivity()) return;
+      if (this.initialSilenceTracker.needsAsrProbe() && await this.probeInitialSpeechAtTimeoutAsync()) return;
+      if (this.initialSilenceTracker.confirmTimeout()) {
+        this.callbackGate.invoke((): void => { this.callback.onInitialSilenceTimeout?.(); });
+      }
+      return;
+    } else if (anySilence && this.vadSpeechActive) {
+      this.trailingSilenceMs += Math.round(samples.length * 1000 / 16000);
+      const activeEpMs = this.sessionConfig.endpointSilenceMs ?? this.config.vadConfig.activeEndpointSilenceMs;
+      if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs) {
+        this.vadSpeechActive = false;
+        this.trailingSilenceMs = 0;
+        this.triggerVadActiveEndpoint();
+        return;
+      }
+    }
+    this.maybeTriggerSpeakerVadEndpoint(samples.length);
+  }
+
   // Acoustic activity only grants one bounded confirmation window. At its boundary, flush ASR to
   // distinguish delayed real speech from noise; real text is emitted as a non-last final.
   private probeInitialSpeechAtTimeout(): boolean {
@@ -1621,6 +1771,19 @@ export class AsrSession {
     this.stream.inputFinished();
     while (this.recognizer.isReady(this.stream)) this.recognizer.decode(this.stream);
     const hasEvidence = this.dispatchFinal(false, Date.now() - decodeStartMs);
+    if (!this.callbackGate.isClosed()) {
+      this.finishUtterance(true);
+      this.resetVadGateState();
+    }
+    return hasEvidence;
+  }
+
+  private async probeInitialSpeechAtTimeoutAsync(): Promise<boolean> {
+    this.appendFinalTailSilence();
+    this.stream.inputFinished();
+    const decodeDurationMs = await this.recognizer.decodeAsync(this.stream);
+    if (this.callbackGate.isClosed()) return false;
+    const hasEvidence = this.dispatchFinal(false, decodeDurationMs);
     if (!this.callbackGate.isClosed()) {
       this.finishUtterance(true);
       this.resetVadGateState();
@@ -1707,6 +1870,12 @@ export class AsrSession {
     const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
     this.stream.acceptWaveform(wave);
     this.drain(isFinal);
+  }
+
+  private async feedRecognizerAsync(samples: Float32Array, isFinal: boolean): Promise<void> {
+    const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
+    this.stream.acceptWaveform(wave);
+    await this.drainAsync(isFinal);
   }
 
   private appendFinalTailSilence(): void {
