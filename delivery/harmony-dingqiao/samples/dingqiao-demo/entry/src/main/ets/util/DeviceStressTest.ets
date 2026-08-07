@@ -27,6 +27,7 @@ const IDLE_FRAME_PACE_MS: number = FRAME_DURATION_MS + 5;
 const START_TIMEOUT_MS: number = 10000;
 const COMPLETE_TIMEOUT_MS: number = 30000;
 const CANCEL_DRAIN_TIMEOUT_MS: number = 2000;
+const CANCEL_CALLBACK_STABILITY_MS: number = 100;
 const MAX_DURATION_TEST_MS: number = 8000;
 const MAX_DURATION_TEST_FRAMES: number = MAX_DURATION_TEST_MS / FRAME_DURATION_MS;
 const VOICEPRINT_SHORT_FRAMES: number = 25;
@@ -1126,6 +1127,9 @@ async function runRecognitionCycle(engine: SpeechRecognitionEngine, entry: Corpu
     engine.cancel(sessionId);
     const drained = await waitFor((): boolean =>
       AmphionRuntime.activeOnlineStreamCount() === 0, CANCEL_DRAIN_TIMEOUT_MS);
+    // Native teardown may complete before an already-posted ArkTS callback is delivered. Keep the
+    // callback snapshots open for a bounded stability window before asserting cancel quiescence.
+    await sleep(CANCEL_CALLBACK_STABILITY_MS);
     const ok = drained && !engine.isBusy() && events.errors === 0 && lastFinalsBefore === 0 &&
       completesBefore === 0 && events.finals === finalsBefore && events.lastFinals === lastFinalsBefore &&
       events.completes === completesBefore;
