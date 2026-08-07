@@ -214,6 +214,12 @@ class RunCommandTest(unittest.TestCase):
         self.assertIn("events.finals === finalsBefore", cycle)
         self.assertIn("events.completes === completesBefore", cycle)
         self.assertIn("const CANCEL_DRAIN_TIMEOUT_MS: number = 2000;", source)
+        self.assertIn("const CANCEL_CALLBACK_STABILITY_MS: number = 100;", source)
+        drain_index = cycle.index("const drained = await waitFor")
+        stability_index = cycle.index("await sleep(CANCEL_CALLBACK_STABILITY_MS)")
+        contract_index = cycle.index("const ok = drained")
+        self.assertLess(drain_index, stability_index)
+        self.assertLess(stability_index, contract_index)
 
     def test_public_api_reentrant_modes_are_lifecycle_only(self) -> None:
         for mode in ("speaker-vad-onstart", "callback-api-reentrant"):
