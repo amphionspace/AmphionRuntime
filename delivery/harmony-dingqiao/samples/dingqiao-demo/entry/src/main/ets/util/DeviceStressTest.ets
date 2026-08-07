@@ -587,6 +587,8 @@ class StartWriteListener implements RecognitionListener {
   private finishInStart: boolean;
   framesWrittenInStart: number = 0;
   finishCalledInStart: boolean = false;
+  writeBatchElapsedMs: number = 0;
+  maxWriteCallMs: number = 0;
 
   constructor(events: SessionEvents, engine: SpeechRecognitionEngine, bufferedFrames: ArrayBuffer[],
     finishInStart: boolean) {
@@ -599,10 +601,14 @@ class StartWriteListener implements RecognitionListener {
   onStart(sessionId: string, _eventMessage?: string): void {
     this.events.starts += 1;
     this.events.callbackTrace.push(`${sessionId}:start`);
+    const batchStartedAt = Date.now();
     for (let i = 0; i < this.bufferedFrames.length; i++) {
+      const writeStartedAt = Date.now();
       this.engine.writeAudio(sessionId, this.bufferedFrames[i]);
+      this.maxWriteCallMs = Math.max(this.maxWriteCallMs, Date.now() - writeStartedAt);
       this.framesWrittenInStart += 1;
     }
+    this.writeBatchElapsedMs = Date.now() - batchStartedAt;
     if (this.finishInStart) {
       this.finishCalledInStart = true;
       this.engine.finish(sessionId);
@@ -1860,13 +1866,19 @@ async function runStartWriteCycle(engine: SpeechRecognitionEngine, entry: Corpus
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
   const notListening = errorCount(events, DingqiaoErrorCode.NOT_LISTENING);
   const finishFailed = errorCount(events, DingqiaoErrorCode.FINISH_FAILED);
+  const writeLatencyOk = listener.maxWriteCallMs <= 100 && listener.writeBatchElapsedMs <= 200;
   const ok = listener.framesWrittenInStart === bufferedFrameCount && completed && events.starts === 1 &&
     listener.finishCalledInStart === finishInStart && events.completes === 1 && events.lastFinals === 1 &&
-    events.errors === 0 && !engine.isBusy();
-  let detail = ok ? `onstart-write-${bufferedFrameCount}-frames-${finishInStart ? 'finish' : 'continue'}` :
+    events.errors === 0 && !engine.isBusy() && writeLatencyOk;
+  let detail = ok ?
+    `onstart-write-${bufferedFrameCount}-frames-${finishInStart ? 'finish' : 'continue'}` +
+      `-batch-${listener.writeBatchElapsedMs}ms-max-${listener.maxWriteCallMs}ms` :
     'onstart-write-contract';
   if (notListening > 0) detail = 'onstart-write-not-listening';
   if (finishFailed > 0) detail = 'onstart-finish-failed';
+  if (!writeLatencyOk) {
+    detail = `onstart-write-blocked-batch-${listener.writeBatchElapsedMs}ms-max-${listener.maxWriteCallMs}ms`;
+  }
   return finishCycle(index, entry.id, events, startedAt, ok, detail);
 }
 

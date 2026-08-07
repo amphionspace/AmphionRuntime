@@ -1,0 +1,355 @@
+From 94d4d7fc181c597083ded53c3a5d6a206e9b4af6 Mon Sep 17 00:00:00 2001
+From: Boxp <boxp@BoxpdeMacBook-Air.local>
+Date: Fri, 7 Aug 2026 11:00:34 +0800
+Subject: [PATCH] feat(harmony): decode online streams asynchronously
+
+---
+ .../src/main/cpp/online-recognizer-handle.h   |  34 ++++--
+ .../src/main/cpp/online-stream-handle.h       |  49 ++++++--
+ .../sherpa_onnx/src/main/cpp/streaming-asr.cc | 112 +++++++++++++++++-
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |   2 +
+ .../src/main/ets/components/StreamingAsr.ets  |   5 +
+ 5 files changed, 183 insertions(+), 19 deletions(-)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-recognizer-handle.h b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-recognizer-handle.h
+index 6b40e5c3..73ce2e6c 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-recognizer-handle.h
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-recognizer-handle.h
+@@ -3,6 +3,7 @@
+ 
+ #include <atomic>
+ #include <cstdint>
++#include <memory>
+ 
+ #include "napi.h"  // NOLINT
+ #include "sherpa-onnx/c-api/c-api.h"
+@@ -13,24 +14,22 @@
+ // and its finalizer runs, so SpeechRecognizeSdk.unloadModel (which just drops
+ // ArkTS references) could not actually free memory. Close() is idempotent, so an
+ // explicit destroyOnlineRecognizer() and the later finalizer never double-free.
+-class OnlineRecognizerHandle {
++class OnlineRecognizerState {
+  public:
+-  explicit OnlineRecognizerHandle(const SherpaOnnxOnlineRecognizer *recognizer)
++  explicit OnlineRecognizerState(const SherpaOnnxOnlineRecognizer *recognizer)
+       : recognizer_(recognizer) {
+     if (recognizer_ != nullptr) LiveCount().fetch_add(1);
+   }
+ 
+-  ~OnlineRecognizerHandle() { Close(); }
+-
+-  const SherpaOnnxOnlineRecognizer *Get() const { return recognizer_; }
+-
+-  void Close() {
++  ~OnlineRecognizerState() {
+     if (recognizer_ == nullptr) return;
+     SherpaOnnxDestroyOnlineRecognizer(recognizer_);
+     recognizer_ = nullptr;
+     LiveCount().fetch_sub(1);
+   }
+ 
++  const SherpaOnnxOnlineRecognizer *Get() const { return recognizer_; }
++
+   static int64_t ActiveCount() { return LiveCount().load(); }
+ 
+  private:
+@@ -42,6 +41,27 @@ class OnlineRecognizerHandle {
+   const SherpaOnnxOnlineRecognizer *recognizer_;
+ };
+ 
++class OnlineRecognizerHandle {
++ public:
++  explicit OnlineRecognizerHandle(const SherpaOnnxOnlineRecognizer *recognizer)
++      : state_(std::make_shared<OnlineRecognizerState>(recognizer)) {}
++
++  const SherpaOnnxOnlineRecognizer *Get() const {
++    return state_ == nullptr ? nullptr : state_->Get();
++  }
++
++  std::shared_ptr<OnlineRecognizerState> Lease() const { return state_; }
++
++  void Close() {
++    state_.reset();
++  }
++
++  static int64_t ActiveCount() { return OnlineRecognizerState::ActiveCount(); }
++
++ private:
++  std::shared_ptr<OnlineRecognizerState> state_;
++};
++
+ inline Napi::External<OnlineRecognizerHandle> WrapOnlineRecognizer(
+     Napi::Env env, const SherpaOnnxOnlineRecognizer *recognizer) {
+   auto *handle = new OnlineRecognizerHandle(recognizer);
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-stream-handle.h b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-stream-handle.h
+index 80348981..6dab5d8d 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-stream-handle.h
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-stream-handle.h
+@@ -4,28 +4,31 @@
+ #include <atomic>
+ #include <cstddef>
+ #include <cstdint>
++#include <memory>
++#include <utility>
+ 
+ #include "napi.h"  // NOLINT
++#include "online-recognizer-handle.h"  // NOLINT
+ #include "sherpa-onnx/c-api/c-api.h"
+ 
+-class OnlineStreamHandle {
++class OnlineStreamState {
+  public:
+-  explicit OnlineStreamHandle(const SherpaOnnxOnlineStream *stream)
+-      : stream_(stream) {
++  explicit OnlineStreamState(
++      const SherpaOnnxOnlineStream *stream,
++      std::shared_ptr<OnlineRecognizerState> recognizer = nullptr)
++      : stream_(stream), recognizer_(std::move(recognizer)) {
+     if (stream_ != nullptr) LiveCount().fetch_add(1);
+   }
+ 
+-  ~OnlineStreamHandle() { Close(); }
+-
+-  const SherpaOnnxOnlineStream *Get() const { return stream_; }
+-
+-  void Close() {
++  ~OnlineStreamState() {
+     if (stream_ == nullptr) return;
+     SherpaOnnxDestroyOnlineStream(stream_);
+     stream_ = nullptr;
+     LiveCount().fetch_sub(1);
+   }
+ 
++  const SherpaOnnxOnlineStream *Get() const { return stream_; }
++
+   static int64_t ActiveCount() { return LiveCount().load(); }
+ 
+  private:
+@@ -35,11 +38,37 @@ class OnlineStreamHandle {
+   }
+ 
+   const SherpaOnnxOnlineStream *stream_;
++  std::shared_ptr<OnlineRecognizerState> recognizer_;
++};
++
++class OnlineStreamHandle {
++ public:
++  explicit OnlineStreamHandle(
++      const SherpaOnnxOnlineStream *stream,
++      std::shared_ptr<OnlineRecognizerState> recognizer = nullptr)
++      : state_(std::make_shared<OnlineStreamState>(stream,
++                                                   std::move(recognizer))) {}
++
++  const SherpaOnnxOnlineStream *Get() const {
++    return state_ == nullptr ? nullptr : state_->Get();
++  }
++
++  std::shared_ptr<OnlineStreamState> Lease() const { return state_; }
++
++  void Close() {
++    state_.reset();
++  }
++
++  static int64_t ActiveCount() { return OnlineStreamState::ActiveCount(); }
++
++ private:
++  std::shared_ptr<OnlineStreamState> state_;
+ };
+ 
+ inline Napi::External<OnlineStreamHandle> WrapOnlineStream(
+-    Napi::Env env, const SherpaOnnxOnlineStream *stream) {
+-  auto *handle = new OnlineStreamHandle(stream);
++    Napi::Env env, const SherpaOnnxOnlineStream *stream,
++    std::shared_ptr<OnlineRecognizerState> recognizer = nullptr) {
++  auto *handle = new OnlineStreamHandle(stream, std::move(recognizer));
+   return Napi::External<OnlineStreamHandle>::New(
+       env, handle, [](Napi::Env, OnlineStreamHandle *value) { delete value; });
+ }
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+index 4e48d48b..e65abfbf 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+@@ -2,6 +2,7 @@
+ //
+ // Copyright (c)  2024  Xiaomi Corporation
+ #include <exception>
++#include <chrono>
+ #include <memory>
+ #include <sstream>
+ #include <string>
+@@ -591,13 +592,22 @@ static Napi::External<OnlineStreamHandle> CreateOnlineStreamWrapper(
+     return {};
+   }
+ 
++  OnlineRecognizerHandle *recognizer_handle =
++      GetOnlineRecognizerHandle(info, 0);
++  std::shared_ptr<OnlineRecognizerState> recognizer_state =
++      recognizer_handle == nullptr ? nullptr : recognizer_handle->Lease();
+   const SherpaOnnxOnlineRecognizer *recognizer =
+-      GetOnlineRecognizer(info, 0);
++      recognizer_state == nullptr ? nullptr : recognizer_state->Get();
++  if (recognizer == nullptr) {
++    Napi::Error::New(env, "Online recognizer is closed")
++        .ThrowAsJavaScriptException();
++    return {};
++  }
+ 
+   const SherpaOnnxOnlineStream *stream =
+       SherpaOnnxCreateOnlineStream(recognizer);
+ 
+-  return WrapOnlineStream(env, stream);
++  return WrapOnlineStream(env, stream, std::move(recognizer_state));
+ }
+ 
+ static void DestroyOnlineRecognizerWrapper(const Napi::CallbackInfo &info) {
+@@ -772,6 +782,102 @@ static void DecodeOnlineStreamWrapper(const Napi::CallbackInfo &info) {
+   SherpaOnnxDecodeOnlineStream(recognizer, stream);
+ }
+ 
++class DecodeOnlineStreamAsyncWorker : public Napi::AsyncWorker {
++ public:
++  DecodeOnlineStreamAsyncWorker(
++      Napi::Env env,
++      std::shared_ptr<OnlineRecognizerState> recognizer,
++      std::shared_ptr<OnlineStreamState> stream,
++      Napi::Promise::Deferred deferred)
++      : Napi::AsyncWorker(env, "DecodeOnlineStreamAsyncWorker"),
++        recognizer_(std::move(recognizer)),
++        stream_(std::move(stream)),
++        deferred_(deferred) {}
++
++  void Execute() override {
++    try {
++      const SherpaOnnxOnlineRecognizer *recognizer =
++          recognizer_ == nullptr ? nullptr : recognizer_->Get();
++      const SherpaOnnxOnlineStream *stream =
++          stream_ == nullptr ? nullptr : stream_->Get();
++      if (recognizer == nullptr || stream == nullptr) {
++        error_ = "Online recognizer or stream is closed";
++        return;
++      }
++      const auto started = std::chrono::steady_clock::now();
++      while (SherpaOnnxIsOnlineStreamReady(recognizer, stream)) {
++        SherpaOnnxDecodeOnlineStream(recognizer, stream);
++      }
++      duration_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(
++          std::chrono::steady_clock::now() - started).count();
++    } catch (const std::exception &e) {
++      error_ = e.what();
++    } catch (...) {
++      error_ = "Unknown native exception while decoding online stream";
++    }
++    // Release native leases on the worker thread. If cancel/unload already
++    // closed the JS handles, native destruction also stays off the UI thread.
++    stream_.reset();
++    recognizer_.reset();
++  }
++
++  void OnOK() override {
++    if (!error_.empty()) {
++      deferred_.Reject(Napi::Error::New(Env(), error_).Value());
++      return;
++    }
++    deferred_.Resolve(Napi::Number::New(Env(), duration_ms_));
++  }
++
++  void OnError(const Napi::Error &error) override {
++    deferred_.Reject(error.Value());
++  }
++
++ private:
++  std::shared_ptr<OnlineRecognizerState> recognizer_;
++  std::shared_ptr<OnlineStreamState> stream_;
++  Napi::Promise::Deferred deferred_;
++  int64_t duration_ms_ = 0;
++  std::string error_;
++};
++
++static Napi::Value DecodeOnlineStreamAsyncWrapper(
++    const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 2 || !info[0].IsExternal() ||
++      !info[1].IsExternal()) {
++    Napi::TypeError::New(
++        env, "Expected online recognizer and stream handles")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++
++  OnlineRecognizerHandle *recognizer_handle =
++      GetOnlineRecognizerHandle(info, 0);
++  OnlineStreamHandle *stream_handle = GetOnlineStreamHandle(info, 1);
++  std::shared_ptr<OnlineRecognizerState> recognizer =
++      recognizer_handle == nullptr ? nullptr : recognizer_handle->Lease();
++  std::shared_ptr<OnlineStreamState> stream =
++      stream_handle == nullptr ? nullptr : stream_handle->Lease();
++  if (recognizer == nullptr || recognizer->Get() == nullptr ||
++      stream == nullptr || stream->Get() == nullptr) {
++    Napi::Error::New(env, "Online recognizer or stream is closed")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++
++  Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
++  auto *worker = new DecodeOnlineStreamAsyncWorker(
++      env, std::move(recognizer), std::move(stream), deferred);
++  try {
++    worker->Queue();
++  } catch (...) {
++    delete worker;
++    throw;
++  }
++  return deferred.Promise();
++}
++
+ static Napi::String GetOnlineStreamResultAsJsonWrapper(
+     const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+@@ -1008,6 +1114,8 @@ void InitStreamingAsr(Napi::Env env, Napi::Object exports) {
+ 
+   exports.Set(Napi::String::New(env, "decodeOnlineStream"),
+               Napi::Function::New(env, DecodeOnlineStreamWrapper));
++  exports.Set(Napi::String::New(env, "decodeOnlineStreamAsync"),
++              Napi::Function::New(env, DecodeOnlineStreamAsyncWrapper));
+ 
+   exports.Set(Napi::String::New(env, "getOnlineStreamResultAsJson"),
+               Napi::Function::New(env, GetOnlineStreamResultAsJsonWrapper));
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index f62a2401..a66ac7d9 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -38,6 +38,8 @@ export const acceptWaveformOnline: (handle: object, audio: object) => void;
+ export const inputFinished: (streamHandle: object) => void;
+ export const isOnlineStreamReady: (handle: object, streamHandle: object) => boolean;
+ export const decodeOnlineStream: (handle: object, streamHandle: object) => void;
++export const decodeOnlineStreamAsync: (handle: object,
++  streamHandle: object) => Promise<number>;
+ export const isEndpoint: (handle: object, streamHandle: object) => boolean;
+ export const reset: (handle: object, streamHandle: object) => void;
+ export const getOnlineStreamResultAsJson: (handle: object, streamHandle: object) => string;
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+index 9106a915..d301589d 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+@@ -5,6 +5,7 @@ import {
+   destroyOnlineRecognizer,
+   createOnlineStream,
+   decodeOnlineStream,
++  decodeOnlineStreamAsync,
+   destroyOnlineStream,
+   getOnlineStreamResultAsJson,
+   getOnlineStreamLiveCount,
+@@ -168,6 +169,10 @@ export class OnlineRecognizer {
+     decodeOnlineStream(this.handle, stream.handle);
+   }
+ 
++  decodeAsync(stream: OnlineStream): Promise<number> {
++    return decodeOnlineStreamAsync(this.handle, stream.handle);
++  }
++
+   isEndpoint(stream: OnlineStream): boolean {
+     return isEndpoint(this.handle, stream.handle);
+   }
+-- 
+2.50.1 (Apple Git-155)
+

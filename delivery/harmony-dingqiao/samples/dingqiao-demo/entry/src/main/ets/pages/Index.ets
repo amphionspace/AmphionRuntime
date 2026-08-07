@@ -18,6 +18,7 @@ import {
   StartParams
 } from 'amphion_dingqiao';
 import { AudioRecorder, AudioRecorderStats } from '../util/AudioRecorder';
+import { ColdStartEngineDecision, ColdStartPttGate } from '../util/ColdStartPttGate';
 import { PcmPlayer } from '../util/PcmPlayer';
 import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
@@ -90,6 +91,9 @@ struct Index {
   private appliedHotwordsKey: string = '';
   // 用户点了「开始识别」触发按需加载,加载完成后才真正开录;导航离开则丢弃这次加载。
   private startPending: boolean = false;
+  private coldStartPttGate: ColdStartPttGate = new ColdStartPttGate();
+  private coldStartGeneration: number = -1;
+  private suppressCaptureOnNextStart: boolean = false;
   private active: boolean = true;
   // 点击即开麦 + 模型异步加载:加载期间麦克风帧进 pre-roll 缓存,模型就绪后回灌再转 live(一帧不丢)。
   private modelReady: boolean = false;
@@ -136,6 +140,8 @@ struct Index {
   aboutToDisappear(): void {
     this.active = false;
     this.startPending = false;
+    this.coldStartPttGate.cancel();
+    this.coldStartGeneration = -1;
     this.capturePlayer.stop();
     this.playingCapture = false;
     if (this.replaying) {
@@ -248,11 +254,16 @@ struct Index {
   }
 
   // L2 加载完成回调(由「开始识别」触发的按需加载)。加载完直接开录。
-  onEngineCreated(engine: SpeechRecognitionEngine): void {
-    if (!this.active || (!this.listening && !this.replaying)) {
-      // 加载途中用户已离开本页 / 已取消当前输入:直接释放,避免残留会话与内存。
+  onEngineCreated(engine: SpeechRecognitionEngine, generation: number = -1): void {
+    const decision: ColdStartEngineDecision = generation >= 0 ?
+      this.coldStartPttGate.engineReady(generation) :
+      { accepted: false, finishAfterFlush: false };
+    const rejectedColdStart = generation >= 0 && !decision.accepted;
+    if (!this.active || rejectedColdStart ||
+      (!this.listening && !this.replaying && !decision.accepted)) {
+      // 加载途中用户已离开本页 / 已取消当前输入：关闭残留会话；离开页面时再卸载模型。
       engine.shutdown();
-      SpeechRecognizeSdk.unloadModel();
+      if (!this.active) SpeechRecognizeSdk.unloadModel();
       this.startPending = false;
       this.loading = false;
       return;
@@ -261,6 +272,7 @@ struct Index {
     engine.setListener(new DemoRecognitionListener(this));
     this.engineReady = true;
     this.startPending = false;
+    if (decision.accepted) this.coldStartGeneration = -1;
     // L2 冷加载完成:模型已在内存(关 prepack)。
     this.peakAnonMb = 0;
     this.peakVmRssMb = 0;
@@ -273,10 +285,18 @@ struct Index {
       return;
     }
     // 麦克风点击时已开始录音,模型就绪 → 建会话并把 pre-roll 缓存回灌,转 live。
-    this.startSessionAndFlush();
+    this.startSessionAndFlush(decision.finishAfterFlush);
   }
 
-  onEngineCreateFailed(errorCode: number, message: string): void {
+  onEngineCreateFailed(errorCode: number, message: string, generation: number = -1): void {
+    if (generation >= 0 && generation !== this.coldStartGeneration) return;
+    if (generation >= 0) {
+      this.coldStartPttGate.cancel();
+      this.coldStartGeneration = -1;
+      this.listening = false;
+      this.modelReady = false;
+      this.preRoll = [];
+    }
     this.loading = false;
     this.engineReady = false;
     this.startPending = false;
@@ -353,18 +373,21 @@ struct Index {
     } else {
       // ② 并行冷加载模型;完成后在 onEngineCreated 建会话并回灌 pre-roll。
       this.startPending = true;
+      this.coldStartGeneration = this.coldStartPttGate.begin();
       this.loading = true;
       this.loadingHint = '模型加载中（语音已在缓存,加载完立即识别）…';
       this.status = '录音中 · 模型加载中（语音已缓存,加载完立即识别）…';
       SpeechRecognizeSdk.createEngineAsync(
         this.buildCreateEngineParams(this.capturedHotwords),
-        new DemoCreateEngineCallback(this));
+        new DemoCreateEngineCallback(this, this.coldStartGeneration));
     }
   }
 
   // 建会话 → 把加载期间缓存的 pre-roll 帧按序回灌 → 转 live。模型就绪(冷加载完 or 已在内存)后调用。
-  private startSessionAndFlush(): void {
+  private startSessionAndFlush(finishAfterFlush: boolean = false): void {
+    this.suppressCaptureOnNextStart = finishAfterFlush;
     this.startRecognitionSession();                // 设 sessionId + engine.startListening(同步 busy=true)+ onStart
+    this.suppressCaptureOnNextStart = false;
     const buffered = this.preRoll;
     this.preRoll = [];
     this.modelReady = true;
@@ -372,8 +395,12 @@ struct Index {
       this.feedFrameLive(buffered[i]);
     }
     this.loading = false;
-    this.status = '识别中…（再次点击结束）';
     this.logStartTiming(`session_ready(回灌 preRoll=${buffered.length} 帧, 丢=${this.preRollDroppedFrames})`);
+    if (finishAfterFlush) {
+      this.finishColdStartSession();
+    } else {
+      this.status = '识别中…（再次点击结束）';
+    }
   }
 
   // ---- 两级加载内存埋点(tag=TwoLevelMem,/proc 权威) ----
@@ -726,6 +753,10 @@ struct Index {
     if (!this.listening || this.stoppingListening) return;
     this.stoppingListening = true;
     const sid = this.sessionId;
+    const coldStartGeneration = sid.length === 0 && this.startPending ?
+      this.coldStartGeneration : -1;
+    const waitsForColdEngine = coldStartGeneration >= 0 &&
+      this.coldStartPttGate.release(coldStartGeneration);
     this.rotatingSession = false;
     this.sessionAudioMs = 0;
     // 先 await 关麦并 flush 尾帧:此时 listening/sessionId 仍有效,补出来的尾帧能写进当前会话,
@@ -734,27 +765,45 @@ struct Index {
       await this.stopCapture();
       try {
         // stopCapture has already emitted PcmFrameWriter's zero-padded final 640B frame.
-        this.saveSdkCapture();
+        if (!waitsForColdEngine) this.saveSdkCapture();
       } catch (e) {
         this.captureReady = false;
         this.captureInfo = `SDK PCM 保存失败：${e}`;
       }
     } finally {
-      this.listening = false;
-      this.modelReady = false;
-      this.preRoll = [];
-      this.sessionId = '';
+      if (!waitsForColdEngine) {
+        this.listening = false;
+        this.modelReady = false;
+        this.preRoll = [];
+        this.sessionId = '';
+      }
       this.stoppingListening = false;
     }
     if (sid.length > 0) {
       this.engine?.finish(sid);
-    } else if (this.startPending) {
-      // 模型还没加载完就点了停止:没有 session 可 finish。标记取消,
-      // onEngineCreated 会因 !listening 释放刚加载好的模型(不残留内存)。
-      this.startPending = false;
-      this.loading = false;
-      this.status = '已取消（模型未加载完成）';
+    } else if (waitsForColdEngine) {
+      if (this.coldStartPttGate.captureStopped(coldStartGeneration)) {
+        this.finishColdStartSession();
+      } else {
+        this.status = '录音已缓存 · 模型加载完成后自动识别';
+      }
     }
+  }
+
+  private finishColdStartSession(): void {
+    const sid = this.sessionId;
+    if (sid.length === 0) return;
+    try {
+      this.saveSdkCapture();
+    } catch (e) {
+      this.captureReady = false;
+      this.captureInfo = `SDK PCM 保存失败：${e}`;
+    }
+    this.listening = false;
+    this.modelReady = false;
+    this.sessionId = '';
+    this.status = '录音结束 · 正在生成最终结果…';
+    this.engine?.finish(sid);
   }
 
   private startCapture(): void {
@@ -799,7 +848,7 @@ struct Index {
       this.status = '正在用上次 SDK PCM 原样复测…';
       return;
     }
-    this.startCapture();
+    if (!this.suppressCaptureOnNextStart) this.startCapture();
     this.status = '识别中…（再次点击结束）';
   }
 
@@ -1189,17 +1238,19 @@ class DemoRecognitionListener implements RecognitionListener {
 
 class DemoCreateEngineCallback implements CreateEngineCallback {
   private owner: Index;
+  private generation: number;
 
-  constructor(owner: Index) {
+  constructor(owner: Index, generation: number = -1) {
     this.owner = owner;
+    this.generation = generation;
   }
 
   onSuccess(engine: SpeechRecognitionEngine): void {
-    this.owner.onEngineCreated(engine);
+    this.owner.onEngineCreated(engine, this.generation);
   }
 
   onError(errorCode: number, message: string): void {
-    this.owner.onEngineCreateFailed(errorCode, message);
+    this.owner.onEngineCreateFailed(errorCode, message, this.generation);
   }
 }
 
