@@ -103,7 +103,9 @@ const lines = fs.readFileSync(casesPath, 'utf8').split(/\r?\n/).filter((line) =>
 let failures = 0;
 for (const [index, line] of lines.entries()) {
   const [domain, assertion, input, expected] = line.split('\t');
-  const actual = domain === 'terms-polish' ? engines.terms.polish(input) : engines[domain].normalize(input);
+  const actual = domain === 'terms-polish' ? engines.terms.polish(input) :
+    domain === 'terms-pipeline' ? engines.terms.polish(engines.terms.normalize(input)) :
+    engines[domain].normalize(input);
   const ok = assertion === 'contains' ? actual.includes(expected) : actual === expected;
   if (!ok) {
     failures++;
