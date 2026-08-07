@@ -22,6 +22,18 @@ online-stream 存活数。
 开始超过一分钟的构建或测试前，应先记录要排除的风险、预计耗时和停止条件。单个问题不能用
 无关模式的更多轮数换取“覆盖所有边界”的表述。
 
+0.3.0 异步 FIFO 曾在宿主 finish 兼容性上产生回归，原因和长期门禁见
+[`FINISH_COMPATIBILITY_POSTMORTEM.md`](./FINISH_COMPATIBILITY_POSTMORTEM.md)。发布前使用统一入口，它只构建一次并将
+两个客户时序的证据绑定到同一 commit、设备和 HAP/HAR：
+
+```bash
+python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py \
+  --data-dir "$HOME/Downloads/testdata"
+```
+
+汇总结果保存在 `build/release-gates/finish-compat/<gate-id>/report.json`，子目录保留两个模式的完整
+`run_device_stress.py` artifact。任一模式失败或构建身份不一致时，整体门禁失败。
+
 ## 运行
 
 从仓库根目录执行：

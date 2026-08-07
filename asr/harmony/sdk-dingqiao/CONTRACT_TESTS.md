@@ -91,7 +91,10 @@
     表示会话正在进行，不得提前发布虚假 idle。该门禁由真机 `finish-shutdown` 模式逐 session 验证。
 
 主机可执行的初始静音、final 完成策略、session generation 和发布状态机测试由 Android CI 的
-`Run cross-platform ASR lifecycle contracts` 步骤执行；Harmony 真机发布门禁仍按本节完整执行。
+`Run cross-platform ASR lifecycle contracts` 步骤通过 `test_harmony_*.py` 自动发现并执行。
+Harmony 发布前还必须执行 `delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py`，
+用同一 commit、设备和 HAP/HAR 组合验证第 12、13 条。背景和证据规则见
+`delivery/harmony-dingqiao/docs/FINISH_COMPATIBILITY_POSTMORTEM.md`。
 
 ## 6. 声纹与 License
 
