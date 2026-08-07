@@ -1,0 +1,68 @@
+[
+  {
+    "id": "000000",
+    "source": "000_enrollment_far.wav",
+    "source_sha256": "a50064cd01bc16e9bbdb58b4cf5d21a6fb13d7346e8e1de48c4890334a9e456e",
+    "sample_rate": 16000,
+    "channels": 1,
+    "sample_width": 2,
+    "duration_seconds": 7.12,
+    "pcm_bytes": 227840,
+    "pcm_sha256": "cfd72952bba935935febb5492ca4b2880f747f5550ca68164c79889ffa674040"
+  },
+  {
+    "id": "000001",
+    "source": "001_enrollment_mid.wav",
+    "source_sha256": "9d35c3ff1c404f6edc5b70b49197307c36fa645701ce71513e9520250a880969",
+    "sample_rate": 16000,
+    "channels": 1,
+    "sample_width": 2,
+    "duration_seconds": 6.92,
+    "pcm_bytes": 221440,
+    "pcm_sha256": "46b8a3734c135c17a3d4ce7900cc9cb932bc63e13a1b1541d23d51d55e2a04ea"
+  },
+  {
+    "id": "000002",
+    "source": "002_enrollment_near.wav",
+    "source_sha256": "5c3f33e6c7eb85fcf9277ac705da736108355a90a658b54c8c1716cf46733463",
+    "sample_rate": 16000,
+    "channels": 1,
+    "sample_width": 2,
+    "duration_seconds": 6.92,
+    "pcm_bytes": 221440,
+    "pcm_sha256": "b4b158102ed17bfa12ed51e3d2931c05ac4afb8bc23b6e710e7d9105df2051f1"
+  },
+  {
+    "id": "000003",
+    "source": "101_C1.wav",
+    "source_sha256": "a687cb55710bb3ef1771717d74bdf3e974653bd004bf490200ed9a3c86ddab9b",
+    "sample_rate": 16000,
+    "channels": 1,
+    "sample_width": 2,
+    "duration_seconds": 10.34,
+    "pcm_bytes": 330880,
+    "pcm_sha256": "ee07b7a5fe61735c88e2281b9c049e826d8c269173aa33f254ccc629e88e4ada"
+  },
+  {
+    "id": "000004",
+    "source": "102_C2.wav",
+    "source_sha256": "e12589eb974e422349d26b4b3b1bb41735b2cbb60744ce5cfdb1b4ff7cc41b59",
+    "sample_rate": 16000,
+    "channels": 1,
+    "sample_width": 2,
+    "duration_seconds": 14.5,
+    "pcm_bytes": 464000,
+    "pcm_sha256": "b96e7bfb813f25d364a3565a59bfd0bd06a12fe31da6feb66f2e9145c5d674b5"
+  },
+  {
+    "id": "000005",
+    "source": "103_C3.wav",
+    "source_sha256": "f556c1ca7226678bbd448156a724b0e372c8ec8fe1c758c0fc042afa44502b00",
+    "sample_rate": 16000,
+    "channels": 1,
+    "sample_width": 2,
+    "duration_seconds": 11.88,
+    "pcm_bytes": 380160,
+    "pcm_sha256": "8597952844df7cc8809308a9439b93a1d7b59863db5f383db8eac5f9ace8e418"
+  }
+]
