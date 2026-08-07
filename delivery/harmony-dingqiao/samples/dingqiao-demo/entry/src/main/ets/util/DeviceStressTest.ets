@@ -1660,7 +1660,11 @@ async function runCallbackApiReentrantCycle(engine: SpeechRecognitionEngine, ent
   let eventContract = events.speechBegins <= 1 && events.speechEnds <= 1;
   if (trigger === 'speech-begin') eventContract = events.speechBegins === 1 && events.speechEnds <= 1;
   else if (trigger === 'speech-end') eventContract = events.speechBegins === 1 && events.speechEnds === 1;
-  const finalContract = events.lastFinals === 1 && events.finals >= 1;
+  let finalContract = events.lastFinals === 1 && events.finals >= 1;
+  if (trigger === 'speech-end') {
+    const terminalText = events.finalTexts.length > 0 ? events.finalTexts[events.finalTexts.length - 1] : '';
+    finalContract = finalContract && terminalText.length > 0;
+  }
   const expectedWriteCalls = trigger === 'speech-end' ? 0 : 1;
   const ok = completed && listener.reentryAttempted && listener.writeCalls === expectedWriteCalls &&
     listener.finishCalls === 1 && listener.reentryThrowMessage.length === 0 && events.starts === 1 &&
@@ -1677,6 +1681,44 @@ async function runCallbackApiReentrantCycle(engine: SpeechRecognitionEngine, ent
   else if (!listener.terminalOrderOk(sessionId)) detail = 'callback-terminal-order';
   const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
   result.fedFrames = fed + silenceFed;
+  return result;
+}
+
+// Reproduces the legacy PTT host sequence exactly: finish, observe the still-draining busy state,
+// then immediately release the engine. An accepted finish must retain ownership until its unique
+// last/complete callbacks have been delivered.
+async function runFinishShutdownCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const sessionId = `finish-shutdown-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
+  engine.startListening(startParams(sessionId, 'finish-shutdown', index));
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 150, 0);
+  if (fed === 0) {
+    engine.cancel(sessionId);
+    return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+  }
+  const lastFinalsBeforeFinish = events.lastFinals;
+  engine.finish(sessionId);
+  const busyAfterFinish = engine.isBusy();
+  engine.shutdown();
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const ok = busyAfterFinish && completed && lastFinalsBeforeFinish === 0 && events.starts === 1 &&
+    events.lastFinals === 1 && events.completes === 1 && events.errors === 0 &&
+    events.finals > 0 && !engine.isBusy();
+  let detail = 'finish-shutdown-drained';
+  if (!busyAfterFinish) detail = 'finish-returned-idle-before-complete';
+  else if (!completed) detail = 'shutdown-dropped-complete';
+  else if (events.lastFinals !== 1) detail = `shutdown-last-count-${events.lastFinals}`;
+  else if (events.errors !== 0) detail = `shutdown-error-count-${events.errors}`;
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.fedFrames = fed;
+  result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
   return result;
 }
 
@@ -2150,7 +2192,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       if (options.mode === 'voiceprint-fallback') SpeechRecognizeSdk.unloadModel();
     }
 
-    const recreateEachCycle = options.mode === 'recreate' || options.mode === 'start-write-reload';
+    const recreateEachCycle = options.mode === 'recreate' || options.mode === 'start-write-reload' ||
+      options.mode === 'finish-shutdown';
     if (!recreateEachCycle) engine = createEngine();
     for (let i = 0; i < options.cycles; i++) {
       let entry = entries[i % entries.length];
@@ -2186,6 +2229,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runCallbackApiReentrantCycle(engine, entry, i);
       } else if (options.mode === 'endpoint-reentrant') {
         result = await runEndpointReentrantCycle(engine, entry, i);
+      } else if (options.mode === 'finish-shutdown') {
+        result = await runFinishShutdownCycle(engine, entry, i);
       } else if (options.mode === 'user-sequence') {
         result = await runUserSequenceCycle(engine, entry, i);
       } else if (options.mode === 'vad-begin-silence') {
@@ -2219,6 +2264,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         engine.shutdown();
         engine = undefined;
         SpeechRecognizeSdk.unloadModel();
+      } else if (options.mode === 'finish-shutdown') {
+        engine = undefined;
       }
       await sleep(10);
     }

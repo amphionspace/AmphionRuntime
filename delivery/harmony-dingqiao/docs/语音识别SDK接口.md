@@ -178,6 +178,12 @@ interface CreateEngineCallback {
 
 一个 `SpeechRecognitionEngine` 同时只处理一个活跃会话。`startListening` 成功后才能写入音频；`finish` 或 `cancel` 后如需继续识别，请重新调用 `startListening` 创建新会话。
 
+`finish(sessionId)` 被接受后，`isBusy()` 会保持 `true`，直到唯一的 last final 和随后的 `onComplete`
+完成。调用方应以 `onComplete` 作为可安全释放或复用的边界。为兼容旧宿主，若在该排空窗口立即调用
+`shutdown()`，SDK 会延迟内部资源释放至 final/complete 已送达；但在收到 `onComplete` 前仍不得调用
+`unloadModel()` 或 `unloadRuntime()`。在 `SPEECH_END` 回调内同步调用 `finish()` 时，当前带文本
+endpoint final 会直接成为本 session 的 `isLast=true` 结果，不再追加空 terminal final。
+
 `onStart(sessionId)` 是该 session 已可调用的边界。宿主可以在 `onStart` 回调调用栈内同步冲刷此前缓存的 640 字节 PCM 帧，也可以立即 `finish` 或 `cancel`；SDK 不得在成功回调后返回 `NOT_LISTENING`。在收到 `onStart` 之前不要写入音频。
 
 运行时调用 `setSpeakerVadEnabled(true)` 时，本次会话的 `StartParams.extraParams` 必须已经提供有效的 `voiceprintIds`，即使会话启动时 `enableSpeakerVad=false`。冷态启用 Speaker VAD 会同步等待声纹 extractor 就绪，因此该调用可能阻塞；关闭操作不加载模型。
@@ -280,7 +286,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 
 > `enableTargetSpeakerEnhancement` 是正式接口预留，但开源 Conv-TasNet 权重没有默认进入商用 HAR。
 > 客户包必须先完成模型商用授权、固定模型哈希并重跑对应真机门禁；缺少模型时启动会明确失败，
-> 不会静默退回普通 Speaker VAD。本 0.3.0 交付不包含该能力所需模型，不能启用该参数。
+> 不会静默退回普通 Speaker VAD。本 0.3.1 交付不包含该能力所需模型，不能启用该参数。
 
 > 交付批注 LC-20260716-02（v0.2.6）：调用方在 `SPEECH_END` 回调内同步调用 `finish()`，且没有更早排队的音频时，当前带文本 final 同时标记 `isLast=true`，不会再追加空的 last final。`vadBegin` 命中或确实没有可识别语音时，last final 仍允许为空。
 

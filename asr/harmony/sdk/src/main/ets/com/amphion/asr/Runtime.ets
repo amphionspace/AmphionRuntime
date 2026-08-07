@@ -1238,6 +1238,12 @@ export class AsrSession {
     this.stopNow();
   }
 
+  requestStopFromCallback(): boolean {
+    if (this.callbackGate.isClosed() || !this.callbackGate.isInvoking()) return false;
+    this.reentryQueue.enqueueStop();
+    return true;
+  }
+
   async stopAsync(): Promise<void> {
     if (this.callbackGate.isClosed()) return;
     await this.stopNowAsync();

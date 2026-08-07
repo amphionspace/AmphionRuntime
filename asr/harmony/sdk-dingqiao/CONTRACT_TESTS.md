@@ -84,6 +84,11 @@
 9. 所有底层回调必须绑定创建该 native session 时的 generation。旧 session 被 cancel/结束后，其迟到的 partial、event、final、error、started、stopped 均不得使用新 sessionId 对外发送，也不得结束新 session。
 10. 在 `SPEECH_END` 或 last `onResult` 回调内执行 `cancel(old) -> startListening(new)` 后，旧回调处理栈恢复执行时必须重新校验 generation；新 session 写入首帧前不得出现 final 或 complete。
 11. `writeAudio(old, frame)` 进入 Core 后若同步回调触发上述切换，Core 返回时不得把该帧累计到新 session，也不得据此触发新 session 的 `maxAudioDuration`。
+12. 在 `SPEECH_END` 回调内同步调用 `finish(sessionId)` 时，当前带文本 endpoint final 必须直接标记为
+    本 session 唯一的 `isLast=true`，不得先发送带文本 non-last、再追加空 terminal final。
+13. 已接受 `finish(sessionId)` 后，即使旧宿主因 `isBusy()==true` 立即调用 `shutdown()`，SDK 也必须先
+    排空已接受 PCM，按序发送唯一 last 和 `onComplete`，随后再释放引擎；`isBusy()` 在 complete 前仍
+    表示会话正在进行，不得提前发布虚假 idle。该门禁由真机 `finish-shutdown` 模式逐 session 验证。
 
 主机可执行的初始静音、final 完成策略、session generation 和发布状态机测试由 Android CI 的
 `Run cross-platform ASR lifecycle contracts` 步骤执行；Harmony 真机发布门禁仍按本节完整执行。

@@ -84,6 +84,7 @@ bundle 信息写入 artifact；它不能证明已安装 HAP 与当前源码一�
 | `target-speaker-enhancement-cancel` | 写入 2 秒并启动后台增强后立即 cancel，随后零等待启动同配置恢复 session；验证取消会话无 final/complete、迟到任务不串入新 session，恢复会话正常结束 |
 | `callback-api-reentrant` | 分别在同一 session 的 `SPEECH_BEGIN`、`SPEECH_END`、非 last `onResult` 回调内同步结束；其中 `SPEECH_END` 精确模拟客户只调用 `finish()` 的场景，其余入口执行 `writeAudio -> finish`，验证非空 terminal final、complete 不重复且 sessionId 归属不丢失 |
 | `endpoint-reentrant` | 交替在旧 session 的 `SPEECH_END` 与 last `onResult` 回调内同步执行 `cancel(old) -> startListening(new)`；按 sessionId 对 start/partial/event/final/complete/error 的完整有序轨迹做切换前后快照，验证旧回调不污染新 session，且新 session 首帧前只有 start |
+| `finish-shutdown` | 模拟旧 PTT 宿主在 `finish()` 返回且 `isBusy()==true` 时立即 `shutdown()`；逐轮重建 engine，要求已接受的 PCM 仍排空，并按 sessionId 恰好产生一次 last、随后一次 complete，不得被资源释放抢断 |
 | `user-sequence` | cancel 后零等待复用、finish 后立即重启、旧 session 迟到 write/finish/cancel 干扰当前 session；按 sessionId 校验回调归属和顺序 |
 | `numeric-edge` | 交替省略 `maxAudioDuration` 和传入 `NaN`，写入超过 20 秒后仍保持活动，随后显式 finish 并验证一次 last/complete |
 
@@ -102,6 +103,8 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --data-dir "$DATA" --mode speaker-vad-onstart --cycles 4 --files 0 --skip-build-install
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --data-dir "$DATA" --mode callback-api-reentrant --cycles 3 --files 3 --skip-build-install
+python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
+  --data-dir "$DATA" --mode finish-shutdown --cycles 10 --files 3 --skip-build-install
 ```
 
 ## 2026-07-10 基线

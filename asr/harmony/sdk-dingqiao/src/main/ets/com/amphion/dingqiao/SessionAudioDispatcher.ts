@@ -1,6 +1,7 @@
 export interface SessionAudioProcessor {
   write(audio: ArrayBuffer): Promise<void>;
   writeFloat(samples: Float32Array): Promise<void>;
+  requestFinish?(): void;
   finish(): Promise<void>;
 }
 
@@ -56,6 +57,13 @@ export class SessionAudioDispatcher {
     if (this.finishTask !== undefined) return this.finishTask;
     if (this.canceled) return Promise.resolve();
     this.accepting = false;
+    try {
+      // The core uses this synchronous intent only while a customer callback is on the stack. It
+      // restores endpoint-final promotion without running native stop ahead of queued PCM.
+      this.processor.requestFinish?.();
+    } catch (e) {
+      this.fail(`${e}`);
+    }
     this.enqueue(async (): Promise<void> => {
       if (this.canceled || this.failed) return;
       try {

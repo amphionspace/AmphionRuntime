@@ -112,6 +112,10 @@ ASR 文本，不执行警务术语、车牌和派出所归一化；不会触发�
 - 正常 session 恰好一次 `isLast=true`，随后恰好一次 `onComplete`。
 - `cancel(sessionId)` 生效后不得新增 final 或 complete。
 - 每次启动使用唯一 `sessionId`。旧 session 的迟到调用或回调不会终止、污染或借用新 sessionId。
+- 在 `SPEECH_END` 回调内同步调用 `finish` 时，当前带文本 final 直接成为唯一 last；不会先返回
+  non-last 文本再追加空 last。
+- `finish` 返回后会话可能仍在异步排空，`isBusy()` 直到 `onComplete` 才变为 false。调用方应等待
+  `onComplete` 再释放；兼容旧宿主的立即 `shutdown()` 会延迟内部释放，但 complete 前仍不得卸载模型或 runtime。
 - 启用声纹校验后，SDK 优先使用严格筛选的有效语音评分。严格语音短于 `minSegSec`，但 final
   已有非空 ASR text/token 且当前句实际 PCM 达到门槛时，SDK 使用当前句真实 PCM 回退评分。
   没有 ASR 语音证据、实际 PCM 仍短于门槛或空 terminal final 时，`speakerSimilarity` 可以省略。
