@@ -491,7 +491,7 @@ def _validate_provenance(root: Path, expected_version: str, har_evidence: dict) 
         raise DeliveryValidationError("release provenance must declare a clean worktree")
 
 
-def _validate_documents(root: Path) -> None:
+def _validate_documents(root: Path, expected_version: str) -> None:
     api = (root / "docs/ASR_SDK_API_HARMONY.md").read_text(encoding="utf-8")
     if any(value in api for value in ("zh-yue", "zh_yue")):
         raise DeliveryValidationError("SDK-only API document still advertises Yue")
@@ -503,8 +503,31 @@ def _validate_documents(root: Path) -> None:
             raise DeliveryValidationError(
                 f"README does not match SDK-only capability boundary: {statement}"
             )
+    changelog = (root / "docs/CHANGELOG.md").read_text(encoding="utf-8")
+    for statement in (
+        expected_version,
+        "目标说话人增强",
+        "不包含",
+        "不能启用",
+        "源码提交明细",
+    ):
+        if statement not in changelog:
+            raise DeliveryValidationError(
+                f"CHANGELOG misses target-speaker delivery boundary: {statement}"
+            )
+    embedded_license_claims = (
+        "../license/amphion-license.lic",
+        "体验授权已随包提供",
+        "随 SDK 交付包提供",
+        "授权文件位于 `license/amphion-license.lic`",
+        "随包授权文件",
+    )
     for markdown in root.rglob("*.md"):
         text = markdown.read_text(encoding="utf-8")
+        if any(claim in text for claim in embedded_license_claims):
+            raise DeliveryValidationError(
+                f"customer document claims an embedded license: {markdown}"
+            )
         if "鼎桥" in text:
             raise DeliveryValidationError(
                 f"customer-facing document contains excluded branding: {markdown}"
@@ -544,7 +567,7 @@ def validate_delivery(
         root, expected_version, expected_model_md5, expected_identity
     )
     _validate_provenance(root, expected_version, har_evidence)
-    _validate_documents(root)
+    _validate_documents(root, expected_version)
 
 
 def validate_delivery_path(

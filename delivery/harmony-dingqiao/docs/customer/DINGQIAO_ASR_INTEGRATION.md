@@ -7,13 +7,13 @@
 | 路径 | 内容 |
 | --- | --- |
 | `../har/amphion_dingqiao.har` | 自包含 ASR SDK，内置中英模型、声纹、标点、ITN 和 VAD |
-| `../license/amphion-license.lic` | 四个自然月体验授权，不绑定包名、证书、设备或 SDK 主版本 |
 | `ASR_SDK_API_HARMONY.md` | 公共 API、参数、错误码和回调契约 |
 | `LICENSE.md` | 离线授权接入 |
 | `ASR_LIFECYCLE_ASSURANCE_20260716.md` | 历史问题闭环、时序图和验证边界 |
 | `checksum.txt` | 交付文件 SHA-256 |
 
-包内不含 Demo HAP、粤英模型、独立 TTS SDK 或 TTS 模型。体验授权已随包提供。
+包内不含 Demo HAP、粤英模型、独立 TTS SDK、TTS 模型或授权文件。授权由签发方另行提供；
+已有有效授权的集成方可继续沿用。
 
 ## 2. 添加依赖
 
@@ -27,7 +27,8 @@
 }
 ```
 
-该 HAR 已包含所需的 ASR core 和 native runtime，不需要再声明其他 Amphion HAR。为保持既有接口兼容，模块名仍为 `amphion_dingqiao`；本交付不包含行业专用文本增强资源或后处理。
+该 HAR 已包含所需的 ASR core、native runtime 和警务文本增强，不需要再声明其他 Amphion HAR。
+为保持既有接口兼容，模块名仍为 `amphion_dingqiao`；警务增强默认开启，可按 session 关闭。
 
 ## 3. 初始化与授权
 

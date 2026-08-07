@@ -36,6 +36,17 @@ class ReleaseDefaultsTest(unittest.TestCase):
             script,
         )
 
+    def test_sdk_only_changelog_combines_controlled_notes_and_commit_trace(self) -> None:
+        script = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("docs/CHANGELOG.md", script)
+        self.assertIn(".CHANGELOG_COMMITS.md", script)
+        self.assertIn("controlled release notes missing", script)
+        self.assertIn("## 源码提交明细", script)
+
     def test_speaker_vad_defaults_match_sdk_demo_and_public_docs(self) -> None:
         sdk = (
             REPO_ROOT
