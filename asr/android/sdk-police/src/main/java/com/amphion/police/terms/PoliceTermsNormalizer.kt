@@ -12,6 +12,7 @@ class PoliceTermsNormalizer private constructor(
     private val homophones: PoliceTermsHomophoneDict,
     private val gazetteer: PoliceTermsGazetteer,
     private val fstRuntime: PoliceTermsGlobalRewriter?,
+    private val exactHomophones: PoliceTermsExactHomophoneDict,
 ) : AutoCloseable {
 
     companion object {
@@ -20,13 +21,32 @@ class PoliceTermsNormalizer private constructor(
                 PoliceTermsHomophoneDict.load(context),
                 PoliceTermsGazetteer.load(context),
                 fstRuntime = if (useFst) PoliceTermsFstRuntime.create(context) else null,
+                exactHomophones = PoliceTermsExactHomophoneDict.load(context),
             )
 
         internal fun create(
             homophones: PoliceTermsHomophoneDict,
             gazetteer: PoliceTermsGazetteer,
             fstRuntime: PoliceTermsGlobalRewriter? = null,
-        ): PoliceTermsNormalizer = PoliceTermsNormalizer(homophones, gazetteer, fstRuntime)
+        ): PoliceTermsNormalizer = PoliceTermsNormalizer(
+            homophones,
+            gazetteer,
+            fstRuntime,
+            PoliceTermsExactHomophoneDict.EMPTY,
+        )
+
+        internal fun create(
+            homophones: PoliceTermsHomophoneDict,
+            gazetteer: PoliceTermsGazetteer,
+            exactHomophones: PoliceTermsExactHomophoneDict,
+        ): PoliceTermsNormalizer = PoliceTermsNormalizer(homophones, gazetteer, null, exactHomophones)
+
+        internal fun create(
+            homophones: PoliceTermsHomophoneDict,
+            gazetteer: PoliceTermsGazetteer,
+            fstRuntime: PoliceTermsGlobalRewriter?,
+            exactHomophones: PoliceTermsExactHomophoneDict,
+        ): PoliceTermsNormalizer = PoliceTermsNormalizer(homophones, gazetteer, fstRuntime, exactHomophones)
     }
 
     val fstEnabled: Boolean get() = fstRuntime != null
@@ -41,7 +61,8 @@ class PoliceTermsNormalizer private constructor(
         if (text.isEmpty()) {
             return PoliceTermsNormalizeResult(text, emptyList())
         }
-        val fstCorrected = fstRuntime?.applyGlobal(text) ?: text
+        val exactCorrected = exactHomophones.applyWholeUtterance(text)
+        val fstCorrected = fstRuntime?.applyGlobal(exactCorrected) ?: exactCorrected
         val homophoneCorrected = homophones.applyPhrases(fstCorrected)
         val arrivalCorrected = PoliceTermsArrivalGuard.apply(homophoneCorrected)
         val corrected = PoliceTermsShortGuard.apply(arrivalCorrected)

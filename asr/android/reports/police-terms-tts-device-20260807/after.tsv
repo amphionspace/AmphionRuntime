@@ -1,0 +1,11 @@
+file	duration_s	status	final_count	text	errors
+qian_jing_dan_01.wav	3.920	OK	1	处警结束后，请及时在系统里签警单。	-
+qian_jing_dan_02.wav	5.280	OK	1	师傅提醒我上传现场照片以后再签警单。	-
+qian_jing_dan_03.wav	4.240	OK	1	这起纠纷已经调解完毕，可以签警单了。	-
+qian_jing_dan_04.wav	5.920	OK	1	签警单之前先核对处置经过和当事人信息。	-
+qian_jing_dan_05.wav	4.800	OK	1	值班民警发现附件不全，暂时无法签警单。	-
+qian_jing_qing_01.wav	4.160	OK	1	接警员核实报警地址后，立即签警情。	-
+qian_jing_qing_02.wav	3.840	OK	1	这条重复报警已经合并，请点击签警情按钮。	-
+qian_jing_qing_03.wav	5.360	OK	1	签警情前要确认警情类别和管辖单位。	-
+qian_jing_qing_04.wav	5.920	OK	1	系统提示还有必填项，未完成，暂时不能签警情。	-
+qian_jing_qing_05.wav	4.640	OK	1	夜班交接时，班长逐条检查是否已签警情。	-
