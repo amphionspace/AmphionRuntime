@@ -243,20 +243,40 @@ class RunCommandTest(unittest.TestCase):
             normalized,
         )
 
-    def test_callback_api_reentrant_allows_endpoint_final_before_last(self) -> None:
+    def test_callback_api_reentrant_requires_text_on_last_for_speech_end_finish(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
         cycle = source.split("async function runCallbackApiReentrantCycle", 1)[1].split(
-            "async function runMaxDurationCycle", 1
+            "async function runFinishShutdownCycle", 1
         )[0]
         normalized = " ".join(cycle.split())
 
         self.assertIn("events.lastFinals === 1 && events.finals >= 1", normalized)
-        self.assertNotIn("trigger === 'speech-begin') finalContract = finalContract && events.finals === 1", normalized)
-        self.assertNotIn("events.finals === 1 && events.finalTexts.length === 1", normalized)
+        self.assertIn("if (trigger === 'speech-end')", cycle)
+        self.assertIn("finalContract = finalContract && terminalText.length > 0", cycle)
         self.assertNotIn(
             "waitFor((): boolean => listener.reentryAttempted, 1000)", normalized
         )
         self.assertIn("listener.terminalOrderOk(sessionId)", cycle)
+
+    def test_finish_shutdown_mode_preserves_accepted_finish_callbacks(self) -> None:
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "finish-shutdown"]):
+            args = MODULE.parse_args()
+
+        self.assertEqual("finish-shutdown", args.mode)
+        self.assertIn("finish-shutdown", MODULE.FINISH_MODES)
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runFinishShutdownCycle", 1)[1].split(
+            "async function runMaxDurationCycle", 1
+        )[0]
+        finish_index = cycle.index("engine.finish(sessionId)")
+        busy_index = cycle.index("const busyAfterFinish = engine.isBusy()")
+        shutdown_index = cycle.index("engine.shutdown()")
+        complete_index = cycle.index("events.completes === 1")
+        self.assertLess(finish_index, busy_index)
+        self.assertLess(busy_index, shutdown_index)
+        self.assertLess(shutdown_index, complete_index)
+        self.assertIn("events.lastFinals === 1", cycle)
+        self.assertIn("events.completes === 1", cycle)
 
     def test_endpoint_reentrant_is_lifecycle_only_not_text_quality(self) -> None:
         with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "endpoint-reentrant"]):
