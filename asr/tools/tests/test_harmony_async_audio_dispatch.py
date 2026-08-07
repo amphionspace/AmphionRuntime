@@ -60,6 +60,7 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
             assert.deepEqual(events, []);
 
             await Promise.resolve();
+            await Promise.resolve();
             assert.deepEqual(events, ['write-start-7']);
             releaseWrite();
             await dispatcher.whenIdle();
@@ -102,7 +103,7 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
             """
         )
 
-    def test_replacement_session_waits_for_inflight_decode(self) -> None:
+    def test_dispatchers_across_engines_share_one_native_execution_queue(self) -> None:
         self.run_dispatcher(
             """
             const events = [];
@@ -120,13 +121,15 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
 
             oldDispatcher.write(Uint8Array.from([1]).buffer);
             await Promise.resolve();
+            await Promise.resolve();
             oldDispatcher.cancel();
             const replacement = new SessionAudioDispatcher({
               write: async () => events.push('new-write'),
               writeFloat: async () => {},
               finish: async () => {},
-            }, message => events.push(`new-error-${message}`), oldDispatcher.whenIdle());
+            }, message => events.push(`new-error-${message}`));
             replacement.write(Uint8Array.from([2]).buffer);
+            await Promise.resolve();
             await Promise.resolve();
             assert.deepEqual(events, ['old-start']);
 
@@ -163,7 +166,8 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         self.assertIn("session.acceptPcmFloatAsync(samples)", adapter)
         self.assertNotIn("session.acceptPcmFloat(samples)", adapter)
         self.assertNotIn("session.stop();", adapter)
-        self.assertIn("oldAudioDispatcher.whenIdle()", adapter)
+        dispatcher = DISPATCHER.read_text(encoding="utf-8")
+        self.assertIn("static executionTail", dispatcher)
         self.assertIn("async acceptPcmBytesAsync", runtime)
         self.assertIn("await this.recognizer.decodeAsync(this.stream)", runtime)
 

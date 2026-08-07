@@ -326,7 +326,6 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private enhancePipeline: PoliceEnhancePipeline;
   private session?: AsrSession;
   private audioDispatcher?: SessionAudioDispatcher;
-  private audioDispatchBarrier: Promise<void> = Promise.resolve();
   private busy: boolean = false;
   private destroyed: boolean = false;
   private currentSessionId: string = '';
@@ -534,7 +533,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       }, (message: string): void => {
         this.handleAsrError(audioGeneration,
           new AsrError(AsrErrorCode.NATIVE_CRASH, `audio dispatch failed: ${message}`));
-      }, this.audioDispatchBarrier);
+      });
       if (this.sessionStartGate.publishSession(startGeneration)) this.deliverSessionStarted(startGeneration);
     } catch (e) {
       this.startingSession = false;
@@ -739,9 +738,6 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const oldEnhancer = this.targetSpeakerEnhancer;
     oldPipeline?.cancel();
     oldAudioDispatcher?.cancel();
-    if (oldAudioDispatcher !== undefined) {
-      this.audioDispatchBarrier = oldAudioDispatcher.whenIdle();
-    }
     this.resetSessionState();
     oldEnhancer?.close();
     oldSession?.close();

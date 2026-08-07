@@ -10,25 +10,24 @@ export interface SessionAudioProcessor {
  * microphone integrations commonly reuse their capture buffers.
  */
 export class SessionAudioDispatcher {
+  private static executionTail: Promise<void> = Promise.resolve();
   private processor: SessionAudioProcessor;
   private onError: (message: string) => void;
-  private pending: Promise<void>;
+  private pending: Promise<void> = Promise.resolve();
   private accepting: boolean = true;
   private canceled: boolean = false;
   private failed: boolean = false;
   private finishTask?: Promise<void>;
 
-  constructor(processor: SessionAudioProcessor, onError: (message: string) => void,
-    initialBarrier: Promise<void> = Promise.resolve()) {
+  constructor(processor: SessionAudioProcessor, onError: (message: string) => void) {
     this.processor = processor;
     this.onError = onError;
-    this.pending = initialBarrier;
   }
 
   write(audio: ArrayBuffer): boolean {
     if (!this.accepting || this.canceled || this.failed || audio.byteLength === 0) return false;
     const snapshot = audio.slice(0);
-    this.pending = this.pending.then(async (): Promise<void> => {
+    this.enqueue(async (): Promise<void> => {
       if (this.canceled || this.failed) return;
       try {
         await this.processor.write(snapshot);
@@ -42,7 +41,7 @@ export class SessionAudioDispatcher {
   writeFloat(samples: Float32Array): boolean {
     if (!this.accepting || this.canceled || this.failed || samples.length === 0) return false;
     const snapshot = samples.slice();
-    this.pending = this.pending.then(async (): Promise<void> => {
+    this.enqueue(async (): Promise<void> => {
       if (this.canceled || this.failed) return;
       try {
         await this.processor.writeFloat(snapshot);
@@ -57,7 +56,7 @@ export class SessionAudioDispatcher {
     if (this.finishTask !== undefined) return this.finishTask;
     if (this.canceled) return Promise.resolve();
     this.accepting = false;
-    this.pending = this.pending.then(async (): Promise<void> => {
+    this.enqueue(async (): Promise<void> => {
       if (this.canceled || this.failed) return;
       try {
         await this.processor.finish();
@@ -76,6 +75,16 @@ export class SessionAudioDispatcher {
 
   whenIdle(): Promise<void> {
     return this.pending;
+  }
+
+  private enqueue(task: () => Promise<void>): void {
+    const sessionPredecessor = this.pending;
+    const execution = SessionAudioDispatcher.executionTail.then(async (): Promise<void> => {
+      await sessionPredecessor;
+      await task();
+    });
+    this.pending = execution;
+    SessionAudioDispatcher.executionTail = execution.catch((): void => {});
   }
 
   private fail(message: string): void {
