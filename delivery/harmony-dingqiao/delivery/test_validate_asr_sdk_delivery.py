@@ -63,6 +63,13 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             path = root / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(f"fixture for {relative}\n", encoding="utf-8")
+        (root / "docs/CHANGELOG.md").write_text(
+            "# ASR SDK 更新日志\n\n"
+            "## HarmonyOS ASR SDK 0.3.0\n\n"
+            "- 目标说话人增强仅预留接口；本交付不包含所需模型，不能启用。\n\n"
+            "## 源码提交明细\n",
+            encoding="utf-8",
+        )
         (root / "README.md").write_text(
             "SDK-only，不包含独立 TTS SDK、TTS 模型或授权文件。"
             "内置警务文本增强，可通过 enablePoliceEnhancement 关闭。\n",
@@ -344,6 +351,34 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             license_path.parent.mkdir(parents=True)
             license_path.write_text("license", encoding="utf-8")
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "unexpected file"):
+                MODULE.validate_delivery(root, FIXTURE_VERSION, FIXTURE_MODEL_MD5)
+
+    def test_rejects_customer_docs_claiming_license_is_in_sdk_zip(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root)
+            (root / "docs/LICENSE.md").write_text(
+                "体验授权已随包提供。\n", encoding="utf-8"
+            )
+            self._write_checksums(root)
+            with self.assertRaisesRegex(
+                MODULE.DeliveryValidationError, "claims an embedded license"
+            ):
+                MODULE.validate_delivery(root, FIXTURE_VERSION, FIXTURE_MODEL_MD5)
+
+    def test_rejects_changelog_without_target_speaker_delivery_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root)
+            (root / "docs/CHANGELOG.md").write_text(
+                "# ASR SDK 更新日志\n\n"
+                "- feat(harmony): add target speaker enhancement\n",
+                encoding="utf-8",
+            )
+            self._write_checksums(root)
+            with self.assertRaisesRegex(
+                MODULE.DeliveryValidationError, "target-speaker delivery boundary"
+            ):
                 MODULE.validate_delivery(root, FIXTURE_VERSION, FIXTURE_MODEL_MD5)
 
     def test_rejects_stale_release_date(self) -> None:

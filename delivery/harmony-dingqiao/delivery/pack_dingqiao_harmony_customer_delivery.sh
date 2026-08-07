@@ -277,13 +277,41 @@ cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/NOTICE" "$OUT_ROOT/doc
 mkdir -p "$OUT_ROOT/docs/third-party"
 cp -v "$REPO_ROOT/LICENSE" "$OUT_ROOT/docs/third-party/Apache-2.0.txt"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/PRIVACY.md" "$OUT_ROOT/docs/"
+COMMIT_CHANGELOG="$OUT_ROOT/docs/.CHANGELOG_COMMITS.md"
 python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
   --repo "$REPO_ROOT" \
   changelog \
   --platform harmony \
   --version "$VERSION" \
   --source-commit HEAD \
-  --output "$OUT_ROOT/docs/CHANGELOG.md"
+  --output "$COMMIT_CHANGELOG"
+python3 - "$REPO_ROOT/delivery/harmony-dingqiao/docs/CHANGELOG.md" \
+  "$COMMIT_CHANGELOG" "$OUT_ROOT/docs/CHANGELOG.md" "$VERSION" <<'PY'
+import sys
+from pathlib import Path
+
+release_notes_path = Path(sys.argv[1])
+commit_notes_path = Path(sys.argv[2])
+output_path = Path(sys.argv[3])
+version = sys.argv[4]
+release_notes = release_notes_path.read_text(encoding="utf-8")
+heading = f"## {version} "
+start = release_notes.find(heading)
+if start < 0:
+    raise SystemExit(f"[ERROR] controlled release notes missing {version}")
+end = release_notes.find("\n## ", start + len(heading))
+section = release_notes[start:end if end >= 0 else len(release_notes)].strip()
+commit_notes = commit_notes_path.read_text(encoding="utf-8").strip()
+if commit_notes.startswith("# ASR SDK 更新日志"):
+    commit_notes = commit_notes[len("# ASR SDK 更新日志"):].lstrip()
+commit_notes = commit_notes.replace("## HarmonyOS", "### HarmonyOS", 1)
+commit_notes = commit_notes.replace("### Commit 变更", "#### Commit 变更", 1)
+output_path.write_text(
+    f"# ASR SDK 更新日志\n\n{section}\n\n## 源码提交明细\n\n{commit_notes}\n",
+    encoding="utf-8",
+)
+commit_notes_path.unlink()
+PY
 
 if [[ "$SDK_ONLY" == true ]]; then
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_INTEGRATION.md" \
