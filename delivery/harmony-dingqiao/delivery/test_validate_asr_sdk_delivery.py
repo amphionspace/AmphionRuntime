@@ -13,6 +13,7 @@ import zipfile
 
 
 SCRIPT = Path(__file__).with_name("validate_asr_sdk_delivery.py")
+PUBLIC_API_SOURCE = SCRIPT.parents[1] / "docs/语音识别SDK接口.md"
 SPEC = importlib.util.spec_from_file_location("validate_asr_sdk_delivery", SCRIPT)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError(f"cannot load {SCRIPT}")
@@ -31,6 +32,16 @@ FIXTURE_ROOT_NAME = (
 
 
 class ValidateAsrSdkDeliveryTest(unittest.TestCase):
+    def test_public_api_source_has_no_links_outside_sdk_delivery(self) -> None:
+        text = PUBLIC_API_SOURCE.read_text(encoding="utf-8")
+        for raw_target in MODULE.MARKDOWN_LINK_RE.findall(text):
+            target = raw_target.strip().strip("<>").split("#", 1)[0]
+            if not target or MODULE.re.match(
+                r"^[a-z][a-z0-9+.-]*:", target, MODULE.re.IGNORECASE
+            ):
+                continue
+            self.assertNotIn("..", Path(target).parts, target)
+
     def _write_fixture(
         self,
         root: Path,

@@ -280,8 +280,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 
 > `enableTargetSpeakerEnhancement` 是正式接口预留，但开源 Conv-TasNet 权重没有默认进入商用 HAR。
 > 客户包必须先完成模型商用授权、固定模型哈希并重跑对应真机门禁；缺少模型时启动会明确失败，
-> 不会静默退回普通 Speaker VAD。实现与当前真机证据见
-> [`TARGET_SPEAKER_ENHANCEMENT_HARMONY_20260805.md`](../../../docs/speaker/TARGET_SPEAKER_ENHANCEMENT_HARMONY_20260805.md)。
+> 不会静默退回普通 Speaker VAD。本 0.3.0 交付不包含该能力所需模型，不能启用该参数。
 
 > 交付批注 LC-20260716-02（v0.2.6）：调用方在 `SPEECH_END` 回调内同步调用 `finish()`，且没有更早排队的音频时，当前带文本 final 同时标记 `isLast=true`，不会再追加空的 last final。`vadBegin` 命中或确实没有可识别语音时，last final 仍允许为空。
 
