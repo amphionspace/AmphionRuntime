@@ -6,6 +6,29 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
+    def test_ci_discovers_all_harmony_contracts_and_runs_finish_compat_gate_tests(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "python3 -m unittest discover -s asr/tools/tests -p 'test_harmony_*.py' -v",
+            workflow,
+        )
+        self.assertIn(
+            "delivery.harmony-dingqiao.delivery.test_run_finish_compat_release_gate",
+            workflow,
+        )
+
+    def test_finish_compat_release_gate_is_part_of_the_project_working_agreement(self) -> None:
+        agreement = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        device_stress = (
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/DEVICE_STRESS.md"
+        ).read_text(encoding="utf-8")
+
+        command = "delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py"
+        self.assertIn(command, agreement)
+        self.assertIn(command, device_stress)
+        self.assertIn("FINISH_COMPATIBILITY_POSTMORTEM.md", device_stress)
+
     def test_prepack_is_disabled_by_default_across_public_harmony_layers(self) -> None:
         core = (
             REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets"
