@@ -36,8 +36,8 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         embedded_license: bool = False,
         police_dependency: str = "file:./_bundled/amphion_police",
         police_asset_payload: bytes = b"police-asset",
-        nested_version: str = "0.2.9",
-        release_date: str = "2026-07-30",
+        nested_version: str = "0.3.0",
+        release_date: str = "2026-08-07",
     ) -> None:
         required = set(MODULE.REQUIRED_FILES)
         required.remove("har/amphion_dingqiao.har")
@@ -75,13 +75,13 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         model_manifest_payload = json.dumps(model_manifest).encode("utf-8")
         with tarfile.open(har_path, "w:gz") as archive:
             self._add_json(archive, "package/oh-package.json5", {
-                "version": "0.2.9",
+                "version": "0.3.0",
                 "dependencies": {"amphion_police": police_dependency},
             })
             for name in MODULE.VERSIONED_PACKAGE_PATHS:
                 self._add_json(archive, name, {"version": nested_version})
             self._add_json(archive, MODULE.POLICE_PACKAGE_PATH, {
-                "version": "0.2.9",
+                "version": "0.3.0",
                 "dependencies": {"amphion_asr": "file:../amphion_asr"},
             })
             self._add_bytes(
@@ -110,7 +110,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
                 archive,
                 MODULE.RUNTIME_IDENTITY_PATH,
                 (
-                    "export const HARMONY_SDK_VERSION: string = '0.2.9';\n"
+                    "export const HARMONY_SDK_VERSION: string = '0.3.0';\n"
                     "export const HARMONY_SDK_MAJOR: number = 1;\n"
                     f"export const HARMONY_SDK_RELEASE_DATE: string = '{release_date}';\n"
                 ).encode("utf-8"),
@@ -137,7 +137,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
                 )
 
         provenance = {
-            "delivery_version": "0.2.9",
+            "delivery_version": "0.3.0",
             "asr_only": True,
             "sdk_only": True,
             "languages": ["zh-en"],
@@ -201,21 +201,21 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root)
-            MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+            MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_accepts_final_zh_en_sdk_only_zip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            root = base / "amphion-harmony-asr-sdk-v0.2.9-20260730"
+            root = base / "amphion-harmony-asr-sdk-v0.3.0-20260807"
             self._write_fixture(root)
             delivery_zip = base / "delivery.zip"
             self._write_zip(root, delivery_zip)
-            MODULE.validate_delivery_path(delivery_zip, "0.2.9", FIXTURE_MODEL_MD5)
+            MODULE.validate_delivery_path(delivery_zip, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_final_zip_with_unexpected_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
-            root = base / "amphion-harmony-asr-sdk-v0.2.9-20260730"
+            root = base / "amphion-harmony-asr-sdk-v0.3.0-20260807"
             self._write_fixture(root)
             demo = root / "demo/dingqiao-demo.hap"
             demo.parent.mkdir()
@@ -223,7 +223,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             delivery_zip = base / "delivery.zip"
             self._write_zip(root, delivery_zip)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "unexpected file"):
-                MODULE.validate_delivery_path(delivery_zip, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery_path(delivery_zip, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_accepts_documented_police_enhancement_capability(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -235,7 +235,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
                 encoding="utf-8",
             )
             self._write_checksums(root)
-            MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+            MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_demo_or_tts_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -245,14 +245,14 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             demo.parent.mkdir()
             demo.write_bytes(b"hap")
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "unexpected file"):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_yue_model_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, include_yue=True)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "Yue|model bundles"):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_checksum_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -260,14 +260,14 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             self._write_fixture(root)
             (root / "README.md").write_text("tampered\n", encoding="utf-8")
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "checksum mismatch"):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_model_content_that_does_not_match_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, bad_model_hash=True)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "model asset hash"):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_self_consistent_model_that_is_not_pinned(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -279,21 +279,21 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             with self.assertRaisesRegex(
                 MODULE.DeliveryValidationError, "ONNX MD5 mismatch"
             ):
-                MODULE.validate_delivery(root, "0.2.9", wrong_identity)
+                MODULE.validate_delivery(root, "0.3.0", wrong_identity)
 
     def test_rejects_duplicate_model_root(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, duplicate_model_root=True)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "model root"):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_embedded_license(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, embedded_license=True)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "forbidden HAR member"):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_tampered_police_enhancement_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -302,7 +302,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             with self.assertRaisesRegex(
                 MODULE.DeliveryValidationError, "police enhancement asset hash mismatch"
             ):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_external_police_enhancement_dependency(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -311,14 +311,14 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             with self.assertRaisesRegex(
                 MODULE.DeliveryValidationError, "does not link bundled police enhancement"
             ):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_nested_package_version_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, nested_version="0.2.4")
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "nested HAR version"):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_external_license_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -328,14 +328,14 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             license_path.parent.mkdir(parents=True)
             license_path.write_text("license", encoding="utf-8")
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "unexpected file"):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
     def test_rejects_stale_release_date(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self._write_fixture(root, release_date="2026-07-16")
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "runtime identity"):
-                MODULE.validate_delivery(root, "0.2.9", FIXTURE_MODEL_MD5)
+                MODULE.validate_delivery(root, "0.3.0", FIXTURE_MODEL_MD5)
 
 
 if __name__ == "__main__":
