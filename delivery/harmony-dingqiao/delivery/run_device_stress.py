@@ -41,6 +41,7 @@ TARGET_SPEAKER_MODES = {
     "target-speaker-enhancement-onstart",
     "target-speaker-enhancement-cancel",
     "target-speaker-enhancement-reload",
+    "target-speaker-enhancement-preload",
 }
 MIN_MEMORY_SAMPLES = 6
 MIN_MEMORY_OBSERVATION_SECONDS = 15.0
@@ -115,6 +116,7 @@ def parse_args() -> argparse.Namespace:
             "target-speaker-enhancement-onstart",
             "target-speaker-enhancement-cancel",
             "target-speaker-enhancement-reload",
+            "target-speaker-enhancement-preload",
             "callback-api-reentrant",
             "endpoint-reentrant",
             "user-sequence",
@@ -147,6 +149,14 @@ def parse_args() -> argparse.Namespace:
             "required/forbidden text assertion. Intended for exploratory corpora."
         ),
     )
+    parser.add_argument(
+        "--max-target-speaker-warm-start-ms",
+        type=int,
+        help=(
+            "Fail target-speaker-enhancement-reload when the warm reused session takes "
+            "longer than this many milliseconds to reach onStart."
+        ),
+    )
     parser.add_argument("--max-rss-growth-mb", type=float, default=64.0)
     parser.add_argument("--max-thread-growth", type=int, default=2)
     parser.add_argument("--max-empty-final-rate", type=float, default=0.05)
@@ -176,6 +186,18 @@ def parse_args() -> argparse.Namespace:
         parser.error("timing values must be non-negative")
     if args.mode == "target-speaker-enhancement-reload" and args.cycles != 4:
         parser.error("target-speaker-enhancement-reload requires exactly 4 cycles")
+    if args.mode == "target-speaker-enhancement-preload" and args.cycles != 1:
+        parser.error("target-speaker-enhancement-preload requires exactly 1 cycle")
+    if args.max_target_speaker_warm_start_ms is not None:
+        if args.mode not in {
+            "target-speaker-enhancement-reload", "target-speaker-enhancement-preload"
+        }:
+            parser.error(
+                "--max-target-speaker-warm-start-ms requires "
+                "a target-speaker enhancement preload/reload mode"
+            )
+        if args.max_target_speaker_warm_start_ms <= 0:
+            parser.error("--max-target-speaker-warm-start-ms must be positive")
     if args.target_speaker_manifest is not None and args.mode not in TARGET_SPEAKER_MODES:
         parser.error("--target-speaker-manifest requires a target-speaker-enhancement mode")
     if args.skip_target_content_check and args.mode != "target-speaker-enhancement":
@@ -827,6 +849,34 @@ def target_speaker_realtime_verdict(hilog_path: Path, required: bool) -> dict[st
     }
 
 
+def target_speaker_startup_verdict(
+    cycles: list[dict[str, str]], max_warm_start_ms: int | None
+) -> dict[str, object]:
+    if max_warm_start_ms is None:
+        return {"status": "NOT_APPLICABLE", "reason": "no warm-start threshold requested"}
+    warm_details = {"target-speaker-warm-reuse", "target-speaker-preloaded"}
+    warm_cycles = [cycle for cycle in cycles if cycle.get("detail") in warm_details]
+    if len(warm_cycles) != 1:
+        return {
+            "status": "FAIL",
+            "reason": f"expected one warm-reuse cycle, observed {len(warm_cycles)}",
+            "max_warm_start_ms": max_warm_start_ms,
+        }
+    try:
+        warm_start_ms = int(warm_cycles[0]["startCallbackMs"])
+    except (KeyError, ValueError):
+        return {
+            "status": "FAIL",
+            "reason": "warm-reuse cycle did not report a valid startCallbackMs",
+            "max_warm_start_ms": max_warm_start_ms,
+        }
+    return {
+        "status": "PASS" if warm_start_ms <= max_warm_start_ms else "FAIL",
+        "warm_start_ms": warm_start_ms,
+        "max_warm_start_ms": max_warm_start_ms,
+    }
+
+
 def build_install(device: str) -> None:
     command = [
         str(SCRIPT_DIR / "build_install_smoke.sh"),
@@ -998,6 +1048,9 @@ def run_stress(args: argparse.Namespace) -> Path:
     target_speaker_realtime = target_speaker_realtime_verdict(
         artifact_dir / "hilog.txt", realtime_required
     )
+    target_speaker_startup = target_speaker_startup_verdict(
+        cycle_results, args.max_target_speaker_warm_start_ms
+    )
     if args.mode != "target-speaker-enhancement":
         target_speaker_content = {
             "status": "NOT_APPLICABLE", "reason": "mode is lifecycle-only", "cases": []
@@ -1048,6 +1101,9 @@ def run_stress(args: argparse.Namespace) -> Path:
     if target_speaker_content.get("status") == "FAIL":
         overall = "FAIL"
         failures.append("target-speaker content accuracy assertion failed")
+    if target_speaker_startup.get("status") == "FAIL":
+        overall = "FAIL"
+        failures.append("target-speaker warm start exceeded threshold")
 
     report = {
         "run_id": run_id,
@@ -1064,6 +1120,7 @@ def run_stress(args: argparse.Namespace) -> Path:
             "post_run_observe_seconds": args.post_run_observe,
             "target_content_check_enabled": not args.skip_target_content_check,
             "speaker_vad_threshold": args.speaker_vad_threshold,
+            "max_target_speaker_warm_start_ms": args.max_target_speaker_warm_start_ms,
         },
         "inventory": inventory,
         "application": app_summary,
@@ -1081,6 +1138,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         },
         "target_speaker_realtime": target_speaker_realtime,
         "target_speaker_content_accuracy": target_speaker_content,
+        "target_speaker_startup": target_speaker_startup,
         "memory": memory,
         "cpu": cpu,
         "cycles": cycle_results,

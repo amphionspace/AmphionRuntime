@@ -19,6 +19,10 @@ DEVICE_STRESS = (
     ROOT
     / "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/util/DeviceStressTest.ets"
 )
+DEMO = (
+    ROOT
+    / "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/pages/Index.ets"
+)
 
 
 class HarmonyTargetSpeakerEnhancementContractTest(unittest.TestCase):
@@ -36,6 +40,28 @@ class HarmonyTargetSpeakerEnhancementContractTest(unittest.TestCase):
         self.assertIn("static unloadModel(): void", enhancer)
         self.assertIn("unloadTargetSpeakerEnhancementModel", enhancer)
         self.assertGreaterEqual(sdk.count("TargetSpeakerEnhancer.unloadModel();"), 2)
+
+    def test_explicit_async_preload_moves_enhancement_load_off_start_listening(self) -> None:
+        enhancer = ENHANCER.read_text(encoding="utf-8")
+        sdk = SDK.read_text(encoding="utf-8")
+        native = (
+            ROOT / "asr/harmony/sdk/src/main/cpp/target_speaker_enhancer.cpp"
+        ).read_text(encoding="utf-8")
+        types = (
+            ROOT / "asr/harmony/sdk/src/main/cpp/types/libamphion_asr/index.d.ts"
+        ).read_text(encoding="utf-8")
+        demo = DEMO.read_text(encoding="utf-8")
+        self.assertIn("preloadTargetSpeakerEnhancementModelAsync", native)
+        self.assertIn("preloadTargetSpeakerEnhancementModelAsync", types)
+        self.assertIn("static async preload", enhancer)
+        self.assertIn("static async preloadTargetSpeakerEnhancementModel", sdk)
+        self.assertIn("getOrCreateSpeakerExtractorAsync", sdk)
+        self.assertIn("preloadTargetSpeakerEnhancement", demo)
+        self.assertIn("private targetSpeakerPreloadTask?: Promise<boolean>;", demo)
+        self.assertIn("private async startSessionWhenEnhancementReady", demo)
+        self.assertIn("const preloadTask = this.targetSpeakerPreloadTask;", demo)
+        self.assertIn("await preloadTask;", demo)
+        self.assertNotIn("this.loading = true;\n    this.loadingHint = '正在后台准备目标说话人增强模型", demo)
 
     def test_device_evidence_records_target_speaker_inputs_and_lifecycle(self) -> None:
         source = DEVICE_STRESS.read_text(encoding="utf-8")

@@ -131,6 +131,8 @@ struct Index {
   private capturedSpeakerPipeline: SpeakerPipelineConfig = new SpeakerPipelineConfig();
   private sessionDebug: DemoSessionDebug = new DemoSessionDebug();
   private errorCleanupGate: DemoErrorCleanupGate = new DemoErrorCleanupGate();
+  private targetSpeakerPreloadGeneration: number = 0;
+  private targetSpeakerPreloadTask?: Promise<boolean>;
 
   aboutToAppear(): void {
     this.workPath = SpeechRecognizeSdk.getWorkPath();
@@ -254,6 +256,9 @@ struct Index {
     this.runtimeAnonMb = this.sampleMemMb()[1];
     this.logMem('01_runtime_ready(L1常驻_无模型)');
     this.refreshVoiceprintUi();
+    if (this.targetSpeakerEnhancementDesired) {
+      this.preloadTargetSpeakerEnhancement('应用启动');
+    }
   }
 
   onRuntimeFailed(errorCode: number, message: string): void {
@@ -289,8 +294,8 @@ struct Index {
       this.startSavedPcmReplay();
       return;
     }
-    // 麦克风点击时已开始录音,模型就绪 → 建会话并把 pre-roll 缓存回灌,转 live。
-    this.startSessionAndFlush();
+    // 麦克风点击时已开始录音。ASR 与增强模型都就绪后，再建会话并回灌 pre-roll。
+    this.startSessionWhenEnhancementReady();
   }
 
   onEngineCreateFailed(errorCode: number, message: string): void {
@@ -347,6 +352,7 @@ struct Index {
 
   private startListening(): void {
     if (!this.runtimeReady) return;
+    if (this.loading) return;
     if (!this.errorCleanupGate.canStart()) return;
     if (this.listening || this.replaying || this.playingCapture) return;
     this.startTapMs = Date.now();
@@ -395,8 +401,8 @@ struct Index {
     this.startCapture();
     this.logStartTiming('mic_start_issued(已发起开麦)');
     if (this.engine !== undefined) {
-      // 模型已在内存:直接建会话喂 live(无缓存)。
-      this.startSessionAndFlush();
+      // ASR 已在内存；若增强模型仍在后台预加载，继续缓存录音，完成后立即回灌。
+      this.startSessionWhenEnhancementReady();
     } else {
       // ② 并行冷加载模型;完成后在 onEngineCreated 建会话并回灌 pre-roll。
       this.startPending = true;
@@ -407,6 +413,16 @@ struct Index {
         this.buildCreateEngineParams(this.capturedHotwords),
         new DemoCreateEngineCallback(this));
     }
+  }
+
+  private async startSessionWhenEnhancementReady(): Promise<void> {
+    const preloadTask = this.targetSpeakerPreloadTask;
+    if (this.capturedTargetSpeakerEnhancement && preloadTask !== undefined) {
+      this.status = '录音中 · 正在完成目标说话人增强预加载（语音已缓存）…';
+      await preloadTask;
+    }
+    if (!this.active || !this.listening || this.replaying || this.engine === undefined) return;
+    this.startSessionAndFlush();
   }
 
   // 建会话 → 把加载期间缓存的 pre-roll 帧按序回灌 → 转 live。模型就绪(冷加载完 or 已在内存)后调用。
@@ -987,6 +1003,9 @@ struct Index {
         'SDK PCM 已保存 · 可试听或原样重新识别 · 模型已卸载' :
         '模型已卸载 · 运行时常驻 · 点击开始识别按需加载';
       this.releaseModel(next);
+      if (this.targetSpeakerEnhancementDesired) {
+        this.preloadTargetSpeakerEnhancement('上一轮结束');
+      }
     }
   }
 
@@ -1103,9 +1122,37 @@ struct Index {
     if (checked) this.speakerVadDesired = true;
     DemoPrefs.setTargetSpeakerEnhancementEnabled(
       getContext(this) as common.UIAbilityContext, checked);
+    if (checked) {
+      this.preloadTargetSpeakerEnhancement('开关开启');
+    } else {
+      this.targetSpeakerPreloadGeneration += 1;
+      this.targetSpeakerPreloadTask = undefined;
+      if (!this.listening && !this.replaying && this.engine === undefined && this.runtimeReady) {
+        SpeechRecognizeSdk.unloadModel();
+      }
+    }
     this.toast(checked ?
       '目标说话人增强已开启：增强音频将进入 Speaker VAD 和 ASR' :
       '目标说话人增强已关闭：Speaker VAD 和 ASR 使用原始音频');
+  }
+
+  private async preloadTargetSpeakerEnhancement(reason: string): Promise<void> {
+    if (!this.active || !this.runtimeReady || !this.targetSpeakerEnhancementDesired ||
+      this.voiceprintId.length === 0 || this.listening || this.replaying) return;
+    const generation = ++this.targetSpeakerPreloadGeneration;
+    this.status = `正在后台准备目标说话人增强模型（${reason}）…`;
+    const task = SpeechRecognizeSdk.preloadTargetSpeakerEnhancementModel(
+      [this.voiceprintId]
+    );
+    this.targetSpeakerPreloadTask = task;
+    const ready = await task;
+    if (this.targetSpeakerPreloadTask === task) this.targetSpeakerPreloadTask = undefined;
+    if (generation !== this.targetSpeakerPreloadGeneration || !this.active ||
+      !this.targetSpeakerEnhancementDesired) return;
+    if (this.listening || this.replaying) return;
+    this.status = ready ?
+      '运行时就绪 · 目标说话人增强模型已准备 · 点击开始识别不再等待增强模型' :
+      '运行时就绪 · 目标说话人增强预加载失败 · 点击开始识别时将自动重试';
   }
 
   private onPoliceEnhancementSwitch(checked: boolean): void {

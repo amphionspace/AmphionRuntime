@@ -89,6 +89,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | `SpeechRecognizeSdk.registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult` | 注册本地声纹 |
 | `SpeechRecognizeSdk.deleteVoiceprint(voiceprintId: string): boolean` | 删除本地声纹 |
 | `SpeechRecognizeSdk.preloadVoiceprintModel(): boolean` | 同步预加载并预热声纹模型；应在非 UI 关键路径调用 |
+| `SpeechRecognizeSdk.preloadTargetSpeakerEnhancementModel(voiceprintIds: string[]): Promise<boolean>` | 后台预加载目标说话人增强所需的 Conv-TasNet 和 ERes2Net；建议在增强开关开启后调用 |
 
 声纹模型 `eres2net.onnx` 和目标说话人分离模型 `convtasnet_16k.ort` 已内置在
 `amphion_dingqiao.har`，宿主无需单独分发、导入或复制。`setWorkPath` 指向可读写目录，
@@ -146,7 +147,9 @@ interface CreateEngineCallback {
 - `createEngine()` 在冷加载时会阻塞调用线程；客户业务优先使用 `createEngineAsync()`，不得在 UI 关键路径同步冷加载。
 - 创建识别引擎只加载 ASR 相关模型，不会因为 HAR 内置声纹资源而加载声纹 extractor。声纹 extractor 在注册、显式预加载或声纹会话中另行按需加载。
 - 创建普通识别引擎也不会加载 Conv-TasNet。首次启动启用了 `enableTargetSpeakerEnhancement`
-  的 session 时加载 `convtasnet_16k.ort`；后续增强 session 复用同一个模型 Session。
+  的 session 时按需加载 `convtasnet_16k.ort`；后续增强 session 复用模型 Session 和一对声纹
+  提取器。调用 `preloadTargetSpeakerEnhancementModel()` 可以在 `startListening()` 前通过 native
+  后台任务完成这部分加载。
 
 ### 3.4 `unloadModel()`
 
@@ -326,6 +329,12 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 | 返回 | `VoiceprintRegisterResult.voiceprintId` |
 
 `registerVoiceprint()` 与 `preloadVoiceprintModel()` 都会在 extractor 尚未加载时同步加载并预热声纹模型，不应放在 UI 关键路径。注册成功后，同一个进程内的声纹识别复用该 extractor。`preloadVoiceprintModel()` 是可选优化接口，不是普通声纹识别的前置步骤；Runtime 未就绪或加载失败时返回 `false`。
+
+`preloadTargetSpeakerEnhancementModel(voiceprintIds)` 是异步可选优化接口。它在 native 后台任务中
+准备 Conv-TasNet、增强选流使用的一对 ERes2Net 提取器，并同时准备 Speaker VAD 使用的共享
+ERes2Net；成功返回 `true` 后，增强 session 的 `startListening()` 不再承担这些模型的冷加载。
+调用前必须完成 `prepareRuntime()`，且 `voiceprintIds` 必须已经注册。`unloadModel()` 或
+`unloadRuntime()` 会使进行中的预加载失效并释放已经发布的模型；后续需要重新预加载或按需加载。
 
 启用 `enableVoiceprintVerification` 时，声纹 extractor 在 ASR 会话启动后后台加载，ASR 音频写入和 partial 结果不等待；如果 ASR final 产生时模型仍未就绪，只延后 final 和 `onComplete`，模型就绪后立即完成声纹打分。启用 `enableSpeakerVad` 时需要流式打分，因此冷态 `startListening()` 会同步等待 extractor。
 

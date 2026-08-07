@@ -418,6 +418,36 @@ class RunCommandTest(unittest.TestCase):
             "options.speakerVadThreshold = this.floatParameter", entry_source
         )
 
+    def test_target_speaker_warm_start_threshold_is_a_separate_device_gate(self) -> None:
+        with mock.patch.object(
+            sys,
+            "argv",
+            [
+                str(SCRIPT),
+                "--mode",
+                "target-speaker-enhancement-reload",
+                "--cycles",
+                "4",
+                "--max-target-speaker-warm-start-ms",
+                "200",
+            ],
+        ):
+            args = MODULE.parse_args()
+
+        self.assertEqual(200, args.max_target_speaker_warm_start_ms)
+        slow = MODULE.target_speaker_startup_verdict(
+            [{"detail": "target-speaker-warm-reuse", "startCallbackMs": "749"}], 200
+        )
+        fast = MODULE.target_speaker_startup_verdict(
+            [{"detail": "target-speaker-warm-reuse", "startCallbackMs": "45"}], 200
+        )
+        preloaded = MODULE.target_speaker_startup_verdict(
+            [{"detail": "target-speaker-preloaded", "startCallbackMs": "12"}], 200
+        )
+        self.assertEqual("FAIL", slow["status"])
+        self.assertEqual("PASS", fast["status"])
+        self.assertEqual("PASS", preloaded["status"])
+
 
 if __name__ == "__main__":
     unittest.main()

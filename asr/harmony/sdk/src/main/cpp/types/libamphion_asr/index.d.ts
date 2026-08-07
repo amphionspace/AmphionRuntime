@@ -12,6 +12,12 @@ export type TargetSpeakerEnhancerHandle = object;
 
 export const loadTargetSpeakerEnhancementModel: (model: Uint8Array) => void;
 export const isTargetSpeakerEnhancementModelLoaded: () => boolean;
+export const preloadTargetSpeakerEnhancementModelAsync: (
+  model: Uint8Array,
+  speakerModel: string,
+  resourceManager: object,
+  targetDimension: number
+) => Promise<void>;
 export const unloadTargetSpeakerEnhancementModel: () => void;
 export const createTargetSpeakerEnhancer: (
   speakerModel: string,

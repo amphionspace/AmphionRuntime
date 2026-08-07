@@ -7,13 +7,16 @@ SOURCE = ROOT / "asr/harmony/sdk/src/main/cpp/target_speaker_enhancer.cpp"
 
 
 class HarmonyTargetSpeakerNativeBoundaryTest(unittest.TestCase):
-    def test_separator_session_is_shared_until_explicit_model_unload(self) -> None:
+    def test_separator_and_scorer_pair_are_shared_until_explicit_model_unload(self) -> None:
         text = SOURCE.read_text(encoding="utf-8")
-        self.assertIn("std::shared_ptr<TargetSpeakerSeparator> g_separator_model", text)
+        self.assertIn("class TargetSpeakerEnhancementModel", text)
+        self.assertIn("std::shared_ptr<TargetSpeakerEnhancementModel> g_enhancement_model", text)
         self.assertIn("LoadTargetSpeakerEnhancementModel", text)
         self.assertIn("IsTargetSpeakerEnhancementModelLoaded", text)
         self.assertIn("UnloadTargetSpeakerEnhancementModel", text)
-        self.assertIn("std::shared_ptr<TargetSpeakerSeparator> separator", text)
+        self.assertIn("AcquireExtractors", text)
+        self.assertIn("ReleaseExtractors", text)
+        self.assertIn("kMaxCachedExtractorPairs", text)
 
     def test_typed_array_uses_view_byte_length_not_backing_buffer_size(self) -> None:
         text = SOURCE.read_text(encoding="utf-8")

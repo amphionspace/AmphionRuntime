@@ -1,5 +1,14 @@
 # Changelog
 
+## 未发布 - 2026-08-07（目标说话人增强启动优化）
+
+- 目标说话人增强模型生命周期内复用一对 ERes2Net 提取器，消除每个 session 重建两份提取器导致的
+  约 0.7 秒 `startListening → onStart` 阻塞；池最多保留一对，重叠 cancel 任务仍保持隔离。
+- 新增异步 `preloadTargetSpeakerEnhancementModel()`，在客户选择的非点击路径准备 Conv-TasNet、增强
+  选流 ERes2Net 和 Speaker VAD ERes2Net；Demo 在开启增强和上一轮结束后自动后台预热。
+- Mate 80 真机上热复用启动由 682～749 ms 降至 2 ms；显式卸载后完成后台预加载再启动为 19 ms。
+  `unloadModel`、`unloadRuntime`、cancel 恢复和 C1/C2/C3 内容回归保持通过。
+
 ## 未发布 - 2026-08-05（Harmony 目标说话人增强接口预留）
 
 - 新增默认关闭的 `enableTargetSpeakerEnhancement`，在现有 Speaker VAD/ASR 前执行 2 秒分块的

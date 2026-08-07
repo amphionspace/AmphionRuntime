@@ -1432,4 +1432,26 @@ export class SpeechRecognizeSdk {
     }
   }
 
+  /**
+   * Preloads both ERes2Net paths and Conv-TasNet outside startListening. The target embedding is
+   * read only to validate the scorer dimension; registration audio is never reprocessed.
+   */
+  static async preloadTargetSpeakerEnhancementModel(voiceprintIds: string[]): Promise<boolean> {
+    try {
+      const context = SpeechRecognizeSdk.context;
+      if (context === undefined || voiceprintIds.length === 0) return false;
+      const embedding = new VoiceprintStore(SpeechRecognizeSdk.workPath)
+        .loadMergedEmbedding(voiceprintIds);
+      if (embedding === undefined || embedding.length === 0) return false;
+      const modelPath = DingqiaoSpeakerModelAssets.bundledPath();
+      await Promise.all([
+        AmphionRuntime.getOrCreateSpeakerExtractorAsync(context, modelPath, 1),
+        TargetSpeakerEnhancer.preload(context, modelPath, embedding.length)
+      ]);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
 }

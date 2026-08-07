@@ -1,0 +1,6 @@
+000000	/data/storage/el2/base/files/asr-stress/20260807-103317-target-speaker-enhancement-cancel-5a5af53f/audio/000000.pcm
+000001	/data/storage/el2/base/files/asr-stress/20260807-103317-target-speaker-enhancement-cancel-5a5af53f/audio/000001.pcm
+000002	/data/storage/el2/base/files/asr-stress/20260807-103317-target-speaker-enhancement-cancel-5a5af53f/audio/000002.pcm
+000003	/data/storage/el2/base/files/asr-stress/20260807-103317-target-speaker-enhancement-cancel-5a5af53f/audio/000003.pcm
+000004	/data/storage/el2/base/files/asr-stress/20260807-103317-target-speaker-enhancement-cancel-5a5af53f/audio/000004.pcm
+000005	/data/storage/el2/base/files/asr-stress/20260807-103317-target-speaker-enhancement-cancel-5a5af53f/audio/000005.pcm

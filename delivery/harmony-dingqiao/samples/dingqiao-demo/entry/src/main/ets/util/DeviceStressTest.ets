@@ -2281,7 +2281,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       options.mode === 'target-speaker-preview-reentrant' ||
       options.mode === 'target-speaker-enhancement-onstart' ||
       options.mode === 'target-speaker-enhancement-cancel' ||
-      options.mode === 'target-speaker-enhancement-reload') {
+      options.mode === 'target-speaker-enhancement-reload' ||
+      options.mode === 'target-speaker-enhancement-preload') {
       if ((options.mode === 'voiceprint' || options.mode === 'voiceprint-fallback') &&
         entries.length < 2) {
         throw new Error('voiceprint-stress-requires-two-corpus-sources');
@@ -2296,9 +2297,16 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         stressVoiceprintSamplePaths.push(`${workPath}/stress-voiceprint-enroll-${i}.wav`);
       }
       if (options.mode === 'voiceprint-fallback') SpeechRecognizeSdk.unloadModel();
-      if (options.mode === 'target-speaker-enhancement-reload') {
+      if (options.mode === 'target-speaker-enhancement-reload' ||
+        options.mode === 'target-speaker-enhancement-preload') {
         // Registration loads ERes2Net; clear all L2 models so cycle 0 proves a true cold load.
         SpeechRecognizeSdk.unloadModel();
+      }
+      if (options.mode === 'target-speaker-enhancement-preload') {
+        const preloaded = await SpeechRecognizeSdk.preloadTargetSpeakerEnhancementModel(
+          [stressVoiceprintId]
+        );
+        if (!preloaded) throw new Error('target-speaker-enhancement-preload-failed');
       }
     }
 
@@ -2315,7 +2323,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         options.mode === 'target-speaker-preview-reentrant' ||
         options.mode === 'target-speaker-enhancement-onstart' ||
         options.mode === 'target-speaker-enhancement-cancel' ||
-        options.mode === 'target-speaker-enhancement-reload') {
+        options.mode === 'target-speaker-enhancement-reload' ||
+        options.mode === 'target-speaker-enhancement-preload') {
         entry = entries[options.enrollmentCount +
           (i % (entries.length - options.enrollmentCount))];
       }
@@ -2389,6 +2398,12 @@ export async function runDeviceStress(context: common.UIAbilityContext,
           'target-speaker-runtime-reload'
         ];
         result.detail = result.ok ? reloadPhases[i] : `${reloadPhases[i]}-${result.detail}`;
+      } else if (options.mode === 'target-speaker-enhancement-preload') {
+        result = await runTargetSpeakerEnhancementOnStartCycle(
+          engine, entry, i, stressVoiceprintId, 'continue'
+        );
+        result.detail = result.ok ? 'target-speaker-preloaded' :
+          `target-speaker-preloaded-${result.detail}`;
       } else {
         result = await runRecognitionCycle(engine, entry, i, options);
       }
