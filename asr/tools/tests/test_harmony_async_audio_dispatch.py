@@ -139,6 +139,30 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
             """
         )
 
+    def test_throwing_error_callback_does_not_stall_shared_execution_queue(self) -> None:
+        self.run_dispatcher(
+            """
+            const failed = new SessionAudioDispatcher({
+              write: async () => { throw new Error('decode failed'); },
+              writeFloat: async () => {},
+              finish: async () => {},
+            }, () => { throw new Error('consumer failed'); });
+
+            assert.equal(failed.write(Uint8Array.from([1]).buffer), true);
+            await failed.whenIdle();
+
+            const events = [];
+            const replacement = new SessionAudioDispatcher({
+              write: async () => events.push('replacement-write'),
+              writeFloat: async () => {},
+              finish: async () => {},
+            }, message => events.push(`replacement-error-${message}`));
+            assert.equal(replacement.write(Uint8Array.from([2]).buffer), true);
+            await replacement.whenIdle();
+            assert.deepEqual(events, ['replacement-write']);
+            """
+        )
+
     def test_float_audio_is_snapshotted_and_uses_the_same_fifo(self) -> None:
         self.run_dispatcher(
             """

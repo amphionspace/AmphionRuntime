@@ -91,6 +91,10 @@ export class SessionAudioDispatcher {
     if (this.failed || this.canceled) return;
     this.failed = true;
     this.accepting = false;
-    this.onError(message);
+    try {
+      this.onError(message);
+    } catch (_e) {
+      // A consumer callback must not reject the shared native execution queue.
+    }
   }
 }

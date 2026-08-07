@@ -261,7 +261,7 @@ struct Index {
     const rejectedColdStart = generation >= 0 && !decision.accepted;
     if (!this.active || rejectedColdStart ||
       (!this.listening && !this.replaying && !decision.accepted)) {
-      // 加载途中用户已离开本页 / 已取消当前输入:直接释放,避免残留会话与内存。
+      // 加载途中用户已离开本页 / 已取消当前输入：关闭残留会话；离开页面时再卸载模型。
       engine.shutdown();
       if (!this.active) SpeechRecognizeSdk.unloadModel();
       this.startPending = false;
