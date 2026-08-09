@@ -5,6 +5,7 @@ import deviceInfo from '@ohos.deviceInfo';
 import hilog from '@ohos.hilog';
 import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
+import { FinishShutdownGate } from './FinishShutdownGate';
 import { finiteNumberParam } from './NumericParam';
 import { rejectedFinalCompletesSession } from './RejectedFinalLifecycle';
 import { SessionAudioDispatcher } from './SessionAudioDispatcher';
@@ -346,6 +347,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private targetSpeakerEnhancer?: TargetSpeakerEnhancer;
   private targetSpeakerEnhancementPipeline?: TargetSpeakerEnhancementPipeline;
   private targetSpeakerEnhancementEnabled: boolean = false;
+  private finishShutdownGate: FinishShutdownGate;
   // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
   private engineCfgKey: string = '';
 
@@ -356,6 +358,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.asrEngine = preloadedEngine ??
       AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(this.params));
     this.engineCfgKey = this.computeEngineCfgKey(false, false);
+    this.finishShutdownGate = new FinishShutdownGate((): void => this.releaseEngineResources());
   }
 
   // vadBegin/vadEnd/speaker 窗口均由 SessionConfig 覆盖；只有目标说话人能力和同步加载策略需要重建引擎。
@@ -526,6 +529,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
           await session.acceptPcmFloatAsync(samples);
         },
+        requestFinish: (): void => {
+          if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
+          session.requestStopFromCallback();
+        },
         finish: async (): Promise<void> => {
           if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
           await session.stopAsync();
@@ -670,6 +677,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   shutdown(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    if (this.finishShutdownGate.request(this.busy && this.finishRequested)) return;
+  }
+
+  private releaseEngineResources(): void {
     this.tearDownSession();
     this.asrEngine.close();
     this.enhancePipeline.close();
@@ -711,7 +722,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (sessionId.length === 0) return;
     this.completeSent = true;
     this.tearDownSession();
-    this.listener?.onComplete?.(sessionId, 'recognize complete');
+    try {
+      this.listener?.onComplete?.(sessionId, 'recognize complete');
+    } finally {
+      this.finishShutdownGate.settle();
+    }
   }
 
   private resetSessionState(): void {
@@ -762,11 +777,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
       this.currentSessionId !== sessionId) return;
     this.tearDownSession();
-    this.listener?.onError?.(
-      sessionId,
-      DingqiaoErrorCode.RECOGNITION_ERROR,
-      `target speaker enhancement failed: ${message}`
-    );
+    try {
+      this.listener?.onError?.(
+        sessionId,
+        DingqiaoErrorCode.RECOGNITION_ERROR,
+        `target speaker enhancement failed: ${message}`
+      );
+    } finally {
+      this.finishShutdownGate.settle();
+    }
   }
 
   private rebuildEngine(params: StartParams, withTargetSpeaker: boolean, withSpeakerVad: boolean,
@@ -858,7 +877,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (!this.sessionStartGate.isCurrent(generation)) return;
     const sessionId = this.currentSessionId;
     this.tearDownSession();
-    this.listener?.onError?.(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, `${error.code}: ${error.message}`);
+    try {
+      this.listener?.onError?.(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, `${error.code}: ${error.message}`);
+    } finally {
+      this.finishShutdownGate.settle();
+    }
   }
 
   handleSessionStarted(generation: number): void {

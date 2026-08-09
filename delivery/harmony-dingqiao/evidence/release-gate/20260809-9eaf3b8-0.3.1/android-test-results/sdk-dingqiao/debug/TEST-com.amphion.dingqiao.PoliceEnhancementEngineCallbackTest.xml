@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.dingqiao.PoliceEnhancementEngineCallbackTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-08-09T10:27:23" hostname="redacted" time="0.482">
+  <properties/>
+  <testcase name="publicEngineSnapshotsTogglePerSessionAndPreservesTerminalCallbackContract" classname="com.amphion.dingqiao.PoliceEnhancementEngineCallbackTest" time="0.482"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[WARNING: A Java agent has been loaded dynamically (<LOCAL_PATH>
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+]]></system-err>
+</testsuite>

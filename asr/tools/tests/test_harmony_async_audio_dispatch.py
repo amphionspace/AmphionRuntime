@@ -86,6 +86,37 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
             """
         )
 
+    def test_finish_requested_inside_endpoint_callback_is_visible_to_current_result(self) -> None:
+        self.run_dispatcher(
+            """
+            const events = [];
+            let finishRequestedAtEndpoint = false;
+            let resolveFinished;
+            const finished = new Promise(resolve => { resolveFinished = resolve; });
+            let dispatcher;
+            dispatcher = new SessionAudioDispatcher({
+              write: async () => {
+                events.push('speech-end');
+                dispatcher.finish();
+                events.push(finishRequestedAtEndpoint ? 'text-last' : 'text-endpoint');
+              },
+              writeFloat: async () => {},
+              requestFinish: () => {
+                finishRequestedAtEndpoint = true;
+                events.push('finish-intent');
+              },
+              finish: async () => {
+                if (!finishRequestedAtEndpoint) events.push('empty-last');
+                resolveFinished();
+              },
+            }, message => events.push(`error-${message}`));
+
+            dispatcher.write(new ArrayBuffer(640));
+            await finished;
+            assert.deepEqual(events, ['speech-end', 'finish-intent', 'text-last']);
+            """
+        )
+
     def test_cancel_drops_work_that_has_not_started(self) -> None:
         self.run_dispatcher(
             """
@@ -194,6 +225,13 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         self.assertIn("static executionTail", dispatcher)
         self.assertIn("async acceptPcmBytesAsync", runtime)
         self.assertIn("await this.recognizer.decodeAsync(this.stream)", runtime)
+
+    def test_adapter_bridges_finish_intent_to_the_current_core_callback(self) -> None:
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        runtime = RUNTIME.read_text(encoding="utf-8")
+        self.assertIn("requestFinish:", adapter)
+        self.assertIn("session.requestStopFromCallback()", adapter)
+        self.assertIn("requestStopFromCallback(): boolean", runtime)
 
     def test_native_async_decode_retains_recognizer_and_stream_lifetimes(self) -> None:
         patch = SHERPA_PATCH.read_text(encoding="utf-8")

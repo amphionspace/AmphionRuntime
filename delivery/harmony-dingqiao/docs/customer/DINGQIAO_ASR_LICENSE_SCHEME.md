@@ -10,7 +10,8 @@ SDK 使用本地签名 License，不依赖公网激活：
 4. `sdkMajor=0` 且 `maintenanceUntil` 为空，不限制 SDK 主版本或升级维护期。
 5. `expiresAt` 控制运行有效期；为空时表示已授权版本不按日期停机。
 
-本次 `amphion-license.lic` 随 SDK 交付包提供；签发私钥不进入交付物。
+`amphion-license.lic` 由签发方另行提供，或继续使用既有有效授权；SDK-only ZIP 不包含授权文件，
+签发私钥也不进入交付物。
 
 ## 2. 授权声明
 

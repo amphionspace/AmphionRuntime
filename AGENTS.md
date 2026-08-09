@@ -54,8 +54,19 @@
 - `vad-begin`：使用真实语音和纯静音分别测试。真实语音不得自动结束；纯静音必须按配置结束。
 - 声纹与 `vadBegin` 必须组合测试 1000 ms 入参、实时/突发喂入、直接起音/前置静音；前置静音与源文件自身静音之和必须小于 1000 ms，否则自动结束是正确结果。显式 `finish` 前不得有 `isLast`，足够长的有效语音必须出现带分数的 final。另用纯静音/稳态高能非语音验证有界自动结束。参数上层改大只能作为规避，不能替代此门禁。
 - `voiceprint-fallback` 必须使用能在旧版本稳定产生“非空 endpoint final 但分数缺失”的双文件语料，分别覆盖 cold/warm extractor；第一条非空 final 必须带分数，显式 `finish` 前不得有 `isLast`。该模式不得配置短 `maxAudioDuration`，避免把声纹样本选择与自动结束混成一个断言。
+- Harmony finish 兼容性发布必须运行 `delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py`。
+  `callback-api-reentrant` 的 `SPEECH_END -> finish` 必须返回带非空文本的唯一 last；
+  `finish-shutdown` 必须在同一 commit、设备和 HAP/HAR 上返回唯一 last 后唯一 complete。
+  根汇总 `report.json` 和两个子模式完整 artifact 必须保留。
 - 长稳压：按采样率、时长和音量分层抽样，不只取随机文件；报告 callback 契约、空 final、native stream、RSS 和线程变化。
 - 测试报告必须保留 `report.json`、逐轮结果、内存采样、hilog 和输入映射。失败 artifact 不得被后续运行覆盖。
+- 发布矩阵完成后必须用 `archive_release_gate_evidence.py` 生成新的、不可覆盖的脱敏证据目录；
+  保留 canonical PASS 和非 canonical 失败现场，不提交原始 PCM。发布账本必须通过
+  `attach-evidence` 记录根 `report.json` 路径与 SHA-256，并用 `verify-evidence` 校验。
+- SDK-only 打包不得把“Git 输入看起来干净”等同于“已构建 HAR 来自当前源码”。打包前必须验证
+  `harmony_build_identity.py`；中英裁剪仍要绑定 `amphion_asr`、`amphion_police`、
+  `amphion_dingqiao` 和 `sherpa_onnx` 四个 HAR，provenance 必须记录 source fingerprint 和
+  component HAR 哈希。
 
 ## SDK 真实调用方验收
 
@@ -82,6 +93,9 @@ python3 -m unittest \
   asr.tools.tests.test_harmony_initial_silence_tracker \
   asr.tools.tests.test_harmony_rejected_final_lifecycle \
   delivery.harmony-dingqiao.delivery.test_run_device_stress -v
+
+python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py \
+  --data-dir "$HOME/Downloads/testdata"
 
 cd asr/android
 ./gradlew --no-daemon :sdk:testDebugUnitTest :sdk-dingqiao:testDebugUnitTest --console=plain

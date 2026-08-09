@@ -34,6 +34,7 @@ ABILITY = "EntryAbility"
 REMOTE_ROOT = "/data/storage/el2/base/files/asr-stress"
 FINISH_MODES = {
     "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration", "numeric-edge",
+    "finish-shutdown",
 }
 MIN_MEMORY_SAMPLES = 6
 MIN_MEMORY_OBSERVATION_SECONDS = 15.0
@@ -100,6 +101,7 @@ def parse_args() -> argparse.Namespace:
             "target-speaker-enhancement-cancel",
             "callback-api-reentrant",
             "endpoint-reentrant",
+            "finish-shutdown",
             "user-sequence",
             "numeric-edge",
         ),

@@ -9,12 +9,24 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 import tempfile
 import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.delivery.asr_release_evidence_contract import (
+    HARMONY_RELEASE_MODES,
+    MIN_LONG_RUN_SECONDS,
+    SCHEMA_VERSION as EVIDENCE_SCHEMA_VERSION,
+)
 
 
 SCHEMA_VERSION = 2
@@ -69,6 +81,8 @@ REQUIRED_ENTRY_FIELDS = {
     "artifact_size_bytes",
     "provenance_sha256",
 }
+EVIDENCE_ENTRY_FIELDS = {"evidence_report", "evidence_sha256"}
+ALLOWED_ENTRY_FIELDS = REQUIRED_ENTRY_FIELDS | EVIDENCE_ENTRY_FIELDS
 
 
 class ReleaseTrackerError(RuntimeError):
@@ -110,8 +124,17 @@ def load_history(path: Path) -> Dict[str, Any]:
         raise ReleaseTrackerError("release history deliveries must be a list")
     seen = set()
     for index, entry in enumerate(deliveries):
-        if not isinstance(entry, dict) or set(entry) != REQUIRED_ENTRY_FIELDS:
+        if (
+            not isinstance(entry, dict)
+            or not REQUIRED_ENTRY_FIELDS.issubset(entry)
+            or not set(entry).issubset(ALLOWED_ENTRY_FIELDS)
+        ):
             raise ReleaseTrackerError(f"delivery #{index + 1} has invalid fields")
+        evidence_fields = EVIDENCE_ENTRY_FIELDS.intersection(entry)
+        if evidence_fields and evidence_fields != EVIDENCE_ENTRY_FIELDS:
+            raise ReleaseTrackerError(
+                f"delivery #{index + 1} evidence fields must be recorded together"
+            )
         platform = entry["platform"]
         version = entry["version"]
         key = (platform, version)
@@ -148,6 +171,24 @@ def load_history(path: Path) -> Dict[str, Any]:
             entry["provenance_sha256"]
         ):
             raise ReleaseTrackerError(f"delivery #{index + 1} has invalid provenance_sha256")
+        if evidence_fields:
+            evidence_report = entry["evidence_report"]
+            if not isinstance(evidence_report, str):
+                raise ReleaseTrackerError(f"delivery #{index + 1} has invalid evidence_report")
+            evidence_path = Path(evidence_report)
+            if (
+                evidence_path.is_absolute()
+                or ".." in evidence_path.parts
+                or not evidence_report.startswith("delivery/")
+                or evidence_path.name != "report.json"
+            ):
+                raise ReleaseTrackerError(
+                    f"delivery #{index + 1} evidence_report must be a safe repo-relative report.json"
+                )
+            if not isinstance(entry["evidence_sha256"], str) or not SHA256.fullmatch(
+                entry["evidence_sha256"]
+            ):
+                raise ReleaseTrackerError(f"delivery #{index + 1} has invalid evidence_sha256")
     return payload
 
 
@@ -289,6 +330,256 @@ def _history_lock_path(history_path: Path) -> Path:
     return Path(tempfile.gettempdir()) / f"amphion-asr-release-history-{identity}.lock"
 
 
+def _write_history_atomic(history_path: Path, history: Dict[str, Any]) -> None:
+    temporary_path: Optional[Path] = None
+    original_mode = stat.S_IMODE(history_path.stat().st_mode)
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=history_path.parent,
+            prefix=f".{history_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            json.dump(history, temporary, ensure_ascii=False, indent=2)
+            temporary.write("\n")
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        os.chmod(temporary_path, original_mode)
+        os.replace(temporary_path, history_path)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+def attach_evidence(
+    *,
+    repo: Path,
+    history_path: Path,
+    platform: str,
+    version: str,
+    report_path: Path,
+) -> Dict[str, Any]:
+    if report_path.is_symlink():
+        raise ReleaseTrackerError("evidence report must not be a symlink")
+    report_path = report_path.resolve()
+    try:
+        relative_report = report_path.relative_to(repo.resolve()).as_posix()
+    except ValueError as error:
+        raise ReleaseTrackerError("evidence report must be inside the repository") from error
+    if (
+        not report_path.is_file()
+        or report_path.name != "report.json"
+        or not relative_report.startswith("delivery/")
+    ):
+        raise ReleaseTrackerError("evidence report must be an existing report.json")
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ReleaseTrackerError(f"cannot read evidence report: {error}") from error
+    if not isinstance(report, dict) or report.get("overall_status") != "PASS":
+        raise ReleaseTrackerError("release evidence report must have overall_status=PASS")
+    report_digest = hashlib.sha256(report_path.read_bytes()).hexdigest()
+
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = _history_lock_path(history_path)
+    with lock_path.open("a+") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        history = load_history(history_path)
+        matches = [
+            delivery
+            for delivery in history["deliveries"]
+            if delivery["platform"] == platform and delivery["version"] == version
+        ]
+        if len(matches) != 1:
+            raise ReleaseTrackerError(f"delivery {platform} {version} is not recorded")
+        entry = matches[0]
+        if EVIDENCE_ENTRY_FIELDS.intersection(entry):
+            raise ReleaseTrackerError(f"delivery {platform} {version} already has evidence")
+        _validate_evidence_report(entry, report)
+        _validate_evidence_files(report_path, report)
+        entry["evidence_report"] = relative_report
+        entry["evidence_sha256"] = report_digest
+        _write_history_atomic(history_path, history)
+        return dict(entry)
+
+
+def verify_history_evidence(*, repo: Path, history_path: Path) -> None:
+    history = load_history(history_path)
+    for entry in history["deliveries"]:
+        if not EVIDENCE_ENTRY_FIELDS.issubset(entry):
+            continue
+        report = repo.resolve() / entry["evidence_report"]
+        if report.is_symlink() or not report.is_file():
+            raise ReleaseTrackerError(
+                f"evidence report is missing for {entry['platform']} {entry['version']}: {report}"
+            )
+        try:
+            report.resolve().relative_to(repo.resolve())
+        except ValueError as error:
+            raise ReleaseTrackerError(
+                f"evidence report escapes the repository for {entry['platform']} {entry['version']}"
+            ) from error
+        actual = hashlib.sha256(report.read_bytes()).hexdigest()
+        if actual != entry["evidence_sha256"]:
+            raise ReleaseTrackerError(
+                f"evidence digest mismatch for {entry['platform']} {entry['version']}"
+            )
+        try:
+            payload = json.loads(report.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise ReleaseTrackerError(f"cannot read evidence report {report}: {error}") from error
+        _validate_evidence_report(entry, payload)
+        _validate_evidence_files(report, payload)
+
+
+def _validate_evidence_report(entry: Dict[str, Any], report: Any) -> None:
+    if not isinstance(report, dict) or report.get("overall_status") != "PASS":
+        raise ReleaseTrackerError("release evidence report must have overall_status=PASS")
+    expected = {
+        "release_version": entry["version"],
+        "source_commit": entry["source_commit"],
+    }
+    for field, value in expected.items():
+        if report.get(field) != value:
+            raise ReleaseTrackerError(f"release evidence {field} does not match delivery ledger")
+    artifact = report.get("release_artifact")
+    if not isinstance(artifact, dict):
+        raise ReleaseTrackerError("release evidence artifact is missing")
+    expected_artifact = {
+        "name": entry["artifact"],
+        "sha256": entry["artifact_sha256"],
+        "size_bytes": entry["artifact_size_bytes"],
+        "provenance_sha256": entry["provenance_sha256"],
+    }
+    for field, value in expected_artifact.items():
+        if artifact.get(field) != value:
+            raise ReleaseTrackerError(
+                f"release evidence artifact {field} does not match delivery ledger"
+            )
+    if entry["platform"] == "harmony":
+        if report.get("schema_version") != EVIDENCE_SCHEMA_VERSION:
+            raise ReleaseTrackerError("Harmony release evidence has an unsupported schema")
+        if report.get("required_modes") != list(HARMONY_RELEASE_MODES):
+            raise ReleaseTrackerError("Harmony release evidence required_modes are incomplete")
+        modes = report.get("modes")
+        mode_names = (
+            [item.get("mode") for item in modes if isinstance(item, dict)]
+            if isinstance(modes, list)
+            else []
+        )
+        if mode_names != list(HARMONY_RELEASE_MODES):
+            raise ReleaseTrackerError("Harmony release evidence modes are incomplete")
+        long_run = report.get("long_run")
+        if (
+            not isinstance(long_run, dict)
+            or long_run.get("mode") not in HARMONY_RELEASE_MODES
+            or not isinstance(long_run.get("duration_seconds"), (int, float))
+            or long_run["duration_seconds"] <= MIN_LONG_RUN_SECONDS
+        ):
+            raise ReleaseTrackerError("Harmony release evidence has no run longer than 60 seconds")
+
+
+def _validate_evidence_files(report_path: Path, report: Dict[str, Any]) -> None:
+    evidence_root = report_path.parent.resolve()
+    declared = {"report.json"}
+
+    def verify_entry(entry: Any, prefix: str = "") -> Path:
+        if not isinstance(entry, dict):
+            raise ReleaseTrackerError("release evidence contains an invalid file manifest")
+        relative = entry.get("path")
+        if not isinstance(relative, str):
+            raise ReleaseTrackerError("release evidence file manifest has no path")
+        joined = Path(prefix) / relative
+        if joined.is_absolute() or ".." in joined.parts:
+            raise ReleaseTrackerError(f"unsafe release evidence file path: {joined}")
+        normalized = joined.as_posix()
+        if normalized in declared:
+            raise ReleaseTrackerError(f"duplicate release evidence file path: {normalized}")
+        path = evidence_root / joined
+        if path.is_symlink() or not path.is_file():
+            raise ReleaseTrackerError(f"release evidence file is missing: {normalized}")
+        try:
+            path.resolve().relative_to(evidence_root)
+        except ValueError as error:
+            raise ReleaseTrackerError(
+                f"release evidence file escapes its archive: {normalized}"
+            ) from error
+        if entry.get("size_bytes") != path.stat().st_size:
+            raise ReleaseTrackerError(f"release evidence size mismatch: {normalized}")
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        if entry.get("sha256") != actual:
+            raise ReleaseTrackerError(f"release evidence digest mismatch: {normalized}")
+        declared.add(normalized)
+        return path
+
+    verify_entry(report.get("android_tests_artifact"))
+    android_results = report.get("android_test_results")
+    if not isinstance(android_results, list) or not android_results:
+        raise ReleaseTrackerError("release evidence has no Android test result manifests")
+    for entry in android_results:
+        xml_path = verify_entry(entry)
+        _validate_android_test_xml(xml_path)
+    for mode in report.get("modes", []):
+        if not isinstance(mode, dict) or not isinstance(mode.get("mode"), str):
+            raise ReleaseTrackerError("release evidence contains an invalid mode manifest")
+        prefix = f"modes/{mode['mode']}"
+        files = mode.get("files")
+        if not isinstance(files, list) or not files:
+            raise ReleaseTrackerError(f"release evidence mode has no files: {mode['mode']}")
+        for entry in files:
+            verify_entry(entry, prefix)
+    diagnostics = report.get("diagnostics", [])
+    if not isinstance(diagnostics, list):
+        raise ReleaseTrackerError("release evidence diagnostics must be a list")
+    for diagnostic in diagnostics:
+        if not isinstance(diagnostic, dict) or not isinstance(diagnostic.get("path"), str):
+            raise ReleaseTrackerError("release evidence contains an invalid diagnostic manifest")
+        files = diagnostic.get("files")
+        if not isinstance(files, list) or not files:
+            raise ReleaseTrackerError("release evidence diagnostic has no files")
+        for entry in files:
+            verify_entry(entry, diagnostic["path"])
+    actual = {
+        path.relative_to(evidence_root).as_posix()
+        for path in evidence_root.rglob("*")
+        if path.is_file()
+    }
+    symlinks = [path for path in evidence_root.rglob("*") if path.is_symlink()]
+    if symlinks:
+        raise ReleaseTrackerError(
+            f"release evidence archive contains a symlink: {symlinks[0].relative_to(evidence_root)}"
+        )
+    if actual != declared:
+        extra = sorted(actual - declared)
+        missing = sorted(declared - actual)
+        detail = extra[0] if extra else missing[0]
+        raise ReleaseTrackerError(f"release evidence contains an unmanifested file: {detail}")
+
+
+def _validate_android_test_xml(xml_path: Path) -> None:
+    try:
+        suite = ET.parse(xml_path).getroot()
+    except (OSError, ET.ParseError) as error:
+        raise ReleaseTrackerError(
+            f"release evidence has invalid Android test XML: {xml_path.name}"
+        ) from error
+    if suite.tag != "testsuite" or suite.attrib.get("hostname") != "redacted":
+        raise ReleaseTrackerError(
+            f"release evidence has invalid Android testsuite metadata: {xml_path.name}"
+        )
+    for field in ("tests", "failures", "errors", "skipped"):
+        try:
+            int(suite.attrib.get(field, "0"))
+        except ValueError as error:
+            raise ReleaseTrackerError(
+                f"release evidence has invalid Android testsuite counts: {xml_path.name}"
+            ) from error
+
+
 def record_delivery(
     *,
     repo: Path,
@@ -341,26 +632,7 @@ def record_delivery(
         ):
             raise ReleaseTrackerError(f"{platform} {version} is already recorded")
         history["deliveries"].append(entry)
-        temporary_path: Optional[Path] = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                encoding="utf-8",
-                dir=history_path.parent,
-                prefix=f".{history_path.name}.",
-                suffix=".tmp",
-                delete=False,
-            ) as temporary:
-                temporary_path = Path(temporary.name)
-                json.dump(history, temporary, ensure_ascii=False, indent=2)
-                temporary.write("\n")
-                temporary.flush()
-                os.fsync(temporary.fileno())
-            os.replace(temporary_path, history_path)
-            temporary_path = None
-        finally:
-            if temporary_path is not None:
-                temporary_path.unlink(missing_ok=True)
+        _write_history_atomic(history_path, history)
     return entry
 
 
@@ -387,6 +659,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     record.add_argument("--delivered-at", required=True)
     record.add_argument("--artifact", type=Path, required=True)
 
+    attach = subparsers.add_parser("attach-evidence")
+    attach.add_argument("--platform", choices=sorted(PLATFORMS), required=True)
+    attach.add_argument("--version", required=True)
+    attach.add_argument("--report", type=Path, required=True)
+
+    subparsers.add_parser("verify-evidence")
+
     args = parser.parse_args(argv)
     repo = args.repo.resolve()
     history_path = (args.history or repo / "delivery/asr-sdk-release-history.json").resolve()
@@ -405,7 +684,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 encoding="utf-8",
             )
             print(f"[OK] wrote release changelog: {output}")
-        else:
+        elif args.command == "record":
             entry = record_delivery(
                 repo=repo,
                 history_path=history_path,
@@ -419,6 +698,21 @@ def main(argv: Optional[List[str]] = None) -> int:
                 f"[OK] recorded {entry['platform']} {entry['version']} "
                 f"at {entry['source_commit']}"
             )
+        elif args.command == "attach-evidence":
+            entry = attach_evidence(
+                repo=repo,
+                history_path=history_path,
+                platform=args.platform,
+                version=args.version,
+                report_path=args.report,
+            )
+            print(
+                f"[OK] attached evidence to {entry['platform']} {entry['version']}: "
+                f"{entry['evidence_report']}"
+            )
+        else:
+            verify_history_evidence(repo=repo, history_path=history_path)
+            print("[OK] release evidence digests verified")
     except ReleaseTrackerError as error:
         print(f"[ERROR] {error}", file=sys.stderr)
         return 1

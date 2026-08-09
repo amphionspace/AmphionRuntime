@@ -1,0 +1,5 @@
+08-07 19:01:35.380 54420 54420 I C03F04/com.amphion.asr.harmony.demo/MMG: [NMM:322]Tail:default/sherpa_onnx
+08-07 19:01:35.396 54420 54420 I A00000/com.amphion.asr.harmony.demo/DeviceStressTest: ASR_STRESS|BEGIN|runId=20260807-190133-voiceprint-e2c9b8a2|mode=voiceprint|cycles=7
+08-07 19:01:35.453 54420 54420 I A00000/com.amphion.asr.harmony.demo/DeviceStressTest: ASR_STRESS|FATAL|runId=20260807-190133-voiceprint-e2c9b8a2|detail=Error:_voiceprint-enrollment-source-too-short
+08-07 19:01:35.454 54420 54420 I A00000/com.amphion.asr.harmony.demo/DeviceStressTest: ASR_STRESS|SUMMARY|runId=20260807-190133-voiceprint-e2c9b8a2|status=FAIL|mode=voiceprint|requested=7|completed=0|failed=0|emptyFinals=0|starts=0|partials=0|finals=0|completes=0|errors=0|elapsedMs=57|fatal=Error:_voiceprint-enrollment-source-too-short
+08-07 19:01:35.454 54420 54420 I A00000/com.amphion.asr.harmony.demo/DeviceStressTest: ASR_STRESS|END|runId=20260807-190133-voiceprint-e2c9b8a2

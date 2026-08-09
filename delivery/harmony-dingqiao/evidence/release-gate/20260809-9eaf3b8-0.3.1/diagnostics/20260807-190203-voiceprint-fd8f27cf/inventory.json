@@ -1,0 +1,9 @@
+{
+  "sample_rates": {
+    "16000": 6
+  },
+  "selected_duration_seconds": 38.88,
+  "selected_wavs": 4,
+  "total_valid_duration_seconds": 57.68,
+  "valid_wavs": 6
+}
