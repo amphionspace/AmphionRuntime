@@ -49,15 +49,14 @@ class ReleaseDefaultsTest(unittest.TestCase):
         )
         self.assertIn("| `disablePrepack` | `boolean/number/string` | `true` |", docs)
 
-    def test_sdk_only_packaging_does_not_require_demo_build_identity(self) -> None:
+    def test_sdk_only_packaging_requires_verified_har_source_identity(self) -> None:
         script = (
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
         ).read_text(encoding="utf-8")
-        self.assertIn(
-            "build_identity = {} if sdk_only else json.loads",
-            script,
-        )
+        self.assertIn('python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"', script)
+        self.assertIn("build_identity = json.loads", script)
+        self.assertIn('"verified_source_identity"', script)
 
     def test_sdk_only_changelog_combines_controlled_notes_and_commit_trace(self) -> None:
         script = (

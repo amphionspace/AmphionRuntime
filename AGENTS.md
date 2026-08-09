@@ -60,6 +60,13 @@
   根汇总 `report.json` 和两个子模式完整 artifact 必须保留。
 - 长稳压：按采样率、时长和音量分层抽样，不只取随机文件；报告 callback 契约、空 final、native stream、RSS 和线程变化。
 - 测试报告必须保留 `report.json`、逐轮结果、内存采样、hilog 和输入映射。失败 artifact 不得被后续运行覆盖。
+- 发布矩阵完成后必须用 `archive_release_gate_evidence.py` 生成新的、不可覆盖的脱敏证据目录；
+  保留 canonical PASS 和非 canonical 失败现场，不提交原始 PCM。发布账本必须通过
+  `attach-evidence` 记录根 `report.json` 路径与 SHA-256，并用 `verify-evidence` 校验。
+- SDK-only 打包不得把“Git 输入看起来干净”等同于“已构建 HAR 来自当前源码”。打包前必须验证
+  `harmony_build_identity.py`；中英裁剪仍要绑定 `amphion_asr`、`amphion_police`、
+  `amphion_dingqiao` 和 `sherpa_onnx` 四个 HAR，provenance 必须记录 source fingerprint 和
+  component HAR 哈希。
 
 ## SDK 真实调用方验收
 

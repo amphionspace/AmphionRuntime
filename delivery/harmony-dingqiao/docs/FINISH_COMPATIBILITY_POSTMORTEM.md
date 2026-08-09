@@ -61,3 +61,22 @@ python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py \
 任一契约失败、两模式设备/构建身份不一致、工作区不干净或构建 commit 不匹配时，
 门禁必须失败。短轮次内存结论可为 `INCONCLUSIVE`；该门禁验证生命周期，不替代长时资源压测或
 文本精度评测。
+
+## 0.3.1 交付复核补充
+
+0.3.1 在提交 `9eaf3b8` 和同一构建 fingerprint 上完成 Android Debug/Release 168 个测试，
+以及 24 个适用的 Harmony 真机模式。VAD 回调内 finish 3/3、PTT finish 后立即 shutdown
+10/10 均通过。完整脱敏证据保存在
+`delivery/harmony-dingqiao/evidence/release-gate/20260809-9eaf3b8-0.3.1/`，并由发布账本记录
+根 `report.json` 的 SHA-256。
+
+复核还暴露出旧 SDK-only 打包流程只检查 Git 输入是否脏，却没有验证四个已构建 HAR 是否来自
+当前源码。这样旧 HAR 理论上可以被重新组装进新 ZIP。后续打包必须先通过
+`harmony_build_identity.py --verify`，`ZH_EN` 也不得跳过警务增强 HAR；provenance v2 记录
+source fingerprint 与四个 component HAR 的哈希，并在交付校验时与外部 build identity 逐字段
+比对。
+
+历史 0.3.1 的 ZIP、最终 HAR、HAP、输入 fingerprint 和真机报告可以证明已交付制品及运行结果，
+但当时的 build identity 未记录 `amphion_police.har`，因此**不能追溯证明四个 component HAR
+全部来自该 source commit**。归档报告必须保留这项历史限制，不得把它表述为已补足的四 HAR
+审计链；已经交付的 ZIP 也不改写。0.3.1 之后由上述 provenance v2 + build identity 门禁封住该路径。
