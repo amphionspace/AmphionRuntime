@@ -441,7 +441,12 @@ def _validate_har(
         }
 
 
-def _validate_provenance(root: Path, expected_version: str, har_evidence: dict) -> None:
+def _validate_provenance(
+    root: Path,
+    expected_version: str,
+    har_evidence: dict,
+    verified_build_identity: dict | None,
+) -> None:
     try:
         provenance = json.loads(
             (root / "docs/BUILD_PROVENANCE.json").read_text(encoding="utf-8")
@@ -489,9 +494,70 @@ def _validate_provenance(root: Path, expected_version: str, har_evidence: dict) 
     source = provenance.get("source")
     if isinstance(source, dict) and source.get("worktree_dirty") is not False:
         raise DeliveryValidationError("release provenance must declare a clean worktree")
+    schema_version = provenance.get("schema_version", 1)
+    if schema_version not in (1, 2):
+        raise DeliveryValidationError("unsupported provenance schema_version")
+    if schema_version == 2:
+        if not isinstance(verified_build_identity, dict):
+            raise DeliveryValidationError(
+                "provenance v2 validation requires the verified build identity"
+            )
+        identity = provenance.get("verified_source_identity")
+        if not isinstance(identity, dict):
+            raise DeliveryValidationError("provenance v2 requires verified source identity")
+        if not isinstance(source, dict) or identity.get("git_commit") != source.get("commit"):
+            raise DeliveryValidationError("verified source identity commit mismatch")
+        fingerprint = identity.get("source_fingerprint_sha256")
+        if not isinstance(fingerprint, str) or not re.fullmatch(r"[0-9a-f]{64}", fingerprint):
+            raise DeliveryValidationError("verified source identity fingerprint is invalid")
+        component_hars = identity.get("component_hars")
+        expected_components = {
+            "amphion_asr.har",
+            "amphion_police.har",
+            "amphion_dingqiao.har",
+            "sherpa_onnx.har",
+        }
+        if not isinstance(component_hars, dict) or set(component_hars) != expected_components:
+            raise DeliveryValidationError("verified source identity component HAR set is incomplete")
+        for name, component in component_hars.items():
+            if (
+                not isinstance(component, dict)
+                or not isinstance(component.get("sha256"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", component["sha256"])
+                or not isinstance(component.get("size_bytes"), int)
+                or component["size_bytes"] <= 0
+            ):
+                raise DeliveryValidationError(
+                    f"verified source identity component is invalid: {name}"
+                )
+        expected_identity = {
+            "git_commit": verified_build_identity.get("git_commit"),
+            "source_fingerprint_sha256": verified_build_identity.get(
+                "source_fingerprint_sha256"
+            ),
+            "model_manifest_sha256": verified_build_identity.get(
+                "model_manifest_sha256"
+            ),
+            "native_sha256": verified_build_identity.get("native_sha256"),
+            "component_hars": {
+                name: {
+                    "sha256": verified_build_identity.get("artifacts", {})
+                    .get(name, {})
+                    .get("sha256"),
+                    "size_bytes": verified_build_identity.get("artifacts", {})
+                    .get(name, {})
+                    .get("size_bytes"),
+                }
+                for name in sorted(expected_components)
+            },
+        }
+        if identity != expected_identity:
+            raise DeliveryValidationError(
+                "provenance verified source identity does not match build identity"
+            )
 
 
-def _validate_documents(root: Path) -> None:
+def _validate_documents(root: Path, expected_version: str) -> None:
     api = (root / "docs/ASR_SDK_API_HARMONY.md").read_text(encoding="utf-8")
     if any(value in api for value in ("zh-yue", "zh_yue")):
         raise DeliveryValidationError("SDK-only API document still advertises Yue")
@@ -503,8 +569,31 @@ def _validate_documents(root: Path) -> None:
             raise DeliveryValidationError(
                 f"README does not match SDK-only capability boundary: {statement}"
             )
+    changelog = (root / "docs/CHANGELOG.md").read_text(encoding="utf-8")
+    for statement in (
+        expected_version,
+        "目标说话人增强",
+        "不包含",
+        "不能启用",
+        "源码提交明细",
+    ):
+        if statement not in changelog:
+            raise DeliveryValidationError(
+                f"CHANGELOG misses target-speaker delivery boundary: {statement}"
+            )
+    embedded_license_claims = (
+        "../license/amphion-license.lic",
+        "体验授权已随包提供",
+        "随 SDK 交付包提供",
+        "授权文件位于 `license/amphion-license.lic`",
+        "随包授权文件",
+    )
     for markdown in root.rglob("*.md"):
         text = markdown.read_text(encoding="utf-8")
+        if any(claim in text for claim in embedded_license_claims):
+            raise DeliveryValidationError(
+                f"customer document claims an embedded license: {markdown}"
+            )
         if "鼎桥" in text:
             raise DeliveryValidationError(
                 f"customer-facing document contains excluded branding: {markdown}"
@@ -530,6 +619,7 @@ def validate_delivery(
     root: Path,
     expected_version: str,
     expected_model_md5: dict[str, str] | None = None,
+    verified_build_identity: dict | None = None,
 ) -> None:
     if expected_model_md5 is None:
         expected_model_md5 = _load_pinned_model_md5()
@@ -543,17 +633,22 @@ def validate_delivery(
     har_evidence = _validate_har(
         root, expected_version, expected_model_md5, expected_identity
     )
-    _validate_provenance(root, expected_version, har_evidence)
-    _validate_documents(root)
+    _validate_provenance(
+        root, expected_version, har_evidence, verified_build_identity
+    )
+    _validate_documents(root, expected_version)
 
 
 def validate_delivery_path(
     path: Path,
     expected_version: str,
     expected_model_md5: dict[str, str] | None = None,
+    verified_build_identity: dict | None = None,
 ) -> None:
     if path.is_dir():
-        validate_delivery(path, expected_version, expected_model_md5)
+        validate_delivery(
+            path, expected_version, expected_model_md5, verified_build_identity
+        )
         return
     if not path.is_file() or path.suffix.lower() != ".zip":
         raise DeliveryValidationError(f"delivery must be a directory or final ZIP: {path}")
@@ -594,16 +689,27 @@ def validate_delivery_path(
                 shutil.copyfileobj(source, output)
         if len(roots) != 1:
             raise DeliveryValidationError("delivery ZIP must contain exactly one root directory")
-        validate_delivery(destination / roots.pop(), expected_version, expected_model_md5)
+        validate_delivery(
+            destination / roots.pop(),
+            expected_version,
+            expected_model_md5,
+            verified_build_identity,
+        )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("delivery_path", type=Path)
     parser.add_argument("--version", required=True)
+    parser.add_argument("--build-identity", type=Path)
     args = parser.parse_args()
     try:
-        validate_delivery_path(args.delivery_path, args.version)
+        build_identity = None
+        if args.build_identity is not None:
+            build_identity = json.loads(args.build_identity.read_text(encoding="utf-8"))
+            if not isinstance(build_identity, dict):
+                raise DeliveryValidationError("build identity must be a JSON object")
+        validate_delivery_path(args.delivery_path, args.version, None, build_identity)
     except (DeliveryValidationError, OSError, UnicodeError, zipfile.BadZipFile) as error:
         parser.error(str(error))
     print(f"[OK] zh-en SDK-only delivery validated: {args.delivery_path}")

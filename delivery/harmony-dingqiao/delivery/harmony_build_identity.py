@@ -78,11 +78,37 @@ def sole_har(directory: Path) -> Path:
     return candidates[0]
 
 
+def artifact_dirs(zh_en_only: bool = False) -> dict[str, Path]:
+    # ZH_EN narrows model payload, not the public police-enhancement module. The self-contained
+    # customer HAR always consumes all four component HARs, so every one must be source-bound.
+    del zh_en_only
+    return dict(ARTIFACT_DIRS)
+
+
 def add_path(digest: "hashlib._Hash", relative: str, path: Path) -> None:
     digest.update(relative.encode("utf-8"))
     digest.update(b"\0")
     digest.update(path.read_bytes())
     digest.update(b"\0")
+
+
+def sherpa_source_fingerprint(submodule: Path, base_ref: str = "v1.13.1") -> str:
+    """Hash the applied patch result independently of local git-am commit identities."""
+    digest = hashlib.sha256()
+    digest.update(run(["git", "rev-parse", f"{base_ref}^{{commit}}"], cwd=submodule).strip())
+    digest.update(b"\0")
+    digest.update(run(["git", "diff", "--binary", base_ref, "--"], cwd=submodule))
+    untracked = run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"], cwd=submodule
+    )
+    for encoded in sorted(item for item in untracked.split(b"\0") if item):
+        relative = encoded.decode("utf-8")
+        if relative == ".amphion-patches-applied" or relative.startswith("build-"):
+            continue
+        path = submodule / relative
+        if path.is_file():
+            add_path(digest, relative, path)
+    return digest.hexdigest()
 
 
 def source_fingerprint() -> str:
@@ -95,17 +121,8 @@ def source_fingerprint() -> str:
             add_path(digest, relative, path)
 
     submodule = REPO_ROOT / "third_party/sherpa-onnx"
-    digest.update(run(["git", "rev-parse", "HEAD"], cwd=submodule).strip())
+    digest.update(sherpa_source_fingerprint(submodule).encode("ascii"))
     digest.update(b"\0")
-    digest.update(run(["git", "diff", "--binary", "HEAD"], cwd=submodule))
-    untracked = run(["git", "ls-files", "--others", "--exclude-standard", "-z"], cwd=submodule)
-    for encoded in sorted(item for item in untracked.split(b"\0") if item):
-        relative = encoded.decode("utf-8")
-        if relative == ".amphion-patches-applied" or relative.startswith("build-"):
-            continue
-        path = submodule / relative
-        if path.is_file():
-            add_path(digest, f"third_party/sherpa-onnx/{relative}", path)
     return digest.hexdigest()
 
 
@@ -138,12 +155,7 @@ def current_identity(zh_en_only: bool = False) -> dict[str, object]:
             "size_bytes": HAP.stat().st_size,
         }
     }
-    artifact_dirs = {
-        name: directory
-        for name, directory in ARTIFACT_DIRS.items()
-        if not (zh_en_only and name == "amphion_police.har")
-    }
-    for logical_name, directory in artifact_dirs.items():
+    for logical_name, directory in artifact_dirs(zh_en_only).items():
         path = sole_har(directory)
         artifacts[logical_name] = {
             "path": str(path.relative_to(REPO_ROOT)),
@@ -151,7 +163,8 @@ def current_identity(zh_en_only: bool = False) -> dict[str, object]:
             "size_bytes": path.stat().st_size,
         }
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "source_fingerprint_algorithm": "tracked-inputs+sherpa-v1.13.1-diff-v2",
         "zh_en_only": zh_en_only,
         "git_commit": run(["git", "rev-parse", "HEAD"]).decode().strip(),
         "source_fingerprint_sha256": source_fingerprint(),

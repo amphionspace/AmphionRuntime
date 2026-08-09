@@ -6,6 +6,29 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
+    def test_ci_discovers_all_harmony_contracts_and_runs_finish_compat_gate_tests(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "python3 -m unittest discover -s asr/tools/tests -p 'test_harmony_*.py' -v",
+            workflow,
+        )
+        self.assertIn(
+            "delivery.harmony-dingqiao.delivery.test_run_finish_compat_release_gate",
+            workflow,
+        )
+
+    def test_finish_compat_release_gate_is_part_of_the_project_working_agreement(self) -> None:
+        agreement = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        device_stress = (
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/DEVICE_STRESS.md"
+        ).read_text(encoding="utf-8")
+
+        command = "delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py"
+        self.assertIn(command, agreement)
+        self.assertIn(command, device_stress)
+        self.assertIn("FINISH_COMPATIBILITY_POSTMORTEM.md", device_stress)
+
     def test_prepack_is_disabled_by_default_across_public_harmony_layers(self) -> None:
         core = (
             REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets"
@@ -26,15 +49,25 @@ class ReleaseDefaultsTest(unittest.TestCase):
         )
         self.assertIn("| `disablePrepack` | `boolean/number/string` | `true` |", docs)
 
-    def test_sdk_only_packaging_does_not_require_demo_build_identity(self) -> None:
+    def test_sdk_only_packaging_requires_verified_har_source_identity(self) -> None:
         script = (
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
         ).read_text(encoding="utf-8")
-        self.assertIn(
-            "build_identity = {} if sdk_only else json.loads",
-            script,
-        )
+        self.assertIn('python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"', script)
+        self.assertIn("build_identity = json.loads", script)
+        self.assertIn('"verified_source_identity"', script)
+
+    def test_sdk_only_changelog_combines_controlled_notes_and_commit_trace(self) -> None:
+        script = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("docs/CHANGELOG.md", script)
+        self.assertIn(".CHANGELOG_COMMITS.md", script)
+        self.assertIn("controlled release notes missing", script)
+        self.assertIn("## 源码提交明细", script)
 
     def test_speaker_vad_defaults_match_sdk_demo_and_public_docs(self) -> None:
         sdk = (

@@ -69,15 +69,15 @@ class HarmonyMaxAudioDurationPolicyTest(unittest.TestCase):
     def test_adapter_checks_the_reserved_frame_without_cross_session_leakage(self) -> None:
         source = ADAPTER.read_text(encoding="utf-8")
         reserve = source.index("this.audioBytesWritten += audio.byteLength;")
-        accept = source.index("session.acceptPcmBytes(audio);", reserve)
-        generation = source.index("if (!this.sessionStartGate.isCurrent(generation)", accept)
+        dispatch = source.index("this.audioDispatcher?.write(audio);", reserve)
+        generation = source.index("if (!this.sessionStartGate.isCurrent(generation)", dispatch)
         limit = source.index("this.audioBytesWritten >= this.maxAudioBytes", generation)
-        stop = source.index("session.stop();", limit)
+        finish = source.index("this.audioDispatcher?.finish();", limit)
 
-        self.assertLess(reserve, accept)
-        self.assertLess(accept, generation)
+        self.assertLess(reserve, dispatch)
+        self.assertLess(dispatch, generation)
         self.assertLess(generation, limit)
-        self.assertLess(limit, stop)
+        self.assertLess(limit, finish)
 
 
 if __name__ == "__main__":

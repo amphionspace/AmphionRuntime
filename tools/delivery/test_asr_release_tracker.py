@@ -2,6 +2,7 @@ import fcntl
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -229,6 +230,183 @@ class AsrReleaseTrackerTest(unittest.TestCase):
                 delivered_at="2026-07-30",
                 artifact_path=artifact,
             )
+
+    def test_attaches_and_verifies_immutable_release_evidence(self) -> None:
+        report = self.repo / "delivery" / "evidence" / "android-0.3.2" / "report.json"
+        report.parent.mkdir(parents=True)
+        android = report.parent / "android-tests.json"
+        android.write_text("{}\n", encoding="utf-8")
+        gradle = report.parent / "android-test-results" / "sdk" / "debug" / "TEST.xml"
+        gradle.parent.mkdir(parents=True)
+        gradle.write_text(
+            '<testsuite tests="1" failures="0" errors="0" skipped="0" '
+            'hostname="redacted"/>\n',
+            encoding="utf-8",
+        )
+        report.write_text(
+            json.dumps(
+                {
+                    "overall_status": "PASS",
+                    "release_version": "0.3.2",
+                    "source_commit": self.android_base,
+                    "release_artifact": {
+                        "name": "android-0.3.2.zip",
+                        "sha256": "b" * 64,
+                        "size_bytes": 123,
+                        "provenance_sha256": "a" * 64,
+                    },
+                    "android_tests_artifact": {
+                        "path": "android-tests.json",
+                        "sha256": hashlib.sha256(android.read_bytes()).hexdigest(),
+                        "size_bytes": android.stat().st_size,
+                    },
+                    "android_test_results": [
+                        {
+                            "path": gradle.relative_to(report.parent).as_posix(),
+                            "sha256": hashlib.sha256(gradle.read_bytes()).hexdigest(),
+                            "size_bytes": gradle.stat().st_size,
+                        }
+                    ],
+                    "modes": [],
+                    "diagnostics": [],
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        entry = MODULE.attach_evidence(
+            repo=self.repo,
+            history_path=self.history_path,
+            platform="android",
+            version="0.3.2",
+            report_path=report,
+        )
+
+        self.assertEqual(
+            "delivery/evidence/android-0.3.2/report.json", entry["evidence_report"]
+        )
+        self.assertEqual(
+            hashlib.sha256(report.read_bytes()).hexdigest(), entry["evidence_sha256"]
+        )
+        MODULE.verify_history_evidence(repo=self.repo, history_path=self.history_path)
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "already has evidence"):
+            MODULE.attach_evidence(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.2",
+                report_path=report,
+            )
+
+        report.write_text('{"overall_status":"FAIL"}\n', encoding="utf-8")
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "digest mismatch"):
+            MODULE.verify_history_evidence(repo=self.repo, history_path=self.history_path)
+
+    def test_rejects_semantically_mismatched_or_tampered_evidence(self) -> None:
+        report = self.repo / "delivery" / "evidence" / "android-0.3.2" / "report.json"
+        report.parent.mkdir(parents=True)
+        android = report.parent / "android-tests.json"
+        android.write_text("{}\n", encoding="utf-8")
+        gradle = report.parent / "android-test-results" / "sdk" / "debug" / "TEST.xml"
+        gradle.parent.mkdir(parents=True)
+        gradle.write_text(
+            '<testsuite tests="1" failures="0" errors="0" skipped="0" '
+            'hostname="redacted"/>\n',
+            encoding="utf-8",
+        )
+        payload = {
+            "overall_status": "PASS",
+            "release_version": "0.3.2",
+            "source_commit": self.android_base,
+            "release_artifact": {
+                "name": "wrong.zip",
+                "sha256": "b" * 64,
+                "size_bytes": 123,
+                "provenance_sha256": "a" * 64,
+            },
+            "android_tests_artifact": {
+                "path": "android-tests.json",
+                "sha256": hashlib.sha256(android.read_bytes()).hexdigest(),
+                "size_bytes": android.stat().st_size,
+            },
+            "android_test_results": [
+                {
+                    "path": gradle.relative_to(report.parent).as_posix(),
+                    "sha256": hashlib.sha256(gradle.read_bytes()).hexdigest(),
+                    "size_bytes": gradle.stat().st_size,
+                }
+            ],
+            "modes": [],
+            "diagnostics": [],
+        }
+        report.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "artifact name"):
+            MODULE.attach_evidence(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.2",
+                report_path=report,
+            )
+
+        payload["release_artifact"]["name"] = "android-0.3.2.zip"
+        payload["extra"] = "allowed report field"
+        report.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+        (report.parent / "unmanifested.txt").write_text("hidden\n", encoding="utf-8")
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "unmanifested file"):
+            MODULE.attach_evidence(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.2",
+                report_path=report,
+            )
+
+    def test_atomic_history_update_preserves_file_mode(self) -> None:
+        os.chmod(self.history_path, 0o644)
+        history = MODULE.load_history(self.history_path)
+        MODULE._write_history_atomic(self.history_path, history)
+        self.assertEqual(0o644, self.history_path.stat().st_mode & 0o777)
+
+    def test_harmony_evidence_cannot_omit_the_release_matrix(self) -> None:
+        entry = dict(MODULE.load_history(self.history_path)["deliveries"][0])
+        entry["platform"] = "harmony"
+        report = {
+            "overall_status": "PASS",
+            "release_version": entry["version"],
+            "source_commit": entry["source_commit"],
+            "release_artifact": {
+                "name": entry["artifact"],
+                "sha256": entry["artifact_sha256"],
+                "size_bytes": entry["artifact_size_bytes"],
+                "provenance_sha256": entry["provenance_sha256"],
+            },
+            "schema_version": 1,
+            "required_modes": [],
+            "modes": [],
+            "long_run": {"mode": "voiceprint-fallback", "duration_seconds": 82},
+        }
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "required_modes"):
+            MODULE._validate_evidence_report(entry, report)
+
+    def test_rejects_malformed_archived_android_xml(self) -> None:
+        xml = self.repo / "bad.xml"
+        xml.write_text('<testsuite hostname="redacted"><broken>\n', encoding="utf-8")
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "invalid Android test XML"):
+            MODULE._validate_android_test_xml(xml)
+
+    def test_rejects_partial_or_unsafe_evidence_fields(self) -> None:
+        payload = json.loads(self.history_path.read_text(encoding="utf-8"))
+        payload["deliveries"][0]["evidence_report"] = "../outside/report.json"
+        self.history_path.write_text(json.dumps(payload), encoding="utf-8")
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "evidence fields"):
+            MODULE.load_history(self.history_path)
+
+        payload["deliveries"][0]["evidence_sha256"] = "f" * 64
+        self.history_path.write_text(json.dumps(payload), encoding="utf-8")
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "repo-relative"):
+            MODULE.load_history(self.history_path)
 
     def test_rejects_harmony_provenance_commit_mismatch(self) -> None:
         provenance = self.repo / "BUILD_PROVENANCE.json"

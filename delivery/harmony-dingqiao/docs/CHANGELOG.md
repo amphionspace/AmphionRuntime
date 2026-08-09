@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.1 - 2026-08-07（异步 finish 兼容性修复）
+
+- 修复 VAD `SPEECH_END` 回调内同步调用 `finish` 时的结果断层：当前带文本 endpoint final
+  会直接成为唯一的 `isLast=true`，不再追加空 terminal final。
+- 修复 PTT 调用方在已接受 `finish` 后立即调用 `shutdown` 导致 final/complete 丢失：
+  SDK 保持 `isBusy=true` 直到完成，并在回调收敛后再释放引擎资源。
+- 新增宿主端回归用例与 `callback-api-reentrant` / `finish-shutdown` USB 真机门禁，
+  分别锁定非空 last 文本以及 last 后唯一 complete 的生命周期契约。
+- 目标说话人增强仅保留接口预留；0.3.1 不包含该能力所需模型，不能启用该参数。
+
 ## 未发布 - 2026-08-05（Harmony 目标说话人增强接口预留）
 
 - 新增默认关闭的 `enableTargetSpeakerEnhancement`，在现有 Speaker VAD/ASR 前执行 2 秒分块的
@@ -10,6 +20,22 @@
   和 67 秒资源观察通过。
 - Conv-TasNet 测试权重未提交、未默认进入商用 HAR；正式发布仍以书面商用授权或许可清晰的替换模型
   为硬门禁。
+
+## 0.3.0 - 2026-08-07（首次 PTT 音频无损与警务术语增强）
+
+- `writeAudio` 改为先复制调用方 PCM，再按 session 串行异步送入识别器，不再在客户主线程同步执行
+  native decode；冷加载超过录音起始时间时，首段音频也会完整排队处理，修复首次 PTT 无结果和开头丢字。
+- `finish` 与已提交音频共用同一 FIFO 队列，保证先处理全部已接受 PCM，再产生唯一的 `isLast=true`
+  和随后的 `onComplete`；`cancel` 仍立即停止接收新音频且不补发 final/complete。
+- 加固首次冷加载、`unloadModel` 后重新冷加载以及 `onStart` 回调内同步 `writeAudio`、`finish`、
+  `cancel` 的可用性，调用方无需等待 `onStart` 返回后再冲刷录音缓存。
+- 更新警务术语和短句护栏，增强“情指行”“签收警单”“到场”“反馈”等场景；修复
+  “我已到达现场”重复补前缀或被再次改写的问题，并保持 Android/Harmony 归一化结果一致。
+- 声纹回退评分增加 ASR text/token 语音证据门禁；没有语音证据时不再仅凭累计 PCM 时长产生
+  `speakerSimilarity`。Speaker VAD 的打分步长改为与调用方分帧方式无关。
+- 真机门禁适配异步音频队列，补充冷加载缓存回放、回调内 API 重入、精确最大时长、
+  cancel native stream 回收和首段静音/稳态噪声按实际处理 PCM 计时的验证。
+- 目标说话人增强仅保留接口预留；0.3.0 不包含该能力所需模型，不能启用该参数。
 
 ## 0.2.9 - 2026-07-30（警务增强开关与交付追踪）
 
