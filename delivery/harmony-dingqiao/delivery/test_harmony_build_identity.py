@@ -47,7 +47,7 @@ class SoleHarTest(unittest.TestCase):
             MODULE.add_path(after, "input.txt", path)
             self.assertNotEqual(before.hexdigest(), after.hexdigest())
 
-    def test_sherpa_fingerprint_is_stable_before_and_after_git_am_commit(self) -> None:
+    def test_sherpa_fingerprint_is_stable_before_and_after_commit(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
