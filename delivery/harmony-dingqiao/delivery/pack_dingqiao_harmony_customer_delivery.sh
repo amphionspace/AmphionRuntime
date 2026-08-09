@@ -76,6 +76,7 @@ RELEASE_INPUTS=(
   delivery/harmony-dingqiao/delivery/create_normalized_tar.py
   delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json
   delivery/harmony-dingqiao/delivery/filter_zh_en_model_payload.py
+  delivery/harmony-dingqiao/delivery/harmony_build_identity.py
   delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh
   delivery/harmony-dingqiao/delivery/pack_harmony_asr_customer_delivery.sh
   delivery/harmony-dingqiao/delivery/sanitize_public_har_payload.py
@@ -103,9 +104,7 @@ if [[ "$GIT_DIRTY" == true && "$ALLOW_DIRTY" != true ]]; then
   echo "[ERROR] release packaging requires a clean worktree; commit/stash changes or pass --allow-dirty for a non-release package" >&2
   exit 1
 fi
-if [[ "$SDK_ONLY" != true ]]; then
-  python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"
-fi
+python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"
 
 cleanup() {
   rm -rf "$OUT_ROOT"
@@ -396,7 +395,7 @@ asr_only = sys.argv[4] == "true"
 sdk_only = sys.argv[5] == "true"
 git_dirty = sys.argv[6] == "true"
 build_identity_path = Path(sys.argv[7])
-build_identity = {} if sdk_only else json.loads(build_identity_path.read_text(encoding="utf-8"))
+build_identity = json.loads(build_identity_path.read_text(encoding="utf-8"))
 
 
 def run(*args: str) -> str:
@@ -456,7 +455,7 @@ if not asr_only and not sdk_only:
     artifacts.append(fingerprint("har/amphion_tts.har"))
 
 payload = {
-    "schema_version": 1,
+    "schema_version": 2,
     "created_at": datetime.now(timezone.utc).isoformat(),
     "delivery_version": version,
     "asr_only": asr_only or sdk_only,
@@ -466,7 +465,7 @@ payload = {
         "commit": run("git", "rev-parse", "HEAD"),
         "branch": run("git", "branch", "--show-current"),
         "worktree_dirty": git_dirty,
-        "sherpa_submodule_commit": run("git", "-C", "third_party/sherpa-onnx", "rev-parse", "HEAD"),
+        "sherpa_submodule_commit": run("git", "rev-parse", "HEAD:third_party/sherpa-onnx"),
         "sherpa_patch_series_sha256": patch_digest.hexdigest(),
     },
     "model": {
@@ -487,6 +486,28 @@ payload = {
 if not sdk_only:
     payload["verified_build_identity"] = build_identity
 if sdk_only:
+    component_names = (
+        "amphion_asr.har",
+        "amphion_police.har",
+        "amphion_dingqiao.har",
+        "sherpa_onnx.har",
+    )
+    component_hars = {}
+    for name in component_names:
+        artifact = build_identity["artifacts"].get(name)
+        if not isinstance(artifact, dict):
+            raise SystemExit(f"[ERROR] verified build identity is missing {name}")
+        component_hars[name] = {
+            "sha256": artifact["sha256"],
+            "size_bytes": artifact["size_bytes"],
+        }
+    payload["verified_source_identity"] = {
+        "git_commit": build_identity["git_commit"],
+        "source_fingerprint_sha256": build_identity["source_fingerprint_sha256"],
+        "model_manifest_sha256": build_identity["model_manifest_sha256"],
+        "native_sha256": build_identity["native_sha256"],
+        "component_hars": component_hars,
+    }
     payload["languages"] = ["zh-en"]
     payload["capabilities"] = [
         "asr",
@@ -513,7 +534,8 @@ python3 "$SCRIPT_DIR/check_customer_delivery_redaction.py" \
   shasum -a 256 -c docs/checksum.txt >/dev/null
 )
 if [[ "$SDK_ONLY" == true ]]; then
-  python3 "$SCRIPT_DIR/validate_asr_sdk_delivery.py" "$OUT_ROOT" --version "$VERSION"
+  python3 "$SCRIPT_DIR/validate_asr_sdk_delivery.py" \
+    "$OUT_ROOT" --version "$VERSION" --build-identity "$BUILD_IDENTITY"
 fi
 
 if [[ -e "$FINAL_OUT_ROOT" ]]; then
@@ -533,6 +555,6 @@ if [[ "$SDK_ONLY" == true ]]; then
   python3 "$REPO_ROOT/asr/tools/delivery/dingqiao_zip_utf8.py" \
     create "$FINAL_OUT_ROOT" "$FINAL_ZIP_PATH"
   python3 "$SCRIPT_DIR/validate_asr_sdk_delivery.py" \
-    "$FINAL_ZIP_PATH" --version "$VERSION"
+    "$FINAL_ZIP_PATH" --version "$VERSION" --build-identity "$BUILD_IDENTITY"
   echo "[DONE] $FINAL_ZIP_PATH"
 fi

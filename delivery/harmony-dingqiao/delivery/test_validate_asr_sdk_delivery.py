@@ -226,6 +226,76 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             self._write_fixture(root)
             MODULE.validate_delivery(root, FIXTURE_VERSION, FIXTURE_MODEL_MD5)
 
+    def test_provenance_v2_requires_verified_source_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root)
+            provenance_path = root / "docs/BUILD_PROVENANCE.json"
+            provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+            provenance["schema_version"] = 2
+            provenance_path.write_text(json.dumps(provenance), encoding="utf-8")
+            self._write_checksums(root)
+
+            with self.assertRaisesRegex(
+                MODULE.DeliveryValidationError, "verified build identity"
+            ):
+                MODULE.validate_delivery(root, FIXTURE_VERSION, FIXTURE_MODEL_MD5)
+
+    def test_accepts_provenance_v2_with_all_component_hars_source_bound(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root)
+            provenance_path = root / "docs/BUILD_PROVENANCE.json"
+            provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+            provenance["schema_version"] = 2
+            provenance["source"] = {"commit": "a" * 40, "worktree_dirty": False}
+            identity = {
+                "git_commit": "a" * 40,
+                "source_fingerprint_sha256": "b" * 64,
+                "model_manifest_sha256": "1" * 64,
+                "native_sha256": {
+                    "libonnxruntime.so": "2" * 64,
+                    "libsherpa-onnx-c-api.so": "3" * 64,
+                },
+                "artifacts": {
+                    name: {
+                        "sha256": character * 64,
+                        "size_bytes": index + 1,
+                    }
+                    for index, (name, character) in enumerate(
+                        (
+                            ("amphion_asr.har", "c"),
+                            ("amphion_police.har", "d"),
+                            ("amphion_dingqiao.har", "e"),
+                            ("sherpa_onnx.har", "f"),
+                        )
+                    )
+                },
+            }
+            provenance["verified_source_identity"] = {
+                "git_commit": identity["git_commit"],
+                "source_fingerprint_sha256": identity["source_fingerprint_sha256"],
+                "model_manifest_sha256": identity["model_manifest_sha256"],
+                "native_sha256": identity["native_sha256"],
+                "component_hars": {
+                    name: dict(details) for name, details in identity["artifacts"].items()
+                },
+            }
+            provenance_path.write_text(json.dumps(provenance), encoding="utf-8")
+            self._write_checksums(root)
+
+            MODULE.validate_delivery(
+                root, FIXTURE_VERSION, FIXTURE_MODEL_MD5, identity
+            )
+
+            identity["artifacts"]["amphion_police.har"]["sha256"] = "0" * 64
+            with self.assertRaisesRegex(
+                MODULE.DeliveryValidationError, "does not match build identity"
+            ):
+                MODULE.validate_delivery(
+                    root, FIXTURE_VERSION, FIXTURE_MODEL_MD5, identity
+                )
+
     def test_accepts_final_zh_en_sdk_only_zip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)

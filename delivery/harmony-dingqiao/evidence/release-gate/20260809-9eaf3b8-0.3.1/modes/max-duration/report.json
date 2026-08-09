@@ -1,0 +1,199 @@
+{
+  "application": {
+    "completed": "2",
+    "completes": "2",
+    "elapsedMs": "12752",
+    "emptyFinals": "0",
+    "errors": "0",
+    "failed": "0",
+    "fatal": "",
+    "finals": "2",
+    "mode": "max-duration",
+    "partials": "0",
+    "requested": "2",
+    "runId": "20260809-175218-max-duration-08028270",
+    "starts": "2",
+    "status": "PASS"
+  },
+  "build_identity": {
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+        "sha256": "0060fb594fee04950c900a651755c931332d90260e2c206a4a89fea3dd7e8677",
+        "size_bytes": 218936008
+      },
+      "amphion_asr_demo.hap": {
+        "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+        "sha256": "9b2a3fa718e61839386b14229ac0a24e8266f528b874de647370fb3babd07784",
+        "size_bytes": 339327416
+      },
+      "amphion_dingqiao.har": {
+        "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+        "sha256": "233ab4910736f13d377904632b04d2c91f44c52871ffdff89cfefd125951291e",
+        "size_bytes": 36783003
+      },
+      "sherpa_onnx.har": {
+        "path": "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+        "sha256": "747f4bc0b65adbc54739c1af7e7a6cbf9383f319c70dbccfcc124a75b73aa65d",
+        "size_bytes": 6918302
+      }
+    },
+    "created_at": "2026-08-07T10:59:04.625594+00:00",
+    "git_commit": "9eaf3b80c7b97cc0d779589cf2a346c99482cee1",
+    "model_manifest_sha256": "8a515097588b033a867feb71c5036fdfdc3e118b294392d3beb060871cce1343",
+    "native_sha256": {
+      "libonnxruntime.so": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
+      "libsherpa-onnx-c-api.so": "19191654ad7c1de988459d42648f1fe3115f2989f2bdfb01c48b2859cc8855fd"
+    },
+    "optional_models": {},
+    "schema_version": 1,
+    "source_fingerprint_sha256": "9c10f97a6233395f773c1738b15849458791440f3d51a7f2516b175eb292346e",
+    "zh_en_only": true
+  },
+  "configuration": {
+    "cycles": 2,
+    "pace_ms": 20,
+    "post_run_observe_seconds": 5.0,
+    "sample_interval_seconds": 1.0,
+    "settle_ms": 0
+  },
+  "cpu": {
+    "interval_count": 10,
+    "logical_cpus": 12,
+    "mean_device_capacity_percent": 18.715,
+    "mean_single_core_equivalent_percent": 224.58,
+    "observation_seconds": 13.197,
+    "p50_device_capacity_percent": 15.354,
+    "p50_single_core_equivalent_percent": 184.243,
+    "p95_device_capacity_percent": 32.372,
+    "p95_single_core_equivalent_percent": 388.463,
+    "peak_device_capacity_percent": 39.513,
+    "peak_single_core_equivalent_percent": 474.162,
+    "sample_count": 11,
+    "status": "MEASURED"
+  },
+  "cycles": [
+    {
+      "audioStartToFirstNonEmptyResultMs": "-1",
+      "audioStartToSpeechBeginMs": "-1",
+      "completes": "1",
+      "confirmationGraceMs": "-1",
+      "detail": "auto-finished-burst",
+      "effectiveMaxAudioDurationMs": "8000",
+      "elapsedMs": "2788",
+      "errors": "0",
+      "fedFrames": "400",
+      "finalChars": "52",
+      "finals": "1",
+      "firstNonEmptyFinalHasScore": "0",
+      "firstNonEmptyResultMs": "2636",
+      "id": "000000",
+      "index": "0",
+      "lastFinalsBeforeFinish": "-1",
+      "liveStreams": "0",
+      "missingSpeakerScores": "1",
+      "nonEmptySpeakerScores": "0",
+      "partials": "0",
+      "requestedMaxAudioDurationMs": "8000",
+      "requestedVadBeginMs": "-1",
+      "resultHex": "<redacted>",
+      "speakerScores": "0",
+      "speechBeginToFirstNonEmptyResultMs": "2606",
+      "starts": "1",
+      "status": "PASS",
+      "trace": "max-0:start>max-0:event-1>max-0:final-last>max-0:complete",
+      "unexpectedCallbacks": "0",
+      "voiceprintIdCount": "0"
+    },
+    {
+      "audioStartToFirstNonEmptyResultMs": "-1",
+      "audioStartToSpeechBeginMs": "-1",
+      "completes": "1",
+      "confirmationGraceMs": "-1",
+      "detail": "auto-finished-paced",
+      "effectiveMaxAudioDurationMs": "8000",
+      "elapsedMs": "9236",
+      "errors": "0",
+      "fedFrames": "400",
+      "finalChars": "11",
+      "finals": "1",
+      "firstNonEmptyFinalHasScore": "0",
+      "firstNonEmptyResultMs": "9083",
+      "id": "000001",
+      "index": "1",
+      "lastFinalsBeforeFinish": "-1",
+      "liveStreams": "0",
+      "missingSpeakerScores": "1",
+      "nonEmptySpeakerScores": "0",
+      "partials": "0",
+      "requestedMaxAudioDurationMs": "8000",
+      "requestedVadBeginMs": "-1",
+      "resultHex": "<redacted>",
+      "speakerScores": "0",
+      "speechBeginToFirstNonEmptyResultMs": "8647",
+      "starts": "1",
+      "status": "PASS",
+      "trace": "max-1:start>max-1:event-1>max-1:final-last>max-1:complete",
+      "unexpectedCallbacks": "0",
+      "voiceprintIdCount": "0"
+    }
+  ],
+  "device": "device-9d33cec60055",
+  "empty_finals": {
+    "count": 0,
+    "max_rate": 0.05,
+    "rate": 0.0,
+    "status": "PASS"
+  },
+  "failures": [],
+  "inventory": {
+    "sample_rates": {
+      "24000": 1394,
+      "44100": 500
+    },
+    "selected_duration_seconds": 54.91,
+    "selected_wavs": 3,
+    "total_valid_duration_seconds": 11113.636,
+    "valid_wavs": 1894
+  },
+  "memory": {
+    "head_rss_mb": 382.48,
+    "head_threads": 50,
+    "head_vm_data_mb": 2447.988,
+    "max_rss_growth_mb": 64.0,
+    "max_thread_growth": 2,
+    "observation_seconds": 17.565,
+    "peak_hwm_mb": 390.668,
+    "peak_rss_mb": 387.719,
+    "peak_swap_mb": 74.938,
+    "rss_growth_mb": -5.715,
+    "rss_slope_mb_per_minute": null,
+    "rss_third_medians_mb": [
+      383.316,
+      383.98,
+      377.373
+    ],
+    "sample_count": 15,
+    "status": "PASS",
+    "tail_rss_mb": 376.766,
+    "tail_threads": 45,
+    "tail_vm_data_mb": 2441.836,
+    "thread_growth": -5,
+    "vm_data_growth_mb": -6.152,
+    "warmup_samples_excluded": 3
+  },
+  "mode": "max-duration",
+  "native_streams": {
+    "max_live_streams": 0,
+    "nonzero_cycles": 0,
+    "observed_cycles": 2,
+    "status": "PASS"
+  },
+  "overall_status": "PASS",
+  "run_id": "20260809-175218-max-duration-08028270",
+  "target_speaker_realtime": {
+    "chunk_count": 0,
+    "reason": "mode disabled",
+    "status": "NOT_APPLICABLE"
+  }
+}

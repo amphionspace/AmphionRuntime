@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -30,6 +32,41 @@ class SoleHarTest(unittest.TestCase):
             (root / "two.har").write_bytes(b"two")
             with self.assertRaisesRegex(MODULE.IdentityFailure, "found 2"):
                 MODULE.sole_har(root)
+
+    def test_zh_en_identity_still_binds_police_har_used_by_selfcontained_delivery(self) -> None:
+        self.assertIn("amphion_police.har", MODULE.artifact_dirs(zh_en_only=True))
+
+    def test_tracked_path_fingerprint_changes_when_file_content_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.txt"
+            path.write_text("before\n", encoding="utf-8")
+            before = hashlib.sha256()
+            MODULE.add_path(before, "input.txt", path)
+            path.write_text("after\n", encoding="utf-8")
+            after = hashlib.sha256()
+            MODULE.add_path(after, "input.txt", path)
+            self.assertNotEqual(before.hexdigest(), after.hexdigest())
+
+    def test_sherpa_fingerprint_is_stable_before_and_after_git_am_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=repo, check=True
+            )
+            source = repo / "source.cc"
+            source.write_text("base\n", encoding="utf-8")
+            subprocess.run(["git", "add", "source.cc"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "base"], cwd=repo, check=True)
+            subprocess.run(["git", "tag", "v1.13.1"], cwd=repo, check=True)
+            source.write_text("patched\n", encoding="utf-8")
+
+            before_commit = MODULE.sherpa_source_fingerprint(repo)
+            subprocess.run(["git", "add", "source.cc"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "patch"], cwd=repo, check=True)
+
+            self.assertEqual(before_commit, MODULE.sherpa_source_fingerprint(repo))
 
 
 class VerifyIdentityTest(unittest.TestCase):
