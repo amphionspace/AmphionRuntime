@@ -74,6 +74,19 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
         self.assertIn("setPoliceEnhancementEnabled", prefs)
         self.assertIn("Text('警务增强')", demo)
 
+    def test_harmony_dingqiao_merges_builtin_police_hotwords_with_user_lexicon(self) -> None:
+        engine = HARMONY_ENGINE.read_text(encoding="utf-8")
+
+        self.assertIn("import { PoliceEngineConfig } from 'amphion_police';", engine)
+        self.assertIn(
+            "config.hotwords = PoliceEngineConfig.effectiveHotwords(\n"
+            "    context, parseLexicon(params.extraParams['sysGeneralLexicon']));",
+            engine,
+        )
+        self.assertIn("buildAsrConfig(context, this.params)", engine)
+        self.assertIn("buildAsrConfig(this.context, this.params, params,", engine)
+        self.assertIn("buildAsrConfig(context, paramsSnapshot)", engine)
+
     def test_harmony_customer_har_bundles_police_dependency(self) -> None:
         assembler = HARMONY_SELFCONTAINED_ASSEMBLER.read_text(encoding="utf-8")
         verifier = HARMONY_SELFCONTAINED_VERIFIER.read_text(encoding="utf-8")
