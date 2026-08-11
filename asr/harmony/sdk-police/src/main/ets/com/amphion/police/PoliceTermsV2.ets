@@ -76,6 +76,47 @@ class TermsHomophones {
   }
 }
 
+// 已知 ASR 误识仅在整句命中时纠正，避免把「讯问」「防爆」「现行」等合法词
+// 在普通上下文里当成全局同音错误。与 Android PoliceTermsExactHomophoneDict 对齐。
+class TermsExactHomophones {
+  private static readonly SENTENCE_END: Set<string> = new Set<string>([
+    '。', '！', '？', '!', '?', '，', ',', '、', '；', ';', '：', ':'
+  ]);
+  private mappings: Map<string, string> = new Map<string, string>();
+
+  constructor(pairs: PoliceAssetPair[]) {
+    for (let i = 0; i < pairs.length; i++) {
+      const pair = pairs[i];
+      if (pair.from.length > 0 && pair.to.length > 0 && pair.from !== pair.to) {
+        this.mappings.set(pair.from, pair.to);
+      }
+    }
+  }
+
+  applyWholeUtterance(text: string): string {
+    let start = 0;
+    while (start < text.length && TermsExactHomophones.isWhitespace(text.charAt(start))) start++;
+    if (start >= text.length) return text;
+
+    let end = text.length;
+    while (end > start) {
+      const value = text.charAt(end - 1);
+      if (!TermsExactHomophones.isWhitespace(value) &&
+        !TermsExactHomophones.SENTENCE_END.has(value)) break;
+      end--;
+    }
+    if (end <= start) return text;
+
+    const target = this.mappings.get(text.substring(start, end));
+    if (target === undefined) return text;
+    return text.substring(0, start) + target + text.substring(end);
+  }
+
+  private static isWhitespace(value: string): boolean {
+    return value.trim().length === 0;
+  }
+}
+
 class RadioDigits {
   private static readonly STRONG: Map<string, string> = new Map<string, string>([
     ['洞', '0'], ['幺', '1'], ['拐', '7'], ['勾', '9'], ['钩', '9']
@@ -409,6 +450,7 @@ export class PoliceTermsV2 {
   private terms: string[];
   private known: Set<string>;
   private homophones: TermsHomophones;
+  private exactHomophones: TermsExactHomophones;
   private readingMap: TermReadingMap;
 
   constructor(context: common.Context) {
@@ -417,17 +459,21 @@ export class PoliceTermsV2 {
       PoliceAssets.readLines(context, 'police_terms/term_gazetteer.txt'));
     this.known = new Set<string>(this.terms);
     this.homophones = new TermsHomophones(pairs);
+    this.exactHomophones = new TermsExactHomophones(
+      PoliceAssets.readCsvPairs(context, 'police_terms/term_exact_homophones.csv'));
     this.readingMap = new TermReadingMap(pairs);
   }
 
   normalize(text: string): string {
     if (text.length === 0) return text;
-    // 顺序对齐 Android：同音映射 → 短词护栏 → 情指行护栏 → 登录护栏 → 保守模糊层 → 电台音标数字。
-    const global = this.homophones.apply(text);
+    // 顺序对齐 Android：整句误识 → 同音映射 → 短词护栏 → 情指行护栏 → 登录护栏 → 保守模糊层 → 电台音标数字。
+    const exactCorrected = this.exactHomophones.applyWholeUtterance(text);
+    const exactMatched = exactCorrected !== text;
+    const global = this.homophones.apply(exactCorrected);
     const shortGuarded = PoliceShortTermGuard.apply(global);
+    const guarded = DengluGuard.apply(QingZhiXingGuard.apply(shortGuarded));
     const corrected = RadioDigits.normalize(
-      this.fuzzyCorrect(
-        DengluGuard.apply(QingZhiXingGuard.apply(shortGuarded))));
+      exactMatched ? guarded : this.fuzzyCorrect(guarded));
     return this.polish(corrected);
   }
 
@@ -475,9 +521,22 @@ export class PoliceTermsV2 {
   }
 
   private fuzzyCorrect(text: string): string {
+    const protectedShortTerms: string[] = ['已签警单', '已签警情', '签警单', '签警情'];
     let output = '';
     let i = 0;
     while (i < text.length) {
+      let protectedTerm = '';
+      for (let p = 0; p < protectedShortTerms.length; p++) {
+        if (text.startsWith(protectedShortTerms[p], i)) {
+          protectedTerm = protectedShortTerms[p];
+          break;
+        }
+      }
+      if (protectedTerm.length > 0) {
+        output += protectedTerm;
+        i += protectedTerm.length;
+        continue;
+      }
       const match = this.bestEqualLenAt(text, i) ?? this.bestVarLenAt(text, i);
       if (match === undefined) {
         output += text.charAt(i++);
