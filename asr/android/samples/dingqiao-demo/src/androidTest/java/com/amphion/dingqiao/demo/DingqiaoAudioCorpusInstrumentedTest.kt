@@ -36,12 +36,17 @@ class DingqiaoAudioCorpusInstrumentedTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val testContext = instrumentation.context
+        val arguments = InstrumentationRegistry.getArguments()
+        val audioPrefix = arguments.getString("audioPrefix").orEmpty()
+        val policeEnhancement = arguments.getString("enablePoliceEnhancement")
+            ?.toBooleanStrictOrNull() ?: true
         val reportDir = File(context.filesDir, "eval_reports").apply { mkdirs() }
         val report = File(reportDir, "dingqiao_audio_eval.tsv")
 
         val wavFiles = testContext.assets.list("")
             .orEmpty()
             .filter { it.endsWith(".wav", ignoreCase = true) }
+            .filter { audioPrefix.isEmpty() || it.startsWith(audioPrefix) }
             .sorted()
         assertTrue(
             "No wav assets found. Run with -PdingqiaoEvalAudioDir=/Users/boxp/Downloads/audio",
@@ -63,7 +68,7 @@ class DingqiaoAudioCorpusInstrumentedTest {
 
         report.writeText("file\tduration_s\tstatus\tfinal_count\ttext\terrors\n", Charsets.UTF_8)
         val cases = wavFiles.map { wavAssetName ->
-            val result = decodeOne(engine, testContext, wavAssetName)
+            val result = decodeOne(engine, testContext, wavAssetName, policeEnhancement)
             report.appendText(result.toTsvRow() + "\n", Charsets.UTF_8)
             result
         }
@@ -81,6 +86,7 @@ class DingqiaoAudioCorpusInstrumentedTest {
         engine: SpeechRecognitionEngine,
         testContext: android.content.Context,
         wavAssetName: String,
+        policeEnhancement: Boolean,
     ): DecodeResult {
         val pcm = readWav16kMonoPcm(wavAssetName, testContext.assets.open(wavAssetName).use { it.readBytes() })
         val durationMs = pcm.size / 2L * 1000L / SAMPLE_RATE
@@ -117,6 +123,7 @@ class DingqiaoAudioCorpusInstrumentedTest {
                 audioInfo = AudioInfo(),
                 extraParams = mapOf(
                     "enablePartialResult" to true,
+                    "enablePoliceEnhancement" to policeEnhancement,
                     "maxAudioDuration" to 60_000,
                     "vadEnd" to 800,
                 ),
