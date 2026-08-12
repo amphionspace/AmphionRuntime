@@ -104,12 +104,6 @@ internal class SessionImpl(
     /** speaker vad 状态：最近一次窗口相似度，供 rejected final 携带分数。 */
     private var svLastScore: Float? = null
 
-    /** Bounded PCM + score ledger used only when committing a clean target -> other final. */
-    private var speakerTurnFinalizer: SpeakerTurnFinalizer? = null
-    private var pendingSpeakerTurnSplit: SpeakerTurnSplit? = null
-    private var speakerTurnContextWaitStartedSample = -1
-    private var speakerTurnFailOpen = false
-
     private val metrics = MetricsCollector(
         sessionId = sessionId,
         language = engineImpl.asrLanguage,
@@ -339,16 +333,6 @@ internal class SessionImpl(
         if (closed.get()) return
         if (!stopped.compareAndSet(false, true)) return
         decoderHandler.post {
-            if (
-                speakerVadEnabled && speakerTurnFinalizer?.hasPendingDeparture() == true &&
-                commitCleanSpeakerTurn(isLast = true)
-            ) {
-                resetVadGateState()
-                speakerPcmBuffers.clearAll()
-                effectiveSpeechBuffer.reset()
-                if (finalCallbackOrderGate.requestStopped()) postSessionStopped()
-                return@post
-            }
             val r = NativeGuard.run("stream.inputFinished+drain") {
                 appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
                 stream.inputFinished()
@@ -476,10 +460,10 @@ internal class SessionImpl(
     }
 
     /** Fixed slices prevent audio after an armed deadline from changing the decision at that deadline. */
-    private fun feedChunkAndDecode(samples: FloatArray, replay: Boolean = false): Boolean {
-        if (closed.get() || (!replay && initialSilenceTimeoutSent)) return false
+    private fun feedChunkAndDecode(samples: FloatArray): Boolean {
+        if (closed.get() || initialSilenceTimeoutSent) return false
 
-        if (!replay && !initialSpeechDetected) initialAcousticActivity?.observe(samples)
+        if (!initialSpeechDetected) initialAcousticActivity?.observe(samples)
 
         if (targetSpeakerEnabled || speakerVadEnabled) effectiveSpeechBuffer.observe(samples)
         speakerPcmBuffers.observe(
@@ -487,14 +471,6 @@ internal class SessionImpl(
             captureSpeakerVad = speakerVadEnabled,
             captureFallback = targetSpeakerEnabled,
         )
-        if (speakerVadEnabled) {
-            effectiveSpeakerVad?.let { speakerVad ->
-                speakerTurnFinalizer(speakerVad).accept(samples)
-                // Decide at the score deadline before this slice reaches the speculative ASR stream.
-                // A simultaneous native endpoint therefore cannot publish a contaminated final first.
-                if (maybeTriggerSpeakerVadEndpoint(samples.size)) return true
-            }
-        }
 
         // 保持 PCM 全量进 ASR，让 partial 实时性不受 VAD 抖动影响。VAD 只做 gate
         // + 主动 endpoint（更敏感的尾静音切分），它们与 sherpa endpoint 规则并存：
@@ -537,17 +513,14 @@ internal class SessionImpl(
                 if (!vadSpeechActive) {
                     vadSpeechActive = true
                     Logger.d("session $sessionId VAD speech onset")
-                    if (!replay) {
-                        callbackHandler.post {
-                            safeCallback { callback.onSpeechBegin() }
-                        }
+                    callbackHandler.post {
+                        safeCallback { callback.onSpeechBegin() }
                     }
                 }
                 initialSpeechDetected = true
                 trailingSilenceMs = 0
             }
-            !replay && !initialSpeechDetected && !initialSilenceTimeoutSent &&
-                initialSilenceTimeoutSamples > 0L -> {
+            !initialSpeechDetected && !initialSilenceTimeoutSent && initialSilenceTimeoutSamples > 0L -> {
                 initialSilenceSamples += i.toLong()
                 if (
                     initialSilenceSamples >= initialSilenceDeadlineSamples &&
@@ -597,6 +570,7 @@ internal class SessionImpl(
                 }
             }
         }
+        maybeTriggerSpeakerVadEndpoint(samples.size)
         return true
     }
 
@@ -643,7 +617,6 @@ internal class SessionImpl(
     private fun triggerSpeakerVadEndpoint() {
         if (vad == null) return
         postEndpoint()
-        if (!svRejectCurrentUtterance && commitCleanSpeakerTurn()) return
         val r = NativeGuard.run("speakerVad.activeEndpoint") {
             stream.inputFinished()
             drainDecoder(isFinal = true, postEndpointOnEndpoint = false)
@@ -671,15 +644,6 @@ internal class SessionImpl(
         }
 
         if (recognizer.isEndpoint(stream)) {
-            if (!isFinal && speakerVadEnabled && speakerTurnContextWaitStartedSample >= 0) {
-                Logger.metric(
-                    "kind=SPEAKER_TURN sessionId=$sessionId decision=hold-native-endpoint " +
-                        "waitingSinceSample=$speakerTurnContextWaitStartedSample",
-                )
-                val pending = recognizer.getResult(stream)
-                markInitialSpeechDetected(pending)
-                return pending.text.isNotEmpty() || pending.tokens.isNotEmpty()
-            }
             metrics.onEndpointDetected()
             val r = recognizer.getResult(stream)
             markInitialSpeechDetected(r)
@@ -884,9 +848,7 @@ internal class SessionImpl(
     private fun maybeTriggerSpeakerVadEndpoint(samplesInChunk: Int): Boolean {
         if (!speakerVadEnabled) return false
         val speakerVad = effectiveSpeakerVad ?: return false
-        val scheduler = speakerVadScoreScheduler(speakerVad)
-        if (!scheduler.observe(samplesInChunk)) return false
-        if (speakerTurnFailOpen) return false
+        if (!speakerVadScoreScheduler(speakerVad).observe(samplesInChunk)) return false
         val target = targetEmbedding ?: return false
         val verifier = ensureVerifier() ?: return false
 
@@ -899,66 +861,50 @@ internal class SessionImpl(
         val scoreElapsedMs = (System.nanoTime() - scoreStartNs) / 1_000_000.0
         val scoreAudioMs = winSamples * 1000.0 / sampleRate
         val scoreRtf = scoreElapsedMs / scoreAudioMs
-        val finalizer = speakerTurnFinalizer(speakerVad)
-        val state = finalizer.observeScore(scheduler.totalSamples, score, speakerVad.threshold)
-        syncSpeakerTurnState(finalizer)
-        when (state) {
-            SpeakerTurnScoreState.TARGET_CONFIRMED -> {
+        if (!svTargetConfirmed) {
+            if (score >= speakerVad.threshold) {
+                svTargetConfirmed = true
+                svBelowCount = 0
                 Logger.d("session $sessionId speaker vad target confirmed: score=$score")
                 postSpeakerVadDebug("target_confirmed", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
-            }
-            SpeakerTurnScoreState.TARGET_ACTIVE ->
-                postSpeakerVadDebug("target_active", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
-            SpeakerTurnScoreState.WAITING_TARGET ->
-                postSpeakerVadDebug("waiting_target", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
-            SpeakerTurnScoreState.BELOW ->
-                postSpeakerVadDebug("below", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
-            SpeakerTurnScoreState.PRE_TARGET -> {
-                postSpeakerVadDebug("pre_target_endpoint", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
-                vadSpeechActive = false
-                trailingSilenceMs = 0
-                triggerSpeakerVadEndpoint()
-                return true
-            }
-            SpeakerTurnScoreState.DEPARTURE -> if (vadSpeechActive) {
-                val split = resolveSpeakerTurnSplit(finalizer, speakerVad)
-                if (split == null && finalizer.needsMoreContext()) {
-                    if (speakerTurnContextWaitStartedSample < 0) {
-                        speakerTurnContextWaitStartedSample = scheduler.totalSamples
-                    }
-                    val waitedSamples = scheduler.totalSamples - speakerTurnContextWaitStartedSample
-                    if (waitedSamples < scheduler.hopSamples * 2) {
-                        Logger.metric(
-                            "kind=SPEAKER_TURN sessionId=$sessionId decision=await-context " +
-                                "waitedSamples=$waitedSamples reason=${finalizer.lastResolutionReason()}",
-                        )
-                        postSpeakerVadDebug(
-                            "departure_pending",
-                            score,
-                            speakerVad.threshold,
-                            scoreElapsedMs,
-                            scoreRtf,
-                        )
-                        return false
-                    }
-                }
-                if (split == null) {
-                    speakerTurnContextWaitStartedSample = -1
-                    speakerTurnFailOpen = true
-                    Logger.metric(
-                        "kind=SPEAKER_TURN sessionId=$sessionId decision=fail-open " +
-                            "reason=${finalizer.lastResolutionReason()}",
+            } else {
+                svBelowCount += 1
+                if (svBelowCount >= speakerVad.consecutiveBelow) {
+                    svRejectCurrentUtterance = true
+                    postSpeakerVadDebug("pre_target_endpoint", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+                    Logger.d(
+                        "session $sessionId speaker vad pre-target endpoint: score=$score " +
+                            "threshold=${speakerVad.threshold} belowCount=$svBelowCount",
                     )
-                    return false
+                    if (vadSpeechActive) {
+                        vadSpeechActive = false
+                        trailingSilenceMs = 0
+                    }
+                    triggerSpeakerVadEndpoint()
+                    return true
                 }
-                pendingSpeakerTurnSplit = split
-                speakerTurnContextWaitStartedSample = -1
+                postSpeakerVadDebug("waiting_target", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+            }
+            return false
+        }
+
+        if (score < speakerVad.threshold) {
+            svBelowCount += 1
+            if (vadSpeechActive && svBelowCount >= speakerVad.consecutiveBelow) {
                 postSpeakerVadDebug("endpoint", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+                Logger.d(
+                    "session $sessionId speaker vad endpoint: score=$score " +
+                        "threshold=${speakerVad.threshold} belowCount=$svBelowCount",
+                )
                 vadSpeechActive = false
                 trailingSilenceMs = 0
                 triggerSpeakerVadEndpoint()
                 return true
             }
+            postSpeakerVadDebug("below", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+        } else {
+            svBelowCount = 0
+            postSpeakerVadDebug("target_active", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
         }
         return false
     }
@@ -1003,151 +949,10 @@ internal class SessionImpl(
 
     private fun resetSpeakerVadState() {
         svScoreScheduler?.reset()
-        speakerTurnFinalizer?.reset()
-        pendingSpeakerTurnSplit = null
-        speakerTurnContextWaitStartedSample = -1
-        speakerTurnFailOpen = false
         svTargetConfirmed = false
         svBelowCount = 0
         svRejectCurrentUtterance = false
         svLastScore = null
-    }
-
-    private fun speakerTurnFinalizer(config: SpeakerVadConfig): SpeakerTurnFinalizer {
-        speakerTurnFinalizer?.let { return it }
-        val finalizer = SpeakerTurnFinalizer(
-            sampleRate = sampleRate,
-            windowSamples = (config.winSec * sampleRate).toInt().coerceAtLeast(1),
-            hopSamples = (config.hopSec * sampleRate).toInt().coerceAtLeast(1),
-            consecutiveBelow = config.consecutiveBelow,
-            maximumSamples = UTT_MAX_SAMPLES,
-        )
-        speakerTurnFinalizer = finalizer
-        return finalizer
-    }
-
-    private fun syncSpeakerTurnState(finalizer: SpeakerTurnFinalizer) {
-        svTargetConfirmed = finalizer.isTargetConfirmed()
-        svBelowCount = finalizer.consecutiveLowScores()
-        svRejectCurrentUtterance = finalizer.shouldRejectCurrent()
-        svLastScore = finalizer.lastScore()
-    }
-
-    /**
-     * Synchronously post-process and enqueue the clean prefix final before replaying the suffix.
-     * The callback handler is FIFO, so endpoint -> prefix final -> suffix events remains stable.
-     */
-    private fun commitCleanSpeakerTurn(isLast: Boolean = false): Boolean {
-        val config = effectiveSpeakerVad ?: return false
-        val finalizer = speakerTurnFinalizer ?: return false
-        val split = pendingSpeakerTurnSplit ?: resolveSpeakerTurnSplit(finalizer, config)
-        pendingSpeakerTurnSplit = null
-        if (split == null) {
-            val reason = finalizer.lastResolutionReason()
-            Logger.metric("kind=SPEAKER_TURN sessionId=$sessionId decision=fail-open reason=$reason")
-            postDebug("speaker turn boundary ambiguous ($reason); keeping speculative final")
-            return false
-        }
-        Logger.metric(
-            "kind=SPEAKER_TURN sessionId=$sessionId decision=split " +
-                "cutSample=${split.cutSample} reason=${finalizer.lastResolutionReason()}",
-        )
-
-        val speculativeStream = stream
-        var prefixStream: OnlineStream? = null
-        val nativeResult = NativeGuard.run("speakerTurn.cleanRedecode") {
-            prefixStream = recognizer.createStream(hotwords = currentHotwords)
-            stream = prefixStream!!
-            stream.acceptWaveform(split.prefix, sampleRate)
-            appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
-            stream.inputFinished()
-            while (recognizer.isReady(stream)) recognizer.decode(stream)
-            recognizer.getResult(stream)
-        }
-        if (nativeResult is NativeResult.Err) {
-            prefixStream?.let { NativeGuard.runQuietly("speakerTurn.prefix.release") { it.release() } }
-            stream = speculativeStream
-            postError(nativeResult.error)
-            close()
-            return true
-        }
-        val clean = (nativeResult as NativeResult.Ok).value
-        if (clean.text.isEmpty() && clean.tokens.isEmpty()) {
-            prefixStream?.let { NativeGuard.runQuietly("speakerTurn.prefix.release") { it.release() } }
-            stream = speculativeStream
-            postError(AsrError(AsrErrorCode.NATIVE_CRASH, "clean prefix re-decode produced no ASR evidence"))
-            close()
-            return true
-        }
-
-        speakerPcmBuffers.clearAll()
-        speakerPcmBuffers.observe(
-            split.prefix,
-            captureSpeakerVad = true,
-            captureFallback = targetSpeakerEnabled,
-        )
-        effectiveSpeechBuffer.reset()
-        effectiveSpeechBuffer.observe(split.prefix)
-        effectiveSpeechBuffer.confirmSpeech()
-        svTargetConfirmed = true
-        svRejectCurrentUtterance = false
-        NativeGuard.runQuietly("speakerTurn.speculative.release") { speculativeStream.release() }
-        metrics.onRawFinalReady()
-        val prepared = prepareFinal(toAsrResult(clean), hasEvidence = true, isLast = isLast)
-        if (prepared == null) {
-            postError(AsrError(AsrErrorCode.NATIVE_CRASH, "clean prefix final was suppressed"))
-            close()
-            return true
-        }
-        val postStarted = android.os.SystemClock.elapsedRealtime()
-        val processed = postProcessor.process(prepared)
-        dispatchFinal(processed, android.os.SystemClock.elapsedRealtime() - postStarted)
-
-        if (isLast) return true
-
-        val next = NativeGuard.run("speakerTurn.suffixStream") {
-            recognizer.createStream(hotwords = currentHotwords)
-        }
-        if (next is NativeResult.Err) {
-            postError(next.error)
-            close()
-            return true
-        }
-        prefixStream?.let { NativeGuard.runQuietly("speakerTurn.prefix.release") { it.release() } }
-        prefixStream = null
-        stream = (next as NativeResult.Ok).value
-        recognizerResetGeneration.markReset()
-        resetVadGateState()
-        replaySpeakerSuffix(split)
-        postDebug(
-            "speaker turn clean split: cutSample=${split.cutSample} " +
-                "prefix=${split.prefix.size} suffix=${split.suffix.size}",
-        )
-        return true
-    }
-
-    private fun resolveSpeakerTurnSplit(
-        finalizer: SpeakerTurnFinalizer,
-        config: SpeakerVadConfig,
-    ): SpeakerTurnSplit? {
-        val target = targetEmbedding ?: return null
-        val verifier = ensureVerifier() ?: return null
-        val speculativeResult = recognizer.getResult(stream)
-        return finalizer.resolve(speculativeResult.timestamps, config.threshold) { samples, _, _ ->
-            verifier.windowScore(samples, target)
-        }
-    }
-
-    private fun replaySpeakerSuffix(split: SpeakerTurnSplit) {
-        var offset = 0
-        while (offset < split.suffix.size && !closed.get()) {
-            var chunkSize = split.suffix.size - offset
-            effectiveSpeakerVad?.let { config ->
-                chunkSize = minOf(chunkSize, speakerVadScoreScheduler(config).samplesUntilNextScore())
-            }
-            feedChunkAndDecode(split.suffix.copyOfRange(offset, offset + chunkSize), replay = true)
-            offset += chunkSize
-        }
     }
 
     // -------- callback dispatch --------

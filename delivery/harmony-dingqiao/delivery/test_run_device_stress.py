@@ -25,6 +25,30 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_speaker_turn_manifest_enforces_required_forbidden_text_and_final_count(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "manifest.json"
+            manifest.write_text(
+                '{"files":[{"role":"case","case_id":"S1","path":"case.wav",'
+                '"required_texts":["主讲尾字"],"forbidden_texts":["其他开头"],'
+                '"expected_nonempty_public_finals":1}]}',
+                encoding="utf-8",
+            )
+            mapping = [{"id": "000000", "source": "case.wav"}]
+            clean = [{"id": "000000", "resultHex": "主讲尾字".encode("utf-16-be").hex(),
+                      "nonEmptyFinals": "1"}]
+            leaked = [{"id": "000000", "resultHex": "主讲尾字其他开头".encode("utf-16-be").hex(),
+                       "nonEmptyFinals": "1"}]
+            truncated = [{"id": "000000", "resultHex": "主讲".encode("utf-16-be").hex(),
+                          "nonEmptyFinals": "1"}]
+
+            self.assertEqual("PASS", MODULE.target_speaker_content_verdict(
+                clean, mapping, manifest)["status"])
+            self.assertEqual("FAIL", MODULE.target_speaker_content_verdict(
+                leaked, mapping, manifest)["status"])
+            self.assertEqual("FAIL", MODULE.target_speaker_content_verdict(
+                truncated, mapping, manifest)["status"])
+
     def test_speaker_turn_mode_accepts_threshold_and_content_override(self) -> None:
         with mock.patch.object(
             sys,

@@ -140,9 +140,7 @@ export class SpeakerTurnFinalizer {
     // Window scores locate a transition interval, not an instant. The boundary can be anywhere
     // inside the last target-positive window and must precede the first low-score deadline.
     const searchStart = Math.max(0, this.lastTargetEndSample - this.windowSamples);
-    const stableOtherStart = Math.max(0, this.lastObservedEndSample - this.windowSamples);
-    const searchEnd = Math.min(all.length, this.firstBelowEndSample,
-      stableOtherStart + this.hopSamples);
+    const searchEnd = Math.min(all.length, this.firstBelowEndSample);
     if (searchEnd <= searchStart) {
       this.resolutionReason = 'invalid-search-range';
       return undefined;
@@ -150,18 +148,16 @@ export class SpeakerTurnFinalizer {
 
     const frameSamples = Math.max(1, Math.round(this.sampleRate / 50));
     const refineSamples = this.windowSamples;
-    // Do not commit from a partially observable transition band: that biases the scan toward an
-    // early cut and can truncate the target tail. Waiting is bounded by the score window.
-    if (searchStart < refineSamples || all.length - searchEnd < refineSamples) {
-      this.resolutionReason = 'insufficient-refine-context';
-      return undefined;
-    }
-
     const candidates: number[] = [];
+    let candidateLackedContext = false;
     const addCandidate = (sample: number): void => {
       const candidate = Math.round(sample);
       if (candidate < searchStart || candidate > searchEnd ||
         candidate <= 0 || candidate >= all.length || candidates.indexOf(candidate) >= 0) return;
+      if (candidate < refineSamples || all.length - candidate < refineSamples) {
+        candidateLackedContext = true;
+        return;
+      }
       candidates.push(candidate);
     };
     for (let index = 0; index < boundaryHintsSamples.length; index++) {
@@ -183,6 +179,11 @@ export class SpeakerTurnFinalizer {
       addCandidate(candidate);
     }
     addCandidate(searchEnd);
+    if (candidates.length === 0) {
+      this.resolutionReason = candidateLackedContext ?
+        'insufficient-refine-context' : 'no-boundary-candidates';
+      return undefined;
+    }
 
     // Speaker embedding inference is synchronous on Harmony. Scoring every grid point can block
     // the app lane long enough for the carrier to be killed. Diarization segment boundaries are

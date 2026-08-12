@@ -145,6 +145,38 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         self.assertLess(split_index, decode_index)
         self.assertEqual(1, async_lane.count("this.maybeTriggerSpeakerVadEndpoint(samples.length)"))
 
+    def test_async_finish_commits_a_pending_clean_speaker_turn(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        async_stop = source.split("private async stopNowAsync", 1)[1].split(
+            "updateHotwords", 1
+        )[0]
+        commit_index = async_stop.index("this.commitCleanSpeakerTurn(true)")
+        speculative_flush_index = async_stop.index("this.appendFinalTailSilence()")
+        self.assertLess(commit_index, speculative_flush_index)
+
+    def test_enabled_by_default_starts_boundary_model_loading(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        constructor = source.split("constructor(sessionId:", 1)[1].split(
+            "acceptPcm16", 1
+        )[0]
+        self.assertIn(
+            "if (this.speakerVadEnabled) this.ensureSpeakerTurnSegmenterLoad()",
+            constructor,
+        )
+
+    def test_endpoint_latency_starts_before_clean_prefix_redecode(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        endpoint = source.split("private triggerSpeakerVadEndpoint", 1)[1].split(
+            "private resetSpeakerVadState", 1
+        )[0]
+        timestamp_index = endpoint.index("this.endpointAtMs = Date.now()")
+        commit_index = endpoint.index("this.commitCleanSpeakerTurn(stopAtEndpoint)")
+        self.assertLess(timestamp_index, commit_index)
+        self.assertIn(
+            "this.endpointAtMs >= 0 ? this.endpointAtMs : Date.now()",
+            source,
+        )
+
     def test_c1_diarization_selects_latest_stable_target_to_other_boundary(self) -> None:
         self.run_finalizer(
             f"""
@@ -222,7 +254,27 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
-    def test_departure_waits_for_bounded_right_context_before_committing(self) -> None:
+    def test_short_target_and_boundary_after_last_positive_window_are_resolved(self) -> None:
+        self.run_finalizer(
+            """
+            const samples = new Float32Array(5_000);
+            samples.fill(0.2, 0, 2_000);
+            samples.fill(0, 2_000, 2_100);
+            samples.fill(0.12, 2_100);
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_500, 500, 2, 5_000);
+            finalizer.accept(samples);
+            finalizer.observeScore(2_000, 0.62, 0.35);
+            finalizer.observeScore(3_000, 0.18, 0.35);
+            finalizer.observeScore(3_500, 0.10, 0.35);
+
+            const split = finalizer.resolve([2.1], 0.35,
+              (_samples, start, end) => end <= 2_100 ? 0.61 : start >= 2_100 ? 0.09 : undefined);
+            assert.ok(split);
+            assert.equal(split.cutSample, 2_100);
+            """
+        )
+
+    def test_departure_uses_candidate_context_not_entire_search_band_context(self) -> None:
         self.run_finalizer(
             """
             const samples = new Float32Array(4_200);
@@ -237,12 +289,6 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             finalizer.observeScore(3_500, 0.20, 0.35);
             finalizer.observeScore(3_700, 0.10, 0.35);
 
-            assert.equal(finalizer.resolve([0.3, 1.0, 2.5], 0.35,
-              (_samples, start, end) => end <= 2_500 ? 0.60 : start >= 2_500 ? 0.10 : undefined),
-              undefined);
-            assert.equal(finalizer.needsMoreContext(), true);
-
-            finalizer.accept(samples.slice(3_700));
             const split = finalizer.resolve([0.3, 1.0, 2.5], 0.35,
               (_samples, start, end) => end <= 2_500 ? 0.60 : start >= 2_500 ? 0.10 : undefined);
             assert.equal(finalizer.needsMoreContext(), false);

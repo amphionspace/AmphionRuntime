@@ -1187,6 +1187,7 @@ export class AsrSession {
   private svPendingSplit?: SpeakerTurnSplit;
   private svContextWaitStartedSample: number = -1;
   private svTurnFailOpen: boolean = false;
+  private endpointAtMs: number = -1;
   private callback: AsrCallback;
   private callbackGate: SessionCallbackGate = new SessionCallbackGate();
   private reentryQueue: SessionReentryQueue = new SessionReentryQueue();
@@ -1246,6 +1247,7 @@ export class AsrSession {
       if (config.vad) {
         this.vad = this.createVad();
       }
+      if (this.speakerVadEnabled) this.ensureSpeakerTurnSegmenterLoad();
       // 预热已前移到 recognizer 创建处一次性完成(见 AmphionRuntime.warmUpRecognizer),
       // 这里不再每次 startListening 都跑 encoder,避免每次点"开始识别"卡 3~4 秒。
       this.callbackGate.invoke((): void => { this.callback.onSessionStarted?.(); });
@@ -1402,6 +1404,10 @@ export class AsrSession {
     if (this.callbackGate.isClosed()) return;
     this.streamCallDepth += 1;
     try {
+      if (this.speakerVadEnabled && this.svTurnFinalizer?.hasPendingDeparture() &&
+        this.commitCleanSpeakerTurn(true)) {
+        return;
+      }
       this.appendFinalTailSilence();
       this.stream.inputFinished();
       await this.drainAsync(true, false, true);
@@ -1492,29 +1498,30 @@ export class AsrSession {
       });
       return;
     }
-    if (enabled && !isSpeakerTurnSegmentationModelLoaded() &&
-      this.speakerTurnSegmenterLoad === undefined) {
-      const target = this.config.targetSpeaker;
-      if (target === undefined) throw new Error('target speaker config required for Speaker VAD');
-      const load = AmphionRuntime.getOrCreateSpeakerTurnSegmenterAsync(
-        this.context, target.modelPath);
-      this.speakerTurnSegmenterLoad = load;
-      load.then((): void => {
-        if (this.callbackGate.isClosed() || this.speakerTurnSegmenterLoad !== load) return;
-        this.speakerTurnSegmenterLoad = undefined;
-      }).catch((e: Object): void => {
-        if (this.callbackGate.isClosed() || this.speakerTurnSegmenterLoad !== load) return;
-        this.speakerTurnSegmenterLoad = undefined;
-        if (!this.speakerVadEnabled) return;
-        this.callbackGate.invoke((): void => {
-          this.callback.onError?.(new AsrError(
-            AsrErrorCode.POSTPROCESS_FAILED, `speaker diarizer load failed: ${e}`));
-        });
-        this.close();
-      });
-    }
     this.speakerVadEnabled = enabled;
+    if (enabled) this.ensureSpeakerTurnSegmenterLoad();
     this.resetSpeakerVadState();
+  }
+  private ensureSpeakerTurnSegmenterLoad(): void {
+    if (isSpeakerTurnSegmentationModelLoaded() || this.speakerTurnSegmenterLoad !== undefined) return;
+    const target = this.config.targetSpeaker;
+    if (target === undefined) throw new Error('target speaker config required for Speaker VAD');
+    const load = AmphionRuntime.getOrCreateSpeakerTurnSegmenterAsync(
+      this.context, target.modelPath);
+    this.speakerTurnSegmenterLoad = load;
+    load.then((): void => {
+      if (this.callbackGate.isClosed() || this.speakerTurnSegmenterLoad !== load) return;
+      this.speakerTurnSegmenterLoad = undefined;
+    }).catch((e: Object): void => {
+      if (this.callbackGate.isClosed() || this.speakerTurnSegmenterLoad !== load) return;
+      this.speakerTurnSegmenterLoad = undefined;
+      if (!this.speakerVadEnabled) return;
+      this.callbackGate.invoke((): void => {
+        this.callback.onError?.(new AsrError(
+          AsrErrorCode.POSTPROCESS_FAILED, `speaker diarizer load failed: ${e}`));
+      });
+      this.close();
+    });
   }
   isClosed(): boolean { return this.callbackGate.isClosed(); }
   close(): void {
@@ -1574,6 +1581,7 @@ export class AsrSession {
           `waitingSinceSample=${this.svContextWaitStartedSample}`);
         return;
       }
+      this.endpointAtMs = Date.now();
       if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
       // A stop requested synchronously by this endpoint callback belongs to this exact result. It is
       // safe to promote here because the core is constructing the current final; the adapter still
@@ -1682,7 +1690,7 @@ export class AsrSession {
     const pending = new PendingSpeakerFinal(
       result,
       scoreSelection.samples,
-      endpointTriggered ? Date.now() : -1,
+      endpointTriggered ? (this.endpointAtMs >= 0 ? this.endpointAtMs : Date.now()) : -1,
       decodeDurationMs,
       postProcessMs,
       this.utteranceIndex,
@@ -1694,6 +1702,7 @@ export class AsrSession {
     this.pcmBytesAccepted = 0;
     this.firstPcmMs = -1;
     this.firstPartialLatencyMs = -1;
+    if (endpointTriggered) this.endpointAtMs = -1;
     this.speakerPcmBuffers.clearAll();
 
     if (result.isTargetSpeaker !== false &&
@@ -2198,6 +2207,7 @@ export class AsrSession {
   }
 
   private triggerSpeakerVadEndpoint(): void {
+    this.endpointAtMs = Date.now();
     if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
     const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
     if (this.svRejectCurrentUtterance) {
