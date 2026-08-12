@@ -156,6 +156,16 @@ export default class EntryAbility extends UIAbility {
     return fallback;
   }
 
+  private floatParameter(want: Want, key: string, fallback: number): number {
+    const value = want.parameters?.[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return fallback;
+  }
+
   private setStressKeepScreenOn(enabled: boolean): void {
     this.stressWindow?.setWindowKeepScreenOn(enabled).catch((e: Object): void => {
       hilog.error(0x0000, 'AmphionAsrDemo', 'Failed to set test screen state: %{public}s', `${e}`);

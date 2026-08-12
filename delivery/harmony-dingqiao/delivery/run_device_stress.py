@@ -178,6 +178,12 @@ def parse_args() -> argparse.Namespace:
             parser.error("--speaker-vad-threshold must be within [-1, 1]")
     if args.target_speaker_manifest is not None and args.mode not in TARGET_SPEAKER_MODES:
         parser.error("--target-speaker-manifest requires a target-speaker mode")
+    if (
+        args.mode == "speaker-vad-turn"
+        and not args.skip_target_content_check
+        and args.target_speaker_manifest is None
+    ):
+        parser.error("speaker-vad-turn accuracy requires --target-speaker-manifest")
     if args.skip_build_install and args.installed_package:
         parser.error("--skip-build-install and --installed-package are mutually exclusive")
     return args
@@ -427,6 +433,9 @@ def target_speaker_content_verdict(
         item["path"]: item for item in items
         if isinstance(item, dict) and item.get("role") == "case" and isinstance(item.get("path"), str)
     }
+    business_assertion = manifest.get("business_assertion", {})
+    if not isinstance(business_assertion, dict):
+        business_assertion = {}
     source_by_id = {
         str(item.get("id")): str(item.get("source"))
         for item in mapping if "id" in item and "source" in item
@@ -447,6 +456,8 @@ def target_speaker_content_verdict(
             text, decode_error = "", str(error)
         required = assertion.get("required_texts", [])
         forbidden = assertion.get("forbidden_texts", [])
+        if not forbidden and isinstance(business_assertion.get("forbidden_text"), str):
+            forbidden = [business_assertion["forbidden_text"]]
         if not isinstance(required, list) or not required or not all(isinstance(v, str) and v for v in required):
             required = []
         if not isinstance(forbidden, list) or not forbidden or not all(isinstance(v, str) and v for v in forbidden):
@@ -964,7 +975,9 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressPaceMs", str(args.pace_ms),
         "--ps", "stressEnrollmentCount", str(target_speaker_enrollment_count),
         "--ps", "stressEnforceTargetSpeakerBusinessText",
-        "false" if args.skip_target_content_check else "true",
+        # Manifest-driven assertions are evaluated per case after the device run.
+        # The carrier's legacy C1-only text check must not reject another corpus.
+        "false" if args.target_speaker_manifest is not None or args.skip_target_content_check else "true",
         "--ps", "stressSpeakerVadThreshold",
         str((args.speaker_vad_threshold if args.speaker_vad_threshold is not None else -2) + 2),
         check=False,
