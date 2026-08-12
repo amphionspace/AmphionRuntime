@@ -96,6 +96,7 @@ def parse_args() -> argparse.Namespace:
             "start-write",
             "start-write-reload",
             "speaker-vad-onstart",
+            "speaker-vad-turn",
             "target-speaker-enhancement",
             "target-speaker-enhancement-onstart",
             "target-speaker-enhancement-cancel",
@@ -120,6 +121,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--sample-interval", type=float, default=1.0)
     parser.add_argument("--post-run-observe", type=float, default=5.0)
+    parser.add_argument(
+        "--speaker-vad-threshold",
+        type=float,
+        help="Override speakerVadThreshold for sequential speaker-turn experiments.",
+    )
+    parser.add_argument(
+        "--skip-target-content-check",
+        action="store_true",
+        help="Keep lifecycle checks but skip the carrier's C1 text assertion.",
+    )
     parser.add_argument("--max-rss-growth-mb", type=float, default=64.0)
     parser.add_argument("--max-thread-growth", type=int, default=2)
     parser.add_argument("--max-empty-final-rate", type=float, default=0.05)
@@ -147,6 +158,13 @@ def parse_args() -> argparse.Namespace:
         parser.error("--timeout and --sample-interval must be positive")
     if args.settle_ms < 0 or args.pace_ms < 0 or args.post_run_observe < 0:
         parser.error("timing values must be non-negative")
+    if args.skip_target_content_check and args.mode != "speaker-vad-turn":
+        parser.error("--skip-target-content-check requires --mode speaker-vad-turn")
+    if args.speaker_vad_threshold is not None:
+        if args.mode != "speaker-vad-turn":
+            parser.error("--speaker-vad-threshold requires --mode speaker-vad-turn")
+        if not -1.0 <= args.speaker_vad_threshold <= 1.0:
+            parser.error("--speaker-vad-threshold must be within [-1, 1]")
     if args.skip_build_install and args.installed_package:
         parser.error("--skip-build-install and --installed-package are mutually exclusive")
     return args
@@ -689,6 +707,31 @@ def target_speaker_realtime_verdict(hilog_path: Path, required: bool) -> dict[st
     }
 
 
+def speaker_turn_final_latency_verdict(
+    hilog_path: Path, required: bool, maximum_p95_ms: int = 1000
+) -> dict[str, object]:
+    pattern = re.compile(r"kind=UTTERANCE[^\n]*endpointToFinalLatencyMs=(\d+)")
+    latencies = sorted(
+        int(match.group(1))
+        for match in pattern.finditer(hilog_path.read_text(encoding="utf-8", errors="replace"))
+    )
+    if not latencies:
+        return {
+            "status": "FAIL" if required else "NOT_APPLICABLE",
+            "reason": "no endpoint-to-final metrics observed" if required else "mode disabled",
+            "utterance_count": 0,
+        }
+    p95_index = min(len(latencies) - 1, math.ceil(len(latencies) * 0.95) - 1)
+    p95 = latencies[p95_index]
+    return {
+        "status": ("PASS" if p95 <= maximum_p95_ms else "FAIL") if required else "OBSERVED",
+        "utterance_count": len(latencies),
+        "p95_endpoint_to_final_ms": p95,
+        "maximum_endpoint_to_final_ms": max(latencies),
+        "maximum_p95_ms": maximum_p95_ms,
+    }
+
+
 def build_install(device: str) -> None:
     command = [
         str(SCRIPT_DIR / "build_install_smoke.sh"),
@@ -735,6 +778,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         selected.sort(key=initial_signal_level, reverse=True)
         selected = selected[:1]
     elif args.mode in (
+        "speaker-vad-turn",
         "target-speaker-enhancement",
         "target-speaker-enhancement-onstart",
         "target-speaker-enhancement-cancel",
@@ -742,7 +786,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         selected = sorted(selected, key=lambda source: str(source.path))
         if len(selected) < 2:
             raise StressFailure(
-                "target-speaker-enhancement requires an enrollment WAV followed by at least one test WAV"
+                f"{args.mode} requires an enrollment WAV followed by at least one test WAV"
             )
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -797,6 +841,11 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressCycles", str(args.cycles),
         "--ps", "stressSettleMs", str(args.settle_ms),
         "--ps", "stressPaceMs", str(args.pace_ms),
+        "--ps", "stressEnrollmentCount", "1",
+        "--ps", "stressEnforceTargetSpeakerBusinessText",
+        "false" if args.skip_target_content_check else "true",
+        "--ps", "stressSpeakerVadThreshold",
+        str((args.speaker_vad_threshold if args.speaker_vad_threshold is not None else -2) + 2),
         check=False,
     )
     if start_result.returncode != 0 or "error" in (start_result.stdout + start_result.stderr).lower():
@@ -848,10 +897,16 @@ def run_stress(args: argparse.Namespace) -> Path:
     write_samples(artifact_dir / "memory.csv", samples)
     app_summary, cycle_results = parsed
     memory = memory_verdict(samples, args.max_rss_growth_mb, args.max_thread_growth)
-    realtime_required = args.mode == "target-speaker-enhancement" and args.pace_ms >= 20
-    target_speaker_realtime = target_speaker_realtime_verdict(
-        artifact_dir / "hilog.txt", realtime_required
-    )
+    realtime_required = args.pace_ms >= 20
+    if args.mode == "speaker-vad-turn":
+        target_speaker_realtime = speaker_turn_final_latency_verdict(
+            artifact_dir / "hilog.txt", realtime_required
+        )
+    else:
+        target_speaker_realtime = target_speaker_realtime_verdict(
+            artifact_dir / "hilog.txt",
+            realtime_required and args.mode == "target-speaker-enhancement",
+        )
     cpu = cpu_statistics(workload_samples)
     completed = int(app_summary.get("completed", "0"))
     empty_finals = int(app_summary.get("emptyFinals", "0"))
@@ -915,6 +970,8 @@ def run_stress(args: argparse.Namespace) -> Path:
             "pace_ms": args.pace_ms,
             "sample_interval_seconds": args.sample_interval,
             "post_run_observe_seconds": args.post_run_observe,
+            "target_content_check_enabled": not args.skip_target_content_check,
+            "speaker_vad_threshold": args.speaker_vad_threshold,
         },
         "inventory": inventory,
         "application": app_summary,

@@ -1,0 +1,15 @@
+{
+  "sample_rate": 16000,
+  "total_samples": 120000,
+  "segments": [
+    { "start_sample": 6432, "end_sample": 32896, "speaker": 0 },
+    { "start_sample": 32896, "end_sample": 58272, "speaker": 1 },
+    { "start_sample": 61792, "end_sample": 90400, "speaker": 0 },
+    { "start_sample": 94992, "end_sample": 110928, "speaker": 1 }
+  ],
+  "cluster_scores": {
+    "0": 0.667,
+    "1": 0.017
+  },
+  "expected_cut_sample": 94992
+}

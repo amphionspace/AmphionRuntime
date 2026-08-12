@@ -47,6 +47,9 @@ export class DeviceStressOptions {
   cycles: number = 1;
   settleMs: number = 0;
   paceMs: number = 20;
+  enrollmentCount: number = 1;
+  enforceTargetSpeakerBusinessText: boolean = true;
+  speakerVadThreshold: number = -2;
 }
 
 class CorpusEntry {
@@ -750,6 +753,7 @@ class CycleResult {
   starts: number = 0;
   partials: number = 0;
   finals: number = 0;
+  nonEmptyFinals: number = 0;
   completes: number = 0;
   errors: number = 0;
   finalChars: number = 0;
@@ -783,7 +787,8 @@ class CycleResult {
 
   toLine(): string {
     return `CYCLE|index=${this.index}|id=${this.corpusId}|status=${this.ok ? 'PASS' : 'FAIL'}` +
-      `|starts=${this.starts}|partials=${this.partials}|finals=${this.finals}|completes=${this.completes}` +
+      `|starts=${this.starts}|partials=${this.partials}|finals=${this.finals}` +
+      `|nonEmptyFinals=${this.nonEmptyFinals}|completes=${this.completes}` +
       `|errors=${this.errors}|finalChars=${this.finalChars}|speakerScores=${this.speakerScores}` +
       `|nonEmptySpeakerScores=${this.nonEmptySpeakerScores}` +
       `|missingSpeakerScores=${this.missingSpeakerScores}` +
@@ -1094,6 +1099,7 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.starts = events.starts;
   result.partials = events.partials;
   result.finals = events.finals;
+  result.nonEmptyFinals = events.finalTexts.filter((text: string): boolean => text.length > 0).length;
   result.completes = events.completes;
   result.errors = events.errors;
   result.finalChars = events.finalChars;
@@ -1312,6 +1318,54 @@ async function runTargetSpeakerEnhancementCycle(engine: SpeechRecognitionEngine,
   if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
   else if (events.targetSpeakerEnhancementResults !== events.finals) detail = 'enhancement-marker-missing';
   else if (!businessTextPassed) detail = 'target-text-contract';
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.voiceprintIdCount = 1;
+  result.fedFrames = fed;
+  result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  return result;
+}
+
+async function runSpeakerVadTurnCycle(engine: SpeechRecognitionEngine,
+  entry: CorpusEntry, index: number, voiceprintId: string,
+  options: DeviceStressOptions): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const sessionId = `speaker-vad-turn-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
+  const params = startParams(sessionId, 'speaker-vad-turn', index);
+  params.extraParams['enableSpeakerVad'] = true;
+  params.extraParams['enablePartialResult'] = true;
+  params.extraParams['voiceprintIds'] = [voiceprintId];
+  if (options.speakerVadThreshold >= -1 && options.speakerVadThreshold <= 1) {
+    params.extraParams['speakerVadThreshold'] = options.speakerVadThreshold;
+  }
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    const startDetail = events.errorMessages.length > 0 ?
+      `start-${events.errorMessages[0]}` : 'start-timeout';
+    return finishCycle(index, entry.id, events, startedAt, false, startDetail);
+  }
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, options.paceMs, undefined, 1,
+    (): void => { events.audioFeedStartedAtMs = Date.now(); });
+  if (fed === 0) {
+    engine.cancel(sessionId);
+    return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+  }
+  const lastFinalsBeforeFinish = events.lastFinals;
+  engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const text = events.finalTexts.join('');
+  const businessTextPassed = !options.enforceTargetSpeakerBusinessText ||
+    (text.includes('上海') && !text.includes('你好'));
+  const ok = completed && events.starts === 1 && events.finals > 0 && events.lastFinals === 1 &&
+    lastFinalsBeforeFinish === 0 && events.completes === 1 && events.errors === 0 &&
+    businessTextPassed && events.partials > 0 && !engine.isBusy();
+  let detail = ok ? 'speaker-vad-turn-clean' : 'speaker-vad-turn-contract';
+  if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
+  else if (!businessTextPassed) detail = 'speaker-vad-turn-text-contract';
+  if (events.errorMessages.length > 0) {
+    detail = `speaker-vad-turn-error-${events.errorMessages[0]}`;
+  }
   const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
   result.voiceprintIdCount = 1;
   result.fedFrames = fed;
@@ -2298,6 +2352,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     if (options.mode === 'voiceprint' || options.mode === 'voiceprint-fallback' ||
       options.mode === 'voiceprint-vad-begin' ||
       options.mode === 'voiceprint-vad-begin-idle' || options.mode === 'speaker-vad-onstart' ||
+      options.mode === 'speaker-vad-turn' ||
       options.mode === 'target-speaker-enhancement' ||
       options.mode === 'target-speaker-enhancement-onstart' ||
       options.mode === 'target-speaker-enhancement-cancel') {
@@ -2320,7 +2375,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entry = entries[1];
       } else if (options.mode === 'voiceprint-fallback') {
         entry = entries[1];
-      } else if (options.mode === 'target-speaker-enhancement' ||
+      } else if (options.mode === 'speaker-vad-turn' ||
+        options.mode === 'target-speaker-enhancement' ||
         options.mode === 'target-speaker-enhancement-onstart' ||
         options.mode === 'target-speaker-enhancement-cancel') {
         entry = entries[1 + (i % (entries.length - 1))];
@@ -2343,6 +2399,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runStartWriteCycle(engine, entry, i);
       } else if (options.mode === 'speaker-vad-onstart') {
         result = await runSpeakerVadOnStartCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'speaker-vad-turn') {
+        result = await runSpeakerVadTurnCycle(engine, entry, i, stressVoiceprintId, options);
       } else if (options.mode === 'callback-api-reentrant') {
         result = await runCallbackApiReentrantCycle(engine, entry, i);
       } else if (options.mode === 'endpoint-reentrant') {

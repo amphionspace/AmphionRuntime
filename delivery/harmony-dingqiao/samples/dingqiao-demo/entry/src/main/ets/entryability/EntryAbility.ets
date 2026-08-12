@@ -99,6 +99,13 @@ export default class EntryAbility extends UIAbility {
       options.cycles = this.numberParameter(want, 'stressCycles', 1);
       options.settleMs = this.numberParameter(want, 'stressSettleMs', 0);
       options.paceMs = this.numberParameter(want, 'stressPaceMs', 20);
+      options.enrollmentCount = this.numberParameter(want, 'stressEnrollmentCount', 1);
+      options.enforceTargetSpeakerBusinessText =
+        this.stringParameter(want, 'stressEnforceTargetSpeakerBusinessText', 'true') === 'true';
+      // `aa --ps` treats a leading '-' in the value as another option. Transport the
+      // [-2, 1] test value shifted by +2, then restore it inside the carrier.
+      options.speakerVadThreshold =
+        this.floatParameter(want, 'stressSpeakerVadThreshold', 0) - 2;
       runDeviceStress(this.context, options).catch((e: Object): void => {
         hilog.error(0x0000, 'DeviceStressTest', 'stress test crashed: %{public}s', `${e}`);
       }).finally((): void => {

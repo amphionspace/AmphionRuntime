@@ -25,6 +25,41 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_speaker_turn_mode_accepts_threshold_and_content_override(self) -> None:
+        with mock.patch.object(
+            sys,
+            "argv",
+            [
+                str(SCRIPT),
+                "--mode", "speaker-vad-turn",
+                "--speaker-vad-threshold", "0.42",
+                "--skip-target-content-check",
+            ],
+        ):
+            args = MODULE.parse_args()
+        self.assertEqual("speaker-vad-turn", args.mode)
+        self.assertEqual(0.42, args.speaker_vad_threshold)
+        self.assertTrue(args.skip_target_content_check)
+
+    def test_speaker_turn_realtime_gate_uses_public_endpoint_to_final_latency(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            hilog = Path(directory) / "hilog.txt"
+            hilog.write_text(
+                "kind=UTTERANCE endpointToFinalLatencyMs=210\n"
+                "kind=UTTERANCE endpointToFinalLatencyMs=990\n",
+                encoding="utf-8",
+            )
+            passed = MODULE.speaker_turn_final_latency_verdict(hilog, required=True)
+            self.assertEqual("PASS", passed["status"])
+            self.assertEqual(990, passed["p95_endpoint_to_final_ms"])
+
+            hilog.write_text(
+                "kind=UTTERANCE endpointToFinalLatencyMs=1001\n",
+                encoding="utf-8",
+            )
+            failed = MODULE.speaker_turn_final_latency_verdict(hilog, required=True)
+            self.assertEqual("FAIL", failed["status"])
+
     def test_installed_package_mode_is_explicit_and_exclusive(self) -> None:
         with mock.patch.object(sys, "argv", [str(SCRIPT), "--installed-package"]):
             args = MODULE.parse_args()

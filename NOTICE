@@ -105,6 +105,20 @@ License:     Apache License 2.0
 Copyright:   (c) Google LLC
 
 ================================================================================
+7. pyannote segmentation 3.0 (optional Speaker VAD boundary model)
+================================================================================
+
+Repository:  https://huggingface.co/pyannote/segmentation-3.0
+ONNX port:   https://huggingface.co/onnx-community/pyannote-segmentation-3.0
+License:     MIT License
+Revision:    733a93b6473d019a773298e08cefa686894b1854
+Copyright:   (c) 2023 CNRS
+
+The Dingqiao Harmony SDK bundles the ONNX conversion as
+pyannote-segmentation-3.0.onnx. The complete MIT license is packaged next
+to the model as pyannote-segmentation-3.0.LICENSE.
+
+================================================================================
 TRADEMARKS
 ================================================================================
 

@@ -126,7 +126,9 @@ bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.
 
 客户生命周期闭环说明和机器可读证据摘要在组包前统一执行脱敏检查。检查会拒绝本机用户目录、临时目录、内部压力测试 run ID、明文设备标识、硬件型号代码、测试授权标识和私钥材料；正式版本身份仍由 `BUILD_PROVENANCE.json` 与 `checksum.txt` 提供。
 
-声纹模型 `eres2net.onnx` 已内置在自包含 `amphion_dingqiao.har`，不再作为 `models/` 下的独立客户产物。HAR 验证会逐字节校验该资源，缺失或内容不一致时打包失败。
+声纹模型 `eres2net.onnx` 与 Speaker VAD 动态边界模型
+`pyannote-segmentation-3.0.onnx` 已内置在自包含 `amphion_dingqiao.har`，不再作为
+`models/` 下的独立客户产物。HAR 验证会逐字节校验这些资源，缺失或内容不一致时打包失败。
 
 ## main 分支复现说明
 
