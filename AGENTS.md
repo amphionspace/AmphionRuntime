@@ -10,6 +10,7 @@
 - 组合参数必须按能力的时间前置条件验收。启用声纹校验或 Speaker VAD 时，`vadBegin` 本身仍是纯静音等待；初始等待窗内存在连续但未决的声学活动时，才允许使用不超过 `TargetSpeakerConfig.minSegSec` 的一次性确认窗。旧活动不能在确认窗末直接解除计时：必须仍有近期语音型活动，或强制刷新 ASR 得到非空 text/token。测试必须分别验证纯静音、稳态高能非语音、零散脉冲和真实语音，不能只检查参数解析。
 - 异步回调只能根据当前结果携带的 `isLast` 决定是否完成会话；不得用全局 `finishRequested` 推断某条较早结果是最后一条。
 - `onStart` 是会话已经可用的承诺，不只是底层 native 构造完成通知。SDK 对外回调前必须已经发布 session 并完成会话级配置；调用方允许在 `onStart` 内同步执行 `writeAudio`、`finish` 或 `cancel`，不得收到 `NOT_LISTENING`。
+- 进程级 `unloadModel` / Runtime release 不得越过活跃 session 的 native 异步工作。session 只有在公开回调关闭、最后一个 in-flight native 调用返回且 stream 已关闭后才算 quiescent；释放等待期间不得创建新 session。重新设置授权触发 Runtime 替换时也必须遵守同一边界。
 
 ## 声纹结果契约
 
@@ -58,6 +59,9 @@
   `callback-api-reentrant` 的 `SPEECH_END -> finish` 必须返回带非空文本的唯一 last；
   `finish-shutdown` 必须在同一 commit、设备和 HAP/HAR 上返回唯一 last 后唯一 complete。
   根汇总 `report.json` 和两个子模式完整 artifact 必须保留。
+- Runtime 释放竞态修复必须用 `finish-shutdown-relicense` 重放完整调用序列：整段 PCM 入队后
+  `finish -> shutdown -> setLicense -> prepareRuntime`。要求 `finish` 前 `isLast=0`，之后恰好一次
+  last/complete、无 error、native stream 归零，并验证 Runtime 重建后的下一 session 可恢复。
 - 长稳压：按采样率、时长和音量分层抽样，不只取随机文件；报告 callback 契约、空 final、native stream、RSS 和线程变化。
 - 测试报告必须保留 `report.json`、逐轮结果、内存采样、hilog 和输入映射。失败 artifact 不得被后续运行覆盖。
 - 发布矩阵完成后必须用 `archive_release_gate_evidence.py` 生成新的、不可覆盖的脱敏证据目录；

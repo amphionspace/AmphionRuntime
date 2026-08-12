@@ -93,6 +93,29 @@ function errorCount(events: SessionEvents, code: number): number {
   return count;
 }
 
+function terminalCallbackOrderOk(events: SessionEvents, sessionId: string): boolean {
+  const last = `${sessionId}:final-last`;
+  const complete = `${sessionId}:complete`;
+  let lastIndex = -1;
+  let completeIndex = -1;
+  for (let i = 0; i < events.callbackTrace.length; i++) {
+    const item = events.callbackTrace[i];
+    if (item === last) {
+      if (lastIndex >= 0) return false;
+      lastIndex = i;
+    }
+    if (item === complete) {
+      if (completeIndex >= 0) return false;
+      completeIndex = i;
+    }
+  }
+  if (lastIndex < 0 || completeIndex < 0 || lastIndex > completeIndex) return false;
+  for (let i = completeIndex + 1; i < events.callbackTrace.length; i++) {
+    if (events.callbackTrace[i].startsWith(`${sessionId}:`)) return false;
+  }
+  return true;
+}
+
 class StressListener implements RecognitionListener {
   private events: SessionEvents;
   private expectedSessionId: string;
@@ -741,6 +764,12 @@ class CycleResult {
   voiceprintIdCount: number = 0;
   fedFrames: number = 0;
   lastFinalsBeforeFinish: number = -1;
+  recoveryStarts: number = -1;
+  recoveryLastFinals: number = -1;
+  recoveryCompletes: number = -1;
+  recoveryErrors: number = -1;
+  recoveryTerminalOrder: number = -1;
+  recoveryUnexpectedCallbacks: number = -1;
   liveStreams: number = 0;
   elapsedMs: number = 0;
   firstNonEmptyResultMs: number = -1;
@@ -764,6 +793,10 @@ class CycleResult {
       `|effectiveMaxAudioDurationMs=${this.effectiveMaxAudioDurationMs}` +
       `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
       `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}|liveStreams=${this.liveStreams}` +
+      `|recoveryStarts=${this.recoveryStarts}|recoveryLastFinals=${this.recoveryLastFinals}` +
+      `|recoveryCompletes=${this.recoveryCompletes}|recoveryErrors=${this.recoveryErrors}` +
+      `|recoveryTerminalOrder=${this.recoveryTerminalOrder}` +
+      `|recoveryUnexpectedCallbacks=${this.recoveryUnexpectedCallbacks}` +
       `|unexpectedCallbacks=${this.unexpectedSessionCallbacks}|elapsedMs=${this.elapsedMs}` +
       `|firstNonEmptyResultMs=${this.firstNonEmptyResultMs}` +
       `|audioStartToFirstNonEmptyResultMs=${this.audioStartToFirstNonEmptyResultMs}` +
@@ -1710,15 +1743,100 @@ async function runFinishShutdownCycle(engine: SpeechRecognitionEngine, entry: Co
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
   const ok = busyAfterFinish && completed && lastFinalsBeforeFinish === 0 && events.starts === 1 &&
     events.lastFinals === 1 && events.completes === 1 && events.errors === 0 &&
-    events.finals > 0 && !engine.isBusy();
+    events.finals > 0 && terminalCallbackOrderOk(events, sessionId) && !engine.isBusy();
   let detail = 'finish-shutdown-drained';
   if (!busyAfterFinish) detail = 'finish-returned-idle-before-complete';
   else if (!completed) detail = 'shutdown-dropped-complete';
   else if (events.lastFinals !== 1) detail = `shutdown-last-count-${events.lastFinals}`;
+  else if (!terminalCallbackOrderOk(events, sessionId)) detail = 'shutdown-terminal-order';
   else if (events.errors !== 0) detail = `shutdown-error-count-${events.errors}`;
   const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
   result.fedFrames = fed;
   result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  return result;
+}
+
+// Regression reproduction of the customer sequence: finish a session with queued async
+// decode work, release the engine, then accept a refreshed license before the terminal callback.
+// A safe SDK must not let Runtime invalidation free handles still owned by the decode worker.
+async function runFinishShutdownRelicenseCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number, licensePath: string): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const sessionId = `finish-shutdown-relicense-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
+  engine.startListening(startParams(sessionId, 'finish-shutdown-relicense', index));
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+
+  // Burst the complete customer clip so finish is accepted while decode work is still queued.
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 1000000, 0);
+  if (fed === 0) {
+    engine.cancel(sessionId);
+    return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+  }
+  const lastFinalsBeforeFinish = events.lastFinals;
+  engine.finish(sessionId);
+  const busyAfterFinish = engine.isBusy();
+  engine.shutdown();
+
+  const license = await activateLicense(licensePath);
+  const runtimeError = license.errorCode === 0 ? await prepareRuntime() : license.errorCode;
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const recoveryEvents = new SessionEvents();
+  const recoverySessionId = `finish-shutdown-relicense-recovery-${index}`;
+  let recoveryStarted = false;
+  let recoveryFed = 0;
+  let recoveryLastBeforeFinish = -1;
+  let recoveryCompleted = false;
+  let recoveryEngine: SpeechRecognitionEngine | undefined;
+  if (runtimeError === 0) {
+    try {
+      recoveryEngine = createEngine();
+      recoveryEngine.setListener(new StressListener(recoveryEvents, recoverySessionId));
+      recoveryEngine.startListening(startParams(recoverySessionId, 'finish-shutdown-relicense', index));
+      recoveryStarted = await waitFor((): boolean => recoveryEvents.starts === 1, START_TIMEOUT_MS);
+      if (recoveryStarted) {
+        recoveryFed = await feedPcmFile(recoveryEngine, recoverySessionId, entry.path, 150, 0);
+        recoveryLastBeforeFinish = recoveryEvents.lastFinals;
+        recoveryEngine.finish(recoverySessionId);
+        recoveryCompleted = await waitFor(
+          (): boolean => recoveryEvents.completes === 1, COMPLETE_TIMEOUT_MS);
+      }
+    } catch (_) {
+      recoveryEvents.errors += 1;
+    } finally {
+      recoveryEngine?.shutdown();
+    }
+  }
+  const recoveryOk = recoveryStarted && recoveryFed > 0 && recoveryLastBeforeFinish === 0 &&
+    recoveryCompleted && recoveryEvents.starts === 1 && recoveryEvents.lastFinals === 1 &&
+    recoveryEvents.completes === 1 && recoveryEvents.errors === 0 &&
+    recoveryEvents.unexpectedSessionCallbacks === 0 &&
+    terminalCallbackOrderOk(recoveryEvents, recoverySessionId);
+  const ok = busyAfterFinish && license.errorCode === 0 && runtimeError === 0 && completed &&
+    lastFinalsBeforeFinish === 0 && events.starts === 1 && events.lastFinals === 1 &&
+    events.completes === 1 && events.errors === 0 && events.finals > 0 &&
+    terminalCallbackOrderOk(events, sessionId) && recoveryOk;
+  let detail = 'finish-shutdown-relicense-drained';
+  if (!busyAfterFinish) detail = 'finish-returned-idle-before-complete';
+  else if (license.errorCode !== 0) detail = `relicense-${license.errorCode}`;
+  else if (runtimeError !== 0) detail = `runtime-${runtimeError}`;
+  else if (!completed) detail = 'relicense-dropped-complete';
+  else if (events.lastFinals !== 1) detail = `relicense-last-count-${events.lastFinals}`;
+  else if (!terminalCallbackOrderOk(events, sessionId)) detail = 'relicense-terminal-order';
+  else if (events.errors !== 0) detail = `relicense-error-count-${events.errors}`;
+  else if (!recoveryOk) detail = 'relicense-recovery-session';
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.fedFrames = fed;
+  result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  result.recoveryStarts = recoveryEvents.starts;
+  result.recoveryLastFinals = recoveryEvents.lastFinals;
+  result.recoveryCompletes = recoveryEvents.completes;
+  result.recoveryErrors = recoveryEvents.errors;
+  result.recoveryTerminalOrder = terminalCallbackOrderOk(recoveryEvents, recoverySessionId) ? 1 : 0;
+  result.recoveryUnexpectedCallbacks = recoveryEvents.unexpectedSessionCallbacks;
   return result;
 }
 
@@ -2193,7 +2311,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     }
 
     const recreateEachCycle = options.mode === 'recreate' || options.mode === 'start-write-reload' ||
-      options.mode === 'finish-shutdown';
+      options.mode === 'finish-shutdown' || options.mode === 'finish-shutdown-relicense';
     if (!recreateEachCycle) engine = createEngine();
     for (let i = 0; i < options.cycles; i++) {
       let entry = entries[i % entries.length];
@@ -2231,6 +2349,9 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runEndpointReentrantCycle(engine, entry, i);
       } else if (options.mode === 'finish-shutdown') {
         result = await runFinishShutdownCycle(engine, entry, i);
+      } else if (options.mode === 'finish-shutdown-relicense') {
+        result = await runFinishShutdownRelicenseCycle(
+          engine, entry, i, `${workPath}/stress-amphion-license.lic`);
       } else if (options.mode === 'user-sequence') {
         result = await runUserSequenceCycle(engine, entry, i);
       } else if (options.mode === 'vad-begin-silence') {
@@ -2264,7 +2385,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         engine.shutdown();
         engine = undefined;
         SpeechRecognizeSdk.unloadModel();
-      } else if (options.mode === 'finish-shutdown') {
+      } else if (options.mode === 'finish-shutdown' || options.mode === 'finish-shutdown-relicense') {
         engine = undefined;
       }
       await sleep(10);

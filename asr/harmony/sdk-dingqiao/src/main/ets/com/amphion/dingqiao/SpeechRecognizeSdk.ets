@@ -43,6 +43,7 @@ import {
   VoiceprintRegisterParams,
   VoiceprintRegisterResult
 } from './DingqiaoModels';
+import { LatestRequestGate } from './LatestRequestGate';
 
 function languageOf(language: string): AsrLanguage {
   const normalized = language.toLowerCase();
@@ -1034,7 +1035,7 @@ export class SpeechRecognizeSdk {
   private static licenseInfo?: LicenseInfo;
   private static deviceIdProvider?: LicenseDeviceIdProvider;
   private static activatedLicenseText?: string;
-  private static licenseRequestGeneration: number = 0;
+  private static licenseRequests: LatestRequestGate = new LatestRequestGate();
   private static runtimeGeneration: number = 0;
   private static prepareTask?: Promise<void>;
 
@@ -1045,7 +1046,7 @@ export class SpeechRecognizeSdk {
       SpeechRecognizeSdk.invalidateRuntime();
       SpeechRecognizeSdk.activatedLicenseText = undefined;
       SpeechRecognizeSdk.licenseInfo = undefined;
-      SpeechRecognizeSdk.licenseRequestGeneration += 1;
+      SpeechRecognizeSdk.licenseRequests.invalidate();
     }
     SpeechRecognizeSdk.context = context;
     SpeechRecognizeSdk.deviceIdProvider = deviceIdProvider;
@@ -1064,7 +1065,7 @@ export class SpeechRecognizeSdk {
       return;
     }
     // 每次调用都参与 latest-wins；即使新请求的文件路径本身无效，也不能让更早的异步校验稍后覆盖状态。
-    const requestGeneration = ++SpeechRecognizeSdk.licenseRequestGeneration;
+    const requestGeneration = SpeechRecognizeSdk.licenseRequests.begin();
     if (licensePath.length === 0) {
       callback.onError(DingqiaoErrorCode.LICENSE_FILE_UNREADABLE, 'licensePath is empty');
       return;
@@ -1098,7 +1099,7 @@ export class SpeechRecognizeSdk {
       // validateLicense 无副作用，不会提前创建 Runtime 或模型。
       status = await AmphionRuntime.validateLicense(context, options);
     } catch (e) {
-      if (requestGeneration !== SpeechRecognizeSdk.licenseRequestGeneration) {
+      if (!SpeechRecognizeSdk.licenseRequests.isCurrent(requestGeneration)) {
         callback.onError(DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED,
           'setLicense superseded by a newer request');
         return;
@@ -1112,7 +1113,7 @@ export class SpeechRecognizeSdk {
       callback.onError(DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED, `license validation failed: ${e}`);
       return;
     }
-    if (requestGeneration !== SpeechRecognizeSdk.licenseRequestGeneration) {
+    if (!SpeechRecognizeSdk.licenseRequests.isCurrent(requestGeneration)) {
       callback.onError(DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED,
         'setLicense superseded by a newer request');
       return;
@@ -1127,7 +1128,18 @@ export class SpeechRecognizeSdk {
     }
 
     // 新授权只有在完整校验成功后才替换旧状态；替换授权会使旧 Runtime/模型失效。
-    SpeechRecognizeSdk.invalidateRuntime();
+    try {
+      await SpeechRecognizeSdk.invalidateRuntimeAsync();
+    } catch (e) {
+      callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
+        `Runtime release failed: ${e}`);
+      return;
+    }
+    if (!SpeechRecognizeSdk.licenseRequests.isCurrent(requestGeneration)) {
+      callback.onError(DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED,
+        'setLicense superseded by a newer request');
+      return;
+    }
     SpeechRecognizeSdk.activatedLicenseText = licenseText;
     SpeechRecognizeSdk.licenseInfo = info;
     const result = new LicenseActivationResult();
@@ -1201,6 +1213,11 @@ export class SpeechRecognizeSdk {
       callback.onError(errorCode, 'cached license is no longer valid; call setLicense again');
       return;
     }
+    if (AmphionRuntime.isReleasePending()) {
+      callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
+        'Runtime release is still draining an active session');
+      return;
+    }
     if (AmphionRuntime.isRuntimeReady()) {
       callback.onReady();
       return;
@@ -1270,6 +1287,12 @@ export class SpeechRecognizeSdk {
     // Promise 不可取消；清掉 wrapper 引用并让 core generation 拒绝旧任务提交。
     SpeechRecognizeSdk.prepareTask = undefined;
     AmphionRuntime.release();
+  }
+
+  private static invalidateRuntimeAsync(): Promise<void> {
+    SpeechRecognizeSdk.runtimeGeneration += 1;
+    SpeechRecognizeSdk.prepareTask = undefined;
+    return AmphionRuntime.releaseAsync();
   }
 
   // L2:若模型未加载则加载,若已加载则复用(不重复加载模型)、只建会话。复用由 AmphionRuntime 的按语言+

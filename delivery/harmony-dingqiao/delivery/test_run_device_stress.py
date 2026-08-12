@@ -266,7 +266,7 @@ class RunCommandTest(unittest.TestCase):
         self.assertIn("finish-shutdown", MODULE.FINISH_MODES)
         source = CARRIER.read_text(encoding="utf-8")
         cycle = source.split("async function runFinishShutdownCycle", 1)[1].split(
-            "async function runMaxDurationCycle", 1
+            "async function runFinishShutdownRelicenseCycle", 1
         )[0]
         finish_index = cycle.index("engine.finish(sessionId)")
         busy_index = cycle.index("const busyAfterFinish = engine.isBusy()")
@@ -277,6 +277,55 @@ class RunCommandTest(unittest.TestCase):
         self.assertLess(shutdown_index, complete_index)
         self.assertIn("events.lastFinals === 1", cycle)
         self.assertIn("events.completes === 1", cycle)
+        self.assertIn("terminalCallbackOrderOk(events, sessionId)", cycle)
+
+    def test_terminal_callback_order_rejects_complete_before_last_and_any_late_callback(self) -> None:
+        self.assertTrue(
+            MODULE.terminal_callback_order_ok("s:start>s:final-last>s:complete")
+        )
+        self.assertFalse(
+            MODULE.terminal_callback_order_ok("s:start>s:complete>s:final-last")
+        )
+        self.assertFalse(
+            MODULE.terminal_callback_order_ok("s:start>s:final-last>s:complete>s:partial")
+        )
+        self.assertFalse(
+            MODULE.terminal_callback_order_ok("s:start>s:final-last>s:complete>s:event-3")
+        )
+        self.assertFalse(
+            MODULE.terminal_callback_order_ok("s:start>s:final-last>s:complete>s:error")
+        )
+
+    def test_finish_shutdown_relicense_mode_is_available_for_customer_race_reproduction(self) -> None:
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "finish-shutdown-relicense"]
+        ):
+            args = MODULE.parse_args()
+        self.assertEqual("finish-shutdown-relicense", args.mode)
+        self.assertIn("finish-shutdown-relicense", MODULE.FINISH_MODES)
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runFinishShutdownRelicenseCycle", 1)[1].split(
+            "async function runMaxDurationCycle", 1
+        )[0]
+        finish_index = cycle.index("engine.finish(sessionId)")
+        busy_index = cycle.index("const busyAfterFinish = engine.isBusy()")
+        shutdown_index = cycle.index("engine.shutdown()")
+        license_index = cycle.index("await activateLicense(licensePath)")
+        prepare_index = cycle.index("await prepareRuntime()")
+        complete_index = cycle.index("events.completes === 1")
+        self.assertLess(finish_index, busy_index)
+        self.assertLess(busy_index, shutdown_index)
+        self.assertLess(shutdown_index, license_index)
+        self.assertLess(license_index, prepare_index)
+        self.assertLess(prepare_index, complete_index)
+        self.assertIn("events.lastFinals === 1", cycle)
+        self.assertIn("events.completes === 1", cycle)
+        self.assertIn("terminalCallbackOrderOk(events, sessionId)", cycle)
+        self.assertIn("recoveryEvents.starts === 1", cycle)
+        self.assertIn("recoveryEvents.lastFinals === 1", cycle)
+        self.assertIn("recoveryEvents.completes === 1", cycle)
+        self.assertIn("recoveryEvents.unexpectedSessionCallbacks === 0", cycle)
+        self.assertIn("terminalCallbackOrderOk(recoveryEvents, recoverySessionId)", cycle)
 
     def test_endpoint_reentrant_is_lifecycle_only_not_text_quality(self) -> None:
         with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "endpoint-reentrant"]):
