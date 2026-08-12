@@ -194,6 +194,26 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             source,
         )
 
+    def test_clean_prefix_similarity_is_computed_before_the_endpoint_once(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        departure = source.split("if (state === 'departure'", 1)[1].split(
+            "private speakerVadScoreScheduler", 1
+        )[0]
+        self.assertLess(
+            departure.index("this.prepareCleanPrefixSpeakerScore(split)"),
+            departure.index("this.triggerSpeakerVadEndpoint()"),
+        )
+        delivery = source.split("private deliverSpeakerFinal", 1)[1].split(
+            "private flushPendingSpeakerFinals", 1
+        )[0]
+        self.assertIn(
+            "pending.result.speakerScore === undefined", delivery
+        )
+        precompute = source.split("private prepareCleanPrefixSpeakerScore", 1)[1].split(
+            "private syncSpeakerTurnState", 1
+        )[0]
+        self.assertNotIn("targetSpeakerEnabled", precompute)
+
     def test_speaker_turn_accuracy_requires_a_real_endpoint_before_finish(self) -> None:
         carrier = DEVICE_STRESS.read_text(encoding="utf-8")
         cycle = carrier.split("async function runSpeakerVadTurnCycle", 1)[1].split(

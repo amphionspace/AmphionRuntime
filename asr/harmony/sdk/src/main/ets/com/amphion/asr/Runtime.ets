@@ -1186,6 +1186,7 @@ export class AsrSession {
   private svRejectCurrentUtterance: boolean = false;
   private svTurnFinalizer?: SpeakerTurnFinalizer;
   private svPendingSplit?: SpeakerTurnSplit;
+  private svCleanPrefixSpeakerScore?: number;
   private svContextWaitStartedSample: number = -1;
   private svTurnFailOpen: boolean = false;
   private endpointAtMs: number = -1;
@@ -1636,6 +1637,13 @@ export class AsrSession {
     result.tokens = native.tokens;
     result.timestamps = native.timestamps;
     result.isLast = isLast;
+    const cleanPrefixSpeakerScore = this.svCleanPrefixSpeakerScore;
+    this.svCleanPrefixSpeakerScore = undefined;
+    if (cleanPrefixSpeakerScore !== undefined) {
+      result.speakerScore = cleanPrefixSpeakerScore;
+      result.isTargetSpeaker = cleanPrefixSpeakerScore >=
+        (this.config.targetSpeaker?.threshold ?? Number.POSITIVE_INFINITY);
+    }
     const postStartMs = Date.now();
     if (this.itn !== undefined && result.text.length > 0) {
       try {
@@ -1725,7 +1733,7 @@ export class AsrSession {
   }
 
   private deliverSpeakerFinal(pending: PendingSpeakerFinal): void {
-    if (pending.result.isTargetSpeaker !== false) {
+    if (pending.result.isTargetSpeaker !== false && pending.result.speakerScore === undefined) {
       this.applyTargetSpeaker(pending.result, pending.samples);
     }
     if (this.callbackGate.isClosed()) return;
@@ -2187,6 +2195,7 @@ export class AsrSession {
         return false;
       }
       this.svPendingSplit = split;
+      this.prepareCleanPrefixSpeakerScore(split);
       this.svContextWaitStartedSample = -1;
       this.vadSpeechActive = false;
       this.trailingSilenceMs = 0;
@@ -2256,6 +2265,7 @@ export class AsrSession {
     this.svScoreScheduler?.reset();
     this.svTurnFinalizer?.reset();
     this.svPendingSplit = undefined;
+    this.svCleanPrefixSpeakerScore = undefined;
     this.svContextWaitStartedSample = -1;
     this.svTurnFailOpen = false;
     this.svTargetConfirmed = false;
@@ -2272,6 +2282,25 @@ export class AsrSession {
       ASR_SAMPLE_RATE_HZ, windowSamples, hopSamples, config.consecutiveBelow, UTT_MAX_SAMPLES);
     this.svTurnFinalizer = finalizer;
     return finalizer;
+  }
+
+  /**
+   * Speaker similarity is part of the public final, but it does not depend on the clean ASR text.
+   * Compute the exact score selection before publishing the endpoint so endpoint-to-final latency is
+   * reserved for the unavoidable clean prefix decode. dispatchFinal consumes this value once.
+   */
+  private prepareCleanPrefixSpeakerScore(split: SpeakerTurnSplit): void {
+    this.svCleanPrefixSpeakerScore = undefined;
+    const config = this.config.targetSpeaker;
+    if (config === undefined || this.targetExtractor === undefined || this.targetSpeaker === undefined) return;
+    const effective = new EffectiveSpeechBuffer(ASR_SAMPLE_RATE_HZ, UTT_MAX_SAMPLES);
+    effective.observe(split.prefix);
+    effective.confirmSpeech();
+    const effectiveSamples = effective.take(true);
+    const minimum = Math.round(config.minSegSec * ASR_SAMPLE_RATE_HZ);
+    const selection = selectSpeakerScoreSamples(effectiveSamples, split.prefix, minimum, true);
+    if (selection.samples.length < minimum) return;
+    this.svCleanPrefixSpeakerScore = this.scoreSamples(selection.samples);
   }
 
   private syncSpeakerTurnState(finalizer: SpeakerTurnFinalizer): void {
