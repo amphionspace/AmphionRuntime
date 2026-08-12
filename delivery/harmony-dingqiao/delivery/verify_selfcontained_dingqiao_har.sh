@@ -61,6 +61,7 @@ python3 - \
   "$HAR" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json" \
   "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx" \
+  "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
   "$REPO_ROOT/asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police" \
@@ -77,15 +78,16 @@ import shutil
 import tempfile
 
 har = Path(sys.argv[1])
-local_police_root = Path(sys.argv[6])
-zh_en_only = sys.argv[7] == "true"
-approved_target_speaker_model_sha256 = sys.argv[8]
+local_police_root = Path(sys.argv[7])
+zh_en_only = sys.argv[8] == "true"
+approved_target_speaker_model_sha256 = sys.argv[9]
 expected = {
     "package/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx": Path(sys.argv[3]),
-    "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[4]),
-    "package/_bundled/amphion_asr/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[5]),
-    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[4]),
-    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[5]),
+    "package/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx": Path(sys.argv[4]),
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[5]),
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[6]),
+    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libsherpa-onnx-c-api.so": Path(sys.argv[5]),
+    "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so": Path(sys.argv[6]),
 }
 with tarfile.open(har, "r:gz") as package:
     package_names = {member.name for member in package.getmembers() if member.isfile()}
@@ -132,7 +134,7 @@ with tarfile.open(har, "r:gz") as package:
         )
         expected_police_root.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(local_police_root, expected_police_root)
-        sanitizer_path = Path(sys.argv[9]) / "sanitize_public_har_payload.py"
+        sanitizer_path = Path(sys.argv[10]) / "sanitize_public_har_payload.py"
         spec = importlib.util.spec_from_file_location("sanitize_public_har_payload", sanitizer_path)
         if spec is None or spec.loader is None:
             raise SystemExit("[ERROR] cannot load public HAR sanitizer")

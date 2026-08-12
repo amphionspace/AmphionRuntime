@@ -29,6 +29,7 @@ SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
 NODE_ADDON_API_CACHE="${NODE_ADDON_API_CACHE:-$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/.cxx/default/default/debug/arm64-v8a/_deps/node_addon_api-src}"
 TARGET_SPEAKER_SEPARATOR_MODEL="${TARGET_SPEAKER_SEPARATOR_MODEL:-}"
+SPEAKER_TURN_SEGMENTATION_MODEL="${SPEAKER_TURN_SEGMENTATION_MODEL:-}"
 BUILD_WORKSPACE=""
 TEMP_HAP_COPY=""
 
@@ -214,6 +215,16 @@ prepare_build_workspace() {
     mkdir -p "$(dirname "$separator_destination")"
     cp "$TARGET_SPEAKER_SEPARATOR_MODEL" "$separator_destination"
     echo "[INFO] injected target-speaker separator into the isolated test build"
+  fi
+  if [[ -n "$SPEAKER_TURN_SEGMENTATION_MODEL" ]]; then
+    [[ -s "$SPEAKER_TURN_SEGMENTATION_MODEL" ]] || {
+      echo "[ERROR] speaker-turn segmentation model is unreadable: $SPEAKER_TURN_SEGMENTATION_MODEL" >&2
+      exit 1
+    }
+    local turn_destination="$temp_repo/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx"
+    mkdir -p "$(dirname "$turn_destination")"
+    cp "$SPEAKER_TURN_SEGMENTATION_MODEL" "$turn_destination"
+    echo "[INFO] injected speaker-turn segmentation model into the isolated test build"
   fi
   if [[ -d "$NODE_ADDON_API_CACHE/.git" ]] && \
       [[ "$(git -C "$NODE_ADDON_API_CACHE" rev-parse HEAD 2>/dev/null)" == "c679f6f4c9dc6bf9fc0d99cbe5982bd24a5e2c7b" ]]; then
