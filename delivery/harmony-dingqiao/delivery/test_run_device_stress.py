@@ -245,6 +245,13 @@ class RunCommandTest(unittest.TestCase):
         self.assertIn("events.nonEmptySpeakerScores > 0", cycle)
         self.assertIn("speaker-vad-missing-nonempty-speaker-score", cycle)
 
+    def test_same_source_speaker_modes_allow_the_only_entry_as_enrollment(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        self.assertIn("options.enrollmentCount > entries.length", source)
+        self.assertIn(
+            "requiresSeparateCase && options.enrollmentCount === entries.length", source
+        )
+
     def test_voiceprint_vad_begin_scores_speech_even_when_asr_text_is_empty(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
         cycle = source.split("async function runVoiceprintVadBeginCycle", 1)[1].split(

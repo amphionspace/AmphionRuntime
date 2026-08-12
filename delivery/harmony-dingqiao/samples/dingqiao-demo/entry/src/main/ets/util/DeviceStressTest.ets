@@ -2367,7 +2367,12 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entries.length < 2) {
         throw new Error('voiceprint-stress-requires-two-corpus-sources');
       }
-      if (options.enrollmentCount < 1 || options.enrollmentCount >= entries.length) {
+      const requiresSeparateCase = options.mode === 'speaker-vad-turn' ||
+        options.mode === 'target-speaker-enhancement' ||
+        options.mode === 'target-speaker-enhancement-onstart' ||
+        options.mode === 'target-speaker-enhancement-cancel';
+      if (options.enrollmentCount < 1 || options.enrollmentCount > entries.length ||
+        (requiresSeparateCase && options.enrollmentCount === entries.length)) {
         throw new Error('invalid-stress-enrollment-count');
       }
       stressVoiceprintId = prepareStressVoiceprint(
