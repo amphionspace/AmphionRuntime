@@ -149,6 +149,7 @@ shared/regression-set/audio/
 *.onnx
 !asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx
 !asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx
+!asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx
 *.wav
 !asr/test-fixtures/voiceprint-fallback/*.wav
 *.tar

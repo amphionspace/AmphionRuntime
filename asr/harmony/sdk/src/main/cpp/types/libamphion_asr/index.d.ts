@@ -1,6 +1,18 @@
 export const nativeVersion: () => string;
 export const probe: () => string;
 
+export interface SpeakerTurnSegmentationSegment {
+  startSample: number;
+  endSample: number;
+  speaker: number;
+}
+export const loadSpeakerTurnSegmentationModelAsync: (model: Uint8Array) => Promise<void>;
+export const isSpeakerTurnSegmentationModelLoaded: () => boolean;
+export const unloadSpeakerTurnSegmentationModel: () => void;
+export const processSpeakerTurnSegmentation: (
+  samples: Float32Array
+) => SpeakerTurnSegmentationSegment[];
+
 export interface TargetSpeakerEnhancementNativeResult {
   samples: Float32Array;
   speakerSimilarities: Float32Array;

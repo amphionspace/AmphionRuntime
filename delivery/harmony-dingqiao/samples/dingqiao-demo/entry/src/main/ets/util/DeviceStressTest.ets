@@ -47,6 +47,9 @@ export class DeviceStressOptions {
   cycles: number = 1;
   settleMs: number = 0;
   paceMs: number = 20;
+  enrollmentCount: number = 1;
+  enforceTargetSpeakerBusinessText: boolean = true;
+  speakerVadThreshold: number = -2;
 }
 
 class CorpusEntry {
@@ -750,6 +753,7 @@ class CycleResult {
   starts: number = 0;
   partials: number = 0;
   finals: number = 0;
+  nonEmptyFinals: number = 0;
   completes: number = 0;
   errors: number = 0;
   finalChars: number = 0;
@@ -764,6 +768,7 @@ class CycleResult {
   voiceprintIdCount: number = 0;
   fedFrames: number = 0;
   lastFinalsBeforeFinish: number = -1;
+  speechEndsBeforeFinish: number = -1;
   recoveryStarts: number = -1;
   recoveryLastFinals: number = -1;
   recoveryCompletes: number = -1;
@@ -783,7 +788,8 @@ class CycleResult {
 
   toLine(): string {
     return `CYCLE|index=${this.index}|id=${this.corpusId}|status=${this.ok ? 'PASS' : 'FAIL'}` +
-      `|starts=${this.starts}|partials=${this.partials}|finals=${this.finals}|completes=${this.completes}` +
+      `|starts=${this.starts}|partials=${this.partials}|finals=${this.finals}` +
+      `|nonEmptyFinals=${this.nonEmptyFinals}|completes=${this.completes}` +
       `|errors=${this.errors}|finalChars=${this.finalChars}|speakerScores=${this.speakerScores}` +
       `|nonEmptySpeakerScores=${this.nonEmptySpeakerScores}` +
       `|missingSpeakerScores=${this.missingSpeakerScores}` +
@@ -792,7 +798,8 @@ class CycleResult {
       `|requestedMaxAudioDurationMs=${this.requestedMaxAudioDurationMs}` +
       `|effectiveMaxAudioDurationMs=${this.effectiveMaxAudioDurationMs}` +
       `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
-      `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}|liveStreams=${this.liveStreams}` +
+      `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}` +
+      `|speechEndsBeforeFinish=${this.speechEndsBeforeFinish}|liveStreams=${this.liveStreams}` +
       `|recoveryStarts=${this.recoveryStarts}|recoveryLastFinals=${this.recoveryLastFinals}` +
       `|recoveryCompletes=${this.recoveryCompletes}|recoveryErrors=${this.recoveryErrors}` +
       `|recoveryTerminalOrder=${this.recoveryTerminalOrder}` +
@@ -980,20 +987,27 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   return params;
 }
 
-function prepareStressVoiceprint(workPath: string, entry: CorpusEntry): string {
-  const pcm = new ArrayBuffer(5 * 16000 * 2);
-  const fp = fs.openSync(entry.path);
-  let bytesRead = 0;
-  try {
-    bytesRead = fs.readSync(fp.fd, pcm);
-  } finally {
-    fs.closeSync(fp.fd);
+function prepareStressVoiceprint(workPath: string, entries: CorpusEntry[]): string {
+  const samplePaths: string[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    const fp = fs.openSync(entries[i].path);
+    let pcm: ArrayBuffer;
+    let bytesRead = 0;
+    try {
+      const sourceBytes = fs.statSync(fp.fd).size;
+      const readBytes = Math.min(sourceBytes, 5 * 16000 * 2);
+      pcm = new ArrayBuffer(readBytes);
+      bytesRead = fs.readSync(fp.fd, pcm);
+    } finally {
+      fs.closeSync(fp.fd);
+    }
+    if (bytesRead < 3 * 16000 * 2) throw new Error('voiceprint-enrollment-source-too-short');
+    const samplePath = `${workPath}/stress-voiceprint-enroll-${i}.wav`;
+    WavIo.writePcmBytes(samplePath, pcm.slice(0, bytesRead));
+    samplePaths.push(samplePath);
   }
-  if (bytesRead < 3 * 16000 * 2) throw new Error('voiceprint-enrollment-source-too-short');
-  const samplePath = `${workPath}/stress-voiceprint-enroll.wav`;
-  WavIo.writePcmBytes(samplePath, pcm.slice(0, bytesRead));
   const params = new VoiceprintRegisterParams();
-  params.samplePaths = [samplePath];
+  params.samplePaths = samplePaths;
   const registered = SpeechRecognizeSdk.registerVoiceprint(params);
   const ids = Object.keys(registered.voiceprintId);
   if (registered.status !== 0 || ids.length !== 1) {
@@ -1094,6 +1108,7 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.starts = events.starts;
   result.partials = events.partials;
   result.finals = events.finals;
+  result.nonEmptyFinals = events.finalTexts.filter((text: string): boolean => text.length > 0).length;
   result.completes = events.completes;
   result.errors = events.errors;
   result.finalChars = events.finalChars;
@@ -1316,6 +1331,57 @@ async function runTargetSpeakerEnhancementCycle(engine: SpeechRecognitionEngine,
   result.voiceprintIdCount = 1;
   result.fedFrames = fed;
   result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  return result;
+}
+
+async function runSpeakerVadTurnCycle(engine: SpeechRecognitionEngine,
+  entry: CorpusEntry, index: number, voiceprintId: string,
+  options: DeviceStressOptions): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const sessionId = `speaker-vad-turn-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
+  const params = startParams(sessionId, 'speaker-vad-turn', index);
+  params.extraParams['enableSpeakerVad'] = true;
+  params.extraParams['enablePartialResult'] = true;
+  params.extraParams['voiceprintIds'] = [voiceprintId];
+  if (options.speakerVadThreshold >= -1 && options.speakerVadThreshold <= 1) {
+    params.extraParams['speakerVadThreshold'] = options.speakerVadThreshold;
+  }
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    const startDetail = events.errorMessages.length > 0 ?
+      `start-${events.errorMessages[0]}` : 'start-timeout';
+    return finishCycle(index, entry.id, events, startedAt, false, startDetail);
+  }
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, options.paceMs, undefined, 1,
+    (): void => { events.audioFeedStartedAtMs = Date.now(); });
+  if (fed === 0) {
+    engine.cancel(sessionId);
+    return finishCycle(index, entry.id, events, startedAt, false, 'empty-pcm');
+  }
+  const lastFinalsBeforeFinish = events.lastFinals;
+  const speechEndsBeforeFinish = events.speechEnds;
+  engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const text = events.finalTexts.join('');
+  const businessTextPassed = !options.enforceTargetSpeakerBusinessText ||
+    (text.includes('上海') && !text.includes('你好'));
+  const ok = completed && events.starts === 1 && events.finals > 0 && events.lastFinals === 1 &&
+    lastFinalsBeforeFinish === 0 && events.completes === 1 && events.errors === 0 &&
+    businessTextPassed && events.partials > 0 && speechEndsBeforeFinish > 0 && !engine.isBusy();
+  let detail = ok ? 'speaker-vad-turn-clean' : 'speaker-vad-turn-contract';
+  if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
+  else if (speechEndsBeforeFinish === 0) detail = 'speaker-vad-turn-missing-endpoint';
+  else if (!businessTextPassed) detail = 'speaker-vad-turn-text-contract';
+  if (events.errorMessages.length > 0) {
+    detail = `speaker-vad-turn-error-${events.errorMessages[0]}`;
+  }
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.voiceprintIdCount = 1;
+  result.fedFrames = fed;
+  result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  result.speechEndsBeforeFinish = speechEndsBeforeFinish;
   return result;
 }
 
@@ -2279,7 +2345,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
   let entries: CorpusEntry[] = [];
   let engine: SpeechRecognitionEngine | undefined;
   let stressVoiceprintId: string = '';
-  let stressVoiceprintSamplePath: string = '';
+  const stressVoiceprintSamplePaths: string[] = [];
   let fatal = '';
   logLine(`BEGIN|runId=${options.runId}|mode=${options.mode}|cycles=${options.cycles}`);
 
@@ -2298,6 +2364,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     if (options.mode === 'voiceprint' || options.mode === 'voiceprint-fallback' ||
       options.mode === 'voiceprint-vad-begin' ||
       options.mode === 'voiceprint-vad-begin-idle' || options.mode === 'speaker-vad-onstart' ||
+      options.mode === 'speaker-vad-turn' ||
       options.mode === 'target-speaker-enhancement' ||
       options.mode === 'target-speaker-enhancement-onstart' ||
       options.mode === 'target-speaker-enhancement-cancel') {
@@ -2305,8 +2372,19 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entries.length < 2) {
         throw new Error('voiceprint-stress-requires-two-corpus-sources');
       }
-      stressVoiceprintSamplePath = `${workPath}/stress-voiceprint-enroll.wav`;
-      stressVoiceprintId = prepareStressVoiceprint(workPath, entries[0]);
+      const requiresSeparateCase = options.mode === 'speaker-vad-turn' ||
+        options.mode === 'target-speaker-enhancement' ||
+        options.mode === 'target-speaker-enhancement-onstart' ||
+        options.mode === 'target-speaker-enhancement-cancel';
+      if (options.enrollmentCount < 1 || options.enrollmentCount > entries.length ||
+        (requiresSeparateCase && options.enrollmentCount === entries.length)) {
+        throw new Error('invalid-stress-enrollment-count');
+      }
+      stressVoiceprintId = prepareStressVoiceprint(
+        workPath, entries.slice(0, options.enrollmentCount));
+      for (let i = 0; i < options.enrollmentCount; i++) {
+        stressVoiceprintSamplePaths.push(`${workPath}/stress-voiceprint-enroll-${i}.wav`);
+      }
       if (options.mode === 'voiceprint-fallback') SpeechRecognizeSdk.unloadModel();
     }
 
@@ -2320,10 +2398,12 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entry = entries[1];
       } else if (options.mode === 'voiceprint-fallback') {
         entry = entries[1];
-      } else if (options.mode === 'target-speaker-enhancement' ||
+      } else if (options.mode === 'speaker-vad-turn' ||
+        options.mode === 'target-speaker-enhancement' ||
         options.mode === 'target-speaker-enhancement-onstart' ||
         options.mode === 'target-speaker-enhancement-cancel') {
-        entry = entries[1 + (i % (entries.length - 1))];
+        entry = entries[options.enrollmentCount +
+          (i % (entries.length - options.enrollmentCount))];
       }
       if (recreateEachCycle) engine = createEngine();
       if (engine === undefined) throw new Error('engine-create-failed');
@@ -2343,6 +2423,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runStartWriteCycle(engine, entry, i);
       } else if (options.mode === 'speaker-vad-onstart') {
         result = await runSpeakerVadOnStartCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'speaker-vad-turn') {
+        result = await runSpeakerVadTurnCycle(engine, entry, i, stressVoiceprintId, options);
       } else if (options.mode === 'callback-api-reentrant') {
         result = await runCallbackApiReentrantCycle(engine, entry, i);
       } else if (options.mode === 'endpoint-reentrant') {
@@ -2398,8 +2480,10 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     if (stressVoiceprintId.length > 0) {
       try { SpeechRecognizeSdk.deleteVoiceprint(stressVoiceprintId); } catch (_e) {}
     }
-    if (stressVoiceprintSamplePath.length > 0) {
-      try { if (fs.accessSync(stressVoiceprintSamplePath)) fs.unlinkSync(stressVoiceprintSamplePath); } catch (_e) {}
+    for (let i = 0; i < stressVoiceprintSamplePaths.length; i++) {
+      try {
+        if (fs.accessSync(stressVoiceprintSamplePaths[i])) fs.unlinkSync(stressVoiceprintSamplePaths[i]);
+      } catch (_e) {}
     }
   }
 

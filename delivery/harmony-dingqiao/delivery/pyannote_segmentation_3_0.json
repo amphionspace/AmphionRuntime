@@ -1,0 +1,14 @@
+{
+  "artifact": "pyannote-segmentation-3.0.onnx",
+  "format": "onnx-fp32",
+  "source_repository": "https://huggingface.co/onnx-community/pyannote-segmentation-3.0",
+  "source_revision": "733a93b6473d019a773298e08cefa686894b1854",
+  "source_member": "onnx/model.onnx",
+  "base_model": "https://huggingface.co/pyannote/segmentation-3.0",
+  "license": "MIT",
+  "sha256": "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
+  "input_sample_rate_hz": 16000,
+  "input_window_samples": 160000,
+  "output_frames": 589,
+  "output_classes": 7
+}

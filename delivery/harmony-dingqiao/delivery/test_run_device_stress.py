@@ -25,6 +25,85 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_speaker_turn_manifest_enforces_required_forbidden_text_and_final_count(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "manifest.json"
+            manifest.write_text(
+                '{"files":[{"role":"case","case_id":"S1","path":"case.wav",'
+                '"required_texts":["主讲尾字"],"forbidden_texts":["其他开头"],'
+                '"expected_nonempty_public_finals":1}]}',
+                encoding="utf-8",
+            )
+            mapping = [{"id": "000000", "source": "case.wav"}]
+            clean = [{"id": "000000", "resultHex": "主讲尾字".encode("utf-16-be").hex(),
+                      "nonEmptyFinals": "1"}]
+            leaked = [{"id": "000000", "resultHex": "主讲尾字其他开头".encode("utf-16-be").hex(),
+                       "nonEmptyFinals": "1"}]
+            truncated = [{"id": "000000", "resultHex": "主讲".encode("utf-16-be").hex(),
+                          "nonEmptyFinals": "1"}]
+
+            self.assertEqual("PASS", MODULE.target_speaker_content_verdict(
+                clean, mapping, manifest)["status"])
+            self.assertEqual("FAIL", MODULE.target_speaker_content_verdict(
+                leaked, mapping, manifest)["status"])
+            self.assertEqual("FAIL", MODULE.target_speaker_content_verdict(
+                truncated, mapping, manifest)["status"])
+
+    def test_speaker_turn_manifest_accepts_global_forbidden_text(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "manifest.json"
+            manifest.write_text(
+                '{"business_assertion":{"forbidden_text":"其他开头"},"files":['
+                '{"role":"case","case_id":"S1","path":"case.wav",'
+                '"required_texts":["主讲尾字"],"expected_nonempty_public_finals":1}]}',
+                encoding="utf-8",
+            )
+            mapping = [{"id": "000000", "source": "case.wav"}]
+            clean = [{"id": "000000", "resultHex": "主讲尾字".encode("utf-16-be").hex(),
+                      "nonEmptyFinals": "1"}]
+            leaked = [{"id": "000000", "resultHex": "主讲尾字其他开头".encode("utf-16-be").hex(),
+                       "nonEmptyFinals": "1"}]
+
+            self.assertEqual("PASS", MODULE.target_speaker_content_verdict(
+                clean, mapping, manifest)["status"])
+            self.assertEqual("FAIL", MODULE.target_speaker_content_verdict(
+                leaked, mapping, manifest)["status"])
+
+    def test_speaker_turn_mode_accepts_threshold_and_content_override(self) -> None:
+        with mock.patch.object(
+            sys,
+            "argv",
+            [
+                str(SCRIPT),
+                "--mode", "speaker-vad-turn",
+                "--speaker-vad-threshold", "0.42",
+                "--skip-target-content-check",
+            ],
+        ):
+            args = MODULE.parse_args()
+        self.assertEqual("speaker-vad-turn", args.mode)
+        self.assertEqual(0.42, args.speaker_vad_threshold)
+        self.assertTrue(args.skip_target_content_check)
+
+    def test_speaker_turn_realtime_gate_uses_public_endpoint_to_final_latency(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            hilog = Path(directory) / "hilog.txt"
+            hilog.write_text(
+                "kind=UTTERANCE endpointToFinalLatencyMs=210\n"
+                "kind=UTTERANCE endpointToFinalLatencyMs=990\n",
+                encoding="utf-8",
+            )
+            passed = MODULE.speaker_turn_final_latency_verdict(hilog, required=True)
+            self.assertEqual("PASS", passed["status"])
+            self.assertEqual(990, passed["p95_endpoint_to_final_ms"])
+
+            hilog.write_text(
+                "kind=UTTERANCE endpointToFinalLatencyMs=1001\n",
+                encoding="utf-8",
+            )
+            failed = MODULE.speaker_turn_final_latency_verdict(hilog, required=True)
+            self.assertEqual("FAIL", failed["status"])
+
     def test_installed_package_mode_is_explicit_and_exclusive(self) -> None:
         with mock.patch.object(sys, "argv", [str(SCRIPT), "--installed-package"]):
             args = MODULE.parse_args()
@@ -116,6 +195,16 @@ class RunCommandTest(unittest.TestCase):
             "scenario !== 'multi-utterance' || nonEmptyFinals >= 2", cycle
         )
 
+    def test_voiceprint_enrollment_reads_are_bounded_for_every_source(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        prepare = source.split("function prepareStressVoiceprint", 1)[1].split(
+            "async function feedPcmFile", 1
+        )[0]
+        self.assertIn(
+            "const readBytes = Math.min(sourceBytes, 5 * 16000 * 2)", prepare
+        )
+        self.assertNotIn("entries.length > 1 ? sourceBytes", prepare)
+
     def test_max_duration_gate_covers_burst_and_paced_at_exact_frame_count(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
         cycle = source.split("async function runMaxDurationCycle", 1)[1].split(
@@ -165,6 +254,13 @@ class RunCommandTest(unittest.TestCase):
 
         self.assertIn("events.nonEmptySpeakerScores > 0", cycle)
         self.assertIn("speaker-vad-missing-nonempty-speaker-score", cycle)
+
+    def test_same_source_speaker_modes_allow_the_only_entry_as_enrollment(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        self.assertIn("options.enrollmentCount > entries.length", source)
+        self.assertIn(
+            "requiresSeparateCase && options.enrollmentCount === entries.length", source
+        )
 
     def test_voiceprint_vad_begin_scores_speech_even_when_asr_text_is_empty(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")

@@ -13,7 +13,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/sherpa-onnx)
 
-add_library(amphion_asr SHARED napi_init.cpp target_speaker_enhancer.cpp)
+add_library(amphion_asr SHARED napi_init.cpp target_speaker_enhancer.cpp speaker_turn_segmenter.cpp)
 
 add_library(sherpa_onnx_c_api SHARED IMPORTED)
 set_target_properties(sherpa_onnx_c_api PROPERTIES

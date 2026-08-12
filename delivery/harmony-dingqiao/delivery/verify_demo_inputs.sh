@@ -188,6 +188,7 @@ if [[ -n "$HAP" ]]; then
     "$MODEL_ROOT/manifest.json" \
     "$POLICE_ROOT" \
     "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx" \
+    "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx" \
     "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
     "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
     "$ZH_EN_ONLY" <<'PY'
@@ -205,9 +206,10 @@ expected_module = sys.argv[5]
 local_manifest = Path(sys.argv[6])
 police_root = Path(sys.argv[7])
 local_voiceprint = Path(sys.argv[8])
-local_sherpa = Path(sys.argv[9])
-local_ort = Path(sys.argv[10])
-zh_en_only = sys.argv[11] == "true"
+local_speaker_turn = Path(sys.argv[9])
+local_sherpa = Path(sys.argv[10])
+local_ort = Path(sys.argv[11])
+zh_en_only = sys.argv[12] == "true"
 required = {
     "libs/arm64-v8a/libamphion_asr.so",
     "libs/arm64-v8a/libonnxruntime.so",
@@ -215,6 +217,7 @@ required = {
     "libs/arm64-v8a/libsherpa_onnx.so",
     "resources/rawfile/amphion-license.lic",
     "resources/rawfile/amphion-dingqiao/eres2net.onnx",
+    "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
 }
 with zipfile.ZipFile(hap) as package:
     names = set(package.namelist())
@@ -229,6 +232,8 @@ with zipfile.ZipFile(hap) as package:
         raise SystemExit("[ERROR] HAP model manifest differs from the verified local manifest")
     if package.read("resources/rawfile/amphion-dingqiao/eres2net.onnx") != local_voiceprint.read_bytes():
         raise SystemExit("[ERROR] HAP voiceprint model differs from the verified SDK asset")
+    if package.read("resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx") != local_speaker_turn.read_bytes():
+        raise SystemExit("[ERROR] HAP speaker-turn model differs from the verified SDK asset")
     if not zh_en_only:
         police_manifest = json.loads((police_root / "manifest.json").read_text(encoding="utf-8"))
         for relative, expected_sha256 in police_manifest["files"].items():

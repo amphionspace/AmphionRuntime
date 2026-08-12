@@ -40,6 +40,8 @@ NATIVE_LIBRARIES = {
 OPTIONAL_HAP_MODELS = {
     "target_speaker_separator":
         "resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx",
+    "speaker_turn_segmentation":
+        "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
 }
 TRACKED_BUILD_INPUTS = (
     "asr/harmony",
