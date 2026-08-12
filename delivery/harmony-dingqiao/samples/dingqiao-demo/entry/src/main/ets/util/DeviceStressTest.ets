@@ -995,7 +995,7 @@ function prepareStressVoiceprint(workPath: string, entries: CorpusEntry[]): stri
     let bytesRead = 0;
     try {
       const sourceBytes = fs.statSync(fp.fd).size;
-      const readBytes = entries.length > 1 ? sourceBytes : Math.min(sourceBytes, 5 * 16000 * 2);
+      const readBytes = Math.min(sourceBytes, 5 * 16000 * 2);
       pcm = new ArrayBuffer(readBytes);
       bytesRead = fs.readSync(fp.fd, pcm);
     } finally {

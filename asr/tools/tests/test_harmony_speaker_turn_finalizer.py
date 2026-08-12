@@ -181,6 +181,26 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             constructor,
         )
 
+    def test_missing_target_config_disables_default_speaker_vad_without_throwing(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        loader = source.split("private ensureSpeakerTurnSegmenterLoad", 1)[1].split(
+            "ensureSpeakerTurnSegmenterReady", 1
+        )[0]
+        missing_target = loader.split("if (target === undefined)", 1)[1].split(
+            "if (isSpeakerTurnSegmentationModelLoaded()", 1
+        )[0]
+        self.assertIn("this.speakerVadEnabled = false", missing_target)
+        self.assertIn("Logger.w", missing_target)
+        self.assertNotIn("throw new Error", missing_target)
+
+    def test_clean_redecode_failure_is_reported_as_decode_failure(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        commit = source.split("private commitCleanSpeakerTurn", 1)[1].split(
+            "private resolveSpeakerTurnSplit", 1
+        )[0]
+        self.assertIn("AsrErrorCode.DECODE_FAILED", commit)
+        self.assertNotIn("AsrErrorCode.NATIVE_CRASH", commit)
+
     def test_endpoint_latency_starts_before_clean_prefix_redecode(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
         endpoint = source.split("private triggerSpeakerVadEndpoint", 1)[1].split(

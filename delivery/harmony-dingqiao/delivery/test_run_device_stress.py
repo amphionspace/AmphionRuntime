@@ -195,6 +195,16 @@ class RunCommandTest(unittest.TestCase):
             "scenario !== 'multi-utterance' || nonEmptyFinals >= 2", cycle
         )
 
+    def test_voiceprint_enrollment_reads_are_bounded_for_every_source(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        prepare = source.split("function prepareStressVoiceprint", 1)[1].split(
+            "async function feedPcmFile", 1
+        )[0]
+        self.assertIn(
+            "const readBytes = Math.min(sourceBytes, 5 * 16000 * 2)", prepare
+        )
+        self.assertNotIn("entries.length > 1 ? sourceBytes", prepare)
+
     def test_max_duration_gate_covers_burst_and_paced_at_exact_frame_count(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
         cycle = source.split("async function runMaxDurationCycle", 1)[1].split(

@@ -1508,10 +1508,14 @@ export class AsrSession {
     this.resetSpeakerVadState();
   }
   private ensureSpeakerTurnSegmenterLoad(): void {
+    const target = this.config.targetSpeaker;
+    if (target === undefined) {
+      this.speakerVadEnabled = false;
+      Logger.w('speaker VAD disabled because target speaker config is missing');
+      return;
+    }
     if (isSpeakerTurnSegmentationModelLoaded() || this.speakerTurnSegmenterLoad !== undefined ||
       this.speakerTurnSegmenterUnavailable) return;
-    const target = this.config.targetSpeaker;
-    if (target === undefined) throw new Error('target speaker config required for Speaker VAD');
     let load: Promise<void>;
     try {
       load = AmphionRuntime.getOrCreateSpeakerTurnSegmenterAsync(this.context, target.modelPath);
@@ -2443,7 +2447,7 @@ export class AsrSession {
       }
       this.callbackGate.invoke((): void => {
         this.callback.onError?.(new AsrError(
-          AsrErrorCode.NATIVE_CRASH, `speaker turn clean re-decode failed: ${e}`));
+          AsrErrorCode.DECODE_FAILED, `speaker turn clean re-decode failed: ${e}`));
       });
       this.close();
       return true;
