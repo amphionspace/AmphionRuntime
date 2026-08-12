@@ -103,7 +103,7 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 | Runtime | `prepareRuntime()` | `unloadRuntime()` | 管理运行时框架；卸载时模型跟随释放，授权保留 |
 | Model | `createEngineAsync()` / `createEngine()` | `unloadModel()` | 模型未加载时加载，同配置已加载时复用 |
 
-调用任一卸载接口前，都应先结束或取消活跃会话，并对持有的 engine 调用 `shutdown()`。随后二选一：调用 `unloadModel()` 保留 Runtime，或调用 `unloadRuntime()` 让模型跟随 Runtime 一并释放。`unloadRuntime()` 不清除已验证授权，后续可直接 `prepareRuntime()`，无需再次 `setLicense()`。
+调用任一卸载接口前，都应先结束或取消活跃会话，并对持有的 engine 调用 `shutdown()`。随后二选一：调用 `unloadModel()` 保留 Runtime，或调用 `unloadRuntime()` 让模型跟随 Runtime 一并释放。若调用与 session 尾部 native 异步工作重叠，SDK 会等 stream 安全关闭后再实际释放，并在此期间拒绝创建新 session；调用方应在 `onComplete` 后重试 `prepareRuntime()`。`unloadRuntime()` 不清除已验证授权，后续可直接 `prepareRuntime()`，无需再次 `setLicense()`。
 
 ## 离线授权
 

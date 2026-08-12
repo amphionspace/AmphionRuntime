@@ -34,7 +34,7 @@ ABILITY = "EntryAbility"
 REMOTE_ROOT = "/data/storage/el2/base/files/asr-stress"
 FINISH_MODES = {
     "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration", "numeric-edge",
-    "finish-shutdown",
+    "finish-shutdown", "finish-shutdown-relicense",
 }
 MIN_MEMORY_SAMPLES = 6
 MIN_MEMORY_OBSERVATION_SECONDS = 15.0
@@ -102,6 +102,7 @@ def parse_args() -> argparse.Namespace:
             "callback-api-reentrant",
             "endpoint-reentrant",
             "finish-shutdown",
+            "finish-shutdown-relicense",
             "user-sequence",
             "numeric-edge",
         ),
@@ -555,6 +556,27 @@ def parse_result(path: Path, run_id: str) -> tuple[dict[str, str], list[dict[str
     return (summary, cycles) if summary is not None else None
 
 
+def terminal_callback_order_ok(trace: str) -> bool:
+    callbacks = trace.split(">") if trace else []
+    last_indexes = [index for index, item in enumerate(callbacks) if item.endswith(":final-last")]
+    complete_indexes = [index for index, item in enumerate(callbacks) if item.endswith(":complete")]
+    if len(last_indexes) != 1 or len(complete_indexes) != 1:
+        return False
+    last_index = last_indexes[0]
+    complete_index = complete_indexes[0]
+    if last_index > complete_index:
+        return False
+    session_prefix = callbacks[last_index].removesuffix("final-last")
+    for item in callbacks[complete_index + 1:]:
+        if (
+            item.startswith(session_prefix + "partial")
+            or item.startswith(session_prefix + "final")
+            or item == session_prefix + "complete"
+        ):
+            return False
+    return True
+
+
 def median_window(values: list[int], from_start: bool) -> float:
     width = max(2, math.ceil(len(values) * 0.2))
     window = values[:width] if from_start else values[-width:]
@@ -867,6 +889,22 @@ def run_stress(args: argparse.Namespace) -> Path:
     if target_speaker_realtime.get("status") == "FAIL":
         overall = "FAIL"
         failures.append("target-speaker processing did not keep up with real-time input")
+    if args.mode == "finish-shutdown-relicense" and any(
+        not terminal_callback_order_ok(cycle.get("trace", "")) for cycle in cycle_results
+    ):
+        overall = "FAIL"
+        failures.append("terminal callback order check failed")
+    if args.mode == "finish-shutdown-relicense" and any(
+        cycle.get("recoveryStarts") != "1"
+        or cycle.get("recoveryLastFinals") != "1"
+        or cycle.get("recoveryCompletes") != "1"
+        or cycle.get("recoveryErrors") != "0"
+        or cycle.get("recoveryTerminalOrder") != "1"
+        or cycle.get("recoveryUnexpectedCallbacks") != "0"
+        for cycle in cycle_results
+    ):
+        overall = "FAIL"
+        failures.append("Runtime recovery session check failed")
 
     report = {
         "run_id": run_id,

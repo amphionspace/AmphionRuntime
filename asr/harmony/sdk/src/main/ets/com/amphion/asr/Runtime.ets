@@ -46,6 +46,7 @@ import { SpeakerVadScoreScheduler } from './SpeakerVadScoreScheduler';
 import { selectSpeakerScoreSamples, speakerScoreSelectionDiagnostic } from './SpeakerScoreFallback';
 import { SessionCallbackGate } from './SessionCallbackGate';
 import { SessionReentryQueue } from './SessionReentryQueue';
+import { RuntimeReleaseGate, RuntimeSessionLease } from './RuntimeReleaseGate';
 import {
   HARMONY_SDK_MAJOR,
   HARMONY_SDK_RELEASE_DATE,
@@ -173,8 +174,12 @@ export class AmphionRuntime {
   // empty and builds its own isolated instance. Each key maps to a list of currently-free instances.
   private static vadPool: Map<string, SherpaVad[]> = new Map<string, SherpaVad[]>();
   private static loadGeneration: number = 0;
+  private static releaseGate: RuntimeReleaseGate = new RuntimeReleaseGate();
 
   static async init(context: Context, options?: AmphionOptions): Promise<void> {
+    if (AmphionRuntime.releaseGate.isReleasePending()) {
+      throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: AmphionRuntime release is pending`);
+    }
     if (AmphionRuntime.initialized) {
       Logger.w('AmphionRuntime.init called more than once, ignored.');
       return;
@@ -751,6 +756,10 @@ export class AmphionRuntime {
    * (initialized / appContext / license 不变),下次 create 只需重付模型加载,无需重建运行时。
    */
   static unloadModel(): void {
+    AmphionRuntime.releaseGate.requestModelUnload((): void => AmphionRuntime.unloadModelNow());
+  }
+
+  private static unloadModelNow(): void {
     AmphionRuntime.loadGeneration += 1;
     // 显式释放 native session 内存(否则清 Map 只丢引用,native 权重要等 GC finalizer 才回收 → 内存不降)。
     // close() 幂等,native handle 的 Close() 防双重释放,与后续 GC 回收 wrapper 对象安全共存。
@@ -793,10 +802,24 @@ export class AmphionRuntime {
    * 为未初始化。native .so 由 OS 保留映射,无法在进程内真正 unload。
    */
   static release(): void {
+    void AmphionRuntime.releaseAsync().catch((e: Object): void => {
+      Logger.w(`AmphionRuntime release failed: ${e}`);
+    });
+  }
+
+  static releaseAsync(): Promise<void> {
+    return AmphionRuntime.releaseGate.requestRuntimeRelease((): void => AmphionRuntime.releaseNow());
+  }
+
+  static isReleasePending(): boolean {
+    return AmphionRuntime.releaseGate.isReleasePending();
+  }
+
+  private static releaseNow(): void {
     AmphionRuntime.runtimeGeneration += 1;
     // Promise 本身不可取消；清掉 single-flight 引用允许后续 init 立即开始，旧任务会被 generation 拒绝提交。
     AmphionRuntime.initTask = undefined;
-    AmphionRuntime.unloadModel();
+    AmphionRuntime.unloadModelNow();
     AmphionRuntime.initialized = false;
     AmphionRuntime.appContext = undefined;
     AmphionRuntime.options = new AmphionOptions();
@@ -804,6 +827,15 @@ export class AmphionRuntime {
   }
 
   static allocateSessionId(): number { return AmphionRuntime.nextSessionId++; }
+
+  static retainSession(): RuntimeSessionLease {
+    AmphionRuntime.checkInitialized();
+    const lease = AmphionRuntime.releaseGate.retainSession();
+    if (lease === undefined) {
+      throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: AmphionRuntime release is pending`);
+    }
+    return lease;
+  }
 
   static activeOnlineStreamCount(): number { return onlineStreamLiveCount(); }
 
@@ -840,7 +872,7 @@ export class AmphionRuntime {
   }
 
   private static checkInitialized(): void {
-    if (!AmphionRuntime.initialized) {
+    if (!AmphionRuntime.initialized || AmphionRuntime.releaseGate.isReleasePending()) {
       throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: AmphionRuntime.init must be called first`);
     }
   }
@@ -1005,20 +1037,35 @@ export class AsrEngine {
       !this.config.targetSpeaker.deferLoad) {
       this.targetExtractor = this.createSpeakerExtractor(this.config.targetSpeaker);
     }
-    const session = new AsrSession(
-      AmphionRuntime.allocateSessionId(),
-      this.context,
-      this.language,
-      this.config,
-      this.layout,
-      this.recognizer,
-      this.punctuation,
-      this.itn,
-      this.targetExtractor,
-      sessionConfig,
-      callback,
-      this.engineReadyMs
-    );
+    const lease = AmphionRuntime.retainSession();
+    let session: AsrSession;
+    let stream: OnlineStream | undefined;
+    try {
+      stream = this.recognizer.createStream();
+      session = new AsrSession(
+        AmphionRuntime.allocateSessionId(),
+        this.context,
+        this.language,
+        this.config,
+        this.layout,
+        this.recognizer,
+        stream,
+        lease,
+        this.punctuation,
+        this.itn,
+        this.targetExtractor,
+        sessionConfig,
+        callback,
+        this.engineReadyMs
+      );
+    } catch (e) {
+      if (stream === undefined) {
+        lease.release();
+      } else if (!lease.releaseAfterClose((): void => { stream?.close(); })) {
+        Logger.w('session construction failed and stream close failed; Runtime lease retained');
+      }
+      throw new Error(`${e}`);
+    }
     const targetConfig = this.config.targetSpeaker;
     if (targetConfig !== undefined && targetConfig.deferLoad && targetConfig.enabledByDefault) {
       session.setTargetSpeakerEnabled(true);
@@ -1102,15 +1149,22 @@ export class AsrSession {
   private stopNotificationPending: boolean = false;
   private pendingSpeakerFinals: PendingSpeakerFinal[] = [];
   private sessionConfig: SessionConfig;
+  private runtimeLease: RuntimeSessionLease;
 
-  constructor(sessionId: number, context: Context, language: AsrLanguage, config: AsrConfig, layout: InstalledLayout, recognizer: OnlineRecognizer, punctuation: OfflinePunctuation | undefined, itn: WetextItn | undefined, targetExtractor: SpeakerEmbeddingExtractor | undefined, sessionConfig: SessionConfig, callback: AsrCallback, engineReadyMs: number) {
+  constructor(sessionId: number, context: Context, language: AsrLanguage, config: AsrConfig,
+    layout: InstalledLayout, recognizer: OnlineRecognizer, stream: OnlineStream,
+    runtimeLease: RuntimeSessionLease,
+    punctuation: OfflinePunctuation | undefined, itn: WetextItn | undefined,
+    targetExtractor: SpeakerEmbeddingExtractor | undefined, sessionConfig: SessionConfig,
+    callback: AsrCallback, engineReadyMs: number) {
     this.sessionId = sessionId;
     this.context = context;
     this.language = language;
     this.config = config;
     this.layout = layout;
     this.recognizer = recognizer;
-    this.stream = recognizer.createStream();
+    this.stream = stream;
+    this.runtimeLease = runtimeLease;
     this.punctuation = punctuation;
     this.itn = itn;
     this.targetExtractor = targetExtractor;
@@ -1127,12 +1181,20 @@ export class AsrSession {
       requestedConfirmationGraceMs, maxConfirmationGraceMs);
     this.initialSilenceTracker = new InitialSilenceTracker(
       initialSilenceTimeoutMs, ASR_SAMPLE_RATE_HZ, initialSilenceConfirmationGraceMs);
-    if (config.vad) {
-      this.vad = this.createVad();
+    try {
+      if (config.vad) {
+        this.vad = this.createVad();
+      }
+      // 预热已前移到 recognizer 创建处一次性完成(见 AmphionRuntime.warmUpRecognizer),
+      // 这里不再每次 startListening 都跑 encoder,避免每次点"开始识别"卡 3~4 秒。
+      this.callbackGate.invoke((): void => { this.callback.onSessionStarted?.(); });
+    } catch (e) {
+      if (this.vad !== undefined) {
+        AmphionRuntime.releaseVad(this.vadKey, this.vad);
+        this.vad = undefined;
+      }
+      throw new Error(`${e}`);
     }
-    // 预热已前移到 recognizer 创建处一次性完成(见 AmphionRuntime.warmUpRecognizer),
-    // 这里不再每次 startListening 都跑 encoder,避免每次点"开始识别"卡 3~4 秒。
-    this.callbackGate.invoke((): void => { this.callback.onSessionStarted?.(); });
   }
 
   acceptPcmShort(samples: Int16Array): void {
@@ -2061,8 +2123,11 @@ export class AsrSession {
 
   private releaseStreamIfClosed(): void {
     if (!this.callbackGate.isClosed() || this.streamCallDepth > 0 || this.streamReleased) return;
+    if (!this.runtimeLease.releaseAfterClose((): void => { this.stream.close(); })) {
+      Logger.w(`session ${this.sessionId} stream close failed; Runtime lease retained`);
+      return;
+    }
     this.streamReleased = true;
-    this.stream.close();
   }
 }
 
