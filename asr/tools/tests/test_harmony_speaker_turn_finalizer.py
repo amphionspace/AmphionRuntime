@@ -214,18 +214,33 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         )[0]
         self.assertNotIn("targetSpeakerEnabled", precompute)
 
-    def test_clean_prefix_uses_a_shorter_tail_without_changing_normal_finish(self) -> None:
+    def test_low_score_predecodes_only_the_immutable_prefix_before_endpoint(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
         commit = source.split("private commitCleanSpeakerTurn", 1)[1].split(
             "private resolveSpeakerTurnSplit", 1
         )[0]
-        sync_stop = source.split("private stopNow()", 1)[1].split(
-            "private async stopNowAsync", 1
+        speaker_gate = source.split("private maybeTriggerSpeakerVadEndpoint", 1)[1].split(
+            "private speakerVadScoreScheduler", 1
         )[0]
-        self.assertIn(
-            "appendFinalTailSilence(CLEAN_PREFIX_FINAL_TAIL_SILENCE_MS)", commit
+        prepare_index = speaker_gate.index("this.prepareSpeakerTurnPrefix(finalizer)")
+        departure_index = speaker_gate.index("if (state === 'departure'")
+        endpoint_index = speaker_gate.index("this.triggerSpeakerVadEndpoint()", departure_index)
+        self.assertLess(prepare_index, endpoint_index)
+        self.assertIn("preparedSamples < split.prefix.length", commit)
+        self.assertIn("this.appendFinalTailSilence()", commit)
+        self.assertNotIn("CLEAN_PREFIX_FINAL_TAIL_SILENCE_MS", source)
+
+    def test_safe_predecode_watermark_is_before_the_score_transition_band(self) -> None:
+        self.run_finalizer(
+            """
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000);
+            finalizer.accept(new Float32Array(3_000));
+            finalizer.observeScore(2_000, 0.65, 0.35);
+            assert.equal(finalizer.safePrefixEndSample(), 1_000);
+            finalizer.observeScore(2_400, 0.20, 0.35);
+            assert.equal(finalizer.safePrefixEndSample(), 1_000);
+            """
         )
-        self.assertIn("this.appendFinalTailSilence()", sync_stop)
 
     def test_speaker_turn_accuracy_requires_a_real_endpoint_before_finish(self) -> None:
         carrier = DEVICE_STRESS.read_text(encoding="utf-8")

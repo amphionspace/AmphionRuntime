@@ -80,9 +80,6 @@ const UTT_MAX_SAMPLES: number = 25 * ASR_SAMPLE_RATE_HZ;
 // chunk (~640 ms); padding two complete chunks guarantees two more decode opportunities regardless
 // of the current chunk phase. This is synthetic input, not a 1.28-second wall-clock delay.
 const FINAL_TAIL_SILENCE_MS: number = 1280;
-// A clean speaker-turn prefix already ends at a verified acoustic/token boundary. It needs enough
-// right context to flush one encoder chunk, not the four-chunk safety tail used by arbitrary finish.
-const CLEAN_PREFIX_FINAL_TAIL_SILENCE_MS: number = 320;
 const SPEAKER_TURN_SEGMENTATION_MODEL: string = 'pyannote-segmentation-3.0.onnx';
 
 class DoneCancellable implements Cancellable {
@@ -1190,6 +1187,9 @@ export class AsrSession {
   private svTurnFinalizer?: SpeakerTurnFinalizer;
   private svPendingSplit?: SpeakerTurnSplit;
   private svCleanPrefixSpeakerScore?: number;
+  private svPreparedPrefixStream?: OnlineStream;
+  private svPreparedPrefixSamples: number = 0;
+  private svPreparedPrefixDecodeMs: number = 0;
   private svContextWaitStartedSample: number = -1;
   private svTurnFailOpen: boolean = false;
   private endpointAtMs: number = -1;
@@ -1542,6 +1542,7 @@ export class AsrSession {
     this.targetExtractorLoad = undefined;
     this.speakerTurnSegmenterLoad = undefined;
     this.pendingSpeakerFinals = [];
+    this.discardPreparedSpeakerTurnPrefix();
     this.speakerPcmBuffers.clearAll();
     this.effectiveSpeechBuffer.reset();
     // 归还 VAD 到空闲池,供后续会话复用(顺序场景保持 RSS 平)。closed 早退保证同一实例只归还一次,
@@ -2161,10 +2162,16 @@ export class AsrSession {
       `rtf=${(scoreElapsedMs / windowMs).toFixed(3)} confirmed=${this.svTargetConfirmed} ` +
       `below=${this.svBelowCount} endSample=${scheduler.totalSamples()}`);
     if (state === 'pre-target') {
+      this.discardPreparedSpeakerTurnPrefix();
       this.vadSpeechActive = false;
       this.trailingSilenceMs = 0;
       this.triggerSpeakerVadEndpoint();
       return true;
+    }
+    if (state === 'target-active' || state === 'target-confirmed') {
+      this.discardPreparedSpeakerTurnPrefix();
+    } else if (state === 'below' || state === 'departure') {
+      this.prepareSpeakerTurnPrefix(finalizer);
     }
     if (state === 'departure' && this.vadSpeechActive) {
       let split = this.resolveSpeakerTurnSplit(finalizer, sv);
@@ -2191,6 +2198,7 @@ export class AsrSession {
         }
       }
       if (split === undefined) {
+        this.discardPreparedSpeakerTurnPrefix();
         this.svContextWaitStartedSample = -1;
         this.svTurnFailOpen = true;
         Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=fail-open ` +
@@ -2269,6 +2277,7 @@ export class AsrSession {
     this.svTurnFinalizer?.reset();
     this.svPendingSplit = undefined;
     this.svCleanPrefixSpeakerScore = undefined;
+    this.discardPreparedSpeakerTurnPrefix();
     this.svContextWaitStartedSample = -1;
     this.svTurnFailOpen = false;
     this.svTargetConfirmed = false;
@@ -2285,6 +2294,41 @@ export class AsrSession {
       ASR_SAMPLE_RATE_HZ, windowSamples, hopSamples, config.consecutiveBelow, UTT_MAX_SAMPLES);
     this.svTurnFinalizer = finalizer;
     return finalizer;
+  }
+
+  /** Decode the immutable target prefix while the second low-score window is still arriving. */
+  private prepareSpeakerTurnPrefix(finalizer: SpeakerTurnFinalizer): void {
+    if (this.svPreparedPrefixStream !== undefined) return;
+    const safeEnd = finalizer.safePrefixEndSample();
+    if (safeEnd <= 0) return;
+    const samples = finalizer.samples();
+    if (safeEnd > samples.length) return;
+    const stream = this.recognizer.createStream();
+    try {
+      const wave: Samples = {
+        samples: samples.slice(0, safeEnd), sampleRate: ASR_SAMPLE_RATE_HZ
+      } as Samples;
+      stream.acceptWaveform(wave);
+      const started = Date.now();
+      while (this.recognizer.isReady(stream)) this.recognizer.decode(stream);
+      this.svPreparedPrefixDecodeMs = Date.now() - started;
+      this.svPreparedPrefixSamples = safeEnd;
+      this.svPreparedPrefixStream = stream;
+      Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=prepare-prefix ` +
+        `samples=${safeEnd} decodeMs=${this.svPreparedPrefixDecodeMs}`);
+    } catch (e) {
+      stream.close();
+      this.svPreparedPrefixDecodeMs = 0;
+      this.svPreparedPrefixSamples = 0;
+      Logger.w(`speaker turn prefix preparation failed; using full clean decode: ${e}`);
+    }
+  }
+
+  private discardPreparedSpeakerTurnPrefix(): void {
+    this.svPreparedPrefixStream?.close();
+    this.svPreparedPrefixStream = undefined;
+    this.svPreparedPrefixSamples = 0;
+    this.svPreparedPrefixDecodeMs = 0;
   }
 
   /**
@@ -2338,12 +2382,23 @@ export class AsrSession {
     const speculativeStream = this.stream;
     let prefixStream: OnlineStream | undefined;
     try {
-      prefixStream = this.recognizer.createStream();
+      const preparedSamples = this.svPreparedPrefixSamples <= split.cutSample ?
+        this.svPreparedPrefixSamples : 0;
+      const preparedDecodeMs = preparedSamples > 0 ? this.svPreparedPrefixDecodeMs : 0;
+      if (preparedSamples > 0) prefixStream = this.svPreparedPrefixStream;
+      if (prefixStream === undefined) prefixStream = this.recognizer.createStream();
+      this.svPreparedPrefixStream = undefined;
+      this.svPreparedPrefixSamples = 0;
+      this.svPreparedPrefixDecodeMs = 0;
       this.stream = prefixStream;
       const decodeStartMs = Date.now();
-      const prefixWave: Samples = { samples: split.prefix, sampleRate: ASR_SAMPLE_RATE_HZ } as Samples;
-      prefixStream.acceptWaveform(prefixWave);
-      this.appendFinalTailSilence(CLEAN_PREFIX_FINAL_TAIL_SILENCE_MS);
+      if (preparedSamples < split.prefix.length) {
+        const prefixWave: Samples = {
+          samples: split.prefix.slice(preparedSamples), sampleRate: ASR_SAMPLE_RATE_HZ
+        } as Samples;
+        prefixStream.acceptWaveform(prefixWave);
+      }
+      this.appendFinalTailSilence();
       prefixStream.inputFinished();
       while (this.recognizer.isReady(prefixStream)) this.recognizer.decode(prefixStream);
       const clean = this.recognizer.getResult(prefixStream);
@@ -2360,7 +2415,7 @@ export class AsrSession {
       this.svTargetConfirmed = true;
       this.svRejectCurrentUtterance = false;
       speculativeStream.close();
-      this.dispatchFinal(endpointTriggered, Date.now() - decodeStartMs, isLast);
+      this.dispatchFinal(endpointTriggered, preparedDecodeMs + Date.now() - decodeStartMs, isLast);
       if (this.callbackGate.isClosed()) return true;
       if (isLast) {
         this.notifyStopped();

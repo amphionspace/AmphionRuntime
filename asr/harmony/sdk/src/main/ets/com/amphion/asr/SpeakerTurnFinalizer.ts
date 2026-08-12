@@ -119,6 +119,10 @@ export class SpeakerTurnFinalizer {
   consecutiveLowScores(): number { return this.belowCount; }
   sampleCount(): number { return this.retainedSamples; }
   samples(): Float32Array { return concatFloat32(this.parts, this.retainedSamples); }
+  safePrefixEndSample(): number {
+    return this.lastTargetEndSample < 0 ? 0 :
+      Math.max(0, this.lastTargetEndSample - this.windowSamples);
+  }
   lastResolutionReason(): string { return this.resolutionReason; }
   deferResolution(reason: string): void { this.resolutionReason = reason; }
   needsMoreContext(): boolean {
