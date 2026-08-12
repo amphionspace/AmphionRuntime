@@ -80,6 +80,9 @@ const UTT_MAX_SAMPLES: number = 25 * ASR_SAMPLE_RATE_HZ;
 // chunk (~640 ms); padding two complete chunks guarantees two more decode opportunities regardless
 // of the current chunk phase. This is synthetic input, not a 1.28-second wall-clock delay.
 const FINAL_TAIL_SILENCE_MS: number = 1280;
+// A clean speaker-turn prefix already ends at a verified acoustic/token boundary. It needs enough
+// right context to flush one encoder chunk, not the four-chunk safety tail used by arbitrary finish.
+const CLEAN_PREFIX_FINAL_TAIL_SILENCE_MS: number = 320;
 const SPEAKER_TURN_SEGMENTATION_MODEL: string = 'pyannote-segmentation-3.0.onnx';
 
 class DoneCancellable implements Cancellable {
@@ -2099,8 +2102,8 @@ export class AsrSession {
     await this.drainAsync(isFinal);
   }
 
-  private appendFinalTailSilence(): void {
-    const n = Math.max(0, Math.round(ASR_SAMPLE_RATE_HZ * FINAL_TAIL_SILENCE_MS / 1000));
+  private appendFinalTailSilence(durationMs: number = FINAL_TAIL_SILENCE_MS): void {
+    const n = Math.max(0, Math.round(ASR_SAMPLE_RATE_HZ * durationMs / 1000));
     if (n === 0) return;
     const wave: Samples = { samples: new Float32Array(n), sampleRate: ASR_SAMPLE_RATE_HZ } as Samples;
     this.stream.acceptWaveform(wave);
@@ -2340,7 +2343,7 @@ export class AsrSession {
       const decodeStartMs = Date.now();
       const prefixWave: Samples = { samples: split.prefix, sampleRate: ASR_SAMPLE_RATE_HZ } as Samples;
       prefixStream.acceptWaveform(prefixWave);
-      this.appendFinalTailSilence();
+      this.appendFinalTailSilence(CLEAN_PREFIX_FINAL_TAIL_SILENCE_MS);
       prefixStream.inputFinished();
       while (this.recognizer.isReady(prefixStream)) this.recognizer.decode(prefixStream);
       const clean = this.recognizer.getResult(prefixStream);

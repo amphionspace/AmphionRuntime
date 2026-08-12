@@ -214,6 +214,19 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         )[0]
         self.assertNotIn("targetSpeakerEnabled", precompute)
 
+    def test_clean_prefix_uses_a_shorter_tail_without_changing_normal_finish(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        commit = source.split("private commitCleanSpeakerTurn", 1)[1].split(
+            "private resolveSpeakerTurnSplit", 1
+        )[0]
+        sync_stop = source.split("private stopNow()", 1)[1].split(
+            "private async stopNowAsync", 1
+        )[0]
+        self.assertIn(
+            "appendFinalTailSilence(CLEAN_PREFIX_FINAL_TAIL_SILENCE_MS)", commit
+        )
+        self.assertIn("this.appendFinalTailSilence()", sync_stop)
+
     def test_speaker_turn_accuracy_requires_a_real_endpoint_before_finish(self) -> None:
         carrier = DEVICE_STRESS.read_text(encoding="utf-8")
         cycle = carrier.split("async function runSpeakerVadTurnCycle", 1)[1].split(
