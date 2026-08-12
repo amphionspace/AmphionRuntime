@@ -94,6 +94,29 @@ class HarmonyRuntimeReleaseGateTest(unittest.TestCase):
             """
         )
 
+    def test_runtime_release_supersedes_model_unload_during_close_retry(self) -> None:
+        self.run_gate(
+            """
+            const events = [];
+            const gate = new RuntimeReleaseGate();
+            const lease = gate.retainSession();
+            assert.notEqual(lease, undefined);
+            let closeAttempts = 0;
+            const close = () => {
+              closeAttempts += 1;
+              if (closeAttempts < 3) throw new Error('temporary close failure');
+              events.push('stream-closed');
+            };
+
+            assert.equal(lease.releaseAfterClose(close), false);
+            assert.equal(gate.requestModelUnload(() => events.push('model')), true);
+            const released = gate.requestRuntimeRelease(() => events.push('runtime'));
+            await released;
+            assert.deepEqual(events, ['stream-closed', 'runtime']);
+            assert.equal(gate.isReleasePending(), false);
+            """
+        )
+
     def test_model_unload_is_immediate_when_no_session_is_active(self) -> None:
         self.run_gate(
             """
@@ -101,6 +124,31 @@ class HarmonyRuntimeReleaseGateTest(unittest.TestCase):
             const gate = new RuntimeReleaseGate();
             assert.equal(gate.requestModelUnload(() => events.push('model')), false);
             assert.deepEqual(events, ['model']);
+            assert.equal(gate.isReleasePending(), false);
+            """
+        )
+
+    def test_failed_close_does_not_drop_pending_model_unload(self) -> None:
+        self.run_gate(
+            """
+            const events = [];
+            const gate = new RuntimeReleaseGate();
+            const lease = gate.retainSession();
+            assert.notEqual(lease, undefined);
+            let closeAttempts = 0;
+            const close = () => {
+              closeAttempts += 1;
+              if (closeAttempts < 3) throw new Error('temporary close failure');
+              events.push('stream-closed');
+            };
+
+            assert.equal(lease.releaseAfterClose(close), false);
+            assert.equal(gate.requestModelUnload(() => events.push('first-unload')), true);
+            assert.equal(gate.isReleasePending(), true);
+            assert.deepEqual(events, []);
+
+            assert.equal(gate.requestModelUnload(() => events.push('duplicate-unload')), false);
+            assert.deepEqual(events, ['stream-closed', 'first-unload']);
             assert.equal(gate.isReleasePending(), false);
             """
         )
@@ -235,6 +283,7 @@ class HarmonyRuntimeReleaseGateTest(unittest.TestCase):
         self.assertIn("runtimeLease: RuntimeSessionLease", constructor)
         self.assertNotIn("recognizer.createStream()", constructor)
         self.assertIn("AmphionRuntime.releaseVad", constructor)
+        self.assertGreaterEqual(runtime.count("if (e instanceof Error) throw e"), 2)
         self.assertIn("await SpeechRecognizeSdk.invalidateRuntimeAsync()", adapter)
         self.assertIn("return AmphionRuntime.releaseAsync()", adapter)
         self.assertIn("AmphionRuntime.isReleasePending()", adapter)

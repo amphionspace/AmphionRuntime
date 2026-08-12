@@ -111,9 +111,7 @@ function terminalCallbackOrderOk(events: SessionEvents, sessionId: string): bool
   }
   if (lastIndex < 0 || completeIndex < 0 || lastIndex > completeIndex) return false;
   for (let i = completeIndex + 1; i < events.callbackTrace.length; i++) {
-    const item = events.callbackTrace[i];
-    if (item.startsWith(`${sessionId}:partial`) || item.startsWith(`${sessionId}:final`) ||
-      item === complete) return false;
+    if (events.callbackTrace[i].startsWith(`${sessionId}:`)) return false;
   }
   return true;
 }

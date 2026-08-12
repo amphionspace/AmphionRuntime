@@ -568,11 +568,7 @@ def terminal_callback_order_ok(trace: str) -> bool:
         return False
     session_prefix = callbacks[last_index].removesuffix("final-last")
     for item in callbacks[complete_index + 1:]:
-        if (
-            item.startswith(session_prefix + "partial")
-            or item.startswith(session_prefix + "final")
-            or item == session_prefix + "complete"
-        ):
+        if item.startswith(session_prefix):
             return False
     return True
 

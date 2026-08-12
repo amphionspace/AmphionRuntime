@@ -279,7 +279,7 @@ class RunCommandTest(unittest.TestCase):
         self.assertIn("events.completes === 1", cycle)
         self.assertIn("terminalCallbackOrderOk(events, sessionId)", cycle)
 
-    def test_terminal_callback_order_rejects_complete_before_last_and_late_results(self) -> None:
+    def test_terminal_callback_order_rejects_complete_before_last_and_any_late_callback(self) -> None:
         self.assertTrue(
             MODULE.terminal_callback_order_ok("s:start>s:final-last>s:complete")
         )
@@ -288,6 +288,12 @@ class RunCommandTest(unittest.TestCase):
         )
         self.assertFalse(
             MODULE.terminal_callback_order_ok("s:start>s:final-last>s:complete>s:partial")
+        )
+        self.assertFalse(
+            MODULE.terminal_callback_order_ok("s:start>s:final-last>s:complete>s:event-3")
+        )
+        self.assertFalse(
+            MODULE.terminal_callback_order_ok("s:start>s:final-last>s:complete>s:error")
         )
 
     def test_finish_shutdown_relicense_mode_is_available_for_customer_race_reproduction(self) -> None:

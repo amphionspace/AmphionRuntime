@@ -84,26 +84,22 @@ export class RuntimeReleaseGate {
 
   /** Returns true when the model unload was deferred or a failed stream close blocked it. */
   requestModelUnload(unload: () => void): boolean {
-    if (!this.retryFailedSessionCloses()) return true;
     if (this.runtimeRelease !== undefined) return true;
-    if (this.activeSessions === 0) {
-      unload();
-      return false;
-    }
     if (this.modelUnload === undefined) this.modelUnload = unload;
-    return true;
+    if (!this.retryFailedSessionCloses()) return true;
+    const deferred = this.activeSessions > 0;
+    this.flush();
+    return deferred;
   }
 
   requestRuntimeRelease(release: () => void): Promise<void> {
     return new Promise<void>((resolve: () => void, reject: (error: Error) => void): void => {
-      if (!this.retryFailedSessionCloses()) {
-        reject(new Error('native stream close retry failed'));
-        return;
-      }
       this.runtimeWaiters.push(new RuntimeReleaseWaiter(resolve, reject));
       if (this.runtimeRelease === undefined) this.runtimeRelease = release;
-      // Runtime release already includes model unload and therefore supersedes it.
-      this.modelUnload = undefined;
+      // Publish the stronger release before retrying close. A successful retry may synchronously
+      // flush the gate, and must see Runtime release rather than the weaker pending model unload.
+      // If retry still fails, failPendingRelease rejects this waiter but preserves modelUnload.
+      if (!this.retryFailedSessionCloses()) return;
       this.flush();
     });
   }
@@ -144,7 +140,8 @@ export class RuntimeReleaseGate {
 
   private failPendingRelease(error: Error): void {
     this.runtimeRelease = undefined;
-    this.modelUnload = undefined;
+    // Runtime release has a Promise waiter that can observe failure. Model unload does not, so keep
+    // its callback pending until a later explicit unload/release request retries the failed close.
     this.rejectWaiters(error);
   }
 

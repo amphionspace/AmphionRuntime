@@ -872,7 +872,10 @@ export class AmphionRuntime {
   }
 
   private static checkInitialized(): void {
-    if (!AmphionRuntime.initialized || AmphionRuntime.releaseGate.isReleasePending()) {
+    if (AmphionRuntime.releaseGate.isReleasePending()) {
+      throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: AmphionRuntime release is pending`);
+    }
+    if (!AmphionRuntime.initialized) {
       throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: AmphionRuntime.init must be called first`);
     }
   }
@@ -1064,6 +1067,7 @@ export class AsrEngine {
       } else if (!lease.releaseAfterClose((): void => { stream?.close(); })) {
         Logger.w('session construction failed and stream close failed; Runtime lease retained');
       }
+      if (e instanceof Error) throw e;
       throw new Error(`${e}`);
     }
     const targetConfig = this.config.targetSpeaker;
@@ -1193,6 +1197,7 @@ export class AsrSession {
         AmphionRuntime.releaseVad(this.vadKey, this.vad);
         this.vad = undefined;
       }
+      if (e instanceof Error) throw e;
       throw new Error(`${e}`);
     }
   }
