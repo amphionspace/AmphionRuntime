@@ -157,11 +157,12 @@ interface CreateEngineCallback {
 - 若模型仍已加载，模型会跟随 Runtime 一并释放。
 - 已验证授权保留。后续调用顺序为 `prepareRuntime()` → `createEngineAsync()` / `createEngine()`，无需再次 `setLicense()`。
 - 调用后已有 engine 不应继续使用。
+- 正常调用方仍应先结束或取消 session 并 `shutdown()`。若释放请求与 session 尾部 native 异步工作重叠，SDK 会阻止新 session，并把模型和 Runtime 的实际释放延后到 stream 安全关闭；此时 `prepareRuntime()` 会返回 Runtime 正在释放，调用方应在原 session 的 `onComplete` 后重试。
 - Runtime 卸载是 SDK 管理状态和资源的生命周期控制；应用进程已经映射的 native `.so` 由操作系统管理，接口不承诺在进程存活期间物理卸载动态库映射。
 
 ### 3.6 重新设置授权
 
-新的 `setLicense()` 成功后会替换旧授权，并使旧 Runtime 和模型状态失效。必须重新调用 `prepareRuntime()`，收到 `onReady()` 后再创建引擎。新的授权校验失败时，已生效的旧授权与正在使用的 Runtime 不被失败请求覆盖。
+新的 `setLicense()` 成功后会替换旧授权，并使旧 Runtime 和模型状态失效。若旧 session 尚在排空，`setLicense()` 的成功回调会等待其 stream 安全关闭及旧 Runtime 释放。成功回调后必须重新调用 `prepareRuntime()`，收到 `onReady()` 后再创建引擎。新的授权校验失败时，已生效的旧授权与正在使用的 Runtime 不被失败请求覆盖。
 
 ## 4. 引擎接口
 

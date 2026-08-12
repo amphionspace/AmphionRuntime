@@ -1,5 +1,14 @@
 # Changelog
 
+## 未发布 - 2026-08-12（Harmony Runtime 释放竞态修复）
+
+- 修复长音频 `finish -> shutdown -> setLicense` 与 native async decode 尾任务重叠时，旧 Runtime
+  提前释放 recognizer 导致尾部结果丢失或 native 崩溃的问题。
+- session 持有 Runtime lease 直到公开回调关闭、in-flight native 调用返回且 stream 关闭；释放等待期
+  阻止新 session，重新授权成功回调等待旧 Runtime 安全释放。
+- 新增 Runtime release gate 状态机测试和 `finish-shutdown-relicense` Mate 80 真机回归模式；识别、
+  VAD、endpoint 及既有 `isLast -> onComplete` 语义保持不变。
+
 ## 0.3.1 - 2026-08-07（异步 finish 兼容性修复）
 
 - 修复 VAD `SPEECH_END` 回调内同步调用 `finish` 时的结果断层：当前带文本 endpoint final
