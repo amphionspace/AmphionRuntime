@@ -121,6 +121,19 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         self.assertIn("context.resourceManager.getRawFileContentSync", loader)
         self.assertNotIn("absolute speaker model has no bundled segmentation peer", loader)
 
+    def test_boundary_model_is_optional_for_existing_speaker_vad_layouts(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        loader = source.split("private ensureSpeakerTurnSegmenterLoad", 1)[1].split(
+            "isClosed(): boolean", 1
+        )[0]
+        resolver = source.split("private resolveSpeakerTurnSplit", 1)[1].split(
+            "private replaySpeakerSuffix", 1
+        )[0]
+        self.assertIn("speakerTurnSegmenterUnavailable = true", loader)
+        self.assertIn("using acoustic resolver", loader)
+        self.assertNotIn("this.close()", loader)
+        self.assertIn("resolveSpeakerTurnAcoustic(finalizer, config, [], 'unavailable')", resolver)
+
     def test_native_segmenter_uses_model_declared_io_names(self) -> None:
         source = SPEAKER_TURN_NATIVE.read_text(encoding="utf-8")
         self.assertIn("GetInputNameAllocated(0, allocator)", source)
@@ -284,6 +297,30 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
               (_samples, start, end) => end <= 2_100 ? 0.61 : start >= 2_100 ? 0.09 : undefined);
             assert.ok(split);
             assert.equal(split.cutSample, 2_100);
+            """
+        )
+
+    def test_strong_hint_waits_for_its_right_context_instead_of_truncating(self) -> None:
+        self.run_finalizer(
+            """
+            const initial = new Float32Array(3_500);
+            initial.fill(0.1);
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_500, 500, 2, 10_000);
+            finalizer.accept(initial);
+            finalizer.observeScore(2_100, 0.60, 0.35);
+            finalizer.observeScore(3_000, 0.20, 0.35);
+            finalizer.observeScore(3_500, 0.10, 0.35);
+
+            const scorer = (_samples, start, end) =>
+              end <= 2_100 ? 0.60 : start >= 2_100 ? 0.10 : undefined;
+            const early = finalizer.resolve([2.1], 0.35, scorer);
+            assert.equal(early, undefined);
+            assert.equal(finalizer.lastResolutionReason(), 'insufficient-refine-context');
+
+            finalizer.accept(new Float32Array(100));
+            const resolved = finalizer.resolve([2.1], 0.35, scorer);
+            assert.ok(resolved);
+            assert.equal(resolved.cutSample, 2_100);
             """
         )
 

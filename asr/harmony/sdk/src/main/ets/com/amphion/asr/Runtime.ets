@@ -1168,6 +1168,7 @@ export class AsrSession {
   private targetExtractor?: SpeakerEmbeddingExtractor;
   private targetExtractorLoad?: Promise<SpeakerEmbeddingExtractor>;
   private speakerTurnSegmenterLoad?: Promise<void>;
+  private speakerTurnSegmenterUnavailable: boolean = false;
   private targetSpeaker?: Float32Array;
   private targetSpeakerEnabled: boolean = false;
   private speakerVadEnabled: boolean = false;
@@ -1503,11 +1504,18 @@ export class AsrSession {
     this.resetSpeakerVadState();
   }
   private ensureSpeakerTurnSegmenterLoad(): void {
-    if (isSpeakerTurnSegmentationModelLoaded() || this.speakerTurnSegmenterLoad !== undefined) return;
+    if (isSpeakerTurnSegmentationModelLoaded() || this.speakerTurnSegmenterLoad !== undefined ||
+      this.speakerTurnSegmenterUnavailable) return;
     const target = this.config.targetSpeaker;
     if (target === undefined) throw new Error('target speaker config required for Speaker VAD');
-    const load = AmphionRuntime.getOrCreateSpeakerTurnSegmenterAsync(
-      this.context, target.modelPath);
+    let load: Promise<void>;
+    try {
+      load = AmphionRuntime.getOrCreateSpeakerTurnSegmenterAsync(this.context, target.modelPath);
+    } catch (e) {
+      this.speakerTurnSegmenterUnavailable = true;
+      Logger.w(`speaker diarizer unavailable; using acoustic resolver: ${e}`);
+      return;
+    }
     this.speakerTurnSegmenterLoad = load;
     load.then((): void => {
       if (this.callbackGate.isClosed() || this.speakerTurnSegmenterLoad !== load) return;
@@ -1516,11 +1524,11 @@ export class AsrSession {
       if (this.callbackGate.isClosed() || this.speakerTurnSegmenterLoad !== load) return;
       this.speakerTurnSegmenterLoad = undefined;
       if (!this.speakerVadEnabled) return;
+      this.speakerTurnSegmenterUnavailable = true;
+      Logger.w(`speaker diarizer load failed; using acoustic resolver: ${e}`);
       this.callbackGate.invoke((): void => {
-        this.callback.onError?.(new AsrError(
-          AsrErrorCode.POSTPROCESS_FAILED, `speaker diarizer load failed: ${e}`));
+        this.callback.onDebug?.(`speaker diarizer unavailable; using acoustic resolver: ${e}`);
       });
-      this.close();
     });
   }
   isClosed(): boolean { return this.callbackGate.isClosed(); }
@@ -2148,7 +2156,7 @@ export class AsrSession {
       return true;
     }
     if (state === 'departure' && this.vadSpeechActive) {
-      const split = this.resolveSpeakerTurnSplit(finalizer, sv);
+      let split = this.resolveSpeakerTurnSplit(finalizer, sv);
       if (split === undefined && finalizer.needsMoreContext()) {
         if (this.svContextWaitStartedSample < 0) {
           this.svContextWaitStartedSample = scheduler.totalSamples();
@@ -2160,12 +2168,10 @@ export class AsrSession {
               `waitedSamples=${waitedSamples}`);
             return false;
           }
-          this.callbackGate.invoke((): void => {
-            this.callback.onError?.(new AsrError(
-              AsrErrorCode.POSTPROCESS_FAILED, 'speaker diarizer did not become ready'));
-          });
-          this.close();
-          return true;
+          this.speakerTurnSegmenterUnavailable = true;
+          this.speakerTurnSegmenterLoad = undefined;
+          Logger.w('speaker diarizer did not become ready; using acoustic resolver');
+          split = this.resolveSpeakerTurnSplit(finalizer, sv);
         }
         if (waitedSamples < scheduler.hopSamples * 2) {
           Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=await-context ` +
@@ -2360,8 +2366,11 @@ export class AsrSession {
   private resolveSpeakerTurnSplit(finalizer: SpeakerTurnFinalizer,
     config: SpeakerVadConfig): SpeakerTurnSplit | undefined {
     if (!isSpeakerTurnSegmentationModelLoaded()) {
-      finalizer.deferResolution('diarizer-loading');
-      return undefined;
+      if (!this.speakerTurnSegmenterUnavailable) {
+        finalizer.deferResolution('diarizer-loading');
+        return undefined;
+      }
+      return this.resolveSpeakerTurnAcoustic(finalizer, config, [], 'unavailable');
     }
     const diarizationStartMs = Date.now();
     const segments = processSpeakerTurnSegmentation(finalizer.samples());
@@ -2388,10 +2397,15 @@ export class AsrSession {
     // contradictory diarization result, fall back to the independently bounded acoustic/token
     // resolver instead of either trusting a false local-speaker change or abandoning the endpoint.
     if (diarizationReason === 'unsupported-overlap') return undefined;
-    const fallbackStartMs = Date.now();
-    const speculative = this.recognizer.getResult(this.stream);
     const boundaryHints = resolvedSegments.slice(1).map(
       (segment: SpeakerTurnSegment): number => segment.startSample);
+    return this.resolveSpeakerTurnAcoustic(finalizer, config, boundaryHints, diarizationReason);
+  }
+
+  private resolveSpeakerTurnAcoustic(finalizer: SpeakerTurnFinalizer,
+    config: SpeakerVadConfig, boundaryHints: number[], diarizationReason: string): SpeakerTurnSplit | undefined {
+    const fallbackStartMs = Date.now();
+    const speculative = this.recognizer.getResult(this.stream);
     const fallback = finalizer.resolve(speculative.timestamps, config.threshold,
       (samples: Float32Array, _start: number, _end: number): number | undefined => {
         if (samples.length === 0) return undefined;

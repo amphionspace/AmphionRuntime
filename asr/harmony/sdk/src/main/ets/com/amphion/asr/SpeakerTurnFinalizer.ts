@@ -150,18 +150,22 @@ export class SpeakerTurnFinalizer {
     const refineSamples = this.windowSamples;
     const candidates: number[] = [];
     let candidateLackedContext = false;
-    const addCandidate = (sample: number): void => {
+    let strongCandidateLackedRightContext = false;
+    const addCandidate = (sample: number, strong: boolean = false): void => {
       const candidate = Math.round(sample);
       if (candidate < searchStart || candidate > searchEnd ||
         candidate <= 0 || candidate >= all.length || candidates.indexOf(candidate) >= 0) return;
       if (candidate < refineSamples || all.length - candidate < refineSamples) {
         candidateLackedContext = true;
+        if (strong && all.length - candidate < refineSamples) {
+          strongCandidateLackedRightContext = true;
+        }
         return;
       }
       candidates.push(candidate);
     };
     for (let index = 0; index < boundaryHintsSamples.length; index++) {
-      addCandidate(boundaryHintsSamples[index]);
+      addCandidate(boundaryHintsSamples[index], true);
     }
     const hintedCandidateCount = candidates.length;
     const quietRun = this.findQuietRun(all, searchStart, searchEnd, frameSamples);
@@ -171,7 +175,7 @@ export class SpeakerTurnFinalizer {
     }
     const preferredCandidateCount = candidates.length;
     for (let index = 0; index < tokenTimestampsSec.length; index++) {
-      addCandidate(tokenTimestampsSec[index] * this.sampleRate);
+      addCandidate(tokenTimestampsSec[index] * this.sampleRate, true);
     }
     addCandidate(this.firstBelowEndSample - Math.round(this.windowSamples / 2));
     const coarseStep = Math.max(frameSamples, Math.round(this.hopSamples / 2));
@@ -179,6 +183,13 @@ export class SpeakerTurnFinalizer {
       addCandidate(candidate);
     }
     addCandidate(searchEnd);
+    // A diarization/token hint is stronger than the coarse acoustic grid. If its right verification
+    // window is still being recorded, wait for that evidence rather than committing an earlier weak
+    // candidate that can truncate the target speaker's last phone.
+    if (strongCandidateLackedRightContext) {
+      this.resolutionReason = 'insufficient-refine-context';
+      return undefined;
+    }
     if (candidates.length === 0) {
       this.resolutionReason = candidateLackedContext ?
         'insufficient-refine-context' : 'no-boundary-candidates';
