@@ -29,6 +29,10 @@ SPEAKER_TURN_MODEL_METADATA = (
 SPEAKER_TURN_NATIVE = (
     REPO_ROOT / "asr/harmony/sdk/src/main/cpp/speaker_turn_segmenter.cpp"
 )
+DEVICE_STRESS = (
+    REPO_ROOT
+    / "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/util/DeviceStressTest.ets"
+)
 
 
 class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
@@ -150,7 +154,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         async_stop = source.split("private async stopNowAsync", 1)[1].split(
             "updateHotwords", 1
         )[0]
-        commit_index = async_stop.index("this.commitCleanSpeakerTurn(true)")
+        commit_index = async_stop.index("this.commitCleanSpeakerTurn(true, false)")
         speculative_flush_index = async_stop.index("this.appendFinalTailSilence()")
         self.assertLess(commit_index, speculative_flush_index)
 
@@ -170,12 +174,21 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "private resetSpeakerVadState", 1
         )[0]
         timestamp_index = endpoint.index("this.endpointAtMs = Date.now()")
-        commit_index = endpoint.index("this.commitCleanSpeakerTurn(stopAtEndpoint)")
+        commit_index = endpoint.index("this.commitCleanSpeakerTurn(stopAtEndpoint, true)")
         self.assertLess(timestamp_index, commit_index)
         self.assertIn(
-            "this.endpointAtMs >= 0 ? this.endpointAtMs : Date.now()",
+            "endpointTriggered ? this.endpointAtMs : -1",
             source,
         )
+
+    def test_speaker_turn_accuracy_requires_a_real_endpoint_before_finish(self) -> None:
+        carrier = DEVICE_STRESS.read_text(encoding="utf-8")
+        cycle = carrier.split("async function runSpeakerVadTurnCycle", 1)[1].split(
+            "function enableTargetSpeakerEnhancement", 1
+        )[0]
+        self.assertIn("const speechEndsBeforeFinish = events.speechEnds", cycle)
+        self.assertIn("speechEndsBeforeFinish > 0", cycle)
+        self.assertIn("speaker-vad-turn-missing-endpoint", cycle)
 
     def test_c1_diarization_selects_latest_stable_target_to_other_boundary(self) -> None:
         self.run_finalizer(

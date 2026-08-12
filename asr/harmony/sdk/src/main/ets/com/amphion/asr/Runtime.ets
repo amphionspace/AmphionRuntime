@@ -1380,7 +1380,7 @@ export class AsrSession {
     this.streamCallDepth += 1;
     try {
       if (this.speakerVadEnabled && this.svTurnFinalizer?.hasPendingDeparture() &&
-        this.commitCleanSpeakerTurn(true)) {
+        this.commitCleanSpeakerTurn(true, false)) {
         return;
       }
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
@@ -1405,7 +1405,7 @@ export class AsrSession {
     this.streamCallDepth += 1;
     try {
       if (this.speakerVadEnabled && this.svTurnFinalizer?.hasPendingDeparture() &&
-        this.commitCleanSpeakerTurn(true)) {
+        this.commitCleanSpeakerTurn(true, false)) {
         return;
       }
       this.appendFinalTailSilence();
@@ -1690,7 +1690,7 @@ export class AsrSession {
     const pending = new PendingSpeakerFinal(
       result,
       scoreSelection.samples,
-      endpointTriggered ? (this.endpointAtMs >= 0 ? this.endpointAtMs : Date.now()) : -1,
+      endpointTriggered ? this.endpointAtMs : -1,
       decodeDurationMs,
       postProcessMs,
       this.utteranceIndex,
@@ -1999,6 +1999,7 @@ export class AsrSession {
   // stream (Android parity), then resync the VAD/speaker gate. No inputFinished is used here, which
   // is the verified-safe native ordering on Harmony.
   private triggerVadActiveEndpoint(): void {
+    this.endpointAtMs = Date.now();
     if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
     const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
     this.dispatchFinal(true, 0, stopAtEndpoint);
@@ -2232,7 +2233,7 @@ export class AsrSession {
       this.firstPcmMs = -1;
       this.firstPartialLatencyMs = -1;
     } else {
-      if (this.commitCleanSpeakerTurn(stopAtEndpoint)) return;
+      if (this.commitCleanSpeakerTurn(stopAtEndpoint, true)) return;
       this.dispatchFinal(true, 0, stopAtEndpoint);
       if (this.callbackGate.isClosed()) return;
       if (stopAtEndpoint) {
@@ -2279,7 +2280,7 @@ export class AsrSession {
    * the untouched suffix into another fresh stream. Any failure terminates the exceptional session;
    * a known contaminated result is never used as an error fallback.
    */
-  private commitCleanSpeakerTurn(isLast: boolean): boolean {
+  private commitCleanSpeakerTurn(isLast: boolean, endpointTriggered: boolean): boolean {
     const config = this.effectiveSpeakerVad();
     const finalizer = this.svTurnFinalizer;
     if (config === undefined || finalizer === undefined) return false;
@@ -2321,7 +2322,7 @@ export class AsrSession {
       this.svTargetConfirmed = true;
       this.svRejectCurrentUtterance = false;
       speculativeStream.close();
-      this.dispatchFinal(true, Date.now() - decodeStartMs, isLast);
+      this.dispatchFinal(endpointTriggered, Date.now() - decodeStartMs, isLast);
       if (this.callbackGate.isClosed()) return true;
       if (isLast) {
         this.notifyStopped();
