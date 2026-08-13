@@ -6,7 +6,9 @@ import json
 import unittest
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
+import textwrap
 from unittest import mock
 import zipfile
 
@@ -70,6 +72,7 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
             if any("run_finish_compat_release_gate.py" in argument for argument in command.argv)
         )
         self.assertEqual("/secure/signing.json", finish.env["HARMONY_SIGNING_CONFIG"])
+        self.assertIn("--reuse-verified-build", finish.argv)
         matrix = {
             command.name.removeprefix("Harmony device matrix: ")
             for command in commands
@@ -101,6 +104,123 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
         self.assertIn("--release-version 0.3.2", rendered[-1])
         self.assertIn("--delivered-at 2026-08-13", rendered[-1])
         self.assertIn("--output /evidence/0.3.2", rendered[-1])
+
+    def test_release_graph_parallelizes_independent_work_but_serializes_device_modes(self) -> None:
+        gate = load_module(GATE, "automatic_agc_release_gate_graph")
+        tasks = gate.release_tasks(
+            ROOT,
+            model_dir=Path("/models/zhen"),
+            device="device-1",
+            signing_config=Path("/secure/signing.json"),
+            data_dir=Path("/audio/release"),
+            release_version="0.3.2",
+            delivered_at="2026-08-13",
+            release_artifact=Path("/delivery/customer.zip"),
+            delivery_har=Path("/delivery/amphion_dingqiao.har"),
+            evidence_output=Path("/evidence/0.3.2"),
+            evaluation_artifact_root=Path("/evaluation/artifacts"),
+            build_identity=Path("/delivery/build-identity.json"),
+        )
+        by_key = {task.key: task for task in tasks}
+
+        self.assertEqual(3, gate.RELEASE_MAX_PARALLEL)
+        self.assertNotIn("model-identity", by_key)
+        self.assertIn("evaluation-artifacts", by_key)
+        self.assertIn("cheap-contracts", by_key["android-release"].dependencies)
+        self.assertIn("cheap-contracts", by_key["harmony-finish-compat"].dependencies)
+        self.assertNotIn("android-release", by_key["harmony-finish-compat"].dependencies)
+        self.assertEqual(("host-agc",), by_key["low-volume-regression"].dependencies)
+        previous = "harmony-finish-compat"
+        for mode in gate.DEVICE_MATRIX:
+            current = f"device-{mode}"
+            self.assertEqual((previous,), by_key[current].dependencies)
+            previous = current
+        self.assertIn("android-release", by_key["finalize"].dependencies)
+        self.assertIn(previous, by_key["finalize"].dependencies)
+        self.assertIn("low-volume-regression", by_key["finalize"].dependencies)
+
+    def test_task_graph_rejects_missing_and_cyclic_dependencies(self) -> None:
+        gate = load_module(GATE, "automatic_agc_release_gate_invalid_graph")
+        command = gate.GateCommand("noop", (sys.executable, "-c", "pass"), ROOT)
+
+        with self.assertRaisesRegex(ValueError, "unknown dependency"):
+            gate.validate_task_graph([gate.GateTask("a", command, ("missing",))])
+        with self.assertRaisesRegex(ValueError, "cycle"):
+            gate.validate_task_graph(
+                [
+                    gate.GateTask("a", command, ("b",)),
+                    gate.GateTask("b", command, ("a",)),
+                ]
+            )
+
+    def test_task_graph_really_runs_independent_tasks_concurrently(self) -> None:
+        gate = load_module(GATE, "automatic_agc_release_gate_parallel")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = textwrap.dedent(
+                """
+                import sys
+                import time
+                from pathlib import Path
+
+                own = Path(sys.argv[1])
+                peer = Path(sys.argv[2])
+                own.write_text("started", encoding="utf-8")
+                deadline = time.monotonic() + 2
+                while not peer.exists() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                raise SystemExit(0 if peer.exists() else 9)
+                """
+            )
+            first = root / "first"
+            second = root / "second"
+            tasks = [
+                gate.GateTask(
+                    "first",
+                    gate.GateCommand(
+                        "first rendezvous",
+                        (sys.executable, "-c", script, str(first), str(second)),
+                        ROOT,
+                    ),
+                ),
+                gate.GateTask(
+                    "second",
+                    gate.GateCommand(
+                        "second rendezvous",
+                        (sys.executable, "-c", script, str(second), str(first)),
+                        ROOT,
+                    ),
+                ),
+            ]
+
+            self.assertEqual(0, gate.run_task_graph(tasks, max_parallel=2))
+
+    def test_task_graph_failure_never_starts_dependents(self) -> None:
+        gate = load_module(GATE, "automatic_agc_release_gate_fail_fast")
+        with tempfile.TemporaryDirectory() as directory:
+            marker = Path(directory) / "must-not-run"
+            failing = gate.GateCommand("fail", (sys.executable, "-c", "raise SystemExit(7)"), ROOT)
+            dependent = gate.GateCommand(
+                "dependent",
+                (
+                    sys.executable,
+                    "-c",
+                    "from pathlib import Path; import sys; Path(sys.argv[1]).touch()",
+                    str(marker),
+                ),
+                ROOT,
+            )
+
+            result = gate.run_task_graph(
+                [
+                    gate.GateTask("failing", failing),
+                    gate.GateTask("dependent", dependent, ("failing",)),
+                ],
+                max_parallel=2,
+            )
+
+            self.assertEqual(7, result)
+            self.assertFalse(marker.exists())
 
     def test_release_cleanliness_includes_untracked_inputs(self) -> None:
         gate = load_module(GATE, "automatic_agc_release_gate_clean")

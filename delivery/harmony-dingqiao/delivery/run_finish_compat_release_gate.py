@@ -18,6 +18,7 @@ REPO_ROOT = SCRIPT_DIR.parents[2]
 PROJECT_ROOT = REPO_ROOT / "delivery" / "harmony-dingqiao"
 RUNNER = SCRIPT_DIR / "run_device_stress.py"
 DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "build" / "release-gates" / "finish-compat"
+DEFAULT_BUILD_IDENTITY = PROJECT_ROOT / "build" / "smoke" / "build-identity.json"
 
 
 class GateFailure(RuntimeError):
@@ -190,11 +191,42 @@ def build_runner_command(
     return command
 
 
+def build_verified_install_command(device: str = "") -> list[str]:
+    """Install and smoke-test the already source-bound HAP without rebuilding it."""
+    command = [str(SCRIPT_DIR / "build_install_smoke.sh"), "--skip-build", "--zh-en-only"]
+    if device:
+        command.extend(("--device", device))
+    return command
+
+
+def verify_build_identity_command(build_identity: Path) -> list[str]:
+    return [
+        sys.executable,
+        str(SCRIPT_DIR / "harmony_build_identity.py"),
+        "--verify",
+        str(build_identity),
+    ]
+
+
+def prepare_verified_build(build_identity: Path, device: str = "") -> None:
+    """Verify, install, and smoke-test the reusable build before any device mode starts."""
+    subprocess.run(
+        verify_build_identity_command(build_identity),
+        cwd=REPO_ROOT,
+        check=True,
+    )
+    subprocess.run(
+        build_verified_install_command(device),
+        cwd=REPO_ROOT,
+        check=True,
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build once, then run the VAD callback-finish and PTT finish-shutdown USB gates "
-            "against the same Harmony HAP."
+            "Prepare one verified build, then run the VAD callback-finish and PTT "
+            "finish-shutdown USB gates against the same Harmony HAP."
         )
     )
     parser.add_argument("--data-dir", type=Path, default=Path.home() / "Downloads" / "testdata")
@@ -209,6 +241,20 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--device", default="", help="Explicit USB device serial")
     parser.add_argument(
+        "--reuse-verified-build",
+        action="store_true",
+        help=(
+            "Verify and install the existing source-bound HAP once, then run both modes "
+            "without rebuilding or reinstalling it."
+        ),
+    )
+    parser.add_argument(
+        "--build-identity",
+        type=Path,
+        default=None,
+        help="Build identity that must match the existing HAP/HAR artifacts when reusing them.",
+    )
+    parser.add_argument(
         "--summary-output",
         type=Path,
         help="Also write the root PASS/FAIL summary to this exact non-existing path.",
@@ -220,6 +266,10 @@ def parse_args() -> argparse.Namespace:
         parser.error("--finish-shutdown-cycles must be positive")
     if args.files < 3:
         parser.error("--files must be at least 3")
+    if args.reuse_verified_build and args.build_identity is None:
+        parser.error("--reuse-verified-build requires --build-identity")
+    if args.build_identity is None:
+        args.build_identity = DEFAULT_BUILD_IDENTITY
     return args
 
 
@@ -302,6 +352,8 @@ def main() -> int:
     try:
         if git_output("status", "--porcelain"):
             raise GateFailure("release gate requires a clean worktree")
+        if args.reuse_verified_build:
+            prepare_verified_build(args.build_identity, args.device)
         callback_path, callback_report, callback_exit = run_mode(
             build_runner_command(
                 mode="callback-api-reentrant",
@@ -309,7 +361,7 @@ def main() -> int:
                 data_dir=args.data_dir,
                 files=args.files,
                 output_root=runs_root,
-                skip_build_install=False,
+                skip_build_install=args.reuse_verified_build,
                 device=args.device,
             ),
             runs_root,

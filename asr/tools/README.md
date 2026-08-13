@@ -37,7 +37,7 @@ open asr/tools/QUICKSTART.md   # 推荐入口
 | `ANDROID_TOOLCHAIN.md` | B | 精确到版本号的 Android SDK/NDK/AGP/Gradle/Kotlin 安装清单 |
 | `03_build_agc_native.sh` | B | 编译可选的 WebRTC AGC2 音频预处理库（host / Android / Harmony） |
 | `ensure_agc_build_tools.sh` | A | 解析或在忽略目录中安装固定版本的 Meson/Ninja，避免不同 worktree 工具漂移 |
-| `run_automatic_agc_release_gate.py` | A/B | 分阶段执行 AGC 静态、原症状和发布门禁，尽早阻断旧问题复现 |
+| `run_automatic_agc_release_gate.py` | A/B | 按依赖图并行执行 AGC 静态、原症状和发布门禁；同设备模式保持串行，任一分支失败即阻断下游 |
 | `sync_automatic_agc_evidence.py` | A | 只读校验 AGC 完整评测与实现源码的 SHA-256 绑定；实现变化后必须重跑评测，不能只改哈希 |
 | `build_android_agc_release_gate.sh` | B | 在临时克隆中完整构建/验收 Android AAR，避免修改真实 sherpa submodule |
 | `generate_android_test_summary.py` | B | 从四套 Gradle XML 生成发布证据所需的严格 Android 汇总 |
