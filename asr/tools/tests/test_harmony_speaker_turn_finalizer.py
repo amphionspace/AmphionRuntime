@@ -82,6 +82,28 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
+    def test_split_preserves_aligned_raw_and_agc_domains(self) -> None:
+        self.run_finalizer(
+            """
+            const raw = new Float32Array(3_600);
+            for (let i = 0; i < 2_000; i++) raw[i] = i % 2 === 0 ? 0.2 : -0.2;
+            for (let i = 2_200; i < raw.length; i++) raw[i] = i % 2 === 0 ? 0.15 : -0.15;
+            const processed = Float32Array.from(raw, value => value * 2);
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000);
+            finalizer.accept(raw, processed);
+            finalizer.observeScore(2_000, 0.65, 0.35);
+            finalizer.observeScore(3_000, 0.20, 0.35);
+            finalizer.observeScore(3_200, 0.10, 0.35);
+            const split = finalizer.resolve([0.3, 1.0, 2.2], 0.35,
+              (_samples, start, end) => end <= 2_200 ? 0.60 : start >= 2_200 ? 0.10 : undefined);
+            assert.ok(split);
+            assert.equal(split.processedPrefix.length, split.prefix.length);
+            assert.equal(split.processedSuffix.length, split.suffix.length);
+            assert.equal(split.processedPrefix[100], split.prefix[100] * 2);
+            assert.equal(split.processedSuffix[100], split.suffix[100] * 2);
+            """
+        )
+
     def test_finish_rejects_replayed_suffix_without_a_confirmed_target(self) -> None:
         self.run_finalizer(
             """
@@ -155,12 +177,14 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         async_lane = source.split("private async feedChunkAndDecodeAsync", 1)[1].split(
             "// Acoustic activity only grants", 1
         )[0]
-        accept_index = async_lane.index("this.speakerTurnFinalizer(speakerVad).accept(samples)")
-        split_index = async_lane.index("this.maybeTriggerSpeakerVadEndpoint(samples.length)")
-        decode_index = async_lane.index("await this.feedRecognizerAsync(samples, false)")
+        accept_index = async_lane.index(
+            "this.speakerTurnFinalizer(speakerVad).accept(rawSamples, processedSamples)"
+        )
+        split_index = async_lane.index("this.maybeTriggerSpeakerVadEndpoint(rawSamples.length)")
+        decode_index = async_lane.index("await this.feedRecognizerAsync(processedSamples, false)")
         self.assertLess(accept_index, split_index)
         self.assertLess(split_index, decode_index)
-        self.assertEqual(1, async_lane.count("this.maybeTriggerSpeakerVadEndpoint(samples.length)"))
+        self.assertEqual(1, async_lane.count("this.maybeTriggerSpeakerVadEndpoint(rawSamples.length)"))
 
     def test_async_finish_commits_a_pending_clean_speaker_turn(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")

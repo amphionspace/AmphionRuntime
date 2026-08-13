@@ -189,7 +189,7 @@ class HarmonyInitialSilenceTrackerTest(unittest.TestCase):
         self.assertIn("const INITIAL_DECISION_CHUNK_SAMPLES: number = ASR_SAMPLE_RATE_HZ / 50;", runtime)
         self.assertIn("this.vadWindowSize = 512;", runtime)
         self.assertLess(
-            runtime.index("this.initialSilenceTracker.observeAcousticSamples(samples)"),
+            runtime.index("this.initialSilenceTracker.observeAcousticSamples(rawSamples)"),
             runtime.index("const initialSilenceTimedOut = this.initialSilenceTracker.observeVad(i, anySpeech)"),
         )
 

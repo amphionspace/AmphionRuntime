@@ -21,9 +21,12 @@ REQUIRED_DOCS = {
     "docs/DINGQIAO_VOICEPRINT_MODEL.md",
     "docs/LICENSE.md",
     "docs/NOTICE",
+    "docs/third-party/Apache-2.0.txt",
+    "docs/third-party/WebRTC-BSD-3-Clause.txt",
     "docs/语音识别SDK接口.md",
 }
 REQUIRED_AAR_PREFIXES = {
+    "jni/arm64-v8a/libamphion_audio_processing.so",
     "assets/amphion-models/zh-en/v1/",
     "assets/amphion-models/punct-zhen/v1/",
     "assets/amphion-models/itn-zh/v1/",

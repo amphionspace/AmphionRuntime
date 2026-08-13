@@ -21,11 +21,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SHERPA_ROOT="$REPO_ROOT/third_party/sherpa-onnx"
 SDK_JNI_LIBS_DIR="$REPO_ROOT/asr/android/sdk/src/main/jniLibs"
+AGC_ROOT="$REPO_ROOT/asr/native/audio-processing"
 
 copy_one_abi() {
   local ABI="$1"
   local SRC_DIR="$SHERPA_ROOT/build-android-${ABI}/install/lib"
   local DST_DIR="$SDK_JNI_LIBS_DIR/${ABI}"
+  local AGC_SO="$AGC_ROOT/build-android-${ABI}/libamphion_audio_processing.so"
 
   if [[ ! -d "$SRC_DIR" ]]; then
     if [[ "$STRICT" == "1" ]]; then
@@ -50,6 +52,14 @@ copy_one_abi() {
       echo "[WARN] $SRC_DIR/$f 缺失"
     fi
   done
+  if [[ -f "$AGC_SO" ]]; then
+    cp -fv "$AGC_SO" "$DST_DIR/libamphion_audio_processing.so"
+  elif [[ "$STRICT" == "1" ]]; then
+    echo "[ERROR] $AGC_SO 缺失，请先运行 03_build_agc_native.sh android-$ABI" >&2
+    return 1
+  else
+    echo "[WARN] $AGC_SO 缺失"
+  fi
 
   # 别忘了 strip（NDK 已经 strip 过 release 版本，这里只确认大小）
   ls -lh "$DST_DIR/"

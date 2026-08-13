@@ -275,6 +275,8 @@ cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/ASR_LIFECYCLE_ASSURANC
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/NOTICE" "$OUT_ROOT/docs/"
 mkdir -p "$OUT_ROOT/docs/third-party"
 cp -v "$REPO_ROOT/LICENSE" "$OUT_ROOT/docs/third-party/Apache-2.0.txt"
+cp -v "$REPO_ROOT/asr/native/audio-processing/LICENSES/WEBRTC_AUDIO_PROCESSING.txt" \
+  "$OUT_ROOT/docs/third-party/WebRTC-BSD-3-Clause.txt"
 cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/PRIVACY.md" "$OUT_ROOT/docs/"
 COMMIT_CHANGELOG="$OUT_ROOT/docs/.CHANGELOG_COMMITS.md"
 python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
@@ -478,6 +480,7 @@ payload = {
         "onnx_md5": dict(sorted(approved_onnx_md5.items())),
     },
     "local_native": {
+        "libamphion_audio_processing.so": sha256(repo / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libamphion_audio_processing.so"),
         "libsherpa-onnx-c-api.so": sha256(repo / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so"),
         "libonnxruntime.so": sha256(repo / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so"),
     },

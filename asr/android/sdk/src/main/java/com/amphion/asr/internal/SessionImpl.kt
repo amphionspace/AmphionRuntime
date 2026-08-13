@@ -44,6 +44,7 @@ internal class SessionImpl(
 
     private val closed = AtomicBoolean(false)
     private val stopped = AtomicBoolean(false)
+    private val decoderSubmissionFence = DecoderSubmissionFence()
 
     private val decoderThread = HandlerThread("asr-decode-$sessionId").apply { start() }
     private val decoderHandler = Handler(decoderThread.looper)
@@ -88,6 +89,7 @@ internal class SessionImpl(
     private val speakerPcmBuffers = SpeakerPcmBuffers(UTT_MAX_SAMPLES)
     private val effectiveSpeechBuffer = EffectiveSpeechBuffer(sampleRate, UTT_MAX_SAMPLES)
     private val recognizerResetGeneration = RecognizerResetGeneration()
+    private val agcProcessor = StreamingAgcProcessor(sampleRate)
 
     /** speaker vad 打分终点按 native segment 的绝对 sample 位置推进，不依赖调用方 PCM 分块。 */
     private var svScoreScheduler: SpeakerVadScoreScheduler? = null
@@ -214,14 +216,17 @@ internal class SessionImpl(
     // -------- public 方法（被 AsrSession 转发） --------
 
     fun acceptPcmFloat(samples: FloatArray) {
-        if (closed.get() || stopped.get()) {
-            Logger.d("acceptPcmFloat dropped (closed=${closed.get()}, stopped=${stopped.get()})")
-            return
+        val accepted = decoderSubmissionFence.submitActive {
+            // 16-bit PCM 单声道：每个 sample 2 字节
+            metrics.onPcmAccepted(samples.size * 2)
+            val copy = samples.copyOf()
+            decoderHandler.post {
+                processAgc("agc.process") { agcProcessor.process(copy) }
+            }
         }
-        // 16-bit PCM 单声道：每个 sample 2 字节
-        metrics.onPcmAccepted(samples.size * 2)
-        val copy = samples.copyOf()
-        decoderHandler.post { feedAndDecode(copy) }
+        if (!accepted) {
+            Logger.d("acceptPcmFloat dropped (closed=${closed.get()}, stopped=${stopped.get()})")
+        }
     }
 
     fun acceptPcmShort(samples: ShortArray) {
@@ -252,33 +257,39 @@ internal class SessionImpl(
             Logger.d("updateHotwords: identical, no-op")
             return
         }
-        decoderHandler.post {
-            val r = NativeGuard.run("recognizer.createStream(updateHotwords)") {
-                recognizer.createStream(hotwords = newHotwords)
-            }
-            when (r) {
-                is NativeResult.Ok -> {
-                    val old = stream
-                    stream = r.value
-                    currentHotwords = newHotwords
-                    lastPartialText = ""
-                    NativeGuard.runQuietly("oldStream.release") { old.release() }
-                    // 与 hardRestart 同源逻辑：stream 切换后 VAD 状态也要回到初始
-                    NativeGuard.runQuietly("vad.reset(updateHotwords)") { vad?.reset() }
-                    vadSpeechActive = false
-                    trailingSilenceMs = 0
-                    vadCarry = FloatArray(0)
-                    resetSpeakerVadState()
-                    speakerPcmBuffers.clearAll()
-                    effectiveSpeechBuffer.reset()
-                    Logger.i("updateHotwords applied: ${words.size} words")
+        val submitted = decoderSubmissionFence.submitActive {
+            decoderHandler.post {
+                if (!processAgc("agc.flush(updateHotwords)") { agcProcessor.flush() }) {
+                    return@post
                 }
-                is NativeResult.Err -> {
-                    Logger.w("updateHotwords failed, keep old stream: ${r.error.message}")
-                    postError(r.error)
+                val r = NativeGuard.run("recognizer.createStream(updateHotwords)") {
+                    recognizer.createStream(hotwords = newHotwords)
+                }
+                when (r) {
+                    is NativeResult.Ok -> {
+                        val old = stream
+                        stream = r.value
+                        currentHotwords = newHotwords
+                        lastPartialText = ""
+                        NativeGuard.runQuietly("oldStream.release") { old.release() }
+                        // 与 hardRestart 同源逻辑：stream 切换后 VAD 状态也要回到初始
+                        NativeGuard.runQuietly("vad.reset(updateHotwords)") { vad?.reset() }
+                        vadSpeechActive = false
+                        trailingSilenceMs = 0
+                        vadCarry = FloatArray(0)
+                        resetSpeakerVadState()
+                        speakerPcmBuffers.clearAll()
+                        effectiveSpeechBuffer.reset()
+                        Logger.i("updateHotwords applied: ${words.size} words")
+                    }
+                    is NativeResult.Err -> {
+                        Logger.w("updateHotwords failed, keep old stream: ${r.error.message}")
+                        postError(r.error)
+                    }
                 }
             }
         }
+        if (!submitted) Logger.w("updateHotwords ignored: session stopped")
     }
 
     // -------- 目标说话人门控 public 方法（被 AsrSession 转发） --------
@@ -330,43 +341,51 @@ internal class SessionImpl(
     }
 
     fun stop() {
-        if (closed.get()) return
-        if (!stopped.compareAndSet(false, true)) return
-        decoderHandler.post {
-            val r = NativeGuard.run("stream.inputFinished+drain") {
-                appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
-                stream.inputFinished()
-                drainDecoder(isFinal = true, restartAfterFinal = false, isLastFinal = true)
+        decoderSubmissionFence.submitStop {
+            stopped.set(true)
+            decoderHandler.post {
+                val agcOk = processAgc("agc.flush(stop)") { agcProcessor.flush() }
+                if (agcOk) {
+                    val r = NativeGuard.run("stream.inputFinished+drain") {
+                        appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
+                        stream.inputFinished()
+                        drainDecoder(isFinal = true, restartAfterFinal = false, isLastFinal = true)
+                    }
+                    if (r is NativeResult.Err) {
+                        postError(r.error)
+                    }
+                }
+                // VAD 状态与 stream 同步：用户手动 stop 等价于一段语音结束
+                NativeGuard.runQuietly("vad.reset(stop)") { vad?.reset() }
+                vadSpeechActive = false
+                trailingSilenceMs = 0
+                vadCarry = FloatArray(0)
+                resetSpeakerVadState()
+                speakerPcmBuffers.clearAll()
+                effectiveSpeechBuffer.reset()
+                agcProcessor.close()
+                if (finalCallbackOrderGate.requestStopped()) postSessionStopped()
             }
-            if (r is NativeResult.Err) {
-                postError(r.error)
-            }
-            // VAD 状态与 stream 同步：用户手动 stop 等价于一段语音结束
-            NativeGuard.runQuietly("vad.reset(stop)") { vad?.reset() }
-            vadSpeechActive = false
-            trailingSilenceMs = 0
-            vadCarry = FloatArray(0)
-            resetSpeakerVadState()
-            speakerPcmBuffers.clearAll()
-            effectiveSpeechBuffer.reset()
-            if (finalCallbackOrderGate.requestStopped()) postSessionStopped()
         }
     }
 
     fun close() {
-        if (!closed.compareAndSet(false, true)) return
-        engineImpl.unregister(this)
-
-        decoderHandler.removeCallbacksAndMessages(null)
-        decoderHandler.post {
-            NativeGuard.runQuietly("stream.release") { stream.release() }
-            // VAD 是 per-engine 共享的，session 关闭只 reset（清内部 buffer），不 release
-            NativeGuard.runQuietly("vad.reset(close)") { vad?.reset() }
-            resetSpeakerVadState()
-            speakerPcmBuffers.clearAll()
-            effectiveSpeechBuffer.reset()
-            decoderThread.quitSafely()
+        val closing = decoderSubmissionFence.submitClose {
+            closed.set(true)
+            decoderHandler.removeCallbacksAndMessages(null)
+            decoderHandler.post {
+                NativeGuard.runQuietly("stream.release") { stream.release() }
+                // VAD 是 per-engine 共享的，session 关闭只 reset（清内部 buffer），不 release
+                NativeGuard.runQuietly("vad.reset(close)") { vad?.reset() }
+                resetSpeakerVadState()
+                speakerPcmBuffers.clearAll()
+                effectiveSpeechBuffer.reset()
+                agcProcessor.close()
+                decoderThread.quitSafely()
+            }
         }
+        if (!closing) return
+        engineImpl.unregister(this)
 
         try { postProcessor.close() } catch (_: Throwable) {}
 
@@ -379,6 +398,23 @@ internal class SessionImpl(
             callbackThread.quitSafely()
         }
         Logger.d("session $sessionId closed")
+    }
+
+    /** Native AGC failures become SDK errors instead of terminating the decoder Looper. */
+    private inline fun processAgc(
+        operation: String,
+        frames: () -> List<ProcessedAudioFrame>,
+    ): Boolean {
+        return when (val result = NativeGuard.run(operation, frames)) {
+            is NativeResult.Ok -> {
+                result.value.forEach { frame -> feedAndDecode(frame) }
+                true
+            }
+            is NativeResult.Err -> {
+                postError(result.error)
+                false
+            }
+        }
     }
 
     /**
@@ -436,11 +472,11 @@ internal class SessionImpl(
         stream.acceptWaveform(FloatArray(n), sampleRate)
     }
 
-    private fun feedAndDecode(samples: FloatArray) {
+    private fun feedAndDecode(frame: ProcessedAudioFrame) {
         var offset = 0
         val initialDecisionChunkSamples = (sampleRate / INITIAL_DECISION_CHUNKS_PER_SECOND).coerceAtLeast(1)
-        while (offset < samples.size && !closed.get() && !initialSilenceTimeoutSent) {
-            val remaining = samples.size - offset
+        while (offset < frame.raw.size && !closed.get() && !initialSilenceTimeoutSent) {
+            val remaining = frame.raw.size - offset
             var chunkSize = if (!initialSpeechDetected && initialSilenceTimeoutSamples > 0L) {
                 minOf(remaining, initialDecisionChunkSamples)
             } else {
@@ -454,20 +490,23 @@ internal class SessionImpl(
                     )
                 }
             }
-            if (!feedChunkAndDecode(samples.copyOfRange(offset, offset + chunkSize))) break
+            val raw = frame.raw.copyOfRange(offset, offset + chunkSize)
+            val processed = frame.processed.copyOfRange(offset, offset + chunkSize)
+            if (!feedChunkAndDecode(raw, processed)) break
             offset += chunkSize
         }
     }
 
     /** Fixed slices prevent audio after an armed deadline from changing the decision at that deadline. */
-    private fun feedChunkAndDecode(samples: FloatArray): Boolean {
+    private fun feedChunkAndDecode(rawSamples: FloatArray, processedSamples: FloatArray): Boolean {
         if (closed.get() || initialSilenceTimeoutSent) return false
+        check(rawSamples.size == processedSamples.size) { "raw/processed PCM size mismatch" }
 
-        if (!initialSpeechDetected) initialAcousticActivity?.observe(samples)
+        if (!initialSpeechDetected) initialAcousticActivity?.observe(rawSamples)
 
-        if (targetSpeakerEnabled || speakerVadEnabled) effectiveSpeechBuffer.observe(samples)
+        if (targetSpeakerEnabled || speakerVadEnabled) effectiveSpeechBuffer.observe(rawSamples)
         speakerPcmBuffers.observe(
-            samples,
+            rawSamples,
             captureSpeakerVad = speakerVadEnabled,
             captureFallback = targetSpeakerEnabled,
         )
@@ -477,7 +516,7 @@ internal class SessionImpl(
         // 谁先触发以谁为准。
         val resetGenerationBefore = recognizerResetGeneration.snapshot()
         val asrR = NativeGuard.run("stream.acceptWaveform+drain") {
-            stream.acceptWaveform(samples, sampleRate)
+            stream.acceptWaveform(processedSamples, sampleRate)
             drainDecoder(isFinal = false)
         }
         if (asrR is NativeResult.Err) {
@@ -491,9 +530,9 @@ internal class SessionImpl(
             return true
         }
 
-        // silero 的 acceptWaveform 强约束 windowSize=512；按 chunk 切片喂入，剩余样本
-        // 进 vadCarry 等下次拼回。两次 chunk 的 VAD speech/silence 状态由 v 自己维护。
-        val merged = if (vadCarry.isEmpty()) samples else vadCarry + samples
+        // silero 保持使用调用方原始 PCM，避免 AGC 改变 VAD/endpoint 分段。acceptWaveform
+        // 强约束 windowSize=512；按 chunk 切片喂入，剩余样本进 vadCarry 等下次拼回。
+        val merged = if (vadCarry.isEmpty()) rawSamples else vadCarry + rawSamples
         var i = 0
         var anySpeech = false
         var anySilence = false
@@ -559,7 +598,7 @@ internal class SessionImpl(
             }
             anySilence && vadSpeechActive -> {
                 // 仅在曾经有 speech 之后才累计静音；进入主动 endpoint 判定。
-                trailingSilenceMs += (samples.size * 1000L / sampleRate).toInt()
+                trailingSilenceMs += (processedSamples.size * 1000L / sampleRate).toInt()
                 if (activeEpSilenceMs > 0 && trailingSilenceMs >= activeEpSilenceMs) {
                     Logger.d(
                         "session $sessionId VAD active endpoint after ${trailingSilenceMs}ms silence",
@@ -570,7 +609,7 @@ internal class SessionImpl(
                 }
             }
         }
-        maybeTriggerSpeakerVadEndpoint(samples.size)
+        maybeTriggerSpeakerVadEndpoint(rawSamples.size)
         return true
     }
 
