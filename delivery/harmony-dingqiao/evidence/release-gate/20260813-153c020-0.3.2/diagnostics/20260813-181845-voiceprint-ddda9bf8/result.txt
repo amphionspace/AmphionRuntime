@@ -1,0 +1,1 @@
+SUMMARY|runId=20260813-181845-voiceprint-ddda9bf8|status=FAIL|mode=voiceprint|requested=7|completed=0|failed=0|emptyFinals=0|starts=0|partials=0|finals=0|completes=0|errors=0|elapsedMs=675|fatal=Error:_voiceprint-enrollment-source-too-short

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.asr.internal.StreamingAgcProcessorTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-08-13T10:24:04" hostname="redacted" time="0.036">
+  <properties/>
+  <testcase name="automaticAgcIsChunkInvariantAndFlushPreservesRemainder" classname="com.amphion.asr.internal.StreamingAgcProcessorTest" time="0.006"/>
+  <testcase name="backendFailureIsMappedToNativeCrashInsteadOfEscapingDecoderTask" classname="com.amphion.asr.internal.StreamingAgcProcessorTest" time="0.007"/>
+  <testcase name="internalTenMillisecondFramesKeepOneDecoderSubmissionPerCallerChunk" classname="com.amphion.asr.internal.StreamingAgcProcessorTest" time="0.001"/>
+  <testcase name="largeCallerChunkIsAggregatedWithoutChangingSamples" classname="com.amphion.asr.internal.StreamingAgcProcessorTest" time="0.021"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
