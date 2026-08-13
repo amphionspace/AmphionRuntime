@@ -85,12 +85,14 @@ python3 asr/tools/run_automatic_agc_release_gate.py release \
   --evidence-output delivery/harmony-dingqiao/evidence/release-gate/<UNIQUE_ID>
 ```
 
-The release stage requires a completely clean worktree (including untracked files), builds the
-Android AAR in an isolated clone, installs exactly one current Harmony HAP, and runs the shared
-24-mode release contract against that same HAP. It then creates a non-overwriting redacted archive,
-atomically records the delivery together with its root report and SHA-256, and verifies the whole
-release ledger. A missing native library, test XML, device artifact, provenance, or evidence file fails
-the gate; none of these steps may warn-and-skip.
+The release stage requires a completely clean worktree (including untracked files). It verifies the
+source-bound Harmony HAP/HAR produced for the customer package, installs that exact HAP once, and
+runs the shared 24-mode release contract against it. Independent host checks, the isolated Android
+AAR build, and the Harmony device chain run concurrently; modes sharing the USB device remain
+strictly serial. Finalization waits for every branch and then creates a non-overwriting redacted
+archive, atomically records the delivery together with its root report and SHA-256, and verifies the
+whole release ledger. A missing native library, test XML, device artifact, provenance, build-identity
+match, or evidence file fails the gate; none of these steps may warn-and-skip.
 
 `python3 asr/tools/sync_automatic_agc_evidence.py --check` is intentionally read-only. If an AGC
 implementation source changes, rerun all four recorded evaluation dimensions (normal-volume, SNR,

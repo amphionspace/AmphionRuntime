@@ -2,6 +2,7 @@
 """Run automatic AGC checks at the earliest useful development stage."""
 
 import argparse
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -22,6 +23,9 @@ if str(ROOT) not in sys.path:
 from tools.delivery.asr_release_evidence_contract import HARMONY_RELEASE_MODES  # noqa: E402
 FINISH_COMPAT_MODES = ("callback-api-reentrant", "finish-shutdown")
 DEVICE_MATRIX = tuple(mode for mode in HARMONY_RELEASE_MODES if mode not in FINISH_COMPAT_MODES)
+STATIC_MAX_PARALLEL = 3
+REGRESSION_MAX_PARALLEL = 3
+RELEASE_MAX_PARALLEL = 3
 
 
 class GateCommand(NamedTuple):
@@ -29,6 +33,12 @@ class GateCommand(NamedTuple):
     argv: Sequence[str]
     cwd: Path
     env: Mapping[str, str] = {}
+
+
+class GateTask(NamedTuple):
+    key: str
+    command: GateCommand
+    dependencies: tuple[str, ...] = ()
 
 
 def packaged_delivery_har_sha256(release_artifact: Path) -> str:
@@ -173,6 +183,8 @@ def release_commands(
                 "--raw-output-root", str(raw_root),
                 "--output-root", str(gate_root / "finish-compat"),
                 "--summary-output", str(gate_root / "finish-compat-report.json"),
+                "--reuse-verified-build",
+                "--build-identity", str(build_identity),
             ),
             root,
             {"HARMONY_SIGNING_CONFIG": str(signing_config)},
@@ -216,6 +228,119 @@ def release_commands(
         finalize.extend(("--provenance", str(provenance)))
     commands.append(GateCommand("Archive and ledger-verify release evidence", tuple(finalize), root))
     return commands
+
+
+def static_tasks(root: Path = ROOT) -> list[GateTask]:
+    commands = {command.name: command for command in static_commands(root)}
+    return [
+        GateTask("cheap-contracts", commands["dependency-free AGC contracts"]),
+        GateTask(
+            "signal-domains",
+            commands["cross-platform AGC framing and signal domains"],
+        ),
+        GateTask("evidence-source", commands["AGC evaluation provenance"]),
+    ]
+
+
+def regression_tasks(
+    root: Path,
+    model_dir: Path,
+    agc_lib: Optional[Path] = None,
+) -> list[GateTask]:
+    commands = {command.name: command for command in regression_commands(root, model_dir, agc_lib)}
+    return [
+        GateTask("host-agc", commands["host AGC build and native tests"]),
+        *static_tasks(root),
+        GateTask("model-identity", commands["AGC evaluation model identity"]),
+        GateTask(
+            "low-volume-regression",
+            commands["low-volume ASR red/green reproduction"],
+            ("host-agc",),
+        ),
+    ]
+
+
+def release_tasks(
+    root: Path,
+    model_dir: Path,
+    device: str,
+    signing_config: Path,
+    data_dir: Path,
+    release_version: str,
+    delivered_at: str,
+    release_artifact: Path,
+    delivery_har: Path,
+    evidence_output: Path,
+    evaluation_artifact_root: Path,
+    build_identity: Path,
+    provenance: Optional[Path] = None,
+    agc_lib: Optional[Path] = None,
+) -> list[GateTask]:
+    command_list = release_commands(
+        root,
+        model_dir,
+        device,
+        signing_config,
+        data_dir,
+        release_version,
+        delivered_at,
+        release_artifact,
+        delivery_har,
+        evidence_output,
+        evaluation_artifact_root,
+        build_identity,
+        provenance,
+        agc_lib,
+    )
+    commands = {command.name: command for command in command_list}
+    prerequisites = (
+        "cheap-contracts",
+        "signal-domains",
+        "evidence-source",
+        "evaluation-artifacts",
+    )
+    tasks = [
+        GateTask("host-agc", commands["host AGC build and native tests"]),
+        GateTask("cheap-contracts", commands["dependency-free AGC contracts"]),
+        GateTask(
+            "signal-domains",
+            commands["cross-platform AGC framing and signal domains"],
+        ),
+        GateTask("evidence-source", commands["AGC evaluation provenance"]),
+        GateTask(
+            "evaluation-artifacts",
+            commands["Complete AGC evaluation artifact identity"],
+        ),
+        GateTask(
+            "low-volume-regression",
+            commands["low-volume ASR red/green reproduction"],
+            ("host-agc",),
+        ),
+        GateTask(
+            "android-release",
+            commands["Isolated Android AAR build and Debug/Release tests"],
+            prerequisites,
+        ),
+        GateTask(
+            "harmony-finish-compat",
+            commands["Harmony finish compatibility build/install gate"],
+            prerequisites,
+        ),
+    ]
+    previous = "harmony-finish-compat"
+    for mode in DEVICE_MATRIX:
+        key = f"device-{mode}"
+        tasks.append(GateTask(key, commands[f"Harmony device matrix: {mode}"], (previous,)))
+        previous = key
+    tasks.append(
+        GateTask(
+            "finalize",
+            commands["Archive and ledger-verify release evidence"],
+            ("android-release", previous, "low-volume-regression"),
+        )
+    )
+    validate_task_graph(tasks)
+    return tasks
 
 
 def require_release_inputs(
@@ -316,24 +441,95 @@ def require_release_inputs(
     )
 
 
-def run(commands) -> int:
-    for index, command in enumerate(commands, start=1):
-        started = time.monotonic()
-        print(f"[GATE {index}/{len(commands)}] {command.name}", flush=True)
-        try:
-            environment = os.environ.copy()
-            environment.update(command.env)
-            subprocess.run(command.argv, cwd=command.cwd, check=True, env=environment)
-        except subprocess.CalledProcessError as error:
-            elapsed = time.monotonic() - started
-            print(
-                f"[FAIL] {command.name} ({elapsed:.1f}s, exit {error.returncode})",
-                file=sys.stderr,
+def validate_task_graph(tasks: Sequence[GateTask]) -> None:
+    keys = [task.key for task in tasks]
+    if len(keys) != len(set(keys)):
+        raise ValueError("task graph contains duplicate task keys")
+    known = set(keys)
+    for task in tasks:
+        unknown = set(task.dependencies) - known
+        if unknown:
+            raise ValueError(
+                f"task {task.key} has unknown dependency: {', '.join(sorted(unknown))}"
             )
-            return error.returncode or 1
-        print(f"[PASS] {command.name} ({time.monotonic() - started:.1f}s)", flush=True)
+
+    remaining = {task.key: set(task.dependencies) for task in tasks}
+    completed: set[str] = set()
+    while remaining:
+        ready = [key for key, dependencies in remaining.items() if dependencies <= completed]
+        if not ready:
+            raise ValueError("task graph contains a dependency cycle")
+        completed.update(ready)
+        for key in ready:
+            del remaining[key]
+
+
+def execute_command(command: GateCommand, label: str) -> int:
+    started = time.monotonic()
+    print(f"[START] {label}: {command.name}", flush=True)
+    environment = os.environ.copy()
+    environment.update(command.env)
+    try:
+        subprocess.run(command.argv, cwd=command.cwd, check=True, env=environment)
+    except (OSError, subprocess.CalledProcessError) as error:
+        elapsed = time.monotonic() - started
+        returncode = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+        print(
+            f"[FAIL] {label}: {command.name} ({elapsed:.1f}s, exit {returncode})",
+            file=sys.stderr,
+            flush=True,
+        )
+        return returncode or 1
+    print(f"[PASS] {label}: {command.name} ({time.monotonic() - started:.1f}s)", flush=True)
+    return 0
+
+
+def run_task_graph(tasks: Sequence[GateTask], max_parallel: int) -> int:
+    validate_task_graph(tasks)
+    if max_parallel <= 0:
+        raise ValueError("max_parallel must be positive")
+
+    pending = {task.key: task for task in tasks}
+    completed: set[str] = set()
+    running: dict[Future[int], GateTask] = {}
+    first_failure = 0
+    with ThreadPoolExecutor(max_workers=max_parallel, thread_name_prefix="agc-gate") as executor:
+        while pending or running:
+            if not first_failure:
+                ready = [
+                    task
+                    for task in tasks
+                    if task.key in pending and set(task.dependencies) <= completed
+                ]
+                for task in ready[: max_parallel - len(running)]:
+                    del pending[task.key]
+                    future = executor.submit(execute_command, task.command, task.key)
+                    running[future] = task
+            if not running:
+                break
+            finished, _ = wait(running, return_when=FIRST_COMPLETED)
+            for future in finished:
+                task = running.pop(future)
+                result = future.result()
+                if result == 0:
+                    completed.add(task.key)
+                elif not first_failure:
+                    first_failure = result
+
+    if first_failure:
+        skipped = [task.key for task in tasks if task.key in pending]
+        if skipped:
+            print(f"[SKIP] dependency graph stopped before: {', '.join(skipped)}", flush=True)
+        return first_failure
+    if pending:
+        raise RuntimeError("task graph stopped without completing all tasks")
     print("[PASS] automatic AGC release gate")
     return 0
+
+
+def run(commands) -> int:
+    tasks = [GateTask(f"gate-{index}", command) for index, command in enumerate(commands, start=1)]
+    return run_task_graph(tasks, 1)
 
 
 def main() -> int:
@@ -355,11 +551,14 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.stage == "static":
-        commands = static_commands(ROOT)
+        return run_task_graph(static_tasks(ROOT), STATIC_MAX_PARALLEL)
     elif args.stage == "regression":
         if args.model_dir is None:
             parser.error("regression requires --model-dir")
-        commands = regression_commands(ROOT, args.model_dir, args.agc_lib)
+        return run_task_graph(
+            regression_tasks(ROOT, args.model_dir, args.agc_lib),
+            REGRESSION_MAX_PARALLEL,
+        )
     else:
         missing = [
             option
@@ -398,7 +597,7 @@ def main() -> int:
             )
         except (OSError, ValueError, subprocess.SubprocessError) as error:
             parser.error(str(error))
-        commands = release_commands(
+        tasks = release_tasks(
             ROOT,
             args.model_dir,
             args.device,
@@ -414,7 +613,7 @@ def main() -> int:
             args.provenance,
             args.agc_lib,
         )
-    return run(commands)
+        return run_task_graph(tasks, RELEASE_MAX_PARALLEL)
 
 
 if __name__ == "__main__":
