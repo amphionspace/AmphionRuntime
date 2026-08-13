@@ -1,6 +1,6 @@
-export const HARMONY_SDK_VERSION: string = '0.3.1';
+export const HARMONY_SDK_VERSION: string = '0.3.2';
 export const HARMONY_SDK_MAJOR: number = 1;
-export const HARMONY_SDK_RELEASE_DATE: string = '2026-08-07';
+export const HARMONY_SDK_RELEASE_DATE: string = '2026-08-13';
 
 export class LicenseIdentityFailure {
   static readonly NONE: string = 'NONE';
