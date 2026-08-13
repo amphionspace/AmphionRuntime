@@ -1,7 +1,7 @@
 {
   "modelVersion": "5.0.0",
   "name": "amphion-harmony-delivery",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Amphion HarmonyOS unified delivery: ASR + TTS demo, docs and packaging",
   "license": "Commercial",
   "dependencies": {},
