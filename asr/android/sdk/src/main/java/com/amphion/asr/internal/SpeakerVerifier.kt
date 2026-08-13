@@ -10,9 +10,8 @@ import kotlin.math.sqrt
  * 调研期标定的阈值）：
  * - 多模板注册 [enroll]：多段 raw embedding 取均值后再 L2 归一（注意：不是每段先归一再均值，
  *   两者数学不等价；core.py 用的是 raw 均值 -> 归一）
- * - 最短切片门限：段长 < [minSegSec] 直接返回 null（短音频 EER 暴增，统一兜底）
  * - 滑窗多打分：段长 >= [winSec] 时按 [winSec]/[hopSec] 滑窗，取窗内 max 余弦（overlap 段
- *   embedding 被污染时，滑窗 max 比单次打分更稳）；[minSegSec, winSec) 回落整段单打
+ *   embedding 被污染时，滑窗 max 比单次打分更稳）；不足 [winSec] 时回落整段单打
  * - 余弦判定：不用 SpeakerEmbeddingManager.verify 的单次 bool，因为需要滑窗取 max
  *
  * 线程模型：实例方法只在 [SessionImpl] 的 decoder 线程串行调用。[extractor] 为 engine 级共享，
@@ -23,22 +22,19 @@ internal class SpeakerVerifier(
     private val sampleRate: Int,
     private val winSec: Float,
     private val hopSec: Float,
-    private val minSegSec: Float,
 ) {
 
     /**
      * 对一段语音打目标说话人余弦相似度。
      *
-     * @return null 表示段长 < [minSegSec]（不判定，调用方按"无法判定"处理）；否则为余弦相似度
+     * ASR 已确认的 public final 即使短于严格评分门槛也尝试提取 embedding；短句精度风险由业务
+     * 根据原始分数和自己的阈值承担。仅 extractor 在技术上尚未 ready 时返回 null。
      */
     fun segmentScore(samples: FloatArray, targetEmb: FloatArray): Float? {
-        val nMin = (minSegSec * sampleRate).toInt()
-        if (samples.size < nMin) return null
-
         val nWin = (winSec * sampleRate).toInt()
         val nHop = (hopSec * sampleRate).toInt().coerceAtLeast(1)
 
-        // 段长够 minSeg 但不够一个窗：整段单次打分
+        // 不够一个完整滑窗时仍使用整段真实 PCM 单次打分。
         if (samples.size < nWin) {
             val emb = extractEmbedding(extractor, samples, sampleRate) ?: return null
             return cosine(emb, targetEmb)

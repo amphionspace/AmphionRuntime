@@ -16,7 +16,8 @@ package com.amphion.asr
  *   （对应调研评测 FAR≈3.96% / FRR≈10.55% 的保守点）；正式上线前应按真机数据标定回填
  * @property winSec 滑窗打分的窗长（秒），默认 2.5
  * @property hopSec 滑窗步长（秒），默认 1.0
- * @property minSegSec 最短判定切片（秒）；段长不足时不打分（视为无法判定），默认 1.5
+ * @property minSegSec 优先使用严格有效语音的最短切片（秒），也用于限制初始起音确认窗，默认
+ *   0（不设置 SDK 时长门槛）；已有非空 ASR text/token 的 public final 使用本句真实 PCM 尝试打分
  * @property preload true 时随 [AmphionRuntime.create] 即加载声纹模型，运行时开关只切标志位
  *   （秒级生效）；false 时首次 [AsrSession.setTargetSpeakerEnabled] 为 true 才懒加载（首次有加载延迟）
  * @property enabledByDefault 新建 [AsrSession] 时开关的初始状态，默认 false
@@ -28,7 +29,7 @@ public data class TargetSpeakerConfig(
     public val threshold: Float = 0.30f,
     public val winSec: Float = 2.5f,
     public val hopSec: Float = 1.0f,
-    public val minSegSec: Float = 1.5f,
+    public val minSegSec: Float = 0f,
     public val preload: Boolean = false,
     public val enabledByDefault: Boolean = false,
     public val numThreads: Int = 1,
@@ -41,7 +42,9 @@ public data class TargetSpeakerConfig(
         }
         require(winSec > 0f) { "TargetSpeakerConfig.winSec must be > 0" }
         require(hopSec > 0f) { "TargetSpeakerConfig.hopSec must be > 0" }
-        require(minSegSec > 0f) { "TargetSpeakerConfig.minSegSec must be > 0" }
+        require(minSegSec.isFinite() && minSegSec >= 0f) {
+            "TargetSpeakerConfig.minSegSec must be finite and >= 0"
+        }
         require(numThreads in 1..8) {
             "TargetSpeakerConfig.numThreads must be in [1, 8], got $numThreads"
         }

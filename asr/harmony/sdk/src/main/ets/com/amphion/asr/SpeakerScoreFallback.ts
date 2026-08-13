@@ -16,17 +16,22 @@ function sampleDurationMs(samples: number, sampleRate: number): number {
 export function selectSpeakerScoreSamples(strictSamples: Float32Array,
   utteranceSamples: Float32Array, minSamples: number,
   asrSpeechConfirmed: boolean): SpeakerScoreSelection {
-  const minimum = Math.max(1, Math.round(minSamples));
+  const minimum = Math.max(0, Math.round(minSamples));
   if (!asrSpeechConfirmed) {
     return new SpeakerScoreSelection(new Float32Array(0), 'insufficient');
   }
-  if (strictSamples.length >= minimum) {
+  if (minimum > 0 && strictSamples.length >= minimum) {
     return new SpeakerScoreSelection(strictSamples, 'strict');
   }
-  if (asrSpeechConfirmed && utteranceSamples.length >= minimum) {
+  // minSegSec=0 removes SDK-side duration judgment, so score the whole real utterance rather than
+  // an arbitrarily short strict fragment. A positive value remains only a source preference.
+  if (utteranceSamples.length > 0) {
     return new SpeakerScoreSelection(utteranceSamples, 'utterance');
   }
-  return new SpeakerScoreSelection(strictSamples, 'insufficient');
+  if (strictSamples.length > 0) {
+    return new SpeakerScoreSelection(strictSamples, 'strict');
+  }
+  return new SpeakerScoreSelection(new Float32Array(0), 'insufficient');
 }
 
 export function speakerScoreSelectionDiagnostic(selection: SpeakerScoreSelection,

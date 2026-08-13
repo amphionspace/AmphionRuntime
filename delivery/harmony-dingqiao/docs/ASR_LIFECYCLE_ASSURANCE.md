@@ -25,7 +25,7 @@
 | cancel | cancel 生效后不得新增 final 或 complete；取消前已经产生的 non-last endpoint final 保留 |
 | 跨 session 重入 | 所有 native 回调绑定 session generation；回调内 cancel/restart 后，旧处理栈和迟到回调不得读取或结束新 session |
 | 最大时长 | 缺省、非正数或非法 `maxAudioDuration` 不启用自动上限；显式正有限值按调用值生效，上限 28800000 ms |
-| 声纹分数 | 严格有效语音优先；不足门槛但 ASR 有证据且本句实际 PCM 达到 `minSegSec` 时用真实 PCM 回退评分；实际 PCM 仍不足时可省略分数 |
+| 声纹分数 | 鼎桥 `minSegSec=0`；ASR 有证据且本句真实 PCM 非空时尝试评分，时长和阈值由业务判断；仅真实不可评分时省略 |
 
 ## 3. 修复后的正常时序
 

@@ -176,7 +176,9 @@ createEngine → setListener → startListening
 | `deleteVoiceprint(voiceprintId)` | 删除 `{workPath}/voiceprints/{id}/` |
 | 会话校验 | `startListening.extraParams`：`enableVoiceprintVerification=true`，`voiceprintIds=["vp-xxx"]` |
 
-有效语音达到 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时，判决阈值（典型 0.4）由**客户端**根据 `speakerSimilarity` 自行判断，SDK 不做 reject；短于门槛时该字段省略。
+`TargetSpeakerConfig.minSegSec` 在鼎桥适配层固定为 `0`。只要 ASR 已确认语音、当前句有真实 PCM
+且 extractor 技术上可计算，SDK 就尝试返回 `speakerSimilarity`，不按时长或相似度 reject；音频
+时长、判决阈值及短句精度风险由**客户端**自行判断。
 
 ## 6. Demo 使用说明
 

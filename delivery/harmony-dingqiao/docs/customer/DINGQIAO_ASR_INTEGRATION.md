@@ -116,9 +116,10 @@ ASR 文本，不执行警务术语、车牌和派出所归一化；不会触发�
   non-last 文本再追加空 last。
 - `finish` 返回后会话可能仍在异步排空，`isBusy()` 直到 `onComplete` 才变为 false。调用方应等待
   `onComplete` 再释放；兼容旧宿主的立即 `shutdown()` 会延迟内部释放，但 complete 前仍不得卸载模型或 runtime。
-- 启用声纹校验后，SDK 优先使用严格筛选的有效语音评分。严格语音短于 `minSegSec`，但 final
-  已有非空 ASR text/token 且当前句实际 PCM 达到门槛时，SDK 使用当前句真实 PCM 回退评分。
-  没有 ASR 语音证据、实际 PCM 仍短于门槛或空 terminal final 时，`speakerSimilarity` 可以省略。
+- 启用声纹校验后，SDK 优先使用达到 `minSegSec` 的严格有效语音评分。严格样本不足但 final 已有
+  非空 ASR text/token 时，SDK 使用当前句非空真实 PCM 尝试评分，不因短句质量判断省略结果。
+  SDK 负责出分，业务方负责短句风险、阈值和接受策略。没有 ASR 语音证据、没有真实 PCM 或
+  extractor 技术上无法产生 embedding 时，`speakerSimilarity` 可以省略。
 
 ## 7. 释放与重新加载
 
