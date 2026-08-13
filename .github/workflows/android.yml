@@ -50,11 +50,11 @@ jobs:
       - name: Install AGC native build tools
         run: python3 -m pip install meson==1.7.0 ninja==1.11.1.4
 
+      - name: Run automatic AGC static release gate
+        run: python3 asr/tools/run_automatic_agc_release_gate.py static
+
       - name: Build and test host AGC
         run: bash asr/tools/03_build_agc_native.sh host
-
-      - name: Verify automatic AGC evaluation evidence
-        run: python3 -m unittest asr.tools.tests.test_automatic_agc_evaluation_evidence -v
 
       - name: Run cross-platform ASR lifecycle contracts
         run: |

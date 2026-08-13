@@ -48,8 +48,10 @@ python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py \
 - `callback-api-reentrant` 3 轮，必须包含一条 `SPEECH_END -> finish` 且 last 文本非空；
 - `finish-shutdown` 10 轮，每轮 finish 前 last 数为 0，结束后恰好一次 last 和一次 complete。
 
-统一发布入口不提供跳过构建/安装的选项：第一个模式必须构建、签名并安装当前 commit
-的 HAP，第二个模式才复用该次安装。这避免本地 build identity 与设备旧 HAP 被误组合为发布证据。
+单独执行时，统一入口不提供跳过安装的选项：第一个模式必须构建、签名并安装当前 commit
+的 HAP，第二个模式才复用该次安装。完整自动 AGC 发布入口可传入 `--reuse-verified-build`，但必须同时
+提供并验证当前 build identity；该路径只跳过重复构建，仍会安装 HAP、执行 UI smoke，再运行两个模式。
+这避免本地 build identity 与设备旧 HAP 被误组合为发布证据。
 
 ## 证据与停止条件
 

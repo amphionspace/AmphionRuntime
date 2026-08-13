@@ -45,6 +45,7 @@ TARGET_SPEAKER_MODES = {
     "target-speaker-enhancement-onstart",
     "target-speaker-enhancement-cancel",
 }
+VOICEPRINT_FALLBACK_FIXTURES = REPO_ROOT / "asr/test-fixtures/voiceprint-fallback"
 
 
 @dataclass(frozen=True)
@@ -372,6 +373,21 @@ def representative_sources(sources: list[AudioSource], count: int) -> list[Audio
     for rate in sorted(rates):
         picked.extend(quantile_pick(rates[rate], min(quotas[rate], len(rates[rate]))))
     return sorted(picked, key=lambda item: (item.sample_rate, item.duration_seconds, str(item.path)))
+
+
+def representative_voiceprint_sources(
+    sources: list[AudioSource], count: int
+) -> list[AudioSource]:
+    enrollment_capable = [source for source in sources if source.duration_seconds >= 3.0]
+    if not enrollment_capable:
+        raise StressFailure("voiceprint requires an enrollment source of at least 3 seconds")
+    return representative_sources(enrollment_capable, count)
+
+
+def corpus_root_for_mode(data_dir: Path, mode: str) -> Path:
+    if mode == "voiceprint-fallback":
+        return VOICEPRINT_FALLBACK_FIXTURES
+    return data_dir
 
 
 def select_target_speaker_manifest_sources(
@@ -883,8 +899,18 @@ def run_stress(args: argparse.Namespace) -> Path:
     hdc_path = locate_hdc()
     device = select_target(hdc_path, args.device)
     hdc = Hdc(hdc_path, device)
-    all_sources = inspect_wavs(args.data_dir.expanduser().resolve())
-    selected = representative_sources(all_sources, args.files)
+    requested_corpus_root = args.data_dir.expanduser().resolve()
+    corpus_root = corpus_root_for_mode(requested_corpus_root, args.mode)
+    all_sources = inspect_wavs(corpus_root)
+    voiceprint_representative_modes = {
+        "voiceprint", "voiceprint-vad-begin", "voiceprint-vad-begin-idle",
+        "speaker-vad-onstart",
+    }
+    selected = (
+        representative_voiceprint_sources(all_sources, args.files)
+        if args.mode in voiceprint_representative_modes
+        else representative_sources(all_sources, args.files)
+    )
     target_speaker_enrollment_count = 1
     if args.mode == "voiceprint-fallback":
         sources_by_name = {source.path.name: source for source in all_sources}
@@ -927,7 +953,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     payload = artifact_dir / "payload"
     payload.mkdir(parents=True)
     remote_dir = f"{REMOTE_ROOT}/{run_id}"
-    mapping = prepare_payload(selected, payload, remote_dir, args.data_dir.expanduser().resolve())
+    mapping = prepare_payload(selected, payload, remote_dir, corpus_root)
     remote_manifest = f"{remote_dir}/manifest.txt"
     remote_result = f"{remote_dir}/result.txt"
     local_result = artifact_dir / "result.txt"
