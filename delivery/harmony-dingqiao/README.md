@@ -16,7 +16,8 @@ demo 通过 `oh-package.json5` 的 `file:` 相对路径跨工程引用上述四�
 ## 构建顺序
 
 ```bash
-# 1) 共享 native（ASR + TTS 共用同一套 sherpa_onnx .so）
+# 1) native（AGC2 + ASR/TTS 共用的 sherpa_onnx .so）
+bash asr/tools/03_build_agc_native.sh ohos-arm64-v8a
 bash asr/tools/04_build_harmony_so.sh
 bash asr/tools/05_package_har_libs.sh
 

@@ -25,6 +25,7 @@ class AndroidSdkOnlyDeliveryTest(unittest.TestCase):
         yue: bool = False,
         embedded_license: bool = False,
         include_plate: bool = True,
+        include_agc: bool = True,
         internal_meta: bool = False,
         local_path: bool = False,
     ) -> bytes:
@@ -38,6 +39,8 @@ class AndroidSdkOnlyDeliveryTest(unittest.TestCase):
             "assets/police_terms/terms.fst",
             "assets/police_station/stations.fst",
         ]
+        if include_agc:
+            names.append("jni/arm64-v8a/libamphion_audio_processing.so")
         if include_plate:
             names.extend(
                 [
@@ -74,6 +77,7 @@ class AndroidSdkOnlyDeliveryTest(unittest.TestCase):
         yue: bool = False,
         embedded_license: bool = False,
         include_plate: bool = True,
+        include_agc: bool = True,
         internal_meta: bool = False,
         local_path: bool = False,
         tamper_checksum: bool = False,
@@ -94,6 +98,7 @@ class AndroidSdkOnlyDeliveryTest(unittest.TestCase):
                 yue=yue,
                 embedded_license=embedded_license,
                 include_plate=include_plate,
+                include_agc=include_agc,
                 internal_meta=internal_meta,
                 local_path=local_path,
             ),
@@ -139,6 +144,15 @@ class AndroidSdkOnlyDeliveryTest(unittest.TestCase):
             path = Path(directory) / "delivery.zip"
             self._write_zip(path, include_plate=False)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "plate_"):
+                MODULE.validate_delivery(path, self.version)
+
+    def test_rejects_missing_agc_native_library(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "delivery.zip"
+            self._write_zip(path, include_agc=False)
+            with self.assertRaisesRegex(
+                MODULE.DeliveryValidationError, "libamphion_audio_processing"
+            ):
                 MODULE.validate_delivery(path, self.version)
 
     def test_rejects_internal_generator_metadata_and_local_paths(self) -> None:

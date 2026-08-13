@@ -217,6 +217,8 @@ endpoint final 会直接成为本 session 的 `isLast=true` 结果，不再追�
 | `sysGeneralLexicon` | `string[]` | 空 | 调用方热词，用于解码 |
 | `disablePrepack` | `boolean/number/string` | `true` | 默认跳过 ORT INT8 权重 prepack，降低冷加载时间和峰值内存；设为 `false` 恢复吞吐优先模式 |
 
+SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需配置开关。该处理不会改善低 SNR 或已削波音频，调用方不要再叠加固定软件增益。
+
 ### 5.3 `StartParams`
 
 | 字段 | 类型 | 默认值 | 说明 |

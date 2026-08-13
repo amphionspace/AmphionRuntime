@@ -380,6 +380,7 @@ class MainActivity : AppCompatActivity() {
         if (recorder != null) return
         frameWriter = PcmFrameWriter { frame -> writeFrameToCurrentSession(frame) }
         recorder = AudioRecorder(
+            gainDb = 0f,
             onPcm = { samples ->
                 activeDebugRecord?.appendPcm(samples)
                 frameWriter?.accept(samples)

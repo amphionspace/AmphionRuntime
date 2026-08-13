@@ -1,0 +1,80 @@
+{
+  "implementation_source_sha256": {
+    "asr/native/audio-processing/src/amphion_audio_processing.cpp": "7ded42aaade2ec76a1567135f9b8ca2bb63e84469ca8616bb152644be79a5acb",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt": "9dc5dd3a675db811cdf84f886da455b5ff95a4da3f67241ed1991b4fcd4d95a2",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
+    "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
+  },
+  "sample_rate_hz": 16000,
+  "decoder": {
+    "method": "modified_beam_search",
+    "max_active_paths": 8
+  },
+  "agc": {
+    "fixed_gain_db": 4.0,
+    "adaptive_initial_gain_db": 4.0,
+    "adaptive_max_gain_db": 20.0,
+    "headroom_db": 6.0,
+    "max_gain_change_db_per_second": 6.0,
+    "max_output_noise_level_dbfs": -50.0
+  },
+  "aishell3": {
+    "source_sha256": "330017e8078a884ac77f7d5b5ea77ee3dcfdd2b603f227c3628899f0f0613fcb",
+    "original": {
+      "samples": 500,
+      "audio_seconds": 1737.9699375,
+      "off_cer": 0.0220351128627732,
+      "agc_cer": 0.022214260121820137,
+      "off_exact_match": 0.828,
+      "agc_exact_match": 0.828,
+      "off_empty": 0.0,
+      "agc_empty": 0.0,
+      "paired_bootstrap_cer_delta_95_percent_points": [-0.1300, 0.1620]
+    },
+    "controlled_levels": [
+      { "dbfs": -30, "samples": 100, "off_cer": 0.024657534246575342, "agc_cer": 0.025570776255707764, "off_exact": 0.81, "agc_exact": 0.78 },
+      { "dbfs": -40, "samples": 100, "off_cer": 0.026484018264840183, "agc_cer": 0.024657534246575342, "off_exact": 0.80, "agc_exact": 0.81 },
+      { "dbfs": -50, "samples": 100, "off_cer": 0.029223744292237442, "agc_cer": 0.026484018264840183, "off_exact": 0.76, "agc_exact": 0.79 },
+      { "dbfs": -60, "samples": 100, "off_cer": 0.028310502283105023, "agc_cer": 0.0273972602739726, "off_exact": 0.77, "agc_exact": 0.78 },
+      { "dbfs": -70, "samples": 100, "off_cer": 0.0593607305936073, "agc_cer": 0.0273972602739726, "off_exact": 0.70, "agc_exact": 0.76, "off_empty": 0.02, "agc_empty": 0.0 }
+    ]
+  },
+  "customer_snr": {
+    "reference": "你好一二三四",
+    "correct_both_modes_db": [30, 25, 20],
+    "incorrect_both_modes_db": [15, 10, 5, 0, -5],
+    "conclusion": "AGC does not improve SNR"
+  },
+  "repository_low_volume_regression": {
+    "source": "asr/test-fixtures/voiceprint-fallback/001_recognize.wav",
+    "source_sha256": "3b8255aed49b90df4bdbd5ae626f37c94da318a4b2f3bd0c746ef2dbc8a7f8fc",
+    "target_dbfs": -80,
+    "reference": "帮我核查身份证号码为三七零五零三幺九幺幺二三零九八三",
+    "off_hypothesis": "当我核查身份证号码为三七零五零三幺九幺幺二三零九八三",
+    "agc_hypothesis": "帮我核查身份证号码为三七零五零三幺九幺幺二三零九八三"
+  },
+  "long_audio": {
+    "source_sha256": "55007d53bcc9e9aeb67bb76592fdd3c7028c00526498a284d1ab79a5142084c2",
+    "duration_seconds": 213.28,
+    "off_after_180_chars": 105,
+    "agc_after_180_chars": 112,
+    "off_keeps_target_opening": false,
+    "agc_keeps_target_opening": true,
+    "off_keeps_help_him_clause": true,
+    "agc_keeps_help_him_clause": true
+  },
+  "native_cpu": {
+    "iterations": 10,
+    "audio_seconds_per_iteration": 213.28,
+    "median_rtf": 0.0013822336459114717,
+    "p90_rtf": 0.0014160479604275978
+  },
+  "preserved_artifact_sha256": {
+    "aishell3_report.json": "3c1b5aee226d1b30f3b67a1bc9a63a6a22b0a764f3c85429f20f4ca6d9b7a7ae",
+    "input_mapping.json": "a3d23fdb2058f96e0e3be568f90a7b605244a22ff82d725746037436931278c8",
+    "cases.jsonl": "eb5808584c40d93c688a8bc3acf9259d9bb1fbaf7dcaed9554a65df9fd8c745b",
+    "extreme_level_report.json": "dbe8fc34ddfeff2badf0babf9d412c403d19e2a49b9b239a363ae7db3e51025c",
+    "customer_cases_report.json": "316302dd41285d24d43f30cf0aeb03947545372e70328a6b09e80c04353d1d92",
+    "sdk_long_audio_report.json": "f7eb368c7a0ea8616d60019c1e13411b5dbba54635a16aae56cb1d28cc882629"
+  }
+}

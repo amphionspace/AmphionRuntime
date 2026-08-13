@@ -320,7 +320,8 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
 
     def test_runtime_falls_back_to_confirmed_utterance_pcm_for_scoring(self) -> None:
         runtime = RUNTIME.read_text(encoding="utf-8")
-        self.assertIn("this.effectiveSpeechBuffer.observe(samples)", runtime)
+        # Voiceprint fallback must observe the original signal, not the AGC-normalized ASR domain.
+        self.assertIn("this.effectiveSpeechBuffer.observe(rawSamples)", runtime)
         self.assertIn("this.effectiveSpeechBuffer.confirmSpeech()", runtime)
         self.assertIn("this.effectiveSpeechBuffer.resolveFinal(result.text, hasEvidence, isLast)", runtime)
         suppressed_final = """if (!boundary.publish) {
@@ -338,7 +339,7 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
             runtime,
         )
         self.assertIn(
-            "this.speakerPcmBuffers.observe(samples, this.speakerVadEnabled, this.targetSpeakerEnabled)",
+            "this.speakerPcmBuffers.observe(rawSamples, this.speakerVadEnabled, this.targetSpeakerEnabled)",
             runtime,
         )
         self.assertIn(

@@ -96,6 +96,23 @@ License:     Apache License 2.0
 Copyright:   (c) Google LLC
 
 ================================================================================
+7. WebRTC Audio Processing / Abseil
+================================================================================
+
+Repository:  https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing
+License:     BSD 3-Clause (WebRTC Audio Processing)
+Copyright:   (c) 2011, Google Inc.
+
+Repository:  https://github.com/abseil/abseil-cpp
+License:     Apache License 2.0
+Copyright:   (c) The Abseil Authors
+
+The libamphion_audio_processing.so contains statically linked WebRTC
+Audio Processing and Abseil code. The WebRTC BSD license is reproduced in
+asr/native/audio-processing/LICENSES/WEBRTC_AUDIO_PROCESSING.txt; the Apache
+License 2.0 text is provided by this distribution's LICENSE file.
+
+================================================================================
 
 For the full text of any of the above licenses, please refer to the LICENSE file
 under the corresponding upstream repository.
@@ -106,4 +123,4 @@ TRADEMARKS
 
 "sherpa-onnx", "k2", "icefall" are trademarks of their respective owners.
 "ONNX" and "ONNX Runtime" are trademarks of Microsoft Corporation.
-"Android" is a trademark of Google LLC.
+"Android" and "WebRTC" are trademarks of their respective owners.
