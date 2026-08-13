@@ -23,7 +23,9 @@ fi
 
 git clone --quiet --no-checkout --shared "$REPO_ROOT" "$CLONE_ROOT"
 git -C "$CLONE_ROOT" checkout --quiet --detach "$SOURCE_COMMIT"
-git -C "$CLONE_ROOT" submodule update --init --recursive
+# Android ASR consumes only sherpa-onnx. Avoid coupling this gate to unrelated private
+# submodules, which can fail before any Android product code is built or tested.
+git -C "$CLONE_ROOT" submodule update --init --recursive third_party/sherpa-onnx
 
 bash "$CLONE_ROOT/asr/tools/03_build_agc_native.sh" android-arm64-v8a
 bash "$CLONE_ROOT/asr/tools/04_build_android_so.sh" arm64-v8a

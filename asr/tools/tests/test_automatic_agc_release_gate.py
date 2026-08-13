@@ -387,6 +387,11 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
 
         self.assertIn("mktemp -d", source)
         self.assertIn("git clone", source)
+        self.assertIn(
+            "submodule update --init --recursive third_party/sherpa-onnx",
+            source,
+        )
+        self.assertNotIn("submodule update --init --recursive\n", source)
         self.assertIn("04_build_android_so.sh", source)
         self.assertIn("AMPHION_REQUIRE_ANDROID_NATIVE_LIBS=1", source)
         self.assertIn(":sdk:assembleRelease", source)
