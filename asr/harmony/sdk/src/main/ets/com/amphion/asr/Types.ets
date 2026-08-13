@@ -327,7 +327,8 @@ function validateTargetSpeakerConfig(config: TargetSpeakerConfig | undefined): v
   }
   if (config.winSec <= 0 || config.hopSec <= 0 ||
     !isValidSpeakerMinimumSegment(config.minSegSec)) {
-    throw new Error('TargetSpeakerConfig winSec and hopSec must be > 0; minSegSec must be >= 0');
+    throw new Error(
+      'TargetSpeakerConfig winSec and hopSec must be > 0; minSegSec must be finite and >= 0');
   }
   if (config.numThreads < 1 || config.numThreads > 8) {
     throw new Error(`TargetSpeakerConfig.numThreads must be in [1, 8], got ${config.numThreads}`);

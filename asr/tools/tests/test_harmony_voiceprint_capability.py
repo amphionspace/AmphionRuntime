@@ -79,6 +79,7 @@ class HarmonyVoiceprintCapabilityTest(unittest.TestCase):
         source = TYPES.read_text(encoding="utf-8")
         self.assertIn("minSegSec: number = 0;", source)
         self.assertIn("isValidSpeakerMinimumSegment(config.minSegSec)", source)
+        self.assertIn("minSegSec must be finite and >= 0", source)
         self.assertNotIn("config.minSegSec <= 0", source)
 
     def test_target_speaker_minimum_requires_a_non_negative_finite_value(self) -> None:
