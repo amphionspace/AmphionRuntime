@@ -287,6 +287,7 @@ function buildTargetSpeakerConfig(startParams: StartParams | undefined, withSpea
   // Score-only: never reject on segment-end verification so onFinal always carries speakerSimilarity
   // (mirrors Android Dingqiao SCORE_ONLY_THRESHOLD = -1). Speaker VAD does its own gating.
   cfg.threshold = -1.0;
+  cfg.minSegSec = 0;
   cfg.enabledByDefault = false;
   cfg.numThreads = 1;
   // Final-only verification can attach the extractor after ASR streaming starts. Speaker VAD

@@ -83,9 +83,15 @@ class EffectiveSpeechBufferTest {
 
         val fallback = selectSpeakerScoreSamples(strict, utterance, minimum, asrSpeechConfirmed = true)
         val denied = selectSpeakerScoreSamples(strict, utterance, minimum, asrSpeechConfirmed = false)
-        val stillShort = selectSpeakerScoreSamples(
+        val shortConfirmed = selectSpeakerScoreSamples(
             strict,
-            FloatArray(minimum - 1),
+            FloatArray(sampleRate / 2),
+            minimum,
+            asrSpeechConfirmed = true,
+        )
+        val emptyConfirmed = selectSpeakerScoreSamples(
+            FloatArray(0),
+            FloatArray(0),
             minimum,
             asrSpeechConfirmed = true,
         )
@@ -112,11 +118,38 @@ class EffectiveSpeechBufferTest {
         assertEquals(utterance.size, fallback.samples.size)
         assertEquals(SpeakerScoreSource.INSUFFICIENT, denied.source)
         assertEquals(0, denied.samples.size)
-        assertEquals(SpeakerScoreSource.INSUFFICIENT, stillShort.source)
+        assertEquals(SpeakerScoreSource.UTTERANCE, shortConfirmed.source)
+        assertEquals(sampleRate / 2, shortConfirmed.samples.size)
+        assertEquals(SpeakerScoreSource.INSUFFICIENT, emptyConfirmed.source)
         assertEquals(SpeakerScoreSource.INSUFFICIENT, exactStrictWithoutAsr.source)
         assertEquals(SpeakerScoreSource.STRICT, exactStrictWithAsr.source)
         assertEquals(SpeakerScoreSource.STRICT, longStrict.source)
         assertEquals(minimum + sampleRate, longStrict.samples.size)
+    }
+
+    @Test
+    fun zeroMinimumScoresTheWholeRealUtteranceInsteadOfAShortStrictFragment() {
+        val strict = FloatArray(sampleRate / 10)
+        val utterance = FloatArray(sampleRate / 2)
+
+        val selected = selectSpeakerScoreSamples(
+            strict,
+            utterance,
+            minSamples = 0,
+            asrSpeechConfirmed = true,
+        )
+
+        assertEquals(SpeakerScoreSource.UTTERANCE, selected.source)
+        assertTrue(selected.samples === utterance)
+    }
+
+    @Test
+    fun sessionMinimumConversionPreservesZeroDuration() {
+        assertEquals(0, speakerScoreMinimumSamples(minSegSec = 0f, sampleRate = sampleRate))
+        assertEquals(
+            sampleRate + sampleRate / 2,
+            speakerScoreMinimumSamples(minSegSec = 1.5f, sampleRate = sampleRate),
+        )
     }
 
     @Test

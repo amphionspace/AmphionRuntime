@@ -799,8 +799,9 @@ internal class SessionImpl(
      * 段末门控：对 utterance 缓冲打分并给 [raw] 打标（speakerScore / isTargetSpeaker），或原样放行。
      * 调用后必清空 utterance 缓冲。
      *
-     * 放行（返回不带 speaker 字段的 raw）的情况：开关关闭 / 未注册目标 / extractor 不可用 /
-     * 段太短无法判定。真正"过滤非目标"由 [dispatchFinal] 依据 isTargetSpeaker==false 改派
+     * 放行（返回不带 speaker 字段的 raw）的情况：开关关闭 / 未注册目标 / 无 ASR 语音证据 /
+     * extractor 技术上无法产生 embedding。真正"过滤非目标"由 [dispatchFinal] 依据
+     * isTargetSpeaker==false 改派
      * onFinalRejected 完成；这里只负责打分与打标，保证 metrics / 后处理时序与未启用时一致。
      */
     private fun prepareFinal(raw: AsrResult, hasEvidence: Boolean, isLast: Boolean): AsrResult? {
@@ -829,7 +830,7 @@ internal class SessionImpl(
         val target = targetEmbedding ?: return terminal
         val verifier = ensureVerifier() ?: return terminal
         val minSamples = engineImpl.targetSpeakerConfig
-            ?.let { (it.minSegSec * sampleRate).toInt().coerceAtLeast(1) }
+            ?.let { speakerScoreMinimumSamples(it.minSegSec, sampleRate) }
             ?: Int.MAX_VALUE
         val selection = selectSpeakerScoreSamples(
             boundary.samples,
@@ -873,7 +874,6 @@ internal class SessionImpl(
             sampleRate = sampleRate,
             winSec = tsc.winSec,
             hopSec = tsc.hopSec,
-            minSegSec = tsc.minSegSec,
         ).also { speakerVerifier = it }
     }
 

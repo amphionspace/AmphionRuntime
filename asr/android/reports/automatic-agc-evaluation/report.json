@@ -1,28 +1,32 @@
 {
-  "evaluation_axes": ["overall_level_dbfs", "snr_db", "long_audio_time_region"],
+  "evaluation_axes": [
+    "overall_level_dbfs",
+    "snr_db",
+    "long_audio_time_region"
+  ],
   "implementation_source_sha256": {
     "asr/native/audio-processing/src/amphion_audio_processing.cpp": "7ded42aaade2ec76a1567135f9b8ca2bb63e84469ca8616bb152644be79a5acb",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt": "9dc5dd3a675db811cdf84f886da455b5ff95a4da3f67241ed1991b4fcd4d95a2",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt": "d183b5616f5a89de1716e0074fcae5b243eeab784a17c8675a879102ef514aac",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "af0784515ab2bea5b29eff05fbbb809851de56e0752235d7134dfed523523f2f",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "a971ef3476d41aa627ff32bf2146b38849ff7e2dc9cfb20dc698461116999467",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "9b307937459ebbf618d7f01fac641401827818688cb7e7725db0bd6efa4b1127",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "8e9d8358bfda3fa35f5ce821f3e09c05106d8ef49f8674c843877d83ce3fb85a",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "3f0ab90ca50cf776cc0b1a6f475eb5849e03e478",
-    "changed_source": "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets",
-    "previous_sha256": "f905047172e69c260d11e209fcd79647349020d9901445f593a037db0b038441",
-    "current_sha256": "9b307937459ebbf618d7f01fac641401827818688cb7e7725db0bd6efa4b1127",
+    "source_commit": "9b1407680dd53a78c4a68d5010da016952b385ca",
+    "changed_source": "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt; asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets",
+    "previous_sha256": "SessionImpl.kt=af0784515ab2bea5b29eff05fbbb809851de56e0752235d7134dfed523523f2f; Runtime.ets=9b307937459ebbf618d7f01fac641401827818688cb7e7725db0bd6efa4b1127",
+    "current_sha256": "SessionImpl.kt=a971ef3476d41aa627ff32bf2146b38849ff7e2dc9cfb20dc698461116999467; Runtime.ets=8e9d8358bfda3fa35f5ce821f3e09c05106d8ef49f8674c843877d83ce3fb85a",
     "decision": "existing_accuracy_evaluation_remains_applicable",
-    "reason": "The mainline change adds recognizer pool ownership, preload, and closed-session stream release. It does not change active-session AGC construction, ASR PCM routing, gain processing, decoder configuration, model bytes, or preserved evaluation inputs.",
+    "reason": "The change removes voiceprint final quality abstention, lets ASR-confirmed short utterances use their real raw PCM for speaker embedding, and omits a score when the extractor is technically not ready. Voiceprint and Speaker VAD continue to consume the raw PCM lane; active-session AGC construction, processed ASR PCM routing, gain processing, decoder configuration, model bytes, and preserved evaluation inputs are unchanged.",
     "rerun_verification": [
       "test_agc_signal_domains",
       "test_harmony_streaming_agc_processor",
       "repository_low_volume_regression_off_on"
     ],
-    "not_claimed": "The 500-item, SNR, and long-audio evaluations were not rerun for this non-accuracy-path mainline change."
+    "not_claimed": "The 500-item normal-volume, SNR, and long-audio evaluations were not rerun because this change only affects final voiceprint scoring on the existing raw PCM lane. The repository low-volume off/on fixture was rerun against the rebuilt host AGC library."
   },
   "evaluation_runtime": {
     "sherpa_onnx_version": "1.13.1",
@@ -58,20 +62,70 @@
       "agc_exact_match": 0.828,
       "off_empty": 0.0,
       "agc_empty": 0.0,
-      "paired_bootstrap_cer_delta_95_percent_points": [-0.1300, 0.1620]
+      "paired_bootstrap_cer_delta_95_percent_points": [
+        -0.1300,
+        0.1620
+      ]
     },
     "controlled_levels": [
-      { "dbfs": -30, "samples": 100, "off_cer": 0.024657534246575342, "agc_cer": 0.025570776255707764, "off_exact": 0.81, "agc_exact": 0.78 },
-      { "dbfs": -40, "samples": 100, "off_cer": 0.026484018264840183, "agc_cer": 0.024657534246575342, "off_exact": 0.80, "agc_exact": 0.81 },
-      { "dbfs": -50, "samples": 100, "off_cer": 0.029223744292237442, "agc_cer": 0.026484018264840183, "off_exact": 0.76, "agc_exact": 0.79 },
-      { "dbfs": -60, "samples": 100, "off_cer": 0.028310502283105023, "agc_cer": 0.0273972602739726, "off_exact": 0.77, "agc_exact": 0.78 },
-      { "dbfs": -70, "samples": 100, "off_cer": 0.0593607305936073, "agc_cer": 0.0273972602739726, "off_exact": 0.70, "agc_exact": 0.76, "off_empty": 0.02, "agc_empty": 0.0 }
+      {
+        "dbfs": -30,
+        "samples": 100,
+        "off_cer": 0.024657534246575342,
+        "agc_cer": 0.025570776255707764,
+        "off_exact": 0.81,
+        "agc_exact": 0.78
+      },
+      {
+        "dbfs": -40,
+        "samples": 100,
+        "off_cer": 0.026484018264840183,
+        "agc_cer": 0.024657534246575342,
+        "off_exact": 0.80,
+        "agc_exact": 0.81
+      },
+      {
+        "dbfs": -50,
+        "samples": 100,
+        "off_cer": 0.029223744292237442,
+        "agc_cer": 0.026484018264840183,
+        "off_exact": 0.76,
+        "agc_exact": 0.79
+      },
+      {
+        "dbfs": -60,
+        "samples": 100,
+        "off_cer": 0.028310502283105023,
+        "agc_cer": 0.0273972602739726,
+        "off_exact": 0.77,
+        "agc_exact": 0.78
+      },
+      {
+        "dbfs": -70,
+        "samples": 100,
+        "off_cer": 0.0593607305936073,
+        "agc_cer": 0.0273972602739726,
+        "off_exact": 0.70,
+        "agc_exact": 0.76,
+        "off_empty": 0.02,
+        "agc_empty": 0.0
+      }
     ]
   },
   "customer_snr": {
     "reference": "你好一二三四",
-    "correct_both_modes_db": [30, 25, 20],
-    "incorrect_both_modes_db": [15, 10, 5, 0, -5],
+    "correct_both_modes_db": [
+      30,
+      25,
+      20
+    ],
+    "incorrect_both_modes_db": [
+      15,
+      10,
+      5,
+      0,
+      -5
+    ],
     "conclusion": "AGC does not improve SNR"
   },
   "repository_low_volume_regression": {

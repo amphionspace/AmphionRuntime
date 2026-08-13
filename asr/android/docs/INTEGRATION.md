@@ -153,10 +153,10 @@ engine.close()        // 不再识别时释放 ASR / 标点 / ITN / VAD 全部 n
 `SessionConfig.initialSilenceTimeoutMs` 按底层实际处理的 PCM 时长计算，`null` 或 `0` 表示禁用。
 检测到首个 VAD speech window 后，本会话永久取消首段静音计时；阈值边界同时检测到语音时语音优先。
 `initialSilenceConfirmationGraceMs` 是目标说话人能力的一次性确认窗；没有配置 `targetSpeaker` 时忽略，
-并钳制到 `TargetSpeakerConfig.minSegSec`。初始窗内的连续未决活动只获得有界确认，只有确认窗末仍存在
+并钳制到 `TargetSpeakerConfig.minSegSec`。该参数默认 `0`，因此默认不延长等待；显式配置正数时，
+初始窗内的连续未决活动只获得有界确认，只有确认窗末仍存在
 近期语音型活动，或强制刷新得到 text/token，才解除计时。普通调用保持为 `null`。
-鼎桥适配层在传入 `voiceprintIds` 时也会配置该确认窗，使调用方能在 `onStart` 内同步启用 Speaker VAD；
-纯静音和稳态高能非语音不会因此永久解除计时。
+鼎桥适配层固定 `minSegSec=0`，不会为声纹额外延长 `vadBegin`。
 底层 SDK 只回调 `onInitialSilenceTimeout()`，不会自行合成业务层的空 final 或 complete；鼎桥适配层会把它
 转换为一次空的 last final 和一次 `onComplete`。
 
@@ -488,13 +488,14 @@ session.clearTargetSpeaker()              // 清除目标：即使开关开也�
 
 | 步骤 | 行为 |
 | --- | --- |
-| 段长 < minSegSec（默认 1.5s） | 不打分，按未判定放行（speakerScore=null，走 onFinal） |
-| minSegSec ~ winSec（默认 2.5s） | 整段单次打分 |
+| ASR 有 text/token 且真实 PCM 非空（minSegSec 默认 0） | 使用整句真实 PCM 尝试打分 |
+| 显式 minSegSec > 0 且严格有效语音达到门槛 | 优先使用严格有效语音打分 |
 | 段长 >= winSec | 按 winSec / hopSec 滑窗，取窗内最大余弦 |
 | 余弦 >= threshold | 判为目标，走 onFinal |
 | 余弦 < threshold | 判为非目标，走 onFinalRejected |
 
-模型加载失败 / 未注册目标 / 开关关闭时，一律放行全部（门控降级，不影响 ASR 主链路）。
+模型加载失败 / 未注册目标 / 开关关闭时，一律放行全部（门控降级，不影响 ASR 主链路）。鼎桥适配层
+另将 threshold 固定为 -1，只返回分数、不按分数拒绝 final；音频时长和阈值判断由业务方完成。
 
 ### 13.6 阈值标定
 

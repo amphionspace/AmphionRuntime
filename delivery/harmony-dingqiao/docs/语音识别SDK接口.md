@@ -280,13 +280,14 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `result` | `string` | 识别文本 |
 | `beginTime` | `number?` | 起始时间毫秒，可能为空 |
 | `endTime` | `number?` | 结束时间毫秒，可能为空 |
-| `speakerSimilarity` | `number?` | final 且启用声纹校验，并有达到门槛的评分 PCM 时返回 |
+| `speakerSimilarity` | `number?` | final 且启用声纹校验，并有 ASR 语音证据和非空真实 PCM 时尝试返回 |
 | `targetSpeakerEnhancementApplied` | `boolean?` | 当前 session 启用目标说话人增强时为 `true`；未启用时省略 |
 
-> 声纹评分优先使用严格筛选的有效语音。严格语音短于 `TargetSpeakerConfig.minSegSec`
->（默认 1.5 秒），但 ASR 已产生非空 text/token 且当前句实际 PCM 达到门槛时，SDK 使用当前句
-> 真实 PCM 计算回退分数。没有 ASR 语音证据、实际 PCM 仍短于门槛或空 terminal final 时，
-> `speakerSimilarity` 可以省略；SDK 不填充假分数或复制上一句分数。
+> `TargetSpeakerConfig.minSegSec` 默认并在鼎桥适配层固定为 `0`，SDK 不设置最短时长门槛。ASR
+> 已产生非空 text/token 时，SDK 使用当前句非空真实 PCM 尝试评分，不再因短句质量判断省略分数。
+> 音频时长、短句相似度风险、场景阈值和接受策略由业务方承担。没有 ASR 语音证据、没有
+> 真实 PCM、声纹能力未生效或 extractor 技术上无法产生 embedding 时可以省略；SDK 不填充假分数、
+> 复制上一句分数或补静音。
 
 > `enableTargetSpeakerEnhancement` 是正式接口预留，但开源 Conv-TasNet 权重没有默认进入商用 HAR。
 > 客户包必须先完成模型商用授权、固定模型哈希并重跑对应真机门禁；缺少模型时启动会明确失败，
@@ -329,10 +330,10 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 内存声纹 extractor 由 `unloadModel()` / `unloadRuntime()` 一并释放；HAR 内置的模型文件和已注册的 embedding 属于持久数据，不随内存模型卸载。调用 `unloadModel()` 后再次使用声纹能力会重新按需加载 extractor，但无需重新注册声纹。
 
-仅启用 `enableVoiceprintVerification` 时，SDK 不依据相似度丢弃识别结果；有 ASR 语音证据且
-当前句实际 PCM 达到门槛的 final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧
-判定。实际 PCM 未达到门槛的 final 仍返回识别结果，但省略相似度。启用 `enableSpeakerVad`
-时，SDK 会在流式阶段执行目标说话人判断，可拒绝非目标说话人片段，并在目标说话人离场后提前切句。
+仅启用 `enableVoiceprintVerification` 时，SDK 不依据相似度丢弃识别结果；有 ASR 语音证据且本句
+真实 PCM 非空的 final 会尝试返回增强文本与 `speakerSimilarity`。SDK 负责出分，客户业务侧负责
+决定是否接受，并承担短句分数波动和阈值选择风险。启用 `enableSpeakerVad` 时，SDK 会在流式阶段
+执行目标说话人判断，可拒绝非目标说话人片段，并在目标说话人离场后提前切句。
 
 ## 8. 授权
 

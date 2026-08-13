@@ -58,6 +58,22 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildAsrConfig_voiceprintVerificationIsScoreOnly() {
+        val model = File.createTempFile("dingqiao-speaker", ".onnx")
+        try {
+            val config = DingqiaoEngineConfig.buildAsrConfig(
+                CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE),
+                speakerModelPath = model.absolutePath,
+            )
+
+            assertEquals(-1.0f, config.targetSpeaker?.threshold)
+            assertEquals(0f, config.targetSpeaker?.minSegSec)
+        } finally {
+            model.delete()
+        }
+    }
+
+    @Test
     fun buildAsrConfig_disablesPrepackByDefaultAndAllowsExplicitFallback() {
         val defaultConfig = DingqiaoEngineConfig.buildAsrConfig(
             CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE),
@@ -286,7 +302,7 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
-    fun buildSessionConfig_voiceprintKeepsVadBeginAndAddsBoundedConfirmationGrace() {
+    fun buildSessionConfig_voiceprintKeepsVadBeginWithoutSdkDurationGrace() {
         val sc = DingqiaoEngineConfig.buildSessionConfig(
             StartParams(
                 "s1",
@@ -300,7 +316,7 @@ class DingqiaoEngineConfigTest {
             speakerModelPath = "/tmp/eres2net.onnx",
         )
         assertEquals(1_000, sc.initialSilenceTimeoutMs)
-        assertEquals(1_500, sc.initialSilenceConfirmationGraceMs)
+        assertEquals(0, sc.initialSilenceConfirmationGraceMs)
     }
 
     @Test
@@ -330,7 +346,7 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
-    fun buildSessionConfig_voiceprintIdsReserveConfirmationGraceForOnStartEnablement() {
+    fun buildSessionConfig_voiceprintIdsKeepZeroConfirmationGraceForOnStartEnablement() {
         val sc = DingqiaoEngineConfig.buildSessionConfig(
             StartParams(
                 "s1",
@@ -345,7 +361,7 @@ class DingqiaoEngineConfigTest {
         )
 
         assertEquals(1_000, sc.initialSilenceTimeoutMs)
-        assertEquals(1_500, sc.initialSilenceConfirmationGraceMs)
+        assertEquals(0, sc.initialSilenceConfirmationGraceMs)
     }
 
     @Test

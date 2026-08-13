@@ -7,7 +7,7 @@
 - 每个正常结束的 session 必须恰好产生一次 `isLast=true`，之后恰好产生一次 `onComplete`；`cancel` 不得产生 final 或 complete。
 - 每次自动结束都必须能归因到明确的终止条件。排查提前结束时，先记录 `finish` 调用、`vadBegin`、`maxAudioDuration`、写入 PCM 时长和完整回调时间线，不要先猜测模型问题。
 - 初始起音属于多信号状态：VAD 或 ASR 的非空 text/token 任一确认语音后，必须永久解除本 session 的 `vadBegin`。声学 backstop 不能把“高于固定音量”直接等同于 speech：它只能先触发一次有界确认；持续活动还要满足语音型能量变化和过零率范围，才可解除计时，且不得伪造 speech 事件。
-- 组合参数必须按能力的时间前置条件验收。启用声纹校验或 Speaker VAD 时，`vadBegin` 本身仍是纯静音等待；初始等待窗内存在连续但未决的声学活动时，才允许使用不超过 `TargetSpeakerConfig.minSegSec` 的一次性确认窗。旧活动不能在确认窗末直接解除计时：必须仍有近期语音型活动，或强制刷新 ASR 得到非空 text/token。测试必须分别验证纯静音、稳态高能非语音、零散脉冲和真实语音，不能只检查参数解析。
+- 组合参数必须按能力的时间前置条件验收。启用声纹校验或 Speaker VAD 时，`vadBegin` 本身仍是纯静音等待；只有显式配置正数 `TargetSpeakerConfig.minSegSec` 时，初始等待窗内连续但未决的声学活动才允许获得不超过该值的一次性确认窗。默认 `minSegSec=0`，不延长等待。旧活动不能在确认窗末直接解除计时：必须仍有近期语音型活动，或强制刷新 ASR 得到非空 text/token。测试必须分别验证纯静音、稳态高能非语音、零散脉冲和真实语音，不能只检查参数解析。
 - 异步回调只能根据当前结果携带的 `isLast` 决定是否完成会话；不得用全局 `finishRequested` 推断某条较早结果是最后一条。
 - `onStart` 是会话已经可用的承诺，不只是底层 native 构造完成通知。SDK 对外回调前必须已经发布 session 并完成会话级配置；调用方允许在 `onStart` 内同步执行 `writeAudio`、`finish` 或 `cancel`，不得收到 `NOT_LISTENING`。
 - 进程级 `unloadModel` / Runtime release 不得越过活跃 session 的 native 异步工作。session 只有在公开回调关闭、最后一个 in-flight native 调用返回且 stream 已关闭后才算 quiescent；释放等待期间不得创建新 session。重新设置授权触发 Runtime 替换时也必须遵守同一边界。
@@ -15,12 +15,14 @@
 ## 声纹结果契约
 
 - 公共字段名是 `speakerSimilarity`。新增或修改示例、文档和测试时必须使用该名称。
-- `speakerSimilarity` 的严格评分优先使用筛选后的有效语音。严格样本短于
-  `TargetSpeakerConfig.minSegSec`（默认 1.5 秒），但 ASR 已产生非空 text/token 且本句实际 PCM
-  达到门槛时，SDK 必须退化为本句真实 PCM 评分；不得填充假分数、复制上一句分数或通过补静音
-  绕过门槛。没有 ASR 语音证据或本句实际 PCM 仍短于门槛时，SDK 保留识别结果并省略分数。
+- SDK 的职责是对已确认的语音产出声纹结果，业务方负责根据使用场景选择阈值并承担短句精度风险。
+  `TargetSpeakerConfig.minSegSec` 默认且在鼎桥适配层固定为 `0`，SDK 不设置最短时长门槛；ASR 已产生
+  非空 text/token 时，必须使用本句非空真实 PCM 尝试评分，不得仅因时长或内部质量判断省略分数。
+  业务方自行根据音频时长、相似度和场景阈值决定是否采用。没有 ASR 语音证据、没有真实 PCM、
+  声纹能力未启用、有效 ID 缺失或
+  extractor 在技术上无法产生 embedding 时可以省略；不得填充假分数、复制上一句分数或补静音。
 - 排查 `speakerSimilarity=undefined` 时，必须同时记录 `enableVoiceprintVerification`、`enableSpeakerVad`、`voiceprintIds` 数量、调用方传入和 SDK 生效后的 `vadBegin`、实际写入 PCM 时长以及该 final 的有效语音时长。缺少声纹开关或有效 ID 时不得归因为打分异常。
-- 声纹测试至少覆盖：小于门槛、恰好门槛、超过门槛、低音量、前置静音、非注册语料源和多句连续输入。多句用例必须逐条核对每个达到门槛的非空 final 都有分数，不能用“整轮至少一个分数”代替。生命周期门禁只判断分数可选性、回调顺序和会话恢复；目标/非目标相似度精度另走带身份标注的评测集。
+- 声纹测试至少覆盖：`minSegSec=0`、500 ms 短句、自定义正数门槛的边界、低音量、前置静音、非注册语料源和多句连续输入。有真实 PCM 的每个非空 final 都必须逐条核对分数，不能用“整轮至少一个分数”代替。生命周期门禁只判断出分资格、回调顺序和会话恢复；目标/非目标相似度精度及短句风险另走带身份标注的评测集，由业务方决定阈值和接受策略。
 - 同时启用声纹校验和 Speaker VAD 时，必须区分 native stream 边界与公开 final 边界。token-only endpoint 被抑制时可以清理 Speaker VAD 当前流窗口，但不得丢弃声纹回退 PCM；测试至少覆盖两个各短于门槛、合并后达到门槛的 native segment。
 
 ## 缺陷处理流程

@@ -2255,19 +2255,18 @@ export class AsrSession {
     const extractor = this.targetExtractor;
     const targetSpeaker = this.targetSpeaker;
     if (config === undefined || extractor === undefined || targetSpeaker === undefined) return;
-    const minSamples = Math.round(config.minSegSec * ASR_SAMPLE_RATE_HZ);
-    if (samples.length < minSamples) {
-      this.callbackGate.invoke((): void => {
-        this.callback.onDebug?.(
-          `speaker score unavailable: effectiveSpeech=${Math.round(samples.length * 1000 / ASR_SAMPLE_RATE_HZ)}ms, ` +
-          `minimum=${Math.round(config.minSegSec * 1000)}ms`);
-      });
-      return;
-    }
     const stream = extractor.createStream();
     try {
       const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
       stream.acceptWaveform(wave);
+      if (!extractor.isReady(stream)) {
+        this.callbackGate.invoke((): void => {
+          this.callback.onDebug?.(
+            `speaker score unavailable: extractor-not-ready pcmMs=${Math.round(
+              samples.length * 1000 / ASR_SAMPLE_RATE_HZ)}`);
+        });
+        return;
+      }
       const embedding = extractor.compute(stream);
       const score = cosineSimilarity(embedding, targetSpeaker);
       result.speakerScore = score;
@@ -2292,6 +2291,7 @@ export class AsrSession {
 
     const scoreStartMs = Date.now();
     const score = this.scoreSamples(this.speakerPcmBuffers.speakerVadTail(winSamples));
+    if (score === undefined) return false;
     const scoreElapsedMs = Date.now() - scoreStartMs;
     const finalizer = this.speakerTurnFinalizer(sv);
     const state = finalizer.observeScore(scheduler.totalSamples(), score, sv.threshold);
@@ -2486,7 +2486,7 @@ export class AsrSession {
     const effectiveSamples = effective.take(true);
     const minimum = Math.round(config.minSegSec * ASR_SAMPLE_RATE_HZ);
     const selection = selectSpeakerScoreSamples(effectiveSamples, split.prefix, minimum, true);
-    if (selection.samples.length < minimum) return;
+    if (selection.samples.length === 0) return;
     this.svCleanPrefixSpeakerScore = this.scoreSamples(selection.samples);
   }
 
@@ -2662,12 +2662,15 @@ export class AsrSession {
     }
   }
 
-  private scoreSamples(samples: Float32Array): number {
-    if (this.targetExtractor === undefined || this.targetSpeaker === undefined) return -1;
+  private scoreSamples(samples: Float32Array): number | undefined {
+    if (this.targetExtractor === undefined || this.targetSpeaker === undefined || samples.length === 0) {
+      return undefined;
+    }
     const stream = this.targetExtractor.createStream();
     try {
       const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
       stream.acceptWaveform(wave);
+      if (!this.targetExtractor.isReady(stream)) return undefined;
       const embedding = this.targetExtractor.compute(stream);
       const score = cosineSimilarity(embedding, this.targetSpeaker);
       this.lastSpeakerVadScore = score;

@@ -35,6 +35,8 @@
 
 > 批注（交付澄清 VP-20260715-02，2026-07-15）：参数按范围钳制；传入 `vadBegin=60000` 时实际按 10000 ms 计算，并非 60 秒。启用声纹校验或 Speaker VAD 后，纯静音仍在该阈值结束。初始等待窗内存在连续但未决的声学活动时，SDK 最多使用一次 `TargetSpeakerConfig.minSegSec`（默认 1500 ms）确认窗；只有确认窗末仍存在近期语音型活动，或强制刷新 ASR 得到非空 text/token，才解除计时。稳态高能非语音仍有界结束，声学证据不单独产生 `SPEECH_BEGIN`。
 
+> 现行覆盖（2026-08-13）：鼎桥适配层已将 `minSegSec` 固定为 `0`，因此不再增加上述确认窗；`vadBegin` 仍以 VAD/ASR 是否确认语音为准。
+
 > 批注（运行时启用，2026-07-18）：只要会话传入可用 `voiceprintIds`，即使两个声纹开关初始均为关闭，也会预留上述一次性确认窗，以支持调用方在 `onStart` 内同步启用 Speaker VAD。
 
 > 批注（模式兼容，2026-07-14）：`recognitionMode` 缺省为 `STREAM=1`，当前不支持 `RECORD=0` 的 SDK 内录音；`recognizerMode` 接受 `short` / `long`，两者均使用长语音流式实现。`locate` 当前仅兼容 `CN`，`sessionGeneralLexicon` 在 V1 不生效。
@@ -104,6 +106,8 @@
 > 批注（交付扩展，2026-06-29）：本交付的声纹核验为打分模式，SDK 不在内部丢弃非目标说话人 final 结果；是否接受该结果由客户业务根据 `speakerSimilarity` 判定。
 
 > 批注（交付澄清 VP-20260715-01，2026-07-15）：`speakerSimilarity` 是可选值。有效语音短于 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时无法可靠打分，SDK 保留 final 识别结果但省略该字段；调用方不得把字段缺失当作会话结束或识别失败。
+
+> 现行覆盖（2026-08-13）：鼎桥适配层已将 `minSegSec` 固定为 `0`。ASR 已确认语音且本句真实 PCM 非空时，SDK 尝试返回真实分数，不再按时长省略；短句精度、阈值和是否采用由业务方判断。
 
 ## 7. License
 

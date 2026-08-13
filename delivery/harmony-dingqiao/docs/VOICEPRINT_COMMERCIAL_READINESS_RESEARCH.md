@@ -5,6 +5,10 @@
 范围：当前 Harmony/Android 鼎桥 SDK 中的 ERes2Net speaker embedding、余弦打分、注册/验证、Speaker VAD，以及达到“商用”所需但当前未必具备的评测、校准、反欺骗和治理能力。
 方法：优先使用模型/工具官方仓库、论文原文、NIST 官方评测计划、ISO 标准页面、FIDO 正式要求和 ASVspoof 官方评测计划；仓库现状来自源码和已有可复现实验记录。本文不是法律意见，也不把公开 benchmark 等同于客户现场验收。
 
+现行决策覆盖（2026-08-13）：`TargetSpeakerConfig.minSegSec` 默认并在鼎桥适配层固定为 `0`，SDK
+不再用时长或内部质量门槛替业务方弃权；短句精度、阈值和是否采用分数由业务方承担。本文保留的
+短语音风险证据仍适用于业务决策，不代表 SDK 应恢复门槛。
+
 ## 1. 问题重述、假设与结论
 
 真正的问题不是“余弦分数是否要压到 0–1”，而是：**在明确的业务场景、攻击模型、目标人群和声学条件下，这套 SDK 能否用一个冻结的决策策略，稳定达到客户约定的误接收、误拒绝、可用性和安全指标。**
@@ -125,7 +129,7 @@ P(target | evidence) = sigmoid(l + log(π / (1 - π)))
 | 端侧 speaker embedding | 内置约 38 MB ERes2Net ONNX | 能从达到时长门槛的音频提取固定维 embedding |
 | 多段注册 | API 最低允许 1 段；传入多段时 `SpeakerEnroller` 对 raw embedding 求均值后 L2 normalize | 同一人的多个注册样本可以形成一个 centroid；当前接口/UI 不强制商用品质的跨 session 注册 |
 | 余弦分数 | Harmony/Android 均有 cosine 实现 | 能提供 target/test embedding 的角度相似度 |
-| 时长门槛 | 默认 `minSegSec=1.5s`；不足时省略分数 | 避免对极短片段伪造分数 |
+| 时长门槛 | 默认且鼎桥固定 `minSegSec=0`；有 ASR 证据和真实 PCM 时尝试返回分数 | SDK 不替业务作时长决策；不证明极短片段可靠 |
 | 生命周期门禁 | 已覆盖 cold/warm、fallback、final/last/complete 等 | 能证明接口与回调契约；不证明身份精度 |
 | 目标人离场辅助切句 | Speaker VAD 对滑窗分数做状态机判断 | 在限定数据上可减少非目标音频拖尾；不是多说话人分离 |
 
@@ -210,7 +214,10 @@ decisionPolicyVersion   # 模型、校准器、阈值、条件策略的版本
 
 ### 6.1 短语音不是一个固定 magic number
 
-当前 `minSegSec=1.5s` 是“允许尝试提 embedding”的工程门槛，不是“1.5 秒已经可靠”的统计证明。上游 ERes2NetV2 论文明确以短时退化为问题：其 VoxCeleb1-O EER 从 full-duration 0.61% 变为 3 秒 0.98%、2 秒 1.48%；该数字来自干净 benchmark，而且用的是比当前 ERes2Net-base 更新的 V2。[ERes2NetV2 原论文](https://arxiv.org/abs/2406.02167)
+现行 `minSegSec=0` 只表示 SDK 不替业务方设置决策门槛，不表示任意短音频都可靠。此前的 1.5 秒也
+只是“允许尝试提 embedding”的工程门槛，不是可靠性的统计证明。上游 ERes2NetV2 论文明确以短时
+退化为问题：其 VoxCeleb1-O EER 从 full-duration 0.61% 变为 3 秒 0.98%、2 秒 1.48%；该数字来自
+干净 benchmark，而且用的是比当前 ERes2Net-base 更新的 V2。[ERes2NetV2 原论文](https://arxiv.org/abs/2406.02167)
 
 建议把以下值分开：
 

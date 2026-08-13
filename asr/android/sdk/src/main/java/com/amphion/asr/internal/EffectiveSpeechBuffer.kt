@@ -226,22 +226,29 @@ internal data class SpeakerScoreSelection(
     val source: SpeakerScoreSource,
 )
 
+internal fun speakerScoreMinimumSamples(minSegSec: Float, sampleRate: Int): Int =
+    (minSegSec * sampleRate.coerceAtLeast(1)).toInt().coerceAtLeast(0)
+
 internal fun selectSpeakerScoreSamples(
     strictSamples: FloatArray,
     utteranceSamples: FloatArray,
     minSamples: Int,
     asrSpeechConfirmed: Boolean,
 ): SpeakerScoreSelection {
-    val minimum = minSamples.coerceAtLeast(1)
+    val minimum = minSamples.coerceAtLeast(0)
     return when {
         !asrSpeechConfirmed ->
             SpeakerScoreSelection(FloatArray(0), SpeakerScoreSource.INSUFFICIENT)
-        strictSamples.size >= minimum ->
+        minimum > 0 && strictSamples.size >= minimum ->
             SpeakerScoreSelection(strictSamples, SpeakerScoreSource.STRICT)
-        utteranceSamples.size >= minimum ->
+        // minSegSec=0 removes SDK-side duration judgment, so score the whole real utterance rather
+        // than an arbitrarily short strict fragment. A positive value remains only a source preference.
+        utteranceSamples.isNotEmpty() ->
             SpeakerScoreSelection(utteranceSamples, SpeakerScoreSource.UTTERANCE)
+        strictSamples.isNotEmpty() ->
+            SpeakerScoreSelection(strictSamples, SpeakerScoreSource.STRICT)
         else ->
-            SpeakerScoreSelection(strictSamples, SpeakerScoreSource.INSUFFICIENT)
+            SpeakerScoreSelection(FloatArray(0), SpeakerScoreSource.INSUFFICIENT)
     }
 }
 
