@@ -1,0 +1,44 @@
+{
+  "executed_at": "2026-08-13T18:24:13+08:00",
+  "overall_status": "PASS",
+  "rerun_tasks": true,
+  "sherpa_submodule_commit": "d166dcb39e7d1825a2bd32b76abc3ebaad07b561",
+  "source_commit": "153c020564d34f75a22bdc02109d08aad8ab2596",
+  "suites": [
+    {
+      "errors": 0,
+      "failures": 0,
+      "module": "sdk",
+      "skipped": 0,
+      "tests": 38,
+      "variant": "debug"
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "module": "sdk",
+      "skipped": 0,
+      "tests": 38,
+      "variant": "release"
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "module": "sdk-dingqiao",
+      "skipped": 0,
+      "tests": 52,
+      "variant": "debug"
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "module": "sdk-dingqiao",
+      "skipped": 0,
+      "tests": 52,
+      "variant": "release"
+    }
+  ],
+  "total_errors": 0,
+  "total_failures": 0,
+  "total_tests": 180
+}
