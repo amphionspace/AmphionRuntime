@@ -231,6 +231,9 @@ class AsrReleaseTrackerTest(unittest.TestCase):
                 artifact_path=artifact,
             )
 
+    def test_record_delivery_return_type_allows_numeric_artifact_size(self) -> None:
+        self.assertEqual("Dict[str, Any]", MODULE.record_delivery.__annotations__["return"])
+
     def test_attaches_and_verifies_immutable_release_evidence(self) -> None:
         report = self.repo / "delivery" / "evidence" / "android-0.3.2" / "report.json"
         report.parent.mkdir(parents=True)

@@ -591,7 +591,7 @@ def record_delivery(
     source_commit: str,
     delivered_at: str,
     artifact_path: Path,
-) -> Dict[str, str]:
+) -> Dict[str, Any]:
     entry = build_delivery_entry(
         repo=repo,
         platform=platform,
