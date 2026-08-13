@@ -83,8 +83,8 @@ export interface LicenseActivationCallback {
 }
 
 /**
- * 两级加载 L1 运行时就绪回调。onReady 在运行时框架资源拉起后触发(不加载内存模型);重复
- * prepareRuntime 除首次外直接 onReady 返回,不重复拉起。
+ * Runtime 和默认中英模型就绪回调。onReady 在默认模型进入共享池后触发；重复
+ * prepareRuntime 复用已准备的模型，并发调用共享同一次准备任务。
  */
 export interface PrepareRuntimeCallback {
   onReady(): void;

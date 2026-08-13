@@ -32,14 +32,14 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 });
 ```
 
-`setLicense` 为异步回调，鉴权为**离线本地完整校验，无网络请求**，覆盖授权格式、ECDSA 签名、ASR 能力和有效期。它只缓存已验证授权，不会拉起 Runtime，也不会加载模型。必须在授权成功后调用 `prepareRuntime()`；收到 `onReady()` 后，才可调用 `createEngine()` / `createEngineAsync()` 加载或复用模型。
+`setLicense` 为异步回调，鉴权为**离线本地完整校验，无网络请求**，覆盖授权格式、ECDSA 签名、ASR 能力和有效期。它只缓存已验证授权，不会拉起 Runtime，也不会加载模型。必须在授权成功后调用 `prepareRuntime()`；该调用会预加载默认中英模型，收到 `onReady()` 后，才可调用 `createEngine()` / `createEngineAsync()` 复用或按需加载模型。
 
 生命周期与内存控制粒度如下：
 
 | 层级 | 加载接口 | 卸载接口 | 说明 |
 | --- | --- | --- | --- |
 | License | `setLicense()` | 重新设置授权 | 只校验并缓存，不拉 Runtime、不加载模型 |
-| Runtime | `prepareRuntime()` | `unloadRuntime()` | 只管理运行时框架；卸载时模型跟随释放，但保留已验证授权 |
+| Runtime / 默认中英模型 | `prepareRuntime()` | `unloadRuntime()` | 准备运行时并预加载默认模型；卸载时模型跟随释放，但保留已验证授权 |
 | Model | `createEngineAsync()` / `createEngine()` | `unloadModel()` | 创建引擎时按需加载模型；同配置已加载则复用 |
 
 调用 `unloadModel()` 或 `unloadRuntime()` 前，都应先结束或取消活跃会话，并对持有的 engine 调用 `shutdown()`。`unloadRuntime()` 后无需再次 `setLicense()`，可直接再次调用 `prepareRuntime()`；准备成功后再创建引擎即可。

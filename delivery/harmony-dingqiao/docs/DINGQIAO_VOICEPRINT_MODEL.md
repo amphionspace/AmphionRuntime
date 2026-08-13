@@ -12,7 +12,7 @@ SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/amphion_asr_work`);
 SpeechRecognizeSdk.prepareRuntime(callback);
 ```
 
-SDK 直接通过资源管理器加载 HAR 内模型，不复制到 `{setWorkPath}`。`setWorkPath` 只保存已注册的 embedding；`prepareRuntime()` 只准备 Runtime，不读取或加载声纹模型。
+SDK 直接通过资源管理器加载 HAR 内模型，不复制到 `{setWorkPath}`。`setWorkPath` 只保存已注册的 embedding；`prepareRuntime()` 会准备 Runtime 和默认中英 ASR 模型，但不读取或加载声纹模型。
 
 ## 2. 生命周期
 
@@ -22,7 +22,7 @@ SDK 直接通过资源管理器加载 HAR 内模型，不复制到 `{setWorkPath
 | 内存声纹 extractor | 注册/显式预加载时同步加载；普通声纹识别后台加载；Speaker VAD 启动前同步加载 | `unloadModel()` / `unloadRuntime()` |
 | 已注册声纹 embedding | `registerVoiceprint()` | `deleteVoiceprint()` 或应用数据清理 |
 
-这样可以让 L1 `prepareRuntime()` 严格保持“只准备 Runtime”的语义；约 38 MB 的 extractor 只在声纹真正使用时进入 L2，并和 ASR 模型一起由 `unloadModel()` 确定性卸载。HAR 模型和 workPath 中的 embedding 属于持久状态，不跟随内存模型周期删除。
+这样可以让约 38 MB 的 extractor 只在声纹真正使用时进入内存，并和 ASR 模型一起由 `unloadModel()` 确定性卸载。`prepareRuntime()` 预加载默认中英 ASR 模型时不会顺带加载 extractor；HAR 模型和 workPath 中的 embedding 属于持久状态，不跟随内存模型周期删除。
 
 普通 `enableVoiceprintVerification` 会在 ASR 会话启动后后台加载 extractor，ASR 音频写入和中间结果不等待；如果模型在 ASR final 产生时仍未就绪，只延后 final 和 `onComplete`，模型就绪后立即完成声纹打分。`enableSpeakerVad` 需要在流式阶段持续打分，因此冷态 `startListening()` 会同步等待 extractor。`preloadVoiceprintModel()` 仍是可选同步接口，可用于提前消除 final 等待或 Speaker VAD 冷启动，不是普通声纹识别的必需调用。
 

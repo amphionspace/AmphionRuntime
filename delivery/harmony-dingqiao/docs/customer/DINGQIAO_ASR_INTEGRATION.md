@@ -53,7 +53,7 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 });
 ```
 
-顺序必须是 `init -> setWorkPath -> setLicense -> prepareRuntime -> createEngine`。`setLicense` 只做离线验权；`prepareRuntime` 不加载模型；首次 `createEngineAsync` 才加载模型。
+顺序必须是 `init -> setWorkPath -> setLicense -> prepareRuntime -> createEngine`。`setLicense` 只做离线验权；`prepareRuntime` 会预加载默认中英模型，回调 `onReady` 后默认配置的 `createEngineAsync` 复用模型池。
 
 ## 4. 设置监听器
 
