@@ -55,15 +55,15 @@ class FinalSegment {
 @Entry
 @Component
 struct Index {
-  @State status: string = '正在初始化运行时…';
+  @State status: string = '正在准备运行时和默认模型…';
   @State partialText: string = '';
   @State finalSegments: FinalSegment[] = [];
   @State listening: boolean = false;
-  // 两级加载工况:runtimeReady=L1 运行时就绪(常驻、未加载模型);engineReady=L2 模型已在内存。
+  // runtimeReady 表示 Runtime 与默认中英模型已准备；engineReady 表示当前配置的 engine 已创建。
   @State runtimeReady: boolean = false;
   @State engineReady: boolean = false;
   @State loading: boolean = true;
-  @State loadingHint: string = '正在初始化运行时…';
+  @State loadingHint: string = '正在准备运行时和默认模型…';
   @State voiceprintInfo: string = '';
   @State voiceprintId: string = '';
   @State voiceprintVerifyDesired: boolean = false;
@@ -89,20 +89,20 @@ struct Index {
   private stoppingListening: boolean = false;
   private workPath: string = '';
   private appliedHotwordsKey: string = '';
-  // 用户点了「开始识别」触发按需加载,加载完成后才真正开录;导航离开则丢弃这次加载。
+  // 用户点了「开始识别」触发 engine 创建；默认配置复用模型池，卸载后或配置变化时会按需重载。
   private startPending: boolean = false;
   private coldStartPttGate: ColdStartPttGate = new ColdStartPttGate();
   private coldStartGeneration: number = -1;
   private suppressCaptureOnNextStart: boolean = false;
   private active: boolean = true;
-  // 点击即开麦 + 模型异步加载:加载期间麦克风帧进 pre-roll 缓存,模型就绪后回灌再转 live(一帧不丢)。
+  // 点击即开麦 + engine 异步创建：创建期间麦克风帧进 pre-roll 缓存，engine 就绪后回灌再转 live。
   private modelReady: boolean = false;
   private preRoll: ArrayBuffer[] = [];
   private preRollDroppedFrames: number = 0;
   private micFirstFrameLogged: boolean = false;
   private startTapMs: number = 0;
-  // 两级加载内存埋点(/proc 权威):运行时就绪时的私有 anon 地板 + 本轮推理峰值,供卸载前后对照。
-  private runtimeAnonMb: number = -1;
+  // 生命周期内存埋点(/proc 权威)：默认模型准备后的私有 anon + 本轮推理峰值，供卸载前后对照。
+  private preparedModelAnonMb: number = -1;
   private peakAnonMb: number = 0;
   private peakVmRssMb: number = 0;
   // Debug capture is taken at the public SDK writeAudio boundary. It therefore includes pre-roll
@@ -203,7 +203,7 @@ struct Index {
   }
 
   onLicenseActivated(): void {
-    this.status = '授权通过，正在拉起运行时…';
+    this.status = '授权通过，正在准备运行时和默认模型…';
     this.prepareRuntimeStep();
   }
 
@@ -225,14 +225,13 @@ struct Index {
     }
   }
 
-  // L1:启动时只把运行时框架拉起来常驻(~15-20MB,不加载内存模型),等用户点开始识别再按需加载模型。
-  // 甲方工况:「不占内存的运行时常驻加速;占内存的模型用时当场起、用完释放」。
+  // 启动时准备 Runtime，并与 Android 鼎桥 SDK 一致预加载默认中英模型。
   private prepareRuntimeStep(): void {
     this.loading = true;
-    this.loadingHint = '正在拉起运行时…';
+    this.loadingHint = '正在准备运行时和默认模型…';
     this.runtimeReady = false;
     this.engineReady = false;
-    this.status = '正在拉起运行时…';
+    this.status = '正在准备运行时和默认模型…';
     SpeechRecognizeSdk.prepareRuntime(new DemoPrepareRuntimeCallback(this));
   }
 
@@ -240,10 +239,10 @@ struct Index {
     this.runtimeReady = true;
     this.loading = false;
     this.engineReady = false;
-    this.status = '运行时就绪（未加载模型）· 点击开始识别按需加载';
-    // L1 常驻地板:记下运行时就绪时的私有 anon,后续「净值」都相对它算。
-    this.runtimeAnonMb = this.sampleMemMb()[1];
-    this.logMem('01_runtime_ready(L1常驻_无模型)');
+    this.status = '默认中英模型已就绪 · 点击开始识别';
+    // 记下默认模型准备完成时的私有 anon，后续「净值」都相对它算。
+    this.preparedModelAnonMb = this.sampleMemMb()[1];
+    this.logMem('01_runtime_default_model_ready');
     this.refreshVoiceprintUi();
   }
 
@@ -253,7 +252,7 @@ struct Index {
     this.status = `运行时拉起失败：${errorCode} ${message}`;
   }
 
-  // L2 加载完成回调(由「开始识别」触发的按需加载)。加载完直接开录。
+  // 当前配置的 engine 创建完成后直接开录。
   onEngineCreated(engine: SpeechRecognitionEngine, generation: number = -1): void {
     const decision: ColdStartEngineDecision = generation >= 0 ?
       this.coldStartPttGate.engineReady(generation) :
@@ -273,11 +272,11 @@ struct Index {
     this.engineReady = true;
     this.startPending = false;
     if (decision.accepted) this.coldStartGeneration = -1;
-    // L2 冷加载完成:模型已在内存(关 prepack)。
+    // 当前配置的 engine 已创建：默认配置通常命中 prepareRuntime 模型池，自定义配置可能刚完成加载。
     this.peakAnonMb = 0;
     this.peakVmRssMb = 0;
-    this.logStartTiming('model_loaded(模型冷加载完成)');
-    this.logMem('02_model_loaded(L2冷加载完_关prepack)');
+    this.logStartTiming('engine_ready');
+    this.logMem('02_engine_ready');
     if (this.replaying) {
       this.loading = false;
       this.loadingHint = '';
@@ -321,8 +320,7 @@ struct Index {
     if (hotwords.length > 0) {
       extra['sysGeneralLexicon'] = hotwords;
     }
-    // 关 prepack:按需加载工况下每次「开始识别」都冷加载模型,关掉 INT8 权重 prepack 可省 ~91-156ms
-    // 冷加载并降低峰值内存(交付方向 = prepack off,详见两级加载 A/B)。
+    // 默认关闭 prepack；该设置也参与 recognizer 配置键，必须与 prepareRuntime 默认配置保持一致。
     extra['disablePrepack'] = true;
     params.extraParams = extra;
     return params;
@@ -383,7 +381,7 @@ struct Index {
     }
   }
 
-  // 建会话 → 把加载期间缓存的 pre-roll 帧按序回灌 → 转 live。模型就绪(冷加载完 or 已在内存)后调用。
+  // 建会话 → 把 engine 创建期间缓存的 pre-roll 帧按序回灌 → 转 live。
   private startSessionAndFlush(finishAfterFlush: boolean = false): void {
     this.suppressCaptureOnNextStart = finishAfterFlush;
     this.startRecognitionSession();                // 设 sessionId + engine.startListening(同步 busy=true)+ onStart
@@ -403,7 +401,7 @@ struct Index {
     }
   }
 
-  // ---- 两级加载内存埋点(tag=TwoLevelMem,/proc 权威) ----
+  // ---- Runtime / 模型生命周期内存埋点(tag=TwoLevelMem,/proc 权威) ----
   // /proc 文件 stat 报 size=0,fs.readTextSync 会读到空;必须 openSync+readSync 读到 EOF(与 LifecycleBench.procMem 一致)。
   private sampleMemMb(): number[] {
     try {
@@ -427,10 +425,22 @@ struct Index {
 
   private logMem(stage: string): void {
     const m = this.sampleMemMb();
-    const net = (this.runtimeAnonMb >= 0 && m[1] >= 0) ? (m[1] - this.runtimeAnonMb) : -1;
+    const inferenceDelta = (this.preparedModelAnonMb >= 0 && m[1] >= 0) ?
+      (m[1] - this.preparedModelAnonMb) : -1;
     hilog.info(0x0000, 'TwoLevelMem',
-      'STAGE=%{public}s | vmRssMb=%{public}d | anonMb=%{public}d | fileMb=%{public}d | netAnonMb(减运行时)=%{public}d',
-      stage, m[0], m[1], m[2], net);
+      'STAGE=%{public}s | vmRssMb=%{public}d | anonMb=%{public}d | fileMb=%{public}d | ' +
+      'deltaFromPreparedModelAnonMb=%{public}d',
+      stage, m[0], m[1], m[2], inferenceDelta);
+  }
+
+  private logAfterModelUnload(): void {
+    const m = this.sampleMemMb();
+    const releasedModelAnon = (this.preparedModelAnonMb >= 0 && m[1] >= 0) ?
+      (this.preparedModelAnonMb - m[1]) : -1;
+    hilog.info(0x0000, 'TwoLevelMem',
+      'STAGE=04_after_model_unload | vmRssMb=%{public}d | anonMb=%{public}d | fileMb=%{public}d | ' +
+      'releasedModelAnonMb=%{public}d',
+      m[0], m[1], m[2], releasedModelAnon);
   }
 
   // 推理期高频采样,记录本轮峰值(解码同步发生,partial 紧随其后,足够贴近峰值)。
@@ -893,7 +903,7 @@ struct Index {
       this.rotatingSession = false;
       this.startRecognitionSession();
     } else {
-      // 用户点了结束识别、最终结果已下发:按甲方工况「用完即卸」,当场释放模型(L2),运行时(L1)常驻。
+      // 用户点了结束识别、最终结果已下发：当场释放模型，Runtime 保持就绪。
       this.liveHasCompleted = true;
       this.stopCapture();
       this.sessionId = '';
@@ -925,8 +935,8 @@ struct Index {
     this.releaseModel(`错误 ${errorCode}：${message}`);
   }
 
-  // 释放 L2 模型:关引擎/会话(把池化 recognizer 归还)后 unloadModel 显式释放 native 权重(~283MB),
-  // 保留 L1 运行时常驻。下次「开始识别」重新冷加载。
+  // 关 engine/session（把池化 recognizer 归还）后，unloadModel 显式释放 native 权重；
+  // Runtime 保持就绪，下次「开始识别」重新加载模型。
   private releaseModel(statusText: string): void {
     const engine = this.engine;
     const hadModel = engine !== undefined;
@@ -935,10 +945,12 @@ struct Index {
     if (hadModel) {
       // 卸载前:模型还在内存(≈推理态),并汇报本轮峰值。
       this.logMem('03_before_unload(模型在内存)');
-      const peakNet = this.runtimeAnonMb >= 0 ? this.peakAnonMb - this.runtimeAnonMb : -1;
+      const inferenceDelta = this.preparedModelAnonMb >= 0 ?
+        this.peakAnonMb - this.preparedModelAnonMb : -1;
       hilog.info(0x0000, 'TwoLevelMem',
-        'PEAK(本轮推理) | peakVmRssMb=%{public}d | peakAnonMb=%{public}d | peakNetAnonMb(减运行时=模型净占)=%{public}d',
-        this.peakVmRssMb, this.peakAnonMb, peakNet);
+        'PEAK(本轮推理) | peakVmRssMb=%{public}d | peakAnonMb=%{public}d | ' +
+        'inferenceDeltaFromPreparedModelAnonMb=%{public}d',
+        this.peakVmRssMb, this.peakAnonMb, inferenceDelta);
     }
     engine?.shutdown();
     if (this.runtimeReady) {
@@ -949,7 +961,7 @@ struct Index {
     this.peakVmRssMb = 0;
     if (hadModel) {
       // native 权重释放有 finalizer/GC 延迟(参考 LifecycleBench 的 400ms),延时采样回落态。
-      setTimeout((): void => { this.logMem('04_after_unload(回落_L1常驻)'); }, 600);
+      setTimeout((): void => { this.logAfterModelUnload(); }, 600);
     }
   }
 

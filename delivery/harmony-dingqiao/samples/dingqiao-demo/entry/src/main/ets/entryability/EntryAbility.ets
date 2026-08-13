@@ -49,7 +49,7 @@ export default class EntryAbility extends UIAbility {
         fs.closeSync(fp);
       }
     } catch (e) { /* 0 */ }
-    // 两级加载内存曲线的地板:纯载体(SDK.init 之前)。运行时净值 = 运行时就绪 anon − 本基线 anon(≈6-7MB)。
+    // 生命周期内存曲线的地板：纯载体（SDK.init 之前）。prepareRuntime 净值以本基线计算。
     hilog.info(0x0000, 'TwoLevelMem',
       'STAGE=00_carrier_baseline(纯载体_SDK_init前) | vmRssMb=%{public}d | anonMb=%{public}d',
       carrierBaselinePss, carrierBaselineAnon);

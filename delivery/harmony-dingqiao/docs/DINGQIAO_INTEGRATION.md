@@ -100,7 +100,7 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 | 层级 | 加载接口 | 卸载接口 | 说明 |
 | --- | --- | --- | --- |
 | License | `setLicense()` | 重新设置授权 | 完整离线验权并缓存，不拉 Runtime、不加载模型 |
-| Runtime | `prepareRuntime()` | `unloadRuntime()` | 管理运行时框架；卸载时模型跟随释放，授权保留 |
+| Runtime / 默认中英模型 | `prepareRuntime()` | `unloadRuntime()` | 准备运行时并预加载默认模型；卸载时模型跟随释放，授权保留 |
 | Model | `createEngineAsync()` / `createEngine()` | `unloadModel()` | 模型未加载时加载，同配置已加载时复用 |
 
 调用任一卸载接口前，都应先结束或取消活跃会话，并对持有的 engine 调用 `shutdown()`。随后二选一：调用 `unloadModel()` 保留 Runtime，或调用 `unloadRuntime()` 让模型跟随 Runtime 一并释放。若调用与 session 尾部 native 异步工作重叠，SDK 会等 stream 安全关闭后再实际释放，并在此期间拒绝创建新 session；调用方应在 `onComplete` 后重试 `prepareRuntime()`。`unloadRuntime()` 不清除已验证授权，后续可直接 `prepareRuntime()`，无需再次 `setLicense()`。
@@ -109,7 +109,7 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 
 授权文件固定为 `amphion-license.lic`。如果 license 启用了设备白名单，宿主或交付适配层需要通过 `deviceIdProvider` 注入稳定设备标识；该标识必须与交付给我方签发 license 的清单一致。系统/预置宿主通常注入硬件 SN；普通 Demo 可注入 ODID，但不能用 ODID 去匹配按 SN 签发的 license。
 
-**交付入口（推荐）**：鼎桥侧先通过 `SpeechRecognizeSdk.setLicense(licensePath, callback)` 完成离线完整验权和缓存（需先 `init(context)`）；授权成功后调用 `prepareRuntime()`，收到 `onReady()` 后再调用 `createEngineAsync()`。`setLicense()` 本身不会拉 Runtime 或加载模型。语言、热词配置确定后可提前创建并长期持有 engine，以隐藏模型冷加载。重新设置有效授权会使旧 Runtime / 模型失效，需要再次 `prepareRuntime()`。`getLicenseInfo()` 返回授权状态 `LicenseInfo`（`status` / `expireTime` / `remainingDays` / `authorizedFeatures`）。
+**交付入口（推荐）**：鼎桥侧先通过 `SpeechRecognizeSdk.setLicense(licensePath, callback)` 完成离线完整验权和缓存（需先 `init(context)`）；授权成功后调用 `prepareRuntime()` 预加载默认中英模型，收到 `onReady()` 后再调用 `createEngineAsync()` 复用模型池。`setLicense()` 本身不会拉 Runtime 或加载模型。非默认语言或配置仍在创建 engine 时按需加载；可长期持有 engine 以避免重复创建。重新设置有效授权会使旧 Runtime / 模型失效，需要再次 `prepareRuntime()`。`getLicenseInfo()` 返回授权状态 `LicenseInfo`（`status` / `expireTime` / `remainingDays` / `authorizedFeatures`）。
 
 ```ts
 import deviceInfo from '@ohos.deviceInfo';

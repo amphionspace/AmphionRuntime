@@ -81,9 +81,9 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | `SpeechRecognizeSdk.getWorkPath(): string` | 查询当前工作目录 |
 | `SpeechRecognizeSdk.setLicense(licensePath: string, callback: LicenseActivationCallback)` | 离线校验并缓存正式授权；不拉起 Runtime、不加载模型 |
 | `SpeechRecognizeSdk.getLicenseInfo(): LicenseInfo` | 查询当前已激活授权信息 |
-| `SpeechRecognizeSdk.prepareRuntime(callback: PrepareRuntimeCallback)` | 准备 Runtime；不加载识别模型 |
-| `SpeechRecognizeSdk.createEngine(params: CreateEngineParams): SpeechRecognitionEngine` | 同步创建引擎；模型未加载时同步加载，同配置已加载时复用 |
-| `SpeechRecognizeSdk.createEngineAsync(params: CreateEngineParams, callback: CreateEngineCallback)` | 异步创建引擎；推荐用于模型冷加载 |
+| `SpeechRecognizeSdk.prepareRuntime(callback: PrepareRuntimeCallback)` | 准备 Runtime 并预加载默认中英识别模型；并发调用 single-flight |
+| `SpeechRecognizeSdk.createEngine(params: CreateEngineParams): SpeechRecognitionEngine` | 同步创建引擎；默认配置复用已准备模型，其他配置按需加载 |
+| `SpeechRecognizeSdk.createEngineAsync(params: CreateEngineParams, callback: CreateEngineCallback)` | 异步复用或按需加载模型并创建引擎 |
 | `SpeechRecognizeSdk.unloadModel(): void` | 卸载模型，保留 Runtime 和已验证授权 |
 | `SpeechRecognizeSdk.unloadRuntime(): void` | 卸载 SDK 管理的 Runtime 状态；模型跟随释放，已验证授权保留 |
 | `SpeechRecognizeSdk.registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult` | 注册本地声纹 |
@@ -99,8 +99,8 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | 层级 | 加载接口 | 卸载接口 | 卸载后保留 |
 | --- | --- | --- | --- |
 | License | `setLicense()` | 重新设置授权 | 成功授权保存在当前进程内 |
-| Runtime | `prepareRuntime()` | `unloadRuntime()` | 已验证授权 |
-| Model | ASR：`createEngineAsync()` / `createEngine()`；声纹：注册、显式预加载或声纹会话按需加载 | `unloadModel()` | Runtime、已验证授权、HAR 内模型和已注册声纹 embedding |
+| Runtime / 默认 ASR 模型 | `prepareRuntime()` | `unloadRuntime()` | 已验证授权 |
+| 其他 ASR 配置 / 声纹模型 | ASR：`createEngineAsync()` / `createEngine()`；声纹：注册、显式预加载或声纹会话按需加载 | `unloadModel()` | Runtime、已验证授权、HAR 内模型和已注册声纹 embedding |
 
 完整状态流转：
 
@@ -124,9 +124,10 @@ interface PrepareRuntimeCallback {
 ```
 
 - 调用前必须先完成 `init()`，且 `setLicense()` 已成功。
-- 接口幂等：Runtime 已就绪时直接回调 `onReady()`。
+- 接口幂等：Runtime 与默认中英模型均已就绪时直接回调 `onReady()`。
 - 并发调用为 single-flight：多个调用方共享同一次准备过程，并分别收到结果。
-- 本阶段完成授权状态复核与 Runtime 状态准备，不创建识别模型 Session。
+- 本阶段完成授权状态复核、Runtime 状态准备和默认 `zh-CN` 配置的中英 ASR/标点模型预加载；
+  不创建业务引擎或识别 Session，也不加载声纹模型。
 - `unloadRuntime()` 后再次调用时，会重新校验保留的授权；授权已过期或失效时回调相应 License 错误。
 
 ### 3.3 `createEngineAsync()` / `createEngine()`
@@ -139,7 +140,7 @@ interface CreateEngineCallback {
 ```
 
 - 必须在 `prepareRuntime().onReady` 后调用。
-- 当前语言和模型配置未加载时，创建引擎会加载模型。
+- 默认 `zh-CN` 配置复用 `prepareRuntime()` 已准备的模型；其他语言或配置未加载时，创建引擎会按需加载模型。
 - 同语言、同配置模型已加载时直接复用模型，只创建新的引擎对象；会话对象在 `startListening()` 时创建。
 - `createEngine()` 在冷加载时会阻塞调用线程；客户业务优先使用 `createEngineAsync()`，不得在 UI 关键路径同步冷加载。
 - 创建识别引擎只加载 ASR 相关模型，不会因为 HAR 内置声纹资源而加载声纹 extractor。声纹 extractor 在注册、显式预加载或声纹会话中另行按需加载。

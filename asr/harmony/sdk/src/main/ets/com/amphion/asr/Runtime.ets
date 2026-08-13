@@ -53,6 +53,7 @@ import { InitialSilenceTracker } from './InitialSilenceTracker';
 import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
 import { SpeakerPcmBuffers } from './SpeakerPcmBuffers';
 import { SpeakerVadScoreScheduler } from './SpeakerVadScoreScheduler';
+import { RecognizerPoolPolicy } from './RecognizerPoolPolicy';
 import {
   SpeakerTurnFinalizer,
   SpeakerTurnSegment,
@@ -96,10 +97,12 @@ class DoneCancellable implements Cancellable {
 class AsyncRecognizerLoad {
   recognizer: OnlineRecognizer;
   elapsedMs: number;
+  ownsRecognizer: boolean;
 
-  constructor(recognizer: OnlineRecognizer, elapsedMs: number) {
+  constructor(recognizer: OnlineRecognizer, elapsedMs: number, ownsRecognizer: boolean) {
     this.recognizer = recognizer;
     this.elapsedMs = elapsedMs;
+    this.ownsRecognizer = ownsRecognizer;
   }
 }
 
@@ -322,11 +325,14 @@ export class AmphionRuntime {
     const assetLayoutMs = Date.now() - layoutStartMs;
     const pooled = AmphionRuntime.asrPool.get(language);
     const requestedConfigKey = AmphionRuntime.recognizerConfigKey(effectiveConfig);
-    const canReusePool = pooled !== undefined &&
-      AmphionRuntime.poolConfigKey.get(language) === requestedConfigKey;
+    const poolAction = RecognizerPoolPolicy.decide(
+      pooled === undefined ? undefined : AmphionRuntime.poolConfigKey.get(language),
+      requestedConfigKey);
+    const canReusePool = poolAction === RecognizerPoolPolicy.REUSE;
     const recognizerStartMs = Date.now();
     const recognizer = canReusePool ? pooled as OnlineRecognizer :
       new OnlineRecognizer(AmphionRuntime.buildRecognizerConfig(layout, effectiveConfig), context.resourceManager);
+    let ownsRecognizer = false;
     const recognizerLoadMs = Date.now() - recognizerStartMs;
     let warmupMs = 0;
     if (!canReusePool) {
@@ -335,38 +341,51 @@ export class AmphionRuntime {
       const warmupStartMs = Date.now();
       AmphionRuntime.warmUpRecognizer(recognizer);
       warmupMs = Date.now() - warmupStartMs;
-      // 缓存已预热的 recognizer:开启声纹/说话人VAD 会改会话级配置触发 rebuildEngine→create,
-      // 但 recognizer 配置并不随之变(见 recognizerConfigKey)。缓存后 rebuild 直接复用,
-      // 不再冷加载重来一遍(否则点"开始识别"卡 3~4 秒)。close() 从不释放 native recognizer,复用安全。
-      AmphionRuntime.asrPool.set(language, recognizer);
-      AmphionRuntime.poolConfigKey.set(language, requestedConfigKey);
-    }
-    let punctuation: OfflinePunctuation | undefined;
-    const itn = AmphionRuntime.getOrCreateItn(language, layout, effectiveConfig);
-    let punctuationLoadMs = 0;
-    if (effectiveConfig.punctuation && layout.punctModel !== undefined) {
-      const punctuationStartMs = Date.now();
-      try {
-        punctuation = AmphionRuntime.getOrCreatePunctuation(
-          context, layout.punctModel, effectiveConfig.numThreads);
-      } catch (e) {
-        Logger.w(`punctuation disabled: ${e}`);
-      } finally {
-        punctuationLoadMs = Date.now() - punctuationStartMs;
+      if (poolAction === RecognizerPoolPolicy.PUBLISH) {
+        AmphionRuntime.asrPool.set(language, recognizer);
+        AmphionRuntime.poolConfigKey.set(language, requestedConfigKey);
+      } else {
+        // 与 Android 对齐：不兼容配置使用 engine-owned recognizer，不覆盖 prepareRuntime
+        // 建立的默认池。engine shutdown 会在所有 session stream 关闭后释放它。
+        ownsRecognizer = true;
       }
     }
-    const engine = new AsrEngine(
-      context,
-      language,
-      effectiveConfig,
-      layout,
-      recognizer,
-      !canReusePool,
-      -1,
-      punctuation,
-      itn,
-      punctuationLoadMs
-    );
+    let engine: AsrEngine;
+    try {
+      let punctuation: OfflinePunctuation | undefined;
+      const itn = AmphionRuntime.getOrCreateItn(language, layout, effectiveConfig);
+      let punctuationLoadMs = 0;
+      if (effectiveConfig.punctuation && layout.punctModel !== undefined) {
+        const punctuationStartMs = Date.now();
+        try {
+          punctuation = AmphionRuntime.getOrCreatePunctuation(
+            context, layout.punctModel, effectiveConfig.numThreads);
+        } catch (e) {
+          Logger.w(`punctuation disabled: ${e}`);
+        } finally {
+          punctuationLoadMs = Date.now() - punctuationStartMs;
+        }
+      }
+      engine = new AsrEngine(
+        context,
+        language,
+        effectiveConfig,
+        layout,
+        recognizer,
+        ownsRecognizer,
+        -1,
+        punctuation,
+        itn,
+        punctuationLoadMs
+      );
+    } catch (e) {
+      if (ownsRecognizer) {
+        try { recognizer.close(); } catch (closeError) {
+          Logger.w(`dedicated recognizer cleanup failed: ${closeError}`);
+        }
+      }
+      throw new Error(`${e}`);
+    }
     const engineReadyMs = Date.now() - createStartMs;
     engine.setEngineReadyMs(engineReadyMs);
     Logger.metric(
@@ -389,11 +408,6 @@ export class AmphionRuntime {
     const layoutStartMs = Date.now();
     const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
     const assetLayoutMs = Date.now() - layoutStartMs;
-    const requestedConfigKey = AmphionRuntime.recognizerConfigKey(effectiveConfig);
-    const pooled = AmphionRuntime.asrPool.get(language);
-    const canReusePool = pooled !== undefined &&
-      AmphionRuntime.poolConfigKey.get(language) === requestedConfigKey;
-
     // Start the independent ASR and punctuation loads before awaiting either one. The N-API layer
     // performs native work off the ArkTS event thread; single-flight helpers prevent duplicate loads.
     const recognizerTask = AmphionRuntime.timedRecognizerLoadAsync(
@@ -402,27 +416,37 @@ export class AmphionRuntime {
       context, layout, effectiveConfig);
     const recognizerLoad = await recognizerTask;
     const punctuationLoad = await punctuationTask;
-    const itn = AmphionRuntime.getOrCreateItn(language, layout, effectiveConfig);
-    if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
-      throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during model load`);
+    let engine: AsrEngine;
+    try {
+      const itn = AmphionRuntime.getOrCreateItn(language, layout, effectiveConfig);
+      if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+        throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during model load`);
+      }
+      engine = new AsrEngine(
+        context,
+        language,
+        effectiveConfig,
+        layout,
+        recognizerLoad.recognizer,
+        recognizerLoad.ownsRecognizer,
+        -1,
+        punctuationLoad.punctuation,
+        itn,
+        punctuationLoad.elapsedMs
+      );
+    } catch (e) {
+      if (recognizerLoad.ownsRecognizer) {
+        try { recognizerLoad.recognizer.close(); } catch (closeError) {
+          Logger.w(`dedicated recognizer cleanup failed: ${closeError}`);
+        }
+      }
+      throw new Error(`${e}`);
     }
-
-    const engine = new AsrEngine(
-      context,
-      language,
-      effectiveConfig,
-      layout,
-      recognizerLoad.recognizer,
-      !canReusePool,
-      -1,
-      punctuationLoad.punctuation,
-      itn,
-      punctuationLoad.elapsedMs
-    );
     const engineReadyMs = Date.now() - createStartMs;
     engine.setEngineReadyMs(engineReadyMs);
     Logger.metric(
-      `kind=LOAD language=${language} async=true pooled=${canReusePool} assetLayoutMs=${assetLayoutMs} ` +
+      `kind=LOAD language=${language} async=true pooled=${!recognizerLoad.ownsRecognizer} ` +
+      `assetLayoutMs=${assetLayoutMs} ` +
       `recognizerReadyMs=${recognizerLoad.elapsedMs} punctuationReadyMs=${punctuationLoad.elapsedMs} ` +
       `engineReadyMs=${engineReadyMs}`
     );
@@ -619,9 +643,30 @@ export class AmphionRuntime {
     config: AsrConfig
   ): Promise<AsyncRecognizerLoad> {
     const startedMs = Date.now();
-    const recognizer = await AmphionRuntime.getOrCreateRecognizerAsync(
-      context, language, layout, config);
-    return new AsyncRecognizerLoad(recognizer, Date.now() - startedMs);
+    const configKey = AmphionRuntime.recognizerConfigKey(config);
+    const cached = AmphionRuntime.asrPool.get(language);
+    const poolAction = RecognizerPoolPolicy.decide(
+      cached === undefined ? undefined : AmphionRuntime.poolConfigKey.get(language), configKey);
+    if (poolAction === RecognizerPoolPolicy.DEDICATED) {
+      const recognizer = await AmphionRuntime.createRecognizerAsync(
+        context, layout, config);
+      return new AsyncRecognizerLoad(recognizer, Date.now() - startedMs, true);
+    }
+    try {
+      const recognizer = await AmphionRuntime.getOrCreateRecognizerAsync(
+        context, language, layout, config);
+      return new AsyncRecognizerLoad(recognizer, Date.now() - startedMs, false);
+    } catch (e) {
+      // A concurrent incompatible preload/create may have won the empty pool after the first check.
+      // Preserve that winner and give this engine its own recognizer, matching Android putIfAbsent.
+      const winner = AmphionRuntime.asrPool.get(language);
+      if (winner === undefined || AmphionRuntime.poolConfigKey.get(language) === configKey) {
+        throw new Error(`${e}`);
+      }
+      const recognizer = await AmphionRuntime.createRecognizerAsync(
+        context, layout, config);
+      return new AsyncRecognizerLoad(recognizer, Date.now() - startedMs, true);
+    }
   }
 
   private static async timedPunctuationLoadAsync(
@@ -651,26 +696,31 @@ export class AmphionRuntime {
   ): Promise<OnlineRecognizer> {
     const configKey = AmphionRuntime.recognizerConfigKey(config);
     const cached = AmphionRuntime.asrPool.get(language);
-    if (cached !== undefined && AmphionRuntime.poolConfigKey.get(language) === configKey) {
-      return cached;
+    const poolAction = RecognizerPoolPolicy.decide(
+      cached === undefined ? undefined : AmphionRuntime.poolConfigKey.get(language), configKey);
+    if (poolAction === RecognizerPoolPolicy.REUSE) return cached as OnlineRecognizer;
+    if (poolAction === RecognizerPoolPolicy.DEDICATED) {
+      throw new Error(
+        `recognizer pool for ${language} already has an incompatible config; ` +
+        'call unloadModel before preloading a different config');
     }
 
     const loadKey = `${language}|${configKey}`;
     let load: Promise<OnlineRecognizer> | undefined =
       AmphionRuntime.recognizerLoads.get(loadKey);
     if (load === undefined) {
-      const generation = AmphionRuntime.loadGeneration;
-      const newLoad: Promise<OnlineRecognizer> = OnlineRecognizer.createAsync(
-        AmphionRuntime.buildRecognizerConfig(layout, config),
-        context.resourceManager,
-        Math.round(ASR_SAMPLE_RATE_HZ * EAGER_WARMUP_DURATION_MS / 1000))
+      const newLoad: Promise<OnlineRecognizer> = AmphionRuntime.createRecognizerAsync(
+        context, layout, config)
         .then((recognizer: OnlineRecognizer): OnlineRecognizer => {
-          if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
-            throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during recognizer load`);
+          const winner = AmphionRuntime.asrPool.get(language);
+          if (winner === undefined) {
+            AmphionRuntime.asrPool.set(language, recognizer);
+            AmphionRuntime.poolConfigKey.set(language, configKey);
+            return recognizer;
           }
-          AmphionRuntime.asrPool.set(language, recognizer);
-          AmphionRuntime.poolConfigKey.set(language, configKey);
-          return recognizer;
+          try { recognizer.close(); } catch (e) { Logger.w(`recognizer pool loser close failed: ${e}`); }
+          if (AmphionRuntime.poolConfigKey.get(language) === configKey) return winner;
+          throw new Error(`concurrent incompatible recognizer load for ${language}`);
         });
       AmphionRuntime.recognizerLoads.set(loadKey, newLoad);
       load = newLoad;
@@ -689,6 +739,23 @@ export class AmphionRuntime {
       }
       throw new Error(`recognizer load failed: ${e}`);
     }
+  }
+
+  private static async createRecognizerAsync(
+    context: Context,
+    layout: InstalledLayout,
+    config: AsrConfig
+  ): Promise<OnlineRecognizer> {
+    const generation = AmphionRuntime.loadGeneration;
+    const recognizer = await OnlineRecognizer.createAsync(
+      AmphionRuntime.buildRecognizerConfig(layout, config),
+      context.resourceManager,
+      Math.round(ASR_SAMPLE_RATE_HZ * EAGER_WARMUP_DURATION_MS / 1000));
+    if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+      try { recognizer.close(); } catch (e) { Logger.w(`cancelled recognizer close failed: ${e}`); }
+      throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during recognizer load`);
+    }
+    return recognizer;
   }
 
   private static async getOrCreatePunctuationAsync(
@@ -711,6 +778,9 @@ export class AmphionRuntime {
         OfflinePunctuation.createAsync(pc, context.resourceManager)
         .then((punctuation: OfflinePunctuation): OfflinePunctuation => {
           if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+            try { punctuation.close(); } catch (e) {
+              Logger.w(`cancelled punctuation close failed: ${e}`);
+            }
             throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during punctuation load`);
           }
           AmphionRuntime.punctuationPool.set(key, punctuation);
@@ -850,6 +920,13 @@ export class AmphionRuntime {
 
   /** 运行时是否就绪(已 init)。 */
   static isRuntimeReady(): boolean { return AmphionRuntime.initialized; }
+
+  static isModelPrepared(language: AsrLanguage, config?: AsrConfig): boolean {
+    if (!AmphionRuntime.initialized || AmphionRuntime.asrPool.get(language) === undefined) return false;
+    const effectiveConfig = AmphionRuntime.snapshotConfig(config);
+    return AmphionRuntime.poolConfigKey.get(language) ===
+      AmphionRuntime.recognizerConfigKey(effectiveConfig);
+  }
 
   /**
    * 运行时级卸载(两级加载的 L1)。先卸载模型(「若没卸载模型,则模型跟随卸载」),再重置运行时状态
@@ -1056,6 +1133,8 @@ export class AsrEngine {
   private closed: boolean = false;
   private sessions: AsrSession[] = [];
   private ownsRecognizer: boolean = true;
+  private openSessionStreams: number = 0;
+  private ownedRecognizerClosed: boolean = false;
   private engineReadyMs: number = -1;
   private punctuationLoadMs: number = 0;
 
@@ -1095,6 +1174,7 @@ export class AsrEngine {
       this.targetExtractor = this.createSpeakerExtractor(this.config.targetSpeaker);
     }
     const lease = AmphionRuntime.retainSession();
+    this.openSessionStreams += 1;
     let session: AsrSession;
     let stream: OnlineStream | undefined;
     try {
@@ -1113,16 +1193,29 @@ export class AsrEngine {
         this.targetExtractor,
         sessionConfig,
         callback,
-        this.engineReadyMs
+        this.engineReadyMs,
+        (): void => { this.onSessionStreamReleased(); }
       );
     } catch (e) {
       if (stream === undefined) {
+        this.openSessionStreams = Math.max(0, this.openSessionStreams - 1);
         lease.release();
-      } else if (!lease.releaseAfterClose((): void => { stream?.close(); })) {
-        Logger.w('session construction failed and stream close failed; Runtime lease retained');
+      } else {
+        const createdStream = stream;
+        if (!lease.releaseAfterClose((): void => {
+          createdStream.close();
+          this.onSessionStreamReleased();
+        })) {
+          Logger.w('session construction failed and stream close failed; Runtime lease retained');
+        }
       }
+      this.closeOwnedRecognizerWhenIdle();
       if (e instanceof Error) throw e;
       throw new Error(`${e}`);
+    }
+    if (this.closed) {
+      session.close();
+      throw new Error('AsrEngine closed during session creation');
     }
     const targetConfig = this.config.targetSpeaker;
     if (targetConfig !== undefined && targetConfig.deferLoad && targetConfig.enabledByDefault) {
@@ -1143,7 +1236,24 @@ export class AsrEngine {
       this.sessions[i].close();
     }
     this.sessions = [];
-    if (this.ownsRecognizer) Logger.d('dedicated Harmony recognizer closed');
+    this.closeOwnedRecognizerWhenIdle();
+  }
+
+  private onSessionStreamReleased(): void {
+    this.openSessionStreams = Math.max(0, this.openSessionStreams - 1);
+    this.closeOwnedRecognizerWhenIdle();
+  }
+
+  private closeOwnedRecognizerWhenIdle(): void {
+    if (!this.closed || !this.ownsRecognizer || this.ownedRecognizerClosed ||
+      this.openSessionStreams > 0) return;
+    this.ownedRecognizerClosed = true;
+    try {
+      this.recognizer.close();
+      Logger.d('dedicated Harmony recognizer closed');
+    } catch (e) {
+      Logger.w(`dedicated recognizer close failed: ${e}`);
+    }
   }
 
   private createSpeakerExtractor(config: TargetSpeakerConfig): SpeakerEmbeddingExtractor {
@@ -1220,13 +1330,14 @@ export class AsrSession {
   private pendingSpeakerFinals: PendingSpeakerFinal[] = [];
   private sessionConfig: SessionConfig;
   private runtimeLease: RuntimeSessionLease;
+  private onStreamReleased: () => void;
 
   constructor(sessionId: number, context: Context, language: AsrLanguage, config: AsrConfig,
     layout: InstalledLayout, recognizer: OnlineRecognizer, stream: OnlineStream,
     runtimeLease: RuntimeSessionLease,
     punctuation: OfflinePunctuation | undefined, itn: WetextItn | undefined,
     targetExtractor: SpeakerEmbeddingExtractor | undefined, sessionConfig: SessionConfig,
-    callback: AsrCallback, engineReadyMs: number) {
+    callback: AsrCallback, engineReadyMs: number, onStreamReleased: () => void) {
     this.sessionId = sessionId;
     this.context = context;
     this.language = language;
@@ -1243,6 +1354,7 @@ export class AsrSession {
     this.speakerVadEnabled = this.effectiveSpeakerVad()?.enabledByDefault ?? false;
     this.callback = callback;
     this.engineReadyMs = engineReadyMs;
+    this.onStreamReleased = onStreamReleased;
     this.agcProcessor = new StreamingAgcProcessor(
       ASR_SAMPLE_RATE_HZ,
       (): NativeAgcBackend => new NativeAgcBackend(ASR_SAMPLE_RATE_HZ));
@@ -2590,11 +2702,13 @@ export class AsrSession {
 
   private releaseStreamIfClosed(): void {
     if (!this.callbackGate.isClosed() || this.streamCallDepth > 0 || this.streamReleased) return;
-    if (!this.runtimeLease.releaseAfterClose((): void => { this.stream.close(); })) {
+    if (!this.runtimeLease.releaseAfterClose((): void => {
+      this.stream.close();
+      this.streamReleased = true;
+      this.onStreamReleased();
+    })) {
       Logger.w(`session ${this.sessionId} stream close failed; Runtime lease retained`);
-      return;
     }
-    this.streamReleased = true;
   }
 }
 

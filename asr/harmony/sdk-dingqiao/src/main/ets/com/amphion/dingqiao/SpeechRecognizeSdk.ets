@@ -44,6 +44,7 @@ import {
   VoiceprintRegisterResult
 } from './DingqiaoModels';
 import { LatestRequestGate } from './LatestRequestGate';
+import { RuntimePreparationSnapshot, RuntimePreparationState } from './RuntimePreparationState';
 
 function languageOf(language: string): AsrLanguage {
   const normalized = language.toLowerCase();
@@ -1036,8 +1037,7 @@ export class SpeechRecognizeSdk {
   private static deviceIdProvider?: LicenseDeviceIdProvider;
   private static activatedLicenseText?: string;
   private static licenseRequests: LatestRequestGate = new LatestRequestGate();
-  private static runtimeGeneration: number = 0;
-  private static prepareTask?: Promise<void>;
+  private static runtimePreparation: RuntimePreparationState = new RuntimePreparationState();
 
   /** Uses the host provider for device-bound licenses; privileged hosts may omit it to use hardware SN. */
   static init(context: Context, deviceIdProvider?: LicenseDeviceIdProvider): void {
@@ -1183,15 +1183,13 @@ export class SpeechRecognizeSdk {
     return SpeechRecognizeSdk.licenseInfo;
   }
 
-  // ---- 两级加载(L1 运行时 / L2 模型)---------------------------------------------------------
-  // 甲方契约:占内存的模型「用完释放、用时当场起」;不占内存的运行时框架「可常驻加速」。
-  // prepareRuntime/unloadRuntime 管 L1(运行时);createEngine/registerVoiceprint/unloadModel 管 L2
-  // (内存模型)。具体净内存与时延以目标设备的交付测量表为准。createEngine 已实现
-  // 「未加载则加载,已加载则复用只建会话」。
+  // ---- Runtime / 模型加载 ------------------------------------------------------------------
+  // 与 Android 鼎桥 SDK 对齐：prepareRuntime 准备 Runtime，并把默认中英 ASR 配置加载进模型池；
+  // createEngine 对同配置只创建轻量 engine。声纹等可选模型仍由注册、显式预加载或会话按需加载。
 
   /**
-   * L1:只拉起 SDK 运行时框架，不加载或复制模型。调用前必须先成功 setLicense；Runtime 初始化
-   * 幂等且 single-flight，并发调用共享同一任务。
+   * 准备 SDK Runtime，并预加载默认中英识别模型。调用前必须先成功 setLicense；初始化和模型
+   * 预加载幂等且 single-flight，并发调用共享同一任务。
    */
   static prepareRuntime(callback: PrepareRuntimeCallback): void {
     const context = SpeechRecognizeSdk.context;
@@ -1218,24 +1216,57 @@ export class SpeechRecognizeSdk {
         'Runtime release is still draining an active session');
       return;
     }
-    if (AmphionRuntime.isRuntimeReady()) {
+    let defaultConfig: AsrConfig;
+    try {
+      defaultConfig = buildAsrConfig(context, new CreateEngineParams());
+    } catch (e) {
+      callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, `prepareRuntime failed: ${e}`);
+      return;
+    }
+    if (AmphionRuntime.isRuntimeReady() && SpeechRecognizeSdk.runtimePreparation.isDefaultModelPrepared() &&
+      AmphionRuntime.isModelPrepared(AsrLanguage.ZH_EN, defaultConfig)) {
       callback.onReady();
       return;
     }
-    const generation = SpeechRecognizeSdk.runtimeGeneration;
-    let task = SpeechRecognizeSdk.prepareTask;
+    const snapshot: RuntimePreparationSnapshot = SpeechRecognizeSdk.runtimePreparation.snapshot();
+    let task = SpeechRecognizeSdk.runtimePreparation.activeTask();
     if (task === undefined) {
       const provider = SpeechRecognizeSdk.deviceIdProvider ?? new SystemDeviceIdProvider();
-      task = AmphionRuntime.init(context, SpeechRecognizeSdk.buildRuntimeOptions(licenseText, provider));
-      SpeechRecognizeSdk.prepareTask = task;
+      task = AmphionRuntime.init(context, SpeechRecognizeSdk.buildRuntimeOptions(licenseText, provider))
+        .then((): Promise<void> => {
+          if (!SpeechRecognizeSdk.runtimePreparation.isRuntimeCurrent(snapshot)) {
+            throw new Error('prepareRuntime cancelled by unloadRuntime');
+          }
+          if (!SpeechRecognizeSdk.runtimePreparation.isModelCurrent(snapshot)) {
+            throw new Error('prepareRuntime cancelled by unloadModel');
+          }
+          return AmphionRuntime.preloadAsync(context, [AsrLanguage.ZH_EN], defaultConfig);
+        })
+        .catch(async (e: Object): Promise<void> => {
+          if (SpeechRecognizeSdk.runtimePreparation.markPrepareFailed(snapshot)) {
+            try {
+              await AmphionRuntime.releaseAsync();
+            } catch (cleanupError) {
+              throw new Error(`${e}; Runtime cleanup failed: ${cleanupError}`);
+            }
+          }
+          throw new Error(`${e}`);
+        });
+      SpeechRecognizeSdk.runtimePreparation.publishTask(task);
     }
     const observedTask = task;
     observedTask
       .then((): void => {
-        if (generation !== SpeechRecognizeSdk.runtimeGeneration || !AmphionRuntime.isRuntimeReady()) {
+        if (!SpeechRecognizeSdk.runtimePreparation.isRuntimeCurrent(snapshot) || !AmphionRuntime.isRuntimeReady()) {
           callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, 'prepareRuntime cancelled by unloadRuntime');
           return;
         }
+        if (!SpeechRecognizeSdk.runtimePreparation.isModelCurrent(snapshot)) {
+          callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED, 'prepareRuntime cancelled by unloadModel');
+          return;
+        }
+        SpeechRecognizeSdk.runtimePreparation.markPrepared(snapshot);
+        SpeechRecognizeSdk.runtimePreparation.clearTask(observedTask);
         callback.onReady();
       })
       .catch((e: Object): void => {
@@ -1246,7 +1277,7 @@ export class SpeechRecognizeSdk {
         // unloadRuntime 保留的是上次激活快照；重新 prepare 时会再次完整验权。若授权在此期间
         // 过期/失效，同步刷新公开状态。generation + 文本双重检查防止旧 Promise 覆盖新授权。
         if (licenseCode !== DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED &&
-          generation === SpeechRecognizeSdk.runtimeGeneration &&
+          SpeechRecognizeSdk.runtimePreparation.isRuntimeCurrent(snapshot) &&
           SpeechRecognizeSdk.activatedLicenseText === licenseText) {
           const failedInfo = new LicenseInfo();
           failedInfo.status = licenseCode === DingqiaoErrorCode.LICENSE_EXPIRED ? 1 :
@@ -1259,9 +1290,7 @@ export class SpeechRecognizeSdk {
         callback.onError(errorCode, `prepareRuntime failed: ${message}`);
       })
       .finally((): void => {
-        if (SpeechRecognizeSdk.prepareTask === observedTask) {
-          SpeechRecognizeSdk.prepareTask = undefined;
-        }
+        SpeechRecognizeSdk.runtimePreparation.clearTask(observedTask);
       });
   }
 
@@ -1271,6 +1300,7 @@ export class SpeechRecognizeSdk {
    * 内存模型加载,无需重建运行时。
    */
   static unloadModel(): void {
+    SpeechRecognizeSdk.runtimePreparation.invalidateModel();
     AmphionRuntime.unloadModel();
   }
 
@@ -1283,15 +1313,13 @@ export class SpeechRecognizeSdk {
   }
 
   private static invalidateRuntime(): void {
-    SpeechRecognizeSdk.runtimeGeneration += 1;
+    SpeechRecognizeSdk.runtimePreparation.invalidateRuntime();
     // Promise 不可取消；清掉 wrapper 引用并让 core generation 拒绝旧任务提交。
-    SpeechRecognizeSdk.prepareTask = undefined;
     AmphionRuntime.release();
   }
 
   private static invalidateRuntimeAsync(): Promise<void> {
-    SpeechRecognizeSdk.runtimeGeneration += 1;
-    SpeechRecognizeSdk.prepareTask = undefined;
+    SpeechRecognizeSdk.runtimePreparation.invalidateRuntime();
     return AmphionRuntime.releaseAsync();
   }
 

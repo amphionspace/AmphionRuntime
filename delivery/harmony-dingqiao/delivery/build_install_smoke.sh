@@ -525,10 +525,9 @@ for text in texts:
     if any(marker in text for marker in failures):
         print(f"FAIL\t{text}")
         raise SystemExit(0)
-# 两级加载:启动后到达的是「运行时就绪(未加载模型)」态,模型要等点击开始识别才按需加载。
-# 兼容旧版一次性加载的「引擎就绪」文案。
+# prepareRuntime 返回时默认中英模型必须已经就绪；旧的纯 Runtime ready 文案不能通过此门禁。
 for text in texts:
-    if "运行时就绪" in text or "引擎就绪" in text:
+    if "默认中英模型已就绪" in text:
         print(f"READY\t{text}")
         raise SystemExit(0)
 PY

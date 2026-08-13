@@ -218,6 +218,32 @@ class HarmonyRuntimeReleaseGateTest(unittest.TestCase):
             """
         )
 
+    def test_retried_stream_close_notifies_owner_once(self) -> None:
+        self.run_gate(
+            """
+            const events = [];
+            const gate = new RuntimeReleaseGate();
+            const lease = gate.retainSession();
+            assert.notEqual(lease, undefined);
+            let closeAttempts = 0;
+            let ownerNotifications = 0;
+            const closeAndNotifyOwner = () => {
+              closeAttempts += 1;
+              if (closeAttempts === 1) throw new Error('first close fails');
+              events.push('stream-closed');
+              ownerNotifications += 1;
+            };
+
+            assert.equal(lease.releaseAfterClose(closeAndNotifyOwner), false);
+            assert.equal(ownerNotifications, 0);
+            assert.equal(gate.requestModelUnload(() => events.push('model')), false);
+            assert.deepEqual(events, ['stream-closed', 'model']);
+            assert.equal(ownerNotifications, 1);
+            assert.equal(lease.retryClose(), true);
+            assert.equal(ownerNotifications, 1);
+            """
+        )
+
     def test_throwing_runtime_release_rejects_every_waiter(self) -> None:
         self.run_gate(
             """
@@ -271,11 +297,22 @@ class HarmonyRuntimeReleaseGateTest(unittest.TestCase):
         release_guard = runtime.split("private releaseStreamIfClosed(): void", 1)[1]
         self.assertIn("this.streamCallDepth > 0", release_guard)
         self.assertIn("this.runtimeLease.releaseAfterClose", release_guard)
+        release_close_action = release_guard.split(
+            "this.runtimeLease.releaseAfterClose((): void => {", 1
+        )[1].split("}))", 1)[0]
+        self.assertIn("this.stream.close()", release_close_action)
+        self.assertIn("this.streamReleased = true", release_close_action)
+        self.assertIn("this.onStreamReleased()", release_close_action)
         new_session = runtime.split("newSession(callback: AsrCallback", 1)[1].split(
             "isClosed(): boolean", 1
         )[0]
         self.assertIn("stream = this.recognizer.createStream()", new_session)
         self.assertIn("lease.releaseAfterClose", new_session)
+        construction_close_action = new_session.split(
+            "lease.releaseAfterClose((): void => {", 1
+        )[1].split("}))", 1)[0]
+        self.assertIn("createdStream.close()", construction_close_action)
+        self.assertIn("this.onSessionStreamReleased()", construction_close_action)
         constructor = runtime.split("export class AsrSession", 1)[1].split(
             "acceptPcmShort", 1
         )[0]
