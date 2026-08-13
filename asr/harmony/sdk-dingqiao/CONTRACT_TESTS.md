@@ -63,10 +63,10 @@
 6. `recognitionMode` 缺省为 `STREAM=1`；传入 `RECORD=0` 应启动失败并明确提示不支持 SDK 内录音。
 7. `recognizerMode` 只接受 `short` / `long`，两者均使用现有长语音流式实现。
 8. `locate` 当前仅兼容接受 `CN`；`sessionGeneralLexicon` 明确为 V1 不支持，不得伪装生效。
-9. 启用声纹校验或 Speaker VAD 时，纯静音仍按钳制后的 `vadBegin` 结束；初始等待窗内存在连续声学活动但 VAD/ASR 未决时，才增加一次默认 1500 ms 确认窗。
+9. 鼎桥声纹配置固定 `minSegSec=0`，不额外延长 `vadBegin`；纯静音或未被 VAD/ASR 确认的活动仍按钳制后的 `vadBegin` 结束。
 10. 组合回归必须交替覆盖实时/突发喂入和直接起音/前置静音；足够长语音在显式 `finish` 前不得出现 `isLast`，第一个非空 final 必须带分数；probe 可产生 non-last final，因此不能把总 final 数硬编码为 1。
-11. 声学 backstop 必须与调用方分帧无关。低于 -40 dBFS 的噪声、被静音打断的短脉冲和零散变幅脉冲不能误判；稳态高能非语音只允许延时一次并最终结束；确认窗末只有近期连续活动兼具语音型能量变化和过零率范围时才能直接解除计时，旧活动必须由 ASR probe 确认，且声学证据不单独产生 speech 事件。
-12. `voiceprint-vad-begin-idle` 必须交替验证纯静音约在 1000 ms 结束、稳态高能非语音约在 2500 ms 有界结束；均没有 speech 事件或非空文本，且只有一次 last final/complete。
+11. 声学 backstop 必须与调用方分帧无关。低于 -40 dBFS 的噪声、被静音打断的短脉冲和零散变幅脉冲不能误判；正数 `minSegSec` 下，稳态高能非语音只允许延时一次并最终结束；确认窗末只有近期连续活动兼具语音型能量变化和过零率范围时才能直接解除计时，旧活动必须由 ASR probe 确认，且声学证据不单独产生 speech 事件。鼎桥固定 `minSegSec=0`，因此不启用这段额外确认窗。
+12. `voiceprint-vad-begin-idle` 必须交替验证纯静音和稳态高能非语音都约在 1000 ms 结束；二者均没有额外确认窗、speech 事件或非空文本，且只有一次 last final/complete。
 13. 同时开启声纹校验和 Speaker VAD 时，token-only native endpoint 被抑制只能清理 Speaker VAD
     当前流窗口，不能清理尚未形成公开 final 的声纹回退 PCM。两个各约 800 ms 的 native segment
     合并成一条非空公开 final 时，回退候选必须达到约 1600 ms。
@@ -107,10 +107,11 @@ Harmony 发布前还必须执行 `delivery/harmony-dingqiao/delivery/run_finish_
 7. `enableVoiceprintVerification=true`、有效 `voiceprintIds` 且
    `enableSpeakerVad=false` 时仍必须执行 final 声纹评分；Speaker VAD 不是返回
    `speakerSimilarity` 的前置条件。
-8. 声纹评分优先使用严格筛选后的有效语音。严格样本不足 `minSegSec`，但 ASR 已产生非空
-   text/token 且当前句真实 PCM 达到门槛时，必须使用当前句 PCM 计算真实分数。不得填充固定值、
-   复制上一句分数或补静音绕过门槛。
-9. ASR 没有 text/token 证据、当前句 PCM 短于门槛或空 terminal final 时仍允许省略分数，
+8. 鼎桥声纹配置固定 `minSegSec=0`。ASR 已产生非空 text/token 且当前句有真实 PCM 时，必须使用
+   当前句 PCM 尝试计算真实分数，不得按 SDK 时长或质量门槛主动弃权；音频时长、阈值和接受策略由
+   业务方判断。不得填充固定值、复制上一句分数或补静音。
+9. ASR 没有 text/token 证据、当前句 PCM 为空、声纹能力未生效或 extractor 技术上无法产生
+   embedding 时仍允许省略分数，
    但不得丢失识别结果或改变 final/last/complete 顺序。
 10. `voiceprint-fallback` 使用两条固定顺序语料：`000_enroll.wav` 注册，
     `001_recognize.wav` 识别。第一条非空 endpoint final 必须带分数，显式 `finish` 前

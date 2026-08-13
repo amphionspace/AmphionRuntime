@@ -1273,13 +1273,13 @@ async function runVoiceprintCycle(engine: SpeechRecognitionEngine, entry: Corpus
   for (let i = 0; i < events.finalTexts.length; i++) {
     if (events.finalTexts[i].length > 0) nonEmptyFinals += 1;
   }
-  const scoreContract = scenario === 'short' ? events.speakerScores === 0 :
-    events.speakerScores > 0 && events.nonEmptySpeakerScores === nonEmptyFinals;
+  const scoreContract = nonEmptyFinals > 0 &&
+    events.nonEmptySpeakerScores === nonEmptyFinals;
   const utteranceContract = scenario !== 'multi-utterance' || nonEmptyFinals >= 2;
   const ok = completed && events.starts === 1 && events.finals > 0 && events.lastFinals === 1 &&
     lastFinalsBeforeFinish === 0 && events.completes === 1 && events.errors === 0 && scoreContract &&
     utteranceContract && !engine.isBusy();
-  let detail = `voiceprint-${scenario}-${scenario === 'short' ? 'no-score' : 'scored'}`;
+  let detail = `voiceprint-${scenario}-scored`;
   if (!scoreContract) {
     detail = `voiceprint-score-contract-${scenario}-nonempty-${nonEmptyFinals}-scored-${events.nonEmptySpeakerScores}`;
   } else if (!utteranceContract) {
@@ -1535,7 +1535,7 @@ async function runVoiceprintVadBeginCycle(engine: SpeechRecognitionEngine, entry
   }
   const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
   result.requestedVadBeginMs = 1000;
-  result.confirmationGraceMs = 1500;
+  result.confirmationGraceMs = 0;
   result.voiceprintIdCount = 1;
   result.fedFrames = fed;
   result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
@@ -1593,7 +1593,7 @@ async function runVoiceprintFallbackCycle(engine: SpeechRecognitionEngine, entry
   else if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
   const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
   result.requestedVadBeginMs = 5000;
-  result.confirmationGraceMs = 1500;
+  result.confirmationGraceMs = 0;
   result.requestedMaxAudioDurationMs = 28800000;
   result.effectiveMaxAudioDurationMs = 28800000;
   result.voiceprintIdCount = 1;
@@ -1632,7 +1632,7 @@ async function runVoiceprintVadBeginIdleCycle(engine: SpeechRecognitionEngine, e
     await sleep(IDLE_FRAME_PACE_MS);
   }
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
-  const timingOk = noisy ? fed >= 110 && fed <= 150 : fed >= 45 && fed <= 70;
+  const timingOk = fed >= 45 && fed <= 70;
   const ok = completed && timingOk && events.starts === 1 && events.finals === 1 &&
     events.lastFinals === 1 && events.finalChars === 0 && events.speechBegins === 0 &&
     events.completes === 1 && events.errors === 0 && !engine.isBusy();
@@ -1644,7 +1644,7 @@ async function runVoiceprintVadBeginIdleCycle(engine: SpeechRecognitionEngine, e
   else if (events.finalChars !== 0) detail = `unexpected-final-chars-${events.finalChars}`;
   const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
   result.requestedVadBeginMs = 1000;
-  result.confirmationGraceMs = 1500;
+  result.confirmationGraceMs = 0;
   result.voiceprintIdCount = 1;
   result.fedFrames = fed;
   return result;
@@ -1710,7 +1710,7 @@ async function runSpeakerVadOnStartCycle(engine: SpeechRecognitionEngine, entry:
   else if (!recovered) detail = 'speaker-vad-onstart-recovery-contract';
   const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
   result.requestedVadBeginMs = 1000;
-  result.confirmationGraceMs = 1500;
+  result.confirmationGraceMs = 0;
   result.voiceprintIdCount = 1;
   result.fedFrames = fed;
   result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;

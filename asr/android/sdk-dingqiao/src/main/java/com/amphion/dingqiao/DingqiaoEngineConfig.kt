@@ -70,6 +70,7 @@ internal object DingqiaoEngineConfig {
                 TargetSpeakerConfig(
                     modelPath = speakerModelPath,
                     threshold = SCORE_ONLY_THRESHOLD,
+                    minSegSec = 0f,
                     preload = true,
                     enabledByDefault = false,
                     speakerVad = speakerVadConfig(startParams),

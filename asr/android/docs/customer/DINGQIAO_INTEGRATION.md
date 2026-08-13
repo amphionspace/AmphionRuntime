@@ -55,7 +55,7 @@ createEngine → setListener → startListening
 | 语种 | `zh-CN`（离线中英 ASR） |
 | partial | ASR 原文 |
 | final | 默认返回警务增强后文本（术语 → 车牌 → 派出所）；会话显式关闭增强时返回原始 ASR 文本 |
-| 声纹 | final 且开启校验、有效语音达到门槛时返回 `speakerSimilarity`；短句省略分数但仍返回识别结果，阈值由客户端判定 |
+| 声纹 | final 且开启校验、有 ASR 语音证据和非空真实 PCM 时尝试返回 `speakerSimilarity`；SDK 负责出分，短句风险和阈值由客户端承担 |
 
 每个会话可通过 `StartParams.extraParams["enablePoliceEnhancement"]` 控制警务增强。参数类型为
 `Boolean`、默认 `true`；显式传 `false` 只影响该会话的 final 文本，不触发引擎重建，也不改变

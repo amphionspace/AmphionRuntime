@@ -63,17 +63,43 @@ class HarmonySpeakerScoreFallbackTest(unittest.TestCase):
             """
         )
 
-    def test_short_or_unconfirmed_audio_does_not_fall_back(self) -> None:
+    def test_asr_confirmed_500ms_utterance_falls_back_to_real_pcm(self) -> None:
         self.run_policy(
             """
             const strict = new Float32Array(8_000);
-            const shortUtterance = new Float32Array(23_999);
+            const shortUtterance = new Float32Array(8_000);
             assert.equal(
               selectSpeakerScoreSamples(strict, shortUtterance, 24_000, true).source,
+              'utterance'
+            );
+            assert.equal(
+              selectSpeakerScoreSamples(strict, shortUtterance, 24_000, true).samples,
+              shortUtterance
+            );
+            """
+        )
+
+    def test_zero_minimum_scores_whole_utterance_not_short_strict_fragment(self) -> None:
+        self.run_policy(
+            """
+            const strict = new Float32Array(1_600);
+            const utterance = new Float32Array(8_000);
+            const selected = selectSpeakerScoreSamples(strict, utterance, 0, true);
+            assert.equal(selected.samples, utterance);
+            assert.equal(selected.source, 'utterance');
+            """
+        )
+
+    def test_unconfirmed_or_empty_audio_does_not_fall_back(self) -> None:
+        self.run_policy(
+            """
+            const strict = new Float32Array(8_000);
+            assert.equal(
+              selectSpeakerScoreSamples(strict, new Float32Array(64_000), 24_000, false).source,
               'insufficient'
             );
             assert.equal(
-              selectSpeakerScoreSamples(strict, new Float32Array(64_000), 24_000, false).source,
+              selectSpeakerScoreSamples(new Float32Array(0), new Float32Array(0), 24_000, true).source,
               'insufficient'
             );
             """
@@ -117,6 +143,32 @@ class HarmonySpeakerScoreFallbackTest(unittest.TestCase):
             "Logger.d(`session ${this.sessionId} ` + speakerScoreSelectionDiagnostic(",
             source,
         )
+
+    def test_runtime_does_not_reapply_quality_duration_gate_to_public_final(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        apply_score = source.split(
+            "private applyTargetSpeaker(result: AsrResult, samples: Float32Array): void {", 1
+        )[1].split("private maybeTriggerSpeakerVadEndpoint", 1)[0]
+        clean_prefix = source.split(
+            "private prepareCleanPrefixSpeakerScore(split: SpeakerTurnSplit): void {", 1
+        )[1].split("private syncSpeakerTurnState", 1)[0]
+
+        self.assertNotIn("samples.length < minSamples", apply_score)
+        self.assertIn("extractor.isReady(stream)", apply_score)
+        self.assertIn("if (selection.samples.length === 0) return", clean_prefix)
+
+    def test_clean_prefix_does_not_publish_extractor_not_ready_sentinel(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        clean_prefix = source.split(
+            "private prepareCleanPrefixSpeakerScore(split: SpeakerTurnSplit): void {", 1
+        )[1].split("private syncSpeakerTurnState", 1)[0]
+        score_samples = source.split(
+            "private scoreSamples(samples: Float32Array): number | undefined {", 1
+        )[1].split("private dispatchSessionMetrics", 1)[0]
+
+        self.assertIn("this.svCleanPrefixSpeakerScore = this.scoreSamples", clean_prefix)
+        self.assertIn("if (!this.targetExtractor.isReady(stream)) return undefined", score_samples)
+        self.assertNotIn("return -1", score_samples)
 
 
 if __name__ == "__main__":

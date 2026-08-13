@@ -2,6 +2,11 @@
 
 ## 0.3.2 - 2026-08-13（自动增益、预加载与 Runtime 稳定性）
 
+- `TargetSpeakerConfig.minSegSec` 默认并在鼎桥适配层固定为 `0`，取消 SDK 侧最短时长门槛和额外的
+  `vadBegin` 声纹确认窗；音频时长、短句精度、业务阈值及是否采用分数由调用方判断。
+- 声纹 final 不再把 `minSegSec` 当作出分质量门槛：已有非空 ASR text/token 时使用本句非空真实
+  PCM 尝试计算 `speakerSimilarity`。SDK 负责出分，短句精度、业务阈值和接受策略由调用方承担；
+  纯静音、空 PCM 和 extractor 技术上无法产生 embedding 时仍不伪造分数。
 - 修复长音频 `finish -> shutdown -> setLicense` 与 native async decode 尾任务重叠时，旧 Runtime
   提前释放 recognizer 导致尾部结果丢失或 native 崩溃的问题。
 - session 持有 Runtime lease 直到公开回调关闭、in-flight native 调用返回且 stream 关闭；释放等待期
