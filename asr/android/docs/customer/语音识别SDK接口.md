@@ -152,9 +152,12 @@ interface RecognitionListener {
 | `endTime` | `Int?` | 结束时间毫秒，可能为空 |
 | `speakerSimilarity` | `Float?` | final 且启用声纹能力时返回 |
 
-> 交付批注 VP-20260715-01（2026-07-15）：`speakerSimilarity` 是可选值。有效语音短于 `TargetSpeakerConfig.minSegSec`（默认 1.5 秒）时无法可靠打分，SDK 保留识别结果但省略该字段；调用方不得把字段缺失当作会话结束或识别失败。
-
-严格有效语音优先用于 `speakerSimilarity`。若严格样本不足，但 ASR 已产生非空 text/token，且本句实际 PCM 已达到 `minSegSec`，SDK 回退到本句真实 PCM 打分；不会填充假分数、复制上一句分数或补静音。非 last 的 token-only native endpoint 不会形成公开 final，其 PCM 会保留到下一条公开结果。
+`speakerSimilarity` 是可选值。`TargetSpeakerConfig.minSegSec` 默认并在鼎桥适配层固定为 `0`，SDK
+不设置最短时长门槛；ASR 已产生非空 text/token 时，SDK 使用本句非空真实 PCM 尝试评分。短句
+相似度更易波动，音频时长、业务阈值和接受策略全部由业务方判断。
+没有 ASR 语音证据、没有真实 PCM 或 extractor 技术上无法产生 embedding 时仍可省略字段；SDK
+不会填充假分数、复制上一句分数或补静音。非 last 的 token-only native endpoint 不形成公开
+final，其 PCM 会保留到下一条公开结果。
 
 事件码：
 
@@ -168,7 +171,7 @@ interface RecognitionListener {
 
 `vadBegin` 按实际写入并由 VAD 处理的 PCM 时长计算；只调用 `startListening` 而不写入音频不会计时。达到阈值且始终未检测到语音时，SDK 回调空的 `onResult(isFinal=true,isLast=true)`，随后回调 `onComplete`，不回调 `SPEECH_BEGIN`、`SPEECH_END` 或错误。一旦检测到首个真实起音，本会话不再触发 `vadBegin`，后续停顿由 `vadEnd` 处理。该行为不依赖 `enablePartialResult`。
 
-传入可用的 `voiceprintIds` 时，即使初始声纹开关为关闭，SDK 也会为 `onStart` 内同步调用 `setSpeakerVadEnabled(true)` 保留最多一次 `minSegSec` 确认窗。纯静音和稳态高能非语音仍会有界结束。
+传入可用的 `voiceprintIds` 时，鼎桥适配层的 `minSegSec=0`，不会额外延长 `vadBegin` 确认窗。纯静音和未被 VAD/ASR 确认的活动仍按配置有界结束。
 
 ## 6. 声纹
 
@@ -209,7 +212,9 @@ StartParams(
 )
 ```
 
-SDK 不在内部丢弃非目标说话人结果；达到有效语音门槛的 final 会返回增强文本与 `speakerSimilarity`，是否接受由客户业务侧判定。未达到门槛的 final 仍返回识别结果，但省略相似度。启用 `enableSpeakerVad` 时，SDK 可在目标说话人离场后提前切句。
+SDK 不在内部丢弃非目标说话人结果；已有 ASR 语音证据和非空真实 PCM 的 final 会尝试返回增强
+文本与 `speakerSimilarity`，是否接受及短句阈值风险由客户业务侧判定。启用 `enableSpeakerVad`
+时，SDK 可在目标说话人离场后提前切句。
 
 ## 7. 授权
 

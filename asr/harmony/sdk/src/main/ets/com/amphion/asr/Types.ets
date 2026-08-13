@@ -1,3 +1,5 @@
+import { isValidSpeakerMinimumSegment } from './TargetSpeakerConfigPolicy';
+
 export enum AsrLanguage {
   ZH_EN = 'ZH_EN',
   YUE_EN = 'YUE_EN'
@@ -74,7 +76,9 @@ export class TargetSpeakerConfig {
   threshold: number = 0.30;
   winSec: number = 2.5;
   hopSec: number = 1.0;
-  minSegSec: number = 1.5;
+  // Preferred strict-speech duration and initial-confirmation bound. Zero removes the SDK duration
+  // gate: an ASR-confirmed public final uses its non-empty real PCM and leaves judgment to business.
+  minSegSec: number = 0;
   preload: boolean = false;
   // Allows a session to start before the extractor is ready. The caller must attach an async
   // extractor load; final delivery waits for it, while streaming speaker VAD must keep this false.
@@ -321,8 +325,9 @@ function validateTargetSpeakerConfig(config: TargetSpeakerConfig | undefined): v
   if (config.threshold < -1.0 || config.threshold > 1.0) {
     throw new Error(`TargetSpeakerConfig.threshold must be in [-1.0, 1.0], got ${config.threshold}`);
   }
-  if (config.winSec <= 0 || config.hopSec <= 0 || config.minSegSec <= 0) {
-    throw new Error('TargetSpeakerConfig winSec, hopSec and minSegSec must be > 0');
+  if (config.winSec <= 0 || config.hopSec <= 0 ||
+    !isValidSpeakerMinimumSegment(config.minSegSec)) {
+    throw new Error('TargetSpeakerConfig winSec and hopSec must be > 0; minSegSec must be >= 0');
   }
   if (config.numThreads < 1 || config.numThreads > 8) {
     throw new Error(`TargetSpeakerConfig.numThreads must be in [1, 8], got ${config.numThreads}`);

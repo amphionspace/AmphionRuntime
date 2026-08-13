@@ -161,7 +161,7 @@ class DqVoiceprintTest {
             eligible.any { it.speakerSimilarity != null })
     }
 
-    // ---------- v04c: 有 ASR 证据且有效语音短于门槛时，退化到本句真实 PCM ----------
+    // ---------- v04c: 500 ms 短句有 ASR 证据时，退化到本句真实 PCM ----------
     @Test
     fun v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm() {
         ensureReady()
@@ -171,7 +171,7 @@ class DqVoiceprintTest {
         val id = registerFromSample(registrationAsset)
         val engine = freshEngine()
         awaitIdle(engine)
-        val speechBytes = minOf(full.size, (DQ_SR * 2 * 1.4).toInt())
+        val speechBytes = minOf(full.size, (DQ_SR * 2 * 0.5).toInt())
         repeat(2) { round ->
             val listener = CapturingListener().also { engine.setListener(it) }
             val sid = "vp-fallback-$round-${System.currentTimeMillis()}"
