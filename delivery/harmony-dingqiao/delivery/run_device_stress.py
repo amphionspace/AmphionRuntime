@@ -374,6 +374,15 @@ def representative_sources(sources: list[AudioSource], count: int) -> list[Audio
     return sorted(picked, key=lambda item: (item.sample_rate, item.duration_seconds, str(item.path)))
 
 
+def representative_voiceprint_sources(
+    sources: list[AudioSource], count: int
+) -> list[AudioSource]:
+    enrollment_capable = [source for source in sources if source.duration_seconds >= 3.0]
+    if not enrollment_capable:
+        raise StressFailure("voiceprint requires an enrollment source of at least 3 seconds")
+    return representative_sources(enrollment_capable, count)
+
+
 def select_target_speaker_manifest_sources(
     corpus_root: Path, sources: list[AudioSource], manifest_path: Path
 ) -> tuple[list[AudioSource], int]:
@@ -884,7 +893,15 @@ def run_stress(args: argparse.Namespace) -> Path:
     device = select_target(hdc_path, args.device)
     hdc = Hdc(hdc_path, device)
     all_sources = inspect_wavs(args.data_dir.expanduser().resolve())
-    selected = representative_sources(all_sources, args.files)
+    voiceprint_representative_modes = {
+        "voiceprint", "voiceprint-vad-begin", "voiceprint-vad-begin-idle",
+        "speaker-vad-onstart",
+    }
+    selected = (
+        representative_voiceprint_sources(all_sources, args.files)
+        if args.mode in voiceprint_representative_modes
+        else representative_sources(all_sources, args.files)
+    )
     target_speaker_enrollment_count = 1
     if args.mode == "voiceprint-fallback":
         sources_by_name = {source.path.name: source for source in all_sources}
