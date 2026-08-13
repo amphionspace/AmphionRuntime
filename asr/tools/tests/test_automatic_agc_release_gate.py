@@ -392,6 +392,8 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
             source,
         )
         self.assertNotIn("submodule update --init --recursive\n", source)
+        self.assertIn('ls-tree "$SOURCE_COMMIT" -- third_party/sherpa-onnx', source)
+        self.assertNotIn('third_party/sherpa-onnx" rev-parse HEAD', source)
         self.assertIn("04_build_android_so.sh", source)
         self.assertIn("AMPHION_REQUIRE_ANDROID_NATIVE_LIBS=1", source)
         self.assertIn(":sdk:assembleRelease", source)

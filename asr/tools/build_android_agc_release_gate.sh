@@ -6,7 +6,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SOURCE_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)"
-SHERPA_COMMIT="$(git -C "$REPO_ROOT/third_party/sherpa-onnx" rev-parse HEAD)"
+SHERPA_COMMIT="$(git -C "$REPO_ROOT" ls-tree "$SOURCE_COMMIT" -- third_party/sherpa-onnx | awk '{print $3}')"
+[[ "$SHERPA_COMMIT" =~ ^[0-9a-f]{40}$ ]] || {
+  echo "[ERROR] unable to resolve sherpa-onnx gitlink from $SOURCE_COMMIT" >&2
+  exit 1
+}
 OUTPUT_ROOT="${1:-$REPO_ROOT/asr/android/build/automatic-agc-release/$SOURCE_COMMIT}"
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/amphion-android-agc-release.XXXXXX")"
 CLONE_ROOT="$TEMP_ROOT/repo"

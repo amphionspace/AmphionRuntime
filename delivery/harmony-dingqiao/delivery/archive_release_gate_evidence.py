@@ -393,6 +393,11 @@ def identity_tuple(report: Mapping[str, Any]) -> tuple[str, str, str, str, str]:
     )
     if any(not isinstance(artifacts.get(name), dict) for name in required_hars):
         raise ArchiveFailure(f"report {report.get('run_id')} does not identify all four HARs")
+    har_digests = [artifacts[name].get("sha256") for name in required_hars]
+    if any(not isinstance(digest, str) or not SHA256.fullmatch(digest) for digest in har_digests):
+        raise ArchiveFailure(
+            f"report {report.get('run_id')} does not identify all four HAR SHA-256 values"
+        )
     values = (
         identity.get("git_commit"),
         identity.get("source_fingerprint_sha256"),

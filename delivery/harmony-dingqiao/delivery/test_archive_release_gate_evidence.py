@@ -286,6 +286,14 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 android_results_root=self.android_results,
             )
 
+    def test_rejects_component_har_without_a_sha256(self) -> None:
+        run = self.make_run("20260807-100100-vad-begin-pass", "vad-begin", "PASS")
+        report = json.loads((run / "report.json").read_text(encoding="utf-8"))
+        report["build_identity"]["artifacts"]["amphion_asr.har"]["sha256"] = ""
+
+        with self.assertRaisesRegex(MODULE.ArchiveFailure, "all four HAR SHA-256"):
+            MODULE.identity_tuple(report)
+
     def test_rejects_delivery_har_that_was_not_tested_by_the_device_matrix(self) -> None:
         self.make_run("20260807-100100-vad-begin-pass", "vad-begin", "PASS")
         with mock.patch.object(MODULE, "REQUIRED_RELEASE_MODES", ("vad-begin",)), \
