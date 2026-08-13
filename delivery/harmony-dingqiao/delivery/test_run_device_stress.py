@@ -37,6 +37,17 @@ class RunCommandTest(unittest.TestCase):
         self.assertEqual(2, len(selected))
         self.assertTrue(all(source.duration_seconds >= 3.0 for source in selected))
 
+    def test_voiceprint_fallback_uses_the_versioned_regression_fixtures(self) -> None:
+        external = Path("/external/release-corpus")
+
+        selected = MODULE.corpus_root_for_mode(external, "voiceprint-fallback")
+
+        self.assertEqual(
+            MODULE.REPO_ROOT / "asr/test-fixtures/voiceprint-fallback",
+            selected,
+        )
+        self.assertEqual(external, MODULE.corpus_root_for_mode(external, "burst"))
+
     def test_speaker_turn_manifest_enforces_required_forbidden_text_and_final_count(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             manifest = Path(directory) / "manifest.json"
