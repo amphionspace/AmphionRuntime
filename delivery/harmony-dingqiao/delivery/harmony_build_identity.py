@@ -32,6 +32,8 @@ MODEL_MANIFEST = REPO_ROOT / (
     "asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json"
 )
 NATIVE_LIBRARIES = {
+    "libamphion_audio_processing.so": REPO_ROOT
+    / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libamphion_audio_processing.so",
     "libsherpa-onnx-c-api.so": REPO_ROOT
     / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so",
     "libonnxruntime.so": REPO_ROOT
@@ -45,6 +47,9 @@ OPTIONAL_HAP_MODELS = {
 }
 TRACKED_BUILD_INPUTS = (
     "asr/harmony",
+    "asr/native/audio-processing",
+    "asr/tools/03_build_agc_native.sh",
+    "asr/tools/05_package_har_libs.sh",
     "delivery/harmony-dingqiao/samples",
     "delivery/harmony-dingqiao/AppScope",
     "delivery/harmony-dingqiao/build-profile.json5",

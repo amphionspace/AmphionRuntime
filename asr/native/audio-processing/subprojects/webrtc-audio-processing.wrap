@@ -1,0 +1,5 @@
+[wrap-file]
+directory = webrtc-audio-processing-2.1
+source_url = https://gstreamer.freedesktop.org/src/mirror/webrtc-audio-processing/webrtc-audio-processing-2.1.tar.xz
+source_filename = webrtc-audio-processing-2.1.tar.xz
+source_hash = ae9302824b2038d394f10213cab05312c564a038434269f11dbf68f511f9f9fe

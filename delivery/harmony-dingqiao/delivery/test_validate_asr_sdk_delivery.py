@@ -54,6 +54,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         police_asset_payload: bytes = b"police-asset",
         nested_version: str = FIXTURE_VERSION,
         release_date: str = FIXTURE_RELEASE_DATE,
+        include_agc: bool = True,
     ) -> None:
         required = set(MODULE.REQUIRED_FILES)
         required.remove("har/amphion_dingqiao.har")
@@ -97,6 +98,10 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         model_manifest = {"manifest_version": 2, "bundles": bundles}
         model_manifest_payload = json.dumps(model_manifest).encode("utf-8")
         with tarfile.open(har_path, "w:gz") as archive:
+            for name in MODULE.REQUIRED_NATIVE_MEMBERS:
+                if not include_agc and name.endswith("/libamphion_audio_processing.so"):
+                    continue
+                self._add_bytes(archive, name, b"native-library")
             self._add_json(archive, "package/oh-package.json5", {
                 "version": FIXTURE_VERSION,
                 "dependencies": {"amphion_police": police_dependency},
@@ -226,6 +231,15 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             self._write_fixture(root)
             MODULE.validate_delivery(root, FIXTURE_VERSION, FIXTURE_MODEL_MD5)
 
+    def test_rejects_missing_agc_native_library(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_fixture(root, include_agc=False)
+            with self.assertRaisesRegex(
+                MODULE.DeliveryValidationError, "libamphion_audio_processing"
+            ):
+                MODULE.validate_delivery(root, FIXTURE_VERSION, FIXTURE_MODEL_MD5)
+
     def test_provenance_v2_requires_verified_source_identity(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -254,6 +268,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
                 "source_fingerprint_sha256": "b" * 64,
                 "model_manifest_sha256": "1" * 64,
                 "native_sha256": {
+                    "libamphion_audio_processing.so": "4" * 64,
                     "libonnxruntime.so": "2" * 64,
                     "libsherpa-onnx-c-api.so": "3" * 64,
                 },

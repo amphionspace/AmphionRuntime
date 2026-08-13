@@ -87,6 +87,7 @@ from pathlib import Path
 
 root = Path(sys.argv[1])
 libraries = [
+    root / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libamphion_audio_processing.so",
     root / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so",
     root / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so",
     root / "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/libonnxruntime.so",
@@ -191,6 +192,7 @@ if [[ -n "$HAP" ]]; then
     "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx" \
     "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
     "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
+    "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libamphion_audio_processing.so" \
     "$ZH_EN_ONLY" <<'PY'
 import json
 import hashlib
@@ -209,8 +211,10 @@ local_voiceprint = Path(sys.argv[8])
 local_speaker_turn = Path(sys.argv[9])
 local_sherpa = Path(sys.argv[10])
 local_ort = Path(sys.argv[11])
-zh_en_only = sys.argv[12] == "true"
+local_agc = Path(sys.argv[12])
+zh_en_only = sys.argv[13] == "true"
 required = {
+    "libs/arm64-v8a/libamphion_audio_processing.so",
     "libs/arm64-v8a/libamphion_asr.so",
     "libs/arm64-v8a/libonnxruntime.so",
     "libs/arm64-v8a/libsherpa-onnx-c-api.so",
@@ -246,6 +250,8 @@ with zipfile.ZipFile(hap) as package:
         raise SystemExit("[ERROR] HAP sherpa native library differs from the verified local library")
     if package.read("libs/arm64-v8a/libonnxruntime.so") != local_ort.read_bytes():
         raise SystemExit("[ERROR] HAP ONNX Runtime library differs from the verified local library")
+    if package.read("libs/arm64-v8a/libamphion_audio_processing.so") != local_agc.read_bytes():
+        raise SystemExit("[ERROR] HAP AGC native library differs from the verified local library")
     try:
         module = json.loads(package.read("module.json"))
     except (KeyError, json.JSONDecodeError) as exc:

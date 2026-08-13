@@ -35,6 +35,7 @@ open asr/tools/QUICKSTART.md   # 推荐入口
 | `00_fetch_demo_model.sh` | B 前置 | 下载 sherpa-onnx 官方双语 demo 模型，自动整理为 SDK 标准目录，可选 adb push 到设备 |
 | `00_push_my_model.sh` | A 验证 | 把自己导出量化好的 ONNX 模型按 SDK 标准布局 push 到一台已装好 sample 的设备（含文件名/tokens.txt 校验） |
 | `ANDROID_TOOLCHAIN.md` | B | 精确到版本号的 Android SDK/NDK/AGP/Gradle/Kotlin 安装清单 |
+| `03_build_agc_native.sh` | B | 编译可选的 WebRTC AGC2 音频预处理库（host / Android / Harmony） |
 | `04_build_android_so.sh` | B | 一键交叉编译 arm64-v8a（可选 armeabi-v7a）的 .so |
 | `05_package_aar_libs.sh` | B | 把编出来的 .so 拷贝到 SDK 工程的 jniLibs/ 目录 |
 
@@ -62,8 +63,9 @@ bash asr/tools/03_verify_onnx.sh \
 # ----- 阶段 B：在你的 macOS / Linux 工作机执行 -----
 # B.1 安装工具链：见 ANDROID_TOOLCHAIN.md
 
-# B.2 编 arm64-v8a 的 .so
+# B.2 编 arm64-v8a 的 AGC2 与 ASR .so
 export ANDROID_NDK=/path/to/ndk/26.3.11579264
+bash asr/tools/03_build_agc_native.sh android-arm64-v8a
 bash asr/tools/04_build_android_so.sh arm64-v8a
 # 可选：bash asr/tools/04_build_android_so.sh armeabi-v7a
 

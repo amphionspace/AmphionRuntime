@@ -1,6 +1,11 @@
 export const nativeVersion: () => string;
 export const probe: () => string;
 
+export type AgcHandle = object;
+export const createAgc: (sampleRate: number) => AgcHandle;
+export const processAgc: (handle: AgcHandle, samples: Float32Array) => Float32Array;
+export const closeAgc: (handle: AgcHandle) => void;
+
 export interface SpeakerTurnSegmentationSegment {
   startSample: number;
   endSample: number;

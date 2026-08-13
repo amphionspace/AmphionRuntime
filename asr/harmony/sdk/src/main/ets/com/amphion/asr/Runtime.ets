@@ -46,6 +46,8 @@ import {
   VadConfig,
   VadModelType
 } from './Types';
+import { NativeAgcBackend } from './NativeAgcBackend';
+import { ProcessedAudioFrame, StreamingAgcProcessor } from './StreamingAgcProcessor';
 import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 import { InitialSilenceTracker } from './InitialSilenceTracker';
 import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
@@ -1211,6 +1213,7 @@ export class AsrSession {
   private speakerPcmBuffers: SpeakerPcmBuffers = new SpeakerPcmBuffers(UTT_MAX_SAMPLES);
   private effectiveSpeechBuffer: EffectiveSpeechBuffer =
     new EffectiveSpeechBuffer(ASR_SAMPLE_RATE_HZ, UTT_MAX_SAMPLES);
+  private agcProcessor: StreamingAgcProcessor;
   private engineReadyMs: number = -1;
   private stoppedNotified: boolean = false;
   private stopNotificationPending: boolean = false;
@@ -1240,6 +1243,9 @@ export class AsrSession {
     this.speakerVadEnabled = this.effectiveSpeakerVad()?.enabledByDefault ?? false;
     this.callback = callback;
     this.engineReadyMs = engineReadyMs;
+    this.agcProcessor = new StreamingAgcProcessor(
+      ASR_SAMPLE_RATE_HZ,
+      (): NativeAgcBackend => new NativeAgcBackend(ASR_SAMPLE_RATE_HZ));
     const initialSilenceTimeoutMs = sessionConfig.initialSilenceTimeoutMs ?? 0;
     const requestedConfirmationGraceMs = sessionConfig.initialSilenceConfirmationGraceMs ?? 0;
     const maxConfirmationGraceMs = config.targetSpeaker === undefined ? 0 :
@@ -1329,7 +1335,8 @@ export class AsrSession {
     this.totalPcmBytes += samples.length * 2;
     this.streamCallDepth += 1;
     try {
-      this.feedAndDecode(samples);
+      const frames = this.agcProcessor.process(samples);
+      for (let index = 0; index < frames.length; index++) this.feedAndDecode(frames[index]);
     } catch (e) {
       this.callbackGate.invoke((): void => {
         this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
@@ -1348,7 +1355,8 @@ export class AsrSession {
     this.totalPcmBytes += samples.length * 2;
     this.streamCallDepth += 1;
     try {
-      await this.feedAndDecodeAsync(samples);
+      const frames = this.agcProcessor.process(samples);
+      for (let index = 0; index < frames.length; index++) await this.feedAndDecodeAsync(frames[index]);
     } catch (e) {
       this.callbackGate.invoke((): void => {
         this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
@@ -1384,6 +1392,8 @@ export class AsrSession {
     if (this.callbackGate.isClosed()) return;
     this.streamCallDepth += 1;
     try {
+      const remainder = this.agcProcessor.flush();
+      for (let index = 0; index < remainder.length; index++) this.feedAndDecode(remainder[index]);
       if (this.speakerVadEnabled && this.svTurnFinalizer?.hasPendingDeparture() &&
         this.commitCleanSpeakerTurn(true, false)) {
         return;
@@ -1409,6 +1419,10 @@ export class AsrSession {
     if (this.callbackGate.isClosed()) return;
     this.streamCallDepth += 1;
     try {
+      const remainder = this.agcProcessor.flush();
+      for (let index = 0; index < remainder.length; index++) {
+        await this.feedAndDecodeAsync(remainder[index]);
+      }
       if (this.speakerVadEnabled && this.svTurnFinalizer?.hasPendingDeparture() &&
         this.commitCleanSpeakerTurn(true, false)) {
         return;
@@ -1542,6 +1556,7 @@ export class AsrSession {
   isClosed(): boolean { return this.callbackGate.isClosed(); }
   close(): void {
     if (!this.callbackGate.close()) return;
+    this.agcProcessor.close();
     this.reentryQueue.clear();
     this.targetExtractorLoad = undefined;
     this.speakerTurnSegmenterLoad = undefined;
@@ -1816,11 +1831,11 @@ export class AsrSession {
   // Android-aligned chunk pipeline: feed every chunk to the recognizer in full (so partials stay
   // real-time) and let the VAD only gate / drive a more sensitive active endpoint. sherpa's own
   // endpoint rules stay enabled as a backstop in case the VAD active endpoint misses.
-  private feedAndDecode(samples: Float32Array): void {
+  private feedAndDecode(frame: ProcessedAudioFrame): void {
     let offset = 0;
-    while (offset < samples.length && !this.callbackGate.isClosed() &&
+    while (offset < frame.raw.length && !this.callbackGate.isClosed() &&
       !this.initialSilenceTracker.hasTimedOut()) {
-      const remaining = samples.length - offset;
+      const remaining = frame.raw.length - offset;
       let chunkSize = this.initialSilenceTracker.isArmed() ?
         Math.min(remaining, INITIAL_DECISION_CHUNK_SAMPLES) : remaining;
       if (this.speakerVadEnabled) {
@@ -1829,16 +1844,18 @@ export class AsrSession {
           chunkSize = Math.min(chunkSize, this.speakerVadScoreScheduler(speakerVad).samplesUntilNextScore());
         }
       }
-      this.feedChunkAndDecode(samples.slice(offset, offset + chunkSize));
+      this.feedChunkAndDecode(
+        frame.raw.slice(offset, offset + chunkSize),
+        frame.processed.slice(offset, offset + chunkSize));
       offset += chunkSize;
     }
   }
 
-  private async feedAndDecodeAsync(samples: Float32Array): Promise<void> {
+  private async feedAndDecodeAsync(frame: ProcessedAudioFrame): Promise<void> {
     let offset = 0;
-    while (offset < samples.length && !this.callbackGate.isClosed() &&
+    while (offset < frame.raw.length && !this.callbackGate.isClosed() &&
       !this.initialSilenceTracker.hasTimedOut()) {
-      const remaining = samples.length - offset;
+      const remaining = frame.raw.length - offset;
       let chunkSize = this.initialSilenceTracker.isArmed() ?
         Math.min(remaining, INITIAL_DECISION_CHUNK_SAMPLES) : remaining;
       if (this.speakerVadEnabled) {
@@ -1847,34 +1864,37 @@ export class AsrSession {
           chunkSize = Math.min(chunkSize, this.speakerVadScoreScheduler(speakerVad).samplesUntilNextScore());
         }
       }
-      await this.feedChunkAndDecodeAsync(samples.slice(offset, offset + chunkSize));
+      await this.feedChunkAndDecodeAsync(
+        frame.raw.slice(offset, offset + chunkSize),
+        frame.processed.slice(offset, offset + chunkSize));
       offset += chunkSize;
     }
   }
 
-  private feedChunkAndDecode(samples: Float32Array, replay: boolean = false): void {
+  private feedChunkAndDecode(rawSamples: Float32Array, processedSamples: Float32Array,
+    replay: boolean = false): void {
     if (this.callbackGate.isClosed() ||
       (!replay && this.initialSilenceTracker.hasTimedOut())) return;
-    if (!replay) this.initialSilenceTracker.observeAcousticSamples(samples);
+    if (!replay) this.initialSilenceTracker.observeAcousticSamples(rawSamples);
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
-      this.effectiveSpeechBuffer.observe(samples);
+      this.effectiveSpeechBuffer.observe(rawSamples);
     }
     // Speaker VAD resets at native stream boundaries; fallback scoring resets only at a public final.
     // The two buffers must remain independent when a token-only native endpoint is suppressed.
-    this.speakerPcmBuffers.observe(samples, this.speakerVadEnabled, this.targetSpeakerEnabled);
+    this.speakerPcmBuffers.observe(rawSamples, this.speakerVadEnabled, this.targetSpeakerEnabled);
     if (this.speakerVadEnabled) {
       const speakerVad = this.effectiveSpeakerVad();
       if (speakerVad !== undefined) {
-        this.speakerTurnFinalizer(speakerVad).accept(samples);
+        this.speakerTurnFinalizer(speakerVad).accept(rawSamples, processedSamples);
         // Score before feeding this deadline slice to the speculative ASR stream. If a departure is
         // confirmed, clean replay owns the slice and a simultaneous native endpoint cannot publish
         // the already contaminated speculative result first.
-        if (this.maybeTriggerSpeakerVadEndpoint(samples.length)) return;
+        if (this.maybeTriggerSpeakerVadEndpoint(rawSamples.length)) return;
       }
     }
 
     const resetGenerationBefore = this.recognizerResetGeneration;
-    this.feedRecognizer(samples, false);
+    this.feedRecognizer(processedSamples, false);
     if (this.callbackGate.isClosed()) return;
     if (this.vad === undefined) return;
     if (this.recognizerResetGeneration !== resetGenerationBefore) {
@@ -1883,8 +1903,10 @@ export class AsrSession {
       return;
     }
 
-    // silero requires window-aligned feeds (512). Slice chunk into windows, keep the remainder.
-    const merged = this.vadCarry.length === 0 ? samples : concatFloat32([this.vadCarry, samples]);
+    // Keep Silero on caller PCM so AGC cannot move VAD/endpoint boundaries. Silero requires
+    // window-aligned feeds (512); slice into windows and retain the remainder.
+    const merged = this.vadCarry.length === 0 ? rawSamples :
+      concatFloat32([this.vadCarry, rawSamples]);
     let i = 0;
     let anySpeech = false;
     let anySilence = false;
@@ -1915,7 +1937,7 @@ export class AsrSession {
       }
       return;
     } else if (anySilence && this.vadSpeechActive) {
-      this.trailingSilenceMs += Math.round(samples.length * 1000 / 16000);
+      this.trailingSilenceMs += Math.round(rawSamples.length * 1000 / 16000);
       const activeEpMs = this.sessionConfig.endpointSilenceMs ?? this.config.vadConfig.activeEndpointSilenceMs;
       if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs) {
         this.vadSpeechActive = false;
@@ -1926,25 +1948,26 @@ export class AsrSession {
     }
   }
 
-  private async feedChunkAndDecodeAsync(samples: Float32Array): Promise<void> {
+  private async feedChunkAndDecodeAsync(rawSamples: Float32Array,
+    processedSamples: Float32Array): Promise<void> {
     if (this.callbackGate.isClosed() || this.initialSilenceTracker.hasTimedOut()) return;
-    this.initialSilenceTracker.observeAcousticSamples(samples);
+    this.initialSilenceTracker.observeAcousticSamples(rawSamples);
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
-      this.effectiveSpeechBuffer.observe(samples);
+      this.effectiveSpeechBuffer.observe(rawSamples);
     }
-    this.speakerPcmBuffers.observe(samples, this.speakerVadEnabled, this.targetSpeakerEnabled);
+    this.speakerPcmBuffers.observe(rawSamples, this.speakerVadEnabled, this.targetSpeakerEnabled);
     if (this.speakerVadEnabled) {
       const speakerVad = this.effectiveSpeakerVad();
       if (speakerVad !== undefined) {
-        this.speakerTurnFinalizer(speakerVad).accept(samples);
+        this.speakerTurnFinalizer(speakerVad).accept(rawSamples, processedSamples);
         // Keep the async lane's ownership identical to the synchronous lane: resolve and commit a
         // confirmed turn before this deadline slice can contaminate the speculative recognizer.
-        if (this.maybeTriggerSpeakerVadEndpoint(samples.length)) return;
+        if (this.maybeTriggerSpeakerVadEndpoint(rawSamples.length)) return;
       }
     }
 
     const resetGenerationBefore = this.recognizerResetGeneration;
-    await this.feedRecognizerAsync(samples, false);
+    await this.feedRecognizerAsync(processedSamples, false);
     if (this.callbackGate.isClosed()) return;
     if (this.vad === undefined) return;
     if (this.recognizerResetGeneration !== resetGenerationBefore) {
@@ -1952,7 +1975,8 @@ export class AsrSession {
       return;
     }
 
-    const merged = this.vadCarry.length === 0 ? samples : concatFloat32([this.vadCarry, samples]);
+    const merged = this.vadCarry.length === 0 ? rawSamples :
+      concatFloat32([this.vadCarry, rawSamples]);
     let i = 0;
     let anySpeech = false;
     let anySilence = false;
@@ -1980,7 +2004,7 @@ export class AsrSession {
       }
       return;
     } else if (anySilence && this.vadSpeechActive) {
-      this.trailingSilenceMs += Math.round(samples.length * 1000 / 16000);
+      this.trailingSilenceMs += Math.round(rawSamples.length * 1000 / 16000);
       const activeEpMs = this.sessionConfig.endpointSilenceMs ?? this.config.vadConfig.activeEndpointSilenceMs;
       if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs) {
         this.vadSpeechActive = false;
@@ -2305,7 +2329,7 @@ export class AsrSession {
     if (this.svPreparedPrefixStream !== undefined) return;
     const safeEnd = finalizer.safePrefixEndSample();
     if (safeEnd <= 0) return;
-    const samples = finalizer.samples();
+    const samples = finalizer.processedSamples();
     if (safeEnd > samples.length) return;
     const stream = this.recognizer.createStream();
     try {
@@ -2398,7 +2422,7 @@ export class AsrSession {
       const decodeStartMs = Date.now();
       if (preparedSamples < split.prefix.length) {
         const prefixWave: Samples = {
-          samples: split.prefix.slice(preparedSamples), sampleRate: ASR_SAMPLE_RATE_HZ
+          samples: split.processedPrefix.slice(preparedSamples), sampleRate: ASR_SAMPLE_RATE_HZ
         } as Samples;
         prefixStream.acceptWaveform(prefixWave);
       }
@@ -2518,7 +2542,10 @@ export class AsrSession {
         chunkSize = Math.min(chunkSize,
           this.speakerVadScoreScheduler(config).samplesUntilNextScore());
       }
-      this.feedChunkAndDecode(split.suffix.slice(offset, offset + chunkSize), true);
+      this.feedChunkAndDecode(
+        split.suffix.slice(offset, offset + chunkSize),
+        split.processedSuffix.slice(offset, offset + chunkSize),
+        true);
       offset += chunkSize;
     }
   }

@@ -15,9 +15,13 @@
 纯血鸿蒙不能复用 Android `.so`。请先执行：
 
 ```bash
+bash asr/tools/03_build_agc_native.sh ohos-arm64-v8a
 bash asr/tools/04_build_harmony_so.sh
 bash asr/tools/05_package_har_libs.sh
 ```
+
+`03_build_agc_native.sh` 需要 Meson 1.0+ 和 Ninja。SDK 自动使用保守的 WebRTC AGC2
+输入电平归一化，调用方无需配置开关；该处理不提升 SNR，也不承担降噪。
 
 模型资源按 Android bundle 布局放入：
 

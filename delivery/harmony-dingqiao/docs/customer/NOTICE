@@ -11,3 +11,13 @@ Model:       3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx
 
 Licensed under the Apache License, Version 2.0. This ONNX model is
 redistributed for speaker embedding and voiceprint verification.
+
+WebRTC Audio Processing / Abseil
+Project:     WebRTC Audio Processing 2.1 / Abseil C++
+Repository:  https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing
+             https://github.com/abseil/abseil-cpp
+License:     BSD 3-Clause (WebRTC Audio Processing) / Apache License 2.0 (Abseil)
+
+The libamphion_audio_processing.so contains statically linked WebRTC
+Audio Processing and Abseil code. The full corresponding license texts are
+included in the final delivery package.

@@ -92,6 +92,8 @@ engine.shutdown()
 | `sysGeneralLexicon` | `List<String>` | 空 | 系统热词；与警务域默认热词合并后用于解码 |
 | `disablePrepack` | `Boolean/Number/String` | `true` | 默认跳过 ORT INT8 权重 prepack，降低冷加载时间和峰值内存；设为 `false` 可恢复吞吐优先模式 |
 
+SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需配置开关。该处理不会改善低 SNR 或已削波音频，调用方不要再叠加固定软件增益。
+
 ### StartParams
 
 | 字段 | 类型 | 默认值 | 说明 |

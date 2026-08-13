@@ -186,6 +186,7 @@ import zipfile
 
 aar_path = sys.argv[1]
 required = [
+    "jni/arm64-v8a/libamphion_audio_processing.so",
     "jni/arm64-v8a/libsherpa-onnx-jni.so",
     "jni/arm64-v8a/libonnxruntime.so",
 ]
@@ -304,6 +305,7 @@ import zipfile
 
 apk_path = sys.argv[1]
 required = [
+    "lib/arm64-v8a/libamphion_audio_processing.so",
     "lib/arm64-v8a/libsherpa-onnx-jni.so",
     "lib/arm64-v8a/libonnxruntime.so",
 ]
@@ -493,7 +495,7 @@ dingqiao_zip_delivery() {
 dingqiao_stage_customer_docs() {
   local out_docs="$1"
   local customer_docs="$2"
-  local _dq_root="$3"
+  local dq_root="$3"
   mkdir -p "$out_docs"
   [[ -f "$customer_docs/语音识别SDK接口.md" ]] || {
     echo "[ERROR] missing customer API contract at $customer_docs/语音识别SDK接口.md" >&2
@@ -503,6 +505,10 @@ dingqiao_stage_customer_docs() {
   cp "$customer_docs/DINGQIAO_INTEGRATION.md" "$out_docs/"
   cp "$customer_docs/LICENSE.md" "$out_docs/"
   cp "$customer_docs/NOTICE" "$out_docs/NOTICE"
+  mkdir -p "$out_docs/third-party"
+  cp "$dq_root/AmphionRuntime/LICENSE" "$out_docs/third-party/Apache-2.0.txt"
+  cp "$dq_root/AmphionRuntime/asr/native/audio-processing/LICENSES/WEBRTC_AUDIO_PROCESSING.txt" \
+    "$out_docs/third-party/WebRTC-BSD-3-Clause.txt"
   if [[ -f "$customer_docs/DINGQIAO_VOICEPRINT_MODEL.md" ]]; then
     cp "$customer_docs/DINGQIAO_VOICEPRINT_MODEL.md" "$out_docs/"
   fi
