@@ -372,7 +372,7 @@ def canonical_passes(
     return canonical, reports
 
 
-def identity_tuple(report: Mapping[str, Any]) -> tuple[str, str, str, str]:
+def identity_tuple(report: Mapping[str, Any]) -> tuple[str, str, str, str, str]:
     identity = report.get("build_identity")
     if not isinstance(identity, dict):
         raise ArchiveFailure(f"report {report.get('run_id')} has no build_identity")
@@ -382,10 +382,22 @@ def identity_tuple(report: Mapping[str, Any]) -> tuple[str, str, str, str]:
     hap = artifacts.get("amphion_asr_demo.hap")
     if not isinstance(hap, dict):
         raise ArchiveFailure(f"report {report.get('run_id')} has no HAP identity")
+    har = artifacts.get("amphion_dingqiao.har")
+    if not isinstance(har, dict):
+        raise ArchiveFailure(f"report {report.get('run_id')} has no Dingqiao HAR identity")
+    required_hars = (
+        "amphion_asr.har",
+        "amphion_police.har",
+        "amphion_dingqiao.har",
+        "sherpa_onnx.har",
+    )
+    if any(not isinstance(artifacts.get(name), dict) for name in required_hars):
+        raise ArchiveFailure(f"report {report.get('run_id')} does not identify all four HARs")
     values = (
         identity.get("git_commit"),
         identity.get("source_fingerprint_sha256"),
         hap.get("sha256"),
+        har.get("sha256"),
     )
     if not all(isinstance(value, str) and value for value in values):
         raise ArchiveFailure(f"report {report.get('run_id')} has incomplete build identity")
@@ -436,6 +448,8 @@ def archive_evidence(
     verified_at: str = "",
     not_applicable: Mapping[str, str] | None = None,
     limitations: Sequence[str] = (),
+    finish_compat_summary: Path | None = None,
+    build_identity: Path | None = None,
 ) -> Dict[str, Any]:
     raw_root = raw_root.resolve()
     output = output.resolve()
@@ -455,6 +469,12 @@ def archive_evidence(
         raise ArchiveFailure("provenance_sha256 must be SHA-256")
     required_modes = REQUIRED_RELEASE_MODES
     canonical, reports = canonical_passes(raw_root, required_modes)
+    finish_compat_summary = finish_compat_summary or raw_root.parent / "finish-compat-report.json"
+    if not finish_compat_summary.is_file():
+        raise ArchiveFailure("finish compatibility root report is missing")
+    finish_summary = load_report(finish_compat_summary)
+    if finish_summary.get("status") != "PASS" or finish_summary.get("source_commit") != source_commit:
+        raise ArchiveFailure("finish compatibility root report is not PASS for this source")
     serials = {
         report.get("device")
         for _, report in reports
@@ -467,10 +487,37 @@ def archive_evidence(
     identities = {identity_tuple(report) for _, report in canonical.values()}
     if len(identities) != 1:
         raise ArchiveFailure("canonical PASS reports do not share one source/HAP/HAR identity")
-    build_commit, source_fingerprint, hap_sha256, _ = next(iter(identities))
+    build_commit, source_fingerprint, hap_sha256, tested_har_sha256, _ = next(iter(identities))
+    build_identity = build_identity or raw_root.parent / "build-identity.json"
+    if not build_identity.is_file():
+        raise ArchiveFailure("verified Harmony build identity is missing")
+    expected_identity = load_report(build_identity)
+    expected_artifacts = expected_identity.get("artifacts")
+    sample_identity = next(iter(canonical.values()))[1].get("build_identity")
+    if not isinstance(expected_artifacts, dict) or not isinstance(sample_identity, dict):
+        raise ArchiveFailure("verified Harmony build identity is incomplete")
+    sample_artifacts = sample_identity.get("artifacts")
+    required_artifacts = (
+        "amphion_asr_demo.hap",
+        "amphion_asr.har",
+        "amphion_police.har",
+        "amphion_dingqiao.har",
+        "sherpa_onnx.har",
+    )
+    if (
+        expected_identity.get("git_commit") != build_commit
+        or expected_identity.get("source_fingerprint_sha256") != source_fingerprint
+        or not isinstance(sample_artifacts, dict)
+        or any(expected_artifacts.get(name) != sample_artifacts.get(name) for name in required_artifacts)
+    ):
+        raise ArchiveFailure("device matrix does not match the verified Harmony build identity")
     if build_commit != source_commit:
         raise ArchiveFailure(
             f"report commit {build_commit} does not match release source {source_commit}"
+        )
+    if tested_har_sha256 != har_sha256:
+        raise ArchiveFailure(
+            "delivery HAR SHA-256 does not match the HAR tested by the device matrix"
         )
     run_durations = {
         mode: observed_duration_seconds(source)
@@ -556,6 +603,21 @@ def archive_evidence(
                 raw_root, source_commit, android_tests["sherpa_submodule_commit"]
             ),
         )
+        finish_destination = temporary / "finish-compat-report.json"
+        finish_destination.write_text(
+            json.dumps(
+                _redact_json(finish_summary, replacements),
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            ) + "\n",
+            encoding="utf-8",
+        )
+        finish_artifact = {
+            "path": "finish-compat-report.json",
+            "sha256": sha256_file(finish_destination),
+            "size_bytes": finish_destination.stat().st_size,
+        }
 
         summary: Dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
@@ -587,6 +649,7 @@ def archive_evidence(
             "android_tests": android_tests,
             "android_tests_artifact": android_artifact,
             "android_test_results": android_result_files,
+            "finish_compat_summary": finish_artifact,
             "retention": {
                 "raw_pcm_committed": False,
                 "input_mapping_retained": True,
@@ -624,6 +687,8 @@ def main() -> int:
     parser.add_argument("--android-summary", type=Path, required=True)
     parser.add_argument("--android-results-root", type=Path, required=True)
     parser.add_argument("--verified-at", default="")
+    parser.add_argument("--finish-compat-summary", type=Path, required=True)
+    parser.add_argument("--build-identity", type=Path, required=True)
     args = parser.parse_args()
     try:
         archive_evidence(
@@ -642,6 +707,8 @@ def main() -> int:
             android_summary=args.android_summary,
             android_results_root=args.android_results_root,
             verified_at=args.verified_at,
+            finish_compat_summary=args.finish_compat_summary,
+            build_identity=args.build_identity,
         )
         print(f"[OK] archived release-gate evidence: {args.output}")
         return 0

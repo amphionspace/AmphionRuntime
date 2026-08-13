@@ -1,9 +1,38 @@
 {
+  "evaluation_axes": ["overall_level_dbfs", "snr_db", "long_audio_time_region"],
   "implementation_source_sha256": {
     "asr/native/audio-processing/src/amphion_audio_processing.cpp": "7ded42aaade2ec76a1567135f9b8ca2bb63e84469ca8616bb152644be79a5acb",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt": "9dc5dd3a675db811cdf84f886da455b5ff95a4da3f67241ed1991b4fcd4d95a2",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt": "d183b5616f5a89de1716e0074fcae5b243eeab784a17c8675a879102ef514aac",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "af0784515ab2bea5b29eff05fbbb809851de56e0752235d7134dfed523523f2f",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "9b307937459ebbf618d7f01fac641401827818688cb7e7725db0bd6efa4b1127",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
+  },
+  "evaluation_applicability_review": {
+    "source_commit": "3f0ab90ca50cf776cc0b1a6f475eb5849e03e478",
+    "changed_source": "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets",
+    "previous_sha256": "f905047172e69c260d11e209fcd79647349020d9901445f593a037db0b038441",
+    "current_sha256": "9b307937459ebbf618d7f01fac641401827818688cb7e7725db0bd6efa4b1127",
+    "decision": "existing_accuracy_evaluation_remains_applicable",
+    "reason": "The mainline change adds recognizer pool ownership, preload, and closed-session stream release. It does not change active-session AGC construction, ASR PCM routing, gain processing, decoder configuration, model bytes, or preserved evaluation inputs.",
+    "rerun_verification": [
+      "test_agc_signal_domains",
+      "test_harmony_streaming_agc_processor",
+      "repository_low_volume_regression_off_on"
+    ],
+    "not_claimed": "The 500-item, SNR, and long-audio evaluations were not rerun for this non-accuracy-path mainline change."
+  },
+  "evaluation_runtime": {
+    "sherpa_onnx_version": "1.13.1",
+    "model_sha256": {
+      "encoder.int8.onnx": "0e86d904862c53e9bdff44df0650a109d61783cb262a7233742f68198abbcbba",
+      "decoder.onnx": "519597bb518f9dacb01d0acc9c8d9fb6d8fb03b3f993bbcf99eb6d42ea79c286",
+      "joiner.onnx": "bfbd996a09853f43600b37b6d4332968e280498b4fbf23a2db374d6a8f31d2da",
+      "tokens.txt": "29a20d469f044011706d9720ff31770e5dcd6c30714943282e9563a55c6918f5",
+      "bbpe.vocab": "aa7a1b34d6a10e666f32dd7bc34599f16bd7602a3ed67602873c603dae978514"
+    }
   },
   "sample_rate_hz": 16000,
   "decoder": {
@@ -54,6 +83,7 @@
     "agc_hypothesis": "帮我核查身份证号码为三七零五零三幺九幺幺二三零九八三"
   },
   "long_audio": {
+    "claim_scope": "local_benefit_not_complete_transcript",
     "source_sha256": "55007d53bcc9e9aeb67bb76592fdd3c7028c00526498a284d1ab79a5142084c2",
     "duration_seconds": 213.28,
     "off_after_180_chars": 105,

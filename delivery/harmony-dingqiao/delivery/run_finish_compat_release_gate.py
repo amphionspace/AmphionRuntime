@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -164,6 +165,7 @@ def build_runner_command(
     files: int,
     output_root: Path,
     skip_build_install: bool,
+    device: str = "",
 ) -> list[str]:
     command = [
         sys.executable,
@@ -183,6 +185,8 @@ def build_runner_command(
     ]
     if skip_build_install:
         command.append("--skip-build-install")
+    if device:
+        command.extend(("--device", device))
     return command
 
 
@@ -198,6 +202,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--finish-shutdown-cycles", type=int, default=10)
     parser.add_argument("--files", type=int, default=3)
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument(
+        "--raw-output-root",
+        type=Path,
+        help="Store the two canonical device runs directly in this shared matrix directory.",
+    )
+    parser.add_argument("--device", default="", help="Explicit USB device serial")
+    parser.add_argument(
+        "--summary-output",
+        type=Path,
+        help="Also write the root PASS/FAIL summary to this exact non-existing path.",
+    )
     args = parser.parse_args()
     if args.callback_cycles < 3:
         parser.error("--callback-cycles must be at least 3 to cover every callback entry")
@@ -233,7 +248,12 @@ def run_mode(command: list[str], output_root: Path) -> tuple[Path, dict[str, Any
 
 
 def write_report(path: Path, report: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+
+
+def report_reference(report_path: Path, gate_root: Path) -> str:
+    return Path(os.path.relpath(report_path, gate_root)).as_posix()
 
 
 def failure_summary(
@@ -249,7 +269,7 @@ def failure_summary(
         failure["device"] = first_report.get("device")
         failure["build_identity"] = first_report.get("build_identity")
         failure["reports"] = {
-            mode: str(path.relative_to(gate_root))
+            mode: report_reference(path, gate_root)
             for mode, path, _ in observed
         }
     return failure
@@ -257,6 +277,9 @@ def failure_summary(
 
 def main() -> int:
     args = parse_args()
+    if args.summary_output is not None and args.summary_output.exists():
+        print(f"[FAIL] summary output already exists: {args.summary_output}", file=sys.stderr)
+        return 1
     created_at = datetime.now(timezone.utc)
     try:
         source_commit = git_output("rev-parse", "HEAD")
@@ -266,8 +289,8 @@ def main() -> int:
 
     gate_id = f"{created_at:%Y%m%d-%H%M%S-%f}-{source_commit[:8]}"
     gate_root = args.output_root / gate_id
-    runs_root = gate_root / "runs"
-    runs_root.mkdir(parents=True, exist_ok=False)
+    runs_root = args.raw_output_root or gate_root / "runs"
+    runs_root.mkdir(parents=True, exist_ok=args.raw_output_root is not None)
     summary_path = gate_root / "report.json"
     base_summary: dict[str, Any] = {
         "schema_version": 1,
@@ -287,6 +310,7 @@ def main() -> int:
                 files=args.files,
                 output_root=runs_root,
                 skip_build_install=False,
+                device=args.device,
             ),
             runs_root,
         )
@@ -302,6 +326,7 @@ def main() -> int:
                 files=args.files,
                 output_root=runs_root,
                 skip_build_install=True,
+                device=args.device,
             ),
             runs_root,
         )
@@ -313,15 +338,19 @@ def main() -> int:
             raise GateFailure("device build identity does not match the current source commit")
         result.update(base_summary)
         result["reports"] = {
-            "callback-api-reentrant": str(callback_path.relative_to(gate_root)),
-            "finish-shutdown": str(finish_path.relative_to(gate_root)),
+            "callback-api-reentrant": report_reference(callback_path, gate_root),
+            "finish-shutdown": report_reference(finish_path, gate_root),
         }
         write_report(summary_path, result)
+        if args.summary_output is not None:
+            write_report(args.summary_output, result)
         print(f"[PASS] Harmony finish compatibility release gate: {gate_root}")
         return 0
     except (GateFailure, json.JSONDecodeError, OSError, subprocess.SubprocessError) as error:
         failure = failure_summary(base_summary, error, observed, gate_root)
         write_report(summary_path, failure)
+        if args.summary_output is not None and not args.summary_output.exists():
+            write_report(args.summary_output, failure)
         print(f"[FAIL] {error}; evidence={gate_root}", file=sys.stderr)
         return 1
 

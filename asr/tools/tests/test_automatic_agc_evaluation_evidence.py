@@ -12,6 +12,47 @@ RUNNER = ROOT / "asr/tools/evaluate_automatic_agc_regression.py"
 
 
 class AutomaticAgcEvaluationEvidenceTest(unittest.TestCase):
+    def test_report_separates_level_snr_and_long_audio_claims(self) -> None:
+        report = json.loads(REPORT.read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            ["overall_level_dbfs", "snr_db", "long_audio_time_region"],
+            report["evaluation_axes"],
+        )
+        self.assertEqual("AGC does not improve SNR", report["customer_snr"]["conclusion"])
+        self.assertTrue(all(value < 20 for value in report["customer_snr"]["incorrect_both_modes_db"]))
+        self.assertEqual(
+            "local_benefit_not_complete_transcript",
+            report["long_audio"]["claim_scope"],
+        )
+
+        normal = report["aishell3"]["original"]
+        confidence_interval = normal["paired_bootstrap_cer_delta_95_percent_points"]
+        self.assertLessEqual(confidence_interval[0], 0.0)
+        self.assertGreaterEqual(confidence_interval[1], 0.0)
+        self.assertEqual("1.13.1", report["evaluation_runtime"]["sherpa_onnx_version"])
+        self.assertEqual(
+            {"encoder.int8.onnx", "decoder.onnx", "joiner.onnx", "tokens.txt", "bbpe.vocab"},
+            set(report["evaluation_runtime"]["model_sha256"]),
+        )
+        for name, digest in report["preserved_artifact_sha256"].items():
+            self.assertRegex(name, r"\.(json|jsonl)$")
+            self.assertRegex(digest, r"^[0-9a-f]{64}$")
+        applicability = report["evaluation_applicability_review"]
+        self.assertEqual(
+            "existing_accuracy_evaluation_remains_applicable",
+            applicability["decision"],
+        )
+        self.assertIn("were not rerun", applicability["not_claimed"])
+        self.assertEqual(
+            {
+                "test_agc_signal_domains",
+                "test_harmony_streaming_agc_processor",
+                "repository_low_volume_regression_off_on",
+            },
+            set(applicability["rerun_verification"]),
+        )
+
     def test_fixture_report_and_reproduction_runner_stay_in_sync(self) -> None:
         report = json.loads(REPORT.read_text(encoding="utf-8"))
         regression = report["repository_low_volume_regression"]
