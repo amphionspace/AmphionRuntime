@@ -9,6 +9,14 @@ SCRIPT = Path(__file__).with_name("build_install_smoke.sh")
 
 
 class BuildInstallSmokeTest(unittest.TestCase):
+    def test_prepare_only_skips_device_and_signing_requirements(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn("--prepare-only", source)
+        self.assertIn('if [[ "$PREPARE_ONLY" != true && -z "$DEVICE" ]]', source)
+        self.assertIn('if [[ "$PREPARE_ONLY" == true ]]', source)
+        self.assertLess(source.index("prepare_build_workspace"), source.index("apply_local_signing"))
+
     def test_isolated_build_copies_the_agc_public_header(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
         prepare = source.index("prepare_build_workspace()")

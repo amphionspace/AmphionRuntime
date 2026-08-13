@@ -25,6 +25,29 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_voiceprint_representative_selection_excludes_too_short_enrollment(self) -> None:
+        sources = [
+            MODULE.AudioSource(Path("short.wav"), 16000, 1, 2, 44800, 2.8),
+            MODULE.AudioSource(Path("long.wav"), 16000, 1, 2, 782080, 48.88),
+            MODULE.AudioSource(Path("valid.wav"), 16000, 1, 2, 51680, 3.23),
+        ]
+
+        selected = MODULE.representative_voiceprint_sources(sources, 3)
+
+        self.assertEqual(2, len(selected))
+        self.assertTrue(all(source.duration_seconds >= 3.0 for source in selected))
+
+    def test_voiceprint_fallback_uses_the_versioned_regression_fixtures(self) -> None:
+        external = Path("/external/release-corpus")
+
+        selected = MODULE.corpus_root_for_mode(external, "voiceprint-fallback")
+
+        self.assertEqual(
+            MODULE.REPO_ROOT / "asr/test-fixtures/voiceprint-fallback",
+            selected,
+        )
+        self.assertEqual(external, MODULE.corpus_root_for_mode(external, "burst"))
+
     def test_speaker_turn_manifest_enforces_required_forbidden_text_and_final_count(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             manifest = Path(directory) / "manifest.json"

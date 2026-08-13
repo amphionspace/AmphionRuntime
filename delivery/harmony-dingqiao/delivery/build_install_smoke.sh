@@ -23,10 +23,12 @@ ABILITY="EntryAbility"
 DEVICE=""
 TIMEOUT_SECONDS=30
 SKIP_BUILD=false
+PREPARE_ONLY=false
 ZH_EN_ONLY=true
 SMOKE_DIR="$PROJECT_ROOT/build/smoke"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
+LICENSE_PYTHON="${LICENSE_PYTHON:-python3}"
 NODE_ADDON_API_CACHE="${NODE_ADDON_API_CACHE:-$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/.cxx/default/default/debug/arm64-v8a/_deps/node_addon_api-src}"
 TARGET_SPEAKER_SEPARATOR_MODEL="${TARGET_SPEAKER_SEPARATOR_MODEL:-}"
 SPEAKER_TURN_SEGMENTATION_MODEL="${SPEAKER_TURN_SEGMENTATION_MODEL:-}"
@@ -41,6 +43,7 @@ Options:
   --device SERIAL   HDC target. Auto-detected when exactly one device is connected.
   --timeout SEC     Engine-ready timeout; default 30 seconds.
   --skip-build      Reuse the existing signed HAP.
+  --prepare-only    Prepare and discard an isolated source tree; do not require device/signing.
   --zh-en-only      Verify and build the current USB carrier without unrelated Yue-English assets.
   --signing-config  Local signing material JSON; defaults to .secure/harmony-signing.json.
   -h, --help        Show this help.
@@ -52,6 +55,7 @@ while [[ $# -gt 0 ]]; do
     --device) DEVICE="$2"; shift 2 ;;
     --timeout) TIMEOUT_SECONDS="$2"; shift 2 ;;
     --skip-build) SKIP_BUILD=true; shift ;;
+    --prepare-only) PREPARE_ONLY=true; shift ;;
     --zh-en-only) ZH_EN_ONLY=true; shift ;;
     --signing-config) SIGNING_CONFIG="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
@@ -59,12 +63,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-for tool in "$NODE" "$HVIGOR" "$OHPM" "$HDC"; do
-  [[ -x "$tool" || -f "$tool" ]] || { echo "[ERROR] missing DevEco tool: $tool" >&2; exit 1; }
-done
+if [[ "$PREPARE_ONLY" != true ]]; then
+  for tool in "$NODE" "$HVIGOR" "$OHPM" "$HDC"; do
+    [[ -x "$tool" || -f "$tool" ]] || { echo "[ERROR] missing DevEco tool: $tool" >&2; exit 1; }
+  done
+fi
 [[ "$TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || { echo "[ERROR] --timeout must be a positive integer" >&2; exit 2; }
 
-if [[ -z "$DEVICE" ]]; then
+if [[ "$PREPARE_ONLY" != true && -z "$DEVICE" ]]; then
   TARGETS="$($HDC list targets | tr -d '\r' | awk 'NF && $0 != "[Empty]"')"
   TARGET_COUNT="$(printf '%s\n' "$TARGETS" | awk 'NF {count++} END {print count+0}')"
   [[ "$TARGET_COUNT" -eq 1 ]] || {
@@ -91,10 +97,6 @@ cleanup() {
 }
 trap cleanup EXIT
 trap 'cleanup; exit 130' INT TERM
-
-source "$REPO_ROOT/asr/tools/license/ensure_python.sh"
-ensure_license_python "$LICENSE_VENV" "$REPO_ROOT/tools/license/requirements.txt"
-LICENSE_PYTHON="$LICENSE_VENV/bin/python"
 
 ensure_demo_license() {
   if [[ -s "$LICENSE_FILE" ]]; then
@@ -384,6 +386,16 @@ PY
     sleep 1
   fi
 }
+
+if [[ "$PREPARE_ONLY" == true ]]; then
+  prepare_build_workspace
+  echo "[DONE] isolated Harmony source preparation passed"
+  exit 0
+fi
+
+source "$REPO_ROOT/asr/tools/license/ensure_python.sh"
+ensure_license_python "$LICENSE_VENV" "$REPO_ROOT/tools/license/requirements.txt"
+LICENSE_PYTHON="$LICENSE_VENV/bin/python"
 
 ensure_demo_license
 VERIFY_SCOPE_ARGS=(--zh-en-only)

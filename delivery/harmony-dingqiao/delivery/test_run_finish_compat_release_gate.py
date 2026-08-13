@@ -85,6 +85,35 @@ def finish_shutdown_report(*, completes: int = 1, terminal_order: bool = True) -
 
 
 class FinishCompatReleaseGateTest(unittest.TestCase):
+    def test_verified_build_reuse_still_installs_before_both_modes(self) -> None:
+        command = MODULE.build_verified_install_command("device-1")
+
+        self.assertIn("build_install_smoke.sh", command[0])
+        self.assertIn("--skip-build", command)
+        self.assertIn("--device", command)
+        self.assertIn("device-1", command)
+
+    def test_verified_build_reuse_verifies_identity_before_install(self) -> None:
+        identity = Path("/delivery/build-identity.json")
+        with mock.patch.object(MODULE.subprocess, "run") as run:
+            MODULE.prepare_verified_build(identity, "device-1")
+
+        self.assertEqual(2, run.call_count)
+        verify, install = [call.args[0] for call in run.call_args_list]
+        self.assertIn("harmony_build_identity.py", verify[1])
+        self.assertEqual(["--verify", str(identity)], verify[-2:])
+        self.assertIn("build_install_smoke.sh", install[0])
+        self.assertIn("--skip-build", install)
+
+    def test_shared_raw_matrix_report_can_live_outside_summary_directory(self) -> None:
+        gate_root = Path("/repo/build/finish-compat/run-1")
+        raw_report = Path("/repo/build/automatic-agc/raw/device-run/report.json")
+
+        self.assertEqual(
+            "../../automatic-agc/raw/device-run/report.json",
+            MODULE.report_reference(raw_report, gate_root),
+        )
+
     def test_accepts_exact_vad_and_ptt_customer_sequences(self) -> None:
         result = MODULE.validate_gate_reports(callback_report(), finish_shutdown_report())
 
@@ -162,6 +191,14 @@ class FinishCompatReleaseGateTest(unittest.TestCase):
             sys,
             "argv",
             [str(SCRIPT), "--skip-build-install"],
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+
+    def test_reuse_requires_an_explicit_build_identity(self) -> None:
+        with mock.patch.object(
+            sys,
+            "argv",
+            [str(SCRIPT), "--reuse-verified-build"],
         ), self.assertRaises(SystemExit):
             MODULE.parse_args()
 

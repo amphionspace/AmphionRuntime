@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -17,6 +18,7 @@ REPO_ROOT = SCRIPT_DIR.parents[2]
 PROJECT_ROOT = REPO_ROOT / "delivery" / "harmony-dingqiao"
 RUNNER = SCRIPT_DIR / "run_device_stress.py"
 DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "build" / "release-gates" / "finish-compat"
+DEFAULT_BUILD_IDENTITY = PROJECT_ROOT / "build" / "smoke" / "build-identity.json"
 
 
 class GateFailure(RuntimeError):
@@ -164,6 +166,7 @@ def build_runner_command(
     files: int,
     output_root: Path,
     skip_build_install: bool,
+    device: str = "",
 ) -> list[str]:
     command = [
         sys.executable,
@@ -183,14 +186,47 @@ def build_runner_command(
     ]
     if skip_build_install:
         command.append("--skip-build-install")
+    if device:
+        command.extend(("--device", device))
     return command
+
+
+def build_verified_install_command(device: str = "") -> list[str]:
+    """Install and smoke-test the already source-bound HAP without rebuilding it."""
+    command = [str(SCRIPT_DIR / "build_install_smoke.sh"), "--skip-build", "--zh-en-only"]
+    if device:
+        command.extend(("--device", device))
+    return command
+
+
+def verify_build_identity_command(build_identity: Path) -> list[str]:
+    return [
+        sys.executable,
+        str(SCRIPT_DIR / "harmony_build_identity.py"),
+        "--verify",
+        str(build_identity),
+    ]
+
+
+def prepare_verified_build(build_identity: Path, device: str = "") -> None:
+    """Verify, install, and smoke-test the reusable build before any device mode starts."""
+    subprocess.run(
+        verify_build_identity_command(build_identity),
+        cwd=REPO_ROOT,
+        check=True,
+    )
+    subprocess.run(
+        build_verified_install_command(device),
+        cwd=REPO_ROOT,
+        check=True,
+    )
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build once, then run the VAD callback-finish and PTT finish-shutdown USB gates "
-            "against the same Harmony HAP."
+            "Prepare one verified build, then run the VAD callback-finish and PTT "
+            "finish-shutdown USB gates against the same Harmony HAP."
         )
     )
     parser.add_argument("--data-dir", type=Path, default=Path.home() / "Downloads" / "testdata")
@@ -198,6 +234,31 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--finish-shutdown-cycles", type=int, default=10)
     parser.add_argument("--files", type=int, default=3)
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument(
+        "--raw-output-root",
+        type=Path,
+        help="Store the two canonical device runs directly in this shared matrix directory.",
+    )
+    parser.add_argument("--device", default="", help="Explicit USB device serial")
+    parser.add_argument(
+        "--reuse-verified-build",
+        action="store_true",
+        help=(
+            "Verify and install the existing source-bound HAP once, then run both modes "
+            "without rebuilding or reinstalling it."
+        ),
+    )
+    parser.add_argument(
+        "--build-identity",
+        type=Path,
+        default=None,
+        help="Build identity that must match the existing HAP/HAR artifacts when reusing them.",
+    )
+    parser.add_argument(
+        "--summary-output",
+        type=Path,
+        help="Also write the root PASS/FAIL summary to this exact non-existing path.",
+    )
     args = parser.parse_args()
     if args.callback_cycles < 3:
         parser.error("--callback-cycles must be at least 3 to cover every callback entry")
@@ -205,6 +266,10 @@ def parse_args() -> argparse.Namespace:
         parser.error("--finish-shutdown-cycles must be positive")
     if args.files < 3:
         parser.error("--files must be at least 3")
+    if args.reuse_verified_build and args.build_identity is None:
+        parser.error("--reuse-verified-build requires --build-identity")
+    if args.build_identity is None:
+        args.build_identity = DEFAULT_BUILD_IDENTITY
     return args
 
 
@@ -233,7 +298,12 @@ def run_mode(command: list[str], output_root: Path) -> tuple[Path, dict[str, Any
 
 
 def write_report(path: Path, report: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+
+
+def report_reference(report_path: Path, gate_root: Path) -> str:
+    return Path(os.path.relpath(report_path, gate_root)).as_posix()
 
 
 def failure_summary(
@@ -249,7 +319,7 @@ def failure_summary(
         failure["device"] = first_report.get("device")
         failure["build_identity"] = first_report.get("build_identity")
         failure["reports"] = {
-            mode: str(path.relative_to(gate_root))
+            mode: report_reference(path, gate_root)
             for mode, path, _ in observed
         }
     return failure
@@ -257,6 +327,9 @@ def failure_summary(
 
 def main() -> int:
     args = parse_args()
+    if args.summary_output is not None and args.summary_output.exists():
+        print(f"[FAIL] summary output already exists: {args.summary_output}", file=sys.stderr)
+        return 1
     created_at = datetime.now(timezone.utc)
     try:
         source_commit = git_output("rev-parse", "HEAD")
@@ -266,8 +339,8 @@ def main() -> int:
 
     gate_id = f"{created_at:%Y%m%d-%H%M%S-%f}-{source_commit[:8]}"
     gate_root = args.output_root / gate_id
-    runs_root = gate_root / "runs"
-    runs_root.mkdir(parents=True, exist_ok=False)
+    runs_root = args.raw_output_root or gate_root / "runs"
+    runs_root.mkdir(parents=True, exist_ok=args.raw_output_root is not None)
     summary_path = gate_root / "report.json"
     base_summary: dict[str, Any] = {
         "schema_version": 1,
@@ -279,6 +352,8 @@ def main() -> int:
     try:
         if git_output("status", "--porcelain"):
             raise GateFailure("release gate requires a clean worktree")
+        if args.reuse_verified_build:
+            prepare_verified_build(args.build_identity, args.device)
         callback_path, callback_report, callback_exit = run_mode(
             build_runner_command(
                 mode="callback-api-reentrant",
@@ -286,7 +361,8 @@ def main() -> int:
                 data_dir=args.data_dir,
                 files=args.files,
                 output_root=runs_root,
-                skip_build_install=False,
+                skip_build_install=args.reuse_verified_build,
+                device=args.device,
             ),
             runs_root,
         )
@@ -302,6 +378,7 @@ def main() -> int:
                 files=args.files,
                 output_root=runs_root,
                 skip_build_install=True,
+                device=args.device,
             ),
             runs_root,
         )
@@ -313,15 +390,19 @@ def main() -> int:
             raise GateFailure("device build identity does not match the current source commit")
         result.update(base_summary)
         result["reports"] = {
-            "callback-api-reentrant": str(callback_path.relative_to(gate_root)),
-            "finish-shutdown": str(finish_path.relative_to(gate_root)),
+            "callback-api-reentrant": report_reference(callback_path, gate_root),
+            "finish-shutdown": report_reference(finish_path, gate_root),
         }
         write_report(summary_path, result)
+        if args.summary_output is not None:
+            write_report(args.summary_output, result)
         print(f"[PASS] Harmony finish compatibility release gate: {gate_root}")
         return 0
     except (GateFailure, json.JSONDecodeError, OSError, subprocess.SubprocessError) as error:
         failure = failure_summary(base_summary, error, observed, gate_root)
         write_report(summary_path, failure)
+        if args.summary_output is not None and not args.summary_output.exists():
+            write_report(args.summary_output, failure)
         print(f"[FAIL] {error}; evidence={gate_root}", file=sys.stderr)
         return 1
 

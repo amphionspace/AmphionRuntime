@@ -30,6 +30,12 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
         )
         self.commit_timestamp.start()
         self.android_summary = self.root / "android-tests.json"
+        self.finish_summary = self.root / "finish-compat-report.json"
+        self.finish_summary.write_text(
+            json.dumps({"status": "PASS", "source_commit": "a" * 40}),
+            encoding="utf-8",
+        )
+        self.build_identity = self.root / "build-identity.json"
         self.android_results = self.root / "android-results"
         for key, relative in MODULE.ANDROID_RESULT_DIRECTORIES.items():
             result = self.android_results / relative / "TEST-fixture.xml"
@@ -86,10 +92,17 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 "source_fingerprint_sha256": "b" * 64,
                 "artifacts": {
                     "amphion_asr_demo.hap": {"sha256": "c" * 64},
+                    "amphion_asr.har": {"sha256": "1" * 64},
+                    "amphion_police.har": {"sha256": "2" * 64},
+                    "amphion_dingqiao.har": {"sha256": "e" * 64},
+                    "sherpa_onnx.har": {"sha256": "3" * 64},
                 },
             },
         }
         (run / "report.json").write_text(json.dumps(report), encoding="utf-8")
+        self.build_identity.write_text(
+            json.dumps(report["build_identity"]), encoding="utf-8"
+        )
         (run / "result.txt").write_text(
             f"device={self.device} path=/Users/private/testdata/input.wav\n",
             encoding="utf-8",
@@ -271,6 +284,50 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+            )
+
+    def test_rejects_component_har_without_a_sha256(self) -> None:
+        run = self.make_run("20260807-100100-vad-begin-pass", "vad-begin", "PASS")
+        report = json.loads((run / "report.json").read_text(encoding="utf-8"))
+        report["build_identity"]["artifacts"]["amphion_asr.har"]["sha256"] = ""
+
+        with self.assertRaisesRegex(MODULE.ArchiveFailure, "all four HAR SHA-256"):
+            MODULE.identity_tuple(report)
+
+    def test_rejects_delivery_har_that_was_not_tested_by_the_device_matrix(self) -> None:
+        self.make_run("20260807-100100-vad-begin-pass", "vad-begin", "PASS")
+        with mock.patch.object(MODULE, "REQUIRED_RELEASE_MODES", ("vad-begin",)), \
+             self.assertRaisesRegex(MODULE.ArchiveFailure, "delivery HAR SHA-256"):
+            MODULE.archive_evidence(
+                raw_root=self.raw,
+                output=self.output,
+                release_version="0.3.1",
+                source_commit="a" * 40,
+                artifact_sha256="d" * 64,
+                har_sha256="0" * 64,
+                diagnostic_notes={},
+                android_summary=self.android_summary,
+                android_results_root=self.android_results,
+            )
+
+    def test_rejects_device_matrix_from_another_verified_build_identity(self) -> None:
+        self.make_run("20260807-100100-vad-begin-pass", "vad-begin", "PASS")
+        identity = json.loads(self.build_identity.read_text(encoding="utf-8"))
+        identity["artifacts"]["amphion_dingqiao.har"]["sha256"] = "0" * 64
+        self.build_identity.write_text(json.dumps(identity), encoding="utf-8")
+        with mock.patch.object(MODULE, "REQUIRED_RELEASE_MODES", ("vad-begin",)), \
+             self.assertRaisesRegex(MODULE.ArchiveFailure, "verified Harmony build identity"):
+            MODULE.archive_evidence(
+                raw_root=self.raw,
+                output=self.output,
+                release_version="0.3.1",
+                source_commit="a" * 40,
+                artifact_sha256="d" * 64,
+                har_sha256="e" * 64,
+                diagnostic_notes={},
+                android_summary=self.android_summary,
+                android_results_root=self.android_results,
+                build_identity=self.build_identity,
             )
 
     def test_requires_a_run_longer_than_sixty_seconds(self) -> None:

@@ -23,8 +23,8 @@ online-stream 存活数。
 无关模式的更多轮数换取“覆盖所有边界”的表述。
 
 0.3.0 异步 FIFO 曾在宿主 finish 兼容性上产生回归，原因和长期门禁见
-[`FINISH_COMPATIBILITY_POSTMORTEM.md`](./FINISH_COMPATIBILITY_POSTMORTEM.md)。发布前使用统一入口，它只构建一次并将
-两个客户时序的证据绑定到同一 commit、设备和 HAP/HAR：
+[`FINISH_COMPATIBILITY_POSTMORTEM.md`](./FINISH_COMPATIBILITY_POSTMORTEM.md)。单独运行统一入口时，
+它只构建一次并将两个客户时序的证据绑定到同一 commit、设备和 HAP/HAR：
 
 ```bash
 python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py \
@@ -33,6 +33,9 @@ python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py \
 
 汇总结果保存在 `build/release-gates/finish-compat/<gate-id>/report.json`，子目录保留两个模式的完整
 `run_device_stress.py` artifact。任一模式失败或构建身份不一致时，整体门禁失败。
+
+完整自动 AGC 发布入口会先验证客户 ZIP、外部 HAR、HAP 与 build identity 的一致性，再向该入口传入
+`--reuse-verified-build`：已有 HAP 仍会安装并执行 UI smoke，只省略重复编译；两个真机模式仍复用同一次安装。
 
 ## 运行
 
