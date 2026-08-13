@@ -36,6 +36,12 @@ open asr/tools/QUICKSTART.md   # 推荐入口
 | `00_push_my_model.sh` | A 验证 | 把自己导出量化好的 ONNX 模型按 SDK 标准布局 push 到一台已装好 sample 的设备（含文件名/tokens.txt 校验） |
 | `ANDROID_TOOLCHAIN.md` | B | 精确到版本号的 Android SDK/NDK/AGP/Gradle/Kotlin 安装清单 |
 | `03_build_agc_native.sh` | B | 编译可选的 WebRTC AGC2 音频预处理库（host / Android / Harmony） |
+| `ensure_agc_build_tools.sh` | A | 解析或在忽略目录中安装固定版本的 Meson/Ninja，避免不同 worktree 工具漂移 |
+| `run_automatic_agc_release_gate.py` | A/B | 分阶段执行 AGC 静态、原症状和发布门禁，尽早阻断旧问题复现 |
+| `sync_automatic_agc_evidence.py` | A | 只读校验 AGC 完整评测与实现源码的 SHA-256 绑定；实现变化后必须重跑评测，不能只改哈希 |
+| `build_android_agc_release_gate.sh` | B | 在临时克隆中完整构建/验收 Android AAR，避免修改真实 sherpa submodule |
+| `generate_android_test_summary.py` | B | 从四套 Gradle XML 生成发布证据所需的严格 Android 汇总 |
+| `finalize_automatic_agc_release_gate.py` | B | 归档完整跨端证据并绑定、复核发布账本 |
 | `04_build_android_so.sh` | B | 一键交叉编译 arm64-v8a（可选 armeabi-v7a）的 .so |
 | `05_package_aar_libs.sh` | B | 把编出来的 .so 拷贝到 SDK 工程的 jniLibs/ 目录 |
 

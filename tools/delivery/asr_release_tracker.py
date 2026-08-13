@@ -517,6 +517,8 @@ def _validate_evidence_files(report_path: Path, report: Dict[str, Any]) -> None:
         return path
 
     verify_entry(report.get("android_tests_artifact"))
+    if report.get("finish_compat_summary") is not None:
+        verify_entry(report.get("finish_compat_summary"))
     android_results = report.get("android_test_results")
     if not isinstance(android_results, list) or not android_results:
         raise ReleaseTrackerError("release evidence has no Android test result manifests")
@@ -590,6 +592,38 @@ def record_delivery(
     delivered_at: str,
     artifact_path: Path,
 ) -> Dict[str, str]:
+    entry = build_delivery_entry(
+        repo=repo,
+        platform=platform,
+        version=version,
+        source_commit=source_commit,
+        delivered_at=delivered_at,
+        artifact_path=artifact_path,
+    )
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = _history_lock_path(history_path)
+    with lock_path.open("a+") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        history = load_history(history_path)
+        if any(
+            delivery["platform"] == platform and delivery["version"] == version
+            for delivery in history["deliveries"]
+        ):
+            raise ReleaseTrackerError(f"{platform} {version} is already recorded")
+        history["deliveries"].append(entry)
+        _write_history_atomic(history_path, history)
+    return entry
+
+
+def build_delivery_entry(
+    *,
+    repo: Path,
+    platform: str,
+    version: str,
+    source_commit: str,
+    delivered_at: str,
+    artifact_path: Path,
+) -> Dict[str, Any]:
     if platform not in PLATFORMS:
         raise ReleaseTrackerError(f"unsupported platform: {platform}")
     if not SEMVER.fullmatch(version):
@@ -621,6 +655,46 @@ def record_delivery(
         "artifact_size_bytes": artifact_path.stat().st_size,
         "provenance_sha256": provenance_digest,
     }
+    return entry
+
+
+def record_delivery_with_evidence(
+    *,
+    repo: Path,
+    history_path: Path,
+    platform: str,
+    version: str,
+    source_commit: str,
+    delivered_at: str,
+    artifact_path: Path,
+    report_path: Path,
+) -> Dict[str, Any]:
+    entry = build_delivery_entry(
+        repo=repo,
+        platform=platform,
+        version=version,
+        source_commit=source_commit,
+        delivered_at=delivered_at,
+        artifact_path=artifact_path,
+    )
+    if report_path.is_symlink():
+        raise ReleaseTrackerError("evidence report must not be a symlink")
+    report_path = report_path.resolve()
+    try:
+        relative_report = report_path.relative_to(repo.resolve()).as_posix()
+    except ValueError as error:
+        raise ReleaseTrackerError("evidence report must be inside the repository") from error
+    if not report_path.is_file() or report_path.name != "report.json" or not relative_report.startswith("delivery/"):
+        raise ReleaseTrackerError("evidence report must be an existing delivery report.json")
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ReleaseTrackerError(f"cannot read evidence report: {error}") from error
+    _validate_evidence_report(entry, report)
+    _validate_evidence_files(report_path, report)
+    entry["evidence_report"] = relative_report
+    entry["evidence_sha256"] = hashlib.sha256(report_path.read_bytes()).hexdigest()
+
     history_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path = _history_lock_path(history_path)
     with lock_path.open("a+") as lock:
@@ -664,6 +738,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     attach.add_argument("--version", required=True)
     attach.add_argument("--report", type=Path, required=True)
 
+    record_evidence = subparsers.add_parser("record-evidence")
+    record_evidence.add_argument("--platform", choices=sorted(PLATFORMS), required=True)
+    record_evidence.add_argument("--version", required=True)
+    record_evidence.add_argument("--source-commit", default="HEAD")
+    record_evidence.add_argument("--delivered-at", required=True)
+    record_evidence.add_argument("--artifact", type=Path, required=True)
+    record_evidence.add_argument("--report", type=Path, required=True)
+
     subparsers.add_parser("verify-evidence")
 
     args = parser.parse_args(argv)
@@ -697,6 +779,21 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(
                 f"[OK] recorded {entry['platform']} {entry['version']} "
                 f"at {entry['source_commit']}"
+            )
+        elif args.command == "record-evidence":
+            entry = record_delivery_with_evidence(
+                repo=repo,
+                history_path=history_path,
+                platform=args.platform,
+                version=args.version,
+                source_commit=args.source_commit,
+                delivered_at=args.delivered_at,
+                artifact_path=args.artifact,
+                report_path=args.report,
+            )
+            print(
+                f"[OK] atomically recorded and attached evidence to "
+                f"{entry['platform']} {entry['version']}"
             )
         elif args.command == "attach-evidence":
             entry = attach_evidence(

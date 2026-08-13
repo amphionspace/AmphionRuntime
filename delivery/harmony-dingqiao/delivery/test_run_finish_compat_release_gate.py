@@ -85,6 +85,15 @@ def finish_shutdown_report(*, completes: int = 1, terminal_order: bool = True) -
 
 
 class FinishCompatReleaseGateTest(unittest.TestCase):
+    def test_shared_raw_matrix_report_can_live_outside_summary_directory(self) -> None:
+        gate_root = Path("/repo/build/finish-compat/run-1")
+        raw_report = Path("/repo/build/automatic-agc/raw/device-run/report.json")
+
+        self.assertEqual(
+            "../../automatic-agc/raw/device-run/report.json",
+            MODULE.report_reference(raw_report, gate_root),
+        )
+
     def test_accepts_exact_vad_and_ptt_customer_sequences(self) -> None:
         result = MODULE.validate_gate_reports(callback_report(), finish_shutdown_report())
 

@@ -38,6 +38,16 @@ Machine-readable aggregate results and SHA-256 provenance are in [report.json](r
 raw customer audio and per-utterance hypotheses are intentionally not committed; their preserved
 local artifacts are identified by hashes so later delivery evidence can detect replacement.
 
+The report deliberately separates three axes: overall signal level (`dBFS`), signal-to-noise ratio
+(`SNR dB`), and the time region of long audio. A gain-only result must not be used as evidence for
+noise robustness, and a recovered long-audio phrase must not be described as a complete transcript.
+
+Run the dependency-free checks as soon as AGC code, framing, build scripts, or evidence changes:
+
+```bash
+python3 asr/tools/run_automatic_agc_release_gate.py static
+```
+
 With the zh-en model and host AGC library available, reproduce the repository-fixture assertion:
 
 ```bash
@@ -48,6 +58,44 @@ python3 asr/tools/evaluate_automatic_agc_regression.py \
 
 On macOS, use the `.dylib` output path. The command exits non-zero unless the raw low-volume input
 reproduces the recorded substitution and automatic AGC restores the complete reference.
+
+The same assertion, including the host native build, is available through the regression stage:
+
+```bash
+python3 asr/tools/run_automatic_agc_release_gate.py regression \
+  --model-dir asr/tools/demo-model/zhen
+```
+
+Before release, run the current Android tests plus a clean, signed Harmony build/install against the
+current USB device:
+
+```bash
+python3 asr/tools/run_automatic_agc_release_gate.py release \
+  --model-dir asr/tools/demo-model/zhen \
+  --device <HDC_TARGET> \
+  --signing-config <LOCAL_SIGNING_JSON> \
+  --data-dir <RELEASE_WAV_DIRECTORY> \
+  --release-version <NEW_HARMONY_VERSION> \
+  --delivered-at <YYYY-MM-DD> \
+  --release-artifact <CUSTOMER_DELIVERY_ZIP> \
+  --delivery-har <AMPHION_DINGQIAO_HAR> \
+  --provenance <BUILD_PROVENANCE_JSON> \
+  --evaluation-artifact-root <PRESERVED_FULL_EVALUATION_DIRECTORY> \
+  --build-identity <VERIFIED_HARMONY_BUILD_IDENTITY_JSON> \
+  --evidence-output delivery/harmony-dingqiao/evidence/release-gate/<UNIQUE_ID>
+```
+
+The release stage requires a completely clean worktree (including untracked files), builds the
+Android AAR in an isolated clone, installs exactly one current Harmony HAP, and runs the shared
+24-mode release contract against that same HAP. It then creates a non-overwriting redacted archive,
+atomically records the delivery together with its root report and SHA-256, and verifies the whole
+release ledger. A missing native library, test XML, device artifact, provenance, or evidence file fails
+the gate; none of these steps may warn-and-skip.
+
+`python3 asr/tools/sync_automatic_agc_evidence.py --check` is intentionally read-only. If an AGC
+implementation source changes, rerun all four recorded evaluation dimensions (normal-volume, SNR,
+long-audio time region, and the low-volume red/green fixture) and replace `report.json` with output
+from that evaluation. There is no fingerprint-only update command that can bless old results.
 
 ## Limitations
 

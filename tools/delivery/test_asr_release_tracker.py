@@ -303,6 +303,32 @@ class AsrReleaseTrackerTest(unittest.TestCase):
         with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "digest mismatch"):
             MODULE.verify_history_evidence(repo=self.repo, history_path=self.history_path)
 
+    def test_record_with_evidence_is_atomic_when_evidence_is_invalid(self) -> None:
+        provenance = self.repo / "VERSION.txt"
+        provenance.write_text(
+            f"delivery_version=0.3.4\ngit_commit_full={self.current_commit}\n",
+            encoding="utf-8",
+        )
+        artifact = self.artifact("android", provenance, "android-0.3.4.zip")
+        report = self.repo / "delivery/evidence/android-0.3.4/report.json"
+        report.parent.mkdir(parents=True)
+        report.write_text('{"overall_status":"FAIL"}\n', encoding="utf-8")
+        before = self.history_path.read_bytes()
+
+        with self.assertRaises(MODULE.ReleaseTrackerError):
+            MODULE.record_delivery_with_evidence(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.4",
+                source_commit=self.current_commit,
+                delivered_at="2026-08-13",
+                artifact_path=artifact,
+                report_path=report,
+            )
+
+        self.assertEqual(before, self.history_path.read_bytes())
+
     def test_rejects_semantically_mismatched_or_tampered_evidence(self) -> None:
         report = self.repo / "delivery" / "evidence" / "android-0.3.2" / "report.json"
         report.parent.mkdir(parents=True)
