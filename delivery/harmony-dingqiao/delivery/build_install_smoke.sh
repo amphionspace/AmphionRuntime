@@ -185,6 +185,22 @@ prepare_build_workspace() {
   command -v rsync >/dev/null || { echo "[ERROR] rsync is required" >&2; exit 1; }
   BUILD_WORKSPACE="$(mktemp -d "${TMPDIR:-/tmp}/amphion-harmony-build.XXXXXX")"
   local temp_repo="$BUILD_WORKSPACE/repo"
+  local sherpa_source="$REPO_ROOT/third_party/sherpa-onnx"
+  local sherpa_destination="$temp_repo/third_party/sherpa-onnx"
+  local sherpa_commit
+  sherpa_commit="$(git -C "$REPO_ROOT" ls-tree HEAD -- third_party/sherpa-onnx | awk '{print $3}')"
+  [[ -n "$sherpa_commit" ]] || {
+    echo "[ERROR] unable to resolve the pinned sherpa-onnx submodule commit" >&2
+    exit 1
+  }
+  mkdir -p "$(dirname "$sherpa_destination")"
+  git clone --quiet --no-hardlinks "$sherpa_source" "$sherpa_destination"
+  git -C "$sherpa_destination" checkout --quiet --detach "$sherpa_commit"
+  rsync -a \
+    "$sherpa_source/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/" \
+    "$sherpa_destination/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/"
+  AMPHION_SHERPA_ROOT="$sherpa_destination" \
+    bash "$REPO_ROOT/asr/tools/apply_sherpa_patches.sh"
   mkdir -p "$temp_repo/delivery"
   rsync -a \
     --exclude='build/' \
@@ -195,14 +211,25 @@ prepare_build_workspace() {
   clone_tree "$REPO_ROOT/asr/harmony/sdk-police" "$temp_repo/asr/harmony/sdk-police"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-dingqiao" "$temp_repo/asr/harmony/sdk-dingqiao"
   clone_tree \
+    "$REPO_ROOT/asr/native/audio-processing/include" \
+    "$temp_repo/asr/native/audio-processing/include"
+  clone_tree \
     "$REPO_ROOT/tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include" \
     "$temp_repo/tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include"
-  clone_tree \
-    "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx" \
-    "$temp_repo/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx"
-  clone_tree \
-    "$REPO_ROOT/third_party/sherpa-onnx/sherpa-onnx/c-api" \
-    "$temp_repo/third_party/sherpa-onnx/sherpa-onnx/c-api"
+  # DevEco generates this file locally and the repository intentionally ignores
+  # every hvigor/ directory. Recreate the minimal project config so the release
+  # gate proves a clean checkout instead of depending on workstation state.
+  mkdir -p "$temp_repo/delivery/harmony-dingqiao/hvigor"
+  cat >"$temp_repo/delivery/harmony-dingqiao/hvigor/hvigor-config.json5" <<'EOF'
+{
+  "modelVersion": "5.0.0",
+  "dependencies": {},
+  "execution": {},
+  "logging": {},
+  "debugging": {},
+  "nodeOptions": {}
+}
+EOF
   find "$temp_repo/asr/harmony" \
     "$temp_repo/third_party/sherpa-onnx" \
     -type d \( -name build -o -name .cxx -o -name .hvigor \) -prune -exec rm -rf {} +

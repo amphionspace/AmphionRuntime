@@ -68,10 +68,12 @@ amphion-runtime-android-0.2.0-2026-05-25/
 ### 3.2 编 native .so
 
 ```bash
+bash asr/tools/03_build_agc_native.sh android-arm64-v8a
 bash asr/tools/04_build_android_so.sh arm64-v8a
-bash asr/tools/05_package_aar_libs.sh
+AMPHION_REQUIRE_ANDROID_NATIVE_LIBS=1 bash asr/tools/05_package_aar_libs.sh arm64-v8a
 # 输出会落到：
-#   asr/android/sdk/src/main/jniLibs/arm64-v8a/{libsherpa-onnx-jni.so,libonnxruntime.so}
+#   asr/android/sdk/src/main/jniLibs/arm64-v8a/
+#     {libsherpa-onnx-jni.so,libonnxruntime.so,libamphion_audio_processing.so}
 ```
 
 ### 3.3 准备模型文件

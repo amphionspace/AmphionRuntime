@@ -28,11 +28,16 @@ export class SpeakerTurnSplit {
   cutSample: number;
   prefix: Float32Array;
   suffix: Float32Array;
+  processedPrefix: Float32Array;
+  processedSuffix: Float32Array;
 
-  constructor(cutSample: number, prefix: Float32Array, suffix: Float32Array) {
+  constructor(cutSample: number, prefix: Float32Array, suffix: Float32Array,
+    processedPrefix?: Float32Array, processedSuffix?: Float32Array) {
     this.cutSample = cutSample;
     this.prefix = prefix;
     this.suffix = suffix;
+    this.processedPrefix = processedPrefix ?? prefix;
+    this.processedSuffix = processedSuffix ?? suffix;
   }
 }
 
@@ -50,6 +55,7 @@ export class SpeakerTurnFinalizer {
   private consecutiveBelow: number;
   private maximumSamples: number;
   private parts: Float32Array[] = [];
+  private processedParts: Float32Array[] = [];
   private retainedSamples: number = 0;
   private capped: boolean = false;
   private targetSeen: boolean = false;
@@ -71,13 +77,17 @@ export class SpeakerTurnFinalizer {
     this.maximumSamples = Math.max(1, Math.round(maximumSamples));
   }
 
-  accept(samples: Float32Array): void {
+  accept(samples: Float32Array, processedSamples: Float32Array = samples): void {
     if (samples.length === 0) return;
+    if (processedSamples.length !== samples.length) {
+      throw new Error('raw and processed speaker-turn samples must have the same length');
+    }
     const available = this.maximumSamples - this.retainedSamples;
     if (samples.length > available) this.capped = true;
     const retained = Math.min(samples.length, Math.max(0, available));
     if (retained > 0) {
       this.parts.push(samples.slice(0, retained));
+      this.processedParts.push(processedSamples.slice(0, retained));
       this.retainedSamples += retained;
     }
   }
@@ -119,6 +129,9 @@ export class SpeakerTurnFinalizer {
   consecutiveLowScores(): number { return this.belowCount; }
   sampleCount(): number { return this.retainedSamples; }
   samples(): Float32Array { return concatFloat32(this.parts, this.retainedSamples); }
+  processedSamples(): Float32Array {
+    return concatFloat32(this.processedParts, this.retainedSamples);
+  }
   safePrefixEndSample(): number {
     return this.lastTargetEndSample < 0 ? 0 :
       Math.max(0, this.lastTargetEndSample - this.windowSamples);
@@ -248,8 +261,10 @@ export class SpeakerTurnFinalizer {
 
     this.resolutionReason = `split:candidate=${bestCandidate},left=${bestLeft.toFixed(3)},` +
       `right=${bestRight.toFixed(3)},margin=${bestMargin.toFixed(3)}`;
+    const processed = this.processedSamples();
     return new SpeakerTurnSplit(
-      bestCandidate, all.slice(0, bestCandidate), all.slice(bestCandidate));
+      bestCandidate, all.slice(0, bestCandidate), all.slice(bestCandidate),
+      processed.slice(0, bestCandidate), processed.slice(bestCandidate));
   }
 
   /** Resolve the last stable, non-overlapping target -> other turn reported by diarization. */
@@ -333,11 +348,14 @@ export class SpeakerTurnFinalizer {
     const otherSpeaker = speakerIds.find((speaker: number): boolean => speaker !== targetSpeaker) ?? -1;
     this.resolutionReason = `diarization-split:left=${(scores.get(targetSpeaker) ?? -1).toFixed(3)},` +
       `right=${(scores.get(otherSpeaker) ?? -1).toFixed(3)}`;
-    return new SpeakerTurnSplit(candidate, all.slice(0, candidate), all.slice(candidate));
+    const processed = this.processedSamples();
+    return new SpeakerTurnSplit(candidate, all.slice(0, candidate), all.slice(candidate),
+      processed.slice(0, candidate), processed.slice(candidate));
   }
 
   reset(): void {
     this.parts = [];
+    this.processedParts = [];
     this.retainedSamples = 0;
     this.capped = false;
     this.targetSeen = false;

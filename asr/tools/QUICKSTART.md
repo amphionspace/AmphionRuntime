@@ -147,6 +147,7 @@ ls -lh asr/tools/demo-model/zipformer_L_zh_en/
 
 ```bash
 cd /Users/boxp/workspace/amphion-runtime
+bash asr/tools/03_build_agc_native.sh android-arm64-v8a
 bash asr/tools/04_build_android_so.sh arm64-v8a
 ```
 
@@ -171,10 +172,11 @@ ls -lh build-android-arm64-v8a/install/lib/
 ## 6. 拷 .so 到 SDK 工程
 
 ```bash
-bash asr/tools/05_package_aar_libs.sh
+AMPHION_REQUIRE_ANDROID_NATIVE_LIBS=1 bash asr/tools/05_package_aar_libs.sh arm64-v8a
 ```
 
-会把上一步的两个 .so 拷到 `asr/android/sdk/src/main/jniLibs/arm64-v8a/`。armeabi-v7a 没编，会被 SKIP，是预期行为。
+会把 sherpa-onnx、ONNX Runtime 和自动 AGC 的三个 `.so` 拷到
+`asr/android/sdk/src/main/jniLibs/arm64-v8a/`。严格模式会在任一产物缺失时立即失败。
 
 ## 7. 初始化 Gradle 工程并编 AAR
 
@@ -347,8 +349,9 @@ AsrSdk: OnlineRecognizer loaded from /data/user/0/com.amphion.asr.sample/files/a
 cd /Users/boxp/workspace/amphion-runtime
 
 # 编 + 拷
+bash asr/tools/03_build_agc_native.sh android-arm64-v8a # 增量编译
 bash asr/tools/04_build_android_so.sh arm64-v8a    # 增量编译，2–5 分钟
-bash asr/tools/05_package_aar_libs.sh
+AMPHION_REQUIRE_ANDROID_NATIVE_LIBS=1 bash asr/tools/05_package_aar_libs.sh arm64-v8a
 
 # 装 sample
 cd asr/android

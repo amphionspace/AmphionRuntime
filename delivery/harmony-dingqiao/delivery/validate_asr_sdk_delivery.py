@@ -42,6 +42,12 @@ POLICE_ASSET_ROOT = PurePosixPath(
     "package/_bundled/amphion_police/src/main/resources/rawfile/amphion-police"
 )
 POLICE_MANIFEST_PATH = (POLICE_ASSET_ROOT / "manifest.json").as_posix()
+REQUIRED_NATIVE_MEMBERS = {
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libamphion_audio_processing.so",
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libamphion_asr.so",
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libonnxruntime.so",
+    "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so",
+}
 ALLOWED_MODEL_BUNDLES = {
     "zh-en/v1",
     "punct-zhen/v1",
@@ -64,6 +70,7 @@ REQUIRED_FILES = {
     "docs/ASR_SDK_API_HARMONY.md",
     "docs/third-party/ONNX-Runtime-MIT.txt",
     "docs/third-party/Apache-2.0.txt",
+    "docs/third-party/WebRTC-BSD-3-Clause.txt",
     "docs/BUILD_PROVENANCE.json",
     "docs/checksum.txt",
 }
@@ -290,6 +297,11 @@ def _validate_har(
         forbidden = sorted(name for name in names if "yue-en" in name.lower())
         if forbidden:
             raise DeliveryValidationError(f"HAR contains Yue model content: {forbidden[0]}")
+        missing_native = sorted(REQUIRED_NATIVE_MEMBERS - names)
+        if missing_native:
+            raise DeliveryValidationError(
+                f"HAR missing required native library: {missing_native[0]}"
+            )
 
         metadata = _read_tar_json(archive, "package/oh-package.json5")
         if metadata.get("version") != expected_version:

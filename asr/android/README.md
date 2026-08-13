@@ -25,6 +25,7 @@
 ```bash
 # 0) 工具链与 .so 编译（首次必须）
 #    - 安装：asr/tools/ANDROID_TOOLCHAIN.md
+#    - 编 AGC2：bash asr/tools/03_build_agc_native.sh android-arm64-v8a
 #    - 编 .so：bash asr/tools/04_build_android_so.sh arm64-v8a
 #    - 拷 .so：bash asr/tools/05_package_aar_libs.sh
 

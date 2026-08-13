@@ -13,7 +13,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SHERPA_ROOT="$REPO_ROOT/third_party/sherpa-onnx"
+SHERPA_ROOT="${AMPHION_SHERPA_ROOT:-$REPO_ROOT/third_party/sherpa-onnx}"
 PATCH_DIR="$REPO_ROOT/third_party/patches/sherpa-amphion"
 UPSTREAM_TAG="v1.13.1"
 MARKER_FILE="$SHERPA_ROOT/.amphion-patches-applied"

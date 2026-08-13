@@ -9,7 +9,7 @@
   - `build/cmake/ohos.toolchain.cmake`
   - `llvm/bin/aarch64-unknown-linux-ohos-clang`
   - `build-tools/cmake/bin/cmake`
-- `bash`、`curl`、`unzip`
+- `bash`、`curl`、`unzip`、Meson 1.0+、Ninja
 
 ## 环境变量
 
@@ -28,6 +28,7 @@ export OHOS_SDK_NATIVE_DIR=/path/to/command-line-tools/sdk/default/openharmony/n
 ## 构建 native
 
 ```bash
+bash asr/tools/03_build_agc_native.sh ohos-arm64-v8a
 bash asr/tools/04_build_harmony_so.sh
 bash asr/tools/05_package_har_libs.sh
 ```
@@ -37,6 +38,7 @@ bash asr/tools/05_package_har_libs.sh
 ```text
 third_party/sherpa-onnx/build-ohos-arm64-v8a/install/lib/libsherpa-onnx-c-api.so
 third_party/sherpa-onnx/build-ohos-arm64-v8a/install/lib/libonnxruntime.so
+asr/native/audio-processing/build-ohos-arm64-v8a/libamphion_audio_processing.so
 asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/
 third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/
 ```

@@ -16,7 +16,8 @@ TTS 模型输入。`zhen` 正式输入必须包含 `encoder.int8.onnx`、`decode
 脚本不是本次交付模型。当前源 SHA-256 见 [`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)。
 
 ```bash
-# 1) 共享 native（ASR + TTS 共用 sherpa_onnx .so）
+# 1) native（AGC2 + ASR/TTS 共用的 sherpa_onnx .so）
+bash asr/tools/03_build_agc_native.sh ohos-arm64-v8a
 bash asr/tools/04_build_harmony_so.sh
 bash asr/tools/05_package_har_libs.sh
 

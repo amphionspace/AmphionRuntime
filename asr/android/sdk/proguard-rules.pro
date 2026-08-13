@@ -21,3 +21,13 @@
 -keep class com.amphion.asr.internal.AssetRegistry$Bundle { *; }
 -keep class com.amphion.asr.internal.LicenseVerifier { *; }
 -keep class com.amphion.asr.internal.FinalCallbackOrderGate { *; }
+-keep class com.amphion.asr.AsrConfig { *; }
+-keep class com.amphion.asr.internal.StreamingAgcProcessor { *; }
+-keep class com.amphion.asr.internal.ProcessedAudioFrame { *; }
+-keep class com.amphion.asr.internal.AgcBackend { *; }
+-keep class com.amphion.asr.internal.DecoderSubmissionFence { *; }
+-keep class com.amphion.asr.internal.NativeGuard { *; }
+-keep class com.amphion.asr.internal.NativeResult { *; }
+-keep class com.amphion.asr.internal.NativeResult$Ok { *; }
+-keep class com.amphion.asr.internal.NativeResult$Err { *; }
+-keep class com.amphion.asr.internal.Logger { *; }
