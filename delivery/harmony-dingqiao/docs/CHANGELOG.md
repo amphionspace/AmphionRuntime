@@ -1,6 +1,6 @@
 # Changelog
 
-## 未发布 - 2026-08-12（Harmony Runtime 释放竞态修复）
+## 0.3.2 - 2026-08-13（自动增益、预加载与 Runtime 稳定性）
 
 - 修复长音频 `finish -> shutdown -> setLicense` 与 native async decode 尾任务重叠时，旧 Runtime
   提前释放 recognizer 导致尾部结果丢失或 native 崩溃的问题。
@@ -8,6 +8,15 @@
   阻止新 session，重新授权成功回调等待旧 Runtime 安全释放。
 - 新增 Runtime release gate 状态机测试和 `finish-shutdown-relicense` Mate 80 真机回归模式；识别、
   VAD、endpoint 及既有 `isLast -> onComplete` 语义保持不变。
+- 新增默认启用的 WebRTC AGC2 自动增益，识别流使用增益后的 PCM，VAD、首段起音、声纹评分和
+  Speaker VAD 仍使用原始 PCM，保持生命周期与说话人边界不被增益处理改变。
+- `prepareRuntime()` 现在预加载默认中英模型并复用 recognizer pool，首次 `createEngine` 不再重复
+  承担相同模型的冷加载；既有 License、Runtime 与 Model 生命周期接口保持不变。
+- 修复连续 Speaker VAD 分段中上一说话人的尾音残留，清理 native stream 边界时继续保留声纹
+  回退 PCM，避免短分段合并后的评分样本丢失。
+- 修复 Harmony 适配层未向核心 ASR 透传警务热词的问题，并补齐 0.2.8 术语回归样例，警务文本增强开关
+  与原有 final/last 回调顺序保持不变。
+- 目标说话人增强仍仅保留接口预留；0.3.2 不包含该能力所需模型，不能启用该参数。
 
 ## 0.3.1 - 2026-08-07（异步 finish 兼容性修复）
 
