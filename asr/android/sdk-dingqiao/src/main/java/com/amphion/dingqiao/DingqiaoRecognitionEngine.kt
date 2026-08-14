@@ -263,6 +263,7 @@ internal class DingqiaoRecognitionEngine(
         val currentSession = session ?: return
         val sid = activeSessionId ?: return
         val epoch = activeEpoch
+        val speakerVadBeforeToggle = speakerVadEnabled
         if (enabled) enablePartial = false
         try {
             if (enabled) {
@@ -288,8 +289,10 @@ internal class DingqiaoRecognitionEngine(
             val disabled = runCatching {
                 currentSession.setSpeakerVadEnabled(false)
             }.isSuccess
-            speakerVadEnabled = !disabled
-            enablePartial = partialRequested && disabled
+            // A failed rollback leaves native state unknown. Preserve the last confirmed public
+            // state, while keeping partials closed until a later successful toggle resolves it.
+            speakerVadEnabled = if (disabled) false else speakerVadBeforeToggle
+            enablePartial = if (disabled) partialRequested else false
             if (disabled) currentSession.setTargetSpeakerEnabled(voiceprintEnabled)
             notifyError(
                 epoch,

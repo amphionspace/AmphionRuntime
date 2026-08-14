@@ -1820,6 +1820,12 @@ export class AsrSession {
     if (speakerVadReject) {
       if (hasEvidence) result.speakerScore = this.lastSpeakerVadScore;
       result.isTargetSpeaker = false;
+      // A rejected Speaker VAD final is a lifecycle signal, not a transcription result. Redact
+      // every textual/token field so direct Runtime clients cannot recover a known-uncertain tail.
+      result.text = '';
+      result.tokens = [];
+      result.timestamps = [];
+      result.tokenConfidences = [];
     }
     const targetConfig = this.config.targetSpeaker;
     const minSpeakerSamples = targetConfig === undefined ? Number.MAX_SAFE_INTEGER :

@@ -806,6 +806,14 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         endpoint_index = departure.index("this.triggerSpeakerVadEndpoint()", reject_index)
         self.assertLess(reject_index, endpoint_index)
 
+        rejected_final = source.split("if (speakerVadReject)", 1)[1].split(
+            "const targetConfig", 1
+        )[0]
+        self.assertIn("result.text = '';", rejected_final)
+        self.assertIn("result.tokens = [];", rejected_final)
+        self.assertIn("result.timestamps = [];", rejected_final)
+        self.assertIn("result.tokenConfidences = [];", rejected_final)
+
     def test_speaker_vad_public_results_are_final_only(self) -> None:
         source = SPEECH_RECOGNIZE_SDK.read_text(encoding="utf-8")
         start = source.split("const verify = strictBooleanParam", 1)[1].split(
@@ -837,7 +845,12 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             android.index('requireSpeakerModel("speaker VAD")'),
         )
         self.assertIn("enablePartial = partialRequested && !enabled", android)
-        self.assertIn("enablePartial = partialRequested && disabled", android)
+        self.assertIn("val speakerVadBeforeToggle = speakerVadEnabled", android)
+        self.assertIn(
+            "speakerVadEnabled = if (disabled) false else speakerVadBeforeToggle",
+            android,
+        )
+        self.assertIn("enablePartial = if (disabled) partialRequested else false", android)
         dispatch = android.split("private fun dispatchResult(", 1)[1].split(
             "private fun resultPayload(", 1
         )[0]
