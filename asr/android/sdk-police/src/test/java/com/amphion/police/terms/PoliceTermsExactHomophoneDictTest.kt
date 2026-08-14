@@ -90,8 +90,27 @@ class PoliceTermsExactHomophoneDictTest {
     }
 
     @Test
-    fun recovers_signPoliceAlert_deviceTtsFailures_withoutRewritingReceiptTerm() {
+    fun recovers_signPoliceTerms_deviceFailures_withoutMergingTheTwoTerms() {
         val cases = mapOf(
+            // 2026-08-13 三星麦克风实测/同事截图：用户逐次只说“签警情”。
+            "仙警情。" to "签警情。",
+            "千锦情？" to "签警情？",
+            "  千警情。 " to "  签警情。 ",
+            "千警情情。" to "签警情。",
+            // 2026-08-14 三星麦克风实测及甲方反馈：两个目标术语必须分别恢复。
+            "千景情。" to "签警情。",
+            "天锦情？" to "签警情？",
+            "  天警情。 " to "  签警情。 ",
+            "先警情。" to "签警情。",
+            "边警情。" to "签警情。",
+            // 2026-08-14 三星下一轮麦克风实测：8 次中“前景情”2 次，另有“见见情”1 次。
+            "前景情。" to "签警情。",
+            "  见见情？ " to "  签警情？ ",
+            // 2026-08-14 三星下一轮麦克风实测：两个目标术语分别恢复。
+            "见警情。" to "签警情。",
+            "  前景单？ " to "  签警单？ ",
+            "天井丹。" to "签警单。",
+            "天景丹？" to "签警单？",
             "迁警情前要确认警情类别和管辖单位。" to
                 "签警情前要确认警情类别和管辖单位。",
             "千景情前要确认警情类别和管辖单位。" to
@@ -112,7 +131,29 @@ class PoliceTermsExactHomophoneDictTest {
 
         for (normalize in normalizers) {
             for ((raw, expected) in cases) assertEquals("raw=$raw", expected, normalize(raw))
+            assertEquals("签警单。", normalize("签警单。"))
+            assertEquals("签警情。", normalize("签警情。"))
             assertEquals("请及时签收警情。", normalize("请及时签收警情。"))
+            assertEquals("请复述仙警情这个错误。", normalize("请复述仙警情这个错误。"))
+            assertEquals("请复述先警情这个错误。", normalize("请复述先警情这个错误。"))
+            assertEquals("请复述前景情这个错误。", normalize("请复述前景情这个错误。"))
+            assertEquals("请复述见见情这个错误。", normalize("请复述见见情这个错误。"))
+            assertEquals("前景情况良好。", normalize("前景情况良好。"))
+            assertEquals("市场前景可期。", normalize("市场前景可期。"))
+            assertEquals("我们改天见见面。", normalize("我们改天见见面。"))
+            assertEquals("见警情即响应。", normalize("见警情即响应。"))
+            assertEquals("看见警情列表后立即处置。", normalize("看见警情列表后立即处置。"))
+            assertEquals("街面见警情况良好。", normalize("街面见警情况良好。"))
+            assertEquals("常见警情包括纠纷和盗窃。", normalize("常见警情包括纠纷和盗窃。"))
+            assertEquals("行业前景单独评估。", normalize("行业前景单独评估。"))
+            assertEquals("发展前景单一并不理想。", normalize("发展前景单一并不理想。"))
+            assertEquals("画面前景单调，需要调整。", normalize("画面前景单调，需要调整。"))
+            assertEquals("请复述前景单这个错误。", normalize("请复述前景单这个错误。"))
+            assertEquals("前警情。", normalize("前警情。"))
+            assertEquals("查看此前警情。", normalize("查看此前警情。"))
+            assertEquals("调取先前警情记录。", normalize("调取先前警情记录。"))
+            assertEquals("请复述天景丹这个错误。", normalize("请复述天景丹这个错误。"))
+            assertEquals("陈景丹。", normalize("陈景丹。"))
         }
     }
 
