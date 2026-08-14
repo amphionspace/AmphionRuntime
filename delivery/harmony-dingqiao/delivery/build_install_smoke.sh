@@ -25,6 +25,7 @@ TIMEOUT_SECONDS=30
 SKIP_BUILD=false
 PREPARE_ONLY=false
 ZH_EN_ONLY=true
+BUILD_MODE="release"
 SMOKE_DIR="$PROJECT_ROOT/build/smoke"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
@@ -428,7 +429,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
     if ! "$NODE" "$HVIGOR" assembleHap --mode module \
       -p product=default \
       -p module=amphion_asr_demo@default \
-      -p buildMode=debug \
+      -p buildMode="$BUILD_MODE" \
       --no-daemon --stacktrace; then
       exit 1
     fi
@@ -436,7 +437,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
       if ! "$NODE" "$HVIGOR" assembleHar --mode module \
         -p product=default \
         -p module="${har_module}@default" \
-        -p buildMode=debug \
+        -p buildMode="$BUILD_MODE" \
         --no-daemon --stacktrace; then
         exit 1
       fi
@@ -467,7 +468,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
   cp "$BUILD_HAP" "$TEMP_HAP_COPY"
   mv -f "$TEMP_HAP_COPY" "$HAP"
   TEMP_HAP_COPY=""
-  IDENTITY_ARGS=(--write "$BUILD_IDENTITY")
+  IDENTITY_ARGS=(--write "$BUILD_IDENTITY" --build-mode "$BUILD_MODE")
   if [[ "$ZH_EN_ONLY" == true ]]; then
     IDENTITY_ARGS+=(--zh-en-only)
   fi

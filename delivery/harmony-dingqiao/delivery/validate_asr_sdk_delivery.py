@@ -517,6 +517,10 @@ def _validate_provenance(
         identity = provenance.get("verified_source_identity")
         if not isinstance(identity, dict):
             raise DeliveryValidationError("provenance v2 requires verified source identity")
+        if identity.get("build_mode") != "release":
+            raise DeliveryValidationError(
+                "provenance v2 requires release build mode"
+            )
         if not isinstance(source, dict) or identity.get("git_commit") != source.get("commit"):
             raise DeliveryValidationError("verified source identity commit mismatch")
         fingerprint = identity.get("source_fingerprint_sha256")
@@ -544,6 +548,7 @@ def _validate_provenance(
                 )
         expected_identity = {
             "git_commit": verified_build_identity.get("git_commit"),
+            "build_mode": verified_build_identity.get("build_mode"),
             "source_fingerprint_sha256": verified_build_identity.get(
                 "source_fingerprint_sha256"
             ),

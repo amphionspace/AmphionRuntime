@@ -70,11 +70,27 @@ class SoleHarTest(unittest.TestCase):
 
 
 class VerifyIdentityTest(unittest.TestCase):
+    def test_rejects_non_release_build_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "identity.json"
+            identity = {"git_commit": "same", "build_mode": "debug"}
+            path.write_text(json.dumps(identity), encoding="utf-8")
+            with mock.patch.object(MODULE, "current_identity", return_value=identity):
+                with self.assertRaisesRegex(MODULE.IdentityFailure, "release build mode"):
+                    MODULE.verify_identity(path)
+
     def test_rejects_stale_identity(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "identity.json"
-            path.write_text(json.dumps({"git_commit": "old"}), encoding="utf-8")
-            with mock.patch.object(MODULE, "current_identity", return_value={"git_commit": "new"}):
+            path.write_text(
+                json.dumps({"git_commit": "old", "build_mode": "release"}),
+                encoding="utf-8",
+            )
+            with mock.patch.object(
+                MODULE,
+                "current_identity",
+                return_value={"git_commit": "new", "build_mode": "release"},
+            ):
                 with self.assertRaisesRegex(MODULE.IdentityFailure, "stale"):
                     MODULE.verify_identity(path)
 
@@ -82,9 +98,20 @@ class VerifyIdentityTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "identity.json"
             path.write_text(
-                json.dumps({"git_commit": "same", "created_at": "timestamp"}), encoding="utf-8"
+                json.dumps(
+                    {
+                        "git_commit": "same",
+                        "build_mode": "release",
+                        "created_at": "timestamp",
+                    }
+                ),
+                encoding="utf-8",
             )
-            with mock.patch.object(MODULE, "current_identity", return_value={"git_commit": "same"}):
+            with mock.patch.object(
+                MODULE,
+                "current_identity",
+                return_value={"git_commit": "same", "build_mode": "release"},
+            ):
                 MODULE.verify_identity(path)
 
 
