@@ -16,7 +16,7 @@
 
 ## 0.3.2 - 2026-08-13（自动增益、预加载与 Runtime 稳定性）
 
-- `TargetSpeakerConfig.minSegSec` 默认并在鼎桥适配层固定为 `0`，取消 SDK 侧最短时长门槛和额外的
+- `TargetSpeakerConfig.minSegSec` 默认并在兼容适配层固定为 `0`，取消 SDK 侧最短时长门槛和额外的
   `vadBegin` 声纹确认窗；音频时长、短句精度、业务阈值及是否采用分数由调用方判断。
 - 声纹 final 不再把 `minSegSec` 当作出分质量门槛：已有非空 ASR text/token 时使用本句非空真实
   PCM 尝试计算 `speakerSimilarity`。SDK 负责出分，短句精度、业务阈值和接受策略由调用方承担；
@@ -76,10 +76,10 @@
 
 ## 0.2.9 - 2026-07-30（警务增强开关与交付追踪）
 
-- Android 与 Harmony 鼎桥 Demo 均新增持久化“警务增强”开关，并在每次会话启动时通过
+- Android 与 Harmony Demo 均新增持久化“警务增强”开关，并在每次会话启动时通过
   `enablePoliceEnhancement` 固定本轮配置。默认开启；显式关闭时 final 返回原始 ASR 文本，
   不执行警务术语、车牌和派出所归一化，生命周期回调保持不变。
-- Harmony 鼎桥适配层接入 `amphion_police`，自包含客户 HAR 同步内置该模块及资源，避免外部工程
+- Harmony 兼容适配层接入 `amphion_police`，自包含客户 HAR 同步内置该模块及资源，避免外部工程
   出现无法解析的本地依赖。
 
 ## 0.2.8 - 2026-07-18（警务术语增强与交付校验）
@@ -120,7 +120,7 @@
 
 ## 0.1.0 - hotfix 2026-07-15（声纹与首段超时组合边界）
 
-- 修复底层 session 构造同步触发 `onStart` 时，鼎桥适配层尚未发布 session，调用方在 `onStart` 内冲刷录音缓存会收到 `1002200010 NOT_LISTENING`、导致首次识别失败的问题。
+- 修复底层 session 构造同步触发 `onStart` 时，兼容适配层尚未发布 session，调用方在 `onStart` 内冲刷录音缓存会收到 `1002200010 NOT_LISTENING`、导致首次识别失败的问题。
 - `onStart` 现在只在 session 已保存且目标说话人配置完成后对外发送；新增 32/88 帧回调内同步写入门禁，并保留 `onStart` 内取消能力。
 - 修复 `vadBegin=1000` 下 VAD/流式 ASR 暂未暴露起音、停止刷新却已有文本时，真实首句被错误标成 `isLast=true` 的竞态。
 - 声纹校验或 Speaker VAD 开启时，纯静音仍按 `vadBegin` 结束；初始窗内存在连续未决声学活动时才使用一次默认 1.5 秒确认窗，窗末只接受近期语音型活动或 ASR text/token，避免旧脉冲永久解除计时。
@@ -154,7 +154,7 @@
 
 - `zhen` encoder/INT8 decoder/joiner 与标点模型在构建期转换为 ARM CPU ORT 格式，运行时关闭重复图优化并直接使用 rawfile 映射模型字节。
 - recognizer 与标点异步并行加载；transducer Session 采用 encoder 关键 lane 与 decoder/joiner 辅助 lane，相同配置使用 single-flight 与进程内 pool。
-- 鼎桥配置使用 4 个 ORT worker，并跳过收益不足的 800 ms eager warmup。
+- 客户配置使用 4 个 ORT worker，并跳过收益不足的 800 ms eager warmup。
 - 新增独立进程 `createEngineAsync` 加载基准，固定设备构建、模型源哈希、HAP/native hash、线程数、预热样本和标点状态。
 - 真机 `zhen` 冷加载 p50 从 3884.5 ms 降至 774.5 ms，p95 为 810.25 ms；pool hit 为 0–1 ms。48 轮真实音频回归通过。
 
@@ -179,7 +179,7 @@
 - 新增纯血鸿蒙 SDK：ASR 工程 `asr/harmony`（`amphion_asr` / `amphion_police` / `amphion_dingqiao`）、TTS 工程 `tts/harmony`（`amphion_tts`）。
 - 新增统一交付聚合层 `delivery/harmony-dingqiao/`：同时演示 ASR + TTS 的 `amphion_asr_demo` HAP、交付文档与打包脚本。
 - 新增核心 ASR ArkTS API 映射：`AmphionRuntime`、`AsrEngine`、`AsrSession`、`AsrConfig`、`AsrCallback`、`AmphionMetrics`。
-- 新增鼎桥接口映射：`SpeechRecognizeSdk`、`SpeechRecognitionEngine`、`RecognitionListener`、错误码与 640 字节 PCM 帧契约。
+- 新增兼容接口映射：`SpeechRecognizeSdk`、`SpeechRecognitionEngine`、`RecognitionListener`、错误码与 640 字节 PCM 帧契约。
 - 新增离线 TTS ArkTS API：`TextToSpeechSdk`、`TextToSpeechEngine`、`TtsCreateEngineParams`、`SpeakParams`，底层走 `sherpa_onnx.OfflineTts`。
 - TTS 支持 `SYNTHESIZE_AND_PLAY` 内置播放：`AudioRenderer` writeData 拉模型 + `CircularBuffer`，与 `onData` 流式 PCM 并行。
 - 新增 HarmonyOS native 构建脚本、ASR/TTS rawfile 模型同步脚本与客户交付打包脚本。
