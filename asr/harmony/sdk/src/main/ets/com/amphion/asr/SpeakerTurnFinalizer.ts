@@ -6,6 +6,10 @@ export type SpeakerRangeScorer = (samples: Float32Array, startSample: number,
 
 export type SpeakerClusterScorer = (samples: Float32Array, speaker: number) => number | undefined;
 
+const MINIMUM_SPEAKER_SCORE_MARGIN = 0.15;
+const MINIMUM_NON_TARGET_THRESHOLD_MARGIN = 0.05;
+const SCORE_EPSILON = 0.000001;
+
 /** Keep finish/endpoint paths from publishing a suffix that never reconfirmed the target. */
 export function shouldRejectSpeakerVadFinal(enabled: boolean, rejectCurrent: boolean,
   targetConfirmed: boolean): boolean {
@@ -67,6 +71,7 @@ export class SpeakerTurnFinalizer {
   private departureSeen: boolean = false;
   private rejectBeforeTarget: boolean = false;
   private latestScore?: number;
+  private lastTargetScore?: number;
   private resolutionReason: string = 'not-resolved';
 
   constructor(sampleRate: number, windowSamples: number, hopSamples: number,
@@ -102,6 +107,7 @@ export class SpeakerTurnFinalizer {
       this.targetSeen = true;
       this.belowCount = 0;
       this.lastTargetEndSample = end;
+      this.lastTargetScore = score;
       this.firstBelowEndSample = -1;
       this.departureSeen = false;
       this.rejectBeforeTarget = false;
@@ -146,6 +152,12 @@ export class SpeakerTurnFinalizer {
         this.resolutionReason.endsWith(':insufficient-refine-context'));
   }
   hasPendingDeparture(): boolean { return this.departureSeen; }
+  hasPendingFinishDeparture(): boolean {
+    const minimumTrailingSamples = Math.max(1, Math.round(this.sampleRate * 0.4));
+    return !this.departureSeen && !this.capped && this.targetSeen && this.belowCount > 0 &&
+      this.lastTargetEndSample >= 0 &&
+      this.retainedSamples - this.lastTargetEndSample >= minimumTrailingSamples;
+  }
 
   /**
    * Keep only PCM that predates the last target-positive scoring window.
@@ -268,7 +280,9 @@ export class SpeakerTurnFinalizer {
       const leftScore = scoreRange(all.slice(leftStart, candidate), leftStart, candidate);
       const rightScore = scoreRange(all.slice(candidate, rightEnd), candidate, rightEnd);
       if (leftScore === undefined || rightScore === undefined ||
-        leftScore < threshold || rightScore >= threshold) return;
+        leftScore < threshold || rightScore >= threshold ||
+        leftScore - rightScore < MINIMUM_SPEAKER_SCORE_MARGIN ||
+        rightScore > threshold - MINIMUM_NON_TARGET_THRESHOLD_MARGIN + SCORE_EPSILON) return;
       const margin = leftScore - rightScore;
       if (margin > bestMargin || (margin === bestMargin && candidate > bestCandidate)) {
         bestCandidate = candidate;
@@ -297,14 +311,31 @@ export class SpeakerTurnFinalizer {
 
   /** Resolve the last stable, non-overlapping target -> other turn reported by diarization. */
   resolveDiarized(segments: SpeakerTurnSegment[], threshold: number,
-    scoreCluster: SpeakerClusterScorer): SpeakerTurnSplit | undefined {
-    this.resolutionReason = 'diarization-not-ready';
-    if (!this.departureSeen || this.capped) {
+    scoreCluster: SpeakerClusterScorer,
+    requireRefinedContiguousBoundary: boolean = false): SpeakerTurnSplit | undefined {
+    return this.resolveDiarizedInternal(
+      segments, threshold, scoreCluster, false, requireRefinedContiguousBoundary);
+  }
+
+  /** Resolve a high-confidence target -> other turn when finish arrives before a second low score. */
+  resolveDiarizedAtFinish(segments: SpeakerTurnSegment[], threshold: number,
+    scoreCluster: SpeakerClusterScorer,
+    requireRefinedContiguousBoundary: boolean = false): SpeakerTurnSplit | undefined {
+    return this.resolveDiarizedInternal(
+      segments, threshold, scoreCluster, true, requireRefinedContiguousBoundary);
+  }
+
+  private resolveDiarizedInternal(segments: SpeakerTurnSegment[], threshold: number,
+    scoreCluster: SpeakerClusterScorer, atFinish: boolean,
+    requireRefinedContiguousBoundary: boolean): SpeakerTurnSplit | undefined {
+    this.resolutionReason = atFinish ? 'diarization-finish-not-ready' : 'diarization-not-ready';
+    if ((!this.departureSeen && !atFinish) ||
+      (atFinish && !this.hasPendingFinishDeparture()) || this.capped) {
       if (this.capped) this.resolutionReason = 'buffer-capped';
       return undefined;
     }
     const all = concatFloat32(this.parts, this.retainedSamples);
-    const minimumStableSamples = Math.max(1, Math.round(this.sampleRate * 0.2));
+    const minimumStableSamples = Math.max(1, Math.round(this.sampleRate * (atFinish ? 0.3 : 0.2)));
     const stable = segments
       .map((segment: SpeakerTurnSegment): SpeakerTurnSegment => new SpeakerTurnSegment(
         Math.min(all.length, segment.startSample),
@@ -334,29 +365,77 @@ export class SpeakerTurnFinalizer {
       this.resolutionReason = `diarization-speaker-count:${speakerIds.length}`;
       return undefined;
     }
-    const scores: Map<number, number> = new Map<number, number>();
-    for (let index = 0; index < speakerIds.length; index++) {
-      const speaker = speakerIds[index];
-      const score = scoreCluster(concatSpeakerSegments(all, stable, speaker), speaker);
-      if (score === undefined) {
-        this.resolutionReason = `diarization-score-unavailable:${speaker}`;
-        return undefined;
+    const turnSpeakers: number[] = [];
+    for (let index = 0; index < stable.length; index++) {
+      const speaker = stable[index].speaker;
+      if (turnSpeakers.length === 0 || turnSpeakers[turnSpeakers.length - 1] !== speaker) {
+        turnSpeakers.push(speaker);
       }
-      scores.set(speaker, score);
     }
-    const targetIds = speakerIds.filter((speaker: number): boolean =>
-      (scores.get(speaker) ?? -1) >= threshold);
-    if (targetIds.length !== 1) {
-      this.resolutionReason = `diarization-target-count:${targetIds.length}`;
+    if (turnSpeakers.length !== 2) {
+      const resolver = atFinish ? 'diarization-finish-turn-order' : 'diarization-turn-order';
+      this.resolutionReason = `${resolver}:${turnSpeakers.join('-')}`;
       return undefined;
     }
-    const targetSpeaker = targetIds[0];
+    const scores: Map<number, number> = new Map<number, number>();
+    let targetSpeaker = -1;
+    let otherSpeaker = -1;
+    if (atFinish) {
+      targetSpeaker = turnSpeakers[0];
+      otherSpeaker = turnSpeakers[1];
+      const targetScore = this.lastTargetScore;
+      const otherSamples = concatSpeakerSegments(all, stable, otherSpeaker);
+      const otherScore = scoreCluster(otherSamples, otherSpeaker);
+      if (targetScore === undefined || otherScore === undefined) {
+        this.resolutionReason = 'diarization-finish-score-unavailable';
+        return undefined;
+      }
+      scores.set(targetSpeaker, targetScore);
+      scores.set(otherSpeaker, otherScore);
+    } else {
+      for (let index = 0; index < speakerIds.length; index++) {
+        const speaker = speakerIds[index];
+        const score = scoreCluster(concatSpeakerSegments(all, stable, speaker), speaker);
+        if (score === undefined) {
+          this.resolutionReason = `diarization-score-unavailable:${speaker}`;
+          return undefined;
+        }
+        scores.set(speaker, score);
+      }
+      const targetIds = speakerIds.filter((speaker: number): boolean =>
+        (scores.get(speaker) ?? -1) >= threshold);
+      if (targetIds.length !== 1) {
+        this.resolutionReason = `diarization-target-count:${targetIds.length}`;
+        return undefined;
+      }
+      targetSpeaker = targetIds[0];
+      otherSpeaker = speakerIds.find(
+        (speaker: number): boolean => speaker !== targetSpeaker) ?? -1;
+      if (turnSpeakers[0] !== targetSpeaker || turnSpeakers[1] !== otherSpeaker) {
+        this.resolutionReason = `diarization-turn-direction:${turnSpeakers.join('-')}:` +
+          `target=${targetSpeaker}`;
+        return undefined;
+      }
+    }
+    const targetScore = scores.get(targetSpeaker);
+    const otherScore = scores.get(otherSpeaker);
+    if (targetScore === undefined || otherScore === undefined ||
+      targetScore - otherScore < MINIMUM_SPEAKER_SCORE_MARGIN ||
+      otherScore > threshold - MINIMUM_NON_TARGET_THRESHOLD_MARGIN + SCORE_EPSILON) {
+      const resolver = atFinish ? 'diarization-finish-score-margin' : 'diarization-score-margin';
+      this.resolutionReason = `${resolver}:left=${(targetScore ?? -1).toFixed(3)},` +
+        `right=${(otherScore ?? -1).toFixed(3)},threshold=${threshold.toFixed(3)}`;
+      return undefined;
+    }
     let candidate = -1;
+    let candidateGapSamples = 0;
     for (let index = 1; index < stable.length; index++) {
       const left = stable[index - 1];
       const right = stable[index];
       if (left.speaker === targetSpeaker && right.speaker !== targetSpeaker) {
         candidate = right.startSample;
+        candidateGapSamples = Math.max(0, right.startSample - left.endSample);
+        if (atFinish) break;
       }
     }
     if (candidate <= 0 || candidate >= all.length) {
@@ -368,15 +447,21 @@ export class SpeakerTurnFinalizer {
     // the independent target evidence and must not truncate the target prefix.
     const transitionStart = Math.max(0, this.lastTargetEndSample - this.windowSamples);
     const transitionEnd = Math.min(all.length, this.lastTargetEndSample);
-    if (transitionEnd <= transitionStart || candidate < transitionStart || candidate > transitionEnd) {
+    const afterTransition = !atFinish && candidate > transitionEnd;
+    if (transitionEnd <= transitionStart || candidate < transitionStart || afterTransition) {
       const direction = candidate < transitionStart ? 'before' : 'after';
       this.resolutionReason = `diarization-boundary-${direction}-score-transition:` +
         `${candidate}:not-in:${transitionStart}-${transitionEnd}`;
       return undefined;
     }
-    const otherSpeaker = speakerIds.find((speaker: number): boolean => speaker !== targetSpeaker) ?? -1;
-    this.resolutionReason = `diarization-split:left=${(scores.get(targetSpeaker) ?? -1).toFixed(3)},` +
-      `right=${(scores.get(otherSpeaker) ?? -1).toFixed(3)}`;
+    const maximumTrustedGapSamples = Math.max(1, Math.round(this.sampleRate * 0.08));
+    if (requireRefinedContiguousBoundary && candidateGapSamples < maximumTrustedGapSamples) {
+      this.resolutionReason = `diarization-contiguous-boundary:${candidate}`;
+      return undefined;
+    }
+    const resolver = atFinish ? 'diarization-finish-split' : 'diarization-split';
+    this.resolutionReason = `${resolver}:left=${(scores.get(targetSpeaker) ?? -1).toFixed(3)},` +
+      `right=${(scores.get(otherSpeaker) ?? -1).toFixed(3)},candidate=${candidate}`;
     const processed = this.processedSamples();
     return new SpeakerTurnSplit(candidate, all.slice(0, candidate), all.slice(candidate),
       processed.slice(0, candidate), processed.slice(candidate));
@@ -395,6 +480,7 @@ export class SpeakerTurnFinalizer {
     this.departureSeen = false;
     this.rejectBeforeTarget = false;
     this.latestScore = undefined;
+    this.lastTargetScore = undefined;
     this.resolutionReason = 'not-resolved';
   }
 

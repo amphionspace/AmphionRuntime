@@ -49,6 +49,7 @@ export class DeviceStressOptions {
   paceMs: number = 20;
   enrollmentCount: number = 1;
   enforceTargetSpeakerBusinessText: boolean = true;
+  speakerVadFinishRecoveryEntryIds: string = 'none';
   speakerVadThreshold: number = -2;
 }
 
@@ -769,6 +770,7 @@ class CycleResult {
   fedFrames: number = 0;
   lastFinalsBeforeFinish: number = -1;
   speechEndsBeforeFinish: number = -1;
+  finishToFirstNonEmptyResultMs: number = -1;
   recoveryStarts: number = -1;
   recoveryLastFinals: number = -1;
   recoveryCompletes: number = -1;
@@ -799,7 +801,9 @@ class CycleResult {
       `|effectiveMaxAudioDurationMs=${this.effectiveMaxAudioDurationMs}` +
       `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
       `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}` +
-      `|speechEndsBeforeFinish=${this.speechEndsBeforeFinish}|liveStreams=${this.liveStreams}` +
+      `|speechEndsBeforeFinish=${this.speechEndsBeforeFinish}` +
+      `|finishToFirstNonEmptyResultMs=${this.finishToFirstNonEmptyResultMs}` +
+      `|liveStreams=${this.liveStreams}` +
       `|recoveryStarts=${this.recoveryStarts}|recoveryLastFinals=${this.recoveryLastFinals}` +
       `|recoveryCompletes=${this.recoveryCompletes}|recoveryErrors=${this.recoveryErrors}` +
       `|recoveryTerminalOrder=${this.recoveryTerminalOrder}` +
@@ -1362,17 +1366,28 @@ async function runSpeakerVadTurnCycle(engine: SpeechRecognitionEngine,
   }
   const lastFinalsBeforeFinish = events.lastFinals;
   const speechEndsBeforeFinish = events.speechEnds;
+  const finishRequestedAtMs = Date.now();
   engine.finish(sessionId);
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
   const text = events.finalTexts.join('');
   const businessTextPassed = !options.enforceTargetSpeakerBusinessText ||
     (text.includes('上海') && !text.includes('你好'));
+  const finishToFirstNonEmptyResultMs = events.firstNonEmptyResultAtMs < 0 ? -1 :
+    events.firstNonEmptyResultAtMs - finishRequestedAtMs;
+  const finishRecovery = options.speakerVadFinishRecoveryEntryIds.split(',').indexOf(entry.id) >= 0 &&
+    speechEndsBeforeFinish === 0;
+  const boundarySignalPassed = speechEndsBeforeFinish > 0 || finishRecovery;
+  const finishLatencyPassed = !finishRecovery ||
+    (finishToFirstNonEmptyResultMs >= 0 && finishToFirstNonEmptyResultMs <= 1200);
   const ok = completed && events.starts === 1 && events.finals > 0 && events.lastFinals === 1 &&
     lastFinalsBeforeFinish === 0 && events.completes === 1 && events.errors === 0 &&
-    businessTextPassed && events.partials === 0 && speechEndsBeforeFinish > 0 && !engine.isBusy();
-  let detail = ok ? 'speaker-vad-turn-clean' : 'speaker-vad-turn-contract';
+    businessTextPassed && events.partials === 0 && boundarySignalPassed && finishLatencyPassed &&
+    !engine.isBusy();
+  let detail = ok ? (finishRecovery ? 'speaker-vad-turn-clean-finish-recovery' :
+    'speaker-vad-turn-clean') : 'speaker-vad-turn-contract';
   if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
-  else if (speechEndsBeforeFinish === 0) detail = 'speaker-vad-turn-missing-endpoint';
+  else if (!boundarySignalPassed) detail = 'speaker-vad-turn-missing-endpoint';
+  else if (!finishLatencyPassed) detail = 'speaker-vad-turn-finish-latency';
   else if (events.partials > 0) detail = 'speaker-vad-turn-partial-leak';
   else if (!businessTextPassed) detail = 'speaker-vad-turn-text-contract';
   if (events.errorMessages.length > 0) {
@@ -1383,6 +1398,7 @@ async function runSpeakerVadTurnCycle(engine: SpeechRecognitionEngine,
   result.fedFrames = fed;
   result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
   result.speechEndsBeforeFinish = speechEndsBeforeFinish;
+  result.finishToFirstNonEmptyResultMs = finishToFirstNonEmptyResultMs;
   return result;
 }
 

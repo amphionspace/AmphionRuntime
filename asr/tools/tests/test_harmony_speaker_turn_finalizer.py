@@ -199,8 +199,31 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         async_stop = source.split("private async stopNowAsync", 1)[1].split(
             "updateHotwords", 1
         )[0]
-        commit_index = async_stop.index("this.commitCleanSpeakerTurn(true, false)")
+        self.assertIn(
+            "const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false",
+            async_stop,
+        )
+        self.assertIn("this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery", async_stop)
+        commit_index = async_stop.index(
+            "this.commitCleanSpeakerTurn(true, false, finishRecovery)"
+        )
         speculative_flush_index = async_stop.index("this.appendFinalTailSilence()")
+        self.assertLess(commit_index, speculative_flush_index)
+
+    def test_sync_finish_uses_the_same_short_departure_recovery(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        sync_stop = source.split("private stopNow(): void", 1)[1].split(
+            "private async stopNowAsync", 1
+        )[0]
+        self.assertIn(
+            "const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false",
+            sync_stop,
+        )
+        self.assertIn("this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery", sync_stop)
+        commit_index = sync_stop.index(
+            "this.commitCleanSpeakerTurn(true, false, finishRecovery)"
+        )
+        speculative_flush_index = sync_stop.index("this.appendFinalTailSilence()")
         self.assertLess(commit_index, speculative_flush_index)
 
     def test_enabled_by_default_starts_boundary_model_loading(self) -> None:
@@ -295,17 +318,19 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
-    def test_speaker_turn_accuracy_requires_a_real_endpoint_before_finish(self) -> None:
+    def test_speaker_turn_accuracy_requires_endpoint_or_bounded_finish_recovery(self) -> None:
         carrier = DEVICE_STRESS.read_text(encoding="utf-8")
         cycle = carrier.split("async function runSpeakerVadTurnCycle", 1)[1].split(
             "function enableTargetSpeakerEnhancement", 1
         )[0]
         self.assertIn("const speechEndsBeforeFinish = events.speechEnds", cycle)
-        self.assertIn("speechEndsBeforeFinish > 0", cycle)
+        self.assertIn("options.speakerVadFinishRecoveryEntryIds", cycle)
+        self.assertIn("speechEndsBeforeFinish > 0 || finishRecovery", cycle)
+        self.assertIn("finishToFirstNonEmptyResultMs <= 1200", cycle)
         self.assertIn("events.partials === 0", cycle)
         self.assertIn("speaker-vad-turn-missing-endpoint", cycle)
 
-    def test_c1_diarization_selects_latest_stable_target_to_other_boundary(self) -> None:
+    def test_diarization_rejects_more_than_one_target_to_other_turn(self) -> None:
         self.run_finalizer(
             f"""
             const fixture = JSON.parse(await import('node:fs/promises').then(fs =>
@@ -325,11 +350,81 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
               0.35,
               (_samples, speaker) => fixture.cluster_scores[String(speaker)]);
 
-            assert.ok(split);
-            assert.equal(split.cutSample, fixture.expected_cut_sample);
-            assert.equal(split.prefix.length, fixture.expected_cut_sample);
-            assert.equal(split.suffix.length,
-              fixture.total_samples - fixture.expected_cut_sample);
+            assert.equal(split, undefined);
+            assert.equal(finalizer.lastResolutionReason(),
+              'diarization-turn-order:0-1-0-1');
+            """
+        )
+
+    def test_finish_resolves_a_short_sequential_suffix_before_confirmed_departure(self) -> None:
+        self.run_finalizer(
+            """
+            const samples = new Float32Array(70_400);
+            samples.fill(0.2, 0, 48_000);
+            samples.fill(0.1, 48_000);
+            const finalizer = new SpeakerTurnFinalizer(16_000, 24_000, 8_000, 2, 70_400);
+            finalizer.accept(samples);
+            assert.equal(finalizer.observeScore(48_000, 0.62, 0.35), 'target-confirmed');
+            assert.equal(finalizer.observeScore(64_000, 0.08, 0.35), 'below');
+            assert.equal(finalizer.hasPendingDeparture(), false);
+            assert.equal(finalizer.hasPendingFinishDeparture(), true);
+
+            const segments = [
+              new SpeakerTurnSegment(0, 48_000, 0),
+              new SpeakerTurnSegment(48_000, 70_400, 1),
+            ];
+            const ordinary = finalizer.resolveDiarized(
+              segments, 0.35, (_samples, speaker) => speaker === 0 ? 0.62 : 0.08);
+            assert.equal(ordinary, undefined);
+
+            let finishScoreCalls = 0;
+            const atFinish = finalizer.resolveDiarizedAtFinish(
+              segments, 0.35, (_samples, speaker) => {
+                finishScoreCalls += 1;
+                return speaker === 0 ? 0.62 : 0.08;
+              });
+            assert.ok(atFinish);
+            assert.equal(finishScoreCalls, 1);
+            assert.equal(atFinish.cutSample, 48_000);
+            assert.equal(atFinish.prefix.length, 48_000);
+            assert.equal(atFinish.suffix.length, 22_400);
+            """
+        )
+
+    def test_finish_keeps_ambiguous_short_suffix_fail_open(self) -> None:
+        self.run_finalizer(
+            """
+            const finalizer = new SpeakerTurnFinalizer(16_000, 24_000, 8_000, 2, 70_400);
+            finalizer.accept(new Float32Array(70_400));
+            finalizer.observeScore(48_000, 0.40, 0.35);
+            finalizer.observeScore(64_000, 0.30, 0.35);
+
+            const split = finalizer.resolveDiarizedAtFinish([
+              new SpeakerTurnSegment(0, 48_000, 0),
+              new SpeakerTurnSegment(48_000, 70_400, 1),
+            ], 0.35, (_samples, speaker) => speaker === 0 ? 0.40 : 0.30);
+
+            assert.equal(split, undefined);
+            assert.match(finalizer.lastResolutionReason(), /diarization-finish-score-margin/);
+            """
+        )
+
+    def test_finish_keeps_a_contiguous_diarized_boundary_fail_open(self) -> None:
+        self.run_finalizer(
+            """
+            const finalizer = new SpeakerTurnFinalizer(16_000, 24_000, 8_000, 2, 70_400);
+            finalizer.accept(new Float32Array(70_400));
+            finalizer.observeScore(48_000, 0.62, 0.35);
+            finalizer.observeScore(64_000, 0.08, 0.35);
+
+            const split = finalizer.resolveDiarizedAtFinish([
+              new SpeakerTurnSegment(0, 48_000, 0),
+              new SpeakerTurnSegment(48_000, 70_400, 1),
+            ], 0.35, (_samples, speaker) => speaker === 0 ? 0.62 : 0.08, true);
+
+            assert.equal(split, undefined);
+            assert.equal(finalizer.lastResolutionReason(),
+              'diarization-contiguous-boundary:48000');
             """
         )
 
@@ -352,7 +447,66 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
 
             assert.equal(split, undefined);
             assert.equal(finalizer.lastResolutionReason(),
-              'diarization-boundary-before-score-transition:20000:not-in:24000-48000');
+              'diarization-turn-order:0-1-0');
+            """
+        )
+
+    def test_contiguous_diarized_boundary_requires_independent_refinement(self) -> None:
+        self.run_finalizer(
+            """
+            const resolve = (rightStart) => {
+              const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 4_000);
+              finalizer.accept(new Float32Array(4_000));
+              finalizer.observeScore(2_500, 0.62, 0.35);
+              finalizer.observeScore(3_000, 0.12, 0.35);
+              finalizer.observeScore(3_200, 0.08, 0.35);
+              return finalizer.resolveDiarized([
+                new SpeakerTurnSegment(0, 2_000, 0),
+                new SpeakerTurnSegment(rightStart, 4_000, 1),
+              ], 0.35, (_samples, speaker) => speaker === 0 ? 0.62 : 0.08, true);
+            };
+
+            const contiguous = resolve(2_000);
+            assert.equal(contiguous, undefined);
+
+            const quietGap = resolve(2_100);
+            assert.ok(quietGap);
+            assert.equal(quietGap.cutSample, 2_100);
+
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 4_000);
+            finalizer.accept(new Float32Array(4_000));
+            finalizer.observeScore(2_500, 0.62, 0.35);
+            finalizer.observeScore(3_000, 0.12, 0.35);
+            finalizer.observeScore(3_200, 0.08, 0.35);
+            const refined = finalizer.resolve([2.4], 0.35,
+              (_samples, start, end) => {
+                if (start === 1_000 && end === 2_000) return 0.62;
+                if (start === 2_000 && end === 3_000) return 0.30;
+                if (start === 1_400 && end === 2_400) return 0.62;
+                if (start === 2_400 && end === 3_400) return 0.08;
+                return undefined;
+              }, [2_000]);
+            assert.ok(refined);
+            assert.equal(refined.cutSample, 2_400);
+            """
+        )
+
+    def test_diarized_boundary_rejects_an_ambiguous_score_margin(self) -> None:
+        self.run_finalizer(
+            """
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 4_000);
+            finalizer.accept(new Float32Array(4_000));
+            finalizer.observeScore(2_500, 0.40, 0.35);
+            finalizer.observeScore(3_000, 0.30, 0.35);
+            finalizer.observeScore(3_200, 0.29, 0.35);
+
+            const split = finalizer.resolveDiarized([
+              new SpeakerTurnSegment(0, 2_000, 0),
+              new SpeakerTurnSegment(2_100, 4_000, 1),
+            ], 0.35, (_samples, speaker) => speaker === 0 ? 0.40 : 0.30, true);
+
+            assert.equal(split, undefined);
+            assert.match(finalizer.lastResolutionReason(), /diarization-score-margin/);
             """
         )
 

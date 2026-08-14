@@ -1506,8 +1506,10 @@ export class AsrSession {
     try {
       const remainder = this.agcProcessor.flush();
       for (let index = 0; index < remainder.length; index++) this.feedAndDecode(remainder[index]);
-      if (this.speakerVadEnabled && this.svTurnFinalizer?.hasPendingDeparture() &&
-        this.commitCleanSpeakerTurn(true, false)) {
+      const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false;
+      if (this.speakerVadEnabled &&
+        (this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery) &&
+        this.commitCleanSpeakerTurn(true, false, finishRecovery)) {
         return;
       }
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
@@ -1535,8 +1537,10 @@ export class AsrSession {
       for (let index = 0; index < remainder.length; index++) {
         await this.feedAndDecodeAsync(remainder[index]);
       }
-      if (this.speakerVadEnabled && this.svTurnFinalizer?.hasPendingDeparture() &&
-        this.commitCleanSpeakerTurn(true, false)) {
+      const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false;
+      if (this.speakerVadEnabled &&
+        (this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery) &&
+        this.commitCleanSpeakerTurn(true, false, finishRecovery)) {
         return;
       }
       this.appendFinalTailSilence();
@@ -2518,11 +2522,13 @@ export class AsrSession {
    * the untouched suffix into another fresh stream. Any failure terminates the exceptional session;
    * a known contaminated result is never used as an error fallback.
    */
-  private commitCleanSpeakerTurn(isLast: boolean, endpointTriggered: boolean): boolean {
+  private commitCleanSpeakerTurn(isLast: boolean, endpointTriggered: boolean,
+    finishTriggered: boolean = false): boolean {
     const config = this.effectiveSpeakerVad();
     const finalizer = this.svTurnFinalizer;
     if (config === undefined || finalizer === undefined) return false;
-    let split = this.svPendingSplit ?? this.resolveSpeakerTurnSplit(finalizer, config);
+    let split = this.svPendingSplit ??
+      this.resolveSpeakerTurnSplit(finalizer, config, finishTriggered);
     this.svPendingSplit = undefined;
     if (split === undefined) {
       const unresolvedReason = finalizer.lastResolutionReason();
@@ -2643,7 +2649,7 @@ export class AsrSession {
   }
 
   private resolveSpeakerTurnSplit(finalizer: SpeakerTurnFinalizer,
-    config: SpeakerVadConfig): SpeakerTurnSplit | undefined {
+    config: SpeakerVadConfig, finishTriggered: boolean = false): SpeakerTurnSplit | undefined {
     if (!isSpeakerTurnSegmentationModelLoaded()) {
       if (!this.speakerTurnSegmenterUnavailable) {
         finalizer.deferResolution('diarizer-loading');
@@ -2659,11 +2665,13 @@ export class AsrSession {
         segment.startSample,
         segment.endSample,
         segment.speaker));
-    const diarizedSplit = finalizer.resolveDiarized(resolvedSegments, config.threshold,
-      (samples: Float32Array, _speaker: number): number | undefined => {
-        if (samples.length === 0) return undefined;
-        return this.scoreSamples(samples);
-      });
+    const scoreCluster = (samples: Float32Array, _speaker: number): number | undefined => {
+      if (samples.length === 0) return undefined;
+      return this.scoreSamples(samples);
+    };
+    const diarizedSplit = finishTriggered ?
+      finalizer.resolveDiarizedAtFinish(resolvedSegments, config.threshold, scoreCluster, true) :
+      finalizer.resolveDiarized(resolvedSegments, config.threshold, scoreCluster, true);
     const diarizationReason = finalizer.lastResolutionReason();
     const audioMs = finalizer.sampleCount() * 1000 / ASR_SAMPLE_RATE_HZ;
     Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} resolver=diarization ` +
@@ -2672,6 +2680,9 @@ export class AsrSession {
       `decision=${diarizedSplit === undefined ? 'ambiguous' : 'split'} ` +
       `reason=${diarizationReason}`);
     if (diarizedSplit !== undefined) return diarizedSplit;
+    // Finish-time recovery is deliberately high-confidence-only. If diarization cannot prove a
+    // simple target -> other sequence, keep the speculative result in balanced mode.
+    if (finishTriggered) return undefined;
     // Overlap is explicitly outside this feature's contract. For every other ambiguous or
     // contradictory diarization result, fall back to the independently bounded acoustic/token
     // resolver instead of either trusting a false local-speaker change or abandoning the endpoint.

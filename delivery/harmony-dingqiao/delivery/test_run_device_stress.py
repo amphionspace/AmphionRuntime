@@ -121,11 +121,67 @@ class RunCommandTest(unittest.TestCase):
             self.assertEqual(990, passed["p95_endpoint_to_final_ms"])
 
             hilog.write_text(
-                "kind=UTTERANCE endpointToFinalLatencyMs=1001\n",
+                "kind=UTTERANCE endpointToFinalLatencyMs=990\n" * 20
+                + "kind=UTTERANCE endpointToFinalLatencyMs=1001\n",
                 encoding="utf-8",
             )
             failed = MODULE.speaker_turn_final_latency_verdict(hilog, required=True)
+            self.assertEqual(990, failed["p95_endpoint_to_final_ms"])
             self.assertEqual("FAIL", failed["status"])
+
+    def test_speaker_turn_finish_recovery_uses_finish_to_final_latency(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            hilog = Path(directory) / "hilog.txt"
+            hilog.write_text("", encoding="utf-8")
+            cycles = [
+                {"id": "000003", "speechEndsBeforeFinish": "0", "finishToFirstNonEmptyResultMs": "640"},
+                {"id": "000003", "speechEndsBeforeFinish": "0", "finishToFirstNonEmptyResultMs": "910"},
+            ]
+
+            passed = MODULE.speaker_turn_final_latency_verdict(
+                hilog, required=True, cycles=cycles,
+                finish_recovery_entry_ids={"000003"}
+            )
+            self.assertEqual("PASS", passed["status"])
+            self.assertEqual(910, passed["p95_finish_to_final_ms"])
+            self.assertEqual(2, passed["finish_recovery_count"])
+            self.assertEqual(1200, passed["maximum_finish_latency_ms"])
+
+            cycles[1]["finishToFirstNonEmptyResultMs"] = "1190"
+            passed = MODULE.speaker_turn_final_latency_verdict(
+                hilog, required=True, cycles=cycles,
+                finish_recovery_entry_ids={"000003"}
+            )
+            self.assertEqual("PASS", passed["status"])
+
+            cycles = [
+                {"id": "000003", "speechEndsBeforeFinish": "0", "finishToFirstNonEmptyResultMs": "1190"}
+                for _ in range(20)
+            ]
+            cycles.append(
+                {"id": "000003", "speechEndsBeforeFinish": "0", "finishToFirstNonEmptyResultMs": "1201"}
+            )
+            failed = MODULE.speaker_turn_final_latency_verdict(
+                hilog, required=True, cycles=cycles,
+                finish_recovery_entry_ids={"000003"}
+            )
+            self.assertEqual(1190, failed["p95_finish_to_final_ms"])
+            self.assertEqual("FAIL", failed["status"])
+
+    def test_speaker_turn_manifest_enables_finish_recovery_per_case(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "manifest.json"
+            manifest.write_text(
+                '{"files":['
+                '{"role":"case","path":"cases/short.wav","allow_finish_recovery":true},'
+                '{"role":"case","path":"cases/ordinary.wav"}'
+                ']}',
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                {"cases/short.wav"},
+                MODULE.target_speaker_manifest_finish_recovery_sources(manifest),
+            )
 
     def test_installed_package_mode_is_explicit_and_exclusive(self) -> None:
         with mock.patch.object(sys, "argv", [str(SCRIPT), "--installed-package"]):
