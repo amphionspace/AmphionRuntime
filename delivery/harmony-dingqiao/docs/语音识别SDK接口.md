@@ -283,7 +283,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `speakerSimilarity` | `number?` | final 且启用声纹校验，并有 ASR 语音证据和非空真实 PCM 时尝试返回 |
 | `targetSpeakerEnhancementApplied` | `boolean?` | 当前 session 启用目标说话人增强时为 `true`；未启用时省略 |
 
-> `TargetSpeakerConfig.minSegSec` 默认并在鼎桥适配层固定为 `0`，SDK 不设置最短时长门槛。ASR
+> `TargetSpeakerConfig.minSegSec` 默认并在兼容适配层固定为 `0`，SDK 不设置最短时长门槛。ASR
 > 已产生非空 text/token 时，SDK 使用当前句非空真实 PCM 尝试评分，不再因短句质量判断省略分数。
 > 音频时长、短句相似度风险、场景阈值和接受策略由业务方承担。没有 ASR 语音证据、没有
 > 真实 PCM、声纹能力未生效或 extractor 技术上无法产生 embedding 时可以省略；SDK 不填充假分数、
