@@ -339,6 +339,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private lastAutoFinishedSessionId: string = '';
   private finishRequested: boolean = false;
   private partialEnabled: boolean = true;
+  private partialRequested: boolean = true;
   private policeFinalSession?: PoliceFinalSession;
   private finalResultSent: boolean = false;
   private completeSent: boolean = false;
@@ -453,7 +454,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.finishRequested = false;
       this.finalResultSent = false;
       this.completeSent = false;
-      this.partialEnabled = params.extraParams['enablePartialResult'] !== false;
+      // Speaker VAD is a strict target-only public mode. Its boundary decision necessarily trails
+      // the waveform, so speculative partials could expose the next speaker before the clean-prefix
+      // final is committed. Publish final results only for this mode.
+      this.partialRequested = params.extraParams['enablePartialResult'] !== false;
+      this.partialEnabled = this.partialRequested && !speakerVad;
       this.policeFinalSession = new PoliceFinalSession(
         strictBooleanParam(params.extraParams, 'enablePoliceEnhancement', true),
         (rawText: string): string => this.enhancePipeline.enhance(rawText).text
@@ -617,10 +622,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         'speaker VAD cannot be disabled while target speaker enhancement is active');
       return;
     }
+    // Enabling the strict target-only mode may synchronously flush native callbacks while loading
+    // the extractor. Close the public partial gate before entering that callback-capable path.
+    const partialBeforeToggle = this.partialEnabled;
+    if (enabled) this.partialEnabled = false;
     try {
       if (enabled) {
         const embedding = new VoiceprintStore(SpeechRecognizeSdk.getWorkPath()).loadMergedEmbedding(this.voiceprintIds);
         if (embedding === undefined) {
+          this.partialEnabled = partialBeforeToggle;
           this.listener?.onError?.(sessionId, DingqiaoErrorCode.VOICEPRINT_NOT_FOUND, 'voiceprint not found for speaker VAD');
           return;
         }
@@ -633,9 +643,18 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         if (this.session !== session || !this.busy || this.currentSessionId !== sessionId) return;
       }
       session.setSpeakerVadEnabled(enabled);
+      this.partialEnabled = this.partialRequested && !enabled;
       this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEAKER_VAD_CHANGED, `speaker vad ${enabled ? 'enabled' : 'disabled'}.`);
     } catch (e) {
-      if (this.session === session) session.setSpeakerVadEnabled(false);
+      if (this.session === session) {
+        let disabled = false;
+        try {
+          session.setSpeakerVadEnabled(false);
+          disabled = true;
+        } catch (_ignored) {
+        }
+        this.partialEnabled = this.partialRequested && disabled;
+      }
       this.listener?.onError?.(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, `setSpeakerVadEnabled failed: ${e}`);
     }
   }

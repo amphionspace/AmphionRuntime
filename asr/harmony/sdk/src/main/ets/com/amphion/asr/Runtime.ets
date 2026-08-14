@@ -1506,8 +1506,10 @@ export class AsrSession {
     try {
       const remainder = this.agcProcessor.flush();
       for (let index = 0; index < remainder.length; index++) this.feedAndDecode(remainder[index]);
-      if (this.speakerVadEnabled && this.svTurnFinalizer?.hasPendingDeparture() &&
-        this.commitCleanSpeakerTurn(true, false)) {
+      const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false;
+      if (this.speakerVadEnabled &&
+        (this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery) &&
+        this.commitCleanSpeakerTurn(true, false, finishRecovery)) {
         return;
       }
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
@@ -1535,8 +1537,10 @@ export class AsrSession {
       for (let index = 0; index < remainder.length; index++) {
         await this.feedAndDecodeAsync(remainder[index]);
       }
-      if (this.speakerVadEnabled && this.svTurnFinalizer?.hasPendingDeparture() &&
-        this.commitCleanSpeakerTurn(true, false)) {
+      const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false;
+      if (this.speakerVadEnabled &&
+        (this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery) &&
+        this.commitCleanSpeakerTurn(true, false, finishRecovery)) {
         return;
       }
       this.appendFinalTailSilence();
@@ -1816,6 +1820,12 @@ export class AsrSession {
     if (speakerVadReject) {
       if (hasEvidence) result.speakerScore = this.lastSpeakerVadScore;
       result.isTargetSpeaker = false;
+      // A rejected Speaker VAD final is a lifecycle signal, not a transcription result. Redact
+      // every textual/token field so direct Runtime clients cannot recover a known-uncertain tail.
+      result.text = '';
+      result.tokens = [];
+      result.timestamps = [];
+      result.tokenConfidences = [];
     }
     const targetConfig = this.config.targetSpeaker;
     const minSpeakerSamples = targetConfig === undefined ? Number.MAX_SAFE_INTEGER :
@@ -2338,12 +2348,28 @@ export class AsrSession {
         }
       }
       if (split === undefined) {
-        this.discardPreparedSpeakerTurnPrefix();
-        this.svContextWaitStartedSample = -1;
-        this.svTurnFailOpen = true;
-        Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=fail-open ` +
-          `reason=${finalizer.lastResolutionReason()}`);
-        return false;
+        const unresolvedReason = finalizer.lastResolutionReason();
+        const containmentSupported = this.canContainSpeakerTurn(unresolvedReason);
+        split = this.resolveSpeakerTurnContainment(finalizer, unresolvedReason);
+        if (split === undefined) {
+          this.discardPreparedSpeakerTurnPrefix();
+          this.svContextWaitStartedSample = -1;
+          if (!containmentSupported) {
+            this.svTurnFailOpen = true;
+            Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=fail-open ` +
+              `reason=${unresolvedReason}`);
+            return false;
+          }
+          // A sequential departure is confirmed, but no target-only prefix can be proven. Reject the
+          // speculative utterance instead of exposing a known-uncertain target/other mixture.
+          this.svRejectCurrentUtterance = true;
+          Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=fail-closed ` +
+            `reason=${finalizer.lastResolutionReason()} unresolvedReason=${unresolvedReason}`);
+          this.vadSpeechActive = false;
+          this.trailingSilenceMs = 0;
+          this.triggerSpeakerVadEndpoint();
+          return true;
+        }
       }
       this.svPendingSplit = split;
       this.prepareCleanPrefixSpeakerScore(split);
@@ -2502,12 +2528,31 @@ export class AsrSession {
    * the untouched suffix into another fresh stream. Any failure terminates the exceptional session;
    * a known contaminated result is never used as an error fallback.
    */
-  private commitCleanSpeakerTurn(isLast: boolean, endpointTriggered: boolean): boolean {
+  private commitCleanSpeakerTurn(isLast: boolean, endpointTriggered: boolean,
+    finishTriggered: boolean = false): boolean {
     const config = this.effectiveSpeakerVad();
     const finalizer = this.svTurnFinalizer;
     if (config === undefined || finalizer === undefined) return false;
-    const split = this.svPendingSplit ?? this.resolveSpeakerTurnSplit(finalizer, config);
+    let split = this.svPendingSplit ??
+      this.resolveSpeakerTurnSplit(finalizer, config, finishTriggered);
     this.svPendingSplit = undefined;
+    if (split === undefined) {
+      const unresolvedReason = finalizer.lastResolutionReason();
+      const containmentSupported = this.canContainSpeakerTurn(unresolvedReason);
+      split = this.resolveSpeakerTurnContainment(finalizer, unresolvedReason);
+      if (split !== undefined) {
+        Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=contain ` +
+          `cutSample=${split.cutSample} unresolvedReason=${unresolvedReason}`);
+      } else if (containmentSupported) {
+        this.svRejectCurrentUtterance = true;
+        Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=fail-closed ` +
+          `reason=${finalizer.lastResolutionReason()} unresolvedReason=${unresolvedReason}`);
+        this.callbackGate.invoke((): void => {
+          this.callback.onDebug?.(`speaker turn boundary unsafe (${unresolvedReason}); rejecting speculative final`);
+        });
+        return false;
+      }
+    }
     if (split === undefined) {
       const reason = finalizer.lastResolutionReason();
       Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=fail-open reason=${reason}`);
@@ -2571,9 +2616,10 @@ export class AsrSession {
       this.pcmBytesAccepted = split.suffix.length * 2;
       this.firstPcmMs = Date.now();
       this.replaySpeakerSuffix(split);
+      const splitDebugMessage = `speaker turn clean split: cutSample=${split.cutSample} ` +
+        `prefix=${split.prefix.length} suffix=${split.suffix.length}`;
       this.callbackGate.invoke((): void => {
-        this.callback.onDebug?.(`speaker turn clean split: cutSample=${split.cutSample} ` +
-          `prefix=${split.prefix.length} suffix=${split.suffix.length}`);
+        this.callback.onDebug?.(splitDebugMessage);
       });
       return true;
     } catch (e) {
@@ -2590,8 +2636,26 @@ export class AsrSession {
     }
   }
 
+  private resolveSpeakerTurnContainment(finalizer: SpeakerTurnFinalizer,
+    unresolvedReason: string): SpeakerTurnSplit | undefined {
+    if (!this.canContainSpeakerTurn(unresolvedReason)) return undefined;
+    const split = finalizer.resolveContainment();
+    Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} resolver=containment ` +
+      `decision=${split === undefined ? 'reject' : 'split'} unresolvedReason=${unresolvedReason} ` +
+      `reason=${finalizer.lastResolutionReason()}`);
+    return split;
+  }
+
+  private canContainSpeakerTurn(unresolvedReason: string): boolean {
+    // A falling target score alone cannot distinguish sequential speech from overlap. Containment
+    // is allowed only when diarization already found target -> other and merely disagreed on the
+    // exact cut with the independent score-transition band.
+    return unresolvedReason.startsWith('sequential-boundary-ambiguous:') &&
+      isSpeakerTurnSegmentationModelLoaded();
+  }
+
   private resolveSpeakerTurnSplit(finalizer: SpeakerTurnFinalizer,
-    config: SpeakerVadConfig): SpeakerTurnSplit | undefined {
+    config: SpeakerVadConfig, finishTriggered: boolean = false): SpeakerTurnSplit | undefined {
     if (!isSpeakerTurnSegmentationModelLoaded()) {
       if (!this.speakerTurnSegmenterUnavailable) {
         finalizer.deferResolution('diarizer-loading');
@@ -2607,11 +2671,13 @@ export class AsrSession {
         segment.startSample,
         segment.endSample,
         segment.speaker));
-    const diarizedSplit = finalizer.resolveDiarized(resolvedSegments, config.threshold,
-      (samples: Float32Array, _speaker: number): number | undefined => {
-        if (samples.length === 0) return undefined;
-        return this.scoreSamples(samples);
-      });
+    const scoreCluster = (samples: Float32Array, _speaker: number): number | undefined => {
+      if (samples.length === 0) return undefined;
+      return this.scoreSamples(samples);
+    };
+    const diarizedSplit = finishTriggered ?
+      finalizer.resolveDiarizedAtFinish(resolvedSegments, config.threshold, scoreCluster, true) :
+      finalizer.resolveDiarized(resolvedSegments, config.threshold, scoreCluster, true);
     const diarizationReason = finalizer.lastResolutionReason();
     const audioMs = finalizer.sampleCount() * 1000 / ASR_SAMPLE_RATE_HZ;
     Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} resolver=diarization ` +
@@ -2620,13 +2686,27 @@ export class AsrSession {
       `decision=${diarizedSplit === undefined ? 'ambiguous' : 'split'} ` +
       `reason=${diarizationReason}`);
     if (diarizedSplit !== undefined) return diarizedSplit;
+    // Finish-time recovery is deliberately high-confidence-only. If diarization cannot prove a
+    // simple target -> other sequence, keep the speculative result in balanced mode.
+    if (finishTriggered) return undefined;
     // Overlap is explicitly outside this feature's contract. For every other ambiguous or
     // contradictory diarization result, fall back to the independently bounded acoustic/token
     // resolver instead of either trusting a false local-speaker change or abandoning the endpoint.
     if (diarizationReason === 'unsupported-overlap') return undefined;
     const boundaryHints = resolvedSegments.slice(1).map(
       (segment: SpeakerTurnSegment): number => segment.startSample);
-    return this.resolveSpeakerTurnAcoustic(finalizer, config, boundaryHints, diarizationReason);
+    const acousticSplit = this.resolveSpeakerTurnAcoustic(
+      finalizer, config, boundaryHints, diarizationReason);
+    if (acousticSplit !== undefined) return acousticSplit;
+    // Preserve the independently confirmed target -> other classification while the acoustic
+    // resolver waits for right-side context. Otherwise the timeout/finish path would see only
+    // "insufficient context" and incorrectly fall back to publishing the mixed speculative final.
+    if (diarizationReason.startsWith('diarization-boundary-after-score-transition:')) {
+      const acousticReason = finalizer.lastResolutionReason();
+      finalizer.deferResolution(
+        `sequential-boundary-ambiguous:${diarizationReason}:${acousticReason}`);
+    }
+    return undefined;
   }
 
   private resolveSpeakerTurnAcoustic(finalizer: SpeakerTurnFinalizer,

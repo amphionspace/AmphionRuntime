@@ -431,6 +431,28 @@ def select_target_speaker_manifest_sources(
     return enrollment + [source for _, source in cases], len(enrollment)
 
 
+def target_speaker_manifest_finish_recovery_sources(
+    manifest_path: Path | None,
+) -> set[str]:
+    if manifest_path is None:
+        return set()
+    try:
+        manifest = json.loads(manifest_path.expanduser().resolve().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return set()
+    items = manifest.get("files") if isinstance(manifest, dict) else None
+    if not isinstance(items, list):
+        return set()
+    return {
+        item["path"]
+        for item in items
+        if isinstance(item, dict)
+        and item.get("role") == "case"
+        and isinstance(item.get("path"), str)
+        and item.get("allow_finish_recovery") is True
+    }
+
+
 def target_speaker_content_verdict(
     cycles: list[dict[str, str]],
     mapping: list[dict[str, object]],
@@ -854,28 +876,77 @@ def target_speaker_realtime_verdict(hilog_path: Path, required: bool) -> dict[st
 
 
 def speaker_turn_final_latency_verdict(
-    hilog_path: Path, required: bool, maximum_p95_ms: int = 1000
+    hilog_path: Path,
+    required: bool,
+    maximum_endpoint_latency_ms: int = 1000,
+    maximum_finish_latency_ms: int = 1200,
+    cycles: list[dict[str, str]] | None = None,
+    finish_recovery_entry_ids: set[str] | None = None,
 ) -> dict[str, object]:
     pattern = re.compile(r"kind=UTTERANCE[^\n]*endpointToFinalLatencyMs=(\d+)")
     latencies = sorted(
         int(match.group(1))
         for match in pattern.finditer(hilog_path.read_text(encoding="utf-8", errors="replace"))
     )
-    if not latencies:
+    finish_latencies: list[int] = []
+    expected_finish_recoveries = 0
+    if finish_recovery_entry_ids and cycles is not None:
+        for cycle in cycles:
+            if cycle.get("id") not in finish_recovery_entry_ids:
+                continue
+            if cycle.get("speechEndsBeforeFinish") != "0":
+                continue
+            expected_finish_recoveries += 1
+            try:
+                latency = int(cycle.get("finishToFirstNonEmptyResultMs", "-1"))
+            except ValueError:
+                latency = -1
+            if latency >= 0:
+                finish_latencies.append(latency)
+    if expected_finish_recoveries != len(finish_latencies):
+        return {
+            "status": "FAIL" if required else "OBSERVED",
+            "reason": "missing finish-to-final metrics",
+            "utterance_count": len(latencies),
+            "finish_recovery_count": len(finish_latencies),
+        }
+    if not latencies and not finish_latencies:
         return {
             "status": "FAIL" if required else "NOT_APPLICABLE",
-            "reason": "no endpoint-to-final metrics observed" if required else "mode disabled",
+            "reason": "no trigger-to-final metrics observed" if required else "mode disabled",
             "utterance_count": 0,
         }
-    p95_index = min(len(latencies) - 1, math.ceil(len(latencies) * 0.95) - 1)
-    p95 = latencies[p95_index]
-    return {
-        "status": ("PASS" if p95 <= maximum_p95_ms else "FAIL") if required else "OBSERVED",
+    endpoint_p95 = -1
+    if latencies:
+        p95_index = min(len(latencies) - 1, math.ceil(len(latencies) * 0.95) - 1)
+        endpoint_p95 = latencies[p95_index]
+    finish_p95 = -1
+    if finish_latencies:
+        finish_latencies.sort()
+        p95_index = min(
+            len(finish_latencies) - 1, math.ceil(len(finish_latencies) * 0.95) - 1
+        )
+        finish_p95 = finish_latencies[p95_index]
+    maximum_endpoint = max(latencies) if latencies else -1
+    maximum_finish = max(finish_latencies) if finish_latencies else -1
+    keeps_up = (
+        maximum_endpoint <= maximum_endpoint_latency_ms
+        and maximum_finish <= maximum_finish_latency_ms
+    )
+    result: dict[str, object] = {
+        "status": ("PASS" if keeps_up else "FAIL") if required else "OBSERVED",
         "utterance_count": len(latencies),
-        "p95_endpoint_to_final_ms": p95,
-        "maximum_endpoint_to_final_ms": max(latencies),
-        "maximum_p95_ms": maximum_p95_ms,
+        "finish_recovery_count": len(finish_latencies),
+        "maximum_endpoint_latency_ms": maximum_endpoint_latency_ms,
+        "maximum_finish_latency_ms": maximum_finish_latency_ms,
     }
+    if latencies:
+        result["p95_endpoint_to_final_ms"] = endpoint_p95
+        result["maximum_endpoint_to_final_ms"] = maximum_endpoint
+    if finish_latencies:
+        result["p95_finish_to_final_ms"] = finish_p95
+        result["maximum_finish_to_final_ms"] = maximum_finish
+    return result
 
 
 def build_install(device: str) -> None:
@@ -899,6 +970,9 @@ def run_stress(args: argparse.Namespace) -> Path:
     hdc_path = locate_hdc()
     device = select_target(hdc_path, args.device)
     hdc = Hdc(hdc_path, device)
+    finish_recovery_sources = target_speaker_manifest_finish_recovery_sources(
+        args.target_speaker_manifest
+    )
     requested_corpus_root = args.data_dir.expanduser().resolve()
     corpus_root = corpus_root_for_mode(requested_corpus_root, args.mode)
     all_sources = inspect_wavs(corpus_root)
@@ -954,6 +1028,11 @@ def run_stress(args: argparse.Namespace) -> Path:
     payload.mkdir(parents=True)
     remote_dir = f"{REMOTE_ROOT}/{run_id}"
     mapping = prepare_payload(selected, payload, remote_dir, corpus_root)
+    finish_recovery_entry_ids = {
+        str(item["id"])
+        for item in mapping
+        if item.get("source") in finish_recovery_sources
+    }
     remote_manifest = f"{remote_dir}/manifest.txt"
     remote_result = f"{remote_dir}/result.txt"
     local_result = artifact_dir / "result.txt"
@@ -1004,6 +1083,8 @@ def run_stress(args: argparse.Namespace) -> Path:
         # Manifest-driven assertions are evaluated per case after the device run.
         # The carrier's legacy C1-only text check must not reject another corpus.
         "false" if args.target_speaker_manifest is not None or args.skip_target_content_check else "true",
+        "--ps", "stressSpeakerVadFinishRecoveryEntryIds",
+        ",".join(sorted(finish_recovery_entry_ids)) or "none",
         "--ps", "stressSpeakerVadThreshold",
         str((args.speaker_vad_threshold if args.speaker_vad_threshold is not None else -2) + 2),
         check=False,
@@ -1060,7 +1141,8 @@ def run_stress(args: argparse.Namespace) -> Path:
     realtime_required = args.pace_ms >= 20
     if args.mode == "speaker-vad-turn":
         target_speaker_realtime = speaker_turn_final_latency_verdict(
-            artifact_dir / "hilog.txt", realtime_required
+            artifact_dir / "hilog.txt", realtime_required, cycles=cycle_results,
+            finish_recovery_entry_ids=finish_recovery_entry_ids,
         )
     else:
         target_speaker_realtime = target_speaker_realtime_verdict(
@@ -1145,6 +1227,7 @@ def run_stress(args: argparse.Namespace) -> Path:
             "post_run_observe_seconds": args.post_run_observe,
             "target_content_check_enabled": not args.skip_target_content_check,
             "speaker_vad_threshold": args.speaker_vad_threshold,
+            "finish_recovery_entry_ids": sorted(finish_recovery_entry_ids),
         },
         "inventory": inventory,
         "application": app_summary,

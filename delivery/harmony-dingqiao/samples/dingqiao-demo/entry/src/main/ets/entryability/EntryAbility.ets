@@ -102,6 +102,8 @@ export default class EntryAbility extends UIAbility {
       options.enrollmentCount = this.numberParameter(want, 'stressEnrollmentCount', 1);
       options.enforceTargetSpeakerBusinessText =
         this.stringParameter(want, 'stressEnforceTargetSpeakerBusinessText', 'true') === 'true';
+      options.speakerVadFinishRecoveryEntryIds =
+        this.stringParameter(want, 'stressSpeakerVadFinishRecoveryEntryIds', 'none');
       // `aa --ps` treats a leading '-' in the value as another option. Transport the
       // [-2, 1] test value shifted by +2, then restore it inside the carrier.
       options.speakerVadThreshold =
