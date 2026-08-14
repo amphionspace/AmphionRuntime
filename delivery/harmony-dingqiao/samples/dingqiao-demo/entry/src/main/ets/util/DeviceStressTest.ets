@@ -1381,14 +1381,14 @@ async function runSpeakerVadTurnCycle(engine: SpeechRecognitionEngine,
     (finishToFirstNonEmptyResultMs >= 0 && finishToFirstNonEmptyResultMs <= 1200);
   const ok = completed && events.starts === 1 && events.finals > 0 && events.lastFinals === 1 &&
     lastFinalsBeforeFinish === 0 && events.completes === 1 && events.errors === 0 &&
-    businessTextPassed && events.partials === 0 && boundarySignalPassed && finishLatencyPassed &&
+    businessTextPassed && events.partials > 0 && boundarySignalPassed && finishLatencyPassed &&
     !engine.isBusy();
   let detail = ok ? (finishRecovery ? 'speaker-vad-turn-clean-finish-recovery' :
     'speaker-vad-turn-clean') : 'speaker-vad-turn-contract';
   if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
   else if (!boundarySignalPassed) detail = 'speaker-vad-turn-missing-endpoint';
   else if (!finishLatencyPassed) detail = 'speaker-vad-turn-finish-latency';
-  else if (events.partials > 0) detail = 'speaker-vad-turn-partial-leak';
+  else if (events.partials === 0) detail = 'speaker-vad-turn-missing-partial';
   else if (!businessTextPassed) detail = 'speaker-vad-turn-text-contract';
   if (events.errorMessages.length > 0) {
     detail = `speaker-vad-turn-error-${events.errorMessages[0]}`;
@@ -1678,6 +1678,7 @@ async function runSpeakerVadOnStartCycle(engine: SpeechRecognitionEngine, entry:
   engine.setListener(listener);
   const params = startParams(sessionId, 'speaker-vad-onstart', index);
   params.extraParams['vadBegin'] = 1000;
+  params.extraParams['enablePartialResult'] = true;
   params.extraParams['enableVoiceprintVerification'] = false;
   params.extraParams['enableSpeakerVad'] = false;
   params.extraParams['voiceprintIds'] = [voiceprintId];
@@ -1696,7 +1697,7 @@ async function runSpeakerVadOnStartCycle(engine: SpeechRecognitionEngine, entry:
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
 
   const primaryContract = completed && events.starts === 1 && events.finals > 0 &&
-    events.nonEmptySpeakerScores > 0 && events.partials === 0 &&
+    events.nonEmptySpeakerScores > 0 && events.partials > 0 &&
     events.lastFinals === 1 && lastFinalsAfterStart === 0 && lastFinalsBeforeFinish === 0 &&
     events.completes === 1 && events.errors === 0 && listener.enableAttempted &&
     listener.enableReturned && listener.enableThrowMessage.length === 0 &&
@@ -1722,7 +1723,7 @@ async function runSpeakerVadOnStartCycle(engine: SpeechRecognitionEngine, entry:
   else if (!listener.enableReturned || listener.speakerVadChangedEvents !== 1) {
     detail = `speaker-vad-enable-contract-${listener.speakerVadChangedEvents}`;
   } else if (lastFinalsAfterStart > 0 || lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
-  else if (events.partials > 0) detail = 'speaker-vad-onstart-partial-leak';
+  else if (events.partials === 0) detail = 'speaker-vad-onstart-missing-partial';
   else if (events.nonEmptySpeakerScores === 0) detail = 'speaker-vad-missing-nonempty-speaker-score';
   else if (!primaryContract) detail = 'speaker-vad-onstart-session-contract';
   else if (!recovered) detail = 'speaker-vad-onstart-recovery-contract';

@@ -21,7 +21,16 @@ import org.mockito.kotlin.whenever
 class PoliceEnhancementEngineCallbackTest {
 
     @Test
-    fun queuedPartialIsSuppressedWhenRuntimeSpeakerVadEnableReturns() {
+    fun queuedPartialIsDeliveredWhenRuntimeSpeakerVadEnableReturns() {
+        assertQueuedPartialDelivery(partialRequested = true, expected = listOf("allowed-partial"))
+    }
+
+    @Test
+    fun queuedPartialStaysSuppressedWhenCallerDisabledPartials() {
+        assertQueuedPartialDelivery(partialRequested = false, expected = emptyList())
+    }
+
+    private fun assertQueuedPartialDelivery(partialRequested: Boolean, expected: List<String>) {
         val nativeCallbacks = ConcurrentLinkedQueue<AsrCallback>()
         val session = mock<AsrSession>()
         val asrEngine = mock<AsrEngine>()
@@ -68,17 +77,20 @@ class PoliceEnhancementEngineCallbackTest {
                 StartParams(
                     sessionId = "runtime-speaker-vad",
                     audioInfo = AudioInfo(),
-                    extraParams = mapOf("voiceprintIds" to listOf(voiceprintId)),
+                    extraParams = mapOf(
+                        "voiceprintIds" to listOf(voiceprintId),
+                        "enablePartialResult" to partialRequested,
+                    ),
                 ),
             )
-            nativeCallbacks.remove().onPartial("must-not-leak")
+            nativeCallbacks.remove().onPartial("allowed-partial")
             publicEngine.setSpeakerVadEnabled(true)
 
             releaseExecutor.countDown()
             val drained = CountDownLatch(1)
             callbackExecutor.execute { drained.countDown() }
             assertTrue(drained.await(5, TimeUnit.SECONDS))
-            assertTrue(results.isEmpty())
+            assertEquals(expected, results)
         } finally {
             releaseExecutor.countDown()
             publicEngine.shutdown()

@@ -997,7 +997,8 @@ internal class SessionImpl(
     // -------- callback dispatch --------
 
     private fun postPartial(result: AsrResult) {
-        if (speakerVadEnabled && !svTargetConfirmed) return
+        // Speaker VAD only corrects committed finals. Partials remain speculative; the public
+        // adapter still applies the caller's enablePartialResult setting at delivery time.
         callbackHandler.post {
             metrics.onPartialDispatched()
             safeCallback { callback.onPartial(result) }
