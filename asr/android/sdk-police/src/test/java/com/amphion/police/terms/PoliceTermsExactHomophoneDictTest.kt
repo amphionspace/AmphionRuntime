@@ -221,6 +221,73 @@ class PoliceTermsExactHomophoneDictTest {
     }
 
     @Test
+    fun recovers_xiaoqiaoSemanticDeviceFailures_withoutRewritingLegitimateStandaloneTerms() {
+        val cases = mapOf(
+            // 2026-08-14 甲方小乔语义语料：仅收录明显误识的完整 final。
+            "停止群平台。" to "勤指情平台。",
+            "因景致联？" to "京警智联？",
+            "侧卡盘查！" to "设卡盘查！",
+            "停止熊平台。" to "情指行平台。",
+            "先收紧张。" to "签收警单。",
+            "前所进单。" to "签收警单。",
+            "只性接触警。" to "指信接处警。",
+            "帮我打开谨信语。" to "帮我打开警信。",
+            "指信接触景。" to "指信接处警。",
+            "指信接触警。" to "指信接处警。",
+            "色卡款场。" to "设卡盘查。",
+        )
+        val protectedTargets = listOf(
+            "e警保", "义警", "争执不下", "京警智联", "人员全项查询", "勤指情平台",
+            "处警反馈", "处警完毕", "帮我打开警信", "情指中心", "情指行", "情指行平台",
+            "打开帮填", "执行劝返", "拘传", "指信接处警", "指信-接处警", "接处警",
+            "摸排", "案结事了", "治爆", "清查快采", "滋事人员", "签收警单",
+            "经纬度采集", "缉枪", "羁押", "见警率", "视频清整", "警官", "警戒",
+            "警鉴", "设卡盘查", "询问", "边检",
+        )
+        val excludedStandaloneInputs = listOf(
+            // 自然词、姓名、独立警务术语、产品/机构名形态及疑似错标音频均不得猜测改写。
+            "不仅反馈", "值不下", "公事人员", "半结石了", "居船", "按揭示", "按揭示了",
+            "是人员", "进阶促进", "限警力", "陷警力", "易警报", "易锦保", "林子中心",
+            "影子中心", "瓶子中心", "零子中心", "引资型平台", "打开邦铁", "经警，智联",
+            "金井智联", "帮我打开启", "是彻底先进行", "布景完毕", "日报", "停止行",
+            "案件", "渔船", "第一枪", "自报", "低压", "军事人员", "医护人员", "失事人员",
+            "报警完毕", "接处", "现场", "申请", "约束", "边界", "咿呀", "一", "一呀",
+            "一警报", "引荐", "意境", "意见", "愚蠢", "感谢", "愿景", "是不是", "有人问",
+            "极强", "眼见", "林子晴平台", "林子行", "尹见", "李强",
+        )
+        val normalizers = listOf<(String) -> String>(
+            { v1().normalize(it).text },
+            { v2().normalize(it).text },
+        )
+        val existingContextOutputs = mapOf(
+            // 既有全局规则会在长上下文中改写“指信接触”；本修复不得在其上继续整句替换。
+            "请复述指信接触景这个错误。" to "请复述指信接处警景这个错误。",
+            "文本里写着指信接触景，请不要改写。" to "文本里写着指信接处警景，请不要改写。",
+            "请复述指信接触警这个错误。" to "请复述指信接处警警这个错误。",
+            "文本里写着指信接触警，请不要改写。" to "文本里写着指信接处警警，请不要改写。",
+        )
+
+        for (normalize in normalizers) {
+            for ((raw, expected) in cases) {
+                assertEquals("raw=$raw", expected, normalize(raw))
+                val bare = raw.trimEnd('。', '？', '！')
+                for (input in listOf(
+                    "请复述${bare}这个错误。",
+                    "文本里写着${bare}，请不要改写。",
+                )) {
+                    assertEquals(existingContextOutputs[input] ?: input, normalize(input))
+                }
+            }
+            for (target in protectedTargets) {
+                assertEquals("protected target=$target", "$target。", normalize("$target。"))
+            }
+            for (input in excludedStandaloneInputs) {
+                assertEquals("excluded standalone=$input", "$input。", normalize("$input。"))
+            }
+        }
+    }
+
+    @Test
     fun exactDictionary_loadsDeviceTtsRows_withChinesePunctuation() {
         assertEquals(
             "夜班交接时，班长逐条检查是否已签警情。",
