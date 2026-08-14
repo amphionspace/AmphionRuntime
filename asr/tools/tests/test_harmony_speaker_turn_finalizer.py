@@ -41,6 +41,9 @@ ANDROID_DINGQIAO_ENGINE = (
     REPO_ROOT
     / "asr/android/sdk-dingqiao/src/main/java/com/amphion/dingqiao/DingqiaoRecognitionEngine.kt"
 )
+ANDROID_SESSION_IMPL = (
+    REPO_ROOT / "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt"
+)
 
 
 class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
@@ -327,7 +330,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         self.assertIn("options.speakerVadFinishRecoveryEntryIds", cycle)
         self.assertIn("speechEndsBeforeFinish > 0 || finishRecovery", cycle)
         self.assertIn("finishToFirstNonEmptyResultMs <= 1200", cycle)
-        self.assertIn("events.partials === 0", cycle)
+        self.assertIn("events.partials > 0", cycle)
         self.assertIn("speaker-vad-turn-missing-endpoint", cycle)
 
     def test_diarization_rejects_more_than_one_target_to_other_turn(self) -> None:
@@ -814,7 +817,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         self.assertIn("result.timestamps = [];", rejected_final)
         self.assertIn("result.tokenConfidences = [];", rejected_final)
 
-    def test_speaker_vad_public_results_are_final_only(self) -> None:
+    def test_speaker_vad_preserves_requested_partials_while_final_stays_gated(self) -> None:
         source = SPEECH_RECOGNIZE_SDK.read_text(encoding="utf-8")
         start = source.split("const verify = strictBooleanParam", 1)[1].split(
             "this.policeFinalSession =", 1
@@ -823,38 +826,39 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "this.partialRequested = params.extraParams['enablePartialResult'] !== false;",
             start,
         )
-        self.assertIn("this.partialEnabled = this.partialRequested && !speakerVad;", start)
+        self.assertIn("this.partialEnabled = this.partialRequested;", start)
         runtime_toggle = source.split("setSpeakerVadEnabled(enabled: boolean)", 1)[1].split(
             "finish(sessionId: string)", 1
         )[0]
-        self.assertLess(
-            runtime_toggle.index("if (enabled) this.partialEnabled = false;"),
-            runtime_toggle.index("session.ensureTargetSpeakerExtractor();"),
-        )
-        missing_embedding = runtime_toggle.split("if (embedding === undefined)", 1)[1].split(
-            "session.setTargetSpeaker(embedding)", 1
-        )[0]
-        self.assertIn("this.partialEnabled = partialBeforeToggle;", missing_embedding)
-        self.assertIn("this.partialEnabled = this.partialRequested && !enabled;", runtime_toggle)
+        self.assertNotIn("if (enabled) this.partialEnabled = false;", runtime_toggle)
+        self.assertNotIn("this.partialRequested && !enabled", runtime_toggle)
 
         android = ANDROID_DINGQIAO_ENGINE.read_text(encoding="utf-8")
         self.assertIn("partialRequested = DingqiaoEngineConfig.enablePartialResult(params)", android)
-        self.assertIn("enablePartial = partialRequested && !speakerVadEnabled", android)
-        self.assertLess(
-            android.index("if (enabled) enablePartial = false"),
-            android.index('requireSpeakerModel("speaker VAD")'),
-        )
-        self.assertIn("enablePartial = partialRequested && !enabled", android)
+        self.assertIn("enablePartial = partialRequested", android)
+        self.assertNotIn("if (enabled) enablePartial = false", android)
+        self.assertNotIn("partialRequested && !enabled", android)
         self.assertIn("val speakerVadBeforeToggle = speakerVadEnabled", android)
         self.assertIn(
             "speakerVadEnabled = if (disabled) false else speakerVadBeforeToggle",
             android,
         )
-        self.assertIn("enablePartial = if (disabled) partialRequested else false", android)
+        self.assertIn("enablePartial = partialRequested", android)
         dispatch = android.split("private fun dispatchResult(", 1)[1].split(
             "private fun resultPayload(", 1
         )[0]
         self.assertIn("if (!isFinal && !enablePartial) return@execute", dispatch)
+
+        harmony_decode = RUNTIME.read_text(encoding="utf-8").split(
+            "private processDecodedResult(", 1
+        )[1].split("private dispatchFinal(", 1)[0]
+        self.assertNotIn("this.speakerVadEnabled && !this.svTargetConfirmed", harmony_decode)
+
+        android_core = ANDROID_SESSION_IMPL.read_text(encoding="utf-8")
+        post_partial = android_core.split("private fun postPartial(", 1)[1].split(
+            "private fun postFinalToProcessor(", 1
+        )[0]
+        self.assertNotIn("speakerVadEnabled && !svTargetConfirmed", post_partial)
 
 
 if __name__ == "__main__":

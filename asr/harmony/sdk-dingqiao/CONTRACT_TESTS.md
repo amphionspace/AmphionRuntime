@@ -60,8 +60,9 @@
 3. 持续写入静音 PCM 达到阈值后，必须依次回调空的 last final 和一次 `onComplete`，不得回调 speech 事件或错误。
 4. 阈值边界同时检测到真实语音时，语音优先；VAD 或 ASR text/token 出现后，本会话不得再次触发 `vadBegin`。
 5. `enablePartialResult=false` 不得影响真实 VAD 起音和 `vadBegin` 取消。
-   启用 Speaker VAD 时，无论该参数取值如何，公开回调都必须为 final-only，避免边界确认前的
-   speculative partial 泄漏下一说话人文本。
+   启用 Speaker VAD 时仍必须遵循该参数：为 `true` 时继续公开 speculative partial，为 `false`
+   时不公开 partial。Speaker VAD 的目标说话人边界保证只适用于 final；partial 允许包含随后从
+   final 中移除的非目标说话人文本。
 6. `recognitionMode` 缺省为 `STREAM=1`；传入 `RECORD=0` 应启动失败并明确提示不支持 SDK 内录音。
 7. `recognizerMode` 只接受 `short` / `long`，两者均使用现有长语音流式实现。
 8. `locate` 当前仅兼容接受 `CN`；`sessionGeneralLexicon` 明确为 V1 不支持，不得伪装生效。
