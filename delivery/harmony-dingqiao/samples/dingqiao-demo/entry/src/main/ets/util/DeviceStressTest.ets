@@ -1369,10 +1369,11 @@ async function runSpeakerVadTurnCycle(engine: SpeechRecognitionEngine,
     (text.includes('上海') && !text.includes('你好'));
   const ok = completed && events.starts === 1 && events.finals > 0 && events.lastFinals === 1 &&
     lastFinalsBeforeFinish === 0 && events.completes === 1 && events.errors === 0 &&
-    businessTextPassed && events.partials > 0 && speechEndsBeforeFinish > 0 && !engine.isBusy();
+    businessTextPassed && events.partials === 0 && speechEndsBeforeFinish > 0 && !engine.isBusy();
   let detail = ok ? 'speaker-vad-turn-clean' : 'speaker-vad-turn-contract';
   if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
   else if (speechEndsBeforeFinish === 0) detail = 'speaker-vad-turn-missing-endpoint';
+  else if (events.partials > 0) detail = 'speaker-vad-turn-partial-leak';
   else if (!businessTextPassed) detail = 'speaker-vad-turn-text-contract';
   if (events.errorMessages.length > 0) {
     detail = `speaker-vad-turn-error-${events.errorMessages[0]}`;
@@ -1679,7 +1680,7 @@ async function runSpeakerVadOnStartCycle(engine: SpeechRecognitionEngine, entry:
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
 
   const primaryContract = completed && events.starts === 1 && events.finals > 0 &&
-    events.nonEmptySpeakerScores > 0 &&
+    events.nonEmptySpeakerScores > 0 && events.partials === 0 &&
     events.lastFinals === 1 && lastFinalsAfterStart === 0 && lastFinalsBeforeFinish === 0 &&
     events.completes === 1 && events.errors === 0 && listener.enableAttempted &&
     listener.enableReturned && listener.enableThrowMessage.length === 0 &&
@@ -1705,6 +1706,7 @@ async function runSpeakerVadOnStartCycle(engine: SpeechRecognitionEngine, entry:
   else if (!listener.enableReturned || listener.speakerVadChangedEvents !== 1) {
     detail = `speaker-vad-enable-contract-${listener.speakerVadChangedEvents}`;
   } else if (lastFinalsAfterStart > 0 || lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
+  else if (events.partials > 0) detail = 'speaker-vad-onstart-partial-leak';
   else if (events.nonEmptySpeakerScores === 0) detail = 'speaker-vad-missing-nonempty-speaker-score';
   else if (!primaryContract) detail = 'speaker-vad-onstart-session-contract';
   else if (!recovered) detail = 'speaker-vad-onstart-recovery-contract';

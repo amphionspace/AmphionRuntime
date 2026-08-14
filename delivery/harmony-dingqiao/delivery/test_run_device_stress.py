@@ -287,6 +287,8 @@ class RunCommandTest(unittest.TestCase):
         )[0]
 
         self.assertIn("events.nonEmptySpeakerScores > 0", cycle)
+        self.assertIn("events.partials === 0", cycle)
+        self.assertIn("speaker-vad-onstart-partial-leak", cycle)
         self.assertIn("speaker-vad-missing-nonempty-speaker-score", cycle)
 
     def test_same_source_speaker_modes_allow_the_only_entry_as_enrollment(self) -> None:

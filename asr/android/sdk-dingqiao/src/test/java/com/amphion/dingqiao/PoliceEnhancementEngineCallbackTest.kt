@@ -21,6 +21,73 @@ import org.mockito.kotlin.whenever
 class PoliceEnhancementEngineCallbackTest {
 
     @Test
+    fun queuedPartialIsSuppressedWhenRuntimeSpeakerVadEnableReturns() {
+        val nativeCallbacks = ConcurrentLinkedQueue<AsrCallback>()
+        val session = mock<AsrSession>()
+        val asrEngine = mock<AsrEngine>()
+        whenever(asrEngine.newSession(any(), any())).thenAnswer { invocation ->
+            nativeCallbacks.add(invocation.getArgument(0))
+            session
+        }
+        val callbackExecutor = Executors.newSingleThreadExecutor()
+        val executorBlocked = CountDownLatch(1)
+        val releaseExecutor = CountDownLatch(1)
+        callbackExecutor.execute {
+            executorBlocked.countDown()
+            releaseExecutor.await(5, TimeUnit.SECONDS)
+        }
+        assertTrue(executorBlocked.await(5, TimeUnit.SECONDS))
+
+        val workPath = kotlin.io.path.createTempDirectory().toFile()
+        val store = VoiceprintStore(workPath)
+        val voiceprintId = store.saveVoiceprint(listOf("sample.pcm"), floatArrayOf(1f, 0f)).voiceprintId.keys.single()
+        val speakerModel = store.speakerModelPath().apply { writeBytes(byteArrayOf(1)) }
+        val results = CopyOnWriteArrayList<String>()
+        val publicEngine: SpeechRecognitionEngine = DingqiaoRecognitionEngine(
+            appContext = mock<Context>(),
+            createParams = CreateEngineParams(language = "zh-CN"),
+            voiceprintStore = store,
+            speakerModelPath = speakerModel.absolutePath,
+            callbackExecutor = callbackExecutor,
+            onShutdown = {},
+            preloadedEngine = asrEngine,
+            injectedTextEnhancer = { it },
+        )
+        publicEngine.setListener(object : RecognitionListener {
+            override fun onStart(sessionId: String, eventMessage: String) = Unit
+            override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+            override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
+                results += result.result
+            }
+            override fun onComplete(sessionId: String, eventMessage: String) = Unit
+            override fun onError(sessionId: String, errorCode: Int, errorMessage: String) = Unit
+        })
+
+        try {
+            publicEngine.startListening(
+                StartParams(
+                    sessionId = "runtime-speaker-vad",
+                    audioInfo = AudioInfo(),
+                    extraParams = mapOf("voiceprintIds" to listOf(voiceprintId)),
+                ),
+            )
+            nativeCallbacks.remove().onPartial("must-not-leak")
+            publicEngine.setSpeakerVadEnabled(true)
+
+            releaseExecutor.countDown()
+            val drained = CountDownLatch(1)
+            callbackExecutor.execute { drained.countDown() }
+            assertTrue(drained.await(5, TimeUnit.SECONDS))
+            assertTrue(results.isEmpty())
+        } finally {
+            releaseExecutor.countDown()
+            publicEngine.shutdown()
+            callbackExecutor.shutdownNow()
+            workPath.deleteRecursively()
+        }
+    }
+
+    @Test
     fun publicEngineSnapshotsTogglePerSessionAndPreservesTerminalCallbackContract() {
         val nativeCallbacks = ConcurrentLinkedQueue<AsrCallback>()
         val asrEngine = mock<AsrEngine>()

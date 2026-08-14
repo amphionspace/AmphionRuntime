@@ -45,8 +45,9 @@ export class SpeakerTurnSplit {
  * Owns the bounded PCM and score ledger needed to commit a clean target -> other boundary.
  *
  * A split is returned only after consecutive low speaker scores, a deterministic acoustic/token
- * candidate, and independent target-left/non-target-right verification. Ambiguous evidence is a
- * fail-open decision: the caller keeps the speculative stream result unchanged.
+ * candidate, and independent target-left/non-target-right verification. For a confirmed sequential
+ * departure, the caller can fall back to the conservative prefix returned by resolveContainment;
+ * overlap remains explicitly outside this module's contract.
  */
 export class SpeakerTurnFinalizer {
   private sampleRate: number;
@@ -140,9 +141,36 @@ export class SpeakerTurnFinalizer {
   deferResolution(reason: string): void { this.resolutionReason = reason; }
   needsMoreContext(): boolean {
     return this.resolutionReason === 'insufficient-refine-context' ||
-      this.resolutionReason === 'diarizer-loading';
+      this.resolutionReason === 'diarizer-loading' ||
+      (this.resolutionReason.startsWith('sequential-boundary-ambiguous:') &&
+        this.resolutionReason.endsWith(':insufficient-refine-context'));
   }
   hasPendingDeparture(): boolean { return this.departureSeen; }
+
+  /**
+   * Keep only PCM that predates the last target-positive scoring window.
+   *
+   * A positive window proves that the target was present somewhere in that window, but it cannot
+   * prove that a following speaker did not enter before the window ended. Its start is therefore
+   * the latest conservative cut when a confirmed sequential departure has no precise boundary.
+   */
+  resolveContainment(): SpeakerTurnSplit | undefined {
+    this.resolutionReason = 'containment-not-ready';
+    if (!this.departureSeen || this.capped || this.lastTargetEndSample < 0) {
+      if (this.capped) this.resolutionReason = 'containment-buffer-capped';
+      return undefined;
+    }
+    const cutSample = this.safePrefixEndSample();
+    if (cutSample <= 0 || cutSample >= this.retainedSamples) {
+      this.resolutionReason = `containment-no-safe-prefix:${cutSample}`;
+      return undefined;
+    }
+    const all = concatFloat32(this.parts, this.retainedSamples);
+    const processed = this.processedSamples();
+    this.resolutionReason = `containment-safe-prefix:${cutSample}`;
+    return new SpeakerTurnSplit(cutSample, all.slice(0, cutSample), all.slice(cutSample),
+      processed.slice(0, cutSample), processed.slice(cutSample));
+  }
 
   resolve(tokenTimestampsSec: number[], threshold: number,
     scoreRange: SpeakerRangeScorer, boundaryHintsSamples: number[] = []): SpeakerTurnSplit | undefined {
@@ -341,8 +369,9 @@ export class SpeakerTurnFinalizer {
     const transitionStart = Math.max(0, this.lastTargetEndSample - this.windowSamples);
     const transitionEnd = Math.min(all.length, this.lastTargetEndSample);
     if (transitionEnd <= transitionStart || candidate < transitionStart || candidate > transitionEnd) {
-      this.resolutionReason = `diarization-outside-score-transition:${candidate}:not-in:` +
-        `${transitionStart}-${transitionEnd}`;
+      const direction = candidate < transitionStart ? 'before' : 'after';
+      this.resolutionReason = `diarization-boundary-${direction}-score-transition:` +
+        `${candidate}:not-in:${transitionStart}-${transitionEnd}`;
       return undefined;
     }
     const otherSpeaker = speakerIds.find((speaker: number): boolean => speaker !== targetSpeaker) ?? -1;
