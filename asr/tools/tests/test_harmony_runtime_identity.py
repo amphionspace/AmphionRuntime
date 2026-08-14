@@ -35,9 +35,9 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
     def test_runtime_identity_matches_delivery_version(self) -> None:
         self.run_identity(
             """
-            assert.equal(HARMONY_SDK_VERSION, '0.3.2');
+            assert.equal(HARMONY_SDK_VERSION, '0.3.3');
             assert.equal(HARMONY_SDK_MAJOR, 1);
-            assert.equal(HARMONY_SDK_RELEASE_DATE, '2026-08-13');
+            assert.equal(HARMONY_SDK_RELEASE_DATE, '2026-08-14');
             """
         )
 
@@ -60,7 +60,7 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
             );
             assert.equal(
               evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-08-13', HARMONY_SDK_RELEASE_DATE),
-              LicenseIdentityFailure.NONE,
+              LicenseIdentityFailure.MAINTENANCE_EXPIRED,
             );
             assert.equal(
               evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-08-14', HARMONY_SDK_RELEASE_DATE),
@@ -78,7 +78,7 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
             "asr/harmony/sdk/src/main/cpp/types/libamphion_asr/oh-package.json5",
         ):
             manifest = json.loads((REPO_ROOT / relative).read_text(encoding="utf-8"))
-            self.assertEqual(manifest["version"], "0.3.2", relative)
+            self.assertEqual(manifest["version"], "0.3.3", relative)
 
         # Lockfiles are generated/ignored by ohpm. When present, they must not retain stale native
         # identity, but a clean checkout does not need generated files for this gate to pass.
@@ -98,7 +98,7 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
             ]
             self.assertTrue(native_packages, relative)
             self.assertTrue(
-                all(package["version"] == "0.3.2" for package in native_packages),
+                all(package["version"] == "0.3.3" for package in native_packages),
                 relative,
             )
 
