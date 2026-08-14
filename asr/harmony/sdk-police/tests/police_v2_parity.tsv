@@ -282,3 +282,44 @@ terms	equals	夜班交接时班长逐条检查是否已签收警情	夜班交接
 terms	equals	请及时签收警情。	请及时签收警情。
 terms	equals	夜班交接时，班长逐条检查是否已签警情？	夜班交接时，班长逐条检查是否已签警情？
 terms	equals	值班民警已签警单。	值班民警已签警单。
+# 20260813 三星麦克风/截图：只纠正已观测的整条短 final；合法近邻词保持不变。
+terms	equals	仙警情。	签警情。
+terms	equals	千锦情？	签警情？
+terms	equals	千警情。	签警情。
+terms	equals	千警情情。	签警情。
+terms	equals	签警单。	签警单。
+terms	equals	签收警情。	签收警情。
+terms	equals	请复述仙警情这个错误。	请复述仙警情这个错误。
+# 20260814 三星麦克风/甲方反馈：两个术语分别恢复；上下文中的相同字串不替换。
+terms	equals	千景情。	签警情。
+terms	equals	天锦情？	签警情？
+terms	equals	天警情。	签警情。
+terms	equals	先警情。	签警情。
+terms	equals	边警情。	签警情。
+terms	equals	天井丹。	签警单。
+terms	equals	天景丹？	签警单？
+terms	equals	请复述先警情这个错误。	请复述先警情这个错误。
+terms	equals	请复述天景丹这个错误。	请复述天景丹这个错误。
+terms	equals	陈景丹。	陈景丹。
+# 20260814 三星下一轮麦克风实测：短 final 定向纠正，正常“前景”上下文保持不变。
+terms	equals	前景情。	签警情。
+terms	equals	见见情？	签警情？
+terms	equals	请复述前景情这个错误。	请复述前景情这个错误。
+terms	equals	请复述见见情这个错误。	请复述见见情这个错误。
+terms	equals	前景情况良好。	前景情况良好。
+terms	equals	市场前景可期。	市场前景可期。
+terms	equals	我们改天见见面。	我们改天见见面。
+# 20260814 三星下一轮麦克风实测：双术语 exact 纠正，并保护合法见警/前景上下文。
+terms	equals	见警情。	签警情。
+terms	equals	前景单？	签警单？
+terms	equals	见警情即响应。	见警情即响应。
+terms	equals	看见警情列表后立即处置。	看见警情列表后立即处置。
+terms	equals	街面见警情况良好。	街面见警情况良好。
+terms	equals	常见警情包括纠纷和盗窃。	常见警情包括纠纷和盗窃。
+terms	equals	行业前景单独评估。	行业前景单独评估。
+terms	equals	发展前景单一并不理想。	发展前景单一并不理想。
+terms	equals	画面前景单调，需要调整。	画面前景单调，需要调整。
+terms	equals	请复述前景单这个错误。	请复述前景单这个错误。
+terms	equals	前警情。	前警情。
+terms	equals	查看此前警情。	查看此前警情。
+terms	equals	调取先前警情记录。	调取先前警情记录。
