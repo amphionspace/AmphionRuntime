@@ -1751,9 +1751,8 @@ export class AsrSession {
       if (!this.callbackGate.isClosed()) this.finishUtterance(restartAfterFinal);
     } else if (r.text !== this.lastPartialText) {
       this.lastPartialText = r.text;
-      // When speaker VAD is on, hold partials until the target speaker is confirmed so a non-target
-      // prefix never leaks to the UI (Android postPartial gate).
-      if (this.speakerVadEnabled && !this.svTargetConfirmed) return;
+      // Speaker VAD only corrects committed finals. Partials remain speculative so adapters can
+      // preserve the caller's requested real-time callback behavior.
       const result = new AsrResult();
       result.text = r.text;
       result.tokens = r.tokens;

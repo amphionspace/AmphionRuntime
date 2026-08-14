@@ -342,9 +342,10 @@ class RunCommandTest(unittest.TestCase):
             "async function runCallbackApiReentrantCycle", 1
         )[0]
 
+        self.assertIn("params.extraParams['enablePartialResult'] = true", cycle)
         self.assertIn("events.nonEmptySpeakerScores > 0", cycle)
-        self.assertIn("events.partials === 0", cycle)
-        self.assertIn("speaker-vad-onstart-partial-leak", cycle)
+        self.assertIn("events.partials > 0", cycle)
+        self.assertIn("speaker-vad-onstart-missing-partial", cycle)
         self.assertIn("speaker-vad-missing-nonempty-speaker-score", cycle)
 
     def test_same_source_speaker_modes_allow_the_only_entry_as_enrollment(self) -> None:

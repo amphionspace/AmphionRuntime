@@ -234,7 +234,7 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | --- | --- | --- | --- |
 | `recognitionMode` | `number/string` | `1` | 仅支持 `1`（外部写入音频流）；`0`（SDK 内录音）暂不支持 |
 | `vadBegin` | `number/string` | 未启用 | 首次检测到语音前的静音超时，范围 500 到 10000 ms；仅显式传入时启用 |
-| `enablePartialResult` | `boolean` | `true` | 是否回调中间结果；启动参数或运行时接口启用 Speaker VAD 后，为保证目标人结果不泄漏，该参数不生效，SDK 仅公开 final；运行时关闭 Speaker VAD 后恢复原设置 |
+| `enablePartialResult` | `boolean` | `true` | 是否回调中间结果；启用 Speaker VAD 后仍遵循该参数。partial 属于推测结果，可能包含随后从 final 中移除的非目标说话人文本；目标说话人边界保证仅适用于 final |
 | `enablePoliceEnhancement` | `boolean` | `true` | 是否对 final 文本执行警务术语、车牌和派出所归一化；`false` 返回原始 ASR 文本 |
 | `maxAudioDuration` | `number/string` | 未启用 | 单会话最长音频毫秒数；显式正有限值按调用值生效，上限 28800000；达到上限后正常自动结束，非正数或非法值按未启用处理 |
 | `vadEnd` | `number/string` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |

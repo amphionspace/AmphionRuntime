@@ -138,7 +138,9 @@ internal class DingqiaoRecognitionEngine(
             policeEnhancementEnabled = DingqiaoEngineConfig.enablePoliceEnhancement(params)
             voiceprintEnabled = DingqiaoEngineConfig.enableVoiceprintVerification(params)
             speakerVadEnabled = DingqiaoEngineConfig.enableSpeakerVad(params)
-            enablePartial = partialRequested && !speakerVadEnabled
+            // Speaker VAD only corrects committed finals. Partials remain speculative and follow
+            // the caller's enablePartialResult setting for API compatibility.
+            enablePartial = partialRequested
             voiceprintIds = DingqiaoEngineConfig.voiceprintIds(params)
             finishRequested = false
             completeSent = false
@@ -264,7 +266,6 @@ internal class DingqiaoRecognitionEngine(
         val sid = activeSessionId ?: return
         val epoch = activeEpoch
         val speakerVadBeforeToggle = speakerVadEnabled
-        if (enabled) enablePartial = false
         try {
             if (enabled) {
                 requireSpeakerModel("speaker VAD")
@@ -278,7 +279,6 @@ internal class DingqiaoRecognitionEngine(
             currentSession.setTargetSpeakerEnabled(voiceprintEnabled || enabled)
             currentSession.setSpeakerVadEnabled(enabled)
             speakerVadEnabled = enabled
-            enablePartial = partialRequested && !enabled
             notifyEvent(
                 epoch,
                 sid,
@@ -290,9 +290,8 @@ internal class DingqiaoRecognitionEngine(
                 currentSession.setSpeakerVadEnabled(false)
             }.isSuccess
             // A failed rollback leaves native state unknown. Preserve the last confirmed public
-            // state, while keeping partials closed until a later successful toggle resolves it.
+            // Speaker VAD state; partial delivery remains governed only by the caller's setting.
             speakerVadEnabled = if (disabled) false else speakerVadBeforeToggle
-            enablePartial = if (disabled) partialRequested else false
             if (disabled) currentSession.setTargetSpeakerEnabled(voiceprintEnabled)
             notifyError(
                 epoch,
@@ -543,9 +542,8 @@ internal class DingqiaoRecognitionEngine(
             lifecycleCallbackLock.withLock {
                 val captured = synchronized(this@DingqiaoRecognitionEngine) {
                     if (!ownsSessionLocked(epoch, sessionId) || completeSent) return@execute
-                    // A partial may have been queued before a synchronous runtime toggle closed
-                    // the gate. Recheck at the public callback boundary so Speaker VAD is
-                    // final-only from the moment setSpeakerVadEnabled(true) returns.
+                    // Recheck at the public callback boundary so enablePartialResult=false also
+                    // suppresses a partial that was already queued by the native callback.
                     if (!isFinal && !enablePartial) return@execute
                     listener
                 }

@@ -5,7 +5,8 @@
 - Speaker VAD 的边界分段已确认“机主到他人”的顺序换人、但无法精确确定切点时，改用最后一个
   已确认机主窗口之前的保守前缀重新识别；若连安全前缀也无法证明，则拒绝本段不确定结果，避免把
   后说话人的开头文字返回给业务层。
-- Speaker VAD 会话改为仅公开 final 结果，即使传入 `enablePartialResult=true` 也不再回调中间结果，
+- Speaker VAD 恢复遵循 `enablePartialResult`：开启时继续回调 speculative partial，目标说话人边界
+  仅对 final 结果作保证；关闭该参数时仍不回调中间结果，
   防止边界确认完成前的推测文本短暂泄漏后说话人的内容。
 - 保持目标人单独说话、明确边界后的后缀重放以及既有 `isFinal` / `isLast` / `onComplete` 生命周期
   语义不变；同时说话仍不在本次修复范围内，不宣称具备说话人分离能力。
