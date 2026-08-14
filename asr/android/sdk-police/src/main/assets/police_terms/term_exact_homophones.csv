@@ -146,3 +146,22 @@ GB二8181,GB28181,report_v028
 # 20260814 三星 SM-G9758 下一轮麦克风实测：两个术语分别纠正；高歧义“前警情”不映射。
 见警情,签警情,samsung_mic_round4_20260814
 前景单,签警单,samsung_mic_round4_20260814
+# 20260814 四川话/四川口音“签收警单”20 条真机回放：仅纠正整条短 final，禁止全局子串替换。
+前手进单,签收警单,southwestern_tts_device_20260814
+钱收金单,签收警单,southwestern_tts_device_20260814
+前收金单,签收警单,southwestern_tts_device_20260814
+千手精打,签收警单,southwestern_tts_device_20260814
+千手警单,签收警单,southwestern_tts_device_20260814
+千手简单,签收警单,southwestern_tts_device_20260814
+钱收进单,签收警单,southwestern_tts_device_20260814
+牵手进单,签收警单,southwestern_tts_device_20260814
+前手简单,签收警单,southwestern_tts_device_20260814
+# 20260814 三星 SM-G9758 手工复测“签收警单”20 次：6 种共 9 次错误，仅纠正整条短 final。
+千手经单,签收警单,samsung_manual_retest_20260814
+千手竞单,签收警单,samsung_manual_retest_20260814
+牵手静单,签收警单,samsung_manual_retest_20260814
+千手进单,签收警单,samsung_manual_retest_20260814
+牵手竞单,签收警单,samsung_manual_retest_20260814
+千手清单,签收警单,samsung_manual_retest_20260814
+# 同一 WAV 首轮修复后真机回放新增观测变体。
+千手订单,签收警单,samsung_manual_replay_20260814

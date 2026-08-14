@@ -158,6 +158,69 @@ class PoliceTermsExactHomophoneDictTest {
     }
 
     @Test
+    fun recovers_qianshouJingdan_southwesternDeviceFailures_onlyAsWholeUtterances() {
+        val cases = mapOf(
+            // 2026-08-14 四川话/四川口音固定短语真机回放：用户每次只说“签收警单”。
+            "前手进单。" to "签收警单。",
+            "  前收金单？ " to "  签收警单？ ",
+            "钱收金单。" to "签收警单。",
+            "千手精打！" to "签收警单！",
+            "千手警单。" to "签收警单。",
+            "千手简单？" to "签收警单？",
+            "钱收进单。" to "签收警单。",
+            "牵手进单。" to "签收警单。",
+            "前手简单。" to "签收警单。",
+            // 2026-08-14 三星麦克风手工复测 20 次：11 次正确，以下 6 种共 9 次错误。
+            "千手经单。" to "签收警单。",
+            "千手竞单？" to "签收警单？",
+            "牵手静单！" to "签收警单！",
+            "千手进单。" to "签收警单。",
+            "牵手竞单？" to "签收警单？",
+            "千手清单。" to "签收警单。",
+            // 同一 WAV 修复后回放新增观测变体。
+            "千手订单；" to "签收警单；",
+        )
+        val normalizers = listOf<(String) -> String>(
+            { v1().normalize(it).text },
+            { v2().normalize(it).text },
+        )
+
+        for (normalize in normalizers) {
+            for ((raw, expected) in cases) assertEquals("raw=$raw", expected, normalize(raw))
+            for (term in listOf("签收警单。", "签警单。", "签警情。", "签收警情。")) {
+                assertEquals(term, normalize(term))
+            }
+            for (variant in listOf(
+                "前手进单", "前收金单", "钱收金单", "千手精打", "千手警单",
+                "千手简单", "钱收进单", "牵手进单", "前手简单",
+                "千手经单", "千手竞单", "牵手静单", "千手进单", "牵手竞单", "千手清单",
+                "千手订单",
+            )) {
+                val input = "请复述${variant}这个错误。"
+                assertEquals(input, normalize(input))
+            }
+            // 相同字串出现在正常业务上下文中时不得做子串替换。
+            for (input in listOf(
+                "前手进单后，后手再复核。",
+                "财务确认前收金单后再对账。",
+                "钱收进单后再开发票。",
+                "牵手进单是活动名称。",
+                "千手简单模式已关闭。",
+                "前手简单，后手复杂。",
+                "千手经单行本已经入库。",
+                "千手竞单活动已结束。",
+                "牵手静单是项目名称。",
+                "千手进单后再复核。",
+                "牵手竞单是活动名称。",
+                "千手清单已经发布。",
+                "千手订单已经发货。",
+            )) {
+                assertEquals(input, normalize(input))
+            }
+        }
+    }
+
+    @Test
     fun exactDictionary_loadsDeviceTtsRows_withChinesePunctuation() {
         assertEquals(
             "夜班交接时，班长逐条检查是否已签警情。",
