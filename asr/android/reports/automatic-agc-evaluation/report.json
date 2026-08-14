@@ -11,22 +11,22 @@
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "a971ef3476d41aa627ff32bf2146b38849ff7e2dc9cfb20dc698461116999467",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "1d88edc6a8909f32ed98b4413c612aeeb8de8b83e15c63ced4d9fdcfa1368ea3",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "11ef2bbbbb6ec76db32d45a8594c37c72533bb862d7e2d613a8bc9b0f0ea704e",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "07ec84b7eb8232de7c51d9e9df988d3ce829c5b3",
+    "source_commit": "2dcce7b004cecd29c859a19b0260e16bae8e7b30",
     "changed_source": "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets",
-    "previous_sha256": "8e9d8358bfda3fa35f5ce821f3e09c05106d8ef49f8674c843877d83ce3fb85a",
-    "current_sha256": "1d88edc6a8909f32ed98b4413c612aeeb8de8b83e15c63ced4d9fdcfa1368ea3",
+    "previous_sha256": "1d88edc6a8909f32ed98b4413c612aeeb8de8b83e15c63ced4d9fdcfa1368ea3",
+    "current_sha256": "11ef2bbbbb6ec76db32d45a8594c37c72533bb862d7e2d613a8bc9b0f0ea704e",
     "decision": "existing_accuracy_evaluation_remains_applicable",
-    "reason": "The change contains non-overlapping target-to-other speaker turns by retaining raw PCM for diarization and speaker scoring, refining the turn boundary, and applying a bounded finish-time recovery. It does not change active-session AGC construction, processed ASR PCM routing, native gain processing, decoder configuration, model bytes, or preserved evaluation inputs.",
+    "reason": "The change redacts text and token fields from rejected Speaker VAD finals so an uncertain sequential tail cannot escape through the low-level callback. It does not change active-session AGC construction, processed ASR PCM routing, native gain processing, decoder configuration, model bytes, or preserved evaluation inputs.",
     "rerun_verification": [
       "test_agc_signal_domains",
       "test_harmony_streaming_agc_processor",
       "repository_low_volume_regression_off_on"
     ],
-    "not_claimed": "The 500-item normal-volume, SNR, and long-audio evaluations were not rerun because this change only affects final speaker-turn handling on the existing raw PCM lane. The repository low-volume off/on fixture was rerun against the rebuilt host AGC library."
+    "not_claimed": "The 500-item normal-volume, SNR, and long-audio evaluations were not rerun because this change only redacts rejected Speaker VAD callback fields after decoding. The repository low-volume off/on fixture was rerun against the rebuilt host AGC library."
   },
   "evaluation_runtime": {
     "sherpa_onnx_version": "1.13.1",
