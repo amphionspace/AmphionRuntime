@@ -33,6 +33,14 @@ DEVICE_STRESS = (
     REPO_ROOT
     / "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/util/DeviceStressTest.ets"
 )
+SPEECH_RECOGNIZE_SDK = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
+)
+ANDROID_DINGQIAO_ENGINE = (
+    REPO_ROOT
+    / "asr/android/sdk-dingqiao/src/main/java/com/amphion/dingqiao/DingqiaoRecognitionEngine.kt"
+)
 
 
 class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
@@ -191,8 +199,31 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         async_stop = source.split("private async stopNowAsync", 1)[1].split(
             "updateHotwords", 1
         )[0]
-        commit_index = async_stop.index("this.commitCleanSpeakerTurn(true, false)")
+        self.assertIn(
+            "const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false",
+            async_stop,
+        )
+        self.assertIn("this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery", async_stop)
+        commit_index = async_stop.index(
+            "this.commitCleanSpeakerTurn(true, false, finishRecovery)"
+        )
         speculative_flush_index = async_stop.index("this.appendFinalTailSilence()")
+        self.assertLess(commit_index, speculative_flush_index)
+
+    def test_sync_finish_uses_the_same_short_departure_recovery(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        sync_stop = source.split("private stopNow(): void", 1)[1].split(
+            "private async stopNowAsync", 1
+        )[0]
+        self.assertIn(
+            "const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false",
+            sync_stop,
+        )
+        self.assertIn("this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery", sync_stop)
+        commit_index = sync_stop.index(
+            "this.commitCleanSpeakerTurn(true, false, finishRecovery)"
+        )
+        speculative_flush_index = sync_stop.index("this.appendFinalTailSilence()")
         self.assertLess(commit_index, speculative_flush_index)
 
     def test_enabled_by_default_starts_boundary_model_loading(self) -> None:
@@ -243,9 +274,10 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         departure = source.split("if (state === 'departure'", 1)[1].split(
             "private speakerVadScoreScheduler", 1
         )[0]
+        clean_split = departure.split("this.svPendingSplit = split", 1)[1]
         self.assertLess(
-            departure.index("this.prepareCleanPrefixSpeakerScore(split)"),
-            departure.index("this.triggerSpeakerVadEndpoint()"),
+            clean_split.index("this.prepareCleanPrefixSpeakerScore(split)"),
+            clean_split.index("this.triggerSpeakerVadEndpoint()"),
         )
         delivery = source.split("private deliverSpeakerFinal", 1)[1].split(
             "private flushPendingSpeakerFinals", 1
@@ -286,16 +318,19 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
-    def test_speaker_turn_accuracy_requires_a_real_endpoint_before_finish(self) -> None:
+    def test_speaker_turn_accuracy_requires_endpoint_or_bounded_finish_recovery(self) -> None:
         carrier = DEVICE_STRESS.read_text(encoding="utf-8")
         cycle = carrier.split("async function runSpeakerVadTurnCycle", 1)[1].split(
             "function enableTargetSpeakerEnhancement", 1
         )[0]
         self.assertIn("const speechEndsBeforeFinish = events.speechEnds", cycle)
-        self.assertIn("speechEndsBeforeFinish > 0", cycle)
+        self.assertIn("options.speakerVadFinishRecoveryEntryIds", cycle)
+        self.assertIn("speechEndsBeforeFinish > 0 || finishRecovery", cycle)
+        self.assertIn("finishToFirstNonEmptyResultMs <= 1200", cycle)
+        self.assertIn("events.partials === 0", cycle)
         self.assertIn("speaker-vad-turn-missing-endpoint", cycle)
 
-    def test_c1_diarization_selects_latest_stable_target_to_other_boundary(self) -> None:
+    def test_diarization_rejects_more_than_one_target_to_other_turn(self) -> None:
         self.run_finalizer(
             f"""
             const fixture = JSON.parse(await import('node:fs/promises').then(fs =>
@@ -315,11 +350,81 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
               0.35,
               (_samples, speaker) => fixture.cluster_scores[String(speaker)]);
 
-            assert.ok(split);
-            assert.equal(split.cutSample, fixture.expected_cut_sample);
-            assert.equal(split.prefix.length, fixture.expected_cut_sample);
-            assert.equal(split.suffix.length,
-              fixture.total_samples - fixture.expected_cut_sample);
+            assert.equal(split, undefined);
+            assert.equal(finalizer.lastResolutionReason(),
+              'diarization-turn-order:0-1-0-1');
+            """
+        )
+
+    def test_finish_resolves_a_short_sequential_suffix_before_confirmed_departure(self) -> None:
+        self.run_finalizer(
+            """
+            const samples = new Float32Array(70_400);
+            samples.fill(0.2, 0, 48_000);
+            samples.fill(0.1, 48_000);
+            const finalizer = new SpeakerTurnFinalizer(16_000, 24_000, 8_000, 2, 70_400);
+            finalizer.accept(samples);
+            assert.equal(finalizer.observeScore(48_000, 0.62, 0.35), 'target-confirmed');
+            assert.equal(finalizer.observeScore(64_000, 0.08, 0.35), 'below');
+            assert.equal(finalizer.hasPendingDeparture(), false);
+            assert.equal(finalizer.hasPendingFinishDeparture(), true);
+
+            const segments = [
+              new SpeakerTurnSegment(0, 48_000, 0),
+              new SpeakerTurnSegment(48_000, 70_400, 1),
+            ];
+            const ordinary = finalizer.resolveDiarized(
+              segments, 0.35, (_samples, speaker) => speaker === 0 ? 0.62 : 0.08);
+            assert.equal(ordinary, undefined);
+
+            let finishScoreCalls = 0;
+            const atFinish = finalizer.resolveDiarizedAtFinish(
+              segments, 0.35, (_samples, speaker) => {
+                finishScoreCalls += 1;
+                return speaker === 0 ? 0.62 : 0.08;
+              });
+            assert.ok(atFinish);
+            assert.equal(finishScoreCalls, 1);
+            assert.equal(atFinish.cutSample, 48_000);
+            assert.equal(atFinish.prefix.length, 48_000);
+            assert.equal(atFinish.suffix.length, 22_400);
+            """
+        )
+
+    def test_finish_keeps_ambiguous_short_suffix_fail_open(self) -> None:
+        self.run_finalizer(
+            """
+            const finalizer = new SpeakerTurnFinalizer(16_000, 24_000, 8_000, 2, 70_400);
+            finalizer.accept(new Float32Array(70_400));
+            finalizer.observeScore(48_000, 0.40, 0.35);
+            finalizer.observeScore(64_000, 0.30, 0.35);
+
+            const split = finalizer.resolveDiarizedAtFinish([
+              new SpeakerTurnSegment(0, 48_000, 0),
+              new SpeakerTurnSegment(48_000, 70_400, 1),
+            ], 0.35, (_samples, speaker) => speaker === 0 ? 0.40 : 0.30);
+
+            assert.equal(split, undefined);
+            assert.match(finalizer.lastResolutionReason(), /diarization-finish-score-margin/);
+            """
+        )
+
+    def test_finish_keeps_a_contiguous_diarized_boundary_fail_open(self) -> None:
+        self.run_finalizer(
+            """
+            const finalizer = new SpeakerTurnFinalizer(16_000, 24_000, 8_000, 2, 70_400);
+            finalizer.accept(new Float32Array(70_400));
+            finalizer.observeScore(48_000, 0.62, 0.35);
+            finalizer.observeScore(64_000, 0.08, 0.35);
+
+            const split = finalizer.resolveDiarizedAtFinish([
+              new SpeakerTurnSegment(0, 48_000, 0),
+              new SpeakerTurnSegment(48_000, 70_400, 1),
+            ], 0.35, (_samples, speaker) => speaker === 0 ? 0.62 : 0.08, true);
+
+            assert.equal(split, undefined);
+            assert.equal(finalizer.lastResolutionReason(),
+              'diarization-contiguous-boundary:48000');
             """
         )
 
@@ -342,7 +447,91 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
 
             assert.equal(split, undefined);
             assert.equal(finalizer.lastResolutionReason(),
-              'diarization-outside-score-transition:20000:not-in:24000-48000');
+              'diarization-turn-order:0-1-0');
+            """
+        )
+
+    def test_contiguous_diarized_boundary_requires_independent_refinement(self) -> None:
+        self.run_finalizer(
+            """
+            const resolve = (rightStart) => {
+              const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 4_000);
+              finalizer.accept(new Float32Array(4_000));
+              finalizer.observeScore(2_500, 0.62, 0.35);
+              finalizer.observeScore(3_000, 0.12, 0.35);
+              finalizer.observeScore(3_200, 0.08, 0.35);
+              return finalizer.resolveDiarized([
+                new SpeakerTurnSegment(0, 2_000, 0),
+                new SpeakerTurnSegment(rightStart, 4_000, 1),
+              ], 0.35, (_samples, speaker) => speaker === 0 ? 0.62 : 0.08, true);
+            };
+
+            const contiguous = resolve(2_000);
+            assert.equal(contiguous, undefined);
+
+            const quietGap = resolve(2_100);
+            assert.ok(quietGap);
+            assert.equal(quietGap.cutSample, 2_100);
+
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 4_000);
+            finalizer.accept(new Float32Array(4_000));
+            finalizer.observeScore(2_500, 0.62, 0.35);
+            finalizer.observeScore(3_000, 0.12, 0.35);
+            finalizer.observeScore(3_200, 0.08, 0.35);
+            const refined = finalizer.resolve([2.4], 0.35,
+              (_samples, start, end) => {
+                if (start === 1_000 && end === 2_000) return 0.62;
+                if (start === 2_000 && end === 3_000) return 0.30;
+                if (start === 1_400 && end === 2_400) return 0.62;
+                if (start === 2_400 && end === 3_400) return 0.08;
+                return undefined;
+              }, [2_000]);
+            assert.ok(refined);
+            assert.equal(refined.cutSample, 2_400);
+            """
+        )
+
+    def test_diarized_boundary_rejects_an_ambiguous_score_margin(self) -> None:
+        self.run_finalizer(
+            """
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 4_000);
+            finalizer.accept(new Float32Array(4_000));
+            finalizer.observeScore(2_500, 0.40, 0.35);
+            finalizer.observeScore(3_000, 0.30, 0.35);
+            finalizer.observeScore(3_200, 0.29, 0.35);
+
+            const split = finalizer.resolveDiarized([
+              new SpeakerTurnSegment(0, 2_000, 0),
+              new SpeakerTurnSegment(2_100, 4_000, 1),
+            ], 0.35, (_samples, speaker) => speaker === 0 ? 0.40 : 0.30, true);
+
+            assert.equal(split, undefined);
+            assert.match(finalizer.lastResolutionReason(), /diarization-score-margin/);
+            """
+        )
+
+    def test_late_sequential_boundary_allows_a_conservative_prefix(self) -> None:
+        self.run_finalizer(
+            """
+            const samples = new Float32Array(72_000);
+            samples.fill(0.1);
+            const finalizer = new SpeakerTurnFinalizer(16_000, 24_000, 8_000, 2, 72_000);
+            finalizer.accept(samples);
+            finalizer.observeScore(48_000, 0.60, 0.35);
+            finalizer.observeScore(56_000, 0.20, 0.35);
+            finalizer.observeScore(64_000, 0.10, 0.35);
+
+            const precise = finalizer.resolveDiarized([
+              new SpeakerTurnSegment(0, 52_000, 0),
+              new SpeakerTurnSegment(52_000, 72_000, 1),
+            ], 0.35, (_samples, speaker) => speaker === 0 ? 0.60 : 0.10);
+
+            assert.equal(precise, undefined);
+            assert.equal(finalizer.lastResolutionReason(),
+              'diarization-boundary-after-score-transition:52000:not-in:24000-48000');
+            const containment = finalizer.resolveContainment();
+            assert.ok(containment);
+            assert.equal(containment.cutSample, 24_000);
             """
         )
 
@@ -468,7 +657,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
-    def test_ambiguous_or_non_sequential_boundary_fails_open(self) -> None:
+    def test_ambiguous_boundaries_do_not_claim_a_precise_split(self) -> None:
         self.run_finalizer(
             """
             const continuous = new Float32Array(3_600);
@@ -497,6 +686,175 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             assert.equal(contradictory.resolve([0.3, 1.0, 2.2], 0.35, () => 0.60), undefined);
             """
         )
+
+    def test_ambiguous_sequential_departure_uses_safe_containment_prefix(self) -> None:
+        self.run_finalizer(
+            """
+            const samples = new Float32Array(3_600);
+            for (let i = 0; i < samples.length; i++) samples[i] = i % 2 === 0 ? 0.2 : -0.2;
+
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000);
+            finalizer.accept(samples);
+            finalizer.observeScore(2_000, 0.65, 0.35);
+            finalizer.observeScore(3_000, 0.20, 0.35);
+            finalizer.observeScore(3_200, 0.10, 0.35);
+            assert.equal(finalizer.resolve([0.3, 1.0, 2.2], 0.35, () => 0.1), undefined);
+
+            const containment = finalizer.resolveContainment();
+            assert.ok(containment);
+            assert.equal(containment.cutSample, 1_000);
+            assert.equal(containment.prefix.length, 1_000);
+            assert.equal(containment.suffix.length, 2_600);
+            assert.equal(finalizer.lastResolutionReason(), 'containment-safe-prefix:1000');
+            """
+        )
+
+    def test_containment_requires_a_confirmed_uncapped_departure(self) -> None:
+        self.run_finalizer(
+            """
+            const beforeDeparture = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000);
+            beforeDeparture.accept(new Float32Array(2_000));
+            beforeDeparture.observeScore(2_000, 0.65, 0.35);
+            assert.equal(beforeDeparture.resolveContainment(), undefined);
+            assert.equal(beforeDeparture.lastResolutionReason(), 'containment-not-ready');
+
+            const capped = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 2_500);
+            capped.accept(new Float32Array(3_000));
+            capped.observeScore(2_000, 0.65, 0.35);
+            capped.observeScore(2_200, 0.20, 0.35);
+            capped.observeScore(2_400, 0.10, 0.35);
+            assert.equal(capped.resolveContainment(), undefined);
+            assert.equal(capped.lastResolutionReason(), 'containment-buffer-capped');
+            """
+        )
+
+    def test_containment_cut_is_independent_of_caller_pcm_partitioning(self) -> None:
+        self.run_finalizer(
+            """
+            const samples = new Float32Array(3_600);
+            samples.fill(0.2);
+            const resolveWithChunks = (chunks) => {
+              const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000);
+              let offset = 0;
+              for (const size of chunks) {
+                finalizer.accept(samples.slice(offset, offset + size));
+                offset += size;
+              }
+              finalizer.observeScore(2_000, 0.65, 0.35);
+              finalizer.observeScore(3_000, 0.20, 0.35);
+              finalizer.observeScore(3_200, 0.10, 0.35);
+              return finalizer.resolveContainment();
+            };
+            const whole = resolveWithChunks([3_600]);
+            const framed = resolveWithChunks([320, 160, 640, 80, 1_000, 1_400]);
+            assert.ok(whole);
+            assert.ok(framed);
+            assert.equal(whole.cutSample, framed.cutSample);
+            assert.deepEqual(Array.from(whole.prefix), Array.from(framed.prefix));
+            assert.deepEqual(Array.from(whole.suffix), Array.from(framed.suffix));
+            """
+        )
+
+    def test_sequential_classification_remains_pending_while_refine_context_arrives(self) -> None:
+        self.run_finalizer(
+            """
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000);
+            finalizer.deferResolution(
+              'sequential-boundary-ambiguous:diarization-boundary-after-score-transition:3200:not-in:1000-3000:insufficient-refine-context');
+            assert.equal(finalizer.needsMoreContext(), true);
+            """
+        )
+
+    def test_runtime_contains_sequential_ambiguity_but_preserves_overlap_scope(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        containment = source.split("private canContainSpeakerTurn", 1)[1].split(
+            "private resolveSpeakerTurnSplit", 1
+        )[0]
+        self.assertIn("unresolvedReason.startsWith('sequential-boundary-ambiguous:')", containment)
+        self.assertIn("isSpeakerTurnSegmentationModelLoaded()", containment)
+        resolver = source.split("private resolveSpeakerTurnContainment", 1)[1].split(
+            "private canContainSpeakerTurn", 1
+        )[0]
+        self.assertIn("if (!this.canContainSpeakerTurn(unresolvedReason)) return undefined", resolver)
+        self.assertIn("finalizer.resolveContainment()", resolver)
+        precise_resolver = source.split("private resolveSpeakerTurnSplit", 1)[1].split(
+            "private replaySpeakerSuffix", 1
+        )[0]
+        self.assertIn(
+            "diarizationReason.startsWith('diarization-boundary-after-score-transition:')",
+            precise_resolver,
+        )
+        self.assertNotIn(
+            "acousticSplit !== undefined || finalizer.needsMoreContext()",
+            precise_resolver,
+        )
+        self.assertIn(
+            "`sequential-boundary-ambiguous:${diarizationReason}:${acousticReason}`",
+            precise_resolver,
+        )
+
+        finalizer_source = FINALIZER.read_text(encoding="utf-8")
+        context_gate = finalizer_source.split("needsMoreContext(): boolean", 1)[1].split(
+            "hasPendingDeparture", 1
+        )[0]
+        self.assertIn("this.resolutionReason.endsWith(':insufficient-refine-context')", context_gate)
+
+        departure = source.split("if (state === 'departure'", 1)[1].split(
+            "private speakerVadScoreScheduler", 1
+        )[0]
+        reject_index = departure.index("this.svRejectCurrentUtterance = true")
+        endpoint_index = departure.index("this.triggerSpeakerVadEndpoint()", reject_index)
+        self.assertLess(reject_index, endpoint_index)
+
+        rejected_final = source.split("if (speakerVadReject)", 1)[1].split(
+            "const targetConfig", 1
+        )[0]
+        self.assertIn("result.text = '';", rejected_final)
+        self.assertIn("result.tokens = [];", rejected_final)
+        self.assertIn("result.timestamps = [];", rejected_final)
+        self.assertIn("result.tokenConfidences = [];", rejected_final)
+
+    def test_speaker_vad_public_results_are_final_only(self) -> None:
+        source = SPEECH_RECOGNIZE_SDK.read_text(encoding="utf-8")
+        start = source.split("const verify = strictBooleanParam", 1)[1].split(
+            "this.policeFinalSession =", 1
+        )[0]
+        self.assertIn(
+            "this.partialRequested = params.extraParams['enablePartialResult'] !== false;",
+            start,
+        )
+        self.assertIn("this.partialEnabled = this.partialRequested && !speakerVad;", start)
+        runtime_toggle = source.split("setSpeakerVadEnabled(enabled: boolean)", 1)[1].split(
+            "finish(sessionId: string)", 1
+        )[0]
+        self.assertLess(
+            runtime_toggle.index("if (enabled) this.partialEnabled = false;"),
+            runtime_toggle.index("session.ensureTargetSpeakerExtractor();"),
+        )
+        missing_embedding = runtime_toggle.split("if (embedding === undefined)", 1)[1].split(
+            "session.setTargetSpeaker(embedding)", 1
+        )[0]
+        self.assertIn("this.partialEnabled = partialBeforeToggle;", missing_embedding)
+        self.assertIn("this.partialEnabled = this.partialRequested && !enabled;", runtime_toggle)
+
+        android = ANDROID_DINGQIAO_ENGINE.read_text(encoding="utf-8")
+        self.assertIn("partialRequested = DingqiaoEngineConfig.enablePartialResult(params)", android)
+        self.assertIn("enablePartial = partialRequested && !speakerVadEnabled", android)
+        self.assertLess(
+            android.index("if (enabled) enablePartial = false"),
+            android.index('requireSpeakerModel("speaker VAD")'),
+        )
+        self.assertIn("enablePartial = partialRequested && !enabled", android)
+        self.assertIn("val speakerVadBeforeToggle = speakerVadEnabled", android)
+        self.assertIn(
+            "speakerVadEnabled = if (disabled) false else speakerVadBeforeToggle",
+            android,
+        )
+        self.assertIn("enablePartial = if (disabled) partialRequested else false", android)
+        dispatch = android.split("private fun dispatchResult(", 1)[1].split(
+            "private fun resultPayload(", 1
+        )[0]
+        self.assertIn("if (!isFinal && !enablePartial) return@execute", dispatch)
 
 
 if __name__ == "__main__":
