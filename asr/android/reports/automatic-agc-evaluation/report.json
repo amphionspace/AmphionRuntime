@@ -8,25 +8,34 @@
     "asr/native/audio-processing/src/amphion_audio_processing.cpp": "7ded42aaade2ec76a1567135f9b8ca2bb63e84469ca8616bb152644be79a5acb",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt": "9dc5dd3a675db811cdf84f886da455b5ff95a4da3f67241ed1991b4fcd4d95a2",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt": "d183b5616f5a89de1716e0074fcae5b243eeab784a17c8675a879102ef514aac",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "a971ef3476d41aa627ff32bf2146b38849ff7e2dc9cfb20dc698461116999467",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "65aae9ae573d0cf3c6e5a901d88e18d7d247ac86fcad460e9f18cb1684a2d256",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "11ef2bbbbb6ec76db32d45a8594c37c72533bb862d7e2d613a8bc9b0f0ea704e",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "3464ea8a2dea92c1a552c5273871353a4d80b83dde6ee8d0f3513f36accc7682",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "2dcce7b004cecd29c859a19b0260e16bae8e7b30",
-    "changed_source": "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets",
-    "previous_sha256": "1d88edc6a8909f32ed98b4413c612aeeb8de8b83e15c63ced4d9fdcfa1368ea3",
-    "current_sha256": "11ef2bbbbb6ec76db32d45a8594c37c72533bb862d7e2d613a8bc9b0f0ea704e",
+    "source_commit": "448932ebb047d2648992533a92ccf75539f39f29",
+    "changed_sources": [
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt",
+      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
+    ],
+    "previous_sha256": {
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "a971ef3476d41aa627ff32bf2146b38849ff7e2dc9cfb20dc698461116999467",
+      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "11ef2bbbbb6ec76db32d45a8594c37c72533bb862d7e2d613a8bc9b0f0ea704e"
+    },
+    "current_sha256": {
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "65aae9ae573d0cf3c6e5a901d88e18d7d247ac86fcad460e9f18cb1684a2d256",
+      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "3464ea8a2dea92c1a552c5273871353a4d80b83dde6ee8d0f3513f36accc7682"
+    },
     "decision": "existing_accuracy_evaluation_remains_applicable",
-    "reason": "The change redacts text and token fields from rejected Speaker VAD finals so an uncertain sequential tail cannot escape through the low-level callback. It does not change active-session AGC construction, processed ASR PCM routing, native gain processing, decoder configuration, model bytes, or preserved evaluation inputs.",
+    "reason": "The change removes post-decode Speaker VAD suppression of speculative partial callbacks on Android and Harmony. It does not change active-session AGC construction, processed ASR PCM routing, native gain processing, decoder configuration, final-result correction, model bytes, or preserved evaluation inputs.",
     "rerun_verification": [
       "test_agc_signal_domains",
       "test_harmony_streaming_agc_processor",
       "repository_low_volume_regression_off_on"
     ],
-    "not_claimed": "The 500-item normal-volume, SNR, and long-audio evaluations were not rerun because this change only redacts rejected Speaker VAD callback fields after decoding. The repository low-volume off/on fixture was rerun against the rebuilt host AGC library."
+    "not_claimed": "The 500-item normal-volume, SNR, and long-audio evaluations were not rerun because this change only restores speculative partial callback delivery after decoding. The repository low-volume off/on fixture was rerun against the rebuilt host AGC library."
   },
   "evaluation_runtime": {
     "sherpa_onnx_version": "1.13.1",
