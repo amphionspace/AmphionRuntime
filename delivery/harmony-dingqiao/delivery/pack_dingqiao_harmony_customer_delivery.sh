@@ -506,6 +506,7 @@ if sdk_only:
         }
     payload["verified_source_identity"] = {
         "git_commit": build_identity["git_commit"],
+        "build_mode": build_identity["build_mode"],
         "source_fingerprint_sha256": build_identity["source_fingerprint_sha256"],
         "model_manifest_sha256": build_identity["model_manifest_sha256"],
         "native_sha256": build_identity["native_sha256"],

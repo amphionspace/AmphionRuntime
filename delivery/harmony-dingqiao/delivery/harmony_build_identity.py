@@ -58,6 +58,7 @@ TRACKED_BUILD_INPUTS = (
     "delivery/harmony-dingqiao/oh-package.json5",
     "third_party/patches/sherpa-amphion",
 )
+RELEASE_BUILD_MODE = "release"
 
 
 class IdentityFailure(RuntimeError):
@@ -154,7 +155,12 @@ def optional_hap_models() -> dict[str, dict[str, object]]:
     return models
 
 
-def current_identity(zh_en_only: bool = False) -> dict[str, object]:
+def current_identity(
+    zh_en_only: bool = False,
+    build_mode: str = RELEASE_BUILD_MODE,
+) -> dict[str, object]:
+    if build_mode != RELEASE_BUILD_MODE:
+        raise IdentityFailure("Harmony formal delivery requires release build mode")
     artifacts: dict[str, dict[str, object]] = {
         "amphion_asr_demo.hap": {
             "path": str(HAP.relative_to(REPO_ROOT)),
@@ -174,6 +180,7 @@ def current_identity(zh_en_only: bool = False) -> dict[str, object]:
         "source_fingerprint_algorithm": "tracked-inputs+sherpa-v1.13.1-diff-v2",
         "zh_en_only": zh_en_only,
         "git_commit": run(["git", "rev-parse", "HEAD"]).decode().strip(),
+        "build_mode": build_mode,
         "source_fingerprint_sha256": source_fingerprint(),
         "model_manifest_sha256": sha256_file(MODEL_MANIFEST),
         "native_sha256": {
@@ -184,8 +191,12 @@ def current_identity(zh_en_only: bool = False) -> dict[str, object]:
     }
 
 
-def write_identity(output: Path, zh_en_only: bool = False) -> None:
-    identity = current_identity(zh_en_only)
+def write_identity(
+    output: Path,
+    zh_en_only: bool = False,
+    build_mode: str = RELEASE_BUILD_MODE,
+) -> None:
+    identity = current_identity(zh_en_only, build_mode)
     identity["created_at"] = datetime.now(timezone.utc).isoformat()
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(f".{output.name}.tmp")
@@ -199,8 +210,13 @@ def verify_identity(identity_path: Path) -> None:
         recorded = json.loads(identity_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise IdentityFailure(f"cannot read Harmony build identity: {error}") from error
+    if recorded.get("build_mode") != RELEASE_BUILD_MODE:
+        raise IdentityFailure("Harmony formal delivery requires release build mode")
     recorded.pop("created_at", None)
-    current = current_identity(bool(recorded.get("zh_en_only", False)))
+    current = current_identity(
+        bool(recorded.get("zh_en_only", False)),
+        str(recorded["build_mode"]),
+    )
     if recorded != current:
         raise IdentityFailure(
             "Harmony HAR/HAP build identity is stale; rerun build_install_smoke.sh before packaging"
@@ -214,10 +230,15 @@ def main() -> int:
     group.add_argument("--write", type=Path)
     group.add_argument("--verify", type=Path)
     parser.add_argument("--zh-en-only", action="store_true")
+    parser.add_argument(
+        "--build-mode",
+        choices=(RELEASE_BUILD_MODE,),
+        default=RELEASE_BUILD_MODE,
+    )
     args = parser.parse_args()
     try:
         if args.write is not None:
-            write_identity(args.write, args.zh_en_only)
+            write_identity(args.write, args.zh_en_only, args.build_mode)
         else:
             verify_identity(args.verify)
         return 0

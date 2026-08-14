@@ -68,6 +68,14 @@ class BuildInstallSmokeTest(unittest.TestCase):
         self.assertIn('if ! "$NODE" "$HVIGOR" assembleHap', source)
         self.assertIn('if ! "$NODE" "$HVIGOR" assembleHar', source)
 
+    def test_formal_delivery_builds_hap_and_hars_in_release_mode(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        build = source[source.index('if [[ "$SKIP_BUILD" != true ]]'):]
+
+        self.assertIn('BUILD_MODE="release"', source)
+        self.assertEqual(2, build.count('-p buildMode="$BUILD_MODE"'))
+        self.assertNotIn("-p buildMode=debug", build)
+
 
 if __name__ == "__main__":
     unittest.main()

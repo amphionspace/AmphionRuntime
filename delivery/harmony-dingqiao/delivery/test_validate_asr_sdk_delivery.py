@@ -265,6 +265,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             provenance["source"] = {"commit": "a" * 40, "worktree_dirty": False}
             identity = {
                 "git_commit": "a" * 40,
+                "build_mode": "release",
                 "source_fingerprint_sha256": "b" * 64,
                 "model_manifest_sha256": "1" * 64,
                 "native_sha256": {
@@ -289,6 +290,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             }
             provenance["verified_source_identity"] = {
                 "git_commit": identity["git_commit"],
+                "build_mode": identity["build_mode"],
                 "source_fingerprint_sha256": identity["source_fingerprint_sha256"],
                 "model_manifest_sha256": identity["model_manifest_sha256"],
                 "native_sha256": identity["native_sha256"],
