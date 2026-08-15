@@ -140,6 +140,10 @@ GB二8181,GB28181,report_v028
 边警情,签警情,client_feedback_20260814
 天井丹,签警单,client_feedback_20260814
 天景丹,签警单,client_feedback_20260814
+# 20260815 甲方 Harmony SDK 反馈与同批三星音频复测：仅纠正整条短 final。
+山井情,签警情,client_feedback_20260815
+天井干,签警单,client_and_samsung_audio_20260815
+签景单,签警单,client_feedback_20260815
 # 20260814 三星 SM-G9758 下一轮麦克风实测：仅纠正整条短 final，保护正常“前景”上下文。
 前景情,签警情,samsung_mic_round3_20260814
 见见情,签警情,samsung_mic_round3_20260814
@@ -177,3 +181,23 @@ GB二8181,GB28181,report_v028
 指信接触景,指信接处警,xiaoqiao_semantic_device_20260814
 指信接触警,指信接处警,xiaoqiao_semantic_device_20260814
 色卡款场,设卡盘查,xiaoqiao_semantic_device_20260814
+# 20260815 甲方术语统计表：仅收录无稳定独立语义的完整 final。
+色卡盘跺,设卡盘查,client_semantic_table_20260815
+经纬度菜级,经纬度采集,client_semantic_table_20260815
+# 20260815 三星真人复测：产品确认警务增强下裸“制报”按“治爆”解释；平台变体仅纠正整条 final。
+制报,治爆,samsung_mic_product_confirmed_20260815
+秦志情平台,勤指情平台,client_and_samsung_mic_20260815
+秦止情平台,勤指情平台,client_and_samsung_mic_20260815
+秦纸情平台,勤指情平台,client_and_samsung_mic_20260815
+秦之情平台,勤指情平台,client_and_samsung_mic_20260815
+秦芷情平台,勤指情平台,client_and_samsung_mic_20260815
+秦止晴平台,勤指情平台,samsung_mic_20260815
+# 20260815 三星真人复测“案结事了”：仅纠正完整 final，保留按揭/揭示长上下文。
+按揭是了,案结事了,samsung_mic_20260815
+按揭示了,案结事了,samsung_mic_20260815
+# 20260815 三星真人复测硬错误：产品确认仅在警务增强下纠正完整 final。
+据传,拘传,samsung_mic_product_confirmed_20260815
+停止情平台,勤指情平台,samsung_mic_20260815
+鸡鸭,羁押,samsung_mic_product_confirmed_20260815
+# 20260815 产品确认：警务增强下，裸“景观”作为警务称谓“警官”处理；仅纠正完整 final。
+景观,警官,samsung_mic_product_confirmed_20260815

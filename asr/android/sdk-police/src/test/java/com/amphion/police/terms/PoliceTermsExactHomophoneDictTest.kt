@@ -111,6 +111,10 @@ class PoliceTermsExactHomophoneDictTest {
             "  前景单？ " to "  签警单？ ",
             "天井丹。" to "签警单。",
             "天景丹？" to "签警单？",
+            // 2026-08-15 甲方 Harmony SDK 反馈与同批三星音频复测：仅纠正完整 final。
+            "山井情。" to "签警情。",
+            "  天井干？ " to "  签警单？ ",
+            "签景单。" to "签警单。",
             "迁警情前要确认警情类别和管辖单位。" to
                 "签警情前要确认警情类别和管辖单位。",
             "千景情前要确认警情类别和管辖单位。" to
@@ -133,6 +137,7 @@ class PoliceTermsExactHomophoneDictTest {
             for ((raw, expected) in cases) assertEquals("raw=$raw", expected, normalize(raw))
             assertEquals("签警单。", normalize("签警单。"))
             assertEquals("签警情。", normalize("签警情。"))
+            assertEquals("签收警单。", normalize("签收警单。"))
             assertEquals("请及时签收警情。", normalize("请及时签收警情。"))
             assertEquals("请复述仙警情这个错误。", normalize("请复述仙警情这个错误。"))
             assertEquals("请复述先警情这个错误。", normalize("请复述先警情这个错误。"))
@@ -153,6 +158,15 @@ class PoliceTermsExactHomophoneDictTest {
             assertEquals("查看此前警情。", normalize("查看此前警情。"))
             assertEquals("调取先前警情记录。", normalize("调取先前警情记录。"))
             assertEquals("请复述天景丹这个错误。", normalize("请复述天景丹这个错误。"))
+            assertEquals("请复述山井情这个错误。", normalize("请复述山井情这个错误。"))
+            assertEquals("山井情况已经登记。", normalize("山井情况已经登记。"))
+            assertEquals("请复述千锦情这个错误。", normalize("请复述千锦情这个错误。"))
+            assertEquals("千锦情是作品名。", normalize("千锦情是作品名。"))
+            assertEquals("请复述天井干这个错误。", normalize("请复述天井干这个错误。"))
+            assertEquals("院子的天井干了。", normalize("院子的天井干了。"))
+            assertEquals("天井干燥后再施工。", normalize("天井干燥后再施工。"))
+            assertEquals("请复述签景单这个错误。", normalize("请复述签景单这个错误。"))
+            assertEquals("签景单据之前先核对内容。", normalize("签景单据之前先核对内容。"))
             assertEquals("陈景丹。", normalize("陈景丹。"))
         }
     }
@@ -235,6 +249,9 @@ class PoliceTermsExactHomophoneDictTest {
             "指信接触景。" to "指信接处警。",
             "指信接触警。" to "指信接处警。",
             "色卡款场。" to "设卡盘查。",
+            // 2026-08-15 甲方术语统计表：仅新增无稳定独立语义的完整 final。
+            "色卡盘跺。" to "设卡盘查。",
+            "  经纬度菜级？ " to "  经纬度采集？ ",
         )
         val protectedTargets = listOf(
             "e警保", "义警", "争执不下", "京警智联", "人员全项查询", "勤指情平台",
@@ -246,7 +263,7 @@ class PoliceTermsExactHomophoneDictTest {
         )
         val excludedStandaloneInputs = listOf(
             // 自然词、姓名、独立警务术语、产品/机构名形态及疑似错标音频均不得猜测改写。
-            "不仅反馈", "值不下", "公事人员", "半结石了", "居船", "按揭示", "按揭示了",
+            "不仅反馈", "值不下", "公事人员", "半结石了", "居船", "按揭示",
             "是人员", "进阶促进", "限警力", "陷警力", "易警报", "易锦保", "林子中心",
             "影子中心", "瓶子中心", "零子中心", "引资型平台", "打开邦铁", "经警，智联",
             "金井智联", "帮我打开启", "是彻底先进行", "布景完毕", "日报", "停止行",
@@ -283,6 +300,95 @@ class PoliceTermsExactHomophoneDictTest {
             }
             for (input in excludedStandaloneInputs) {
                 assertEquals("excluded standalone=$input", "$input。", normalize("$input。"))
+            }
+            for (input in listOf(
+                "色卡盘查结果待确认。",
+                "经纬度采集级别需要确认。",
+                "仅经纬度采集。",
+            )) {
+                assertEquals(input, normalize(input))
+            }
+        }
+    }
+
+    @Test
+    fun recovers_latestPoliceMicFailures_withoutGlobalSubstringRewrites() {
+        val cases = mapOf(
+            // 产品确认：开启警务增强时，独立“制报”按警务术语“治爆”处理。
+            "制报。" to "治爆。",
+            "  制报？ " to "  治爆？ ",
+            // 甲方反馈与三星真人复测：仅纠正完整“勤指情平台”误识 final。
+            "秦志情平台。" to "勤指情平台。",
+            "秦止情平台？" to "勤指情平台？",
+            "秦纸情平台！" to "勤指情平台！",
+            "秦之情平台。" to "勤指情平台。",
+            "秦芷情平台。" to "勤指情平台。",
+            "秦止晴平台。" to "勤指情平台。",
+            // 20260815 三星真人复测：仅纠正完整“案结事了”误识 final。
+            "按揭是了。" to "案结事了。",
+            "  按揭示了？ " to "  案结事了？ ",
+            // 20260815 三星真人复测：产品确认在警务增强下将裸短词视作目标术语。
+            "据传。" to "拘传。",
+            "  停止情平台？ " to "  勤指情平台？ ",
+            "鸡鸭！" to "羁押！",
+            // 产品确认：警务增强开启且完整 final 为“景观”时，按警务称谓“警官”处理。
+            "景观。" to "警官。",
+            "  景观？ " to "  警官？ ",
+        )
+        val normalizers = listOf<(String) -> String>(
+            { v1().normalize(it).text },
+            { v2().normalize(it).text },
+        )
+
+        for (normalize in normalizers) {
+            for ((raw, expected) in cases) {
+                assertEquals("raw=$raw", expected, normalize(raw))
+            }
+            for (input in listOf(
+                "请复述制报这个错误。",
+                "制报系统正在生成报表。",
+                "编制报告要按时完成。",
+                "控制报警器已安装。",
+                "法制报刊已经送达。",
+                "请复述秦志情平台这个错误。",
+                "秦止情平台项目正在评审。",
+                "请复述秦纸情平台这个错误。",
+                "秦之情平台是作品名称。",
+                "请复述秦芷情平台这个错误。",
+                "秦止晴平台负责人已到场。",
+                "请复述按揭是了这个错误。",
+                "按揭是了解住房贷款的重要方式。",
+                "请复述按揭示了这个错误。",
+                "公告揭示了办理风险。",
+                "按揭示。",
+                "按揭业务办结了。",
+                "案结事了。",
+                "请复述据传这个错误。",
+                "据传该消息尚未证实。",
+                "数据传输已经完成。",
+                "请复述停止情平台这个错误。",
+                "停止情平台项目的讨论。",
+                "请复述鸡鸭这个错误。",
+                "养殖场里有鸡鸭。",
+                "鸡鸭鱼肉都已备齐。",
+                "拘传。",
+                "勤指情平台。",
+                "羁押。",
+                "城市景观需要保护。",
+                "景观设计方案已经通过。",
+                "旅游景观很优美。",
+                "请复述景观这个错误。",
+                "文本里写着景观，请不要改写。",
+                "警官。",
+                "值班警官已经到场。",
+                "精简。",
+                "精简流程后再提交。",
+                "警戒。",
+                "警戒区域禁止进入。",
+                "警鉴。",
+                "打开警鉴查看记录。",
+            )) {
+                assertEquals(input, normalize(input))
             }
         }
     }
