@@ -151,6 +151,13 @@ terms	equals	讯问	询问
 terms	equals	询问	询问
 terms	equals	自爆	治爆
 terms	equals	智报	治爆
+# 20260815 产品确认：警务增强模式将独立“制报”解释为“治爆”。
+terms	equals	制报。	治爆。
+terms	equals	请复述制报这个错误。	请复述制报这个错误。
+terms	equals	制报系统正在生成报表。	制报系统正在生成报表。
+terms	equals	编制报告要按时完成。	编制报告要按时完成。
+terms	equals	控制报警器已安装。	控制报警器已安装。
+terms	equals	法制报刊已经送达。	法制报刊已经送达。
 terms	equals	机枪	缉枪
 terms	equals	风条经典	枫桥经验
 terms	equals	枫桥经验	枫桥经验
@@ -298,8 +305,20 @@ terms	equals	先警情。	签警情。
 terms	equals	边警情。	签警情。
 terms	equals	天井丹。	签警单。
 terms	equals	天景丹？	签警单？
+terms	equals	山井情。	签警情。
+terms	equals	天井干？	签警单？
+terms	equals	签景单。	签警单。
 terms	equals	请复述先警情这个错误。	请复述先警情这个错误。
 terms	equals	请复述天景丹这个错误。	请复述天景丹这个错误。
+terms	equals	请复述山井情这个错误。	请复述山井情这个错误。
+terms	equals	山井情况已经登记。	山井情况已经登记。
+terms	equals	请复述千锦情这个错误。	请复述千锦情这个错误。
+terms	equals	千锦情是作品名。	千锦情是作品名。
+terms	equals	请复述天井干这个错误。	请复述天井干这个错误。
+terms	equals	院子的天井干了。	院子的天井干了。
+terms	equals	天井干燥后再施工。	天井干燥后再施工。
+terms	equals	请复述签景单这个错误。	请复述签景单这个错误。
+terms	equals	签景单据之前先核对内容。	签景单据之前先核对内容。
 terms	equals	陈景丹。	陈景丹。
 # 20260814 三星下一轮麦克风实测：短 final 定向纠正，正常“前景”上下文保持不变。
 terms	equals	前景情。	签警情。
@@ -384,6 +403,53 @@ terms	equals	帮我打开谨信语。	帮我打开警信。
 terms	equals	指信接触景。	指信接处警。
 terms	equals	指信接触警。	指信接处警。
 terms	equals	色卡款场。	设卡盘查。
+terms	equals	色卡盘跺。	设卡盘查。
+terms	equals	经纬度菜级？	经纬度采集？
+# 20260815 甲方反馈与三星真人复测：完整 final 定向纠正。
+terms	equals	秦志情平台。	勤指情平台。
+terms	equals	秦止情平台？	勤指情平台？
+terms	equals	秦纸情平台！	勤指情平台！
+terms	equals	秦之情平台。	勤指情平台。
+terms	equals	秦芷情平台。	勤指情平台。
+terms	equals	秦止晴平台。	勤指情平台。
+# 20260815 三星真人复测：完整“案结事了”误识 final 定向纠正。
+terms	equals	按揭是了。	案结事了。
+terms	equals	按揭示了？	案结事了？
+terms	equals	请复述按揭是了这个错误。	请复述按揭是了这个错误。
+terms	equals	按揭是了解住房贷款的重要方式。	按揭是了解住房贷款的重要方式。
+terms	equals	请复述按揭示了这个错误。	请复述按揭示了这个错误。
+terms	equals	公告揭示了办理风险。	公告揭示了办理风险。
+terms	equals	按揭示。	按揭示。
+terms	equals	按揭业务办结了。	按揭业务办结了。
+terms	equals	案结事了。	案结事了。
+# 20260815 三星真人复测：三组裸短词仅做完整 final 定向纠正。
+terms	equals	据传。	拘传。
+terms	equals	停止情平台？	勤指情平台？
+terms	equals	鸡鸭！	羁押！
+terms	equals	请复述据传这个错误。	请复述据传这个错误。
+terms	equals	据传该消息尚未证实。	据传该消息尚未证实。
+terms	equals	数据传输已经完成。	数据传输已经完成。
+terms	equals	请复述停止情平台这个错误。	请复述停止情平台这个错误。
+terms	equals	停止情平台项目的讨论。	停止情平台项目的讨论。
+terms	equals	请复述鸡鸭这个错误。	请复述鸡鸭这个错误。
+terms	equals	养殖场里有鸡鸭。	养殖场里有鸡鸭。
+terms	equals	鸡鸭鱼肉都已备齐。	鸡鸭鱼肉都已备齐。
+terms	equals	拘传。	拘传。
+terms	equals	羁押。	羁押。
+terms	equals	值班警官已经到场。	值班警官已经到场。
+terms	equals	精简。	精简。
+terms	equals	精简流程后再提交。	精简流程后再提交。
+terms	equals	警戒区域禁止进入。	警戒区域禁止进入。
+terms	equals	打开警鉴查看记录。	打开警鉴查看记录。
+terms	equals	请复述秦志情平台这个错误。	请复述秦志情平台这个错误。
+terms	equals	秦止情平台项目正在评审。	秦止情平台项目正在评审。
+terms	equals	请复述秦纸情平台这个错误。	请复述秦纸情平台这个错误。
+terms	equals	秦之情平台是作品名称。	秦之情平台是作品名称。
+terms	equals	请复述秦芷情平台这个错误。	请复述秦芷情平台这个错误。
+terms	equals	秦止晴平台负责人已到场。	秦止晴平台负责人已到场。
+terms	equals	景观。	景观。
+terms	equals	城市景观需要保护。	城市景观需要保护。
+terms	equals	警官。	警官。
 terms	equals	请复述停止群平台这个错误。	请复述停止群平台这个错误。
 terms	equals	请复述因景致联这个错误。	请复述因景致联这个错误。
 terms	equals	请复述侧卡盘查这个错误。	请复述侧卡盘查这个错误。
@@ -395,6 +461,13 @@ terms	equals	请复述帮我打开谨信语这个错误。	请复述帮我打开
 terms	equals	请复述指信接触景这个错误。	请复述指信接处警景这个错误。
 terms	equals	请复述指信接触警这个错误。	请复述指信接处警警这个错误。
 terms	equals	请复述色卡款场这个错误。	请复述色卡款场这个错误。
+terms	equals	请复述色卡盘跺这个错误。	请复述色卡盘跺这个错误。
+terms	equals	文本里写着色卡盘跺，请不要改写。	文本里写着色卡盘跺，请不要改写。
+terms	equals	请复述经纬度菜级这个错误。	请复述经纬度菜级这个错误。
+terms	equals	文本里写着经纬度菜级，请不要改写。	文本里写着经纬度菜级，请不要改写。
+terms	equals	色卡盘查结果待确认。	色卡盘查结果待确认。
+terms	equals	经纬度采集级别需要确认。	经纬度采集级别需要确认。
+terms	equals	仅经纬度采集。	仅经纬度采集。
 # 本批目标都是独立术语，必须保持自身；下列合法/高歧义错误输出也不得猜测改写。
 terms	equals	警戒。	警戒。
 terms	equals	警鉴。	警鉴。
