@@ -331,6 +331,9 @@ class PoliceTermsExactHomophoneDictTest {
             "据传。" to "拘传。",
             "  停止情平台？ " to "  勤指情平台？ ",
             "鸡鸭！" to "羁押！",
+            // 产品确认：警务增强开启且完整 final 为“景观”时，按警务称谓“警官”处理。
+            "景观。" to "警官。",
+            "  景观？ " to "  警官？ ",
         )
         val normalizers = listOf<(String) -> String>(
             { v1().normalize(it).text },
@@ -371,8 +374,11 @@ class PoliceTermsExactHomophoneDictTest {
                 "拘传。",
                 "勤指情平台。",
                 "羁押。",
-                "景观。",
                 "城市景观需要保护。",
+                "景观设计方案已经通过。",
+                "旅游景观很优美。",
+                "请复述景观这个错误。",
+                "文本里写着景观，请不要改写。",
                 "警官。",
                 "值班警官已经到场。",
                 "精简。",
