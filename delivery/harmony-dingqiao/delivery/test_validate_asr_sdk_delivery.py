@@ -24,8 +24,8 @@ SPEC.loader.exec_module(MODULE)
 FIXTURE_MODEL_MD5 = {
     "asset.onnx": hashlib.md5(b"approved source").hexdigest(),
 }
-FIXTURE_VERSION = "0.3.3"
-FIXTURE_RELEASE_DATE = "2026-08-14"
+FIXTURE_VERSION = "0.3.4"
+FIXTURE_RELEASE_DATE = "2026-08-17"
 FIXTURE_ROOT_NAME = (
     f"amphion-harmony-asr-sdk-v{FIXTURE_VERSION}-{FIXTURE_RELEASE_DATE.replace('-', '')}"
 )
