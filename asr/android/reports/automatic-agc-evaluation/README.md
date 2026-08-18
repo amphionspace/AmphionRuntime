@@ -18,7 +18,7 @@ noise.
 - In the 213.28-second meeting recording, post-180-second non-empty text changes from 105 to 112
   characters. The previously missing opening `你就不能当成你的测试来测` is retained, but another
   short clause changes, so this is evidence of local benefit rather than complete transcript proof.
-- Native preprocessing median RTF is 0.00250 on the 213.28-second input (~0.25% of one host CPU
+- Native preprocessing median RTF is 0.00154 on the 213.28-second input (~0.15% of one host CPU
   core). Mobile power was not measured.
 
 ## Method

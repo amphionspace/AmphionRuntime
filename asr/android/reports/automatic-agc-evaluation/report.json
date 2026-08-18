@@ -11,25 +11,22 @@
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "9a29030c6d4a341772a522fa18811c27d7ad4af2b913f42727a0dcccb60c020d",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "668a5c70719ba49f34ca27fd61a6bef6e2212d4380e0b7dc009064f2c196b1a9",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "24b70b9947b232c1167141369aefcccf207a1abc29ab2cd05aa846828caaac3c",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "968891d2899d84e7e8f9686f24b5afdad192df29",
+    "source_commit": "8a2e76e07347fd083310036bbb35aa6789466a45",
     "changed_sources": [
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt",
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
     ],
     "previous_sha256": {
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "65aae9ae573d0cf3c6e5a901d88e18d7d247ac86fcad460e9f18cb1684a2d256",
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "3464ea8a2dea92c1a552c5273871353a4d80b83dde6ee8d0f3513f36accc7682"
-    },
-    "current_sha256": {
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "9a29030c6d4a341772a522fa18811c27d7ad4af2b913f42727a0dcccb60c020d",
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "668a5c70719ba49f34ca27fd61a6bef6e2212d4380e0b7dc009064f2c196b1a9"
     },
+    "current_sha256": {
+      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "24b70b9947b232c1167141369aefcccf207a1abc29ab2cd05aa846828caaac3c"
+    },
     "decision": "full_accuracy_evaluation_rerun",
-    "reason": "The Android and Harmony session implementations changed after the previous evidence snapshot. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the current sources even though the AGC algorithm and decoder configuration were unchanged.",
+    "reason": "The Harmony session implementation changed after the previous evidence snapshot to keep a diarization-proven non-target suffix rejected. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the current sources even though the AGC algorithm and decoder configuration were unchanged.",
     "rerun_verification": [
       "aishell3_normal_and_controlled_levels",
       "customer_snr_scan",
@@ -160,16 +157,16 @@
   "native_cpu": {
     "iterations": 10,
     "audio_seconds_per_iteration": 213.28,
-    "median_rtf": 0.002497921159977483,
-    "p90_rtf": 0.0027910499109152316
+    "median_rtf": 0.001543262964178555,
+    "p90_rtf": 0.0016336304763691044
   },
   "preserved_artifact_sha256": {
-    "aishell3_report.json": "f1bc2426c5b1042a7d426d636ad8539000c58b7d8bdcd28b271887878ffbe2e4",
+    "aishell3_report.json": "cc74b999f99579b6dd11b58975b8fd00de9a5f09dad5eb23ae677736c9b1959e",
     "input_mapping.json": "a3d23fdb2058f96e0e3be568f90a7b605244a22ff82d725746037436931278c8",
-    "cases.jsonl": "49fd9f62f7edb9bca29d1f84e4f0d29dc58dd417dffd8bd5be4eed1181d766d1",
-    "extreme_level_report.json": "5a19c56b7b83d222b36efcc64f27b49fdf02d856cb7ff59ff68294df5de4d5af",
-    "customer_cases_report.json": "f277c975b7267fa0dd8742ebf745b44e0ba8e3742430a757c0c4971512b4b293",
-    "sdk_long_audio_report.json": "8d5be5025f702d760c55e4c70522ba7a0468cd4efda47e1649015a2f00af26bc",
+    "cases.jsonl": "f1eb7994409086715120629e0c53416dee506b12bac99c47f991dca37b7d732a",
+    "extreme_level_report.json": "84dc58fed50cbdf906cb56babe5cb2b1d9deb9b38d9d2a2eb311e25854ab98e8",
+    "customer_cases_report.json": "6b732353e7d102d55227d4e4c3841b657a2cf62210c27a86a31b6b6212ed9efc",
+    "sdk_long_audio_report.json": "51a3cf5aa5bb236f50e0d31a8820a479397cc03fadb4a42179cb1a86c1b667ef",
     "repository_low_volume_regression.json": "c5e22f6e4788ac2e0d225cc35ad31b7979d21d46c7e16513aa77a7f1451c43d2"
   }
 }
