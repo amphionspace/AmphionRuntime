@@ -2629,6 +2629,11 @@ export class AsrSession {
       this.pcmBytesAccepted = split.suffix.length * 2;
       this.firstPcmMs = Date.now();
       this.replaySpeakerSuffix(split);
+      // The split independently proved that this suffix belongs to the departing non-target
+      // speaker. Replaying it can emit and reset a pre-target rejection before a short remainder
+      // reaches finish; keep that remainder rejected unless streaming Speaker VAD reconfirms the
+      // target. Otherwise the generic short-final score can re-admit the known non-target tail.
+      if (!this.svTargetConfirmed) this.svRejectCurrentUtterance = true;
       const splitDebugMessage = `speaker turn clean split: cutSample=${split.cutSample} ` +
         `prefix=${split.prefix.length} suffix=${split.suffix.length}`;
       this.callbackGate.invoke((): void => {

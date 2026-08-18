@@ -125,6 +125,17 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
+    def test_clean_split_keeps_a_replayed_non_target_tail_rejected(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        commit = source.split("private commitCleanSpeakerTurn", 1)[1].split(
+            "private resolveSpeakerTurnSplit", 1
+        )[0]
+        replay_index = commit.index("this.replaySpeakerSuffix(split)")
+        reject_index = commit.index(
+            "if (!this.svTargetConfirmed) this.svRejectCurrentUtterance = true"
+        )
+        self.assertLess(replay_index, reject_index)
+
     def test_finish_uses_final_score_for_short_target_without_stream_confirmation(self) -> None:
         self.run_finalizer(
             """
