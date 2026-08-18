@@ -11,22 +11,22 @@
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "9a29030c6d4a341772a522fa18811c27d7ad4af2b913f42727a0dcccb60c020d",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "24b70b9947b232c1167141369aefcccf207a1abc29ab2cd05aa846828caaac3c",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "435b7dc68d5f730b95d5740810094c6242b32c717a83e782ba6a6b9b772b5f1c",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "8a2e76e07347fd083310036bbb35aa6789466a45",
+    "source_commit": "af81dc8271be550aa2e5f6bbc51cc4e1a3e8430f",
     "changed_sources": [
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
     ],
     "previous_sha256": {
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "668a5c70719ba49f34ca27fd61a6bef6e2212d4380e0b7dc009064f2c196b1a9"
-    },
-    "current_sha256": {
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "24b70b9947b232c1167141369aefcccf207a1abc29ab2cd05aa846828caaac3c"
     },
+    "current_sha256": {
+      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "435b7dc68d5f730b95d5740810094c6242b32c717a83e782ba6a6b9b772b5f1c"
+    },
     "decision": "full_accuracy_evaluation_rerun",
-    "reason": "The Harmony session implementation changed after the previous evidence snapshot to keep a diarization-proven non-target suffix rejected. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the current sources even though the AGC algorithm and decoder configuration were unchanged.",
+    "reason": "The Harmony session implementation changed after the previous evidence snapshot to preserve a diarization-proven non-target suffix across stream resets and publish a finish-time speaker boundary before the unique terminal result. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the current sources even though the AGC algorithm and decoder configuration were unchanged.",
     "rerun_verification": [
       "aishell3_normal_and_controlled_levels",
       "customer_snr_scan",
@@ -157,16 +157,16 @@
   "native_cpu": {
     "iterations": 10,
     "audio_seconds_per_iteration": 213.28,
-    "median_rtf": 0.001543262964178555,
-    "p90_rtf": 0.0016336304763691044
+    "median_rtf": 0.0014054900459489822,
+    "p90_rtf": 0.0015726124859339857
   },
   "preserved_artifact_sha256": {
-    "aishell3_report.json": "cc74b999f99579b6dd11b58975b8fd00de9a5f09dad5eb23ae677736c9b1959e",
+    "aishell3_report.json": "ef195ed99c7673150b5f069988bbb50b5741d62ebf77b7b80ad3e5788c4c546e",
     "input_mapping.json": "a3d23fdb2058f96e0e3be568f90a7b605244a22ff82d725746037436931278c8",
-    "cases.jsonl": "f1eb7994409086715120629e0c53416dee506b12bac99c47f991dca37b7d732a",
-    "extreme_level_report.json": "84dc58fed50cbdf906cb56babe5cb2b1d9deb9b38d9d2a2eb311e25854ab98e8",
-    "customer_cases_report.json": "6b732353e7d102d55227d4e4c3841b657a2cf62210c27a86a31b6b6212ed9efc",
-    "sdk_long_audio_report.json": "51a3cf5aa5bb236f50e0d31a8820a479397cc03fadb4a42179cb1a86c1b667ef",
+    "cases.jsonl": "69e735213a2ffd16729db4bdb1856888bde8f2e0f62b9ebc5902d27b06644f1e",
+    "extreme_level_report.json": "28091c1f4304f1d1418e01bbe2495932c6b519460ea54ad28e9b5b6ab22b66d9",
+    "customer_cases_report.json": "292fe6ca0424c179b7476f3d11554b0937ba2039d5b4b9d458e43051489c8f2e",
+    "sdk_long_audio_report.json": "d725186f72bec9259fded14df692498f9fc4003684f01fafb0d099f58c83949c",
     "repository_low_volume_regression.json": "c5e22f6e4788ac2e0d225cc35ad31b7979d21d46c7e16513aa77a7f1451c43d2"
   }
 }
