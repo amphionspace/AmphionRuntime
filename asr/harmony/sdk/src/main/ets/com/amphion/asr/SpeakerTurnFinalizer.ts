@@ -12,8 +12,8 @@ const SCORE_EPSILON = 0.000001;
 
 /** Keep finish/endpoint paths from publishing a suffix that never reconfirmed the target. */
 export function shouldRejectSpeakerVadFinal(enabled: boolean, rejectCurrent: boolean,
-  targetConfirmed: boolean): boolean {
-  return enabled && (rejectCurrent || !targetConfirmed);
+  targetConfirmed: boolean, finalTargetMatch?: boolean): boolean {
+  return enabled && (rejectCurrent || (!targetConfirmed && finalTargetMatch !== true));
 }
 
 export class SpeakerTurnSegment {
@@ -157,6 +157,9 @@ export class SpeakerTurnFinalizer {
     return !this.departureSeen && !this.capped && this.targetSeen && this.belowCount > 0 &&
       this.lastTargetEndSample >= 0 &&
       this.retainedSamples - this.lastTargetEndSample >= minimumTrailingSamples;
+  }
+  hasFinishDiarizationCandidate(): boolean {
+    return !this.capped && this.targetSeen && this.lastTargetScore !== undefined;
   }
 
   /**
@@ -330,7 +333,7 @@ export class SpeakerTurnFinalizer {
     requireRefinedContiguousBoundary: boolean): SpeakerTurnSplit | undefined {
     this.resolutionReason = atFinish ? 'diarization-finish-not-ready' : 'diarization-not-ready';
     if ((!this.departureSeen && !atFinish) ||
-      (atFinish && !this.hasPendingFinishDeparture()) || this.capped) {
+      (atFinish && !this.hasFinishDiarizationCandidate()) || this.capped) {
       if (this.capped) this.resolutionReason = 'buffer-capped';
       return undefined;
     }

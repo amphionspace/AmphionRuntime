@@ -8,34 +8,32 @@
     "asr/native/audio-processing/src/amphion_audio_processing.cpp": "7ded42aaade2ec76a1567135f9b8ca2bb63e84469ca8616bb152644be79a5acb",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt": "9dc5dd3a675db811cdf84f886da455b5ff95a4da3f67241ed1991b4fcd4d95a2",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt": "d183b5616f5a89de1716e0074fcae5b243eeab784a17c8675a879102ef514aac",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "65aae9ae573d0cf3c6e5a901d88e18d7d247ac86fcad460e9f18cb1684a2d256",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "9a29030c6d4a341772a522fa18811c27d7ad4af2b913f42727a0dcccb60c020d",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "3464ea8a2dea92c1a552c5273871353a4d80b83dde6ee8d0f3513f36accc7682",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "435b7dc68d5f730b95d5740810094c6242b32c717a83e782ba6a6b9b772b5f1c",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "448932ebb047d2648992533a92ccf75539f39f29",
+    "source_commit": "af81dc8271be550aa2e5f6bbc51cc4e1a3e8430f",
     "changed_sources": [
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt",
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
     ],
     "previous_sha256": {
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "a971ef3476d41aa627ff32bf2146b38849ff7e2dc9cfb20dc698461116999467",
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "11ef2bbbbb6ec76db32d45a8594c37c72533bb862d7e2d613a8bc9b0f0ea704e"
+      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "24b70b9947b232c1167141369aefcccf207a1abc29ab2cd05aa846828caaac3c"
     },
     "current_sha256": {
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "65aae9ae573d0cf3c6e5a901d88e18d7d247ac86fcad460e9f18cb1684a2d256",
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "3464ea8a2dea92c1a552c5273871353a4d80b83dde6ee8d0f3513f36accc7682"
+      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "435b7dc68d5f730b95d5740810094c6242b32c717a83e782ba6a6b9b772b5f1c"
     },
-    "decision": "existing_accuracy_evaluation_remains_applicable",
-    "reason": "The change removes post-decode Speaker VAD suppression of speculative partial callbacks on Android and Harmony. It does not change active-session AGC construction, processed ASR PCM routing, native gain processing, decoder configuration, final-result correction, model bytes, or preserved evaluation inputs.",
+    "decision": "full_accuracy_evaluation_rerun",
+    "reason": "The Harmony session implementation changed after the previous evidence snapshot to preserve a diarization-proven non-target suffix across stream resets and publish a finish-time speaker boundary before the unique terminal result. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the current sources even though the AGC algorithm and decoder configuration were unchanged.",
     "rerun_verification": [
-      "test_agc_signal_domains",
-      "test_harmony_streaming_agc_processor",
+      "aishell3_normal_and_controlled_levels",
+      "customer_snr_scan",
+      "sdk_style_long_audio",
       "repository_low_volume_regression_off_on"
     ],
-    "not_claimed": "The 500-item normal-volume, SNR, and long-audio evaluations were not rerun because this change only restores speculative partial callback delivery after decoding. The repository low-volume off/on fixture was rerun against the rebuilt host AGC library."
+    "not_claimed": "The rerun does not claim complete transcript accuracy, noise reduction below 20 dB SNR, device microphone equivalence, or mobile power measurements."
   },
   "evaluation_runtime": {
     "sherpa_onnx_version": "1.13.1",
@@ -159,15 +157,16 @@
   "native_cpu": {
     "iterations": 10,
     "audio_seconds_per_iteration": 213.28,
-    "median_rtf": 0.0013822336459114717,
-    "p90_rtf": 0.0014160479604275978
+    "median_rtf": 0.0014054900459489822,
+    "p90_rtf": 0.0015726124859339857
   },
   "preserved_artifact_sha256": {
-    "aishell3_report.json": "3c1b5aee226d1b30f3b67a1bc9a63a6a22b0a764f3c85429f20f4ca6d9b7a7ae",
+    "aishell3_report.json": "ef195ed99c7673150b5f069988bbb50b5741d62ebf77b7b80ad3e5788c4c546e",
     "input_mapping.json": "a3d23fdb2058f96e0e3be568f90a7b605244a22ff82d725746037436931278c8",
-    "cases.jsonl": "eb5808584c40d93c688a8bc3acf9259d9bb1fbaf7dcaed9554a65df9fd8c745b",
-    "extreme_level_report.json": "dbe8fc34ddfeff2badf0babf9d412c403d19e2a49b9b239a363ae7db3e51025c",
-    "customer_cases_report.json": "316302dd41285d24d43f30cf0aeb03947545372e70328a6b09e80c04353d1d92",
-    "sdk_long_audio_report.json": "f7eb368c7a0ea8616d60019c1e13411b5dbba54635a16aae56cb1d28cc882629"
+    "cases.jsonl": "69e735213a2ffd16729db4bdb1856888bde8f2e0f62b9ebc5902d27b06644f1e",
+    "extreme_level_report.json": "28091c1f4304f1d1418e01bbe2495932c6b519460ea54ad28e9b5b6ab22b66d9",
+    "customer_cases_report.json": "292fe6ca0424c179b7476f3d11554b0937ba2039d5b4b9d458e43051489c8f2e",
+    "sdk_long_audio_report.json": "d725186f72bec9259fded14df692498f9fc4003684f01fafb0d099f58c83949c",
+    "repository_low_volume_regression.json": "c5e22f6e4788ac2e0d225cc35ad31b7979d21d46c7e16513aa77a7f1451c43d2"
   }
 }

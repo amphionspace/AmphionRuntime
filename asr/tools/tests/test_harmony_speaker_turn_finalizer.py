@@ -125,6 +125,81 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
+    def test_clean_split_keeps_a_replayed_non_target_tail_rejected(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        commit = source.split("private commitCleanSpeakerTurn", 1)[1].split(
+            "private resolveSpeakerTurnSplit", 1
+        )[0]
+        reset = source.split("private resetSpeakerVadState", 1)[1].split(
+            "private speakerTurnFinalizer", 1
+        )[0]
+        sync = source.split("private syncSpeakerTurnState", 1)[1].split(
+            "private commitCleanSpeakerTurn", 1
+        )[0]
+        replay_index = commit.index("this.replaySpeakerSuffix(split)")
+        departure_index = commit.index("this.svAwaitingTargetAfterDeparture = true")
+        self.assertLess(departure_index, replay_index)
+        self.assertIn(
+            "this.svRejectCurrentUtterance = this.svAwaitingTargetAfterDeparture",
+            reset,
+        )
+        self.assertIn(
+            "if (this.svTargetConfirmed) this.svAwaitingTargetAfterDeparture = false",
+            sync,
+        )
+
+    def test_known_non_target_tail_still_attempts_a_real_final_score(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        dispatch = source.split("private dispatchFinal", 1)[1].split(
+            "private deliverSpeakerFinal", 1
+        )[0]
+        scoring_gate = dispatch.split(
+            "if (this.speakerVadEnabled &&", 1
+        )[1].split("const finalSpeakerVadScore", 1)[0]
+        self.assertNotIn("!this.svRejectCurrentUtterance", scoring_gate)
+
+    def test_finish_time_split_publishes_prefix_before_unique_last_tail(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        commit = source.split("private commitCleanSpeakerTurn", 1)[1].split(
+            "private resolveSpeakerTurnSplit", 1
+        )[0]
+        endpoint = commit.index("this.callback.onEndpoint?.()")
+        prefix_dispatch = commit.index(
+            "this.dispatchFinal(endpointTriggered || finishTriggered"
+        )
+        replay = commit.index("this.replaySpeakerSuffix(split)")
+        tail_last = commit.index("this.drain(true, false, true)")
+        self.assertIn("const prefixIsLast = isLast && !finishTriggered", commit)
+        self.assertLess(endpoint, prefix_dispatch)
+        self.assertLess(prefix_dispatch, replay)
+        self.assertLess(replay, tail_last)
+        self.assertIn("if (finishTriggered && !this.callbackGate.isClosed())", commit)
+        self.assertIn("this.reentryQueue.consumeStopAtEndpoint()", commit)
+
+    def test_finish_uses_final_score_for_short_target_without_stream_confirmation(self) -> None:
+        self.run_finalizer(
+            """
+            // A short utterance can finish before the first streaming Speaker VAD window. Once
+            // ASR has speech evidence, the final score must decide the gate instead of the missing
+            // streaming confirmation by itself.
+            assert.equal(shouldRejectSpeakerVadFinal(true, false, false, true), false);
+            assert.equal(shouldRejectSpeakerVadFinal(true, false, false, false), true);
+            assert.equal(shouldRejectSpeakerVadFinal(true, true, false, true), true);
+            """
+        )
+
+    def test_runtime_scores_short_speech_before_the_speaker_vad_final_gate(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        dispatch = source.split("private dispatchFinal", 1)[1].split(
+            "private deliverSpeakerFinal", 1
+        )[0]
+        self.assertIn("let finalSpeakerVadMatch", dispatch)
+        self.assertLess(
+            dispatch.index("let finalSpeakerVadMatch"),
+            dispatch.index("shouldRejectSpeakerVadFinal"),
+        )
+        self.assertNotIn("lastSpeakerVadScore: number = -1", source)
+
     def test_rejected_final_routing_does_not_require_voiceprint_verification(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
         delivery = source.split("private deliverSpeakerFinal", 1)[1].split(
@@ -202,14 +277,23 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         async_stop = source.split("private async stopNowAsync", 1)[1].split(
             "updateHotwords", 1
         )[0]
+        self.assertIn("if (this.commitSpeakerTurnAtFinish()) return", async_stop)
+        commit = source.split("private commitSpeakerTurnAtFinish", 1)[1].split(
+            "setTargetSpeaker", 1
+        )[0]
         self.assertIn(
-            "const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false",
-            async_stop,
+            "const finishRecovery = finalizer.hasPendingFinishDeparture()",
+            commit,
         )
-        self.assertIn("this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery", async_stop)
-        commit_index = async_stop.index(
-            "this.commitCleanSpeakerTurn(true, false, finishRecovery)"
+        self.assertIn(
+            "const finishDiarization = finalizer.hasFinishDiarizationCandidate()",
+            commit,
         )
+        self.assertIn(
+            "!finalizer.hasPendingDeparture() && !finishRecovery && !finishDiarization",
+            commit,
+        )
+        commit_index = async_stop.index("this.commitSpeakerTurnAtFinish()")
         speculative_flush_index = async_stop.index("this.appendFinalTailSilence()")
         self.assertLess(commit_index, speculative_flush_index)
 
@@ -218,14 +302,8 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         sync_stop = source.split("private stopNow(): void", 1)[1].split(
             "private async stopNowAsync", 1
         )[0]
-        self.assertIn(
-            "const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false",
-            sync_stop,
-        )
-        self.assertIn("this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery", sync_stop)
-        commit_index = sync_stop.index(
-            "this.commitCleanSpeakerTurn(true, false, finishRecovery)"
-        )
+        self.assertIn("if (this.commitSpeakerTurnAtFinish()) return", sync_stop)
+        commit_index = sync_stop.index("this.commitSpeakerTurnAtFinish()")
         speculative_flush_index = sync_stop.index("this.appendFinalTailSilence()")
         self.assertLess(commit_index, speculative_flush_index)
 
@@ -392,6 +470,36 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             assert.equal(atFinish.prefix.length, 48_000);
             assert.equal(atFinish.suffix.length, 22_400);
             """
+        )
+
+    def test_finish_uses_diarization_when_short_suffix_misses_streaming_low_window(self) -> None:
+        self.run_finalizer(
+            """
+            // Preserve target-only and overlap fail-open behavior; only a simple non-overlapping
+            // target -> other diarization with a strong score margin may recover this short tail.
+            const finalizer = new SpeakerTurnFinalizer(16_000, 24_000, 8_000, 2, 67_200);
+            finalizer.accept(new Float32Array(67_200));
+            assert.equal(finalizer.observeScore(56_000, 0.42, 0.35), 'target-confirmed');
+            assert.equal(finalizer.hasPendingFinishDeparture(), false);
+
+            const split = finalizer.resolveDiarizedAtFinish([
+              new SpeakerTurnSegment(0, 48_000, 0),
+              new SpeakerTurnSegment(48_000, 67_200, 1),
+            ], 0.35, (_samples, speaker) => speaker === 0 ? 0.42 : 0.08);
+
+            assert.ok(split);
+            assert.equal(split.cutSample, 48_000);
+            assert.equal(split.prefix.length, 48_000);
+            assert.equal(split.suffix.length, 19_200);
+            """
+        )
+        source = RUNTIME.read_text(encoding="utf-8")
+        resolver = source.split("private resolveSpeakerTurnSplit", 1)[1].split(
+            "private resolveSpeakerTurnAcoustic", 1
+        )[0]
+        self.assertIn(
+            "resolveDiarizedAtFinish(resolvedSegments, config.threshold, scoreCluster, false)",
+            resolver,
         )
 
     def test_finish_keeps_ambiguous_short_suffix_fail_open(self) -> None:

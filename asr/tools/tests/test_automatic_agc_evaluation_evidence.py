@@ -40,14 +40,14 @@ class AutomaticAgcEvaluationEvidenceTest(unittest.TestCase):
             self.assertRegex(digest, r"^[0-9a-f]{64}$")
         applicability = report["evaluation_applicability_review"]
         self.assertEqual(
-            "existing_accuracy_evaluation_remains_applicable",
+            "full_accuracy_evaluation_rerun",
             applicability["decision"],
         )
-        self.assertIn("were not rerun", applicability["not_claimed"])
         self.assertEqual(
             {
-                "test_agc_signal_domains",
-                "test_harmony_streaming_agc_processor",
+                "aishell3_normal_and_controlled_levels",
+                "customer_snr_scan",
+                "sdk_style_long_audio",
                 "repository_low_volume_regression_off_on",
             },
             set(applicability["rerun_verification"]),

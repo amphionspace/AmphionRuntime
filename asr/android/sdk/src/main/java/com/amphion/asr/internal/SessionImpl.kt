@@ -818,47 +818,55 @@ internal class SessionImpl(
         }
         speakerPcmBuffers.clearAll()
 
-        if (speakerVadEnabled && svRejectCurrentUtterance) {
-            val score = svLastScore.takeIf { hasEvidence }
-            return terminal.copy(speakerScore = score, isTargetSpeaker = false)
-        }
-        if (speakerVadEnabled && !svTargetConfirmed) {
-            val score = svLastScore.takeIf { hasEvidence }
-            return terminal.copy(speakerScore = score, isTargetSpeaker = false)
-        }
-        if (!targetSpeakerEnabled) return terminal
-        val target = targetEmbedding ?: return terminal
-        val verifier = ensureVerifier() ?: return terminal
-        val minSamples = engineImpl.targetSpeakerConfig
-            ?.let { speakerScoreMinimumSamples(it.minSegSec, sampleRate) }
-            ?: Int.MAX_VALUE
-        val selection = selectSpeakerScoreSamples(
-            boundary.samples,
-            fallbackSamples,
-            minSamples,
-            hasEvidence,
-        )
-        Logger.d(
-            "session $sessionId " + speakerScoreSelectionDiagnostic(
-                selection,
-                boundary.samples.size,
-                fallbackSamples.size,
+        var prepared = terminal
+        if (shouldScoreSpeakerFinal(targetSpeakerEnabled, speakerVadEnabled)) {
+            val target = targetEmbedding
+            val verifier = ensureVerifier()
+            val minSamples = engineImpl.targetSpeakerConfig
+                ?.let { speakerScoreMinimumSamples(it.minSegSec, sampleRate) }
+                ?: Int.MAX_VALUE
+            val selection = selectSpeakerScoreSamples(
+                boundary.samples,
+                fallbackSamples,
                 minSamples,
-                sampleRate,
                 hasEvidence,
-            ),
-        )
-        if (selection.source == SpeakerScoreSource.UTTERANCE) {
-            postDebug(
-                "speaker score fallback: effectiveSpeech=" +
-                    "${boundary.samples.size * 1000L / sampleRate}ms, " +
-                    "utterancePcm=${fallbackSamples.size * 1000L / sampleRate}ms",
             )
+            Logger.d(
+                "session $sessionId " + speakerScoreSelectionDiagnostic(
+                    selection,
+                    boundary.samples.size,
+                    fallbackSamples.size,
+                    minSamples,
+                    sampleRate,
+                    hasEvidence,
+                ),
+            )
+            if (selection.source == SpeakerScoreSource.UTTERANCE) {
+                postDebug(
+                    "speaker score fallback: effectiveSpeech=" +
+                        "${boundary.samples.size * 1000L / sampleRate}ms, " +
+                        "utterancePcm=${fallbackSamples.size * 1000L / sampleRate}ms",
+                )
+            }
+            if (target != null && verifier != null && selection.samples.isNotEmpty()) {
+                val score = verifier.segmentScore(selection.samples, target)
+                if (score != null) {
+                    val threshold = engineImpl.targetSpeakerConfig?.threshold ?: DEFAULT_TS_THRESHOLD
+                    prepared = terminal.copy(speakerScore = score, isTargetSpeaker = score >= threshold)
+                }
+            }
         }
-        if (selection.samples.isEmpty()) return terminal
-        val score = verifier.segmentScore(selection.samples, target) ?: return terminal
-        val threshold = engineImpl.targetSpeakerConfig?.threshold ?: DEFAULT_TS_THRESHOLD
-        return terminal.copy(speakerScore = score, isTargetSpeaker = score >= threshold)
+        val reject = shouldRejectSpeakerVadFinal(
+            speakerVadEnabled,
+            svRejectCurrentUtterance,
+            svTargetConfirmed,
+            prepared.isTargetSpeaker,
+        )
+        if (reject) {
+            val score = prepared.speakerScore ?: svLastScore.takeIf { hasEvidence }
+            return prepared.copy(speakerScore = score, isTargetSpeaker = false)
+        }
+        return prepared
     }
 
     /** 懒加载声纹打分器（仅 decoder 线程）。extractor 不可用时返回 null（门控降级为放行）。 */
