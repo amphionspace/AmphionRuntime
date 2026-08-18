@@ -58,6 +58,8 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("this.capturedAudioSource", source)
         self.assertIn("meta['audioSource'] = this.audioSourceName(this.capturedAudioSource)", source)
         self.assertIn("this.listening && this.rotatingSession", source)
+        self.assertIn("this.finishAutoEndedCapture().catch", source)
+        self.assertIn("this.stopListening().catch", source)
 
     def test_demo_case_store_exports_audio_metadata_and_note_for_hdc(self) -> None:
         source = CASE_STORE.read_text(encoding="utf-8")

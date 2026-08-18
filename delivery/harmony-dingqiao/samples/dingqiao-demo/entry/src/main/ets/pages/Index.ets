@@ -992,7 +992,9 @@ struct Index {
       this.stoppingListening = true;
       this.modelReady = false;
       this.sessionId = '';
-      this.finishAutoEndedCapture();
+      this.finishAutoEndedCapture().catch((e: Object): void => {
+        this.handleStopFailure('', e);
+      });
     } else {
       // 用户点了结束识别、最终结果已下发：当场释放模型，Runtime 保持就绪。
       this.liveHasCompleted = true;
@@ -1021,6 +1023,19 @@ struct Index {
       this.stoppingListening = false;
       this.releaseModel('SDK 已按 VAD/最长时长自动结束 · 模型已卸载');
     }
+  }
+
+  private handleStopFailure(sessionId: string, error: Object): void {
+    try {
+      if (sessionId.length > 0 && this.engine?.isBusy()) this.engine.cancel(sessionId);
+    } catch (_e) {
+    }
+    this.listening = false;
+    this.stoppingListening = false;
+    this.modelReady = false;
+    this.preRoll = [];
+    this.sessionId = '';
+    this.releaseModel(`停止识别失败：${error}`);
   }
 
   handleError(sessionId: string, errorCode: number, message: string): void {
@@ -1367,7 +1382,10 @@ struct Index {
         .backgroundColor(this.listening ? '#E5533C' : BRAND_ACCENT)
         .onClick((): void => {
           if (this.listening) {
-            this.stopListening();
+            const sid = this.sessionId;
+            this.stopListening().catch((e: Object): void => {
+              this.handleStopFailure(sid, e);
+            });
           } else {
             this.startListening();
           }
