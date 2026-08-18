@@ -4,7 +4,6 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 import hilog from '@ohos.hilog';
 import {
-  AudioInfo,
   CreateEngineCallback,
   CreateEngineParams,
   DingqiaoEventCode,
@@ -17,14 +16,19 @@ import {
   SpeechRecognizeSdk,
   StartParams
 } from 'amphion_dingqiao';
-import { AudioRecorder, AudioRecorderStats } from '../util/AudioRecorder';
+import { AudioRecorder, AudioRecorderStats, DemoAudioSource } from '../util/AudioRecorder';
 import { ColdStartEngineDecision, ColdStartPttGate } from '../util/ColdStartPttGate';
+import {
+  CustomerScenarioName,
+  customerProfileStartParams,
+  customerScenarioProfile
+} from '../util/CustomerScenarioProfile';
+import { DemoCaseSaveResult, saveDemoCase } from '../util/DemoCaseStore';
 import { PcmPlayer } from '../util/PcmPlayer';
 import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
 import { WavIo } from '../util/WavIo';
 
-const SESSION_MAX_AUDIO_MS = 60000;
 const SESSION_ROTATE_AUDIO_MS = 55000;
 const FRAME_AUDIO_MS = 20;
 const SDK_FRAME_BYTES = 640;
@@ -41,6 +45,8 @@ const SPEAKER_VAD_WINDOW_MS = 1500;
 const SPEAKER_VAD_HOP_MS = 500;
 const SPEAKER_VAD_CONSECUTIVE_BELOW = 2;
 const BRAND_ACCENT = '#2E6BE6';
+const CUSTOMER_SCENARIOS: CustomerScenarioName[] = ['tap-vad', 'ptt', 'transcription'];
+const AUDIO_SOURCES: DemoAudioSource[] = ['mic', 'voiceRecognition', 'voiceCommunication'];
 
 class FinalSegment {
   text: string;
@@ -78,6 +84,11 @@ struct Index {
   @State liveCompareText: string = '';
   @State replayCompareText: string = '';
   @State compareInfo: string = '';
+  @State customerScenario: CustomerScenarioName = 'ptt';
+  @State audioSource: DemoAudioSource = 'voiceCommunication';
+  @State stoppingListening: boolean = false;
+  @State caseNote: string = '';
+  @State caseInfo: string = '';
 
   private engine?: SpeechRecognitionEngine;
   private recorder?: AudioRecorder;
@@ -86,7 +97,6 @@ struct Index {
   private sessionId: string = '';
   private sessionAudioMs: number = 0;
   private rotatingSession: boolean = false;
-  private stoppingListening: boolean = false;
   private workPath: string = '';
   private appliedHotwordsKey: string = '';
   // 用户点了「开始识别」触发 engine 创建；默认配置复用模型池，卸载后或配置变化时会按需重载。
@@ -121,6 +131,8 @@ struct Index {
   private capturedVoiceprintVerify: boolean = false;
   private capturedSpeakerVad: boolean = false;
   private capturedPoliceEnhancement: boolean = true;
+  private capturedCustomerScenario: CustomerScenarioName = 'ptt';
+  private capturedAudioSource: DemoAudioSource = 'voiceCommunication';
 
   aboutToAppear(): void {
     this.workPath = SpeechRecognizeSdk.getWorkPath();
@@ -341,7 +353,7 @@ struct Index {
 
   private startListening(): void {
     if (!this.runtimeReady) return;
-    if (this.listening || this.replaying || this.playingCapture) return;
+    if (this.listening || this.stoppingListening || this.replaying || this.playingCapture) return;
     this.startTapMs = Date.now();
     this.finalSegments = [];
     this.partialText = '';
@@ -355,11 +367,15 @@ struct Index {
     this.capturedVoiceprintVerify = this.voiceprintVerifyDesired && this.capturedVoiceprintId.length > 0;
     this.capturedSpeakerVad = this.speakerVadDesired && this.capturedVoiceprintId.length > 0;
     this.capturedPoliceEnhancement = this.policeEnhancementDesired;
+    this.capturedCustomerScenario = this.customerScenario;
+    this.capturedAudioSource = this.audioSource;
     this.liveCompareText = '';
     this.liveHasCompleted = false;
     this.replayCompareText = '';
     this.replayHasCompleted = false;
     this.compareInfo = '';
+    this.caseNote = '';
+    this.caseInfo = '';
     this.listening = true;                         // UI 立即进入识别态,按钮变「停止识别」
     this.modelReady = (this.engine !== undefined);
     // ① 立即开麦(与模型冷加载并行);模型没好时,麦克风帧先进 pre-roll 缓存不丢。
@@ -461,9 +477,8 @@ struct Index {
   }
 
   private buildCapturedStartParams(sessionId: string): StartParams {
-    const extra: Record<string, Object> = {};
-    extra['enablePartialResult'] = true;
-    extra['maxAudioDuration'] = SESSION_MAX_AUDIO_MS;
+    const startParams = customerProfileStartParams(sessionId, this.capturedCustomerScenario);
+    const extra = startParams.extraParams;
     extra['enablePoliceEnhancement'] = this.capturedPoliceEnhancement;
     if (this.capturedVoiceprintVerify) {
       extra['enableVoiceprintVerification'] = true;
@@ -479,11 +494,39 @@ struct Index {
       extra['voiceprintIds'] = [this.capturedVoiceprintId];
     }
 
-    const startParams = new StartParams();
-    startParams.sessionId = sessionId;
-    startParams.audioInfo = new AudioInfo();
-    startParams.extraParams = extra;
     return startParams;
+  }
+
+  private scenarioLabel(name: CustomerScenarioName): string {
+    if (name === 'tap-vad') return '点击 + VAD';
+    if (name === 'transcription') return '长语音';
+    return '短语音 PTT';
+  }
+
+  private selectCustomerScenario(name: CustomerScenarioName): void {
+    if (this.listening || this.replaying) return;
+    this.customerScenario = name;
+    const profile = customerScenarioProfile(name);
+    this.audioSource = profile.audioSource;
+    this.status = `${this.scenarioLabel(name)} · SourceType=${profile.audioSource}`;
+  }
+
+  private audioSourceLabel(source: DemoAudioSource): string {
+    if (source === 'voiceRecognition') return 'VOICE_RECOGNITION';
+    if (source === 'voiceCommunication') return 'VOICE_COMMUNICATION';
+    return 'MIC（原始）';
+  }
+
+  private audioSourceName(source: DemoAudioSource): string {
+    if (source === 'voiceRecognition') return 'SOURCE_TYPE_VOICE_RECOGNITION';
+    if (source === 'voiceCommunication') return 'SOURCE_TYPE_VOICE_COMMUNICATION';
+    return 'SOURCE_TYPE_MIC';
+  }
+
+  private selectAudioSource(source: DemoAudioSource): void {
+    if (this.listening || this.replaying) return;
+    this.audioSource = source;
+    this.status = `${this.scenarioLabel(this.customerScenario)} · SourceType=${source}`;
   }
 
   private writeFrameToCurrentSession(frame: ArrayBuffer): void {
@@ -620,7 +663,8 @@ struct Index {
     meta['sampleRate'] = 16000;
     meta['channels'] = 1;
     meta['sampleFormat'] = 's16le';
-    meta['audioSource'] = 'SOURCE_TYPE_MIC';
+    meta['audioSource'] = this.audioSourceName(this.capturedAudioSource);
+    meta['customerScenario'] = this.capturedCustomerScenario;
     meta['softwareGainDb'] = 0;
     meta['frameBytes'] = SDK_FRAME_BYTES;
     meta['frameCount'] = this.sdkCaptureFrames.length;
@@ -666,6 +710,45 @@ struct Index {
       this.writeSdkCaptureMetadata();
     } catch (e) {
       hilog.warn(0x0000, 'PcmReplay', 'metadata write failed: %{public}s', `${e}`);
+    }
+  }
+
+  private saveCurrentCase(): void {
+    if (!this.captureReady || this.sdkCaptureFrames.length === 0) return;
+    const profile = customerScenarioProfile(this.capturedCustomerScenario);
+    const metadata: Record<string, Object> = {};
+    metadata['customerScenario'] = this.capturedCustomerScenario;
+    metadata['audioSource'] = this.audioSourceName(this.capturedAudioSource);
+    metadata['sampleRate'] = 16000;
+    metadata['channels'] = 1;
+    metadata['sampleFormat'] = 's16le';
+    metadata['frameBytes'] = SDK_FRAME_BYTES;
+    metadata['frameCount'] = this.sdkCaptureFrames.length;
+    metadata['durationMs'] = Math.round(this.sdkCaptureFrames.length * FRAME_AUDIO_MS);
+    metadata['enablePartialResult'] = profile.enablePartialResult;
+    metadata['vadEnd'] = profile.vadEnd;
+    metadata['maxAudioDuration'] = profile.maxAudioDuration;
+    if (profile.vadBegin !== undefined) metadata['vadBegin'] = profile.vadBegin;
+    metadata['voiceprintVerify'] = this.capturedVoiceprintVerify;
+    metadata['speakerVad'] = this.capturedSpeakerVad;
+    metadata['policeEnhancement'] = this.capturedPoliceEnhancement;
+    metadata['liveText'] = this.liveCompareText;
+    metadata['replayText'] = this.replayHasCompleted ? this.replayCompareText : '';
+    metadata['rmsDbfs'] = Number(this.sdkCaptureRmsDbfs.toFixed(3));
+    metadata['peak'] = this.sdkCapturePeak;
+    metadata['clipSamples'] = this.sdkCaptureClipSamples;
+    metadata['truncated'] = this.sdkCaptureTruncated;
+    metadata['capturerOverflowCount'] = this.recorderStats.overflowCount;
+    metadata['captureMaxCallbackGapMs'] = this.recorderStats.maxCallbackGapMs;
+    try {
+      const result: DemoCaseSaveResult = saveDemoCase(
+        this.mergeSdkCaptureFrames(), this.caseNote, metadata);
+      this.caseInfo = `已保存 ${result.caseId} · PC 可从 asr-cases 目录拉取`;
+      this.caseNote = '';
+      this.toast(`Case 已保存：${result.caseId}`);
+    } catch (e) {
+      this.caseInfo = `Case 保存失败：${e}`;
+      this.toast(this.caseInfo);
     }
   }
 
@@ -828,7 +911,8 @@ struct Index {
         this.sessionId = '';
         this.engineReady = this.engine !== undefined;
         this.status = `录音错误：${msg}`;
-      }
+      },
+      this.capturedAudioSource
     );
     this.recorder = recorder;
     recorder.start();
@@ -898,10 +982,17 @@ struct Index {
       this.releaseModel(`${this.compareInfo} · 模型已卸载`);
       return;
     }
-    if (this.listening) {
+    if (this.listening && this.rotatingSession) {
       // 连续场景的会话轮转(逼近 55s 上限):模型保持在内存,立即重开新会话,体验不中断。
       this.rotatingSession = false;
       this.startRecognitionSession();
+    } else if (this.listening) {
+      // vadBegin / maxAudioDuration 自动结束：不把它误当成 55s 主动轮转。
+      this.listening = false;
+      this.stoppingListening = true;
+      this.modelReady = false;
+      this.sessionId = '';
+      this.finishAutoEndedCapture();
     } else {
       // 用户点了结束识别、最终结果已下发：当场释放模型，Runtime 保持就绪。
       this.liveHasCompleted = true;
@@ -912,6 +1003,23 @@ struct Index {
         'SDK PCM 已保存 · 可试听或原样重新识别 · 模型已卸载' :
         '模型已卸载 · 运行时常驻 · 点击开始识别按需加载';
       this.releaseModel(next);
+    }
+  }
+
+  private async finishAutoEndedCapture(): Promise<void> {
+    try {
+      await this.stopCapture();
+      try {
+        this.saveSdkCapture();
+      } catch (e) {
+        this.captureReady = false;
+        this.captureInfo = `SDK PCM 保存失败：${e}`;
+      }
+      this.liveHasCompleted = true;
+      this.writeSdkCaptureMetadataBestEffort();
+    } finally {
+      this.stoppingListening = false;
+      this.releaseModel('SDK 已按 VAD/最长时长自动结束 · 模型已卸载');
     }
   }
 
@@ -1075,6 +1183,41 @@ struct Index {
       .width('100%')
       .alignItems(VerticalAlign.Center)
 
+      Column({ space: 6 }) {
+        Text('客户调用场景').fontSize(14).fontWeight(FontWeight.Medium).width('100%')
+        Row({ space: 6 }) {
+          ForEach(CUSTOMER_SCENARIOS, (name: CustomerScenarioName) => {
+            Button(this.scenarioLabel(name))
+              .layoutWeight(1)
+              .height(34)
+              .fontSize(12)
+              .enabled(!this.listening && !this.replaying && !this.loading)
+              .backgroundColor(this.customerScenario === name ? BRAND_ACCENT : '#D8DEE9')
+              .onClick((): void => this.selectCustomerScenario(name))
+          })
+        }
+        .width('100%')
+        Text(`SourceType=${this.audioSource} · ` +
+          `vadEnd=${customerScenarioProfile(this.customerScenario).vadEnd}ms · ` +
+          `max=${customerScenarioProfile(this.customerScenario).maxAudioDuration}ms`)
+          .fontSize(11)
+          .fontColor(Color.Gray)
+          .width('100%')
+        Row({ space: 4 }) {
+          ForEach(AUDIO_SOURCES, (source: DemoAudioSource) => {
+            Button(this.audioSourceLabel(source))
+              .layoutWeight(1)
+              .height(32)
+              .fontSize(10)
+              .enabled(!this.listening && !this.replaying && !this.loading)
+              .backgroundColor(this.audioSource === source ? '#16803A' : '#D8DEE9')
+              .onClick((): void => this.selectAudioSource(source))
+          })
+        }
+        .width('100%')
+      }
+      .width('100%')
+
       Row() {
         Text('声纹校验').fontSize(15).layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.voiceprintVerifyDesired })
@@ -1179,6 +1322,23 @@ struct Index {
               .width('100%')
           }
           Row({ space: 8 }) {
+            TextInput({ text: this.caseNote, placeholder: '备注：近讲、车内、尾部缺字…' })
+              .layoutWeight(1)
+              .height(36)
+              .maxLength(200)
+              .enabled(!this.listening && !this.replaying && !this.playingCapture)
+              .onChange((value: string): void => { this.caseNote = value; })
+            Button('保存 Case')
+              .height(36)
+              .enabled(this.captureReady && !this.listening && !this.replaying &&
+                !this.playingCapture && !this.loading)
+              .onClick((): void => this.saveCurrentCase())
+          }
+          .width('100%')
+          if (this.caseInfo.length > 0) {
+            Text(this.caseInfo).fontSize(11).fontColor('#16803A').width('100%').maxLines(2)
+          }
+          Row({ space: 8 }) {
             Button(this.playingCapture ? '正在试听…' : '试听上次 PCM')
               .layoutWeight(1)
               .height(36)
@@ -1203,7 +1363,7 @@ struct Index {
       Button(this.replaying ? '正在原样复测…' : (this.listening ? '停止识别' : '开始识别'))
         .width('100%')
         .height(48)
-        .enabled(this.runtimeReady && !this.replaying && !this.playingCapture)
+        .enabled(this.runtimeReady && !this.stoppingListening && !this.replaying && !this.playingCapture)
         .backgroundColor(this.listening ? '#E5533C' : BRAND_ACCENT)
         .onClick((): void => {
           if (this.listening) {
