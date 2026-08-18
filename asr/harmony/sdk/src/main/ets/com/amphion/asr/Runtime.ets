@@ -1506,13 +1506,7 @@ export class AsrSession {
     try {
       const remainder = this.agcProcessor.flush();
       for (let index = 0; index < remainder.length; index++) this.feedAndDecode(remainder[index]);
-      const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false;
-      const finishDiarization = this.svTurnFinalizer?.hasFinishDiarizationCandidate() ?? false;
-      if (this.speakerVadEnabled &&
-        (this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery || finishDiarization) &&
-        this.commitCleanSpeakerTurn(true, false, finishRecovery || finishDiarization)) {
-        return;
-      }
+      if (this.commitSpeakerTurnAtFinish()) return;
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
       // Don't rebuild the stream afterwards (session is ending), so a soft reset is enough.
       this.appendFinalTailSilence();
@@ -1538,13 +1532,7 @@ export class AsrSession {
       for (let index = 0; index < remainder.length; index++) {
         await this.feedAndDecodeAsync(remainder[index]);
       }
-      const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false;
-      const finishDiarization = this.svTurnFinalizer?.hasFinishDiarizationCandidate() ?? false;
-      if (this.speakerVadEnabled &&
-        (this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery || finishDiarization) &&
-        this.commitCleanSpeakerTurn(true, false, finishRecovery || finishDiarization)) {
-        return;
-      }
+      if (this.commitSpeakerTurnAtFinish()) return;
       this.appendFinalTailSilence();
       this.stream.inputFinished();
       await this.drainAsync(true, false, true);
@@ -1564,6 +1552,15 @@ export class AsrSession {
     this.config.hotwords = words.filter((word: string): boolean => word.trim().length > 0);
     this.config.hotwordsScore = score;
     Logger.w('updateHotwords requires recreating recognizer on Harmony first implementation');
+  }
+
+  private commitSpeakerTurnAtFinish(): boolean {
+    const finalizer = this.svTurnFinalizer;
+    if (!this.speakerVadEnabled || finalizer === undefined) return false;
+    const finishRecovery = finalizer.hasPendingFinishDeparture();
+    const finishDiarization = finalizer.hasFinishDiarizationCandidate();
+    if (!finalizer.hasPendingDeparture() && !finishRecovery && !finishDiarization) return false;
+    return this.commitCleanSpeakerTurn(true, false, finishRecovery || finishDiarization);
   }
 
   setTargetSpeaker(embedding: Float32Array): void {

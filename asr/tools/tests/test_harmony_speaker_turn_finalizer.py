@@ -226,21 +226,23 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         async_stop = source.split("private async stopNowAsync", 1)[1].split(
             "updateHotwords", 1
         )[0]
+        self.assertIn("if (this.commitSpeakerTurnAtFinish()) return", async_stop)
+        commit = source.split("private commitSpeakerTurnAtFinish", 1)[1].split(
+            "setTargetSpeaker", 1
+        )[0]
         self.assertIn(
-            "const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false",
-            async_stop,
+            "const finishRecovery = finalizer.hasPendingFinishDeparture()",
+            commit,
         )
         self.assertIn(
-            "const finishDiarization = this.svTurnFinalizer?.hasFinishDiarizationCandidate() ?? false",
-            async_stop,
+            "const finishDiarization = finalizer.hasFinishDiarizationCandidate()",
+            commit,
         )
         self.assertIn(
-            "this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery || finishDiarization",
-            async_stop,
+            "!finalizer.hasPendingDeparture() && !finishRecovery && !finishDiarization",
+            commit,
         )
-        commit_index = async_stop.index(
-            "this.commitCleanSpeakerTurn(true, false, finishRecovery || finishDiarization)"
-        )
+        commit_index = async_stop.index("this.commitSpeakerTurnAtFinish()")
         speculative_flush_index = async_stop.index("this.appendFinalTailSilence()")
         self.assertLess(commit_index, speculative_flush_index)
 
@@ -249,21 +251,8 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         sync_stop = source.split("private stopNow(): void", 1)[1].split(
             "private async stopNowAsync", 1
         )[0]
-        self.assertIn(
-            "const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false",
-            sync_stop,
-        )
-        self.assertIn(
-            "const finishDiarization = this.svTurnFinalizer?.hasFinishDiarizationCandidate() ?? false",
-            sync_stop,
-        )
-        self.assertIn(
-            "this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery || finishDiarization",
-            sync_stop,
-        )
-        commit_index = sync_stop.index(
-            "this.commitCleanSpeakerTurn(true, false, finishRecovery || finishDiarization)"
-        )
+        self.assertIn("if (this.commitSpeakerTurnAtFinish()) return", sync_stop)
+        commit_index = sync_stop.index("this.commitSpeakerTurnAtFinish()")
         speculative_flush_index = sync_stop.index("this.appendFinalTailSilence()")
         self.assertLess(commit_index, speculative_flush_index)
 

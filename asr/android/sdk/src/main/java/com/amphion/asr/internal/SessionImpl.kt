@@ -819,7 +819,7 @@ internal class SessionImpl(
         speakerPcmBuffers.clearAll()
 
         var prepared = terminal
-        if (targetSpeakerEnabled) {
+        if (shouldScoreSpeakerFinal(targetSpeakerEnabled, speakerVadEnabled)) {
             val target = targetEmbedding
             val verifier = ensureVerifier()
             val minSamples = engineImpl.targetSpeakerConfig
