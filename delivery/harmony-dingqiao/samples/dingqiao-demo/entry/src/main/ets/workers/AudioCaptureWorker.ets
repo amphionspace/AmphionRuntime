@@ -18,6 +18,12 @@ let callbackGapExcessMs: number = 0;
 let maxCallbackWorkMs: number = 0;
 let bufferSizeBytes: number = 0;
 
+function requestedSource(name: string): audio.SourceType {
+  if (name === 'voiceRecognition') return audio.SourceType.SOURCE_TYPE_VOICE_RECOGNITION;
+  if (name === 'voiceCommunication') return audio.SourceType.SOURCE_TYPE_VOICE_COMMUNICATION;
+  return audio.SourceType.SOURCE_TYPE_MIC;
+}
+
 function resetStats(): void {
   callbackCount = 0;
   totalBytes = 0;
@@ -60,7 +66,7 @@ function onReadData(buffer: ArrayBuffer): void {
   if (workMs > maxCallbackWorkMs) maxCallbackWorkMs = workMs;
 }
 
-async function startCapture(): Promise<void> {
+async function startCapture(sourceName: string): Promise<void> {
   if (running || capturer !== undefined) return;
   resetStats();
   try {
@@ -71,7 +77,7 @@ async function startCapture(): Promise<void> {
       encodingType: audio.AudioEncodingType.ENCODING_TYPE_RAW
     };
     const capturerInfo: audio.AudioCapturerInfo = {
-      source: audio.SourceType.SOURCE_TYPE_MIC,
+      source: requestedSource(sourceName),
       capturerFlags: 0
     };
     const created = await audio.createAudioCapturer({ streamInfo, capturerInfo });
@@ -155,7 +161,7 @@ function failAndStop(message: string): void {
 workerPort.onmessage = (event: MessageEvents): void => {
   const type = event.data['type'] as string;
   if (type === 'start') {
-    startCapture();
+    startCapture(event.data['source'] as string);
   } else if (type === 'stop') {
     stopCapture();
   }
