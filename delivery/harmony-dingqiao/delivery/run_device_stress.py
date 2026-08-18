@@ -35,6 +35,7 @@ REMOTE_ROOT = "/data/storage/el2/base/files/asr-stress"
 FINISH_MODES = {
     "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration", "numeric-edge",
     "finish-shutdown", "finish-shutdown-relicense",
+    "customer-tap-vad", "customer-ptt", "customer-transcription", "customer-ptt-tail",
 }
 MIN_MEMORY_SAMPLES = 6
 MIN_MEMORY_OBSERVATION_SECONDS = 15.0
@@ -113,6 +114,10 @@ def parse_args() -> argparse.Namespace:
             "target-speaker-enhancement-onstart",
             "target-speaker-enhancement-cancel",
             "callback-api-reentrant",
+            "customer-tap-vad",
+            "customer-ptt",
+            "customer-transcription",
+            "customer-ptt-tail",
             "endpoint-reentrant",
             "finish-shutdown",
             "finish-shutdown-relicense",

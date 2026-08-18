@@ -17,6 +17,7 @@ import {
   VoiceprintRegisterParams
 } from 'amphion_dingqiao';
 import { AmphionRuntime } from 'amphion_asr';
+import { CustomerScenarioName, customerProfileStartParams } from './CustomerScenarioProfile';
 import { WavIo } from './WavIo';
 
 const TAG: string = 'DeviceStressTest';
@@ -379,6 +380,7 @@ class CallbackApiReentrantListener extends SequenceListener {
   reentryAttempted: boolean = false;
   writeCalls: number = 0;
   finishCalls: number = 0;
+  lastFinalsBeforeFinish: number = -1;
   reentryThrowMessage: string = '';
 
   constructor(engine: SpeechRecognitionEngine, expectedSessionId: string, trigger: string) {
@@ -398,6 +400,7 @@ class CallbackApiReentrantListener extends SequenceListener {
     try {
       this.writeCalls += 1;
       this.engine.writeAudio(sessionId, new ArrayBuffer(FRAME_BYTES));
+      this.lastFinalsBeforeFinish = this.events.lastFinals;
       this.finishCalls += 1;
       this.engine.finish(sessionId);
     } catch (e) {
@@ -409,6 +412,7 @@ class CallbackApiReentrantListener extends SequenceListener {
     if (this.reentryAttempted) return;
     this.reentryAttempted = true;
     try {
+      this.lastFinalsBeforeFinish = this.events.lastFinals;
       this.finishCalls += 1;
       this.engine.finish(sessionId);
     } catch (e) {
@@ -768,6 +772,7 @@ class CycleResult {
   effectiveMaxAudioDurationMs: number = -1;
   voiceprintIdCount: number = 0;
   fedFrames: number = 0;
+  tailSilenceMs: number = -1;
   lastFinalsBeforeFinish: number = -1;
   speechEndsBeforeFinish: number = -1;
   finishToFirstNonEmptyResultMs: number = -1;
@@ -800,6 +805,7 @@ class CycleResult {
       `|requestedMaxAudioDurationMs=${this.requestedMaxAudioDurationMs}` +
       `|effectiveMaxAudioDurationMs=${this.effectiveMaxAudioDurationMs}` +
       `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
+      `|tailSilenceMs=${this.tailSilenceMs}` +
       `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}` +
       `|speechEndsBeforeFinish=${this.speechEndsBeforeFinish}` +
       `|finishToFirstNonEmptyResultMs=${this.finishToFirstNonEmptyResultMs}` +
@@ -1802,6 +1808,74 @@ async function runCallbackApiReentrantCycle(engine: SpeechRecognitionEngine, ent
   return result;
 }
 
+async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number, mode: string, paceMs: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  let scenario: CustomerScenarioName = 'ptt';
+  if (mode === 'customer-tap-vad') scenario = 'tap-vad';
+  else if (mode === 'customer-transcription') scenario = 'transcription';
+  const sessionId = `${mode}-${index}`;
+  const callbackListener = mode === 'customer-tap-vad' ?
+    new CallbackApiReentrantListener(engine, sessionId, 'speech-end') : undefined;
+  const events = callbackListener === undefined ? new SessionEvents() : callbackListener.events;
+  if (callbackListener === undefined) {
+    engine.setListener(new StressListener(events, sessionId));
+  } else {
+    engine.setListener(callbackListener);
+  }
+  const params = customerProfileStartParams(sessionId, scenario);
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'customer-start-timeout');
+  }
+
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, paceMs,
+    (): boolean => events.completes > 0);
+  let tailFrames = 0;
+  if (mode === 'customer-ptt-tail' && engine.isBusy()) {
+    const tailOptions: number[] = [0, 10, 25, 50];
+    tailFrames = tailOptions[index % tailOptions.length];
+    for (let i = 0; i < tailFrames && engine.isBusy(); i++) {
+      engine.writeAudio(sessionId, new ArrayBuffer(FRAME_BYTES));
+      if (paceMs > 0) await sleep(paceMs);
+    }
+  }
+  if (callbackListener !== undefined && !callbackListener.reentryAttempted) {
+    for (let i = 0; i < 100 && engine.isBusy() && !callbackListener.reentryAttempted; i++) {
+      engine.writeAudio(sessionId, new ArrayBuffer(FRAME_BYTES));
+      await sleep(FRAME_DURATION_MS);
+    }
+  }
+
+  const lastBeforeStop = callbackListener === undefined ?
+    events.lastFinals : callbackListener.lastFinalsBeforeFinish;
+  if (callbackListener === undefined && engine.isBusy()) engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  if (!completed && engine.isBusy()) engine.cancel(sessionId);
+  const callbackContract = callbackListener === undefined ||
+    (callbackListener.reentryAttempted && callbackListener.finishCalls === 1 &&
+    callbackListener.reentryThrowMessage.length === 0);
+  const ok = completed && callbackContract && lastBeforeStop === 0 &&
+    events.starts === 1 && events.lastFinals === 1 && events.completes === 1 &&
+    events.errors === 0 && events.unexpectedSessionCallbacks === 0 &&
+    terminalCallbackOrderOk(events, sessionId) && !engine.isBusy();
+  let detail = `${mode}-contract`;
+  if (callbackListener !== undefined && !callbackListener.reentryAttempted) {
+    detail = 'customer-tap-vad-missing-speech-end';
+  } else if (lastBeforeStop !== 0) {
+    detail = 'customer-is-last-before-stop';
+  } else if (!ok) {
+    detail = `${mode}-lifecycle-failed`;
+  }
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.fedFrames = fed + tailFrames;
+  result.tailSilenceMs = mode === 'customer-ptt-tail' ? tailFrames * FRAME_DURATION_MS : -1;
+  result.lastFinalsBeforeFinish = lastBeforeStop;
+  result.requestedVadBeginMs = scenario === 'tap-vad' ? 5000 : -1;
+  result.requestedMaxAudioDurationMs = scenario === 'tap-vad' ? 20000 : 62000;
+  return result;
+}
+
 // Reproduces the legacy PTT host sequence exactly: finish, observe the still-draining busy state,
 // then immediately release the engine. An accepted finish must retain ownership until its unique
 // last/complete callbacks have been delivered.
@@ -2446,6 +2520,9 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runSpeakerVadTurnCycle(engine, entry, i, stressVoiceprintId, options);
       } else if (options.mode === 'callback-api-reentrant') {
         result = await runCallbackApiReentrantCycle(engine, entry, i);
+      } else if (options.mode === 'customer-tap-vad' || options.mode === 'customer-ptt' ||
+        options.mode === 'customer-transcription' || options.mode === 'customer-ptt-tail') {
+        result = await runCustomerScenarioCycle(engine, entry, i, options.mode, options.paceMs);
       } else if (options.mode === 'endpoint-reentrant') {
         result = await runEndpointReentrantCycle(engine, entry, i);
       } else if (options.mode === 'finish-shutdown') {

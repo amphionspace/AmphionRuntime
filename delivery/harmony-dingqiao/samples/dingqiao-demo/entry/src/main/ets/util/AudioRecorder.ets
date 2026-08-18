@@ -2,6 +2,7 @@ import worker, { ErrorEvent, MessageEvents } from '@ohos.worker';
 
 export type PcmListener = (samples: Int16Array) => void;
 export type RecorderErrorListener = (message: string) => void;
+export type DemoAudioSource = 'mic' | 'voiceRecognition' | 'voiceCommunication';
 
 const CAPTURE_WORKER_URL = 'amphion_asr_demo/ets/workers/AudioCaptureWorker.ets';
 
@@ -28,6 +29,7 @@ export class AudioRecorderStats {
 export class AudioRecorder {
   private readonly onPcm: PcmListener;
   private readonly onError: RecorderErrorListener;
+  private readonly audioSource: DemoAudioSource;
   private workerInstance?: worker.ThreadWorker;
   private running: boolean = false;
   private starting: boolean = false;
@@ -38,9 +40,11 @@ export class AudioRecorder {
   private resolveStop?: (stats: AudioRecorderStats) => void;
   private lastStats: AudioRecorderStats = new AudioRecorderStats();
 
-  constructor(onPcm: PcmListener, onError: RecorderErrorListener) {
+  constructor(onPcm: PcmListener, onError: RecorderErrorListener,
+    audioSource: DemoAudioSource = 'mic') {
     this.onPcm = onPcm;
     this.onError = onError;
+    this.audioSource = audioSource;
   }
 
   async start(): Promise<void> {
@@ -73,7 +77,7 @@ export class AudioRecorder {
           this.failWorker(instance, `录音线程意外退出：${code}`);
         }
       };
-      instance.postMessage({ type: 'start' });
+      instance.postMessage({ type: 'start', source: this.audioSource });
     } catch (e) {
       this.failWorker(this.workerInstance, `录音线程启动失败：${e}`);
     }
