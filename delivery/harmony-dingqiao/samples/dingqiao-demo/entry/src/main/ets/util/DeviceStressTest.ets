@@ -76,6 +76,7 @@ class SessionEvents {
   audioFeedStartedAtMs: number = -1;
   speechBeginAtMs: number = -1;
   firstNonEmptyResultAtMs: number = -1;
+  firstNonEmptyFinalAtMs: number = -1;
   lastIsLast: boolean = false;
   lastFinals: number = 0;
   speakerScores: number = 0;
@@ -165,6 +166,9 @@ class StressListener implements RecognitionListener {
       this.events.targetSpeakerEnhancementResults += 1;
     }
     this.events.finals += 1;
+    if (expectedSession && result.result.length > 0 && this.events.firstNonEmptyFinalAtMs < 0) {
+      this.events.firstNonEmptyFinalAtMs = Date.now();
+    }
     this.events.finalChars += result.result.length;
     this.events.finalTexts.push(result.result);
     this.events.lastIsLast = result.isLast;
@@ -1372,8 +1376,10 @@ async function runSpeakerVadTurnCycle(engine: SpeechRecognitionEngine,
   const text = events.finalTexts.join('');
   const businessTextPassed = !options.enforceTargetSpeakerBusinessText ||
     (text.includes('上海') && !text.includes('你好'));
-  const finishToFirstNonEmptyResultMs = events.firstNonEmptyResultAtMs < 0 ? -1 :
-    events.firstNonEmptyResultAtMs - finishRequestedAtMs;
+  // Finish recovery latency starts at finish and ends at the recovered public final. Partials may
+  // have arrived earlier and must not turn this measurement negative.
+  const finishToFirstNonEmptyResultMs = events.firstNonEmptyFinalAtMs < 0 ? -1 :
+    events.firstNonEmptyFinalAtMs - finishRequestedAtMs;
   const finishRecovery = options.speakerVadFinishRecoveryEntryIds.split(',').indexOf(entry.id) >= 0 &&
     speechEndsBeforeFinish === 0;
   const boundarySignalPassed = speechEndsBeforeFinish > 0 || finishRecovery;

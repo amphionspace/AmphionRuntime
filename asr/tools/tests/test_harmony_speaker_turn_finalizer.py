@@ -130,11 +130,51 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         commit = source.split("private commitCleanSpeakerTurn", 1)[1].split(
             "private resolveSpeakerTurnSplit", 1
         )[0]
+        reset = source.split("private resetSpeakerVadState", 1)[1].split(
+            "private speakerTurnFinalizer", 1
+        )[0]
+        sync = source.split("private syncSpeakerTurnState", 1)[1].split(
+            "private commitCleanSpeakerTurn", 1
+        )[0]
         replay_index = commit.index("this.replaySpeakerSuffix(split)")
-        reject_index = commit.index(
-            "if (!this.svTargetConfirmed) this.svRejectCurrentUtterance = true"
+        departure_index = commit.index("this.svAwaitingTargetAfterDeparture = true")
+        self.assertLess(departure_index, replay_index)
+        self.assertIn(
+            "this.svRejectCurrentUtterance = this.svAwaitingTargetAfterDeparture",
+            reset,
         )
-        self.assertLess(replay_index, reject_index)
+        self.assertIn(
+            "if (this.svTargetConfirmed) this.svAwaitingTargetAfterDeparture = false",
+            sync,
+        )
+
+    def test_known_non_target_tail_still_attempts_a_real_final_score(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        dispatch = source.split("private dispatchFinal", 1)[1].split(
+            "private deliverSpeakerFinal", 1
+        )[0]
+        scoring_gate = dispatch.split(
+            "if (this.speakerVadEnabled &&", 1
+        )[1].split("const finalSpeakerVadScore", 1)[0]
+        self.assertNotIn("!this.svRejectCurrentUtterance", scoring_gate)
+
+    def test_finish_time_split_publishes_prefix_before_unique_last_tail(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        commit = source.split("private commitCleanSpeakerTurn", 1)[1].split(
+            "private resolveSpeakerTurnSplit", 1
+        )[0]
+        endpoint = commit.index("this.callback.onEndpoint?.()")
+        prefix_dispatch = commit.index(
+            "this.dispatchFinal(endpointTriggered || finishTriggered"
+        )
+        replay = commit.index("this.replaySpeakerSuffix(split)")
+        tail_last = commit.index("this.drain(true, false, true)")
+        self.assertIn("const prefixIsLast = isLast && !finishTriggered", commit)
+        self.assertLess(endpoint, prefix_dispatch)
+        self.assertLess(prefix_dispatch, replay)
+        self.assertLess(replay, tail_last)
+        self.assertIn("if (finishTriggered && !this.callbackGate.isClosed())", commit)
+        self.assertIn("this.reentryQueue.consumeStopAtEndpoint()", commit)
 
     def test_finish_uses_final_score_for_short_target_without_stream_confirmation(self) -> None:
         self.run_finalizer(

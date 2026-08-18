@@ -1296,6 +1296,7 @@ export class AsrSession {
   private svTargetConfirmed: boolean = false;
   private svBelowCount: number = 0;
   private svRejectCurrentUtterance: boolean = false;
+  private svAwaitingTargetAfterDeparture: boolean = false;
   private svTurnFinalizer?: SpeakerTurnFinalizer;
   private svPendingSplit?: SpeakerTurnSplit;
   private svCleanPrefixSpeakerScore?: number;
@@ -1633,6 +1634,7 @@ export class AsrSession {
       return;
     }
     this.speakerVadEnabled = enabled;
+    this.svAwaitingTargetAfterDeparture = false;
     if (enabled) this.ensureSpeakerTurnSegmenterLoad();
     this.resetSpeakerVadState();
   }
@@ -1816,7 +1818,7 @@ export class AsrSession {
     const scoreSelection =
       selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence);
     let finalSpeakerVadMatch = result.isTargetSpeaker;
-    if (this.speakerVadEnabled && !this.svRejectCurrentUtterance && !this.svTargetConfirmed &&
+    if (this.speakerVadEnabled && !this.svTargetConfirmed &&
       hasEvidence && finalSpeakerVadMatch === undefined && scoreSelection.samples.length > 0) {
       const finalSpeakerVadScore = this.scoreSamples(scoreSelection.samples);
       if (finalSpeakerVadScore !== undefined) {
@@ -2461,7 +2463,7 @@ export class AsrSession {
     this.svTurnFailOpen = false;
     this.svTargetConfirmed = false;
     this.svBelowCount = 0;
-    this.svRejectCurrentUtterance = false;
+    this.svRejectCurrentUtterance = this.svAwaitingTargetAfterDeparture;
     this.lastSpeakerVadScore = undefined;
   }
 
@@ -2531,8 +2533,10 @@ export class AsrSession {
 
   private syncSpeakerTurnState(finalizer: SpeakerTurnFinalizer): void {
     this.svTargetConfirmed = finalizer.isTargetConfirmed();
+    if (this.svTargetConfirmed) this.svAwaitingTargetAfterDeparture = false;
     this.svBelowCount = finalizer.consecutiveLowScores();
-    this.svRejectCurrentUtterance = finalizer.shouldRejectCurrent();
+    this.svRejectCurrentUtterance = finalizer.shouldRejectCurrent() ||
+      this.svAwaitingTargetAfterDeparture;
     this.lastSpeakerVadScore = finalizer.lastScore();
   }
 
@@ -2613,9 +2617,21 @@ export class AsrSession {
       this.svTargetConfirmed = true;
       this.svRejectCurrentUtterance = false;
       speculativeStream.close();
-      this.dispatchFinal(endpointTriggered, preparedDecodeMs + Date.now() - decodeStartMs, isLast);
+      // A split discovered only at finish still represents a public utterance boundary. Publish
+      // its endpoint before the proven target prefix, and consume a redundant finish requested
+      // reentrantly from that callback because this stop operation already owns session shutdown.
+      if (finishTriggered && !endpointTriggered) {
+        this.endpointAtMs = Date.now();
+        if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return true;
+        this.reentryQueue.consumeStopAtEndpoint();
+      }
+      // Let the replayed non-target suffix own the session's unique last result. Marking the clean
+      // prefix last here would stop before the suffix is gated.
+      const prefixIsLast = isLast && !finishTriggered;
+      this.dispatchFinal(endpointTriggered || finishTriggered,
+        preparedDecodeMs + Date.now() - decodeStartMs, prefixIsLast);
       if (this.callbackGate.isClosed()) return true;
-      if (isLast) {
+      if (prefixIsLast) {
         this.notifyStopped();
         return true;
       }
@@ -2628,12 +2644,16 @@ export class AsrSession {
       this.resetVadGateState();
       this.pcmBytesAccepted = split.suffix.length * 2;
       this.firstPcmMs = Date.now();
+      this.svAwaitingTargetAfterDeparture = true;
+      this.svRejectCurrentUtterance = true;
       this.replaySpeakerSuffix(split);
-      // The split independently proved that this suffix belongs to the departing non-target
-      // speaker. Replaying it can emit and reset a pre-target rejection before a short remainder
-      // reaches finish; keep that remainder rejected unless streaming Speaker VAD reconfirms the
-      // target. Otherwise the generic short-final score can re-admit the known non-target tail.
-      if (!this.svTargetConfirmed) this.svRejectCurrentUtterance = true;
+      if (finishTriggered && !this.callbackGate.isClosed()) {
+        this.appendFinalTailSilence();
+        this.stream.inputFinished();
+        this.drain(true, false, true);
+        if (!this.callbackGate.isClosed()) this.notifyStopped();
+        return true;
+      }
       const splitDebugMessage = `speaker turn clean split: cutSample=${split.cutSample} ` +
         `prefix=${split.prefix.length} suffix=${split.suffix.length}`;
       this.callbackGate.invoke((): void => {
