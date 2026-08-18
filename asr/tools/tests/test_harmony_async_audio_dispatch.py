@@ -22,6 +22,10 @@ DEVICE_STRESS = (
     REPO_ROOT
     / "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/util/DeviceStressTest.ets"
 )
+MODELS = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/DingqiaoModels.ets"
+)
 
 
 class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
@@ -83,6 +87,70 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
             assert.equal(dispatcher.write(Uint8Array.from([3]).buffer), false);
             await finished;
             assert.deepEqual(events, ['audio-1', 'audio-2', 'finish']);
+            """
+        )
+
+    def test_large_burst_uses_one_shared_pump_instead_of_one_promise_per_frame(self) -> None:
+        self.run_dispatcher(
+            """
+            let releaseWrite;
+            const blocked = new Promise(resolve => { releaseWrite = resolve; });
+            const dispatcher = new SessionAudioDispatcher({
+              write: async () => { await blocked; },
+              writeFloat: async () => {},
+              finish: async () => {},
+            }, () => {});
+
+            for (let i = 0; i < 10000; i++) {
+              assert.equal(dispatcher.write(new ArrayBuffer(640)), true);
+            }
+            const queued = dispatcher.queueStats();
+            assert.equal(queued.queuedChunks, 10000);
+            assert.equal(queued.queuedBytes, 6400000);
+            assert.equal(queued.scheduledPumps, 1);
+
+            releaseWrite();
+            await dispatcher.whenIdle();
+            const drained = dispatcher.queueStats();
+            assert.equal(drained.queuedChunks, 0);
+            assert.equal(drained.queuedBytes, 0);
+            """
+        )
+
+    def test_backpressured_write_waits_for_low_water_without_realtime_sleep(self) -> None:
+        self.run_dispatcher(
+            """
+            const releases = [];
+            const dispatcher = new SessionAudioDispatcher({
+              write: async () => {
+                await new Promise(resolve => { releases.push(resolve); });
+              },
+              writeFloat: async () => {},
+              finish: async () => {},
+            }, () => {}, 1280, 640);
+
+            assert.equal(await dispatcher.writeWithBackpressure(new ArrayBuffer(640)), true);
+            assert.equal(await dispatcher.writeWithBackpressure(new ArrayBuffer(640)), true);
+            let thirdResolved = false;
+            const third = dispatcher.writeWithBackpressure(new ArrayBuffer(640)).then(value => {
+              thirdResolved = value;
+            });
+            await Promise.resolve();
+            await Promise.resolve();
+            assert.equal(thirdResolved, false);
+            assert.equal(dispatcher.queueStats().queuedBytes, 1920);
+
+            releases.shift()();
+            await Promise.resolve();
+            await Promise.resolve();
+            assert.equal(thirdResolved, false);
+            releases.shift()();
+            await third;
+            assert.equal(thirdResolved, true);
+            assert.ok(dispatcher.queueStats().queuedBytes <= 640);
+
+            while (releases.length > 0) releases.shift()();
+            await dispatcher.whenIdle();
             """
         )
 
@@ -225,6 +293,33 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         self.assertIn("static executionTail", dispatcher)
         self.assertIn("async acceptPcmBytesAsync", runtime)
         self.assertIn("await this.recognizer.decodeAsync(this.stream)", runtime)
+
+    def test_public_offline_write_exposes_bounded_backpressure_and_progress(self) -> None:
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        models = MODELS.read_text(encoding="utf-8")
+        stress = DEVICE_STRESS.read_text(encoding="utf-8")
+        self.assertIn("writeAudioAsync(sessionId: string, audio: ArrayBuffer): Promise<boolean>", models)
+        self.assertIn("getAudioQueueStats(): AudioQueueStats", models)
+        self.assertIn("async writeAudioAsync(sessionId: string, audio: ArrayBuffer)", adapter)
+        self.assertIn("await dispatcher.whenWritable()", adapter)
+        self.assertIn("options.mode === 'burst'", stress)
+        self.assertIn("await engine.writeAudioAsync(sessionId, frame)", stress)
+        self.assertIn("options.mode === 'paced' || options.mode === 'burst'", stress)
+        self.assertIn("AUDIO_QUEUE|sessionId=", stress)
+        self.assertIn("params.extraParams['endpointMaxUtteranceMs'] = 55000", stress)
+        self.assertIn("TEXT|cycle=", stress)
+
+    def test_endpoint_max_utterance_is_session_configurable_and_part_of_engine_key(self) -> None:
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        profile = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/util/CustomerScenarioProfile.ets"
+        ).read_text(encoding="utf-8")
+        self.assertIn("'endpointMaxUtteranceMs', DEFAULT_ENDPOINT_MAX_UTTERANCE_MS", adapter)
+        self.assertIn("rule3MinUtteranceLengthSec = endpointMaxUtteranceMs(startParams) / 1000", adapter)
+        self.assertIn("`${endpointMaxUtteranceMs(params)}`", adapter)
+        self.assertIn("endpointMaxUtteranceMs: 20000", profile)
+        self.assertGreaterEqual(profile.count("endpointMaxUtteranceMs: 55000"), 2)
 
     def test_adapter_bridges_finish_intent_to_the_current_core_callback(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")

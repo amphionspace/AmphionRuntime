@@ -25,6 +25,16 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_locate_hdc_accepts_windows_executable_suffix(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            deveco = Path(directory)
+            toolchains = deveco / "sdk/default/openharmony/toolchains"
+            toolchains.mkdir(parents=True)
+            expected = toolchains / "hdc.exe"
+            expected.touch()
+            with mock.patch.dict(MODULE.os.environ, {"DEVECO_STUDIO_HOME": str(deveco)}):
+                self.assertEqual(expected, MODULE.locate_hdc())
+
     def test_voiceprint_representative_selection_excludes_too_short_enrollment(self) -> None:
         sources = [
             MODULE.AudioSource(Path("short.wav"), 16000, 1, 2, 44800, 2.8),

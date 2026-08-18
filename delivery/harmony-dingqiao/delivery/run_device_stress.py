@@ -298,9 +298,10 @@ class Hdc:
 def locate_hdc() -> Path:
     deveco = Path(os.environ.get("DEVECO_STUDIO_HOME", "/Applications/DevEco-Studio.app/Contents"))
     hdc = deveco / "sdk" / "default" / "openharmony" / "toolchains" / "hdc"
-    if not hdc.is_file():
-        raise StressFailure(f"missing HDC: {hdc}")
-    return hdc
+    for candidate in (hdc, hdc.with_suffix(".exe")):
+        if candidate.is_file():
+            return candidate
+    raise StressFailure(f"missing HDC: {hdc} (or {hdc.with_suffix('.exe')})")
 
 
 def select_target(hdc: Path, requested: str) -> str:

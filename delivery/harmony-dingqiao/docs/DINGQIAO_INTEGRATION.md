@@ -89,6 +89,9 @@ SpeechRecognizeSdk.setLicense(licenseAbsolutePath, {
 `StartParams.extraParams['maxAudioDuration']` 缺省时不启用自动上限。只有显式传入正有限数字或
 可解析为正有限数字的非空字符串才启用，按调用值生效且上限为 28800000 ms；非正数或非法值
 按未启用处理。
+`StartParams.extraParams['endpointMaxUtteranceMs']` 控制持续有声时的最大切句长度，默认
+20000 ms，可配置 10000..120000 ms。长语音转写建议 55000 ms；该参数不改变
+`vadEnd` 静音端点，也不会把 non-last final 误标为 session 结束的 `isLast`。
 `StartParams.extraParams['enablePoliceEnhancement']` 为会话级布尔参数，默认 `true`。显式传
 `false` 时该会话的 final 返回原始 ASR 文本，不执行警务术语、车牌和派出所归一化；该参数
 不触发引擎重建，也不改变 partial、`isFinal`、`isLast` 或 `onComplete` 时序。

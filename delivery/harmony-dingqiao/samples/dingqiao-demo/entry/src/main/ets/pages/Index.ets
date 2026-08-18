@@ -28,6 +28,7 @@ import { PcmPlayer } from '../util/PcmPlayer';
 import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
 import { WavIo } from '../util/WavIo';
+import { SessionRotationBuffer, SessionRotationDrain } from '../util/SessionRotationBuffer';
 
 const SESSION_ROTATE_AUDIO_MS = 55000;
 const FRAME_AUDIO_MS = 20;
@@ -40,6 +41,9 @@ const SDK_CAPTURE_EXPORT_META = '/data/storage/el2/base/files/last_sdk_input.jso
 const REPLAY_YIELD_EVERY_FRAMES = 50;
 // pre-roll 缓存上限:模型冷加载 ~0.5s,正常只缓存 ~25 帧;给 10s(500 帧)裕量防加载异常久时无界增长。
 const MAX_PREROLL_FRAMES = 500;
+// Session rotation normally completes well below 10s. Keep a bounded handoff buffer so recorder
+// PCM remains continuous while the old session publishes its last result and the next one starts.
+const MAX_ROTATION_FRAMES = 500;
 const SPEAKER_VAD_THRESHOLD = 0.35;
 const SPEAKER_VAD_WINDOW_MS = 1500;
 const SPEAKER_VAD_HOP_MS = 500;
@@ -97,6 +101,10 @@ struct Index {
   private sessionId: string = '';
   private sessionAudioMs: number = 0;
   private rotatingSession: boolean = false;
+  private rotationBuffer: SessionRotationBuffer = new SessionRotationBuffer(MAX_ROTATION_FRAMES);
+  private rotationStopRequested: boolean = false;
+  private rotationCaptureStopped: boolean = false;
+  private rotationCompletionPending: boolean = false;
   private workPath: string = '';
   private appliedHotwordsKey: string = '';
   // 用户点了「开始识别」触发 engine 创建；默认配置复用模型池，卸载后或配置变化时会按需重载。
@@ -359,6 +367,10 @@ struct Index {
     this.partialText = '';
     this.preRoll = [];
     this.preRollDroppedFrames = 0;
+    this.rotationBuffer.reset();
+    this.rotationStopRequested = false;
+    this.rotationCaptureStopped = false;
+    this.rotationCompletionPending = false;
     this.micFirstFrameLogged = false;
     this.resetSdkCapture();
     const ctx = getContext(this) as common.UIAbilityContext;
@@ -547,12 +559,22 @@ struct Index {
     this.feedFrameLive(frame);
   }
 
-  // modelReady=true 后的正常喂帧(含 55s 轮转)。轮转间隙 sessionId 短暂为空,丢极少数帧(同旧行为)。
+  private bufferRotationFrame(frame: ArrayBuffer): void {
+    this.rotationBuffer.append(frame);
+  }
+
+  // modelReady=true 后的正常喂帧(含 55s 轮转)。旧 session 结束到新 session 发布期间的 PCM
+  // 全部进入 rotationFrames，并在新 onStart 后按序回灌，不能把结果边界变成音频缺口。
   private feedFrameLive(frame: ArrayBuffer): void {
+    if (this.rotatingSession) {
+      this.bufferRotationFrame(frame);
+      return;
+    }
     if (this.sessionId.length === 0) return;
-    if (this.sessionAudioMs >= SESSION_ROTATE_AUDIO_MS && !this.rotatingSession) {
+    if (this.sessionAudioMs >= SESSION_ROTATE_AUDIO_MS) {
       // Proactively rotate before the 60 s SDK cap; onComplete restarts a fresh session.
       this.rotatingSession = true;
+      this.bufferRotationFrame(frame);
       const sid = this.sessionId;
       this.sessionId = '';
       this.sessionAudioMs = 0;
@@ -727,6 +749,7 @@ struct Index {
     metadata['durationMs'] = Math.round(this.sdkCaptureFrames.length * FRAME_AUDIO_MS);
     metadata['enablePartialResult'] = profile.enablePartialResult;
     metadata['vadEnd'] = profile.vadEnd;
+    metadata['endpointMaxUtteranceMs'] = profile.endpointMaxUtteranceMs;
     metadata['maxAudioDuration'] = profile.maxAudioDuration;
     if (profile.vadBegin !== undefined) metadata['vadBegin'] = profile.vadBegin;
     metadata['voiceprintVerify'] = this.capturedVoiceprintVerify;
@@ -809,7 +832,9 @@ struct Index {
       for (let i = 0; i < frames; i++) {
         if (!this.replaying || this.replaySessionId !== sid) return;
         const offset = i * SDK_FRAME_BYTES;
-        engine.writeAudio(sid, pcm.slice(offset, offset + SDK_FRAME_BYTES));
+        const accepted = await engine.writeAudioAsync(
+          sid, pcm.slice(offset, offset + SDK_FRAME_BYTES));
+        if (!accepted) throw new Error(`PCM 背压写入失败：frame=${i}`);
         if ((i + 1) % REPLAY_YIELD_EVERY_FRAMES === 0) await this.yieldReplayLoop();
       }
       if (!this.replaying || this.replaySessionId !== sid) return;
@@ -845,6 +870,24 @@ struct Index {
   private async stopListening(): Promise<void> {
     if (!this.listening || this.stoppingListening) return;
     this.stoppingListening = true;
+    if (this.rotatingSession) {
+      this.rotationStopRequested = true;
+      try {
+        await this.stopCapture();
+        try {
+          this.saveSdkCapture();
+        } catch (e) {
+          this.captureReady = false;
+          this.captureInfo = `SDK PCM 保存失败：${e}`;
+        }
+        this.rotationCaptureStopped = true;
+      } finally {
+        this.stoppingListening = false;
+      }
+      if (this.rotationCompletionPending) this.completeSessionRotation();
+      else this.status = '录音已停止 · 等待旧会话完成后回灌轮转尾帧…';
+      return;
+    }
     const sid = this.sessionId;
     const coldStartGeneration = sid.length === 0 && this.startPending ?
       this.coldStartGeneration : -1;
@@ -983,9 +1026,13 @@ struct Index {
       return;
     }
     if (this.listening && this.rotatingSession) {
-      // 连续场景的会话轮转(逼近 55s 上限):模型保持在内存,立即重开新会话,体验不中断。
-      this.rotatingSession = false;
-      this.startRecognitionSession();
+      // 用户可能恰好在轮转窗口点停止。必须先等 stopCapture 把录音尾帧也放入轮转缓存，
+      // 再创建最后一个短 session 回灌，不能在旧 complete 回调里抢先结束而丢尾帧。
+      if (this.rotationStopRequested && !this.rotationCaptureStopped) {
+        this.rotationCompletionPending = true;
+        return;
+      }
+      this.completeSessionRotation();
     } else if (this.listening) {
       // vadBegin / maxAudioDuration 自动结束：不把它误当成 55s 主动轮转。
       this.listening = false;
@@ -1006,6 +1053,28 @@ struct Index {
         '模型已卸载 · 运行时常驻 · 点击开始识别按需加载';
       this.releaseModel(next);
     }
+  }
+
+  private completeSessionRotation(): void {
+    const drain: SessionRotationDrain = this.rotationBuffer.drain();
+    const buffered = drain.frames;
+    const stopAfterFlush = this.rotationStopRequested;
+    this.rotationCompletionPending = false;
+    this.rotatingSession = false;
+    this.startRecognitionSession();
+    for (let index = 0; index < buffered.length; index++) this.feedFrameLive(buffered[index]);
+    hilog.info(0x0000, 'SessionRotation',
+      'SESSION_ROTATION|bufferedFrames=%{public}d|droppedFrames=%{public}d|stopAfterFlush=%{public}s',
+      buffered.length, drain.droppedFrames, String(stopAfterFlush));
+    if (!stopAfterFlush) return;
+    const sid = this.sessionId;
+    this.rotationStopRequested = false;
+    this.rotationCaptureStopped = false;
+    this.listening = false;
+    this.modelReady = false;
+    this.sessionId = '';
+    this.status = '录音结束 · 正在生成轮转边界最终结果…';
+    if (sid.length > 0) this.engine?.finish(sid);
   }
 
   private async finishAutoEndedCapture(): Promise<void> {
@@ -1214,6 +1283,7 @@ struct Index {
         .width('100%')
         Text(`SourceType=${this.audioSource} · ` +
           `vadEnd=${customerScenarioProfile(this.customerScenario).vadEnd}ms · ` +
+          `endpoint=${customerScenarioProfile(this.customerScenario).endpointMaxUtteranceMs}ms · ` +
           `max=${customerScenarioProfile(this.customerScenario).maxAudioDuration}ms`)
           .fontSize(11)
           .fontColor(Color.Gray)

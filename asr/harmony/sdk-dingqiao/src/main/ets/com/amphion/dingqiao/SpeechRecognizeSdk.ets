@@ -22,6 +22,7 @@ import { PoliceFinalSession } from './PoliceEnhancementPolicy';
 import { hasVoiceprintCapability } from './VoiceprintCapability';
 import { VoiceprintStore } from './VoiceprintStore';
 import {
+  AudioQueueStats,
   AudioInfo,
   CreateEngineCallback,
   CreateEngineParams,
@@ -93,6 +94,14 @@ function clamp(value: number, min: number, max: number): number {
 
 function vadEndMs(params?: StartParams): number {
   return clamp(numberParam(params?.extraParams ?? {}, 'vadEnd', 800), 500, 10000);
+}
+
+const DEFAULT_ENDPOINT_MAX_UTTERANCE_MS: number = 20000;
+
+function endpointMaxUtteranceMs(params?: StartParams): number {
+  return Math.round(clamp(numberParam(
+    params?.extraParams ?? {}, 'endpointMaxUtteranceMs', DEFAULT_ENDPOINT_MAX_UTTERANCE_MS),
+  10000, 120000));
 }
 
 function vadBeginMs(params: StartParams): number | undefined {
@@ -245,6 +254,7 @@ function buildAsrConfig(context: Context, params: CreateEngineParams, startParam
     context, parseLexicon(params.extraParams['sysGeneralLexicon']));
   config.vadConfig.activeEndpointSilenceMs = vadEndMs(startParams);
   config.endpointRules.rule2MinTrailingSilenceSec = 2.0;
+  config.endpointRules.rule3MinUtteranceLengthSec = endpointMaxUtteranceMs(startParams) / 1000;
   // 默认跳过 prepack，优先降低冷启动和峰值内存；host 可显式传 false 恢复吞吐优先模式。
   config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', true);
   if (withTargetSpeaker) {
@@ -363,13 +373,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.enhancePipeline = PoliceEnhancePipeline.create(context);
     this.asrEngine = preloadedEngine ??
       AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(context, this.params));
-    this.engineCfgKey = this.computeEngineCfgKey(false, false);
+    this.engineCfgKey = this.computeEngineCfgKey(undefined, false, false);
     this.finishShutdownGate = new FinishShutdownGate((): void => this.releaseEngineResources());
   }
 
-  // vadBegin/vadEnd/speaker 窗口均由 SessionConfig 覆盖；只有目标说话人能力和同步加载策略需要重建引擎。
-  private computeEngineCfgKey(withTargetSpeaker: boolean, withSpeakerVad: boolean): string {
-    return [`${withTargetSpeaker}`, `${withSpeakerVad}`].join('|');
+  // vadBegin/vadEnd/speaker 窗口均由 SessionConfig 覆盖。最大 utterance 是 recognizer 级
+  // endpoint rule，因此必须纳入引擎池 key，避免复用上一个场景的 20s/55s 配置。
+  private computeEngineCfgKey(params: StartParams | undefined,
+    withTargetSpeaker: boolean, withSpeakerVad: boolean): string {
+    return [`${withTargetSpeaker}`, `${withSpeakerVad}`, `${endpointMaxUtteranceMs(params)}`].join('|');
   }
 
   setListener(listener: RecognitionListener): void { this.listener = listener; }
@@ -611,6 +623,41 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     }
   }
 
+  async writeAudioAsync(sessionId: string, audio: ArrayBuffer): Promise<boolean> {
+    const generation = this.sessionStartGate.currentGeneration();
+    const submittedBefore = this.audioBytesWritten;
+    const dispatcher = this.audioDispatcher;
+    const enhancementPipeline = this.targetSpeakerEnhancementPipeline;
+    this.writeAudio(sessionId, audio);
+    const accepted = audio.byteLength > 0 && this.audioBytesWritten === submittedBefore + audio.byteLength;
+    if (!accepted) return false;
+    if (enhancementPipeline !== undefined || dispatcher === undefined) return true;
+    // The frame was synchronously snapshotted by writeAudio(). Await only when the retained PCM
+    // crosses the high-water mark; this is decoder-rate backpressure, not realtime pacing.
+    const writable = await dispatcher.whenWritable();
+    if (!writable) return false;
+    // A normal endpoint can keep the generation current, while cancel/restart invalidates it. The
+    // accepted frame remains successful only while its owning generation was not canceled.
+    return this.sessionStartGate.isCurrent(generation) || this.lastFinishedSessionId === sessionId;
+  }
+
+  getAudioQueueStats(): AudioQueueStats {
+    const result = new AudioQueueStats();
+    result.submittedBytes = this.audioBytesWritten;
+    const queued = this.audioDispatcher?.queueStats();
+    if (queued === undefined) {
+      result.processedBytes = this.audioBytesWritten;
+      return result;
+    }
+    result.queuedBytes = queued.queuedBytes;
+    result.queuedChunks = queued.queuedChunks;
+    result.highWaterBytes = queued.highWaterBytes;
+    result.lowWaterBytes = queued.lowWaterBytes;
+    result.accepting = queued.accepting;
+    result.processedBytes = Math.max(0, result.submittedBytes - result.queuedBytes);
+    return result;
+  }
+
   setSpeakerVadEnabled(enabled: boolean): void {
     this.ensureAlive();
     if (this.session === undefined || !this.busy) return;
@@ -804,7 +851,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
 
   private rebuildEngine(params: StartParams, withTargetSpeaker: boolean, withSpeakerVad: boolean,
     speakerModelPath?: string): void {
-    const newKey = this.computeEngineCfgKey(withTargetSpeaker, withSpeakerVad);
+    const newKey = this.computeEngineCfgKey(params, withTargetSpeaker, withSpeakerVad);
     if (newKey === this.engineCfgKey) {
       // 会话配置未变(纯 ASR 反复开始/结束):复用已加载的引擎与模型,避免每次点"开始识别"重载模型卡 3~4 秒。
       return;

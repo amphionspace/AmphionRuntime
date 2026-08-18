@@ -172,6 +172,8 @@ interface CreateEngineCallback {
 | `setListener(listener: RecognitionListener)` | 设置识别回调 |
 | `startListening(params: StartParams)` | 开始一次识别会话 |
 | `writeAudio(sessionId: string, audio: ArrayBuffer)` | 写入一帧 640 字节 PCM 音频 |
+| `writeAudioAsync(sessionId: string, audio: ArrayBuffer): Promise<boolean>` | 写入一帧 PCM；离线快速投帧达到高水位时等待队列回落，不强制实时节拍 |
+| `getAudioQueueStats(): AudioQueueStats` | 查询已提交、已处理、待处理 PCM 字节和队列水位 |
 | `finish(sessionId: string)` | 结束本次音频输入并等待 final/complete 回调 |
 | `cancel(sessionId: string)` | 取消本次识别，不再输出 final |
 | `isBusy(): boolean` | 查询当前引擎是否有进行中的识别会话 |
@@ -179,6 +181,8 @@ interface CreateEngineCallback {
 | `setSpeakerVadEnabled(enabled: boolean)` | 运行时启用或关闭目标说话人 VAD |
 
 一个 `SpeechRecognitionEngine` 同时只处理一个活跃会话。`startListening` 成功后才能写入音频；`finish` 或 `cancel` 后如需继续识别，请重新调用 `startListening` 创建新会话。
+实时麦克风可继续使用兼容的 `writeAudio()`；快速读取长 WAV/PCM 时应逐帧
+`await writeAudioAsync()`，避免把整段音频和海量 Promise 同时留在内存中。
 
 `finish(sessionId)` 被接受后，`isBusy()` 会保持 `true`，直到唯一的 last final 和随后的 `onComplete`
 完成。调用方应以 `onComplete` 作为可安全释放或复用的边界。为兼容旧宿主，若在该排空窗口立即调用
@@ -238,6 +242,7 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | `enablePoliceEnhancement` | `boolean` | `true` | 是否对 final 文本执行警务术语、车牌和派出所归一化；`false` 返回原始 ASR 文本 |
 | `maxAudioDuration` | `number/string` | 未启用 | 单会话最长音频毫秒数；显式正有限值按调用值生效，上限 28800000；达到上限后正常自动结束，非正数或非法值按未启用处理 |
 | `vadEnd` | `number/string` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
+| `endpointMaxUtteranceMs` | `number/string` | `20000` | 持续有声时强制产生一条 non-last final 的最长 utterance，范围 10000 到 120000 ms；长语音转写建议 55000，不影响 `vadEnd` 静音切句 |
 | `sessionGeneralLexicon` | `string[]` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
 | `enableSpeakerVad` | `boolean` | `false` | 是否启用目标说话人离场提前 endpoint；冷态启动会同步等待声纹模型；仅处理先后说话，不提供重叠语音分离 |

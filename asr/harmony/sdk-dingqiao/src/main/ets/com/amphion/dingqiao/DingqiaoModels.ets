@@ -27,6 +27,16 @@ export class SpeechRecognitionResult {
   targetSpeakerEnhancementApplied?: boolean;
 }
 
+export class AudioQueueStats {
+  submittedBytes: number = 0;
+  processedBytes: number = 0;
+  queuedBytes: number = 0;
+  queuedChunks: number = 0;
+  highWaterBytes: number = 0;
+  lowWaterBytes: number = 0;
+  accepting: boolean = false;
+}
+
 export class VoiceprintRegisterParams {
   voiceprintId: string = '';
   samplePaths: string[] = [];
@@ -65,6 +75,8 @@ export interface SpeechRecognitionEngine {
   setListener(listener: RecognitionListener): void;
   startListening(params: StartParams): void;
   writeAudio(sessionId: string, audio: ArrayBuffer): void;
+  writeAudioAsync(sessionId: string, audio: ArrayBuffer): Promise<boolean>;
+  getAudioQueueStats(): AudioQueueStats;
   finish(sessionId: string): void;
   cancel(sessionId: string): void;
   setSpeakerVadEnabled(enabled: boolean): void;
