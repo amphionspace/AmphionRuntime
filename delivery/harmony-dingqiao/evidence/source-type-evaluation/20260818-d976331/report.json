@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "testDate": "2026-08-18",
+  "gitCommit": "d976331fb51eb4956118c78398d42240f24be543",
+  "gitBranchAtTest": "main",
+  "build": {
+    "language": "ZH_EN",
+    "hapSha256": "1b871a11eef2d2e7b2565fb9cc7b56f2482103f2980afbb14e01f4aa4f787841",
+    "sourceFingerprintSha256": "a0ae077bf2865cda9a12a15a77fe6a03cb17ddb484938a074e8a9d248e1ee3d1"
+  },
+  "device": {
+    "model": "VYG-AL30",
+    "osVersion": "6.1.0.135(SP8C00E120R5P7)"
+  },
+  "method": {
+    "playback": "external-speaker",
+    "macOutputVolumePercent": 45,
+    "captureFormat": "16000Hz mono S16LE",
+    "uniqueSamples": 108,
+    "samplesPerTheme": 36,
+    "sessions": 324,
+    "uniqueSourceAudioSeconds": 550,
+    "playbackAudioSeconds": 1650,
+    "capturedAudioSeconds": 3060.62,
+    "wallClockSeconds": 5986,
+    "referenceNormalization": "Unicode NFKC, lowercase, remove whitespace/punctuation/symbols",
+    "metric": "Chinese character-level micro CER"
+  },
+  "sources": {
+    "mic": {
+      "samples": 108,
+      "edits": 195,
+      "referenceCharacters": 2356,
+      "microCer": 0.08276740237691002,
+      "emptyResults": 1,
+      "meanRmsDbfs": -32.86848148148146,
+      "overflows": 0,
+      "overflowSessions": 0
+    },
+    "voiceRecognition": {
+      "samples": 108,
+      "edits": 181,
+      "referenceCharacters": 2356,
+      "microCer": 0.0768251273344652,
+      "emptyResults": 0,
+      "meanRmsDbfs": -37.592046296296274,
+      "overflows": 0,
+      "overflowSessions": 0
+    },
+    "voiceCommunication": {
+      "samples": 108,
+      "edits": 228,
+      "referenceCharacters": 2356,
+      "microCer": 0.0967741935483871,
+      "emptyResults": 0,
+      "meanRmsDbfs": -30.910499999999995,
+      "overflows": 80,
+      "overflowSessions": 61
+    }
+  },
+  "byTheme": {
+    "plateNumber": {
+      "referenceCharacters": 747,
+      "mic": { "edits": 27, "microCer": 0.03614457831325301 },
+      "voiceRecognition": { "edits": 23, "microCer": 0.030789825970548863 },
+      "voiceCommunication": { "edits": 29, "microCer": 0.038821954484605084 }
+    },
+    "policeTerms": {
+      "referenceCharacters": 818,
+      "mic": { "edits": 68, "microCer": 0.08312958435207823 },
+      "voiceRecognition": { "edits": 66, "microCer": 0.08068459657701711 },
+      "voiceCommunication": { "edits": 75, "microCer": 0.09168704156479218 }
+    },
+    "policeStation": {
+      "referenceCharacters": 791,
+      "mic": { "edits": 100, "microCer": 0.1264222503160556 },
+      "voiceRecognition": { "edits": 92, "microCer": 0.11630847029077118 },
+      "voiceCommunication": { "edits": 124, "microCer": 0.15676359039190899 }
+    }
+  },
+  "micVsVoiceRecognition": {
+    "micBetterSamples": 20,
+    "tiedSamples": 63,
+    "micWorseSamples": 25,
+    "netExtraMicEdits": 14,
+    "excludingMicEmptyResult": {
+      "referenceCharacters": 2338,
+      "micEdits": 177,
+      "micCer": 0.07570573139435415,
+      "voiceRecognitionEdits": 172,
+      "voiceRecognitionCer": 0.07356715141146279
+    },
+    "signalMetrics": {
+      "micMedianEnvelopeCorrelation": 0.896,
+      "voiceRecognitionMedianEnvelopeCorrelation": 0.837,
+      "micMedianEstimatedSnrDb": 21.2,
+      "voiceRecognitionMedianEstimatedSnrDb": 16.68,
+      "micMaxClipRate": 0,
+      "voiceRecognitionMaxClipRate": 0
+    }
+  },
+  "orderDiagnosis": {
+    "pairedEditDeltaByMicPosition": {
+      "position1": -13,
+      "position2": -1,
+      "position3": 28
+    },
+    "pairedDeltaMedianByPosition": 0,
+    "position3DeltaAfterRemovingFourLargestOutliers": -6,
+    "permutationPValue": 0.12935,
+    "targetedRetest": {
+      "micSessions": 9,
+      "perfectMicSessions": 8,
+      "voiceRecognitionThenMic": { "sessions": 3, "perfect": 2, "totalEdits": 4 },
+      "voiceCommunicationThenMic": { "sessions": 3, "perfect": 3, "totalEdits": 0 },
+      "voiceRecognitionThenVoiceCommunicationThenMic": {
+        "sessions": 3,
+        "perfect": 3,
+        "totalEdits": 0
+      },
+      "systematicOrderEffectReproduced": false
+    }
+  },
+  "conclusion": {
+    "lowestPointEstimate": "voiceRecognition",
+    "micSystematicallyWorseSupported": false,
+    "voiceCommunicationComparisonConfoundedByOverflow": true,
+    "recommendedDefaultForTestedCondition": "voiceRecognition"
+  }
+}
