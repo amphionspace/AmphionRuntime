@@ -125,6 +125,30 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
+    def test_finish_uses_final_score_for_short_target_without_stream_confirmation(self) -> None:
+        self.run_finalizer(
+            """
+            // A short utterance can finish before the first streaming Speaker VAD window. Once
+            // ASR has speech evidence, the final score must decide the gate instead of the missing
+            // streaming confirmation by itself.
+            assert.equal(shouldRejectSpeakerVadFinal(true, false, false, true), false);
+            assert.equal(shouldRejectSpeakerVadFinal(true, false, false, false), true);
+            assert.equal(shouldRejectSpeakerVadFinal(true, true, false, true), true);
+            """
+        )
+
+    def test_runtime_scores_short_speech_before_the_speaker_vad_final_gate(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        dispatch = source.split("private dispatchFinal", 1)[1].split(
+            "private deliverSpeakerFinal", 1
+        )[0]
+        self.assertIn("let finalSpeakerVadMatch", dispatch)
+        self.assertLess(
+            dispatch.index("let finalSpeakerVadMatch"),
+            dispatch.index("shouldRejectSpeakerVadFinal"),
+        )
+        self.assertNotIn("lastSpeakerVadScore: number = -1", source)
+
     def test_rejected_final_routing_does_not_require_voiceprint_verification(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
         delivery = source.split("private deliverSpeakerFinal", 1)[1].split(
@@ -206,9 +230,16 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false",
             async_stop,
         )
-        self.assertIn("this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery", async_stop)
+        self.assertIn(
+            "const finishDiarization = this.svTurnFinalizer?.hasFinishDiarizationCandidate() ?? false",
+            async_stop,
+        )
+        self.assertIn(
+            "this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery || finishDiarization",
+            async_stop,
+        )
         commit_index = async_stop.index(
-            "this.commitCleanSpeakerTurn(true, false, finishRecovery)"
+            "this.commitCleanSpeakerTurn(true, false, finishRecovery || finishDiarization)"
         )
         speculative_flush_index = async_stop.index("this.appendFinalTailSilence()")
         self.assertLess(commit_index, speculative_flush_index)
@@ -222,9 +253,16 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false",
             sync_stop,
         )
-        self.assertIn("this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery", sync_stop)
+        self.assertIn(
+            "const finishDiarization = this.svTurnFinalizer?.hasFinishDiarizationCandidate() ?? false",
+            sync_stop,
+        )
+        self.assertIn(
+            "this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery || finishDiarization",
+            sync_stop,
+        )
         commit_index = sync_stop.index(
-            "this.commitCleanSpeakerTurn(true, false, finishRecovery)"
+            "this.commitCleanSpeakerTurn(true, false, finishRecovery || finishDiarization)"
         )
         speculative_flush_index = sync_stop.index("this.appendFinalTailSilence()")
         self.assertLess(commit_index, speculative_flush_index)
@@ -392,6 +430,36 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             assert.equal(atFinish.prefix.length, 48_000);
             assert.equal(atFinish.suffix.length, 22_400);
             """
+        )
+
+    def test_finish_uses_diarization_when_short_suffix_misses_streaming_low_window(self) -> None:
+        self.run_finalizer(
+            """
+            // Preserve target-only and overlap fail-open behavior; only a simple non-overlapping
+            // target -> other diarization with a strong score margin may recover this short tail.
+            const finalizer = new SpeakerTurnFinalizer(16_000, 24_000, 8_000, 2, 67_200);
+            finalizer.accept(new Float32Array(67_200));
+            assert.equal(finalizer.observeScore(56_000, 0.42, 0.35), 'target-confirmed');
+            assert.equal(finalizer.hasPendingFinishDeparture(), false);
+
+            const split = finalizer.resolveDiarizedAtFinish([
+              new SpeakerTurnSegment(0, 48_000, 0),
+              new SpeakerTurnSegment(48_000, 67_200, 1),
+            ], 0.35, (_samples, speaker) => speaker === 0 ? 0.42 : 0.08);
+
+            assert.ok(split);
+            assert.equal(split.cutSample, 48_000);
+            assert.equal(split.prefix.length, 48_000);
+            assert.equal(split.suffix.length, 19_200);
+            """
+        )
+        source = RUNTIME.read_text(encoding="utf-8")
+        resolver = source.split("private resolveSpeakerTurnSplit", 1)[1].split(
+            "private resolveSpeakerTurnAcoustic", 1
+        )[0]
+        self.assertIn(
+            "resolveDiarizedAtFinish(resolvedSegments, config.threshold, scoreCluster, false)",
+            resolver,
         )
 
     def test_finish_keeps_ambiguous_short_suffix_fail_open(self) -> None:
