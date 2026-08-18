@@ -1284,7 +1284,7 @@ export class AsrSession {
   private targetSpeaker?: Float32Array;
   private targetSpeakerEnabled: boolean = false;
   private speakerVadEnabled: boolean = false;
-  private lastSpeakerVadScore: number = -1;
+  private lastSpeakerVadScore?: number;
   // VAD gate state (Android-aligned): VAD only gates / drives an early active endpoint while PCM is
   // fed to the recognizer in full so partial results stay real-time.
   private vadSpeechActive: boolean = false;
@@ -1296,6 +1296,7 @@ export class AsrSession {
   private svTargetConfirmed: boolean = false;
   private svBelowCount: number = 0;
   private svRejectCurrentUtterance: boolean = false;
+  private svAwaitingTargetAfterDeparture: boolean = false;
   private svTurnFinalizer?: SpeakerTurnFinalizer;
   private svPendingSplit?: SpeakerTurnSplit;
   private svCleanPrefixSpeakerScore?: number;
@@ -1506,12 +1507,7 @@ export class AsrSession {
     try {
       const remainder = this.agcProcessor.flush();
       for (let index = 0; index < remainder.length; index++) this.feedAndDecode(remainder[index]);
-      const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false;
-      if (this.speakerVadEnabled &&
-        (this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery) &&
-        this.commitCleanSpeakerTurn(true, false, finishRecovery)) {
-        return;
-      }
+      if (this.commitSpeakerTurnAtFinish()) return;
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
       // Don't rebuild the stream afterwards (session is ending), so a soft reset is enough.
       this.appendFinalTailSilence();
@@ -1537,12 +1533,7 @@ export class AsrSession {
       for (let index = 0; index < remainder.length; index++) {
         await this.feedAndDecodeAsync(remainder[index]);
       }
-      const finishRecovery = this.svTurnFinalizer?.hasPendingFinishDeparture() ?? false;
-      if (this.speakerVadEnabled &&
-        (this.svTurnFinalizer?.hasPendingDeparture() || finishRecovery) &&
-        this.commitCleanSpeakerTurn(true, false, finishRecovery)) {
-        return;
-      }
+      if (this.commitSpeakerTurnAtFinish()) return;
       this.appendFinalTailSilence();
       this.stream.inputFinished();
       await this.drainAsync(true, false, true);
@@ -1562,6 +1553,15 @@ export class AsrSession {
     this.config.hotwords = words.filter((word: string): boolean => word.trim().length > 0);
     this.config.hotwordsScore = score;
     Logger.w('updateHotwords requires recreating recognizer on Harmony first implementation');
+  }
+
+  private commitSpeakerTurnAtFinish(): boolean {
+    const finalizer = this.svTurnFinalizer;
+    if (!this.speakerVadEnabled || finalizer === undefined) return false;
+    const finishRecovery = finalizer.hasPendingFinishDeparture();
+    const finishDiarization = finalizer.hasFinishDiarizationCandidate();
+    if (!finalizer.hasPendingDeparture() && !finishRecovery && !finishDiarization) return false;
+    return this.commitCleanSpeakerTurn(true, false, finishRecovery || finishDiarization);
   }
 
   setTargetSpeaker(embedding: Float32Array): void {
@@ -1634,6 +1634,7 @@ export class AsrSession {
       return;
     }
     this.speakerVadEnabled = enabled;
+    this.svAwaitingTargetAfterDeparture = false;
     if (enabled) this.ensureSpeakerTurnSegmenterLoad();
     this.resetSpeakerVadState();
   }
@@ -1809,15 +1810,37 @@ export class AsrSession {
       if (this.speakerVadEnabled) this.speakerPcmBuffers.clearNativeSegment();
       return hasEvidence;
     }
+    const targetConfig = this.config.targetSpeaker;
+    const minSpeakerSamples = targetConfig === undefined ? Number.MAX_SAFE_INTEGER :
+      Math.round(targetConfig.minSegSec * ASR_SAMPLE_RATE_HZ);
+    const utteranceSamples = this.targetSpeakerEnabled ?
+      this.speakerPcmBuffers.fallbackSamples() : new Float32Array(0);
+    const scoreSelection =
+      selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence);
+    let finalSpeakerVadMatch = result.isTargetSpeaker;
+    if (this.speakerVadEnabled && !this.svTargetConfirmed &&
+      hasEvidence && finalSpeakerVadMatch === undefined && scoreSelection.samples.length > 0) {
+      const finalSpeakerVadScore = this.scoreSamples(scoreSelection.samples);
+      if (finalSpeakerVadScore !== undefined) {
+        result.speakerScore = finalSpeakerVadScore;
+        finalSpeakerVadMatch = finalSpeakerVadScore >=
+          (targetConfig?.threshold ?? Number.POSITIVE_INFINITY);
+        result.isTargetSpeaker = finalSpeakerVadMatch;
+      }
+    }
     const speakerVadReject = shouldRejectSpeakerVadFinal(
-      this.speakerVadEnabled, this.svRejectCurrentUtterance, this.svTargetConfirmed);
+      this.speakerVadEnabled, this.svRejectCurrentUtterance, this.svTargetConfirmed,
+      finalSpeakerVadMatch);
     if (this.speakerVadEnabled) {
       Logger.metric(`kind=SPEAKER_FINAL_GATE sessionId=${this.sessionId} isLast=${isLast} ` +
         `reject=${speakerVadReject} targetConfirmed=${this.svTargetConfirmed} ` +
         `rejectCurrent=${this.svRejectCurrentUtterance} hasEvidence=${hasEvidence}`);
     }
     if (speakerVadReject) {
-      if (hasEvidence) result.speakerScore = this.lastSpeakerVadScore;
+      if (hasEvidence && result.speakerScore === undefined &&
+        this.lastSpeakerVadScore !== undefined) {
+        result.speakerScore = this.lastSpeakerVadScore;
+      }
       result.isTargetSpeaker = false;
       // A rejected Speaker VAD final is a lifecycle signal, not a transcription result. Redact
       // every textual/token field so direct Runtime clients cannot recover a known-uncertain tail.
@@ -1826,13 +1849,6 @@ export class AsrSession {
       result.timestamps = [];
       result.tokenConfidences = [];
     }
-    const targetConfig = this.config.targetSpeaker;
-    const minSpeakerSamples = targetConfig === undefined ? Number.MAX_SAFE_INTEGER :
-      Math.round(targetConfig.minSegSec * ASR_SAMPLE_RATE_HZ);
-    const utteranceSamples = this.targetSpeakerEnabled ?
-      this.speakerPcmBuffers.fallbackSamples() : new Float32Array(0);
-    const scoreSelection =
-      selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence);
     if (this.targetSpeakerEnabled) {
       Logger.d(`session ${this.sessionId} ` + speakerScoreSelectionDiagnostic(
         scoreSelection, boundary.samples.length, utteranceSamples.length,
@@ -2447,8 +2463,8 @@ export class AsrSession {
     this.svTurnFailOpen = false;
     this.svTargetConfirmed = false;
     this.svBelowCount = 0;
-    this.svRejectCurrentUtterance = false;
-    this.lastSpeakerVadScore = -1;
+    this.svRejectCurrentUtterance = this.svAwaitingTargetAfterDeparture;
+    this.lastSpeakerVadScore = undefined;
   }
 
   private speakerTurnFinalizer(config: SpeakerVadConfig): SpeakerTurnFinalizer {
@@ -2517,9 +2533,11 @@ export class AsrSession {
 
   private syncSpeakerTurnState(finalizer: SpeakerTurnFinalizer): void {
     this.svTargetConfirmed = finalizer.isTargetConfirmed();
+    if (this.svTargetConfirmed) this.svAwaitingTargetAfterDeparture = false;
     this.svBelowCount = finalizer.consecutiveLowScores();
-    this.svRejectCurrentUtterance = finalizer.shouldRejectCurrent();
-    this.lastSpeakerVadScore = finalizer.lastScore() ?? -1;
+    this.svRejectCurrentUtterance = finalizer.shouldRejectCurrent() ||
+      this.svAwaitingTargetAfterDeparture;
+    this.lastSpeakerVadScore = finalizer.lastScore();
   }
 
   /**
@@ -2599,9 +2617,21 @@ export class AsrSession {
       this.svTargetConfirmed = true;
       this.svRejectCurrentUtterance = false;
       speculativeStream.close();
-      this.dispatchFinal(endpointTriggered, preparedDecodeMs + Date.now() - decodeStartMs, isLast);
+      // A split discovered only at finish still represents a public utterance boundary. Publish
+      // its endpoint before the proven target prefix, and consume a redundant finish requested
+      // reentrantly from that callback because this stop operation already owns session shutdown.
+      if (finishTriggered && !endpointTriggered) {
+        this.endpointAtMs = Date.now();
+        if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return true;
+        this.reentryQueue.consumeStopAtEndpoint();
+      }
+      // Let the replayed non-target suffix own the session's unique last result. Marking the clean
+      // prefix last here would stop before the suffix is gated.
+      const prefixIsLast = isLast && !finishTriggered;
+      this.dispatchFinal(endpointTriggered || finishTriggered,
+        preparedDecodeMs + Date.now() - decodeStartMs, prefixIsLast);
       if (this.callbackGate.isClosed()) return true;
-      if (isLast) {
+      if (prefixIsLast) {
         this.notifyStopped();
         return true;
       }
@@ -2614,7 +2644,16 @@ export class AsrSession {
       this.resetVadGateState();
       this.pcmBytesAccepted = split.suffix.length * 2;
       this.firstPcmMs = Date.now();
+      this.svAwaitingTargetAfterDeparture = true;
+      this.svRejectCurrentUtterance = true;
       this.replaySpeakerSuffix(split);
+      if (finishTriggered && !this.callbackGate.isClosed()) {
+        this.appendFinalTailSilence();
+        this.stream.inputFinished();
+        this.drain(true, false, true);
+        if (!this.callbackGate.isClosed()) this.notifyStopped();
+        return true;
+      }
       const splitDebugMessage = `speaker turn clean split: cutSample=${split.cutSample} ` +
         `prefix=${split.prefix.length} suffix=${split.suffix.length}`;
       this.callbackGate.invoke((): void => {
@@ -2675,7 +2714,7 @@ export class AsrSession {
       return this.scoreSamples(samples);
     };
     const diarizedSplit = finishTriggered ?
-      finalizer.resolveDiarizedAtFinish(resolvedSegments, config.threshold, scoreCluster, true) :
+      finalizer.resolveDiarizedAtFinish(resolvedSegments, config.threshold, scoreCluster, false) :
       finalizer.resolveDiarized(resolvedSegments, config.threshold, scoreCluster, true);
     const diarizationReason = finalizer.lastResolutionReason();
     const audioMs = finalizer.sampleCount() * 1000 / ASR_SAMPLE_RATE_HZ;
