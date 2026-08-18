@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Boxp <boxp@BoxpdeMacBook-Air.local>
+Date: Tue, 18 Aug 2026 18:35:00 +0800
+Subject: [PATCH] fix(harmony): size hotword buffer as UTF-8
+
+---
+ .../sherpa_onnx/src/main/cpp/streaming-asr.cc    | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+index eaa4b981..dd42ae83 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+@@ -2,5 +2,6 @@
+ //
+ // Copyright (c)  2024  Xiaomi Corporation
++#include <cstring>
+ #include <exception>
+ #include <chrono>
+ #include <memory>
+@@ -236,7 +237,10 @@ static SherpaOnnxOnlineRecognizerConfig GetOnlineRecognizerConfig(
+   SHERPA_ONNX_ASSIGN_ATTR_STR(rule_fars, ruleFars);
+   SHERPA_ONNX_ASSIGN_ATTR_FLOAT(blank_penalty, blankPenalty);
+   SHERPA_ONNX_ASSIGN_ATTR_STR(hotwords_buf, hotwordsBuf);
+-  SHERPA_ONNX_ASSIGN_ATTR_INT32(hotwords_buf_size, hotwordsBufSize);
++  c.hotwords_buf_size = c.hotwords_buf == nullptr
++                            ? 0
++                            : static_cast<int32_t>(
++                                  std::strlen(c.hotwords_buf));
+ 
+   c.ctc_fst_decoder_config = GetCtcFstDecoderConfig(o);
+   return c;
+-- 
+2.39.5
