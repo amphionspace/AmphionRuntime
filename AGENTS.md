@@ -40,6 +40,27 @@ Debug 的核心不是反复重现现象，而是缩短“假设—证伪”的�
 
 一句话：让状态可见，在最早分叉点用同输入证伪假设；局部证明根因，最后才用完整场景验收。
 
+### ASR 跨 stream 边界排查
+
+- 长会议无文字、空 endpoint 或边界丢词必须沿
+  `acceptWaveform → decodeAsync → getResult → isEndpoint → dispatchFinal → reset/createStream`
+  记录同一音频时间轴。至少包含 sample/frame 位置、stream identity/generation、transition
+  原因、decode/ready 进度、text/token/timestamp、endpoint 命中原因、soft reset、hard restart
+  和结果抑制原因。只看公开文本无法区分 native 解码、ITN 和适配层问题。
+- 找到异常边界后，截取保留必要前序状态的最小 PCM，对同一后续输入分别走旧 stream、
+  soft reset 和 fresh stream。结论必须指出第一个不同的 token/frame，不能只比较整段
+  文字或 final 数量。
+- hard restart 后如果确实需要声学上下文，补偿只能作用于被红灯证明的具体边界，
+  并保持在 recognizer 内部。重放 PCM 不得进入下一个 public utterance 的
+  `EffectiveSpeechBuffer`、`speakerPcmBuffers`、声纹评分、Speaker VAD、`vadBegin` 或
+  duration/max-duration 计数。
+- 不得在公共 `AsrResult` 暴露 overlap/replay 内部字段，也不得在适配层用字符串前后缀
+  猜测去重。如果无法根据 native token timestamp/frame boundary 区分重放 token 与新 token，
+  必须停止实现并重新设计 seam，不得用文本启发式补偿。
+- 失败或被否决的原型可保留 artifact，但必须标记为 non-canonical，不得当作当前 HEAD
+  的验收证据。完整长跑已经启动也不构成继续的理由；当结果不再影响技术决策时，
+  应优雅中止并保留现有日志。
+
 ## 缺陷处理流程
 
 1. 先把用户症状转成可失败的断言。测试必须能捕获“提前 `isLast`”本身，而不是只验证进程未崩溃或最终出现过 complete。
