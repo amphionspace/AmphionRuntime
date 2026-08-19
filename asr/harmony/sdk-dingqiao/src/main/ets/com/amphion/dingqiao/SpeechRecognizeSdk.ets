@@ -869,20 +869,20 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   handleFinalRejected(generation: number, result: AsrResult): void {
     if (!this.sessionStartGate.isCurrent(generation) || !this.busy || this.currentSessionId.length === 0) return;
     const sessionId = this.currentSessionId;
-    // Speaker VAD dropped a non-target span (no transcription emitted); surface as an event so the UI
-    // can show the target speaker left without polluting the recognized text.
+    // Speaker VAD dropped a non-target span. Publish an empty final after the speculative partial so
+    // callers can close that endpoint without committing the rejected transcription.
     const detail = result.speakerScore !== undefined ? `score=${result.speakerScore.toFixed(2)}` : 'target speaker absent';
     this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEAKER_VAD_REJECTED, `speaker vad rejected: ${detail}`);
     if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
+    const payload = new SpeechRecognitionResult();
+    payload.isFinal = true;
+    payload.isLast = result.isLast;
+    payload.result = '';
+    payload.speakerSimilarity = result.speakerScore;
+    if (this.targetSpeakerEnhancementEnabled) payload.targetSpeakerEnhancementApplied = true;
+    this.finalResultSent = true;
+    this.listener?.onResult?.(sessionId, payload);
     if (rejectedFinalCompletesSession(result.isLast)) {
-      const payload = new SpeechRecognitionResult();
-      payload.isFinal = true;
-      payload.isLast = true;
-      payload.result = '';
-      payload.speakerSimilarity = result.speakerScore;
-      if (this.targetSpeakerEnhancementEnabled) payload.targetSpeakerEnhancementApplied = true;
-      this.finalResultSent = true;
-      this.listener?.onResult?.(sessionId, payload);
       if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
       this.completeCurrentSession(generation);
     }

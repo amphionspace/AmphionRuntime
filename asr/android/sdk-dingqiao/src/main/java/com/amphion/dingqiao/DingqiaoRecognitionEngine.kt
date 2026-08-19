@@ -408,7 +408,16 @@ internal class DingqiaoRecognitionEngine(
                 enqueueTerminalResult(
                     epoch = epoch,
                     sessionId = sessionId,
+                    asrResult = AsrResult(text = "", speakerScore = result.speakerScore),
+                )
+            } else {
+                dispatchResult(
+                    epoch = epoch,
+                    sessionId = sessionId,
                     asrResult = AsrResult(text = ""),
+                    isFinal = true,
+                    isLast = false,
+                    speakerSimilarity = result.speakerScore,
                 )
             }
         }

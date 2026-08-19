@@ -8,6 +8,8 @@
 - Speaker VAD 恢复遵循 `enablePartialResult`：开启时继续回调 speculative partial，目标说话人边界
   仅对 final 结果作保证；partial 可能暂时包含随后从 final 移除的非目标人文本，关闭该参数时仍
   不回调中间结果。
+- Speaker VAD 拒绝非目标片段时，在拒绝事件后补充空 final，使调用方能够清除已显示的 speculative
+  partial；non-last rejection 不结束 session，last rejection 仍保持唯一 last/complete。
 - 保持目标人单独说话、明确边界后的后缀重放以及既有 `isFinal` / `isLast` / `onComplete` 生命周期
   语义不变；同时说话仍不在本次修复范围内，不宣称具备说话人分离能力。
 

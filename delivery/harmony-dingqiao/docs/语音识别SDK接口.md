@@ -305,6 +305,11 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `21` | `SPEAKER_VAD_DEBUG` | 目标说话人 VAD 调试信息 |
 | `22` | `SPEAKER_VAD_REJECTED` | 目标说话人 VAD 拒绝当前 final |
 
+Speaker VAD 拒绝非目标片段时，会在 `SPEAKER_VAD_REJECTED` 事件后回调空的
+`onResult(isFinal=true)`，用于结束并清除此前可能公开的 speculative partial。该结果的 `isLast`
+沿用底层结束标记；`isLast=false` 时会话继续且不回调 `onComplete`，`isLast=true` 时随后恰好回调
+一次 `onComplete`。
+
 `vadBegin` 按实际写入并由 VAD 处理的 PCM 时长计算；只调用 `startListening` 而不写入音频不会计时。达到阈值且始终未检测到语音时，SDK 回调空的 `onResult(isFinal=true,isLast=true)`，随后回调 `onComplete`，不回调 `SPEECH_BEGIN`、`SPEECH_END` 或错误。一旦检测到首个真实起音，本会话不再触发 `vadBegin`，后续停顿由 `vadEnd` 处理。该行为不依赖 `enablePartialResult`。
 
 ## 7. 声纹
