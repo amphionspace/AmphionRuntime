@@ -5,7 +5,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-VERSION="${AMPHION_RUNTIME_VERSION:-0.3.2}"
+VERSION="${AMPHION_RUNTIME_VERSION:-0.3.5}"
 BUILD_DATE="${AMPHION_BUILD_DATE:-$(date +%Y%m%d)}"
 FINAL_OUT_ROOT=""
 ASR_ONLY=false
@@ -44,6 +44,21 @@ if [[ "$ASR_ONLY" == true && "$SDK_ONLY" == true ]]; then
   exit 2
 fi
 
+BUILD_IDENTITY="$REPO_ROOT/delivery/harmony-dingqiao/build/smoke/build-identity.json"
+python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"
+BUILD_SOURCE_COMMIT="$(python3 - "$BUILD_IDENTITY" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(payload["git_commit"])
+PY
+)"
+python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
+  --repo "$REPO_ROOT" verify-package --platform harmony --version "$VERSION" \
+  --source-commit "$BUILD_SOURCE_COMMIT"
+
 if [[ -z "$FINAL_OUT_ROOT" ]]; then
   if [[ "$SDK_ONLY" == true ]]; then
     FINAL_OUT_ROOT="$REPO_ROOT/build/amphion-harmony-asr-sdk-v${VERSION}-${BUILD_DATE}"
@@ -59,7 +74,6 @@ BACKUP_OUT_ROOT="${FINAL_OUT_ROOT}.backup.$$"
 LOCK_DIR="${FINAL_OUT_ROOT}.lock"
 LOCK_HELD=false
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-$REPO_ROOT/.secure/harmony-signing.json}"
-BUILD_IDENTITY="$REPO_ROOT/delivery/harmony-dingqiao/build/smoke/build-identity.json"
 
 GIT_DIRTY=false
 # Unrelated diagnostics and local customer notes do not affect the SDK-only payload. Gate release
@@ -104,8 +118,6 @@ if [[ "$GIT_DIRTY" == true && "$ALLOW_DIRTY" != true ]]; then
   echo "[ERROR] release packaging requires a clean worktree; commit/stash changes or pass --allow-dirty for a non-release package" >&2
   exit 1
 fi
-python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"
-
 cleanup() {
   rm -rf "$OUT_ROOT"
   if [[ -e "$BACKUP_OUT_ROOT" ]]; then
@@ -284,7 +296,7 @@ python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
   changelog \
   --platform harmony \
   --version "$VERSION" \
-  --source-commit HEAD \
+  --source-commit "$BUILD_SOURCE_COMMIT" \
   --output "$COMMIT_CHANGELOG"
 python3 - "$REPO_ROOT/delivery/harmony-dingqiao/docs/CHANGELOG.md" \
   "$COMMIT_CHANGELOG" "$OUT_ROOT/docs/CHANGELOG.md" "$VERSION" <<'PY'
@@ -335,6 +347,7 @@ text = text.replace(
     "普通 Demo 可使用 ODID 签发体验授权，但 ODID 与 SN 不可混用。",
     "普通应用可与签发方约定 ODID，但 ODID 与 SN 不可混用。",
 )
+text = text.replace("默认并在鼎桥适配层固定为", "默认并在当前适配层固定为")
 path.write_text(text, encoding="utf-8")
 PY
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/ASR_TROUBLESHOOTING.md" \
@@ -464,7 +477,7 @@ payload = {
     "sdk_only": sdk_only,
     "source": {
         "repository": run("git", "remote", "get-url", "origin"),
-        "commit": run("git", "rev-parse", "HEAD"),
+        "commit": build_identity["git_commit"],
         "branch": run("git", "branch", "--show-current"),
         "worktree_dirty": git_dirty,
         "sherpa_submodule_commit": run("git", "rev-parse", "HEAD:third_party/sherpa-onnx"),
