@@ -11,8 +11,11 @@
 | `v*` tag | 运行 | 完整运行 | 汇总两个 job；Maven 发布消费其 AAR artifact |
 | 手动触发 | 运行 | 完整运行 | 汇总两个 job |
 
-对 PR，`changes` 比较 merge-base 到 head 的 PR 自身变更集；对非 PR 事件，
-Android 判定强制为 `true`，从而保持现有发布行为。
+对 PR，`changes` 通过 GitHub changed-files API 读取 PR 自身变更集，不 checkout
+仓库；重命名同时检查新旧路径。对非 PR 事件，Android 判定直接强制为 `true`，
+从而保持现有发布行为。`asr-contracts` 不依赖路径判定，会与 `changes` 并行启动。
+`android-aar` 只读取当前源码和 submodule gitlink，因此使用 shallow checkout；只有
+需要读取 frozen historical assets 的 `asr-contracts` 保留完整历史。
 
 ## Android native cache
 
