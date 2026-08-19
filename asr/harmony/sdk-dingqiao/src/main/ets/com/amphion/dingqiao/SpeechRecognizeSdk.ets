@@ -726,7 +726,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         if (this.sessionStartGate.isCurrent(generation) && this.currentSessionId === sessionId) {
           this.completeCurrentSession(generation);
         }
-      }
+      },
+      result.overlapPrefixSamples
     );
   }
 

@@ -101,7 +101,7 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
         script = textwrap.dedent(
             f"""
             import assert from 'node:assert/strict';
-            import {{ PoliceFinalSession }} from {HARMONY_POLICY.as_uri()!r};
+            import {{ PoliceFinalSession, deduplicateBoundaryPrefix }} from {HARMONY_POLICY.as_uri()!r};
             let calls = 0;
             const enhance = (raw) => {{ calls += 1; return `${{raw}}-增强`; }};
             const callbacks = [];
@@ -132,6 +132,15 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
               'on:complete',
             ]);
             assert.equal(calls, 1);
+            assert.equal(deduplicateBoundaryPrefix('前一句边界文本。', '边界文本，下一句', 10240), '下一句');
+            assert.equal(deduplicateBoundaryPrefix('重复内容', '重复内容', 0), '重复内容');
+            const overlapSession = new PoliceFinalSession(false, enhance);
+            const first = {{ result: '', isFinal: true, isLast: false }};
+            overlapSession.dispatch(first, '上一片最后几个字', () => {{}}, () => {{}});
+            const second = {{ result: '', isFinal: true, isLast: false }};
+            overlapSession.dispatch(second, '最后几个字下一片正文', () => {{}}, () => {{}}, 10240);
+            assert.equal(first.result, '上一片最后几个字');
+            assert.equal(second.result, '下一片正文');
             """
         )
         subprocess.run(

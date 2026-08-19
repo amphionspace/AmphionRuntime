@@ -168,6 +168,9 @@ export class AsrResult {
   isTargetSpeaker?: boolean;
   // True only for the final produced by an explicit stop/finish; endpoint finals stay false.
   isLast: boolean = false;
+  // Internal/public-adapter hint: this stream was primed with replayed boundary audio. The core
+  // still publishes its raw text; adapters may use this only to de-duplicate adjacent finals.
+  overlapPrefixSamples: number = 0;
 }
 
 export class AsrError {
