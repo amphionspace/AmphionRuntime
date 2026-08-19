@@ -17,6 +17,7 @@ from typing import Mapping, Sequence
 
 FINGERPRINT_SCHEMA = "android-native-source-v1"
 MANIFEST_SCHEMA = 1
+SUPPORTED_ABI = "arm64-v8a"
 SOURCE_INPUTS = (
     ".gitmodules",
     "asr/native",
@@ -34,9 +35,11 @@ SOURCE_DIRECTORIES = (
     "third_party/patches/sherpa-amphion",
 )
 ARTIFACTS = (
-    "third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libsherpa-onnx-jni.so",
-    "third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libonnxruntime.so",
-    "asr/native/audio-processing/build-android-arm64-v8a/libamphion_audio_processing.so",
+    f"third_party/sherpa-onnx/build-android-{SUPPORTED_ABI}/install/lib/"
+    "libsherpa-onnx-jni.so",
+    f"third_party/sherpa-onnx/build-android-{SUPPORTED_ABI}/install/lib/libonnxruntime.so",
+    f"asr/native/audio-processing/build-android-{SUPPORTED_ABI}/"
+    "libamphion_audio_processing.so",
 )
 CONFIGURATION_KEYS = (
     "abi",
@@ -100,7 +103,13 @@ def _configuration(configuration: Mapping[str, str]) -> dict[str, str]:
     missing = [key for key in CONFIGURATION_KEYS if not configuration.get(key)]
     if missing:
         raise CacheIdentityError(f"missing native build configuration: {missing[0]}")
-    return {key: configuration[key] for key in CONFIGURATION_KEYS}
+    normalized = {key: configuration[key] for key in CONFIGURATION_KEYS}
+    if normalized["abi"] != SUPPORTED_ABI:
+        raise CacheIdentityError(
+            f"unsupported Android native cache ABI: {normalized['abi']} "
+            f"(expected {SUPPORTED_ABI})"
+        )
+    return normalized
 
 
 def _source_entry(root: Path, relative: str) -> dict[str, str]:

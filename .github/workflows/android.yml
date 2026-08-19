@@ -23,7 +23,6 @@ env:
   NDK_VERSION: "26.3.11579264"
   ONNXRT_VERSION: "1.24.3"
   SDK_BUILD_DIR: asr/android
-  ANDROID_ABI: arm64-v8a
   ANDROID_PLATFORM: android-24
   CMAKE_VERSION: "3.22.1"
   MESON_VERSION: "1.7.0"
@@ -154,7 +153,7 @@ jobs:
         id: native-fingerprint
         run: |
           fingerprint="$(python3 asr/tools/android_native_cache.py fingerprint \
-            --abi "${{ env.ANDROID_ABI }}" \
+            --abi arm64-v8a \
             --android-platform "${{ env.ANDROID_PLATFORM }}" \
             --cmake-version "${{ env.CMAKE_VERSION }}" \
             --meson-version "${{ env.MESON_VERSION }}" \
@@ -180,7 +179,7 @@ jobs:
           python3 asr/tools/android_native_cache.py verify \
             --manifest "${{ env.NATIVE_CACHE_MANIFEST }}" \
             --fingerprint "${{ steps.native-fingerprint.outputs.fingerprint }}" \
-            --abi "${{ env.ANDROID_ABI }}" \
+            --abi arm64-v8a \
             --android-platform "${{ env.ANDROID_PLATFORM }}" \
             --cmake-version "${{ env.CMAKE_VERSION }}" \
             --meson-version "${{ env.MESON_VERSION }}" \
@@ -223,8 +222,8 @@ jobs:
       - name: Build native .so
         if: steps.native-cache.outputs.cache-hit != 'true'
         run: |
-          bash asr/tools/03_build_agc_native.sh "android-${{ env.ANDROID_ABI }}"
-          bash asr/tools/04_build_android_so.sh "${{ env.ANDROID_ABI }}"
+          bash asr/tools/03_build_agc_native.sh android-arm64-v8a
+          bash asr/tools/04_build_android_so.sh arm64-v8a
 
       - name: Record native artifact identity
         if: steps.native-cache.outputs.cache-hit != 'true'
@@ -232,7 +231,7 @@ jobs:
           python3 asr/tools/android_native_cache.py create-manifest \
             --manifest "${{ env.NATIVE_CACHE_MANIFEST }}" \
             --fingerprint "${{ steps.native-fingerprint.outputs.fingerprint }}" \
-            --abi "${{ env.ANDROID_ABI }}" \
+            --abi arm64-v8a \
             --android-platform "${{ env.ANDROID_PLATFORM }}" \
             --cmake-version "${{ env.CMAKE_VERSION }}" \
             --meson-version "${{ env.MESON_VERSION }}" \

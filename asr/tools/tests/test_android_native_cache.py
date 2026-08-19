@@ -68,6 +68,14 @@ class AndroidNativeCacheTest(unittest.TestCase):
             for key in configuration:
                 changed_configuration = dict(configuration)
                 changed_configuration[key] += "-changed"
+                if key == "abi":
+                    with self.assertRaisesRegex(
+                        MODULE.CacheIdentityError, "unsupported.*ABI"
+                    ):
+                        MODULE.source_fingerprint(
+                            root, "a" * 40, changed_configuration
+                        )
+                    continue
                 self.assertNotEqual(
                     original,
                     MODULE.source_fingerprint(root, "a" * 40, changed_configuration),
@@ -124,6 +132,15 @@ class AndroidNativeCacheTest(unittest.TestCase):
 
             with self.assertRaisesRegex(MODULE.CacheIdentityError, "missing"):
                 MODULE.verify_manifest(root, manifest, "e" * 64, self._configuration())
+
+    def test_unsupported_abi_is_rejected_before_creating_an_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._source_root(Path(directory))
+            configuration = self._configuration()
+            configuration["abi"] = "armeabi-v7a"
+
+            with self.assertRaisesRegex(MODULE.CacheIdentityError, "unsupported.*ABI"):
+                MODULE.source_fingerprint(root, "a" * 40, configuration)
 
     def test_versioned_configuration_is_consumed_by_native_build_scripts(self) -> None:
         agc = (ROOT / "asr/tools/03_build_agc_native.sh").read_text(encoding="utf-8")

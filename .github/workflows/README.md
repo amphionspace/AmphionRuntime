@@ -23,6 +23,9 @@ Android 判定强制为 `true`，从而保持现有发布行为。
 - Android native 构建、patch、依赖预取和打包脚本；
 - ABI、Android platform、NDK、ORT、CMake、Meson 和 Ninja 版本。
 
+当前 workflow 只构建 `arm64-v8a`；cache identity 工具会拒绝其他 ABI，避免配置与
+固定的 arm64 产物路径不一致。
+
 缓存 key 只接受完整 fingerprint 的精确命中，不配置 `restore-keys`。命中后必须先用
 manifest 校验 fingerprint 及三份 `.so` 的 SHA-256/大小，才会跳过 native 编译；校验
 失败直接令 job 失败。未命中时重新编译并生成 identity manifest。无论是否命中，

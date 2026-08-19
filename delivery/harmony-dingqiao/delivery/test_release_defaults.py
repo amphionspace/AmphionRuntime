@@ -42,9 +42,7 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn('$ANDROID_HOME/cmake/${{ env.CMAKE_VERSION }}/bin', android)
         self.assertIn("asr.tools.tests.test_android_native_cache", workflow)
 
-        native_build = android.index(
-            'bash asr/tools/04_build_android_so.sh "${{ env.ANDROID_ABI }}"'
-        )
+        native_build = android.index("bash asr/tools/04_build_android_so.sh arm64-v8a")
         gradle_build = android.index("Gradle assemble + unit test")
         self.assertLess(native_build, gradle_build)
         gradle_section = android[gradle_build:]
