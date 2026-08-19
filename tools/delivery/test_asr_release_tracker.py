@@ -100,6 +100,103 @@ class AsrReleaseTrackerTest(unittest.TestCase):
         self.assertIn("fix(android): preserve trailing words", rendered)
         self.assertNotIn("record ASR SDK delivery", rendered)
 
+    def test_release_versions_must_increase_per_platform(self) -> None:
+        payload = json.loads(self.history_path.read_text(encoding="utf-8"))
+        stale = dict(payload["deliveries"][0])
+        stale["version"] = "0.3.1"
+        payload["deliveries"].append(stale)
+        self.history_path.write_text(json.dumps(payload), encoding="utf-8")
+
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "strictly increase"):
+            MODULE.load_history(self.history_path)
+
+    def test_verify_next_version_rejects_recorded_or_older_versions(self) -> None:
+        MODULE.verify_next_version(
+            history_path=self.history_path,
+            platform="android",
+            version="0.3.3",
+        )
+        for stale in ("0.3.2", "0.3.1"):
+            with self.subTest(stale=stale):
+                with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "newer than 0.3.2"):
+                    MODULE.verify_next_version(
+                        history_path=self.history_path,
+                        platform="android",
+                        version=stale,
+                    )
+
+    def test_verify_current_version_requires_latest_record_and_ancestor(self) -> None:
+        MODULE.verify_current_version(
+            repo=self.repo,
+            history_path=self.history_path,
+            platform="android",
+            version="0.3.2",
+            source_commit=self.current_commit,
+        )
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "latest recorded.*0.3.2"):
+            MODULE.verify_current_version(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.3",
+                source_commit=self.current_commit,
+            )
+
+    def test_packaging_accepts_new_or_exact_recorded_source(self) -> None:
+        self.assertEqual(
+            MODULE.verify_packaging_version(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.3",
+                source_commit=self.current_commit,
+            ),
+            "next",
+        )
+        payload = json.loads(self.history_path.read_text(encoding="utf-8"))
+        payload["deliveries"].append(
+            {
+                "platform": "android",
+                "version": "0.3.3",
+                "source_commit": self.current_commit,
+                "delivered_at": "2026-07-25",
+                "artifact": "android-0.3.3.zip",
+                "artifact_sha256": "c" * 64,
+                "artifact_size_bytes": 456,
+                "provenance_sha256": "d" * 64,
+            }
+        )
+        self.history_path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+        self.assertEqual(
+            MODULE.verify_packaging_version(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.3",
+                source_commit=self.current_commit,
+            ),
+            "current",
+        )
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "exact source"):
+            MODULE.verify_packaging_version(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.3",
+                source_commit=self.android_base,
+            )
+
+        rendered = MODULE.render_changelog(
+            repo=self.repo,
+            history_path=self.history_path,
+            platform="android",
+            version="0.3.3",
+            source_commit=self.current_commit,
+        )
+        self.assertIn(f"0.3.2 (`{self.android_base}`)", rendered)
+        self.assertNotIn("上一交付：0.3.3", rendered)
+
     def test_excludes_commits_that_only_touch_the_other_platform(self) -> None:
         harmony = self.repo / "asr" / "harmony"
         harmony.mkdir(parents=True)
