@@ -85,6 +85,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          # Harmony police parity reads frozen assets from a historical commit.
+          fetch-depth: 0
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
