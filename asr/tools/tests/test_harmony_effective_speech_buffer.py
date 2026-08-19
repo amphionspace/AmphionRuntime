@@ -324,11 +324,16 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
         self.assertIn("this.effectiveSpeechBuffer.observe(rawSamples)", runtime)
         self.assertIn("this.effectiveSpeechBuffer.confirmSpeech()", runtime)
         self.assertIn("this.effectiveSpeechBuffer.resolveFinal(result.text, hasEvidence, isLast)", runtime)
-        suppressed_final = """if (!boundary.publish) {
-      if (this.speakerVadEnabled) this.speakerPcmBuffers.clearNativeSegment();
-      return hasEvidence;
-    }"""
-        self.assertIn(suppressed_final, runtime)
+        suppressed_start = runtime.index("if (!boundary.publish) {")
+        suppressed_reason = runtime.index("reason=effective-speech-boundary", suppressed_start)
+        clear_segment = runtime.index(
+            "if (this.speakerVadEnabled) this.speakerPcmBuffers.clearNativeSegment()",
+            suppressed_reason,
+        )
+        suppressed_return = runtime.index("return hasEvidence;", clear_segment)
+        self.assertLess(suppressed_start, suppressed_reason)
+        self.assertLess(suppressed_reason, clear_segment)
+        self.assertLess(clear_segment, suppressed_return)
         self.assertIn(
             "selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence)",
             runtime,
@@ -353,7 +358,7 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
         boundary = runtime.index(
             "const boundary = this.effectiveSpeechBuffer.resolveFinal(result.text, hasEvidence, isLast);"
         )
-        publish_guard = runtime.index(suppressed_final, boundary)
+        publish_guard = runtime.index("if (!boundary.publish) {", boundary)
         external_count = runtime.index("this.utteranceIndex += 1;", publish_guard)
         external_reset = runtime.index("this.pcmBytesAccepted = 0;", external_count)
         self.assertLess(boundary, publish_guard)
