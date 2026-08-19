@@ -1,0 +1,1 @@
+000000	/data/storage/el2/base/files/asr-stress/20260820-070031-start-write-reload-719fb56f/audio/000000.pcm

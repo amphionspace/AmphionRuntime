@@ -39,6 +39,7 @@ ARCHIVE_FILES = (
     "payload/manifest.txt",
 )
 REQUIRED_RELEASE_MODES = HARMONY_RELEASE_MODES
+REQUIRED_FINISH_COMPAT_MODES = ("callback-api-reentrant", "finish-shutdown")
 REQUIRED_ANDROID_SUITES = {
     ("sdk", "debug"): 32,
     ("sdk", "release"): 32,
@@ -195,6 +196,96 @@ def copy_redacted_artifacts(
     if not manifest:
         raise ArchiveFailure(f"run has no archivable artifacts: {source}")
     return manifest
+
+
+def validate_numeric_gate_attestation(
+    path: Path, source_commit: str, hap_sha256: str
+) -> Dict[str, Any]:
+    payload = load_report(path)
+    required_true = (
+        "live_replay_exact_match",
+        "identifier_exact_match",
+        "checksum_valid",
+    )
+    if payload.get("status") != "PASS" or payload.get("gate") != "numeric-identity-recovery":
+        raise ArchiveFailure("numeric gate attestation must be a PASS numeric-identity-recovery gate")
+    if payload.get("source_commit") != source_commit or payload.get("hap_sha256") != hap_sha256:
+        raise ArchiveFailure("numeric gate attestation does not match the release source/HAP")
+    if any(payload.get(name) is not True for name in required_true):
+        raise ArchiveFailure("numeric gate attestation is missing a required exact-match assertion")
+    if payload.get("identifier_length") != 18:
+        raise ArchiveFailure("numeric gate attestation must record an 18-character identifier")
+    lifecycle = payload.get("lifecycle")
+    if not isinstance(lifecycle, dict) or lifecycle != {
+        "finish_before_last_count": 0,
+        "last_count": 1,
+        "complete_count": 1,
+        "errors": 0,
+        "live_streams": 0,
+    }:
+        raise ArchiveFailure("numeric gate attestation lifecycle contract did not pass")
+    for field in ("input_sha256", "replay_report_sha256"):
+        if not isinstance(payload.get(field), str) or not SHA256.fullmatch(payload[field]):
+            raise ArchiveFailure(f"numeric gate attestation has no valid {field}")
+    if not isinstance(payload.get("duration_ms"), int) or payload["duration_ms"] <= 0:
+        raise ArchiveFailure("numeric gate attestation has no valid duration_ms")
+    return payload
+
+
+def archive_finish_compat_runs(
+    finish_summary: Dict[str, Any],
+    raw_root: Path,
+    destination: Path,
+    replacements: Mapping[str, str],
+    expected_identity: tuple[str, str, str, str, str],
+) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    modes = finish_summary.get("modes")
+    if not isinstance(modes, list):
+        raise ArchiveFailure("finish compatibility root report has no modes")
+    run_ids = {
+        item.get("mode"): item.get("run_id")
+        for item in modes
+        if isinstance(item, dict)
+    }
+    if set(run_ids) != set(REQUIRED_FINISH_COMPAT_MODES):
+        raise ArchiveFailure("finish compatibility root report has an incomplete mode set")
+    archived: List[Dict[str, Any]] = []
+    rewritten_reports: Dict[str, str] = {}
+    for mode in REQUIRED_FINISH_COMPAT_MODES:
+        run_id = run_ids[mode]
+        if not isinstance(run_id, str) or not run_id or Path(run_id).name != run_id:
+            raise ArchiveFailure(f"finish compatibility mode {mode} has an invalid run_id")
+        source = raw_root / run_id
+        report = load_report(source / "report.json")
+        if report.get("mode") != mode or report.get("overall_status") != "PASS":
+            raise ArchiveFailure(f"finish compatibility mode {mode} is not PASS")
+        if identity_tuple(report) != expected_identity:
+            raise ArchiveFailure(f"finish compatibility mode {mode} has a different build identity")
+        required_files = ARCHIVE_FILES[:5]
+        missing = [name for name in required_files if not (source / name).is_file()]
+        if missing:
+            raise ArchiveFailure(
+                f"finish compatibility mode {mode} is missing artifact {missing[0]}"
+            )
+        relative_report = f"finish-compat-runs/{mode}/report.json"
+        files = copy_redacted_artifacts(
+            source,
+            destination / mode,
+            replacements,
+            require_complete=False,
+        )
+        rewritten_reports[mode] = relative_report
+        archived.append(
+            {
+                "mode": mode,
+                "run_id": run_id,
+                "report": relative_report,
+                "files": files,
+            }
+        )
+    rewritten = dict(finish_summary)
+    rewritten["reports"] = rewritten_reports
+    return rewritten, archived
 
 
 def validate_android_summary(path: Path, source_commit: str) -> Dict[str, Any]:
@@ -454,6 +545,8 @@ def archive_evidence(
     not_applicable: Mapping[str, str] | None = None,
     limitations: Sequence[str] = (),
     finish_compat_summary: Path | None = None,
+    finish_compat_raw_root: Path,
+    numeric_gate_attestation: Path | None = None,
     build_identity: Path | None = None,
 ) -> Dict[str, Any]:
     raw_root = raw_root.resolve()
@@ -538,6 +631,15 @@ def archive_evidence(
         serial: alias,
         str(raw_root): "<RAW_EVIDENCE_ROOT>",
     }
+    finish_compat_raw_root = finish_compat_raw_root.resolve()
+    if not finish_compat_raw_root.is_dir():
+        raise ArchiveFailure("finish compatibility raw root is missing")
+    replacements[str(finish_compat_raw_root)] = "<FINISH_COMPAT_RAW_ROOT>"
+    numeric_gate = None
+    if numeric_gate_attestation is not None:
+        numeric_gate = validate_numeric_gate_attestation(
+            numeric_gate_attestation.resolve(), source_commit, hap_sha256
+        )
     temporary = Path(
         tempfile.mkdtemp(prefix=f".{output.name}.", dir=str(output.parent))
     )
@@ -608,6 +710,13 @@ def archive_evidence(
                 raw_root, source_commit, android_tests["sherpa_submodule_commit"]
             ),
         )
+        finish_summary, finish_runs = archive_finish_compat_runs(
+            finish_summary,
+            finish_compat_raw_root,
+            temporary / "finish-compat-runs",
+            replacements,
+            next(iter(identities)),
+        )
         finish_destination = temporary / "finish-compat-report.json"
         finish_destination.write_text(
             json.dumps(
@@ -623,6 +732,25 @@ def archive_evidence(
             "sha256": sha256_file(finish_destination),
             "size_bytes": finish_destination.stat().st_size,
         }
+        numeric_artifact = None
+        if numeric_gate is not None:
+            numeric_destination = temporary / "numeric-identity-gate.json"
+            numeric_destination.write_text(
+                json.dumps(
+                    _redact_json(numeric_gate, replacements),
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                ) + "\n",
+                encoding="utf-8",
+            )
+            numeric_artifact = {
+                "path": "numeric-identity-gate.json",
+                "sha256": sha256_file(numeric_destination),
+                "size_bytes": numeric_destination.stat().st_size,
+                "input_sha256": numeric_gate["input_sha256"],
+                "replay_report_sha256": numeric_gate["replay_report_sha256"],
+            }
 
         summary: Dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
@@ -655,6 +783,8 @@ def archive_evidence(
             "android_tests_artifact": android_artifact,
             "android_test_results": android_result_files,
             "finish_compat_summary": finish_artifact,
+            "finish_compat_runs": finish_runs,
+            "numeric_identity_gate": numeric_artifact,
             "retention": {
                 "raw_pcm_committed": False,
                 "input_mapping_retained": True,
@@ -693,6 +823,8 @@ def main() -> int:
     parser.add_argument("--android-results-root", type=Path, required=True)
     parser.add_argument("--verified-at", default="")
     parser.add_argument("--finish-compat-summary", type=Path, required=True)
+    parser.add_argument("--finish-compat-raw-root", type=Path, required=True)
+    parser.add_argument("--numeric-gate-attestation", type=Path)
     parser.add_argument("--build-identity", type=Path, required=True)
     args = parser.parse_args()
     try:
@@ -713,6 +845,8 @@ def main() -> int:
             android_results_root=args.android_results_root,
             verified_at=args.verified_at,
             finish_compat_summary=args.finish_compat_summary,
+            finish_compat_raw_root=args.finish_compat_raw_root,
+            numeric_gate_attestation=args.numeric_gate_attestation,
             build_identity=args.build_identity,
         )
         print(f"[OK] archived release-gate evidence: {args.output}")
