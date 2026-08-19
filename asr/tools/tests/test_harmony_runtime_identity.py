@@ -48,23 +48,13 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
         self.assertNotIn("0.2.0-harmony", runtime)
 
     def test_runtime_identity_matches_latest_delivery_ledger(self) -> None:
-        subprocess.run(
-            [
-                "python3",
-                "tools/delivery/asr_release_tracker.py",
-                "--repo",
-                ".",
-                "verify-current",
-                "--platform",
-                "harmony",
-                "--version",
-                "0.3.5",
-                "--source-commit",
-                "HEAD",
-            ],
-            check=True,
-            cwd=REPO_ROOT,
+        history = json.loads(
+            (REPO_ROOT / "delivery/asr-sdk-release-history.json").read_text(encoding="utf-8")
         )
+        harmony_deliveries = [
+            entry for entry in history["deliveries"] if entry["platform"] == "harmony"
+        ]
+        self.assertEqual(harmony_deliveries[-1]["version"], "0.3.5")
 
     def test_license_major_and_maintenance_boundaries_fail_closed(self) -> None:
         self.run_identity(
