@@ -282,6 +282,29 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         self.assertIn("recognizer_handle->Lease()", patch)
         self.assertIn("stream_handle->Lease()", patch)
 
+    def test_empty_endpoint_restarts_the_stream_instead_of_retaining_encoder_cache(self) -> None:
+        runtime = RUNTIME.read_text(encoding="utf-8")
+        start = runtime.index("private restartStreamAfterUtterance(reason: string")
+        end = runtime.index("private hardRestartStream(reason: string)", start)
+        restart = runtime[start:end]
+
+        self.assertIn("this.hardRestartStream(reason);", restart)
+        self.assertNotIn("this.recognizer.reset(this.stream);", restart)
+        self.assertNotIn("this.recognizer.getResult(this.stream)", restart)
+
+    def test_runtime_logs_endpoint_suppression_and_stream_identity(self) -> None:
+        runtime = RUNTIME.read_text(encoding="utf-8")
+
+        self.assertIn("kind=ENDPOINT", runtime)
+        self.assertIn("source=native", runtime)
+        self.assertIn("source=vad-active", runtime)
+        self.assertIn("source=speaker-vad", runtime)
+        self.assertIn("kind=RESULT_SUPPRESSED", runtime)
+        self.assertIn("kind=STREAM_TRANSITION", runtime)
+        self.assertIn("streamGeneration", runtime)
+        self.assertIn("action=hard-restart", runtime)
+        self.assertIn("action=soft-reset", runtime)
+
     def test_device_gate_measures_write_audio_call_latency(self) -> None:
         stress = DEVICE_STRESS.read_text(encoding="utf-8")
         self.assertIn("writeBatchElapsedMs", stress)
