@@ -162,6 +162,17 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("controlled release notes missing", script)
         self.assertIn("## 源码提交明细", script)
 
+    def test_sdk_only_packaging_removes_customer_excluded_branding(self) -> None:
+        script = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            'text.replace("默认并在鼎桥适配层固定为", "默认并在当前适配层固定为")',
+            script,
+        )
+
     def test_speaker_vad_defaults_match_sdk_demo_and_public_docs(self) -> None:
         sdk = (
             REPO_ROOT
