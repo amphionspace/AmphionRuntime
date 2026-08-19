@@ -144,6 +144,10 @@ class ReleaseDefaultsTest(unittest.TestCase):
             / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
         ).read_text(encoding="utf-8")
         self.assertIn('python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"', script)
+        self.assertIn(
+            'verify-next --platform harmony --version "$VERSION"',
+            script,
+        )
         self.assertIn("build_identity = json.loads", script)
         self.assertIn('"verified_source_identity"', script)
 

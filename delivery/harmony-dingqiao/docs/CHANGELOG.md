@@ -1,6 +1,31 @@
 # Changelog
 
-## 未发布 - 2026-08-14（顺序换人结果收口）
+## 0.3.5 - 2026-08-20（新模型与长会话恢复）
+
+- 默认中英识别模型升级为当前交付模型；模型身份、HAR 构建身份和交付 provenance 重新绑定，
+  不复用 0.3.4 的旧模型产物。新模型的 AGC 专属精度基线仍待单独验收，不能用旧模型门禁代替。
+- 新增 `endpointMaxUtteranceMs` 会话参数，长转写和会议场景把 native 单句上限从 20 秒提升到
+  60 秒，并将该参数纳入 recognizer 复用键，避免不同 endpoint 配置错误复用同一实例。
+- 空 native endpoint 后改为创建 fresh stream，缓解长会议中 encoder 状态逐步失效后持续有声无字；
+  1286 秒真机语料的最后非空 final 从约 1087.74 秒推进到 1198.10 秒，last/complete、error 和
+  stream 回收契约通过。但 1198.10 秒后的剩余尾段仍未恢复，本版本不宣称彻底关闭长会议问题。
+- 加强 Speaker VAD 在 finish、拒绝结果和顺序换人场景下的 final 收口；被拒绝的 non-last 结果会
+  发布空 final 清理 speculative partial，同时保持 finish 后唯一 last、唯一 complete。重叠说话仍
+  不在能力范围内。
+- 修复非 ASCII hotword 按字符数而不是 UTF-8 字节数分配 native buffer 的问题，避免中文热词截断。
+- 保持公共 `isFinal` / `isLast` / `onComplete` / `cancel` 契约不变；PTT 尾字准确率、Speaker VAD
+  重叠说话、远讲/SNR、警务词与专项 hotword 精度仍按已知问题清单继续跟踪。
+
+## 0.3.4 - 2026-08-17（警务术语短 final 定向修复）
+
+- 补齐客户 Harmony SDK 反馈与三星真人复测中的警务术语短 final 误识别，覆盖“签警情”、
+  “签警单”、“设卡盘查”、“经纬度采集”、“治爆”、“勤指情平台”、“案结事了”、
+  “拘传”、“羁押”和“警官”等已确认变体，并同步 Android 与 Harmony 规则。
+- 新规则仅纠正完整短 final，同时补充正常长上下文保护样例；不改变 partial、ASR 模型、公共 API、
+  声纹、Speaker VAD 或 `isFinal` / `isLast` / `onComplete` 生命周期语义。
+- 目标说话人增强仍仅保留接口预留；0.3.4 不包含该能力所需模型，不能启用该参数。
+
+## 0.3.3 - 2026-08-14（Speaker VAD 结果收口与警务词修复）
 
 - Speaker VAD 的边界分段已确认“机主到他人”的顺序换人、但无法精确确定切点时，改用最后一个
   已确认机主窗口之前的保守前缀重新识别；若连安全前缀也无法证明，则拒绝本段不确定结果，避免把
@@ -8,10 +33,11 @@
 - Speaker VAD 恢复遵循 `enablePartialResult`：开启时继续回调 speculative partial，目标说话人边界
   仅对 final 结果作保证；partial 可能暂时包含随后从 final 移除的非目标人文本，关闭该参数时仍
   不回调中间结果。
-- Speaker VAD 拒绝非目标片段时，在拒绝事件后补充空 final，使调用方能够清除已显示的 speculative
-  partial；non-last rejection 不结束 session，last rejection 仍保持唯一 last/complete。
 - 保持目标人单独说话、明确边界后的后缀重放以及既有 `isFinal` / `isLast` / `onComplete` 生命周期
   语义不变；同时说话仍不在本次修复范围内，不宣称具备说话人分离能力。
+- 补齐“签收警单”及“小乔”语义下多种设备端同音误识别的警务归一化，并同步 Android 与 Harmony
+  规则和回归样例；警务增强仍只处理 final，不改变 partial 文本或生命周期回调顺序。
+- 目标说话人增强仍仅保留接口预留；0.3.3 不包含该能力所需模型，不能启用该参数。
 
 ## 0.3.2 - 2026-08-13（自动增益、预加载与 Runtime 稳定性）
 

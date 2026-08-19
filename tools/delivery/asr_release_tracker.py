@@ -123,6 +123,7 @@ def load_history(path: Path) -> Dict[str, Any]:
     if not isinstance(deliveries, list):
         raise ReleaseTrackerError("release history deliveries must be a list")
     seen = set()
+    latest_versions: Dict[str, tuple[int, int, int]] = {}
     for index, entry in enumerate(deliveries):
         if (
             not isinstance(entry, dict)
@@ -142,6 +143,13 @@ def load_history(path: Path) -> Dict[str, Any]:
             raise ReleaseTrackerError(f"delivery #{index + 1} has invalid platform {platform!r}")
         if not isinstance(version, str) or not SEMVER.fullmatch(version):
             raise ReleaseTrackerError(f"delivery #{index + 1} has invalid version {version!r}")
+        version_key = _semver_key(version)
+        previous_key = latest_versions.get(platform)
+        if previous_key is not None and version_key <= previous_key:
+            raise ReleaseTrackerError(
+                f"{platform} delivery versions must strictly increase in ledger order"
+            )
+        latest_versions[platform] = version_key
         if key in seen:
             raise ReleaseTrackerError(f"{platform} {version} is already recorded")
         seen.add(key)
@@ -192,9 +200,69 @@ def load_history(path: Path) -> Dict[str, Any]:
     return payload
 
 
+def _semver_key(version: str) -> tuple[int, int, int]:
+    if not SEMVER.fullmatch(version):
+        raise ReleaseTrackerError(f"version must be SemVer MAJOR.MINOR.PATCH: {version}")
+    return tuple(int(part) for part in version.split("."))  # type: ignore[return-value]
+
+
 def _previous_delivery(history: Dict[str, Any], platform: str) -> Optional[Dict[str, str]]:
     matches = [entry for entry in history["deliveries"] if entry["platform"] == platform]
     return matches[-1] if matches else None
+
+
+def _require_newer_version(
+    platform: str, version: str, previous: Optional[Dict[str, str]]
+) -> None:
+    requested = _semver_key(version)
+    if previous is None:
+        return
+    previous_key = _semver_key(previous["version"])
+    if requested == previous_key:
+        raise ReleaseTrackerError(
+            f"{platform} {version} is already recorded; the next release must be "
+            f"newer than {previous['version']}"
+        )
+    if requested < previous_key:
+        raise ReleaseTrackerError(
+            f"{platform} release version {version} must be newer than {previous['version']}"
+        )
+
+
+def verify_next_version(*, history_path: Path, platform: str, version: str) -> None:
+    if platform not in PLATFORMS:
+        raise ReleaseTrackerError(f"unsupported platform: {platform}")
+    previous = _previous_delivery(load_history(history_path), platform)
+    _require_newer_version(platform, version, previous)
+
+
+def verify_current_version(
+    *,
+    repo: Path,
+    history_path: Path,
+    platform: str,
+    version: str,
+    source_commit: str,
+) -> None:
+    if platform not in PLATFORMS:
+        raise ReleaseTrackerError(f"unsupported platform: {platform}")
+    _semver_key(version)
+    latest = _previous_delivery(load_history(history_path), platform)
+    if latest is None or latest["version"] != version:
+        recorded = "none" if latest is None else latest["version"]
+        raise ReleaseTrackerError(
+            f"{platform} runtime version {version} does not match latest recorded delivery {recorded}"
+        )
+    recorded_commit = resolve_commit(repo, latest["source_commit"])
+    current = resolve_commit(repo, source_commit)
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", recorded_commit, current], cwd=repo
+    )
+    if ancestor.returncode != 0:
+        raise ReleaseTrackerError(
+            f"latest recorded {platform} delivery commit {recorded_commit} "
+            f"is not an ancestor of {current}"
+        )
 
 
 def _changed_paths(repo: Path, commit: str) -> List[str]:
@@ -232,12 +300,8 @@ def render_changelog(
         raise ReleaseTrackerError(f"unsupported platform: {platform}")
     if not SEMVER.fullmatch(version):
         raise ReleaseTrackerError(f"version must be SemVer MAJOR.MINOR.PATCH: {version}")
+    verify_next_version(history_path=history_path, platform=platform, version=version)
     history = load_history(history_path)
-    if any(
-        entry["platform"] == platform and entry["version"] == version
-        for entry in history["deliveries"]
-    ):
-        raise ReleaseTrackerError(f"{platform} {version} is already recorded")
     current = resolve_commit(repo, source_commit)
     previous = _previous_delivery(history, platform)
 
@@ -605,11 +669,8 @@ def record_delivery(
     with lock_path.open("a+") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         history = load_history(history_path)
-        if any(
-            delivery["platform"] == platform and delivery["version"] == version
-            for delivery in history["deliveries"]
-        ):
-            raise ReleaseTrackerError(f"{platform} {version} is already recorded")
+        previous = _previous_delivery(history, platform)
+        _require_newer_version(platform, version, previous)
         history["deliveries"].append(entry)
         _write_history_atomic(history_path, history)
     return entry
@@ -700,11 +761,8 @@ def record_delivery_with_evidence(
     with lock_path.open("a+") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         history = load_history(history_path)
-        if any(
-            delivery["platform"] == platform and delivery["version"] == version
-            for delivery in history["deliveries"]
-        ):
-            raise ReleaseTrackerError(f"{platform} {version} is already recorded")
+        previous = _previous_delivery(history, platform)
+        _require_newer_version(platform, version, previous)
         history["deliveries"].append(entry)
         _write_history_atomic(history_path, history)
     return entry
@@ -725,6 +783,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     changelog.add_argument("--version", required=True)
     changelog.add_argument("--source-commit", default="HEAD")
     changelog.add_argument("--output", type=Path, required=True)
+
+    verify_next = subparsers.add_parser("verify-next")
+    verify_next.add_argument("--platform", choices=sorted(PLATFORMS), required=True)
+    verify_next.add_argument("--version", required=True)
+
+    verify_current = subparsers.add_parser("verify-current")
+    verify_current.add_argument("--platform", choices=sorted(PLATFORMS), required=True)
+    verify_current.add_argument("--version", required=True)
+    verify_current.add_argument("--source-commit", default="HEAD")
 
     record = subparsers.add_parser("record")
     record.add_argument("--platform", choices=sorted(PLATFORMS), required=True)
@@ -766,6 +833,22 @@ def main(argv: Optional[List[str]] = None) -> int:
                 encoding="utf-8",
             )
             print(f"[OK] wrote release changelog: {output}")
+        elif args.command == "verify-next":
+            verify_next_version(
+                history_path=history_path,
+                platform=args.platform,
+                version=args.version,
+            )
+            print(f"[OK] {args.platform} {args.version} is newer than the delivery ledger")
+        elif args.command == "verify-current":
+            verify_current_version(
+                repo=repo,
+                history_path=history_path,
+                platform=args.platform,
+                version=args.version,
+                source_commit=args.source_commit,
+            )
+            print(f"[OK] {args.platform} {args.version} matches the latest delivery ledger")
         elif args.command == "record":
             entry = record_delivery(
                 repo=repo,

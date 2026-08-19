@@ -5,7 +5,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-VERSION="${AMPHION_RUNTIME_VERSION:-0.3.2}"
+VERSION="${AMPHION_RUNTIME_VERSION:-0.3.5}"
 BUILD_DATE="${AMPHION_BUILD_DATE:-$(date +%Y%m%d)}"
 FINAL_OUT_ROOT=""
 ASR_ONLY=false
@@ -43,6 +43,9 @@ if [[ "$ASR_ONLY" == true && "$SDK_ONLY" == true ]]; then
   echo "[ERROR] --asr-only and --sdk-only are mutually exclusive" >&2
   exit 2
 fi
+
+python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
+  --repo "$REPO_ROOT" verify-next --platform harmony --version "$VERSION"
 
 if [[ -z "$FINAL_OUT_ROOT" ]]; then
   if [[ "$SDK_ONLY" == true ]]; then
