@@ -2058,6 +2058,38 @@ async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: Corpu
   return result;
 }
 
+async function runContinuousMaxDurationCycle(baseEngine: SpeechRecognitionEngine,
+  entry: CorpusEntry, index: number, paceMs: number): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const sessionId = `continuous-max-${index}`;
+  const engine = baseEngine;
+  engine.setListener(new StressListener(events, sessionId));
+  const params = startParams(sessionId, 'continuous-max-duration', index);
+  params.extraParams['maxAudioDuration'] = MAX_DURATION_TEST_MS;
+  params.extraParams['enableContinuousRecognition'] = true;
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'continuous-max-start-timeout');
+  }
+
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, paceMs);
+  const lastBeforeFinish = events.lastFinals;
+  if (engine.isBusy()) engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  if (!completed && engine.isBusy()) engine.cancel(sessionId);
+  const ok = completed && fed > MAX_DURATION_TEST_FRAMES && lastBeforeFinish === 0 &&
+    events.starts === 1 && events.lastFinals === 1 && events.completes === 1 &&
+    events.errors === 0 && terminalCallbackOrderOk(events, sessionId) && !engine.isBusy();
+  const result = finishCycle(index, entry.id, events, startedAt, ok,
+    ok ? 'continuous-max-duration-preserved' : 'continuous-max-duration-contract');
+  result.requestedMaxAudioDurationMs = MAX_DURATION_TEST_MS;
+  result.effectiveMaxAudioDurationMs = -1;
+  result.fedFrames = fed;
+  result.lastFinalsBeforeFinish = lastBeforeFinish;
+  return result;
+}
+
 async function runNumericEdgeCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
   index: number): Promise<CycleResult> {
   const startedAt = Date.now();
@@ -2519,6 +2551,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runEdgeCycle(engine, entry, i);
       } else if (options.mode === 'max-duration') {
         result = await runMaxDurationCycle(engine, entry, i);
+      } else if (options.mode === 'continuous-max-duration') {
+        result = await runContinuousMaxDurationCycle(engine, entry, i, options.paceMs);
       } else if (options.mode === 'numeric-edge') {
         result = await runNumericEdgeCycle(engine, entry, i);
       } else if (options.mode === 'reentrant') {

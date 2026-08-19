@@ -33,7 +33,8 @@ MODULE = "amphion_asr_demo"
 ABILITY = "EntryAbility"
 REMOTE_ROOT = "/data/storage/el2/base/files/asr-stress"
 FINISH_MODES = {
-    "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration", "numeric-edge",
+    "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration",
+    "continuous-max-duration", "numeric-edge",
     "finish-shutdown", "finish-shutdown-relicense",
     "customer-tap-vad", "customer-ptt", "customer-transcription", "customer-ptt-tail",
     "customer-form", "customer-meeting-minutes",
@@ -109,6 +110,7 @@ def parse_args() -> argparse.Namespace:
             "recreate",
             "reconfigure",
             "max-duration",
+            "continuous-max-duration",
             "edge",
             "reentrant",
             "start-cancel",
@@ -192,10 +194,11 @@ def parse_args() -> argparse.Namespace:
             parser.error("--speaker-vad-threshold must be within [-1, 1]")
     if args.target_speaker_manifest is not None and args.mode not in TARGET_SPEAKER_MODES:
         parser.error("--target-speaker-manifest requires a target-speaker mode")
-    if args.expected_tail_manifest is not None and args.mode != "customer-meeting-minutes":
-        parser.error("--expected-tail-manifest requires --mode customer-meeting-minutes")
-    if args.mode == "customer-meeting-minutes" and args.expected_tail_manifest is None:
-        parser.error("--mode customer-meeting-minutes requires --expected-tail-manifest")
+    tail_modes = {"customer-meeting-minutes", "continuous-max-duration"}
+    if args.expected_tail_manifest is not None and args.mode not in tail_modes:
+        parser.error("--expected-tail-manifest requires a tail-validation mode")
+    if args.mode in tail_modes and args.expected_tail_manifest is None:
+        parser.error(f"--mode {args.mode} requires --expected-tail-manifest")
     if (
         args.mode == "speaker-vad-turn"
         and not args.skip_target_content_check
@@ -1287,7 +1290,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         failures.append("target-speaker content accuracy assertion failed")
     if expected_tail.get("status") == "FAIL":
         overall = "FAIL"
-        failures.append("customer meeting-minutes tail assertion failed")
+        failures.append("expected ASR tail assertion failed")
     if args.mode == "finish-shutdown-relicense" and any(
         not terminal_callback_order_ok(cycle.get("trace", "")) for cycle in cycle_results
     ):
@@ -1321,10 +1324,6 @@ def run_stress(args: argparse.Namespace) -> Path:
             "target_content_check_enabled": not args.skip_target_content_check,
             "speaker_vad_threshold": args.speaker_vad_threshold,
             "finish_recovery_entry_ids": sorted(finish_recovery_entry_ids),
-            "expected_tail_manifest": (
-                str(args.expected_tail_manifest.expanduser().resolve())
-                if args.expected_tail_manifest is not None else None
-            ),
         },
         "inventory": inventory,
         "application": app_summary,

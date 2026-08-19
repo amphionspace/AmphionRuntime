@@ -132,6 +132,7 @@ internal object DingqiaoEngineConfig {
     }
 
     fun maxAudioDurationMs(startParams: StartParams): Long {
+        if (startParams.extraParams["enableContinuousRecognition"] == true) return 0L
         val value = finiteDouble(startParams.extraParams["maxAudioDuration"]) ?: return 0L
         if (value <= 0.0) return 0L
         return value.coerceAtMost(MAX_AUDIO_DURATION_MS.toDouble()).toLong().coerceAtLeast(1L)

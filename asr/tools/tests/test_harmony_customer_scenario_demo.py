@@ -72,19 +72,11 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("this.capturedAudioSource", source)
         self.assertIn("meta['audioSource'] = this.audioSourceName(this.capturedAudioSource)", source)
         self.assertIn("profile.allowVoiceprint", source)
-        self.assertIn("profile.rotateSession", source)
+        self.assertIn("profile.rotateSession && profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS", source)
         self.assertIn("profile.lockAudioSource", source)
-        self.assertIn("this.listening && this.sessionRollover.isRotating()", source)
+        self.assertIn("extra['enableContinuousRecognition']", source)
         self.assertIn("this.finishAutoEndedCapture().catch", source)
         self.assertIn("this.stopListening().catch", source)
-
-    def test_live_demo_replays_pcm_captured_while_a_session_rotates(self) -> None:
-        source = INDEX.read_text(encoding="utf-8")
-
-        self.assertIn("this.sessionRollover.route(frame", source)
-        self.assertIn("const buffered = this.sessionRollover.complete()", source)
-        self.assertIn("this.startRecognitionSession()", source)
-        self.assertIn("this.feedFrameLive(buffered[i])", source)
 
     def test_demo_case_store_exports_audio_metadata_and_note_for_hdc(self) -> None:
         source = CASE_STORE.read_text(encoding="utf-8")

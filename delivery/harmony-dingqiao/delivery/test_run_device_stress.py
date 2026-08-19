@@ -46,12 +46,34 @@ class RunCommandTest(unittest.TestCase):
                              verdict["manifest_sha256"])
             self.assertEqual("FAIL", MODULE.expected_tail_verdict(
                 truncated, mapping, manifest)["status"])
+            self.assertNotIn('"expected_tail_manifest":',
+                             SCRIPT.read_text(encoding="utf-8"))
 
     def test_customer_tail_manifest_requires_meeting_minutes_mode(self) -> None:
         with mock.patch.object(
             sys, "argv", [str(SCRIPT), "--mode", "burst", "--expected-tail-manifest", "tail.json"]
         ), self.assertRaises(SystemExit):
             MODULE.parse_args()
+
+    def test_continuous_max_duration_requires_and_accepts_tail_manifest(self) -> None:
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "continuous-max-duration"]
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+
+        with mock.patch.object(
+            sys,
+            "argv",
+            [str(SCRIPT), "--mode", "continuous-max-duration",
+             "--expected-tail-manifest", "tail.json"],
+        ):
+            args = MODULE.parse_args()
+        self.assertEqual("continuous-max-duration", args.mode)
+        self.assertIn("continuous-max-duration", MODULE.FINISH_MODES)
+
+        carrier = CARRIER.read_text(encoding="utf-8")
+        self.assertIn("params.extraParams['enableContinuousRecognition'] = true", carrier)
+        self.assertIn("fed > MAX_DURATION_TEST_FRAMES", carrier)
 
     def test_customer_meeting_minutes_requires_tail_manifest(self) -> None:
         with mock.patch.object(
