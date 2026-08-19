@@ -11,29 +11,37 @@
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "9a29030c6d4a341772a522fa18811c27d7ad4af2b913f42727a0dcccb60c020d",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "435b7dc68d5f730b95d5740810094c6242b32c717a83e782ba6a6b9b772b5f1c",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "0f4f8b394ff78ece52e5c62e446b6bcea194d0064c6dbec455ac94706e16a4ba",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "af81dc8271be550aa2e5f6bbc51cc4e1a3e8430f",
+    "source_commit": "5aa6acba711956e25d50ee5a17e1cbf5da191c97",
     "changed_sources": [
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
     ],
     "previous_sha256": {
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "24b70b9947b232c1167141369aefcccf207a1abc29ab2cd05aa846828caaac3c"
-    },
-    "current_sha256": {
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "435b7dc68d5f730b95d5740810094c6242b32c717a83e782ba6a6b9b772b5f1c"
     },
+    "current_sha256": {
+      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "0f4f8b394ff78ece52e5c62e446b6bcea194d0064c6dbec455ac94706e16a4ba"
+    },
     "decision": "full_accuracy_evaluation_rerun",
-    "reason": "The Harmony session implementation changed after the previous evidence snapshot to preserve a diarization-proven non-target suffix across stream resets and publish a finish-time speaker boundary before the unique terminal result. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the current sources even though the AGC algorithm and decoder configuration were unchanged.",
+    "reason": "The Harmony session implementation changed after the previous evidence snapshot to make long-session endpoint rules configurable and replace stale streams after empty endpoints. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen model bound to this evidence even though the AGC algorithm and decoder configuration were unchanged.",
     "rerun_verification": [
       "aishell3_normal_and_controlled_levels",
       "customer_snr_scan",
       "sdk_style_long_audio",
       "repository_low_volume_regression_off_on"
     ],
-    "not_claimed": "The rerun does not claim complete transcript accuracy, noise reduction below 20 dB SNR, device microphone equivalence, or mobile power measurements."
+    "not_claimed": "The rerun does not claim complete transcript accuracy, noise reduction below 20 dB SNR, device microphone equivalence, mobile power measurements, or acceptance of the newer Harmony delivery model."
+  },
+  "delivery_model_applicability": {
+    "status": "frozen_evidence_model_only",
+    "frozen_evidence_encoder_sha256": "0e86d904862c53e9bdff44df0650a109d61783cb262a7233742f68198abbcbba",
+    "harmony_delivery_encoder_sha256": "ea36d21a1db076c09206078fdb260cf2b852204ad0b5a998fcc1a0e92003d174",
+    "harmony_delivery_model_evaluation": "not_accepted",
+    "reason": "The current Harmony delivery model is newer than the model frozen by this historical AGC evidence. A separate complete host evaluation found that the old -80 dBFS red/green fixture no longer passes and that normal-volume and SNR conclusions differ. This frozen-model rerun proves source compatibility for the existing gate only and must not be used as delivery acceptance for the newer model.",
+    "required_followup": "Establish model-specific AGC acceptance criteria and a new preserved evidence set for the current Harmony delivery model before the next customer release."
   },
   "evaluation_runtime": {
     "sherpa_onnx_version": "1.13.1",
@@ -157,16 +165,16 @@
   "native_cpu": {
     "iterations": 10,
     "audio_seconds_per_iteration": 213.28,
-    "median_rtf": 0.0014054900459489822,
-    "p90_rtf": 0.0015726124859339857
+    "median_rtf": 0.0014852056779820005,
+    "p90_rtf": 0.001654693163915967
   },
   "preserved_artifact_sha256": {
-    "aishell3_report.json": "ef195ed99c7673150b5f069988bbb50b5741d62ebf77b7b80ad3e5788c4c546e",
+    "aishell3_report.json": "42d197ade68812a6272a18481a536fdcd85a9e642ceb765be304c6e0e4f4b21e",
     "input_mapping.json": "a3d23fdb2058f96e0e3be568f90a7b605244a22ff82d725746037436931278c8",
-    "cases.jsonl": "69e735213a2ffd16729db4bdb1856888bde8f2e0f62b9ebc5902d27b06644f1e",
-    "extreme_level_report.json": "28091c1f4304f1d1418e01bbe2495932c6b519460ea54ad28e9b5b6ab22b66d9",
-    "customer_cases_report.json": "292fe6ca0424c179b7476f3d11554b0937ba2039d5b4b9d458e43051489c8f2e",
-    "sdk_long_audio_report.json": "d725186f72bec9259fded14df692498f9fc4003684f01fafb0d099f58c83949c",
+    "cases.jsonl": "139a13856586c3d6ea641fba07523dfb65da5f22802defb3751ac8b7a6dbb943",
+    "extreme_level_report.json": "24a8a27bee9f63c327f262cc82a2ffc4c070a1d145bbb78f6b6a2bbe498c455a",
+    "customer_cases_report.json": "3784de2889385262e548e8881d1d7c32d55f14f82a31437a8de89d487d003ed4",
+    "sdk_long_audio_report.json": "e8d6ab5d3992727c257e88edff1ee0f7e318e178918f82d846945fe91dc28e86",
     "repository_low_volume_regression.json": "c5e22f6e4788ac2e0d225cc35ad31b7979d21d46c7e16513aa77a7f1451c43d2"
   }
 }
