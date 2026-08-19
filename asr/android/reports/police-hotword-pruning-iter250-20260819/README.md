@@ -66,8 +66,8 @@ The initial `prune_ui30` profile regressed 3 of 60 UI target cases: `自主填�
 ## Samsung device checkpoint
 
 Device: Samsung SM-G9758 (Android 12). Model: iter250. Police final enhancement was enabled in
-every accuracy comparison below. FULL and PRUNE used the same APK, model, audio, decoder settings
-and post-processing rules; only the hidden hotword profile changed.
+the three accuracy comparisons in this section. FULL and PRUNE used the same APK, model, audio,
+decoder settings and post-processing rules; only the hidden hotword profile changed.
 
 - Direct UI corpus: 60 recordings (30 candidate terms x 2). FULL and `prune_ui28` produced the
   same text for all 60 recordings. Both achieved 59/60 term hits and 44/60 strict sentence hits;
@@ -82,9 +82,9 @@ and post-processing rules; only the hidden hotword profile changed.
 - Runtime: the 173-recording run took 834.663 seconds for FULL and 833.439 seconds for
   `prune_ui28`. This near-equality is informative but is not a formal CPU, latency or RSS result.
 
-This checkpoint is sufficient to keep `prune_ui28` as the next experimental candidate. It is not
-yet sufficient to make it the delivery default: customer-hotword capacity and production-profile
-performance gates remain pending.
+This checkpoint is sufficient to keep `prune_ui28` as the next experimental candidate. The later
+capacity and isolated-create checkpoints also passed their sampled gates, but the delivery default
+remains FULL until the remaining formal CPU/memory work and wider cross-platform coverage close.
 
 ## Additional Android device safety checkpoint
 
@@ -133,3 +133,38 @@ load 200 unique customer strings without errors or observed probe regression; it
 recognition accuracy for 200 real customer terms, because only the first 101 are authoritative and
 only 12 have audio probes. CPU, latency and memory effects remain part of the separate performance
 gate.
+
+## Android performance checkpoint
+
+The first combined ABBA smoke used two cycles (four measurements per profile) and exercised
+prepare, create, a paced utterance, first partial/final callbacks and 50 ms PSS/RSS sampling. Its
+automatic result was `FAIL`, but that status is not evidence of a pruning regression: the harness
+double-initialized the runtime through both the Demo Application and the test, treated an outer
+509 ms create sample as an instrumentation failure, and applied an SDK wall-RTF threshold to a
+different all-thread process-CPU metric that also included the memory sampler. The useful paired
+observations were nevertheless stable: first partial and final E2E latency, SDK RTF, engine-ready
+time and ready/peak RSS were all approximately equal between profiles. These data remain a smoke,
+not a formal CPU or memory pass.
+
+The create path was then rerun with a dedicated Application and a create-only harness: one explicit
+prepare, one create, no audio and no resource sampler. Five ABBA cycles produced ten measurements
+per profile on the same model and thermally comparable Samsung device state. Evidence identity and
+phase ordering passed all checks, including exactly one cold model load during prepare and none
+during create.
+
+- Prepare wall time: FULL mean/median 1727.5/1718.5 ms; `prune_ui28` 1714.1/1692.5 ms.
+- Create wall time: FULL mean/median/max 155.2/153/179 ms; `prune_ui28`
+  152.8/154/178 ms.
+- Paired create delta (`prune_ui28 - FULL`): mean -2.4 ms, median -1 ms, range -44 to +29 ms,
+  with mixed directions rather than a consistent slowdown.
+- Create process CPU time: FULL mean/median 281.7/286 ms; `prune_ui28` 273.6/264.5 ms.
+
+This isolated result did not reproduce the earlier 509 ms sample and found no consistent create
+regression. It intentionally reports no p95 because each profile has only ten clean measurements;
+the analyzer's `PASS` means the evidence is complete and thermally comparable, not that a product
+performance SLA has been certified. A split CPU-only/memory-only run is still required before a
+formal resource-cost decision.
+
+Current decision: retain FULL as the delivery default and keep `prune_ui28` experimental. The
+candidate has cleared the sampled accuracy, collision, 200-word capacity and isolated-create gates;
+promotion waits for the remaining resource lane and Harmony/device coverage.

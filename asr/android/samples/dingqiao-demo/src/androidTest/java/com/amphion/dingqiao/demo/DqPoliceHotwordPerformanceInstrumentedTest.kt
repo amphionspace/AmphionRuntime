@@ -40,8 +40,9 @@ import org.json.JSONObject
  * It intentionally does not pass `__experimentalPoliceHotwordProfile`: prepareRuntime and the
  * public createEngine call therefore use the same build default. SDK-native timing/RTF metrics
  * remain available through logcat tag `AmphionMetrics`; this probe adds adapter wall time, process
- * CPU time, PSS and VmRSS checkpoints to its dedicated
- * `files/police_hotword_perf/report.jsonl`.
+ * CPU time and, for the `memory` lane only, PSS/VmRSS checkpoints to its dedicated
+ * `files/police_hotword_perf/<lane>/report.jsonl`. Formal host runs execute this test through a plain
+ * [android.app.Application], so the delivery demo cannot prepare the runtime before measurement.
  */
 @RunWith(AndroidJUnit4::class)
 class DqPoliceHotwordPerformanceInstrumentedTest {
@@ -58,6 +59,41 @@ class DqPoliceHotwordPerformanceInstrumentedTest {
         require(runId.matches(Regex("[A-Za-z0-9._-]+"))) {
             "runId may contain only letters, digits, dot, underscore and dash"
         }
+        val perfLane = PerfLane.fromWireValue(
+            arguments.getString("perfLane")?.takeIf { it.isNotBlank() }
+                ?: PerfLane.CPU_LATENCY.wireValue,
+        )
+        val requirePlainApplicationRaw =
+            arguments.getString("requirePlainApplication")?.takeIf { it.isNotBlank() } ?: "false"
+        require(requirePlainApplicationRaw == "true" || requirePlainApplicationRaw == "false") {
+            "requirePlainApplication must be true or false"
+        }
+        val requirePlainApplication = requirePlainApplicationRaw.toBoolean()
+        val applicationClass = targetContext.applicationContext.javaClass.name
+        val demoBootstrapSuppressed = applicationClass == android.app.Application::class.java.name
+        val evidenceBindings = if (requirePlainApplication) {
+            EvidenceBindings(
+                expectedCount = requireArgument(arguments.getString("expectedCount"), "expectedCount")
+                    .toInt(),
+                targetApkSha256 = requireSha256Argument(arguments.getString("targetApkSha256")),
+                testApkSha256 = requireSha256Argument(arguments.getString("testApkSha256")),
+                modelManifestSha256 = requireSha256Argument(
+                    arguments.getString("modelManifestSha256"),
+                ),
+                modelPayloadSha256 = requireSha256Argument(
+                    arguments.getString("modelPayloadSha256"),
+                ),
+                audioSha256 = requireSha256Argument(arguments.getString("audioSha256")),
+            )
+        } else {
+            null
+        }
+        if (requirePlainApplication) {
+            assertTrue(
+                "formal performance runner must suppress DingqiaoApp bootstrap",
+                demoBootstrapSuppressed,
+            )
+        }
         val profile = PoliceHotwordProfile.defaultProfile()
         val expectedProfile = arguments.getString("expectedProfile")?.takeIf { it.isNotBlank() }
         if (expectedProfile != null) assertEquals(expectedProfile, profile.wireValue)
@@ -71,6 +107,7 @@ class DqPoliceHotwordPerformanceInstrumentedTest {
             PoliceHotwordProfile.NONE -> error("none is not a supported performance build default")
         }
         assertEquals(expectedCount, hotwords.size)
+        evidenceBindings?.let { assertEquals(it.expectedCount, hotwords.size) }
         val effectiveHotwordSha256 = sha256(hotwords.joinToString("\n").toByteArray(Charsets.UTF_8))
 
         val availableAudio = mainWavs(testContext)
@@ -82,32 +119,40 @@ class DqPoliceHotwordPerformanceInstrumentedTest {
         )
         val pcm = readAssetPcm(testContext, checkNotNull(audioAsset))
 
-        val sampler = ResourceSampler()
+        val sampler = if (perfLane == PerfLane.MEMORY) ResourceSampler() else null
         var engine: SpeechRecognitionEngine? = null
+        var prepareCallCount = 0
+        var createCallCount = 0
         try {
             SpeechRecognizeSdk.init(targetContext)
-            val perfRoot = File(targetContext.filesDir, PERF_ROOT)
+            val perfRoot = File(targetContext.filesDir, "$PERF_ROOT/${perfLane.wireValue}")
             SpeechRecognizeSdk.setWorkPath(
                 File(perfRoot, "work/$runId").absolutePath,
             )
-            activateValidLicense("$PERF_ROOT/license/valid.lic")
+            activateValidLicense("$PERF_ROOT/${perfLane.wireValue}/license/valid.lic")
 
             val prepareCpuStartMs = Process.getElapsedCpuTime()
             val prepareStartMs = SystemClock.elapsedRealtime()
+            prepareCallCount += 1
+            logPhase(runId, "prepare_start")
             prepareRuntime()
+            logPhase(runId, "prepare_end")
             val prepareMs = SystemClock.elapsedRealtime() - prepareStartMs
             val prepareCpuMs = Process.getElapsedCpuTime() - prepareCpuStartMs
-            val pssAfterPrepareKb = Debug.getPss().toLong()
-            val rssAfterPrepareKb = readVmRssKb()
+            val pssAfterPrepareKb = memoryPssKb(perfLane)
+            val rssAfterPrepareKb = memoryRssKb(perfLane)
 
             val createCpuStartMs = Process.getElapsedCpuTime()
             val createStartMs = SystemClock.elapsedRealtime()
+            createCallCount += 1
+            logPhase(runId, "create_start")
             engine = createEngine()
+            logPhase(runId, "create_end")
             val measuredEngine = checkNotNull(engine)
             val createMs = SystemClock.elapsedRealtime() - createStartMs
             val createCpuMs = Process.getElapsedCpuTime() - createCpuStartMs
-            val pssAfterCreateKb = Debug.getPss().toLong()
-            val rssAfterCreateKb = readVmRssKb()
+            val pssAfterCreateKb = memoryPssKb(perfLane)
+            val rssAfterCreateKb = memoryRssKb(perfLane)
 
             val started = CountDownLatch(1)
             val completed = CountDownLatch(1)
@@ -157,6 +202,7 @@ class DqPoliceHotwordPerformanceInstrumentedTest {
             val sessionCpuStartMs = Process.getElapsedCpuTime()
             val startCallElapsedMs = SystemClock.elapsedRealtime()
             val sessionId = "$runId-${System.currentTimeMillis()}"
+            logPhase(runId, "recognition_start")
             measuredEngine.startListening(
                 StartParams(
                     sessionId = sessionId,
@@ -178,6 +224,7 @@ class DqPoliceHotwordPerformanceInstrumentedTest {
             measuredEngine.finish(sessionId)
             assertTrue("session did not complete: $errors", completed.await(30, TimeUnit.SECONDS))
             awaitIdle(measuredEngine)
+            logPhase(runId, "recognition_end")
             val sessionCpuMs = Process.getElapsedCpuTime() - sessionCpuStartMs
             val completedElapsedMs = SystemClock.elapsedRealtime()
 
@@ -200,29 +247,44 @@ class DqPoliceHotwordPerformanceInstrumentedTest {
             } else {
                 -1.0
             }
-            val pssBeforeShutdownKb = Debug.getPss().toLong()
-            val rssBeforeShutdownKb = readVmRssKb()
+            val pssBeforeShutdownKb = memoryPssKb(perfLane)
+            val rssBeforeShutdownKb = memoryRssKb(perfLane)
 
             measuredEngine.shutdown()
             engine = null
             SystemClock.sleep(200)
-            val pssAfterShutdownKb = Debug.getPss().toLong()
-            val rssAfterShutdownKb = readVmRssKb()
+            val pssAfterShutdownKb = memoryPssKb(perfLane)
+            val rssAfterShutdownKb = memoryRssKb(perfLane)
             SpeechRecognizeSdk.unloadModel()
             SystemClock.sleep(400)
-            val pssAfterUnloadKb = Debug.getPss().toLong()
-            val rssAfterUnloadKb = readVmRssKb()
-            sampler.sampleNow()
+            val pssAfterUnloadKb = memoryPssKb(perfLane)
+            val rssAfterUnloadKb = memoryRssKb(perfLane)
+            sampler?.sampleNow()
+            sampler?.close()
+
+            val pssBaselineKb = sampler?.baselinePssKb ?: -1L
+            val pssPeakKb = sampler?.peakPssKb() ?: -1L
+            val rssBaselineKb = sampler?.baselineRssKb ?: -1L
+            val rssPeakKb = sampler?.peakRssKb() ?: -1L
+            val resourceSampleCount = sampler?.sampleCount() ?: 0L
 
             val report = linkedMapOf<String, Any?>(
+                "schemaVersion" to 2,
                 "case" to "police-hotword-performance",
                 "runId" to runId,
+                "perfLane" to perfLane.wireValue,
+                "applicationClass" to applicationClass,
+                "plainApplicationRequired" to requirePlainApplication,
+                "demoBootstrapSuppressed" to demoBootstrapSuppressed,
+                "prepareCallCount" to prepareCallCount,
+                "createCallCount" to createCallCount,
                 "compiledDefaultProfile" to profile.wireValue,
                 "effectiveHotwordCount" to hotwords.size,
                 "effectiveHotwordSha256" to effectiveHotwordSha256,
                 "audioAsset" to audioAsset,
                 "sourceDurationMs" to sourceDurationMs,
                 "acceptedDurationMs" to acceptedDurationMs,
+                "acceptedPcmBytes" to (pcm.size + tailSilence.size),
                 "prepareMs" to prepareMs,
                 "prepareCpuMs" to prepareCpuMs,
                 "createMs" to createMs,
@@ -235,20 +297,20 @@ class DqPoliceHotwordPerformanceInstrumentedTest {
                 "completeE2eWallMs" to completeE2eWallMs,
                 "sessionCpuMs" to sessionCpuMs,
                 "cpuRtf" to cpuRtf,
-                "pssBaselineKb" to sampler.baselinePssKb,
+                "pssBaselineKb" to pssBaselineKb,
                 "pssAfterPrepareKb" to pssAfterPrepareKb,
                 "pssAfterCreateKb" to pssAfterCreateKb,
-                "pssPeakKb" to sampler.peakPssKb(),
-                "pssPeakDeltaKb" to availableDelta(sampler.baselinePssKb, sampler.peakPssKb()),
+                "pssPeakKb" to pssPeakKb,
+                "pssPeakDeltaKb" to availableDelta(pssBaselineKb, pssPeakKb),
                 "pssBeforeShutdownKb" to pssBeforeShutdownKb,
                 "pssAfterShutdownKb" to pssAfterShutdownKb,
                 "pssAfterUnloadKb" to pssAfterUnloadKb,
-                "rssBaselineKb" to sampler.baselineRssKb,
+                "rssBaselineKb" to rssBaselineKb,
                 "rssAfterPrepareKb" to rssAfterPrepareKb,
                 "rssAfterCreateKb" to rssAfterCreateKb,
-                "rssPeakKb" to sampler.peakRssKb(),
-                "rssPeakDeltaKb" to availableDelta(sampler.baselineRssKb, sampler.peakRssKb()),
-                "rssAvailable" to (sampler.baselineRssKb >= 0L && sampler.peakRssKb() >= 0L),
+                "rssPeakKb" to rssPeakKb,
+                "rssPeakDeltaKb" to availableDelta(rssBaselineKb, rssPeakKb),
+                "rssAvailable" to (rssBaselineKb >= 0L && rssPeakKb >= 0L),
                 "rssBeforeShutdownKb" to rssBeforeShutdownKb,
                 "rssAfterShutdownKb" to rssAfterShutdownKb,
                 "rssAfterUnloadKb" to rssAfterUnloadKb,
@@ -256,13 +318,25 @@ class DqPoliceHotwordPerformanceInstrumentedTest {
                 "lastCount" to lastCount.get(),
                 "finalText" to finalTexts.joinToString(""),
                 "errors" to errors.joinToString(" | "),
-                "cpuIncludesResourceSampler" to true,
+                "resourceSamplerEnabled" to (sampler != null),
+                "cpuIncludesResourceSampler" to (sampler != null),
+                "resourceSampleIntervalMs" to if (sampler != null) RESOURCE_SAMPLE_MS else -1L,
+                "resourceSampleCount" to resourceSampleCount,
+                "resourceBackgroundSampleCount" to (sampler?.backgroundSampleCount() ?: 0L),
+                "resourceSamplingDurationMs" to (sampler?.samplingDurationMs() ?: -1L),
+                "resourceSamplingStoppedBeforeReport" to true,
+                "targetApkSha256" to evidenceBindings?.targetApkSha256,
+                "testApkSha256" to evidenceBindings?.testApkSha256,
+                "modelManifestSha256" to evidenceBindings?.modelManifestSha256,
+                "modelPayloadSha256" to evidenceBindings?.modelPayloadSha256,
+                "audioSha256" to evidenceBindings?.audioSha256,
             )
-            appendPerfReport(report)
+            appendPerfReport(perfLane, report)
             Log.i(TAG, report.toString())
 
             assertTrue("compiled profile must have real hotwords", hotwords.isNotEmpty())
-            assertTrue("createEngine should hit prepared pool: createMs=$createMs", createMs <= 500L)
+            assertEquals("test must issue exactly one prepareRuntime call", 1, prepareCallCount)
+            assertEquals("test must issue exactly one createEngineAsync call", 1, createCallCount)
             assertTrue("first non-empty partial missing", firstPartialMs >= 0L)
             assertTrue("first final missing", finalCount.get() > 0)
             assertEquals("normal finish must produce one last", 1, lastCount.get())
@@ -272,7 +346,7 @@ class DqPoliceHotwordPerformanceInstrumentedTest {
                 engine?.shutdown()
             } catch (_: Throwable) {
             }
-            sampler.close()
+            sampler?.close()
         }
     }
 
@@ -358,41 +432,82 @@ class DqPoliceHotwordPerformanceInstrumentedTest {
         }
     }
 
-    private fun appendPerfReport(fields: Map<String, Any?>) {
-        val dir = File(targetContext.filesDir, PERF_ROOT).apply { mkdirs() }
+    private fun appendPerfReport(lane: PerfLane, fields: Map<String, Any?>) {
+        val dir = File(targetContext.filesDir, "$PERF_ROOT/${lane.wireValue}").apply { mkdirs() }
         val obj = JSONObject()
         obj.put("ts", System.currentTimeMillis())
         for ((key, value) in fields) obj.put(key, value ?: JSONObject.NULL)
         File(dir, "report.jsonl").appendText(obj.toString() + "\n", Charsets.UTF_8)
     }
 
+    private fun logPhase(runId: String, phase: String) {
+        Log.i(TAG, "runId=$runId pid=${Process.myPid()} phase=$phase")
+    }
+
+    private fun requireSha256Argument(value: String?): String {
+        val normalized = requireArgument(value, "SHA-256 binding")
+        require(normalized.matches(Regex("[0-9a-f]{64}"))) {
+            "invalid SHA-256 binding"
+        }
+        return normalized
+    }
+
+    private fun requireArgument(value: String?, name: String): String =
+        value?.takeIf { it.isNotBlank() } ?: error("missing instrumentation argument: $name")
+
+    private data class EvidenceBindings(
+        val expectedCount: Int,
+        val targetApkSha256: String,
+        val testApkSha256: String,
+        val modelManifestSha256: String,
+        val modelPayloadSha256: String,
+        val audioSha256: String,
+    )
+
     private class ResourceSampler : AutoCloseable {
         val baselinePssKb: Long = Debug.getPss().toLong()
         val baselineRssKb: Long = readVmRssKb()
         private val peakPss = AtomicLong(baselinePssKb)
         private val peakRss = AtomicLong(baselineRssKb)
+        private val samples = AtomicLong(0L)
+        private val backgroundSamples = AtomicLong(0L)
+        private val startedElapsedMs = SystemClock.elapsedRealtime()
+        private val stoppedElapsedMs = AtomicLong(-1L)
         private val running = AtomicBoolean(true)
         private val thread = Thread({
             while (running.get()) {
-                sampleNow()
+                sample(background = true)
                 SystemClock.sleep(RESOURCE_SAMPLE_MS)
             }
         }, "police-hotword-perf-sampler").apply { start() }
 
-        fun sampleNow() {
+        private fun sample(background: Boolean) {
             peakPss.getAndUpdate { previous -> maxOf(previous, Debug.getPss().toLong()) }
             val rss = readVmRssKb()
             if (rss >= 0L) peakRss.getAndUpdate { previous -> maxOf(previous, rss) }
+            samples.incrementAndGet()
+            if (background) backgroundSamples.incrementAndGet()
         }
+
+        fun sampleNow() = sample(background = false)
 
         fun peakPssKb(): Long = peakPss.get()
 
         fun peakRssKb(): Long = peakRss.get()
 
+        fun sampleCount(): Long = samples.get()
+
+        fun backgroundSampleCount(): Long = backgroundSamples.get()
+
+        fun samplingDurationMs(): Long = stoppedElapsedMs.get().takeIf { it >= 0L }
+            ?.minus(startedElapsedMs) ?: -1L
+
         override fun close() {
-            running.set(false)
-            thread.join(1_000)
-            sampleNow()
+            if (running.getAndSet(false)) {
+                thread.join(1_000)
+                sampleNow()
+                stoppedElapsedMs.compareAndSet(-1L, SystemClock.elapsedRealtime())
+            }
         }
     }
 
@@ -403,6 +518,25 @@ class DqPoliceHotwordPerformanceInstrumentedTest {
         private const val PRUNE_UI28_HOTWORD_COUNT = 342
         private const val TAIL_SILENCE_MS = 1_000
         private const val RESOURCE_SAMPLE_MS = 50L
+
+        private enum class PerfLane(val wireValue: String) {
+            CPU_LATENCY("cpu_latency"),
+            MEMORY("memory");
+
+            companion object {
+                fun fromWireValue(value: String): PerfLane = entries.firstOrNull {
+                    it.wireValue == value
+                } ?: throw IllegalArgumentException(
+                    "perfLane must be cpu_latency or memory, got '$value'",
+                )
+            }
+        }
+
+        private fun memoryPssKb(lane: PerfLane): Long =
+            if (lane == PerfLane.MEMORY) Debug.getPss().toLong() else -1L
+
+        private fun memoryRssKb(lane: PerfLane): Long =
+            if (lane == PerfLane.MEMORY) readVmRssKb() else -1L
 
         private fun availableDelta(baseline: Long, peak: Long): Long =
             if (baseline >= 0L && peak >= 0L) peak - baseline else -1L

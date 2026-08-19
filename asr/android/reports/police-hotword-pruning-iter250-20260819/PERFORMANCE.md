@@ -1,5 +1,13 @@
 # FULL vs PRUNE_UI28 Android performance gate
 
+> **Legacy / non-formal combined probe. Do not use this runner for a release decision.** The
+> sampler mixes CPU and memory measurement, thermal evidence is not machine-gated, and its former
+> process-CPU-RTF absolute `0.8` threshold was invalid. Use
+> `run_police_hotword_perf_lanes_abba.sh` with at least 10 ABBA cycles and analyze it with
+> `analyze_police_hotword_perf_lanes_abba.py`. The split runner produces 20 samples/profile/lane,
+> uses a plain Application, automatically validates thermal comparability, and separates
+> `cpu_latency` from `memory`.
+
 This gate compares two APKs built from the same Git tree and iter250 model assets. The only build
 input that changes is `policeDefaultHotwordProfile`:
 
@@ -88,12 +96,12 @@ Temperature skew above 3 °C or a thermal throttling state change makes the resu
 
 ## Numeric checks
 
-For each relative metric, PRUNE p95 must not exceed the larger of `FULL p95 * 1.05` and
-`FULL p95 + noise floor`. Noise floors are 20 ms for latency, 0.02 for RTF, 10 MiB for SDK RSS and
-10 MiB (10,240 KiB) for PSS/RSS deltas. Absolute PRUNE p95 limits are 500 ms for create and SDK
-engine-ready, 500 ms for first-partial overhead, and 0.8 for process CPU RTF. Every gated metric
-must have one finite, non-negative sample from every run in both profiles; otherwise the result is
-INCONCLUSIVE rather than being computed from a smaller favorable subset.
+These checks describe the superseded combined analyzer and must not be used for formal approval.
+In particular, its process CPU RTF absolute `0.8` limit was wrong: process CPU is now evaluated by
+FULL-vs-PRUNE p95 relative regression (`5%` plus a `0.02` noise floor), with paired deltas retained
+as supplementary evidence. The split analyzer applies equivalent relative p95 checks to
+prepare/create/session process CPU using a 20 ms noise floor. It does not impose an absolute CPU
+RTF or paced-input SDK RTF threshold.
 
 ## Build-only checks
 
