@@ -31,15 +31,16 @@ env:
 
 jobs:
   changes:
-    name: Detect Android/native changes
+    name: Detect CI-relevant changes
     runs-on: ubuntu-22.04
     permissions:
       contents: none
       pull-requests: read
     outputs:
       android: ${{ steps.filter.outputs.android }}
+      contracts: ${{ steps.filter.outputs.contracts }}
     steps:
-      - name: Decide whether Android AAR inputs changed
+      - name: Decide which CI jobs are required
         id: filter
         uses: actions/github-script@v9
         with:
@@ -47,6 +48,7 @@ jobs:
             // Pushes, tags and manual runs always build Android; no repository checkout is needed.
             if (context.eventName !== "pull_request") {
               core.setOutput("android", "true");
+              core.setOutput("contracts", "true");
               return;
             }
 
@@ -57,9 +59,19 @@ jobs:
               per_page: 100,
             });
             if (files.length < context.payload.pull_request.changed_files) {
-              core.warning("Changed-files API result was truncated; building Android fail-closed.");
+              core.warning("Changed-files API result was truncated; enabling CI jobs fail-closed.");
               core.setOutput("android", "true");
+              core.setOutput("contracts", "true");
               return;
+            }
+            const markdownOnly = files.every((file) =>
+              [file.filename, file.previous_filename]
+                .filter(Boolean)
+                .every((path) => path.endsWith(".md")),
+            );
+            core.setOutput("contracts", markdownOnly ? "false" : "true");
+            if (markdownOnly) {
+              core.info("Only Markdown files changed; skipping ASR contracts.");
             }
             const exactInputs = new Set([
               ".gitmodules",
@@ -96,6 +108,8 @@ jobs:
 
   asr-contracts:
     name: ASR contracts
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -312,6 +326,7 @@ jobs:
         shell: bash
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
+          CONTRACTS_REQUIRED: ${{ needs.changes.outputs.contracts }}
           CONTRACTS_RESULT: ${{ needs.asr-contracts.result }}
           ANDROID_REQUIRED: ${{ needs.changes.outputs.android }}
           ANDROID_RESULT: ${{ needs.android-aar.result }}
@@ -320,8 +335,12 @@ jobs:
             echo "changes failed: $CHANGES_RESULT"
             exit 1
           fi
-          if [[ "$CONTRACTS_RESULT" != "success" ]]; then
-            echo "asr-contracts failed: $CONTRACTS_RESULT"
+          if [[ "$CONTRACTS_REQUIRED" == "true" && "$CONTRACTS_RESULT" != "success" ]]; then
+            echo "asr-contracts was required but finished with: $CONTRACTS_RESULT"
+            exit 1
+          fi
+          if [[ "$CONTRACTS_REQUIRED" != "true" && "$CONTRACTS_RESULT" != "skipped" ]]; then
+            echo "asr-contracts was not required but finished with: $CONTRACTS_RESULT"
             exit 1
           fi
           if [[ "$ANDROID_REQUIRED" == "true" && "$ANDROID_RESULT" != "success" ]]; then
