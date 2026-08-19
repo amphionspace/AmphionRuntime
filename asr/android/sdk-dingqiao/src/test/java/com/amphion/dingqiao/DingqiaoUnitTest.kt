@@ -42,6 +42,59 @@ class DingqiaoEngineConfigTest {
         )
         assertTrue(config.hotwords.isNotEmpty())
         assertTrue(config.hotwords.contains("盘查"))
+        assertTrue(config.hotwords.contains("警鉴"))
+        assertTrue(config.hotwords.contains("车牌"))
+        assertTrue(config.hotwords.contains("派出所"))
+    }
+
+    @Test
+    fun buildAsrConfig_experimentalNoneKeepsOnlyCustomerHotwords() {
+        val config = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(
+                language = "zh-CN",
+                online = DingqiaoOnlineMode.OFFLINE,
+                extraParams = mapOf(
+                    "sysGeneralLexicon" to listOf("甲方自定义热词"),
+                    "__experimentalPoliceHotwordProfile" to "none",
+                ),
+            ),
+            speakerModelPath = null,
+        )
+
+        assertTrue(config.hotwords.contains("甲方自定义热词"))
+        assertFalse(config.hotwords.contains("车牌"))
+        assertFalse(config.hotwords.contains("派出所"))
+        assertFalse(config.hotwords.contains("警鉴"))
+    }
+
+    @Test
+    fun buildAsrConfig_experimentalNoneWithoutCustomerWordsKeepsBeamArmed() {
+        val config = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(
+                language = "zh-CN",
+                online = DingqiaoOnlineMode.OFFLINE,
+                extraParams = mapOf("__experimentalPoliceHotwordProfile" to "none"),
+            ),
+            speakerModelPath = null,
+        )
+
+        assertEquals(listOf("__placeholder__"), config.hotwords)
+    }
+
+    @Test
+    fun buildAsrConfig_invalidExperimentalHotwordProfileFailsFast() {
+        val result = runCatching {
+            DingqiaoEngineConfig.buildAsrConfig(
+                CreateEngineParams(
+                    language = "zh-CN",
+                    online = DingqiaoOnlineMode.OFFLINE,
+                    extraParams = mapOf("__experimentalPoliceHotwordProfile" to "unknown"),
+                ),
+                speakerModelPath = null,
+            )
+        }
+
+        assertTrue(result.isFailure)
     }
 
     @Test

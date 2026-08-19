@@ -40,8 +40,17 @@ class DingqiaoAudioCorpusInstrumentedTest {
         val audioPrefix = arguments.getString("audioPrefix").orEmpty()
         val policeEnhancement = arguments.getString("enablePoliceEnhancement")
             ?.toBooleanStrictOrNull() ?: true
+        val policeHotwordProfile = arguments.getString("policeHotwordProfile")
+            ?.trim()
+            ?.ifEmpty { null }
+            ?: "full"
+        val runId = arguments.getString("runId")
+            ?.trim()
+            ?.ifEmpty { null }
+            ?: "run-${System.currentTimeMillis()}"
         val reportDir = File(context.filesDir, "eval_reports").apply { mkdirs() }
         val report = File(reportDir, "dingqiao_audio_eval.tsv")
+        val profileReport = File(reportDir, "dingqiao_audio_eval_profile.txt")
 
         val wavFiles = testContext.assets.list("")
             .orEmpty()
@@ -62,14 +71,30 @@ class DingqiaoAudioCorpusInstrumentedTest {
             CreateEngineParams(
                 language = "zh-CN",
                 online = DingqiaoOnlineMode.OFFLINE,
-                extraParams = mapOf("vadEnd" to 800),
+                extraParams = mapOf(
+                    "vadEnd" to 800,
+                    "__experimentalPoliceHotwordProfile" to policeHotwordProfile,
+                ),
             ),
         )
 
-        report.writeText("file\tduration_s\tstatus\tfinal_count\ttext\terrors\n", Charsets.UTF_8)
+        profileReport.writeText(
+            "run_id=$runId\n" +
+                "hotword_profile=$policeHotwordProfile\n" +
+                "police_enhancement=$policeEnhancement\n",
+            Charsets.UTF_8,
+        )
+        report.writeText(
+            "run_id\thotword_profile\tpolice_enhancement\t" +
+                "file\tduration_s\tstatus\tfinal_count\ttext\terrors\n",
+            Charsets.UTF_8,
+        )
         val cases = wavFiles.map { wavAssetName ->
             val result = decodeOne(engine, testContext, wavAssetName, policeEnhancement)
-            report.appendText(result.toTsvRow() + "\n", Charsets.UTF_8)
+            report.appendText(
+                result.toTsvRow(runId, policeHotwordProfile, policeEnhancement) + "\n",
+                Charsets.UTF_8,
+            )
             result
         }
         engine.shutdown()
@@ -234,8 +259,15 @@ class DingqiaoAudioCorpusInstrumentedTest {
         val finals: List<String>,
         val errors: List<String>,
     ) {
-        fun toTsvRow(): String =
+        fun toTsvRow(
+            runId: String,
+            hotwordProfile: String,
+            policeEnhancement: Boolean,
+        ): String =
             listOf(
+                runId,
+                hotwordProfile,
+                policeEnhancement.toString(),
                 assetName,
                 "%.3f".format(durationMs / 1000.0),
                 status,
