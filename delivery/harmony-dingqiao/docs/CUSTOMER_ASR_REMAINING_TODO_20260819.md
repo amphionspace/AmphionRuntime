@@ -50,6 +50,17 @@ stream 归零。修复后报告：
 `/private/tmp/amphion-main-audit.zRqUJD/real-pace-fixed-runs/20260820-001938-customer-transcription-c691bc3c/report.json`，
 SHA-256 `b2e9ccab03947974c7fc7ecbfa374e06c9271eedd110bd8164a29cf25e1b5dd9`。
 
+该 canonical 证据固定绑定以下验证对象，后续仅文档、证据索引或发布元数据提交不改变其结论：
+
+- code-under-test：`79fadfa`（空 endpoint 后刷新失效 stream 的独立候选修复）；
+- exact HAP：`/private/tmp/amphion-main-audit.zRqUJD/empty-boundary-builds/79fadfa-hard-current-head.hap`；
+- HAP SHA-256：`2f4c8d1498da4b72f93a904cb6115a645c9bb883d8a21cc672130d335b9c2e6b`。
+
+2026-08-20 收口时只做静态复核，没有重放音频：HAP 与报告路径存在且 SHA-256 匹配；报告为
+`overall_status=PASS`，`lastFinalsBeforeFinish=0`，结束后唯一 `final-last -> complete`，`errors=0`，
+`liveStreams=0`。PR 必须同时记录代码提交、HAP 哈希和报告路径，不能用后续文档提交的 HEAD
+替代 code-under-test，也不能把这次“明显缓解”写成“完全解决”。
+
 仍未关闭的证据：1198.10–1286.143 秒尾段在长 session 中没有新 final，但同一 88.043 秒 PCM
 用 fresh engine 能产生 3 条非空 final（“来一次。中国人肯定出多。视频。”）。因此 stream cache
 是一个已修根因，但还存在更长寿命的 recognizer/session 状态失效，不能把整项宣称为已解决。
@@ -84,6 +95,13 @@ hard、紧随的有文字 endpoint soft”均能修复 33 秒样本，但都在 
 依据 token timestamp/native frame boundary 区分重放 token 与新 token，应停止实现，不得使用
 字符串启发式或让 overlap PCM 进入公共 utterance、Speaker VAD 和声纹 PCM。只有局部
 33 秒红绿和 486 秒上下文都通过后，才允许做一次完整 1286.143 秒最终验收。
+
+## 后续工程项：真机门禁分层与批量化
+
+该工程项不进入本 PR：PR 只运行 L0/L1 最小增量场景；nightly 或 merge queue 批量运行 L2；
+发布前运行 L3 长会议和长稳压。执行载体应固定为单 HAP、单次安装，通过 scenario manifest
+批量运行，多设备按场景分片并行。目标是复用同一二进制证据、减少重复构建与安装，同时保持
+失败 artifact 不可覆盖；不得用门禁分层降低生命周期断言或把 L3 长跑下放为日常定位手段。
 
 ## PTT “签警情”错字
 
