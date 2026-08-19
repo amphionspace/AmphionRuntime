@@ -20,10 +20,12 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("CUSTOMER_TAP_VAD", source)
         self.assertIn("vadBegin: 5000", source)
         self.assertIn("maxAudioDuration: 20000", source)
+        self.assertIn("endpointMaxUtteranceMs: 20000", source)
         self.assertIn("CUSTOMER_PTT", source)
         self.assertIn("maxAudioDuration: 62000", source)
         self.assertIn("CUSTOMER_TRANSCRIPTION", source)
         self.assertIn("vadEnd: 1600", source)
+        self.assertGreaterEqual(source.count("endpointMaxUtteranceMs: 60000"), 3)
         self.assertIn("CUSTOMER_FORM", source)
         self.assertIn("maxAudioDuration: 28800000", source)
         self.assertIn("CUSTOMER_MEETING_MINUTES", source)
@@ -32,6 +34,16 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertGreaterEqual(source.count("allowVoiceprint: false"), 2)
         self.assertGreaterEqual(source.count("rotateSession: false"), 2)
         self.assertIn("enablePartialResult: true", source)
+        self.assertIn("params.extraParams['endpointMaxUtteranceMs'] = profile.endpointMaxUtteranceMs", source)
+
+    def test_long_profiles_disable_rotation_and_raise_the_native_endpoint_boundary(self) -> None:
+        profile = PROFILE.read_text(encoding="utf-8")
+        index = INDEX.read_text(encoding="utf-8")
+
+        self.assertIn("endpointMaxUtteranceMs: number", profile)
+        self.assertIn("profile.rotateSession && profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS", index)
+        self.assertIn("extra['enableContinuousRecognition']", index)
+        self.assertNotIn("this.rotateRecognitionSession", index)
 
     def test_audio_capture_source_is_forwarded_to_the_worker(self) -> None:
         recorder = RECORDER.read_text(encoding="utf-8")
@@ -58,6 +70,8 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
             self.assertIn(mode, carrier)
             self.assertIn(f'"{mode}"', driver)
         self.assertIn("customerProfileStartParams", carrier)
+        self.assertIn("params.extraParams['enableContinuousRecognition'] =", carrier)
+        self.assertIn("profile.rotateSession && profile.maxAudioDuration > CUSTOMER_SESSION_ROTATE_AUDIO_MS", carrier)
         self.assertIn("lastBeforeStop === 0", carrier)
         self.assertIn("events.lastFinals === 1", carrier)
         self.assertIn("events.completes === 1", carrier)
