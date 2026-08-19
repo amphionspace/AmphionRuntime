@@ -32,8 +32,48 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
         self.commit_timestamp.start()
         self.android_summary = self.root / "android-tests.json"
         self.finish_summary = self.root / "finish-compat-report.json"
+        self.finish_raw = self.root / "finish-raw"
+        finish_modes = []
+        finish_reports = {}
+        for mode in MODULE.REQUIRED_FINISH_COMPAT_MODES:
+            run_id = f"20260807-095800-{mode}-pass"
+            run = self.finish_raw / run_id
+            (run / "payload").mkdir(parents=True)
+            report = {
+                "run_id": run_id,
+                "mode": mode,
+                "overall_status": "PASS",
+                "device": self.device,
+                "build_identity": {
+                    "git_commit": "a" * 40,
+                    "source_fingerprint_sha256": "b" * 64,
+                    "artifacts": {
+                        "amphion_asr_demo.hap": {"sha256": "c" * 64},
+                        "amphion_asr.har": {"sha256": "1" * 64},
+                        "amphion_police.har": {"sha256": "2" * 64},
+                        "amphion_dingqiao.har": {"sha256": "e" * 64},
+                        "sherpa_onnx.har": {"sha256": "3" * 64},
+                    },
+                },
+            }
+            (run / "report.json").write_text(json.dumps(report), encoding="utf-8")
+            (run / "result.txt").write_text("PASS\n", encoding="utf-8")
+            (run / "memory.csv").write_text("elapsed_seconds,pid\n0,1\n", encoding="utf-8")
+            (run / "hilog.txt").write_text("ASR_STRESS|PASS\n", encoding="utf-8")
+            (run / "inventory.json").write_text("{}\n", encoding="utf-8")
+            (run / "payload" / "corpus.json").write_text("{}\n", encoding="utf-8")
+            (run / "payload" / "manifest.txt").write_text("fixture\n", encoding="utf-8")
+            finish_modes.append({"mode": mode, "run_id": run_id, "status": "PASS"})
+            finish_reports[mode] = f"../finish-raw/{run_id}/report.json"
         self.finish_summary.write_text(
-            json.dumps({"status": "PASS", "source_commit": "a" * 40}),
+            json.dumps(
+                {
+                    "status": "PASS",
+                    "source_commit": "a" * 40,
+                    "modes": finish_modes,
+                    "reports": finish_reports,
+                }
+            ),
             encoding="utf-8",
         )
         self.build_identity = self.root / "build-identity.json"
@@ -139,6 +179,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={failed.name: "test precondition failed"},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
         self.assertEqual("PASS", summary["overall_status"])
@@ -176,6 +217,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
         expected_alias = "device-" + hashlib.sha256(self.device.encode()).hexdigest()[:12]
@@ -289,6 +331,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
         self.output.mkdir()
@@ -304,6 +347,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_incomplete_android_matrix(self) -> None:
@@ -324,6 +368,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_android_summary_that_disagrees_with_gradle_xml(self) -> None:
@@ -344,6 +389,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_component_har_drift_between_canonical_modes(self) -> None:
@@ -370,6 +416,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_component_har_without_a_sha256(self) -> None:
@@ -394,6 +441,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_device_matrix_from_another_verified_build_identity(self) -> None:
@@ -413,6 +461,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
                 build_identity=self.build_identity,
             )
 
@@ -433,6 +482,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_android_xml_older_than_release_commit(self) -> None:
@@ -456,6 +506,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
 

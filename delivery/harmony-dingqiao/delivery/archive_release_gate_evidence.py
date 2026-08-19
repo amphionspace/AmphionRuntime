@@ -545,7 +545,7 @@ def archive_evidence(
     not_applicable: Mapping[str, str] | None = None,
     limitations: Sequence[str] = (),
     finish_compat_summary: Path | None = None,
-    finish_compat_raw_root: Path | None = None,
+    finish_compat_raw_root: Path,
     numeric_gate_attestation: Path | None = None,
     build_identity: Path | None = None,
 ) -> Dict[str, Any]:
@@ -631,11 +631,10 @@ def archive_evidence(
         serial: alias,
         str(raw_root): "<RAW_EVIDENCE_ROOT>",
     }
-    if finish_compat_raw_root is not None:
-        finish_compat_raw_root = finish_compat_raw_root.resolve()
-        if not finish_compat_raw_root.is_dir():
-            raise ArchiveFailure("finish compatibility raw root is missing")
-        replacements[str(finish_compat_raw_root)] = "<FINISH_COMPAT_RAW_ROOT>"
+    finish_compat_raw_root = finish_compat_raw_root.resolve()
+    if not finish_compat_raw_root.is_dir():
+        raise ArchiveFailure("finish compatibility raw root is missing")
+    replacements[str(finish_compat_raw_root)] = "<FINISH_COMPAT_RAW_ROOT>"
     numeric_gate = None
     if numeric_gate_attestation is not None:
         numeric_gate = validate_numeric_gate_attestation(
@@ -711,15 +710,13 @@ def archive_evidence(
                 raw_root, source_commit, android_tests["sherpa_submodule_commit"]
             ),
         )
-        finish_runs: List[Dict[str, Any]] = []
-        if finish_compat_raw_root is not None:
-            finish_summary, finish_runs = archive_finish_compat_runs(
-                finish_summary,
-                finish_compat_raw_root,
-                temporary / "finish-compat-runs",
-                replacements,
-                next(iter(identities)),
-            )
+        finish_summary, finish_runs = archive_finish_compat_runs(
+            finish_summary,
+            finish_compat_raw_root,
+            temporary / "finish-compat-runs",
+            replacements,
+            next(iter(identities)),
+        )
         finish_destination = temporary / "finish-compat-report.json"
         finish_destination.write_text(
             json.dumps(
@@ -826,7 +823,7 @@ def main() -> int:
     parser.add_argument("--android-results-root", type=Path, required=True)
     parser.add_argument("--verified-at", default="")
     parser.add_argument("--finish-compat-summary", type=Path, required=True)
-    parser.add_argument("--finish-compat-raw-root", type=Path)
+    parser.add_argument("--finish-compat-raw-root", type=Path, required=True)
     parser.add_argument("--numeric-gate-attestation", type=Path)
     parser.add_argument("--build-identity", type=Path, required=True)
     args = parser.parse_args()
