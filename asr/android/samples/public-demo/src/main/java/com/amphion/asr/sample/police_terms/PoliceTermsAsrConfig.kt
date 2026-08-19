@@ -7,7 +7,6 @@ import com.amphion.asr.VadConfig
 import com.amphion.asr.sample.HotwordsPrefs
 import com.amphion.asr.sample.MainActivity
 import com.amphion.police.PoliceEngineConfig
-import com.amphion.police.PoliceHotwordProfile
 import com.amphion.police.terms.PoliceTermsHotwords
 
 /**
@@ -22,8 +21,6 @@ object PoliceTermsAsrConfig {
         val termsNormalize: Boolean = true,
         val itn: Boolean = true,
         val batchMode: Boolean = false,
-        /** Hidden pruning experiment override; null preserves the existing preference behavior. */
-        val hotwordProfile: PoliceHotwordProfile? = null,
         /** 主动 endpoint 尾静音阈值（ms）；null=沿用默认（batchMode 下为 0=关闭）。仅端点实验用。 */
         val activeEndpointMs: Int? = null,
     )
@@ -46,17 +43,7 @@ object PoliceTermsAsrConfig {
         options: Options = Options(),
         hotwordsScore: Float = MainActivity.HOTWORDS_SCORE,
     ): AsrConfig {
-        val words = if (options.hotwordProfile == null) {
-            effectiveHotwords(context, lang, options.termsHotwords)
-        } else {
-            PoliceEngineConfig.effectiveHotwordsForProfile(
-                userHotwords = HotwordsPrefs(context).activeWords(lang),
-                profile = options.hotwordProfile,
-                plateHotwords = false,
-                stationHotwords = false,
-                termsHotwords = true,
-            )
-        }
+        val words = effectiveHotwords(context, lang, options.termsHotwords)
         val b = AsrConfig.Builder()
             .numThreads(2)
             .punctuation(true)

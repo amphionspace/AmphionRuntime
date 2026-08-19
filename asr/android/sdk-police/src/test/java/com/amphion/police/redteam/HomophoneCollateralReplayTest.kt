@@ -261,10 +261,6 @@ class HomophoneCollateralReplayTest {
     }
 
     private fun resolveCorpusFile(): File {
-        System.getProperty("redteam.corpus")
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?.let { return File(it) }
         var dir: File? = File(System.getProperty("user.dir") ?: ".")
         repeat(8) {
             val base = dir ?: return File("../../../../evaluation/red_team/homophone_collateral_corpus_100.tsv")
