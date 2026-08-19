@@ -45,6 +45,7 @@ if [[ "$ASR_ONLY" == true && "$SDK_ONLY" == true ]]; then
 fi
 
 BUILD_IDENTITY="$REPO_ROOT/delivery/harmony-dingqiao/build/smoke/build-identity.json"
+python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"
 BUILD_SOURCE_COMMIT="$(python3 - "$BUILD_IDENTITY" <<'PY'
 import json
 import sys
@@ -117,8 +118,6 @@ if [[ "$GIT_DIRTY" == true && "$ALLOW_DIRTY" != true ]]; then
   echo "[ERROR] release packaging requires a clean worktree; commit/stash changes or pass --allow-dirty for a non-release package" >&2
   exit 1
 fi
-python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"
-
 cleanup() {
   rm -rf "$OUT_ROOT"
   if [[ -e "$BACKUP_OUT_ROOT" ]]; then
