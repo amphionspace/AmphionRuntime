@@ -17,6 +17,7 @@ The production default remains `full`. The undocumented Android-only experiment 
 `__experimentalPoliceHotwordProfile` accepts:
 
 - `full`: all existing built-in hotwords (default, delivery-compatible baseline)
+- `prune_ui30`: remove only the first 30 UI/menu candidates; 340 effective built-ins remain
 - `none`: customer words only; when empty, a placeholder keeps modified-beam search armed
 
 The placeholder means both runs use modified-beam search, avoiding an accidental comparison of
@@ -29,10 +30,12 @@ Run the same immutable WAV corpus with:
 
 1. `full`, police enhancement disabled: decoder/ITN/punctuation output before police final repair.
 2. `full`, police enhancement enabled: current delivered result.
-3. `none`, police enhancement disabled: new acoustic model without built-in term bias.
-4. `none`, police enhancement enabled: how much the unchanged final repair layer can recover.
+3. `prune_ui30`, police enhancement disabled/enabled: first reversible candidate.
+4. `none`, police enhancement disabled: new acoustic model without built-in term bias.
+5. `none`, police enhancement enabled: how much the unchanged final repair layer can recover.
 
-The corpus test instrumentation arguments are `policeHotwordProfile=full|none` and a unique
+The corpus test instrumentation arguments are
+`policeHotwordProfile=full|prune_ui30|none` and a unique
 `runId`. Pull and rename the TSV immediately after each run because the next run overwrites it.
 Every row and the companion `dingqiao_audio_eval_profile.txt` record the run id, profile and police
 enhancement state.

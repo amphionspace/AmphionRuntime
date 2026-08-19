@@ -70,6 +70,15 @@ object PoliceEngineConfig {
                 if (plateHotwords) PlateHotwords.PRESET.forEach { out.add(it) }
                 if (stationHotwords) PoliceStationHotwords.PRESET.forEach { out.add(it) }
             }
+            PoliceHotwordProfile.PRUNE_UI30 -> {
+                if (termsHotwords) {
+                    PoliceTermsHotwords.PRESET
+                        .filterNot { it in PoliceHotwordPruningCandidates.UI30_REMOVED_TERMS }
+                        .forEach { out.add(it) }
+                }
+                if (plateHotwords) PlateHotwords.PRESET.forEach { out.add(it) }
+                if (stationHotwords) PoliceStationHotwords.PRESET.forEach { out.add(it) }
+            }
             PoliceHotwordProfile.NONE -> Unit
         }
         return out.toList().ifEmpty { listOf(HOTWORD_POOL_PLACEHOLDER) }

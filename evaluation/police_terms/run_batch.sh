@@ -9,6 +9,7 @@
 #   ./run_batch.sh specialcode  # 只跑「特殊代码」类
 #   ./run_batch.sh all --resume # 跑全部但不 fresh（断点续跑，保留已完成）
 #   ./run_batch.sh all --hotword-profile=none # iter250 裁剪诊断；不传则沿用设备偏好（通常为 full）
+#   ./run_batch.sh all --hotword-profile=prune_ui30 # 首批 UI 30 项候选
 #
 # 说明：fresh=true 会 reset 输出 tsv 并清 progress；--resume 关掉 fresh。
 # 评测在设备端异步跑，本脚本只负责拉起；用 ./pull_eval.sh 观察/收结果。
@@ -25,8 +26,9 @@ for arg in "${@:2}"; do
   case "$arg" in
     --resume) RESUME=1 ;;
     --hotword-profile=full) HOTWORD_PROFILE=full ;;
+    --hotword-profile=prune_ui30) HOTWORD_PROFILE=prune_ui30 ;;
     --hotword-profile=none) HOTWORD_PROFILE=none ;;
-    *) echo "[run] 未知参数 '$arg'（可选 --resume|--hotword-profile=full|--hotword-profile=none）"; exit 1 ;;
+    *) echo "[run] 未知参数 '$arg'（可选 --resume|--hotword-profile=full|--hotword-profile=prune_ui30|--hotword-profile=none）"; exit 1 ;;
   esac
 done
 
