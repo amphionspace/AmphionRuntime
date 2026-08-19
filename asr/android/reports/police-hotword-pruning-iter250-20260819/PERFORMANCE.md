@@ -58,7 +58,7 @@ every FULL/PRUNE run on exactly the same utterance and avoids accidentally selec
 fixture. Optional environment variables:
 
 ```bash
-export ANDROID_SERIAL=R28M40JBCLV
+export ANDROID_SERIAL=<device-serial>
 export DINGQIAO_DEMO_ASSET_DIR=/absolute/path/to/private/demo/assets
 ```
 

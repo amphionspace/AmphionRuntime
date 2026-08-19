@@ -27,7 +27,7 @@ Demo/test build on `AndroidJUnitRunner` and `DingqiaoApp`.
 Commit the source first and choose a new output directory outside the Git worktree:
 
 ```bash
-export ANDROID_SERIAL=R28M40JBCLV   # optional when adb has exactly one device
+export ANDROID_SERIAL=<device-serial>   # optional when adb has exactly one device
 bash asr/android/reports/police-hotword-pruning-iter250-20260819/\
 run_police_hotword_create_only_abba.sh \
   /absolute/path/to/new-create-only-evidence \
