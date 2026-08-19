@@ -15,22 +15,41 @@
 
 ## 长会议后段无 final
 
-现状：已排除 20 秒 rule3 和 55/62 秒 session 自动结束，但客户长会议的连续上下文在累计约
-1088 秒后仍只产生 partial，不再产生非空 final。原文件从 1286.143 秒起连续 1254.217 秒为
-全零 PCM；真正需要继续定位的是此前 198.4 秒非零音频。该 198 秒单独启动新 session 时能识别
-“什么录音？”，说明问题依赖前序连续状态，不能归因为这段语料完全不可识别。
+状态：**已有可证明的改善，但尚未完全关闭**。已排除 20 秒 rule3、55/62 秒 session 自动结束和
+5 ms 注入积压。原文件从 1286.143 秒起连续 1254.217 秒为全零 PCM；有效排查范围固定为
+0–1286.143 秒前缀。
+
+已证明的根因层差分：空 endpoint 使用 soft reset 会保留 encoder cache，连续空段后会让后续真实
+语音持续无 token。对固定 SHA-256 的 800–1286.143 秒短化语料，同为 5 ms pace：
+
+- 修复前最后非空 final 仅覆盖到 402.56 秒，尾部约 83.6 秒无新文字；报告 SHA-256
+  `548e498a84ea1f7c6bcbdca7c47b2daace528732ea07f415258721f908a813bf`。
+- 空 endpoint 改为 fresh stream 后覆盖到 480.12 秒，尾部恢复“商品质量…案件巡查…红牛”等
+  非空文字；报告 SHA-256
+  `47752b6c30f77276081964885df389bb6b65d2f06d36aba3d11f1ab2e177284d`。
+
+唯一一次完整实时修复后验收也越过旧停点：修复前最后非空 final 约 1087.74 秒，修复后推进到
+1198.10 秒，并恢复两条非空 final；`finish` 前 `isLast=0`，结束后唯一 last/complete、无 error、
+stream 归零。修复后报告：
+`/private/tmp/amphion-main-audit.zRqUJD/real-pace-fixed-runs/20260820-001938-customer-transcription-c691bc3c/report.json`，
+SHA-256 `b2e9ccab03947974c7fc7ecbfa374e06c9271eedd110bd8164a29cf25e1b5dd9`。
+
+仍未关闭的证据：1198.10–1286.143 秒尾段在长 session 中没有新 final，但同一 88.043 秒 PCM
+用 fresh engine 能产生 3 条非空 final（“来一次。中国人肯定出多。视频。”）。因此 stream cache
+是一个已修根因，但还存在更长寿命的 recognizer/session 状态失效，不能把整项宣称为已解决。
 
 下一步：
 
-1. 对 SHA-256 固定的 0–1286.143 秒前缀以真实 20 ms pace 运行一次，记录每条 final 对应的累计
-   `pcmBytesAccepted`、队列深度、in-flight decode、partial/final 时间线和 `finish` 排队时长。
-2. 若真实 pace 仍在约 1088 秒停止 final，二分裁剪前序上下文，得到能稳定触发状态退化的最短前缀；
-   在 Runtime 最内层状态机修复，并用同输入、同调用时序做 main/修复版差分。
-3. 若只有 5 ms 注入失败，则把问题归为测试背压：为载体增加“已接受 PCM / 已完成 decode”进度，
-   `finish` 超时从处理进度判定，不把人为积压作为产品死锁；不得跳过未处理 PCM 或提前发 complete。
+1. 使用新增的 `ENDPOINT`、`RESULT_SUPPRESSED`、`STREAM_TRANSITION` 指标，在最短上下文上记录
+   stream generation、endpoint 来源、text/token、soft/hard restart、抑制原因与累计 PCM。
+2. 从 1198.10 秒同一位置做局部 A/B：A 保留异常 recognizer/context，B 创建 fresh recognizer 后
+   解码同一 PCM；确认失效归属后只修最内层状态机。
+3. 只用短化实验完成红绿差分；完整 1286.143 秒实时语料仅在下一次根因修复后做一次最终验收，
+   不通过反复长跑猜测。
 
-停止条件：同一前缀在真实 pace 下，旧停点之后至少出现一个非空 final；显式 `finish` 前
-`isLast=0`，结束后唯一 last、唯一 complete、native stream 归零。
+停止条件：同一短化输入在异常 recognizer 上红、fresh recognizer 绿，并由内部状态指标解释差异；
+最终同一前缀在真实 pace 下覆盖剩余可识别尾段，显式 `finish` 前 `isLast=0`，结束后唯一 last、
+唯一 complete、无 error、native stream 归零。
 
 ## PTT “签警情”错字
 
