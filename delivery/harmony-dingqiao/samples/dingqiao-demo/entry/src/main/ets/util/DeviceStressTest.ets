@@ -19,6 +19,7 @@ import {
 import { AmphionRuntime } from 'amphion_asr';
 import {
   CustomerScenarioName,
+  customerProfileUsesContinuousRecognition,
   customerProfileStartParams,
   customerScenarioProfile
 } from './CustomerScenarioProfile';
@@ -36,7 +37,6 @@ const CANCEL_CALLBACK_STABILITY_MS: number = 100;
 const MAX_DURATION_TEST_MS: number = 8000;
 const MAX_DURATION_TEST_FRAMES: number = MAX_DURATION_TEST_MS / FRAME_DURATION_MS;
 const CONTINUOUS_LONG_MIN_FRAMES: number = 60 * 1000 / FRAME_DURATION_MS;
-const CUSTOMER_SESSION_ROTATE_AUDIO_MS: number = 55000;
 const VOICEPRINT_SHORT_FRAMES: number = 25;
 const VOICEPRINT_THRESHOLD_FRAMES: number = 75;
 const VOICEPRINT_LONG_FRAMES: number = 150;
@@ -1839,8 +1839,7 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   }
   const profile = customerScenarioProfile(scenario);
   const params = customerProfileStartParams(sessionId, scenario);
-  params.extraParams['enableContinuousRecognition'] =
-    profile.rotateSession && profile.maxAudioDuration > CUSTOMER_SESSION_ROTATE_AUDIO_MS;
+  params.extraParams['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'customer-start-timeout');

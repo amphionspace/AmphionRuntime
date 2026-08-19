@@ -41,7 +41,7 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         index = INDEX.read_text(encoding="utf-8")
 
         self.assertIn("endpointMaxUtteranceMs: number", profile)
-        self.assertIn("profile.rotateSession && profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS", index)
+        self.assertIn("customerProfileUsesContinuousRecognition(profile)", index)
         self.assertIn("extra['enableContinuousRecognition']", index)
         self.assertNotIn("this.rotateRecognitionSession", index)
 
@@ -71,7 +71,7 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
             self.assertIn(f'"{mode}"', driver)
         self.assertIn("customerProfileStartParams", carrier)
         self.assertIn("params.extraParams['enableContinuousRecognition'] =", carrier)
-        self.assertIn("profile.rotateSession && profile.maxAudioDuration > CUSTOMER_SESSION_ROTATE_AUDIO_MS", carrier)
+        self.assertIn("customerProfileUsesContinuousRecognition(profile)", carrier)
         self.assertIn("lastBeforeStop === 0", carrier)
         self.assertIn("events.lastFinals === 1", carrier)
         self.assertIn("events.completes === 1", carrier)
@@ -86,7 +86,7 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("this.capturedAudioSource", source)
         self.assertIn("meta['audioSource'] = this.audioSourceName(this.capturedAudioSource)", source)
         self.assertIn("profile.allowVoiceprint", source)
-        self.assertIn("profile.rotateSession && profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS", source)
+        self.assertIn("customerProfileUsesContinuousRecognition(profile)", source)
         self.assertIn("profile.lockAudioSource", source)
         self.assertIn("extra['enableContinuousRecognition']", source)
         self.assertIn("this.finishAutoEndedCapture().catch", source)

@@ -1,5 +1,18 @@
 # 鼎桥客户 ASR 剩余 TODO（2026-08-19）
 
+## 本轮已关闭的真机证据
+
+- Speaker VAD 先后交替：`speaker-vad-turn` 的 C1-alternating 在设备 `7GK0226326015655`
+  通过；两个目标人句子均保留，干扰句“你好”被拒绝，显式 `finish` 前 `isLast=0`，结束后唯一
+  last/complete。报告：`/private/tmp/amphion-main-audit.zRqUJD/runs/20260819-233658-speaker-vad-turn-8d8dcc26/report.json`，
+  SHA-256 `5c17230b43ea3ed2c61763f04c5a7d237bdb02f457da48788f6d012693be9638`。
+- BUG-01 Runtime 释放竞态：同设备 `finish-shutdown-relicense` 通过；唯一 last/complete、无 error、
+  native stream 归零，relicense 后下一 session 恢复成功。报告：
+  `/private/tmp/amphion-main-audit.zRqUJD/runs/20260819-233739-finish-shutdown-relicense-a4e00ed5/report.json`，
+  SHA-256 `1115b4fdba854fa84124710cfe384ad9860cadaccf93ad53d4f526c7f03c6fed`。
+
+以上只关闭用户指定的交替场景和 BUG-01 生命周期场景；Speaker VAD 重叠说话仍明确不处理。
+
 ## 长会议后段无 final
 
 现状：已排除 20 秒 rule3 和 55/62 秒 session 自动结束，但客户长会议的连续上下文在累计约

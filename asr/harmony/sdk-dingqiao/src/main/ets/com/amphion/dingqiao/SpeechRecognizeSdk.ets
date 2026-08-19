@@ -7,7 +7,7 @@ import hilog from '@ohos.hilog';
 import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
 import { FinishShutdownGate } from './FinishShutdownGate';
-import { endpointMaxUtteranceSec } from './EndpointRulePolicy';
+import { endpointMaxUtteranceSec, endpointRecognizerConfigKey } from './EndpointRulePolicy';
 import { finiteNumberParam } from './NumericParam';
 import { rejectedFinalCompletesSession } from './RejectedFinalLifecycle';
 import { SessionAudioDispatcher } from './SessionAudioDispatcher';
@@ -374,11 +374,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   // endpoint rule3 属于 recognizer 配置，变化时必须重建引擎。
   private computeEngineCfgKey(withTargetSpeaker: boolean, withSpeakerVad: boolean,
     params?: StartParams): string {
-    return [
-      `${withTargetSpeaker}`,
-      `${withSpeakerVad}`,
-      `${endpointMaxUtteranceSec(params?.extraParams ?? {})}`
-    ].join('|');
+    return endpointRecognizerConfigKey(withTargetSpeaker, withSpeakerVad, params?.extraParams ?? {});
   }
 
   setListener(listener: RecognitionListener): void { this.listener = listener; }
