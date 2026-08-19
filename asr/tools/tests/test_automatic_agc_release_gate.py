@@ -368,7 +368,9 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
 
         gate = workflow.index("run_automatic_agc_release_gate.py static")
         host_build = workflow.index("03_build_agc_native.sh host")
-        android_build = workflow.index("03_build_agc_native.sh android-arm64-v8a")
+        android_build = workflow.index(
+            '03_build_agc_native.sh "android-${{ env.ANDROID_ABI }}"'
+        )
         self.assertLess(gate, host_build)
         self.assertLess(gate, android_build)
 
