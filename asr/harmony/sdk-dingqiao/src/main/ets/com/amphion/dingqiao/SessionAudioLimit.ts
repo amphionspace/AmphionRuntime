@@ -4,6 +4,9 @@ const MAX_MAX_AUDIO_DURATION_MS: number = 28800000;
 const PCM_BYTES_PER_MS: number = 32;
 
 export function maxAudioBytesOf(extraParams: Record<string, Object>): number {
+  // Continuous recognition keeps one public/model session so acoustic context is not reset at a
+  // duration boundary. The caller remains responsible for the eventual explicit finish.
+  if (extraParams['enableContinuousRecognition'] === true) return 0;
   const durationMs = finiteNumberParam(extraParams, 'maxAudioDuration');
   if (durationMs === undefined || durationMs <= 0) return 0;
   const clampedMs = Math.min(durationMs, MAX_MAX_AUDIO_DURATION_MS);

@@ -96,8 +96,6 @@ struct Index {
   private capturePlayer: PcmPlayer = new PcmPlayer();
   private frameWriter?: PcmFrameWriter;
   private sessionId: string = '';
-  private sessionAudioMs: number = 0;
-  private rotatingSession: boolean = false;
   private workPath: string = '';
   private appliedHotwordsKey: string = '';
   // 用户点了「开始识别」触发 engine 创建；默认配置复用模型池，卸载后或配置变化时会按需重载。
@@ -475,7 +473,6 @@ struct Index {
     if (engine === undefined) return;
     const sid = `demo-${Date.now()}`;
     this.sessionId = sid;
-    this.sessionAudioMs = 0;
 
     engine.startListening(this.buildCapturedStartParams(sid));
   }
@@ -483,6 +480,9 @@ struct Index {
   private buildCapturedStartParams(sessionId: string): StartParams {
     const startParams = customerProfileStartParams(sessionId, this.capturedCustomerScenario);
     const extra = startParams.extraParams;
+    const profile = customerScenarioProfile(this.capturedCustomerScenario);
+    extra['enableContinuousRecognition'] =
+      profile.rotateSession && profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS;
     extra['enablePoliceEnhancement'] = this.capturedPoliceEnhancement;
     if (this.capturedVoiceprintVerify) {
       extra['enableVoiceprintVerification'] = true;
@@ -560,24 +560,13 @@ struct Index {
     this.feedFrameLive(frame);
   }
 
-  // modelReady=true 后正常喂帧。既有短场景保留 55s 轮转；填单/会议纪要使用客户的长单 session。
+  // modelReady=true 后正常喂帧。连续转写保持同一个 model session，由用户操作显式结束。
   private feedFrameLive(frame: ArrayBuffer): void {
     if (this.sessionId.length === 0) return;
-    const profile = customerScenarioProfile(this.capturedCustomerScenario);
-    if (profile.rotateSession && this.sessionAudioMs >= SESSION_ROTATE_AUDIO_MS && !this.rotatingSession) {
-      // Proactively rotate before the 60 s SDK cap; onComplete restarts a fresh session.
-      this.rotatingSession = true;
-      const sid = this.sessionId;
-      this.sessionId = '';
-      this.sessionAudioMs = 0;
-      this.engine?.finish(sid);
-    } else {
-      this.sessionAudioMs += FRAME_AUDIO_MS;
-      // Copy before writeAudio: the public call can synchronously finish at max duration, so saving
-      // afterwards could miss the final frame. This is the exact payload attempted at the SDK gate.
-      this.captureSdkFrame(frame);
-      this.engine?.writeAudio(this.sessionId, frame);
-    }
+    // Copy before writeAudio: the public call can synchronously finish at max duration, so saving
+    // afterwards could miss the final frame. This is the exact payload attempted at the SDK gate.
+    this.captureSdkFrame(frame);
+    this.engine?.writeAudio(this.sessionId, frame);
   }
 
   private resetSdkCapture(): void {
@@ -864,8 +853,6 @@ struct Index {
       this.coldStartGeneration : -1;
     const waitsForColdEngine = coldStartGeneration >= 0 &&
       this.coldStartPttGate.release(coldStartGeneration);
-    this.rotatingSession = false;
-    this.sessionAudioMs = 0;
     // 先 await 关麦并 flush 尾帧:此时 listening/sessionId 仍有效,补出来的尾帧能写进当前会话,
     // 之后再 finish 冲最终结果(与同事 5af9778「preserve recorder tail frames」对齐)。
     try {
@@ -996,12 +983,8 @@ struct Index {
       this.releaseModel(`${this.compareInfo} · 模型已卸载`);
       return;
     }
-    if (this.listening && this.rotatingSession) {
-      // 连续场景的会话轮转(逼近 55s 上限):模型保持在内存,立即重开新会话,体验不中断。
-      this.rotatingSession = false;
-      this.startRecognitionSession();
-    } else if (this.listening) {
-      // vadBegin / maxAudioDuration 自动结束：不把它误当成 55s 主动轮转。
+    if (this.listening) {
+      // continuous 只禁用 maxAudioDuration；vadBegin 等其他显式终止条件仍可能自动结束。
       this.listening = false;
       this.stoppingListening = true;
       this.modelReady = false;
