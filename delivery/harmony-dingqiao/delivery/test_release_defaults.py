@@ -88,6 +88,25 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn('sdkmanager "ndk;${NDK_VERSION}"', native_setup)
         self.assertNotIn("steps.native-cache.outputs.cache-hit", gradle_build)
 
+    def test_ci_prefers_official_gradle_repositories(self) -> None:
+        settings = (REPO_ROOT / "asr/android/settings.gradle.kts").read_text(
+            encoding="utf-8"
+        )
+
+        ci_check = 'System.getenv("CI").equals("true", ignoreCase = true)'
+        self.assertEqual(settings.count(ci_check), 4)
+        plugin_repositories = settings.split("pluginManagement", 1)[1].split(
+            "dependencyResolutionManagement", 1
+        )[0]
+        dependency_repositories = settings.split(
+            "dependencyResolutionManagement", 1
+        )[1].split("rootProject.name", 1)[0]
+
+        for repositories in (plugin_repositories, dependency_repositories):
+            official = repositories.index(f"if ({ci_check})")
+            mirror = repositories.index("https://maven.aliyun.com")
+            self.assertLess(official, mirror)
+
     def test_finish_compat_release_gate_is_part_of_the_project_working_agreement(self) -> None:
         agreement = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
         device_stress = (
