@@ -110,3 +110,26 @@ covers the eight preset station names, not the wider station gazetteer. The 53 n
 are single-voice synthetic speech rather than human/accent/noise coverage, and the 100-case replay
 is text-only rather than an acoustic test. Matching enhancement-disabled plate/station A/B,
 Harmony-device coverage and broader human negative audio remain outside this checkpoint.
+
+## Customer-hotword capacity checkpoint
+
+The capacity corpus contains 101 authoritative station names that do not overlap the 370 FULL
+built-ins, plus 99 unique synthetic placeholders used only to exercise the 200-word resource load.
+Fourteen device probes cover 12 boundary customer names and two unchanged FULL controls. The
+decoder-facing runs disabled final police enhancement so that station post-processing could not
+hide the customer-hotword effect.
+
+- At 0 customer words, both profiles hit 9/14 entities (7/12 customer probes and both controls).
+- At 50 words, both hit 11/14; every loaded boundary probe was 5/5 and both controls remained 2/2.
+- At 100, 101 and 200 words, both profiles hit all 14/14 entities. The 101-word set contains every
+  authoritative name; extending it to 200 with 99 inactive placeholders changed zero outputs.
+- At every count, FULL and `prune_ui28` produced identical text and callback state, with zero
+  profile regressions. The 200-word enhanced delivery smoke also completed 14/14 valid sessions
+  and produced identical FULL/PRUNE output.
+
+The effective decoder lists reached 570 entries for FULL+200 and 542 for PRUNE_UI28+200, exceeding
+the SDK documentation's recommended budget. This proves that the sampled Android configuration can
+load 200 unique customer strings without errors or observed probe regression; it does **not** prove
+recognition accuracy for 200 real customer terms, because only the first 101 are authoritative and
+only 12 have audio probes. CPU, latency and memory effects remain part of the separate performance
+gate.
