@@ -1,14 +1,18 @@
 import { AudioInfo, StartParams } from 'amphion_dingqiao';
 
-export type CustomerScenarioName = 'tap-vad' | 'ptt' | 'transcription';
+export type CustomerScenarioName =
+  'tap-vad' | 'ptt' | 'transcription' | 'form' | 'meeting-minutes';
 
 export interface CustomerScenarioProfile {
   name: CustomerScenarioName;
-  audioSource: 'voiceCommunication' | 'voiceRecognition';
+  audioSource: 'mic' | 'voiceCommunication' | 'voiceRecognition';
   vadBegin?: number;
   vadEnd: number;
   maxAudioDuration: number;
   enablePartialResult: boolean;
+  allowVoiceprint: boolean;
+  rotateSession: boolean;
+  lockAudioSource: boolean;
 }
 
 export const CUSTOMER_TAP_VAD: CustomerScenarioProfile = {
@@ -17,7 +21,10 @@ export const CUSTOMER_TAP_VAD: CustomerScenarioProfile = {
   vadBegin: 5000,
   vadEnd: 1600,
   maxAudioDuration: 20000,
-  enablePartialResult: true
+  enablePartialResult: true,
+  allowVoiceprint: true,
+  rotateSession: true,
+  lockAudioSource: false
 };
 
 export const CUSTOMER_PTT: CustomerScenarioProfile = {
@@ -25,7 +32,10 @@ export const CUSTOMER_PTT: CustomerScenarioProfile = {
   audioSource: 'voiceCommunication',
   vadEnd: 1600,
   maxAudioDuration: 62000,
-  enablePartialResult: true
+  enablePartialResult: true,
+  allowVoiceprint: true,
+  rotateSession: true,
+  lockAudioSource: false
 };
 
 export const CUSTOMER_TRANSCRIPTION: CustomerScenarioProfile = {
@@ -33,12 +43,39 @@ export const CUSTOMER_TRANSCRIPTION: CustomerScenarioProfile = {
   audioSource: 'voiceRecognition',
   vadEnd: 1600,
   maxAudioDuration: 62000,
-  enablePartialResult: true
+  enablePartialResult: true,
+  allowVoiceprint: true,
+  rotateSession: true,
+  lockAudioSource: false
+};
+
+export const CUSTOMER_FORM: CustomerScenarioProfile = {
+  name: 'form',
+  audioSource: 'mic',
+  vadEnd: 1500,
+  maxAudioDuration: 28800000,
+  enablePartialResult: true,
+  allowVoiceprint: false,
+  rotateSession: false,
+  lockAudioSource: true
+};
+
+export const CUSTOMER_MEETING_MINUTES: CustomerScenarioProfile = {
+  name: 'meeting-minutes',
+  audioSource: 'mic',
+  vadEnd: 1500,
+  maxAudioDuration: 18000000,
+  enablePartialResult: true,
+  allowVoiceprint: false,
+  rotateSession: false,
+  lockAudioSource: true
 };
 
 export function customerScenarioProfile(name: CustomerScenarioName): CustomerScenarioProfile {
   if (name === 'tap-vad') return CUSTOMER_TAP_VAD;
   if (name === 'transcription') return CUSTOMER_TRANSCRIPTION;
+  if (name === 'form') return CUSTOMER_FORM;
+  if (name === 'meeting-minutes') return CUSTOMER_MEETING_MINUTES;
   return CUSTOMER_PTT;
 }
 

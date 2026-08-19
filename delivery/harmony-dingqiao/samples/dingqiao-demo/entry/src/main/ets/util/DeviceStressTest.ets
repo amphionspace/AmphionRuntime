@@ -17,7 +17,11 @@ import {
   VoiceprintRegisterParams
 } from 'amphion_dingqiao';
 import { AmphionRuntime } from 'amphion_asr';
-import { CustomerScenarioName, customerProfileStartParams } from './CustomerScenarioProfile';
+import {
+  CustomerScenarioName,
+  customerProfileStartParams,
+  customerScenarioProfile
+} from './CustomerScenarioProfile';
 import { WavIo } from './WavIo';
 
 const TAG: string = 'DeviceStressTest';
@@ -1820,6 +1824,8 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   let scenario: CustomerScenarioName = 'ptt';
   if (mode === 'customer-tap-vad') scenario = 'tap-vad';
   else if (mode === 'customer-transcription') scenario = 'transcription';
+  else if (mode === 'customer-form') scenario = 'form';
+  else if (mode === 'customer-meeting-minutes') scenario = 'meeting-minutes';
   const sessionId = `${mode}-${index}`;
   const callbackListener = mode === 'customer-tap-vad' ?
     new CallbackApiReentrantListener(engine, sessionId, 'speech-end') : undefined;
@@ -1877,8 +1883,9 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   result.fedFrames = fed + tailFrames;
   result.tailSilenceMs = mode === 'customer-ptt-tail' ? tailFrames * FRAME_DURATION_MS : -1;
   result.lastFinalsBeforeFinish = lastBeforeStop;
-  result.requestedVadBeginMs = scenario === 'tap-vad' ? 5000 : -1;
-  result.requestedMaxAudioDurationMs = scenario === 'tap-vad' ? 20000 : 62000;
+  const profile = customerScenarioProfile(scenario);
+  result.requestedVadBeginMs = profile.vadBegin === undefined ? -1 : profile.vadBegin;
+  result.requestedMaxAudioDurationMs = profile.maxAudioDuration;
   return result;
 }
 
@@ -2527,7 +2534,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       } else if (options.mode === 'callback-api-reentrant') {
         result = await runCallbackApiReentrantCycle(engine, entry, i);
       } else if (options.mode === 'customer-tap-vad' || options.mode === 'customer-ptt' ||
-        options.mode === 'customer-transcription' || options.mode === 'customer-ptt-tail') {
+        options.mode === 'customer-transcription' || options.mode === 'customer-ptt-tail' ||
+        options.mode === 'customer-form' || options.mode === 'customer-meeting-minutes') {
         result = await runCustomerScenarioCycle(engine, entry, i, options.mode, options.paceMs);
       } else if (options.mode === 'endpoint-reentrant') {
         result = await runEndpointReentrantCycle(engine, entry, i);

@@ -45,7 +45,8 @@ const SPEAKER_VAD_WINDOW_MS = 1500;
 const SPEAKER_VAD_HOP_MS = 500;
 const SPEAKER_VAD_CONSECUTIVE_BELOW = 2;
 const BRAND_ACCENT = '#2E6BE6';
-const CUSTOMER_SCENARIOS: CustomerScenarioName[] = ['tap-vad', 'ptt', 'transcription'];
+const CUSTOMER_SCENARIOS: CustomerScenarioName[] =
+  ['tap-vad', 'ptt', 'transcription', 'form', 'meeting-minutes'];
 const AUDIO_SOURCES: DemoAudioSource[] = ['mic', 'voiceRecognition', 'voiceCommunication'];
 
 class FinalSegment {
@@ -363,9 +364,12 @@ struct Index {
     this.resetSdkCapture();
     const ctx = getContext(this) as common.UIAbilityContext;
     this.capturedHotwords = DemoPrefs.getUserHotwords(ctx);
-    this.capturedVoiceprintId = DemoPrefs.getVoiceprintId(ctx);
-    this.capturedVoiceprintVerify = this.voiceprintVerifyDesired && this.capturedVoiceprintId.length > 0;
-    this.capturedSpeakerVad = this.speakerVadDesired && this.capturedVoiceprintId.length > 0;
+    const profile = customerScenarioProfile(this.customerScenario);
+    this.capturedVoiceprintId = profile.allowVoiceprint ? DemoPrefs.getVoiceprintId(ctx) : '';
+    this.capturedVoiceprintVerify = profile.allowVoiceprint && this.voiceprintVerifyDesired &&
+      this.capturedVoiceprintId.length > 0;
+    this.capturedSpeakerVad = profile.allowVoiceprint && this.speakerVadDesired &&
+      this.capturedVoiceprintId.length > 0;
     this.capturedPoliceEnhancement = this.policeEnhancementDesired;
     this.capturedCustomerScenario = this.customerScenario;
     this.capturedAudioSource = this.audioSource;
@@ -500,6 +504,8 @@ struct Index {
   private scenarioLabel(name: CustomerScenarioName): string {
     if (name === 'tap-vad') return '点击 + VAD';
     if (name === 'transcription') return '长语音';
+    if (name === 'form') return '填单';
+    if (name === 'meeting-minutes') return '会议纪要';
     return '短语音 PTT';
   }
 
@@ -525,8 +531,15 @@ struct Index {
 
   private selectAudioSource(source: DemoAudioSource): void {
     if (this.listening || this.replaying) return;
+    const profile = customerScenarioProfile(this.customerScenario);
+    if (profile.lockAudioSource) return;
     this.audioSource = source;
     this.status = `${this.scenarioLabel(this.customerScenario)} · SourceType=${source}`;
+  }
+
+  private formatMaxAudioDuration(durationMs: number): string {
+    if (durationMs % 3600000 === 0) return `${durationMs / 3600000}h`;
+    return `${durationMs}ms`;
   }
 
   private writeFrameToCurrentSession(frame: ArrayBuffer): void {
@@ -547,10 +560,11 @@ struct Index {
     this.feedFrameLive(frame);
   }
 
-  // modelReady=true 后的正常喂帧(含 55s 轮转)。轮转间隙 sessionId 短暂为空,丢极少数帧(同旧行为)。
+  // modelReady=true 后正常喂帧。既有短场景保留 55s 轮转；填单/会议纪要使用客户的长单 session。
   private feedFrameLive(frame: ArrayBuffer): void {
     if (this.sessionId.length === 0) return;
-    if (this.sessionAudioMs >= SESSION_ROTATE_AUDIO_MS && !this.rotatingSession) {
+    const profile = customerScenarioProfile(this.capturedCustomerScenario);
+    if (profile.rotateSession && this.sessionAudioMs >= SESSION_ROTATE_AUDIO_MS && !this.rotatingSession) {
       // Proactively rotate before the 60 s SDK cap; onComplete restarts a fresh session.
       this.rotatingSession = true;
       const sid = this.sessionId;
@@ -1214,7 +1228,7 @@ struct Index {
         .width('100%')
         Text(`SourceType=${this.audioSource} · ` +
           `vadEnd=${customerScenarioProfile(this.customerScenario).vadEnd}ms · ` +
-          `max=${customerScenarioProfile(this.customerScenario).maxAudioDuration}ms`)
+          `max=${this.formatMaxAudioDuration(customerScenarioProfile(this.customerScenario).maxAudioDuration)}`)
           .fontSize(11)
           .fontColor(Color.Gray)
           .width('100%')
@@ -1224,7 +1238,8 @@ struct Index {
               .layoutWeight(1)
               .height(32)
               .fontSize(10)
-              .enabled(!this.listening && !this.replaying && !this.loading)
+              .enabled(!this.listening && !this.replaying && !this.loading &&
+                !customerScenarioProfile(this.customerScenario).lockAudioSource)
               .backgroundColor(this.audioSource === source ? '#16803A' : '#D8DEE9')
               .onClick((): void => this.selectAudioSource(source))
           })
@@ -1235,8 +1250,10 @@ struct Index {
 
       Row() {
         Text('声纹校验').fontSize(15).layoutWeight(1)
-        Toggle({ type: ToggleType.Switch, isOn: this.voiceprintVerifyDesired })
-          .enabled(this.voiceprintId.length > 0 && !this.listening && !this.replaying)
+        Toggle({ type: ToggleType.Switch,
+          isOn: customerScenarioProfile(this.customerScenario).allowVoiceprint && this.voiceprintVerifyDesired })
+          .enabled(customerScenarioProfile(this.customerScenario).allowVoiceprint &&
+            this.voiceprintId.length > 0 && !this.listening && !this.replaying)
           .onChange((isOn: boolean): void => this.onVoiceprintSwitch(isOn))
       }
       .width('100%')
@@ -1249,8 +1266,10 @@ struct Index {
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
-        Toggle({ type: ToggleType.Switch, isOn: this.speakerVadDesired })
-          .enabled(this.voiceprintId.length > 0 && !this.listening && !this.replaying)
+        Toggle({ type: ToggleType.Switch,
+          isOn: customerScenarioProfile(this.customerScenario).allowVoiceprint && this.speakerVadDesired })
+          .enabled(customerScenarioProfile(this.customerScenario).allowVoiceprint &&
+            this.voiceprintId.length > 0 && !this.listening && !this.replaying)
           .onChange((isOn: boolean): void => this.onSpeakerVadSwitch(isOn))
       }
       .width('100%')
@@ -1270,7 +1289,9 @@ struct Index {
       .width('100%')
       .alignItems(VerticalAlign.Center)
 
-      Text(this.voiceprintInfo).fontSize(12).fontColor(BRAND_ACCENT).width('100%')
+      Text(customerScenarioProfile(this.customerScenario).allowVoiceprint ?
+        this.voiceprintInfo : '该场景按客户参数不注入声纹字段')
+        .fontSize(12).fontColor(BRAND_ACCENT).width('100%')
 
       if (this.loading) {
         Row({ space: 8 }) {

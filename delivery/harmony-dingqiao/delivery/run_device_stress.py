@@ -36,6 +36,7 @@ FINISH_MODES = {
     "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration", "numeric-edge",
     "finish-shutdown", "finish-shutdown-relicense",
     "customer-tap-vad", "customer-ptt", "customer-transcription", "customer-ptt-tail",
+    "customer-form", "customer-meeting-minutes",
 }
 MIN_MEMORY_SAMPLES = 6
 MIN_MEMORY_OBSERVATION_SECONDS = 15.0
@@ -118,6 +119,8 @@ def parse_args() -> argparse.Namespace:
             "customer-ptt",
             "customer-transcription",
             "customer-ptt-tail",
+            "customer-form",
+            "customer-meeting-minutes",
             "endpoint-reentrant",
             "finish-shutdown",
             "finish-shutdown-relicense",

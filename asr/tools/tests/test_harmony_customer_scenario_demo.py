@@ -24,6 +24,13 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("maxAudioDuration: 62000", source)
         self.assertIn("CUSTOMER_TRANSCRIPTION", source)
         self.assertIn("vadEnd: 1600", source)
+        self.assertIn("CUSTOMER_FORM", source)
+        self.assertIn("maxAudioDuration: 28800000", source)
+        self.assertIn("CUSTOMER_MEETING_MINUTES", source)
+        self.assertIn("maxAudioDuration: 18000000", source)
+        self.assertGreaterEqual(source.count("vadEnd: 1500"), 2)
+        self.assertGreaterEqual(source.count("allowVoiceprint: false"), 2)
+        self.assertGreaterEqual(source.count("rotateSession: false"), 2)
         self.assertIn("enablePartialResult: true", source)
 
     def test_audio_capture_source_is_forwarded_to_the_worker(self) -> None:
@@ -40,7 +47,14 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         carrier = CARRIER.read_text(encoding="utf-8")
         driver = DRIVER.read_text(encoding="utf-8")
 
-        for mode in ("customer-tap-vad", "customer-ptt", "customer-transcription", "customer-ptt-tail"):
+        for mode in (
+            "customer-tap-vad",
+            "customer-ptt",
+            "customer-transcription",
+            "customer-ptt-tail",
+            "customer-form",
+            "customer-meeting-minutes",
+        ):
             self.assertIn(mode, carrier)
             self.assertIn(f'"{mode}"', driver)
         self.assertIn("customerProfileStartParams", carrier)
@@ -57,6 +71,9 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("this.capturedAudioSource = this.audioSource", source)
         self.assertIn("this.capturedAudioSource", source)
         self.assertIn("meta['audioSource'] = this.audioSourceName(this.capturedAudioSource)", source)
+        self.assertIn("profile.allowVoiceprint", source)
+        self.assertIn("profile.rotateSession", source)
+        self.assertIn("profile.lockAudioSource", source)
         self.assertIn("this.listening && this.rotatingSession", source)
         self.assertIn("this.finishAutoEndedCapture().catch", source)
         self.assertIn("this.stopListening().catch", source)
