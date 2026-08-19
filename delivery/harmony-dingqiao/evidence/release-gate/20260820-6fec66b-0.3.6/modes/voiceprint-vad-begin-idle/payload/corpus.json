@@ -1,0 +1,13 @@
+[
+  {
+    "channels": 1,
+    "duration_seconds": 6.48,
+    "id": "000000",
+    "pcm_bytes": 207360,
+    "pcm_sha256": "f2fe411dea906f877dda34f2b3c3190edead2a3b9b99bf209ac5c1f76f75d4aa",
+    "sample_rate": 24000,
+    "sample_width": 2,
+    "source": "tdtech_testdata/police_terms/wavs/zh_police_terms_samples_614.wav",
+    "source_sha256": "429033610280fb42e86ad7a6dffdf8eeab26596928c72a4aa405675d61ef5312"
+  }
+]
