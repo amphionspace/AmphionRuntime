@@ -1,13 +1,13 @@
 {
   "schema_version": 3,
-  "model_id": "edge-transducer-chunk32-lc256-260819-iter250-avg1",
+  "model_id": "edge-transducer-chunk32-lc256-police-v5-numeric-recovery-iter1500-avg1",
   "source_bundle": {
     "name": "bundle.tar.gz",
-    "md5": "b458ff9bf4502c4bc20df8341da362b6"
+    "md5": "11dd6887a8376fbacfdcb792533d1b55"
   },
   "onnx_files_md5": {
-    "decoder.onnx": "0ca792ce152a8605a323cd3836da9b76",
-    "encoder.int8.onnx": "87e95f4f35139ef07ca7518e6ad1e1a5",
-    "joiner.onnx": "14495082f93c71a13f9f627d3f46ea10"
+    "decoder.onnx": "3440f3acd2a17282a7af7238aa01f749",
+    "encoder.int8.onnx": "418ffd0175e0f55f4b50c432f3e84303",
+    "joiner.onnx": "2076ad8548a43b01ae4cfdbced021470"
   }
 }
