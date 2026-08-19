@@ -71,6 +71,23 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("restore-keys:", gradle_cache)
         self.assertNotIn("hashFiles('${{ env.SDK_BUILD_DIR }}", gradle_cache)
 
+    def test_native_cache_hit_skips_ndk_setup_but_not_gradle(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        android = workflow.split("  android-aar:", 1)[1].split("  ci-result:", 1)[0]
+
+        sdk_setup = android.split("- name: Set up Android SDK", 1)[1].split(
+            "- name: Install Android native SDK tools", 1
+        )[0]
+        native_setup = android.split("- name: Install Android native SDK tools", 1)[1].split(
+            "- name: Cache Gradle", 1
+        )[0]
+        gradle_build = android.split("- name: Gradle assemble + unit test", 1)[1]
+
+        self.assertNotIn("ndk;${{ env.NDK_VERSION }}", sdk_setup)
+        self.assertIn("steps.native-cache.outputs.cache-hit != 'true'", native_setup)
+        self.assertIn('sdkmanager "ndk;${NDK_VERSION}"', native_setup)
+        self.assertNotIn("steps.native-cache.outputs.cache-hit", gradle_build)
+
     def test_finish_compat_release_gate_is_part_of_the_project_working_agreement(self) -> None:
         agreement = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
         device_stress = (

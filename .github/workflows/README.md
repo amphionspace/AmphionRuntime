@@ -37,8 +37,9 @@
 
 缓存 key 只接受完整 fingerprint 的精确命中，不配置 `restore-keys`。命中后必须先用
 manifest 校验 fingerprint 及三份 `.so` 的 SHA-256/大小，才会跳过 native 编译；校验
-失败直接令 job 失败。未命中时重新编译并生成 identity manifest。无论是否命中，
-Gradle assemble/unit test、AAR 内容与哈希校验、Kotlin bridge 对账和 artifact 上传均照常运行。
+失败直接令 job 失败。命中后也不再下载仅供 native 编译使用的 NDK/CMake；未命中时
+安装固定版本工具、重新编译并生成 identity manifest。无论是否命中，Gradle
+assemble/unit test、AAR 内容与哈希校验、Kotlin bridge 对账和 artifact 上传均照常运行。
 
 ## Gradle cache
 
