@@ -9,7 +9,6 @@ the exact ONNX Runtime version shipped by Android.
 from __future__ import annotations
 
 import argparse
-import fcntl
 import hashlib
 import json
 import os
@@ -19,6 +18,12 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
+
+try:
+    import fcntl
+except ModuleNotFoundError:  # Windows build hosts
+    fcntl = None  # type: ignore[assignment]
+    import msvcrt
 
 
 PROFILE = os.environ.get("AMPHION_ORT_PROFILE", "harmony")
@@ -120,11 +125,23 @@ def _atomic_write_json(payload: dict[str, Any], destination: Path) -> None:
 def _cache_lock(lock_path: Path) -> Iterator[None]:
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("a+b") as lock_file:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        if fcntl is not None:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        else:
+            lock_file.seek(0, os.SEEK_END)
+            if lock_file.tell() == 0:
+                lock_file.write(b"\0")
+                lock_file.flush()
+            lock_file.seek(0)
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
         try:
             yield
         finally:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            if fcntl is not None:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            else:
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def _load_valid_cache(entry_dir: Path, source_sha256: str) -> dict[str, Any] | None:

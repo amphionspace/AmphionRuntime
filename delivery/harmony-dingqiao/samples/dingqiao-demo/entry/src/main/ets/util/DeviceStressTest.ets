@@ -74,6 +74,8 @@ class SessionEvents {
   errors: number = 0;
   finalChars: number = 0;
   finalTexts: string[] = [];
+  finalCallbackAtMs: number[] = [];
+  finalIsLast: boolean[] = [];
   audioFeedStartedAtMs: number = -1;
   speechBeginAtMs: number = -1;
   firstNonEmptyResultAtMs: number = -1;
@@ -172,6 +174,13 @@ class StressListener implements RecognitionListener {
     }
     this.events.finalChars += result.result.length;
     this.events.finalTexts.push(result.result);
+    this.events.finalCallbackAtMs.push(Date.now());
+    this.events.finalIsLast.push(result.isLast);
+    hilog.info(DOMAIN, TAG,
+      'ASR_SLICE|sessionId=%{public}s|finalIndex=%{public}d|callbackAtMs=%{public}d|' +
+      'isLast=%{public}s|textHex=%{public}s',
+      sessionId, this.events.finals, Date.now(), result.isLast ? 'true' : 'false',
+      stringToUtf16Hex(result.result));
     this.events.lastIsLast = result.isLast;
     if (result.isLast) this.events.lastFinals += 1;
     if (result.speakerSimilarity === undefined) {
@@ -793,6 +802,7 @@ class CycleResult {
   audioStartToSpeechBeginMs: number = -1;
   speechBeginToFirstNonEmptyResultMs: number = -1;
   resultHex: string = '';
+  sliceEvidenceHex: string = '';
   callbackTrace: string = '';
   unexpectedSessionCallbacks: number = 0;
   detail: string = '';
@@ -823,7 +833,8 @@ class CycleResult {
       `|audioStartToFirstNonEmptyResultMs=${this.audioStartToFirstNonEmptyResultMs}` +
       `|audioStartToSpeechBeginMs=${this.audioStartToSpeechBeginMs}` +
       `|speechBeginToFirstNonEmptyResultMs=${this.speechBeginToFirstNonEmptyResultMs}` +
-      `|resultHex=${this.resultHex}|trace=${this.callbackTrace}|detail=${this.detail}`;
+      `|resultHex=${this.resultHex}|sliceEvidenceHex=${this.sliceEvidenceHex}` +
+      `|trace=${this.callbackTrace}|detail=${this.detail}`;
   }
 }
 
@@ -1148,6 +1159,12 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
     result.audioStartToSpeechBeginMs = events.speechBeginAtMs - events.audioFeedStartedAtMs;
   }
   result.resultHex = stringToUtf16Hex(events.finalTexts.join(''));
+  const sliceEvidence: string[] = [];
+  for (let i = 0; i < events.finalTexts.length; i++) {
+    sliceEvidence.push(`${i + 1}\t${events.finalCallbackAtMs[i]}\t` +
+      `${events.finalIsLast[i] ? 'true' : 'false'}\t${events.finalTexts[i]}`);
+  }
+  result.sliceEvidenceHex = stringToUtf16Hex(sliceEvidence.join('\n'));
   result.callbackTrace = events.callbackTrace.join('>');
   result.unexpectedSessionCallbacks = events.unexpectedSessionCallbacks;
   result.ok = ok && result.liveStreams === 0 && result.unexpectedSessionCallbacks === 0;

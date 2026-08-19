@@ -74,7 +74,7 @@ EOF
       exit 1
     fi
     TOOLCHAIN="$(dirname "$CLANG")"
-    BUILD_DIR="$SOURCE_DIR/build-ohos-arm64-v8a"
+    BUILD_DIR="${AMPHION_AGC_BUILD_DIR:-$SOURCE_DIR/build-ohos-arm64-v8a}"
     CROSS_FILE="$BUILD_DIR/ohos-arm64-v8a.ini"
     mkdir -p "$BUILD_DIR"
     cat > "$CROSS_FILE" <<EOF

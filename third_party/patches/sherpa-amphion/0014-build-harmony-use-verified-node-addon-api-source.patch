@@ -1,0 +1,72 @@
+From 6e246eb85a0c55f0af22dcb0dd8ad77ee614a0cb Mon Sep 17 00:00:00 2001
+From: Amphion CI <ci@amphion.local>
+Date: Wed, 19 Aug 2026 11:25:00 +0800
+Subject: [PATCH] build(harmony): use verified node-addon-api source
+
+---
+ .../sherpa_onnx/src/main/cpp/CMakeLists.txt   | 41 ++++++++++++++++++++++++++++++-----------
+ 1 file changed, 30 insertions(+), 11 deletions(-)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt
+index 98f3ab1a..aa164ffc 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt
+@@ -24,16 +24,30 @@ include_directories(${NATIVERENDER_ROOT_PATH}
+                     ${NATIVERENDER_ROOT_PATH}/include)
++# Git on Windows checks upstream header symlinks out as one-line text files. The authoritative
++# headers live in the sherpa source tree; put that root before the Harmony wrapper include path.
++get_filename_component(SHERPA_ONNX_SOURCE_ROOT
++    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../.." ABSOLUTE)
++include_directories(BEFORE ${SHERPA_ONNX_SOURCE_ROOT})
++include_directories(${SHERPA_ONNX_SOURCE_ROOT}/sherpa-onnx/csrc/wetext)
++include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/include)
+ 
+ include(FetchContent)
+-FetchContent_Declare(node_addon_api
+-    GIT_REPOSITORY "https://github.com/nodejs/node-addon-api.git"
+-    GIT_TAG c679f6f4c9dc6bf9fc0d99cbe5982bd24a5e2c7b
+-    PATCH_COMMAND git checkout . && git apply --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/my-patch.diff"
+-)
+-FetchContent_MakeAvailable(node_addon_api)
+-FetchContent_GetProperties(node_addon_api)
+-if(NOT node_addon_api_POPULATED)
+-    message(STATUS "Downloading node-addon-api from")
+-    FetchContent_Populate(node_addon_api)
++if(DEFINED ENV{AMPHION_NODE_ADDON_API_SOURCE_DIR})
++    file(TO_CMAKE_PATH "$ENV{AMPHION_NODE_ADDON_API_SOURCE_DIR}" node_addon_api_SOURCE_DIR)
++    if(NOT EXISTS "${node_addon_api_SOURCE_DIR}/napi.h")
++        message(FATAL_ERROR "Invalid AMPHION_NODE_ADDON_API_SOURCE_DIR: ${node_addon_api_SOURCE_DIR}")
++    endif()
++else()
++    FetchContent_Declare(node_addon_api
++        GIT_REPOSITORY "https://github.com/nodejs/node-addon-api.git"
++        GIT_TAG c679f6f4c9dc6bf9fc0d99cbe5982bd24a5e2c7b
++        PATCH_COMMAND git checkout . && git apply --ignore-whitespace "${CMAKE_CURRENT_LIST_DIR}/my-patch.diff"
++    )
++    FetchContent_MakeAvailable(node_addon_api)
++    FetchContent_GetProperties(node_addon_api)
++    if(NOT node_addon_api_POPULATED)
++        message(STATUS "Downloading node-addon-api from")
++        FetchContent_Populate(node_addon_api)
++    endif()
+ endif()
+ 
+ message(STATUS "node-addon-api is downloaded to ${node_addon_api_SOURCE_DIR}")
+@@ -64,4 +77,8 @@ add_library(sherpa_onnx SHARED
+   wave-reader.cc
+   wave-writer.cc
+   wetext-itn.cc
++  ${SHERPA_ONNX_SOURCE_ROOT}/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
++  ${SHERPA_ONNX_SOURCE_ROOT}/sherpa-onnx/csrc/wetext/processor/wetext_token_parser.cc
++  ${SHERPA_ONNX_SOURCE_ROOT}/sherpa-onnx/csrc/wetext/processor/wetext_processor_c_api.cc
++  ${SHERPA_ONNX_SOURCE_ROOT}/sherpa-onnx/csrc/wetext/utils/wetext_string.cc
+ )
+@@ -82,4 +99,5 @@ target_link_libraries(sherpa_onnx PUBLIC libace_napi.z.so
+  libhilog_ndk.z.so # for hilog
+  librawfile.z.so
+- sherpa_onnx_c_api onnxruntime
++ sherpa_onnx_c_api onnxruntime
++ ${CMAKE_CURRENT_SOURCE_DIR}/libs/${OHOS_ARCH}/libfst.a
+ )
+-- 
+2.55.0.windows.2

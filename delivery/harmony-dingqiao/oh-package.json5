@@ -5,7 +5,5 @@
   "description": "Amphion HarmonyOS unified delivery: ASR + TTS demo, docs and packaging",
   "license": "Commercial",
   "dependencies": {},
-  "devDependencies": {
-    "@ohos/hypium": "1.0.19"
-  }
+  "devDependencies": {}
 }

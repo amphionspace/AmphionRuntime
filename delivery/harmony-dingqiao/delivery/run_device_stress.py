@@ -162,6 +162,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--device", default="", help=argparse.SUPPRESS)
     parser.add_argument(
+        "--bundle",
+        default=BUNDLE,
+        help="Installed test carrier bundle name (defaults to the standard Harmony demo).",
+    )
+    parser.add_argument(
         "--output-root",
         type=Path,
         default=PROJECT_ROOT / "build" / "device-stress",
@@ -285,19 +290,35 @@ class Hdc:
     def shell(self, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
         return self.command("shell", *args, check=check)
 
+    @staticmethod
+    def physical_sandbox_path(remote: str) -> str:
+        logical_prefix = "/data/storage/el2/base/"
+        if not remote.startswith(logical_prefix):
+            raise StressFailure(f"cannot map app sandbox path: {remote}")
+        relative = remote[len(logical_prefix):]
+        return f"/data/app/el2/100/base/{BUNDLE}/{relative}"
+
     def app_send(self, local: Path, remote: str) -> None:
         result = self.command("file", "send", "-b", BUNDLE, str(local), remote, check=False)
+        if "Invalid bundle name" in result.stdout + result.stderr:
+            physical = self.physical_sandbox_path(remote)
+            self.shell("mkdir", "-p", str(Path(physical).parent).replace("\\", "/"))
+            result = self.command("file", "send", str(local), physical, check=False)
         if result.returncode != 0 or "[Fail]" in result.stdout + result.stderr:
             raise StressFailure(f"failed to send stress payload: {(result.stdout + result.stderr).strip()}")
 
     def app_recv(self, remote: str, local: Path) -> bool:
         result = self.command("file", "recv", "-b", BUNDLE, remote, str(local), check=False)
+        if "Invalid bundle name" in result.stdout + result.stderr:
+            result = self.command("file", "recv", self.physical_sandbox_path(remote), str(local), check=False)
         return result.returncode == 0 and "[Fail]" not in result.stdout + result.stderr and local.is_file()
 
 
 def locate_hdc() -> Path:
     deveco = Path(os.environ.get("DEVECO_STUDIO_HOME", "/Applications/DevEco-Studio.app/Contents"))
     hdc = deveco / "sdk" / "default" / "openharmony" / "toolchains" / "hdc"
+    if os.name == "nt":
+        hdc = hdc.with_suffix(".exe")
     if not hdc.is_file():
         raise StressFailure(f"missing HDC: {hdc}")
     return hdc
@@ -972,6 +993,8 @@ def capture_hilog(hdc: Hdc, destination: Path) -> None:
 
 
 def run_stress(args: argparse.Namespace) -> Path:
+    global BUNDLE
+    BUNDLE = args.bundle
     hdc_path = locate_hdc()
     device = select_target(hdc_path, args.device)
     hdc = Hdc(hdc_path, device)

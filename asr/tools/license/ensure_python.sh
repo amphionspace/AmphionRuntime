@@ -16,15 +16,17 @@ ensure_license_python() {
   local venv="$1"
   local requirements="$2"
   local python="$venv/bin/python"
+  local bootstrap_python="${LICENSE_PYTHON:-python3}"
   local lock="${venv}.lock"
   local attempts=0
 
+  [[ -x "$python" ]] || python="$venv/Scripts/python.exe"
   if _license_python_usable "$python"; then
     return
   fi
 
-  command -v python3 >/dev/null || {
-    echo "[ERROR] python3 is required to create the license environment" >&2
+  command -v "$bootstrap_python" >/dev/null || {
+    echo "[ERROR] Python is required to create the license environment" >&2
     return 1
   }
   mkdir -p "$(dirname "$venv")"
@@ -48,7 +50,8 @@ ensure_license_python() {
       exit 0
     fi
     echo "[INFO] creating or repairing license virtual environment: $venv" >&2
-    python3 -m venv --clear "$venv"
+    "$bootstrap_python" -m venv --clear "$venv"
+    [[ -x "$venv/bin/python" ]] || python="$venv/Scripts/python.exe"
     "$python" -m pip install -q -r "$requirements"
     _license_python_usable "$python"
   )

@@ -11,14 +11,18 @@ LICENSE_FILE="$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/s
 DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/amphion_asr_demo_device_ids.txt}"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$REPO_ROOT/.secure/amphion-license-private.pem}"
 HAP=""
-BUNDLE_NAME="com.amphion.asr.harmony.demo"
+BUNDLE_NAME="com.amphion.dingqiao.demo"
 MODULE_NAME="amphion_asr_demo"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 ZH_EN_ONLY=false
 DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
 HAP_SIGN_TOOL_JAR="${HAP_SIGN_TOOL_JAR:-$DEVECO_HOME/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar}"
 JAVA_BIN="${JAVA_HOME:+$JAVA_HOME/bin/java}"
-JAVA_BIN="${JAVA_BIN:-$DEVECO_HOME/jbr/Contents/Home/bin/java}"
+JAVA_HOME_VALUE="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
+if [[ ! -d "$JAVA_HOME_VALUE" ]]; then
+  JAVA_HOME_VALUE="$DEVECO_HOME/jbr"
+fi
+JAVA_BIN="${JAVA_BIN:-$JAVA_HOME_VALUE/bin/java}"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
 VERIFY_DIR=""
 ZH_EN_ONLY=false
@@ -70,6 +74,7 @@ cleanup_verify_dir() {
 source "$REPO_ROOT/asr/tools/license/ensure_python.sh"
 ensure_license_python "$LICENSE_VENV" "$REPO_ROOT/tools/license/requirements.txt"
 PYTHON="$LICENSE_VENV/bin/python"
+[[ -x "$PYTHON" ]] || PYTHON="$LICENSE_VENV/Scripts/python.exe"
 require_file "$LICENSE_FILE"
 
 "$PYTHON" "$REPO_ROOT/asr/tools/sync_harmony_police_assets.py" --check
@@ -271,12 +276,14 @@ print("[OK] HAP signature, profile, identity, license, and arm64 runtime verifie
 PY
 
   require_file "$SIGNING_CONFIG"
-  if [[ "$(uname)" == "Darwin" ]]; then
+  if [[ -n "${WINDIR:-}" || "$(uname -s)" == MINGW* || "$(uname -s)" == MSYS* || "$(uname -s)" == CYGWIN* ]]; then
+    SIGNING_CONFIG_MODE="windows-acl"
+  elif [[ "$(uname)" == "Darwin" ]]; then
     SIGNING_CONFIG_MODE="$(stat -f '%Lp' "$SIGNING_CONFIG")"
   else
     SIGNING_CONFIG_MODE="$(stat -c '%a' "$SIGNING_CONFIG")"
   fi
-  [[ "$SIGNING_CONFIG_MODE" == "600" || "$SIGNING_CONFIG_MODE" == "400" ]] || {
+  [[ "$SIGNING_CONFIG_MODE" == "windows-acl" || "$SIGNING_CONFIG_MODE" == "600" || "$SIGNING_CONFIG_MODE" == "400" ]] || {
     echo "[ERROR] signing config must not be group/world readable: chmod 600 $SIGNING_CONFIG" >&2
     exit 1
   }

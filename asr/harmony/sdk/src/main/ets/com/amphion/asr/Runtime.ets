@@ -73,6 +73,10 @@ import {
 const ASR_SAMPLE_RATE_HZ: number = 16000;
 // Advance armed initial-silence decisions in fixed 20 ms slices so caller chunking cannot move a deadline.
 const INITIAL_DECISION_CHUNK_SAMPLES: number = ASR_SAMPLE_RATE_HZ / 50;
+// Once initial-silence handling is disarmed, still inspect the public segment at least once per
+// second. A caller may submit minutes of buffered PCM in one write; processing that as one state
+// transition lets the stream overshoot maxSpeechDurationSec and hides endpoint boundaries.
+const VAD_SEGMENT_DECISION_CHUNK_SAMPLES: number = ASR_SAMPLE_RATE_HZ;
 // ORT-format models are optimized and prepacked during Session creation. Device A/B testing showed
 // that an eager silence decode adds ~93 ms to engine readiness but saves only ~9 ms on first audio.
 const EAGER_WARMUP_DURATION_MS: number = 0;
@@ -1288,6 +1292,10 @@ export class AsrSession {
   // VAD gate state (Android-aligned): VAD only gates / drives an early active endpoint while PCM is
   // fed to the recognizer in full so partial results stay real-time.
   private vadSpeechActive: boolean = false;
+  // Count accepted PCM since the last public utterance boundary. Silero can rotate its own ring
+  // buffer without publishing/resetting the online recognizer, so its internal duration is not a
+  // reliable public-segment clock.
+  private vadActiveSegmentSamples: number = 0;
   private trailingSilenceMs: number = 0;
   private vadCarry: Float32Array = new Float32Array(0);
   private initialSilenceTracker: InitialSilenceTracker = new InitialSilenceTracker(0, ASR_SAMPLE_RATE_HZ);
@@ -1444,7 +1452,6 @@ export class AsrSession {
   private acceptPcmFloatNow(samples: Float32Array): void {
     if (this.callbackGate.isClosed() || samples.length === 0) return;
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
-    this.pcmBytesAccepted += samples.length * 2;
     this.totalPcmBytes += samples.length * 2;
     this.streamCallDepth += 1;
     try {
@@ -1464,7 +1471,6 @@ export class AsrSession {
   private async acceptPcmFloatNowAsync(samples: Float32Array): Promise<void> {
     if (this.callbackGate.isClosed() || samples.length === 0) return;
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
-    this.pcmBytesAccepted += samples.length * 2;
     this.totalPcmBytes += samples.length * 2;
     this.streamCallDepth += 1;
     try {
@@ -1975,6 +1981,7 @@ export class AsrSession {
       const remaining = frame.raw.length - offset;
       let chunkSize = this.initialSilenceTracker.isArmed() ?
         Math.min(remaining, INITIAL_DECISION_CHUNK_SAMPLES) : remaining;
+      chunkSize = Math.min(chunkSize, this.publicSegmentSamplesUntilDecision());
       if (this.speakerVadEnabled) {
         const speakerVad = this.effectiveSpeakerVad();
         if (speakerVad !== undefined) {
@@ -1995,6 +2002,7 @@ export class AsrSession {
       const remaining = frame.raw.length - offset;
       let chunkSize = this.initialSilenceTracker.isArmed() ?
         Math.min(remaining, INITIAL_DECISION_CHUNK_SAMPLES) : remaining;
+      chunkSize = Math.min(chunkSize, this.publicSegmentSamplesUntilDecision());
       if (this.speakerVadEnabled) {
         const speakerVad = this.effectiveSpeakerVad();
         if (speakerVad !== undefined) {
@@ -2013,6 +2021,7 @@ export class AsrSession {
     if (this.callbackGate.isClosed() ||
       (!replay && this.initialSilenceTracker.hasTimedOut())) return;
     if (!replay) this.initialSilenceTracker.observeAcousticSamples(rawSamples);
+    if (!replay) this.pcmBytesAccepted += rawSamples.length * 2;
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
       this.effectiveSpeechBuffer.observe(rawSamples);
     }
@@ -2033,12 +2042,21 @@ export class AsrSession {
     const resetGenerationBefore = this.recognizerResetGeneration;
     this.feedRecognizer(processedSamples, false);
     if (this.callbackGate.isClosed()) return;
-    if (this.vad === undefined) return;
     if (this.recognizerResetGeneration !== resetGenerationBefore) {
       // sherpa endpoint already cut + reset the stream; resync VAD/speaker state to segment start.
       this.resetVadGateState();
       return;
     }
+    if (!replay) {
+      this.vadActiveSegmentSamples += rawSamples.length;
+      if (this.vadActiveSegmentSamples >= this.maxVadSegmentSamples()) {
+        Logger.metric(`kind=VAD_ENDPOINT sessionId=${this.sessionId} ` +
+          `reason=max-speech-duration samples=${this.vadActiveSegmentSamples}`);
+        this.triggerMaxSegmentEndpoint();
+        return;
+      }
+    }
+    if (this.vad === undefined) return;
 
     // Keep Silero on caller PCM so AGC cannot move VAD/endpoint boundaries. Silero requires
     // window-aligned feeds (512); slice into windows and retain the remainder.
@@ -2089,6 +2107,7 @@ export class AsrSession {
     processedSamples: Float32Array): Promise<void> {
     if (this.callbackGate.isClosed() || this.initialSilenceTracker.hasTimedOut()) return;
     this.initialSilenceTracker.observeAcousticSamples(rawSamples);
+    this.pcmBytesAccepted += rawSamples.length * 2;
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
       this.effectiveSpeechBuffer.observe(rawSamples);
     }
@@ -2106,11 +2125,18 @@ export class AsrSession {
     const resetGenerationBefore = this.recognizerResetGeneration;
     await this.feedRecognizerAsync(processedSamples, false);
     if (this.callbackGate.isClosed()) return;
-    if (this.vad === undefined) return;
     if (this.recognizerResetGeneration !== resetGenerationBefore) {
       this.resetVadGateState();
       return;
     }
+    this.vadActiveSegmentSamples += rawSamples.length;
+    if (this.vadActiveSegmentSamples >= this.maxVadSegmentSamples()) {
+      Logger.metric(`kind=VAD_ENDPOINT sessionId=${this.sessionId} ` +
+        `reason=max-speech-duration samples=${this.vadActiveSegmentSamples}`);
+      this.triggerMaxSegmentEndpoint();
+      return;
+    }
+    if (this.vad === undefined) return;
 
     const merged = this.vadCarry.length === 0 ? rawSamples :
       concatFloat32([this.vadCarry, rawSamples]);
@@ -2184,10 +2210,11 @@ export class AsrSession {
   // stream (Android parity), then resync the VAD/speaker gate. No inputFinished is used here, which
   // is the verified-safe native ordering on Harmony.
   private triggerVadActiveEndpoint(): void {
+    const decodeDurationMs = this.flushEndpointTail();
     this.endpointAtMs = Date.now();
     if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
     const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
-    this.dispatchFinal(true, 0, stopAtEndpoint);
+    this.dispatchFinal(true, decodeDurationMs, stopAtEndpoint);
     if (this.callbackGate.isClosed()) return;
     if (stopAtEndpoint) {
       this.notifyStopped();
@@ -2196,6 +2223,45 @@ export class AsrSession {
     this.finishUtterance(true);
     if (this.callbackGate.isClosed()) return;
     this.resetVadGateState();
+  }
+
+  // The configured maximum is a liveness boundary even when SDK VAD is unavailable or misses the
+  // utterance. Stabilize the pending encoder tail, publish only real ASR evidence, and rotate a
+  // tokenless stream silently so silence/noise never creates an empty public final.
+  private triggerMaxSegmentEndpoint(): void {
+    const decodeDurationMs = this.flushEndpointTail();
+    const probe = this.recognizer.getResult(this.stream);
+    const hasEvidence = probe.text.length > 0 || probe.tokens.length > 0;
+    if (hasEvidence) {
+      this.endpointAtMs = Date.now();
+      if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
+      const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
+      this.dispatchFinal(true, decodeDurationMs, stopAtEndpoint);
+      if (this.callbackGate.isClosed()) return;
+      if (stopAtEndpoint) {
+        this.notifyStopped();
+        return;
+      }
+    } else {
+      this.utteranceStartMs = Date.now();
+      this.pcmBytesAccepted = 0;
+      this.firstPcmMs = -1;
+      this.firstPartialLatencyMs = -1;
+      this.speakerPcmBuffers.clearAll();
+      this.effectiveSpeechBuffer.reset();
+    }
+    this.finishUtterance(true);
+    if (this.callbackGate.isClosed()) return;
+    this.resetVadGateState();
+  }
+
+  // A boundary may arrive while the last Zipformer chunk is still unstable. Feed the same final
+  // tail used by finish(), then exhaust only already-ready work without marking input finished.
+  private flushEndpointTail(): number {
+    const startedMs = Date.now();
+    this.appendFinalTailSilence();
+    while (this.recognizer.isReady(this.stream)) this.recognizer.decode(this.stream);
+    return Date.now() - startedMs;
   }
 
   // After a final, either rebuild the stream (when the utterance had content) or do a cheap soft
@@ -2251,9 +2317,19 @@ export class AsrSession {
   private resetVadGateState(): void {
     this.vad?.reset();
     this.vadSpeechActive = false;
+    this.vadActiveSegmentSamples = 0;
     this.trailingSilenceMs = 0;
     this.vadCarry = new Float32Array(0);
     this.resetSpeakerVadState();
+  }
+
+  private maxVadSegmentSamples(): number {
+    return Math.max(1, Math.round(this.config.vadConfig.maxSpeechDurationSec * ASR_SAMPLE_RATE_HZ));
+  }
+
+  private publicSegmentSamplesUntilDecision(): number {
+    const remaining = this.maxVadSegmentSamples() - this.vadActiveSegmentSamples;
+    return Math.max(1, Math.min(VAD_SEGMENT_DECISION_CHUNK_SAMPLES, remaining));
   }
 
   private feedRecognizer(samples: Float32Array, isFinal: boolean): void {

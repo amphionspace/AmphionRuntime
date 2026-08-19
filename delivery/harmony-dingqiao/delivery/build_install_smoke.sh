@@ -12,12 +12,18 @@ HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
 OHPM="$DEVECO_HOME/tools/ohpm/bin/ohpm"
 HDC="$DEVECO_HOME/sdk/default/openharmony/toolchains/hdc"
 JAVA_HOME_VALUE="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
+# DevEco's Windows bundle uses node.exe directly under tools/node, hdc.exe, and jbr as JAVA_HOME.
+[[ -f "$NODE" ]] || NODE="$DEVECO_HOME/tools/node/node.exe"
+[[ -f "$HDC" ]] || HDC="$DEVECO_HOME/sdk/default/openharmony/toolchains/hdc.exe"
+if [[ ! -d "$JAVA_HOME_VALUE" ]]; then
+  JAVA_HOME_VALUE="$DEVECO_HOME/jbr"
+fi
 HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap"
 BUILD_IDENTITY="$PROJECT_ROOT/build/smoke/build-identity.json"
 LICENSE_FILE="$PROJECT_ROOT/samples/dingqiao-demo/entry/src/main/resources/rawfile/amphion-license.lic"
 DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/amphion_asr_demo_device_ids.txt}"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$REPO_ROOT/.secure/amphion-license-private.pem}"
-BUNDLE="com.amphion.asr.harmony.demo"
+BUNDLE="com.amphion.dingqiao.demo"
 MODULE="amphion_asr_demo"
 ABILITY="EntryAbility"
 DEVICE=""
@@ -71,7 +77,7 @@ fi
 [[ "$TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || { echo "[ERROR] --timeout must be a positive integer" >&2; exit 2; }
 
 if [[ "$PREPARE_ONLY" != true && -z "$DEVICE" ]]; then
-  TARGETS="$($HDC list targets | tr -d '\r' | awk 'NF && $0 != "[Empty]"')"
+  TARGETS="$("$HDC" list targets | tr -d '\r' | awk 'NF && $0 != "[Empty]"')"
   TARGET_COUNT="$(printf '%s\n' "$TARGETS" | awk 'NF {count++} END {print count+0}')"
   [[ "$TARGET_COUNT" -eq 1 ]] || {
     echo "[ERROR] expected exactly one HDC target; found $TARGET_COUNT. Pass --device SERIAL." >&2
@@ -184,7 +190,6 @@ resolve_built_hap() {
 }
 
 prepare_build_workspace() {
-  command -v rsync >/dev/null || { echo "[ERROR] rsync is required" >&2; exit 1; }
   BUILD_WORKSPACE="$(mktemp -d "${TMPDIR:-/tmp}/amphion-harmony-build.XXXXXX")"
   local temp_repo="$BUILD_WORKSPACE/repo"
   local sherpa_source="$REPO_ROOT/third_party/sherpa-onnx"
@@ -198,17 +203,17 @@ prepare_build_workspace() {
   mkdir -p "$(dirname "$sherpa_destination")"
   git clone --quiet --no-hardlinks "$sherpa_source" "$sherpa_destination"
   git -C "$sherpa_destination" checkout --quiet --detach "$sherpa_commit"
-  rsync -a \
-    "$sherpa_source/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/" \
-    "$sherpa_destination/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/"
+  clone_tree \
+    "$sherpa_source/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs" \
+    "$sherpa_destination/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs"
   AMPHION_SHERPA_ROOT="$sherpa_destination" \
     bash "$REPO_ROOT/asr/tools/apply_sherpa_patches.sh"
   mkdir -p "$temp_repo/delivery"
-  rsync -a \
-    --exclude='build/' \
-    --exclude='.hvigor/' \
-    --exclude='.idea/' \
-    "$PROJECT_ROOT/" "$temp_repo/delivery/harmony-dingqiao/"
+  clone_tree "$PROJECT_ROOT" "$temp_repo/delivery/harmony-dingqiao"
+  rm -rf \
+    "$temp_repo/delivery/harmony-dingqiao/build" \
+    "$temp_repo/delivery/harmony-dingqiao/.hvigor" \
+    "$temp_repo/delivery/harmony-dingqiao/.idea"
   clone_tree "$REPO_ROOT/asr/harmony/sdk" "$temp_repo/asr/harmony/sdk"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-police" "$temp_repo/asr/harmony/sdk-police"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-dingqiao" "$temp_repo/asr/harmony/sdk-dingqiao"
@@ -257,20 +262,7 @@ EOF
   fi
   if [[ -d "$NODE_ADDON_API_CACHE/.git" ]] && \
       [[ "$(git -C "$NODE_ADDON_API_CACHE" rev-parse HEAD 2>/dev/null)" == "c679f6f4c9dc6bf9fc0d99cbe5982bd24a5e2c7b" ]]; then
-    "$LICENSE_PYTHON" - \
-      "$temp_repo/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt" \
-      "$NODE_ADDON_API_CACHE" <<'PY'
-import sys
-from pathlib import Path
-
-cmake_path = Path(sys.argv[1])
-cache_url = Path(sys.argv[2]).resolve().as_uri()
-text = cmake_path.read_text(encoding="utf-8")
-upstream = "https://github.com/nodejs/node-addon-api.git"
-if upstream not in text:
-    raise SystemExit("[ERROR] node-addon-api FetchContent declaration changed")
-cmake_path.write_text(text.replace(upstream, cache_url, 1), encoding="utf-8")
-PY
+    BUILD_NODE_ADDON_API_SOURCE="$NODE_ADDON_API_CACHE"
     echo "[INFO] using the verified local node-addon-api Git cache"
   fi
   BUILD_PROJECT_ROOT="$temp_repo/delivery/harmony-dingqiao"
@@ -282,12 +274,14 @@ apply_local_signing() {
   local config="$1"
   local mode
   [[ -s "$config" ]] || { echo "[ERROR] missing local signing config: $config" >&2; exit 1; }
-  if [[ "$(uname)" == "Darwin" ]]; then
+  if [[ -n "${WINDIR:-}" || "$(uname -s)" == MINGW* || "$(uname -s)" == MSYS* || "$(uname -s)" == CYGWIN* ]]; then
+    mode="windows-acl"
+  elif [[ "$(uname)" == "Darwin" ]]; then
     mode="$(stat -f '%Lp' "$config")"
   else
     mode="$(stat -c '%a' "$config")"
   fi
-  [[ "$mode" == "600" || "$mode" == "400" ]] || {
+  [[ "$mode" == "windows-acl" || "$mode" == "600" || "$mode" == "400" ]] || {
     echo "[ERROR] signing config must not be group/world readable: chmod 600 $config" >&2
     exit 1
   }
@@ -396,6 +390,7 @@ fi
 source "$REPO_ROOT/asr/tools/license/ensure_python.sh"
 ensure_license_python "$LICENSE_VENV" "$REPO_ROOT/tools/license/requirements.txt"
 LICENSE_PYTHON="$LICENSE_VENV/bin/python"
+[[ -x "$LICENSE_PYTHON" ]] || LICENSE_PYTHON="$LICENSE_VENV/Scripts/python.exe"
 
 ensure_demo_license
 VERIFY_SCOPE_ARGS=(--zh-en-only)
@@ -416,9 +411,16 @@ if [[ "$SKIP_BUILD" != true ]]; then
   echo "[INFO] building signed Harmony demo HAP in an isolated workspace"
   if ! (
     set -e
-    export PATH="$DEVECO_HOME/tools/node/bin:$PATH"
+    JAVA_BIN_DIR="$JAVA_HOME_VALUE/bin"
+    if command -v cygpath >/dev/null 2>&1; then
+      JAVA_BIN_DIR="$(cygpath -u "$JAVA_BIN_DIR")"
+    fi
+    export PATH="$DEVECO_HOME/tools/node/bin:$JAVA_BIN_DIR:$PATH"
     export DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
     export JAVA_HOME="$JAVA_HOME_VALUE"
+    if [[ -n "${BUILD_NODE_ADDON_API_SOURCE:-}" ]]; then
+      export AMPHION_NODE_ADDON_API_SOURCE_DIR="$BUILD_NODE_ADDON_API_SOURCE"
+    fi
     cd "$BUILD_PROJECT_ROOT"
     # The isolated workspace intentionally excludes ignored oh_modules. Recreate file dependencies
     # before Hvigor so a clean checkout cannot accidentally rely on packages from a developer tree.
@@ -446,6 +448,13 @@ if [[ "$SKIP_BUILD" != true ]]; then
     exit 1
   fi
   resolve_built_hap
+  # Preserve a successfully signed HAP before post-build policy checks so a
+  # Windows-only verifier fix does not force another full native rebuild.
+  mkdir -p "$(dirname "$HAP")"
+  TEMP_HAP_COPY="${HAP}.tmp.$$"
+  cp "$BUILD_HAP" "$TEMP_HAP_COPY"
+  mv -f "$TEMP_HAP_COPY" "$HAP"
+  TEMP_HAP_COPY=""
   "$SCRIPT_DIR/verify_demo_inputs.sh" \
     "${VERIFY_SCOPE_ARGS[@]}" \
     --hap "$BUILD_HAP" \
@@ -462,11 +471,6 @@ if [[ "$SKIP_BUILD" != true ]]; then
   publish_har \
     "$BUILD_WORKSPACE/repo/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default" \
     "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default"
-  mkdir -p "$(dirname "$HAP")"
-  TEMP_HAP_COPY="${HAP}.tmp.$$"
-  cp "$BUILD_HAP" "$TEMP_HAP_COPY"
-  mv -f "$TEMP_HAP_COPY" "$HAP"
-  TEMP_HAP_COPY=""
   IDENTITY_ARGS=(--write "$BUILD_IDENTITY")
   if [[ "$ZH_EN_ONLY" == true ]]; then
     IDENTITY_ARGS+=(--zh-en-only)
@@ -483,7 +487,11 @@ fi
 "$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_ARGS[@]}"
 
 echo "[INFO] installing HAP on the USB device"
-"$HDC" -t "$DEVICE" install -r "$HAP" >"$INSTALL_LOG"
+HAP_INSTALL_PATH="$HAP"
+if [[ "$HDC" == *.exe ]] && command -v cygpath >/dev/null 2>&1; then
+  HAP_INSTALL_PATH="$(cygpath -w "$HAP")"
+fi
+"$HDC" -t "$DEVICE" install -r "$HAP_INSTALL_PATH" >"$INSTALL_LOG"
 grep -q 'install bundle successfully' "$INSTALL_LOG" || {
   cat "$INSTALL_LOG" >&2
   exit 1
@@ -497,7 +505,7 @@ dismiss_usb_mode_dialog
 
 for elapsed in $(seq 1 "$TIMEOUT_SECONDS"); do
   sleep 1
-  PID="$($HDC -t "$DEVICE" shell pidof "$BUNDLE" 2>/dev/null | tr -d '\r')"
+  PID="$("$HDC" -t "$DEVICE" shell pidof "$BUNDLE" 2>/dev/null | tr -d '\r')"
   [[ -n "$PID" ]] || fail_with_logs "demo process exited after ${elapsed}s"
 
   if ! "$HDC" -t "$DEVICE" shell uitest dumpLayout -p "$REMOTE_LAYOUT" -b "$BUNDLE" >/dev/null 2>&1; then

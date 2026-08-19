@@ -1,0 +1,70 @@
+From 8ca26fb44d7c67d6c041b12c52c7e2f5d1700016 Mon Sep 17 00:00:00 2001
+From: Amphion Runtime <runtime@amphion.local>
+Date: Wed, 19 Aug 2026 12:10:00 +0800
+Subject: [PATCH] fix(harmony): link WeText shim with binding
+
+The official OHOS v1.13.1 C API binary predates Amphion's WeText C API
+extension. Provide the four extension functions beside their Harmony caller.
+---
+ .../sherpa_onnx/src/main/cpp/wetext-itn.cc    | 42 +++++++++++++++++++
+ 1 file changed, 42 insertions(+)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc
+index ba205be0..a3accf4d 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc
+@@ -1,10 +1,52 @@
++#include <cstring>
++#include <memory>
+ #include <sstream>
+ #include <string>
+ 
+ #include "napi.h"  // NOLINT
++#include "processor/wetext_processor.h"
+ #include "sherpa-onnx/c-api/c-api.h"
+ #include "wetext-itn-handle.h"  // NOLINT
+ 
++// The official OHOS v1.13.1 prebuilt C API predates Amphion's vendored
++// WeText extension. Keep the upstream ASR ABI and provide only the four
++// extension functions beside their Harmony NAPI caller.
++struct SherpaOnnxWetextItn {
++  std::unique_ptr<wetext::Processor> impl;
++};
++
++const SherpaOnnxWetextItn *SherpaOnnxCreateWetextItn(
++    const char *tagger_fst, const char *verbalizer_fst) {
++  if (tagger_fst == nullptr || verbalizer_fst == nullptr) return nullptr;
++  try {
++    auto *itn = new SherpaOnnxWetextItn;
++    itn->impl =
++        std::make_unique<wetext::Processor>(tagger_fst, verbalizer_fst);
++    return itn;
++  } catch (...) {
++    return nullptr;
++  }
++}
++
++void SherpaOnnxDestroyWetextItn(const SherpaOnnxWetextItn *itn) {
++  delete itn;
++}
++
++const char *SherpaOnnxWetextItnNormalize(const SherpaOnnxWetextItn *itn,
++                                        const char *text) {
++  if (itn == nullptr || text == nullptr) return nullptr;
++  try {
++    const std::string normalized = itn->impl->Normalize(text);
++    char *result = new char[normalized.size() + 1];
++    std::memcpy(result, normalized.c_str(), normalized.size() + 1);
++    return result;
++  } catch (...) {
++    return nullptr;
++  }
++}
++
++void SherpaOnnxWetextItnFreeText(const char *text) { delete[] text; }
++
+ static Napi::External<WetextItnHandle> CreateWetextItnWrapper(
+     const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+-- 
+2.55.0.windows.2

@@ -284,14 +284,14 @@ if [[ "$ZH_EN_ONLY" != true ]]; then
     --copy "yue-en/v1/bbpe.vocab=${YUE_EN_DIR}/bbpe.vocab"
   )
 fi
-python3 "$MANIFEST_BUILDER" "${manifest_args[@]}"
+"$CONVERTER_PYTHON" "$MANIFEST_BUILDER" "${manifest_args[@]}"
 
 rm -rf "$ASSET_ROOT/.conversion-metadata"
 verify_args=(--root "$ASSET_ROOT")
 if [[ "$ZH_EN_ONLY" == true ]]; then
   verify_args+=(--zh-en-only)
 fi
-python3 "$VERIFY" "${verify_args[@]}"
+"$CONVERTER_PYTHON" "$VERIFY" "${verify_args[@]}"
 
 if [[ -e "$FINAL_ASSET_ROOT" ]]; then
   mv "$FINAL_ASSET_ROOT" "$BACKUP_ASSET_ROOT"
