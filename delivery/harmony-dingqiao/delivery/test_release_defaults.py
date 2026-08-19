@@ -18,11 +18,21 @@ class ReleaseDefaultsTest(unittest.TestCase):
             workflow,
         )
 
-    def test_asr_contracts_checkout_keeps_history_for_police_parity(self) -> None:
+    def test_asr_contracts_fetches_only_frozen_police_history(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
         contracts = workflow.split("  asr-contracts:", 1)[1].split("  android-aar:", 1)[0]
 
-        self.assertIn("fetch-depth: 0", contracts)
+        self.assertIn("fetch-depth: 1", contracts)
+        self.assertIn("Fetch frozen police asset source", contracts)
+        self.assertIn('git fetch --no-tags --depth=1 origin "$source_commit"', contracts)
+        self.assertNotIn("fetch-depth: 0", contracts)
+
+    def test_markdown_only_pushes_skip_android_workflow(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        push_trigger = workflow.split("  push:", 1)[1].split("  pull_request:", 1)[0]
+
+        self.assertIn("paths-ignore:", push_trigger)
+        self.assertIn('      - "**.md"', push_trigger)
 
     def test_android_native_cache_is_exact_verified_and_only_skips_native_build(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
@@ -47,6 +57,36 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertLess(native_build, gradle_build)
         gradle_section = android[gradle_build:]
         self.assertNotIn("cache-hit", gradle_section)
+
+    def test_gradle_cache_uses_real_config_hash_and_refreshes_per_commit(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        android = workflow.split("  android-aar:", 1)[1].split("  ci-result:", 1)[0]
+        gradle_cache = android.split("- name: Cache Gradle", 1)[1].split(
+            "- name: Init Gradle wrapper", 1
+        )[0]
+
+        config_hash = "hashFiles('asr/android/**/*.gradle*'"
+        self.assertIn(config_hash, gradle_cache)
+        self.assertIn("${{ github.sha }}", gradle_cache)
+        self.assertIn("restore-keys:", gradle_cache)
+        self.assertNotIn("hashFiles('${{ env.SDK_BUILD_DIR }}", gradle_cache)
+
+    def test_native_cache_hit_skips_ndk_setup_but_not_gradle(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        android = workflow.split("  android-aar:", 1)[1].split("  ci-result:", 1)[0]
+
+        sdk_setup = android.split("- name: Set up Android SDK", 1)[1].split(
+            "- name: Install Android native SDK tools", 1
+        )[0]
+        native_setup = android.split("- name: Install Android native SDK tools", 1)[1].split(
+            "- name: Cache Gradle", 1
+        )[0]
+        gradle_build = android.split("- name: Gradle assemble + unit test", 1)[1]
+
+        self.assertNotIn("ndk;${{ env.NDK_VERSION }}", sdk_setup)
+        self.assertIn("steps.native-cache.outputs.cache-hit != 'true'", native_setup)
+        self.assertIn('sdkmanager "ndk;${NDK_VERSION}"', native_setup)
+        self.assertNotIn("steps.native-cache.outputs.cache-hit", gradle_build)
 
     def test_finish_compat_release_gate_is_part_of_the_project_working_agreement(self) -> None:
         agreement = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
