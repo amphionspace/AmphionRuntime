@@ -1,9 +1,9 @@
 name: Android SDK CI
 
 # 触发：
-#   - push 到 main / release/*
-#   - 任意 PR
-#   - 推 v* tag（用于发版）
+#   - push 到 main / release/*（始终完整构建）
+#   - 指向 main 的 PR（仅 Android/native 输入变化时完整构建）
+#   - 推 v* tag（始终完整构建并用于发版）
 on:
   push:
     branches: [main, "release/*"]
@@ -12,38 +12,91 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   NDK_VERSION: "26.3.11579264"
   ONNXRT_VERSION: "1.24.3"
   SDK_BUILD_DIR: asr/android
 
 jobs:
-  build-aar:
-    name: Build AAR (arm64-v8a)
+  changes:
+    name: Detect Android/native changes
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    outputs:
+      android: ${{ steps.filter.outputs.android }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Initialize sherpa-onnx submodule
-        run: git submodule update --init third_party/sherpa-onnx
+      - name: Decide whether Android AAR inputs changed
+        id: filter
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # main/release pushes, tags and manual runs preserve the existing full-build behavior.
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+          android=false
+          while IFS= read -r -d '' path; do
+            case "$path" in
+              .gitmodules|\
+              .github/workflows/android.yml|\
+              asr/android/*|\
+              asr/native/*|\
+              asr/tools/03_build_agc_native.sh|\
+              asr/tools/04_build_android_so.sh|\
+              asr/tools/05_package_aar_libs.sh|\
+              asr/tools/07_sync_kotlin_from_upstream.sh|\
+              asr/tools/apply_sherpa_patches.sh|\
+              asr/tools/ensure_agc_build_tools.sh|\
+              asr/tools/prefetch_sherpa_cmake_deps.sh|\
+              third_party/patches/sherpa-amphion/*|\
+              third_party/sherpa-onnx)
+                android=true
+                echo "Android/native input changed: $path"
+                break
+                ;;
+            esac
+          # --no-renames reports both sides of a rename, so moving an Android input
+          # out of a watched path still triggers the full build.
+          done < <(git diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA")
+
+          echo "android=$android" >> "$GITHUB_OUTPUT"
+
+  asr-contracts:
+    name: ASR contracts
+    needs: changes
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
         with:
-          distribution: temurin
-          java-version: "17"
+          # Harmony police parity reads frozen assets from a historical commit.
+          fetch-depth: 0
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
+          package-manager-cache: false
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -74,13 +127,38 @@ jobs:
           python3 delivery/harmony-dingqiao/delivery/check_customer_delivery_redaction.py \
             delivery/harmony-dingqiao/docs/customer
 
+  android-aar:
+    name: Android AAR (arm64-v8a)
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Initialize sherpa-onnx submodule
+        run: git submodule update --init third_party/sherpa-onnx
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install AGC native build tools
+        run: python3 -m pip install meson==1.7.0 ninja==1.11.1.4
+
       - name: Set up Android SDK + NDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: platforms;android-34 build-tools;34.0.0 cmake;3.22.1 ndk;${{ env.NDK_VERSION }}
 
+      # Phase 2 will replace this legacy key with a complete, identity-bound source fingerprint.
       - name: Cache onnxruntime + sherpa build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             third_party/sherpa-onnx/build-android-arm64-v8a/${{ env.ONNXRT_VERSION }}
@@ -90,7 +168,7 @@ jobs:
             sherpa-android-arm64-v8a-${{ env.ONNXRT_VERSION }}-
 
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -145,7 +223,7 @@ jobs:
         run: bash asr/tools/07_sync_kotlin_from_upstream.sh --check
 
       - name: Upload AAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: amphion-runtime-aar-${{ github.sha }}
           path: |
@@ -154,7 +232,7 @@ jobs:
           retention-days: 30
 
       - name: Upload native .so
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: amphion-runtime-native-arm64-v8a-${{ github.sha }}
           path: |
@@ -163,24 +241,57 @@ jobs:
             asr/native/audio-processing/build-android-arm64-v8a/libamphion_audio_processing.so
           retention-days: 30
 
+  ci-result:
+    # Keep the old required-check display name so branch protection remains valid during migration.
+    name: Build AAR (arm64-v8a)
+    needs: [changes, asr-contracts, android-aar]
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Verify required Android CI jobs
+        shell: bash
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          CONTRACTS_RESULT: ${{ needs.asr-contracts.result }}
+          ANDROID_REQUIRED: ${{ needs.changes.outputs.android }}
+          ANDROID_RESULT: ${{ needs.android-aar.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "changes failed: $CHANGES_RESULT"
+            exit 1
+          fi
+          if [[ "$CONTRACTS_RESULT" != "success" ]]; then
+            echo "asr-contracts failed: $CONTRACTS_RESULT"
+            exit 1
+          fi
+          if [[ "$ANDROID_REQUIRED" == "true" && "$ANDROID_RESULT" != "success" ]]; then
+            echo "android-aar was required but finished with: $ANDROID_RESULT"
+            exit 1
+          fi
+          if [[ "$ANDROID_REQUIRED" != "true" && "$ANDROID_RESULT" != "skipped" ]]; then
+            echo "android-aar was not required but finished with: $ANDROID_RESULT"
+            exit 1
+          fi
+          echo "Android CI passed (android-aar: $ANDROID_RESULT)"
+
   publish-maven:
     name: Publish to Maven (tags only)
-    needs: build-aar
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [android-aar, ci-result]
+    if: startsWith(github.ref, 'refs/tags/v') && needs.android-aar.result == 'success' && needs.ci-result.result == 'success'
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Download AAR + native artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -201,7 +312,7 @@ jobs:
           ./gradlew --no-daemon :sdk:publishReleasePublicationToLocalFileRepoRepository
 
       - name: Upload Maven repo snapshot
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: amphion-runtime-maven-${{ github.ref_name }}
           path: ${{ env.SDK_BUILD_DIR }}/sdk/build/maven-repo

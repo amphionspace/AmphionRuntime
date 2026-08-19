@@ -18,6 +18,12 @@ class ReleaseDefaultsTest(unittest.TestCase):
             workflow,
         )
 
+    def test_asr_contracts_checkout_keeps_history_for_police_parity(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        contracts = workflow.split("  asr-contracts:", 1)[1].split("  android-aar:", 1)[0]
+
+        self.assertIn("fetch-depth: 0", contracts)
+
     def test_finish_compat_release_gate_is_part_of_the_project_working_agreement(self) -> None:
         agreement = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
         device_stress = (
