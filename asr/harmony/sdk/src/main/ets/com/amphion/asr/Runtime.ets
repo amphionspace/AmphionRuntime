@@ -77,6 +77,9 @@ const INITIAL_DECISION_CHUNK_SAMPLES: number = ASR_SAMPLE_RATE_HZ / 50;
 // second. A caller may submit minutes of buffered PCM in one write; processing that as one state
 // transition lets the stream overshoot maxSpeechDurationSec and hides endpoint boundaries.
 const VAD_SEGMENT_DECISION_CHUNK_SAMPLES: number = ASR_SAMPLE_RATE_HZ;
+// Reuse a short real-audio prefix after forced max-duration slicing so the next Zipformer stream
+// has acoustic context for a word that straddles the boundary. This context is not counted twice.
+const MAX_SEGMENT_OVERLAP_SAMPLES: number = Math.round(0.32 * ASR_SAMPLE_RATE_HZ);
 // ORT-format models are optimized and prepacked during Session creation. Device A/B testing showed
 // that an eager silence decode adds ~93 ms to engine readiness but saves only ~9 ms on first audio.
 const EAGER_WARMUP_DURATION_MS: number = 0;
@@ -1323,6 +1326,7 @@ export class AsrSession {
   private lastPartialText: string = '';
   private pcmBytesAccepted: number = 0;
   private totalPcmBytes: number = 0;
+  private maxSegmentOverlap: Float32Array = new Float32Array(0);
   private utteranceIndex: number = 0;
   private recognizerResetGeneration: number = 0;
   private utteranceStartMs: number = Date.now();
@@ -2229,6 +2233,7 @@ export class AsrSession {
   // utterance. Stabilize the pending encoder tail, publish only real ASR evidence, and rotate a
   // tokenless stream silently so silence/noise never creates an empty public final.
   private triggerMaxSegmentEndpoint(): void {
+    const overlap = this.maxSegmentOverlap.slice();
     const decodeDurationMs = this.flushEndpointTail();
     const probe = this.recognizer.getResult(this.stream);
     const hasEvidence = probe.text.length > 0 || probe.tokens.length > 0;
@@ -2253,6 +2258,10 @@ export class AsrSession {
     this.finishUtterance(true);
     if (this.callbackGate.isClosed()) return;
     this.resetVadGateState();
+    if (overlap.length > 0) {
+      const wave: Samples = { samples: overlap, sampleRate: ASR_SAMPLE_RATE_HZ } as Samples;
+      this.stream.acceptWaveform(wave);
+    }
   }
 
   // A boundary may arrive while the last Zipformer chunk is still unstable. Feed the same final
@@ -2320,6 +2329,7 @@ export class AsrSession {
     this.vadActiveSegmentSamples = 0;
     this.trailingSilenceMs = 0;
     this.vadCarry = new Float32Array(0);
+    this.maxSegmentOverlap = new Float32Array(0);
     this.resetSpeakerVadState();
   }
 
@@ -2333,15 +2343,24 @@ export class AsrSession {
   }
 
   private feedRecognizer(samples: Float32Array, isFinal: boolean): void {
+    this.rememberMaxSegmentOverlap(samples);
     const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
     this.stream.acceptWaveform(wave);
     this.drain(isFinal);
   }
 
   private async feedRecognizerAsync(samples: Float32Array, isFinal: boolean): Promise<void> {
+    this.rememberMaxSegmentOverlap(samples);
     const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
     this.stream.acceptWaveform(wave);
     await this.drainAsync(isFinal);
+  }
+
+  private rememberMaxSegmentOverlap(samples: Float32Array): void {
+    if (samples.length === 0) return;
+    const combined = concatFloat32([this.maxSegmentOverlap, samples]);
+    const start = Math.max(0, combined.length - MAX_SEGMENT_OVERLAP_SAMPLES);
+    this.maxSegmentOverlap = combined.slice(start);
   }
 
   private appendFinalTailSilence(durationMs: number = FINAL_TAIL_SILENCE_MS): void {
