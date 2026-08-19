@@ -55,6 +55,9 @@
 8. `max-duration` 真机门禁必须分别覆盖 burst 与 20 ms paced 写入，两者都在第 400 帧结束；
    paced 场景墙钟时间不得明显早于 8 秒。结束后 80 个迟到帧不能新增 final、complete 或 error，
    下一轮必须能立即启动。
+9. continuous 真机门禁必须至少有一个单 model session 实时写入超过 60 秒，并用两轮运行区分
+   首次模型驻留与持续内存增长；另须组合声纹校验与 Speaker VAD，逐条核对非空 final 的
+   `speakerSimilarity`、finish 前无 last、最终唯一 last/complete 和绑定源音频 SHA-256 的尾字。
 
 ## 4. vadBegin 与参数兼容
 

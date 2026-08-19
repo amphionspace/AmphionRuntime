@@ -34,7 +34,8 @@ ABILITY = "EntryAbility"
 REMOTE_ROOT = "/data/storage/el2/base/files/asr-stress"
 FINISH_MODES = {
     "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration",
-    "continuous-max-duration", "numeric-edge",
+    "continuous-max-duration", "continuous-long-session",
+    "continuous-voiceprint-speaker-vad", "numeric-edge",
     "finish-shutdown", "finish-shutdown-relicense",
     "customer-tap-vad", "customer-ptt", "customer-transcription", "customer-ptt-tail",
     "customer-form", "customer-meeting-minutes",
@@ -92,7 +93,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--expected-tail-manifest",
         type=Path,
-        help="SHA-256 keyed final-text suffix assertions for customer meeting-minutes fixtures.",
+        help="SHA-256 keyed final-text suffix assertions for long-speech fixtures.",
     )
     parser.add_argument(
         "--mode",
@@ -111,6 +112,8 @@ def parse_args() -> argparse.Namespace:
             "reconfigure",
             "max-duration",
             "continuous-max-duration",
+            "continuous-long-session",
+            "continuous-voiceprint-speaker-vad",
             "edge",
             "reentrant",
             "start-cancel",
@@ -194,11 +197,18 @@ def parse_args() -> argparse.Namespace:
             parser.error("--speaker-vad-threshold must be within [-1, 1]")
     if args.target_speaker_manifest is not None and args.mode not in TARGET_SPEAKER_MODES:
         parser.error("--target-speaker-manifest requires a target-speaker mode")
-    tail_modes = {"customer-meeting-minutes", "continuous-max-duration"}
+    tail_modes = {
+        "customer-meeting-minutes", "continuous-max-duration", "continuous-long-session",
+        "continuous-voiceprint-speaker-vad",
+    }
     if args.expected_tail_manifest is not None and args.mode not in tail_modes:
         parser.error("--expected-tail-manifest requires a tail-validation mode")
     if args.mode in tail_modes and args.expected_tail_manifest is None:
         parser.error(f"--mode {args.mode} requires --expected-tail-manifest")
+    if args.mode == "continuous-long-session" and args.cycles < 2:
+        parser.error("--mode continuous-long-session requires at least 2 cycles")
+    if args.mode == "continuous-long-session" and args.pace_ms < 20:
+        parser.error("--mode continuous-long-session requires --pace-ms >= 20")
     if (
         args.mode == "speaker-vad-turn"
         and not args.skip_target_content_check
@@ -1068,7 +1078,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     all_sources = inspect_wavs(corpus_root)
     voiceprint_representative_modes = {
         "voiceprint", "voiceprint-vad-begin", "voiceprint-vad-begin-idle",
-        "speaker-vad-onstart",
+        "speaker-vad-onstart", "continuous-voiceprint-speaker-vad",
     }
     selected = (
         representative_voiceprint_sources(all_sources, args.files)
@@ -1276,6 +1286,9 @@ def run_stress(args: argparse.Namespace) -> Path:
     if memory.get("status") == "FAIL":
         overall = "FAIL"
         failures.append("RSS/thread growth exceeded threshold")
+    elif args.mode == "continuous-long-session" and memory.get("status") != "PASS":
+        overall = "FAIL"
+        failures.append("continuous long-session memory verdict was inconclusive")
     if stream_status == "FAIL":
         overall = "FAIL"
         failures.append("native stream ownership check failed")

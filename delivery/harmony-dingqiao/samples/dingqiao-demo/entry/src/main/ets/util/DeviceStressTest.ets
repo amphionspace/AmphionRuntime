@@ -35,6 +35,7 @@ const CANCEL_DRAIN_TIMEOUT_MS: number = 2000;
 const CANCEL_CALLBACK_STABILITY_MS: number = 100;
 const MAX_DURATION_TEST_MS: number = 8000;
 const MAX_DURATION_TEST_FRAMES: number = MAX_DURATION_TEST_MS / FRAME_DURATION_MS;
+const CONTINUOUS_LONG_MIN_FRAMES: number = 60 * 1000 / FRAME_DURATION_MS;
 const VOICEPRINT_SHORT_FRAMES: number = 25;
 const VOICEPRINT_THRESHOLD_FRAMES: number = 75;
 const VOICEPRINT_LONG_FRAMES: number = 150;
@@ -2059,15 +2060,21 @@ async function runMaxDurationCycle(engine: SpeechRecognitionEngine, entry: Corpu
 }
 
 async function runContinuousMaxDurationCycle(baseEngine: SpeechRecognitionEngine,
-  entry: CorpusEntry, index: number, paceMs: number): Promise<CycleResult> {
+  entry: CorpusEntry, index: number, paceMs: number, mode: string,
+  voiceprintId: string = ''): Promise<CycleResult> {
   const startedAt = Date.now();
   const events = new SessionEvents();
-  const sessionId = `continuous-max-${index}`;
+  const sessionId = `${mode}-${index}`;
   const engine = baseEngine;
   engine.setListener(new StressListener(events, sessionId));
-  const params = startParams(sessionId, 'continuous-max-duration', index);
+  const params = startParams(sessionId, mode, index);
   params.extraParams['maxAudioDuration'] = MAX_DURATION_TEST_MS;
   params.extraParams['enableContinuousRecognition'] = true;
+  if (voiceprintId.length > 0) {
+    params.extraParams['enableVoiceprintVerification'] = true;
+    params.extraParams['enableSpeakerVad'] = true;
+    params.extraParams['voiceprintIds'] = [voiceprintId];
+  }
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'continuous-max-start-timeout');
@@ -2078,11 +2085,19 @@ async function runContinuousMaxDurationCycle(baseEngine: SpeechRecognitionEngine
   if (engine.isBusy()) engine.finish(sessionId);
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
   if (!completed && engine.isBusy()) engine.cancel(sessionId);
-  const ok = completed && fed > MAX_DURATION_TEST_FRAMES && lastBeforeFinish === 0 &&
+  let nonEmptyFinals = 0;
+  for (let i = 0; i < events.finalTexts.length; i++) {
+    if (events.finalTexts[i].length > 0) nonEmptyFinals += 1;
+  }
+  const scoreContract = voiceprintId.length === 0 ||
+    (nonEmptyFinals > 0 && events.nonEmptySpeakerScores === nonEmptyFinals);
+  const requiredFrames = mode === 'continuous-long-session' ?
+    CONTINUOUS_LONG_MIN_FRAMES : MAX_DURATION_TEST_FRAMES;
+  const ok = completed && fed > requiredFrames && lastBeforeFinish === 0 &&
     events.starts === 1 && events.lastFinals === 1 && events.completes === 1 &&
-    events.errors === 0 && terminalCallbackOrderOk(events, sessionId) && !engine.isBusy();
+    events.errors === 0 && scoreContract && terminalCallbackOrderOk(events, sessionId) && !engine.isBusy();
   const result = finishCycle(index, entry.id, events, startedAt, ok,
-    ok ? 'continuous-max-duration-preserved' : 'continuous-max-duration-contract');
+    ok ? `${mode}-preserved` : `${mode}-contract`);
   result.requestedMaxAudioDurationMs = MAX_DURATION_TEST_MS;
   result.effectiveMaxAudioDurationMs = -1;
   result.fedFrames = fed;
@@ -2502,6 +2517,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     if (options.mode === 'voiceprint' || options.mode === 'voiceprint-fallback' ||
       options.mode === 'voiceprint-vad-begin' ||
       options.mode === 'voiceprint-vad-begin-idle' || options.mode === 'speaker-vad-onstart' ||
+      options.mode === 'continuous-voiceprint-speaker-vad' ||
       options.mode === 'speaker-vad-turn' ||
       options.mode === 'target-speaker-enhancement' ||
       options.mode === 'target-speaker-enhancement-onstart' ||
@@ -2551,8 +2567,13 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runEdgeCycle(engine, entry, i);
       } else if (options.mode === 'max-duration') {
         result = await runMaxDurationCycle(engine, entry, i);
-      } else if (options.mode === 'continuous-max-duration') {
-        result = await runContinuousMaxDurationCycle(engine, entry, i, options.paceMs);
+      } else if (options.mode === 'continuous-max-duration' ||
+        options.mode === 'continuous-long-session' ||
+        options.mode === 'continuous-voiceprint-speaker-vad') {
+        const continuousVoiceprintId = options.mode === 'continuous-voiceprint-speaker-vad' ?
+          stressVoiceprintId : '';
+        result = await runContinuousMaxDurationCycle(
+          engine, entry, i, options.paceMs, options.mode, continuousVoiceprintId);
       } else if (options.mode === 'numeric-edge') {
         result = await runNumericEdgeCycle(engine, entry, i);
       } else if (options.mode === 'reentrant') {

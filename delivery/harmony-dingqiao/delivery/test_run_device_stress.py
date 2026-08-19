@@ -73,7 +73,55 @@ class RunCommandTest(unittest.TestCase):
 
         carrier = CARRIER.read_text(encoding="utf-8")
         self.assertIn("params.extraParams['enableContinuousRecognition'] = true", carrier)
-        self.assertIn("fed > MAX_DURATION_TEST_FRAMES", carrier)
+        self.assertIn("fed > requiredFrames", carrier)
+
+    def test_continuous_long_and_voiceprint_speaker_vad_gates(self) -> None:
+        modes = ("continuous-long-session", "continuous-voiceprint-speaker-vad")
+        for mode in modes:
+            with self.subTest(mode=mode), mock.patch.object(
+                sys, "argv", [str(SCRIPT), "--mode", mode]
+            ), self.assertRaises(SystemExit):
+                MODULE.parse_args()
+
+            with self.subTest(mode=mode), mock.patch.object(
+                sys,
+                "argv",
+                [str(SCRIPT), "--mode", mode,
+                 "--expected-tail-manifest", "tail.json"],
+            ):
+                args = MODULE.parse_args()
+            self.assertEqual(mode, args.mode)
+            self.assertIn(mode, MODULE.FINISH_MODES)
+
+        with mock.patch.object(
+            sys,
+            "argv",
+            [str(SCRIPT), "--mode", "continuous-long-session", "--cycles", "1",
+             "--expected-tail-manifest", "tail.json"],
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+        with mock.patch.object(
+            sys,
+            "argv",
+            [str(SCRIPT), "--mode", "continuous-long-session", "--cycles", "2",
+             "--pace-ms", "0", "--expected-tail-manifest", "tail.json"],
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+
+        carrier = CARRIER.read_text(encoding="utf-8")
+        cycle = carrier.split("async function runContinuousMaxDurationCycle", 1)[1].split(
+            "async function runNumericEdgeCycle", 1
+        )[0]
+        self.assertIn("CONTINUOUS_LONG_MIN_FRAMES", cycle)
+        self.assertIn("params.extraParams['enableVoiceprintVerification'] = true", cycle)
+        self.assertIn("params.extraParams['enableSpeakerVad'] = true", cycle)
+        self.assertIn("events.nonEmptySpeakerScores === nonEmptyFinals", cycle)
+        self.assertIn("lastBeforeFinish === 0", cycle)
+        runner = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            'args.mode == "continuous-long-session" and memory.get("status") != "PASS"',
+            runner,
+        )
 
     def test_customer_meeting_minutes_requires_tail_manifest(self) -> None:
         with mock.patch.object(
