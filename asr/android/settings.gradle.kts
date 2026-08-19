@@ -1,29 +1,48 @@
-// 国内网络下 services.gradle.org / dl.google.com 常因代理出现 SSL 握手失败；
-// 镜像放前面，官方源作回退。
+// CI runner 直接使用官方源，避免冷缓存构建依赖单个镜像的可用性；
+// 国内本地开发仍将镜像放前面，官方源作回退。
 pluginManagement {
     repositories {
+        if (System.getenv("CI").equals("true", ignoreCase = true)) {
+            google {
+                content {
+                    includeGroupByRegex("com\\.android.*")
+                    includeGroupByRegex("com\\.google.*")
+                    includeGroupByRegex("androidx.*")
+                }
+            }
+            mavenCentral()
+            gradlePluginPortal()
+        }
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         maven { url = uri("https://maven.aliyun.com/repository/central") }
         maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google.*")
-                includeGroupByRegex("androidx.*")
+        if (!System.getenv("CI").equals("true", ignoreCase = true)) {
+            google {
+                content {
+                    includeGroupByRegex("com\\.android.*")
+                    includeGroupByRegex("com\\.google.*")
+                    includeGroupByRegex("androidx.*")
+                }
             }
+            mavenCentral()
+            gradlePluginPortal()
         }
-        mavenCentral()
-        gradlePluginPortal()
     }
 }
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        if (System.getenv("CI").equals("true", ignoreCase = true)) {
+            google()
+            mavenCentral()
+        }
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         maven { url = uri("https://maven.aliyun.com/repository/central") }
-        google()
-        mavenCentral()
+        if (!System.getenv("CI").equals("true", ignoreCase = true)) {
+            google()
+            mavenCentral()
+        }
     }
 }
 
