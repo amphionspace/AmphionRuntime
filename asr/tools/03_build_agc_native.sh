@@ -47,14 +47,20 @@ case "$TARGET" in
         ;;
     esac
     TOOLCHAIN="$NDK_ROOT/toolchains/llvm/prebuilt/$NDK_HOST_TAG/bin"
-    if [[ ! -x "$TOOLCHAIN/aarch64-linux-android24-clang++" ]]; then
+    ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-24}"
+    ANDROID_API="${ANDROID_PLATFORM#android-}"
+    if [[ ! "$ANDROID_API" =~ ^[0-9]+$ ]]; then
+      echo "[ERROR] invalid ANDROID_PLATFORM: $ANDROID_PLATFORM" >&2
+      exit 1
+    fi
+    if [[ ! -x "$TOOLCHAIN/aarch64-linux-android${ANDROID_API}-clang++" ]]; then
       echo "[ERROR] Android NDK compiler not found under $TOOLCHAIN" >&2
       exit 1
     fi
     cat > "$CROSS_FILE" <<EOF
 [binaries]
-c = '$TOOLCHAIN/aarch64-linux-android24-clang'
-cpp = '$TOOLCHAIN/aarch64-linux-android24-clang++'
+c = '$TOOLCHAIN/aarch64-linux-android${ANDROID_API}-clang'
+cpp = '$TOOLCHAIN/aarch64-linux-android${ANDROID_API}-clang++'
 ar = '$TOOLCHAIN/llvm-ar'
 strip = '$TOOLCHAIN/llvm-strip'
 [host_machine]
