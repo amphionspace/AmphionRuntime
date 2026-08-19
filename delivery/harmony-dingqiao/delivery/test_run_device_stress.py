@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 from array import array
 import hashlib
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -25,6 +26,49 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_customer_tail_manifest_binds_expected_suffix_to_source_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "tail.json"
+            source_hash = "a" * 64
+            manifest.write_text(json.dumps({"files": [{
+                "sha256": source_hash,
+                "required_suffix": "12 34567。",
+            }]}), encoding="utf-8")
+            mapping = [{"id": "000000", "source_sha256": source_hash}]
+            complete = [{"id": "000000", "resultHex": "正文，123 4567。".encode("utf-16-be").hex()}]
+            truncated = [{"id": "000000", "resultHex": "正文，123 45。".encode("utf-16-be").hex()}]
+
+            verdict = MODULE.expected_tail_verdict(complete, mapping, manifest)
+            self.assertEqual("PASS", verdict["status"])
+            self.assertNotIn("required_suffix", verdict["cases"][0])
+            self.assertNotIn("normalized_result_suffix", verdict["cases"][0])
+            self.assertEqual(hashlib.sha256(manifest.read_bytes()).hexdigest(),
+                             verdict["manifest_sha256"])
+            self.assertEqual("FAIL", MODULE.expected_tail_verdict(
+                truncated, mapping, manifest)["status"])
+
+    def test_customer_tail_manifest_requires_meeting_minutes_mode(self) -> None:
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "burst", "--expected-tail-manifest", "tail.json"]
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+
+    def test_customer_meeting_minutes_requires_tail_manifest(self) -> None:
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "customer-meeting-minutes"]
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+
+    def test_customer_tail_manifest_rejects_non_utf8_without_raising(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "tail.json"
+            manifest.write_bytes(b"\xff\xfe")
+
+            verdict = MODULE.expected_tail_verdict([], [], manifest)
+
+            self.assertEqual("FAIL", verdict["status"])
+            self.assertIn("cannot read tail manifest", verdict["reason"])
+
     def test_voiceprint_representative_selection_excludes_too_short_enrollment(self) -> None:
         sources = [
             MODULE.AudioSource(Path("short.wav"), 16000, 1, 2, 44800, 2.8),
