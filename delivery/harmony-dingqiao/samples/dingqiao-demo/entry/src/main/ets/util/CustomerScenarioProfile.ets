@@ -16,6 +16,8 @@ export interface CustomerScenarioProfile {
   lockAudioSource: boolean;
 }
 
+export const SESSION_ROTATE_AUDIO_MS = 55000;
+
 export const CUSTOMER_TAP_VAD: CustomerScenarioProfile = {
   name: 'tap-vad',
   audioSource: 'voiceCommunication',
@@ -86,7 +88,7 @@ export function customerScenarioProfile(name: CustomerScenarioName): CustomerSce
 }
 
 export function customerProfileUsesContinuousRecognition(profile: CustomerScenarioProfile): boolean {
-  return profile.rotateSession && profile.maxAudioDuration > 55000;
+  return profile.rotateSession && profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS;
 }
 
 export function customerProfileStartParams(sessionId: string, name: CustomerScenarioName): StartParams {

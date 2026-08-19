@@ -20,6 +20,7 @@ import { AudioRecorder, AudioRecorderStats, DemoAudioSource } from '../util/Audi
 import { ColdStartEngineDecision, ColdStartPttGate } from '../util/ColdStartPttGate';
 import {
   CustomerScenarioName,
+  SESSION_ROTATE_AUDIO_MS,
   customerProfileUsesContinuousRecognition,
   customerProfileStartParams,
   customerScenarioProfile
@@ -30,7 +31,6 @@ import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
 import { WavIo } from '../util/WavIo';
 
-const SESSION_ROTATE_AUDIO_MS = 55000;
 const FRAME_AUDIO_MS = 20;
 const SDK_FRAME_BYTES = 640;
 const SDK_CAPTURE_MAX_FRAMES = SESSION_ROTATE_AUDIO_MS / FRAME_AUDIO_MS;

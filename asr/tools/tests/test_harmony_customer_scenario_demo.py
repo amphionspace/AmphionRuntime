@@ -33,6 +33,8 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertGreaterEqual(source.count("vadEnd: 1500"), 2)
         self.assertGreaterEqual(source.count("allowVoiceprint: false"), 2)
         self.assertGreaterEqual(source.count("rotateSession: false"), 2)
+        self.assertIn("export const SESSION_ROTATE_AUDIO_MS = 55000", source)
+        self.assertIn("profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS", source)
         self.assertIn("enablePartialResult: true", source)
         self.assertIn("params.extraParams['endpointMaxUtteranceMs'] = profile.endpointMaxUtteranceMs", source)
 
