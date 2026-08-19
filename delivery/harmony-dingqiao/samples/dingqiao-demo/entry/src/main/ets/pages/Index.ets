@@ -27,6 +27,7 @@ import { DemoCaseSaveResult, saveDemoCase } from '../util/DemoCaseStore';
 import { PcmPlayer } from '../util/PcmPlayer';
 import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
+import { SessionRolloverBuffer, SessionRolloverRoute } from '../util/SessionRolloverBuffer';
 import { WavIo } from '../util/WavIo';
 
 const SESSION_ROTATE_AUDIO_MS = 55000;
@@ -97,7 +98,8 @@ struct Index {
   private frameWriter?: PcmFrameWriter;
   private sessionId: string = '';
   private sessionAudioMs: number = 0;
-  private rotatingSession: boolean = false;
+  private sessionRollover: SessionRolloverBuffer =
+    new SessionRolloverBuffer(SESSION_ROTATE_AUDIO_MS, MAX_PREROLL_FRAMES);
   private workPath: string = '';
   private appliedHotwordsKey: string = '';
   // 用户点了「开始识别」触发 engine 创建；默认配置复用模型池，卸载后或配置变化时会按需重载。
@@ -360,6 +362,7 @@ struct Index {
     this.partialText = '';
     this.preRoll = [];
     this.preRollDroppedFrames = 0;
+    this.sessionRollover.reset();
     this.micFirstFrameLogged = false;
     this.resetSdkCapture();
     const ctx = getContext(this) as common.UIAbilityContext;
@@ -562,22 +565,24 @@ struct Index {
 
   // modelReady=true 后正常喂帧。既有短场景保留 55s 轮转；填单/会议纪要使用客户的长单 session。
   private feedFrameLive(frame: ArrayBuffer): void {
-    if (this.sessionId.length === 0) return;
     const profile = customerScenarioProfile(this.capturedCustomerScenario);
-    if (profile.rotateSession && this.sessionAudioMs >= SESSION_ROTATE_AUDIO_MS && !this.rotatingSession) {
-      // Proactively rotate before the 60 s SDK cap; onComplete restarts a fresh session.
-      this.rotatingSession = true;
+    const route: SessionRolloverRoute = this.sessionRollover.route(frame,
+      profile.rotateSession, this.sessionAudioMs, this.sessionId);
+    if (route === 'buffer') return;
+    if (route === 'finish') {
+      // The trigger frame is already buffered. Recorder frames arriving before onComplete join it.
       const sid = this.sessionId;
       this.sessionId = '';
       this.sessionAudioMs = 0;
       this.engine?.finish(sid);
-    } else {
-      this.sessionAudioMs += FRAME_AUDIO_MS;
-      // Copy before writeAudio: the public call can synchronously finish at max duration, so saving
-      // afterwards could miss the final frame. This is the exact payload attempted at the SDK gate.
-      this.captureSdkFrame(frame);
-      this.engine?.writeAudio(this.sessionId, frame);
+      return;
     }
+    if (this.sessionId.length === 0) return;
+    this.sessionAudioMs += FRAME_AUDIO_MS;
+    // Copy before writeAudio: the public call can synchronously finish at max duration, so saving
+    // afterwards could miss the final frame. This is the exact payload attempted at the SDK gate.
+    this.captureSdkFrame(frame);
+    this.engine?.writeAudio(this.sessionId, frame);
   }
 
   private resetSdkCapture(): void {
@@ -864,7 +869,7 @@ struct Index {
       this.coldStartGeneration : -1;
     const waitsForColdEngine = coldStartGeneration >= 0 &&
       this.coldStartPttGate.release(coldStartGeneration);
-    this.rotatingSession = false;
+    this.sessionRollover.reset();
     this.sessionAudioMs = 0;
     // 先 await 关麦并 flush 尾帧:此时 listening/sessionId 仍有效,补出来的尾帧能写进当前会话,
     // 之后再 finish 冲最终结果(与同事 5af9778「preserve recorder tail frames」对齐)。
@@ -996,10 +1001,11 @@ struct Index {
       this.releaseModel(`${this.compareInfo} · 模型已卸载`);
       return;
     }
-    if (this.listening && this.rotatingSession) {
-      // 连续场景的会话轮转(逼近 55s 上限):模型保持在内存,立即重开新会话,体验不中断。
-      this.rotatingSession = false;
+    if (this.listening && this.sessionRollover.isRotating()) {
+      // 连续场景的会话轮转:新 session 发布后同步回放等待 onComplete 期间缓存的真实 PCM。
+      const buffered = this.sessionRollover.complete();
       this.startRecognitionSession();
+      for (let i = 0; i < buffered.length; i++) this.feedFrameLive(buffered[i]);
     } else if (this.listening) {
       // vadBegin / maxAudioDuration 自动结束：不把它误当成 55s 主动轮转。
       this.listening = false;
@@ -1048,6 +1054,7 @@ struct Index {
     this.stoppingListening = false;
     this.modelReady = false;
     this.preRoll = [];
+    this.sessionRollover.reset();
     this.sessionId = '';
     this.releaseModel(`停止识别失败：${error}`);
   }
@@ -1066,6 +1073,7 @@ struct Index {
     this.listening = false;
     this.modelReady = false;
     this.preRoll = [];
+    this.sessionRollover.reset();
     this.sessionId = '';
     this.startPending = false;
     // 出错后引擎状态可能不可靠:卸掉模型,下次开始识别干净重载。
