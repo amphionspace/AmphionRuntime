@@ -33,7 +33,7 @@ bash tts/tools/harmony/pack_harmony_tts_assets.sh # TTS 模型 -> tts/harmony（
 `delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json`
 固定批准的中英模型身份。`verify_demo_inputs.sh`、自包含 HAR 验收和 SDK-only
 客户包终检都会校验 manifest 中记录的 encoder、decoder、joiner 原始 ONNX MD5，
-并以该文件内的已批准模型白名单作为唯一模型版本门禁。ORT 会受转换环境影响，不参与
+并以该文件内的 0.2.8 白名单作为唯一模型版本门禁。ORT 会受转换环境影响，不参与
 模型版本判断；其文件完整性仍由通用资产清单独立校验。更换模型时必须先完成模型
 验收，再在同一变更中更新该白名单及对应测试，不能通过跳过门禁交付。
 
