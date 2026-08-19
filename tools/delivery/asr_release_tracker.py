@@ -622,6 +622,12 @@ def _validate_evidence_files(report_path: Path, report: Dict[str, Any]) -> None:
         verify_entry(report.get("finish_compat_summary"))
     if report.get("numeric_identity_gate") is not None:
         verify_entry(report.get("numeric_identity_gate"))
+    release_version = report.get("release_version")
+    harmony_archive = (
+        isinstance(report.get("required_modes"), list)
+        and isinstance(release_version, str)
+        and _semver_key(release_version) >= _semver_key("0.3.6")
+    )
     finish_runs = report.get("finish_compat_runs", [])
     if not isinstance(finish_runs, list):
         raise ReleaseTrackerError("release evidence finish compatibility runs must be a list")
@@ -638,7 +644,7 @@ def _validate_evidence_files(report_path: Path, report: Dict[str, Any]) -> None:
             )
         for entry in files:
             verify_entry(entry, f"finish-compat-runs/{mode}")
-    if finish_runs and finish_modes != ["callback-api-reentrant", "finish-shutdown"]:
+    if harmony_archive and finish_modes != ["callback-api-reentrant", "finish-shutdown"]:
         raise ReleaseTrackerError("release evidence finish compatibility modes are incomplete")
     android_results = report.get("android_test_results")
     if not isinstance(android_results, list) or not android_results:
