@@ -47,6 +47,25 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
         self.assertIn("from './RuntimeIdentity'", license_source)
         self.assertNotIn("0.2.0-harmony", runtime)
 
+    def test_runtime_identity_matches_latest_delivery_ledger(self) -> None:
+        subprocess.run(
+            [
+                "python3",
+                "tools/delivery/asr_release_tracker.py",
+                "--repo",
+                ".",
+                "verify-current",
+                "--platform",
+                "harmony",
+                "--version",
+                "0.3.5",
+                "--source-commit",
+                "HEAD",
+            ],
+            check=True,
+            cwd=REPO_ROOT,
+        )
+
     def test_license_major_and_maintenance_boundaries_fail_closed(self) -> None:
         self.run_identity(
             """
