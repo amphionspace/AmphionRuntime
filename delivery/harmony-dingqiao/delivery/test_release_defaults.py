@@ -18,11 +18,21 @@ class ReleaseDefaultsTest(unittest.TestCase):
             workflow,
         )
 
-    def test_asr_contracts_checkout_keeps_history_for_police_parity(self) -> None:
+    def test_asr_contracts_fetches_only_frozen_police_history(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
         contracts = workflow.split("  asr-contracts:", 1)[1].split("  android-aar:", 1)[0]
 
-        self.assertIn("fetch-depth: 0", contracts)
+        self.assertIn("fetch-depth: 1", contracts)
+        self.assertIn("Fetch frozen police asset source", contracts)
+        self.assertIn('git fetch --no-tags --depth=1 origin "$source_commit"', contracts)
+        self.assertNotIn("fetch-depth: 0", contracts)
+
+    def test_markdown_only_pushes_skip_android_workflow(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        push_trigger = workflow.split("  push:", 1)[1].split("  pull_request:", 1)[0]
+
+        self.assertIn("paths-ignore:", push_trigger)
+        self.assertIn('      - "**.md"', push_trigger)
 
     def test_android_native_cache_is_exact_verified_and_only_skips_native_build(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")

@@ -1,13 +1,15 @@
 name: Android SDK CI
 
 # 触发：
-#   - push 到 main / release/*（始终完整构建）
+#   - push 到 main / release/*（纯 Markdown 变更除外）
 #   - 指向 main 的 PR（仅 Android/native 输入变化时完整构建）
 #   - 推 v* tag（始终完整构建并用于发版）
 on:
   push:
     branches: [main, "release/*"]
     tags: ["v*"]
+    paths-ignore:
+      - "**.md"
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -116,8 +118,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          # Harmony police parity reads frozen assets from a historical commit.
-          fetch-depth: 0
+          fetch-depth: 1
+
+      - name: Fetch frozen police asset source
+        shell: bash
+        run: |
+          source_commit="$(python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          metadata = json.loads(Path(
+              "asr/android/sdk-police/src/main/assets/police_terms/terms_global_meta.json"
+          ).read_text(encoding="utf-8"))
+          source_commit = metadata.get("source_commit", "")
+          if re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+              raise SystemExit("invalid frozen police source_commit")
+          print(source_commit)
+          PY
+          )"
+          git fetch --no-tags --depth=1 origin "$source_commit"
+          git cat-file -e "$source_commit^{commit}"
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
