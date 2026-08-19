@@ -58,6 +58,19 @@ class ReleaseDefaultsTest(unittest.TestCase):
         gradle_section = android[gradle_build:]
         self.assertNotIn("cache-hit", gradle_section)
 
+    def test_gradle_cache_uses_real_config_hash_and_refreshes_per_commit(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        android = workflow.split("  android-aar:", 1)[1].split("  ci-result:", 1)[0]
+        gradle_cache = android.split("- name: Cache Gradle", 1)[1].split(
+            "- name: Init Gradle wrapper", 1
+        )[0]
+
+        config_hash = "hashFiles('asr/android/**/*.gradle*'"
+        self.assertIn(config_hash, gradle_cache)
+        self.assertIn("${{ github.sha }}", gradle_cache)
+        self.assertIn("restore-keys:", gradle_cache)
+        self.assertNotIn("hashFiles('${{ env.SDK_BUILD_DIR }}", gradle_cache)
+
     def test_finish_compat_release_gate_is_part_of_the_project_working_agreement(self) -> None:
         agreement = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
         device_stress = (

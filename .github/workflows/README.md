@@ -39,3 +39,10 @@
 manifest 校验 fingerprint 及三份 `.so` 的 SHA-256/大小，才会跳过 native 编译；校验
 失败直接令 job 失败。未命中时重新编译并生成 identity manifest。无论是否命中，
 Gradle assemble/unit test、AAR 内容与哈希校验、Kotlin bridge 对账和 artifact 上传均照常运行。
+
+## Gradle cache
+
+Gradle User Home cache 的 primary key 由 runner OS、Android Gradle 配置文件 hash 和
+当前 commit SHA 组成。新 commit 先按相同配置 hash 恢复已有缓存，构建成功后再写入
+自己的不可变 cache entry；这样既能复用依赖和 Gradle build cache，又不会让固定 key
+长期停留在第一次保存的状态。任何缓存命中都不跳过 Gradle assemble 或 unit test。
