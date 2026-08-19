@@ -1,13 +1,15 @@
 name: Android SDK CI
 
 # 触发：
-#   - push 到 main / release/*（始终完整构建）
+#   - push 到 main / release/*（纯 Markdown 变更除外）
 #   - 指向 main 的 PR（仅 Android/native 输入变化时完整构建）
 #   - 推 v* tag（始终完整构建并用于发版）
 on:
   push:
     branches: [main, "release/*"]
     tags: ["v*"]
+    paths-ignore:
+      - "**.md"
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -116,8 +118,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          # Harmony police parity reads frozen assets from a historical commit.
-          fetch-depth: 0
+          fetch-depth: 1
+
+      - name: Fetch frozen police asset source
+        shell: bash
+        run: |
+          source_commit="$(python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          metadata = json.loads(Path(
+              "asr/android/sdk-police/src/main/assets/police_terms/terms_global_meta.json"
+          ).read_text(encoding="utf-8"))
+          source_commit = metadata.get("source_commit", "")
+          if re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+              raise SystemExit("invalid frozen police source_commit")
+          print(source_commit)
+          PY
+          )"
+          git fetch --no-tags --depth=1 origin "$source_commit"
+          git cat-file -e "$source_commit^{commit}"
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
@@ -219,10 +240,14 @@ jobs:
         if: steps.native-cache.outputs.cache-hit != 'true'
         run: python3 -m pip install meson==${{ env.MESON_VERSION }} ninja==${{ env.NINJA_VERSION }}
 
-      - name: Set up Android SDK + NDK
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: platforms;android-34 build-tools;34.0.0 cmake;${{ env.CMAKE_VERSION }} ndk;${{ env.NDK_VERSION }}
+          packages: platforms;android-34 build-tools;34.0.0
+
+      - name: Install Android native SDK tools
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        run: sdkmanager "ndk;${NDK_VERSION}" "cmake;${CMAKE_VERSION}"
 
       - name: Cache Gradle
         uses: actions/cache@v5
@@ -230,13 +255,16 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('${{ env.SDK_BUILD_DIR }}/**/*.gradle*', '${{ env.SDK_BUILD_DIR }}/gradle/wrapper/gradle-wrapper.properties') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('asr/android/**/*.gradle*', 'asr/android/gradle.properties', 'asr/android/gradle/libs.versions.toml', 'asr/android/gradle/wrapper/gradle-wrapper.properties') }}-${{ github.sha }}
+          restore-keys: |
+            gradle-${{ runner.os }}-${{ hashFiles('asr/android/**/*.gradle*', 'asr/android/gradle.properties', 'asr/android/gradle/libs.versions.toml', 'asr/android/gradle/wrapper/gradle-wrapper.properties') }}-
 
       - name: Init Gradle wrapper
         working-directory: ${{ env.SDK_BUILD_DIR }}
         run: bash init_gradle_wrapper.sh
 
       - name: Select pinned Android build tools
+        if: steps.native-cache.outputs.cache-hit != 'true'
         run: |
           echo "$ANDROID_HOME/cmake/${{ env.CMAKE_VERSION }}/bin" >> "$GITHUB_PATH"
           echo "ANDROID_NDK=$ANDROID_HOME/ndk/${{ env.NDK_VERSION }}" >> "$GITHUB_ENV"
