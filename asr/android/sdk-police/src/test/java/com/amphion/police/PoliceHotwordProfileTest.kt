@@ -9,12 +9,27 @@ import org.junit.Test
 class PoliceHotwordProfileTest {
 
     @Test
-    fun parserDefaultsToFullAndRejectsUnknownValues() {
-        assertEquals(PoliceHotwordProfile.FULL, PoliceHotwordProfile.parse(null))
+    fun parserUsesCompiledDefaultAndRejectsUnknownValues() {
+        assertEquals(PoliceHotwordProfile.defaultProfile(), PoliceHotwordProfile.parse(null))
         assertEquals(PoliceHotwordProfile.FULL, PoliceHotwordProfile.parse("full"))
-        assertEquals(PoliceHotwordProfile.PRUNE_UI30, PoliceHotwordProfile.parse("prune_ui30"))
+        assertEquals(PoliceHotwordProfile.PRUNE_UI28, PoliceHotwordProfile.parse("prune_ui28"))
         assertEquals(PoliceHotwordProfile.NONE, PoliceHotwordProfile.parse("none"))
         assertTrue(runCatching { PoliceHotwordProfile.parse("unknown") }.isFailure)
+    }
+
+    @Test
+    fun compiledDefaultHasExpectedBuiltInCount() {
+        val words = PoliceEngineConfig.effectiveHotwordsForProfile(
+            userHotwords = emptyList(),
+            profile = PoliceHotwordProfile.defaultProfile(),
+        )
+
+        val expected = when (PoliceHotwordProfile.defaultProfile()) {
+            PoliceHotwordProfile.FULL -> 370
+            PoliceHotwordProfile.PRUNE_UI28 -> 342
+            PoliceHotwordProfile.NONE -> error("none is not a permitted build default")
+        }
+        assertEquals(expected, words.size)
     }
 
     @Test
@@ -41,21 +56,23 @@ class PoliceHotwordProfileTest {
     }
 
     @Test
-    fun pruneUi30RemovesExactlyTheFirstCandidateBatch() {
+    fun pruneUi28RemovesOnlyDeviceSafeFirstBatchTerms() {
         val full = PoliceEngineConfig.effectiveHotwordsForProfile(
             userHotwords = emptyList(),
             profile = PoliceHotwordProfile.FULL,
         )
         val candidate = PoliceEngineConfig.effectiveHotwordsForProfile(
             userHotwords = emptyList(),
-            profile = PoliceHotwordProfile.PRUNE_UI30,
+            profile = PoliceHotwordProfile.PRUNE_UI28,
         )
-        val removed = PoliceHotwordPruningCandidates.UI30_REMOVED_TERMS
+        val removed = PoliceHotwordPruningCandidates.UI28_REMOVED_TERMS
 
-        assertEquals(30, removed.size)
+        assertEquals(28, removed.size)
         assertTrue(full.containsAll(removed))
-        assertEquals(340, candidate.size)
+        assertEquals(342, candidate.size)
         assertEquals(full.filterNot { it in removed }, candidate)
+        assertTrue(candidate.contains("自主填报"))
+        assertTrue(candidate.contains("短租房补录"))
         assertTrue(candidate.contains("警鉴"))
         assertTrue(candidate.contains("签收警单"))
         assertTrue(candidate.contains("车牌"))
@@ -63,14 +80,14 @@ class PoliceHotwordProfileTest {
     }
 
     @Test
-    fun customerCanReAddAWordRemovedByPruneUi30() {
+    fun customerCanReAddAWordRemovedByPruneUi28() {
         val words = PoliceEngineConfig.effectiveHotwordsForProfile(
             userHotwords = listOf("任务管理"),
-            profile = PoliceHotwordProfile.PRUNE_UI30,
+            profile = PoliceHotwordProfile.PRUNE_UI28,
         )
 
         assertEquals("任务管理", words.first())
-        assertEquals(341, words.size)
+        assertEquals(343, words.size)
         assertEquals(1, words.count { it == "任务管理" })
     }
 

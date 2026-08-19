@@ -70,10 +70,10 @@ object PoliceEngineConfig {
                 if (plateHotwords) PlateHotwords.PRESET.forEach { out.add(it) }
                 if (stationHotwords) PoliceStationHotwords.PRESET.forEach { out.add(it) }
             }
-            PoliceHotwordProfile.PRUNE_UI30 -> {
+            PoliceHotwordProfile.PRUNE_UI28 -> {
                 if (termsHotwords) {
                     PoliceTermsHotwords.PRESET
-                        .filterNot { it in PoliceHotwordPruningCandidates.UI30_REMOVED_TERMS }
+                        .filterNot { it in PoliceHotwordPruningCandidates.UI28_REMOVED_TERMS }
                         .forEach { out.add(it) }
                 }
                 if (plateHotwords) PlateHotwords.PRESET.forEach { out.add(it) }

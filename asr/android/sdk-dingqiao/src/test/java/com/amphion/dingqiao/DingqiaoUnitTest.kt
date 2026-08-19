@@ -68,18 +68,20 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
-    fun buildAsrConfig_pruneUi30KeepsCriticalPoliceDomains() {
+    fun buildAsrConfig_pruneUi28KeepsCriticalPoliceDomainsAndRestoredTerms() {
         val config = DingqiaoEngineConfig.buildAsrConfig(
             CreateEngineParams(
                 language = "zh-CN",
                 online = DingqiaoOnlineMode.OFFLINE,
-                extraParams = mapOf("__experimentalPoliceHotwordProfile" to "prune_ui30"),
+                extraParams = mapOf("__experimentalPoliceHotwordProfile" to "prune_ui28"),
             ),
             speakerModelPath = null,
         )
 
-        assertEquals(340, config.hotwords.size)
+        assertEquals(342, config.hotwords.size)
         assertFalse(config.hotwords.contains("任务管理"))
+        assertTrue(config.hotwords.contains("自主填报"))
+        assertTrue(config.hotwords.contains("短租房补录"))
         assertTrue(config.hotwords.contains("警鉴"))
         assertTrue(config.hotwords.contains("签警情"))
         assertTrue(config.hotwords.contains("车牌"))

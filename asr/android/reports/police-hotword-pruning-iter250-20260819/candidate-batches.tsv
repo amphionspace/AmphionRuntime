@@ -2,7 +2,7 @@ phase	decision	hotword	rationale
 ui30	candidate_remove	任务管理	historical_ui_r1_r2_pass
 ui30	candidate_remove	要素管控	historical_ui_r1_r2_pass
 ui30	candidate_remove	通用辅助功能	historical_ui_r1_r2_pass
-ui30	candidate_remove	自主填报	historical_ui_r1_r2_pass
+ui30	restored_after_device_regression	自主填报	prune_ui30_regressed_1_of_2
 ui30	candidate_remove	消息中心	historical_ui_r1_r2_pass
 ui30	candidate_remove	领导审批	historical_ui_r1_r2_pass
 ui30	candidate_remove	访客功能	historical_ui_r1_r2_pass
@@ -26,7 +26,7 @@ ui30	candidate_remove	语音上传	historical_ui_r1_r2_pass
 ui30	candidate_remove	任务统计	historical_ui_r1_r2_pass
 ui30	candidate_remove	访客模式	historical_ui_r1_r2_pass
 ui30	candidate_remove	短租房屋查询	historical_ui_r1_r2_pass
-ui30	candidate_remove	短租房补录	historical_ui_r1_r2_pass
+ui30	restored_after_device_regression	短租房补录	prune_ui30_regressed_2_of_2
 ui30	candidate_remove	个人中心	historical_ui_r1_r2_pass
 ui30	candidate_remove	基本信息	historical_ui_r1_r2_pass
 structural6	pending_after_ui30	实有房屋采集	shorter_skeleton_available
