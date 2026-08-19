@@ -33,59 +33,69 @@ jobs:
   changes:
     name: Detect Android/native changes
     runs-on: ubuntu-22.04
+    permissions:
+      contents: none
+      pull-requests: read
     outputs:
       android: ${{ steps.filter.outputs.android }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
       - name: Decide whether Android AAR inputs changed
         id: filter
-        shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          # main/release pushes, tags and manual runs preserve the existing full-build behavior.
-          if [[ "$EVENT_NAME" != "pull_request" ]]; then
-            echo "android=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+        uses: actions/github-script@v9
+        with:
+          script: |
+            // Pushes, tags and manual runs always build Android; no repository checkout is needed.
+            if (context.eventName !== "pull_request") {
+              core.setOutput("android", "true");
+              return;
+            }
 
-          android=false
-          while IFS= read -r -d '' path; do
-            case "$path" in
-              .gitmodules|\
-              .github/workflows/android.yml|\
-              asr/android/*|\
-              asr/native/*|\
-              asr/tools/03_build_agc_native.sh|\
-              asr/tools/04_build_android_so.sh|\
-              asr/tools/05_package_aar_libs.sh|\
-              asr/tools/07_sync_kotlin_from_upstream.sh|\
-              asr/tools/android_native_cache.py|\
-              asr/tools/apply_sherpa_patches.sh|\
-              asr/tools/ensure_agc_build_tools.sh|\
-              asr/tools/prefetch_sherpa_cmake_deps.sh|\
-              third_party/patches/sherpa-amphion/*|\
-              third_party/sherpa-onnx)
-                android=true
-                echo "Android/native input changed: $path"
-                break
-                ;;
-            esac
-          # --no-renames reports both sides of a rename, so moving an Android input
-          # out of a watched path still triggers the full build.
-          done < <(git diff --name-only --no-renames -z "$BASE_SHA...$HEAD_SHA")
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            if (files.length < context.payload.pull_request.changed_files) {
+              core.warning("Changed-files API result was truncated; building Android fail-closed.");
+              core.setOutput("android", "true");
+              return;
+            }
+            const exactInputs = new Set([
+              ".gitmodules",
+              ".github/workflows/android.yml",
+              "asr/tools/03_build_agc_native.sh",
+              "asr/tools/04_build_android_so.sh",
+              "asr/tools/05_package_aar_libs.sh",
+              "asr/tools/07_sync_kotlin_from_upstream.sh",
+              "asr/tools/android_native_cache.py",
+              "asr/tools/apply_sherpa_patches.sh",
+              "asr/tools/ensure_agc_build_tools.sh",
+              "asr/tools/prefetch_sherpa_cmake_deps.sh",
+              "third_party/sherpa-onnx",
+            ]);
+            const inputPrefixes = [
+              "asr/android/",
+              "asr/native/",
+              "third_party/patches/sherpa-amphion/",
+            ];
+            const isAndroidInput = (path) =>
+              exactInputs.has(path) || inputPrefixes.some((prefix) => path.startsWith(prefix));
 
-          echo "android=$android" >> "$GITHUB_OUTPUT"
+            // Check both sides of a rename so moving a watched input out of scope still builds.
+            for (const file of files) {
+              const paths = [file.filename, file.previous_filename].filter(Boolean);
+              const matchedPath = paths.find(isAndroidInput);
+              if (matchedPath) {
+                core.info(`Android/native input changed: ${matchedPath}`);
+                core.setOutput("android", "true");
+                return;
+              }
+            }
+            core.setOutput("android", "false");
 
   asr-contracts:
     name: ASR contracts
-    needs: changes
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -143,8 +153,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: Initialize sherpa-onnx submodule
         run: git submodule update --init third_party/sherpa-onnx
