@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 import tempfile
@@ -187,6 +188,91 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
             self.assertNotIn("/Users/private", text, path)
             self.assertNotIn("e4bda0e5a5bd", text, path)
             self.assertNotIn("clientID", text, path)
+
+    def test_archives_numeric_gate_and_finish_compat_child_runs(self) -> None:
+        self.make_run("20260807-100100-vad-begin-pass", "vad-begin", "PASS")
+        finish_raw = self.root / "finish-raw"
+        finish_runs = {}
+        for mode in MODULE.REQUIRED_FINISH_COMPAT_MODES:
+            run_id = f"20260807-100200-{mode}-pass"
+            source = self.make_run(run_id, mode, "PASS")
+            finish_raw.mkdir(exist_ok=True)
+            shutil.move(str(source), finish_raw / run_id)
+            finish_runs[mode] = run_id
+        self.finish_summary.write_text(
+            json.dumps(
+                {
+                    "status": "PASS",
+                    "source_commit": "a" * 40,
+                    "modes": [
+                        {"mode": mode, "run_id": run_id, "status": "PASS"}
+                        for mode, run_id in finish_runs.items()
+                    ],
+                    "reports": {
+                        mode: f"../finish-raw/{run_id}/report.json"
+                        for mode, run_id in finish_runs.items()
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        numeric = self.root / "numeric.json"
+        numeric.write_text(
+            json.dumps(
+                {
+                    "gate": "numeric-identity-recovery",
+                    "status": "PASS",
+                    "source_commit": "a" * 40,
+                    "hap_sha256": "c" * 64,
+                    "input_sha256": "4" * 64,
+                    "replay_report_sha256": "5" * 64,
+                    "duration_ms": 10880,
+                    "live_replay_exact_match": True,
+                    "identifier_exact_match": True,
+                    "identifier_length": 18,
+                    "checksum_valid": True,
+                    "lifecycle": {
+                        "finish_before_last_count": 0,
+                        "last_count": 1,
+                        "complete_count": 1,
+                        "errors": 0,
+                        "live_streams": 0,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with mock.patch.object(MODULE, "REQUIRED_RELEASE_MODES", ("vad-begin",)):
+            summary = MODULE.archive_evidence(
+                raw_root=self.raw,
+                output=self.output,
+                release_version="0.3.1",
+                source_commit="a" * 40,
+                artifact_sha256="d" * 64,
+                har_sha256="e" * 64,
+                diagnostic_notes={},
+                android_summary=self.android_summary,
+                android_results_root=self.android_results,
+                finish_compat_summary=self.finish_summary,
+                finish_compat_raw_root=finish_raw,
+                numeric_gate_attestation=numeric,
+            )
+
+        self.assertEqual(2, len(summary["finish_compat_runs"]))
+        archived_finish = json.loads(
+            (self.output / "finish-compat-report.json").read_text(encoding="utf-8")
+        )
+        for mode in MODULE.REQUIRED_FINISH_COMPAT_MODES:
+            self.assertEqual(
+                f"finish-compat-runs/{mode}/report.json",
+                archived_finish["reports"][mode],
+            )
+            self.assertTrue(
+                (self.output / "finish-compat-runs" / mode / "report.json").is_file()
+            )
+        self.assertEqual("4" * 64, summary["numeric_identity_gate"]["input_sha256"])
+        self.assertTrue((self.output / "numeric-identity-gate.json").is_file())
 
     def test_rejects_missing_required_mode_and_existing_output(self) -> None:
         self.make_run("20260807-100100-vad-begin-pass", "vad-begin", "PASS")

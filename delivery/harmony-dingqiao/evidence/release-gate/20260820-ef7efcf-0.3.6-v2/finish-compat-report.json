@@ -67,8 +67,8 @@
     }
   ],
   "reports": {
-    "callback-api-reentrant": "../../finish-compat-numeric-pass-raw/20260820-070526-callback-api-reentrant-03ec5301/report.json",
-    "finish-shutdown": "../../finish-compat-numeric-pass-raw/20260820-070533-finish-shutdown-1a9c1fee/report.json"
+    "callback-api-reentrant": "finish-compat-runs/callback-api-reentrant/report.json",
+    "finish-shutdown": "finish-compat-runs/finish-shutdown/report.json"
   },
   "schema_version": 1,
   "source_commit": "ef7efcfc82c29829bca708c5c0c3cd5fd858368b",

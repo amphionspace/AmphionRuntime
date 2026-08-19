@@ -25,8 +25,8 @@
 | Speaker VAD 重叠说话 | **未关闭，本轮不处理** | 本轮只关闭先后交替场景；重叠需 diarization/overlap 能力，不使用当前边界逻辑猜测归属。 |
 | BUG-08 远讲/SNR/SourceType 退化 | **未关闭，本轮不处理** | 需带真值的分层 CER 评测，不与生命周期修复混合归因。 |
 | BUG-09/10 警务词与专项 hotword 准确率 | **未关闭，本轮不处理** | 需在固定警务语料上比较 CER/WER 和相邻短句退化；不用 SDK 字符串硬改。 |
-| 0.3.5 模型身份证数字缺失 | **0.3.6 新模型现场门禁通过** | 旧的 6.62 秒 PCM 没有固定人工真值，不能把另一模型输出当作交付断言。0.3.6 新模型 HAP（SHA-256 `2a9efa70…87f`）已改用 2026-08-20 手机现场录制并确认的 10.88 秒 PTT PCM 验收：App 实时识别和当前 HEAD 同文件 20 ms 原样重放结果完全一致，均提取到 18 位号码且身份证校验码有效；重放时 `finish` 前 `isLast=0`，结束后唯一 last/complete，errors=0、liveStreams=0。报告：`/private/tmp/amphion-numeric-recovery.Dswqry/current-head-numeric-gate/20260820-065530-customer-ptt-c09aa00b/report.json`。原始 PCM、截图和号码明文不提交。 |
-| 新模型的 AGC 与发布基线 | **0.3.6 发布门禁通过** | 当前 source commit 与同一 HAP 的 24 项 Harmony 发布矩阵、finish 兼容性根门禁、Android Debug/Release 必需 208 项测试和警务模块测试均通过；证据已脱敏归档到 `delivery/harmony-dingqiao/evidence/release-gate/20260820-ef7efcf-0.3.6/`，不复用旧模型或 0.3.5 模型的二进制证据。 |
+| 0.3.5 模型身份证数字缺失 | **0.3.6 新模型现场门禁通过** | 旧的 6.62 秒 PCM 没有固定人工真值，不能把另一模型输出当作交付断言。0.3.6 新模型 HAP（SHA-256 `2a9efa70…87f`）已改用 2026-08-20 手机现场录制并确认的 10.88 秒 PTT PCM 验收：App 实时识别和同一 HAP、同文件 20 ms 原样重放结果完全一致，均提取到 18 位号码且身份证校验码有效；重放时 `finish` 前 `isLast=0`，结束后唯一 last/complete，errors=0、liveStreams=0。输入与报告哈希及上述断言已脱敏归档，原始 PCM、截图和号码明文不提交。 |
+| 新模型的 AGC 与发布基线 | **0.3.6 发布门禁通过** | 当前 source commit 与同一 HAP 的 24 项 Harmony 发布矩阵、finish 兼容性根门禁及其两个子运行、Android Debug/Release 必需 208 项测试和警务模块测试均通过；证据已脱敏归档到 `delivery/harmony-dingqiao/evidence/release-gate/20260820-ef7efcf-0.3.6-v2/`，不复用旧模型或 0.3.5 模型的二进制证据。 |
 
 本清单是分支收口时的状态账本：“本轮不处理”只表示不进入本 PR，不表示缺陷已解决。
 

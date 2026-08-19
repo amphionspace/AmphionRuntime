@@ -620,6 +620,26 @@ def _validate_evidence_files(report_path: Path, report: Dict[str, Any]) -> None:
     verify_entry(report.get("android_tests_artifact"))
     if report.get("finish_compat_summary") is not None:
         verify_entry(report.get("finish_compat_summary"))
+    if report.get("numeric_identity_gate") is not None:
+        verify_entry(report.get("numeric_identity_gate"))
+    finish_runs = report.get("finish_compat_runs", [])
+    if not isinstance(finish_runs, list):
+        raise ReleaseTrackerError("release evidence finish compatibility runs must be a list")
+    finish_modes = []
+    for run in finish_runs:
+        if not isinstance(run, dict) or not isinstance(run.get("mode"), str):
+            raise ReleaseTrackerError("release evidence contains an invalid finish compatibility run")
+        mode = run["mode"]
+        finish_modes.append(mode)
+        files = run.get("files")
+        if not isinstance(files, list) or not files:
+            raise ReleaseTrackerError(
+                f"release evidence finish compatibility run has no files: {mode}"
+            )
+        for entry in files:
+            verify_entry(entry, f"finish-compat-runs/{mode}")
+    if finish_runs and finish_modes != ["callback-api-reentrant", "finish-shutdown"]:
+        raise ReleaseTrackerError("release evidence finish compatibility modes are incomplete")
     android_results = report.get("android_test_results")
     if not isinstance(android_results, list) or not android_results:
         raise ReleaseTrackerError("release evidence has no Android test result manifests")
