@@ -14,6 +14,10 @@ ADAPTER = (
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 )
 RUNTIME = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
+ADAPTER_ENDPOINT_POLICY = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/EndpointRulePolicy.ts"
+)
 SHERPA_PATCH = (
     REPO_ROOT
     / "third_party/patches/sherpa-amphion/0013-feat-harmony-decode-online-streams-asynchronously.patch"
@@ -232,6 +236,30 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         self.assertIn("requestFinish:", adapter)
         self.assertIn("session.requestStopFromCallback()", adapter)
         self.assertIn("requestStopFromCallback(): boolean", runtime)
+
+    def test_dingqiao_endpoint_rule_is_configurable_per_session(self) -> None:
+        script = textwrap.dedent(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ endpointMaxUtteranceSec }} from {ADAPTER_ENDPOINT_POLICY.as_uri()!r};
+
+            assert.equal(endpointMaxUtteranceSec({{}}), 20);
+            assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: 60000 }}), 60);
+            assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: '45000' }}), 45);
+            assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: Number.NaN }}), 20);
+            assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: 0 }}), 20);
+            """
+        )
+        subprocess.run(
+            ["node", "--experimental-strip-types", "--input-type=module", "-e", script],
+            check=True,
+            cwd=REPO_ROOT,
+        )
+
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        self.assertIn("config.endpointRules.rule3MinUtteranceLengthSec =", adapter)
+        self.assertIn("endpointMaxUtteranceSec(startParams?.extraParams ?? {})", adapter)
+        self.assertIn("endpointMaxUtteranceSec(params?.extraParams ?? {})", adapter)
 
     def test_native_async_decode_retains_recognizer_and_stream_lifetimes(self) -> None:
         patch = SHERPA_PATCH.read_text(encoding="utf-8")
