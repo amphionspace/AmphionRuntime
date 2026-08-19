@@ -338,6 +338,7 @@ text = text.replace(
     "普通 Demo 可使用 ODID 签发体验授权，但 ODID 与 SN 不可混用。",
     "普通应用可与签发方约定 ODID，但 ODID 与 SN 不可混用。",
 )
+text = text.replace("默认并在鼎桥适配层固定为", "默认并在当前适配层固定为")
 path.write_text(text, encoding="utf-8")
 PY
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/ASR_TROUBLESHOOTING.md" \
