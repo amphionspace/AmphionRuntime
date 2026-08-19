@@ -25,8 +25,8 @@
 | Speaker VAD 重叠说话 | **未关闭，本轮不处理** | 本轮只关闭先后交替场景；重叠需 diarization/overlap 能力，不使用当前边界逻辑猜测归属。 |
 | BUG-08 远讲/SNR/SourceType 退化 | **未关闭，本轮不处理** | 需带真值的分层 CER 评测，不与生命周期修复混合归因。 |
 | BUG-09/10 警务词与专项 hotword 准确率 | **未关闭，本轮不处理** | 需在固定警务语料上比较 CER/WER 和相邻短句退化；不用 SDK 字符串硬改。 |
-| 0.3.5 模型身份证数字缺失 | **0.3.6 新模型门禁失败，禁止交付** | 客户 App 留存的 6.62 秒 PCM 在 0.3.5 native 解码阶段未产生身份证数字 token，已排除 UI 和字符串后处理。新模型 HAP（SHA-256 `c3f342f6…ce1`）在同一 PCM、20 ms 实时喂入下恢复了大部分号码，但 native endpoint 仍只有 24 字符/24 token；公共结果归一化后为 16 位数字加校验字符，比有效校验的 18 位参考结果少第 8 位数字。`customer-form` 与普通 `paced` 两种配置结果一致，说明不是表单 profile、ITN 或公共字符串后处理造成。报告：`/private/tmp/amphion-numeric-recovery.Dswqry/idcard-gate/20260820-064421-customer-form-1fca4550/report.json`、`/private/tmp/amphion-numeric-recovery.Dswqry/idcard-isolation/20260820-064640-paced-c6b65473/report.json`。不提交原始 PCM，不在文档记录号码明文。 |
-| 新模型的 AGC 与发布基线 | **未执行，受数字硬门禁阻断** | 0.3.6 不复用旧模型或 0.3.5 模型的二进制证据。由于身份证 PCM 最小门禁已失败，本轮按停止条件未运行完整 Harmony 矩阵、Android 发布回归、证据归档或 SDK 打包；更换通过数字门禁的模型后从唯一 HAP 重新验收。 |
+| 0.3.5 模型身份证数字缺失 | **0.3.6 新模型现场门禁通过** | 旧的 6.62 秒 PCM 没有固定人工真值，不能把另一模型输出当作交付断言。0.3.6 新模型 HAP（SHA-256 `c3f342f6…ce1`）已改用 2026-08-20 手机现场录制并确认的 10.88 秒 PTT PCM 验收：App 实时识别和同文件 20 ms 原样重放结果完全一致，均提取到 18 位号码且身份证校验码有效；重放时 `finish` 前 `isLast=0`，结束后唯一 last/complete，errors=0、liveStreams=0。报告：`/private/tmp/amphion-numeric-recovery.Dswqry/current-app-replay/20260820-065309-customer-ptt-692cffe8/report.json`。原始 PCM、截图和号码明文不提交。 |
+| 新模型的 AGC 与发布基线 | **发布验证进行中** | 0.3.6 不复用旧模型或 0.3.5 模型的二进制证据；现场数字门禁通过后，继续使用同一 HAP 执行 Harmony 发布矩阵、Android 回归、证据归档和 SDK 打包。 |
 
 本清单是分支收口时的状态账本：“本轮不处理”只表示不进入本 PR，不表示缺陷已解决。
 
