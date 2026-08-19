@@ -15,6 +15,7 @@
 - 修复非 ASCII hotword 按字符数而不是 UTF-8 字节数分配 native buffer 的问题，避免中文热词截断。
 - 保持公共 `isFinal` / `isLast` / `onComplete` / `cancel` 契约不变；PTT 尾字准确率、Speaker VAD
   重叠说话、远讲/SNR、警务词与专项 hotword 精度仍按已知问题清单继续跟踪。
+- 目标说话人增强仍仅保留接口预留；0.3.5 不包含该能力所需模型，不能启用该参数。
 
 ## 0.3.4 - 2026-08-17（警务术语短 final 定向修复）
 
