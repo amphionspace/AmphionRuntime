@@ -498,6 +498,30 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun continuousRecognition_disablesOnlyTheSessionDurationCap() {
+        assertEquals(
+            0L,
+            DingqiaoEngineConfig.maxAudioDurationMs(
+                StartParams(
+                    "s1",
+                    AudioInfo(),
+                    mapOf("maxAudioDuration" to 8_000, "enableContinuousRecognition" to true),
+                ),
+            ),
+        )
+        assertEquals(
+            8_000L,
+            DingqiaoEngineConfig.maxAudioDurationMs(
+                StartParams(
+                    "s1",
+                    AudioInfo(),
+                    mapOf("maxAudioDuration" to 8_000, "enableContinuousRecognition" to "true"),
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun nonFiniteSessionNumbersFallBackToDocumentedDefaults() {
         val config = DingqiaoEngineConfig.buildSessionConfig(
             StartParams(

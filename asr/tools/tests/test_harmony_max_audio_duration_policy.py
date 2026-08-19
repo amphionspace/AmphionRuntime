@@ -66,6 +66,24 @@ class HarmonyMaxAudioDurationPolicyTest(unittest.TestCase):
             """
         )
 
+    def test_explicit_continuous_mode_disables_only_the_session_duration_cap(self) -> None:
+        self.run_policy(
+            """
+            assert.equal(maxAudioBytesOf({
+              maxAudioDuration: 8000,
+              enableContinuousRecognition: true,
+            }), 0);
+            assert.equal(maxAudioBytesOf({
+              maxAudioDuration: 8000,
+              enableContinuousRecognition: false,
+            }), 8000 * 32);
+            assert.equal(maxAudioBytesOf({
+              maxAudioDuration: 8000,
+              enableContinuousRecognition: 'true',
+            }), 8000 * 32);
+            """
+        )
+
     def test_adapter_checks_the_reserved_frame_without_cross_session_leakage(self) -> None:
         source = ADAPTER.read_text(encoding="utf-8")
         reserve = source.index("this.audioBytesWritten += audio.byteLength;")

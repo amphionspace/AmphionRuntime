@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 from array import array
 import hashlib
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -25,6 +26,127 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_customer_tail_manifest_binds_expected_suffix_to_source_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "tail.json"
+            source_hash = "a" * 64
+            manifest.write_text(json.dumps({"files": [{
+                "sha256": source_hash,
+                "required_suffix": "12 34567。",
+            }]}), encoding="utf-8")
+            mapping = [{"id": "000000", "source_sha256": source_hash}]
+            complete = [{"id": "000000", "resultHex": "正文，123 4567。".encode("utf-16-be").hex()}]
+            truncated = [{"id": "000000", "resultHex": "正文，123 45。".encode("utf-16-be").hex()}]
+
+            verdict = MODULE.expected_tail_verdict(complete, mapping, manifest)
+            self.assertEqual("PASS", verdict["status"])
+            self.assertNotIn("required_suffix", verdict["cases"][0])
+            self.assertNotIn("normalized_result_suffix", verdict["cases"][0])
+            self.assertEqual(hashlib.sha256(manifest.read_bytes()).hexdigest(),
+                             verdict["manifest_sha256"])
+            self.assertEqual("FAIL", MODULE.expected_tail_verdict(
+                truncated, mapping, manifest)["status"])
+            self.assertNotIn('"expected_tail_manifest":',
+                             SCRIPT.read_text(encoding="utf-8"))
+
+            manifest.write_text(json.dumps({"files": [
+                {"sha256": source_hash, "required_suffix": "1234567"},
+                {"sha256": source_hash, "required_suffix": "7654321"},
+            ]}), encoding="utf-8")
+            duplicate = MODULE.expected_tail_verdict(complete, mapping, manifest)
+            self.assertEqual("FAIL", duplicate["status"])
+            self.assertIn("duplicate sha256", duplicate["reason"])
+
+    def test_customer_tail_manifest_requires_meeting_minutes_mode(self) -> None:
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "burst", "--expected-tail-manifest", "tail.json"]
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+
+    def test_continuous_max_duration_requires_and_accepts_tail_manifest(self) -> None:
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "continuous-max-duration"]
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+
+        with mock.patch.object(
+            sys,
+            "argv",
+            [str(SCRIPT), "--mode", "continuous-max-duration",
+             "--expected-tail-manifest", "tail.json"],
+        ):
+            args = MODULE.parse_args()
+        self.assertEqual("continuous-max-duration", args.mode)
+        self.assertIn("continuous-max-duration", MODULE.FINISH_MODES)
+
+        carrier = CARRIER.read_text(encoding="utf-8")
+        self.assertIn("params.extraParams['enableContinuousRecognition'] = true", carrier)
+        self.assertIn("fed > requiredFrames", carrier)
+
+    def test_continuous_long_and_voiceprint_speaker_vad_gates(self) -> None:
+        modes = ("continuous-long-session", "continuous-voiceprint-speaker-vad")
+        for mode in modes:
+            with self.subTest(mode=mode), mock.patch.object(
+                sys, "argv", [str(SCRIPT), "--mode", mode]
+            ), self.assertRaises(SystemExit):
+                MODULE.parse_args()
+
+            with self.subTest(mode=mode), mock.patch.object(
+                sys,
+                "argv",
+                [str(SCRIPT), "--mode", mode,
+                 "--expected-tail-manifest", "tail.json"],
+            ):
+                args = MODULE.parse_args()
+            self.assertEqual(mode, args.mode)
+            self.assertIn(mode, MODULE.FINISH_MODES)
+
+        with mock.patch.object(
+            sys,
+            "argv",
+            [str(SCRIPT), "--mode", "continuous-long-session", "--cycles", "1",
+             "--expected-tail-manifest", "tail.json"],
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+        with mock.patch.object(
+            sys,
+            "argv",
+            [str(SCRIPT), "--mode", "continuous-long-session", "--cycles", "2",
+             "--pace-ms", "0", "--expected-tail-manifest", "tail.json"],
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+
+        carrier = CARRIER.read_text(encoding="utf-8")
+        cycle = carrier.split("async function runContinuousMaxDurationCycle", 1)[1].split(
+            "async function runNumericEdgeCycle", 1
+        )[0]
+        self.assertIn("CONTINUOUS_LONG_MIN_FRAMES", cycle)
+        self.assertIn("params.extraParams['enableVoiceprintVerification'] = true", cycle)
+        self.assertIn("params.extraParams['enableSpeakerVad'] = true", cycle)
+        self.assertIn("events.nonEmptySpeakerScores === nonEmptyFinals", cycle)
+        self.assertIn("lastBeforeFinish === 0", cycle)
+        runner = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            'args.mode == "continuous-long-session" and memory.get("status") != "PASS"',
+            runner,
+        )
+
+    def test_customer_meeting_minutes_requires_tail_manifest(self) -> None:
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "customer-meeting-minutes"]
+        ), self.assertRaises(SystemExit):
+            MODULE.parse_args()
+
+    def test_customer_tail_manifest_rejects_non_utf8_without_raising(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "tail.json"
+            manifest.write_bytes(b"\xff\xfe")
+
+            verdict = MODULE.expected_tail_verdict([], [], manifest)
+
+            self.assertEqual("FAIL", verdict["status"])
+            self.assertIn("cannot read tail manifest", verdict["reason"])
+
     def test_voiceprint_representative_selection_excludes_too_short_enrollment(self) -> None:
         sources = [
             MODULE.AudioSource(Path("short.wav"), 16000, 1, 2, 44800, 2.8),

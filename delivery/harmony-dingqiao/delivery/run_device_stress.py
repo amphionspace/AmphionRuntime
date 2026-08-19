@@ -33,7 +33,9 @@ MODULE = "amphion_asr_demo"
 ABILITY = "EntryAbility"
 REMOTE_ROOT = "/data/storage/el2/base/files/asr-stress"
 FINISH_MODES = {
-    "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration", "numeric-edge",
+    "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration",
+    "continuous-max-duration", "continuous-long-session",
+    "continuous-voiceprint-speaker-vad", "numeric-edge",
     "finish-shutdown", "finish-shutdown-relicense",
     "customer-tap-vad", "customer-ptt", "customer-transcription", "customer-ptt-tail",
     "customer-form", "customer-meeting-minutes",
@@ -89,6 +91,11 @@ def parse_args() -> argparse.Namespace:
         help="Role and text-assertion manifest for target-speaker fixtures.",
     )
     parser.add_argument(
+        "--expected-tail-manifest",
+        type=Path,
+        help="SHA-256 keyed final-text suffix assertions for long-speech fixtures.",
+    )
+    parser.add_argument(
         "--mode",
         choices=(
             "burst",
@@ -104,6 +111,9 @@ def parse_args() -> argparse.Namespace:
             "recreate",
             "reconfigure",
             "max-duration",
+            "continuous-max-duration",
+            "continuous-long-session",
+            "continuous-voiceprint-speaker-vad",
             "edge",
             "reentrant",
             "start-cancel",
@@ -187,6 +197,18 @@ def parse_args() -> argparse.Namespace:
             parser.error("--speaker-vad-threshold must be within [-1, 1]")
     if args.target_speaker_manifest is not None and args.mode not in TARGET_SPEAKER_MODES:
         parser.error("--target-speaker-manifest requires a target-speaker mode")
+    tail_modes = {
+        "customer-meeting-minutes", "continuous-max-duration", "continuous-long-session",
+        "continuous-voiceprint-speaker-vad",
+    }
+    if args.expected_tail_manifest is not None and args.mode not in tail_modes:
+        parser.error("--expected-tail-manifest requires a tail-validation mode")
+    if args.mode in tail_modes and args.expected_tail_manifest is None:
+        parser.error(f"--mode {args.mode} requires --expected-tail-manifest")
+    if args.mode == "continuous-long-session" and args.cycles < 2:
+        parser.error("--mode continuous-long-session requires at least 2 cycles")
+    if args.mode == "continuous-long-session" and args.pace_ms < 20:
+        parser.error("--mode continuous-long-session requires --pace-ms >= 20")
     if (
         args.mode == "speaker-vad-turn"
         and not args.skip_target_content_check
@@ -231,7 +253,7 @@ def verified_build_identity() -> dict[str, object]:
         raise StressFailure((result.stdout + result.stderr).strip())
     try:
         identity = json.loads(BUILD_IDENTITY.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise StressFailure(f"cannot read Harmony build identity: {error}") from error
     if not isinstance(identity, dict):
         raise StressFailure("Harmony build identity must be a JSON object")
@@ -529,6 +551,78 @@ def target_speaker_content_verdict(
     passed = bool(results) and observed == expected and all(item["status"] == "PASS" for item in results)
     return {"status": "PASS" if passed else "FAIL", "expected_case_ids": sorted(expected),
             "observed_case_ids": sorted(observed), "cases": results}
+
+
+def normalized_asr_text(value: str) -> str:
+    return "".join(character.lower() for character in value if character.isalnum())
+
+
+def expected_tail_verdict(
+    cycles: list[dict[str, str]],
+    mapping: list[dict[str, object]],
+    manifest_path: Path | None,
+) -> dict[str, object]:
+    if manifest_path is None:
+        return {"status": "NOT_APPLICABLE", "reason": "tail assertion disabled", "cases": []}
+    try:
+        manifest_bytes = manifest_path.expanduser().resolve().read_bytes()
+        manifest = json.loads(manifest_bytes.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        return {"status": "FAIL", "reason": f"cannot read tail manifest: {error}", "cases": []}
+    items = manifest.get("files") if isinstance(manifest, dict) else None
+    if not isinstance(items, list):
+        return {"status": "FAIL", "reason": "tail manifest must contain a files array", "cases": []}
+
+    expected_by_hash: dict[str, str] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        source_hash = item.get("sha256")
+        required_suffix = item.get("required_suffix")
+        if not isinstance(source_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", source_hash):
+            return {"status": "FAIL", "reason": "tail manifest contains an invalid sha256", "cases": []}
+        if not isinstance(required_suffix, str) or not normalized_asr_text(required_suffix):
+            return {"status": "FAIL", "reason": "tail manifest contains an empty suffix", "cases": []}
+        if source_hash in expected_by_hash:
+            return {"status": "FAIL", "reason": "tail manifest contains a duplicate sha256", "cases": []}
+        expected_by_hash[source_hash] = normalized_asr_text(required_suffix)
+
+    mapping_by_id = {str(item.get("id")): item for item in mapping}
+    results: list[dict[str, object]] = []
+    observed_hashes: set[str] = set()
+    for cycle in cycles:
+        source = mapping_by_id.get(cycle.get("id", ""), {})
+        source_hash = source.get("source_sha256")
+        if not isinstance(source_hash, str) or source_hash not in expected_by_hash:
+            continue
+        observed_hashes.add(source_hash)
+        try:
+            text = bytes.fromhex(cycle.get("resultHex", "")).decode("utf-16-be")
+            decode_error = ""
+        except (UnicodeDecodeError, ValueError) as error:
+            text, decode_error = "", str(error)
+        normalized = normalized_asr_text(text)
+        required_suffix = expected_by_hash[source_hash]
+        passed = not decode_error and normalized.endswith(required_suffix)
+        results.append({
+            "source_sha256": source_hash,
+            "status": "PASS" if passed else "FAIL",
+            "required_suffix_sha256": hashlib.sha256(required_suffix.encode("utf-8")).hexdigest(),
+            "normalized_result_length": len(normalized),
+            "decode_error": decode_error,
+        })
+    passed = (
+        bool(expected_by_hash)
+        and observed_hashes == set(expected_by_hash)
+        and all(item["status"] == "PASS" for item in results)
+    )
+    return {
+        "status": "PASS" if passed else "FAIL",
+        "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+        "expected_sha256": sorted(expected_by_hash),
+        "observed_sha256": sorted(observed_hashes),
+        "cases": results,
+    }
 
 
 def initial_signal_level(source: AudioSource, seconds: float = 3.0) -> float:
@@ -986,7 +1080,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     all_sources = inspect_wavs(corpus_root)
     voiceprint_representative_modes = {
         "voiceprint", "voiceprint-vad-begin", "voiceprint-vad-begin-idle",
-        "speaker-vad-onstart",
+        "speaker-vad-onstart", "continuous-voiceprint-speaker-vad",
     }
     selected = (
         representative_voiceprint_sources(all_sources, args.files)
@@ -1167,6 +1261,9 @@ def run_stress(args: argparse.Namespace) -> Path:
             "reason": "accuracy gate disabled or mode is lifecycle-only",
             "cases": [],
         }
+    expected_tail = expected_tail_verdict(
+        cycle_results, mapping, args.expected_tail_manifest
+    )
     cpu = cpu_statistics(workload_samples)
     completed = int(app_summary.get("completed", "0"))
     empty_finals = int(app_summary.get("emptyFinals", "0"))
@@ -1191,6 +1288,9 @@ def run_stress(args: argparse.Namespace) -> Path:
     if memory.get("status") == "FAIL":
         overall = "FAIL"
         failures.append("RSS/thread growth exceeded threshold")
+    elif args.mode == "continuous-long-session" and memory.get("status") != "PASS":
+        overall = "FAIL"
+        failures.append("continuous long-session memory verdict was inconclusive")
     if stream_status == "FAIL":
         overall = "FAIL"
         failures.append("native stream ownership check failed")
@@ -1203,6 +1303,9 @@ def run_stress(args: argparse.Namespace) -> Path:
     if target_speaker_content.get("status") == "FAIL":
         overall = "FAIL"
         failures.append("target-speaker content accuracy assertion failed")
+    if expected_tail.get("status") == "FAIL":
+        overall = "FAIL"
+        failures.append("expected ASR tail assertion failed")
     if args.mode == "finish-shutdown-relicense" and any(
         not terminal_callback_order_ok(cycle.get("trace", "")) for cycle in cycle_results
     ):
@@ -1253,6 +1356,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         },
         "target_speaker_realtime": target_speaker_realtime,
         "target_speaker_content": target_speaker_content,
+        "expected_tail": expected_tail,
         "memory": memory,
         "cpu": cpu,
         "cycles": cycle_results,

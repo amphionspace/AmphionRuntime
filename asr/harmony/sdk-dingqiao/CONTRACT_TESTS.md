@@ -45,13 +45,19 @@
 2. 显式传入正有限数字、或非空且可解析为正有限数字的字符串时启用并按调用值生效；
    `maxAudioDuration=8000` 必须在累计写入 8000 ms PCM（400 个 20 ms 帧）时结束。
    0、负数、非有限值和非法类型按未启用处理，不得回退到隐式 20000 ms。
-3. 达到上限后应回调 `onResult(isFinal=true,isLast=true)` 和 `onComplete`，不得回调 `MAX_AUDIO_DURATION`。
-4. 自动结束后 `isBusy()==false`，可立即再次 `startListening`。
-5. `NaN`、正负无穷、空字符串、非法字符串及非数字类型均视为未配置，不得隐式启用 20000 ms 上限。
-6. 大于 28800000 ms 时按 28800000 ms 处理。
-7. `max-duration` 真机门禁必须分别覆盖 burst 与 20 ms paced 写入，两者都在第 400 帧结束；
+3. 显式传入 `enableContinuousRecognition=true` 时，SDK 必须保持同一模型会话并忽略
+   `maxAudioDuration` 自动上限；在调用方显式 `finish` 前不得产生 `isLast=true`。省略、`false`
+   或字符串 `"true"` 不得改变既有最大时长语义。
+4. 达到上限后应回调 `onResult(isFinal=true,isLast=true)` 和 `onComplete`，不得回调 `MAX_AUDIO_DURATION`。
+5. 自动结束后 `isBusy()==false`，可立即再次 `startListening`。
+6. `NaN`、正负无穷、空字符串、非法字符串及非数字类型均视为未配置，不得隐式启用 20000 ms 上限。
+7. 大于 28800000 ms 时按 28800000 ms 处理。
+8. `max-duration` 真机门禁必须分别覆盖 burst 与 20 ms paced 写入，两者都在第 400 帧结束；
    paced 场景墙钟时间不得明显早于 8 秒。结束后 80 个迟到帧不能新增 final、complete 或 error，
    下一轮必须能立即启动。
+9. continuous 真机门禁必须至少有一个单 model session 实时写入超过 60 秒，并用两轮运行区分
+   首次模型驻留与持续内存增长；另须组合声纹校验与 Speaker VAD，逐条核对非空 final 的
+   `speakerSimilarity`、finish 前无 last、最终唯一 last/complete 和绑定源音频 SHA-256 的尾字。
 
 ## 4. vadBegin 与参数兼容
 

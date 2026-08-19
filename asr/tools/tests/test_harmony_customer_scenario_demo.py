@@ -72,9 +72,9 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("this.capturedAudioSource", source)
         self.assertIn("meta['audioSource'] = this.audioSourceName(this.capturedAudioSource)", source)
         self.assertIn("profile.allowVoiceprint", source)
-        self.assertIn("profile.rotateSession", source)
+        self.assertIn("profile.rotateSession && profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS", source)
         self.assertIn("profile.lockAudioSource", source)
-        self.assertIn("this.listening && this.rotatingSession", source)
+        self.assertIn("extra['enableContinuousRecognition']", source)
         self.assertIn("this.finishAutoEndedCapture().catch", source)
         self.assertIn("this.stopListening().catch", source)
 
