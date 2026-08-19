@@ -11,7 +11,7 @@
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "9a29030c6d4a341772a522fa18811c27d7ad4af2b913f42727a0dcccb60c020d",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "0f4f8b394ff78ece52e5c62e446b6bcea194d0064c6dbec455ac94706e16a4ba",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "d4e9583f2594e0fb15aa9e6786b7f224a90d4df322ce42be7c72e5d021ea0f59",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
@@ -23,7 +23,7 @@
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "435b7dc68d5f730b95d5740810094c6242b32c717a83e782ba6a6b9b772b5f1c"
     },
     "current_sha256": {
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "0f4f8b394ff78ece52e5c62e446b6bcea194d0064c6dbec455ac94706e16a4ba"
+      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "d4e9583f2594e0fb15aa9e6786b7f224a90d4df322ce42be7c72e5d021ea0f59"
     },
     "decision": "full_accuracy_evaluation_rerun",
     "reason": "The Harmony session implementation changed after the previous evidence snapshot to make long-session endpoint rules configurable and replace stale streams after empty endpoints. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen model bound to this evidence even though the AGC algorithm and decoder configuration were unchanged.",
@@ -33,7 +33,8 @@
       "sdk_style_long_audio",
       "repository_low_volume_regression_off_on"
     ],
-    "not_claimed": "The rerun does not claim complete transcript accuracy, noise reduction below 20 dB SNR, device microphone equivalence, mobile power measurements, or acceptance of the newer Harmony delivery model."
+    "not_claimed": "The rerun does not claim complete transcript accuracy, noise reduction below 20 dB SNR, device microphone equivalence, mobile power measurements, or acceptance of the newer Harmony delivery model.",
+    "post_evaluation_non_behavioral_change": "cc2ca84 changes only the finishUtterance comment in Runtime.ets; the recorded implementation fingerprint includes that comment-only review fix."
   },
   "delivery_model_applicability": {
     "status": "frozen_evidence_model_only",
