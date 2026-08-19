@@ -23,6 +23,11 @@ env:
   NDK_VERSION: "26.3.11579264"
   ONNXRT_VERSION: "1.24.3"
   SDK_BUILD_DIR: asr/android
+  ANDROID_PLATFORM: android-24
+  CMAKE_VERSION: "3.22.1"
+  MESON_VERSION: "1.7.0"
+  NINJA_VERSION: "1.11.1.4"
+  NATIVE_CACHE_MANIFEST: .ci-cache/android-native-arm64-v8a/native-cache-manifest.json
 
 jobs:
   changes:
@@ -61,6 +66,7 @@ jobs:
               asr/tools/04_build_android_so.sh|\
               asr/tools/05_package_aar_libs.sh|\
               asr/tools/07_sync_kotlin_from_upstream.sh|\
+              asr/tools/android_native_cache.py|\
               asr/tools/apply_sherpa_patches.sh|\
               asr/tools/ensure_agc_build_tools.sh|\
               asr/tools/prefetch_sherpa_cmake_deps.sh|\
@@ -114,6 +120,7 @@ jobs:
           npm install --global typescript@4.9.5
           python3 -m unittest discover -s asr/tools/tests -p 'test_harmony_*.py' -v
           python3 -m unittest \
+            asr.tools.tests.test_android_native_cache \
             delivery.harmony-dingqiao.delivery.test_run_device_stress \
             delivery.harmony-dingqiao.delivery.test_run_finish_compat_release_gate \
             delivery.harmony-dingqiao.delivery.test_release_defaults -v
@@ -142,6 +149,44 @@ jobs:
       - name: Initialize sherpa-onnx submodule
         run: git submodule update --init third_party/sherpa-onnx
 
+      - name: Compute Android native source fingerprint
+        id: native-fingerprint
+        run: |
+          fingerprint="$(python3 asr/tools/android_native_cache.py fingerprint \
+            --abi arm64-v8a \
+            --android-platform "${{ env.ANDROID_PLATFORM }}" \
+            --cmake-version "${{ env.CMAKE_VERSION }}" \
+            --meson-version "${{ env.MESON_VERSION }}" \
+            --ndk-version "${{ env.NDK_VERSION }}" \
+            --ninja-version "${{ env.NINJA_VERSION }}" \
+            --onnxruntime-version "${{ env.ONNXRT_VERSION }}")"
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+
+      - name: Restore verified native artifacts
+        id: native-cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libsherpa-onnx-jni.so
+            third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libonnxruntime.so
+            asr/native/audio-processing/build-android-arm64-v8a/libamphion_audio_processing.so
+            ${{ env.NATIVE_CACHE_MANIFEST }}
+          key: android-native-${{ runner.os }}-v1-${{ steps.native-fingerprint.outputs.fingerprint }}
+
+      - name: Verify restored native artifact identity
+        if: steps.native-cache.outputs.cache-hit == 'true'
+        run: |
+          python3 asr/tools/android_native_cache.py verify \
+            --manifest "${{ env.NATIVE_CACHE_MANIFEST }}" \
+            --fingerprint "${{ steps.native-fingerprint.outputs.fingerprint }}" \
+            --abi arm64-v8a \
+            --android-platform "${{ env.ANDROID_PLATFORM }}" \
+            --cmake-version "${{ env.CMAKE_VERSION }}" \
+            --meson-version "${{ env.MESON_VERSION }}" \
+            --ndk-version "${{ env.NDK_VERSION }}" \
+            --ninja-version "${{ env.NINJA_VERSION }}" \
+            --onnxruntime-version "${{ env.ONNXRT_VERSION }}"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -149,23 +194,13 @@ jobs:
           java-version: "17"
 
       - name: Install AGC native build tools
-        run: python3 -m pip install meson==1.7.0 ninja==1.11.1.4
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        run: python3 -m pip install meson==${{ env.MESON_VERSION }} ninja==${{ env.NINJA_VERSION }}
 
       - name: Set up Android SDK + NDK
         uses: android-actions/setup-android@v4
         with:
-          packages: platforms;android-34 build-tools;34.0.0 cmake;3.22.1 ndk;${{ env.NDK_VERSION }}
-
-      # Phase 2 will replace this legacy key with a complete, identity-bound source fingerprint.
-      - name: Cache onnxruntime + sherpa build
-        uses: actions/cache@v5
-        with:
-          path: |
-            third_party/sherpa-onnx/build-android-arm64-v8a/${{ env.ONNXRT_VERSION }}
-            third_party/sherpa-onnx/build-android-arm64-v8a/install
-          key: sherpa-android-arm64-v8a-${{ env.ONNXRT_VERSION }}-${{ hashFiles('third_party/sherpa-onnx/CMakeLists.txt') }}
-          restore-keys: |
-            sherpa-android-arm64-v8a-${{ env.ONNXRT_VERSION }}-
+          packages: platforms;android-34 build-tools;34.0.0 cmake;${{ env.CMAKE_VERSION }} ndk;${{ env.NDK_VERSION }}
 
       - name: Cache Gradle
         uses: actions/cache@v5
@@ -179,13 +214,30 @@ jobs:
         working-directory: ${{ env.SDK_BUILD_DIR }}
         run: bash init_gradle_wrapper.sh
 
-      - name: Export ANDROID_NDK
-        run: echo "ANDROID_NDK=$ANDROID_HOME/ndk/${{ env.NDK_VERSION }}" >> "$GITHUB_ENV"
+      - name: Select pinned Android build tools
+        run: |
+          echo "$ANDROID_HOME/cmake/${{ env.CMAKE_VERSION }}/bin" >> "$GITHUB_PATH"
+          echo "ANDROID_NDK=$ANDROID_HOME/ndk/${{ env.NDK_VERSION }}" >> "$GITHUB_ENV"
 
       - name: Build native .so
+        if: steps.native-cache.outputs.cache-hit != 'true'
         run: |
           bash asr/tools/03_build_agc_native.sh android-arm64-v8a
           bash asr/tools/04_build_android_so.sh arm64-v8a
+
+      - name: Record native artifact identity
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        run: |
+          python3 asr/tools/android_native_cache.py create-manifest \
+            --manifest "${{ env.NATIVE_CACHE_MANIFEST }}" \
+            --fingerprint "${{ steps.native-fingerprint.outputs.fingerprint }}" \
+            --abi arm64-v8a \
+            --android-platform "${{ env.ANDROID_PLATFORM }}" \
+            --cmake-version "${{ env.CMAKE_VERSION }}" \
+            --meson-version "${{ env.MESON_VERSION }}" \
+            --ndk-version "${{ env.NDK_VERSION }}" \
+            --ninja-version "${{ env.NINJA_VERSION }}" \
+            --onnxruntime-version "${{ env.ONNXRT_VERSION }}"
 
       - name: Package .so to jniLibs/
         run: bash asr/tools/05_package_aar_libs.sh

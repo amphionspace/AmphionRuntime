@@ -51,7 +51,7 @@ else
 fi
 
 # ---------- 检查 NDK ----------
-NDK_VER="26.3.11579264"
+NDK_VER="${NDK_VERSION:-26.3.11579264}"
 _resolve_ndk() {
   local d
   for d in \
@@ -106,7 +106,7 @@ fi
 
 # ---------- onnxruntime prefetch（避免上游脚本因 wget 缺失失败） ----------
 # 如果 build-android-${ABI}/${ONNX_VER}/jni/<abi>/libonnxruntime.so 已经存在，上游脚本会跳过下载
-ONNX_VER="1.24.3"
+ONNX_VER="${ONNXRT_VERSION:-1.24.3}"
 prefetch_onnxruntime() {
   local ABI="$1"
   local CACHE_DIR="$SHERPA_ROOT/build-android-${ABI}/${ONNX_VER}"
@@ -137,7 +137,7 @@ export SHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION=OFF
 export SHERPA_ONNX_ENABLE_BINARY=OFF
 export SHERPA_ONNX_ENABLE_C_API=OFF       # 我们走 JNI，不需要 C API
 export SHERPA_ONNX_ENABLE_JNI=ON
-export SHERPA_ONNX_ANDROID_PLATFORM="android-24"   # 与 SDK minSdk 一致
+export SHERPA_ONNX_ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-24}" # 与 SDK minSdk 一致
 export BUILD_SHARED_LIBS=ON
 
 build_one_abi() {

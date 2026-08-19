@@ -24,6 +24,30 @@ class ReleaseDefaultsTest(unittest.TestCase):
 
         self.assertIn("fetch-depth: 0", contracts)
 
+    def test_android_native_cache_is_exact_verified_and_only_skips_native_build(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        android = workflow.split("  android-aar:", 1)[1].split("  ci-result:", 1)[0]
+        native_cache = android.split("- name: Restore verified native artifacts", 1)[1].split(
+            "- name: Cache Gradle", 1
+        )[0]
+
+        self.assertIn("steps.native-fingerprint.outputs.fingerprint", native_cache)
+        self.assertNotIn("restore-keys:", native_cache)
+        self.assertIn("steps.native-cache.outputs.cache-hit == 'true'", android)
+        self.assertIn("steps.native-cache.outputs.cache-hit != 'true'", android)
+        self.assertIn("android_native_cache.py verify", android)
+        self.assertIn("android_native_cache.py create-manifest", android)
+        self.assertIn("env.NATIVE_CACHE_MANIFEST", native_cache)
+        self.assertIn("native-cache-manifest.json", workflow)
+        self.assertIn('$ANDROID_HOME/cmake/${{ env.CMAKE_VERSION }}/bin', android)
+        self.assertIn("asr.tools.tests.test_android_native_cache", workflow)
+
+        native_build = android.index("bash asr/tools/04_build_android_so.sh arm64-v8a")
+        gradle_build = android.index("Gradle assemble + unit test")
+        self.assertLess(native_build, gradle_build)
+        gradle_section = android[gradle_build:]
+        self.assertNotIn("cache-hit", gradle_section)
+
     def test_finish_compat_release_gate_is_part_of_the_project_working_agreement(self) -> None:
         agreement = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
         device_stress = (
