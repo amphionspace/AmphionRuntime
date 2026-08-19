@@ -100,6 +100,48 @@ class AsrReleaseTrackerTest(unittest.TestCase):
         self.assertIn("fix(android): preserve trailing words", rendered)
         self.assertNotIn("record ASR SDK delivery", rendered)
 
+    def test_release_versions_must_increase_per_platform(self) -> None:
+        payload = json.loads(self.history_path.read_text(encoding="utf-8"))
+        stale = dict(payload["deliveries"][0])
+        stale["version"] = "0.3.1"
+        payload["deliveries"].append(stale)
+        self.history_path.write_text(json.dumps(payload), encoding="utf-8")
+
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "strictly increase"):
+            MODULE.load_history(self.history_path)
+
+    def test_verify_next_version_rejects_recorded_or_older_versions(self) -> None:
+        MODULE.verify_next_version(
+            history_path=self.history_path,
+            platform="android",
+            version="0.3.3",
+        )
+        for stale in ("0.3.2", "0.3.1"):
+            with self.subTest(stale=stale):
+                with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "newer than 0.3.2"):
+                    MODULE.verify_next_version(
+                        history_path=self.history_path,
+                        platform="android",
+                        version=stale,
+                    )
+
+    def test_verify_current_version_requires_latest_record_and_ancestor(self) -> None:
+        MODULE.verify_current_version(
+            repo=self.repo,
+            history_path=self.history_path,
+            platform="android",
+            version="0.3.2",
+            source_commit=self.current_commit,
+        )
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "latest recorded.*0.3.2"):
+            MODULE.verify_current_version(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.3",
+                source_commit=self.current_commit,
+            )
+
     def test_excludes_commits_that_only_touch_the_other_platform(self) -> None:
         harmony = self.repo / "asr" / "harmony"
         harmony.mkdir(parents=True)
