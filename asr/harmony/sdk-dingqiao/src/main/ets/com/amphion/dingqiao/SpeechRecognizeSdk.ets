@@ -7,6 +7,7 @@ import hilog from '@ohos.hilog';
 import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
 import { FinishShutdownGate } from './FinishShutdownGate';
+import { endpointMaxUtteranceSec, endpointRecognizerConfigKey } from './EndpointRulePolicy';
 import { finiteNumberParam } from './NumericParam';
 import { rejectedFinalCompletesSession } from './RejectedFinalLifecycle';
 import { SessionAudioDispatcher } from './SessionAudioDispatcher';
@@ -245,6 +246,8 @@ function buildAsrConfig(context: Context, params: CreateEngineParams, startParam
     context, parseLexicon(params.extraParams['sysGeneralLexicon']));
   config.vadConfig.activeEndpointSilenceMs = vadEndMs(startParams);
   config.endpointRules.rule2MinTrailingSilenceSec = 2.0;
+  config.endpointRules.rule3MinUtteranceLengthSec =
+    endpointMaxUtteranceSec(startParams?.extraParams ?? {});
   // 默认跳过 prepack，优先降低冷启动和峰值内存；host 可显式传 false 恢复吞吐优先模式。
   config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', true);
   if (withTargetSpeaker) {
@@ -363,13 +366,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.enhancePipeline = PoliceEnhancePipeline.create(context);
     this.asrEngine = preloadedEngine ??
       AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(context, this.params));
-    this.engineCfgKey = this.computeEngineCfgKey(false, false);
+    this.engineCfgKey = this.computeEngineCfgKey(false, false, undefined);
     this.finishShutdownGate = new FinishShutdownGate((): void => this.releaseEngineResources());
   }
 
-  // vadBegin/vadEnd/speaker 窗口均由 SessionConfig 覆盖；只有目标说话人能力和同步加载策略需要重建引擎。
-  private computeEngineCfgKey(withTargetSpeaker: boolean, withSpeakerVad: boolean): string {
-    return [`${withTargetSpeaker}`, `${withSpeakerVad}`].join('|');
+  // vadBegin/vadEnd/speaker 窗口均由 SessionConfig 覆盖；目标说话人能力、同步加载策略和 native
+  // endpoint rule3 属于 recognizer 配置，变化时必须重建引擎。
+  private computeEngineCfgKey(withTargetSpeaker: boolean, withSpeakerVad: boolean,
+    params?: StartParams): string {
+    return endpointRecognizerConfigKey(withTargetSpeaker, withSpeakerVad, params?.extraParams ?? {});
   }
 
   setListener(listener: RecognitionListener): void { this.listener = listener; }
@@ -804,7 +809,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
 
   private rebuildEngine(params: StartParams, withTargetSpeaker: boolean, withSpeakerVad: boolean,
     speakerModelPath?: string): void {
-    const newKey = this.computeEngineCfgKey(withTargetSpeaker, withSpeakerVad);
+    const newKey = this.computeEngineCfgKey(withTargetSpeaker, withSpeakerVad, params);
     if (newKey === this.engineCfgKey) {
       // 会话配置未变(纯 ASR 反复开始/结束):复用已加载的引擎与模型,避免每次点"开始识别"重载模型卡 3~4 秒。
       return;

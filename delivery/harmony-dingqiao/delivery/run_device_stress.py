@@ -198,7 +198,7 @@ def parse_args() -> argparse.Namespace:
     if args.target_speaker_manifest is not None and args.mode not in TARGET_SPEAKER_MODES:
         parser.error("--target-speaker-manifest requires a target-speaker mode")
     tail_modes = {
-        "customer-meeting-minutes", "continuous-max-duration", "continuous-long-session",
+        "customer-meeting-minutes", "customer-ptt-tail", "continuous-max-duration", "continuous-long-session",
         "continuous-voiceprint-speaker-vad",
     }
     if args.expected_tail_manifest is not None and args.mode not in tail_modes:

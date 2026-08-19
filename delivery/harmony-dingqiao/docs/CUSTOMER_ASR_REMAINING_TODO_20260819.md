@@ -1,0 +1,101 @@
+# 鼎桥客户 ASR 剩余 TODO（2026-08-19）
+
+## 本轮已关闭的真机证据
+
+- Speaker VAD 先后交替：`speaker-vad-turn` 的 C1-alternating 在设备 `7GK0226326015655`
+  通过；两个目标人句子均保留，干扰句“你好”被拒绝，显式 `finish` 前 `isLast=0`，结束后唯一
+  last/complete。报告：`/private/tmp/amphion-main-audit.zRqUJD/runs/20260819-233658-speaker-vad-turn-8d8dcc26/report.json`，
+  SHA-256 `5c17230b43ea3ed2c61763f04c5a7d237bdb02f457da48788f6d012693be9638`。
+- BUG-01 Runtime 释放竞态：同设备 `finish-shutdown-relicense` 通过；唯一 last/complete、无 error、
+  native stream 归零，relicense 后下一 session 恢复成功。报告：
+  `/private/tmp/amphion-main-audit.zRqUJD/runs/20260819-233739-finish-shutdown-relicense-a4e00ed5/report.json`，
+  SHA-256 `1115b4fdba854fa84124710cfe384ad9860cadaccf93ad53d4f526c7f03c6fed`。
+
+以上只关闭用户指定的交替场景和 BUG-01 生命周期场景；Speaker VAD 重叠说话仍明确不处理。
+
+## 未关闭缺陷清单
+
+| 缺陷 | 当前状态 | 影响与后续 |
+| --- | --- | --- |
+| BUG-02 约 20 秒 rule3 final | **代码已改，行为验收未关闭** | 鼎桥层已暴露 `endpointMaxUtteranceMs`，长会议 profile 设为 60 秒并纳入 recognizer 复用键。现有自动化验证参数解析和源码连线，仍需同一语料 20/60 秒的 native final 边界与 recognizer 不复用真机 A/B，不得仅凭源码测试宣称闭环。 |
+| BUG-02 55/62 秒会话轮转边界 | **长会议 profile 已停用轮转，专项验收未关闭** | 当前长会议场景不再主动切 session，但还需在公共 SDK 回调上确认旧轮转点无帧空窗、`finish` 前 `isLast=0` 且结束后唯一 last/complete。 |
+| 长会议后段有声无文字 | **部分缓解，未关闭** | `79fadfa` 把最后非空 final 从约 1087.74 秒推进到 1198.10 秒，但 1198.10–1286.143 秒仍无新 final。后续需定位更长寿命 recognizer/session 状态失效。 |
+| 空 native endpoint 后 hard restart 边界丢 token | **已稳定复现，未修复** | 同一 33.44 秒 PCM 中 hard 路径稳定比 soft 路径少首 token“我”。后续只允许在 native recognizer 内部设计窄作用域 seam。 |
+| PTT“签警情”错字 | **未关闭** | 补尾静音不能改变稳定错词，已排除单纯尾帧未解码。转入固定真值的模型/热词 CER 评测。 |
+| Speaker VAD 重叠说话 | **未关闭，本轮不处理** | 本轮只关闭先后交替场景；重叠需 diarization/overlap 能力，不使用当前边界逻辑猜测归属。 |
+| BUG-08 远讲/SNR/SourceType 退化 | **未关闭，本轮不处理** | 需带真值的分层 CER 评测，不与生命周期修复混合归因。 |
+| BUG-09/10 警务词与专项 hotword 准确率 | **未关闭，本轮不处理** | 需在固定警务语料上比较 CER/WER 和相邻短句退化；不用 SDK 字符串硬改。 |
+| 新 Harmony 交付模型的 AGC 基线 | **未关闭，不由旧模型门禁代替** | 现有 AGC 证据绑定旧 encoder `0e86…`，实际 Harmony 交付使用新 encoder `ea36…`。新模型完整 host 复验中，历史 -80 dBFS 红绿用例两路均失败，正常音量与 SNR 结论也发生变化。下一次客户发布前必须建立新模型专属 AGC 断言与不可覆盖证据。 |
+
+本清单是分支收口时的状态账本：“本轮不处理”只表示不进入本 PR，不表示缺陷已解决。
+
+## 长会议后段无 final
+
+状态：**已有可证明的改善，但尚未完全关闭**。已排除 20 秒 rule3、55/62 秒 session 自动结束和
+5 ms 注入积压。原文件从 1286.143 秒起连续 1254.217 秒为全零 PCM；有效排查范围固定为
+0–1286.143 秒前缀。
+
+已证明的根因层差分：空 endpoint 使用 soft reset 会保留 encoder cache，连续空段后会让后续真实
+语音持续无 token。对固定 SHA-256 的 800–1286.143 秒短化语料，同为 5 ms pace：
+
+- 修复前最后非空 final 仅覆盖到 402.56 秒，尾部约 83.6 秒无新文字；报告 SHA-256
+  `548e498a84ea1f7c6bcbdca7c47b2daace528732ea07f415258721f908a813bf`。
+- 空 endpoint 改为 fresh stream 后覆盖到 480.12 秒，尾部恢复“商品质量…案件巡查…红牛”等
+  非空文字；报告 SHA-256
+  `47752b6c30f77276081964885df389bb6b65d2f06d36aba3d11f1ab2e177284d`。
+
+唯一一次完整实时修复后验收也越过旧停点：修复前最后非空 final 约 1087.74 秒，修复后推进到
+1198.10 秒，并恢复两条非空 final；`finish` 前 `isLast=0`，结束后唯一 last/complete、无 error、
+stream 归零。修复后报告：
+`/private/tmp/amphion-main-audit.zRqUJD/real-pace-fixed-runs/20260820-001938-customer-transcription-c691bc3c/report.json`，
+SHA-256 `b2e9ccab03947974c7fc7ecbfa374e06c9271eedd110bd8164a29cf25e1b5dd9`。
+
+仍未关闭的证据：1198.10–1286.143 秒尾段在长 session 中没有新 final，但同一 88.043 秒 PCM
+用 fresh engine 能产生 3 条非空 final（“来一次。中国人肯定出多。视频。”）。因此 stream cache
+是一个已修根因，但还存在更长寿命的 recognizer/session 状态失效，不能把整项宣称为已解决。
+
+### hard restart 边界丢 token 的后续诊断
+
+固定 33.44 秒 PCM（SHA-256
+`45d88c15f06a630b423d9ba520a0e7b53ddbef925b5b22ac2e69640be98a947a`）已建立稳定同输入 A/B。
+两路在 757760 bytes / 11.84 秒命中相同的纯空 native endpoint：
+
+- `79fadfa` 的 hard restart 路径在后续 final 输出“看不出来”；3 轮结果相同。
+- soft reset 对照输出“我看不出来”；3 轮结果相同。
+- 在 ITN 和鼎桥适配前的 native result 中，soft 路径首 token 为“我”、timestamp=0.24，
+  hard 路径首 token 为“看”、timestamp=0.24。因此已证明差异产生于 native 解码层，
+  不是适配层或字符串后处理问题。
+
+hard 实时对照报告 SHA-256
+`3b8d4952a8804200ca1797cdef8d0c1d75f46deff223b5e7d22f05e9ed573cd1`；soft 实时对照报告 SHA-256
+`5b627cd6d64ad5d5416e92bfc697c4e7fd2625808171b2f8b6ee34e0ab16570b`。两路均满足 `finish` 前
+`isLast=0`、结束后唯一 last/complete、无 error、stream 归零；该差异是文本完整性缺陷，
+不是生命周期失败。
+
+已否决两个窄化 reset 策略：“首次空 endpoint soft、连续空 endpoint hard”和“空 endpoint
+hard、紧随的有文字 endpoint soft”均能修复 33 秒样本，但都在 486 秒上下文验证中丢失
+“商品质量 / 案件巡查 / 红牛”尾段，因此已撤销，不得作为修复恢复。统一重放
+640 ms PCM、公开 `overlapPrefixSamples` 和鼎桥字符串去重方案同样已否决，不属于
+当前分支。
+
+本分支收口结论：`79fadfa` 作为“空 endpoint 后刷新失效 stream”的独立候选修复保留，
+它能显著缓解长会议无文字，但不关闭整个长会议问题，也不关闭 hard restart 边界丢 token。
+后续只能在真实红灯对应的 native recognizer 内部设计窄作用域声学上下文 seam；如果无法
+依据 token timestamp/native frame boundary 区分重放 token 与新 token，应停止实现，不得使用
+字符串启发式或让 overlap PCM 进入公共 utterance、Speaker VAD 和声纹 PCM。只有局部
+33 秒红绿和 486 秒上下文都通过后，才允许做一次完整 1286.143 秒最终验收。
+
+## PTT “签警情”错字
+
+现状：立即松手录音在 finish 前补 0/500 ms 静音均稳定输出“电警情”；另一录音补 200/1000 ms
+均稳定输出“天警情情”。SDK 内部还固定补 1280 ms 解码尾部，因此当前证据否定“松手过快导致尾帧
+未解码”，继续增加静音不是有效修复。
+
+下一步：把两段固定 SHA-256 语料加入带真值的模型评测，比较当前模型、候选模型及业务热词的
+token posterior/CER。只有模型或热词策略在不降低相邻警务短句准确率时才能交付；不得在 SDK 中
+按结果字符串硬改，也不得用重复上一条结果或假文本补齐。
+
+## 明确不进入本轮
+
+- Speaker VAD 重叠说话；本轮只验收先后交替说话。
+- 远讲/SNR/SourceType、警务词整体准确率、hotword 专项。

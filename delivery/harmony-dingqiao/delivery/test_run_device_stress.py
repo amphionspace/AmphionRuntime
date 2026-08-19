@@ -63,6 +63,16 @@ class RunCommandTest(unittest.TestCase):
         ), self.assertRaises(SystemExit):
             MODULE.parse_args()
 
+    def test_customer_ptt_tail_accepts_a_suffix_manifest(self) -> None:
+        with mock.patch.object(
+            sys,
+            "argv",
+            [str(SCRIPT), "--mode", "customer-ptt-tail",
+             "--expected-tail-manifest", "tail.json"],
+        ):
+            args = MODULE.parse_args()
+        self.assertEqual("customer-ptt-tail", args.mode)
+
     def test_continuous_max_duration_requires_and_accepts_tail_manifest(self) -> None:
         with mock.patch.object(
             sys, "argv", [str(SCRIPT), "--mode", "continuous-max-duration"]

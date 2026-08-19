@@ -14,6 +14,10 @@ ADAPTER = (
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 )
 RUNTIME = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
+ADAPTER_ENDPOINT_POLICY = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/EndpointRulePolicy.ts"
+)
 SHERPA_PATCH = (
     REPO_ROOT
     / "third_party/patches/sherpa-amphion/0013-feat-harmony-decode-online-streams-asynchronously.patch"
@@ -233,6 +237,42 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         self.assertIn("session.requestStopFromCallback()", adapter)
         self.assertIn("requestStopFromCallback(): boolean", runtime)
 
+    def test_dingqiao_endpoint_rule_is_configurable_per_session(self) -> None:
+        script = textwrap.dedent(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ endpointMaxUtteranceSec, endpointRecognizerConfigKey }} from {ADAPTER_ENDPOINT_POLICY.as_uri()!r};
+
+            assert.equal(endpointMaxUtteranceSec({{}}), 20);
+            assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: 60000 }}), 60);
+            assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: '45000' }}), 45);
+            assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: Number.NaN }}), 20);
+            assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: 0 }}), 20);
+            assert.notEqual(
+              endpointRecognizerConfigKey(false, false, {{ endpointMaxUtteranceMs: 20000 }}),
+              endpointRecognizerConfigKey(false, false, {{ endpointMaxUtteranceMs: 60000 }}),
+            );
+            """
+        )
+        subprocess.run(
+            [
+                "node",
+                "--experimental-strip-types",
+                "--experimental-loader",
+                str(REPO_ROOT / "asr/tools/tests/ts_extension_loader.mjs"),
+                "--input-type=module",
+                "-e",
+                script,
+            ],
+            check=True,
+            cwd=REPO_ROOT,
+        )
+
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        self.assertIn("config.endpointRules.rule3MinUtteranceLengthSec =", adapter)
+        self.assertIn("endpointMaxUtteranceSec(startParams?.extraParams ?? {})", adapter)
+        self.assertIn("endpointRecognizerConfigKey(withTargetSpeaker, withSpeakerVad", adapter)
+
     def test_native_async_decode_retains_recognizer_and_stream_lifetimes(self) -> None:
         patch = SHERPA_PATCH.read_text(encoding="utf-8")
         self.assertIn("DecodeOnlineStreamAsyncWorker", patch)
@@ -241,6 +281,29 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         self.assertIn("std::shared_ptr<OnlineStreamState>", patch)
         self.assertIn("recognizer_handle->Lease()", patch)
         self.assertIn("stream_handle->Lease()", patch)
+
+    def test_empty_endpoint_restarts_the_stream_instead_of_retaining_encoder_cache(self) -> None:
+        runtime = RUNTIME.read_text(encoding="utf-8")
+        start = runtime.index("private restartStreamAfterUtterance(reason: string")
+        end = runtime.index("private hardRestartStream(reason: string)", start)
+        restart = runtime[start:end]
+
+        self.assertIn("this.hardRestartStream(reason);", restart)
+        self.assertNotIn("this.recognizer.reset(this.stream);", restart)
+        self.assertNotIn("this.recognizer.getResult(this.stream)", restart)
+
+    def test_runtime_logs_endpoint_suppression_and_stream_identity(self) -> None:
+        runtime = RUNTIME.read_text(encoding="utf-8")
+
+        self.assertIn("kind=ENDPOINT", runtime)
+        self.assertIn("source=native", runtime)
+        self.assertIn("source=vad-active", runtime)
+        self.assertIn("source=speaker-vad", runtime)
+        self.assertIn("kind=RESULT_SUPPRESSED", runtime)
+        self.assertIn("kind=STREAM_TRANSITION", runtime)
+        self.assertIn("streamGeneration", runtime)
+        self.assertIn("action=hard-restart", runtime)
+        self.assertIn("action=soft-reset", runtime)
 
     def test_device_gate_measures_write_audio_call_latency(self) -> None:
         stress = DEVICE_STRESS.read_text(encoding="utf-8")

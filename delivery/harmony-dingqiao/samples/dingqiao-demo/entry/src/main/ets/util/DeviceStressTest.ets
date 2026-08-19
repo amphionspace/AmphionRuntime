@@ -19,6 +19,7 @@ import {
 import { AmphionRuntime } from 'amphion_asr';
 import {
   CustomerScenarioName,
+  customerProfileUsesContinuousRecognition,
   customerProfileStartParams,
   customerScenarioProfile
 } from './CustomerScenarioProfile';
@@ -1836,7 +1837,9 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   } else {
     engine.setListener(callbackListener);
   }
+  const profile = customerScenarioProfile(scenario);
   const params = customerProfileStartParams(sessionId, scenario);
+  params.extraParams['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'customer-start-timeout');
@@ -1884,7 +1887,6 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   result.fedFrames = fed + tailFrames;
   result.tailSilenceMs = mode === 'customer-ptt-tail' ? tailFrames * FRAME_DURATION_MS : -1;
   result.lastFinalsBeforeFinish = lastBeforeStop;
-  const profile = customerScenarioProfile(scenario);
   result.requestedVadBeginMs = profile.vadBegin === undefined ? -1 : profile.vadBegin;
   result.requestedMaxAudioDurationMs = profile.maxAudioDuration;
   return result;

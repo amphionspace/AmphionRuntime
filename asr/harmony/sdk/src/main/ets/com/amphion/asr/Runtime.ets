@@ -1317,6 +1317,7 @@ export class AsrSession {
   private totalPcmBytes: number = 0;
   private utteranceIndex: number = 0;
   private recognizerResetGeneration: number = 0;
+  private streamGeneration: number = 1;
   private utteranceStartMs: number = Date.now();
   private firstPcmMs: number = -1;
   private firstPartialLatencyMs: number = -1;
@@ -1730,6 +1731,11 @@ export class AsrSession {
           `waitingSinceSample=${this.svContextWaitStartedSample}`);
         return;
       }
+      const endpointResult = this.recognizer.getResult(this.stream);
+      Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=native ` +
+        `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
+        `utterancePcmBytes=${this.pcmBytesAccepted} textChars=${endpointResult.text.length} ` +
+        `tokens=${endpointResult.tokens.length}`);
       this.endpointAtMs = Date.now();
       if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
       // A stop requested synchronously by this endpoint callback belongs to this exact result. It is
@@ -1740,7 +1746,7 @@ export class AsrSession {
       if (stopAtEndpoint) {
         if (!this.callbackGate.isClosed()) this.notifyStopped();
       } else if (!this.callbackGate.isClosed()) {
-        this.finishUtterance(restartAfterFinal);
+        this.finishUtterance(restartAfterFinal, 'native-endpoint');
       }
       return;
     }
@@ -1807,6 +1813,10 @@ export class AsrSession {
     // Speaker VAD's raw tail belongs to the native stream. The effective scoring buffer deliberately
     // spans a suppressed token-only endpoint, but the next stream must not score this segment again.
     if (!boundary.publish) {
+      Logger.metric(`kind=RESULT_SUPPRESSED sessionId=${this.sessionId} ` +
+        `reason=effective-speech-boundary streamGeneration=${this.streamGeneration} ` +
+        `totalPcmBytes=${this.totalPcmBytes} utterancePcmBytes=${this.pcmBytesAccepted} ` +
+        `hasEvidence=${hasEvidence} textChars=${native.text.length} tokens=${native.tokens.length}`);
       if (this.speakerVadEnabled) this.speakerPcmBuffers.clearNativeSegment();
       return hasEvidence;
     }
@@ -2184,6 +2194,9 @@ export class AsrSession {
   // stream (Android parity), then resync the VAD/speaker gate. No inputFinished is used here, which
   // is the verified-safe native ordering on Harmony.
   private triggerVadActiveEndpoint(): void {
+    Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=vad-active ` +
+      `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
+      `utterancePcmBytes=${this.pcmBytesAccepted}`);
     this.endpointAtMs = Date.now();
     if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
     const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
@@ -2193,50 +2206,46 @@ export class AsrSession {
       this.notifyStopped();
       return;
     }
-    this.finishUtterance(true);
+    this.finishUtterance(true, 'vad-active-endpoint');
     if (this.callbackGate.isClosed()) return;
     this.resetVadGateState();
   }
 
-  // After a final, either rebuild the stream (when the utterance had content) or do a cheap soft
-  // reset. A soft reset keeps the encoder cache, which biases the next utterance toward the trailing
-  // audio of this one and can blank out the start of a quick follow-up command (the dingqiao
-  // short-command case). Rebuilding gives the next utterance a clean encoder (Android parity).
-  private finishUtterance(restart: boolean): void {
+  // Restarting endpoints start a fresh stream, including endpoints whose native result is empty.
+  // A soft reset retains encoder cache from the rejected/empty segment; after a run of such segments
+  // that stale context can keep later real speech tokenless. Rebuilding preserves the session while
+  // giving the next utterance a clean encoder (Android parity).
+  private finishUtterance(restart: boolean, reason: string = 'final'): void {
     if (!restart) {
       if (!this.callbackGate.isClosed()) this.recognizer.reset(this.stream);
+      Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=soft-reset ` +
+        `reason=${reason} streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
       this.lastPartialText = '';
       this.recognizerResetGeneration += 1;
       return;
     }
-    this.restartStreamAfterUtterance();
+    this.restartStreamAfterUtterance(reason);
     this.recognizerResetGeneration += 1;
   }
 
-  private restartStreamAfterUtterance(): void {
+  private restartStreamAfterUtterance(reason: string = 'endpoint'): void {
     if (this.callbackGate.isClosed()) return;
-    let hadContent = false;
-    try {
-      const r = this.recognizer.getResult(this.stream);
-      hadContent = r.text.length > 0 || r.tokens.length > 0;
-    } catch (e) {
-      hadContent = false;
-    }
-    if (hadContent) {
-      this.hardRestartStream();
-    } else {
-      this.recognizer.reset(this.stream);
-    }
+    this.hardRestartStream(reason);
     this.lastPartialText = '';
   }
 
-  private hardRestartStream(): void {
+  private hardRestartStream(reason: string): void {
     if (this.callbackGate.isClosed()) return;
     try {
       const next = this.recognizer.createStream();
       const previous = this.stream;
+      const previousGeneration = this.streamGeneration;
       this.stream = next;
+      this.streamGeneration += 1;
       previous.close();
+      Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=hard-restart ` +
+        `reason=${reason} fromGeneration=${previousGeneration} toGeneration=${this.streamGeneration} ` +
+        `totalPcmBytes=${this.totalPcmBytes}`);
       // recognizer 已在创建时预热,新 stream 复用暖模型,无需再逐次预热。
     } catch (e) {
       // If rebuilding fails, fall back to a soft reset so the session keeps running.
@@ -2244,6 +2253,8 @@ export class AsrSession {
         this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `hardRestartStream: ${e}`));
       })) return;
       this.recognizer.reset(this.stream);
+      Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=soft-reset-fallback ` +
+        `reason=${reason} streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
     }
     this.lastPartialText = '';
   }
@@ -2415,6 +2426,9 @@ export class AsrSession {
   }
 
   private triggerSpeakerVadEndpoint(): void {
+    Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=speaker-vad ` +
+      `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
+      `utterancePcmBytes=${this.pcmBytesAccepted}`);
     this.endpointAtMs = Date.now();
     if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
     const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
@@ -2432,7 +2446,7 @@ export class AsrSession {
         if (!this.callbackGate.isClosed()) this.notifyStopped();
         return;
       }
-      this.restartStreamAfterUtterance();
+      this.restartStreamAfterUtterance('speaker-vad-rejected');
       if (this.callbackGate.isClosed()) return;
       this.speakerPcmBuffers.clearAll();
       this.effectiveSpeechBuffer.reset();
@@ -2447,7 +2461,7 @@ export class AsrSession {
         this.notifyStopped();
         return;
       }
-      this.restartStreamAfterUtterance();
+      this.restartStreamAfterUtterance('speaker-vad-endpoint');
       if (this.callbackGate.isClosed()) return;
     }
     this.resetVadGateState();

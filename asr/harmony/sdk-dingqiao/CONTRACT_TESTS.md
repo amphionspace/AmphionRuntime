@@ -59,6 +59,15 @@
    首次模型驻留与持续内存增长；另须组合声纹校验与 Speaker VAD，逐条核对非空 final 的
    `speakerSimilarity`、finish 前无 last、最终唯一 last/complete 和绑定源音频 SHA-256 的尾字。
 
+## 3.1 endpointMaxUtteranceMs
+
+1. 缺省、非正数、非有限值或非法类型使用 native rule3 默认值 20000 ms。
+2. 正有限数字或可解析字符串按毫秒转换为 rule3 秒数；该参数改变单句 final 边界，不得产生
+   `isLast=true` 或 `onComplete`。
+3. recognizer 复用键必须包含生效后的 rule3 值；相邻 session 从 20000 ms 切到 60000 ms 时不得
+   复用旧 recognizer 配置。
+4. 鼎桥长语音、填单和会议纪要 profile 使用 60000 ms；PTT 和点击识别维持 20000 ms。
+
 ## 4. vadBegin 与参数兼容
 
 1. 未传 `vadBegin` 时禁用首段静音超时；只调用 `startListening` 而不写 PCM 不得超时。
