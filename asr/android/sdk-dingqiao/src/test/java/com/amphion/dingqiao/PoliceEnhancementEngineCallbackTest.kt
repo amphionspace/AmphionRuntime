@@ -21,6 +21,95 @@ import org.mockito.kotlin.whenever
 class PoliceEnhancementEngineCallbackTest {
 
     @Test
+    fun rejectedPartialPublishesEmptyNonLastFinalAndKeepsSessionActive() {
+        val nativeCallbacks = ConcurrentLinkedQueue<AsrCallback>()
+        val asrEngine = mock<AsrEngine>()
+        whenever(asrEngine.newSession(any(), any())).thenAnswer { invocation ->
+            nativeCallbacks.add(invocation.getArgument(0))
+            mock<AsrSession>()
+        }
+        val callbackExecutor = Executors.newSingleThreadExecutor()
+        val callbackEvents = CopyOnWriteArrayList<String>()
+        val completed = CountDownLatch(1)
+        val workPath = kotlin.io.path.createTempDirectory().toFile()
+        val publicEngine: SpeechRecognitionEngine = DingqiaoRecognitionEngine(
+            appContext = mock<Context>(),
+            createParams = CreateEngineParams(language = "zh-CN"),
+            voiceprintStore = VoiceprintStore(workPath),
+            speakerModelPath = null,
+            callbackExecutor = callbackExecutor,
+            onShutdown = {},
+            preloadedEngine = asrEngine,
+            injectedTextEnhancer = { it },
+        )
+        publicEngine.setListener(object : RecognitionListener {
+            override fun onStart(sessionId: String, eventMessage: String) {
+                callbackEvents += "$sessionId:start"
+            }
+
+            override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) {
+                callbackEvents += "$sessionId:event:$eventCode"
+            }
+
+            override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
+                callbackEvents +=
+                    "$sessionId:result:${result.result}:${result.isFinal}:${result.isLast}:${result.speakerSimilarity}"
+            }
+
+            override fun onComplete(sessionId: String, eventMessage: String) {
+                callbackEvents += "$sessionId:complete"
+                completed.countDown()
+            }
+
+            override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+                callbackEvents += "$sessionId:error:$errorCode"
+            }
+        })
+
+        try {
+            publicEngine.startListening(StartParams(sessionId = "rejected", audioInfo = AudioInfo()))
+            val nativeCallback = nativeCallbacks.remove()
+            nativeCallback.onPartial("非目标说话人")
+            nativeCallback.onFinalRejected(AsrResult(text = "", isLast = false, speakerScore = 0.12f))
+
+            val drained = CountDownLatch(1)
+            callbackExecutor.execute { drained.countDown() }
+            assertTrue(drained.await(5, TimeUnit.SECONDS))
+
+            assertEquals(
+                listOf(
+                    "rejected:start",
+                    "rejected:result:非目标说话人:false:false:null",
+                    "rejected:event:${DingqiaoEventCode.SPEAKER_VAD_REJECTED}",
+                    "rejected:result::true:false:0.12",
+                ),
+                callbackEvents.toList(),
+            )
+            assertTrue(publicEngine.isBusy())
+
+            nativeCallback.onFinalRejected(AsrResult(text = "", isLast = true, speakerScore = 0.08f))
+            assertTrue(completed.await(5, TimeUnit.SECONDS))
+            assertEquals(
+                listOf(
+                    "rejected:start",
+                    "rejected:result:非目标说话人:false:false:null",
+                    "rejected:event:${DingqiaoEventCode.SPEAKER_VAD_REJECTED}",
+                    "rejected:result::true:false:0.12",
+                    "rejected:event:${DingqiaoEventCode.SPEAKER_VAD_REJECTED}",
+                    "rejected:result::true:true:0.08",
+                    "rejected:complete",
+                ),
+                callbackEvents.toList(),
+            )
+            assertFalse(publicEngine.isBusy())
+        } finally {
+            publicEngine.shutdown()
+            callbackExecutor.shutdownNow()
+            workPath.deleteRecursively()
+        }
+    }
+
+    @Test
     fun queuedPartialIsDeliveredWhenRuntimeSpeakerVadEnableReturns() {
         assertQueuedPartialDelivery(partialRequested = true, expected = listOf("allowed-partial"))
     }
