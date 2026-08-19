@@ -47,3 +47,5 @@ Gradle User Home cache 的 primary key 由 runner OS、Android Gradle 配置文�
 当前 commit SHA 组成。新 commit 先按相同配置 hash 恢复已有缓存，构建成功后再写入
 自己的不可变 cache entry；这样既能复用依赖和 Gradle build cache，又不会让固定 key
 长期停留在第一次保存的状态。任何缓存命中都不跳过 Gradle assemble 或 unit test。
+CI 冷缓存构建优先使用 Google Maven 和 Maven Central 官方源，国内本地开发仍优先使用
+阿里云镜像；两种环境都保留另一组源作为回退。
