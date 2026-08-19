@@ -38,8 +38,13 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
 
     def test_default_policy_pins_260819_edge_transducer_onnx_md5(self) -> None:
         model_id, expected = MODULE.load_policy()
+        policy = json.loads(MODULE.DEFAULT_POLICY_PATH.read_text(encoding="utf-8"))
         self.assertEqual(
             "edge-transducer-chunk32-lc256-260819-iter250-avg1", model_id
+        )
+        self.assertEqual(
+            "b458ff9bf4502c4bc20df8341da362b6",
+            policy["source_bundle"]["md5"],
         )
         self.assertEqual(
             {
