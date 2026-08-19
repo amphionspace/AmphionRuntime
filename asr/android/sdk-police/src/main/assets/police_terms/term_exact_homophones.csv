@@ -201,3 +201,13 @@ GB二8181,GB28181,report_v028
 鸡鸭,羁押,samsung_mic_product_confirmed_20260815
 # 20260815 产品确认：警务增强下，裸“景观”作为警务称谓“警官”处理；仅纠正完整 final。
 景观,警官,samsung_mic_product_confirmed_20260815
+# 20260819 iter250 同一批困难语料与签警情烟测：仅纠正无稳定独立语义的完整 final。
+一警保,e警保,iter250_xiaoqiao_device_20260819
+易警保,e警保,iter250_xiaoqiao_device_20260819
+因警智联,京警智联,iter250_xiaoqiao_device_20260819
+丙指信平台,情指行平台,iter250_xiaoqiao_device_20260819
+因指信平台,情指行平台,iter250_xiaoqiao_device_20260819
+情指行平台坦,情指行平台,iter250_xiaoqiao_device_20260819
+天警率,见警率,iter250_xiaoqiao_device_20260819
+帮我打开警信语,帮我打开警信,iter250_xiaoqiao_device_20260819
+山警情,签警情,iter250_client_smoke_20260819

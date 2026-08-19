@@ -394,6 +394,60 @@ class PoliceTermsExactHomophoneDictTest {
     }
 
     @Test
+    fun recovers_iter250WholeFinalVariants_withoutRewritingAmbiguousTerms() {
+        val cases = mapOf(
+            // iter250 在同一批 20260814 困难语料上产生的新 final；仅收录无稳定独立语义的变体。
+            "一警保。" to "e警保。",
+            "  易警保？ " to "  e警保？ ",
+            "因警智联！" to "京警智联！",
+            "丙指信平台。" to "情指行平台。",
+            "因指信平台？" to "情指行平台？",
+            "情指行平台坦。" to "情指行平台。",
+            "天警率。" to "见警率。",
+            "帮我打开警信语。" to "帮我打开警信。",
+            // iter250 客户签警情烟测的唯一残留错误。
+            "山警情。" to "签警情。",
+        )
+        val ambiguousStandaloneInputs = listOf(
+            // 两侧均可能是合法普通词、警务术语、姓名或独立业务名称，不能靠裸 final 猜测。
+            "已经", "意见", "预警", "情指行平台", "警械", "警戒", "不仅反馈",
+            "第一枪", "低压", "现场", "警力", "日报", "渔船", "医护人员", "论文",
+            "摸排查", "约处警", "清查快处", "清查快车", "林子晴平潭", "邻里勤平台",
+            "引资型平坦",
+        )
+        val normalizers = listOf<(String) -> String>(
+            { v1().normalize(it).text },
+            { v2().normalize(it).text },
+        )
+
+        for (normalize in normalizers) {
+            for ((raw, expected) in cases) {
+                assertEquals("raw=$raw", expected, normalize(raw))
+                val bare = raw.trim().trimEnd('。', '？', '！')
+                for (input in listOf(
+                    "请复述${bare}这个错误。",
+                    "文本里写着${bare}，请不要改写。",
+                )) {
+                    assertEquals(input, normalize(input))
+                }
+            }
+            for (input in ambiguousStandaloneInputs) {
+                assertEquals("ambiguous standalone=$input", "$input。", normalize("$input。"))
+            }
+            for (input in listOf(
+                "e警保。",
+                "京警智联。",
+                "情指行平台。",
+                "见警率。",
+                "帮我打开警信。",
+                "签警情。",
+            )) {
+                assertEquals(input, normalize(input))
+            }
+        }
+    }
+
+    @Test
     fun exactDictionary_loadsDeviceTtsRows_withChinesePunctuation() {
         assertEquals(
             "夜班交接时，班长逐条检查是否已签警情。",
