@@ -1,0 +1,2 @@
+000000	/data/storage/el2/base/files/asr-stress/20260820-070248-user-sequence-f34f9e28/audio/000000.pcm
+000001	/data/storage/el2/base/files/asr-stress/20260820-070248-user-sequence-f34f9e28/audio/000001.pcm

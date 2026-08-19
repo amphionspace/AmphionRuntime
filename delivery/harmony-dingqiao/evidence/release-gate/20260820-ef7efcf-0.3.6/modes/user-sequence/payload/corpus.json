@@ -1,0 +1,24 @@
+[
+  {
+    "channels": 1,
+    "duration_seconds": 6.48,
+    "id": "000000",
+    "pcm_bytes": 207360,
+    "pcm_sha256": "f2fe411dea906f877dda34f2b3c3190edead2a3b9b99bf209ac5c1f76f75d4aa",
+    "sample_rate": 24000,
+    "sample_width": 2,
+    "source": "000.wav",
+    "source_sha256": "429033610280fb42e86ad7a6dffdf8eeab26596928c72a4aa405675d61ef5312"
+  },
+  {
+    "channels": 1,
+    "duration_seconds": 3.229977,
+    "id": "000001",
+    "pcm_bytes": 103360,
+    "pcm_sha256": "f8a1c090c8f19a8b7952f056e11526230d0f3101acdf7a7685d092edcfbb4ec1",
+    "sample_rate": 44100,
+    "sample_width": 2,
+    "source": "001.wav",
+    "source_sha256": "3e3c641b5c8a218e92b438b53f7b3192a9e235f82c360d0431aa6d7a3970dc72"
+  }
+]
