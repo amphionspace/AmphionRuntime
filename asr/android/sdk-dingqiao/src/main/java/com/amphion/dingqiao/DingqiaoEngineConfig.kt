@@ -8,6 +8,7 @@ import com.amphion.asr.SpeakerVadConfig
 import com.amphion.asr.TargetSpeakerConfig
 import com.amphion.asr.VadConfig
 import com.amphion.police.PoliceEngineConfig
+import com.amphion.police.PoliceHotwordProfile
 import java.io.File
 
 internal object DingqiaoEngineConfig {
@@ -46,8 +47,12 @@ internal object DingqiaoEngineConfig {
             ?: (params.extraParams["sysGeneralLexicon"] as? List<*>)?.mapNotNull { it?.toString() }
             ?: emptyList()
         val userHotwords = sysLexicon.map { it.trim() }.filter { it.isNotEmpty() }
-        val hotwords = PoliceEngineConfig.effectiveHotwords(
+        val hotwordProfile = PoliceHotwordProfile.parse(
+            params.extraParams[PoliceHotwordProfile.EXPERIMENTAL_PARAM],
+        )
+        val hotwords = PoliceEngineConfig.effectiveHotwordsForProfile(
             userHotwords = userHotwords,
+            profile = hotwordProfile,
             plateHotwords = true,
             stationHotwords = true,
             termsHotwords = true,
