@@ -265,6 +265,31 @@ def verify_current_version(
         )
 
 
+def verify_packaging_version(
+    *,
+    repo: Path,
+    history_path: Path,
+    platform: str,
+    version: str,
+    source_commit: str,
+) -> str:
+    if platform not in PLATFORMS:
+        raise ReleaseTrackerError(f"unsupported platform: {platform}")
+    requested = _semver_key(version)
+    latest = _previous_delivery(load_history(history_path), platform)
+    if latest is not None and requested == _semver_key(latest["version"]):
+        recorded_commit = resolve_commit(repo, latest["source_commit"])
+        package_commit = resolve_commit(repo, source_commit)
+        if package_commit != recorded_commit:
+            raise ReleaseTrackerError(
+                f"recorded {platform} {version} must be rebuilt from exact source "
+                f"{recorded_commit}, not {package_commit}"
+            )
+        return "current"
+    _require_newer_version(platform, version, latest)
+    return "next"
+
+
 def _changed_paths(repo: Path, commit: str) -> List[str]:
     return _run_git(
         repo, "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", commit
@@ -300,10 +325,22 @@ def render_changelog(
         raise ReleaseTrackerError(f"unsupported platform: {platform}")
     if not SEMVER.fullmatch(version):
         raise ReleaseTrackerError(f"version must be SemVer MAJOR.MINOR.PATCH: {version}")
-    verify_next_version(history_path=history_path, platform=platform, version=version)
     history = load_history(history_path)
     current = resolve_commit(repo, source_commit)
-    previous = _previous_delivery(history, platform)
+    deliveries = [entry for entry in history["deliveries"] if entry["platform"] == platform]
+    latest = deliveries[-1] if deliveries else None
+    if latest is not None and latest["version"] == version:
+        verify_packaging_version(
+            repo=repo,
+            history_path=history_path,
+            platform=platform,
+            version=version,
+            source_commit=source_commit,
+        )
+        previous = deliveries[-2] if len(deliveries) > 1 else None
+    else:
+        verify_next_version(history_path=history_path, platform=platform, version=version)
+        previous = latest
 
     lines = [
         "# ASR SDK 更新日志",
@@ -793,6 +830,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     verify_current.add_argument("--version", required=True)
     verify_current.add_argument("--source-commit", default="HEAD")
 
+    verify_package = subparsers.add_parser("verify-package")
+    verify_package.add_argument("--platform", choices=sorted(PLATFORMS), required=True)
+    verify_package.add_argument("--version", required=True)
+    verify_package.add_argument("--source-commit", default="HEAD")
+
     record = subparsers.add_parser("record")
     record.add_argument("--platform", choices=sorted(PLATFORMS), required=True)
     record.add_argument("--version", required=True)
@@ -849,6 +891,15 @@ def main(argv: Optional[List[str]] = None) -> int:
                 source_commit=args.source_commit,
             )
             print(f"[OK] {args.platform} {args.version} matches the latest delivery ledger")
+        elif args.command == "verify-package":
+            state = verify_packaging_version(
+                repo=repo,
+                history_path=history_path,
+                platform=args.platform,
+                version=args.version,
+                source_commit=args.source_commit,
+            )
+            print(f"[OK] {args.platform} {args.version} packaging version is {state}")
         elif args.command == "record":
             entry = record_delivery(
                 repo=repo,
