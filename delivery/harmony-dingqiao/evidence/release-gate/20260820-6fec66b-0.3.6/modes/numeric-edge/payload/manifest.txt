@@ -1,1 +1,0 @@
-000000	/data/storage/el2/base/files/asr-stress/20260820-060819-numeric-edge-5112aa16/audio/000000.pcm

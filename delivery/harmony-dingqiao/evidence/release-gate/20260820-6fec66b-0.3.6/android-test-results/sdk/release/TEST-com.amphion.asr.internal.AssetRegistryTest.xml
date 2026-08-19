@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.amphion.asr.internal.AssetRegistryTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-08-19T22:04:13" hostname="redacted" time="0.005">
-  <properties/>
-  <testcase name="zh-en-only build keeps preinstall within delivered assets" classname="com.amphion.asr.internal.AssetRegistryTest" time="0.005"/>
-  <testcase name="android fast-load models use ORT assets" classname="com.amphion.asr.internal.AssetRegistryTest" time="0.0"/>
-  <testcase name="default build preserves both language bundles" classname="com.amphion.asr.internal.AssetRegistryTest" time="0.0"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

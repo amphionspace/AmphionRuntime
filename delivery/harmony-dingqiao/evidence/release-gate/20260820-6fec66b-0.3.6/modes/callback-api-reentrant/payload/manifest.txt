@@ -1,3 +1,0 @@
-000000	/data/storage/el2/base/files/asr-stress/20260820-055947-callback-api-reentrant-f87ea3c4/audio/000000.pcm
-000001	/data/storage/el2/base/files/asr-stress/20260820-055947-callback-api-reentrant-f87ea3c4/audio/000001.pcm
-000002	/data/storage/el2/base/files/asr-stress/20260820-055947-callback-api-reentrant-f87ea3c4/audio/000002.pcm

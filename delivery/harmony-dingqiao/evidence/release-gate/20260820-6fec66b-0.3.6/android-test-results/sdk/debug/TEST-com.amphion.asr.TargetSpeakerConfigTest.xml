@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.amphion.asr.TargetSpeakerConfigTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-08-19T22:04:10" hostname="redacted" time="0.007">
-  <properties/>
-  <testcase name="minimumSegmentDefaultsToZeroAndRequiresFiniteNonNegativeValues" classname="com.amphion.asr.TargetSpeakerConfigTest" time="0.007"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
