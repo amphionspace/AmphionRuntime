@@ -85,6 +85,10 @@ export function customerScenarioProfile(name: CustomerScenarioName): CustomerSce
   return CUSTOMER_PTT;
 }
 
+export function customerProfileUsesContinuousRecognition(profile: CustomerScenarioProfile): boolean {
+  return profile.rotateSession && profile.maxAudioDuration > 55000;
+}
+
 export function customerProfileStartParams(sessionId: string, name: CustomerScenarioName): StartParams {
   const profile = customerScenarioProfile(name);
   const params = new StartParams();

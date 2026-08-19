@@ -20,6 +20,7 @@ import { AudioRecorder, AudioRecorderStats, DemoAudioSource } from '../util/Audi
 import { ColdStartEngineDecision, ColdStartPttGate } from '../util/ColdStartPttGate';
 import {
   CustomerScenarioName,
+  customerProfileUsesContinuousRecognition,
   customerProfileStartParams,
   customerScenarioProfile
 } from '../util/CustomerScenarioProfile';
@@ -481,8 +482,7 @@ struct Index {
     const startParams = customerProfileStartParams(sessionId, this.capturedCustomerScenario);
     const extra = startParams.extraParams;
     const profile = customerScenarioProfile(this.capturedCustomerScenario);
-    extra['enableContinuousRecognition'] =
-      profile.rotateSession && profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS;
+    extra['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
     extra['enablePoliceEnhancement'] = this.capturedPoliceEnhancement;
     if (this.capturedVoiceprintVerify) {
       extra['enableVoiceprintVerification'] = true;

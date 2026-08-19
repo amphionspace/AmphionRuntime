@@ -241,17 +241,29 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         script = textwrap.dedent(
             f"""
             import assert from 'node:assert/strict';
-            import {{ endpointMaxUtteranceSec }} from {ADAPTER_ENDPOINT_POLICY.as_uri()!r};
+            import {{ endpointMaxUtteranceSec, endpointRecognizerConfigKey }} from {ADAPTER_ENDPOINT_POLICY.as_uri()!r};
 
             assert.equal(endpointMaxUtteranceSec({{}}), 20);
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: 60000 }}), 60);
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: '45000' }}), 45);
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: Number.NaN }}), 20);
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: 0 }}), 20);
+            assert.notEqual(
+              endpointRecognizerConfigKey(false, false, {{ endpointMaxUtteranceMs: 20000 }}),
+              endpointRecognizerConfigKey(false, false, {{ endpointMaxUtteranceMs: 60000 }}),
+            );
             """
         )
         subprocess.run(
-            ["node", "--experimental-strip-types", "--input-type=module", "-e", script],
+            [
+                "node",
+                "--experimental-strip-types",
+                "--experimental-loader",
+                str(REPO_ROOT / "asr/tools/tests/ts_extension_loader.mjs"),
+                "--input-type=module",
+                "-e",
+                script,
+            ],
             check=True,
             cwd=REPO_ROOT,
         )
@@ -259,7 +271,7 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         adapter = ADAPTER.read_text(encoding="utf-8")
         self.assertIn("config.endpointRules.rule3MinUtteranceLengthSec =", adapter)
         self.assertIn("endpointMaxUtteranceSec(startParams?.extraParams ?? {})", adapter)
-        self.assertIn("endpointMaxUtteranceSec(params?.extraParams ?? {})", adapter)
+        self.assertIn("endpointRecognizerConfigKey(withTargetSpeaker, withSpeakerVad", adapter)
 
     def test_native_async_decode_retains_recognizer_and_stream_lifetimes(self) -> None:
         patch = SHERPA_PATCH.read_text(encoding="utf-8")
