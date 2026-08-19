@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 import tempfile
@@ -31,8 +32,48 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
         self.commit_timestamp.start()
         self.android_summary = self.root / "android-tests.json"
         self.finish_summary = self.root / "finish-compat-report.json"
+        self.finish_raw = self.root / "finish-raw"
+        finish_modes = []
+        finish_reports = {}
+        for mode in MODULE.REQUIRED_FINISH_COMPAT_MODES:
+            run_id = f"20260807-095800-{mode}-pass"
+            run = self.finish_raw / run_id
+            (run / "payload").mkdir(parents=True)
+            report = {
+                "run_id": run_id,
+                "mode": mode,
+                "overall_status": "PASS",
+                "device": self.device,
+                "build_identity": {
+                    "git_commit": "a" * 40,
+                    "source_fingerprint_sha256": "b" * 64,
+                    "artifacts": {
+                        "amphion_asr_demo.hap": {"sha256": "c" * 64},
+                        "amphion_asr.har": {"sha256": "1" * 64},
+                        "amphion_police.har": {"sha256": "2" * 64},
+                        "amphion_dingqiao.har": {"sha256": "e" * 64},
+                        "sherpa_onnx.har": {"sha256": "3" * 64},
+                    },
+                },
+            }
+            (run / "report.json").write_text(json.dumps(report), encoding="utf-8")
+            (run / "result.txt").write_text("PASS\n", encoding="utf-8")
+            (run / "memory.csv").write_text("elapsed_seconds,pid\n0,1\n", encoding="utf-8")
+            (run / "hilog.txt").write_text("ASR_STRESS|PASS\n", encoding="utf-8")
+            (run / "inventory.json").write_text("{}\n", encoding="utf-8")
+            (run / "payload" / "corpus.json").write_text("{}\n", encoding="utf-8")
+            (run / "payload" / "manifest.txt").write_text("fixture\n", encoding="utf-8")
+            finish_modes.append({"mode": mode, "run_id": run_id, "status": "PASS"})
+            finish_reports[mode] = f"../finish-raw/{run_id}/report.json"
         self.finish_summary.write_text(
-            json.dumps({"status": "PASS", "source_commit": "a" * 40}),
+            json.dumps(
+                {
+                    "status": "PASS",
+                    "source_commit": "a" * 40,
+                    "modes": finish_modes,
+                    "reports": finish_reports,
+                }
+            ),
             encoding="utf-8",
         )
         self.build_identity = self.root / "build-identity.json"
@@ -138,6 +179,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={failed.name: "test precondition failed"},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
         self.assertEqual("PASS", summary["overall_status"])
@@ -175,6 +217,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
         expected_alias = "device-" + hashlib.sha256(self.device.encode()).hexdigest()[:12]
@@ -187,6 +230,91 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
             self.assertNotIn("/Users/private", text, path)
             self.assertNotIn("e4bda0e5a5bd", text, path)
             self.assertNotIn("clientID", text, path)
+
+    def test_archives_numeric_gate_and_finish_compat_child_runs(self) -> None:
+        self.make_run("20260807-100100-vad-begin-pass", "vad-begin", "PASS")
+        finish_raw = self.root / "finish-raw"
+        finish_runs = {}
+        for mode in MODULE.REQUIRED_FINISH_COMPAT_MODES:
+            run_id = f"20260807-100200-{mode}-pass"
+            source = self.make_run(run_id, mode, "PASS")
+            finish_raw.mkdir(exist_ok=True)
+            shutil.move(str(source), finish_raw / run_id)
+            finish_runs[mode] = run_id
+        self.finish_summary.write_text(
+            json.dumps(
+                {
+                    "status": "PASS",
+                    "source_commit": "a" * 40,
+                    "modes": [
+                        {"mode": mode, "run_id": run_id, "status": "PASS"}
+                        for mode, run_id in finish_runs.items()
+                    ],
+                    "reports": {
+                        mode: f"../finish-raw/{run_id}/report.json"
+                        for mode, run_id in finish_runs.items()
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        numeric = self.root / "numeric.json"
+        numeric.write_text(
+            json.dumps(
+                {
+                    "gate": "numeric-identity-recovery",
+                    "status": "PASS",
+                    "source_commit": "a" * 40,
+                    "hap_sha256": "c" * 64,
+                    "input_sha256": "4" * 64,
+                    "replay_report_sha256": "5" * 64,
+                    "duration_ms": 10880,
+                    "live_replay_exact_match": True,
+                    "identifier_exact_match": True,
+                    "identifier_length": 18,
+                    "checksum_valid": True,
+                    "lifecycle": {
+                        "finish_before_last_count": 0,
+                        "last_count": 1,
+                        "complete_count": 1,
+                        "errors": 0,
+                        "live_streams": 0,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with mock.patch.object(MODULE, "REQUIRED_RELEASE_MODES", ("vad-begin",)):
+            summary = MODULE.archive_evidence(
+                raw_root=self.raw,
+                output=self.output,
+                release_version="0.3.1",
+                source_commit="a" * 40,
+                artifact_sha256="d" * 64,
+                har_sha256="e" * 64,
+                diagnostic_notes={},
+                android_summary=self.android_summary,
+                android_results_root=self.android_results,
+                finish_compat_summary=self.finish_summary,
+                finish_compat_raw_root=finish_raw,
+                numeric_gate_attestation=numeric,
+            )
+
+        self.assertEqual(2, len(summary["finish_compat_runs"]))
+        archived_finish = json.loads(
+            (self.output / "finish-compat-report.json").read_text(encoding="utf-8")
+        )
+        for mode in MODULE.REQUIRED_FINISH_COMPAT_MODES:
+            self.assertEqual(
+                f"finish-compat-runs/{mode}/report.json",
+                archived_finish["reports"][mode],
+            )
+            self.assertTrue(
+                (self.output / "finish-compat-runs" / mode / "report.json").is_file()
+            )
+        self.assertEqual("4" * 64, summary["numeric_identity_gate"]["input_sha256"])
+        self.assertTrue((self.output / "numeric-identity-gate.json").is_file())
 
     def test_rejects_missing_required_mode_and_existing_output(self) -> None:
         self.make_run("20260807-100100-vad-begin-pass", "vad-begin", "PASS")
@@ -203,6 +331,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
         self.output.mkdir()
@@ -218,6 +347,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_incomplete_android_matrix(self) -> None:
@@ -238,6 +368,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_android_summary_that_disagrees_with_gradle_xml(self) -> None:
@@ -258,6 +389,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_component_har_drift_between_canonical_modes(self) -> None:
@@ -284,6 +416,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_component_har_without_a_sha256(self) -> None:
@@ -308,6 +441,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_device_matrix_from_another_verified_build_identity(self) -> None:
@@ -327,6 +461,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
                 build_identity=self.build_identity,
             )
 
@@ -347,6 +482,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
     def test_rejects_android_xml_older_than_release_commit(self) -> None:
@@ -370,6 +506,7 @@ class ArchiveReleaseGateEvidenceTest(unittest.TestCase):
                 diagnostic_notes={},
                 android_summary=self.android_summary,
                 android_results_root=self.android_results,
+                finish_compat_raw_root=self.finish_raw,
             )
 
 

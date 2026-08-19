@@ -516,6 +516,25 @@ class AsrReleaseTrackerTest(unittest.TestCase):
         with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "required_modes"):
             MODULE._validate_evidence_report(entry, report)
 
+    def test_harmony_evidence_cannot_omit_finish_compat_child_runs(self) -> None:
+        report_path = self.repo / "delivery" / "evidence" / "harmony" / "report.json"
+        report_path.parent.mkdir(parents=True)
+        android = report_path.parent / "android-tests.json"
+        android.write_text("{}\n", encoding="utf-8")
+        report = {
+            "release_version": "0.3.6",
+            "required_modes": list(MODULE.HARMONY_RELEASE_MODES),
+            "android_tests_artifact": {
+                "path": "android-tests.json",
+                "sha256": hashlib.sha256(android.read_bytes()).hexdigest(),
+                "size_bytes": android.stat().st_size,
+            },
+            "finish_compat_runs": [],
+        }
+
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "modes are incomplete"):
+            MODULE._validate_evidence_files(report_path, report)
+
     def test_rejects_malformed_archived_android_xml(self) -> None:
         xml = self.repo / "bad.xml"
         xml.write_text('<testsuite hostname="redacted"><broken>\n', encoding="utf-8")

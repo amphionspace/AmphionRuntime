@@ -1,0 +1,34 @@
+{
+  "channels": 1,
+  "checksum_valid": true,
+  "duration_ms": 10880,
+  "gate": "numeric-identity-recovery",
+  "hap_sha256": "2a9efa70a9e6591b8812b7c0116adf816519334ed9d3715b462117f876b7387f",
+  "identifier_exact_match": true,
+  "identifier_length": 18,
+  "input_sha256": "0e7df5cdd8a6b2efdc470fdd44cd48dea8217adc3e15768b8417d058f11a2cb6",
+  "lifecycle": {
+    "complete_count": 1,
+    "errors": 0,
+    "finish_before_last_count": 0,
+    "last_count": 1,
+    "live_streams": 0
+  },
+  "live_replay_exact_match": true,
+  "pace_ms": 20,
+  "replay_report_sha256": "cee8319858af0531175f3cdf253f1edec7c4c0f2ba04e9805d8c430241e78228",
+  "replay_run_id": "20260820-065530-customer-ptt-c09aa00b",
+  "retention": {
+    "identifier_plaintext_committed": false,
+    "raw_pcm_committed": false,
+    "recognized_text_committed": false
+  },
+  "sample_format": "s16le",
+  "sample_rate_hz": 16000,
+  "scenario": "PTT",
+  "schema_version": 1,
+  "source_commit": "ef7efcfc82c29829bca708c5c0c3cd5fd858368b",
+  "source_type": "VOICE_COMMUNICATION",
+  "status": "PASS",
+  "truth_source": "user-confirmed on-device result"
+}

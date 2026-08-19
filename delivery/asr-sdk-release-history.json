@@ -104,6 +104,18 @@
       "artifact_sha256": "e6e3cf028441d80c6960dcbb3878b0386dc7072c418bd6897e4db991ca95a544",
       "artifact_size_bytes": 269974052,
       "provenance_sha256": "717368949e1f3978511eb61d70afd275eee66c00f8864e33b81efcc77d543cab"
+    },
+    {
+      "platform": "harmony",
+      "version": "0.3.6",
+      "source_commit": "ef7efcfc82c29829bca708c5c0c3cd5fd858368b",
+      "delivered_at": "2026-08-20",
+      "artifact": "amphion-harmony-asr-sdk-v0.3.6-20260820.zip",
+      "artifact_sha256": "b773809ca344d8cf0f8cb6c4d5f97cbd052a332a26e9342171553e084155a3c3",
+      "artifact_size_bytes": 269970989,
+      "provenance_sha256": "6312bd0ed5d5c8e583db7c7c735881584fa76ddbddfee631af6898f73a3f2dff",
+      "evidence_report": "delivery/harmony-dingqiao/evidence/release-gate/20260820-ef7efcf-0.3.6-v2/report.json",
+      "evidence_sha256": "c311dd63e54cca5fa566ef59888868a49e6ad30466d7d3545891701cb46ac30c"
     }
   ]
 }
