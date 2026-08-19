@@ -49,6 +49,14 @@ class RunCommandTest(unittest.TestCase):
             self.assertNotIn('"expected_tail_manifest":',
                              SCRIPT.read_text(encoding="utf-8"))
 
+            manifest.write_text(json.dumps({"files": [
+                {"sha256": source_hash, "required_suffix": "1234567"},
+                {"sha256": source_hash, "required_suffix": "7654321"},
+            ]}), encoding="utf-8")
+            duplicate = MODULE.expected_tail_verdict(complete, mapping, manifest)
+            self.assertEqual("FAIL", duplicate["status"])
+            self.assertIn("duplicate sha256", duplicate["reason"])
+
     def test_customer_tail_manifest_requires_meeting_minutes_mode(self) -> None:
         with mock.patch.object(
             sys, "argv", [str(SCRIPT), "--mode", "burst", "--expected-tail-manifest", "tail.json"]

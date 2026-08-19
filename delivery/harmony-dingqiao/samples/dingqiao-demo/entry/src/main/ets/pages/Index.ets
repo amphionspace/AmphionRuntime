@@ -984,7 +984,7 @@ struct Index {
       return;
     }
     if (this.listening) {
-      // vadBegin / maxAudioDuration 自动结束；连续转写只会由显式 finish 进入这里。
+      // continuous 只禁用 maxAudioDuration；vadBegin 等其他显式终止条件仍可能自动结束。
       this.listening = false;
       this.stoppingListening = true;
       this.modelReady = false;

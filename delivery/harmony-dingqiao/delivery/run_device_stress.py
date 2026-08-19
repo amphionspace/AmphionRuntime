@@ -583,6 +583,8 @@ def expected_tail_verdict(
             return {"status": "FAIL", "reason": "tail manifest contains an invalid sha256", "cases": []}
         if not isinstance(required_suffix, str) or not normalized_asr_text(required_suffix):
             return {"status": "FAIL", "reason": "tail manifest contains an empty suffix", "cases": []}
+        if source_hash in expected_by_hash:
+            return {"status": "FAIL", "reason": "tail manifest contains a duplicate sha256", "cases": []}
         expected_by_hash[source_hash] = normalized_asr_text(required_suffix)
 
     mapping_by_id = {str(item.get("id")): item for item in mapping}
