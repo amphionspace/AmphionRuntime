@@ -142,6 +142,61 @@ class AsrReleaseTrackerTest(unittest.TestCase):
                 source_commit=self.current_commit,
             )
 
+    def test_packaging_accepts_new_or_exact_recorded_source(self) -> None:
+        self.assertEqual(
+            MODULE.verify_packaging_version(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.3",
+                source_commit=self.current_commit,
+            ),
+            "next",
+        )
+        payload = json.loads(self.history_path.read_text(encoding="utf-8"))
+        payload["deliveries"].append(
+            {
+                "platform": "android",
+                "version": "0.3.3",
+                "source_commit": self.current_commit,
+                "delivered_at": "2026-07-25",
+                "artifact": "android-0.3.3.zip",
+                "artifact_sha256": "c" * 64,
+                "artifact_size_bytes": 456,
+                "provenance_sha256": "d" * 64,
+            }
+        )
+        self.history_path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+        self.assertEqual(
+            MODULE.verify_packaging_version(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.3",
+                source_commit=self.current_commit,
+            ),
+            "current",
+        )
+        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "exact source"):
+            MODULE.verify_packaging_version(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.3",
+                source_commit=self.android_base,
+            )
+
+        rendered = MODULE.render_changelog(
+            repo=self.repo,
+            history_path=self.history_path,
+            platform="android",
+            version="0.3.3",
+            source_commit=self.current_commit,
+        )
+        self.assertIn(f"0.3.2 (`{self.android_base}`)", rendered)
+        self.assertNotIn("上一交付：0.3.3", rendered)
+
     def test_excludes_commits_that_only_touch_the_other_platform(self) -> None:
         harmony = self.repo / "asr" / "harmony"
         harmony.mkdir(parents=True)

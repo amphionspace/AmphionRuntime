@@ -44,8 +44,19 @@ if [[ "$ASR_ONLY" == true && "$SDK_ONLY" == true ]]; then
   exit 2
 fi
 
+BUILD_IDENTITY="$REPO_ROOT/delivery/harmony-dingqiao/build/smoke/build-identity.json"
+BUILD_SOURCE_COMMIT="$(python3 - "$BUILD_IDENTITY" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(payload["git_commit"])
+PY
+)"
 python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
-  --repo "$REPO_ROOT" verify-next --platform harmony --version "$VERSION"
+  --repo "$REPO_ROOT" verify-package --platform harmony --version "$VERSION" \
+  --source-commit "$BUILD_SOURCE_COMMIT"
 
 if [[ -z "$FINAL_OUT_ROOT" ]]; then
   if [[ "$SDK_ONLY" == true ]]; then
@@ -62,7 +73,6 @@ BACKUP_OUT_ROOT="${FINAL_OUT_ROOT}.backup.$$"
 LOCK_DIR="${FINAL_OUT_ROOT}.lock"
 LOCK_HELD=false
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-$REPO_ROOT/.secure/harmony-signing.json}"
-BUILD_IDENTITY="$REPO_ROOT/delivery/harmony-dingqiao/build/smoke/build-identity.json"
 
 GIT_DIRTY=false
 # Unrelated diagnostics and local customer notes do not affect the SDK-only payload. Gate release
@@ -287,7 +297,7 @@ python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
   changelog \
   --platform harmony \
   --version "$VERSION" \
-  --source-commit HEAD \
+  --source-commit "$BUILD_SOURCE_COMMIT" \
   --output "$COMMIT_CHANGELOG"
 python3 - "$REPO_ROOT/delivery/harmony-dingqiao/docs/CHANGELOG.md" \
   "$COMMIT_CHANGELOG" "$OUT_ROOT/docs/CHANGELOG.md" "$VERSION" <<'PY'
@@ -468,7 +478,7 @@ payload = {
     "sdk_only": sdk_only,
     "source": {
         "repository": run("git", "remote", "get-url", "origin"),
-        "commit": run("git", "rev-parse", "HEAD"),
+        "commit": build_identity["git_commit"],
         "branch": run("git", "branch", "--show-current"),
         "worktree_dirty": git_dirty,
         "sherpa_submodule_commit": run("git", "rev-parse", "HEAD:third_party/sherpa-onnx"),

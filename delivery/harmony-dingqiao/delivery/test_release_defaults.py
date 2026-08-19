@@ -145,9 +145,11 @@ class ReleaseDefaultsTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn('python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"', script)
         self.assertIn(
-            'verify-next --platform harmony --version "$VERSION"',
+            'verify-package --platform harmony --version "$VERSION"',
             script,
         )
+        self.assertIn('--source-commit "$BUILD_SOURCE_COMMIT"', script)
+        self.assertIn('"commit": build_identity["git_commit"]', script)
         self.assertIn("build_identity = json.loads", script)
         self.assertIn('"verified_source_identity"', script)
 
