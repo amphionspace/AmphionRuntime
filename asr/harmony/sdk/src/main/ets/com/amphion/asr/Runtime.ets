@@ -2211,7 +2211,7 @@ export class AsrSession {
     this.resetVadGateState();
   }
 
-  // Every public endpoint starts a fresh stream, including endpoints whose native result is empty.
+  // Restarting endpoints start a fresh stream, including endpoints whose native result is empty.
   // A soft reset retains encoder cache from the rejected/empty segment; after a run of such segments
   // that stale context can keep later real speech tokenless. Rebuilding preserves the session while
   // giving the next utterance a clean encoder (Android parity).
