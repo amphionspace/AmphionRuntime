@@ -77,6 +77,7 @@ class SessionEvents {
   finalChars: number = 0;
   finalTexts: string[] = [];
   textEventKinds: string[] = [];
+  textEventSessionIds: string[] = [];
   textEventTexts: string[] = [];
   textEventIsLast: boolean[] = [];
   textEventAtMs: number[] = [];
@@ -165,6 +166,7 @@ class StressListener implements RecognitionListener {
       this.events.firstNonEmptyResultAtMs = Date.now();
     }
     this.events.textEventKinds.push(result.isFinal ? 'final' : 'partial');
+    this.events.textEventSessionIds.push(sessionId);
     this.events.textEventTexts.push(result.result);
     this.events.textEventIsLast.push(result.isLast);
     this.events.textEventAtMs.push(Date.now());
@@ -805,6 +807,7 @@ class CycleResult {
   resultHex: string = '';
   callbackTrace: string = '';
   textEventKinds: string[] = [];
+  textEventSessionIds: string[] = [];
   textEventTexts: string[] = [];
   textEventIsLast: boolean[] = [];
   textEventElapsedMs: number[] = [];
@@ -896,6 +899,13 @@ function stringToUtf16Hex(value: string): string {
     result += value.charCodeAt(i).toString(16).padStart(4, '0');
   }
   return result;
+}
+
+function escapeEvidenceText(value: string): string {
+  return value.replace(/\\/g, '\\\\')
+    .replace(/\|/g, '\\|')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n');
 }
 
 function readBytes(path: string): ArrayBuffer {
@@ -1078,9 +1088,12 @@ async function feedPcmFile(engine: SpeechRecognitionEngine, sessionId: string, p
         const queue: AudioQueueStats = engine.getAudioQueueStats();
         hilog.info(DOMAIN, TAG,
           'AUDIO_QUEUE|sessionId=%{public}s|fedFrames=%{public}d|submittedBytes=%{public}d|' +
-          'processedBytes=%{public}d|queuedBytes=%{public}d|queuedChunks=%{public}d',
+          'processedBytes=%{public}d|queuedBytes=%{public}d|queuedChunks=%{public}d|' +
+          'processedAudioMs=%{public}d|queuedAudioMs=%{public}d|highWaterBytes=%{public}d|' +
+          'lowWaterBytes=%{public}d',
           sessionId, fed, queue.submittedBytes, queue.processedBytes,
-          queue.queuedBytes, queue.queuedChunks);
+          queue.queuedBytes, queue.queuedChunks, queue.processedAudioMs, queue.queuedAudioMs,
+          queue.highWaterBytes, queue.lowWaterBytes);
       }
       if (paceMs > 0) {
         await sleep(paceMs);
@@ -1133,6 +1146,7 @@ function mergeSessionEvents(target: SessionEvents, source: SessionEvents): void 
   for (let i = 0; i < source.finalTexts.length; i++) target.finalTexts.push(source.finalTexts[i]);
   for (let i = 0; i < source.textEventKinds.length; i++) {
     target.textEventKinds.push(source.textEventKinds[i]);
+    target.textEventSessionIds.push(source.textEventSessionIds[i]);
     target.textEventTexts.push(source.textEventTexts[i]);
     target.textEventIsLast.push(source.textEventIsLast[i]);
     target.textEventAtMs.push(source.textEventAtMs[i]);
@@ -1184,6 +1198,7 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.callbackTrace = events.callbackTrace.join('>');
   for (let index = 0; index < events.textEventKinds.length; index++) {
     result.textEventKinds.push(events.textEventKinds[index]);
+    result.textEventSessionIds.push(events.textEventSessionIds[index]);
     result.textEventTexts.push(events.textEventTexts[index]);
     result.textEventIsLast.push(events.textEventIsLast[index]);
     result.textEventElapsedMs.push(events.textEventAtMs[index] - startedAt);
@@ -2606,9 +2621,11 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       logLine(result.toLine());
       for (let eventIndex = 0; eventIndex < result.textEventKinds.length; eventIndex++) {
         lines.push(`TEXT|cycle=${result.index}|id=${result.corpusId}|sequence=${eventIndex}` +
+          `|sessionId=${result.textEventSessionIds[eventIndex]}` +
           `|kind=${result.textEventKinds[eventIndex]}` +
           `|elapsedMs=${result.textEventElapsedMs[eventIndex]}` +
           `|isLast=${result.textEventIsLast[eventIndex] ? 1 : 0}` +
+          `|text=${escapeEvidenceText(result.textEventTexts[eventIndex])}` +
           `|textHex=${stringToUtf16Hex(result.textEventTexts[eventIndex])}`);
       }
 

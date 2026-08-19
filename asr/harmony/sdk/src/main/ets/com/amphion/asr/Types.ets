@@ -223,6 +223,10 @@ export class AmphionMetrics {
   firstPartialLatencyMs: number = -1;
   endpointToFinalLatencyMs: number = -1;
   utteranceE2eLatencyMs: number = -1;
+  // A public utterance can span suppressed token-only native endpoints.
+  nativeSegmentCount: number = -1;
+  suppressedEndpointCount: number = -1;
+  lastEndpointReason: string = '';
   rtf: number = -1;
   nativeRssMbDelta: number = 0;
   nativeRssMb: number = -1;
@@ -246,6 +250,9 @@ export class AmphionMetrics {
       parts.push(`firstPartialLatencyMs=${this.firstPartialLatencyMs}`);
       parts.push(`endpointToFinalLatencyMs=${this.endpointToFinalLatencyMs}`);
       parts.push(`utteranceE2eLatencyMs=${this.utteranceE2eLatencyMs}`);
+      parts.push(`nativeSegmentCount=${this.nativeSegmentCount}`);
+      parts.push(`suppressedEndpointCount=${this.suppressedEndpointCount}`);
+      parts.push(`lastEndpointReason=${this.lastEndpointReason}`);
       parts.push(`rtf=${formatMetricFloat(this.rtf)}`);
       parts.push(`nativeRssMb=${this.nativeRssMb}`);
       parts.push(`nativeRssMbDelta=${this.nativeRssMbDelta}`);

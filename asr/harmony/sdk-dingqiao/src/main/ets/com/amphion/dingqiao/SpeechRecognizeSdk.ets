@@ -16,7 +16,8 @@ import { targetSpeakerEnhancementConfig } from './TargetSpeakerEnhancementConfig
 import { TargetSpeakerEnhancer } from './TargetSpeakerEnhancer';
 import {
   TargetSpeakerEnhancementObserver,
-  TargetSpeakerEnhancementPipeline
+  TargetSpeakerEnhancementPipeline,
+  TargetSpeakerEnhancementQueueStats
 } from './TargetSpeakerEnhancementStream';
 import { PoliceFinalSession } from './PoliceEnhancementPolicy';
 import { hasVoiceprintCapability } from './VoiceprintCapability';
@@ -97,11 +98,26 @@ function vadEndMs(params?: StartParams): number {
 }
 
 const DEFAULT_ENDPOINT_MAX_UTTERANCE_MS: number = 20000;
+const DEFAULT_AUDIO_QUEUE_HIGH_WATER_BYTES: number = 512 * 1024;
+const DEFAULT_AUDIO_QUEUE_LOW_WATER_BYTES: number = 256 * 1024;
+const MAX_AUDIO_QUEUE_WATER_BYTES: number = 8 * 1024 * 1024;
 
 function endpointMaxUtteranceMs(params?: StartParams): number {
   return Math.round(clamp(numberParam(
     params?.extraParams ?? {}, 'endpointMaxUtteranceMs', DEFAULT_ENDPOINT_MAX_UTTERANCE_MS),
   10000, 120000));
+}
+
+function audioQueueHighWaterBytes(params?: StartParams): number {
+  return Math.round(clamp(numberParam(
+    params?.extraParams ?? {}, 'audioQueueHighWaterBytes', DEFAULT_AUDIO_QUEUE_HIGH_WATER_BYTES),
+  DINGQIAO_AUDIO_FRAME_BYTES_20MS, MAX_AUDIO_QUEUE_WATER_BYTES));
+}
+
+function audioQueueLowWaterBytes(params: StartParams | undefined, highWaterBytes: number): number {
+  return Math.round(clamp(numberParam(
+    params?.extraParams ?? {}, 'audioQueueLowWaterBytes', DEFAULT_AUDIO_QUEUE_LOW_WATER_BYTES),
+  0, highWaterBytes));
 }
 
 function vadBeginMs(params: StartParams): number | undefined {
@@ -506,11 +522,13 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           this.session.setSpeakerVadEnabled(true);
         }
       }
+      const queueHighWaterBytes = audioQueueHighWaterBytes(params);
+      const queueLowWaterBytes = audioQueueLowWaterBytes(params, queueHighWaterBytes);
       if (newEnhancer !== undefined) {
         const enhancementGeneration = startGeneration;
         const observer: TargetSpeakerEnhancementObserver = {
-          onOutput: (samples: Float32Array): void => {
-            this.handleTargetSpeakerEnhancementOutput(
+          onOutput: async (samples: Float32Array): Promise<void> => {
+            await this.handleTargetSpeakerEnhancementOutput(
               enhancementGeneration,
               params.sessionId,
               samples
@@ -536,7 +554,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           }
         };
         this.targetSpeakerEnhancementPipeline =
-          new TargetSpeakerEnhancementPipeline(newEnhancer, observer);
+          new TargetSpeakerEnhancementPipeline(
+            newEnhancer, observer, queueHighWaterBytes, queueLowWaterBytes);
       }
       const session = createdSession;
       const audioGeneration = startGeneration;
@@ -561,7 +580,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       }, (message: string): void => {
         this.handleAsrError(audioGeneration,
           new AsrError(AsrErrorCode.NATIVE_CRASH, `audio dispatch failed: ${message}`));
-      });
+      }, queueHighWaterBytes, queueLowWaterBytes);
       if (this.sessionStartGate.publishSession(startGeneration)) this.deliverSessionStarted(startGeneration);
     } catch (e) {
       this.startingSession = false;
@@ -631,7 +650,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.writeAudio(sessionId, audio);
     const accepted = audio.byteLength > 0 && this.audioBytesWritten === submittedBefore + audio.byteLength;
     if (!accepted) return false;
-    if (enhancementPipeline !== undefined || dispatcher === undefined) return true;
+    if (enhancementPipeline !== undefined) {
+      const writable = await enhancementPipeline.whenWritable();
+      if (!writable) return false;
+      return this.sessionStartGate.isCurrent(generation) || this.lastFinishedSessionId === sessionId;
+    }
+    if (dispatcher === undefined) return true;
     // The frame was synchronously snapshotted by writeAudio(). Await only when the retained PCM
     // crosses the high-water mark; this is decoder-rate backpressure, not realtime pacing.
     const writable = await dispatcher.whenWritable();
@@ -644,6 +668,20 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   getAudioQueueStats(): AudioQueueStats {
     const result = new AudioQueueStats();
     result.submittedBytes = this.audioBytesWritten;
+    const enhancement: TargetSpeakerEnhancementQueueStats | undefined =
+      this.targetSpeakerEnhancementPipeline?.queueStats();
+    if (enhancement !== undefined) {
+      result.submittedBytes = enhancement.submittedBytes;
+      result.processedBytes = enhancement.processedBytes;
+      result.queuedBytes = enhancement.queuedBytes;
+      result.queuedChunks = enhancement.queuedChunks;
+      result.highWaterBytes = enhancement.highWaterBytes;
+      result.lowWaterBytes = enhancement.lowWaterBytes;
+      result.processedAudioMs = Math.round(result.processedBytes * 1000 / 32000);
+      result.queuedAudioMs = Math.round(result.queuedBytes * 1000 / 32000);
+      result.accepting = enhancement.accepting;
+      return result;
+    }
     const queued = this.audioDispatcher?.queueStats();
     if (queued === undefined) {
       result.processedBytes = this.audioBytesWritten;
@@ -655,6 +693,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     result.lowWaterBytes = queued.lowWaterBytes;
     result.accepting = queued.accepting;
     result.processedBytes = Math.max(0, result.submittedBytes - result.queuedBytes);
+    result.processedAudioMs = Math.round(result.processedBytes * 1000 / 32000);
+    result.queuedAudioMs = Math.round(result.queuedBytes * 1000 / 32000);
     return result;
   }
 
@@ -819,12 +859,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     oldSession?.close();
   }
 
-  private handleTargetSpeakerEnhancementOutput(generation: number, sessionId: string,
-    samples: Float32Array): void {
+  private async handleTargetSpeakerEnhancementOutput(generation: number, sessionId: string,
+    samples: Float32Array): Promise<void> {
     if (!this.sessionStartGate.isCurrent(generation) || !this.busy ||
       this.currentSessionId !== sessionId || this.finishRequested &&
       this.targetSpeakerEnhancementPipeline === undefined) return;
-    this.audioDispatcher?.writeFloat(samples);
+    await this.audioDispatcher?.writeFloatWithBackpressure(samples);
   }
 
   private handleTargetSpeakerEnhancementFinished(generation: number, sessionId: string): void {

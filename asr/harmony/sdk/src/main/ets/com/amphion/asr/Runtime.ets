@@ -51,6 +51,7 @@ import { ProcessedAudioFrame, StreamingAgcProcessor } from './StreamingAgcProces
 import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 import { InitialSilenceTracker } from './InitialSilenceTracker';
 import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
+import { NativeSegmentDecision, NativeSegmentTracker } from './NativeSegmentTracker';
 import { SpeakerPcmBuffers } from './SpeakerPcmBuffers';
 import { SpeakerVadScoreScheduler } from './SpeakerVadScoreScheduler';
 import { RecognizerPoolPolicy } from './RecognizerPoolPolicy';
@@ -127,11 +128,15 @@ class PendingSpeakerFinal {
   firstPartialLatencyMs: number;
   utteranceStartedMs: number;
   pcmBytesAccepted: number;
+  nativeSegmentCount: number;
+  suppressedEndpointCount: number;
+  lastEndpointReason: string;
 
   constructor(result: AsrResult, samples: Float32Array, endpointAtMs: number,
     decodeDurationMs: number, postProcessMs: number, utteranceIndex: number,
     utteranceDurationMs: number, firstPartialLatencyMs: number,
-    utteranceStartedMs: number, pcmBytesAccepted: number) {
+    utteranceStartedMs: number, pcmBytesAccepted: number,
+    nativeSegmentCount: number, suppressedEndpointCount: number, lastEndpointReason: string) {
     this.result = result;
     this.samples = samples;
     this.endpointAtMs = endpointAtMs;
@@ -142,6 +147,9 @@ class PendingSpeakerFinal {
     this.firstPartialLatencyMs = firstPartialLatencyMs;
     this.utteranceStartedMs = utteranceStartedMs;
     this.pcmBytesAccepted = pcmBytesAccepted;
+    this.nativeSegmentCount = nativeSegmentCount;
+    this.suppressedEndpointCount = suppressedEndpointCount;
+    this.lastEndpointReason = lastEndpointReason;
   }
 }
 
@@ -1320,6 +1328,7 @@ export class AsrSession {
   private utteranceStartMs: number = Date.now();
   private firstPcmMs: number = -1;
   private firstPartialLatencyMs: number = -1;
+  private nativeSegmentTracker: NativeSegmentTracker = new NativeSegmentTracker();
   private rtfValues: number[] = [];
   private speakerPcmBuffers: SpeakerPcmBuffers = new SpeakerPcmBuffers(UTT_MAX_SAMPLES);
   private effectiveSpeechBuffer: EffectiveSpeechBuffer =
@@ -1445,6 +1454,7 @@ export class AsrSession {
     if (this.callbackGate.isClosed() || samples.length === 0) return;
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
     this.pcmBytesAccepted += samples.length * 2;
+    this.nativeSegmentTracker.acceptPcm(samples.length * 2);
     this.totalPcmBytes += samples.length * 2;
     this.streamCallDepth += 1;
     try {
@@ -1465,6 +1475,7 @@ export class AsrSession {
     if (this.callbackGate.isClosed() || samples.length === 0) return;
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
     this.pcmBytesAccepted += samples.length * 2;
+    this.nativeSegmentTracker.acceptPcm(samples.length * 2);
     this.totalPcmBytes += samples.length * 2;
     this.streamCallDepth += 1;
     try {
@@ -1736,7 +1747,7 @@ export class AsrSession {
       // safe to promote here because the core is constructing the current final; the adapter still
       // never infers last-ness from its broader, asynchronous finishRequested flag.
       const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
-      this.dispatchFinal(true, decodeDurationMs, isLastFinal || stopAtEndpoint);
+      this.dispatchFinal(true, decodeDurationMs, isLastFinal || stopAtEndpoint, 'native-endpoint');
       if (stopAtEndpoint) {
         if (!this.callbackGate.isClosed()) this.notifyStopped();
       } else if (!this.callbackGate.isClosed()) {
@@ -1748,7 +1759,8 @@ export class AsrSession {
     const r = this.recognizer.getResult(this.stream);
     this.initialSilenceTracker.observeAsrResult(r.text, r.tokens.length);
     if (isFinal) {
-      this.dispatchFinal(false, decodeDurationMs, isLastFinal);
+      this.dispatchFinal(false, decodeDurationMs, isLastFinal,
+        isLastFinal ? 'finish' : 'explicit-flush');
       if (!this.callbackGate.isClosed()) this.finishUtterance(restartAfterFinal);
     } else if (r.text !== this.lastPartialText) {
       this.lastPartialText = r.text;
@@ -1761,13 +1773,14 @@ export class AsrSession {
       if (this.firstPartialLatencyMs < 0 && this.firstPcmMs >= 0) {
         this.firstPartialLatencyMs = Date.now() - this.firstPcmMs;
       }
+      this.nativeSegmentTracker.observePartial();
       if (!this.callbackGate.invoke((): void => { this.callback.onPartial?.(result.text); })) return;
       this.callbackGate.invoke((): void => { this.callback.onPartialResult?.(result); });
     }
   }
 
   private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number,
-    isLast: boolean = false): boolean {
+    isLast: boolean = false, endpointReason: string = endpointTriggered ? 'endpoint' : 'flush'): boolean {
     const native = this.recognizer.getResult(this.stream);
     const hasEvidence = native.text.length > 0 || native.tokens.length > 0;
     this.initialSilenceTracker.observeAsrResult(native.text, native.tokens.length);
@@ -1804,6 +1817,16 @@ export class AsrSession {
     }
     const postProcessMs = Date.now() - postStartMs;
     const boundary = this.effectiveSpeechBuffer.resolveFinal(result.text, hasEvidence, isLast);
+    const nativeSegment: NativeSegmentDecision = this.nativeSegmentTracker.finish(
+      endpointReason, hasEvidence, native.text.length, native.tokens.length, boundary.publish);
+    Logger.metric(`kind=NATIVE_SEGMENT sessionId=${this.sessionId} ` +
+      `segmentIndex=${nativeSegment.segmentIndex} reason=${nativeSegment.endpointReason} ` +
+      `durationMs=${nativeSegment.durationMs} pcmBytes=${nativeSegment.pcmBytesAccepted} ` +
+      `firstPartialLatencyMs=${nativeSegment.firstPartialLatencyMs} ` +
+      `hasEvidence=${nativeSegment.hasEvidence} nativeTextLength=${nativeSegment.nativeTextLength} ` +
+      `nativeTokenCount=${nativeSegment.nativeTokenCount} published=${nativeSegment.published} ` +
+      `publicSpanSegments=${nativeSegment.publicSpanSegments} ` +
+      `suppressedSincePublic=${nativeSegment.suppressedSincePublic}`);
     // Speaker VAD's raw tail belongs to the native stream. The effective scoring buffer deliberately
     // spans a suppressed token-only endpoint, but the next stream must not score this segment again.
     if (!boundary.publish) {
@@ -1873,7 +1896,10 @@ export class AsrSession {
       Math.round(this.pcmBytesAccepted * 1000 / 32000),
       this.firstPartialLatencyMs,
       this.firstPcmMs < 0 ? this.utteranceStartMs : this.firstPcmMs,
-      this.pcmBytesAccepted);
+      this.pcmBytesAccepted,
+      nativeSegment.publicSpanSegments,
+      nativeSegment.suppressedSincePublic,
+      nativeSegment.endpointReason);
     this.utteranceStartMs = Date.now();
     this.pcmBytesAccepted = 0;
     this.firstPcmMs = -1;
@@ -1921,6 +1947,9 @@ export class AsrSession {
     metrics.firstPartialLatencyMs = pending.firstPartialLatencyMs;
     metrics.endpointToFinalLatencyMs = pending.endpointAtMs >= 0 ? Date.now() - pending.endpointAtMs : -1;
     metrics.utteranceE2eLatencyMs = Date.now() - pending.utteranceStartedMs;
+    metrics.nativeSegmentCount = pending.nativeSegmentCount;
+    metrics.suppressedEndpointCount = pending.suppressedEndpointCount;
+    metrics.lastEndpointReason = pending.lastEndpointReason;
     metrics.rtf = metrics.utteranceDurationMs > 0 ? pending.decodeDurationMs / metrics.utteranceDurationMs : -1;
     metrics.pcmBytesAccepted = pending.pcmBytesAccepted;
     if (pending.utteranceIndex === 1) {
@@ -2159,7 +2188,8 @@ export class AsrSession {
     this.appendFinalTailSilence();
     this.stream.inputFinished();
     while (this.recognizer.isReady(this.stream)) this.recognizer.decode(this.stream);
-    const hasEvidence = this.dispatchFinal(false, Date.now() - decodeStartMs);
+    const hasEvidence = this.dispatchFinal(false, Date.now() - decodeStartMs,
+      false, 'initial-silence-probe');
     if (!this.callbackGate.isClosed()) {
       this.finishUtterance(true);
       this.resetVadGateState();
@@ -2172,7 +2202,8 @@ export class AsrSession {
     this.stream.inputFinished();
     const decodeDurationMs = await this.recognizer.decodeAsync(this.stream);
     if (this.callbackGate.isClosed()) return false;
-    const hasEvidence = this.dispatchFinal(false, decodeDurationMs);
+    const hasEvidence = this.dispatchFinal(false, decodeDurationMs,
+      false, 'initial-silence-probe');
     if (!this.callbackGate.isClosed()) {
       this.finishUtterance(true);
       this.resetVadGateState();
@@ -2187,7 +2218,7 @@ export class AsrSession {
     this.endpointAtMs = Date.now();
     if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
     const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
-    this.dispatchFinal(true, 0, stopAtEndpoint);
+    this.dispatchFinal(true, 0, stopAtEndpoint, 'vad-active-silence');
     if (this.callbackGate.isClosed()) return;
     if (stopAtEndpoint) {
       this.notifyStopped();
@@ -2441,7 +2472,7 @@ export class AsrSession {
       this.firstPartialLatencyMs = -1;
     } else {
       if (this.commitCleanSpeakerTurn(stopAtEndpoint, true)) return;
-      this.dispatchFinal(true, 0, stopAtEndpoint);
+      this.dispatchFinal(true, 0, stopAtEndpoint, 'speaker-vad');
       if (this.callbackGate.isClosed()) return;
       if (stopAtEndpoint) {
         this.notifyStopped();
@@ -2614,6 +2645,7 @@ export class AsrSession {
       this.effectiveSpeechBuffer.observe(split.prefix);
       this.effectiveSpeechBuffer.confirmSpeech();
       this.pcmBytesAccepted = split.prefix.length * 2;
+      this.nativeSegmentTracker.replaceCurrentPcm(this.pcmBytesAccepted);
       this.svTargetConfirmed = true;
       this.svRejectCurrentUtterance = false;
       speculativeStream.close();
@@ -2629,7 +2661,8 @@ export class AsrSession {
       // prefix last here would stop before the suffix is gated.
       const prefixIsLast = isLast && !finishTriggered;
       this.dispatchFinal(endpointTriggered || finishTriggered,
-        preparedDecodeMs + Date.now() - decodeStartMs, prefixIsLast);
+        preparedDecodeMs + Date.now() - decodeStartMs, prefixIsLast,
+        finishTriggered ? 'speaker-turn-finish-prefix' : 'speaker-turn-prefix');
       if (this.callbackGate.isClosed()) return true;
       if (prefixIsLast) {
         this.notifyStopped();
@@ -2644,6 +2677,7 @@ export class AsrSession {
       this.resetVadGateState();
       this.pcmBytesAccepted = split.suffix.length * 2;
       this.firstPcmMs = Date.now();
+      this.nativeSegmentTracker.replaceCurrentPcm(this.pcmBytesAccepted, this.firstPcmMs);
       this.svAwaitingTargetAfterDeparture = true;
       this.svRejectCurrentUtterance = true;
       this.replaySpeakerSuffix(split);

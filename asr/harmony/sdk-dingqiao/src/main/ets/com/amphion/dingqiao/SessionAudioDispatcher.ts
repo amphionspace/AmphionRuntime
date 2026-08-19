@@ -8,8 +8,10 @@ export interface SessionAudioProcessor {
 const TASK_BYTES: number = 1;
 const TASK_FLOAT: number = 2;
 const TASK_FINISH: number = 3;
-const DEFAULT_HIGH_WATER_BYTES: number = 2 * 1024 * 1024;
-const DEFAULT_LOW_WATER_BYTES: number = 1 * 1024 * 1024;
+// 16 kHz mono PCM16 consumes 32,000 bytes/s. These defaults retain at most
+// about 16.4 s before applying backpressure and resume near 8.2 s.
+const DEFAULT_HIGH_WATER_BYTES: number = 512 * 1024;
+const DEFAULT_LOW_WATER_BYTES: number = 256 * 1024;
 
 class SessionAudioDispatchItem {
   kind: number;
@@ -29,6 +31,7 @@ export class SessionAudioQueueStats {
   highWaterBytes: number = 0;
   lowWaterBytes: number = 0;
   scheduledPumps: number = 0;
+  retainedSlots: number = 0;
   accepting: boolean = false;
 }
 
@@ -51,7 +54,7 @@ export class SessionAudioDispatcher {
   private canceled: boolean = false;
   private failed: boolean = false;
   private finishTask?: Promise<void>;
-  private queue: SessionAudioDispatchItem[] = [];
+  private queue: (SessionAudioDispatchItem | undefined)[] = [];
   private queueHead: number = 0;
   private queuedBytes: number = 0;
   private queuedChunks: number = 0;
@@ -138,6 +141,7 @@ export class SessionAudioDispatcher {
     result.highWaterBytes = this.highWaterBytes;
     result.lowWaterBytes = this.lowWaterBytes;
     result.scheduledPumps = this.scheduledPumps;
+    result.retainedSlots = this.queue.length - this.queueHead;
     result.accepting = this.accepting && !this.canceled && !this.failed;
     return result;
   }
@@ -184,7 +188,11 @@ export class SessionAudioDispatcher {
   private async drainQueue(): Promise<void> {
     while (this.queueHead < this.queue.length && !this.canceled && !this.failed) {
       const item = this.queue[this.queueHead];
+      // Drop the strong PCM/Float32Array reference before awaiting native work.
+      // Merely advancing queueHead leaves all historical buffers retained by the array.
+      this.queue[this.queueHead] = undefined;
       this.queueHead += 1;
+      if (item === undefined) continue;
       try {
         if (item.kind === TASK_BYTES && item.audio !== undefined) {
           await this.processor.write(item.audio);
@@ -197,6 +205,7 @@ export class SessionAudioDispatcher {
         this.fail(`${e}`);
       } finally {
         this.releaseItem(item);
+        this.compactQueueIfNeeded();
       }
     }
     if (this.canceled || this.failed) this.dropPendingItems();
@@ -216,13 +225,21 @@ export class SessionAudioDispatcher {
   private dropPendingItems(): void {
     while (this.queueHead < this.queue.length) {
       const item = this.queue[this.queueHead];
+      this.queue[this.queueHead] = undefined;
       this.queueHead += 1;
+      if (item === undefined) continue;
       this.releaseItem(item);
     }
     if (this.queueHead >= this.queue.length) {
       this.queue = [];
       this.queueHead = 0;
     }
+  }
+
+  private compactQueueIfNeeded(): void {
+    if (this.queueHead < 1024 || this.queueHead * 2 < this.queue.length) return;
+    this.queue = this.queue.slice(this.queueHead);
+    this.queueHead = 0;
   }
 
   private resolveCapacityWaiters(accepted: boolean): void {

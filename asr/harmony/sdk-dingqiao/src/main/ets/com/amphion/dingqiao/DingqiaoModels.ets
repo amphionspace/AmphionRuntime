@@ -34,6 +34,8 @@ export class AudioQueueStats {
   queuedChunks: number = 0;
   highWaterBytes: number = 0;
   lowWaterBytes: number = 0;
+  processedAudioMs: number = 0;
+  queuedAudioMs: number = 0;
   accepting: boolean = false;
 }
 

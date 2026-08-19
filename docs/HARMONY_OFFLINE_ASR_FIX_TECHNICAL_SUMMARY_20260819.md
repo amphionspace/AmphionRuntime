@@ -27,7 +27,7 @@ asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SessionAudioDispatche
 主要修改：
 
 - 将“每一帧 PCM 创建一条独立 Promise 链”改为单一 FIFO 队列和统一排空循环。
-- 默认队列高水位为 2 MiB，低水位为 1 MiB。
+- 当前默认队列高水位为 512 KiB，低水位为 256 KiB；也可通过 session 参数配置。
 - 队列超过高水位后暂停生产端，下降到低水位后再继续提交。
 - PCM 在入队时复制，避免调用方复用采集缓冲区时覆盖尚未处理的帧。
 - `finish()` 进入同一 FIFO，保证所有已接收 PCM 都处理完成后才结束。
@@ -462,3 +462,90 @@ D:\Downloads\长会议流式识别停滞异常汇总报告.md
 - `D:\Downloads\长会议流式识别停滞异常汇总报告.md`（修改前异常片段对照）
 
 真机测试证据保存在本机 `C:\AHR` 下对应的测试输出目录，其中包括 `report.json`、`result.txt`、`hilog.txt`、`memory.csv` 和输入清单。原始音频及测试证据不应直接提交到公共 Git 仓库。
+
+## 10. `codex/optimize-harmony-offline-stalls` 后续优化
+
+本节记录在上述基线之后实施的第二轮优化。它首先补齐可观测性和队列真实性，不改变公共 final 聚合语义，也不把 token-only 的底层端点直接发布为新的公共 final。
+
+### 10.1 原生 segment 与公共 final 分层观测
+
+新增：
+
+```text
+asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeSegmentTracker.ts
+asr/tools/tests/test_harmony_native_segment_tracker.py
+```
+
+并修改：
+
+```text
+asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets
+asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets
+```
+
+每个 sherpa 原生 segment 现在独立记录：
+
+- segment 序号、接收 PCM 字节数和音频时长；
+- 第一条非空 partial 的等待时间；
+- endpoint 原因和证据；
+- 文本长度、token 数；
+- 是否发布为公共 final；
+- 一个公共结果跨越了多少底层 segment；
+- 自上一个公共结果以来抑制了多少个底层端点。
+
+`AmphionMetrics` 同步增加 `nativeSegmentCount`、`suppressedEndpointCount` 和 `lastEndpointReason`。这样可以区分“底层已经多次 endpoint，但 token-only/空结果被公共层聚合”和“底层本身数分钟没有 endpoint”，用于解释此前 623.52 秒指标段的真实含义。
+
+### 10.2 Review 问题闭环
+
+#### P1：统计有界但 PCM 引用仍无界
+
+`SessionAudioDispatcher` 过去只推进 `queueHead`，数组未完全排空前仍会强引用所有历史 PCM。现在在取出任务后、进入异步 native 工作前立即把对应槽位置为 `undefined`，并在已消费前缀达到 1024 项且超过数组一半时压缩队列；取消和异常路径同样逐槽清理。
+
+新增 10,000 次连续背压写入回归。测试不仅检查 `queuedBytes`，还检查底层数组存储峰值小于 2,048 个槽位并在排空后归零，从而验证实际引用而非仅验证统计值。
+
+#### P1：Target Speaker Enhancement 绕过背压
+
+Enhancement pipeline 现在拥有独立的单飞 FIFO、高低水位、容量等待器、排队/处理/实际保留字节统计和槽位清理。`writeAudioAsync()` 在 enhancement 模式下会等待该前置队列下降到低水位；enhancement 输出写入 ASR dispatcher 时也等待下游背压，因此背压覆盖：
+
+```text
+调用方 PCM -> Target Speaker Enhancement -> ASR Dispatcher -> native decode
+```
+
+`getAudioQueueStats()` 在 enhancement 激活时返回前置 pipeline 的真实进度，不再把尚未增强和尚未写入 ASR 的 PCM 误报为已处理。同步 `writeAudio()` 仍用于实时、小帧兼容；离线 burst 必须使用 `writeAudioAsync()` 才能让生产端主动等待容量。
+
+#### P2：TEXT 证据缺少 session 和原文
+
+`DeviceStressTest.ets` 的每条 `TEXT` 证据现在同时保存：
+
+- `sessionId`；
+- `kind`、`elapsedMs`、`isLast`；
+- 可逆转义后的原始 `text`；
+- `textHex`（UTF-16 code unit hex）。
+
+原文中的反斜线、竖线、回车和换行会被转义，保证单行证据可解析，也能通过 `textHex` 无歧义复原。多 session 合并时 sessionId 与每一条文字回调保持同索引传递。
+
+### 10.3 队列配置与进度
+
+新增 session 参数：
+
+```text
+extraParams.audioQueueHighWaterBytes
+extraParams.audioQueueLowWaterBytes
+```
+
+默认分别为 512 KiB 和 256 KiB，允许上调但限制在 8 MiB 内。`AudioQueueStats` 新增 `processedAudioMs` 和 `queuedAudioMs`，设备压力测试的 `AUDIO_QUEUE` 行会记录已处理/排队音频时长及高低水位，便于判断“仍在推进”还是“队列停止变化”。
+
+### 10.4 本轮验证结果
+
+| 验证项 | 结果 |
+|---|---|
+| Dispatcher、native segment、有效语音、enhancement、contract/原生边界和设备驱动单元测试 | 83 项通过 |
+| `git diff --check` | 通过 |
+| DevEco Hvigor ArkTS 编译 | 通过 |
+| sherpa-onnx、Amphion native 编译 | 通过 |
+| HAP 打包 | 通过，生成 unsigned HAP |
+| 本轮 HAP 真机安装与长音频复测 | 待签名产物，尚未执行 |
+
+构建必须放在极短 ASCII 路径下；含中文的原工程路径会被 DevEco 拒绝，过长的临时路径还会触发 Windows 260 字符限制。Windows checkout 还会把 sherpa-onnx 的 `c-api.h` 符号链接保存为路径文本，隔离构建时需将其物化为真实头文件。
+
+当前手机 `5JH9K25B14001598` 在线，但命令行构建没有可读取的 DevEco 自动签名密码，产物为 unsigned HAP。因此本节只确认代码和完整构建链通过，不将其表述为已经完成真机行为验证。下一步应在 DevEco 中用已登录账号生成签名产物，再执行 burst、Target Speaker Enhancement、EOF pending 和长会议复测。

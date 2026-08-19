@@ -117,6 +117,30 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
             """
         )
 
+    def test_continuous_backpressure_releases_processed_pcm_slots(self) -> None:
+        self.run_dispatcher(
+            """
+            const dispatcher = new SessionAudioDispatcher({
+              write: async () => { await Promise.resolve(); },
+              writeFloat: async () => {},
+              finish: async () => {},
+            }, () => {}, 1280, 640);
+
+            let maxStorage = 0;
+            for (let i = 0; i < 10000; i++) {
+              assert.equal(await dispatcher.writeWithBackpressure(new ArrayBuffer(640)), true);
+              maxStorage = Math.max(maxStorage, dispatcher.queue.length);
+            }
+            await dispatcher.whenIdle();
+            const stats = dispatcher.queueStats();
+            assert.equal(stats.queuedChunks, 0);
+            assert.equal(stats.queuedBytes, 0);
+            assert.equal(stats.retainedSlots, 0);
+            assert.ok(maxStorage < 2048, `retained queue storage grew to ${maxStorage}`);
+            assert.equal(dispatcher.queue.length, 0);
+            """
+        )
+
     def test_backpressured_write_waits_for_low_water_without_realtime_sleep(self) -> None:
         self.run_dispatcher(
             """
@@ -298,16 +322,27 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         adapter = ADAPTER.read_text(encoding="utf-8")
         models = MODELS.read_text(encoding="utf-8")
         stress = DEVICE_STRESS.read_text(encoding="utf-8")
+        dispatcher = DISPATCHER.read_text(encoding="utf-8")
         self.assertIn("writeAudioAsync(sessionId: string, audio: ArrayBuffer): Promise<boolean>", models)
         self.assertIn("getAudioQueueStats(): AudioQueueStats", models)
+        self.assertIn("processedAudioMs: number = 0", models)
+        self.assertIn("queuedAudioMs: number = 0", models)
         self.assertIn("async writeAudioAsync(sessionId: string, audio: ArrayBuffer)", adapter)
         self.assertIn("await dispatcher.whenWritable()", adapter)
+        self.assertIn("'audioQueueHighWaterBytes'", adapter)
+        self.assertIn("'audioQueueLowWaterBytes'", adapter)
+        self.assertIn("512 * 1024", dispatcher)
+        self.assertIn("256 * 1024", dispatcher)
         self.assertIn("options.mode === 'burst'", stress)
         self.assertIn("await engine.writeAudioAsync(sessionId, frame)", stress)
         self.assertIn("options.mode === 'paced' || options.mode === 'burst'", stress)
         self.assertIn("AUDIO_QUEUE|sessionId=", stress)
+        self.assertIn("queuedAudioMs=%{public}d", stress)
         self.assertIn("params.extraParams['endpointMaxUtteranceMs'] = 55000", stress)
         self.assertIn("TEXT|cycle=", stress)
+        self.assertIn("|sessionId=${result.textEventSessionIds[eventIndex]}", stress)
+        self.assertIn("|text=${escapeEvidenceText(result.textEventTexts[eventIndex])}", stress)
+        self.assertIn("|textHex=${stringToUtf16Hex(result.textEventTexts[eventIndex])}", stress)
 
     def test_endpoint_max_utterance_is_session_configurable_and_part_of_engine_key(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
