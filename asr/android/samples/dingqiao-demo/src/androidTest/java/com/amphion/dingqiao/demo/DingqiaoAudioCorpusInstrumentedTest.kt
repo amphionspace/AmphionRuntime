@@ -38,8 +38,15 @@ class DingqiaoAudioCorpusInstrumentedTest {
         val testContext = instrumentation.context
         val arguments = InstrumentationRegistry.getArguments()
         val audioPrefix = arguments.getString("audioPrefix").orEmpty()
-        val policeEnhancement = arguments.getString("enablePoliceEnhancement")
-            ?.toBooleanStrictOrNull() ?: true
+        val policeEnhancementArg = arguments.getString("enablePoliceEnhancement")
+        val policeEnhancement = policeEnhancementArg
+            ?.toBooleanStrictOrNull()
+            ?: run {
+                require(policeEnhancementArg == null) {
+                    "enablePoliceEnhancement must be true or false: $policeEnhancementArg"
+                }
+                true
+            }
         val reportDir = File(context.filesDir, "eval_reports").apply { mkdirs() }
         val report = File(reportDir, "dingqiao_audio_eval.tsv")
 

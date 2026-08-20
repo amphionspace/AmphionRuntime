@@ -46,7 +46,7 @@ android {
                     "**/*RealAsrTest.class",
                 )
             }
-            for (key in listOf("realmic.dir", "realmic.home")) {
+            for (key in listOf("realmic.dir", "realmic.home", "redteam.corpus")) {
                 val value = System.getProperty(key)
                 if (value != null) testTask.systemProperty(key, value)
             }
