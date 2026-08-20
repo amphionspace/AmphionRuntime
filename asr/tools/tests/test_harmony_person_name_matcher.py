@@ -45,13 +45,21 @@ class HarmonyPersonNameMatcherTest(unittest.TestCase):
               '往往给文赋成发一条信息'
             );
             assert.equal(
+              matcher.normalize('给文富成发短信。', [{ start: 1, end: 4 }]),
+              '给文赋成发短信。'
+            );
+            assert.equal(
+              matcher.normalize('该文富城发短信。', []),
+              '该文赋成发短信。'
+            );
+            assert.equal(
               matcher.normalize('给余其根发一条信息', [{ start: 1, end: 2 }]),
               '给余祁根发一条信息'
             );
             """
         )
 
-    def test_does_not_replace_outside_person_entity_or_ambiguous_signature(self) -> None:
+    def test_two_character_fallback_requires_person_span_and_ambiguous_signature_is_ignored(self) -> None:
         self.run_node(
             """
             const pinyin = new Map([
@@ -59,8 +67,8 @@ class HarmonyPersonNameMatcherTest(unittest.TestCase):
               ['成', 'cheng2'], ['城', 'cheng2'],
             ]);
             assert.equal(
-              new PersonNameMatcher(pinyin, ['文赋成']).normalize('文富城很好', []),
-              '文富城很好'
+              new PersonNameMatcher(pinyin, ['文赋']).normalize('文富很好', []),
+              '文富很好'
             );
             assert.equal(
               new PersonNameMatcher(pinyin, ['文赋成', '文富城'])
