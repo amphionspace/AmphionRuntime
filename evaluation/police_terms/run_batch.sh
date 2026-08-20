@@ -19,7 +19,12 @@ ORIG_PREFIX=police_terms_20260711
 
 CAT="${1:-all}"
 RESUME=0
-[[ "${2:-}" == "--resume" ]] && RESUME=1
+for arg in "${@:2}"; do
+  case "$arg" in
+    --resume) RESUME=1 ;;
+    *) echo "[run] 未知参数 '$arg'（可选 --resume）"; exit 1 ;;
+  esac
+done
 
 case "$CAT" in
   all)          FILTER="$ORIG_PREFIX" ;;
