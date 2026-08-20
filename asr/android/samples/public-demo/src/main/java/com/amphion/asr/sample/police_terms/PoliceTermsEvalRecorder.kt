@@ -5,7 +5,6 @@ import android.util.Log
 import com.amphion.police.terms.PoliceTermsNormalizeResult
 import com.amphion.police.terms.PoliceTermsTextUtil
 import java.io.File
-import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -22,7 +21,6 @@ class PoliceTermsEvalRecorder(context: Context) {
         "police-terms-eval",
     )
     private val tsv: File = File(dir, "police_terms_eval.tsv")
-    private val runConfig: File = File(dir, "police_terms_eval_config.txt")
     private val lock = Any()
 
     companion object {
@@ -86,35 +84,6 @@ class PoliceTermsEvalRecorder(context: Context) {
 
     fun sessionTag(): String =
         SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-
-    fun writeRunConfig(
-        hotwordProfile: String,
-        termsHotwordsEnabled: Boolean,
-        userHotwords: List<String>,
-        filterPrefix: String?,
-    ) {
-        val normalizedUserWords = userHotwords
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
-        val userWordsBytes = normalizedUserWords
-            .joinToString("\n", postfix = if (normalizedUserWords.isEmpty()) "" else "\n")
-            .toByteArray(Charsets.UTF_8)
-        val userWordsSha = MessageDigest.getInstance("SHA-256")
-            .digest(userWordsBytes)
-            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-        val content = buildString {
-            appendLine("timestamp_ms=${System.currentTimeMillis()}")
-            appendLine("hotword_profile=$hotwordProfile")
-            appendLine("terms_hotwords_enabled=$termsHotwordsEnabled")
-            appendLine("user_hotword_count=${normalizedUserWords.size}")
-            appendLine("user_hotword_sha256=$userWordsSha")
-            appendLine("filter_prefix=${filterPrefix.orEmpty()}")
-        }
-        synchronized(lock) {
-            runConfig.writeText(content, Charsets.UTF_8)
-        }
-    }
 
     fun reset() {
         synchronized(lock) {
