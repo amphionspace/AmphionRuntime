@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Synchronize Android police V2 data into the Harmony HAR rawfile bundle."""
+"""Synchronize Android police V2 data into the Harmony HAR rawfile bundle.
+
+Harmony-only assets (for example the LAC model) are preserved and included in
+the generated manifest.
+"""
 
 from __future__ import annotations
 
@@ -40,12 +44,12 @@ def expected_hotwords() -> dict[str, list[str]]:
 
 
 def sync() -> None:
-    if HARMONY_ROOT.exists():
-        shutil.rmtree(HARMONY_ROOT)
-    HARMONY_ROOT.mkdir(parents=True)
+    HARMONY_ROOT.mkdir(parents=True, exist_ok=True)
     for directory in ASSET_DIRS:
         source_dir = ANDROID_ROOT / "assets" / directory
         destination_dir = HARMONY_ROOT / directory
+        if destination_dir.exists():
+            shutil.rmtree(destination_dir)
         shutil.copytree(source_dir, destination_dir)
     hotwords = expected_hotwords()
     hotwords_path = HARMONY_ROOT / "hotwords.json"
