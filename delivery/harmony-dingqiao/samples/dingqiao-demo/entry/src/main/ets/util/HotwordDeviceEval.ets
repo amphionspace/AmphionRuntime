@@ -26,6 +26,8 @@ export class HotwordDeviceEvalOptions {
   resultPath: string = '';
   paceMs: number = 0;
   maxCases: number = 0;
+  enablePoliceEnhancement: boolean = false;
+  hotwordOnly: boolean = false;
 }
 
 class EvalEntry {
@@ -301,7 +303,7 @@ async function feedPcm(engine: SpeechRecognitionEngine, sessionId: string, path:
 }
 
 async function recognize(engine: SpeechRecognitionEngine, entry: EvalEntry, variant: string,
-  paceMs: number, index: number): Promise<SessionOutcome> {
+  paceMs: number, index: number, enablePoliceEnhancement: boolean): Promise<SessionOutcome> {
   const sessionId = `hwe-${variant}-${index}`;
   const startedAt = Date.now();
   let timeoutId: number = -1;
@@ -319,7 +321,7 @@ async function recognize(engine: SpeechRecognitionEngine, entry: EvalEntry, vari
   params.sessionId = sessionId;
   params.audioInfo = new AudioInfo();
   params.extraParams['enablePartialResult'] = false;
-  params.extraParams['enablePoliceEnhancement'] = false;
+  params.extraParams['enablePoliceEnhancement'] = enablePoliceEnhancement;
   params.extraParams['maxAudioDuration'] = 28800000;
   engine.startListening(params);
   await feedPcm(engine, sessionId, entry.path, paceMs);
@@ -357,7 +359,8 @@ export async function runHotwordDeviceEval(context: common.UIAbilityContext,
 
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
-    for (let pass = 0; pass < 2; pass++) {
+    const firstPass = options.hotwordOnly ? 1 : 0;
+    for (let pass = firstPass; pass < 2; pass++) {
       const variant = pass === 0 ? 'baseline' : 'hotword';
       const hotwords: string[] = pass === 0 ? [] : entry.hotwords;
       let engine: SpeechRecognitionEngine | undefined;
@@ -369,7 +372,8 @@ export async function runHotwordDeviceEval(context: common.UIAbilityContext,
           outcome.errorCode = created.errorCode;
           outcome.errorMessage = `create: ${created.errorMessage}`;
         } else {
-          outcome = await recognize(engine, entry, variant, options.paceMs, i);
+          outcome = await recognize(engine, entry, variant, options.paceMs, i,
+            options.enablePoliceEnhancement);
         }
       } catch (e) {
         outcome.errorCode = -2;
