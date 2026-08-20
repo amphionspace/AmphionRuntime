@@ -281,6 +281,7 @@ PY
 
 rm -f \
   "$ENTRY/src/main/ets/util/DeviceStressTest.ets" \
+  "$ENTRY/src/main/ets/util/HotwordDeviceEval.ets" \
   "$ENTRY/src/main/ets/util/ModelLoadBench.ets" \
   "$ENTRY/src/main/ets/util/SdkSelfTest.ets"
 
