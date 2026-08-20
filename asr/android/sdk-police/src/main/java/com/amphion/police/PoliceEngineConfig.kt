@@ -49,41 +49,6 @@ object PoliceEngineConfig {
         return if (poolArmed) listOf(HOTWORD_POOL_PLACEHOLDER) else emptyList()
     }
 
-    /**
-     * Reversible pruning experiment entry point. Unlike the delivery method above,
-     * [PoliceHotwordProfile.NONE] keeps the hotword decoder armed with a placeholder when no
-     * customer words are present. This keeps modified-beam search constant while removing real
-     * built-in police words.
-     */
-    fun effectiveHotwordsForProfile(
-        userHotwords: List<String>,
-        profile: PoliceHotwordProfile,
-        plateHotwords: Boolean = true,
-        stationHotwords: Boolean = true,
-        termsHotwords: Boolean = true,
-    ): List<String> {
-        val out = linkedSetOf<String>()
-        userHotwords.filter { it.isNotBlank() }.forEach { out.add(it.trim()) }
-        when (profile) {
-            PoliceHotwordProfile.FULL -> {
-                if (termsHotwords) PoliceTermsHotwords.PRESET.forEach { out.add(it) }
-                if (plateHotwords) PlateHotwords.PRESET.forEach { out.add(it) }
-                if (stationHotwords) PoliceStationHotwords.PRESET.forEach { out.add(it) }
-            }
-            PoliceHotwordProfile.PRUNE_UI28 -> {
-                if (termsHotwords) {
-                    PoliceTermsHotwords.PRESET
-                        .filterNot { it in PoliceHotwordPruningCandidates.UI28_REMOVED_TERMS }
-                        .forEach { out.add(it) }
-                }
-                if (plateHotwords) PlateHotwords.PRESET.forEach { out.add(it) }
-                if (stationHotwords) PoliceStationHotwords.PRESET.forEach { out.add(it) }
-            }
-            PoliceHotwordProfile.NONE -> Unit
-        }
-        return out.toList().ifEmpty { listOf(HOTWORD_POOL_PLACEHOLDER) }
-    }
-
     fun build(
         userHotwords: List<String> = emptyList(),
         lang: AsrLanguage = AsrLanguage.ZH_EN,

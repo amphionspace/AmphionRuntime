@@ -13,7 +13,6 @@ import com.amphion.dingqiao.StartParams
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.security.MessageDigest
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -48,44 +47,8 @@ class DingqiaoAudioCorpusInstrumentedTest {
                 }
                 true
             }
-        val policeHotwordProfile = arguments.getString("policeHotwordProfile")
-            ?.trim()
-            ?.ifEmpty { null }
-            ?: "full"
-        val customerHotwordAsset = arguments.getString("customerHotwordAsset")
-            ?.trim()
-            ?.ifEmpty { null }
-        val customerHotwordCountArg = arguments.getString("customerHotwordCount")
-        val customerHotwordCount = customerHotwordCountArg
-            ?.toIntOrNull()
-            ?: run {
-                require(customerHotwordCountArg == null) {
-                    "customerHotwordCount must be an integer: $customerHotwordCountArg"
-                }
-                0
-            }
-        val availableCustomerHotwords = customerHotwordAsset
-            ?.let { asset -> readCustomerHotwords(testContext, asset) }
-            ?: emptyList()
-        require(availableCustomerHotwords.distinct().size == availableCustomerHotwords.size) {
-            "customer hotword asset must be unique after trim: $customerHotwordAsset"
-        }
-        require(customerHotwordCount in 0..availableCustomerHotwords.size) {
-            "customerHotwordCount=$customerHotwordCount must be within " +
-                "0..${availableCustomerHotwords.size} for asset=$customerHotwordAsset"
-        }
-        val customerHotwords = availableCustomerHotwords.take(customerHotwordCount)
-        require(customerHotwords.distinct().size == customerHotwords.size) {
-            "selected customer hotwords must be unique after trim"
-        }
-        val customerHotwordSha256 = orderedLinesSha256(customerHotwords)
-        val runId = arguments.getString("runId")
-            ?.trim()
-            ?.ifEmpty { null }
-            ?: "run-${System.currentTimeMillis()}"
         val reportDir = File(context.filesDir, "eval_reports").apply { mkdirs() }
         val report = File(reportDir, "dingqiao_audio_eval.tsv")
-        val profileReport = File(reportDir, "dingqiao_audio_eval_profile.txt")
 
         val wavFiles = testContext.assets.list("")
             .orEmpty()
@@ -106,35 +69,14 @@ class DingqiaoAudioCorpusInstrumentedTest {
             CreateEngineParams(
                 language = "zh-CN",
                 online = DingqiaoOnlineMode.OFFLINE,
-                extraParams = buildMap {
-                    put("vadEnd", 800)
-                    put("__experimentalPoliceHotwordProfile", policeHotwordProfile)
-                    put("sysGeneralLexicon", customerHotwords)
-                },
+                extraParams = mapOf("vadEnd" to 800),
             ),
         )
 
-        profileReport.writeText(
-            "run_id=$runId\n" +
-                "hotword_profile=$policeHotwordProfile\n" +
-                "police_enhancement=$policeEnhancement\n" +
-                "customer_hotword_asset=${customerHotwordAsset.orEmpty()}\n" +
-                "customer_hotword_available=${availableCustomerHotwords.size}\n" +
-                "customer_hotword_count=${customerHotwords.size}\n" +
-                "customer_hotword_sha256=$customerHotwordSha256\n",
-            Charsets.UTF_8,
-        )
-        report.writeText(
-            "run_id\thotword_profile\tpolice_enhancement\t" +
-                "file\tduration_s\tstatus\tfinal_count\ttext\terrors\n",
-            Charsets.UTF_8,
-        )
+        report.writeText("file\tduration_s\tstatus\tfinal_count\ttext\terrors\n", Charsets.UTF_8)
         val cases = wavFiles.map { wavAssetName ->
             val result = decodeOne(engine, testContext, wavAssetName, policeEnhancement)
-            report.appendText(
-                result.toTsvRow(runId, policeHotwordProfile, policeEnhancement) + "\n",
-                Charsets.UTF_8,
-            )
+            report.appendText(result.toTsvRow() + "\n", Charsets.UTF_8)
             result
         }
         engine.shutdown()
@@ -284,23 +226,6 @@ class DingqiaoAudioCorpusInstrumentedTest {
         return bytes.copyOfRange(dataOffset, dataOffset + dataBytes)
     }
 
-    private fun readCustomerHotwords(
-        testContext: android.content.Context,
-        assetName: String,
-    ): List<String> = testContext.assets.open(assetName).bufferedReader(Charsets.UTF_8).useLines { lines ->
-        lines
-            .map { it.trim() }
-            .filter { it.isNotEmpty() && !it.startsWith("#") }
-            .toList()
-    }
-
-    private fun orderedLinesSha256(lines: List<String>): String {
-        val payload = if (lines.isEmpty()) "" else lines.joinToString(separator = "\n", postfix = "\n")
-        return MessageDigest.getInstance("SHA-256")
-            .digest(payload.toByteArray(Charsets.UTF_8))
-            .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
-    }
-
     private fun fourCc(s: String): Int {
         val b = s.toByteArray(Charsets.US_ASCII)
         return (b[0].toInt() and 0xff) or
@@ -316,15 +241,8 @@ class DingqiaoAudioCorpusInstrumentedTest {
         val finals: List<String>,
         val errors: List<String>,
     ) {
-        fun toTsvRow(
-            runId: String,
-            hotwordProfile: String,
-            policeEnhancement: Boolean,
-        ): String =
+        fun toTsvRow(): String =
             listOf(
-                runId,
-                hotwordProfile,
-                policeEnhancement.toString(),
                 assetName,
                 "%.3f".format(durationMs / 1000.0),
                 status,
