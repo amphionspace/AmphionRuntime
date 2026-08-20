@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the checked-in, deterministic 200-case hotword evaluation fixture."""
+"""Generate the checked-in, deterministic 400-case hotword evaluation fixture."""
 
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ from pathlib import Path
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_OUTPUT = SCRIPT_DIR / "fixtures" / "hotword_eval_200.jsonl"
+DEFAULT_OUTPUT = SCRIPT_DIR / "fixtures" / "hotword_eval_400.jsonl"
 SEED = 20260820
-PER_STRATUM = 25
+PER_STRATUM = 50
 
-# The order is part of the fixture contract.  Each stratum contributes exactly 25 cases.
+# The order is part of the fixture contract.  Each stratum contributes exactly 50 cases.
 STRATA = (
     ("zh_cv_clean", "zh-CN", "commonvoice_zh_hotwords",
      "common_voice_zh/lhotse/hotwords/cv-zh-CN_recordings_test.jsonl.gz",

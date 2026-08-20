@@ -78,6 +78,10 @@ export default class EntryAbility extends UIAbility {
       options.resultPath = this.stringParameter(want, 'hotwordEvalResult', '');
       options.paceMs = this.numberParameter(want, 'hotwordEvalPaceMs', 0);
       options.maxCases = this.numberParameter(want, 'hotwordEvalMaxCases', 0);
+      options.enablePoliceEnhancement =
+        this.stringParameter(want, 'hotwordEvalPoliceEnhancement', 'false') === 'true';
+      options.hotwordOnly =
+        this.stringParameter(want, 'hotwordEvalHotwordOnly', 'false') === 'true';
       runHotwordDeviceEval(this.context, options).catch((e: Object): void => {
         hilog.error(0x0000, 'HotwordDeviceEval', 'hotword eval crashed: %{public}s', `${e}`);
       }).finally((): void => {
