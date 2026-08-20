@@ -10,7 +10,6 @@ set -euo pipefail
 PKG=com.amphion.asr.sample
 BASE=/sdcard/Android/data/$PKG/files
 EVAL_TSV=$BASE/police-terms-eval/police_terms_eval.tsv
-EVAL_CONFIG=$BASE/police-terms-eval/police_terms_eval_config.txt
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 ROUND="${1:-round_baseline}"
@@ -25,9 +24,6 @@ OUT_DIR="$HERE/$ROUND"
 mkdir -p "$OUT_DIR"
 echo "[pull] 拉取 -> $OUT_DIR/police_terms_eval.tsv"
 adb pull "$EVAL_TSV" "$OUT_DIR/police_terms_eval.tsv"
-if adb shell "[ -f $EVAL_CONFIG ]" >/dev/null 2>&1; then
-  adb pull "$EVAL_CONFIG" "$OUT_DIR/police_terms_eval_config.txt"
-fi
 
 ROWS=$(($(wc -l < "$OUT_DIR/police_terms_eval.tsv") - 1))
 echo "[pull] 已拉回，数据行=$ROWS"
