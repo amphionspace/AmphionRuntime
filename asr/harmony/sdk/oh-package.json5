@@ -1,6 +1,6 @@
 {
   "name": "amphion_asr",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Amphion core ASR SDK for HarmonyOS",
   "main": "Index.ets",
   "author": "Amphion",
