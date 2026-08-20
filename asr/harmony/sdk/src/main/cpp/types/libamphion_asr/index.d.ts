@@ -6,6 +6,24 @@ export const createAgc: (sampleRate: number) => AgcHandle;
 export const processAgc: (handle: AgcHandle, samples: Float32Array) => Float32Array;
 export const closeAgc: (handle: AgcHandle) => void;
 
+export interface LacPersonSpan {
+  start: number;
+  end: number;
+}
+export type LacPersonNerHandle = object;
+export const createLacPersonNer: (
+  modelPath: string,
+  transitionsPath: string,
+  wordPath: string,
+  tagPath: string,
+  q2bPath: string
+) => LacPersonNerHandle;
+export const findLacPersonSpans: (
+  handle: LacPersonNerHandle,
+  text: string
+) => LacPersonSpan[];
+export const closeLacPersonNer: (handle: LacPersonNerHandle) => void;
+
 export interface SpeakerTurnSegmentationSegment {
   startSample: number;
   endSample: number;

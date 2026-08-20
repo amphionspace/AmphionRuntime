@@ -36,22 +36,22 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
             for source in MODULE.RUNTIME_TO_ONNX_SOURCE.values()
         }
 
-    def test_default_policy_pins_numeric_recovery_edge_transducer_onnx_md5(self) -> None:
+    def test_default_policy_pins_supplied_zh_en_bundle_onnx_md5(self) -> None:
         model_id, expected = MODULE.load_policy()
         policy = json.loads(MODULE.DEFAULT_POLICY_PATH.read_text(encoding="utf-8"))
         self.assertEqual(
-            "edge-transducer-chunk32-lc256-police-v5-numeric-recovery-iter1500-avg1",
+            "zh-en-frozen-agc-evidence-bundle-54c30cdd",
             model_id,
         )
         self.assertEqual(
-            "11dd6887a8376fbacfdcb792533d1b55",
+            "54c30cddf6bc942108ab040f0c27dc61",
             policy["source_bundle"]["md5"],
         )
         self.assertEqual(
             {
-                "encoder.int8.onnx": "418ffd0175e0f55f4b50c432f3e84303",
-                "decoder.onnx": "3440f3acd2a17282a7af7238aa01f749",
-                "joiner.onnx": "2076ad8548a43b01ae4cfdbced021470",
+                "encoder.int8.onnx": "5abc7875f335cd48599ed1c2ccebe00e",
+                "decoder.onnx": "b611c745441dcb22819a4fa8e08793ad",
+                "joiner.onnx": "5d5aa5348d56ac3182287280de0595e4",
             },
             expected,
         )
