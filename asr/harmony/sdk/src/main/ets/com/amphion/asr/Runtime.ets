@@ -54,6 +54,7 @@ import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
 import { SpeakerPcmBuffers } from './SpeakerPcmBuffers';
 import { SpeakerVadScoreScheduler } from './SpeakerVadScoreScheduler';
 import { RecognizerPoolPolicy } from './RecognizerPoolPolicy';
+import { NativeEndpointTransitionPolicy } from './NativeEndpointTransitionPolicy';
 import {
   SpeakerTurnFinalizer,
   SpeakerTurnSegment,
@@ -1318,6 +1319,7 @@ export class AsrSession {
   private utteranceIndex: number = 0;
   private recognizerResetGeneration: number = 0;
   private streamGeneration: number = 1;
+  private nativeStreamSamplesAccepted: number = 0;
   private utteranceStartMs: number = Date.now();
   private firstPcmMs: number = -1;
   private firstPartialLatencyMs: number = -1;
@@ -1732,10 +1734,20 @@ export class AsrSession {
         return;
       }
       const endpointResult = this.recognizer.getResult(this.stream);
+      // Speaker VAD owns its own stream replay/split lifecycle. Keep this narrow seam fix on the
+      // plain native stream, where a non-empty max-duration endpoint can retain decoder context.
+      const endpointTransition = NativeEndpointTransitionPolicy.decide(
+        !this.speakerVadEnabled && (endpointResult.text.length > 0 || endpointResult.tokens.length > 0),
+        this.nativeStreamSamplesAccepted,
+        ASR_SAMPLE_RATE_HZ,
+        this.config.endpointRules.rule3MinUtteranceLengthSec);
+      const preserveRule3Context = endpointTransition === NativeEndpointTransitionPolicy.SOFT_RESET;
+      const endpointReason = preserveRule3Context ? 'native-rule3-continuation' : 'native-endpoint';
       Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=native ` +
         `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
         `utterancePcmBytes=${this.pcmBytesAccepted} textChars=${endpointResult.text.length} ` +
-        `tokens=${endpointResult.tokens.length}`);
+        `tokens=${endpointResult.tokens.length} nativeStreamSamples=${this.nativeStreamSamplesAccepted} ` +
+        `transition=${preserveRule3Context ? 'soft-reset' : 'hard-restart'}`);
       this.endpointAtMs = Date.now();
       if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
       // A stop requested synchronously by this endpoint callback belongs to this exact result. It is
@@ -1746,7 +1758,7 @@ export class AsrSession {
       if (stopAtEndpoint) {
         if (!this.callbackGate.isClosed()) this.notifyStopped();
       } else if (!this.callbackGate.isClosed()) {
-        this.finishUtterance(restartAfterFinal, 'native-endpoint');
+        this.finishUtterance(restartAfterFinal && !preserveRule3Context, endpointReason);
       }
       return;
     }
@@ -2218,6 +2230,7 @@ export class AsrSession {
   private finishUtterance(restart: boolean, reason: string = 'final'): void {
     if (!restart) {
       if (!this.callbackGate.isClosed()) this.recognizer.reset(this.stream);
+      this.nativeStreamSamplesAccepted = 0;
       Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=soft-reset ` +
         `reason=${reason} streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
       this.lastPartialText = '';
@@ -2256,6 +2269,7 @@ export class AsrSession {
       Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=soft-reset-fallback ` +
         `reason=${reason} streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
     }
+    this.nativeStreamSamplesAccepted = 0;
     this.lastPartialText = '';
   }
 
@@ -2269,12 +2283,14 @@ export class AsrSession {
 
   private feedRecognizer(samples: Float32Array, isFinal: boolean): void {
     const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
+    this.nativeStreamSamplesAccepted += samples.length;
     this.stream.acceptWaveform(wave);
     this.drain(isFinal);
   }
 
   private async feedRecognizerAsync(samples: Float32Array, isFinal: boolean): Promise<void> {
     const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
+    this.nativeStreamSamplesAccepted += samples.length;
     this.stream.acceptWaveform(wave);
     await this.drainAsync(isFinal);
   }
