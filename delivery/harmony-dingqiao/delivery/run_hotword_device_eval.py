@@ -22,7 +22,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[2]
 PROJECT_ROOT = REPO_ROOT / "delivery" / "harmony-dingqiao"
-DEFAULT_FIXTURE = SCRIPT_DIR / "fixtures" / "hotword_eval_200.jsonl"
+DEFAULT_FIXTURE = SCRIPT_DIR / "fixtures" / "hotword_eval_400.jsonl"
 BUNDLE = "com.amphion.asr.harmony.demo"
 MODULE = "amphion_asr_demo"
 ABILITY = "EntryAbility"
@@ -55,10 +55,10 @@ def verify_fixture(path: Path) -> list[dict[str, object]]:
     if actual != expected:
         raise EvalFailure(f"fixture checksum mismatch: expected {expected}, got {actual}")
     entries = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
-    if len(entries) != 200:
-        raise EvalFailure(f"fixed fixture must contain 200 cases, found {len(entries)}")
-    if [entry.get("fixture_index") for entry in entries] != list(range(200)):
-        raise EvalFailure("fixture indexes are not the fixed sequence 0..199")
+    if not entries:
+        raise EvalFailure("fixed fixture must not be empty")
+    if [entry.get("fixture_index") for entry in entries] != list(range(len(entries))):
+        raise EvalFailure("fixture indexes are not a contiguous fixed sequence")
     return entries
 
 
@@ -221,7 +221,7 @@ def hotword_hit(hypothesis: str, hotword: str, language: str) -> bool:
 
 
 def score(entries: list[dict[str, object]], device_rows: list[dict[str, object]],
-          artifact_dir: Path, fixture_digest: str) -> dict[str, object]:
+          artifact_dir: Path, fixture_digest: str, variants_to_score: tuple[str, ...]) -> dict[str, object]:
     by_key = {(str(row["id"]), str(row["variant"])): row for row in device_rows}
     details: list[dict[str, object]] = []
     aggregates: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
@@ -234,7 +234,7 @@ def score(entries: list[dict[str, object]], device_rows: list[dict[str, object]]
         reference_units = units(reference, language)
         case: dict[str, object] = dict(entry)
         variants: dict[str, dict[str, object]] = {}
-        for variant in ("baseline", "hotword"):
+        for variant in variants_to_score:
             row = by_key.get((case_id, variant))
             if row is None:
                 raise EvalFailure(f"missing device result: {case_id}/{variant}")
@@ -261,12 +261,13 @@ def score(entries: list[dict[str, object]], device_rows: list[dict[str, object]]
             stratum_aggregates[stratum_group]["cases"] += 1
             stratum_aggregates[stratum_group]["all_hit_cases"] += int(all(hits))
             stratum_aggregates[stratum_group]["device_errors"] += int(int(row.get("error_code", 0)) != 0)
-        baseline_errors = int(variants["baseline"]["edit_errors"])
-        hotword_errors = int(variants["hotword"]["edit_errors"])
         case["variants"] = variants
-        case["delta_edit_errors"] = hotword_errors - baseline_errors
-        case["classification"] = ("improved" if hotword_errors < baseline_errors else
-                                  "regressed" if hotword_errors > baseline_errors else "unchanged")
+        if "baseline" in variants and "hotword" in variants:
+            baseline_errors = int(variants["baseline"]["edit_errors"])
+            hotword_errors = int(variants["hotword"]["edit_errors"])
+            case["delta_edit_errors"] = hotword_errors - baseline_errors
+            case["classification"] = ("improved" if hotword_errors < baseline_errors else
+                                      "regressed" if hotword_errors > baseline_errors else "unchanged")
         details.append(case)
 
     def summarize(source: dict[str, dict[str, float]]) -> dict[str, object]:
@@ -285,7 +286,8 @@ def score(entries: list[dict[str, object]], device_rows: list[dict[str, object]]
     summary_strata = summarize(stratum_aggregates)
     counts = defaultdict(int)
     for item in details:
-        counts[str(item["classification"])] += 1
+        if "classification" in item:
+            counts[str(item["classification"])] += 1
     report = {
         "fixture_sha256": fixture_digest,
         "case_count": len(entries),
@@ -325,6 +327,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
     parser.add_argument("--device", default="")
     parser.add_argument("--skip-build-install", action="store_true")
+    parser.add_argument("--police-enhancement", choices=("on", "off"), default="off",
+                        help="Enable the final police/LAC pipeline for every recognition.")
+    parser.add_argument("--hotword-only", action="store_true",
+                        help="Skip the no-hotword baseline (useful for paired multi-build runs).")
     parser.add_argument("--pace-ms", type=int, default=0)
     parser.add_argument("--max-cases", type=int, default=0,
                         help="Debug only; 0 runs all fixed cases.")
@@ -373,11 +379,14 @@ def main() -> int:
         "--ps", "hotwordEvalManifest", remote_manifest,
         "--ps", "hotwordEvalResult", remote_result,
         "--ps", "hotwordEvalPaceMs", str(args.pace_ms),
-        "--ps", "hotwordEvalMaxCases", str(args.max_cases), check=False)
+        "--ps", "hotwordEvalMaxCases", str(args.max_cases),
+        "--ps", "hotwordEvalPoliceEnhancement", str(args.police_enhancement == "on").lower(),
+        "--ps", "hotwordEvalHotwordOnly", str(args.hotword_only).lower(),
+        check=False)
     if started.returncode or "error" in (started.stdout + started.stderr).casefold():
         raise EvalFailure(f"failed to start eval carrier: {(started.stdout + started.stderr).strip()}")
 
-    expected_lines = len(entries) * 2
+    expected_lines = len(entries) * (1 if args.hotword_only else 2)
     result_rows: list[dict[str, object]] | None = None
     deadline = time.monotonic() + args.timeout
     temporary = artifact_dir / "device-result.tmp"
@@ -400,7 +409,10 @@ def main() -> int:
         (artifact_dir / "hilog.txt").write_text(hilog.stdout + hilog.stderr, encoding="utf-8")
         raise EvalFailure(f"timed out after {args.timeout}s ({last_count}/{expected_lines} rows)")
     shutil.move(temporary, artifact_dir / "device-result.jsonl")
-    report = score(entries, result_rows, artifact_dir, sha256(args.fixture.resolve()))
+    hilog = hdc.shell("hilog", "-x", check=False)
+    (artifact_dir / "hilog.txt").write_text(hilog.stdout + hilog.stderr, encoding="utf-8")
+    variants_to_score = ("hotword",) if args.hotword_only else ("baseline", "hotword")
+    report = score(entries, result_rows, artifact_dir, sha256(args.fixture.resolve()), variants_to_score)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     device_errors = sum(
         int(values["device_errors"])
