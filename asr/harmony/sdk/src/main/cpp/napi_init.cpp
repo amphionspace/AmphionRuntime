@@ -5,6 +5,7 @@
 #include "target_speaker_enhancer.h"
 #include "speaker_turn_segmenter.h"
 #include "agc_bridge.h"
+#include "lac_person_ner.h"
 
 static napi_value NativeVersion(napi_env env, napi_callback_info info) {
   napi_value value;
@@ -29,6 +30,7 @@ static napi_value Init(napi_env env, napi_value exports) {
   RegisterTargetSpeakerEnhancer(env, exports);
   RegisterSpeakerTurnSegmenter(env, exports);
   RegisterAgcBridge(env, exports);
+  RegisterLacPersonNer(env, exports);
   return exports;
 }
 EXTERN_C_END

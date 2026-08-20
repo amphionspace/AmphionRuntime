@@ -364,6 +364,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.context = context;
     this.params = snapshotCreateEngineParams(params);
     this.enhancePipeline = PoliceEnhancePipeline.create(context);
+    this.enhancePipeline.configurePersonNames(
+      parseLexicon(this.params.extraParams['sysGeneralLexicon']));
     this.asrEngine = preloadedEngine ??
       AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(context, this.params));
     this.engineCfgKey = this.computeEngineCfgKey(false, false, undefined);
