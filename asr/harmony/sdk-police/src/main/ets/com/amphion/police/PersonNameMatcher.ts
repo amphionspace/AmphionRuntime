@@ -26,7 +26,9 @@ class Replacement {
 }
 
 /**
- * Replaces an ASR homophone only when the candidate window overlaps a LAC PER span.
+ * Replaces an ASR homophone when the candidate window overlaps a LAC PER span.
+ * Unique names of at least three characters also get an exact-pinyin fallback,
+ * because LAC can miss a person span when the preceding character is ambiguous.
  * Signatures containing multiple configured names are intentionally ignored.
  */
 export class PersonNameMatcher {
@@ -55,7 +57,7 @@ export class PersonNameMatcher {
   }
 
   normalize(text: string, personSpans: PersonSpan[]): string {
-    if (text.length === 0 || personSpans.length === 0 || this.candidates.length === 0) return text;
+    if (text.length === 0 || this.candidates.length === 0) return text;
     const replacements: Replacement[] = [];
     for (let i = 0; i < this.candidates.length; i++) {
       const target = this.candidates[i];
@@ -63,7 +65,8 @@ export class PersonNameMatcher {
       if (width > text.length) continue;
       for (let start = 0; start + width <= text.length; start++) {
         const end = start + width;
-        if (!PersonNameMatcher.overlapsPerson(start, end, personSpans)) continue;
+        const overlapsPerson = PersonNameMatcher.overlapsPerson(start, end, personSpans);
+        if (!overlapsPerson && width < 3) continue;
         const source = text.substring(start, end);
         if (source === target.value || this.signatureOf(source) !== target.signature) continue;
         if (PersonNameMatcher.overlapsReplacement(start, end, replacements)) continue;

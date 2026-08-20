@@ -31,13 +31,11 @@ export class PersonNameNormalizer {
     for (let i = 0; i < customHotwords.length; i++) {
       const name = customHotwords[i].trim();
       if (name.length < 2 || name.length > 6) continue;
-      const spans = this.ner.findPersonSpans(name);
-      for (let j = 0; j < spans.length; j++) {
-        if (spans[j].start === 0 && spans[j].end === name.length) {
-          personNames.push(name);
-          break;
-        }
-      }
+      // A configured hotword expresses explicit user intent. Do not ask LAC to
+      // classify the isolated spelling first: rare names such as “文赋成” can
+      // be tagged as an ordinary phrase and would otherwise never reach the
+      // pinyin matcher.
+      personNames.push(name);
     }
     this.matcher = new PersonNameMatcher(
       PersonNameNormalizer.loadPinyin(PoliceAssets.readText(context, 'lac/v1/pinyin.tsv')),
