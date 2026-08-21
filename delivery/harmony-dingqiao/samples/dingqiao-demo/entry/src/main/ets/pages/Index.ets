@@ -1169,7 +1169,8 @@ struct Index {
   }
 
   build() {
-    Column({ space: 12 }) {
+    Scroll() {
+      Column({ space: 12 }) {
       Row() {
         Text('Amphion 离线语音识别')
           .fontSize(22)
@@ -1294,32 +1295,27 @@ struct Index {
         .padding(12)
 
       Text('最终结果').fontSize(14).fontWeight(FontWeight.Medium).width('100%')
-      Scroll() {
-        Column({ space: 6 }) {
-          if (this.finalSegments.length === 0) {
-            Text('识别结果将累积显示在这里。')
-              .fontSize(14).fontColor(Color.Gray).width('100%')
-          }
-          ForEach(this.finalSegments, (item: FinalSegment, index: number) => {
-            Text() {
-              if (item.score !== undefined) {
-                Span(`[声纹相似度 ${item.score.toFixed(2)}] `).fontColor(BRAND_ACCENT).fontWeight(FontWeight.Bold)
-              }
-              Span(item.text)
-            }
-            .width('100%')
-            .fontSize(16)
-          }, (item: FinalSegment, index: number) => `${index}-${item.text}`)
+      Column({ space: 6 }) {
+        if (this.finalSegments.length === 0) {
+          Text('识别结果将累积显示在这里。')
+            .fontSize(14).fontColor(Color.Gray).width('100%')
         }
-        .width('100%')
-        .alignItems(HorizontalAlign.Start)
+        ForEach(this.finalSegments, (item: FinalSegment, index: number) => {
+          Text() {
+            if (item.score !== undefined) {
+              Span(`[声纹相似度 ${item.score.toFixed(2)}] `).fontColor(BRAND_ACCENT).fontWeight(FontWeight.Bold)
+            }
+            Span(item.text)
+          }
+          .width('100%')
+          .fontSize(16)
+        }, (item: FinalSegment, index: number) => `${index}-${item.text}`)
       }
-      .layoutWeight(1)
       .width('100%')
       .backgroundColor('#f5f5f5')
       .borderRadius(8)
       .padding(12)
-      .align(Alignment.TopStart)
+      .alignItems(HorizontalAlign.Start)
 
       if (this.captureReady || this.replaying) {
         Column({ space: 4 }) {
@@ -1394,11 +1390,14 @@ struct Index {
             this.startListening();
           }
         })
+      }
+      .padding(20)
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
     }
-    .padding(20)
     .width('100%')
     .height('100%')
-    .alignItems(HorizontalAlign.Start)
+    .scrollBar(BarState.Auto)
   }
 }
 
