@@ -282,7 +282,7 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
                 "node",
                 "--experimental-strip-types",
                 "--experimental-loader",
-                str(REPO_ROOT / "asr/tools/tests/ts_extension_loader.mjs"),
+                (REPO_ROOT / "asr/tools/tests/ts_extension_loader.mjs").as_uri(),
                 "--input-type=module",
                 "-e",
                 script,

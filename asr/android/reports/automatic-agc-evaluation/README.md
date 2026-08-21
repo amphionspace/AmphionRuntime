@@ -11,10 +11,9 @@ noise.
 Model scope: the figures below bind the frozen encoder SHA-256
 `0e86d904862c53e9bdff44df0650a109d61783cb262a7233742f68198abbcbba`. The current Harmony
 delivery model uses encoder SHA-256
-`ea36d21a1db076c09206078fdb260cf2b852204ad0b5a998fcc1a0e92003d174`. A separate full host
-evaluation of that newer model did not pass the historical -80 dBFS red/green fixture and changed
-the normal-volume and SNR conclusions. Therefore this report proves compatibility with the existing
-frozen AGC evidence only; it is not delivery acceptance for the newer Harmony model.
+`135d609ef40d4fa2b4a245e72ae742c13c9cf2cefea90b65ad65e7f39acf398a` (amphion-119). Therefore
+this report proves compatibility with the existing frozen AGC evidence only; it is not
+model-specific AGC accuracy acceptance for the newer Harmony model.
 
 - On normal-volume AISHELL-3, no statistically significant difference was observed: CER changes
   from 2.2035% to 2.2214% (+0.0179 percentage points); the paired bootstrap 95% interval is
@@ -26,7 +25,7 @@ frozen AGC evidence only; it is not delivery acceptance for the newer Harmony mo
 - In the 213.28-second meeting recording, post-180-second non-empty text changes from 105 to 112
   characters. The previously missing opening `你就不能当成你的测试来测` is retained, but another
   short clause changes, so this is evidence of local benefit rather than complete transcript proof.
-- Native preprocessing median RTF is 0.00141 on the 213.28-second input (~0.14% of one host CPU
+- Native preprocessing median RTF is 0.00155 on the 213.28-second input (~0.15% of one host CPU
   core). Mobile power was not measured.
 
 ## Method
