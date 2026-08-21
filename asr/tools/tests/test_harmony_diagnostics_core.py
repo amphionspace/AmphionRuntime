@@ -38,7 +38,7 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.run_core(
             """
             const core = new DiagnosticsCore();
-            core.configure({ enabled: true, captureAudio: true,
+            core.configure({ enabled: true, mode: 'CUSTOMER_SUPPORT', captureAudio: true,
               includeRecognitionText: false, maxSessionAudioSec: 0.04 }, 1000);
             const engine = core.nextEngineId();
             core.beginSession('customer-secret', engine, {}, 1010);
@@ -70,7 +70,7 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.run_core(
             """
             const core = new DiagnosticsCore();
-            core.configure({ enabled: true, captureAudio: false,
+            core.configure({ enabled: true, mode: 'CUSTOMER_SUPPORT', captureAudio: false,
               includeRecognitionText: false, maxSessionAudioSec: 120 }, 1000);
             const engine = core.nextEngineId();
             core.beginSession('real-session', engine, {}, 1010);
@@ -83,7 +83,7 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             assert.equal(event.sessionId, 'session-1');
 
             const withText = new DiagnosticsCore();
-            withText.configure({ enabled: true, captureAudio: false,
+            withText.configure({ enabled: true, mode: 'CUSTOMER_SUPPORT', captureAudio: false,
               includeRecognitionText: true, maxSessionAudioSec: 120 }, 2000);
             const secondEngine = withText.nextEngineId();
             withText.beginSession('real-session', secondEngine, {}, 2010);
@@ -102,7 +102,10 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             core.beginSession('session', engine, {});
             core.captureAudio('session', new ArrayBuffer(640));
             core.record('session', engine, 'CALLBACK_RESULT', { isLast: true });
-            assert.deepEqual(core.snapshot(), { runId: '', events: [], sessions: [] });
+            const snapshot = core.snapshot();
+            assert.equal(snapshot.runId, '');
+            assert.deepEqual(snapshot.events, []);
+            assert.deepEqual(snapshot.sessions, []);
             """
         )
 
@@ -110,7 +113,7 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.run_core(
             """
             const core = new DiagnosticsCore();
-            core.configure({ enabled: true, captureAudio: false,
+            core.configure({ enabled: true, mode: 'CUSTOMER_SUPPORT', captureAudio: false,
               includeRecognitionText: false, maxSessionAudioSec: 120 }, 1000);
             const engine = core.nextEngineId();
             core.beginSession('reused', engine, {}, 1010);
@@ -144,6 +147,76 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.assertIn("enabled: true", module)
         self.assertIn("captureAudio: false", module)
         self.assertIn("includeRecognitionText: false", module)
+        self.assertIn("enabled: DEBUG && options.enabled", module)
+        self.assertIn("JOURNAL_INTERVAL_MS", module)
+        self.assertIn("crash-recovery.json", module)
+        self.assertIn("maxDirectoryBytes", module)
+        self.assertIn("maxRetainedRuns", module)
+        self.assertIn("resource-samples.csv", module)
+        self.assertIn("native-state.json", module)
+        self.assertIn("deliveredManifest", module)
+
+    def test_basic_forces_private_payloads_off(self) -> None:
+        self.run_core(
+            """
+            const core = new DiagnosticsCore();
+            core.configure({ enabled: true, mode: 'BASIC', captureAudio: true,
+              includeRecognitionText: true, maxSessionAudioSec: 120 }, 1000);
+            const engine = core.nextEngineId();
+            core.beginSession('session', engine, {}, 1010);
+            core.captureAudio('session', new ArrayBuffer(640), 1020);
+            core.record('session', engine, 'CALLBACK_RESULT', { text: 'private' }, 1030);
+            const snapshot = core.snapshot();
+            assert.equal(snapshot.config.captureAudio, false);
+            assert.equal(snapshot.config.includeRecognitionText, false);
+            assert.equal(snapshot.sessions[0].audio, undefined);
+            assert.deepEqual(snapshot.events[1].fields, {});
+            """
+        )
+
+    def test_failure_only_retains_only_abnormal_sessions_and_ring_audio(self) -> None:
+        self.run_core(
+            """
+            const core = new DiagnosticsCore();
+            core.configure({ enabled: true, mode: 'FAILURE_ONLY', captureAudio: true,
+              includeRecognitionText: false, maxSessionAudioSec: 3,
+              failureRingAudioSec: 1, maxSessionEvents: 64 }, 1000);
+            const engine = core.nextEngineId();
+            core.beginSession('normal', engine, {}, 1010);
+            core.record('normal', engine, 'FINISH_REQUESTED', {}, 1020);
+            core.record('normal', engine, 'CALLBACK_COMPLETE', {}, 1030);
+            assert.equal(core.snapshot().sessions.length, 0);
+
+            core.beginSession('bad', engine, {}, 1040);
+            for (let i = 0; i < 60; i++) {
+              core.captureAudio('bad', new ArrayBuffer(640), 1050 + i * 20);
+            }
+            assert.equal(core.snapshot().sessions.length, 0);
+            assert.equal(core.snapshot(true).sessions.length, 1);
+            core.record('bad', engine, 'CALLBACK_ERROR', { nativeErrorCode: 7 }, 2300);
+            const bad = core.snapshot().sessions[0];
+            assert.equal(bad.abnormal, true);
+            assert.deepEqual(bad.abnormalReasons, ['callback-error']);
+            assert.equal(bad.audio.ringBuffer, true);
+            assert.equal(bad.audio.durationMs, 1000);
+            assert.equal(bad.audio.preTriggerDroppedBytes, 6400);
+            """
+        )
+
+    def test_failure_only_detects_empty_final_and_early_last(self) -> None:
+        self.run_core(
+            """
+            const core = new DiagnosticsCore();
+            core.configure({ enabled: true, mode: 'FAILURE_ONLY', captureAudio: false,
+              includeRecognitionText: false, maxSessionAudioSec: 120 }, 1000);
+            const engine = core.nextEngineId();
+            core.beginSession('empty', engine, {}, 1010);
+            core.record('empty', engine, 'CALLBACK_RESULT',
+              { isFinal: true, isLast: true, textChars: 0 }, 1020);
+            const session = core.snapshot().sessions[0];
+            assert.deepEqual(session.abnormalReasons, ['empty-final']);
+            """
+        )
 
 
 if __name__ == "__main__":

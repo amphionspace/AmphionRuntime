@@ -52,6 +52,28 @@ class CollectAsrDiagnosticsTest(unittest.TestCase):
             result = diagnostics.validate_run(run)
             self.assertEqual(result["manifest"]["runId"], "run-100")
 
+    def test_validate_run_accepts_schema_two_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run = self.make_run(Path(directory))
+            (run / "manifest.json").write_text(
+                json.dumps({"schemaVersion": 2, "runId": "run-100"}), encoding="utf-8"
+            )
+            for name in (
+                "build-identity.json",
+                "model-manifest.json",
+                "effective-config.json",
+                "native-state.json",
+            ):
+                (run / name).write_text("{}", encoding="utf-8")
+            (run / "resource-samples.csv").write_text(
+                "wallTimeMs,rssKb,anonymousRssKb\n1,2,3\n", encoding="utf-8"
+            )
+            session = run / "sessions/session-1"
+            (session / "timeline.json").write_text("[]", encoding="utf-8")
+            (session / "result.json").write_text("{}", encoding="utf-8")
+            result = diagnostics.validate_run(run)
+            self.assertEqual(result["manifest"]["schemaVersion"], 2)
+
     def test_validate_run_rejects_sensitive_fields(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run = self.make_run(Path(directory))

@@ -3,10 +3,17 @@
 Debug HAR 与 Release HAR 的模块名和识别接口保持一致。替换四个 HAR 后，现有
 `startListening`、`writeAudio`、`finish`、`cancel`、`shutdown` 和回调代码不需要修改。
 
-预配置 Debug HAR 和随包应用默认开启结构化诊断，但不包含音频和识别文本。客户只替换
-Debug HAR 即可记录非敏感结构化事件，原有识别业务代码不需要修改。测试人员明确同意后，
-再通过下方配置开启音频或识别文本；随包应用也可使用启动参数
+预配置 Debug HAR 和随包应用默认使用 `BASIC`：开启结构化诊断，但强制不包含音频和识别
+文本。客户只替换 Debug HAR 即可记录非敏感结构化事件，原有识别业务代码不需要修改。
+测试人员明确同意后，再通过下方配置开启音频或识别文本；随包应用也可使用启动参数
 `--ps diagnosticsAudio true --ps diagnosticsText true`，复现后点击“导出诊断包”。
+
+三种模式：
+
+- `BASIC`：生命周期、参数摘要、回调、资源和 native 状态；即使误设开关也不采音频/文本。
+- `CUSTOMER_SUPPORT`：`BASIC` 全部内容，并按独立开关采集公共 `writeAudio` PCM 和识别文本。
+- `FAILURE_ONLY`：平时使用内存滚动窗口；遇到 error、空 final、提前 `isLast` 或初始静音
+  超时后自动持久化，正常完成的 session 不长期保留。
 
 在 `prepareRuntime` 前显式开启诊断：
 
@@ -14,6 +21,16 @@ Debug HAR 即可记录非敏感结构化事件，原有识别业务代码不需�
 const options = DiagnosticOptions.customerSupport();
 options.captureAudio = true;
 options.includeRecognitionText = true;
+SpeechRecognizeSdk.configureDiagnostics(options);
+```
+
+长期现场观察可改用：
+
+```ts
+const options = DiagnosticOptions.failureOnly();
+options.captureAudio = true;              // 需得到音频采集授权
+options.includeRecognitionText = false;
+options.failureRingAudioSec = 20;          // 异常前滚动音频
 SpeechRecognizeSdk.configureDiagnostics(options);
 ```
 
@@ -39,5 +56,14 @@ python3 tools/collect_asr_diagnostics.py \
 工具会拉取最近一次已导出的诊断、校验 WAV 和 manifest、脱敏 hilog，并生成 ZIP 与
 SHA-256。手机端文件不会被删除。
 
-当前实现采用显式导出：`writeAudio` 只写入最长 120 秒的有界内存快照，不同步写磁盘；
-崩溃前自动落盘和 `FAILURE_ONLY` 环形缓冲将在后续阶段实现。
+每个诊断目录包含 `manifest.json`、`summary.json`、构建/模型/有效配置身份、事件与回调
+NDJSON、`resource-samples.csv`、`native-state.json`，以及每个 session 的 timeline、result 和
+可选 `sdk-input.wav/json`。`summary.json` 会直接标出 finish、提前 `isLast`、空 final、自动结束
+原因、PCM 时长/截断、错误、回调延迟和下一轮可用性。
+
+`writeAudio` 只更新有界内存，不同步写磁盘。Debug 版通过 5 秒低频后台 journal 保存活跃
+session；若进程异常退出，下次 `SpeechRecognizeSdk.init` 会恢复为可导出的 run，并写入
+`crash-recovery.json`。硬杀进程最多可能丢失最后约 5 秒，不能替代系统 crash dump。
+
+默认单 session 最多采集 120 秒，可配置但最高 10 分钟；诊断总目录最多 200 MB，最多保留
+最近 3 个 run，超限时从最旧 run 开始清理。以上参数可通过 `DiagnosticOptions` 调整。

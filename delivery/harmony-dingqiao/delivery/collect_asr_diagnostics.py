@@ -101,12 +101,33 @@ def validate_run(run_dir: Path) -> dict[str, object]:
             raise RuntimeError(f"{run_dir.name}: missing {path.name}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
-    if manifest.get("schemaVersion") != 1 or manifest.get("runId") != run_dir.name:
+    schema = manifest.get("schemaVersion")
+    if schema not in (1, 2) or manifest.get("runId") != run_dir.name:
         raise RuntimeError(f"{run_dir.name}: invalid manifest identity")
     if summary.get("runId") != run_dir.name:
         raise RuntimeError(f"{run_dir.name}: summary identity mismatch")
     _walk_json(manifest)
     _walk_json(summary)
+    if schema == 2:
+        required = (
+            "build-identity.json",
+            "model-manifest.json",
+            "effective-config.json",
+            "resource-samples.csv",
+            "native-state.json",
+        )
+        for name in required:
+            if not (run_dir / name).is_file():
+                raise RuntimeError(f"{run_dir.name}: missing {name}")
+        for name in required:
+            path = run_dir / name
+            if path.suffix == ".json":
+                _walk_json(json.loads(path.read_text(encoding="utf-8")))
+        resource_header = (run_dir / "resource-samples.csv").read_text(
+            encoding="utf-8"
+        ).splitlines()[0]
+        if not resource_header.startswith("wallTimeMs,rssKb,"):
+            raise RuntimeError(f"{run_dir.name}: invalid resource-samples.csv")
     for ndjson_path in (events_path, callbacks_path):
         for line_number, line in enumerate(ndjson_path.read_text(encoding="utf-8").splitlines(), 1):
             if not line.strip():
@@ -124,6 +145,12 @@ def validate_run(run_dir: Path) -> dict[str, object]:
         expected_size = int(metadata.get("bytes", -1)) + 44
         if wav_path.stat().st_size != expected_size:
             raise RuntimeError(f"{wav_path}: WAV byte count does not match metadata")
+    if schema == 2:
+        for timeline in run_dir.glob("sessions/*/timeline.json"):
+            result_path = timeline.with_name("result.json")
+            if not result_path.is_file():
+                raise RuntimeError(f"{result_path}: missing session result")
+            _walk_json(json.loads(result_path.read_text(encoding="utf-8")))
     return {"manifest": manifest, "summary": summary}
 
 

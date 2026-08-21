@@ -351,6 +351,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private completeSent: boolean = false;
   private maxAudioBytes: number = 0;
   private audioBytesWritten: number = 0;
+  private audioFramesWritten: number = 0;
   private voiceprintIds: string[] = [];
   private speechActive: boolean = false;
   private startingSession: boolean = false;
@@ -513,6 +514,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       );
       this.maxAudioBytes = maxAudioBytesOf(params.extraParams);
       this.audioBytesWritten = 0;
+      this.audioFramesWritten = 0;
       this.voiceprintIds = voiceprintIds;
       this.speechActive = false;
       this.targetSpeakerEnhancer = newEnhancer;
@@ -599,7 +601,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         this.handleAsrError(audioGeneration,
           new AsrError(AsrErrorCode.NATIVE_CRASH, `audio dispatch failed: ${message}`));
       });
-      if (this.sessionStartGate.publishSession(startGeneration)) this.deliverSessionStarted(startGeneration);
+      if (this.sessionStartGate.publishSession(startGeneration)) {
+        this.diagnostic(params.sessionId, 'SESSION_PUBLISHED');
+        this.deliverSessionStarted(startGeneration);
+      }
     } catch (e) {
       this.startingSession = false;
       const ownsFailedStart = startGeneration < 0 || this.sessionStartGate.isCurrent(startGeneration);
@@ -645,10 +650,21 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     // A replacement session resets this counter during startListening, so the old reservation cannot
     // leak across generations.
     this.audioBytesWritten += audio.byteLength;
+    this.audioFramesWritten += 1;
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
       this.targetSpeakerEnhancementPipeline.append(pcm16ToFloat(audio));
     } else {
       this.audioDispatcher?.write(audio);
+    }
+    const queueState = this.audioDispatcher?.diagnosticState() ?? {};
+    DiagnosticsModule.setQueueState(queueState);
+    if (this.audioFramesWritten === 1 || this.audioFramesWritten % 50 === 0) {
+      this.diagnosticValues(sessionId,
+        this.audioFramesWritten === 1 ? 'AUDIO_FIRST_FRAME' : 'AUDIO_PROGRESS',
+        ['frames', 'audioBytesWritten', 'audioQueueDepth', 'maxAudioQueueDepth', 'nativeCallsInFlight'],
+        [this.audioFramesWritten, this.audioBytesWritten,
+          queueState['audioQueueDepth'] ?? -1, queueState['maxAudioQueueDepth'] ?? -1,
+          queueState['nativeCallsInFlight'] ?? -1]);
     }
     // Keep max-duration ownership pinned to the session that reserved this frame. A concurrent
     // cancel/restart must never let an old reservation auto-stop the replacement session.
@@ -712,7 +728,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.ensureAlive();
     // stop() 在 Harmony 上可同步回调并清空会话。记住最近正常结束的 session，
     // 让紧随其后的重复 finish 与 Android 的异步完成窗口保持同样的幂等语义。
-    if (!this.busy && sessionId === this.lastFinishedSessionId) return;
+    if (!this.busy && sessionId === this.lastFinishedSessionId) {
+      this.diagnosticValues(sessionId, 'DUPLICATE_FINISH_IGNORED', ['busy'], [false]);
+      return;
+    }
     if (!this.busy || sessionId !== this.currentSessionId || this.session === undefined) {
       this.listener?.onError?.(sessionId, DingqiaoErrorCode.FINISH_FAILED, 'finish failed');
       return;
@@ -722,6 +741,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.lastFinishedSessionId = sessionId;
     this.diagnosticValues(sessionId, 'FINISH_REQUESTED',
       ['audioBytesWritten'], [this.audioBytesWritten]);
+    DiagnosticsModule.setQueueState(this.audioDispatcher?.diagnosticState() ?? {});
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
       this.targetSpeakerEnhancementPipeline.finish();
     } else {
@@ -742,6 +762,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       return;
     }
     this.diagnosticValues(sessionId, 'CANCEL_REQUESTED', ['duringStart'], [false]);
+    DiagnosticsModule.setQueueState(this.audioDispatcher?.diagnosticState() ?? {});
     this.tearDownSession();
   }
 
@@ -806,8 +827,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const sessionId = this.currentSessionId;
     if (sessionId.length === 0) return;
     this.completeSent = true;
+    DiagnosticsModule.setQueueState(this.audioDispatcher?.diagnosticState() ?? {});
     this.tearDownSession();
     try {
+      this.diagnostic(sessionId, 'STREAM_CLOSED');
+      this.diagnostic(sessionId, 'SESSION_QUIESCENT');
       this.diagnostic(sessionId, 'CALLBACK_COMPLETE');
       this.listener?.onComplete?.(sessionId, 'recognize complete');
     } finally {
@@ -909,6 +933,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   handleSpeechBegin(generation: number): void {
     if (!this.sessionStartGate.isCurrent(generation) || !this.busy || this.currentSessionId.length === 0) return;
     this.speechActive = true;
+    this.diagnostic(this.currentSessionId, 'VAD_SPEECH_BEGIN');
     this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEECH_BEGIN, 'speech started.');
   }
 
@@ -934,6 +959,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (!this.sessionStartGate.isCurrent(generation) || !this.busy || this.currentSessionId.length === 0) return;
     if (!this.speechActive) return;
     this.speechActive = false;
+    this.diagnostic(this.currentSessionId, 'ENDPOINT_SPEECH_END');
     this.listener?.onEvent?.(this.currentSessionId, DingqiaoEventCode.SPEECH_END, 'speech stopped.');
   }
 
@@ -1146,6 +1172,13 @@ export class SpeechRecognizeSdk {
     SpeechRecognizeSdk.context = context;
     SpeechRecognizeSdk.deviceIdProvider = deviceIdProvider;
     DiagnosticsModule.setRootPath(context.filesDir);
+    if (DiagnosticsModule.isBuildEnabled()) {
+      try {
+        DiagnosticsModule.setDeliveredModelManifest(
+          context.resourceManager.getRawFileContentSync('amphion-models/manifest.json'));
+      } catch (_ignored) {
+      }
+    }
   }
 
   static setWorkPath(path: string): void {

@@ -103,11 +103,26 @@ export class DiagnosticOptions {
   captureAudio: boolean = false;
   includeRecognitionText: boolean = false;
   maxSessionAudioSec: number = 120;
+  /** FAILURE_ONLY pre-trigger rolling audio window. */
+  failureRingAudioSec: number = 20;
+  /** Per-session structured-event ring before a FAILURE_ONLY trigger. */
+  maxSessionEvents: number = 512;
+  /** Total exported diagnostics quota; oldest runs are removed first. */
+  maxDirectoryMb: number = 200;
+  /** Maximum number of exported/recovered runs retained in the app sandbox. */
+  maxRetainedRuns: number = 3;
 
   static customerSupport(): DiagnosticOptions {
     const options = new DiagnosticOptions();
     options.enabled = true;
     options.mode = DiagnosticMode.CUSTOMER_SUPPORT;
+    return options;
+  }
+
+  static failureOnly(): DiagnosticOptions {
+    const options = new DiagnosticOptions();
+    options.enabled = true;
+    options.mode = DiagnosticMode.FAILURE_ONLY;
     return options;
   }
 }

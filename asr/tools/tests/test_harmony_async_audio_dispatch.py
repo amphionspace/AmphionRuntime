@@ -90,6 +90,29 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
             """
         )
 
+    def test_diagnostic_queue_counters_are_read_only_and_settle(self) -> None:
+        self.run_dispatcher(
+            """
+            let releaseWrite;
+            const blocked = new Promise(resolve => { releaseWrite = resolve; });
+            const dispatcher = new SessionAudioDispatcher({
+              write: async () => { await blocked; },
+              finish: async () => {},
+            }, () => {});
+            dispatcher.write(new ArrayBuffer(640));
+            dispatcher.write(new ArrayBuffer(640));
+            assert.equal(dispatcher.diagnosticState().audioQueueDepth, 2);
+            assert.equal(dispatcher.diagnosticState().maxAudioQueueDepth, 2);
+            await Promise.resolve();
+            await Promise.resolve();
+            assert.equal(dispatcher.diagnosticState().nativeCallsInFlight, 1);
+            releaseWrite();
+            await dispatcher.whenIdle();
+            assert.equal(dispatcher.diagnosticState().audioQueueDepth, 0);
+            assert.equal(dispatcher.diagnosticState().nativeCallsInFlight, 0);
+            """
+        )
+
     def test_finish_requested_inside_endpoint_callback_is_visible_to_current_result(self) -> None:
         self.run_dispatcher(
             """
