@@ -41,8 +41,8 @@ const VOICEPRINT_SHORT_FRAMES: number = 25;
 const VOICEPRINT_THRESHOLD_FRAMES: number = 75;
 const VOICEPRINT_LONG_FRAMES: number = 150;
 const VOICEPRINT_LEADING_SILENCE_FRAMES: number = 50;
+const VAD_BEGIN_LEADING_SILENCE_FRAMES: number = 20;
 const VOICEPRINT_MULTI_UTTERANCE_SILENCE_FRAMES: number = 75;
-const VOICEPRINT_VAD_BEGIN_LEADING_SILENCE_FRAMES: number = 30;
 const VOICEPRINT_LOW_GAIN: number = 0.15;
 const VOICEPRINT_SCENARIOS: string[] = [
   'short', 'threshold', 'long', 'leading-silence', 'low-volume', 'multi-utterance', 'alternate-source'
@@ -1550,7 +1550,7 @@ async function runVoiceprintVadBeginCycle(engine: SpeechRecognitionEngine, entry
     return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
   }
   if (leadingSilence) {
-    feedSilence(engine, sessionId, VOICEPRINT_VAD_BEGIN_LEADING_SILENCE_FRAMES);
+    feedSilence(engine, sessionId, VAD_BEGIN_LEADING_SILENCE_FRAMES);
   }
   const fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, paced ? 20 : 0);
   if (fed === 0) {
@@ -1710,7 +1710,9 @@ async function runSpeakerVadOnStartCycle(engine: SpeechRecognitionEngine, entry:
   }
 
   const lastFinalsAfterStart = events.lastFinals;
-  if (leadingSilence && engine.isBusy()) feedSilence(engine, sessionId, 40);
+  if (leadingSilence && engine.isBusy()) {
+    feedSilence(engine, sessionId, VAD_BEGIN_LEADING_SILENCE_FRAMES);
+  }
   const fed = engine.isBusy() ? await feedPcmFile(
     engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, paced ? 20 : 0
   ) : 0;

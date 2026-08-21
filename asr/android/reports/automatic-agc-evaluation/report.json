@@ -11,22 +11,22 @@
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "c36596692a34a475ea6e4bd971526ae34fde6280bf277ccdb50a6c4aeadd815c",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "6899f975ebe8a8eec8678d3cbd11e81b70d1bdf111ca165e8b425370c08bd36a",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "066dd24bb000be25b95bfb1f211098dda5606fc88dba818a8870ae35764b9baa",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "4a2b5e40d7fd1b21fa3e2b5496c29a852b418ea6",
+    "source_commit": "afb063c0d7170d5b72ddd7566d813a34d69411a6",
     "changed_sources": [
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
     ],
     "previous_sha256": {
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "da50f6d6ccc36eae1ea63de4154e6349c91f43b90c4aa7c906431e5a161142b0"
-    },
-    "current_sha256": {
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "6899f975ebe8a8eec8678d3cbd11e81b70d1bdf111ca165e8b425370c08bd36a"
     },
+    "current_sha256": {
+      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "066dd24bb000be25b95bfb1f211098dda5606fc88dba818a8870ae35764b9baa"
+    },
     "decision": "full_accuracy_evaluation_rerun",
-    "reason": "The Harmony Runtime changed after the previous evidence snapshot to commit non-empty Rule3 endpoints without replacing the native stream. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen model bound to this evidence even though the AGC algorithm and decoder configuration were unchanged.",
+    "reason": "The Harmony Runtime changed after the previous evidence snapshot to move speaker embedding inference off the application lane and preserve Rule3 checkpoints in the asynchronous endpoint path. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen model bound to this evidence even though the AGC algorithm and decoder configuration were unchanged.",
     "rerun_verification": [
       "aishell3_normal_and_controlled_levels",
       "customer_snr_scan",
@@ -166,15 +166,15 @@
   "native_cpu": {
     "iterations": 10,
     "audio_seconds_per_iteration": 213.28,
-    "median_rtf": 0.0018017076519129863,
-    "p90_rtf": 0.0019289873218304554
+    "median_rtf": 0.0015464201987997013,
+    "p90_rtf": 0.0018573850478244484
   },
   "preserved_artifact_sha256": {
-    "aishell3_report.json": "bec18ad4f7f9cf189380882ee914776e7a7c5423518eec0eec011adc6e6d7501",
+    "aishell3_report.json": "1206d51218b5bb418c95c8ca3edd7fb8c6fa68c6cb6104d4d34312d1c53ed77c",
     "input_mapping.json": "a3d23fdb2058f96e0e3be568f90a7b605244a22ff82d725746037436931278c8",
-    "cases.jsonl": "bfa246e6c0db5d12ea100ac95a14c90e2850365e836982ec6c405c5a6fc9e135",
-    "extreme_level_report.json": "74811707cc70994034f35551dca4b67fcf91b834c23dcdd24912e861525f6fb9",
-    "customer_cases_report.json": "5986416b1cf73d57e6b1edd11a975a87e747c9c69f8c154f00ab0a256f217b48",
+    "cases.jsonl": "76b5146535f56b2efdda201ae3d4b5b6c2906e6bdc0f007b0f070e99b17ef3ab",
+    "extreme_level_report.json": "2f3000d93fb683069224d5a739e20153cbfa979fe6adf8f61ac9e042c5df5ef2",
+    "customer_cases_report.json": "39b001949b7c8fb3963ddceb361cd917a207a466eb0ebdb49860942103d6a123",
     "sdk_long_audio_report.json": "d725186f72bec9259fded14df692498f9fc4003684f01fafb0d099f58c83949c",
     "repository_low_volume_regression.json": "c5e22f6e4788ac2e0d225cc35ad31b7979d21d46c7e16513aa77a7f1451c43d2"
   }
