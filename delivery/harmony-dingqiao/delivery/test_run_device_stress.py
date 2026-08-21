@@ -508,6 +508,23 @@ class RunCommandTest(unittest.TestCase):
             normalized,
         )
 
+    def test_vad_begin_leading_silence_leaves_a_bounded_confirmation_window(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        voiceprint_cycle = source.split("async function runVoiceprintVadBeginCycle", 1)[1].split(
+            "async function runVoiceprintFallbackCycle", 1
+        )[0]
+        speaker_cycle = source.split("async function runSpeakerVadOnStartCycle", 1)[1].split(
+            "async function runCallbackApiReentrantCycle", 1
+        )[0]
+
+        self.assertIn("const VAD_BEGIN_LEADING_SILENCE_FRAMES: number = 20;", source)
+        self.assertIn("feedSilence(engine, sessionId, VAD_BEGIN_LEADING_SILENCE_FRAMES)",
+                      voiceprint_cycle)
+        self.assertIn("feedSilence(engine, sessionId, VAD_BEGIN_LEADING_SILENCE_FRAMES)",
+                      speaker_cycle)
+        self.assertNotIn("feedSilence(engine, sessionId, 40)", voiceprint_cycle)
+        self.assertNotIn("feedSilence(engine, sessionId, 40)", speaker_cycle)
+
     def test_voiceprint_vad_begin_idle_paces_frames_for_async_completion(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
         cycle = source.split("async function runVoiceprintVadBeginIdleCycle", 1)[1].split(
