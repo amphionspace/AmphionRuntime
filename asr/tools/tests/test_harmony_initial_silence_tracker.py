@@ -322,6 +322,7 @@ class HarmonyInitialSilenceTrackerTest(unittest.TestCase):
             assert.equal(silence.shouldDiscardAsrResult(), true);
             silence.observeAsrResult('late decoder hallucination', 1);
             assert.equal(silence.shouldDiscardAsrResult(), true);
+            assert.equal(silence['speechDetected'], false);
             assert.equal(silence.observeVad(8000, false), false);
             assert.equal(silence.confirmTimeout(), false);
 
