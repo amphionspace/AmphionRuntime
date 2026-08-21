@@ -45,7 +45,7 @@ export class InitialSilenceTracker {
   }
 
   observeAsrResult(text: string, tokenCount: number): void {
-    if ((text.length > 0 || tokenCount > 0) &&
+    if (!this.timeoutSent && (text.length > 0 || tokenCount > 0) &&
       (this.thresholdSamples === 0 || this.evidenceSamplePosition() <= this.deadlineSamples)) {
       this.markSpeechDetected();
     }
@@ -165,6 +165,10 @@ export class InitialSilenceTracker {
   }
 
   hasTimedOut(): boolean {
+    return this.timeoutSent;
+  }
+
+  shouldDiscardAsrResult(): boolean {
     return this.timeoutSent;
   }
 }
