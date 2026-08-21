@@ -3,9 +3,10 @@
 Debug HAR 与 Release HAR 的模块名和识别接口保持一致。替换四个 HAR 后，现有
 `startListening`、`writeAudio`、`finish`、`cancel`、`shutdown` 和回调代码不需要修改。
 
-随包 Debug Demo 默认开启结构化诊断，但不包含音频和识别文本。测试人员明确同意后，可用
-启动参数开启二者：`--ps diagnosticsAudio true --ps diagnosticsText true`，复现后点击
-“导出诊断包”。
+预配置 Debug HAR 和随包应用默认开启结构化诊断，但不包含音频和识别文本。客户只替换
+Debug HAR 即可记录非敏感结构化事件，原有识别业务代码不需要修改。测试人员明确同意后，
+再通过下方配置开启音频或识别文本；随包应用也可使用启动参数
+`--ps diagnosticsAudio true --ps diagnosticsText true`，复现后点击“导出诊断包”。
 
 在 `prepareRuntime` 前显式开启诊断：
 

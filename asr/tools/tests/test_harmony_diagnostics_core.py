@@ -137,6 +137,14 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.assertIn("fs.writeSync(fp.fd, value)", module)
         self.assertNotIn("new util.TextEncoder", module)
 
+    def test_debug_har_preconfigures_structured_diagnostics_only(self) -> None:
+        module = MODULE.read_text(encoding="utf-8")
+        self.assertIn("import { DEBUG }", module)
+        self.assertIn("if (DEBUG)", module)
+        self.assertIn("enabled: true", module)
+        self.assertIn("captureAudio: false", module)
+        self.assertIn("includeRecognitionText: false", module)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,4 +1,5 @@
 import { fileIo as fs } from '@kit.CoreFileKit';
+import { DEBUG } from '../../../../../../BuildProfile';
 import { DiagnosticOptions } from './DingqiaoModels';
 import {
   DiagnosticAudioSnapshot,
@@ -8,6 +9,19 @@ import {
 } from './DiagnosticsCore';
 
 const WAV_HEADER_BYTES: number = 44;
+
+function createDiagnosticsCore(): DiagnosticsCore {
+  const core = new DiagnosticsCore();
+  if (DEBUG) {
+    core.configure({
+      enabled: true,
+      captureAudio: false,
+      includeRecognitionText: false,
+      maxSessionAudioSec: 120
+    });
+  }
+  return core;
+}
 
 function ensureDirectory(path: string): void {
   if (!fs.accessSync(path)) fs.mkdirSync(path, true);
@@ -65,7 +79,7 @@ function ndjson(events: Object[]): string {
 
 /** File adapter for explicit export only. Runtime capture remains memory-only. */
 export class DiagnosticsModule {
-  private static readonly core: DiagnosticsCore = new DiagnosticsCore();
+  private static readonly core: DiagnosticsCore = createDiagnosticsCore();
   private static rootPath: string = '';
 
   static configure(options: DiagnosticOptions): void {
