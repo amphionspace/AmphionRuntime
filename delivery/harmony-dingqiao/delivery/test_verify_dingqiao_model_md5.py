@@ -36,13 +36,10 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
             for source in MODULE.RUNTIME_TO_ONNX_SOURCE.values()
         }
 
-    def test_default_policy_pins_supplied_zh_en_bundle_onnx_md5(self) -> None:
+    def test_default_policy_pins_260717_edge_transducer_onnx_md5(self) -> None:
         model_id, expected = MODULE.load_policy()
         policy = json.loads(MODULE.DEFAULT_POLICY_PATH.read_text(encoding="utf-8"))
-        self.assertEqual(
-            "zh-en-frozen-agc-evidence-bundle-54c30cdd",
-            model_id,
-        )
+        self.assertEqual("transducer-chunk32-lc256-260717", model_id)
         self.assertEqual(
             "54c30cddf6bc942108ab040f0c27dc61",
             policy["source_bundle"]["md5"],

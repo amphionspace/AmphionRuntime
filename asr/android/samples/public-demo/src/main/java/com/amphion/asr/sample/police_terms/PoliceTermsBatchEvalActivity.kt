@@ -16,10 +16,8 @@ import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrEngine
 import com.amphion.asr.AsrLanguage
 import com.amphion.asr.sample.AmphionApp
-import com.amphion.asr.sample.HotwordsPrefs
 import com.amphion.asr.sample.R
 import com.amphion.police.PoliceEnhancePipeline
-import com.amphion.police.PoliceHotwordProfile
 import com.amphion.police.terms.PoliceTermsEnhancePrefs
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -166,22 +164,7 @@ class PoliceTermsBatchEvalActivity : AppCompatActivity() {
         val prefs = PoliceTermsEnhancePrefs(applicationContext)
         // 端点实验：--ei endpoint_ms N 覆盖主动 endpoint 尾静音阈值（<0 = 沿用 batchMode 默认 0=关闭）
         val epMs = intent.getIntExtra(EXTRA_ENDPOINT_MS, -1).takeIf { it >= 0 }
-        val hotwordProfile = intent.getStringExtra(EXTRA_HOTWORD_PROFILE)?.let {
-            PoliceHotwordProfile.parse(it)
-        }
-        val userHotwords = HotwordsPrefs(applicationContext).activeWords(AsrLanguage.ZH_EN)
-        evalRecorder.writeRunConfig(
-            hotwordProfile = hotwordProfile?.wireValue ?: "preference",
-            termsHotwordsEnabled = prefs.termsHotwordsEnabled,
-            userHotwords = userHotwords,
-            filterPrefix = filterPrefix,
-        )
-        Log.i(
-            TAG,
-            "buildConfig activeEndpointMs=${epMs ?: "default(batch=0/关闭)"} " +
-                "hotwordProfile=${hotwordProfile?.wireValue ?: "preference"} " +
-                "userHotwordCount=${userHotwords.map { it.trim() }.filter { it.isNotEmpty() }.distinct().size}",
-        )
+        Log.i(TAG, "buildConfig activeEndpointMs=${epMs ?: "default(batch=0/关闭)"}")
         return PoliceTermsAsrConfig.build(
             applicationContext,
             AsrLanguage.ZH_EN,
@@ -190,7 +173,6 @@ class PoliceTermsBatchEvalActivity : AppCompatActivity() {
                 termsNormalize = prefs.termsNormalizeEnabled,
                 itn = true,
                 batchMode = true,
-                hotwordProfile = hotwordProfile,
                 activeEndpointMs = epMs,
             ),
         )
@@ -291,6 +273,5 @@ class PoliceTermsBatchEvalActivity : AppCompatActivity() {
         const val EXTRA_FRESH = "fresh"
         const val EXTRA_USE_FST = "use_fst"
         const val EXTRA_ENDPOINT_MS = "endpoint_ms"
-        const val EXTRA_HOTWORD_PROFILE = "hotword_profile"
     }
 }

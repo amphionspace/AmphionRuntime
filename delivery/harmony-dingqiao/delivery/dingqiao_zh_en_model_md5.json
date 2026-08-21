@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "model_id": "zh-en-frozen-agc-evidence-bundle-54c30cdd",
+  "model_id": "transducer-chunk32-lc256-260717",
   "source_bundle": {
     "name": "bundle.tar.gz",
     "md5": "54c30cddf6bc942108ab040f0c27dc61"

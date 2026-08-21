@@ -17,9 +17,6 @@ val fatAarPath = providers.gradleProperty("dingqiaoFatAarPath").orElse(
 ).get()
 val evalAudioDir = providers.gradleProperty("dingqiaoEvalAudioDir").orNull
 val demoAssetDir = providers.gradleProperty("dingqiaoDemoAssetDir").orNull
-val useCreateOnlyPerfRunner = providers.gradleProperty("dingqiaoCreateOnlyPerfRunner")
-    .orElse("false")
-    .get() == "true"
 
 android {
     namespace = "com.amphion.dingqiao.demo"
@@ -32,11 +29,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
 
-        testInstrumentationRunner = if (useCreateOnlyPerfRunner) {
-            "com.amphion.dingqiao.demo.DqCreateOnlyPerfRunner"
-        } else {
-            "androidx.test.runner.AndroidJUnitRunner"
-        }
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters += listOf("arm64-v8a")
@@ -111,5 +104,4 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(project(":sdk-police"))
 }
