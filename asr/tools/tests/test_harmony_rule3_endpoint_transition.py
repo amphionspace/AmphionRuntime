@@ -20,6 +20,10 @@ CHECKPOINT_PATCH = REPO_ROOT / (
     "third_party/patches/sherpa-amphion/"
     "0017-fix-asr-commit-rule3-segments-natively.patch"
 )
+CHECKPOINT_NORMALIZATION_PATCH = REPO_ROOT / (
+    "third_party/patches/sherpa-amphion/"
+    "0018-fix-asr-preserve-checkpoint-beam-normalization.patch"
+)
 DIAGNOSTIC = REPO_ROOT / "asr/tools/decode_streaming.py"
 
 
@@ -95,6 +99,15 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
         self.assertIn("recognizer.commit_rule3_segment(stream)", diagnostic)
         self.assertNotIn("rule3_reset_mode", diagnostic)
 
+        normalization_patch = CHECKPOINT_NORMALIZATION_PATCH.read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("length_normalization_offset", normalization_patch)
+        self.assertIn(
+            "ModifiedBeamPreservesLengthNormalizedRanking",
+            normalization_patch,
+        )
+
     def test_diagnostic_reports_the_first_boundary_token_divergence(self) -> None:
         diagnostic = load_diagnostic_module()
         oracle = {
@@ -114,7 +127,9 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
             "committed_timestamps": [59.9, 60.2],
             "events": [{"kind": "ENDPOINT"}],
         }
-        checkpoint = dict(soft, transition="checkpoint")
+        checkpoint = dict(
+            soft, transition="checkpoint", checkpoint_committed_count=1
+        )
 
         self.assertTrue(
             diagnostic.compare_with_continuous(oracle, soft)["matches_continuous"]
@@ -149,6 +164,38 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
         self.assertEqual(unexercised["endpoint_count"], 0)
         self.assertFalse(diagnostic.transition_gate_passes([unexercised]))
         self.assertFalse(diagnostic.transition_gate_passes([]))
+        checkpoint_without_commit = dict(
+            checkpoint, checkpoint_committed_count=0
+        )
+        checkpoint_without_commit_comparison = (
+            diagnostic.compare_with_continuous(
+                oracle, checkpoint_without_commit
+            )
+        )
+        self.assertFalse(
+            diagnostic.transition_gate_passes(
+                [checkpoint_without_commit_comparison]
+            )
+        )
+        self.assertFalse(
+            diagnostic.transition_gate_passes(
+                [diagnostic.compare_with_continuous(oracle, checkpoint)], 4
+            )
+        )
+        checkpoint_with_extra_restart = dict(
+            checkpoint,
+            checkpoint_committed_count=4,
+            non_rule3_hard_restart_count=1,
+            events=[{"kind": "ENDPOINT"}] * 5,
+        )
+        self.assertFalse(
+            diagnostic.transition_gate_passes(
+                [diagnostic.compare_with_continuous(
+                    oracle, checkpoint_with_extra_restart
+                )],
+                4,
+            )
+        )
 
     def test_fixed_pcm_exercises_all_transition_paths(self) -> None:
         diagnostic = load_diagnostic_module()
@@ -255,6 +302,7 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
         self.assertEqual(fresh["candidate_token"], "after")
         self.assertTrue(checkpoint["matches_continuous"])
         self.assertEqual(checkpoint["endpoint_count"], 1)
+        self.assertEqual(checkpoint["checkpoint_committed_count"], 1)
         self.assertTrue(diagnostic.transition_gate_passes([soft, fresh, checkpoint]))
 
     def test_checkpoint_hard_restarts_non_rule3_endpoint(self) -> None:
@@ -325,6 +373,10 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
         self.assertEqual(recognizer.generation, 2)
         self.assertEqual(recognizer.checkpoint_calls, 0)
         self.assertEqual(run["events"][0]["endpoint_reason"], 1)
+        self.assertEqual(run["checkpoint_committed_count"], 0)
+        comparison = diagnostic.compare_with_continuous(run, run)
+        self.assertTrue(comparison["matches_continuous"])
+        self.assertFalse(diagnostic.transition_gate_passes([comparison]))
 
     def test_boundary_prefix_gate_uses_the_first_nonempty_terminal_after_rule3(self) -> None:
         diagnostic = load_diagnostic_module()
@@ -350,6 +402,31 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
                 {"events": [{"kind": "ENDPOINT", "text": "before"}]},
                 "一二三四五六七",
             )
+        )
+
+    def test_boundary_prefix_gate_rejects_non_checkpoint_single_route(self) -> None:
+        completed = subprocess.run(
+            [
+                "python3",
+                str(DIAGNOSTIC),
+                "--model-dir",
+                "missing-model",
+                "--wav",
+                "missing.wav",
+                "--endpoint-transition",
+                "soft",
+                "--expected-after-first-endpoint-prefix",
+                "一二三四五六七",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn(
+            "requires --endpoint-transition checkpoint or --compare-transitions",
+            completed.stderr,
         )
 
 

@@ -22,6 +22,7 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0015-*` | modified beam search 在每条 hypothesis 的声学 top-50 内对热词起始/延续 token 临时 `+3` 后再做最终 beam 裁剪；入选后扣除临时分，由 ContextGraph 保持原有逐 token `+3` 与回滚语义 |
 | `0016-*` | native endpoint 返回按规则优先级判定的 reason，并通过 Harmony 内部 binding 暴露，避免 Runtime 用累计 PCM 猜测 Rule3 |
 | `0017-*` | Rule3 final 使用 native checkpoint 冻结已发布路径并保留连续 encoder/decoder context，避免边界丢 token 或重复 token |
+| `0018-*` | Rule3 checkpoint 压缩历史 token 后保留长度归一化偏移，确保 modified beam search 的后续路径排序与 continuous 一致 |
 
 Apply automatically from the Harmony `04_build_harmony_so.sh` entry point (Android also applies the same series from its native build flow):
 

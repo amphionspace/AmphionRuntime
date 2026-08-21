@@ -92,6 +92,8 @@ def streaming_decode(recognizer, samples, sr, args, transition):
     chunk_n = sr * args.chunk_ms // 1000
     endpoint_latched = False
     stream_generation = 1
+    checkpoint_committed_count = 0
+    non_rule3_hard_restart_count = 0
     decode_calls = 0
     segment_start_sample = 0
 
@@ -165,9 +167,11 @@ def streaming_decode(recognizer, samples, sr, args, transition):
                 if result["endpoint_reason"] == ENDPOINT_REASON_RULE3 and has_result:
                     if not recognizer.commit_rule3_segment(stream):
                         raise RuntimeError("native Rule3 checkpoint was rejected")
+                    checkpoint_committed_count += 1
                 else:
                     stream = recognizer.create_stream()
                     stream_generation += 1
+                    non_rule3_hard_restart_count += 1
                 segment_start_sample = sample_offset
             elif transition == "fresh":
                 committed_tokens.extend(result["tokens"])
@@ -214,6 +218,8 @@ def streaming_decode(recognizer, samples, sr, args, transition):
         "events": events,
         "committed_tokens": committed_tokens,
         "committed_timestamps": committed_timestamps,
+        "checkpoint_committed_count": checkpoint_committed_count,
+        "non_rule3_hard_restart_count": non_rule3_hard_restart_count,
     }
 
 
@@ -241,6 +247,12 @@ def compare_with_continuous(oracle, candidate):
         "endpoint_count": sum(
             event["kind"] == "ENDPOINT" for event in candidate["events"]
         ),
+        "checkpoint_committed_count": candidate.get(
+            "checkpoint_committed_count", 0
+        ),
+        "non_rule3_hard_restart_count": candidate.get(
+            "non_rule3_hard_restart_count", 0
+        ),
         "oracle_token_count": len(oracle_tokens),
         "candidate_token_count": len(candidate_tokens),
         "first_diff_index": first_diff,
@@ -253,13 +265,26 @@ def compare_with_continuous(oracle, candidate):
     }
 
 
-def transition_gate_passes(comparisons):
-    """Require exercised boundaries and exact checkpoint/oracle token parity."""
+def transition_gate_passes(comparisons, expected_rule3_checkpoints=None):
+    """Require real native checkpoints and exact checkpoint/oracle token parity."""
     return bool(comparisons) and all(
         comparison["endpoint_count"] > 0
         and (
             comparison["transition"] != "checkpoint"
-            or comparison["matches_continuous"]
+            or (
+                comparison["matches_continuous"]
+                and comparison["checkpoint_committed_count"] > 0
+                and (
+                    expected_rule3_checkpoints is None
+                    or (
+                        comparison["checkpoint_committed_count"]
+                        == expected_rule3_checkpoints
+                        and comparison["endpoint_count"]
+                        == comparison["checkpoint_committed_count"]
+                        and comparison["non_rule3_hard_restart_count"] == 0
+                    )
+                )
+            )
         )
         for comparison in comparisons
     )
@@ -318,6 +343,11 @@ def main():
         help="checkpoint 分段 token 与 continuous oracle 不一致时返回失败",
     )
     ap.add_argument(
+        "--expected-rule3-checkpoints",
+        type=int,
+        help="要求每个 decoder/segment 实际成功提交指定次数的 native Rule3 checkpoint",
+    )
+    ap.add_argument(
         "--expected-after-first-endpoint-prefix",
         help="要求 checkpoint 后第一条非空 endpoint/final 以该文本开头",
     )
@@ -330,6 +360,20 @@ def main():
     args = ap.parse_args()
     if args.require_checkpoint_oracle_match and not args.compare_transitions:
         ap.error("--require-checkpoint-oracle-match requires --compare-transitions")
+    if args.expected_rule3_checkpoints is not None:
+        if not args.compare_transitions:
+            ap.error("--expected-rule3-checkpoints requires --compare-transitions")
+        if args.expected_rule3_checkpoints <= 0:
+            ap.error("--expected-rule3-checkpoints must be positive")
+    if (
+        args.expected_after_first_endpoint_prefix
+        and not args.compare_transitions
+        and args.endpoint_transition != "checkpoint"
+    ):
+        ap.error(
+            "--expected-after-first-endpoint-prefix requires "
+            "--endpoint-transition checkpoint or --compare-transitions"
+        )
 
     samples, sr = load_wav(args.wav)
     print(f"loaded {args.wav}: dur={len(samples)/sr:.2f}s sr={sr}, gain={args.gain}dB")
@@ -390,11 +434,7 @@ def main():
                     if args.show_token_timestamps:
                         print(f"             tokens={event.get('tokens', [])}")
                         print(f"             timestamps={event.get('timestamps', [])}")
-                gate_transition = (
-                    transition == "checkpoint"
-                    if args.compare_transitions
-                    else transition == args.endpoint_transition
-                )
+                gate_transition = transition == "checkpoint"
                 if args.expected_after_first_endpoint_prefix and gate_transition:
                     boundary_text = first_nonempty_terminal_after_endpoint(run)
                     boundary_match = boundary_prefix_matches(
@@ -418,6 +458,7 @@ def main():
                         f"COMPARE {decoder}/{transition}: "
                         f"match={comparison['matches_continuous']} "
                         f"endpoints={comparison['endpoint_count']} "
+                        f"checkpoints={comparison['checkpoint_committed_count']} "
                         f"tokens={comparison['candidate_token_count']}/"
                         f"{comparison['oracle_token_count']} "
                         f"first_diff={comparison['first_diff_index']} "
@@ -434,7 +475,13 @@ def main():
                 ensure_ascii=False,
                 indent=2,
             )
-    if args.require_checkpoint_oracle_match and not transition_gate_passes(comparisons):
+    checkpoint_gate_requested = (
+        args.require_checkpoint_oracle_match
+        or args.expected_rule3_checkpoints is not None
+    )
+    if checkpoint_gate_requested and not transition_gate_passes(
+        comparisons, args.expected_rule3_checkpoints
+    ):
         raise SystemExit(2)
     if args.expected_after_first_endpoint_prefix and boundary_gate_failed:
         raise SystemExit(3)
