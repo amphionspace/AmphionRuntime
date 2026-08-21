@@ -717,22 +717,20 @@ internal class SessionImpl(
     }
 
     private fun markInitialSpeechDetected(result: OnlineRecognizerResult) {
-        if (result.text.isEmpty() && result.tokens.isEmpty()) return
+        if (initialSilenceTimeoutSent || result.text.isEmpty() && result.tokens.isEmpty()) return
         initialSpeechDetected = true
         initialSilenceSamples = 0L
     }
 
-    private fun discardInitialSilenceTimeoutResult(result: AsrResult, timedOut: Boolean): AsrResult =
-        if (timedOut) {
-            result.copy(
-                text = "",
-                tokens = emptyList(),
-                timestamps = emptyList(),
-                tokenConfidences = emptyList(),
-            )
-        } else {
-            result
-        }
+    private fun discardInitialSilenceTimeoutResult(result: AsrResult, timedOut: Boolean): AsrResult {
+        if (!timedOut) return result
+        return result.copy(
+            text = "",
+            tokens = emptyList(),
+            timestamps = emptyList(),
+            tokenConfidences = emptyList(),
+        )
+    }
 
     /**
      * endpoint / VAD 切句后是否硬重启 stream。
