@@ -102,7 +102,8 @@ export class DiagnosticOptions {
   mode: string = DiagnosticMode.BASIC;
   captureAudio: boolean = false;
   includeRecognitionText: boolean = false;
-  maxSessionAudioSec: number = 120;
+  /** Retain the latest five minutes by default; values are capped at ten minutes. */
+  maxSessionAudioSec: number = 300;
   /** FAILURE_ONLY pre-trigger rolling audio window. */
   failureRingAudioSec: number = 20;
   /** Per-session structured-event ring before a FAILURE_ONLY trigger. */

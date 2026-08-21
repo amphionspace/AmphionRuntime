@@ -42,9 +42,11 @@ export interface DiagnosticEvent {
 export interface DiagnosticAudioSnapshot {
   pcm: ArrayBuffer;
   bytes: number;
+  totalInputBytes: number;
   frames: number;
   samples: number;
   durationMs: number;
+  totalInputDurationMs: number;
   firstFrameTimeMs: number;
   lastFrameTimeMs: number;
   maxFrameGapMs: number;
@@ -54,6 +56,7 @@ export interface DiagnosticAudioSnapshot {
   truncated: boolean;
   ringBuffer: boolean;
   preTriggerDroppedBytes: number;
+  rollingDroppedBytes: number;
 }
 
 export interface DiagnosticSessionSnapshot {
@@ -85,18 +88,25 @@ class DiagnosticAudioChunk {
 class DiagnosticAudioCapture {
   private readonly maxBytes: number;
   private readonly ringBytes: number;
+  private readonly failureRingMode: boolean;
   private readonly chunks: DiagnosticAudioChunk[] = [];
+  private headIndex: number = 0;
   private bytes: number = 0;
+  private totalInputBytes: number = 0;
   private frames: number = 0;
   private triggered: boolean = false;
   private truncatedValue: boolean = false;
-  private droppedBytes: number = 0;
+  private preTriggerDroppedBytes: number = 0;
+  private rollingDroppedBytes: number = 0;
 
   constructor(maxSessionAudioSec: number, failureRingAudioSec: number, ringBuffer: boolean) {
-    this.maxBytes = Math.max(0, Math.floor(maxSessionAudioSec * 16000 * 2));
-    this.ringBytes = ringBuffer ?
+    const requestedMaxBytes = Math.max(0, Math.floor(maxSessionAudioSec * 16000 * 2));
+    this.maxBytes = requestedMaxBytes - requestedMaxBytes % 2;
+    const requestedRingBytes = ringBuffer ?
       Math.min(this.maxBytes, Math.max(640, Math.floor(failureRingAudioSec * 16000 * 2))) :
       this.maxBytes;
+    this.ringBytes = requestedRingBytes - requestedRingBytes % 2;
+    this.failureRingMode = ringBuffer;
     this.triggered = !ringBuffer;
   }
 
@@ -108,29 +118,42 @@ class DiagnosticAudioCapture {
     const limit = this.triggered ? this.maxBytes : this.ringBytes;
     const evenBytes = audio.byteLength - audio.byteLength % 2;
     if (evenBytes === 0) return;
-    const accepted = audio.slice(0, Math.min(evenBytes, limit));
+    this.totalInputBytes += evenBytes;
+    const acceptedBytes = Math.min(evenBytes, limit);
+    const accepted = audio.slice(evenBytes - acceptedBytes, evenBytes);
     this.chunks.push(new DiagnosticAudioChunk(accepted, nowMs));
     this.bytes += accepted.byteLength;
-    if (accepted.byteLength < evenBytes) this.truncatedValue = true;
-    if (this.triggered && this.bytes > this.maxBytes) {
-      const overflow = this.bytes - this.maxBytes;
-      const last = this.chunks[this.chunks.length - 1];
-      const keep = Math.max(0, last.pcm.byteLength - overflow);
-      this.chunks.pop();
-      this.bytes -= last.pcm.byteLength;
-      if (keep > 0) {
-        const clipped = last.pcm.slice(0, keep - keep % 2);
-        this.chunks.push(new DiagnosticAudioChunk(clipped, last.wallTimeMs));
-        this.bytes += clipped.byteLength;
-      }
+    if (accepted.byteLength < evenBytes) {
+      const dropped = evenBytes - accepted.byteLength;
+      if (this.triggered) this.rollingDroppedBytes += dropped;
+      else this.preTriggerDroppedBytes += dropped;
       this.truncatedValue = true;
     }
-    while (!this.triggered && this.bytes > this.ringBytes && this.chunks.length > 0) {
-      const removed = this.chunks.shift();
-      if (removed !== undefined) {
-        this.bytes -= removed.pcm.byteLength;
-        this.droppedBytes += removed.pcm.byteLength;
+    this.trimOldestTo(limit, !this.triggered);
+  }
+
+  private trimOldestTo(limit: number, preTrigger: boolean): void {
+    let overflow = Math.max(0, this.bytes - limit);
+    while (overflow > 0 && this.headIndex < this.chunks.length) {
+      const first = this.chunks[this.headIndex];
+      const removeBytes = Math.min(overflow, first.pcm.byteLength);
+      if (removeBytes === first.pcm.byteLength) {
+        this.headIndex += 1;
+      } else {
+        this.chunks[this.headIndex] = new DiagnosticAudioChunk(
+          first.pcm.slice(removeBytes, first.pcm.byteLength),
+          first.wallTimeMs
+        );
       }
+      this.bytes -= removeBytes;
+      overflow -= removeBytes;
+      if (preTrigger) this.preTriggerDroppedBytes += removeBytes;
+      else this.rollingDroppedBytes += removeBytes;
+      this.truncatedValue = true;
+    }
+    if (this.headIndex >= 1024 && this.headIndex * 2 >= this.chunks.length) {
+      this.chunks.splice(0, this.headIndex);
+      this.headIndex = 0;
     }
   }
 
@@ -142,12 +165,12 @@ class DiagnosticAudioCapture {
     let peakValue = 0;
     let clippedSamples = 0;
     let maxFrameGapMs = 0;
-    for (let i = 0; i < this.chunks.length; i++) {
+    for (let i = this.headIndex; i < this.chunks.length; i++) {
       const chunk = this.chunks[i];
       const source = new Uint8Array(chunk.pcm);
       destination.set(source, offset);
       offset += source.byteLength;
-      if (i > 0) {
+      if (i > this.headIndex) {
         maxFrameGapMs = Math.max(maxFrameGapMs,
           chunk.wallTimeMs - this.chunks[i - 1].wallTimeMs);
       }
@@ -164,18 +187,22 @@ class DiagnosticAudioCapture {
     return {
       pcm: merged,
       bytes: this.bytes,
+      totalInputBytes: this.totalInputBytes,
       frames: this.frames,
       samples,
       durationMs: Math.round(samples * 1000 / 16000),
-      firstFrameTimeMs: this.chunks.length > 0 ? this.chunks[0].wallTimeMs : -1,
-      lastFrameTimeMs: this.chunks.length > 0 ? this.chunks[this.chunks.length - 1].wallTimeMs : -1,
+      totalInputDurationMs: Math.round(this.totalInputBytes / 2 * 1000 / 16000),
+      firstFrameTimeMs: this.headIndex < this.chunks.length ? this.chunks[this.headIndex].wallTimeMs : -1,
+      lastFrameTimeMs: this.headIndex < this.chunks.length ?
+        this.chunks[this.chunks.length - 1].wallTimeMs : -1,
       maxFrameGapMs,
       rms: samples > 0 ? Math.sqrt(squareSum / samples) / 32768 : 0,
       peak: peakValue / 32768,
       clipRate: samples > 0 ? clippedSamples / samples : 0,
       truncated: this.truncatedValue,
-      ringBuffer: this.ringBytes < this.maxBytes,
-      preTriggerDroppedBytes: this.droppedBytes
+      ringBuffer: this.failureRingMode,
+      preTriggerDroppedBytes: this.preTriggerDroppedBytes,
+      rollingDroppedBytes: this.rollingDroppedBytes
     };
   }
 }
@@ -215,7 +242,7 @@ export class DiagnosticsCore {
     mode: DiagnosticModeValue.BASIC,
     captureAudio: false,
     includeRecognitionText: false,
-    maxSessionAudioSec: 120,
+    maxSessionAudioSec: 300,
     failureRingAudioSec: 20,
     maxSessionEvents: 512
   };

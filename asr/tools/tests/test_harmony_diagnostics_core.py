@@ -39,7 +39,7 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             cwd=REPO_ROOT,
         )
 
-    def test_audio_is_exactly_the_validated_public_input_and_is_bounded(self) -> None:
+    def test_audio_is_exactly_the_validated_public_input_and_rolls_at_the_limit(self) -> None:
         self.run_core(
             """
             const core = new DiagnosticsCore();
@@ -68,6 +68,11 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             core.captureAudio('customer-secret', new ArrayBuffer(640), 1065);
             assert.equal(core.snapshot().sessions[0].audio.truncated, true);
             assert.equal(core.snapshot().sessions[0].audio.bytes, 1280);
+            assert.equal(core.snapshot().sessions[0].audio.totalInputBytes, 1920);
+            assert.equal(core.snapshot().sessions[0].audio.durationMs, 40);
+            assert.equal(core.snapshot().sessions[0].audio.totalInputDurationMs, 60);
+            assert.equal(core.snapshot().sessions[0].audio.rollingDroppedBytes, 640);
+            assert.equal(new Int16Array(core.snapshot().sessions[0].audio.pcm)[0], -2000);
             """
         )
 
@@ -183,6 +188,7 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.assertIn("mode: DiagnosticMode.CUSTOMER_SUPPORT", module)
         self.assertIn("captureAudio: true", module)
         self.assertIn("includeRecognitionText: true", module)
+        self.assertIn("maxSessionAudioSec: 300", module)
         self.assertIn("enabled: DEBUG && options.enabled", module)
         self.assertIn("JOURNAL_INTERVAL_MS", module)
         self.assertIn("crash-recovery.json", module)
@@ -236,6 +242,7 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             assert.equal(bad.audio.ringBuffer, true);
             assert.equal(bad.audio.durationMs, 1000);
             assert.equal(bad.audio.preTriggerDroppedBytes, 6400);
+            assert.equal(bad.audio.rollingDroppedBytes, 0);
             """
         )
 

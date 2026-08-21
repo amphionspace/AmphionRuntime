@@ -76,7 +76,7 @@ function createDiagnosticsCore(): DiagnosticsCore {
       mode: DiagnosticMode.CUSTOMER_SUPPORT,
       captureAudio: true,
       includeRecognitionText: true,
-      maxSessionAudioSec: 120,
+      maxSessionAudioSec: 300,
       failureRingAudioSec: 20,
       maxSessionEvents: 512
     });
@@ -578,7 +578,7 @@ export class DiagnosticsModule {
     manifest['createdAtMs'] = Date.now();
     manifest['mode'] = snapshot.config.mode;
     manifest['automaticPersistence'] = automatic;
-    manifest['privacy'] = 'audio and recognition text are independently opt-in; identifiers are opaque';
+    manifest['privacy'] = 'audio and text are independently controlled; Debug defaults on; identifiers are opaque';
     manifest['files'] = [
       'events.ndjson', 'callbacks.ndjson', 'summary.json', 'effective-config.json',
       'build-identity.json', 'model-manifest.json', 'resource-samples.csv', 'native-state.json'
@@ -600,11 +600,12 @@ export class DiagnosticsModule {
     metadata['channels'] = 1;
     metadata['sampleBit'] = 16;
     metadata['bytes'] = audio.bytes;
+    metadata['totalInputBytes'] = audio.totalInputBytes;
     metadata['frames'] = audio.frames;
     metadata['callerFrameBytes'] = 640;
     metadata['samples'] = audio.samples;
     metadata['durationMs'] = audio.durationMs;
-    metadata['actualWriteAudioDurationMs'] = audio.durationMs;
+    metadata['actualWriteAudioDurationMs'] = audio.totalInputDurationMs;
     metadata['firstFrameTimeMs'] = audio.firstFrameTimeMs;
     metadata['lastFrameTimeMs'] = audio.lastFrameTimeMs;
     metadata['maxFrameGapMs'] = audio.maxFrameGapMs;
@@ -614,6 +615,7 @@ export class DiagnosticsModule {
     metadata['truncated'] = audio.truncated;
     metadata['ringBuffer'] = audio.ringBuffer;
     metadata['preTriggerDroppedBytes'] = audio.preTriggerDroppedBytes;
+    metadata['rollingDroppedBytes'] = audio.rollingDroppedBytes;
     metadata['audioSource'] = 'caller-provided-external-stream';
     metadata['source'] = 'public-writeAudio-input';
     metadata['includesColdStartPreRoll'] = true;
@@ -679,6 +681,7 @@ export class DiagnosticsModule {
     result['emptyFinal'] = emptyFinal;
     result['streamRestartCount'] = streamRestartCount;
     result['actualPcmDurationMs'] = session.audio?.durationMs ?? 0;
+    result['actualWriteAudioDurationMs'] = session.audio?.totalInputDurationMs ?? 0;
     result['pcmTruncated'] = session.audio?.truncated ?? false;
     result['callbackLatencyMs'] = startTimeMs >= 0 && firstCallbackMs >= 0 ? firstCallbackMs - startTimeMs : -1;
     result['nextSessionReady'] = session.terminal && errorCount === 0;

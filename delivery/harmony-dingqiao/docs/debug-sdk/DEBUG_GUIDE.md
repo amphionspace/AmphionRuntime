@@ -88,5 +88,6 @@ NDJSON、脱敏后的 `hilog.txt`、`resource-samples.csv`、`native-state.json`
 session；若进程异常退出，下次 `SpeechRecognizeSdk.init` 会恢复为可导出的 run，并写入
 `crash-recovery.json`。硬杀进程最多可能丢失最后约 5 秒，不能替代系统 crash dump。
 
-默认单 session 最多采集 120 秒，可配置但最高 10 分钟；诊断总目录最多 200 MB，最多保留
-最近 3 个 run，超限时从最旧 run 开始清理。以上参数可通过 `DiagnosticOptions` 调整。
+默认单 session 滚动保留最近 5 分钟音频，可配置但最高 10 分钟；超过窗口后持续采集并丢弃
+最旧 PCM，元数据会记录滚动丢弃字节数。诊断总目录最多 200 MB，最多保留最近 3 个 run，
+超限时从最旧 run 开始清理。以上参数可通过 `DiagnosticOptions` 调整。
