@@ -1,6 +1,14 @@
 {
   "files": {
     "hotwords.json": "b63c4bcd2176a3566c1ad1f5f4161a101c78d51aa1a62f7bc52065c3a74706cd",
+    "lac/v1/LICENSE": "d06571900c8f6454abd87fa7aed148a7522257e684ba41057ac97577e5cebdb2",
+    "lac/v1/SOURCE.md": "0686f8433691772c90c0ee90f32bb090736c5ce8391880de2cb5a63d6c8e6b74",
+    "lac/v1/lac_crf_transitions.npy": "446a54b4ad0596519b8fe1bfaac40290f70e3aef3c5686a8dab05c6405faef6b",
+    "lac/v1/lac_encoder.onnx": "826085fff327d0c76c0dd55400629ce0ed192a6519ecd9841ed6fdedb4cb5aec",
+    "lac/v1/pinyin.tsv": "f013f602999ce51039ef67384dfbf80481b0ec34d1f93735972733488104991c",
+    "lac/v1/q2b.dic": "688ecfed0bd3fa898a0b26fd27a838432e0f32600bdf35739de7931ff51187a1",
+    "lac/v1/tag.dic": "0e10caa505cd12e6f43630505503ccf24ee081f61a155fcc186041601cfd0bfe",
+    "lac/v1/word.dic": "63e3f4d9ad4a7b5041263e61d3de0a12ca7a67cf4251a6a127c9f47356e6d517",
     "plate/plate_homophone.fst": "ca66df413305d970bf742d0cf15c980933b2acbf37b8224e1aa501e85894217a",
     "plate/plate_homophone_meta.json": "30dc5fe5d989fa0bff336f576efc3d166fd525604b541cf4b31e968ceadfa3ca",
     "plate/plate_homophones.csv": "6e2d509db8a3bd1b595168befd0963787d4f5ebec102a24656b19e74c7684603",
