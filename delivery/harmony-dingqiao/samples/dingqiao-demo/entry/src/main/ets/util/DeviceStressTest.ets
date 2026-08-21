@@ -41,6 +41,7 @@ const VOICEPRINT_SHORT_FRAMES: number = 25;
 const VOICEPRINT_THRESHOLD_FRAMES: number = 75;
 const VOICEPRINT_LONG_FRAMES: number = 150;
 const VOICEPRINT_LEADING_SILENCE_FRAMES: number = 50;
+const VOICEPRINT_MULTI_UTTERANCE_SILENCE_FRAMES: number = 75;
 const VOICEPRINT_LOW_GAIN: number = 0.15;
 const VOICEPRINT_SCENARIOS: string[] = [
   'short', 'threshold', 'long', 'leading-silence', 'low-volume', 'multi-utterance', 'alternate-source'
@@ -1276,7 +1277,7 @@ async function runVoiceprintCycle(engine: SpeechRecognitionEngine, entry: Corpus
       undefined, VOICEPRINT_LOW_GAIN);
   } else if (scenario === 'multi-utterance') {
     fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, 0);
-    feedSilence(engine, sessionId, VOICEPRINT_LEADING_SILENCE_FRAMES);
+    feedSilence(engine, sessionId, VOICEPRINT_MULTI_UTTERANCE_SILENCE_FRAMES);
     await sleep(100);
     fed += await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, 0);
   } else {
