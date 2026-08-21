@@ -6,6 +6,7 @@ import deviceInfo from '@ohos.deviceInfo';
 import hilog from '@ohos.hilog';
 import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
+import { DiagnosticsModule } from './DiagnosticsModule';
 import { FinishShutdownGate } from './FinishShutdownGate';
 import { endpointMaxUtteranceSec, endpointRecognizerConfigKey } from './EndpointRulePolicy';
 import { finiteNumberParam } from './NumericParam';
@@ -26,6 +27,8 @@ import {
   AudioInfo,
   CreateEngineCallback,
   CreateEngineParams,
+  DiagnosticExportCallback,
+  DiagnosticOptions,
   DINGQIAO_AUDIO_FRAME_BYTES_20MS,
   DINGQIAO_AUDIO_FRAME_BYTES_40MS,
   DINGQIAO_VOICEPRINT_MAX_SEC,
@@ -359,6 +362,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private finishShutdownGate: FinishShutdownGate;
   // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
   private engineCfgKey: string = '';
+  private readonly diagnosticEngineId: string;
 
   constructor(context: Context, params: CreateEngineParams, preloadedEngine?: AsrEngine) {
     this.context = context;
@@ -368,6 +372,43 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(context, this.params));
     this.engineCfgKey = this.computeEngineCfgKey(false, false, undefined);
     this.finishShutdownGate = new FinishShutdownGate((): void => this.releaseEngineResources());
+    this.diagnosticEngineId = DiagnosticsModule.nextEngineId();
+    this.diagnosticValues('', 'ENGINE_CREATED',
+      ['language', 'online'], [this.params.language, this.params.online]);
+  }
+
+  private diagnostic(sessionId: string, event: string, fields: Record<string, Object> = {}): void {
+    try {
+      DiagnosticsModule.record(sessionId, this.diagnosticEngineId, event, fields);
+    } catch (_ignored) {
+      // Diagnostics are observational. A capture failure must never enter the ASR control path.
+    }
+  }
+
+  private diagnosticValues(sessionId: string, event: string, keys: string[], values: Object[]): void {
+    const fields: Record<string, Object> = {};
+    for (let i = 0; i < keys.length && i < values.length; i++) fields[keys[i]] = values[i];
+    this.diagnostic(sessionId, event, fields);
+  }
+
+  private beginDiagnosticSession(params: StartParams, voiceprintIdCount: number,
+    verify: boolean, speakerVad: boolean): void {
+    try {
+      const safeConfig: Record<string, Object> = {};
+      safeConfig['audioType'] = params.audioInfo.audioType;
+      safeConfig['sampleRate'] = params.audioInfo.sampleRate;
+      safeConfig['sampleBit'] = params.audioInfo.sampleBit;
+      safeConfig['soundChannel'] = params.audioInfo.soundChannel;
+      safeConfig['vadBeginMs'] = vadBeginMs(params) ?? -1;
+      safeConfig['vadEndMs'] = vadEndMs(params);
+      safeConfig['maxAudioDurationSec'] = numberParam(params.extraParams, 'maxAudioDuration', 0);
+      safeConfig['enableVoiceprintVerification'] = verify;
+      safeConfig['enableSpeakerVad'] = speakerVad;
+      safeConfig['voiceprintIdCount'] = voiceprintIdCount;
+      safeConfig['hotwordCount'] = parseLexicon(params.extraParams['hotwords']).length;
+      DiagnosticsModule.beginSession(params.sessionId, this.diagnosticEngineId, safeConfig);
+    } catch (_ignored) {
+    }
   }
 
   // vadBegin/vadEnd/speaker 窗口均由 SessionConfig 覆盖；目标说话人能力、同步加载策略和 native
@@ -433,6 +474,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         return;
       }
     }
+    this.beginDiagnosticSession(params, voiceprintIds.length, verify, speakerVad);
     // Android builds the session with voiceprint capability whenever IDs are supplied, even if both
     // switches start disabled. This preserves setSpeakerVadEnabled(true) for a running session without
     // loading the model for ordinary sessions that have no voiceprint IDs.
@@ -565,6 +607,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.cancelRequestedDuringStart = false;
       newEnhancer?.close();
       this.tearDownSession();
+      this.diagnosticValues(params.sessionId, 'CALLBACK_ERROR',
+        ['errorCode', 'message'], [DingqiaoErrorCode.START_LISTENING_FAILED, `${e}`]);
       this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, `${e}`);
     }
   }
@@ -586,6 +630,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       return;
     }
     if (this.finishRequested) return;
+    try {
+      // This is the public-input seam: after validation, before async/native dispatch. It never
+      // writes files; the bounded capture owns a private snapshot of the accepted frame.
+      DiagnosticsModule.captureAudio(sessionId, audio);
+    } catch (_ignored) {
+    }
     const session = this.session;
     const generation = this.sessionStartGate.currentGeneration();
     // Reserve the frame before entering native code. A customer callback can synchronously write a
@@ -608,6 +658,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.finishRequested = true;
       this.lastFinishedSessionId = sessionId;
       this.lastAutoFinishedSessionId = sessionId;
+      this.diagnosticValues(sessionId, 'AUTO_FINISH_REQUESTED',
+        ['reason', 'audioBytesWritten'], ['maxAudioDuration', this.audioBytesWritten]);
       if (this.targetSpeakerEnhancementPipeline !== undefined) {
         this.targetSpeakerEnhancementPipeline.finish();
       } else {
@@ -666,6 +718,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (this.finishRequested) return;
     this.finishRequested = true;
     this.lastFinishedSessionId = sessionId;
+    this.diagnosticValues(sessionId, 'FINISH_REQUESTED',
+      ['audioBytesWritten'], [this.audioBytesWritten]);
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
       this.targetSpeakerEnhancementPipeline.finish();
     } else {
@@ -680,10 +734,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       return;
     }
     if (this.startingSession && this.session === undefined) {
+      this.diagnosticValues(sessionId, 'CANCEL_REQUESTED', ['duringStart'], [true]);
       this.cancelRequestedDuringStart = true;
       this.resetSessionState();
       return;
     }
+    this.diagnosticValues(sessionId, 'CANCEL_REQUESTED', ['duringStart'], [false]);
     this.tearDownSession();
   }
 
@@ -696,6 +752,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   shutdown(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.diagnosticValues(this.currentSessionId, 'SHUTDOWN_REQUESTED',
+      ['busy', 'finishRequested'], [this.busy, this.finishRequested]);
     if (this.finishShutdownGate.request(this.busy && this.finishRequested)) return;
   }
 
@@ -726,7 +784,13 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     finalSession.dispatch(
       payload,
       result.text,
-      (): void => { this.listener?.onResult?.(sessionId, payload); },
+      (): void => {
+        this.diagnosticValues(sessionId, 'CALLBACK_RESULT',
+          ['isFinal', 'isLast', 'textChars', 'text', 'hasSpeakerSimilarity'],
+          [payload.isFinal, payload.isLast, payload.result.length, payload.result,
+            payload.speakerSimilarity !== undefined]);
+        this.listener?.onResult?.(sessionId, payload);
+      },
       (): void => {
         if (this.sessionStartGate.isCurrent(generation) && this.currentSessionId === sessionId) {
           this.completeCurrentSession(generation);
@@ -742,6 +806,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.completeSent = true;
     this.tearDownSession();
     try {
+      this.diagnostic(sessionId, 'CALLBACK_COMPLETE');
       this.listener?.onComplete?.(sessionId, 'recognize complete');
     } finally {
       this.finishShutdownGate.settle();
@@ -834,6 +899,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     result.isLast = false;
     result.result = text;
     if (this.targetSpeakerEnhancementEnabled) result.targetSpeakerEnhancementApplied = true;
+    this.diagnosticValues(this.currentSessionId, 'CALLBACK_RESULT',
+      ['isFinal', 'isLast', 'textChars', 'text'], [false, false, text.length, text]);
     this.listener?.onResult?.(this.currentSessionId, result);
   }
 
@@ -850,6 +917,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finishRequested = true;
     this.lastFinishedSessionId = sessionId;
     this.lastAutoFinishedSessionId = sessionId;
+    this.diagnosticValues(sessionId, 'AUTO_FINISH_REQUESTED',
+      ['reason', 'audioBytesWritten'], ['vadBegin', this.audioBytesWritten]);
     this.targetSpeakerEnhancementPipeline?.cancel();
     this.audioDispatcher?.finish();
   }
@@ -886,6 +955,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     payload.speakerSimilarity = result.speakerScore;
     if (this.targetSpeakerEnhancementEnabled) payload.targetSpeakerEnhancementApplied = true;
     this.finalResultSent = true;
+    this.diagnosticValues(sessionId, 'CALLBACK_RESULT',
+      ['isFinal', 'isLast', 'textChars', 'hasSpeakerSimilarity', 'rejectedBySpeakerVad'],
+      [true, payload.isLast, 0, payload.speakerSimilarity !== undefined, true]);
     this.listener?.onResult?.(sessionId, payload);
     if (rejectedFinalCompletesSession(result.isLast)) {
       if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
@@ -898,6 +970,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const sessionId = this.currentSessionId;
     this.tearDownSession();
     try {
+      this.diagnosticValues(sessionId, 'CALLBACK_ERROR',
+        ['errorCode', 'nativeErrorCode', 'message'],
+        [DingqiaoErrorCode.RECOGNITION_ERROR, error.code, error.message]);
       this.listener?.onError?.(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, `${error.code}: ${error.message}`);
     } finally {
       this.finishShutdownGate.settle();
@@ -914,6 +989,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (!this.sessionStartGate.isCurrent(generation)) return;
     const sessionId = this.currentSessionId;
     if (!this.busy || this.session === undefined || sessionId.length === 0) return;
+    this.diagnostic(sessionId, 'CALLBACK_START');
     this.listener?.onStart?.(sessionId, 'startListening success.');
   }
 
@@ -930,6 +1006,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         result.result = '';
         if (this.targetSpeakerEnhancementEnabled) result.targetSpeakerEnhancementApplied = true;
         this.finalResultSent = true;
+        this.diagnosticValues(sessionId, 'CALLBACK_RESULT',
+          ['isFinal', 'isLast', 'textChars', 'stopFallback'], [true, true, 0, true]);
         this.listener?.onResult?.(sessionId, result);
         if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
         this.completeCurrentSession(generation);
@@ -1065,12 +1143,33 @@ export class SpeechRecognizeSdk {
     }
     SpeechRecognizeSdk.context = context;
     SpeechRecognizeSdk.deviceIdProvider = deviceIdProvider;
+    DiagnosticsModule.setRootPath(context.filesDir);
   }
 
   static setWorkPath(path: string): void {
     if (path.trim().length === 0) throw new Error('workPath must not be empty');
     if (!fs.accessSync(path)) fs.mkdirSync(path, true);
     SpeechRecognizeSdk.workPath = path;
+    DiagnosticsModule.setRootPath(path);
+  }
+
+  /** Configure the opt-in Debug SDK observer before prepareRuntime. */
+  static configureDiagnostics(options: DiagnosticOptions): void {
+    if (AmphionRuntime.isRuntimeReady() || SpeechRecognizeSdk.runtimePreparation.activeTask() !== undefined) {
+      throw new Error('configureDiagnostics must be called before prepareRuntime');
+    }
+    DiagnosticsModule.configure(options);
+  }
+
+  /** Export is scheduled outside the caller stack; capture never performs file I/O in writeAudio. */
+  static exportDiagnostics(callback: DiagnosticExportCallback): void {
+    Promise.resolve()
+      .then((): string => DiagnosticsModule.export())
+      .then((path: string): void => callback.onSuccess(path))
+      .catch((e: Object): void => callback.onError(
+        DingqiaoErrorCode.INTERNAL_ERROR,
+        `exportDiagnostics failed: ${e}`
+      ));
   }
 
   static setLicense(licensePath: string, callback: LicenseActivationCallback): void {

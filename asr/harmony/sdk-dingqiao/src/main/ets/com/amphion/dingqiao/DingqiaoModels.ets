@@ -91,6 +91,32 @@ export interface PrepareRuntimeCallback {
   onError(errorCode: number, message: string): void;
 }
 
+export class DiagnosticMode {
+  static readonly BASIC: string = 'BASIC';
+  static readonly CUSTOMER_SUPPORT: string = 'CUSTOMER_SUPPORT';
+  static readonly FAILURE_ONLY: string = 'FAILURE_ONLY';
+}
+
+export class DiagnosticOptions {
+  enabled: boolean = false;
+  mode: string = DiagnosticMode.BASIC;
+  captureAudio: boolean = false;
+  includeRecognitionText: boolean = false;
+  maxSessionAudioSec: number = 120;
+
+  static customerSupport(): DiagnosticOptions {
+    const options = new DiagnosticOptions();
+    options.enabled = true;
+    options.mode = DiagnosticMode.CUSTOMER_SUPPORT;
+    return options;
+  }
+}
+
+export interface DiagnosticExportCallback {
+  onSuccess(path: string): void;
+  onError(errorCode: number, message: string): void;
+}
+
 export class DingqiaoErrorCode {
   static readonly CREATE_ENGINE_FAILED: number = 1002200001;
   static readonly START_LISTENING_FAILED: number = 1002200002;
