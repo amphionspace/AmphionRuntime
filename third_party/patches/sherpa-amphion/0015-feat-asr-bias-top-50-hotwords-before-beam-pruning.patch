@@ -1,0 +1,96 @@
+From 0b14a550bc8963cd82c77a06d296a2e133acc25a Mon Sep 17 00:00:00 2001
+From: lucky9cyou <lucky@lucky9.cyou>
+Date: Fri, 21 Aug 2026 14:33:11 +0800
+Subject: [PATCH] feat(asr): bias top-50 hotwords before beam pruning
+
+---
+ ...transducer-modified-beam-search-decoder.cc | 59 +++++++++++++++++--
+ 1 file changed, 55 insertions(+), 4 deletions(-)
+
+diff --git a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
+index f33f157f..f0c04e8b 100644
+--- a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
++++ b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
+@@ -172,6 +172,51 @@ void OnlineTransducerModifiedBeamSearchDecoder::Decode(
+       int32_t frame_offset = (*result)[b].frame_offset;
+       int32_t start = hyps_row_splits[b];
+       int32_t end = hyps_row_splits[b + 1];
++
++      // Audio8-style hotword candidate selection: only tokens already in the
++      // acoustic model's top-50 may be promoted before the final beam top-k.
++      // The +3 value is selection-only. It is removed from surviving
++      // hypotheses before ContextGraph applies its original cumulative score,
++      // so decoding and rollback semantics remain unchanged after pruning.
++      constexpr int32_t kHotwordCandidateTopK = 50;
++      constexpr float kHotwordStartBoost = 3.0f;
++      constexpr float kHotwordContinuationBoost = 3.0f;
++      std::vector<std::pair<int32_t, float>> candidate_boosts;
++      candidate_boosts.reserve(kHotwordCandidateTopK * (end - start));
++      for (int32_t hyp_index = start; hyp_index != end; ++hyp_index) {
++        const ContextState *state = prev[hyp_index].context_state;
++        if (state == nullptr || ss == nullptr || ss[b] == nullptr) continue;
++
++        const auto &context_graph = ss[b]->GetContextGraph();
++        if (context_graph == nullptr) continue;
++
++        const int32_t local_hyp = hyp_index - start;
++        float *local_logprob = p_logprob + local_hyp * vocab_size;
++        auto acoustic_topk =
++            TopkIndex(local_logprob, vocab_size,
++                      std::min(kHotwordCandidateTopK, vocab_size));
++        const ContextState *root = context_graph->Root();
++
++        for (int32_t token : acoustic_topk) {
++          float boost = 0.0f;
++          auto continuation = state->next.find(token);
++          if (state != root && continuation != state->next.end() &&
++              continuation->second->token_score > 0.0f) {
++            boost = kHotwordContinuationBoost;
++          } else {
++            auto hotword_start = root->next.find(token);
++            if (hotword_start != root->next.end() &&
++                hotword_start->second->token_score > 0.0f) {
++              boost = kHotwordStartBoost;
++            }
++          }
++
++          if (boost == 0.0f) continue;
++          const int32_t candidate = local_hyp * vocab_size + token;
++          p_logprob[candidate] += boost;
++          candidate_boosts.emplace_back(candidate, boost);
++        }
++      }
+       auto topk =
+           TopkIndex(p_logprob, vocab_size * (end - start), max_active_paths_);
+ 
+@@ -179,6 +224,13 @@ void OnlineTransducerModifiedBeamSearchDecoder::Decode(
+       for (auto k : topk) {
+         int32_t hyp_index = k / vocab_size + start;
+         int32_t new_token = k % vocab_size;
++        float candidate_boost = 0.0f;
++        for (const auto &item : candidate_boosts) {
++          if (item.first == k) {
++            candidate_boost = item.second;
++            break;
++          }
++        }
+ 
+         Hypothesis new_hyp = prev[hyp_index];
+         const float prev_lm_log_prob = new_hyp.lm_log_prob;
+@@ -204,13 +256,12 @@ void OnlineTransducerModifiedBeamSearchDecoder::Decode(
+           ++new_hyp.num_trailing_blanks;
+         }
+         if (lm_ && shallow_fusion_) {
+-           new_hyp.log_prob = p_logprob[k] + context_score -
++           new_hyp.log_prob = p_logprob[k] - candidate_boost + context_score -
+                            prev_lm_log_prob;  // log_prob only includes the
+                                               // score of the transducer
+         } else {
+-           new_hyp.log_prob = p_logprob[k] + context_score;  // rescore or no LM
+-                                                             // previous token
+-                                                             // score is ignored
++           new_hyp.log_prob = p_logprob[k] - candidate_boost + context_score;
++           // rescore or no LM previous token score is ignored
+         }
+ 
+         // export the per-token log scores
