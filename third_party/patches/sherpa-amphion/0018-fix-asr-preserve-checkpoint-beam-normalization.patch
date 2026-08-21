@@ -1,0 +1,187 @@
+From ccfe4b7e6b2f3a041622976626b00ed7cff8df90 Mon Sep 17 00:00:00 2001
+From: Boxp <boxp@BoxpdeMacBook-Air.local>
+Date: Fri, 21 Aug 2026 20:35:38 +0800
+Subject: [PATCH] fix(asr): preserve checkpoint beam normalization
+
+---
+ sherpa-onnx/csrc/hypothesis.cc                |  8 +--
+ sherpa-onnx/csrc/hypothesis.h                 | 11 ++++
+ ...transducer-modified-beam-search-decoder.cc |  2 +
+ ...online-transducer-rule3-checkpoint-test.cc | 65 +++++++++++++++++++
+ 4 files changed, 82 insertions(+), 4 deletions(-)
+
+diff --git a/sherpa-onnx/csrc/hypothesis.cc b/sherpa-onnx/csrc/hypothesis.cc
+index b6463a12..d0256e04 100644
+--- a/sherpa-onnx/csrc/hypothesis.cc
++++ b/sherpa-onnx/csrc/hypothesis.cc
+@@ -34,8 +34,8 @@ Hypothesis Hypotheses::GetMostProbable(bool length_norm) const {
+     return std::max_element(
+                hyps_dict_.begin(), hyps_dict_.end(),
+                [](const auto &left, const auto &right) -> bool {
+-                 return left.second.TotalLogProb() / left.second.ys.size() <
+-                        right.second.TotalLogProb() / right.second.ys.size();
++                 return left.second.LengthNormalizedLogProb() <
++                        right.second.LengthNormalizedLogProb();
+                })
+         ->second;
+   }
+@@ -56,8 +56,8 @@ std::vector<Hypothesis> Hypotheses::GetTopK(int32_t k, bool length_norm) const {
+     // for length_norm is true
+     std::partial_sort(all_hyps.begin(), all_hyps.begin() + k, all_hyps.end(),
+                       [](const auto &a, const auto &b) {
+-                        return a.TotalLogProb() / a.ys.size() >
+-                               b.TotalLogProb() / b.ys.size();
++                        return a.LengthNormalizedLogProb() >
++                               b.LengthNormalizedLogProb();
+                       });
+   }
+ 
+diff --git a/sherpa-onnx/csrc/hypothesis.h b/sherpa-onnx/csrc/hypothesis.h
+index 52569e49..6086aeeb 100644
+--- a/sherpa-onnx/csrc/hypothesis.h
++++ b/sherpa-onnx/csrc/hypothesis.h
+@@ -7,6 +7,7 @@
+ #ifndef SHERPA_ONNX_CSRC_HYPOTHESIS_H_
+ #define SHERPA_ONNX_CSRC_HYPOTHESIS_H_
+ 
++#include <cstdint>
+ #include <sstream>
+ #include <string>
+ #include <unordered_map>
+@@ -53,6 +54,11 @@ struct Hypothesis {
+   // LM log prob if any.
+   double lm_log_prob = 0;
+ 
++  // Number of committed prefix tokens omitted from ys. Rule3 checkpoints keep
++  // this scalar so length-normalized modified beam search remains equivalent
++  // to the uncompressed continuous history while token storage stays bounded.
++  int64_t length_normalization_offset = 0;
++
+   // the nn lm score for next token given the current ys,
+   // when using shallow fusion
+   CopyableOrtValue nn_lm_scores;
+@@ -81,6 +87,11 @@ struct Hypothesis {
+ 
+   double TotalLogProb() const { return log_prob + lm_log_prob; }
+ 
++  double LengthNormalizedLogProb() const {
++    return TotalLogProb() /
++           (static_cast<double>(ys.size()) + length_normalization_offset);
++  }
++
+   // If two Hypotheses have the same `Key`, then they contain
+   // the same token sequence.
+   std::string Key() const {
+diff --git a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
+index 8add71a8..6c3bce48 100644
+--- a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
++++ b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
+@@ -330,6 +330,8 @@ bool OnlineTransducerModifiedBeamSearchDecoder::CommitRule3Segment(
+     return false;
+   }
+ 
++  best.length_normalization_offset +=
++      static_cast<int64_t>(best.ys.size()) - context_size;
+   best.ys.erase(best.ys.begin(), best.ys.end() - context_size);
+   best.timestamps.clear();
+   best.ys_probs.clear();
+diff --git a/sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc b/sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc
+index 1dce6174..151f8ae4 100644
+--- a/sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc
++++ b/sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc
+@@ -2,6 +2,7 @@
+ 
+ #include "sherpa-onnx/csrc/online-transducer-greedy-search-decoder.h"
+ #include "sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.h"
++#include "sherpa-onnx/csrc/online-stream.h"
+ 
+ #include <vector>
+ 
+@@ -43,6 +44,8 @@ TEST(OnlineTransducerRule3Checkpoint, ModifiedBeamFreezesPublishedBestPath) {
+   best.ys_probs = {-0.1, -0.2, -0.3};
+   best.lm_probs = {-1.1, -1.2, -1.3};
+   best.context_scores = {1.1, 1.2, 1.3};
++  ContextState context_state(10, 3, 3, 0);
++  best.context_state = &context_state;
+   best.cur_scored_pos = 3;
+   best.num_trailing_blanks = 7;
+   Hypothesis alternate({-1, 0, 20, 11, 12}, 1);
+@@ -60,6 +63,7 @@ TEST(OnlineTransducerRule3Checkpoint, ModifiedBeamFreezesPublishedBestPath) {
+   EXPECT_TRUE(frozen.context_scores.empty());
+   EXPECT_EQ(frozen.cur_scored_pos, 0);
+   EXPECT_EQ(frozen.num_trailing_blanks, 0);
++  EXPECT_EQ(frozen.context_state, &context_state);
+   EXPECT_EQ(result.tokens, frozen.ys);
+   EXPECT_EQ(result.frame_offset, 0);
+   EXPECT_FALSE(static_cast<bool>(result.decoder_out));
+@@ -76,6 +80,67 @@ TEST(OnlineTransducerRule3Checkpoint, ModifiedBeamFreezesPublishedBestPath) {
+   EXPECT_EQ(continued.ys.size() - 2, continued.context_scores.size());
+ }
+ 
++TEST(OnlineTransducerRule3Checkpoint,
++     ModifiedBeamPreservesLengthNormalizedRanking) {
++  OnlineTransducerModifiedBeamSearchDecoder decoder(
++      nullptr, nullptr, 8, 0, false, -1, 0, 1);
++  OnlineTransducerDecoderResult result;
++
++  std::vector<int64_t> history = {-1, 0};
++  history.insert(history.end(), 100, 10);
++  auto continuous_shorter = Hypothesis(history, -101);
++  continuous_shorter.ys.push_back(20);
++  auto continuous_longer = Hypothesis(history, -103);
++  continuous_longer.ys.push_back(20);
++  continuous_longer.ys.push_back(21);
++  Hypotheses continuous(
++      std::vector<Hypothesis>{continuous_shorter, continuous_longer});
++  ASSERT_EQ(continuous.GetMostProbable(true).ys, continuous_shorter.ys);
++
++  result.hyps.Add(Hypothesis(history, -100));
++
++  ASSERT_TRUE(decoder.CommitRule3Segment(&result, 2));
++  auto checkpoint = result.hyps.GetMostProbable(true);
++  ASSERT_EQ(checkpoint.length_normalization_offset, 100);
++
++  auto shorter = checkpoint;
++  shorter.ys.push_back(20);
++  shorter.log_prob = -101;
++  auto longer = checkpoint;
++  longer.ys.push_back(20);
++  longer.ys.push_back(21);
++  longer.log_prob = -103;
++
++  Hypotheses continued(std::vector<Hypothesis>{shorter, longer});
++  EXPECT_EQ(continued.GetMostProbable(true).ys, shorter.ys);
++  EXPECT_EQ(continued.GetTopK(1, true).front().ys, shorter.ys);
++  EXPECT_EQ(continued.GetMostProbable(true).ys.back(),
++            continuous.GetMostProbable(true).ys.back());
++
++  result.hyps = std::move(continued);
++  result.tokens = result.hyps.GetMostProbable(true).ys;
++  ASSERT_TRUE(decoder.CommitRule3Segment(&result, 2));
++  EXPECT_EQ(result.hyps.GetMostProbable(true).length_normalization_offset, 101);
++}
++
++TEST(OnlineTransducerRule3Checkpoint,
++     StreamResetKeepsEncoderStateAndAdvancesSegmentClock) {
++  OnlineStream stream;
++  stream.GetNumProcessedFrames() = 37;
++  stream.GetCurrentSegment() = 2;
++  std::vector<Ort::Value> encoder_states;
++  encoder_states.emplace_back(nullptr);
++  stream.SetStates(std::move(encoder_states));
++
++  stream.Reset();
++
++  EXPECT_EQ(stream.GetNumProcessedFrames(), 0);
++  EXPECT_EQ(stream.GetNumFramesSinceStart(), 37);
++  EXPECT_EQ(stream.GetCurrentSegment(), 2);
++  ASSERT_EQ(stream.GetStates().size(), 1);
++  EXPECT_FALSE(static_cast<bool>(stream.GetStates().front()));
++}
++
+ TEST(OnlineTransducerRule3Checkpoint, RejectsEmptyPublishedResult) {
+   OnlineTransducerGreedySearchDecoder greedy(nullptr, -1, 0, 1);
+   OnlineTransducerDecoderResult result;
+-- 
+2.50.1 (Apple Git-155)
+
