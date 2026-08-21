@@ -19,10 +19,16 @@ export class SessionAudioDispatcher {
   private canceled: boolean = false;
   private failed: boolean = false;
   private finishTask?: Promise<void>;
+  private queuedTasks: number = 0;
+  private maxQueuedTasks: number = 0;
+  private nativeCallsInFlight: number = 0;
+  private observeState: boolean = false;
 
-  constructor(processor: SessionAudioProcessor, onError: (message: string) => void) {
+  constructor(processor: SessionAudioProcessor, onError: (message: string) => void,
+    observeState: boolean = false) {
     this.processor = processor;
     this.onError = onError;
+    this.observeState = observeState;
   }
 
   write(audio: ArrayBuffer): boolean {
@@ -85,11 +91,35 @@ export class SessionAudioDispatcher {
     return this.pending;
   }
 
+  /** Read-only counters consumed by diagnostics; they never gate dispatch behavior. */
+  diagnosticState(): Record<string, Object> {
+    const state: Record<string, Object> = {};
+    state['audioQueueDepth'] = this.queuedTasks;
+    state['maxAudioQueueDepth'] = this.maxQueuedTasks;
+    state['nativeCallsInFlight'] = this.nativeCallsInFlight;
+    state['accepting'] = this.accepting;
+    state['canceled'] = this.canceled;
+    state['failed'] = this.failed;
+    return state;
+  }
+
   private enqueue(task: () => Promise<void>): void {
+    if (this.observeState) {
+      this.queuedTasks += 1;
+      this.maxQueuedTasks = Math.max(this.maxQueuedTasks, this.queuedTasks);
+    }
     const sessionPredecessor = this.pending;
     const execution = SessionAudioDispatcher.executionTail.then(async (): Promise<void> => {
       await sessionPredecessor;
-      await task();
+      if (this.observeState) this.nativeCallsInFlight += 1;
+      try {
+        await task();
+      } finally {
+        if (this.observeState) {
+          this.nativeCallsInFlight -= 1;
+          this.queuedTasks = Math.max(0, this.queuedTasks - 1);
+        }
+      }
     });
     this.pending = execution;
     SessionAudioDispatcher.executionTail = execution.catch((): void => {});
