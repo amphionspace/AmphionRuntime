@@ -515,6 +515,14 @@ class RunCommandTest(unittest.TestCase):
             "events.speakerScores > 0 && events.firstNonEmptyFinalHasScore === true",
             normalized,
         )
+        self.assertIn(
+            "const VOICEPRINT_VAD_BEGIN_LEADING_SILENCE_FRAMES: number = 30;",
+            source,
+        )
+        self.assertIn(
+            "feedSilence(engine, sessionId, VOICEPRINT_VAD_BEGIN_LEADING_SILENCE_FRAMES)",
+            cycle,
+        )
 
     def test_voiceprint_vad_begin_idle_paces_frames_for_async_completion(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
