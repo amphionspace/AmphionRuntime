@@ -1,0 +1,394 @@
+From c19294cbe4ce4b890206ce36bb0bd8d827380245 Mon Sep 17 00:00:00 2001
+From: Boxp <boxp@BoxpdeMacBook-Air.local>
+Date: Fri, 21 Aug 2026 15:42:52 +0800
+Subject: [PATCH] fix(asr): report native endpoint reasons
+
+---
+ .../SherpaOnnxHar/sherpa_onnx/Index.ets       |  1 +
+ .../sherpa_onnx/src/main/cpp/streaming-asr.cc | 20 +++++++++++++
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |  1 +
+ .../src/main/ets/components/StreamingAsr.ets  | 13 +++++++++
+ sherpa-onnx/c-api/c-api.cc                    |  8 +++++
+ sherpa-onnx/c-api/c-api.h                     | 10 +++++++
+ sherpa-onnx/csrc/CMakeLists.txt               |  1 +
+ sherpa-onnx/csrc/endpoint-test.cc             | 29 +++++++++++++++++++
+ sherpa-onnx/csrc/endpoint.cc                  | 23 +++++++++++----
+ sherpa-onnx/csrc/endpoint.h                   | 13 +++++++++
+ sherpa-onnx/csrc/online-recognizer-impl.h     |  4 +++
+ .../csrc/online-recognizer-transducer-impl.h  | 11 +++++--
+ sherpa-onnx/csrc/online-recognizer.cc         |  4 +++
+ sherpa-onnx/csrc/online-recognizer.h          |  2 ++
+ 14 files changed, 131 insertions(+), 9 deletions(-)
+ create mode 100644 sherpa-onnx/csrc/endpoint-test.cc
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
+index eba21eb6..149f2eb6 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
+@@ -32,6 +32,7 @@ export { Samples,
+ } from './src/main/ets/components/NonStreamingAsr';
+ 
+ export { OnlineStream,
++  OnlineEndpointReason,
+   onlineStreamLiveCount,
+   OnlineNemoCtcModelConfig,
+   OnlineParaformerModelConfig,
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+index 697e04ab..6c25c1e7 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+@@ -1020,6 +1020,24 @@ static Napi::Boolean IsEndpointWrapper(const Napi::CallbackInfo &info) {
+   return Napi::Boolean::New(env, is_endpoint);
+ }
+ 
++static Napi::Number GetEndpointReasonWrapper(const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 2 || !info[0].IsExternal() ||
++      !info[1].IsExternal()) {
++    Napi::TypeError::New(env, "Expected recognizer and stream handles.")
++        .ThrowAsJavaScriptException();
++    return {};
++  }
++
++  const SherpaOnnxOnlineRecognizer *recognizer = GetOnlineRecognizer(info, 0);
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return {};
++
++  int32_t reason =
++      SherpaOnnxOnlineStreamGetEndpointReason(recognizer, stream);
++  return Napi::Number::New(env, reason);
++}
++
+ static Napi::External<SherpaOnnxDisplay> CreateDisplayWrapper(
+     const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+@@ -1132,6 +1150,8 @@ void InitStreamingAsr(Napi::Env env, Napi::Object exports) {
+ 
+   exports.Set(Napi::String::New(env, "isEndpoint"),
+               Napi::Function::New(env, IsEndpointWrapper));
++  exports.Set(Napi::String::New(env, "getEndpointReason"),
++              Napi::Function::New(env, GetEndpointReasonWrapper));
+ 
+   exports.Set(Napi::String::New(env, "createDisplay"),
+               Napi::Function::New(env, CreateDisplayWrapper));
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index a66ac7d9..39b11d64 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -41,6 +41,7 @@ export const decodeOnlineStream: (handle: object, streamHandle: object) => void;
+ export const decodeOnlineStreamAsync: (handle: object,
+   streamHandle: object) => Promise<number>;
+ export const isEndpoint: (handle: object, streamHandle: object) => boolean;
++export const getEndpointReason: (handle: object, streamHandle: object) => number;
+ export const reset: (handle: object, streamHandle: object) => void;
+ export const getOnlineStreamResultAsJson: (handle: object, streamHandle: object) => string;
+ 
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+index d301589d..c272930f 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+@@ -8,6 +8,7 @@ import {
+   decodeOnlineStreamAsync,
+   destroyOnlineStream,
+   getOnlineStreamResultAsJson,
++  getEndpointReason,
+   getOnlineStreamLiveCount,
+   inputFinished,
+   isEndpoint,
+@@ -132,6 +133,14 @@ export class OnlineRecognizerResult {
+   public json: string = '';
+ }
+ 
++export enum OnlineEndpointReason {
++  NONE = 0,
++  RULE1 = 1,
++  RULE2 = 2,
++  RULE3 = 3,
++  UNKNOWN = 4,
++}
++
+ export class OnlineRecognizer {
+   public handle: object;
+   public config: OnlineRecognizerConfig
+@@ -177,6 +186,10 @@ export class OnlineRecognizer {
+     return isEndpoint(this.handle, stream.handle);
+   }
+ 
++  getEndpointReason(stream: OnlineStream): OnlineEndpointReason {
++    return getEndpointReason(this.handle, stream.handle) as OnlineEndpointReason;
++  }
++
+   reset(stream: OnlineStream) {
+     reset(this.handle, stream.handle);
+   }
+diff --git a/sherpa-onnx/c-api/c-api.cc b/sherpa-onnx/c-api/c-api.cc
+index 6722b848..1006f95c 100644
+--- a/sherpa-onnx/c-api/c-api.cc
++++ b/sherpa-onnx/c-api/c-api.cc
+@@ -397,6 +397,14 @@ int32_t SherpaOnnxOnlineStreamIsEndpoint(
+   return recognizer->impl->IsEndpoint(stream->impl.get());
+ }
+ 
++int32_t SherpaOnnxOnlineStreamGetEndpointReason(
++    const SherpaOnnxOnlineRecognizer *recognizer,
++    const SherpaOnnxOnlineStream *stream) {
++  if (!recognizer || !stream) return 0;
++  return static_cast<int32_t>(
++      recognizer->impl->GetEndpointReason(stream->impl.get()));
++}
++
+ const SherpaOnnxDisplay *SherpaOnnxCreateDisplay(int32_t max_word_per_line) {
+   SherpaOnnxDisplay *ans = new SherpaOnnxDisplay;
+   ans->impl = std::make_unique<sherpa_onnx::Display>(max_word_per_line);
+diff --git a/sherpa-onnx/c-api/c-api.h b/sherpa-onnx/c-api/c-api.h
+index fe7c2e79..7cd654c9 100644
+--- a/sherpa-onnx/c-api/c-api.h
++++ b/sherpa-onnx/c-api/c-api.h
+@@ -770,6 +770,16 @@ SHERPA_ONNX_API int32_t
+ SherpaOnnxOnlineStreamIsEndpoint(const SherpaOnnxOnlineRecognizer *recognizer,
+                                  const SherpaOnnxOnlineStream *stream);
+ 
++/**
++ * @brief Return the endpoint rule selected by native priority ordering.
++ *
++ * @return 0 for none, 1 for rule1, 2 for rule2, 3 for rule3, and 4 when the
++ *         recognizer reports an endpoint without a rule-specific reason.
++ */
++SHERPA_ONNX_API int32_t SherpaOnnxOnlineStreamGetEndpointReason(
++    const SherpaOnnxOnlineRecognizer *recognizer,
++    const SherpaOnnxOnlineStream *stream);
++
+ /**
+  * @brief Helper for pretty-printing incremental recognition results.
+  *
+diff --git a/sherpa-onnx/csrc/CMakeLists.txt b/sherpa-onnx/csrc/CMakeLists.txt
+index cac208e6..3425be2a 100755
+--- a/sherpa-onnx/csrc/CMakeLists.txt
++++ b/sherpa-onnx/csrc/CMakeLists.txt
+@@ -817,6 +817,7 @@ if(SHERPA_ONNX_ENABLE_TESTS)
+     cat-test.cc
+     circular-buffer-test.cc
+     context-graph-test.cc
++    endpoint-test.cc
+     math-test.cc
+     offline-whisper-timestamp-rules-test.cc
+     packed-sequence-test.cc
+diff --git a/sherpa-onnx/csrc/endpoint-test.cc b/sherpa-onnx/csrc/endpoint-test.cc
+new file mode 100644
+index 00000000..92fd4e36
+--- /dev/null
++++ b/sherpa-onnx/csrc/endpoint-test.cc
+@@ -0,0 +1,29 @@
++// sherpa-onnx/csrc/endpoint-test.cc
++
++#include "sherpa-onnx/csrc/endpoint.h"
++
++#include "gtest/gtest.h"
++
++namespace sherpa_onnx {
++
++TEST(Endpoint, ReportsRulePriority) {
++  Endpoint endpoint(EndpointConfig{});
++
++  EXPECT_EQ(endpoint.GetEndpointReason(3000, 300, 0.01),
++            EndpointReason::kRule1);
++  EXPECT_EQ(endpoint.GetEndpointReason(3000, 200, 0.01),
++            EndpointReason::kRule2);
++  EXPECT_EQ(endpoint.GetEndpointReason(3000, 50, 0.01),
++            EndpointReason::kRule3);
++  EXPECT_EQ(endpoint.GetEndpointReason(1000, 50, 0.01),
++            EndpointReason::kNone);
++}
++
++TEST(Endpoint, BooleanResultDelegatesToReason) {
++  Endpoint endpoint(EndpointConfig{});
++
++  EXPECT_TRUE(endpoint.IsEndpoint(3000, 50, 0.01));
++  EXPECT_FALSE(endpoint.IsEndpoint(1000, 50, 0.01));
++}
++
++}  // namespace sherpa_onnx
+diff --git a/sherpa-onnx/csrc/endpoint.cc b/sherpa-onnx/csrc/endpoint.cc
+index afe76fdb..c1aab286 100644
+--- a/sherpa-onnx/csrc/endpoint.cc
++++ b/sherpa-onnx/csrc/endpoint.cc
+@@ -76,6 +76,13 @@ std::string EndpointConfig::ToString() const {
+ bool Endpoint::IsEndpoint(int32_t num_frames_decoded,
+                           int32_t trailing_silence_frames,
+                           float frame_shift_in_seconds) const {
++  return GetEndpointReason(num_frames_decoded, trailing_silence_frames,
++                           frame_shift_in_seconds) != EndpointReason::kNone;
++}
++
++EndpointReason Endpoint::GetEndpointReason(
++    int32_t num_frames_decoded, int32_t trailing_silence_frames,
++    float frame_shift_in_seconds) const {
+   float utterance_length =
+       static_cast<float>(num_frames_decoded) * frame_shift_in_seconds;
+ 
+@@ -83,14 +90,18 @@ bool Endpoint::IsEndpoint(int32_t num_frames_decoded,
+       static_cast<float>(trailing_silence_frames) * frame_shift_in_seconds;
+ 
+   if (RuleActivated(config_.rule1, "rule1", trailing_silence,
+-                    utterance_length) ||
+-      RuleActivated(config_.rule2, "rule2", trailing_silence,
+-                    utterance_length) ||
+-      RuleActivated(config_.rule3, "rule3", trailing_silence,
+                     utterance_length)) {
+-    return true;
++    return EndpointReason::kRule1;
++  }
++  if (RuleActivated(config_.rule2, "rule2", trailing_silence,
++                    utterance_length)) {
++    return EndpointReason::kRule2;
++  }
++  if (RuleActivated(config_.rule3, "rule3", trailing_silence,
++                    utterance_length)) {
++    return EndpointReason::kRule3;
+   }
+-  return false;
++  return EndpointReason::kNone;
+ }
+ 
+ }  // namespace sherpa_onnx
+diff --git a/sherpa-onnx/csrc/endpoint.h b/sherpa-onnx/csrc/endpoint.h
+index aea5d7d2..1b6b0a0b 100644
+--- a/sherpa-onnx/csrc/endpoint.h
++++ b/sherpa-onnx/csrc/endpoint.h
+@@ -6,11 +6,20 @@
+ #ifndef SHERPA_ONNX_CSRC_ENDPOINT_H_
+ #define SHERPA_ONNX_CSRC_ENDPOINT_H_
+ 
++#include <cstdint>
+ #include <string>
+ #include <vector>
+ 
+ namespace sherpa_onnx {
+ 
++enum class EndpointReason : int32_t {
++  kNone = 0,
++  kRule1 = 1,
++  kRule2 = 2,
++  kRule3 = 3,
++  kUnknown = 4,
++};
++
+ struct EndpointRule {
+   // If True, for this endpointing rule to apply there must
+   // be nonsilence in the best-path traceback.
+@@ -67,6 +76,10 @@ class Endpoint {
+   bool IsEndpoint(int32_t num_frames_decoded, int32_t trailing_silence_frames,
+                   float frame_shift_in_seconds) const;
+ 
++  EndpointReason GetEndpointReason(int32_t num_frames_decoded,
++                                   int32_t trailing_silence_frames,
++                                   float frame_shift_in_seconds) const;
++
+  private:
+   EndpointConfig config_;
+ };
+diff --git a/sherpa-onnx/csrc/online-recognizer-impl.h b/sherpa-onnx/csrc/online-recognizer-impl.h
+index 9c2b4b71..754a8eba 100644
+--- a/sherpa-onnx/csrc/online-recognizer-impl.h
++++ b/sherpa-onnx/csrc/online-recognizer-impl.h
+@@ -55,6 +55,10 @@ class OnlineRecognizerImpl {
+ 
+   virtual bool IsEndpoint(OnlineStream *s) const = 0;
+ 
++  virtual EndpointReason GetEndpointReason(OnlineStream *s) const {
++    return IsEndpoint(s) ? EndpointReason::kUnknown : EndpointReason::kNone;
++  }
++
+   virtual void Reset(OnlineStream *s) const = 0;
+ 
+   std::string ApplyInverseTextNormalization(std::string text) const;
+diff --git a/sherpa-onnx/csrc/online-recognizer-transducer-impl.h b/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
+index 9486170d..32f7c81b 100644
+--- a/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
++++ b/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
+@@ -369,8 +369,12 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
+   }
+ 
+   bool IsEndpoint(OnlineStream *s) const override {
++    return GetEndpointReason(s) != EndpointReason::kNone;
++  }
++
++  EndpointReason GetEndpointReason(OnlineStream *s) const override {
+     if (!config_.enable_endpoint) {
+-      return false;
++      return EndpointReason::kNone;
+     }
+ 
+     int32_t num_processed_frames = s->GetNumProcessedFrames();
+@@ -381,8 +385,9 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
+     // subsampling factor is 4
+     int32_t trailing_silence_frames = s->GetResult().num_trailing_blanks * 4;
+ 
+-    return endpoint_.IsEndpoint(num_processed_frames, trailing_silence_frames,
+-                                frame_shift_in_seconds);
++    return endpoint_.GetEndpointReason(num_processed_frames,
++                                       trailing_silence_frames,
++                                       frame_shift_in_seconds);
+   }
+ 
+   void Reset(OnlineStream *s) const override {
+diff --git a/sherpa-onnx/csrc/online-recognizer.cc b/sherpa-onnx/csrc/online-recognizer.cc
+index 5a69ae65..f727e96f 100644
+--- a/sherpa-onnx/csrc/online-recognizer.cc
++++ b/sherpa-onnx/csrc/online-recognizer.cc
+@@ -259,6 +259,10 @@ bool OnlineRecognizer::IsEndpoint(OnlineStream *s) const {
+   return impl_->IsEndpoint(s);
+ }
+ 
++EndpointReason OnlineRecognizer::GetEndpointReason(OnlineStream *s) const {
++  return impl_->GetEndpointReason(s);
++}
++
+ void OnlineRecognizer::Reset(OnlineStream *s) const { impl_->Reset(s); }
+ 
+ #if __ANDROID_API__ >= 9
+diff --git a/sherpa-onnx/csrc/online-recognizer.h b/sherpa-onnx/csrc/online-recognizer.h
+index d98c114f..bdd2ee53 100644
+--- a/sherpa-onnx/csrc/online-recognizer.h
++++ b/sherpa-onnx/csrc/online-recognizer.h
+@@ -218,6 +218,8 @@ class OnlineRecognizer {
+   // invoke Reset(s).
+   bool IsEndpoint(OnlineStream *s) const;
+ 
++  EndpointReason GetEndpointReason(OnlineStream *s) const;
++
+   // Clear the state of this stream. If IsEndpoint(s) returns true,
+   // after calling this function, IsEndpoint(s) will return false
+   void Reset(OnlineStream *s) const;
+diff --git a/sherpa-onnx/python/csrc/online-recognizer.cc b/sherpa-onnx/python/csrc/online-recognizer.cc
+index e2f83be8..c45f3951 100644
+--- a/sherpa-onnx/python/csrc/online-recognizer.cc
++++ b/sherpa-onnx/python/csrc/online-recognizer.cc
+@@ -119,5 +119,11 @@ void PybindOnlineRecognizer(py::module *m) {
+       .def("get_result", &PyClass::GetResult, py::arg("s"),
+            py::call_guard<py::gil_scoped_release>())
++      .def(
++          "get_endpoint_reason",
++          [](PyClass &self, OnlineStream *s) {
++            return static_cast<int32_t>(self.GetEndpointReason(s));
++          },
++          py::arg("s"), py::call_guard<py::gil_scoped_release>())
+       .def("is_endpoint", &PyClass::IsEndpoint, py::arg("s"),
+            py::call_guard<py::gil_scoped_release>())
+       .def("reset", &PyClass::Reset, py::arg("s"),
+diff --git a/sherpa-onnx/python/sherpa_onnx/online_recognizer.py b/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
+index 88c7e182..9c6be23b 100644
+--- a/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
++++ b/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
+@@ -1018,6 +1018,9 @@ class OnlineRecognizer(object):
+     def context_scores(self, s: OnlineStream) -> List[float]:
+         return self.recognizer.get_result(s).context_scores
+ 
++    def get_endpoint_reason(self, s: OnlineStream) -> int:
++        return self.recognizer.get_endpoint_reason(s)
++
+     def is_endpoint(self, s: OnlineStream) -> bool:
+         return self.recognizer.is_endpoint(s)
+ 
+-- 
+2.50.1 (Apple Git-155)
