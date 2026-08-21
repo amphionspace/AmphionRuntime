@@ -106,7 +106,7 @@ struct Index {
   @State stoppingListening: boolean = false;
   @State caseNote: string = '';
   @State caseInfo: string = '';
-  @State diagnosticsInfo: string = '诊断已开启；音频和文本仅在显式启动参数开启时包含';
+  @State diagnosticsInfo: string = 'Debug 完整诊断已开启；复现结束后请导出诊断包';
 
   private engine?: SpeechRecognitionEngine;
   private recorder?: AudioRecorder;

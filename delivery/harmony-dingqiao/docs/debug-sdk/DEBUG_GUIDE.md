@@ -3,10 +3,11 @@
 Debug HAR 与 Release HAR 的模块名和识别接口保持一致。替换四个 HAR 后，现有
 `startListening`、`writeAudio`、`finish`、`cancel`、`shutdown` 和回调代码不需要修改。
 
-预配置 Debug HAR 和随包应用默认使用 `BASIC`：开启结构化诊断，但强制不包含音频和识别
-文本。客户只替换 Debug HAR 即可记录非敏感结构化事件，原有识别业务代码不需要修改。
-测试人员明确同意后，再通过下方配置开启音频或识别文本；随包应用也可使用启动参数
-`--ps diagnosticsAudio true --ps diagnosticsText true`，复现后点击“导出诊断包”。
+预配置 Debug HAR 和随包应用默认使用 `CUSTOMER_SUPPORT`：结构化诊断、实际送入公共
+`writeAudio` 的 PCM 和识别文本全部开启。客户只替换 Debug HAR 即可完成一次完整复现，
+原有识别业务代码不需要修改。该默认值只存在于专用 Debug 交付；Release HAR 中诊断硬关闭。
+如现场不允许携带音频或识别文本，可分别传入
+`--ps diagnosticsAudio false --ps diagnosticsText false`，复现后点击“导出诊断包”。
 自动化真机验证可同时传入 `--ps selftest true --ps diagnosticsExport true`，自测完成后
 `DiagnosticSmoke` hilog 会输出 `EXPORT_SUCCESS` 和沙箱路径。传入
 `--ps diagnosticsEnabled false` 可验证 Debug 构建的关闭路径。
@@ -18,7 +19,7 @@ Debug HAR 与 Release HAR 的模块名和识别接口保持一致。替换四个
 - `FAILURE_ONLY`：平时使用内存滚动窗口；遇到 error、空 final、提前 `isLast` 或初始静音
   超时后自动持久化，正常完成的 session 不长期保留。
 
-在 `prepareRuntime` 前显式开启诊断：
+若宿主需要显式配置，在 `prepareRuntime` 前调用：
 
 ```ts
 const options = DiagnosticOptions.customerSupport();

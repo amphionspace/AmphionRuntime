@@ -73,9 +73,9 @@ function createDiagnosticsCore(): DiagnosticsCore {
   if (DEBUG) {
     core.configure({
       enabled: true,
-      mode: DiagnosticMode.BASIC,
-      captureAudio: false,
-      includeRecognitionText: false,
+      mode: DiagnosticMode.CUSTOMER_SUPPORT,
+      captureAudio: true,
+      includeRecognitionText: true,
       maxSessionAudioSec: 120,
       failureRingAudioSec: 20,
       maxSessionEvents: 512

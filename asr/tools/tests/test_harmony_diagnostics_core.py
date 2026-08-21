@@ -175,13 +175,14 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.assertIn("fs.writeSync(fp.fd, value)", module)
         self.assertNotIn("new util.TextEncoder", module)
 
-    def test_debug_har_preconfigures_structured_diagnostics_only(self) -> None:
+    def test_debug_har_preconfigures_full_customer_support_diagnostics(self) -> None:
         module = MODULE.read_text(encoding="utf-8")
         self.assertIn("import { DEBUG }", module)
         self.assertIn("if (DEBUG)", module)
         self.assertIn("enabled: true", module)
-        self.assertIn("captureAudio: false", module)
-        self.assertIn("includeRecognitionText: false", module)
+        self.assertIn("mode: DiagnosticMode.CUSTOMER_SUPPORT", module)
+        self.assertIn("captureAudio: true", module)
+        self.assertIn("includeRecognitionText: true", module)
         self.assertIn("enabled: DEBUG && options.enabled", module)
         self.assertIn("JOURNAL_INTERVAL_MS", module)
         self.assertIn("crash-recovery.json", module)

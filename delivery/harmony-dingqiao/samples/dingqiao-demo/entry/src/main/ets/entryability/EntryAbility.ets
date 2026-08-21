@@ -78,12 +78,11 @@ export default class EntryAbility extends UIAbility {
       const deviceIdProvider = new DemoDeviceIdProvider();
       SpeechRecognizeSdk.init(this.context, deviceIdProvider);
       SpeechRecognizeSdk.setWorkPath(workPath);
-      const captureAudio = params !== undefined && params['diagnosticsAudio'] === 'true';
-      const includeRecognitionText = params !== undefined && params['diagnosticsText'] === 'true';
-      // Keep the shipped Debug app on the documented privacy-safe BASIC default. Explicit content
-      // switches opt into CUSTOMER_SUPPORT because BASIC always suppresses audio and text.
-      const diagnosticOptions = captureAudio || includeRecognitionText ?
-        DiagnosticOptions.customerSupport() : new DiagnosticOptions();
+      // The dedicated Debug delivery is a one-reproduction support build: collect every documented
+      // diagnostic signal by default. Individual sensitive payloads can still be disabled explicitly.
+      const captureAudio = params === undefined || params['diagnosticsAudio'] !== 'false';
+      const includeRecognitionText = params === undefined || params['diagnosticsText'] !== 'false';
+      const diagnosticOptions = DiagnosticOptions.customerSupport();
       diagnosticOptions.enabled = params === undefined || params['diagnosticsEnabled'] !== 'false';
       diagnosticOptions.captureAudio = captureAudio;
       diagnosticOptions.includeRecognitionText = includeRecognitionText;
