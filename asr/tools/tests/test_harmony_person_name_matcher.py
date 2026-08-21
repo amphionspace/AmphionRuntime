@@ -78,6 +78,21 @@ class HarmonyPersonNameMatcherTest(unittest.TestCase):
             """
         )
 
+    def test_ignores_names_longer_than_three_characters(self) -> None:
+        self.run_node(
+            """
+            const pinyin = new Map([
+              ['三', 'san1'], ['科', 'ke1'], ['颗', 'ke1'],
+              ['真', 'zhen1'], ['澄', 'cheng2'], ['诚', 'cheng2'],
+            ]);
+            const matcher = new PersonNameMatcher(pinyin, ['三科真澄']);
+            assert.equal(
+              matcher.normalize('请联系三颗真诚', [{ start: 3, end: 7 }]),
+              '请联系三颗真诚'
+            );
+            """
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
