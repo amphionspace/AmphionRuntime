@@ -319,12 +319,16 @@ class HarmonyInitialSilenceTrackerTest(unittest.TestCase):
             const silence = new InitialSilenceTracker(500, 16000);
             assert.equal(silence.observeVad(8000, false), true);
             assert.equal(silence.confirmTimeout(), true);
+            assert.equal(silence.shouldDiscardAsrResult(), true);
+            silence.observeAsrResult('late decoder hallucination', 1);
+            assert.equal(silence.shouldDiscardAsrResult(), true);
             assert.equal(silence.observeVad(8000, false), false);
             assert.equal(silence.confirmTimeout(), false);
 
             const boundarySpeech = new InitialSilenceTracker(500, 16000);
             assert.equal(boundarySpeech.observeVad(8000, true), false);
             assert.equal(boundarySpeech.hasTimedOut(), false);
+            assert.equal(boundarySpeech.shouldDiscardAsrResult(), false);
             """
         )
 

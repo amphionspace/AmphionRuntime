@@ -1775,12 +1775,17 @@ export class AsrSession {
   private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number,
     isLast: boolean = false): boolean {
     const native = this.recognizer.getResult(this.stream);
-    const hasEvidence = native.text.length > 0 || native.tokens.length > 0;
+    // Once vadBegin has conclusively expired without speech, inputFinished() may still expose a
+    // speculative decoder token from the bounded non-speech prefix. It cannot retroactively turn
+    // the already-decided initial-silence session into speech.
+    const discardInitialSilenceResult = this.initialSilenceTracker.shouldDiscardAsrResult();
+    const hasEvidence = !discardInitialSilenceResult &&
+      (native.text.length > 0 || native.tokens.length > 0);
     this.initialSilenceTracker.observeAsrResult(native.text, native.tokens.length);
     const result = new AsrResult();
-    result.text = native.text;
-    result.tokens = native.tokens;
-    result.timestamps = native.timestamps;
+    result.text = discardInitialSilenceResult ? '' : native.text;
+    result.tokens = discardInitialSilenceResult ? [] : native.tokens;
+    result.timestamps = discardInitialSilenceResult ? [] : native.timestamps;
     result.isLast = isLast;
     const cleanPrefixSpeakerScore = this.svCleanPrefixSpeakerScore;
     this.svCleanPrefixSpeakerScore = undefined;
