@@ -7,15 +7,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RUNTIME = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
-SPEAKER_ID = (
+SPEAKER_PATCH = (
     REPO_ROOT
-    / "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/"
-    "components/SpeakerIdentification.ets"
-)
-SPEAKER_NATIVE = (
-    REPO_ROOT
-    / "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/"
-    "speaker-identification.cc"
+    / "third_party/patches/sherpa-amphion/"
+    "0019-feat-harmony-compute-speaker-embeddings-asynchronously.patch"
 )
 TURN_NATIVE = REPO_ROOT / "asr/harmony/sdk/src/main/cpp/speaker_turn_segmenter.cpp"
 LANE = (
@@ -62,8 +57,8 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         cls.runtime = RUNTIME.read_text(encoding="utf-8")
 
     def test_native_speaker_inference_has_async_leased_workers(self) -> None:
-        speaker_api = SPEAKER_ID.read_text(encoding="utf-8")
-        speaker_native = SPEAKER_NATIVE.read_text(encoding="utf-8")
+        speaker_api = SPEAKER_PATCH.read_text(encoding="utf-8")
+        speaker_native = speaker_api
         turn_native = TURN_NATIVE.read_text(encoding="utf-8")
         self.assertIn("computeAsync(stream: OnlineStream)", speaker_api)
         self.assertIn("SpeakerEmbeddingExtractorComputeAsyncWorker", speaker_native)
@@ -292,7 +287,7 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         self.assertIn("if (!isCurrent()) return undefined", score_resolver)
 
     def test_speaker_embedding_worker_releases_lease_when_queue_throws(self) -> None:
-        native = SPEAKER_NATIVE.read_text(encoding="utf-8")
+        native = SPEAKER_PATCH.read_text(encoding="utf-8")
         start = native.index("SpeakerEmbeddingExtractorComputeEmbeddingAsyncWrapper")
         body = native[start : native.index("static void DestroySpeakerEmbeddingExtractorWrapper", start)]
         self.assertIn("try {", body)
