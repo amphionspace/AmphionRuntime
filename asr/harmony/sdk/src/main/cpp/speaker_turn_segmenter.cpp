@@ -252,6 +252,85 @@ napi_value Process(napi_env env, napi_callback_info info) {
   }
 }
 
+struct ProcessContext {
+  napi_deferred deferred = nullptr;
+  napi_async_work work = nullptr;
+  std::shared_ptr<SpeakerTurnSegmentationModel> model;
+  std::vector<float> samples;
+  std::vector<SpeakerTurnSegmentationModel::Segment> segments;
+  std::string error;
+};
+
+void ExecuteProcess(napi_env, void* data) {
+  auto* context = static_cast<ProcessContext*>(data);
+  try {
+    context->segments = context->model->Process(context->samples);
+  } catch (const std::exception& error) {
+    context->error = error.what();
+  } catch (...) {
+    context->error = "unknown speaker segmentation error";
+  }
+  context->model.reset();
+  context->samples.clear();
+}
+
+void CompleteProcess(napi_env env, napi_status, void* data) {
+  std::unique_ptr<ProcessContext> context(static_cast<ProcessContext*>(data));
+  if (!context->error.empty()) {
+    napi_value message = nullptr;
+    napi_create_string_utf8(env, context->error.c_str(), NAPI_AUTO_LENGTH, &message);
+    napi_reject_deferred(env, context->deferred, message);
+    napi_delete_async_work(env, context->work);
+    return;
+  }
+  napi_value result = nullptr;
+  napi_create_array_with_length(env, context->segments.size(), &result);
+  for (uint32_t i = 0; i < context->segments.size(); ++i) {
+    napi_value item = nullptr;
+    napi_create_object(env, &item);
+    napi_value value = nullptr;
+    napi_create_int32(env, context->segments[i].start, &value);
+    napi_set_named_property(env, item, "startSample", value);
+    napi_create_int32(env, context->segments[i].end, &value);
+    napi_set_named_property(env, item, "endSample", value);
+    napi_create_int32(env, context->segments[i].speaker, &value);
+    napi_set_named_property(env, item, "speaker", value);
+    napi_set_element(env, result, i, item);
+  }
+  napi_resolve_deferred(env, context->deferred, result);
+  napi_delete_async_work(env, context->work);
+}
+
+napi_value ProcessAsync(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1] = {nullptr};
+  napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+  try {
+    if (argc != 1) throw std::runtime_error("speaker segmentation samples required");
+    auto context = std::make_unique<ProcessContext>();
+    context->samples = CopyTypedArray<float>(env, args[0], napi_float32_array);
+    {
+      std::lock_guard<std::mutex> lock(g_mutex);
+      context->model = g_model;
+    }
+    if (context->model == nullptr) {
+      throw std::runtime_error("speaker segmentation model not loaded");
+    }
+    napi_value promise = nullptr;
+    napi_create_promise(env, &context->deferred, &promise);
+    napi_value name = nullptr;
+    napi_create_string_utf8(env, "AmphionSpeakerTurnSegmenterProcess", NAPI_AUTO_LENGTH, &name);
+    napi_create_async_work(env, nullptr, name, ExecuteProcess, CompleteProcess,
+                           context.get(), &context->work);
+    napi_queue_async_work(env, context->work);
+    context.release();
+    return promise;
+  } catch (const std::exception& error) {
+    napi_throw_error(env, nullptr, error.what());
+    return nullptr;
+  }
+}
+
 }  // namespace
 
 void RegisterSpeakerTurnSegmenter(napi_env env, napi_value exports) {
@@ -263,6 +342,8 @@ void RegisterSpeakerTurnSegmenter(napi_env env, napi_value exports) {
       {"unloadSpeakerTurnSegmentationModel", nullptr, Unload, nullptr, nullptr,
        nullptr, napi_default, nullptr},
       {"processSpeakerTurnSegmentation", nullptr, Process, nullptr, nullptr,
+       nullptr, napi_default, nullptr},
+      {"processSpeakerTurnSegmentationAsync", nullptr, ProcessAsync, nullptr, nullptr,
        nullptr, napi_default, nullptr},
   };
   napi_define_properties(env, exports, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);

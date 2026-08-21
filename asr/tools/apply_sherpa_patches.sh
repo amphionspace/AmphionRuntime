@@ -32,7 +32,11 @@ fi
 cd "$SHERPA_ROOT"
 
 # Idempotent: skip if marker matches current patch series.
-PATCH_SIG="$(cat "$PATCH_DIR"/*.patch | shasum -a 256 | awk '{print $1}')"
+if command -v shasum >/dev/null 2>&1; then
+  PATCH_SIG="$(cat "$PATCH_DIR"/*.patch | shasum -a 256 | awk '{print $1}')"
+else
+  PATCH_SIG="$(cat "$PATCH_DIR"/*.patch | sha256sum | awk '{print $1}')"
+fi
 if [[ -f "$MARKER_FILE" ]] && [[ "$(cat "$MARKER_FILE")" == "$PATCH_SIG" ]]; then
   echo "[SKIP] sherpa-amphion patches already applied ($PATCH_SIG)"
   exit 0

@@ -61,7 +61,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
                 "node",
                 "--experimental-strip-types",
                 "--experimental-loader",
-                str(TS_LOADER),
+                TS_LOADER.as_uri(),
                 "--input-type=module",
                 "-e",
                 script,
@@ -258,7 +258,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         self.assertIn("boundaryHints", resolver)
         self.assertIn("resolver=acoustic-fallback", resolver)
 
-    def test_async_lane_commits_speaker_turn_before_speculative_decode(self) -> None:
+    def test_async_lane_advances_vad_and_queues_speaker_work_before_decode(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
         async_lane = source.split("private async feedChunkAndDecodeAsync", 1)[1].split(
             "// Acoustic activity only grants", 1
@@ -266,11 +266,13 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         accept_index = async_lane.index(
             "this.speakerTurnFinalizer(speakerVad).accept(rawSamples, processedSamples)"
         )
-        split_index = async_lane.index("this.maybeTriggerSpeakerVadEndpoint(rawSamples.length)")
+        vad_index = async_lane.index("await this.advanceVadGateAsync(rawSamples)")
+        speaker_index = async_lane.index("this.enqueueSpeakerVadInference(rawSamples.length)")
         decode_index = async_lane.index("await this.feedRecognizerAsync(processedSamples, false)")
-        self.assertLess(accept_index, split_index)
-        self.assertLess(split_index, decode_index)
-        self.assertEqual(1, async_lane.count("this.maybeTriggerSpeakerVadEndpoint(rawSamples.length)"))
+        self.assertLess(accept_index, vad_index)
+        self.assertLess(vad_index, speaker_index)
+        self.assertLess(speaker_index, decode_index)
+        self.assertNotIn("await this.enqueueSpeakerVadInference", async_lane)
 
     def test_async_finish_commits_a_pending_clean_speaker_turn(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")

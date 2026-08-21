@@ -26,7 +26,7 @@ class HarmonySpeakerVadScoreSchedulerTest(unittest.TestCase):
                 "node",
                 "--experimental-strip-types",
                 "--experimental-loader",
-                str(TS_LOADER),
+                TS_LOADER.as_uri(),
                 "--input-type=module",
                 "-e",
                 script,
