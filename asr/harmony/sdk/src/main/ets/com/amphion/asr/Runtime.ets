@@ -2,6 +2,7 @@ import {
   OfflinePunctuation,
   OfflinePunctuationConfig,
   OnlineModelConfig,
+  OnlineEndpointReason,
   OnlineRecognizer,
   OnlineRecognizerConfig,
   OnlineStream,
@@ -55,6 +56,10 @@ import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
 import { SpeakerPcmBuffers } from './SpeakerPcmBuffers';
 import { SpeakerVadScoreScheduler } from './SpeakerVadScoreScheduler';
 import { RecognizerPoolPolicy } from './RecognizerPoolPolicy';
+import {
+  NativeEndpointTransition,
+  NativeEndpointTransitionPolicy,
+} from './NativeEndpointTransitionPolicy';
 import {
   SpeakerTurnFinalizer,
   SpeakerTurnSegment,
@@ -1863,7 +1868,8 @@ export class AsrSession {
   private processDecodedResult(isFinal: boolean, restartAfterFinal: boolean,
     isLastFinal: boolean, decodeDurationMs: number): void {
 
-    if (this.recognizer.isEndpoint(this.stream)) {
+    const endpointReason = this.recognizer.getEndpointReason(this.stream);
+    if (endpointReason !== OnlineEndpointReason.NONE) {
       if (!isFinal && this.vadEndpointPending) return;
       if (!isFinal && this.speakerVadEnabled && this.svContextWaitStartedSample >= 0) {
         Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=hold-native-endpoint ` +
@@ -1871,10 +1877,18 @@ export class AsrSession {
         return;
       }
       const endpointResult = this.recognizer.getResult(this.stream);
+      const endpointTransition = NativeEndpointTransitionPolicy.decide(
+        endpointReason === OnlineEndpointReason.RULE3 && !isFinal,
+        endpointResult.text.length > 0 || endpointResult.tokens.length > 0);
+      const preserveRule3Context = endpointTransition ===
+        NativeEndpointTransition.NATIVE_CHECKPOINT;
+      const endpointTransitionReason = preserveRule3Context ?
+        'native-rule3-continuation' : 'native-endpoint';
       Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=native ` +
         `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
         `utterancePcmBytes=${this.pcmBytesAccepted} textChars=${endpointResult.text.length} ` +
-        `tokens=${endpointResult.tokens.length}`);
+        `tokens=${endpointResult.tokens.length} nativeEndpointReason=${endpointReason} ` +
+        `transition=${preserveRule3Context ? 'native-checkpoint' : 'hard-restart'}`);
       this.endpointAtMs = Date.now();
       if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
       // A stop requested synchronously by this endpoint callback belongs to this exact result. It is
@@ -1885,7 +1899,11 @@ export class AsrSession {
       if (stopAtEndpoint) {
         if (!this.callbackGate.isClosed()) this.notifyStopped();
       } else if (!this.callbackGate.isClosed()) {
-        this.finishUtterance(restartAfterFinal, 'native-endpoint');
+        if (preserveRule3Context) {
+          this.commitRule3Segment(endpointTransitionReason);
+        } else {
+          this.finishUtterance(restartAfterFinal, endpointTransitionReason);
+        }
       }
       return;
     }
@@ -1914,12 +1932,17 @@ export class AsrSession {
   private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number,
     isLast: boolean = false): boolean {
     const native = this.recognizer.getResult(this.stream);
-    const hasEvidence = native.text.length > 0 || native.tokens.length > 0;
+    // Once vadBegin has conclusively expired without speech, inputFinished() may still expose a
+    // speculative decoder token from the bounded non-speech prefix. It cannot retroactively turn
+    // the already-decided initial-silence session into speech.
+    const discardInitialSilenceResult = this.initialSilenceTracker.shouldDiscardAsrResult();
+    const hasEvidence = !discardInitialSilenceResult &&
+      (native.text.length > 0 || native.tokens.length > 0);
     this.initialSilenceTracker.observeAsrResult(native.text, native.tokens.length);
     const result = new AsrResult();
-    result.text = native.text;
-    result.tokens = native.tokens;
-    result.timestamps = native.timestamps;
+    result.text = discardInitialSilenceResult ? '' : native.text;
+    result.tokens = discardInitialSilenceResult ? [] : native.tokens;
+    result.timestamps = discardInitialSilenceResult ? [] : native.timestamps;
     result.isLast = isLast;
     const cleanPrefixSpeakerScore = this.svCleanPrefixSpeakerScore;
     const speakerScorePrepared = this.svSpeakerScorePrepared;
@@ -2481,9 +2504,9 @@ export class AsrSession {
   }
 
   // Restarting endpoints start a fresh stream, including endpoints whose native result is empty.
-  // A soft reset retains encoder cache from the rejected/empty segment; after a run of such segments
-  // that stale context can keep later real speech tokenless. Rebuilding preserves the session while
-  // giving the next utterance a clean encoder (Android parity).
+  // Empty, silence, Rule1 and Rule2 endpoints always rebuild the stream. Retaining their stale
+  // encoder cache can keep later real speech tokenless. Rule3 continuation uses the dedicated
+  // native checkpoint above and never enters this generic reset path.
   private finishUtterance(restart: boolean, reason: string = 'final'): void {
     if (!restart) {
       if (!this.callbackGate.isClosed()) this.recognizer.reset(this.stream);
@@ -2494,6 +2517,22 @@ export class AsrSession {
       return;
     }
     this.restartStreamAfterUtterance(reason);
+    this.recognizerResetGeneration += 1;
+  }
+
+  private commitRule3Segment(reason: string): void {
+    if (this.callbackGate.isClosed()) return;
+    if (!this.recognizer.commitRule3Segment(this.stream)) {
+      Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} ` +
+        `action=native-checkpoint-rejected reason=${reason} ` +
+        `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
+      this.restartStreamAfterUtterance(`${reason}-checkpoint-rejected`);
+      this.recognizerResetGeneration += 1;
+      return;
+    }
+    Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=native-checkpoint ` +
+      `reason=${reason} streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
+    this.lastPartialText = '';
     this.recognizerResetGeneration += 1;
   }
 

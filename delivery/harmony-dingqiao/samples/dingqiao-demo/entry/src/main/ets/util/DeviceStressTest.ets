@@ -42,6 +42,7 @@ const VOICEPRINT_THRESHOLD_FRAMES: number = 75;
 const VOICEPRINT_LONG_FRAMES: number = 150;
 const VOICEPRINT_LEADING_SILENCE_FRAMES: number = 50;
 const VAD_BEGIN_LEADING_SILENCE_FRAMES: number = 20;
+const VOICEPRINT_MULTI_UTTERANCE_SILENCE_FRAMES: number = 75;
 const VOICEPRINT_LOW_GAIN: number = 0.15;
 const VOICEPRINT_SCENARIOS: string[] = [
   'short', 'threshold', 'long', 'leading-silence', 'low-volume', 'multi-utterance', 'alternate-source'
@@ -1277,7 +1278,7 @@ async function runVoiceprintCycle(engine: SpeechRecognitionEngine, entry: Corpus
       undefined, VOICEPRINT_LOW_GAIN);
   } else if (scenario === 'multi-utterance') {
     fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, 0);
-    feedSilence(engine, sessionId, VOICEPRINT_LEADING_SILENCE_FRAMES);
+    feedSilence(engine, sessionId, VOICEPRINT_MULTI_UTTERANCE_SILENCE_FRAMES);
     await sleep(100);
     fed += await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, 0);
   } else {
@@ -1548,7 +1549,9 @@ async function runVoiceprintVadBeginCycle(engine: SpeechRecognitionEngine, entry
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
   }
-  if (leadingSilence) feedSilence(engine, sessionId, VAD_BEGIN_LEADING_SILENCE_FRAMES);
+  if (leadingSilence) {
+    feedSilence(engine, sessionId, VAD_BEGIN_LEADING_SILENCE_FRAMES);
+  }
   const fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, paced ? 20 : 0);
   if (fed === 0) {
     engine.cancel(sessionId);

@@ -686,10 +686,11 @@ internal class SessionImpl(
             metrics.onEndpointDetected()
             val r = recognizer.getResult(stream)
             markInitialSpeechDetected(r)
-            val hasEvidence = r.text.isNotEmpty() || r.tokens.isNotEmpty()
+            val decoded = discardInitialSilenceTimeoutResult(toAsrResult(r), initialSilenceTimeoutSent)
+            val hasEvidence = decoded.text.isNotEmpty() || decoded.tokens.isNotEmpty()
             metrics.onRawFinalReady()
             if (postEndpointOnEndpoint) postEndpoint()
-            val finalResult = prepareFinal(toAsrResult(r), hasEvidence, isLastFinal)
+            val finalResult = prepareFinal(decoded, hasEvidence, isLastFinal)
             if ((!suppressEmptyFinal || hasEvidence) && finalResult != null) {
                 postFinalToProcessor(finalResult)
             }
@@ -699,10 +700,11 @@ internal class SessionImpl(
 
         val r = recognizer.getResult(stream)
         markInitialSpeechDetected(r)
-        val hasEvidence = r.text.isNotEmpty() || r.tokens.isNotEmpty()
+        val decoded = discardInitialSilenceTimeoutResult(toAsrResult(r), initialSilenceTimeoutSent)
+        val hasEvidence = decoded.text.isNotEmpty() || decoded.tokens.isNotEmpty()
         if (isFinal) {
             metrics.onRawFinalReady()
-            val finalResult = prepareFinal(toAsrResult(r), hasEvidence, isLastFinal)
+            val finalResult = prepareFinal(decoded, hasEvidence, isLastFinal)
             if ((!suppressEmptyFinal || hasEvidence) && finalResult != null) {
                 postFinalToProcessor(finalResult)
             }
@@ -715,9 +717,19 @@ internal class SessionImpl(
     }
 
     private fun markInitialSpeechDetected(result: OnlineRecognizerResult) {
-        if (result.text.isEmpty() && result.tokens.isEmpty()) return
+        if (initialSilenceTimeoutSent || result.text.isEmpty() && result.tokens.isEmpty()) return
         initialSpeechDetected = true
         initialSilenceSamples = 0L
+    }
+
+    private fun discardInitialSilenceTimeoutResult(result: AsrResult, timedOut: Boolean): AsrResult {
+        if (!timedOut) return result
+        return result.copy(
+            text = "",
+            tokens = emptyList(),
+            timestamps = emptyList(),
+            tokenConfidences = emptyList(),
+        )
     }
 
     /**

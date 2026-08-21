@@ -405,6 +405,14 @@ class RunCommandTest(unittest.TestCase):
         self.assertIn(
             "scenario !== 'multi-utterance' || nonEmptyFinals >= 2", cycle
         )
+        self.assertIn(
+            "const VOICEPRINT_MULTI_UTTERANCE_SILENCE_FRAMES: number = 75;",
+            source,
+        )
+        self.assertIn(
+            "feedSilence(engine, sessionId, VOICEPRINT_MULTI_UTTERANCE_SILENCE_FRAMES)",
+            cycle,
+        )
 
     def test_zero_minimum_disables_voiceprint_initial_confirmation_grace(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
@@ -507,7 +515,6 @@ class RunCommandTest(unittest.TestCase):
             "events.speakerScores > 0 && events.firstNonEmptyFinalHasScore === true",
             normalized,
         )
-
     def test_vad_begin_leading_silence_leaves_a_bounded_confirmation_window(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
         voiceprint_cycle = source.split("async function runVoiceprintVadBeginCycle", 1)[1].split(
