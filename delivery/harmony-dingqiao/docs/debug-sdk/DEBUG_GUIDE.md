@@ -3,6 +3,10 @@
 Debug HAR 与 Release HAR 的模块名和识别接口保持一致。替换四个 HAR 后，现有
 `startListening`、`writeAudio`、`finish`、`cancel`、`shutdown` 和回调代码不需要修改。
 
+随包 Debug Demo 默认开启结构化诊断，但不包含音频和识别文本。测试人员明确同意后，可用
+启动参数开启二者：`--ps diagnosticsAudio true --ps diagnosticsText true`，复现后点击
+“导出诊断包”。
+
 在 `prepareRuntime` 前显式开启诊断：
 
 ```ts
@@ -27,6 +31,9 @@ SpeechRecognizeSdk.exportDiagnostics({
 python3 tools/collect_asr_diagnostics.py \
   --device auto --last 1 --note "识别约20秒后提前结束"
 ```
+
+工具默认使用随包 Demo 的 bundle，并通过 `bm dump` 自动识别 HAP module。用于客户应用时增加
+`--bundle com.customer.app`；应用包含多个 HAP module 时同时指定 `--module entry`。
 
 工具会拉取最近一次已导出的诊断、校验 WAV 和 manifest、脱敏 hilog，并生成 ZIP 与
 SHA-256。手机端文件不会被删除。

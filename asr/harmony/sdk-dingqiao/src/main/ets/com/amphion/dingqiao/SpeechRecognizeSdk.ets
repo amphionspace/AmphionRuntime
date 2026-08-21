@@ -1150,7 +1150,6 @@ export class SpeechRecognizeSdk {
     if (path.trim().length === 0) throw new Error('workPath must not be empty');
     if (!fs.accessSync(path)) fs.mkdirSync(path, true);
     SpeechRecognizeSdk.workPath = path;
-    DiagnosticsModule.setRootPath(path);
   }
 
   /** Configure the opt-in Debug SDK observer before prepareRuntime. */

@@ -6,6 +6,7 @@ import hilog from '@ohos.hilog';
 import {
   CreateEngineCallback,
   CreateEngineParams,
+  DiagnosticExportCallback,
   DingqiaoEventCode,
   LicenseActivationCallback,
   LicenseActivationResult,
@@ -60,6 +61,17 @@ class FinalSegment {
   }
 }
 
+class DemoDiagnosticExportCallback implements DiagnosticExportCallback {
+  private readonly owner: Index;
+
+  constructor(owner: Index) { this.owner = owner; }
+
+  onSuccess(path: string): void { this.owner.onDiagnosticsExported(path); }
+  onError(errorCode: number, message: string): void {
+    this.owner.onDiagnosticsExportFailed(errorCode, message);
+  }
+}
+
 @Entry
 @Component
 struct Index {
@@ -91,6 +103,7 @@ struct Index {
   @State stoppingListening: boolean = false;
   @State caseNote: string = '';
   @State caseInfo: string = '';
+  @State diagnosticsInfo: string = '诊断已开启；音频和文本仅在显式启动参数开启时包含';
 
   private engine?: SpeechRecognitionEngine;
   private recorder?: AudioRecorder;
@@ -118,6 +131,20 @@ struct Index {
   // Debug capture is taken at the public SDK writeAudio boundary. It therefore includes pre-roll
   // replay and PcmFrameWriter's zero-padded last frame, but intentionally excludes Runtime.stop's
   // synthetic 1280 ms right context (live and replay each add that exactly once in finish()).
+
+  exportDiagnostics(): void {
+    this.diagnosticsInfo = '正在导出诊断目录…';
+    SpeechRecognizeSdk.exportDiagnostics(new DemoDiagnosticExportCallback(this));
+  }
+
+  onDiagnosticsExported(path: string): void {
+    this.diagnosticsInfo = `诊断已导出：${path}`;
+    promptAction.showToast({ message: '诊断已导出，可在电脑运行收集工具' });
+  }
+
+  onDiagnosticsExportFailed(errorCode: number, message: string): void {
+    this.diagnosticsInfo = `诊断导出失败(${errorCode})：${message}`;
+  }
   private sdkCaptureFrames: ArrayBuffer[] = [];
   private sdkCaptureTruncated: boolean = false;
   private sdkCaptureBytes: number = 0;
@@ -1169,7 +1196,8 @@ struct Index {
   }
 
   build() {
-    Column({ space: 12 }) {
+    Scroll() {
+      Column({ space: 12 }) {
       Row() {
         Text('Amphion 离线语音识别')
           .fontSize(22)
@@ -1379,6 +1407,19 @@ struct Index {
         .borderRadius(8)
       }
 
+      Column({ space: 6 }) {
+        Text(this.diagnosticsInfo).fontSize(11).fontColor(Color.Gray).width('100%').maxLines(2)
+        Button('导出诊断包')
+          .width('100%')
+          .height(36)
+          .enabled(!this.listening && !this.replaying && !this.playingCapture)
+          .onClick((): void => this.exportDiagnostics())
+      }
+      .width('100%')
+      .padding(8)
+      .backgroundColor('#F4F6F8')
+      .borderRadius(8)
+
       Button(this.replaying ? '正在原样复测…' : (this.listening ? '停止识别' : '开始识别'))
         .width('100%')
         .height(48)
@@ -1394,11 +1435,13 @@ struct Index {
             this.startListening();
           }
         })
+      }
+      .padding(20)
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
     }
-    .padding(20)
     .width('100%')
     .height('100%')
-    .alignItems(HorizontalAlign.Start)
   }
 }
 

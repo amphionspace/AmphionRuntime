@@ -25,12 +25,26 @@ class CollectAsrDiagnosticsTest(unittest.TestCase):
         return run
 
     def test_build_recv_command_uses_app_sandbox(self) -> None:
-        command = diagnostics.build_recv_command(Path("/opt/hdc"), "SAFE", Path("/tmp/out"))
+        command = diagnostics.build_recv_command(
+            Path("/opt/hdc"), "SAFE", Path("/tmp/out"), "com.example.app", "entry"
+        )
         self.assertEqual(
             command,
-            ["/opt/hdc", "-t", "SAFE", "file", "recv", "-b", diagnostics.BUNDLE,
-             diagnostics.REMOTE_ROOT, "/tmp/out"],
+            ["/opt/hdc", "-t", "SAFE", "file", "recv", "-b", "com.example.app",
+             "/data/storage/el2/base/haps/entry/files/asr-diagnostics", "/tmp/out"],
         )
+
+    def test_discover_module_reads_bm_dump(self) -> None:
+        from unittest.mock import patch
+
+        completed = __import__("subprocess").CompletedProcess(
+            [], 0, '{"moduleName":"entry","nested":{"moduleName":"entry"}}', ""
+        )
+        with patch.object(diagnostics.subprocess, "run", return_value=completed):
+            self.assertEqual(
+                diagnostics.discover_module(Path("/opt/hdc"), "SAFE", "com.example.app"),
+                "entry",
+            )
 
     def test_validate_run_accepts_complete_redacted_capture(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -54,6 +68,25 @@ class CollectAsrDiagnosticsTest(unittest.TestCase):
         self.assertNotIn("/data/storage", redacted)
         self.assertNotIn("abc", redacted)
         self.assertNotIn("张三", redacted)
+
+    def test_collect_hilog_uses_bounded_non_blocking_dump(self) -> None:
+        from unittest.mock import patch
+
+        source = (
+            "08-21 16:00:00.000 123 124 I A00000/com.example.app/SDK: keep\n"
+            "08-21 16:00:00.001 123 125 I A00000/native/ASR: keep native\n"
+            "08-21 16:00:00.002 999 999 I A00000/other/App: drop\n"
+        )
+        completed = __import__("subprocess").CompletedProcess([], 0, source, "")
+        with patch.object(diagnostics.subprocess, "run", return_value=completed) as run:
+            output = diagnostics.collect_hilog(Path("/opt/hdc"), "SAFE", "com.example.app")
+            self.assertIn("keep native", output)
+            self.assertNotIn("drop", output)
+        self.assertEqual(
+            run.call_args.args[0],
+            ["/opt/hdc", "-t", "SAFE", "shell", "hilog", "-x"],
+        )
+        self.assertEqual(run.call_args.kwargs["timeout"], 30)
 
 
 if __name__ == "__main__":

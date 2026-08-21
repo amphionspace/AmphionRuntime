@@ -134,6 +134,8 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.assertIn("static export(): string", module)
         self.assertIn("sdk-input.wav", module)
         self.assertIn("metadata['includesInternalReplay'] = false", module)
+        self.assertIn("fs.writeSync(fp.fd, value)", module)
+        self.assertNotIn("new util.TextEncoder", module)
 
 
 if __name__ == "__main__":

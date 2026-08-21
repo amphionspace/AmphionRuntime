@@ -17,7 +17,7 @@ import zipfile
 
 
 BUNDLE = "com.amphion.asr.harmony.demo"
-REMOTE_ROOT = "/data/storage/el2/base/files/asr-diagnostics"
+REMOTE_ROOT_TEMPLATE = "/data/storage/el2/base/haps/{module}/files/asr-diagnostics"
 FORBIDDEN_KEYS = {
     "license",
     "licenseText",
@@ -55,8 +55,29 @@ def select_target(hdc: Path, requested: str) -> str:
     return targets[0]
 
 
-def build_recv_command(hdc: Path, device: str, output: Path) -> list[str]:
-    return [str(hdc), "-t", device, "file", "recv", "-b", BUNDLE, REMOTE_ROOT, str(output)]
+def discover_module(hdc: Path, device: str, bundle: str) -> str:
+    result = subprocess.run(
+        [str(hdc), "-t", device, "shell", "bm", "dump", "-n", bundle],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    names = re.findall(r'"moduleName"\s*:\s*"([^"\\]+)"', result.stdout)
+    names = list(dict.fromkeys(name for name in names if name))
+    if not names:
+        raise RuntimeError(f"cannot discover HAP module for bundle: {bundle}")
+    if len(names) > 1:
+        raise RuntimeError(
+            f"bundle has multiple HAP modules ({', '.join(names)}); pass --module"
+        )
+    return names[0]
+
+
+def build_recv_command(
+    hdc: Path, device: str, output: Path, bundle: str, module: str
+) -> list[str]:
+    remote_root = REMOTE_ROOT_TEMPLATE.format(module=module)
+    return [str(hdc), "-t", device, "file", "recv", "-b", bundle, remote_root, str(output)]
 
 
 def _walk_json(value: object, path: str = "") -> None:
@@ -123,11 +144,31 @@ def redact_hilog(text: str, device: str) -> str:
     return redacted
 
 
-def collect_hilog(hdc: Path, device: str) -> str:
-    result = subprocess.run(
-        [str(hdc), "-t", device, "hilog", "-d"], text=True, capture_output=True
+def filter_hilog_for_bundle(text: str, bundle: str) -> str:
+    lines = text.splitlines()
+    owner = re.compile(
+        rf"^(?:\S+\s+){{2}}(\d+)\s+\d+\s+\S+\s+\S+/{re.escape(bundle)}/"
     )
-    return redact_hilog(result.stdout + result.stderr, device)
+    pids = {match.group(1) for line in lines if (match := owner.match(line))}
+    if not pids:
+        return "No hilog process identity found for the requested bundle.\n"
+    process_line = re.compile(r"^(?:\S+\s+){2}(\d+)\s+")
+    selected = [
+        line for line in lines
+        if (match := process_line.match(line)) and match.group(1) in pids
+    ]
+    return "\n".join(selected) + ("\n" if selected else "")
+
+
+def collect_hilog(hdc: Path, device: str, bundle: str) -> str:
+    result = subprocess.run(
+        [str(hdc), "-t", device, "shell", "hilog", "-x"],
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    selected = filter_hilog_for_bundle(result.stdout + result.stderr, bundle)
+    return redact_hilog(selected, device)
 
 
 def discover_runs(pull_root: Path) -> list[Path]:
@@ -148,6 +189,8 @@ def write_zip(source_root: Path, output: Path) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="auto", help="HDC target or 'auto'")
+    parser.add_argument("--bundle", default=BUNDLE, help="application bundle name")
+    parser.add_argument("--module", default="", help="HAP module name; auto-detected by default")
     parser.add_argument("--last", type=int, default=1, help="number of newest runs to include")
     parser.add_argument("--note", default="", help="short reproduction note")
     parser.add_argument("--output-root", type=Path, default=Path.cwd())
@@ -160,6 +203,7 @@ def main() -> int:
         raise RuntimeError("--last must be >= 1")
     hdc = locate_hdc()
     device = select_target(hdc, args.device)
+    module = args.module.strip() or discover_module(hdc, device, args.bundle)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     output_root = args.output_root.expanduser().resolve()
     output_root.mkdir(parents=True, exist_ok=True)
@@ -168,7 +212,11 @@ def main() -> int:
         temp = Path(directory)
         pulled = temp / "pulled"
         pulled.mkdir()
-        result = subprocess.run(build_recv_command(hdc, device, pulled), text=True, capture_output=True)
+        result = subprocess.run(
+            build_recv_command(hdc, device, pulled, args.bundle, module),
+            text=True,
+            capture_output=True,
+        )
         command_output = result.stdout + result.stderr
         if result.returncode != 0 or "[Fail]" in command_output:
             raise RuntimeError(f"failed to pull diagnostics: {command_output.strip()}")
@@ -182,11 +230,14 @@ def main() -> int:
             validate_run(run)
             shutil.copytree(run, package_root / run.name)
             copied.append(run.name)
-        (package_root / "hilog.txt").write_text(collect_hilog(hdc, device), encoding="utf-8")
+        (package_root / "hilog.txt").write_text(
+            collect_hilog(hdc, device, args.bundle), encoding="utf-8"
+        )
         (package_root / "note.txt").write_text(args.note.strip() + "\n", encoding="utf-8")
         collection = {
             "schemaVersion": 1,
-            "bundle": BUNDLE,
+            "bundle": args.bundle,
+            "module": module,
             "runIds": copied,
             "runCount": len(copied),
             "device": "<REDACTED>",

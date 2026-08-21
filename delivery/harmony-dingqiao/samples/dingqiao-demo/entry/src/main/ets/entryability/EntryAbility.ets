@@ -3,7 +3,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { window } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
 import deviceInfo from '@ohos.deviceInfo';
-import { LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
+import { DiagnosticOptions, LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
 import { DeviceStressOptions, runDeviceStress } from '../util/DeviceStressTest';
 import { ModelLoadBenchOptions, runModelLoadBench } from '../util/ModelLoadBench';
 import { LifecycleBenchOptions, runLifecycleBench } from '../util/LifecycleBench';
@@ -28,6 +28,7 @@ export default class EntryAbility extends UIAbility {
   private stressFinished: boolean = false;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    const params = want.parameters;
     // Process-level SDK init + work directory live here (mirrors Android DingqiaoApp) so every page
     // shares one SpeechRecognizeSdk instance and the same {filesDir}/amphion_asr_work path.
     // 载体基线:任何 SDK 调用之前从 /proc 采一次 VmRSS + 私有 anon(纯宿主,无 SDK native/模型),供内存减法。
@@ -58,13 +59,17 @@ export default class EntryAbility extends UIAbility {
       const deviceIdProvider = new DemoDeviceIdProvider();
       SpeechRecognizeSdk.init(this.context, deviceIdProvider);
       SpeechRecognizeSdk.setWorkPath(workPath);
+      const diagnosticOptions = DiagnosticOptions.customerSupport();
+      diagnosticOptions.captureAudio = params !== undefined && params['diagnosticsAudio'] === 'true';
+      diagnosticOptions.includeRecognitionText =
+        params !== undefined && params['diagnosticsText'] === 'true';
+      SpeechRecognizeSdk.configureDiagnostics(diagnosticOptions);
       hilog.info(0x0000, 'AmphionAsrDemo', 'SpeechRecognizeSdk init done, workPath=%{public}s', workPath);
     } catch (e) {
       hilog.error(0x0000, 'AmphionAsrDemo', 'SpeechRecognizeSdk init failed: %{public}s', `${e}`);
     }
     // Headless SDK contract self-test: `aa start ... --ps selftest true`. Runs every public API and
     // logs a PASS/FAIL matrix under tag SdkSelfTest, without loading the UI.
-    const params = want.parameters;
     this.selfTest = params !== undefined && params['selftest'] === 'true';
     this.stressTest = params !== undefined && params['stress'] === 'true';
     this.loadBench = params !== undefined && params['loadbench'] === 'true';

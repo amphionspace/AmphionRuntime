@@ -1,5 +1,4 @@
 import { fileIo as fs } from '@kit.CoreFileKit';
-import { util } from '@kit.ArkTS';
 import { DiagnosticOptions } from './DingqiaoModels';
 import {
   DiagnosticAudioSnapshot,
@@ -24,10 +23,14 @@ function writeBytes(path: string, value: ArrayBuffer): void {
 }
 
 function writeText(path: string, value: string): void {
-  const encoded = new util.TextEncoder().encodeInto(value);
-  const data = new ArrayBuffer(encoded.byteLength);
-  new Uint8Array(data).set(encoded);
-  writeBytes(path, data);
+  const fp = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+  try {
+    // fileIo writes strings as UTF-8. Avoid TextEncoder.encodeInto here: some HarmonyOS
+    // device runtimes expose the API but return undefined for its single-argument overload.
+    fs.writeSync(fp.fd, value);
+  } finally {
+    fs.closeSync(fp);
+  }
 }
 
 function writeAscii(view: DataView, offset: number, value: string): void {
@@ -94,26 +97,37 @@ export class DiagnosticsModule {
   static export(): string {
     if (!DiagnosticsModule.core.isEnabled()) throw new Error('diagnostics are not enabled');
     if (DiagnosticsModule.rootPath.length === 0) throw new Error('diagnostics work path is not configured');
-    const snapshot = DiagnosticsModule.core.snapshot();
-    const root = `${DiagnosticsModule.rootPath}/asr-diagnostics`;
-    const runDir = `${root}/${snapshot.runId}`;
-    ensureDirectory(runDir);
-    writeText(`${runDir}/events.ndjson`, ndjson(snapshot.events));
-    const callbacks = snapshot.events.filter((event): boolean => event.event.indexOf('CALLBACK_') === 0);
-    writeText(`${runDir}/callbacks.ndjson`, ndjson(callbacks));
-    for (let i = 0; i < snapshot.sessions.length; i++) {
-      DiagnosticsModule.writeSession(runDir, snapshot.sessions[i]);
+    let stage = 'snapshot';
+    try {
+      const snapshot = DiagnosticsModule.core.snapshot();
+      const root = `${DiagnosticsModule.rootPath}/asr-diagnostics`;
+      const runDir = `${root}/${snapshot.runId}`;
+      stage = 'mkdir';
+      ensureDirectory(runDir);
+      stage = 'events';
+      writeText(`${runDir}/events.ndjson`, ndjson(snapshot.events));
+      const callbacks = snapshot.events.filter((event): boolean => event.event.indexOf('CALLBACK_') === 0);
+      stage = 'callbacks';
+      writeText(`${runDir}/callbacks.ndjson`, ndjson(callbacks));
+      stage = 'sessions';
+      for (let i = 0; i < snapshot.sessions.length; i++) {
+        DiagnosticsModule.writeSession(runDir, snapshot.sessions[i]);
+      }
+      stage = 'summary';
+      const summary: Record<string, Object> = DiagnosticsModule.summaryOf(snapshot);
+      writeText(`${runDir}/summary.json`, `${JSON.stringify(summary)}\n`);
+      const manifest: Record<string, Object> = {};
+      manifest['schemaVersion'] = 1;
+      manifest['runId'] = snapshot.runId;
+      manifest['createdAtMs'] = Date.now();
+      manifest['privacy'] = 'audio and recognition text are independently opt-in; identifiers are opaque';
+      manifest['files'] = ['events.ndjson', 'callbacks.ndjson', 'summary.json'];
+      stage = 'manifest';
+      writeText(`${runDir}/manifest.json`, `${JSON.stringify(manifest)}\n`);
+      return runDir;
+    } catch (e) {
+      throw new Error(`diagnostics export stage ${stage} failed: ${e}`);
     }
-    const summary: Record<string, Object> = DiagnosticsModule.summaryOf(snapshot);
-    writeText(`${runDir}/summary.json`, `${JSON.stringify(summary)}\n`);
-    const manifest: Record<string, Object> = {};
-    manifest['schemaVersion'] = 1;
-    manifest['runId'] = snapshot.runId;
-    manifest['createdAtMs'] = Date.now();
-    manifest['privacy'] = 'audio and recognition text are independently opt-in; identifiers are opaque';
-    manifest['files'] = ['events.ndjson', 'callbacks.ndjson', 'summary.json'];
-    writeText(`${runDir}/manifest.json`, `${JSON.stringify(manifest)}\n`);
-    return runDir;
   }
 
   private static writeSession(runDir: string, session: DiagnosticSessionSnapshot): void {
