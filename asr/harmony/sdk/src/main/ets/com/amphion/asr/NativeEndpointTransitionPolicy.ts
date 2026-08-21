@@ -10,9 +10,8 @@ export class NativeEndpointTransition {
 }
 
 export class NativeEndpointTransitionPolicy {
-  static decide(isRule3Endpoint: boolean, hasEvidence: boolean,
-    speakerVadEnabled: boolean): NativeEndpointTransition {
-    return isRule3Endpoint && hasEvidence && !speakerVadEnabled ?
+  static decide(isRule3Endpoint: boolean, hasEvidence: boolean): NativeEndpointTransition {
+    return isRule3Endpoint && hasEvidence ?
       NativeEndpointTransition.NATIVE_CHECKPOINT : NativeEndpointTransition.HARD_RESTART;
   }
 }

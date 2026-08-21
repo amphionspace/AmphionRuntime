@@ -22,6 +22,9 @@ import wave
 from pathlib import Path
 
 
+ENDPOINT_REASON_RULE3 = 3
+
+
 def load_wav(path):
     with wave.open(path, "rb") as w:
         n = w.getnframes()
@@ -158,8 +161,13 @@ def streaming_decode(recognizer, samples, sr, args, transition):
             elif transition == "checkpoint":
                 committed_tokens.extend(result["tokens"])
                 committed_timestamps.extend(result["timeline_timestamps"])
-                if not recognizer.commit_rule3_segment(stream):
-                    raise RuntimeError("native Rule3 checkpoint was rejected")
+                has_result = bool(result["text"] or result["tokens"])
+                if result["endpoint_reason"] == ENDPOINT_REASON_RULE3 and has_result:
+                    if not recognizer.commit_rule3_segment(stream):
+                        raise RuntimeError("native Rule3 checkpoint was rejected")
+                else:
+                    stream = recognizer.create_stream()
+                    stream_generation += 1
                 segment_start_sample = sample_offset
             elif transition == "fresh":
                 committed_tokens.extend(result["tokens"])

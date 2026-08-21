@@ -40,10 +40,9 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
             import {{ NativeEndpointTransition as Transition,
               NativeEndpointTransitionPolicy as Policy }} from {POLICY.as_uri()!r};
 
-            assert.equal(Policy.decide(true, true, false), Transition.NATIVE_CHECKPOINT);
-            assert.equal(Policy.decide(false, true, false), Transition.HARD_RESTART);
-            assert.equal(Policy.decide(true, false, false), Transition.HARD_RESTART);
-            assert.equal(Policy.decide(true, true, true), Transition.HARD_RESTART);
+            assert.equal(Policy.decide(true, true), Transition.NATIVE_CHECKPOINT);
+            assert.equal(Policy.decide(false, true), Transition.HARD_RESTART);
+            assert.equal(Policy.decide(true, false), Transition.HARD_RESTART);
             """
         )
         subprocess.run(
@@ -61,8 +60,7 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
             re.compile(
                 r"NativeEndpointTransitionPolicy\.decide\([\s\S]*?"
                 r"endpointReason === OnlineEndpointReason\.RULE3 && !isFinal,[\s\S]*?"
-                r"endpointResult\.text\.length > 0 \|\| endpointResult\.tokens\.length > 0,[\s\S]*?"
-                r"this\.speakerVadEnabled"
+                r"endpointResult\.text\.length > 0 \|\| endpointResult\.tokens\.length > 0\)"
             ),
         )
         self.assertIn(
@@ -89,6 +87,7 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
         self.assertIn("commitRule3Segment(stream: OnlineStream): boolean", patch)
         self.assertIn('"commit_rule3_segment"', patch)
         self.assertIn("SherpaOnnxOnlineStreamCommitRule3Segment", patch)
+        self.assertIn('"get_endpoint_reason"', SHERPA_PATCH.read_text(encoding="utf-8"))
         self.assertNotIn("rule3_reset_mode", patch)
         self.assertNotIn("replay", patch.lower())
 
@@ -202,6 +201,9 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
                     and self.total_samples >= 20
                 )
 
+            def get_endpoint_reason(self, stream):
+                return diagnostic.ENDPOINT_REASON_RULE3 if self.is_endpoint(stream) else 0
+
             def reset(self, _stream):
                 self.endpoint_consumed = True
 
@@ -254,6 +256,75 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
         self.assertTrue(checkpoint["matches_continuous"])
         self.assertEqual(checkpoint["endpoint_count"], 1)
         self.assertTrue(diagnostic.transition_gate_passes([soft, fresh, checkpoint]))
+
+    def test_checkpoint_hard_restarts_non_rule3_endpoint(self) -> None:
+        diagnostic = load_diagnostic_module()
+
+        class FakeResult:
+            text = ""
+            tokens = []
+            timestamps = []
+
+        class FakeStream:
+            def __init__(self, recognizer, generation):
+                self.recognizer = recognizer
+                self.generation = generation
+                self.ready = False
+                self.finished = False
+
+            def accept_waveform(self, _sample_rate, _samples):
+                self.ready = True
+
+            def input_finished(self):
+                self.finished = True
+                self.ready = True
+
+        class Rule1Recognizer:
+            def __init__(self):
+                self.generation = 0
+                self.checkpoint_calls = 0
+
+            def create_stream(self):
+                self.generation += 1
+                return FakeStream(self, self.generation)
+
+            @staticmethod
+            def is_ready(stream):
+                return stream.ready
+
+            @staticmethod
+            def decode_stream(stream):
+                stream.ready = False
+
+            @staticmethod
+            def is_endpoint(stream):
+                return not stream.finished and stream.generation == 1
+
+            @staticmethod
+            def get_endpoint_reason(stream):
+                return 1 if not stream.finished and stream.generation == 1 else 0
+
+            @staticmethod
+            def get_result_all(_stream):
+                return FakeResult()
+
+            @staticmethod
+            def get_result(_stream):
+                return ""
+
+            def commit_rule3_segment(self, _stream):
+                self.checkpoint_calls += 1
+                return False
+
+        recognizer = Rule1Recognizer()
+        args = SimpleNamespace(warmup_ms=0, chunk_ms=100)
+        run = diagnostic.streaming_decode(
+            recognizer, [0.0] * 30, 100, args, "checkpoint"
+        )
+
+        self.assertEqual(recognizer.generation, 2)
+        self.assertEqual(recognizer.checkpoint_calls, 0)
+        self.assertEqual(run["events"][0]["endpoint_reason"], 1)
 
     def test_boundary_prefix_gate_uses_the_first_nonempty_terminal_after_rule3(self) -> None:
         diagnostic = load_diagnostic_module()

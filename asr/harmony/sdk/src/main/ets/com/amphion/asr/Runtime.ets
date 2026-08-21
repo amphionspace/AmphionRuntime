@@ -1738,12 +1738,9 @@ export class AsrSession {
         return;
       }
       const endpointResult = this.recognizer.getResult(this.stream);
-      // Speaker VAD owns its own stream split lifecycle. Keep this checkpoint on the plain native
-      // stream, where a non-empty max-duration endpoint can retain decoder context.
       const endpointTransition = NativeEndpointTransitionPolicy.decide(
         endpointReason === OnlineEndpointReason.RULE3 && !isFinal,
-        endpointResult.text.length > 0 || endpointResult.tokens.length > 0,
-        this.speakerVadEnabled);
+        endpointResult.text.length > 0 || endpointResult.tokens.length > 0);
       const preserveRule3Context = endpointTransition ===
         NativeEndpointTransition.NATIVE_CHECKPOINT;
       const endpointTransitionReason = preserveRule3Context ?

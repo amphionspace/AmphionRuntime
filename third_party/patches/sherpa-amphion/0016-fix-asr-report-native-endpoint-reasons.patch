@@ -360,6 +360,35 @@ index d98c114f..bdd2ee53 100644
    // Clear the state of this stream. If IsEndpoint(s) returns true,
    // after calling this function, IsEndpoint(s) will return false
    void Reset(OnlineStream *s) const;
+diff --git a/sherpa-onnx/python/csrc/online-recognizer.cc b/sherpa-onnx/python/csrc/online-recognizer.cc
+index e2f83be8..c45f3951 100644
+--- a/sherpa-onnx/python/csrc/online-recognizer.cc
++++ b/sherpa-onnx/python/csrc/online-recognizer.cc
+@@ -119,5 +119,11 @@ void PybindOnlineRecognizer(py::module *m) {
+       .def("get_result", &PyClass::GetResult, py::arg("s"),
+            py::call_guard<py::gil_scoped_release>())
++      .def(
++          "get_endpoint_reason",
++          [](PyClass &self, OnlineStream *s) {
++            return static_cast<int32_t>(self.GetEndpointReason(s));
++          },
++          py::arg("s"), py::call_guard<py::gil_scoped_release>())
+       .def("is_endpoint", &PyClass::IsEndpoint, py::arg("s"),
+            py::call_guard<py::gil_scoped_release>())
+       .def("reset", &PyClass::Reset, py::arg("s"),
+diff --git a/sherpa-onnx/python/sherpa_onnx/online_recognizer.py b/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
+index 88c7e182..9c6be23b 100644
+--- a/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
++++ b/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
+@@ -1018,6 +1018,9 @@ class OnlineRecognizer(object):
+     def context_scores(self, s: OnlineStream) -> List[float]:
+         return self.recognizer.get_result(s).context_scores
+ 
++    def get_endpoint_reason(self, s: OnlineStream) -> int:
++        return self.recognizer.get_endpoint_reason(s)
++
+     def is_endpoint(self, s: OnlineStream) -> bool:
+         return self.recognizer.is_endpoint(s)
+ 
 -- 
 2.50.1 (Apple Git-155)
-
