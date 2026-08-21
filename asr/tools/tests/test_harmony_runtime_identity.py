@@ -37,7 +37,7 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
             """
             assert.equal(HARMONY_SDK_VERSION, '0.3.7');
             assert.equal(HARMONY_SDK_MAJOR, 1);
-            assert.equal(HARMONY_SDK_RELEASE_DATE, '2026-08-20');
+            assert.equal(HARMONY_SDK_RELEASE_DATE, '2026-08-21');
             """
         )
 
@@ -69,7 +69,7 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
             );
             assert.equal(
                 evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-08-20', HARMONY_SDK_RELEASE_DATE),
-              LicenseIdentityFailure.NONE,
+              LicenseIdentityFailure.MAINTENANCE_EXPIRED,
             );
             assert.equal(
                 evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-08-21', HARMONY_SDK_RELEASE_DATE),
