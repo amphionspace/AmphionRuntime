@@ -109,6 +109,46 @@ class CollectAsrDiagnosticsTest(unittest.TestCase):
             ["/opt/hdc", "-t", "SAFE", "shell", "hilog", "-x"],
         )
         self.assertEqual(run.call_args.kwargs["timeout"], 30)
+        self.assertEqual(run.call_args.kwargs["errors"], "replace")
+
+    def test_default_session_selection_keeps_abnormal_and_drops_unrelated(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run = Path(directory) / "run-100"
+            for session_id in ("session-1", "session-2"):
+                (run / "sessions" / session_id).mkdir(parents=True)
+            summary = {
+                "runId": "run-100",
+                "sessionCount": 2,
+                "sessions": [
+                    {"sessionId": "session-1", "abnormal": False},
+                    {"sessionId": "session-2", "abnormal": True},
+                ],
+            }
+            (run / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+            events = [
+                {"sessionId": "", "event": "RUNTIME_INIT"},
+                {"sessionId": "session-1", "event": "CALLBACK_RESULT"},
+                {"sessionId": "session-2", "event": "CALLBACK_ERROR"},
+            ]
+            payload = "".join(json.dumps(event) + "\n" for event in events)
+            (run / "events.ndjson").write_text(payload, encoding="utf-8")
+            (run / "callbacks.ndjson").write_text(payload, encoding="utf-8")
+            self.assertEqual(diagnostics.retain_relevant_sessions(run), ["session-2"])
+            self.assertFalse((run / "sessions/session-1").exists())
+            self.assertTrue((run / "sessions/session-2").exists())
+            self.assertNotIn("session-1", (run / "events.ndjson").read_text())
+
+    def test_optional_archive_encryption_removes_plaintext(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            archive = root / "diagnostics.zip"
+            archive.write_bytes(b"diagnostic-content")
+            password = root / "password.txt"
+            password.write_text("test-password\n", encoding="utf-8")
+            encrypted = diagnostics.encrypt_archive(archive, password)
+            self.assertFalse(archive.exists())
+            self.assertTrue(encrypted.is_file())
+            self.assertNotIn(b"diagnostic-content", encrypted.read_bytes())
 
 
 if __name__ == "__main__":

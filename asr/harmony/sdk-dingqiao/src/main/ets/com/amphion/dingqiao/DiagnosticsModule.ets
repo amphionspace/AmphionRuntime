@@ -1,6 +1,7 @@
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
-import { AmphionRuntime } from 'amphion_asr';
+import deviceInfo from '@ohos.deviceInfo';
+import { AmphionRuntime, RuntimeDiagnosticObserver } from 'amphion_asr';
 import { DEBUG } from '../../../../../../BuildProfile';
 import { DiagnosticMode, DiagnosticOptions } from './DingqiaoModels';
 import {
@@ -10,6 +11,7 @@ import {
   DiagnosticsSnapshot,
   EffectiveDiagnosticConfig
 } from './DiagnosticsCore';
+import { HilogDiagnosticSink, NdjsonDiagnosticSink } from './DiagnosticSinks';
 
 const WAV_HEADER_BYTES: number = 44;
 const DEFAULT_MAX_DIRECTORY_BYTES: number = 200 * 1024 * 1024;
@@ -27,6 +29,43 @@ class ResourceSample {
   audioQueueDepth: number = -1;
   maxAudioQueueDepth: number = -1;
   nativeCallsInFlight: number = -1;
+  nativeHeapKb: number = -1;
+  decodeQueueDepth: number = -1;
+  avgDecodeRtf: number = -1;
+}
+
+class RuntimeSessionBinding {
+  readonly sourceSessionId: string;
+  readonly engineId: string;
+
+  constructor(sourceSessionId: string, engineId: string) {
+    this.sourceSessionId = sourceSessionId;
+    this.engineId = engineId;
+  }
+}
+
+class DiagnosticsRuntimeObserver implements RuntimeDiagnosticObserver {
+  onRuntimeMetric(line: string): void {
+    DiagnosticsModule.recordRuntimeMetric(line);
+  }
+}
+
+function metricValue(value: string): Object {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  const numeric = Number(value);
+  return value.length > 0 && Number.isFinite(numeric) ? numeric : value;
+}
+
+function parseRuntimeMetric(line: string): Record<string, Object> {
+  const fields: Record<string, Object> = {};
+  const parts = line.trim().split(/\s+/);
+  for (let i = 0; i < parts.length; i++) {
+    const equals = parts[i].indexOf('=');
+    if (equals <= 0) continue;
+    fields[parts[i].substring(0, equals)] = metricValue(parts[i].substring(equals + 1));
+  }
+  return fields;
 }
 
 function createDiagnosticsCore(): DiagnosticsCore {
@@ -111,6 +150,7 @@ function sampleResources(snapshot: DiagnosticsSnapshot): ResourceSample {
   sample.anonymousRssKb = procKb(status, 'RssAnon');
   sample.fileRssKb = procKb(status, 'RssFile');
   sample.threadCount = procNumber(status, 'Threads');
+  sample.nativeHeapKb = procKb(status, 'RssAnon');
   try { sample.fdCount = fs.listFileSync('/proc/self/fd').length; } catch (_ignored) {}
   for (let i = 0; i < snapshot.sessions.length; i++) {
     if (!snapshot.sessions[i].terminal) sample.activeSessionCount += 1;
@@ -125,6 +165,12 @@ function sampleResources(snapshot: DiagnosticsSnapshot): ResourceSample {
     }
     if (sample.nativeCallsInFlight < 0 && typeof fields['nativeCallsInFlight'] === 'number') {
       sample.nativeCallsInFlight = fields['nativeCallsInFlight'] as number;
+    }
+    if (sample.decodeQueueDepth < 0 && typeof fields['decodeQueueDepth'] === 'number') {
+      sample.decodeQueueDepth = fields['decodeQueueDepth'] as number;
+    }
+    if (sample.avgDecodeRtf < 0 && typeof fields['avgRtf'] === 'number') {
+      sample.avgDecodeRtf = fields['avgRtf'] as number;
     }
   }
   return sample;
@@ -154,20 +200,16 @@ function wavOf(pcm: ArrayBuffer): ArrayBuffer {
   return wav;
 }
 
-function ndjson(events: Object[]): string {
-  let output = '';
-  for (let i = 0; i < events.length; i++) output += `${JSON.stringify(events[i])}\n`;
-  return output;
-}
-
 function csvOf(samples: ResourceSample[]): string {
   let output = 'wallTimeMs,rssKb,anonymousRssKb,fileRssKb,threadCount,fdCount,' +
-    'activeSessionCount,audioQueueDepth,maxAudioQueueDepth,nativeCallsInFlight\n';
+    'activeSessionCount,audioQueueDepth,maxAudioQueueDepth,nativeCallsInFlight,' +
+    'nativeHeapKb,decodeQueueDepth,avgDecodeRtf\n';
   for (let i = 0; i < samples.length; i++) {
     const s = samples[i];
     output += `${s.wallTimeMs},${s.rssKb},${s.anonymousRssKb},${s.fileRssKb},` +
       `${s.threadCount},${s.fdCount},${s.activeSessionCount},${s.audioQueueDepth},` +
-      `${s.maxAudioQueueDepth},${s.nativeCallsInFlight}\n`;
+      `${s.maxAudioQueueDepth},${s.nativeCallsInFlight},${s.nativeHeapKb},` +
+      `${s.decodeQueueDepth},${s.avgDecodeRtf}\n`;
   }
   return output;
 }
@@ -207,6 +249,12 @@ function snapshotWithSessions(snapshot: DiagnosticsSnapshot,
 /** File adapter. Capture is memory-only; journal/export work is scheduled outside writeAudio. */
 export class DiagnosticsModule {
   private static readonly core: DiagnosticsCore = createDiagnosticsCore();
+  private static readonly runtimeObserver: RuntimeDiagnosticObserver = new DiagnosticsRuntimeObserver();
+  private static readonly hilogSink: HilogDiagnosticSink = new HilogDiagnosticSink();
+  private static readonly ndjsonSink: NdjsonDiagnosticSink = new NdjsonDiagnosticSink();
+  private static readonly runtimeSessions: Map<number, RuntimeSessionBinding> =
+    new Map<number, RuntimeSessionBinding>();
+  private static readonly pendingRuntimeMetrics: Map<number, string[]> = new Map<number, string[]>();
   private static rootPath: string = '';
   private static journalTimer: number = -1;
   private static maxDirectoryBytes: number = DEFAULT_MAX_DIRECTORY_BYTES;
@@ -217,6 +265,10 @@ export class DiagnosticsModule {
   private static deliveredModelManifest: string = '';
 
   static isBuildEnabled(): boolean { return DEBUG; }
+
+  static installRuntimeObserver(): void {
+    if (DEBUG) AmphionRuntime.setDiagnosticObserver(DiagnosticsModule.runtimeObserver);
+  }
 
   static setDeliveredModelManifest(value: Uint8Array): void {
     if (!DEBUG) return;
@@ -241,6 +293,8 @@ export class DiagnosticsModule {
       failureRingAudioSec: options.failureRingAudioSec,
       maxSessionEvents: options.maxSessionEvents
     });
+    AmphionRuntime.setDiagnosticObserver(DEBUG && options.enabled ?
+      DiagnosticsModule.runtimeObserver : undefined);
     DiagnosticsModule.scheduleJournal(0);
   }
 
@@ -260,9 +314,64 @@ export class DiagnosticsModule {
     DiagnosticsModule.scheduleJournal(0);
   }
 
+  static bindRuntimeSession(sessionId: string, engineId: string, runtimeSessionId: number): void {
+    if (!DiagnosticsModule.core.isEnabled()) return;
+    DiagnosticsModule.runtimeSessions.set(runtimeSessionId,
+      new RuntimeSessionBinding(sessionId, engineId));
+    const fields: Record<string, Object> = {};
+    fields['runtimeSessionId'] = runtimeSessionId;
+    const entry = DiagnosticsModule.core.record(sessionId, engineId, 'RUNTIME_SESSION_BOUND', fields);
+    if (entry !== undefined) DiagnosticsModule.hilogSink.write(entry);
+    const pending = DiagnosticsModule.pendingRuntimeMetrics.get(runtimeSessionId) ?? [];
+    DiagnosticsModule.pendingRuntimeMetrics.delete(runtimeSessionId);
+    for (let i = 0; i < pending.length; i++) DiagnosticsModule.recordRuntimeMetric(pending[i]);
+  }
+
+  static recordRuntimeMetric(line: string): void {
+    if (!DiagnosticsModule.core.isEnabled()) return;
+    const parsed = parseRuntimeMetric(line);
+    const kind = `${parsed['kind'] ?? 'METRIC'}`;
+    const runtimeSessionId = typeof parsed['sessionId'] === 'number' ?
+      parsed['sessionId'] as number : 0;
+    const knownBinding = DiagnosticsModule.runtimeSessions.get(runtimeSessionId);
+    if (runtimeSessionId > 0 && knownBinding === undefined) {
+      const pending = DiagnosticsModule.pendingRuntimeMetrics.get(runtimeSessionId) ?? [];
+      pending.push(line);
+      while (pending.length > 32) pending.shift();
+      DiagnosticsModule.pendingRuntimeMetrics.set(runtimeSessionId, pending);
+      return;
+    }
+    const fields: Record<string, Object> = {};
+    const keys = Object.keys(parsed);
+    for (let i = 0; i < keys.length; i++) {
+      if (keys[i] !== 'kind' && keys[i] !== 'sessionId') fields[keys[i]] = parsed[keys[i]];
+    }
+    if (runtimeSessionId > 0) fields['runtimeSessionId'] = runtimeSessionId;
+    const binding = knownBinding;
+    const streamGeneration = typeof fields['streamGeneration'] === 'number' ?
+      fields['streamGeneration'] as number :
+      (typeof fields['toGeneration'] === 'number' ? fields['toGeneration'] as number : 0);
+    const eventName = kind.indexOf('RUNTIME_') === 0 ? kind : `RUNTIME_${kind}`;
+    const entry = DiagnosticsModule.core.record(
+      binding?.sourceSessionId ?? '',
+      binding?.engineId ?? '',
+      eventName,
+      fields,
+      Date.now(),
+      streamGeneration,
+      kind.indexOf('NATIVE') >= 0 ? 'native-worker' : 'arkts-runtime'
+    );
+    if (entry !== undefined) DiagnosticsModule.hilogSink.write(entry);
+    if (kind === 'STREAM_LIFECYCLE' && fields['action'] === 'closed' && runtimeSessionId > 0) {
+      DiagnosticsModule.runtimeSessions.delete(runtimeSessionId);
+    }
+    DiagnosticsModule.scheduleJournal(JOURNAL_INTERVAL_MS);
+  }
+
   static record(sessionId: string, engineId: string, event: string,
     fields: Record<string, Object> = {}): void {
-    DiagnosticsModule.core.record(sessionId, engineId, event, fields);
+    const entry = DiagnosticsModule.core.record(sessionId, engineId, event, fields);
+    if (entry !== undefined) DiagnosticsModule.hilogSink.write(entry);
     const urgent = event === 'CALLBACK_ERROR' || event === 'CALLBACK_COMPLETE' ||
       event === 'CANCEL_REQUESTED' || event === 'AUTO_FINISH_REQUESTED' ||
       event === 'CALLBACK_RESULT' && (fields['isFinal'] === true || fields['isLast'] === true);
@@ -418,10 +527,10 @@ export class DiagnosticsModule {
   private static writeSnapshot(runDir: string, snapshot: DiagnosticsSnapshot,
     automatic: boolean): void {
     ensureDirectory(runDir);
-    writeText(`${runDir}/events.ndjson`, ndjson(snapshot.events));
+    writeText(`${runDir}/events.ndjson`, DiagnosticsModule.ndjsonSink.serialize(snapshot.events));
     const callbacks = snapshot.events.filter((event: DiagnosticEvent): boolean =>
       event.event.indexOf('CALLBACK_') === 0);
-    writeText(`${runDir}/callbacks.ndjson`, ndjson(callbacks));
+    writeText(`${runDir}/callbacks.ndjson`, DiagnosticsModule.ndjsonSink.serialize(callbacks));
     for (let i = 0; i < snapshot.sessions.length; i++) {
       DiagnosticsModule.writeSession(runDir, snapshot.sessions[i]);
     }
@@ -434,6 +543,11 @@ export class DiagnosticsModule {
     nativeState['sdkVersion'] = AmphionRuntime.version();
     nativeState['runtimeReady'] = AmphionRuntime.isRuntimeReady();
     nativeState['modelLoaded'] = AmphionRuntime.isModelLoaded();
+    nativeState['systemVersion'] = deviceInfo.osFullName;
+    const licenseStatus = AmphionRuntime.licenseStatus();
+    nativeState['licenseState'] = licenseStatus.state;
+    nativeState['licenseValid'] = licenseStatus.valid;
+    nativeState['licenseErrorCode'] = licenseStatus.errorCode;
     nativeState['queue'] = DiagnosticsModule.lastQueueState;
     nativeState['capturedAtMs'] = Date.now();
     writeText(`${runDir}/native-state.json`, `${JSON.stringify(nativeState)}\n`);
@@ -487,8 +601,10 @@ export class DiagnosticsModule {
     metadata['sampleBit'] = 16;
     metadata['bytes'] = audio.bytes;
     metadata['frames'] = audio.frames;
+    metadata['callerFrameBytes'] = 640;
     metadata['samples'] = audio.samples;
     metadata['durationMs'] = audio.durationMs;
+    metadata['actualWriteAudioDurationMs'] = audio.durationMs;
     metadata['firstFrameTimeMs'] = audio.firstFrameTimeMs;
     metadata['lastFrameTimeMs'] = audio.lastFrameTimeMs;
     metadata['maxFrameGapMs'] = audio.maxFrameGapMs;
@@ -498,6 +614,7 @@ export class DiagnosticsModule {
     metadata['truncated'] = audio.truncated;
     metadata['ringBuffer'] = audio.ringBuffer;
     metadata['preTriggerDroppedBytes'] = audio.preTriggerDroppedBytes;
+    metadata['audioSource'] = 'caller-provided-external-stream';
     metadata['source'] = 'public-writeAudio-input';
     metadata['includesColdStartPreRoll'] = true;
     metadata['includesInternalSilence'] = false;
@@ -515,6 +632,7 @@ export class DiagnosticsModule {
     let isLastBeforeFinish = false;
     let finalCount = 0;
     let streamRestartCount = 0;
+    let nativeErrorCount = 0;
     let startTimeMs = -1;
     let firstCallbackMs = -1;
     for (let i = 0; i < session.events.length; i++) {
@@ -536,7 +654,14 @@ export class DiagnosticsModule {
       }
       if (event.event === 'CALLBACK_COMPLETE') completeCount += 1;
       if (event.event === 'CALLBACK_ERROR') errorCount += 1;
-      if (event.event === 'STREAM_RESTARTED') streamRestartCount += 1;
+      if (event.event === 'STREAM_RESTARTED' ||
+        event.event === 'RUNTIME_STREAM_TRANSITION' && event.fields['action'] === 'hard-restart') {
+        streamRestartCount += 1;
+      }
+      if (event.event === 'RUNTIME_NATIVE_ERROR' || event.event === 'RUNTIME_DECODE_ERROR' ||
+        event.event === 'CALLBACK_ERROR' && Number(event.fields['errorCode'] ?? 0) >= 9000) {
+        nativeErrorCount += 1;
+      }
     }
     const result: Record<string, Object> = {};
     result['sessionId'] = session.sessionId;
@@ -549,6 +674,7 @@ export class DiagnosticsModule {
     result['finalCount'] = finalCount;
     result['completeCount'] = completeCount;
     result['errorCount'] = errorCount;
+    result['nativeErrorCount'] = nativeErrorCount;
     result['autoEndReason'] = autoEndReason;
     result['emptyFinal'] = emptyFinal;
     result['streamRestartCount'] = streamRestartCount;
@@ -579,6 +705,11 @@ export class DiagnosticsModule {
     summary['abnormalSessionCount'] = abnormalSessionCount;
     summary['errorCount'] = errorCount;
     summary['emptyFinalCount'] = emptyFinalCount;
+    const problemSessions = sessions.filter((value: Object): boolean =>
+      (value as Record<string, Object>)['abnormal'] === true);
+    summary['problemSessionId'] = problemSessions.length > 0 ?
+      (problemSessions[problemSessions.length - 1] as Record<string, Object>)['sessionId'] :
+      (sessions.length > 0 ? (sessions[sessions.length - 1] as Record<string, Object>)['sessionId'] : '');
     summary['sessions'] = sessions;
     return summary;
   }

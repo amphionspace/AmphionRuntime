@@ -40,6 +40,7 @@ import {
   Cancellable,
   EndpointRules,
   LicenseEnforcement,
+  RuntimeDiagnosticObserver,
   SessionConfig,
   SpeakerVadConfig,
   TargetSpeakerConfig,
@@ -147,12 +148,19 @@ class PendingSpeakerFinal {
 
 class Logger {
   private static level: AmphionLogLevel = AmphionLogLevel.WARN;
+  private static diagnosticObserver?: RuntimeDiagnosticObserver;
   static setLevel(level: AmphionLogLevel): void { Logger.level = level; }
+  static setDiagnosticObserver(observer?: RuntimeDiagnosticObserver): void {
+    Logger.diagnosticObserver = observer;
+  }
   static d(message: string): void { if (Logger.level <= AmphionLogLevel.DEBUG) console.debug(`[AmphionRuntime] ${message}`); }
   static i(message: string): void { if (Logger.level <= AmphionLogLevel.INFO) console.info(`[AmphionRuntime] ${message}`); }
   static w(message: string): void { if (Logger.level <= AmphionLogLevel.WARN) console.warn(`[AmphionRuntime] ${message}`); }
   static e(message: string): void { if (Logger.level <= AmphionLogLevel.ERROR) console.error(`[AmphionRuntime] ${message}`); }
-  static metric(line: string): void { if (Logger.level !== AmphionLogLevel.NONE) console.info(`[AmphionMetrics] ${line}`); }
+  static metric(line: string): void {
+    try { Logger.diagnosticObserver?.onRuntimeMetric(line); } catch (_ignored) {}
+    if (Logger.level !== AmphionLogLevel.NONE) console.info(`[AmphionMetrics] ${line}`);
+  }
 }
 
 export class AmphionRuntime {
@@ -197,6 +205,11 @@ export class AmphionRuntime {
   private static loadGeneration: number = 0;
   private static releaseGate: RuntimeReleaseGate = new RuntimeReleaseGate();
 
+  /** Debug observation seam. No observer means no diagnostic I/O or allocation. */
+  static setDiagnosticObserver(observer?: RuntimeDiagnosticObserver): void {
+    Logger.setDiagnosticObserver(observer);
+  }
+
   static async init(context: Context, options?: AmphionOptions): Promise<void> {
     if (AmphionRuntime.releaseGate.isReleasePending()) {
       throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: AmphionRuntime release is pending`);
@@ -228,8 +241,12 @@ export class AmphionRuntime {
 
   private static async initializeRuntime(context: Context, options: AmphionOptions,
     generation: number): Promise<void> {
+    const startedMs = Date.now();
+    Logger.metric(`kind=RUNTIME_INIT phase=start generation=${generation}`);
     Logger.setLevel(options.logLevel);
     const status = await AmphionRuntime.evaluateLicense(context, options);
+    Logger.metric(`kind=LICENSE state=${status.state} valid=${status.valid} ` +
+      `errorCode=${status.errorCode} enforcement=${options.licenseEnforcement}`);
     if (generation !== AmphionRuntime.runtimeGeneration) {
       throw new Error(`code=${AsrErrorCode.SDK_NOT_INITIALIZED}: AmphionRuntime.init cancelled by release`);
     }
@@ -240,6 +257,8 @@ export class AmphionRuntime {
     AmphionRuntime.options = options;
     AmphionRuntime.licenseStatusHolder = status;
     AmphionRuntime.initialized = true;
+    Logger.metric(`kind=RUNTIME_INIT phase=end generation=${generation} ` +
+      `elapsedMs=${Date.now() - startedMs} sdkVersion=${AmphionRuntime.SDK_VERSION}`);
     Logger.i(`AmphionRuntime Harmony init done, version=${AmphionRuntime.SDK_VERSION}, license=${status.state}`);
   }
 
@@ -320,6 +339,8 @@ export class AmphionRuntime {
     AmphionRuntime.checkInitialized();
     const effectiveConfig = AmphionRuntime.snapshotConfig(config);
     const createStartMs = Date.now();
+    Logger.metric(`kind=MODEL_LOAD phase=start language=${language} async=false ` +
+      `numThreads=${effectiveConfig.numThreads} hotwordCount=${effectiveConfig.hotwords.length}`);
     const layoutStartMs = Date.now();
     const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
     const assetLayoutMs = Date.now() - layoutStartMs;
@@ -393,6 +414,8 @@ export class AmphionRuntime {
       `recognizerLoadMs=${recognizerLoadMs} warmupMs=${warmupMs} ` +
       `punctuationLoadMs=${engine.punctuationLoadDurationMs()} engineReadyMs=${engineReadyMs}`
     );
+    Logger.metric(`kind=MODEL_LOAD phase=end language=${language} async=false ` +
+      `cacheHit=${canReusePool} elapsedMs=${engineReadyMs}`);
     return engine;
   }
 
@@ -405,6 +428,8 @@ export class AmphionRuntime {
     const generation = AmphionRuntime.loadGeneration;
     const effectiveConfig = AmphionRuntime.snapshotConfig(config);
     const createStartMs = Date.now();
+    Logger.metric(`kind=MODEL_LOAD phase=start language=${language} async=true ` +
+      `numThreads=${effectiveConfig.numThreads} hotwordCount=${effectiveConfig.hotwords.length}`);
     const layoutStartMs = Date.now();
     const layout = AssetInstaller.ensureInstalled(context, language, effectiveConfig).layout;
     const assetLayoutMs = Date.now() - layoutStartMs;
@@ -450,6 +475,8 @@ export class AmphionRuntime {
       `recognizerReadyMs=${recognizerLoad.elapsedMs} punctuationReadyMs=${punctuationLoad.elapsedMs} ` +
       `engineReadyMs=${engineReadyMs}`
     );
+    Logger.metric(`kind=MODEL_LOAD phase=end language=${language} async=true ` +
+      `cacheHit=${!recognizerLoad.ownsRecognizer} elapsedMs=${engineReadyMs}`);
     return engine;
   }
 
@@ -877,10 +904,13 @@ export class AmphionRuntime {
    * (initialized / appContext / license 不变),下次 create 只需重付模型加载,无需重建运行时。
    */
   static unloadModel(): void {
+    Logger.metric(`kind=MODEL_LIFECYCLE action=unload-requested ` +
+      `loaded=${AmphionRuntime.isModelLoaded()}`);
     AmphionRuntime.releaseGate.requestModelUnload((): void => AmphionRuntime.unloadModelNow());
   }
 
   private static unloadModelNow(): void {
+    const startedMs = Date.now();
     AmphionRuntime.loadGeneration += 1;
     // 显式释放 native session 内存(否则清 Map 只丢引用,native 权重要等 GC finalizer 才回收 → 内存不降)。
     // close() 幂等,native handle 的 Close() 防双重释放,与后续 GC 回收 wrapper 对象安全共存。
@@ -907,6 +937,8 @@ export class AmphionRuntime {
     AmphionRuntime.itnPool.clear();
     AmphionRuntime.vadPool.clear();
     AmphionRuntime.poolConfigKey.clear();
+    Logger.metric(`kind=MODEL_LIFECYCLE action=unloaded elapsedMs=${Date.now() - startedMs} ` +
+      `loaded=${AmphionRuntime.isModelLoaded()}`);
   }
 
   /** 是否有已加载的模型(任一模型池非空)。 */
@@ -933,6 +965,10 @@ export class AmphionRuntime {
    * 为未初始化。native .so 由 OS 保留映射,无法在进程内真正 unload。
    */
   static release(): void {
+    const releaseState = AmphionRuntime.releaseGate.diagnosticState();
+    Logger.metric(`kind=RUNTIME_RELEASE phase=requested initialized=${AmphionRuntime.initialized} ` +
+      `modelLoaded=${AmphionRuntime.isModelLoaded()} activeSessions=${releaseState['activeSessions']} ` +
+      `failedStreamCloses=${releaseState['failedStreamCloses']}`);
     void AmphionRuntime.releaseAsync().catch((e: Object): void => {
       Logger.w(`AmphionRuntime release failed: ${e}`);
     });
@@ -947,6 +983,7 @@ export class AmphionRuntime {
   }
 
   private static releaseNow(): void {
+    const startedMs = Date.now();
     AmphionRuntime.runtimeGeneration += 1;
     // Promise 本身不可取消；清掉 single-flight 引用允许后续 init 立即开始，旧任务会被 generation 拒绝提交。
     AmphionRuntime.initTask = undefined;
@@ -955,6 +992,7 @@ export class AmphionRuntime {
     AmphionRuntime.appContext = undefined;
     AmphionRuntime.options = new AmphionOptions();
     AmphionRuntime.licenseStatusHolder = AmphionLicenseStatus.notInitialized();
+    Logger.metric(`kind=RUNTIME_RELEASE phase=complete elapsedMs=${Date.now() - startedMs}`);
   }
 
   static allocateSessionId(): number { return AmphionRuntime.nextSessionId++; }
@@ -1231,12 +1269,16 @@ export class AsrEngine {
   punctuationLoadDurationMs(): number { return this.punctuationLoadMs; }
   close(): void {
     if (this.closed) return;
+    Logger.metric(`kind=ENGINE_LIFECYCLE action=close-requested ` +
+      `openSessionStreams=${this.openSessionStreams} ownsRecognizer=${this.ownsRecognizer}`);
     this.closed = true;
     for (let i = 0; i < this.sessions.length; i++) {
       this.sessions[i].close();
     }
     this.sessions = [];
     this.closeOwnedRecognizerWhenIdle();
+    Logger.metric(`kind=ENGINE_LIFECYCLE action=closed ` +
+      `openSessionStreams=${this.openSessionStreams} recognizerClosed=${this.ownedRecognizerClosed}`);
   }
 
   private onSessionStreamReleased(): void {
@@ -1315,6 +1357,7 @@ export class AsrSession {
   private lastPartialText: string = '';
   private pcmBytesAccepted: number = 0;
   private totalPcmBytes: number = 0;
+  private diagnosticAudioSecond: number = -1;
   private utteranceIndex: number = 0;
   private recognizerResetGeneration: number = 0;
   private streamGeneration: number = 1;
@@ -1376,6 +1419,11 @@ export class AsrSession {
       // 预热已前移到 recognizer 创建处一次性完成(见 AmphionRuntime.warmUpRecognizer),
       // 这里不再每次 startListening 都跑 encoder,避免每次点"开始识别"卡 3~4 秒。
       this.callbackGate.invoke((): void => { this.callback.onSessionStarted?.(); });
+      Logger.metric(`kind=STREAM_LIFECYCLE sessionId=${this.sessionId} action=created ` +
+        `streamGeneration=${this.streamGeneration} numThreads=${this.config.numThreads} ` +
+        `vad=${this.config.vad} endpoint=${this.config.endpoint} punctuation=${this.config.punctuation} ` +
+        `itn=${this.config.itn} hotwordCount=${this.config.hotwords.length} ` +
+        `speakerVad=${this.speakerVadEnabled} voiceprint=${this.targetSpeakerEnabled}`);
     } catch (e) {
       if (this.vad !== undefined) {
         AmphionRuntime.releaseVad(this.vadKey, this.vad);
@@ -1385,6 +1433,10 @@ export class AsrSession {
       throw new Error(`${e}`);
     }
   }
+
+  /** Stable identity used only to correlate Runtime metrics with the public Debug session. */
+  diagnosticSessionId(): number { return this.sessionId; }
+  diagnosticStreamGeneration(): number { return this.streamGeneration; }
 
   acceptPcmShort(samples: Int16Array): void {
     if (this.callbackGate.isClosed()) return;
@@ -1447,6 +1499,7 @@ export class AsrSession {
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
     this.pcmBytesAccepted += samples.length * 2;
     this.totalPcmBytes += samples.length * 2;
+    this.recordRuntimeAudioProgress(samples.length);
     this.streamCallDepth += 1;
     try {
       const frames = this.agcProcessor.process(samples);
@@ -1467,6 +1520,7 @@ export class AsrSession {
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
     this.pcmBytesAccepted += samples.length * 2;
     this.totalPcmBytes += samples.length * 2;
+    this.recordRuntimeAudioProgress(samples.length);
     this.streamCallDepth += 1;
     try {
       const frames = this.agcProcessor.process(samples);
@@ -1674,6 +1728,9 @@ export class AsrSession {
   isClosed(): boolean { return this.callbackGate.isClosed(); }
   close(): void {
     if (!this.callbackGate.close()) return;
+    Logger.metric(`kind=STREAM_LIFECYCLE sessionId=${this.sessionId} action=close-requested ` +
+      `streamGeneration=${this.streamGeneration} streamCallDepth=${this.streamCallDepth} ` +
+      `totalPcmBytes=${this.totalPcmBytes}`);
     this.agcProcessor.close();
     this.reentryQueue.clear();
     this.targetExtractorLoad = undefined;
@@ -1693,6 +1750,16 @@ export class AsrSession {
     this.releaseStreamIfClosed();
   }
 
+  private recordRuntimeAudioProgress(frameSamples: number): void {
+    const second = Math.floor(this.totalPcmBytes / (ASR_SAMPLE_RATE_HZ * 2));
+    if (this.diagnosticAudioSecond === second && this.totalPcmBytes > frameSamples * 2) return;
+    this.diagnosticAudioSecond = second;
+    Logger.metric(`kind=ACCEPT_WAVEFORM sessionId=${this.sessionId} ` +
+      `streamGeneration=${this.streamGeneration} frameSamples=${frameSamples} ` +
+      `totalSamples=${Math.floor(this.totalPcmBytes / 2)} totalPcmBytes=${this.totalPcmBytes} ` +
+      `utterancePcmBytes=${this.pcmBytesAccepted} streamCallDepth=${this.streamCallDepth}`);
+  }
+
   private shouldDeferSessionOperation(): boolean {
     return this.streamCallDepth > 0 || this.callbackGate.isInvoking();
   }
@@ -1707,10 +1774,17 @@ export class AsrSession {
 
   private drain(isFinal: boolean, restartAfterFinal: boolean = true, isLastFinal: boolean = false): void {
     const decodeStartMs = Date.now();
+    let readyCount = 0;
     while (this.recognizer.isReady(this.stream)) {
       this.recognizer.decode(this.stream);
+      readyCount += 1;
     }
     const decodeDurationMs = Date.now() - decodeStartMs;
+    if (isFinal) {
+      Logger.metric(`kind=DECODE sessionId=${this.sessionId} async=false final=true ` +
+        `readyCount=${readyCount} decodeDurationMs=${decodeDurationMs} ` +
+        `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
+    }
 
     this.processDecodedResult(isFinal, restartAfterFinal, isLastFinal, decodeDurationMs);
   }
@@ -1719,6 +1793,11 @@ export class AsrSession {
     isLastFinal: boolean = false): Promise<void> {
     const decodeDurationMs = await this.recognizer.decodeAsync(this.stream);
     if (this.callbackGate.isClosed()) return;
+    if (isFinal) {
+      Logger.metric(`kind=DECODE sessionId=${this.sessionId} async=true final=true ` +
+        `decodeDurationMs=${decodeDurationMs} streamGeneration=${this.streamGeneration} ` +
+        `totalPcmBytes=${this.totalPcmBytes}`);
+    }
     this.processDecodedResult(isFinal, restartAfterFinal, isLastFinal, decodeDurationMs);
   }
 
@@ -1827,6 +1906,22 @@ export class AsrSession {
       this.speakerPcmBuffers.fallbackSamples() : new Float32Array(0);
     const scoreSelection =
       selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence);
+    const scoringEnabled = this.targetSpeakerEnabled || this.speakerVadEnabled;
+    const scoreEligible = scoringEnabled && scoreSelection.samples.length > 0 &&
+      this.targetSpeaker !== undefined;
+    let scoreOmissionReason = 'none';
+    if (!scoringEnabled) scoreOmissionReason = 'disabled';
+    else if (!hasEvidence) scoreOmissionReason = 'no-speech-evidence';
+    else if (scoreSelection.samples.length === 0) scoreOmissionReason = 'no-real-speech-pcm';
+    else if (this.targetSpeaker === undefined) scoreOmissionReason = 'target-embedding-missing';
+    else if (this.targetExtractor === undefined && this.targetExtractorLoad !== undefined) {
+      scoreOmissionReason = 'extractor-loading';
+    } else if (this.targetExtractor === undefined) scoreOmissionReason = 'extractor-unavailable';
+    Logger.metric(`kind=VOICEPRINT_ELIGIBILITY sessionId=${this.sessionId} ` +
+      `streamGeneration=${this.streamGeneration} enabled=${scoringEnabled} eligible=${scoreEligible} ` +
+      `source=${scoreSelection.source} realSpeechMs=${Math.round(scoreSelection.samples.length * 1000 / ASR_SAMPLE_RATE_HZ)} ` +
+      `asrSpeechConfirmed=${hasEvidence} embeddingReady=${this.targetSpeaker !== undefined} ` +
+      `extractorReady=${this.targetExtractor !== undefined} omissionReason=${scoreOmissionReason}`);
     let finalSpeakerVadMatch = result.isTargetSpeaker;
     if (this.speakerVadEnabled && !this.svTargetConfirmed &&
       hasEvidence && finalSpeakerVadMatch === undefined && scoreSelection.samples.length > 0) {
@@ -1907,6 +2002,11 @@ export class AsrSession {
       this.applyTargetSpeaker(pending.result, pending.samples);
     }
     if (this.callbackGate.isClosed()) return;
+    Logger.metric(`kind=VOICEPRINT_RESULT sessionId=${this.sessionId} ` +
+      `streamGeneration=${this.streamGeneration} embeddingProduced=${pending.result.speakerScore !== undefined} ` +
+      `speakerSimilarity=${pending.result.speakerScore ?? -1} ` +
+      `isTargetSpeaker=${pending.result.isTargetSpeaker ?? true} ` +
+      `realSpeechMs=${Math.round(pending.samples.length * 1000 / ASR_SAMPLE_RATE_HZ)}`);
     if (pending.result.isTargetSpeaker === false) {
       if (!this.callbackGate.invoke((): void => {
         this.callback.onFinalRejected?.(pending.result);
@@ -2840,6 +2940,8 @@ export class AsrSession {
     if (!this.runtimeLease.releaseAfterClose((): void => {
       this.stream.close();
       this.streamReleased = true;
+      Logger.metric(`kind=STREAM_LIFECYCLE sessionId=${this.sessionId} action=closed ` +
+        `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
       this.onStreamReleased();
     })) {
       Logger.w(`session ${this.sessionId} stream close failed; Runtime lease retained`);

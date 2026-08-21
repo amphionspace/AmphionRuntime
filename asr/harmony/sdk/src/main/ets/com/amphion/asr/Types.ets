@@ -13,6 +13,11 @@ export enum AmphionLogLevel {
   NONE = 4
 }
 
+/** Optional, read-only bridge used by Debug adapters to consume Runtime metrics. */
+export interface RuntimeDiagnosticObserver {
+  onRuntimeMetric(line: string): void;
+}
+
 export enum LicenseEnforcement {
   ENFORCE = 'ENFORCE',
   PERMISSIVE = 'PERMISSIVE'

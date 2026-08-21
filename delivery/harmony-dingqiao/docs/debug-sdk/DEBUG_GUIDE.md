@@ -7,6 +7,9 @@ Debug HAR 与 Release HAR 的模块名和识别接口保持一致。替换四个
 文本。客户只替换 Debug HAR 即可记录非敏感结构化事件，原有识别业务代码不需要修改。
 测试人员明确同意后，再通过下方配置开启音频或识别文本；随包应用也可使用启动参数
 `--ps diagnosticsAudio true --ps diagnosticsText true`，复现后点击“导出诊断包”。
+自动化真机验证可同时传入 `--ps selftest true --ps diagnosticsExport true`，自测完成后
+`DiagnosticSmoke` hilog 会输出 `EXPORT_SUCCESS` 和沙箱路径。传入
+`--ps diagnosticsEnabled false` 可验证 Debug 构建的关闭路径。
 
 三种模式：
 
@@ -54,12 +57,31 @@ python3 tools/collect_asr_diagnostics.py \
 `--bundle com.customer.app`；应用包含多个 HAP module 时同时指定 `--module entry`。
 
 工具会拉取最近一次已导出的诊断、校验 WAV 和 manifest、脱敏 hilog，并生成 ZIP 与
-SHA-256。手机端文件不会被删除。
+SHA-256。默认只保留异常 session；若没有异常，则只保留最新 session，防止把无关会话带出
+应用沙箱。确需全量分析时显式增加 `--include-all-sessions`。手机端文件不会被删除。
+
+交付包自带经过构建流程生成的 `build-identity.json`，收集工具会把 HAP、四个 HAR、native、
+模型和源码指纹写入每个 run。也可以通过 `--build-identity <path>` 覆盖。
+
+敏感业务可使用单独密码文件加密输出（密码文件不会进入诊断包）：
+
+```bash
+python3 tools/collect_asr_diagnostics.py --device auto --last 1 \
+  --encrypt-password-file /secure/channel/asr-debug.password
+```
+
+输出为 `.zip.enc`，采用 OpenSSL AES-256-CBC、PBKDF2-SHA256 和 200000 次迭代；密码应通过
+与文件不同的渠道传递。
 
 每个诊断目录包含 `manifest.json`、`summary.json`、构建/模型/有效配置身份、事件与回调
-NDJSON、`resource-samples.csv`、`native-state.json`，以及每个 session 的 timeline、result 和
+NDJSON、脱敏后的 `hilog.txt`、`resource-samples.csv`、`native-state.json`，以及每个 session 的 timeline、result 和
 可选 `sdk-input.wav/json`。`summary.json` 会直接标出 finish、提前 `isLast`、空 final、自动结束
 原因、PCM 时长/截断、错误、回调延迟和下一轮可用性。
+
+`events.ndjson` schema v2 的每条事件都携带 `runId`、`engineId`、匿名 `sessionId`、
+`sessionGeneration`、`streamGeneration`、`wallTimeMs`、单 run 单调递增的
+`monotonicTimeNs` 与执行线程类别。Runtime 的模型加载、endpoint、decode、stream reset/restart、
+结果抑制、声纹资格/分数和 release 状态会自动映射到同一业务 session。
 
 `writeAudio` 只更新有界内存，不同步写磁盘。Debug 版通过 5 秒低频后台 journal 保存活跃
 session；若进程异常退出，下次 `SpeechRecognizeSdk.init` 会恢复为可导出的 run，并写入

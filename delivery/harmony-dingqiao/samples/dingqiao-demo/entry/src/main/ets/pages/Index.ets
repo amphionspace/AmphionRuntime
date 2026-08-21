@@ -75,6 +75,9 @@ class DemoDiagnosticExportCallback implements DiagnosticExportCallback {
 @Entry
 @Component
 struct Index {
+  @StorageProp('diagnosticsEnabled') diagnosticsEnabled: boolean = true;
+  @StorageProp('diagnosticsAudio') diagnosticsAudio: boolean = false;
+  @StorageProp('diagnosticsText') diagnosticsText: boolean = false;
   @State status: string = '正在准备运行时和默认模型…';
   @State partialText: string = '';
   @State finalSegments: FinalSegment[] = [];
@@ -1408,6 +1411,15 @@ struct Index {
       }
 
       Column({ space: 6 }) {
+        Text(this.diagnosticsEnabled ? '诊断采集中' : '诊断未开启')
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.diagnosticsEnabled ? '#18794E' : Color.Gray)
+          .width('100%')
+        Text(`包含音频：${this.diagnosticsAudio ? '是' : '否'}    包含识别文本：${this.diagnosticsText ? '是' : '否'}`)
+          .fontSize(11)
+          .fontColor(Color.Gray)
+          .width('100%')
         Text(this.diagnosticsInfo).fontSize(11).fontColor(Color.Gray).width('100%').maxLines(2)
         Button('导出诊断包')
           .width('100%')

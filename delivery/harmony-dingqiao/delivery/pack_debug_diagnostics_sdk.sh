@@ -25,6 +25,9 @@ for module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
     --no-daemon --stacktrace
 done
 
+BUILD_IDENTITY="$OUTPUT_ROOT/build-identity.json"
+python3 "$SCRIPT_DIR/harmony_build_identity.py" --write "$BUILD_IDENTITY"
+
 mkdir -p "$PACKAGE_ROOT/sdk" "$PACKAGE_ROOT/demo" "$PACKAGE_ROOT/tools" "$PACKAGE_ROOT/docs"
 cp "$REPO_ROOT/asr/harmony/sdk/build/default/outputs/default/amphion_asr.har" \
   "$PACKAGE_ROOT/sdk/amphion_asr-debug.har"
@@ -35,6 +38,7 @@ cp "$REPO_ROOT/asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_di
 cp "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har" \
   "$PACKAGE_ROOT/sdk/sherpa_onnx.har"
 cp "$SCRIPT_DIR/collect_asr_diagnostics.py" "$PACKAGE_ROOT/tools/"
+cp "$BUILD_IDENTITY" "$PACKAGE_ROOT/tools/build-identity.json"
 cp "$PROJECT_ROOT/docs/debug-sdk/DEBUG_GUIDE.md" "$PACKAGE_ROOT/docs/"
 cp "$PROJECT_ROOT/docs/debug-sdk/ISSUE_TEMPLATE.md" "$PACKAGE_ROOT/docs/"
 cp "$PROJECT_ROOT/docs/debug-sdk/PRIVACY_NOTICE.md" "$PACKAGE_ROOT/docs/"

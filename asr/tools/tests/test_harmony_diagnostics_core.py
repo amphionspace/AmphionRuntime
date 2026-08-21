@@ -17,6 +17,11 @@ MODULE = (
     REPO_ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/DiagnosticsModule.ets"
 )
+RUNTIME = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
+SINKS = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/DiagnosticSinks.ets"
+)
 
 
 class HarmonyDiagnosticsCoreTest(unittest.TestCase):
@@ -76,7 +81,8 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             core.beginSession('real-session', engine, {}, 1010);
             core.record('real-session', engine, 'CALLBACK_RESULT', {
               text: 'sensitive text', tokens: 'secret token', hotwords: 'person name',
-              voiceprintIds: 'secret-id', licenseText: 'private-key', isLast: true
+              voiceprintIds: 'secret-id', licenseText: 'private-key',
+              message: '/data/storage/private/path', isLast: true
             }, 1020);
             const event = core.snapshot().events[1];
             assert.deepEqual(event.fields, { isLast: true });
@@ -93,6 +99,35 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             assert.deepEqual(withText.snapshot().events[1].fields, { text: 'allowed' });
             """
         )
+
+    def test_schema_two_carries_required_correlation_and_monotonic_fields(self) -> None:
+        self.run_core(
+            """
+            const core = new DiagnosticsCore();
+            core.configure({ enabled: true, mode: 'BASIC', captureAudio: false,
+              includeRecognitionText: false, maxSessionAudioSec: 120 }, 1000);
+            const engine = core.nextEngineId();
+            core.beginSession('public', engine, {}, 1010);
+            core.record('public', engine, 'RUNTIME_ENDPOINT', {}, 1020, 2, 'native-worker');
+            const events = core.snapshot().events;
+            assert.equal(events[1].schemaVersion, 2);
+            assert.equal(events[1].streamGeneration, 2);
+            assert.equal(events[1].thread, 'native-worker');
+            assert.ok(events[1].monotonicTimeNs > events[0].monotonicTimeNs);
+            """
+        )
+
+    def test_runtime_bridge_and_three_sink_types_are_present(self) -> None:
+        runtime = RUNTIME.read_text(encoding="utf-8")
+        module = MODULE.read_text(encoding="utf-8")
+        sinks = SINKS.read_text(encoding="utf-8")
+        self.assertIn("setDiagnosticObserver", runtime)
+        self.assertIn("kind=VOICEPRINT_ELIGIBILITY", runtime)
+        self.assertIn("kind=STREAM_TRANSITION", runtime)
+        self.assertIn("bindRuntimeSession", module)
+        self.assertIn("class HilogDiagnosticSink", sinks)
+        self.assertIn("class NdjsonDiagnosticSink", sinks)
+        self.assertIn("class MemoryDiagnosticSink", sinks)
 
     def test_disabled_core_has_no_capture_or_event_overhead(self) -> None:
         self.run_core(

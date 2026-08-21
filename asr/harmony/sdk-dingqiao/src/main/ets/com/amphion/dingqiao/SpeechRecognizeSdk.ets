@@ -538,6 +538,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         return;
       }
       this.session = createdSession;
+      DiagnosticsModule.bindRuntimeSession(
+        params.sessionId,
+        this.diagnosticEngineId,
+        createdSession.diagnosticSessionId()
+      );
       if (useTarget && embedding !== undefined) {
         this.session.setTargetSpeaker(embedding);
         this.session.setTargetSpeakerEnabled(verify);
@@ -615,7 +620,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       newEnhancer?.close();
       this.tearDownSession();
       this.diagnosticValues(params.sessionId, 'CALLBACK_ERROR',
-        ['errorCode', 'message'], [DingqiaoErrorCode.START_LISTENING_FAILED, `${e}`]);
+        ['errorCode', 'messageChars'], [DingqiaoErrorCode.START_LISTENING_FAILED, `${e}`.length]);
       this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.START_LISTENING_FAILED, `${e}`);
     }
   }
@@ -809,9 +814,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       result.text,
       (): void => {
         this.diagnosticValues(sessionId, 'CALLBACK_RESULT',
-          ['isFinal', 'isLast', 'textChars', 'text', 'hasSpeakerSimilarity'],
+          ['isFinal', 'isLast', 'textChars', 'text', 'hasSpeakerSimilarity', 'speakerSimilarity',
+            'tokenCount', 'tokenTimestampCount'],
           [payload.isFinal, payload.isLast, payload.result.length, payload.result,
-            payload.speakerSimilarity !== undefined]);
+            payload.speakerSimilarity !== undefined, payload.speakerSimilarity ?? -1,
+            result.tokens.length, result.timestamps.length]);
         this.listener?.onResult?.(sessionId, payload);
       },
       (): void => {
@@ -984,8 +991,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (this.targetSpeakerEnhancementEnabled) payload.targetSpeakerEnhancementApplied = true;
     this.finalResultSent = true;
     this.diagnosticValues(sessionId, 'CALLBACK_RESULT',
-      ['isFinal', 'isLast', 'textChars', 'hasSpeakerSimilarity', 'rejectedBySpeakerVad'],
-      [true, payload.isLast, 0, payload.speakerSimilarity !== undefined, true]);
+      ['isFinal', 'isLast', 'textChars', 'hasSpeakerSimilarity', 'speakerSimilarity',
+        'rejectedBySpeakerVad'],
+      [true, payload.isLast, 0, payload.speakerSimilarity !== undefined,
+        payload.speakerSimilarity ?? -1, true]);
     this.listener?.onResult?.(sessionId, payload);
     if (rejectedFinalCompletesSession(result.isLast)) {
       if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
@@ -999,8 +1008,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.tearDownSession();
     try {
       this.diagnosticValues(sessionId, 'CALLBACK_ERROR',
-        ['errorCode', 'nativeErrorCode', 'message'],
-        [DingqiaoErrorCode.RECOGNITION_ERROR, error.code, error.message]);
+        ['errorCode', 'nativeErrorCode', 'messageChars'],
+        [DingqiaoErrorCode.RECOGNITION_ERROR, error.code, error.message.length]);
       this.listener?.onError?.(sessionId, DingqiaoErrorCode.RECOGNITION_ERROR, `${error.code}: ${error.message}`);
     } finally {
       this.finishShutdownGate.settle();
@@ -1162,6 +1171,7 @@ export class SpeechRecognizeSdk {
 
   /** Uses the host provider for device-bound licenses; privileged hosts may omit it to use hardware SN. */
   static init(context: Context, deviceIdProvider?: LicenseDeviceIdProvider): void {
+    DiagnosticsModule.installRuntimeObserver();
     if (SpeechRecognizeSdk.context !== undefined &&
       (SpeechRecognizeSdk.context !== context || SpeechRecognizeSdk.deviceIdProvider !== deviceIdProvider)) {
       SpeechRecognizeSdk.invalidateRuntime();

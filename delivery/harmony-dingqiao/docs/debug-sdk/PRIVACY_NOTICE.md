@@ -12,3 +12,7 @@
 `BASIC` 模式强制关闭音频和文本，即使调用方误设开关也不会采集；`CUSTOMER_SUPPORT` 和
 `FAILURE_ONLY` 才允许按独立开关采集。Debug 版后台 journal 也遵守相同开关与脱敏规则。
 诊断目录默认总上限 200 MB、最多保留最近 3 个 run，SDK 不会访问或打包其他应用数据。
+
+电脑收集工具默认只带出异常 session（无异常时只带出最新 session），不会默认包含同一 run
+中的其他会话。可选 `--encrypt-password-file` 会在本机生成 AES-256 加密包并删除明文 ZIP；
+密码必须经另一条安全渠道传递。

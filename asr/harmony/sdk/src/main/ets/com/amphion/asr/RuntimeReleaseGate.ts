@@ -108,6 +108,15 @@ export class RuntimeReleaseGate {
     return this.modelUnload !== undefined || this.runtimeRelease !== undefined;
   }
 
+  diagnosticState(): Record<string, Object> {
+    const state: Record<string, Object> = {};
+    state['activeSessions'] = this.activeSessions;
+    state['failedStreamCloses'] = this.failedLeases.length;
+    state['modelUnloadPending'] = this.modelUnload !== undefined;
+    state['runtimeReleasePending'] = this.runtimeRelease !== undefined;
+    return state;
+  }
+
   private flush(): void {
     if (this.activeSessions > 0) return;
     const release = this.runtimeRelease;

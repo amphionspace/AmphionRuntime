@@ -191,6 +191,7 @@ def collect_hilog(hdc: Path, device: str, bundle: str) -> str:
     result = subprocess.run(
         [str(hdc), "-t", device, "shell", "hilog", "-x"],
         text=True,
+        errors="replace",
         capture_output=True,
         timeout=30,
     )
@@ -213,6 +214,69 @@ def write_zip(source_root: Path, output: Path) -> None:
                 archive.write(path, path.relative_to(source_root.parent))
 
 
+def retain_relevant_sessions(run_dir: Path) -> list[str]:
+    """Default privacy boundary: keep abnormal sessions, or only the newest session."""
+    summary_path = run_dir / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    sessions = summary.get("sessions", [])
+    selected = [
+        str(session.get("sessionId", ""))
+        for session in sessions
+        if isinstance(session, dict) and session.get("abnormal") is True
+    ]
+    if not selected and sessions:
+        latest = sessions[-1]
+        if isinstance(latest, dict):
+            selected = [str(latest.get("sessionId", ""))]
+    selected = [session_id for session_id in selected if session_id]
+    if not selected:
+        return []
+    session_root = run_dir / "sessions"
+    if session_root.is_dir():
+        for child in session_root.iterdir():
+            if child.is_dir() and child.name not in selected:
+                shutil.rmtree(child)
+    for name in ("events.ndjson", "callbacks.ndjson"):
+        path = run_dir / name
+        retained: list[str] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            event = json.loads(line)
+            if event.get("sessionId", "") in ("", *selected):
+                retained.append(json.dumps(event, ensure_ascii=False, separators=(",", ":")))
+        path.write_text("\n".join(retained) + ("\n" if retained else ""), encoding="utf-8")
+    kept_summaries = [
+        session for session in sessions
+        if isinstance(session, dict) and str(session.get("sessionId", "")) in selected
+    ]
+    summary["sessions"] = kept_summaries
+    summary["sessionCount"] = len(kept_summaries)
+    summary["privacySessionSelection"] = "abnormal-or-newest"
+    summary_path.write_text(
+        json.dumps(summary, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    return selected
+
+
+def encrypt_archive(archive: Path, password_file: Path) -> Path:
+    password_file = password_file.expanduser().resolve()
+    if not password_file.is_file() or password_file.stat().st_size == 0:
+        raise RuntimeError("--encrypt-password-file must reference a non-empty file")
+    encrypted = archive.with_suffix(archive.suffix + ".enc")
+    subprocess.run(
+        [
+            "openssl", "enc", "-aes-256-cbc", "-salt", "-pbkdf2", "-iter", "200000",
+            "-in", str(archive), "-out", str(encrypted), "-pass", f"file:{password_file}",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    archive.unlink()
+    return encrypted
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--device", default="auto", help="HDC target or 'auto'")
@@ -221,6 +285,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--last", type=int, default=1, help="number of newest runs to include")
     parser.add_argument("--note", default="", help="short reproduction note")
     parser.add_argument("--output-root", type=Path, default=Path.cwd())
+    parser.add_argument(
+        "--include-all-sessions", action="store_true",
+        help="include every session in selected runs (privacy-sensitive)",
+    )
+    parser.add_argument(
+        "--encrypt-password-file", type=Path,
+        help="optionally encrypt the ZIP with OpenSSL AES-256-CBC/PBKDF2",
+    )
+    parser.add_argument(
+        "--build-identity", type=Path,
+        help="verified delivery build-identity.json to attach to every run",
+    )
     return parser.parse_args()
 
 
@@ -235,6 +311,10 @@ def main() -> int:
     output_root = args.output_root.expanduser().resolve()
     output_root.mkdir(parents=True, exist_ok=True)
     output_zip = output_root / f"asr-diagnostics-{stamp}.zip"
+    build_identity = args.build_identity
+    bundled_identity = Path(__file__).resolve().with_name("build-identity.json")
+    if build_identity is None and bundled_identity.is_file():
+        build_identity = bundled_identity
     with tempfile.TemporaryDirectory(prefix="amphion-asr-diagnostics-") as directory:
         temp = Path(directory)
         pulled = temp / "pulled"
@@ -253,12 +333,21 @@ def main() -> int:
         package_root = temp / f"asr-diagnostics-{stamp}"
         package_root.mkdir()
         copied: list[str] = []
+        hilog_text = collect_hilog(hdc, device, args.bundle)
         for run in runs[: args.last]:
             validate_run(run)
-            shutil.copytree(run, package_root / run.name)
+            destination = package_root / run.name
+            shutil.copytree(run, destination)
+            if not args.include_all_sessions:
+                retain_relevant_sessions(destination)
+            (destination / "hilog.txt").write_text(hilog_text, encoding="utf-8")
+            if build_identity is not None:
+                identity = build_identity.expanduser().resolve()
+                json.loads(identity.read_text(encoding="utf-8"))
+                shutil.copy2(identity, destination / "build-identity.json")
             copied.append(run.name)
         (package_root / "hilog.txt").write_text(
-            collect_hilog(hdc, device, args.bundle), encoding="utf-8"
+            hilog_text, encoding="utf-8"
         )
         (package_root / "note.txt").write_text(args.note.strip() + "\n", encoding="utf-8")
         collection = {
@@ -274,10 +363,13 @@ def main() -> int:
             json.dumps(collection, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
         write_zip(package_root, output_zip)
-    digest = hashlib.sha256(output_zip.read_bytes()).hexdigest()
-    checksum = output_zip.with_suffix(output_zip.suffix + ".sha256")
-    checksum.write_text(f"{digest}  {output_zip.name}\n", encoding="utf-8")
-    print(f"[OK] diagnostics: {output_zip}")
+    final_output = output_zip
+    if args.encrypt_password_file is not None:
+        final_output = encrypt_archive(output_zip, args.encrypt_password_file)
+    digest = hashlib.sha256(final_output.read_bytes()).hexdigest()
+    checksum = final_output.with_suffix(final_output.suffix + ".sha256")
+    checksum.write_text(f"{digest}  {final_output.name}\n", encoding="utf-8")
+    print(f"[OK] diagnostics: {final_output}")
     print(f"[OK] checksum: {checksum}")
     return 0
 

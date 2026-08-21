@@ -3,7 +3,12 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { window } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
 import deviceInfo from '@ohos.deviceInfo';
-import { DiagnosticOptions, LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
+import {
+  DiagnosticExportCallback,
+  DiagnosticOptions,
+  LicenseDeviceIdProvider,
+  SpeechRecognizeSdk
+} from 'amphion_dingqiao';
 import { DeviceStressOptions, runDeviceStress } from '../util/DeviceStressTest';
 import { ModelLoadBenchOptions, runModelLoadBench } from '../util/ModelLoadBench';
 import { LifecycleBenchOptions, runLifecycleBench } from '../util/LifecycleBench';
@@ -20,12 +25,24 @@ class DemoDeviceIdProvider implements LicenseDeviceIdProvider {
   }
 }
 
+class HeadlessDiagnosticExportCallback implements DiagnosticExportCallback {
+  onSuccess(path: string): void {
+    hilog.info(0x0000, 'DiagnosticSmoke', 'EXPORT_SUCCESS path=%{public}s', path);
+  }
+
+  onError(errorCode: number, message: string): void {
+    hilog.error(0x0000, 'DiagnosticSmoke',
+      'EXPORT_FAILED code=%{public}d message=%{public}s', errorCode, message);
+  }
+}
+
 export default class EntryAbility extends UIAbility {
   private selfTest: boolean = false;
   private stressTest: boolean = false;
   private loadBench: boolean = false;
   private lifecycleBench: boolean = false;
   private hotwordEval: boolean = false;
+  private diagnosticExport: boolean = false;
   private stressWindow?: window.Window;
   private stressFinished: boolean = false;
 
@@ -61,11 +78,19 @@ export default class EntryAbility extends UIAbility {
       const deviceIdProvider = new DemoDeviceIdProvider();
       SpeechRecognizeSdk.init(this.context, deviceIdProvider);
       SpeechRecognizeSdk.setWorkPath(workPath);
-      const diagnosticOptions = DiagnosticOptions.customerSupport();
-      diagnosticOptions.captureAudio = params !== undefined && params['diagnosticsAudio'] === 'true';
-      diagnosticOptions.includeRecognitionText =
-        params !== undefined && params['diagnosticsText'] === 'true';
+      const captureAudio = params !== undefined && params['diagnosticsAudio'] === 'true';
+      const includeRecognitionText = params !== undefined && params['diagnosticsText'] === 'true';
+      // Keep the shipped Debug app on the documented privacy-safe BASIC default. Explicit content
+      // switches opt into CUSTOMER_SUPPORT because BASIC always suppresses audio and text.
+      const diagnosticOptions = captureAudio || includeRecognitionText ?
+        DiagnosticOptions.customerSupport() : new DiagnosticOptions();
+      diagnosticOptions.enabled = params === undefined || params['diagnosticsEnabled'] !== 'false';
+      diagnosticOptions.captureAudio = captureAudio;
+      diagnosticOptions.includeRecognitionText = includeRecognitionText;
       SpeechRecognizeSdk.configureDiagnostics(diagnosticOptions);
+      AppStorage.setOrCreate('diagnosticsEnabled', diagnosticOptions.enabled);
+      AppStorage.setOrCreate('diagnosticsAudio', diagnosticOptions.captureAudio);
+      AppStorage.setOrCreate('diagnosticsText', diagnosticOptions.includeRecognitionText);
       hilog.info(0x0000, 'AmphionAsrDemo', 'SpeechRecognizeSdk init done, workPath=%{public}s', workPath);
     } catch (e) {
       hilog.error(0x0000, 'AmphionAsrDemo', 'SpeechRecognizeSdk init failed: %{public}s', `${e}`);
@@ -77,6 +102,7 @@ export default class EntryAbility extends UIAbility {
     this.loadBench = params !== undefined && params['loadbench'] === 'true';
     this.lifecycleBench = params !== undefined && params['lifecycle'] === 'true';
     this.hotwordEval = params !== undefined && params['hotwordEval'] === 'true';
+    this.diagnosticExport = params !== undefined && params['diagnosticsExport'] === 'true';
     if (this.hotwordEval) {
       const options = new HotwordDeviceEvalOptions();
       options.manifestPath = this.stringParameter(want, 'hotwordEvalManifest', '');
@@ -104,9 +130,15 @@ export default class EntryAbility extends UIAbility {
         hilog.error(0x0000, 'LifecycleBench', 'lifecycle bench crashed: %{public}s', `${e}`);
       });
     } else if (this.selfTest) {
-      runSdkSelfTest(this.context).catch((e: Object): void => {
-        hilog.error(0x0000, 'SdkSelfTest', 'self-test crashed: %{public}s', `${e}`);
-      });
+      runSdkSelfTest(this.context)
+        .then((): void => {
+          if (this.diagnosticExport) {
+            SpeechRecognizeSdk.exportDiagnostics(new HeadlessDiagnosticExportCallback());
+          }
+        })
+        .catch((e: Object): void => {
+          hilog.error(0x0000, 'SdkSelfTest', 'self-test crashed: %{public}s', `${e}`);
+        });
     } else if (this.loadBench) {
       const options = new ModelLoadBenchOptions();
       options.runId = this.stringParameter(want, 'loadbenchRunId', 'manual');

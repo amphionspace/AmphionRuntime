@@ -28,10 +28,13 @@ export interface DiagnosticEvent {
   schemaVersion: number;
   sequence: number;
   wallTimeMs: number;
+  monotonicTimeNs: number;
   runId: string;
   engineId: string;
   sessionId: string;
   sessionGeneration: number;
+  streamGeneration: number;
+  thread: string;
   event: string;
   fields: Record<string, Object>;
 }
@@ -218,6 +221,8 @@ export class DiagnosticsCore {
   };
   private runId: string = '';
   private sequence: number = 0;
+  private runStartedMs: number = 0;
+  private lastMonotonicTimeNs: number = 0;
   private engineSequence: number = 0;
   private sessionGeneration: number = 0;
   private sessionSequence: number = 0;
@@ -236,7 +241,10 @@ export class DiagnosticsCore {
       failureRingAudioSec: Math.min(120, Math.max(1, config.failureRingAudioSec ?? 20)),
       maxSessionEvents: Math.max(64, config.maxSessionEvents ?? 512)
     };
-    if (this.config.enabled && this.runId.length === 0) this.runId = `run-${nowMs}`;
+    if (this.config.enabled && this.runId.length === 0) {
+      this.runId = `run-${nowMs}`;
+      this.runStartedMs = nowMs;
+    }
   }
 
   isEnabled(): boolean { return this.config.enabled; }
@@ -264,24 +272,32 @@ export class DiagnosticsCore {
   }
 
   record(sourceSessionId: string, engineId: string, event: string,
-    fields: Record<string, Object> = {}, nowMs: number = Date.now()): void {
-    if (!this.config.enabled) return;
+    fields: Record<string, Object> = {}, nowMs: number = Date.now(),
+    streamGeneration: number = 0, thread: string = 'arkts-main'): DiagnosticEvent | undefined {
+    if (!this.config.enabled) return undefined;
     const session = this.sessions.get(sourceSessionId);
+    this.lastMonotonicTimeNs = Math.max(
+      this.lastMonotonicTimeNs + 1,
+      Math.max(0, nowMs - this.runStartedMs) * 1000000
+    );
     const entry: DiagnosticEvent = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       sequence: ++this.sequence,
       wallTimeMs: nowMs,
+      monotonicTimeNs: this.lastMonotonicTimeNs,
       runId: this.runId,
       engineId,
       sessionId: session?.publicId ?? '',
       sessionGeneration: session?.generation ?? 0,
+      streamGeneration,
+      thread,
       event,
       fields: this.redactFields(fields)
     };
     if (session === undefined) {
       this.orphanEvents.push(entry);
       this.trimEvents(this.orphanEvents);
-      return;
+      return entry;
     }
     session.events.push(entry);
     const abnormalReason = this.abnormalReason(session, entry);
@@ -292,6 +308,7 @@ export class DiagnosticsCore {
     if (this.config.mode === DiagnosticModeValue.FAILURE_ONLY && !session.abnormal) {
       this.trimEvents(session.events);
     }
+    return entry;
   }
 
   captureAudio(sourceSessionId: string, audio: ArrayBuffer, nowMs: number = Date.now()): void {
@@ -377,7 +394,8 @@ export class DiagnosticsCore {
       const key = keys[i];
       if (key === 'license' || key === 'licenseText' || key === 'privateKey' ||
         key === 'deviceSerial' || key === 'voiceprintId' || key === 'voiceprintIds' ||
-        key === 'hotwords' || key === 'path' || key === 'modelPath') continue;
+        key === 'hotwords' || key === 'path' || key === 'modelPath' ||
+        key === 'message' || key === 'errorMessage') continue;
       if ((key === 'text' || key === 'tokens') && !this.config.includeRecognitionText) continue;
       safe[key] = fields[key];
     }
