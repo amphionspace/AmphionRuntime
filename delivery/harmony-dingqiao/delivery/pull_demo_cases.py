@@ -11,7 +11,7 @@ from pathlib import Path
 import subprocess
 
 
-BUNDLE = "com.amphion.asr.harmony.demo"
+BUNDLE = "com.amphion.asr.harmony.debug"
 CASE_ROOT = "/data/storage/el2/base/files/asr-cases"
 
 

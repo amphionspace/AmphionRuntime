@@ -18,7 +18,7 @@ class PullDemoCasesTest(unittest.TestCase):
             command,
             [
                 "/opt/hdc", "-t", "SAFE_DEVICE", "file", "recv", "-b",
-                "com.amphion.asr.harmony.demo",
+                "com.amphion.asr.harmony.debug",
                 "/data/storage/el2/base/files/asr-cases",
                 "/tmp/cases",
             ],

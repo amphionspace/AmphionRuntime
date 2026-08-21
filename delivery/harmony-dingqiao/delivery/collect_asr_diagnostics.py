@@ -16,7 +16,7 @@ import tempfile
 import zipfile
 
 
-BUNDLE = "com.amphion.asr.harmony.demo"
+BUNDLE = "com.amphion.asr.harmony.debug"
 REMOTE_ROOT_TEMPLATE = "/data/storage/el2/base/haps/{module}/files/asr-diagnostics"
 FORBIDDEN_KEYS = {
     "license",
