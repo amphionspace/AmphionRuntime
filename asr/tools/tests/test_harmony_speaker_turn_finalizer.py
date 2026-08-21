@@ -266,7 +266,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         accept_index = async_lane.index(
             "this.speakerTurnFinalizer(speakerVad).accept(rawSamples, processedSamples)"
         )
-        vad_index = async_lane.index("await this.advanceVadGateAsync(rawSamples)")
+        vad_index = async_lane.index("await this.advanceVadGateAsync(rawSamples, replay)")
         speaker_index = async_lane.index("this.enqueueSpeakerVadInference(rawSamples.length)")
         decode_index = async_lane.index("await this.feedRecognizerAsync(processedSamples, false)")
         self.assertLess(accept_index, vad_index)
@@ -279,7 +279,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         async_stop = source.split("private async stopNowAsync", 1)[1].split(
             "updateHotwords", 1
         )[0]
-        self.assertIn("if (this.commitSpeakerTurnAtFinish()) return", async_stop)
+        self.assertIn("if (await this.commitSpeakerTurnAtFinishAsync()) return", async_stop)
         commit = source.split("private commitSpeakerTurnAtFinish", 1)[1].split(
             "setTargetSpeaker", 1
         )[0]
@@ -295,7 +295,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "!finalizer.hasPendingDeparture() && !finishRecovery && !finishDiarization",
             commit,
         )
-        commit_index = async_stop.index("this.commitSpeakerTurnAtFinish()")
+        commit_index = async_stop.index("this.commitSpeakerTurnAtFinishAsync()")
         speculative_flush_index = async_stop.index("this.appendFinalTailSilence()")
         self.assertLess(commit_index, speculative_flush_index)
 

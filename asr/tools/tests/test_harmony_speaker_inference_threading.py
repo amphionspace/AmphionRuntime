@@ -138,6 +138,25 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         self.assertNotIn("processSpeakerTurnSegmentation(", resolver)
         self.assertIn("processSpeakerTurnSegmentationAsync(", resolver)
 
+    def test_async_endpoint_and_finish_never_enter_sync_clean_decode(self) -> None:
+        feed = method_body(self.runtime, "feedChunkAndDecodeAsync")
+        finish = method_body(self.runtime, "stopNowAsync")
+        endpoint = method_body(self.runtime, "triggerSpeakerVadEndpointAsync")
+        vad_endpoint = method_body(self.runtime, "finalizeAnnouncedVadEndpointAsync")
+        commit = method_body(self.runtime, "commitCleanSpeakerTurnAsync")
+        replay = method_body(self.runtime, "replaySpeakerSuffixAsync")
+
+        self.assertIn("await this.triggerSpeakerVadEndpointAsync()", feed)
+        self.assertIn("await this.finalizeAnnouncedVadEndpointAsync()", feed)
+        self.assertIn("await this.commitSpeakerTurnAtFinishAsync()", finish)
+        self.assertIn("await this.commitCleanSpeakerTurnAsync", endpoint)
+        self.assertIn("await this.commitCleanSpeakerTurnAsync", vad_endpoint)
+        self.assertIn("await this.recognizer.decodeAsync(prefixStream)", commit)
+        self.assertNotIn("this.recognizer.decode(prefixStream)", commit)
+        self.assertIn("await this.replaySpeakerSuffixAsync(split)", commit)
+        self.assertIn("await this.drainAsync(true, false, true)", commit)
+        self.assertIn("await this.feedChunkAndDecodeAsync", replay)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1540,7 +1540,7 @@ export class AsrSession {
       for (let index = 0; index < remainder.length; index++) {
         await this.feedAndDecodeAsync(remainder[index]);
       }
-      if (this.commitSpeakerTurnAtFinish()) return;
+      if (await this.commitSpeakerTurnAtFinishAsync()) return;
       this.appendFinalTailSilence();
       this.stream.inputFinished();
       await this.drainAsync(true, false, true);
@@ -1569,6 +1569,20 @@ export class AsrSession {
     const finishDiarization = finalizer.hasFinishDiarizationCandidate();
     if (!finalizer.hasPendingDeparture() && !finishRecovery && !finishDiarization) return false;
     return this.commitCleanSpeakerTurn(true, false, finishRecovery || finishDiarization);
+  }
+
+  private async commitSpeakerTurnAtFinishAsync(): Promise<boolean> {
+    if (!this.speakerVadEnabled) return false;
+    const generation = this.speakerInferenceLane.generation();
+    await this.speakerInferenceLane.drain(generation);
+    if (this.callbackGate.isClosed() || !this.speakerInferenceLane.isCurrent(generation)) return true;
+    const finalizer = this.svTurnFinalizer;
+    if (finalizer === undefined) return false;
+    const finishRecovery = finalizer.hasPendingFinishDeparture();
+    const finishDiarization = finalizer.hasFinishDiarizationCandidate();
+    if (!finalizer.hasPendingDeparture() && !finishRecovery && !finishDiarization) return false;
+    return await this.commitCleanSpeakerTurnAsync(
+      true, false, finishRecovery || finishDiarization);
   }
 
   setTargetSpeaker(embedding: Float32Array): void {
@@ -2117,9 +2131,10 @@ export class AsrSession {
   }
 
   private async feedChunkAndDecodeAsync(rawSamples: Float32Array,
-    processedSamples: Float32Array): Promise<void> {
-    if (this.callbackGate.isClosed() || this.initialSilenceTracker.hasTimedOut()) return;
-    this.initialSilenceTracker.observeAcousticSamples(rawSamples);
+    processedSamples: Float32Array, replay: boolean = false): Promise<void> {
+    if (this.callbackGate.isClosed() ||
+      (!replay && this.initialSilenceTracker.hasTimedOut())) return;
+    if (!replay) this.initialSilenceTracker.observeAcousticSamples(rawSamples);
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
       this.effectiveSpeechBuffer.observe(rawSamples);
     }
@@ -2134,11 +2149,11 @@ export class AsrSession {
     // Advance the PCM clock before any speaker ONNX or ASR decode. Expensive speaker work is queued
     // without awaiting it, so a 1600 ms trailing-silence deadline is a property of sample position,
     // not of inference wall time.
-    const vadEndpoint = await this.advanceVadGateAsync(rawSamples);
+    const vadEndpoint = await this.advanceVadGateAsync(rawSamples, replay);
     if (this.callbackGate.isClosed()) return;
     this.enqueueSpeakerVadInference(rawSamples.length);
     if (!vadEndpoint && this.svEndpointReady) {
-      this.triggerSpeakerVadEndpoint();
+      await this.triggerSpeakerVadEndpointAsync();
       return;
     }
 
@@ -2155,11 +2170,12 @@ export class AsrSession {
       if (this.callbackGate.isClosed() || !this.speakerInferenceLane.isCurrent(generation)) return;
       await this.prepareVadEndpointSpeakerScoreAsync();
       if (this.callbackGate.isClosed()) return;
-      this.finalizeAnnouncedVadEndpoint();
+      await this.finalizeAnnouncedVadEndpointAsync();
     }
   }
 
-  private async advanceVadGateAsync(rawSamples: Float32Array): Promise<boolean> {
+  private async advanceVadGateAsync(rawSamples: Float32Array,
+    replay: boolean = false): Promise<boolean> {
     if (this.vad === undefined) return false;
     const merged = this.vadCarry.length === 0 ? rawSamples :
       concatFloat32([this.vadCarry, rawSamples]);
@@ -2172,16 +2188,17 @@ export class AsrSession {
       index += this.vadWindowSize;
     }
     this.vadCarry = index < merged.length ? merged.slice(index) : new Float32Array(0);
-    const initialSilenceTimedOut = this.initialSilenceTracker.observeVad(index, anySpeech);
+    const initialSilenceTimedOut = replay ? false :
+      this.initialSilenceTracker.observeVad(index, anySpeech);
     if (anySpeech) {
       this.effectiveSpeechBuffer.confirmSpeech();
       const notifySpeechBegin = !this.vadSpeechActive;
       this.vadSpeechActive = true;
       this.trailingSilenceMs = 0;
-      if (notifySpeechBegin && !this.callbackGate.invoke((): void => {
+      if (!replay && notifySpeechBegin && !this.callbackGate.invoke((): void => {
         this.callback.onSpeechBegin?.();
       })) return false;
-    } else if (initialSilenceTimedOut) {
+    } else if (!replay && initialSilenceTimedOut) {
       if (this.initialSilenceTracker.confirmSpeechLikeActivity()) return false;
       if (this.initialSilenceTracker.needsAsrProbe() &&
         await this.probeInitialSpeechAtTimeoutAsync()) return false;
@@ -2227,6 +2244,28 @@ export class AsrSession {
       this.callbackGate.invoke((): void => { this.callback.onFinalRejected?.(rejected); });
       if (stopAtEndpoint) this.notifyStopped(); else this.restartStreamAfterUtterance('vad-speaker-rejected');
     } else if (this.svEndpointReady && this.commitCleanSpeakerTurn(stopAtEndpoint, true)) {
+      return;
+    } else {
+      this.dispatchFinal(true, 0, stopAtEndpoint);
+      if (this.callbackGate.isClosed()) return;
+      if (stopAtEndpoint) this.notifyStopped(); else this.finishUtterance(true, 'vad-active-endpoint');
+    }
+    if (!this.callbackGate.isClosed()) this.resetVadGateState();
+  }
+
+  private async finalizeAnnouncedVadEndpointAsync(): Promise<void> {
+    this.vadEndpointPending = false;
+    const stopAtEndpoint = this.pendingVadStopAtEndpoint;
+    this.pendingVadStopAtEndpoint = false;
+    if (this.svEndpointReady && this.svRejectCurrentUtterance) {
+      const rejected = new AsrResult();
+      rejected.speakerScore = this.lastSpeakerVadScore;
+      rejected.isTargetSpeaker = false;
+      rejected.isLast = stopAtEndpoint;
+      this.callbackGate.invoke((): void => { this.callback.onFinalRejected?.(rejected); });
+      if (stopAtEndpoint) this.notifyStopped(); else this.restartStreamAfterUtterance('vad-speaker-rejected');
+    } else if (this.svEndpointReady &&
+      await this.commitCleanSpeakerTurnAsync(stopAtEndpoint, true)) {
       return;
     } else {
       this.dispatchFinal(true, 0, stopAtEndpoint);
@@ -2609,6 +2648,46 @@ export class AsrSession {
     this.resetVadGateState();
   }
 
+  private async triggerSpeakerVadEndpointAsync(): Promise<void> {
+    Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=speaker-vad ` +
+      `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
+      `utterancePcmBytes=${this.pcmBytesAccepted}`);
+    this.endpointAtMs = Date.now();
+    if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
+    const stopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
+    if (this.svRejectCurrentUtterance) {
+      const rejected = new AsrResult();
+      rejected.speakerScore = this.lastSpeakerVadScore;
+      rejected.isTargetSpeaker = false;
+      rejected.isLast = stopAtEndpoint;
+      if (!this.callbackGate.invoke((): void => {
+        this.callback.onFinalRejected?.(rejected);
+      })) return;
+      if (stopAtEndpoint) {
+        if (!this.callbackGate.isClosed()) this.notifyStopped();
+        return;
+      }
+      this.restartStreamAfterUtterance('speaker-vad-rejected');
+      if (this.callbackGate.isClosed()) return;
+      this.speakerPcmBuffers.clearAll();
+      this.effectiveSpeechBuffer.reset();
+      this.pcmBytesAccepted = 0;
+      this.firstPcmMs = -1;
+      this.firstPartialLatencyMs = -1;
+    } else {
+      if (await this.commitCleanSpeakerTurnAsync(stopAtEndpoint, true)) return;
+      this.dispatchFinal(true, 0, stopAtEndpoint);
+      if (this.callbackGate.isClosed()) return;
+      if (stopAtEndpoint) {
+        this.notifyStopped();
+        return;
+      }
+      this.restartStreamAfterUtterance('speaker-vad-endpoint');
+      if (this.callbackGate.isClosed()) return;
+    }
+    this.resetVadGateState();
+  }
+
   private resetSpeakerVadState(): void {
     this.speakerInferenceLane.invalidate();
     this.svScoreScheduler?.reset();
@@ -2846,6 +2925,136 @@ export class AsrSession {
     }
   }
 
+  private async commitCleanSpeakerTurnAsync(isLast: boolean, endpointTriggered: boolean,
+    finishTriggered: boolean = false): Promise<boolean> {
+    const config = this.effectiveSpeakerVad();
+    const finalizer = this.svTurnFinalizer;
+    if (config === undefined || finalizer === undefined) return false;
+    let split = this.svPendingSplit;
+    if (split === undefined) {
+      split = await this.resolveSpeakerTurnSplitAsync(finalizer, config, finishTriggered);
+      if (this.callbackGate.isClosed()) return true;
+    }
+    this.svPendingSplit = undefined;
+    if (split === undefined) {
+      const unresolvedReason = finalizer.lastResolutionReason();
+      const containmentSupported = this.canContainSpeakerTurn(unresolvedReason);
+      split = this.resolveSpeakerTurnContainment(finalizer, unresolvedReason);
+      if (split !== undefined) {
+        Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=contain ` +
+          `cutSample=${split.cutSample} unresolvedReason=${unresolvedReason}`);
+      } else if (containmentSupported) {
+        this.svRejectCurrentUtterance = true;
+        Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=fail-closed ` +
+          `reason=${finalizer.lastResolutionReason()} unresolvedReason=${unresolvedReason}`);
+        this.callbackGate.invoke((): void => {
+          this.callback.onDebug?.(`speaker turn boundary unsafe (${unresolvedReason}); rejecting speculative final`);
+        });
+        return false;
+      }
+    }
+    if (split === undefined) {
+      const reason = finalizer.lastResolutionReason();
+      Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=fail-open reason=${reason}`);
+      this.callbackGate.invoke((): void => {
+        this.callback.onDebug?.(`speaker turn boundary ambiguous (${reason}); keeping speculative final`);
+      });
+      return false;
+    }
+    if (this.svCleanPrefixSpeakerScore === undefined) {
+      await this.prepareCleanPrefixSpeakerScoreAsync(split);
+      if (this.callbackGate.isClosed()) return true;
+    }
+    Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=split ` +
+      `cutSample=${split.cutSample} reason=${finalizer.lastResolutionReason()}`);
+
+    const speculativeStream = this.stream;
+    let prefixStream: OnlineStream | undefined;
+    try {
+      const preparedSamples = this.svPreparedPrefixSamples <= split.cutSample ?
+        this.svPreparedPrefixSamples : 0;
+      const preparedDecodeMs = preparedSamples > 0 ? this.svPreparedPrefixDecodeMs : 0;
+      if (preparedSamples > 0) prefixStream = this.svPreparedPrefixStream;
+      if (prefixStream === undefined) prefixStream = this.recognizer.createStream();
+      this.svPreparedPrefixStream = undefined;
+      this.svPreparedPrefixSamples = 0;
+      this.svPreparedPrefixDecodeMs = 0;
+      this.stream = prefixStream;
+      if (preparedSamples < split.prefix.length) {
+        const prefixWave: Samples = {
+          samples: split.processedPrefix.slice(preparedSamples), sampleRate: ASR_SAMPLE_RATE_HZ
+        } as Samples;
+        prefixStream.acceptWaveform(prefixWave);
+      }
+      this.appendFinalTailSilence();
+      prefixStream.inputFinished();
+      const decodeDurationMs = await this.recognizer.decodeAsync(prefixStream);
+      if (this.callbackGate.isClosed()) return true;
+      const clean = this.recognizer.getResult(prefixStream);
+      if (clean.text.length === 0 && clean.tokens.length === 0) {
+        throw new Error('clean prefix re-decode produced no ASR evidence');
+      }
+
+      this.speakerPcmBuffers.clearAll();
+      this.speakerPcmBuffers.observe(split.prefix, true, this.targetSpeakerEnabled);
+      this.effectiveSpeechBuffer.reset();
+      this.effectiveSpeechBuffer.observe(split.prefix);
+      this.effectiveSpeechBuffer.confirmSpeech();
+      this.pcmBytesAccepted = split.prefix.length * 2;
+      this.svTargetConfirmed = true;
+      this.svRejectCurrentUtterance = false;
+      speculativeStream.close();
+      if (finishTriggered && !endpointTriggered) {
+        this.endpointAtMs = Date.now();
+        if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return true;
+        this.reentryQueue.consumeStopAtEndpoint();
+      }
+      const prefixIsLast = isLast && !finishTriggered;
+      this.dispatchFinal(endpointTriggered || finishTriggered,
+        preparedDecodeMs + decodeDurationMs, prefixIsLast);
+      if (this.callbackGate.isClosed()) return true;
+      if (prefixIsLast) {
+        this.notifyStopped();
+        return true;
+      }
+
+      const suffixStream = this.recognizer.createStream();
+      prefixStream.close();
+      prefixStream = undefined;
+      this.stream = suffixStream;
+      this.recognizerResetGeneration += 1;
+      this.resetVadGateState();
+      this.pcmBytesAccepted = split.suffix.length * 2;
+      this.firstPcmMs = Date.now();
+      this.svAwaitingTargetAfterDeparture = true;
+      this.svRejectCurrentUtterance = true;
+      await this.replaySpeakerSuffixAsync(split);
+      if (finishTriggered && !this.callbackGate.isClosed()) {
+        this.appendFinalTailSilence();
+        this.stream.inputFinished();
+        await this.drainAsync(true, false, true);
+        if (!this.callbackGate.isClosed()) this.notifyStopped();
+        return true;
+      }
+      const splitDebugMessage = `speaker turn clean split: cutSample=${split.cutSample} ` +
+        `prefix=${split.prefix.length} suffix=${split.suffix.length}`;
+      this.callbackGate.invoke((): void => {
+        this.callback.onDebug?.(splitDebugMessage);
+      });
+      return true;
+    } catch (e) {
+      if (this.callbackGate.isClosed()) return true;
+      if (prefixStream !== undefined) prefixStream.close();
+      if (this.stream !== speculativeStream) this.stream = speculativeStream;
+      this.callbackGate.invoke((): void => {
+        this.callback.onError?.(new AsrError(
+          AsrErrorCode.DECODE_FAILED, `speaker turn clean re-decode failed: ${e}`));
+      });
+      this.close();
+      return true;
+    }
+  }
+
   private resolveSpeakerTurnContainment(finalizer: SpeakerTurnFinalizer,
     unresolvedReason: string): SpeakerTurnSplit | undefined {
     if (!this.canContainSpeakerTurn(unresolvedReason)) return undefined;
@@ -2945,6 +3154,23 @@ export class AsrSession {
           this.speakerVadScoreScheduler(config).samplesUntilNextScore());
       }
       this.feedChunkAndDecode(
+        split.suffix.slice(offset, offset + chunkSize),
+        split.processedSuffix.slice(offset, offset + chunkSize),
+        true);
+      offset += chunkSize;
+    }
+  }
+
+  private async replaySpeakerSuffixAsync(split: SpeakerTurnSplit): Promise<void> {
+    let offset = 0;
+    while (offset < split.suffix.length && !this.callbackGate.isClosed()) {
+      let chunkSize = split.suffix.length - offset;
+      const config = this.effectiveSpeakerVad();
+      if (config !== undefined) {
+        chunkSize = Math.min(chunkSize,
+          this.speakerVadScoreScheduler(config).samplesUntilNextScore());
+      }
+      await this.feedChunkAndDecodeAsync(
         split.suffix.slice(offset, offset + chunkSize),
         split.processedSuffix.slice(offset, offset + chunkSize),
         true);
