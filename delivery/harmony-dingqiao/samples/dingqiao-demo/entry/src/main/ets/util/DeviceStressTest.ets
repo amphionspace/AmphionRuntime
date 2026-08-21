@@ -42,6 +42,7 @@ const VOICEPRINT_THRESHOLD_FRAMES: number = 75;
 const VOICEPRINT_LONG_FRAMES: number = 150;
 const VOICEPRINT_LEADING_SILENCE_FRAMES: number = 50;
 const VOICEPRINT_MULTI_UTTERANCE_SILENCE_FRAMES: number = 75;
+const VOICEPRINT_VAD_BEGIN_LEADING_SILENCE_FRAMES: number = 30;
 const VOICEPRINT_LOW_GAIN: number = 0.15;
 const VOICEPRINT_SCENARIOS: string[] = [
   'short', 'threshold', 'long', 'leading-silence', 'low-volume', 'multi-utterance', 'alternate-source'
@@ -1548,7 +1549,9 @@ async function runVoiceprintVadBeginCycle(engine: SpeechRecognitionEngine, entry
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
   }
-  if (leadingSilence) feedSilence(engine, sessionId, 40);
+  if (leadingSilence) {
+    feedSilence(engine, sessionId, VOICEPRINT_VAD_BEGIN_LEADING_SILENCE_FRAMES);
+  }
   const fed = await feedPcmFile(engine, sessionId, entry.path, VOICEPRINT_LONG_FRAMES, paced ? 20 : 0);
   if (fed === 0) {
     engine.cancel(sessionId);
