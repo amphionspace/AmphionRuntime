@@ -14,7 +14,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/sherpa-onnx
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../native/audio-processing/include)
 
-add_library(amphion_asr SHARED napi_init.cpp target_speaker_enhancer.cpp speaker_turn_segmenter.cpp agc_bridge.cpp)
+add_library(amphion_asr SHARED napi_init.cpp target_speaker_enhancer.cpp speaker_turn_segmenter.cpp agc_bridge.cpp lac_person_ner.cpp)
 
 add_library(sherpa_onnx_c_api SHARED IMPORTED)
 set_target_properties(sherpa_onnx_c_api PROPERTIES

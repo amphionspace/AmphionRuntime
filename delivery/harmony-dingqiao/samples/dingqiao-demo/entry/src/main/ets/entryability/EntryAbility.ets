@@ -8,6 +8,7 @@ import { DeviceStressOptions, runDeviceStress } from '../util/DeviceStressTest';
 import { ModelLoadBenchOptions, runModelLoadBench } from '../util/ModelLoadBench';
 import { LifecycleBenchOptions, runLifecycleBench } from '../util/LifecycleBench';
 import { runSdkSelfTest } from '../util/SdkSelfTest';
+import { HotwordDeviceEvalOptions, runHotwordDeviceEval } from '../util/HotwordDeviceEval';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 
@@ -24,6 +25,7 @@ export default class EntryAbility extends UIAbility {
   private stressTest: boolean = false;
   private loadBench: boolean = false;
   private lifecycleBench: boolean = false;
+  private hotwordEval: boolean = false;
   private stressWindow?: window.Window;
   private stressFinished: boolean = false;
 
@@ -69,7 +71,24 @@ export default class EntryAbility extends UIAbility {
     this.stressTest = params !== undefined && params['stress'] === 'true';
     this.loadBench = params !== undefined && params['loadbench'] === 'true';
     this.lifecycleBench = params !== undefined && params['lifecycle'] === 'true';
-    if (this.lifecycleBench) {
+    this.hotwordEval = params !== undefined && params['hotwordEval'] === 'true';
+    if (this.hotwordEval) {
+      const options = new HotwordDeviceEvalOptions();
+      options.manifestPath = this.stringParameter(want, 'hotwordEvalManifest', '');
+      options.resultPath = this.stringParameter(want, 'hotwordEvalResult', '');
+      options.paceMs = this.numberParameter(want, 'hotwordEvalPaceMs', 0);
+      options.maxCases = this.numberParameter(want, 'hotwordEvalMaxCases', 0);
+      options.enablePoliceEnhancement =
+        this.stringParameter(want, 'hotwordEvalPoliceEnhancement', 'false') === 'true';
+      options.hotwordOnly =
+        this.stringParameter(want, 'hotwordEvalHotwordOnly', 'false') === 'true';
+      runHotwordDeviceEval(this.context, options).catch((e: Object): void => {
+        hilog.error(0x0000, 'HotwordDeviceEval', 'hotword eval crashed: %{public}s', `${e}`);
+      }).finally((): void => {
+        this.stressFinished = true;
+        this.setStressKeepScreenOn(false);
+      });
+    } else if (this.lifecycleBench) {
       const options = new LifecycleBenchOptions();
       options.resultPath = this.stringParameter(want, 'lifecycleResult', '');
       options.disablePrepack = this.stringParameter(want, 'prepack', 'on') === 'off';
@@ -118,7 +137,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    if (this.stressTest) {
+    if (this.stressTest || this.hotwordEval) {
       // A real-time corpus run lasts longer than Harmony's content-less foreground grace period.
       // Keep a minimal window attached so the event runner is not suspended between audio frames.
       this.stressWindow = windowStage.getMainWindowSync();
