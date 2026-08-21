@@ -167,4 +167,8 @@ export class InitialSilenceTracker {
   hasTimedOut(): boolean {
     return this.timeoutSent;
   }
+
+  shouldDiscardAsrResult(): boolean {
+    return this.timeoutSent;
+  }
 }
