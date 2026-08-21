@@ -149,8 +149,11 @@ void ExecuteLoad(napi_env, void* data) {
   }
 }
 
-void CompleteLoad(napi_env env, napi_status, void* data) {
+void CompleteLoad(napi_env env, napi_status status, void* data) {
   std::unique_ptr<LoadContext> context(static_cast<LoadContext*>(data));
+  if (status != napi_ok && context->error.empty()) {
+    context->error = "speaker segmentation model load failed";
+  }
   if (context->error.empty()) {
     {
       std::lock_guard<std::mutex> lock(g_mutex);
@@ -186,12 +189,27 @@ napi_value LoadAsync(napi_env env, napi_callback_info info) {
       context->generation = ++g_generation;
     }
     napi_value promise = nullptr;
-    napi_create_promise(env, &context->deferred, &promise);
+    napi_status status = napi_create_promise(env, &context->deferred, &promise);
+    if (status != napi_ok) {
+      throw std::runtime_error("failed to create speaker segmentation load promise");
+    }
     napi_value name = nullptr;
-    napi_create_string_utf8(env, "AmphionSpeakerTurnSegmenterLoad", NAPI_AUTO_LENGTH, &name);
-    napi_create_async_work(env, nullptr, name, ExecuteLoad, CompleteLoad,
-                           context.get(), &context->work);
-    napi_queue_async_work(env, context->work);
+    status = napi_create_string_utf8(
+        env, "AmphionSpeakerTurnSegmenterLoad", NAPI_AUTO_LENGTH, &name);
+    if (status == napi_ok) {
+      status = napi_create_async_work(env, nullptr, name, ExecuteLoad,
+                                      CompleteLoad, context.get(),
+                                      &context->work);
+    }
+    if (status == napi_ok) status = napi_queue_async_work(env, context->work);
+    if (status != napi_ok) {
+      if (context->work != nullptr) napi_delete_async_work(env, context->work);
+      napi_value message = nullptr;
+      napi_create_string_utf8(env, "failed to queue speaker segmentation model load",
+                              NAPI_AUTO_LENGTH, &message);
+      napi_reject_deferred(env, context->deferred, message);
+      return promise;
+    }
     context.release();
     return promise;
   } catch (const std::exception& error) {
@@ -274,8 +292,11 @@ void ExecuteProcess(napi_env, void* data) {
   context->samples.clear();
 }
 
-void CompleteProcess(napi_env env, napi_status, void* data) {
+void CompleteProcess(napi_env env, napi_status status, void* data) {
   std::unique_ptr<ProcessContext> context(static_cast<ProcessContext*>(data));
+  if (status != napi_ok && context->error.empty()) {
+    context->error = "speaker segmentation async work failed";
+  }
   if (!context->error.empty()) {
     napi_value message = nullptr;
     napi_create_string_utf8(env, context->error.c_str(), NAPI_AUTO_LENGTH, &message);
@@ -317,12 +338,27 @@ napi_value ProcessAsync(napi_env env, napi_callback_info info) {
       throw std::runtime_error("speaker segmentation model not loaded");
     }
     napi_value promise = nullptr;
-    napi_create_promise(env, &context->deferred, &promise);
+    napi_status status = napi_create_promise(env, &context->deferred, &promise);
+    if (status != napi_ok) {
+      throw std::runtime_error("failed to create speaker segmentation promise");
+    }
     napi_value name = nullptr;
-    napi_create_string_utf8(env, "AmphionSpeakerTurnSegmenterProcess", NAPI_AUTO_LENGTH, &name);
-    napi_create_async_work(env, nullptr, name, ExecuteProcess, CompleteProcess,
-                           context.get(), &context->work);
-    napi_queue_async_work(env, context->work);
+    status = napi_create_string_utf8(
+        env, "AmphionSpeakerTurnSegmenterProcess", NAPI_AUTO_LENGTH, &name);
+    if (status == napi_ok) {
+      status = napi_create_async_work(env, nullptr, name, ExecuteProcess,
+                                      CompleteProcess, context.get(),
+                                      &context->work);
+    }
+    if (status == napi_ok) status = napi_queue_async_work(env, context->work);
+    if (status != napi_ok) {
+      if (context->work != nullptr) napi_delete_async_work(env, context->work);
+      napi_value message = nullptr;
+      napi_create_string_utf8(env, "failed to queue speaker segmentation work",
+                              NAPI_AUTO_LENGTH, &message);
+      napi_reject_deferred(env, context->deferred, message);
+      return promise;
+    }
     context.release();
     return promise;
   } catch (const std::exception& error) {

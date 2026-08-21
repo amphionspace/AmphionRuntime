@@ -62,6 +62,28 @@ export class SessionReentryQueue {
     }
   }
 
+  async drainAsync(isClosed: () => boolean,
+    acceptAudio: (samples: Float32Array) => Promise<void>, stop: () => Promise<void>): Promise<void> {
+    if (this.draining) return;
+    this.draining = true;
+    try {
+      while (this.operations.length > 0 && !isClosed()) {
+        const operation = this.operations.shift();
+        if (operation === undefined) break;
+        if (operation.kind === SESSION_OPERATION_STOP) {
+          await stop();
+          this.operations = [];
+          break;
+        }
+        await acceptAudio(operation.samples);
+      }
+      if (isClosed()) this.operations = [];
+    } finally {
+      if (this.operations.length === 0) this.stopQueued = false;
+      this.draining = false;
+    }
+  }
+
   clear(): void {
     this.operations = [];
     this.stopQueued = false;

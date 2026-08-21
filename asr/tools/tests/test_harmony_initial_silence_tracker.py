@@ -190,7 +190,7 @@ class HarmonyInitialSilenceTrackerTest(unittest.TestCase):
         self.assertIn("this.vadWindowSize = 512;", runtime)
         self.assertLess(
             runtime.index("this.initialSilenceTracker.observeAcousticSamples(rawSamples)"),
-            runtime.index("const initialSilenceTimedOut = this.initialSilenceTracker.observeVad(i, anySpeech)"),
+            runtime.index("this.initialSilenceTracker.observeVad(i, anySpeech)"),
         )
 
     def test_low_noise_and_interrupted_clicks_do_not_grant_grace(self) -> None:

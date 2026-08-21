@@ -43,6 +43,15 @@ export class SpeakerInferenceLane {
     }
   }
 
+  async whenIdle(): Promise<void> {
+    // Invalidated work cannot apply results, but it still owns native leases until it settles.
+    while (true) {
+      const snapshot = this.tail;
+      await snapshot;
+      if (snapshot === this.tail && this.pendingValue === 0) return;
+    }
+  }
+
   invalidate(): number {
     this.generationValue += 1;
     return this.generationValue;
