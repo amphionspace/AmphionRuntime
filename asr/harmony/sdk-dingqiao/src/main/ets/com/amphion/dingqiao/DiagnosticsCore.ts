@@ -399,7 +399,9 @@ export class DiagnosticsCore {
     }
     if (entry.event === 'CALLBACK_RESULT' && entry.fields['isFinal'] === true &&
       entry.fields['textChars'] === 0 && entry.fields['rejectedBySpeakerVad'] !== true) {
-      return 'empty-final';
+      const expectedTerminalFlush = entry.fields['isLast'] === true &&
+        this.hasFinishIntent(session) && this.hasNonEmptyFinal(session);
+      if (!expectedTerminalFlush) return 'empty-final';
     }
     if (entry.event === 'CALLBACK_RESULT' && entry.fields['isLast'] === true &&
       !this.hasFinishIntent(session)) return 'isLast-before-finish';
@@ -410,6 +412,15 @@ export class DiagnosticsCore {
     for (let i = 0; i < session.events.length; i++) {
       const event = session.events[i].event;
       if (event === 'FINISH_REQUESTED' || event === 'AUTO_FINISH_REQUESTED') return true;
+    }
+    return false;
+  }
+
+  private hasNonEmptyFinal(session: DiagnosticSession): boolean {
+    for (let i = 0; i < session.events.length; i++) {
+      const event = session.events[i];
+      if (event.event === 'CALLBACK_RESULT' && event.fields['isFinal'] === true &&
+        Number(event.fields['textChars'] ?? 0) > 0) return true;
     }
     return false;
   }

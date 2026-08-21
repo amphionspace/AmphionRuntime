@@ -630,7 +630,7 @@ export class DiagnosticsModule {
     let lastCount = 0;
     let completeCount = 0;
     let errorCount = 0;
-    let emptyFinal = false;
+    const emptyFinal = session.abnormalReasons.indexOf('empty-final') >= 0;
     let isLastBeforeFinish = false;
     let finalCount = 0;
     let streamRestartCount = 0;
@@ -652,7 +652,6 @@ export class DiagnosticsModule {
       }
       if (event.event === 'CALLBACK_RESULT' && event.fields['isFinal'] === true) {
         finalCount += 1;
-        if (event.fields['textChars'] === 0) emptyFinal = true;
       }
       if (event.event === 'CALLBACK_COMPLETE') completeCount += 1;
       if (event.event === 'CALLBACK_ERROR') errorCount += 1;

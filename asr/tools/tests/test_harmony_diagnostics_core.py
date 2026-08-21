@@ -261,6 +261,54 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             """
         )
 
+    def test_finished_session_ignores_empty_last_flush_after_nonempty_final(self) -> None:
+        self.run_core(
+            """
+            const core = new DiagnosticsCore();
+            core.configure({ enabled: true, mode: 'CUSTOMER_SUPPORT', captureAudio: false,
+              includeRecognitionText: true, maxSessionAudioSec: 300 }, 1000);
+            const engine = core.nextEngineId();
+            core.beginSession('continuous', engine, {}, 1010);
+            core.record('continuous', engine, 'CALLBACK_RESULT',
+              { isFinal: true, isLast: false, textChars: 7, text: '请给文赋成发。' }, 1020);
+            core.record('continuous', engine, 'FINISH_REQUESTED', {}, 1030);
+            core.record('continuous', engine, 'CALLBACK_RESULT',
+              { isFinal: true, isLast: true, textChars: 0, text: '' }, 1040);
+            core.record('continuous', engine, 'CALLBACK_COMPLETE', {}, 1050);
+
+            const session = core.snapshot().sessions[0];
+            assert.equal(session.abnormal, false);
+            assert.deepEqual(session.abnormalReasons, []);
+            assert.equal(session.terminal, true);
+            """
+        )
+
+    def test_finished_session_still_flags_empty_last_without_nonempty_final(self) -> None:
+        self.run_core(
+            """
+            const core = new DiagnosticsCore();
+            core.configure({ enabled: true, mode: 'CUSTOMER_SUPPORT', captureAudio: false,
+              includeRecognitionText: false, maxSessionAudioSec: 300 }, 1000);
+            const engine = core.nextEngineId();
+            core.beginSession('silent', engine, {}, 1010);
+            core.record('silent', engine, 'FINISH_REQUESTED', {}, 1020);
+            core.record('silent', engine, 'CALLBACK_RESULT',
+              { isFinal: true, isLast: true, textChars: 0 }, 1030);
+            core.record('silent', engine, 'CALLBACK_COMPLETE', {}, 1040);
+
+            const session = core.snapshot().sessions[0];
+            assert.equal(session.abnormal, true);
+            assert.deepEqual(session.abnormalReasons, ['empty-final']);
+            """
+        )
+
+    def test_summary_uses_core_empty_final_classification(self) -> None:
+        module = MODULE.read_text(encoding="utf-8")
+        self.assertIn(
+            "const emptyFinal = session.abnormalReasons.indexOf('empty-final') >= 0;",
+            module,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
