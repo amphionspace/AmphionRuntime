@@ -1,0 +1,461 @@
+From e3ff5ea37c5920cdbc7191007c6086c9143fa627 Mon Sep 17 00:00:00 2001
+From: Boxp <boxp@BoxpdeMacBook-Air.local>
+Date: Fri, 21 Aug 2026 17:58:00 +0800
+Subject: [PATCH] fix(asr): commit rule3 segments natively
+
+---
+ .../sherpa_onnx/src/main/cpp/streaming-asr.cc | 21 +++++
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |  1 +
+ .../src/main/ets/components/StreamingAsr.ets  |  5 ++
+ sherpa-onnx/c-api/c-api.cc                    |  7 ++
+ sherpa-onnx/c-api/c-api.h                     | 10 +++
+ sherpa-onnx/csrc/CMakeLists.txt               |  1 +
+ sherpa-onnx/csrc/online-recognizer-impl.h     |  4 +
+ .../csrc/online-recognizer-transducer-impl.h  | 21 +++++
+ sherpa-onnx/csrc/online-recognizer.cc         |  4 +
+ sherpa-onnx/csrc/online-recognizer.h          |  5 ++
+ sherpa-onnx/csrc/online-transducer-decoder.h  | 10 +++
+ ...online-transducer-greedy-search-decoder.cc | 15 ++++
+ .../online-transducer-greedy-search-decoder.h |  3 +
+ ...transducer-modified-beam-search-decoder.cc | 26 ++++++
+ ...-transducer-modified-beam-search-decoder.h |  3 +
+ ...online-transducer-rule3-checkpoint-test.cc | 88 +++++++++++++++++++
+ sherpa-onnx/python/csrc/online-recognizer.cc  |  2 +
+ .../python/sherpa_onnx/online_recognizer.py   |  3 +
+ 18 files changed, 229 insertions(+)
+ create mode 100644 sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+index 6c25c1e7..d51a3347 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+@@ -1038,6 +1038,25 @@ static Napi::Number GetEndpointReasonWrapper(const Napi::CallbackInfo &info) {
+   return Napi::Number::New(env, reason);
+ }
+ 
++static Napi::Boolean CommitRule3SegmentWrapper(
++    const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 2 || !info[0].IsExternal() ||
++      !info[1].IsExternal()) {
++    Napi::TypeError::New(env, "Expected recognizer and stream handles.")
++        .ThrowAsJavaScriptException();
++    return {};
++  }
++
++  const SherpaOnnxOnlineRecognizer *recognizer = GetOnlineRecognizer(info, 0);
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return {};
++
++  int32_t committed =
++      SherpaOnnxOnlineStreamCommitRule3Segment(recognizer, stream);
++  return Napi::Boolean::New(env, committed != 0);
++}
++
+ static Napi::External<SherpaOnnxDisplay> CreateDisplayWrapper(
+     const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+@@ -1152,6 +1171,8 @@ void InitStreamingAsr(Napi::Env env, Napi::Object exports) {
+               Napi::Function::New(env, IsEndpointWrapper));
+   exports.Set(Napi::String::New(env, "getEndpointReason"),
+               Napi::Function::New(env, GetEndpointReasonWrapper));
++  exports.Set(Napi::String::New(env, "commitRule3Segment"),
++              Napi::Function::New(env, CommitRule3SegmentWrapper));
+ 
+   exports.Set(Napi::String::New(env, "createDisplay"),
+               Napi::Function::New(env, CreateDisplayWrapper));
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index 39b11d64..f2ef3bf1 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -42,6 +42,7 @@ export const decodeOnlineStreamAsync: (handle: object,
+   streamHandle: object) => Promise<number>;
+ export const isEndpoint: (handle: object, streamHandle: object) => boolean;
+ export const getEndpointReason: (handle: object, streamHandle: object) => number;
++export const commitRule3Segment: (handle: object, streamHandle: object) => boolean;
+ export const reset: (handle: object, streamHandle: object) => void;
+ export const getOnlineStreamResultAsJson: (handle: object, streamHandle: object) => string;
+ 
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+index c272930f..156614a5 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+@@ -4,6 +4,7 @@ import {
+   createOnlineRecognizerAsync,
+   destroyOnlineRecognizer,
+   createOnlineStream,
++  commitRule3Segment,
+   decodeOnlineStream,
+   decodeOnlineStreamAsync,
+   destroyOnlineStream,
+@@ -190,6 +191,10 @@ export class OnlineRecognizer {
+     return getEndpointReason(this.handle, stream.handle) as OnlineEndpointReason;
+   }
+ 
++  commitRule3Segment(stream: OnlineStream): boolean {
++    return commitRule3Segment(this.handle, stream.handle);
++  }
++
+   reset(stream: OnlineStream) {
+     reset(this.handle, stream.handle);
+   }
+diff --git a/sherpa-onnx/c-api/c-api.cc b/sherpa-onnx/c-api/c-api.cc
+index 1006f95c..3483d3f4 100644
+--- a/sherpa-onnx/c-api/c-api.cc
++++ b/sherpa-onnx/c-api/c-api.cc
+@@ -405,6 +405,13 @@ int32_t SherpaOnnxOnlineStreamGetEndpointReason(
+       recognizer->impl->GetEndpointReason(stream->impl.get()));
+ }
+ 
++int32_t SherpaOnnxOnlineStreamCommitRule3Segment(
++    const SherpaOnnxOnlineRecognizer *recognizer,
++    const SherpaOnnxOnlineStream *stream) {
++  if (!recognizer || !stream) return 0;
++  return recognizer->impl->CommitRule3Segment(stream->impl.get());
++}
++
+ const SherpaOnnxDisplay *SherpaOnnxCreateDisplay(int32_t max_word_per_line) {
+   SherpaOnnxDisplay *ans = new SherpaOnnxDisplay;
+   ans->impl = std::make_unique<sherpa_onnx::Display>(max_word_per_line);
+diff --git a/sherpa-onnx/c-api/c-api.h b/sherpa-onnx/c-api/c-api.h
+index 7cd654c9..49fcd768 100644
+--- a/sherpa-onnx/c-api/c-api.h
++++ b/sherpa-onnx/c-api/c-api.h
+@@ -780,6 +780,16 @@ SHERPA_ONNX_API int32_t SherpaOnnxOnlineStreamGetEndpointReason(
+     const SherpaOnnxOnlineRecognizer *recognizer,
+     const SherpaOnnxOnlineStream *stream);
+ 
++/**
++ * @brief Commit a non-empty Rule3 endpoint without restarting recognition.
++ *
++ * @return 1 if the native checkpoint was committed; otherwise 0. A false
++ *         return leaves the stream unchanged.
++ */
++SHERPA_ONNX_API int32_t SherpaOnnxOnlineStreamCommitRule3Segment(
++    const SherpaOnnxOnlineRecognizer *recognizer,
++    const SherpaOnnxOnlineStream *stream);
++
+ /**
+  * @brief Helper for pretty-printing incremental recognition results.
+  *
+diff --git a/sherpa-onnx/csrc/CMakeLists.txt b/sherpa-onnx/csrc/CMakeLists.txt
+index 3425be2a..94d0428c 100755
+--- a/sherpa-onnx/csrc/CMakeLists.txt
++++ b/sherpa-onnx/csrc/CMakeLists.txt
+@@ -818,6 +818,7 @@ if(SHERPA_ONNX_ENABLE_TESTS)
+     circular-buffer-test.cc
+     context-graph-test.cc
+     endpoint-test.cc
++    online-transducer-rule3-checkpoint-test.cc
+     math-test.cc
+     offline-whisper-timestamp-rules-test.cc
+     packed-sequence-test.cc
+diff --git a/sherpa-onnx/csrc/online-recognizer-impl.h b/sherpa-onnx/csrc/online-recognizer-impl.h
+index 754a8eba..2536c5be 100644
+--- a/sherpa-onnx/csrc/online-recognizer-impl.h
++++ b/sherpa-onnx/csrc/online-recognizer-impl.h
+@@ -61,6 +61,10 @@ class OnlineRecognizerImpl {
+ 
+   virtual void Reset(OnlineStream *s) const = 0;
+ 
++  virtual bool CommitRule3Segment(OnlineStream * /*s*/) const {
++    return false;
++  }
++
+   std::string ApplyInverseTextNormalization(std::string text) const;
+   std::string ApplyHomophoneReplacer(std::string text) const;
+ 
+diff --git a/sherpa-onnx/csrc/online-recognizer-transducer-impl.h b/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
+index 32f7c81b..8f8d067c 100644
+--- a/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
++++ b/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
+@@ -440,6 +440,27 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
+     s->Reset();
+   }
+ 
++  bool CommitRule3Segment(OnlineStream *s) const override {
++    if (GetEndpointReason(s) != EndpointReason::kRule3) {
++      return false;
++    }
++
++    auto published = s->GetResult();
++    decoder_->StripLeadingBlanks(&published);
++    if (published.tokens.empty()) {
++      return false;
++    }
++
++    if (!decoder_->CommitRule3Segment(&s->GetResult(),
++                                      model_->ContextSize())) {
++      return false;
++    }
++
++    s->GetCurrentSegment() += 1;
++    s->Reset();
++    return true;
++  }
++
+  private:
+   void InitHotwords() {
+     // each line in hotwords_file contains space-separated words
+diff --git a/sherpa-onnx/csrc/online-recognizer.cc b/sherpa-onnx/csrc/online-recognizer.cc
+index f727e96f..c67188c2 100644
+--- a/sherpa-onnx/csrc/online-recognizer.cc
++++ b/sherpa-onnx/csrc/online-recognizer.cc
+@@ -265,6 +265,10 @@ EndpointReason OnlineRecognizer::GetEndpointReason(OnlineStream *s) const {
+ 
+ void OnlineRecognizer::Reset(OnlineStream *s) const { impl_->Reset(s); }
+ 
++bool OnlineRecognizer::CommitRule3Segment(OnlineStream *s) const {
++  return impl_->CommitRule3Segment(s);
++}
++
+ #if __ANDROID_API__ >= 9
+ template OnlineRecognizer::OnlineRecognizer(
+     AAssetManager *mgr, const OnlineRecognizerConfig &config);
+diff --git a/sherpa-onnx/csrc/online-recognizer.h b/sherpa-onnx/csrc/online-recognizer.h
+index bdd2ee53..94c61feb 100644
+--- a/sherpa-onnx/csrc/online-recognizer.h
++++ b/sherpa-onnx/csrc/online-recognizer.h
+@@ -224,6 +224,11 @@ class OnlineRecognizer {
+   // after calling this function, IsEndpoint(s) will return false
+   void Reset(OnlineStream *s) const;
+ 
++  // Commit a non-empty Rule3 endpoint while retaining continuous encoder and
++  // decoder context. Returns false without changing the stream when the
++  // current state is not eligible for a Rule3 checkpoint.
++  bool CommitRule3Segment(OnlineStream *s) const;
++
+  private:
+   std::unique_ptr<OnlineRecognizerImpl> impl_;
+ };
+diff --git a/sherpa-onnx/csrc/online-transducer-decoder.h b/sherpa-onnx/csrc/online-transducer-decoder.h
+index 922cd61b..8324444a 100644
+--- a/sherpa-onnx/csrc/online-transducer-decoder.h
++++ b/sherpa-onnx/csrc/online-transducer-decoder.h
+@@ -104,6 +104,16 @@ class OnlineTransducerDecoder {
+ 
+   // used for endpointing. We need to keep decoder_out after reset
+   virtual void UpdateDecoderOut(OnlineTransducerDecoderResult * /*result*/) {}
++
++  /** Freeze the published path at a Rule3 endpoint and retain only the
++   * decoder state required to continue on the next segment.
++   *
++   * The encoder state is owned by OnlineStream and is deliberately untouched.
++   * Implementations must leave tokens/timestamps/scores empty from the public
++   * segment point of view and keep their internal state bounded.
++   */
++  virtual bool CommitRule3Segment(OnlineTransducerDecoderResult *result,
++                                  int32_t context_size) const = 0;
+ };
+ 
+ }  // namespace sherpa_onnx
+diff --git a/sherpa-onnx/csrc/online-transducer-greedy-search-decoder.cc b/sherpa-onnx/csrc/online-transducer-greedy-search-decoder.cc
+index 27965a8b..48fe5fee 100644
+--- a/sherpa-onnx/csrc/online-transducer-greedy-search-decoder.cc
++++ b/sherpa-onnx/csrc/online-transducer-greedy-search-decoder.cc
+@@ -171,4 +171,19 @@ void OnlineTransducerGreedySearchDecoder::Decode(
+   }
+ }
+ 
++bool OnlineTransducerGreedySearchDecoder::CommitRule3Segment(
++    OnlineTransducerDecoderResult *result, int32_t context_size) const {
++  if (result == nullptr || context_size <= 0 ||
++      static_cast<int32_t>(result->tokens.size()) <= context_size) {
++    return false;
++  }
++
++  OnlineTransducerDecoderResult checkpoint;
++  checkpoint.tokens.assign(result->tokens.end() - context_size,
++                           result->tokens.end());
++  checkpoint.decoder_out = std::move(result->decoder_out);
++  *result = std::move(checkpoint);
++  return true;
++}
++
+ }  // namespace sherpa_onnx
+diff --git a/sherpa-onnx/csrc/online-transducer-greedy-search-decoder.h b/sherpa-onnx/csrc/online-transducer-greedy-search-decoder.h
+index 716f8848..41eecf9f 100644
+--- a/sherpa-onnx/csrc/online-transducer-greedy-search-decoder.h
++++ b/sherpa-onnx/csrc/online-transducer-greedy-search-decoder.h
+@@ -30,6 +30,9 @@ class OnlineTransducerGreedySearchDecoder : public OnlineTransducerDecoder {
+   void Decode(Ort::Value encoder_out,
+               std::vector<OnlineTransducerDecoderResult> *result) override;
+ 
++  bool CommitRule3Segment(OnlineTransducerDecoderResult *result,
++                          int32_t context_size) const override;
++
+  private:
+   OnlineTransducerModel *model_;  // Not owned
+   int32_t unk_id_;
+diff --git a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
+index f33f157f..2cc84d11 100644
+--- a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
++++ b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
+@@ -268,4 +268,30 @@ void OnlineTransducerModifiedBeamSearchDecoder::UpdateDecoderOut(
+   result->decoder_out = model_->RunDecoder(std::move(decoder_input));
+ }
+ 
++bool OnlineTransducerModifiedBeamSearchDecoder::CommitRule3Segment(
++    OnlineTransducerDecoderResult *result, int32_t context_size) const {
++  if (result == nullptr || context_size <= 0 || result->hyps.Size() == 0) {
++    return false;
++  }
++
++  auto best = result->hyps.GetMostProbable(true);
++  if (static_cast<int32_t>(best.ys.size()) <= context_size) {
++    return false;
++  }
++
++  best.ys.erase(best.ys.begin(), best.ys.end() - context_size);
++  best.timestamps.clear();
++  best.ys_probs.clear();
++  best.lm_probs.clear();
++  best.context_scores.clear();
++  best.cur_scored_pos = 0;
++  best.num_trailing_blanks = 0;
++
++  OnlineTransducerDecoderResult checkpoint;
++  checkpoint.tokens = best.ys;
++  checkpoint.hyps = Hypotheses({std::move(best)});
++  *result = std::move(checkpoint);
++  return true;
++}
++
+ }  // namespace sherpa_onnx
+diff --git a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.h b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.h
+index 6dea71be..078bb9f0 100644
+--- a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.h
++++ b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.h
+@@ -47,6 +47,9 @@ class OnlineTransducerModifiedBeamSearchDecoder
+ 
+   void UpdateDecoderOut(OnlineTransducerDecoderResult *result) override;
+ 
++  bool CommitRule3Segment(OnlineTransducerDecoderResult *result,
++                          int32_t context_size) const override;
++
+  private:
+   OnlineTransducerModel *model_;  // Not owned
+   OnlineLM *lm_;                  // Not owned
+diff --git a/sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc b/sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc
+new file mode 100644
+index 00000000..1dce6174
+--- /dev/null
++++ b/sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc
+@@ -0,0 +1,88 @@
++// sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc
++
++#include "sherpa-onnx/csrc/online-transducer-greedy-search-decoder.h"
++#include "sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.h"
++
++#include <vector>
++
++#include "gtest/gtest.h"
++
++namespace sherpa_onnx {
++
++TEST(OnlineTransducerRule3Checkpoint, GreedyKeepsBoundedDecoderContext) {
++  OnlineTransducerGreedySearchDecoder decoder(nullptr, -1, 0, 1);
++  OnlineTransducerDecoderResult result;
++  result.tokens = {-1, 0, 10, 11, 12};
++  result.timestamps = {2, 4, 6};
++  result.ys_probs = {-0.1, -0.2, -0.3};
++  result.frame_offset = 100;
++  result.num_trailing_blanks = 7;
++
++  ASSERT_TRUE(decoder.CommitRule3Segment(&result, 2));
++  EXPECT_EQ(result.tokens, (std::vector<int64_t>{11, 12}));
++  EXPECT_TRUE(result.timestamps.empty());
++  EXPECT_TRUE(result.ys_probs.empty());
++  EXPECT_EQ(result.frame_offset, 0);
++  EXPECT_EQ(result.num_trailing_blanks, 0);
++  EXPECT_FALSE(static_cast<bool>(result.decoder_out));
++
++  result.tokens.push_back(13);
++  result.timestamps.push_back(1);
++  result.ys_probs.push_back(-0.4);
++  EXPECT_EQ(result.tokens.size() - 2, result.timestamps.size());
++  EXPECT_EQ(result.tokens.size() - 2, result.ys_probs.size());
++}
++
++TEST(OnlineTransducerRule3Checkpoint, ModifiedBeamFreezesPublishedBestPath) {
++  OnlineTransducerModifiedBeamSearchDecoder decoder(
++      nullptr, nullptr, 8, 0, false, -1, 0, 1);
++  OnlineTransducerDecoderResult result;
++
++  Hypothesis best({-1, 0, 10, 11, 12}, 10);
++  best.timestamps = {2, 4, 6};
++  best.ys_probs = {-0.1, -0.2, -0.3};
++  best.lm_probs = {-1.1, -1.2, -1.3};
++  best.context_scores = {1.1, 1.2, 1.3};
++  best.cur_scored_pos = 3;
++  best.num_trailing_blanks = 7;
++  Hypothesis alternate({-1, 0, 20, 11, 12}, 1);
++  result.hyps.Add(std::move(best));
++  result.hyps.Add(std::move(alternate));
++  result.frame_offset = 100;
++
++  ASSERT_TRUE(decoder.CommitRule3Segment(&result, 2));
++  ASSERT_EQ(result.hyps.Size(), 1);
++  auto frozen = result.hyps.GetMostProbable(true);
++  EXPECT_EQ(frozen.ys, (std::vector<int64_t>{11, 12}));
++  EXPECT_TRUE(frozen.timestamps.empty());
++  EXPECT_TRUE(frozen.ys_probs.empty());
++  EXPECT_TRUE(frozen.lm_probs.empty());
++  EXPECT_TRUE(frozen.context_scores.empty());
++  EXPECT_EQ(frozen.cur_scored_pos, 0);
++  EXPECT_EQ(frozen.num_trailing_blanks, 0);
++  EXPECT_EQ(result.tokens, frozen.ys);
++  EXPECT_EQ(result.frame_offset, 0);
++  EXPECT_FALSE(static_cast<bool>(result.decoder_out));
++
++  auto &continued = result.hyps.begin()->second;
++  continued.ys.push_back(13);
++  continued.timestamps.push_back(1);
++  continued.ys_probs.push_back(-0.4);
++  continued.lm_probs.push_back(-1.4);
++  continued.context_scores.push_back(1.4);
++  EXPECT_EQ(continued.ys.size() - 2, continued.timestamps.size());
++  EXPECT_EQ(continued.ys.size() - 2, continued.ys_probs.size());
++  EXPECT_EQ(continued.ys.size() - 2, continued.lm_probs.size());
++  EXPECT_EQ(continued.ys.size() - 2, continued.context_scores.size());
++}
++
++TEST(OnlineTransducerRule3Checkpoint, RejectsEmptyPublishedResult) {
++  OnlineTransducerGreedySearchDecoder greedy(nullptr, -1, 0, 1);
++  OnlineTransducerDecoderResult result;
++  result.tokens = {-1, 0};
++
++  EXPECT_FALSE(greedy.CommitRule3Segment(&result, 2));
++  EXPECT_EQ(result.tokens, (std::vector<int64_t>{-1, 0}));
++}
++
++}  // namespace sherpa_onnx
+diff --git a/sherpa-onnx/python/csrc/online-recognizer.cc b/sherpa-onnx/python/csrc/online-recognizer.cc
+index e2f83be8..0d6c173a 100644
+--- a/sherpa-onnx/python/csrc/online-recognizer.cc
++++ b/sherpa-onnx/python/csrc/online-recognizer.cc
+@@ -121,6 +121,8 @@ void PybindOnlineRecognizer(py::module *m) {
+            py::call_guard<py::gil_scoped_release>())
+       .def("is_endpoint", &PyClass::IsEndpoint, py::arg("s"),
+            py::call_guard<py::gil_scoped_release>())
++      .def("commit_rule3_segment", &PyClass::CommitRule3Segment, py::arg("s"),
++           py::call_guard<py::gil_scoped_release>())
+       .def("reset", &PyClass::Reset, py::arg("s"),
+            py::call_guard<py::gil_scoped_release>());
+ }
+diff --git a/sherpa-onnx/python/sherpa_onnx/online_recognizer.py b/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
+index 88c7e182..32066c83 100644
+--- a/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
++++ b/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
+@@ -1021,5 +1021,8 @@ class OnlineRecognizer(object):
+     def is_endpoint(self, s: OnlineStream) -> bool:
+         return self.recognizer.is_endpoint(s)
+ 
++    def commit_rule3_segment(self, s: OnlineStream) -> bool:
++        return self.recognizer.commit_rule3_segment(s)
++
+     def reset(self, s: OnlineStream) -> bool:
+         return self.recognizer.reset(s)
+-- 
+2.50.1 (Apple Git-155)
+

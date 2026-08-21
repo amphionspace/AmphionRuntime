@@ -20,6 +20,8 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0013-*` | Harmony online decode 增加后台异步入口；recognizer/stream handle 使用共享租约，保证 cancel/unload 与在途 decode 不发生悬空访问 |
 | `0014-*` | Harmony N-API 在 UTF-8 字符串转换边界计算热词 buffer 字节数，避免 ArkTS UTF-16 长度截断中文热词 |
 | `0015-*` | modified beam search 在每条 hypothesis 的声学 top-50 内对热词起始/延续 token 临时 `+3` 后再做最终 beam 裁剪；入选后扣除临时分，由 ContextGraph 保持原有逐 token `+3` 与回滚语义 |
+| `0016-*` | native endpoint 返回按规则优先级判定的 reason，并通过 Harmony 内部 binding 暴露，避免 Runtime 用累计 PCM 猜测 Rule3 |
+| `0017-*` | Rule3 final 使用 native checkpoint 冻结已发布路径并保留连续 encoder/decoder context，避免边界丢 token 或重复 token |
 
 Apply automatically from the Harmony `04_build_harmony_so.sh` entry point (Android also applies the same series from its native build flow):
 
