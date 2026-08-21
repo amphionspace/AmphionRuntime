@@ -1338,6 +1338,7 @@ export class AsrSession {
   private svEndpointReady: boolean = false;
   private pendingVadStopAtEndpoint: boolean = false;
   private vadEndpointPending: boolean = false;
+  private pendingNativeEndpointTransition?: NativeEndpointTransition;
   private endpointAtMs: number = -1;
   private callback: AsrCallback;
   private callbackGate: SessionCallbackGate = new SessionCallbackGate();
@@ -1815,7 +1816,8 @@ export class AsrSession {
 
   private async processDecodedResultAsync(isFinal: boolean, restartAfterFinal: boolean,
     isLastFinal: boolean, decodeDurationMs: number): Promise<void> {
-    const nativeEndpoint = this.recognizer.isEndpoint(this.stream);
+    const endpointReason = this.recognizer.getEndpointReason(this.stream);
+    const nativeEndpoint = endpointReason !== OnlineEndpointReason.NONE;
     if (!isFinal && !isLastFinal && nativeEndpoint) {
       if (this.vadEndpointPending) return;
       if (this.speakerVadEnabled && this.svContextWaitStartedSample >= 0) {
@@ -1825,7 +1827,11 @@ export class AsrSession {
         // returning lets SessionAudioDispatcher advance the sample clock with that context.
         return;
       }
-      if (!this.announceNativeEndpoint()) return;
+      const endpointResult = this.recognizer.getResult(this.stream);
+      const endpointTransition = NativeEndpointTransitionPolicy.decide(
+        endpointReason === OnlineEndpointReason.RULE3,
+        endpointResult.text.length > 0 || endpointResult.tokens.length > 0);
+      if (!this.announceNativeEndpoint(endpointReason, endpointTransition)) return;
       if (!await this.drainSpeakerInferenceAsync()) return;
       // A score from this same PCM slice may have opened a bounded turn-context wait. Keep the
       // already-announced endpoint pending and let later PCM resolve it without publishing a
@@ -1843,15 +1849,19 @@ export class AsrSession {
     this.processDecodedResult(isFinal, restartAfterFinal, isLastFinal, decodeDurationMs);
   }
 
-  private announceNativeEndpoint(): boolean {
+  private announceNativeEndpoint(endpointReason: OnlineEndpointReason,
+    endpointTransition: NativeEndpointTransition): boolean {
     const endpointResult = this.recognizer.getResult(this.stream);
     Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=native ` +
       `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
       `utterancePcmBytes=${this.pcmBytesAccepted} textChars=${endpointResult.text.length} ` +
-      `tokens=${endpointResult.tokens.length}`);
+      `tokens=${endpointResult.tokens.length} nativeEndpointReason=${endpointReason} ` +
+      `transition=${endpointTransition === NativeEndpointTransition.NATIVE_CHECKPOINT ?
+        'native-checkpoint' : 'hard-restart'}`);
     this.endpointAtMs = Date.now();
     if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return false;
     this.pendingVadStopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
+    this.pendingNativeEndpointTransition = endpointTransition;
     this.vadEndpointPending = true;
     return true;
   }
@@ -2432,6 +2442,8 @@ export class AsrSession {
     this.vadEndpointPending = false;
     const stopAtEndpoint = this.pendingVadStopAtEndpoint;
     this.pendingVadStopAtEndpoint = false;
+    const nativeEndpointTransition = this.pendingNativeEndpointTransition;
+    this.pendingNativeEndpointTransition = undefined;
     if (this.svEndpointReady && this.svRejectCurrentUtterance) {
       const rejected = new AsrResult();
       rejected.speakerScore = this.lastSpeakerVadScore;
@@ -2447,7 +2459,14 @@ export class AsrSession {
       if (!await this.prepareVadEndpointSpeakerScoreAsync()) return;
       this.dispatchFinal(true, decodeDurationMs, stopAtEndpoint);
       if (this.callbackGate.isClosed()) return;
-      if (stopAtEndpoint) this.notifyStopped(); else this.finishUtterance(true, 'vad-active-endpoint');
+      if (stopAtEndpoint) {
+        this.notifyStopped();
+      } else if (nativeEndpointTransition === NativeEndpointTransition.NATIVE_CHECKPOINT) {
+        this.commitRule3Segment('native-rule3-continuation');
+      } else {
+        this.finishUtterance(true, nativeEndpointTransition === undefined ?
+          'vad-active-endpoint' : 'native-endpoint');
+      }
     }
     if (!this.callbackGate.isClosed()) this.resetVadGateState();
   }
@@ -2571,6 +2590,7 @@ export class AsrSession {
     this.vad?.reset();
     this.vadEndpointPending = false;
     this.pendingVadStopAtEndpoint = false;
+    this.pendingNativeEndpointTransition = undefined;
     this.vadSpeechActive = false;
     this.trailingSilenceMs = 0;
     this.vadCarry = new Float32Array(0);

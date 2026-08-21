@@ -57,19 +57,37 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
 
     def test_only_nonempty_native_rule3_preserves_stream(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
+        async_decode = source.split(
+            "private async processDecodedResultAsync", 1
+        )[1].split("private announceNativeEndpoint", 1)[0]
+        announce_endpoint = source.split(
+            "private announceNativeEndpoint", 1
+        )[1].split("private async drainSpeakerInferenceAsync", 1)[0]
+        async_finalize = source.split(
+            "private async finalizeAnnouncedVadEndpointAsync", 1
+        )[1].split("private probeInitialSpeechAtTimeout", 1)[0]
         self.assertIn("OnlineEndpointReason", source)
-        self.assertIn("this.recognizer.getEndpointReason(this.stream)", source)
+        self.assertIn("this.recognizer.getEndpointReason(this.stream)", async_decode)
+        self.assertNotIn("this.recognizer.isEndpoint(this.stream)", async_decode)
         self.assertRegex(
-            source,
+            async_decode,
             re.compile(
                 r"NativeEndpointTransitionPolicy\.decide\([\s\S]*?"
-                r"endpointReason === OnlineEndpointReason\.RULE3 && !isFinal,[\s\S]*?"
+                r"endpointReason === OnlineEndpointReason\.RULE3,[\s\S]*?"
                 r"endpointResult\.text\.length > 0 \|\| endpointResult\.tokens\.length > 0\)"
             ),
         )
         self.assertIn(
-            "this.commitRule3Segment(endpointTransitionReason);",
-            source,
+            "this.pendingNativeEndpointTransition = endpointTransition;",
+            announce_endpoint,
+        )
+        self.assertIn(
+            "nativeEndpointTransition === NativeEndpointTransition.NATIVE_CHECKPOINT",
+            async_finalize,
+        )
+        self.assertIn(
+            "this.commitRule3Segment('native-rule3-continuation');",
+            async_finalize,
         )
         self.assertIn("this.recognizer.commitRule3Segment(this.stream)", source)
         self.assertNotIn("nativeStreamSamplesAccepted", source)

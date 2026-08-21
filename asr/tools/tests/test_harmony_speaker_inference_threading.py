@@ -268,7 +268,9 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
     def test_native_endpoint_is_announced_before_waiting_for_speaker_inference(self) -> None:
         process = method_body(self.runtime, "processDecodedResultAsync")
         self.assertIn("!isFinal && !isLastFinal", process)
-        announce = process.index("this.announceNativeEndpoint()")
+        announce = process.index(
+            "this.announceNativeEndpoint(endpointReason, endpointTransition)"
+        )
         drain = process.index("await this.drainSpeakerInferenceAsync()")
         finalize = process.index("await this.finalizeAnnouncedVadEndpointAsync")
         self.assertLess(announce, drain)
