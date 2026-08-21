@@ -344,7 +344,8 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
             runtime,
         )
         self.assertIn(
-            "this.speakerPcmBuffers.observe(rawSamples, this.speakerVadEnabled, this.targetSpeakerEnabled)",
+            "rawSamples, this.speakerVadEnabled, "
+            "this.targetSpeakerEnabled || this.speakerVadEnabled)",
             runtime,
         )
         self.assertIn(

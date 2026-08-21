@@ -1097,8 +1097,9 @@ def run_stress(args: argparse.Namespace) -> Path:
             )
         selected = [sources_by_name[name] for name in required_names]
     elif args.mode in ("voiceprint-vad-begin", "speaker-vad-onstart"):
-        # The carrier adds 800 ms leading silence in half the cycles. Keep only sources whose own
-        # first 200 ms already contain signal, so that case still places speech before vadBegin.
+        # The carrier adds 400 ms leading silence in half the cycles. Keep only sources whose own
+        # first 200 ms already contain signal, leaving at least 400 ms for VAD/ASR confirmation
+        # before the 1000 ms vadBegin boundary.
         # Otherwise the test would correctly time out before the source itself starts speaking.
         selected.sort(key=initial_signal_level, reverse=True)
         selected = [source for source in selected if initial_signal_level(source, 0.2) >= 0.015]

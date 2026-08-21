@@ -35,6 +35,9 @@ export const unloadSpeakerTurnSegmentationModel: () => void;
 export const processSpeakerTurnSegmentation: (
   samples: Float32Array
 ) => SpeakerTurnSegmentationSegment[];
+export const processSpeakerTurnSegmentationAsync: (
+  samples: Float32Array
+) => Promise<SpeakerTurnSegmentationSegment[]>;
 
 export interface TargetSpeakerEnhancementNativeResult {
   samples: Float32Array;
