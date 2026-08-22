@@ -37,6 +37,9 @@ class AndroidRule3EndpointTransitionTest(unittest.TestCase):
         self.assertIn("recognizer.getEndpointReason(stream)", session)
         self.assertIn("transitionAfterNativeEndpoint(endpointReason, hasEvidence, isFinal)", session)
         self.assertIn("recognizer.commitRule3Segment(stream)", session)
+        self.assertIn('"hard-restart"', session)
+        self.assertIn('"soft-reset-fallback"', session)
+        self.assertIn("evidence=$hasEvidence", session)
         self.assertNotIn("nativeStreamSamplesAccepted", session)
 
     def test_endpoint_reconfiguration_creates_before_closing_previous_engine(self) -> None:
