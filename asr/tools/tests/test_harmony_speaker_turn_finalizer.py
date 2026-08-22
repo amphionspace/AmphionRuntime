@@ -786,6 +786,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
               () => undefined, [2_200]);
             assert.equal(pending, undefined);
             assert.equal(finalizer.candidatePrefixEndSample(), 2_200);
+            assert.equal(finalizer.candidateAlternatePrefixEndSample(), 2_400);
             assert.ok(finalizer.candidatePrefixEndSample() >= finalizer.safePrefixEndSample());
 
             const split = finalizer.resolve([2.4], 0.35,
@@ -795,6 +796,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             assert.ok(finalizer.candidatePrefixEndSample() <= split.cutSample);
             finalizer.reset();
             assert.equal(finalizer.candidatePrefixEndSample(), -1);
+            assert.equal(finalizer.candidateAlternatePrefixEndSample(), -1);
             """
         )
 
