@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Amphion Runtime <runtime@amphion.local>
+Date: Sat, 22 Aug 2026 20:00:00 +0800
+Subject: [PATCH] feat(android): expose rule3 checkpoint through JNI
+
+---
+ sherpa-onnx/jni/online-recognizer.cc | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/sherpa-onnx/jni/online-recognizer.cc b/sherpa-onnx/jni/online-recognizer.cc
+--- a/sherpa-onnx/jni/online-recognizer.cc
++++ b/sherpa-onnx/jni/online-recognizer.cc
+@@ -335,6 +335,26 @@ Java_com_k2fsa_sherpa_onnx_OnlineRecognizer_isEndpoint(JNIEnv * /*env*/,
+   return recognizer->IsEndpoint(stream);
+ }
+ 
++SHERPA_ONNX_EXTERN_C
++JNIEXPORT jint JNICALL
++Java_com_k2fsa_sherpa_onnx_OnlineRecognizer_getEndpointReason(
++    JNIEnv * /*env*/, jobject /*obj*/, jlong ptr, jlong stream_ptr) {
++  auto recognizer = reinterpret_cast<sherpa_onnx::OnlineRecognizer *>(ptr);
++  auto stream = reinterpret_cast<sherpa_onnx::OnlineStream *>(stream_ptr);
++
++  return static_cast<jint>(recognizer->GetEndpointReason(stream));
++}
++
++SHERPA_ONNX_EXTERN_C
++JNIEXPORT jboolean JNICALL
++Java_com_k2fsa_sherpa_onnx_OnlineRecognizer_commitRule3Segment(
++    JNIEnv * /*env*/, jobject /*obj*/, jlong ptr, jlong stream_ptr) {
++  auto recognizer = reinterpret_cast<sherpa_onnx::OnlineRecognizer *>(ptr);
++  auto stream = reinterpret_cast<sherpa_onnx::OnlineStream *>(stream_ptr);
++
++  return recognizer->CommitRule3Segment(stream);
++}
++
+ SHERPA_ONNX_EXTERN_C
+ JNIEXPORT void JNICALL Java_com_k2fsa_sherpa_onnx_OnlineRecognizer_decode(
+     JNIEnv * /*env*/, jobject /*obj*/, jlong ptr, jlong stream_ptr) {
+-- 
+2.50.1

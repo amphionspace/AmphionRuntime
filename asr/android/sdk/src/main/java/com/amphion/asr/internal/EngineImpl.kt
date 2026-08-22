@@ -306,6 +306,7 @@ internal class EngineImpl(
         fun isRecognizerConfigCompatible(pool: AsrConfig, other: AsrConfig): Boolean {
             if (pool.numThreads != other.numThreads) return false
             if (pool.endpoint != other.endpoint) return false
+            if (pool.endpointRules != other.endpointRules) return false
             if (pool.disablePrepack != other.disablePrepack) return false
             // decodingMethod 在 buildOnlineRecognizerConfig 内由 hotwords 是否为空决定
             val poolHasHotwords = pool.hotwords.isNotEmpty()
