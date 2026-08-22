@@ -11,22 +11,22 @@
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "c36596692a34a475ea6e4bd971526ae34fde6280bf277ccdb50a6c4aeadd815c",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "83f0b8f9ce96406774e7f65925fdb1fbc8dbda05e784bdcccd773f0f74ac1faf",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "3ca10cbdcb09c245582cc58085b4663de44b0e5dc6d79b51564c75cc6e361058",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "db11303eea16e927850b3c357d7d5375a6858326",
+    "source_commit": "bce73672be0c072bcccaca407a5bcda255e5fcd8",
     "changed_sources": [
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
     ],
     "previous_sha256": {
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "066dd24bb000be25b95bfb1f211098dda5606fc88dba818a8870ae35764b9baa"
-    },
-    "current_sha256": {
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "83f0b8f9ce96406774e7f65925fdb1fbc8dbda05e784bdcccd773f0f74ac1faf"
     },
+    "current_sha256": {
+      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "3ca10cbdcb09c245582cc58085b4663de44b0e5dc6d79b51564c75cc6e361058"
+    },
     "decision": "full_accuracy_evaluation_rerun",
-    "reason": "The Harmony Runtime changed after the previous evidence snapshot to serialize Speaker VAD timestamp snapshots on the ASR lane and prevent concurrent native stream reads during asynchronous speaker-turn inference. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen model bound to this evidence even though the AGC algorithm and decoder configuration were unchanged.",
+    "reason": "The Harmony Runtime changed to overlap independent Speaker VAD scoring and clean-prefix decoding without changing AGC processing or decoder configuration. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen evidence model.",
     "rerun_verification": [
       "aishell3_normal_and_controlled_levels",
       "customer_snr_scan",
@@ -41,8 +41,8 @@
     "frozen_evidence_encoder_sha256": "0e86d904862c53e9bdff44df0650a109d61783cb262a7233742f68198abbcbba",
     "harmony_delivery_encoder_sha256": "135d609ef40d4fa2b4a245e72ae742c13c9cf2cefea90b65ad65e7f39acf398a",
     "harmony_delivery_model_evaluation": "not_accepted",
-    "reason": "The amphion-119 Harmony delivery model is newer than the model frozen by this historical AGC evidence. This frozen-model rerun proves source compatibility for the existing gate only and must not be used as model-specific AGC accuracy acceptance for amphion-119.",
-    "required_followup": "Establish model-specific AGC acceptance criteria and a new preserved evidence set before making model-specific AGC accuracy claims for amphion-119."
+    "reason": "The new Harmony delivery model is newer than the model frozen by this historical AGC evidence. This frozen-model rerun proves source compatibility for the existing gate only and must not be used as model-specific AGC accuracy acceptance for the new model.",
+    "required_followup": "Establish model-specific AGC acceptance criteria and a new preserved evidence set before making model-specific AGC accuracy claims for the new model."
   },
   "evaluation_runtime": {
     "sherpa_onnx_version": "1.13.1",
@@ -166,15 +166,15 @@
   "native_cpu": {
     "iterations": 10,
     "audio_seconds_per_iteration": 213.28,
-    "median_rtf": 0.0013792057389347431,
-    "p90_rtf": 0.0013803148068266978
+    "median_rtf": 0.0016321275647036848,
+    "p90_rtf": 0.0016432524146661556
   },
   "preserved_artifact_sha256": {
-    "aishell3_report.json": "1da32e4c609ff064638ee22a2b2d12bc616b84d99bb4844f29a229915f4fb6e5",
+    "aishell3_report.json": "8f6e745164632eeb43befe86237478763f735245946f77e8999df758e5c1bb1b",
     "input_mapping.json": "a3d23fdb2058f96e0e3be568f90a7b605244a22ff82d725746037436931278c8",
-    "cases.jsonl": "4c849f321151318b4e662d279da43938613c8d390313aa5ff56d1e812eb455a9",
-    "extreme_level_report.json": "e7346f8bfaa7df36e81097f3a438a9bcbe3232639d47a8e596510e65220c3c67",
-    "customer_cases_report.json": "cf3454d9a12a4daa1da602bd529a9ca14417e1fc54c7cece833c00a674dcc89b",
+    "cases.jsonl": "5b05b738ad112ad4f87f571b436eb0ea667223775d3baa489c94af9de55051ce",
+    "extreme_level_report.json": "1b7d5e0aab1cbf9c3d3f6731c6e0dff151e917a9357a0e5ee5797f82a7240fd2",
+    "customer_cases_report.json": "17ccc5d666311281472b9f78bfdd564b823b268e23bddb5ae13fc9012112fc41",
     "sdk_long_audio_report.json": "d725186f72bec9259fded14df692498f9fc4003684f01fafb0d099f58c83949c",
     "repository_low_volume_regression.json": "c5e22f6e4788ac2e0d225cc35ad31b7979d21d46c7e16513aa77a7f1451c43d2"
   }
