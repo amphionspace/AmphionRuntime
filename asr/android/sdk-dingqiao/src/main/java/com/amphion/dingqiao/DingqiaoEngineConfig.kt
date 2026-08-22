@@ -16,6 +16,7 @@ internal object DingqiaoEngineConfig {
     private const val SCORE_ONLY_THRESHOLD = -1.0f
     private const val DEFAULT_ASR_NUM_THREADS = 4
     private const val DEFAULT_VAD_END_MS = 800
+    private const val DEFAULT_ENDPOINT_MAX_UTTERANCE_MS = 20_000.0
     private const val MIN_VAD_END_MS = 500
     private const val MAX_VAD_END_MS = 10_000
     private const val MIN_VAD_BEGIN_MS = 500
@@ -60,7 +61,12 @@ internal object DingqiaoEngineConfig {
             .vad(true)
             .vadConfig(VadConfig(activeEndpointSilenceMs = vadEndMs(startParams)))
             .endpoint(true)
-            .endpointRules(EndpointRules(rule2MinTrailingSilenceSec = 2.0f))
+            .endpointRules(
+                EndpointRules(
+                    rule2MinTrailingSilenceSec = 2.0f,
+                    rule3MinUtteranceLengthSec = endpointMaxUtteranceSec(startParams),
+                ),
+            )
             .disablePrepack(compatibleBoolean(params.extraParams["disablePrepack"], true))
         if (hotwords.isNotEmpty()) {
             builder.hotwords(hotwords, PoliceEngineConfig.HOTWORDS_SCORE_DEFAULT)
@@ -129,6 +135,15 @@ internal object DingqiaoEngineConfig {
         val raw = startParams?.extraParams?.get("vadEnd") ?: return DEFAULT_VAD_END_MS
         val value = finiteDouble(raw) ?: return DEFAULT_VAD_END_MS
         return value.toInt().coerceIn(MIN_VAD_END_MS, MAX_VAD_END_MS)
+    }
+
+    fun endpointMaxUtteranceSec(startParams: StartParams?): Float {
+        val raw = startParams?.extraParams?.get("endpointMaxUtteranceMs")
+        val durationMs = finiteDouble(raw)
+            ?.takeIf { it > 0.0 }
+            ?: DEFAULT_ENDPOINT_MAX_UTTERANCE_MS
+        return (durationMs / 1000.0).toFloat().takeIf { it.isFinite() && it > 0f }
+            ?: (DEFAULT_ENDPOINT_MAX_UTTERANCE_MS / 1000.0).toFloat()
     }
 
     fun maxAudioDurationMs(startParams: StartParams): Long {

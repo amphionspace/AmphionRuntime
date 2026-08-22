@@ -8,25 +8,25 @@
     "asr/native/audio-processing/src/amphion_audio_processing.cpp": "7ded42aaade2ec76a1567135f9b8ca2bb63e84469ca8616bb152644be79a5acb",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt": "9dc5dd3a675db811cdf84f886da455b5ff95a4da3f67241ed1991b4fcd4d95a2",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt": "d183b5616f5a89de1716e0074fcae5b243eeab784a17c8675a879102ef514aac",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "c36596692a34a475ea6e4bd971526ae34fde6280bf277ccdb50a6c4aeadd815c",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "afe69391da03e89ea725fdf31afafe01813e110c67675400518d96a121247f28",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "83f0b8f9ce96406774e7f65925fdb1fbc8dbda05e784bdcccd773f0f74ac1faf",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "db11303eea16e927850b3c357d7d5375a6858326",
+    "source_commit": "7069baabb412422cf65de9c96b8066d64c33a5b9",
     "changed_sources": [
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt"
     ],
     "previous_sha256": {
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "066dd24bb000be25b95bfb1f211098dda5606fc88dba818a8870ae35764b9baa"
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "c36596692a34a475ea6e4bd971526ae34fde6280bf277ccdb50a6c4aeadd815c"
     },
     "current_sha256": {
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "83f0b8f9ce96406774e7f65925fdb1fbc8dbda05e784bdcccd773f0f74ac1faf"
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "afe69391da03e89ea725fdf31afafe01813e110c67675400518d96a121247f28"
     },
     "decision": "full_accuracy_evaluation_rerun",
-    "reason": "The Harmony Runtime changed after the previous evidence snapshot to serialize Speaker VAD timestamp snapshots on the ASR lane and prevent concurrent native stream reads during asynchronous speaker-turn inference. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen model bound to this evidence even though the AGC algorithm and decoder configuration were unchanged.",
+    "reason": "The Android session implementation changed after the previous evidence snapshot to preserve native encoder context across non-final Rule3 checkpoints, hard restart other endpoint transitions, and record the actual transition outcome. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen model bound to this evidence even though the AGC algorithm and decoder configuration were unchanged.",
     "rerun_verification": [
       "aishell3_normal_and_controlled_levels",
       "customer_snr_scan",
@@ -166,15 +166,15 @@
   "native_cpu": {
     "iterations": 10,
     "audio_seconds_per_iteration": 213.28,
-    "median_rtf": 0.0013792057389347431,
-    "p90_rtf": 0.0013803148068266978
+    "median_rtf": 0.001372656836084024,
+    "p90_rtf": 0.001455188798762189
   },
   "preserved_artifact_sha256": {
-    "aishell3_report.json": "1da32e4c609ff064638ee22a2b2d12bc616b84d99bb4844f29a229915f4fb6e5",
+    "aishell3_report.json": "018a7245cb2f2c173e88ade4240b1d3233aa0a129b71d2259473e2c8f57ed317",
     "input_mapping.json": "a3d23fdb2058f96e0e3be568f90a7b605244a22ff82d725746037436931278c8",
-    "cases.jsonl": "4c849f321151318b4e662d279da43938613c8d390313aa5ff56d1e812eb455a9",
-    "extreme_level_report.json": "e7346f8bfaa7df36e81097f3a438a9bcbe3232639d47a8e596510e65220c3c67",
-    "customer_cases_report.json": "cf3454d9a12a4daa1da602bd529a9ca14417e1fc54c7cece833c00a674dcc89b",
+    "cases.jsonl": "7f6e3701d451dcb19a8b7b8717817ff9d8591c507b778606c461544d3c93274f",
+    "extreme_level_report.json": "22dd44642978165f0d27eb3a1ec79897b480a832f60bf23cce08289464461ba3",
+    "customer_cases_report.json": "9a15ad7918686a3588fd5e6d904ada0c772ec6af5dbe9ab97625a25da0ec52c2",
     "sdk_long_audio_report.json": "d725186f72bec9259fded14df692498f9fc4003684f01fafb0d099f58c83949c",
     "repository_low_volume_regression.json": "c5e22f6e4788ac2e0d225cc35ad31b7979d21d46c7e16513aa77a7f1451c43d2"
   }

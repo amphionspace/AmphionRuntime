@@ -684,6 +684,7 @@ internal class SessionImpl(
 
         if (recognizer.isEndpoint(stream)) {
             metrics.onEndpointDetected()
+            val endpointReason = recognizer.getEndpointReason(stream)
             val r = recognizer.getResult(stream)
             markInitialSpeechDetected(r)
             val decoded = discardInitialSilenceTimeoutResult(toAsrResult(r), initialSilenceTimeoutSent)
@@ -694,7 +695,11 @@ internal class SessionImpl(
             if ((!suppressEmptyFinal || hasEvidence) && finalResult != null) {
                 postFinalToProcessor(finalResult)
             }
-            if (restartAfterFinal) restartStreamAfterUtterance(r) else lastPartialText = ""
+            if (restartAfterFinal) {
+                transitionAfterNativeEndpoint(endpointReason, hasEvidence, isFinal)
+            } else {
+                lastPartialText = ""
+            }
             return hasEvidence
         }
 
@@ -755,8 +760,48 @@ internal class SessionImpl(
         lastPartialText = ""
     }
 
-    private fun hardRestartStream() {
-        if (closed.get()) return
+    private fun transitionAfterNativeEndpoint(
+        endpointReason: com.k2fsa.sherpa.onnx.OnlineEndpointReason,
+        hasEvidence: Boolean,
+        isFinalFlush: Boolean,
+    ) {
+        when (NativeEndpointTransitionPolicy.decide(endpointReason, hasEvidence, isFinalFlush)) {
+            NativeEndpointTransition.NATIVE_CHECKPOINT -> {
+                if (recognizer.commitRule3Segment(stream)) {
+                    Logger.metric(
+                        "kind=STREAM_TRANSITION sessionId=$sessionId action=native-checkpoint " +
+                            "reason=${endpointReason.metricName()} evidence=$hasEvidence",
+                    )
+                } else {
+                    Logger.w("session $sessionId native Rule3 checkpoint rejected; hard restarting stream")
+                    logHardRestartOutcome(endpointReason, hasEvidence, hardRestartStream())
+                }
+            }
+            NativeEndpointTransition.HARD_RESTART -> {
+                logHardRestartOutcome(endpointReason, hasEvidence, hardRestartStream())
+            }
+        }
+        recognizerResetGeneration.markReset()
+        lastPartialText = ""
+    }
+
+    private fun com.k2fsa.sherpa.onnx.OnlineEndpointReason.metricName(): String =
+        "native-${name.lowercase()}"
+
+    private fun logHardRestartOutcome(
+        endpointReason: com.k2fsa.sherpa.onnx.OnlineEndpointReason,
+        hasEvidence: Boolean,
+        hardRestarted: Boolean,
+    ) {
+        val action = if (hardRestarted) "hard-restart" else "soft-reset-fallback"
+        Logger.metric(
+            "kind=STREAM_TRANSITION sessionId=$sessionId action=$action " +
+                "reason=${endpointReason.metricName()} evidence=$hasEvidence",
+        )
+    }
+
+    private fun hardRestartStream(): Boolean {
+        if (closed.get()) return false
         val r = NativeGuard.run("recognizer.createStream(hardRestart)") {
             recognizer.createStream(hotwords = currentHotwords)
         }
@@ -773,6 +818,7 @@ internal class SessionImpl(
                 resetSpeakerVadState()
                 Logger.i("session $sessionId hard-restarted stream after long utterance")
                 warmUpEncoder(RESTART_STREAM_WARMUP_DURATION_MS)
+                return true
             }
             is NativeResult.Err -> {
                 Logger.w(
@@ -782,6 +828,7 @@ internal class SessionImpl(
                     recognizer.reset(stream)
                 }
                 resetSpeakerVadState()
+                return false
             }
         }
     }
