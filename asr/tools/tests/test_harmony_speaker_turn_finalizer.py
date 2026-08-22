@@ -401,7 +401,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
-    def test_speaker_turn_accuracy_requires_endpoint_or_bounded_finish_recovery(self) -> None:
+    def test_speaker_turn_accuracy_accepts_short_finish_recovery_without_partial(self) -> None:
         carrier = DEVICE_STRESS.read_text(encoding="utf-8")
         cycle = carrier.split("async function runSpeakerVadTurnCycle", 1)[1].split(
             "function enableTargetSpeakerEnhancement", 1
@@ -410,7 +410,8 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         self.assertIn("options.speakerVadFinishRecoveryEntryIds", cycle)
         self.assertIn("speechEndsBeforeFinish > 0 || finishRecovery", cycle)
         self.assertIn("finishToFirstNonEmptyResultMs <= 1200", cycle)
-        self.assertIn("events.partials > 0", cycle)
+        self.assertIn("finishRecovery || events.partials > 0", cycle)
+        self.assertIn("businessTextPassed && partialSignalPassed", cycle)
         self.assertIn("speaker-vad-turn-missing-endpoint", cycle)
 
     def test_diarization_rejects_more_than_one_target_to_other_turn(self) -> None:
