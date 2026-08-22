@@ -129,6 +129,44 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildAsrConfig_readsEndpointMaxUtteranceFromStartParams() {
+        val config = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE),
+            speakerModelPath = null,
+            startParams = StartParams(
+                sessionId = "s1",
+                audioInfo = AudioInfo(),
+                extraParams = mapOf("endpointMaxUtteranceMs" to "60000"),
+            ),
+        )
+
+        assertEquals(60f, config.endpointRules.rule3MinUtteranceLengthSec)
+    }
+
+    @Test
+    fun endpointMaxUtteranceUsesHarmonyCompatibleDefaults() {
+        assertEquals(20f, DingqiaoEngineConfig.endpointMaxUtteranceSec(StartParams("default", AudioInfo())))
+        assertEquals(
+            20f,
+            DingqiaoEngineConfig.endpointMaxUtteranceSec(
+                StartParams("invalid", AudioInfo(), mapOf("endpointMaxUtteranceMs" to Double.NaN)),
+            ),
+        )
+        assertEquals(
+            20f,
+            DingqiaoEngineConfig.endpointMaxUtteranceSec(
+                StartParams("non-positive", AudioInfo(), mapOf("endpointMaxUtteranceMs" to 0)),
+            ),
+        )
+        assertEquals(
+            60f,
+            DingqiaoEngineConfig.endpointMaxUtteranceSec(
+                StartParams("custom", AudioInfo(), mapOf("endpointMaxUtteranceMs" to 60_000)),
+            ),
+        )
+    }
+
+    @Test
     fun buildAsrConfig_ignoresCreateEngineVadEnd() {
         val config = DingqiaoEngineConfig.buildAsrConfig(
             CreateEngineParams(

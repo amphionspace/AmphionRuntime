@@ -60,6 +60,9 @@ internal class DingqiaoRecognitionEngine(
     @Volatile
     private var engine: AsrEngine? = null
 
+    private var activeEndpointMaxUtteranceSec: Float =
+        DingqiaoEngineConfig.endpointMaxUtteranceSec(null)
+
     @Volatile
     private var session: AsrSession? = null
 
@@ -147,6 +150,7 @@ internal class DingqiaoRecognitionEngine(
             audioMsWritten = 0L
             speechActive = false
 
+            ensureRecognizerConfig(params)
             val eng = engine
                 ?: throw DingqiaoEngineException(
                     DingqiaoErrorCode.START_LISTENING_FAILED,
@@ -336,18 +340,29 @@ internal class DingqiaoRecognitionEngine(
     }
 
     /**
-     * 引擎只在 createEngine 阶段构建一次：recognizer / VAD / 声纹模型都是 engine 级资源，
-     * 不随会话参数变化。vadEnd 与 speaker VAD 窗口等运行时阈值改为通过 [com.amphion.asr.SessionConfig]
-     * 逐会话生效（见 [startListening]），因此启动识别恒走快路径，不再触发 native 冷重建。
+     * recognizer / VAD / 声纹模型是 engine 级资源。vadEnd 与 speaker VAD 窗口等纯运行时阈值通过
+     * [com.amphion.asr.SessionConfig] 逐会话生效；只有改变 native Rule3 的
+     * endpointMaxUtteranceMs 时才重建 recognizer，并由 Runtime 的配置兼容性检查隔离复用。
      */
-    private fun buildEngine() {
-        preloadedEngine?.let {
+    private fun buildEngine(startParams: StartParams? = null) {
+        val endpointMaxUtteranceSec = DingqiaoEngineConfig.endpointMaxUtteranceSec(startParams)
+        if (startParams == null) preloadedEngine?.let {
             engine = it
+            activeEndpointMaxUtteranceSec = endpointMaxUtteranceSec
             return
         }
         val lang = DingqiaoEngineConfig.mapLanguage(createParams.language)
-        val config = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath)
+        val config = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath, startParams)
         engine = AmphionRuntime.create(appContext, lang, config)
+        activeEndpointMaxUtteranceSec = endpointMaxUtteranceSec
+    }
+
+    private fun ensureRecognizerConfig(startParams: StartParams) {
+        val requested = DingqiaoEngineConfig.endpointMaxUtteranceSec(startParams)
+        if (requested == activeEndpointMaxUtteranceSec) return
+        val previous = engine
+        buildEngine(startParams)
+        previous?.close()
     }
 
     private fun createAsrCallback(sessionId: String, epoch: Long): AsrCallback = object : AsrCallback {

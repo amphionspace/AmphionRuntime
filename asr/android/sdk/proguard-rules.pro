@@ -15,6 +15,10 @@
 -keep class com.amphion.asr.internal.SpeakerScoreSource { *; }
 -keep class com.amphion.asr.internal.EffectiveSpeechBufferKt { *; }
 -keep class com.amphion.asr.internal.RecognizerResetGeneration { *; }
+-keep class com.amphion.asr.internal.NativeEndpointTransition { *; }
+-keep class com.amphion.asr.internal.NativeEndpointTransitionPolicy { *; }
+-keep class com.k2fsa.sherpa.onnx.OnlineEndpointReason { *; }
+-keep class com.k2fsa.sherpa.onnx.OnlineEndpointReason$Companion { *; }
 -keep class com.amphion.asr.internal.SpeakerPcmBuffers { *; }
 -keep class com.amphion.asr.internal.SpeakerVadScoreScheduler { *; }
 -keep class com.amphion.asr.internal.SpeakerVadFinalGateKt { *; }

@@ -684,6 +684,7 @@ internal class SessionImpl(
 
         if (recognizer.isEndpoint(stream)) {
             metrics.onEndpointDetected()
+            val endpointReason = recognizer.getEndpointReason(stream)
             val r = recognizer.getResult(stream)
             markInitialSpeechDetected(r)
             val decoded = discardInitialSilenceTimeoutResult(toAsrResult(r), initialSilenceTimeoutSent)
@@ -694,7 +695,11 @@ internal class SessionImpl(
             if ((!suppressEmptyFinal || hasEvidence) && finalResult != null) {
                 postFinalToProcessor(finalResult)
             }
-            if (restartAfterFinal) restartStreamAfterUtterance(r) else lastPartialText = ""
+            if (restartAfterFinal) {
+                transitionAfterNativeEndpoint(endpointReason, hasEvidence, isFinal)
+            } else {
+                lastPartialText = ""
+            }
             return hasEvidence
         }
 
@@ -750,6 +755,31 @@ internal class SessionImpl(
             NativeGuard.runQuietly("recognizer.reset") { recognizer.reset(stream) }
             NativeGuard.runQuietly("vad.reset") { vad?.reset() }
             resetSpeakerVadState()
+        }
+        recognizerResetGeneration.markReset()
+        lastPartialText = ""
+    }
+
+    private fun transitionAfterNativeEndpoint(
+        endpointReason: com.k2fsa.sherpa.onnx.OnlineEndpointReason,
+        hasEvidence: Boolean,
+        isFinalFlush: Boolean,
+    ) {
+        when (NativeEndpointTransitionPolicy.decide(endpointReason, hasEvidence, isFinalFlush)) {
+            NativeEndpointTransition.NATIVE_CHECKPOINT -> {
+                if (recognizer.commitRule3Segment(stream)) {
+                    Logger.metric(
+                        "kind=STREAM_TRANSITION sessionId=$sessionId action=native-checkpoint " +
+                            "reason=native-rule3",
+                    )
+                } else {
+                    Logger.w("session $sessionId native Rule3 checkpoint rejected; hard restarting stream")
+                    hardRestartStream()
+                }
+            }
+            NativeEndpointTransition.HARD_RESTART -> {
+                hardRestartStream()
+            }
         }
         recognizerResetGeneration.markReset()
         lastPartialText = ""
