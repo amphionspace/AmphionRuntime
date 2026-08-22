@@ -1344,6 +1344,7 @@ export class AsrSession {
   private callbackGate: SessionCallbackGate = new SessionCallbackGate();
   private reentryQueue: SessionReentryQueue = new SessionReentryQueue();
   private streamCallDepth: number = 0;
+  private speculativeTimestampsSnapshot: number[] = [];
   private streamReleased: boolean = false;
   private pcmFloatScratch: Float32Array = new Float32Array(0);
   private lastPartialText: string = '';
@@ -1828,6 +1829,7 @@ export class AsrSession {
         return;
       }
       const endpointResult = this.recognizer.getResult(this.stream);
+      this.rememberSpeculativeTimestamps(endpointResult.timestamps);
       const endpointTransition = NativeEndpointTransitionPolicy.decide(
         endpointReason === OnlineEndpointReason.RULE3,
         endpointResult.text.length > 0 || endpointResult.tokens.length > 0);
@@ -1852,6 +1854,7 @@ export class AsrSession {
   private announceNativeEndpoint(endpointReason: OnlineEndpointReason,
     endpointTransition: NativeEndpointTransition): boolean {
     const endpointResult = this.recognizer.getResult(this.stream);
+    this.rememberSpeculativeTimestamps(endpointResult.timestamps);
     Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=native ` +
       `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
       `utterancePcmBytes=${this.pcmBytesAccepted} textChars=${endpointResult.text.length} ` +
@@ -1887,6 +1890,7 @@ export class AsrSession {
         return;
       }
       const endpointResult = this.recognizer.getResult(this.stream);
+      this.rememberSpeculativeTimestamps(endpointResult.timestamps);
       const endpointTransition = NativeEndpointTransitionPolicy.decide(
         endpointReason === OnlineEndpointReason.RULE3 && !isFinal,
         endpointResult.text.length > 0 || endpointResult.tokens.length > 0);
@@ -1919,6 +1923,7 @@ export class AsrSession {
     }
 
     const r = this.recognizer.getResult(this.stream);
+    this.rememberSpeculativeTimestamps(r.timestamps);
     this.initialSilenceTracker.observeAsrResult(r.text, r.tokens.length);
     if (isFinal) {
       this.dispatchFinal(false, decodeDurationMs, isLastFinal);
@@ -1942,6 +1947,7 @@ export class AsrSession {
   private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number,
     isLast: boolean = false): boolean {
     const native = this.recognizer.getResult(this.stream);
+    this.rememberSpeculativeTimestamps(native.timestamps);
     // Once vadBegin has conclusively expired without speech, inputFinished() may still expose a
     // speculative decoder token from the bounded non-speech prefix. It cannot retroactively turn
     // the already-decided initial-silence session into speech.
@@ -2529,6 +2535,7 @@ export class AsrSession {
   private finishUtterance(restart: boolean, reason: string = 'final'): void {
     if (!restart) {
       if (!this.callbackGate.isClosed()) this.recognizer.reset(this.stream);
+      this.speculativeTimestampsSnapshot = [];
       Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=soft-reset ` +
         `reason=${reason} streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
       this.lastPartialText = '';
@@ -2552,6 +2559,7 @@ export class AsrSession {
     Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=native-checkpoint ` +
       `reason=${reason} streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
     this.lastPartialText = '';
+    this.speculativeTimestampsSnapshot = [];
     this.recognizerResetGeneration += 1;
   }
 
@@ -2569,6 +2577,7 @@ export class AsrSession {
       const previousGeneration = this.streamGeneration;
       this.stream = next;
       this.streamGeneration += 1;
+      this.speculativeTimestampsSnapshot = [];
       previous.close();
       Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=hard-restart ` +
         `reason=${reason} fromGeneration=${previousGeneration} toGeneration=${this.streamGeneration} ` +
@@ -2580,6 +2589,7 @@ export class AsrSession {
         this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `hardRestartStream: ${e}`));
       })) return;
       this.recognizer.reset(this.stream);
+      this.speculativeTimestampsSnapshot = [];
       Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=soft-reset-fallback ` +
         `reason=${reason} streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
     }
@@ -3174,6 +3184,7 @@ export class AsrSession {
       prefixStream.close();
       prefixStream = undefined;
       this.stream = suffixStream;
+      this.speculativeTimestampsSnapshot = [];
       this.recognizerResetGeneration += 1;
       this.resetVadGateState();
       this.pcmBytesAccepted = split.suffix.length * 2;
@@ -3324,6 +3335,7 @@ export class AsrSession {
       prefixStream.close();
       prefixStream = undefined;
       this.stream = suffixStream;
+      this.speculativeTimestampsSnapshot = [];
       this.recognizerResetGeneration += 1;
       this.resetVadGateState();
       this.pcmBytesAccepted = split.suffix.length * 2;
@@ -3597,10 +3609,10 @@ export class AsrSession {
     diarizationReason: string,
     isCurrent: () => boolean = (): boolean => true): Promise<SpeakerTurnSplit | undefined> {
     const fallbackStartMs = Date.now();
-    const speculative = this.recognizer.getResult(this.stream);
+    const speculativeTimestamps = this.speculativeTimestampsSnapshot.slice();
     const fallback = await this.resolveWithAsyncSpeakerScores(
       (score: (samples: Float32Array) => number | undefined): SpeakerTurnSplit | undefined =>
-        finalizer.resolve(speculative.timestamps, config.threshold,
+        finalizer.resolve(speculativeTimestamps, config.threshold,
           (samples: Float32Array, _start: number, _end: number): number | undefined =>
           score(samples), boundaryHints), isCurrent);
     if (!isCurrent()) return undefined;
@@ -3609,6 +3621,10 @@ export class AsrSession {
       `decision=${fallback === undefined ? 'ambiguous' : 'split'} ` +
       `diarizationReason=${diarizationReason} reason=${finalizer.lastResolutionReason()}`);
     return fallback;
+  }
+
+  private rememberSpeculativeTimestamps(timestamps: number[]): void {
+    this.speculativeTimestampsSnapshot = timestamps.slice();
   }
 
   private dispatchSessionMetrics(): void {

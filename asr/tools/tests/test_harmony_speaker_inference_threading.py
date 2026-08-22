@@ -393,6 +393,13 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         self.assertNotIn("processSpeakerTurnSegmentation(", resolver)
         self.assertIn("processSpeakerTurnSegmentationAsync(", resolver)
 
+    def test_speaker_inference_lane_never_reads_the_primary_asr_stream(self) -> None:
+        acoustic = method_body(self.runtime, "resolveSpeakerTurnAcousticAsync")
+        decoded = method_body(self.runtime, "processDecodedResult")
+        self.assertNotIn("this.recognizer.getResult(this.stream)", acoustic)
+        self.assertIn("this.speculativeTimestampsSnapshot.slice()", acoustic)
+        self.assertIn("this.rememberSpeculativeTimestamps", decoded)
+
     def test_async_endpoint_and_finish_never_enter_sync_clean_decode(self) -> None:
         feed = method_body(self.runtime, "feedChunkAndDecodeAsync")
         finish = method_body(self.runtime, "stopNowAsync")
