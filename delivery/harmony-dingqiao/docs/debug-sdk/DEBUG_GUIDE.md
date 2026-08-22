@@ -1,10 +1,11 @@
 # Amphion ASR Debug SDK
 
-Debug HAR 与 Release HAR 的模块名和识别接口保持一致。替换四个 HAR 后，现有
+Debug HAR 与 Release HAR 的模块名和识别接口保持一致。替换单个自包含
+`amphion_dingqiao-debug.har` 后，现有
 `startListening`、`writeAudio`、`finish`、`cancel`、`shutdown` 和回调代码不需要修改。
 
-预配置 Debug HAR 和随包应用默认使用 `CUSTOMER_SUPPORT`：结构化诊断、实际送入公共
-`writeAudio` 的 PCM 和识别文本全部开启。客户只替换 Debug HAR 即可完成一次完整复现，
+预配置 Debug HAR 和单独交付的 Debug Demo 默认使用 `CUSTOMER_SUPPORT`：结构化诊断、实际送入公共
+`writeAudio` 的 PCM 和识别文本全部开启。客户只替换这一个 Debug HAR 即可完成一次完整复现，
 原有识别业务代码不需要修改。该默认值只存在于专用 Debug 交付；Release HAR 中诊断硬关闭。
 如现场不允许携带音频或识别文本，可分别传入
 `--ps diagnosticsAudio false --ps diagnosticsText false`，复现后点击“导出诊断包”。
@@ -61,7 +62,7 @@ python3 tools/collect_asr_diagnostics.py \
 SHA-256。默认只保留异常 session；若没有异常，则只保留最新 session，防止把无关会话带出
 应用沙箱。确需全量分析时显式增加 `--include-all-sessions`。手机端文件不会被删除。
 
-交付包自带经过构建流程生成的 `build-identity.json`，收集工具会把 HAP、四个 HAR、native、
+交付包自带经过构建流程生成的 `build-identity.json`，收集工具会把 HAP、内部四个组件 HAR、native、
 模型和源码指纹写入每个 run。也可以通过 `--build-identity <path>` 覆盖。
 
 敏感业务可使用单独密码文件加密输出（密码文件不会进入诊断包）：

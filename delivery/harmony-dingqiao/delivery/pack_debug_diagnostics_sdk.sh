@@ -15,9 +15,11 @@ export DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
 export JAVA_HOME="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
 cd "$PROJECT_ROOT"
 
-"$NODE" "$HVIGOR" assembleHap --mode module \
-  -p product=default -p module=amphion_asr_demo@default -p buildMode=debug \
-  --no-daemon --stacktrace
+SIGNED_HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap"
+[[ -f "$SIGNED_HAP" ]] || {
+  echo "[ERROR] build and verify a signed Debug HAP before packaging so provenance can bind it" >&2
+  exit 1
+}
 
 for module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
   "$NODE" "$HVIGOR" assembleHar --mode module \
@@ -28,29 +30,20 @@ done
 BUILD_IDENTITY="$OUTPUT_ROOT/build-identity.json"
 python3 "$SCRIPT_DIR/harmony_build_identity.py" --write "$BUILD_IDENTITY"
 
-mkdir -p "$PACKAGE_ROOT/sdk" "$PACKAGE_ROOT/demo" "$PACKAGE_ROOT/tools" "$PACKAGE_ROOT/docs"
-cp "$REPO_ROOT/asr/harmony/sdk/build/default/outputs/default/amphion_asr.har" \
-  "$PACKAGE_ROOT/sdk/amphion_asr-debug.har"
-cp "$REPO_ROOT/asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har" \
-  "$PACKAGE_ROOT/sdk/amphion_police-debug.har"
-cp "$REPO_ROOT/asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har" \
+mkdir -p "$PACKAGE_ROOT/sdk" "$PACKAGE_ROOT/tools" "$PACKAGE_ROOT/docs"
+bash "$SCRIPT_DIR/assemble_selfcontained_dingqiao_har.sh" --zh-en-only \
   "$PACKAGE_ROOT/sdk/amphion_dingqiao-debug.har"
-cp "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har" \
-  "$PACKAGE_ROOT/sdk/sherpa_onnx.har"
+"$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" --zh-en-only \
+  "$PACKAGE_ROOT/sdk/amphion_dingqiao-debug.har"
 cp "$SCRIPT_DIR/collect_asr_diagnostics.py" "$PACKAGE_ROOT/tools/"
 cp "$BUILD_IDENTITY" "$PACKAGE_ROOT/tools/build-identity.json"
 cp "$PROJECT_ROOT/docs/debug-sdk/DEBUG_GUIDE.md" "$PACKAGE_ROOT/docs/"
 cp "$PROJECT_ROOT/docs/debug-sdk/ISSUE_TEMPLATE.md" "$PACKAGE_ROOT/docs/"
 cp "$PROJECT_ROOT/docs/debug-sdk/PRIVACY_NOTICE.md" "$PACKAGE_ROOT/docs/"
 
-SIGNED_HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap"
-if [[ -f "$SIGNED_HAP" ]]; then
-  cp "$SIGNED_HAP" "$PACKAGE_ROOT/demo/amphion_asr_demo-debug-signed.hap"
-fi
-
 (
   cd "$PACKAGE_ROOT"
-  find sdk demo tools docs -type f -print0 | sort -z | xargs -0 shasum -a 256 > checksums.txt
+  find sdk tools docs -type f -print0 | sort -z | xargs -0 shasum -a 256 > checksums.txt
 )
 mkdir -p "$OUTPUT_ROOT"
 (
