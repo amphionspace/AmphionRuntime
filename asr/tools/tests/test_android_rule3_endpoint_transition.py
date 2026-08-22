@@ -28,6 +28,8 @@ class AndroidRule3EndpointTransitionTest(unittest.TestCase):
         self.assertIn("fun commitRule3Segment(stream: OnlineStream)", wrapper)
         self.assertIn("OnlineRecognizer_getEndpointReason", patch)
         self.assertIn("OnlineRecognizer_commitRule3Segment", patch)
+        self.assertIn("sherpa-onnx/kotlin-api/OnlineRecognizer.kt", patch)
+        self.assertIn("enum class OnlineEndpointReason", patch)
         self.assertIn("recognizer->GetEndpointReason(stream)", patch)
         self.assertIn("recognizer->CommitRule3Segment(stream)", patch)
 
