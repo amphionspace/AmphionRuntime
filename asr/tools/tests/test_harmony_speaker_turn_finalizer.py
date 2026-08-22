@@ -136,7 +136,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         sync = source.split("private syncSpeakerTurnState", 1)[1].split(
             "private commitCleanSpeakerTurn", 1
         )[0]
-        replay_index = commit.index("this.replaySpeakerSuffix(split)")
+        replay_index = commit.index("this.replaySpeakerSuffixForFinish(split)")
         departure_index = commit.index("this.svAwaitingTargetAfterDeparture = true")
         self.assertLess(departure_index, replay_index)
         self.assertIn(
@@ -167,7 +167,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         prefix_dispatch = commit.index(
             "this.dispatchFinal(endpointTriggered || finishTriggered"
         )
-        replay = commit.index("this.replaySpeakerSuffix(split)")
+        replay = commit.index("this.replaySpeakerSuffixForFinish(split)")
         tail_last = commit.index("this.drain(true, false, true)")
         self.assertIn("const prefixIsLast = isLast && !finishTriggered", commit)
         self.assertLess(endpoint, prefix_dispatch)
@@ -401,7 +401,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
-    def test_speaker_turn_accuracy_requires_endpoint_or_bounded_finish_recovery(self) -> None:
+    def test_speaker_turn_accuracy_accepts_short_finish_recovery_without_partial(self) -> None:
         carrier = DEVICE_STRESS.read_text(encoding="utf-8")
         cycle = carrier.split("async function runSpeakerVadTurnCycle", 1)[1].split(
             "function enableTargetSpeakerEnhancement", 1
@@ -410,7 +410,8 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         self.assertIn("options.speakerVadFinishRecoveryEntryIds", cycle)
         self.assertIn("speechEndsBeforeFinish > 0 || finishRecovery", cycle)
         self.assertIn("finishToFirstNonEmptyResultMs <= 1200", cycle)
-        self.assertIn("events.partials > 0", cycle)
+        self.assertIn("finishRecovery || events.partials > 0", cycle)
+        self.assertIn("businessTextPassed && partialSignalPassed", cycle)
         self.assertIn("speaker-vad-turn-missing-endpoint", cycle)
 
     def test_diarization_rejects_more_than_one_target_to_other_turn(self) -> None:
@@ -767,6 +768,33 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             assert.equal(split.cutSample, 2_000);
             assert.ok(scoreCalls <= 4, `speaker scorer calls must be bounded, got ${scoreCalls}`);
             assert.match(finalizer.lastResolutionReason(), /candidate=2000/);
+            """
+        )
+
+    def test_acoustic_candidates_publish_a_safe_predecode_bound(self) -> None:
+        self.run_finalizer(
+            """
+            const samples = new Float32Array(4_000);
+            samples.fill(0.1);
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000);
+            finalizer.accept(samples);
+            finalizer.observeScore(2_500, 0.62, 0.35);
+            finalizer.observeScore(3_000, 0.12, 0.35);
+            finalizer.observeScore(3_200, 0.08, 0.35);
+
+            const pending = finalizer.resolve([2.4], 0.35,
+              () => undefined, [2_200]);
+            assert.equal(pending, undefined);
+            assert.equal(finalizer.candidatePrefixEndSample(), 2_200);
+            assert.ok(finalizer.candidatePrefixEndSample() >= finalizer.safePrefixEndSample());
+
+            const split = finalizer.resolve([2.4], 0.35,
+              (_samples, start, end) => end <= 2_200 ? 0.62 : start >= 2_200 ? 0.08 : 0.20,
+              [2_200]);
+            assert.ok(split);
+            assert.ok(finalizer.candidatePrefixEndSample() <= split.cutSample);
+            finalizer.reset();
+            assert.equal(finalizer.candidatePrefixEndSample(), -1);
             """
         )
 
