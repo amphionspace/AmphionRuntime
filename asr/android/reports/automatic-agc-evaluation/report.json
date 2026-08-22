@@ -8,7 +8,7 @@
     "asr/native/audio-processing/src/amphion_audio_processing.cpp": "7ded42aaade2ec76a1567135f9b8ca2bb63e84469ca8616bb152644be79a5acb",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt": "9dc5dd3a675db811cdf84f886da455b5ff95a4da3f67241ed1991b4fcd4d95a2",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt": "d183b5616f5a89de1716e0074fcae5b243eeab784a17c8675a879102ef514aac",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "c36596692a34a475ea6e4bd971526ae34fde6280bf277ccdb50a6c4aeadd815c",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "afe69391da03e89ea725fdf31afafe01813e110c67675400518d96a121247f28",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "22abfbc1d8c0a1e65195284154738050b112c4a9894bc6310dadcc7759f955b4",
@@ -17,16 +17,19 @@
   "evaluation_applicability_review": {
     "source_commit": "d227203fef46b372f2a65fc9af2710edfecf885d",
     "changed_sources": [
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt",
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
     ],
     "previous_sha256": {
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "c36596692a34a475ea6e4bd971526ae34fde6280bf277ccdb50a6c4aeadd815c",
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "faf42c2c2e86aba2a7895186c71973c522de82372a71690ca48fd679e686cd66"
     },
     "current_sha256": {
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "afe69391da03e89ea725fdf31afafe01813e110c67675400518d96a121247f28",
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "22abfbc1d8c0a1e65195284154738050b112c4a9894bc6310dadcc7759f955b4"
     },
     "decision": "full_accuracy_evaluation_rerun",
-    "reason": "The Harmony Runtime now batches Speaker VAD candidate scoring through one native worker while preserving the same candidates, samples, scores, ordering, thresholds, and final decision. It does not change AGC processing or decoder configuration. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen evidence model.",
+    "reason": "The merged implementation combines Android native endpoint context preservation with Harmony Speaker VAD batch scoring. The Android change preserves Rule3 context while hard-restarting other endpoint transitions; the Harmony change batches the same candidates and samples through one native worker without changing scores, ordering, thresholds, or final decisions. Neither change modifies AGC processing or decoder configuration. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen evidence model.",
     "rerun_verification": [
       "aishell3_normal_and_controlled_levels",
       "customer_snr_scan",

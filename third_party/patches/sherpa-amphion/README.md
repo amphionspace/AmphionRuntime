@@ -24,7 +24,8 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0017-*` | Rule3 final 使用 native checkpoint 冻结已发布路径并保留连续 encoder/decoder context，避免边界丢 token 或重复 token |
 | `0018-*` | Rule3 checkpoint 压缩历史 token 后保留长度归一化偏移，确保 modified beam search 的后续路径排序与 continuous 一致 |
 | `0019-*` | Harmony speaker embedding 增加带 extractor/stream 租约的异步计算入口，避免在 ArkTS 音频链路同步执行 ONNX |
-| `0020-*` | Harmony speaker embedding 候选评分合并为单个异步批次，在同一 extractor 锁内顺序计算，减少重复任务排队与锁竞争 |
+| `0020-*` | Android JNI 暴露 native endpoint reason 与 Rule3 checkpoint，使 Android session 使用与 Harmony 相同的长音频上下文保留策略 |
+| `0021-*` | Harmony speaker embedding 候选评分合并为单个异步批次，在同一 extractor 锁内顺序计算，减少重复任务排队与锁竞争 |
 
 Apply automatically from the Harmony `04_build_harmony_so.sh` entry point (Android also applies the same series from its native build flow):
 
