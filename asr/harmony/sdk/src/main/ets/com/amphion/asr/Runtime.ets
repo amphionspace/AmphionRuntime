@@ -3091,6 +3091,58 @@ export class AsrSession {
     this.svPreparedPrefixTask = task;
   }
 
+  /** Extend the prepared stream only to the prefix shared by every boundary being scored. */
+  private extendSpeakerTurnPrefixPreparationAsync(finalizer: SpeakerTurnFinalizer): void {
+    const safeEnd = finalizer.candidatePrefixEndSample();
+    if (safeEnd <= this.svPreparedPrefixSamples) return;
+    const pending = this.svPreparedPrefixTask;
+    if (pending !== undefined) {
+      const generation = this.svPreparedPrefixGeneration;
+      pending.then((): void => {
+        if (generation === this.svPreparedPrefixGeneration && !this.callbackGate.isClosed()) {
+          this.extendSpeakerTurnPrefixPreparationAsync(finalizer);
+        }
+      }).catch((_e: Object): void => {});
+      return;
+    }
+    const stream = this.svPreparedPrefixStream;
+    if (stream === undefined) return;
+    const samples = finalizer.processedSamples();
+    if (safeEnd > samples.length) return;
+    const wave: Samples = {
+      samples: samples.slice(this.svPreparedPrefixSamples, safeEnd),
+      sampleRate: ASR_SAMPLE_RATE_HZ
+    } as Samples;
+    stream.acceptWaveform(wave);
+    const generation = this.svPreparedPrefixGeneration;
+    this.svPreparedPrefixSamples = safeEnd;
+    this.svPrefixPreparationPending += 1;
+    let task: Promise<void>;
+    task = this.recognizer.decodeAsync(stream).then((decodeMs: number): void => {
+      if (generation !== this.svPreparedPrefixGeneration || this.callbackGate.isClosed()) {
+        stream.close();
+        return;
+      }
+      this.svPreparedPrefixDecodeMs += decodeMs;
+      Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} ` +
+        `decision=extend-prefix-async samples=${safeEnd} decodeMs=${decodeMs}`);
+    }).catch((e: Object): void => {
+      stream.close();
+      if (generation === this.svPreparedPrefixGeneration &&
+        this.svPreparedPrefixStream === stream) {
+        this.svPreparedPrefixStream = undefined;
+        this.svPreparedPrefixSamples = 0;
+        this.svPreparedPrefixDecodeMs = 0;
+      }
+      Logger.w(`speaker turn async prefix extension failed; using full clean decode: ${e}`);
+    }).finally((): void => {
+      this.svPrefixPreparationPending -= 1;
+      if (this.svPreparedPrefixTask === task) this.svPreparedPrefixTask = undefined;
+      this.releaseStreamIfClosed();
+    });
+    this.svPreparedPrefixTask = task;
+  }
+
   private discardPreparedSpeakerTurnPrefix(): void {
     this.svPreparedPrefixGeneration += 1;
     const stream = this.svPreparedPrefixStream;
@@ -3631,7 +3683,8 @@ export class AsrSession {
 
   private async resolveWithAsyncSpeakerScores(
     resolver: (score: (samples: Float32Array) => number | undefined) => SpeakerTurnSplit | undefined,
-    isCurrent: () => boolean = (): boolean => true
+    isCurrent: () => boolean = (): boolean => true,
+    beforeScores?: () => void
   ): Promise<SpeakerTurnSplit | undefined> {
     const scores: (number | undefined)[] = [];
     for (let pass = 0; pass < 8; pass++) {
@@ -3645,6 +3698,7 @@ export class AsrSession {
         return undefined;
       });
       if (requests.length === 0) return split;
+      beforeScores?.();
       const pendingScores: Promise<number | undefined>[] = [];
       for (let index = 0; index < requests.length; index++) {
         pendingScores.push(this.scoreSamplesAsync(requests[index]));
@@ -3718,7 +3772,8 @@ export class AsrSession {
       (score: (samples: Float32Array) => number | undefined): SpeakerTurnSplit | undefined =>
         finalizer.resolve(speculativeTimestamps, config.threshold,
           (samples: Float32Array, _start: number, _end: number): number | undefined =>
-          score(samples), boundaryHints), isCurrent);
+          score(samples), boundaryHints), isCurrent,
+      (): void => { this.extendSpeakerTurnPrefixPreparationAsync(finalizer); });
     if (!isCurrent()) return undefined;
     Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} resolver=acoustic-fallback-async ` +
       `inferMs=${Date.now() - fallbackStartMs} ` +

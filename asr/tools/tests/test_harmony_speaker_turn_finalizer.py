@@ -770,6 +770,33 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
+    def test_acoustic_candidates_publish_a_safe_predecode_bound(self) -> None:
+        self.run_finalizer(
+            """
+            const samples = new Float32Array(4_000);
+            samples.fill(0.1);
+            const finalizer = new SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000);
+            finalizer.accept(samples);
+            finalizer.observeScore(2_500, 0.62, 0.35);
+            finalizer.observeScore(3_000, 0.12, 0.35);
+            finalizer.observeScore(3_200, 0.08, 0.35);
+
+            const pending = finalizer.resolve([2.4], 0.35,
+              () => undefined, [2_200]);
+            assert.equal(pending, undefined);
+            assert.equal(finalizer.candidatePrefixEndSample(), 2_200);
+            assert.ok(finalizer.candidatePrefixEndSample() >= finalizer.safePrefixEndSample());
+
+            const split = finalizer.resolve([2.4], 0.35,
+              (_samples, start, end) => end <= 2_200 ? 0.62 : start >= 2_200 ? 0.08 : 0.20,
+              [2_200]);
+            assert.ok(split);
+            assert.ok(finalizer.candidatePrefixEndSample() <= split.cutSample);
+            finalizer.reset();
+            assert.equal(finalizer.candidatePrefixEndSample(), -1);
+            """
+        )
+
     def test_ambiguous_boundaries_do_not_claim_a_precise_split(self) -> None:
         self.run_finalizer(
             """
