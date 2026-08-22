@@ -3261,13 +3261,9 @@ export class AsrSession {
       });
       return false;
     }
-    if (!this.svSpeakerScorePrepared) {
-      const cleanPrefixScore = await this.computeCleanPrefixSpeakerScoreAsync(split);
-      if (this.callbackGate.isClosed()) return true;
-      if (!isCurrent()) return false;
-      this.svCleanPrefixSpeakerScore = cleanPrefixScore;
-      this.svSpeakerScorePrepared = true;
-    }
+    let cleanPrefixScore = this.svCleanPrefixSpeakerScore;
+    let cleanPrefixScoreError: Object | undefined;
+    let cleanPrefixScoreTask: Promise<void> = Promise.resolve();
     Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=split ` +
       `cutSample=${split.cutSample} reason=${finalizer.lastResolutionReason()}`);
 
@@ -3291,7 +3287,19 @@ export class AsrSession {
       }
       this.appendFinalTailSilence();
       prefixStream.inputFinished();
-      const decodeDurationMs = await this.recognizer.decodeAsync(prefixStream);
+      if (!this.svSpeakerScorePrepared) {
+        cleanPrefixScoreTask = this.computeCleanPrefixSpeakerScoreAsync(split)
+          .then((score: number | undefined): void => { cleanPrefixScore = score; })
+          .catch((e: Object): void => { cleanPrefixScoreError = e; });
+      }
+      let decodeDurationMs = 0;
+      let decodeError: Object | undefined;
+      const decodeTask = this.recognizer.decodeAsync(prefixStream)
+        .then((durationMs: number): void => { decodeDurationMs = durationMs; })
+        .catch((e: Object): void => { decodeError = e; });
+      await Promise.all([cleanPrefixScoreTask, decodeTask]);
+      if (decodeError !== undefined) throw new Error(`${decodeError}`);
+      if (cleanPrefixScoreError !== undefined) throw new Error(`${cleanPrefixScoreError}`);
       if (this.callbackGate.isClosed()) {
         speculativeStream.close();
         return true;
@@ -3301,6 +3309,10 @@ export class AsrSession {
         prefixStream = undefined;
         this.stream = speculativeStream;
         return false;
+      }
+      if (!this.svSpeakerScorePrepared) {
+        this.svCleanPrefixSpeakerScore = cleanPrefixScore;
+        this.svSpeakerScorePrepared = true;
       }
       const clean = this.recognizer.getResult(prefixStream);
       if (clean.text.length === 0 && clean.tokens.length === 0) {
@@ -3545,10 +3557,14 @@ export class AsrSession {
         return undefined;
       });
       if (requests.length === 0) return split;
+      const pendingScores: Promise<number | undefined>[] = [];
       for (let index = 0; index < requests.length; index++) {
-        const score = await this.scoreSamplesAsync(requests[index]);
-        if (!isCurrent()) return undefined;
-        scores.push(score);
+        pendingScores.push(this.scoreSamplesAsync(requests[index]));
+      }
+      const resolvedScores = await Promise.all(pendingScores);
+      if (!isCurrent()) return undefined;
+      for (let index = 0; index < resolvedScores.length; index++) {
+        scores.push(resolvedScores[index]);
       }
     }
     return undefined;

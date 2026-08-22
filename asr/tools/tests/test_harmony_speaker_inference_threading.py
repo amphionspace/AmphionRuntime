@@ -283,8 +283,24 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         score_resolver = method_body(self.runtime, "resolveWithAsyncSpeakerScores")
         self.assertIn("await processSpeakerTurnSegmentationAsync", resolver)
         self.assertIn("if (!isCurrent()) return undefined", resolver)
-        self.assertIn("await this.scoreSamplesAsync", score_resolver)
+        self.assertIn("this.scoreSamplesAsync", score_resolver)
+        self.assertIn("await Promise.all", score_resolver)
         self.assertIn("if (!isCurrent()) return undefined", score_resolver)
+
+    def test_turn_resolver_batches_independent_speaker_scores(self) -> None:
+        score_resolver = method_body(self.runtime, "resolveWithAsyncSpeakerScores")
+        self.assertIn("Promise.all", score_resolver)
+        self.assertNotIn(
+            "await this.scoreSamplesAsync(requests[index])", score_resolver
+        )
+
+    def test_clean_prefix_score_overlaps_prefix_decode(self) -> None:
+        commit = method_body(self.runtime, "commitCleanSpeakerTurnAsync")
+        score = commit.index("this.computeCleanPrefixSpeakerScoreAsync(split)")
+        decode = commit.index("this.recognizer.decodeAsync(prefixStream)")
+        joined = commit.index("await Promise.all", max(score, decode))
+        self.assertLess(score, joined)
+        self.assertLess(decode, joined)
 
     def test_speaker_embedding_worker_releases_lease_when_queue_throws(self) -> None:
         native = SPEAKER_PATCH.read_text(encoding="utf-8")
@@ -415,7 +431,8 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         self.assertIn("await this.commitSpeakerTurnAtFinishAsync()", finish)
         self.assertIn("await this.commitCleanSpeakerTurnAsync", endpoint)
         self.assertIn("await this.commitCleanSpeakerTurnAsync", vad_endpoint)
-        self.assertIn("await this.recognizer.decodeAsync(prefixStream)", commit)
+        self.assertIn("this.recognizer.decodeAsync(prefixStream)", commit)
+        self.assertIn("await Promise.all", commit)
         self.assertNotIn("this.recognizer.decode(prefixStream)", commit)
         self.assertIn("await this.replaySpeakerSuffixAsync(split)", commit)
         self.assertIn("await this.drainAsync(true, false, true)", commit)
