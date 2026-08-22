@@ -1330,6 +1330,9 @@ export class AsrSession {
   private svPreparedPrefixStream?: OnlineStream;
   private svPreparedPrefixSamples: number = 0;
   private svPreparedPrefixDecodeMs: number = 0;
+  private svPreparedPrefixTask?: Promise<void>;
+  private svPreparedPrefixGeneration: number = 0;
+  private svPrefixPreparationPending: number = 0;
   private svContextWaitStartedSample: number = -1;
   private svTurnFailOpen: boolean = false;
   private speakerInferenceLane: SpeakerInferenceLane = new SpeakerInferenceLane();
@@ -1813,6 +1816,14 @@ export class AsrSession {
     if (this.callbackGate.isClosed()) return;
     await this.processDecodedResultAsync(
       isFinal, restartAfterFinal, isLastFinal, decodeDurationMs);
+  }
+
+  private async drainFinalWithSpeakerScoreAsync(isLastFinal: boolean): Promise<void> {
+    const scoreTask = this.prepareVadEndpointSpeakerScoreAsync();
+    const decodeTask = this.recognizer.decodeAsync(this.stream);
+    const settled = await Promise.all([scoreTask, decodeTask]);
+    if (!settled[0] || this.callbackGate.isClosed()) return;
+    await this.processDecodedResultAsync(true, false, isLastFinal, settled[1]);
   }
 
   private async processDecodedResultAsync(isFinal: boolean, restartAfterFinal: boolean,
@@ -2819,6 +2830,11 @@ export class AsrSession {
       this.svEndpointReady = true;
       return true;
     }
+    if (state === 'target-active' || state === 'target-confirmed') {
+      this.discardPreparedSpeakerTurnPrefix();
+    } else if (state === 'below') {
+      this.startSpeakerTurnPrefixPreparationAsync(finalizer);
+    }
     if (state !== 'departure' || !request.speechWasActive) return false;
     let split = await this.resolveSpeakerTurnSplitAsync(
       finalizer, sv, false, (): boolean => this.speakerInferenceLane.isCurrent(generation));
@@ -3031,11 +3047,61 @@ export class AsrSession {
     }
   }
 
+  /** Start decoding the proven target-only prefix without delaying the remaining turn decision. */
+  private startSpeakerTurnPrefixPreparationAsync(finalizer: SpeakerTurnFinalizer): void {
+    if (this.svPreparedPrefixStream !== undefined || this.svPreparedPrefixTask !== undefined) return;
+    const safeEnd = finalizer.safePrefixEndSample();
+    if (safeEnd <= 0) return;
+    const samples = finalizer.processedSamples();
+    if (safeEnd > samples.length) return;
+    const stream = this.recognizer.createStream();
+    const wave: Samples = {
+      samples: samples.slice(0, safeEnd), sampleRate: ASR_SAMPLE_RATE_HZ
+    } as Samples;
+    stream.acceptWaveform(wave);
+    const generation = this.svPreparedPrefixGeneration + 1;
+    this.svPreparedPrefixGeneration = generation;
+    this.svPreparedPrefixStream = stream;
+    this.svPreparedPrefixSamples = safeEnd;
+    this.svPreparedPrefixDecodeMs = 0;
+    this.svPrefixPreparationPending += 1;
+    let task: Promise<void>;
+    task = this.recognizer.decodeAsync(stream).then((decodeMs: number): void => {
+      if (generation !== this.svPreparedPrefixGeneration || this.callbackGate.isClosed()) {
+        stream.close();
+        return;
+      }
+      this.svPreparedPrefixDecodeMs = decodeMs;
+      Logger.metric(`kind=SPEAKER_TURN sessionId=${this.sessionId} decision=prepare-prefix-async ` +
+        `samples=${safeEnd} decodeMs=${decodeMs}`);
+    }).catch((e: Object): void => {
+      stream.close();
+      if (generation === this.svPreparedPrefixGeneration &&
+        this.svPreparedPrefixStream === stream) {
+        this.svPreparedPrefixStream = undefined;
+        this.svPreparedPrefixSamples = 0;
+        this.svPreparedPrefixDecodeMs = 0;
+      }
+      Logger.w(`speaker turn async prefix preparation failed; using full clean decode: ${e}`);
+    }).finally((): void => {
+      this.svPrefixPreparationPending -= 1;
+      if (this.svPreparedPrefixTask === task) this.svPreparedPrefixTask = undefined;
+      this.releaseStreamIfClosed();
+    });
+    this.svPreparedPrefixTask = task;
+  }
+
   private discardPreparedSpeakerTurnPrefix(): void {
-    this.svPreparedPrefixStream?.close();
+    this.svPreparedPrefixGeneration += 1;
+    const stream = this.svPreparedPrefixStream;
+    const task = this.svPreparedPrefixTask;
     this.svPreparedPrefixStream = undefined;
     this.svPreparedPrefixSamples = 0;
     this.svPreparedPrefixDecodeMs = 0;
+    this.svPreparedPrefixTask = undefined;
+    // decodeAsync owns the stream until it settles. Its generation check closes an invalidated
+    // in-flight stream; a completed preparation can be closed immediately.
+    if (task === undefined) stream?.close();
   }
 
   /**
@@ -3191,7 +3257,11 @@ export class AsrSession {
       this.firstPcmMs = Date.now();
       this.svAwaitingTargetAfterDeparture = true;
       this.svRejectCurrentUtterance = true;
-      this.replaySpeakerSuffix(split);
+      if (finishTriggered) {
+        this.replaySpeakerSuffixForFinish(split);
+      } else {
+        this.replaySpeakerSuffix(split);
+      }
       if (finishTriggered && !this.callbackGate.isClosed()) {
         this.appendFinalTailSilence();
         this.stream.inputFinished();
@@ -3270,6 +3340,7 @@ export class AsrSession {
     const speculativeStream = this.stream;
     let prefixStream: OnlineStream | undefined;
     try {
+      if (this.svPreparedPrefixTask !== undefined) await this.svPreparedPrefixTask;
       const preparedSamples = this.svPreparedPrefixSamples <= split.cutSample ?
         this.svPreparedPrefixSamples : 0;
       const preparedDecodeMs = preparedSamples > 0 ? this.svPreparedPrefixDecodeMs : 0;
@@ -3354,11 +3425,15 @@ export class AsrSession {
       this.firstPcmMs = Date.now();
       this.svAwaitingTargetAfterDeparture = true;
       this.svRejectCurrentUtterance = true;
-      await this.replaySpeakerSuffixAsync(split);
+      if (finishTriggered) {
+        this.replaySpeakerSuffixForFinish(split);
+      } else {
+        await this.replaySpeakerSuffixAsync(split);
+      }
       if (finishTriggered && !this.callbackGate.isClosed()) {
         this.appendFinalTailSilence();
         this.stream.inputFinished();
-        await this.drainAsync(true, false, true);
+        await this.drainFinalWithSpeakerScoreAsync(true);
         if (!this.callbackGate.isClosed()) this.notifyStopped();
         return true;
       }
@@ -3481,8 +3556,7 @@ export class AsrSession {
       }
       this.feedChunkAndDecode(
         split.suffix.slice(offset, offset + chunkSize),
-        split.processedSuffix.slice(offset, offset + chunkSize),
-        true);
+        split.processedSuffix.slice(offset, offset + chunkSize), true);
       offset += chunkSize;
     }
   }
@@ -3498,10 +3572,24 @@ export class AsrSession {
       }
       await this.feedChunkAndDecodeAsync(
         split.suffix.slice(offset, offset + chunkSize),
-        split.processedSuffix.slice(offset, offset + chunkSize),
-        true);
+        split.processedSuffix.slice(offset, offset + chunkSize), true);
       offset += chunkSize;
     }
+  }
+
+  // A finish-triggered split has already established that the suffix belongs to a non-target
+  // speaker. Seed the fresh stream directly so shutdown performs one final ASR decode instead of
+  // replaying the real-time Speaker VAD and online decode pipeline first.
+  private replaySpeakerSuffixForFinish(split: SpeakerTurnSplit): void {
+    if (this.callbackGate.isClosed()) return;
+    this.effectiveSpeechBuffer.observe(split.suffix);
+    this.speakerPcmBuffers.observe(
+      split.suffix, true, this.targetSpeakerEnabled || this.speakerVadEnabled);
+    const wave: Samples = {
+      samples: split.processedSuffix,
+      sampleRate: ASR_SAMPLE_RATE_HZ
+    } as Samples;
+    this.stream.acceptWaveform(wave);
   }
 
   private scoreSamples(samples: Float32Array): number | undefined {
@@ -3668,7 +3756,8 @@ export class AsrSession {
 
   private releaseStreamIfClosed(): void {
     if (!this.callbackGate.isClosed() || this.streamCallDepth > 0 ||
-      this.speakerInferenceLane.pending() > 0 || this.streamReleased) return;
+      this.speakerInferenceLane.pending() > 0 || this.svPrefixPreparationPending > 0 ||
+      this.streamReleased) return;
     if (!this.runtimeLease.releaseAfterClose((): void => {
       this.stream.close();
       this.streamReleased = true;

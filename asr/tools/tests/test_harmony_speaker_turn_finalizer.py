@@ -136,7 +136,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         sync = source.split("private syncSpeakerTurnState", 1)[1].split(
             "private commitCleanSpeakerTurn", 1
         )[0]
-        replay_index = commit.index("this.replaySpeakerSuffix(split)")
+        replay_index = commit.index("this.replaySpeakerSuffixForFinish(split)")
         departure_index = commit.index("this.svAwaitingTargetAfterDeparture = true")
         self.assertLess(departure_index, replay_index)
         self.assertIn(
@@ -167,7 +167,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         prefix_dispatch = commit.index(
             "this.dispatchFinal(endpointTriggered || finishTriggered"
         )
-        replay = commit.index("this.replaySpeakerSuffix(split)")
+        replay = commit.index("this.replaySpeakerSuffixForFinish(split)")
         tail_last = commit.index("this.drain(true, false, true)")
         self.assertIn("const prefixIsLast = isLast && !finishTriggered", commit)
         self.assertLess(endpoint, prefix_dispatch)

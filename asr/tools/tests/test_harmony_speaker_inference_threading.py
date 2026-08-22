@@ -302,6 +302,43 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         self.assertLess(score, joined)
         self.assertLess(decode, joined)
 
+    def test_async_low_score_predecodes_immutable_prefix_and_tracks_quiescence(self) -> None:
+        evaluate = method_body(self.runtime, "evaluateSpeakerVadInferenceAsync")
+        prepare = method_body(self.runtime, "startSpeakerTurnPrefixPreparationAsync")
+        commit = method_body(self.runtime, "commitCleanSpeakerTurnAsync")
+        release = method_body(self.runtime, "releaseStreamIfClosed")
+
+        self.assertIn("if (state === 'below')", evaluate)
+        self.assertIn("this.startSpeakerTurnPrefixPreparationAsync(finalizer)", evaluate)
+        self.assertIn("this.recognizer.decodeAsync(stream)", prepare)
+        self.assertIn("this.svPrefixPreparationPending += 1", prepare)
+        self.assertIn("this.svPrefixPreparationPending -= 1", prepare)
+        self.assertIn("await this.svPreparedPrefixTask", commit)
+        self.assertIn("this.svPrefixPreparationPending > 0", release)
+
+    def test_finish_replay_bypasses_realtime_speaker_vad_and_online_decode(self) -> None:
+        commit = method_body(self.runtime, "commitCleanSpeakerTurnAsync")
+        finish_replay = method_body(self.runtime, "replaySpeakerSuffixForFinish")
+        self.assertIn("this.replaySpeakerSuffixForFinish(split)", commit)
+        self.assertIn("await this.replaySpeakerSuffixAsync(split)", commit)
+        self.assertIn("this.speakerPcmBuffers.observe", finish_replay)
+        self.assertIn("this.stream.acceptWaveform(wave)", finish_replay)
+        self.assertNotIn("feedChunkAndDecode", finish_replay)
+        self.assertNotIn("enqueueSpeakerVadInference", finish_replay)
+        self.assertNotIn("decode", finish_replay)
+
+    def test_finish_replay_overlaps_final_score_with_tail_decode(self) -> None:
+        commit = method_body(self.runtime, "commitCleanSpeakerTurnAsync")
+        self.assertIn("await this.drainFinalWithSpeakerScoreAsync", commit)
+        drain = method_body(self.runtime, "drainFinalWithSpeakerScoreAsync")
+        score = drain.index("this.prepareVadEndpointSpeakerScoreAsync()")
+        decode = drain.index("this.recognizer.decodeAsync(this.stream)")
+        joined = drain.index("await Promise.all", max(score, decode))
+        process = drain.index("await this.processDecodedResultAsync", joined)
+        self.assertLess(score, joined)
+        self.assertLess(decode, joined)
+        self.assertLess(joined, process)
+
     def test_speaker_embedding_worker_releases_lease_when_queue_throws(self) -> None:
         native = SPEAKER_PATCH.read_text(encoding="utf-8")
         start = native.index("SpeakerEmbeddingExtractorComputeEmbeddingAsyncWrapper")
@@ -435,7 +472,8 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         self.assertIn("await Promise.all", commit)
         self.assertNotIn("this.recognizer.decode(prefixStream)", commit)
         self.assertIn("await this.replaySpeakerSuffixAsync(split)", commit)
-        self.assertIn("await this.drainAsync(true, false, true)", commit)
+        self.assertIn("this.replaySpeakerSuffixForFinish(split)", commit)
+        self.assertIn("await this.drainFinalWithSpeakerScoreAsync(true)", commit)
         self.assertIn("await this.feedChunkAndDecodeAsync", replay)
 
 
