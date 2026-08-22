@@ -15,7 +15,7 @@ SPEAKER_PATCH = (
 SPEAKER_BATCH_PATCH = (
     REPO_ROOT
     / "third_party/patches/sherpa-amphion/"
-    "0020-perf-harmony-batch-speaker-embedding-inference.patch"
+    "0021-perf-harmony-batch-speaker-embedding-inference.patch"
 )
 TURN_NATIVE = REPO_ROOT / "asr/harmony/sdk/src/main/cpp/speaker_turn_segmenter.cpp"
 LANE = (

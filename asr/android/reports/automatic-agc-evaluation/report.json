@@ -15,7 +15,7 @@
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "d227203fef46b372f2a65fc9af2710edfecf885d",
+    "source_commit": "0dd76f6f2d8ad988be0cbcae6319264f6f1643ad",
     "changed_sources": [
       "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt",
       "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
@@ -169,15 +169,15 @@
   "native_cpu": {
     "iterations": 10,
     "audio_seconds_per_iteration": 213.28,
-    "median_rtf": 0.001405038564328584,
-    "p90_rtf": 0.0014091173152663147
+    "median_rtf": 0.0013794292338709627,
+    "p90_rtf": 0.001380861618529642
   },
   "preserved_artifact_sha256": {
-    "aishell3_report.json": "da162d907862463fae75b116c6a7362d6f1a4341c7b6fc5aba772e85bf010123",
+    "aishell3_report.json": "0583c4db229c4d450439a4b941d3618811d3ab99ccff13bbde5567d3f4b66f3b",
     "input_mapping.json": "a3d23fdb2058f96e0e3be568f90a7b605244a22ff82d725746037436931278c8",
-    "cases.jsonl": "2910c96907f203ae98391483e937cb9f9e7ee1b318eea5bcee660ff477cd4766",
-    "extreme_level_report.json": "c8a524ae37154c8e77290cf7f23d5b825f8a6ccb8d968c8b81c342620a445d2b",
-    "customer_cases_report.json": "a621c0d161f0e82b60a6546ae43d18b04cdcecc439b8203886d5c8a0ab5c066d",
+    "cases.jsonl": "2e45edfab72e5229cda5e76f9321df246b522bcd7f9a2196f2edf424269146d9",
+    "extreme_level_report.json": "a0272dd1f036feba947f9082c43ef8ea5024835c0bb803100d88737e89786f8d",
+    "customer_cases_report.json": "520d0001a289065ef5b344fe5fe14d2208cf26dac1b19a8687a4a9c1678b2249",
     "sdk_long_audio_report.json": "d725186f72bec9259fded14df692498f9fc4003684f01fafb0d099f58c83949c",
     "repository_low_volume_regression.json": "c5e22f6e4788ac2e0d225cc35ad31b7979d21d46c7e16513aa77a7f1451c43d2"
   }
