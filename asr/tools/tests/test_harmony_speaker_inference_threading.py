@@ -294,30 +294,19 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
             "await this.scoreSamplesAsync(requests[index])", score_resolver
         )
 
-    def test_acoustic_scoring_prefinalizes_the_bounded_alternate_candidate(self) -> None:
+    def test_acoustic_scoring_overlaps_only_the_common_candidate_prefix_decode(self) -> None:
         resolver = method_body(self.runtime, "resolveWithAsyncSpeakerScores")
         acoustic = method_body(self.runtime, "resolveSpeakerTurnAcousticAsync")
         extend = method_body(self.runtime, "extendSpeakerTurnPrefixPreparationAsync")
-        prepare_candidate = method_body(
-            self.runtime, "startSpeakerTurnCandidatePreparationAsync"
-        )
-        commit = method_body(self.runtime, "commitCleanSpeakerTurnAsync")
         self.assertIn("beforeScores?.()", resolver)
         self.assertLess(resolver.index("beforeScores?.()"), resolver.index("Promise.all"))
         self.assertIn("this.extendSpeakerTurnPrefixPreparationAsync", acoustic)
-        self.assertIn("this.startSpeakerTurnCandidatePreparationAsync", acoustic)
         self.assertIn("finalizer.candidatePrefixEndSample()", extend)
         self.assertIn("safeEnd <= this.svPreparedPrefixSamples", extend)
         self.assertIn("const pending = this.svPreparedPrefixTask", extend)
         self.assertIn("if (pending !== undefined)", extend)
         self.assertIn("samples.slice(this.svPreparedPrefixSamples, safeEnd)", extend)
         self.assertIn("this.recognizer.decodeAsync(stream)", extend)
-        self.assertIn("finalizer.candidateAlternatePrefixEndSample()", prepare_candidate)
-        self.assertIn("this.appendFinalTailSilenceTo(stream)", prepare_candidate)
-        self.assertIn("stream.inputFinished()", prepare_candidate)
-        self.assertIn("this.recognizer.decodeAsync(stream)", prepare_candidate)
-        self.assertIn("this.svPreparedCandidateSamples === split.cutSample", commit)
-        self.assertIn("if (!preparedFinalized)", commit)
 
     def test_clean_prefix_score_overlaps_prefix_decode(self) -> None:
         commit = method_body(self.runtime, "commitCleanSpeakerTurnAsync")

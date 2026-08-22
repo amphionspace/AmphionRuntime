@@ -74,7 +74,6 @@ export class SpeakerTurnFinalizer {
   private lastTargetScore?: number;
   private resolutionReason: string = 'not-resolved';
   private pendingCandidatePrefixEndSample: number = -1;
-  private pendingCandidateAlternatePrefixEndSample: number = -1;
 
   constructor(sampleRate: number, windowSamples: number, hopSamples: number,
     consecutiveBelow: number, maximumSamples: number) {
@@ -146,9 +145,6 @@ export class SpeakerTurnFinalizer {
       Math.max(0, this.lastTargetEndSample - this.windowSamples);
   }
   candidatePrefixEndSample(): number { return this.pendingCandidatePrefixEndSample; }
-  candidateAlternatePrefixEndSample(): number {
-    return this.pendingCandidateAlternatePrefixEndSample;
-  }
   lastResolutionReason(): string { return this.resolutionReason; }
   deferResolution(reason: string): void { this.resolutionReason = reason; }
   needsMoreContext(): boolean {
@@ -197,7 +193,6 @@ export class SpeakerTurnFinalizer {
     scoreRange: SpeakerRangeScorer, boundaryHintsSamples: number[] = []): SpeakerTurnSplit | undefined {
     this.resolutionReason = 'not-ready';
     this.pendingCandidatePrefixEndSample = -1;
-    this.pendingCandidateAlternatePrefixEndSample = -1;
     if (!this.departureSeen || this.firstBelowEndSample < 0 ||
       this.lastTargetEndSample < 0) return undefined;
     if (this.capped) {
@@ -304,11 +299,8 @@ export class SpeakerTurnFinalizer {
     };
     const scoredCandidateCount = Math.min(maximumScoredCandidates, ranked.length);
     if (scoredCandidateCount > 0) {
-      const scoredCandidates = ranked.slice(0, scoredCandidateCount);
-      this.pendingCandidatePrefixEndSample = Math.min(...scoredCandidates);
-      const alternate = Math.max(...scoredCandidates);
-      this.pendingCandidateAlternatePrefixEndSample =
-        alternate > this.pendingCandidatePrefixEndSample ? alternate : -1;
+      this.pendingCandidatePrefixEndSample = Math.min(
+        ...ranked.slice(0, scoredCandidateCount));
     }
     for (let index = 0; index < scoredCandidateCount; index++) {
       evaluate(ranked[index]);
@@ -501,7 +493,6 @@ export class SpeakerTurnFinalizer {
     this.lastTargetScore = undefined;
     this.resolutionReason = 'not-resolved';
     this.pendingCandidatePrefixEndSample = -1;
-    this.pendingCandidateAlternatePrefixEndSample = -1;
   }
 
   private findQuietRun(samples: Float32Array, start: number, end: number,
