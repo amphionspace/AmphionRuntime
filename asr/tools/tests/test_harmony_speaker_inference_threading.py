@@ -12,6 +12,11 @@ SPEAKER_PATCH = (
     / "third_party/patches/sherpa-amphion/"
     "0019-feat-harmony-compute-speaker-embeddings-asynchronously.patch"
 )
+SPEAKER_BATCH_PATCH = (
+    REPO_ROOT
+    / "third_party/patches/sherpa-amphion/"
+    "0020-perf-harmony-batch-speaker-embedding-inference.patch"
+)
 TURN_NATIVE = REPO_ROOT / "asr/harmony/sdk/src/main/cpp/speaker_turn_segmenter.cpp"
 LANE = (
     REPO_ROOT
@@ -57,11 +62,14 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         cls.runtime = RUNTIME.read_text(encoding="utf-8")
 
     def test_native_speaker_inference_has_async_leased_workers(self) -> None:
-        speaker_api = SPEAKER_PATCH.read_text(encoding="utf-8")
+        speaker_api = SPEAKER_PATCH.read_text(encoding="utf-8") + \
+            SPEAKER_BATCH_PATCH.read_text(encoding="utf-8")
         speaker_native = speaker_api
         turn_native = TURN_NATIVE.read_text(encoding="utf-8")
         self.assertIn("computeAsync(stream: OnlineStream)", speaker_api)
+        self.assertIn("computeBatchAsync(streams: OnlineStream[])", speaker_api)
         self.assertIn("SpeakerEmbeddingExtractorComputeAsyncWorker", speaker_native)
+        self.assertIn("SpeakerEmbeddingExtractorComputeBatchAsyncWorker", speaker_native)
         self.assertIn("extractor_handle->Lease()", speaker_native)
         self.assertIn("stream_handle->Lease()", speaker_native)
         self.assertIn("ProcessAsync", turn_native)
@@ -283,23 +291,24 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         score_resolver = method_body(self.runtime, "resolveWithAsyncSpeakerScores")
         self.assertIn("await processSpeakerTurnSegmentationAsync", resolver)
         self.assertIn("if (!isCurrent()) return undefined", resolver)
-        self.assertIn("this.scoreSamplesAsync", score_resolver)
-        self.assertIn("await Promise.all", score_resolver)
+        self.assertIn("this.scoreSamplesBatchAsync", score_resolver)
+        self.assertIn("await this.scoreSamplesBatchAsync", score_resolver)
         self.assertIn("if (!isCurrent()) return undefined", score_resolver)
 
     def test_turn_resolver_batches_independent_speaker_scores(self) -> None:
         score_resolver = method_body(self.runtime, "resolveWithAsyncSpeakerScores")
-        self.assertIn("Promise.all", score_resolver)
-        self.assertNotIn(
-            "await this.scoreSamplesAsync(requests[index])", score_resolver
-        )
+        self.assertIn("await this.scoreSamplesBatchAsync(requests)", score_resolver)
+        self.assertNotIn("Promise.all", score_resolver)
 
     def test_acoustic_scoring_overlaps_only_the_common_candidate_prefix_decode(self) -> None:
         resolver = method_body(self.runtime, "resolveWithAsyncSpeakerScores")
         acoustic = method_body(self.runtime, "resolveSpeakerTurnAcousticAsync")
         extend = method_body(self.runtime, "extendSpeakerTurnPrefixPreparationAsync")
         self.assertIn("beforeScores?.()", resolver)
-        self.assertLess(resolver.index("beforeScores?.()"), resolver.index("Promise.all"))
+        self.assertLess(
+            resolver.index("beforeScores?.()"),
+            resolver.index("await this.scoreSamplesBatchAsync"),
+        )
         self.assertIn("this.extendSpeakerTurnPrefixPreparationAsync", acoustic)
         self.assertIn("finalizer.candidatePrefixEndSample()", extend)
         self.assertIn("safeEnd <= this.svPreparedPrefixSamples", extend)

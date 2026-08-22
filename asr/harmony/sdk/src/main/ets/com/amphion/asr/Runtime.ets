@@ -3681,6 +3681,44 @@ export class AsrSession {
     }
   }
 
+  private async scoreSamplesBatchAsync(
+    requests: Float32Array[]): Promise<(number | undefined)[]> {
+    const extractor = this.targetExtractor;
+    const targetSpeaker = this.targetSpeaker;
+    const scores: (number | undefined)[] = [];
+    if (extractor === undefined || targetSpeaker === undefined || requests.length === 0) {
+      for (let index = 0; index < requests.length; index++) scores.push(undefined);
+      return scores;
+    }
+    const streams: OnlineStream[] = [];
+    try {
+      for (let index = 0; index < requests.length; index++) {
+        const samples = requests[index];
+        if (samples.length === 0) {
+          for (let fill = 0; fill < requests.length; fill++) scores.push(undefined);
+          return scores;
+        }
+        const stream = extractor.createStream();
+        streams.push(stream);
+        const wave: Samples = { samples, sampleRate: ASR_SAMPLE_RATE_HZ } as Samples;
+        stream.acceptWaveform(wave);
+        if (!extractor.isReady(stream)) {
+          for (let fill = 0; fill < requests.length; fill++) scores.push(undefined);
+          return scores;
+        }
+      }
+      const embeddings = await extractor.computeBatchAsync(streams);
+      for (let index = 0; index < requests.length; index++) {
+        const embedding = index < embeddings.length ? embeddings[index] : undefined;
+        scores.push(embedding === undefined ? undefined :
+          cosineSimilarity(embedding, targetSpeaker));
+      }
+      return scores;
+    } finally {
+      for (let index = 0; index < streams.length; index++) streams[index].close();
+    }
+  }
+
   private async resolveWithAsyncSpeakerScores(
     resolver: (score: (samples: Float32Array) => number | undefined) => SpeakerTurnSplit | undefined,
     isCurrent: () => boolean = (): boolean => true,
@@ -3699,11 +3737,7 @@ export class AsrSession {
       });
       if (requests.length === 0) return split;
       beforeScores?.();
-      const pendingScores: Promise<number | undefined>[] = [];
-      for (let index = 0; index < requests.length; index++) {
-        pendingScores.push(this.scoreSamplesAsync(requests[index]));
-      }
-      const resolvedScores = await Promise.all(pendingScores);
+      const resolvedScores = await this.scoreSamplesBatchAsync(requests);
       if (!isCurrent()) return undefined;
       for (let index = 0; index < resolvedScores.length; index++) {
         scores.push(resolvedScores[index]);
