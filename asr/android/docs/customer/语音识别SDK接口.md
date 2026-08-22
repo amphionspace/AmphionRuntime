@@ -111,6 +111,7 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | `enablePartialResult` | `Boolean` | `true` | 是否回调中间结果 |
 | `enablePoliceEnhancement` | `Boolean` | `true` | 是否对 final 文本执行警务术语、车牌和派出所归一化；`false` 返回原始 ASR 文本 |
 | `maxAudioDuration` | `Number/String` | 未启用 | 单会话最长音频毫秒数；仅显式传入正有限值时启用，上限 28800000；达到上限后正常自动结束 |
+| `endpointMaxUtteranceMs` | `Number/String` | `20000` | native Rule3 单句强制 final 时长；长会议可设为 `60000`。它只切句，不结束 session；非正数或非法值使用默认值 |
 | `vadEnd` | `Number/String` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `sessionGeneralLexicon` | `List<String>` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `Boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |

@@ -87,6 +87,20 @@ data class OnlineRecognizerResult(
     // TODO(fangjun): Add more fields
 )
 
+enum class OnlineEndpointReason(val nativeValue: Int) {
+    NONE(0),
+    RULE1(1),
+    RULE2(2),
+    RULE3(3),
+    UNKNOWN(4),
+    ;
+
+    companion object {
+        fun fromNative(value: Int): OnlineEndpointReason =
+            entries.firstOrNull { it.nativeValue == value } ?: UNKNOWN
+    }
+}
+
 class OnlineRecognizer(
     assetManager: AssetManager? = null,
     val config: OnlineRecognizerConfig,
@@ -118,6 +132,9 @@ class OnlineRecognizer(
     fun reset(stream: OnlineStream) = reset(ptr, stream.ptr)
     fun decode(stream: OnlineStream) = decode(ptr, stream.ptr)
     fun isEndpoint(stream: OnlineStream) = isEndpoint(ptr, stream.ptr)
+    fun getEndpointReason(stream: OnlineStream): OnlineEndpointReason =
+        OnlineEndpointReason.fromNative(getEndpointReason(ptr, stream.ptr))
+    fun commitRule3Segment(stream: OnlineStream): Boolean = commitRule3Segment(ptr, stream.ptr)
     fun isReady(stream: OnlineStream) = isReady(ptr, stream.ptr)
     fun getResult(stream: OnlineStream): OnlineRecognizerResult {
         return getResult(ptr, stream.ptr)
@@ -138,6 +155,8 @@ class OnlineRecognizer(
     private external fun reset(ptr: Long, streamPtr: Long)
     private external fun decode(ptr: Long, streamPtr: Long)
     private external fun isEndpoint(ptr: Long, streamPtr: Long): Boolean
+    private external fun getEndpointReason(ptr: Long, streamPtr: Long): Int
+    private external fun commitRule3Segment(ptr: Long, streamPtr: Long): Boolean
     private external fun isReady(ptr: Long, streamPtr: Long): Boolean
     private external fun getResult(ptr: Long, streamPtr: Long): OnlineRecognizerResult
 
@@ -666,4 +685,3 @@ fun getEndpointConfig(): EndpointConfig {
         rule3 = EndpointRule(false, 0.0f, 20.0f)
     )
 }
-

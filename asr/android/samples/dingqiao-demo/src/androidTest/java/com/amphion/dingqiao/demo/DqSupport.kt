@@ -25,6 +25,14 @@ const val DQ_SR = 16_000
 const val DQ_FRAME = 640
 const val DQ_FRAME_MS = 20L
 
+enum class CapturedCallbackKind { START, EVENT, PARTIAL, FINAL, COMPLETE, ERROR }
+
+data class CapturedCallback(
+    val sessionId: String,
+    val kind: CapturedCallbackKind,
+    val isLast: Boolean = false,
+)
+
 /** 线程安全采集所有回调，供断言与报告使用。 */
 class CapturingListener(
     private val onStartAction: ((sessionId: String) -> Unit)? = null,
@@ -34,30 +42,42 @@ class CapturingListener(
     val events: MutableList<Pair<Int, String>> = Collections.synchronizedList(mutableListOf())
     val errors: MutableList<Pair<Int, String>> = Collections.synchronizedList(mutableListOf())
     val completes: MutableList<String> = Collections.synchronizedList(mutableListOf())
+    val callbackTrace: MutableList<CapturedCallback> =
+        Collections.synchronizedList(mutableListOf())
 
     @Volatile var started = CountDownLatch(1)
     @Volatile var complete = CountDownLatch(1)
     @Volatile var firstError = CountDownLatch(1)
 
     override fun onStart(sessionId: String, eventMessage: String) {
+        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.START))
         onStartAction?.invoke(sessionId)
         started.countDown()
     }
 
     override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) {
+        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.EVENT))
         events.add(eventCode to eventMessage)
     }
 
     override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
-        if (result.isFinal) finals.add(result) else partials.add(result.result)
+        if (result.isFinal) {
+            callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.FINAL, result.isLast))
+            finals.add(result)
+        } else {
+            callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.PARTIAL))
+            partials.add(result.result)
+        }
     }
 
     override fun onComplete(sessionId: String, eventMessage: String) {
+        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.COMPLETE))
         completes.add(eventMessage)
         complete.countDown()
     }
 
     override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.ERROR))
         errors.add(errorCode to errorMessage)
         firstError.countDown()
         complete.countDown()
