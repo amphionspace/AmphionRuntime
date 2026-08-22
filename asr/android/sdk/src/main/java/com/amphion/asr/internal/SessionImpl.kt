@@ -770,23 +770,38 @@ internal class SessionImpl(
                 if (recognizer.commitRule3Segment(stream)) {
                     Logger.metric(
                         "kind=STREAM_TRANSITION sessionId=$sessionId action=native-checkpoint " +
-                            "reason=native-rule3",
+                            "reason=${endpointReason.metricName()} evidence=$hasEvidence",
                     )
                 } else {
                     Logger.w("session $sessionId native Rule3 checkpoint rejected; hard restarting stream")
-                    hardRestartStream()
+                    logHardRestartOutcome(endpointReason, hasEvidence, hardRestartStream())
                 }
             }
             NativeEndpointTransition.HARD_RESTART -> {
-                hardRestartStream()
+                logHardRestartOutcome(endpointReason, hasEvidence, hardRestartStream())
             }
         }
         recognizerResetGeneration.markReset()
         lastPartialText = ""
     }
 
-    private fun hardRestartStream() {
-        if (closed.get()) return
+    private fun com.k2fsa.sherpa.onnx.OnlineEndpointReason.metricName(): String =
+        "native-${name.lowercase()}"
+
+    private fun logHardRestartOutcome(
+        endpointReason: com.k2fsa.sherpa.onnx.OnlineEndpointReason,
+        hasEvidence: Boolean,
+        hardRestarted: Boolean,
+    ) {
+        val action = if (hardRestarted) "hard-restart" else "soft-reset-fallback"
+        Logger.metric(
+            "kind=STREAM_TRANSITION sessionId=$sessionId action=$action " +
+                "reason=${endpointReason.metricName()} evidence=$hasEvidence",
+        )
+    }
+
+    private fun hardRestartStream(): Boolean {
+        if (closed.get()) return false
         val r = NativeGuard.run("recognizer.createStream(hardRestart)") {
             recognizer.createStream(hotwords = currentHotwords)
         }
@@ -803,6 +818,7 @@ internal class SessionImpl(
                 resetSpeakerVadState()
                 Logger.i("session $sessionId hard-restarted stream after long utterance")
                 warmUpEncoder(RESTART_STREAM_WARMUP_DURATION_MS)
+                return true
             }
             is NativeResult.Err -> {
                 Logger.w(
@@ -812,6 +828,7 @@ internal class SessionImpl(
                     recognizer.reset(stream)
                 }
                 resetSpeakerVadState()
+                return false
             }
         }
     }
