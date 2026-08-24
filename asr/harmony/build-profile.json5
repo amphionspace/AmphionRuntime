@@ -16,7 +16,8 @@
     ],
     "buildModeSet": [
       { "name": "debug" },
-      { "name": "release" }
+      { "name": "release" },
+      { "name": "diagnostics" }
     ]
   },
   "modules": [

@@ -91,6 +91,11 @@ export interface PrepareRuntimeCallback {
   onError(errorCode: number, message: string): void;
 }
 
+export interface DiagnosticExportCallback {
+  onSuccess(path: string): void;
+  onError(errorCode: number, message: string): void;
+}
+
 export class DingqiaoErrorCode {
   static readonly CREATE_ENGINE_FAILED: number = 1002200001;
   static readonly START_LISTENING_FAILED: number = 1002200002;
