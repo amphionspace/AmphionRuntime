@@ -1,11 +1,15 @@
 {
-  "source_csv": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_station_enhance/station_homophones.csv",
+  "source_csv": "asr/android/sdk-police/src/main/assets/police_station/station_homophones.csv",
   "scope": "global",
-  "pair_count": 136,
-  "fst_path": "/Users/amphion/Desktop/work/projects/鼎桥/test_data/generation_by_template/police_station_fst_experiment/output/station_global.fst",
+  "pair_count": 131,
+  "fst_path": "asr/android/sdk-police/src/main/assets/police_station/station_global.fst",
   "phase": "p0",
   "note": "gazetteer-category rules stay in host (scheme A); sequential cdrewrite compose",
   "pairs": [
+    {
+      "from": "郑州市郑东新区，如有湖派出所",
+      "to": "郑州市郑东新区如意湖派出所"
+    },
     {
       "from": "郑州市振东新区，如野湖",
       "to": "郑州市郑东新区如意湖"
@@ -48,19 +52,11 @@
     },
     {
       "from": "拉萨市城关区八阔",
-      "to": "萨市城关区八廓"
-    },
-    {
-      "from": "拉萨市城关区八廓",
-      "to": "萨市城关区八廓"
+      "to": "拉萨市城关区八廓"
     },
     {
       "from": "石家庄市雨花区",
       "to": "石家庄市裕华区"
-    },
-    {
-      "from": "郑州市振东新区",
-      "to": "郑州市郑东新区"
     },
     {
       "from": "沙河口区新海湾",
@@ -323,10 +319,6 @@
       "to": "甘井子区"
     },
     {
-      "from": "振东新区",
-      "to": "郑东新区"
-    },
-    {
       "from": "集美集美",
       "to": "集美区集美"
     },
@@ -437,18 +429,6 @@
     {
       "from": "裴黎",
       "to": "培黎"
-    },
-    {
-      "from": "涪陵",
-      "to": "培黎"
-    },
-    {
-      "from": "呼吸",
-      "to": "湖西"
-    },
-    {
-      "from": "河山",
-      "to": "禾山"
     },
     {
       "from": "瀚州",
