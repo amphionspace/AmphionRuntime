@@ -3,7 +3,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { window } from '@kit.ArkUI';
 import hilog from '@ohos.hilog';
 import deviceInfo from '@ohos.deviceInfo';
-import { LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
+import { AmphionLogLevel, LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
 import { DeviceStressOptions, runDeviceStress } from '../util/DeviceStressTest';
 import { ModelLoadBenchOptions, runModelLoadBench } from '../util/ModelLoadBench';
 import { LifecycleBenchOptions, runLifecycleBench } from '../util/LifecycleBench';
@@ -58,6 +58,7 @@ export default class EntryAbility extends UIAbility {
     try {
       const workPath = `${this.context.filesDir}/amphion_asr_work`;
       const deviceIdProvider = new DemoDeviceIdProvider();
+      SpeechRecognizeSdk.setLogLevel(AmphionLogLevel.INFO);
       SpeechRecognizeSdk.init(this.context, deviceIdProvider);
       SpeechRecognizeSdk.setWorkPath(workPath);
       hilog.info(0x0000, 'AmphionAsrDemo', 'SpeechRecognizeSdk init done, workPath=%{public}s', workPath);

@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-VERSION="${AMPHION_RUNTIME_VERSION:-0.3.8}"
+VERSION="${AMPHION_RUNTIME_VERSION:-0.3.9}"
 SOURCE_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 RELEASE_ZIP="${RELEASE_SDK_ZIP:-$REPO_ROOT/build/amphion-harmony-asr-sdk-v${VERSION}-20260824.zip}"
 DIAGNOSTICS_ZIP="${DIAGNOSTICS_SDK_ZIP:-$REPO_ROOT/delivery/harmony-dingqiao/build/diagnostics-sdk-${VERSION}-${SOURCE_COMMIT:0:8}/Amphion-ASR-Diagnostics-SDK.zip}"

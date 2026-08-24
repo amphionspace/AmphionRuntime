@@ -1,4 +1,4 @@
-import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SessionConfig, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
+import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionLogLevel, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SessionConfig, SpeakerEnroller, SpeakerVadConfig, TargetSpeakerConfig } from 'amphion_asr';
 import { PoliceEnhancePipeline } from 'amphion_police';
 import { PoliceEngineConfig } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
@@ -1180,6 +1180,7 @@ function remainingDaysFromClaim(expiresAt: string | undefined): number {
 export class SpeechRecognizeSdk {
   private static context?: Context;
   private static workPath: string = '';
+  private static runtimeLogLevel: AmphionLogLevel = AmphionLogLevel.WARN;
   private static licenseInfo?: LicenseInfo;
   private static deviceIdProvider?: LicenseDeviceIdProvider;
   private static activatedLicenseText?: string;
@@ -1211,6 +1212,11 @@ export class SpeechRecognizeSdk {
     if (path.trim().length === 0) throw new Error('workPath must not be empty');
     if (!fs.accessSync(path)) fs.mkdirSync(path, true);
     SpeechRecognizeSdk.workPath = path;
+  }
+
+  /** Sets the Runtime log threshold. Call before prepareRuntime to include initialization logs. */
+  static setLogLevel(logLevel: AmphionLogLevel): void {
+    SpeechRecognizeSdk.runtimeLogLevel = logLevel;
   }
 
   /**
@@ -1326,6 +1332,7 @@ export class SpeechRecognizeSdk {
   private static buildRuntimeOptions(licenseText: string,
     provider: LicenseDeviceIdProvider): AmphionOptions {
     const options = new AmphionOptions();
+    options.logLevel = SpeechRecognizeSdk.runtimeLogLevel;
     options.license = licenseText;
     options.deviceIdProvider = new CoreDeviceIdProviderAdapter(provider);
     return options;

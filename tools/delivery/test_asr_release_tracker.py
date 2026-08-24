@@ -291,6 +291,31 @@ class AsrReleaseTrackerTest(unittest.TestCase):
                 source_commit=self.current_commit,
             )
 
+    def test_changelog_uses_recorded_integration_commit_after_squash_merge(self) -> None:
+        self.git("checkout", "--orphan", "release-source")
+        self.git("rm", "-q", "-rf", ".")
+        (self.repo / "release.txt").write_text("release source\n", encoding="utf-8")
+        self.git("add", "release.txt")
+        self.git("commit", "-q", "-m", "feat(android): release branch source")
+        release_source = self.git("rev-parse", "HEAD")
+        self.git("checkout", "-q", self.primary_branch)
+
+        payload = json.loads(self.history_path.read_text(encoding="utf-8"))
+        payload["deliveries"][0]["source_commit"] = release_source
+        payload["deliveries"][0]["integration_commit"] = self.android_base
+        self.history_path.write_text(json.dumps(payload), encoding="utf-8")
+
+        rendered = MODULE.render_changelog(
+            repo=self.repo,
+            history_path=self.history_path,
+            platform="android",
+            version="0.3.3",
+            source_commit=self.current_commit,
+        )
+
+        self.assertIn(f"0.3.2 (`{release_source}`)", rendered)
+        self.assertIn("fix(android): preserve trailing words", rendered)
+
     def test_records_version_from_android_provenance_and_rejects_duplicate(self) -> None:
         provenance = self.repo / "VERSION.txt"
         provenance.write_text(

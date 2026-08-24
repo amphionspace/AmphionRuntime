@@ -4,8 +4,8 @@
 
 | 文档项 | 值 |
 | --- | --- |
-| 文档版本 | v1.4（跨端 VAD 前端点与参数契约补齐） |
-| 更新日期 | 2026-07-14 |
+| 文档版本 | v1.5（开放 Runtime 日志等级） |
+| 更新日期 | 2026-08-24 |
 | SDK 依赖 | `amphion_dingqiao` |
 
 SDK 依赖名为 `amphion_dingqiao`，核心入口为 `SpeechRecognizeSdk`。本版包含 License、Runtime、Model 三层生命周期控制，以及内置声纹模型的按需加载策略，便于宿主控制模型内存和识别启动时延。
@@ -15,6 +15,7 @@ SDK 依赖名为 `amphion_dingqiao`，核心入口为 `SpeechRecognizeSdk`。本
 ```ts
 import {
   AudioInfo,
+  AmphionLogLevel,
   CreateEngineParams,
   LicenseDeviceIdProvider,
   SpeechRecognitionEngine,
@@ -30,6 +31,7 @@ class HostDeviceIdProvider implements LicenseDeviceIdProvider {
 
 SpeechRecognizeSdk.init(context, new HostDeviceIdProvider());
 SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/dingqiao_asr`);
+SpeechRecognizeSdk.setLogLevel(AmphionLogLevel.INFO); // 可选；需在 prepareRuntime 前设置
 
 let engine: SpeechRecognitionEngine | undefined;
 SpeechRecognizeSdk.setLicense(licensePath, {
@@ -78,6 +80,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | --- | --- |
 | `SpeechRecognizeSdk.init(context: Context, deviceIdProvider?: LicenseDeviceIdProvider)` | 初始化 SDK；本交付的无设备绑定授权无需传 `deviceIdProvider` |
 | `SpeechRecognizeSdk.setWorkPath(path: string)` | 设置可读写工作目录，必须在创建引擎或注册声纹前调用 |
+| `SpeechRecognizeSdk.setLogLevel(logLevel: AmphionLogLevel)` | 设置 Runtime 日志等级；默认 `WARN`，查看初始化版本日志时在 `prepareRuntime` 前设为 `INFO` |
 | `SpeechRecognizeSdk.getWorkPath(): string` | 查询当前工作目录 |
 | `SpeechRecognizeSdk.setLicense(licensePath: string, callback: LicenseActivationCallback)` | 离线校验并缓存正式授权；不拉起 Runtime、不加载模型 |
 | `SpeechRecognizeSdk.getLicenseInfo(): LicenseInfo` | 查询当前已激活授权信息 |
@@ -91,6 +94,14 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | `SpeechRecognizeSdk.preloadVoiceprintModel(): boolean` | 同步预加载并预热声纹模型；应在非 UI 关键路径调用 |
 
 声纹模型 `eres2net.onnx` 已内置在 `amphion_dingqiao.har`，宿主无需单独分发、导入或复制。`setWorkPath` 指向可读写目录，用于保存已注册的声纹 embedding；SDK 不会把 HAR 内模型复制到该目录。
+
+日志等级设为 `INFO` 后，首次 `prepareRuntime` 初始化成功会在 Harmony hilog 输出：
+
+```text
+[AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.9, license=LICENSED
+```
+
+可通过 DevEco Studio Log 或 `hdc shell hilog | grep "AmphionRuntime Harmony init done"` 查看。
 
 ## 3. 生命周期控制
 

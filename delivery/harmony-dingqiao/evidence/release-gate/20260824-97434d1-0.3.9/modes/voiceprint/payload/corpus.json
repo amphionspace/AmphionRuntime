@@ -1,0 +1,24 @@
+[
+  {
+    "channels": 1,
+    "duration_seconds": 3.28,
+    "id": "000000",
+    "pcm_bytes": 104960,
+    "pcm_sha256": "b659a8fac09d94437f5657e1ca01e423dfb384790a375fe6f84d1662bef676a1",
+    "sample_rate": 16000,
+    "sample_width": 2,
+    "source": "generic-badcases/情指行-勤指.wav",
+    "source_sha256": "406027619ac5356b902338e50c7c4ec665e86de1c205835216dde89a3cda67bc"
+  },
+  {
+    "channels": 1,
+    "duration_seconds": 32.22,
+    "id": "000001",
+    "pcm_bytes": 1031040,
+    "pcm_sha256": "5200cfe0b9f0ec472b8621bb691df4a8b63db8f5588d555382ed75cade572ec1",
+    "sample_rate": 16000,
+    "sample_width": 2,
+    "source": "hotword/yu-qigen.wav",
+    "source_sha256": "90aa38d75a72e69f28ba5006771b881d87e3c4842a097d898dc6350ca216b6a5"
+  }
+]
