@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.9 - 2026-08-24（开放 Runtime 日志等级）
+
+- 兼容适配层新增 `SpeechRecognizeSdk.setLogLevel(AmphionLogLevel)`，支持业务方在
+  `prepareRuntime` 前将日志等级设置为 `INFO` 或 `DEBUG`。
+- 设置为 `INFO` 后，Runtime 首次初始化成功时会在 Harmony hilog 输出
+  `AmphionRuntime Harmony init done, version=0.3.9`，便于现场确认实际运行的 SDK 版本。
+- 默认日志等级仍为 `WARN`，未调用新接口的既有集成行为保持不变；识别、声纹、Speaker VAD、
+  生命周期与诊断采集逻辑均未修改。
+- 目标说话人增强仍仅保留接口预留；0.3.9 不包含该能力所需模型，不能启用该参数。
+
 ## 0.3.8 - 2026-08-24（Speaker VAD 尾部时延与完整交付）
 
 - 相对 0.3.7，优化 Speaker VAD 尾部时延：增加安全前缀预解码并批量执行说话人评分；既有阈值、

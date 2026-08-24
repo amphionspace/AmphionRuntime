@@ -1,0 +1,13 @@
+[
+  {
+    "channels": 1,
+    "duration_seconds": 6.92,
+    "id": "000000",
+    "pcm_bytes": 221440,
+    "pcm_sha256": "b4b158102ed17bfa12ed51e3d2931c05ac4afb8bc23b6e710e7d9105df2051f1",
+    "sample_rate": 16000,
+    "sample_width": 2,
+    "source": "机主/enrollment_near.wav",
+    "source_sha256": "5c3f33e6c7eb85fcf9277ac705da736108355a90a658b54c8c1716cf46733463"
+  }
+]

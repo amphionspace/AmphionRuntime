@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-08-24T06:50:05" hostname="redacted" time="0.237">
+  <properties/>
+  <testcase name="setLicenseDoesNotPrepareRuntime" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.009"/>
+  <testcase name="reentrantUnloadModelInvalidatesRemainingPrepareWaiters" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.001"/>
+  <testcase name="concurrentPrepareRuntimeIsSingleFlightAndUnloadPreservesLicense" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.001"/>
+  <testcase name="concurrentFailedPrepareSharesOneFailureAndCanRetryLater" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.001"/>
+  <testcase name="unloadModelInvalidatesQueuedFlightWithoutLateStateRollback" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.001"/>
+  <testcase name="newSuccessCallbackBridgesToLegacyOnResultImplementation" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.008"/>
+  <testcase name="failedPrepareRollsBackRuntimeAndCanRetry" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.001"/>
+  <testcase name="reentrantUnloadInvalidatesRemainingPrepareWaiters" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.001"/>
+  <testcase name="successfulSetLicenseShutsDownPublishedEngineBeforeRuntimeReset" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.002"/>
+  <testcase name="createEngineAsyncBeforePrepareReportsEngineNotInitialized" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.001"/>
+  <testcase name="prepareRuntimeBeforeInitReportsEngineNotInitialized" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.0"/>
+  <testcase name="unloadRuntimeSerializesWithBlockedPrepareAndLeavesRuntimeUnloaded" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.203"/>
+  <testcase name="latestSetLicenseWinsWhenOlderValidationFinishesLast" classname="com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest" time="0.006"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
