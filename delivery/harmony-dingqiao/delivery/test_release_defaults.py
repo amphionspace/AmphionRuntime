@@ -197,7 +197,13 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("hvigor/hvigor-config.json5", script)
         self.assertIn("build-identity.json", script)
         self.assertIn("ACCEPTANCE-SUMMARY.md", script)
-        self.assertIn("demo-source/libs/amphion_dingqiao.har", script)
+        for har in (
+            "amphion_asr.har",
+            "amphion_police.har",
+            "amphion_dingqiao.har",
+            "sherpa_onnx.har",
+        ):
+            self.assertIn(har, script)
         self.assertIn('provenance.get("source", {}).get("commit")', script)
         self.assertIn('identity.get("git_commit")', script)
 

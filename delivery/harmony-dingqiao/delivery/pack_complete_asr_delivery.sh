@@ -108,16 +108,27 @@ build_profile.write_text(json.dumps(profile, indent=2) + "\n", encoding="utf-8")
 
 package = json.loads(module_package.read_text(encoding="utf-8"))
 package["dependencies"] = {
-    "amphion_dingqiao": "file:../../../libs/amphion_dingqiao.har"
+    "amphion_dingqiao": "file:../../../libs/amphion_dingqiao.har",
+    "amphion_asr": "file:../../../libs/amphion_asr.har",
+    "amphion_police": "file:../../../libs/amphion_police.har",
+    "sherpa_onnx": "file:../../../libs/sherpa_onnx.har",
 }
 module_package.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
 PY
-unzip -p "$RELEASE_ZIP" '*/har/amphion_dingqiao.har' \
-  > "$PACKAGE_ROOT/demo-source/libs/amphion_dingqiao.har"
-[[ -s "$PACKAGE_ROOT/demo-source/libs/amphion_dingqiao.har" ]] || {
-  echo "[ERROR] release SDK does not contain amphion_dingqiao.har" >&2
-  exit 1
-}
+for mapping in \
+  'amphion_asr-diagnostics.har:amphion_asr.har' \
+  'amphion_police-diagnostics.har:amphion_police.har' \
+  'amphion_dingqiao-diagnostics.har:amphion_dingqiao.har' \
+  'sherpa_onnx.har:sherpa_onnx.har'; do
+  source_name="${mapping%%:*}"
+  target_name="${mapping##*:}"
+  unzip -p "$DIAGNOSTICS_ZIP" "*/sdk/$source_name" \
+    > "$PACKAGE_ROOT/demo-source/libs/$target_name"
+  [[ -s "$PACKAGE_ROOT/demo-source/libs/$target_name" ]] || {
+    echo "[ERROR] diagnostics SDK does not contain $source_name" >&2
+    exit 1
+  }
+done
 
 cat > "$PACKAGE_ROOT/README.md" <<EOF
 # Amphion HarmonyOS ASR ${VERSION} 完整交付
