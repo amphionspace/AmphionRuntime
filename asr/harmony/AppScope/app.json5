@@ -2,7 +2,7 @@
   "app": {
     "bundleName": "com.amphion.asr.harmony",
     "vendor": "amphion",
-    "versionCode": 309,
-    "versionName": "0.3.9"
+    "versionCode": 308,
+    "versionName": "0.3.8"
   }
 }
