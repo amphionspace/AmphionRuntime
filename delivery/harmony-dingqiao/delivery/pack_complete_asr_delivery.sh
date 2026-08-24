@@ -135,7 +135,8 @@ unzip -p "$DIAGNOSTICS_ZIP" \
 if [[ "$ALLOW_DEVICE_LIMITED_DEMO" == "true" ]]; then
   "$SCRIPT_DIR/verify_demo_inputs.sh" \
     --hap "$PACKAGE_ROOT/diagnostics-demo/amphion_asr_demo-diagnostics-signed.hap" \
-    --signing-config "${HARMONY_SIGNING_CONFIG:-$REPO_ROOT/.secure/harmony-signing.json}"
+    --signing-config "${HARMONY_SIGNING_CONFIG:-$REPO_ROOT/.secure/harmony-signing.json}" \
+    --zh-en-only
 else
   python3 "$SCRIPT_DIR/verify_complete_demo_license.py" \
     --hap "$PACKAGE_ROOT/diagnostics-demo/amphion_asr_demo-diagnostics-signed.hap"
