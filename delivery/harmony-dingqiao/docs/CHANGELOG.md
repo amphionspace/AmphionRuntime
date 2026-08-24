@@ -2,7 +2,7 @@
 
 ## 0.3.9 - 2026-08-24（开放 Runtime 日志等级）
 
-- 鼎桥适配层新增 `SpeechRecognizeSdk.setLogLevel(AmphionLogLevel)`，支持业务方在
+- 兼容适配层新增 `SpeechRecognizeSdk.setLogLevel(AmphionLogLevel)`，支持业务方在
   `prepareRuntime` 前将日志等级设置为 `INFO` 或 `DEBUG`。
 - 设置为 `INFO` 后，Runtime 首次初始化成功时会在 Harmony hilog 输出
   `AmphionRuntime Harmony init done, version=0.3.9`，便于现场确认实际运行的 SDK 版本。
