@@ -6,6 +6,17 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
+    def test_039_changelog_limits_the_release_to_public_log_configuration(self) -> None:
+        changelog = (
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/CHANGELOG.md"
+        ).read_text(encoding="utf-8")
+        notes_039 = changelog.split("## 0.3.9", 1)[1].split("\n## ", 1)[0]
+
+        self.assertIn("setLogLevel", notes_039)
+        self.assertIn("version=0.3.9", notes_039)
+        self.assertIn("默认日志等级仍为 `WARN`", notes_039)
+        self.assertIn("生命周期与诊断采集逻辑均未修改", notes_039)
+
     def test_038_changelog_distinguishes_new_work_from_037_carryover(self) -> None:
         changelog = (
             REPO_ROOT / "delivery/harmony-dingqiao/docs/CHANGELOG.md"
