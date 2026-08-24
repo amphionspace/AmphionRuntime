@@ -1,5 +1,12 @@
 # Changelog
 
+## 未发布 - 2026-08-24（热词安全与警务后处理）
+
+- 交付基线撤回 modified beam search 的 Top-50 预选加分实验：三星真机在 200 条客户热词场景下
+  曾稳定将“见警率”回退为“警情人员”。继续保留原有 ContextGraph 热词能力，不启用该预裁剪策略。
+- 针对 cp5500 新模型的稳定残差，补充冀 R 车牌前缀、派出所闭集名称和 `e警保` 的受限纠错；
+  Android/Harmony 保持同一规则与负例护栏，不对普通编号、通用词或歧义警务术语做全局替换。
+
 ## 0.3.9 - 2026-08-24（开放 Runtime 日志等级）
 
 - 兼容适配层新增 `SpeechRecognizeSdk.setLogLevel(AmphionLogLevel)`，支持业务方在
