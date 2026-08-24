@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-VERSION="${AMPHION_RUNTIME_VERSION:-0.3.9}"
+VERSION="${AMPHION_RUNTIME_VERSION:-0.3.10}"
 SOURCE_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 RELEASE_ZIP="${RELEASE_SDK_ZIP:-$REPO_ROOT/build/amphion-harmony-asr-sdk-v${VERSION}-20260824.zip}"
 DIAGNOSTICS_ZIP="${DIAGNOSTICS_SDK_ZIP:-$REPO_ROOT/delivery/harmony-dingqiao/build/diagnostics-sdk-${VERSION}-${SOURCE_COMMIT:0:8}/Amphion-ASR-Diagnostics-SDK.zip}"
@@ -119,11 +119,11 @@ for item in manifest.get("reports", []):
 if passed_modes != required_modes:
     raise SystemExit("[ERROR] acceptance manifest lacks required crash/recovery modes")
 PY
-mkdir -p "$PACKAGE_ROOT/release-sdk" "$PACKAGE_ROOT/diagnostics-sdk" \
+mkdir -p "$PACKAGE_ROOT/release-sdk" "$PACKAGE_ROOT/debug-sdk" \
   "$PACKAGE_ROOT/diagnostics-demo" "$PACKAGE_ROOT/demo-source/libs" "$PACKAGE_ROOT/docs"
 
 cp "$RELEASE_ZIP" "$PACKAGE_ROOT/release-sdk/"
-cp "$DIAGNOSTICS_ZIP" "$PACKAGE_ROOT/diagnostics-sdk/"
+cp "$DIAGNOSTICS_ZIP" "$PACKAGE_ROOT/debug-sdk/Amphion-ASR-Debug-SDK.zip"
 unzip -p "$DIAGNOSTICS_ZIP" \
   'Amphion-ASR-Diagnostics-SDK/demo/amphion_asr_demo-diagnostics-signed.hap' \
   > "$PACKAGE_ROOT/diagnostics-demo/amphion_asr_demo-diagnostics-signed.hap"
@@ -131,6 +131,8 @@ unzip -p "$DIAGNOSTICS_ZIP" \
   echo "[ERROR] diagnostics SDK does not contain the signed diagnostics Demo" >&2
   exit 1
 }
+python3 "$SCRIPT_DIR/verify_complete_demo_license.py" \
+  --hap "$PACKAGE_ROOT/diagnostics-demo/amphion_asr_demo-diagnostics-signed.hap"
 
 git -C "$REPO_ROOT" archive "$SOURCE_COMMIT" \
   delivery/harmony-dingqiao/AppScope \
@@ -233,7 +235,7 @@ cat > "$PACKAGE_ROOT/README.md" <<EOF
 | 目录 | 内容 |
 | --- | --- |
 | \`release-sdk/\` | 正式 release SDK 及公开集成文档 |
-| \`diagnostics-sdk/\` | Diagnostics SDK、采集工具和诊断文档 |
+| \`debug-sdk/\` | Debug（Diagnostics）SDK、采集工具和诊断文档 |
 | \`diagnostics-demo/\` | 已签名的 Diagnostics Demo HAP |
 | \`demo-source/\` | 基于本交付 commit 裁剪并适配的可独立构建 Demo 源码；变换见 \`TRANSFORMATIONS.md\`，不包含商用授权和签名私密材料 |
 | \`docs/\` | 真机验收摘要、交付身份与全包 SHA-256 清单 |

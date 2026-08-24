@@ -1337,7 +1337,7 @@ export class AsrSession {
   private svTurnFailOpen: boolean = false;
   private speakerInferenceLane: SpeakerInferenceLane = new SpeakerInferenceLane();
   private svInferenceLoopActive: boolean = false;
-  private svQueuedInference?: SpeakerVadInferenceRequest;
+  private svQueuedInferences: SpeakerVadInferenceRequest[] = [];
   private svEndpointReady: boolean = false;
   private pendingVadStopAtEndpoint: boolean = false;
   private vadEndpointPending: boolean = false;
@@ -1752,7 +1752,7 @@ export class AsrSession {
     if (!this.callbackGate.close()) return;
     this.speakerInferenceLane.invalidate();
     this.svInferenceLoopActive = false;
-    this.svQueuedInference = undefined;
+    this.svQueuedInferences = [];
     this.speakerInferenceLane.whenIdle().then((): void => {
       this.releaseStreamIfClosed();
     }).catch((e: Object): void => {
@@ -2302,6 +2302,18 @@ export class AsrSession {
       await this.feedChunkAndDecodeAsync(rawSamples, processedSamples, replay);
       return;
     }
+    if (!replay && this.svInferenceLoopActive) {
+      // Settle the score for already-owned PCM before assigning this slice to an utterance. A low
+      // score may close and reject the previous speaker turn; observing this slice first would then
+      // discard the beginning of a returning target when that rejected turn resets its buffers.
+      if (!await this.drainSpeakerInferenceAsync() || this.callbackGate.isClosed()) return;
+      if (this.svEndpointReady) {
+        await this.finalizeReadySpeakerEndpointAsync();
+        if (this.callbackGate.isClosed() || this.svEndpointReady) return;
+        await this.feedChunkAndDecodeAsync(rawSamples, processedSamples, replay);
+        return;
+      }
+    }
     if (!replay) this.initialSilenceTracker.observeAcousticSamples(rawSamples);
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
       this.effectiveSpeechBuffer.observe(rawSamples);
@@ -2315,13 +2327,21 @@ export class AsrSession {
       }
     }
 
-    // Advance the PCM clock before any speaker ONNX or ASR decode. Expensive speaker work is queued
-    // without awaiting it, so a 1600 ms trailing-silence deadline is a property of sample position,
-    // not of inference wall time.
+    // Advance the PCM clock before any speaker ONNX or ASR decode. Keep the normal confirmed-target
+    // path parallel, but settle an unresolved speaker boundary before this slice enters the
+    // speculative ASR stream. This prevents a rejected speaker from consuming the first words of a
+    // returning target without serializing every high-confidence target hop.
     const speakerInferenceNeedsAsrEvidence = !replay && this.initialSilenceTracker.isArmed();
+    const speakerBoundaryUnresolved = !this.svTargetConfirmed || this.svBelowCount > 0 ||
+      this.svAwaitingTargetAfterDeparture;
     const vadAdvance = await this.advanceVadGateAsync(rawSamples, replay);
     if (this.callbackGate.isClosed()) return;
-    if (!speakerInferenceNeedsAsrEvidence) this.enqueueSpeakerVadInference(rawSamples.length);
+    if (!speakerInferenceNeedsAsrEvidence) {
+      this.enqueueSpeakerVadInference(rawSamples.length);
+      const speakerInferenceBackpressured = this.svQueuedInferences.length > 0;
+      if ((speakerBoundaryUnresolved || speakerInferenceBackpressured) &&
+        !await this.drainSpeakerInferenceAsync()) return;
+    }
     if (!vadAdvance.vadEndpoint && this.svEndpointReady) {
       await this.finalizeReadySpeakerEndpointAsync();
       return;
@@ -2467,7 +2487,12 @@ export class AsrSession {
       rejected.isTargetSpeaker = false;
       rejected.isLast = stopAtEndpoint;
       this.callbackGate.invoke((): void => { this.callback.onFinalRejected?.(rejected); });
-      if (stopAtEndpoint) this.notifyStopped(); else this.restartStreamAfterUtterance('vad-speaker-rejected');
+      if (stopAtEndpoint) {
+        this.notifyStopped();
+      } else {
+        this.restartRejectedSpeakerTurn('vad-speaker-rejected');
+      }
+      return;
     } else {
       if (this.svEndpointReady &&
         await this.commitCleanSpeakerTurnAsync(stopAtEndpoint, true)) return;
@@ -2772,11 +2797,13 @@ export class AsrSession {
       scheduler.totalSamples(),
       this.vadSpeechActive || this.vadEndpointPending);
     if (this.svInferenceLoopActive) {
-      // Keep one immutable latest-window snapshot behind the running scorer. Replacing an obsolete
-      // hop bounds memory and Promise growth without discarding the result already in flight.
-      this.svQueuedInference = request;
-      Logger.metric(`kind=SPEAKER_VAD sessionId=${this.sessionId} decision=coalesce ` +
-        `endSample=${request.endSample} pending=${this.speakerInferenceLane.pending()}`);
+      // Score hops are ordered state-machine inputs. Dropping an intermediate low hop can merge a
+      // rejected speaker directly into the returning target before the rejection boundary closes.
+      // The utterance buffer is already capped, so retaining these immutable windows is bounded.
+      this.svQueuedInferences.push(request);
+      Logger.metric(`kind=SPEAKER_VAD sessionId=${this.sessionId} decision=queue ` +
+        `endSample=${request.endSample} queued=${this.svQueuedInferences.length} ` +
+        `pending=${this.speakerInferenceLane.pending()}`);
       return;
     }
     this.svInferenceLoopActive = true;
@@ -2789,8 +2816,7 @@ export class AsrSession {
             current, sv, scheduler, generation);
           if (endpointReady || !this.speakerInferenceLane.isCurrent(generation) ||
             this.svTurnFailOpen) return endpointReady;
-          const queued = this.svQueuedInference;
-          this.svQueuedInference = undefined;
+          const queued = this.svQueuedInferences.shift();
           if (queued === undefined) return false;
           current = queued;
         }
@@ -2798,7 +2824,7 @@ export class AsrSession {
       } finally {
         if (this.speakerInferenceLane.isCurrent(generation)) {
           this.svInferenceLoopActive = false;
-          this.svQueuedInference = undefined;
+          this.svQueuedInferences = [];
         }
       }
     }, (_ready: boolean): void => {}, (e: Object): void => {
@@ -2968,13 +2994,8 @@ export class AsrSession {
         if (!this.callbackGate.isClosed()) this.notifyStopped();
         return;
       }
-      this.restartStreamAfterUtterance('speaker-vad-rejected');
-      if (this.callbackGate.isClosed()) return;
-      this.speakerPcmBuffers.clearAll();
-      this.effectiveSpeechBuffer.reset();
-      this.pcmBytesAccepted = 0;
-      this.firstPcmMs = -1;
-      this.firstPartialLatencyMs = -1;
+      this.restartRejectedSpeakerTurn('speaker-vad-rejected');
+      return;
     } else {
       if (await this.commitCleanSpeakerTurnAsync(stopAtEndpoint, true)) return;
       if (!await this.prepareVadEndpointSpeakerScoreAsync()) return;
@@ -2993,7 +3014,7 @@ export class AsrSession {
   private resetSpeakerVadState(): void {
     this.speakerInferenceLane.invalidate();
     this.svInferenceLoopActive = false;
-    this.svQueuedInference = undefined;
+    this.svQueuedInferences = [];
     this.svScoreScheduler?.reset();
     this.svTurnFinalizer?.reset();
     this.svPendingSplit = undefined;
@@ -3199,6 +3220,17 @@ export class AsrSession {
     this.svRejectCurrentUtterance = finalizer.shouldRejectCurrent() ||
       this.svAwaitingTargetAfterDeparture;
     this.lastSpeakerVadScore = finalizer.lastScore();
+  }
+
+  private restartRejectedSpeakerTurn(reason: string): void {
+    this.restartStreamAfterUtterance(reason);
+    if (this.callbackGate.isClosed()) return;
+    this.speakerPcmBuffers.clearAll();
+    this.effectiveSpeechBuffer.reset();
+    this.pcmBytesAccepted = 0;
+    this.firstPcmMs = -1;
+    this.firstPartialLatencyMs = -1;
+    this.resetVadGateState();
   }
 
   /**

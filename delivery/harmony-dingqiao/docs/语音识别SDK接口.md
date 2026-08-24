@@ -98,7 +98,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 日志等级设为 `INFO` 后，首次 `prepareRuntime` 初始化成功会在 Harmony hilog 输出：
 
 ```text
-[AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.9, license=LICENSED
+[AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.10, license=LICENSED
 ```
 
 可通过 DevEco Studio Log 或 `hdc shell hilog | grep "AmphionRuntime Harmony init done"` 查看。

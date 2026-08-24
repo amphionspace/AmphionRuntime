@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.10 - 2026-08-24（Speaker VAD 交替说话与便携 Demo）
+
+- 修复按住说话期间机主与非机主交替讲话时，异步 Speaker VAD 评分合并中间窗口导致返回机主的
+  后续内容被丢弃的问题；评分窗口按顺序处理，并在拒绝非机主段后保留必要的边界音频继续判断。
+- 保持 Speaker VAD 阈值、声纹模型和公共回调接口不变；显式 `finish` 前不产生 `isLast`，结束后仍为
+  唯一 `isLast` 再唯一 `onComplete`。重叠说话的说话人分离不在本版本范围内。
+- 完整交付包的已签名 Demo 内置不绑定设备的体验授权，并增加组包校验，确保 HAP 不会因设备白名单
+  导致安装后“开始识别”不可用；正式 SDK 集成仍使用业务正式授权。
+- 完整交付同时包含 Release SDK、Debug（Diagnostics）SDK、可直接安装的 Demo HAP 和可独立构建的
+  Demo 源码。
+
 ## 0.3.9 - 2026-08-24（开放 Runtime 日志等级）
 
 - 兼容适配层新增 `SpeechRecognizeSdk.setLogLevel(AmphionLogLevel)`，支持业务方在

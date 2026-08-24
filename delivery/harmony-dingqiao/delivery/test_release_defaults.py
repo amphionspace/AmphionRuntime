@@ -6,6 +6,17 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
+    def test_0310_changelog_records_speaker_vad_and_portable_demo_release(self) -> None:
+        changelog = (
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/CHANGELOG.md"
+        ).read_text(encoding="utf-8")
+        notes_0310 = changelog.split("## 0.3.10", 1)[1].split("\n## ", 1)[0]
+
+        self.assertIn("Speaker VAD", notes_0310)
+        self.assertIn("交替讲话", notes_0310)
+        self.assertIn("不绑定设备", notes_0310)
+        self.assertIn("Debug（Diagnostics）SDK", notes_0310)
+
     def test_039_changelog_limits_the_release_to_public_log_configuration(self) -> None:
         changelog = (
             REPO_ROOT / "delivery/harmony-dingqiao/docs/CHANGELOG.md"
@@ -211,12 +222,14 @@ class ReleaseDefaultsTest(unittest.TestCase):
 
         for directory in (
             "release-sdk",
-            "diagnostics-sdk",
+            "debug-sdk",
             "diagnostics-demo",
             "demo-source",
         ):
             self.assertIn(directory, script)
+        self.assertIn("Amphion-ASR-Debug-SDK.zip", script)
         self.assertIn("amphion_asr_demo-diagnostics-signed.hap", script)
+        self.assertIn("verify_complete_demo_license.py", script)
         self.assertIn("git -C \"$REPO_ROOT\" archive", script)
         self.assertIn("hvigor/hvigor-config.json5", script)
         self.assertIn("build-identity.json", script)
