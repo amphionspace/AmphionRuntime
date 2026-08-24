@@ -42,7 +42,19 @@ class RawStationSpan {
 }
 
 export class PoliceStationV2 {
-  private static readonly MAX_SUBS: number = 4;
+  private static readonly MAX_EDITS: number = 2;
+  private static readonly COMMAND_PREFIXES: string[] = [
+    '麻烦汇总一下', '帮忙汇总一下', '麻烦统计一下', '帮忙统计一下',
+    '麻烦整理一下', '帮忙整理一下', '麻烦导出一下', '帮忙导出一下',
+    '麻烦核对一下', '麻烦核实一下', '麻烦核查一下', '麻烦核一下',
+    '帮忙查一下', '帮我查一下', '麻烦查一下', '帮忙看看', '帮我看一下',
+    '给我看一下', '给我拉一下', '整理一下', '汇总一下', '统计一下',
+    '导出一下', '麻烦汇总', '帮忙汇总', '麻烦统计', '帮忙统计',
+    '麻烦整理', '帮忙整理', '麻烦导出', '帮忙导出', '麻烦核',
+    '麻烦看一下', '麻烦看下', '请帮忙整理一下', '请帮忙', '请把',
+    '看看', '看一下', '看下', '查一下', '给我', '把', '请',
+    '汇总', '统计', '导出', '整理', '对比', '核对', '核实', '核查',
+  ].sort((a: string, b: string): number => b.length - a.length);
   private names: string[];
   private known: Set<string>;
   private globalPairs: PoliceAssetPair[] = [];
@@ -130,9 +142,16 @@ export class PoliceStationV2 {
 
   private normalizeSpan(raw: string, context: string): string {
     if (this.known.has(raw)) return raw;
-    const equal = this.matchTier(raw, false);
+
+    const aliased = this.applyGazetteerAliases(raw);
+    if (this.known.has(aliased)) return aliased;
+
+    const stationLike = this.stripCommandPrefix(raw);
+    if (this.known.has(stationLike)) return stationLike;
+
+    const equal = this.matchTier(stationLike, false);
     if (equal !== undefined) return equal;
-    const fuzzy = this.matchTier(raw, true);
+    const fuzzy = this.matchTier(stationLike, true);
     if (fuzzy !== undefined) return fuzzy;
     const inRaw = this.findLongestIn(raw);
     if (inRaw !== undefined) return inRaw;
@@ -141,45 +160,83 @@ export class PoliceStationV2 {
     return raw;
   }
 
-  private matchTier(raw: string, fuzzy: boolean): string | undefined {
+  /** Apply only aliases whose result is a complete known station name. */
+  private applyGazetteerAliases(raw: string): string {
+    let output = raw;
+    for (let pass = 0; pass < 4; pass++) {
+      let changed = false;
+      for (let i = 0; i < this.gazetteerPairs.length; i++) {
+        const pair = this.gazetteerPairs[i];
+        if (output.indexOf(pair.from) < 0) continue;
+        const candidate = output.split(pair.from).join(pair.to);
+        const known = this.findLongestIn(candidate);
+        if (known !== undefined) {
+          output = known;
+          changed = true;
+          if (this.known.has(output)) return output;
+        }
+      }
+      if (!changed) break;
+    }
+    return output;
+  }
+
+  private stripCommandPrefix(raw: string): string {
+    let output = raw;
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let i = 0; i < PoliceStationV2.COMMAND_PREFIXES.length; i++) {
+        const prefix = PoliceStationV2.COMMAND_PREFIXES[i];
+        if (output.startsWith(prefix) && output.length > prefix.length) {
+          output = output.substring(prefix.length);
+          changed = true;
+          break;
+        }
+      }
+    }
+    return output;
+  }
+
+  private matchTier(raw: string, allowLengthChange: boolean): string | undefined {
     let best = '';
     let bestCost = Number.MAX_SAFE_INTEGER;
     let ambiguous = false;
     for (let i = 0; i < this.names.length; i++) {
       const name = this.names[i];
-      const cost = fuzzy ? this.fuzzyTailCost(raw, name) : this.tailSubCost(raw, name);
+      const cost = allowLengthChange ? this.editCost(raw, name) : this.substitutionCost(raw, name);
       if (cost < 0) continue;
-      if (best.length === 0 || name.length > best.length) {
+      if (cost < bestCost) {
         best = name; bestCost = cost; ambiguous = false;
-      } else if (name.length === best.length && cost < bestCost) {
-        best = name; bestCost = cost; ambiguous = false;
-      } else if (name.length === best.length && cost === bestCost && name !== best) {
+      } else if (cost === bestCost && name !== best) {
         ambiguous = true;
       }
     }
     return best.length > 0 && !ambiguous ? best : undefined;
   }
 
-  private tailSubCost(raw: string, name: string): number {
-    if (name.length > raw.length) return -1;
-    const offset = raw.length - name.length;
+  private substitutionCost(raw: string, name: string): number {
+    if (raw.length !== name.length) return -1;
     let cost = 0;
     for (let i = 0; i < name.length; i++) {
-      const from = raw.charAt(offset + i);
+      const from = raw.charAt(i);
       const to = name.charAt(i);
       if (from === to) continue;
       if (!this.readingMap.allows(from, to)) return -1;
-      if (++cost > PoliceStationV2.MAX_SUBS) return -1;
+      cost++;
+      if (cost > PoliceStationV2.MAX_EDITS) return -1;
     }
     return cost;
   }
 
-  private fuzzyTailCost(raw: string, name: string): number {
-    const inf = PoliceStationV2.MAX_SUBS + 1;
+  private editCost(raw: string, name: string): number {
+    if (raw.length === name.length) return -1;
+    if (Math.abs(raw.length - name.length) > PoliceStationV2.MAX_EDITS) return -1;
+    const inf = PoliceStationV2.MAX_EDITS + 1;
     let previous: number[] = [];
     for (let j = 0; j <= name.length; j++) previous.push(j);
     for (let i = 1; i <= raw.length; i++) {
-      const current: number[] = [0];
+      const current: number[] = [i];
       const from = raw.charAt(i - 1);
       for (let j = 1; j <= name.length; j++) {
         const to = name.charAt(j - 1);
@@ -188,7 +245,7 @@ export class PoliceStationV2 {
       }
       previous = current;
     }
-    return previous[name.length] <= PoliceStationV2.MAX_SUBS ? previous[name.length] : -1;
+    return previous[name.length] <= PoliceStationV2.MAX_EDITS ? previous[name.length] : -1;
   }
 
   private polish(text: string): string {

@@ -10,10 +10,10 @@ import java.io.InputStreamReader
  * 与 V1（[PoliceStationNormalizer]）的唯一区别在「站名片段归一」这一步：
  * - V1：把 gazetteer 类谐音对当整词短语，最多 4 轮贪心整句替换，命中标准表才落地。
  * - V2：把片段当**字级候选格**——每个字经 [StationReadingMap] 得到近音候选，
- *   再以 [PoliceStationGazetteer]（闭集标准名单）当**校验器**，在「同长度的合法站名」里
- *   选「字级近音替换数最少」且**唯一**的那个（等价于车牌 V2 的最短路 + 文法接受 + 消歧）。
+ *   再以 [PoliceStationGazetteer]（闭集标准名单）当**校验器**，先应用完整站名别名，
+ *   再选编辑代价最小且**唯一**的合法站名（等价于车牌 V2 的最短路 + 文法接受 + 消歧）。
  *
- * 这样无需逐条枚举听错写法：只要听到的片段距某个真实站名 ≤ [maxSubs] 个近音替换且唯一，即纠正；
+ * 这样无需逐条枚举听错写法：只要听到的片段距某个真实站名 ≤ [maxEdits] 个编辑且唯一，即纠正；
  * 模棱两可（多个站名等距）则保留原文，避免臆造。
  *
  * 外层（解码守卫、全局谐音、标点、定位、整句润色）复用 V1 同款工具，保证仅对比「片段归一」差异。
@@ -26,12 +26,24 @@ class PoliceStationNormalizerV2 private constructor(
     private val readingMap: StationReadingMap,
 ) {
 
-    /** 站名片段允许的最大字级近音替换数；超过判为不可信、保留原文。 */
-    private val maxSubs = 4
+    /** 最多容忍两个字级编辑；超过判为不可信、保留原文。 */
+    private val maxEdits = 2
 
     companion object {
         private const val GAZETTEER_ASSET = "police_station/station_gazetteer.txt"
         private val STATION_SUFFIX = Regex("""[\u4e00-\u9fff0-9]{2,28}派出所""")
+        private val COMMAND_PREFIXES = listOf(
+            "麻烦汇总一下", "帮忙汇总一下", "麻烦统计一下", "帮忙统计一下",
+            "麻烦整理一下", "帮忙整理一下", "麻烦导出一下", "帮忙导出一下",
+            "麻烦核对一下", "麻烦核实一下", "麻烦核查一下", "麻烦核一下",
+            "帮忙查一下", "帮我查一下", "麻烦查一下", "帮忙看看", "帮我看一下",
+            "给我看一下", "给我拉一下", "整理一下", "汇总一下", "统计一下",
+            "导出一下", "麻烦汇总", "帮忙汇总", "麻烦统计", "帮忙统计",
+            "麻烦整理", "帮忙整理", "麻烦导出", "帮忙导出", "麻烦核",
+            "麻烦看一下", "麻烦看下", "请帮忙整理一下", "请帮忙", "请把",
+            "看看", "看一下", "看下", "查一下", "给我", "把", "请",
+            "汇总", "统计", "导出", "整理", "对比", "核对", "核实", "核查",
+        ).sortedByDescending { it.length }
 
         fun create(context: Context): PoliceStationNormalizerV2 {
             val names = context.assets.open(GAZETTEER_ASSET).use { input ->
@@ -111,68 +123,89 @@ class PoliceStationNormalizerV2 private constructor(
     /**
      * V2 片段归一：字级候选格 ∩ gazetteer 校验器 → 最少近音替换且唯一者。
      *
-     * 因 [STATION_SUFFIX] 会贪心吞掉「派出所」前的整段口语（如「帮我统计一下…金阳派出所」），
-     * 故把每个标准站名**对齐到「派出所」词尾**（比对 raw 末 g.length 个字），允许前缀有多余口语字。
-     * 优先最长站名（语义最完整，等价 V1 的 findLongestIn）；同长再取近音替换最少；仍并列则判歧义、不纠。
+     * [STATION_SUFFIX] 可能吞掉句首指令词，因此只剥离固定指令前缀；不再允许 DP 任意跳过
+     * raw 前缀。完整站名别名优先，模糊层只接受总代价不超过 [maxEdits] 的唯一最近候选。
      */
     private fun normalizeSpanV2(raw: String, context: String): String {
         if (gazetteer.isKnown(raw)) return raw
 
-        // 一档（主）：等长纯近音替换——最稳，覆盖绝大多数同音误识，对已调优集合零回退。
-        matchTier(raw) { g -> if (g.length > raw.length) null else tailSubCost(raw, g) }?.let { return it }
-        // 二档（兜底）：仅当等长无解时，用编辑距离处理「增/删字」变长误识；唯一才纠，否则保留。
-        matchTier(raw) { g -> fuzzyTailCost(raw, g) }?.let { return it }
+        // 已知完整站名误识优先，命中结果仍须通过闭集 gazetteer 校验。
+        val aliased = homophones.applyGazetteerConstrained(raw, gazetteer)
+        if (gazetteer.isKnown(aliased)) return aliased
+
+        val stationLike = stripCommandPrefix(raw)
+        if (gazetteer.isKnown(stationLike)) return stationLike
+
+        // 等长时只允许读音表批准的替换；变长档仅处理真实长度差。这样任意不同字
+        // 不能通过“删 1 + 插 1”绕过近音白名单。
+        matchTier { g -> substitutionCost(stationLike, g) }?.let { return it }
+        matchTier { g -> editCost(stationLike, g) }?.let { return it }
 
         gazetteer.findLongestIn(raw)?.let { return it }
         gazetteer.findLongestIn(context)?.let { return it }
         return raw
     }
 
-    /** 在 gazetteer 上按 [cost] 选「最长优先、同长代价最小、唯一」的标准站名；并列或无解返回 null。 */
-    private inline fun matchTier(raw: String, cost: (String) -> Int?): String? {
+    /** 在完整 gazetteer 上选择全局代价最小且唯一的标准站名；并列或无解返回 null。 */
+    private inline fun matchTier(cost: (String) -> Int?): String? {
         var best: String? = null
         var bestCost = Int.MAX_VALUE
         var ambiguous = false
-        for (g in names) {                       // names 已按长度降序
+        for (g in names) {
             val c = cost(g) ?: continue
             when {
-                best == null || g.length > best!!.length -> { best = g; bestCost = c; ambiguous = false }
-                g.length == best!!.length && c < bestCost -> { bestCost = c; best = g; ambiguous = false }
-                g.length == best!!.length && c == bestCost && g != best -> ambiguous = true
+                c < bestCost -> { best = g; bestCost = c; ambiguous = false }
+                c == bestCost && g != best -> ambiguous = true
             }
         }
         return if (best != null && !ambiguous) best else null
     }
 
-    /** 把站名 [g] 对齐到 [raw] 词尾做等长纯替换，返回近音替换数；不可达或超 [maxSubs] 返回 null。 */
-    private fun tailSubCost(raw: String, g: String): Int? {
-        val offset = raw.length - g.length
+    private fun stripCommandPrefix(raw: String): String {
+        var out = raw
+        var changed: Boolean
+        do {
+            changed = false
+            for (prefix in COMMAND_PREFIXES) {
+                if (out.startsWith(prefix) && out.length > prefix.length) {
+                    out = out.removePrefix(prefix)
+                    changed = true
+                    break
+                }
+            }
+        } while (changed)
+        return out
+    }
+
+    /** 等长纯替换，非近音不可达。 */
+    private fun substitutionCost(raw: String, g: String): Int? {
+        if (raw.length != g.length) return null
         var cost = 0
         for (i in g.indices) {
-            val r = raw[offset + i]
-            if (r == g[i]) continue
-            if (!readingMap.allows(r, g[i])) return null
+            if (raw[i] == g[i]) continue
+            if (!readingMap.allows(raw[i], g[i])) return null
             cost++
-            if (cost > maxSubs) return null
+            if (cost > maxEdits) return null
         }
         return cost
     }
 
     /**
-     * 把站名 [g] 模糊对齐到 [raw] 词尾（编辑距离 DP）：
+     * 完整站名编辑距离 DP：
      * - 替换：相等 0；近音（[StationReadingMap]）1；否则不可达。
-     * - 增/删字：各计 1（覆盖「集美→集美区」漏字、「三一巴克→沙依巴克」等变长误识）。
-     * - 前缀自由跳过（[STATION_SUFFIX] 会吞掉「派出所」前的整段口语），匹配须消费完整 [g] 且止于 raw 末。
-     * 总代价 ≤ [maxSubs] 才返回，否则 null。
+     * - 增/删字：各计 1；不允许免费跳过任意前缀。
+     * 总代价 ≤ [maxEdits] 才返回，否则 null。
      */
-    private fun fuzzyTailCost(raw: String, g: String): Int? {
+    private fun editCost(raw: String, g: String): Int? {
+        if (raw.length == g.length) return null
+        if (kotlin.math.abs(raw.length - g.length) > maxEdits) return null
         val n = raw.length
         val m = g.length
-        val inf = maxSubs + 1
+        val inf = maxEdits + 1
         var prev = IntArray(m + 1) { it }        // i=0：插入 g 前 j 字
         for (i in 1..n) {
             val cur = IntArray(m + 1)
-            cur[0] = 0                           // 前缀自由跳过：可在任意位置起配
+            cur[0] = i
             for (j in 1..m) {
                 val sub = when {
                     raw[i - 1] == g[j - 1] -> 0
@@ -188,6 +221,6 @@ class PoliceStationNormalizerV2 private constructor(
             prev = cur
         }
         val cost = prev[m]
-        return if (cost <= maxSubs) cost else null
+        return if (cost <= maxEdits) cost else null
     }
 }

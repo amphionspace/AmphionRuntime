@@ -65,6 +65,41 @@ class PlateNormalizerV2 private constructor(
         "车", "查", "牌", "号", "辆", "报警", "登记", "记录", "驾", "肇事", "嫌疑", "套牌", "违",
     )
 
+    /**
+     * cp5500 会把「冀R」稳定听成 GIR / GI2 / GL / 72 等结构。这里不扩大全局读音表，
+     * 只在明确车牌动作或车辆语境中整段消费「错误前缀 + 五位序号」，避免留下
+     * `GI冀R12345`，也避免把产品型号、设备编号中的相同 ASCII 串当成车牌。
+     */
+    private val structuralGapPattern = """[\s，,：:、.．。；！？~·—-]*"""
+    private val fiveDigitTailPattern =
+        """([0-9](?:$structuralGapPattern[0-9]){4})(?!$structuralGapPattern[A-Za-z0-9Ａ-Ｚａ-ｚ０-９])"""
+    private val cp5500JiRPatterns = listOf(
+        Regex(
+            """(?<![A-Za-z0-9Ａ-Ｚａ-ｚ０-９])[GgＧｇ]${structuralGapPattern}[IiＩｉ]${structuralGapPattern}""" +
+                """(?:[RrＲｒ]|2)${structuralGapPattern}$fiveDigitTailPattern""",
+        ),
+        Regex(
+            """(?<![A-Za-z0-9Ａ-Ｚａ-ｚ０-９])[GgＧｇ]${structuralGapPattern}[LlＬｌ]""" +
+                """${structuralGapPattern}$fiveDigitTailPattern""",
+        ),
+        Regex("""(?<![0-9])7${structuralGapPattern}2${structuralGapPattern}$fiveDigitTailPattern"""),
+        Regex(
+            """(?<![A-Za-z0-9Ａ-Ｚａ-ｚ０-９])(?:[GgＧｇ]${structuralGapPattern}[RrＲｒ]|""" +
+                """及${structuralGapPattern}[RrＲｒ])${structuralGapPattern}2""" +
+                """${structuralGapPattern}$fiveDigitTailPattern""",
+        ),
+        Regex("""(?<![A-Za-z0-9Ａ-Ｚａ-ｚ０-９])[寄汽]${structuralGapPattern}2${structuralGapPattern}$fiveDigitTailPattern"""),
+    )
+    private val explicitPlateNounBefore = Regex(
+        """(?:车牌号|车牌|号牌)$structuralGapPattern(?:为|是)?$structuralGapPattern$""",
+    )
+    private val explicitPlateContextAfter = Regex(
+        """^$structuralGapPattern(?:这?辆车|车辆|车主|目标车辆|通行记录|离开时.{0,20}方向|(?:刚才)?(?:蹭|撞|刮).{0,10}(?:路边车|车辆|车)|请.{0,8}车主)""",
+    )
+    private val genericIdentifierBefore = Regex(
+        """(?:产品型号|设备编号|订单号|序列号|设备序列号|型号|编号)$structuralGapPattern(?:为|是)?$structuralGapPattern$""",
+    )
+
     fun normalize(text: String): PlateNormalizeResult {
         if (text.isEmpty()) return PlateNormalizeResult(text, emptyList())
 
@@ -102,7 +137,7 @@ class PlateNormalizerV2 private constructor(
      * 范围刻意收窄：只补已验证的高频残差，避免泛化推断。
      */
     private fun preprocessStructuralMishears(text: String): String {
-        var t = text
+        var t = rewriteCp5500JiRResiduals(text)
         // 上海：ASR 漏读机关字母 F
         t = t.replace(Regex("沪19374"), "沪F19374")
         // 山西/浙江：与 V1 粘连谐音规则对齐（范围收窄到真机验证片段）
@@ -134,6 +169,42 @@ class PlateNormalizerV2 private constructor(
         t = t.replace(Regex("晚安92080"), "皖N92080")
         t = t.replace(Regex("云R\\s*293\\s*627"), "云R93627")
         return t
+    }
+
+    private fun rewriteCp5500JiRResiduals(text: String): String {
+        var output = text
+        for ((patternIndex, pattern) in cp5500JiRPatterns.withIndex()) {
+            output = pattern.replace(output) { match ->
+                val requirePlateNoun = patternIndex == 2 // 72 + 五位数字与普通 7 位编号完全同形
+                if (!hasExplicitPlateContext(
+                        output,
+                        match.range.first,
+                        match.range.last + 1,
+                        requirePlateNoun,
+                    )
+                ) {
+                    return@replace match.value
+                }
+                val serial = match.groupValues[1].filter { it in '0'..'9' }
+                val plate = "冀R$serial"
+                if (serial.length == 5 && validator.isValidPlate(plate)) plate else match.value
+            }
+        }
+        return output
+    }
+
+    private fun hasExplicitPlateContext(
+        text: String,
+        start: Int,
+        end: Int,
+        requirePlateNoun: Boolean,
+    ): Boolean {
+        val before = text.substring((start - 40).coerceAtLeast(0), start)
+        val after = text.substring(end, (end + 40).coerceAtMost(text.length))
+        if (genericIdentifierBefore.containsMatchIn(before)) return false
+        val hasPlateNoun = explicitPlateNounBefore.containsMatchIn(before)
+        if (requirePlateNoun) return hasPlateNoun
+        return hasPlateNoun || explicitPlateContextAfter.containsMatchIn(after)
     }
 
     /**
@@ -177,6 +248,9 @@ class PlateNormalizerV2 private constructor(
         // 防止把长数字串（身份证/手机号/流水号等）的切片误当成丢省份车牌：
         // 若候选紧邻前一个字符已是数字，说明这个「机关位」其实身处一段长数字中，放弃补省。
         if (start > 0 && isPlateNumeric(text[start - 1])) return null
+        // 不得从较长 ASCII 标识符的中间开始补省份。否则 GIR/GL/设备编号会分别变成
+        // GI冀R/G辽L；寄/汽是本轮已验证的中文残留，只有上面的强车牌语境规则可整段消费。
+        if (hasUnsafeLeftResidue(text, start)) return null
         for (plateLen in intArrayOf(8, 7)) {
             val bodyLen = plateLen - 1
             if (body.size < bodyLen) continue
@@ -192,6 +266,15 @@ class PlateNormalizerV2 private constructor(
             if (hits.size == 1) return Match(hits[0].plate, end, plateLen)
         }
         return null
+    }
+
+    private fun hasUnsafeLeftResidue(text: String, start: Int): Boolean {
+        var i = start - 1
+        while (i >= 0 && isSeparator(text[i])) i--
+        if (i < 0) return false
+        val c = text[i]
+        return c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9' ||
+            c in 'Ａ'..'Ｚ' || c in 'ａ'..'ｚ' || c in '０'..'９' || c in "寄汽"
     }
 
     /** 起点须能解析出省份（直接是省份简称，或读音候选里含省份）。 */
@@ -412,7 +495,8 @@ class PlateNormalizerV2 private constructor(
     }
 
     private fun isSeparator(c: Char): Boolean =
-        c.isWhitespace() || c == '·' || c == '.' || c == '-' || c == '—' || c in "。，；！？．、"
+        c.isWhitespace() || c == '·' || c == '.' || c == '-' || c == '—' || c == '~' ||
+            c in "。，；！？．、"
 
     override fun close() { /* V2 暂无 native 资源 */ }
 

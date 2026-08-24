@@ -119,9 +119,11 @@ class PoliceTermsNormalizerV2 private constructor(
         // 1.2) 客户端真人短词反馈：只在整句或警务锚点下纠正拘传/接处警近音串，
         //      避免把接触景点、接触警报、接触井下设备等通用表达误改。
         val shortGuarded = PoliceTermsShortGuard.apply(global)
+        // 1.4) cp5500 的 e警保 三字误识只在明确 App 语境下纠正；新闻、义警保安/保护等通用串保留。
+        val appNameGuarded = applyEJingbaoGuard(shortGuarded)
         // 1.5) 「情指行」上下文护栏纠正：仅在 App 语境下把 请指信/停止行/停止航 纠回 情指行，
         //      并排除 停止行动/停止航班/请指信息 等碰撞词，避免误伤通用句子。
-        val guarded = applyQingZhiXingGuard(shortGuarded)
+        val guarded = applyQingZhiXingGuard(appNameGuarded)
         // 1.6) 「登录」上下文护栏：仅在登录语境（后随 系统/平台/门户/客户端… ）下把 登陆 纠回 登录，
         //      排除 登陆作战/抢滩登陆/台风登陆沿海 等通用义，避免误伤。
         val guarded2 = applyDengluGuard(guarded)
@@ -184,6 +186,68 @@ class PoliceTermsNormalizerV2 private constructor(
         // 句中裸写：VCOM向 / Weconmm发起呼叫
         t = WECOM_BEFORE_CALL.replace(t) { "WeCom${it.groupValues[2]}" }
         return t
+    }
+
+    /** cp5500 新增的 e警保 误识；值为后继字碰撞黑名单，命中即按通用表达保留。 */
+    private val eJingbaoVariants: Map<String, Set<Char>> = mapOf(
+        "咦劲爆" to setOf('新', '消', '视', '话', '爆', '内', '音', '现'),
+        "义警保" to setOf('安', '护', '险', '障', '卫', '洁', '持', '密'),
+    )
+
+    /** 前接这些操作动词时才视为 App 名称；单字“用”不单独构成充分证据。 */
+    private val eJingbaoOpenVerbs = listOf("打开", "登录", "进入", "启动", "点击", "使用")
+
+    /** 变体后近窗内的 App 功能词；覆盖本轮“拍照上传”和“处理事故”原始输出。 */
+    private val eJingbaoAppCtx = listOf(
+        "客户端", "平台", "系统", "应用", "登录", "账号", "帐号", "模块",
+        "拍照", "上传", "上报", "处理事故", "事故处理",
+    )
+
+    /**
+     * 上下文受限地把 咦劲爆/义警保 纠为 e警保。裸短词不纠；碰撞黑名单优先于 App 语境，
+     * 避免“打开义警保护群众”或“咦劲爆新闻可以上传”等句子被功能词误触发。
+     */
+    private fun applyEJingbaoGuard(text: String): String {
+        if (text.length < 3) return text
+        var out = text
+        for ((variant, collisions) in eJingbaoVariants) {
+            if (!out.contains(variant)) continue
+            val sb = StringBuilder(out.length)
+            var i = 0
+            while (i <= out.length) {
+                val idx = out.indexOf(variant, i)
+                if (idx < 0) {
+                    sb.append(out, i, out.length)
+                    break
+                }
+                sb.append(out, i, idx)
+                val end = idx + variant.length
+                val after = firstSemanticChar(out, end)
+                val collide = after != null && after in collisions
+                val ctxAfter = out.substring(end, (end + 10).coerceAtMost(out.length))
+                val hasAfterCtx = eJingbaoAppCtx.any { ctxAfter.contains(it) }
+                val before = out.substring(0, idx)
+                val hasOpenVerb = eJingbaoOpenVerbs.any {
+                    before.endsWith(it) ||
+                        before.endsWith("$it，") || before.endsWith("$it,") || before.endsWith("$it、")
+                }
+                sb.append(if (!collide && (hasAfterCtx || hasOpenVerb)) "e警保" else variant)
+                i = end
+            }
+            out = sb.toString()
+        }
+        return out
+    }
+
+    /** 标点不能绕过碰撞护栏；跳过空白和常用标点后读取下一个语义字。 */
+    private fun firstSemanticChar(text: String, start: Int): Char? {
+        var index = start
+        while (index < text.length) {
+            val value = text[index]
+            if (!value.isWhitespace() && value !in "，,。．.！？!?；;：:、（）()【】[]《》“”\"'‘’—-…~～·") return value
+            index++
+        }
+        return null
     }
 
     /**
