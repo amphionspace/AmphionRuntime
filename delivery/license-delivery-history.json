@@ -1,4 +1,50 @@
 {
   "schemaVersion": 1,
-  "deliveries": []
+  "deliveries": [
+    {
+      "requestId": "REQ-DQ-TEST-20260824-ASR-TTS-001",
+      "licenseId": "LIC-DQ-TEST-20260824-ASR-TTS-001",
+      "deliveryId": "DEL-DQ-TEST-20260824-ASR-TTS-001",
+      "customerId": "tdtech",
+      "projectId": "dingqiao-test",
+      "previousLicenseId": null,
+      "snSetId": "SNSET-976600AA0B8D4220ACC008E260C91303",
+      "uniqueSnCount": 41,
+      "policy": {
+        "features": [
+          "ASR",
+          "TTS"
+        ],
+        "sdkMajor": 1,
+        "installTier": "LE_100K",
+        "applicationRecord": {
+          "mode": "none"
+        },
+        "certificateBinding": {
+          "mode": "none"
+        },
+        "runtimeExpiry": {
+          "mode": "perpetual"
+        },
+        "maintenance": {
+          "mode": "unlimited"
+        },
+        "deviceBinding": "required"
+      },
+      "artifact": "DEL-DQ-TEST-20260824-ASR-TTS-001.zip",
+      "artifactSha256": "cda7d1a7cc710acc0fe87a5e0855c4456847f6d55933c74aa1da4268d8e119ef",
+      "artifactSizeBytes": 5385,
+      "licenseSha256": "07c045c708d7aedeefed40a8069d79350c14cce6249a7214f641c02c9457527f",
+      "planSha256": "ecfbeb2503c31185d3d7afe91a11398fa559a26fb3f6c0810545873bff419134",
+      "planReceiptSha256": "7b18a750c7995dc6b6ecf8f6af7ce1ab1be9c83e1295cc787f2c9ed458fb8209",
+      "issuanceReceiptSha256": "c4d5499226dcbb02c4ec8b3429feb9f7333d0ad7e79f90c34d618852983bebfb",
+      "verificationReceiptSha256": "f72ea5ea18547a210c200dc83f00667016419cc6e1ba50f0d57b6704b98c6330",
+      "toolCommit": "da3ab5145fd190a116a0f41319ab1cb562839994",
+      "issueOperator": "Boxp",
+      "verifyOperator": "Boxp",
+      "operator": "Boxp",
+      "deliveredAt": "2026-08-24",
+      "status": "delivered"
+    }
+  ]
 }
