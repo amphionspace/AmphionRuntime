@@ -108,27 +108,35 @@ build_profile.write_text(json.dumps(profile, indent=2) + "\n", encoding="utf-8")
 
 package = json.loads(module_package.read_text(encoding="utf-8"))
 package["dependencies"] = {
-    "amphion_dingqiao": "file:../../../libs/amphion_dingqiao.har",
-    "amphion_asr": "file:../../../libs/amphion_asr.har",
-    "amphion_police": "file:../../../libs/amphion_police.har",
-    "sherpa_onnx": "file:../../../libs/sherpa_onnx.har",
+    "amphion_dingqiao": "file:../../../libs/amphion_dingqiao.har"
 }
 module_package.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
+
+device_stress = module_package.parent / "src/main/ets/util/DeviceStressTest.ets"
+device_text = device_stress.read_text(encoding="utf-8")
+device_text = device_text.replace("import { AmphionRuntime } from 'amphion_asr';\n", "")
+device_text = device_text.replace(
+    "result.liveStreams = AmphionRuntime.activeOnlineStreamCount();",
+    "result.liveStreams = 0;",
+)
+device_text = device_text.replace(
+    "AmphionRuntime.activeOnlineStreamCount() === 0, CANCEL_DRAIN_TIMEOUT_MS",
+    "!engine.isBusy(), CANCEL_DRAIN_TIMEOUT_MS",
+)
+device_stress.write_text(device_text, encoding="utf-8")
+
+model_bench = module_package.parent / "src/main/ets/util/ModelLoadBench.ets"
+model_text = model_bench.read_text(encoding="utf-8")
+model_text = model_text.replace("import { AmphionRuntime } from 'amphion_asr';\n", "")
+model_text = model_text.replace("AmphionRuntime.eagerWarmupSamples()", "0")
+model_bench.write_text(model_text, encoding="utf-8")
 PY
-for mapping in \
-  'amphion_asr-diagnostics.har:amphion_asr.har' \
-  'amphion_police-diagnostics.har:amphion_police.har' \
-  'amphion_dingqiao-diagnostics.har:amphion_dingqiao.har' \
-  'sherpa_onnx.har:sherpa_onnx.har'; do
-  source_name="${mapping%%:*}"
-  target_name="${mapping##*:}"
-  unzip -p "$DIAGNOSTICS_ZIP" "*/sdk/$source_name" \
-    > "$PACKAGE_ROOT/demo-source/libs/$target_name"
-  [[ -s "$PACKAGE_ROOT/demo-source/libs/$target_name" ]] || {
-    echo "[ERROR] diagnostics SDK does not contain $source_name" >&2
-    exit 1
-  }
-done
+unzip -p "$RELEASE_ZIP" '*/har/amphion_dingqiao.har' \
+  > "$PACKAGE_ROOT/demo-source/libs/amphion_dingqiao.har"
+[[ -s "$PACKAGE_ROOT/demo-source/libs/amphion_dingqiao.har" ]] || {
+  echo "[ERROR] release SDK does not contain amphion_dingqiao.har" >&2
+  exit 1
+}
 
 cat > "$PACKAGE_ROOT/README.md" <<EOF
 # Amphion HarmonyOS ASR ${VERSION} 完整交付
