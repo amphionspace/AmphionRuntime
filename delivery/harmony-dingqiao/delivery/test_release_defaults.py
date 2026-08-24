@@ -196,6 +196,10 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("git -C \"$REPO_ROOT\" archive", script)
         self.assertIn("hvigor/hvigor-config.json5", script)
         self.assertIn("build-identity.json", script)
+        self.assertIn("ACCEPTANCE-SUMMARY.md", script)
+        self.assertIn("demo-source/libs/amphion_dingqiao.har", script)
+        self.assertIn('provenance.get("source", {}).get("commit")', script)
+        self.assertIn('identity.get("git_commit")', script)
 
     def test_diagnostics_package_can_reuse_the_verified_signed_build(self) -> None:
         script = (
@@ -207,6 +211,7 @@ class ReleaseDefaultsTest(unittest.TestCase):
 
         self.assertIn('${SKIP_BUILD:-false}', script)
         self.assertIn('OUTPUT_ROOT="$PWD/$OUTPUT_ROOT"', script)
+        self.assertIn('--verify "$VERIFIED_BUILD_IDENTITY"', script)
         self.assertIn('--build-mode MODE', smoke)
         self.assertIn('buildMode="$BUILD_MODE"', smoke)
 

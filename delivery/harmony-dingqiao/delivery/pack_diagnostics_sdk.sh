@@ -40,7 +40,13 @@ if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
 fi
 
 BUILD_IDENTITY="$OUTPUT_ROOT/build-identity.json"
-python3 "$SCRIPT_DIR/harmony_build_identity.py" --write "$BUILD_IDENTITY"
+if [[ "${SKIP_BUILD:-false}" == "true" ]]; then
+  VERIFIED_BUILD_IDENTITY="${BUILD_IDENTITY_PATH:-$PROJECT_ROOT/build/smoke/build-identity.json}"
+  python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$VERIFIED_BUILD_IDENTITY"
+  cp "$VERIFIED_BUILD_IDENTITY" "$BUILD_IDENTITY"
+else
+  python3 "$SCRIPT_DIR/harmony_build_identity.py" --write "$BUILD_IDENTITY"
+fi
 
 mkdir -p "$PACKAGE_ROOT/sdk" "$PACKAGE_ROOT/demo" "$PACKAGE_ROOT/tools" "$PACKAGE_ROOT/docs"
 cp "$REPO_ROOT/asr/harmony/sdk/build/default/outputs/default/amphion_asr.har" \
