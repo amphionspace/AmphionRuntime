@@ -194,6 +194,7 @@ class ReleaseDefaultsTest(unittest.TestCase):
             self.assertIn(directory, script)
         self.assertIn("amphion_asr_demo-diagnostics-signed.hap", script)
         self.assertIn("git -C \"$REPO_ROOT\" archive", script)
+        self.assertIn("hvigor/hvigor-config.json5", script)
         self.assertIn("build-identity.json", script)
 
     def test_diagnostics_package_can_reuse_the_verified_signed_build(self) -> None:

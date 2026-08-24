@@ -37,10 +37,20 @@ git -C "$REPO_ROOT" archive "$SOURCE_COMMIT" \
   delivery/harmony-dingqiao/AppScope \
   delivery/harmony-dingqiao/build-profile.json5 \
   delivery/harmony-dingqiao/hvigorfile.ts \
-  delivery/harmony-dingqiao/hvigor \
   delivery/harmony-dingqiao/oh-package.json5 \
   delivery/harmony-dingqiao/samples/dingqiao-demo \
   | tar -x -C "$PACKAGE_ROOT/demo-source" --strip-components=2
+mkdir -p "$PACKAGE_ROOT/demo-source/hvigor"
+cat > "$PACKAGE_ROOT/demo-source/hvigor/hvigor-config.json5" <<'EOF'
+{
+  "modelVersion": "5.0.0",
+  "dependencies": {},
+  "execution": {},
+  "logging": {},
+  "debugging": {},
+  "nodeOptions": {}
+}
+EOF
 
 cat > "$PACKAGE_ROOT/README.md" <<EOF
 # Amphion HarmonyOS ASR ${VERSION} 完整交付
