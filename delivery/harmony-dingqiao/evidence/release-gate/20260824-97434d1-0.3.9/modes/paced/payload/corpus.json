@@ -1,0 +1,13 @@
+[
+  {
+    "channels": 1,
+    "duration_seconds": 1.54,
+    "id": "000000",
+    "pcm_bytes": 49280,
+    "pcm_sha256": "9c9a3d48c4badc1e9b067b7c1c6a94ba715582272d1658df9bf685ffc3f25737",
+    "sample_rate": 16000,
+    "sample_width": 2,
+    "source": "police-recent-fixes/设卡盘查/smartChatPtt-1786697008948.wav",
+    "source_sha256": "6fae204353caf3fe16c865bc3913b56cb627f13ba7f9c4017301354ac17372d7"
+  }
+]

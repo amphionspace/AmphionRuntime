@@ -1,0 +1,246 @@
+{
+  "application": {
+    "completed": "2",
+    "completes": "2",
+    "elapsedMs": "12844",
+    "emptyFinals": "0",
+    "errors": "0",
+    "failed": "0",
+    "fatal": "",
+    "finals": "2",
+    "mode": "max-duration",
+    "partials": "0",
+    "requested": "2",
+    "runId": "20260824-144234-max-duration-6b91c37b",
+    "starts": "2",
+    "status": "PASS"
+  },
+  "build_identity": {
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+        "sha256": "ecf774e856b42589aaaba72aeb2430b02756d771f7533d4bfa685ae02154c8bf",
+        "size_bytes": 219588824
+      },
+      "amphion_asr_demo.hap": {
+        "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+        "sha256": "2d87320521c6e663d15f04cf145bfc69c608d56b3e9f32d0ec21ea9d2bec8270",
+        "size_bytes": 380240669
+      },
+      "amphion_dingqiao.har": {
+        "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+        "sha256": "b647bcfa9b522bfffbfe75e70c38cc1f9f69a380f40ddf3b37a400f2584eb74e",
+        "size_bytes": 42330646
+      },
+      "amphion_police.har": {
+        "path": "asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har",
+        "sha256": "a1fa67d86ac7954965072eab83d17e32ea7439ba8cd0e731fa84e46f636c3fe6",
+        "size_bytes": 30192969
+      },
+      "sherpa_onnx.har": {
+        "path": "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+        "sha256": "df78697c731ad6eeee7009d484dd9ad331c7bbbc5ee6ba00270e2b3c140f9665",
+        "size_bytes": 6940174
+      }
+    },
+    "build_mode": "debug",
+    "created_at": "2026-08-24T06:38:21.798028+00:00",
+    "git_commit": "97434d12308cf36e3f7fe40838b18363ab4be0ab",
+    "model_manifest_sha256": "97f84195a71954589e13fa9c06abd10fe9a5c7b1738e3cbc9e30860136acf49e",
+    "native_sha256": {
+      "libamphion_audio_processing.so": "4487228e82316ec54183ee2cdb33cf1c20f030095a3bd9568cd45e856e52164d",
+      "libonnxruntime.so": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
+      "libsherpa-onnx-c-api.so": "7ea2de3c045211cd217a789c4f807402761144a101e29e1fa6069ba2ae30d195"
+    },
+    "optional_models": {
+      "speaker_turn_segmentation": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+        "sha256": "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
+        "size_bytes": 5986908
+      }
+    },
+    "schema_version": 3,
+    "source_fingerprint_algorithm": "tracked-inputs+sherpa-v1.13.1-diff-v2",
+    "source_fingerprint_sha256": "da8de927f82c79e8dc2de5ef86e690952ec766b533becd4aa9a88f6aba60fc20",
+    "zh_en_only": true
+  },
+  "configuration": {
+    "cycles": 2,
+    "finish_recovery_entry_ids": [],
+    "pace_ms": 20,
+    "post_run_observe_seconds": 5.0,
+    "sample_interval_seconds": 1.0,
+    "settle_ms": 0,
+    "speaker_vad_threshold": null,
+    "target_content_check_enabled": true
+  },
+  "cpu": {
+    "interval_count": 10,
+    "logical_cpus": 12,
+    "mean_device_capacity_percent": 19.178,
+    "mean_single_core_equivalent_percent": 230.139,
+    "observation_seconds": 13.195,
+    "p50_device_capacity_percent": 15.494,
+    "p50_single_core_equivalent_percent": 185.927,
+    "p95_device_capacity_percent": 32.512,
+    "p95_single_core_equivalent_percent": 390.14,
+    "peak_device_capacity_percent": 39.005,
+    "peak_single_core_equivalent_percent": 468.063,
+    "sample_count": 11,
+    "status": "MEASURED"
+  },
+  "cycles": [
+    {
+      "audioStartToFirstNonEmptyResultMs": "-1",
+      "audioStartToSpeechBeginMs": "-1",
+      "completes": "1",
+      "confirmationGraceMs": "-1",
+      "detail": "auto-finished-burst",
+      "effectiveMaxAudioDurationMs": "8000",
+      "elapsedMs": "2839",
+      "errors": "0",
+      "fedFrames": "400",
+      "finalChars": "21",
+      "finals": "1",
+      "finishToFirstNonEmptyResultMs": "-1",
+      "firstNonEmptyFinalHasScore": "0",
+      "firstNonEmptyResultMs": "2686",
+      "id": "000000",
+      "index": "0",
+      "lastFinalsBeforeFinish": "-1",
+      "liveStreams": "0",
+      "missingSpeakerScores": "1",
+      "nonEmptyFinals": "1",
+      "nonEmptySpeakerScores": "0",
+      "partials": "0",
+      "recoveryCompletes": "-1",
+      "recoveryErrors": "-1",
+      "recoveryLastFinals": "-1",
+      "recoveryStarts": "-1",
+      "recoveryTerminalOrder": "-1",
+      "recoveryUnexpectedCallbacks": "-1",
+      "requestedMaxAudioDurationMs": "8000",
+      "requestedVadBeginMs": "-1",
+      "resultHex": "<redacted>",
+      "speakerScores": "0",
+      "speechBeginToFirstNonEmptyResultMs": "2646",
+      "speechEndsBeforeFinish": "-1",
+      "starts": "1",
+      "status": "PASS",
+      "tailSilenceMs": "-1",
+      "trace": "max-0:start>max-0:event-1>max-0:final-last>max-0:complete",
+      "unexpectedCallbacks": "0",
+      "voiceprintIdCount": "0"
+    },
+    {
+      "audioStartToFirstNonEmptyResultMs": "-1",
+      "audioStartToSpeechBeginMs": "-1",
+      "completes": "1",
+      "confirmationGraceMs": "-1",
+      "detail": "auto-finished-paced",
+      "effectiveMaxAudioDurationMs": "8000",
+      "elapsedMs": "9306",
+      "errors": "0",
+      "fedFrames": "400",
+      "finalChars": "21",
+      "finals": "1",
+      "finishToFirstNonEmptyResultMs": "-1",
+      "firstNonEmptyFinalHasScore": "0",
+      "firstNonEmptyResultMs": "9153",
+      "id": "000000",
+      "index": "1",
+      "lastFinalsBeforeFinish": "-1",
+      "liveStreams": "0",
+      "missingSpeakerScores": "1",
+      "nonEmptyFinals": "1",
+      "nonEmptySpeakerScores": "0",
+      "partials": "0",
+      "recoveryCompletes": "-1",
+      "recoveryErrors": "-1",
+      "recoveryLastFinals": "-1",
+      "recoveryStarts": "-1",
+      "recoveryTerminalOrder": "-1",
+      "recoveryUnexpectedCallbacks": "-1",
+      "requestedMaxAudioDurationMs": "8000",
+      "requestedVadBeginMs": "-1",
+      "resultHex": "<redacted>",
+      "speakerScores": "0",
+      "speechBeginToFirstNonEmptyResultMs": "8605",
+      "speechEndsBeforeFinish": "-1",
+      "starts": "1",
+      "status": "PASS",
+      "tailSilenceMs": "-1",
+      "trace": "max-1:start>max-1:event-1>max-1:final-last>max-1:complete",
+      "unexpectedCallbacks": "0",
+      "voiceprintIdCount": "0"
+    }
+  ],
+  "device": "device-9d33cec60055",
+  "empty_finals": {
+    "count": 0,
+    "max_rate": 0.05,
+    "rate": 0.0,
+    "status": "PASS"
+  },
+  "expected_tail": {
+    "cases": [],
+    "reason": "tail assertion disabled",
+    "status": "NOT_APPLICABLE"
+  },
+  "failures": [],
+  "inventory": {
+    "sample_rates": {
+      "16000": 75
+    },
+    "selected_duration_seconds": 1.54,
+    "selected_wavs": 1,
+    "target_speaker_enrollment_wavs": 1,
+    "total_valid_duration_seconds": 184.72,
+    "valid_wavs": 75
+  },
+  "memory": {
+    "head_rss_mb": 379.699,
+    "head_threads": 50,
+    "head_vm_data_mb": 2456.711,
+    "max_rss_growth_mb": 64.0,
+    "max_thread_growth": 2,
+    "observation_seconds": 17.557,
+    "peak_hwm_mb": 390.785,
+    "peak_rss_mb": 385.992,
+    "peak_swap_mb": 89.105,
+    "rss_growth_mb": -6.969,
+    "rss_slope_mb_per_minute": null,
+    "rss_third_medians_mb": [
+      381.217,
+      376.156,
+      373.002
+    ],
+    "sample_count": 15,
+    "status": "PASS",
+    "tail_rss_mb": 372.73,
+    "tail_threads": 45,
+    "tail_vm_data_mb": 2444.555,
+    "thread_growth": -5,
+    "vm_data_growth_mb": -12.156,
+    "warmup_samples_excluded": 3
+  },
+  "mode": "max-duration",
+  "native_streams": {
+    "max_live_streams": 0,
+    "nonzero_cycles": 0,
+    "observed_cycles": 2,
+    "status": "PASS"
+  },
+  "overall_status": "PASS",
+  "run_id": "20260824-144234-max-duration-6b91c37b",
+  "target_speaker_content": {
+    "cases": [],
+    "reason": "accuracy gate disabled or mode is lifecycle-only",
+    "status": "NOT_APPLICABLE"
+  },
+  "target_speaker_realtime": {
+    "chunk_count": 0,
+    "reason": "mode disabled",
+    "status": "NOT_APPLICABLE"
+  }
+}
