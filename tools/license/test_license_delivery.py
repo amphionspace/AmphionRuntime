@@ -195,6 +195,34 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("must be text", result.stderr)
 
+    def test_plan_accepts_hyphenated_excel_sn(self) -> None:
+        source = self.input_dir / "devices.xlsx"
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Sheet1"
+        sheet.append(["SN"])
+        sheet.append(["DSJ-TDTH6A1T022185"])
+        workbook.save(source)
+        request = self.write_request(
+            source.name,
+            hashlib.sha256(source.read_bytes()).hexdigest(),
+        )
+        output = self.root / "plan.json"
+
+        result = self.run_cli(
+            "plan",
+            "--request",
+            str(request),
+            "--input-dir",
+            str(self.input_dir),
+            "--out",
+            str(output),
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        plan = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(1, plan["snSummary"]["uniqueCount"])
+
     def test_plan_rejects_macro_content_renamed_to_xlsx(self) -> None:
         source = self.input_dir / "devices.xlsx"
         workbook = Workbook()
@@ -265,7 +293,7 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         cases = (
             ("formula", "SN", "=A1", "must be text"),
             ("missing-column", "Other", "7GK0226310007121", "missing or ambiguous"),
-            ("illegal-character", "SN", "SN-001", "outside [A-Z0-9]"),
+            ("illegal-character", "SN", "SN_001", "outside [A-Z0-9-]"),
         )
         for label, header, value, expected_error in cases:
             with self.subTest(label=label):
