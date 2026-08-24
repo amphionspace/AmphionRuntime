@@ -13,6 +13,10 @@ ADAPTER = (
     REPO_ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 )
+MODELS = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/DingqiaoModels.ets"
+)
 MODULE = (
     REPO_ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/DiagnosticsModule.ets"
@@ -193,8 +197,11 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.assertIn("captureAudio: true", module)
         self.assertIn("includeRecognitionText: true", module)
         self.assertIn("maxSessionAudioSec: 300", module)
-        self.assertNotIn("configureDiagnostics", adapter)
-        self.assertNotIn("DiagnosticOptions", adapter)
+        compatibility_method = adapter.split(
+            "static configureDiagnostics(_options: DiagnosticOptions): void {", 1
+        )[1].split("}", 1)[0]
+        self.assertNotIn("DiagnosticsModule.configure", compatibility_method)
+        self.assertIn("@deprecated", MODELS.read_text(encoding="utf-8"))
         self.assertIn("JOURNAL_INTERVAL_MS", module)
         self.assertIn("crash-recovery.json", module)
         self.assertIn("maxDirectoryBytes", module)

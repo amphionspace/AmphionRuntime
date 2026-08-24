@@ -6,6 +6,19 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
+    def test_038_changelog_distinguishes_new_work_from_037_carryover(self) -> None:
+        changelog = (
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/CHANGELOG.md"
+        ).read_text(encoding="utf-8")
+        notes_038 = changelog.split("## 0.3.8", 1)[1].split("\n## ", 1)[0]
+
+        self.assertIn("相对 0.3.7", notes_038)
+        self.assertIn("0.3.7 已交付", notes_038)
+        self.assertIn("不作为 0.3.8 新增修复", notes_038)
+        self.assertIn("Speaker VAD 尾部时延", notes_038)
+        self.assertIn("独立 Diagnostics SDK", notes_038)
+        self.assertNotIn("避免交替讲话时应用闪退", notes_038)
+
     def test_ci_discovers_all_harmony_contracts_and_runs_finish_compat_gate_tests(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
 
@@ -178,6 +191,53 @@ class ReleaseDefaultsTest(unittest.TestCase):
             'text.replace("默认并在鼎桥适配层固定为", "默认并在当前适配层固定为")',
             script,
         )
+
+    def test_complete_delivery_contains_all_requested_artifact_groups(self) -> None:
+        script = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh"
+        ).read_text(encoding="utf-8")
+
+        for directory in (
+            "release-sdk",
+            "diagnostics-sdk",
+            "diagnostics-demo",
+            "demo-source",
+        ):
+            self.assertIn(directory, script)
+        self.assertIn("amphion_asr_demo-diagnostics-signed.hap", script)
+        self.assertIn("git -C \"$REPO_ROOT\" archive", script)
+        self.assertIn("hvigor/hvigor-config.json5", script)
+        self.assertIn("build-identity.json", script)
+        self.assertIn("ACCEPTANCE-SUMMARY.md", script)
+        self.assertIn("acceptance-manifest.json", script)
+        self.assertIn('identity.get("build_mode") != "diagnostics"', script)
+        self.assertIn('required_modes = {"speaker-vad-turn", "customer-ptt"}', script)
+        self.assertIn("demo-source/libs/amphion_dingqiao.har", script)
+        self.assertIn("!engine.isBusy(), CANCEL_DRAIN_TIMEOUT_MS", script)
+        self.assertIn("AmphionRuntime.eagerWarmupSamples()", script)
+        self.assertIn('provenance.get("source", {}).get("commit")', script)
+        self.assertIn('identity.get("git_commit")', script)
+        self.assertIn("def replace_exact", script)
+        self.assertIn("expected one demo module", script)
+        self.assertIn("TRANSFORMATIONS.md", script)
+        self.assertIn("基于本交付 commit 裁剪并适配", script)
+
+    def test_diagnostics_package_can_reuse_the_verified_signed_build(self) -> None:
+        script = (
+            REPO_ROOT / "delivery/harmony-dingqiao/delivery/pack_diagnostics_sdk.sh"
+        ).read_text(encoding="utf-8")
+        smoke = (
+            REPO_ROOT / "delivery/harmony-dingqiao/delivery/build_install_smoke.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('${SKIP_BUILD:-false}', script)
+        self.assertIn('OUTPUT_ROOT="$PWD/$OUTPUT_ROOT"', script)
+        self.assertIn('--verify "$VERIFIED_BUILD_IDENTITY"', script)
+        self.assertIn("--build-mode diagnostics", script)
+        self.assertIn('--build-mode MODE', smoke)
+        self.assertIn('buildMode="$BUILD_MODE"', smoke)
+        self.assertIn('IDENTITY_ARGS+=(--build-mode "$BUILD_MODE")', smoke)
 
     def test_speaker_vad_defaults_match_sdk_demo_and_public_docs(self) -> None:
         sdk = (

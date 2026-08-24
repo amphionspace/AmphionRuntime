@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.asr.internal.EffectiveSpeechBufferTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-08-24T05:40:09" hostname="redacted" time="0.013">
+  <properties/>
+  <testcase name="zeroMinimumScoresTheWholeRealUtteranceInsteadOfAShortStrictFragment" classname="com.amphion.asr.internal.EffectiveSpeechBufferTest" time="0.003"/>
+  <testcase name="steadyHighEnergyToneIsRejectedWithoutVadOrAsrEvidence" classname="com.amphion.asr.internal.EffectiveSpeechBufferTest" time="0.001"/>
+  <testcase name="scoreSelectionDiagnosticExplainsMissingScoreWithoutTextOrIdentity" classname="com.amphion.asr.internal.EffectiveSpeechBufferTest" time="0.006"/>
+  <testcase name="sessionMinimumConversionPreservesZeroDuration" classname="com.amphion.asr.internal.EffectiveSpeechBufferTest" time="0.0"/>
+  <testcase name="shortStrictSpeechFallsBackOnlyToRealUtterancePcmWithAsrEvidence" classname="com.amphion.asr.internal.EffectiveSpeechBufferTest" time="0.0"/>
+  <testcase name="vadEvidenceRetainsLowVolumeSpeechWithoutLeadingContext" classname="com.amphion.asr.internal.EffectiveSpeechBufferTest" time="0.001"/>
+  <testcase name="acousticSpeechDecisionDoesNotDependOnCallerChunking" classname="com.amphion.asr.internal.EffectiveSpeechBufferTest" time="0.001"/>
+  <testcase name="tokenOnlyEndpointKeepsAudioForTheNextPublicFinal" classname="com.amphion.asr.internal.EffectiveSpeechBufferTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

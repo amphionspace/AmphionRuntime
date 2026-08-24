@@ -8,6 +8,9 @@ DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
 NODE="$DEVECO_HOME/tools/node/bin/node"
 HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
 OUTPUT_ROOT="${1:-$PROJECT_ROOT/build/diagnostics-sdk}"
+if [[ "$OUTPUT_ROOT" != /* ]]; then
+  OUTPUT_ROOT="$PWD/$OUTPUT_ROOT"
+fi
 mkdir -p "$OUTPUT_ROOT"
 STAGING_ROOT="$(mktemp -d "$OUTPUT_ROOT/.diagnostics-sdk-package.XXXXXX")"
 PACKAGE_ROOT="$STAGING_ROOT/Amphion-ASR-Diagnostics-SDK"
@@ -22,20 +25,30 @@ export DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
 export JAVA_HOME="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
 cd "$PROJECT_ROOT"
 
-for module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
-  "$NODE" "$HVIGOR" assembleHar --mode module \
-    -p product=default -p module="${module}@default" -p buildMode=diagnostics \
-    --no-daemon --stacktrace
-done
+if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
+  for module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
+    "$NODE" "$HVIGOR" assembleHar --mode module \
+      -p product=default -p module="${module}@default" -p buildMode=diagnostics \
+      --no-daemon --stacktrace
+  done
 
-if [[ "${INCLUDE_SIGNED_DEMO:-false}" == "true" ]]; then
-  "$NODE" "$HVIGOR" assembleHap --mode module \
-    -p product=default -p module=amphion_asr_demo@default -p buildMode=diagnostics \
-    --no-daemon --stacktrace
+  if [[ "${INCLUDE_SIGNED_DEMO:-false}" == "true" ]]; then
+    "$NODE" "$HVIGOR" assembleHap --mode module \
+      -p product=default -p module=amphion_asr_demo@default -p buildMode=diagnostics \
+      --no-daemon --stacktrace
+  fi
 fi
 
 BUILD_IDENTITY="$OUTPUT_ROOT/build-identity.json"
-python3 "$SCRIPT_DIR/harmony_build_identity.py" --write "$BUILD_IDENTITY"
+if [[ "${SKIP_BUILD:-false}" == "true" ]]; then
+  VERIFIED_BUILD_IDENTITY="${BUILD_IDENTITY_PATH:-$PROJECT_ROOT/build/smoke/build-identity.json}"
+  python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$VERIFIED_BUILD_IDENTITY" \
+    --build-mode diagnostics
+  cp "$VERIFIED_BUILD_IDENTITY" "$BUILD_IDENTITY"
+else
+  python3 "$SCRIPT_DIR/harmony_build_identity.py" --write "$BUILD_IDENTITY" \
+    --build-mode diagnostics
+fi
 
 mkdir -p "$PACKAGE_ROOT/sdk" "$PACKAGE_ROOT/demo" "$PACKAGE_ROOT/tools" "$PACKAGE_ROOT/docs"
 cp "$REPO_ROOT/asr/harmony/sdk/build/default/outputs/default/amphion_asr.har" \
@@ -53,7 +66,11 @@ cp "$PROJECT_ROOT/docs/diagnostics-sdk/ISSUE_TEMPLATE.md" "$PACKAGE_ROOT/docs/"
 cp "$PROJECT_ROOT/docs/diagnostics-sdk/PRIVACY_NOTICE.md" "$PACKAGE_ROOT/docs/"
 
 SIGNED_HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap"
-if [[ "${INCLUDE_SIGNED_DEMO:-false}" == "true" && -f "$SIGNED_HAP" ]]; then
+if [[ "${INCLUDE_SIGNED_DEMO:-false}" == "true" && ! -f "$SIGNED_HAP" ]]; then
+  echo "[ERROR] requested signed diagnostics Demo is missing: $SIGNED_HAP" >&2
+  exit 1
+fi
+if [[ "${INCLUDE_SIGNED_DEMO:-false}" == "true" ]]; then
   cp "$SIGNED_HAP" "$PACKAGE_ROOT/demo/amphion_asr_demo-diagnostics-signed.hap"
 fi
 

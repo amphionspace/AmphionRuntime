@@ -154,7 +154,9 @@ def optional_hap_models() -> dict[str, dict[str, object]]:
     return models
 
 
-def current_identity(zh_en_only: bool = False) -> dict[str, object]:
+def current_identity(
+    zh_en_only: bool = False, build_mode: str = "debug"
+) -> dict[str, object]:
     artifacts: dict[str, dict[str, object]] = {
         "amphion_asr_demo.hap": {
             "path": str(HAP.relative_to(REPO_ROOT)),
@@ -170,9 +172,10 @@ def current_identity(zh_en_only: bool = False) -> dict[str, object]:
             "size_bytes": path.stat().st_size,
         }
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "source_fingerprint_algorithm": "tracked-inputs+sherpa-v1.13.1-diff-v2",
         "zh_en_only": zh_en_only,
+        "build_mode": build_mode,
         "git_commit": run(["git", "rev-parse", "HEAD"]).decode().strip(),
         "source_fingerprint_sha256": source_fingerprint(),
         "model_manifest_sha256": sha256_file(MODEL_MANIFEST),
@@ -184,8 +187,10 @@ def current_identity(zh_en_only: bool = False) -> dict[str, object]:
     }
 
 
-def write_identity(output: Path, zh_en_only: bool = False) -> None:
-    identity = current_identity(zh_en_only)
+def write_identity(
+    output: Path, zh_en_only: bool = False, build_mode: str = "debug"
+) -> None:
+    identity = current_identity(zh_en_only, build_mode)
     identity["created_at"] = datetime.now(timezone.utc).isoformat()
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(f".{output.name}.tmp")
@@ -194,13 +199,20 @@ def write_identity(output: Path, zh_en_only: bool = False) -> None:
     print(f"[OK] wrote Harmony build identity: {output}")
 
 
-def verify_identity(identity_path: Path) -> None:
+def verify_identity(identity_path: Path, expected_build_mode: str = "debug") -> None:
     try:
         recorded = json.loads(identity_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise IdentityFailure(f"cannot read Harmony build identity: {error}") from error
     recorded.pop("created_at", None)
-    current = current_identity(bool(recorded.get("zh_en_only", False)))
+    if recorded.get("build_mode") != expected_build_mode:
+        raise IdentityFailure(
+            "Harmony HAR/HAP build mode mismatch: "
+            f"expected {expected_build_mode}, recorded {recorded.get('build_mode', 'missing')}"
+        )
+    current = current_identity(
+        bool(recorded.get("zh_en_only", False)), expected_build_mode
+    )
     if recorded != current:
         raise IdentityFailure(
             "Harmony HAR/HAP build identity is stale; rerun build_install_smoke.sh before packaging"
@@ -214,12 +226,13 @@ def main() -> int:
     group.add_argument("--write", type=Path)
     group.add_argument("--verify", type=Path)
     parser.add_argument("--zh-en-only", action="store_true")
+    parser.add_argument("--build-mode", choices=("debug", "diagnostics"), default="debug")
     args = parser.parse_args()
     try:
         if args.write is not None:
-            write_identity(args.write, args.zh_en_only)
+            write_identity(args.write, args.zh_en_only, args.build_mode)
         else:
-            verify_identity(args.verify)
+            verify_identity(args.verify, args.build_mode)
         return 0
     except (IdentityFailure, subprocess.SubprocessError) as error:
         print(f"[ERROR] {error}", file=sys.stderr)
