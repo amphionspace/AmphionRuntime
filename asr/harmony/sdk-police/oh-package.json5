@@ -1,6 +1,6 @@
 {
   "name": "amphion_police",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "Amphion police text enhancement for HarmonyOS",
   "main": "Index.ets",
   "author": "Amphion",
