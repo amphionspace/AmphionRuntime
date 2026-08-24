@@ -243,6 +243,17 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn('provenance.get("source", {}).get("commit")', script)
         self.assertIn('identity.get("git_commit")', script)
         self.assertIn("def replace_exact", script)
+
+    def test_device_limited_complete_delivery_is_explicit_and_documented(self) -> None:
+        script = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('ALLOW_DEVICE_LIMITED_DEMO="${ALLOW_DEVICE_LIMITED_DEMO:-false}"', script)
+        self.assertIn('if [[ "$ALLOW_DEVICE_LIMITED_DEMO" == "true" ]]', script)
+        self.assertIn("本包是设备受限评估交付", script)
+        self.assertIn("verify_complete_demo_license.py", script)
         self.assertIn("expected one demo module", script)
         self.assertIn("TRANSFORMATIONS.md", script)
         self.assertIn("基于本交付 commit 裁剪并适配", script)

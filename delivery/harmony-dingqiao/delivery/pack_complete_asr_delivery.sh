@@ -11,6 +11,7 @@ OUTPUT_ROOT="${1:-$REPO_ROOT/delivery/harmony-dingqiao/build/complete-sdk-${VERS
 OUTPUT_ZIP="$OUTPUT_ROOT/Amphion-Harmony-ASR-Complete-${VERSION}.zip"
 ACCEPTANCE_SUMMARY="${ACCEPTANCE_SUMMARY:-$REPO_ROOT/delivery/harmony-dingqiao/build/acceptance-${VERSION}/ACCEPTANCE-SUMMARY.md}"
 ACCEPTANCE_MANIFEST="${ACCEPTANCE_MANIFEST:-$REPO_ROOT/delivery/harmony-dingqiao/build/acceptance-${VERSION}/acceptance-manifest.json}"
+ALLOW_DEVICE_LIMITED_DEMO="${ALLOW_DEVICE_LIMITED_DEMO:-false}"
 mkdir -p "$OUTPUT_ROOT"
 STAGING_ROOT="$(mktemp -d "$OUTPUT_ROOT/.complete-delivery.XXXXXX")"
 PACKAGE_ROOT="$STAGING_ROOT/Amphion-Harmony-ASR-Complete-${VERSION}"
@@ -131,8 +132,14 @@ unzip -p "$DIAGNOSTICS_ZIP" \
   echo "[ERROR] diagnostics SDK does not contain the signed diagnostics Demo" >&2
   exit 1
 }
-python3 "$SCRIPT_DIR/verify_complete_demo_license.py" \
-  --hap "$PACKAGE_ROOT/diagnostics-demo/amphion_asr_demo-diagnostics-signed.hap"
+if [[ "$ALLOW_DEVICE_LIMITED_DEMO" == "true" ]]; then
+  "$SCRIPT_DIR/verify_demo_inputs.sh" \
+    --hap "$PACKAGE_ROOT/diagnostics-demo/amphion_asr_demo-diagnostics-signed.hap" \
+    --signing-config "${HARMONY_SIGNING_CONFIG:-$REPO_ROOT/.secure/harmony-signing.json}"
+else
+  python3 "$SCRIPT_DIR/verify_complete_demo_license.py" \
+    --hap "$PACKAGE_ROOT/diagnostics-demo/amphion_asr_demo-diagnostics-signed.hap"
+fi
 
 git -C "$REPO_ROOT" archive "$SOURCE_COMMIT" \
   delivery/harmony-dingqiao/AppScope \
@@ -242,6 +249,17 @@ cat > "$PACKAGE_ROOT/README.md" <<EOF
 
 源码 commit：\`${SOURCE_COMMIT}\`
 EOF
+
+if [[ "$ALLOW_DEVICE_LIMITED_DEMO" == "true" ]]; then
+  cat >> "$PACKAGE_ROOT/README.md" <<'EOF'
+
+## Demo 安装范围
+
+本包是设备受限评估交付。Demo 使用 HarmonyOS debug profile 签名，只能安装到该 profile
+设备白名单内的手机；SDK 体验授权不绑定 SN/ODID，但不能解除 HAP 的安装白名单。
+客户在其他设备上使用时，需用本包 Demo 源码、SDK 以及客户自己的 HarmonyOS 签名重新构建。
+EOF
+fi
 
 cp "$ACCEPTANCE_SUMMARY" "$PACKAGE_ROOT/docs/ACCEPTANCE-SUMMARY.md"
 cp "$ACCEPTANCE_MANIFEST" "$PACKAGE_ROOT/docs/acceptance-manifest.json"
