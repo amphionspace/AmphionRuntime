@@ -119,6 +119,7 @@
       "platform": "harmony",
       "version": "0.3.8",
       "source_commit": "c63f6f934324def9a3fda3462c0d093db1e38a14",
+      "integration_commit": "369e7eb575fdbe17f311d65bf0ec0beacd59bb9f",
       "delivered_at": "2026-08-24",
       "artifact": "amphion-harmony-asr-sdk-v0.3.8-20260824.zip",
       "artifact_sha256": "174026e26ecce7ec3bc8c974690b5436433679106240db230e0139ea38eb0e18",

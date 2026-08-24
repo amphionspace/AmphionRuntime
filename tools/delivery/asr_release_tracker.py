@@ -82,7 +82,8 @@ REQUIRED_ENTRY_FIELDS = {
     "provenance_sha256",
 }
 EVIDENCE_ENTRY_FIELDS = {"evidence_report", "evidence_sha256"}
-ALLOWED_ENTRY_FIELDS = REQUIRED_ENTRY_FIELDS | EVIDENCE_ENTRY_FIELDS
+INTEGRATION_ENTRY_FIELDS = {"integration_commit"}
+ALLOWED_ENTRY_FIELDS = REQUIRED_ENTRY_FIELDS | EVIDENCE_ENTRY_FIELDS | INTEGRATION_ENTRY_FIELDS
 
 
 class ReleaseTrackerError(RuntimeError):
@@ -157,6 +158,11 @@ def load_history(path: Path) -> Dict[str, Any]:
             entry["source_commit"]
         ):
             raise ReleaseTrackerError(f"delivery #{index + 1} has invalid source_commit")
+        if "integration_commit" in entry and (
+            not isinstance(entry["integration_commit"], str)
+            or not FULL_COMMIT.fullmatch(entry["integration_commit"])
+        ):
+            raise ReleaseTrackerError(f"delivery #{index + 1} has invalid integration_commit")
         if not isinstance(entry["delivered_at"], str) or not re.fullmatch(
             r"[0-9]{4}-[0-9]{2}-[0-9]{2}", entry["delivered_at"]
         ):
@@ -354,12 +360,16 @@ def render_changelog(
         commit_range = current
     else:
         previous_commit = resolve_commit(repo, previous["source_commit"])
+        previous_range_commit = resolve_commit(
+            repo, previous.get("integration_commit", previous["source_commit"])
+        )
         ancestor = subprocess.run(
-            ["git", "merge-base", "--is-ancestor", previous_commit, current], cwd=repo
+            ["git", "merge-base", "--is-ancestor", previous_range_commit, current], cwd=repo
         )
         if ancestor.returncode != 0:
             raise ReleaseTrackerError(
-                f"previous delivery commit {previous_commit} is not an ancestor of {current}"
+                f"previous delivery integration commit {previous_range_commit} "
+                f"is not an ancestor of {current}"
             )
         lines.extend(
             [
@@ -369,7 +379,7 @@ def render_changelog(
                 "",
             ]
         )
-        commit_range = f"{previous_commit}..{current}"
+        commit_range = f"{previous_range_commit}..{current}"
 
     raw_log = _run_git(repo, "log", "--reverse", "--format=%H%x1f%s", commit_range)
     changes: List[str] = []
