@@ -28,6 +28,7 @@ import {
   CreateEngineCallback,
   CreateEngineParams,
   DiagnosticExportCallback,
+  DiagnosticOptions,
   DINGQIAO_AUDIO_FRAME_BYTES_20MS,
   DINGQIAO_AUDIO_FRAME_BYTES_40MS,
   DINGQIAO_VOICEPRINT_MAX_SEC,
@@ -1210,6 +1211,13 @@ export class SpeechRecognizeSdk {
     if (path.trim().length === 0) throw new Error('workPath must not be empty');
     if (!fs.accessSync(path)) fs.mkdirSync(path, true);
     SpeechRecognizeSdk.workPath = path;
+  }
+
+  /**
+   * @deprecated Retained for source compatibility with the 0.3.7 Debug SDK. Diagnostics are
+   * compile-time controlled in 0.3.8, so this method intentionally has no runtime effect.
+   */
+  static configureDiagnostics(_options: DiagnosticOptions): void {
   }
 
   /** Export is asynchronous and unavailable in normal debug/release builds. */

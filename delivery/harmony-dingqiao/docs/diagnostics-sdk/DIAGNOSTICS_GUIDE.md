@@ -10,7 +10,10 @@ Diagnostics HAR 与普通交付使用相同模块名、Bundle Name、版本和�
 - debug：诊断硬关闭。
 - release：诊断硬关闭。
 
-没有运行时模式、音频开关或文本开关，也不需要客户修改业务代码。构建命令为：
+没有运行时模式、音频开关或文本开关，也不需要客户修改识别业务代码。为兼容 0.3.7 Debug SDK，
+`DiagnosticOptions`、`DiagnosticMode` 和 `SpeechRecognizeSdk.configureDiagnostics(...)` 仍保留为废弃接口，
+但配置调用在 0.3.8 不再改变采集行为；是否采集只由所替换的 HAR 构建模式决定，原调用可保留或删除。
+构建命令为：
 
     bash delivery/harmony-dingqiao/delivery/pack_diagnostics_sdk.sh
 

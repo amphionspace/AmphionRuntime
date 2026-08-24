@@ -475,6 +475,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
   mv -f "$TEMP_HAP_COPY" "$HAP"
   TEMP_HAP_COPY=""
   IDENTITY_ARGS=(--write "$BUILD_IDENTITY")
+  IDENTITY_ARGS+=(--build-mode "$BUILD_MODE")
   if [[ "$ZH_EN_ONLY" == true ]]; then
     IDENTITY_ARGS+=(--zh-en-only)
   fi
