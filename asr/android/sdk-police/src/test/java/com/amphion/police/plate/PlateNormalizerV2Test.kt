@@ -206,6 +206,57 @@ class PlateNormalizerV2Test {
         assertEquals("查一下车牌冀R30983", n.normalize("查一下车牌R30983").text)
     }
 
+    @Test
+    fun cp5500_hebeiPrefixResidualsRequireExplicitPlateContext() {
+        val n = PlateNormalizerV2.create(kb, readingMap, contextProvinces = listOf('冀', '辽'))
+        val cases = linkedMapOf(
+            "车牌号GIR17685车辆" to "车牌号冀R17685车辆",
+            "车牌号GI230755车辆" to "车牌号冀R30755车辆",
+            "车牌号GL72713车辆" to "车牌号冀R72713车辆",
+            "车牌号7236403车辆" to "车牌号冀R36403车辆",
+            "车牌号GR227996车辆" to "车牌号冀R27996车辆",
+            "车牌号及R231054车辆" to "车牌号冀R31054车辆",
+            "车牌号寄200959车辆" to "车牌号冀R00959车辆",
+            "车牌号汽201463车辆" to "车牌号冀R01463车辆",
+            "车牌号GR5864~5车辆" to "车牌号冀R58645车辆",
+            "GIR24075离开时是往主路方向还是小区方向走的" to
+                "冀R24075离开时是往主路方向还是小区方向走的",
+            "GIR24075刚才蹭到路边车后直接开走了" to
+                "冀R24075刚才蹭到路边车后直接开走了",
+            "我们已经记录GIR91648，请您先不要和车主发生争执" to
+                "我们已经记录冀R91648，请您先不要和车主发生争执",
+        )
+        for ((raw, expected) in cases) assertEquals("raw=$raw", expected, n.normalize(raw).text)
+    }
+
+    @Test
+    fun cp5500_hebeiPrefixResidualsDoNotRewriteGenericIdentifiers() {
+        val n = PlateNormalizerV2.create(kb, readingMap, contextProvinces = listOf('冀', '辽'))
+        for (raw in listOf(
+            "产品型号GIR17685",
+            "设备编号GI230755",
+            "设备编号GI R17685",
+            "设备编号寄200959",
+            "产品型号GL72713",
+            "订单号7236403",
+            "记录7236403",
+            "确认GIR17685",
+            "设备编号GIR17685车辆正在运行",
+            "设备编号为GIR17685车辆正在运行",
+            "产品型号是GL72713车辆正在运行",
+            "车牌号GIR17685A车辆",
+            "工单GIR17685对应的车辆正在运行",
+            "ＸＧＩＲ17685车辆正在运行",
+            "关于校园欺凌73504号案件",
+            "GR2024",
+            "GB28181",
+            "合法车牌辽L72713",
+            "合法车牌冀R22585",
+        )) {
+            assertEquals("raw=$raw", raw, n.normalize(raw).text)
+        }
+    }
+
     // ---- P5-3: 省份读成字母/生僻近音、数字补位、suppress 平局 ----
 
     @Test
