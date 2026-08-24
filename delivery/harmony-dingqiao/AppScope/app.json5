@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.amphion.asr.harmony.demo",
     "vendor": "amphion",
-    "versionCode": 314,
-    "versionName": "0.3.14-hotword-top50",
+    "versionCode": 309,
+    "versionName": "0.3.9",
     "icon": "$media:app_icon",
     "label": "$string:EntryAbility_label"
   }

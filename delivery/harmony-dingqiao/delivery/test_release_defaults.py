@@ -179,6 +179,35 @@ class ReleaseDefaultsTest(unittest.TestCase):
             script,
         )
 
+    def test_complete_delivery_contains_all_requested_artifact_groups(self) -> None:
+        script = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh"
+        ).read_text(encoding="utf-8")
+
+        for directory in (
+            "release-sdk",
+            "diagnostics-sdk",
+            "diagnostics-demo",
+            "demo-source",
+        ):
+            self.assertIn(directory, script)
+        self.assertIn("amphion_asr_demo-diagnostics-signed.hap", script)
+        self.assertIn("git -C \"$REPO_ROOT\" archive", script)
+        self.assertIn("build-identity.json", script)
+
+    def test_diagnostics_package_can_reuse_the_verified_signed_build(self) -> None:
+        script = (
+            REPO_ROOT / "delivery/harmony-dingqiao/delivery/pack_diagnostics_sdk.sh"
+        ).read_text(encoding="utf-8")
+        smoke = (
+            REPO_ROOT / "delivery/harmony-dingqiao/delivery/build_install_smoke.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('${SKIP_BUILD:-false}', script)
+        self.assertIn('--build-mode MODE', smoke)
+        self.assertIn('buildMode="$BUILD_MODE"', smoke)
+
     def test_speaker_vad_defaults_match_sdk_demo_and_public_docs(self) -> None:
         sdk = (
             REPO_ROOT

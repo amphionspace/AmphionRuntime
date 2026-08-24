@@ -22,16 +22,18 @@ export DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
 export JAVA_HOME="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
 cd "$PROJECT_ROOT"
 
-for module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
-  "$NODE" "$HVIGOR" assembleHar --mode module \
-    -p product=default -p module="${module}@default" -p buildMode=diagnostics \
-    --no-daemon --stacktrace
-done
+if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
+  for module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
+    "$NODE" "$HVIGOR" assembleHar --mode module \
+      -p product=default -p module="${module}@default" -p buildMode=diagnostics \
+      --no-daemon --stacktrace
+  done
 
-if [[ "${INCLUDE_SIGNED_DEMO:-false}" == "true" ]]; then
-  "$NODE" "$HVIGOR" assembleHap --mode module \
-    -p product=default -p module=amphion_asr_demo@default -p buildMode=diagnostics \
-    --no-daemon --stacktrace
+  if [[ "${INCLUDE_SIGNED_DEMO:-false}" == "true" ]]; then
+    "$NODE" "$HVIGOR" assembleHap --mode module \
+      -p product=default -p module=amphion_asr_demo@default -p buildMode=diagnostics \
+      --no-daemon --stacktrace
+  fi
 fi
 
 BUILD_IDENTITY="$OUTPUT_ROOT/build-identity.json"
@@ -53,7 +55,11 @@ cp "$PROJECT_ROOT/docs/diagnostics-sdk/ISSUE_TEMPLATE.md" "$PACKAGE_ROOT/docs/"
 cp "$PROJECT_ROOT/docs/diagnostics-sdk/PRIVACY_NOTICE.md" "$PACKAGE_ROOT/docs/"
 
 SIGNED_HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap"
-if [[ "${INCLUDE_SIGNED_DEMO:-false}" == "true" && -f "$SIGNED_HAP" ]]; then
+if [[ "${INCLUDE_SIGNED_DEMO:-false}" == "true" && ! -f "$SIGNED_HAP" ]]; then
+  echo "[ERROR] requested signed diagnostics Demo is missing: $SIGNED_HAP" >&2
+  exit 1
+fi
+if [[ "${INCLUDE_SIGNED_DEMO:-false}" == "true" ]]; then
   cp "$SIGNED_HAP" "$PACKAGE_ROOT/demo/amphion_asr_demo-diagnostics-signed.hap"
 fi
 
