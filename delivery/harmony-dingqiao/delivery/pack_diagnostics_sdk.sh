@@ -8,6 +8,9 @@ DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
 NODE="$DEVECO_HOME/tools/node/bin/node"
 HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
 OUTPUT_ROOT="${1:-$PROJECT_ROOT/build/diagnostics-sdk}"
+if [[ "$OUTPUT_ROOT" != /* ]]; then
+  OUTPUT_ROOT="$PWD/$OUTPUT_ROOT"
+fi
 mkdir -p "$OUTPUT_ROOT"
 STAGING_ROOT="$(mktemp -d "$OUTPUT_ROOT/.diagnostics-sdk-package.XXXXXX")"
 PACKAGE_ROOT="$STAGING_ROOT/Amphion-ASR-Diagnostics-SDK"

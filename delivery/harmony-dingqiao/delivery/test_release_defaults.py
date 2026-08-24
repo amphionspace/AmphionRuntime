@@ -205,6 +205,7 @@ class ReleaseDefaultsTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn('${SKIP_BUILD:-false}', script)
+        self.assertIn('OUTPUT_ROOT="$PWD/$OUTPUT_ROOT"', script)
         self.assertIn('--build-mode MODE', smoke)
         self.assertIn('buildMode="$BUILD_MODE"', smoke)
 
