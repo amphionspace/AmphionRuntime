@@ -54,7 +54,7 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
         harmony_deliveries = [
             entry for entry in history["deliveries"] if entry["platform"] == "harmony"
         ]
-        self.assertEqual(harmony_deliveries[-1]["version"], "0.3.6")
+        self.assertEqual(harmony_deliveries[-1]["version"], "0.3.8")
 
     def test_license_major_and_maintenance_boundaries_fail_closed(self) -> None:
         self.run_identity(
