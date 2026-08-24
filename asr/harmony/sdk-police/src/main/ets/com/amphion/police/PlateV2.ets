@@ -246,6 +246,13 @@ export class PlateV2 {
   private anchors: string[] = [
     '车', '查', '牌', '号', '辆', '报警', '登记', '记录', '驾', '肇事', '嫌疑', '套牌', '违'
   ];
+  private cp5500JiRPatterns: RegExp[] = [];
+  private explicitPlateNounBefore: RegExp =
+    /(?:车牌号|车牌|号牌)[\s，,：:、.．。；！？~·—-]*(?:为|是)?[\s，,：:、.．。；！？~·—-]*$/;
+  private explicitPlateContextAfter: RegExp =
+    /^[\s，,：:、.．。；！？~·—-]*(?:这?辆车|车辆|车主|目标车辆|通行记录|离开时.{0,20}方向|(?:刚才)?(?:蹭|撞|刮).{0,10}(?:路边车|车辆|车)|请.{0,8}车主)/;
+  private genericIdentifierBefore: RegExp =
+    /(?:产品型号|设备编号|订单号|序列号|设备序列号|型号|编号)[\s，,：:、.．。；！？~·—-]*(?:为|是)?[\s，,：:、.．。；！？~·—-]*$/;
 
   constructor(context: common.Context, contextProvinces: string[] = ['冀', '辽']) {
     this.kb = new PlateKnowledgeBase(context);
@@ -253,6 +260,15 @@ export class PlateV2 {
     this.validator = new PlateValidator(this.kb);
     this.contextProvinces = contextProvinces;
     this.homeProvinces = new Set<string>(contextProvinces);
+    const gap = '[\\s，,：:、.．。；！？~·—-]*';
+    const tail = `([0-9](?:${gap}[0-9]){4})(?!${gap}[A-Za-z0-9Ａ-Ｚａ-ｚ０-９])`;
+    this.cp5500JiRPatterns = [
+      new RegExp(`(?<![A-Za-z0-9Ａ-Ｚａ-ｚ０-９])[GgＧｇ]${gap}[IiＩｉ]${gap}(?:[RrＲｒ]|2)${gap}${tail}`, 'g'),
+      new RegExp(`(?<![A-Za-z0-9Ａ-Ｚａ-ｚ０-９])[GgＧｇ]${gap}[LlＬｌ]${gap}${tail}`, 'g'),
+      new RegExp(`(?<![0-9])7${gap}2${gap}${tail}`, 'g'),
+      new RegExp(`(?<![A-Za-z0-9Ａ-Ｚａ-ｚ０-９])(?:[GgＧｇ]${gap}[RrＲｒ]|及${gap}[RrＲｒ])${gap}2${gap}${tail}`, 'g'),
+      new RegExp(`(?<![A-Za-z0-9Ａ-Ｚａ-ｚ０-９])[寄汽]${gap}2${gap}${tail}`, 'g')
+    ];
   }
 
   normalize(text: string): string {
@@ -282,7 +298,7 @@ export class PlateV2 {
   }
 
   private preprocessStructuralMishears(text: string): string {
-    return text
+    return this.rewriteCp5500JiRResiduals(text)
       .replace(/沪19374/g, '沪F19374')
       .replace(/建易60538/g, '晋E60538')
       .replace(/净K/g, '晋K').replace(/进这/g, '晋J').replace(/建寨/g, '晋J')
@@ -300,6 +316,32 @@ export class PlateV2 {
       .replace(/及G\s*7586(?=车辆)/g, '吉G75826')
       .replace(/请帮忙查询G\s*63745/g, '请帮忙查询吉J63745')
       .replace(/晚安92080/g, '皖N92080').replace(/云R\s*293\s*627/g, '云R93627');
+  }
+
+  private rewriteCp5500JiRResiduals(text: string): string {
+    let output = text;
+    for (let i = 0; i < this.cp5500JiRPatterns.length; i++) {
+      output = output.replace(
+        this.cp5500JiRPatterns[i],
+        (matched: string, serialWithGaps: string, offset: number): string => {
+          const requirePlateNoun = i === 2;
+          if (!this.hasExplicitPlateContext(output, offset, offset + matched.length, requirePlateNoun)) return matched;
+          const serial = serialWithGaps.replace(/[^0-9]/g, '');
+          const plate = `冀R${serial}`;
+          return serial.length === 5 && this.validator.isValid(plate) ? plate : matched;
+        }
+      );
+    }
+    return output;
+  }
+
+  private hasExplicitPlateContext(text: string, start: number, end: number, requirePlateNoun: boolean): boolean {
+    const before = text.substring(Math.max(0, start - 40), start);
+    const after = text.substring(end, Math.min(text.length, end + 40));
+    if (this.genericIdentifierBefore.test(before)) return false;
+    const hasPlateNoun = this.explicitPlateNounBefore.test(before);
+    if (requirePlateNoun) return hasPlateNoun;
+    return hasPlateNoun || this.explicitPlateContextAfter.test(after);
   }
 
   private appendContextProvinceSpans(text: string, spans: PlateSpanV2[]): void {
@@ -328,6 +370,7 @@ export class PlateV2 {
 
   private inferWithContextProvince(text: string, start: number, body: string[], indices: number[]): PlateMatch | undefined {
     if (start > 0 && this.isPlateNumeric(text.charAt(start - 1))) return undefined;
+    if (this.hasUnsafeLeftResidue(text, start)) return undefined;
     const lengths = [8, 7];
     for (let l = 0; l < lengths.length; l++) {
       const plateLength = lengths[l];
@@ -345,6 +388,14 @@ export class PlateV2 {
       if (hits.length === 1) return new PlateMatch(hits[0].plate, end, plateLength);
     }
     return undefined;
+  }
+
+  private hasUnsafeLeftResidue(text: string, start: number): boolean {
+    let i = start - 1;
+    while (i >= 0 && this.isSeparator(text.charAt(i))) i--;
+    if (i < 0) return false;
+    const value = text.charAt(i);
+    return /[A-Za-z0-9Ａ-Ｚａ-ｚ０-９]/.test(value) || '寄汽'.indexOf(value) >= 0;
   }
 
   private canStartHere(value: string): boolean {
@@ -499,6 +550,6 @@ export class PlateV2 {
   }
 
   private isSeparator(value: string): boolean {
-    return /\s/.test(value) || '·.-—。，；！？．、'.indexOf(value) >= 0;
+    return /\s/.test(value) || '·.-—~。，；！？．、'.indexOf(value) >= 0;
   }
 }

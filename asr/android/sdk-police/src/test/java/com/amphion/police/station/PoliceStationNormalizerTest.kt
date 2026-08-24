@@ -74,7 +74,7 @@ class PoliceStationNormalizerTest {
     fun normalize_p2_commaBeforeStation() {
         val raw = "请把拉萨市城关区八阔，派出所前天的接警情况整理一下。"
         val r = normalizer.normalize(raw)
-        assertTrue(r.text.contains("萨市城关区八廓派出所"))
+        assertTrue(r.text.contains("拉萨市城关区八廓派出所"))
         assertTrue(!r.text.contains("，派出所"))
     }
 
@@ -123,7 +123,7 @@ class PoliceStationNormalizerTest {
             "统计天翼广场派出所六月以来的接警纪录，按天分以下。" to
                 "天一广场派出所",
             "请把拉萨市城管区巴阔派出所前天的接警情况整理一下。" to
-                "萨市城关区八廓派出所",
+                "拉萨市城关区八廓派出所",
         )
         for ((raw, expectedStation) in cases) {
             val r = normalizer.normalize(raw)
