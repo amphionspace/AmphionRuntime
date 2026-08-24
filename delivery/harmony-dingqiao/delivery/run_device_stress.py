@@ -245,18 +245,28 @@ def verified_build_identity() -> dict[str, object]:
         raise StressFailure(
             "missing Harmony build identity; build and install the current source before stress testing"
         )
-    result = run(
-        [sys.executable, str(BUILD_IDENTITY_TOOL), "--verify", str(BUILD_IDENTITY)],
-        check=False,
-    )
-    if result.returncode != 0:
-        raise StressFailure((result.stdout + result.stderr).strip())
     try:
         identity = json.loads(BUILD_IDENTITY.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise StressFailure(f"cannot read Harmony build identity: {error}") from error
     if not isinstance(identity, dict):
         raise StressFailure("Harmony build identity must be a JSON object")
+    build_mode = identity.get("build_mode")
+    if build_mode not in ("debug", "diagnostics"):
+        raise StressFailure("Harmony build identity has no supported build mode")
+    result = run(
+        [
+            sys.executable,
+            str(BUILD_IDENTITY_TOOL),
+            "--verify",
+            str(BUILD_IDENTITY),
+            "--build-mode",
+            str(build_mode),
+        ],
+        check=False,
+    )
+    if result.returncode != 0:
+        raise StressFailure((result.stdout + result.stderr).strip())
     return identity
 
 

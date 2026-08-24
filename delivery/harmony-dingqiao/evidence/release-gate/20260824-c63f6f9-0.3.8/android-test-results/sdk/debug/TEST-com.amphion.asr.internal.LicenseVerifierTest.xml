@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.asr.internal.LicenseVerifierTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-08-24T05:40:10" hostname="redacted" time="0.001">
+  <properties/>
+  <testcase name="missing major keeps legacy compatibility" classname="com.amphion.asr.internal.LicenseVerifierTest" time="0.001"/>
+  <testcase name="zero major is unbounded" classname="com.amphion.asr.internal.LicenseVerifierTest" time="0.0"/>
+  <testcase name="positive major must match" classname="com.amphion.asr.internal.LicenseVerifierTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

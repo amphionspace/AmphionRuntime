@@ -91,6 +91,43 @@ export interface PrepareRuntimeCallback {
   onError(errorCode: number, message: string): void;
 }
 
+/** @deprecated Diagnostics behavior is selected by the HAR build mode in 0.3.8. */
+export class DiagnosticMode {
+  static readonly BASIC: string = 'BASIC';
+  static readonly CUSTOMER_SUPPORT: string = 'CUSTOMER_SUPPORT';
+  static readonly FAILURE_ONLY: string = 'FAILURE_ONLY';
+}
+
+/**
+ * @deprecated Kept for 0.3.7 Debug SDK source compatibility. In 0.3.8 these values do not
+ * change capture behavior; use the dedicated Diagnostics SDK to enable diagnostics.
+ */
+export class DiagnosticOptions {
+  enabled: boolean = false;
+  mode: string = DiagnosticMode.BASIC;
+  captureAudio: boolean = false;
+  includeRecognitionText: boolean = false;
+  maxSessionAudioSec: number = 300;
+  failureRingAudioSec: number = 20;
+  maxSessionEvents: number = 512;
+  maxDirectoryMb: number = 200;
+  maxRetainedRuns: number = 3;
+
+  static customerSupport(): DiagnosticOptions {
+    const options = new DiagnosticOptions();
+    options.enabled = true;
+    options.mode = DiagnosticMode.CUSTOMER_SUPPORT;
+    return options;
+  }
+
+  static failureOnly(): DiagnosticOptions {
+    const options = new DiagnosticOptions();
+    options.enabled = true;
+    options.mode = DiagnosticMode.FAILURE_ONLY;
+    return options;
+  }
+}
+
 export interface DiagnosticExportCallback {
   onSuccess(path: string): void;
   onError(errorCode: number, message: string): void;
