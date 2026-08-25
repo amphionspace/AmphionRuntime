@@ -88,7 +88,7 @@ engine.shutdown()
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `locate` | `String` | `CN` | 兼容字段；当前仅支持中国区，不改变模型选择 |
-| `recognizerMode` | `String` | `long` | 接受 `short`/`long`，当前均按长语音流式模式处理 |
+| `recognizerMode` | `String` | `long` | `short` 为有最大单句时长的分段识别；`long` 为会议/持续转写，不做周期性 Rule3 硬切 |
 | `sysGeneralLexicon` | `List<String>` | 空 | 系统热词；与警务域默认热词合并后用于解码 |
 | `disablePrepack` | `Boolean/Number/String` | `true` | 默认跳过 ORT INT8 权重 prepack，降低冷加载时间和峰值内存；设为 `false` 可恢复吞吐优先模式 |
 
@@ -107,11 +107,12 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `recognitionMode` | `Number/String` | `1` | 仅支持 `1`（外部写入音频流）；`0`（SDK 内录音）暂不支持 |
+| `recognizerMode` | `String` | engine 配置或 `long` | 会话级覆盖：`short` 使用 `endpointMaxUtteranceMs`，`long` 只按自然静音或 `finish` 分段 |
 | `vadBegin` | `Number/String` | 未启用 | 首次检测到语音前的静音超时，范围 500 到 10000 ms；仅显式传入时启用 |
 | `enablePartialResult` | `Boolean` | `true` | 是否回调中间结果 |
 | `enablePoliceEnhancement` | `Boolean` | `true` | 是否对 final 文本执行警务术语、车牌和派出所归一化；`false` 返回原始 ASR 文本 |
 | `maxAudioDuration` | `Number/String` | 未启用 | 单会话最长音频毫秒数；仅显式传入正有限值时启用，上限 28800000；达到上限后正常自动结束 |
-| `endpointMaxUtteranceMs` | `Number/String` | `20000` | native Rule3 单句强制 final 时长；长会议可设为 `60000`。它只切句，不结束 session；非正数或非法值使用默认值 |
+| `endpointMaxUtteranceMs` | `Number/String` | `20000` | 仅 `recognizerMode=short` 生效的单句强制 final 时长；不会结束 session。long 模式忽略该参数 |
 | `vadEnd` | `Number/String` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `sessionGeneralLexicon` | `List<String>` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `Boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |

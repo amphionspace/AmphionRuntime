@@ -39,7 +39,7 @@
 
 > 批注（运行时启用，2026-07-18）：只要会话传入可用 `voiceprintIds`，即使两个声纹开关初始均为关闭，也会预留上述一次性确认窗，以支持调用方在 `onStart` 内同步启用 Speaker VAD。
 
-> 批注（模式兼容，2026-07-14）：`recognitionMode` 缺省为 `STREAM=1`，当前不支持 `RECORD=0` 的 SDK 内录音；`recognizerMode` 接受 `short` / `long`，两者均使用长语音流式实现。`locate` 当前仅兼容 `CN`，`sessionGeneralLexicon` 在 V1 不生效。
+> 批注（模式兼容，更新于 2026-08-25）：`recognitionMode` 缺省为 `STREAM=1`，当前不支持 `RECORD=0` 的 SDK 内录音；`recognizerMode` 接受 `short` / `long`，两者使用同一流式模型，但 endpoint 语义不同：`short` 使用 `endpointMaxUtteranceMs` 作为单句硬上限，`long` 不做周期性 Rule3 强切，只由自然静音或显式 `finish` 分段。`locate` 当前仅兼容 `CN`，`sessionGeneralLexicon` 在 V1 不生效。
 
 > 批注（错误码兼容，2026-07-14）：增加 `NO_MIC_PERMISSION=1002200012` 常量；由于当前不支持 SDK 内录音，两端不会主动发出该错误。
 
