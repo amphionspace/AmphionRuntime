@@ -1,4 +1,4 @@
-export interface MeetingEmbeddingObservation {
+export interface SpeakerDiarizationEmbeddingObservation {
   embedding: number[];
   durationMs: number;
   onlineSpeakerId: string;
@@ -6,7 +6,7 @@ export interface MeetingEmbeddingObservation {
   evidenceKey?: string;
 }
 
-export interface MeetingGlobalClusterResult {
+export interface SpeakerDiarizationClusterResult {
   observationSpeakerIds: string[];
   clusterCount: number;
   speakerRemap: Record<string, string>;
@@ -37,7 +37,7 @@ function cosine(left: number[], right: number[]): number {
 }
 
 /** Duration-weighted AHC with an optional weak speaker-count prior. */
-export class MeetingGlobalClusterer {
+export class SpeakerDiarizationGlobalClusterer {
   private readonly maxSpeakers: number;
   private readonly expectedActiveSpeakerCount: number;
   private readonly similarityThreshold: number;
@@ -49,7 +49,7 @@ export class MeetingGlobalClusterer {
     this.similarityThreshold = similarityThreshold;
   }
 
-  cluster(observations: MeetingEmbeddingObservation[]): MeetingGlobalClusterResult {
+  cluster(observations: SpeakerDiarizationEmbeddingObservation[]): SpeakerDiarizationClusterResult {
     const clusters = this.seedMicroClusters(observations);
 
     while (clusters.length > 1) {
@@ -76,7 +76,7 @@ export class MeetingGlobalClusterer {
     const byDuration = clusters.slice().sort(
       (left: MutableCluster, right: MutableCluster): number =>
         right.durationMs - left.durationMs);
-    const observationSpeakerIds = observations.map((_value: MeetingEmbeddingObservation): string =>
+    const observationSpeakerIds = observations.map((_value: SpeakerDiarizationEmbeddingObservation): string =>
       'UNKNOWN');
     const displayIds = this.matchDisplayIds(byDuration, observations);
     for (let clusterIndex = 0; clusterIndex < byDuration.length; clusterIndex++) {
@@ -129,7 +129,7 @@ export class MeetingGlobalClusterer {
     clusters.splice(rightIndex, 1);
   }
 
-  private seedMicroClusters(observations: MeetingEmbeddingObservation[]): MutableCluster[] {
+  private seedMicroClusters(observations: SpeakerDiarizationEmbeddingObservation[]): MutableCluster[] {
     const clusters: MutableCluster[] = [];
     for (let index = 0; index < observations.length; index++) {
       const observation = observations[index];
@@ -158,7 +158,7 @@ export class MeetingGlobalClusterer {
   }
 
   private matchDisplayIds(clusters: MutableCluster[],
-    observations: MeetingEmbeddingObservation[]): string[] {
+    observations: SpeakerDiarizationEmbeddingObservation[]): string[] {
     const assignable = Math.min(this.maxSpeakers, clusters.length);
     const candidates = new Array<string>(this.maxSpeakers);
     for (let index = 0; index < candidates.length; index++) candidates[index] = `S${index + 1}`;
@@ -186,7 +186,7 @@ export class MeetingGlobalClusterer {
   }
 
   private clusterDisplayDuration(cluster: MutableCluster,
-    observations: MeetingEmbeddingObservation[], speakerId: string): number {
+    observations: SpeakerDiarizationEmbeddingObservation[], speakerId: string): number {
     let durationMs = 0;
     for (let index = 0; index < cluster.indexes.length; index++) {
       const observation = observations[cluster.indexes[index]];

@@ -30,8 +30,8 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("maxAudioDuration: 28800000", source)
         self.assertIn("CUSTOMER_MEETING_MINUTES", source)
         self.assertIn("maxAudioDuration: 7200000", source)
-        self.assertIn("enableMeetingSpeakerSeparation: true", source)
-        self.assertIn("maxMeetingSpeakers: 4", source)
+        self.assertIn("enableSpeakerDiarization: true", source)
+        self.assertIn("maxSpeakerCount: 4", source)
         self.assertIn("expectedActiveSpeakerCount: 0", source)
         self.assertGreaterEqual(source.count("vadEnd: 1500"), 2)
         self.assertGreaterEqual(source.count("allowVoiceprint: false"), 2)
@@ -40,7 +40,7 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS", source)
         self.assertIn("enablePartialResult: true", source)
         self.assertIn("params.extraParams['endpointMaxUtteranceMs'] = profile.endpointMaxUtteranceMs", source)
-        self.assertIn("params.extraParams['enableMeetingSpeakerSeparation']", source)
+        self.assertIn("params.extraParams['enableSpeakerDiarization']", source)
 
     def test_long_profiles_disable_rotation_and_raise_the_native_endpoint_boundary(self) -> None:
         profile = PROFILE.read_text(encoding="utf-8")

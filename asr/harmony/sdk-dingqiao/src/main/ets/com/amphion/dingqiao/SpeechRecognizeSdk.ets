@@ -33,13 +33,13 @@ import {
   DINGQIAO_VOICEPRINT_MIN_SEC,
   DingqiaoErrorCode,
   DingqiaoEventCode,
+  DiarizedUtterance,
   LicenseActivationCallback,
   LicenseActivationResult,
   LicenseInfo,
-  MeetingResult,
-  MeetingUtterance,
   PrepareRuntimeCallback,
   RecognitionListener,
+  SpeakerDiarizationResult,
   SpeakerUpdate,
   SpeechRecognitionEngine,
   SpeechRecognitionResult,
@@ -47,41 +47,43 @@ import {
   VoiceprintRegisterParams,
   VoiceprintRegisterResult
 } from './DingqiaoModels';
-import { MeetingFinishBarrier, MeetingFinishOutput } from './meeting/MeetingFinishBarrier';
-import { MeetingRuntimeLeaseRegistry } from './meeting/MeetingRuntimeLease';
+import { SpeakerDiarizationFinishBarrier, SpeakerDiarizationFinishOutput } from
+  './diarization/SpeakerDiarizationFinishBarrier';
+import { SpeakerDiarizationRuntimeLeaseRegistry } from
+  './diarization/SpeakerDiarizationRuntimeLease';
 import {
-  MeetingSessionController,
-  MeetingSpeakerSession,
-  MeetingSpeakerSessionObserver
-} from './meeting/MeetingSpeakerSession';
+  SpeakerDiarizationSession,
+  SpeakerDiarizationSessionController,
+  SpeakerDiarizationSessionObserver
+} from './diarization/SpeakerDiarizationSession';
 import { LatestRequestGate } from './LatestRequestGate';
 import { RuntimePreparationSnapshot, RuntimePreparationState } from './RuntimePreparationState';
 
-class MeetingSpeakerSessionCallback implements MeetingSpeakerSessionObserver {
+class SpeakerDiarizationSessionCallback implements SpeakerDiarizationSessionObserver {
   private readonly updateCallback: (update: SpeakerUpdate) => void;
-  private readonly finishedCallback: (result: MeetingResult) => void;
+  private readonly finishedCallback: (result: SpeakerDiarizationResult) => void;
 
   constructor(updateCallback: (update: SpeakerUpdate) => void,
-    finishedCallback: (result: MeetingResult) => void) {
+    finishedCallback: (result: SpeakerDiarizationResult) => void) {
     this.updateCallback = updateCallback;
     this.finishedCallback = finishedCallback;
   }
 
   onSpeakerUpdate(update: SpeakerUpdate): void { this.updateCallback(update); }
 
-  onFinished(result: MeetingResult): void { this.finishedCallback(result); }
+  onFinished(result: SpeakerDiarizationResult): void { this.finishedCallback(result); }
 }
 
-/** Keeps the meeting callback contract intact when the isolated diarization path cannot start. */
-class DegradedMeetingSpeakerSession implements MeetingSessionController {
-  private readonly observer: MeetingSpeakerSessionObserver;
-  private readonly result: MeetingResult = new MeetingResult();
+/** Keeps the public callback contract intact when the isolated diarization path cannot start. */
+class DegradedSpeakerDiarizationSession implements SpeakerDiarizationSessionController {
+  private readonly observer: SpeakerDiarizationSessionObserver;
+  private readonly result: SpeakerDiarizationResult = new SpeakerDiarizationResult();
   private finished: boolean = false;
   private finishRequested: boolean = false;
   private asrTailObserved: boolean = false;
   private lastEndTime: number = 0;
 
-  constructor(observer: MeetingSpeakerSessionObserver, reason: string) {
+  constructor(observer: SpeakerDiarizationSessionObserver, reason: string) {
     this.observer = observer;
     this.result.degraded = true;
     this.result.degradedReason = reason;
@@ -91,7 +93,7 @@ class DegradedMeetingSpeakerSession implements MeetingSessionController {
 
   observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult): void {
     if (payload.result.length > 0) {
-      const utterance = new MeetingUtterance();
+      const utterance = new DiarizedUtterance();
       utterance.utteranceId = `u${this.result.utterances.length + 1}`;
       utterance.rawText = result.rawText;
       utterance.text = payload.result;
@@ -115,7 +117,7 @@ class DegradedMeetingSpeakerSession implements MeetingSessionController {
 
   decoratePayload(_payload: SpeechRecognitionResult): void {}
 
-  bestResult(reason?: string): MeetingResult {
+  bestResult(reason?: string): SpeakerDiarizationResult {
     if (reason !== undefined) this.result.degradedReason = reason;
     return this.result;
   }
@@ -413,7 +415,7 @@ function buildSessionConfig(params: StartParams, withTargetSpeaker: boolean,
 }
 
 const STOP_FALLBACK_DELAY_MS: number = 1500;
-const MEETING_FINISH_TIMEOUT_MS: number = 15000;
+const SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS: number = 15000;
 
 class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private context: Context;
@@ -445,8 +447,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private targetSpeakerEnhancementPipeline?: TargetSpeakerEnhancementPipeline;
   private targetSpeakerEnhancementEnabled: boolean = false;
   private finishShutdownGate: FinishShutdownGate;
-  private meetingSpeakerSession?: MeetingSessionController;
-  private meetingFinishBarrier?: MeetingFinishBarrier<SpeechRecognitionResult, MeetingResult>;
+  private speakerDiarizationSession?: SpeakerDiarizationSessionController;
+  private speakerDiarizationFinishBarrier?: SpeakerDiarizationFinishBarrier<
+    SpeechRecognitionResult, SpeakerDiarizationResult>;
   // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
   private engineCfgKey: string = '';
 
@@ -647,48 +650,49 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         this.handleAsrError(audioGeneration,
           new AsrError(AsrErrorCode.NATIVE_CRASH, `audio dispatch failed: ${message}`));
       });
-      if (strictBooleanParam(params.extraParams, 'enableMeetingSpeakerSeparation', false)) {
-        const meetingGeneration = startGeneration;
-        const meetingSessionId = params.sessionId;
+      if (strictBooleanParam(params.extraParams, 'enableSpeakerDiarization', false)) {
+        const diarizationGeneration = startGeneration;
+        const diarizationSessionId = params.sessionId;
         const processEntry = stringParam(params.extraParams,
-          'meetingSpeakerProcessEntry', './ets/meeting/MeetingSpeakerChild.ets');
+          'speakerDiarizationProcessEntry', './ets/diarization/SpeakerDiarizationChild.ets');
         const maxSpeakers = Math.round(clamp(
-          numberParam(params.extraParams, 'maxMeetingSpeakers', 4), 1, 4));
+          numberParam(params.extraParams, 'maxSpeakerCount', 4), 1, 4));
         const expectedActiveSpeakerCount = Math.round(clamp(
           numberParam(params.extraParams, 'expectedActiveSpeakerCount', 0), 0, 4));
-        const meetingObserver = new MeetingSpeakerSessionCallback(
+        const diarizationObserver = new SpeakerDiarizationSessionCallback(
           (update: SpeakerUpdate): void => {
-            if (!this.sessionStartGate.isCurrent(meetingGeneration) ||
-              this.currentSessionId !== meetingSessionId) return;
-            this.listener?.onSpeakerUpdate?.(meetingSessionId, update);
+            if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
+              this.currentSessionId !== diarizationSessionId) return;
+            this.listener?.onSpeakerUpdate?.(diarizationSessionId, update);
           },
-          (meetingResult: MeetingResult): void => {
-            if (!this.sessionStartGate.isCurrent(meetingGeneration) ||
-              this.currentSessionId !== meetingSessionId) return;
-            this.meetingFinishBarrier?.resolveSpeaker({
-              degraded: meetingResult.degraded,
-              value: meetingResult,
+          (diarizationResult: SpeakerDiarizationResult): void => {
+            if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
+              this.currentSessionId !== diarizationSessionId) return;
+            this.speakerDiarizationFinishBarrier?.resolveSpeaker({
+              degraded: diarizationResult.degraded,
+              value: diarizationResult,
             });
           });
         try {
-          this.meetingSpeakerSession = new MeetingSpeakerSession(
+          this.speakerDiarizationSession = new SpeakerDiarizationSession(
             this.context,
             SpeechRecognizeSdk.getWorkPath(),
             params.sessionId,
             processEntry,
             maxSpeakers,
             expectedActiveSpeakerCount,
-            meetingObserver);
+            diarizationObserver);
         } catch (e) {
-          this.meetingSpeakerSession = new DegradedMeetingSpeakerSession(
-            meetingObserver, `meeting speaker initialization failed: ${e}`);
+          this.speakerDiarizationSession = new DegradedSpeakerDiarizationSession(
+            diarizationObserver, `speaker diarization initialization failed: ${e}`);
         }
-        this.meetingFinishBarrier = new MeetingFinishBarrier(
-          MEETING_FINISH_TIMEOUT_MS,
-          (output: MeetingFinishOutput<SpeechRecognitionResult, MeetingResult>): void => {
-            this.completeMeetingSession(meetingGeneration, meetingSessionId, output);
+        this.speakerDiarizationFinishBarrier = new SpeakerDiarizationFinishBarrier(
+          SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS,
+          (output: SpeakerDiarizationFinishOutput<SpeechRecognitionResult, SpeakerDiarizationResult>): void => {
+            this.completeSpeakerDiarizationSession(
+              diarizationGeneration, diarizationSessionId, output);
           },
-          (): SpeechRecognitionResult => this.createMeetingTimeoutLastResult());
+          (): SpeechRecognitionResult => this.createSpeakerDiarizationTimeoutLastResult());
       }
       if (this.sessionStartGate.publishSession(startGeneration)) this.deliverSessionStarted(startGeneration);
     } catch (e) {
@@ -728,7 +732,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     // A replacement session resets this counter during startListening, so the old reservation cannot
     // leak across generations.
     this.audioBytesWritten += audio.byteLength;
-    this.meetingSpeakerSession?.append(audio);
+    this.speakerDiarizationSession?.append(audio);
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
       this.targetSpeakerEnhancementPipeline.append(pcm16ToFloat(audio));
     } else {
@@ -744,7 +748,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.finishRequested = true;
       this.lastFinishedSessionId = sessionId;
       this.lastAutoFinishedSessionId = sessionId;
-      this.requestMeetingFinish();
+      this.requestSpeakerDiarizationFinish();
       if (this.targetSpeakerEnhancementPipeline !== undefined) {
         this.targetSpeakerEnhancementPipeline.finish();
       } else {
@@ -803,7 +807,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (this.finishRequested) return;
     this.finishRequested = true;
     this.lastFinishedSessionId = sessionId;
-    this.requestMeetingFinish();
+    this.requestSpeakerDiarizationFinish();
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
       this.targetSpeakerEnhancementPipeline.finish();
     } else {
@@ -865,20 +869,20 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       payload,
       result.text,
       (): void => {
-        const meeting = this.meetingSpeakerSession;
-        if (meeting === undefined) {
+        const diarization = this.speakerDiarizationSession;
+        if (diarization === undefined) {
           this.listener?.onResult?.(sessionId, payload);
           return;
         }
-        meeting.observeAsrFinal(payload, result);
+        diarization.observeAsrFinal(payload, result);
         if (payload.isLast) {
-          this.meetingFinishBarrier?.resolveAsr(payload);
+          this.speakerDiarizationFinishBarrier?.resolveAsr(payload);
         } else {
           this.listener?.onResult?.(sessionId, payload);
         }
       },
       (): void => {
-        if (this.meetingSpeakerSession !== undefined) return;
+        if (this.speakerDiarizationSession !== undefined) return;
         if (this.sessionStartGate.isCurrent(generation) && this.currentSessionId === sessionId) {
           this.completeCurrentSession(generation);
         }
@@ -899,33 +903,34 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     }
   }
 
-  private requestMeetingFinish(): void {
-    const meeting = this.meetingSpeakerSession;
-    if (meeting === undefined) return;
-    this.meetingFinishBarrier?.begin();
-    meeting.finish();
+  private requestSpeakerDiarizationFinish(): void {
+    const diarization = this.speakerDiarizationSession;
+    if (diarization === undefined) return;
+    this.speakerDiarizationFinishBarrier?.begin();
+    diarization.finish();
   }
 
-  private completeMeetingSession(generation: number, sessionId: string,
-    output: MeetingFinishOutput<SpeechRecognitionResult, MeetingResult>): void {
+  private completeSpeakerDiarizationSession(generation: number, sessionId: string,
+    output: SpeakerDiarizationFinishOutput<SpeechRecognitionResult, SpeakerDiarizationResult>): void {
     if (!this.sessionStartGate.isCurrent(generation) || this.completeSent ||
       this.currentSessionId !== sessionId) return;
-    const meeting = this.meetingSpeakerSession;
-    if (meeting === undefined) return;
-    const meetingResult = output.speaker ?? meeting.bestResult('meeting finish timeout');
-    if (output.degraded && !meetingResult.degraded) {
-      meetingResult.degraded = true;
-      meetingResult.degradedReason = 'meeting finish timeout';
+    const diarization = this.speakerDiarizationSession;
+    if (diarization === undefined) return;
+    const diarizationResult = output.speaker ??
+      diarization.bestResult('speaker diarization finish timeout');
+    if (output.degraded && !diarizationResult.degraded) {
+      diarizationResult.degraded = true;
+      diarizationResult.degradedReason = 'speaker diarization finish timeout';
     }
-    meeting.decoratePayload(output.asr);
+    diarization.decoratePayload(output.asr);
     this.listener?.onResult?.(sessionId, output.asr);
     if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
-    this.listener?.onMeetingResult?.(sessionId, meetingResult);
+    this.listener?.onSpeakerDiarizationResult?.(sessionId, diarizationResult);
     if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
     this.completeCurrentSession(generation);
   }
 
-  private createMeetingTimeoutLastResult(): SpeechRecognitionResult {
+  private createSpeakerDiarizationTimeoutLastResult(): SpeechRecognitionResult {
     const payload = new SpeechRecognitionResult();
     payload.isFinal = true;
     payload.isLast = true;
@@ -948,8 +953,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.targetSpeakerEnhancementPipeline = undefined;
     this.targetSpeakerEnhancer = undefined;
     this.targetSpeakerEnhancementEnabled = false;
-    this.meetingSpeakerSession = undefined;
-    this.meetingFinishBarrier = undefined;
+    this.speakerDiarizationSession = undefined;
+    this.speakerDiarizationFinishBarrier = undefined;
     this.sessionStartGate.reset();
   }
 
@@ -958,11 +963,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const oldAudioDispatcher = this.audioDispatcher;
     const oldPipeline = this.targetSpeakerEnhancementPipeline;
     const oldEnhancer = this.targetSpeakerEnhancer;
-    const oldMeeting = this.meetingSpeakerSession;
+    const oldDiarization = this.speakerDiarizationSession;
     oldPipeline?.cancel();
     oldAudioDispatcher?.cancel();
     this.resetSessionState();
-    oldMeeting?.cleanup();
+    oldDiarization?.cleanup();
     oldEnhancer?.close();
     oldSession?.close();
   }
@@ -1040,7 +1045,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finishRequested = true;
     this.lastFinishedSessionId = sessionId;
     this.lastAutoFinishedSessionId = sessionId;
-    this.requestMeetingFinish();
+    this.requestSpeakerDiarizationFinish();
     this.targetSpeakerEnhancementPipeline?.cancel();
     this.audioDispatcher?.finish();
   }
@@ -1077,10 +1082,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     payload.speakerSimilarity = result.speakerScore;
     if (this.targetSpeakerEnhancementEnabled) payload.targetSpeakerEnhancementApplied = true;
     this.finalResultSent = true;
-    if (this.meetingSpeakerSession !== undefined) {
-      this.meetingSpeakerSession.observeAsrFinal(payload, result);
+    if (this.speakerDiarizationSession !== undefined) {
+      this.speakerDiarizationSession.observeAsrFinal(payload, result);
       if (payload.isLast) {
-        this.meetingFinishBarrier?.resolveAsr(payload);
+        this.speakerDiarizationFinishBarrier?.resolveAsr(payload);
       } else {
         this.listener?.onResult?.(sessionId, payload);
       }
@@ -1130,11 +1135,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         result.result = '';
         if (this.targetSpeakerEnhancementEnabled) result.targetSpeakerEnhancementApplied = true;
         this.finalResultSent = true;
-        if (this.meetingSpeakerSession !== undefined) {
+        if (this.speakerDiarizationSession !== undefined) {
           const asrTail = new AsrResult();
           asrTail.isLast = true;
-          this.meetingSpeakerSession.observeAsrFinal(result, asrTail);
-          this.meetingFinishBarrier?.resolveAsr(result);
+          this.speakerDiarizationSession.observeAsrFinal(result, asrTail);
+          this.speakerDiarizationFinishBarrier?.resolveAsr(result);
         } else {
           this.listener?.onResult?.(sessionId, result);
           if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
@@ -1433,7 +1438,7 @@ export class SpeechRecognizeSdk {
       callback.onError(errorCode, 'cached license is no longer valid; call setLicense again');
       return;
     }
-    if (AmphionRuntime.isReleasePending() || MeetingRuntimeLeaseRegistry.isReleasePending()) {
+    if (AmphionRuntime.isReleasePending() || SpeakerDiarizationRuntimeLeaseRegistry.isReleasePending()) {
       callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
         'Runtime release is still draining an active session');
       return;
@@ -1523,8 +1528,8 @@ export class SpeechRecognizeSdk {
    */
   static unloadModel(): void {
     SpeechRecognizeSdk.runtimePreparation.invalidateModel();
-    void MeetingRuntimeLeaseRegistry.beginRelease().then((): void => {
-      try { AmphionRuntime.unloadModel(); } finally { MeetingRuntimeLeaseRegistry.endRelease(); }
+    void SpeakerDiarizationRuntimeLeaseRegistry.beginRelease().then((): void => {
+      try { AmphionRuntime.unloadModel(); } finally { SpeakerDiarizationRuntimeLeaseRegistry.endRelease(); }
     });
   }
 
@@ -1539,18 +1544,18 @@ export class SpeechRecognizeSdk {
   private static invalidateRuntime(): void {
     SpeechRecognizeSdk.runtimePreparation.invalidateRuntime();
     // Promise 不可取消；清掉 wrapper 引用并让 core generation 拒绝旧任务提交。
-    void MeetingRuntimeLeaseRegistry.beginRelease().then((): void => {
-      try { AmphionRuntime.release(); } finally { MeetingRuntimeLeaseRegistry.endRelease(); }
+    void SpeakerDiarizationRuntimeLeaseRegistry.beginRelease().then((): void => {
+      try { AmphionRuntime.release(); } finally { SpeakerDiarizationRuntimeLeaseRegistry.endRelease(); }
     });
   }
 
   private static async invalidateRuntimeAsync(): Promise<void> {
     SpeechRecognizeSdk.runtimePreparation.invalidateRuntime();
-    await MeetingRuntimeLeaseRegistry.beginRelease();
+    await SpeakerDiarizationRuntimeLeaseRegistry.beginRelease();
     try {
       await AmphionRuntime.releaseAsync();
     } finally {
-      MeetingRuntimeLeaseRegistry.endRelease();
+      SpeakerDiarizationRuntimeLeaseRegistry.endRelease();
     }
   }
 

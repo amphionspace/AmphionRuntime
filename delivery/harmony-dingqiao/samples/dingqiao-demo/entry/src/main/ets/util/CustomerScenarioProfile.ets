@@ -14,8 +14,8 @@ export interface CustomerScenarioProfile {
   allowVoiceprint: boolean;
   rotateSession: boolean;
   lockAudioSource: boolean;
-  enableMeetingSpeakerSeparation?: boolean;
-  maxMeetingSpeakers?: number;
+  enableSpeakerDiarization?: boolean;
+  maxSpeakerCount?: number;
   expectedActiveSpeakerCount?: number;
 }
 
@@ -80,8 +80,8 @@ export const CUSTOMER_MEETING_MINUTES: CustomerScenarioProfile = {
   allowVoiceprint: false,
   rotateSession: false,
   lockAudioSource: true,
-  enableMeetingSpeakerSeparation: true,
-  maxMeetingSpeakers: 4,
+  enableSpeakerDiarization: true,
+  maxSpeakerCount: 4,
   expectedActiveSpeakerCount: 0
 };
 
@@ -106,13 +106,13 @@ export function customerProfileStartParams(sessionId: string, name: CustomerScen
   params.extraParams['vadEnd'] = profile.vadEnd;
   params.extraParams['maxAudioDuration'] = profile.maxAudioDuration;
   params.extraParams['endpointMaxUtteranceMs'] = profile.endpointMaxUtteranceMs;
-  params.extraParams['enableMeetingSpeakerSeparation'] =
-    profile.enableMeetingSpeakerSeparation ?? false;
-  if (profile.enableMeetingSpeakerSeparation) {
-    params.extraParams['maxMeetingSpeakers'] = profile.maxMeetingSpeakers ?? 4;
+  params.extraParams['enableSpeakerDiarization'] =
+    profile.enableSpeakerDiarization ?? false;
+  if (profile.enableSpeakerDiarization) {
+    params.extraParams['maxSpeakerCount'] = profile.maxSpeakerCount ?? 4;
     params.extraParams['expectedActiveSpeakerCount'] = profile.expectedActiveSpeakerCount ?? 0;
-    params.extraParams['meetingSpeakerProcessEntry'] =
-      './ets/meeting/MeetingSpeakerChild.ets';
+    params.extraParams['speakerDiarizationProcessEntry'] =
+      './ets/diarization/SpeakerDiarizationChild.ets';
   }
   if (profile.vadBegin !== undefined) params.extraParams['vadBegin'] = profile.vadBegin;
   return params;

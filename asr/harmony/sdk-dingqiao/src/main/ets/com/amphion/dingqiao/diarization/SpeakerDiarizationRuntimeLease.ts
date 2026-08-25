@@ -1,25 +1,25 @@
-export class MeetingRuntimeLease {
+export class SpeakerDiarizationRuntimeLease {
   private released: boolean = false;
 
   release(): void {
     if (this.released) return;
     this.released = true;
-    MeetingRuntimeLeaseRegistry.releaseOne();
+    SpeakerDiarizationRuntimeLeaseRegistry.releaseOne();
   }
 }
 
 /** Prevents model/runtime replacement from crossing child-process native work. */
-export class MeetingRuntimeLeaseRegistry {
+export class SpeakerDiarizationRuntimeLeaseRegistry {
   private static activeLeases: number = 0;
   private static releaseRequests: number = 0;
   private static idleResolvers: Array<() => void> = [];
 
-  static acquire(): MeetingRuntimeLease {
+  static acquire(): SpeakerDiarizationRuntimeLease {
     if (this.releaseRequests > 0) {
-      throw new Error('meeting speaker runtime release is pending');
+      throw new Error('speaker diarization runtime release is pending');
     }
     this.activeLeases += 1;
-    return new MeetingRuntimeLease();
+    return new SpeakerDiarizationRuntimeLease();
   }
 
   static beginRelease(): Promise<void> {

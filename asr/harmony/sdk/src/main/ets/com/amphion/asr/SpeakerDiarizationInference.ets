@@ -16,33 +16,33 @@ const SAMPLE_RATE: number = 16000;
 const MIN_EMBEDDING_SAMPLES: number = SAMPLE_RATE;
 const MAX_EMBEDDING_SAMPLES: number = Math.round(SAMPLE_RATE * 2.5);
 
-export class MeetingSpeakerSegment {
+export class SpeakerDiarizationSegment {
   startSample: number = 0;
   endSample: number = 0;
   speaker: number = 0;
   speakerMask: number = 0;
 }
 
-export class MeetingSpeakerEmbedding {
+export class SpeakerDiarizationEmbedding {
   localSpeaker: number = 0;
   speechSamples: number = 0;
   embedding: number[] = [];
 }
 
-export class MeetingSpeakerWindowResult {
-  segments: MeetingSpeakerSegment[] = [];
-  embeddings: MeetingSpeakerEmbedding[] = [];
+export class SpeakerDiarizationWindowResult {
+  segments: SpeakerDiarizationSegment[] = [];
+  embeddings: SpeakerDiarizationEmbedding[] = [];
   inferenceMs: number = 0;
 }
 
-/** Standalone meeting inference runtime intended to live only in the HAP child process. */
-export class MeetingSpeakerInference {
+/** Standalone diarization runtime intended to live only in the HAP child process. */
+export class SpeakerDiarizationInference {
   private extractor?: SpeakerEmbeddingExtractor;
   private closed: boolean = false;
 
   async load(segmentationModelPath: string, embeddingModelPath: string): Promise<void> {
-    if (this.closed) throw new Error('meeting speaker inference is closed');
-    const segmentationBytes = MeetingSpeakerInference.readBytes(segmentationModelPath);
+    if (this.closed) throw new Error('speaker diarization inference is closed');
+    const segmentationBytes = SpeakerDiarizationInference.readBytes(segmentationModelPath);
     await loadSpeakerTurnSegmentationModelAsync(segmentationBytes);
     const config = new SpeakerEmbeddingExtractorConfig();
     config.model = embeddingModelPath;
@@ -52,16 +52,16 @@ export class MeetingSpeakerInference {
       config, undefined, SAMPLE_RATE);
   }
 
-  async process(samples: Float32Array): Promise<MeetingSpeakerWindowResult> {
+  async process(samples: Float32Array): Promise<SpeakerDiarizationWindowResult> {
     if (this.closed || this.extractor === undefined) {
-      throw new Error('meeting speaker inference is not loaded');
+      throw new Error('speaker diarization inference is not loaded');
     }
     const startedMs = Date.now();
     const nativeSegments = await processSpeakerTurnSegmentationAsync(samples);
-    const result = new MeetingSpeakerWindowResult();
+    const result = new SpeakerDiarizationWindowResult();
     result.segments = nativeSegments.map(
-      (segment: SpeakerTurnSegmentationSegment): MeetingSpeakerSegment => {
-        const converted = new MeetingSpeakerSegment();
+      (segment: SpeakerTurnSegmentationSegment): SpeakerDiarizationSegment => {
+        const converted = new SpeakerDiarizationSegment();
         converted.startSample = segment.startSample;
         converted.endSample = segment.endSample;
         converted.speaker = segment.speaker;
@@ -75,7 +75,7 @@ export class MeetingSpeakerInference {
       if (channelSamples.length < MIN_EMBEDDING_SAMPLES) continue;
       const embedding = await this.computeEmbedding(channelSamples);
       if (embedding === undefined) continue;
-      const value = new MeetingSpeakerEmbedding();
+      const value = new SpeakerDiarizationEmbedding();
       value.localSpeaker = localSpeaker;
       value.speechSamples = channelSamples.length;
       value.embedding = Array.from(embedding);

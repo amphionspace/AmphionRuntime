@@ -25,9 +25,9 @@ export class SpeechRecognitionResult {
   endTime?: number;
   speakerSimilarity?: number;
   targetSpeakerEnhancementApplied?: boolean;
-  /** Stable only for final meeting utterances. */
+  /** Stable only for final utterances when speaker diarization is enabled. */
   utteranceId?: string;
-  /** Anonymous meeting speaker ID (S1...S4 or UNKNOWN). */
+  /** Anonymous speaker ID (S1...S4 or UNKNOWN). */
   speakerId?: string;
   secondarySpeakerIds?: string[];
 }
@@ -42,7 +42,7 @@ export class SpeakerUpdate {
   confidence: number = 0;
 }
 
-export class MeetingUtterance {
+export class DiarizedUtterance {
   utteranceId: string = '';
   rawText: string = '';
   text: string = '';
@@ -53,7 +53,7 @@ export class MeetingUtterance {
   overlap: boolean = false;
 }
 
-export class MeetingSpeakerTurn {
+export class SpeakerTurn {
   beginTime: number = 0;
   endTime: number = 0;
   speakerId: string = 'UNKNOWN';
@@ -61,9 +61,9 @@ export class MeetingSpeakerTurn {
   overlap: boolean = false;
 }
 
-export class MeetingResult {
-  utterances: MeetingUtterance[] = [];
-  speakerTurns: MeetingSpeakerTurn[] = [];
+export class SpeakerDiarizationResult {
+  utterances: DiarizedUtterance[] = [];
+  speakerTurns: SpeakerTurn[] = [];
   speakerCount: number = 0;
   degraded: boolean = false;
   degradedReason?: string;
@@ -102,7 +102,7 @@ export interface RecognitionListener {
   onEvent?(sessionId: string, eventCode: number, message: string): void;
   onResult?(sessionId: string, result: SpeechRecognitionResult): void;
   onSpeakerUpdate?(sessionId: string, update: SpeakerUpdate): void;
-  onMeetingResult?(sessionId: string, result: MeetingResult): void;
+  onSpeakerDiarizationResult?(sessionId: string, result: SpeakerDiarizationResult): void;
   onComplete?(sessionId: string, eventMessage?: string): void;
   onError?(sessionId: string, errorCode: number, message: string): void;
 }

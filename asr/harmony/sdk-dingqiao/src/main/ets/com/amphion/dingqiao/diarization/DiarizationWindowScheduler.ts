@@ -1,4 +1,4 @@
-export interface MeetingInferenceWindow {
+export interface DiarizationInferenceWindow {
   startSample: number;
   endSample: number;
   realEndSample: number;
@@ -8,12 +8,12 @@ export interface MeetingInferenceWindow {
 }
 
 /**
- * Produces frame-independent 10 s / 2.5 s meeting diarization windows.
+ * Produces frame-independent 10 s / 2.5 s streaming diarization windows.
  *
  * Early windows have less than 10 seconds of real audio and are left-padded by
  * the process client. realEndSample always bounds every public result.
  */
-export class MeetingWindowScheduler {
+export class DiarizationWindowScheduler {
   private readonly windowSamples: number;
   private readonly hopSamples: number;
   private readonly rightContextSamples: number;
@@ -29,7 +29,7 @@ export class MeetingWindowScheduler {
     rightContextMs: number = 1_500,
   ) {
     if (sampleRate <= 0 || windowMs <= 0 || hopMs <= 0 || rightContextMs < 0) {
-      throw new Error('Invalid meeting window configuration');
+      throw new Error('Invalid diarization window configuration');
     }
     this.windowSamples = Math.round(sampleRate * windowMs / 1_000);
     this.hopSamples = Math.round(sampleRate * hopMs / 1_000);
@@ -37,16 +37,16 @@ export class MeetingWindowScheduler {
     this.nextWindowEnd = this.hopSamples;
   }
 
-  acceptSamples(sampleCount: number): MeetingInferenceWindow[] {
+  acceptSamples(sampleCount: number): DiarizationInferenceWindow[] {
     if (this.finished) {
-      throw new Error('Meeting window scheduler is already finished');
+      throw new Error('Diarization window scheduler is already finished');
     }
     if (!Number.isInteger(sampleCount) || sampleCount < 0) {
       throw new Error('sampleCount must be a non-negative integer');
     }
 
     this.totalSamples += sampleCount;
-    const windows: MeetingInferenceWindow[] = [];
+    const windows: DiarizationInferenceWindow[] = [];
     while (this.totalSamples >= this.nextWindowEnd) {
       const endSample = this.nextWindowEnd;
       const stableEndSample = Math.max(endSample - this.rightContextSamples, 0);
@@ -64,9 +64,9 @@ export class MeetingWindowScheduler {
     return windows;
   }
 
-  finish(): MeetingInferenceWindow {
+  finish(): DiarizationInferenceWindow {
     if (this.finished) {
-      throw new Error('Meeting window scheduler is already finished');
+      throw new Error('Diarization window scheduler is already finished');
     }
     this.finished = true;
 
