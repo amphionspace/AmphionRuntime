@@ -1,4 +1,4 @@
-import { AudioInfo, StartParams } from 'amphion_dingqiao';
+import { AudioInfo, SpeakerDiarizationConfig, StartParams } from 'amphion_dingqiao';
 
 export type CustomerScenarioName =
   'tap-vad' | 'ptt' | 'transcription' | 'form' | 'meeting-minutes';
@@ -15,6 +15,7 @@ export interface CustomerScenarioProfile {
   allowVoiceprint: boolean;
   rotateSession: boolean;
   lockAudioSource: boolean;
+  speakerDiarizationMaxSpeakers?: number;
 }
 
 export const SESSION_ROTATE_AUDIO_MS = 55000;
@@ -76,13 +77,14 @@ export const CUSTOMER_MEETING_MINUTES: CustomerScenarioProfile = {
   name: 'meeting-minutes',
   audioSource: 'mic',
   vadEnd: 1500,
-  maxAudioDuration: 18000000,
+  maxAudioDuration: 7200000,
   recognizerMode: 'long',
   endpointMaxUtteranceMs: 60000,
   enablePartialResult: true,
   allowVoiceprint: false,
   rotateSession: false,
-  lockAudioSource: true
+  lockAudioSource: true,
+  speakerDiarizationMaxSpeakers: 4
 };
 
 export function customerScenarioProfile(name: CustomerScenarioName): CustomerScenarioProfile {
@@ -97,7 +99,8 @@ export function customerProfileUsesContinuousRecognition(profile: CustomerScenar
   return profile.rotateSession && profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS;
 }
 
-export function customerProfileStartParams(sessionId: string, name: CustomerScenarioName): StartParams {
+export function customerProfileStartParams(sessionId: string, name: CustomerScenarioName,
+  speakerDiarizationServiceUrl: string = ''): StartParams {
   const profile = customerScenarioProfile(name);
   const params = new StartParams();
   params.sessionId = sessionId;
@@ -107,6 +110,12 @@ export function customerProfileStartParams(sessionId: string, name: CustomerScen
   params.extraParams['maxAudioDuration'] = profile.maxAudioDuration;
   params.extraParams['recognizerMode'] = profile.recognizerMode;
   params.extraParams['endpointMaxUtteranceMs'] = profile.endpointMaxUtteranceMs;
+  if (profile.speakerDiarizationMaxSpeakers !== undefined) {
+    const diarization = new SpeakerDiarizationConfig();
+    diarization.maxSpeakers = profile.speakerDiarizationMaxSpeakers;
+    diarization.serviceUrl = speakerDiarizationServiceUrl;
+    params.speakerDiarization = diarization;
+  }
   if (profile.vadBegin !== undefined) params.extraParams['vadBegin'] = profile.vadBegin;
   return params;
 }

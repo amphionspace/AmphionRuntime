@@ -29,7 +29,8 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("CUSTOMER_FORM", source)
         self.assertIn("maxAudioDuration: 28800000", source)
         self.assertIn("CUSTOMER_MEETING_MINUTES", source)
-        self.assertIn("maxAudioDuration: 18000000", source)
+        self.assertIn("maxAudioDuration: 7200000", source)
+        self.assertIn("speakerDiarizationMaxSpeakers: 4", source)
         self.assertGreaterEqual(source.count("vadEnd: 1500"), 2)
         self.assertGreaterEqual(source.count("allowVoiceprint: false"), 2)
         self.assertGreaterEqual(source.count("rotateSession: false"), 2)
@@ -37,6 +38,14 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS", source)
         self.assertIn("enablePartialResult: true", source)
         self.assertIn("params.extraParams['endpointMaxUtteranceMs'] = profile.endpointMaxUtteranceMs", source)
+        self.assertIn("params.speakerDiarization = diarization", source)
+        for removed_name in (
+            "enableSpeakerDiarization",
+            "maxSpeakerCount",
+            "expectedActiveSpeakerCount",
+            "speakerDiarizationProcessEntry",
+        ):
+            self.assertNotIn(removed_name, source)
         self.assertIn("params.extraParams['recognizerMode'] = profile.recognizerMode", source)
         self.assertGreaterEqual(source.count("recognizerMode: 'short'"), 2)
         self.assertGreaterEqual(source.count("recognizerMode: 'long'"), 3)
@@ -87,7 +96,8 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         source = INDEX.read_text(encoding="utf-8")
 
         self.assertIn("CUSTOMER_SCENARIOS", source)
-        self.assertIn("customerProfileStartParams(sessionId, this.capturedCustomerScenario)", source)
+        self.assertIn("customerProfileStartParams(\n      sessionId, this.capturedCustomerScenario, serviceUrl)", source)
+        self.assertIn("this.capturedCustomerScenario === 'meeting-minutes'", source)
         self.assertIn("this.capturedCustomerScenario = this.customerScenario", source)
         self.assertIn("this.capturedAudioSource = this.audioSource", source)
         self.assertIn("this.capturedAudioSource", source)

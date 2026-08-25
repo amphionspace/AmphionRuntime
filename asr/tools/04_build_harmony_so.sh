@@ -60,5 +60,8 @@ export BUILD_SHARED_LIBS=ON
 
 OUT_DIR="$SHERPA_ROOT/build-ohos-arm64-v8a/install/lib"
 ls -lh "$OUT_DIR/libsherpa-onnx-c-api.so" "$OUT_DIR/libonnxruntime.so"
+python3 "$SCRIPT_DIR/verify_harmony_sherpa_symbols.py" \
+  --library "$OUT_DIR/libsherpa-onnx-c-api.so" \
+  --nm "$OHOS_SDK_NATIVE_DIR/llvm/bin/llvm-nm"
 
 echo "[DONE] 接下来运行 asr/tools/05_package_har_libs.sh"

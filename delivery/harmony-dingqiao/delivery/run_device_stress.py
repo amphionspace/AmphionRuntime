@@ -148,6 +148,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--settle-ms", type=int, default=0)
     parser.add_argument("--pace-ms", type=int, default=20)
+    parser.add_argument(
+        "--speaker-diarization-service-url",
+        default="",
+        help="Full incremental diarization window endpoint; required by customer-meeting-minutes.",
+    )
     parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--sample-interval", type=float, default=1.0)
     parser.add_argument("--post-run-observe", type=float, default=5.0)
@@ -209,6 +214,8 @@ def parse_args() -> argparse.Namespace:
         parser.error("--mode continuous-long-session requires at least 2 cycles")
     if args.mode == "continuous-long-session" and args.pace_ms < 20:
         parser.error("--mode continuous-long-session requires --pace-ms >= 20")
+    if args.mode == "customer-meeting-minutes" and not args.speaker_diarization_service_url:
+        parser.error("--mode customer-meeting-minutes requires --speaker-diarization-service-url")
     if (
         args.mode == "speaker-vad-turn"
         and not args.skip_target_content_check
@@ -1200,6 +1207,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         ",".join(sorted(finish_recovery_entry_ids)) or "none",
         "--ps", "stressSpeakerVadThreshold",
         str((args.speaker_vad_threshold if args.speaker_vad_threshold is not None else -2) + 2),
+        "--ps", "stressSpeakerDiarizationServiceUrl", args.speaker_diarization_service_url,
         check=False,
     )
     if start_result.returncode != 0 or "error" in (start_result.stdout + start_result.stderr).lower():

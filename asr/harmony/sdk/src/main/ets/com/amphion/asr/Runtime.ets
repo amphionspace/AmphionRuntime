@@ -1357,6 +1357,10 @@ export class AsrSession {
   private lastPartialText: string = '';
   private pcmBytesAccepted: number = 0;
   private totalPcmBytes: number = 0;
+  // Session-global origin of the current native stream. Only caller PCM advances this clock;
+  // synthetic finish padding and internal replay are deliberately excluded.
+  private streamStartSample: number = 0;
+  private publicSamplesFed: number = 0;
   private stablePrefixPcmBytes: number = 0;
   private nextStablePrefixCheckBytes: number = Number.MAX_SAFE_INTEGER;
   private utteranceIndex: number = 0;
@@ -1977,9 +1981,11 @@ export class AsrSession {
       (native.text.length > 0 || native.tokens.length > 0);
     this.initialSilenceTracker.observeAsrResult(native.text, native.tokens.length);
     const result = new AsrResult();
+    result.rawText = discardInitialSilenceResult ? '' : native.text;
     result.text = discardInitialSilenceResult ? '' : native.text;
     result.tokens = discardInitialSilenceResult ? [] : native.tokens;
-    result.timestamps = discardInitialSilenceResult ? [] : native.timestamps;
+    result.timestamps = discardInitialSilenceResult ? [] :
+      this.toSessionGlobalTimestamps(native.timestamps);
     result.isLast = isLast;
     const cleanPrefixSpeakerScore = this.svCleanPrefixSpeakerScore;
     const speakerScorePrepared = this.svSpeakerScorePrepared;
@@ -2056,6 +2062,7 @@ export class AsrSession {
       result.isTargetSpeaker = false;
       // A rejected Speaker VAD final is a lifecycle signal, not a transcription result. Redact
       // every textual/token field so direct Runtime clients cannot recover a known-uncertain tail.
+      result.rawText = '';
       result.text = '';
       result.tokens = [];
       result.timestamps = [];
@@ -2226,6 +2233,7 @@ export class AsrSession {
     replay: boolean = false): void {
     if (this.callbackGate.isClosed() ||
       (!replay && this.initialSilenceTracker.hasTimedOut())) return;
+    if (!replay) this.publicSamplesFed += rawSamples.length;
     if (!replay) this.initialSilenceTracker.observeAcousticSamples(rawSamples);
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
       this.effectiveSpeechBuffer.observe(rawSamples);
@@ -2312,6 +2320,7 @@ export class AsrSession {
       await this.feedChunkAndDecodeAsync(rawSamples, processedSamples, replay);
       return;
     }
+    if (!replay) this.publicSamplesFed += rawSamples.length;
     if (!replay) this.initialSilenceTracker.observeAcousticSamples(rawSamples);
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
       this.effectiveSpeechBuffer.observe(rawSamples);
@@ -2556,6 +2565,7 @@ export class AsrSession {
   private finishUtterance(restart: boolean, reason: string = 'final'): void {
     if (!restart) {
       if (!this.callbackGate.isClosed()) this.recognizer.reset(this.stream);
+      this.streamStartSample = this.publicSamplesFed;
       this.resetStablePrefixSchedule();
       this.speculativeTimestampsSnapshot = [];
       Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=soft-reset ` +
@@ -2599,6 +2609,7 @@ export class AsrSession {
       const previousGeneration = this.streamGeneration;
       this.stream = next;
       this.streamGeneration += 1;
+      this.streamStartSample = this.publicSamplesFed;
       this.resetStablePrefixSchedule();
       this.speculativeTimestampsSnapshot = [];
       previous.close();
@@ -2612,6 +2623,7 @@ export class AsrSession {
         this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `hardRestartStream: ${e}`));
       })) return;
       this.recognizer.reset(this.stream);
+      this.streamStartSample = this.publicSamplesFed;
       this.speculativeTimestampsSnapshot = [];
       Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=soft-reset-fallback ` +
         `reason=${reason} streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
@@ -3281,6 +3293,7 @@ export class AsrSession {
       `cutSample=${split.cutSample} reason=${finalizer.lastResolutionReason()}`);
 
     const speculativeStream = this.stream;
+    const speculativeStreamStartSample = this.streamStartSample;
     let prefixStream: OnlineStream | undefined;
     try {
       const preparedSamples = this.svPreparedPrefixSamples <= split.cutSample ?
@@ -3340,6 +3353,7 @@ export class AsrSession {
       prefixStream.close();
       prefixStream = undefined;
       this.stream = suffixStream;
+      this.streamStartSample = speculativeStreamStartSample + split.cutSample;
       this.speculativeTimestampsSnapshot = [];
       this.recognizerResetGeneration += 1;
       this.resetVadGateState();
@@ -3369,6 +3383,7 @@ export class AsrSession {
       if (prefixStream !== undefined) prefixStream.close();
       if (this.stream !== speculativeStream && !this.callbackGate.isClosed()) {
         this.stream = speculativeStream;
+        this.streamStartSample = speculativeStreamStartSample;
       }
       this.callbackGate.invoke((): void => {
         this.callback.onError?.(new AsrError(
@@ -3428,6 +3443,7 @@ export class AsrSession {
       `cutSample=${split.cutSample} reason=${finalizer.lastResolutionReason()}`);
 
     const speculativeStream = this.stream;
+    const speculativeStreamStartSample = this.streamStartSample;
     let prefixStream: OnlineStream | undefined;
     try {
       if (this.svPreparedPrefixTask !== undefined) await this.svPreparedPrefixTask;
@@ -3469,6 +3485,7 @@ export class AsrSession {
         prefixStream.close();
         prefixStream = undefined;
         this.stream = speculativeStream;
+        this.streamStartSample = speculativeStreamStartSample;
         return false;
       }
       if (!this.svSpeakerScorePrepared) {
@@ -3508,6 +3525,7 @@ export class AsrSession {
       prefixStream.close();
       prefixStream = undefined;
       this.stream = suffixStream;
+      this.streamStartSample = speculativeStreamStartSample + split.cutSample;
       this.speculativeTimestampsSnapshot = [];
       this.recognizerResetGeneration += 1;
       this.resetVadGateState();
@@ -3536,6 +3554,7 @@ export class AsrSession {
     } catch (e) {
       if (this.stream !== speculativeStream) speculativeStream.close();
       if (prefixStream !== undefined && this.stream !== prefixStream) prefixStream.close();
+      this.streamStartSample = speculativeStreamStartSample;
       if (this.callbackGate.isClosed()) return true;
       this.callbackGate.invoke((): void => {
         this.callback.onError?.(new AsrError(
@@ -3576,7 +3595,13 @@ export class AsrSession {
     const diarizationStartMs = Date.now();
     const segments = processSpeakerTurnSegmentation(finalizer.samples());
     const diarizationMs = Date.now() - diarizationStartMs;
-    const resolvedSegments = segments.map(
+    // Existing target Speaker VAD remains single-speaker-only. Speaker diarization consumes the
+    // full speakerMask through its separate path; do not silently reinterpret overlap here.
+    const resolvedSegments = segments
+      .filter((segment: SpeakerTurnSegmentationSegment): boolean =>
+        segment.speakerMask > 0 &&
+        (segment.speakerMask & (segment.speakerMask - 1)) === 0)
+      .map(
       (segment: SpeakerTurnSegmentationSegment): SpeakerTurnSegment => new SpeakerTurnSegment(
         segment.startSample,
         segment.endSample,
@@ -3799,7 +3824,11 @@ export class AsrSession {
     const segments = await processSpeakerTurnSegmentationAsync(finalizer.samples());
     if (!isCurrent()) return undefined;
     const diarizationMs = Date.now() - diarizationStartMs;
-    const resolvedSegments = segments.map(
+    const resolvedSegments = segments
+      .filter((segment: SpeakerTurnSegmentationSegment): boolean =>
+        segment.speakerMask > 0 &&
+        (segment.speakerMask & (segment.speakerMask - 1)) === 0)
+      .map(
       (segment: SpeakerTurnSegmentationSegment): SpeakerTurnSegment => new SpeakerTurnSegment(
         segment.startSample, segment.endSample, segment.speaker));
     const diarizedSplit = await this.resolveWithAsyncSpeakerScores(
@@ -3856,6 +3885,11 @@ export class AsrSession {
 
   private rememberSpeculativeTimestamps(timestamps: number[]): void {
     this.speculativeTimestampsSnapshot = timestamps.slice();
+  }
+
+  private toSessionGlobalTimestamps(timestamps: number[]): number[] {
+    const offsetSec = this.streamStartSample / ASR_SAMPLE_RATE_HZ;
+    return timestamps.map((timestamp: number): number => timestamp + offsetSec);
   }
 
   private dispatchSessionMetrics(): void {

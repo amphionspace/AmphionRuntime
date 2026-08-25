@@ -28,6 +28,8 @@ export interface SpeakerTurnSegmentationSegment {
   startSample: number;
   endSample: number;
   speaker: number;
+  /** Bit mask of active local channels; more than one bit means overlap. */
+  speakerMask: number;
 }
 export const loadSpeakerTurnSegmentationModelAsync: (model: Uint8Array) => Promise<void>;
 export const isSpeakerTurnSegmentationModelLoaded: () => boolean;

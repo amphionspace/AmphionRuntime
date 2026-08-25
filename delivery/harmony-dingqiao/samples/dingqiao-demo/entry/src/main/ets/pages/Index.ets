@@ -9,6 +9,8 @@ import {
   DingqiaoEventCode,
   LicenseActivationCallback,
   LicenseActivationResult,
+  SpeakerDiarizationUpdate,
+  SpeakerDiarizationResult,
   PrepareRuntimeCallback,
   RecognitionListener,
   SpeechRecognitionEngine,
@@ -53,10 +55,20 @@ const AUDIO_SOURCES: DemoAudioSource[] = ['mic', 'voiceRecognition', 'voiceCommu
 class FinalSegment {
   text: string;
   score?: number;
+  utteranceId?: string;
+  speakerIndex: number = -1;
+  revision: number = 0;
+  endTime: number = 0;
+  meeting: boolean = false;
 
-  constructor(text: string, score?: number) {
+  constructor(text: string, score?: number, utteranceId?: string, speakerIndex: number = -1,
+    endTime: number = 0, meeting: boolean = false) {
     this.text = text;
     this.score = score;
+    this.utteranceId = utteranceId;
+    this.speakerIndex = speakerIndex;
+    this.endTime = endTime;
+    this.meeting = meeting;
   }
 }
 
@@ -354,6 +366,11 @@ struct Index {
   private startListening(): void {
     if (!this.runtimeReady) return;
     if (this.listening || this.stoppingListening || this.replaying || this.playingCapture) return;
+    if (this.customerScenario === 'meeting-minutes' &&
+      this.speakerDiarizationServiceUrl().length === 0) {
+      this.toast('会议角色分离服务未配置');
+      return;
+    }
     this.startTapMs = Date.now();
     this.finalSegments = [];
     this.partialText = '';
@@ -479,7 +496,10 @@ struct Index {
   }
 
   private buildCapturedStartParams(sessionId: string): StartParams {
-    const startParams = customerProfileStartParams(sessionId, this.capturedCustomerScenario);
+    const serviceUrl = this.capturedCustomerScenario === 'meeting-minutes' ?
+      this.speakerDiarizationServiceUrl() : '';
+    const startParams = customerProfileStartParams(
+      sessionId, this.capturedCustomerScenario, serviceUrl);
     const extra = startParams.extraParams;
     const profile = customerScenarioProfile(this.capturedCustomerScenario);
     extra['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
@@ -501,12 +521,22 @@ struct Index {
     return startParams;
   }
 
+  private speakerDiarizationServiceUrl(): string {
+    const ctx = getContext(this) as common.UIAbilityContext;
+    return ctx.resourceManager.getStringSync(
+      $r('app.string.speaker_diarization_service_url').id).trim();
+  }
+
   private scenarioLabel(name: CustomerScenarioName): string {
     if (name === 'tap-vad') return '点击 + VAD';
     if (name === 'transcription') return '长语音';
     if (name === 'form') return '填单';
     if (name === 'meeting-minutes') return '会议纪要';
     return '短语音 PTT';
+  }
+
+  private meetingSpeakerLabel(speakerIndex: number): string {
+    return speakerIndex < 0 ? '说话人' : `说话人 ${speakerIndex + 1}`;
   }
 
   private selectCustomerScenario(name: CustomerScenarioName): void {
@@ -874,6 +904,11 @@ struct Index {
       this.stoppingListening = false;
     }
     if (sid.length > 0) {
+      if (this.capturedCustomerScenario === 'meeting-minutes') {
+        this.loading = true;
+        this.loadingHint = '正在生成纪要';
+        this.status = '正在生成纪要';
+      }
       this.engine?.finish(sid);
     } else if (waitsForColdEngine) {
       if (this.coldStartPttGate.captureStopped(coldStartGeneration)) {
@@ -998,11 +1033,46 @@ struct Index {
       this.stopCapture();
       this.sessionId = '';
       this.writeSdkCaptureMetadataBestEffort();
-      const next = this.captureReady ?
-        'SDK PCM 已保存 · 可试听或原样重新识别 · 模型已卸载' :
-        '模型已卸载 · 运行时常驻 · 点击开始识别按需加载';
+      const next = this.capturedCustomerScenario === 'meeting-minutes' ?
+        '纪要已生成 · 模型已卸载' : (this.captureReady ?
+          'SDK PCM 已保存 · 可试听或原样重新识别 · 模型已卸载' :
+          '模型已卸载 · 运行时常驻 · 点击开始识别按需加载');
       this.releaseModel(next);
     }
+  }
+
+  handleSpeakerDiarizationUpdate(sessionId: string, update: SpeakerDiarizationUpdate): void {
+    if (sessionId === this.replaySessionId) return;
+    let latestEnd = 0;
+    for (let i = 0; i < this.finalSegments.length; i++) {
+      latestEnd = Math.max(latestEnd, this.finalSegments[i].endTime);
+    }
+    if (update.endTime < latestEnd - 60000) return;
+    const next = this.finalSegments.slice();
+    for (let i = 0; i < next.length; i++) {
+      if (next[i].utteranceId !== update.utteranceId || next[i].revision >= update.revision) continue;
+      const replacement = new FinalSegment(
+        next[i].text, next[i].score, next[i].utteranceId, update.speakerIndex,
+        next[i].endTime, true);
+      replacement.revision = update.revision;
+      next[i] = replacement;
+      this.finalSegments = next;
+      return;
+    }
+  }
+
+  handleSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    if (sessionId === this.replaySessionId) return;
+    const next: FinalSegment[] = [];
+    for (let i = 0; i < result.utterances.length; i++) {
+      const utterance = result.utterances[i];
+      next.push(new FinalSegment(
+        utterance.text, undefined, utterance.utteranceId, utterance.speakerIndex,
+        utterance.endTime, true));
+    }
+    this.finalSegments = next;
+    this.loading = false;
+    this.status = result.degraded ? '纪要已生成 · 角色分离已降级' : '纪要已生成';
   }
 
   private async finishAutoEndedCapture(): Promise<void> {
@@ -1088,7 +1158,13 @@ struct Index {
   private appendFinal(result: SpeechRecognitionResult): void {
     if (result.result.length === 0) return;
     const next = this.finalSegments.slice();
-    next.push(new FinalSegment(result.result, result.speakerSimilarity));
+    next.push(new FinalSegment(
+      result.result,
+      result.speakerSimilarity,
+      result.utteranceId,
+      result.speakerIndex,
+      result.endTime ?? 0,
+      this.capturedCustomerScenario === 'meeting-minutes'));
     this.finalSegments = next;
   }
 
@@ -1302,6 +1378,10 @@ struct Index {
         }
         ForEach(this.finalSegments, (item: FinalSegment, index: number) => {
           Text() {
+            if (item.meeting) {
+              Span(`${this.meetingSpeakerLabel(item.speakerIndex)} `)
+                .fontColor(BRAND_ACCENT).fontWeight(FontWeight.Bold)
+            }
             if (item.score !== undefined) {
               Span(`[声纹相似度 ${item.score.toFixed(2)}] `).fontColor(BRAND_ACCENT).fontWeight(FontWeight.Bold)
             }
@@ -1418,6 +1498,14 @@ class DemoRecognitionListener implements RecognitionListener {
 
   onResult(sessionId: string, result: SpeechRecognitionResult): void {
     this.owner.handleResult(sessionId, result);
+  }
+
+  onSpeakerDiarizationUpdate(sessionId: string, update: SpeakerDiarizationUpdate): void {
+    this.owner.handleSpeakerDiarizationUpdate(sessionId, update);
+  }
+
+  onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    this.owner.handleSpeakerDiarizationResult(sessionId, result);
   }
 
   onComplete(sessionId: string, _eventMessage: string): void {
