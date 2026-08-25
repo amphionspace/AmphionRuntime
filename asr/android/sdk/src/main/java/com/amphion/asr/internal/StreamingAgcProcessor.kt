@@ -21,7 +21,7 @@ internal interface AgcBackend : Closeable {
 internal class StreamingAgcProcessor(
     sampleRate: Int,
     private val backendFactory: () -> AgcBackend = { NativeAgcBackend(sampleRate) },
-) : Closeable {
+) : AgcFrameProcessor {
 
     private val frameSamples = (sampleRate / FRAMES_PER_SECOND).also {
         require(sampleRate > 0 && sampleRate % FRAMES_PER_SECOND == 0) {
@@ -32,7 +32,7 @@ internal class StreamingAgcProcessor(
     private var backend: AgcBackend? = null
     private var closed = false
 
-    fun process(samples: FloatArray): List<ProcessedAudioFrame> {
+    override fun process(samples: FloatArray): List<ProcessedAudioFrame> {
         check(!closed) { "AGC processor is closed" }
         if (samples.isEmpty()) return emptyList()
         val merged = if (carry.isEmpty()) samples else carry + samples
@@ -57,7 +57,7 @@ internal class StreamingAgcProcessor(
         return listOf(ProcessedAudioFrame(rawOutput, processedOutput))
     }
 
-    fun flush(): List<ProcessedAudioFrame> {
+    override fun flush(): List<ProcessedAudioFrame> {
         check(!closed) { "AGC processor is closed" }
         if (carry.isEmpty()) return emptyList()
 
