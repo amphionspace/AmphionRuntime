@@ -41,7 +41,7 @@ internal object DingqiaoEngineConfig {
         require(params.online == DingqiaoOnlineMode.OFFLINE) {
             "only offline mode is supported"
         }
-        validateRecognizerMode(params)
+        val rule3Policy = rule3Policy(params, startParams)
         @Suppress("UNCHECKED_CAST")
         val sysLexicon = params.extraParams["sysGeneralLexicon"] as? List<String>
             ?: (params.extraParams["sysGeneralLexicon"] as? List<*>)?.mapNotNull { it?.toString() }
@@ -64,7 +64,7 @@ internal object DingqiaoEngineConfig {
             .endpointRules(
                 EndpointRules(
                     rule2MinTrailingSilenceSec = 2.0f,
-                    rule3MinUtteranceLengthSec = endpointMaxUtteranceSec(startParams),
+                    rule3MinUtteranceLengthSec = rule3Policy.minUtteranceSec,
                 ),
             )
             .disablePrepack(compatibleBoolean(params.extraParams["disablePrepack"], true))
@@ -144,6 +144,29 @@ internal object DingqiaoEngineConfig {
             ?: DEFAULT_ENDPOINT_MAX_UTTERANCE_MS
         return (durationMs / 1000.0).toFloat().takeIf { it.isFinite() && it > 0f }
             ?: (DEFAULT_ENDPOINT_MAX_UTTERANCE_MS / 1000.0).toFloat()
+    }
+
+    data class Rule3Policy(
+        val mode: String,
+        val enabled: Boolean,
+        val minUtteranceSec: Float,
+    )
+
+    fun rule3Policy(params: CreateEngineParams, startParams: StartParams?): Rule3Policy {
+        val mode = (startParams?.extraParams?.get("recognizerMode")
+            ?: params.extraParams["recognizerMode"])
+            ?.toString()
+            ?.trim()
+            ?.lowercase()
+            ?: "long"
+        require(mode == "short" || mode == "long") {
+            "recognizerMode must be short or long"
+        }
+        return Rule3Policy(
+            mode = mode,
+            enabled = mode == "short",
+            minUtteranceSec = if (mode == "short") endpointMaxUtteranceSec(startParams) else -1f,
+        )
     }
 
     fun maxAudioDurationMs(startParams: StartParams): Long {
@@ -245,14 +268,6 @@ internal object DingqiaoEngineConfig {
 
     private fun asFloat(raw: Any?, defaultValue: Float): Float =
         finiteDouble(raw)?.toFloat() ?: defaultValue
-
-    private fun validateRecognizerMode(params: CreateEngineParams) {
-        val raw = params.extraParams["recognizerMode"] ?: return
-        val mode = raw.toString().trim().lowercase()
-        require(mode == "short" || mode == "long") {
-            "recognizerMode must be short or long"
-        }
-    }
 
     private fun finiteLong(raw: Any?): Long? = finiteDouble(raw)?.toLong()
 

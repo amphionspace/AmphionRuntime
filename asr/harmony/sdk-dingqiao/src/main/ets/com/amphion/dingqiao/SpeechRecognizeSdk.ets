@@ -8,7 +8,7 @@ import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
 import { DiagnosticsModule } from './DiagnosticsModule';
 import { FinishShutdownGate } from './FinishShutdownGate';
-import { endpointMaxUtteranceSec, endpointRecognizerConfigKey } from './EndpointRulePolicy';
+import { endpointRecognizerConfigKey, rule3Policy } from './EndpointRulePolicy';
 import { finiteNumberParam } from './NumericParam';
 import { rejectedFinalCompletesSession } from './RejectedFinalLifecycle';
 import { SessionAudioDispatcher } from './SessionAudioDispatcher';
@@ -249,8 +249,8 @@ function buildAsrConfig(context: Context, params: CreateEngineParams, startParam
     context, parseLexicon(params.extraParams['sysGeneralLexicon']));
   config.vadConfig.activeEndpointSilenceMs = vadEndMs(startParams);
   config.endpointRules.rule2MinTrailingSilenceSec = 2.0;
-  config.endpointRules.rule3MinUtteranceLengthSec =
-    endpointMaxUtteranceSec(startParams?.extraParams ?? {});
+  const endpointRule3 = rule3Policy(params.extraParams, startParams?.extraParams ?? {});
+  config.endpointRules.rule3MinUtteranceLengthSec = endpointRule3.minUtteranceSec;
   // 默认跳过 prepack，优先降低冷启动和峰值内存；host 可显式传 false 恢复吞吐优先模式。
   config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', true);
   if (withTargetSpeaker) {
@@ -430,7 +430,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   // endpoint rule3 属于 recognizer 配置，变化时必须重建引擎。
   private computeEngineCfgKey(withTargetSpeaker: boolean, withSpeakerVad: boolean,
     params?: StartParams): string {
-    return endpointRecognizerConfigKey(withTargetSpeaker, withSpeakerVad, params?.extraParams ?? {});
+    return endpointRecognizerConfigKey(withTargetSpeaker, withSpeakerVad, this.params.extraParams,
+      params?.extraParams ?? {});
   }
 
   setListener(listener: RecognitionListener): void { this.listener = listener; }

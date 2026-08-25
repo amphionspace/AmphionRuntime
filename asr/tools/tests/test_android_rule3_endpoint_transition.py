@@ -12,9 +12,17 @@ DINGQIAO_ENGINE = ROOT / (
     "asr/android/sdk-dingqiao/src/main/java/com/amphion/dingqiao/"
     "DingqiaoRecognitionEngine.kt"
 )
+DINGQIAO_CONFIG = ROOT / (
+    "asr/android/sdk-dingqiao/src/main/java/com/amphion/dingqiao/"
+    "DingqiaoEngineConfig.kt"
+)
 JNI_PATCH = ROOT / (
     "third_party/patches/sherpa-amphion/"
     "0020-feat-android-expose-rule3-checkpoint.patch"
+)
+RULE_DISABLE_PATCH = ROOT / (
+    "third_party/patches/sherpa-amphion/"
+    "0022-feat-asr-disable-endpoint-rule.patch"
 )
 
 
@@ -54,6 +62,15 @@ class AndroidRule3EndpointTransitionTest(unittest.TestCase):
         source = ENGINE_IMPL.read_text(encoding="utf-8")
 
         self.assertIn("if (pool.endpointRules != other.endpointRules) return false", source)
+
+    def test_disabled_rule3_is_mapped_to_native_disable_sentinel(self) -> None:
+        source = DINGQIAO_CONFIG.read_text(encoding="utf-8")
+        patch = RULE_DISABLE_PATCH.read_text(encoding="utf-8")
+
+        self.assertIn('enabled = mode == "short"', source)
+        self.assertIn('else -1f', source)
+        self.assertIn("rule.min_utterance_length < 0", patch)
+        self.assertIn("NegativeMinimumUtteranceDisablesRule", patch)
 
 
 if __name__ == "__main__":

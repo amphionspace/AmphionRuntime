@@ -79,6 +79,9 @@ import {
 } from './RuntimeIdentity';
 
 const ASR_SAMPLE_RATE_HZ: number = 16000;
+const PCM16_BYTES_PER_SECOND: number = ASR_SAMPLE_RATE_HZ * 2;
+const LONG_FORM_STABLE_PREFIX_INTERVAL_SEC: number = 60;
+const STABLE_PREFIX_RETRY_BYTES: number = PCM16_BYTES_PER_SECOND;
 // Advance armed initial-silence decisions in fixed 20 ms slices so caller chunking cannot move a deadline.
 const INITIAL_DECISION_CHUNK_SAMPLES: number = ASR_SAMPLE_RATE_HZ / 50;
 // ORT-format models are optimized and prepacked during Session creation. Device A/B testing showed
@@ -1354,6 +1357,8 @@ export class AsrSession {
   private lastPartialText: string = '';
   private pcmBytesAccepted: number = 0;
   private totalPcmBytes: number = 0;
+  private stablePrefixPcmBytes: number = 0;
+  private nextStablePrefixCheckBytes: number = Number.MAX_SAFE_INTEGER;
   private utteranceIndex: number = 0;
   private recognizerResetGeneration: number = 0;
   private streamGeneration: number = 1;
@@ -1400,6 +1405,7 @@ export class AsrSession {
     this.agcIngress = new StreamingAgcIngress(new StreamingAgcProcessor(
       ASR_SAMPLE_RATE_HZ,
       (): NativeAgcBackend => new NativeAgcBackend(ASR_SAMPLE_RATE_HZ)));
+    this.resetStablePrefixSchedule();
     const initialSilenceTimeoutMs = sessionConfig.initialSilenceTimeoutMs ?? 0;
     const requestedConfirmationGraceMs = sessionConfig.initialSilenceConfirmationGraceMs ?? 0;
     const maxConfirmationGraceMs = config.targetSpeaker === undefined ? 0 :
@@ -1936,6 +1942,7 @@ export class AsrSession {
       return;
     }
 
+    if (!isFinal) this.maybeCommitStablePrefix();
     const r = this.recognizer.getResult(this.stream);
     this.rememberSpeculativeTimestamps(r.timestamps);
     this.initialSilenceTracker.observeAsrResult(r.text, r.tokens.length);
@@ -2549,6 +2556,7 @@ export class AsrSession {
   private finishUtterance(restart: boolean, reason: string = 'final'): void {
     if (!restart) {
       if (!this.callbackGate.isClosed()) this.recognizer.reset(this.stream);
+      this.resetStablePrefixSchedule();
       this.speculativeTimestampsSnapshot = [];
       Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=soft-reset ` +
         `reason=${reason} streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes}`);
@@ -2591,6 +2599,7 @@ export class AsrSession {
       const previousGeneration = this.streamGeneration;
       this.stream = next;
       this.streamGeneration += 1;
+      this.resetStablePrefixSchedule();
       this.speculativeTimestampsSnapshot = [];
       previous.close();
       Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} action=hard-restart ` +
@@ -2621,15 +2630,41 @@ export class AsrSession {
     this.resetSpeakerVadState();
   }
 
+  private resetStablePrefixSchedule(): void {
+    this.stablePrefixPcmBytes = 0;
+    const intervalSec = this.config.endpointRules.rule3MinUtteranceLengthSec < 0 ?
+      LONG_FORM_STABLE_PREFIX_INTERVAL_SEC : 0;
+    this.nextStablePrefixCheckBytes = intervalSec > 0 ?
+      Math.round(intervalSec * PCM16_BYTES_PER_SECOND) : Number.MAX_SAFE_INTEGER;
+  }
+
+  private maybeCommitStablePrefix(): void {
+    if (this.stablePrefixPcmBytes < this.nextStablePrefixCheckBytes ||
+      this.callbackGate.isClosed()) return;
+    const committed = this.recognizer.commitStablePrefix(this.stream);
+    if (committed) {
+      Logger.metric(`kind=STREAM_TRANSITION sessionId=${this.sessionId} ` +
+        `action=stable-prefix-commit streamGeneration=${this.streamGeneration} ` +
+        `totalPcmBytes=${this.totalPcmBytes}`);
+      this.stablePrefixPcmBytes = 0;
+      this.nextStablePrefixCheckBytes =
+        LONG_FORM_STABLE_PREFIX_INTERVAL_SEC * PCM16_BYTES_PER_SECOND;
+      return;
+    }
+    this.nextStablePrefixCheckBytes = this.stablePrefixPcmBytes + STABLE_PREFIX_RETRY_BYTES;
+  }
+
   private feedRecognizer(samples: Float32Array, isFinal: boolean): void {
     const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
     this.stream.acceptWaveform(wave);
+    this.stablePrefixPcmBytes += samples.length * 2;
     this.drain(isFinal);
   }
 
   private async feedRecognizerAsync(samples: Float32Array, isFinal: boolean): Promise<void> {
     const wave: Samples = { samples: samples, sampleRate: 16000 } as Samples;
     this.stream.acceptWaveform(wave);
+    this.stablePrefixPcmBytes += samples.length * 2;
     await this.drainAsync(isFinal);
   }
 
