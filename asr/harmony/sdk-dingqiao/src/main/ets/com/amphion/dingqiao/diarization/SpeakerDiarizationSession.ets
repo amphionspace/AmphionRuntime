@@ -3,9 +3,10 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 import {
   DiarizedUtterance,
+  SpeakerDiarizationDegradedReason,
   SpeakerDiarizationResult,
+  SpeakerDiarizationUpdate,
   SpeakerTurn,
-  SpeakerUpdate,
   SpeechRecognitionResult
 } from '../DingqiaoModels';
 import { OnlineSpeakerRegistry } from './OnlineSpeakerRegistry';
@@ -16,9 +17,14 @@ import {
 import {
   DiarizationProcessWindowResult,
   SpeakerDiarizationProcessClient,
-  SpeakerDiarizationProcessObserver
+  SpeakerDiarizationProcessObserver,
+  SpeakerDiarizationStorageError
 } from './SpeakerDiarizationProcessClient';
 import { SpeakerDiarizationRuntimeLease, SpeakerDiarizationRuntimeLeaseRegistry } from './SpeakerDiarizationRuntimeLease';
+import {
+  speakerIndexFromInternalId,
+  speakerIndexesFromInternalIds
+} from './SpeakerDiarizationSpeakerIndex';
 import {
   SpeakerTimelineTurn,
   SpeakerDiarizationTranscriptState,
@@ -38,7 +44,7 @@ interface DiarizationEmbeddingCheckpoint extends SpeakerDiarizationEmbeddingObse
 }
 
 export interface SpeakerDiarizationSessionObserver {
-  onSpeakerUpdate(update: SpeakerUpdate): void;
+  onSpeakerDiarizationUpdate(update: SpeakerDiarizationUpdate): void;
   onFinished(result: SpeakerDiarizationResult): void;
 }
 
@@ -47,7 +53,7 @@ export interface SpeakerDiarizationSessionController {
   observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult): void;
   finish(): void;
   decoratePayload(payload: SpeechRecognitionResult): void;
-  bestResult(reason?: string): SpeakerDiarizationResult;
+  bestResult(reason?: SpeakerDiarizationDegradedReason, message?: string): SpeakerDiarizationResult;
   cleanup(): void;
 }
 
@@ -64,7 +70,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
   private totalSamples: number = 0;
   private lastAsrEndMs: number = 0;
   private inferenceMs: number = 0;
-  private degradedReason?: string;
+  private degradedReason: SpeakerDiarizationDegradedReason = SpeakerDiarizationDegradedReason.NONE;
+  private degradedMessage?: string;
   private finishRequested: boolean = false;
   private processDrained: boolean = false;
   private asrTailObserved: boolean = false;
@@ -73,13 +80,13 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
   private runtimeLease?: SpeakerDiarizationRuntimeLease;
 
   constructor(context: Context, workPath: string, sessionId: string, processEntry: string,
-    maxSpeakers: number, expectedActiveSpeakerCount: number,
+    maxSpeakers: number,
     observer: SpeakerDiarizationSessionObserver) {
     this.observer = observer;
     this.maxSpeakers = maxSpeakers;
     this.registry = new OnlineSpeakerRegistry(maxSpeakers, 0.72, 0.05);
     this.globalClusterer = new SpeakerDiarizationGlobalClusterer(
-      maxSpeakers, expectedActiveSpeakerCount, 0.72);
+      maxSpeakers, 0, 0.72);
     this.runtimeLease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
     try {
       this.client = new SpeakerDiarizationProcessClient(
@@ -97,7 +104,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     try {
       this.client.append(audio);
     } catch (e) {
-      this.onDegraded(`speaker diarization audio spool failed: ${e}`);
+      this.onDegraded(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+        `speaker diarization audio spool failed: ${e}`);
     }
   }
 
@@ -124,8 +132,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     payload.utteranceId = utteranceId;
     const assignment = this.transcript.currentAssignment(utteranceId);
     if (assignment !== undefined) {
-      payload.speakerId = assignment.speakerId;
-      payload.secondarySpeakerIds = assignment.secondarySpeakerIds;
+      payload.speakerIndex = speakerIndexFromInternalId(assignment.speakerId, this.maxSpeakers);
+      payload.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
+        assignment.secondarySpeakerIds, this.maxSpeakers);
+      payload.speakerConfidence = assignment.confidence;
     }
     this.finalizeIfReady();
   }
@@ -140,12 +150,14 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     if (payload.utteranceId === undefined) return;
     const assignment = this.transcript.currentAssignment(payload.utteranceId);
     if (assignment === undefined) return;
-    payload.speakerId = assignment.speakerId;
-    payload.secondarySpeakerIds = assignment.secondarySpeakerIds;
+    payload.speakerIndex = speakerIndexFromInternalId(assignment.speakerId, this.maxSpeakers);
+    payload.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
+      assignment.secondarySpeakerIds, this.maxSpeakers);
+    payload.speakerConfidence = assignment.confidence;
   }
 
-  bestResult(reason?: string): SpeakerDiarizationResult {
-    return this.buildResult(reason ?? this.degradedReason);
+  bestResult(reason?: SpeakerDiarizationDegradedReason, message?: string): SpeakerDiarizationResult {
+    return this.buildResult(reason ?? this.degradedReason, message ?? this.degradedMessage);
   }
 
   cancel(): void {
@@ -161,6 +173,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     if (this.finished) return;
     this.inferenceMs += window.result.inferenceMs;
     const channelIds = new Map<number, string>();
+    const channelConfidences = new Map<number, number>();
     const assignments = this.registry.assignBatch(
       window.result.embeddings.map((item) => new Float32Array(item.embedding)),
       window.result.embeddings.map((item) => Math.round(item.speechSamples * 1000 / SAMPLE_RATE)),
@@ -169,6 +182,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
       const item = window.result.embeddings[i];
       const assignment = assignments[i];
       channelIds.set(item.localSpeaker, assignment.speakerId);
+      channelConfidences.set(item.localSpeaker, assignment.confidence);
       const endTimeMs = Math.round(window.realEndSample * 1000 / SAMPLE_RATE);
       const observation: SpeakerDiarizationEmbeddingObservation = {
         embedding: item.embedding.slice(),
@@ -220,13 +234,15 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
         endTime: Math.round(globalEnd * 1000 / SAMPLE_RATE),
         speakerId: primary,
         secondarySpeakerIds: secondary,
+        confidence: channelConfidences.get(segment.speaker) ?? 0,
+        overlap: (segment.speakerMask & (segment.speakerMask - 1)) !== 0,
         evidenceKey: `${window.jobId}:${segment.speaker}`,
         secondaryEvidenceKeys,
       });
     }
     const updates = this.transcript.applySpeakerTurns(turns);
     for (let i = 0; i < updates.length; i++) {
-      this.observer.onSpeakerUpdate(this.toPublicUpdate(updates[i]));
+      this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(updates[i]));
     }
     this.reclusterRecent(Math.round(window.realEndSample * 1000 / SAMPLE_RATE));
     this.appendCheckpoint('window-journal.jsonl', JSON.stringify({
@@ -255,17 +271,20 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     const finalUpdates = this.transcript.applyEvidenceRemap(
       this.evidenceRemap(observations, clustered.observationSpeakerIds));
     for (let i = 0; i < finalUpdates.length; i++) {
-      this.observer.onSpeakerUpdate(this.toPublicUpdate(finalUpdates[i]));
+      this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(finalUpdates[i]));
     }
     this.finished = true;
-    this.observer.onFinished(this.buildResult(this.degradedReason));
+    this.observer.onFinished(this.buildResult(this.degradedReason, this.degradedMessage));
   }
 
-  onDegraded(reason: string): void {
-    if (this.degradedReason === undefined) this.degradedReason = reason;
+  onDegraded(reason: SpeakerDiarizationDegradedReason, message: string): void {
+    if (this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
+    this.degradedReason = reason;
+    this.degradedMessage = message;
   }
 
-  private buildResult(reason?: string): SpeakerDiarizationResult {
+  private buildResult(reason: SpeakerDiarizationDegradedReason,
+    message?: string): SpeakerDiarizationResult {
     const result = new SpeakerDiarizationResult();
     const utterances = this.transcript.finalUtterances();
     for (let i = 0; i < utterances.length; i++) {
@@ -276,27 +295,31 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
       const turn = new SpeakerTurn();
       turn.beginTime = turns[i].beginTime;
       turn.endTime = turns[i].endTime;
-      turn.speakerId = turns[i].speakerId;
-      turn.secondarySpeakerIds = turns[i].secondarySpeakerIds;
-      turn.overlap = turn.secondarySpeakerIds.length > 0;
+      turn.speakerIndex = speakerIndexFromInternalId(turns[i].speakerId, this.maxSpeakers);
+      turn.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
+        turns[i].secondarySpeakerIds, this.maxSpeakers);
+      turn.confidence = turns[i].confidence ?? 0;
+      turn.overlap = turns[i].overlap ?? turn.secondarySpeakerIndexes.length > 0;
       result.speakerTurns.push(turn);
     }
     result.speakerCount = this.finalSpeakerCount > 0 ?
       this.finalSpeakerCount : this.registry.speakerIds().length;
-    result.degraded = reason !== undefined;
+    result.degraded = reason !== SpeakerDiarizationDegradedReason.NONE;
     result.degradedReason = reason;
+    result.degradedMessage = message;
     result.inferenceMs = this.inferenceMs;
     const audioMs = Math.max(1, this.totalSamples * 1000 / SAMPLE_RATE);
     result.rtf = this.inferenceMs / audioMs;
     return result;
   }
 
-  private toPublicUpdate(update: DiarizationTranscriptUpdate): SpeakerUpdate {
-    const result = new SpeakerUpdate();
+  private toPublicUpdate(update: DiarizationTranscriptUpdate): SpeakerDiarizationUpdate {
+    const result = new SpeakerDiarizationUpdate();
     result.utteranceId = update.utteranceId;
     result.revision = update.revision;
-    result.speakerId = update.speakerId;
-    result.secondarySpeakerIds = update.secondarySpeakerIds;
+    result.speakerIndex = speakerIndexFromInternalId(update.speakerId, this.maxSpeakers);
+    result.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
+      update.secondarySpeakerIds, this.maxSpeakers);
     result.beginTime = update.beginTime;
     result.endTime = update.endTime;
     result.confidence = update.confidence;
@@ -310,26 +333,36 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     result.text = value.text;
     result.beginTime = value.beginTime;
     result.endTime = value.endTime;
-    result.speakerId = value.speakerId;
-    result.secondarySpeakerIds = value.secondarySpeakerIds;
+    result.speakerIndex = speakerIndexFromInternalId(value.speakerId, this.maxSpeakers);
+    result.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
+      value.secondarySpeakerIds, this.maxSpeakers);
+    result.confidence = value.confidence ?? 0;
     result.overlap = value.overlap;
     return result;
   }
 
   private appendCheckpoint(name: string, line: string): void {
     const path = `${this.client.checkpointDir()}/${name}`;
-    const fp = fs.openSync(path,
-      fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.APPEND);
-    try { fs.writeSync(fp.fd, `${line}\n`); } finally { fs.closeSync(fp.fd); }
+    try {
+      const fp = fs.openSync(path,
+        fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.APPEND);
+      try { fs.writeSync(fp.fd, `${line}\n`); } finally { fs.closeSync(fp.fd); }
+    } catch (e) {
+      throw new SpeakerDiarizationStorageError(`speaker diarization checkpoint append failed: ${e}`);
+    }
   }
 
   private writeCheckpoint(name: string, content: string): void {
     const path = `${this.client.checkpointDir()}/${name}`;
     const temporary = `${path}.tmp`;
-    const fp = fs.openSync(temporary,
-      fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
-    try { fs.writeSync(fp.fd, content); } finally { fs.closeSync(fp.fd); }
-    fs.renameSync(temporary, path);
+    try {
+      const fp = fs.openSync(temporary,
+        fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+      try { fs.writeSync(fp.fd, content); } finally { fs.closeSync(fp.fd); }
+      fs.renameSync(temporary, path);
+    } catch (e) {
+      throw new SpeakerDiarizationStorageError(`speaker diarization checkpoint write failed: ${e}`);
+    }
   }
 
   private reclusterRecent(endTimeMs: number): void {
@@ -343,7 +376,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     const updates = this.transcript.applyEvidenceRemap(
       this.evidenceRemap(this.recentEmbeddingObservations, clustered.observationSpeakerIds), fromTime);
     for (let i = 0; i < updates.length; i++) {
-      this.observer.onSpeakerUpdate(this.toPublicUpdate(updates[i]));
+      this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(updates[i]));
     }
   }
 
