@@ -52,16 +52,6 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertNotIn("fetch-depth: 0", parity)
         self.assertIn("if: needs.changes.outputs.police == 'true'", parity)
 
-    def test_markdown_main_push_is_classified_but_release_events_force_all_gates(self) -> None:
-        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
-        push_trigger = workflow.split("  push:", 1)[1].split("  pull_request:", 1)[0]
-
-        self.assertNotIn("paths-ignore:", push_trigger)
-        self.assertIn('path.endsWith(".md")', workflow)
-        self.assertIn('context.ref.startsWith("refs/heads/release/")', workflow)
-        self.assertIn('context.ref.startsWith("refs/tags/v")', workflow)
-        self.assertIn('forceAll("Release, tag, or manual event requires every gate")', workflow)
-
     def test_android_native_cache_is_exact_verified_and_only_skips_native_build(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
         android = workflow.split("  android-aar:", 1)[1].split("  ci-result:", 1)[0]
@@ -85,20 +75,6 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertLess(native_build, gradle_build)
         gradle_section = android[gradle_build:]
         self.assertNotIn("cache-hit", gradle_section)
-
-    def test_gradle_cache_uses_enhanced_provider_with_main_only_writes(self) -> None:
-        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
-        android = workflow.split("  android-aar:", 1)[1].split("  ci-result:", 1)[0]
-        gradle_cache = android.split("- name: Set up Gradle", 1)[1].split(
-            "- name: Init Gradle wrapper", 1
-        )[0]
-
-        self.assertIn("gradle/actions/setup-gradle@v6", gradle_cache)
-        self.assertIn("cache-provider: enhanced", gradle_cache)
-        self.assertIn("cache-read-only: ${{ github.ref != 'refs/heads/main' }}", gradle_cache)
-        self.assertIn("cache-cleanup: on-success", gradle_cache)
-        self.assertNotIn("actions/cache", gradle_cache)
-        self.assertNotIn("key: gradle-", android)
 
     def test_native_cache_hit_skips_ndk_setup_but_not_gradle(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")

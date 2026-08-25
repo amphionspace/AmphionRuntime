@@ -13,7 +13,16 @@ class AgcSignalDomainsTest(unittest.TestCase):
     def test_android_limits_processed_pcm_to_asr(self) -> None:
         source = ANDROID.read_text(encoding="utf-8")
 
-        self.assertIn('processAgc("agc.process") { agcProcessor.process(copy) }', source)
+        self.assertIn(
+            "StreamingAgcIngress(StreamingAgcProcessor(sampleRate), ::guardAgcFrames)",
+            source,
+        )
+        self.assertIn("agcIngress.accept(copy, ::feedAndDecode)", source)
+        self.assertIn('agcIngress.flush("agc.flush(stop)", ::feedAndDecode)', source)
+        self.assertIn("private inline fun guardAgcFrames(", source)
+        self.assertIn("NativeGuard.run(operation, action)", source)
+        self.assertNotIn("agcProcessor.process", source)
+        self.assertNotIn("agcProcessor.flush", source)
         self.assertIn("stream.acceptWaveform(processedSamples, sampleRate)", source)
         self.assertIn(
             "val merged = if (vadCarry.isEmpty()) rawSamples else vadCarry + rawSamples",
@@ -27,7 +36,12 @@ class AgcSignalDomainsTest(unittest.TestCase):
     def test_harmony_limits_processed_pcm_to_asr_in_sync_and_async_lanes(self) -> None:
         source = HARMONY.read_text(encoding="utf-8")
 
-        self.assertEqual(2, source.count("this.agcProcessor.process(samples)"))
+        self.assertEqual(1, source.count("this.agcIngress.accept(samples"))
+        self.assertEqual(1, source.count("this.agcIngress.acceptAsync(samples"))
+        self.assertEqual(1, source.count("this.agcIngress.flush((frame: ProcessedAudioFrame)"))
+        self.assertEqual(1, source.count("this.agcIngress.flushAsync(async (frame: ProcessedAudioFrame)"))
+        self.assertNotIn("this.agcProcessor.process", source)
+        self.assertNotIn("this.agcProcessor.flush", source)
         self.assertEqual(1, source.count("this.feedRecognizer(processedSamples, false)"))
         self.assertEqual(1, source.count("await this.feedRecognizerAsync(processedSamples, false)"))
         self.assertEqual(
