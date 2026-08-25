@@ -91,6 +91,12 @@ internal class SessionImpl(
     private val recognizerResetGeneration = RecognizerResetGeneration()
     private val agcIngress = StreamingAgcIngress(StreamingAgcProcessor(sampleRate), ::guardAgcFrames)
 
+    private val stablePrefixIntervalSamples: Long = if (
+        engineImpl.endpointRules.rule3MinUtteranceLengthSec < 0f
+    ) LONG_FORM_STABLE_PREFIX_INTERVAL_SEC * sampleRate else 0L
+    private var stablePrefixSamples: Long = 0L
+    private var nextStablePrefixCheckSamples: Long = stablePrefixIntervalSamples
+
     /** speaker vad 打分终点按 native segment 的绝对 sample 位置推进，不依赖调用方 PCM 分块。 */
     private var svScoreScheduler: SpeakerVadScoreScheduler? = null
 
@@ -514,6 +520,7 @@ internal class SessionImpl(
         val resetGenerationBefore = recognizerResetGeneration.snapshot()
         val asrR = NativeGuard.run("stream.acceptWaveform+drain") {
             stream.acceptWaveform(processedSamples, sampleRate)
+            stablePrefixSamples += processedSamples.size
             drainDecoder(isFinal = false)
         }
         if (asrR is NativeResult.Err) {
@@ -700,6 +707,7 @@ internal class SessionImpl(
             return hasEvidence
         }
 
+        if (!isFinal) maybeCommitStablePrefix()
         val r = recognizer.getResult(stream)
         markInitialSpeechDetected(r)
         val decoded = discardInitialSilenceTimeoutResult(toAsrResult(r), initialSilenceTimeoutSent)
@@ -754,6 +762,7 @@ internal class SessionImpl(
             resetSpeakerVadState()
         }
         recognizerResetGeneration.markReset()
+        resetStablePrefixSchedule()
         lastPartialText = ""
     }
 
@@ -779,7 +788,27 @@ internal class SessionImpl(
             }
         }
         recognizerResetGeneration.markReset()
+        resetStablePrefixSchedule()
         lastPartialText = ""
+    }
+
+    private fun resetStablePrefixSchedule() {
+        stablePrefixSamples = 0L
+        nextStablePrefixCheckSamples = stablePrefixIntervalSamples
+    }
+
+    private fun maybeCommitStablePrefix() {
+        if (stablePrefixIntervalSamples <= 0L ||
+            stablePrefixSamples < nextStablePrefixCheckSamples
+        ) return
+        if (recognizer.commitStablePrefix(stream)) {
+            Logger.metric(
+                "kind=STREAM_TRANSITION sessionId=$sessionId action=stable-prefix-commit",
+            )
+            resetStablePrefixSchedule()
+        } else {
+            nextStablePrefixCheckSamples = stablePrefixSamples + sampleRate
+        }
     }
 
     private fun com.k2fsa.sherpa.onnx.OnlineEndpointReason.metricName(): String =
@@ -1144,6 +1173,9 @@ internal class SessionImpl(
     }
 
     private companion object {
+        /** long 模式禁用 Rule3 后，只在 native 内按此周期压缩稳定前缀。 */
+        const val LONG_FORM_STABLE_PREFIX_INTERVAL_SEC = 60L
+
         /** Initial-silence decisions advance in fixed 20 ms slices, independent of caller chunk size. */
         const val INITIAL_DECISION_CHUNKS_PER_SECOND = 50
 
