@@ -73,7 +73,7 @@ class ReleaseDefaultsTest(unittest.TestCase):
         native_build = android.index("bash asr/tools/04_build_android_so.sh arm64-v8a")
         gradle_build = android.index("Gradle assemble + unit test")
         self.assertLess(native_build, gradle_build)
-        gradle_section = android[gradle_build:]
+        gradle_section = android[gradle_build:].split("- name: Verify AAR contents", 1)[0]
         self.assertNotIn("cache-hit", gradle_section)
 
     def test_native_cache_hit_skips_ndk_setup_but_not_gradle(self) -> None:
@@ -86,7 +86,9 @@ class ReleaseDefaultsTest(unittest.TestCase):
         native_setup = android.split("- name: Install Android native SDK tools", 1)[1].split(
             "- name: Set up Gradle", 1
         )[0]
-        gradle_build = android.split("- name: Gradle assemble + unit test", 1)[1]
+        gradle_build = android.split("- name: Gradle assemble + unit test", 1)[1].split(
+            "- name: Verify AAR contents", 1
+        )[0]
 
         self.assertNotIn("ndk;${{ env.NDK_VERSION }}", sdk_setup)
         self.assertIn("steps.native-cache.outputs.cache-hit != 'true'", native_setup)
