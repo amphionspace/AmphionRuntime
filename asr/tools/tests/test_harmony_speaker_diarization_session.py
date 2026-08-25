@@ -23,6 +23,13 @@ CHILD_SERVICE = DIARIZATION / "SpeakerDiarizationChildService.ets"
 PROCESS_CLIENT = DIARIZATION / "SpeakerDiarizationProcessClient.ets"
 SESSION = DIARIZATION / "SpeakerDiarizationSession.ets"
 ADAPTER = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
+DEVICE_STRESS = ROOT / (
+    "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/util/DeviceStressTest.ets"
+)
+ENTRY_ABILITY = ROOT / (
+    "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/entryability/EntryAbility.ets"
+)
+PUBLIC_DOC = ROOT / "delivery/harmony-dingqiao/docs/语音识别SDK接口.md"
 TS_LOADER = ROOT / "asr/tools/tests/ts_extension_loader.mjs"
 
 
@@ -43,6 +50,22 @@ def run_node(script: str) -> None:
 
 
 class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
+    def test_meeting_stress_exports_the_final_diarization_timeline(self) -> None:
+        carrier = DEVICE_STRESS.read_text(encoding="utf-8")
+        self.assertIn("SpeakerDiarizationResult", carrier)
+        self.assertIn("onSpeakerDiarizationUpdate(", carrier)
+        self.assertIn("onSpeakerDiarizationResult(", carrier)
+        self.assertIn("speakerDiarizationResults", carrier)
+        self.assertIn("speakerTurnsHex", carrier)
+        meeting_cycle = carrier.split("async function runCustomerScenarioCycle", 1)[1].split(
+            "async function run", 1
+        )[0]
+        self.assertIn("events.speakerDiarizationResults === 1", meeting_cycle)
+        self.assertIn("events.speakerDiarizationDegraded === 0", meeting_cycle)
+        self.assertIn("events.speakerDiarizationSpeakerCount > 0", meeting_cycle)
+        self.assertIn("events.speakerTurnsJson !== '[]'", meeting_cycle)
+        self.assertIn("speakerDiarizationTerminalOrderOk", meeting_cycle)
+
     def test_public_diarization_api_is_generic_optional_and_does_not_reuse_asr_last_fields(self) -> None:
         models = PUBLIC_MODELS.read_text(encoding="utf-8")
         for field in ("utteranceId?", "speakerIndex: number = -1",
@@ -75,7 +98,7 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         ):
             self.assertNotIn(removed_name, models + adapter)
         self.assertIn("params.speakerDiarization", adapter)
-        self.assertIn("SPEAKER_DIARIZATION_PROCESS_ENTRY", adapter)
+        self.assertIn("resolveSpeakerDiarizationProcessEntry", adapter)
         for meeting_scoped_name in (
             "enableMeetingSpeakerSeparation",
             "maxMeetingSpeakers",
@@ -97,6 +120,30 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             assert.throws(() => validateSpeakerDiarizationConfig({{ maxSpeakers: 2.5 }}));
             """
         )
+
+    def test_child_process_entry_is_module_qualified_without_a_public_path_parameter(self) -> None:
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ resolveSpeakerDiarizationProcessEntry }} from {CONFIG_POLICY.as_uri()!r};
+
+            assert.equal(
+              resolveSpeakerDiarizationProcessEntry('amphion_asr_demo'),
+              'amphion_asr_demo/./ets/diarization/SpeakerDiarizationChild.ets'
+            );
+            assert.throws(() => resolveSpeakerDiarizationProcessEntry(''));
+            """
+        )
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        self.assertIn("hostContext.currentHapModuleInfo.name", adapter)
+        self.assertIn("resolveSpeakerDiarizationProcessEntry", adapter)
+
+        entry_ability = ENTRY_ABILITY.read_text(encoding="utf-8")
+        self.assertIn("SpeakerDiarizationChild", entry_ability)
+        self.assertIn("SpeakerDiarizationChild.toString()", entry_ability)
+
+        public_doc = PUBLIC_DOC.read_text(encoding="utf-8")
+        self.assertIn("SpeakerDiarizationChild.toString()", public_doc)
 
     def test_internal_speaker_ids_map_to_absolute_zero_based_public_indexes(self) -> None:
         run_node(

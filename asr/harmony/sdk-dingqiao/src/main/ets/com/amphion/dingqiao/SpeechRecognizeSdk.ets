@@ -2,6 +2,7 @@ import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionRuntime, AmphionO
 import { PoliceEnhancePipeline } from 'amphion_police';
 import { PoliceEngineConfig } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
+import { common } from '@kit.AbilityKit';
 import deviceInfo from '@ohos.deviceInfo';
 import hilog from '@ohos.hilog';
 import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
@@ -49,7 +50,7 @@ import {
   VoiceprintRegisterResult
 } from './DingqiaoModels';
 import {
-  SPEAKER_DIARIZATION_PROCESS_ENTRY,
+  resolveSpeakerDiarizationProcessEntry,
   validateSpeakerDiarizationConfig
 } from './diarization/SpeakerDiarizationConfigPolicy';
 import { SpeakerDiarizationFinishBarrier, SpeakerDiarizationFinishOutput } from
@@ -669,11 +670,14 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
             });
           });
         try {
+          const hostContext = this.context as common.UIAbilityContext;
+          const processEntry = resolveSpeakerDiarizationProcessEntry(
+            hostContext.currentHapModuleInfo.name);
           this.speakerDiarizationSession = new SpeakerDiarizationSession(
             this.context,
             SpeechRecognizeSdk.getWorkPath(),
             params.sessionId,
-            SPEAKER_DIARIZATION_PROCESS_ENTRY,
+            processEntry,
             maxSpeakers,
             diarizationObserver);
         } catch (e) {

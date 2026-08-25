@@ -280,7 +280,8 @@ SDK 自动估计实际发言人数，不接收参会名单人数或 hard K。证
 `speakerIndex + 1`。
 
 HarmonyOS 宿主 HAP 需在固定路径 `entry/src/main/ets/diarization/SpeakerDiarizationChild.ets`
-放置一次性 child adapter；路径不由每个 session 传入：
+放置一次性 child adapter；路径不由每个 session 传入。SDK 会读取当前 HAP module 名称并自动
+生成 `moduleName/./ets/diarization/SpeakerDiarizationChild.ets` 入口：
 
 ```ts
 import ChildProcess from '@ohos.app.ability.ChildProcess';
@@ -295,6 +296,25 @@ export default class SpeakerDiarizationChild extends ChildProcess {
   }
 }
 ```
+
+宿主还必须在 `EntryAbility.ets` 引用一次该类，防止构建优化删除 child entry：
+
+```ts
+import SpeakerDiarizationChild from '../diarization/SpeakerDiarizationChild';
+
+export default class EntryAbility extends UIAbility {
+  onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    SpeakerDiarizationChild.toString();
+    // 其余初始化代码……
+  }
+}
+```
+
+该隔离链路依赖 HarmonyOS `startArkChildProcess`。当前平台只在支持该能力的设备形态上运行；
+不支持的手机会正常保留 ASR，并通过 `onSpeakerDiarizationResult` 返回
+`degraded=true`、`degradedReason=PROCESS_UNAVAILABLE` 和具体 `degradedMessage`，不会在主进程
+静默执行 native fallback。产品发布门禁必须把该降级视为角色分离失败，不能只检查
+`onComplete`。
 
 ## 6. 回调
 
