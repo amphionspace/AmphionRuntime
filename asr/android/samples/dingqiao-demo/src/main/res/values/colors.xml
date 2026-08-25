@@ -14,6 +14,7 @@
     <color name="brand_text_muted">#9A9387</color>
 
     <color name="brand_recording">#B23B2E</color>
+    <color name="brand_success">#16803A</color>
 
     <color name="ic_launcher_background">#C15F3C</color>
 </resources>
