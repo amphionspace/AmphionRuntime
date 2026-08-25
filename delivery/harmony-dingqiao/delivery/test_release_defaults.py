@@ -93,6 +93,18 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn('sdkmanager "ndk;${NDK_VERSION}"', native_setup)
         self.assertNotIn("steps.native-cache.outputs.cache-hit", gradle_build)
 
+    def test_android_applies_pinned_sherpa_patches_before_cache_or_bridge_checks(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        android = workflow.split("  android-aar:", 1)[1].split("  ci-result:", 1)[0]
+
+        apply_patches = android.index("bash asr/tools/apply_sherpa_patches.sh")
+        self.assertLess(apply_patches, android.index("Compute Android native source fingerprint"))
+        self.assertLess(apply_patches, android.index("Verify Kotlin bridge in sync with submodule"))
+        patch_step = android.split("- name: Apply pinned sherpa-onnx patches", 1)[1].split(
+            "- name: Compute Android native source fingerprint", 1
+        )[0]
+        self.assertNotIn("cache-hit", patch_step)
+
     def test_ci_prefers_official_gradle_repositories(self) -> None:
         settings = (REPO_ROOT / "asr/android/settings.gradle.kts").read_text(
             encoding="utf-8"

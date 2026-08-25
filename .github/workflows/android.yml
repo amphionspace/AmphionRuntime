@@ -408,6 +408,9 @@ jobs:
       - name: Initialize sherpa-onnx submodule
         run: git submodule update --init third_party/sherpa-onnx
 
+      - name: Apply pinned sherpa-onnx patches
+        run: bash asr/tools/apply_sherpa_patches.sh
+
       - name: Compute Android native source fingerprint
         id: native-fingerprint
         run: |

@@ -61,9 +61,10 @@ changes
 
 `android-aar` 继续使用 `android-native-*` cache。key 是 sherpa gitlink、patch、
 `asr/native/**`、native 构建脚本、ABI/platform 和固定工具版本的完整 fingerprint。
-cache 不使用模糊 restore key；命中后必须用 manifest 校验 fingerprint、三份 `.so` 的
-SHA-256 和大小，验证通过才跳过 native 编译。Gradle assemble、unit test、AAR 内容检查
-和 bridge 对账始终执行。
+submodule 初始化后始终先应用固定 patch series，避免 cache hit 跳过 patch 后拿未打补丁
+的 upstream Kotlin 与 SDK bridge 对账。cache 不使用模糊 restore key；命中后必须用
+manifest 校验 fingerprint、三份 `.so` 的 SHA-256 和大小，验证通过才跳过 native 编译。
+Gradle assemble、unit test、AAR 内容检查和 bridge 对账始终执行。
 
 ### Gradle enhanced cache
 
