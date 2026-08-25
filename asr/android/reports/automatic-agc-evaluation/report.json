@@ -1,9 +1,5 @@
 {
-  "evaluation_axes": [
-    "overall_level_dbfs",
-    "snr_db",
-    "long_audio_time_region"
-  ],
+  "evaluation_axes": ["overall_level_dbfs", "snr_db", "long_audio_time_region"],
   "implementation_source_sha256": {
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt": "d183b5616f5a89de1716e0074fcae5b243eeab784a17c8675a879102ef514aac",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt": "4f695ac87cd2155c2b6deba03cc1d9feb3590d4d3eed93bb3c1f2e16e33d886b",
