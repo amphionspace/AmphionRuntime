@@ -60,8 +60,8 @@ internal class DingqiaoRecognitionEngine(
     @Volatile
     private var engine: AsrEngine? = null
 
-    private var activeEndpointMaxUtteranceSec: Float =
-        DingqiaoEngineConfig.endpointMaxUtteranceSec(null)
+    private var activeRule3Policy: DingqiaoEngineConfig.Rule3Policy =
+        DingqiaoEngineConfig.rule3Policy(createParams, null)
 
     @Volatile
     private var session: AsrSession? = null
@@ -341,25 +341,25 @@ internal class DingqiaoRecognitionEngine(
 
     /**
      * recognizer / VAD / 声纹模型是 engine 级资源。vadEnd 与 speaker VAD 窗口等纯运行时阈值通过
-     * [com.amphion.asr.SessionConfig] 逐会话生效；只有改变 native Rule3 的
+     * [com.amphion.asr.SessionConfig] 逐会话生效；改变 short/long 模式或 short 模式的
      * endpointMaxUtteranceMs 时才重建 recognizer，并由 Runtime 的配置兼容性检查隔离复用。
      */
     private fun buildEngine(startParams: StartParams? = null) {
-        val endpointMaxUtteranceSec = DingqiaoEngineConfig.endpointMaxUtteranceSec(startParams)
+        val rule3Policy = DingqiaoEngineConfig.rule3Policy(createParams, startParams)
         if (startParams == null) preloadedEngine?.let {
             engine = it
-            activeEndpointMaxUtteranceSec = endpointMaxUtteranceSec
+            activeRule3Policy = rule3Policy
             return
         }
         val lang = DingqiaoEngineConfig.mapLanguage(createParams.language)
         val config = DingqiaoEngineConfig.buildAsrConfig(createParams, speakerModelPath, startParams)
         engine = AmphionRuntime.create(appContext, lang, config)
-        activeEndpointMaxUtteranceSec = endpointMaxUtteranceSec
+        activeRule3Policy = rule3Policy
     }
 
     private fun ensureRecognizerConfig(startParams: StartParams) {
-        val requested = DingqiaoEngineConfig.endpointMaxUtteranceSec(startParams)
-        if (requested == activeEndpointMaxUtteranceSec) return
+        val requested = DingqiaoEngineConfig.rule3Policy(createParams, startParams)
+        if (requested == activeRule3Policy) return
         val previous = engine
         buildEngine(startParams)
         previous?.close()

@@ -5,6 +5,7 @@ import com.amphion.asr.AsrCallback
 import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrErrorCode
 import com.amphion.asr.AsrLanguage
+import com.amphion.asr.EndpointRules
 import com.amphion.asr.SessionConfig
 import com.amphion.asr.VadConfig
 import com.amphion.asr.TargetSpeakerConfig
@@ -89,6 +90,9 @@ internal class EngineImpl(
     /** 给 [SessionImpl] 读 VAD 主动 endpoint 阈值等参数；与 [vad] 是否非空解耦。 */
     internal val vadConfig: VadConfig
         get() = config.vadConfig
+
+    internal val endpointRules: EndpointRules
+        get() = config.endpointRules
 
     /** 目标说话人能力配置；null 表示未启用。 */
     internal val targetSpeakerConfig: TargetSpeakerConfig?

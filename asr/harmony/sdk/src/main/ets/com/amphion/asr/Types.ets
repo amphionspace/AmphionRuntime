@@ -1,3 +1,4 @@
+import { isValidRule3MinUtteranceSec } from './EndpointRuleValidation';
 import { isValidSpeakerMinimumSegment } from './TargetSpeakerConfigPolicy';
 
 export enum AsrLanguage {
@@ -129,8 +130,9 @@ export class AsrConfigBuilder {
   endpoint(value: boolean): AsrConfigBuilder { this.config.endpoint = value; return this; }
   endpointRules(value: EndpointRules): AsrConfigBuilder {
     if (value.rule1MinTrailingSilenceSec < 0 || value.rule2MinTrailingSilenceSec < 0 ||
-      value.rule3MinUtteranceLengthSec <= 0) {
-      throw new Error('endpoint rule silence values must be non-negative and rule3 must be positive');
+      !isValidRule3MinUtteranceSec(value.rule3MinUtteranceLengthSec)) {
+      throw new Error('endpoint rule silence values must be non-negative and ' +
+        'rule3 must be -1 or a positive finite number');
     }
     this.config.endpointRules = value;
     return this;

@@ -19,7 +19,7 @@
 ## 二、已知差异 / 需注明
 
 1. **License 为纯离线本地验签**：接口文档时序图画成联网鉴权（错误码 `1002200035` 描述为"鉴权服务器不可达"）。实际实现为**离线本地完整验权，无任何网络请求**；`setLicense` 为异步回调形态但不依赖网络，只校验并缓存授权，不拉起 Runtime 或加载模型。授权成功后必须显式调用 `prepareRuntime`，再创建引擎。`unloadRuntime` 保留已验证授权，可免重新 `setLicense` 再次 `prepareRuntime`。错误码 35 在离线实现下仅作兜底语义。
-2. **recognizerMode（short/long）**：两种值均接受，统一按 `long`（长语音流式）处理，不单独加载短语音模型；显式配置的 `vadBegin` 在两种值下均生效。
+2. **recognizerMode（short/long）**：两种模式使用同一流式模型，但 endpoint 语义不同。`short` 使用 `endpointMaxUtteranceMs` 作为单句硬上限；`long` 不做周期性 Rule3 硬切，只由自然静音或显式 `finish` 公开分段。long 会在 native 内压缩所有活跃 beam 已共同确认的 token/frame 前缀，该动作不产生 endpoint/final。`StartParams.extraParams` 可覆盖 engine 缺省模式；`vadBegin` 在两种模式下均生效。
 3. **会话级热词 `sessionGeneralLexicon`**：V1 暂不支持，仅支持系统级 `sysGeneralLexicon`（与接口文档一致）。
 4. **ITN（逆文本规整）**：鸿蒙与 Android 共用 WeText 规则和 FST；`itn=true` 时 final 会执行数字、单位和金额规整。数字字段中的 ASR 变体“么”仅在可信号码上下文或标准标识符形态下按“幺”处理，普通“这么/什么”保持原义。
 5. **TEN_VAD**：枚举保留但模型未打包，选择 `TEN_VAD` 会报错；当前统一使用 Silero VAD。

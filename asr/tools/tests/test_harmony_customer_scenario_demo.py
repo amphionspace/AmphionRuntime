@@ -37,12 +37,17 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS", source)
         self.assertIn("enablePartialResult: true", source)
         self.assertIn("params.extraParams['endpointMaxUtteranceMs'] = profile.endpointMaxUtteranceMs", source)
+        self.assertIn("params.extraParams['recognizerMode'] = profile.recognizerMode", source)
+        self.assertGreaterEqual(source.count("recognizerMode: 'short'"), 2)
+        self.assertGreaterEqual(source.count("recognizerMode: 'long'"), 3)
 
-    def test_long_profiles_disable_rotation_and_raise_the_native_endpoint_boundary(self) -> None:
+    def test_long_profiles_disable_rotation_and_periodic_rule3(self) -> None:
         profile = PROFILE.read_text(encoding="utf-8")
         index = INDEX.read_text(encoding="utf-8")
 
         self.assertIn("endpointMaxUtteranceMs: number", profile)
+        self.assertIn("recognizerMode: 'short' | 'long'", profile)
+        self.assertIn("recognizerMode: 'long'", profile)
         self.assertIn("customerProfileUsesContinuousRecognition(profile)", index)
         self.assertIn("extra['enableContinuousRecognition']", index)
         self.assertNotIn("this.rotateRecognitionSession", index)
