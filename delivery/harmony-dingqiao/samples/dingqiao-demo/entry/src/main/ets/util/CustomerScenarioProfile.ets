@@ -9,6 +9,7 @@ export interface CustomerScenarioProfile {
   vadBegin?: number;
   vadEnd: number;
   maxAudioDuration: number;
+  recognizerMode: 'short' | 'long';
   endpointMaxUtteranceMs: number;
   enablePartialResult: boolean;
   allowVoiceprint: boolean;
@@ -25,6 +26,7 @@ export const CUSTOMER_TAP_VAD: CustomerScenarioProfile = {
   vadBegin: 5000,
   vadEnd: 1600,
   maxAudioDuration: 20000,
+  recognizerMode: 'short',
   endpointMaxUtteranceMs: 20000,
   enablePartialResult: true,
   allowVoiceprint: true,
@@ -37,6 +39,7 @@ export const CUSTOMER_PTT: CustomerScenarioProfile = {
   audioSource: 'voiceCommunication',
   vadEnd: 1600,
   maxAudioDuration: 62000,
+  recognizerMode: 'short',
   endpointMaxUtteranceMs: 20000,
   enablePartialResult: true,
   allowVoiceprint: true,
@@ -49,6 +52,7 @@ export const CUSTOMER_TRANSCRIPTION: CustomerScenarioProfile = {
   audioSource: 'voiceRecognition',
   vadEnd: 1600,
   maxAudioDuration: 62000,
+  recognizerMode: 'long',
   endpointMaxUtteranceMs: 60000,
   enablePartialResult: true,
   allowVoiceprint: true,
@@ -61,6 +65,7 @@ export const CUSTOMER_FORM: CustomerScenarioProfile = {
   audioSource: 'mic',
   vadEnd: 1500,
   maxAudioDuration: 28800000,
+  recognizerMode: 'long',
   endpointMaxUtteranceMs: 60000,
   enablePartialResult: true,
   allowVoiceprint: false,
@@ -73,6 +78,7 @@ export const CUSTOMER_MEETING_MINUTES: CustomerScenarioProfile = {
   audioSource: 'mic',
   vadEnd: 1500,
   maxAudioDuration: 7200000,
+  recognizerMode: 'long',
   endpointMaxUtteranceMs: 60000,
   enablePartialResult: true,
   allowVoiceprint: false,
@@ -102,6 +108,7 @@ export function customerProfileStartParams(sessionId: string, name: CustomerScen
   params.extraParams['enablePartialResult'] = profile.enablePartialResult;
   params.extraParams['vadEnd'] = profile.vadEnd;
   params.extraParams['maxAudioDuration'] = profile.maxAudioDuration;
+  params.extraParams['recognizerMode'] = profile.recognizerMode;
   params.extraParams['endpointMaxUtteranceMs'] = profile.endpointMaxUtteranceMs;
   if (profile.speakerDiarizationMaxSpeakers !== undefined) {
     const diarization = new SpeakerDiarizationConfig();

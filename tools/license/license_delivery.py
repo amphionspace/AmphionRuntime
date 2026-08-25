@@ -31,7 +31,7 @@ from issue_license import DEFAULT_DEVICE_ID_SALT_ID, create_license_envelope
 
 
 SCHEMA_VERSION = 1
-SN_PATTERN = re.compile(r"^[A-Z0-9]+$")
+SN_PATTERN = re.compile(r"^[A-Z0-9-]+$")
 APPROVED_PLAN_FIELDS = (
     "request",
     "requestSha256",
@@ -85,7 +85,7 @@ def _normalize_sn(value: str) -> str:
     if not normalized:
         return ""
     if not SN_PATTERN.fullmatch(normalized):
-        raise LicenseDeliveryError("SN contains characters outside [A-Z0-9]")
+        raise LicenseDeliveryError("SN contains characters outside [A-Z0-9-]")
     return normalized
 
 

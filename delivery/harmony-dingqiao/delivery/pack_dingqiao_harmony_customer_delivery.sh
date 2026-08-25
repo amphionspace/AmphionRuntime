@@ -5,7 +5,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-VERSION="${AMPHION_RUNTIME_VERSION:-0.3.7}"
+VERSION="${AMPHION_RUNTIME_VERSION:-0.3.9}"
 BUILD_DATE="${AMPHION_BUILD_DATE:-$(date +%Y%m%d)}"
 FINAL_OUT_ROOT=""
 ASR_ONLY=false

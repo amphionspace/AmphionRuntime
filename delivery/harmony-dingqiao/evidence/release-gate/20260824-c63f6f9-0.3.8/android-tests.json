@@ -1,0 +1,44 @@
+{
+  "overall_status": "PASS",
+  "rerun_tasks": true,
+  "sherpa_submodule_commit": "6a93137244698c7b30b32b029fc350c685fd5749",
+  "source_commit": "c63f6f934324def9a3fda3462c0d093db1e38a14",
+  "suites": [
+    {
+      "errors": 0,
+      "failures": 0,
+      "module": "sdk",
+      "skipped": 0,
+      "tests": 44,
+      "variant": "debug"
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "module": "sdk",
+      "skipped": 0,
+      "tests": 44,
+      "variant": "release"
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "module": "sdk-dingqiao",
+      "skipped": 0,
+      "tests": 59,
+      "variant": "debug"
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "module": "sdk-dingqiao",
+      "skipped": 0,
+      "tests": 59,
+      "variant": "release"
+    }
+  ],
+  "total_errors": 0,
+  "total_failures": 0,
+  "total_skipped": 0,
+  "total_tests": 206
+}

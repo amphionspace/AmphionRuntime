@@ -180,6 +180,7 @@ if [[ -n "$HAP" ]]; then
   fi
   "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${HAP_MODEL_VERIFY_ARGS[@]}"
   "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --archive "$HAP"
+  "$PYTHON" "$SCRIPT_DIR/verify_harmony_native_abi.py" --hap "$HAP"
   "$PYTHON" - \
     "$HAP" \
     "$LICENSE_FILE" \

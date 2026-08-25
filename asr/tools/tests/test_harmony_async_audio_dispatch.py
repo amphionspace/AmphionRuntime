@@ -14,6 +14,10 @@ ADAPTER = (
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 )
 RUNTIME = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
+CORE_ENDPOINT_RULE_VALIDATION = (
+    REPO_ROOT
+    / "asr/harmony/sdk/src/main/ets/com/amphion/asr/EndpointRuleValidation.ts"
+)
 ADAPTER_ENDPOINT_POLICY = (
     REPO_ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/EndpointRulePolicy.ts"
@@ -241,17 +245,45 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         script = textwrap.dedent(
             f"""
             import assert from 'node:assert/strict';
-            import {{ endpointMaxUtteranceSec, endpointRecognizerConfigKey }} from {ADAPTER_ENDPOINT_POLICY.as_uri()!r};
+            import {{ endpointMaxUtteranceSec, endpointRecognizerConfigKey,
+              rule3Policy }} from {ADAPTER_ENDPOINT_POLICY.as_uri()!r};
+            import {{ isValidRule3MinUtteranceSec }} from
+              {CORE_ENDPOINT_RULE_VALIDATION.as_uri()!r};
 
             assert.equal(endpointMaxUtteranceSec({{}}), 20);
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: 60000 }}), 60);
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: '45000' }}), 45);
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: Number.NaN }}), 20);
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: 0 }}), 20);
+            assert.deepEqual(rule3Policy({{}}, {{ endpointMaxUtteranceMs: 60000 }}),
+              {{ mode: 'long', enabled: false, minUtteranceSec: -1 }});
+            assert.deepEqual(rule3Policy({{ recognizerMode: 'long' }},
+              {{ endpointMaxUtteranceMs: 60000 }}),
+              {{ mode: 'long', enabled: false, minUtteranceSec: -1 }});
+            assert.deepEqual(rule3Policy({{ recognizerMode: 'short' }},
+              {{ endpointMaxUtteranceMs: 60000 }}),
+              {{ mode: 'short', enabled: true, minUtteranceSec: 60 }});
+            assert.deepEqual(rule3Policy({{ recognizerMode: 'long' }},
+              {{ recognizerMode: 'short', endpointMaxUtteranceMs: 60000 }}),
+              {{ mode: 'short', enabled: true, minUtteranceSec: 60 }});
+            assert.throws(() => rule3Policy({{}}, {{ recognizerMode: 'invalid' }}),
+              /recognizerMode must be short or long/);
             assert.notEqual(
-              endpointRecognizerConfigKey(false, false, {{ endpointMaxUtteranceMs: 20000 }}),
-              endpointRecognizerConfigKey(false, false, {{ endpointMaxUtteranceMs: 60000 }}),
+              endpointRecognizerConfigKey(false, false, {{}},
+                {{ recognizerMode: 'short', endpointMaxUtteranceMs: 20000 }}),
+              endpointRecognizerConfigKey(false, false, {{}},
+                {{ recognizerMode: 'short', endpointMaxUtteranceMs: 60000 }}),
             );
+            assert.notEqual(
+              endpointRecognizerConfigKey(false, false, {{}},
+                {{ recognizerMode: 'short', endpointMaxUtteranceMs: 20000 }}),
+              endpointRecognizerConfigKey(false, false, {{}},
+                {{ recognizerMode: 'long', endpointMaxUtteranceMs: 20000 }}),
+            );
+            assert.equal(isValidRule3MinUtteranceSec(-1), true);
+            assert.equal(isValidRule3MinUtteranceSec(60), true);
+            for (const invalid of [0, -2, Number.NaN, Number.POSITIVE_INFINITY])
+              assert.equal(isValidRule3MinUtteranceSec(invalid), false);
             """
         )
         subprocess.run(
@@ -270,8 +302,18 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
 
         adapter = ADAPTER.read_text(encoding="utf-8")
         self.assertIn("config.endpointRules.rule3MinUtteranceLengthSec =", adapter)
-        self.assertIn("endpointMaxUtteranceSec(startParams?.extraParams ?? {})", adapter)
-        self.assertIn("endpointRecognizerConfigKey(withTargetSpeaker, withSpeakerVad", adapter)
+        self.assertIn(
+            "rule3Policy(params.extraParams, startParams?.extraParams ?? {})",
+            adapter,
+        )
+        self.assertIn(
+            "endpointRecognizerConfigKey(withTargetSpeaker, withSpeakerVad, this.params.extraParams",
+            adapter,
+        )
+        types = (REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("!isValidRule3MinUtteranceSec", types)
 
     def test_native_async_decode_retains_recognizer_and_stream_lifetimes(self) -> None:
         patch = SHERPA_PATCH.read_text(encoding="utf-8")

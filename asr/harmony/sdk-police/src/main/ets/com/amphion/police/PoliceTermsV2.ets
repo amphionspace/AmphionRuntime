@@ -228,6 +228,16 @@ class QzxVariant {
   }
 }
 
+class EJingbaoVariant {
+  variant: string;
+  collide: Set<string>;
+
+  constructor(variant: string, collide: string[]) {
+    this.variant = variant;
+    this.collide = new Set<string>(collide);
+  }
+}
+
 // 二至三字警务短词缺少足够上下文，不能进入全局模糊层。这里只纠正整句命中，
 // 或紧邻明确警务业务锚点的已知误识串；规则与 Android PoliceTermsShortGuard 对齐。
 class PoliceShortTermGuard {
@@ -356,6 +366,77 @@ class PoliceShortTermGuard {
   }
 }
 
+// cp5500 的 e警保 三字误识只在明确 App 语境下纠正；裸短词和通用碰撞表达保持原文。
+// 与 Android PoliceTermsNormalizerV2.applyEJingbaoGuard 对齐。
+class EJingbaoGuard {
+  private static readonly TARGET: string = 'e警保';
+  // 单字“用”不单独构成充分证据；本轮“用义警保处理事故”由后置功能词命中。
+  private static readonly OPEN_VERBS: string[] = ['打开', '登录', '进入', '启动', '点击', '使用'];
+  private static readonly APP_CTX: string[] = [
+    '客户端', '平台', '系统', '应用', '登录', '账号', '帐号', '模块',
+    '拍照', '上传', '上报', '处理事故', '事故处理'
+  ];
+  private static readonly VARIANTS: EJingbaoVariant[] = [
+    new EJingbaoVariant('咦劲爆', ['新', '消', '视', '话', '爆', '内', '音', '现']),
+    new EJingbaoVariant('义警保', ['安', '护', '险', '障', '卫', '洁', '持', '密'])
+  ];
+
+  static apply(text: string): string {
+    if (text.length < 3) return text;
+    let out = text;
+    for (let v = 0; v < EJingbaoGuard.VARIANTS.length; v++) {
+      const item = EJingbaoGuard.VARIANTS[v];
+      if (out.indexOf(item.variant) < 0) continue;
+      let result = '';
+      let from = 0;
+      while (from <= out.length) {
+        const index = out.indexOf(item.variant, from);
+        if (index < 0) {
+          result += out.substring(from);
+          break;
+        }
+        result += out.substring(from, index);
+        const end = index + item.variant.length;
+        const after = EJingbaoGuard.firstSemanticChar(out, end);
+        const collide = after.length > 0 && item.collide.has(after);
+        const ctxAfter = out.substring(end, Math.min(end + 10, out.length));
+        let hasAfterCtx = false;
+        for (let c = 0; c < EJingbaoGuard.APP_CTX.length; c++) {
+          if (ctxAfter.indexOf(EJingbaoGuard.APP_CTX[c]) >= 0) {
+            hasAfterCtx = true;
+            break;
+          }
+        }
+        const before = out.substring(0, index);
+        let hasOpenVerb = false;
+        for (let o = 0; o < EJingbaoGuard.OPEN_VERBS.length; o++) {
+          const verb = EJingbaoGuard.OPEN_VERBS[o];
+          if (before.endsWith(verb) || before.endsWith(verb + '，') ||
+            before.endsWith(verb + ',') || before.endsWith(verb + '、')) {
+            hasOpenVerb = true;
+            break;
+          }
+        }
+        result += (!collide && (hasAfterCtx || hasOpenVerb)) ? EJingbaoGuard.TARGET : item.variant;
+        from = end;
+      }
+      out = result;
+    }
+    return out;
+  }
+
+  private static firstSemanticChar(text: string, start: number): string {
+    const punctuation = '，,。．.！？!?；;：:、（）()【】[]《》“”\"\'‘’—-…~～·';
+    let index = start;
+    while (index < text.length) {
+      const value = text.charAt(index);
+      if (!/\s/.test(value) && punctuation.indexOf(value) < 0) return value;
+      index++;
+    }
+    return '';
+  }
+}
+
 // 「情指行」上下文护栏：App 语境（前有打开X/后近窗出现平台等）下把误识变体纠回，
 // 且未撞黑名单后继字（通用义）。与 Android PoliceTermsNormalizerV2.applyQingZhiXingGuard 对齐。
 class QingZhiXingGuard {
@@ -466,12 +547,13 @@ export class PoliceTermsV2 {
 
   normalize(text: string): string {
     if (text.length === 0) return text;
-    // 顺序对齐 Android：整句误识 → 同音映射 → 短词护栏 → 情指行护栏 → 登录护栏 → 保守模糊层 → 电台音标数字。
+    // 顺序对齐 Android：整句误识 → 同音映射 → 短词护栏 → e警保/情指行/登录护栏 → 保守模糊层 → 电台音标数字。
     const exactCorrected = this.exactHomophones.applyWholeUtterance(text);
     const exactMatched = exactCorrected !== text;
     const global = this.homophones.apply(exactCorrected);
     const shortGuarded = PoliceShortTermGuard.apply(global);
-    const guarded = DengluGuard.apply(QingZhiXingGuard.apply(shortGuarded));
+    const appNameGuarded = EJingbaoGuard.apply(shortGuarded);
+    const guarded = DengluGuard.apply(QingZhiXingGuard.apply(appNameGuarded));
     const corrected = RadioDigits.normalize(
       exactMatched ? guarded : this.fuzzyCorrect(guarded));
     return this.polish(corrected);

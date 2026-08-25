@@ -155,6 +155,13 @@ public class AsrConfig private constructor(
 
         /** 自定义端点规则（高级；不调使用默认值）。 */
         public fun endpointRules(rules: EndpointRules): Builder = apply {
+            require(
+                rules.rule3MinUtteranceLengthSec == -1f ||
+                    (rules.rule3MinUtteranceLengthSec.isFinite() &&
+                        rules.rule3MinUtteranceLengthSec > 0f),
+            ) {
+                "rule3MinUtteranceLengthSec must be -1 or a positive finite number"
+            }
             this.endpointRules = rules
         }
 
@@ -265,7 +272,7 @@ public data class VadConfig(
  * @property rule1MinTrailingSilenceSec 默认 2.4 秒
  * @property rule2 任意时刻只要曾经出过非静音、且尾部静音超过 [rule2MinTrailingSilenceSec] 秒就出 final
  * @property rule2MinTrailingSilenceSec 默认 1.4 秒
- * @property rule3MinUtteranceLengthSec 整段话超过这个长度强制出 final，默认 20 秒
+ * @property rule3MinUtteranceLengthSec 整段话超过这个长度强制出 final，默认 20 秒；负数禁用 Rule3
  */
 public data class EndpointRules(
     public val rule1: Boolean = true,

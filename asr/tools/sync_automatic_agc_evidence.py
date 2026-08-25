@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify that automatic AGC evidence was produced for the current implementation."""
+"""Verify that automatic AGC evidence matches the accuracy-affecting implementation."""
 
 from __future__ import annotations
 
@@ -12,21 +12,52 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 REPORT = ROOT / "asr/android/reports/automatic-agc-evaluation/report.json"
-IMPLEMENTATION_SOURCES = (
-    "asr/native/audio-processing/src/amphion_audio_processing.cpp",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets",
-    "asr/tools/evaluate_automatic_agc_regression.py",
-)
+# Only sources that can change AGC samples or framing belong to the expensive accuracy-evidence
+# fingerprint. Session orchestration is covered by the lightweight signal-domain contracts instead;
+# hashing the complete session implementations would make unrelated VAD, speaker, or lifecycle
+# changes invalidate AGC accuracy evidence.
+def discover_accuracy_evidence_sources(root: Path = ROOT) -> tuple[str, ...]:
+    sources = {
+        "asr/native/audio-processing/meson.build",
+        "asr/native/audio-processing/subprojects/abseil-cpp.wrap",
+        "asr/native/audio-processing/subprojects/webrtc-audio-processing.wrap",
+        "asr/tools/03_build_agc_native.sh",
+        "asr/tools/ensure_agc_build_tools.sh",
+        "asr/tools/evaluate_automatic_agc_regression.py",
+    }
+    complete_patterns = (
+        "asr/native/audio-processing/src/*",
+        "asr/native/audio-processing/include/*",
+    )
+    for pattern in complete_patterns:
+        sources.update(
+            path.relative_to(root).as_posix()
+            for path in root.glob(pattern)
+            if path.is_file()
+        )
+    implementation_roots = (
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal",
+        "asr/harmony/sdk/src/main/ets/com/amphion/asr",
+        "asr/harmony/sdk/src/main/cpp",
+    )
+    for relative_root in implementation_roots:
+        directory = root / relative_root
+        if not directory.is_dir():
+            continue
+        sources.update(
+            path.relative_to(root).as_posix()
+            for path in directory.rglob("*")
+            if path.is_file() and "agc" in path.name.lower()
+        )
+    return tuple(sorted(sources))
+
+
+ACCURACY_EVIDENCE_SOURCES = discover_accuracy_evidence_sources()
 
 
 def source_hashes(root: Path = ROOT) -> dict:
     hashes = {}
-    for relative_path in IMPLEMENTATION_SOURCES:
+    for relative_path in ACCURACY_EVIDENCE_SOURCES:
         source = root / relative_path
         if not source.is_file():
             raise FileNotFoundError(f"missing AGC evidence source: {relative_path}")
@@ -39,10 +70,10 @@ def check(report_path: Path = REPORT, root: Path = ROOT) -> bool:
     recorded = report.get("implementation_source_sha256")
     expected = source_hashes(root)
     if recorded == expected:
-        print("[OK] automatic AGC evidence matches every implementation source")
+        print("[OK] automatic AGC evidence matches every accuracy-affecting source")
         return True
 
-    print("[ERROR] automatic AGC evidence source fingerprints are stale", file=sys.stderr)
+    print("[ERROR] automatic AGC accuracy-evidence fingerprints are stale", file=sys.stderr)
     recorded = recorded if isinstance(recorded, dict) else {}
     for relative_path in sorted(set(recorded) | set(expected)):
         if recorded.get(relative_path) != expected.get(relative_path):

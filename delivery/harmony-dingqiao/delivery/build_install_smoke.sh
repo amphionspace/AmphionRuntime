@@ -26,6 +26,7 @@ TIMEOUT_SECONDS=30
 SKIP_BUILD=false
 PREPARE_ONLY=false
 ZH_EN_ONLY=true
+BUILD_MODE="debug"
 SMOKE_DIR="$PROJECT_ROOT/build/smoke"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
@@ -45,6 +46,7 @@ Options:
   --timeout SEC     Engine-ready timeout; default 30 seconds.
   --skip-build      Reuse the existing signed HAP.
   --prepare-only    Prepare and discard an isolated source tree; do not require device/signing.
+  --build-mode MODE Build debug or diagnostics artifacts; default debug.
   --zh-en-only      Verify and build the current USB carrier without unrelated Yue-English assets.
   --signing-config  Local signing material JSON; defaults to .secure/harmony-signing.json.
   -h, --help        Show this help.
@@ -57,6 +59,7 @@ while [[ $# -gt 0 ]]; do
     --timeout) TIMEOUT_SECONDS="$2"; shift 2 ;;
     --skip-build) SKIP_BUILD=true; shift ;;
     --prepare-only) PREPARE_ONLY=true; shift ;;
+    --build-mode) BUILD_MODE="$2"; shift 2 ;;
     --zh-en-only) ZH_EN_ONLY=true; shift ;;
     --signing-config) SIGNING_CONFIG="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
@@ -70,6 +73,10 @@ if [[ "$PREPARE_ONLY" != true ]]; then
   done
 fi
 [[ "$TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || { echo "[ERROR] --timeout must be a positive integer" >&2; exit 2; }
+[[ "$BUILD_MODE" == "debug" || "$BUILD_MODE" == "diagnostics" ]] || {
+  echo "[ERROR] --build-mode must be debug or diagnostics" >&2
+  exit 2
+}
 
 if [[ "$PREPARE_ONLY" != true && -z "$DEVICE" ]]; then
   TARGETS="$($HDC list targets | tr -d '\r' | awk 'NF && $0 != "[Empty]"')"
@@ -432,7 +439,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
     if ! "$NODE" "$HVIGOR" assembleHap --mode module \
       -p product=default \
       -p module=amphion_asr_demo@default \
-      -p buildMode=debug \
+      -p buildMode="$BUILD_MODE" \
       --no-daemon --stacktrace; then
       exit 1
     fi
@@ -440,7 +447,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
       if ! "$NODE" "$HVIGOR" assembleHar --mode module \
         -p product=default \
         -p module="${har_module}@default" \
-        -p buildMode=debug \
+        -p buildMode="$BUILD_MODE" \
         --no-daemon --stacktrace; then
         exit 1
       fi
@@ -472,6 +479,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
   mv -f "$TEMP_HAP_COPY" "$HAP"
   TEMP_HAP_COPY=""
   IDENTITY_ARGS=(--write "$BUILD_IDENTITY")
+  IDENTITY_ARGS+=(--build-mode "$BUILD_MODE")
   if [[ "$ZH_EN_ONLY" == true ]]; then
     IDENTITY_ARGS+=(--zh-en-only)
   fi

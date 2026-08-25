@@ -28,6 +28,8 @@
 -keep class com.amphion.asr.internal.FinalCallbackOrderGate { *; }
 -keep class com.amphion.asr.AsrConfig { *; }
 -keep class com.amphion.asr.internal.StreamingAgcProcessor { *; }
+-keep class com.amphion.asr.internal.StreamingAgcIngress { *; }
+-keep class com.amphion.asr.internal.AgcFrameProcessor { *; }
 -keep class com.amphion.asr.internal.ProcessedAudioFrame { *; }
 -keep class com.amphion.asr.internal.AgcBackend { *; }
 -keep class com.amphion.asr.internal.DecoderSubmissionFence { *; }
