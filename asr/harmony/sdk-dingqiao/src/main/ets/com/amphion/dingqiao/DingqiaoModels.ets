@@ -12,6 +12,10 @@ export class CreateEngineParams {
 }
 
 export class SpeakerDiarizationConfig {
+  /** Full HTTPS window endpoint. HTTP is accepted only for loopback development. */
+  serviceUrl: string = '';
+  /** Optional service-specific headers, for example Authorization. */
+  serviceHeaders: Record<string, string> = {};
   /** Stable speaker indexes are limited to 0...(maxSpeakers - 1). */
   maxSpeakers: number = 4;
 }
@@ -74,12 +78,14 @@ export class SpeakerTurn {
 
 export enum SpeakerDiarizationDegradedReason {
   NONE = 0,
-  PROCESS_UNAVAILABLE = 1,
+  SERVICE_UNAVAILABLE = 1,
   MODEL_UNAVAILABLE = 2,
   INFERENCE_TIMEOUT = 3,
   FINISH_TIMEOUT = 4,
   STORAGE_UNAVAILABLE = 5,
   SPEAKER_LIMIT_EXCEEDED = 6,
+  AUTHENTICATION_FAILED = 7,
+  INVALID_SERVICE_RESPONSE = 8,
 }
 
 export class SpeakerDiarizationResult {

@@ -49,10 +49,7 @@ import {
   VoiceprintRegisterParams,
   VoiceprintRegisterResult
 } from './DingqiaoModels';
-import {
-  resolveSpeakerDiarizationProcessEntry,
-  validateSpeakerDiarizationConfig
-} from './diarization/SpeakerDiarizationConfigPolicy';
+import { validateSpeakerDiarizationConfig } from './diarization/SpeakerDiarizationConfigPolicy';
 import { SpeakerDiarizationFinishBarrier, SpeakerDiarizationFinishOutput } from
   './diarization/SpeakerDiarizationFinishBarrier';
 import { SpeakerDiarizationRuntimeLeaseRegistry } from
@@ -654,7 +651,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       if (params.speakerDiarization !== undefined) {
         const diarizationGeneration = startGeneration;
         const diarizationSessionId = params.sessionId;
-        const maxSpeakers = validateSpeakerDiarizationConfig(params.speakerDiarization);
+        const diarizationConfig = validateSpeakerDiarizationConfig(params.speakerDiarization);
         const diarizationObserver = new SpeakerDiarizationSessionCallback(
           (update: SpeakerDiarizationUpdate): void => {
             if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
@@ -670,15 +667,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
             });
           });
         try {
-          const hostContext = this.context as common.UIAbilityContext;
-          const processEntry = resolveSpeakerDiarizationProcessEntry(
-            hostContext.currentHapModuleInfo.name);
           this.speakerDiarizationSession = new SpeakerDiarizationSession(
-            this.context,
             SpeechRecognizeSdk.getWorkPath(),
             params.sessionId,
-            processEntry,
-            maxSpeakers,
+            diarizationConfig.serviceUrl,
+            diarizationConfig.serviceHeaders,
+            diarizationConfig.maxSpeakers,
             diarizationObserver);
         } catch (e) {
           this.speakerDiarizationSession = new DegradedSpeakerDiarizationSession(

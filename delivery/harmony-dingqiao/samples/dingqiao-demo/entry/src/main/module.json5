@@ -10,6 +10,9 @@
     "pages": "$profile:main_pages",
     "requestPermissions": [
       {
+        "name": "ohos.permission.INTERNET"
+      },
+      {
         "name": "ohos.permission.MICROPHONE",
         "reason": "$string:mic_reason",
         "usedScene": {

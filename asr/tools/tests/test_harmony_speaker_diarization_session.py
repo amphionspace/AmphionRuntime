@@ -19,8 +19,7 @@ CORE_TYPES = ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets"
 PUBLIC_MODELS = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/DingqiaoModels.ets"
 CONFIG_POLICY = DIARIZATION / "SpeakerDiarizationConfigPolicy.ts"
 SPEAKER_INDEX_POLICY = DIARIZATION / "SpeakerDiarizationSpeakerIndex.ts"
-CHILD_SERVICE = DIARIZATION / "SpeakerDiarizationChildService.ets"
-PROCESS_CLIENT = DIARIZATION / "SpeakerDiarizationProcessClient.ets"
+REMOTE_CLIENT = DIARIZATION / "SpeakerDiarizationRemoteClient.ets"
 SESSION = DIARIZATION / "SpeakerDiarizationSession.ets"
 ADAPTER = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 DEVICE_STRESS = ROOT / (
@@ -74,6 +73,8 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             self.assertIn(field, models)
         self.assertIn("speakerDiarization?: SpeakerDiarizationConfig", models)
         self.assertIn("export class SpeakerDiarizationConfig", models)
+        self.assertIn("serviceUrl: string = ''", models)
+        self.assertIn("serviceHeaders: Record<string, string> = {}", models)
         self.assertIn("maxSpeakers: number = 4", models)
         self.assertIn("onSpeakerDiarizationUpdate?", models)
         self.assertIn("onSpeakerDiarizationResult?", models)
@@ -98,7 +99,7 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         ):
             self.assertNotIn(removed_name, models + adapter)
         self.assertIn("params.speakerDiarization", adapter)
-        self.assertIn("resolveSpeakerDiarizationProcessEntry", adapter)
+        self.assertNotIn("resolveSpeakerDiarizationProcessEntry", adapter)
         for meeting_scoped_name in (
             "enableMeetingSpeakerSeparation",
             "maxMeetingSpeakers",
@@ -114,36 +115,48 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             import assert from 'node:assert/strict';
             import {{ validateSpeakerDiarizationConfig }} from {CONFIG_POLICY.as_uri()!r};
 
-            assert.equal(validateSpeakerDiarizationConfig({{ maxSpeakers: 4 }}), 4);
-            assert.throws(() => validateSpeakerDiarizationConfig({{ maxSpeakers: 0 }}));
-            assert.throws(() => validateSpeakerDiarizationConfig({{ maxSpeakers: 5 }}));
-            assert.throws(() => validateSpeakerDiarizationConfig({{ maxSpeakers: 2.5 }}));
+            const valid = validateSpeakerDiarizationConfig({{
+              serviceUrl: 'https://diarization.example/v1/window',
+              serviceHeaders: {{ Authorization: 'Bearer token' }},
+              maxSpeakers: 4
+            }});
+            assert.equal(valid.maxSpeakers, 4);
+            assert.equal(valid.serviceUrl, 'https://diarization.example/v1/window');
+            assert.equal(valid.serviceHeaders.Authorization, 'Bearer token');
+            assert.equal(validateSpeakerDiarizationConfig({{
+              serviceUrl: 'http://127.0.0.1:18080/v1/window',
+              serviceHeaders: {{}}, maxSpeakers: 2
+            }}).maxSpeakers, 2);
+            assert.throws(() => validateSpeakerDiarizationConfig({{
+              serviceUrl: 'http://remote.example/v1/window', serviceHeaders: {{}}, maxSpeakers: 4
+            }}));
+            assert.throws(() => validateSpeakerDiarizationConfig({{
+              serviceUrl: '', serviceHeaders: {{}}, maxSpeakers: 4
+            }}));
+            assert.throws(() => validateSpeakerDiarizationConfig({{
+              serviceUrl: 'https://diarization.example/v1/window',
+              serviceHeaders: {{ Authorization: 'bad\\nvalue' }}, maxSpeakers: 4
+            }}));
+            assert.throws(() => validateSpeakerDiarizationConfig({{
+              serviceUrl: 'https://diarization.example/v1/window', serviceHeaders: {{}}, maxSpeakers: 0
+            }}));
             """
         )
 
-    def test_child_process_entry_is_module_qualified_without_a_public_path_parameter(self) -> None:
-        run_node(
-            f"""
-            import assert from 'node:assert/strict';
-            import {{ resolveSpeakerDiarizationProcessEntry }} from {CONFIG_POLICY.as_uri()!r};
-
-            assert.equal(
-              resolveSpeakerDiarizationProcessEntry('amphion_asr_demo'),
-              'amphion_asr_demo/./ets/diarization/SpeakerDiarizationChild.ets'
-            );
-            assert.throws(() => resolveSpeakerDiarizationProcessEntry(''));
-            """
-        )
+    def test_remote_executor_replaces_host_child_process_adapter(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
-        self.assertIn("hostContext.currentHapModuleInfo.name", adapter)
-        self.assertIn("resolveSpeakerDiarizationProcessEntry", adapter)
+        self.assertNotIn("childProcessManager", adapter)
+        self.assertNotIn("resolveSpeakerDiarizationProcessEntry", adapter)
+        self.assertIn("diarizationConfig.serviceUrl", adapter)
+        self.assertIn("diarizationConfig.serviceHeaders", adapter)
 
         entry_ability = ENTRY_ABILITY.read_text(encoding="utf-8")
-        self.assertIn("SpeakerDiarizationChild", entry_ability)
-        self.assertIn("SpeakerDiarizationChild.toString()", entry_ability)
+        self.assertNotIn("SpeakerDiarizationChild", entry_ability)
 
-        public_doc = PUBLIC_DOC.read_text(encoding="utf-8")
-        self.assertIn("SpeakerDiarizationChild.toString()", public_doc)
+        client = REMOTE_CLIENT.read_text(encoding="utf-8")
+        self.assertIn("http.createHttp()", client)
+        self.assertIn("X-Amphion-Protocol-Version", client)
+        self.assertNotIn("startArkChildProcess", client)
 
     def test_internal_speaker_ids_map_to_absolute_zero_based_public_indexes(self) -> None:
         run_node(
@@ -167,6 +180,10 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             assert.deepEqual(
               speakerIndexesFromInternalIds(['S2', 'UNKNOWN', 'S1', 'S2']),
               [1, 0]
+            );
+            assert.deepEqual(
+              speakerIndexesFromInternalIds(['S2', 'UNKNOWN_SECONDARY'], 4, true),
+              [1, -1]
             );
             """
         )
@@ -194,6 +211,10 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertIn("ClassToSpeakerMask", native)
         self.assertIn('"speakerMask"', native)
         self.assertIn("speakerMask: number", types)
+
+        session = SESSION.read_text(encoding="utf-8")
+        self.assertIn("channelIds.get(localSpeaker) ?? 'UNKNOWN_SECONDARY'", session)
+        self.assertIn("assignment.secondarySpeakerIds, this.maxSpeakers, true", session)
 
     def test_rejected_speaker_vad_final_redacts_raw_and_processed_text(self) -> None:
         runtime = RUNTIME.read_text(encoding="utf-8")
@@ -233,30 +254,27 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertIn("new DegradedSpeakerDiarizationSession", diarization_start)
         self.assertIn("SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE", diarization_start)
 
-        process_client = PROCESS_CLIENT.read_text(encoding="utf-8")
+        process_client = REMOTE_CLIENT.read_text(encoding="utf-8")
         self.assertIn(
             "onDegraded(reason: SpeakerDiarizationDegradedReason, message: string)",
             process_client,
         )
-        self.assertIn("SpeakerDiarizationDegradedReason.MODEL_UNAVAILABLE", process_client)
+        self.assertIn("SpeakerDiarizationDegradedReason.SERVICE_UNAVAILABLE", process_client)
         self.assertIn("SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE", process_client)
-        self.assertIn("readFatal", process_client)
-        child_service = CHILD_SERVICE.read_text(encoding="utf-8")
-        self.assertIn("writeFatal(SpeakerDiarizationDegradedReason.MODEL_UNAVAILABLE", child_service)
-        self.assertIn("writeFatal(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE", child_service)
-        self.assertIn("speaker diarization child storage failed", child_service)
-        self.assertIn("speaker diarization child inference failed", child_service)
+        self.assertIn("SpeakerDiarizationDegradedReason.AUTHENTICATION_FAILED", process_client)
+        self.assertIn("SpeakerDiarizationDegradedReason.INVALID_SERVICE_RESPONSE", process_client)
         session = SESSION.read_text(encoding="utf-8")
         self.assertNotIn("function degradedReasonOf", session)
         self.assertIn("speaker diarization initialization failed", diarization_start)
 
-    def test_child_process_preserves_padded_window_offset_in_result(self) -> None:
-        child = CHILD_SERVICE.read_text(encoding="utf-8")
-        self.assertGreaterEqual(child.count("contentStartInWindowSample: number"), 2)
-        self.assertIn("contentStartInWindowSample: job.contentStartInWindowSample", child)
+    def test_remote_request_preserves_padded_window_offset_in_protocol(self) -> None:
+        client = REMOTE_CLIENT.read_text(encoding="utf-8")
+        self.assertGreaterEqual(client.count("contentStartInWindowSample: number"), 2)
+        self.assertIn("X-Amphion-Content-Start-Sample", client)
+        self.assertIn("result.contentStartInWindowSample !== job.contentStartInWindowSample", client)
 
     def test_spool_failure_is_isolated_from_asr_and_finish(self) -> None:
-        client = PROCESS_CLIENT.read_text(encoding="utf-8")
+        client = REMOTE_CLIENT.read_text(encoding="utf-8")
         append_body = client.split("append(audio: ArrayBuffer)", 1)[1].split(
             "finish(): void", 1
         )[0]
@@ -271,29 +289,23 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             finish_body,
         )
         self.assertIn("speaker diarization finish spool failed:", finish_body)
-        self.assertIn("this.restartCount = 0", client)
-        self.assertIn("process.kill(0, pid)", client)
-        self.assertIn("drainTerminationCallbacks", client)
+        self.assertIn("job.attempt < 1", client)
+        self.assertIn("this.activeRequest?.destroy()", client)
         self.assertIn("client.cleanup((): void => { this.releaseRuntimeLease(); })",
                       SESSION.read_text(encoding="utf-8"))
 
-    def test_parent_result_storage_failures_are_not_reported_as_process_failures(self) -> None:
-        client = PROCESS_CLIENT.read_text(encoding="utf-8")
-        poll_body = client.split("private poll(): void", 1)[1].split(
-            "private handleProcessFailure", 1
-        )[0]
+    def test_parent_result_storage_failures_are_not_reported_as_service_failures(self) -> None:
+        client = REMOTE_CLIENT.read_text(encoding="utf-8")
         self.assertIn("SpeakerDiarizationStorageError", client)
-        self.assertIn("speaker diarization result read failed", poll_body)
-        self.assertIn("speaker diarization result cleanup failed", poll_body)
-        self.assertIn("SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE", poll_body)
-        self.assertIn("e instanceof SpeakerDiarizationStorageError", poll_body)
+        self.assertIn("error instanceof SpeakerDiarizationStorageError", client)
+        self.assertIn("SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE", client)
 
         session = SESSION.read_text(encoding="utf-8")
         self.assertIn("throw new SpeakerDiarizationStorageError", session)
 
     def test_caller_session_id_never_participates_in_job_paths(self) -> None:
-        client = PROCESS_CLIENT.read_text(encoding="utf-8")
-        constructor = client.split("constructor(context:", 1)[1].split(
+        client = REMOTE_CLIENT.read_text(encoding="utf-8")
+        constructor = client.split("constructor(workPath:", 1)[1].split(
             "append(audio:", 1
         )[0]
         self.assertIn("/speaker-diarization-jobs/job-${Date.now()}-${localJobId}", constructor)

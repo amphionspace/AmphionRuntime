@@ -93,7 +93,8 @@ export function customerProfileUsesContinuousRecognition(profile: CustomerScenar
   return profile.rotateSession && profile.maxAudioDuration > SESSION_ROTATE_AUDIO_MS;
 }
 
-export function customerProfileStartParams(sessionId: string, name: CustomerScenarioName): StartParams {
+export function customerProfileStartParams(sessionId: string, name: CustomerScenarioName,
+  speakerDiarizationServiceUrl: string = ''): StartParams {
   const profile = customerScenarioProfile(name);
   const params = new StartParams();
   params.sessionId = sessionId;
@@ -105,6 +106,7 @@ export function customerProfileStartParams(sessionId: string, name: CustomerScen
   if (profile.speakerDiarizationMaxSpeakers !== undefined) {
     const diarization = new SpeakerDiarizationConfig();
     diarization.maxSpeakers = profile.speakerDiarizationMaxSpeakers;
+    diarization.serviceUrl = speakerDiarizationServiceUrl;
     params.speakerDiarization = diarization;
   }
   if (profile.vadBegin !== undefined) params.extraParams['vadBegin'] = profile.vadBegin;

@@ -15,11 +15,11 @@ import {
   SpeakerDiarizationGlobalClusterer
 } from './SpeakerDiarizationGlobalClusterer';
 import {
-  DiarizationProcessWindowResult,
-  SpeakerDiarizationProcessClient,
-  SpeakerDiarizationProcessObserver,
+  DiarizationRemoteWindowResult,
+  SpeakerDiarizationRemoteClient,
+  SpeakerDiarizationRemoteObserver,
   SpeakerDiarizationStorageError
-} from './SpeakerDiarizationProcessClient';
+} from './SpeakerDiarizationRemoteClient';
 import { SpeakerDiarizationRuntimeLease, SpeakerDiarizationRuntimeLeaseRegistry } from './SpeakerDiarizationRuntimeLease';
 import {
   speakerIndexFromInternalId,
@@ -57,9 +57,9 @@ export interface SpeakerDiarizationSessionController {
   cleanup(): void;
 }
 
-export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObserver,
+export class SpeakerDiarizationSession implements SpeakerDiarizationRemoteObserver,
   SpeakerDiarizationSessionController {
-  private readonly client: SpeakerDiarizationProcessClient;
+  private readonly client: SpeakerDiarizationRemoteClient;
   private readonly registry: OnlineSpeakerRegistry;
   private readonly transcript: SpeakerDiarizationTranscriptState = new SpeakerDiarizationTranscriptState();
   private readonly observer: SpeakerDiarizationSessionObserver;
@@ -79,8 +79,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
   private finalSpeakerCount: number = 0;
   private runtimeLease?: SpeakerDiarizationRuntimeLease;
 
-  constructor(context: Context, workPath: string, sessionId: string, processEntry: string,
-    maxSpeakers: number,
+  constructor(workPath: string, sessionId: string, serviceUrl: string,
+    serviceHeaders: Record<string, string>, maxSpeakers: number,
     observer: SpeakerDiarizationSessionObserver) {
     this.observer = observer;
     this.maxSpeakers = maxSpeakers;
@@ -89,8 +89,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
       maxSpeakers, 0, 0.72);
     this.runtimeLease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
     try {
-      this.client = new SpeakerDiarizationProcessClient(
-        context, workPath, sessionId, processEntry, this);
+      this.client = new SpeakerDiarizationRemoteClient(
+        workPath, sessionId, serviceUrl, serviceHeaders, this);
     } catch (e) {
       this.runtimeLease.release();
       this.runtimeLease = undefined;
@@ -134,7 +134,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     if (assignment !== undefined) {
       payload.speakerIndex = speakerIndexFromInternalId(assignment.speakerId, this.maxSpeakers);
       payload.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
-        assignment.secondarySpeakerIds, this.maxSpeakers);
+        assignment.secondarySpeakerIds, this.maxSpeakers, true);
       payload.speakerConfidence = assignment.confidence;
     }
     this.finalizeIfReady();
@@ -152,7 +152,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     if (assignment === undefined) return;
     payload.speakerIndex = speakerIndexFromInternalId(assignment.speakerId, this.maxSpeakers);
     payload.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
-      assignment.secondarySpeakerIds, this.maxSpeakers);
+      assignment.secondarySpeakerIds, this.maxSpeakers, true);
     payload.speakerConfidence = assignment.confidence;
   }
 
@@ -169,7 +169,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     this.client.cleanup((): void => { this.releaseRuntimeLease(); });
   }
 
-  onWindow(window: DiarizationProcessWindowResult): void {
+  onWindow(window: DiarizationRemoteWindowResult): void {
     if (this.finished) return;
     this.inferenceMs += window.result.inferenceMs;
     const channelIds = new Map<number, string>();
@@ -223,8 +223,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
       for (let localSpeaker = 0; localSpeaker < 3; localSpeaker++) {
         if (localSpeaker === segment.speaker ||
           (segment.speakerMask & (1 << localSpeaker)) === 0) continue;
-        const id = channelIds.get(localSpeaker) ?? 'UNKNOWN';
-        if (id !== primary && id !== 'UNKNOWN' && secondary.indexOf(id) < 0) {
+        const id = channelIds.get(localSpeaker) ?? 'UNKNOWN_SECONDARY';
+        if (id !== primary && secondary.indexOf(id) < 0) {
           secondary.push(id);
           secondaryEvidenceKeys.push(`${window.jobId}:${localSpeaker}`);
         }
@@ -297,7 +297,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
       turn.endTime = turns[i].endTime;
       turn.speakerIndex = speakerIndexFromInternalId(turns[i].speakerId, this.maxSpeakers);
       turn.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
-        turns[i].secondarySpeakerIds, this.maxSpeakers);
+        turns[i].secondarySpeakerIds, this.maxSpeakers, true);
       turn.confidence = turns[i].confidence ?? 0;
       turn.overlap = turns[i].overlap ?? turn.secondarySpeakerIndexes.length > 0;
       result.speakerTurns.push(turn);
@@ -319,7 +319,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     result.revision = update.revision;
     result.speakerIndex = speakerIndexFromInternalId(update.speakerId, this.maxSpeakers);
     result.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
-      update.secondarySpeakerIds, this.maxSpeakers);
+      update.secondarySpeakerIds, this.maxSpeakers, true);
     result.beginTime = update.beginTime;
     result.endTime = update.endTime;
     result.confidence = update.confidence;
@@ -335,7 +335,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObser
     result.endTime = value.endTime;
     result.speakerIndex = speakerIndexFromInternalId(value.speakerId, this.maxSpeakers);
     result.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
-      value.secondarySpeakerIds, this.maxSpeakers);
+      value.secondarySpeakerIds, this.maxSpeakers, true);
     result.confidence = value.confidence ?? 0;
     result.overlap = value.overlap;
     return result;

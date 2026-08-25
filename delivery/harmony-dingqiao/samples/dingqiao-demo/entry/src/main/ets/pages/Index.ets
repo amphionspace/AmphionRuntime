@@ -366,6 +366,11 @@ struct Index {
   private startListening(): void {
     if (!this.runtimeReady) return;
     if (this.listening || this.stoppingListening || this.replaying || this.playingCapture) return;
+    if (this.customerScenario === 'meeting-minutes' &&
+      this.speakerDiarizationServiceUrl().length === 0) {
+      this.toast('会议角色分离服务未配置');
+      return;
+    }
     this.startTapMs = Date.now();
     this.finalSegments = [];
     this.partialText = '';
@@ -491,7 +496,10 @@ struct Index {
   }
 
   private buildCapturedStartParams(sessionId: string): StartParams {
-    const startParams = customerProfileStartParams(sessionId, this.capturedCustomerScenario);
+    const serviceUrl = this.capturedCustomerScenario === 'meeting-minutes' ?
+      this.speakerDiarizationServiceUrl() : '';
+    const startParams = customerProfileStartParams(
+      sessionId, this.capturedCustomerScenario, serviceUrl);
     const extra = startParams.extraParams;
     const profile = customerScenarioProfile(this.capturedCustomerScenario);
     extra['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
@@ -511,6 +519,12 @@ struct Index {
     }
 
     return startParams;
+  }
+
+  private speakerDiarizationServiceUrl(): string {
+    const ctx = getContext(this) as common.UIAbilityContext;
+    return ctx.resourceManager.getStringSync(
+      $r('app.string.speaker_diarization_service_url').id).trim();
   }
 
   private scenarioLabel(name: CustomerScenarioName): string {

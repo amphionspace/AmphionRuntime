@@ -7,11 +7,16 @@ export function speakerIndexFromInternalId(speakerId: string, maxSpeakers: numbe
     value - 1 : UNASSIGNED_SPEAKER_INDEX;
 }
 
-export function speakerIndexesFromInternalIds(speakerIds: string[], maxSpeakers: number = 4): number[] {
+export function speakerIndexesFromInternalIds(speakerIds: string[], maxSpeakers: number = 4,
+  preserveUnassigned: boolean = false): number[] {
   const indexes: number[] = [];
   for (let index = 0; index < speakerIds.length; index++) {
     const value = speakerIndexFromInternalId(speakerIds[index], maxSpeakers);
-    if (value >= 0 && indexes.indexOf(value) < 0) indexes.push(value);
+    if (value >= 0 && indexes.indexOf(value) < 0) {
+      indexes.push(value);
+    } else if (value < 0 && preserveUnassigned && indexes.indexOf(UNASSIGNED_SPEAKER_INDEX) < 0) {
+      indexes.push(UNASSIGNED_SPEAKER_INDEX);
+    }
   }
   return indexes;
 }

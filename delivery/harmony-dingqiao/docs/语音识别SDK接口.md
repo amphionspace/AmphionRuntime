@@ -264,6 +264,10 @@ const start = new StartParams();
 start.sessionId = 'session-1';
 
 const diarization = new SpeakerDiarizationConfig();
+diarization.serviceUrl = 'https://api.example.com/v1/speaker-diarization/window';
+diarization.serviceHeaders = {
+  Authorization: `Bearer ${shortLivedToken}`
+};
 diarization.maxSpeakers = 4;
 start.speakerDiarization = diarization;
 
@@ -272,6 +276,8 @@ engine.startListening(start);
 
 | `SpeakerDiarizationConfig` 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `serviceUrl` | `string` | 空 | 分人服务的完整窗口接口地址；生产环境必须使用 HTTPS。仅为本机开发联调放行 `localhost`、`127.0.0.1`、`[::1]` 的 HTTP 地址 |
+| `serviceHeaders` | `Record<string, string>` | 空对象 | 每次窗口请求附带的服务认证/租户请求头；SDK 不修改响应中的 speaker 分数。请求头名和值不得包含换行 |
 | `maxSpeakers` | `number` | `4` | 稳定 speaker 索引的硬上限；V1 只接受整数 `1..4`，非法值使本次 `startListening` 失败，不会静默裁剪 |
 
 SDK 自动估计实际发言人数，不接收参会名单人数或 hard K。证据不足、能力未开启、
@@ -279,42 +285,38 @@ SDK 自动估计实际发言人数，不接收参会名单人数或 hard K。证
 `0..(maxSpeakers-1)`。该索引仅在当前 session 内稳定，业务显示“说话人 1”时需使用
 `speakerIndex + 1`。
 
-HarmonyOS 宿主 HAP 需在固定路径 `entry/src/main/ets/diarization/SpeakerDiarizationChild.ets`
-放置一次性 child adapter；路径不由每个 session 传入。SDK 会读取当前 HAP module 名称并自动
-生成 `moduleName/./ets/diarization/SpeakerDiarizationChild.ets` 入口：
+Demo 的会议纪要入口从 `app.string.speaker_diarization_service_url` 读取服务地址。正式产品应由
+业务配置中心或构建配置把地址写入 `SpeakerDiarizationConfig.serviceUrl`；未配置时 Demo 会直接提示，
+不会先启动录音再让 session 失败。
 
-```ts
-import ChildProcess from '@ohos.app.ability.ChildProcess';
-import type { ChildProcessArgs } from '@ohos.app.ability.ChildProcessArgs';
-import { SpeakerDiarizationChildService } from 'amphion_dingqiao';
+角色分离采用在线增量执行：端侧 ASR 不上传文本，SDK 将同一份 16 kHz PCM 写入顺序 spool，
+按 10 秒窗口、2.5 秒 hop 向 `serviceUrl` 上传，每个请求最多 320 KB。服务返回窗口内的
+overlap-aware turns 和 embedding，稳定编号、最近 60 秒静默修正、最终 AHC 聚类仍由 SDK 完成。
+会议结束不会重新上传或重新推理整场 PCM，只处理尾窗和已持久化 embedding。
 
-export default class SpeakerDiarizationChild extends ChildProcess {
-  private readonly service = new SpeakerDiarizationChildService();
+宿主 HAP 必须声明 `ohos.permission.INTERNET`。该权限是普通网络权限，不涉及子进程特权；宿主
+不再提供 child adapter，也不再使用 `startArkChildProcess`、`isolationProcess` 或
+`speakerDiarizationProcessEntry`。网络、认证、服务响应或单窗超时会保留 ASR，并通过唯一一次
+`onSpeakerDiarizationResult` 返回明确的 `degradedReason`。产品发布门禁必须把降级视为角色分离
+失败，不能只检查 `onComplete`。
 
-  onStart(args?: ChildProcessArgs): void {
-    void this.service.start(args?.entryParams ?? '');
-  }
-}
+服务协议版本为 `1`。请求体是 PCM16 little-endian；窗口元数据通过 `X-Amphion-*` 请求头传递。
+服务必须原样回传 `jobId`、窗口边界和 `finalWindow`，并返回有限数值的 segment、speaker mask、
+embedding 与 `inferenceMs`。SDK 会校验完整响应，拒绝跨 job、越界 speaker mask、非有限 embedding
+或协议版本不一致的结果。失败窗口只重试一次。
+
+仓库提供的 `delivery/harmony-dingqiao/delivery/run_speaker_diarization_service.py` 是联调和评测用的
+参考服务，不是生产部署包。它复用 pyannote segmentation 3.0 与 ERes2Net，并保持模型热驻留：
+
+```bash
+python3 delivery/harmony-dingqiao/delivery/run_speaker_diarization_service.py \
+  --segmentation-model /path/to/pyannote-segmentation-3.0/model.onnx \
+  --embedding-model /path/to/eres2net.onnx \
+  --host 127.0.0.1 --port 18080 --bearer-token "$TOKEN"
 ```
 
-宿主还必须在 `EntryAbility.ets` 引用一次该类，防止构建优化删除 child entry：
-
-```ts
-import SpeakerDiarizationChild from '../diarization/SpeakerDiarizationChild';
-
-export default class EntryAbility extends UIAbility {
-  onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    SpeakerDiarizationChild.toString();
-    // 其余初始化代码……
-  }
-}
-```
-
-该隔离链路依赖 HarmonyOS `startArkChildProcess`。当前平台只在支持该能力的设备形态上运行；
-不支持的手机会正常保留 ASR，并通过 `onSpeakerDiarizationResult` 返回
-`degraded=true`、`degradedReason=PROCESS_UNAVAILABLE` 和具体 `degradedMessage`，不会在主进程
-静默执行 native fallback。产品发布门禁必须把该降级视为角色分离失败，不能只检查
-`onComplete`。
+生产服务必须置于 HTTPS 后，校验短期 token 和租户边界，并按 `sessionId + jobId` 做幂等和审计；
+不应记录原始 PCM 或把请求正文写入通用访问日志。
 
 ## 6. 回调
 
@@ -356,7 +358,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `targetSpeakerEnhancementApplied` | `boolean?` | 当前 session 启用目标说话人增强时为 `true`；未启用时省略 |
 | `utteranceId` | `string?` | 开启角色分离时，final utterance 的稳定 ID |
 | `speakerIndex` | `number` | 说话人索引；默认 `-1`，已分配为 `0..3` |
-| `secondarySpeakerIndexes` | `number[]` | 重叠语音的次要说话人索引；默认空数组 |
+| `secondarySpeakerIndexes` | `number[]` | 重叠语音的次要说话人索引；默认空数组。检测到次要说话人但证据不足以分配身份时包含 `-1`，不得据此猜测为上一位或最近一位 |
 | `speakerConfidence` | `number` | speaker 归属分数，范围 `[0,1]`，默认 `0`；不是经校准的概率 |
 
 `SpeakerDiarizationUpdate` 字段：
@@ -383,9 +385,10 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `inferenceMs` | `number` | 累计分人推理耗时 |
 | `rtf` | `number` | 分人处理实时率 |
 
-`SpeakerDiarizationDegradedReason` 包含 `NONE`、`PROCESS_UNAVAILABLE`、
+`SpeakerDiarizationDegradedReason` 包含 `NONE`、`SERVICE_UNAVAILABLE`、
 `MODEL_UNAVAILABLE`、`INFERENCE_TIMEOUT`、`FINISH_TIMEOUT`、`STORAGE_UNAVAILABLE`
-和 `SPEAKER_LIMIT_EXCEEDED`。分人失败不使用致命 `onError` 终止 ASR。
+、`SPEAKER_LIMIT_EXCEEDED`、`AUTHENTICATION_FAILED` 和 `INVALID_SERVICE_RESPONSE`。
+分人失败不使用致命 `onError` 终止 ASR。
 
 开启 Speaker Diarization 时，`finish()` 仍立即返回；对外收尾顺序固定为：
 
