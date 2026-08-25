@@ -49,7 +49,8 @@ The report deliberately separates three axes: overall signal level (`dBFS`), sig
 (`SNR dB`), and the time region of long audio. A gain-only result must not be used as evidence for
 noise robustness, and a recovered long-audio phrase must not be described as a complete transcript.
 
-Run the dependency-free checks as soon as AGC code, framing, build scripts, or evidence changes:
+Run the dependency-free checks as soon as AGC code, framing, session audio routing, build scripts,
+or evidence changes:
 
 ```bash
 python3 asr/tools/run_automatic_agc_release_gate.py static
@@ -101,10 +102,19 @@ archive, atomically records the delivery together with its root report and SHA-2
 whole release ledger. A missing native library, test XML, device artifact, provenance, build-identity
 match, or evidence file fails the gate; none of these steps may warn-and-skip.
 
-`python3 asr/tools/sync_automatic_agc_evidence.py --check` is intentionally read-only. If an AGC
-implementation source changes, rerun all four recorded evaluation dimensions (normal-volume, SNR,
+`python3 asr/tools/sync_automatic_agc_evidence.py --check` is intentionally read-only. The expensive
+evidence fingerprint covers only sources that can change AGC samples or framing: the native AGC,
+the Android and Harmony streaming processors/backends, the Harmony native bridge, and the evaluator.
+If one of those sources changes, rerun all four recorded evaluation dimensions (normal-volume, SNR,
 long-audio time region, and the low-volume red/green fixture) and replace `report.json` with output
 from that evaluation. There is no fingerprint-only update command that can bless old results.
+
+The complete Android `SessionImpl.kt` and Harmony `Runtime.ets` are deliberately outside that
+fingerprint because they also contain VAD, speaker, voiceprint, and lifecycle state machines. Their
+AGC boundary remains fail-closed through the static signal-domain contracts: caller PCM must reach
+VAD and speaker features unchanged, while only AGC output may reach ASR. Changes to session logic
+therefore run the lightweight contracts but require a full accuracy rerun only when an
+accuracy-affecting AGC source also changes.
 
 ## Limitations
 

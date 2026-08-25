@@ -1,15 +1,13 @@
 name: Android SDK CI
 
 # 触发：
-#   - push 到 main / release/*（纯 Markdown 变更除外）
-#   - 指向 main 的 PR（仅 Android/native 输入变化时完整构建）
+#   - push 到 main（按变更范围运行）/ release/*（始终全量）
+#   - 指向 main 的 PR（按变更范围运行）
 #   - 推 v* tag（始终完整构建并用于发版）
 on:
   push:
     branches: [main, "release/*"]
     tags: ["v*"]
-    paths-ignore:
-      - "**.md"
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -36,48 +34,76 @@ jobs:
     name: Detect CI-relevant changes
     runs-on: ubuntu-22.04
     permissions:
-      contents: none
+      contents: read
       pull-requests: read
     outputs:
       android: ${{ steps.filter.outputs.android }}
       contracts: ${{ steps.filter.outputs.contracts }}
+      agc: ${{ steps.filter.outputs.agc }}
+      police: ${{ steps.filter.outputs.police }}
     steps:
+      - name: Checkout main push for an exact before/after diff
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
       - name: Decide which CI jobs are required
         id: filter
         uses: actions/github-script@v9
         with:
           script: |
-            // Pushes, tags and manual runs always build Android; no repository checkout is needed.
-            if (context.eventName !== "pull_request") {
-              core.setOutput("android", "true");
-              core.setOutput("contracts", "true");
-              return;
-            }
+            const { execFileSync } = require("node:child_process");
+            const WORKFLOW = ".github/workflows/android.yml";
+            const flags = ["contracts", "agc", "police", "android"];
+            const allRequired = Object.fromEntries(flags.map((name) => [name, true]));
 
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number,
-              per_page: 100,
-            });
-            if (files.length < context.payload.pull_request.changed_files) {
-              core.warning("Changed-files API result was truncated; enabling CI jobs fail-closed.");
-              core.setOutput("android", "true");
-              core.setOutput("contracts", "true");
-              return;
-            }
-            const markdownOnly = files.every((file) =>
-              [file.filename, file.previous_filename]
-                .filter(Boolean)
-                .every((path) => path.endsWith(".md")),
-            );
-            core.setOutput("contracts", markdownOnly ? "false" : "true");
-            if (markdownOnly) {
-              core.info("Only Markdown files changed; skipping ASR contracts.");
-            }
-            const exactInputs = new Set([
+            const contractExactInputs = new Set([
               ".gitmodules",
-              ".github/workflows/android.yml",
+              WORKFLOW,
+              "third_party/sherpa-onnx",
+            ]);
+            const contractPrefixes = [
+              "asr/android/",
+              "asr/harmony/",
+              "asr/native/",
+              "asr/test-fixtures/",
+              "asr/tools/",
+              "delivery/harmony-dingqiao/",
+              "shared/api-spec/",
+              "third_party/patches/sherpa-amphion/",
+            ];
+            const agcExactInputs = new Set([
+              WORKFLOW,
+              "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt",
+              "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt",
+              "asr/harmony/sdk/src/main/cpp/agc_bridge.cpp",
+              "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets",
+              "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts",
+              "asr/tools/03_build_agc_native.sh",
+              "asr/tools/ensure_agc_build_tools.sh",
+            ]);
+            const policeExactInputs = new Set([
+              WORKFLOW,
+              "asr/tools/sync_harmony_police_assets.py",
+              "asr/tools/test_harmony_police_parity.py",
+            ]);
+            const policePrefixes = [
+              "asr/android/sdk-police/",
+              "asr/harmony/sdk-police/",
+            ];
+            const androidExactInputs = new Set([
+              ".gitmodules",
+              WORKFLOW,
+              "asr/android/build.gradle.kts",
+              "asr/android/gradle.properties",
+              "asr/android/gradle/libs.versions.toml",
+              "asr/android/gradle/wrapper/gradle-wrapper.jar",
+              "asr/android/gradle/wrapper/gradle-wrapper.properties",
+              "asr/android/gradlew",
+              "asr/android/gradlew.bat",
+              "asr/android/init_gradle_wrapper.sh",
+              "asr/android/settings.gradle.kts",
               "asr/tools/03_build_agc_native.sh",
               "asr/tools/04_build_android_so.sh",
               "asr/tools/05_package_aar_libs.sh",
@@ -88,32 +114,208 @@ jobs:
               "asr/tools/prefetch_sherpa_cmake_deps.sh",
               "third_party/sherpa-onnx",
             ]);
-            const inputPrefixes = [
-              "asr/android/",
+            const androidPrefixes = [
+              "asr/android/gradle/",
+              "asr/android/sdk/",
+              "asr/android/sdk-dingqiao/",
+              "asr/android/sdk-police/",
               "asr/native/",
               "third_party/patches/sherpa-amphion/",
             ];
-            const isAndroidInput = (path) =>
-              exactInputs.has(path) || inputPrefixes.some((prefix) => path.startsWith(prefix));
 
-            // Check both sides of a rename so moving a watched input out of scope still builds.
-            for (const file of files) {
-              const paths = [file.filename, file.previous_filename].filter(Boolean);
-              const matchedPath = paths.find(isAndroidInput);
-              if (matchedPath) {
-                core.info(`Android/native input changed: ${matchedPath}`);
-                core.setOutput("android", "true");
+            const matches = (path, exact, prefixes) =>
+              exact.has(path) || prefixes.some((prefix) => path.startsWith(prefix));
+            const classify = (paths) => {
+              if (paths.length > 0 && paths.every((path) => path.endsWith(".md"))) {
+                return Object.fromEntries(flags.map((name) => [name, false]));
+              }
+              return {
+                contracts: paths.some((path) =>
+                  matches(path, contractExactInputs, contractPrefixes)),
+                agc: paths.some((path) =>
+                  matches(path, agcExactInputs, ["asr/native/audio-processing/"])),
+                police: paths.some((path) =>
+                  matches(path, policeExactInputs, policePrefixes)),
+                android: paths.some((path) =>
+                  matches(path, androidExactInputs, androidPrefixes)),
+              };
+            };
+            const assertClassification = (name, paths, expected) => {
+              const actual = classify(paths);
+              for (const flag of flags) {
+                if (actual[flag] !== Boolean(expected[flag])) {
+                  throw new Error(
+                    `change classifier self-test ${name} failed for ${flag}: ` +
+                    `expected=${Boolean(expected[flag])} actual=${actual[flag]}`,
+                  );
+                }
+              }
+            };
+            assertClassification("harmony-runtime", [
+              "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets",
+            ], { contracts: true });
+            assertClassification("agc-processor", [
+              "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt",
+            ], { contracts: true, agc: true, android: true });
+            assertClassification("harmony-agc-processor", [
+              "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts",
+            ], { contracts: true, agc: true });
+            assertClassification("agc-native", [
+              "asr/native/audio-processing/src/amphion_audio_processing.cpp",
+            ], { contracts: true, agc: true, android: true });
+            assertClassification("agc-report", [
+              "asr/android/reports/automatic-agc-evaluation/report.json",
+            ], { contracts: true });
+            assertClassification("android-sdk", [
+              "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt",
+            ], { contracts: true, android: true });
+            assertClassification("police-asset", [
+              "asr/android/sdk-police/src/main/assets/police_terms/terms_global.fst",
+            ], { contracts: true, police: true, android: true });
+            assertClassification("markdown", ["asr/android/docs/INTEGRATION.md"], {});
+            assertClassification("sample", [
+              "asr/android/samples/public-demo/src/main/java/com/amphion/Demo.kt",
+            ], { contracts: true });
+            assertClassification("android-doc-data", [
+              "asr/android/docs/navigation.json",
+            ], { contracts: true });
+            assertClassification("gradle-config", [
+              "asr/android/gradle/verification-metadata.xml",
+            ], { contracts: true, android: true });
+            assertClassification("unrelated", ["tts/android/sdk/src/main/Foo.kt"], {});
+            assertClassification("workflow", [WORKFLOW], allRequired);
+            assertClassification("rename-out", [
+              "asr/android/sdk/src/main/java/com/amphion/Old.kt",
+              "archive/Old.kt",
+            ], { contracts: true, android: true });
+
+            const publish = (result, reason) => {
+              core.info(`${reason}: ${JSON.stringify(result)}`);
+              for (const flag of flags) core.setOutput(flag, String(result[flag]));
+            };
+            const forceAll = (reason) => publish(allRequired, reason);
+
+            if (context.eventName === "workflow_dispatch" ||
+                context.ref.startsWith("refs/tags/v") ||
+                context.ref.startsWith("refs/heads/release/")) {
+              forceAll("Release, tag, or manual event requires every gate");
+              return;
+            }
+
+            let paths;
+            if (context.eventName === "pull_request") {
+              const files = await github.paginate(github.rest.pulls.listFiles, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                per_page: 100,
+              });
+              if (files.length < context.payload.pull_request.changed_files) {
+                forceAll("Changed-files API was truncated; failing closed");
                 return;
               }
+              // Check both sides so moving a watched input out of scope still runs its gate.
+              paths = files.flatMap((file) =>
+                [file.filename, file.previous_filename].filter(Boolean));
+            } else if (context.eventName === "push" && context.ref === "refs/heads/main") {
+              const before = context.payload.before;
+              if (!/^[0-9a-f]{40}$/.test(before) || /^0+$/.test(before)) {
+                forceAll("Main push has no usable before revision; failing closed");
+                return;
+              }
+              try {
+                execFileSync("git", ["fetch", "--no-tags", "--depth=1", "origin", before], {
+                  stdio: "pipe",
+                });
+                const changed = execFileSync(
+                  "git",
+                  ["diff", "--name-only", "-z", "--no-renames", before, context.sha],
+                  { encoding: "utf8" },
+                );
+                // --no-renames exposes both the removed and added paths of a rename.
+                paths = changed.split("\0").filter(Boolean);
+              } catch (error) {
+                core.warning(`Cannot classify main push diff: ${error}`);
+                forceAll("Main diff failed; failing closed");
+                return;
+              }
+            } else {
+              forceAll("Unknown event requires every gate");
+              return;
             }
-            core.setOutput("android", "false");
+            publish(classify([...new Set(paths)]), "Classified changed paths");
 
-  asr-contracts:
-    name: ASR contracts
+  static-contracts:
+    name: Static ASR contracts
     needs: changes
     if: needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Run automatic AGC static release gate
+        run: python3 asr/tools/run_automatic_agc_release_gate.py static
+
+      - name: Check customer delivery redaction
+        run: |
+          python3 -m unittest \
+            delivery/harmony-dingqiao/delivery/test_check_customer_delivery_redaction.py -v
+          python3 delivery/harmony-dingqiao/delivery/check_customer_delivery_redaction.py \
+            delivery/harmony-dingqiao/docs/customer
+
+  harmony-contracts:
+    name: Harmony lifecycle contracts
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Run cross-platform ASR lifecycle contracts
+        run: |
+          python3 -m unittest discover -s asr/tools/tests -p 'test_harmony_*.py' -v
+          python3 -m unittest \
+            asr.tools.tests.test_android_native_cache \
+            delivery.harmony-dingqiao.delivery.test_run_device_stress \
+            delivery.harmony-dingqiao.delivery.test_run_finish_compat_release_gate \
+            delivery.harmony-dingqiao.delivery.test_release_defaults -v
+
+  police-parity:
+    name: Police cross-platform parity
+    needs: changes
+    if: needs.changes.outputs.police == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -151,33 +353,47 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install AGC native build tools
-        run: python3 -m pip install meson==1.7.0 ninja==1.11.1.4
+      - name: Install TypeScript
+        run: npm install --global typescript@4.9.5
 
-      - name: Run automatic AGC static release gate
-        run: python3 asr/tools/run_automatic_agc_release_gate.py static
-
-      - name: Build and test host AGC
-        run: bash asr/tools/03_build_agc_native.sh host
-
-      - name: Run cross-platform ASR lifecycle contracts
+      - name: Verify synchronized police assets and parity corpus
         run: |
-          npm install --global typescript@4.9.5
-          python3 -m unittest discover -s asr/tools/tests -p 'test_harmony_*.py' -v
-          python3 -m unittest \
-            asr.tools.tests.test_android_native_cache \
-            delivery.harmony-dingqiao.delivery.test_run_device_stress \
-            delivery.harmony-dingqiao.delivery.test_run_finish_compat_release_gate \
-            delivery.harmony-dingqiao.delivery.test_release_defaults -v
           python3 asr/tools/sync_harmony_police_assets.py --check
           python3 asr/tools/test_harmony_police_parity.py
 
-      - name: Check customer delivery redaction
-        run: |
-          python3 -m unittest \
-            delivery/harmony-dingqiao/delivery/test_check_customer_delivery_redaction.py -v
-          python3 delivery/harmony-dingqiao/delivery/check_customer_delivery_redaction.py \
-            delivery/harmony-dingqiao/docs/customer
+  host-agc:
+    name: Host AGC native tests
+    needs: changes
+    if: needs.changes.outputs.agc == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Restore incremental host AGC build
+        uses: actions/cache@v5
+        with:
+          path: |
+            asr/native/audio-processing/build-host
+            !asr/native/audio-processing/build-host/meson-logs
+            asr/native/audio-processing/subprojects
+          key: host-agc-${{ runner.os }}-v1-${{ hashFiles('asr/native/audio-processing/meson.build', 'asr/native/audio-processing/subprojects/*.wrap', 'asr/tools/03_build_agc_native.sh', 'asr/tools/ensure_agc_build_tools.sh') }}-${{ hashFiles('asr/native/audio-processing/src/**', 'asr/native/audio-processing/include/**', 'asr/native/audio-processing/tests/**') }}
+          restore-keys: |
+            host-agc-${{ runner.os }}-v1-${{ hashFiles('asr/native/audio-processing/meson.build', 'asr/native/audio-processing/subprojects/*.wrap', 'asr/tools/03_build_agc_native.sh', 'asr/tools/ensure_agc_build_tools.sh') }}-
+
+      - name: Install AGC native build tools
+        run: python3 -m pip install meson==${{ env.MESON_VERSION }} ninja==${{ env.NINJA_VERSION }}
+
+      - name: Build and test host AGC
+        run: bash asr/tools/03_build_agc_native.sh host
 
   android-aar:
     name: Android AAR (arm64-v8a)
@@ -249,15 +465,12 @@ jobs:
         if: steps.native-cache.outputs.cache-hit != 'true'
         run: sdkmanager "ndk;${NDK_VERSION}" "cmake;${CMAKE_VERSION}"
 
-      - name: Cache Gradle
-        uses: actions/cache@v5
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('asr/android/**/*.gradle*', 'asr/android/gradle.properties', 'asr/android/gradle/libs.versions.toml', 'asr/android/gradle/wrapper/gradle-wrapper.properties') }}-${{ github.sha }}
-          restore-keys: |
-            gradle-${{ runner.os }}-${{ hashFiles('asr/android/**/*.gradle*', 'asr/android/gradle.properties', 'asr/android/gradle/libs.versions.toml', 'asr/android/gradle/wrapper/gradle-wrapper.properties') }}-
+          cache-provider: enhanced
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          cache-cleanup: on-success
 
       - name: Init Gradle wrapper
         working-directory: ${{ env.SDK_BUILD_DIR }}
@@ -331,6 +544,7 @@ jobs:
           path: |
             ${{ env.SDK_BUILD_DIR }}/sdk/build/outputs/aar/sdk-release.aar
             ${{ env.SDK_BUILD_DIR }}/sdk/build/outputs/aar/sdk-release.aar.sha256
+          compression-level: 0
           retention-days: 30
 
       - name: Upload native .so
@@ -341,12 +555,13 @@ jobs:
             third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libsherpa-onnx-jni.so
             third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libonnxruntime.so
             asr/native/audio-processing/build-android-arm64-v8a/libamphion_audio_processing.so
+          compression-level: 0
           retention-days: 30
 
   ci-result:
     # Keep the old required-check display name so branch protection remains valid during migration.
     name: Build AAR (arm64-v8a)
-    needs: [changes, asr-contracts, android-aar]
+    needs: [changes, static-contracts, harmony-contracts, police-parity, host-agc, android-aar]
     if: always()
     runs-on: ubuntu-22.04
     steps:
@@ -355,7 +570,12 @@ jobs:
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           CONTRACTS_REQUIRED: ${{ needs.changes.outputs.contracts }}
-          CONTRACTS_RESULT: ${{ needs.asr-contracts.result }}
+          STATIC_RESULT: ${{ needs.static-contracts.result }}
+          HARMONY_RESULT: ${{ needs.harmony-contracts.result }}
+          POLICE_REQUIRED: ${{ needs.changes.outputs.police }}
+          POLICE_RESULT: ${{ needs.police-parity.result }}
+          AGC_REQUIRED: ${{ needs.changes.outputs.agc }}
+          HOST_AGC_RESULT: ${{ needs.host-agc.result }}
           ANDROID_REQUIRED: ${{ needs.changes.outputs.android }}
           ANDROID_RESULT: ${{ needs.android-aar.result }}
         run: |
@@ -363,23 +583,23 @@ jobs:
             echo "changes failed: $CHANGES_RESULT"
             exit 1
           fi
-          if [[ "$CONTRACTS_REQUIRED" == "true" && "$CONTRACTS_RESULT" != "success" ]]; then
-            echo "asr-contracts was required but finished with: $CONTRACTS_RESULT"
-            exit 1
-          fi
-          if [[ "$CONTRACTS_REQUIRED" != "true" && "$CONTRACTS_RESULT" != "skipped" ]]; then
-            echo "asr-contracts was not required but finished with: $CONTRACTS_RESULT"
-            exit 1
-          fi
-          if [[ "$ANDROID_REQUIRED" == "true" && "$ANDROID_RESULT" != "success" ]]; then
-            echo "android-aar was required but finished with: $ANDROID_RESULT"
-            exit 1
-          fi
-          if [[ "$ANDROID_REQUIRED" != "true" && "$ANDROID_RESULT" != "skipped" ]]; then
-            echo "android-aar was not required but finished with: $ANDROID_RESULT"
-            exit 1
-          fi
-          echo "Android CI passed (android-aar: $ANDROID_RESULT)"
+          verify_job() {
+            local job_name="$1"
+            local required="$2"
+            local result="$3"
+            local expected="skipped"
+            [[ "$required" == "true" ]] && expected="success"
+            if [[ "$result" != "$expected" ]]; then
+              echo "$job_name expected $expected (required=$required), got: $result"
+              exit 1
+            fi
+          }
+          verify_job static-contracts "$CONTRACTS_REQUIRED" "$STATIC_RESULT"
+          verify_job harmony-contracts "$CONTRACTS_REQUIRED" "$HARMONY_RESULT"
+          verify_job police-parity "$POLICE_REQUIRED" "$POLICE_RESULT"
+          verify_job host-agc "$AGC_REQUIRED" "$HOST_AGC_RESULT"
+          verify_job android-aar "$ANDROID_REQUIRED" "$ANDROID_RESULT"
+          echo "Android CI passed (contracts: $STATIC_RESULT/$HARMONY_RESULT, police: $POLICE_RESULT, host-agc: $HOST_AGC_RESULT, android-aar: $ANDROID_RESULT)"
 
   publish-maven:
     name: Publish to Maven (tags only)
