@@ -104,8 +104,9 @@ match, or evidence file fails the gate; none of these steps may warn-and-skip.
 
 `python3 asr/tools/sync_automatic_agc_evidence.py --check` is intentionally read-only. The expensive
 evidence fingerprint covers only sources that can change AGC samples or framing: the native AGC
-build/dependency description, the Android and Harmony streaming ingress/processors/backends, the
-Harmony native bridge, and the evaluator.
+source, public header, build/dependency description and tool bootstrap; the Android and Harmony
+streaming ingress/processors/backends; the Harmony native bridge; and the evaluator. AGC-named
+runtime helpers in those implementation directories are discovered automatically.
 If one of those sources changes, rerun all four recorded evaluation dimensions (normal-volume, SNR,
 long-audio time region, and the low-volume red/green fixture) and replace `report.json` with output
 from that evaluation. There is no fingerprint-only update command that can bless old results.

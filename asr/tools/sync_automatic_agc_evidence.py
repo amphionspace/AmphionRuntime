@@ -16,19 +16,33 @@ REPORT = ROOT / "asr/android/reports/automatic-agc-evaluation/report.json"
 # fingerprint. Session orchestration is covered by the lightweight signal-domain contracts instead;
 # hashing the complete session implementations would make unrelated VAD, speaker, or lifecycle
 # changes invalidate AGC accuracy evidence.
-ACCURACY_EVIDENCE_SOURCES = (
-    "asr/native/audio-processing/meson.build",
-    "asr/native/audio-processing/subprojects/webrtc-audio-processing.wrap",
-    "asr/native/audio-processing/src/amphion_audio_processing.cpp",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcIngress.ts",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets",
-    "asr/harmony/sdk/src/main/cpp/agc_bridge.cpp",
-    "asr/tools/evaluate_automatic_agc_regression.py",
-)
+def discover_accuracy_evidence_sources(root: Path = ROOT) -> tuple[str, ...]:
+    sources = {
+        "asr/native/audio-processing/meson.build",
+        "asr/native/audio-processing/subprojects/abseil-cpp.wrap",
+        "asr/native/audio-processing/subprojects/webrtc-audio-processing.wrap",
+        "asr/tools/03_build_agc_native.sh",
+        "asr/tools/ensure_agc_build_tools.sh",
+        "asr/tools/evaluate_automatic_agc_regression.py",
+    }
+    patterns = (
+        "asr/native/audio-processing/src/*",
+        "asr/native/audio-processing/include/*",
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal/*Agc*.kt",
+        "asr/harmony/sdk/src/main/ets/com/amphion/asr/*Agc*.ts",
+        "asr/harmony/sdk/src/main/ets/com/amphion/asr/*Agc*.ets",
+        "asr/harmony/sdk/src/main/cpp/*agc*.*",
+    )
+    for pattern in patterns:
+        sources.update(
+            path.relative_to(root).as_posix()
+            for path in root.glob(pattern)
+            if path.is_file()
+        )
+    return tuple(sorted(sources))
+
+
+ACCURACY_EVIDENCE_SOURCES = discover_accuracy_evidence_sources()
 
 
 def source_hashes(root: Path = ROOT) -> dict:

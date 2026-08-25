@@ -89,7 +89,7 @@ internal class SessionImpl(
     private val speakerPcmBuffers = SpeakerPcmBuffers(UTT_MAX_SAMPLES)
     private val effectiveSpeechBuffer = EffectiveSpeechBuffer(sampleRate, UTT_MAX_SAMPLES)
     private val recognizerResetGeneration = RecognizerResetGeneration()
-    private val agcIngress = StreamingAgcIngress(StreamingAgcProcessor(sampleRate))
+    private val agcIngress = StreamingAgcIngress(StreamingAgcProcessor(sampleRate), ::guardAgcFrames)
 
     /** speaker vad 打分终点按 native segment 的绝对 sample 位置推进，不依赖调用方 PCM 分块。 */
     private var svScoreScheduler: SpeakerVadScoreScheduler? = null
@@ -221,7 +221,7 @@ internal class SessionImpl(
             metrics.onPcmAccepted(samples.size * 2)
             val copy = samples.copyOf()
             decoderHandler.post {
-                processAgc("agc.process") { agcIngress.accept(copy, ::feedAndDecode) }
+                agcIngress.accept(copy, ::feedAndDecode)
             }
         }
         if (!accepted) {
@@ -259,10 +259,7 @@ internal class SessionImpl(
         }
         val submitted = decoderSubmissionFence.submitActive {
             decoderHandler.post {
-                if (!processAgc("agc.flush(updateHotwords)") {
-                        agcIngress.flush(::feedAndDecode)
-                    }
-                ) {
+                if (!agcIngress.flush("agc.flush(updateHotwords)", ::feedAndDecode)) {
                     return@post
                 }
                 val r = NativeGuard.run("recognizer.createStream(updateHotwords)") {
@@ -347,7 +344,7 @@ internal class SessionImpl(
         decoderSubmissionFence.submitStop {
             stopped.set(true)
             decoderHandler.post {
-                val agcOk = processAgc("agc.flush(stop)") { agcIngress.flush(::feedAndDecode) }
+                val agcOk = agcIngress.flush("agc.flush(stop)", ::feedAndDecode)
                 if (agcOk) {
                     val r = NativeGuard.run("stream.inputFinished+drain") {
                         appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
@@ -404,15 +401,15 @@ internal class SessionImpl(
     }
 
     /** Native AGC failures become SDK errors instead of terminating the decoder Looper. */
-    private inline fun processAgc(
+    private inline fun guardAgcFrames(
         operation: String,
-        action: () -> Unit,
-    ): Boolean {
+        action: () -> List<ProcessedAudioFrame>,
+    ): List<ProcessedAudioFrame>? {
         return when (val result = NativeGuard.run(operation, action)) {
-            is NativeResult.Ok -> true
+            is NativeResult.Ok -> result.value
             is NativeResult.Err -> {
                 postError(result.error)
-                false
+                null
             }
         }
     }

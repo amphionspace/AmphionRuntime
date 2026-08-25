@@ -33,6 +33,8 @@ Android AAR 只监听实际被当前 job 消费的三个 module（`sdk`、`sdk-d
 workflow 内带最小用例矩阵，覆盖 Harmony、Android、AGC、police、报告、Markdown、
 customer redaction、sample、rename 和未知 status。静态门禁还会用
 Node.js 执行该矩阵，并检查 workflow 拓扑、缓存配置和 required 汇总关系。
+Android/Harmony AGC 实现目录中的新增 `*Agc*` helper 会由分类器和证据校验自动发现，
+无需同时维护多份精确路径表；分类输出只接受 `true` 或 `false`，缺失或非法值会阻断汇总。
 
 ## 并行拓扑
 
