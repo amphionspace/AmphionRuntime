@@ -20,6 +20,20 @@ constexpr int64_t kClasses = 7;
 constexpr int32_t kReceptiveFieldSize = 991;
 constexpr int32_t kReceptiveFieldShift = 270;
 
+// pyannote segmentation-3.0 powerset order:
+// empty, S0, S1, S2, S0+S1, S0+S2, S1+S2.
+constexpr int32_t ClassToSpeakerMask(int32_t klass) {
+  constexpr std::array<int32_t, kClasses> kMasks{0, 1, 2, 4, 3, 5, 6};
+  return klass >= 0 && klass < kClasses ? kMasks[klass] : 0;
+}
+
+constexpr int32_t PrimarySpeaker(int32_t speaker_mask) {
+  if ((speaker_mask & 1) != 0) return 0;
+  if ((speaker_mask & 2) != 0) return 1;
+  if ((speaker_mask & 4) != 0) return 2;
+  return -1;
+}
+
 template <typename T>
 std::vector<T> CopyTypedArray(napi_env env, napi_value value,
                               napi_typedarray_type expected) {
@@ -65,6 +79,7 @@ class SpeakerTurnSegmentationModel {
     int32_t start = 0;
     int32_t end = 0;
     int32_t speaker = 0;
+    int32_t speaker_mask = 0;
   };
 
   std::vector<Segment> Process(const std::vector<float>& samples) {
@@ -89,27 +104,27 @@ class SpeakerTurnSegmentationModel {
     }
     const float* logits = output[0].GetTensorData<float>();
     std::vector<Segment> result;
-    int32_t active_speaker = -1;
+    int32_t active_speaker_mask = 0;
     int32_t active_start = 0;
     auto finish = [&](int32_t end) {
-      if (active_speaker >= 0 && end > active_start) {
-        result.push_back({active_start, end, active_speaker});
+      if (active_speaker_mask != 0 && end > active_start) {
+        result.push_back({active_start, end,
+                          PrimarySpeaker(active_speaker_mask),
+                          active_speaker_mask});
       }
-      active_speaker = -1;
+      active_speaker_mask = 0;
     };
     for (int32_t frame = 0; frame < kFrames; ++frame) {
       const float* row = logits + frame * kClasses;
       const int32_t klass = static_cast<int32_t>(
           std::max_element(row, row + kClasses) - row);
-      // Powerset classes 1..3 are the three local single-speaker channels. Empty and
-      // overlap classes deliberately break a run because overlap is out of scope.
-      const int32_t speaker = klass >= 1 && klass <= 3 ? klass - 1 : -1;
+      const int32_t speaker_mask = ClassToSpeakerMask(klass);
       const int32_t boundary = source_offset + kReceptiveFieldSize / 2 +
                                frame * kReceptiveFieldShift;
-      if (speaker == active_speaker) continue;
+      if (speaker_mask == active_speaker_mask) continue;
       finish(std::clamp(boundary, 0, static_cast<int32_t>(samples.size())));
-      if (speaker >= 0) {
-        active_speaker = speaker;
+      if (speaker_mask != 0) {
+        active_speaker_mask = speaker_mask;
         active_start = std::clamp(boundary, 0, static_cast<int32_t>(samples.size()));
       }
     }
@@ -261,6 +276,8 @@ napi_value Process(napi_env env, napi_callback_info info) {
       napi_set_named_property(env, item, "endSample", value);
       napi_create_int32(env, segments[i].speaker, &value);
       napi_set_named_property(env, item, "speaker", value);
+      napi_create_int32(env, segments[i].speaker_mask, &value);
+      napi_set_named_property(env, item, "speakerMask", value);
       napi_set_element(env, result, i, item);
     }
     return result;
@@ -316,6 +333,8 @@ void CompleteProcess(napi_env env, napi_status status, void* data) {
     napi_set_named_property(env, item, "endSample", value);
     napi_create_int32(env, context->segments[i].speaker, &value);
     napi_set_named_property(env, item, "speaker", value);
+    napi_create_int32(env, context->segments[i].speaker_mask, &value);
+    napi_set_named_property(env, item, "speakerMask", value);
     napi_set_element(env, result, i, item);
   }
   napi_resolve_deferred(env, context->deferred, result);

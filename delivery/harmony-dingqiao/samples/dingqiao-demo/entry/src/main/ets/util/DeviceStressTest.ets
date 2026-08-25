@@ -10,6 +10,8 @@ import {
   LicenseActivationResult,
   PrepareRuntimeCallback,
   RecognitionListener,
+  SpeakerDiarizationResult,
+  SpeakerDiarizationUpdate,
   SpeechRecognitionEngine,
   SpeechRecognitionResult,
   SpeechRecognizeSdk,
@@ -60,6 +62,7 @@ export class DeviceStressOptions {
   enforceTargetSpeakerBusinessText: boolean = true;
   speakerVadFinishRecoveryEntryIds: string = 'none';
   speakerVadThreshold: number = -2;
+  speakerDiarizationServiceUrl: string = '';
 }
 
 class CorpusEntry {
@@ -86,6 +89,8 @@ class SessionEvents {
   speechBeginAtMs: number = -1;
   firstNonEmptyResultAtMs: number = -1;
   firstNonEmptyFinalAtMs: number = -1;
+  lastFinalAtMs: number = -1;
+  completeAtMs: number = -1;
   lastIsLast: boolean = false;
   lastFinals: number = 0;
   speakerScores: number = 0;
@@ -93,6 +98,16 @@ class SessionEvents {
   missingSpeakerScores: number = 0;
   firstNonEmptyFinalHasScore?: boolean;
   targetSpeakerEnhancementResults: number = 0;
+  speakerDiarizationUpdates: number = 0;
+  speakerDiarizationResults: number = 0;
+  speakerDiarizationSpeakerCount: number = -1;
+  speakerDiarizationDegraded: number = -1;
+  speakerDiarizationReason: number = -1;
+  speakerDiarizationMessage: string = '';
+  speakerTurnsJson: string = '';
+  speakerDiarizationResultAtMs: number = -1;
+  speakerDiarizationInferenceMs: number = -1;
+  speakerDiarizationRtf: number = -1;
   errorCodes: number[] = [];
   errorMessages: string[] = [];
   callbackTrace: string[] = [];
@@ -126,6 +141,18 @@ function terminalCallbackOrderOk(events: SessionEvents, sessionId: string): bool
   if (lastIndex < 0 || completeIndex < 0 || lastIndex > completeIndex) return false;
   for (let i = completeIndex + 1; i < events.callbackTrace.length; i++) {
     if (events.callbackTrace[i].startsWith(`${sessionId}:`)) return false;
+  }
+  return true;
+}
+
+function speakerDiarizationTerminalOrderOk(events: SessionEvents, sessionId: string): boolean {
+  const lastIndex = events.callbackTrace.indexOf(`${sessionId}:final-last`);
+  const resultIndex = events.callbackTrace.indexOf(`${sessionId}:diarization-result`);
+  const completeIndex = events.callbackTrace.indexOf(`${sessionId}:complete`);
+  if (lastIndex < 0 || resultIndex <= lastIndex || completeIndex <= resultIndex) return false;
+  if (events.callbackTrace.lastIndexOf(`${sessionId}:diarization-result`) !== resultIndex) return false;
+  for (let i = lastIndex + 1; i < events.callbackTrace.length; i++) {
+    if (events.callbackTrace[i] === `${sessionId}:diarization-update`) return false;
   }
   return true;
 }
@@ -181,7 +208,10 @@ class StressListener implements RecognitionListener {
     this.events.finalChars += result.result.length;
     this.events.finalTexts.push(result.result);
     this.events.lastIsLast = result.isLast;
-    if (result.isLast) this.events.lastFinals += 1;
+    if (result.isLast) {
+      this.events.lastFinals += 1;
+      this.events.lastFinalAtMs = Date.now();
+    }
     if (result.speakerSimilarity === undefined) {
       this.events.missingSpeakerScores += 1;
     } else {
@@ -196,7 +226,26 @@ class StressListener implements RecognitionListener {
 
   onComplete(sessionId: string, _eventMessage?: string): void {
     this.events.completes += 1;
+    this.events.completeAtMs = Date.now();
     this.record(sessionId, 'complete');
+  }
+
+  onSpeakerDiarizationUpdate(sessionId: string, _update: SpeakerDiarizationUpdate): void {
+    this.events.speakerDiarizationUpdates += 1;
+    this.record(sessionId, 'diarization-update');
+  }
+
+  onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    this.events.speakerDiarizationResults += 1;
+    this.events.speakerDiarizationSpeakerCount = result.speakerCount;
+    this.events.speakerDiarizationDegraded = result.degraded ? 1 : 0;
+    this.events.speakerDiarizationReason = result.degradedReason;
+    this.events.speakerDiarizationMessage = result.degradedMessage ?? '';
+    this.events.speakerTurnsJson = JSON.stringify(result.speakerTurns);
+    this.events.speakerDiarizationResultAtMs = Date.now();
+    this.events.speakerDiarizationInferenceMs = result.inferenceMs;
+    this.events.speakerDiarizationRtf = result.rtf;
+    this.record(sessionId, 'diarization-result');
   }
 
   onError(sessionId: string, errorCode: number, message: string): void {
@@ -775,6 +824,18 @@ class CycleResult {
   errors: number = 0;
   finalChars: number = 0;
   speakerScores: number = 0;
+  speakerDiarizationUpdates: number = 0;
+  speakerDiarizationResults: number = 0;
+  speakerDiarizationSpeakerCount: number = -1;
+  speakerDiarizationDegraded: number = -1;
+  speakerDiarizationReason: number = -1;
+  speakerDiarizationMessageHex: string = '';
+  speakerTurnsHex: string = '';
+  speakerDiarizationInferenceMs: number = -1;
+  speakerDiarizationRtf: number = -1;
+  finishToLastMs: number = -1;
+  finishToDiarizationResultMs: number = -1;
+  finishToCompleteMs: number = -1;
   nonEmptySpeakerScores: number = 0;
   missingSpeakerScores: number = 0;
   firstNonEmptyFinalHasScore: number = -1;
@@ -810,6 +871,17 @@ class CycleResult {
       `|starts=${this.starts}|partials=${this.partials}|finals=${this.finals}` +
       `|nonEmptyFinals=${this.nonEmptyFinals}|completes=${this.completes}` +
       `|errors=${this.errors}|finalChars=${this.finalChars}|speakerScores=${this.speakerScores}` +
+      `|speakerDiarizationUpdates=${this.speakerDiarizationUpdates}` +
+      `|speakerDiarizationResults=${this.speakerDiarizationResults}` +
+      `|speakerDiarizationSpeakerCount=${this.speakerDiarizationSpeakerCount}` +
+      `|speakerDiarizationDegraded=${this.speakerDiarizationDegraded}` +
+      `|speakerDiarizationReason=${this.speakerDiarizationReason}` +
+      `|speakerDiarizationMessageHex=${this.speakerDiarizationMessageHex}` +
+      `|speakerDiarizationInferenceMs=${this.speakerDiarizationInferenceMs}` +
+      `|speakerDiarizationRtf=${this.speakerDiarizationRtf}` +
+      `|finishToLastMs=${this.finishToLastMs}` +
+      `|finishToDiarizationResultMs=${this.finishToDiarizationResultMs}` +
+      `|finishToCompleteMs=${this.finishToCompleteMs}` +
       `|nonEmptySpeakerScores=${this.nonEmptySpeakerScores}` +
       `|missingSpeakerScores=${this.missingSpeakerScores}` +
       `|firstNonEmptyFinalHasScore=${this.firstNonEmptyFinalHasScore}` +
@@ -831,7 +903,8 @@ class CycleResult {
       `|audioStartToFirstNonEmptyResultMs=${this.audioStartToFirstNonEmptyResultMs}` +
       `|audioStartToSpeechBeginMs=${this.audioStartToSpeechBeginMs}` +
       `|speechBeginToFirstNonEmptyResultMs=${this.speechBeginToFirstNonEmptyResultMs}` +
-      `|resultHex=${this.resultHex}|trace=${this.callbackTrace}|detail=${this.detail}`;
+      `|resultHex=${this.resultHex}|speakerTurnsHex=${this.speakerTurnsHex}` +
+      `|trace=${this.callbackTrace}|detail=${this.detail}`;
   }
 }
 
@@ -1135,6 +1208,14 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.errors = events.errors;
   result.finalChars = events.finalChars;
   result.speakerScores = events.speakerScores;
+  result.speakerDiarizationUpdates = events.speakerDiarizationUpdates;
+  result.speakerDiarizationResults = events.speakerDiarizationResults;
+  result.speakerDiarizationSpeakerCount = events.speakerDiarizationSpeakerCount;
+  result.speakerDiarizationDegraded = events.speakerDiarizationDegraded;
+  result.speakerDiarizationReason = events.speakerDiarizationReason;
+  result.speakerDiarizationMessageHex = stringToUtf16Hex(events.speakerDiarizationMessage);
+  result.speakerDiarizationInferenceMs = events.speakerDiarizationInferenceMs;
+  result.speakerDiarizationRtf = events.speakerDiarizationRtf;
   result.nonEmptySpeakerScores = events.nonEmptySpeakerScores;
   result.missingSpeakerScores = events.missingSpeakerScores;
   result.firstNonEmptyFinalHasScore = events.firstNonEmptyFinalHasScore === undefined ? -1 :
@@ -1156,6 +1237,7 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
     result.audioStartToSpeechBeginMs = events.speechBeginAtMs - events.audioFeedStartedAtMs;
   }
   result.resultHex = stringToUtf16Hex(events.finalTexts.join(''));
+  result.speakerTurnsHex = stringToUtf16Hex(events.speakerTurnsJson);
   result.callbackTrace = events.callbackTrace.join('>');
   result.unexpectedSessionCallbacks = events.unexpectedSessionCallbacks;
   result.ok = ok && result.liveStreams === 0 && result.unexpectedSessionCallbacks === 0;
@@ -1831,7 +1913,8 @@ async function runCallbackApiReentrantCycle(engine: SpeechRecognitionEngine, ent
 }
 
 async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
-  index: number, mode: string, paceMs: number): Promise<CycleResult> {
+  index: number, mode: string, paceMs: number,
+  speakerDiarizationServiceUrl: string): Promise<CycleResult> {
   const startedAt = Date.now();
   let scenario: CustomerScenarioName = 'ptt';
   if (mode === 'customer-tap-vad') scenario = 'tap-vad';
@@ -1848,7 +1931,7 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
     engine.setListener(callbackListener);
   }
   const profile = customerScenarioProfile(scenario);
-  const params = customerProfileStartParams(sessionId, scenario);
+  const params = customerProfileStartParams(sessionId, scenario, speakerDiarizationServiceUrl);
   params.extraParams['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
@@ -1875,21 +1958,30 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
 
   const lastBeforeStop = callbackListener === undefined ?
     events.lastFinals : callbackListener.lastFinalsBeforeFinish;
+  const finishRequestedAtMs = Date.now();
   if (callbackListener === undefined && engine.isBusy()) engine.finish(sessionId);
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
   if (!completed && engine.isBusy()) engine.cancel(sessionId);
   const callbackContract = callbackListener === undefined ||
     (callbackListener.reentryAttempted && callbackListener.finishCalls === 1 &&
     callbackListener.reentryThrowMessage.length === 0);
+  const meetingContract = mode !== 'customer-meeting-minutes' ||
+    (events.speakerDiarizationResults === 1 &&
+    events.speakerDiarizationDegraded === 0 &&
+    events.speakerDiarizationSpeakerCount > 0 &&
+    events.speakerTurnsJson !== '[]' &&
+    speakerDiarizationTerminalOrderOk(events, sessionId));
   const ok = completed && callbackContract && lastBeforeStop === 0 &&
     events.starts === 1 && events.lastFinals === 1 && events.completes === 1 &&
     events.errors === 0 && events.unexpectedSessionCallbacks === 0 &&
-    terminalCallbackOrderOk(events, sessionId) && !engine.isBusy();
+    terminalCallbackOrderOk(events, sessionId) && meetingContract && !engine.isBusy();
   let detail = `${mode}-contract`;
   if (callbackListener !== undefined && !callbackListener.reentryAttempted) {
     detail = 'customer-tap-vad-missing-speech-end';
   } else if (lastBeforeStop !== 0) {
     detail = 'customer-is-last-before-stop';
+  } else if (!meetingContract) {
+    detail = 'customer-meeting-diarization-contract';
   } else if (!ok) {
     detail = `${mode}-lifecycle-failed`;
   }
@@ -1899,6 +1991,12 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   result.lastFinalsBeforeFinish = lastBeforeStop;
   result.requestedVadBeginMs = profile.vadBegin === undefined ? -1 : profile.vadBegin;
   result.requestedMaxAudioDurationMs = profile.maxAudioDuration;
+  result.finishToLastMs = events.lastFinalAtMs < 0 ? -1 :
+    events.lastFinalAtMs - finishRequestedAtMs;
+  result.finishToDiarizationResultMs = events.speakerDiarizationResultAtMs < 0 ? -1 :
+    events.speakerDiarizationResultAtMs - finishRequestedAtMs;
+  result.finishToCompleteMs = events.completeAtMs < 0 ? -1 :
+    events.completeAtMs - finishRequestedAtMs;
   return result;
 }
 
@@ -2603,7 +2701,9 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       } else if (options.mode === 'customer-tap-vad' || options.mode === 'customer-ptt' ||
         options.mode === 'customer-transcription' || options.mode === 'customer-ptt-tail' ||
         options.mode === 'customer-form' || options.mode === 'customer-meeting-minutes') {
-        result = await runCustomerScenarioCycle(engine, entry, i, options.mode, options.paceMs);
+        result = await runCustomerScenarioCycle(
+          engine, entry, i, options.mode, options.paceMs,
+          options.speakerDiarizationServiceUrl);
       } else if (options.mode === 'endpoint-reentrant') {
         result = await runEndpointReentrantCycle(engine, entry, i);
       } else if (options.mode === 'finish-shutdown') {

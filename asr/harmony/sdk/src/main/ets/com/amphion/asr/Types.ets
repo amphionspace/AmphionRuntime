@@ -162,6 +162,8 @@ export class AsrConfigBuilder {
 
 export class AsrResult {
   text: string = '';
+  /** Decoder text before ITN and punctuation. */
+  rawText: string = '';
   confidence: number = 1.0;
   tokens: string[] = [];
   timestamps: number[] = [];
