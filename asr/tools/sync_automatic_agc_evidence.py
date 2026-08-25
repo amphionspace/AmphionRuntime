@@ -17,9 +17,13 @@ REPORT = ROOT / "asr/android/reports/automatic-agc-evaluation/report.json"
 # hashing the complete session implementations would make unrelated VAD, speaker, or lifecycle
 # changes invalidate AGC accuracy evidence.
 ACCURACY_EVIDENCE_SOURCES = (
+    "asr/native/audio-processing/meson.build",
+    "asr/native/audio-processing/subprojects/webrtc-audio-processing.wrap",
     "asr/native/audio-processing/src/amphion_audio_processing.cpp",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcIngress.ts",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets",
     "asr/harmony/sdk/src/main/cpp/agc_bridge.cpp",

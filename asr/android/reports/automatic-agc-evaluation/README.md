@@ -103,15 +103,17 @@ whole release ledger. A missing native library, test XML, device artifact, prove
 match, or evidence file fails the gate; none of these steps may warn-and-skip.
 
 `python3 asr/tools/sync_automatic_agc_evidence.py --check` is intentionally read-only. The expensive
-evidence fingerprint covers only sources that can change AGC samples or framing: the native AGC,
-the Android and Harmony streaming processors/backends, the Harmony native bridge, and the evaluator.
+evidence fingerprint covers only sources that can change AGC samples or framing: the native AGC
+build/dependency description, the Android and Harmony streaming ingress/processors/backends, the
+Harmony native bridge, and the evaluator.
 If one of those sources changes, rerun all four recorded evaluation dimensions (normal-volume, SNR,
 long-audio time region, and the low-volume red/green fixture) and replace `report.json` with output
 from that evaluation. There is no fingerprint-only update command that can bless old results.
 
 The complete Android `SessionImpl.kt` and Harmony `Runtime.ets` are deliberately outside that
 fingerprint because they also contain VAD, speaker, voiceprint, and lifecycle state machines. Their
-AGC boundary remains fail-closed through the static signal-domain contracts: caller PCM must reach
+AGC boundary remains fail-closed through the hashed ingress modules plus static signal-domain
+contracts: the ingress owns ordered exactly-once delivery and remainder flush; caller PCM must reach
 VAD and speaker features unchanged, while only AGC output may reach ASR. Changes to session logic
 therefore run the lightweight contracts but require a full accuracy rerun only when an
 accuracy-affecting AGC source also changes.
