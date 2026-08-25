@@ -135,6 +135,7 @@ class OnlineRecognizer(
     fun getEndpointReason(stream: OnlineStream): OnlineEndpointReason =
         OnlineEndpointReason.fromNative(getEndpointReason(ptr, stream.ptr))
     fun commitRule3Segment(stream: OnlineStream): Boolean = commitRule3Segment(ptr, stream.ptr)
+    fun commitStablePrefix(stream: OnlineStream): Boolean = commitStablePrefix(ptr, stream.ptr)
     fun isReady(stream: OnlineStream) = isReady(ptr, stream.ptr)
     fun getResult(stream: OnlineStream): OnlineRecognizerResult {
         return getResult(ptr, stream.ptr)
@@ -157,6 +158,7 @@ class OnlineRecognizer(
     private external fun isEndpoint(ptr: Long, streamPtr: Long): Boolean
     private external fun getEndpointReason(ptr: Long, streamPtr: Long): Int
     private external fun commitRule3Segment(ptr: Long, streamPtr: Long): Boolean
+    private external fun commitStablePrefix(ptr: Long, streamPtr: Long): Boolean
     private external fun isReady(ptr: Long, streamPtr: Long): Boolean
     private external fun getResult(ptr: Long, streamPtr: Long): OnlineRecognizerResult
 
