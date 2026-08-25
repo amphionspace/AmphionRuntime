@@ -87,7 +87,10 @@ Android job 使用 `gradle/actions/setup-gradle@v6` enhanced provider，不再�
 与否都执行 native tests。`build-host/meson-logs` 明确排除在 cache 外，避免测试日志中
 记录的进程环境进入缓存。
 
-AAR 和 `.so` 上传使用 `compression-level: 0`，避免对已压缩二进制重复耗时压缩。
+AAR 和 `.so` 上传使用 `compression-level: 0`，避免对已压缩二进制重复耗时压缩。AAR
+在每次 Android job 成功后上传；PR 命中 native cache 时不重复上传内容相同的独立 `.so`
+artifact，cache miss 时仍上传。`main`、release branch、tag 和手动运行始终上传 `.so`，
+不改变发布取件路径。
 
 ## 一次性旧 cache 迁移
 
@@ -101,12 +104,23 @@ setup-gradle 新 cache 同样使用该前缀。明确保留 `gradle-home-v2`、
 本次改造前的观测基线是 15 个旧 `gradle-*` 条目、约 9.83 GiB；这一步不能在首次成功
 的 `main` 构建前执行，也不能用宽泛前缀删除其他 cache。
 
+2026-08-25 迁移审计：删除前：22 条、1,064,848,853 bytes；其中 enhanced Gradle
+12 条、958,409,289 bytes，`android-native-*` 8 条、85,837,786 bytes，`host-agc-*`
+2 条、20,601,778 bytes。严格按上述旧 key 正则筛选后，旧格式目标为 0 条、0 bytes，
+说明 GitHub 已在新 cache 写入时完成额度淘汰，因此没有发起删除请求。
+删除后：22 条、1,064,848,853 bytes，三类有效 cache 全部保留。
+
 ## 首次 CI 验收
 
-首次合入后的 `main` run 记录为：static 21 秒、Harmony 39 秒、police 26 秒、首次 main
-host AGC 基线 2 分 11 秒、Android 2 分 44 秒；Android native cache 命中，Gradle
-assemble + unit test 约 2 分 02 秒。迁移后 cache 总量约 644 MiB，其中 enhanced Gradle
-约 542 MiB。
+首次合入后的 `main` run
+[`32808307368`](https://github.com/amphionspace/AmphionRuntime/actions/runs/32808307368)
+记录为：static 17 秒、Harmony 34 秒、police 19 秒、host AGC 32 秒、Android 2 分
+24 秒、required 汇总 4 秒；Android native cache 命中，Gradle assemble + unit test
+约 1 分 31 秒。整次 workflow 约 2 分 56 秒。
 
-Harmony-only 路径已达到约 40 秒。report-only 现在只运行 static，不再被同一个
-`contracts` flag 牵连到 Harmony tests；首次真实 report-only PR 仍需记录最终耗时。
+Harmony-only 路径已达到约 40 秒。真实 report-only 验收 PR
+[`#152`](https://github.com/amphionspace/AmphionRuntime/pull/152) 对 report JSON 只做语义
+不变的格式调整并在验证后关闭、未合入；对应 run
+[`32809520224`](https://github.com/amphionspace/AmphionRuntime/actions/runs/32809520224)
+整次 35 秒，其中 detect 4 秒、static 19 秒、required 汇总 4 秒。Harmony、delivery
+redaction、police、host AGC 和 Android AAR 均按预期 skipped。

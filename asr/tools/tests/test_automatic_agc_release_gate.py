@@ -532,6 +532,45 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
         self.assertNotIn("key: gradle-${{", workflow)
         self.assertEqual(2, workflow.count("compression-level: 0"))
 
+    def test_pr_cache_hit_skips_duplicate_native_artifact_upload(self) -> None:
+        workflow = (ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        match = re.search(
+            r"(?ms)^      - name: Upload native \.so\n(.*?)(?=^      - name:|^  [a-z0-9-]+:|\Z)",
+            workflow,
+        )
+
+        self.assertIsNotNone(match, "missing native artifact upload step")
+        self.assertIn(
+            "if: steps.native-cache.outputs.cache-hit != 'true' || github.event_name != 'pull_request'",
+            match.group(0),
+        )
+
+    def test_artifact_optimization_preserves_aar_and_tag_publish_inputs(self) -> None:
+        workflow = (ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        aar_upload = re.search(
+            r"(?ms)^      - name: Upload AAR\n(.*?)(?=^      - name:|^  [a-z0-9-]+:|\Z)",
+            workflow,
+        )
+        publish = re.search(
+            r"(?ms)^  publish-maven:\n(.*?)(?=^  [a-z0-9][a-z0-9-]*:\n|\Z)",
+            workflow,
+        )
+
+        self.assertIsNotNone(aar_upload, "missing AAR artifact upload step")
+        self.assertNotIn("\n        if:", aar_upload.group(0))
+        self.assertIsNotNone(publish, "missing tag publish job")
+        self.assertIn("needs: [android-aar, ci-result]", publish.group(0))
+        self.assertIn(
+            "if: startsWith(github.ref, 'refs/tags/v') && "
+            "needs.android-aar.result == 'success' && needs.ci-result.result == 'success'",
+            publish.group(0),
+        )
+        self.assertIn("uses: actions/download-artifact@v8", publish.group(0))
+        self.assertIn(
+            "artifacts/amphion-runtime-native-arm64-v8a-${{ github.sha }}",
+            publish.group(0),
+        )
+
     def test_cache_migration_docs_name_only_the_legacy_key_shape(self) -> None:
         docs = (ROOT / ".github/workflows/README.md").read_text(encoding="utf-8")
 
@@ -543,6 +582,10 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
             "gradle-transforms-v2",
         ):
             self.assertIn(preserved, docs)
+        self.assertIn("删除前：22 条、1,064,848,853 bytes", docs)
+        self.assertIn("旧格式目标为 0 条、0 bytes", docs)
+        self.assertIn("删除后：22 条、1,064,848,853 bytes", docs)
+        self.assertIn("32809520224", docs)
 
     def test_every_agc_build_uses_the_pinned_tool_bootstrap(self) -> None:
         build = BUILD_AGC.read_text(encoding="utf-8")

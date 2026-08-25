@@ -700,6 +700,7 @@ jobs:
           retention-days: 30
 
       - name: Upload native .so
+        if: steps.native-cache.outputs.cache-hit != 'true' || github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: amphion-runtime-native-arm64-v8a-${{ github.sha }}
