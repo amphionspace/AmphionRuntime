@@ -9,12 +9,12 @@ import {
   DingqiaoEventCode,
   LicenseActivationCallback,
   LicenseActivationResult,
+  SpeakerDiarizationUpdate,
   SpeakerDiarizationResult,
   PrepareRuntimeCallback,
   RecognitionListener,
   SpeechRecognitionEngine,
   SpeechRecognitionResult,
-  SpeakerUpdate,
   SpeechRecognizeSdk,
   StartParams
 } from 'amphion_dingqiao';
@@ -56,17 +56,17 @@ class FinalSegment {
   text: string;
   score?: number;
   utteranceId?: string;
-  speakerId?: string;
+  speakerIndex: number = -1;
   revision: number = 0;
   endTime: number = 0;
   meeting: boolean = false;
 
-  constructor(text: string, score?: number, utteranceId?: string, speakerId?: string,
+  constructor(text: string, score?: number, utteranceId?: string, speakerIndex: number = -1,
     endTime: number = 0, meeting: boolean = false) {
     this.text = text;
     this.score = score;
     this.utteranceId = utteranceId;
-    this.speakerId = speakerId;
+    this.speakerIndex = speakerIndex;
     this.endTime = endTime;
     this.meeting = meeting;
   }
@@ -521,10 +521,8 @@ struct Index {
     return '短语音 PTT';
   }
 
-  private meetingSpeakerLabel(speakerId?: string): string {
-    if (speakerId === undefined || speakerId === 'UNKNOWN') return '说话人';
-    if (speakerId.startsWith('S')) return `说话人 ${speakerId.substring(1)}`;
-    return '说话人';
+  private meetingSpeakerLabel(speakerIndex: number): string {
+    return speakerIndex < 0 ? '说话人' : `说话人 ${speakerIndex + 1}`;
   }
 
   private selectCustomerScenario(name: CustomerScenarioName): void {
@@ -1029,7 +1027,7 @@ struct Index {
     }
   }
 
-  handleSpeakerUpdate(sessionId: string, update: SpeakerUpdate): void {
+  handleSpeakerDiarizationUpdate(sessionId: string, update: SpeakerDiarizationUpdate): void {
     if (sessionId === this.replaySessionId) return;
     let latestEnd = 0;
     for (let i = 0; i < this.finalSegments.length; i++) {
@@ -1040,7 +1038,7 @@ struct Index {
     for (let i = 0; i < next.length; i++) {
       if (next[i].utteranceId !== update.utteranceId || next[i].revision >= update.revision) continue;
       const replacement = new FinalSegment(
-        next[i].text, next[i].score, next[i].utteranceId, update.speakerId,
+        next[i].text, next[i].score, next[i].utteranceId, update.speakerIndex,
         next[i].endTime, true);
       replacement.revision = update.revision;
       next[i] = replacement;
@@ -1055,7 +1053,7 @@ struct Index {
     for (let i = 0; i < result.utterances.length; i++) {
       const utterance = result.utterances[i];
       next.push(new FinalSegment(
-        utterance.text, undefined, utterance.utteranceId, utterance.speakerId,
+        utterance.text, undefined, utterance.utteranceId, utterance.speakerIndex,
         utterance.endTime, true));
     }
     this.finalSegments = next;
@@ -1150,7 +1148,7 @@ struct Index {
       result.result,
       result.speakerSimilarity,
       result.utteranceId,
-      result.speakerId,
+      result.speakerIndex,
       result.endTime ?? 0,
       this.capturedCustomerScenario === 'meeting-minutes'));
     this.finalSegments = next;
@@ -1367,7 +1365,7 @@ struct Index {
         ForEach(this.finalSegments, (item: FinalSegment, index: number) => {
           Text() {
             if (item.meeting) {
-              Span(`${this.meetingSpeakerLabel(item.speakerId)} `)
+              Span(`${this.meetingSpeakerLabel(item.speakerIndex)} `)
                 .fontColor(BRAND_ACCENT).fontWeight(FontWeight.Bold)
             }
             if (item.score !== undefined) {
@@ -1488,8 +1486,8 @@ class DemoRecognitionListener implements RecognitionListener {
     this.owner.handleResult(sessionId, result);
   }
 
-  onSpeakerUpdate(sessionId: string, update: SpeakerUpdate): void {
-    this.owner.handleSpeakerUpdate(sessionId, update);
+  onSpeakerDiarizationUpdate(sessionId: string, update: SpeakerDiarizationUpdate): void {
+    this.owner.handleSpeakerDiarizationUpdate(sessionId, update);
   }
 
   onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {

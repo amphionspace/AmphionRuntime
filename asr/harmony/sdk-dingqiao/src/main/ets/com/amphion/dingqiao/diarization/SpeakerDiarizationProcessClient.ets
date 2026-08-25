@@ -4,6 +4,7 @@ import childProcessManager from '@ohos.app.ability.childProcessManager';
 import type { ChildProcessArgs } from '@ohos.app.ability.ChildProcessArgs';
 import type { ChildProcessOptions } from '@ohos.app.ability.ChildProcessOptions';
 import process from '@ohos.process';
+import { SpeakerDiarizationDegradedReason } from '../DingqiaoModels';
 import { DiarizationInferenceWindow, DiarizationWindowScheduler } from './DiarizationWindowScheduler';
 
 const EMBEDDING_MODEL_RAWFILE: string = 'amphion-dingqiao/eres2net.onnx';
@@ -45,7 +46,7 @@ export interface DiarizationProcessInferenceResult {
 export interface SpeakerDiarizationProcessObserver {
   onWindow(result: DiarizationProcessWindowResult): void;
   onDrained(): void;
-  onDegraded(reason: string): void;
+  onDegraded(reason: SpeakerDiarizationDegradedReason, message: string): void;
 }
 
 interface PendingJob {
@@ -74,6 +75,22 @@ interface DiarizationChildStartParams {
 interface StagedDiarizationModels {
   segmentation: string;
   embedding: string;
+}
+
+interface SpeakerDiarizationProcessFailure {
+  reason: SpeakerDiarizationDegradedReason;
+  message: string;
+}
+
+interface StagedDiarizationModelsResult {
+  models?: StagedDiarizationModels;
+  failure?: SpeakerDiarizationProcessFailure;
+}
+
+export class SpeakerDiarizationStorageError extends Error {
+  constructor(message: string) {
+    super(message);
+  }
 }
 
 export class SpeakerDiarizationProcessClient {
@@ -129,7 +146,8 @@ export class SpeakerDiarizationProcessClient {
       const windows = this.scheduler.acceptSamples(audio.byteLength / 2);
       for (let i = 0; i < windows.length; i++) this.submit(windows[i]);
     } catch (e) {
-      this.fail(`speaker diarization spool failed: ${e}`);
+      this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+        `speaker diarization spool failed: ${e}`);
     }
   }
 
@@ -140,7 +158,8 @@ export class SpeakerDiarizationProcessClient {
       try {
         this.submit(this.scheduler.finish());
       } catch (e) {
-        this.fail(`speaker diarization finish spool failed: ${e}`);
+        this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+          `speaker diarization finish spool failed: ${e}`);
       }
     }
     this.maybeNotifyDrained();
@@ -176,8 +195,20 @@ export class SpeakerDiarizationProcessClient {
     const generation = this.childStartGeneration + 1;
     this.childStartGeneration = generation;
     this.childStartPending = true;
+    const staged = this.stageModels();
+    if (staged.failure !== undefined || staged.models === undefined) {
+      this.childStartPending = false;
+      if (!this.closed && !this.degraded && generation === this.childStartGeneration) {
+        const failure = staged.failure ?? {
+          reason: SpeakerDiarizationDegradedReason.MODEL_UNAVAILABLE,
+          message: 'speaker diarization model staging failed',
+        };
+        this.handleProcessFailure(failure.reason, failure.message);
+      }
+      return;
+    }
+    const models = staged.models;
     try {
-      const models = this.stageModels();
       const startParams: DiarizationChildStartParams = {
         jobDir: this.jobDir,
         segmentationModelPath: models.segmentation,
@@ -205,7 +236,8 @@ export class SpeakerDiarizationProcessClient {
         return;
       }
       if (this.closed || this.degraded || generation !== this.childStartGeneration) return;
-      this.handleProcessFailure(`speaker diarization process start failed: ${e}`);
+      this.handleProcessFailure(SpeakerDiarizationDegradedReason.PROCESS_UNAVAILABLE,
+        `speaker diarization process start failed: ${e}`);
     }
   }
 
@@ -234,7 +266,8 @@ export class SpeakerDiarizationProcessClient {
   private poll(): void {
     if (this.closed || this.degraded) return;
     if (fs.accessSync(`${this.jobDir}/fatal`)) {
-      this.handleProcessFailure(`speaker diarization child failed: ${this.readText(`${this.jobDir}/fatal`)}`);
+      const failure = this.readFatal(`${this.jobDir}/fatal`);
+      this.handleProcessFailure(failure.reason, failure.message);
       return;
     }
     const now = Date.now();
@@ -244,7 +277,8 @@ export class SpeakerDiarizationProcessClient {
     }
     if (!this.readyObserved) {
       if (this.childStartedMs > 0 && now - this.childStartedMs > 10_000) {
-        this.handleProcessFailure('speaker diarization child start timed out');
+        this.handleProcessFailure(SpeakerDiarizationDegradedReason.PROCESS_UNAVAILABLE,
+          'speaker diarization child start timed out');
       }
       return;
     }
@@ -252,16 +286,41 @@ export class SpeakerDiarizationProcessClient {
     this.pending.forEach((_pending: PendingJob, jobId: string): void => {
       const resultPath = `${this.resultsDir}/${jobId}.json`;
       if (!fs.accessSync(resultPath)) return;
+      let resultText: string;
       try {
-        const result = JSON.parse(this.readText(resultPath)) as DiarizationProcessWindowResult;
+        resultText = this.readText(resultPath);
+      } catch (e) {
+        this.handleProcessFailure(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+          `speaker diarization result read failed: ${e}`);
+        return;
+      }
+      let result: DiarizationProcessWindowResult;
+      try {
+        result = JSON.parse(resultText) as DiarizationProcessWindowResult;
+      } catch (e) {
+        this.handleProcessFailure(SpeakerDiarizationDegradedReason.PROCESS_UNAVAILABLE,
+          `speaker diarization result invalid: ${e}`);
+        return;
+      }
+      try {
         this.observer.onWindow(result);
-        // A successfully completed window breaks the consecutive-failure streak.
-        this.restartCount = 0;
-        completed.push(jobId);
+      } catch (e) {
+        const reason = e instanceof SpeakerDiarizationStorageError ?
+          SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE :
+          SpeakerDiarizationDegradedReason.PROCESS_UNAVAILABLE;
+        this.handleProcessFailure(reason, `speaker diarization result handling failed: ${e}`);
+        return;
+      }
+      try {
         fs.unlinkSync(resultPath);
       } catch (e) {
-        this.handleProcessFailure(`speaker diarization result invalid: ${e}`);
+        this.handleProcessFailure(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+          `speaker diarization result cleanup failed: ${e}`);
+        return;
       }
+      // A successfully consumed window breaks the consecutive-failure streak.
+      this.restartCount = 0;
+      completed.push(jobId);
     });
     for (let i = 0; i < completed.length; i++) this.pending.delete(completed[i]);
     if (this.degraded) return;
@@ -271,15 +330,16 @@ export class SpeakerDiarizationProcessClient {
       if (now - pending.submittedMs > 10_000) timedOut = true;
     });
     if (timedOut) {
-      this.handleProcessFailure('speaker diarization window timed out');
+      this.handleProcessFailure(SpeakerDiarizationDegradedReason.INFERENCE_TIMEOUT,
+        'speaker diarization window timed out');
       return;
     }
     this.maybeNotifyDrained();
   }
 
-  private handleProcessFailure(reason: string): void {
+  private handleProcessFailure(reason: SpeakerDiarizationDegradedReason, message: string): void {
     if (this.restartCount >= 1) {
-      this.fail(reason);
+      this.fail(reason, message);
       return;
     }
     this.restartCount += 1;
@@ -292,12 +352,12 @@ export class SpeakerDiarizationProcessClient {
     this.pending.forEach((pending: PendingJob): void => { pending.submittedMs = now; });
   }
 
-  private fail(reason: string): void {
+  private fail(reason: SpeakerDiarizationDegradedReason, message: string): void {
     if (this.degraded || this.closed) return;
     this.degraded = true;
     this.pending.clear();
     this.terminateChild(undefined, false);
-    this.observer.onDegraded(reason);
+    this.observer.onDegraded(reason, message);
     this.maybeNotifyDrained();
   }
 
@@ -305,24 +365,49 @@ export class SpeakerDiarizationProcessClient {
     if (this.finishing && this.pending.size === 0) this.observer.onDrained();
   }
 
-  private stageModels(): StagedDiarizationModels {
+  private stageModels(): StagedDiarizationModelsResult {
     const modelsDir = `${this.jobDir.substring(0, this.jobDir.lastIndexOf('/'))}/models`;
-    this.ensureDir(modelsDir);
+    try {
+      this.ensureDir(modelsDir);
+    } catch (e) {
+      return { failure: {
+        reason: SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+        message: `speaker diarization model directory unavailable: ${e}`,
+      } };
+    }
     const segmentation = `${modelsDir}/pyannote-segmentation-3.0.onnx`;
     const embedding = `${modelsDir}/eres2net.onnx`;
-    this.stageRawFile(SEGMENTATION_MODEL_RAWFILE, segmentation);
-    this.stageRawFile(EMBEDDING_MODEL_RAWFILE, embedding);
-    return { segmentation, embedding };
+    const segmentationFailure = this.stageRawFile(SEGMENTATION_MODEL_RAWFILE, segmentation);
+    if (segmentationFailure !== undefined) return { failure: segmentationFailure };
+    const embeddingFailure = this.stageRawFile(EMBEDDING_MODEL_RAWFILE, embedding);
+    if (embeddingFailure !== undefined) return { failure: embeddingFailure };
+    return { models: { segmentation, embedding } };
   }
 
-  private stageRawFile(rawfile: string, target: string): void {
-    if (fs.accessSync(target)) return;
-    const bytes = this.context.resourceManager.getRawFileContentSync(rawfile);
+  private stageRawFile(rawfile: string, target: string): SpeakerDiarizationProcessFailure | undefined {
+    if (fs.accessSync(target)) return undefined;
+    let bytes: Uint8Array;
+    try {
+      bytes = this.context.resourceManager.getRawFileContentSync(rawfile);
+    } catch (e) {
+      return {
+        reason: SpeakerDiarizationDegradedReason.MODEL_UNAVAILABLE,
+        message: `speaker diarization model resource unavailable (${rawfile}): ${e}`,
+      };
+    }
     const temporary = `${target}.tmp`;
-    const fp = fs.openSync(temporary,
-      fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
-    try { fs.writeSync(fp.fd, bytes.buffer); } finally { fs.closeSync(fp.fd); }
-    fs.renameSync(temporary, target);
+    try {
+      const fp = fs.openSync(temporary,
+        fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+      try { fs.writeSync(fp.fd, bytes.buffer); } finally { fs.closeSync(fp.fd); }
+      fs.renameSync(temporary, target);
+    } catch (e) {
+      return {
+        reason: SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+        message: `speaker diarization model staging storage failed (${target}): ${e}`,
+      };
+    }
+    return undefined;
   }
 
   private stopPolling(): void {
@@ -413,6 +498,24 @@ export class SpeakerDiarizationProcessClient {
       fs.readSync(fp.fd, buffer);
       return new util.TextDecoder('utf-8').decodeWithStream(new Uint8Array(buffer));
     } finally { fs.closeSync(fp.fd); }
+  }
+
+  private readFatal(path: string): SpeakerDiarizationProcessFailure {
+    try {
+      const failure = JSON.parse(this.readText(path)) as SpeakerDiarizationProcessFailure;
+      if (!Number.isInteger(failure.reason) ||
+        failure.reason <= SpeakerDiarizationDegradedReason.NONE ||
+        failure.reason > SpeakerDiarizationDegradedReason.SPEAKER_LIMIT_EXCEEDED ||
+        typeof failure.message !== 'string') {
+        throw new Error('invalid speaker diarization fatal journal');
+      }
+      return failure;
+    } catch (e) {
+      return {
+        reason: SpeakerDiarizationDegradedReason.PROCESS_UNAVAILABLE,
+        message: `speaker diarization child fatal journal invalid: ${e}`,
+      };
+    }
   }
 
   private writeText(path: string, text: string): void {

@@ -12,6 +12,8 @@ export interface SpeakerTimelineTurn {
   endTime: number;
   speakerId: string;
   secondarySpeakerIds: string[];
+  confidence?: number;
+  overlap?: boolean;
   evidenceKey?: string;
   secondaryEvidenceKeys?: string[];
 }
@@ -95,6 +97,8 @@ export class SpeakerDiarizationTranscriptState {
         endTime: newTurns[i].endTime,
         speakerId: newTurns[i].speakerId,
         secondarySpeakerIds: newTurns[i].secondarySpeakerIds.slice(),
+        confidence: newTurns[i].confidence,
+        overlap: newTurns[i].overlap,
         evidenceKey: newTurns[i].evidenceKey,
         secondaryEvidenceKeys: newTurns[i].secondaryEvidenceKeys?.slice(),
       });
@@ -150,6 +154,8 @@ export class SpeakerDiarizationTranscriptState {
       endTime: turn.endTime,
       speakerId: turn.speakerId,
       secondarySpeakerIds: turn.secondarySpeakerIds.slice(),
+      confidence: turn.confidence,
+      overlap: turn.overlap,
       evidenceKey: turn.evidenceKey,
       secondaryEvidenceKeys: turn.secondaryEvidenceKeys?.slice(),
     }));
@@ -299,7 +305,8 @@ export class SpeakerDiarizationTranscriptState {
         endTime,
         speakerId: active?.speakerId ?? UNKNOWN_SPEAKER,
         secondarySpeakerIds,
-        overlap: secondarySpeakerIds.length > 0,
+        confidence: active?.confidence ?? 0,
+        overlap: active?.overlap ?? secondarySpeakerIds.length > 0,
       });
       groupStart = index;
       active = next;
@@ -308,6 +315,7 @@ export class SpeakerDiarizationTranscriptState {
   }
 
   private unsplitUtterance(utterance: StoredUtterance): DiarizedTranscriptUtterance {
+    const assignment = this.assignmentFor(utterance.beginTime, utterance.endTime);
     return {
       utteranceId: utterance.utteranceId,
       rawText: utterance.rawText,
@@ -316,7 +324,17 @@ export class SpeakerDiarizationTranscriptState {
       endTime: utterance.endTime,
       speakerId: utterance.speakerId,
       secondarySpeakerIds: utterance.secondarySpeakerIds.slice(),
-      overlap: utterance.secondarySpeakerIds.length > 0,
+      confidence: assignment.confidence,
+      overlap: this.hasOverlap(utterance.beginTime, utterance.endTime),
     };
+  }
+
+  private hasOverlap(beginTime: number, endTime: number): boolean {
+    for (let index = 0; index < this.turns.length; index++) {
+      const turn = this.turns[index];
+      if ((turn.overlap ?? turn.secondarySpeakerIds.length > 0) &&
+        overlapMs(beginTime, endTime, turn.beginTime, turn.endTime) > 0) return true;
+    }
+    return false;
   }
 }

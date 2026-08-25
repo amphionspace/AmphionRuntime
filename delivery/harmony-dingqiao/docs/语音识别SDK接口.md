@@ -4,8 +4,8 @@
 
 | 文档项 | 值 |
 | --- | --- |
-| 文档版本 | v1.4（跨端 VAD 前端点与参数契约补齐） |
-| 更新日期 | 2026-07-14 |
+| 文档版本 | v1.5（Speaker Diarization 增量角色分离接口） |
+| 更新日期 | 2026-08-25 |
 | SDK 依赖 | `amphion_dingqiao` |
 
 SDK 依赖名为 `amphion_dingqiao`，核心入口为 `SpeechRecognizeSdk`。本版包含 License、Runtime、Model 三层生命周期控制，以及内置声纹模型的按需加载策略，便于宿主控制模型内存和识别启动时延。
@@ -227,6 +227,7 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | `sessionId` | `string` | 空 | 非空，只允许字母、数字、下划线、短横线 |
 | `audioInfo` | `AudioInfo` | 默认对象 | 音频格式 |
 | `extraParams` | `Record<string, Object>` | 空 | 会话扩展参数 |
+| `speakerDiarization` | `SpeakerDiarizationConfig?` | `undefined` | 不设置时关闭角色分离；设置配置对象时开启 |
 
 常用 `extraParams`：
 
@@ -250,6 +251,51 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | `speakerVadHopMs` | `number/string` | `500` | 目标说话人 VAD 步长 |
 | `speakerVadConsecutiveBelow` | `number/string` | `2` | 连续低于阈值多少次触发 endpoint |
 
+### 5.4 Speaker Diarization
+
+Speaker Diarization 是通用的匿名说话人分离能力，不限定会议业务。配置对象存在即开启，
+不再使用 `enableSpeakerDiarization`、`maxSpeakerCount`、`expectedActiveSpeakerCount` 或
+`speakerDiarizationProcessEntry` 等 `extraParams` 字符串参数。
+
+```ts
+import { SpeakerDiarizationConfig, StartParams } from 'amphion_dingqiao';
+
+const start = new StartParams();
+start.sessionId = 'session-1';
+
+const diarization = new SpeakerDiarizationConfig();
+diarization.maxSpeakers = 4;
+start.speakerDiarization = diarization;
+
+engine.startListening(start);
+```
+
+| `SpeakerDiarizationConfig` 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `maxSpeakers` | `number` | `4` | 稳定 speaker 索引的硬上限；V1 只接受整数 `1..4`，非法值使本次 `startListening` 失败，不会静默裁剪 |
+
+SDK 自动估计实际发言人数，不接收参会名单人数或 hard K。证据不足、能力未开启、
+尚未完成分配或超出上限时，对外统一返回 `speakerIndex=-1`；分配成功时返回
+`0..(maxSpeakers-1)`。该索引仅在当前 session 内稳定，业务显示“说话人 1”时需使用
+`speakerIndex + 1`。
+
+HarmonyOS 宿主 HAP 需在固定路径 `entry/src/main/ets/diarization/SpeakerDiarizationChild.ets`
+放置一次性 child adapter；路径不由每个 session 传入：
+
+```ts
+import ChildProcess from '@ohos.app.ability.ChildProcess';
+import type { ChildProcessArgs } from '@ohos.app.ability.ChildProcessArgs';
+import { SpeakerDiarizationChildService } from 'amphion_dingqiao';
+
+export default class SpeakerDiarizationChild extends ChildProcess {
+  private readonly service = new SpeakerDiarizationChildService();
+
+  onStart(args?: ChildProcessArgs): void {
+    void this.service.start(args?.entryParams ?? '');
+  }
+}
+```
+
 ## 6. 回调
 
 ```ts
@@ -257,6 +303,8 @@ interface RecognitionListener {
   onStart?(sessionId: string, eventMessage?: string): void;
   onEvent?(sessionId: string, eventCode: number, message: string): void;
   onResult?(sessionId: string, result: SpeechRecognitionResult): void;
+  onSpeakerDiarizationUpdate?(sessionId: string, update: SpeakerDiarizationUpdate): void;
+  onSpeakerDiarizationResult?(sessionId: string, result: SpeakerDiarizationResult): void;
   onComplete?(sessionId: string, eventMessage?: string): void;
   onError?(sessionId: string, errorCode: number, message: string): void;
 }
@@ -267,6 +315,8 @@ interface RecognitionListener {
 | `onStart` | 会话已启动且可立即调用该 session 的 `writeAudio`、`finish`、`cancel` |
 | `onEvent` | 语音端点、声纹 VAD 状态等事件 |
 | `onResult` | 识别结果，包含 partial 与 final |
+| `onSpeakerDiarizationUpdate` | 按 `utteranceId + revision` 增量修订说话人归属；只更新 speaker 信息，不修改 ASR 文本 |
+| `onSpeakerDiarizationResult` | 开启角色分离后在正常 finish 流程中唯一一次返回整场最终 utterance 和 speaker timeline，包括降级结果 |
 | `onComplete` | 主动 `finish`、达到 `vadBegin` 首段静音阈值或达到 `maxAudioDuration` 上限后，识别完整结束 |
 | `onError` | 发生错误 |
 
@@ -284,6 +334,49 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `endTime` | `number?` | 结束时间毫秒，可能为空 |
 | `speakerSimilarity` | `number?` | final 且启用声纹校验，并有 ASR 语音证据和非空真实 PCM 时尝试返回 |
 | `targetSpeakerEnhancementApplied` | `boolean?` | 当前 session 启用目标说话人增强时为 `true`；未启用时省略 |
+| `utteranceId` | `string?` | 开启角色分离时，final utterance 的稳定 ID |
+| `speakerIndex` | `number` | 说话人索引；默认 `-1`，已分配为 `0..3` |
+| `secondarySpeakerIndexes` | `number[]` | 重叠语音的次要说话人索引；默认空数组 |
+| `speakerConfidence` | `number` | speaker 归属分数，范围 `[0,1]`，默认 `0`；不是经校准的概率 |
+
+`SpeakerDiarizationUpdate` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `utteranceId` | `string` | 需更新的 final utterance |
+| `revision` | `number` | 单调递增修订号；调用方忽略重复或更旧修订 |
+| `speakerIndex` | `number` | `-1` 或稳定的 `0..3` |
+| `secondarySpeakerIndexes` | `number[]` | 次要说话人索引 |
+| `beginTime` / `endTime` | `number` | session-global 毫秒时间轴 |
+| `confidence` | `number` | 本次归属分数，范围 `[0,1]` |
+
+`SpeakerDiarizationResult` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `utterances` | `DiarizedUtterance[]` | 最终全文；包含 `rawText`、`text`、全局时间、speaker 索引、`confidence` 和 `overlap` |
+| `speakerTurns` | `SpeakerTurn[]` | 最终 speaker timeline；保留 primary、secondary、`confidence` 和 `overlap` |
+| `speakerCount` | `number` | 本 session 已确认的匿名说话人数 |
+| `degraded` | `boolean` | 是否返回当前最佳降级结果 |
+| `degradedReason` | `SpeakerDiarizationDegradedReason` | 稳定降级枚举，成功时为 `NONE` |
+| `degradedMessage` | `string?` | 可选的详细说明；业务分支应使用 `degradedReason` |
+| `inferenceMs` | `number` | 累计分人推理耗时 |
+| `rtf` | `number` | 分人处理实时率 |
+
+`SpeakerDiarizationDegradedReason` 包含 `NONE`、`PROCESS_UNAVAILABLE`、
+`MODEL_UNAVAILABLE`、`INFERENCE_TIMEOUT`、`FINISH_TIMEOUT`、`STORAGE_UNAVAILABLE`
+和 `SPEAKER_LIMIT_EXCEEDED`。分人失败不使用致命 `onError` 终止 ASR。
+
+开启 Speaker Diarization 时，`finish()` 仍立即返回；对外收尾顺序固定为：
+
+1. 最后一批 `onSpeakerDiarizationUpdate`。
+2. 唯一 `onResult(isLast=true)`。
+3. 唯一 `onSpeakerDiarizationResult`。
+4. 唯一 `onComplete`。
+
+分人收尾超时时会按相同顺序返回 `degraded=true` 的当前最佳结果；`cancel()` 不产生
+last、`onSpeakerDiarizationResult` 或 `onComplete`。未开启时不产生任何 diarization 回调，
+原有 ASR 生命周期不变。
 
 > `TargetSpeakerConfig.minSegSec` 默认并在鼎桥适配层固定为 `0`，SDK 不设置最短时长门槛。ASR
 > 已产生非空 text/token 时，SDK 使用当前句非空真实 PCM 尝试评分，不再因短句质量判断省略分数。

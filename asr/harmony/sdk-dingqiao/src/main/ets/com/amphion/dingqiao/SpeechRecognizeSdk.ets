@@ -39,14 +39,19 @@ import {
   LicenseInfo,
   PrepareRuntimeCallback,
   RecognitionListener,
+  SpeakerDiarizationDegradedReason,
   SpeakerDiarizationResult,
-  SpeakerUpdate,
+  SpeakerDiarizationUpdate,
   SpeechRecognitionEngine,
   SpeechRecognitionResult,
   StartParams,
   VoiceprintRegisterParams,
   VoiceprintRegisterResult
 } from './DingqiaoModels';
+import {
+  SPEAKER_DIARIZATION_PROCESS_ENTRY,
+  validateSpeakerDiarizationConfig
+} from './diarization/SpeakerDiarizationConfigPolicy';
 import { SpeakerDiarizationFinishBarrier, SpeakerDiarizationFinishOutput } from
   './diarization/SpeakerDiarizationFinishBarrier';
 import { SpeakerDiarizationRuntimeLeaseRegistry } from
@@ -60,16 +65,16 @@ import { LatestRequestGate } from './LatestRequestGate';
 import { RuntimePreparationSnapshot, RuntimePreparationState } from './RuntimePreparationState';
 
 class SpeakerDiarizationSessionCallback implements SpeakerDiarizationSessionObserver {
-  private readonly updateCallback: (update: SpeakerUpdate) => void;
+  private readonly updateCallback: (update: SpeakerDiarizationUpdate) => void;
   private readonly finishedCallback: (result: SpeakerDiarizationResult) => void;
 
-  constructor(updateCallback: (update: SpeakerUpdate) => void,
+  constructor(updateCallback: (update: SpeakerDiarizationUpdate) => void,
     finishedCallback: (result: SpeakerDiarizationResult) => void) {
     this.updateCallback = updateCallback;
     this.finishedCallback = finishedCallback;
   }
 
-  onSpeakerUpdate(update: SpeakerUpdate): void { this.updateCallback(update); }
+  onSpeakerDiarizationUpdate(update: SpeakerDiarizationUpdate): void { this.updateCallback(update); }
 
   onFinished(result: SpeakerDiarizationResult): void { this.finishedCallback(result); }
 }
@@ -83,10 +88,12 @@ class DegradedSpeakerDiarizationSession implements SpeakerDiarizationSessionCont
   private asrTailObserved: boolean = false;
   private lastEndTime: number = 0;
 
-  constructor(observer: SpeakerDiarizationSessionObserver, reason: string) {
+  constructor(observer: SpeakerDiarizationSessionObserver,
+    reason: SpeakerDiarizationDegradedReason, message: string) {
     this.observer = observer;
     this.result.degraded = true;
     this.result.degradedReason = reason;
+    this.result.degradedMessage = message;
   }
 
   append(_audio: ArrayBuffer): void {}
@@ -99,12 +106,9 @@ class DegradedSpeakerDiarizationSession implements SpeakerDiarizationSessionCont
       utterance.text = payload.result;
       utterance.beginTime = payload.beginTime ?? this.lastEndTime;
       utterance.endTime = payload.endTime ?? utterance.beginTime;
-      utterance.speakerId = 'UNKNOWN';
       this.lastEndTime = Math.max(this.lastEndTime, utterance.endTime);
       this.result.utterances.push(utterance);
       payload.utteranceId = utterance.utteranceId;
-      payload.speakerId = 'UNKNOWN';
-      payload.secondarySpeakerIds = [];
     }
     if (payload.isLast) this.asrTailObserved = true;
     this.finishIfReady();
@@ -117,8 +121,9 @@ class DegradedSpeakerDiarizationSession implements SpeakerDiarizationSessionCont
 
   decoratePayload(_payload: SpeechRecognitionResult): void {}
 
-  bestResult(reason?: string): SpeakerDiarizationResult {
+  bestResult(reason?: SpeakerDiarizationDegradedReason, message?: string): SpeakerDiarizationResult {
     if (reason !== undefined) this.result.degradedReason = reason;
+    if (message !== undefined) this.result.degradedMessage = message;
     return this.result;
   }
 
@@ -162,11 +167,6 @@ function stringArrayParam(params: Record<string, Object>, key: string): string[]
     return value.split(/[\n,，]/).map((s: string): string => s.trim()).filter((s: string): boolean => s.length > 0);
   }
   return [];
-}
-
-function stringParam(params: Record<string, Object>, key: string, defaultValue: string): string {
-  const value = params[key];
-  return typeof value === 'string' && value.length > 0 ? value : defaultValue;
 }
 
 function numberParam(params: Record<string, Object>, key: string, defaultValue: number): number {
@@ -650,20 +650,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         this.handleAsrError(audioGeneration,
           new AsrError(AsrErrorCode.NATIVE_CRASH, `audio dispatch failed: ${message}`));
       });
-      if (strictBooleanParam(params.extraParams, 'enableSpeakerDiarization', false)) {
+      if (params.speakerDiarization !== undefined) {
         const diarizationGeneration = startGeneration;
         const diarizationSessionId = params.sessionId;
-        const processEntry = stringParam(params.extraParams,
-          'speakerDiarizationProcessEntry', './ets/diarization/SpeakerDiarizationChild.ets');
-        const maxSpeakers = Math.round(clamp(
-          numberParam(params.extraParams, 'maxSpeakerCount', 4), 1, 4));
-        const expectedActiveSpeakerCount = Math.round(clamp(
-          numberParam(params.extraParams, 'expectedActiveSpeakerCount', 0), 0, 4));
+        const maxSpeakers = validateSpeakerDiarizationConfig(params.speakerDiarization);
         const diarizationObserver = new SpeakerDiarizationSessionCallback(
-          (update: SpeakerUpdate): void => {
+          (update: SpeakerDiarizationUpdate): void => {
             if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
               this.currentSessionId !== diarizationSessionId) return;
-            this.listener?.onSpeakerUpdate?.(diarizationSessionId, update);
+            this.listener?.onSpeakerDiarizationUpdate?.(diarizationSessionId, update);
           },
           (diarizationResult: SpeakerDiarizationResult): void => {
             if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
@@ -678,13 +673,13 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
             this.context,
             SpeechRecognizeSdk.getWorkPath(),
             params.sessionId,
-            processEntry,
+            SPEAKER_DIARIZATION_PROCESS_ENTRY,
             maxSpeakers,
-            expectedActiveSpeakerCount,
             diarizationObserver);
         } catch (e) {
           this.speakerDiarizationSession = new DegradedSpeakerDiarizationSession(
-            diarizationObserver, `speaker diarization initialization failed: ${e}`);
+            diarizationObserver, SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+            `speaker diarization initialization failed: ${e}`);
         }
         this.speakerDiarizationFinishBarrier = new SpeakerDiarizationFinishBarrier(
           SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS,
@@ -917,10 +912,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const diarization = this.speakerDiarizationSession;
     if (diarization === undefined) return;
     const diarizationResult = output.speaker ??
-      diarization.bestResult('speaker diarization finish timeout');
+      diarization.bestResult(SpeakerDiarizationDegradedReason.FINISH_TIMEOUT,
+        'speaker diarization finish timeout');
     if (output.degraded && !diarizationResult.degraded) {
       diarizationResult.degraded = true;
-      diarizationResult.degradedReason = 'speaker diarization finish timeout';
+      diarizationResult.degradedReason = SpeakerDiarizationDegradedReason.FINISH_TIMEOUT;
+      diarizationResult.degradedMessage = 'speaker diarization finish timeout';
     }
     diarization.decoratePayload(output.asr);
     this.listener?.onResult?.(sessionId, output.asr);

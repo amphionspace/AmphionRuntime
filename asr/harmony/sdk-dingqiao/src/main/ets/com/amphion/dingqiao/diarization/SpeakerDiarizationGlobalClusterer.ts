@@ -39,13 +39,13 @@ function cosine(left: number[], right: number[]): number {
 /** Duration-weighted AHC with an optional weak speaker-count prior. */
 export class SpeakerDiarizationGlobalClusterer {
   private readonly maxSpeakers: number;
-  private readonly expectedActiveSpeakerCount: number;
+  private readonly speakerCountHint: number;
   private readonly similarityThreshold: number;
 
-  constructor(maxSpeakers: number = 4, expectedActiveSpeakerCount: number = 0,
+  constructor(maxSpeakers: number = 4, speakerCountHint: number = 0,
     similarityThreshold: number = 0.72) {
     this.maxSpeakers = maxSpeakers;
-    this.expectedActiveSpeakerCount = expectedActiveSpeakerCount;
+    this.speakerCountHint = speakerCountHint;
     this.similarityThreshold = similarityThreshold;
   }
 
@@ -66,8 +66,8 @@ export class SpeakerDiarizationGlobalClusterer {
           }
         }
       }
-      const weakPriorApplies = this.expectedActiveSpeakerCount > 0 &&
-        clusters.length > this.expectedActiveSpeakerCount &&
+      const weakPriorApplies = this.speakerCountHint > 0 &&
+        clusters.length > this.speakerCountHint &&
         bestScore >= this.similarityThreshold - 0.08;
       if (bestScore < this.similarityThreshold && !weakPriorApplies) break;
       this.merge(clusters, bestLeft, bestRight);
