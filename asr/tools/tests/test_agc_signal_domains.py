@@ -13,8 +13,14 @@ class AgcSignalDomainsTest(unittest.TestCase):
     def test_android_limits_processed_pcm_to_asr(self) -> None:
         source = ANDROID.read_text(encoding="utf-8")
 
-        self.assertIn('processAgc("agc.process") { agcIngress.accept(copy, ::feedAndDecode) }', source)
-        self.assertIn('processAgc("agc.flush(stop)") { agcIngress.flush(::feedAndDecode) }', source)
+        self.assertIn(
+            "StreamingAgcIngress(StreamingAgcProcessor(sampleRate), ::guardAgcFrames)",
+            source,
+        )
+        self.assertIn("agcIngress.accept(copy, ::feedAndDecode)", source)
+        self.assertIn('agcIngress.flush("agc.flush(stop)", ::feedAndDecode)', source)
+        self.assertIn("private inline fun guardAgcFrames(", source)
+        self.assertIn("NativeGuard.run(operation, action)", source)
         self.assertNotIn("agcProcessor.process", source)
         self.assertNotIn("agcProcessor.flush", source)
         self.assertIn("stream.acceptWaveform(processedSamples, sampleRate)", source)
