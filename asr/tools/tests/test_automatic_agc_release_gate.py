@@ -316,6 +316,24 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
             sync.ACCURACY_EVIDENCE_SOURCES,
         )
 
+    def test_evidence_source_discovery_matches_case_insensitive_recursive_classifier(self) -> None:
+        sync = load_module(SYNC, "automatic_agc_evidence_discovery")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            files = (
+                "asr/android/sdk/src/main/java/com/amphion/asr/internal/agc/FutureAGCStage.kt",
+                "asr/android/sdk/src/main/java/com/amphion/asr/internal/FutureAgcStage.java",
+                "asr/harmony/sdk/src/main/ets/com/amphion/asr/nested/future_agc_stage.ets",
+                "asr/harmony/sdk/src/main/cpp/nested/FUTURE_AGC_STAGE.h",
+            )
+            for relative in files:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("test", encoding="utf-8")
+
+            discovered = set(sync.discover_accuracy_evidence_sources(root))
+            self.assertTrue(set(files).issubset(discovered))
+
     def test_release_preflight_rejects_a_zip_with_a_different_har(self) -> None:
         gate = load_module(GATE, "automatic_agc_release_gate_zip_har")
         with tempfile.TemporaryDirectory() as directory:
@@ -453,6 +471,8 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
             "android-release-gate",
             "release-finalizer",
             "harmony-build-smoke",
+            "release-evidence-contract",
+            "low-volume-fixture",
         ):
             self.assertIn(f'assertClassification("{case}"', classifier_and_matrix)
 
@@ -491,6 +511,8 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
             "asr/tools/build_android_agc_release_gate.sh",
             "asr/tools/finalize_automatic_agc_release_gate.py",
             "delivery/harmony-dingqiao/delivery/build_install_smoke.sh",
+            "tools/delivery/asr_release_evidence_contract.py",
+            "asr/test-fixtures/voiceprint-fallback/001_recognize.wav",
         ):
             self.assertIn(f'"{path}"', workflow)
         self.assertNotIn('"delivery/harmony-dingqiao/delivery/build_install_smoke.py"', workflow)

@@ -25,19 +25,29 @@ def discover_accuracy_evidence_sources(root: Path = ROOT) -> tuple[str, ...]:
         "asr/tools/ensure_agc_build_tools.sh",
         "asr/tools/evaluate_automatic_agc_regression.py",
     }
-    patterns = (
+    complete_patterns = (
         "asr/native/audio-processing/src/*",
         "asr/native/audio-processing/include/*",
-        "asr/android/sdk/src/main/java/com/amphion/asr/internal/*Agc*.kt",
-        "asr/harmony/sdk/src/main/ets/com/amphion/asr/*Agc*.ts",
-        "asr/harmony/sdk/src/main/ets/com/amphion/asr/*Agc*.ets",
-        "asr/harmony/sdk/src/main/cpp/*agc*.*",
     )
-    for pattern in patterns:
+    for pattern in complete_patterns:
         sources.update(
             path.relative_to(root).as_posix()
             for path in root.glob(pattern)
             if path.is_file()
+        )
+    implementation_roots = (
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal",
+        "asr/harmony/sdk/src/main/ets/com/amphion/asr",
+        "asr/harmony/sdk/src/main/cpp",
+    )
+    for relative_root in implementation_roots:
+        directory = root / relative_root
+        if not directory.is_dir():
+            continue
+        sources.update(
+            path.relative_to(root).as_posix()
+            for path in directory.rglob("*")
+            if path.is_file() and "agc" in path.name.lower()
         )
     return tuple(sorted(sources))
 

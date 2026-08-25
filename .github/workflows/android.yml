@@ -90,8 +90,10 @@ jobs:
               "asr/tools/tests/test_automatic_agc_release_gate.py",
               "asr/tools/tests/test_harmony_streaming_agc_ingress.py",
               "asr/tools/tests/test_harmony_streaming_agc_processor.py",
+              "asr/test-fixtures/voiceprint-fallback/001_recognize.wav",
               "delivery/harmony-dingqiao/delivery/build_install_smoke.sh",
               "delivery/harmony-dingqiao/delivery/test_build_install_smoke.py",
+              "tools/delivery/asr_release_evidence_contract.py",
             ]);
             const staticPrefixes = ["asr/native/audio-processing/"];
             const harmonyExactInputs = new Set([
@@ -277,7 +279,7 @@ jobs:
               { filename: "docs/README.md", status: "future-status" },
             ], allRequired);
             assertClassification("new-agc-helper", changes([
-              "asr/android/sdk/src/main/java/com/amphion/asr/internal/FutureAgcStage.kt",
+              "asr/android/sdk/src/main/java/com/amphion/asr/internal/agc/FutureAGCStage.java",
             ]), { static: true, harmony: true, agc: true, police_unit: true, android: true });
             assertClassification("android-release-gate", changes([
               "asr/tools/build_android_agc_release_gate.sh",
@@ -287,6 +289,12 @@ jobs:
             ]), { static: true, harmony: true });
             assertClassification("harmony-build-smoke", changes([
               "delivery/harmony-dingqiao/delivery/build_install_smoke.sh",
+            ]), { static: true, harmony: true });
+            assertClassification("release-evidence-contract", changes([
+              "tools/delivery/asr_release_evidence_contract.py",
+            ]), { static: true });
+            assertClassification("low-volume-fixture", changes([
+              "asr/test-fixtures/voiceprint-fallback/001_recognize.wav",
             ]), { static: true, harmony: true });
 
             const publish = (result, reason) => {
