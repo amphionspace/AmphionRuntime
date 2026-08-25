@@ -2,6 +2,10 @@
 
 ## 未发布 - 2026-08-24（热词安全与警务后处理）
 
+- 将 `recognizerMode=short/long` 落实为两种 endpoint 语义：short 保留可配置的单句 Rule3
+  硬上限；long 不再在 20/60 秒强切，避免会议连续讲话在任意时长边界冻结 modified beam 候选。
+  `StartParams.extraParams['recognizerMode']` 可覆盖 engine 缺省值，既有 PTT/点击识别 profile 使用
+  short，长转写、填单和会议纪要使用 long。
 - 交付基线撤回 modified beam search 的 Top-50 预选加分实验：三星真机在 200 条客户热词场景下
   曾稳定将“见警率”回退为“警情人员”。继续保留原有 ContextGraph 热词能力，不启用该预裁剪策略。
 - 针对 cp5500 新模型的稳定残差，补充冀 R 车牌前缀、派出所闭集名称和 `e警保` 的受限纠错；
