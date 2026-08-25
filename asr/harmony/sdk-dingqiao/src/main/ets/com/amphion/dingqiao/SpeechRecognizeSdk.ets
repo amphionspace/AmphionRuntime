@@ -36,16 +36,98 @@ import {
   LicenseActivationCallback,
   LicenseActivationResult,
   LicenseInfo,
+  MeetingResult,
+  MeetingUtterance,
   PrepareRuntimeCallback,
   RecognitionListener,
+  SpeakerUpdate,
   SpeechRecognitionEngine,
   SpeechRecognitionResult,
   StartParams,
   VoiceprintRegisterParams,
   VoiceprintRegisterResult
 } from './DingqiaoModels';
+import { MeetingFinishBarrier, MeetingFinishOutput } from './meeting/MeetingFinishBarrier';
+import { MeetingRuntimeLeaseRegistry } from './meeting/MeetingRuntimeLease';
+import {
+  MeetingSessionController,
+  MeetingSpeakerSession,
+  MeetingSpeakerSessionObserver
+} from './meeting/MeetingSpeakerSession';
 import { LatestRequestGate } from './LatestRequestGate';
 import { RuntimePreparationSnapshot, RuntimePreparationState } from './RuntimePreparationState';
+
+class MeetingSpeakerSessionCallback implements MeetingSpeakerSessionObserver {
+  private readonly updateCallback: (update: SpeakerUpdate) => void;
+  private readonly finishedCallback: (result: MeetingResult) => void;
+
+  constructor(updateCallback: (update: SpeakerUpdate) => void,
+    finishedCallback: (result: MeetingResult) => void) {
+    this.updateCallback = updateCallback;
+    this.finishedCallback = finishedCallback;
+  }
+
+  onSpeakerUpdate(update: SpeakerUpdate): void { this.updateCallback(update); }
+
+  onFinished(result: MeetingResult): void { this.finishedCallback(result); }
+}
+
+/** Keeps the meeting callback contract intact when the isolated diarization path cannot start. */
+class DegradedMeetingSpeakerSession implements MeetingSessionController {
+  private readonly observer: MeetingSpeakerSessionObserver;
+  private readonly result: MeetingResult = new MeetingResult();
+  private finished: boolean = false;
+  private finishRequested: boolean = false;
+  private asrTailObserved: boolean = false;
+  private lastEndTime: number = 0;
+
+  constructor(observer: MeetingSpeakerSessionObserver, reason: string) {
+    this.observer = observer;
+    this.result.degraded = true;
+    this.result.degradedReason = reason;
+  }
+
+  append(_audio: ArrayBuffer): void {}
+
+  observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult): void {
+    if (payload.result.length > 0) {
+      const utterance = new MeetingUtterance();
+      utterance.utteranceId = `u${this.result.utterances.length + 1}`;
+      utterance.rawText = result.rawText;
+      utterance.text = payload.result;
+      utterance.beginTime = payload.beginTime ?? this.lastEndTime;
+      utterance.endTime = payload.endTime ?? utterance.beginTime;
+      utterance.speakerId = 'UNKNOWN';
+      this.lastEndTime = Math.max(this.lastEndTime, utterance.endTime);
+      this.result.utterances.push(utterance);
+      payload.utteranceId = utterance.utteranceId;
+      payload.speakerId = 'UNKNOWN';
+      payload.secondarySpeakerIds = [];
+    }
+    if (payload.isLast) this.asrTailObserved = true;
+    this.finishIfReady();
+  }
+
+  finish(): void {
+    this.finishRequested = true;
+    this.finishIfReady();
+  }
+
+  decoratePayload(_payload: SpeechRecognitionResult): void {}
+
+  bestResult(reason?: string): MeetingResult {
+    if (reason !== undefined) this.result.degradedReason = reason;
+    return this.result;
+  }
+
+  cleanup(): void { this.finished = true; }
+
+  private finishIfReady(): void {
+    if (this.finished || !this.finishRequested || !this.asrTailObserved) return;
+    this.finished = true;
+    this.observer.onFinished(this.result);
+  }
+}
 
 function languageOf(language: string): AsrLanguage {
   const normalized = language.toLowerCase();
@@ -78,6 +160,11 @@ function stringArrayParam(params: Record<string, Object>, key: string): string[]
     return value.split(/[\n,，]/).map((s: string): string => s.trim()).filter((s: string): boolean => s.length > 0);
   }
   return [];
+}
+
+function stringParam(params: Record<string, Object>, key: string, defaultValue: string): string {
+  const value = params[key];
+  return typeof value === 'string' && value.length > 0 ? value : defaultValue;
 }
 
 function numberParam(params: Record<string, Object>, key: string, defaultValue: number): number {
@@ -326,6 +413,7 @@ function buildSessionConfig(params: StartParams, withTargetSpeaker: boolean,
 }
 
 const STOP_FALLBACK_DELAY_MS: number = 1500;
+const MEETING_FINISH_TIMEOUT_MS: number = 15000;
 
 class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private context: Context;
@@ -357,6 +445,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private targetSpeakerEnhancementPipeline?: TargetSpeakerEnhancementPipeline;
   private targetSpeakerEnhancementEnabled: boolean = false;
   private finishShutdownGate: FinishShutdownGate;
+  private meetingSpeakerSession?: MeetingSessionController;
+  private meetingFinishBarrier?: MeetingFinishBarrier<SpeechRecognitionResult, MeetingResult>;
   // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
   private engineCfgKey: string = '';
 
@@ -557,6 +647,49 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         this.handleAsrError(audioGeneration,
           new AsrError(AsrErrorCode.NATIVE_CRASH, `audio dispatch failed: ${message}`));
       });
+      if (strictBooleanParam(params.extraParams, 'enableMeetingSpeakerSeparation', false)) {
+        const meetingGeneration = startGeneration;
+        const meetingSessionId = params.sessionId;
+        const processEntry = stringParam(params.extraParams,
+          'meetingSpeakerProcessEntry', './ets/meeting/MeetingSpeakerChild.ets');
+        const maxSpeakers = Math.round(clamp(
+          numberParam(params.extraParams, 'maxMeetingSpeakers', 4), 1, 4));
+        const expectedActiveSpeakerCount = Math.round(clamp(
+          numberParam(params.extraParams, 'expectedActiveSpeakerCount', 0), 0, 4));
+        const meetingObserver = new MeetingSpeakerSessionCallback(
+          (update: SpeakerUpdate): void => {
+            if (!this.sessionStartGate.isCurrent(meetingGeneration) ||
+              this.currentSessionId !== meetingSessionId) return;
+            this.listener?.onSpeakerUpdate?.(meetingSessionId, update);
+          },
+          (meetingResult: MeetingResult): void => {
+            if (!this.sessionStartGate.isCurrent(meetingGeneration) ||
+              this.currentSessionId !== meetingSessionId) return;
+            this.meetingFinishBarrier?.resolveSpeaker({
+              degraded: meetingResult.degraded,
+              value: meetingResult,
+            });
+          });
+        try {
+          this.meetingSpeakerSession = new MeetingSpeakerSession(
+            this.context,
+            SpeechRecognizeSdk.getWorkPath(),
+            params.sessionId,
+            processEntry,
+            maxSpeakers,
+            expectedActiveSpeakerCount,
+            meetingObserver);
+        } catch (e) {
+          this.meetingSpeakerSession = new DegradedMeetingSpeakerSession(
+            meetingObserver, `meeting speaker initialization failed: ${e}`);
+        }
+        this.meetingFinishBarrier = new MeetingFinishBarrier(
+          MEETING_FINISH_TIMEOUT_MS,
+          (output: MeetingFinishOutput<SpeechRecognitionResult, MeetingResult>): void => {
+            this.completeMeetingSession(meetingGeneration, meetingSessionId, output);
+          },
+          (): SpeechRecognitionResult => this.createMeetingTimeoutLastResult());
+      }
       if (this.sessionStartGate.publishSession(startGeneration)) this.deliverSessionStarted(startGeneration);
     } catch (e) {
       this.startingSession = false;
@@ -595,6 +728,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     // A replacement session resets this counter during startListening, so the old reservation cannot
     // leak across generations.
     this.audioBytesWritten += audio.byteLength;
+    this.meetingSpeakerSession?.append(audio);
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
       this.targetSpeakerEnhancementPipeline.append(pcm16ToFloat(audio));
     } else {
@@ -610,6 +744,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.finishRequested = true;
       this.lastFinishedSessionId = sessionId;
       this.lastAutoFinishedSessionId = sessionId;
+      this.requestMeetingFinish();
       if (this.targetSpeakerEnhancementPipeline !== undefined) {
         this.targetSpeakerEnhancementPipeline.finish();
       } else {
@@ -668,6 +803,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (this.finishRequested) return;
     this.finishRequested = true;
     this.lastFinishedSessionId = sessionId;
+    this.requestMeetingFinish();
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
       this.targetSpeakerEnhancementPipeline.finish();
     } else {
@@ -728,8 +864,21 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     finalSession.dispatch(
       payload,
       result.text,
-      (): void => { this.listener?.onResult?.(sessionId, payload); },
       (): void => {
+        const meeting = this.meetingSpeakerSession;
+        if (meeting === undefined) {
+          this.listener?.onResult?.(sessionId, payload);
+          return;
+        }
+        meeting.observeAsrFinal(payload, result);
+        if (payload.isLast) {
+          this.meetingFinishBarrier?.resolveAsr(payload);
+        } else {
+          this.listener?.onResult?.(sessionId, payload);
+        }
+      },
+      (): void => {
+        if (this.meetingSpeakerSession !== undefined) return;
         if (this.sessionStartGate.isCurrent(generation) && this.currentSessionId === sessionId) {
           this.completeCurrentSession(generation);
         }
@@ -750,6 +899,41 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     }
   }
 
+  private requestMeetingFinish(): void {
+    const meeting = this.meetingSpeakerSession;
+    if (meeting === undefined) return;
+    this.meetingFinishBarrier?.begin();
+    meeting.finish();
+  }
+
+  private completeMeetingSession(generation: number, sessionId: string,
+    output: MeetingFinishOutput<SpeechRecognitionResult, MeetingResult>): void {
+    if (!this.sessionStartGate.isCurrent(generation) || this.completeSent ||
+      this.currentSessionId !== sessionId) return;
+    const meeting = this.meetingSpeakerSession;
+    if (meeting === undefined) return;
+    const meetingResult = output.speaker ?? meeting.bestResult('meeting finish timeout');
+    if (output.degraded && !meetingResult.degraded) {
+      meetingResult.degraded = true;
+      meetingResult.degradedReason = 'meeting finish timeout';
+    }
+    meeting.decoratePayload(output.asr);
+    this.listener?.onResult?.(sessionId, output.asr);
+    if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
+    this.listener?.onMeetingResult?.(sessionId, meetingResult);
+    if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
+    this.completeCurrentSession(generation);
+  }
+
+  private createMeetingTimeoutLastResult(): SpeechRecognitionResult {
+    const payload = new SpeechRecognitionResult();
+    payload.isFinal = true;
+    payload.isLast = true;
+    payload.result = '';
+    if (this.targetSpeakerEnhancementEnabled) payload.targetSpeakerEnhancementApplied = true;
+    return payload;
+  }
+
   private resetSessionState(): void {
     this.session = undefined;
     this.audioDispatcher = undefined;
@@ -764,6 +948,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.targetSpeakerEnhancementPipeline = undefined;
     this.targetSpeakerEnhancer = undefined;
     this.targetSpeakerEnhancementEnabled = false;
+    this.meetingSpeakerSession = undefined;
+    this.meetingFinishBarrier = undefined;
     this.sessionStartGate.reset();
   }
 
@@ -772,9 +958,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const oldAudioDispatcher = this.audioDispatcher;
     const oldPipeline = this.targetSpeakerEnhancementPipeline;
     const oldEnhancer = this.targetSpeakerEnhancer;
+    const oldMeeting = this.meetingSpeakerSession;
     oldPipeline?.cancel();
     oldAudioDispatcher?.cancel();
     this.resetSessionState();
+    oldMeeting?.cleanup();
     oldEnhancer?.close();
     oldSession?.close();
   }
@@ -852,6 +1040,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finishRequested = true;
     this.lastFinishedSessionId = sessionId;
     this.lastAutoFinishedSessionId = sessionId;
+    this.requestMeetingFinish();
     this.targetSpeakerEnhancementPipeline?.cancel();
     this.audioDispatcher?.finish();
   }
@@ -888,6 +1077,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     payload.speakerSimilarity = result.speakerScore;
     if (this.targetSpeakerEnhancementEnabled) payload.targetSpeakerEnhancementApplied = true;
     this.finalResultSent = true;
+    if (this.meetingSpeakerSession !== undefined) {
+      this.meetingSpeakerSession.observeAsrFinal(payload, result);
+      if (payload.isLast) {
+        this.meetingFinishBarrier?.resolveAsr(payload);
+      } else {
+        this.listener?.onResult?.(sessionId, payload);
+      }
+      return;
+    }
     this.listener?.onResult?.(sessionId, payload);
     if (rejectedFinalCompletesSession(result.isLast)) {
       if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
@@ -932,9 +1130,16 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         result.result = '';
         if (this.targetSpeakerEnhancementEnabled) result.targetSpeakerEnhancementApplied = true;
         this.finalResultSent = true;
-        this.listener?.onResult?.(sessionId, result);
-        if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
-        this.completeCurrentSession(generation);
+        if (this.meetingSpeakerSession !== undefined) {
+          const asrTail = new AsrResult();
+          asrTail.isLast = true;
+          this.meetingSpeakerSession.observeAsrFinal(result, asrTail);
+          this.meetingFinishBarrier?.resolveAsr(result);
+        } else {
+          this.listener?.onResult?.(sessionId, result);
+          if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
+          this.completeCurrentSession(generation);
+        }
       }, STOP_FALLBACK_DELAY_MS);
     } else {
       this.tearDownSession();
@@ -1228,7 +1433,7 @@ export class SpeechRecognizeSdk {
       callback.onError(errorCode, 'cached license is no longer valid; call setLicense again');
       return;
     }
-    if (AmphionRuntime.isReleasePending()) {
+    if (AmphionRuntime.isReleasePending() || MeetingRuntimeLeaseRegistry.isReleasePending()) {
       callback.onError(DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
         'Runtime release is still draining an active session');
       return;
@@ -1318,7 +1523,9 @@ export class SpeechRecognizeSdk {
    */
   static unloadModel(): void {
     SpeechRecognizeSdk.runtimePreparation.invalidateModel();
-    AmphionRuntime.unloadModel();
+    void MeetingRuntimeLeaseRegistry.beginRelease().then((): void => {
+      try { AmphionRuntime.unloadModel(); } finally { MeetingRuntimeLeaseRegistry.endRelease(); }
+    });
   }
 
   /**
@@ -1332,12 +1539,19 @@ export class SpeechRecognizeSdk {
   private static invalidateRuntime(): void {
     SpeechRecognizeSdk.runtimePreparation.invalidateRuntime();
     // Promise 不可取消；清掉 wrapper 引用并让 core generation 拒绝旧任务提交。
-    AmphionRuntime.release();
+    void MeetingRuntimeLeaseRegistry.beginRelease().then((): void => {
+      try { AmphionRuntime.release(); } finally { MeetingRuntimeLeaseRegistry.endRelease(); }
+    });
   }
 
-  private static invalidateRuntimeAsync(): Promise<void> {
+  private static async invalidateRuntimeAsync(): Promise<void> {
     SpeechRecognizeSdk.runtimePreparation.invalidateRuntime();
-    return AmphionRuntime.releaseAsync();
+    await MeetingRuntimeLeaseRegistry.beginRelease();
+    try {
+      await AmphionRuntime.releaseAsync();
+    } finally {
+      MeetingRuntimeLeaseRegistry.endRelease();
+    }
   }
 
   // L2:若模型未加载则加载,若已加载则复用(不重复加载模型)、只建会话。复用由 AmphionRuntime 的按语言+

@@ -5,6 +5,7 @@
     "versionCode": 314,
     "versionName": "0.3.14-hotword-top50",
     "icon": "$media:app_icon",
-    "label": "$string:EntryAbility_label"
+    "label": "$string:EntryAbility_label",
+    "maxChildProcess": 1
   }
 }
