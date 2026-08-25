@@ -289,11 +289,20 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
         self.assertEqual(
             {
                 "asr/native/audio-processing/src/amphion_audio_processing.cpp",
+                "asr/native/audio-processing/include/amphion_audio_processing.h",
+                "asr/native/audio-processing/meson.build",
+                "asr/native/audio-processing/subprojects/abseil-cpp.wrap",
+                "asr/native/audio-processing/subprojects/webrtc-audio-processing.wrap",
+                "asr/tools/03_build_agc_native.sh",
+                "asr/tools/ensure_agc_build_tools.sh",
                 "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt",
+                "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt",
                 "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt",
                 "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts",
+                "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcIngress.ts",
                 "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets",
                 "asr/harmony/sdk/src/main/cpp/agc_bridge.cpp",
+                "asr/harmony/sdk/src/main/cpp/agc_bridge.h",
                 "asr/tools/evaluate_automatic_agc_regression.py",
             },
             set(sync.ACCURACY_EVIDENCE_SOURCES),
@@ -306,6 +315,24 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
             "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets",
             sync.ACCURACY_EVIDENCE_SOURCES,
         )
+
+    def test_evidence_source_discovery_matches_case_insensitive_recursive_classifier(self) -> None:
+        sync = load_module(SYNC, "automatic_agc_evidence_discovery")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            files = (
+                "asr/android/sdk/src/main/java/com/amphion/asr/internal/agc/FutureAGCStage.kt",
+                "asr/android/sdk/src/main/java/com/amphion/asr/internal/FutureAgcStage.java",
+                "asr/harmony/sdk/src/main/ets/com/amphion/asr/nested/future_agc_stage.ets",
+                "asr/harmony/sdk/src/main/cpp/nested/FUTURE_AGC_STAGE.h",
+            )
+            for relative in files:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("test", encoding="utf-8")
+
+            discovered = set(sync.discover_accuracy_evidence_sources(root))
+            self.assertTrue(set(files).issubset(discovered))
 
     def test_release_preflight_rejects_a_zip_with_a_different_har(self) -> None:
         gate = load_module(GATE, "automatic_agc_release_gate_zip_har")
@@ -385,6 +412,7 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
         for name in (
             "static-contracts",
             "harmony-contracts",
+            "delivery-redaction",
             "police-parity",
             "host-agc",
             "android-aar",
@@ -393,17 +421,19 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
 
         summary = job("ci-result")
         self.assertIn(
-            "needs: [changes, static-contracts, harmony-contracts, police-parity, host-agc, android-aar]",
+            "needs: [changes, static-contracts, harmony-contracts, delivery-redaction, police-parity, host-agc, android-aar]",
             summary,
         )
         for name in (
             "static-contracts",
             "harmony-contracts",
+            "delivery-redaction",
             "police-parity",
             "host-agc",
             "android-aar",
         ):
             self.assertIn(f"verify_job {name}", summary)
+        self.assertIn('if [[ "$required" != "true" && "$required" != "false" ]]', summary)
         self.assertIn('local expected="skipped"', summary)
         self.assertIn('[[ "$required" == "true" ]] && expected="success"', summary)
 
@@ -435,22 +465,57 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
             "unrelated",
             "workflow",
             "rename-out",
+            "customer-markdown",
+            "unknown-status",
+            "new-agc-helper",
+            "android-release-gate",
+            "release-finalizer",
+            "harmony-build-smoke",
+            "release-evidence-contract",
+            "low-volume-fixture",
         ):
             self.assertIn(f'assertClassification("{case}"', classifier_and_matrix)
 
     def test_ci_classifier_is_path_aware_and_fails_closed(self) -> None:
         workflow = (ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
 
-        self.assertIn("police: ${{ steps.filter.outputs.police }}", workflow)
+        for output in ("static", "harmony", "redaction", "agc", "police", "police_unit", "android"):
+            self.assertIn(f"{output}: ${{{{ steps.filter.outputs.{output} }}}}", workflow)
         self.assertIn("context.payload.pull_request.changed_files", workflow)
         self.assertIn('context.ref === "refs/heads/main"', workflow)
         self.assertIn('["diff", "--name-only", "-z", "--no-renames", before, context.sha]', workflow)
         self.assertIn("Changed-files API was truncated; failing closed", workflow)
+        self.assertIn("Changed-files API failed; failing closed", workflow)
+        self.assertIn("Unknown changed-file status; failing closed", workflow)
         self.assertIn("Main diff failed; failing closed", workflow)
         self.assertIn("Unknown event requires every gate", workflow)
         self.assertIn('context.ref.startsWith("refs/heads/release/")', workflow)
         self.assertIn('context.ref.startsWith("refs/tags/v")', workflow)
         self.assertNotIn("paths-ignore:", workflow)
+
+    def test_ci_scopes_report_redaction_and_police_unit_work_independently(self) -> None:
+        workflow = (ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+
+        self.assertIn("if: needs.changes.outputs.static == 'true'", workflow)
+        self.assertIn("if: needs.changes.outputs.harmony == 'true'", workflow)
+        self.assertIn("if: needs.changes.outputs.redaction == 'true'", workflow)
+        self.assertIn("POLICE_UNIT_REQUIRED: ${{ needs.changes.outputs.police_unit }}", workflow)
+        self.assertIn('case "$POLICE_UNIT_REQUIRED" in', workflow)
+        self.assertIn('*) echo "invalid police_unit output:', workflow)
+        self.assertIn(":sdk-police:testReleaseUnitTest", workflow)
+
+    def test_static_classifier_covers_every_direct_release_gate_input(self) -> None:
+        workflow = (ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+
+        for path in (
+            "asr/tools/build_android_agc_release_gate.sh",
+            "asr/tools/finalize_automatic_agc_release_gate.py",
+            "delivery/harmony-dingqiao/delivery/build_install_smoke.sh",
+            "tools/delivery/asr_release_evidence_contract.py",
+            "asr/test-fixtures/voiceprint-fallback/001_recognize.wav",
+        ):
+            self.assertIn(f'"{path}"', workflow)
+        self.assertNotIn('"delivery/harmony-dingqiao/delivery/build_install_smoke.py"', workflow)
 
     def test_ci_uses_scoped_host_and_enhanced_gradle_caches(self) -> None:
         workflow = (ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
@@ -466,6 +531,18 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
         self.assertIn("cache-cleanup: on-success", workflow)
         self.assertNotIn("key: gradle-${{", workflow)
         self.assertEqual(2, workflow.count("compression-level: 0"))
+
+    def test_cache_migration_docs_name_only_the_legacy_key_shape(self) -> None:
+        docs = (ROOT / ".github/workflows/README.md").read_text(encoding="utf-8")
+
+        self.assertIn("gradle-Linux-<64位配置哈希>-<40位提交SHA>", docs)
+        self.assertNotIn("只删除 key\n以 `gradle-` 开头", docs)
+        for preserved in (
+            "gradle-home-v2",
+            "gradle-dependencies-v2",
+            "gradle-transforms-v2",
+        ):
+            self.assertIn(preserved, docs)
 
     def test_every_agc_build_uses_the_pinned_tool_bootstrap(self) -> None:
         build = BUILD_AGC.read_text(encoding="utf-8")

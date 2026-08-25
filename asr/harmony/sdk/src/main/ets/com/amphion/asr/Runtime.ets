@@ -50,6 +50,7 @@ import {
 } from './Types';
 import { NativeAgcBackend } from './NativeAgcBackend';
 import { ProcessedAudioFrame, StreamingAgcProcessor } from './StreamingAgcProcessor';
+import { StreamingAgcIngress } from './StreamingAgcIngress';
 import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
 import { InitialSilenceTracker } from './InitialSilenceTracker';
 import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
@@ -1363,7 +1364,7 @@ export class AsrSession {
   private speakerPcmBuffers: SpeakerPcmBuffers = new SpeakerPcmBuffers(UTT_MAX_SAMPLES);
   private effectiveSpeechBuffer: EffectiveSpeechBuffer =
     new EffectiveSpeechBuffer(ASR_SAMPLE_RATE_HZ, UTT_MAX_SAMPLES);
-  private agcProcessor: StreamingAgcProcessor;
+  private agcIngress: StreamingAgcIngress;
   private engineReadyMs: number = -1;
   private stoppedNotified: boolean = false;
   private stopNotificationPending: boolean = false;
@@ -1396,9 +1397,9 @@ export class AsrSession {
     this.callback = callback;
     this.engineReadyMs = engineReadyMs;
     this.onStreamReleased = onStreamReleased;
-    this.agcProcessor = new StreamingAgcProcessor(
+    this.agcIngress = new StreamingAgcIngress(new StreamingAgcProcessor(
       ASR_SAMPLE_RATE_HZ,
-      (): NativeAgcBackend => new NativeAgcBackend(ASR_SAMPLE_RATE_HZ));
+      (): NativeAgcBackend => new NativeAgcBackend(ASR_SAMPLE_RATE_HZ)));
     const initialSilenceTimeoutMs = sessionConfig.initialSilenceTimeoutMs ?? 0;
     const requestedConfirmationGraceMs = sessionConfig.initialSilenceConfirmationGraceMs ?? 0;
     const maxConfirmationGraceMs = config.targetSpeaker === undefined ? 0 :
@@ -1494,8 +1495,9 @@ export class AsrSession {
     this.totalPcmBytes += samples.length * 2;
     this.streamCallDepth += 1;
     try {
-      const frames = this.agcProcessor.process(samples);
-      for (let index = 0; index < frames.length; index++) this.feedAndDecode(frames[index]);
+      this.agcIngress.accept(samples, (frame: ProcessedAudioFrame): void => {
+        this.feedAndDecode(frame);
+      });
     } catch (e) {
       this.callbackGate.invoke((): void => {
         this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
@@ -1514,8 +1516,9 @@ export class AsrSession {
     this.totalPcmBytes += samples.length * 2;
     this.streamCallDepth += 1;
     try {
-      const frames = this.agcProcessor.process(samples);
-      for (let index = 0; index < frames.length; index++) await this.feedAndDecodeAsync(frames[index]);
+      await this.agcIngress.acceptAsync(samples, async (frame: ProcessedAudioFrame): Promise<void> => {
+        await this.feedAndDecodeAsync(frame);
+      });
     } catch (e) {
       this.callbackGate.invoke((): void => {
         this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
@@ -1569,8 +1572,9 @@ export class AsrSession {
     if (this.callbackGate.isClosed()) return;
     this.streamCallDepth += 1;
     try {
-      const remainder = this.agcProcessor.flush();
-      for (let index = 0; index < remainder.length; index++) this.feedAndDecode(remainder[index]);
+      this.agcIngress.flush((frame: ProcessedAudioFrame): void => {
+        this.feedAndDecode(frame);
+      });
       if (this.commitSpeakerTurnAtFinish()) return;
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
       // Don't rebuild the stream afterwards (session is ending), so a soft reset is enough.
@@ -1593,10 +1597,9 @@ export class AsrSession {
     if (this.callbackGate.isClosed()) return;
     this.streamCallDepth += 1;
     try {
-      const remainder = this.agcProcessor.flush();
-      for (let index = 0; index < remainder.length; index++) {
-        await this.feedAndDecodeAsync(remainder[index]);
-      }
+      await this.agcIngress.flushAsync(async (frame: ProcessedAudioFrame): Promise<void> => {
+        await this.feedAndDecodeAsync(frame);
+      });
       if (await this.commitSpeakerTurnAtFinishAsync()) return;
       this.appendFinalTailSilence();
       this.stream.inputFinished();
@@ -1759,7 +1762,7 @@ export class AsrSession {
       Logger.w(`session ${this.sessionId} speaker inference quiescence failed: ${e}`);
       this.releaseStreamIfClosed();
     });
-    this.agcProcessor.close();
+    this.agcIngress.close();
     this.reentryQueue.clear();
     this.targetExtractorLoad = undefined;
     this.speakerTurnSegmenterLoad = undefined;
