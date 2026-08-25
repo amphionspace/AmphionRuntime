@@ -23,7 +23,8 @@ class VerifyHarmonySherpaSymbolsTest(unittest.TestCase):
             fake_nm = root / "llvm-nm"
             fake_nm.write_text(
                 "#!/bin/sh\n"
-                "echo '0000000000000000 T SherpaOnnxOnlineStreamGetEndpointReason'\n",
+                "echo '0000000000000000 T SherpaOnnxOnlineStreamGetEndpointReason'\n"
+                "echo '0000000000000000 T SherpaOnnxOnlineStreamCommitRule3Segment'\n",
                 encoding="utf-8",
             )
             os.chmod(fake_nm, 0o755)
@@ -43,7 +44,7 @@ class VerifyHarmonySherpaSymbolsTest(unittest.TestCase):
             )
 
         self.assertEqual(completed.returncode, 1)
-        self.assertIn("SherpaOnnxOnlineStreamCommitRule3Segment", completed.stderr)
+        self.assertIn("SherpaOnnxOnlineStreamCommitStablePrefix", completed.stderr)
 
     def test_build_package_and_release_smoke_enforce_the_symbol_gate(self) -> None:
         verifier_name = "verify_harmony_sherpa_symbols.py"
