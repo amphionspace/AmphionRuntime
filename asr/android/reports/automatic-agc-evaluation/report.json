@@ -5,41 +5,39 @@
     "long_audio_time_region"
   ],
   "implementation_source_sha256": {
-    "asr/native/audio-processing/meson.build": "64401c7ad8c4d867a5ba5aa02e19b6293871e23f91ba185437a58dc884798041",
-    "asr/native/audio-processing/subprojects/webrtc-audio-processing.wrap": "ebf743a17dcb8a83623c98c82b47f1fa8dd82e22d8ad67df6c7a07090d395296",
-    "asr/native/audio-processing/src/amphion_audio_processing.cpp": "7ded42aaade2ec76a1567135f9b8ca2bb63e84469ca8616bb152644be79a5acb",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt": "4fcf0f0e58134e40ecc8e27313282e4ab44ce66bf3594190fbf2407efe6a54c3",
-    "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt": "17eae751f72ce825ee48dd43d5e36b32017641fce588db4a5687f52da0e3f344",
     "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt": "d183b5616f5a89de1716e0074fcae5b243eeab784a17c8675a879102ef514aac",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt": "4f695ac87cd2155c2b6deba03cc1d9feb3590d4d3eed93bb3c1f2e16e33d886b",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt": "17eae751f72ce825ee48dd43d5e36b32017641fce588db4a5687f52da0e3f344",
+    "asr/harmony/sdk/src/main/cpp/agc_bridge.cpp": "dde4d8118ceabb8da90d89053b4fbc53d2c4dff5d80a26c18f47971a9eac81ae",
+    "asr/harmony/sdk/src/main/cpp/agc_bridge.h": "6436118ccd57df91a2db683c43debdca95fe18f37850cc7a5d81748e9cb46c0a",
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcIngress.ts": "312aeced224fcc97b2deed402b623ba5982e407ecb6555ea30f7b4767806c530",
     "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts": "5452b4c4df5fc6f8f82b31179385a0130d157a1475b8da5e2ab6a228bbe36605",
-    "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets": "6ab0ffef306155df4120662ed408cc89ed019072cc25c89b0ad9aa28773df45b",
-    "asr/harmony/sdk/src/main/cpp/agc_bridge.cpp": "dde4d8118ceabb8da90d89053b4fbc53d2c4dff5d80a26c18f47971a9eac81ae",
+    "asr/native/audio-processing/include/amphion_audio_processing.h": "56a51ac8492b223c134a8404d54f733a0e471923d1befbeb61259baa337bf8d3",
+    "asr/native/audio-processing/meson.build": "64401c7ad8c4d867a5ba5aa02e19b6293871e23f91ba185437a58dc884798041",
+    "asr/native/audio-processing/src/amphion_audio_processing.cpp": "7ded42aaade2ec76a1567135f9b8ca2bb63e84469ca8616bb152644be79a5acb",
+    "asr/native/audio-processing/subprojects/abseil-cpp.wrap": "274e7ae7895ab1300c88ed6ca0e4f744243c998529c4ebcb1341b4e0c566bda0",
+    "asr/native/audio-processing/subprojects/webrtc-audio-processing.wrap": "ebf743a17dcb8a83623c98c82b47f1fa8dd82e22d8ad67df6c7a07090d395296",
+    "asr/tools/03_build_agc_native.sh": "56242f742ac1337e27a5a9f02bc6db3e3428db118102d86359bb42480788e1aa",
+    "asr/tools/ensure_agc_build_tools.sh": "f02325107d70426fa472b18bfc35a700580567e2a7c694dc6e51ad6de480ffee",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
   "evaluation_applicability_review": {
-    "source_commit": "07964117831c989f82c3683a48042de6e05c9551",
+    "source_commit": "669590d4f08669dd486ffdea08cce00577d0b7c8",
     "changed_sources": [
       "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt",
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt",
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt",
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets",
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcIngress.ts"
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt"
     ],
     "previous_sha256": {
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "afe69391da03e89ea725fdf31afafe01813e110c67675400518d96a121247f28",
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt": "9dc5dd3a675db811cdf84f886da455b5ff95a4da3f67241ed1991b4fcd4d95a2",
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "22abfbc1d8c0a1e65195284154738050b112c4a9894bc6310dadcc7759f955b4"
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "908eb027d160180ab1e2359513ad059bc27efb8e4a65fb409f600d5b2b03b436",
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt": "4fcf0f0e58134e40ecc8e27313282e4ab44ce66bf3594190fbf2407efe6a54c3"
     },
     "current_sha256": {
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "908eb027d160180ab1e2359513ad059bc27efb8e4a65fb409f600d5b2b03b436",
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt": "4fcf0f0e58134e40ecc8e27313282e4ab44ce66bf3594190fbf2407efe6a54c3",
-      "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt": "17eae751f72ce825ee48dd43d5e36b32017641fce588db4a5687f52da0e3f344",
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets": "9a08d5d9b598f2ff3aadee1a1b2ffbf0520f5f1ac287def440aeb11b800ebfac",
-      "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcIngress.ts": "312aeced224fcc97b2deed402b623ba5982e407ecb6555ea30f7b4767806c530"
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "8adbb5459e0eaa64e84db2712a23a4404893bc64c29d13fe6138240c51d10e1e",
+      "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt": "4f695ac87cd2155c2b6deba03cc1d9feb3590d4d3eed93bb3c1f2e16e33d886b"
     },
     "decision": "full_accuracy_evaluation_rerun",
-    "reason": "Android and Harmony now route processed frames through dedicated, hashed AGC ingress modules that own ordered exactly-once delivery and remainder flush. The session-level VAD, speaker, voiceprint, and lifecycle state machines remain outside the expensive evidence fingerprint and are protected by lightweight signal-domain contracts. The native AGC settings and decoder configuration are unchanged. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen evidence model.",
+    "reason": "The Android ingress now guards only processor/backend production and delivers frames to VAD/ASR outside the AGC exception boundary, preserving the pre-refactor lifecycle error semantics. The evidence scope also now binds the native public header, both wrapped dependencies, build-tool scripts, bridge header, and automatically discovered AGC runtime helpers. The native AGC settings and decoder configuration are unchanged. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen evidence model.",
     "rerun_verification": [
       "aishell3_normal_and_controlled_levels",
       "customer_snr_scan",
@@ -179,15 +177,15 @@
   "native_cpu": {
     "iterations": 10,
     "audio_seconds_per_iteration": 213.28,
-    "median_rtf": 0.0014277250937734522,
-    "p90_rtf": 0.0016202173574643784
+    "median_rtf": 0.0013750142582520605,
+    "p90_rtf": 0.0014812486355964003
   },
   "preserved_artifact_sha256": {
-    "aishell3_report.json": "17d1f0466f41d35af6d8a45e356cc5a10f9aeb57523c7e77e1c6c7fdde1cc3cd",
+    "aishell3_report.json": "b79a04efd58aafb4cba6d2d3c7aa380a9ba2a09ae41e7cda5bc1ad85cfaacf2c",
     "input_mapping.json": "a3d23fdb2058f96e0e3be568f90a7b605244a22ff82d725746037436931278c8",
-    "cases.jsonl": "ce60e404dee18c0b94015f258a564f9ad09705c1771643cbae9f5e2502bda156",
-    "extreme_level_report.json": "2d55436e1948073fa8b790f89ac35786b75eb30f4c377f9246db27afa9e937c3",
-    "customer_cases_report.json": "93d988e70cdc8bddfb0f033108a0960dac94e8ba72d74c194d1b2fa2f7590ff8",
+    "cases.jsonl": "a2336961c91bd82d30519847c656e0816769a6332a7fe1891cae9116f6eb53ec",
+    "extreme_level_report.json": "c2717f5cb260604ecbcaf8220768618bc92e3bf0cd2d74dd6e49fea6b3496dd8",
+    "customer_cases_report.json": "185ee12bea0da2a7ea91917177bc1238022f4d98d2305b7ab761ca4d754082c0",
     "sdk_long_audio_report.json": "d725186f72bec9259fded14df692498f9fc4003684f01fafb0d099f58c83949c",
     "repository_low_volume_regression.json": "c5e22f6e4788ac2e0d225cc35ad31b7979d21d46c7e16513aa77a7f1451c43d2"
   }
