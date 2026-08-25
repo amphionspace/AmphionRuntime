@@ -4,7 +4,7 @@
 
 | 文档项 | 值 |
 | --- | --- |
-| 文档版本 | v1.5（Speaker Diarization 增量角色分离接口） |
+| 文档版本 | v1.6（long-form 识别与 Speaker Diarization 增量角色分离接口） |
 | 更新日期 | 2026-08-25 |
 | SDK 依赖 | `amphion_dingqiao` |
 
@@ -15,6 +15,7 @@ SDK 依赖名为 `amphion_dingqiao`，核心入口为 `SpeechRecognizeSdk`。本
 ```ts
 import {
   AudioInfo,
+  AmphionLogLevel,
   CreateEngineParams,
   LicenseDeviceIdProvider,
   SpeechRecognitionEngine,
@@ -30,6 +31,7 @@ class HostDeviceIdProvider implements LicenseDeviceIdProvider {
 
 SpeechRecognizeSdk.init(context, new HostDeviceIdProvider());
 SpeechRecognizeSdk.setWorkPath(`${context.filesDir}/dingqiao_asr`);
+SpeechRecognizeSdk.setLogLevel(AmphionLogLevel.INFO); // 可选；需在 prepareRuntime 前设置
 
 let engine: SpeechRecognitionEngine | undefined;
 SpeechRecognizeSdk.setLicense(licensePath, {
@@ -78,6 +80,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | --- | --- |
 | `SpeechRecognizeSdk.init(context: Context, deviceIdProvider?: LicenseDeviceIdProvider)` | 初始化 SDK；本交付的无设备绑定授权无需传 `deviceIdProvider` |
 | `SpeechRecognizeSdk.setWorkPath(path: string)` | 设置可读写工作目录，必须在创建引擎或注册声纹前调用 |
+| `SpeechRecognizeSdk.setLogLevel(logLevel: AmphionLogLevel)` | 设置 Runtime 日志等级；默认 `WARN`，查看初始化版本日志时在 `prepareRuntime` 前设为 `INFO` |
 | `SpeechRecognizeSdk.getWorkPath(): string` | 查询当前工作目录 |
 | `SpeechRecognizeSdk.setLicense(licensePath: string, callback: LicenseActivationCallback)` | 离线校验并缓存正式授权；不拉起 Runtime、不加载模型 |
 | `SpeechRecognizeSdk.getLicenseInfo(): LicenseInfo` | 查询当前已激活授权信息 |
@@ -91,6 +94,14 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 | `SpeechRecognizeSdk.preloadVoiceprintModel(): boolean` | 同步预加载并预热声纹模型；应在非 UI 关键路径调用 |
 
 声纹模型 `eres2net.onnx` 已内置在 `amphion_dingqiao.har`，宿主无需单独分发、导入或复制。`setWorkPath` 指向可读写目录，用于保存已注册的声纹 embedding；SDK 不会把 HAR 内模型复制到该目录。
+
+日志等级设为 `INFO` 后，首次 `prepareRuntime` 初始化成功会在 Harmony hilog 输出：
+
+```text
+[AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.9, license=LICENSED
+```
+
+可通过 DevEco Studio Log 或 `hdc shell hilog | grep "AmphionRuntime Harmony init done"` 查看。
 
 ## 3. 生命周期控制
 
@@ -214,7 +225,7 @@ endpoint final 会直接成为本 session 的 `isLast=true` 结果，不再追�
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `locate` | `string` | `CN` | 兼容字段；当前仅支持中国区，不改变模型选择 |
-| `recognizerMode` | `string` | `long` | 接受 `short`/`long`，当前均按长语音流式模式处理 |
+| `recognizerMode` | `string` | `long` | `short` 为有最大单句时长的分段识别；`long` 为会议/持续转写，不做周期性 Rule3 硬切，仅在内部压缩已稳定解码前缀且不产生回调 |
 | `sysGeneralLexicon` | `string[]` | 空 | 调用方热词，用于解码 |
 | `disablePrepack` | `boolean/number/string` | `true` | 默认跳过 ORT INT8 权重 prepack，降低冷加载时间和峰值内存；设为 `false` 恢复吞吐优先模式 |
 
@@ -234,12 +245,13 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `recognitionMode` | `number/string` | `1` | 仅支持 `1`（外部写入音频流）；`0`（SDK 内录音）暂不支持 |
+| `recognizerMode` | `string` | engine 配置或 `long` | 会话级覆盖：`short` 使用 `endpointMaxUtteranceMs`；`long` 只按自然静音或 `finish` 公开分段，内部 stable-prefix 压缩不产生 endpoint/final |
 | `vadBegin` | `number/string` | 未启用 | 首次检测到语音前的静音超时，范围 500 到 10000 ms；仅显式传入时启用 |
 | `enablePartialResult` | `boolean` | `true` | 是否回调中间结果；启用 Speaker VAD 后仍遵循该参数。partial 属于推测结果，可能包含随后从 final 中移除的非目标说话人文本；目标说话人边界保证仅适用于 final |
 | `enablePoliceEnhancement` | `boolean` | `true` | 是否对 final 文本执行警务术语、车牌和派出所归一化；`false` 返回原始 ASR 文本 |
 | `maxAudioDuration` | `number/string` | 未启用 | 单会话最长音频毫秒数；显式正有限值按调用值生效，上限 28800000；达到上限后正常自动结束，非正数或非法值按未启用处理 |
 | `enableContinuousRecognition` | `boolean` | `false` | 设为 `true` 时保持同一个模型会话连续识别，并禁用 `maxAudioDuration` 自动结束；调用方必须最终显式调用 `finish(sessionId)`。仅布尔值 `true` 生效 |
-| `endpointMaxUtteranceMs` | `number/string` | `20000` | native rule3 的单句强制 final 时长；长语音可显式调大，例如 `60000`。非正数或非法值使用默认值。它只改变单句 final 边界，不会结束 session |
+| `endpointMaxUtteranceMs` | `number/string` | `20000` | 仅 `recognizerMode=short` 生效的单句强制 final 时长；不会结束 session。long 模式忽略该参数 |
 | `vadEnd` | `number/string` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `sessionGeneralLexicon` | `string[]` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
@@ -409,7 +421,7 @@ last、`onSpeakerDiarizationResult` 或 `onComplete`。未开启时不产生任�
 
 > `enableTargetSpeakerEnhancement` 是正式接口预留，但开源 Conv-TasNet 权重没有默认进入商用 HAR。
 > 客户包必须先完成模型商用授权、固定模型哈希并重跑对应真机门禁；缺少模型时启动会明确失败，
-> 不会静默退回普通 Speaker VAD。本 0.3.7 交付不包含该能力所需模型，不能启用该参数。
+> 不会静默退回普通 Speaker VAD。本 0.3.8 交付不包含该能力所需模型，不能启用该参数。
 
 > 交付批注 LC-20260716-02（v0.2.6）：调用方在 `SPEECH_END` 回调内同步调用 `finish()`，且没有更早排队的音频时，当前带文本 final 同时标记 `isLast=true`，不会再追加空的 last final。`vadBegin` 命中或确实没有可识别语音时，last final 仍允许为空。
 

@@ -6,6 +6,30 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
+    def test_039_changelog_limits_the_release_to_public_log_configuration(self) -> None:
+        changelog = (
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/CHANGELOG.md"
+        ).read_text(encoding="utf-8")
+        notes_039 = changelog.split("## 0.3.9", 1)[1].split("\n## ", 1)[0]
+
+        self.assertIn("setLogLevel", notes_039)
+        self.assertIn("version=0.3.9", notes_039)
+        self.assertIn("默认日志等级仍为 `WARN`", notes_039)
+        self.assertIn("生命周期与诊断采集逻辑均未修改", notes_039)
+
+    def test_038_changelog_distinguishes_new_work_from_037_carryover(self) -> None:
+        changelog = (
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/CHANGELOG.md"
+        ).read_text(encoding="utf-8")
+        notes_038 = changelog.split("## 0.3.8", 1)[1].split("\n## ", 1)[0]
+
+        self.assertIn("相对 0.3.7", notes_038)
+        self.assertIn("0.3.7 已交付", notes_038)
+        self.assertIn("不作为 0.3.8 新增修复", notes_038)
+        self.assertIn("Speaker VAD 尾部时延", notes_038)
+        self.assertIn("独立 Diagnostics SDK", notes_038)
+        self.assertNotIn("避免交替讲话时应用闪退", notes_038)
+
     def test_ci_discovers_all_harmony_contracts_and_runs_finish_compat_gate_tests(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
 
@@ -18,27 +42,21 @@ class ReleaseDefaultsTest(unittest.TestCase):
             workflow,
         )
 
-    def test_asr_contracts_fetches_only_frozen_police_history(self) -> None:
+    def test_police_parity_fetches_only_frozen_police_history(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
-        contracts = workflow.split("  asr-contracts:", 1)[1].split("  android-aar:", 1)[0]
+        parity = workflow.split("  police-parity:", 1)[1].split("  host-agc:", 1)[0]
 
-        self.assertIn("fetch-depth: 1", contracts)
-        self.assertIn("Fetch frozen police asset source", contracts)
-        self.assertIn('git fetch --no-tags --depth=1 origin "$source_commit"', contracts)
-        self.assertNotIn("fetch-depth: 0", contracts)
-
-    def test_markdown_only_pushes_skip_android_workflow(self) -> None:
-        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
-        push_trigger = workflow.split("  push:", 1)[1].split("  pull_request:", 1)[0]
-
-        self.assertIn("paths-ignore:", push_trigger)
-        self.assertIn('      - "**.md"', push_trigger)
+        self.assertIn("fetch-depth: 1", parity)
+        self.assertIn("Fetch frozen police asset source", parity)
+        self.assertIn('git fetch --no-tags --depth=1 origin "$source_commit"', parity)
+        self.assertNotIn("fetch-depth: 0", parity)
+        self.assertIn("if: needs.changes.outputs.police == 'true'", parity)
 
     def test_android_native_cache_is_exact_verified_and_only_skips_native_build(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
         android = workflow.split("  android-aar:", 1)[1].split("  ci-result:", 1)[0]
         native_cache = android.split("- name: Restore verified native artifacts", 1)[1].split(
-            "- name: Cache Gradle", 1
+            "- name: Set up Gradle", 1
         )[0]
 
         self.assertIn("steps.native-fingerprint.outputs.fingerprint", native_cache)
@@ -55,21 +73,8 @@ class ReleaseDefaultsTest(unittest.TestCase):
         native_build = android.index("bash asr/tools/04_build_android_so.sh arm64-v8a")
         gradle_build = android.index("Gradle assemble + unit test")
         self.assertLess(native_build, gradle_build)
-        gradle_section = android[gradle_build:]
+        gradle_section = android[gradle_build:].split("- name: Verify AAR contents", 1)[0]
         self.assertNotIn("cache-hit", gradle_section)
-
-    def test_gradle_cache_uses_real_config_hash_and_refreshes_per_commit(self) -> None:
-        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
-        android = workflow.split("  android-aar:", 1)[1].split("  ci-result:", 1)[0]
-        gradle_cache = android.split("- name: Cache Gradle", 1)[1].split(
-            "- name: Init Gradle wrapper", 1
-        )[0]
-
-        config_hash = "hashFiles('asr/android/**/*.gradle*'"
-        self.assertIn(config_hash, gradle_cache)
-        self.assertIn("${{ github.sha }}", gradle_cache)
-        self.assertIn("restore-keys:", gradle_cache)
-        self.assertNotIn("hashFiles('${{ env.SDK_BUILD_DIR }}", gradle_cache)
 
     def test_native_cache_hit_skips_ndk_setup_but_not_gradle(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
@@ -79,14 +84,28 @@ class ReleaseDefaultsTest(unittest.TestCase):
             "- name: Install Android native SDK tools", 1
         )[0]
         native_setup = android.split("- name: Install Android native SDK tools", 1)[1].split(
-            "- name: Cache Gradle", 1
+            "- name: Set up Gradle", 1
         )[0]
-        gradle_build = android.split("- name: Gradle assemble + unit test", 1)[1]
+        gradle_build = android.split("- name: Gradle assemble + unit test", 1)[1].split(
+            "- name: Verify AAR contents", 1
+        )[0]
 
         self.assertNotIn("ndk;${{ env.NDK_VERSION }}", sdk_setup)
         self.assertIn("steps.native-cache.outputs.cache-hit != 'true'", native_setup)
         self.assertIn('sdkmanager "ndk;${NDK_VERSION}"', native_setup)
         self.assertNotIn("steps.native-cache.outputs.cache-hit", gradle_build)
+
+    def test_android_applies_pinned_sherpa_patches_before_cache_or_bridge_checks(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+        android = workflow.split("  android-aar:", 1)[1].split("  ci-result:", 1)[0]
+
+        apply_patches = android.index("bash asr/tools/apply_sherpa_patches.sh")
+        self.assertLess(apply_patches, android.index("Compute Android native source fingerprint"))
+        self.assertLess(apply_patches, android.index("Verify Kotlin bridge in sync with submodule"))
+        patch_step = android.split("- name: Apply pinned sherpa-onnx patches", 1)[1].split(
+            "- name: Compute Android native source fingerprint", 1
+        )[0]
+        self.assertNotIn("cache-hit", patch_step)
 
     def test_ci_prefers_official_gradle_repositories(self) -> None:
         settings = (REPO_ROOT / "asr/android/settings.gradle.kts").read_text(
@@ -178,6 +197,53 @@ class ReleaseDefaultsTest(unittest.TestCase):
             'text.replace("默认并在鼎桥适配层固定为", "默认并在当前适配层固定为")',
             script,
         )
+
+    def test_complete_delivery_contains_all_requested_artifact_groups(self) -> None:
+        script = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh"
+        ).read_text(encoding="utf-8")
+
+        for directory in (
+            "release-sdk",
+            "diagnostics-sdk",
+            "diagnostics-demo",
+            "demo-source",
+        ):
+            self.assertIn(directory, script)
+        self.assertIn("amphion_asr_demo-diagnostics-signed.hap", script)
+        self.assertIn("git -C \"$REPO_ROOT\" archive", script)
+        self.assertIn("hvigor/hvigor-config.json5", script)
+        self.assertIn("build-identity.json", script)
+        self.assertIn("ACCEPTANCE-SUMMARY.md", script)
+        self.assertIn("acceptance-manifest.json", script)
+        self.assertIn('identity.get("build_mode") != "diagnostics"', script)
+        self.assertIn('required_modes = {"speaker-vad-turn", "customer-ptt"}', script)
+        self.assertIn("demo-source/libs/amphion_dingqiao.har", script)
+        self.assertIn("!engine.isBusy(), CANCEL_DRAIN_TIMEOUT_MS", script)
+        self.assertIn("AmphionRuntime.eagerWarmupSamples()", script)
+        self.assertIn('provenance.get("source", {}).get("commit")', script)
+        self.assertIn('identity.get("git_commit")', script)
+        self.assertIn("def replace_exact", script)
+        self.assertIn("expected one demo module", script)
+        self.assertIn("TRANSFORMATIONS.md", script)
+        self.assertIn("基于本交付 commit 裁剪并适配", script)
+
+    def test_diagnostics_package_can_reuse_the_verified_signed_build(self) -> None:
+        script = (
+            REPO_ROOT / "delivery/harmony-dingqiao/delivery/pack_diagnostics_sdk.sh"
+        ).read_text(encoding="utf-8")
+        smoke = (
+            REPO_ROOT / "delivery/harmony-dingqiao/delivery/build_install_smoke.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('${SKIP_BUILD:-false}', script)
+        self.assertIn('OUTPUT_ROOT="$PWD/$OUTPUT_ROOT"', script)
+        self.assertIn('--verify "$VERIFIED_BUILD_IDENTITY"', script)
+        self.assertIn("--build-mode diagnostics", script)
+        self.assertIn('--build-mode MODE', smoke)
+        self.assertIn('buildMode="$BUILD_MODE"', smoke)
+        self.assertIn('IDENTITY_ARGS+=(--build-mode "$BUILD_MODE")', smoke)
 
     def test_speaker_vad_defaults_match_sdk_demo_and_public_docs(self) -> None:
         sdk = (

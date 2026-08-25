@@ -46,12 +46,17 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
             "speakerDiarizationProcessEntry",
         ):
             self.assertNotIn(removed_name, source)
+        self.assertIn("params.extraParams['recognizerMode'] = profile.recognizerMode", source)
+        self.assertGreaterEqual(source.count("recognizerMode: 'short'"), 2)
+        self.assertGreaterEqual(source.count("recognizerMode: 'long'"), 3)
 
-    def test_long_profiles_disable_rotation_and_raise_the_native_endpoint_boundary(self) -> None:
+    def test_long_profiles_disable_rotation_and_periodic_rule3(self) -> None:
         profile = PROFILE.read_text(encoding="utf-8")
         index = INDEX.read_text(encoding="utf-8")
 
         self.assertIn("endpointMaxUtteranceMs: number", profile)
+        self.assertIn("recognizerMode: 'short' | 'long'", profile)
+        self.assertIn("recognizerMode: 'long'", profile)
         self.assertIn("customerProfileUsesContinuousRecognition(profile)", index)
         self.assertIn("extra['enableContinuousRecognition']", index)
         self.assertNotIn("this.rotateRecognitionSession", index)
@@ -91,7 +96,8 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         source = INDEX.read_text(encoding="utf-8")
 
         self.assertIn("CUSTOMER_SCENARIOS", source)
-        self.assertIn("customerProfileStartParams(sessionId, this.capturedCustomerScenario)", source)
+        self.assertIn("customerProfileStartParams(\n      sessionId, this.capturedCustomerScenario, serviceUrl)", source)
+        self.assertIn("this.capturedCustomerScenario === 'meeting-minutes'", source)
         self.assertIn("this.capturedCustomerScenario = this.customerScenario", source)
         self.assertIn("this.capturedAudioSource = this.audioSource", source)
         self.assertIn("this.capturedAudioSource", source)

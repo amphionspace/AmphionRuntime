@@ -1,0 +1,1 @@
+000000	/data/storage/el2/base/files/asr-stress/20260824-144347-endpoint-reentrant-71282142/audio/000000.pcm

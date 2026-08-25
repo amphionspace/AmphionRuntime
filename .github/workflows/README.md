@@ -1,51 +1,126 @@
-# Android CI 路径决策
+# Android/ASR CI 运行规则
 
-`android.yml` 对 PR 始终运行 `changes` 和 required 汇总检查
-`Build AAR (arm64-v8a)`。汇总检查沿用原显示名，branch protection 无需同步改名。
+`android.yml` 始终保留 required check `Build AAR (arm64-v8a)`。这个 check 是汇总
+job，branch protection 无需改名；它会核对每个下游 job 应当成功还是应当跳过，状态不符
+即失败。
 
-| 变更或事件 | `asr-contracts` | `android-aar` | 汇总检查 |
-| --- | --- | --- | --- |
-| PR 只修改 Markdown | 跳过 | 跳过 | 确认两个 job 均按预期跳过后通过 |
-| PR 只修改非 Markdown 的非 Android 输入 | 运行 | 跳过 | 合约通过时通过 |
-| PR 修改 `asr/android/**`、`asr/native/**`、native 脚本、sherpa patch 或 submodule | 运行 | 完整运行 | 汇总两个 job |
-| push 到 `main` 或 `release/*`，且只修改 Markdown | workflow 不触发 | workflow 不触发 | 不运行 |
-| push 到 `main` 或 `release/*`，且包含非 Markdown 变更 | 运行 | 完整运行 | 汇总两个 job |
-| `v*` tag | 运行 | 完整运行 | 汇总两个 job；Maven 发布消费其 AAR artifact |
-| 手动触发 | 运行 | 完整运行 | 汇总两个 job |
+## 变更分类
 
-对 PR，`changes` 通过 GitHub changed-files API 读取 PR 自身变更集，不 checkout
-仓库；重命名同时检查新旧路径。纯 Markdown PR 跳过 `asr-contracts` 和
-`android-aar`，但仍运行 required 汇总检查，避免 branch protection 永久 pending。
-纯 Markdown branch push 通过 trigger path filter 直接跳过整个 workflow；tag push
-不受 path filter 影响。其余非 PR 事件仍强制完整运行，从而保持发布行为。
+PR 使用 GitHub changed-files API；`main` push checkout 当前提交后按事件中的
+`before..sha` 计算 Git diff。重命名同时检查新旧路径。首次 push、无效 `before`、diff
+失败、API 异常、changed-files 结果截断、未知文件状态、未知事件或 workflow 自身变化都
+fail-closed，执行全量门禁。`release/*`、`v*` tag 和手动运行始终全量，不受文件类型影响。
 
-`android-aar` 只读取当前源码和 submodule gitlink，因此使用 shallow checkout。
-`asr-contracts` 同样 shallow checkout，再从 police metadata 读取并校验冻结 commit，
-只 fetch 该历史对象供 parity gate 使用，不下载完整仓库历史。
+| 输入或事件 | AGC static | Harmony contracts | delivery redaction | police parity / unit | host AGC | Android AAR |
+| --- | --- | --- | --- | --- | --- | --- |
+| 普通纯 Markdown | 跳过 | 跳过 | 跳过 | 跳过 | 跳过 | 跳过 |
+| customer delivery Markdown | 跳过 | 跳过 | 运行 | 跳过 | 跳过 | 跳过 |
+| `Runtime.ets` | 运行 | 运行 | 跳过 | 跳过 | 跳过 | 跳过 |
+| AGC report JSON | 运行 | 跳过 | 跳过 | 跳过 | 跳过 | 跳过 |
+| Android SDK Kotlin | AGC boundary 变化时运行 | 运行 | 跳过 | shared SDK 变化时运行 unit | 仅 AGC processor 变化时运行 | 运行 |
+| AGC native 源码、测试或构建输入 | 运行 | 运行 | 跳过 | 跳过 | 运行 | 运行 |
+| Harmony AGC processor / ingress / bridge | 运行 | 运行 | 跳过 | 跳过 | 运行 | 跳过 |
+| police assets | 跳过 | 运行 | 跳过 | parity 与 unit 均运行 | 跳过 | 运行 |
+| Android samples、docs、其他 reports | 跳过 | 跳过 | 跳过 | 跳过 | 跳过 | 跳过 |
+| 非 ASR 输入 | 跳过 | 跳过 | 跳过 | 跳过 | 跳过 | 跳过 |
+| workflow、分类失败、release、tag、手动 | 运行 | 运行 | 运行 | 运行 | 运行 | 运行 |
 
-## Android native cache
+Android AAR 只监听实际被当前 job 消费的三个 module（`sdk`、`sdk-dingqiao`、
+`sdk-police`）、Gradle 配置、native 源码与脚本、sherpa patch 和 submodule gitlink。
+`reports`、`docs`、`samples` 不会再触发未使用它们的 Android 冷构建。
 
-`android-aar` 根据以下输入生成确定性 source fingerprint：
+分类逻辑是无副作用的 `classify(changes)`，同时读取文件路径、重命名前路径和 API status。
+workflow 内带最小用例矩阵，覆盖 Harmony、Android、AGC、police、报告、Markdown、
+customer redaction、sample、rename 和未知 status。静态门禁还会用
+Node.js 执行该矩阵，并检查 workflow 拓扑、缓存配置和 required 汇总关系。
+Android/Harmony AGC 实现目录中的新增 `*Agc*` helper 会由分类器和证据校验自动发现，
+无需同时维护多份精确路径表；分类输出只接受 `true` 或 `false`，缺失或非法值会阻断汇总。
 
-- `third_party/sherpa-onnx` gitlink commit；
-- `third_party/patches/sherpa-amphion/**`、`asr/native/**`；
-- Android native 构建、patch、依赖预取和打包脚本；
-- ABI、Android platform、NDK、ORT、CMake、Meson 和 Ninja 版本。
+## 并行拓扑
 
-当前 workflow 只构建 `arm64-v8a`；cache identity 工具会拒绝其他 ABI，避免配置与
-固定的 arm64 产物路径不一致。
+`changes` 完成后，各门禁只依赖分类结果并行启动：
 
-缓存 key 只接受完整 fingerprint 的精确命中，不配置 `restore-keys`。命中后必须先用
-manifest 校验 fingerprint 及三份 `.so` 的 SHA-256/大小，才会跳过 native 编译；校验
-失败直接令 job 失败。命中后也不再下载仅供 native 编译使用的 NDK/CMake；未命中时
-安装固定版本工具、重新编译并生成 identity manifest。无论是否命中，Gradle
-assemble/unit test、AAR 内容与哈希校验、Kotlin bridge 对账和 artifact 上传均照常运行。
+```text
+changes
+  ├─ static-contracts
+  ├─ harmony-contracts
+  ├─ delivery-redaction
+  ├─ police-parity
+  ├─ host-agc
+  └─ android-aar
+          ↓
+      ci-result: Build AAR (arm64-v8a)
+```
 
-## Gradle cache
+- `static-contracts`：AGC 静态证据门禁。
+- `harmony-contracts`：全部 `test_harmony_*.py`、Android native cache 单测、设备压力及
+  发布脚本契约测试。
+- `delivery-redaction`：只在客户交付目录或脱敏检查器变化时运行；客户 Markdown 不因
+  文档快速路径而跳过。
+- `police-parity`：只在 police 输入变化时拉取 metadata 指定的冻结 commit，安装固定
+  TypeScript 版本并校验资产同步与跨端 parity。
+- `host-agc`：只在 AGC 输入变化时构建并执行 native tests。
+- `android-aar`：构建三个 Android SDK module 当前消费的 AAR 与 native 产物；shared
+  `sdk` 或 `sdk-police` 变化时额外执行 `:sdk-police:testReleaseUnitTest`。
 
-Gradle User Home cache 的 primary key 由 runner OS、Android Gradle 配置文件 hash 和
-当前 commit SHA 组成。新 commit 先按相同配置 hash 恢复已有缓存，构建成功后再写入
-自己的不可变 cache entry；这样既能复用依赖和 Gradle build cache，又不会让固定 key
-长期停留在第一次保存的状态。任何缓存命中都不跳过 Gradle assemble 或 unit test。
-CI 冷缓存构建优先使用 Google Maven 和 Maven Central 官方源，国内本地开发仍优先使用
-阿里云镜像；两种环境都保留另一组源作为回退。
+## Cache 与 artifact
+
+### Android native cache
+
+`android-aar` 继续使用 `android-native-*` cache。key 是 sherpa gitlink、patch、
+`asr/native/**`、native 构建脚本、ABI/platform 和固定工具版本的完整 fingerprint。
+submodule 初始化后始终先应用固定 patch series，避免 cache hit 跳过 patch 后拿未打补丁
+的 upstream Kotlin 与 SDK bridge 对账。cache 不使用模糊 restore key；命中后必须用
+manifest 校验 fingerprint、三份 `.so` 的 SHA-256 和大小，验证通过才跳过 native 编译。
+Gradle assemble、unit test、AAR 内容检查和 bridge 对账始终执行。
+
+### Gradle enhanced cache
+
+Android job 使用 `gradle/actions/setup-gradle@v6` enhanced provider，不再按每个 commit
+保存约 700 MB 的完整 Gradle User Home。PR、release branch、tag 和手动运行只读；只有
+`main` 可以写入。成功构建后执行 cleanup，任何 cache 命中都不会跳过 assemble 或测试。
+
+### Host AGC incremental cache
+
+`host-agc-*` 保存 `build-host` 和 Meson `subprojects`。依赖描述、工具脚本变化会产生新
+基线；仅 AGC 源码或测试变化时可从同一依赖基线恢复，再由 Meson 增量编译。无论命中
+与否都执行 native tests。`build-host/meson-logs` 明确排除在 cache 外，避免测试日志中
+记录的进程环境进入缓存。
+
+AAR 和 `.so` 上传使用 `compression-level: 0`，避免对已压缩二进制重复耗时压缩。AAR
+在每次 Android job 成功后上传；PR 命中 native cache 时不重复上传内容相同的独立 `.so`
+artifact，cache miss 时仍上传。`main`、release branch、tag 和手动运行始终上传 `.so`，
+不改变发布取件路径。
+
+## 一次性旧 cache 迁移
+
+合入后先等待一次包含 Android job 的 `main` workflow 成功，确认 enhanced Gradle cache
+已生成。随后通过 GitHub Actions cache 列表记录删除前的条目数和总大小，只删除旧 key
+形态 `gradle-Linux-<64位配置哈希>-<40位提交SHA>`；不能按 `gradle-` 前缀删除，因为
+setup-gradle 新 cache 同样使用该前缀。明确保留 `gradle-home-v2`、
+`gradle-dependencies-v2`、`gradle-transforms-v2`、`android-native-*` 和 `host-agc-*`。
+删除后再次记录条目数和总大小。
+
+本次改造前的观测基线是 15 个旧 `gradle-*` 条目、约 9.83 GiB；这一步不能在首次成功
+的 `main` 构建前执行，也不能用宽泛前缀删除其他 cache。
+
+2026-08-25 迁移审计：删除前：22 条、1,064,848,853 bytes；其中 enhanced Gradle
+12 条、958,409,289 bytes，`android-native-*` 8 条、85,837,786 bytes，`host-agc-*`
+2 条、20,601,778 bytes。严格按上述旧 key 正则筛选后，旧格式目标为 0 条、0 bytes，
+说明 GitHub 已在新 cache 写入时完成额度淘汰，因此没有发起删除请求。
+删除后：22 条、1,064,848,853 bytes，三类有效 cache 全部保留。
+
+## 首次 CI 验收
+
+首次合入后的 `main` run
+[`32808307368`](https://github.com/amphionspace/AmphionRuntime/actions/runs/32808307368)
+记录为：static 17 秒、Harmony 34 秒、police 19 秒、host AGC 32 秒、Android 2 分
+24 秒、required 汇总 4 秒；Android native cache 命中，Gradle assemble + unit test
+约 1 分 31 秒。整次 workflow 约 2 分 56 秒。
+
+Harmony-only 路径已达到约 40 秒。真实 report-only 验收 PR
+[`#152`](https://github.com/amphionspace/AmphionRuntime/pull/152) 对 report JSON 只做语义
+不变的格式调整并在验证后关闭、未合入；对应 run
+[`32809520224`](https://github.com/amphionspace/AmphionRuntime/actions/runs/32809520224)
+整次 35 秒，其中 detect 4 秒、static 19 秒、required 汇总 4 秒。Harmony、delivery
+redaction、police、host AGC 和 Android AAR 均按预期 skipped。

@@ -1,0 +1,24 @@
+[
+  {
+    "channels": 1,
+    "duration_seconds": 0.86,
+    "id": "000000",
+    "pcm_bytes": 27520,
+    "pcm_sha256": "c0fff8346ab3e199c268f24cf504c28a2324cc337ecf949157315d4dde3c06ca",
+    "sample_rate": 16000,
+    "sample_width": 2,
+    "source": "police-recent-fixes/警官/smartChatPtt-1786695275667.wav",
+    "source_sha256": "fc74c1b98c61c85be6ae755b0450b3bfa67913700022ce395d225177ecd8214d"
+  },
+  {
+    "channels": 1,
+    "duration_seconds": 32.22,
+    "id": "000001",
+    "pcm_bytes": 1031040,
+    "pcm_sha256": "5200cfe0b9f0ec472b8621bb691df4a8b63db8f5588d555382ed75cade572ec1",
+    "sample_rate": 16000,
+    "sample_width": 2,
+    "source": "hotword/yu-qigen.wav",
+    "source_sha256": "90aa38d75a72e69f28ba5006771b881d87e3c4842a097d898dc6350ca216b6a5"
+  }
+]

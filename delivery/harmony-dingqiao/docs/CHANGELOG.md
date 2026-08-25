@@ -1,5 +1,57 @@
 # Changelog
 
+## 未发布 - 2026-08-24（热词安全与警务后处理）
+
+- 将 `recognizerMode=short/long` 落实为两种 endpoint 语义：short 保留可配置的单句 Rule3
+  硬上限；long 不再在 20/60 秒强切，避免会议连续讲话在任意时长边界冻结 modified beam 候选。
+  `StartParams.extraParams['recognizerMode']` 可覆盖 engine 缺省值，既有 PTT/点击识别 profile 使用
+  short，长转写、填单和会议纪要使用 long。
+- long 模式新增无公开回调的 stable-prefix 内部压缩：只提交所有活跃 beam 共同确认的 token/frame
+  前缀，保留未决候选、encoder/LM/context 状态；无稳定前缀时延后重试。Harmony 与 Android 使用
+  同一 native 实现，`endpointMaxUtteranceMs` 仍只对 short 的硬 final 生效。
+- 交付基线撤回 modified beam search 的 Top-50 预选加分实验：三星真机在 200 条客户热词场景下
+  曾稳定将“见警率”回退为“警情人员”。继续保留原有 ContextGraph 热词能力，不启用该预裁剪策略。
+- 针对 cp5500 新模型的稳定残差，补充冀 R 车牌前缀、派出所闭集名称和 `e警保` 的受限纠错；
+  Android/Harmony 保持同一规则与负例护栏，不对普通编号、通用词或歧义警务术语做全局替换。
+
+## 0.3.9 - 2026-08-24（开放 Runtime 日志等级）
+
+- 兼容适配层新增 `SpeechRecognizeSdk.setLogLevel(AmphionLogLevel)`，支持业务方在
+  `prepareRuntime` 前将日志等级设置为 `INFO` 或 `DEBUG`。
+- 设置为 `INFO` 后，Runtime 首次初始化成功时会在 Harmony hilog 输出
+  `AmphionRuntime Harmony init done, version=0.3.9`，便于现场确认实际运行的 SDK 版本。
+- 默认日志等级仍为 `WARN`，未调用新接口的既有集成行为保持不变；识别、声纹、Speaker VAD、
+  生命周期与诊断采集逻辑均未修改。
+- 目标说话人增强仍仅保留接口预留；0.3.9 不包含该能力所需模型，不能启用该参数。
+
+## 0.3.8 - 2026-08-24（Speaker VAD 尾部时延与完整交付）
+
+- 相对 0.3.7，优化 Speaker VAD 尾部时延：增加安全前缀预解码并批量执行说话人评分；既有阈值、
+  候选选择、评分结果和 final 分段行为保持不变。
+- 0.3.7 已交付机主与其他人交替讲话时的闪退修复；0.3.8 保留该修复并完成同场景真机回归，
+  不作为 0.3.8 新增修复。
+- 诊断能力改为编译期隔离的独立 Diagnostics SDK，并配套 Diagnostics Demo；完整记录 SDK 输入 PCM、
+  结构化回调、有效配置、Runtime 指标和崩溃恢复 journal。普通 `debug` / `release` 构建关闭诊断采集。
+  0.3.7 的 `DiagnosticOptions`、`DiagnosticMode` 和 `configureDiagnostics(...)` 保留为废弃兼容接口，
+  但不再改变采集行为。
+- 增加完整交付包，统一包含正式 SDK、Diagnostics SDK、已签名 Diagnostics Demo、可独立构建的 Demo
+  源码、验收摘要及构建来源校验信息。
+- 保持公共识别、声纹、Speaker VAD 与 `isFinal` / `isLast` / `onComplete` 接口契约不变。
+- 目标说话人增强仍仅保留接口预留；0.3.8 不包含该能力所需模型，不能启用该参数。
+
+## 0.3.7 - 2026-08-22（机主识别稳定性与新模型）
+
+- **开启说话人 VAD 后机主识别闪退**：优化机主识别与说话人 VAD 同时运行时的任务处理顺序，
+  避免识别过程中相互干扰导致应用崩溃。
+- **长会议跨段识别可能丢字**：优化长语音分段衔接，保留必要的上下文，降低跨段位置漏字或结果中断的概率。
+- **热词人名识别不准**：优化生僻人名和短人名热词的匹配与候选优先级，提高人名热词命中率。
+- **初始静音超时后仍可能返回结果**：优化超时后的结果收口，避免会话已结束后继续返回迟到结果。
+- **现场问题缺少有效日志**：Debug SDK 和 Debug Demo 默认提供完整诊断信息，并保留最近五分钟记录，
+  便于复现后直接导出日志分析。
+- **部分页面内容在小屏设备上显示不全**：优化 Demo 页面滚动，确保配置项和操作入口可以正常访问。
+- 中英识别能力更新为本次交付的新模型；正式 SDK 与 Debug SDK 使用相同能力基线，Debug SDK 仅额外开启诊断能力。
+- 目标说话人增强仍仅保留接口预留；0.3.7 不包含该能力所需模型，不能启用该参数。
+
 ## 0.3.6 - 2026-08-20（回退至稳定模型）
 
 - 最终交付恢复为 0.3.4 已使用的稳定中英识别模型，撤回 0.3.5 候选模型及其配套的警务热词裁剪

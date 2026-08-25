@@ -1481,16 +1481,20 @@ async function runSpeakerVadTurnCycle(engine: SpeechRecognitionEngine,
   const boundarySignalPassed = speechEndsBeforeFinish > 0 || finishRecovery;
   const finishLatencyPassed = !finishRecovery ||
     (finishToFirstNonEmptyResultMs >= 0 && finishToFirstNonEmptyResultMs <= 1200);
+  // A short utterance may be finalized by the caller before native decoding has emitted a
+  // speculative partial. Keep requiring partials for endpoint-driven turns, while finish recovery
+  // is proven by its bounded non-empty final instead.
+  const partialSignalPassed = finishRecovery || events.partials > 0;
   const ok = completed && events.starts === 1 && events.finals > 0 && events.lastFinals === 1 &&
     lastFinalsBeforeFinish === 0 && events.completes === 1 && events.errors === 0 &&
-    businessTextPassed && events.partials > 0 && boundarySignalPassed && finishLatencyPassed &&
+    businessTextPassed && partialSignalPassed && boundarySignalPassed && finishLatencyPassed &&
     !engine.isBusy();
   let detail = ok ? (finishRecovery ? 'speaker-vad-turn-clean-finish-recovery' :
     'speaker-vad-turn-clean') : 'speaker-vad-turn-contract';
   if (lastFinalsBeforeFinish > 0) detail = 'is-last-before-finish';
   else if (!boundarySignalPassed) detail = 'speaker-vad-turn-missing-endpoint';
   else if (!finishLatencyPassed) detail = 'speaker-vad-turn-finish-latency';
-  else if (events.partials === 0) detail = 'speaker-vad-turn-missing-partial';
+  else if (!partialSignalPassed) detail = 'speaker-vad-turn-missing-partial';
   else if (!businessTextPassed) detail = 'speaker-vad-turn-text-contract';
   if (events.errorMessages.length > 0) {
     detail = `speaker-vad-turn-error-${events.errorMessages[0]}`;
