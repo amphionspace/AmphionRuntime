@@ -11,6 +11,7 @@ NODE="$DEVECO_HOME/tools/node/bin/node"
 HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
 OHPM="$DEVECO_HOME/tools/ohpm/bin/ohpm"
 HDC="$DEVECO_HOME/sdk/default/openharmony/toolchains/hdc"
+LLVM_NM="$DEVECO_HOME/sdk/default/openharmony/native/llvm/bin/llvm-nm"
 JAVA_HOME_VALUE="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
 HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap"
 BUILD_IDENTITY="$PROJECT_ROOT/build/smoke/build-identity.json"
@@ -411,6 +412,9 @@ if [[ "$SKIP_BUILD" != true ]]; then
     echo "        template: $SCRIPT_DIR/harmony-signing.example.json" >&2
     exit 1
   }
+  python3 "$REPO_ROOT/asr/tools/verify_harmony_sherpa_symbols.py" \
+    --library "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
+    --nm "$LLVM_NM"
   prepare_build_workspace
   apply_local_signing "$SIGNING_CONFIG"
   echo "[INFO] building signed Harmony demo HAP in an isolated workspace"

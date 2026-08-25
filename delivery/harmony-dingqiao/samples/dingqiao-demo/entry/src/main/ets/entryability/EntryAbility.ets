@@ -11,6 +11,7 @@ import { runSdkSelfTest } from '../util/SdkSelfTest';
 import { HotwordDeviceEvalOptions, runHotwordDeviceEval } from '../util/HotwordDeviceEval';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
+import SpeakerDiarizationChild from '../diarization/SpeakerDiarizationChild';
 
 class DemoDeviceIdProvider implements LicenseDeviceIdProvider {
   getDeviceSerial(_context: Context): string | undefined {
@@ -30,6 +31,8 @@ export default class EntryAbility extends UIAbility {
   private stressFinished: boolean = false;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    // Retain the fixed child-process entry in the HAP; otherwise the ArkTS optimizer may remove it.
+    SpeakerDiarizationChild.toString();
     // Process-level SDK init + work directory live here (mirrors Android DingqiaoApp) so every page
     // shares one SpeechRecognizeSdk instance and the same {filesDir}/amphion_asr_work path.
     // 载体基线:任何 SDK 调用之前从 /proc 采一次 VmRSS + 私有 anon(纯宿主,无 SDK native/模型),供内存减法。
