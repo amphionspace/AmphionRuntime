@@ -25,6 +25,50 @@ export class SpeechRecognitionResult {
   endTime?: number;
   speakerSimilarity?: number;
   targetSpeakerEnhancementApplied?: boolean;
+  /** Stable only for final meeting utterances. */
+  utteranceId?: string;
+  /** Anonymous meeting speaker ID (S1...S4 or UNKNOWN). */
+  speakerId?: string;
+  secondarySpeakerIds?: string[];
+}
+
+export class SpeakerUpdate {
+  utteranceId: string = '';
+  revision: number = 0;
+  speakerId: string = 'UNKNOWN';
+  secondarySpeakerIds: string[] = [];
+  beginTime: number = 0;
+  endTime: number = 0;
+  confidence: number = 0;
+}
+
+export class MeetingUtterance {
+  utteranceId: string = '';
+  rawText: string = '';
+  text: string = '';
+  beginTime: number = 0;
+  endTime: number = 0;
+  speakerId: string = 'UNKNOWN';
+  secondarySpeakerIds: string[] = [];
+  overlap: boolean = false;
+}
+
+export class MeetingSpeakerTurn {
+  beginTime: number = 0;
+  endTime: number = 0;
+  speakerId: string = 'UNKNOWN';
+  secondarySpeakerIds: string[] = [];
+  overlap: boolean = false;
+}
+
+export class MeetingResult {
+  utterances: MeetingUtterance[] = [];
+  speakerTurns: MeetingSpeakerTurn[] = [];
+  speakerCount: number = 0;
+  degraded: boolean = false;
+  degradedReason?: string;
+  inferenceMs: number = 0;
+  rtf: number = 0;
 }
 
 export class VoiceprintRegisterParams {
@@ -57,6 +101,8 @@ export interface RecognitionListener {
   onStart?(sessionId: string, eventMessage?: string): void;
   onEvent?(sessionId: string, eventCode: number, message: string): void;
   onResult?(sessionId: string, result: SpeechRecognitionResult): void;
+  onSpeakerUpdate?(sessionId: string, update: SpeakerUpdate): void;
+  onMeetingResult?(sessionId: string, result: MeetingResult): void;
   onComplete?(sessionId: string, eventMessage?: string): void;
   onError?(sessionId: string, errorCode: number, message: string): void;
 }
