@@ -1,235 +1,472 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/brand_cream"
-    android:fitsSystemWindows="true"
-    android:padding="@dimen/screen_padding">
-
-    <TextView
-        android:id="@+id/tv_title"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textColor="@color/brand_text_primary"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toStartOf="@id/btn_menu"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ImageButton
-        android:id="@+id/btn_menu"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="@string/menu_more"
-        android:src="@drawable/ic_more"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    android:fillViewport="true"
+    android:fitsSystemWindows="true">
 
     <LinearLayout
-        android:id="@+id/status_row"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_title">
-
-        <View
-            android:layout_width="@dimen/status_dot_size"
-            android:layout_height="@dimen/status_dot_size"
-            android:layout_marginEnd="6dp"
-            android:background="@drawable/status_dot" />
-
-        <TextView
-            android:id="@+id/tv_status"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:text="@string/status_idle"
-            android:textAppearance="@style/TextAppearance.Amphion.Status" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:text="@string/cap_voiceprint_title"
-            android:textColor="@color/brand_text_muted"
-            android:textSize="11sp" />
-
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/sw_voiceprint"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="2dp"
-            android:enabled="false" />
-
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/tv_voiceprint_info"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="@string/vp_not_registered"
-        android:textColor="@color/brand_text_muted"
-        android:textSize="11sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/status_row" />
-
-    <LinearLayout
-        android:id="@+id/speaker_vad_row"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_voiceprint_info">
-
-        <TextView
-            android:id="@+id/tv_speaker_vad_info"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/speaker_vad_hint"
-            android:textColor="@color/brand_text_muted"
-            android:textSize="11sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/cap_speaker_vad_title"
-            android:textColor="@color/brand_text_muted"
-            android:textSize="11sp" />
-
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/sw_speaker_vad"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="2dp"
-            android:enabled="false" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/police_enhancement_row"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/speaker_vad_row">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/police_enhancement_hint"
-            android:textColor="@color/brand_text_muted"
-            android:textSize="11sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/cap_police_enhancement_title"
-            android:textColor="@color/brand_text_muted"
-            android:textSize="11sp" />
-
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/sw_police_enhancement"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="2dp" />
-
-    </LinearLayout>
-
-    <ProgressBar
-        android:id="@+id/progress"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:indeterminateTint="@color/brand_accent"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/police_enhancement_row"
-        tools:visibility="visible" />
-
-    <LinearLayout
-        android:id="@+id/card_result"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp"
-        android:background="@drawable/bg_card"
         android:orientation="vertical"
-        android:padding="@dimen/card_padding"
-        app:layout_constraintBottom_toTopOf="@id/btn_talk"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/progress">
+        android:padding="@dimen/screen_padding"
+        android:paddingBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/app_name"
+                android:textColor="@color/brand_text_primary"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btn_menu"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/menu_more"
+                android:src="@drawable/ic_more" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/status_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="@dimen/status_dot_size"
+                android:layout_height="@dimen/status_dot_size"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/status_dot" />
+
+            <TextView
+                android:id="@+id/tv_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxLines="3"
+                android:text="@string/status_idle"
+                android:textAppearance="@style/TextAppearance.Amphion.Status" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:indeterminateTint="@color/brand_accent"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/customer_scenario_title"
+            android:textColor="@color/brand_text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_scenario_tap_vad"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="@string/scenario_tap_vad"
+                    android:textAllCaps="false"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btn_scenario_ptt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="4dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="@string/scenario_ptt"
+                    android:textAllCaps="false"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btn_scenario_transcription"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="4dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="@string/scenario_transcription"
+                    android:textAllCaps="false"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btn_scenario_form"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="4dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="@string/scenario_form"
+                    android:textAllCaps="false"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btn_scenario_meeting"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="4dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="@string/scenario_meeting_minutes"
+                    android:textAllCaps="false"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <TextView
+            android:id="@+id/tv_scenario_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:textColor="@color/brand_text_muted"
+            android:textSize="11sp"
+            tools:text="SourceType=voiceCommunication · vadEnd=1600ms · max=62000ms" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_source_mic"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="9dp"
+                    android:paddingEnd="9dp"
+                    android:text="@string/audio_source_mic"
+                    android:textAllCaps="false"
+                    android:textSize="10sp" />
+
+                <Button
+                    android:id="@+id/btn_source_recognition"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="4dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="9dp"
+                    android:paddingEnd="9dp"
+                    android:text="@string/audio_source_recognition"
+                    android:textAllCaps="false"
+                    android:textSize="10sp" />
+
+                <Button
+                    android:id="@+id/btn_source_communication"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="4dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="9dp"
+                    android:paddingEnd="9dp"
+                    android:text="@string/audio_source_communication"
+                    android:textAllCaps="false"
+                    android:textSize="10sp" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/cap_voiceprint_title"
+                android:textColor="@color/brand_text_primary"
+                android:textSize="14sp" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/sw_voiceprint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:enabled="false" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/speaker_vad_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cap_speaker_vad_title"
+                    android:textColor="@color/brand_text_primary"
+                    android:textSize="14sp" />
+                <TextView
+                    android:id="@+id/tv_speaker_vad_info"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/speaker_vad_hint"
+                    android:textColor="@color/brand_text_muted"
+                    android:textSize="11sp" />
+            </LinearLayout>
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/sw_speaker_vad"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:enabled="false" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/police_enhancement_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/cap_police_enhancement_title"
+                    android:textColor="@color/brand_text_primary"
+                    android:textSize="14sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/police_enhancement_hint"
+                    android:textColor="@color/brand_text_muted"
+                    android:textSize="11sp" />
+            </LinearLayout>
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/sw_police_enhancement"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_voiceprint_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/vp_not_registered"
+            android:textColor="@color/brand_accent"
+            android:textSize="11sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/partial_title"
+            android:textColor="@color/brand_text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tv_partial"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
+            android:layout_height="56dp"
+            android:layout_marginTop="3dp"
+            android:background="@drawable/bg_card"
+            android:gravity="top"
             android:hint="@string/partial_placeholder"
-            android:maxLines="2"
-            android:textColor="@color/brand_text_muted"
+            android:padding="10dp"
+            android:textColor="@color/brand_text_primary"
             android:textColorHint="@color/brand_text_muted"
             android:textSize="13sp" />
 
-        <ScrollView
+        <TextView
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_marginTop="4dp"
-            android:layout_weight="1">
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/final_title"
+            android:textColor="@color/brand_text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
 
+        <TextView
+            android:id="@+id/tv_final"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:background="@drawable/bg_card"
+            android:hint="@string/final_placeholder_generic"
+            android:minHeight="96dp"
+            android:padding="10dp"
+            android:textAppearance="@style/TextAppearance.Amphion.Body"
+            android:textColorHint="@color/brand_text_muted" />
+
+        <Button
+            android:id="@+id/btn_talk"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_height"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_button_primary"
+            android:drawableStart="@drawable/ic_mic"
+            android:drawablePadding="8dp"
+            android:enabled="false"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:stateListAnimator="@null"
+            android:text="@string/btn_talk_start"
+            android:textColor="@color/brand_on_accent"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/card_capture"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="10dp"
+            android:visibility="gone"
+            tools:visibility="visible">
             <TextView
-                android:id="@+id/tv_final"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="@string/final_placeholder"
-                android:textAppearance="@style/TextAppearance.Amphion.Body"
-                android:textColorHint="@color/brand_text_muted" />
-
-        </ScrollView>
+                android:text="@string/sdk_pcm_title"
+                android:textColor="@color/brand_text_primary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/tv_capture_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/sdk_pcm_empty"
+                android:textColor="@color/brand_text_muted"
+                android:textSize="11sp" />
+            <TextView
+                android:id="@+id/tv_live_compare"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="12sp"
+                android:visibility="gone" />
+            <TextView
+                android:id="@+id/tv_replay_compare"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:visibility="gone" />
+            <TextView
+                android:id="@+id/tv_compare_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/brand_text_muted"
+                android:textSize="11sp"
+                android:visibility="gone" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <EditText
+                    android:id="@+id/et_case_note"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:hint="@string/case_note_hint"
+                    android:maxLength="200"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:singleLine="true"
+                    android:textSize="12sp" />
+                <Button
+                    android:id="@+id/btn_save_case"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="6dp"
+                    android:minWidth="0dp"
+                    android:text="@string/save_case"
+                    android:textAllCaps="false"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <TextView
+                android:id="@+id/tv_case_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/brand_success"
+                android:textSize="11sp"
+                android:visibility="gone" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal">
+                <Button
+                    android:id="@+id/btn_play_capture"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="@string/play_last_pcm"
+                    android:textAllCaps="false"
+                    android:textSize="12sp" />
+                <Button
+                    android:id="@+id/btn_replay_capture"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:text="@string/replay_last_pcm"
+                    android:textAllCaps="false"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
 
     </LinearLayout>
-
-    <Button
-        android:id="@+id/btn_talk"
-        android:layout_width="0dp"
-        android:layout_height="@dimen/button_height"
-        android:background="@drawable/bg_button_primary"
-        android:drawableStart="@drawable/ic_mic"
-        android:drawablePadding="8dp"
-        android:enabled="false"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:stateListAnimator="@null"
-        android:text="@string/btn_talk_start"
-        android:textColor="@color/brand_on_accent"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>
