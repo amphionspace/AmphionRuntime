@@ -9,12 +9,29 @@ class StreamingAgcIngressTest {
     @Test
     fun acceptAndFlushDeliverEveryFrameOnceAndInOrder() {
         val processor = RecordingProcessor()
-        val ingress = StreamingAgcIngress(processor)
+        var guardDepth = 0
+        val ingress = StreamingAgcIngress(processor) { _, produce ->
+            guardDepth += 1
+            try {
+                produce()
+            } finally {
+                guardDepth -= 1
+            }
+        }
         val delivered = ArrayList<ProcessedAudioFrame>()
 
-        ingress.accept(floatArrayOf(1f, 2f), delivered::add)
-        ingress.accept(floatArrayOf(3f), delivered::add)
-        ingress.flush(delivered::add)
+        ingress.accept(floatArrayOf(1f, 2f)) {
+            assertEquals(0, guardDepth)
+            delivered.add(it)
+        }
+        ingress.accept(floatArrayOf(3f)) {
+            assertEquals(0, guardDepth)
+            delivered.add(it)
+        }
+        ingress.flush("agc.flush(test)") {
+            assertEquals(0, guardDepth)
+            delivered.add(it)
+        }
 
         assertEquals(3, delivered.size)
         assertArrayEquals(floatArrayOf(1f, 2f), delivered[0].raw, 0f)
@@ -30,7 +47,7 @@ class StreamingAgcIngressTest {
     @Test
     fun closeOwnsProcessorLifecycleAndIsIdempotent() {
         val processor = RecordingProcessor()
-        val ingress = StreamingAgcIngress(processor)
+        val ingress = StreamingAgcIngress(processor) { _, produce -> produce() }
 
         ingress.close()
         ingress.close()

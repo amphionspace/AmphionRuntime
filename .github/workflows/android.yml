@@ -63,21 +63,26 @@ jobs:
             ];
             const allRequired = Object.fromEntries(flags.map((name) => [name, true]));
 
-            const staticExactInputs = new Set([
+            const agcExactInputs = new Set([
               WORKFLOW,
-              "asr/android/reports/automatic-agc-evaluation/report.json",
               "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt",
-              "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt",
               "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt",
               "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt",
               "asr/harmony/sdk/src/main/cpp/agc_bridge.cpp",
               "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets",
-              "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets",
               "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcIngress.ts",
               "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts",
               "asr/tools/03_build_agc_native.sh",
               "asr/tools/ensure_agc_build_tools.sh",
+            ]);
+            const staticExactInputs = new Set([
+              ...agcExactInputs,
+              "asr/android/reports/automatic-agc-evaluation/report.json",
+              "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt",
+              "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets",
               "asr/tools/evaluate_automatic_agc_regression.py",
+              "asr/tools/build_android_agc_release_gate.sh",
+              "asr/tools/finalize_automatic_agc_release_gate.py",
               "asr/tools/run_automatic_agc_release_gate.py",
               "asr/tools/sync_automatic_agc_evidence.py",
               "asr/tools/tests/test_agc_signal_domains.py",
@@ -85,7 +90,7 @@ jobs:
               "asr/tools/tests/test_automatic_agc_release_gate.py",
               "asr/tools/tests/test_harmony_streaming_agc_ingress.py",
               "asr/tools/tests/test_harmony_streaming_agc_processor.py",
-              "delivery/harmony-dingqiao/delivery/build_install_smoke.py",
+              "delivery/harmony-dingqiao/delivery/build_install_smoke.sh",
               "delivery/harmony-dingqiao/delivery/test_build_install_smoke.py",
             ]);
             const staticPrefixes = ["asr/native/audio-processing/"];
@@ -116,18 +121,6 @@ jobs:
               "delivery/harmony-dingqiao/delivery/test_check_customer_delivery_redaction.py",
             ]);
             const redactionPrefixes = ["delivery/harmony-dingqiao/docs/customer/"];
-            const agcExactInputs = new Set([
-              WORKFLOW,
-              "asr/android/sdk/src/main/java/com/amphion/asr/internal/NativeAgcBackend.kt",
-              "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcIngress.kt",
-              "asr/android/sdk/src/main/java/com/amphion/asr/internal/StreamingAgcProcessor.kt",
-              "asr/harmony/sdk/src/main/cpp/agc_bridge.cpp",
-              "asr/harmony/sdk/src/main/ets/com/amphion/asr/NativeAgcBackend.ets",
-              "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcIngress.ts",
-              "asr/harmony/sdk/src/main/ets/com/amphion/asr/StreamingAgcProcessor.ts",
-              "asr/tools/03_build_agc_native.sh",
-              "asr/tools/ensure_agc_build_tools.sh",
-            ]);
             const policeExactInputs = new Set([
               WORKFLOW,
               "asr/tools/sync_harmony_police_assets.py",
@@ -181,6 +174,14 @@ jobs:
 
             const matches = (path, exact, prefixes) =>
               exact.has(path) || prefixes.some((prefix) => path.startsWith(prefix));
+            const agcImplementationPrefixes = [
+              "asr/android/sdk/src/main/java/com/amphion/asr/internal/",
+              "asr/harmony/sdk/src/main/ets/com/amphion/asr/",
+              "asr/harmony/sdk/src/main/cpp/",
+            ];
+            const isAgcImplementation = (path) =>
+              agcImplementationPrefixes.some((prefix) => path.startsWith(prefix)) &&
+              path.split("/").pop().toLowerCase().includes("agc");
             const knownStatuses = new Set([
               "added", "removed", "modified", "renamed", "copied", "changed", "unchanged",
             ]);
@@ -196,13 +197,14 @@ jobs:
               const markdownOnly = paths.length > 0 && paths.every((path) => path.endsWith(".md"));
               const result = {
                 static: !markdownOnly && paths.some((path) =>
-                  matches(path, staticExactInputs, staticPrefixes)),
+                  matches(path, staticExactInputs, staticPrefixes) || isAgcImplementation(path)),
                 harmony: !markdownOnly && paths.some((path) =>
                   matches(path, harmonyExactInputs, harmonyPrefixes)),
                 redaction: paths.some((path) =>
                   matches(path, redactionExactInputs, redactionPrefixes)),
                 agc: !markdownOnly && paths.some((path) =>
-                  matches(path, agcExactInputs, ["asr/native/audio-processing/"])),
+                  matches(path, agcExactInputs, ["asr/native/audio-processing/"]) ||
+                  isAgcImplementation(path)),
                 police: !markdownOnly && paths.some((path) =>
                   matches(path, policeExactInputs, policePrefixes)),
                 police_unit: !markdownOnly && paths.some((path) =>
@@ -274,6 +276,18 @@ jobs:
             assertClassification("unknown-status", [
               { filename: "docs/README.md", status: "future-status" },
             ], allRequired);
+            assertClassification("new-agc-helper", changes([
+              "asr/android/sdk/src/main/java/com/amphion/asr/internal/FutureAgcStage.kt",
+            ]), { static: true, harmony: true, agc: true, police_unit: true, android: true });
+            assertClassification("android-release-gate", changes([
+              "asr/tools/build_android_agc_release_gate.sh",
+            ]), { static: true, harmony: true });
+            assertClassification("release-finalizer", changes([
+              "asr/tools/finalize_automatic_agc_release_gate.py",
+            ]), { static: true, harmony: true });
+            assertClassification("harmony-build-smoke", changes([
+              "delivery/harmony-dingqiao/delivery/build_install_smoke.sh",
+            ]), { static: true, harmony: true });
 
             const publish = (result, reason) => {
               core.info(`${reason}: ${JSON.stringify(result)}`);
@@ -634,6 +648,10 @@ jobs:
         env:
           POLICE_UNIT_REQUIRED: ${{ needs.changes.outputs.police_unit }}
         run: |
+          case "$POLICE_UNIT_REQUIRED" in
+            true|false) ;;
+            *) echo "invalid police_unit output: $POLICE_UNIT_REQUIRED"; exit 1 ;;
+          esac
           tasks=(
             :sdk:assembleRelease :sdk:testReleaseUnitTest
             :sdk-dingqiao:assembleRelease :sdk-dingqiao:testReleaseUnitTest
@@ -716,6 +734,10 @@ jobs:
             local job_name="$1"
             local required="$2"
             local result="$3"
+            if [[ "$required" != "true" && "$required" != "false" ]]; then
+              echo "$job_name has invalid required output: $required"
+              exit 1
+            fi
             local expected="skipped"
             [[ "$required" == "true" ]] && expected="success"
             if [[ "$result" != "$expected" ]]; then

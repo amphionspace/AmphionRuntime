@@ -14,17 +14,25 @@ internal interface AgcFrameProcessor : Closeable {
  */
 internal class StreamingAgcIngress(
     private val processor: AgcFrameProcessor,
+    private val guard: (
+        operation: String,
+        produce: () -> List<ProcessedAudioFrame>,
+    ) -> List<ProcessedAudioFrame>?,
 ) : Closeable {
     private var closed = false
 
-    fun accept(samples: FloatArray, consume: (ProcessedAudioFrame) -> Unit) {
+    fun accept(samples: FloatArray, consume: (ProcessedAudioFrame) -> Unit): Boolean {
         check(!closed) { "AGC ingress is closed" }
-        processor.process(samples).forEach(consume)
+        val frames = guard("agc.process") { processor.process(samples) } ?: return false
+        frames.forEach(consume)
+        return true
     }
 
-    fun flush(consume: (ProcessedAudioFrame) -> Unit) {
+    fun flush(operation: String, consume: (ProcessedAudioFrame) -> Unit): Boolean {
         check(!closed) { "AGC ingress is closed" }
-        processor.flush().forEach(consume)
+        val frames = guard(operation) { processor.flush() } ?: return false
+        frames.forEach(consume)
+        return true
     }
 
     override fun close() {
