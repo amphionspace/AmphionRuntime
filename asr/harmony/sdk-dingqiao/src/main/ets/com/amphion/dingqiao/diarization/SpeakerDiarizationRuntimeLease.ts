@@ -8,7 +8,7 @@ export class SpeakerDiarizationRuntimeLease {
   }
 }
 
-/** Prevents model/runtime replacement from crossing child-process native work. */
+/** Keeps SDK teardown from crossing an active diarization finish barrier. */
 export class SpeakerDiarizationRuntimeLeaseRegistry {
   private static activeLeases: number = 0;
   private static releaseRequests: number = 0;

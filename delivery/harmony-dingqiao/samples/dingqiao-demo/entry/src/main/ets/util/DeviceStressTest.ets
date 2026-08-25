@@ -62,6 +62,7 @@ export class DeviceStressOptions {
   enforceTargetSpeakerBusinessText: boolean = true;
   speakerVadFinishRecoveryEntryIds: string = 'none';
   speakerVadThreshold: number = -2;
+  speakerDiarizationServiceUrl: string = '';
 }
 
 class CorpusEntry {
@@ -88,6 +89,8 @@ class SessionEvents {
   speechBeginAtMs: number = -1;
   firstNonEmptyResultAtMs: number = -1;
   firstNonEmptyFinalAtMs: number = -1;
+  lastFinalAtMs: number = -1;
+  completeAtMs: number = -1;
   lastIsLast: boolean = false;
   lastFinals: number = 0;
   speakerScores: number = 0;
@@ -102,6 +105,9 @@ class SessionEvents {
   speakerDiarizationReason: number = -1;
   speakerDiarizationMessage: string = '';
   speakerTurnsJson: string = '';
+  speakerDiarizationResultAtMs: number = -1;
+  speakerDiarizationInferenceMs: number = -1;
+  speakerDiarizationRtf: number = -1;
   errorCodes: number[] = [];
   errorMessages: string[] = [];
   callbackTrace: string[] = [];
@@ -202,7 +208,10 @@ class StressListener implements RecognitionListener {
     this.events.finalChars += result.result.length;
     this.events.finalTexts.push(result.result);
     this.events.lastIsLast = result.isLast;
-    if (result.isLast) this.events.lastFinals += 1;
+    if (result.isLast) {
+      this.events.lastFinals += 1;
+      this.events.lastFinalAtMs = Date.now();
+    }
     if (result.speakerSimilarity === undefined) {
       this.events.missingSpeakerScores += 1;
     } else {
@@ -217,6 +226,7 @@ class StressListener implements RecognitionListener {
 
   onComplete(sessionId: string, _eventMessage?: string): void {
     this.events.completes += 1;
+    this.events.completeAtMs = Date.now();
     this.record(sessionId, 'complete');
   }
 
@@ -232,6 +242,9 @@ class StressListener implements RecognitionListener {
     this.events.speakerDiarizationReason = result.degradedReason;
     this.events.speakerDiarizationMessage = result.degradedMessage ?? '';
     this.events.speakerTurnsJson = JSON.stringify(result.speakerTurns);
+    this.events.speakerDiarizationResultAtMs = Date.now();
+    this.events.speakerDiarizationInferenceMs = result.inferenceMs;
+    this.events.speakerDiarizationRtf = result.rtf;
     this.record(sessionId, 'diarization-result');
   }
 
@@ -818,6 +831,11 @@ class CycleResult {
   speakerDiarizationReason: number = -1;
   speakerDiarizationMessageHex: string = '';
   speakerTurnsHex: string = '';
+  speakerDiarizationInferenceMs: number = -1;
+  speakerDiarizationRtf: number = -1;
+  finishToLastMs: number = -1;
+  finishToDiarizationResultMs: number = -1;
+  finishToCompleteMs: number = -1;
   nonEmptySpeakerScores: number = 0;
   missingSpeakerScores: number = 0;
   firstNonEmptyFinalHasScore: number = -1;
@@ -859,6 +877,11 @@ class CycleResult {
       `|speakerDiarizationDegraded=${this.speakerDiarizationDegraded}` +
       `|speakerDiarizationReason=${this.speakerDiarizationReason}` +
       `|speakerDiarizationMessageHex=${this.speakerDiarizationMessageHex}` +
+      `|speakerDiarizationInferenceMs=${this.speakerDiarizationInferenceMs}` +
+      `|speakerDiarizationRtf=${this.speakerDiarizationRtf}` +
+      `|finishToLastMs=${this.finishToLastMs}` +
+      `|finishToDiarizationResultMs=${this.finishToDiarizationResultMs}` +
+      `|finishToCompleteMs=${this.finishToCompleteMs}` +
       `|nonEmptySpeakerScores=${this.nonEmptySpeakerScores}` +
       `|missingSpeakerScores=${this.missingSpeakerScores}` +
       `|firstNonEmptyFinalHasScore=${this.firstNonEmptyFinalHasScore}` +
@@ -1191,6 +1214,8 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.speakerDiarizationDegraded = events.speakerDiarizationDegraded;
   result.speakerDiarizationReason = events.speakerDiarizationReason;
   result.speakerDiarizationMessageHex = stringToUtf16Hex(events.speakerDiarizationMessage);
+  result.speakerDiarizationInferenceMs = events.speakerDiarizationInferenceMs;
+  result.speakerDiarizationRtf = events.speakerDiarizationRtf;
   result.nonEmptySpeakerScores = events.nonEmptySpeakerScores;
   result.missingSpeakerScores = events.missingSpeakerScores;
   result.firstNonEmptyFinalHasScore = events.firstNonEmptyFinalHasScore === undefined ? -1 :
@@ -1884,7 +1909,8 @@ async function runCallbackApiReentrantCycle(engine: SpeechRecognitionEngine, ent
 }
 
 async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
-  index: number, mode: string, paceMs: number): Promise<CycleResult> {
+  index: number, mode: string, paceMs: number,
+  speakerDiarizationServiceUrl: string): Promise<CycleResult> {
   const startedAt = Date.now();
   let scenario: CustomerScenarioName = 'ptt';
   if (mode === 'customer-tap-vad') scenario = 'tap-vad';
@@ -1901,7 +1927,7 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
     engine.setListener(callbackListener);
   }
   const profile = customerScenarioProfile(scenario);
-  const params = customerProfileStartParams(sessionId, scenario);
+  const params = customerProfileStartParams(sessionId, scenario, speakerDiarizationServiceUrl);
   params.extraParams['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
@@ -1928,6 +1954,7 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
 
   const lastBeforeStop = callbackListener === undefined ?
     events.lastFinals : callbackListener.lastFinalsBeforeFinish;
+  const finishRequestedAtMs = Date.now();
   if (callbackListener === undefined && engine.isBusy()) engine.finish(sessionId);
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
   if (!completed && engine.isBusy()) engine.cancel(sessionId);
@@ -1960,6 +1987,12 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   result.lastFinalsBeforeFinish = lastBeforeStop;
   result.requestedVadBeginMs = profile.vadBegin === undefined ? -1 : profile.vadBegin;
   result.requestedMaxAudioDurationMs = profile.maxAudioDuration;
+  result.finishToLastMs = events.lastFinalAtMs < 0 ? -1 :
+    events.lastFinalAtMs - finishRequestedAtMs;
+  result.finishToDiarizationResultMs = events.speakerDiarizationResultAtMs < 0 ? -1 :
+    events.speakerDiarizationResultAtMs - finishRequestedAtMs;
+  result.finishToCompleteMs = events.completeAtMs < 0 ? -1 :
+    events.completeAtMs - finishRequestedAtMs;
   return result;
 }
 
@@ -2664,7 +2697,9 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       } else if (options.mode === 'customer-tap-vad' || options.mode === 'customer-ptt' ||
         options.mode === 'customer-transcription' || options.mode === 'customer-ptt-tail' ||
         options.mode === 'customer-form' || options.mode === 'customer-meeting-minutes') {
-        result = await runCustomerScenarioCycle(engine, entry, i, options.mode, options.paceMs);
+        result = await runCustomerScenarioCycle(
+          engine, entry, i, options.mode, options.paceMs,
+          options.speakerDiarizationServiceUrl);
       } else if (options.mode === 'endpoint-reentrant') {
         result = await runEndpointReentrantCycle(engine, entry, i);
       } else if (options.mode === 'finish-shutdown') {

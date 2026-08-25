@@ -1,19 +1,41 @@
 export interface SpeakerDiarizationConfigValue {
+  serviceUrl: string;
+  serviceHeaders: Record<string, string>;
   maxSpeakers: number;
 }
 
-export const SPEAKER_DIARIZATION_PROCESS_ENTRY: string =
-  './ets/diarization/SpeakerDiarizationChild.ets';
-
-export function resolveSpeakerDiarizationProcessEntry(moduleName: string): string {
-  if (moduleName.length === 0) throw new Error('speaker diarization host module name is empty');
-  return `${moduleName}/${SPEAKER_DIARIZATION_PROCESS_ENTRY}`;
+export interface ValidatedSpeakerDiarizationConfig {
+  serviceUrl: string;
+  serviceHeaders: Record<string, string>;
+  maxSpeakers: number;
 }
 
-export function validateSpeakerDiarizationConfig(config: SpeakerDiarizationConfigValue): number {
+function isAllowedServiceUrl(value: string): boolean {
+  if (/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/i.test(value)) return true;
+  return /^http:\/\/(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?(?:\/[^\s]*)?$/i.test(value);
+}
+
+export function validateSpeakerDiarizationConfig(
+  config: SpeakerDiarizationConfigValue): ValidatedSpeakerDiarizationConfig {
   if (!Number.isFinite(config.maxSpeakers) || !Number.isInteger(config.maxSpeakers) ||
     config.maxSpeakers < 1 || config.maxSpeakers > 4) {
     throw new Error('SpeakerDiarizationConfig.maxSpeakers must be an integer in [1, 4]');
   }
-  return config.maxSpeakers;
+  const serviceUrl = config.serviceUrl.trim();
+  if (!isAllowedServiceUrl(serviceUrl)) {
+    throw new Error('SpeakerDiarizationConfig.serviceUrl must be HTTPS (loopback HTTP is allowed for development)');
+  }
+  const serviceHeaders: Record<string, string> = {};
+  const sourceHeaders = config.serviceHeaders ?? {};
+  const names = Object.keys(sourceHeaders);
+  for (let index = 0; index < names.length; index++) {
+    const name = names[index];
+    const value = sourceHeaders[name];
+    if (!/^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/.test(name) ||
+      typeof value !== 'string' || /[\r\n]/.test(value)) {
+      throw new Error(`SpeakerDiarizationConfig.serviceHeaders contains an invalid header: ${name}`);
+    }
+    serviceHeaders[name] = value;
+  }
+  return { serviceUrl, serviceHeaders, maxSpeakers: config.maxSpeakers };
 }
