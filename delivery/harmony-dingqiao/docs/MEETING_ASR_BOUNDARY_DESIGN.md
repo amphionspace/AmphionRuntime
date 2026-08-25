@@ -211,7 +211,33 @@ host 诊断动态库早于禁用补丁，B 路使用 `rule3=100000` 仅表达“
   `/private/tmp/amphion-meeting-boundary-design-artifacts/customer-213s-stable-prefix-ab.json`，
   SHA-256 `315117c6603a7f87737e246e490536c8a42aad5a065636a411d10d237dedf424`
 
-### 8.2 拼接语料：保留为阴性对照
+### 8.2 公网连续长语音：21 分钟 A/B
+
+从 LibriVox 官方目录下载 public-domain 录音《Ardath》第一章，原始 MP3 由 Internet Archive
+托管。该文件是同一朗读者连续 21:15 的自然长语音，不是短句拼接：
+
+- 目录：`https://librivox.org/ardath-by-marie-corelli/`
+- 原始 MP3：`https://archive.org/download/ardath_2003_librivox/ardath_01_corelli_128kb.mp3`
+- MP3 SHA-256：`dc68c9b5696f328e028f619a7fec54e5ee0dc0e0986f01ae0db3d78840071016`
+- 转码：macOS `afconvert`，16 kHz、mono、PCM16LE；时长 1275.1008125 秒
+- WAV SHA-256：`187800cb21fb7779aec93d327431fc0265a3b9acc9ec42a4ec61ddd405ae7e7f`
+
+固定与客户 PCM 相同的模型、100 ms chunk、800 ms warmup、Rule3=`-1`、
+`modified_beam_search/maxActivePaths=8`。continuous 与 stable-prefix 最终均为 3974 raw tokens，
+token、timestamp 和全文逐项完全一致，两路 endpoint 都是 0。
+
+stable-prefix 成功提交 19 次；另有 98 次因当时不存在可安全提交的共同 token/frame 前缀而返回
+false，并按设计每秒重试。所有失败尝试均保持公开 token/timestamp 不变，后续形成共同前缀后继续
+提交。这证明 long 路径会保留未决候选，不会为了固定周期强制压缩。
+
+主机 RSS 只作为观察项：continuous 受 allocator/系统回收影响先升后降；stable 从约 506 MiB
+增至 636 MiB。两路在同一 Python 进程顺序运行，且完整结果保留在测试报告中，不能据此证明泄漏或
+严格有界；内存结论仍需同一最终 HAP 的真机 RSS/线程采样。
+
+证据：`/private/tmp/amphion-meeting-boundary-design-artifacts/internet-long-audio/ardath-1275s-stable-prefix-ab.json`，
+SHA-256 `4e195af36842a25f3366c2f8efee9144f8775ce8fb6a954fe9d0e3cb2425ba8c`。
+
+### 8.3 拼接语料：保留为阴性对照
 
 此前从 Aidatatang 确定性拼接的 156.06 秒语料在 60.2、120.4 秒执行 checkpoint 后仍与
 continuous 的 641 tokens 完全一致。它没有复现问题，只能作为“并非每条音频都会分叉”的阴性
