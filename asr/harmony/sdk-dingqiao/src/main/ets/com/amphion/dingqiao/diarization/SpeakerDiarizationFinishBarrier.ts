@@ -1,16 +1,16 @@
-export interface MeetingFinishInput<T> {
+export interface SpeakerDiarizationFinishInput<T> {
   degraded: boolean;
   value: T;
 }
 
-export interface MeetingFinishOutput<A, S> {
+export interface SpeakerDiarizationFinishOutput<A, S> {
   asr: A;
   speaker: S | undefined;
   degraded: boolean;
 }
 
-/** Coordinates the ASR tail and meeting diarization tail without blocking finish(). */
-export class MeetingFinishBarrier<A, S> {
+/** Coordinates the ASR tail and streaming diarization tail without blocking finish(). */
+export class SpeakerDiarizationFinishBarrier<A, S> {
   private started: boolean = false;
   private completed: boolean = false;
   private asrReady: boolean = false;
@@ -20,12 +20,12 @@ export class MeetingFinishBarrier<A, S> {
   private speakerValue?: S;
   private timer?: ReturnType<typeof setTimeout>;
   private readonly timeoutMs: number;
-  private readonly onReady: (result: MeetingFinishOutput<A, S>) => void;
+  private readonly onReady: (result: SpeakerDiarizationFinishOutput<A, S>) => void;
   private readonly timeoutAsrFallback?: () => A;
 
   constructor(
     timeoutMs: number,
-    onReady: (result: MeetingFinishOutput<A, S>) => void,
+    onReady: (result: SpeakerDiarizationFinishOutput<A, S>) => void,
     timeoutAsrFallback?: () => A,
   ) {
     if (timeoutMs <= 0) {
@@ -64,7 +64,7 @@ export class MeetingFinishBarrier<A, S> {
     this.tryComplete();
   }
 
-  resolveSpeaker(result: MeetingFinishInput<S>): void {
+  resolveSpeaker(result: SpeakerDiarizationFinishInput<S>): void {
     if (this.completed || this.speakerReady) {
       return;
     }

@@ -1,15 +1,15 @@
-import { MeetingSpeakerInference, MeetingSpeakerWindowResult } from 'amphion_asr';
+import { SpeakerDiarizationInference, SpeakerDiarizationWindowResult } from 'amphion_asr';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 import process from '@ohos.process';
 
-interface MeetingChildConfig {
+interface DiarizationChildConfig {
   jobDir: string;
   segmentationModelPath: string;
   embeddingModelPath: string;
 }
 
-interface MeetingChildJob {
+interface DiarizationChildJob {
   jobId: string;
   offsetBytes: number;
   sampleCount: number;
@@ -21,7 +21,7 @@ interface MeetingChildJob {
   finalWindow: boolean;
 }
 
-interface MeetingChildResult {
+interface DiarizationChildResult {
   jobId: string;
   windowStartSample: number;
   contentStartInWindowSample: number;
@@ -29,19 +29,19 @@ interface MeetingChildResult {
   commitStartSample: number;
   stableEndSample: number;
   finalWindow: boolean;
-  result: MeetingSpeakerWindowResult;
+  result: SpeakerDiarizationWindowResult;
 }
 
 /** Filesystem-journal worker. Only paths, offsets and small JSON metadata cross the process seam. */
-export class MeetingSpeakerChildService {
-  private readonly inference: MeetingSpeakerInference = new MeetingSpeakerInference();
-  private config?: MeetingChildConfig;
+export class SpeakerDiarizationChildService {
+  private readonly inference: SpeakerDiarizationInference = new SpeakerDiarizationInference();
+  private config?: DiarizationChildConfig;
   private polling: boolean = false;
   private timer: number = -1;
 
   async start(entryParams: string): Promise<void> {
     try {
-      this.config = JSON.parse(entryParams) as MeetingChildConfig;
+      this.config = JSON.parse(entryParams) as DiarizationChildConfig;
       await this.inference.load(
         this.config.segmentationModelPath,
         this.config.embeddingModelPath);
@@ -79,8 +79,8 @@ export class MeetingSpeakerChildService {
   }
 
   private async processJob(path: string): Promise<void> {
-    const config = this.config as MeetingChildConfig;
-    const job = JSON.parse(this.readText(path)) as MeetingChildJob;
+    const config = this.config as DiarizationChildConfig;
+    const job = JSON.parse(this.readText(path)) as DiarizationChildJob;
     const bytes = new ArrayBuffer(job.sampleCount * 2);
     const spool = fs.openSync(`${config.jobDir}/audio.pcm`);
     try {
@@ -93,7 +93,7 @@ export class MeetingSpeakerChildService {
     for (let i = 0; i < pcm.length; i++) samples[i] = pcm[i] / 32768.0;
     const inferenceWindow = new Float32Array(160000);
     inferenceWindow.set(samples, Math.max(0, inferenceWindow.length - samples.length));
-    const result: MeetingChildResult = {
+    const result: DiarizationChildResult = {
       jobId: job.jobId,
       windowStartSample: job.windowStartSample,
       contentStartInWindowSample: job.contentStartInWindowSample,

@@ -9,7 +9,7 @@ import {
   DingqiaoEventCode,
   LicenseActivationCallback,
   LicenseActivationResult,
-  MeetingResult,
+  SpeakerDiarizationResult,
   PrepareRuntimeCallback,
   RecognitionListener,
   SpeechRecognitionEngine,
@@ -1049,7 +1049,7 @@ struct Index {
     }
   }
 
-  handleMeetingResult(sessionId: string, result: MeetingResult): void {
+  handleSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
     if (sessionId === this.replaySessionId) return;
     const next: FinalSegment[] = [];
     for (let i = 0; i < result.utterances.length; i++) {
@@ -1492,8 +1492,8 @@ class DemoRecognitionListener implements RecognitionListener {
     this.owner.handleSpeakerUpdate(sessionId, update);
   }
 
-  onMeetingResult(sessionId: string, result: MeetingResult): void {
-    this.owner.handleMeetingResult(sessionId, result);
+  onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    this.owner.handleSpeakerDiarizationResult(sessionId, result);
   }
 
   onComplete(sessionId: string, _eventMessage: string): void {

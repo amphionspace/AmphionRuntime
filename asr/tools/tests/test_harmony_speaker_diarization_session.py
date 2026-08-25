@@ -5,21 +5,21 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[3]
-MEETING = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/meeting"
-SCHEDULER = MEETING / "MeetingWindowScheduler.ts"
-REGISTRY = MEETING / "OnlineSpeakerRegistry.ts"
-BARRIER = MEETING / "MeetingFinishBarrier.ts"
-TIMELINE = MEETING / "MeetingTranscriptState.ts"
-CLUSTERER = MEETING / "MeetingGlobalClusterer.ts"
-RUNTIME_LEASE = MEETING / "MeetingRuntimeLease.ts"
+DIARIZATION = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization"
+SCHEDULER = DIARIZATION / "DiarizationWindowScheduler.ts"
+REGISTRY = DIARIZATION / "OnlineSpeakerRegistry.ts"
+BARRIER = DIARIZATION / "SpeakerDiarizationFinishBarrier.ts"
+TIMELINE = DIARIZATION / "SpeakerDiarizationTranscriptState.ts"
+CLUSTERER = DIARIZATION / "SpeakerDiarizationGlobalClusterer.ts"
+RUNTIME_LEASE = DIARIZATION / "SpeakerDiarizationRuntimeLease.ts"
 TURN_NATIVE = ROOT / "asr/harmony/sdk/src/main/cpp/speaker_turn_segmenter.cpp"
 TURN_TYPES = ROOT / "asr/harmony/sdk/src/main/cpp/types/libamphion_asr/index.d.ts"
 RUNTIME = ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
 CORE_TYPES = ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets"
 PUBLIC_MODELS = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/DingqiaoModels.ets"
-CHILD_SERVICE = MEETING / "MeetingSpeakerChildService.ets"
-PROCESS_CLIENT = MEETING / "MeetingSpeakerProcessClient.ets"
-SESSION = MEETING / "MeetingSpeakerSession.ets"
+CHILD_SERVICE = DIARIZATION / "SpeakerDiarizationChildService.ets"
+PROCESS_CLIENT = DIARIZATION / "SpeakerDiarizationProcessClient.ets"
+SESSION = DIARIZATION / "SpeakerDiarizationSession.ets"
 ADAPTER = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 TS_LOADER = ROOT / "asr/tools/tests/ts_extension_loader.mjs"
 
@@ -40,18 +40,36 @@ def run_node(script: str) -> None:
     )
 
 
-class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
-    def test_public_meeting_api_is_optional_and_does_not_reuse_asr_last_fields(self) -> None:
+class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
+    def test_public_diarization_api_is_generic_optional_and_does_not_reuse_asr_last_fields(self) -> None:
         models = PUBLIC_MODELS.read_text(encoding="utf-8")
         for field in ("utteranceId?", "speakerId?", "secondarySpeakerIds?"):
             self.assertIn(field, models)
         self.assertIn("onSpeakerUpdate?", models)
-        self.assertIn("onMeetingResult?", models)
+        self.assertIn("onSpeakerDiarizationResult?", models)
         self.assertIn("export class SpeakerUpdate", models)
-        self.assertIn("export class MeetingResult", models)
-        meeting_result = models.split("export class MeetingResult", 1)[1].split("}", 1)[0]
-        self.assertNotIn("isLast", meeting_result)
-        self.assertNotIn("isFinal", meeting_result)
+        self.assertIn("export class SpeakerDiarizationResult", models)
+        diarization_result = models.split(
+            "export class SpeakerDiarizationResult", 1
+        )[1].split("}", 1)[0]
+        self.assertNotIn("isLast", diarization_result)
+        self.assertNotIn("isFinal", diarization_result)
+
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        for generic_name in (
+            "enableSpeakerDiarization",
+            "maxSpeakerCount",
+            "speakerDiarizationProcessEntry",
+        ):
+            self.assertIn(generic_name, adapter)
+        for meeting_scoped_name in (
+            "enableMeetingSpeakerSeparation",
+            "maxMeetingSpeakers",
+            "meetingSpeakerProcessEntry",
+            "onMeetingResult",
+            "MeetingResult",
+        ):
+            self.assertNotIn(meeting_scoped_name, models + adapter)
 
     def test_runtime_converts_native_token_times_to_session_global_clock(self) -> None:
         runtime = RUNTIME.read_text(encoding="utf-8")
@@ -85,7 +103,7 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
         self.assertIn("result.rawText = '';", rejection)
         self.assertIn("result.text = '';", rejection)
 
-    def test_all_asr_last_paths_join_the_meeting_finish_barrier(self) -> None:
+    def test_all_asr_last_paths_join_the_diarization_finish_barrier(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
         rejected = adapter.split("handleFinalRejected", 1)[1].split(
             "handleAsrError", 1
@@ -93,19 +111,27 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
         fallback = adapter.split("handleSessionStopped", 1)[1].split(
             "private ensureAlive", 1
         )[0]
-        self.assertIn("meetingSpeakerSession.observeAsrFinal(payload, result)", rejected)
-        self.assertIn("meetingFinishBarrier?.resolveAsr(payload)", rejected)
-        self.assertIn("meetingSpeakerSession.observeAsrFinal(result, asrTail)", fallback)
-        self.assertIn("meetingFinishBarrier?.resolveAsr(result)", fallback)
+        self.assertIn(
+            "speakerDiarizationSession.observeAsrFinal(payload, result)", rejected
+        )
+        self.assertIn(
+            "speakerDiarizationFinishBarrier?.resolveAsr(payload)", rejected
+        )
+        self.assertIn(
+            "speakerDiarizationSession.observeAsrFinal(result, asrTail)", fallback
+        )
+        self.assertIn(
+            "speakerDiarizationFinishBarrier?.resolveAsr(result)", fallback
+        )
 
-    def test_meeting_initialization_failure_degrades_without_failing_asr_start(self) -> None:
+    def test_diarization_initialization_failure_degrades_without_failing_asr_start(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
-        meeting_start = adapter.split(
-            "enableMeetingSpeakerSeparation", 1
+        diarization_start = adapter.split(
+            "enableSpeakerDiarization", 1
         )[1].split("publishSession", 1)[0]
-        self.assertIn("try {", meeting_start)
-        self.assertIn("new DegradedMeetingSpeakerSession", meeting_start)
-        self.assertIn("meeting speaker initialization failed", meeting_start)
+        self.assertIn("try {", diarization_start)
+        self.assertIn("new DegradedSpeakerDiarizationSession", diarization_start)
+        self.assertIn("speaker diarization initialization failed", diarization_start)
 
     def test_child_process_preserves_padded_window_offset_in_result(self) -> None:
         child = CHILD_SERVICE.read_text(encoding="utf-8")
@@ -118,8 +144,8 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
             "finish(): void", 1
         )[0]
         finish_body = client.split("finish(): void", 1)[1].split("cancel(): void", 1)[0]
-        self.assertIn("this.fail(`meeting speaker spool failed:", append_body)
-        self.assertIn("this.fail(`meeting speaker finish spool failed:", finish_body)
+        self.assertIn("this.fail(`speaker diarization spool failed:", append_body)
+        self.assertIn("this.fail(`speaker diarization finish spool failed:", finish_body)
         self.assertIn("this.restartCount = 0", client)
         self.assertIn("process.kill(0, pid)", client)
         self.assertIn("drainTerminationCallbacks", client)
@@ -131,8 +157,8 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
         constructor = client.split("constructor(context:", 1)[1].split(
             "append(audio:", 1
         )[0]
-        self.assertIn("/meeting-jobs/job-${Date.now()}-${localJobId}", constructor)
-        self.assertNotIn("/meeting-jobs/${sessionId}", constructor)
+        self.assertIn("/speaker-diarization-jobs/job-${Date.now()}-${localJobId}", constructor)
+        self.assertNotIn("/speaker-diarization-jobs/${sessionId}", constructor)
 
     def test_segments_crossing_a_stable_boundary_are_clipped_not_dropped(self) -> None:
         session = SESSION.read_text(encoding="utf-8")
@@ -148,10 +174,10 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
         run_node(
             f"""
             import assert from 'node:assert/strict';
-            import {{ MeetingWindowScheduler }} from {SCHEDULER.as_uri()!r};
+            import {{ DiarizationWindowScheduler }} from {SCHEDULER.as_uri()!r};
 
-            const whole = new MeetingWindowScheduler(16_000);
-            const framed = new MeetingWindowScheduler(16_000);
+            const whole = new DiarizationWindowScheduler(16_000);
+            const framed = new DiarizationWindowScheduler(16_000);
             const wholeWindows = whole.acceptSamples(16_000 * 17);
             const framedWindows = [];
             for (let i = 0; i < 17 * 50; i++) {{
@@ -208,9 +234,9 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
         run_node(
             f"""
             import assert from 'node:assert/strict';
-            import {{ MeetingGlobalClusterer }} from {CLUSTERER.as_uri()!r};
+            import {{ SpeakerDiarizationGlobalClusterer }} from {CLUSTERER.as_uri()!r};
 
-            const clusterer = new MeetingGlobalClusterer(4, 2);
+            const clusterer = new SpeakerDiarizationGlobalClusterer(4, 2);
             const result = clusterer.cluster([
               {{ embedding: [1, 0], durationMs: 3000, onlineSpeakerId: 'S1' }},
               {{ embedding: [0.98, 0.1], durationMs: 2000, onlineSpeakerId: 'S1' }},
@@ -229,15 +255,15 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
             assert.equal(new Set(crossed.observationSpeakerIds).size, 2);
             assert.notEqual(crossed.observationSpeakerIds[0], crossed.observationSpeakerIds[2]);
 
-            const longMeeting = [];
+            const longSession = [];
             for (let i = 0; i < 3000; i++) {{
-              longMeeting.push({{
+              longSession.push({{
                 embedding: i % 2 === 0 ? [1, 0] : [0, 1],
                 durationMs: 2000,
                 onlineSpeakerId: i % 2 === 0 ? 'S1' : 'S2'
               }});
             }}
-            assert.equal(clusterer.cluster(longMeeting).clusterCount, 2);
+            assert.equal(clusterer.cluster(longSession).clusterCount, 2);
             """
         )
 
@@ -245,20 +271,21 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
         run_node(
             f"""
             import assert from 'node:assert/strict';
-            import {{ MeetingFinishBarrier }} from {BARRIER.as_uri()!r};
+            import {{ SpeakerDiarizationFinishBarrier }} from {BARRIER.as_uri()!r};
 
             const events = [];
-            const barrier = new MeetingFinishBarrier(100, result => events.push(result));
+            const barrier = new SpeakerDiarizationFinishBarrier(100, result => events.push(result));
             barrier.begin();
-            barrier.resolveSpeaker({{ degraded: false, value: 'meeting-final' }});
+            barrier.resolveSpeaker({{ degraded: false, value: 'diarization-final' }});
             assert.deepEqual(events, []);
             barrier.resolveAsr('asr-last');
-            assert.deepEqual(events, [{{ asr: 'asr-last', speaker: 'meeting-final', degraded: false }}]);
+            assert.deepEqual(events,
+              [{{ asr: 'asr-last', speaker: 'diarization-final', degraded: false }}]);
             barrier.resolveAsr('duplicate');
             assert.equal(events.length, 1);
 
             const timedOut = [];
-            const timeoutBarrier = new MeetingFinishBarrier(20, result => timedOut.push(result));
+            const timeoutBarrier = new SpeakerDiarizationFinishBarrier(20, result => timedOut.push(result));
             timeoutBarrier.begin();
             timeoutBarrier.resolveAsr('tail');
             await new Promise(resolve => setTimeout(resolve, 40));
@@ -267,7 +294,7 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
             assert.equal(timedOut.length, 1);
 
             const missingAsr = [];
-            const missingAsrBarrier = new MeetingFinishBarrier(
+            const missingAsrBarrier = new SpeakerDiarizationFinishBarrier(
               20, result => missingAsr.push(result), () => 'timeout-last');
             missingAsrBarrier.begin();
             await new Promise(resolve => setTimeout(resolve, 40));
@@ -277,25 +304,25 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
             """
         )
 
-    def test_meeting_runtime_release_waits_for_active_native_work(self) -> None:
+    def test_diarization_runtime_release_waits_for_active_native_work(self) -> None:
         run_node(
             f"""
             import assert from 'node:assert/strict';
-            import {{ MeetingRuntimeLeaseRegistry }} from {RUNTIME_LEASE.as_uri()!r};
+            import {{ SpeakerDiarizationRuntimeLeaseRegistry }} from {RUNTIME_LEASE.as_uri()!r};
 
-            const lease = MeetingRuntimeLeaseRegistry.acquire();
+            const lease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
             let released = false;
-            const waiting = MeetingRuntimeLeaseRegistry.beginRelease().then(() => {{
+            const waiting = SpeakerDiarizationRuntimeLeaseRegistry.beginRelease().then(() => {{
               released = true;
-              MeetingRuntimeLeaseRegistry.endRelease();
+              SpeakerDiarizationRuntimeLeaseRegistry.endRelease();
             }});
             await new Promise(resolve => setTimeout(resolve, 10));
             assert.equal(released, false);
-            assert.throws(() => MeetingRuntimeLeaseRegistry.acquire());
+            assert.throws(() => SpeakerDiarizationRuntimeLeaseRegistry.acquire());
             lease.release();
             await waiting;
             assert.equal(released, true);
-            const next = MeetingRuntimeLeaseRegistry.acquire();
+            const next = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
             next.release();
             """
         )
@@ -304,9 +331,9 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
         run_node(
             f"""
             import assert from 'node:assert/strict';
-            import {{ MeetingTranscriptState }} from {TIMELINE.as_uri()!r};
+            import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
 
-            const timeline = new MeetingTranscriptState();
+            const timeline = new SpeakerDiarizationTranscriptState();
             const id = timeline.addUtterance({{
               rawText: '甲乙丙丁', text: '甲乙丙丁',
               tokens: ['甲', '乙', '丙', '丁'], tokenTimesMs: [200, 700, 1200, 1700],
@@ -325,7 +352,7 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
             assert.deepEqual(split.map(item => item.speakerId), ['S1', 'S2']);
             assert.deepEqual(split[1].secondarySpeakerIds, ['S1']);
 
-            const fallback = new MeetingTranscriptState();
+            const fallback = new SpeakerDiarizationTranscriptState();
             fallback.addUtterance({{
               rawText: '二十三', text: '23', tokens: ['二', '十', '三'],
               tokenTimesMs: [100, 200, 300], beginTime: 0, endTime: 400
@@ -338,7 +365,7 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
             assert.equal(unsplit.length, 1);
             assert.equal(unsplit[0].text, '23');
 
-            const recent = new MeetingTranscriptState();
+            const recent = new SpeakerDiarizationTranscriptState();
             recent.addUtterance({{
               rawText: '旧', text: '旧', tokens: ['旧'], tokenTimesMs: [100],
               beginTime: 0, endTime: 1000
@@ -356,7 +383,7 @@ class HarmonyMeetingSpeakerSessionTest(unittest.TestCase):
             assert.equal(recent.currentAssignment('u1').speakerId, 'S1');
             assert.equal(recent.currentAssignment('u2').speakerId, 'S2');
 
-            const evidence = new MeetingTranscriptState();
+            const evidence = new SpeakerDiarizationTranscriptState();
             evidence.addUtterance({{
               rawText: '甲乙', text: '甲乙', tokens: ['甲', '乙'], tokenTimesMs: [250, 750],
               beginTime: 0, endTime: 1000

@@ -4,28 +4,28 @@ import childProcessManager from '@ohos.app.ability.childProcessManager';
 import type { ChildProcessArgs } from '@ohos.app.ability.ChildProcessArgs';
 import type { ChildProcessOptions } from '@ohos.app.ability.ChildProcessOptions';
 import process from '@ohos.process';
-import { MeetingInferenceWindow, MeetingWindowScheduler } from './MeetingWindowScheduler';
+import { DiarizationInferenceWindow, DiarizationWindowScheduler } from './DiarizationWindowScheduler';
 
 const EMBEDDING_MODEL_RAWFILE: string = 'amphion-dingqiao/eres2net.onnx';
 const SEGMENTATION_MODEL_RAWFILE: string =
   'amphion-dingqiao/pyannote-segmentation-3.0.onnx';
 const WINDOW_SAMPLES: number = 160000;
-let nextMeetingJobId: number = 1;
+let nextDiarizationJobId: number = 1;
 
-export interface MeetingProcessEmbedding {
+export interface DiarizationProcessEmbedding {
   localSpeaker: number;
   speechSamples: number;
   embedding: number[];
 }
 
-export interface MeetingProcessSegment {
+export interface DiarizationProcessSegment {
   startSample: number;
   endSample: number;
   speaker: number;
   speakerMask: number;
 }
 
-export interface MeetingProcessWindowResult {
+export interface DiarizationProcessWindowResult {
   jobId: string;
   windowStartSample: number;
   contentStartInWindowSample: number;
@@ -33,17 +33,17 @@ export interface MeetingProcessWindowResult {
   commitStartSample: number;
   stableEndSample: number;
   finalWindow: boolean;
-  result: MeetingProcessInferenceResult;
+  result: DiarizationProcessInferenceResult;
 }
 
-export interface MeetingProcessInferenceResult {
-  segments: MeetingProcessSegment[];
-  embeddings: MeetingProcessEmbedding[];
+export interface DiarizationProcessInferenceResult {
+  segments: DiarizationProcessSegment[];
+  embeddings: DiarizationProcessEmbedding[];
   inferenceMs: number;
 }
 
-export interface MeetingSpeakerProcessObserver {
-  onWindow(result: MeetingProcessWindowResult): void;
+export interface SpeakerDiarizationProcessObserver {
+  onWindow(result: DiarizationProcessWindowResult): void;
   onDrained(): void;
   onDegraded(reason: string): void;
 }
@@ -53,7 +53,7 @@ interface PendingJob {
   submittedMs: number;
 }
 
-interface MeetingChildJob {
+interface DiarizationChildJob {
   jobId: string;
   offsetBytes: number;
   sampleCount: number;
@@ -65,26 +65,26 @@ interface MeetingChildJob {
   finalWindow: boolean;
 }
 
-interface MeetingChildStartParams {
+interface DiarizationChildStartParams {
   jobDir: string;
   segmentationModelPath: string;
   embeddingModelPath: string;
 }
 
-interface StagedMeetingModels {
+interface StagedDiarizationModels {
   segmentation: string;
   embedding: string;
 }
 
-export class MeetingSpeakerProcessClient {
-  private readonly scheduler: MeetingWindowScheduler = new MeetingWindowScheduler(16000);
+export class SpeakerDiarizationProcessClient {
+  private readonly scheduler: DiarizationWindowScheduler = new DiarizationWindowScheduler(16000);
   private readonly pending: Map<string, PendingJob> = new Map<string, PendingJob>();
   private readonly jobDir: string;
   private readonly jobsDir: string;
   private readonly resultsDir: string;
   private readonly spoolPath: string;
   private readonly processEntry: string;
-  private readonly observer: MeetingSpeakerProcessObserver;
+  private readonly observer: SpeakerDiarizationProcessObserver;
   private readonly context: Context;
   private spoolFd: number = -1;
   private childPid: number = -1;
@@ -102,14 +102,14 @@ export class MeetingSpeakerProcessClient {
   private terminationCallbacks: (() => void)[] = [];
 
   constructor(context: Context, workPath: string, _sessionId: string,
-    processEntry: string, observer: MeetingSpeakerProcessObserver) {
+    processEntry: string, observer: SpeakerDiarizationProcessObserver) {
     this.context = context;
     this.processEntry = processEntry;
     this.observer = observer;
-    const localJobId = nextMeetingJobId;
-    nextMeetingJobId += 1;
+    const localJobId = nextDiarizationJobId;
+    nextDiarizationJobId += 1;
     // sessionId is caller-controlled and must never participate in filesystem paths.
-    this.jobDir = `${workPath}/meeting-jobs/job-${Date.now()}-${localJobId}`;
+    this.jobDir = `${workPath}/speaker-diarization-jobs/job-${Date.now()}-${localJobId}`;
     this.jobsDir = `${this.jobDir}/jobs`;
     this.resultsDir = `${this.jobDir}/results`;
     this.spoolPath = `${this.jobDir}/audio.pcm`;
@@ -129,7 +129,7 @@ export class MeetingSpeakerProcessClient {
       const windows = this.scheduler.acceptSamples(audio.byteLength / 2);
       for (let i = 0; i < windows.length; i++) this.submit(windows[i]);
     } catch (e) {
-      this.fail(`meeting speaker spool failed: ${e}`);
+      this.fail(`speaker diarization spool failed: ${e}`);
     }
   }
 
@@ -140,7 +140,7 @@ export class MeetingSpeakerProcessClient {
       try {
         this.submit(this.scheduler.finish());
       } catch (e) {
-        this.fail(`meeting speaker finish spool failed: ${e}`);
+        this.fail(`speaker diarization finish spool failed: ${e}`);
       }
     }
     this.maybeNotifyDrained();
@@ -178,7 +178,7 @@ export class MeetingSpeakerProcessClient {
     this.childStartPending = true;
     try {
       const models = this.stageModels();
-      const startParams: MeetingChildStartParams = {
+      const startParams: DiarizationChildStartParams = {
         jobDir: this.jobDir,
         segmentationModelPath: models.segmentation,
         embeddingModelPath: models.embedding,
@@ -205,18 +205,18 @@ export class MeetingSpeakerProcessClient {
         return;
       }
       if (this.closed || this.degraded || generation !== this.childStartGeneration) return;
-      this.handleProcessFailure(`meeting speaker process start failed: ${e}`);
+      this.handleProcessFailure(`speaker diarization process start failed: ${e}`);
     }
   }
 
-  private submit(window: MeetingInferenceWindow): void {
+  private submit(window: DiarizationInferenceWindow): void {
     const jobId = `w${this.nextJobId.toString().padStart(8, '0')}`;
     this.nextJobId += 1;
     const realSamples = Math.max(0, window.realEndSample - window.startSample);
     const sampleCount = Math.min(WINDOW_SAMPLES, realSamples);
     const contentStartInWindowSample = WINDOW_SAMPLES - sampleCount;
     const offsetSample = Math.max(0, window.realEndSample - sampleCount);
-    const job: MeetingChildJob = {
+    const job: DiarizationChildJob = {
       jobId,
       offsetBytes: offsetSample * 2,
       sampleCount,
@@ -234,7 +234,7 @@ export class MeetingSpeakerProcessClient {
   private poll(): void {
     if (this.closed || this.degraded) return;
     if (fs.accessSync(`${this.jobDir}/fatal`)) {
-      this.handleProcessFailure(`meeting speaker child failed: ${this.readText(`${this.jobDir}/fatal`)}`);
+      this.handleProcessFailure(`speaker diarization child failed: ${this.readText(`${this.jobDir}/fatal`)}`);
       return;
     }
     const now = Date.now();
@@ -244,7 +244,7 @@ export class MeetingSpeakerProcessClient {
     }
     if (!this.readyObserved) {
       if (this.childStartedMs > 0 && now - this.childStartedMs > 10_000) {
-        this.handleProcessFailure('meeting speaker child start timed out');
+        this.handleProcessFailure('speaker diarization child start timed out');
       }
       return;
     }
@@ -253,14 +253,14 @@ export class MeetingSpeakerProcessClient {
       const resultPath = `${this.resultsDir}/${jobId}.json`;
       if (!fs.accessSync(resultPath)) return;
       try {
-        const result = JSON.parse(this.readText(resultPath)) as MeetingProcessWindowResult;
+        const result = JSON.parse(this.readText(resultPath)) as DiarizationProcessWindowResult;
         this.observer.onWindow(result);
         // A successfully completed window breaks the consecutive-failure streak.
         this.restartCount = 0;
         completed.push(jobId);
         fs.unlinkSync(resultPath);
       } catch (e) {
-        this.handleProcessFailure(`meeting speaker result invalid: ${e}`);
+        this.handleProcessFailure(`speaker diarization result invalid: ${e}`);
       }
     });
     for (let i = 0; i < completed.length; i++) this.pending.delete(completed[i]);
@@ -271,7 +271,7 @@ export class MeetingSpeakerProcessClient {
       if (now - pending.submittedMs > 10_000) timedOut = true;
     });
     if (timedOut) {
-      this.handleProcessFailure('meeting speaker window timed out');
+      this.handleProcessFailure('speaker diarization window timed out');
       return;
     }
     this.maybeNotifyDrained();
@@ -305,7 +305,7 @@ export class MeetingSpeakerProcessClient {
     if (this.finishing && this.pending.size === 0) this.observer.onDrained();
   }
 
-  private stageModels(): StagedMeetingModels {
+  private stageModels(): StagedDiarizationModels {
     const modelsDir = `${this.jobDir.substring(0, this.jobDir.lastIndexOf('/'))}/models`;
     this.ensureDir(modelsDir);
     const segmentation = `${modelsDir}/pyannote-segmentation-3.0.onnx`;

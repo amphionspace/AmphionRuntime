@@ -2,63 +2,64 @@ import { AsrResult } from 'amphion_asr';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 import {
-  MeetingResult,
-  MeetingSpeakerTurn,
-  MeetingUtterance,
+  DiarizedUtterance,
+  SpeakerDiarizationResult,
+  SpeakerTurn,
   SpeakerUpdate,
   SpeechRecognitionResult
 } from '../DingqiaoModels';
 import { OnlineSpeakerRegistry } from './OnlineSpeakerRegistry';
 import {
-  MeetingEmbeddingObservation,
-  MeetingGlobalClusterer
-} from './MeetingGlobalClusterer';
+  SpeakerDiarizationEmbeddingObservation,
+  SpeakerDiarizationGlobalClusterer
+} from './SpeakerDiarizationGlobalClusterer';
 import {
-  MeetingProcessWindowResult,
-  MeetingSpeakerProcessClient,
-  MeetingSpeakerProcessObserver
-} from './MeetingSpeakerProcessClient';
-import { MeetingRuntimeLease, MeetingRuntimeLeaseRegistry } from './MeetingRuntimeLease';
+  DiarizationProcessWindowResult,
+  SpeakerDiarizationProcessClient,
+  SpeakerDiarizationProcessObserver
+} from './SpeakerDiarizationProcessClient';
+import { SpeakerDiarizationRuntimeLease, SpeakerDiarizationRuntimeLeaseRegistry } from './SpeakerDiarizationRuntimeLease';
 import {
-  MeetingTimelineTurn,
-  MeetingTranscriptState,
-  MeetingTranscriptUpdate,
-  MeetingTranscriptUtterance
-} from './MeetingTranscriptState';
+  SpeakerTimelineTurn,
+  SpeakerDiarizationTranscriptState,
+  DiarizationTranscriptUpdate,
+  DiarizedTranscriptUtterance
+} from './SpeakerDiarizationTranscriptState';
 
 const SAMPLE_RATE: number = 16000;
 const RECENT_CORRECTION_MS: number = 60000;
 const RECLUSTER_INTERVAL_MS: number = 30000;
 
-interface MeetingEmbeddingCheckpoint extends MeetingEmbeddingObservation {
+interface DiarizationEmbeddingCheckpoint extends SpeakerDiarizationEmbeddingObservation {
   jobId: string;
   localSpeaker: number;
   speechSamples: number;
   speakerId: string;
 }
 
-export interface MeetingSpeakerSessionObserver {
+export interface SpeakerDiarizationSessionObserver {
   onSpeakerUpdate(update: SpeakerUpdate): void;
-  onFinished(result: MeetingResult): void;
+  onFinished(result: SpeakerDiarizationResult): void;
 }
 
-export interface MeetingSessionController {
+export interface SpeakerDiarizationSessionController {
   append(audio: ArrayBuffer): void;
   observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult): void;
   finish(): void;
   decoratePayload(payload: SpeechRecognitionResult): void;
-  bestResult(reason?: string): MeetingResult;
+  bestResult(reason?: string): SpeakerDiarizationResult;
   cleanup(): void;
 }
 
-export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, MeetingSessionController {
-  private readonly client: MeetingSpeakerProcessClient;
+export class SpeakerDiarizationSession implements SpeakerDiarizationProcessObserver,
+  SpeakerDiarizationSessionController {
+  private readonly client: SpeakerDiarizationProcessClient;
   private readonly registry: OnlineSpeakerRegistry;
-  private readonly transcript: MeetingTranscriptState = new MeetingTranscriptState();
-  private readonly observer: MeetingSpeakerSessionObserver;
-  private readonly globalClusterer: MeetingGlobalClusterer;
+  private readonly transcript: SpeakerDiarizationTranscriptState = new SpeakerDiarizationTranscriptState();
+  private readonly observer: SpeakerDiarizationSessionObserver;
+  private readonly globalClusterer: SpeakerDiarizationGlobalClusterer;
   private readonly maxSpeakers: number;
-  private recentEmbeddingObservations: MeetingEmbeddingObservation[] = [];
+  private recentEmbeddingObservations: SpeakerDiarizationEmbeddingObservation[] = [];
   private nextReclusterMs: number = RECLUSTER_INTERVAL_MS;
   private totalSamples: number = 0;
   private lastAsrEndMs: number = 0;
@@ -69,19 +70,19 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
   private asrTailObserved: boolean = false;
   private finished: boolean = false;
   private finalSpeakerCount: number = 0;
-  private runtimeLease?: MeetingRuntimeLease;
+  private runtimeLease?: SpeakerDiarizationRuntimeLease;
 
   constructor(context: Context, workPath: string, sessionId: string, processEntry: string,
     maxSpeakers: number, expectedActiveSpeakerCount: number,
-    observer: MeetingSpeakerSessionObserver) {
+    observer: SpeakerDiarizationSessionObserver) {
     this.observer = observer;
     this.maxSpeakers = maxSpeakers;
     this.registry = new OnlineSpeakerRegistry(maxSpeakers, 0.72, 0.05);
-    this.globalClusterer = new MeetingGlobalClusterer(
+    this.globalClusterer = new SpeakerDiarizationGlobalClusterer(
       maxSpeakers, expectedActiveSpeakerCount, 0.72);
-    this.runtimeLease = MeetingRuntimeLeaseRegistry.acquire();
+    this.runtimeLease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
     try {
-      this.client = new MeetingSpeakerProcessClient(
+      this.client = new SpeakerDiarizationProcessClient(
         context, workPath, sessionId, processEntry, this);
     } catch (e) {
       this.runtimeLease.release();
@@ -96,7 +97,7 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
     try {
       this.client.append(audio);
     } catch (e) {
-      this.onDegraded(`meeting audio spool failed: ${e}`);
+      this.onDegraded(`speaker diarization audio spool failed: ${e}`);
     }
   }
 
@@ -143,7 +144,7 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
     payload.secondarySpeakerIds = assignment.secondarySpeakerIds;
   }
 
-  bestResult(reason?: string): MeetingResult {
+  bestResult(reason?: string): SpeakerDiarizationResult {
     return this.buildResult(reason ?? this.degradedReason);
   }
 
@@ -156,7 +157,7 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
     this.client.cleanup((): void => { this.releaseRuntimeLease(); });
   }
 
-  onWindow(window: MeetingProcessWindowResult): void {
+  onWindow(window: DiarizationProcessWindowResult): void {
     if (this.finished) return;
     this.inferenceMs += window.result.inferenceMs;
     const channelIds = new Map<number, string>();
@@ -169,7 +170,7 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
       const assignment = assignments[i];
       channelIds.set(item.localSpeaker, assignment.speakerId);
       const endTimeMs = Math.round(window.realEndSample * 1000 / SAMPLE_RATE);
-      const observation: MeetingEmbeddingObservation = {
+      const observation: SpeakerDiarizationEmbeddingObservation = {
         embedding: item.embedding.slice(),
         durationMs: Math.round(item.speechSamples * 1000 / SAMPLE_RATE),
         onlineSpeakerId: assignment.speakerId,
@@ -190,7 +191,7 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
       }));
     }
 
-    const turns: MeetingTimelineTurn[] = [];
+    const turns: SpeakerTimelineTurn[] = [];
     for (let i = 0; i < window.result.segments.length; i++) {
       const segment = window.result.segments[i];
       const localStart = Math.max(0,
@@ -264,15 +265,15 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
     if (this.degradedReason === undefined) this.degradedReason = reason;
   }
 
-  private buildResult(reason?: string): MeetingResult {
-    const result = new MeetingResult();
+  private buildResult(reason?: string): SpeakerDiarizationResult {
+    const result = new SpeakerDiarizationResult();
     const utterances = this.transcript.finalUtterances();
     for (let i = 0; i < utterances.length; i++) {
       result.utterances.push(this.toPublicUtterance(utterances[i]));
     }
     const turns = this.transcript.allTurns();
     for (let i = 0; i < turns.length; i++) {
-      const turn = new MeetingSpeakerTurn();
+      const turn = new SpeakerTurn();
       turn.beginTime = turns[i].beginTime;
       turn.endTime = turns[i].endTime;
       turn.speakerId = turns[i].speakerId;
@@ -290,7 +291,7 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
     return result;
   }
 
-  private toPublicUpdate(update: MeetingTranscriptUpdate): SpeakerUpdate {
+  private toPublicUpdate(update: DiarizationTranscriptUpdate): SpeakerUpdate {
     const result = new SpeakerUpdate();
     result.utteranceId = update.utteranceId;
     result.revision = update.revision;
@@ -302,8 +303,8 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
     return result;
   }
 
-  private toPublicUtterance(value: MeetingTranscriptUtterance): MeetingUtterance {
-    const result = new MeetingUtterance();
+  private toPublicUtterance(value: DiarizedTranscriptUtterance): DiarizedUtterance {
+    const result = new DiarizedUtterance();
     result.utteranceId = value.utteranceId;
     result.rawText = value.rawText;
     result.text = value.text;
@@ -334,7 +335,7 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
   private reclusterRecent(endTimeMs: number): void {
     const fromTime = Math.max(0, endTimeMs - RECENT_CORRECTION_MS);
     this.recentEmbeddingObservations = this.recentEmbeddingObservations.filter(
-      (observation: MeetingEmbeddingObservation): boolean =>
+      (observation: SpeakerDiarizationEmbeddingObservation): boolean =>
         (observation.endTimeMs ?? 0) >= fromTime);
     if (endTimeMs < this.nextReclusterMs) return;
     this.nextReclusterMs = endTimeMs + RECLUSTER_INTERVAL_MS;
@@ -346,7 +347,7 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
     }
   }
 
-  private loadPersistedObservations(): MeetingEmbeddingObservation[] {
+  private loadPersistedObservations(): SpeakerDiarizationEmbeddingObservation[] {
     const path = `${this.client.checkpointDir()}/embedding-index.jsonl`;
     if (!fs.accessSync(path)) return [];
     const fp = fs.openSync(path);
@@ -356,10 +357,10 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
       fs.readSync(fp.fd, bytes.buffer);
       const text = new util.TextDecoder('utf-8').decodeWithStream(bytes);
       const lines = text.split('\n');
-      const observations: MeetingEmbeddingObservation[] = [];
+      const observations: SpeakerDiarizationEmbeddingObservation[] = [];
       for (let i = 0; i < lines.length; i++) {
         if (lines[i].length === 0) continue;
-        const checkpoint = JSON.parse(lines[i]) as MeetingEmbeddingCheckpoint;
+        const checkpoint = JSON.parse(lines[i]) as DiarizationEmbeddingCheckpoint;
         observations.push({
           embedding: checkpoint.embedding,
           durationMs: checkpoint.durationMs,
@@ -379,7 +380,7 @@ export class MeetingSpeakerSession implements MeetingSpeakerProcessObserver, Mee
     this.runtimeLease = undefined;
   }
 
-  private evidenceRemap(observations: MeetingEmbeddingObservation[],
+  private evidenceRemap(observations: SpeakerDiarizationEmbeddingObservation[],
     speakerIds: string[]): Record<string, string> {
     const remap: Record<string, string> = {};
     for (let index = 0; index < observations.length; index++) {

@@ -1,4 +1,4 @@
-export interface MeetingTranscriptInput {
+export interface DiarizationTranscriptInput {
   rawText: string;
   text: string;
   tokens: string[];
@@ -7,7 +7,7 @@ export interface MeetingTranscriptInput {
   endTime: number;
 }
 
-export interface MeetingTimelineTurn {
+export interface SpeakerTimelineTurn {
   beginTime: number;
   endTime: number;
   speakerId: string;
@@ -16,20 +16,20 @@ export interface MeetingTimelineTurn {
   secondaryEvidenceKeys?: string[];
 }
 
-export interface MeetingTranscriptUpdate extends MeetingTimelineTurn {
+export interface DiarizationTranscriptUpdate extends SpeakerTimelineTurn {
   utteranceId: string;
   revision: number;
   confidence: number;
 }
 
-export interface MeetingTranscriptUtterance extends MeetingTimelineTurn {
+export interface DiarizedTranscriptUtterance extends SpeakerTimelineTurn {
   utteranceId: string;
   rawText: string;
   text: string;
   overlap: boolean;
 }
 
-interface StoredUtterance extends MeetingTranscriptInput {
+interface StoredUtterance extends DiarizationTranscriptInput {
   utteranceId: string;
   revision: number;
   speakerId: string;
@@ -50,11 +50,11 @@ function sameStrings(left: string[], right: string[]): boolean {
   return true;
 }
 
-export class MeetingTranscriptState {
+export class SpeakerDiarizationTranscriptState {
   private readonly utterances: StoredUtterance[] = [];
-  private readonly turns: MeetingTimelineTurn[] = [];
+  private readonly turns: SpeakerTimelineTurn[] = [];
 
-  addUtterance(input: MeetingTranscriptInput): string {
+  addUtterance(input: DiarizationTranscriptInput): string {
     const utteranceId = `u${this.utterances.length + 1}`;
     const assignment = this.assignmentFor(input.beginTime, input.endTime);
     this.utterances.push({
@@ -72,7 +72,7 @@ export class MeetingTranscriptState {
     return utteranceId;
   }
 
-  currentAssignment(utteranceId: string): MeetingTranscriptUpdate | undefined {
+  currentAssignment(utteranceId: string): DiarizationTranscriptUpdate | undefined {
     const utterance = this.utterances.find(
       (candidate: StoredUtterance): boolean => candidate.utteranceId === utteranceId);
     if (utterance === undefined) return undefined;
@@ -87,7 +87,7 @@ export class MeetingTranscriptState {
     };
   }
 
-  applySpeakerTurns(newTurns: MeetingTimelineTurn[]): MeetingTranscriptUpdate[] {
+  applySpeakerTurns(newTurns: SpeakerTimelineTurn[]): DiarizationTranscriptUpdate[] {
     if (newTurns.length === 0) return [];
     for (let i = 0; i < newTurns.length; i++) {
       this.turns.push({
@@ -100,7 +100,7 @@ export class MeetingTranscriptState {
       });
     }
 
-    const updates: MeetingTranscriptUpdate[] = [];
+    const updates: DiarizationTranscriptUpdate[] = [];
     for (let i = 0; i < this.utterances.length; i++) {
       const utterance = this.utterances[i];
       if (!this.intersectsAny(utterance, newTurns)) continue;
@@ -123,8 +123,8 @@ export class MeetingTranscriptState {
     return updates;
   }
 
-  finalUtterances(): MeetingTranscriptUtterance[] {
-    const result: MeetingTranscriptUtterance[] = [];
+  finalUtterances(): DiarizedTranscriptUtterance[] {
+    const result: DiarizedTranscriptUtterance[] = [];
     for (let i = 0; i < this.utterances.length; i++) {
       const utterance = this.utterances[i];
       if (utterance.tokens.length === 0 ||
@@ -134,7 +134,7 @@ export class MeetingTranscriptState {
         continue;
       }
       const split = this.splitByTokenSpeaker(utterance);
-      if (split.map((item: MeetingTranscriptUtterance): string => item.text).join('') !==
+      if (split.map((item: DiarizedTranscriptUtterance): string => item.text).join('') !==
         utterance.text) {
         result.push(this.unsplitUtterance(utterance));
       } else {
@@ -144,7 +144,7 @@ export class MeetingTranscriptState {
     return result;
   }
 
-  allTurns(): MeetingTimelineTurn[] {
+  allTurns(): SpeakerTimelineTurn[] {
     return this.turns.map((turn) => ({
       beginTime: turn.beginTime,
       endTime: turn.endTime,
@@ -155,7 +155,7 @@ export class MeetingTranscriptState {
     }));
   }
 
-  applySpeakerRemap(remap: Record<string, string>, fromTime: number = 0): MeetingTranscriptUpdate[] {
+  applySpeakerRemap(remap: Record<string, string>, fromTime: number = 0): DiarizationTranscriptUpdate[] {
     for (let i = 0; i < this.turns.length; i++) {
       if (this.turns[i].endTime < fromTime) continue;
       this.turns[i].speakerId = remap[this.turns[i].speakerId] ?? this.turns[i].speakerId;
@@ -164,7 +164,7 @@ export class MeetingTranscriptState {
         .filter((speakerId: string, index: number, all: string[]): boolean =>
           speakerId !== this.turns[i].speakerId && all.indexOf(speakerId) === index);
     }
-    const updates: MeetingTranscriptUpdate[] = [];
+    const updates: DiarizationTranscriptUpdate[] = [];
     for (let i = 0; i < this.utterances.length; i++) {
       const utterance = this.utterances[i];
       if (utterance.endTime < fromTime) continue;
@@ -187,7 +187,7 @@ export class MeetingTranscriptState {
     return updates;
   }
 
-  applyEvidenceRemap(remap: Record<string, string>, fromTime: number = 0): MeetingTranscriptUpdate[] {
+  applyEvidenceRemap(remap: Record<string, string>, fromTime: number = 0): DiarizationTranscriptUpdate[] {
     for (let index = 0; index < this.turns.length; index++) {
       const turn = this.turns[index];
       if (turn.endTime < fromTime) continue;
@@ -201,7 +201,7 @@ export class MeetingTranscriptState {
         .filter((speakerId: string, secondaryIndex: number, all: string[]): boolean =>
           speakerId !== turn.speakerId && all.indexOf(speakerId) === secondaryIndex);
     }
-    const updates: MeetingTranscriptUpdate[] = [];
+    const updates: DiarizationTranscriptUpdate[] = [];
     for (let index = 0; index < this.utterances.length; index++) {
       const utterance = this.utterances[index];
       if (utterance.endTime < fromTime) continue;
@@ -224,7 +224,7 @@ export class MeetingTranscriptState {
     return updates;
   }
 
-  private intersectsAny(utterance: StoredUtterance, turns: MeetingTimelineTurn[]): boolean {
+  private intersectsAny(utterance: StoredUtterance, turns: SpeakerTimelineTurn[]): boolean {
     for (let i = 0; i < turns.length; i++) {
       if (overlapMs(utterance.beginTime, utterance.endTime,
         turns[i].beginTime, turns[i].endTime) > 0) return true;
@@ -266,7 +266,7 @@ export class MeetingTranscriptState {
     };
   }
 
-  private turnAt(timeMs: number): MeetingTimelineTurn | undefined {
+  private turnAt(timeMs: number): SpeakerTimelineTurn | undefined {
     for (let i = this.turns.length - 1; i >= 0; i--) {
       if (timeMs >= this.turns[i].beginTime && timeMs < this.turns[i].endTime) {
         return this.turns[i];
@@ -275,8 +275,8 @@ export class MeetingTranscriptState {
     return undefined;
   }
 
-  private splitByTokenSpeaker(utterance: StoredUtterance): MeetingTranscriptUtterance[] {
-    const result: MeetingTranscriptUtterance[] = [];
+  private splitByTokenSpeaker(utterance: StoredUtterance): DiarizedTranscriptUtterance[] {
+    const result: DiarizedTranscriptUtterance[] = [];
     let groupStart = 0;
     let active = this.turnAt(utterance.tokenTimesMs[0]);
     for (let index = 1; index <= utterance.tokens.length; index++) {
@@ -307,7 +307,7 @@ export class MeetingTranscriptState {
     return result;
   }
 
-  private unsplitUtterance(utterance: StoredUtterance): MeetingTranscriptUtterance {
+  private unsplitUtterance(utterance: StoredUtterance): DiarizedTranscriptUtterance {
     return {
       utteranceId: utterance.utteranceId,
       rawText: utterance.rawText,

@@ -3418,7 +3418,7 @@ export class AsrSession {
     const diarizationStartMs = Date.now();
     const segments = processSpeakerTurnSegmentation(finalizer.samples());
     const diarizationMs = Date.now() - diarizationStartMs;
-    // Existing target Speaker VAD remains single-speaker-only. Meeting diarization consumes the
+    // Existing target Speaker VAD remains single-speaker-only. Speaker diarization consumes the
     // full speakerMask through its separate path; do not silently reinterpret overlap here.
     const resolvedSegments = segments
       .filter((segment: SpeakerTurnSegmentationSegment): boolean =>
