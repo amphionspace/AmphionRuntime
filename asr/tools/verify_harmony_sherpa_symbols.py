@@ -12,6 +12,7 @@ from pathlib import Path
 REQUIRED_SYMBOLS = (
     "SherpaOnnxOnlineStreamGetEndpointReason",
     "SherpaOnnxOnlineStreamCommitRule3Segment",
+    "SherpaOnnxOnlineStreamCommitStablePrefix",
 )
 
 
