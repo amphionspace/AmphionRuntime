@@ -167,43 +167,60 @@ long 模式当前不产生 Rule3 transition；short 的 Rule3 public final 也�
 - `cancel`、callback reentrant、voiceprint、Speaker VAD 与 checkpoint PCM 隔离保持现有契约；
 - Harmony 与 Android 使用同一 native 语义和同名配置映射。
 
-## 8. 本次长音频基线
+## 8. 固定 PCM 复现与 A/B
 
-`/Users/boxp/Downloads/testdata/` 中没有单条超过 60 秒的中文语音，因此从其中 Aidatatang 语料按确定顺序拼接出一条 156.06 秒、16 kHz、mono、PCM16 WAV；未向仓库提交原始或派生 PCM。
+### 8.1 客户会议录音：稳定复现
 
-- WAV：`/private/tmp/amphion-meeting-boundary-design-artifacts/aidatatang-meeting-boundary-156s.wav`
-- SHA-256：`20866a6d33260b54e52d3bd2b33396f5d594182ed9f5d62e3a19490c95286976`
-- 60 秒位置：落在一条 5.94 秒真实语音内部约 2.148 秒处，不是静音拼接点；切点前后 1 秒 RMS `0.094434`
-- 120 秒位置：落在一条 5.004 秒真实语音内部约 2.820 秒处，不是静音拼接点；切点前后 1 秒 RMS `0.031847`
+从本地保留的客户问题数据中找到一条 213.28 秒、16 kHz、mono、PCM16 会议录音。其 SHA-256
+`55007d53bcc9e9aeb67bb76592fdd3c7028c00526498a284d1ab79a5142084c2` 与仓库已有 AGC 证据账本一致；
+原始 PCM 不提交仓库。
 
-固定条件：同一模型、100 ms chunk、800 ms warmup、Rule1/Rule2 设为 100000 秒以隔离 Rule3、Rule3=60 秒、`modified_beam_search/maxActivePaths=8`。
+固定条件：同一 amphion-119 模型、100 ms chunk、800 ms warmup、Rule1/Rule2 设为 100000 秒以
+隔离 Rule3、`modified_beam_search/maxActivePaths=8`。先分叉 continuous oracle 与真实 native
+checkpoint，再用同一 PCM 运行无 Rule3 对照。
 
-结果：
+60 秒 Rule3 路径稳定复现了边界问题：
 
-- continuous 在 60.2 秒观察到 Rule3，但不执行状态转换；最终 641 tokens；
-- checkpoint 在 60.2 秒、120.4 秒完成 2 次真实 native checkpoint；最终 641 tokens；
-- 两者 raw tokens 逐项完全一致，首个差异位置为空；该样本 **PASS，未复现边界错字/丢字**。
+- 真实 checkpoint 在 60.2、120.4、180.5 秒命中三次；
+- continuous 最终为 346 raw tokens，checkpoint 为 351 raw tokens；
+- 两路在第 212 个 raw token 首次分叉；oracle token 时间为 143.56 秒，checkpoint 对应 token
+  时间回落到 118.68 秒；
+- 因此错误既不是只发生在第一个边界，也不要求表现为下一段首字丢失。
+
+A/B 结果：
+
+| 路径 | Rule3 行为 | endpoint | raw tokens | 与 continuous oracle |
+|---|---|---:|---:|---|
+| A：现有 checkpoint 语义 | 60 秒提交当前 best path | 3 | 351 | 第 212 token 起分叉 |
+| B：long 语义 | 本段音频内不启用 Rule3 | 0 | 346 | 逐 token 完全一致 |
+
+host 诊断动态库早于禁用补丁，B 路使用 `rule3=100000` 仅表达“这 213.28 秒内不发生 Rule3”；
+它不是产品配置，也不能代替禁用值测试。产品实现使用 `rule3=-1`，当前补丁源码重新构建后的
+`Endpoint.NegativeMinimumUtteranceDisablesRule` 定向 native 测试为 1/1 PASS。
 
 证据：
 
-- continuous JSON：`/private/tmp/amphion-meeting-boundary-design-artifacts/continuous-mbs8.json`，SHA-256 `6154a214bbff6310a5f439569fc9a414594e3407db62aa3432a89285f21fbe7a`
-- checkpoint JSON：`/private/tmp/amphion-meeting-boundary-design-artifacts/checkpoint-mbs8.json`，SHA-256 `281009ea2e27bbc47ac6f4cdc36bcf2d4be6840f1d4f838553abfbff953307b7`
+- 复现与 oracle JSON：`/private/tmp/amphion-meeting-boundary-design-artifacts/customer-213s-rule3-search.json`，
+  SHA-256 `19995e3199ce559ef8b746bd93bbe0e993c5dd72cf7429a5c6a18c8b6f31179f`
+- long 对照 JSON：`/private/tmp/amphion-meeting-boundary-design-artifacts/customer-213s-long-no-rule3-proxy.json`，
+  SHA-256 `f652beb29ef752302b148b4136d06b903986d71dede6dde456989a378153573f`
 
-这个 PASS 只说明该固定样本没有触发候选反超，不能证伪“checkpoint 丢弃其余 beam 候选会造成非等价”的结构性风险。重新实现 stable-prefix checkpoint 前应先用 7.1 的白盒用例建立稳定红灯，再决定是否需要扩大真实语料搜索。
+### 8.2 拼接语料：保留为阴性对照
 
-第一阶段探索时先将 Rule3 设为 86400 秒做同音频差分；该次运行全程没有 60/120 秒 endpoint，结束时唯一 final，最终仍为 641 tokens，与 continuous oracle 逐项一致。提交实现随后改为显式 `rule3=false`，不再把 86400 秒 guard 作为产品语义：
-
-- JSON：`/private/tmp/amphion-meeting-boundary-design-artifacts/long-mode-no-rule3-mbs8.json`
-- SHA-256：`e54458c924d82bba943442664ef2dedb669ad72aa586b49288dde6509bfa5d41`
+此前从 Aidatatang 确定性拼接的 156.06 秒语料在 60.2、120.4 秒执行 checkpoint 后仍与
+continuous 的 641 tokens 完全一致。它没有复现问题，只能作为“并非每条音频都会分叉”的阴性
+对照，不能再作为本方案的主要正确性证据。
 
 ## 9. 实施顺序
 
 1. 已完成：用 `recognizerMode=short/long` 分流 Rule3 语义并同步 Android；long 显式设置 `rule3=false`，底层以负最短句长表达禁用，不存在延后的周期边界。
-2. 已完成：同一条 156 秒 PCM 验证 long 无 60/120 秒 endpoint，token 与 continuous oracle 一致。
+2. 已完成：客户 213.28 秒 PCM 在 60 秒 checkpoint 下稳定复现 raw token 分叉；同输入 long
+   对照与 continuous oracle 逐 token 一致。
 3. 已完成：当前源码的 Harmony Debug HAP 编译，确认 ArkTS 配置链、HAR 和 native ABI 一致。
 4. 待完成：真机公共回调验收，确认 short 的硬 final 与 long 的无周期 final 契约。
 5. 后续独立工作：补“候选在边界后反超”的 native 红灯，再评估 `CommitStablePrefix`；该优化不得阻塞本次正确性修复。
-6. 最后用客户原始长会议 PCM 做黑盒验收；没有原始 PCM 时，不把派生语料 PASS 当作客户问题已关闭。
+6. 待完成：用同一客户 PCM 做 Harmony 真机公共 API 黑盒 A/B；host native A/B 证明了 Rule3
+   状态分叉，但不能替代最终 HAP 的回调与组包验收。
 
 ## 10. 不采用的方案
 
