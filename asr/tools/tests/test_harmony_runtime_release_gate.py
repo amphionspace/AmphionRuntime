@@ -322,7 +322,23 @@ class HarmonyRuntimeReleaseGateTest(unittest.TestCase):
         self.assertIn("AmphionRuntime.releaseVad", constructor)
         self.assertGreaterEqual(runtime.count("if (e instanceof Error) throw e"), 2)
         self.assertIn("await SpeechRecognizeSdk.invalidateRuntimeAsync()", adapter)
-        self.assertIn("return AmphionRuntime.releaseAsync()", adapter)
+        adapter_release = adapter.split(
+            "private static async invalidateRuntimeAsync(): Promise<void>", 1
+        )[1].split("static createEngine", 1)[0]
+        self.assertIn(
+            "await SpeakerDiarizationRuntimeLeaseRegistry.beginRelease()",
+            adapter_release,
+        )
+        self.assertIn("await AmphionRuntime.releaseAsync()", adapter_release)
+        self.assertIn(
+            "SpeakerDiarizationRuntimeLeaseRegistry.endRelease()",
+            adapter_release,
+        )
+        self.assertLess(
+            adapter_release.index("SpeakerDiarizationRuntimeLeaseRegistry.beginRelease()"),
+            adapter_release.index("AmphionRuntime.releaseAsync()"),
+        )
+        self.assertIn("finally", adapter_release)
         self.assertIn("AmphionRuntime.isReleasePending()", adapter)
         self.assertGreaterEqual(adapter.count("licenseRequests.isCurrent(requestGeneration)"), 3)
 
