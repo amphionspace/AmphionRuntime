@@ -42,6 +42,11 @@ class ReleaseDefaultsTest(unittest.TestCase):
             / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
         ).read_text(encoding="utf-8")
         self.assertIn("UPGRADE_0.3.11.md", pack_script)
+        validator = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"docs/UPGRADE_0.3.11.md"', validator)
 
     def test_039_changelog_limits_the_release_to_public_log_configuration(self) -> None:
         changelog = (
