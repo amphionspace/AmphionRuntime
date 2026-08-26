@@ -8,6 +8,7 @@ import com.amphion.asr.AsrResult
 import com.amphion.asr.AsrSession
 import com.amphion.asr.AmphionRuntime
 import com.amphion.police.PoliceEnhancePipeline
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -53,6 +54,10 @@ internal class DingqiaoRecognitionEngine(
     private val callbackEpoch = CallbackEpoch()
     private val lifecycleCallbackLock = ReentrantLock(true)
     private val callbackInvocation = CallbackInvocationContext()
+    private val shutdownComplete = CountDownLatch(1)
+
+    private var shutdownRequested = false
+    private var terminalCallbackInProgress = false
 
     @Volatile
     private var listener: RecognitionListener? = null
@@ -308,16 +313,42 @@ internal class DingqiaoRecognitionEngine(
 
     override fun isBusy(): Boolean = listening
 
-    override fun shutdown() = lifecycleCallbackLock.withLock {
-        synchronized(this) { shutdownLocked(force = false) }
+    override fun shutdown() {
+        val calledFromCallback = lifecycleCallbackLock.isHeldByCurrentThread
+        val deferred = lifecycleCallbackLock.withLock {
+            synchronized(this) { requestShutdownLocked(force = false) }
+        }
+        awaitDeferredShutdown(deferred, calledFromCallback)
     }
 
-    internal fun invalidateFromRuntime() = lifecycleCallbackLock.withLock {
-        synchronized(this) { shutdownLocked(force = true) }
+    internal fun invalidateFromRuntime() {
+        val calledFromCallback = lifecycleCallbackLock.isHeldByCurrentThread
+        val deferred = lifecycleCallbackLock.withLock {
+            synchronized(this) { requestShutdownLocked(force = true) }
+        }
+        awaitDeferredShutdown(deferred, calledFromCallback)
     }
 
-    private fun shutdownLocked(force: Boolean) {
-        if (!force && staleCallbackTargetsReplacement()) return
+    private fun requestShutdownLocked(force: Boolean): Boolean {
+        if (!force && staleCallbackTargetsReplacement()) return false
+        if (destroyed.get()) return false
+        if ((listening && finishRequested) || terminalCallbackInProgress) {
+            shutdownRequested = true
+            return true
+        }
+        completeShutdownLocked()
+        return false
+    }
+
+    private fun awaitDeferredShutdown(deferred: Boolean, calledFromCallback: Boolean) {
+        if (!deferred || calledFromCallback) return
+        if (shutdownComplete.await(SHUTDOWN_DRAIN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) return
+        lifecycleCallbackLock.withLock {
+            synchronized(this) { completeShutdownLocked() }
+        }
+    }
+
+    private fun completeShutdownLocked() {
         if (!destroyed.compareAndSet(false, true)) return
         try {
             val shutdownEpoch = activeEpoch
@@ -335,7 +366,11 @@ internal class DingqiaoRecognitionEngine(
             } catch (_: Throwable) {
             }
         } finally {
-            onShutdown(this)
+            try {
+                onShutdown(this)
+            } finally {
+                shutdownComplete.countDown()
+            }
         }
     }
 
@@ -522,6 +557,7 @@ internal class DingqiaoRecognitionEngine(
                 val completionListener = synchronized(this@DingqiaoRecognitionEngine) {
                     if (!ownsSessionLocked(epoch, sessionId)) return@execute
                     completeSent = true
+                    terminalCallbackInProgress = true
                     terminalCallbackSessionId = sessionId
                     val captured = listener
                     if (tearDownSession(epoch) == null) return@execute
@@ -538,6 +574,10 @@ internal class DingqiaoRecognitionEngine(
                     synchronized(this@DingqiaoRecognitionEngine) {
                         if (terminalCallbackSessionId == sessionId) {
                             terminalCallbackSessionId = null
+                        }
+                        terminalCallbackInProgress = false
+                        if (shutdownRequested) {
+                            completeShutdownLocked()
                         }
                     }
                 }
@@ -736,6 +776,7 @@ internal class DingqiaoRecognitionEngine(
                 Thread(r, "dingqiao-stop-fallback").apply { isDaemon = true }
             }
         private const val STOP_FALLBACK_DELAY_MS = 1_500L
+        private const val SHUTDOWN_DRAIN_TIMEOUT_SECONDS = 60L
 
         fun create(
             appContext: Context,
