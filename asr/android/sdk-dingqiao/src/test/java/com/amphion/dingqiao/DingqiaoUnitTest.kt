@@ -165,6 +165,18 @@ class DingqiaoEngineConfigTest {
                 extraParams = mapOf("endpointMaxUtteranceMs" to "60000"),
             ),
         )
+        val continuousConfig = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE),
+            speakerModelPath = null,
+            startParams = StartParams(
+                sessionId = "continuous",
+                audioInfo = AudioInfo(),
+                extraParams = mapOf(
+                    "enableContinuousRecognition" to true,
+                    "endpointMaxUtteranceMs" to "60000",
+                ),
+            ),
+        )
         val sessionOverrideConfig = DingqiaoEngineConfig.buildAsrConfig(
             CreateEngineParams(
                 language = "zh-CN",
@@ -177,6 +189,7 @@ class DingqiaoEngineConfigTest {
                 audioInfo = AudioInfo(),
                 extraParams = mapOf(
                     "recognizerMode" to "short",
+                    "enableContinuousRecognition" to true,
                     "endpointMaxUtteranceMs" to "60000",
                 ),
             ),
@@ -185,6 +198,7 @@ class DingqiaoEngineConfigTest {
         assertEquals(60f, shortConfig.endpointRules.rule3MinUtteranceLengthSec)
         assertEquals(-1f, longConfig.endpointRules.rule3MinUtteranceLengthSec)
         assertEquals(60f, defaultConfig.endpointRules.rule3MinUtteranceLengthSec)
+        assertEquals(-1f, continuousConfig.endpointRules.rule3MinUtteranceLengthSec)
         assertEquals(60f, sessionOverrideConfig.endpointRules.rule3MinUtteranceLengthSec)
     }
 

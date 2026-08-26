@@ -73,7 +73,10 @@ Harmony 当前固定使用 `modified_beam_search` 和 `maxActivePaths=8`。Rule3
 | 是否结束 session | 否 | 否 |
 | `finish` | 唯一 last + complete | 唯一 last + complete |
 
-未传 `recognizerMode` 时保持旧调用方的 `short` 硬切行为。长转写、填单和会议 profile 必须显式设置 `long`，以落实不做周期性 Rule3 强切的新语义，同时避免旧业务在升级后丢失周期性 final。
+未传 `recognizerMode` 时，普通旧调用方保持 `short` 硬切行为；已经显式传入
+`enableContinuousRecognition=true` 的连续调用按 `long` 处理，因为该参数既有契约就是保持同一模型
+session 和声学上下文。显式 `recognizerMode` 始终优先，因此 PTT 等明确选择 short 的 profile 不受
+影响。长转写、填单和会议 profile 仍应显式设置 `long`，避免依赖组合参数的缺省推导。
 
 参数命名暂时保留以兼容客户集成，但文档按模式解释其含义。后续大版本可以拆成更准确的内部配置：
 
