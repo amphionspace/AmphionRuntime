@@ -9,11 +9,12 @@ val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
+val sdkVersion = providers.gradleProperty("AMPHION_RUNTIME_VERSION").get()
 
 // -PdingqiaoUseFatAar=true 时用方案 A fat AAR 构建 Demo（与 dingqiao-asr-*.aar 对齐）
 val useFatAar = providers.gradleProperty("dingqiaoUseFatAar").orElse("false").get() == "true"
 val fatAarPath = providers.gradleProperty("dingqiaoFatAarPath").orElse(
-    "${rootProject.projectDir}/build/dingqiao-delivery/dingqiao-asr-v0.1.0.aar",
+    "${rootProject.projectDir}/build/dingqiao-delivery/dingqiao-asr-v$sdkVersion.aar",
 ).get()
 val evalAudioDir = providers.gradleProperty("dingqiaoEvalAudioDir").orNull
 val demoAssetDir = providers.gradleProperty("dingqiaoDemoAssetDir").orNull
@@ -27,7 +28,7 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = sdkVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

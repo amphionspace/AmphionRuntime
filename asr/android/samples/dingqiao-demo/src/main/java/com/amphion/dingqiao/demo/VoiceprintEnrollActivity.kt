@@ -228,6 +228,7 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
                 runOnUiThread {
                     DemoPrefs.setVoiceprintId(this, id)
                     toast(getString(R.string.enroll_success, id))
+                    setResult(RESULT_OK)
                     finish()
                 }
             } catch (t: Throwable) {

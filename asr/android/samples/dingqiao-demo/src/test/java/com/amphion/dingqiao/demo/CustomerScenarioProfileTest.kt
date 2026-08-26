@@ -16,6 +16,7 @@ class CustomerScenarioProfileTest {
                 vadBeginMs = 5_000,
                 vadEndMs = 1_600,
                 maxAudioDurationMs = 20_000,
+                recognizerMode = "short",
                 endpointMaxUtteranceMs = 20_000,
                 enablePartialResult = true,
                 allowVoiceprint = true,
@@ -25,9 +26,13 @@ class CustomerScenarioProfileTest {
             CustomerScenarioProfiles.forScenario(CustomerScenario.TAP_VAD),
         )
         assertEquals(62_000, CustomerScenarioProfiles.forScenario(CustomerScenario.PTT).maxAudioDurationMs)
+        assertEquals("short", CustomerScenarioProfiles.forScenario(CustomerScenario.PTT).recognizerMode)
+        assertEquals("long", CustomerScenarioProfiles.forScenario(CustomerScenario.TRANSCRIPTION).recognizerMode)
         assertEquals(60_000, CustomerScenarioProfiles.forScenario(CustomerScenario.TRANSCRIPTION).endpointMaxUtteranceMs)
         assertEquals(28_800_000, CustomerScenarioProfiles.forScenario(CustomerScenario.FORM).maxAudioDurationMs)
-        assertEquals(18_000_000, CustomerScenarioProfiles.forScenario(CustomerScenario.MEETING_MINUTES).maxAudioDurationMs)
+        assertEquals("long", CustomerScenarioProfiles.forScenario(CustomerScenario.FORM).recognizerMode)
+        assertEquals(7_200_000, CustomerScenarioProfiles.forScenario(CustomerScenario.MEETING_MINUTES).maxAudioDurationMs)
+        assertEquals("long", CustomerScenarioProfiles.forScenario(CustomerScenario.MEETING_MINUTES).recognizerMode)
         assertFalse(CustomerScenarioProfiles.forScenario(CustomerScenario.FORM).allowVoiceprint)
         assertTrue(CustomerScenarioProfiles.forScenario(CustomerScenario.MEETING_MINUTES).lockAudioSource)
     }
