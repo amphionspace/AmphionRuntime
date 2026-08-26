@@ -78,6 +78,8 @@
     <string name="vp_model_unreadable">声纹模型存在但 App 无法读取，请重新安装或清理应用数据后重试</string>
     <string name="vp_registered">已注册声纹：%1$s</string>
     <string name="vp_not_registered">未注册声纹</string>
+    <string name="vp_not_registered_action">未注册声纹 · 点击声纹校验或说话人 VAD 开关进入注册</string>
+    <string name="voiceprint_enabled_hint">声纹校验已开启</string>
     <string name="speaker_score_format">相似度 %.2f</string>
     <string name="speaker_score_tag">[声纹相似度 %.2f]</string>
 

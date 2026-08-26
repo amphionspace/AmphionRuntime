@@ -6,6 +6,28 @@
 - MINOR：新增公开 API 但保持向后兼容
 - PATCH：仅 bug 修复，公开 API 与行为不变
 
+## [0.3.11] - 2026-08-26
+
+新增
+
+- 鼎桥适配层与 Demo 显式支持 `recognizerMode=short|long`。PTT、点击识别使用 `short`；
+  长语音、填单和会议使用 `long`。
+- `long` 使用与 Harmony 相同的 native stable-prefix 机制：不按固定 20/60 秒产生公开 Rule3
+  final，内部压缩不改变公开 token、时间轴或 `isFinal` / `isLast` 语义。
+
+兼容性
+
+- 普通旧调用未传 `recognizerMode` 时保持 `short`；严格布尔
+  `enableContinuousRecognition=true` 且未显式配置模式时使用 `long`，会话级显式配置优先。
+- `endpointMaxUtteranceMs` 仅在 `short` 生效；`long` 仍由自然静音或调用方 `finish` 收口。
+- Demo 与 SDK 版本身份统一为 0.3.11；会议场景默认最长 2 小时。
+
+能力边界
+
+- Harmony 0.3.11 仓库中的 `SpeakerDiarizationConfig.serviceUrl` 仍是实验服务化路径，依赖网络
+  上传 PCM，不满足客户完全离线交付要求。本 Android 版本不暴露或伪装该能力；会议场景提供
+  离线长语音 ASR，待端侧 diarization 模型和断网门禁完成后再新增公共接口。
+
 ## [0.3.3] - 2026-07-30
 
 新增

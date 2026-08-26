@@ -5,6 +5,13 @@
 
 完整交付说明见 **[docs/DINGQIAO_DELIVERY.md](../docs/DINGQIAO_DELIVERY.md)**。
 
+## 0.3.11 场景模式
+
+- 点击 + VAD、短语音 PTT：显式使用 `recognizerMode=short`。
+- 长语音、填单、会议纪要：显式使用 `recognizerMode=long`，固定时长只做 native
+  stable-prefix 压缩，不形成公开 Rule3 final。
+- 会议纪要当前是完全离线的长语音识别 Demo，不接入 Harmony 实验性的联网说话人分离服务。
+
 ## 快速构建（内部）
 
 ```bash
