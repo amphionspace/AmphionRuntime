@@ -19,7 +19,9 @@ export function endpointMaxUtteranceSec(extraParams: Record<string, Object>): nu
 export function rule3Policy(engineExtraParams: Record<string, Object>,
   sessionExtraParams: Record<string, Object>): Rule3Policy {
   const rawMode = sessionExtraParams['recognizerMode'] ?? engineExtraParams['recognizerMode'];
-  const mode = rawMode === undefined ? 'long' : `${rawMode}`.trim().toLowerCase();
+  // Preserve the pre-short/long public behavior for callers that never supplied a mode.
+  // Long-form products opt in explicitly through their scenario profile.
+  const mode = rawMode === undefined ? 'short' : `${rawMode}`.trim().toLowerCase();
   if (mode !== 'short' && mode !== 'long') {
     throw new Error('recognizerMode must be short or long');
   }

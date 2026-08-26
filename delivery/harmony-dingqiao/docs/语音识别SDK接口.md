@@ -225,7 +225,7 @@ endpoint final 会直接成为本 session 的 `isLast=true` 结果，不再追�
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `locate` | `string` | `CN` | 兼容字段；当前仅支持中国区，不改变模型选择 |
-| `recognizerMode` | `string` | `long` | `short` 为有最大单句时长的分段识别；`long` 为会议/持续转写，不做周期性 Rule3 硬切，仅在内部压缩已稳定解码前缀且不产生回调 |
+| `recognizerMode` | `string` | `short` | `short` 保持旧版有最大单句时长的分段识别；`long` 为会议/持续转写，不做周期性 Rule3 硬切，仅在内部压缩已稳定解码前缀且不产生回调 |
 | `sysGeneralLexicon` | `string[]` | 空 | 调用方热词，用于解码 |
 | `disablePrepack` | `boolean/number/string` | `true` | 默认跳过 ORT INT8 权重 prepack，降低冷加载时间和峰值内存；设为 `false` 恢复吞吐优先模式 |
 
@@ -245,7 +245,7 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `recognitionMode` | `number/string` | `1` | 仅支持 `1`（外部写入音频流）；`0`（SDK 内录音）暂不支持 |
-| `recognizerMode` | `string` | engine 配置或 `long` | 会话级覆盖：`short` 使用 `endpointMaxUtteranceMs`；`long` 只按自然静音或 `finish` 公开分段，内部 stable-prefix 压缩不产生 endpoint/final |
+| `recognizerMode` | `string` | engine 配置或 `short` | 会话级覆盖：`short` 使用 `endpointMaxUtteranceMs`；`long` 只按自然静音或 `finish` 公开分段，内部 stable-prefix 压缩不产生 endpoint/final。长转写和会议场景必须显式设置 `long` |
 | `vadBegin` | `number/string` | 未启用 | 首次检测到语音前的静音超时，范围 500 到 10000 ms；仅显式传入时启用 |
 | `enablePartialResult` | `boolean` | `true` | 是否回调中间结果；启用 Speaker VAD 后仍遵循该参数。partial 属于推测结果，可能包含随后从 final 中移除的非目标说话人文本；目标说话人边界保证仅适用于 final |
 | `enablePoliceEnhancement` | `boolean` | `true` | 是否对 final 文本执行警务术语、车牌和派出所归一化；`false` 返回原始 ASR 文本 |

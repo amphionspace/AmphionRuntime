@@ -178,6 +178,11 @@ class HarmonyPrepareRuntimeModelLoadTest(unittest.TestCase):
             """
         )
         self.assertIn("SpeechRecognizeSdk.runtimePreparation.invalidateModel()", self.unload_model)
+        self.assertIn("SpeakerDiarizationRuntimeLeaseRegistry.hasActiveLeases()", self.unload_model)
+        self.assertLess(
+            self.unload_model.index("SpeakerDiarizationRuntimeLeaseRegistry.hasActiveLeases()"),
+            self.unload_model.index("SpeakerDiarizationRuntimeLeaseRegistry.beginRelease()"),
+        )
         self.assertIn("prepareRuntime cancelled by unloadModel", self.prepare)
 
     def test_invalidation_before_preload_stops_the_old_task(self) -> None:

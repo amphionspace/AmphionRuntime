@@ -1685,6 +1685,10 @@ export class SpeechRecognizeSdk {
    */
   static unloadModel(): void {
     SpeechRecognizeSdk.runtimePreparation.invalidateModel();
+    if (!SpeakerDiarizationRuntimeLeaseRegistry.hasActiveLeases()) {
+      AmphionRuntime.unloadModel();
+      return;
+    }
     void SpeakerDiarizationRuntimeLeaseRegistry.beginRelease().then((): void => {
       try { AmphionRuntime.unloadModel(); } finally { SpeakerDiarizationRuntimeLeaseRegistry.endRelease(); }
     });
@@ -1701,6 +1705,10 @@ export class SpeechRecognizeSdk {
   private static invalidateRuntime(): void {
     SpeechRecognizeSdk.runtimePreparation.invalidateRuntime();
     // Promise 不可取消；清掉 wrapper 引用并让 core generation 拒绝旧任务提交。
+    if (!SpeakerDiarizationRuntimeLeaseRegistry.hasActiveLeases()) {
+      AmphionRuntime.release();
+      return;
+    }
     void SpeakerDiarizationRuntimeLeaseRegistry.beginRelease().then((): void => {
       try { AmphionRuntime.release(); } finally { SpeakerDiarizationRuntimeLeaseRegistry.endRelease(); }
     });

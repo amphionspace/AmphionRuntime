@@ -184,7 +184,7 @@ class DingqiaoEngineConfigTest {
 
         assertEquals(60f, shortConfig.endpointRules.rule3MinUtteranceLengthSec)
         assertEquals(-1f, longConfig.endpointRules.rule3MinUtteranceLengthSec)
-        assertEquals(-1f, defaultConfig.endpointRules.rule3MinUtteranceLengthSec)
+        assertEquals(60f, defaultConfig.endpointRules.rule3MinUtteranceLengthSec)
         assertEquals(60f, sessionOverrideConfig.endpointRules.rule3MinUtteranceLengthSec)
     }
 

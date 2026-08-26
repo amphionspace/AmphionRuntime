@@ -36,6 +36,8 @@ export class SpeakerDiarizationRuntimeLeaseRegistry {
 
   static isReleasePending(): boolean { return this.releaseRequests > 0; }
 
+  static hasActiveLeases(): boolean { return this.activeLeases > 0; }
+
   static releaseOne(): void {
     if (this.activeLeases <= 0) return;
     this.activeLeases -= 1;
