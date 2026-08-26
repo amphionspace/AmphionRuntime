@@ -6,6 +6,43 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
+    def test_0311_versions_and_upgrade_contract_are_consistent(self) -> None:
+        changelog = (
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/CHANGELOG.md"
+        ).read_text(encoding="utf-8")
+        notes_0311 = changelog.split("## 0.3.11", 1)[1].split("\n## ", 1)[0]
+        upgrade = (
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.11.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("相对 0.3.10", notes_0311)
+        self.assertIn("recognizerMode=short/long", notes_0311)
+        self.assertIn("Speaker VAD", notes_0311)
+        self.assertIn("endpointMaxUtteranceMs", upgrade)
+        self.assertIn("enableContinuousRecognition=true", upgrade)
+        self.assertIn("SpeakerDiarizationConfig", upgrade)
+
+        version_files = {
+            "asr/harmony/sdk/oh-package.json5": '"version": "0.3.11"',
+            "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.11"',
+            "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.11"',
+            "delivery/harmony-dingqiao/oh-package.json5": '"version": "0.3.11"',
+            "delivery/harmony-dingqiao/AppScope/app.json5": '"versionName": "0.3.11"',
+            "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts": "'0.3.11'",
+        }
+        for relative, expected in version_files.items():
+            with self.subTest(relative=relative):
+                self.assertIn(
+                    expected,
+                    (REPO_ROOT / relative).read_text(encoding="utf-8"),
+                )
+
+        pack_script = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("UPGRADE_0.3.11.md", pack_script)
+
     def test_039_changelog_limits_the_release_to_public_log_configuration(self) -> None:
         changelog = (
             REPO_ROOT / "delivery/harmony-dingqiao/docs/CHANGELOG.md"
