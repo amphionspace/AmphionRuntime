@@ -47,7 +47,9 @@
    0、负数、非有限值和非法类型按未启用处理，不得回退到隐式 20000 ms。
 3. 显式传入 `enableContinuousRecognition=true` 时，SDK 必须保持同一模型会话并忽略
    `maxAudioDuration` 自动上限；在调用方显式 `finish` 前不得产生 `isLast=true`。省略、`false`
-   或字符串 `"true"` 不得改变既有最大时长语义。
+   或字符串 `"true"` 不得改变既有最大时长语义。未显式设置 `recognizerMode` 时，严格布尔值
+   `true` 同时选择 `long`，避免连续 session 落入有损 Rule3 hard checkpoint；显式 short/long
+   始终优先。
 4. 达到上限后应回调 `onResult(isFinal=true,isLast=true)` 和 `onComplete`，不得回调 `MAX_AUDIO_DURATION`。
 5. 自动结束后 `isBusy()==false`，可立即再次 `startListening`。
 6. `NaN`、正负无穷、空字符串、非法字符串及非数字类型均视为未配置，不得隐式启用 20000 ms 上限。
@@ -64,10 +66,13 @@
 1. `recognizerMode=short` 时，缺省、非正数、非有限值或非法类型使用 native rule3 默认值
    20000 ms；正有限数字或可解析字符串按毫秒转换为 rule3 秒数。
 2. short 模式的 Rule3 只改变单句 final 边界，不得产生 `isLast=true` 或 `onComplete`。
-3. `recognizerMode=long`（也是缺省模式）不得在 20/60 秒触发 Rule3；会议依靠 Rule1/Rule2
+3. `recognizerMode=long` 不得在 20/60 秒触发 Rule3；会议依靠 Rule1/Rule2
    自然静音或调用方 `finish` 分段。`endpointMaxUtteranceMs` 在 long 模式不生效。
 4. recognizer 复用键必须包含生效后的模式和 rule3 值；short/long 相邻 session 不得复用错误配置。
 5. PTT 和点击识别 profile 使用 short；长转写、填单和会议纪要 profile 使用 long。
+6. 未传 `recognizerMode` 时，普通旧调用保持 short；已显式传入
+   `enableContinuousRecognition=true` 的既有连续调用使用 long。字符串 `"true"` 不触发该语义，
+   显式 `recognizerMode=short` 也不得被 continuous 参数覆盖。
 
 ## 4. vadBegin 与参数兼容
 
@@ -81,8 +86,9 @@
    final 中移除的非目标说话人文本。非目标片段被拒绝时必须在拒绝事件后回调空 final；non-last
    rejection 不得触发 `onComplete` 或结束 session，last rejection 仍只能产生一次 last/complete。
 6. `recognitionMode` 缺省为 `STREAM=1`；传入 `RECORD=0` 应启动失败并明确提示不支持 SDK 内录音。
-7. `recognizerMode` 只接受 `short` / `long`；short 启用 `endpointMaxUtteranceMs` 硬切句，long
-   不使用周期性 Rule3。`StartParams.extraParams` 可覆盖 engine 缺省模式。
+7. `recognizerMode` 只接受 `short` / `long`；普通调用缺省保持兼容的 short，严格启用 continuous
+   且未显式选模式时缺省为 long。short 启用 `endpointMaxUtteranceMs` 硬切句，long 不使用周期性
+   Rule3。`StartParams.extraParams` 可覆盖 engine 缺省模式。
 8. `locate` 当前仅兼容接受 `CN`；`sessionGeneralLexicon` 明确为 V1 不支持，不得伪装生效。
 9. 鼎桥声纹配置固定 `minSegSec=0`，不额外延长 `vadBegin`；纯静音或未被 VAD/ASR 确认的活动仍按钳制后的 `vadBegin` 结束。
 10. 组合回归必须交替覆盖实时/突发喂入和直接起音/前置静音；足够长语音在显式 `finish` 前不得出现 `isLast`，第一个非空 final 必须带分数；probe 可产生 non-last final，因此不能把总 final 数硬编码为 1。

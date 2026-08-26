@@ -5,7 +5,9 @@
 - 将 `recognizerMode=short/long` 落实为两种 endpoint 语义：short 保留可配置的单句 Rule3
   硬上限；long 不再在 20/60 秒强切，避免会议连续讲话在任意时长边界冻结 modified beam 候选。
   `StartParams.extraParams['recognizerMode']` 可覆盖 engine 缺省值，既有 PTT/点击识别 profile 使用
-  short，长转写、填单和会议纪要使用 long。
+  short，长转写、填单和会议纪要使用 long。未传该参数的普通旧调用方继续按 short 处理；已显式
+  开启 `enableContinuousRecognition=true` 的连续调用使用 long，避免同一模型 session 被有损 Rule3
+  checkpoint 截断。显式 short/long 始终优先。
 - long 模式新增无公开回调的 stable-prefix 内部压缩：只提交所有活跃 beam 共同确认的 token/frame
   前缀，保留未决候选、encoder/LM/context 状态；无稳定前缀时延后重试。Harmony 与 Android 使用
   同一 native 实现，`endpointMaxUtteranceMs` 仍只对 short 的硬 final 生效。

@@ -461,7 +461,9 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             import assert from 'node:assert/strict';
             import {{ SpeakerDiarizationRuntimeLeaseRegistry }} from {RUNTIME_LEASE.as_uri()!r};
 
+            assert.equal(SpeakerDiarizationRuntimeLeaseRegistry.hasActiveLeases(), false);
             const lease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
+            assert.equal(SpeakerDiarizationRuntimeLeaseRegistry.hasActiveLeases(), true);
             let released = false;
             const waiting = SpeakerDiarizationRuntimeLeaseRegistry.beginRelease().then(() => {{
               released = true;
@@ -473,6 +475,7 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             lease.release();
             await waiting;
             assert.equal(released, true);
+            assert.equal(SpeakerDiarizationRuntimeLeaseRegistry.hasActiveLeases(), false);
             const next = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
             next.release();
             """

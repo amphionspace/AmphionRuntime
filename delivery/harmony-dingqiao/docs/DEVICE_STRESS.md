@@ -87,7 +87,7 @@ bundle 信息写入 artifact；它不能证明已安装 HAP 与当前源码一�
 | `cancel-full` | 完整音频解码后取消，隔离正常 finish 路径 |
 | `max-duration` | 显式配置 8 秒，交替 burst/paced 并精确在 400 个 20 ms 帧后自动结束；验证 80 个迟到帧、单次 complete 和下一轮重启 |
 | `continuous-long-session` | 同时配置 8 秒上限和 continuous，要求单个 model session 实时写入超过 60 秒，显式 finish 前无 last、最终唯一 last/complete，并通过 SHA-256 绑定的尾字断言；两轮运行用于区分首次驻留与持续内存增长 |
-| `continuous-voiceprint-speaker-vad` | continuous 同时启用声纹校验和 Speaker VAD；要求完整写入长语音、每个非空 final 都带真实 `speakerSimilarity`、显式 finish 前无 last、最终唯一 last/complete，并通过尾字断言 |
+| `continuous-voiceprint-speaker-vad` | continuous 同时启用声纹校验和 Speaker VAD；语料尾部必须属于已注册的同一目标说话人，要求完整写入长语音、每个非空 final 都带真实 `speakerSimilarity`、显式 finish 前无 last、最终唯一 last/complete，并通过尾字断言 |
 | `reconfigure` | 轮换 VAD 参数，覆盖引擎替换和旧引擎释放 |
 | `recreate` | 每轮创建引擎并连续 shutdown 两次 |
 | `edge` | 空闲调用、非法 session/帧、串 session、busy、重复 finish |

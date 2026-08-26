@@ -256,12 +256,21 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: Number.NaN }}), 20);
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: 0 }}), 20);
             assert.deepEqual(rule3Policy({{}}, {{ endpointMaxUtteranceMs: 60000 }}),
+              {{ mode: 'short', enabled: true, minUtteranceSec: 60 }});
+            assert.deepEqual(rule3Policy({{}},
+              {{ enableContinuousRecognition: true, endpointMaxUtteranceMs: 60000 }}),
               {{ mode: 'long', enabled: false, minUtteranceSec: -1 }});
+            assert.deepEqual(rule3Policy({{}},
+              {{ enableContinuousRecognition: false, endpointMaxUtteranceMs: 60000 }}),
+              {{ mode: 'short', enabled: true, minUtteranceSec: 60 }});
+            assert.deepEqual(rule3Policy({{}},
+              {{ enableContinuousRecognition: 'true', endpointMaxUtteranceMs: 60000 }}),
+              {{ mode: 'short', enabled: true, minUtteranceSec: 60 }});
             assert.deepEqual(rule3Policy({{ recognizerMode: 'long' }},
               {{ endpointMaxUtteranceMs: 60000 }}),
               {{ mode: 'long', enabled: false, minUtteranceSec: -1 }});
             assert.deepEqual(rule3Policy({{ recognizerMode: 'short' }},
-              {{ endpointMaxUtteranceMs: 60000 }}),
+              {{ enableContinuousRecognition: true, endpointMaxUtteranceMs: 60000 }}),
               {{ mode: 'short', enabled: true, minUtteranceSec: 60 }});
             assert.deepEqual(rule3Policy({{ recognizerMode: 'long' }},
               {{ recognizerMode: 'short', endpointMaxUtteranceMs: 60000 }}),
@@ -279,6 +288,12 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
                 {{ recognizerMode: 'short', endpointMaxUtteranceMs: 20000 }}),
               endpointRecognizerConfigKey(false, false, {{}},
                 {{ recognizerMode: 'long', endpointMaxUtteranceMs: 20000 }}),
+            );
+            assert.notEqual(
+              endpointRecognizerConfigKey(false, false, {{}},
+                {{ endpointMaxUtteranceMs: 20000 }}),
+              endpointRecognizerConfigKey(false, false, {{}},
+                {{ enableContinuousRecognition: true, endpointMaxUtteranceMs: 20000 }}),
             );
             assert.equal(isValidRule3MinUtteranceSec(-1), true);
             assert.equal(isValidRule3MinUtteranceSec(60), true);
