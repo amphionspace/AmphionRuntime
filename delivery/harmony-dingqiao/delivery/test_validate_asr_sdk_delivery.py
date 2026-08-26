@@ -24,8 +24,8 @@ SPEC.loader.exec_module(MODULE)
 FIXTURE_MODEL_MD5 = {
     "asset.onnx": hashlib.md5(b"approved source").hexdigest(),
 }
-FIXTURE_VERSION = "0.3.9"
-FIXTURE_RELEASE_DATE = "2026-08-24"
+FIXTURE_VERSION = "0.3.11"
+FIXTURE_RELEASE_DATE = "2026-08-26"
 FIXTURE_ROOT_NAME = (
     f"amphion-harmony-asr-sdk-v{FIXTURE_VERSION}-{FIXTURE_RELEASE_DATE.replace('-', '')}"
 )
@@ -66,7 +66,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             path.write_text(f"fixture for {relative}\n", encoding="utf-8")
         (root / "docs/CHANGELOG.md").write_text(
             "# ASR SDK 更新日志\n\n"
-            "## HarmonyOS ASR SDK 0.3.9\n\n"
+            "## HarmonyOS ASR SDK 0.3.11\n\n"
             "- 目标说话人增强仅预留接口；本交付不包含所需模型，不能启用。\n\n"
             "## 源码提交明细\n",
             encoding="utf-8",

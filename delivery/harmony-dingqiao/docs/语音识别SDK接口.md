@@ -4,8 +4,8 @@
 
 | 文档项 | 值 |
 | --- | --- |
-| 文档版本 | v1.6（long-form 识别与 Speaker Diarization 增量角色分离接口） |
-| 更新日期 | 2026-08-25 |
+| 文档版本 | v1.7（SDK 0.3.11：short/long 语义与 Speaker Diarization） |
+| 更新日期 | 2026-08-26 |
 | SDK 依赖 | `amphion_dingqiao` |
 
 SDK 依赖名为 `amphion_dingqiao`，核心入口为 `SpeechRecognizeSdk`。本版包含 License、Runtime、Model 三层生命周期控制，以及内置声纹模型的按需加载策略，便于宿主控制模型内存和识别启动时延。
@@ -98,7 +98,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 日志等级设为 `INFO` 后，首次 `prepareRuntime` 初始化成功会在 Harmony hilog 输出：
 
 ```text
-[AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.9, license=LICENSED
+[AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.11, license=LICENSED
 ```
 
 可通过 DevEco Studio Log 或 `hdc shell hilog | grep "AmphionRuntime Harmony init done"` 查看。
