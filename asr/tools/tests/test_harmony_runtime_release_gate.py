@@ -339,6 +339,17 @@ class HarmonyRuntimeReleaseGateTest(unittest.TestCase):
             adapter_release.index("AmphionRuntime.releaseAsync()"),
         )
         self.assertIn("finally", adapter_release)
+        adapter_sync_release = adapter.split(
+            "private static invalidateRuntime(): void", 1
+        )[1].split("private static async invalidateRuntimeAsync", 1)[0]
+        self.assertIn(
+            "SpeakerDiarizationRuntimeLeaseRegistry.hasActiveLeases()",
+            adapter_sync_release,
+        )
+        self.assertLess(
+            adapter_sync_release.index("SpeakerDiarizationRuntimeLeaseRegistry.hasActiveLeases()"),
+            adapter_sync_release.index("SpeakerDiarizationRuntimeLeaseRegistry.beginRelease()"),
+        )
         self.assertIn("AmphionRuntime.isReleasePending()", adapter)
         self.assertGreaterEqual(adapter.count("licenseRequests.isCurrent(requestGeneration)"), 3)
 

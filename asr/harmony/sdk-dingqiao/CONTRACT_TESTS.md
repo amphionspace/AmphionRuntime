@@ -64,7 +64,7 @@
 1. `recognizerMode=short` 时，缺省、非正数、非有限值或非法类型使用 native rule3 默认值
    20000 ms；正有限数字或可解析字符串按毫秒转换为 rule3 秒数。
 2. short 模式的 Rule3 只改变单句 final 边界，不得产生 `isLast=true` 或 `onComplete`。
-3. `recognizerMode=long`（也是缺省模式）不得在 20/60 秒触发 Rule3；会议依靠 Rule1/Rule2
+3. `recognizerMode=long` 不得在 20/60 秒触发 Rule3；会议依靠 Rule1/Rule2
    自然静音或调用方 `finish` 分段。`endpointMaxUtteranceMs` 在 long 模式不生效。
 4. recognizer 复用键必须包含生效后的模式和 rule3 值；short/long 相邻 session 不得复用错误配置。
 5. PTT 和点击识别 profile 使用 short；长转写、填单和会议纪要 profile 使用 long。
@@ -81,7 +81,7 @@
    final 中移除的非目标说话人文本。非目标片段被拒绝时必须在拒绝事件后回调空 final；non-last
    rejection 不得触发 `onComplete` 或结束 session，last rejection 仍只能产生一次 last/complete。
 6. `recognitionMode` 缺省为 `STREAM=1`；传入 `RECORD=0` 应启动失败并明确提示不支持 SDK 内录音。
-7. `recognizerMode` 只接受 `short` / `long`；short 启用 `endpointMaxUtteranceMs` 硬切句，long
+7. `recognizerMode` 只接受 `short` / `long`；缺省保持兼容的 short，short 启用 `endpointMaxUtteranceMs` 硬切句，long
    不使用周期性 Rule3。`StartParams.extraParams` 可覆盖 engine 缺省模式。
 8. `locate` 当前仅兼容接受 `CN`；`sessionGeneralLexicon` 明确为 V1 不支持，不得伪装生效。
 9. 鼎桥声纹配置固定 `minSegSec=0`，不额外延长 `vadBegin`；纯静音或未被 VAD/ASR 确认的活动仍按钳制后的 `vadBegin` 结束。

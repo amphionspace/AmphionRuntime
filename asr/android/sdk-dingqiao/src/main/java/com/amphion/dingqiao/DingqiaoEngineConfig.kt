@@ -158,7 +158,7 @@ internal object DingqiaoEngineConfig {
             ?.toString()
             ?.trim()
             ?.lowercase()
-            ?: "long"
+            ?: "short"
         require(mode == "short" || mode == "long") {
             "recognizerMode must be short or long"
         }

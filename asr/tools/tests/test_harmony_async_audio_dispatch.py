@@ -256,7 +256,7 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: Number.NaN }}), 20);
             assert.equal(endpointMaxUtteranceSec({{ endpointMaxUtteranceMs: 0 }}), 20);
             assert.deepEqual(rule3Policy({{}}, {{ endpointMaxUtteranceMs: 60000 }}),
-              {{ mode: 'long', enabled: false, minUtteranceSec: -1 }});
+              {{ mode: 'short', enabled: true, minUtteranceSec: 60 }});
             assert.deepEqual(rule3Policy({{ recognizerMode: 'long' }},
               {{ endpointMaxUtteranceMs: 60000 }}),
               {{ mode: 'long', enabled: false, minUtteranceSec: -1 }});
