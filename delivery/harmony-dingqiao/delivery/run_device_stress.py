@@ -239,6 +239,11 @@ def run(command: list[str], *, check: bool = True, capture: bool = True) -> subp
     )
 
 
+def append_nonempty_string_parameter(command: list[str], key: str, value: str) -> None:
+    if value:
+        command.extend(("--ps", key, value))
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -1188,7 +1193,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     hdc.shell("hilog", "-r", check=False)
     hdc.shell("aa", "force-stop", BUNDLE, check=False)
 
-    start_result = hdc.shell(
+    start_command = [
         "aa", "start", "-a", ABILITY, "-b", BUNDLE, "-m", MODULE,
         "--ps", "stress", "true",
         "--ps", "stressRunId", run_id,
@@ -1207,10 +1212,19 @@ def run_stress(args: argparse.Namespace) -> Path:
         ",".join(sorted(finish_recovery_entry_ids)) or "none",
         "--ps", "stressSpeakerVadThreshold",
         str((args.speaker_vad_threshold if args.speaker_vad_threshold is not None else -2) + 2),
-        "--ps", "stressSpeakerDiarizationServiceUrl", args.speaker_diarization_service_url,
-        check=False,
+    ]
+    append_nonempty_string_parameter(
+        start_command,
+        "stressSpeakerDiarizationServiceUrl",
+        args.speaker_diarization_service_url,
     )
-    if start_result.returncode != 0 or "error" in (start_result.stdout + start_result.stderr).lower():
+    start_result = hdc.shell(*start_command, check=False)
+    start_output = (start_result.stdout + start_result.stderr).lower()
+    if (
+        start_result.returncode != 0
+        or "error" in start_output
+        or "invalid number of parameters" in start_output
+    ):
         raise StressFailure(f"failed to start stress ability: {(start_result.stdout + start_result.stderr).strip()}")
 
     samples: list[MemorySample] = []
