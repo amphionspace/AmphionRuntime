@@ -26,6 +26,25 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_empty_optional_ability_parameter_is_not_sent(self) -> None:
+        command = ["aa", "start"]
+
+        MODULE.append_nonempty_string_parameter(
+            command, "stressSpeakerDiarizationServiceUrl", ""
+        )
+        self.assertEqual(["aa", "start"], command)
+
+        MODULE.append_nonempty_string_parameter(
+            command, "stressSpeakerDiarizationServiceUrl", "http://127.0.0.1/window"
+        )
+        self.assertEqual(
+            [
+                "aa", "start", "--ps", "stressSpeakerDiarizationServiceUrl",
+                "http://127.0.0.1/window",
+            ],
+            command,
+        )
+
     def test_customer_tail_manifest_binds_expected_suffix_to_source_hash(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             manifest = Path(directory) / "tail.json"
