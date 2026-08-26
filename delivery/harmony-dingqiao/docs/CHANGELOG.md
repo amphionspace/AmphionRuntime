@@ -1,8 +1,8 @@
 # Changelog
 
-## 未发布 - 2026-08-24（热词安全与警务后处理）
+## 0.3.11 - 2026-08-26（short/long 识别模式与 Speaker VAD 短句修复）
 
-- 将 `recognizerMode=short/long` 落实为两种 endpoint 语义：short 保留可配置的单句 Rule3
+- 相对 0.3.10，将 `recognizerMode=short/long` 落实为两种 endpoint 语义：short 保留可配置的单句 Rule3
   硬上限；long 不再在 20/60 秒强切，避免会议连续讲话在任意时长边界冻结 modified beam 候选。
   `StartParams.extraParams['recognizerMode']` 可覆盖 engine 缺省值，既有 PTT/点击识别 profile 使用
   short，长转写、填单和会议纪要使用 long。未传该参数的普通旧调用方继续按 short 处理；已显式
@@ -15,6 +15,10 @@
   曾稳定将“见警率”回退为“警情人员”。继续保留原有 ContextGraph 热词能力，不启用该预裁剪策略。
 - 针对 cp5500 新模型的稳定残差，补充冀 R 车牌前缀、派出所闭集名称和 `e警保` 的受限纠错；
   Android/Harmony 保持同一规则与负例护栏，不对普通编号、通用词或歧义警务术语做全局替换。
+- 修复 `recognizerMode=short` 且开启 Speaker VAD 时，目标说话人的短句在换人边界可能丢失
+  开头文字的问题；不改变非目标说话人过滤、final/last/complete 顺序和声纹打分契约。
+- 本版同时包含已公开的 Speaker Diarization 配置与回调类型；未开启时不改变原有 ASR
+  回调链。完整升级说明见 `UPGRADE_0.3.11.md`。
 
 ## 0.3.9 - 2026-08-24（开放 Runtime 日志等级）
 

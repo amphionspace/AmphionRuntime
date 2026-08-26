@@ -1,7 +1,7 @@
 {
   "modelVersion": "5.0.0",
   "name": "amphion-runtime-harmony",
-  "version": "0.3.9",
+  "version": "0.3.11",
   "description": "Amphion Runtime for HarmonyOS NEXT",
   "license": "Commercial",
   "dependencies": {},
