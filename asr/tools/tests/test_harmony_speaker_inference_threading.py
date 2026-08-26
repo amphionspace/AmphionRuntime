@@ -26,6 +26,10 @@ REENTRY_QUEUE = (
     REPO_ROOT
     / "asr/harmony/sdk/src/main/ets/com/amphion/asr/SessionReentryQueue.ts"
 )
+TURN_FINALIZER = (
+    REPO_ROOT
+    / "asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerTurnFinalizer.ts"
+)
 TS_LOADER = REPO_ROOT / "asr/tools/tests/ts_extension_loader.mjs"
 
 
@@ -232,7 +236,7 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         self.assertIn("this.speakerInferenceLane.whenIdle()", self.runtime)
         self.assertIn("this.speakerInferenceLane.pending()", release)
         self.assertIn("this.svInferenceLoopActive = false", close)
-        self.assertIn("this.svQueuedInference = undefined", close)
+        self.assertIn("this.svQueuedInferences = []", close)
 
     def test_async_reentry_uses_async_audio_and_finish_paths(self) -> None:
         accept = method_body(self.runtime, "acceptPcmFloatNowAsync")
@@ -415,27 +419,114 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         self.assertRegex(native, r"CompleteProcess\(napi_env env, napi_status status,")
         self.assertRegex(native, r"CompleteLoad\(napi_env env, napi_status status,")
 
-    def test_trailing_silence_vad_does_not_wait_for_speaker_or_decode(self) -> None:
+    def test_unresolved_speaker_boundary_settles_before_speculative_asr_decode(self) -> None:
         body = method_body(self.runtime, "feedChunkAndDecodeAsync")
         vad = body.find("advanceVadGate")
         speaker = body.find("enqueueSpeakerVadInference")
+        unresolved = body.find("const speakerBoundaryUnresolved")
+        backpressure = body.find("const speakerInferenceBackpressured", speaker)
+        guarded_drain = body.find("!await this.drainSpeakerInferenceAsync()", backpressure)
         decode = body.find("await this.feedRecognizerAsync")
         self.assertGreaterEqual(vad, 0, "async audio path must advance VAD explicitly")
         self.assertGreaterEqual(speaker, 0, "speaker inference must use its serial lane")
+        self.assertGreaterEqual(unresolved, 0, "speaker boundary state must be explicit")
+        self.assertGreaterEqual(backpressure, 0, "queued score hops must apply backpressure")
+        self.assertGreaterEqual(guarded_drain, 0, "unresolved speaker score must settle")
         self.assertGreaterEqual(decode, 0, "async decode call missing")
-        self.assertLess(vad, speaker, "trailing-silence VAD waits for speaker inference")
-        self.assertLess(vad, decode, "trailing-silence VAD waits for ASR decode")
-        self.assertNotIn("await this.enqueueSpeakerVadInference", body)
+        self.assertIn("!this.svTargetConfirmed", body[unresolved:speaker])
+        self.assertIn("this.svBelowCount > 0", body[unresolved:speaker])
+        self.assertIn("this.svAwaitingTargetAfterDeparture", body[unresolved:speaker])
+        self.assertLess(vad, speaker)
+        self.assertLess(speaker, backpressure)
+        self.assertLess(backpressure, guarded_drain)
+        self.assertLess(guarded_drain, decode,
+                        "speculative ASR must not cross an unresolved speaker hop")
 
-    def test_speaker_inference_backpressure_coalesces_one_latest_window(self) -> None:
+    def test_speaker_inference_backpressure_preserves_every_score_hop(self) -> None:
         enqueue = method_body(self.runtime, "enqueueSpeakerVadInference")
         active = enqueue.index("this.svInferenceLoopActive")
-        coalesce = enqueue.index("this.svQueuedInference = request", active)
+        queue = enqueue.index("this.svQueuedInferences.push(request)", active)
         submit = enqueue.index("this.speakerInferenceLane.submit")
-        self.assertLess(active, coalesce)
-        self.assertLess(coalesce, submit)
-        self.assertIn("decision=coalesce", enqueue)
-        self.assertNotIn("reason=inference-backpressure", enqueue)
+        shift = enqueue.index("this.svQueuedInferences.shift()", submit)
+        self.assertLess(active, queue)
+        self.assertLess(queue, submit)
+        self.assertLess(submit, shift)
+        self.assertIn("decision=queue", enqueue)
+        self.assertNotIn("svQueuedInference = request", enqueue)
+
+    def test_fixed_alternating_pcm_keeps_returning_target_after_rejected_turn(self) -> None:
+        feed = method_body(self.runtime, "feedChunkAndDecodeAsync")
+        settle = feed.index("if (!replay && this.svInferenceLoopActive)")
+        drain = feed.index("await this.drainSpeakerInferenceAsync()", settle)
+        own_public_clock = feed.index("this.publicSamplesFed += rawSamples.length")
+        own_effective = feed.index("this.effectiveSpeechBuffer.observe(rawSamples)")
+        own_speaker = feed.index("this.speakerPcmBuffers.observe(")
+        own_finalizer = feed.index(".accept(rawSamples, processedSamples)")
+        self.assertLess(settle, drain)
+        self.assertLess(drain, own_public_clock)
+        self.assertLess(drain, own_effective)
+        self.assertLess(drain, own_speaker)
+        self.assertLess(drain, own_finalizer)
+
+        script = textwrap.dedent(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ SpeakerTurnFinalizer }} from {TURN_FINALIZER.as_uri()!r};
+
+            const hop = 500;
+            const owner = new Float32Array(hop);
+            const other = new Float32Array(hop);
+            for (let i = 0; i < hop; i++) {{
+              owner[i] = i % 2 === 0 ? 0.20 : -0.20;
+              other[i] = i % 3 === 0 ? 0.08 : -0.08;
+            }}
+            const timeline = [owner, owner, other, other, owner, owner];
+            const scores = [0.66, 0.61, 0.18, 0.10, 0.63, 0.59];
+
+            const firstTurn = new SpeakerTurnFinalizer(1_000, 1_000, hop, 2, 10_000);
+            const states = [];
+            for (let i = 0; i < 4; i++) {{
+              firstTurn.accept(timeline[i]);
+              states.push(firstTurn.observeScore((i + 1) * hop, scores[i], 0.35));
+            }}
+            assert.deepEqual(states,
+              ['target-confirmed', 'target-active', 'below', 'departure']);
+
+            const returningTurn = new SpeakerTurnFinalizer(1_000, 1_000, hop, 2, 10_000);
+            returningTurn.accept(timeline[4]);
+            returningTurn.accept(timeline[5]);
+            assert.equal(returningTurn.observeScore(hop, scores[4], 0.35), 'target-confirmed');
+            assert.equal(returningTurn.observeScore(hop * 2, scores[5], 0.35), 'target-active');
+            assert.equal(returningTurn.isTargetConfirmed(), true,
+              'returning owner was lost after the rejected speaker boundary');
+
+            // The former single-slot coalescing path replaced the first low hop with the second;
+            // one low score followed by the returning owner cannot close the non-owner boundary.
+            const coalesced = new SpeakerTurnFinalizer(1_000, 1_000, hop, 2, 10_000);
+            for (const [index, score] of [0.66, 0.61, 0.10, 0.63].entries()) {{
+              coalesced.accept(timeline[Math.min(index, timeline.length - 1)]);
+              coalesced.observeScore((index + 1) * hop, score, 0.35);
+            }}
+            assert.equal(coalesced.hasPendingDeparture(), false,
+              'red baseline must demonstrate the dropped intermediate score');
+            """
+        )
+        subprocess.run(
+            [
+                "node",
+                "--experimental-strip-types",
+                "--experimental-loader",
+                TS_LOADER.as_uri(),
+                "--input-type=module",
+                "-e",
+                script,
+            ],
+            check=True,
+            cwd=REPO_ROOT,
+        )
+
+        self.assertNotIn("svRejectedOverflow", self.runtime)
+        self.assertNotIn("replay-rejected-overflow", self.runtime)
 
     def test_async_turn_context_wait_has_the_same_bounded_policy(self) -> None:
         evaluate = method_body(self.runtime, "evaluateSpeakerVadInferenceAsync")
