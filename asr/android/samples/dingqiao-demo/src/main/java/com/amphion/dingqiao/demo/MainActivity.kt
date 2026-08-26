@@ -59,6 +59,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvPartial: TextView
     private lateinit var tvFinal: TextView
     private lateinit var tvStatus: TextView
+    private lateinit var statusRow: LinearLayout
+    private lateinit var statusDot: View
+    private lateinit var tvRecordingBadge: TextView
     private lateinit var tvVoiceprintInfo: TextView
     private lateinit var tvScenarioInfo: TextView
     private lateinit var progress: ProgressBar
@@ -236,6 +239,9 @@ class MainActivity : AppCompatActivity() {
         tvPartial = findViewById(R.id.tv_partial)
         tvFinal = findViewById(R.id.tv_final)
         tvStatus = findViewById(R.id.tv_status)
+        statusRow = findViewById(R.id.status_row)
+        statusDot = findViewById(R.id.view_status_dot)
+        tvRecordingBadge = findViewById(R.id.tv_recording_badge)
         tvVoiceprintInfo = findViewById(R.id.tv_voiceprint_info)
         tvScenarioInfo = findViewById(R.id.tv_scenario_info)
         progress = findViewById(R.id.progress)
@@ -1192,6 +1198,7 @@ class MainActivity : AppCompatActivity() {
             listening -> getString(R.string.btn_talk_stop)
             else -> getString(R.string.btn_talk_start)
         }
+        renderRecognitionRecordingState()
         btnTalk.isEnabled = runtimeReady && !stoppingListening && !coldReleasePending &&
             !replaying && !playingCapture && !modelReleaseInProgress
         btnPlayCapture.text = getString(if (playingCapture) R.string.playing_last_pcm else R.string.play_last_pcm)
@@ -1202,6 +1209,33 @@ class MainActivity : AppCompatActivity() {
         etCaseNote.isEnabled = !configLocked
         updateScenarioUi()
         refreshVoiceprintUi()
+    }
+
+    private fun renderRecognitionRecordingState() {
+        val recording = listening
+        btnTalk.setBackgroundResource(
+            if (recording) R.drawable.bg_button_recording else R.drawable.bg_button_primary,
+        )
+        btnTalk.setCompoundDrawablesRelativeWithIntrinsicBounds(
+            if (recording) R.drawable.ic_mic_stop else R.drawable.ic_mic,
+            0,
+            0,
+            0,
+        )
+        statusRow.setBackgroundResource(
+            if (recording) R.drawable.bg_status_recording else R.drawable.bg_status_panel,
+        )
+        statusDot.backgroundTintList = ColorStateList.valueOf(
+            ContextCompat.getColor(this, if (recording) R.color.brand_live else R.color.brand_idle),
+        )
+        tvRecordingBadge.visibility = if (recording) View.VISIBLE else View.GONE
+        tvStatus.setTextColor(
+            ContextCompat.getColor(
+                this,
+                if (recording) R.color.brand_recording else R.color.brand_text_secondary,
+            ),
+        )
+        tvStatus.setTypeface(null, if (recording) Typeface.BOLD else Typeface.NORMAL)
     }
 
     private fun reloadEngineForHotwords() {
