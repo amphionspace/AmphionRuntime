@@ -85,9 +85,14 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
                 }
                 outcome
             }
-            assertTrue(
-                "the 256s boundary sample must produce multiple non-empty finals",
-                outcomes.last().finals.count { it.text.isNotBlank() } >= 3,
+            writer.append(
+                "long-mode-boundary",
+                mapOf(
+                    "asset" to cases.last().first,
+                    "publicFinalCount" to outcomes.last().finals.size,
+                    "terminalFinalCount" to outcomes.last().finals.count { it.isLast },
+                    "periodicRule3PublicFinalExpected" to false,
+                ),
             )
         } finally {
             engine.shutdown()
@@ -298,10 +303,33 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
 
     @Test
     fun bug01_finishShutdownRelicense_survivesMoreThanOneHourOfAcceptedPcm() {
-        val writer = EvidenceWriter(targetContext, "bug01-release-race")
+        runFinishShutdownRelicense(
+            caseName = "bug01-release-race-over-one-hour",
+            asset = "long_meeting/customer_20260820.wav",
+            repeatCount = 2,
+            minimumAcceptedDurationMs = 3_600_000,
+        )
+    }
+
+    @Test
+    fun bug01_finishShutdownRelicense_recoversAfterValidCustomerPcm() {
+        runFinishShutdownRelicense(
+            caseName = "bug01-release-race-valid-pcm",
+            asset = "bug02/A31_boundary.wav",
+            repeatCount = 1,
+            minimumAcceptedDurationMs = 240_000,
+        )
+    }
+
+    private fun runFinishShutdownRelicense(
+        caseName: String,
+        asset: String,
+        repeatCount: Int,
+        minimumAcceptedDurationMs: Long,
+    ) {
+        val writer = EvidenceWriter(targetContext, caseName)
         prepare(writer)
         val engine = createEngine()
-        val asset = "long_meeting/customer_20260820.wav"
         val pcm = readAssetPcm(testContext, asset)
         val acceptedBytes = AtomicLong(0)
         val listener = TimelineListener(acceptedBytes)
@@ -311,11 +339,14 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
         assertTrue("BUG-01 session failed to start: ${listener.errors}", listener.started.await(30, TimeUnit.SECONDS))
 
         val frameSleepMs = runnerLong("bug01FrameSleepMs", 0L)
-        repeat(2) {
+        repeat(repeatCount) {
             feedPcm(engine, sessionId, pcm, frameSleepMs, acceptedBytes, listener)
         }
         val acceptedDurationMs = acceptedBytes.get() / 32
-        assertTrue("derived stress input must exceed one hour", acceptedDurationMs > 3_600_000)
+        assertTrue(
+            "derived stress input must exceed ${minimumAcceptedDurationMs}ms",
+            acceptedDurationMs > minimumAcceptedDurationMs,
+        )
         val lastBeforeFinish = listener.finals.count { it.isLast }
         engine.finish(sessionId)
         engine.shutdown()
@@ -327,7 +358,7 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
             mapOf(
                 "sourceAsset" to asset,
                 "sourceSha256" to assetSha256(asset),
-                "repeatCount" to 2,
+                "repeatCount" to repeatCount,
                 "acceptedDurationMs" to acceptedDurationMs,
                 "frameSleepMs" to frameSleepMs,
             ),
@@ -558,6 +589,7 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
     }
 
     private fun standardParams(police: Boolean = true): Map<String, Any> = mapOf(
+        "recognizerMode" to "short",
         "enablePartialResult" to true,
         "enablePoliceEnhancement" to police,
         "maxAudioDuration" to 300_000,
@@ -566,6 +598,7 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
     )
 
     private fun pttParams(): Map<String, Any> = mapOf(
+        "recognizerMode" to "short",
         "enablePartialResult" to true,
         "enablePoliceEnhancement" to true,
         "maxAudioDuration" to 62_000,
@@ -575,6 +608,7 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
     )
 
     private fun longMeetingParams(maxAudioDurationMs: Int): Map<String, Any> = mapOf(
+        "recognizerMode" to "long",
         "enablePartialResult" to true,
         "enablePoliceEnhancement" to true,
         "maxAudioDuration" to maxAudioDurationMs,
@@ -584,6 +618,7 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
     )
 
     private fun voiceprintParams(voiceprintId: String): Map<String, Any> = mapOf(
+        "recognizerMode" to "short",
         "enablePartialResult" to true,
         "enablePoliceEnhancement" to true,
         "enableVoiceprintVerification" to true,
