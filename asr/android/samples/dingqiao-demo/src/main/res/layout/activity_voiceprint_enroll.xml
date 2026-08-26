@@ -25,19 +25,74 @@
         android:textColor="@color/brand_text_muted"
         android:textSize="13sp" />
 
-    <TextView
-        android:id="@+id/tv_status"
+    <LinearLayout
+        android:id="@+id/enroll_status_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:textAppearance="@style/TextAppearance.Amphion.Status" />
+        android:background="@drawable/bg_status_panel"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="12dp">
+
+        <View
+            android:id="@+id/enroll_status_dot"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/status_dot" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_recording_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/enroll_ready_title"
+                android:textColor="@color/brand_accent"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textAppearance="@style/TextAppearance.Amphion.Status" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_recording_timer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="00:00.0"
+            android:textColor="@color/brand_text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/enroll_model_ready"
+        android:textColor="@color/brand_accent"
+        android:textSize="12sp" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_samples"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="8dp"
-        android:layout_weight="1" />
+        android:layout_weight="1"
+        android:background="@drawable/bg_card"
+        android:clipToPadding="false"
+        android:padding="10dp" />
 
     <TextView
         android:id="@+id/tv_empty"
@@ -47,6 +102,7 @@
         android:gravity="center"
         android:text="@string/enroll_empty"
         android:textColor="@color/brand_text_muted"
+        android:background="@drawable/bg_card"
         android:visibility="gone" />
 
     <TextView
@@ -82,9 +138,9 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/button_height"
         android:layout_marginTop="8dp"
-        android:background="@drawable/bg_button_primary"
+        android:background="@drawable/bg_button_action_selector"
         android:enabled="false"
         android:text="@string/enroll_register"
-        android:textColor="@color/brand_on_accent" />
+        android:textColor="@color/button_action_text" />
 
 </LinearLayout>

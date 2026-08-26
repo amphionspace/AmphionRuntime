@@ -2,8 +2,14 @@ package com.amphion.dingqiao.demo
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.view.View
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,6 +42,10 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
     private lateinit var btnRegister: Button
     private lateinit var btnDeleteVoiceprint: Button
     private lateinit var tvRegisteredId: TextView
+    private lateinit var statusCard: LinearLayout
+    private lateinit var statusDot: View
+    private lateinit var tvRecordingTitle: TextView
+    private lateinit var tvRecordingTimer: TextView
 
     private val items = mutableListOf<File>()
     private lateinit var adapter: VoiceprintSampleAdapter
@@ -44,7 +54,25 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
 
     private var recorder: AudioRecorder? = null
     private var recording = false
+    private var registering = false
+    private var recordingStartedAtMs = 0L
     private val recChunks = mutableListOf<ShortArray>()
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private val recordingTicker = object : Runnable {
+        override fun run() {
+            if (!recording) return
+            val elapsedMs = SystemClock.elapsedRealtime() - recordingStartedAtMs
+            tvRecordingTimer.text = RecordingUiPolicy.elapsedLabel(elapsedMs)
+            tvStatus.setText(
+                when (RecordingUiPolicy.durationState(elapsedMs)) {
+                    RecordingUiPolicy.DurationState.TOO_SHORT -> R.string.enroll_recording_too_short
+                    RecordingUiPolicy.DurationState.READY -> R.string.enroll_recording_ready
+                    RecordingUiPolicy.DurationState.TOO_LONG -> R.string.enroll_recording_too_long
+                },
+            )
+            uiHandler.postDelayed(this, TIMER_UPDATE_MS)
+        }
+    }
 
     private val permLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -64,6 +92,10 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
         btnRegister = findViewById(R.id.btn_register)
         btnDeleteVoiceprint = findViewById(R.id.btn_delete_voiceprint)
         tvRegisteredId = findViewById(R.id.tv_registered_id)
+        statusCard = findViewById(R.id.enroll_status_card)
+        statusDot = findViewById(R.id.enroll_status_dot)
+        tvRecordingTitle = findViewById(R.id.tv_recording_title)
+        tvRecordingTimer = findViewById(R.id.tv_recording_timer)
 
         findViewById<MaterialToolbar>(R.id.toolbar).apply {
             setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
@@ -87,20 +119,20 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        uiHandler.removeCallbacks(recordingTicker)
         super.onDestroy()
         recorder?.stop()
         player.stop()
         worker.shutdownNow()
     }
 
-    private fun reload() {
+    private fun reload(statusOverride: String? = null) {
         items.clear()
         items.addAll(store.listSamples())
         adapter.notifyDataSetChanged()
         tvEmpty.visibility = if (items.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
         rv.visibility = if (items.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
-        tvStatus.text = getString(R.string.enroll_status, items.size)
-        btnRegister.isEnabled = items.size >= DINGQIAO_VOICEPRINT_MIN_SAMPLES
+        tvStatus.text = statusOverride ?: getString(R.string.enroll_status, items.size)
         val registeredId = VoiceprintHelper.registeredId(this)
         if (registeredId.isNullOrBlank()) {
             tvRegisteredId.visibility = android.view.View.GONE
@@ -110,6 +142,7 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
             tvRegisteredId.text = getString(R.string.enroll_registered_id, registeredId)
             btnDeleteVoiceprint.visibility = android.view.View.VISIBLE
         }
+        renderRecordingState()
     }
 
     private fun startRecord() {
@@ -120,17 +153,24 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
             return
         }
         recording = true
+        recordingStartedAtMs = SystemClock.elapsedRealtime()
         recChunks.clear()
-        btnRecord.setText(R.string.enroll_record_stop)
         tvStatus.text = getString(R.string.enroll_recording)
-        recorder = AudioRecorder(onPcm = { recChunks += it }, onError = { msg -> toast(msg) }).also { it.start() }
+        renderRecordingState()
+        uiHandler.removeCallbacks(recordingTicker)
+        uiHandler.post(recordingTicker)
+        recorder = AudioRecorder(
+            onPcm = { recChunks += it },
+            onError = { msg -> runOnUiThread { handleRecordingError(msg) } },
+        ).also { it.start() }
     }
 
     private fun stopRecord() {
+        val elapsedMs = SystemClock.elapsedRealtime() - recordingStartedAtMs
         recording = false
+        uiHandler.removeCallbacks(recordingTicker)
         recorder?.stop()
         recorder = null
-        btnRecord.setText(R.string.enroll_record)
         val pcm = merge(recChunks)
         recChunks.clear()
         if (pcm.isEmpty()) {
@@ -138,7 +178,55 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
             return
         }
         store.addSample(pcm)
-        reload()
+        val durationSec = pcm.size.toDouble() / SAMPLE_RATE
+        reload(
+            getString(
+                if (durationSec in DINGQIAO_VOICEPRINT_MIN_SEC.toDouble()..DINGQIAO_VOICEPRINT_MAX_SEC.toDouble()) {
+                    R.string.enroll_recorded_valid
+                } else {
+                    R.string.enroll_recorded_invalid
+                },
+                durationSec,
+            ),
+        )
+        tvRecordingTimer.text = RecordingUiPolicy.elapsedLabel(elapsedMs)
+    }
+
+    private fun handleRecordingError(message: String) {
+        if (!recording) return
+        recording = false
+        uiHandler.removeCallbacks(recordingTicker)
+        recorder = null
+        recChunks.clear()
+        tvStatus.text = getString(R.string.enroll_recording_error, message)
+        renderRecordingState(resetTimer = false)
+        toast(message)
+    }
+
+    private fun renderRecordingState(resetTimer: Boolean = !recording) {
+        statusCard.setBackgroundResource(
+            if (recording) R.drawable.bg_status_recording else R.drawable.bg_status_panel,
+        )
+        statusDot.backgroundTintList = ColorStateList.valueOf(
+            ContextCompat.getColor(this, if (recording) R.color.brand_recording else R.color.brand_accent),
+        )
+        tvRecordingTitle.setText(
+            if (recording) R.string.enroll_recording_title else R.string.enroll_ready_title,
+        )
+        tvRecordingTitle.setTextColor(
+            ContextCompat.getColor(this, if (recording) R.color.brand_recording else R.color.brand_accent),
+        )
+        if (resetTimer) tvRecordingTimer.text = RecordingUiPolicy.elapsedLabel(0)
+        tvRecordingTimer.setTextColor(
+            ContextCompat.getColor(this, if (recording) R.color.brand_recording else R.color.brand_text_primary),
+        )
+        btnRecord.setText(if (recording) R.string.enroll_record_stop else R.string.enroll_record)
+        btnRecord.setBackgroundResource(
+            if (recording) R.drawable.bg_button_recording else R.drawable.bg_button_primary,
+        )
+        btnRecord.isEnabled = !registering
+        btnRegister.isEnabled = RecordingUiPolicy.canRegister(items.size, recording, registering)
+        btnDeleteVoiceprint.isEnabled = !recording && !registering
     }
 
     private fun onPlay(index: Int) {
@@ -194,7 +282,7 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
     }
 
     private fun registerVoiceprint() {
-        if (items.size < DINGQIAO_VOICEPRINT_MIN_SAMPLES) return
+        if (!RecordingUiPolicy.canRegister(items.size, recording, registering)) return
         val modelFile = VoiceprintModelHelper.modelFile(DingqiaoApp.workPath())
         if (!VoiceprintModelHelper.isReady(modelFile)) {
             toast(
@@ -206,13 +294,15 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
             )
             return
         }
-        btnRegister.isEnabled = false
+        registering = true
         tvStatus.text = getString(R.string.enroll_registering)
+        renderRecordingState()
         val invalidSampleMessage = firstInvalidSampleMessage()
         if (invalidSampleMessage != null) {
+            registering = false
             toast(invalidSampleMessage)
             tvStatus.text = invalidSampleMessage
-            btnRegister.isEnabled = true
+            renderRecordingState()
             return
         }
         worker.execute {
@@ -234,8 +324,9 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
             } catch (t: Throwable) {
                 val msg = t.message ?: t.javaClass.simpleName
                 runOnUiThread {
+                    registering = false
                     toast(getString(R.string.enroll_failed, msg))
-                    reload()
+                    reload(getString(R.string.enroll_failed, msg))
                 }
             }
         }
@@ -281,5 +372,6 @@ class VoiceprintEnrollActivity : AppCompatActivity() {
         private const val SAMPLE_RATE = 16_000
         private const val BYTES_PER_SAMPLE = 2
         private const val BYTES_PER_SECOND = SAMPLE_RATE * BYTES_PER_SAMPLE.toDouble()
+        private const val TIMER_UPDATE_MS = 100L
     }
 }
