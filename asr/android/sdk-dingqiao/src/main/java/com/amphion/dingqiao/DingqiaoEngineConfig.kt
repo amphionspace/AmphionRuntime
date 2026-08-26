@@ -158,7 +158,7 @@ internal object DingqiaoEngineConfig {
             ?.toString()
             ?.trim()
             ?.lowercase()
-            ?: "short"
+            ?: if (startParams?.extraParams?.get("enableContinuousRecognition") == true) "long" else "short"
         require(mode == "short" || mode == "long") {
             "recognizerMode must be short or long"
         }

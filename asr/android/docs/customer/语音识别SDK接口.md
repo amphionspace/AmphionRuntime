@@ -107,11 +107,12 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `recognitionMode` | `Number/String` | `1` | 仅支持 `1`（外部写入音频流）；`0`（SDK 内录音）暂不支持 |
-| `recognizerMode` | `String` | engine 配置或 `short` | 会话级覆盖：`short` 使用 `endpointMaxUtteranceMs`，`long` 只按自然静音或 `finish` 分段；长转写和会议必须显式设置 `long` |
+| `recognizerMode` | `String` | engine 配置；否则普通调用为 `short`、continuous 为 `long` | 会话级覆盖：`short` 使用 `endpointMaxUtteranceMs`，`long` 只按自然静音或 `finish` 分段；显式值优先，长转写和会议仍建议显式设置 `long` |
 | `vadBegin` | `Number/String` | 未启用 | 首次检测到语音前的静音超时，范围 500 到 10000 ms；仅显式传入时启用 |
 | `enablePartialResult` | `Boolean` | `true` | 是否回调中间结果 |
 | `enablePoliceEnhancement` | `Boolean` | `true` | 是否对 final 文本执行警务术语、车牌和派出所归一化；`false` 返回原始 ASR 文本 |
 | `maxAudioDuration` | `Number/String` | 未启用 | 单会话最长音频毫秒数；仅显式传入正有限值时启用，上限 28800000；达到上限后正常自动结束 |
+| `enableContinuousRecognition` | `Boolean` | `false` | 设为 `true` 时保持同一个模型会话、禁用 `maxAudioDuration` 自动结束；未显式传 `recognizerMode` 时同时使用 `long`。显式 short/long 优先，仅布尔值 `true` 生效 |
 | `endpointMaxUtteranceMs` | `Number/String` | `20000` | 仅 `recognizerMode=short` 生效的单句强制 final 时长；不会结束 session。long 模式忽略该参数 |
 | `vadEnd` | `Number/String` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `sessionGeneralLexicon` | `List<String>` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
