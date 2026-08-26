@@ -56,6 +56,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvPartial: TextView
     private lateinit var tvFinal: TextView
     private lateinit var tvStatus: TextView
+    private lateinit var statusRow: LinearLayout
+    private lateinit var statusDot: View
+    private lateinit var tvRecordingBadge: TextView
     private lateinit var tvVoiceprintInfo: TextView
     private lateinit var tvScenarioInfo: TextView
     private lateinit var progress: ProgressBar
@@ -113,6 +116,7 @@ class MainActivity : AppCompatActivity() {
     private var audioSource = DemoAudioSource.VOICE_COMMUNICATION
     private var voiceprintVerifyDesired = false
     private var speakerVadDesired = false
+    private var pendingVoiceprintCapability: VoiceprintCapability? = null
     private var policeEnhancementDesired = true
 
     private var capturedScenario = CustomerScenario.PTT
@@ -144,6 +148,29 @@ class MainActivity : AppCompatActivity() {
             result.data?.getBooleanExtra(HotwordsActivity.EXTRA_HOTWORDS_CHANGED, false) == true
         ) {
             reloadEngineForHotwords()
+        }
+    }
+
+    private val voiceprintLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val pending = pendingVoiceprintCapability
+        pendingVoiceprintCapability = null
+        val idPresent = !DemoPrefs.getVoiceprintId(this).isNullOrBlank()
+        val profile = CustomerScenarioProfiles.forScenario(customerScenario)
+        if (result.resultCode == RESULT_OK && idPresent && profile.allowVoiceprint) {
+            when (pending) {
+                VoiceprintCapability.VERIFICATION -> voiceprintVerifyDesired = true
+                VoiceprintCapability.SPEAKER_VAD -> speakerVadDesired = true
+                null -> Unit
+            }
+        }
+        refreshVoiceprintUi()
+        updateOperationControls()
+        when {
+            result.resultCode != RESULT_OK || !idPresent -> Unit
+            pending == VoiceprintCapability.VERIFICATION -> toast(getString(R.string.voiceprint_enabled_hint))
+            pending == VoiceprintCapability.SPEAKER_VAD -> toast(getString(R.string.speaker_vad_enabled_hint))
         }
     }
 
@@ -200,6 +227,9 @@ class MainActivity : AppCompatActivity() {
         tvPartial = findViewById(R.id.tv_partial)
         tvFinal = findViewById(R.id.tv_final)
         tvStatus = findViewById(R.id.tv_status)
+        statusRow = findViewById(R.id.status_row)
+        statusDot = findViewById(R.id.view_status_dot)
+        tvRecordingBadge = findViewById(R.id.tv_recording_badge)
         tvVoiceprintInfo = findViewById(R.id.tv_voiceprint_info)
         tvScenarioInfo = findViewById(R.id.tv_scenario_info)
         progress = findViewById(R.id.progress)
@@ -976,7 +1006,7 @@ class MainActivity : AppCompatActivity() {
             !profile.allowVoiceprint -> getString(R.string.scenario_voiceprint_disabled)
             !modelReadyNow && modelFile.exists() && !modelFile.canRead() -> getString(R.string.vp_model_unreadable)
             !modelReadyNow -> getString(R.string.vp_model_missing)
-            id.isNullOrBlank() -> getString(R.string.vp_not_registered)
+            id.isNullOrBlank() -> getString(R.string.vp_not_registered_action)
             else -> getString(R.string.vp_registered, id)
         }
         swVoiceprint.setOnCheckedChangeListener(null)
@@ -992,23 +1022,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onVoiceprintSwitch(enabled: Boolean) {
-        if (enabled && DemoPrefs.getVoiceprintId(this).isNullOrBlank()) {
+        val idPresent = !DemoPrefs.getVoiceprintId(this).isNullOrBlank()
+        if (VoiceprintUiPolicy.shouldOpenEnrollment(enabled, idPresent)) {
             voiceprintVerifyDesired = false
-            swVoiceprint.isChecked = false
-            toast(getString(R.string.vp_need_register))
+            refreshVoiceprintUi()
+            openVoiceprintEnrollment(VoiceprintCapability.VERIFICATION)
             return
         }
         voiceprintVerifyDesired = enabled
     }
 
     private fun onSpeakerVadSwitch(enabled: Boolean) {
-        if (enabled && DemoPrefs.getVoiceprintId(this).isNullOrBlank()) {
+        val idPresent = !DemoPrefs.getVoiceprintId(this).isNullOrBlank()
+        if (VoiceprintUiPolicy.shouldOpenEnrollment(enabled, idPresent)) {
             speakerVadDesired = false
-            swSpeakerVad.isChecked = false
-            toast(getString(R.string.vp_need_register))
+            refreshVoiceprintUi()
+            openVoiceprintEnrollment(VoiceprintCapability.SPEAKER_VAD)
             return
         }
         speakerVadDesired = enabled
+        if (listening) engine?.setSpeakerVadEnabled(enabled)
         toast(getString(if (enabled) R.string.speaker_vad_enabled_hint else R.string.speaker_vad_disabled_hint))
     }
 
@@ -1035,10 +1068,14 @@ class MainActivity : AppCompatActivity() {
         val configLocked = isConfigurationLocked()
         scenarioButtons.values.forEach { it.isEnabled = !configLocked }
         sourceButtons.values.forEach { it.isEnabled = !configLocked && !profile.lockAudioSource }
-        val idPresent = !DemoPrefs.getVoiceprintId(this).isNullOrBlank()
-        val voiceprintEnabled = profile.allowVoiceprint && idPresent && !configLocked
-        swVoiceprint.isEnabled = voiceprintEnabled
-        swSpeakerVad.isEnabled = voiceprintEnabled
+        val modelReady = VoiceprintModelHelper.isReady(VoiceprintModelHelper.modelFile(DingqiaoApp.workPath()))
+        val voiceprintControlsEnabled = VoiceprintUiPolicy.controlsEnabled(
+            allowVoiceprint = profile.allowVoiceprint,
+            modelReady = modelReady,
+            configurationLocked = configLocked,
+        )
+        swVoiceprint.isEnabled = voiceprintControlsEnabled
+        swSpeakerVad.isEnabled = voiceprintControlsEnabled
         swPoliceEnhancement.isEnabled = !listening && !replaying && !engineLoading
 
         btnTalk.text = when {
@@ -1046,6 +1083,7 @@ class MainActivity : AppCompatActivity() {
             listening -> getString(R.string.btn_talk_stop)
             else -> getString(R.string.btn_talk_start)
         }
+        renderRecognitionRecordingState()
         btnTalk.isEnabled = runtimeReady && !stoppingListening && !coldReleasePending &&
             !replaying && !playingCapture && !modelReleaseInProgress
         btnPlayCapture.text = getString(if (playingCapture) R.string.playing_last_pcm else R.string.play_last_pcm)
@@ -1056,6 +1094,33 @@ class MainActivity : AppCompatActivity() {
         etCaseNote.isEnabled = !configLocked
         updateScenarioUi()
         refreshVoiceprintUi()
+    }
+
+    private fun renderRecognitionRecordingState() {
+        val recording = listening
+        btnTalk.setBackgroundResource(
+            if (recording) R.drawable.bg_button_recording else R.drawable.bg_button_primary,
+        )
+        btnTalk.setCompoundDrawablesRelativeWithIntrinsicBounds(
+            if (recording) R.drawable.ic_mic_stop else R.drawable.ic_mic,
+            0,
+            0,
+            0,
+        )
+        statusRow.setBackgroundResource(
+            if (recording) R.drawable.bg_status_recording else R.drawable.bg_status_panel,
+        )
+        statusDot.backgroundTintList = ColorStateList.valueOf(
+            ContextCompat.getColor(this, if (recording) R.color.brand_live else R.color.brand_idle),
+        )
+        tvRecordingBadge.visibility = if (recording) View.VISIBLE else View.GONE
+        tvStatus.setTextColor(
+            ContextCompat.getColor(
+                this,
+                if (recording) R.color.brand_recording else R.color.brand_text_secondary,
+            ),
+        )
+        tvStatus.setTypeface(null, if (recording) Typeface.BOLD else Typeface.NORMAL)
     }
 
     private fun reloadEngineForHotwords() {
@@ -1085,7 +1150,7 @@ class MainActivity : AppCompatActivity() {
                         startActivity(Intent(this@MainActivity, DebugRecordsActivity::class.java)); true
                     }
                     R.id.action_voiceprint -> {
-                        startActivity(Intent(this@MainActivity, VoiceprintEnrollActivity::class.java)); true
+                        openVoiceprintEnrollment(); true
                     }
                     R.id.action_delete_voiceprint -> {
                         confirmDeleteVoiceprint(); true
@@ -1095,6 +1160,28 @@ class MainActivity : AppCompatActivity() {
             }
             show()
         }
+    }
+
+    private fun openVoiceprintEnrollment(capability: VoiceprintCapability? = null) {
+        if (isConfigurationLocked()) {
+            toast("请先结束当前识别")
+            return
+        }
+        val modelFile = VoiceprintModelHelper.modelFile(DingqiaoApp.workPath())
+        if (!VoiceprintModelHelper.isReady(modelFile)) {
+            toast(
+                getString(
+                    if (modelFile.exists() && !modelFile.canRead()) {
+                        R.string.vp_model_unreadable
+                    } else {
+                        R.string.vp_model_missing
+                    },
+                ),
+            )
+            return
+        }
+        pendingVoiceprintCapability = capability
+        voiceprintLauncher.launch(Intent(this, VoiceprintEnrollActivity::class.java))
     }
 
     private fun confirmDeleteVoiceprint() {
@@ -1167,5 +1254,10 @@ class MainActivity : AppCompatActivity() {
         const val SPEAKER_VAD_WINDOW_MS = 1_500
         const val SPEAKER_VAD_HOP_MS = 500
         const val SPEAKER_VAD_CONSECUTIVE_BELOW = 2
+    }
+
+    private enum class VoiceprintCapability {
+        VERIFICATION,
+        SPEAKER_VAD,
     }
 }

@@ -15,6 +15,7 @@
     <string name="status_loading_model_with_audio">录音中 · 模型加载中（语音已缓存，加载完立即识别）…</string>
     <string name="status_capture_cached">录音已缓存 · 模型加载完成后自动识别</string>
     <string name="status_finishing">录音结束 · 正在生成最终结果…</string>
+    <string name="recording_badge">● 录音中</string>
 
     <string name="customer_scenario_title">客户调用场景</string>
     <string name="scenario_tap_vad">点击 + VAD</string>
@@ -78,16 +79,27 @@
     <string name="vp_model_unreadable">声纹模型存在但 App 无法读取，请重新安装或清理应用数据后重试</string>
     <string name="vp_registered">已注册声纹：%1$s</string>
     <string name="vp_not_registered">未注册声纹</string>
+    <string name="vp_not_registered_action">未注册声纹 · 点击声纹校验或说话人 VAD 开关进入注册</string>
+    <string name="voiceprint_enabled_hint">声纹校验已开启</string>
     <string name="speaker_score_format">相似度 %.2f</string>
     <string name="speaker_score_tag">[声纹相似度 %.2f]</string>
 
     <string name="enroll_title">声纹注册</string>
     <string name="enroll_hint">录制至少 1 段语音，每段 3~8 秒；多录几段并覆盖远/中/近距离可提升稳定性。声纹模型已随 SDK 内置并自动准备。</string>
     <string name="enroll_status">已录制 %1$d 段（至少 1 段即可注册）</string>
+    <string name="enroll_ready_title">准备录制声纹</string>
+    <string name="enroll_recording_title">正在录制声纹</string>
+    <string name="enroll_model_ready">声纹模型已随 SDK 内置并准备就绪</string>
     <string name="enroll_record">录制一段</string>
     <string name="enroll_record_stop">结束本段</string>
     <string name="enroll_register">注册声纹</string>
     <string name="enroll_recording">录音中…正常说 3~8 秒后结束</string>
+    <string name="enroll_recording_too_short">请继续说，至少录满 3 秒</string>
+    <string name="enroll_recording_ready">时长已合格，可点击“结束本段”</string>
+    <string name="enroll_recording_too_long">已超过 8 秒，请结束本段并重录</string>
+    <string name="enroll_recorded_valid">本段已保存 · %1$.1f 秒 · 可继续录制或注册</string>
+    <string name="enroll_recorded_invalid">本段已保存 · %1$.1f 秒，不在 3–8 秒范围内，请删除后重录</string>
+    <string name="enroll_recording_error">录音失败：%1$s</string>
     <string name="enroll_registering">正在注册声纹…</string>
     <string name="enroll_success">注册成功：%1$s</string>
     <string name="enroll_failed">注册失败：%1$s</string>
