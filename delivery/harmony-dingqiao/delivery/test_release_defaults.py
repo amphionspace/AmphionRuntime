@@ -18,6 +18,8 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("相对 0.3.10", notes_0311)
         self.assertIn("recognizerMode=short/long", notes_0311)
         self.assertIn("Speaker VAD", notes_0311)
+        self.assertIn("目标说话人增强", notes_0311)
+        self.assertIn("不包含该能力所需模型", notes_0311)
         self.assertIn("endpointMaxUtteranceMs", upgrade)
         self.assertIn("enableContinuousRecognition=true", upgrade)
         self.assertIn("SpeakerDiarizationConfig", upgrade)
