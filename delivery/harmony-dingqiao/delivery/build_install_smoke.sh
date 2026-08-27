@@ -220,6 +220,7 @@ prepare_build_workspace() {
   clone_tree "$REPO_ROOT/asr/harmony/sdk" "$temp_repo/asr/harmony/sdk"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-police" "$temp_repo/asr/harmony/sdk-police"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-dingqiao" "$temp_repo/asr/harmony/sdk-dingqiao"
+  clone_tree "$REPO_ROOT/shared/models/asr" "$temp_repo/shared/models/asr"
   clone_tree \
     "$REPO_ROOT/asr/native/audio-processing/include" \
     "$temp_repo/asr/native/audio-processing/include"
