@@ -50,6 +50,13 @@ TARGET_SPEAKER_MODES = {
     "target-speaker-enhancement-cancel",
 }
 VOICEPRINT_FALLBACK_FIXTURES = REPO_ROOT / "asr/test-fixtures/voiceprint-fallback"
+TEST_DATA_ROOT = Path(
+    os.environ.get(
+        "AMPHION_TEST_DATA_DIR",
+        Path.home() / ".cache/amphion-runtime/test-data/v1",
+    )
+).expanduser()
+DEFAULT_DEVICE_CORPUS = TEST_DATA_ROOT / "aishell3_test_hotwords_500"
 
 
 @dataclass(frozen=True)
@@ -84,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Drive the Harmony ASR SDK through a headless test carrier and check its contracts."
     )
-    parser.add_argument("--data-dir", type=Path, default=Path.home() / "Downloads" / "testdata")
+    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DEVICE_CORPUS)
     parser.add_argument(
         "--target-speaker-manifest",
         type=Path,

@@ -26,6 +26,13 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_default_corpus_uses_versioned_test_data_cache(self) -> None:
+        with mock.patch.object(sys, "argv", [str(SCRIPT)]):
+            args = MODULE.parse_args()
+
+        self.assertEqual(MODULE.DEFAULT_DEVICE_CORPUS, args.data_dir)
+        self.assertIn(".cache/amphion-runtime/test-data/v1", str(args.data_dir))
+
     def test_meeting_minutes_has_no_service_parameter(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
         carrier = CARRIER.read_text(encoding="utf-8")
