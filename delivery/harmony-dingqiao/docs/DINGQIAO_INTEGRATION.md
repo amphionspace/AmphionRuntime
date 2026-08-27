@@ -181,7 +181,7 @@ params.extraParams['termsNormalizeEnabled'] = false;
 
 `eres2net.onnx` 已内置在 `amphion_dingqiao.har`，SDK 直接从包内加载；`prepareRuntime()` 不复制或加载该模型，不需要宿主分发或导入。
 
-普通 final 声纹校验会在 ASR 启动后后台加载 extractor，不阻塞音频写入和中间识别；如果加载尚未完成，只在 final 前等待。Speaker VAD 需要流式声纹打分，因此冷态启动会同步等 extractor。宿主无需为普通声纹校验调用 `preloadVoiceprintModel()`；该同步接口仅用于主动前置 final 等待或 Speaker VAD 冷启动成本。
+普通 final 声纹校验和 Speaker VAD 都会在 ASR 启动后后台加载 extractor，不阻塞音频写入和中间识别；模型就绪前 Speaker VAD 保持 fail-open，如果加载尚未完成，只在 final 前等待。宿主无需为声纹校验或 Speaker VAD 调用 `preloadVoiceprintModel()`；该同步接口仅用于主动前置 final 等待，或确保 Speaker VAD 从首帧开始具备打分能力。
 
 ```ts
 SpeechRecognizeSdk.registerVoiceprint({

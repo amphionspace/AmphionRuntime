@@ -36,7 +36,7 @@ FINISH_MODES = {
     "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration",
     "continuous-max-duration", "continuous-long-session",
     "continuous-voiceprint-speaker-vad", "numeric-edge",
-    "finish-shutdown", "finish-shutdown-relicense",
+    "finish-shutdown", "finish-shutdown-relicense", "speaker-vad-shutdown-relicense",
     "customer-tap-vad", "customer-ptt", "customer-transcription", "customer-ptt-tail",
     "customer-form", "customer-meeting-minutes",
 }
@@ -127,6 +127,7 @@ def parse_args() -> argparse.Namespace:
             "start-write",
             "start-write-reload",
             "speaker-vad-onstart",
+            "cold-start-pcm-gap",
             "speaker-vad-turn",
             "target-speaker-enhancement",
             "target-speaker-enhancement-onstart",
@@ -141,6 +142,7 @@ def parse_args() -> argparse.Namespace:
             "endpoint-reentrant",
             "finish-shutdown",
             "finish-shutdown-relicense",
+            "speaker-vad-shutdown-relicense",
             "user-sequence",
             "numeric-edge",
         ),
@@ -1097,7 +1099,8 @@ def run_stress(args: argparse.Namespace) -> Path:
     all_sources = inspect_wavs(corpus_root)
     voiceprint_representative_modes = {
         "voiceprint", "voiceprint-vad-begin", "voiceprint-vad-begin-idle",
-        "speaker-vad-onstart", "continuous-voiceprint-speaker-vad",
+        "speaker-vad-onstart", "cold-start-pcm-gap", "continuous-voiceprint-speaker-vad",
+        "speaker-vad-shutdown-relicense",
     }
     selected = (
         representative_voiceprint_sources(all_sources, args.files)
@@ -1113,6 +1116,10 @@ def run_stress(args: argparse.Namespace) -> Path:
                 "voiceprint-fallback requires 000_enroll.wav and 001_recognize.wav"
             )
         selected = [sources_by_name[name] for name in required_names]
+    elif args.mode == "cold-start-pcm-gap":
+        # This regression gate uses a 5 s vadBegin window and measures synchronous startListening
+        # latency plus exact PCM delivery. Unlike the 1 s VAD gates, it does not require direct onset.
+        selected = sorted(selected, key=lambda source: (-source.duration_seconds, str(source.path)))[:1]
     elif args.mode in ("voiceprint-vad-begin", "speaker-vad-onstart"):
         # The carrier adds 400 ms leading silence in half the cycles. Keep only sources whose own
         # first 200 ms already contain signal, leaving at least 400 ms for VAD/ASR confirmation
@@ -1329,12 +1336,12 @@ def run_stress(args: argparse.Namespace) -> Path:
     if expected_tail.get("status") == "FAIL":
         overall = "FAIL"
         failures.append("expected ASR tail assertion failed")
-    if args.mode == "finish-shutdown-relicense" and any(
+    if args.mode in ("finish-shutdown-relicense", "speaker-vad-shutdown-relicense") and any(
         not terminal_callback_order_ok(cycle.get("trace", "")) for cycle in cycle_results
     ):
         overall = "FAIL"
         failures.append("terminal callback order check failed")
-    if args.mode == "finish-shutdown-relicense" and any(
+    if args.mode in ("finish-shutdown-relicense", "speaker-vad-shutdown-relicense") and any(
         cycle.get("recoveryStarts") != "1"
         or cycle.get("recoveryLastFinals") != "1"
         or cycle.get("recoveryCompletes") != "1"

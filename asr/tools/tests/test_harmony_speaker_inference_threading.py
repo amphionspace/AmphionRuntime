@@ -220,9 +220,11 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
     def test_speaker_vad_only_final_is_prepared_asynchronously(self) -> None:
         prepare = method_body(self.runtime, "prepareVadEndpointSpeakerScoreAsync")
         dispatch = method_body(self.runtime, "dispatchFinal")
+        delivery = method_body(self.runtime, "deliverSpeakerFinal")
         self.assertIn("this.speakerVadEnabled", prepare)
         self.assertIn("this.svCleanPrefixSpeakerScore", dispatch)
-        self.assertIn("!speakerScorePrepared", dispatch)
+        self.assertIn("speakerScorePrepared", dispatch)
+        self.assertIn("!pending.speakerScorePrepared", delivery)
 
     def test_async_score_is_pure_until_current_generation_applies_it(self) -> None:
         score = method_body(self.runtime, "scoreSamplesAsync")
