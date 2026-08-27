@@ -36,7 +36,7 @@ FINISH_MODES = {
     "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration",
     "continuous-max-duration", "continuous-long-session",
     "continuous-voiceprint-speaker-vad", "numeric-edge",
-    "finish-shutdown", "finish-shutdown-relicense",
+    "finish-shutdown", "finish-shutdown-relicense", "speaker-vad-shutdown-relicense",
     "customer-tap-vad", "customer-ptt", "customer-transcription", "customer-ptt-tail",
     "customer-form", "customer-meeting-minutes",
 }
@@ -135,6 +135,7 @@ def parse_args() -> argparse.Namespace:
             "endpoint-reentrant",
             "finish-shutdown",
             "finish-shutdown-relicense",
+            "speaker-vad-shutdown-relicense",
             "user-sequence",
             "numeric-edge",
         ),
@@ -1092,6 +1093,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     voiceprint_representative_modes = {
         "voiceprint", "voiceprint-vad-begin", "voiceprint-vad-begin-idle",
         "speaker-vad-onstart", "cold-start-pcm-gap", "continuous-voiceprint-speaker-vad",
+        "speaker-vad-shutdown-relicense",
     }
     selected = (
         representative_voiceprint_sources(all_sources, args.files)
@@ -1327,12 +1329,12 @@ def run_stress(args: argparse.Namespace) -> Path:
     if expected_tail.get("status") == "FAIL":
         overall = "FAIL"
         failures.append("expected ASR tail assertion failed")
-    if args.mode == "finish-shutdown-relicense" and any(
+    if args.mode in ("finish-shutdown-relicense", "speaker-vad-shutdown-relicense") and any(
         not terminal_callback_order_ok(cycle.get("trace", "")) for cycle in cycle_results
     ):
         overall = "FAIL"
         failures.append("terminal callback order check failed")
-    if args.mode == "finish-shutdown-relicense" and any(
+    if args.mode in ("finish-shutdown-relicense", "speaker-vad-shutdown-relicense") and any(
         cycle.get("recoveryStarts") != "1"
         or cycle.get("recoveryLastFinals") != "1"
         or cycle.get("recoveryCompletes") != "1"
