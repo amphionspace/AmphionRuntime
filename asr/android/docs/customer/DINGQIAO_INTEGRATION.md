@@ -34,6 +34,18 @@ SpeechRecognizeSdk.setWorkPath("/data/your_app/asr_work")  // 可读写目录
 SpeechRecognizeSdk.setLogLevel(AmphionLogLevel.INFO) // 可选；排查期在 prepareRuntime 前设置
 ```
 
+特权宿主需要自行提供稳定设备 SN 时，使用与 HarmonyOS 同名的入口：
+
+```kotlin
+SpeechRecognizeSdk.init(
+    applicationContext,
+    LicenseDeviceIdProvider { _ -> hostDeviceSerial },
+)
+```
+
+更换 provider 后必须重新执行 `setLicense -> prepareRuntime`，SDK 不会把旧授权身份复用到
+新 provider。普通宿主仍可使用原有单参数 `init(applicationContext)`。
+
 `setWorkPath` 用途：
 
 - 声纹 embedding：`{workPath}/voiceprints/{voiceprintId}/`
@@ -53,7 +65,7 @@ SpeechRecognizeSdk.setLogLevel(AmphionLogLevel.INFO) // 可选；排查期在 pr
 
 ```
 createEngine → setListener → startListening
-  → writeAudio(640 字节 PCM / 20 ms) × N
+  → writeAudio(DINGQIAO_AUDIO_FRAME_BYTES_20MS 字节 PCM / 20 ms) × N
   → finish
   → onResult(isFinal=true, 警务增强后文本)
   → onComplete

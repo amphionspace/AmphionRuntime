@@ -55,34 +55,34 @@ data class SpeechRecognitionResult(
 )
 
 data class SpeakerDiarizationUpdate(
-    val utteranceId: String,
-    val revision: Int,
-    val speakerIndex: Int,
+    val utteranceId: String = "",
+    val revision: Int = 0,
+    val speakerIndex: Int = -1,
     val secondarySpeakerIndexes: List<Int> = emptyList(),
-    val beginTime: Int,
-    val endTime: Int,
-    val confidence: Float,
+    val beginTime: Int = 0,
+    val endTime: Int = 0,
+    val confidence: Float = 0f,
 )
 
 data class DiarizedUtterance(
-    val utteranceId: String,
-    val rawText: String,
-    val text: String,
-    val beginTime: Int,
-    val endTime: Int,
-    val speakerIndex: Int,
+    val utteranceId: String = "",
+    val rawText: String = "",
+    val text: String = "",
+    val beginTime: Int = 0,
+    val endTime: Int = 0,
+    val speakerIndex: Int = -1,
     val secondarySpeakerIndexes: List<Int> = emptyList(),
-    val confidence: Float,
-    val overlap: Boolean,
+    val confidence: Float = 0f,
+    val overlap: Boolean = false,
 )
 
 data class SpeakerTurn(
-    val beginTime: Int,
-    val endTime: Int,
-    val speakerIndex: Int,
+    val beginTime: Int = 0,
+    val endTime: Int = 0,
+    val speakerIndex: Int = -1,
     val secondarySpeakerIndexes: List<Int> = emptyList(),
-    val confidence: Float,
-    val overlap: Boolean,
+    val confidence: Float = 0f,
+    val overlap: Boolean = false,
 )
 
 enum class SpeakerDiarizationDegradedReason {

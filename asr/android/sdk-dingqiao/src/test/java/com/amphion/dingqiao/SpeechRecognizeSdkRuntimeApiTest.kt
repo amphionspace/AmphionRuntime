@@ -58,6 +58,89 @@ class SpeechRecognizeSdkRuntimeApiTest {
     }
 
     @Test
+    fun audioFrameConstantNamesMatchHarmonyApi() {
+        assertEquals(640, DINGQIAO_AUDIO_FRAME_BYTES_20MS)
+        assertEquals(DINGQIAO_AUDIO_FRAME_BYTES_20MS, DINGQIAO_AUDIO_FRAME_BYTES)
+    }
+
+    @Test
+    fun customDeviceIdProviderFlowsThroughLicenseAndRuntime() {
+        val context = mock<Context> {
+            on { applicationContext } doReturn null
+            on { packageName } doReturn "com.amphion.test"
+        }
+        val licenseFile = kotlin.io.path.createTempFile(suffix = ".lic").toFile()
+        licenseFile.writeText("development-license")
+        val licenseDone = CountDownLatch(1)
+        val prepareDone = CountDownLatch(1)
+        val runtime = FakeRuntimeLifecycleBridge().apply { captureDeviceSerial = true }
+        SpeechRecognizeSdk.setRuntimeBridgeForTests(runtime)
+        SpeechRecognizeSdk.init(context, LicenseDeviceIdProvider { "host-provided-serial" })
+
+        SpeechRecognizeSdk.setLicense(
+            licenseFile.absolutePath,
+            object : LicenseActivationCallback {
+                override fun onResult(result: LicenseActivationResult) = licenseDone.countDown()
+                override fun onError(errorCode: Int, errorMessage: String) = licenseDone.countDown()
+            },
+        )
+        assertTrue(licenseDone.await(5, TimeUnit.SECONDS))
+
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() = prepareDone.countDown()
+            override fun onError(errorCode: Int, errorMessage: String) = prepareDone.countDown()
+        })
+        assertTrue(prepareDone.await(5, TimeUnit.SECONDS))
+        assertEquals("host-provided-serial", runtime.lastValidatedDeviceSerial)
+        assertEquals("host-provided-serial", runtime.lastPreparedDeviceSerial)
+        licenseFile.delete()
+    }
+
+    @Test
+    fun changingDeviceIdProviderInvalidatesLicenseAndRuntime() {
+        val context = mock<Context> {
+            on { applicationContext } doReturn null
+            on { packageName } doReturn "com.amphion.test"
+        }
+        val licenseFile = kotlin.io.path.createTempFile(suffix = ".lic").toFile()
+        licenseFile.writeText("development-license")
+        val licenseDone = CountDownLatch(1)
+        val prepareDone = CountDownLatch(1)
+        val runtime = FakeRuntimeLifecycleBridge()
+        SpeechRecognizeSdk.setRuntimeBridgeForTests(runtime)
+        val firstProvider = LicenseDeviceIdProvider { "first-provider" }
+        SpeechRecognizeSdk.init(context, firstProvider)
+        SpeechRecognizeSdk.setLicense(
+            licenseFile.absolutePath,
+            object : LicenseActivationCallback {
+                override fun onResult(result: LicenseActivationResult) = licenseDone.countDown()
+                override fun onError(errorCode: Int, errorMessage: String) = licenseDone.countDown()
+            },
+        )
+        assertTrue(licenseDone.await(5, TimeUnit.SECONDS))
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() = prepareDone.countDown()
+            override fun onError(errorCode: Int, errorMessage: String) = prepareDone.countDown()
+        })
+        assertTrue(prepareDone.await(5, TimeUnit.SECONDS))
+        assertTrue(runtime.ready)
+
+        SpeechRecognizeSdk.init(context, LicenseDeviceIdProvider { "replacement-provider" })
+
+        assertFalse(runtime.ready)
+        assertEquals(1, runtime.unloadCalls.get())
+        var prepareError: Int? = null
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() = Unit
+            override fun onError(errorCode: Int, errorMessage: String) {
+                prepareError = errorCode
+            }
+        })
+        assertEquals(DingqiaoErrorCode.LICENSE_NOT_SET, prepareError)
+        licenseFile.delete()
+    }
+
+    @Test
     fun prepareRuntimeBeforeInitReportsEngineNotInitialized() {
         var ready = false
         var errorCode: Int? = null
@@ -811,12 +894,18 @@ class SpeechRecognizeSdkRuntimeApiTest {
         @Volatile var lastPreparedLicense: String? = null
         @Volatile var lastValidatedLogLevel: AmphionLogLevel? = null
         @Volatile var lastPreparedLogLevel: AmphionLogLevel? = null
+        @Volatile var lastValidatedDeviceSerial: String? = null
+        @Volatile var lastPreparedDeviceSerial: String? = null
+        @Volatile var captureDeviceSerial: Boolean = false
 
         override fun validateLicense(
             context: Context,
             options: AmphionOptions,
         ): AmphionLicenseStatus {
             lastValidatedLogLevel = options.logLevel
+            if (captureDeviceSerial) {
+                lastValidatedDeviceSerial = options.deviceIdProvider?.getDeviceSerial(context)
+            }
             if (options.license == blockedLicenseText) {
                 validationStarted.countDown()
                 releaseValidation.await(5, TimeUnit.SECONDS)
@@ -845,6 +934,9 @@ class SpeechRecognizeSdkRuntimeApiTest {
             prepareCalls.incrementAndGet()
             lastPreparedLicense = options.license
             lastPreparedLogLevel = options.logLevel
+            if (captureDeviceSerial) {
+                lastPreparedDeviceSerial = options.deviceIdProvider?.getDeviceSerial(context)
+            }
             if (blockPrepare) {
                 prepareStarted.countDown()
                 releasePrepare.await(5, TimeUnit.SECONDS)

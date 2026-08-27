@@ -58,8 +58,11 @@ object DingqiaoVoiceprintStatus {
 /** 默认声纹 ONNX 文件名；SDK 会自动准备到 [SpeechRecognizeSdk.setWorkPath] 目录下。 */
 const val DINGQIAO_SPEAKER_MODEL_FILENAME = "eres2net.onnx"
 
-/** 写入音频帧字节数（16 kHz mono 16-bit PCM，20 ms）。 */
-const val DINGQIAO_AUDIO_FRAME_BYTES = 640
+/** 写入音频帧字节数（16 kHz mono 16-bit PCM，20 ms），与 HarmonyOS 公共常量同名。 */
+const val DINGQIAO_AUDIO_FRAME_BYTES_20MS = 640
+
+/** Android 旧版常量名；与 [DINGQIAO_AUDIO_FRAME_BYTES_20MS] 等价。 */
+const val DINGQIAO_AUDIO_FRAME_BYTES = DINGQIAO_AUDIO_FRAME_BYTES_20MS
 
 /** 遗留 40 ms 帧大小常量。交付接口只接受 640 字节 / 20 ms 帧。 */
 @Deprecated("Dingqiao delivery interface only accepts 640-byte / 20 ms frames.")

@@ -24,13 +24,28 @@ engine.finish(sessionId)
 engine.shutdown()
 ```
 
-`writeAudio` 输入为 16 kHz、16 bit、单声道 PCM，每帧 640 字节，对应 20 ms 音频。调用 `finish` 表示本次会话音频输入结束，SDK 会输出最后一次 final 结果并回调 `onComplete`。
+特权宿主无法由 SDK 直接读取稳定设备 SN 时，可与 HarmonyOS 一样在初始化时注入：
+
+```kotlin
+SpeechRecognizeSdk.init(
+    applicationContext,
+    LicenseDeviceIdProvider { _ -> hostDeviceSerial },
+)
+```
+
+更换 `Context` 或 `LicenseDeviceIdProvider` 会使既有授权、Runtime、模型和引擎失效，必须
+重新执行 `setLicense -> prepareRuntime`。
+
+`writeAudio` 输入为 16 kHz、16 bit、单声道 PCM，每帧 640 字节，对应 20 ms 音频。
+Android/HarmonyOS 同名常量为 `DINGQIAO_AUDIO_FRAME_BYTES_20MS`；Android 旧名
+`DINGQIAO_AUDIO_FRAME_BYTES` 保留为等价别名。调用 `finish` 表示本次会话音频输入结束，SDK 会输出最后一次 final 结果并回调 `onComplete`。
 
 ## 2. 全局接口
 
 | 接口 | 说明 |
 |------|------|
 | `SpeechRecognizeSdk.init(context: Context)` | 初始化 SDK，必须在 `createEngine`、`registerVoiceprint` 前调用 |
+| `SpeechRecognizeSdk.init(context: Context, deviceIdProvider: LicenseDeviceIdProvider?)` | 初始化并可选注入特权宿主的设备 SN 提供器 |
 | `SpeechRecognizeSdk.setWorkPath(path: String)` | 设置可读写工作目录，必须在 `createEngine` 前调用 |
 | `SpeechRecognizeSdk.getWorkPath(): String` | 查询当前工作目录；未设置时返回空字符串 |
 | `SpeechRecognizeSdk.setLogLevel(logLevel: AmphionLogLevel)` | 设置 Core Runtime 日志阈值；默认 `WARN`，排查期可在 `prepareRuntime` 前设置 `INFO`/`DEBUG` |
@@ -201,6 +216,11 @@ Speaker VAD 拒绝非目标片段时，会在 `SPEAKER_VAD_REJECTED` 事件后�
 `onResult(isFinal=true)`，用于结束并清除此前可能公开的 speculative partial。该结果的 `isLast`
 沿用底层结束标记；`isLast=false` 时会话继续且不回调 `onComplete`，`isLast=true` 时随后恰好回调
 一次 `onComplete`。
+
+收到 `onComplete` 后，调用方可以立即启动下一 session，包括在回调内同步重入。SDK 会先等待上一
+session 的 decoder 线程与 native stream 完全关闭，再创建下一条 stream；如果旧 session 在内部
+超时内仍未静默，新 session 会明确返回 `START_LISTENING_FAILED`，不会跨越未完成的 native 清理
+继续复用引擎资源。
 
 `vadBegin` 按实际写入并由 VAD 处理的 PCM 时长计算；只调用 `startListening` 而不写入音频不会计时。达到阈值且始终未检测到语音时，SDK 回调空的 `onResult(isFinal=true,isLast=true)`，随后回调 `onComplete`，不回调 `SPEECH_BEGIN`、`SPEECH_END` 或错误。一旦检测到首个真实起音，本会话不再触发 `vadBegin`，后续停顿由 `vadEnd` 处理。该行为不依赖 `enablePartialResult`。
 
