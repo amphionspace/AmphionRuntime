@@ -120,6 +120,7 @@ def parse_args() -> argparse.Namespace:
             "start-write",
             "start-write-reload",
             "speaker-vad-onstart",
+            "cold-start-pcm-gap",
             "speaker-vad-turn",
             "target-speaker-enhancement",
             "target-speaker-enhancement-onstart",
@@ -1090,7 +1091,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     all_sources = inspect_wavs(corpus_root)
     voiceprint_representative_modes = {
         "voiceprint", "voiceprint-vad-begin", "voiceprint-vad-begin-idle",
-        "speaker-vad-onstart", "continuous-voiceprint-speaker-vad",
+        "speaker-vad-onstart", "cold-start-pcm-gap", "continuous-voiceprint-speaker-vad",
     }
     selected = (
         representative_voiceprint_sources(all_sources, args.files)
@@ -1106,6 +1107,10 @@ def run_stress(args: argparse.Namespace) -> Path:
                 "voiceprint-fallback requires 000_enroll.wav and 001_recognize.wav"
             )
         selected = [sources_by_name[name] for name in required_names]
+    elif args.mode == "cold-start-pcm-gap":
+        # This regression gate uses a 5 s vadBegin window and measures synchronous startListening
+        # latency plus exact PCM delivery. Unlike the 1 s VAD gates, it does not require direct onset.
+        selected = sorted(selected, key=lambda source: (-source.duration_seconds, str(source.path)))[:1]
     elif args.mode in ("voiceprint-vad-begin", "speaker-vad-onstart"):
         # The carrier adds 400 ms leading silence in half the cycles. Keep only sources whose own
         # first 200 ms already contain signal, leaving at least 400 ms for VAD/ASR confirmation

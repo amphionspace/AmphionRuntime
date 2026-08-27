@@ -494,6 +494,31 @@ class RunCommandTest(unittest.TestCase):
         self.assertIn("speaker-vad-onstart-missing-partial", cycle)
         self.assertIn("speaker-vad-missing-nonempty-speaker-score", cycle)
 
+    def test_cold_start_pcm_gap_matches_customer_first_session_contract(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runColdStartPcmGapCycle", 1)[1].split(
+            "async function runCallbackApiReentrantCycle", 1
+        )[0]
+        engine = source.split("function createColdStartEngine", 1)[1].split(
+            "function startParams", 1
+        )[0]
+
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "cold-start-pcm-gap"]
+        ):
+            args = MODULE.parse_args()
+
+        self.assertEqual("cold-start-pcm-gap", args.mode)
+        self.assertIn("sysGeneralLexicon", engine)
+        self.assertIn("SpeechRecognizeSdk.createEngineAsync", engine)
+        self.assertIn("enableVoiceprintVerification'] = true", cycle)
+        self.assertIn("enableSpeakerVad'] = true", cycle)
+        self.assertIn("fed === expectedFrames", cycle)
+        self.assertIn("lastFinalsBeforeFinish === 0", cycle)
+        self.assertIn("events.nonEmptySpeakerScores === nonEmptyFinals", cycle)
+        self.assertIn("terminalCallbackOrderOk(events, sessionId)", cycle)
+        self.assertIn("startListeningMs <= COLD_START_LISTENING_MAX_MS", cycle)
+
     def test_same_source_speaker_modes_allow_the_only_entry_as_enrollment(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
         self.assertIn("options.enrollmentCount > entries.length", source)
