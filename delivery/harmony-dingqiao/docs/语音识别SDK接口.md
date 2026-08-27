@@ -4,7 +4,7 @@
 
 | 文档项 | 值 |
 | --- | --- |
-| 文档版本 | v1.8（SDK 0.3.12：冷启动 startListening 不阻塞采音） |
+| 文档版本 | v1.8（SDK 0.3.11：冷启动 startListening 不阻塞采音） |
 | 更新日期 | 2026-08-26 |
 | SDK 依赖 | `amphion_dingqiao` |
 
@@ -98,7 +98,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 日志等级设为 `INFO` 后，首次 `prepareRuntime` 初始化成功会在 Harmony hilog 输出：
 
 ```text
-[AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.12, license=LICENSED
+[AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.11, license=LICENSED
 ```
 
 可通过 DevEco Studio Log 或 `hdc shell hilog | grep "AmphionRuntime Harmony init done"` 查看。

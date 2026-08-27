@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.12 - 2026-08-27（冷启动首句 PCM 连续性修复）
+## 0.3.11 - 2026-08-27（short/long、Speaker VAD 与冷启动首句 PCM 连续性修复）
 
 - 修复客户应用已启动 `AudioCapturer` 后首次调用 `startListening()` 时，同步创建识别器或说话人
   模型占用 ArkTS 主线程，导致 20 ms 采音回调溢出、首句开头或中间 PCM 缺失的问题。
@@ -11,9 +11,7 @@
   继续滑窗评分；final 声纹分数仍等待提取器就绪，不填充假分数。
 - 公共 API、参数名和 `isFinal` / `isLast` / `onComplete` 生命周期契约不变；业务方仍可在
   `onStart` 内同步回灌冷加载期间缓存的 PCM。
-- 目标说话人增强仍仅保留接口预留；0.3.12 不包含该能力所需模型，不能启用该参数。
-
-## 0.3.11 - 2026-08-26（short/long 识别模式与 Speaker VAD 短句修复）
+- 目标说话人增强仍仅保留接口预留；0.3.11 不包含该能力所需模型，不能启用该参数。
 
 - 相对 0.3.10，将 `recognizerMode=short/long` 落实为两种 endpoint 语义：short 保留可配置的单句 Rule3
   硬上限；long 不再在 20/60 秒强切，避免会议连续讲话在任意时长边界冻结 modified beam 候选。
