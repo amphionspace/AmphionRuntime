@@ -26,14 +26,15 @@ class DingqiaoApp : Application() {
         workDir = File(getExternalFilesDir(null), "dingqiao_work").apply { mkdirs() }
         SpeechRecognizeSdk.init(this)
         SpeechRecognizeSdk.setWorkPath(workDir.absolutePath)
-        prepareRuntime()
+        val speakerModelInstalled = SpeechRecognizeSdk.preloadVoiceprintModel()
 
         val speakerModel = VoiceprintModelHelper.modelFile(workDir.absolutePath)
-        if (!VoiceprintModelHelper.isReady(speakerModel)) {
+        if (!speakerModelInstalled || !VoiceprintModelHelper.isReady(speakerModel)) {
             Log.w(TAG, "speaker model not ready: exists=${speakerModel.exists()} " +
                 "canRead=${speakerModel.canRead()} size=${speakerModel.length()} " +
                 "path=${speakerModel.absolutePath}")
         }
+        prepareRuntime()
     }
 
     fun whenRuntimeReady(callback: (RuntimeInitResult) -> Unit) {

@@ -28,6 +28,7 @@ class DingqiaoEngineConfigTest {
     @Test
     fun mapLanguage_zhCn() {
         assertEquals(AsrLanguage.ZH_EN, DingqiaoEngineConfig.mapLanguage("zh-CN"))
+        assertEquals(AsrLanguage.ZH_EN, DingqiaoEngineConfig.mapLanguage("ZH-EN"))
     }
 
     @Test
@@ -42,6 +43,14 @@ class DingqiaoEngineConfigTest {
         )
         assertTrue(config.hotwords.isNotEmpty())
         assertTrue(config.hotwords.contains("盘查"))
+    }
+
+    @Test
+    fun sysGeneralLexiconAcceptsHarmonyCompatibleDelimitedString() {
+        val values = DingqiaoEngineConfig.sysGeneralLexicon(
+            CreateEngineParams("zh-CN", extraParams = mapOf("sysGeneralLexicon" to "张三, 李四\n王五，赵六")),
+        )
+        assertEquals(listOf("张三", "李四", "王五", "赵六"), values)
     }
 
     @Test
@@ -609,6 +618,12 @@ class DingqiaoEngineConfigTest {
             ),
         )
         assertEquals(listOf("vp-1", "vp-2"), ids)
+        assertEquals(
+            listOf("vp-3", "vp-4"),
+            DingqiaoEngineConfig.voiceprintIds(
+                StartParams("s2", AudioInfo(), mapOf("voiceprintIds" to "vp-3，vp-4")),
+            ),
+        )
     }
 }
 

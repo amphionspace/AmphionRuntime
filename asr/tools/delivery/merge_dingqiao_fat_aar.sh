@@ -61,6 +61,8 @@ cp -R "$WORKDIR/sdk/assets/"* "$MERGE/assets/" 2>/dev/null || true
 cp -R "$WORKDIR/police/assets/"* "$MERGE/assets/" 2>/dev/null || true
 cp -R "$WORKDIR/dingqiao/assets/"* "$MERGE/assets/" 2>/dev/null || true
 cp -R "$WORKDIR/sdk/jni/"* "$MERGE/jni/" 2>/dev/null || true
+cp -R "$WORKDIR/police/jni/"* "$MERGE/jni/" 2>/dev/null || true
+cp -R "$WORKDIR/dingqiao/jni/"* "$MERGE/jni/" 2>/dev/null || true
 
 # Generator metadata is not used by the runtime and can expose build-machine paths.
 # Keep it in internal module builds for asset tests, but never copy it into the

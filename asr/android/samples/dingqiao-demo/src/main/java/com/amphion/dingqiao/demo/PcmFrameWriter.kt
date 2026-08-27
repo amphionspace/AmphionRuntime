@@ -38,4 +38,15 @@ class PcmFrameWriter(
     fun reset() {
         pending = ShortArray(0)
     }
+
+    /** Zero-pad and emit the recorder tail once before the caller finishes the SDK session. */
+    @Synchronized
+    fun flushFinalFrame() {
+        if (pending.isEmpty()) return
+        val padded = pending.copyOf(frameSamples)
+        pending = ShortArray(0)
+        val frame = ByteBuffer.allocate(frameBytes).order(ByteOrder.LITTLE_ENDIAN)
+        for (sample in padded) frame.putShort(sample)
+        onFrame(frame.array())
+    }
 }

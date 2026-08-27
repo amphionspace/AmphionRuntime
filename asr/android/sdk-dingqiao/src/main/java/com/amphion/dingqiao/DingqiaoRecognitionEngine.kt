@@ -7,7 +7,15 @@ import com.amphion.asr.AsrError
 import com.amphion.asr.AsrResult
 import com.amphion.asr.AsrSession
 import com.amphion.asr.AmphionRuntime
+import com.amphion.dingqiao.diarization.DiarizationFinishInput
+import com.amphion.dingqiao.diarization.DiarizationFinishOutput
+import com.amphion.dingqiao.diarization.DegradedSpeakerDiarizationSession
+import com.amphion.dingqiao.diarization.SpeakerDiarizationController
+import com.amphion.dingqiao.diarization.SpeakerDiarizationFinishBarrier
+import com.amphion.dingqiao.diarization.SpeakerDiarizationSession
+import com.amphion.dingqiao.diarization.SpeakerDiarizationSessionObserver
 import com.amphion.police.PoliceEnhancePipeline
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -45,7 +53,9 @@ internal class DingqiaoRecognitionEngine(
             plateV2Enabled = true,
             stationV2Enabled = true,
             termsV2Enabled = true,
-        )
+        ).also { pipeline ->
+            pipeline.configurePersonNames(DingqiaoEngineConfig.sysGeneralLexicon(createParams))
+        }
     } else {
         null
     }
@@ -53,6 +63,10 @@ internal class DingqiaoRecognitionEngine(
     private val callbackEpoch = CallbackEpoch()
     private val lifecycleCallbackLock = ReentrantLock(true)
     private val callbackInvocation = CallbackInvocationContext()
+    private val shutdownComplete = CountDownLatch(1)
+
+    private var shutdownRequested = false
+    private var terminalCallbackInProgress = false
 
     @Volatile
     private var listener: RecognitionListener? = null
@@ -93,6 +107,12 @@ internal class DingqiaoRecognitionEngine(
     private var speakerVadEnabled = false
     private var voiceprintIds: List<String> = emptyList()
     private var speechActive = false
+    private var speakerDiarizationSession: SpeakerDiarizationController? = null
+    private var speakerDiarizationFinishBarrier:
+        SpeakerDiarizationFinishBarrier<SpeechRecognitionResult, SpeakerDiarizationResult>? = null
+    private var diarizationTerminalClaimed = false
+    @Volatile
+    private var diarizationQuiescent = CountDownLatch(0)
 
     init {
         try {
@@ -135,6 +155,7 @@ internal class DingqiaoRecognitionEngine(
             params.sessionId.requireValidId()
             DingqiaoEngineConfig.validateRecognitionMode(params)
             validateVoiceprintParams(params)
+            validateSpeakerDiarizationConfig(params.speakerDiarization)
 
             maxAudioDurationMs = DingqiaoEngineConfig.maxAudioDurationMs(params)
             partialRequested = DingqiaoEngineConfig.enablePartialResult(params)
@@ -149,6 +170,7 @@ internal class DingqiaoRecognitionEngine(
             completeSent = false
             audioMsWritten = 0L
             speechActive = false
+            diarizationTerminalClaimed = false
 
             ensureRecognizerConfig(params)
             val eng = engine
@@ -168,6 +190,67 @@ internal class DingqiaoRecognitionEngine(
             configureVoiceprint(s)
             activeSessionId = params.sessionId
             listening = true
+            params.speakerDiarization?.let { diarizationConfig ->
+                val diarizationEpoch = epoch
+                val diarizationSessionId = params.sessionId
+                val diarizationObserver = object : SpeakerDiarizationSessionObserver {
+                    override fun onUpdate(update: SpeakerDiarizationUpdate) {
+                        dispatchDiarizationUpdate(diarizationEpoch, diarizationSessionId, update)
+                    }
+
+                    override fun onFinished(result: SpeakerDiarizationResult) {
+                        synchronized(this@DingqiaoRecognitionEngine) {
+                            if (!ownsSessionLocked(diarizationEpoch, diarizationSessionId)) return
+                            speakerDiarizationFinishBarrier?.resolveSpeaker(
+                                DiarizationFinishInput(result.degraded, result),
+                            )
+                        }
+                    }
+                }
+                speakerDiarizationSession = try {
+                    SpeakerDiarizationSession(
+                        appContext,
+                        voiceprintStore.sdkWorkPath(),
+                        diarizationConfig.maxSpeakers,
+                        diarizationObserver,
+                    )
+                } catch (t: Throwable) {
+                    DegradedSpeakerDiarizationSession(
+                        diarizationConfig.maxSpeakers,
+                        diarizationObserver,
+                        SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+                        "speaker diarization initialization failed: ${t.message ?: t.javaClass.simpleName}",
+                    )
+                }
+                speakerDiarizationFinishBarrier = SpeakerDiarizationFinishBarrier(
+                    SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS,
+                    stopFallbackExecutor,
+                    onReady = { output ->
+                        completeSpeakerDiarizationSession(
+                            diarizationEpoch,
+                            diarizationSessionId,
+                            output,
+                        )
+                    },
+                    timeoutAsrFallback = { createSpeakerDiarizationTimeoutLastResult() },
+                )
+            }
+            if (DiagnosticsModule.isBuildEnabled()) {
+                DiagnosticsModule.beginSession(
+                    params.sessionId,
+                    mapOf(
+                        "recognizerMode" to activeRule3Policy.mode,
+                        "enablePartialResult" to partialRequested,
+                        "enablePoliceEnhancement" to policeEnhancementEnabled,
+                        "enableVoiceprintVerification" to voiceprintEnabled,
+                        "enableSpeakerVad" to speakerVadEnabled,
+                        "voiceprintIdCount" to voiceprintIds.size,
+                        "vadBeginMs" to DingqiaoEngineConfig.vadBeginMs(params),
+                        "vadEndMs" to DingqiaoEngineConfig.vadEndMs(params),
+                        "maxAudioDurationMs" to maxAudioDurationMs,
+                    ),
+                )
+            }
             notifyStart(epoch, params.sessionId)
             callbackInvocation.adopt(epoch)
         } catch (t: Throwable) {
@@ -217,7 +300,9 @@ internal class DingqiaoRecognitionEngine(
         val currentSession = session ?: return
         val samples = PcmIo.bytesToShortsLE(audio)
         audioMsWritten += samples.size * 1000L / 16000
+        speakerDiarizationSession?.append(audio)
         currentSession.acceptPcmShort(samples)
+        if (DiagnosticsModule.isBuildEnabled()) DiagnosticsModule.captureAudio(sessionId, audio)
         if (
             ownsSession(epoch, sessionId) &&
             session === currentSession &&
@@ -228,6 +313,7 @@ internal class DingqiaoRecognitionEngine(
             // 达到单会话上限是正常的生命周期终止，不是错误：等价于自动 finish，
             // flush 出最终 onResult + onComplete 并清理会话，使引擎可被再次 startListening。
             finishRequested = true
+            requestSpeakerDiarizationFinishLocked()
             currentSession.stop()
         }
     }
@@ -242,6 +328,14 @@ internal class DingqiaoRecognitionEngine(
             return
         }
         finishRequested = true
+        requestSpeakerDiarizationFinishLocked()
+        if (DiagnosticsModule.isBuildEnabled()) {
+            DiagnosticsModule.record(
+                sessionId,
+                "FINISH_REQUESTED",
+                mapOf("audioMsWritten" to audioMsWritten),
+            )
+        }
         session?.stop()
     }
 
@@ -259,6 +353,13 @@ internal class DingqiaoRecognitionEngine(
         }
         val cancelledEpoch = activeEpoch
         finishRequested = false
+        if (DiagnosticsModule.isBuildEnabled()) {
+            DiagnosticsModule.record(
+                sessionId,
+                "CANCEL_REQUESTED",
+                mapOf("audioMsWritten" to audioMsWritten),
+            )
+        }
         tearDownSession(cancelledEpoch)
     }
 
@@ -308,22 +409,53 @@ internal class DingqiaoRecognitionEngine(
 
     override fun isBusy(): Boolean = listening
 
-    override fun shutdown() = lifecycleCallbackLock.withLock {
-        synchronized(this) { shutdownLocked(force = false) }
+    override fun shutdown() {
+        val calledFromCallback = lifecycleCallbackLock.isHeldByCurrentThread
+        val deferred = lifecycleCallbackLock.withLock {
+            synchronized(this) { requestShutdownLocked(force = false) }
+        }
+        awaitDeferredShutdown(deferred, calledFromCallback)
     }
 
-    internal fun invalidateFromRuntime() = lifecycleCallbackLock.withLock {
-        synchronized(this) { shutdownLocked(force = true) }
+    internal fun invalidateFromRuntime() {
+        val calledFromCallback = lifecycleCallbackLock.isHeldByCurrentThread
+        val deferred = lifecycleCallbackLock.withLock {
+            synchronized(this) { requestShutdownLocked(force = true) }
+        }
+        awaitDeferredShutdown(deferred, calledFromCallback)
     }
 
-    private fun shutdownLocked(force: Boolean) {
-        if (!force && staleCallbackTargetsReplacement()) return
+    private fun requestShutdownLocked(force: Boolean): Boolean {
+        if (!force && staleCallbackTargetsReplacement()) return false
+        if (destroyed.get()) return false
+        if ((listening && finishRequested) || terminalCallbackInProgress) {
+            shutdownRequested = true
+            return true
+        }
+        completeShutdownLocked()
+        return false
+    }
+
+    private fun awaitDeferredShutdown(deferred: Boolean, calledFromCallback: Boolean) {
+        if (!deferred || calledFromCallback) return
+        if (shutdownComplete.await(SHUTDOWN_DRAIN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) return
+        lifecycleCallbackLock.withLock {
+            synchronized(this) { completeShutdownLocked() }
+        }
+    }
+
+    private fun completeShutdownLocked() {
         if (!destroyed.compareAndSet(false, true)) return
         try {
             val shutdownEpoch = activeEpoch
             try {
                 tearDownSession(shutdownEpoch)
             } catch (_: Throwable) {
+            }
+            // Diarization owns independent ONNX native calls. Runtime/model release must not
+            // cross an in-flight call even after the public session has been invalidated.
+            runCatching {
+                diarizationQuiescent.await(SHUTDOWN_DRAIN_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             }
             try {
                 engine?.close()
@@ -335,7 +467,11 @@ internal class DingqiaoRecognitionEngine(
             } catch (_: Throwable) {
             }
         } finally {
-            onShutdown(this)
+            try {
+                onShutdown(this)
+            } finally {
+                shutdownComplete.countDown()
+            }
         }
     }
 
@@ -379,6 +515,7 @@ internal class DingqiaoRecognitionEngine(
                 if (!ownsSessionLocked(epoch, sessionId) || finishRequested) return
                 val ownedSession = session ?: return
                 finishRequested = true
+                requestSpeakerDiarizationFinishLocked()
                 ownedSession.stop()
             }
         }
@@ -420,10 +557,10 @@ internal class DingqiaoRecognitionEngine(
                 "speaker vad rejected final; score=${result.speakerScore ?: "n/a"}",
             )
             if (RejectedFinalLifecycle.completesSession(result.isLast)) {
-                enqueueTerminalResult(
-                    epoch = epoch,
-                    sessionId = sessionId,
-                    asrResult = AsrResult(text = "", speakerScore = result.speakerScore),
+                deliverFinal(
+                    epoch,
+                    sessionId,
+                    AsrResult(text = "", speakerScore = result.speakerScore, isLast = true),
                 )
             } else {
                 dispatchResult(
@@ -472,7 +609,7 @@ internal class DingqiaoRecognitionEngine(
             enqueueTerminalResult(
                 epoch = epoch,
                 sessionId = sessionId,
-                asrResult = AsrResult(text = ""),
+                asrResult = AsrResult(text = "", isLast = true),
             )
         }, STOP_FALLBACK_DELAY_MS, TimeUnit.MILLISECONDS)
     }
@@ -485,7 +622,29 @@ internal class DingqiaoRecognitionEngine(
         ) { rawText ->
             injectedTextEnhancer?.invoke(rawText) ?: enhancePipeline!!.enhance(rawText).text
         }
-        if (result.isLast) {
+        val diarization = synchronized(this) { speakerDiarizationSession }
+        if (diarization != null) {
+            val payload = resultPayload(
+                asrResult = result,
+                isFinal = true,
+                isLast = result.isLast,
+                enhancedText = outputText,
+                speakerSimilarity = result.speakerScore,
+            )
+            val decorated = diarization.observeAsrFinal(payload, result)
+            if (result.isLast) {
+                synchronized(this) {
+                    if (!ownsSessionLocked(epoch, sessionId) || completeSent) return
+                    if (!diarizationTerminalClaimed) {
+                        if (!callbackEpoch.claimTerminal(epoch)) return
+                        diarizationTerminalClaimed = true
+                    }
+                    speakerDiarizationFinishBarrier?.resolveAsr(decorated)
+                }
+            } else {
+                dispatchPayload(epoch, sessionId, decorated)
+            }
+        } else if (result.isLast) {
             enqueueTerminalResult(epoch, sessionId, result, outputText)
         } else {
             dispatchResult(
@@ -506,6 +665,12 @@ internal class DingqiaoRecognitionEngine(
         asrResult: AsrResult,
         enhancedText: String? = null,
     ) {
+        val diarization = synchronized(this) { speakerDiarizationSession }
+        if (diarization != null) {
+            val terminalResult = if (asrResult.isLast) asrResult else asrResult.copy(isLast = true)
+            deliverFinal(epoch, sessionId, terminalResult)
+            return
+        }
         synchronized(this) {
             if (!ownsSessionLocked(epoch, sessionId) || completeSent) return
             if (!callbackEpoch.claimTerminal(epoch)) return
@@ -521,26 +686,159 @@ internal class DingqiaoRecognitionEngine(
             lifecycleCallbackLock.withLock {
                 val completionListener = synchronized(this@DingqiaoRecognitionEngine) {
                     if (!ownsSessionLocked(epoch, sessionId)) return@execute
-                    completeSent = true
-                    terminalCallbackSessionId = sessionId
                     val captured = listener
                     if (tearDownSession(epoch) == null) return@execute
+                    completeSent = true
+                    terminalCallbackInProgress = true
+                    terminalCallbackSessionId = sessionId
                     captured
                 }
                 try {
                     callbackInvocation.withEpoch(epoch) {
+                        if (DiagnosticsModule.isBuildEnabled()) {
+                            DiagnosticsModule.record(
+                                sessionId,
+                                "CALLBACK_RESULT",
+                                mapOf(
+                                    "isFinal" to true,
+                                    "isLast" to true,
+                                    "text" to payload.result,
+                                    "speakerSimilarity" to payload.speakerSimilarity,
+                                ),
+                            )
+                        }
                         runCatching { completionListener?.onResult(sessionId, payload) }
                     }
                 } finally {
                     callbackInvocation.withEpoch(epoch) {
+                        if (DiagnosticsModule.isBuildEnabled()) {
+                            DiagnosticsModule.record(sessionId, "CALLBACK_COMPLETE")
+                        }
                         runCatching { completionListener?.onComplete(sessionId, "recognize complete") }
                     }
                     synchronized(this@DingqiaoRecognitionEngine) {
                         if (terminalCallbackSessionId == sessionId) {
                             terminalCallbackSessionId = null
                         }
+                        terminalCallbackInProgress = false
+                        if (shutdownRequested) {
+                            completeShutdownLocked()
+                        }
                     }
                 }
+            }
+        }
+    }
+
+    private fun completeSpeakerDiarizationSession(
+        epoch: Long,
+        sessionId: String,
+        output: DiarizationFinishOutput<SpeechRecognitionResult, SpeakerDiarizationResult>,
+    ) {
+        val completion = synchronized(this) {
+            if (!ownsSessionLocked(epoch, sessionId) || completeSent) return
+            if (!diarizationTerminalClaimed) {
+                if (!callbackEpoch.claimTerminal(epoch)) return
+                diarizationTerminalClaimed = true
+            }
+            val diarization = speakerDiarizationSession ?: return
+            var result = output.speaker ?: diarization.bestResult(
+                SpeakerDiarizationDegradedReason.FINISH_TIMEOUT,
+                "speaker diarization finish timeout",
+            )
+            if (output.degraded && !result.degraded) {
+                result = result.copy(
+                    degraded = true,
+                    degradedReason = SpeakerDiarizationDegradedReason.FINISH_TIMEOUT,
+                    degradedMessage = "speaker diarization finish timeout",
+                )
+            }
+            Triple(diarization.decoratePayload(output.asr), result, listener)
+        }
+        callbackExecutor.execute {
+            lifecycleCallbackLock.withLock {
+                val captured = synchronized(this@DingqiaoRecognitionEngine) {
+                    if (!ownsSessionLocked(epoch, sessionId)) return@execute
+                    val current = completion.third
+                    if (tearDownSession(epoch) == null) return@execute
+                    completeSent = true
+                    terminalCallbackInProgress = true
+                    terminalCallbackSessionId = sessionId
+                    current
+                }
+                try {
+                    callbackInvocation.withEpoch(epoch) {
+                        if (DiagnosticsModule.isBuildEnabled()) {
+                            DiagnosticsModule.record(
+                                sessionId,
+                                "CALLBACK_RESULT",
+                                mapOf(
+                                    "isFinal" to true,
+                                    "isLast" to true,
+                                    "text" to completion.first.result,
+                                    "speakerSimilarity" to completion.first.speakerSimilarity,
+                                    "speakerDiarizationDegraded" to completion.second.degraded,
+                                    "speakerCount" to completion.second.speakerCount,
+                                ),
+                            )
+                        }
+                        runCatching { captured?.onResult(sessionId, completion.first) }
+                        runCatching { captured?.onSpeakerDiarizationResult(sessionId, completion.second) }
+                    }
+                } finally {
+                    callbackInvocation.withEpoch(epoch) {
+                        if (DiagnosticsModule.isBuildEnabled()) {
+                            DiagnosticsModule.record(sessionId, "CALLBACK_COMPLETE")
+                        }
+                        runCatching { captured?.onComplete(sessionId, "recognize complete") }
+                    }
+                    synchronized(this@DingqiaoRecognitionEngine) {
+                        if (terminalCallbackSessionId == sessionId) terminalCallbackSessionId = null
+                        terminalCallbackInProgress = false
+                        if (shutdownRequested) completeShutdownLocked()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun createSpeakerDiarizationTimeoutLastResult() = SpeechRecognitionResult(
+        isFinal = true,
+        isLast = true,
+        result = "",
+    )
+
+    private fun requestSpeakerDiarizationFinishLocked() {
+        speakerDiarizationFinishBarrier?.begin()
+        speakerDiarizationSession?.finish()
+    }
+
+    private fun dispatchDiarizationUpdate(
+        epoch: Long,
+        sessionId: String,
+        update: SpeakerDiarizationUpdate,
+    ) {
+        callbackExecutor.execute {
+            lifecycleCallbackLock.withLock {
+                val captured = synchronized(this@DingqiaoRecognitionEngine) {
+                    if (!ownsSessionLocked(epoch, sessionId) || completeSent) return@execute
+                    listener
+                }
+                callbackInvocation.withEpoch(epoch) {
+                    captured?.onSpeakerDiarizationUpdate(sessionId, update)
+                }
+            }
+        }
+    }
+
+    private fun dispatchPayload(epoch: Long, sessionId: String, payload: SpeechRecognitionResult) {
+        callbackExecutor.execute {
+            lifecycleCallbackLock.withLock {
+                val captured = synchronized(this@DingqiaoRecognitionEngine) {
+                    if (!ownsSessionLocked(epoch, sessionId) || completeSent) return@execute
+                    listener
+                }
+                callbackInvocation.withEpoch(epoch) { captured?.onResult(sessionId, payload) }
             }
         }
     }
@@ -572,6 +870,18 @@ internal class DingqiaoRecognitionEngine(
                     listener
                 }
                 callbackInvocation.withEpoch(epoch) {
+                    if (DiagnosticsModule.isBuildEnabled()) {
+                        DiagnosticsModule.record(
+                            sessionId,
+                            "CALLBACK_RESULT",
+                            mapOf(
+                                "isFinal" to isFinal,
+                                "isLast" to isLast,
+                                "text" to payload.result,
+                                "speakerSimilarity" to payload.speakerSimilarity,
+                            ),
+                        )
+                    }
                     captured?.onResult(sessionId, payload)
                 }
             }
@@ -630,6 +940,13 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
+    private fun validateSpeakerDiarizationConfig(config: SpeakerDiarizationConfig?) {
+        if (config == null) return
+        require(config.maxSpeakers in 1..4) {
+            "SpeakerDiarizationConfig.maxSpeakers must be in [1, 4]"
+        }
+    }
+
     private fun requireSpeakerModel(capability: String) {
         if (speakerModelPath.isNullOrBlank() || !java.io.File(speakerModelPath).isFile) {
             throw DingqiaoEngineException(
@@ -643,11 +960,16 @@ internal class DingqiaoRecognitionEngine(
     private fun tearDownSession(expectedEpoch: Long): Long? {
         if (!callbackEpoch.isCurrent(expectedEpoch)) return null
         val oldSession = session
+        val oldDiarization = speakerDiarizationSession
+        val oldBarrier = speakerDiarizationFinishBarrier
         listening = false
         activeSessionId = null
         finishRequested = false
         policeEnhancementEnabled = true
         speechActive = false
+        speakerDiarizationSession = null
+        speakerDiarizationFinishBarrier = null
+        diarizationTerminalClaimed = false
         val idleEpoch = callbackEpoch.invalidate()
         activeEpoch = idleEpoch
         try {
@@ -655,6 +977,14 @@ internal class DingqiaoRecognitionEngine(
         } catch (_: Throwable) {
         }
         session = null
+        oldBarrier?.cancel()
+        if (oldDiarization != null) {
+            val quiescent = CountDownLatch(1)
+            diarizationQuiescent = quiescent
+            oldDiarization.cancel { quiescent.countDown() }
+        } else {
+            diarizationQuiescent = CountDownLatch(0)
+        }
         return idleEpoch
     }
 
@@ -683,6 +1013,9 @@ internal class DingqiaoRecognitionEngine(
                     listener
                 }
                 callbackInvocation.withEpoch(epoch) {
+                    if (DiagnosticsModule.isBuildEnabled()) {
+                        DiagnosticsModule.record(sessionId, "CALLBACK_START")
+                    }
                     captured?.onStart(sessionId, "startListening success.")
                 }
             }
@@ -697,6 +1030,13 @@ internal class DingqiaoRecognitionEngine(
                     listener
                 }
                 callbackInvocation.withEpoch(epoch) {
+                    if (DiagnosticsModule.isBuildEnabled()) {
+                        DiagnosticsModule.record(
+                            sessionId,
+                            "CALLBACK_EVENT",
+                            mapOf("eventCode" to code, "message" to message),
+                        )
+                    }
                     captured?.onEvent(sessionId, code, message)
                 }
             }
@@ -711,6 +1051,13 @@ internal class DingqiaoRecognitionEngine(
                     listener
                 }
                 callbackInvocation.withEpoch(epoch) {
+                    if (DiagnosticsModule.isBuildEnabled()) {
+                        DiagnosticsModule.record(
+                            sessionId,
+                            "CALLBACK_ERROR",
+                            mapOf("errorCode" to code, "message" to message),
+                        )
+                    }
                     captured?.onError(sessionId, code, message)
                 }
             }
@@ -736,6 +1083,8 @@ internal class DingqiaoRecognitionEngine(
                 Thread(r, "dingqiao-stop-fallback").apply { isDaemon = true }
             }
         private const val STOP_FALLBACK_DELAY_MS = 1_500L
+        private const val SHUTDOWN_DRAIN_TIMEOUT_SECONDS = 60L
+        private const val SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS = 10_000L
 
         fun create(
             appContext: Context,

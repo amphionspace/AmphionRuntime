@@ -63,6 +63,9 @@ internal class EngineImpl(
     private val closed = AtomicBoolean(false)
     private val sessionsLock = ReentrantLock()
     private val sessions: MutableSet<SessionImpl> = HashSet()
+    private val closingSessions = ClosingSessionBarrier<SessionImpl>(
+        awaitQuiescent = { session, timeoutMs -> session.awaitDecoderQuit(timeoutMs) },
+    )
     private val sessionCounter = AtomicInteger(0)
 
     /** engine ready 时刻（init 完成）的 SystemClock.elapsedRealtime；MetricsCollector 需要。 */
@@ -126,6 +129,9 @@ internal class EngineImpl(
 
     fun newSession(callback: AsrCallback, sessionConfig: SessionConfig? = null): SessionImpl {
         check(!closed.get()) { "Engine is closed (code=${AsrErrorCode.SESSION_ALREADY_CLOSED})" }
+        check(closingSessions.awaitAll(SESSION_REUSE_DRAIN_TIMEOUT_MS)) {
+            "Previous session decoder did not quiesce in ${SESSION_REUSE_DRAIN_TIMEOUT_MS}ms"
+        }
         val id = sessionCounter.incrementAndGet()
         val isFirstSession = id == 1
         val startupBundle = if (isFirstSession) {
@@ -155,6 +161,7 @@ internal class EngineImpl(
     /** 由 SessionImpl.close() 反向调用。 */
     internal fun unregister(s: SessionImpl) {
         sessionsLock.withLock { sessions.remove(s) }
+        closingSessions.track(s)
     }
 
     /**
@@ -209,12 +216,12 @@ internal class EngineImpl(
         // release per-engine vad，必须等 decoder 线程上「当前正在执行的 feedAndDecode」
         // 退出，否则那个 task 里的 v.isSpeechDetected() 会拿到已释放的 native pointer
         // 直接 SIGSEGV（见 SessionImpl.awaitDecoderQuit 的说明）。
-        // 超时 500ms 是为了避免极端病态（decoder 卡在 native）时永远 hang close 流程。
-        for (s in toClose) {
-            val quit = s.awaitDecoderQuit(timeoutMs = 500)
-            if (!quit) {
-                Logger.w("Engine close: session decoder didn't quit in 500ms, proceeding anyway")
-            }
+        // 同一个 barrier 也覆盖此前已经 close、但仍在异步退出的 session。
+        if (!closingSessions.awaitAll(ENGINE_CLOSE_DRAIN_TIMEOUT_MS)) {
+            Logger.w(
+                "Engine close: session decoder didn't quit in " +
+                    "${ENGINE_CLOSE_DRAIN_TIMEOUT_MS}ms, proceeding anyway",
+            )
         }
 
         if (ownsRecognizer) {
@@ -226,6 +233,9 @@ internal class EngineImpl(
     }
 
     internal companion object {
+        private const val SESSION_REUSE_DRAIN_TIMEOUT_MS = 5_000L
+        private const val ENGINE_CLOSE_DRAIN_TIMEOUT_MS = 500L
+
         /** SDK 锁定的采样率，与训练时一致。 */
         const val SAMPLE_RATE: Int = 16000
 

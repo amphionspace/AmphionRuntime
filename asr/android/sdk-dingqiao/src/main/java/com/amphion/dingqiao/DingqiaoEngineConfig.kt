@@ -27,8 +27,8 @@ internal object DingqiaoEngineConfig {
     private const val DEFAULT_SPEAKER_VAD_HOP_MS = 300
     private const val DEFAULT_SPEAKER_VAD_CONSECUTIVE_BELOW = 2
 
-    fun mapLanguage(language: String): AsrLanguage = when (language) {
-        "zh-CN", "zh-en", "zh_en" -> AsrLanguage.ZH_EN
+    fun mapLanguage(language: String): AsrLanguage = when (language.lowercase()) {
+        "zh-cn", "zh-en", "zh_en" -> AsrLanguage.ZH_EN
         "zh-yue", "zh_yue" -> AsrLanguage.YUE_EN
         else -> throw IllegalArgumentException("unsupported language: $language")
     }
@@ -42,11 +42,7 @@ internal object DingqiaoEngineConfig {
             "only offline mode is supported"
         }
         val rule3Policy = rule3Policy(params, startParams)
-        @Suppress("UNCHECKED_CAST")
-        val sysLexicon = params.extraParams["sysGeneralLexicon"] as? List<String>
-            ?: (params.extraParams["sysGeneralLexicon"] as? List<*>)?.mapNotNull { it?.toString() }
-            ?: emptyList()
-        val userHotwords = sysLexicon.map { it.trim() }.filter { it.isNotEmpty() }
+        val userHotwords = sysGeneralLexicon(params)
         val hotwords = PoliceEngineConfig.effectiveHotwords(
             userHotwords = userHotwords,
             plateHotwords = true,
@@ -84,6 +80,10 @@ internal object DingqiaoEngineConfig {
             )
         }
         return builder.build()
+    }
+
+    fun sysGeneralLexicon(params: CreateEngineParams): List<String> {
+        return stringList(params.extraParams["sysGeneralLexicon"])
     }
 
     /**
@@ -241,11 +241,14 @@ internal object DingqiaoEngineConfig {
         ).coerceIn(1, 5)
     }
 
-    @Suppress("UNCHECKED_CAST")
     fun voiceprintIds(startParams: StartParams): List<String> {
-        val raw = startParams.extraParams["voiceprintIds"] as? List<*>
-        return raw?.mapNotNull { it?.toString()?.trim()?.takeIf { id -> id.isNotEmpty() } }
-            ?: emptyList()
+        return stringList(startParams.extraParams["voiceprintIds"])
+    }
+
+    private fun stringList(raw: Any?): List<String> = when (raw) {
+        is List<*> -> raw.mapNotNull { it?.toString()?.trim()?.takeIf(String::isNotEmpty) }
+        is String -> raw.split('\n', ',', '，').map(String::trim).filter(String::isNotEmpty)
+        else -> emptyList()
     }
 
     private fun asBoolean(raw: Any?): Boolean = when (raw) {

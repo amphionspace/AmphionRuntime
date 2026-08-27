@@ -220,6 +220,7 @@ prepare_build_workspace() {
   clone_tree "$REPO_ROOT/asr/harmony/sdk" "$temp_repo/asr/harmony/sdk"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-police" "$temp_repo/asr/harmony/sdk-police"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-dingqiao" "$temp_repo/asr/harmony/sdk-dingqiao"
+  clone_tree "$REPO_ROOT/shared/models/asr" "$temp_repo/shared/models/asr"
   clone_tree \
     "$REPO_ROOT/asr/native/audio-processing/include" \
     "$temp_repo/asr/native/audio-processing/include"
@@ -258,7 +259,7 @@ EOF
       echo "[ERROR] speaker-turn segmentation model is unreadable: $SPEAKER_TURN_SEGMENTATION_MODEL" >&2
       exit 1
     }
-    local turn_destination="$temp_repo/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx"
+    local turn_destination="$temp_repo/shared/models/asr/dingqiao/pyannote-segmentation-3.0.onnx"
     mkdir -p "$(dirname "$turn_destination")"
     cp "$SPEAKER_TURN_SEGMENTATION_MODEL" "$turn_destination"
     echo "[INFO] injected speaker-turn segmentation model into the isolated test build"
@@ -495,7 +496,7 @@ fi
 "$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_ARGS[@]}"
 
 echo "[INFO] installing HAP on the USB device"
-"$HDC" -t "$DEVICE" install -r "$HAP" >"$INSTALL_LOG"
+"$HDC" -t "$DEVICE" install -r -d "$HAP" >"$INSTALL_LOG"
 grep -q 'install bundle successfully' "$INSTALL_LOG" || {
   cat "$INSTALL_LOG" >&2
   exit 1

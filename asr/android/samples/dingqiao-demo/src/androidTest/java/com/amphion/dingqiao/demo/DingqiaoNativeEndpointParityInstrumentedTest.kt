@@ -46,6 +46,7 @@ class DingqiaoNativeEndpointParityInstrumentedTest {
             assertEmptyRule3RecoversWithSpeech(engine, pcm)
             assertRepeatedRule3DoesNotEndSession(engine, pcm)
             assertEndpointRuleChangeRebuildsUsableEngine(engine, pcm)
+            assertLongModeDoesNotUsePeriodicRule3(engine, pcm)
         } finally {
             engine.shutdown()
         }
@@ -149,6 +150,36 @@ class DingqiaoNativeEndpointParityInstrumentedTest {
         assertNormalCompletion(listener, sessionId, "reconfigured session")
     }
 
+    private fun assertLongModeDoesNotUsePeriodicRule3(
+        engine: SpeechRecognitionEngine,
+        pcm: ByteArray,
+    ) {
+        val listener = CapturingListener().also { engine.setListener(it) }
+        val sessionId = "long-no-rule3-${System.currentTimeMillis()}"
+        val transitionBaseline = transitionLines().size
+        engine.startListening(
+            startParams(
+                sessionId = sessionId,
+                endpointMaxUtteranceMs = 1_000,
+                recognizerMode = "long",
+            ),
+        )
+        assertTrue("long session failed to start: ${listener.errors}", listener.awaitStarted(20_000))
+
+        feedFrames(engine, sessionId, pcm.copyOfRange(0, minOf(pcm.size, DQ_SR * 2 * 7)), DQ_FRAME_MS)
+        assertTrue(
+            "long mode must ignore endpointMaxUtteranceMs Rule3: ${transitionLog()}",
+            transitionsSince(transitionBaseline, reason = "native-rule3").isEmpty(),
+        )
+        assertEquals("long mode must not emit isLast before finish", 0, listener.finals.count { it.isLast })
+        assertFalse("long mode must remain active before finish", listener.awaitComplete(0))
+
+        engine.finish(sessionId)
+        assertTrue("long session finish timed out: ${listener.errors}", listener.awaitComplete(30_000))
+        assertTrue("long session must produce non-empty text", listener.finalText().isNotBlank())
+        assertNormalCompletion(listener, sessionId, "long session")
+    }
+
     private fun assertNormalCompletion(
         listener: CapturingListener,
         sessionId: String,
@@ -216,12 +247,17 @@ class DingqiaoNativeEndpointParityInstrumentedTest {
 
     private fun transitionLog(): String = transitionLines().joinToString(" | ")
 
-    private fun startParams(sessionId: String, endpointMaxUtteranceMs: Int): StartParams =
+    private fun startParams(
+        sessionId: String,
+        endpointMaxUtteranceMs: Int,
+        recognizerMode: String = "short",
+    ): StartParams =
         StartParams(
             sessionId = sessionId,
             audioInfo = AudioInfo(),
             extraParams = mapOf(
                 "endpointMaxUtteranceMs" to endpointMaxUtteranceMs,
+                "recognizerMode" to recognizerMode,
                 "enableContinuousRecognition" to true,
                 "enablePartialResult" to true,
                 "enablePoliceEnhancement" to false,

@@ -38,3 +38,4 @@
 -keep class com.amphion.asr.internal.NativeResult$Ok { *; }
 -keep class com.amphion.asr.internal.NativeResult$Err { *; }
 -keep class com.amphion.asr.internal.Logger { *; }
+-keep class com.amphion.asr.internal.PcmSubmissionLimiter { *; }

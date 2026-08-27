@@ -32,11 +32,13 @@
 | Demo Release APK | `./gradlew :samples:dingqiao-demo:assembleRelease` | 需配置签名；release 开启 R8 |
 | SDK AAR（集成用） | 见 §4 | 业务方 Gradle 依赖 `:sdk-dingqiao` 或发布 AAR |
 
-额外文件（需单独下发，不打进 AAR）：
+模型与授权：
 
 | 文件 | 用途 |
 |------|------|
 | 声纹模型 `eres2net.onnx` | 已内置于 `dingqiao-asr-v*.aar`，首次运行自动解包到 `setWorkPath` |
+| 说话人分离模型 `pyannote-segmentation-3.0.onnx` | 已内置于 AAR，与 eres2net 一起在启用 diarization 时按需准备 |
+| LAC 人名模型/字典 | 已内置于 `sdk-police`，仅对调用方 `sysGeneralLexicon` 中的人名候选做门控纠正 |
 | `amphion-license.lic` | 商用授权（武装构建 AAR 时必需，见 `docs/LICENSING.md`） |
 
 ## 3. 构建环境
@@ -83,7 +85,9 @@ dependencies {
 2. `sdk_version` / `buildconfig_sdk_version` 均来自 **`gradle.properties` → `AMPHION_RUNTIME_VERSION`**，打包前校验与 `BuildConfig.SDK_VERSION` 一致。
 3. fat AAR 内嵌 `META-INF/amphion-dingqiao-build.properties`（与 VERSION.txt 同批 git/sdk 信息）。
 4. 正式客户包脚本必须用严格模式拷贝 `arm64-v8a` native 库，缺少构建产物时直接失败。
-5. fat AAR 必须包含 `jni/arm64-v8a/libsherpa-onnx-jni.so` 和 `jni/arm64-v8a/libonnxruntime.so`；Demo APK 必须包含对应 `lib/arm64-v8a/*.so`。缺失会导致 `createEngine` 阶段加载 sherpa JNI 失败。
+5. fat AAR 必须包含 sherpa、ONNX Runtime、`libamphion_diarization_jni.so` 与
+   `libamphion_police_jni.so`；Demo APK 必须包含对应 `lib/arm64-v8a/*.so`。缺失会导致创建引擎或
+   首次说话人分离/LAC 推理失败。
 6. 工作区须 **clean**（无未提交改动）；本地预览可设 `DINGQIAO_ALLOW_DIRTY=1`。
 7. 交付版本号默认 = `AMPHION_RUNTIME_VERSION`（勿再手写 `0.1.0` 与 SDK `0.2.x` 混用）。
 
@@ -99,8 +103,8 @@ bash asr/tools/delivery/verify_dingqiao_delivery.sh delivery/.../amphion-dingqia
 
 # 最终交付验收必须从 zip 开始；设备验证也安装 zip 解压出的 Demo APK
 ZIP=delivery/.../amphion-dingqiao-*.zip
-export DELIVERY_VERIFY_REQUIRED_AAR_ENTRIES='jni/arm64-v8a/libsherpa-onnx-jni.so:1,jni/arm64-v8a/libonnxruntime.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280'
-export DELIVERY_VERIFY_REQUIRED_APK_ENTRIES='lib/arm64-v8a/libsherpa-onnx-jni.so:1,lib/arm64-v8a/libonnxruntime.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-license.lic:1'
+export DELIVERY_VERIFY_REQUIRED_AAR_ENTRIES='jni/arm64-v8a/libsherpa-onnx-jni.so:1,jni/arm64-v8a/libonnxruntime.so:1,jni/arm64-v8a/libamphion_diarization_jni.so:1,jni/arm64-v8a/libamphion_police_jni.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx:5242880,assets/lac/v1/lac_encoder.onnx:20971520'
+export DELIVERY_VERIFY_REQUIRED_APK_ENTRIES='lib/arm64-v8a/libsherpa-onnx-jni.so:1,lib/arm64-v8a/libonnxruntime.so:1,lib/arm64-v8a/libamphion_diarization_jni.so:1,lib/arm64-v8a/libamphion_police_jni.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx:5242880,assets/lac/v1/lac_encoder.onnx:20971520,assets/amphion-license.lic:1'
 export DELIVERY_VERIFY_LICENSE_ENTRY='assets/amphion-license.lic'
 export DELIVERY_VERIFY_LICENSE_FEATURES='ASR'
 export DELIVERY_VERIFY_LICENSE_DEVICE_HASH_COUNT=0
@@ -166,7 +170,10 @@ createEngine → setListener → startListening
 | `onResult` | partial：ASR 原文；final：警务增强后文本 |
 | `speakerSimilarity` | final 且启用声纹校验、有效语音达到门槛时返回；短句省略分数但仍返回识别结果，SDK 不丢弃非目标人结果 |
 
-警务后处理顺序：**术语 → 车牌 → 派出所**（`PoliceEnhancePipeline`）。
+警务后处理顺序：**术语 → LAC 人名 → 车牌 → 派出所**（`PoliceEnhancePipeline`）。
+
+会议模式可在 `StartParams.speakerDiarization` 传入 `SpeakerDiarizationConfig(maxSpeakers=1..4)`。
+增量 revision 与最终说话人结果均为离线端侧计算；终态顺序固定为 last → diarization result → complete。
 
 ### 5.3 声纹
 
@@ -197,6 +204,7 @@ createEngine → setListener → startListening
 - 离线 only；警务三场景 normalize **默认开启**
 - FST 后处理默认关（可在 `sdk-police` prefs 层扩展）
 - 系统热词：`CreateEngineParams.extraParams["sysGeneralLexicon"]`
+- 离线说话人分离：会议模式按需启用，内置 pyannote segmentation + eres2net，支持重叠说话和显式降级结果
 - 冷启动默认跳过 ORT INT8 prepack；如需吞吐优先可设置 `CreateEngineParams.extraParams["disablePrepack"]=false`
 
 ## 8. License 与 Release 打包

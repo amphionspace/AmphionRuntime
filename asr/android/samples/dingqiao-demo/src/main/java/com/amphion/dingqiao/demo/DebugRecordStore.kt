@@ -132,6 +132,18 @@ internal class DebugRecordStore(private val dir: File) {
         }
 
         @Synchronized
+        fun appendPcmBytes(frame: ByteArray) {
+            if (closed || frame.isEmpty()) return
+            require(frame.size % BYTES_PER_SAMPLE == 0) { "PCM byte length must be even" }
+            try {
+                wav.write(frame)
+                sampleCount += frame.size / BYTES_PER_SAMPLE
+            } catch (t: Throwable) {
+                writeError = t.message ?: t.javaClass.simpleName
+            }
+        }
+
+        @Synchronized
         fun finish(
             status: String,
             errorCode: Int? = null,

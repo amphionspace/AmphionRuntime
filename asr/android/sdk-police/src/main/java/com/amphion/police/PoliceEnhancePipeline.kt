@@ -16,6 +16,7 @@ import com.amphion.police.terms.PoliceTermsEnhancePrefs
 import com.amphion.police.terms.PoliceTermsNormalizeResult
 import com.amphion.police.terms.PoliceTermsNormalizer
 import com.amphion.police.terms.PoliceTermsNormalizerV2
+import com.amphion.police.person.PersonNameNormalizer
 
 /**
  * 警务三场景后处理流水线：ASR final → 术语 → 车牌 → 派出所。
@@ -35,14 +36,28 @@ class PoliceEnhancePipeline private constructor(
     val stationNormalizerV2: PoliceStationNormalizerV2? = null,
     /** V2 术语后处理（全局谐音 + 保守模糊层）；null 表示未启用，走老方案 [termsNormalizer]。 */
     val termsNormalizerV2: PoliceTermsNormalizerV2? = null,
+    private val context: Context? = null,
 ) : AutoCloseable {
+
+    private var personNames: PersonNameNormalizer? = null
 
     data class Result(
         val text: String,
         val terms: PoliceTermsNormalizeResult,
         val plate: PlateNormalizeResult,
         val station: PoliceStationNormalizeResult,
+        val personNameChanged: Boolean = false,
     )
+
+    /** Configures fail-soft LAC person-name correction from sysGeneralLexicon. */
+    fun configurePersonNames(customHotwords: List<String>) {
+        runCatching { personNames?.close() }
+        personNames = null
+        if (customHotwords.isEmpty()) return
+        personNames = runCatching {
+            PersonNameNormalizer(checkNotNull(context), customHotwords)
+        }.getOrNull()
+    }
 
     /** 默认全开三场景后处理（鼎桥交付 v0.1）。 */
     fun enhance(asrFinalText: String): Result = apply(
@@ -77,20 +92,27 @@ class PoliceEnhancePipeline private constructor(
             else -> PoliceStationEnhance.apply(plate.text, stationNormalizer, stationNormalizeEnabled)
         }
         // 车牌后处理会把「川A F60080」收成「川AF60080」等；术语末润色再拉回语音指令书写。
-        val finalText = when {
+        val polishedText = when {
             !termsNormalizeEnabled -> station.text
             termsV2 != null -> termsV2.polish(station.text)
             else -> station.text
         }
+        val finalText = runCatching { personNames?.normalize(polishedText) ?: polishedText }
+            .getOrDefault(polishedText)
         return Result(
             text = finalText,
             terms = terms,
             plate = plate,
             station = station,
+            personNameChanged = finalText != polishedText,
         )
     }
 
     override fun close() {
+        try {
+            personNames?.close()
+            personNames = null
+        } catch (_: Throwable) {}
         try {
             termsNormalizer.close()
         } catch (_: Throwable) {}
@@ -190,6 +212,7 @@ class PoliceEnhancePipeline private constructor(
             } else {
                 null
             },
+            context = context.applicationContext,
         )
     }
 }

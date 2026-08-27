@@ -36,6 +36,9 @@ class SoleHarTest(unittest.TestCase):
     def test_zh_en_identity_still_binds_police_har_used_by_selfcontained_delivery(self) -> None:
         self.assertIn("amphion_police.har", MODULE.artifact_dirs(zh_en_only=True))
 
+    def test_source_identity_binds_shared_cross_platform_models(self) -> None:
+        self.assertIn("shared/models/asr", MODULE.TRACKED_BUILD_INPUTS)
+
     def test_tracked_path_fingerprint_changes_when_file_content_changes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "input.txt"
