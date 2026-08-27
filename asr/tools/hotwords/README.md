@@ -12,7 +12,12 @@
 
 ## AISHELL-3 热词收益评测
 
-测试集：`/Users/boxp/Downloads/testdata/aishell3_test_hotwords_500/`
+测试集默认从 OBS 下载到
+`~/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500/`：
+
+```bash
+python3 asr/tools/test_data.py fetch aishell3-hotwords-500
+```
 
 先准备官方中英 demo 模型：
 
@@ -24,7 +29,7 @@ bash asr/tools/00_fetch_demo_model.sh
 
 ```bash
 python3 asr/tools/hotwords/01_eval_aishell3_hotwords.py \
-  --dataset-dir /Users/boxp/Downloads/testdata/aishell3_test_hotwords_500 \
+  --dataset-dir ~/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500 \
   --model-dir asr/tools/demo-model/zipformer_L_zh_en \
   --bpe-vocab asr/tools/demo-model/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20/bpe.vocab \
   --hotwords-scores 3.0 \
