@@ -16,10 +16,11 @@ TURN_NATIVE = ROOT / "asr/harmony/sdk/src/main/cpp/speaker_turn_segmenter.cpp"
 TURN_TYPES = ROOT / "asr/harmony/sdk/src/main/cpp/types/libamphion_asr/index.d.ts"
 RUNTIME = ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
 CORE_TYPES = ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets"
+CORE_DIARIZATION = ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerDiarizationInference.ets"
 PUBLIC_MODELS = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/DingqiaoModels.ets"
 CONFIG_POLICY = DIARIZATION / "SpeakerDiarizationConfigPolicy.ts"
 SPEAKER_INDEX_POLICY = DIARIZATION / "SpeakerDiarizationSpeakerIndex.ts"
-REMOTE_CLIENT = DIARIZATION / "SpeakerDiarizationRemoteClient.ets"
+LOCAL_CLIENT = DIARIZATION / "SpeakerDiarizationLocalClient.ets"
 SESSION = DIARIZATION / "SpeakerDiarizationSession.ets"
 ADAPTER = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 DEVICE_STRESS = ROOT / (
@@ -28,6 +29,7 @@ DEVICE_STRESS = ROOT / (
 ENTRY_ABILITY = ROOT / (
     "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/entryability/EntryAbility.ets"
 )
+DEMO_MANIFEST = ROOT / "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/module.json5"
 PUBLIC_DOC = ROOT / "delivery/harmony-dingqiao/docs/语音识别SDK接口.md"
 TS_LOADER = ROOT / "asr/tools/tests/ts_extension_loader.mjs"
 
@@ -73,9 +75,9 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             self.assertIn(field, models)
         self.assertIn("speakerDiarization?: SpeakerDiarizationConfig", models)
         self.assertIn("export class SpeakerDiarizationConfig", models)
-        self.assertIn("serviceUrl: string = ''", models)
-        self.assertIn("serviceHeaders: Record<string, string> = {}", models)
         self.assertIn("maxSpeakers: number = 4", models)
+        self.assertNotIn("serviceUrl", models)
+        self.assertNotIn("serviceHeaders", models)
         self.assertIn("onSpeakerDiarizationUpdate?", models)
         self.assertIn("onSpeakerDiarizationResult?", models)
         self.assertIn("export class SpeakerDiarizationUpdate", models)
@@ -115,48 +117,43 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             import assert from 'node:assert/strict';
             import {{ validateSpeakerDiarizationConfig }} from {CONFIG_POLICY.as_uri()!r};
 
-            const valid = validateSpeakerDiarizationConfig({{
-              serviceUrl: 'https://diarization.example/v1/window',
-              serviceHeaders: {{ Authorization: 'Bearer token' }},
-              maxSpeakers: 4
-            }});
-            assert.equal(valid.maxSpeakers, 4);
-            assert.equal(valid.serviceUrl, 'https://diarization.example/v1/window');
-            assert.equal(valid.serviceHeaders.Authorization, 'Bearer token');
-            assert.equal(validateSpeakerDiarizationConfig({{
-              serviceUrl: 'http://127.0.0.1:18080/v1/window',
-              serviceHeaders: {{}}, maxSpeakers: 2
-            }}).maxSpeakers, 2);
-            assert.throws(() => validateSpeakerDiarizationConfig({{
-              serviceUrl: 'http://remote.example/v1/window', serviceHeaders: {{}}, maxSpeakers: 4
-            }}));
-            assert.throws(() => validateSpeakerDiarizationConfig({{
-              serviceUrl: '', serviceHeaders: {{}}, maxSpeakers: 4
-            }}));
-            assert.throws(() => validateSpeakerDiarizationConfig({{
-              serviceUrl: 'https://diarization.example/v1/window',
-              serviceHeaders: {{ Authorization: 'bad\\nvalue' }}, maxSpeakers: 4
-            }}));
-            assert.throws(() => validateSpeakerDiarizationConfig({{
-              serviceUrl: 'https://diarization.example/v1/window', serviceHeaders: {{}}, maxSpeakers: 0
-            }}));
+            assert.equal(validateSpeakerDiarizationConfig({{ maxSpeakers: 4 }}), 4);
+            assert.equal(validateSpeakerDiarizationConfig({{ maxSpeakers: 2 }}), 2);
+            for (const maxSpeakers of [0, 5, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {{
+              assert.throws(() => validateSpeakerDiarizationConfig({{ maxSpeakers }}));
+            }}
             """
         )
 
-    def test_remote_executor_replaces_host_child_process_adapter(self) -> None:
+    def test_local_executor_is_sdk_owned_and_has_no_network_or_host_adapter(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
         self.assertNotIn("childProcessManager", adapter)
         self.assertNotIn("resolveSpeakerDiarizationProcessEntry", adapter)
-        self.assertIn("diarizationConfig.serviceUrl", adapter)
-        self.assertIn("diarizationConfig.serviceHeaders", adapter)
+        self.assertIn("validateSpeakerDiarizationConfig", adapter)
 
         entry_ability = ENTRY_ABILITY.read_text(encoding="utf-8")
         self.assertNotIn("SpeakerDiarizationChild", entry_ability)
 
-        client = REMOTE_CLIENT.read_text(encoding="utf-8")
-        self.assertIn("http.createHttp()", client)
-        self.assertIn("X-Amphion-Protocol-Version", client)
+        client = LOCAL_CLIENT.read_text(encoding="utf-8")
+        self.assertIn("SpeakerDiarizationInference", client)
+        self.assertIn("DingqiaoSpeakerModelAssets.bundledPath()", client)
+        self.assertNotIn("NetworkKit", client)
+        self.assertNotIn("http.createHttp", client)
         self.assertNotIn("startArkChildProcess", client)
+
+        manifest = DEMO_MANIFEST.read_text(encoding="utf-8")
+        self.assertNotIn("ohos.permission.INTERNET", manifest)
+        self.assertFalse((DIARIZATION / "SpeakerDiarizationRemoteClient.ets").exists())
+        self.assertFalse((ROOT / "delivery/harmony-dingqiao/delivery/run_speaker_diarization_service.py").exists())
+
+    def test_local_model_load_and_inference_are_quiescent_before_runtime_release(self) -> None:
+        client = LOCAL_CLIENT.read_text(encoding="utf-8")
+        inference = CORE_DIARIZATION.read_text(encoding="utf-8")
+        self.assertIn("private loadSettled: boolean = false", client)
+        self.assertIn("!this.loadSettled", client)
+        self.assertIn("await this.settleInference(inferencePromise)", client)
+        self.assertIn("AmphionRuntime.getOrCreateSpeakerTurnSegmenterAsync", inference)
+        self.assertNotIn("unloadSpeakerTurnSegmentationModel", inference)
 
     def test_internal_speaker_ids_map_to_absolute_zero_based_public_indexes(self) -> None:
         run_node(
@@ -254,27 +251,26 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertIn("new DegradedSpeakerDiarizationSession", diarization_start)
         self.assertIn("SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE", diarization_start)
 
-        process_client = REMOTE_CLIENT.read_text(encoding="utf-8")
+        process_client = LOCAL_CLIENT.read_text(encoding="utf-8")
         self.assertIn(
             "onDegraded(reason: SpeakerDiarizationDegradedReason, message: string)",
             process_client,
         )
-        self.assertIn("SpeakerDiarizationDegradedReason.SERVICE_UNAVAILABLE", process_client)
+        self.assertIn("SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE", process_client)
         self.assertIn("SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE", process_client)
-        self.assertIn("SpeakerDiarizationDegradedReason.AUTHENTICATION_FAILED", process_client)
-        self.assertIn("SpeakerDiarizationDegradedReason.INVALID_SERVICE_RESPONSE", process_client)
+        self.assertIn("SpeakerDiarizationDegradedReason.MODEL_UNAVAILABLE", process_client)
         session = SESSION.read_text(encoding="utf-8")
         self.assertNotIn("function degradedReasonOf", session)
         self.assertIn("speaker diarization initialization failed", diarization_start)
 
-    def test_remote_request_preserves_padded_window_offset_in_protocol(self) -> None:
-        client = REMOTE_CLIENT.read_text(encoding="utf-8")
+    def test_local_executor_preserves_padded_window_offset(self) -> None:
+        client = LOCAL_CLIENT.read_text(encoding="utf-8")
         self.assertGreaterEqual(client.count("contentStartInWindowSample: number"), 2)
-        self.assertIn("X-Amphion-Content-Start-Sample", client)
-        self.assertIn("result.contentStartInWindowSample !== job.contentStartInWindowSample", client)
+        self.assertIn("const offset = WINDOW_SAMPLES - pcm.length", client)
+        self.assertIn("result[offset + index]", client)
 
     def test_spool_failure_is_isolated_from_asr_and_finish(self) -> None:
-        client = REMOTE_CLIENT.read_text(encoding="utf-8")
+        client = LOCAL_CLIENT.read_text(encoding="utf-8")
         append_body = client.split("append(audio: ArrayBuffer)", 1)[1].split(
             "finish(): void", 1
         )[0]
@@ -289,13 +285,14 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             finish_body,
         )
         self.assertIn("speaker diarization finish spool failed:", finish_body)
-        self.assertIn("job.attempt < 1", client)
-        self.assertIn("this.activeRequest?.destroy()", client)
+        self.assertIn("Promise.race([inferencePromise, timeoutPromise])", client)
+        self.assertIn("await this.settleInference(inferencePromise)", client)
+        self.assertIn("this.closeWhenQuiescent()", client)
         self.assertIn("client.cleanup((): void => { this.releaseRuntimeLease(); })",
                       SESSION.read_text(encoding="utf-8"))
 
-    def test_parent_result_storage_failures_are_not_reported_as_service_failures(self) -> None:
-        client = REMOTE_CLIENT.read_text(encoding="utf-8")
+    def test_local_result_storage_failures_are_classified_as_storage_failures(self) -> None:
+        client = LOCAL_CLIENT.read_text(encoding="utf-8")
         self.assertIn("SpeakerDiarizationStorageError", client)
         self.assertIn("error instanceof SpeakerDiarizationStorageError", client)
         self.assertIn("SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE", client)
@@ -304,8 +301,8 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertIn("throw new SpeakerDiarizationStorageError", session)
 
     def test_caller_session_id_never_participates_in_job_paths(self) -> None:
-        client = REMOTE_CLIENT.read_text(encoding="utf-8")
-        constructor = client.split("constructor(workPath:", 1)[1].split(
+        client = LOCAL_CLIENT.read_text(encoding="utf-8")
+        constructor = client.split("constructor(context:", 1)[1].split(
             "append(audio:", 1
         )[0]
         self.assertIn("/speaker-diarization-jobs/job-${Date.now()}-${localJobId}", constructor)

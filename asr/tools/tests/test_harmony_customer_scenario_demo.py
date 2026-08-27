@@ -1,4 +1,6 @@
 from pathlib import Path
+import subprocess
+import textwrap
 import unittest
 
 
@@ -11,9 +13,39 @@ WORKER = DEMO / "ets/workers/AudioCaptureWorker.ets"
 CARRIER = DEMO / "ets/util/DeviceStressTest.ets"
 INDEX = DEMO / "ets/pages/Index.ets"
 DRIVER = ROOT / "delivery/harmony-dingqiao/delivery/run_device_stress.py"
+DISPLAY_INDEX = DEMO / "ets/util/SpeakerDisplayIndex.ts"
+TS_LOADER = ROOT / "asr/tools/tests/ts_extension_loader.mjs"
+
+
+def run_node(script: str) -> None:
+    subprocess.run(
+        [
+            "node",
+            "--experimental-strip-types",
+            "--experimental-loader",
+            TS_LOADER.as_uri(),
+            "--input-type=module",
+            "-e",
+            textwrap.dedent(script),
+        ],
+        check=True,
+        cwd=ROOT,
+    )
 
 
 class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
+    def test_speaker_display_indexes_are_compact_and_keep_unassigned_hidden(self) -> None:
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ compactSpeakerDisplayIndexes }} from '{DISPLAY_INDEX.as_uri()}';
+
+            assert.deepEqual(compactSpeakerDisplayIndexes([0, 3, 0, 3]), [0, 1, 0, 1]);
+            assert.deepEqual(compactSpeakerDisplayIndexes([-1, 3, 1]), [-1, 0, 1]);
+            assert.deepEqual(compactSpeakerDisplayIndexes([2, 2, 0]), [0, 0, 1]);
+            """
+        )
+
     def test_customer_profiles_pin_the_mail_parameters(self) -> None:
         source = PROFILE.read_text(encoding="utf-8")
 
@@ -39,6 +71,8 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("enablePartialResult: true", source)
         self.assertIn("params.extraParams['endpointMaxUtteranceMs'] = profile.endpointMaxUtteranceMs", source)
         self.assertIn("params.speakerDiarization = diarization", source)
+        self.assertIn("speakerDiarizationEnabled?: boolean", source)
+        self.assertIn("profile.speakerDiarizationMaxSpeakers ?? 4", source)
         for removed_name in (
             "enableSpeakerDiarization",
             "maxSpeakerCount",
@@ -49,6 +83,7 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("params.extraParams['recognizerMode'] = profile.recognizerMode", source)
         self.assertGreaterEqual(source.count("recognizerMode: 'short'"), 2)
         self.assertGreaterEqual(source.count("recognizerMode: 'long'"), 3)
+        self.assertEqual(source.count("\n  audioSource: 'mic',"), 5)
 
     def test_long_profiles_disable_rotation_and_periodic_rule3(self) -> None:
         profile = PROFILE.read_text(encoding="utf-8")
@@ -96,15 +131,31 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         source = INDEX.read_text(encoding="utf-8")
 
         self.assertIn("CUSTOMER_SCENARIOS", source)
-        self.assertIn("customerProfileStartParams(\n      sessionId, this.capturedCustomerScenario, serviceUrl)", source)
-        self.assertIn("this.capturedCustomerScenario === 'meeting-minutes'", source)
+        self.assertIn(
+            "customerProfileStartParams(\n"
+            "      sessionId, this.capturedCustomerScenario, this.capturedSpeakerDiarization)",
+            source,
+        )
+        self.assertNotIn("speakerDiarizationServiceUrl", source)
         self.assertIn("this.capturedCustomerScenario = this.customerScenario", source)
         self.assertIn("this.capturedAudioSource = this.audioSource", source)
         self.assertIn("this.capturedAudioSource", source)
+        self.assertIn("this.capturedSpeakerDiarization = this.speakerDiarizationDesired", source)
+        self.assertIn("sessionId, this.capturedCustomerScenario, this.capturedSpeakerDiarization", source)
+        self.assertIn("Text('角色分离')", source)
+        self.assertIn("显示为“说话人 + 数字编号”", source)
+        self.assertIn("`说话人 ${speakerIndex + 1}`", source)
+        self.assertNotIn("return speakerIndex < 0 ? '说话人'", source)
+        self.assertIn("return speakerIndex < 0 ? '未能区分说话人'", source)
+        self.assertIn("item.speakerIndex >= 0 || item.speakerAssignmentFinal", source)
+        self.assertIn("next[i].endTime, true, next[i].speakerAssignmentFinal", source)
         self.assertIn("meta['audioSource'] = this.audioSourceName(this.capturedAudioSource)", source)
         self.assertIn("profile.allowVoiceprint", source)
         self.assertIn("customerProfileUsesContinuousRecognition(profile)", source)
         self.assertIn("profile.lockAudioSource", source)
+        self.assertIn("@State audioSource: DemoAudioSource = 'mic'", source)
+        self.assertIn("private capturedAudioSource: DemoAudioSource = 'mic'", source)
+        self.assertIn("? '长语音' : '短语音'", source)
         self.assertIn("extra['enableContinuousRecognition']", source)
         self.assertIn("this.finishAutoEndedCapture().catch", source)
         self.assertIn("this.stopListening().catch", source)

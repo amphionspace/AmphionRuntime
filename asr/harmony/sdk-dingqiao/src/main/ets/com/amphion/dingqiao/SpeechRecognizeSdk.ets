@@ -708,7 +708,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       if (params.speakerDiarization !== undefined) {
         const diarizationGeneration = startGeneration;
         const diarizationSessionId = params.sessionId;
-        const diarizationConfig = validateSpeakerDiarizationConfig(params.speakerDiarization);
+        const maxSpeakers = validateSpeakerDiarizationConfig(params.speakerDiarization);
         const diarizationObserver = new SpeakerDiarizationSessionCallback(
           (update: SpeakerDiarizationUpdate): void => {
             if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
@@ -725,11 +725,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           });
         try {
           this.speakerDiarizationSession = new SpeakerDiarizationSession(
+            this.context,
             SpeechRecognizeSdk.getWorkPath(),
-            params.sessionId,
-            diarizationConfig.serviceUrl,
-            diarizationConfig.serviceHeaders,
-            diarizationConfig.maxSpeakers,
+            maxSpeakers,
             diarizationObserver);
         } catch (e) {
           this.speakerDiarizationSession = new DegradedSpeakerDiarizationSession(

@@ -31,6 +31,7 @@ import { DemoCaseSaveResult, saveDemoCase } from '../util/DemoCaseStore';
 import { PcmPlayer } from '../util/PcmPlayer';
 import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
+import { compactSpeakerDisplayIndexes } from '../util/SpeakerDisplayIndex';
 import { WavIo } from '../util/WavIo';
 
 const FRAME_AUDIO_MS = 20;
@@ -57,18 +58,21 @@ class FinalSegment {
   score?: number;
   utteranceId?: string;
   speakerIndex: number = -1;
+  displaySpeakerIndex: number = -1;
   revision: number = 0;
   endTime: number = 0;
-  meeting: boolean = false;
+  speakerDiarization: boolean = false;
+  speakerAssignmentFinal: boolean = false;
 
   constructor(text: string, score?: number, utteranceId?: string, speakerIndex: number = -1,
-    endTime: number = 0, meeting: boolean = false) {
+    endTime: number = 0, speakerDiarization: boolean = false, speakerAssignmentFinal: boolean = false) {
     this.text = text;
     this.score = score;
     this.utteranceId = utteranceId;
     this.speakerIndex = speakerIndex;
     this.endTime = endTime;
-    this.meeting = meeting;
+    this.speakerDiarization = speakerDiarization;
+    this.speakerAssignmentFinal = speakerAssignmentFinal;
   }
 }
 
@@ -88,6 +92,7 @@ struct Index {
   @State voiceprintId: string = '';
   @State voiceprintVerifyDesired: boolean = false;
   @State speakerVadDesired: boolean = false;
+  @State speakerDiarizationDesired: boolean = false;
   @State policeEnhancementDesired: boolean = true;
   @State captureReady: boolean = false;
   @State captureInfo: string = '尚未保存 SDK 输入 PCM';
@@ -99,7 +104,7 @@ struct Index {
   @State replayCompareText: string = '';
   @State compareInfo: string = '';
   @State customerScenario: CustomerScenarioName = 'ptt';
-  @State audioSource: DemoAudioSource = 'voiceCommunication';
+  @State audioSource: DemoAudioSource = 'mic';
   @State stoppingListening: boolean = false;
   @State caseNote: string = '';
   @State caseInfo: string = '';
@@ -142,9 +147,10 @@ struct Index {
   private capturedVoiceprintId: string = '';
   private capturedVoiceprintVerify: boolean = false;
   private capturedSpeakerVad: boolean = false;
+  private capturedSpeakerDiarization: boolean = false;
   private capturedPoliceEnhancement: boolean = true;
   private capturedCustomerScenario: CustomerScenarioName = 'ptt';
-  private capturedAudioSource: DemoAudioSource = 'voiceCommunication';
+  private capturedAudioSource: DemoAudioSource = 'mic';
 
   aboutToAppear(): void {
     this.workPath = SpeechRecognizeSdk.getWorkPath();
@@ -366,11 +372,6 @@ struct Index {
   private startListening(): void {
     if (!this.runtimeReady) return;
     if (this.listening || this.stoppingListening || this.replaying || this.playingCapture) return;
-    if (this.customerScenario === 'meeting-minutes' &&
-      this.speakerDiarizationServiceUrl().length === 0) {
-      this.toast('会议角色分离服务未配置');
-      return;
-    }
     this.startTapMs = Date.now();
     this.finalSegments = [];
     this.partialText = '';
@@ -386,6 +387,7 @@ struct Index {
       this.capturedVoiceprintId.length > 0;
     this.capturedSpeakerVad = profile.allowVoiceprint && this.speakerVadDesired &&
       this.capturedVoiceprintId.length > 0;
+    this.capturedSpeakerDiarization = this.speakerDiarizationDesired;
     this.capturedPoliceEnhancement = this.policeEnhancementDesired;
     this.capturedCustomerScenario = this.customerScenario;
     this.capturedAudioSource = this.audioSource;
@@ -496,10 +498,8 @@ struct Index {
   }
 
   private buildCapturedStartParams(sessionId: string): StartParams {
-    const serviceUrl = this.capturedCustomerScenario === 'meeting-minutes' ?
-      this.speakerDiarizationServiceUrl() : '';
     const startParams = customerProfileStartParams(
-      sessionId, this.capturedCustomerScenario, serviceUrl);
+      sessionId, this.capturedCustomerScenario, this.capturedSpeakerDiarization);
     const extra = startParams.extraParams;
     const profile = customerScenarioProfile(this.capturedCustomerScenario);
     extra['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
@@ -521,12 +521,6 @@ struct Index {
     return startParams;
   }
 
-  private speakerDiarizationServiceUrl(): string {
-    const ctx = getContext(this) as common.UIAbilityContext;
-    return ctx.resourceManager.getStringSync(
-      $r('app.string.speaker_diarization_service_url').id).trim();
-  }
-
   private scenarioLabel(name: CustomerScenarioName): string {
     if (name === 'tap-vad') return '点击 + VAD';
     if (name === 'transcription') return '长语音';
@@ -535,8 +529,16 @@ struct Index {
     return '短语音 PTT';
   }
 
-  private meetingSpeakerLabel(speakerIndex: number): string {
-    return speakerIndex < 0 ? '说话人' : `说话人 ${speakerIndex + 1}`;
+  private speakerLabel(speakerIndex: number): string {
+    return speakerIndex < 0 ? '未能区分说话人' : `说话人 ${speakerIndex + 1}`;
+  }
+
+  private refreshSpeakerDisplayIndexes(segments: FinalSegment[]): void {
+    const indexes = compactSpeakerDisplayIndexes(
+      segments.map((segment: FinalSegment): number => segment.speakerIndex));
+    for (let index = 0; index < segments.length; index++) {
+      segments[index].displaySpeakerIndex = indexes[index];
+    }
   }
 
   private selectCustomerScenario(name: CustomerScenarioName): void {
@@ -544,6 +546,7 @@ struct Index {
     this.customerScenario = name;
     const profile = customerScenarioProfile(name);
     this.audioSource = profile.audioSource;
+    this.speakerDiarizationDesired = profile.speakerDiarizationMaxSpeakers !== undefined;
     this.status = `${this.scenarioLabel(name)} · SourceType=${profile.audioSource}`;
   }
 
@@ -904,10 +907,11 @@ struct Index {
       this.stoppingListening = false;
     }
     if (sid.length > 0) {
-      if (this.capturedCustomerScenario === 'meeting-minutes') {
+      if (this.capturedSpeakerDiarization) {
         this.loading = true;
-        this.loadingHint = '正在生成纪要';
-        this.status = '正在生成纪要';
+        this.loadingHint = this.capturedCustomerScenario === 'meeting-minutes' ?
+          '正在生成纪要' : '正在完成角色分离';
+        this.status = this.loadingHint;
       }
       this.engine?.finish(sid);
     } else if (waitsForColdEngine) {
@@ -1053,9 +1057,10 @@ struct Index {
       if (next[i].utteranceId !== update.utteranceId || next[i].revision >= update.revision) continue;
       const replacement = new FinalSegment(
         next[i].text, next[i].score, next[i].utteranceId, update.speakerIndex,
-        next[i].endTime, true);
+        next[i].endTime, true, next[i].speakerAssignmentFinal);
       replacement.revision = update.revision;
       next[i] = replacement;
+      this.refreshSpeakerDisplayIndexes(next);
       this.finalSegments = next;
       return;
     }
@@ -1068,11 +1073,13 @@ struct Index {
       const utterance = result.utterances[i];
       next.push(new FinalSegment(
         utterance.text, undefined, utterance.utteranceId, utterance.speakerIndex,
-        utterance.endTime, true));
+        utterance.endTime, true, true));
     }
+    this.refreshSpeakerDisplayIndexes(next);
     this.finalSegments = next;
     this.loading = false;
-    this.status = result.degraded ? '纪要已生成 · 角色分离已降级' : '纪要已生成';
+    const completed = this.capturedCustomerScenario === 'meeting-minutes' ? '纪要已生成' : '角色分离已完成';
+    this.status = result.degraded ? `${completed} · 角色分离已降级` : completed;
   }
 
   private async finishAutoEndedCapture(): Promise<void> {
@@ -1164,7 +1171,8 @@ struct Index {
       result.utteranceId,
       result.speakerIndex,
       result.endTime ?? 0,
-      this.capturedCustomerScenario === 'meeting-minutes'));
+      this.capturedSpeakerDiarization));
+    this.refreshSpeakerDisplayIndexes(next);
     this.finalSegments = next;
   }
 
@@ -1209,6 +1217,11 @@ struct Index {
   private onPoliceEnhancementSwitch(checked: boolean): void {
     this.policeEnhancementDesired = checked;
     DemoPrefs.setPoliceEnhancementEnabled(getContext(this) as common.UIAbilityContext, checked);
+  }
+
+  private onSpeakerDiarizationSwitch(checked: boolean): void {
+    this.speakerDiarizationDesired = checked;
+    this.toast(checked ? '角色分离已开启' : '角色分离已关闭');
   }
 
   // ---- menu actions ----
@@ -1287,6 +1300,7 @@ struct Index {
         }
         .width('100%')
         Text(`SourceType=${this.audioSource} · ` +
+          `模式=${customerScenarioProfile(this.customerScenario).recognizerMode === 'long' ? '长语音' : '短语音'} · ` +
           `vadEnd=${customerScenarioProfile(this.customerScenario).vadEnd}ms · ` +
           `max=${this.formatMaxAudioDuration(customerScenarioProfile(this.customerScenario).maxAudioDuration)}`)
           .fontSize(11)
@@ -1337,6 +1351,20 @@ struct Index {
 
       Row() {
         Column() {
+          Text('角色分离').fontSize(15)
+          Text('端侧离线区分说话人，显示为“说话人 + 数字编号”').fontSize(12).fontColor(Color.Gray)
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        Toggle({ type: ToggleType.Switch, isOn: this.speakerDiarizationDesired })
+          .enabled(!this.listening && !this.replaying && !this.loading)
+          .onChange((isOn: boolean): void => this.onSpeakerDiarizationSwitch(isOn))
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Row() {
+        Column() {
           Text('警务增强').fontSize(15)
           Text('术语、车牌和派出所文本归一化').fontSize(12).fontColor(Color.Gray)
         }
@@ -1378,8 +1406,8 @@ struct Index {
         }
         ForEach(this.finalSegments, (item: FinalSegment, index: number) => {
           Text() {
-            if (item.meeting) {
-              Span(`${this.meetingSpeakerLabel(item.speakerIndex)} `)
+            if (item.speakerDiarization && (item.speakerIndex >= 0 || item.speakerAssignmentFinal)) {
+              Span(`${this.speakerLabel(item.displaySpeakerIndex)} `)
                 .fontColor(BRAND_ACCENT).fontWeight(FontWeight.Bold)
             }
             if (item.score !== undefined) {

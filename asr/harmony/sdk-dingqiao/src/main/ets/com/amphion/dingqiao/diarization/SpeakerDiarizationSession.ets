@@ -15,11 +15,11 @@ import {
   SpeakerDiarizationGlobalClusterer
 } from './SpeakerDiarizationGlobalClusterer';
 import {
-  DiarizationRemoteWindowResult,
-  SpeakerDiarizationRemoteClient,
-  SpeakerDiarizationRemoteObserver,
+  DiarizationLocalWindowResult,
+  SpeakerDiarizationLocalClient,
+  SpeakerDiarizationLocalObserver,
   SpeakerDiarizationStorageError
-} from './SpeakerDiarizationRemoteClient';
+} from './SpeakerDiarizationLocalClient';
 import { SpeakerDiarizationRuntimeLease, SpeakerDiarizationRuntimeLeaseRegistry } from './SpeakerDiarizationRuntimeLease';
 import {
   speakerIndexFromInternalId,
@@ -57,9 +57,9 @@ export interface SpeakerDiarizationSessionController {
   cleanup(): void;
 }
 
-export class SpeakerDiarizationSession implements SpeakerDiarizationRemoteObserver,
+export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserver,
   SpeakerDiarizationSessionController {
-  private readonly client: SpeakerDiarizationRemoteClient;
+  private readonly client: SpeakerDiarizationLocalClient;
   private readonly registry: OnlineSpeakerRegistry;
   private readonly transcript: SpeakerDiarizationTranscriptState = new SpeakerDiarizationTranscriptState();
   private readonly observer: SpeakerDiarizationSessionObserver;
@@ -79,8 +79,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationRemoteObserv
   private finalSpeakerCount: number = 0;
   private runtimeLease?: SpeakerDiarizationRuntimeLease;
 
-  constructor(workPath: string, sessionId: string, serviceUrl: string,
-    serviceHeaders: Record<string, string>, maxSpeakers: number,
+  constructor(context: Context, workPath: string, maxSpeakers: number,
     observer: SpeakerDiarizationSessionObserver) {
     this.observer = observer;
     this.maxSpeakers = maxSpeakers;
@@ -89,8 +88,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationRemoteObserv
       maxSpeakers, 0, 0.72);
     this.runtimeLease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
     try {
-      this.client = new SpeakerDiarizationRemoteClient(
-        workPath, sessionId, serviceUrl, serviceHeaders, this);
+      this.client = new SpeakerDiarizationLocalClient(context, workPath, this);
     } catch (e) {
       this.runtimeLease.release();
       this.runtimeLease = undefined;
@@ -169,7 +167,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationRemoteObserv
     this.client.cleanup((): void => { this.releaseRuntimeLease(); });
   }
 
-  onWindow(window: DiarizationRemoteWindowResult): void {
+  onWindow(window: DiarizationLocalWindowResult): void {
     if (this.finished) return;
     this.inferenceMs += window.result.inferenceMs;
     const channelIds = new Map<number, string>();
