@@ -171,22 +171,22 @@ python3 -m unittest \
   delivery.harmony-dingqiao.delivery.test_run_device_stress -v
 
 python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py \
-  --data-dir "$HOME/Downloads/testdata"
+  --data-dir "$HOME/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500"
 
 cd asr/android
 ./gradlew --no-daemon :sdk:testDebugUnitTest :sdk-dingqiao:testDebugUnitTest --console=plain
 ./gradlew --no-daemon :sdk:testReleaseUnitTest :sdk-dingqiao:testReleaseUnitTest --rerun-tasks --console=plain
 
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --data-dir "$HOME/Downloads/testdata" \
+  --data-dir "$HOME/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500" \
   --mode vad-begin --cycles 100 --files 0
 
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --data-dir "$HOME/Downloads/testdata" \
+  --data-dir "$HOME/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500" \
   --mode voiceprint-vad-begin --cycles 100 --files 0
 
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --data-dir "$HOME/Downloads/testdata" \
+  --data-dir "$HOME/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500" \
   --mode user-sequence --cycles 300 --files 3
 ```
 

@@ -16,6 +16,7 @@ import argparse
 import gzip
 import json
 import math
+import os
 import statistics
 import sys
 import time
@@ -40,6 +41,12 @@ except ImportError as e:  # pragma: no cover
 
 
 PUNCS = set(" \t\r\n,.!?;:'\"，。！？；：、《》（）()[]{}-—…")
+TEST_DATA_ROOT = Path(
+    os.environ.get(
+        "AMPHION_TEST_DATA_DIR",
+        Path.home() / ".cache/amphion-runtime/test-data/v1",
+    )
+).expanduser()
 
 
 @dataclass(frozen=True)
@@ -352,7 +359,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--dataset-dir",
         type=Path,
-        default=Path("/Users/boxp/Downloads/testdata/aishell3_test_hotwords_500"),
+        default=TEST_DATA_ROOT / "aishell3_test_hotwords_500",
     )
     p.add_argument(
         "--model-dir",

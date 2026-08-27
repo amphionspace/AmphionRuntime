@@ -33,6 +33,7 @@ import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
 import { compactSpeakerDisplayIndexes } from '../util/SpeakerDisplayIndex';
 import { WavIo } from '../util/WavIo';
+import { BackgroundRecordingTask } from '../util/BackgroundRecordingTask';
 
 const FRAME_AUDIO_MS = 20;
 const SDK_FRAME_BYTES = 640;
@@ -369,9 +370,19 @@ struct Index {
 
   // ---- recognition lifecycle ----
 
-  private startListening(): void {
+  private async startListening(): Promise<void> {
     if (!this.runtimeReady) return;
     if (this.listening || this.stoppingListening || this.replaying || this.playingCapture) return;
+    const ctx = getContext(this) as common.UIAbilityContext;
+    this.stoppingListening = true;
+    try {
+      await BackgroundRecordingTask.start(ctx);
+    } catch (e) {
+      this.status = `无法启动后台录音任务：${e}`;
+      this.stoppingListening = false;
+      return;
+    }
+    this.stoppingListening = false;
     this.startTapMs = Date.now();
     this.finalSegments = [];
     this.partialText = '';
@@ -379,7 +390,6 @@ struct Index {
     this.preRollDroppedFrames = 0;
     this.micFirstFrameLogged = false;
     this.resetSdkCapture();
-    const ctx = getContext(this) as common.UIAbilityContext;
     this.capturedHotwords = DemoPrefs.getUserHotwords(ctx);
     const profile = customerScenarioProfile(this.customerScenario);
     this.capturedVoiceprintId = profile.allowVoiceprint ? DemoPrefs.getVoiceprintId(ctx) : '';
@@ -1135,6 +1145,9 @@ struct Index {
   // 关 engine/session（把池化 recognizer 归还）后，unloadModel 显式释放 native 权重；
   // Runtime 保持就绪，下次「开始识别」重新加载模型。
   private releaseModel(statusText: string): void {
+    BackgroundRecordingTask.stop(getContext(this) as common.UIAbilityContext).catch((e: Object): void => {
+      hilog.error(0x0000, 'BackgroundRecording', 'failed to stop continuous task: %{public}s', `${e}`);
+    });
     const engine = this.engine;
     const hadModel = engine !== undefined;
     this.engine = undefined;
@@ -1495,7 +1508,10 @@ struct Index {
               this.handleStopFailure(sid, e);
             });
           } else {
-            this.startListening();
+            this.startListening().catch((e: Object): void => {
+              this.status = `启动识别失败：${e}`;
+              this.stoppingListening = false;
+            });
           }
         })
       }

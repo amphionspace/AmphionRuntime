@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "dataset_version": "v1",
+  "obs": {
+    "bucket": "cuhk-anfeiweng-benchmark",
+    "endpoint_env": "OBS_Endpoint",
+    "access_key_env": "OBS_AccesskeyID",
+    "secret_key_env": "OBS_SecretAccesskey",
+    "prefix": "amphion-runtime/test-data/v1"
+  },
+  "bundles": {
+    "aishell3-hotwords-500": {
+      "description": "AISHELL-3 500-sample hotword, lifecycle, and speaker-state corpus",
+      "license": "Apache-2.0",
+      "source": "https://www.openslr.org/93/",
+      "redistribution": "allowed-with-attribution",
+      "object": "amphion-test-data-aishell3-hotwords-500-v1.zip",
+      "archive_type": "zip",
+      "archive_root": "aishell3_test_hotwords_500",
+      "destination": "aishell3_test_hotwords_500",
+      "size": 106627754,
+      "sha256": "72b00e6a029e4ea02855a5d37f3f31ea5a124a59957edf118f97d85b71f75b37",
+      "required_paths": [
+        "LICENSE",
+        "SOURCE.md",
+        "aishell3_test_hotwords_500_recordings_packaged.jsonl.gz",
+        "aishell3_test_hotwords_500_supervisions_punc_hotwords.jsonl.gz",
+        "audio"
+      ]
+    }
+  }
+}

@@ -85,6 +85,13 @@ def finish_shutdown_report(*, completes: int = 1, terminal_order: bool = True) -
 
 
 class FinishCompatReleaseGateTest(unittest.TestCase):
+    def test_default_corpus_uses_versioned_test_data_cache(self) -> None:
+        with mock.patch.object(sys, "argv", [str(SCRIPT)]):
+            args = MODULE.parse_args()
+
+        self.assertEqual(MODULE.DEFAULT_DEVICE_CORPUS, args.data_dir)
+        self.assertIn(".cache/amphion-runtime/test-data/v1", str(args.data_dir))
+
     def test_verified_build_reuse_still_installs_before_both_modes(self) -> None:
         command = MODULE.build_verified_install_command("device-1")
 

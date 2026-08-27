@@ -177,11 +177,11 @@ python asr/tools/speaker/04_eval_summary.py \
 
 ### 7. 评测目标说话人 VAD endpoint 收益
 
-06_eval_speaker_vad_aidatatang.py 用 Aidatatang 500 个说话人样本构造 target + other 连续语音，离线复刻 Android `SpeakerVadConfig` 状态机，专门回答“目标人离场后，speaker-VAD 能否减少非目标人拖进同一个 utterance”的问题。
+06_eval_speaker_vad_aidatatang.py 用多说话人样本构造 target + other 连续语音，离线复刻 Android `SpeakerVadConfig` 状态机，专门回答“目标人离场后，speaker-VAD 能否减少非目标人拖进同一个 utterance”的问题。当前跨机器默认语料是 OBS 上版本化的 AISHELL-3 子集：
 
 ```bash
 python3 asr/tools/speaker/06_eval_speaker_vad_aidatatang.py \
-  --dataset-dir /Users/boxp/Downloads/testdata/aidatatang_test_spk_balanced_500 \
+  --dataset-dir ~/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500 \
   --speaker-model shared/models/asr/dingqiao/eres2net.onnx \
   --out-dir asr/tools/speaker/results/aidatatang_speaker_vad_eval \
   --thresholds 0.30 0.35 0.40 0.45 0.50 \
@@ -190,7 +190,7 @@ python3 asr/tools/speaker/06_eval_speaker_vad_aidatatang.py \
   --consecutive-below 2
 ```
 
-默认阈值 0.40 的实测结论：平均非目标泄露从 2.337s 降到 0.917s，降幅 60.74%；speaker endpoint 触发率 93.20%；target 确认率 99.00%；target 截断率 1.00%。完整指标定义、场景说明和限制见 [docs/speaker/AIDATATANG_SPEAKER_VAD_EVAL.md](../../../docs/speaker/AIDATATANG_SPEAKER_VAD_EVAL.md)。
+下述历史数字来自 Aidatatang 语料，不能与新的 AISHELL-3 运行直接比较：默认阈值 0.40 时，平均非目标泄露从 2.337s 降到 0.917s，降幅 60.74%；speaker endpoint 触发率 93.20%；target 确认率 99.00%；target 截断率 1.00%。完整指标定义、场景说明和限制见 [docs/speaker/AIDATATANG_SPEAKER_VAD_EVAL.md](../../../docs/speaker/AIDATATANG_SPEAKER_VAD_EVAL.md)。
 
 ### 8. 跑 speaker-disjoint clean/noisy pilot
 

@@ -9,7 +9,11 @@ import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
 import { DiagnosticsModule } from './DiagnosticsModule';
 import { FinishShutdownGate } from './FinishShutdownGate';
-import { endpointRecognizerConfigKey, rule3Policy } from './EndpointRulePolicy';
+import {
+  endpointRecognizerConfigKey,
+  endpointRecognizerRuntimeConfigKey,
+  rule3Policy
+} from './EndpointRulePolicy';
 import { finiteNumberParam } from './NumericParam';
 import { rejectedFinalCompletesSession } from './RejectedFinalLifecycle';
 import { SessionAudioDispatcher } from './SessionAudioDispatcher';
@@ -342,7 +346,7 @@ function buildAsrConfig(context: Context, params: CreateEngineParams, startParam
   config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', true);
   if (withTargetSpeaker) {
     if (speakerModelPath === undefined) throw new Error('voiceprint model path is required');
-    config.targetSpeaker = buildTargetSpeakerConfig(startParams, withSpeakerVad, speakerModelPath);
+    config.targetSpeaker = buildTargetSpeakerConfig(startParams, speakerModelPath);
   }
   return config;
 }
@@ -373,7 +377,7 @@ function snapshotCreateEngineParams(source: CreateEngineParams): CreateEnginePar
   return snapshot;
 }
 
-function buildTargetSpeakerConfig(startParams: StartParams | undefined, withSpeakerVad: boolean,
+function buildTargetSpeakerConfig(startParams: StartParams | undefined,
   speakerModelPath: string): TargetSpeakerConfig {
   const cfg = new TargetSpeakerConfig();
   cfg.modelPath = speakerModelPath;
@@ -383,11 +387,12 @@ function buildTargetSpeakerConfig(startParams: StartParams | undefined, withSpea
   cfg.minSegSec = 0;
   cfg.enabledByDefault = false;
   cfg.numThreads = 1;
-  // Final-only verification can attach the extractor after ASR streaming starts. Speaker VAD
-  // scores sliding windows during streaming, so it must keep synchronous session construction.
-  cfg.deferLoad = !withSpeakerVad;
+  // Neither final-only verification nor Speaker VAD may construct the extractor on the caller's
+  // ArkTS thread: customer apps commonly start AudioCapturer before startListening(). Speaker VAD
+  // remains fail-open until the async extractor attaches, then scores the latest buffered window.
+  cfg.deferLoad = true;
   // Keep Speaker VAD configured even when initially disabled so the Android-aligned runtime toggle
-  // can enable it later in the same session. Only an initially enabled Speaker VAD makes load sync.
+  // can enable it later in the same session.
   cfg.speakerVad = buildSpeakerVadConfig(startParams?.extraParams ?? {});
   return cfg;
 }
@@ -454,6 +459,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     SpeechRecognitionResult, SpeakerDiarizationResult>;
   // 当前 asrEngine 是用什么会话级配置建的;下次 startListening 若配置相同则复用,不重载模型。
   private engineCfgKey: string = '';
+  private engineRecognizerCfgKey: string = '';
   private readonly diagnosticEngineId: string;
 
   constructor(context: Context, params: CreateEngineParams, preloadedEngine?: AsrEngine) {
@@ -465,6 +471,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.asrEngine = preloadedEngine ??
       AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(context, this.params));
     this.engineCfgKey = this.computeEngineCfgKey(false, false, undefined);
+    this.engineRecognizerCfgKey = this.computeRecognizerCfgKey(undefined);
     this.finishShutdownGate = new FinishShutdownGate((): void => this.releaseEngineResources());
     this.diagnosticEngineId = DiagnosticsModule.isEnabled() ? DiagnosticsModule.nextEngineId() : '';
     this.diagnostic('', 'ENGINE_CREATED');
@@ -517,12 +524,16 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.diagnostic(sessionId, 'CALLBACK_RESULT', fields);
   }
 
-  // vadBegin/vadEnd/speaker 窗口均由 SessionConfig 覆盖；目标说话人能力、同步加载策略和 native
-  // endpoint rule3 属于 recognizer 配置，变化时必须重建引擎。
+  // vadBegin/vadEnd/speaker 窗口均由 SessionConfig 覆盖；目标说话人能力和同步加载策略只需更新
+  // engine/session 配置，只有 native endpoint rule3 变化时才必须重建 recognizer。
   private computeEngineCfgKey(withTargetSpeaker: boolean, withSpeakerVad: boolean,
     params?: StartParams): string {
     return endpointRecognizerConfigKey(withTargetSpeaker, withSpeakerVad, this.params.extraParams,
       params?.extraParams ?? {});
+  }
+
+  private computeRecognizerCfgKey(params?: StartParams): string {
+    return endpointRecognizerRuntimeConfigKey(this.params.extraParams, params?.extraParams ?? {});
   }
 
   setListener(listener: RecognitionListener): void { this.listener = listener; }
@@ -860,12 +871,6 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           return;
         }
         session.setTargetSpeaker(embedding);
-        // This API is synchronous by contract. Enabling streaming Speaker VAD is the one path that
-        // intentionally blocks until the extractor is ready; final-only verification never does.
-        session.ensureTargetSpeakerExtractor();
-        // ensureTargetSpeakerExtractor() can synchronously flush a final result. Its callbacks may
-        // complete and tear down this session before control returns here.
-        if (this.session !== session || !this.busy || this.currentSessionId !== sessionId) return;
       }
       session.setSpeakerVadEnabled(enabled);
       this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEAKER_VAD_CHANGED, `speaker vad ${enabled ? 'enabled' : 'disabled'}.`);
@@ -1113,16 +1118,26 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       // 会话配置未变(纯 ASR 反复开始/结束):复用已加载的引擎与模型,避免每次点"开始识别"重载模型卡 3~4 秒。
       return;
     }
+    const newRecognizerKey = this.computeRecognizerCfgKey(params);
+    const nextConfig = buildAsrConfig(this.context, this.params, params,
+      withTargetSpeaker, withSpeakerVad, speakerModelPath);
+    if (newRecognizerKey === this.engineRecognizerCfgKey) {
+      // Target-speaker capability is consumed by AsrEngine/AsrSession, not OnlineRecognizer.
+      // Reconfigure the existing engine so a first voiceprint/Speaker-VAD session cannot trigger a
+      // second synchronous ASR model load after createEngineAsync has already loaded custom hotwords.
+      this.asrEngine.reconfigureTargetSpeaker(nextConfig.targetSpeaker);
+      this.engineCfgKey = newKey;
+      return;
+    }
     // 先建新引擎、成功后再关旧引擎:create() 可能抛(模型加载 / 鉴权失败)。若先 close 再 create,
     // create 抛出后旧引擎已被关闭而 engineCfgKey 仍是旧值 —— 下次相同配置的 startListening 会 early-return
     // 复用这个已关闭的引擎(newSession on closed engine)→ native use-after-close 崩溃且不可恢复。
     // create-before-close 保证 create 抛出时旧引擎仍可用、engineCfgKey 不变。create() 复用池化 recognizer,不会重载大模型。
-    const next = AmphionRuntime.create(this.context, languageOf(this.params.language),
-      buildAsrConfig(this.context, this.params, params,
-        withTargetSpeaker, withSpeakerVad, speakerModelPath));
+    const next = AmphionRuntime.create(this.context, languageOf(this.params.language), nextConfig);
     this.asrEngine.close();
     this.asrEngine = next;
     this.engineCfgKey = newKey;
+    this.engineRecognizerCfgKey = newRecognizerKey;
   }
 
   handlePartial(generation: number, text: string): void {
