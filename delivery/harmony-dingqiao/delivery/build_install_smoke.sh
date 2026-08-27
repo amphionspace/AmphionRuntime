@@ -496,7 +496,7 @@ fi
 "$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_ARGS[@]}"
 
 echo "[INFO] installing HAP on the USB device"
-"$HDC" -t "$DEVICE" install -r "$HAP" >"$INSTALL_LOG"
+"$HDC" -t "$DEVICE" install -r -d "$HAP" >"$INSTALL_LOG"
 grep -q 'install bundle successfully' "$INSTALL_LOG" || {
   cat "$INSTALL_LOG" >&2
   exit 1

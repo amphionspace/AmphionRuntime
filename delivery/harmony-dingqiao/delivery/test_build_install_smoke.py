@@ -76,6 +76,10 @@ class BuildInstallSmokeTest(unittest.TestCase):
         self.assertIn('if ! "$NODE" "$HVIGOR" assembleHap', source)
         self.assertIn('if ! "$NODE" "$HVIGOR" assembleHar', source)
 
+    def test_test_carrier_install_allows_a_version_downgrade(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('"$HDC" -t "$DEVICE" install -r -d "$HAP"', source)
+
 
 if __name__ == "__main__":
     unittest.main()
