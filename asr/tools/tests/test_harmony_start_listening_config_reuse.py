@@ -77,6 +77,37 @@ class HarmonyStartListeningConfigReuseTest(unittest.TestCase):
         self.assertIn("this.config = nextConfig", reconfigure)
         self.assertNotIn("this.config.targetSpeaker =", reconfigure)
 
+    def test_speaker_vad_defers_extractor_without_losing_runtime_toggle(self) -> None:
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        runtime = RUNTIME.read_text(encoding="utf-8")
+
+        config_start = adapter.index("function buildTargetSpeakerConfig(")
+        config_end = adapter.index("\nfunction buildSpeakerVadConfig(", config_start)
+        target_config = adapter[config_start:config_end]
+        self.assertIn("cfg.deferLoad = true;", target_config)
+        self.assertNotIn("cfg.deferLoad = !withSpeakerVad;", target_config)
+
+        toggle_start = adapter.index("  setSpeakerVadEnabled(enabled: boolean): void {")
+        toggle_end = adapter.index("\n  finish(sessionId: string)", toggle_start)
+        adapter_toggle = adapter[toggle_start:toggle_end]
+        self.assertIn("session.setSpeakerVadEnabled(enabled);", adapter_toggle)
+        self.assertNotIn("session.ensureTargetSpeakerExtractor();", adapter_toggle)
+
+        session_toggle_start = runtime.index("  setSpeakerVadEnabled(enabled: boolean): void {")
+        session_toggle_end = runtime.index("\n  private ensureSpeakerTurnSegmenterLoad", session_toggle_start)
+        session_toggle = runtime[session_toggle_start:session_toggle_end]
+        self.assertIn("config.deferLoad", session_toggle)
+        self.assertIn("getOrCreateSpeakerExtractorAsync", session_toggle)
+        self.assertIn("setTargetSpeakerExtractorAsync", session_toggle)
+
+        # Keep the lower-level Runtime opt-in fallback intact for callers that explicitly choose
+        # synchronous loading by leaving deferLoad=false.
+        new_session_start = runtime.index("  newSession(callback: AsrCallback")
+        new_session_end = runtime.index("\n  isClosed(): boolean", new_session_start)
+        new_session = runtime[new_session_start:new_session_end]
+        self.assertIn("!this.config.targetSpeaker.deferLoad", new_session)
+        self.assertIn("this.createSpeakerExtractor", new_session)
+
 
 if __name__ == "__main__":
     unittest.main()

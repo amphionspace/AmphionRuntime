@@ -346,7 +346,7 @@ function buildAsrConfig(context: Context, params: CreateEngineParams, startParam
   config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', true);
   if (withTargetSpeaker) {
     if (speakerModelPath === undefined) throw new Error('voiceprint model path is required');
-    config.targetSpeaker = buildTargetSpeakerConfig(startParams, withSpeakerVad, speakerModelPath);
+    config.targetSpeaker = buildTargetSpeakerConfig(startParams, speakerModelPath);
   }
   return config;
 }
@@ -377,7 +377,7 @@ function snapshotCreateEngineParams(source: CreateEngineParams): CreateEnginePar
   return snapshot;
 }
 
-function buildTargetSpeakerConfig(startParams: StartParams | undefined, withSpeakerVad: boolean,
+function buildTargetSpeakerConfig(startParams: StartParams | undefined,
   speakerModelPath: string): TargetSpeakerConfig {
   const cfg = new TargetSpeakerConfig();
   cfg.modelPath = speakerModelPath;
@@ -387,11 +387,12 @@ function buildTargetSpeakerConfig(startParams: StartParams | undefined, withSpea
   cfg.minSegSec = 0;
   cfg.enabledByDefault = false;
   cfg.numThreads = 1;
-  // Final-only verification can attach the extractor after ASR streaming starts. Speaker VAD
-  // scores sliding windows during streaming, so it must keep synchronous session construction.
-  cfg.deferLoad = !withSpeakerVad;
+  // Neither final-only verification nor Speaker VAD may construct the extractor on the caller's
+  // ArkTS thread: customer apps commonly start AudioCapturer before startListening(). Speaker VAD
+  // remains fail-open until the async extractor attaches, then scores the latest buffered window.
+  cfg.deferLoad = true;
   // Keep Speaker VAD configured even when initially disabled so the Android-aligned runtime toggle
-  // can enable it later in the same session. Only an initially enabled Speaker VAD makes load sync.
+  // can enable it later in the same session.
   cfg.speakerVad = buildSpeakerVadConfig(startParams?.extraParams ?? {});
   return cfg;
 }
@@ -870,12 +871,6 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           return;
         }
         session.setTargetSpeaker(embedding);
-        // This API is synchronous by contract. Enabling streaming Speaker VAD is the one path that
-        // intentionally blocks until the extractor is ready; final-only verification never does.
-        session.ensureTargetSpeakerExtractor();
-        // ensureTargetSpeakerExtractor() can synchronously flush a final result. Its callbacks may
-        // complete and tear down this session before control returns here.
-        if (this.session !== session || !this.busy || this.currentSessionId !== sessionId) return;
       }
       session.setSpeakerVadEnabled(enabled);
       this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEAKER_VAD_CHANGED, `speaker vad ${enabled ? 'enabled' : 'disabled'}.`);
