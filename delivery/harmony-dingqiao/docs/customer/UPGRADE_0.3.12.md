@@ -23,6 +23,9 @@ ASR recognizer、创建声纹提取器或同步读取 Speaker VAD 边界模型�
 `onStart` 仍表示 session 已发布且可同步调用 `writeAudio`、`finish` 或 `cancel`。本版本没有要求客户
 把 SDK、录音回调或公共 API 搬到 Worker。
 
+目标说话人增强仍仅保留接口预留；本交付不包含该能力所需模型，不能启用
+`enableTargetSpeakerEnhancement`。本次异步化只涉及声纹校验和 Speaker VAD 已交付能力。
+
 ## 3. 升级检查
 
 1. 确认宿主仅依赖本包的自包含 `amphion_dingqiao.har`，清理旧 HAR 缓存后重新 `ohpm install`。
