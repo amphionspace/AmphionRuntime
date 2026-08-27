@@ -3,12 +3,16 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-val generatedDiarizationAssets = layout.buildDirectory.dir("generated/harmonyDiarizationAssets")
-val syncHarmonyDiarizationModel by tasks.registering(Sync::class) {
-    from("../../harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao") {
-        include("pyannote-segmentation-3.0.onnx")
+val generatedDingqiaoModelAssets = layout.buildDirectory.dir("generated/sharedDingqiaoModelAssets")
+val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
+    from("../../../shared/models/asr/dingqiao") {
+        include(
+            "eres2net.onnx",
+            "pyannote-segmentation-3.0.onnx",
+            "pyannote-segmentation-3.0.LICENSE",
+        )
     }
-    into(generatedDiarizationAssets.map { it.dir("amphion-dingqiao") })
+    into(generatedDingqiaoModelAssets.map { it.dir("amphion-dingqiao") })
 }
 
 android {
@@ -67,7 +71,7 @@ android {
         noCompress += listOf("onnx")
     }
 
-    sourceSets.getByName("main").assets.srcDir(generatedDiarizationAssets)
+    sourceSets.getByName("main").assets.srcDir(generatedDingqiaoModelAssets)
 
     externalNativeBuild {
         cmake {
@@ -77,7 +81,7 @@ android {
 }
 
 tasks.matching { it.name.endsWith("Assets") }.configureEach {
-    dependsOn(syncHarmonyDiarizationModel)
+    dependsOn(syncSharedDingqiaoModels)
 }
 
 dependencies {

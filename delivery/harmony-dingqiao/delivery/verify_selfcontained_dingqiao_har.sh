@@ -60,8 +60,8 @@ python3 "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --archive "$HAR"
 python3 - \
   "$HAR" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json" \
-  "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx" \
-  "$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx" \
+  "$REPO_ROOT/shared/models/asr/dingqiao/eres2net.onnx" \
+  "$REPO_ROOT/shared/models/asr/dingqiao/pyannote-segmentation-3.0.onnx" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
   "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libamphion_audio_processing.so" \

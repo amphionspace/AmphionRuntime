@@ -258,7 +258,7 @@ EOF
       echo "[ERROR] speaker-turn segmentation model is unreadable: $SPEAKER_TURN_SEGMENTATION_MODEL" >&2
       exit 1
     }
-    local turn_destination="$temp_repo/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx"
+    local turn_destination="$temp_repo/shared/models/asr/dingqiao/pyannote-segmentation-3.0.onnx"
     mkdir -p "$(dirname "$turn_destination")"
     cp "$SPEAKER_TURN_SEGMENTATION_MODEL" "$turn_destination"
     echo "[INFO] injected speaker-turn segmentation model into the isolated test build"

@@ -182,7 +182,7 @@ python asr/tools/speaker/04_eval_summary.py \
 ```bash
 python3 asr/tools/speaker/06_eval_speaker_vad_aidatatang.py \
   --dataset-dir /Users/boxp/Downloads/testdata/aidatatang_test_spk_balanced_500 \
-  --speaker-model asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx \
+  --speaker-model shared/models/asr/dingqiao/eres2net.onnx \
   --out-dir asr/tools/speaker/results/aidatatang_speaker_vad_eval \
   --thresholds 0.30 0.35 0.40 0.45 0.50 \
   --win-sec 1.0 \

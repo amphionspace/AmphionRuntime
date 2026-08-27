@@ -34,14 +34,14 @@
 | 能力 | Android 当前状态 | 结论 |
 | --- | --- | --- |
 | short/long 与 stable-prefix | Core 已有同源 native 语义；本分支补会话参数、场景映射和门禁 | 待真机 |
-| 声纹校验 | `eres2net.onnx` 与 HarmonyOS SHA-256 一致，公共字段使用 `speakerSimilarity` | 待组合真机 |
+| 声纹校验 | Android/HarmonyOS 构建均使用 `shared/models/asr/dingqiao/eres2net.onnx`，公共字段使用 `speakerSimilarity` | 待组合真机 |
 | Speaker VAD | Android 在 decoder 串行路径同步评分，不存在 HarmonyOS 异步 hop 乱序路径 | 待换人边界真机 |
 | Police 基础规则 | 车牌、派出所、警务术语公共资产逐文件一致 | 已对齐 |
-| Police 人名纠正 | Android 携带与 HarmonyOS 相同的 LAC/CRF/字典/拼音资产，ONNX 由 Gradle 复用 Harmony 单一受控源，按 `sysGeneralLexicon` 做 PER 门控同音纠正 | Debug/Release 单测与哈希通过，待真机 |
+| Police 人名纠正 | Android/HarmonyOS 构建均使用 `shared/models/asr/police/lac/v1/lac_encoder.onnx`，LAC/CRF/字典/拼音资产逐文件一致，按 `sysGeneralLexicon` 做 PER 门控同音纠正 | Debug/Release 单测与哈希通过，待真机 |
 | Runtime 日志 | 本分支补 `setLogLevel`，同时覆盖 license 校验和 Runtime 准备 | 单测通过 |
 | 公共 API 兼容 | 补 `getWorkPath`、`SINGLE/CONTINUOUS` 别名、参数默认值和非空授权消息 | 单测与接口对照通过 |
 | Diagnostics SDK | 独立 diagnostics AAR；schema v2、匿名会话、WAV/timeline/callback、资源采样、崩溃 journal 与 model/build identity 已补齐 | 单测与 AAR 隔离检查通过 |
-| Speaker Diarization | 独立 JNI 使用相同 pyannote powerset mask 与 `eres2net`；pyannote ONNX 由 Gradle 复用 Harmony 单一受控源；10s/2.5s 离线分窗、重叠说话、在线/全局聚类和 finish 双路屏障已接入 | Debug/Release、状态机及 fat AAR 结构通过，待离线真机 |
+| Speaker Diarization | 独立 JNI 使用相同 pyannote powerset mask 与 `eres2net`；Android/HarmonyOS 构建均使用 `shared/models/asr/dingqiao` 中的模型和许可证；10s/2.5s 离线分窗、重叠说话、在线/全局聚类和 finish 双路屏障已接入 | Debug/Release、状态机及 fat AAR 结构通过，待离线真机 |
 | 生命周期释放 | 本分支补 finish 后 shutdown/relicense drain 用例与有界释放 | 单测通过，待真机 |
 | 版本/交付身份 | Android 正式版本暂保持 0.3.3，必须在最终真机门禁完成后再冻结为 0.3.11 | 正确冻结 |
 

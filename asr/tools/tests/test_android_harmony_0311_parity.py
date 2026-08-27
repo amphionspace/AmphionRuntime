@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 ANDROID = ROOT / "asr" / "android"
 HARMONY = ROOT / "asr" / "harmony"
+SHARED_MODELS = ROOT / "shared" / "models" / "asr"
 
 
 def sha256(path: Path) -> str:
@@ -21,25 +22,33 @@ def sha256(path: Path) -> str:
 
 class AndroidHarmony0311ParityTest(unittest.TestCase):
     def test_speaker_models_are_the_same_on_both_platforms(self) -> None:
-        android_speaker = (
-            ANDROID / "sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx"
+        shared_speaker = SHARED_MODELS / "dingqiao/eres2net.onnx"
+        shared_segmentation = (
+            SHARED_MODELS / "dingqiao/pyannote-segmentation-3.0.onnx"
         )
-        harmony_speaker = (
-            HARMONY
-            / "sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx"
+        shared_license = (
+            SHARED_MODELS / "dingqiao/pyannote-segmentation-3.0.LICENSE"
         )
-        harmony_segmentation = (
-            HARMONY
-            / "sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx"
+        android_build = (ANDROID / "sdk-dingqiao/build.gradle.kts").read_text(
+            encoding="utf-8"
         )
-        build = (ANDROID / "sdk-dingqiao/build.gradle.kts").read_text(encoding="utf-8")
-        self.assertEqual(sha256(harmony_speaker), sha256(android_speaker))
+        harmony_build = (
+            HARMONY / "sdk-dingqiao/hvigorfile.ts"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(
+            "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+            sha256(shared_speaker),
+        )
         self.assertEqual(
             "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
-            sha256(harmony_segmentation),
+            sha256(shared_segmentation),
         )
-        self.assertIn("syncHarmonyDiarizationModel", build)
-        self.assertIn("pyannote-segmentation-3.0.onnx", build)
+        self.assertTrue(shared_license.is_file())
+        for build in (android_build, harmony_build):
+            self.assertIn("shared/models/asr/dingqiao", build)
+            self.assertIn("eres2net.onnx", build)
+            self.assertIn("pyannote-segmentation-3.0.onnx", build)
+            self.assertIn("pyannote-segmentation-3.0.LICENSE", build)
 
     def test_shared_police_assets_are_byte_identical(self) -> None:
         android_root = ANDROID / "sdk-police/src/main/assets"
@@ -66,14 +75,20 @@ class AndroidHarmony0311ParityTest(unittest.TestCase):
                 str(relative),
             )
 
-        harmony_lac = harmony_root / "lac/v1/lac_encoder.onnx"
-        police_build = (ANDROID / "sdk-police/build.gradle.kts").read_text(encoding="utf-8")
+        shared_lac = SHARED_MODELS / "police/lac/v1/lac_encoder.onnx"
+        android_police_build = (ANDROID / "sdk-police/build.gradle.kts").read_text(
+            encoding="utf-8"
+        )
+        harmony_police_build = (
+            HARMONY / "sdk-police/hvigorfile.ts"
+        ).read_text(encoding="utf-8")
         self.assertEqual(
             "826085fff327d0c76c0dd55400629ce0ed192a6519ecd9841ed6fdedb4cb5aec",
-            sha256(harmony_lac),
+            sha256(shared_lac),
         )
-        self.assertIn("syncHarmonyLacModel", police_build)
-        self.assertIn("lac_encoder.onnx", police_build)
+        for build in (android_police_build, harmony_police_build):
+            self.assertIn("shared/models/asr/police/lac/v1", build)
+            self.assertIn("lac_encoder.onnx", build)
 
     def test_android_keeps_release_identity_frozen_until_device_gate(self) -> None:
         properties = (ANDROID / "gradle.properties").read_text(encoding="utf-8")

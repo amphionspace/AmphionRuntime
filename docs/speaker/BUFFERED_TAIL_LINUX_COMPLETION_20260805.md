@@ -20,7 +20,7 @@ RE-SepFormer、阈值/margin 搜索、真机扩身份或稳压。
 - absolute 对照：
   `asr/tools/speaker/results/voiceprint_pilot_20260805_c1_turn_transition_absolute_full/`
 - ERes2Net：
-  `asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx`
+  `shared/models/asr/dingqiao/eres2net.onnx`
 - ZH_EN ASR：必须复用 absolute 对照 `summary.json` 的 `artifacts.asr_model_dir` 及其 `.onnx` 四件套。
   仓库 Harmony `zh-en/v1` 是 `.ort` 交付格式，文件哈希和本工具输入契约都不同，不能替代冻结对照。
 - 固定参数：`threshold=0.35`、`win=1.0s`、`hop=0.3s`、连续低分窗 `2`、tail holdback
@@ -49,7 +49,7 @@ export C1_ASR_MODEL_DIR="$(jq -r '.artifacts.asr_model_dir' "$C1_ABSOLUTE_DIR/su
 
 python3 asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py \
   --baseline-dir "$C1_BASELINE_DIR" \
-  --speaker-model asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx \
+  --speaker-model shared/models/asr/dingqiao/eres2net.onnx \
   --asr-model-dir "$C1_ASR_MODEL_DIR" \
   --output-dir "$C1_BUFFERED_RESULT_DIR" \
   --seed 73 \
