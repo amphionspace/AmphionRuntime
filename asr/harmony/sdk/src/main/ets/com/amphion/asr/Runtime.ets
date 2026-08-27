@@ -505,8 +505,8 @@ export class AmphionRuntime {
 
   /**
    * Pooled speaker-embedding extractor. Built at most once per process and shared across enrollment
-   * and every recognition session. Registration, explicit preload, and Speaker VAD use this
-   * synchronous path; final-only verification uses getOrCreateSpeakerExtractorAsync instead.
+   * and every recognition session. Registration and explicit preload use this synchronous path;
+   * live recognition paths use getOrCreateSpeakerExtractorAsync instead.
    * An absolute modelPath is read from the filesystem (rm=undefined); a rawfile-relative name uses
    * the resourceManager loader — same rule as SpeakerEnroller (avoids the rawfile-loader crash).
    */
@@ -1787,7 +1787,17 @@ export class AsrSession {
     }
     this.speakerVadEnabled = enabled;
     this.svAwaitingTargetAfterDeparture = false;
-    if (enabled) this.ensureSpeakerTurnSegmenterLoad();
+    if (enabled) {
+      const config = this.config.targetSpeaker;
+      if (this.targetExtractor === undefined && this.targetExtractorLoad === undefined &&
+        config !== undefined && config.deferLoad) {
+        // Do not block the caller's ArkTS thread while AudioCapturer is already delivering PCM.
+        // Speaker VAD remains fail-open until this attaches, then scores the latest buffered window.
+        this.setTargetSpeakerExtractorAsync(AmphionRuntime.getOrCreateSpeakerExtractorAsync(
+          this.context, config.modelPath, config.numThreads));
+      }
+      this.ensureSpeakerTurnSegmenterLoad();
+    }
     this.resetSpeakerVadState();
   }
   private ensureSpeakerTurnSegmenterLoad(): void {
