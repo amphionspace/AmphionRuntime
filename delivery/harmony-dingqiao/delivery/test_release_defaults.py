@@ -219,6 +219,24 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("build_identity = json.loads", script)
         self.assertIn('"verified_source_identity"', script)
 
+    def test_0312_docs_do_not_claim_speaker_vad_blocks_cold_start(self) -> None:
+        doc_paths = (
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/语音识别SDK接口.md",
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/DINGQIAO_VOICEPRINT_MODEL.md",
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/DINGQIAO_INTEGRATION.md",
+        )
+        stale_claims = (
+            "冷态启用 Speaker VAD 会同步等待",
+            "Speaker VAD 启动前同步加载",
+            "冷态 `startListening()` 会同步等待 extractor",
+            "冷态开启 Speaker VAD 时启动会等待模型就绪",
+            "冷态启动会同步等 extractor",
+        )
+        for path in doc_paths:
+            text = path.read_text(encoding="utf-8")
+            for claim in stale_claims:
+                self.assertNotIn(claim, text, f"stale 0.3.11 behavior in {path}: {claim}")
+
     def test_sdk_only_changelog_combines_controlled_notes_and_commit_trace(self) -> None:
         script = (
             REPO_ROOT
