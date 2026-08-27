@@ -199,7 +199,7 @@ endpoint final 会直接成为本 session 的 `isLast=true` 结果，不再追�
 
 `onStart(sessionId)` 是该 session 已可调用的边界。宿主可以在 `onStart` 回调调用栈内同步冲刷此前缓存的 640 字节 PCM 帧，也可以立即 `finish` 或 `cancel`；SDK 不得在成功回调后返回 `NOT_LISTENING`。在收到 `onStart` 之前不要写入音频。
 
-运行时调用 `setSpeakerVadEnabled(true)` 时，本次会话的 `StartParams.extraParams` 必须已经提供有效的 `voiceprintIds`，即使会话启动时 `enableSpeakerVad=false`。冷态启用 Speaker VAD 会同步等待声纹 extractor 就绪，因此该调用可能阻塞；关闭操作不加载模型。
+运行时调用 `setSpeakerVadEnabled(true)` 时，本次会话的 `StartParams.extraParams` 必须已经提供有效的 `voiceprintIds`，即使会话启动时 `enableSpeakerVad=false`。冷态启用 Speaker VAD 会在后台加载声纹 extractor；调用立即返回，模型就绪前保持 fail-open。关闭操作不加载模型。
 
 ## 5. 参数对象
 
@@ -432,7 +432,7 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 `registerVoiceprint()` 与 `preloadVoiceprintModel()` 都会在 extractor 尚未加载时同步加载并预热声纹模型，不应放在 UI 关键路径。注册成功后，同一个进程内的声纹识别复用该 extractor。`preloadVoiceprintModel()` 是可选优化接口，不是普通声纹识别的前置步骤；Runtime 未就绪或加载失败时返回 `false`。
 
-启用 `enableVoiceprintVerification` 时，声纹 extractor 在 ASR 会话启动后后台加载，ASR 音频写入和 partial 结果不等待；如果 ASR final 产生时模型仍未就绪，只延后 final 和 `onComplete`，模型就绪后立即完成声纹打分。启用 `enableSpeakerVad` 时需要流式打分，因此冷态 `startListening()` 会同步等待 extractor。
+启用 `enableVoiceprintVerification` 或 `enableSpeakerVad` 时，声纹 extractor 在 ASR 会话启动后后台加载，ASR 音频写入和 partial 结果不等待。模型就绪前 Speaker VAD 保持 fail-open；如果 ASR final 产生时 extractor 仍未就绪，只延后 final 和 `onComplete`，模型就绪后立即完成声纹打分。
 
 内存声纹 extractor 由 `unloadModel()` / `unloadRuntime()` 一并释放；HAR 内置的模型文件和已注册的 embedding 属于持久数据，不随内存模型卸载。调用 `unloadModel()` 后再次使用声纹能力会重新按需加载 extractor，但无需重新注册声纹。
 
