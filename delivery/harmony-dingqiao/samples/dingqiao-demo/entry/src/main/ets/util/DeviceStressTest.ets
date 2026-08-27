@@ -3,6 +3,7 @@ import { common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import {
   AudioInfo,
+  CreateEngineCallback,
   CreateEngineParams,
   DingqiaoErrorCode,
   DingqiaoEventCode,
@@ -46,6 +47,8 @@ const VOICEPRINT_LEADING_SILENCE_FRAMES: number = 50;
 const VAD_BEGIN_LEADING_SILENCE_FRAMES: number = 20;
 const VOICEPRINT_MULTI_UTTERANCE_SILENCE_FRAMES: number = 75;
 const VOICEPRINT_LOW_GAIN: number = 0.15;
+const COLD_START_LISTENING_MAX_MS: number = 250;
+const COLD_START_HOTWORDS: string[] = ['鼎桥通信', '警务终端'];
 const VOICEPRINT_SCENARIOS: string[] = [
   'short', 'threshold', 'long', 'leading-silence', 'low-volume', 'multi-utterance', 'alternate-source'
 ];
@@ -811,6 +814,33 @@ class PrepareRuntimeCb implements PrepareRuntimeCallback {
   }
 }
 
+class EngineCreateResult {
+  engine?: SpeechRecognitionEngine;
+  errorCode: number = 0;
+  errorMessage: string = '';
+}
+
+class EngineCreateCb implements CreateEngineCallback {
+  private resolve: (result: EngineCreateResult) => void;
+
+  constructor(resolve: (result: EngineCreateResult) => void) {
+    this.resolve = resolve;
+  }
+
+  onSuccess(engine: SpeechRecognitionEngine): void {
+    const result = new EngineCreateResult();
+    result.engine = engine;
+    this.resolve(result);
+  }
+
+  onError(errorCode: number, message: string): void {
+    const result = new EngineCreateResult();
+    result.errorCode = errorCode;
+    result.errorMessage = message;
+    this.resolve(result);
+  }
+}
+
 class CycleResult {
   index: number = 0;
   corpusId: string = '';
@@ -844,6 +874,7 @@ class CycleResult {
   effectiveMaxAudioDurationMs: number = -1;
   voiceprintIdCount: number = 0;
   fedFrames: number = 0;
+  startListeningMs: number = -1;
   tailSilenceMs: number = -1;
   lastFinalsBeforeFinish: number = -1;
   speechEndsBeforeFinish: number = -1;
@@ -888,6 +919,7 @@ class CycleResult {
       `|requestedMaxAudioDurationMs=${this.requestedMaxAudioDurationMs}` +
       `|effectiveMaxAudioDurationMs=${this.effectiveMaxAudioDurationMs}` +
       `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
+      `|startListeningMs=${this.startListeningMs}` +
       `|tailSilenceMs=${this.tailSilenceMs}` +
       `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}` +
       `|speechEndsBeforeFinish=${this.speechEndsBeforeFinish}` +
@@ -1063,6 +1095,17 @@ function createEngine(): SpeechRecognitionEngine {
   params.language = 'zh-CN';
   params.online = 1;
   return SpeechRecognizeSdk.createEngine(params);
+}
+
+function createColdStartEngine(): Promise<EngineCreateResult> {
+  const params = new CreateEngineParams();
+  params.language = 'zh-CN';
+  params.online = 1;
+  params.extraParams['disablePrepack'] = true;
+  params.extraParams['sysGeneralLexicon'] = COLD_START_HOTWORDS;
+  return new Promise<EngineCreateResult>((resolve: (result: EngineCreateResult) => void): void => {
+    SpeechRecognizeSdk.createEngineAsync(params, new EngineCreateCb(resolve));
+  });
 }
 
 function startParams(sessionId: string, mode: string, cycle: number): StartParams {
@@ -1842,6 +1885,56 @@ async function runSpeakerVadOnStartCycle(engine: SpeechRecognitionEngine, entry:
   result.voiceprintIdCount = 1;
   result.fedFrames = fed;
   result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  return result;
+}
+
+async function runColdStartPcmGapCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry, index: number,
+  voiceprintId: string): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const events = new SessionEvents();
+  const sessionId = `cold-start-pcm-gap-${index}`;
+  engine.setListener(new StressListener(events, sessionId));
+  const params = startParams(sessionId, 'cold-start-pcm-gap', index);
+  params.extraParams['vadBegin'] = 5000;
+  params.extraParams['enableVoiceprintVerification'] = true;
+  params.extraParams['enableSpeakerVad'] = true;
+  params.extraParams['voiceprintIds'] = [voiceprintId];
+
+  const startCallAt = Date.now();
+  engine.startListening(params);
+  const startListeningMs = Date.now() - startCallAt;
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    const result = finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+    result.startListeningMs = startListeningMs;
+    return result;
+  }
+
+  const expectedFrames = Math.ceil(fs.statSync(entry.path).size / FRAME_BYTES);
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, 0, undefined, 1,
+    (): void => { events.audioFeedStartedAtMs = Date.now(); });
+  const lastFinalsBeforeFinish = events.lastFinals;
+  engine.finish(sessionId);
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const timingOk = startListeningMs <= COLD_START_LISTENING_MAX_MS;
+  const nonEmptyFinals = events.finalTexts.filter((text: string): boolean => text.length > 0).length;
+  const ok = completed && timingOk && fed === expectedFrames && events.starts === 1 &&
+    events.finals > 0 && nonEmptyFinals > 0 && events.nonEmptySpeakerScores === nonEmptyFinals &&
+    events.lastFinals === 1 && lastFinalsBeforeFinish === 0 && events.completes === 1 &&
+    events.errors === 0 && terminalCallbackOrderOk(events, sessionId) && !engine.isBusy();
+  let detail = 'cold-start-pcm-gap-fixed';
+  if (!timingOk) detail = `start-listening-blocked-${startListeningMs}ms`;
+  else if (fed !== expectedFrames) detail = `pcm-frame-gap-${fed}-of-${expectedFrames}`;
+  else if (lastFinalsBeforeFinish !== 0) detail = 'is-last-before-finish';
+  else if (events.nonEmptySpeakerScores === 0) detail = 'voiceprint-score-missing';
+  else if (!terminalCallbackOrderOk(events, sessionId)) detail = 'terminal-callback-order';
+  else if (!ok) detail = 'cold-start-pcm-gap-session-contract';
+  const result = finishCycle(index, entry.id, events, startedAt, ok, detail);
+  result.requestedVadBeginMs = 5000;
+  result.confirmationGraceMs = 0;
+  result.voiceprintIdCount = 1;
+  result.fedFrames = fed;
+  result.lastFinalsBeforeFinish = lastFinalsBeforeFinish;
+  result.startListeningMs = startListeningMs;
   return result;
 }
 
@@ -2625,6 +2718,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     if (options.mode === 'voiceprint' || options.mode === 'voiceprint-fallback' ||
       options.mode === 'voiceprint-vad-begin' ||
       options.mode === 'voiceprint-vad-begin-idle' || options.mode === 'speaker-vad-onstart' ||
+      options.mode === 'cold-start-pcm-gap' ||
       options.mode === 'continuous-voiceprint-speaker-vad' ||
       options.mode === 'speaker-vad-turn' ||
       options.mode === 'target-speaker-enhancement' ||
@@ -2652,7 +2746,17 @@ export async function runDeviceStress(context: common.UIAbilityContext,
 
     const recreateEachCycle = options.mode === 'recreate' || options.mode === 'start-write-reload' ||
       options.mode === 'finish-shutdown' || options.mode === 'finish-shutdown-relicense';
-    if (!recreateEachCycle) engine = createEngine();
+    if (!recreateEachCycle) {
+      if (options.mode === 'cold-start-pcm-gap') {
+        const created = await createColdStartEngine();
+        if (created.engine === undefined) {
+          throw new Error(`engine-create-${created.errorCode}-${safeDetail(created.errorMessage)}`);
+        }
+        engine = created.engine;
+      } else {
+        engine = createEngine();
+      }
+    }
     for (let i = 0; i < options.cycles; i++) {
       let entry = entries[i % entries.length];
       if (options.mode === 'voiceprint' &&
@@ -2692,6 +2796,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runStartWriteCycle(engine, entry, i);
       } else if (options.mode === 'speaker-vad-onstart') {
         result = await runSpeakerVadOnStartCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'cold-start-pcm-gap') {
+        result = await runColdStartPcmGapCycle(engine, entry, i, stressVoiceprintId);
       } else if (options.mode === 'speaker-vad-turn') {
         result = await runSpeakerVadTurnCycle(engine, entry, i, stressVoiceprintId, options);
       } else if (options.mode === 'callback-api-reentrant') {

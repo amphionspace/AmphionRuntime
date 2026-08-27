@@ -1259,6 +1259,68 @@ export class AsrEngine {
   isPunctuationLoaded(): boolean { return this.punctuation !== undefined; }
   setEngineReadyMs(value: number): void { this.engineReadyMs = value; }
   punctuationLoadDurationMs(): number { return this.punctuationLoadMs; }
+  /**
+   * Reconfigures capability state that is consumed only by future AsrSession instances. The
+   * OnlineRecognizer and any already-created session retain their original immutable inputs.
+   */
+  reconfigureTargetSpeaker(config: TargetSpeakerConfig | undefined): void {
+    if (this.closed) throw new Error('AsrEngine is closed');
+    const nextConfig = new AsrConfig();
+    nextConfig.numThreads = this.config.numThreads;
+    nextConfig.punctuation = this.config.punctuation;
+    nextConfig.itn = this.config.itn;
+    nextConfig.vad = this.config.vad;
+    nextConfig.endpoint = this.config.endpoint;
+    nextConfig.disablePrepack = this.config.disablePrepack;
+    nextConfig.hotwords = this.config.hotwords.slice();
+    nextConfig.hotwordsScore = this.config.hotwordsScore;
+    const vad = new VadConfig();
+    vad.modelType = this.config.vadConfig.modelType;
+    vad.threshold = this.config.vadConfig.threshold;
+    vad.minSilenceDurationSec = this.config.vadConfig.minSilenceDurationSec;
+    vad.minSpeechDurationSec = this.config.vadConfig.minSpeechDurationSec;
+    vad.maxSpeechDurationSec = this.config.vadConfig.maxSpeechDurationSec;
+    vad.activeEndpointSilenceMs = this.config.vadConfig.activeEndpointSilenceMs;
+    nextConfig.vadConfig = vad;
+    const endpoint = new EndpointRules();
+    endpoint.rule1 = this.config.endpointRules.rule1;
+    endpoint.rule1MinTrailingSilenceSec = this.config.endpointRules.rule1MinTrailingSilenceSec;
+    endpoint.rule2 = this.config.endpointRules.rule2;
+    endpoint.rule2MinTrailingSilenceSec = this.config.endpointRules.rule2MinTrailingSilenceSec;
+    endpoint.rule3MinUtteranceLengthSec =
+      this.config.endpointRules.rule3MinUtteranceLengthSec;
+    nextConfig.endpointRules = endpoint;
+    let snapshot: TargetSpeakerConfig | undefined;
+    if (config !== undefined) {
+      snapshot = new TargetSpeakerConfig();
+      snapshot.modelPath = config.modelPath;
+      snapshot.threshold = config.threshold;
+      snapshot.winSec = config.winSec;
+      snapshot.hopSec = config.hopSec;
+      snapshot.minSegSec = config.minSegSec;
+      snapshot.preload = config.preload;
+      snapshot.deferLoad = config.deferLoad;
+      snapshot.enabledByDefault = config.enabledByDefault;
+      snapshot.numThreads = config.numThreads;
+      if (config.speakerVad !== undefined) {
+        const speakerVad = new SpeakerVadConfig();
+        speakerVad.threshold = config.speakerVad.threshold;
+        speakerVad.winSec = config.speakerVad.winSec;
+        speakerVad.hopSec = config.speakerVad.hopSec;
+        speakerVad.consecutiveBelow = config.speakerVad.consecutiveBelow;
+        speakerVad.enabledByDefault = config.speakerVad.enabledByDefault;
+        snapshot.speakerVad = speakerVad;
+      }
+    }
+    nextConfig.targetSpeaker = snapshot;
+    // AsrSession retains the config object it was created with. Replace rather than mutate it so a
+    // callback-reentrant next session cannot alter the capability state of the old session tail.
+    this.config = nextConfig;
+    this.targetExtractor = undefined;
+    if (snapshot !== undefined && snapshot.preload && !snapshot.deferLoad) {
+      this.targetExtractor = this.createSpeakerExtractor(snapshot);
+    }
+  }
   close(): void {
     if (this.closed) return;
     this.closed = true;
