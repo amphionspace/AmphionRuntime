@@ -27,8 +27,8 @@ online-stream 存活数。
 它只构建一次并将两个客户时序的证据绑定到同一 commit、设备和 HAP/HAR：
 
 ```bash
-python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py \
-  --data-dir "$HOME/Downloads/testdata"
+python3 asr/tools/test_data.py fetch aishell3-hotwords-500
+python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py
 ```
 
 汇总结果保存在 `build/release-gates/finish-compat/<gate-id>/report.json`，子目录保留两个模式的完整
@@ -43,7 +43,7 @@ python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py \
 
 ```bash
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --data-dir ~/Downloads/testdata \
+  --data-dir ~/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500 \
   --mode burst \
   --cycles 200 \
   --files 48

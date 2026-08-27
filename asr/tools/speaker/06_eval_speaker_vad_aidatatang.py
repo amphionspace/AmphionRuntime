@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Evaluate Android-style target speaker VAD on packaged Aidatatang samples.
+"""Evaluate Android-style target speaker VAD on a packaged multi-speaker corpus.
 
-The dataset used by this script has one utterance per speaker, so it cannot
-measure enrollment generalization. It is meant to quantify the endpoint benefit
-of target-speaker VAD by synthesizing sessions:
+It is meant to quantify the endpoint benefit of target-speaker VAD by
+synthesizing sessions:
 
     target speaker utterance + non-target speaker utterance
 
@@ -18,6 +17,7 @@ import argparse
 import gzip
 import json
 import math
+import os
 import statistics
 import sys
 import time
@@ -28,6 +28,12 @@ from typing import Iterable
 import numpy as np
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+TEST_DATA_ROOT = Path(
+    os.environ.get(
+        "AMPHION_TEST_DATA_DIR",
+        Path.home() / ".cache/amphion-runtime/test-data/v1",
+    )
+).expanduser()
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
@@ -86,8 +92,28 @@ def describe(values: list[float]) -> dict:
 
 
 def load_samples(dataset_dir: Path) -> list[Sample]:
-    recordings_path = dataset_dir / "aidatatang_test_spk_balanced_500_recordings_packaged.jsonl.gz"
-    supervisions_path = dataset_dir / "aidatatang_test_spk_balanced_500_supervisions_cleaned_punc.jsonl.gz"
+    candidates = (
+        (
+            "aidatatang_test_spk_balanced_500_recordings_packaged.jsonl.gz",
+            "aidatatang_test_spk_balanced_500_supervisions_cleaned_punc.jsonl.gz",
+        ),
+        (
+            "aishell3_test_hotwords_500_recordings_packaged.jsonl.gz",
+            "aishell3_test_hotwords_500_supervisions_punc_hotwords.jsonl.gz",
+        ),
+    )
+    selected = next(
+        (
+            (dataset_dir / recordings, dataset_dir / supervisions)
+            for recordings, supervisions in candidates
+            if (dataset_dir / recordings).is_file()
+            and (dataset_dir / supervisions).is_file()
+        ),
+        None,
+    )
+    if selected is None:
+        raise FileNotFoundError(f"no supported packaged corpus manifest under {dataset_dir}")
+    recordings_path, supervisions_path = selected
     recordings: dict[str, dict] = {}
     with gzip.open(recordings_path, "rt", encoding="utf-8") as f:
         for line in f:
@@ -254,7 +280,7 @@ def row_for_threshold(
 
 def render_md(summary: dict) -> str:
     lines: list[str] = []
-    lines.append("# Aidatatang 主说话人 VAD 评测")
+    lines.append("# 主说话人 VAD 评测")
     lines.append("")
     lines.append("## 评测口径")
     lines.append("")
@@ -308,7 +334,7 @@ def render_md(summary: dict) -> str:
     lines.append("")
     lines.append("## 限制")
     lines.append("")
-    lines.append("- 该测试集每个 speaker 只有 1 条 utterance，因此注册与目标段同源，target 确认率会偏乐观。")
+    lines.append("- 注册与目标段使用同一条 utterance，target 确认率会偏乐观；该门禁只用于状态机收益复现。")
     lines.append("- 本报告只量 speaker-VAD endpoint 对非目标拖尾的抑制收益，不包含 ASR CER/WER。")
     lines.append("- 合成会话为 target 与 other 无静音拼接，是刻意放大“目标人离场后别人继续说”的压力场景。")
     lines.append("")
@@ -320,7 +346,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--dataset-dir",
         type=Path,
-        default=Path("/Users/boxp/Downloads/testdata/aidatatang_test_spk_balanced_500"),
+        default=TEST_DATA_ROOT / "aishell3_test_hotwords_500",
     )
     p.add_argument(
         "--speaker-model",

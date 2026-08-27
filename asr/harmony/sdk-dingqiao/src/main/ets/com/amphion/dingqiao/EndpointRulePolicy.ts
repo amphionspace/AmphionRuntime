@@ -36,10 +36,18 @@ export function rule3Policy(engineExtraParams: Record<string, Object>,
 
 export function endpointRecognizerConfigKey(withTargetSpeaker: boolean, withSpeakerVad: boolean,
   engineExtraParams: Record<string, Object>, sessionExtraParams: Record<string, Object>): string {
-  const policy = rule3Policy(engineExtraParams, sessionExtraParams);
   return [
     `${withTargetSpeaker}`,
     `${withSpeakerVad}`,
+    endpointRecognizerRuntimeConfigKey(engineExtraParams, sessionExtraParams)
+  ].join('|');
+}
+
+/** Configuration that is baked into OnlineRecognizer and therefore requires a model rebuild. */
+export function endpointRecognizerRuntimeConfigKey(engineExtraParams: Record<string, Object>,
+  sessionExtraParams: Record<string, Object>): string {
+  const policy = rule3Policy(engineExtraParams, sessionExtraParams);
+  return [
     policy.mode,
     `${policy.enabled}`,
     `${policy.minUtteranceSec}`
