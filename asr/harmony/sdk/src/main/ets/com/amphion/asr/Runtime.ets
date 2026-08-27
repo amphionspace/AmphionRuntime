@@ -536,21 +536,26 @@ export class AmphionRuntime {
     const separator = speakerModelPath.lastIndexOf('/');
     const parent = separator >= 0 ? speakerModelPath.substring(0, separator + 1) : '';
     const segmentationModelPath = `${parent}${SPEAKER_TURN_SEGMENTATION_MODEL}`;
-    let model: Uint8Array;
-    if (speakerModelPath.startsWith('/')) {
-      const fp = fileIo.openSync(segmentationModelPath);
-      try {
-        const stat = fileIo.statSync(fp.fd);
-        const buffer = new ArrayBuffer(stat.size);
-        fileIo.readSync(fp.fd, buffer);
-        model = new Uint8Array(buffer);
-      } finally {
-        fileIo.closeSync(fp);
+    // Reading the 5.7 MB boundary model synchronously here stalls the ArkTS/UI thread after a
+    // customer has already started AudioCapturer. Publish the in-flight promise first and keep both
+    // the file read and native model construction off the startListening() call stack.
+    const load: Promise<void> = (async (): Promise<void> => {
+      let model: Uint8Array;
+      if (speakerModelPath.startsWith('/')) {
+        const fp = await fileIo.open(segmentationModelPath);
+        try {
+          const stat = await fileIo.stat(fp.fd);
+          const buffer = new ArrayBuffer(stat.size);
+          await fileIo.read(fp.fd, buffer);
+          model = new Uint8Array(buffer);
+        } finally {
+          fileIo.closeSync(fp);
+        }
+      } else {
+        model = await context.resourceManager.getRawFileContent(segmentationModelPath);
       }
-    } else {
-      model = context.resourceManager.getRawFileContentSync(segmentationModelPath);
-    }
-    const load = loadSpeakerTurnSegmentationModelAsync(model).finally((): void => {
+      await loadSpeakerTurnSegmentationModelAsync(model);
+    })().finally((): void => {
       if (AmphionRuntime.speakerTurnSegmenterLoad === load) {
         AmphionRuntime.speakerTurnSegmenterLoad = undefined;
       }

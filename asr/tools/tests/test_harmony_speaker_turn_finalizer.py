@@ -225,8 +225,13 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         loader = source.split("static getOrCreateSpeakerTurnSegmenterAsync", 1)[1].split(
             "static async getOrCreateSpeakerExtractorAsync", 1
         )[0]
-        self.assertIn("fileIo.openSync(segmentationModelPath)", loader)
-        self.assertIn("context.resourceManager.getRawFileContentSync", loader)
+        self.assertIn("await fileIo.open(segmentationModelPath)", loader)
+        self.assertIn("await fileIo.stat(fp.fd)", loader)
+        self.assertIn("await fileIo.read(fp.fd, buffer)", loader)
+        self.assertIn("await context.resourceManager.getRawFileContent", loader)
+        self.assertNotIn("getRawFileContentSync", loader)
+        self.assertNotIn("fileIo.openSync", loader)
+        self.assertNotIn("fileIo.readSync", loader)
         self.assertNotIn("absolute speaker model has no bundled segmentation peer", loader)
 
     def test_boundary_model_is_optional_for_existing_speaker_vad_layouts(self) -> None:
