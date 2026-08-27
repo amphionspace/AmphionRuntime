@@ -148,11 +148,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--settle-ms", type=int, default=0)
     parser.add_argument("--pace-ms", type=int, default=20)
-    parser.add_argument(
-        "--speaker-diarization-service-url",
-        default="",
-        help="Full incremental diarization window endpoint; required by customer-meeting-minutes.",
-    )
     parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--sample-interval", type=float, default=1.0)
     parser.add_argument("--post-run-observe", type=float, default=5.0)
@@ -214,8 +209,6 @@ def parse_args() -> argparse.Namespace:
         parser.error("--mode continuous-long-session requires at least 2 cycles")
     if args.mode == "continuous-long-session" and args.pace_ms < 20:
         parser.error("--mode continuous-long-session requires --pace-ms >= 20")
-    if args.mode == "customer-meeting-minutes" and not args.speaker_diarization_service_url:
-        parser.error("--mode customer-meeting-minutes requires --speaker-diarization-service-url")
     if (
         args.mode == "speaker-vad-turn"
         and not args.skip_target_content_check
@@ -237,11 +230,6 @@ def run(command: list[str], *, check: bool = True, capture: bool = True) -> subp
         stdout=subprocess.PIPE if capture else None,
         stderr=subprocess.PIPE if capture else None,
     )
-
-
-def append_nonempty_string_parameter(command: list[str], key: str, value: str) -> None:
-    if value:
-        command.extend(("--ps", key, value))
 
 
 def sha256_file(path: Path) -> str:
@@ -1213,11 +1201,6 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressSpeakerVadThreshold",
         str((args.speaker_vad_threshold if args.speaker_vad_threshold is not None else -2) + 2),
     ]
-    append_nonempty_string_parameter(
-        start_command,
-        "stressSpeakerDiarizationServiceUrl",
-        args.speaker_diarization_service_url,
-    )
     start_result = hdc.shell(*start_command, check=False)
     start_output = (start_result.stdout + start_result.stderr).lower()
     if (

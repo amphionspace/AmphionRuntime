@@ -62,7 +62,6 @@ export class DeviceStressOptions {
   enforceTargetSpeakerBusinessText: boolean = true;
   speakerVadFinishRecoveryEntryIds: string = 'none';
   speakerVadThreshold: number = -2;
-  speakerDiarizationServiceUrl: string = '';
 }
 
 class CorpusEntry {
@@ -1913,8 +1912,7 @@ async function runCallbackApiReentrantCycle(engine: SpeechRecognitionEngine, ent
 }
 
 async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
-  index: number, mode: string, paceMs: number,
-  speakerDiarizationServiceUrl: string): Promise<CycleResult> {
+  index: number, mode: string, paceMs: number): Promise<CycleResult> {
   const startedAt = Date.now();
   let scenario: CustomerScenarioName = 'ptt';
   if (mode === 'customer-tap-vad') scenario = 'tap-vad';
@@ -1931,7 +1929,7 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
     engine.setListener(callbackListener);
   }
   const profile = customerScenarioProfile(scenario);
-  const params = customerProfileStartParams(sessionId, scenario, speakerDiarizationServiceUrl);
+  const params = customerProfileStartParams(sessionId, scenario);
   params.extraParams['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
@@ -2702,8 +2700,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         options.mode === 'customer-transcription' || options.mode === 'customer-ptt-tail' ||
         options.mode === 'customer-form' || options.mode === 'customer-meeting-minutes') {
         result = await runCustomerScenarioCycle(
-          engine, entry, i, options.mode, options.paceMs,
-          options.speakerDiarizationServiceUrl);
+          engine, entry, i, options.mode, options.paceMs);
       } else if (options.mode === 'endpoint-reentrant') {
         result = await runEndpointReentrantCycle(engine, entry, i);
       } else if (options.mode === 'finish-shutdown') {

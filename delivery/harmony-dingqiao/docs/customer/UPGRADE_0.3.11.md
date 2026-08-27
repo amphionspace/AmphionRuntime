@@ -41,6 +41,8 @@ start.extraParams['enableContinuousRecognition'] = true;
 0.3.11 包含 `SpeakerDiarizationConfig`、`SpeakerDiarizationUpdate`、
 `SpeakerDiarizationResult` 及对应 listener 回调。只有在
 `StartParams.speakerDiarization` 传入配置对象时才启用；未配置时，原有 ASR 结果和回调链保持不变。
+角色分离模型随 HAR 内置并在端侧运行；配置只保留 `maxSpeakers`，不需要服务地址、认证头、网络权限
+或宿主 ChildProcess 入口。
 
 ## 4. 升级检查
 
