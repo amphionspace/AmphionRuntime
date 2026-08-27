@@ -22,7 +22,7 @@ export const SESSION_ROTATE_AUDIO_MS = 55000;
 
 export const CUSTOMER_TAP_VAD: CustomerScenarioProfile = {
   name: 'tap-vad',
-  audioSource: 'voiceCommunication',
+  audioSource: 'mic',
   vadBegin: 5000,
   vadEnd: 1600,
   maxAudioDuration: 20000,
@@ -36,7 +36,7 @@ export const CUSTOMER_TAP_VAD: CustomerScenarioProfile = {
 
 export const CUSTOMER_PTT: CustomerScenarioProfile = {
   name: 'ptt',
-  audioSource: 'voiceCommunication',
+  audioSource: 'mic',
   vadEnd: 1600,
   maxAudioDuration: 62000,
   recognizerMode: 'short',
@@ -49,7 +49,7 @@ export const CUSTOMER_PTT: CustomerScenarioProfile = {
 
 export const CUSTOMER_TRANSCRIPTION: CustomerScenarioProfile = {
   name: 'transcription',
-  audioSource: 'voiceRecognition',
+  audioSource: 'mic',
   vadEnd: 1600,
   maxAudioDuration: 62000,
   recognizerMode: 'long',
@@ -100,7 +100,7 @@ export function customerProfileUsesContinuousRecognition(profile: CustomerScenar
 }
 
 export function customerProfileStartParams(sessionId: string, name: CustomerScenarioName,
-  speakerDiarizationServiceUrl: string = ''): StartParams {
+  speakerDiarizationEnabled?: boolean): StartParams {
   const profile = customerScenarioProfile(name);
   const params = new StartParams();
   params.sessionId = sessionId;
@@ -110,10 +110,11 @@ export function customerProfileStartParams(sessionId: string, name: CustomerScen
   params.extraParams['maxAudioDuration'] = profile.maxAudioDuration;
   params.extraParams['recognizerMode'] = profile.recognizerMode;
   params.extraParams['endpointMaxUtteranceMs'] = profile.endpointMaxUtteranceMs;
-  if (profile.speakerDiarizationMaxSpeakers !== undefined) {
+  const shouldDiarize = speakerDiarizationEnabled ??
+    profile.speakerDiarizationMaxSpeakers !== undefined;
+  if (shouldDiarize) {
     const diarization = new SpeakerDiarizationConfig();
-    diarization.maxSpeakers = profile.speakerDiarizationMaxSpeakers;
-    diarization.serviceUrl = speakerDiarizationServiceUrl;
+    diarization.maxSpeakers = profile.speakerDiarizationMaxSpeakers ?? 4;
     params.speakerDiarization = diarization;
   }
   if (profile.vadBegin !== undefined) params.extraParams['vadBegin'] = profile.vadBegin;

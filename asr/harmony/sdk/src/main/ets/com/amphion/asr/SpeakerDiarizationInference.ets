@@ -4,13 +4,11 @@ import {
   SpeakerEmbeddingExtractor,
   SpeakerEmbeddingExtractorConfig
 } from 'sherpa_onnx';
-import { fileIo } from '@kit.CoreFileKit';
 import {
-  loadSpeakerTurnSegmentationModelAsync,
   processSpeakerTurnSegmentationAsync,
-  SpeakerTurnSegmentationSegment,
-  unloadSpeakerTurnSegmentationModel
+  SpeakerTurnSegmentationSegment
 } from 'libamphion_asr.so';
+import { AmphionRuntime } from './Runtime';
 
 const SAMPLE_RATE: number = 16000;
 const MIN_EMBEDDING_SAMPLES: number = SAMPLE_RATE;
@@ -35,21 +33,20 @@ export class SpeakerDiarizationWindowResult {
   inferenceMs: number = 0;
 }
 
-/** Standalone diarization runtime intended to live only in the HAP child process. */
+/** Session-owned offline diarization executor backed by SDK-bundled models. */
 export class SpeakerDiarizationInference {
   private extractor?: SpeakerEmbeddingExtractor;
   private closed: boolean = false;
 
-  async load(segmentationModelPath: string, embeddingModelPath: string): Promise<void> {
+  async load(context: Context, embeddingModelPath: string): Promise<void> {
     if (this.closed) throw new Error('speaker diarization inference is closed');
-    const segmentationBytes = SpeakerDiarizationInference.readBytes(segmentationModelPath);
-    await loadSpeakerTurnSegmentationModelAsync(segmentationBytes);
+    await AmphionRuntime.getOrCreateSpeakerTurnSegmenterAsync(context, embeddingModelPath);
     const config = new SpeakerEmbeddingExtractorConfig();
     config.model = embeddingModelPath;
     config.numThreads = 1;
     config.debug = false;
     this.extractor = await SpeakerEmbeddingExtractor.createAsync(
-      config, undefined, SAMPLE_RATE);
+      config, embeddingModelPath.startsWith('/') ? undefined : context.resourceManager, SAMPLE_RATE);
   }
 
   async process(samples: Float32Array): Promise<SpeakerDiarizationWindowResult> {
@@ -90,7 +87,6 @@ export class SpeakerDiarizationInference {
     this.closed = true;
     try { this.extractor?.close(); } catch (_ignored) {}
     this.extractor = undefined;
-    unloadSpeakerTurnSegmentationModel();
   }
 
   private collectSingleSpeakerSamples(samples: Float32Array,
@@ -128,18 +124,6 @@ export class SpeakerDiarizationInference {
       return await extractor.computeAsync(stream);
     } finally {
       stream.close();
-    }
-  }
-
-  private static readBytes(path: string): Uint8Array {
-    const fp = fileIo.openSync(path);
-    try {
-      const size = fileIo.statSync(fp.fd).size;
-      const buffer = new ArrayBuffer(size);
-      fileIo.readSync(fp.fd, buffer);
-      return new Uint8Array(buffer);
-    } finally {
-      fileIo.closeSync(fp.fd);
     }
   }
 }
