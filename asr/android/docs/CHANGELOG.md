@@ -6,6 +6,53 @@
 - MINOR：新增公开 API 但保持向后兼容
 - PATCH：仅 bug 修复，公开 API 与行为不变
 
+## [Unreleased]
+
+> 这一节记录正在进行的 HarmonyOS 0.3.11 对齐工作。Android 的正式版本仍为 0.3.3；只有
+> `HARMONY_0.3.11_PARITY.md` 中的发布阻断项全部关闭并完成真机门禁后才更新制品版本。
+
+新增
+
+- 鼎桥适配层与 Demo 显式支持 `recognizerMode=short|long`。PTT、点击识别使用 `short`；
+  长语音、填单和会议使用 `long`。
+- `long` 使用与 Harmony 相同的 native stable-prefix 机制：不按固定 20/60 秒产生公开 Rule3
+  final，内部压缩不改变公开 token、时间轴或 `isFinal` / `isLast` 语义。
+- Dingqiao 适配层新增 `SpeechRecognizeSdk.setLogLevel(AmphionLogLevel)`，支持在
+  `prepareRuntime` 前设置 `INFO` / `DEBUG`；默认仍为 `WARN`。
+- 补齐 HarmonyOS 已公开的 `SpeechRecognizeSdk.getWorkPath()`、
+  `DingqiaoRecognitionMode.SINGLE/CONTINUOUS` 兼容别名，并统一 `LicenseActivationResult`
+  的默认值与非空错误消息。
+- 补齐 HarmonyOS 同名 `LicenseDeviceIdProvider` 与 `init(context, provider)` 入口；更换 provider
+  会使既有授权和 Runtime 失效，避免授权身份跨 provider 复用。新增
+  `DINGQIAO_AUDIO_FRAME_BYTES_20MS` 同名常量，并保留 Android 旧常量名兼容。
+- 新增编译期隔离的 `diagnostics` SDK 变体及 `exportDiagnostics`：普通 debug/release 包不采集，
+  专用变体有界导出匿名会话事件、callback/timeline、实际 PCM/WAV、资源采样、崩溃恢复 journal、
+  model/build identity 和 schema v2 manifest；旧 `configureDiagnostics` 仅保留源码兼容，
+  不允许运行时开启。
+- 新增完全离线 Speaker Diarization：公共配置/增量更新/最终结果与 HarmonyOS 同名；使用同一
+  `pyannote-segmentation-3.0.onnx` powerset mask 和 `eres2net.onnx`，支持重叠说话、在线稳定 ID、
+  最终全局聚类及 ASR/diarization finish 双路屏障。
+- Police 后处理新增与 HarmonyOS 相同的 LAC 人名识别与声调拼音纠正，候选来自
+  `sysGeneralLexicon`，模型异常 fail-soft 保留原文。
+
+兼容性
+
+- 普通旧调用未传 `recognizerMode` 时保持 `short`；严格布尔
+  `enableContinuousRecognition=true` 且未显式配置模式时使用 `long`，会话级显式配置优先。
+- `endpointMaxUtteranceMs` 仅在 `short` 生效；`long` 仍由自然静音或调用方 `finish` 收口。
+- `finish -> shutdown` 和 `finish -> setLicense` 会等待已接受音频的唯一 last/complete
+  收口后再释放旧 Runtime；日志等级不进入识别控制路径。
+- `onComplete` 后立即创建下一 session 时，先等待旧 decoder/native stream 静默；超时明确启动
+  失败，不跨越尚未完成的 native 清理复用资源。
+- 会议场景默认最长 2 小时；Demo 与 SDK 继续使用当前 Android 正式版本身份，避免把未完成的
+  跨端对齐误标为 0.3.11 正式交付。
+
+发布冻结
+
+- 代码、模型、API、文档和交付脚本缺口已关闭；Debug/Release/Diagnostics 软件门禁及预览 fat AAR
+  结构验证通过。Android 正式版本仍保持 0.3.3，待断网 Speaker Diarization、LAC 和生命周期/声纹
+  组合真机门禁完成后，再把同一最终提交冻结为 0.3.11。
+
 ## [0.3.3] - 2026-07-30
 
 新增

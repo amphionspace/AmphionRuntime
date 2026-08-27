@@ -34,5 +34,5 @@
     "terms": 355
   },
   "schema_version": 1,
-  "source": "asr/android/sdk-police/src/main"
+  "source": "asr/android/sdk-police/src/main + shared/models/asr/police/lac/v1/lac_encoder.onnx"
 }

@@ -187,6 +187,8 @@ import zipfile
 aar_path = sys.argv[1]
 required = [
     "jni/arm64-v8a/libamphion_audio_processing.so",
+    "jni/arm64-v8a/libamphion_diarization_jni.so",
+    "jni/arm64-v8a/libamphion_police_jni.so",
     "jni/arm64-v8a/libsherpa-onnx-jni.so",
     "jni/arm64-v8a/libonnxruntime.so",
 ]
@@ -225,8 +227,14 @@ import sys
 import zipfile
 
 aar_path = sys.argv[1]
-path = "assets/amphion-dingqiao/eres2net.onnx"
-min_bytes = 30 * 1024 * 1024
+required = {
+    "assets/amphion-dingqiao/eres2net.onnx": 30 * 1024 * 1024,
+    "assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx": 5 * 1024 * 1024,
+    "assets/lac/v1/lac_encoder.onnx": 20 * 1024 * 1024,
+    "assets/lac/v1/lac_crf_transitions.npy": 1024,
+    "assets/lac/v1/word.dic": 1024,
+    "assets/lac/v1/tag.dic": 100,
+}
 
 try:
     with zipfile.ZipFile(aar_path) as aar:
@@ -235,14 +243,15 @@ except zipfile.BadZipFile as exc:
     print(f"[ERROR] invalid AAR zip: {aar_path}: {exc}", file=sys.stderr)
     sys.exit(1)
 
-size = sizes.get(path)
-if size is None:
-    print(f"[ERROR] AAR missing embedded speaker model: {path}", file=sys.stderr)
-    sys.exit(1)
-if size < min_bytes:
-    print(f"[ERROR] AAR speaker model too small: {path} ({size} bytes)", file=sys.stderr)
-    sys.exit(1)
-print(f"[OK] AAR speaker model present: {path} ({size} bytes)")
+for path, min_bytes in required.items():
+    size = sizes.get(path)
+    if size is None:
+        print(f"[ERROR] AAR missing embedded enhancement asset: {path}", file=sys.stderr)
+        sys.exit(1)
+    if size < min_bytes:
+        print(f"[ERROR] AAR enhancement asset too small: {path} ({size} bytes)", file=sys.stderr)
+        sys.exit(1)
+    print(f"[OK] AAR enhancement asset present: {path} ({size} bytes)")
 PY
 }
 
@@ -306,6 +315,8 @@ import zipfile
 apk_path = sys.argv[1]
 required = [
     "lib/arm64-v8a/libamphion_audio_processing.so",
+    "lib/arm64-v8a/libamphion_diarization_jni.so",
+    "lib/arm64-v8a/libamphion_police_jni.so",
     "lib/arm64-v8a/libsherpa-onnx-jni.so",
     "lib/arm64-v8a/libonnxruntime.so",
 ]
@@ -345,8 +356,12 @@ import sys
 import zipfile
 
 apk_path = sys.argv[1]
-path = "assets/amphion-dingqiao/eres2net.onnx"
-min_bytes = 30 * 1024 * 1024
+required = {
+    "assets/amphion-dingqiao/eres2net.onnx": 30 * 1024 * 1024,
+    "assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx": 5 * 1024 * 1024,
+    "assets/lac/v1/lac_encoder.onnx": 20 * 1024 * 1024,
+    "assets/lac/v1/lac_crf_transitions.npy": 1024,
+}
 
 try:
     with zipfile.ZipFile(apk_path) as apk:
@@ -355,14 +370,15 @@ except zipfile.BadZipFile as exc:
     print(f"[ERROR] invalid APK zip: {apk_path}: {exc}", file=sys.stderr)
     sys.exit(1)
 
-size = sizes.get(path)
-if size is None:
-    print(f"[ERROR] APK missing embedded speaker model: {path}", file=sys.stderr)
-    sys.exit(1)
-if size < min_bytes:
-    print(f"[ERROR] APK speaker model too small: {path} ({size} bytes)", file=sys.stderr)
-    sys.exit(1)
-print(f"[OK] APK speaker model present: {path} ({size} bytes)")
+for path, min_bytes in required.items():
+    size = sizes.get(path)
+    if size is None:
+        print(f"[ERROR] APK missing embedded enhancement asset: {path}", file=sys.stderr)
+        sys.exit(1)
+    if size < min_bytes:
+        print(f"[ERROR] APK enhancement asset too small: {path} ({size} bytes)", file=sys.stderr)
+        sys.exit(1)
+    print(f"[OK] APK enhancement asset present: {path} ({size} bytes)")
 PY
 }
 

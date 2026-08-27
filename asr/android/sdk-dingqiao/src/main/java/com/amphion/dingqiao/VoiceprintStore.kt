@@ -22,6 +22,8 @@ internal class VoiceprintStore(private val workPath: File) {
 
     fun speakerModelPath(): File = File(workPath, DINGQIAO_SPEAKER_MODEL_FILENAME)
 
+    fun sdkWorkPath(): File = workPath
+
     fun saveVoiceprint(samplePaths: List<String>, embedding: FloatArray): VoiceprintRegisterResult {
         val voiceprintId = "vp-${UUID.randomUUID()}"
         val dir = File(root, voiceprintId)
@@ -33,6 +35,7 @@ internal class VoiceprintStore(private val workPath: File) {
         return VoiceprintRegisterResult(
             voiceprintId = mapOf(voiceprintId to File(samplePaths.first()).name),
             status = DingqiaoVoiceprintStatus.SUCCESS,
+            message = "registered",
         )
     }
 
