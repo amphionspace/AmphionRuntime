@@ -83,6 +83,65 @@ class PoliceEnhancementEngineCallbackTest {
     }
 
     @Test
+    fun shutdownFromCompleteCallbackReturnsAndReleasesAfterTerminalCallback() {
+        val nativeCallbacks = ConcurrentLinkedQueue<AsrCallback>()
+        val session = mock<AsrSession>()
+        val asrEngine = mock<AsrEngine>()
+        whenever(asrEngine.newSession(any(), any())).thenAnswer { invocation ->
+            nativeCallbacks.add(invocation.getArgument(0))
+            session
+        }
+        val callbackExecutor = Executors.newSingleThreadExecutor()
+        val callbackEvents = CopyOnWriteArrayList<String>()
+        val shutdownComplete = CountDownLatch(1)
+        val workPath = kotlin.io.path.createTempDirectory().toFile()
+        lateinit var publicEngine: DingqiaoRecognitionEngine
+        publicEngine = DingqiaoRecognitionEngine(
+            appContext = mock<Context>(),
+            createParams = CreateEngineParams(language = "zh-CN"),
+            voiceprintStore = VoiceprintStore(workPath),
+            speakerModelPath = null,
+            callbackExecutor = callbackExecutor,
+            onShutdown = {
+                callbackEvents += "released"
+                shutdownComplete.countDown()
+            },
+            preloadedEngine = asrEngine,
+            injectedTextEnhancer = { it },
+        )
+        publicEngine.setListener(object : RecognitionListener {
+            override fun onStart(sessionId: String, eventMessage: String) = Unit
+            override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+            override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
+                if (result.isLast) callbackEvents += "last"
+            }
+            override fun onComplete(sessionId: String, eventMessage: String) {
+                callbackEvents += "complete-enter"
+                publicEngine.shutdown()
+                callbackEvents += "complete-return"
+            }
+            override fun onError(sessionId: String, errorCode: Int, errorMessage: String) = Unit
+        })
+
+        try {
+            publicEngine.startListening(StartParams("callback-shutdown", AudioInfo()))
+            publicEngine.finish("callback-shutdown")
+            nativeCallbacks.remove().onFinal(AsrResult(text = "完成", isLast = true))
+
+            assertTrue(shutdownComplete.await(5, TimeUnit.SECONDS))
+            assertEquals(
+                listOf("last", "complete-enter", "complete-return", "released"),
+                callbackEvents.toList(),
+            )
+            verify(asrEngine).close()
+        } finally {
+            publicEngine.shutdown()
+            callbackExecutor.shutdownNow()
+            workPath.deleteRecursively()
+        }
+    }
+
+    @Test
     fun rejectedPartialPublishesEmptyNonLastFinalAndKeepsSessionActive() {
         val nativeCallbacks = ConcurrentLinkedQueue<AsrCallback>()
         val asrEngine = mock<AsrEngine>()

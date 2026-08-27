@@ -31,14 +31,23 @@ AAR 内已包含 ProGuard / R8 消费规则；贵司 App 开启混淆时请保�
 ```kotlin
 SpeechRecognizeSdk.init(applicationContext)
 SpeechRecognizeSdk.setWorkPath("/data/your_app/asr_work")  // 可读写目录
+SpeechRecognizeSdk.setLogLevel(AmphionLogLevel.INFO) // 可选；排查期在 prepareRuntime 前设置
 ```
 
 `setWorkPath` 用途：
 
 - 声纹 embedding：`{workPath}/voiceprints/{voiceprintId}/`
 - 声纹模型：SDK 会自动把内置 `eres2net.onnx` 准备到 `{workPath}/eres2net.onnx`
+- 会议说话人分离：按需准备 `pyannote-segmentation-3.0.onnx`，PCM 仅写入 App 私有临时目录
 
 首次启动会将 AAR 内 ASR 模型解包到 App 私有目录，耗时数秒至数十秒，属正常现象。
+`setLogLevel` 默认为 `WARN`；它只影响日志阈值，不改变 ASR 或生命周期语义。
+
+需要采集问题现场时，由我方单独提供 diagnostics 变体 AAR。普通交付 AAR 即使调用已废弃的
+`configureDiagnostics` 也不会开启采集；diagnostics AAR 使用
+`SpeechRecognizeSdk.exportDiagnostics(callback)` 异步导出匿名事件、callback/timeline、资源采样、
+崩溃恢复信息、model/build identity 和有界 PCM/WAV。
+定位完成后必须换回正式 AAR。
 
 ## 4. 识别流程
 
@@ -56,6 +65,7 @@ createEngine → setListener → startListening
 | partial | ASR 原文 |
 | final | 默认返回警务增强后文本（术语 → 车牌 → 派出所）；会话显式关闭增强时返回原始 ASR 文本 |
 | 声纹 | final 且开启校验、有 ASR 语音证据和非空真实 PCM 时尝试返回 `speakerSimilarity`；SDK 负责出分，短句风险和阈值由客户端承担 |
+| 会议说话人分离 | `StartParams.speakerDiarization=SpeakerDiarizationConfig()` 开启；完全离线，增量 revision 后返回最终 speaker turns |
 
 每个会话可通过 `StartParams.extraParams["enablePoliceEnhancement"]` 控制警务增强。参数类型为
 `Boolean`、默认 `true`；显式传 `false` 只影响该会话的 final 文本，不触发引擎重建，也不改变
@@ -82,7 +92,21 @@ Demo APK 内置授权只用于体验：记录 Demo 包名，可绑定 Demo 签�
 
 注意：Demo 验收使用的是 Demo APK 内置 license，不使用单独下发给正式宿主的正式 license zip。正式 license 需要在正式宿主可读取或注入设备 SN 的条件下，在白名单设备上单独验收；如正式 license 内写入签名证书 SHA-256，也需使用匹配签名。
 
-## 7. 端侧存储（参考）
+## 7. Android / HarmonyOS 0.3.11 对齐状态
+
+| 能力 | Android 当前交付 | HarmonyOS 0.3.11 |
+|------|-----------------|------------------|
+| short/long、连续识别 | 支持，待最终真机发布门禁 | 支持 |
+| 声纹校验、Speaker VAD | 支持，结果字段为 `speakerSimilarity` | 支持 |
+| Police 车牌/派出所/术语 | 与 HarmonyOS 公共资产逐文件一致 | 支持 |
+| Police 人名 LAC 纠正 | 相同模型/CRF/字典/拼音资产，`sysGeneralLexicon` 候选 | 支持 |
+| 离线 Speaker Diarization | 相同 segmentation/embedding 模型、分窗与聚类语义 | 支持端侧离线分离 |
+| Diagnostics | 专用 diagnostics 变体支持 schema v2、资源采样、崩溃恢复与 provenance | 专用 diagnostics 构建完整支持 |
+
+Android 不返回假说话人、复用上一句结果或联网上传 PCM。代码/模型能力已对齐；正式命名为 0.3.11
+前仍须完成断网、资源预算和生命周期真机门禁。
+
+## 8. 端侧存储（参考）
 
 | 类别 | 约占用 |
 |------|--------|
@@ -90,15 +114,17 @@ Demo APK 内置授权只用于体验：记录 Demo 包名，可绑定 Demo 签�
 | 首次运行解包（zh-CN 常用） | ~250 MB（`filesDir`） |
 | 警务域 + JNI | 已含于 AAR |
 | 声纹模型（内置于 AAR，首次运行解包） | ~38 MB |
+| Speaker Diarization segmentation（内置、按需解包） | ~5.7 MB |
+| Police LAC 人名模型与字典（内置、按需解包） | ~33 MB |
 
 实际占用与是否启用声纹、系统是否保留 APK 内 assets 有关；与贵司约定的存储上限对比时，请明确验收口径（仅运行模型 vs 安装总占用）。
 
-## 8. 默认行为（v3.0）
+## 9. 默认行为（v3.0）
 
 - 离线 only；警务三场景 normalize 默认开启  
 - 系统热词：`CreateEngineParams.extraParams["sysGeneralLexicon"]`  
 
-## 9. 相关文档
+## 10. 相关文档
 
 | 文档 | 内容 |
 |------|------|
