@@ -3,6 +3,7 @@
     { "name": "module_desc", "value": "Amphion ASR Demo" },
     { "name": "EntryAbility_desc", "value": "Amphion ASR Demo" },
     { "name": "EntryAbility_label", "value": "Amphion 离线语音识别" },
-    { "name": "mic_reason", "value": "用于采集语音并在本机完成离线识别" }
+    { "name": "mic_reason", "value": "用于采集语音并在本机完成离线识别" },
+    { "name": "background_recording_reason", "value": "用于锁屏或切换到后台后继续录音和离线识别" }
   ]
 }
