@@ -1896,7 +1896,10 @@ async function runColdStartPcmGapCycle(engine: SpeechRecognitionEngine, entry: C
   engine.setListener(new StressListener(events, sessionId));
   const params = startParams(sessionId, 'cold-start-pcm-gap', index);
   params.extraParams['vadBegin'] = 5000;
-  params.extraParams['enableVoiceprintVerification'] = true;
+  // Match the customer failure boundary: a persisted target, process-cold models, and Speaker VAD
+  // as the only consumer of the deferred extractor. Verification must stay off so its readiness
+  // barrier cannot accidentally make this test pass.
+  params.extraParams['enableVoiceprintVerification'] = false;
   params.extraParams['enableSpeakerVad'] = true;
   params.extraParams['voiceprintIds'] = [voiceprintId];
 
@@ -2134,12 +2137,19 @@ async function runFinishShutdownCycle(engine: SpeechRecognitionEngine, entry: Co
 // decode work, release the engine, then accept a refreshed license before the terminal callback.
 // A safe SDK must not let Runtime invalidation free handles still owned by the decode worker.
 async function runFinishShutdownRelicenseCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
-  index: number, licensePath: string): Promise<CycleResult> {
+  index: number, licensePath: string, mode: string = 'finish-shutdown-relicense',
+  voiceprintId: string = ''): Promise<CycleResult> {
   const startedAt = Date.now();
   const events = new SessionEvents();
-  const sessionId = `finish-shutdown-relicense-${index}`;
+  const sessionId = `${mode}-${index}`;
   engine.setListener(new StressListener(events, sessionId));
-  engine.startListening(startParams(sessionId, 'finish-shutdown-relicense', index));
+  const params = startParams(sessionId, mode, index);
+  if (voiceprintId.length > 0) {
+    params.extraParams['enableVoiceprintVerification'] = false;
+    params.extraParams['enableSpeakerVad'] = true;
+    params.extraParams['voiceprintIds'] = [voiceprintId];
+  }
+  engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
   }
@@ -2159,7 +2169,7 @@ async function runFinishShutdownRelicenseCycle(engine: SpeechRecognitionEngine, 
   const runtimeError = license.errorCode === 0 ? await prepareRuntime() : license.errorCode;
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
   const recoveryEvents = new SessionEvents();
-  const recoverySessionId = `finish-shutdown-relicense-recovery-${index}`;
+  const recoverySessionId = `${mode}-recovery-${index}`;
   let recoveryStarted = false;
   let recoveryFed = 0;
   let recoveryLastBeforeFinish = -1;
@@ -2169,7 +2179,13 @@ async function runFinishShutdownRelicenseCycle(engine: SpeechRecognitionEngine, 
     try {
       recoveryEngine = createEngine();
       recoveryEngine.setListener(new StressListener(recoveryEvents, recoverySessionId));
-      recoveryEngine.startListening(startParams(recoverySessionId, 'finish-shutdown-relicense', index));
+      const recoveryParams = startParams(recoverySessionId, mode, index);
+      if (voiceprintId.length > 0) {
+        recoveryParams.extraParams['enableVoiceprintVerification'] = false;
+        recoveryParams.extraParams['enableSpeakerVad'] = true;
+        recoveryParams.extraParams['voiceprintIds'] = [voiceprintId];
+      }
+      recoveryEngine.startListening(recoveryParams);
       recoveryStarted = await waitFor((): boolean => recoveryEvents.starts === 1, START_TIMEOUT_MS);
       if (recoveryStarted) {
         recoveryFed = await feedPcmFile(recoveryEngine, recoverySessionId, entry.path, 150, 0);
@@ -2187,13 +2203,15 @@ async function runFinishShutdownRelicenseCycle(engine: SpeechRecognitionEngine, 
   const recoveryOk = recoveryStarted && recoveryFed > 0 && recoveryLastBeforeFinish === 0 &&
     recoveryCompleted && recoveryEvents.starts === 1 && recoveryEvents.lastFinals === 1 &&
     recoveryEvents.completes === 1 && recoveryEvents.errors === 0 &&
+    (voiceprintId.length === 0 || recoveryEvents.nonEmptySpeakerScores > 0) &&
     recoveryEvents.unexpectedSessionCallbacks === 0 &&
     terminalCallbackOrderOk(recoveryEvents, recoverySessionId);
   const ok = busyAfterFinish && license.errorCode === 0 && runtimeError === 0 && completed &&
     lastFinalsBeforeFinish === 0 && events.starts === 1 && events.lastFinals === 1 &&
     events.completes === 1 && events.errors === 0 && events.finals > 0 &&
+    (voiceprintId.length === 0 || events.nonEmptySpeakerScores > 0) &&
     terminalCallbackOrderOk(events, sessionId) && recoveryOk;
-  let detail = 'finish-shutdown-relicense-drained';
+  let detail = `${mode}-drained`;
   if (!busyAfterFinish) detail = 'finish-returned-idle-before-complete';
   else if (license.errorCode !== 0) detail = `relicense-${license.errorCode}`;
   else if (runtimeError !== 0) detail = `runtime-${runtimeError}`;
@@ -2211,6 +2229,7 @@ async function runFinishShutdownRelicenseCycle(engine: SpeechRecognitionEngine, 
   result.recoveryErrors = recoveryEvents.errors;
   result.recoveryTerminalOrder = terminalCallbackOrderOk(recoveryEvents, recoverySessionId) ? 1 : 0;
   result.recoveryUnexpectedCallbacks = recoveryEvents.unexpectedSessionCallbacks;
+  result.voiceprintIdCount = voiceprintId.length > 0 ? 1 : 0;
   return result;
 }
 
@@ -2719,6 +2738,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       options.mode === 'voiceprint-vad-begin' ||
       options.mode === 'voiceprint-vad-begin-idle' || options.mode === 'speaker-vad-onstart' ||
       options.mode === 'cold-start-pcm-gap' ||
+      options.mode === 'speaker-vad-shutdown-relicense' ||
       options.mode === 'continuous-voiceprint-speaker-vad' ||
       options.mode === 'speaker-vad-turn' ||
       options.mode === 'target-speaker-enhancement' ||
@@ -2741,11 +2761,17 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       for (let i = 0; i < options.enrollmentCount; i++) {
         stressVoiceprintSamplePaths.push(`${workPath}/stress-voiceprint-enroll-${i}.wav`);
       }
-      if (options.mode === 'voiceprint-fallback') SpeechRecognizeSdk.unloadModel();
+      if (options.mode === 'voiceprint-fallback' || options.mode === 'cold-start-pcm-gap' ||
+        options.mode === 'speaker-vad-shutdown-relicense') {
+        // Voiceprint metadata remains on disk while all process model state returns to a true cold
+        // boundary. The next session must reconstruct the extractor asynchronously.
+        SpeechRecognizeSdk.unloadModel();
+      }
     }
 
     const recreateEachCycle = options.mode === 'recreate' || options.mode === 'start-write-reload' ||
-      options.mode === 'finish-shutdown' || options.mode === 'finish-shutdown-relicense';
+      options.mode === 'finish-shutdown' || options.mode === 'finish-shutdown-relicense' ||
+      options.mode === 'speaker-vad-shutdown-relicense';
     if (!recreateEachCycle) {
       if (options.mode === 'cold-start-pcm-gap') {
         const created = await createColdStartEngine();
@@ -2814,6 +2840,10 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       } else if (options.mode === 'finish-shutdown-relicense') {
         result = await runFinishShutdownRelicenseCycle(
           engine, entry, i, `${workPath}/stress-amphion-license.lic`);
+      } else if (options.mode === 'speaker-vad-shutdown-relicense') {
+        result = await runFinishShutdownRelicenseCycle(
+          engine, entry, i, `${workPath}/stress-amphion-license.lic`, options.mode,
+          stressVoiceprintId);
       } else if (options.mode === 'user-sequence') {
         result = await runUserSequenceCycle(engine, entry, i);
       } else if (options.mode === 'vad-begin-silence') {

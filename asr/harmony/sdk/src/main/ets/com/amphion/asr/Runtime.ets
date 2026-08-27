@@ -156,11 +156,20 @@ class PendingSpeakerFinal {
   utteranceStartedMs: number;
   pcmBytesAccepted: number;
   speakerScorePrepared: boolean;
+  speakerVadEnabled: boolean;
+  speakerVadThreshold: number;
+  speakerVadRejectCurrent: boolean;
+  speakerVadTargetConfirmed: boolean;
+  speakerVadLastScore?: number;
+  hasEvidence: boolean;
 
   constructor(result: AsrResult, samples: Float32Array, endpointAtMs: number,
     decodeDurationMs: number, postProcessMs: number, utteranceIndex: number,
     utteranceDurationMs: number, firstPartialLatencyMs: number,
-    utteranceStartedMs: number, pcmBytesAccepted: number, speakerScorePrepared: boolean) {
+    utteranceStartedMs: number, pcmBytesAccepted: number, speakerScorePrepared: boolean,
+    speakerVadEnabled: boolean, speakerVadThreshold: number, speakerVadRejectCurrent: boolean,
+    speakerVadTargetConfirmed: boolean, speakerVadLastScore: number | undefined,
+    hasEvidence: boolean) {
     this.result = result;
     this.samples = samples;
     this.endpointAtMs = endpointAtMs;
@@ -172,6 +181,12 @@ class PendingSpeakerFinal {
     this.utteranceStartedMs = utteranceStartedMs;
     this.pcmBytesAccepted = pcmBytesAccepted;
     this.speakerScorePrepared = speakerScorePrepared;
+    this.speakerVadEnabled = speakerVadEnabled;
+    this.speakerVadThreshold = speakerVadThreshold;
+    this.speakerVadRejectCurrent = speakerVadRejectCurrent;
+    this.speakerVadTargetConfirmed = speakerVadTargetConfirmed;
+    this.speakerVadLastScore = speakerVadLastScore;
+    this.hasEvidence = hasEvidence;
   }
 }
 
@@ -533,6 +548,7 @@ export class AmphionRuntime {
     if (isSpeakerTurnSegmentationModelLoaded()) return Promise.resolve();
     const inFlight = AmphionRuntime.speakerTurnSegmenterLoad;
     if (inFlight !== undefined) return inFlight;
+    const generation = AmphionRuntime.loadGeneration;
     const separator = speakerModelPath.lastIndexOf('/');
     const parent = separator >= 0 ? speakerModelPath.substring(0, separator + 1) : '';
     const segmentationModelPath = `${parent}${SPEAKER_TURN_SEGMENTATION_MODEL}`;
@@ -554,7 +570,18 @@ export class AmphionRuntime {
       } else {
         model = await context.resourceManager.getRawFileContent(segmentationModelPath);
       }
+      // The read is deliberately outside the UI thread and may outlive the session that requested
+      // it. Never let bytes owned by an old Runtime generation start a new native load after
+      // unloadModel(), release(), or a license-triggered Runtime replacement has completed.
+      if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+        throw new Error(
+          `code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during speaker boundary load`);
+      }
       await loadSpeakerTurnSegmentationModelAsync(model);
+      if (generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized) {
+        throw new Error(
+          `code=${AsrErrorCode.SDK_NOT_INITIALIZED}: runtime released during speaker boundary load`);
+      }
     })().finally((): void => {
       if (AmphionRuntime.speakerTurnSegmenterLoad === load) {
         AmphionRuntime.speakerTurnSegmenterLoad = undefined;
@@ -2111,40 +2138,6 @@ export class AsrSession {
       this.speakerPcmBuffers.fallbackSamples() : new Float32Array(0);
     const scoreSelection =
       selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence);
-    let finalSpeakerVadMatch = result.isTargetSpeaker;
-    if (this.speakerVadEnabled && !this.svTargetConfirmed &&
-      hasEvidence && finalSpeakerVadMatch === undefined && !speakerScorePrepared &&
-      scoreSelection.samples.length > 0) {
-      const finalSpeakerVadScore = this.scoreSamples(scoreSelection.samples);
-      if (finalSpeakerVadScore !== undefined) {
-        result.speakerScore = finalSpeakerVadScore;
-        finalSpeakerVadMatch = finalSpeakerVadScore >=
-          (targetConfig?.threshold ?? Number.POSITIVE_INFINITY);
-        result.isTargetSpeaker = finalSpeakerVadMatch;
-      }
-    }
-    const speakerVadReject = shouldRejectSpeakerVadFinal(
-      this.speakerVadEnabled, this.svRejectCurrentUtterance, this.svTargetConfirmed,
-      finalSpeakerVadMatch);
-    if (this.speakerVadEnabled) {
-      Logger.metric(`kind=SPEAKER_FINAL_GATE sessionId=${this.sessionId} isLast=${isLast} ` +
-        `reject=${speakerVadReject} targetConfirmed=${this.svTargetConfirmed} ` +
-        `rejectCurrent=${this.svRejectCurrentUtterance} hasEvidence=${hasEvidence}`);
-    }
-    if (speakerVadReject) {
-      if (hasEvidence && result.speakerScore === undefined &&
-        this.lastSpeakerVadScore !== undefined) {
-        result.speakerScore = this.lastSpeakerVadScore;
-      }
-      result.isTargetSpeaker = false;
-      // A rejected Speaker VAD final is a lifecycle signal, not a transcription result. Redact
-      // every textual/token field so direct Runtime clients cannot recover a known-uncertain tail.
-      result.rawText = '';
-      result.text = '';
-      result.tokens = [];
-      result.timestamps = [];
-      result.tokenConfidences = [];
-    }
     if (this.targetSpeakerEnabled) {
       Logger.d(`session ${this.sessionId} ` + speakerScoreSelectionDiagnostic(
         scoreSelection, boundary.samples.length, utteranceSamples.length,
@@ -2170,7 +2163,13 @@ export class AsrSession {
       this.firstPartialLatencyMs,
       this.firstPcmMs < 0 ? this.utteranceStartMs : this.firstPcmMs,
       this.pcmBytesAccepted,
-      speakerScorePrepared);
+      speakerScorePrepared,
+      this.speakerVadEnabled,
+      this.effectiveSpeakerVad()?.threshold ?? Number.POSITIVE_INFINITY,
+      this.svRejectCurrentUtterance,
+      this.svTargetConfirmed,
+      this.lastSpeakerVadScore,
+      hasEvidence);
     this.utteranceStartMs = Date.now();
     this.pcmBytesAccepted = 0;
     this.firstPcmMs = -1;
@@ -2180,7 +2179,8 @@ export class AsrSession {
 
     if (result.isTargetSpeaker !== false &&
       (scoreSelection.samples.length > 0 || this.pendingSpeakerFinals.length > 0) &&
-      this.targetSpeakerEnabled && this.targetExtractor === undefined &&
+      (this.targetSpeakerEnabled || this.speakerVadEnabled) &&
+      this.targetExtractor === undefined &&
       this.targetExtractorLoad !== undefined) {
       this.pendingSpeakerFinals.push(pending);
       return hasEvidence;
@@ -2193,6 +2193,36 @@ export class AsrSession {
     if (!pending.speakerScorePrepared && pending.result.isTargetSpeaker !== false &&
       pending.result.speakerScore === undefined) {
       this.applyTargetSpeaker(pending.result, pending.samples);
+    }
+    // Score-only verification intentionally uses TargetSpeakerConfig.threshold (Dingqiao sets -1
+    // so every real score is reported). Speaker VAD owns a separate business gate and must always
+    // reinterpret the same numeric score with SpeakerVadConfig.threshold.
+    if (pending.speakerVadEnabled && pending.result.speakerScore !== undefined) {
+      pending.result.isTargetSpeaker =
+        pending.result.speakerScore >= pending.speakerVadThreshold;
+    }
+    const speakerVadReject = shouldRejectSpeakerVadFinal(
+      pending.speakerVadEnabled, pending.speakerVadRejectCurrent,
+      pending.speakerVadTargetConfirmed, pending.result.isTargetSpeaker);
+    if (pending.speakerVadEnabled) {
+      Logger.metric(`kind=SPEAKER_FINAL_GATE sessionId=${this.sessionId} ` +
+        `isLast=${pending.result.isLast} reject=${speakerVadReject} ` +
+        `targetConfirmed=${pending.speakerVadTargetConfirmed} ` +
+        `rejectCurrent=${pending.speakerVadRejectCurrent} hasEvidence=${pending.hasEvidence}`);
+    }
+    if (speakerVadReject) {
+      if (pending.hasEvidence && pending.result.speakerScore === undefined &&
+        pending.speakerVadLastScore !== undefined) {
+        pending.result.speakerScore = pending.speakerVadLastScore;
+      }
+      pending.result.isTargetSpeaker = false;
+      // A rejected Speaker VAD final is a lifecycle signal, not a transcription result. Redact
+      // every textual/token field so direct Runtime clients cannot recover a known-uncertain tail.
+      pending.result.rawText = '';
+      pending.result.text = '';
+      pending.result.tokens = [];
+      pending.result.timestamps = [];
+      pending.result.tokenConfidences = [];
     }
     if (this.callbackGate.isClosed()) return;
     if (pending.result.isTargetSpeaker === false) {
