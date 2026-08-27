@@ -3,7 +3,6 @@
     { "name": "module_desc", "value": "Amphion ASR Demo" },
     { "name": "EntryAbility_desc", "value": "Amphion ASR Demo" },
     { "name": "EntryAbility_label", "value": "Amphion 离线语音识别" },
-    { "name": "mic_reason", "value": "用于采集语音并在本机完成离线识别" },
-    { "name": "speaker_diarization_service_url", "value": "" }
+    { "name": "mic_reason", "value": "用于采集语音并在本机完成离线识别" }
   ]
 }

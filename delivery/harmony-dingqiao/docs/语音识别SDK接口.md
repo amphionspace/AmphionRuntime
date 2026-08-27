@@ -276,10 +276,6 @@ const start = new StartParams();
 start.sessionId = 'session-1';
 
 const diarization = new SpeakerDiarizationConfig();
-diarization.serviceUrl = 'https://api.example.com/v1/speaker-diarization/window';
-diarization.serviceHeaders = {
-  Authorization: `Bearer ${shortLivedToken}`
-};
 diarization.maxSpeakers = 4;
 start.speakerDiarization = diarization;
 
@@ -288,8 +284,6 @@ engine.startListening(start);
 
 | `SpeakerDiarizationConfig` 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `serviceUrl` | `string` | 空 | 分人服务的完整窗口接口地址；生产环境必须使用 HTTPS。仅为本机开发联调放行 `localhost`、`127.0.0.1`、`[::1]` 的 HTTP 地址 |
-| `serviceHeaders` | `Record<string, string>` | 空对象 | 每次窗口请求附带的服务认证/租户请求头；SDK 不修改响应中的 speaker 分数。请求头名和值不得包含换行 |
 | `maxSpeakers` | `number` | `4` | 稳定 speaker 索引的硬上限；V1 只接受整数 `1..4`，非法值使本次 `startListening` 失败，不会静默裁剪 |
 
 SDK 自动估计实际发言人数，不接收参会名单人数或 hard K。证据不足、能力未开启、
@@ -297,38 +291,15 @@ SDK 自动估计实际发言人数，不接收参会名单人数或 hard K。证
 `0..(maxSpeakers-1)`。该索引仅在当前 session 内稳定，业务显示“说话人 1”时需使用
 `speakerIndex + 1`。
 
-Demo 的会议纪要入口从 `app.string.speaker_diarization_service_url` 读取服务地址。正式产品应由
-业务配置中心或构建配置把地址写入 `SpeakerDiarizationConfig.serviceUrl`；未配置时 Demo 会直接提示，
-不会先启动录音再让 session 失败。
+角色分离完全在 SDK 内端侧执行。`pyannote-segmentation-3.0.onnx` 与 `eres2net.onnx` 已内置在
+`amphion_dingqiao.har`，宿主无需配置地址、认证、模型路径、网络权限或 ChildProcess 入口。
+PCM 只写入应用沙箱中的顺序 spool，SDK 按 10 秒窗口、2.5 秒 hop 串行执行本地 segmentation 和
+embedding；稳定编号、最近 60 秒静默修正及最终 AHC 聚类也都在本机完成。会议结束只处理尾窗和
+已持久化 embedding，不重新推理整场 PCM。
 
-角色分离采用在线增量执行：端侧 ASR 不上传文本，SDK 将同一份 16 kHz PCM 写入顺序 spool，
-按 10 秒窗口、2.5 秒 hop 向 `serviceUrl` 上传，每个请求最多 320 KB。服务返回窗口内的
-overlap-aware turns 和 embedding，稳定编号、最近 60 秒静默修正、最终 AHC 聚类仍由 SDK 完成。
-会议结束不会重新上传或重新推理整场 PCM，只处理尾窗和已持久化 embedding。
-
-宿主 HAP 必须声明 `ohos.permission.INTERNET`。该权限是普通网络权限，不涉及子进程特权；宿主
-不再提供 child adapter，也不再使用 `startArkChildProcess`、`isolationProcess` 或
-`speakerDiarizationProcessEntry`。网络、认证、服务响应或单窗超时会保留 ASR，并通过唯一一次
+模型加载、端侧推理、存储或单窗超时会保留 ASR，并通过唯一一次
 `onSpeakerDiarizationResult` 返回明确的 `degradedReason`。产品发布门禁必须把降级视为角色分离
 失败，不能只检查 `onComplete`。
-
-服务协议版本为 `1`。请求体是 PCM16 little-endian；窗口元数据通过 `X-Amphion-*` 请求头传递。
-服务必须原样回传 `jobId`、窗口边界和 `finalWindow`，并返回有限数值的 segment、speaker mask、
-embedding 与 `inferenceMs`。SDK 会校验完整响应，拒绝跨 job、越界 speaker mask、非有限 embedding
-或协议版本不一致的结果。失败窗口只重试一次。
-
-仓库提供的 `delivery/harmony-dingqiao/delivery/run_speaker_diarization_service.py` 是联调和评测用的
-参考服务，不是生产部署包。它复用 pyannote segmentation 3.0 与 ERes2Net，并保持模型热驻留：
-
-```bash
-python3 delivery/harmony-dingqiao/delivery/run_speaker_diarization_service.py \
-  --segmentation-model /path/to/pyannote-segmentation-3.0/model.onnx \
-  --embedding-model /path/to/eres2net.onnx \
-  --host 127.0.0.1 --port 18080 --bearer-token "$TOKEN"
-```
-
-生产服务必须置于 HTTPS 后，校验短期 token 和租户边界，并按 `sessionId + jobId` 做幂等和审计；
-不应记录原始 PCM 或把请求正文写入通用访问日志。
 
 ## 6. 回调
 
@@ -397,9 +368,9 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `inferenceMs` | `number` | 累计分人推理耗时 |
 | `rtf` | `number` | 分人处理实时率 |
 
-`SpeakerDiarizationDegradedReason` 包含 `NONE`、`SERVICE_UNAVAILABLE`、
+`SpeakerDiarizationDegradedReason` 包含 `NONE`、`INFERENCE_UNAVAILABLE`、
 `MODEL_UNAVAILABLE`、`INFERENCE_TIMEOUT`、`FINISH_TIMEOUT`、`STORAGE_UNAVAILABLE`
-、`SPEAKER_LIMIT_EXCEEDED`、`AUTHENTICATION_FAILED` 和 `INVALID_SERVICE_RESPONSE`。
+和 `SPEAKER_LIMIT_EXCEEDED`。
 分人失败不使用致命 `onError` 终止 ASR。
 
 开启 Speaker Diarization 时，`finish()` 仍立即返回；对外收尾顺序固定为：
