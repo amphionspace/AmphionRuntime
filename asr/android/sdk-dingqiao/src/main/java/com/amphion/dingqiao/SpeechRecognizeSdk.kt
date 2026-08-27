@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import com.amphion.asr.AmphionDeviceIdProvider
+import com.amphion.asr.AmphionLogLevel
 import com.amphion.asr.AmphionRuntime
 import com.amphion.asr.AmphionLicenseStatus
 import com.amphion.asr.AmphionOptions
@@ -42,6 +43,9 @@ object SpeechRecognizeSdk {
 
     @Volatile
     private var defaultModelPrepared: Boolean = false
+
+    @Volatile
+    private var runtimeLogLevel: AmphionLogLevel = AmphionLogLevel.WARN
 
     @Volatile
     private var runtimeGeneration: Long = 0
@@ -97,6 +101,13 @@ object SpeechRecognizeSdk {
             synchronized(this) {
                 if (appContext == null) {
                     appContext = ctx
+                    if (DiagnosticsModule.isBuildEnabled()) {
+                        runCatching { ctx.filesDir }.getOrNull()?.let(DiagnosticsModule::setRootPath)
+                        runCatching {
+                            ctx.assets.open("amphion-models/manifest.json").bufferedReader()
+                                .use { DiagnosticsModule.setDeliveredModelManifest(it.readText()) }
+                        }
+                    }
                 }
             }
         }
@@ -111,6 +122,43 @@ object SpeechRecognizeSdk {
         dir.mkdirs()
         require(dir.isDirectory && dir.canWrite()) { "workPath must be writable: $path" }
         workPath = dir
+    }
+
+    /** 查询当前 SDK 工作目录；尚未调用 [setWorkPath] 时返回空字符串。 */
+    @JvmStatic
+    fun getWorkPath(): String = workPath?.path.orEmpty()
+
+    /**
+     * 设置 Core Runtime 日志阈值。应在 [prepareRuntime] 前调用，确保初始化和模型加载日志使用该等级。
+     *
+     * 该配置只影响日志输出，不改变识别、声纹、Speaker VAD 或生命周期行为。
+     */
+    @JvmStatic
+    fun setLogLevel(logLevel: AmphionLogLevel) {
+        runtimeLogLevel = logLevel
+    }
+
+    /**
+     * @deprecated Diagnostics capture is selected by the AAR build variant. This method is kept
+     * only for source compatibility and intentionally cannot enable capture at runtime.
+     */
+    @JvmStatic
+    @Deprecated("Use the dedicated diagnostics artifact")
+    fun configureDiagnostics(@Suppress("UNUSED_PARAMETER") options: DiagnosticOptions) = Unit
+
+    /** Asynchronously exports diagnostics collected by a dedicated diagnostics AAR. */
+    @JvmStatic
+    fun exportDiagnostics(callback: DiagnosticExportCallback) {
+        engineExecutor.execute {
+            try {
+                callback.onSuccess(DiagnosticsModule.export())
+            } catch (t: Throwable) {
+                callback.onError(
+                    DingqiaoErrorCode.INTERNAL_ERROR,
+                    "exportDiagnostics failed: ${t.message ?: t.javaClass.simpleName}",
+                )
+            }
+        }
     }
 
     /**
@@ -202,7 +250,7 @@ object SpeechRecognizeSdk {
             if (result.errorCode == 0) {
                 callback.onResult(result)
             } else {
-                callback.onError(result.errorCode, result.errorMessage ?: "license activation failed")
+                callback.onError(result.errorCode, result.errorMessage)
             }
         }
     }
@@ -299,6 +347,7 @@ object SpeechRecognizeSdk {
                             runtimeBridge.prepareRuntime(
                                 ctx,
                                 AmphionOptions(
+                                    logLevel = runtimeLogLevel,
                                     license = flight.licenseText,
                                     licenseAssetName = null,
                                     deviceIdProvider = DingqiaoDeviceIdProvider,
@@ -471,7 +520,7 @@ object SpeechRecognizeSdk {
      * 删除声纹。
      */
     @JvmStatic
-    fun deleteVoiceprint(voiceprintId: String) {
+    fun deleteVoiceprint(voiceprintId: String): Boolean {
         val store = requireStore()
         if (!store.deleteVoiceprint(voiceprintId)) {
             throw DingqiaoEngineException(
@@ -479,6 +528,7 @@ object SpeechRecognizeSdk {
                 "voiceprint not found: $voiceprintId",
             )
         }
+        return true
     }
 
     /**
@@ -517,7 +567,7 @@ object SpeechRecognizeSdk {
         } catch (t: Throwable) {
             return LicenseActivationResult(
                 errorCode = DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
-                errorMessage = t.message,
+                errorMessage = t.message ?: "SDK is not initialized",
             )
         }
         val file = File(licensePath)
@@ -539,6 +589,7 @@ object SpeechRecognizeSdk {
             val status = runtimeBridge.validateLicense(
                 ctx,
                 AmphionOptions(
+                    logLevel = runtimeLogLevel,
                     license = text,
                     licenseAssetName = null,
                     deviceIdProvider = DingqiaoDeviceIdProvider,
@@ -628,11 +679,13 @@ object SpeechRecognizeSdk {
                 modelGeneration += 1
                 runtimeInitialized = false
                 defaultModelPrepared = false
+                runtimeLogLevel = AmphionLogLevel.WARN
                 activatedLicenseText = null
                 licenseInfo = null
                 workPath = null
                 appContext = null
                 engineExecutor = defaultEngineExecutor
+                DiagnosticsModule.resetForTests()
             }
             shutdownActiveEngines()
             runtimeBridge.unloadRuntime()

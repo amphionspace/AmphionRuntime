@@ -27,11 +27,16 @@ REQUIRED_DOCS = {
 }
 REQUIRED_AAR_PREFIXES = {
     "jni/arm64-v8a/libamphion_audio_processing.so",
+    "jni/arm64-v8a/libamphion_diarization_jni.so",
+    "jni/arm64-v8a/libamphion_police_jni.so",
     "assets/amphion-models/zh-en/v1/",
     "assets/amphion-models/punct-zhen/v1/",
     "assets/amphion-models/itn-zh/v1/",
     "assets/amphion-models/vad/v1/",
     "assets/amphion-dingqiao/eres2net.onnx",
+    "assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+    "assets/lac/v1/lac_encoder.onnx",
+    "assets/lac/v1/lac_crf_transitions.npy",
     "assets/police_terms/",
     "assets/police_station/",
     "assets/plate/plate_homophone.fst",

@@ -37,6 +37,8 @@ object DingqiaoOnlineMode {
 object DingqiaoRecognitionMode {
     const val RECORD = 0
     const val STREAM = 1
+    const val SINGLE = RECORD
+    const val CONTINUOUS = STREAM
 }
 
 /** VAD 事件码。 */

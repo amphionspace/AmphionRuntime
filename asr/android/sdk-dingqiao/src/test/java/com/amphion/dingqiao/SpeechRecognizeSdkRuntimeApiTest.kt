@@ -2,10 +2,18 @@ package com.amphion.dingqiao
 
 import android.content.Context
 import com.amphion.asr.AmphionLicenseStatus
+import com.amphion.asr.AmphionLogLevel
 import com.amphion.asr.AmphionOptions
+import com.amphion.asr.AsrCallback
+import com.amphion.asr.AsrEngine
 import com.amphion.asr.AsrErrorCode
+import com.amphion.asr.AsrResult
+import com.amphion.asr.AsrSession
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
@@ -14,9 +22,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
 class SpeechRecognizeSdkRuntimeApiTest {
     @Before
@@ -27,6 +37,24 @@ class SpeechRecognizeSdkRuntimeApiTest {
     @After
     fun resetAfterTest() {
         SpeechRecognizeSdk.resetForTests()
+    }
+
+    @Test
+    fun workPathRoundTripsLikeHarmonyApi() {
+        assertEquals("", SpeechRecognizeSdk.getWorkPath())
+        val directory = kotlin.io.path.createTempDirectory("dingqiao-work-path").toFile()
+        try {
+            SpeechRecognizeSdk.setWorkPath(directory.path)
+            assertEquals(directory.path, SpeechRecognizeSdk.getWorkPath())
+        } finally {
+            directory.delete()
+        }
+    }
+
+    @Test
+    fun recognitionModeAliasesMatchHarmonyApi() {
+        assertEquals(DingqiaoRecognitionMode.RECORD, DingqiaoRecognitionMode.SINGLE)
+        assertEquals(DingqiaoRecognitionMode.STREAM, DingqiaoRecognitionMode.CONTINUOUS)
     }
 
     @Test
@@ -104,6 +132,147 @@ class SpeechRecognizeSdkRuntimeApiTest {
         assertEquals(null, runtimeError)
         assertTrue(runtime.ready)
         licenseFile.delete()
+    }
+
+    @Test
+    fun configuredLogLevelFlowsThroughLicenseValidationAndRuntimePreparation() {
+        val context = mock<Context> {
+            on { applicationContext } doReturn null
+            on { packageName } doReturn "com.amphion.test"
+        }
+        val licenseFile = kotlin.io.path.createTempFile(suffix = ".lic").toFile()
+        licenseFile.writeText("development-license")
+        val licenseDone = CountDownLatch(1)
+        val prepareDone = CountDownLatch(1)
+        val runtime = FakeRuntimeLifecycleBridge()
+        SpeechRecognizeSdk.setRuntimeBridgeForTests(runtime)
+        SpeechRecognizeSdk.init(context)
+        SpeechRecognizeSdk.setLogLevel(AmphionLogLevel.DEBUG)
+
+        SpeechRecognizeSdk.setLicense(
+            licenseFile.absolutePath,
+            object : LicenseActivationCallback {
+                override fun onResult(result: LicenseActivationResult) = licenseDone.countDown()
+                override fun onError(errorCode: Int, errorMessage: String) = licenseDone.countDown()
+            },
+        )
+        assertTrue(licenseDone.await(5, TimeUnit.SECONDS))
+
+        SpeechRecognizeSdk.prepareRuntime(
+            object : PrepareRuntimeCallback {
+                override fun onReady() = prepareDone.countDown()
+                override fun onError(errorCode: Int, errorMessage: String) = prepareDone.countDown()
+            },
+        )
+
+        assertTrue(prepareDone.await(5, TimeUnit.SECONDS))
+        assertEquals(AmphionLogLevel.DEBUG, runtime.lastValidatedLogLevel)
+        assertEquals(AmphionLogLevel.DEBUG, runtime.lastPreparedLogLevel)
+        licenseFile.delete()
+    }
+
+    @Test
+    fun normalBuildRejectsDiagnosticsExportWithoutChangingRuntimeState() {
+        if (BuildConfig.DIAGNOSTICS_ENABLED) return
+        val callbackDone = CountDownLatch(1)
+        val errors = CopyOnWriteArrayList<Pair<Int, String>>()
+
+        SpeechRecognizeSdk.exportDiagnostics(object : DiagnosticExportCallback {
+            override fun onSuccess(path: String) {
+                callbackDone.countDown()
+            }
+
+            override fun onError(errorCode: Int, errorMessage: String) {
+                errors += errorCode to errorMessage
+                callbackDone.countDown()
+            }
+        })
+
+        assertTrue(callbackDone.await(5, TimeUnit.SECONDS))
+        assertEquals(1, errors.size)
+        assertEquals(DingqiaoErrorCode.INTERNAL_ERROR, errors.single().first)
+        assertTrue(errors.single().second.contains("not enabled"))
+    }
+
+    @Test
+    fun finishThenRelicenseWaitsForLastCompleteBeforeRuntimeRelease() {
+        val context = mock<Context> {
+            on { applicationContext } doReturn null
+            on { packageName } doReturn "com.amphion.test"
+        }
+        val runtime = FakeRuntimeLifecycleBridge().apply { ready = true }
+        val nativeCallbacks = ConcurrentLinkedQueue<AsrCallback>()
+        val nativeSession = mock<AsrSession>()
+        val asrEngine = mock<AsrEngine>()
+        whenever(asrEngine.newSession(any(), any())).thenAnswer { invocation ->
+            nativeCallbacks.add(invocation.getArgument(0))
+            nativeSession
+        }
+        val callbackExecutor = Executors.newSingleThreadExecutor()
+        val workPath = kotlin.io.path.createTempDirectory().toFile()
+        val callbackEvents = CopyOnWriteArrayList<String>()
+        val sessionComplete = CountDownLatch(1)
+        val licenseDone = CountDownLatch(1)
+        val licenseFile = kotlin.io.path.createTempFile(suffix = ".lic").toFile()
+        licenseFile.writeText("replacement-license")
+        val publicEngine = DingqiaoRecognitionEngine(
+            appContext = context,
+            createParams = CreateEngineParams(language = "zh-CN"),
+            voiceprintStore = VoiceprintStore(workPath),
+            speakerModelPath = null,
+            callbackExecutor = callbackExecutor,
+            onShutdown = {},
+            preloadedEngine = asrEngine,
+            injectedTextEnhancer = { it },
+        )
+        publicEngine.setListener(object : RecognitionListener {
+            override fun onStart(sessionId: String, eventMessage: String) = Unit
+            override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+            override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
+                if (result.isLast) callbackEvents += "last:${result.result}"
+            }
+            override fun onComplete(sessionId: String, eventMessage: String) {
+                callbackEvents += "complete"
+                sessionComplete.countDown()
+            }
+            override fun onError(sessionId: String, errorCode: Int, errorMessage: String) = Unit
+        })
+
+        try {
+            SpeechRecognizeSdk.setRuntimeBridgeForTests(runtime)
+            SpeechRecognizeSdk.init(context)
+            SpeechRecognizeSdk.trackEngine(publicEngine)
+            publicEngine.startListening(StartParams("finish-relicense", AudioInfo()))
+            val nativeCallback = nativeCallbacks.remove()
+            publicEngine.finish("finish-relicense")
+
+            SpeechRecognizeSdk.setLicense(
+                licenseFile.absolutePath,
+                object : LicenseActivationCallback {
+                    override fun onResult(result: LicenseActivationResult) = licenseDone.countDown()
+                    override fun onError(errorCode: Int, errorMessage: String) = licenseDone.countDown()
+                },
+            )
+
+            assertFalse(
+                "relicense must wait while terminal native work is still active",
+                licenseDone.await(100, TimeUnit.MILLISECONDS),
+            )
+            assertEquals(0, runtime.unloadCalls.get())
+
+            nativeCallback.onFinal(AsrResult(text = "重授权前完成", isLast = true))
+
+            assertTrue(sessionComplete.await(5, TimeUnit.SECONDS))
+            assertTrue(licenseDone.await(5, TimeUnit.SECONDS))
+            assertEquals(listOf("last:重授权前完成", "complete"), callbackEvents.toList())
+            assertEquals(1, runtime.unloadCalls.get())
+            verify(asrEngine).close()
+        } finally {
+            publicEngine.shutdown()
+            callbackExecutor.shutdownNow()
+            licenseFile.delete()
+            workPath.deleteRecursively()
+        }
     }
 
     @Test
@@ -640,11 +809,14 @@ class SpeechRecognizeSdkRuntimeApiTest {
         val releasePrepare = CountDownLatch(1)
         val unloadCalls = AtomicInteger()
         @Volatile var lastPreparedLicense: String? = null
+        @Volatile var lastValidatedLogLevel: AmphionLogLevel? = null
+        @Volatile var lastPreparedLogLevel: AmphionLogLevel? = null
 
         override fun validateLicense(
             context: Context,
             options: AmphionOptions,
         ): AmphionLicenseStatus {
+            lastValidatedLogLevel = options.logLevel
             if (options.license == blockedLicenseText) {
                 validationStarted.countDown()
                 releaseValidation.await(5, TimeUnit.SECONDS)
@@ -672,6 +844,7 @@ class SpeechRecognizeSdkRuntimeApiTest {
         override fun prepareRuntime(context: Context, options: AmphionOptions) {
             prepareCalls.incrementAndGet()
             lastPreparedLicense = options.license
+            lastPreparedLogLevel = options.logLevel
             if (blockPrepare) {
                 prepareStarted.countDown()
                 releasePrepare.await(5, TimeUnit.SECONDS)

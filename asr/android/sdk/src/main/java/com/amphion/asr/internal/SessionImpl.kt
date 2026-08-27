@@ -903,6 +903,7 @@ internal class SessionImpl(
         }
         return AsrResult(
             text = r.text,
+            rawText = r.text,
             confidence = confidence,
             tokens = tokenList,
             timestamps = tsList,

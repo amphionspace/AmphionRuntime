@@ -113,6 +113,30 @@ asr/native/audio-processing/LICENSES/WEBRTC_AUDIO_PROCESSING.txt; the Apache
 License 2.0 text is provided by this distribution's LICENSE file.
 
 ================================================================================
+8. pyannote.audio segmentation model
+================================================================================
+
+Project:     pyannote.audio
+Repository:  https://github.com/pyannote/pyannote-audio
+License:     MIT License
+Copyright:   (c) 2023 CNRS
+
+The SDK bundles pyannote-segmentation-3.0.onnx for fully offline speaker
+diarization. The accompanying MIT license is stored beside the model asset.
+
+================================================================================
+9. lac-onnx / LAC model assets
+================================================================================
+
+Repository:  https://github.com/kniost/lac-onnx
+License:     Apache License 2.0
+Version:     lac-onnx 0.1.0
+
+The police enhancement module bundles the ONNX encoder, CRF transitions,
+dictionaries and tags for gated person-name recognition. Model provenance and
+the Apache-2.0 license are stored under assets/lac/v1/.
+
+================================================================================
 
 For the full text of any of the above licenses, please refer to the LICENSE file
 under the corresponding upstream repository.
