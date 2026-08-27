@@ -18,6 +18,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ANDROID_ROOT = REPO_ROOT / "asr/android/sdk-police/src/main"
 HARMONY_ROOT = REPO_ROOT / "asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police"
+SHARED_LAC_ENCODER = REPO_ROOT / "shared/models/asr/police/lac/v1/lac_encoder.onnx"
 
 ASSET_DIRS = ("plate", "police_station", "police_terms")
 HOTWORD_SOURCES = {
@@ -67,10 +68,16 @@ def build_manifest(hotwords: dict[str, list[str]]) -> dict[str, object]:
     for path in sorted(HARMONY_ROOT.rglob("*")):
         if path.is_file() and path.name != "manifest.json":
             files[path.relative_to(HARMONY_ROOT).as_posix()] = sha256(path)
+    if not SHARED_LAC_ENCODER.is_file():
+        raise SystemExit(f"[ERROR] missing shared LAC encoder: {SHARED_LAC_ENCODER}")
+    files["lac/v1/lac_encoder.onnx"] = sha256(SHARED_LAC_ENCODER)
 
     return {
         "schema_version": 1,
-        "source": "asr/android/sdk-police/src/main",
+        "source": (
+            "asr/android/sdk-police/src/main + "
+            "shared/models/asr/police/lac/v1/lac_encoder.onnx"
+        ),
         "files": files,
         "hotword_counts": {name: len(words) for name, words in hotwords.items()},
     }

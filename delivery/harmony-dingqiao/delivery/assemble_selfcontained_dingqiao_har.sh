@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 ZH_EN_ONLY=false
 APPROVED_TARGET_SPEAKER_MODEL_SHA256=""
-SPEAKER_TURN_MODEL="$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx"
+SPEAKER_TURN_MODEL="$REPO_ROOT/shared/models/asr/dingqiao/pyannote-segmentation-3.0.onnx"
 SPEAKER_TURN_METADATA="$SCRIPT_DIR/pyannote_segmentation_3_0.json"
 while [[ $# -gt 1 ]]; do
   case "$1" in

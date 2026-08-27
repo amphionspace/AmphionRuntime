@@ -38,7 +38,7 @@
 
 | 配置项 | 值 | 含义 |
 | --- | --- | --- |
-| speaker model | asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx | 与交付侧一致的目标声纹 embedding 模型 |
+| speaker model | shared/models/asr/dingqiao/eres2net.onnx | Android/HarmonyOS 交付共用的目标声纹 embedding 模型 |
 | winSec | 1.0 秒 | 每次取 utterance 尾部 1 秒音频做声纹打分 |
 | hopSec | 0.3 秒 | 每 0.3 秒滑动一次打分窗口 |
 | consecutiveBelow | 2 | 连续 2 个低于阈值的窗口后触发 endpoint |
@@ -126,7 +126,7 @@
 export AIDATATANG_SPEAKER_VAD_DIR=<aidatatang_test_spk_balanced_500目录>
 python3 asr/tools/speaker/06_eval_speaker_vad_aidatatang.py \
   --dataset-dir "$AIDATATANG_SPEAKER_VAD_DIR" \
-  --speaker-model asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx \
+  --speaker-model shared/models/asr/dingqiao/eres2net.onnx \
   --out-dir asr/tools/speaker/results/aidatatang_speaker_vad_eval \
   --thresholds 0.30 0.35 0.40 0.45 0.50 \
   --win-sec 1.0 \

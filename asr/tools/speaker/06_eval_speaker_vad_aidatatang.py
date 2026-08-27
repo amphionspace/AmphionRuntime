@@ -326,7 +326,7 @@ def parse_args() -> argparse.Namespace:
         "--speaker-model",
         type=Path,
         default=Path(
-            "asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx"
+            "shared/models/asr/dingqiao/eres2net.onnx"
         ),
     )
     p.add_argument(

@@ -3,9 +3,9 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-val generatedLacAssets = layout.buildDirectory.dir("generated/harmonyLacAssets")
-val syncHarmonyLacModel by tasks.registering(Sync::class) {
-    from("../../harmony/sdk-police/src/main/resources/rawfile/amphion-police/lac/v1") {
+val generatedLacAssets = layout.buildDirectory.dir("generated/sharedLacAssets")
+val syncSharedLacModel by tasks.registering(Sync::class) {
+    from("../../../shared/models/asr/police/lac/v1") {
         include("lac_encoder.onnx")
     }
     into(generatedLacAssets.map { it.dir("lac/v1") })
@@ -81,7 +81,7 @@ android {
 }
 
 tasks.matching { it.name.endsWith("Assets") }.configureEach {
-    dependsOn(syncHarmonyLacModel)
+    dependsOn(syncSharedLacModel)
 }
 
 dependencies {

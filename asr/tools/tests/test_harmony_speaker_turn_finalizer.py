@@ -19,8 +19,7 @@ C1_DIARIZATION = (
 )
 SPEAKER_TURN_MODEL = (
     REPO_ROOT
-    / "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/"
-    "pyannote-segmentation-3.0.onnx"
+    / "shared/models/asr/dingqiao/pyannote-segmentation-3.0.onnx"
 )
 SPEAKER_TURN_MODEL_METADATA = (
     REPO_ROOT
