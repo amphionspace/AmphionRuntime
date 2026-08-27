@@ -9,6 +9,7 @@ import { ModelLoadBenchOptions, runModelLoadBench } from '../util/ModelLoadBench
 import { LifecycleBenchOptions, runLifecycleBench } from '../util/LifecycleBench';
 import { runSdkSelfTest } from '../util/SdkSelfTest';
 import { HotwordDeviceEvalOptions, runHotwordDeviceEval } from '../util/HotwordDeviceEval';
+import { BackgroundRecordingTask } from '../util/BackgroundRecordingTask';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 
@@ -128,12 +129,7 @@ export default class EntryAbility extends UIAbility {
       // [-2, 1] test value shifted by +2, then restore it inside the carrier.
       options.speakerVadThreshold =
         this.floatParameter(want, 'stressSpeakerVadThreshold', 0) - 2;
-      runDeviceStress(this.context, options).catch((e: Object): void => {
-        hilog.error(0x0000, 'DeviceStressTest', 'stress test crashed: %{public}s', `${e}`);
-      }).finally((): void => {
-        this.stressFinished = true;
-        this.setStressKeepScreenOn(false);
-      });
+      this.runStressWithBackgroundRecording(options);
     }
   }
 
@@ -192,5 +188,22 @@ export default class EntryAbility extends UIAbility {
     this.stressWindow?.setWindowKeepScreenOn(enabled).catch((e: Object): void => {
       hilog.error(0x0000, 'AmphionAsrDemo', 'Failed to set test screen state: %{public}s', `${e}`);
     });
+  }
+
+  private async runStressWithBackgroundRecording(options: DeviceStressOptions): Promise<void> {
+    try {
+      await BackgroundRecordingTask.start(this.context);
+      await runDeviceStress(this.context, options);
+    } catch (e) {
+      hilog.error(0x0000, 'DeviceStressTest', 'stress test crashed: %{public}s', `${e}`);
+    } finally {
+      this.stressFinished = true;
+      this.setStressKeepScreenOn(false);
+      try {
+        await BackgroundRecordingTask.stop(this.context);
+      } catch (e) {
+        hilog.error(0x0000, 'BackgroundRecording', 'failed to stop continuous task: %{public}s', `${e}`);
+      }
+    }
   }
 }

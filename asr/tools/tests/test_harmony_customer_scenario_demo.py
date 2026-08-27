@@ -12,6 +12,9 @@ RECORDER = DEMO / "ets/util/AudioRecorder.ets"
 WORKER = DEMO / "ets/workers/AudioCaptureWorker.ets"
 CARRIER = DEMO / "ets/util/DeviceStressTest.ets"
 INDEX = DEMO / "ets/pages/Index.ets"
+ENTRY_ABILITY = DEMO / "ets/entryability/EntryAbility.ets"
+BACKGROUND_RECORDING = DEMO / "ets/util/BackgroundRecordingTask.ets"
+MODULE = DEMO / "module.json5"
 DRIVER = ROOT / "delivery/harmony-dingqiao/delivery/run_device_stress.py"
 DISPLAY_INDEX = DEMO / "ets/util/SpeakerDisplayIndex.ts"
 TS_LOADER = ROOT / "asr/tools/tests/ts_extension_loader.mjs"
@@ -105,6 +108,20 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("event.data['source']", worker)
         self.assertIn("SOURCE_TYPE_VOICE_RECOGNITION", worker)
         self.assertIn("SOURCE_TYPE_VOICE_COMMUNICATION", worker)
+
+    def test_recording_sessions_own_an_audio_recording_continuous_task(self) -> None:
+        index = INDEX.read_text(encoding="utf-8")
+        entry = ENTRY_ABILITY.read_text(encoding="utf-8")
+        background = BACKGROUND_RECORDING.read_text(encoding="utf-8")
+        module = MODULE.read_text(encoding="utf-8")
+
+        self.assertIn("ohos.permission.KEEP_BACKGROUND_RUNNING", module)
+        self.assertIn('"backgroundModes": ["audioRecording"]', module)
+        self.assertIn("BackgroundMode.AUDIO_RECORDING", background)
+        self.assertIn("await BackgroundRecordingTask.start(ctx)", index)
+        self.assertIn("BackgroundRecordingTask.stop(getContext(this)", index)
+        self.assertIn("await BackgroundRecordingTask.start(this.context)", entry)
+        self.assertIn("await BackgroundRecordingTask.stop(this.context)", entry)
 
     def test_customer_stress_modes_are_public_and_keep_session_contracts(self) -> None:
         carrier = CARRIER.read_text(encoding="utf-8")
