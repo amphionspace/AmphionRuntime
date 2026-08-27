@@ -152,6 +152,25 @@ class AndroidHarmony0311ParityTest(unittest.TestCase):
         self.assertIn("val errorCode: Int = 0", models)
         self.assertIn('val errorMessage: String = ""', models)
 
+    def test_public_device_provider_frame_constant_and_output_defaults_match_harmony(self) -> None:
+        adapter = (
+            ANDROID
+            / "sdk-dingqiao/src/main/java/com/amphion/dingqiao/SpeechRecognizeSdk.kt"
+        ).read_text(encoding="utf-8")
+        constants = (
+            ANDROID
+            / "sdk-dingqiao/src/main/java/com/amphion/dingqiao/DingqiaoErrorCode.kt"
+        ).read_text(encoding="utf-8")
+        models = (
+            ANDROID
+            / "sdk-dingqiao/src/main/java/com/amphion/dingqiao/DingqiaoModels.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("fun interface LicenseDeviceIdProvider", adapter)
+        self.assertIn("fun init(context: Context, deviceIdProvider: LicenseDeviceIdProvider?)", adapter)
+        self.assertIn("DINGQIAO_AUDIO_FRAME_BYTES_20MS = 640", constants)
+        self.assertIn('val utteranceId: String = ""', models)
+        self.assertIn("val speakerIndex: Int = -1", models)
+
 
 if __name__ == "__main__":
     unittest.main()

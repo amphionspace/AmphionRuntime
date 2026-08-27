@@ -39,15 +39,16 @@
 | Police 基础规则 | 车牌、派出所、警务术语公共资产逐文件一致 | 已对齐 |
 | Police 人名纠正 | Android/HarmonyOS 构建均使用 `shared/models/asr/police/lac/v1/lac_encoder.onnx`，LAC/CRF/字典/拼音资产逐文件一致，按 `sysGeneralLexicon` 做 PER 门控同音纠正 | Debug/Release 单测与哈希通过，待真机 |
 | Runtime 日志 | 本分支补 `setLogLevel`，同时覆盖 license 校验和 Runtime 准备 | 单测通过 |
-| 公共 API 兼容 | 补 `getWorkPath`、`SINGLE/CONTINUOUS` 别名、参数默认值和非空授权消息 | 单测与接口对照通过 |
+| 公共 API 兼容 | 补 `getWorkPath`、`SINGLE/CONTINUOUS` 别名、`LicenseDeviceIdProvider`、20 ms 帧常量同名别名、参数默认值和非空授权消息 | 单测与接口对照通过 |
 | Diagnostics SDK | 独立 diagnostics AAR；schema v2、匿名会话、WAV/timeline/callback、资源采样、崩溃 journal 与 model/build identity 已补齐 | 单测与 AAR 隔离检查通过 |
 | Speaker Diarization | 独立 JNI 使用相同 pyannote powerset mask 与 `eres2net`；Android/HarmonyOS 构建均使用 `shared/models/asr/dingqiao` 中的模型和许可证；10s/2.5s 离线分窗、重叠说话、在线/全局聚类和 finish 双路屏障已接入 | Debug/Release、状态机及 fat AAR 结构通过，待离线真机 |
 | 生命周期释放 | 本分支补 finish 后 shutdown/relicense drain 用例与有界释放 | 单测通过，待真机 |
 | 版本/交付身份 | Android 正式版本暂保持 0.3.3，必须在最终真机门禁完成后再冻结为 0.3.11 | 正确冻结 |
 
-代码、模型、公共 API、文档和交付脚本缺口已经关闭；Debug/Release/Diagnostics 软件门禁及预览
-fat AAR 结构验证通过。当前 ADB 未发现设备，剩余项属于真机发布门禁。在全部门禁完成前，不把
-Android 制品命名或描述为正式 0.3.11。
+代码、模型、公共 API、文档和交付脚本的已知静态缺口已经关闭；Debug/Release/Diagnostics 软件
+门禁及预览 fat AAR 结构验证通过。快速连续 session 的 decoder/native 静默屏障已补针对性回归，
+仍需与离线 Speaker Diarization、LAC、Speaker VAD 和完整生命周期一起完成最终真机发布门禁。
+在全部门禁完成前，不把 Android 制品命名或描述为正式 0.3.11。
 
 ## 0.3.4–0.3.11 反向版本审计
 

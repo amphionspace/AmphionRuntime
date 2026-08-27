@@ -22,6 +22,9 @@
 - 补齐 HarmonyOS 已公开的 `SpeechRecognizeSdk.getWorkPath()`、
   `DingqiaoRecognitionMode.SINGLE/CONTINUOUS` 兼容别名，并统一 `LicenseActivationResult`
   的默认值与非空错误消息。
+- 补齐 HarmonyOS 同名 `LicenseDeviceIdProvider` 与 `init(context, provider)` 入口；更换 provider
+  会使既有授权和 Runtime 失效，避免授权身份跨 provider 复用。新增
+  `DINGQIAO_AUDIO_FRAME_BYTES_20MS` 同名常量，并保留 Android 旧常量名兼容。
 - 新增编译期隔离的 `diagnostics` SDK 变体及 `exportDiagnostics`：普通 debug/release 包不采集，
   专用变体有界导出匿名会话事件、callback/timeline、实际 PCM/WAV、资源采样、崩溃恢复 journal、
   model/build identity 和 schema v2 manifest；旧 `configureDiagnostics` 仅保留源码兼容，
@@ -39,6 +42,8 @@
 - `endpointMaxUtteranceMs` 仅在 `short` 生效；`long` 仍由自然静音或调用方 `finish` 收口。
 - `finish -> shutdown` 和 `finish -> setLicense` 会等待已接受音频的唯一 last/complete
   收口后再释放旧 Runtime；日志等级不进入识别控制路径。
+- `onComplete` 后立即创建下一 session 时，先等待旧 decoder/native stream 静默；超时明确启动
+  失败，不跨越尚未完成的 native 清理复用资源。
 - 会议场景默认最长 2 小时；Demo 与 SDK 继续使用当前 Android 正式版本身份，避免把未完成的
   跨端对齐误标为 0.3.11 正式交付。
 
