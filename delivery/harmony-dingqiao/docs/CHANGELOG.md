@@ -1,6 +1,9 @@
 # Changelog
 
-## 0.3.11 - 2026-08-27（short/long、Speaker VAD 与冷启动首句 PCM 连续性修复）
+## 0.3.12 - 2026-08-28（角色分离、short/long、Speaker VAD 与冷启动首句 PCM 连续性修复）
+
+- 新增端侧离线角色分离能力，支持最多四名匿名说话人；通过
+  `StartParams.speakerDiarization` 开启，并返回增量说话人归属和最终 speaker timeline。
 
 - 修复客户应用已启动 `AudioCapturer` 后首次调用 `startListening()` 时，同步创建识别器或说话人
   模型占用 ArkTS 主线程，导致 20 ms 采音回调溢出、首句开头或中间 PCM 缺失的问题。
@@ -11,7 +14,7 @@
   继续滑窗评分；final 声纹分数仍等待提取器就绪，不填充假分数。
 - 公共 API、参数名和 `isFinal` / `isLast` / `onComplete` 生命周期契约不变；业务方仍可在
   `onStart` 内同步回灌冷加载期间缓存的 PCM。
-- 目标说话人增强仍仅保留接口预留；0.3.11 不包含该能力所需模型，不能启用该参数。
+- 目标说话人增强仍仅保留接口预留；0.3.12 不包含该能力所需模型，不能启用该参数。
 
 - 相对 0.3.10，将 `recognizerMode=short/long` 落实为两种 endpoint 语义：short 保留可配置的单句 Rule3
   硬上限；long 不再在 20/60 秒强切，避免会议连续讲话在任意时长边界冻结 modified beam 候选。
@@ -29,8 +32,8 @@
 - 修复 `recognizerMode=short` 且开启 Speaker VAD 时，目标说话人的短句在换人边界可能丢失
   开头文字的问题；不改变非目标说话人过滤、final/last/complete 顺序和声纹打分契约。
 - 本版同时包含已公开的 Speaker Diarization 配置与回调类型；未开启时不改变原有 ASR
-  回调链。完整升级说明见 `UPGRADE_0.3.11.md`。
-- 目标说话人增强仍仅保留接口预留；0.3.11 不包含该能力所需模型，不能启用该参数。
+  回调链。完整升级说明见 `UPGRADE_0.3.12.md`。
+- 目标说话人增强仍仅保留接口预留；0.3.12 不包含该能力所需模型，不能启用该参数。
 
 ## 0.3.9 - 2026-08-24（开放 Runtime 日志等级）
 
