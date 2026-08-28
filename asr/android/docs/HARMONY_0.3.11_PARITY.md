@@ -45,12 +45,12 @@
 | Diagnostics SDK | 独立 diagnostics AAR；schema v2、匿名会话、WAV/timeline/callback、资源采样、崩溃 journal 与 model/build identity 已补齐 | 单测与 AAR 隔离检查通过 |
 | Speaker Diarization | 独立 JNI 使用相同 pyannote powerset mask 与 `eres2net`；Android/HarmonyOS 构建均使用 `shared/models/asr/dingqiao` 中的模型和许可证；10s/2.5s 离线分窗、重叠说话、在线/全局聚类和 finish 双路屏障已接入 | Debug/Release、状态机及 fat AAR 结构通过，待离线真机 |
 | 生命周期释放 | 本分支补 finish 后 shutdown/relicense drain 用例与有界释放 | 单测通过，待真机 |
-| 版本/交付身份 | Android 正式版本暂保持 0.3.3，必须在最终真机门禁完成后再冻结为 0.3.11 | 正确冻结 |
+| 版本/交付身份 | Android 制品版本升级为 0.3.4；最终真机门禁完成前仅生成 `PREVIEW / NON-CANONICAL` 包 | 预览冻结 |
 
 代码、模型、公共 API、文档和交付脚本的已知静态缺口已经关闭；Debug/Release/Diagnostics 软件
 门禁及预览 fat AAR 结构验证通过。快速连续 session 的 decoder/native 静默屏障已补针对性回归，
 仍需与离线 Speaker Diarization、LAC、Speaker VAD 和完整生命周期一起完成最终真机发布门禁。
-在全部门禁完成前，不把 Android 制品命名或描述为正式 0.3.11。
+在全部门禁完成前，不把 Android 0.3.4 制品描述为正式交付。
 
 ## 0.3.4–0.3.11 反向版本审计
 
@@ -70,7 +70,7 @@ provenance 再校验。这是发布身份门禁，不是用跨平台二进制哈
 
 ## 发布门禁
 
-| 能力 | Android 0.3.11 发布要求 |
+| 能力 | Android 0.3.4 发布要求 |
 | --- | --- |
 | short/long | 两种模式参数优先级、Rule3 语义和 long stable-prefix 真机门禁通过 |
 | 生命周期 | start-write、finish-shutdown、finish-shutdown-relicense、cancel、重入和恢复通过 |
