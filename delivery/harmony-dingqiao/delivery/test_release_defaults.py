@@ -18,8 +18,9 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("冷启动", notes_0312)
         self.assertIn("startListening()", notes_0312)
         self.assertIn("Speaker VAD", notes_0312)
+        self.assertIn("角色分离", notes_0312)
         self.assertIn("公共 API", notes_0312)
-        self.assertIn("相对 0.3.11", upgrade)
+        self.assertIn("上一正式交付", upgrade)
         self.assertIn("AudioCapturer", upgrade)
         self.assertIn("onStart", upgrade)
 
@@ -235,7 +236,7 @@ class ReleaseDefaultsTest(unittest.TestCase):
         for path in doc_paths:
             text = path.read_text(encoding="utf-8")
             for claim in stale_claims:
-                self.assertNotIn(claim, text, f"stale 0.3.11 behavior in {path}: {claim}")
+                self.assertNotIn(claim, text, f"stale 0.3.12 behavior in {path}: {claim}")
 
     def test_sdk_only_changelog_combines_controlled_notes_and_commit_trace(self) -> None:
         script = (

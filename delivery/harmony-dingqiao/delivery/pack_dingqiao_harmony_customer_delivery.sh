@@ -374,7 +374,7 @@ path.write_text(f"""# Amphion HarmonyOS 离线 ASR SDK {version}
 | `har/amphion_dingqiao.har` | HarmonyOS API 12+、`arm64-v8a` 离线 ASR SDK |
 | `docs/INTEGRATION.md` | 集成入口与调用顺序 |
 | `docs/ASR_SDK_API_HARMONY.md` | 完整公开 API 契约 |
-| `docs/UPGRADE_0.3.12.md` | 相对 0.3.11 的冷启动行为变化 |
+| `docs/UPGRADE_0.3.12.md` | 相对上一正式交付的接口、角色分离、生命周期与冷启动变化 |
 | `docs/ASR_LIFECYCLE_ASSURANCE_20260716.md` | 生命周期修复保证、时序图和验证摘要 |
 | `docs/LICENSE.md` | 商用授权接入 |
 | `docs/TROUBLESHOOTING.md` | 故障排查与日志采集 |

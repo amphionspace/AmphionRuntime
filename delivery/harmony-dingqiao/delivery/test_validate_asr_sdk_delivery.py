@@ -25,7 +25,7 @@ FIXTURE_MODEL_MD5 = {
     "asset.onnx": hashlib.md5(b"approved source").hexdigest(),
 }
 FIXTURE_VERSION = "0.3.12"
-FIXTURE_RELEASE_DATE = "2026-08-27"
+FIXTURE_RELEASE_DATE = "2026-08-28"
 FIXTURE_ROOT_NAME = (
     f"amphion-harmony-asr-sdk-v{FIXTURE_VERSION}-{FIXTURE_RELEASE_DATE.replace('-', '')}"
 )
