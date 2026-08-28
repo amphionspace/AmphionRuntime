@@ -24,7 +24,12 @@ object DingqiaoErrorCode {
     const val LICENSE_DEVICE_MISMATCH = 1002200033
     const val LICENSE_NOT_SET = 1002200034
     const val LICENSE_ACTIVATION_FAILED = 1002200035
+    /** @deprecated Public Dingqiao contract maps app/certificate binding failures to DEVICE_MISMATCH. */
+    @Deprecated("Use LICENSE_DEVICE_MISMATCH")
     const val LICENSE_APP_MISMATCH = 1002200036
+
+    /** @deprecated Public Dingqiao contract maps app/certificate binding failures to DEVICE_MISMATCH. */
+    @Deprecated("Use LICENSE_DEVICE_MISMATCH")
     const val LICENSE_CERT_MISMATCH = 1002200037
 }
 

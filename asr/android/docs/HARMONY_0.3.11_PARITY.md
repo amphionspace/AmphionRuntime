@@ -1,6 +1,7 @@
-# Android / HarmonyOS ASR 0.3.11 对齐清单
+# Android / HarmonyOS ASR 0.3.12 对齐清单
 
-本文约束 Android 非 Demo 能力对齐 HarmonyOS 0.3.11 的范围和发布条件。版本号只表示通过本清单的
+本文最初用于 Android 非 Demo 能力对齐 HarmonyOS 0.3.11；现已继续核对至主分支 HarmonyOS
+0.3.12。版本号只表示通过本清单的
 正式交付身份，不能用 Demo 页面可见、代码已编译或单一真机识别成功代替 SDK 契约验收。
 
 ## 要改变的行为
@@ -33,6 +34,7 @@
 
 | 能力 | Android 当前状态 | 结论 |
 | --- | --- | --- |
+| 客户参数契约 | `shared/api-spec/dingqiao-asr-parameters.json` 固化共同字段、类型、默认值、取值范围、优先级和舍入规则；两端实现、客户文档及 Android SDK-only 交付包由自动测试绑定 | 静态门禁通过 |
 | short/long 与 stable-prefix | Core 已有同源 native 语义；本分支补会话参数、场景映射和门禁 | 待真机 |
 | 声纹校验 | Android/HarmonyOS 构建均使用 `shared/models/asr/dingqiao/eres2net.onnx`，公共字段使用 `speakerSimilarity` | 待组合真机 |
 | Speaker VAD | Android 在 decoder 串行路径同步评分，不存在 HarmonyOS 异步 hop 乱序路径 | 待换人边界真机 |
@@ -60,6 +62,7 @@
 | 0.3.9 | Runtime 日志等级 | `setLogLevel` 覆盖授权验证和 Runtime 准备，默认 `WARN` |
 | 0.3.10 | 无独立公开发布节 | 无额外公共契约需迁移 |
 | 0.3.11 | short/long、Speaker VAD 短句、LAC 人名、端侧 Speaker Diarization | 共享 native short/long；LAC 和说话人模型逐文件哈希；公共类型、回调与 finish 屏障已对齐 |
+| 0.3.12 | 冷启动采音连续性、Speaker VAD 冷模型 final 门控、角色分离交付冻结 | Android 声纹 extractor 在启用能力的 engine 创建阶段预加载，不存在 HarmonyOS 异步模型未就绪时 final 越过门控的窗口；角色分离公共模型、回调和 finish 屏障已在 0.3.11 对齐分支补齐；锁屏持续录音属于 Demo/系统后台任务实现差异，不改变 SDK 参数契约 |
 
 Android 与 HarmonyOS 使用不同 ONNX Runtime 版本和目标格式，ASR ORT 产物不要求
 字节相同；它们必须绑定同一源模型身份，并在正式组包时由同一最终提交的

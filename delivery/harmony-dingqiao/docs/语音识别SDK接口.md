@@ -1,6 +1,9 @@
 # 语音识别 SDK 接口（HarmonyOS 交付版）
 
-> 本文件描述 Amphion HarmonyOS 离线语音识别 SDK 的客户集成接口，并已纳入跨平台接口的 HarmonyOS 扩展约束。Android 集成请使用 Android 交付文档。
+> 本文件描述 Amphion HarmonyOS 离线语音识别 SDK 的客户集成接口。跨平台共同参数以
+> `shared/api-spec/dingqiao-asr-parameters.json` 为机器可读单一来源：Android/HarmonyOS
+> 使用相同字段名、取值、默认值和优先级。`enableTargetSpeakerEnhancement` 是 HarmonyOS
+> 预留扩展，不属于共同客户配置，当前未包含获准模型的交付中不得启用。
 
 | 文档项 | 值 |
 | --- | --- |
@@ -414,6 +417,17 @@ Speaker VAD 拒绝非目标片段时，会在 `SPEAKER_VAD_REJECTED` 事件后�
 `vadBegin` 按实际写入并由 VAD 处理的 PCM 时长计算；只调用 `startListening` 而不写入音频不会计时。达到阈值且始终未检测到语音时，SDK 回调空的 `onResult(isFinal=true,isLast=true)`，随后回调 `onComplete`，不回调 `SPEECH_BEGIN`、`SPEECH_END` 或错误。一旦检测到首个真实起音，本会话不再触发 `vadBegin`，后续停顿由 `vadEnd` 处理。该行为不依赖 `enablePartialResult`。
 
 ## 7. 声纹
+
+`VoiceprintRegisterParams`：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `voiceprintId` | `string` | 空 | 兼容字段；SDK 仍生成安全 ID 并在结果中返回 |
+| `samplePaths` | `string[]` | 空 | 至少 1 个样本路径，每段 3 到 8 秒 |
+| `audioInfo` | `AudioInfo` | 默认对象 | 与识别相同的 16 kHz、16 bit、单声道 PCM 格式 |
+
+同步注册无论成功或业务参数失败都返回 `VoiceprintRegisterResult`：`status=0` 表示成功，失败时
+`status/message` 携带错误；客户无需为 Android/HarmonyOS 编写不同的异常分支。
 
 ```ts
 const params = new VoiceprintRegisterParams();
