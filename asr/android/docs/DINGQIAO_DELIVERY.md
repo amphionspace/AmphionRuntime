@@ -2,7 +2,7 @@
 
 > 面向鼎桥（Dingqiao）集成的 Android 离线 ASR + 警务域增强 + 声纹能力。  
 > 接口定义以 `docs/customer/语音识别SDK接口-交付批注版.md` 和 `docs/customer/语音识别SDK接口.md` 为准。
-> **对外正式交付**请使用 `docs/customer/` 下脱敏文档，打包命令：`bash asr/tools/delivery/pack_dingqiao_customer_delivery.sh`（不含公钥、不含 LICENSING.md 全文）。
+> **对外正式交付**请使用 `docs/customer/` 下脱敏文档。正式打包要求版本和源码 commit 已在发布账本中精确登记；门禁完成前只能使用 `--preview` 生成不可冒充正式版的预览包。
 
 交付前置资料清单见仓库根目录 [`docs/dingqiao-offline-license.md`](../../../docs/dingqiao-offline-license.md)。鼎桥需在组包前确认 SN 清单、客户 App 标识记录、可选签名证书指纹、授权功能范围、`sdkMajor`、`maintenanceUntil`、运行期限和 license 固定路径。
 
@@ -71,7 +71,7 @@ dependencies {
 
 | 脚本 | 用途 |
 |------|------|
-| `asr/tools/delivery/pack_dingqiao_customer_delivery.sh` | 鼎桥正式发包（fat AAR + Demo + 客户文档） |
+| `asr/tools/delivery/pack_dingqiao_customer_delivery.sh` | 鼎桥正式/预览发包（fat AAR + Demo + 客户文档）；预览必须传 `--preview` |
 | `asr/tools/delivery/pack_dingqiao_delivery_scheme_a_aligned.sh` | 内部预览（fat AAR 与 Demo 同 AAR 对齐） |
 | `asr/tools/delivery/pack_dingqiao_delivery.sh` | 内部 scheme A（含 LICENSING 等） |
 | `asr/tools/delivery/pack_dingqiao_delivery_scheme_b.sh` | 三 AAR 分模块 scheme B |
@@ -88,11 +88,15 @@ dependencies {
 5. fat AAR 必须包含 sherpa、ONNX Runtime、`libamphion_diarization_jni.so` 与
    `libamphion_police_jni.so`；Demo APK 必须包含对应 `lib/arm64-v8a/*.so`。缺失会导致创建引擎或
    首次说话人分离/LAC 推理失败。
-6. 工作区须 **clean**（无未提交改动）；本地预览可设 `DINGQIAO_ALLOW_DIRTY=1`。
-7. 交付版本号默认 = `AMPHION_RUNTIME_VERSION`（勿再手写 `0.1.0` 与 SDK `0.2.x` 混用）。
+6. 正式包要求工作区 **clean**，且版本与源码 commit 必须精确匹配 `delivery/asr-sdk-release-history.json`；未登记的新版本直接拒绝正式打包。
+7. 门禁完成前使用 `--preview`；目录名、ZIP/AAR 文件名、README、`VERSION.txt` 和 AAR 内部 manifest 都会强制标记 `PREVIEW / NON-CANONICAL`。脏工作区预览还须显式设置 `DINGQIAO_ALLOW_DIRTY=1`。
+8. 交付版本号默认 = `AMPHION_RUNTIME_VERSION`（勿再手写 `0.1.0` 与 SDK `0.2.x` 混用）。
 
 ```bash
-# 正式发包（仓库根）
+# 当前版本尚未完成发布账本登记：只能生成显式预览包
+bash asr/tools/delivery/pack_dingqiao_customer_delivery.sh --preview
+
+# 正式发包（仓库根；版本和 commit 已精确登记后才会放行）
 bash asr/tools/delivery/pack_dingqiao_customer_delivery.sh
 
 # 验收同事收到的包

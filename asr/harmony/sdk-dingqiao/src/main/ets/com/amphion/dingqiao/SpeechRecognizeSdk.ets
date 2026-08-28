@@ -5,6 +5,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
 import deviceInfo from '@ohos.deviceInfo';
 import hilog from '@ohos.hilog';
+import { validateAudioInfo } from './AudioInfoValidation';
 import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
 import { DiagnosticsModule } from './DiagnosticsModule';
@@ -220,14 +221,6 @@ function validateRecognizerMode(params: CreateEngineParams): void {
   if (raw === undefined) return;
   const mode = `${raw}`.trim().toLowerCase();
   if (mode !== 'short' && mode !== 'long') throw new Error('recognizerMode must be short or long');
-}
-
-function validateAudioInfo(audioInfo: AudioInfo): string {
-  if (audioInfo.audioType !== 'pcm') return 'audioType must be pcm';
-  if (audioInfo.sampleRate !== 16000) return 'sampleRate must be 16000';
-  if (audioInfo.sampleBit !== 16) return 'sampleBit must be 16';
-  if (audioInfo.soundChannel !== 1) return 'soundChannel must be 1';
-  return '';
 }
 
 function isValidSessionId(sessionId: string): boolean {
@@ -1771,6 +1764,12 @@ export class SpeechRecognizeSdk {
 
   static registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult {
     const result = new VoiceprintRegisterResult();
+    const audioError = validateAudioInfo(params.audioInfo);
+    if (audioError !== '') {
+      result.status = DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED;
+      result.message = audioError;
+      return result;
+    }
     if (params.samplePaths.length < DINGQIAO_VOICEPRINT_MIN_SAMPLES) {
       result.status = DingqiaoErrorCode.VOICEPRINT_SAMPLE_COUNT;
       result.message = `sample count must be >= ${DINGQIAO_VOICEPRINT_MIN_SAMPLES}`;
