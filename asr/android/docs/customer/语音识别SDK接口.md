@@ -1,6 +1,9 @@
 # 语音识别 SDK 接口
 
-> 交付契约提示：本文件为 Android 集成说明。跨平台接口契约以《语音识别SDK接口-交付批注版.md》为准；该文档基于《语音识别SDK接口-20260622.md》（v1.1）基线，并在增补项旁批注。
+> 交付契约提示：本文件为 Android 集成说明。交付包内
+> `DINGQIAO_ASR_PARAMETER_CONTRACT.json` 是 Android/HarmonyOS 共同参数的机器可读单一来源；
+> 客户可对其中参数复用同一组字段名、取值、默认值和优先级，不需要按平台分支。
+> 《语音识别SDK接口-交付批注版.md》继续记录相对原始鼎桥接口基线的增补项。
 
 本文描述鼎桥 Android 离线语音识别 SDK 的客户集成接口。SDK 入口包名为 `com.amphion.dingqiao`，核心入口为 `SpeechRecognizeSdk`。
 
@@ -134,6 +137,12 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | `extraParams` | `Map<String, Any>` | 空 | 会话扩展参数 |
 | `speakerDiarization` | `SpeakerDiarizationConfig?` | `null` | 非空时启用完全离线说话人分离；`maxSpeakers` 范围 1 到 4 |
 
+`SpeakerDiarizationConfig`：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `maxSpeakers` | `Int` | `4` | 只接受整数 1 到 4；非法值使本次 `startListening` 失败 |
+
 常用 `extraParams`：
 
 | 参数 | 类型 | 默认值 | 说明 |
@@ -149,11 +158,11 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | `vadEnd` | `Number/String` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `sessionGeneralLexicon` | `List<String>` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `Boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
-| `enableSpeakerVad` | `Boolean/String/Number` | `false` | 是否启用目标说话人离场提前 endpoint |
+| `enableSpeakerVad` | `Boolean` | `false` | 是否启用目标说话人离场提前 endpoint；仅严格布尔值 `true` 生效，与 HarmonyOS 一致 |
 | `voiceprintIds` | `List<String>/String` | 空 | 声纹 ID 列表；字符串可用换行/中英文逗号分隔 |
-| `speakerVadThreshold` | `Number/String` | `0.40` | 目标说话人 VAD 阈值 |
-| `speakerVadWindowMs` | `Number/String` | `1000` | 目标说话人 VAD 窗长 |
-| `speakerVadHopMs` | `Number/String` | `300` | 目标说话人 VAD 步长 |
+| `speakerVadThreshold` | `Number/String` | `0.35` | 目标说话人 VAD 阈值 |
+| `speakerVadWindowMs` | `Number/String` | `1500` | 目标说话人 VAD 窗长 |
+| `speakerVadHopMs` | `Number/String` | `500` | 目标说话人 VAD 步长 |
 | `speakerVadConsecutiveBelow` | `Number/String` | `2` | 连续低于阈值多少次触发 endpoint |
 
 ## 5. 回调
@@ -247,6 +256,18 @@ revision 修订。`finish` 非阻塞，SDK 等待 ASR 尾结果和分离尾结�
 或 complete。
 
 ## 6. 声纹
+
+`VoiceprintRegisterParams`：
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `voiceprintId` | `String` | 空 | 兼容字段；SDK 仍生成安全 ID 并在结果中返回 |
+| `samplePaths` | `List<String>` | 空 | 至少 1 个样本路径，每段 3 到 8 秒 |
+| `audioInfo` | `AudioInfo` | `AudioInfo()` | 与识别相同的 16 kHz、16 bit、单声道 PCM 格式 |
+
+同步注册无论成功或业务参数失败都返回 `VoiceprintRegisterResult`：`status=0` 表示成功，失败时
+`status/message` 携带错误，不要求 Android/HarmonyOS 调用方采用不同的异常分支。Android 额外提供
+异步重载；为兼容既有 Android 调用方，其失败仍走 `VoiceprintRegisterCallback.onError`。
 
 注册声纹：
 

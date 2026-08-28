@@ -8,11 +8,18 @@
 
 ## [Unreleased]
 
-> 这一节记录正在进行的 HarmonyOS 0.3.11 对齐工作。Android 的正式版本仍为 0.3.3；只有
-> `HARMONY_0.3.11_PARITY.md` 中的发布阻断项全部关闭并完成真机门禁后才更新制品版本。
+当前无未发布变更。
+
+## [0.3.4] - 2026-08-28
+
+> 本版本记录已核对至 HarmonyOS 0.3.12 的 Android 对齐工作。当前交付状态为
+> `PREVIEW / NON-CANONICAL`；完成同一最终提交的真机发布门禁后，才能登记为正式交付。
 
 新增
 
+- 新增 `shared/api-spec/dingqiao-asr-parameters.json` 作为 Android/HarmonyOS 鼎桥共同参数的
+  单一来源，固定字段名、类型、默认值、范围、优先级和数值舍入；两端实现、客户文档和
+  SDK-only 交付包均增加自动一致性门禁。
 - 鼎桥适配层与 Demo 显式支持 `recognizerMode=short|long`。PTT、点击识别使用 `short`；
   长语音、填单和会议使用 `long`。
 - `long` 使用与 Harmony 相同的 native stable-prefix 机制：不按固定 20/60 秒产生公开 Rule3
@@ -37,6 +44,11 @@
 
 兼容性
 
+- Android 与 HarmonyOS 的 Speaker VAD 默认值统一为阈值 `0.35`、窗长 `1500 ms`、步长
+  `500 ms`、连续低分窗口 `2`；布尔能力开关仅接受布尔值，毫秒/计数参数统一四舍五入。
+- 两端仅支持 `online=OFFLINE(1)`；传入其他值时均在创建引擎阶段明确失败，不再由一端静默接受。
+- 声纹同步注册失败统一通过 `VoiceprintRegisterResult.status/message` 返回；授权的应用、证书或设备
+  绑定失败统一映射为公开错误 `LICENSE_DEVICE_MISMATCH(1002200033)`，客户无需维护平台错误分支。
 - 普通旧调用未传 `recognizerMode` 时保持 `short`；严格布尔
   `enableContinuousRecognition=true` 且未显式配置模式时使用 `long`，会话级显式配置优先。
 - `endpointMaxUtteranceMs` 仅在 `short` 生效；`long` 仍由自然静音或调用方 `finish` 收口。
@@ -44,14 +56,14 @@
   收口后再释放旧 Runtime；日志等级不进入识别控制路径。
 - `onComplete` 后立即创建下一 session 时，先等待旧 decoder/native stream 静默；超时明确启动
   失败，不跨越尚未完成的 native 清理复用资源。
-- 会议场景默认最长 2 小时；Demo 与 SDK 继续使用当前 Android 正式版本身份，避免把未完成的
-  跨端对齐误标为 0.3.11 正式交付。
+- 会议场景默认最长 2 小时；Demo、SDK 与交付包统一使用 Android `0.3.4` 版本身份，预览状态
+  由验收材料和构建 provenance 明确标记，不冒充正式交付。
 
 发布冻结
 
-- 代码、模型、API、文档和交付脚本缺口已关闭；Debug/Release/Diagnostics 软件门禁及预览 fat AAR
-  结构验证通过。Android 正式版本仍保持 0.3.3，待断网 Speaker Diarization、LAC 和生命周期/声纹
-  组合真机门禁完成后，再把同一最终提交冻结为 0.3.11。
+- 代码、模型、API、文档和交付脚本缺口已关闭；Android 制品版本升级为 `0.3.4`。在断网
+  Speaker Diarization、LAC 和生命周期/声纹组合真机门禁完成前，只允许生成明确标记的预览包；
+  正式发布账本必须绑定最终提交、验收证据和制品 SHA-256。
 
 ## [0.3.3] - 2026-07-30
 

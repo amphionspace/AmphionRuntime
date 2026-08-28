@@ -138,6 +138,7 @@ provenance.schema=1
 amphion.sdk.version=$sdk_ver
 amphion.buildconfig.sdk.version=${BUILDCONFIG_SDK_VERSION:-$sdk_ver}
 amphion.delivery.version=${delivery_version:-$sdk_ver}
+amphion.delivery.status=${DINGQIAO_DELIVERY_STATUS_CODE:-formal}
 amphion.git.commit.full=${GIT_COMMIT_FULL:-unknown}
 amphion.git.commit.short=${GIT_COMMIT_SHORT:-unknown}
 amphion.git.branch=${GIT_BRANCH:-unknown}
@@ -151,6 +152,7 @@ dingqiao_verify_aar_provenance() {
   local aar_path="$1"
   local expected_sdk="${2:-}"
   local expected_commit="${3:-}"
+  local expected_status="${4:-}"
   local tmp
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' RETURN
@@ -170,6 +172,13 @@ dingqiao_verify_aar_provenance() {
   if [[ -n "$expected_commit" ]]; then
     grep -q "amphion.git.commit.full=$expected_commit" "$manifest" || {
       echo "[ERROR] AAR embedded git commit != $expected_commit" >&2
+      cat "$manifest" >&2
+      return 1
+    }
+  fi
+  if [[ -n "$expected_status" ]]; then
+    grep -q "amphion.delivery.status=$expected_status" "$manifest" || {
+      echo "[ERROR] AAR embedded delivery.status != $expected_status" >&2
       cat "$manifest" >&2
       return 1
     }
@@ -511,19 +520,25 @@ dingqiao_zip_delivery() {
 dingqiao_stage_customer_docs() {
   local out_docs="$1"
   local customer_docs="$2"
-  local dq_root="$3"
+  local _legacy_dq_root="${3:-}"
+  local repo_root
+  repo_root="$(git -C "$customer_docs" rev-parse --show-toplevel)"
   mkdir -p "$out_docs"
   [[ -f "$customer_docs/语音识别SDK接口.md" ]] || {
     echo "[ERROR] missing customer API contract at $customer_docs/语音识别SDK接口.md" >&2
     exit 1
   }
+  python3 "$repo_root/asr/tools/dingqiao_parameter_contract.py" \
+    "$customer_docs/语音识别SDK接口.md"
   cp "$customer_docs/语音识别SDK接口.md" "$out_docs/"
+  cp "$repo_root/shared/api-spec/dingqiao-asr-parameters.json" \
+    "$out_docs/DINGQIAO_ASR_PARAMETER_CONTRACT.json"
   cp "$customer_docs/DINGQIAO_INTEGRATION.md" "$out_docs/"
   cp "$customer_docs/LICENSE.md" "$out_docs/"
   cp "$customer_docs/NOTICE" "$out_docs/NOTICE"
   mkdir -p "$out_docs/third-party"
-  cp "$dq_root/AmphionRuntime/LICENSE" "$out_docs/third-party/Apache-2.0.txt"
-  cp "$dq_root/AmphionRuntime/asr/native/audio-processing/LICENSES/WEBRTC_AUDIO_PROCESSING.txt" \
+  cp "$repo_root/LICENSE" "$out_docs/third-party/Apache-2.0.txt"
+  cp "$repo_root/asr/native/audio-processing/LICENSES/WEBRTC_AUDIO_PROCESSING.txt" \
     "$out_docs/third-party/WebRTC-BSD-3-Clause.txt"
   if [[ -f "$customer_docs/DINGQIAO_VOICEPRINT_MODEL.md" ]]; then
     cp "$customer_docs/DINGQIAO_VOICEPRINT_MODEL.md" "$out_docs/"

@@ -296,6 +296,28 @@ def verify_packaging_version(
     return "next"
 
 
+def verify_recorded_packaging_version(
+    *,
+    repo: Path,
+    history_path: Path,
+    platform: str,
+    version: str,
+    source_commit: str,
+) -> None:
+    state = verify_packaging_version(
+        repo=repo,
+        history_path=history_path,
+        platform=platform,
+        version=version,
+        source_commit=source_commit,
+    )
+    if state != "current":
+        raise ReleaseTrackerError(
+            f"{platform} {version} is not an exact recorded delivery; "
+            "package it as PREVIEW / NON-CANONICAL until the release gate and ledger are complete"
+        )
+
+
 def _changed_paths(repo: Path, commit: str) -> List[str]:
     return _run_git(
         repo, "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", commit
@@ -870,6 +892,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     verify_package.add_argument("--platform", choices=sorted(PLATFORMS), required=True)
     verify_package.add_argument("--version", required=True)
     verify_package.add_argument("--source-commit", default="HEAD")
+    verify_package.add_argument(
+        "--require-recorded",
+        action="store_true",
+        help="require an exact version and source_commit match in the delivery ledger",
+    )
 
     record = subparsers.add_parser("record")
     record.add_argument("--platform", choices=sorted(PLATFORMS), required=True)
@@ -928,14 +955,26 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
             print(f"[OK] {args.platform} {args.version} matches the latest delivery ledger")
         elif args.command == "verify-package":
-            state = verify_packaging_version(
-                repo=repo,
-                history_path=history_path,
-                platform=args.platform,
-                version=args.version,
-                source_commit=args.source_commit,
-            )
-            print(f"[OK] {args.platform} {args.version} packaging version is {state}")
+            if args.require_recorded:
+                verify_recorded_packaging_version(
+                    repo=repo,
+                    history_path=history_path,
+                    platform=args.platform,
+                    version=args.version,
+                    source_commit=args.source_commit,
+                )
+                print(
+                    f"[OK] {args.platform} {args.version} packaging source is exactly recorded"
+                )
+            else:
+                state = verify_packaging_version(
+                    repo=repo,
+                    history_path=history_path,
+                    platform=args.platform,
+                    version=args.version,
+                    source_commit=args.source_commit,
+                )
+                print(f"[OK] {args.platform} {args.version} packaging version is {state}")
         elif args.command == "record":
             entry = record_delivery(
                 repo=repo,

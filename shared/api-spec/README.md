@@ -6,6 +6,7 @@
 | --- | --- |
 | manifest.schema.json | 模型 manifest.json 的 JSON Schema (draft-2020-12)；三端在 CI 中校验 |
 | errcodes.yaml | 错误码表；三端 AsrErrorCode / proto AsrError.code 都派生自此 |
+| dingqiao-asr-parameters.json | 鼎桥 Android/HarmonyOS 客户可无平台分支使用的参数契约；`platform_extensions` 不属于通用配置 |
 | README.md | 本文件 |
 
 ## 在三端的具体落地

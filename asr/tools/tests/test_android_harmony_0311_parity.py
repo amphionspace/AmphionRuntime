@@ -90,6 +90,17 @@ class AndroidHarmony0311ParityTest(unittest.TestCase):
             self.assertIn("shared/models/asr/police/lac/v1", build)
             self.assertIn("lac_encoder.onnx", build)
 
+    def test_shared_android_model_sync_precedes_lint_models(self) -> None:
+        for module, sync_task in (
+            ("sdk-police", "syncSharedLacModel"),
+            ("sdk-dingqiao", "syncSharedDingqiaoModels"),
+        ):
+            build = (ANDROID / module / "build.gradle.kts").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn('it.name.contains("lint", ignoreCase = true)', build)
+            self.assertIn(f"dependsOn({sync_task})", build)
+
     def test_android_keeps_release_identity_frozen_until_device_gate(self) -> None:
         properties = (ANDROID / "gradle.properties").read_text(encoding="utf-8")
         version = re.search(

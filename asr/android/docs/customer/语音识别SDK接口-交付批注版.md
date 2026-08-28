@@ -101,7 +101,7 @@
 | StartParams.extraParams | voiceprintIds：目标声纹 ID 列表；enableVoiceprintVerification=true 时必填，支持多个目标声纹 |
 | SpeechRecognitionResult.speakerSimilarity | 本段语音与目标声纹的相似度（0~1）；仅在 isFinal=true 且会话启用声纹校验时有效 |
 
-> 批注（交付扩展，2026-06-29）：本交付额外支持 `enableSpeakerVad`、`speakerVadThreshold`、`speakerVadWindowMs`、`speakerVadHopMs`、`speakerVadConsecutiveBelow` 与运行时 `setSpeakerVadEnabled(enabled)`，用于目标说话人离场检测。启用该能力时必须有可用的 `voiceprintIds`，否则应返回声纹不存在或启动失败相关错误。
+> 批注（交付扩展，2026-06-29；跨端默认值对齐，2026-08-28）：本交付额外支持 `enableSpeakerVad`、`speakerVadThreshold`、`speakerVadWindowMs`、`speakerVadHopMs`、`speakerVadConsecutiveBelow` 与运行时 `setSpeakerVadEnabled(enabled)`，用于目标说话人离场检测。`enableSpeakerVad` 仅严格布尔值 `true` 生效；默认参数依次为 `0.35`、`1500 ms`、`500 ms`、`2`，与 HarmonyOS 一致。启用该能力时必须有可用的 `voiceprintIds`，否则应返回声纹不存在或启动失败相关错误。
 
 > 批注（交付扩展，2026-06-29）：本交付的声纹核验为打分模式，SDK 不在内部丢弃非目标说话人 final 结果；是否接受该结果由客户业务根据 `speakerSimilarity` 判定。
 
