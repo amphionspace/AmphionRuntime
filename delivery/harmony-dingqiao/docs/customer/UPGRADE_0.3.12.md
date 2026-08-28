@@ -1,6 +1,6 @@
-# HarmonyOS ASR SDK 0.3.11 升级说明
+# HarmonyOS ASR SDK 0.3.12 升级说明
 
-本文说明 0.3.11 相对 0.3.10 需要业务方关注的公共接口、识别模式、Speaker VAD 和冷启动行为变化。
+本文汇总 0.3.12 相对上一正式交付需要业务方关注的公共接口、角色分离、识别模式、Speaker VAD 和冷启动行为变化。
 
 ## 1. short 与 long 具有不同语义
 
@@ -43,13 +43,15 @@ ASR recognizer、创建声纹提取器或同步读取 Speaker VAD 边界模型�
 `onStart` 仍表示 session 已发布且可同步调用 `writeAudio`、`finish` 或 `cancel`。本版本没有要求客户
 把 SDK、录音回调或公共 API 搬到 Worker。
 
-## 5. Speaker Diarization 公共类型
+## 5. Speaker Diarization 角色分离
 
-0.3.11 包含 `SpeakerDiarizationConfig`、`SpeakerDiarizationUpdate`、
+0.3.12 新增端侧离线角色分离能力，包含 `SpeakerDiarizationConfig`、`SpeakerDiarizationUpdate`、
 `SpeakerDiarizationResult` 及对应 listener 回调。只有在
 `StartParams.speakerDiarization` 传入配置对象时才启用；未配置时，原有 ASR 结果和回调链保持不变。
 
-角色分离当前仍未达到正式离线交付要求，不应在客户业务中启用或对外宣称已经交付。
+当前最多支持四名匿名说话人，SDK 自动估计实际人数。业务方应根据
+`onSpeakerDiarizationUpdate` 更新单句说话人归属，并在结束时使用唯一一次
+`onSpeakerDiarizationResult` 获取最终全文和 speaker timeline。
 
 ## 6. 升级检查
 
