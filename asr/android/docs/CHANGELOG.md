@@ -8,11 +8,14 @@
 
 ## [Unreleased]
 
-> 这一节记录正在进行的 HarmonyOS 0.3.11 对齐工作。Android 的正式版本仍为 0.3.3；只有
+> 这一节记录已核对至 HarmonyOS 0.3.12 的对齐工作。Android 的正式版本仍为 0.3.3；只有
 > `HARMONY_0.3.11_PARITY.md` 中的发布阻断项全部关闭并完成真机门禁后才更新制品版本。
 
 新增
 
+- 新增 `shared/api-spec/dingqiao-asr-parameters.json` 作为 Android/HarmonyOS 鼎桥共同参数的
+  单一来源，固定字段名、类型、默认值、范围、优先级和数值舍入；两端实现、客户文档和
+  SDK-only 交付包均增加自动一致性门禁。
 - 鼎桥适配层与 Demo 显式支持 `recognizerMode=short|long`。PTT、点击识别使用 `short`；
   长语音、填单和会议使用 `long`。
 - `long` 使用与 Harmony 相同的 native stable-prefix 机制：不按固定 20/60 秒产生公开 Rule3
@@ -37,6 +40,11 @@
 
 兼容性
 
+- Android 与 HarmonyOS 的 Speaker VAD 默认值统一为阈值 `0.35`、窗长 `1500 ms`、步长
+  `500 ms`、连续低分窗口 `2`；布尔能力开关仅接受布尔值，毫秒/计数参数统一四舍五入。
+- 两端仅支持 `online=OFFLINE(1)`；传入其他值时均在创建引擎阶段明确失败，不再由一端静默接受。
+- 声纹同步注册失败统一通过 `VoiceprintRegisterResult.status/message` 返回；授权的应用、证书或设备
+  绑定失败统一映射为公开错误 `LICENSE_DEVICE_MISMATCH(1002200033)`，客户无需维护平台错误分支。
 - 普通旧调用未传 `recognizerMode` 时保持 `short`；严格布尔
   `enableContinuousRecognition=true` 且未显式配置模式时使用 `long`，会话级显式配置优先。
 - `endpointMaxUtteranceMs` 仅在 `short` 生效；`long` 仍由自然静音或调用方 `finish` 收口。

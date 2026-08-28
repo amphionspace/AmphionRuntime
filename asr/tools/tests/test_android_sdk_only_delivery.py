@@ -8,7 +8,10 @@ import tempfile
 import unittest
 import zipfile
 
+from asr.tools.dingqiao_parameter_contract import canonical_contract_bytes
 
+
+ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = Path(__file__).parents[1] / "delivery/validate_android_sdk_only_delivery.py"
 SPEC = importlib.util.spec_from_file_location("validate_android_sdk_only_delivery", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
@@ -86,6 +89,8 @@ class AndroidSdkOnlyDeliveryTest(unittest.TestCase):
         internal_meta: bool = False,
         local_path: bool = False,
         tamper_checksum: bool = False,
+        stale_parameter_contract: bool = False,
+        stale_parameter_document: bool = False,
     ) -> None:
         root = f"amphion-dingqiao-asr-sdk-v{self.version}-20260730"
         files = {
@@ -110,6 +115,19 @@ class AndroidSdkOnlyDeliveryTest(unittest.TestCase):
         }
         for document in MODULE.REQUIRED_DOCS:
             files[document] = b"document"
+        contract = canonical_contract_bytes()
+        if stale_parameter_contract:
+            contract = contract.replace(b'"default": 0.35', b'"default": 0.40', 1)
+        files["docs/DINGQIAO_ASR_PARAMETER_CONTRACT.json"] = contract
+        parameter_doc = (
+            ROOT / "asr/android/docs/customer/语音识别SDK接口.md"
+        ).read_bytes()
+        if stale_parameter_document:
+            parameter_doc = parameter_doc.replace(
+                b"| `speakerVadThreshold` | `Number/String` | `0.35` |",
+                b"| `speakerVadThreshold` | `Number/String` | `0.40` |",
+            )
+        files["docs/语音识别SDK接口.md"] = parameter_doc
         if include_demo:
             files["demo/demo.apk"] = b"apk"
         checksums = []
@@ -177,6 +195,19 @@ class AndroidSdkOnlyDeliveryTest(unittest.TestCase):
             self._write_zip(path, tamper_checksum=True)
             with self.assertRaisesRegex(MODULE.DeliveryValidationError, "checksum mismatch"):
                 MODULE.validate_delivery(path, self.version)
+
+    def test_rejects_stale_parameter_contract_or_document(self) -> None:
+        for kwargs, message in (
+            ({"stale_parameter_contract": True}, "parameter contract"),
+            ({"stale_parameter_document": True}, "speakerVadThreshold"),
+        ):
+            with self.subTest(kwargs=kwargs), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "delivery.zip"
+                self._write_zip(path, **kwargs)
+                with self.assertRaisesRegex(
+                    (MODULE.DeliveryValidationError, ValueError), message
+                ):
+                    MODULE.validate_delivery(path, self.version)
 
     def test_rejects_oversized_zip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

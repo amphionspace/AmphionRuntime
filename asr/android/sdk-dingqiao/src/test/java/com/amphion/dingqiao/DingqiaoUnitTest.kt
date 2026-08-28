@@ -1,5 +1,6 @@
 package com.amphion.dingqiao
 
+import com.amphion.asr.AsrErrorCode
 import com.amphion.asr.AsrLanguage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -20,6 +21,65 @@ class RejectedFinalLifecycleTest {
     @Test
     fun lastRejectedFinal_completesSession() {
         assertTrue(RejectedFinalLifecycle.completesSession(true))
+    }
+}
+
+class VoiceprintRegistrationContractTest {
+
+    @Test
+    fun invalidSampleCountReturnsHarmonyCompatibleResult() {
+        val result = SpeechRecognizeSdk.registerVoiceprint(VoiceprintRegisterParams())
+
+        assertEquals(DingqiaoErrorCode.VOICEPRINT_SAMPLE_COUNT, result.status)
+        assertTrue(result.message.contains("sample count"))
+        assertTrue(result.voiceprintId.isEmpty())
+    }
+
+    @Test
+    fun invalidAudioInfoReturnsResultInsteadOfThrowing() {
+        val result = SpeechRecognizeSdk.registerVoiceprint(
+            VoiceprintRegisterParams(
+                samplePaths = listOf("missing.wav"),
+                audioInfo = AudioInfo(sampleRate = 8_000),
+            ),
+        )
+
+        assertEquals(DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED, result.status)
+        assertTrue(result.message.contains("sampleRate"))
+    }
+
+    @Test
+    fun licenseFailuresUseHarmonyCompatiblePublicErrors() {
+        for (source in listOf(
+            AsrErrorCode.LICENSE_MALFORMED,
+            AsrErrorCode.LICENSE_SIGNATURE_INVALID,
+            AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH,
+            AsrErrorCode.LICENSE_FEATURE_MISSING,
+        )) {
+            assertEquals(
+                DingqiaoErrorCode.LICENSE_INVALID,
+                SpeechRecognizeSdk.mapLicenseErrorCode(source),
+            )
+        }
+        for (source in listOf(
+            AsrErrorCode.LICENSE_EXPIRED,
+            AsrErrorCode.LICENSE_MAINTENANCE_EXPIRED,
+        )) {
+            assertEquals(
+                DingqiaoErrorCode.LICENSE_EXPIRED,
+                SpeechRecognizeSdk.mapLicenseErrorCode(source),
+            )
+        }
+        for (source in listOf(
+            AsrErrorCode.LICENSE_APP_MISMATCH,
+            AsrErrorCode.LICENSE_CERT_MISMATCH,
+            AsrErrorCode.LICENSE_DEVICE_MISMATCH,
+        )) {
+            assertEquals(
+                DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH,
+                SpeechRecognizeSdk.mapLicenseErrorCode(source),
+            )
+        }
     }
 }
 
@@ -352,7 +412,27 @@ class DingqiaoEngineConfigTest {
             speakerModelPath = "/tmp/eres2net.onnx",
         )
         assertEquals(800, sc.endpointSilenceMs)
-        assertEquals(0.40f, sc.speakerVad!!.threshold, 1e-6f)
+        assertEquals(0.35f, sc.speakerVad!!.threshold, 1e-6f)
+        assertEquals(1.5f, sc.speakerVad!!.winSec, 1e-6f)
+        assertEquals(0.5f, sc.speakerVad!!.hopSec, 1e-6f)
+        assertEquals(2, sc.speakerVad!!.consecutiveBelow)
+    }
+
+    @Test
+    fun speakerVadEnablementRequiresDocumentedBooleanType() {
+        assertTrue(
+            DingqiaoEngineConfig.enableSpeakerVad(
+                StartParams("enabled", AudioInfo(), mapOf("enableSpeakerVad" to true)),
+            ),
+        )
+        for (invalid in listOf("true", "1", 1)) {
+            assertFalse(
+                "enableSpeakerVad=$invalid must not bypass the cross-platform boolean contract",
+                DingqiaoEngineConfig.enableSpeakerVad(
+                    StartParams("invalid", AudioInfo(), mapOf("enableSpeakerVad" to invalid)),
+                ),
+            )
+        }
     }
 
     @Test
@@ -405,6 +485,12 @@ class DingqiaoEngineConfigTest {
             10_000,
             DingqiaoEngineConfig.vadBeginMs(
                 StartParams("s1", AudioInfo(), mapOf("vadBegin" to "20000")),
+            ),
+        )
+        assertEquals(
+            501,
+            DingqiaoEngineConfig.vadBeginMs(
+                StartParams("s1", AudioInfo(), mapOf("vadBegin" to 500.6)),
             ),
         )
     }
@@ -529,6 +615,12 @@ class DingqiaoEngineConfigTest {
             ),
         )
         assertEquals(
+            1_001L,
+            DingqiaoEngineConfig.maxAudioDurationMs(
+                StartParams("rounded", AudioInfo(), mapOf("maxAudioDuration" to 1000.6)),
+            ),
+        )
+        assertEquals(
             0L,
             DingqiaoEngineConfig.maxAudioDurationMs(
                 StartParams("s1", AudioInfo(), mapOf("maxAudioDuration" to Double.NaN)),
@@ -584,9 +676,9 @@ class DingqiaoEngineConfigTest {
         )
 
         assertEquals(800, config.endpointSilenceMs)
-        assertEquals(0.40f, config.speakerVad?.threshold)
-        assertEquals(1.0f, config.speakerVad?.winSec)
-        assertEquals(0.3f, config.speakerVad?.hopSec)
+        assertEquals(0.35f, config.speakerVad?.threshold)
+        assertEquals(1.5f, config.speakerVad?.winSec)
+        assertEquals(0.5f, config.speakerVad?.hopSec)
         assertEquals(2, config.speakerVad?.consecutiveBelow)
     }
 

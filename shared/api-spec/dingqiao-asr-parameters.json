@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "contract_id": "dingqiao-asr-cross-platform-parameters",
+  "description": "Android and HarmonyOS Dingqiao ASR parameters that customer business configuration may use without platform-specific branching.",
+  "common_delivery_profile": {
+    "languages": ["zh-CN", "zh-en", "zh_en"],
+    "audio": {
+      "audioType": "pcm",
+      "sampleRate": 16000,
+      "sampleBit": 16,
+      "soundChannel": 1,
+      "frameBytes": 640
+    }
+  },
+  "create_engine": {
+    "fields": {
+      "language": {"types": ["string"], "default": "zh-CN"},
+      "online": {"types": ["number"], "default": 1, "allowed": [1]}
+    },
+    "extra_params": {
+      "locate": {
+        "types": ["string"],
+        "default": "CN",
+        "status": "compatibility_noop"
+      },
+      "recognizerMode": {
+        "types": ["string"],
+        "default": "short",
+        "allowed": ["short", "long"],
+        "session_override": true
+      },
+      "sysGeneralLexicon": {
+        "types": ["string_array", "delimited_string"],
+        "default": []
+      },
+      "disablePrepack": {
+        "types": ["boolean", "number", "string"],
+        "default": true
+      }
+    }
+  },
+  "start": {
+    "fields": {
+      "sessionId": {
+        "types": ["string"],
+        "required": true,
+        "pattern": "^[A-Za-z0-9_-]+$"
+      },
+      "audioInfo": {
+        "types": ["audio_info"],
+        "default": "default_audio_info"
+      },
+      "speakerDiarization": {
+        "types": ["speaker_diarization_config", "null"],
+        "default": null,
+        "maxSpeakers": {"default": 4, "min": 1, "max": 4}
+      }
+    },
+    "extra_params": {
+      "recognitionMode": {
+        "types": ["number", "numeric_string"],
+        "default": 1,
+        "allowed": [1]
+      },
+      "recognizerMode": {
+        "types": ["string"],
+        "default_source": "create_engine.recognizerMode",
+        "fallback": "short",
+        "continuous_fallback": "long",
+        "allowed": ["short", "long"],
+        "priority": "session_then_engine_then_continuous_fallback"
+      },
+      "vadBegin": {
+        "types": ["number", "numeric_string"],
+        "default": null,
+        "min": 500,
+        "max": 10000,
+        "unit": "ms"
+      },
+      "vadEnd": {
+        "types": ["number", "numeric_string"],
+        "default": 800,
+        "min": 500,
+        "max": 10000,
+        "unit": "ms"
+      },
+      "enablePartialResult": {"types": ["boolean"], "default": true},
+      "enablePoliceEnhancement": {"types": ["boolean"], "default": true},
+      "maxAudioDuration": {
+        "types": ["number", "numeric_string"],
+        "default": null,
+        "min_exclusive": 0,
+        "max": 28800000,
+        "unit": "ms"
+      },
+      "enableContinuousRecognition": {
+        "types": ["boolean"],
+        "default": false,
+        "true_disables": "maxAudioDuration"
+      },
+      "endpointMaxUtteranceMs": {
+        "types": ["number", "numeric_string"],
+        "default": 20000,
+        "min_exclusive": 0,
+        "unit": "ms",
+        "applies_when": "recognizerMode=short"
+      },
+      "sessionGeneralLexicon": {
+        "types": ["string_array"],
+        "default": [],
+        "status": "unsupported_v1"
+      },
+      "enableVoiceprintVerification": {"types": ["boolean"], "default": false},
+      "enableSpeakerVad": {"types": ["boolean"], "default": false},
+      "voiceprintIds": {
+        "types": ["string_array", "delimited_string"],
+        "default": [],
+        "required_when": "enableVoiceprintVerification=true or enableSpeakerVad=true"
+      },
+      "speakerVadThreshold": {
+        "types": ["number", "numeric_string"],
+        "default": 0.35,
+        "min": -1.0,
+        "max": 1.0
+      },
+      "speakerVadWindowMs": {
+        "types": ["number", "numeric_string"],
+        "default": 1500,
+        "min": 500,
+        "max": 5000,
+        "unit": "ms"
+      },
+      "speakerVadHopMs": {
+        "types": ["number", "numeric_string"],
+        "default": 500,
+        "min": 100,
+        "max": 2000,
+        "unit": "ms"
+      },
+      "speakerVadConsecutiveBelow": {
+        "types": ["number", "numeric_string"],
+        "default": 2,
+        "min": 1,
+        "max": 5,
+        "rounding": "nearest_integer"
+      }
+    }
+  },
+  "speaker_diarization": {
+    "fields": {
+      "maxSpeakers": {
+        "types": ["number"],
+        "default": 4,
+        "integer": true,
+        "min": 1,
+        "max": 4
+      }
+    }
+  },
+  "voiceprint_register": {
+    "fields": {
+      "voiceprintId": {
+        "types": ["string"],
+        "default": "",
+        "status": "compatibility_noop_generated_secure_id_is_returned"
+      },
+      "samplePaths": {
+        "types": ["string_array"],
+        "default": [],
+        "min_items": 1,
+        "sample_duration_sec": {"min": 3, "max": 8}
+      },
+      "audioInfo": {
+        "types": ["audio_info"],
+        "default": "default_audio_info"
+      }
+    },
+    "result": {
+      "success_status": 0,
+      "failure": "return_status_and_message",
+      "voiceprintId": "generated_id_to_source_name_map"
+    }
+  },
+  "result_contract": {
+    "speaker_similarity_field": "speakerSimilarity",
+    "final_field": "isFinal",
+    "last_field": "isLast"
+  },
+  "error_contract": {
+    "license_malformed_signature_sdk_or_feature": {
+      "name": "LICENSE_INVALID",
+      "code": 1002200031
+    },
+    "license_or_maintenance_expired": {
+      "name": "LICENSE_EXPIRED",
+      "code": 1002200032
+    },
+    "license_application_certificate_or_device_mismatch": {
+      "name": "LICENSE_DEVICE_MISMATCH",
+      "code": 1002200033
+    }
+  },
+  "platform_extensions": {
+    "harmony": {
+      "enableTargetSpeakerEnhancement": {
+        "types": ["boolean"],
+        "default": false,
+        "status": "reserved_requires_approved_model",
+        "common_customer_configuration": false
+      },
+      "additional_language_aliases": ["zh-yue", "zh_yue"]
+    },
+    "android": {
+      "legacy_audio_frame_constant": "DINGQIAO_AUDIO_FRAME_BYTES",
+      "sdk_only_delivery_languages": ["zh-CN", "zh-en", "zh_en"]
+    }
+  }
+}

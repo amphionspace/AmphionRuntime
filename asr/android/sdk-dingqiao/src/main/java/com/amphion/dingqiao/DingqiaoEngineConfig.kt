@@ -9,6 +9,8 @@ import com.amphion.asr.TargetSpeakerConfig
 import com.amphion.asr.VadConfig
 import com.amphion.police.PoliceEngineConfig
 import java.io.File
+import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 internal object DingqiaoEngineConfig {
 
@@ -22,9 +24,9 @@ internal object DingqiaoEngineConfig {
     private const val MIN_VAD_BEGIN_MS = 500
     private const val MAX_VAD_BEGIN_MS = 10_000
     private const val MAX_AUDIO_DURATION_MS = 28_800_000L
-    private const val DEFAULT_SPEAKER_VAD_THRESHOLD = 0.40f
-    private const val DEFAULT_SPEAKER_VAD_WINDOW_MS = 1000
-    private const val DEFAULT_SPEAKER_VAD_HOP_MS = 300
+    private const val DEFAULT_SPEAKER_VAD_THRESHOLD = 0.35f
+    private const val DEFAULT_SPEAKER_VAD_WINDOW_MS = 1500
+    private const val DEFAULT_SPEAKER_VAD_HOP_MS = 500
     private const val DEFAULT_SPEAKER_VAD_CONSECUTIVE_BELOW = 2
 
     fun mapLanguage(language: String): AsrLanguage = when (language.lowercase()) {
@@ -127,14 +129,14 @@ internal object DingqiaoEngineConfig {
 
     fun vadBeginMs(startParams: StartParams): Int? {
         if (!startParams.extraParams.containsKey("vadBegin")) return null
-        val value = finiteLong(startParams.extraParams["vadBegin"]) ?: return null
-        return value.coerceIn(MIN_VAD_BEGIN_MS.toLong(), MAX_VAD_BEGIN_MS.toLong()).toInt()
+        val value = finiteDouble(startParams.extraParams["vadBegin"]) ?: return null
+        return value.coerceIn(MIN_VAD_BEGIN_MS.toDouble(), MAX_VAD_BEGIN_MS.toDouble()).roundToInt()
     }
 
     fun vadEndMs(startParams: StartParams?): Int {
         val raw = startParams?.extraParams?.get("vadEnd") ?: return DEFAULT_VAD_END_MS
         val value = finiteDouble(raw) ?: return DEFAULT_VAD_END_MS
-        return value.toInt().coerceIn(MIN_VAD_END_MS, MAX_VAD_END_MS)
+        return value.coerceIn(MIN_VAD_END_MS.toDouble(), MAX_VAD_END_MS.toDouble()).roundToInt()
     }
 
     fun endpointMaxUtteranceSec(startParams: StartParams?): Float {
@@ -173,7 +175,7 @@ internal object DingqiaoEngineConfig {
         if (startParams.extraParams["enableContinuousRecognition"] == true) return 0L
         val value = finiteDouble(startParams.extraParams["maxAudioDuration"]) ?: return 0L
         if (value <= 0.0) return 0L
-        return value.coerceAtMost(MAX_AUDIO_DURATION_MS.toDouble()).toLong().coerceAtLeast(1L)
+        return value.coerceAtMost(MAX_AUDIO_DURATION_MS.toDouble()).roundToLong().coerceAtLeast(1L)
     }
 
     fun validateRecognitionMode(startParams: StartParams) {
@@ -205,7 +207,7 @@ internal object DingqiaoEngineConfig {
     }
 
     fun enableSpeakerVad(startParams: StartParams): Boolean {
-        return asBoolean(startParams.extraParams["enableSpeakerVad"])
+        return startParams.extraParams["enableSpeakerVad"] as? Boolean ?: false
     }
 
     private fun speakerVadConfig(startParams: StartParams?): SpeakerVadConfig {
@@ -251,13 +253,6 @@ internal object DingqiaoEngineConfig {
         else -> emptyList()
     }
 
-    private fun asBoolean(raw: Any?): Boolean = when (raw) {
-        is Boolean -> raw
-        is String -> raw.equals("true", ignoreCase = true) || raw == "1"
-        is Number -> raw.toInt() != 0
-        else -> false
-    }
-
     /** Mirrors Harmony's tolerant host-parameter policy without changing strict capability flags. */
     private fun compatibleBoolean(raw: Any?, defaultValue: Boolean): Boolean = when (raw) {
         is Boolean -> raw
@@ -267,12 +262,10 @@ internal object DingqiaoEngineConfig {
     }
 
     private fun asInt(raw: Any?, defaultValue: Int): Int =
-        finiteDouble(raw)?.toInt() ?: defaultValue
+        finiteDouble(raw)?.roundToInt() ?: defaultValue
 
     private fun asFloat(raw: Any?, defaultValue: Float): Float =
         finiteDouble(raw)?.toFloat() ?: defaultValue
-
-    private fun finiteLong(raw: Any?): Long? = finiteDouble(raw)?.toLong()
 
     private fun finiteDouble(raw: Any?): Double? = when (raw) {
         is Number -> raw.toDouble().takeIf { it.isFinite() }

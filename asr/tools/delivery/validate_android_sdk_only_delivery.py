@@ -7,8 +7,19 @@ import argparse
 import hashlib
 import io
 import re
+import sys
 import zipfile
 from pathlib import Path, PurePosixPath
+
+ROOT = Path(__file__).resolve().parents[3]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from asr.tools.dingqiao_parameter_contract import (  # noqa: E402
+    ParameterContractError,
+    load_contract,
+    validate_parameter_document,
+)
 
 
 # The current zh-en fat AAR is about 251 MiB. 320 MiB leaves model-growth headroom while
@@ -17,6 +28,7 @@ MAX_SDK_ONLY_ZIP_BYTES = 320 * 1024 * 1024
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED_DOCS = {
     "docs/CHANGELOG.md",
+    "docs/DINGQIAO_ASR_PARAMETER_CONTRACT.json",
     "docs/DINGQIAO_INTEGRATION.md",
     "docs/DINGQIAO_VOICEPRINT_MODEL.md",
     "docs/LICENSE.md",
@@ -226,6 +238,17 @@ def validate_delivery(zip_path: Path, version: str) -> None:
         ):
             if statement not in readme:
                 raise DeliveryValidationError(f"README missing delivery boundary: {statement}")
+        embedded_contract = load_contract(
+            archive.read(f"{root}/docs/DINGQIAO_ASR_PARAMETER_CONTRACT.json")
+        )
+        if embedded_contract != load_contract():
+            raise DeliveryValidationError(
+                "embedded Dingqiao parameter contract does not match current source"
+            )
+        validate_parameter_document(
+            archive.read(f"{root}/docs/语音识别SDK接口.md").decode("utf-8"),
+            embedded_contract,
+        )
         _validate_checksums(archive, root, files)
         _validate_aar(archive.read(f"{root}/{aars[0]}"))
 
@@ -237,7 +260,13 @@ def main() -> int:
     args = parser.parse_args()
     try:
         validate_delivery(args.zip_path, args.version)
-    except (DeliveryValidationError, OSError, UnicodeError, zipfile.BadZipFile) as error:
+    except (
+        DeliveryValidationError,
+        OSError,
+        ParameterContractError,
+        UnicodeError,
+        zipfile.BadZipFile,
+    ) as error:
         raise SystemExit(f"[ERROR] {error}") from error
     print(f"[OK] Android zh-en SDK-only delivery validated: {args.zip_path}")
     return 0
