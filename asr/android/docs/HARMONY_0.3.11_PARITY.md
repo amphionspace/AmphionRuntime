@@ -1,6 +1,7 @@
-# Android / HarmonyOS ASR 0.3.11 对齐清单
+# Android / HarmonyOS ASR 0.3.12 对齐清单
 
-本文约束 Android 非 Demo 能力对齐 HarmonyOS 0.3.11 的范围和发布条件。版本号只表示通过本清单的
+本文最初用于 Android 非 Demo 能力对齐 HarmonyOS 0.3.11；现已继续核对至主分支 HarmonyOS
+0.3.12。版本号只表示通过本清单的
 正式交付身份，不能用 Demo 页面可见、代码已编译或单一真机识别成功代替 SDK 契约验收。
 
 ## 要改变的行为
@@ -33,6 +34,7 @@
 
 | 能力 | Android 当前状态 | 结论 |
 | --- | --- | --- |
+| 客户参数契约 | `shared/api-spec/dingqiao-asr-parameters.json` 固化共同字段、类型、默认值、取值范围、优先级和舍入规则；两端实现、客户文档及 Android SDK-only 交付包由自动测试绑定 | 静态门禁通过 |
 | short/long 与 stable-prefix | Core 已有同源 native 语义；本分支补会话参数、场景映射和门禁 | 待真机 |
 | 声纹校验 | Android/HarmonyOS 构建均使用 `shared/models/asr/dingqiao/eres2net.onnx`，公共字段使用 `speakerSimilarity` | 待组合真机 |
 | Speaker VAD | Android 在 decoder 串行路径同步评分，不存在 HarmonyOS 异步 hop 乱序路径 | 待换人边界真机 |
@@ -43,12 +45,12 @@
 | Diagnostics SDK | 独立 diagnostics AAR；schema v2、匿名会话、WAV/timeline/callback、资源采样、崩溃 journal 与 model/build identity 已补齐 | 单测与 AAR 隔离检查通过 |
 | Speaker Diarization | 独立 JNI 使用相同 pyannote powerset mask 与 `eres2net`；Android/HarmonyOS 构建均使用 `shared/models/asr/dingqiao` 中的模型和许可证；10s/2.5s 离线分窗、重叠说话、在线/全局聚类和 finish 双路屏障已接入 | Debug/Release、状态机及 fat AAR 结构通过，待离线真机 |
 | 生命周期释放 | 本分支补 finish 后 shutdown/relicense drain 用例与有界释放 | 单测通过，待真机 |
-| 版本/交付身份 | Android 正式版本暂保持 0.3.3，必须在最终真机门禁完成后再冻结为 0.3.11 | 正确冻结 |
+| 版本/交付身份 | Android 制品版本升级为 0.3.4；最终真机门禁完成前仅生成 `PREVIEW / NON-CANONICAL` 包 | 预览冻结 |
 
 代码、模型、公共 API、文档和交付脚本的已知静态缺口已经关闭；Debug/Release/Diagnostics 软件
 门禁及预览 fat AAR 结构验证通过。快速连续 session 的 decoder/native 静默屏障已补针对性回归，
 仍需与离线 Speaker Diarization、LAC、Speaker VAD 和完整生命周期一起完成最终真机发布门禁。
-在全部门禁完成前，不把 Android 制品命名或描述为正式 0.3.11。
+在全部门禁完成前，不把 Android 0.3.4 制品描述为正式交付。
 
 ## 0.3.4–0.3.11 反向版本审计
 
@@ -60,6 +62,7 @@
 | 0.3.9 | Runtime 日志等级 | `setLogLevel` 覆盖授权验证和 Runtime 准备，默认 `WARN` |
 | 0.3.10 | 无独立公开发布节 | 无额外公共契约需迁移 |
 | 0.3.11 | short/long、Speaker VAD 短句、LAC 人名、端侧 Speaker Diarization | 共享 native short/long；LAC 和说话人模型逐文件哈希；公共类型、回调与 finish 屏障已对齐 |
+| 0.3.12 | 冷启动采音连续性、Speaker VAD 冷模型 final 门控、角色分离交付冻结 | Android 声纹 extractor 在启用能力的 engine 创建阶段预加载，不存在 HarmonyOS 异步模型未就绪时 final 越过门控的窗口；角色分离公共模型、回调和 finish 屏障已在 0.3.11 对齐分支补齐；锁屏持续录音属于 Demo/系统后台任务实现差异，不改变 SDK 参数契约 |
 
 Android 与 HarmonyOS 使用不同 ONNX Runtime 版本和目标格式，ASR ORT 产物不要求
 字节相同；它们必须绑定同一源模型身份，并在正式组包时由同一最终提交的
@@ -67,7 +70,7 @@ provenance 再校验。这是发布身份门禁，不是用跨平台二进制哈
 
 ## 发布门禁
 
-| 能力 | Android 0.3.11 发布要求 |
+| 能力 | Android 0.3.4 发布要求 |
 | --- | --- |
 | short/long | 两种模式参数优先级、Rule3 语义和 long stable-prefix 真机门禁通过 |
 | 生命周期 | start-write、finish-shutdown、finish-shutdown-relicense、cancel、重入和恢复通过 |

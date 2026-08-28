@@ -2,7 +2,7 @@
 # 鼎桥正式交付包（默认 fat AAR + 对齐 Demo；--sdk-only 仅交付中英 fat AAR）。
 #
 # 用法（AmphionRuntime 仓库根目录）:
-#   bash asr/tools/delivery/pack_dingqiao_customer_delivery.sh [--sdk-only] [交付版本号]
+#   bash asr/tools/delivery/pack_dingqiao_customer_delivery.sh [--sdk-only] [--preview] [交付版本号]
 #
 # Demo APK 签名：
 #   正式交付应让 Gradle Release 直接产出已签名 APK，或提供以下环境变量对 unsigned APK 签名：
@@ -26,14 +26,17 @@ AR_ROOT="$(dingqiao_ar_root_from_repo "$REPO_ROOT")"
 CUSTOMER_DOCS="$AR_ROOT/docs/customer"
 BUILD_DATE="$(date +%Y%m%d)"
 SDK_ONLY=false
+PREVIEW=false
 VERSION_ARG=""
 
 usage() {
   cat <<'EOF'
-Usage: pack_dingqiao_customer_delivery.sh [--sdk-only] [VERSION]
+Usage: pack_dingqiao_customer_delivery.sh [--sdk-only] [--preview] [VERSION]
 
 Options:
   --sdk-only  Package only the zh-en fat AAR and public customer documents.
+  --preview   Mark every artifact layer PREVIEW / NON-CANONICAL. Required until
+              the exact version and source commit exist in the release ledger.
   -h, --help  Show this help.
 EOF
 }
@@ -41,6 +44,7 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --sdk-only) SDK_ONLY=true; shift ;;
+    --preview) PREVIEW=true; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 2 ;;
     *)
@@ -52,20 +56,41 @@ while [[ $# -gt 0 ]]; do
 done
 
 dingqiao_load_git_provenance "$REPO_ROOT"
-dingqiao_assert_reproducible_build
-
 VERSION="$(dingqiao_resolve_delivery_version "$AR_ROOT" "$VERSION_ARG")"
+if [[ "$PREVIEW" == true ]]; then
+  dingqiao_assert_reproducible_build
+  python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
+    --repo "$REPO_ROOT" verify-package \
+    --platform android --version "$VERSION" --source-commit "$GIT_COMMIT_FULL"
+  DELIVERY_STATUS="PREVIEW / NON-CANONICAL"
+  DINGQIAO_DELIVERY_STATUS_CODE="preview-non-canonical"
+  NAME_SUFFIX="-PREVIEW-NON-CANONICAL"
+else
+  if [[ "$GIT_DIRTY" == true ]]; then
+    echo "[ERROR] formal delivery requires a clean worktree; dirty builds must use --preview." >&2
+    exit 1
+  fi
+  python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
+    --repo "$REPO_ROOT" verify-package --require-recorded \
+    --platform android --version "$VERSION" --source-commit "$GIT_COMMIT_FULL"
+  DELIVERY_STATUS="FORMAL"
+  DINGQIAO_DELIVERY_STATUS_CODE="formal"
+  NAME_SUFFIX=""
+fi
+export DINGQIAO_DELIVERY_STATUS_CODE
+
 if [[ "$SDK_ONLY" == true ]]; then
-  PKG_NAME="amphion-dingqiao-asr-sdk-v${VERSION}-${BUILD_DATE}"
+  PKG_NAME="amphion-dingqiao-asr-sdk-v${VERSION}-${BUILD_DATE}${NAME_SUFFIX}"
   OUT_ROOT="$DQ_ROOT/delivery/$PKG_NAME"
   ZIP_PATH="$DQ_ROOT/delivery/${PKG_NAME}.zip"
 else
-  PKG_NAME="amphion-dingqiao-v${VERSION}-customer"
+  PKG_NAME="amphion-dingqiao-v${VERSION}-customer${NAME_SUFFIX}"
   OUT_ROOT="$DQ_ROOT/delivery/$PKG_NAME"
   ZIP_PATH="$DQ_ROOT/delivery/${PKG_NAME}-${BUILD_DATE}.zip"
 fi
-AAR_NAME="dingqiao-asr-v${VERSION}.aar"
-FAT_AAR="$AR_ROOT/build/dingqiao-delivery/$AAR_NAME"
+FAT_AAR_NAME="dingqiao-asr-v${VERSION}.aar"
+AAR_NAME="dingqiao-asr-v${VERSION}${NAME_SUFFIX}.aar"
+FAT_AAR="$AR_ROOT/build/dingqiao-delivery/$FAT_AAR_NAME"
 DEMO_APK_DIR="$AR_ROOT/samples/dingqiao-demo/build/outputs/apk/release"
 DEMO_APK_SRC="$DEMO_APK_DIR/dingqiao-demo-release.apk"
 DEMO_LIC_SRC="$AR_ROOT/samples/dingqiao-demo/src/main/assets/amphion-license.lic"
@@ -146,7 +171,7 @@ if [[ "$SDK_ONLY" != true ]]; then
   mkdir -p "$OUT_ROOT/demo"
 fi
 
-cp "$FAT_AAR" "$OUT_ROOT/aar/"
+cp "$FAT_AAR" "$OUT_ROOT/aar/$AAR_NAME"
 if [[ "$SDK_ONLY" != true ]]; then
   cp "$DEMO_APK_SRC" "$OUT_ROOT/demo/dingqiao-demo-release.apk"
 fi
@@ -165,6 +190,7 @@ if [[ "$SDK_ONLY" == true ]]; then
   dingqiao_write_version_txt "$OUT_ROOT/VERSION.txt" \
     "amphion-dingqiao-asr-sdk" "$VERSION" \
     "platform=android" \
+    "delivery_status=$DELIVERY_STATUS" \
     "language=zh-en" \
     "abi=arm64-v8a" \
     "sdk_only=true" \
@@ -181,6 +207,7 @@ else
   APK_MB="$(du -m "$OUT_ROOT/demo/dingqiao-demo-release.apk" | awk '{print $1}')"
   dingqiao_write_version_txt "$OUT_ROOT/VERSION.txt" \
     "amphion-dingqiao-customer" "$VERSION" \
+    "delivery_status=$DELIVERY_STATUS" \
     "product=amphion-dingqiao-asr" \
     "integration=scheme-a-fat-aar" \
     "aar_file=$AAR_NAME" \
@@ -198,6 +225,8 @@ if [[ "$SDK_ONLY" == true ]]; then
   cat > "$OUT_ROOT/README.txt" <<EOF
 鼎桥 Android 离线 ASR SDK v${VERSION}
 ====================================
+
+交付状态：${DELIVERY_STATUS}
 
 本包为 SDK-only 中英交付，仅包含集成用 AAR、客户文档、版本信息和校验清单。
 内置中英 ASR、标点、ITN、VAD、声纹及警务文本增强能力；警务增强默认开启，可按会话关闭。
@@ -232,6 +261,8 @@ else
   cat > "$OUT_ROOT/README.txt" <<EOF
 鼎桥警务语音识别 SDK v${VERSION}
 ================================
+
+交付状态：${DELIVERY_STATUS}
 
 目录
 ----
@@ -281,8 +312,12 @@ echo "[4/4] zip (UTF-8 EFS for Windows) ..."
 rm -f "$ZIP_PATH"
 dingqiao_zip_delivery "$OUT_ROOT" "$ZIP_PATH"
 if [[ "$SDK_ONLY" == true ]]; then
+  VALIDATE_ARGS=("$ZIP_PATH" --version "$VERSION")
+  if [[ "$PREVIEW" == true ]]; then
+    VALIDATE_ARGS+=(--preview)
+  fi
   python3 "$REPO_ROOT/asr/tools/delivery/validate_android_sdk_only_delivery.py" \
-    "$ZIP_PATH" --version "$VERSION"
+    "${VALIDATE_ARGS[@]}"
 fi
 
 echo "[OK] tree: $OUT_ROOT"

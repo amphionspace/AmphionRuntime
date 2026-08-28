@@ -5,6 +5,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
 import deviceInfo from '@ohos.deviceInfo';
 import hilog from '@ohos.hilog';
+import { validateAudioInfo } from './AudioInfoValidation';
 import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';
 import { DingqiaoSpeakerModelAssets } from './DingqiaoSpeakerModelAssets';
 import { DiagnosticsModule } from './DiagnosticsModule';
@@ -41,6 +42,7 @@ import {
   DINGQIAO_VOICEPRINT_MIN_SEC,
   DingqiaoErrorCode,
   DingqiaoEventCode,
+  DingqiaoOnlineMode,
   DiarizedUtterance,
   LicenseActivationCallback,
   LicenseActivationResult,
@@ -187,7 +189,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function vadEndMs(params?: StartParams): number {
-  return clamp(numberParam(params?.extraParams ?? {}, 'vadEnd', 800), 500, 10000);
+  return Math.round(clamp(numberParam(params?.extraParams ?? {}, 'vadEnd', 800), 500, 10000));
 }
 
 function vadBeginMs(params: StartParams): number | undefined {
@@ -219,14 +221,6 @@ function validateRecognizerMode(params: CreateEngineParams): void {
   if (raw === undefined) return;
   const mode = `${raw}`.trim().toLowerCase();
   if (mode !== 'short' && mode !== 'long') throw new Error('recognizerMode must be short or long');
-}
-
-function validateAudioInfo(audioInfo: AudioInfo): string {
-  if (audioInfo.audioType !== 'pcm') return 'audioType must be pcm';
-  if (audioInfo.sampleRate !== 16000) return 'sampleRate must be 16000';
-  if (audioInfo.sampleBit !== 16) return 'sampleBit must be 16';
-  if (audioInfo.soundChannel !== 1) return 'soundChannel must be 1';
-  return '';
 }
 
 function isValidSessionId(sessionId: string): boolean {
@@ -328,6 +322,7 @@ const DEFAULT_HOTWORDS_SCORE: number = 3.0;
 function buildAsrConfig(context: Context, params: CreateEngineParams, startParams?: StartParams,
   withTargetSpeaker: boolean = false, withSpeakerVad: boolean = false,
   speakerModelPath?: string): AsrConfig {
+  if (params.online !== DingqiaoOnlineMode.OFFLINE) throw new Error('only offline mode is supported');
   validateRecognizerMode(params);
   const config = new AsrConfig();
   config.numThreads = DEFAULT_ASR_NUM_THREADS;
@@ -400,8 +395,8 @@ function buildTargetSpeakerConfig(startParams: StartParams | undefined,
 function buildSpeakerVadConfig(extra: Record<string, Object>): SpeakerVadConfig {
   const config = new SpeakerVadConfig();
   config.threshold = clamp(numberParam(extra, 'speakerVadThreshold', 0.35), -1.0, 1.0);
-  config.winSec = clamp(numberParam(extra, 'speakerVadWindowMs', 1500), 500, 5000) / 1000;
-  config.hopSec = clamp(numberParam(extra, 'speakerVadHopMs', 500), 100, 2000) / 1000;
+  config.winSec = Math.round(clamp(numberParam(extra, 'speakerVadWindowMs', 1500), 500, 5000)) / 1000;
+  config.hopSec = Math.round(clamp(numberParam(extra, 'speakerVadHopMs', 500), 100, 2000)) / 1000;
   config.consecutiveBelow = Math.round(clamp(numberParam(extra, 'speakerVadConsecutiveBelow', 2), 1, 5));
   config.enabledByDefault = false;
   return config;
@@ -1769,6 +1764,12 @@ export class SpeechRecognizeSdk {
 
   static registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult {
     const result = new VoiceprintRegisterResult();
+    const audioError = validateAudioInfo(params.audioInfo);
+    if (audioError !== '') {
+      result.status = DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED;
+      result.message = audioError;
+      return result;
+    }
     if (params.samplePaths.length < DINGQIAO_VOICEPRINT_MIN_SAMPLES) {
       result.status = DingqiaoErrorCode.VOICEPRINT_SAMPLE_COUNT;
       result.message = `sample count must be >= ${DINGQIAO_VOICEPRINT_MIN_SAMPLES}`;

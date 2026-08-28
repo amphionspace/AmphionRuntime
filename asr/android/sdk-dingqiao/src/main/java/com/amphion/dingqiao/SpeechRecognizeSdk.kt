@@ -502,49 +502,70 @@ object SpeechRecognizeSdk {
      */
     @JvmStatic
     fun registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult {
-        params.audioInfo.validate()
+        runCatching { params.audioInfo.validate() }.exceptionOrNull()?.let { error ->
+            return voiceprintRegistrationFailure(
+                DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
+                error.message ?: "invalid voiceprint audioInfo",
+            )
+        }
         val count = params.samplePaths.size
         if (count < DINGQIAO_VOICEPRINT_MIN_SAMPLES) {
-            throw DingqiaoEngineException(
+            return voiceprintRegistrationFailure(
                 DingqiaoErrorCode.VOICEPRINT_SAMPLE_COUNT,
                 "sample count must be >= $DINGQIAO_VOICEPRINT_MIN_SAMPLES",
             )
         }
-        val store = requireStore()
-        val modelPath = store.speakerModelPath()
-        DingqiaoSpeakerModelAssets.ensureInstalled(requireContext(), modelPath)
-        if (!DingqiaoSpeakerModelAssets.isReady(modelPath)) {
-            throw DingqiaoEngineException(
-                DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
-                "speaker model not found: ${modelPath.absolutePath}",
+        return try {
+            val store = requireStore()
+            val modelPath = store.speakerModelPath()
+            DingqiaoSpeakerModelAssets.ensureInstalled(requireContext(), modelPath)
+            if (!DingqiaoSpeakerModelAssets.isReady(modelPath)) {
+                return voiceprintRegistrationFailure(
+                    DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
+                    "speaker model not found: ${modelPath.absolutePath}",
+                )
+            }
+            val segments = mutableListOf<FloatArray>()
+            val minMs = DINGQIAO_VOICEPRINT_MIN_SEC * 1000L
+            val maxMs = DINGQIAO_VOICEPRINT_MAX_SEC * 1000L
+            for (path in params.samplePaths) {
+                val file = File(path)
+                if (!file.isFile) {
+                    return voiceprintRegistrationFailure(
+                        DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
+                        "sample not found: $path",
+                    )
+                }
+                val pcm = PcmIo.readPcm16k(file)
+                val durationMs = PcmIo.durationMs(pcm.size)
+                if (durationMs !in minMs..maxMs) {
+                    return voiceprintRegistrationFailure(
+                        DingqiaoErrorCode.VOICEPRINT_SAMPLE_DURATION,
+                        "sample duration must be ${DINGQIAO_VOICEPRINT_MIN_SEC}s..${DINGQIAO_VOICEPRINT_MAX_SEC}s: $path",
+                    )
+                }
+                segments += PcmIo.shortsToFloats(pcm)
+            }
+            SpeakerEnroller(modelPath.absolutePath).use { enroller ->
+                val embedding = enroller.enroll(segments)
+                store.saveVoiceprint(params.samplePaths, embedding)
+            }
+        } catch (error: Throwable) {
+            voiceprintRegistrationFailure(
+                (error as? DingqiaoEngineException)?.errorCode
+                    ?: DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
+                error.message ?: "voiceprint registration failed",
             )
         }
-        val segments = mutableListOf<FloatArray>()
-        val minMs = DINGQIAO_VOICEPRINT_MIN_SEC * 1000L
-        val maxMs = DINGQIAO_VOICEPRINT_MAX_SEC * 1000L
-        for (path in params.samplePaths) {
-            val file = File(path)
-            if (!file.isFile) {
-                throw DingqiaoEngineException(
-                    DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
-                    "sample not found: $path",
-                )
-            }
-            val pcm = PcmIo.readPcm16k(file)
-            val durationMs = PcmIo.durationMs(pcm.size)
-            if (durationMs !in minMs..maxMs) {
-                throw DingqiaoEngineException(
-                    DingqiaoErrorCode.VOICEPRINT_SAMPLE_DURATION,
-                    "sample duration must be ${DINGQIAO_VOICEPRINT_MIN_SEC}s..${DINGQIAO_VOICEPRINT_MAX_SEC}s: $path",
-                )
-            }
-            segments += PcmIo.shortsToFloats(pcm)
-        }
-        return SpeakerEnroller(modelPath.absolutePath).use { enroller ->
-            val embedding = enroller.enroll(segments)
-            store.saveVoiceprint(params.samplePaths, embedding)
-        }
     }
+
+    private fun voiceprintRegistrationFailure(
+        errorCode: Int,
+        message: String,
+    ): VoiceprintRegisterResult = VoiceprintRegisterResult(
+        status = errorCode,
+        message = message,
+    )
 
     /**
      * 注册声纹（异步回调）。注册需加载 ~38MB 声纹模型并计算 embedding，属重操作；
@@ -553,12 +574,11 @@ object SpeechRecognizeSdk {
     @JvmStatic
     fun registerVoiceprint(params: VoiceprintRegisterParams, callback: VoiceprintRegisterCallback) {
         engineExecutor.execute {
-            try {
-                callback.onResult(registerVoiceprint(params))
-            } catch (t: Throwable) {
-                val code = (t as? DingqiaoEngineException)?.errorCode
-                    ?: DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED
-                callback.onError(code, t.message ?: "registerVoiceprint failed")
+            val result = registerVoiceprint(params)
+            if (result.status == 0) {
+                callback.onResult(result)
+            } else {
+                callback.onError(result.status, result.message.ifBlank { "registerVoiceprint failed" })
             }
         }
     }
@@ -817,22 +837,25 @@ object SpeechRecognizeSdk {
     private fun extractAsrErrorCode(message: String?): Int? =
         Regex("code=(\\d+)").find(message.orEmpty())?.groupValues?.getOrNull(1)?.toIntOrNull()
 
-    private fun mapLicenseErrorCode(asrCode: Int?): Int = when (asrCode) {
+    internal fun mapLicenseErrorCode(asrCode: Int?): Int = when (asrCode) {
         AsrErrorCode.LICENSE_MISSING -> DingqiaoErrorCode.LICENSE_FILE_UNREADABLE
         AsrErrorCode.LICENSE_MALFORMED,
         AsrErrorCode.LICENSE_SIGNATURE_INVALID,
+        AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH,
+        AsrErrorCode.LICENSE_FEATURE_MISSING,
         -> DingqiaoErrorCode.LICENSE_INVALID
-        AsrErrorCode.LICENSE_EXPIRED -> DingqiaoErrorCode.LICENSE_EXPIRED
-        AsrErrorCode.LICENSE_APP_MISMATCH -> DingqiaoErrorCode.LICENSE_APP_MISMATCH
-        AsrErrorCode.LICENSE_CERT_MISMATCH -> DingqiaoErrorCode.LICENSE_CERT_MISMATCH
+        AsrErrorCode.LICENSE_EXPIRED,
+        AsrErrorCode.LICENSE_MAINTENANCE_EXPIRED,
+        -> DingqiaoErrorCode.LICENSE_EXPIRED
+        AsrErrorCode.LICENSE_APP_MISMATCH,
+        AsrErrorCode.LICENSE_CERT_MISMATCH,
+        -> DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH
         AsrErrorCode.LICENSE_DEVICE_MISMATCH -> DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH
         else -> DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED
     }
 
     private fun licenseStatusForError(code: Int): Int = when (code) {
         DingqiaoErrorCode.LICENSE_EXPIRED -> 1
-        DingqiaoErrorCode.LICENSE_APP_MISMATCH,
-        DingqiaoErrorCode.LICENSE_CERT_MISMATCH,
         DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH,
         -> 3
         else -> 2

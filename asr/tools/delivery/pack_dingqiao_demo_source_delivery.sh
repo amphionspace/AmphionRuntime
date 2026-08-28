@@ -27,10 +27,18 @@ BUILD_DATE="$(date +%Y%m%d)"
 DEMO_SRC="$AR_ROOT/samples/dingqiao-demo"
 
 VERSION="$(dingqiao_resolve_delivery_version "$AR_ROOT" "${1:-}")"
-AAR_NAME="dingqiao-asr-v${VERSION}.aar"
-FAT_AAR="${DINGQIAO_FAT_AAR:-$AR_ROOT/build/dingqiao-delivery/$AAR_NAME}"
+FAT_AAR_NAME="dingqiao-asr-v${VERSION}.aar"
+if [[ "${DINGQIAO_DELIVERY_STATUS_CODE:-formal}" == "preview-non-canonical" ]]; then
+  DELIVERY_STATUS="PREVIEW / NON-CANONICAL"
+  NAME_SUFFIX="-PREVIEW-NON-CANONICAL"
+else
+  DELIVERY_STATUS="FORMAL"
+  NAME_SUFFIX=""
+fi
+AAR_NAME="dingqiao-asr-v${VERSION}${NAME_SUFFIX}.aar"
+FAT_AAR="${DINGQIAO_FAT_AAR:-$AR_ROOT/build/dingqiao-delivery/$FAT_AAR_NAME}"
 
-PKG_NAME="amphion-dingqiao-demo-src-v${VERSION}"
+PKG_NAME="amphion-dingqiao-demo-src-v${VERSION}${NAME_SUFFIX}"
 OUT_ROOT="${DINGQIAO_DEMO_SRC_OUT_ROOT:-$DQ_ROOT/delivery/$PKG_NAME}"
 ZIP_PATH="$DQ_ROOT/delivery/${PKG_NAME}-${BUILD_DATE}.zip"
 
@@ -286,6 +294,8 @@ EOF
 cat > "$OUT_ROOT/README.txt" <<EOF
 鼎桥警务语音识别 SDK — Demo 参考工程源码 v${VERSION}
 ====================================================
+
+交付状态：${DELIVERY_STATUS}
 
 本包为「纯 Demo 模块源码 + fat AAR + 可安装 Demo APK + 客户文档」的独立 Gradle 工程。
 不含 SDK 核心源码、警务规则资产、打包脚本或私钥。
