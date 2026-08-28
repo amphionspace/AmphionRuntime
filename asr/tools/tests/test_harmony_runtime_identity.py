@@ -37,7 +37,7 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
             """
             assert.equal(HARMONY_SDK_VERSION, '0.3.12');
             assert.equal(HARMONY_SDK_MAJOR, 1);
-            assert.equal(HARMONY_SDK_RELEASE_DATE, '2026-08-27');
+            assert.equal(HARMONY_SDK_RELEASE_DATE, '2026-08-28');
             """
         )
 
@@ -47,14 +47,14 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
         self.assertIn("from './RuntimeIdentity'", license_source)
         self.assertNotIn("0.2.0-harmony", runtime)
 
-    def test_runtime_identity_matches_latest_delivery_ledger(self) -> None:
+    def test_delivery_ledger_keeps_last_actual_delivery_until_packaging(self) -> None:
         history = json.loads(
             (REPO_ROOT / "delivery/asr-sdk-release-history.json").read_text(encoding="utf-8")
         )
         harmony_deliveries = [
             entry for entry in history["deliveries"] if entry["platform"] == "harmony"
         ]
-        self.assertEqual(harmony_deliveries[-1]["version"], "0.3.11")
+        self.assertEqual(harmony_deliveries[-1]["version"], "0.3.9")
 
     def test_license_major_and_maintenance_boundaries_fail_closed(self) -> None:
         self.run_identity(
@@ -73,6 +73,10 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
             );
             assert.equal(
                 evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-08-27', HARMONY_SDK_RELEASE_DATE),
+              LicenseIdentityFailure.MAINTENANCE_EXPIRED,
+            );
+            assert.equal(
+                evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-08-28', HARMONY_SDK_RELEASE_DATE),
               LicenseIdentityFailure.NONE,
             );
             """
