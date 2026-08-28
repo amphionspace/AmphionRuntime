@@ -197,6 +197,41 @@ class AsrReleaseTrackerTest(unittest.TestCase):
         self.assertIn(f"0.3.2 (`{self.android_base}`)", rendered)
         self.assertNotIn("上一交付：0.3.3", rendered)
 
+    def test_formal_packaging_requires_exact_recorded_version_and_source(self) -> None:
+        with self.assertRaisesRegex(
+            MODULE.ReleaseTrackerError, "PREVIEW / NON-CANONICAL"
+        ):
+            MODULE.verify_recorded_packaging_version(
+                repo=self.repo,
+                history_path=self.history_path,
+                platform="android",
+                version="0.3.3",
+                source_commit=self.current_commit,
+            )
+
+        payload = json.loads(self.history_path.read_text(encoding="utf-8"))
+        payload["deliveries"].append(
+            {
+                "platform": "android",
+                "version": "0.3.3",
+                "source_commit": self.current_commit,
+                "delivered_at": "2026-07-25",
+                "artifact": "android-0.3.3.zip",
+                "artifact_sha256": "c" * 64,
+                "artifact_size_bytes": 456,
+                "provenance_sha256": "d" * 64,
+            }
+        )
+        self.history_path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+        MODULE.verify_recorded_packaging_version(
+            repo=self.repo,
+            history_path=self.history_path,
+            platform="android",
+            version="0.3.3",
+            source_commit=self.current_commit,
+        )
+
     def test_excludes_commits_that_only_touch_the_other_platform(self) -> None:
         harmony = self.repo / "asr" / "harmony"
         harmony.mkdir(parents=True)

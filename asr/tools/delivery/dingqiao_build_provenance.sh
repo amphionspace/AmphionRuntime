@@ -138,6 +138,7 @@ provenance.schema=1
 amphion.sdk.version=$sdk_ver
 amphion.buildconfig.sdk.version=${BUILDCONFIG_SDK_VERSION:-$sdk_ver}
 amphion.delivery.version=${delivery_version:-$sdk_ver}
+amphion.delivery.status=${DINGQIAO_DELIVERY_STATUS_CODE:-formal}
 amphion.git.commit.full=${GIT_COMMIT_FULL:-unknown}
 amphion.git.commit.short=${GIT_COMMIT_SHORT:-unknown}
 amphion.git.branch=${GIT_BRANCH:-unknown}
@@ -151,6 +152,7 @@ dingqiao_verify_aar_provenance() {
   local aar_path="$1"
   local expected_sdk="${2:-}"
   local expected_commit="${3:-}"
+  local expected_status="${4:-}"
   local tmp
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' RETURN
@@ -170,6 +172,13 @@ dingqiao_verify_aar_provenance() {
   if [[ -n "$expected_commit" ]]; then
     grep -q "amphion.git.commit.full=$expected_commit" "$manifest" || {
       echo "[ERROR] AAR embedded git commit != $expected_commit" >&2
+      cat "$manifest" >&2
+      return 1
+    }
+  fi
+  if [[ -n "$expected_status" ]]; then
+    grep -q "amphion.delivery.status=$expected_status" "$manifest" || {
+      echo "[ERROR] AAR embedded delivery.status != $expected_status" >&2
       cat "$manifest" >&2
       return 1
     }

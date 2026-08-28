@@ -75,14 +75,16 @@
         "default": null,
         "min": 500,
         "max": 10000,
-        "unit": "ms"
+        "unit": "ms",
+        "rounding": "nearest_integer"
       },
       "vadEnd": {
         "types": ["number", "numeric_string"],
         "default": 800,
         "min": 500,
         "max": 10000,
-        "unit": "ms"
+        "unit": "ms",
+        "rounding": "nearest_integer"
       },
       "enablePartialResult": {"types": ["boolean"], "default": true},
       "enablePoliceEnhancement": {"types": ["boolean"], "default": true},
@@ -91,7 +93,8 @@
         "default": null,
         "min_exclusive": 0,
         "max": 28800000,
-        "unit": "ms"
+        "unit": "ms",
+        "rounding": "nearest_integer"
       },
       "enableContinuousRecognition": {
         "types": ["boolean"],
@@ -128,14 +131,16 @@
         "default": 1500,
         "min": 500,
         "max": 5000,
-        "unit": "ms"
+        "unit": "ms",
+        "rounding": "nearest_integer"
       },
       "speakerVadHopMs": {
         "types": ["number", "numeric_string"],
         "default": 500,
         "min": 100,
         "max": 2000,
-        "unit": "ms"
+        "unit": "ms",
+        "rounding": "nearest_integer"
       },
       "speakerVadConsecutiveBelow": {
         "types": ["number", "numeric_string"],

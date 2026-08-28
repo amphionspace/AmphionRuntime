@@ -26,6 +26,10 @@ HARMONY_ENGINE = (
     ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 )
+HARMONY_AUDIO_INFO = (
+    ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/AudioInfoValidation.ts"
+)
 HARMONY_ENDPOINT_POLICY = (
     ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/EndpointRulePolicy.ts"
@@ -61,6 +65,7 @@ class DingqiaoParameterContractTest(unittest.TestCase):
             path.read_text(encoding="utf-8")
             for path in (
                 HARMONY_ENGINE,
+                HARMONY_AUDIO_INFO,
                 HARMONY_ENDPOINT_POLICY,
                 HARMONY_AUDIO_LIMIT,
                 HARMONY_TARGET_ENHANCEMENT,
@@ -106,6 +111,43 @@ class DingqiaoParameterContractTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertTrue("voiceprintRegistrationFailure" in android_sdk)
         self.assertTrue("result.status = DingqiaoErrorCode.VOICEPRINT_SAMPLE_COUNT" in self.harmony)
+
+    def test_voiceprint_registration_validates_audio_info_before_samples(self) -> None:
+        android_sdk = (
+            ROOT
+            / "asr/android/sdk-dingqiao/src/main/java/com/amphion/dingqiao/SpeechRecognizeSdk.kt"
+        ).read_text(encoding="utf-8")
+        android_method = android_sdk[android_sdk.index("fun registerVoiceprint("):]
+        harmony_method = self.harmony[self.harmony.index("static registerVoiceprint("):]
+        for source, validation, sample_check in (
+            (android_method, "params.audioInfo.validate()", "params.samplePaths.size"),
+            (harmony_method, "validateAudioInfo(params.audioInfo)", "params.samplePaths.length"),
+        ):
+            with self.subTest(validation=validation):
+                self.assertIn(validation, source)
+                self.assertLess(source.index(validation), source.index(sample_check))
+                prefix = source[:source.index(sample_check)]
+                self.assertIn("VOICEPRINT_REGISTER_FAILED", prefix)
+        self.assertIn(
+            'require(sampleRate == 16000) { "sampleRate must be 16000" }',
+            ANDROID_MODELS.read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            "if (audioInfo.sampleRate !== 16000) return 'sampleRate must be 16000'",
+            self.harmony,
+        )
+
+    def test_integer_millisecond_parameters_declare_rounding(self) -> None:
+        extra = self.contract["start"]["extra_params"]
+        for key in (
+            "vadBegin",
+            "vadEnd",
+            "maxAudioDuration",
+            "speakerVadWindowMs",
+            "speakerVadHopMs",
+        ):
+            with self.subTest(key=key):
+                self.assertEqual("nearest_integer", extra[key].get("rounding"))
 
     def test_speaker_vad_defaults_match_contract_on_both_platforms(self) -> None:
         extra = self.contract["start"]["extra_params"]
