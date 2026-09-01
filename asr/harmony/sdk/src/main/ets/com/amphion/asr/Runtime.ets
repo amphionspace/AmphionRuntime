@@ -71,7 +71,10 @@ import { selectSpeakerScoreSamples, speakerScoreSelectionDiagnostic } from './Sp
 import { SessionCallbackGate } from './SessionCallbackGate';
 import { SessionReentryQueue } from './SessionReentryQueue';
 import { RuntimeReleaseGate, RuntimeSessionLease } from './RuntimeReleaseGate';
-import { SpeakerInferenceLane } from './SpeakerInferenceLane';
+import {
+  SpeakerInferenceLane,
+  shouldSettleSpeakerInferenceBeforeNextSlice
+} from './SpeakerInferenceLane';
 import {
   HARMONY_SDK_MAJOR,
   HARMONY_SDK_RELEASE_DATE,
@@ -2427,7 +2430,10 @@ export class AsrSession {
       await this.feedChunkAndDecodeAsync(rawSamples, processedSamples, replay);
       return;
     }
-    if (!replay && this.svInferenceLoopActive) {
+    const speakerVadConsecutiveBelow = this.effectiveSpeakerVad()?.consecutiveBelow ?? 1;
+    if (!replay && shouldSettleSpeakerInferenceBeforeNextSlice(
+      this.svInferenceLoopActive, this.svTargetConfirmed, this.svBelowCount,
+      speakerVadConsecutiveBelow, this.svAwaitingTargetAfterDeparture)) {
       // Settle the score for already-owned PCM before assigning this slice to an utterance. A low
       // score may close and reject the previous speaker turn; observing this slice first would then
       // discard the beginning of a returning target when that rejected turn resets its buffers.
