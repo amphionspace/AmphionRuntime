@@ -13,6 +13,10 @@ ADAPTER = (
     REPO_ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 )
+RECOGNITION_CONFIG = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/RecognitionConfig.ets"
+)
 
 
 class HarmonyBooleanParamPolicyTest(unittest.TestCase):
@@ -65,13 +69,18 @@ class HarmonyBooleanParamPolicyTest(unittest.TestCase):
 
     def test_adapter_uses_compatible_policy_only_for_prepack(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
+        config = RECOGNITION_CONFIG.read_text(encoding="utf-8")
         self.assertIn(
-            "import { compatibleBooleanParam, strictBooleanParam } from './BooleanParam';",
+            "import { strictBooleanParam } from './BooleanParam';",
             adapter,
         )
         self.assertIn(
+            "import { compatibleBooleanParam } from './BooleanParam';",
+            config,
+        )
+        self.assertIn(
             "config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', true);",
-            adapter,
+            config,
         )
         self.assertIn(
             "const verify = strictBooleanParam(params.extraParams, 'enableVoiceprintVerification', false);",
