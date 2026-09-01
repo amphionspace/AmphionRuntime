@@ -26,6 +26,19 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_default_corpus_uses_versioned_test_data_cache(self) -> None:
+        with mock.patch.object(sys, "argv", [str(SCRIPT)]):
+            args = MODULE.parse_args()
+
+        self.assertEqual(MODULE.DEFAULT_DEVICE_CORPUS, args.data_dir)
+        self.assertIn(".cache/amphion-runtime/test-data/v1", str(args.data_dir))
+
+    def test_meeting_minutes_has_no_service_parameter(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        carrier = CARRIER.read_text(encoding="utf-8")
+        self.assertNotIn("speaker-diarization-service-url", source)
+        self.assertNotIn("stressSpeakerDiarizationServiceUrl", source + carrier)
+
     def test_customer_tail_manifest_binds_expected_suffix_to_source_hash(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             manifest = Path(directory) / "tail.json"
@@ -487,6 +500,55 @@ class RunCommandTest(unittest.TestCase):
         self.assertIn("events.partials > 0", cycle)
         self.assertIn("speaker-vad-onstart-missing-partial", cycle)
         self.assertIn("speaker-vad-missing-nonempty-speaker-score", cycle)
+
+    def test_cold_start_pcm_gap_matches_customer_first_session_contract(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runColdStartPcmGapCycle", 1)[1].split(
+            "async function runCallbackApiReentrantCycle", 1
+        )[0]
+        engine = source.split("function createColdStartEngine", 1)[1].split(
+            "function startParams", 1
+        )[0]
+
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "cold-start-pcm-gap"]
+        ):
+            args = MODULE.parse_args()
+
+        self.assertEqual("cold-start-pcm-gap", args.mode)
+        self.assertIn("sysGeneralLexicon", engine)
+        self.assertIn("SpeechRecognizeSdk.createEngineAsync", engine)
+        self.assertIn("enableVoiceprintVerification'] = false", cycle)
+        self.assertIn("enableSpeakerVad'] = true", cycle)
+        self.assertIn("fed === expectedFrames", cycle)
+        self.assertIn("lastFinalsBeforeFinish === 0", cycle)
+        self.assertIn("events.nonEmptySpeakerScores === nonEmptyFinals", cycle)
+        self.assertIn("terminalCallbackOrderOk(events, sessionId)", cycle)
+        self.assertIn("startListeningMs <= COLD_START_LISTENING_MAX_MS", cycle)
+        setup = source.split("stressVoiceprintId = prepareStressVoiceprint", 1)[1].split(
+            "const recreateEachCycle", 1
+        )[0]
+        self.assertIn("options.mode === 'cold-start-pcm-gap'", setup)
+        self.assertIn("SpeechRecognizeSdk.unloadModel()", setup)
+
+    def test_speaker_vad_release_relicense_rebuilds_from_persisted_target(self) -> None:
+        source = CARRIER.read_text(encoding="utf-8")
+        cycle = source.split("async function runFinishShutdownRelicenseCycle", 1)[1].split(
+            "async function runUserSequenceCycle", 1
+        )[0]
+        with mock.patch.object(
+            sys, "argv", [str(SCRIPT), "--mode", "speaker-vad-shutdown-relicense"]
+        ):
+            args = MODULE.parse_args()
+
+        self.assertEqual("speaker-vad-shutdown-relicense", args.mode)
+        self.assertIn("speaker-vad-shutdown-relicense", MODULE.FINISH_MODES)
+        self.assertIn("enableVoiceprintVerification'] = false", cycle)
+        self.assertIn("enableSpeakerVad'] = true", cycle)
+        self.assertIn("engine.shutdown()", cycle)
+        self.assertIn("await activateLicense(licensePath)", cycle)
+        self.assertIn("await prepareRuntime()", cycle)
+        self.assertIn("recoveryEvents.nonEmptySpeakerScores > 0", cycle)
 
     def test_same_source_speaker_modes_allow_the_only_entry_as_enrollment(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")

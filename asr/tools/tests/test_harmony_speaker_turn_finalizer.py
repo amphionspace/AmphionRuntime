@@ -19,8 +19,7 @@ C1_DIARIZATION = (
 )
 SPEAKER_TURN_MODEL = (
     REPO_ROOT
-    / "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/"
-    "pyannote-segmentation-3.0.onnx"
+    / "shared/models/asr/dingqiao/pyannote-segmentation-3.0.onnx"
 )
 SPEAKER_TURN_MODEL_METADATA = (
     REPO_ROOT
@@ -150,13 +149,11 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
 
     def test_known_non_target_tail_still_attempts_a_real_final_score(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
-        dispatch = source.split("private dispatchFinal", 1)[1].split(
-            "private deliverSpeakerFinal", 1
+        delivery = source.split("private deliverSpeakerFinal", 1)[1].split(
+            "private flushPendingSpeakerFinals", 1
         )[0]
-        scoring_gate = dispatch.split(
-            "if (this.speakerVadEnabled &&", 1
-        )[1].split("const finalSpeakerVadScore", 1)[0]
-        self.assertNotIn("!this.svRejectCurrentUtterance", scoring_gate)
+        scoring_gate = delivery.split("this.applyTargetSpeaker", 1)[0]
+        self.assertNotIn("!pending.speakerVadRejectCurrent", scoring_gate)
 
     def test_finish_time_split_publishes_prefix_before_unique_last_tail(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
@@ -190,15 +187,46 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
 
     def test_runtime_scores_short_speech_before_the_speaker_vad_final_gate(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
+        delivery = source.split("private deliverSpeakerFinal", 1)[1].split(
+            "private flushPendingSpeakerFinals", 1
+        )[0]
+        self.assertLess(
+            delivery.index("this.applyTargetSpeaker"),
+            delivery.index("shouldRejectSpeakerVadFinal"),
+        )
+        self.assertIn("pending.result.isTargetSpeaker", delivery)
+        self.assertNotIn("lastSpeakerVadScore: number = -1", source)
+
+    def test_cold_speaker_vad_final_waits_for_the_deferred_extractor(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
         dispatch = source.split("private dispatchFinal", 1)[1].split(
             "private deliverSpeakerFinal", 1
         )[0]
-        self.assertIn("let finalSpeakerVadMatch", dispatch)
-        self.assertLess(
-            dispatch.index("let finalSpeakerVadMatch"),
-            dispatch.index("shouldRejectSpeakerVadFinal"),
+        delivery = source.split("private deliverSpeakerFinal", 1)[1].split(
+            "private flushPendingSpeakerFinals", 1
+        )[0]
+
+        # Speaker VAD-only callers need the same readiness barrier as score-only verification.
+        # The final gate must run after the deferred extractor has supplied the final score, using
+        # the state captured at the native final boundary rather than mutable next-utterance state.
+        self.assertIn("(this.targetSpeakerEnabled || this.speakerVadEnabled)", dispatch)
+        self.assertNotIn("shouldRejectSpeakerVadFinal", dispatch)
+        self.assertIn("pending.speakerVadEnabled", delivery)
+        self.assertIn("pending.speakerVadThreshold", delivery)
+        self.assertIn("pending.speakerVadRejectCurrent", delivery)
+        self.assertIn("pending.speakerVadTargetConfirmed", delivery)
+        self.assertIn(
+            "pending.result.speakerScore >= pending.speakerVadThreshold",
+            delivery,
         )
-        self.assertNotIn("lastSpeakerVadScore: number = -1", source)
+        self.assertLess(
+            delivery.index("this.applyTargetSpeaker"),
+            delivery.index("shouldRejectSpeakerVadFinal"),
+        )
+        self.assertLess(
+            delivery.index("shouldRejectSpeakerVadFinal"),
+            delivery.index("if (pending.result.isTargetSpeaker === false)"),
+        )
 
     def test_rejected_final_routing_does_not_require_voiceprint_verification(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
@@ -225,9 +253,33 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         loader = source.split("static getOrCreateSpeakerTurnSegmenterAsync", 1)[1].split(
             "static async getOrCreateSpeakerExtractorAsync", 1
         )[0]
-        self.assertIn("fileIo.openSync(segmentationModelPath)", loader)
-        self.assertIn("context.resourceManager.getRawFileContentSync", loader)
+        self.assertIn("await fileIo.open(segmentationModelPath)", loader)
+        self.assertIn("await fileIo.stat(fp.fd)", loader)
+        self.assertIn("await fileIo.read(fp.fd, buffer)", loader)
+        self.assertIn("await context.resourceManager.getRawFileContent", loader)
+        self.assertNotIn("getRawFileContentSync", loader)
+        self.assertNotIn("fileIo.openSync", loader)
+        self.assertNotIn("fileIo.readSync", loader)
         self.assertNotIn("absolute speaker model has no bundled segmentation peer", loader)
+
+    def test_stale_boundary_model_read_cannot_submit_after_runtime_unload(self) -> None:
+        source = RUNTIME.read_text(encoding="utf-8")
+        loader = source.split("static getOrCreateSpeakerTurnSegmenterAsync", 1)[1].split(
+            "static async getOrCreateSpeakerExtractorAsync", 1
+        )[0]
+        generation = loader.index("const generation = AmphionRuntime.loadGeneration;")
+        absolute_read = loader.index("await fileIo.read(fp.fd, buffer)")
+        rawfile_read = loader.index("await context.resourceManager.getRawFileContent")
+        stale_guard = loader.index(
+            "generation !== AmphionRuntime.loadGeneration || !AmphionRuntime.initialized"
+        )
+        native_submit = loader.index("await loadSpeakerTurnSegmentationModelAsync(model)")
+        self.assertLess(generation, absolute_read)
+        self.assertLess(generation, rawfile_read)
+        self.assertLess(absolute_read, stale_guard)
+        self.assertLess(rawfile_read, stale_guard)
+        self.assertLess(stale_guard, native_submit)
+        self.assertIn("runtime released during speaker boundary load", loader)
 
     def test_boundary_model_is_optional_for_existing_speaker_vad_layouts(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")

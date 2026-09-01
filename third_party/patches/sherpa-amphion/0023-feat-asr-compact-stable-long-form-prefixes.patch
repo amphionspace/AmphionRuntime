@@ -1,0 +1,684 @@
+From 0ccf9ef542b8b3fb42cf4fc22b65fdb7060fbc3b Mon Sep 17 00:00:00 2001
+From: Boxp <boxp@BoxpdeMacBook-Air.local>
+Date: Tue, 25 Aug 2026 16:16:33 +0800
+Subject: [PATCH] feat(asr): compact stable long-form prefixes
+
+---
+ .../sherpa_onnx/src/main/cpp/streaming-asr.cc |  21 +++
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |   1 +
+ .../src/main/ets/components/StreamingAsr.ets  |   5 +
+ sherpa-onnx/c-api/c-api.cc                    |   7 +
+ sherpa-onnx/c-api/c-api.h                     |  13 ++
+ sherpa-onnx/csrc/online-recognizer-impl.h     |   2 +
+ .../csrc/online-recognizer-transducer-impl.h  |  28 ++++
+ sherpa-onnx/csrc/online-recognizer.cc         |   4 +
+ sherpa-onnx/csrc/online-recognizer.h          |   4 +
+ sherpa-onnx/csrc/online-stream.cc             |  35 +++++
+ sherpa-onnx/csrc/online-stream.h              |   4 +
+ sherpa-onnx/csrc/online-transducer-decoder.h  |  16 +++
+ ...transducer-modified-beam-search-decoder.cc | 122 ++++++++++++++++++
+ ...-transducer-modified-beam-search-decoder.h |   5 +
+ ...online-transducer-rule3-checkpoint-test.cc | 115 +++++++++++++++++
+ sherpa-onnx/jni/online-recognizer.cc          |  10 ++
+ sherpa-onnx/kotlin-api/OnlineRecognizer.kt    |   2 +
+ sherpa-onnx/python/csrc/online-recognizer.cc  |   2 +
+ .../python/sherpa_onnx/online_recognizer.py   |   3 +
+ 19 files changed, 399 insertions(+)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+index d51a3347..1d80692f 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+@@ -1057,6 +1057,25 @@ static Napi::Boolean CommitRule3SegmentWrapper(
+   return Napi::Boolean::New(env, committed != 0);
+ }
+ 
++static Napi::Boolean CommitStablePrefixWrapper(
++    const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 2 || !info[0].IsExternal() ||
++      !info[1].IsExternal()) {
++    Napi::TypeError::New(env, "Expected recognizer and stream handles.")
++        .ThrowAsJavaScriptException();
++    return {};
++  }
++
++  const SherpaOnnxOnlineRecognizer *recognizer = GetOnlineRecognizer(info, 0);
++  const SherpaOnnxOnlineStream *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return {};
++
++  int32_t committed =
++      SherpaOnnxOnlineStreamCommitStablePrefix(recognizer, stream);
++  return Napi::Boolean::New(env, committed != 0);
++}
++
+ static Napi::External<SherpaOnnxDisplay> CreateDisplayWrapper(
+     const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+@@ -1173,6 +1192,8 @@ void InitStreamingAsr(Napi::Env env, Napi::Object exports) {
+               Napi::Function::New(env, GetEndpointReasonWrapper));
+   exports.Set(Napi::String::New(env, "commitRule3Segment"),
+               Napi::Function::New(env, CommitRule3SegmentWrapper));
++  exports.Set(Napi::String::New(env, "commitStablePrefix"),
++              Napi::Function::New(env, CommitStablePrefixWrapper));
+ 
+   exports.Set(Napi::String::New(env, "createDisplay"),
+               Napi::Function::New(env, CreateDisplayWrapper));
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index 1635b38d..21f2a5d0 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -43,6 +43,7 @@ export const decodeOnlineStreamAsync: (handle: object,
+ export const isEndpoint: (handle: object, streamHandle: object) => boolean;
+ export const getEndpointReason: (handle: object, streamHandle: object) => number;
+ export const commitRule3Segment: (handle: object, streamHandle: object) => boolean;
++export const commitStablePrefix: (handle: object, streamHandle: object) => boolean;
+ export const reset: (handle: object, streamHandle: object) => void;
+ export const getOnlineStreamResultAsJson: (handle: object, streamHandle: object) => string;
+ 
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+index 156614a5..4037d0f9 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+@@ -5,6 +5,7 @@ import {
+   destroyOnlineRecognizer,
+   createOnlineStream,
+   commitRule3Segment,
++  commitStablePrefix,
+   decodeOnlineStream,
+   decodeOnlineStreamAsync,
+   destroyOnlineStream,
+@@ -195,6 +196,10 @@ export class OnlineRecognizer {
+     return commitRule3Segment(this.handle, stream.handle);
+   }
+ 
++  commitStablePrefix(stream: OnlineStream): boolean {
++    return commitStablePrefix(this.handle, stream.handle);
++  }
++
+   reset(stream: OnlineStream) {
+     reset(this.handle, stream.handle);
+   }
+diff --git a/sherpa-onnx/c-api/c-api.cc b/sherpa-onnx/c-api/c-api.cc
+index 3483d3f4..a18304cf 100644
+--- a/sherpa-onnx/c-api/c-api.cc
++++ b/sherpa-onnx/c-api/c-api.cc
+@@ -412,6 +412,13 @@ int32_t SherpaOnnxOnlineStreamCommitRule3Segment(
+   return recognizer->impl->CommitRule3Segment(stream->impl.get());
+ }
+ 
++int32_t SherpaOnnxOnlineStreamCommitStablePrefix(
++    const SherpaOnnxOnlineRecognizer *recognizer,
++    const SherpaOnnxOnlineStream *stream) {
++  if (!recognizer || !stream) return 0;
++  return recognizer->impl->CommitStablePrefix(stream->impl.get());
++}
++
+ const SherpaOnnxDisplay *SherpaOnnxCreateDisplay(int32_t max_word_per_line) {
+   SherpaOnnxDisplay *ans = new SherpaOnnxDisplay;
+   ans->impl = std::make_unique<sherpa_onnx::Display>(max_word_per_line);
+diff --git a/sherpa-onnx/c-api/c-api.h b/sherpa-onnx/c-api/c-api.h
+index 49fcd768..ac8f6d98 100644
+--- a/sherpa-onnx/c-api/c-api.h
++++ b/sherpa-onnx/c-api/c-api.h
+@@ -790,6 +790,19 @@ SHERPA_ONNX_API int32_t SherpaOnnxOnlineStreamCommitRule3Segment(
+     const SherpaOnnxOnlineRecognizer *recognizer,
+     const SherpaOnnxOnlineStream *stream);
+ 
++/**
++ * @brief Compact the token/frame prefix shared by every active hypothesis.
++ *
++ * This operation does not create an endpoint and does not reset encoder
++ * state. GetResult() continues to include the committed prefix.
++ *
++ * @return 1 if at least one stable token was committed; otherwise 0. A false
++ *         return leaves the stream unchanged.
++ */
++SHERPA_ONNX_API int32_t SherpaOnnxOnlineStreamCommitStablePrefix(
++    const SherpaOnnxOnlineRecognizer *recognizer,
++    const SherpaOnnxOnlineStream *stream);
++
+ /**
+  * @brief Helper for pretty-printing incremental recognition results.
+  *
+diff --git a/sherpa-onnx/csrc/online-recognizer-impl.h b/sherpa-onnx/csrc/online-recognizer-impl.h
+index 2536c5be..17698c51 100644
+--- a/sherpa-onnx/csrc/online-recognizer-impl.h
++++ b/sherpa-onnx/csrc/online-recognizer-impl.h
+@@ -65,6 +65,8 @@ class OnlineRecognizerImpl {
+     return false;
+   }
+ 
++  virtual bool CommitStablePrefix(OnlineStream * /*s*/) const { return false; }
++
+   std::string ApplyInverseTextNormalization(std::string text) const;
+   std::string ApplyHomophoneReplacer(std::string text) const;
+ 
+diff --git a/sherpa-onnx/csrc/online-recognizer-transducer-impl.h b/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
+index 8f8d067c..af59d434 100644
+--- a/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
++++ b/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
+@@ -358,6 +358,23 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
+     OnlineTransducerDecoderResult decoder_result = s->GetResult();
+     decoder_->StripLeadingBlanks(&decoder_result);
+ 
++    const auto &committed = s->GetCommittedPrefix();
++    decoder_result.tokens.insert(decoder_result.tokens.begin(),
++                                 committed.tokens.begin(),
++                                 committed.tokens.end());
++    decoder_result.timestamps.insert(decoder_result.timestamps.begin(),
++                                     committed.timestamps.begin(),
++                                     committed.timestamps.end());
++    decoder_result.ys_probs.insert(decoder_result.ys_probs.begin(),
++                                   committed.ys_probs.begin(),
++                                   committed.ys_probs.end());
++    decoder_result.lm_probs.insert(decoder_result.lm_probs.begin(),
++                                   committed.lm_probs.begin(),
++                                   committed.lm_probs.end());
++    decoder_result.context_scores.insert(decoder_result.context_scores.begin(),
++                                         committed.context_scores.begin(),
++                                         committed.context_scores.end());
++
+     // TODO(fangjun): Remember to change these constants if needed
+     int32_t frame_shift_ms = 10;
+     int32_t subsampling_factor = 4;
+@@ -434,6 +451,7 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
+     }
+ 
+     s->SetResult(r);
++    s->ClearCommittedPrefix();
+ 
+     // Note: We only update counters. The underlying audio samples
+     // are not discarded.
+@@ -461,6 +479,16 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
+     return true;
+   }
+ 
++  bool CommitStablePrefix(OnlineStream *s) const override {
++    OnlineTransducerDecoderResult committed;
++    if (!decoder_->CommitStablePrefix(&s->GetResult(), model_->ContextSize(),
++                                      &committed)) {
++      return false;
++    }
++    s->AppendCommittedPrefix(committed);
++    return true;
++  }
++
+  private:
+   void InitHotwords() {
+     // each line in hotwords_file contains space-separated words
+diff --git a/sherpa-onnx/csrc/online-recognizer.cc b/sherpa-onnx/csrc/online-recognizer.cc
+index c67188c2..5ad5fe46 100644
+--- a/sherpa-onnx/csrc/online-recognizer.cc
++++ b/sherpa-onnx/csrc/online-recognizer.cc
+@@ -269,6 +269,10 @@ bool OnlineRecognizer::CommitRule3Segment(OnlineStream *s) const {
+   return impl_->CommitRule3Segment(s);
+ }
+ 
++bool OnlineRecognizer::CommitStablePrefix(OnlineStream *s) const {
++  return impl_->CommitStablePrefix(s);
++}
++
+ #if __ANDROID_API__ >= 9
+ template OnlineRecognizer::OnlineRecognizer(
+     AAssetManager *mgr, const OnlineRecognizerConfig &config);
+diff --git a/sherpa-onnx/csrc/online-recognizer.h b/sherpa-onnx/csrc/online-recognizer.h
+index 94c61feb..5fa57f17 100644
+--- a/sherpa-onnx/csrc/online-recognizer.h
++++ b/sherpa-onnx/csrc/online-recognizer.h
+@@ -229,6 +229,10 @@ class OnlineRecognizer {
+   // current state is not eligible for a Rule3 checkpoint.
+   bool CommitRule3Segment(OnlineStream *s) const;
+ 
++  // Compact only the token/frame prefix shared by every active hypothesis.
++  // It does not create a public endpoint or reset encoder state.
++  bool CommitStablePrefix(OnlineStream *s) const;
++
+  private:
+   std::unique_ptr<OnlineRecognizerImpl> impl_;
+ };
+diff --git a/sherpa-onnx/csrc/online-stream.cc b/sherpa-onnx/csrc/online-stream.cc
+index f07c84da..e09ec39a 100644
+--- a/sherpa-onnx/csrc/online-stream.cc
++++ b/sherpa-onnx/csrc/online-stream.cc
+@@ -72,6 +72,29 @@ class OnlineStream::Impl {
+ 
+   OnlineTransducerDecoderResult &GetResult() { return result_; }
+ 
++  void AppendCommittedPrefix(const OnlineTransducerDecoderResult &r) {
++    committed_prefix_.tokens.insert(committed_prefix_.tokens.end(),
++                                    r.tokens.begin(), r.tokens.end());
++    committed_prefix_.timestamps.insert(committed_prefix_.timestamps.end(),
++                                        r.timestamps.begin(),
++                                        r.timestamps.end());
++    committed_prefix_.ys_probs.insert(committed_prefix_.ys_probs.end(),
++                                      r.ys_probs.begin(), r.ys_probs.end());
++    committed_prefix_.lm_probs.insert(committed_prefix_.lm_probs.end(),
++                                      r.lm_probs.begin(), r.lm_probs.end());
++    committed_prefix_.context_scores.insert(
++        committed_prefix_.context_scores.end(), r.context_scores.begin(),
++        r.context_scores.end());
++  }
++
++  const OnlineTransducerDecoderResult &GetCommittedPrefix() const {
++    return committed_prefix_;
++  }
++
++  void ClearCommittedPrefix() {
++    committed_prefix_ = OnlineTransducerDecoderResult{};
++  }
++
+   void SetKeywordResult(const TransducerKeywordResult &r) {
+     keyword_result_ = r;
+   }
+@@ -185,6 +208,7 @@ class OnlineStream::Impl {
+   int32_t start_frame_index_ = 0;     // never reset
+   int32_t segment_ = 0;
+   OnlineTransducerDecoderResult result_;
++  OnlineTransducerDecoderResult committed_prefix_;
+   TransducerKeywordResult prev_keyword_result_;
+   TransducerKeywordResult keyword_result_;
+   TransducerKeywordResult empty_keyword_result_;
+@@ -248,6 +272,17 @@ OnlineTransducerDecoderResult &OnlineStream::GetResult() {
+   return impl_->GetResult();
+ }
+ 
++void OnlineStream::AppendCommittedPrefix(
++    const OnlineTransducerDecoderResult &r) {
++  impl_->AppendCommittedPrefix(r);
++}
++
++const OnlineTransducerDecoderResult &OnlineStream::GetCommittedPrefix() const {
++  return impl_->GetCommittedPrefix();
++}
++
++void OnlineStream::ClearCommittedPrefix() { impl_->ClearCommittedPrefix(); }
++
+ void OnlineStream::SetKeywordResult(const TransducerKeywordResult &r) {
+   impl_->SetKeywordResult(r);
+ }
+diff --git a/sherpa-onnx/csrc/online-stream.h b/sherpa-onnx/csrc/online-stream.h
+index efe75fc4..1d11f685 100644
+--- a/sherpa-onnx/csrc/online-stream.h
++++ b/sherpa-onnx/csrc/online-stream.h
+@@ -80,6 +80,10 @@ class OnlineStream {
+   void SetResult(const OnlineTransducerDecoderResult &r);
+   OnlineTransducerDecoderResult &GetResult();
+ 
++  void AppendCommittedPrefix(const OnlineTransducerDecoderResult &r);
++  const OnlineTransducerDecoderResult &GetCommittedPrefix() const;
++  void ClearCommittedPrefix();
++
+   void SetKeywordResult(const TransducerKeywordResult &r);
+   TransducerKeywordResult &GetKeywordResult(bool remove_duplicates = false);
+ 
+diff --git a/sherpa-onnx/csrc/online-transducer-decoder.h b/sherpa-onnx/csrc/online-transducer-decoder.h
+index 8324444a..4fe33c19 100644
+--- a/sherpa-onnx/csrc/online-transducer-decoder.h
++++ b/sherpa-onnx/csrc/online-transducer-decoder.h
+@@ -114,6 +114,22 @@ class OnlineTransducerDecoder {
+    */
+   virtual bool CommitRule3Segment(OnlineTransducerDecoderResult *result,
+                                   int32_t context_size) const = 0;
++
++  /** Commit the token prefix shared by every active hypothesis while keeping
++   * all unresolved hypotheses alive for future decoding.
++   *
++   * @param result Decoder state to compact in place.
++   * @param context_size Number of decoder-context tokens retained before the
++   * unresolved suffix.
++   * @param committed Receives only the newly committed public token prefix.
++   * @return true when at least one token was committed.
++   */
++  virtual bool CommitStablePrefix(OnlineTransducerDecoderResult * /*result*/,
++                                  int32_t /*context_size*/,
++                                  OnlineTransducerDecoderResult * /*committed*/)
++      const {
++    return false;
++  }
+ };
+ 
+ }  // namespace sherpa_onnx
+diff --git a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
+index 8058f9ae..2cce2dff 100644
+--- a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
++++ b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
+@@ -296,4 +296,126 @@ bool OnlineTransducerModifiedBeamSearchDecoder::CommitRule3Segment(
+   return true;
+ }
+ 
++bool OnlineTransducerModifiedBeamSearchDecoder::CommitStablePrefix(
++    OnlineTransducerDecoderResult *result, int32_t context_size,
++    OnlineTransducerDecoderResult *committed) const {
++  if (result == nullptr || committed == nullptr || context_size <= 0 ||
++      result->hyps.Size() == 0) {
++    return false;
++  }
++
++  auto candidates = result->hyps.Vec();
++  int32_t common_end = static_cast<int32_t>(candidates.front().ys.size());
++  for (const auto &candidate : candidates) {
++    common_end =
++        std::min(common_end, static_cast<int32_t>(candidate.ys.size()));
++  }
++
++  for (int32_t i = context_size; i < common_end; ++i) {
++    const auto token = candidates.front().ys[i];
++    const auto timestamp_index = i - context_size;
++    if (timestamp_index >=
++        static_cast<int32_t>(candidates.front().timestamps.size())) {
++      common_end = i;
++      break;
++    }
++    const auto timestamp = candidates.front().timestamps[timestamp_index];
++
++    bool shared = true;
++    for (auto candidate = candidates.begin() + 1;
++         candidate != candidates.end(); ++candidate) {
++      if (candidate->ys[i] != token ||
++          timestamp_index >=
++              static_cast<int32_t>(candidate->timestamps.size()) ||
++          candidate->timestamps[timestamp_index] != timestamp) {
++        shared = false;
++        break;
++      }
++    }
++    if (!shared) {
++      common_end = i;
++      break;
++    }
++  }
++
++  // Classic LM rescoring may intentionally leave the newest tokens unscored
++  // until a complete LM chunk is available. Its recurrent state only includes
++  // cur_scored_pos tokens, so keep any newer common tokens in the live tail.
++  // Shallow fusion advances its LM state token-by-token and needs no such cap.
++  if (lm_ && !shallow_fusion_) {
++    for (const auto &candidate : candidates) {
++      common_end = std::min(common_end,
++                            context_size + candidate.cur_scored_pos);
++    }
++  }
++
++  const int32_t committed_count = common_end - context_size;
++  if (committed_count <= 0) {
++    return false;
++  }
++
++  const auto best = result->hyps.GetMostProbable(true);
++  auto has_prefix = [committed_count](const auto &values) {
++    return values.empty() ||
++           static_cast<int32_t>(values.size()) >= committed_count;
++  };
++  if (!has_prefix(best.timestamps) || !has_prefix(best.ys_probs) ||
++      !has_prefix(best.lm_probs) || !has_prefix(best.context_scores)) {
++    return false;
++  }
++
++  OnlineTransducerDecoderResult prefix;
++  prefix.frame_offset = result->frame_offset;
++  prefix.tokens.assign(best.ys.begin() + context_size,
++                       best.ys.begin() + common_end);
++  auto copy_prefix = [committed_count](const auto &src, auto *dest) {
++    if (!src.empty()) {
++      dest->assign(src.begin(), src.begin() + committed_count);
++    }
++  };
++  copy_prefix(best.timestamps, &prefix.timestamps);
++  copy_prefix(best.ys_probs, &prefix.ys_probs);
++  copy_prefix(best.lm_probs, &prefix.lm_probs);
++  copy_prefix(best.context_scores, &prefix.context_scores);
++
++  for (const auto &candidate : candidates) {
++    if (!has_prefix(candidate.timestamps) || !has_prefix(candidate.ys_probs) ||
++        !has_prefix(candidate.lm_probs) ||
++        !has_prefix(candidate.context_scores)) {
++      return false;
++    }
++  }
++
++  Hypotheses compacted;
++  for (auto &candidate : candidates) {
++    candidate.length_normalization_offset += committed_count;
++    candidate.ys.erase(candidate.ys.begin(),
++                       candidate.ys.begin() + committed_count);
++    auto erase_prefix = [committed_count](auto *values) {
++      if (!values->empty()) {
++        values->erase(values->begin(), values->begin() + committed_count);
++      }
++    };
++    erase_prefix(&candidate.timestamps);
++    erase_prefix(&candidate.ys_probs);
++    erase_prefix(&candidate.lm_probs);
++    erase_prefix(&candidate.context_scores);
++    candidate.cur_scored_pos =
++        std::max(0, candidate.cur_scored_pos - committed_count);
++    compacted.Add(std::move(candidate));
++  }
++
++  result->hyps = std::move(compacted);
++  auto compacted_best = result->hyps.GetMostProbable(true);
++  result->tokens = compacted_best.ys;
++  result->timestamps = compacted_best.timestamps;
++  result->ys_probs = compacted_best.ys_probs;
++  result->lm_probs = compacted_best.lm_probs;
++  result->context_scores = compacted_best.context_scores;
++  result->decoder_out = Ort::Value{nullptr};
++
++  *committed = std::move(prefix);
++  return true;
++}
++
+ }  // namespace sherpa_onnx
+diff --git a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.h b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.h
+index 078bb9f0..4df9d582 100644
+--- a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.h
++++ b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.h
+@@ -50,6 +50,11 @@ class OnlineTransducerModifiedBeamSearchDecoder
+   bool CommitRule3Segment(OnlineTransducerDecoderResult *result,
+                           int32_t context_size) const override;
+ 
++  bool CommitStablePrefix(OnlineTransducerDecoderResult *result,
++                          int32_t context_size,
++                          OnlineTransducerDecoderResult *committed) const
++      override;
++
+  private:
+   OnlineTransducerModel *model_;  // Not owned
+   OnlineLM *lm_;                  // Not owned
+diff --git a/sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc b/sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc
+index 151f8ae4..648f0f7e 100644
+--- a/sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc
++++ b/sherpa-onnx/csrc/online-transducer-rule3-checkpoint-test.cc
+@@ -123,6 +123,121 @@ TEST(OnlineTransducerRule3Checkpoint,
+   EXPECT_EQ(result.hyps.GetMostProbable(true).length_normalization_offset, 101);
+ }
+ 
++TEST(OnlineTransducerRule3Checkpoint,
++     StablePrefixPreservesCandidatesThatCanReverseLater) {
++  OnlineTransducerModifiedBeamSearchDecoder decoder(
++      nullptr, nullptr, 8, 0, false, -1, 0, 1);
++  OnlineTransducerDecoderResult result;
++
++  Hypothesis current_best({-1, 0, 10, 11, 20}, 10);
++  current_best.timestamps = {2, 4, 6};
++  current_best.ys_probs = {-0.1, -0.2, -0.3};
++  Hypothesis future_best({-1, 0, 10, 11, 30}, 9);
++  future_best.timestamps = {2, 4, 7};
++  future_best.ys_probs = {-0.1, -0.2, -0.4};
++  result.hyps.Add(std::move(current_best));
++  result.hyps.Add(std::move(future_best));
++  result.tokens = result.hyps.GetMostProbable(true).ys;
++  result.frame_offset = 100;
++  result.num_trailing_blanks = 3;
++
++  OnlineTransducerDecoderResult committed;
++  ASSERT_TRUE(decoder.CommitStablePrefix(&result, 2, &committed));
++  EXPECT_EQ(committed.tokens, (std::vector<int64_t>{10, 11}));
++  EXPECT_EQ(committed.timestamps, (std::vector<int32_t>{2, 4}));
++  EXPECT_EQ(result.hyps.Size(), 2);
++  EXPECT_EQ(result.frame_offset, 100);
++  EXPECT_EQ(result.num_trailing_blanks, 3);
++
++  auto candidates = result.hyps.Vec();
++  ASSERT_EQ(candidates.size(), 2);
++  for (auto &candidate : candidates) {
++    ASSERT_EQ(candidate.ys.size(), 3);
++    EXPECT_EQ(candidate.ys[0], 10);
++    EXPECT_EQ(candidate.ys[1], 11);
++    EXPECT_TRUE(candidate.ys[2] == 20 || candidate.ys[2] == 30);
++    EXPECT_EQ(candidate.timestamps.size(), 1);
++    EXPECT_EQ(candidate.length_normalization_offset, 2);
++    if (candidate.ys[2] == 30) {
++      candidate.log_prob = 20;
++    }
++  }
++
++  Hypotheses continued(std::move(candidates));
++  EXPECT_EQ(continued.GetMostProbable(true).ys.back(), 30);
++}
++
++TEST(OnlineTransducerRule3Checkpoint,
++     StablePrefixDefersWhenCandidateFrameBoundariesDiffer) {
++  OnlineTransducerModifiedBeamSearchDecoder decoder(
++      nullptr, nullptr, 8, 0, false, -1, 0, 1);
++  OnlineTransducerDecoderResult result;
++
++  Hypothesis first({-1, 0, 10, 11, 20}, 10);
++  first.timestamps = {2, 4, 6};
++  Hypothesis second({-1, 0, 10, 11, 30}, 9);
++  second.timestamps = {2, 5, 7};
++  result.hyps.Add(std::move(first));
++  result.hyps.Add(std::move(second));
++  result.tokens = result.hyps.GetMostProbable(true).ys;
++  const auto original = result.hyps.Vec();
++
++  OnlineTransducerDecoderResult committed;
++  ASSERT_TRUE(decoder.CommitStablePrefix(&result, 2, &committed));
++  EXPECT_EQ(committed.tokens, (std::vector<int64_t>{10}));
++  EXPECT_EQ(committed.timestamps, (std::vector<int32_t>{2}));
++  ASSERT_EQ(result.hyps.Size(), 2);
++  for (const auto &candidate : result.hyps) {
++    EXPECT_EQ(candidate.second.ys.size(), 4);
++    EXPECT_EQ(candidate.second.timestamps.size(), 2);
++    EXPECT_EQ(candidate.second.ys[2], 11);
++  }
++  EXPECT_EQ(original.size(), 2);
++}
++
++TEST(OnlineTransducerRule3Checkpoint,
++     StablePrefixLeavesStateUnchangedWithoutSharedToken) {
++  OnlineTransducerModifiedBeamSearchDecoder decoder(
++      nullptr, nullptr, 8, 0, false, -1, 0, 1);
++  OnlineTransducerDecoderResult result;
++
++  Hypothesis first({-1, 0, 10}, 10);
++  first.timestamps = {2};
++  Hypothesis second({-1, 0, 20}, 9);
++  second.timestamps = {2};
++  result.hyps.Add(std::move(first));
++  result.hyps.Add(std::move(second));
++  result.tokens = result.hyps.GetMostProbable(true).ys;
++  const auto original_tokens = result.tokens;
++  const auto original_hyps = result.hyps.ToString();
++
++  OnlineTransducerDecoderResult committed;
++  EXPECT_FALSE(decoder.CommitStablePrefix(&result, 2, &committed));
++  EXPECT_EQ(result.tokens, original_tokens);
++  EXPECT_EQ(result.hyps.ToString(), original_hyps);
++  EXPECT_TRUE(committed.tokens.empty());
++}
++
++TEST(OnlineTransducerRule3Checkpoint,
++     StreamAccumulatesCommittedTranscriptOutsideActiveBeams) {
++  OnlineStream stream;
++  OnlineTransducerDecoderResult first;
++  first.tokens = {10, 11};
++  first.timestamps = {2, 4};
++  OnlineTransducerDecoderResult second;
++  second.tokens = {12};
++  second.timestamps = {6};
++
++  stream.AppendCommittedPrefix(first);
++  stream.AppendCommittedPrefix(second);
++  EXPECT_EQ(stream.GetCommittedPrefix().tokens,
++            (std::vector<int64_t>{10, 11, 12}));
++  EXPECT_EQ(stream.GetCommittedPrefix().timestamps,
++            (std::vector<int32_t>{2, 4, 6}));
++  stream.ClearCommittedPrefix();
++  EXPECT_TRUE(stream.GetCommittedPrefix().tokens.empty());
++}
++
+ TEST(OnlineTransducerRule3Checkpoint,
+      StreamResetKeepsEncoderStateAndAdvancesSegmentClock) {
+   OnlineStream stream;
+diff --git a/sherpa-onnx/jni/online-recognizer.cc b/sherpa-onnx/jni/online-recognizer.cc
+index 043353b5..4249d961 100644
+--- a/sherpa-onnx/jni/online-recognizer.cc
++++ b/sherpa-onnx/jni/online-recognizer.cc
+@@ -355,6 +355,16 @@ Java_com_k2fsa_sherpa_onnx_OnlineRecognizer_commitRule3Segment(
+   return recognizer->CommitRule3Segment(stream);
+ }
+ 
++SHERPA_ONNX_EXTERN_C
++JNIEXPORT jboolean JNICALL
++Java_com_k2fsa_sherpa_onnx_OnlineRecognizer_commitStablePrefix(
++    JNIEnv * /*env*/, jobject /*obj*/, jlong ptr, jlong stream_ptr) {
++  auto recognizer = reinterpret_cast<sherpa_onnx::OnlineRecognizer *>(ptr);
++  auto stream = reinterpret_cast<sherpa_onnx::OnlineStream *>(stream_ptr);
++
++  return recognizer->CommitStablePrefix(stream);
++}
++
+ SHERPA_ONNX_EXTERN_C
+ JNIEXPORT void JNICALL Java_com_k2fsa_sherpa_onnx_OnlineRecognizer_decode(
+     JNIEnv * /*env*/, jobject /*obj*/, jlong ptr, jlong stream_ptr) {
+diff --git a/sherpa-onnx/kotlin-api/OnlineRecognizer.kt b/sherpa-onnx/kotlin-api/OnlineRecognizer.kt
+index 7acbaeff..7dbf15b9 100644
+--- a/sherpa-onnx/kotlin-api/OnlineRecognizer.kt
++++ b/sherpa-onnx/kotlin-api/OnlineRecognizer.kt
+@@ -135,6 +135,7 @@ class OnlineRecognizer(
+     fun getEndpointReason(stream: OnlineStream): OnlineEndpointReason =
+         OnlineEndpointReason.fromNative(getEndpointReason(ptr, stream.ptr))
+     fun commitRule3Segment(stream: OnlineStream): Boolean = commitRule3Segment(ptr, stream.ptr)
++    fun commitStablePrefix(stream: OnlineStream): Boolean = commitStablePrefix(ptr, stream.ptr)
+     fun isReady(stream: OnlineStream) = isReady(ptr, stream.ptr)
+     fun getResult(stream: OnlineStream): OnlineRecognizerResult {
+         return getResult(ptr, stream.ptr)
+@@ -157,6 +158,7 @@ class OnlineRecognizer(
+     private external fun isEndpoint(ptr: Long, streamPtr: Long): Boolean
+     private external fun getEndpointReason(ptr: Long, streamPtr: Long): Int
+     private external fun commitRule3Segment(ptr: Long, streamPtr: Long): Boolean
++    private external fun commitStablePrefix(ptr: Long, streamPtr: Long): Boolean
+     private external fun isReady(ptr: Long, streamPtr: Long): Boolean
+     private external fun getResult(ptr: Long, streamPtr: Long): OnlineRecognizerResult
+ 
+diff --git a/sherpa-onnx/python/csrc/online-recognizer.cc b/sherpa-onnx/python/csrc/online-recognizer.cc
+index 49bbf78a..047122b1 100644
+--- a/sherpa-onnx/python/csrc/online-recognizer.cc
++++ b/sherpa-onnx/python/csrc/online-recognizer.cc
+@@ -129,6 +129,8 @@ void PybindOnlineRecognizer(py::module *m) {
+            py::call_guard<py::gil_scoped_release>())
+       .def("commit_rule3_segment", &PyClass::CommitRule3Segment, py::arg("s"),
+            py::call_guard<py::gil_scoped_release>())
++      .def("commit_stable_prefix", &PyClass::CommitStablePrefix, py::arg("s"),
++           py::call_guard<py::gil_scoped_release>())
+       .def("reset", &PyClass::Reset, py::arg("s"),
+            py::call_guard<py::gil_scoped_release>());
+ }
+diff --git a/sherpa-onnx/python/sherpa_onnx/online_recognizer.py b/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
+index 50e9a0cb..67e11c22 100644
+--- a/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
++++ b/sherpa-onnx/python/sherpa_onnx/online_recognizer.py
+@@ -1027,5 +1027,8 @@ class OnlineRecognizer(object):
+     def commit_rule3_segment(self, s: OnlineStream) -> bool:
+         return self.recognizer.commit_rule3_segment(s)
+ 
++    def commit_stable_prefix(self, s: OnlineStream) -> bool:
++        return self.recognizer.commit_stable_prefix(s)
++
+     def reset(self, s: OnlineStream) -> bool:
+         return self.recognizer.reset(s)
+-- 
+2.50.1 (Apple Git-155)
+

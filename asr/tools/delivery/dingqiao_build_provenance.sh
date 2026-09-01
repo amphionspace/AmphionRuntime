@@ -138,6 +138,7 @@ provenance.schema=1
 amphion.sdk.version=$sdk_ver
 amphion.buildconfig.sdk.version=${BUILDCONFIG_SDK_VERSION:-$sdk_ver}
 amphion.delivery.version=${delivery_version:-$sdk_ver}
+amphion.delivery.status=${DINGQIAO_DELIVERY_STATUS_CODE:-formal}
 amphion.git.commit.full=${GIT_COMMIT_FULL:-unknown}
 amphion.git.commit.short=${GIT_COMMIT_SHORT:-unknown}
 amphion.git.branch=${GIT_BRANCH:-unknown}
@@ -151,6 +152,7 @@ dingqiao_verify_aar_provenance() {
   local aar_path="$1"
   local expected_sdk="${2:-}"
   local expected_commit="${3:-}"
+  local expected_status="${4:-}"
   local tmp
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' RETURN
@@ -174,6 +176,13 @@ dingqiao_verify_aar_provenance() {
       return 1
     }
   fi
+  if [[ -n "$expected_status" ]]; then
+    grep -q "amphion.delivery.status=$expected_status" "$manifest" || {
+      echo "[ERROR] AAR embedded delivery.status != $expected_status" >&2
+      cat "$manifest" >&2
+      return 1
+    }
+  fi
   echo "[OK] AAR provenance verified: $(basename "$aar_path")"
 }
 
@@ -187,6 +196,8 @@ import zipfile
 aar_path = sys.argv[1]
 required = [
     "jni/arm64-v8a/libamphion_audio_processing.so",
+    "jni/arm64-v8a/libamphion_diarization_jni.so",
+    "jni/arm64-v8a/libamphion_police_jni.so",
     "jni/arm64-v8a/libsherpa-onnx-jni.so",
     "jni/arm64-v8a/libonnxruntime.so",
 ]
@@ -225,8 +236,14 @@ import sys
 import zipfile
 
 aar_path = sys.argv[1]
-path = "assets/amphion-dingqiao/eres2net.onnx"
-min_bytes = 30 * 1024 * 1024
+required = {
+    "assets/amphion-dingqiao/eres2net.onnx": 30 * 1024 * 1024,
+    "assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx": 5 * 1024 * 1024,
+    "assets/lac/v1/lac_encoder.onnx": 20 * 1024 * 1024,
+    "assets/lac/v1/lac_crf_transitions.npy": 1024,
+    "assets/lac/v1/word.dic": 1024,
+    "assets/lac/v1/tag.dic": 100,
+}
 
 try:
     with zipfile.ZipFile(aar_path) as aar:
@@ -235,14 +252,15 @@ except zipfile.BadZipFile as exc:
     print(f"[ERROR] invalid AAR zip: {aar_path}: {exc}", file=sys.stderr)
     sys.exit(1)
 
-size = sizes.get(path)
-if size is None:
-    print(f"[ERROR] AAR missing embedded speaker model: {path}", file=sys.stderr)
-    sys.exit(1)
-if size < min_bytes:
-    print(f"[ERROR] AAR speaker model too small: {path} ({size} bytes)", file=sys.stderr)
-    sys.exit(1)
-print(f"[OK] AAR speaker model present: {path} ({size} bytes)")
+for path, min_bytes in required.items():
+    size = sizes.get(path)
+    if size is None:
+        print(f"[ERROR] AAR missing embedded enhancement asset: {path}", file=sys.stderr)
+        sys.exit(1)
+    if size < min_bytes:
+        print(f"[ERROR] AAR enhancement asset too small: {path} ({size} bytes)", file=sys.stderr)
+        sys.exit(1)
+    print(f"[OK] AAR enhancement asset present: {path} ({size} bytes)")
 PY
 }
 
@@ -306,6 +324,8 @@ import zipfile
 apk_path = sys.argv[1]
 required = [
     "lib/arm64-v8a/libamphion_audio_processing.so",
+    "lib/arm64-v8a/libamphion_diarization_jni.so",
+    "lib/arm64-v8a/libamphion_police_jni.so",
     "lib/arm64-v8a/libsherpa-onnx-jni.so",
     "lib/arm64-v8a/libonnxruntime.so",
 ]
@@ -345,8 +365,12 @@ import sys
 import zipfile
 
 apk_path = sys.argv[1]
-path = "assets/amphion-dingqiao/eres2net.onnx"
-min_bytes = 30 * 1024 * 1024
+required = {
+    "assets/amphion-dingqiao/eres2net.onnx": 30 * 1024 * 1024,
+    "assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx": 5 * 1024 * 1024,
+    "assets/lac/v1/lac_encoder.onnx": 20 * 1024 * 1024,
+    "assets/lac/v1/lac_crf_transitions.npy": 1024,
+}
 
 try:
     with zipfile.ZipFile(apk_path) as apk:
@@ -355,14 +379,15 @@ except zipfile.BadZipFile as exc:
     print(f"[ERROR] invalid APK zip: {apk_path}: {exc}", file=sys.stderr)
     sys.exit(1)
 
-size = sizes.get(path)
-if size is None:
-    print(f"[ERROR] APK missing embedded speaker model: {path}", file=sys.stderr)
-    sys.exit(1)
-if size < min_bytes:
-    print(f"[ERROR] APK speaker model too small: {path} ({size} bytes)", file=sys.stderr)
-    sys.exit(1)
-print(f"[OK] APK speaker model present: {path} ({size} bytes)")
+for path, min_bytes in required.items():
+    size = sizes.get(path)
+    if size is None:
+        print(f"[ERROR] APK missing embedded enhancement asset: {path}", file=sys.stderr)
+        sys.exit(1)
+    if size < min_bytes:
+        print(f"[ERROR] APK enhancement asset too small: {path} ({size} bytes)", file=sys.stderr)
+        sys.exit(1)
+    print(f"[OK] APK enhancement asset present: {path} ({size} bytes)")
 PY
 }
 
@@ -495,19 +520,25 @@ dingqiao_zip_delivery() {
 dingqiao_stage_customer_docs() {
   local out_docs="$1"
   local customer_docs="$2"
-  local dq_root="$3"
+  local _legacy_dq_root="${3:-}"
+  local repo_root
+  repo_root="$(git -C "$customer_docs" rev-parse --show-toplevel)"
   mkdir -p "$out_docs"
   [[ -f "$customer_docs/语音识别SDK接口.md" ]] || {
     echo "[ERROR] missing customer API contract at $customer_docs/语音识别SDK接口.md" >&2
     exit 1
   }
+  python3 "$repo_root/asr/tools/dingqiao_parameter_contract.py" \
+    "$customer_docs/语音识别SDK接口.md"
   cp "$customer_docs/语音识别SDK接口.md" "$out_docs/"
+  cp "$repo_root/shared/api-spec/dingqiao-asr-parameters.json" \
+    "$out_docs/DINGQIAO_ASR_PARAMETER_CONTRACT.json"
   cp "$customer_docs/DINGQIAO_INTEGRATION.md" "$out_docs/"
   cp "$customer_docs/LICENSE.md" "$out_docs/"
   cp "$customer_docs/NOTICE" "$out_docs/NOTICE"
   mkdir -p "$out_docs/third-party"
-  cp "$dq_root/AmphionRuntime/LICENSE" "$out_docs/third-party/Apache-2.0.txt"
-  cp "$dq_root/AmphionRuntime/asr/native/audio-processing/LICENSES/WEBRTC_AUDIO_PROCESSING.txt" \
+  cp "$repo_root/LICENSE" "$out_docs/third-party/Apache-2.0.txt"
+  cp "$repo_root/asr/native/audio-processing/LICENSES/WEBRTC_AUDIO_PROCESSING.txt" \
     "$out_docs/third-party/WebRTC-BSD-3-Clause.txt"
   if [[ -f "$customer_docs/DINGQIAO_VOICEPRINT_MODEL.md" ]]; then
     cp "$customer_docs/DINGQIAO_VOICEPRINT_MODEL.md" "$out_docs/"

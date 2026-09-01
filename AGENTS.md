@@ -25,6 +25,12 @@
 - 声纹测试至少覆盖：`minSegSec=0`、500 ms 短句、自定义正数门槛的边界、低音量、前置静音、非注册语料源和多句连续输入。有真实 PCM 的每个非空 final 都必须逐条核对分数，不能用“整轮至少一个分数”代替。生命周期门禁只判断出分资格、回调顺序和会话恢复；目标/非目标相似度精度及短句风险另走带身份标注的评测集，由业务方决定阈值和接受策略。
 - 同时启用声纹校验和 Speaker VAD 时，必须区分 native stream 边界与公开 final 边界。token-only endpoint 被抑制时可以清理 Speaker VAD 当前流窗口，但不得丢弃声纹回退 PCM；测试至少覆盖两个各短于门槛、合并后达到门槛的 native segment。
 
+## 离线能力边界
+
+- 鼎桥 SDK 的正式交付能力必须完全离线运行。识别、声纹、Speaker VAD 和未来的角色分离均不得依赖公网、局域网服务或业务方配置服务 URL，不得上传 PCM、文本、embedding 或其他推理数据。
+- 角色分离的目标形态必须是 SDK 内的端侧离线推理。当前基于 `SpeakerDiarizationConfig.serviceUrl` 的服务化实现属于未解决的遗留方案，不符合正式交付要求；在完成离线改造前，不得在 Demo、客户邮件、升级说明或发布声明中启用、推荐或宣称角色分离已经交付。
+- 角色分离离线改造必须在断网条件下通过公共 SDK 功能和生命周期验收，并证明运行时没有网络请求。仅保留公共类型、回调或使用本机 URL 联调，不能作为离线能力完成的证据。
+
 ## Debug 哲学
 
 Debug 的核心不是反复重现现象，而是缩短“假设—证伪”的反馈周期。重放现场只用于建立可靠基线和验证最终结果；基线成立后，必须深入内部状态并承担定位责任，不得以“安全起见”“再确认一次”或“多跑几轮”为由，用没有新增诊断信息的黑盒重放代替分析。
@@ -60,6 +66,20 @@ Debug 的核心不是反复重现现象，而是缩短“假设—证伪”的�
 - 失败或被否决的原型可保留 artifact，但必须标记为 non-canonical，不得当作当前 HEAD
   的验收证据。完整长跑已经启动也不构成继续的理由；当结果不再影响技术决策时，
   应优雅中止并保留现有日志。
+
+### 并发语义与状态归属
+
+- 线程迁移、异步化、批处理、缓存、预计算、请求合并和 backpressure 等性能改造，不得改变
+  相同输入在任意合法调度下的公开结果、状态归属和生命周期顺序。实现前必须列出需要保持的
+  不变量，并用可控的延迟、乱序和分帧测试证明同步路径与异步路径在可观察语义上等价。
+- 数据可以推测处理，但在相关边界决策提交前，其结果不得产生不可回滚的公开副作用，也不得
+  污染其他 generation、stream、session 或 utterance。提交时必须根据稳定标识将结果唯一归属、
+  丢弃或回滚；不得根据当前全局状态猜测迟到结果的归属。
+- 对有序状态机输入，默认不得跳过、覆盖、合并或重排事件。只有证明该变换对所有下游状态
+  可交换、幂等且保持可观察结果时才允许；“只关心最新值”不能作为证明。
+- 并发相关测试必须比较不同延迟、分帧和合法调度下的结果，不得把“不等待某个 Future”、
+  “队列长度为 1”等实现手段写成契约。测试应检查公开结果、数据归属、提交顺序和跨边界污染；
+  Speaker VAD 至少以 `target → non-target → target` 和返回目标短语音覆盖这一要求。
 
 ## 缺陷处理流程
 
@@ -135,6 +155,8 @@ Debug 的核心不是反复重现现象，而是缩短“假设—证伪”的�
 
 ## PR 合入门禁
 
+- 缺陷只有在 canonical branch 包含根因修复和回归测试后才能关闭。demo、交付、客户或实验分支上的
+  修复只能作为候选证据，不能视为主线已修复；若暂不能回流主线，必须保留明确的跟踪项和阻塞原因。
 - 合入前必须拉取并检查 PR 的全部 review threads，包括 Copilot suggestion；不能只看 CI 结果或 review 摘要。
 - 每条 suggestion 都要回到接口契约和根因层验证。有效问题必须修复并补回归测试；误报必须记录不采纳理由，不得机械照改。
 - 推送修复后必须重新获取 review threads，确认旧评论已失效或已处理，并检查新提交是否产生新的有效建议。
@@ -149,22 +171,22 @@ python3 -m unittest \
   delivery.harmony-dingqiao.delivery.test_run_device_stress -v
 
 python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py \
-  --data-dir "$HOME/Downloads/testdata"
+  --data-dir "$HOME/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500"
 
 cd asr/android
 ./gradlew --no-daemon :sdk:testDebugUnitTest :sdk-dingqiao:testDebugUnitTest --console=plain
 ./gradlew --no-daemon :sdk:testReleaseUnitTest :sdk-dingqiao:testReleaseUnitTest --rerun-tasks --console=plain
 
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --data-dir "$HOME/Downloads/testdata" \
+  --data-dir "$HOME/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500" \
   --mode vad-begin --cycles 100 --files 0
 
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --data-dir "$HOME/Downloads/testdata" \
+  --data-dir "$HOME/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500" \
   --mode voiceprint-vad-begin --cycles 100 --files 0
 
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --data-dir "$HOME/Downloads/testdata" \
+  --data-dir "$HOME/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500" \
   --mode user-sequence --cycles 300 --files 3
 ```
 

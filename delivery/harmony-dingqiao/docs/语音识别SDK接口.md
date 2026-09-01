@@ -1,11 +1,14 @@
 # 语音识别 SDK 接口（HarmonyOS 交付版）
 
-> 本文件描述 Amphion HarmonyOS 离线语音识别 SDK 的客户集成接口，并已纳入跨平台接口的 HarmonyOS 扩展约束。Android 集成请使用 Android 交付文档。
+> 本文件描述 Amphion HarmonyOS 离线语音识别 SDK 的客户集成接口。跨平台共同参数以
+> `shared/api-spec/dingqiao-asr-parameters.json` 为机器可读单一来源：Android/HarmonyOS
+> 使用相同字段名、取值、默认值和优先级。`enableTargetSpeakerEnhancement` 是 HarmonyOS
+> 预留扩展，不属于共同客户配置，当前未包含获准模型的交付中不得启用。
 
 | 文档项 | 值 |
 | --- | --- |
-| 文档版本 | v1.5（开放 Runtime 日志等级） |
-| 更新日期 | 2026-08-24 |
+| 文档版本 | v1.9（SDK 0.3.12：端侧角色分离与冷启动采音连续性） |
+| 更新日期 | 2026-08-28 |
 | SDK 依赖 | `amphion_dingqiao` |
 
 SDK 依赖名为 `amphion_dingqiao`，核心入口为 `SpeechRecognizeSdk`。本版包含 License、Runtime、Model 三层生命周期控制，以及内置声纹模型的按需加载策略，便于宿主控制模型内存和识别启动时延。
@@ -98,7 +101,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 日志等级设为 `INFO` 后，首次 `prepareRuntime` 初始化成功会在 Harmony hilog 输出：
 
 ```text
-[AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.9, license=LICENSED
+[AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.12, license=LICENSED
 ```
 
 可通过 DevEco Studio Log 或 `hdc shell hilog | grep "AmphionRuntime Harmony init done"` 查看。
@@ -199,7 +202,7 @@ endpoint final 会直接成为本 session 的 `isLast=true` 结果，不再追�
 
 `onStart(sessionId)` 是该 session 已可调用的边界。宿主可以在 `onStart` 回调调用栈内同步冲刷此前缓存的 640 字节 PCM 帧，也可以立即 `finish` 或 `cancel`；SDK 不得在成功回调后返回 `NOT_LISTENING`。在收到 `onStart` 之前不要写入音频。
 
-运行时调用 `setSpeakerVadEnabled(true)` 时，本次会话的 `StartParams.extraParams` 必须已经提供有效的 `voiceprintIds`，即使会话启动时 `enableSpeakerVad=false`。冷态启用 Speaker VAD 会同步等待声纹 extractor 就绪，因此该调用可能阻塞；关闭操作不加载模型。
+运行时调用 `setSpeakerVadEnabled(true)` 时，本次会话的 `StartParams.extraParams` 必须已经提供有效的 `voiceprintIds`，即使会话启动时 `enableSpeakerVad=false`。冷态启用 Speaker VAD 会在后台加载声纹 extractor；调用立即返回，模型就绪前保持 fail-open。关闭操作不加载模型。
 
 ## 5. 参数对象
 
@@ -225,7 +228,7 @@ endpoint final 会直接成为本 session 的 `isLast=true` 结果，不再追�
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `locate` | `string` | `CN` | 兼容字段；当前仅支持中国区，不改变模型选择 |
-| `recognizerMode` | `string` | `long` | 接受 `short`/`long`，当前均按长语音流式模式处理 |
+| `recognizerMode` | `string` | `short` | `short` 保持旧版有最大单句时长的分段识别；`long` 为会议/持续转写，不做周期性 Rule3 硬切，仅在内部压缩已稳定解码前缀且不产生回调 |
 | `sysGeneralLexicon` | `string[]` | 空 | 调用方热词，用于解码 |
 | `disablePrepack` | `boolean/number/string` | `true` | 默认跳过 ORT INT8 权重 prepack，降低冷加载时间和峰值内存；设为 `false` 恢复吞吐优先模式 |
 
@@ -238,28 +241,68 @@ SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需
 | `sessionId` | `string` | 空 | 非空，只允许字母、数字、下划线、短横线 |
 | `audioInfo` | `AudioInfo` | 默认对象 | 音频格式 |
 | `extraParams` | `Record<string, Object>` | 空 | 会话扩展参数 |
+| `speakerDiarization` | `SpeakerDiarizationConfig?` | `undefined` | 不设置时关闭角色分离；设置配置对象时开启 |
 
 常用 `extraParams`：
 
 | 参数 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `recognitionMode` | `number/string` | `1` | 仅支持 `1`（外部写入音频流）；`0`（SDK 内录音）暂不支持 |
+| `recognizerMode` | `string` | engine 配置；否则普通调用为 `short`、continuous 为 `long` | 会话级覆盖：`short` 使用 `endpointMaxUtteranceMs`；`long` 只按自然静音或 `finish` 公开分段，内部 stable-prefix 压缩不产生 endpoint/final。显式值优先，长转写和会议场景仍建议显式设置 `long` |
 | `vadBegin` | `number/string` | 未启用 | 首次检测到语音前的静音超时，范围 500 到 10000 ms；仅显式传入时启用 |
 | `enablePartialResult` | `boolean` | `true` | 是否回调中间结果；启用 Speaker VAD 后仍遵循该参数。partial 属于推测结果，可能包含随后从 final 中移除的非目标说话人文本；目标说话人边界保证仅适用于 final |
 | `enablePoliceEnhancement` | `boolean` | `true` | 是否对 final 文本执行警务术语、车牌和派出所归一化；`false` 返回原始 ASR 文本 |
 | `maxAudioDuration` | `number/string` | 未启用 | 单会话最长音频毫秒数；显式正有限值按调用值生效，上限 28800000；达到上限后正常自动结束，非正数或非法值按未启用处理 |
-| `enableContinuousRecognition` | `boolean` | `false` | 设为 `true` 时保持同一个模型会话连续识别，并禁用 `maxAudioDuration` 自动结束；调用方必须最终显式调用 `finish(sessionId)`。仅布尔值 `true` 生效 |
-| `endpointMaxUtteranceMs` | `number/string` | `20000` | native rule3 的单句强制 final 时长；长语音可显式调大，例如 `60000`。非正数或非法值使用默认值。它只改变单句 final 边界，不会结束 session |
+| `enableContinuousRecognition` | `boolean` | `false` | 设为 `true` 时保持同一个模型会话连续识别，并禁用 `maxAudioDuration` 自动结束；调用方必须最终显式调用 `finish(sessionId)`。未显式传 `recognizerMode` 时同时使用 `long`，显式 short/long 优先；仅布尔值 `true` 生效 |
+| `endpointMaxUtteranceMs` | `number/string` | `20000` | 仅 `recognizerMode=short` 生效的单句强制 final 时长；不会结束 session。long 模式忽略该参数 |
 | `vadEnd` | `number/string` | `800` | VAD 尾静音阈值毫秒，范围 500 到 10000 |
 | `sessionGeneralLexicon` | `string[]` | 空 | V1 暂不支持；传入不会作为会话热词生效 |
 | `enableVoiceprintVerification` | `boolean` | `false` | 是否在 final 阶段返回目标声纹相似度 |
-| `enableSpeakerVad` | `boolean` | `false` | 是否启用目标说话人离场提前 endpoint；冷态启动会同步等待声纹模型；仅处理先后说话，不提供重叠语音分离 |
+| `enableSpeakerVad` | `boolean` | `false` | 是否启用目标说话人离场提前 endpoint；冷态所需模型在后台加载，就绪前保持 fail-open；仅处理先后说话，不提供重叠语音分离 |
 | `enableTargetSpeakerEnhancement` | `boolean` | `false` | 是否在 ASR 前启用目标说话人增强；必须同时启用 Speaker VAD 并提供有效声纹 ID；仅在已包含获准商用模型的设备包中可用 |
 | `voiceprintIds` | `string[]` | 空 | 声纹 ID 列表；启用声纹校验或 Speaker VAD 时必填 |
 | `speakerVadThreshold` | `number/string` | `0.35` | 目标说话人 VAD 阈值 |
 | `speakerVadWindowMs` | `number/string` | `1500` | 目标说话人 VAD 窗长 |
 | `speakerVadHopMs` | `number/string` | `500` | 目标说话人 VAD 步长 |
 | `speakerVadConsecutiveBelow` | `number/string` | `2` | 连续低于阈值多少次触发 endpoint |
+
+### 5.4 Speaker Diarization
+
+Speaker Diarization 是通用的匿名说话人分离能力，不限定会议业务。配置对象存在即开启，
+不再使用 `enableSpeakerDiarization`、`maxSpeakerCount`、`expectedActiveSpeakerCount` 或
+`speakerDiarizationProcessEntry` 等 `extraParams` 字符串参数。
+
+```ts
+import { SpeakerDiarizationConfig, StartParams } from 'amphion_dingqiao';
+
+const start = new StartParams();
+start.sessionId = 'session-1';
+
+const diarization = new SpeakerDiarizationConfig();
+diarization.maxSpeakers = 4;
+start.speakerDiarization = diarization;
+
+engine.startListening(start);
+```
+
+| `SpeakerDiarizationConfig` 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `maxSpeakers` | `number` | `4` | 稳定 speaker 索引的硬上限；V1 只接受整数 `1..4`，非法值使本次 `startListening` 失败，不会静默裁剪 |
+
+SDK 自动估计实际发言人数，不接收参会名单人数或 hard K。证据不足、能力未开启、
+尚未完成分配或超出上限时，对外统一返回 `speakerIndex=-1`；分配成功时返回
+`0..(maxSpeakers-1)`。该索引仅在当前 session 内稳定，业务显示“说话人 1”时需使用
+`speakerIndex + 1`。
+
+角色分离完全在 SDK 内端侧执行。`pyannote-segmentation-3.0.onnx` 与 `eres2net.onnx` 已内置在
+`amphion_dingqiao.har`，宿主无需配置地址、认证、模型路径、网络权限或 ChildProcess 入口。
+PCM 只写入应用沙箱中的顺序 spool，SDK 按 10 秒窗口、2.5 秒 hop 串行执行本地 segmentation 和
+embedding；稳定编号、最近 60 秒静默修正及最终 AHC 聚类也都在本机完成。会议结束只处理尾窗和
+已持久化 embedding，不重新推理整场 PCM。
+
+模型加载、端侧推理、存储或单窗超时会保留 ASR，并通过唯一一次
+`onSpeakerDiarizationResult` 返回明确的 `degradedReason`。产品发布门禁必须把降级视为角色分离
+失败，不能只检查 `onComplete`。
 
 ## 6. 回调
 
@@ -268,6 +311,8 @@ interface RecognitionListener {
   onStart?(sessionId: string, eventMessage?: string): void;
   onEvent?(sessionId: string, eventCode: number, message: string): void;
   onResult?(sessionId: string, result: SpeechRecognitionResult): void;
+  onSpeakerDiarizationUpdate?(sessionId: string, update: SpeakerDiarizationUpdate): void;
+  onSpeakerDiarizationResult?(sessionId: string, result: SpeakerDiarizationResult): void;
   onComplete?(sessionId: string, eventMessage?: string): void;
   onError?(sessionId: string, errorCode: number, message: string): void;
 }
@@ -278,6 +323,8 @@ interface RecognitionListener {
 | `onStart` | 会话已启动且可立即调用该 session 的 `writeAudio`、`finish`、`cancel` |
 | `onEvent` | 语音端点、声纹 VAD 状态等事件 |
 | `onResult` | 识别结果，包含 partial 与 final |
+| `onSpeakerDiarizationUpdate` | 按 `utteranceId + revision` 增量修订说话人归属；只更新 speaker 信息，不修改 ASR 文本 |
+| `onSpeakerDiarizationResult` | 开启角色分离后在正常 finish 流程中唯一一次返回整场最终 utterance 和 speaker timeline，包括降级结果 |
 | `onComplete` | 主动 `finish`、达到 `vadBegin` 首段静音阈值或达到 `maxAudioDuration` 上限后，识别完整结束 |
 | `onError` | 发生错误 |
 
@@ -295,6 +342,50 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `endTime` | `number?` | 结束时间毫秒，可能为空 |
 | `speakerSimilarity` | `number?` | final 且启用声纹校验，并有 ASR 语音证据和非空真实 PCM 时尝试返回 |
 | `targetSpeakerEnhancementApplied` | `boolean?` | 当前 session 启用目标说话人增强时为 `true`；未启用时省略 |
+| `utteranceId` | `string?` | 开启角色分离时，final utterance 的稳定 ID |
+| `speakerIndex` | `number` | 说话人索引；默认 `-1`，已分配为 `0..3` |
+| `secondarySpeakerIndexes` | `number[]` | 重叠语音的次要说话人索引；默认空数组。检测到次要说话人但证据不足以分配身份时包含 `-1`，不得据此猜测为上一位或最近一位 |
+| `speakerConfidence` | `number` | speaker 归属分数，范围 `[0,1]`，默认 `0`；不是经校准的概率 |
+
+`SpeakerDiarizationUpdate` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `utteranceId` | `string` | 需更新的 final utterance |
+| `revision` | `number` | 单调递增修订号；调用方忽略重复或更旧修订 |
+| `speakerIndex` | `number` | `-1` 或稳定的 `0..3` |
+| `secondarySpeakerIndexes` | `number[]` | 次要说话人索引 |
+| `beginTime` / `endTime` | `number` | session-global 毫秒时间轴 |
+| `confidence` | `number` | 本次归属分数，范围 `[0,1]` |
+
+`SpeakerDiarizationResult` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `utterances` | `DiarizedUtterance[]` | 最终全文；包含 `rawText`、`text`、全局时间、speaker 索引、`confidence` 和 `overlap` |
+| `speakerTurns` | `SpeakerTurn[]` | 最终 speaker timeline；保留 primary、secondary、`confidence` 和 `overlap` |
+| `speakerCount` | `number` | 本 session 已确认的匿名说话人数 |
+| `degraded` | `boolean` | 是否返回当前最佳降级结果 |
+| `degradedReason` | `SpeakerDiarizationDegradedReason` | 稳定降级枚举，成功时为 `NONE` |
+| `degradedMessage` | `string?` | 可选的详细说明；业务分支应使用 `degradedReason` |
+| `inferenceMs` | `number` | 累计分人推理耗时 |
+| `rtf` | `number` | 分人处理实时率 |
+
+`SpeakerDiarizationDegradedReason` 包含 `NONE`、`INFERENCE_UNAVAILABLE`、
+`MODEL_UNAVAILABLE`、`INFERENCE_TIMEOUT`、`FINISH_TIMEOUT`、`STORAGE_UNAVAILABLE`
+和 `SPEAKER_LIMIT_EXCEEDED`。
+分人失败不使用致命 `onError` 终止 ASR。
+
+开启 Speaker Diarization 时，`finish()` 仍立即返回；对外收尾顺序固定为：
+
+1. 最后一批 `onSpeakerDiarizationUpdate`。
+2. 唯一 `onResult(isLast=true)`。
+3. 唯一 `onSpeakerDiarizationResult`。
+4. 唯一 `onComplete`。
+
+分人收尾超时时会按相同顺序返回 `degraded=true` 的当前最佳结果；`cancel()` 不产生
+last、`onSpeakerDiarizationResult` 或 `onComplete`。未开启时不产生任何 diarization 回调，
+原有 ASR 生命周期不变。
 
 > `TargetSpeakerConfig.minSegSec` 默认并在鼎桥适配层固定为 `0`，SDK 不设置最短时长门槛。ASR
 > 已产生非空 text/token 时，SDK 使用当前句非空真实 PCM 尝试评分，不再因短句质量判断省略分数。
@@ -327,6 +418,17 @@ Speaker VAD 拒绝非目标片段时，会在 `SPEAKER_VAD_REJECTED` 事件后�
 
 ## 7. 声纹
 
+`VoiceprintRegisterParams`：
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `voiceprintId` | `string` | 空 | 兼容字段；SDK 仍生成安全 ID 并在结果中返回 |
+| `samplePaths` | `string[]` | 空 | 至少 1 个样本路径，每段 3 到 8 秒 |
+| `audioInfo` | `AudioInfo` | 默认对象 | 与识别相同的 16 kHz、16 bit、单声道 PCM 格式 |
+
+同步注册无论成功或业务参数失败都返回 `VoiceprintRegisterResult`：`status=0` 表示成功，失败时
+`status/message` 携带错误；客户无需为 Android/HarmonyOS 编写不同的异常分支。
+
 ```ts
 const params = new VoiceprintRegisterParams();
 params.samplePaths = [samplePath1, samplePath2];
@@ -344,7 +446,7 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 `registerVoiceprint()` 与 `preloadVoiceprintModel()` 都会在 extractor 尚未加载时同步加载并预热声纹模型，不应放在 UI 关键路径。注册成功后，同一个进程内的声纹识别复用该 extractor。`preloadVoiceprintModel()` 是可选优化接口，不是普通声纹识别的前置步骤；Runtime 未就绪或加载失败时返回 `false`。
 
-启用 `enableVoiceprintVerification` 时，声纹 extractor 在 ASR 会话启动后后台加载，ASR 音频写入和 partial 结果不等待；如果 ASR final 产生时模型仍未就绪，只延后 final 和 `onComplete`，模型就绪后立即完成声纹打分。启用 `enableSpeakerVad` 时需要流式打分，因此冷态 `startListening()` 会同步等待 extractor。
+启用 `enableVoiceprintVerification` 或 `enableSpeakerVad` 时，声纹 extractor 在 ASR 会话启动后后台加载，ASR 音频写入和 partial 结果不等待。模型就绪前 Speaker VAD 保持 fail-open；如果 ASR final 产生时 extractor 仍未就绪，只延后 final 和 `onComplete`，模型就绪后立即完成声纹打分。
 
 内存声纹 extractor 由 `unloadModel()` / `unloadRuntime()` 一并释放；HAR 内置的模型文件和已注册的 embedding 属于持久数据，不随内存模型卸载。调用 `unloadModel()` 后再次使用声纹能力会重新按需加载 extractor，但无需重新注册声纹。
 

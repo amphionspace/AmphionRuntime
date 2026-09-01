@@ -36,7 +36,7 @@ FINISH_MODES = {
     "burst", "paced", "vad-begin", "reconfigure", "recreate", "max-duration",
     "continuous-max-duration", "continuous-long-session",
     "continuous-voiceprint-speaker-vad", "numeric-edge",
-    "finish-shutdown", "finish-shutdown-relicense",
+    "finish-shutdown", "finish-shutdown-relicense", "speaker-vad-shutdown-relicense",
     "customer-tap-vad", "customer-ptt", "customer-transcription", "customer-ptt-tail",
     "customer-form", "customer-meeting-minutes",
 }
@@ -50,6 +50,13 @@ TARGET_SPEAKER_MODES = {
     "target-speaker-enhancement-cancel",
 }
 VOICEPRINT_FALLBACK_FIXTURES = REPO_ROOT / "asr/test-fixtures/voiceprint-fallback"
+TEST_DATA_ROOT = Path(
+    os.environ.get(
+        "AMPHION_TEST_DATA_DIR",
+        Path.home() / ".cache/amphion-runtime/test-data/v1",
+    )
+).expanduser()
+DEFAULT_DEVICE_CORPUS = TEST_DATA_ROOT / "aishell3_test_hotwords_500"
 
 
 @dataclass(frozen=True)
@@ -84,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Drive the Harmony ASR SDK through a headless test carrier and check its contracts."
     )
-    parser.add_argument("--data-dir", type=Path, default=Path.home() / "Downloads" / "testdata")
+    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DEVICE_CORPUS)
     parser.add_argument(
         "--target-speaker-manifest",
         type=Path,
@@ -120,6 +127,7 @@ def parse_args() -> argparse.Namespace:
             "start-write",
             "start-write-reload",
             "speaker-vad-onstart",
+            "cold-start-pcm-gap",
             "speaker-vad-turn",
             "target-speaker-enhancement",
             "target-speaker-enhancement-onstart",
@@ -134,6 +142,7 @@ def parse_args() -> argparse.Namespace:
             "endpoint-reentrant",
             "finish-shutdown",
             "finish-shutdown-relicense",
+            "speaker-vad-shutdown-relicense",
             "user-sequence",
             "numeric-edge",
         ),
@@ -1090,7 +1099,8 @@ def run_stress(args: argparse.Namespace) -> Path:
     all_sources = inspect_wavs(corpus_root)
     voiceprint_representative_modes = {
         "voiceprint", "voiceprint-vad-begin", "voiceprint-vad-begin-idle",
-        "speaker-vad-onstart", "continuous-voiceprint-speaker-vad",
+        "speaker-vad-onstart", "cold-start-pcm-gap", "continuous-voiceprint-speaker-vad",
+        "speaker-vad-shutdown-relicense",
     }
     selected = (
         representative_voiceprint_sources(all_sources, args.files)
@@ -1106,6 +1116,10 @@ def run_stress(args: argparse.Namespace) -> Path:
                 "voiceprint-fallback requires 000_enroll.wav and 001_recognize.wav"
             )
         selected = [sources_by_name[name] for name in required_names]
+    elif args.mode == "cold-start-pcm-gap":
+        # This regression gate uses a 5 s vadBegin window and measures synchronous startListening
+        # latency plus exact PCM delivery. Unlike the 1 s VAD gates, it does not require direct onset.
+        selected = sorted(selected, key=lambda source: (-source.duration_seconds, str(source.path)))[:1]
     elif args.mode in ("voiceprint-vad-begin", "speaker-vad-onstart"):
         # The carrier adds 400 ms leading silence in half the cycles. Keep only sources whose own
         # first 200 ms already contain signal, leaving at least 400 ms for VAD/ASR confirmation
@@ -1181,7 +1195,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     hdc.shell("hilog", "-r", check=False)
     hdc.shell("aa", "force-stop", BUNDLE, check=False)
 
-    start_result = hdc.shell(
+    start_command = [
         "aa", "start", "-a", ABILITY, "-b", BUNDLE, "-m", MODULE,
         "--ps", "stress", "true",
         "--ps", "stressRunId", run_id,
@@ -1200,9 +1214,14 @@ def run_stress(args: argparse.Namespace) -> Path:
         ",".join(sorted(finish_recovery_entry_ids)) or "none",
         "--ps", "stressSpeakerVadThreshold",
         str((args.speaker_vad_threshold if args.speaker_vad_threshold is not None else -2) + 2),
-        check=False,
-    )
-    if start_result.returncode != 0 or "error" in (start_result.stdout + start_result.stderr).lower():
+    ]
+    start_result = hdc.shell(*start_command, check=False)
+    start_output = (start_result.stdout + start_result.stderr).lower()
+    if (
+        start_result.returncode != 0
+        or "error" in start_output
+        or "invalid number of parameters" in start_output
+    ):
         raise StressFailure(f"failed to start stress ability: {(start_result.stdout + start_result.stderr).strip()}")
 
     samples: list[MemorySample] = []
@@ -1317,12 +1336,12 @@ def run_stress(args: argparse.Namespace) -> Path:
     if expected_tail.get("status") == "FAIL":
         overall = "FAIL"
         failures.append("expected ASR tail assertion failed")
-    if args.mode == "finish-shutdown-relicense" and any(
+    if args.mode in ("finish-shutdown-relicense", "speaker-vad-shutdown-relicense") and any(
         not terminal_callback_order_ok(cycle.get("trace", "")) for cycle in cycle_results
     ):
         overall = "FAIL"
         failures.append("terminal callback order check failed")
-    if args.mode == "finish-shutdown-relicense" and any(
+    if args.mode in ("finish-shutdown-relicense", "speaker-vad-shutdown-relicense") and any(
         cycle.get("recoveryStarts") != "1"
         or cycle.get("recoveryLastFinals") != "1"
         or cycle.get("recoveryCompletes") != "1"

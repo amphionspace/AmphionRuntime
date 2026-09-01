@@ -39,7 +39,7 @@
 
 > 批注（运行时启用，2026-07-18）：只要会话传入可用 `voiceprintIds`，即使两个声纹开关初始均为关闭，也会预留上述一次性确认窗，以支持调用方在 `onStart` 内同步启用 Speaker VAD。
 
-> 批注（模式兼容，2026-07-14）：`recognitionMode` 缺省为 `STREAM=1`，当前不支持 `RECORD=0` 的 SDK 内录音；`recognizerMode` 接受 `short` / `long`，两者均使用长语音流式实现。`locate` 当前仅兼容 `CN`，`sessionGeneralLexicon` 在 V1 不生效。
+> 批注（模式兼容，更新于 2026-08-26）：`recognitionMode` 缺省为 `STREAM=1`，当前不支持 `RECORD=0` 的 SDK 内录音；`recognizerMode` 接受 `short` / `long`，两者使用同一流式模型，但 endpoint 语义不同：`short` 使用 `endpointMaxUtteranceMs` 作为单句硬上限，`long` 不做周期性 Rule3 强切，只由自然静音或显式 `finish` 分段。普通调用未传 `recognizerMode` 时保持 short；严格布尔启用 `enableContinuousRecognition=true` 且未显式选模式时使用 long，显式 short/long 始终优先。`locate` 当前仅兼容 `CN`，`sessionGeneralLexicon` 在 V1 不生效。
 
 > 批注（错误码兼容，2026-07-14）：增加 `NO_MIC_PERMISSION=1002200012` 常量；由于当前不支持 SDK 内录音，两端不会主动发出该错误。
 
@@ -101,7 +101,7 @@
 | StartParams.extraParams | voiceprintIds：目标声纹 ID 列表；enableVoiceprintVerification=true 时必填，支持多个目标声纹 |
 | SpeechRecognitionResult.speakerSimilarity | 本段语音与目标声纹的相似度（0~1）；仅在 isFinal=true 且会话启用声纹校验时有效 |
 
-> 批注（交付扩展，2026-06-29）：本交付额外支持 `enableSpeakerVad`、`speakerVadThreshold`、`speakerVadWindowMs`、`speakerVadHopMs`、`speakerVadConsecutiveBelow` 与运行时 `setSpeakerVadEnabled(enabled)`，用于目标说话人离场检测。启用该能力时必须有可用的 `voiceprintIds`，否则应返回声纹不存在或启动失败相关错误。
+> 批注（交付扩展，2026-06-29；跨端默认值对齐，2026-08-28）：本交付额外支持 `enableSpeakerVad`、`speakerVadThreshold`、`speakerVadWindowMs`、`speakerVadHopMs`、`speakerVadConsecutiveBelow` 与运行时 `setSpeakerVadEnabled(enabled)`，用于目标说话人离场检测。`enableSpeakerVad` 仅严格布尔值 `true` 生效；默认参数依次为 `0.35`、`1500 ms`、`500 ms`、`2`，与 HarmonyOS 一致。启用该能力时必须有可用的 `voiceprintIds`，否则应返回声纹不存在或启动失败相关错误。
 
 > 批注（交付扩展，2026-06-29）：本交付的声纹核验为打分模式，SDK 不在内部丢弃非目标说话人 final 结果；是否接受该结果由客户业务根据 `speakerSimilarity` 判定。
 

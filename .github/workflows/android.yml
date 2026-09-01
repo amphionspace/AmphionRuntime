@@ -95,7 +95,13 @@ jobs:
               "delivery/harmony-dingqiao/delivery/test_build_install_smoke.py",
               "tools/delivery/asr_release_evidence_contract.py",
             ]);
-            const staticPrefixes = ["asr/native/audio-processing/"];
+            const staticPrefixes = [
+              "asr/native/audio-processing/",
+              "asr/tools/delivery/",
+              "asr/tools/tests/",
+              "shared/api-spec/",
+              "tools/delivery/",
+            ];
             const harmonyExactInputs = new Set([
               ".gitmodules",
               WORKFLOW,
@@ -119,10 +125,17 @@ jobs:
             ];
             const redactionExactInputs = new Set([
               WORKFLOW,
+              "asr/tools/delivery/dingqiao_build_provenance.sh",
+              "asr/tools/delivery/pack_dingqiao_customer_delivery.sh",
+              "asr/tools/delivery/pack_dingqiao_demo_source_delivery.sh",
+              "asr/tools/delivery/validate_android_sdk_only_delivery.py",
               "delivery/harmony-dingqiao/delivery/check_customer_delivery_redaction.py",
               "delivery/harmony-dingqiao/delivery/test_check_customer_delivery_redaction.py",
             ]);
-            const redactionPrefixes = ["delivery/harmony-dingqiao/docs/customer/"];
+            const redactionPrefixes = [
+              "asr/android/docs/customer/",
+              "delivery/harmony-dingqiao/docs/customer/",
+            ];
             const policeExactInputs = new Set([
               WORKFLOW,
               "asr/tools/sync_harmony_police_assets.py",
@@ -257,6 +270,15 @@ jobs:
             assertClassification("customer-markdown", changes([
               "delivery/harmony-dingqiao/docs/customer/INTEGRATION.md",
             ]), { redaction: true });
+            assertClassification("android-customer-markdown", changes([
+              "asr/android/docs/customer/DINGQIAO_INTEGRATION.md",
+            ]), { redaction: true });
+            assertClassification("parameter-contract", changes([
+              "shared/api-spec/dingqiao-asr-parameters.json",
+            ]), { static: true, harmony: true });
+            assertClassification("android-delivery-validator", changes([
+              "asr/tools/delivery/validate_android_sdk_only_delivery.py",
+            ]), { static: true, harmony: true, redaction: true });
             assertClassification("sample", changes([
               "asr/android/samples/public-demo/src/main/java/com/amphion/Demo.kt",
             ]), {});
@@ -390,7 +412,12 @@ jobs:
           python-version: "3.11"
 
       - name: Run automatic AGC static release gate
-        run: python3 asr/tools/run_automatic_agc_release_gate.py static
+        run: |
+          python3 asr/tools/run_automatic_agc_release_gate.py static
+          python3 -m unittest \
+            asr.tools.tests.test_dingqiao_parameter_contract \
+            asr.tools.tests.test_android_sdk_only_delivery \
+            tools.delivery.test_asr_release_tracker -v
 
   harmony-contracts:
     name: Harmony lifecycle contracts
@@ -447,6 +474,8 @@ jobs:
             delivery/harmony-dingqiao/delivery/test_check_customer_delivery_redaction.py -v
           python3 delivery/harmony-dingqiao/delivery/check_customer_delivery_redaction.py \
             delivery/harmony-dingqiao/docs/customer
+          python3 delivery/harmony-dingqiao/delivery/check_customer_delivery_redaction.py \
+            asr/android/docs/customer
 
   police-parity:
     name: Police cross-platform parity

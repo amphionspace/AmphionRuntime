@@ -6,6 +6,65 @@
 - MINOR：新增公开 API 但保持向后兼容
 - PATCH：仅 bug 修复，公开 API 与行为不变
 
+## [Unreleased]
+
+当前无未发布变更。
+
+## [0.3.4] - 2026-08-28
+
+> 本版本记录已核对至 HarmonyOS 0.3.12 的 Android 对齐工作。当前交付状态为
+> `PREVIEW / NON-CANONICAL`；完成同一最终提交的真机发布门禁后，才能登记为正式交付。
+
+新增
+
+- 新增 `shared/api-spec/dingqiao-asr-parameters.json` 作为 Android/HarmonyOS 鼎桥共同参数的
+  单一来源，固定字段名、类型、默认值、范围、优先级和数值舍入；两端实现、客户文档和
+  SDK-only 交付包均增加自动一致性门禁。
+- 鼎桥适配层与 Demo 显式支持 `recognizerMode=short|long`。PTT、点击识别使用 `short`；
+  长语音、填单和会议使用 `long`。
+- `long` 使用与 Harmony 相同的 native stable-prefix 机制：不按固定 20/60 秒产生公开 Rule3
+  final，内部压缩不改变公开 token、时间轴或 `isFinal` / `isLast` 语义。
+- Dingqiao 适配层新增 `SpeechRecognizeSdk.setLogLevel(AmphionLogLevel)`，支持在
+  `prepareRuntime` 前设置 `INFO` / `DEBUG`；默认仍为 `WARN`。
+- 补齐 HarmonyOS 已公开的 `SpeechRecognizeSdk.getWorkPath()`、
+  `DingqiaoRecognitionMode.SINGLE/CONTINUOUS` 兼容别名，并统一 `LicenseActivationResult`
+  的默认值与非空错误消息。
+- 补齐 HarmonyOS 同名 `LicenseDeviceIdProvider` 与 `init(context, provider)` 入口；更换 provider
+  会使既有授权和 Runtime 失效，避免授权身份跨 provider 复用。新增
+  `DINGQIAO_AUDIO_FRAME_BYTES_20MS` 同名常量，并保留 Android 旧常量名兼容。
+- 新增编译期隔离的 `diagnostics` SDK 变体及 `exportDiagnostics`：普通 debug/release 包不采集，
+  专用变体有界导出匿名会话事件、callback/timeline、实际 PCM/WAV、资源采样、崩溃恢复 journal、
+  model/build identity 和 schema v2 manifest；旧 `configureDiagnostics` 仅保留源码兼容，
+  不允许运行时开启。
+- 新增完全离线 Speaker Diarization：公共配置/增量更新/最终结果与 HarmonyOS 同名；使用同一
+  `pyannote-segmentation-3.0.onnx` powerset mask 和 `eres2net.onnx`，支持重叠说话、在线稳定 ID、
+  最终全局聚类及 ASR/diarization finish 双路屏障。
+- Police 后处理新增与 HarmonyOS 相同的 LAC 人名识别与声调拼音纠正，候选来自
+  `sysGeneralLexicon`，模型异常 fail-soft 保留原文。
+
+兼容性
+
+- Android 与 HarmonyOS 的 Speaker VAD 默认值统一为阈值 `0.35`、窗长 `1500 ms`、步长
+  `500 ms`、连续低分窗口 `2`；布尔能力开关仅接受布尔值，毫秒/计数参数统一四舍五入。
+- 两端仅支持 `online=OFFLINE(1)`；传入其他值时均在创建引擎阶段明确失败，不再由一端静默接受。
+- 声纹同步注册失败统一通过 `VoiceprintRegisterResult.status/message` 返回；授权的应用、证书或设备
+  绑定失败统一映射为公开错误 `LICENSE_DEVICE_MISMATCH(1002200033)`，客户无需维护平台错误分支。
+- 普通旧调用未传 `recognizerMode` 时保持 `short`；严格布尔
+  `enableContinuousRecognition=true` 且未显式配置模式时使用 `long`，会话级显式配置优先。
+- `endpointMaxUtteranceMs` 仅在 `short` 生效；`long` 仍由自然静音或调用方 `finish` 收口。
+- `finish -> shutdown` 和 `finish -> setLicense` 会等待已接受音频的唯一 last/complete
+  收口后再释放旧 Runtime；日志等级不进入识别控制路径。
+- `onComplete` 后立即创建下一 session 时，先等待旧 decoder/native stream 静默；超时明确启动
+  失败，不跨越尚未完成的 native 清理复用资源。
+- 会议场景默认最长 2 小时；Demo、SDK 与交付包统一使用 Android `0.3.4` 版本身份，预览状态
+  由验收材料和构建 provenance 明确标记，不冒充正式交付。
+
+发布冻结
+
+- 代码、模型、API、文档和交付脚本缺口已关闭；Android 制品版本升级为 `0.3.4`。在断网
+  Speaker Diarization、LAC 和生命周期/声纹组合真机门禁完成前，只允许生成明确标记的预览包；
+  正式发布账本必须绑定最终提交、验收证据和制品 SHA-256。
+
 ## [0.3.3] - 2026-07-30
 
 新增

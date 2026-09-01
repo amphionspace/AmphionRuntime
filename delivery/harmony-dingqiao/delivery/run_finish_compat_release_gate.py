@@ -19,6 +19,13 @@ PROJECT_ROOT = REPO_ROOT / "delivery" / "harmony-dingqiao"
 RUNNER = SCRIPT_DIR / "run_device_stress.py"
 DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "build" / "release-gates" / "finish-compat"
 DEFAULT_BUILD_IDENTITY = PROJECT_ROOT / "build" / "smoke" / "build-identity.json"
+TEST_DATA_ROOT = Path(
+    os.environ.get(
+        "AMPHION_TEST_DATA_DIR",
+        Path.home() / ".cache/amphion-runtime/test-data/v1",
+    )
+).expanduser()
+DEFAULT_DEVICE_CORPUS = TEST_DATA_ROOT / "aishell3_test_hotwords_500"
 
 
 class GateFailure(RuntimeError):
@@ -229,7 +236,7 @@ def parse_args() -> argparse.Namespace:
             "finish-shutdown USB gates against the same Harmony HAP."
         )
     )
-    parser.add_argument("--data-dir", type=Path, default=Path.home() / "Downloads" / "testdata")
+    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DEVICE_CORPUS)
     parser.add_argument("--callback-cycles", type=int, default=3)
     parser.add_argument("--finish-shutdown-cycles", type=int, default=10)
     parser.add_argument("--files", type=int, default=3)

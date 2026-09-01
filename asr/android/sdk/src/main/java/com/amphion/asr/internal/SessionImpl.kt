@@ -45,6 +45,7 @@ internal class SessionImpl(
     private val closed = AtomicBoolean(false)
     private val stopped = AtomicBoolean(false)
     private val decoderSubmissionFence = DecoderSubmissionFence()
+    private val pcmSubmissionLimiter = PcmSubmissionLimiter(sampleRate * PCM_PENDING_SECONDS)
 
     private val decoderThread = HandlerThread("asr-decode-$sessionId").apply { start() }
     private val decoderHandler = Handler(decoderThread.looper)
@@ -90,6 +91,12 @@ internal class SessionImpl(
     private val effectiveSpeechBuffer = EffectiveSpeechBuffer(sampleRate, UTT_MAX_SAMPLES)
     private val recognizerResetGeneration = RecognizerResetGeneration()
     private val agcIngress = StreamingAgcIngress(StreamingAgcProcessor(sampleRate), ::guardAgcFrames)
+
+    private val stablePrefixIntervalSamples: Long = if (
+        engineImpl.endpointRules.rule3MinUtteranceLengthSec < 0f
+    ) LONG_FORM_STABLE_PREFIX_INTERVAL_SEC * sampleRate else 0L
+    private var stablePrefixSamples: Long = 0L
+    private var nextStablePrefixCheckSamples: Long = stablePrefixIntervalSamples
 
     /** speaker vad 打分终点按 native segment 的绝对 sample 位置推进，不依赖调用方 PCM 分块。 */
     private var svScoreScheduler: SpeakerVadScoreScheduler? = null
@@ -216,28 +223,57 @@ internal class SessionImpl(
     // -------- public 方法（被 AsrSession 转发） --------
 
     fun acceptPcmFloat(samples: FloatArray) {
-        val accepted = decoderSubmissionFence.submitActive {
-            // 16-bit PCM 单声道：每个 sample 2 字节
-            metrics.onPcmAccepted(samples.size * 2)
-            val copy = samples.copyOf()
-            decoderHandler.post {
-                agcIngress.accept(copy, ::feedAndDecode)
-            }
-        }
-        if (!accepted) {
-            Logger.d("acceptPcmFloat dropped (closed=${closed.get()}, stopped=${stopped.get()})")
+        var offset = 0
+        while (offset < samples.size) {
+            val end = minOf(offset + PCM_SUBMISSION_CHUNK_SAMPLES, samples.size)
+            if (!submitPcmChunk(samples, offset, end)) return
+            offset = end
         }
     }
 
     fun acceptPcmShort(samples: ShortArray) {
         if (closed.get() || stopped.get()) return
-        val floats = FloatArray(samples.size)
-        var i = 0
-        while (i < samples.size) {
-            floats[i] = samples[i] / 32768f
-            i++
+        var offset = 0
+        while (offset < samples.size) {
+            val end = minOf(offset + PCM_SUBMISSION_CHUNK_SAMPLES, samples.size)
+            val floats = FloatArray(end - offset)
+            var i = offset
+            while (i < end) {
+                floats[i - offset] = samples[i] / 32768f
+                i++
+            }
+            if (!submitPcmChunk(floats, 0, floats.size)) return
+            offset = end
         }
-        acceptPcmFloat(floats)
+    }
+
+    private fun submitPcmChunk(samples: FloatArray, fromIndex: Int, toIndex: Int): Boolean {
+        val sampleCount = toIndex - fromIndex
+        if (sampleCount <= 0 || !pcmSubmissionLimiter.reserve(sampleCount)) return false
+
+        var scheduled = false
+        val accepted = try {
+            decoderSubmissionFence.submitActive {
+                val copy = samples.copyOfRange(fromIndex, toIndex)
+                scheduled = decoderHandler.post {
+                    try {
+                        agcIngress.accept(copy, ::feedAndDecode)
+                    } finally {
+                        pcmSubmissionLimiter.release(copy.size)
+                    }
+                }
+                if (scheduled) {
+                    // 16-bit PCM 单声道：每个 sample 2 字节
+                    metrics.onPcmAccepted(sampleCount * 2)
+                }
+            }
+        } finally {
+            if (!scheduled) pcmSubmissionLimiter.release(sampleCount)
+        }
+        if (!accepted) {
+            Logger.d("acceptPcm dropped (closed=${closed.get()}, stopped=${stopped.get()})")
+        }
+        return accepted && scheduled
     }
 
     fun updateHotwords(words: List<String>, score: Float) {
@@ -341,6 +377,7 @@ internal class SessionImpl(
     }
 
     fun stop() {
+        pcmSubmissionLimiter.stopAccepting()
         decoderSubmissionFence.submitStop {
             stopped.set(true)
             decoderHandler.post {
@@ -370,6 +407,7 @@ internal class SessionImpl(
     }
 
     fun close() {
+        pcmSubmissionLimiter.stopAccepting()
         val closing = decoderSubmissionFence.submitClose {
             closed.set(true)
             decoderHandler.removeCallbacksAndMessages(null)
@@ -514,6 +552,7 @@ internal class SessionImpl(
         val resetGenerationBefore = recognizerResetGeneration.snapshot()
         val asrR = NativeGuard.run("stream.acceptWaveform+drain") {
             stream.acceptWaveform(processedSamples, sampleRate)
+            stablePrefixSamples += processedSamples.size
             drainDecoder(isFinal = false)
         }
         if (asrR is NativeResult.Err) {
@@ -700,6 +739,7 @@ internal class SessionImpl(
             return hasEvidence
         }
 
+        if (!isFinal) maybeCommitStablePrefix()
         val r = recognizer.getResult(stream)
         markInitialSpeechDetected(r)
         val decoded = discardInitialSilenceTimeoutResult(toAsrResult(r), initialSilenceTimeoutSent)
@@ -754,6 +794,7 @@ internal class SessionImpl(
             resetSpeakerVadState()
         }
         recognizerResetGeneration.markReset()
+        resetStablePrefixSchedule()
         lastPartialText = ""
     }
 
@@ -779,7 +820,27 @@ internal class SessionImpl(
             }
         }
         recognizerResetGeneration.markReset()
+        resetStablePrefixSchedule()
         lastPartialText = ""
+    }
+
+    private fun resetStablePrefixSchedule() {
+        stablePrefixSamples = 0L
+        nextStablePrefixCheckSamples = stablePrefixIntervalSamples
+    }
+
+    private fun maybeCommitStablePrefix() {
+        if (stablePrefixIntervalSamples <= 0L ||
+            stablePrefixSamples < nextStablePrefixCheckSamples
+        ) return
+        if (recognizer.commitStablePrefix(stream)) {
+            Logger.metric(
+                "kind=STREAM_TRANSITION sessionId=$sessionId action=stable-prefix-commit",
+            )
+            resetStablePrefixSchedule()
+        } else {
+            nextStablePrefixCheckSamples = stablePrefixSamples + sampleRate
+        }
     }
 
     private fun com.k2fsa.sherpa.onnx.OnlineEndpointReason.metricName(): String =
@@ -842,6 +903,7 @@ internal class SessionImpl(
         }
         return AsrResult(
             text = r.text,
+            rawText = r.text,
             confidence = confidence,
             tokens = tokenList,
             timestamps = tsList,
@@ -1144,6 +1206,15 @@ internal class SessionImpl(
     }
 
     private companion object {
+        /** long 模式禁用 Rule3 后，只在 native 内按此周期压缩稳定前缀。 */
+        const val LONG_FORM_STABLE_PREFIX_INTERVAL_SEC = 60L
+
+        /** Caller burst writes retain at most this much PCM while the decoder catches up. */
+        const val PCM_PENDING_SECONDS = 10
+
+        /** Large caller buffers are split so one reservation can never exceed the queue budget. */
+        const val PCM_SUBMISSION_CHUNK_SAMPLES = 16_000
+
         /** Initial-silence decisions advance in fixed 20 ms slices, independent of caller chunk size. */
         const val INITIAL_DECISION_CHUNKS_PER_SECOND = 50
 

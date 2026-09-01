@@ -9,14 +9,31 @@ val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
+val sdkVersion = providers.gradleProperty("AMPHION_RUNTIME_VERSION").get()
 
 // -PdingqiaoUseFatAar=true 时用方案 A fat AAR 构建 Demo（与 dingqiao-asr-*.aar 对齐）
 val useFatAar = providers.gradleProperty("dingqiaoUseFatAar").orElse("false").get() == "true"
 val fatAarPath = providers.gradleProperty("dingqiaoFatAarPath").orElse(
-    "${rootProject.projectDir}/build/dingqiao-delivery/dingqiao-asr-v0.1.0.aar",
+    "${rootProject.projectDir}/build/dingqiao-delivery/dingqiao-asr-v$sdkVersion.aar",
 ).get()
 val evalAudioDir = providers.gradleProperty("dingqiaoEvalAudioDir").orNull
 val demoAssetDir = providers.gradleProperty("dingqiaoDemoAssetDir").orNull
+
+val validateDingqiaoDemoRuntimeAssets by tasks.registering {
+    group = "verification"
+    description = "Reject a project-based Demo APK build without packed runtime models."
+    onlyIf { !useFatAar }
+    doLast {
+        check(rootProject.file("sdk/src/main/assets/amphion-models/manifest.json").isFile) {
+            "Dingqiao Demo models are not packed. Run " +
+                "`bash asr/tools/08_pack_sdk_assets.sh --zh-en-only` before building the APK."
+        }
+    }
+}
+
+tasks.matching { it.name == "packageDebug" || it.name == "packageRelease" }.configureEach {
+    dependsOn(validateDingqiaoDemoRuntimeAssets)
+}
 
 android {
     namespace = "com.amphion.dingqiao.demo"
@@ -27,7 +44,7 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = sdkVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

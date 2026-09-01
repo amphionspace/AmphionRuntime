@@ -62,6 +62,8 @@ tts/android/sdk/src/main/jniLibs/**/*.so
 asr/ios/AmphionRuntime.xcframework/
 asr/ios/AmphionRuntime.xcframework.zip
 asr/ios/AmphionRuntime.xcframework.zip.sha256
+asr/ios/.native-src/
+**/xcuserdata/
 
 # HarmonyOS native / rawfile 交付产物（由构建和打包脚本生成）
 asr/harmony/sdk/src/main/cpp/libs/*/
@@ -147,9 +149,12 @@ shared/regression-set/audio/
 # Demo 模型由 asr/tools/00_fetch_demo_model.sh 拉取到 asr/tools/demo-model/
 # 自有模型由 asr/tools/00_push_my_model.sh 推到设备，本地目录由用户自管
 *.onnx
-!asr/android/sdk-dingqiao/src/main/assets/amphion-dingqiao/eres2net.onnx
-!asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx
-!asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx
+# 多平台共用的发布模型只在 shared/models 保留一份；各平台构建时复制到包内运行路径。
+!shared/models/asr/dingqiao/eres2net.onnx
+!shared/models/asr/dingqiao/pyannote-segmentation-3.0.onnx
+!shared/models/asr/police/lac/v1/lac_encoder.onnx
+# Harmony Hvigor 会把共享许可证同步到 rawfile；源文件只跟踪 shared/models 下的一份。
+asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.LICENSE
 *.wav
 !asr/test-fixtures/voiceprint-fallback/*.wav
 *.tar

@@ -25,6 +25,9 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0019-*` | Harmony speaker embedding 增加带 extractor/stream 租约的异步计算入口，避免在 ArkTS 音频链路同步执行 ONNX |
 | `0020-*` | Android JNI 暴露 native endpoint reason 与 Rule3 checkpoint，使 Android session 使用与 Harmony 相同的长音频上下文保留策略 |
 | `0021-*` | Harmony speaker embedding 候选评分合并为单个异步批次，在同一 extractor 锁内顺序计算，减少重复任务排队与锁竞争 |
+| `0022-*` | endpoint rule 使用负的最短句长作为显式禁用值，使 long 模式不再依靠有限时长 guard 规避 Rule3 |
+| `0023-*` | long 模式按所有存活 beam 的共同 token/frame 前缀做内部压缩；保留未决候选与 encoder/LM/context 状态，不制造周期 endpoint/final，并向 Harmony/Android 暴露内部调用入口 |
+| `0024-*` | C API 暴露 metadata-free pyannote powerset 解码，与 Android/Harmony 的 10 秒说话人片段语义一致，供 iOS 直接复用公共模型 |
 
 Apply automatically from the Harmony `04_build_harmony_so.sh` entry point (Android also applies the same series from its native build flow):
 

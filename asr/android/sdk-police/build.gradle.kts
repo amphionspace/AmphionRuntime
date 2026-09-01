@@ -3,6 +3,14 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+val generatedLacAssets = layout.buildDirectory.dir("generated/sharedLacAssets")
+val syncSharedLacModel by tasks.registering(Sync::class) {
+    from("../../../shared/models/asr/police/lac/v1") {
+        include("lac_encoder.onnx")
+    }
+    into(generatedLacAssets.map { it.dir("lac/v1") })
+}
+
 android {
     namespace = "com.amphion.police"
     compileSdk = 34
@@ -11,6 +19,22 @@ android {
         minSdk = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+        externalNativeBuild {
+            cmake {
+                cppFlags += listOf("-std=c++17", "-fexceptions", "-frtti")
+            }
+        }
+    }
+    ndkVersion = "26.3.11579264"
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     buildTypes {
@@ -32,6 +56,8 @@ android {
         noCompress += listOf("fst")
     }
 
+    sourceSets.getByName("main").assets.srcDir(generatedLacAssets)
+
     testOptions {
         unitTests.isIncludeAndroidResources = true
         // 透传 realmic.* 系统属性给单测 JVM（真机对比工装用：realmic.dir / realmic.home）。
@@ -52,6 +78,12 @@ android {
             }
         }
     }
+}
+
+tasks.matching {
+    it.name.endsWith("Assets") || it.name.contains("lint", ignoreCase = true)
+}.configureEach {
+    dependsOn(syncSharedLacModel)
 }
 
 dependencies {

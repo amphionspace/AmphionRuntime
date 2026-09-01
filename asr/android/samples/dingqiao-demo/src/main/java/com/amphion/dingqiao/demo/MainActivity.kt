@@ -32,6 +32,9 @@ import com.amphion.dingqiao.CreateEngineParams
 import com.amphion.dingqiao.DingqiaoEventCode
 import com.amphion.dingqiao.DingqiaoOnlineMode
 import com.amphion.dingqiao.RecognitionListener
+import com.amphion.dingqiao.SpeakerDiarizationConfig
+import com.amphion.dingqiao.SpeakerDiarizationResult
+import com.amphion.dingqiao.SpeakerDiarizationUpdate
 import com.amphion.dingqiao.SpeechRecognitionEngine
 import com.amphion.dingqiao.SpeechRecognitionResult
 import com.amphion.dingqiao.SpeechRecognizeSdk
@@ -85,6 +88,15 @@ class MainActivity : AppCompatActivity() {
     private val sdkCapture = SdkPcmCapture()
     private val capturePlayer = PcmPlayer()
     private val finalLines = SpannableStringBuilder()
+    private data class MeetingLine(
+        val utteranceId: String,
+        val text: String,
+        val speakerIndex: Int,
+        val secondarySpeakerIndexes: List<Int>,
+        val confidence: Float,
+        val overlap: Boolean,
+    )
+    private val meetingLines = linkedMapOf<String, MeetingLine>()
 
     private var engine: SpeechRecognitionEngine? = null
     private var recorder: AudioRecorder? = null
@@ -409,7 +421,23 @@ class MainActivity : AppCompatActivity() {
                         replayCompareText += result.result
                     } else {
                         liveCompareText += result.result
-                        appendFinal(result)
+                        val utteranceId = result.utteranceId
+                        if (capturedScenario == CustomerScenario.MEETING_MINUTES &&
+                            utteranceId != null && result.result.isNotEmpty()
+                        ) {
+                            activeDebugRecord?.addFinal(result.result, result.speakerSimilarity)
+                            meetingLines[utteranceId] = MeetingLine(
+                                utteranceId,
+                                result.result,
+                                result.speakerIndex,
+                                result.secondarySpeakerIndexes,
+                                result.speakerConfidence,
+                                result.secondarySpeakerIndexes.isNotEmpty(),
+                            )
+                            renderMeetingLines()
+                        } else {
+                            appendFinal(result)
+                        }
                         tvPartial.text = ""
                     }
                 } else if (sessionId != replaySessionId) {
@@ -417,6 +445,50 @@ class MainActivity : AppCompatActivity() {
                     tvPartial.text = result.result
                 }
                 updateCaptureUi()
+            }
+        }
+
+        override fun onSpeakerDiarizationUpdate(
+            sessionId: String,
+            update: SpeakerDiarizationUpdate,
+        ) {
+            if (sessionId == replaySessionId) return
+            runOnUiThread {
+                val previous = meetingLines[update.utteranceId] ?: return@runOnUiThread
+                meetingLines[update.utteranceId] = previous.copy(
+                    speakerIndex = update.speakerIndex,
+                    secondarySpeakerIndexes = update.secondarySpeakerIndexes,
+                    confidence = update.confidence,
+                    overlap = update.secondarySpeakerIndexes.isNotEmpty(),
+                )
+                renderMeetingLines()
+            }
+        }
+
+        override fun onSpeakerDiarizationResult(
+            sessionId: String,
+            result: SpeakerDiarizationResult,
+        ) {
+            if (sessionId == replaySessionId) return
+            runOnUiThread {
+                if (!active) return@runOnUiThread
+                if (result.utterances.isNotEmpty()) {
+                    meetingLines.clear()
+                    result.utterances.forEach { utterance ->
+                        meetingLines[utterance.utteranceId] = MeetingLine(
+                            utterance.utteranceId,
+                            utterance.text,
+                            utterance.speakerIndex,
+                            utterance.secondarySpeakerIndexes,
+                            utterance.confidence,
+                            utterance.overlap,
+                        )
+                    }
+                    renderMeetingLines()
+                }
+                if (result.degraded) {
+                    setStatus(getString(R.string.diarization_degraded, result.degradedReason.name))
+                }
             }
         }
 
@@ -433,6 +505,7 @@ class MainActivity : AppCompatActivity() {
         if (!runtimeReady || listening || stoppingListening || replaying || playingCapture || modelReleaseInProgress) return
         startTapMs = SystemClock.elapsedRealtime()
         finalLines.clear()
+        meetingLines.clear()
         tvFinal.text = ""
         tvPartial.text = ""
         synchronized(stateLock) {
@@ -503,6 +576,7 @@ class MainActivity : AppCompatActivity() {
             "enablePartialResult" to profile.enablePartialResult,
             "vadEnd" to profile.vadEndMs,
             "maxAudioDuration" to profile.maxAudioDurationMs,
+            "recognizerMode" to profile.recognizerMode,
             "endpointMaxUtteranceMs" to profile.endpointMaxUtteranceMs,
             "enableContinuousRecognition" to CustomerScenarioProfiles.usesContinuousRecognition(capturedScenario),
             "enablePoliceEnhancement" to capturedPoliceEnhancement,
@@ -517,7 +591,16 @@ class MainActivity : AppCompatActivity() {
             extra["speakerVadConsecutiveBelow"] = SPEAKER_VAD_CONSECUTIVE_BELOW
         }
         capturedVoiceprintId?.let { extra["voiceprintIds"] = listOf(it) }
-        return StartParams(sid, AudioInfo(), extra)
+        return StartParams(
+            sid,
+            AudioInfo(),
+            extra,
+            speakerDiarization = if (capturedScenario == CustomerScenario.MEETING_MINUTES) {
+                SpeakerDiarizationConfig(maxSpeakers = 4)
+            } else {
+                null
+            },
+        )
     }
 
     private fun writeFrameToCurrentSession(frame: ByteArray) {
@@ -944,6 +1027,38 @@ class MainActivity : AppCompatActivity() {
         tvFinal.text = finalLines
     }
 
+    private fun renderMeetingLines() {
+        finalLines.clear()
+        meetingLines.values.forEach { line ->
+            if (finalLines.isNotEmpty()) finalLines.append('\n')
+            val labelStart = finalLines.length
+            val speaker = if (line.speakerIndex >= 0) {
+                getString(R.string.diarization_speaker, line.speakerIndex + 1)
+            } else {
+                getString(R.string.diarization_speaker_unknown)
+            }
+            finalLines.append('[').append(speaker)
+            if (line.overlap || line.secondarySpeakerIndexes.isNotEmpty()) {
+                finalLines.append(" · ").append(getString(R.string.diarization_overlap))
+            }
+            finalLines.append("] ")
+            finalLines.setSpan(
+                ForegroundColorSpan(ContextCompat.getColor(this, R.color.brand_accent)),
+                labelStart,
+                finalLines.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            finalLines.setSpan(
+                StyleSpan(Typeface.BOLD),
+                labelStart,
+                finalLines.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+            finalLines.append(line.text)
+        }
+        tvFinal.text = finalLines
+    }
+
     private fun finishActiveDebugRecord(
         status: String,
         errorCode: Int? = null,
@@ -1242,6 +1357,11 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
+    private enum class VoiceprintCapability {
+        VERIFICATION,
+        SPEAKER_VAD,
+    }
+
     private companion object {
         const val TAG = "DingqiaoDemo"
         const val SAMPLE_RATE = 16_000
@@ -1254,10 +1374,5 @@ class MainActivity : AppCompatActivity() {
         const val SPEAKER_VAD_WINDOW_MS = 1_500
         const val SPEAKER_VAD_HOP_MS = 500
         const val SPEAKER_VAD_CONSECUTIVE_BELOW = 2
-    }
-
-    private enum class VoiceprintCapability {
-        VERIFICATION,
-        SPEAKER_VAD,
     }
 }

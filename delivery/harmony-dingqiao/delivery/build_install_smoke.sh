@@ -11,6 +11,7 @@ NODE="$DEVECO_HOME/tools/node/bin/node"
 HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
 OHPM="$DEVECO_HOME/tools/ohpm/bin/ohpm"
 HDC="$DEVECO_HOME/sdk/default/openharmony/toolchains/hdc"
+LLVM_NM="$DEVECO_HOME/sdk/default/openharmony/native/llvm/bin/llvm-nm"
 JAVA_HOME_VALUE="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
 HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap"
 BUILD_IDENTITY="$PROJECT_ROOT/build/smoke/build-identity.json"
@@ -219,6 +220,7 @@ prepare_build_workspace() {
   clone_tree "$REPO_ROOT/asr/harmony/sdk" "$temp_repo/asr/harmony/sdk"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-police" "$temp_repo/asr/harmony/sdk-police"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-dingqiao" "$temp_repo/asr/harmony/sdk-dingqiao"
+  clone_tree "$REPO_ROOT/shared/models/asr" "$temp_repo/shared/models/asr"
   clone_tree \
     "$REPO_ROOT/asr/native/audio-processing/include" \
     "$temp_repo/asr/native/audio-processing/include"
@@ -257,7 +259,7 @@ EOF
       echo "[ERROR] speaker-turn segmentation model is unreadable: $SPEAKER_TURN_SEGMENTATION_MODEL" >&2
       exit 1
     }
-    local turn_destination="$temp_repo/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx"
+    local turn_destination="$temp_repo/shared/models/asr/dingqiao/pyannote-segmentation-3.0.onnx"
     mkdir -p "$(dirname "$turn_destination")"
     cp "$SPEAKER_TURN_SEGMENTATION_MODEL" "$turn_destination"
     echo "[INFO] injected speaker-turn segmentation model into the isolated test build"
@@ -418,6 +420,9 @@ if [[ "$SKIP_BUILD" != true ]]; then
     echo "        template: $SCRIPT_DIR/harmony-signing.example.json" >&2
     exit 1
   }
+  python3 "$REPO_ROOT/asr/tools/verify_harmony_sherpa_symbols.py" \
+    --library "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
+    --nm "$LLVM_NM"
   prepare_build_workspace
   apply_local_signing "$SIGNING_CONFIG"
   echo "[INFO] building signed Harmony demo HAP in an isolated workspace"
@@ -491,7 +496,7 @@ fi
 "$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_ARGS[@]}"
 
 echo "[INFO] installing HAP on the USB device"
-"$HDC" -t "$DEVICE" install -r "$HAP" >"$INSTALL_LOG"
+"$HDC" -t "$DEVICE" install -r -d "$HAP" >"$INSTALL_LOG"
 grep -q 'install bundle successfully' "$INSTALL_LOG" || {
   cat "$INSTALL_LOG" >&2
   exit 1

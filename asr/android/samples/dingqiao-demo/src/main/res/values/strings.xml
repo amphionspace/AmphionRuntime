@@ -23,6 +23,10 @@
     <string name="scenario_transcription">长语音</string>
     <string name="scenario_form">填单</string>
     <string name="scenario_meeting_minutes">会议纪要</string>
+    <string name="diarization_speaker">说话人 %1$d</string>
+    <string name="diarization_speaker_unknown">说话人待定</string>
+    <string name="diarization_overlap">重叠说话</string>
+    <string name="diarization_degraded">说话人分离已降级：%1$s</string>
     <string name="audio_source_mic">MIC（原始）</string>
     <string name="audio_source_recognition">VOICE_RECOGNITION</string>
     <string name="audio_source_communication">VOICE_COMMUNICATION</string>

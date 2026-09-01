@@ -50,6 +50,7 @@ TRACKED_BUILD_INPUTS = (
     "asr/native/audio-processing",
     "asr/tools/03_build_agc_native.sh",
     "asr/tools/05_package_har_libs.sh",
+    "shared/models/asr",
     "delivery/harmony-dingqiao/samples",
     "delivery/harmony-dingqiao/AppScope",
     "delivery/harmony-dingqiao/build-profile.json5",

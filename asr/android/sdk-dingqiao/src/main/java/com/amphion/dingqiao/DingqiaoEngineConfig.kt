@@ -9,6 +9,8 @@ import com.amphion.asr.TargetSpeakerConfig
 import com.amphion.asr.VadConfig
 import com.amphion.police.PoliceEngineConfig
 import java.io.File
+import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 internal object DingqiaoEngineConfig {
 
@@ -22,13 +24,13 @@ internal object DingqiaoEngineConfig {
     private const val MIN_VAD_BEGIN_MS = 500
     private const val MAX_VAD_BEGIN_MS = 10_000
     private const val MAX_AUDIO_DURATION_MS = 28_800_000L
-    private const val DEFAULT_SPEAKER_VAD_THRESHOLD = 0.40f
-    private const val DEFAULT_SPEAKER_VAD_WINDOW_MS = 1000
-    private const val DEFAULT_SPEAKER_VAD_HOP_MS = 300
+    private const val DEFAULT_SPEAKER_VAD_THRESHOLD = 0.35f
+    private const val DEFAULT_SPEAKER_VAD_WINDOW_MS = 1500
+    private const val DEFAULT_SPEAKER_VAD_HOP_MS = 500
     private const val DEFAULT_SPEAKER_VAD_CONSECUTIVE_BELOW = 2
 
-    fun mapLanguage(language: String): AsrLanguage = when (language) {
-        "zh-CN", "zh-en", "zh_en" -> AsrLanguage.ZH_EN
+    fun mapLanguage(language: String): AsrLanguage = when (language.lowercase()) {
+        "zh-cn", "zh-en", "zh_en" -> AsrLanguage.ZH_EN
         "zh-yue", "zh_yue" -> AsrLanguage.YUE_EN
         else -> throw IllegalArgumentException("unsupported language: $language")
     }
@@ -41,12 +43,8 @@ internal object DingqiaoEngineConfig {
         require(params.online == DingqiaoOnlineMode.OFFLINE) {
             "only offline mode is supported"
         }
-        validateRecognizerMode(params)
-        @Suppress("UNCHECKED_CAST")
-        val sysLexicon = params.extraParams["sysGeneralLexicon"] as? List<String>
-            ?: (params.extraParams["sysGeneralLexicon"] as? List<*>)?.mapNotNull { it?.toString() }
-            ?: emptyList()
-        val userHotwords = sysLexicon.map { it.trim() }.filter { it.isNotEmpty() }
+        val rule3Policy = rule3Policy(params, startParams)
+        val userHotwords = sysGeneralLexicon(params)
         val hotwords = PoliceEngineConfig.effectiveHotwords(
             userHotwords = userHotwords,
             plateHotwords = true,
@@ -64,7 +62,7 @@ internal object DingqiaoEngineConfig {
             .endpointRules(
                 EndpointRules(
                     rule2MinTrailingSilenceSec = 2.0f,
-                    rule3MinUtteranceLengthSec = endpointMaxUtteranceSec(startParams),
+                    rule3MinUtteranceLengthSec = rule3Policy.minUtteranceSec,
                 ),
             )
             .disablePrepack(compatibleBoolean(params.extraParams["disablePrepack"], true))
@@ -84,6 +82,10 @@ internal object DingqiaoEngineConfig {
             )
         }
         return builder.build()
+    }
+
+    fun sysGeneralLexicon(params: CreateEngineParams): List<String> {
+        return stringList(params.extraParams["sysGeneralLexicon"])
     }
 
     /**
@@ -127,14 +129,14 @@ internal object DingqiaoEngineConfig {
 
     fun vadBeginMs(startParams: StartParams): Int? {
         if (!startParams.extraParams.containsKey("vadBegin")) return null
-        val value = finiteLong(startParams.extraParams["vadBegin"]) ?: return null
-        return value.coerceIn(MIN_VAD_BEGIN_MS.toLong(), MAX_VAD_BEGIN_MS.toLong()).toInt()
+        val value = finiteDouble(startParams.extraParams["vadBegin"]) ?: return null
+        return value.coerceIn(MIN_VAD_BEGIN_MS.toDouble(), MAX_VAD_BEGIN_MS.toDouble()).roundToInt()
     }
 
     fun vadEndMs(startParams: StartParams?): Int {
         val raw = startParams?.extraParams?.get("vadEnd") ?: return DEFAULT_VAD_END_MS
         val value = finiteDouble(raw) ?: return DEFAULT_VAD_END_MS
-        return value.toInt().coerceIn(MIN_VAD_END_MS, MAX_VAD_END_MS)
+        return value.coerceIn(MIN_VAD_END_MS.toDouble(), MAX_VAD_END_MS.toDouble()).roundToInt()
     }
 
     fun endpointMaxUtteranceSec(startParams: StartParams?): Float {
@@ -146,11 +148,34 @@ internal object DingqiaoEngineConfig {
             ?: (DEFAULT_ENDPOINT_MAX_UTTERANCE_MS / 1000.0).toFloat()
     }
 
+    data class Rule3Policy(
+        val mode: String,
+        val enabled: Boolean,
+        val minUtteranceSec: Float,
+    )
+
+    fun rule3Policy(params: CreateEngineParams, startParams: StartParams?): Rule3Policy {
+        val mode = (startParams?.extraParams?.get("recognizerMode")
+            ?: params.extraParams["recognizerMode"])
+            ?.toString()
+            ?.trim()
+            ?.lowercase()
+            ?: if (startParams?.extraParams?.get("enableContinuousRecognition") == true) "long" else "short"
+        require(mode == "short" || mode == "long") {
+            "recognizerMode must be short or long"
+        }
+        return Rule3Policy(
+            mode = mode,
+            enabled = mode == "short",
+            minUtteranceSec = if (mode == "short") endpointMaxUtteranceSec(startParams) else -1f,
+        )
+    }
+
     fun maxAudioDurationMs(startParams: StartParams): Long {
         if (startParams.extraParams["enableContinuousRecognition"] == true) return 0L
         val value = finiteDouble(startParams.extraParams["maxAudioDuration"]) ?: return 0L
         if (value <= 0.0) return 0L
-        return value.coerceAtMost(MAX_AUDIO_DURATION_MS.toDouble()).toLong().coerceAtLeast(1L)
+        return value.coerceAtMost(MAX_AUDIO_DURATION_MS.toDouble()).roundToLong().coerceAtLeast(1L)
     }
 
     fun validateRecognitionMode(startParams: StartParams) {
@@ -182,7 +207,7 @@ internal object DingqiaoEngineConfig {
     }
 
     fun enableSpeakerVad(startParams: StartParams): Boolean {
-        return asBoolean(startParams.extraParams["enableSpeakerVad"])
+        return startParams.extraParams["enableSpeakerVad"] as? Boolean ?: false
     }
 
     private fun speakerVadConfig(startParams: StartParams?): SpeakerVadConfig {
@@ -218,18 +243,14 @@ internal object DingqiaoEngineConfig {
         ).coerceIn(1, 5)
     }
 
-    @Suppress("UNCHECKED_CAST")
     fun voiceprintIds(startParams: StartParams): List<String> {
-        val raw = startParams.extraParams["voiceprintIds"] as? List<*>
-        return raw?.mapNotNull { it?.toString()?.trim()?.takeIf { id -> id.isNotEmpty() } }
-            ?: emptyList()
+        return stringList(startParams.extraParams["voiceprintIds"])
     }
 
-    private fun asBoolean(raw: Any?): Boolean = when (raw) {
-        is Boolean -> raw
-        is String -> raw.equals("true", ignoreCase = true) || raw == "1"
-        is Number -> raw.toInt() != 0
-        else -> false
+    private fun stringList(raw: Any?): List<String> = when (raw) {
+        is List<*> -> raw.mapNotNull { it?.toString()?.trim()?.takeIf(String::isNotEmpty) }
+        is String -> raw.split('\n', ',', '，').map(String::trim).filter(String::isNotEmpty)
+        else -> emptyList()
     }
 
     /** Mirrors Harmony's tolerant host-parameter policy without changing strict capability flags. */
@@ -241,20 +262,10 @@ internal object DingqiaoEngineConfig {
     }
 
     private fun asInt(raw: Any?, defaultValue: Int): Int =
-        finiteDouble(raw)?.toInt() ?: defaultValue
+        finiteDouble(raw)?.roundToInt() ?: defaultValue
 
     private fun asFloat(raw: Any?, defaultValue: Float): Float =
         finiteDouble(raw)?.toFloat() ?: defaultValue
-
-    private fun validateRecognizerMode(params: CreateEngineParams) {
-        val raw = params.extraParams["recognizerMode"] ?: return
-        val mode = raw.toString().trim().lowercase()
-        require(mode == "short" || mode == "long") {
-            "recognizerMode must be short or long"
-        }
-    }
-
-    private fun finiteLong(raw: Any?): Long? = finiteDouble(raw)?.toLong()
 
     private fun finiteDouble(raw: Any?): Double? = when (raw) {
         is Number -> raw.toDouble().takeIf { it.isFinite() }

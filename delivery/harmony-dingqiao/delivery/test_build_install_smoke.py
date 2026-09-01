@@ -25,6 +25,14 @@ class BuildInstallSmokeTest(unittest.TestCase):
         self.assertIn('"$REPO_ROOT/asr/native/audio-processing/include"', isolated_build)
         self.assertIn('"$temp_repo/asr/native/audio-processing/include"', isolated_build)
 
+    def test_isolated_build_copies_shared_asr_models(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        prepare = source.index("prepare_build_workspace()")
+        apply_signing = source.index("apply_local_signing()")
+        isolated_build = source[prepare:apply_signing]
+        self.assertIn('"$REPO_ROOT/shared/models/asr"', isolated_build)
+        self.assertIn('"$temp_repo/shared/models/asr"', isolated_build)
+
     def test_isolated_build_recreates_ignored_hvigor_config(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
         prepare = source.index("prepare_build_workspace()")
@@ -67,6 +75,10 @@ class BuildInstallSmokeTest(unittest.TestCase):
         self.assertLess(install, assemble_hap)
         self.assertIn('if ! "$NODE" "$HVIGOR" assembleHap', source)
         self.assertIn('if ! "$NODE" "$HVIGOR" assembleHar', source)
+
+    def test_test_carrier_install_allows_a_version_downgrade(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('"$HDC" -t "$DEVICE" install -r -d "$HAP"', source)
 
 
 if __name__ == "__main__":

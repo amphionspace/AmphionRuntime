@@ -1,11 +1,39 @@
 # Changelog
 
-## 未发布 - 2026-08-24（热词安全与警务后处理）
+## 0.3.12 - 2026-08-28（角色分离、short/long、Speaker VAD 与冷启动首句 PCM 连续性修复）
 
+- 新增端侧离线角色分离能力，支持最多四名匿名说话人；通过
+  `StartParams.speakerDiarization` 开启，并返回增量说话人归属和最终 speaker timeline。
+
+- 修复客户应用已启动 `AudioCapturer` 后首次调用 `startListening()` 时，同步创建识别器或说话人
+  模型占用 ArkTS 主线程，导致 20 ms 采音回调溢出、首句开头或中间 PCM 缺失的问题。
+- 会话级声纹与 Speaker VAD 配置变化不再触发 ASR recognizer 重建；识别器继续复用
+  `createEngine` 已异步准备的实例。
+- 声纹提取器与 Speaker VAD 边界模型改为后台加载；其中边界模型的 5.7 MB rawfile 读取也移出
+  `startListening()` 调用栈。加载完成前 Speaker VAD 保持 fail-open，后续使用已缓存的真实 PCM
+  继续滑窗评分；final 声纹分数仍等待提取器就绪，不填充假分数。
+- 公共 API、参数名和 `isFinal` / `isLast` / `onComplete` 生命周期契约不变；业务方仍可在
+  `onStart` 内同步回灌冷加载期间缓存的 PCM。
+- 目标说话人增强仍仅保留接口预留；0.3.12 不包含该能力所需模型，不能启用该参数。
+
+- 相对 0.3.10，将 `recognizerMode=short/long` 落实为两种 endpoint 语义：short 保留可配置的单句 Rule3
+  硬上限；long 不再在 20/60 秒强切，避免会议连续讲话在任意时长边界冻结 modified beam 候选。
+  `StartParams.extraParams['recognizerMode']` 可覆盖 engine 缺省值，既有 PTT/点击识别 profile 使用
+  short，长转写、填单和会议纪要使用 long。未传该参数的普通旧调用方继续按 short 处理；已显式
+  开启 `enableContinuousRecognition=true` 的连续调用使用 long，避免同一模型 session 被有损 Rule3
+  checkpoint 截断。显式 short/long 始终优先。
+- long 模式新增无公开回调的 stable-prefix 内部压缩：只提交所有活跃 beam 共同确认的 token/frame
+  前缀，保留未决候选、encoder/LM/context 状态；无稳定前缀时延后重试。Harmony 与 Android 使用
+  同一 native 实现，`endpointMaxUtteranceMs` 仍只对 short 的硬 final 生效。
 - 交付基线撤回 modified beam search 的 Top-50 预选加分实验：三星真机在 200 条客户热词场景下
   曾稳定将“见警率”回退为“警情人员”。继续保留原有 ContextGraph 热词能力，不启用该预裁剪策略。
 - 针对 cp5500 新模型的稳定残差，补充冀 R 车牌前缀、派出所闭集名称和 `e警保` 的受限纠错；
   Android/Harmony 保持同一规则与负例护栏，不对普通编号、通用词或歧义警务术语做全局替换。
+- 修复 `recognizerMode=short` 且开启 Speaker VAD 时，目标说话人的短句在换人边界可能丢失
+  开头文字的问题；不改变非目标说话人过滤、final/last/complete 顺序和声纹打分契约。
+- 本版同时包含已公开的 Speaker Diarization 配置与回调类型；未开启时不改变原有 ASR
+  回调链。完整升级说明见 `UPGRADE_0.3.12.md`。
+- 目标说话人增强仍仅保留接口预留；0.3.12 不包含该能力所需模型，不能启用该参数。
 
 ## 0.3.9 - 2026-08-24（开放 Runtime 日志等级）
 

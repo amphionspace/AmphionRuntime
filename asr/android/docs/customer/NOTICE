@@ -77,9 +77,8 @@ Model:       3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx
    Licensed under the Apache License, Version 2.0.
 
 This ONNX model is redistributed via the sherpa-onnx project model releases
-for speaker embedding / voiceprint verification. It is not embedded in the fat
-AAR; integrators copy it to the app work directory when enabling voiceprint
-features (see docs/DINGQIAO_INTEGRATION.md).
+for speaker embedding / voiceprint verification and speaker diarization. It is
+embedded in the AAR and copied to the app work directory on demand.
 
 ================================================================================
 5. WeTextProcessing (Chinese ITN, optional component)
@@ -91,6 +90,30 @@ Copyright:   WeNet contributors
 
 Chinese inverse text normalization (ITN) FST assets under
 assets/amphion-models/itn-zh/ in the fat AAR are derived from this project.
+
+================================================================================
+6. pyannote.audio segmentation model
+================================================================================
+
+Project:     pyannote.audio
+Repository:  https://github.com/pyannote/pyannote-audio
+License:     MIT License
+Copyright:   (c) 2023 CNRS
+
+The AAR bundles pyannote-segmentation-3.0.onnx for fully offline speaker
+diarization. Its MIT license is included beside the model asset.
+
+================================================================================
+7. lac-onnx / LAC model assets
+================================================================================
+
+Repository:  https://github.com/kniost/lac-onnx
+License:     Apache License 2.0
+Version:     lac-onnx 0.1.0
+
+The police enhancement module bundles the ONNX encoder, CRF transitions,
+dictionaries and tags for gated person-name recognition. Provenance and the
+Apache-2.0 license are included under assets/lac/v1/.
 
 ================================================================================
 TRADEMARKS

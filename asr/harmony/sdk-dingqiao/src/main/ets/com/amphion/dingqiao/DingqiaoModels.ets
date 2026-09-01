@@ -11,10 +11,17 @@ export class CreateEngineParams {
   extraParams: Record<string, Object> = {};
 }
 
+export class SpeakerDiarizationConfig {
+  /** Stable speaker indexes are limited to 0...(maxSpeakers - 1). */
+  maxSpeakers: number = 4;
+}
+
 export class StartParams {
   sessionId: string = '';
   audioInfo: AudioInfo = new AudioInfo();
   extraParams: Record<string, Object> = {};
+  /** Undefined disables speaker diarization; a config instance enables it. */
+  speakerDiarization?: SpeakerDiarizationConfig;
 }
 
 export class SpeechRecognitionResult {
@@ -25,6 +32,65 @@ export class SpeechRecognitionResult {
   endTime?: number;
   speakerSimilarity?: number;
   targetSpeakerEnhancementApplied?: boolean;
+  /** Stable only for final utterances when speaker diarization is enabled. */
+  utteranceId?: string;
+  /** -1 means unassigned; assigned speakers use stable zero-based indexes. */
+  speakerIndex: number = -1;
+  secondarySpeakerIndexes: number[] = [];
+  /** Assignment score in [0, 1], not a calibrated probability. */
+  speakerConfidence: number = 0;
+}
+
+export class SpeakerDiarizationUpdate {
+  utteranceId: string = '';
+  revision: number = 0;
+  speakerIndex: number = -1;
+  secondarySpeakerIndexes: number[] = [];
+  beginTime: number = 0;
+  endTime: number = 0;
+  confidence: number = 0;
+}
+
+export class DiarizedUtterance {
+  utteranceId: string = '';
+  rawText: string = '';
+  text: string = '';
+  beginTime: number = 0;
+  endTime: number = 0;
+  speakerIndex: number = -1;
+  secondarySpeakerIndexes: number[] = [];
+  confidence: number = 0;
+  overlap: boolean = false;
+}
+
+export class SpeakerTurn {
+  beginTime: number = 0;
+  endTime: number = 0;
+  speakerIndex: number = -1;
+  secondarySpeakerIndexes: number[] = [];
+  confidence: number = 0;
+  overlap: boolean = false;
+}
+
+export enum SpeakerDiarizationDegradedReason {
+  NONE = 0,
+  INFERENCE_UNAVAILABLE = 1,
+  MODEL_UNAVAILABLE = 2,
+  INFERENCE_TIMEOUT = 3,
+  FINISH_TIMEOUT = 4,
+  STORAGE_UNAVAILABLE = 5,
+  SPEAKER_LIMIT_EXCEEDED = 6,
+}
+
+export class SpeakerDiarizationResult {
+  utterances: DiarizedUtterance[] = [];
+  speakerTurns: SpeakerTurn[] = [];
+  speakerCount: number = 0;
+  degraded: boolean = false;
+  degradedReason: SpeakerDiarizationDegradedReason = SpeakerDiarizationDegradedReason.NONE;
+  degradedMessage?: string;
+  inferenceMs: number = 0;
+  rtf: number = 0;
 }
 
 export class VoiceprintRegisterParams {
@@ -57,6 +123,8 @@ export interface RecognitionListener {
   onStart?(sessionId: string, eventMessage?: string): void;
   onEvent?(sessionId: string, eventCode: number, message: string): void;
   onResult?(sessionId: string, result: SpeechRecognitionResult): void;
+  onSpeakerDiarizationUpdate?(sessionId: string, update: SpeakerDiarizationUpdate): void;
+  onSpeakerDiarizationResult?(sessionId: string, result: SpeakerDiarizationResult): void;
   onComplete?(sessionId: string, eventMessage?: string): void;
   onError?(sessionId: string, errorCode: number, message: string): void;
 }

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import com.amphion.asr.AmphionDeviceIdProvider
+import com.amphion.asr.AmphionLogLevel
 import com.amphion.asr.AmphionRuntime
 import com.amphion.asr.AmphionLicenseStatus
 import com.amphion.asr.AmphionOptions
@@ -19,6 +20,16 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 
 /**
+ * 宿主设备序列号提供器，与 HarmonyOS 鼎桥接口同名。
+ *
+ * 特权宿主可以在 [SpeechRecognizeSdk.init] 时注入稳定设备 SN；返回空值时授权校验按设备不匹配
+ * 处理。SDK 会捕获提供器异常，避免宿主实现异常越过 License 错误边界。
+ */
+fun interface LicenseDeviceIdProvider {
+    fun getDeviceSerial(context: Context): String?
+}
+
+/**
  * 鼎桥语音识别 SDK 入口，对齐 [语音识别SDK接口.md]。
  *
  * Android 平台须先调用 [init] 注入 [Context]，再 [setWorkPath]。
@@ -27,6 +38,9 @@ object SpeechRecognizeSdk {
 
     @Volatile
     private var appContext: Context? = null
+
+    @Volatile
+    private var licenseDeviceIdProvider: LicenseDeviceIdProvider? = null
 
     @Volatile
     private var workPath: File? = null
@@ -42,6 +56,9 @@ object SpeechRecognizeSdk {
 
     @Volatile
     private var defaultModelPrepared: Boolean = false
+
+    @Volatile
+    private var runtimeLogLevel: AmphionLogLevel = AmphionLogLevel.WARN
 
     @Volatile
     private var runtimeGeneration: Long = 0
@@ -92,12 +109,53 @@ object SpeechRecognizeSdk {
      */
     @JvmStatic
     fun init(context: Context) {
+        init(context, null)
+    }
+
+    /**
+     * Android 平台初始化，并允许特权宿主注入设备序列号提供器。
+     *
+     * 已初始化后更换 Context 或 provider 会使既有授权、Runtime、模型和引擎失效；调用方需重新
+     * 执行 setLicense -> prepareRuntime，避免旧授权身份跨设备提供器继续生效。
+     */
+    @JvmStatic
+    fun init(context: Context, deviceIdProvider: LicenseDeviceIdProvider?) {
         val ctx = context.applicationContext ?: context
-        if (appContext == null) {
-            synchronized(this) {
-                if (appContext == null) {
+        var shouldConfigureDiagnostics = false
+        synchronized(lifecycleOperationLock) {
+            val identityChanged = synchronized(this) {
+                val previousContext = appContext
+                previousContext != null &&
+                    (previousContext !== ctx || licenseDeviceIdProvider !== deviceIdProvider)
+            }
+            if (identityChanged) {
+                synchronized(this) {
+                    licenseRequestGeneration.incrementAndGet()
+                    runtimeGeneration += 1
+                    modelGeneration += 1
+                    runtimeInitialized = false
+                    defaultModelPrepared = false
+                    activatedLicenseText = null
+                    licenseInfo = null
                     appContext = ctx
+                    licenseDeviceIdProvider = deviceIdProvider
+                    shouldConfigureDiagnostics = true
                 }
+                shutdownActiveEngines()
+                runtimeBridge.unloadRuntime()
+            } else {
+                synchronized(this) {
+                    if (appContext == null) shouldConfigureDiagnostics = true
+                    appContext = ctx
+                    licenseDeviceIdProvider = deviceIdProvider
+                }
+            }
+        }
+        if (shouldConfigureDiagnostics && DiagnosticsModule.isBuildEnabled()) {
+            runCatching { ctx.filesDir }.getOrNull()?.let(DiagnosticsModule::setRootPath)
+            runCatching {
+                ctx.assets.open("amphion-models/manifest.json").bufferedReader()
+                    .use { DiagnosticsModule.setDeliveredModelManifest(it.readText()) }
             }
         }
     }
@@ -111,6 +169,43 @@ object SpeechRecognizeSdk {
         dir.mkdirs()
         require(dir.isDirectory && dir.canWrite()) { "workPath must be writable: $path" }
         workPath = dir
+    }
+
+    /** 查询当前 SDK 工作目录；尚未调用 [setWorkPath] 时返回空字符串。 */
+    @JvmStatic
+    fun getWorkPath(): String = workPath?.path.orEmpty()
+
+    /**
+     * 设置 Core Runtime 日志阈值。应在 [prepareRuntime] 前调用，确保初始化和模型加载日志使用该等级。
+     *
+     * 该配置只影响日志输出，不改变识别、声纹、Speaker VAD 或生命周期行为。
+     */
+    @JvmStatic
+    fun setLogLevel(logLevel: AmphionLogLevel) {
+        runtimeLogLevel = logLevel
+    }
+
+    /**
+     * @deprecated Diagnostics capture is selected by the AAR build variant. This method is kept
+     * only for source compatibility and intentionally cannot enable capture at runtime.
+     */
+    @JvmStatic
+    @Deprecated("Use the dedicated diagnostics artifact")
+    fun configureDiagnostics(@Suppress("UNUSED_PARAMETER") options: DiagnosticOptions) = Unit
+
+    /** Asynchronously exports diagnostics collected by a dedicated diagnostics AAR. */
+    @JvmStatic
+    fun exportDiagnostics(callback: DiagnosticExportCallback) {
+        engineExecutor.execute {
+            try {
+                callback.onSuccess(DiagnosticsModule.export())
+            } catch (t: Throwable) {
+                callback.onError(
+                    DingqiaoErrorCode.INTERNAL_ERROR,
+                    "exportDiagnostics failed: ${t.message ?: t.javaClass.simpleName}",
+                )
+            }
+        }
     }
 
     /**
@@ -202,7 +297,7 @@ object SpeechRecognizeSdk {
             if (result.errorCode == 0) {
                 callback.onResult(result)
             } else {
-                callback.onError(result.errorCode, result.errorMessage ?: "license activation failed")
+                callback.onError(result.errorCode, result.errorMessage)
             }
         }
     }
@@ -299,9 +394,10 @@ object SpeechRecognizeSdk {
                             runtimeBridge.prepareRuntime(
                                 ctx,
                                 AmphionOptions(
+                                    logLevel = runtimeLogLevel,
                                     license = flight.licenseText,
                                     licenseAssetName = null,
-                                    deviceIdProvider = DingqiaoDeviceIdProvider,
+                                    deviceIdProvider = effectiveDeviceIdProvider(),
                                 ),
                             )
                         } catch (prepareFailure: Throwable) {
@@ -406,49 +502,70 @@ object SpeechRecognizeSdk {
      */
     @JvmStatic
     fun registerVoiceprint(params: VoiceprintRegisterParams): VoiceprintRegisterResult {
-        params.audioInfo.validate()
+        runCatching { params.audioInfo.validate() }.exceptionOrNull()?.let { error ->
+            return voiceprintRegistrationFailure(
+                DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
+                error.message ?: "invalid voiceprint audioInfo",
+            )
+        }
         val count = params.samplePaths.size
         if (count < DINGQIAO_VOICEPRINT_MIN_SAMPLES) {
-            throw DingqiaoEngineException(
+            return voiceprintRegistrationFailure(
                 DingqiaoErrorCode.VOICEPRINT_SAMPLE_COUNT,
                 "sample count must be >= $DINGQIAO_VOICEPRINT_MIN_SAMPLES",
             )
         }
-        val store = requireStore()
-        val modelPath = store.speakerModelPath()
-        DingqiaoSpeakerModelAssets.ensureInstalled(requireContext(), modelPath)
-        if (!DingqiaoSpeakerModelAssets.isReady(modelPath)) {
-            throw DingqiaoEngineException(
-                DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
-                "speaker model not found: ${modelPath.absolutePath}",
+        return try {
+            val store = requireStore()
+            val modelPath = store.speakerModelPath()
+            DingqiaoSpeakerModelAssets.ensureInstalled(requireContext(), modelPath)
+            if (!DingqiaoSpeakerModelAssets.isReady(modelPath)) {
+                return voiceprintRegistrationFailure(
+                    DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
+                    "speaker model not found: ${modelPath.absolutePath}",
+                )
+            }
+            val segments = mutableListOf<FloatArray>()
+            val minMs = DINGQIAO_VOICEPRINT_MIN_SEC * 1000L
+            val maxMs = DINGQIAO_VOICEPRINT_MAX_SEC * 1000L
+            for (path in params.samplePaths) {
+                val file = File(path)
+                if (!file.isFile) {
+                    return voiceprintRegistrationFailure(
+                        DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
+                        "sample not found: $path",
+                    )
+                }
+                val pcm = PcmIo.readPcm16k(file)
+                val durationMs = PcmIo.durationMs(pcm.size)
+                if (durationMs !in minMs..maxMs) {
+                    return voiceprintRegistrationFailure(
+                        DingqiaoErrorCode.VOICEPRINT_SAMPLE_DURATION,
+                        "sample duration must be ${DINGQIAO_VOICEPRINT_MIN_SEC}s..${DINGQIAO_VOICEPRINT_MAX_SEC}s: $path",
+                    )
+                }
+                segments += PcmIo.shortsToFloats(pcm)
+            }
+            SpeakerEnroller(modelPath.absolutePath).use { enroller ->
+                val embedding = enroller.enroll(segments)
+                store.saveVoiceprint(params.samplePaths, embedding)
+            }
+        } catch (error: Throwable) {
+            voiceprintRegistrationFailure(
+                (error as? DingqiaoEngineException)?.errorCode
+                    ?: DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
+                error.message ?: "voiceprint registration failed",
             )
         }
-        val segments = mutableListOf<FloatArray>()
-        val minMs = DINGQIAO_VOICEPRINT_MIN_SEC * 1000L
-        val maxMs = DINGQIAO_VOICEPRINT_MAX_SEC * 1000L
-        for (path in params.samplePaths) {
-            val file = File(path)
-            if (!file.isFile) {
-                throw DingqiaoEngineException(
-                    DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED,
-                    "sample not found: $path",
-                )
-            }
-            val pcm = PcmIo.readPcm16k(file)
-            val durationMs = PcmIo.durationMs(pcm.size)
-            if (durationMs !in minMs..maxMs) {
-                throw DingqiaoEngineException(
-                    DingqiaoErrorCode.VOICEPRINT_SAMPLE_DURATION,
-                    "sample duration must be ${DINGQIAO_VOICEPRINT_MIN_SEC}s..${DINGQIAO_VOICEPRINT_MAX_SEC}s: $path",
-                )
-            }
-            segments += PcmIo.shortsToFloats(pcm)
-        }
-        return SpeakerEnroller(modelPath.absolutePath).use { enroller ->
-            val embedding = enroller.enroll(segments)
-            store.saveVoiceprint(params.samplePaths, embedding)
-        }
     }
+
+    private fun voiceprintRegistrationFailure(
+        errorCode: Int,
+        message: String,
+    ): VoiceprintRegisterResult = VoiceprintRegisterResult(
+        status = errorCode,
+        message = message,
+    )
 
     /**
      * 注册声纹（异步回调）。注册需加载 ~38MB 声纹模型并计算 embedding，属重操作；
@@ -457,12 +574,11 @@ object SpeechRecognizeSdk {
     @JvmStatic
     fun registerVoiceprint(params: VoiceprintRegisterParams, callback: VoiceprintRegisterCallback) {
         engineExecutor.execute {
-            try {
-                callback.onResult(registerVoiceprint(params))
-            } catch (t: Throwable) {
-                val code = (t as? DingqiaoEngineException)?.errorCode
-                    ?: DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED
-                callback.onError(code, t.message ?: "registerVoiceprint failed")
+            val result = registerVoiceprint(params)
+            if (result.status == 0) {
+                callback.onResult(result)
+            } else {
+                callback.onError(result.status, result.message.ifBlank { "registerVoiceprint failed" })
             }
         }
     }
@@ -471,7 +587,7 @@ object SpeechRecognizeSdk {
      * 删除声纹。
      */
     @JvmStatic
-    fun deleteVoiceprint(voiceprintId: String) {
+    fun deleteVoiceprint(voiceprintId: String): Boolean {
         val store = requireStore()
         if (!store.deleteVoiceprint(voiceprintId)) {
             throw DingqiaoEngineException(
@@ -479,6 +595,7 @@ object SpeechRecognizeSdk {
                 "voiceprint not found: $voiceprintId",
             )
         }
+        return true
     }
 
     /**
@@ -517,7 +634,7 @@ object SpeechRecognizeSdk {
         } catch (t: Throwable) {
             return LicenseActivationResult(
                 errorCode = DingqiaoErrorCode.ENGINE_NOT_INITIALIZED,
-                errorMessage = t.message,
+                errorMessage = t.message ?: "SDK is not initialized",
             )
         }
         val file = File(licensePath)
@@ -539,9 +656,10 @@ object SpeechRecognizeSdk {
             val status = runtimeBridge.validateLicense(
                 ctx,
                 AmphionOptions(
+                    logLevel = runtimeLogLevel,
                     license = text,
                     licenseAssetName = null,
-                    deviceIdProvider = DingqiaoDeviceIdProvider,
+                    deviceIdProvider = effectiveDeviceIdProvider(),
                 ),
             )
             if (status.errorCode != AsrErrorCode.OK) {
@@ -628,11 +746,14 @@ object SpeechRecognizeSdk {
                 modelGeneration += 1
                 runtimeInitialized = false
                 defaultModelPrepared = false
+                runtimeLogLevel = AmphionLogLevel.WARN
                 activatedLicenseText = null
                 licenseInfo = null
                 workPath = null
                 appContext = null
+                licenseDeviceIdProvider = null
                 engineExecutor = defaultEngineExecutor
+                DiagnosticsModule.resetForTests()
             }
             shutdownActiveEngines()
             runtimeBridge.unloadRuntime()
@@ -716,25 +837,39 @@ object SpeechRecognizeSdk {
     private fun extractAsrErrorCode(message: String?): Int? =
         Regex("code=(\\d+)").find(message.orEmpty())?.groupValues?.getOrNull(1)?.toIntOrNull()
 
-    private fun mapLicenseErrorCode(asrCode: Int?): Int = when (asrCode) {
+    internal fun mapLicenseErrorCode(asrCode: Int?): Int = when (asrCode) {
         AsrErrorCode.LICENSE_MISSING -> DingqiaoErrorCode.LICENSE_FILE_UNREADABLE
         AsrErrorCode.LICENSE_MALFORMED,
         AsrErrorCode.LICENSE_SIGNATURE_INVALID,
+        AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH,
+        AsrErrorCode.LICENSE_FEATURE_MISSING,
         -> DingqiaoErrorCode.LICENSE_INVALID
-        AsrErrorCode.LICENSE_EXPIRED -> DingqiaoErrorCode.LICENSE_EXPIRED
-        AsrErrorCode.LICENSE_APP_MISMATCH -> DingqiaoErrorCode.LICENSE_APP_MISMATCH
-        AsrErrorCode.LICENSE_CERT_MISMATCH -> DingqiaoErrorCode.LICENSE_CERT_MISMATCH
+        AsrErrorCode.LICENSE_EXPIRED,
+        AsrErrorCode.LICENSE_MAINTENANCE_EXPIRED,
+        -> DingqiaoErrorCode.LICENSE_EXPIRED
+        AsrErrorCode.LICENSE_APP_MISMATCH,
+        AsrErrorCode.LICENSE_CERT_MISMATCH,
+        -> DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH
         AsrErrorCode.LICENSE_DEVICE_MISMATCH -> DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH
         else -> DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED
     }
 
     private fun licenseStatusForError(code: Int): Int = when (code) {
         DingqiaoErrorCode.LICENSE_EXPIRED -> 1
-        DingqiaoErrorCode.LICENSE_APP_MISMATCH,
-        DingqiaoErrorCode.LICENSE_CERT_MISMATCH,
         DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH,
         -> 3
         else -> 2
+    }
+
+    private fun effectiveDeviceIdProvider(): AmphionDeviceIdProvider =
+        licenseDeviceIdProvider?.let(::DingqiaoDeviceIdProviderAdapter)
+            ?: DingqiaoDeviceIdProvider
+
+    private class DingqiaoDeviceIdProviderAdapter(
+        private val delegate: LicenseDeviceIdProvider,
+    ) : AmphionDeviceIdProvider {
+        override fun getDeviceSerial(context: Context): String? =
+            runCatching { delegate.getDeviceSerial(context) }.getOrNull()
     }
 
     private object DingqiaoDeviceIdProvider : AmphionDeviceIdProvider {

@@ -7,8 +7,19 @@ import argparse
 import hashlib
 import io
 import re
+import sys
 import zipfile
 from pathlib import Path, PurePosixPath
+
+ROOT = Path(__file__).resolve().parents[3]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from asr.tools.dingqiao_parameter_contract import (  # noqa: E402
+    ParameterContractError,
+    load_contract,
+    validate_parameter_document,
+)
 
 
 # The current zh-en fat AAR is about 251 MiB. 320 MiB leaves model-growth headroom while
@@ -17,6 +28,7 @@ MAX_SDK_ONLY_ZIP_BYTES = 320 * 1024 * 1024
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED_DOCS = {
     "docs/CHANGELOG.md",
+    "docs/DINGQIAO_ASR_PARAMETER_CONTRACT.json",
     "docs/DINGQIAO_INTEGRATION.md",
     "docs/DINGQIAO_VOICEPRINT_MODEL.md",
     "docs/LICENSE.md",
@@ -27,11 +39,16 @@ REQUIRED_DOCS = {
 }
 REQUIRED_AAR_PREFIXES = {
     "jni/arm64-v8a/libamphion_audio_processing.so",
+    "jni/arm64-v8a/libamphion_diarization_jni.so",
+    "jni/arm64-v8a/libamphion_police_jni.so",
     "assets/amphion-models/zh-en/v1/",
     "assets/amphion-models/punct-zhen/v1/",
     "assets/amphion-models/itn-zh/v1/",
     "assets/amphion-models/vad/v1/",
     "assets/amphion-dingqiao/eres2net.onnx",
+    "assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+    "assets/lac/v1/lac_encoder.onnx",
+    "assets/lac/v1/lac_crf_transitions.npy",
     "assets/police_terms/",
     "assets/police_station/",
     "assets/plate/plate_homophone.fst",
@@ -99,12 +116,20 @@ def _validate_checksums(
             raise DeliveryValidationError(f"checksum mismatch: {relative}")
 
 
-def _validate_aar(payload: bytes) -> None:
+def _validate_aar(payload: bytes, expected_status: str) -> None:
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
         bad = archive.testzip()
         if bad:
             raise DeliveryValidationError(f"AAR CRC failed: {bad}")
         names = set(archive.namelist())
+        manifest_name = "META-INF/amphion-dingqiao-build.properties"
+        if manifest_name not in names:
+            raise DeliveryValidationError("AAR missing delivery provenance manifest")
+        manifest = _parse_properties(archive.read(manifest_name))
+        if manifest.get("amphion.delivery.status") != expected_status:
+            raise DeliveryValidationError(
+                "AAR delivery status does not match VERSION.txt"
+            )
         lowered = [name.lower() for name in names]
         forbidden = next(
             (
@@ -139,7 +164,7 @@ def _validate_aar(payload: bytes) -> None:
                 raise DeliveryValidationError(f"AAR exposes local build path: {name}")
 
 
-def validate_delivery(zip_path: Path, version: str) -> None:
+def validate_delivery(zip_path: Path, version: str, *, preview: bool = False) -> None:
     if not zip_path.is_file():
         raise DeliveryValidationError(f"delivery ZIP not found: {zip_path}")
     if zip_path.stat().st_size > MAX_SDK_ONLY_ZIP_BYTES:
@@ -155,6 +180,16 @@ def validate_delivery(zip_path: Path, version: str) -> None:
         if len(roots) != 1:
             raise DeliveryValidationError("delivery ZIP must contain exactly one root directory")
         root = roots.pop()
+        suffix = "-PREVIEW-NON-CANONICAL" if preview else ""
+        expected_root = f"amphion-dingqiao-asr-sdk-v{version}-"
+        if not re.fullmatch(
+            rf"{re.escape(expected_root)}[0-9]{{8}}{re.escape(suffix)}", root
+        ):
+            raise DeliveryValidationError(
+                f"delivery root must expose {'preview' if preview else 'formal'} identity"
+            )
+        if zip_path.stem != root:
+            raise DeliveryValidationError("delivery ZIP filename must match its root identity")
         files = {
             PurePosixPath(name).relative_to(root).as_posix()
             for name in all_names
@@ -164,7 +199,7 @@ def validate_delivery(zip_path: Path, version: str) -> None:
             "README.txt",
             "VERSION.txt",
             "CHECKSUMS.txt",
-            f"aar/dingqiao-asr-v{version}.aar",
+            f"aar/dingqiao-asr-v{version}{suffix}.aar",
             *REQUIRED_DOCS,
         }
         missing = sorted(required - files)
@@ -190,13 +225,14 @@ def validate_delivery(zip_path: Path, version: str) -> None:
         if forbidden:
             raise DeliveryValidationError(f"forbidden SDK-only payload: {forbidden[0]}")
         aars = sorted(relative for relative in files if relative.endswith(".aar"))
-        if aars != [f"aar/dingqiao-asr-v{version}.aar"]:
+        if aars != [f"aar/dingqiao-asr-v{version}{suffix}.aar"]:
             raise DeliveryValidationError("SDK-only delivery must contain exactly one versioned AAR")
 
         version_values = _parse_properties(archive.read(f"{root}/VERSION.txt"))
         expected_values = {
             "delivery_version": version,
             "sdk_version": version,
+            "delivery_status": "PREVIEW / NON-CANONICAL" if preview else "FORMAL",
             "platform": "android",
             "language": "zh-en",
             "sdk_only": "true",
@@ -210,6 +246,9 @@ def validate_delivery(zip_path: Path, version: str) -> None:
                     f"VERSION.txt {key}={version_values.get(key)!r}, expected {expected!r}"
                 )
         readme = archive.read(f"{root}/README.txt").decode("utf-8")
+        expected_status = "PREVIEW / NON-CANONICAL" if preview else "FORMAL"
+        if f"交付状态：{expected_status}" not in readme:
+            raise DeliveryValidationError("README missing explicit delivery status")
         for statement in (
             "SDK-only",
             "警务文本增强",
@@ -221,18 +260,43 @@ def validate_delivery(zip_path: Path, version: str) -> None:
         ):
             if statement not in readme:
                 raise DeliveryValidationError(f"README missing delivery boundary: {statement}")
+        embedded_contract = load_contract(
+            archive.read(f"{root}/docs/DINGQIAO_ASR_PARAMETER_CONTRACT.json")
+        )
+        if embedded_contract != load_contract():
+            raise DeliveryValidationError(
+                "embedded Dingqiao parameter contract does not match current source"
+            )
+        validate_parameter_document(
+            archive.read(f"{root}/docs/语音识别SDK接口.md").decode("utf-8"),
+            embedded_contract,
+        )
         _validate_checksums(archive, root, files)
-        _validate_aar(archive.read(f"{root}/{aars[0]}"))
+        _validate_aar(
+            archive.read(f"{root}/{aars[0]}"),
+            "preview-non-canonical" if preview else "formal",
+        )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("zip_path", type=Path)
     parser.add_argument("--version", required=True)
+    parser.add_argument(
+        "--preview",
+        action="store_true",
+        help="require PREVIEW / NON-CANONICAL identity at every artifact layer",
+    )
     args = parser.parse_args()
     try:
-        validate_delivery(args.zip_path, args.version)
-    except (DeliveryValidationError, OSError, UnicodeError, zipfile.BadZipFile) as error:
+        validate_delivery(args.zip_path, args.version, preview=args.preview)
+    except (
+        DeliveryValidationError,
+        OSError,
+        ParameterContractError,
+        UnicodeError,
+        zipfile.BadZipFile,
+    ) as error:
         raise SystemExit(f"[ERROR] {error}") from error
     print(f"[OK] Android zh-en SDK-only delivery validated: {args.zip_path}")
     return 0

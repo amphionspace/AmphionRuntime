@@ -1,0 +1,47 @@
+From 85814e732004df9780bfbbd7b1f6595ec55c7a29 Mon Sep 17 00:00:00 2001
+From: Boxp <boxp@BoxpdeMacBook-Air.local>
+Date: Tue, 25 Aug 2026 16:00:00 +0800
+Subject: [PATCH] feat(asr): disable endpoint rule explicitly
+
+---
+ sherpa-onnx/csrc/endpoint-test.cc | 12 ++++++++++++
+ sherpa-onnx/csrc/endpoint.cc      |  3 +++
+ 2 files changed, 15 insertions(+)
+
+diff --git a/sherpa-onnx/csrc/endpoint-test.cc b/sherpa-onnx/csrc/endpoint-test.cc
+index 92fd4e36..cda7833c 100644
+--- a/sherpa-onnx/csrc/endpoint-test.cc
++++ b/sherpa-onnx/csrc/endpoint-test.cc
+@@ -26,4 +26,16 @@ TEST(Endpoint, BooleanResultDelegatesToReason) {
+   EXPECT_FALSE(endpoint.IsEndpoint(1000, 50, 0.01));
+ }
+ 
++TEST(Endpoint, NegativeMinimumUtteranceDisablesRule) {
++  EndpointConfig config{
++      EndpointRule(false, 100000, 0),
++      EndpointRule(true, 100000, 0),
++      EndpointRule(false, 0, -1),
++  };
++  Endpoint endpoint(config);
++
++  EXPECT_EQ(endpoint.GetEndpointReason(3000, 50, 0.01),
++            EndpointReason::kNone);
++}
++
+ }  // namespace sherpa_onnx
+diff --git a/sherpa-onnx/csrc/endpoint.cc b/sherpa-onnx/csrc/endpoint.cc
+index c1aab286..c30dbaa1 100644
+--- a/sherpa-onnx/csrc/endpoint.cc
++++ b/sherpa-onnx/csrc/endpoint.cc
+@@ -15,6 +15,9 @@ static bool RuleActivated(const EndpointRule &rule,
+                           const std::string &rule_name, float trailing_silence,
+                           float utterance_length) {
++  if (rule.min_utterance_length < 0) {
++    return false;
++  }
+   bool contain_nonsilence = utterance_length > trailing_silence;
+   bool ans = (contain_nonsilence || !rule.must_contain_nonsilence) &&
+              trailing_silence >= rule.min_trailing_silence &&
+              utterance_length >= rule.min_utterance_length;
+-- 
+2.50.1

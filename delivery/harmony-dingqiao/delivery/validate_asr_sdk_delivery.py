@@ -68,6 +68,7 @@ REQUIRED_FILES = {
     "docs/NOTICE",
     "docs/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md",
     "docs/ASR_SDK_API_HARMONY.md",
+    "docs/UPGRADE_0.3.12.md",
     "docs/third-party/ONNX-Runtime-MIT.txt",
     "docs/third-party/Apache-2.0.txt",
     "docs/third-party/WebRTC-BSD-3-Clause.txt",

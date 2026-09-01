@@ -1,3 +1,4 @@
+import { isValidRule3MinUtteranceSec } from './EndpointRuleValidation';
 import { isValidSpeakerMinimumSegment } from './TargetSpeakerConfigPolicy';
 
 export enum AsrLanguage {
@@ -81,7 +82,8 @@ export class TargetSpeakerConfig {
   minSegSec: number = 0;
   preload: boolean = false;
   // Allows a session to start before the extractor is ready. The caller must attach an async
-  // extractor load; final delivery waits for it, while streaming speaker VAD must keep this false.
+  // extractor load. Final delivery waits for it; streaming speaker VAD stays fail-open and begins
+  // scoring buffered sliding windows after the extractor is attached.
   deferLoad: boolean = false;
   enabledByDefault: boolean = false;
   numThreads: number = 1;
@@ -129,8 +131,9 @@ export class AsrConfigBuilder {
   endpoint(value: boolean): AsrConfigBuilder { this.config.endpoint = value; return this; }
   endpointRules(value: EndpointRules): AsrConfigBuilder {
     if (value.rule1MinTrailingSilenceSec < 0 || value.rule2MinTrailingSilenceSec < 0 ||
-      value.rule3MinUtteranceLengthSec <= 0) {
-      throw new Error('endpoint rule silence values must be non-negative and rule3 must be positive');
+      !isValidRule3MinUtteranceSec(value.rule3MinUtteranceLengthSec)) {
+      throw new Error('endpoint rule silence values must be non-negative and ' +
+        'rule3 must be -1 or a positive finite number');
     }
     this.config.endpointRules = value;
     return this;
@@ -160,6 +163,8 @@ export class AsrConfigBuilder {
 
 export class AsrResult {
   text: string = '';
+  /** Decoder text before ITN and punctuation. */
+  rawText: string = '';
   confidence: number = 1.0;
   tokens: string[] = [];
   timestamps: number[] = [];
