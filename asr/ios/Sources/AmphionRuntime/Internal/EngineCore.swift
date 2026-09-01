@@ -1,11 +1,14 @@
 import Foundation
-import SherpaOnnxBridge   // 由 build_xcframework.sh 自动产出，含上游 SherpaOnnx.swift
+import SherpaOnnxBinary
 
 /// 与 Android `EngineImpl` 行为对齐：包装上游 sherpa-onnx C-API，对上提供 newSession 工厂。
 internal final class EngineCore {
 
     private let config: AsrConfig
-    private let recognizer: OpaquePointer?
+    private var recognizer: OpaquePointer?
+    private let lifecycleLock = NSLock()
+    private var sessions: [ObjectIdentifier: WeakSessionCore] = [:]
+    private var closed = false
 
     /// 给 SessionCore 在 createStream 时透传热词字符串
     fileprivate(set) var engineHotwords: String
@@ -26,19 +29,36 @@ internal final class EngineCore {
     }
 
     func newSession(callback: AsrCallback) -> SessionCore {
-        return SessionCore(
-            recognizer: recognizer,
+        lifecycleLock.lock()
+        defer { lifecycleLock.unlock() }
+        precondition(!closed, "AsrEngine is closed")
+        let session = SessionCore(
+            recognizer: self.recognizer,
             sampleRate: config.sampleRate,
             engineHotwords: engineHotwords,
             engineHotwordsScore: config.hotwordsScore,
             callback: callback
         )
+        sessions[ObjectIdentifier(session)] = WeakSessionCore(session)
+        sessions = sessions.filter { $0.value.value != nil }
+        return session
     }
 
     func close() {
-        if let r = recognizer {
-            SherpaOnnxDestroyOnlineRecognizer(r)
-        }
+        let snapshot: ([SessionCore], OpaquePointer?) = {
+            lifecycleLock.lock()
+            defer { lifecycleLock.unlock() }
+            if closed { return ([], nil) }
+            closed = true
+            let liveSessions = sessions.values.compactMap(\.value)
+            sessions.removeAll()
+            let native = recognizer
+            recognizer = nil
+            return (liveSessions, native)
+        }()
+        // 必须先等所有 stream 的串行 native 工作结束，再释放进程内 recognizer。
+        snapshot.0.forEach { $0.closeAndWait() }
+        if let native = snapshot.1 { SherpaOnnxDestroyOnlineRecognizer(native) }
     }
 
     deinit {
@@ -71,9 +91,11 @@ internal final class EngineCore {
                     joiner: resolved.joiner!.path
                 ),
                 numThreads: c.numThreads,
-                provider: "cpu",
+                provider: c.disablePrepack ? "cpu;DisablePrepacking=1" : "cpu",
                 debug: 0,
-                modelType: modelTypeStr
+                modelType: modelTypeStr,
+                modelingUnit: resolved.bpeVocab == nil ? "cjkchar" : "bbpe",
+                bpeVocab: resolved.bpeVocab?.path ?? ""
             )
         case .paraformer:
             onlineModel = sherpaOnnxOnlineModelConfig(
@@ -83,7 +105,7 @@ internal final class EngineCore {
                     decoder: resolved.decoder!.path
                 ),
                 numThreads: c.numThreads,
-                provider: "cpu",
+                provider: c.disablePrepack ? "cpu;DisablePrepacking=1" : "cpu",
                 debug: 0,
                 modelType: modelTypeStr
             )
@@ -92,36 +114,22 @@ internal final class EngineCore {
                 tokens: resolved.tokens.path,
                 zipformer2Ctc: sherpaOnnxOnlineZipformer2CtcModelConfig(model: resolved.model!.path),
                 numThreads: c.numThreads,
-                provider: "cpu",
+                provider: c.disablePrepack ? "cpu;DisablePrepacking=1" : "cpu",
                 debug: 0,
                 modelType: modelTypeStr
             )
         case .nemo_ctc:
             onlineModel = sherpaOnnxOnlineModelConfig(
                 tokens: resolved.tokens.path,
-                nemoCtc: sherpaOnnxOnlineNemoCtcModelConfig(model: resolved.model!.path),
                 numThreads: c.numThreads,
-                provider: "cpu",
+                provider: c.disablePrepack ? "cpu;DisablePrepacking=1" : "cpu",
                 debug: 0,
-                modelType: modelTypeStr
+                modelType: modelTypeStr,
+                nemoCtc: sherpaOnnxOnlineNemoCtcModelConfig(model: resolved.model!.path)
             )
         }
 
         let feat = sherpaOnnxFeatureConfig(sampleRate: c.sampleRate, featureDim: c.featureDim)
-
-        let endpoint = sherpaOnnxOnlineEndpointConfig(
-            rule1MinTrailingSilence: c.endpointRules.rule1MinTrailingSilenceSec,
-            rule2MinTrailingSilence: c.endpointRules.rule2MinTrailingSilenceSec,
-            rule3MinUtteranceLength: c.endpointRules.rule3MinUtteranceLengthSec
-        )
-
-        // 高级特性
-        let lm: SherpaOnnxOnlineLMConfig = {
-            if let path = c.lmModelPath {
-                return sherpaOnnxOnlineLMConfig(model: path.path, scale: c.lmScale)
-            }
-            return SherpaOnnxOnlineLMConfig()
-        }()
         let hr: SherpaOnnxHomophoneReplacerConfig = {
             if let lex = c.homophoneLexiconPath, let fst = c.homophoneRuleFstsPath {
                 return sherpaOnnxHomophoneReplacerConfig(lexicon: lex.path, ruleFsts: fst.path)
@@ -133,9 +141,10 @@ internal final class EngineCore {
         return sherpaOnnxOnlineRecognizerConfig(
             featConfig: feat,
             modelConfig: onlineModel,
-            lmConfig: lm,
-            endpointConfig: endpoint,
             enableEndpoint: c.enableEndpoint,
+            rule1MinTrailingSilence: c.endpointRules.rule1MinTrailingSilenceSec,
+            rule2MinTrailingSilence: c.endpointRules.rule2MinTrailingSilenceSec,
+            rule3MinUtteranceLength: c.endpointRules.rule3MinUtteranceLengthSec,
             decodingMethod: c.decodingMethod.rawValue,
             maxActivePaths: c.maxActivePaths,
             hotwordsFile: "",
@@ -157,4 +166,9 @@ internal final class EngineCore {
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         return json["model_type"] as? String
     }
+}
+
+private final class WeakSessionCore {
+    weak var value: SessionCore?
+    init(_ value: SessionCore) { self.value = value }
 }

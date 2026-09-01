@@ -17,6 +17,8 @@
 
 ### iOS
 - `AsrError.swift` 中的 `AsrErrorCode` enum 与 errcodes.yaml 保持一致
+- 鼎桥兼容层参数名由 `dingqiao-asr-parameters.json` 驱动；阶段性未实现能力必须显式失败，不能静默忽略
+- `asr.tools.tests.test_ios_dingqiao_contract` 在无 Xcode 环境下检查参数覆盖和生命周期结构
 - xcodebuild test 阶段校验
 
 ### Server (Linux)

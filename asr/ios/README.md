@@ -1,6 +1,9 @@
 ## AmphionRuntime for iOS
 
-AmphionRuntime 的 iOS 实现，与 [Android AmphionRuntime](../../asr/android/) 公开 API 一一对应。
+AmphionRuntime 的 iOS 实现。基础 ASR API 已有原型；鼎桥兼容层正在按
+[跨端参数契约](../../shared/api-spec/dingqiao-asr-parameters.json) 分阶段对齐。当前代码不能描述为
+Android/HarmonyOS 完整能力等价，已完成范围和剩余门禁见
+[DINGQIAO_PARITY.md](DINGQIAO_PARITY.md)。
 
 | 概念 | Android | iOS（Swift） |
 | --- | --- | --- |
@@ -14,7 +17,7 @@ AmphionRuntime 的 iOS 实现，与 [Android AmphionRuntime](../../asr/android/)
 | 模型管理 | ModelManager | ModelManager |
 | 模型描述符 | ModelDescriptor | ModelDescriptor |
 | 模型类型 | ModelType (enum) | ModelType (enum) |
-| WeText ITN | WeitnConfig + WeitnEngine | WeitnConfig + WeitnEngine |
+| WeText ITN | WeitnConfig + WeitnEngine | 已接 patched sherpa C API；Dingqiao final 按 ITN → 标点自动处理 |
 
 跨端不变量见 [shared/api-spec/](../../shared/api-spec/)（manifest schema、错误码）。
 
@@ -38,6 +41,7 @@ asr/ios/
 │   │   ├── ModelManager.swift
 │   │   ├── ModelDescriptor.swift
 │   │   ├── ModelType.swift
+│   │   ├── Dingqiao/                # 鼎桥兼容参数、生命周期和引擎适配层
 │   │   └── Internal/
 │   │       ├── EngineCore.swift
 │   │       ├── SessionCore.swift
@@ -45,35 +49,38 @@ asr/ios/
 │   │       ├── ModelDownloader.swift
 │   │       ├── Sha256Verifier.swift
 │   │       └── Logger.swift
-│   └── SherpaOnnxBridge/          # 转发 sherpa-onnx 上游的 swift binding（SherpaOnnx.swift）
-│       └── module.modulemap       # 让 Swift 能 import C 函数
+│   └── SherpaOnnxBridge/          # 与主 SDK 编入同一 module 的上游 Swift binding
+│       └── SherpaOnnx.swift
 └── Sample/                        # SwiftUI 单页 demo
+    ├── AmphionRuntimeSample.xcodeproj
     ├── AmphionRuntimeSampleApp.swift
     └── ContentView.swift
 ```
 
 ## 快速集成
 
+> 当前为 `0.3.4-ios-alpha` 开发阶段，尚未发布可直接引用的远程 SPM/CocoaPods 制品。开发验证应先
+> 运行 `build_xcframework.sh`，再通过 Xcode Add Local Package 引用 `asr/ios`。
+
 ### Swift Package Manager（推荐）
 
-在你的 Xcode 工程：File → Add Packages → URL：
-`https://your.git.host/amphion/amphion-runtime-ios.git`
-
-或在 Package.swift 中：
+在你的 Xcode 工程中选择 File → Add Package Dependencies → Add Local，并指向本仓库的
+`asr/ios`。也可以在本地 `Package.swift` 中使用路径依赖：
 
 ```swift
-.package(url: "https://your.git.host/amphion/amphion-runtime-ios.git", from: "0.1.0"),
+.package(path: "/path/to/AmphionRuntime/asr/ios"),
 ```
 
 ### CocoaPods（兼容）
 
 ```ruby
-pod 'AmphionRuntime', '~> 0.1'
+pod 'AmphionRuntime', :path => '/path/to/AmphionRuntime/asr/ios'
 ```
 
 ## 编译 xcframework
 
-xcframework 通过 `build_xcframework.sh` 一键产出，脚本会进入 `third_party/sherpa-onnx/` 调用上游 build-ios.sh。
+xcframework 通过 `build_xcframework.sh` 一键产出。脚本不会修改固定 submodule，而是在忽略的
+`asr/ios/.native-src/` worktree 中应用与 Android/Harmony 相同的 Amphion patch series 后编译。
 
 ```bash
 cd /path/to/amphion-runtime
@@ -84,10 +91,15 @@ bash asr/ios/build_xcframework.sh
 
 脚本内部步骤：
 
-1. 调用 [third_party/sherpa-onnx/build-ios.sh](../../third_party/sherpa-onnx/build-ios.sh) 编译 device + simulator + arm64 simulator
-2. 把 `sherpa-onnx.xcframework` 重命名为 `AmphionRuntime.xcframework`
-3. 把 [third_party/sherpa-onnx/swift-api-examples/SherpaOnnx.swift](../../third_party/sherpa-onnx/swift-api-examples/SherpaOnnx.swift) 复制到 `Sources/SherpaOnnxBridge/`（自动带上 fork 里新增的 `sherpaOnnxWetextItnConfig` / `SherpaOnnxWetextItnWrapper`）
-4. 把上游产物 + 我们的 Swift 公开 API 一起打包
+1. 从固定 `sherpa-onnx` 1.13.1 创建隔离 worktree，应用全部 `third_party/patches/sherpa-amphion`，
+   再编译 device arm64 与 simulator arm64/x86_64；patch 哈希变化时拒绝复用旧派生源码
+2. 校验固定 ONNX Runtime 1.17.1 归档的大小与 SHA-256，并把对应 ORT 静态库合入每个
+   device/simulator slice，避免客户工程出现 `_OrtGetApiBase` 未定义
+3. 为每个 slice 写入 `SherpaOnnxBinary` module map，再把 `sherpa-onnx.xcframework` 封装为
+   `AmphionRuntime.xcframework`
+4. 把 [third_party/sherpa-onnx/swift-api-examples/SherpaOnnx.swift](../../third_party/sherpa-onnx/swift-api-examples/SherpaOnnx.swift) 同步到 `Sources/SherpaOnnxBridge/`；它与主 SDK 源码编入同一个 Swift module
+5. native XCFramework 作为 binary target；AmphionRuntime Swift 公共 API 由 SPM/CocoaPods
+   source target 一起交付。当前脚本不会把 Swift wrapper 编译进单一闭源 XCFramework。
 
 依赖：完整 Xcode + iOS SDK（不是 Command Line Tools），活动开发者目录指向 Xcode.app：
 
@@ -98,51 +110,68 @@ xcodebuild -version              # 应输出 Xcode 版本号
 
 兼容性：上游 [ios.toolchain.cmake](../../third_party/sherpa-onnx/toolchains/ios.toolchain.cmake) 与 CMake 4.x 的 `get_filename_component()` 参数检查更严，如果 `xcodebuild -version -sdk iphonesimulator Path` 因缺 Xcode 而返回空字符串，cmake configure 会 fatal。建议 CI 上锁定 CMake 3.x 或安装完整 Xcode。
 
-#### 在没有 iOS 完整 Xcode 时验证 wetext 集成
-
-如果只是想本地验证 fork 里 vendor 的 WeText C++ runtime + C-API 改动能编译通过，可以用上游自带的 `build-swift-macos.sh`（不依赖 ios.toolchain.cmake，纯 macOS native build）：
-
-```bash
-cd third_party/sherpa-onnx
-rm -rf build-swift-macos
-bash build-swift-macos.sh
-nm build-swift-macos/lib/libsherpa-onnx-c-api.a | grep WetextItn
-# 期望输出（4 个外部符号）：
-# _SherpaOnnxCreateWetextItn
-# _SherpaOnnxDestroyWetextItn
-# _SherpaOnnxWetextItnFreeText
-# _SherpaOnnxWetextItnNormalize
-```
-
 ## WeText ITN
 
-iOS 端的 `WeitnEngine` 与 Android 同款，内部包装我们 fork 的 sherpa-onnx 里 vendored 的 [WeTextProcessing](https://github.com/wenet-e2e/WeTextProcessing)（Apache-2.0）三段式中文 ITN runtime。fst 体积 ~2-4 MB，不打进 xcframework，运行时由业务方分发。
+`build_xcframework.sh` 应用的 Amphion patch series 已提供 WeText 与离线标点 C API；`WeitnEngine`
+从调用方提供的 tagger/verbalizer FST 创建真实 native processor。Dingqiao final 固定按
+`WeText ITN → CT-Transformer 标点` 串行处理，与 Android/Harmony 相同；任一资源缺失时保留上一阶段
+文本，并可通过 `runtimeCapabilities()` 预检，Demo 也会明确显示“资源未就绪”。
 
-```swift
-import AmphionRuntime
+`setAuxiliaryModelDirectory` 支持直接公共根目录或其 `amphion-models/` 子目录，交付布局为：
 
-let docs = FileManager.default.urls(
-    for: .documentDirectory, in: .userDomainMask
-).first!
-let cfg = try WeitnConfig(
-    taggerFst: docs.appendingPathComponent("asr-weitn/zh_itn_tagger.fst"),
-    verbalizerFst: docs.appendingPathComponent("asr-weitn/zh_itn_verbalizer.fst")
-)
-let itn = try WeitnEngine(config: cfg)
-
-let out = itn.normalize("两点五八万")        // "2.58万"
-let out2 = itn.normalize("二零二六年五月十五日") // "2026年5月15日"
-
-itn.close()
+```text
+punct-zhen/v1/model.int8.ort        # 也兼容 model.int8.onnx
+itn-zh/v1/zh_itn_tagger.fst
+itn-zh/v1/zh_itn_verbalizer.fst
 ```
 
-特点：
+这些大资源不重复提交到 iOS 代码目录；正式组包必须从审核过的单一模型源复制并记录哈希。
 
-- 与 `AsrEngine` 完全解耦：ITN 失败不影响 ASR；推荐 `ASR final → WeitnEngine.normalize → 业务后处理` 的串行管线
-- 线程安全；内部带 `NSLock`，并发 normalize 串行排队
-- fst 由业务方分发：通常把 `zh_itn_tagger.fst` + `zh_itn_verbalizer.fst` 放在自家 CDN，业务侧下载到 `NSDocumentDirectory` 内即可
+## 鼎桥兼容 API
 
-详见 Android 端的 [docs/INTEGRATION.md §12.4](../../asr/android/docs/INTEGRATION.md)（行为对齐）与 [asr/tools/MODEL_LAYOUT.md §6](../../asr/tools/MODEL_LAYOUT.md)（fst 分发约定）。
+```swift
+let sdk = SpeechRecognizeSdk.shared
+try sdk.setWorkPath(appSupportDirectory)
+sdk.setModelDirectory(deliveredModelDirectory)
+sdk.setAuxiliaryModelDirectory(deliveredSharedModelDirectory)
+let capabilities = sdk.runtimeCapabilities()
+sdk.prepareRuntime(callback: prepareCallback)
+
+let engine = try sdk.createEngine(
+    CreateEngineParams(
+        language: "zh-CN",
+        extraParams: ["recognizerMode": "short"]
+    )
+)
+engine.setListener(listener)
+engine.startListening(
+    StartParams(
+        sessionId: "session_001",
+        extraParams: [
+            "recognitionMode": 1,
+            "recognizerMode": "short",
+            "vadEnd": 800,
+            "maxAudioDuration": 60_000,
+        ]
+    )
+)
+// 每次写入 640 字节：16 kHz / 16-bit / mono / little-endian / 20 ms PCM。
+engine.writeAudio(sessionId: "session_001", audio: pcmFrame)
+engine.finish(sessionId: "session_001")
+```
+
+已经锁定的生命周期语义：
+
+- 普通 endpoint final：`isFinal=true, isLast=false`。
+- 显式 `finish` 或 `maxAudioDuration`：唯一一次 `isLast=true`，随后唯一一次 `onComplete`。
+- `cancel`：不再产生 final 或 `onComplete`。
+- `onStart` 派发前 session 已经发布，可在回调内同步写入、finish 或 cancel。
+- finishing 状态调用 `shutdown` 会等待 native tail，再释放 stream 和 recognizer。
+
+`vadBegin` 已接多信号起音门禁；声纹注册/逐 final 打分、窗口式 Speaker VAD 状态事件和离线
+说话人分离已接公共模型，并在模型缺失时显式拒绝启动；自动 ITN/标点已串入 final，并由能力快照
+反映实际资源状态。Police LAC、正式离线授权、Diagnostics v2 和 Objective-C facade 仍未完成；
+详见能力矩阵，不要把当前开发制品描述为完整客户版。
 
 ## 与 Android SDK 的差异
 
@@ -150,7 +179,7 @@ itn.close()
 | --- | --- | --- | --- |
 | 模型存储 | filesDir 内部目录 | NSDocumentDirectory | 都是 app 沙箱内 |
 | 录音权限 | RECORD_AUDIO | NSMicrophoneUsageDescription | SDK 不接管录音 |
-| Endpoint 默认值 | rule1=2.4 / rule2=1.2 / rule3=20 | 同 | 跨端一致 |
+| Endpoint 默认值 | rule1=2.4 / rule2=1.4 / rule3=20 | 同 | 基础 API 跨端一致 |
 | AsrCallback | interface + 默认方法 | protocol + extension 默认方法 | 行为一致 |
 
 ## 联系
