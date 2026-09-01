@@ -14,7 +14,7 @@ public struct EndpointRules {
 
     public init(
         rule1MinTrailingSilenceSec: Float = 2.4,
-        rule2MinTrailingSilenceSec: Float = 1.2,
+        rule2MinTrailingSilenceSec: Float = 1.4,
         rule3MinUtteranceLengthSec: Float = 20.0
     ) {
         self.rule1MinTrailingSilenceSec = rule1MinTrailingSilenceSec
@@ -37,6 +37,8 @@ public struct AsrConfig {
     public var endpointRules: EndpointRules = EndpointRules()
     public var sampleRate: Int = 16000
     public var featureDim: Int = 80
+    /// 与 Android/Harmony 一致默认关闭 ORT 权重预打包，降低冷加载峰值内存。
+    public var disablePrepack: Bool = true
 
     // 解码
     public var decodingMethod: DecodingMethod = .greedySearch
@@ -74,6 +76,10 @@ public struct AsrConfig {
 
     public func with(enableEndpoint: Bool) -> AsrConfig {
         var c = self; c.enableEndpoint = enableEndpoint; return c
+    }
+
+    public func with(disablePrepack: Bool) -> AsrConfig {
+        var c = self; c.disablePrepack = disablePrepack; return c
     }
 
     public func with(endpointRules: EndpointRules) -> AsrConfig {
@@ -136,8 +142,17 @@ public struct AsrConfig {
             throw AsrError(code: .modelFileMissing, message: "missing tokens.txt under \(modelDir.path)")
         }
 
+        // 当前固定的 sherpa-onnx 1.13.1 iOS C API 不包含独立 online LM 与 VAD
+        // 配置入口。交付构建必须显式失败，不能让调用方误以为参数已经生效。
+        if enableVad || vadModelPath != nil {
+            throw AsrError(code: .invalidArgument, message: "iOS build does not support external VAD yet")
+        }
+        if lmModelPath != nil {
+            throw AsrError(code: .invalidArgument, message: "iOS build does not support online LM rescoring yet")
+        }
+
         var c = self
-        let needsBeam = !c.hotwords.isEmpty || c.lmModelPath != nil
+        let needsBeam = !c.hotwords.isEmpty
         if needsBeam {
             if !c.decodingMethodIsExplicit {
                 c.decodingMethod = .modifiedBeamSearch
@@ -147,6 +162,11 @@ public struct AsrConfig {
                     code: .invalidArgument,
                     message: "hotwords / LM rescoring require decodingMethod=.modifiedBeamSearch"
                 )
+            }
+            if !c.maxActivePathsIsExplicit {
+                // 与 Android/Harmony 的热词默认 beam width 对齐；4 容易在 boost 完整生效前
+                // 过早剪掉同音候选，8 是当前公共交付的平衡值。
+                c.maxActivePaths = 8
             }
         }
 

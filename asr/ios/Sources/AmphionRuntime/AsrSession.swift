@@ -11,6 +11,12 @@ public final class AsrSession {
         self.core = core
     }
 
+    internal var isReady: Bool { core.isReady }
+
+    internal func setFinalTransformer(_ transformer: ((AsrResult, [Float]) -> AsrResult)?) {
+        core.setFinalTransformer(transformer)
+    }
+
     /// 接收 16-bit PCM short 数组；SDK 内部会转 float。
     public func acceptPcm(_ samples: [Int16], sampleRate: Int) {
         core.acceptPcmInt16(samples: samples, sampleRate: sampleRate)

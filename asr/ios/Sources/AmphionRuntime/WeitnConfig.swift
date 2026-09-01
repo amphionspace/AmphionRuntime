@@ -1,20 +1,20 @@
 import Foundation
 
-/// WeText ITN 引擎配置（不可变）。
+/// WeText ITN 不可变资源配置。
 ///
 /// WeTextProcessing 中文 ITN 走「tagger.fst + verbalizer.fst 两段式」：
 ///
 /// - ``taggerFst`` 解析输入并产出结构化 token（`tokens { decimal { integer_part: "2" ... } }`）
 /// - ``verbalizerFst`` 把结构化 token 序列化回正规化文本
 ///
-/// Native 层会按 ``taggerFst`` 文件名识别语言/方向（默认 `zh_itn`）：
+/// 预期的 native 层会按 ``taggerFst`` 文件名识别语言/方向（默认 `zh_itn`）：
 /// - `zh_itn_tagger.fst` -> 中文 ITN
 /// - `zh_tn_tagger.fst` -> 中文 TN
 /// - `en_tn_tagger.fst` -> 英文 TN
 /// - `ja_tn_tagger.fst` -> 日文 TN
 ///
 /// 两个 fst 文件通常由 [WeTextProcessing](https://github.com/wenet-e2e/WeTextProcessing)
-/// 编译产出（中文 ITN 总和约 2–4 MB），不打包进 SDK，必须运行期分发到 URL。
+/// 编译产出（中文 ITN 总和约 2–4 MB）。它们必须随客户交付包提供并经过来源校验。
 public struct WeitnConfig {
 
     /// WeTextProcessing tagger FST 路径（如 `zh_itn_tagger.fst`）。
