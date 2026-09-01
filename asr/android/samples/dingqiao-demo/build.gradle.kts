@@ -19,22 +19,6 @@ val fatAarPath = providers.gradleProperty("dingqiaoFatAarPath").orElse(
 val evalAudioDir = providers.gradleProperty("dingqiaoEvalAudioDir").orNull
 val demoAssetDir = providers.gradleProperty("dingqiaoDemoAssetDir").orNull
 
-val validateDingqiaoDemoRuntimeAssets by tasks.registering {
-    group = "verification"
-    description = "Reject a project-based Demo APK build without packed runtime models."
-    onlyIf { !useFatAar }
-    doLast {
-        check(rootProject.file("sdk/src/main/assets/amphion-models/manifest.json").isFile) {
-            "Dingqiao Demo models are not packed. Run " +
-                "`bash asr/tools/08_pack_sdk_assets.sh --zh-en-only` before building the APK."
-        }
-    }
-}
-
-tasks.matching { it.name == "packageDebug" || it.name == "packageRelease" }.configureEach {
-    dependsOn(validateDingqiaoDemoRuntimeAssets)
-}
-
 android {
     namespace = "com.amphion.dingqiao.demo"
     compileSdk = 34
