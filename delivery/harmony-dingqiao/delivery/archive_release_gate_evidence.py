@@ -23,6 +23,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.delivery.asr_release_evidence_contract import (  # noqa: E402
+    HARMONY_FINISH_COMPAT_MODES,
     HARMONY_RELEASE_MODES,
     MIN_LONG_RUN_SECONDS,
     SCHEMA_VERSION,
@@ -40,7 +41,7 @@ from tools.delivery.release_gate_archive_artifacts import (  # noqa: E402
 
 
 REQUIRED_RELEASE_MODES = HARMONY_RELEASE_MODES
-REQUIRED_FINISH_COMPAT_MODES = ("callback-api-reentrant", "finish-shutdown")
+REQUIRED_FINISH_COMPAT_MODES = HARMONY_FINISH_COMPAT_MODES
 REQUIRED_ANDROID_SUITES = {
     ("sdk", "debug"): 32,
     ("sdk", "release"): 32,
