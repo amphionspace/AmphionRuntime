@@ -13,6 +13,10 @@ ADAPTER = (
     REPO_ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 )
+RECOGNITION_CONFIG = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/RecognitionConfig.ets"
+)
 RUNTIME = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
 
 
@@ -79,11 +83,12 @@ class HarmonyStartListeningConfigReuseTest(unittest.TestCase):
 
     def test_speaker_vad_defers_extractor_without_losing_runtime_toggle(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
+        config = RECOGNITION_CONFIG.read_text(encoding="utf-8")
         runtime = RUNTIME.read_text(encoding="utf-8")
 
-        config_start = adapter.index("function buildTargetSpeakerConfig(")
-        config_end = adapter.index("\nfunction buildSpeakerVadConfig(", config_start)
-        target_config = adapter[config_start:config_end]
+        config_start = config.index("function buildTargetSpeakerConfig(")
+        config_end = config.index("\nfunction buildSpeakerVadConfig(", config_start)
+        target_config = config[config_start:config_end]
         self.assertIn("cfg.deferLoad = true;", target_config)
         self.assertNotIn("cfg.deferLoad = !withSpeakerVad;", target_config)
 
