@@ -23,8 +23,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Validate shared Dingqiao contract coverage
         run: python3 -m unittest asr.tools.tests.test_ios_dingqiao_contract -v
