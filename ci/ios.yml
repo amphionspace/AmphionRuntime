@@ -1,0 +1,54 @@
+name: iOS SDK Contract CI
+
+on:
+  pull_request:
+    paths:
+      - "asr/ios/**"
+      - "shared/api-spec/**"
+      - "asr/tools/tests/test_ios_dingqiao_contract.py"
+      - ".github/workflows/ios.yml"
+  push:
+    branches: [main]
+    paths:
+      - "asr/ios/**"
+      - "shared/api-spec/**"
+      - "asr/tools/tests/test_ios_dingqiao_contract.py"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Validate shared Dingqiao contract coverage
+        run: python3 -m unittest asr.tools.tests.test_ios_dingqiao_contract -v
+
+      - name: Type-check pure Swift contract state
+        run: |
+          xcrun swiftc -typecheck \
+            asr/ios/Sources/AmphionRuntime/Dingqiao/DingqiaoModels.swift \
+            asr/ios/Sources/AmphionRuntime/Dingqiao/DingqiaoParameterPolicy.swift \
+            asr/ios/Sources/AmphionRuntime/Dingqiao/DingqiaoLifecycleGate.swift
+
+      - name: Execute Swift lifecycle smoke gate
+        run: |
+          xcrun swiftc -o "$RUNNER_TEMP/ios-contract-smoke" \
+            asr/ios/Sources/AmphionRuntime/Dingqiao/DingqiaoModels.swift \
+            asr/ios/Sources/AmphionRuntime/Dingqiao/DingqiaoParameterPolicy.swift \
+            asr/ios/Sources/AmphionRuntime/Dingqiao/DingqiaoLifecycleGate.swift \
+            asr/ios/ContractSmoke/main.swift
+          "$RUNNER_TEMP/ios-contract-smoke"
+
+      - name: Parse all iOS Swift sources and tests
+        run: |
+          find asr/ios/Sources asr/ios/Tests asr/ios/ContractSmoke -name '*.swift' -print0 \
+            | xargs -0 xcrun swiftc -parse
+
+      - name: Validate packaging script syntax
+        run: bash -n asr/ios/build_xcframework.sh
