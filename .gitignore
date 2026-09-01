@@ -62,6 +62,8 @@ tts/android/sdk/src/main/jniLibs/**/*.so
 asr/ios/AmphionRuntime.xcframework/
 asr/ios/AmphionRuntime.xcframework.zip
 asr/ios/AmphionRuntime.xcframework.zip.sha256
+asr/ios/.native-src/
+**/xcuserdata/
 
 # HarmonyOS native / rawfile 交付产物（由构建和打包脚本生成）
 asr/harmony/sdk/src/main/cpp/libs/*/

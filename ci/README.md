@@ -13,7 +13,7 @@
 | 文件 | 端 | 触发 | 主要产物 |
 | --- | --- | --- | --- |
 | [android.yml](android.yml) | Android SDK | push / PR / tag v\* | sdk-release.aar |
-| ios.yml | iOS SDK | TODO Phase 3 | xcframework |
+| [ios.yml](ios.yml) | iOS SDK contract | push / PR | 参数覆盖、纯 Swift 状态机 typecheck、源码语法与组包脚本检查；XCFramework 发布构建单独执行 |
 | server.yml | Linux 服务端 | TODO Phase 4 | docker image |
 | [dashboard.yml](dashboard.yml) | 跨端 | 月度 cron / 手动 | trends/reports/YYYY-MM.md + trends/\*.csv |
 

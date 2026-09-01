@@ -1,5 +1,13 @@
 import Foundation
 
+public enum AmphionLogLevel: Int {
+    case DEBUG = 0
+    case INFO = 1
+    case WARN = 2
+    case ERROR = 3
+    case NONE = 4
+}
+
 /// AmphionRuntime 全局入口；与 Android 的 `AsrSdk` 一一对应。
 ///
 /// 典型生命周期（与 Android 一致）：
@@ -20,7 +28,7 @@ public final class AsrSdk {
     public static let shared = AsrSdk()
 
     /// SDK 版本号；与 Android `BuildConfig.SDK_VERSION` 同步。
-    public let version: String = "0.1.0"
+    public let version: String = "0.3.4-ios-alpha.1"
 
     /// 进程内已启动的 Engine 数（仅诊断用）。
     public private(set) var liveEngineCount: Int = 0
@@ -28,6 +36,7 @@ public final class AsrSdk {
     private let lock = NSLock()
     private var started: Bool = false
     private var logger: AsrLogger = DefaultAsrLogger()
+    private var logLevel: AmphionLogLevel = .WARN
 
     private init() {}
 
@@ -58,9 +67,17 @@ public final class AsrSdk {
         self.logger = logger
     }
 
+    public func setLogLevel(_ level: AmphionLogLevel) {
+        lock.lock(); defer { lock.unlock() }
+        logLevel = level
+    }
+
     // MARK: - 内部接口（同包可见，但不对外暴露）
 
-    internal func currentLogger() -> AsrLogger { logger }
+    internal func currentLogger() -> AsrLogger {
+        lock.lock(); defer { lock.unlock() }
+        return FilteredAsrLogger(base: logger, level: logLevel)
+    }
 
     internal func incrEngine() {
         lock.lock(); defer { lock.unlock() }
@@ -75,6 +92,18 @@ public final class AsrSdk {
     internal func ensureStarted() {
         lock.lock(); defer { lock.unlock() }
         precondition(started, "AsrSdk.shared.start() must be called before creating an AsrEngine")
+    }
+}
+
+private final class FilteredAsrLogger: AsrLogger {
+    private let base: AsrLogger
+    private let level: AmphionLogLevel
+    init(base: AsrLogger, level: AmphionLogLevel) { self.base = base; self.level = level }
+    func debug(_ message: String) { if level.rawValue <= AmphionLogLevel.DEBUG.rawValue { base.debug(message) } }
+    func info(_ message: String) { if level.rawValue <= AmphionLogLevel.INFO.rawValue { base.info(message) } }
+    func warn(_ message: String) { if level.rawValue <= AmphionLogLevel.WARN.rawValue { base.warn(message) } }
+    func error(_ message: String, error: Error?) {
+        if level.rawValue <= AmphionLogLevel.ERROR.rawValue { base.error(message, error: error) }
     }
 }
 
