@@ -3,6 +3,23 @@ export type SpeakerInferenceResult<T> = (value: T) => void;
 export type SpeakerInferenceError = (error: Object) => void;
 
 /**
+ * Only ownership-changing Speaker VAD work may hold the next PCM slice.
+ *
+ * A score launched while the target is already confirmed and at least two low scores are still
+ * required for departure can only keep the target active or open an intermediate low-score state.
+ * Letting ASR consume subsequent PCM in parallel is therefore reversible. Pre-target, possible
+ * departure, and returning-target states must settle first because their result decides which
+ * public utterance owns the next slice.
+ */
+export function shouldSettleSpeakerInferenceBeforeNextSlice(inferenceActive: boolean,
+  targetConfirmed: boolean, belowCount: number, consecutiveBelow: number,
+  awaitingTargetAfterDeparture: boolean): boolean {
+  const departureThreshold = Math.max(1, consecutiveBelow);
+  return inferenceActive &&
+    (!targetConfirmed || belowCount + 1 >= departureThreshold || awaitingTargetAfterDeparture);
+}
+
+/**
  * A session-local FIFO for expensive speaker work.
  *
  * submit() never waits for native inference, so PCM/VAD can continue on the caller lane. A
