@@ -21,6 +21,10 @@ val tnPackageDirName = "Dingqiao_Multilingual_Text_Normalization_for_TTS"
 val litsSourceRoot = rootDir.resolve("../../$sourceDirName")
 val tnSourceRoot = litsSourceRoot.resolve(tnPackageDirName)
 val bundledAssetRoot = rootDir.resolve("sdk/src/main/assets/lits-models/tts")
+val bundledModelDir = bundledAssetRoot.resolve(modelId).resolve(modelVersion)
+val bundleModelsInSdk = providers.gradleProperty("amphionBundleModelsInSdk")
+    .map(String::toBoolean)
+    .orElse(false)
 
 fun ByteArray.replacingAscii(oldValue: String, newValue: String): ByteArray {
     require(oldValue.length == newValue.length)
@@ -202,9 +206,26 @@ val cleanBundledTtsResources = tasks.register<Delete>("cleanBundledTtsResources"
     delete(bundledAssetRoot)
 }
 
+val stageBundledTtsResources = tasks.register<Copy>("stageBundledTtsResources") {
+    group = "distribution"
+    description = "Embed the exported TTS model in the SDK AAR for zero-copy customer integration."
+    dependsOn(stageExternalTtsResources)
+    from(externalResourceDir)
+    into(bundledModelDir)
+    inputs.dir(externalResourceDir)
+    outputs.dir(bundledModelDir)
+    doFirst {
+        bundledModelDir.deleteRecursively()
+    }
+}
+
 subprojects {
     tasks.matching { it.name == "preBuild" }.configureEach {
-        dependsOn(cleanBundledTtsResources, stageExternalTtsResources)
+        if (bundleModelsInSdk.get()) {
+            dependsOn(stageBundledTtsResources)
+        } else {
+            dependsOn(cleanBundledTtsResources, stageExternalTtsResources)
+        }
     }
 }
 
