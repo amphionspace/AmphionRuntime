@@ -23,6 +23,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.delivery.asr_release_evidence_contract import (
+    HARMONY_FINISH_COMPAT_MODES,
     HARMONY_RELEASE_MODES,
     MIN_LONG_RUN_SECONDS,
     SCHEMA_VERSION as EVIDENCE_SCHEMA_VERSION,
@@ -676,7 +677,7 @@ def _validate_evidence_files(report_path: Path, report: Dict[str, Any]) -> None:
             )
         for entry in files:
             verify_entry(entry, f"finish-compat-runs/{mode}")
-    if harmony_archive and finish_modes != ["callback-api-reentrant", "finish-shutdown"]:
+    if harmony_archive and finish_modes != list(HARMONY_FINISH_COMPAT_MODES):
         raise ReleaseTrackerError("release evidence finish compatibility modes are incomplete")
     android_results = report.get("android_test_results")
     if not isinstance(android_results, list) or not android_results:
