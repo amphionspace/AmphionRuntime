@@ -13,6 +13,10 @@ ADAPTER = (
     REPO_ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 )
+RECOGNITION_CONFIG = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/RecognitionConfig.ets"
+)
 RUNTIME = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
 CORE_ENDPOINT_RULE_VALIDATION = (
     REPO_ROOT
@@ -315,12 +319,16 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
             cwd=REPO_ROOT,
         )
 
-        adapter = ADAPTER.read_text(encoding="utf-8")
-        self.assertIn("config.endpointRules.rule3MinUtteranceLengthSec =", adapter)
+        recognition_config = RECOGNITION_CONFIG.read_text(encoding="utf-8")
+        self.assertIn(
+            "config.endpointRules.rule3MinUtteranceLengthSec =",
+            recognition_config,
+        )
         self.assertIn(
             "rule3Policy(params.extraParams, startParams?.extraParams ?? {})",
-            adapter,
+            recognition_config,
         )
+        adapter = ADAPTER.read_text(encoding="utf-8")
         self.assertIn(
             "endpointRecognizerConfigKey(withTargetSpeaker, withSpeakerVad, this.params.extraParams",
             adapter,
