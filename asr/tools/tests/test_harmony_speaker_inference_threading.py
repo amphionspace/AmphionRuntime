@@ -167,6 +167,58 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
             cwd=REPO_ROOT,
         )
 
+    def test_confirmed_target_scoring_does_not_backpressure_realtime_pcm(self) -> None:
+        script = textwrap.dedent(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ shouldSettleSpeakerInferenceBeforeNextSlice }} from {LANE.as_uri()!r};
+
+            assert.equal(
+              shouldSettleSpeakerInferenceBeforeNextSlice(true, true, 0, 2, false),
+              false,
+              'a normal confirmed-target score must overlap subsequent ASR input',
+            );
+            assert.equal(
+              shouldSettleSpeakerInferenceBeforeNextSlice(true, false, 0, 2, false),
+              true,
+              'pre-target ownership must settle before the next slice',
+            );
+            assert.equal(
+              shouldSettleSpeakerInferenceBeforeNextSlice(true, true, 1, 2, false),
+              true,
+              'a possible departure must settle before the next slice',
+            );
+            assert.equal(
+              shouldSettleSpeakerInferenceBeforeNextSlice(true, true, 0, 2, true),
+              true,
+              'returning-target ownership must settle before the next slice',
+            );
+            assert.equal(
+              shouldSettleSpeakerInferenceBeforeNextSlice(false, false, 1, 2, true),
+              false,
+              'there is nothing to wait for when the inference lane is idle',
+            );
+            assert.equal(
+              shouldSettleSpeakerInferenceBeforeNextSlice(true, true, 0, 1, false),
+              true,
+              'a one-low departure threshold must remain synchronous',
+            );
+            """
+        )
+        subprocess.run(
+            [
+                "node",
+                "--experimental-strip-types",
+                "--experimental-loader",
+                TS_LOADER.as_uri(),
+                "--input-type=module",
+                "-e",
+                script,
+            ],
+            check=True,
+            cwd=REPO_ROOT,
+        )
+
     def test_reentrant_async_queue_preserves_fifo_without_sync_finish(self) -> None:
         script = textwrap.dedent(
             f"""
@@ -458,7 +510,12 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
 
     def test_fixed_alternating_pcm_keeps_returning_target_after_rejected_turn(self) -> None:
         feed = method_body(self.runtime, "feedChunkAndDecodeAsync")
-        settle = feed.index("if (!replay && this.svInferenceLoopActive)")
+        settle = feed.index("shouldSettleSpeakerInferenceBeforeNextSlice(")
+        self.assertIn("this.svInferenceLoopActive", feed[settle:])
+        self.assertIn("this.svTargetConfirmed", feed[settle:])
+        self.assertIn("this.svBelowCount", feed[settle:])
+        self.assertIn("speakerVadConsecutiveBelow", feed[settle:])
+        self.assertIn("this.svAwaitingTargetAfterDeparture", feed[settle:])
         drain = feed.index("await this.drainSpeakerInferenceAsync()", settle)
         own_public_clock = feed.index("this.publicSamplesFed += rawSamples.length")
         own_effective = feed.index("this.effectiveSpeechBuffer.observe(rawSamples)")
