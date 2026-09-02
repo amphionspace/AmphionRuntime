@@ -174,6 +174,7 @@ jobs:
               "asr/tools/07_sync_kotlin_from_upstream.sh",
               "asr/tools/android_native_cache.py",
               "asr/tools/apply_sherpa_patches.sh",
+              "asr/tools/prepare_sherpa_source.sh",
               "asr/tools/ensure_agc_build_tools.sh",
               "asr/tools/prefetch_sherpa_cmake_deps.sh",
               "third_party/sherpa-onnx",
@@ -575,8 +576,11 @@ jobs:
       - name: Initialize sherpa-onnx submodule
         run: git submodule update --init third_party/sherpa-onnx
 
-      - name: Apply pinned sherpa-onnx patches
-        run: bash asr/tools/apply_sherpa_patches.sh
+      - name: Prepare isolated patched sherpa-onnx source
+        run: |
+          sherpa_root="$(bash asr/tools/prepare_sherpa_source.sh)"
+          echo "AMPHION_SHERPA_ROOT=$sherpa_root" >> "$GITHUB_ENV"
+          python3 -m unittest asr.tools.tests.test_sherpa_source_isolation -v
 
       - name: Compute Android native source fingerprint
         id: native-fingerprint
@@ -596,8 +600,8 @@ jobs:
         uses: actions/cache@v5
         with:
           path: |
-            third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libsherpa-onnx-jni.so
-            third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libonnxruntime.so
+            third_party/.derived/sherpa-onnx/build-android-arm64-v8a/install/lib/libsherpa-onnx-jni.so
+            third_party/.derived/sherpa-onnx/build-android-arm64-v8a/install/lib/libonnxruntime.so
             asr/native/audio-processing/build-android-arm64-v8a/libamphion_audio_processing.so
             ${{ env.NATIVE_CACHE_MANIFEST }}
           key: android-native-${{ runner.os }}-v1-${{ steps.native-fingerprint.outputs.fingerprint }}
@@ -734,8 +738,8 @@ jobs:
         with:
           name: amphion-runtime-native-arm64-v8a-${{ github.sha }}
           path: |
-            third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libsherpa-onnx-jni.so
-            third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libonnxruntime.so
+            third_party/.derived/sherpa-onnx/build-android-arm64-v8a/install/lib/libsherpa-onnx-jni.so
+            third_party/.derived/sherpa-onnx/build-android-arm64-v8a/install/lib/libonnxruntime.so
             asr/native/audio-processing/build-android-arm64-v8a/libamphion_audio_processing.so
           compression-level: 0
           retention-days: 30

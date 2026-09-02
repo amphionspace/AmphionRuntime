@@ -1069,6 +1069,7 @@
           "**/.tools-venv/**",
           "**/venv/**",
           ".cache/**",
+          "third_party/.derived/**",
           "**/.swiftpm/**",
           "**/*.xcworkspace/xcuserdata/**",
           "**/DerivedData/**",

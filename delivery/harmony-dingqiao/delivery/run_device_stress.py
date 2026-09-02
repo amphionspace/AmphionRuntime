@@ -26,6 +26,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.delivery.device_stress_metrics import (  # noqa: E402
+    MIN_MEMORY_SLOPE_SECONDS,
     MemorySample,
     cpu_statistics,
     median_window,

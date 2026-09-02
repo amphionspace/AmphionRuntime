@@ -4,29 +4,27 @@
 # 用法（在 amphion-runtime 仓库根目录执行）：
 #   bash asr/tools/04_build_harmony_so.sh
 #
-# 输出：
-#   third_party/sherpa-onnx/build-ohos-arm64-v8a/install/lib/libsherpa-onnx-c-api.so
-#   third_party/sherpa-onnx/build-ohos-arm64-v8a/install/lib/libonnxruntime.so
+# 输出位于 third_party/.derived/ 的隔离 sherpa checkout。
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SHERPA_ROOT="$REPO_ROOT/third_party/sherpa-onnx"
+SHERPA_ROOT="$(bash "$SCRIPT_DIR/prepare_sherpa_source.sh")"
+export AMPHION_SHERPA_ROOT="$SHERPA_ROOT"
 
 if [[ ! -f "$SHERPA_ROOT/CMakeLists.txt" ]]; then
-  echo "[ERROR] 找不到 sherpa-onnx submodule：$SHERPA_ROOT"
-  echo "        请先运行：git submodule update --init --recursive"
+  echo "[ERROR] 找不到隔离的 sherpa-onnx 源码目录：$SHERPA_ROOT"
+  echo "        请先运行：bash asr/tools/prepare_sherpa_source.sh"
   exit 1
 fi
-
-bash "$SCRIPT_DIR/apply_sherpa_patches.sh"
 
 _resolve_ohos_native() {
   local d
   for d in \
     "${OHOS_SDK_NATIVE_DIR:-}" \
     "${DEVECO_SDK_HOME:-}/default/openharmony/native" \
+    "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/native" \
     "$HOME/Library/Huawei/Sdk/default/openharmony/native" \
     "$HOME/Library/OpenHarmony/Sdk/default/openharmony/native" \
     ; do
