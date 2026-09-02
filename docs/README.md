@@ -10,8 +10,10 @@
 | 各模块 `README.md` | 模块使用者和维护者 | 该模块如何构建、运行、集成和自测 |
 | `docs/` | 工程维护者 | 跨模块排障、调参、交付流程、复盘和文档索引 |
 | `shared/docs/` | 发布和平台维护者 | 跨端发布流程、dashboard、release process 等流程性文档 |
+| `asr/docs/` | ASR SDK 维护者 | 跨平台接口契约和 ASR 能力级文档 |
 | `asr/android/docs/` | Android ASR 维护者 | Android ASR SDK 的集成、隐私、授权、交付和 API 文档构建 |
 | `asr/android/docs/customer/` | 客户集成方和交付人员 | 鼎桥 Android 客户可见接口、license 和模型说明 |
+| `tts/docs/` | TTS SDK 维护者 | 跨平台接口契约和 TTS 能力级报告 |
 | `delivery/harmony-dingqiao/docs/` | 鼎桥 HarmonyOS 交付人员 | HarmonyOS ASR+TTS 聚合交付说明、隐私、授权和变更记录 |
 | `reports/` | 验收和排障人员 | 自动化或设备端测试报告；默认不是接口契约来源 |
 
@@ -49,6 +51,7 @@
 
 | 文档 | 说明 |
 | --- | --- |
+| ../asr/docs/api/语音识别SDK接口-20260622.md | ASR 语言无关接口契约基线 |
 | ../asr/android/docs/customer/语音识别SDK接口-交付批注版.md | 鼎桥 ASR 客户接口契约；以 20260622 基线为准，只在增补项旁批注 |
 | ../asr/android/docs/customer/语音识别SDK接口.md | Android 集成说明；跨平台契约以交付批注版为准 |
 | ../asr/android/docs/customer/DINGQIAO_INTEGRATION.md | 鼎桥 Android 集成说明 |
@@ -57,6 +60,13 @@
 | ../delivery/harmony-dingqiao/docs/DINGQIAO_INTEGRATION.md | 鼎桥 HarmonyOS 集成说明 |
 | ../delivery/harmony-dingqiao/docs/DINGQIAO_LICENSE_SCHEME.md | 鼎桥 HarmonyOS 授权方案 |
 | ../delivery/harmony-dingqiao/docs/customer/LICENSE.md | 鼎桥 HarmonyOS 客户 license 说明 |
+| ../tts/docs/api/语音合成SDK接口.md | TTS 语言无关接口契约基线 |
+
+### 优化报告
+
+| 文档 | 说明 |
+| --- | --- |
+| ../tts/docs/optimization/TN_SIZE_OPT_REPORT.md | HarmonyOS TTS 文本归一化 ICU 数据裁剪报告 |
 
 ### Troubleshooting
 

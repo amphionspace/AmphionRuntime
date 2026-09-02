@@ -10,7 +10,8 @@ set -euo pipefail
 # Everything else (coll, brkitr, ~700 other locales, units, zones, regions,
 # languages, transliterators, converters) is dropped via ICU_DATA_FILTER_FILE.
 #
-# Filter spec: scripts/icu_tn_data_filter.json   (report: TN_SIZE_OPT_REPORT.md)
+# Filter spec: scripts/icu_tn_data_filter.json
+# Report: tts/docs/optimization/TN_SIZE_OPT_REPORT.md
 #
 # The HOST recipe below was executed and VERIFIED on macOS arm64: it yields
 # libicudata 31.57MB -> 2.55MB and byte-identical TN output vs full ICU across

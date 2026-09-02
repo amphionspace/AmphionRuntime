@@ -242,12 +242,12 @@
       "repeatOrLoopOperations": 0
     }
   },
-  "jsonl": "/Users/amphion/Documents/Lits_delivery/dingqiao_test_cases/android_v3_sdk_stability_424_cases_improved_v3.jsonl",
+  "jsonl": "android_v3_sdk_stability_424_cases_improved_v3.jsonl",
   "longTextCasesLengthGte1000": 15,
   "longTextCasesLengthGte600": 24,
   "repeatOrLoopOperationCases": 48,
   "selectionPolicy": "category quotas with operation-balanced sampling; repeat/loop and longtext categories capped",
-  "sourceJsonl": "/Users/amphion/Documents/Lits_delivery/dingqiao_test_cases/android_v3_sdk_stability_1000_cases_improved.jsonl",
+  "sourceJsonl": "android_v3_sdk_stability_1000_cases_improved.jsonl",
   "statusCounts": {
     "EXPECTED_ERROR": 54,
     "PASS": 370

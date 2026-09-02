@@ -56,4 +56,4 @@ cp "$REPO/tts/harmony/sdk/src/main/cpp/third_party/ohos-icu/lib/libicuuc.a" "$ST
 echo ">> then:  SLIM_ICU_LIB_DIR=$STAGE OHOS_NATIVE_SDK=$OHOS_NATIVE_SDK scripts/build_dingqiao_harmony_tn.sh"
 echo ">> NOTE: to match the delivered binary shape (static libc++, interpreter"
 echo ">>       /system/bin/linker64) on stock SDKs, add -static-libstdc++ and"
-echo ">>       -Wl,--dynamic-linker=/system/bin/linker64 to the link (see TN_SIZE_OPT_REPORT.md §7)."
+echo ">>       -Wl,--dynamic-linker=/system/bin/linker64 to the link (see tts/docs/optimization/TN_SIZE_OPT_REPORT.md §7)."

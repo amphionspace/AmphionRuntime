@@ -108,9 +108,9 @@
     "setup contains testPoint and diversityKey to avoid duplicate scenario intent",
     "error cases preserve invalid text payloads while strengthening recovery-context payloads"
   ],
-  "jsonl": "/Users/amphion/Documents/Lits_delivery/dingqiao_test_cases/android_v3_sdk_stability_1000_cases_improved.jsonl",
+  "jsonl": "android_v3_sdk_stability_1000_cases_improved.jsonl",
   "operationCount": 81,
-  "sourceGenerator": "/Users/amphion/Documents/Lits_delivery/docs/android-harmony-v3-parity-1000/generate_v3_sdk_stability_1000_cases.py",
+  "sourceGenerator": "tools/dingqiao-android/generate_v3_sdk_stability_1000_cases.py",
   "statusCounts": {
     "EXPECTED_ERROR": 103,
     "PASS": 897
