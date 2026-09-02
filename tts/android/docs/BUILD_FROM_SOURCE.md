@@ -26,7 +26,7 @@ git submodule update --init --recursive
 必须存在以下 TN submodule：
 
 ```text
-dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS/
+tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS/
 ```
 
 Android JNI 会从这个 submodule 编译 `liblits_tn.so`，Gradle 也会从这里同步 `rules_v2` 和拼音映射文件。
@@ -112,10 +112,10 @@ scripts/build_dingqiao_android_native.sh
 脚本会使用当前仓库里的 TN submodule，不依赖任何兄弟目录或本机私有源码路径。默认输出：
 
 ```text
-dingqiao_lits/build/android-icu/
+tts/training/dingqiao_lits/build/android-icu/
 ```
 
-Android CMake 会从 `dingqiao_lits/build/android-icu/` 读取 ICU 头文件和静态库来编译 `liblits_tn.so`。
+Android CMake 会从 `tts/training/dingqiao_lits/build/android-icu/` 读取 ICU 头文件和静态库来编译 `liblits_tn.so`。
 
 ## 5. 编译 AAR
 
@@ -163,6 +163,6 @@ AAR 不应包含：
 
 - `submodule` 目录为空：执行 `git submodule update --init --recursive`。
 - 找不到 Android SDK：设置 `ANDROID_HOME` / `ANDROID_SDK_ROOT`，或写 `tts/android/local.properties`。
-- 找不到 ICU 头文件或静态库：先运行 `scripts/build_dingqiao_android_native.sh`，或确认 `dingqiao_lits/build/android-icu/` 已存在。
+- 找不到 ICU 头文件或静态库：先运行 `scripts/build_dingqiao_android_native.sh`，或确认 `tts/training/dingqiao_lits/build/android-icu/` 已存在。
 - 运行时报缺少外部资源：把 `tts/android/external-resources/tts/...` 复制到宿主 SDK 工作目录下的 `tts/...`。
 - 不要提交 `external-resources/`、`build/`、签名文件、license 包或本地 `local.properties`。

@@ -15,8 +15,8 @@ Usage:
 Optional environment variables:
   ANDROID_API_LEVEL       Android API level (default: 24)
   ICU_SOURCE_DIR          ICU source directory containing configure; skips archive extraction
-  DINGQIAO_NATIVE_BUILD_ROOT  Build root (default: dingqiao_lits/build/android-icu)
-  TN_ANDROID_OUTPUT_DIR   TN output directory (default: dingqiao_lits/e2e_infer/bin-android-arm64)
+  DINGQIAO_NATIVE_BUILD_ROOT  Build root (default: tts/training/dingqiao_lits/build/android-icu)
+  TN_ANDROID_OUTPUT_DIR   TN output directory (default: tts/training/dingqiao_lits/e2e_infer/bin-android-arm64)
   LITS_ANDROID_SLIM_ICU   Set to 1/true to build ICU with scripts/icu_tn_data_filter.json
   ICU_DATA_ZIP            Required with LITS_ANDROID_SLIM_ICU; raw ICU 78.1 data zip
   BUILD_TN_BINARIES       auto/1/0 (default: auto). auto builds only if zh.cpp/en.cpp exist.
@@ -30,9 +30,9 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TN_ROOT="$REPO_ROOT/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
-BUILD_ROOT="${DINGQIAO_NATIVE_BUILD_ROOT:-$REPO_ROOT/dingqiao_lits/build/android-icu}"
-TN_OUTPUT_DIR="${TN_ANDROID_OUTPUT_DIR:-$REPO_ROOT/dingqiao_lits/e2e_infer/bin-android-arm64}"
+TN_ROOT="$REPO_ROOT/tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
+BUILD_ROOT="${DINGQIAO_NATIVE_BUILD_ROOT:-$REPO_ROOT/tts/training/dingqiao_lits/build/android-icu}"
+TN_OUTPUT_DIR="${TN_ANDROID_OUTPUT_DIR:-$REPO_ROOT/tts/training/dingqiao_lits/e2e_infer/bin-android-arm64}"
 ANDROID_API_LEVEL="${ANDROID_API_LEVEL:-24}"
 BUILD_JOBS="${BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
 LITS_ANDROID_SLIM_ICU="${LITS_ANDROID_SLIM_ICU:-0}"

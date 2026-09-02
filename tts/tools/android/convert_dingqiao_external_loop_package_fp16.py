@@ -23,7 +23,9 @@ ROOT = Path(__file__).resolve().parents[3]
 PACKAGE_NAME = "dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop"
 DEFAULT_INPUT_DIR = ROOT / "tts" / "android" / "external-resources" / "tts" / PACKAGE_NAME / "0.1.0"
 DEFAULT_OUTPUT_DIR = ROOT / "tts" / "android" / "build" / "fp16-experiments" / PACKAGE_NAME / "0.1.0"
-DEFAULT_POLICY_CONFIG = ROOT / "dingqiao_lits" / "configs" / "precision" / "mixed_fp16.yaml"
+DEFAULT_POLICY_CONFIG = (
+    ROOT / "tts" / "training" / "dingqiao_lits" / "configs" / "precision" / "mixed_fp16.yaml"
+)
 
 
 def parse_args() -> argparse.Namespace:
