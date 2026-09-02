@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets
 class Gpu13AccentReplayTest {
 
     private val evalDir: File =
-        File("../../../../evaluation/plate_number/gpu13_accent_dialogue").canonicalFile
+        File("../../evaluation/plate_number/gpu13_accent_dialogue").canonicalFile
 
     private fun normalizer(): PlateNormalizer {
         val csv = File("src/main/assets/plate/plate_homophones.csv")

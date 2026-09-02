@@ -23,7 +23,7 @@ internal class PoliceTermsFstRuntime private constructor(
     companion object {
         fun create(context: Context): PoliceTermsFstRuntime {
             require(PoliceTermsFstAssets.allPresent(context)) {
-                "missing police_terms FST assets; run evaluation/police_terms/sync_fsts_to_sample.sh"
+                "missing police_terms FST assets; run asr/evaluation/police_terms/sync_fsts_to_sample.sh"
             }
             val cached = PoliceTermsFstAssets.ensureCached(context)
             return PoliceTermsFstRuntime(

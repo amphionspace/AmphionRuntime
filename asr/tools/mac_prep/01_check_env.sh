@@ -33,7 +33,7 @@ elif [[ -d "$HOME/Library/Android/sdk/platform-tools" ]]; then
   export ANDROID_HOME="$SDK" ANDROID_SDK_ROOT="$SDK"
   ok "Android SDK: $SDK (auto-detected)"
 else
-  err "Android SDK — 打开 Android Studio 完成 Setup Wizard，或: source scripts/mac_prep/00_android_env.sh"
+  err "Android SDK — 打开 Android Studio 完成 Setup Wizard，或: source asr/tools/mac_prep/00_android_env.sh"
   err "  期望目录: $HOME/Library/Android/sdk/platform-tools"
   FAIL=1
 fi
@@ -49,11 +49,11 @@ if [[ -d "$NDK_DIR" ]]; then ok "NDK $NDK_VER"; else
   warn "NDK $NDK_VER 未安装 — Android Studio SDK Manager 安装 NDK r26d"
 fi
 
-REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 if [[ -f "$REPO/third_party/sherpa-onnx/CMakeLists.txt" ]]; then
   ok "sherpa-onnx submodule"
 else
-  err "sherpa-onnx submodule 未初始化 — 运行 scripts/mac_prep/02_init_submodule.sh"
+  err "sherpa-onnx submodule 未初始化 — 运行 asr/tools/mac_prep/02_init_submodule.sh"
   FAIL=1
 fi
 

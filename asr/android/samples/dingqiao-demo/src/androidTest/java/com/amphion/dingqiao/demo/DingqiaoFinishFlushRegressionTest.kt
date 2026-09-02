@@ -193,7 +193,7 @@ class DingqiaoFinishFlushRegressionTest {
         val supported = wavs.filter { isSupportedMonoPcm16Wav(it) }
         require(supported.size >= 4) {
             "need at least 4 mono PCM16 wav assets; found ${wavs.size} wav assets " +
-                "but only ${supported.size} supported. Run with -PdingqiaoEvalAudioDir=/Users/boxp/Downloads/audio"
+                "but only ${supported.size} supported. Run with -PdingqiaoEvalAudioDir=/path/to/audio"
         }
         val preferred = listOf("04", "06", "11", "01").mapNotNull { prefix ->
             supported.firstOrNull { it.substringAfterLast('/').startsWith(prefix) }

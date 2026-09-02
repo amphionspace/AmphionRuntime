@@ -116,10 +116,10 @@ class PoliceTermsRound03ReplayTest {
         var dir: File? = File(System.getProperty("user.dir") ?: ".")
         repeat(8) {
             val base = dir ?: return@repeat
-            val candidate = File(base, "evaluation/police_terms/round03/police_terms_eval.tsv")
+            val candidate = File(base, "asr/evaluation/police_terms/round03/police_terms_eval.tsv")
             if (candidate.isFile) return candidate
             dir = base.parentFile
         }
-        return File("evaluation/police_terms/round03/police_terms_eval.tsv")
+        return File("asr/evaluation/police_terms/round03/police_terms_eval.tsv")
     }
 }

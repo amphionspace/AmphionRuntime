@@ -65,7 +65,7 @@ _resolve_ndk() {
 }
 if ! ANDROID_NDK="$(_resolve_ndk)"; then
   echo "[ERROR] 找不到合法 NDK（需含 build/cmake/android.toolchain.cmake）"
-  echo "        请安装 NDK $NDK_VER，并: source scripts/mac_prep/00_android_env.sh"
+  echo "        请安装 NDK $NDK_VER，并: source asr/tools/mac_prep/00_android_env.sh"
   echo "        或: export ANDROID_NDK=\$HOME/Library/Android/sdk/ndk/$NDK_VER"
   echo "        参考 asr/tools/ANDROID_TOOLCHAIN.md"
   exit 1

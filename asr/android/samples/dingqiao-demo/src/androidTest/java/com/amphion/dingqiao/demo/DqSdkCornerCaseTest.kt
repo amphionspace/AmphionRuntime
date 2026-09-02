@@ -54,7 +54,7 @@ class DqSdkCornerCaseTest {
     fun a01_tailFrame_abruptFinish_keepsTail() {
         val engine = sharedEngine()
         val files = mainWavs(testCtx)
-        assertTrue("no main wavs; pass -PdingqiaoEvalAudioDir=/Users/boxp/Downloads/audio", files.isNotEmpty())
+        assertTrue("no main wavs; pass -PdingqiaoEvalAudioDir=/path/to/audio", files.isNotEmpty())
         var totalRatio = 0.0
         var counted = 0
         for (wav in files) {

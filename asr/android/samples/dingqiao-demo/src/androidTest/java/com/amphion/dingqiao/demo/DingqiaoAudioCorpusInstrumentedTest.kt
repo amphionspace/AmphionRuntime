@@ -25,7 +25,7 @@ import org.junit.runner.RunWith
  *
  * Run with:
  * ./gradlew :samples:dingqiao-demo:connectedDebugAndroidTest \
- *   -PdingqiaoEvalAudioDir=/Users/boxp/Downloads/audio \
+ *   -PdingqiaoEvalAudioDir=/path/to/audio \
  *   -Pandroid.testInstrumentationRunnerArguments.class=com.amphion.dingqiao.demo.DingqiaoAudioCorpusInstrumentedTest
  */
 @RunWith(AndroidJUnit4::class)
@@ -56,7 +56,7 @@ class DingqiaoAudioCorpusInstrumentedTest {
             .filter { audioPrefix.isEmpty() || it.startsWith(audioPrefix) }
             .sorted()
         assertTrue(
-            "No wav assets found. Run with -PdingqiaoEvalAudioDir=/Users/boxp/Downloads/audio",
+            "No wav assets found. Run with -PdingqiaoEvalAudioDir=/path/to/audio",
             wavFiles.isNotEmpty(),
         )
 

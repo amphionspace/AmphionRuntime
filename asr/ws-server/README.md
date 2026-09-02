@@ -5,7 +5,7 @@
 ## 本地运行（Mac CPU）
 
 ```bash
-cd /Users/boxp/workspace/amphion-runtime
+cd /path/to/amphion-runtime
 uv venv .venv-asr-ws --python 3.11
 uv pip install --python .venv-asr-ws/bin/python -e asr/ws-server
 
@@ -22,14 +22,14 @@ uv pip install --python .venv-asr-ws/bin/python -e asr/ws-server
 
 ```bash
 .venv-asr-ws/bin/python asr/ws-server/examples/ws_client.py \
-  "/Users/boxp/Downloads/audio/01_说话人跟踪_3人重叠91_抗战历史长句.wav"
+  "/path/to/audio/sample.wav"
 ```
 
 测试目录并生成报告：
 
 ```bash
 .venv-asr-ws/bin/python asr/ws-server/examples/run_audio_suite.py \
-  /Users/boxp/Downloads/audio \
+  /path/to/audio \
   --output-dir asr/ws-server/reports/latest \
   --model-id amphion-zh-en-streaming_large_crctc_musan_zhcs_v6 \
   --model-version 1.0.0-iter-140000-avg-1-chunk-32-left-256 \

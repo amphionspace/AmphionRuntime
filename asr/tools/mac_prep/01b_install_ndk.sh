@@ -27,7 +27,7 @@ if [[ -z "$SM" || ! -x "$SM" ]]; then
   echo "      Settings → Android SDK → SDK Tools → 勾选"
   echo "        - Android SDK Command-line Tools (latest)"
   echo "        - NDK (Side by side) → 展开选 ${NDK_VER}"
-  echo "      点 Apply，装完再运行: bash scripts/mac_prep/01_check_env.sh"
+  echo "      点 Apply，装完再运行: bash asr/tools/mac_prep/01_check_env.sh"
   exit 1
 fi
 

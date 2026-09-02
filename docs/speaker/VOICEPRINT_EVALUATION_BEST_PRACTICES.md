@@ -350,7 +350,7 @@ VoxSRC 明确规定 test 只能用于报告、不能训练或调参，并限制�
 - **只在 office 通过**：只能声明 office 域表现，不能声明交通可用；
 - **verification 通过但 overlap 失败**：单说话人能力成立，重叠能力不成立，二者不能平均。
 
-## 11. 对当前 `evaluation/voiceprint_traffic` 规范的只读审计
+## 11. 对当前 `asr/evaluation/voiceprint_traffic` 规范的只读审计
 
 当前规范已经完成了最重要的方向修正：删除固定 `97%/70%` 和通用人数门槛；加入 use case、prior/cost、FAR/FRR/coverage/DCF、pilot power analysis、speaker/session/source 隔离、traffic-domain blind、overlap 独立轨和 single-pass blind。`validate_manifest.py` 也已经检查 speaker/source/session 跨 split 泄漏、enrollment/probe session 复用、配置化人数/trial/session 门槛和 unseen blind site。这一版可以作为采集设计的可靠骨架。
 

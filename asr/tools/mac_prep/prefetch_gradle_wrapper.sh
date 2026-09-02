@@ -2,7 +2,7 @@
 # 预下载 Gradle Wrapper 发行包（services.gradle.org 在代理/VPN 下常 SSL 失败）
 #
 # 用法:
-#   bash scripts/mac_prep/prefetch_gradle_wrapper.sh
+#   bash asr/tools/mac_prep/prefetch_gradle_wrapper.sh
 #   cd asr/android && ./gradlew :sdk:assembleRelease
 #
 set -euo pipefail

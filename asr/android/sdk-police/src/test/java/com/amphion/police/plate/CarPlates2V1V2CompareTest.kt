@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets
  * - recover：V2 命中且 V1 未命中（V2 净挽回）
  * - regress：V1 命中而 V2 未命中（V2 净回退，门禁重点盯防）
  *
- * 语料：`evaluation/plate_number/{car_plates2_zh_*, car_plates2_shanghai_zh_*}`
+ * 语料：`asr/evaluation/plate_number/{car_plates2_zh_*, car_plates2_shanghai_zh_*}`
  * （8 省国测 + 上海），共约 1950 条真机识别结果。
  */
 class CarPlates2V1V2CompareTest {
@@ -244,7 +244,7 @@ class CarPlates2V1V2CompareTest {
         if (d == 0) "n/a" else String.format("%.1f%%", 100.0 * n / d)
 
     private fun locateEvalBase(): File {
-        val rel = "evaluation/plate_number"
+        val rel = "asr/evaluation/plate_number"
         var dir: File? = File(System.getProperty("user.dir") ?: ".").canonicalFile
         repeat(12) {
             val base = dir ?: return@repeat
