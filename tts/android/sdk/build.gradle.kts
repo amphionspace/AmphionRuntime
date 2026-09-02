@@ -9,6 +9,13 @@ val amphionLicensePublicKey: String =
     (project.findProperty("AMPHION_LICENSE_PUBLIC_KEY") as String?)?.trim().orEmpty()
 val sdkMajor: String = providers.gradleProperty("AMPHION_SDK_MAJOR").orElse("1").get()
 val sdkReleaseDate: String = providers.gradleProperty("AMPHION_SDK_RELEASE_DATE").orElse("2026-06-23").get()
+val generatedAndroidTestAssets = layout.buildDirectory.dir("generated/androidTestAssets")
+val stageAndroidTestAssets = tasks.register<Sync>("stageAndroidTestAssets") {
+    from(rootProject.file("testdata/dingqiao_batch_cases")) {
+        include("pronunciation-golden-round3-results-with-pinyin-fixed-round15.jsonl")
+    }
+    into(generatedAndroidTestAssets)
+}
 
 android {
     namespace = "com.lits.tts.sdk"
@@ -61,6 +68,7 @@ android {
     }
 
     sourceSets["main"].jniLibs.srcDirs("src/main/jniLibs")
+    sourceSets["androidTest"].assets.srcDir(generatedAndroidTestAssets)
 }
 
 dependencies {
@@ -72,4 +80,8 @@ dependencies {
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation("androidx.test:runner:1.6.2")
+}
+
+tasks.matching { it.name == "mergeDebugAndroidTestAssets" }.configureEach {
+    dependsOn(stageAndroidTestAssets)
 }

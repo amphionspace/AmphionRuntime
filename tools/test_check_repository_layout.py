@@ -51,6 +51,19 @@ class RepositoryLayoutTest(unittest.TestCase):
                 violations = MODULE.find_path_violations({*self.valid_paths(), legacy_path})
                 self.assertTrue(any("ASR tooling" in item for item in violations))
 
+    def test_rejects_generated_tts_copies(self) -> None:
+        generated = {
+            "tts/android/external-resources/tts/model/1.0/manifest.json",
+            "tts/android/aarHost/src/androidTest/assets/cases.jsonl",
+            "tts/android/sdk/src/androidTest/assets/"
+            "pronunciation-golden-round3-results-with-pinyin-fixed-round15.jsonl",
+            "tts/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so",
+        }
+        for path in generated:
+            with self.subTest(path=path):
+                violations = MODULE.find_path_violations({*self.valid_paths(), path})
+                self.assertTrue(any("generated copy" in item for item in violations))
+
     def test_rejects_local_only_submodule_pin(self) -> None:
         gitlinks = {"third_party/sherpa-onnx": "74e48a3606ac9bac38f4912b1836da53ef7f4bb2"}
         violations = MODULE.find_gitlink_violations(gitlinks)

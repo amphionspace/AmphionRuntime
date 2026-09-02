@@ -9,7 +9,7 @@ import org.junit.Test
 class EnglishProperNounCoverageReportTest {
     @Test
     fun generatedProperNounsReportLexiconCoverage() {
-        val assetRoot = File("src/main/assets/lits-models/${LitsTtsAssetRegistry.assetSubPath}")
+        val assetRoot = TtsTestAssets.root()
         val layout = LitsTtsAssetInstaller.InstalledLayout.of(
             rootDir = assetRoot,
             manifest = fakeManifest(),

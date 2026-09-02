@@ -197,6 +197,12 @@ class AssetSyncTest(unittest.TestCase):
         generated = [
             "tts/android/external-resources/tts/model/1.0/chinese_lexicon.bin",
             "tts/android/external-resources/tts/model/1.0/cmudict.bin",
+            "tts/android/external-resources/tts/model/1.0/manifest.json",
+            "tts/android/external-resources/tts/model/1.0/model.onnx",
+            "tts/harmony/sdk/src/main/resources/rawfile/lits-models/tts/"
+            "model/1.0/manifest.json",
+            "tts/harmony/sdk/src/main/resources/rawfile/lits-models/tts/"
+            "model/1.0/model.onnx",
             "tts/tools/trial-export/model/1.0/chinese_lexicon.bin",
             "tts/tools/trial-export/model/1.0/cmudict.bin",
             "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/"

@@ -124,7 +124,7 @@ class PronunciationRound15FrontendCorrectnessTest {
     }
 
     private companion object {
-        private val assetRoot = File("src/main/assets/lits-models/${LitsTtsAssetRegistry.assetSubPath}")
+        private val assetRoot = TtsTestAssets.root()
         private val pinyinPreference = mapOf('1' to 0, '2' to 0, '3' to 0, '4' to 0, '5' to 0, '0' to 1, '6' to 2)
 
         private val sharedLayout: LitsTtsAssetInstaller.InstalledLayout by lazy {

@@ -172,7 +172,7 @@ python3 tts/tools/android/generate_edge_text_200_cases.py
 - `select_improved_v3_from_v2.py` 从 improved 1000 条里抽取当前 424 条中量集。
 - `generate_edge_text_200_cases.py` 生成数字、中英混合、符号、Emoji 和路径等文本边界语料。
 
-重新生成后，需要把最终要跑的稳定性 JSONL 同步到 `tts/android/aarHost/src/androidTest/assets/`，把发音正确性 JSONL 同步到 `tts/android/sdk/src/androidTest/assets/`。
+重新生成后不需要手工复制。`tts/android/testdata/dingqiao_batch_cases/` 是唯一源目录；Gradle 在构建 AndroidTest 时只会把对应用例同步到 `build/generated/androidTestAssets/`。
 
 ## 8. 注意事项
 
