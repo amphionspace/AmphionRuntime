@@ -9,13 +9,13 @@ ROOT = Path(__file__).resolve().parents[3]
 MATCHER = ROOT / (
     "asr/harmony/sdk-police/src/main/ets/com/amphion/police/PersonNameMatcher.ts"
 )
-NODE = shutil.which("node") or (
-    "/Users/lucky/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
-)
+NODE = shutil.which("node")
 
 
 class HarmonyPersonNameMatcherTest(unittest.TestCase):
     def run_node(self, body: str) -> None:
+        if NODE is None:
+            self.skipTest("node is not available on PATH")
         script = textwrap.dedent(
             f"""
             import assert from 'node:assert/strict';

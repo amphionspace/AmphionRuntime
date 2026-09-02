@@ -9,15 +9,15 @@ import java.nio.charset.StandardCharsets
 
 /**
  * 离线回放派出所 Round01 真机 asr_raw，评估 P0–P4 后处理修复后指标。
- * 数据：evaluation/police_station/round01/police_station_eval.tsv
+ * 数据：asr/evaluation/police_station/round01/police_station_eval.tsv
  */
 class PoliceStationRound01ReplayTest {
 
     private val evalDir: File by lazy {
-        val fromModule = File("../../../../evaluation/police_station/round01")
+        val fromModule = File("../../evaluation/police_station/round01")
         if (fromModule.isDirectory) fromModule.canonicalFile
         else File(System.getProperty("user.dir"))
-            .resolve("../../../../evaluation/police_station/round01")
+            .resolve("../../evaluation/police_station/round01")
             .canonicalFile
     }
 

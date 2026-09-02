@@ -11,15 +11,15 @@ import java.nio.charset.StandardCharsets
 class JjsHebeiReplayTest {
 
     private val evalDir: File by lazy {
-        val fromModule = File("../../../../evaluation/plate_number/jjs_car_plates_20260611")
+        val fromModule = File("../../evaluation/plate_number/jjs_car_plates_20260611")
         if (fromModule.isDirectory) fromModule.canonicalFile
         else File(System.getProperty("user.dir"))
-            .resolve("../../../../evaluation/plate_number/jjs_car_plates_20260611")
+            .resolve("../../evaluation/plate_number/jjs_car_plates_20260611")
             .canonicalFile
     }
 
     private val casesTsv: File by lazy {
-        File("../../../../evaluation/plate_number/staging_jjs_car_plates_20260611/cases.tsv")
+        File("../../evaluation/plate_number/staging_jjs_car_plates_20260611/cases.tsv")
             .canonicalFile
     }
 

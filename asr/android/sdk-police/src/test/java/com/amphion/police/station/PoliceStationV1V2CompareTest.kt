@@ -14,17 +14,17 @@ import java.nio.charset.StandardCharsets
  * V2 = [PoliceStationNormalizerV2]（字级候选格 ∩ gazetteer 校验器，最少近音替换且唯一）。
  *
  * 只对比「站名是否命中」（expected_station 是否出现在输出整句里）。结果写
- * evaluation/police_station/metrics_v1_v2_compare.txt。
+ * asr/evaluation/police_station/metrics_v1_v2_compare.txt。
  */
 class PoliceStationV1V2CompareTest {
 
     private val rounds = listOf("round01", "round02", "round03")
 
     private fun evalDir(round: String): File {
-        val fromModule = File("../../../../evaluation/police_station/$round")
+        val fromModule = File("../../evaluation/police_station/$round")
         return if (fromModule.isDirectory) fromModule.canonicalFile
         else File(System.getProperty("user.dir"))
-            .resolve("../../../../evaluation/police_station/$round")
+            .resolve("../../evaluation/police_station/$round")
             .canonicalFile
     }
 

@@ -123,7 +123,7 @@ java -version    # 应该看到 17.x.x
 强烈推荐先用 demo 模型把工程跑通，再换自己的 ONNX。理由见 `asr/tools/README.md`。
 
 ```bash
-cd /Users/boxp/workspace/amphion-runtime
+cd /path/to/amphion-runtime
 bash asr/tools/00_fetch_demo_model.sh
 ```
 
@@ -146,7 +146,7 @@ ls -lh asr/tools/demo-model/zipformer_L_zh_en/
 只编 arm64-v8a，速度最快：
 
 ```bash
-cd /Users/boxp/workspace/amphion-runtime
+cd /path/to/amphion-runtime
 bash asr/tools/03_build_agc_native.sh android-arm64-v8a
 bash asr/tools/04_build_android_so.sh arm64-v8a
 ```
@@ -255,7 +255,7 @@ export ANDROID_SERIAL=192.168.1.100:42123
 ## 9. 装 sample APK
 
 ```bash
-cd /Users/boxp/workspace/amphion-runtime/asr/android
+cd /path/to/amphion-runtime/asr/android
 ./gradlew :samples:public-demo:installDebug
 ```
 
@@ -272,7 +272,7 @@ adb shell am start -n com.amphion.asr.sample/.eval.LandingActivity
 ## 10. push demo 模型到设备
 
 ```bash
-cd /Users/boxp/workspace/amphion-runtime
+cd /path/to/amphion-runtime
 bash asr/tools/00_fetch_demo_model.sh push
 
 # 如果连了多个设备，明确指定：
@@ -325,7 +325,7 @@ AsrSdk: OnlineRecognizer loaded from /data/user/0/com.amphion.asr.sample/files/a
 | `[ERROR] /Users/.../ndk/26.3.11579264 看起来不是合法 NDK` | Android Studio 没装 NDK | SDK Manager → SDK Tools → 勾 Show Package Details → 勾 NDK 26.3.11579264 |
 | `wget: command not found` | 上游 build-android-*.sh 用 wget | 04 脚本现在自带 curl prefetch，不再需要 wget；如要装：`brew install wget` |
 | CMake 下载 `kaldifst` / `openfst` 报 `SSL connect error` / `codeload.github.com` | 系统代理/VPN 把 GitHub 解析到 `198.18.x`，直连不稳定 | `04` 会自动跑 `prefetch_sherpa_cmake_deps.sh`（ghproxy 镜像 + 本地 tarball）；仍失败时先关代理再编，或单独：`bash asr/tools/prefetch_sherpa_cmake_deps.sh` |
-| `./gradlew` 下载 `gradle-8.6-bin.zip` 报 `SSLHandshakeException` | `services.gradle.org` 同样被代理干扰 | 已改腾讯镜像 + 阿里云 Maven；或先跑 `bash scripts/mac_prep/prefetch_gradle_wrapper.sh` |
+| `./gradlew` 下载 `gradle-8.6-bin.zip` 报 `SSLHandshakeException` | `services.gradle.org` 同样被代理干扰 | 已改腾讯镜像 + 阿里云 Maven；或先跑 `bash asr/tools/mac_prep/prefetch_gradle_wrapper.sh` |
 | `cmake: command not found` | macOS 默认没 cmake | `brew install cmake`；先确保 `eval "$(/opt/homebrew/bin/brew shellenv)"` 让 brew 进 PATH |
 | `zsh: command not found: brew` 装完 brew 后 | brew 不在 PATH | `eval "$(/opt/homebrew/bin/brew shellenv)"`；写到 ~/.zprofile 永久 |
 | `./gradlew :sdk:assembleRelease` → `SDK location not found` | 没写 local.properties，也没 export ANDROID_HOME | `cat > local.properties <<EOF\nsdk.dir=$HOME/Library/Android/sdk\nEOF`，或者 `export ANDROID_HOME=...` |
@@ -346,7 +346,7 @@ AsrSdk: OnlineRecognizer loaded from /data/user/0/com.amphion.asr.sample/files/a
 
 ```bash
 # 切到工程根
-cd /Users/boxp/workspace/amphion-runtime
+cd /path/to/amphion-runtime
 
 # 编 + 拷
 bash asr/tools/03_build_agc_native.sh android-arm64-v8a # 增量编译
@@ -453,7 +453,7 @@ PY
 ### 14.3 用通用 push 脚本推到设备
 
 ```bash
-cd /Users/boxp/workspace/amphion-runtime
+cd /path/to/amphion-runtime
 bash asr/tools/00_push_my_model.sh \
     --src ~/my-asr-models/asr-streaming-zipformer-zh-en/1.0.1 \
     --id  asr-streaming-zipformer-zh-en \

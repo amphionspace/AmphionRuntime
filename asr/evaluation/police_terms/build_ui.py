@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-甲方 20260714 批 UI 术语测试集接入（交付文件名 asr_ui_terms_teacher，manifest 含 target_word）。
-manifest 每行：{utt_id, text, target_word, wav, asr, cer, ...}（asr/cer 为对方参考引擎结果，忽略）。
-wav 文件名带说话人后缀（ui_tNN_sM_sK.wav），故设备 utt_id 用 wav basename 保唯一。
+警务 App 菜单/功能名（UI 术语）测试集接入：把 police_ui_20260713（168 条，manifest 含 term 标注）
+接入端侧批量评测。
 
-产物（build_20260714_batch/，git 忽略）：metadata.jsonl + push/wavs（硬链接）+ termmap.tsv
-设备过滤：orig_utt_id = "police_ui_20260714"
+产物（build_ui/ 下，git 忽略）：
+  - metadata.jsonl        设备契约 {orig_utt_id, utt_id, text, audio_path}
+  - push/metadata.jsonl + push/wavs/*.wav（硬链接）
+  - termmap.tsv           utt_id -> term（供 ui_term_hit.py 统计命中）
+
+设备过滤：orig_utt_id = "police_ui_20260713"
 """
 import argparse, json, os, sys
 
-ORIG = "police_ui_20260714"
+ORIG = "police_ui_20260713"
 
 
 def link_or_copy(src, dst):
@@ -25,18 +28,16 @@ def link_or_copy(src, dst):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default="/Users/amphion/Desktop/work/projects/鼎桥/test_data/asr_ui_terms_teacher")
-    ap.add_argument("--manifest", default="manifest_asr_test_teacher.jsonl")
-    ap.add_argument("--wavs", default="wavs_teacher")
-    ap.add_argument("--out", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "build_20260714_batch"))
+    ap.add_argument("--src", required=True, help="police_ui_20260713 数据目录")
+    ap.add_argument("--out", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "build_ui"))
     args = ap.parse_args()
     src, out = os.path.abspath(args.src), os.path.abspath(args.out)
-    wavs_dir = os.path.join(src, args.wavs)
-    manifest = os.path.join(src, args.manifest)
+    wavs_dir = os.path.join(src, "wavs")
+    manifest = os.path.join(src, "manifest.jsonl")
     push_wavs = os.path.join(out, "push", "wavs")
     os.makedirs(push_wavs, exist_ok=True)
     if not os.path.isfile(manifest):
-        sys.exit(f"缺 manifest: {manifest}")
+        sys.exit(f"缺 manifest.jsonl: {manifest}")
 
     meta, termmap, missing = [], [], []
     with open(manifest, encoding="utf-8") as f:
@@ -45,16 +46,14 @@ def main():
             if not line:
                 continue
             o = json.loads(line)
-            wav = os.path.basename(o.get("wav", ""))
-            term = o.get("target_word", "") or o.get("term", "")
-            text = o.get("text", "")
+            wav, term, text = o.get("wav", ""), o.get("term", ""), o.get("text", "")
             if not wav or not text:
                 continue
-            wp = os.path.join(wavs_dir, wav)
-            if not os.path.isfile(wp):
+            wpath = os.path.join(wavs_dir, wav)
+            if not os.path.isfile(wpath):
                 missing.append(wav); continue
             utt = os.path.splitext(wav)[0]
-            link_or_copy(wp, os.path.join(push_wavs, wav))
+            link_or_copy(wpath, os.path.join(push_wavs, wav))
             meta.append(json.dumps({"orig_utt_id": ORIG, "utt_id": utt,
                                     "text": text, "audio_path": f"wavs/{wav}"}, ensure_ascii=False))
             termmap.append((utt, term, text))
@@ -67,7 +66,9 @@ def main():
         f.write("utt_id\tterm\ttext\n")
         for u, t, x in termmap:
             f.write(f"{u}\t{t}\t{x}\n")
-    print(f"[build_20260714_batch] {len(meta)} 条, {len(set(t for _, t, _ in termmap))} 词 -> {out}")
+    print(f"[build_ui] {len(meta)} 条 -> {out}")
+    print(f"  push/ (metadata + wavs/{len(meta)})  termmap.tsv")
+    print(f"  distinct terms: {len(set(t for _, t, _ in termmap))}")
     if missing:
         print(f"[warn] 缺 wav {len(missing)}: {missing[:3]}", file=sys.stderr)
 

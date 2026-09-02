@@ -31,7 +31,7 @@ class PoliceStationEvalRecorder(context: Context) {
 
         fun pullHint(): String =
             "adb pull /sdcard/Android/data/com.amphion.asr.sample/files/police-station-eval " +
-                "./evaluation/police_station/roundN"
+                "./asr/evaluation/police_station/roundN"
     }
 
     init {

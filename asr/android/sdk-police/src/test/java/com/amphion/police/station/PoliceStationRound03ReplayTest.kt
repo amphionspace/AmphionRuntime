@@ -10,15 +10,15 @@ import java.nio.charset.StandardCharsets
 
 /**
  * 离线回放派出所 Round03（新声学）真机 asr_raw，验证 tier3 谐音修复。
- * 数据：evaluation/police_station/round03/police_station_eval.tsv
+ * 数据：asr/evaluation/police_station/round03/police_station_eval.tsv
  */
 class PoliceStationRound03ReplayTest {
 
     private val evalDir: File by lazy {
-        val fromModule = File("../../../../evaluation/police_station/round03")
+        val fromModule = File("../../evaluation/police_station/round03")
         if (fromModule.isDirectory) fromModule.canonicalFile
         else File(System.getProperty("user.dir"))
-            .resolve("../../../../evaluation/police_station/round03")
+            .resolve("../../evaluation/police_station/round03")
             .canonicalFile
     }
 

@@ -28,7 +28,10 @@ python3 tools/assets/sync.py verify all
 中断的分片下载保存在 `~/.cache/amphion-runtime/assets`，可用
 `AMPHION_ASSET_CACHE_DIR` 改位置。
 
-`team-secure-state-v2` 包含团队授权根、签名配置、完整签名材料和设备清单。对象使用 OBS SSE-KMS；拥有同一
+当前 canonical 受限资产是 `team-secure-state-v5`，包含团队授权根、可跨机签名配置、DevEco 解密材料、
+完整签名材料和设备清单；该版本已通过 Harmony 真机构建、安装和 SDK smoke。新机器按需执行
+`python3 tools/assets/sync.py fetch team-secure-state-v5`。v2-v4 仅作为不可变历史快照保留，不应用于新环境。
+对象使用 OBS SSE-KMS；拥有同一
 OBS/KMS 权限的团队成员下载时会透明解密。恢复采用合并模式，不删除 `.secure` 下其他本地内容，
 也不会默认覆盖同名但内容不同的文件；确认要采用远端版本时显式增加 `--replace-existing`。
 受限 ZIP 的本地明文临时文件无论成功或失败都会清理，并保留清单声明的 `0600`/`0644` 权限。

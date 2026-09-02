@@ -35,8 +35,8 @@ class PoliceTermsPendingDumpTest {
         repeat(12) {
             val base = dir ?: return@repeat
             for (rel in listOf(
-                "evaluation/police_terms/round_newmodel/police_terms_eval.tsv",
-                "AmphionRuntime/evaluation/police_terms/round_newmodel/police_terms_eval.tsv",
+                "asr/evaluation/police_terms/round_newmodel/police_terms_eval.tsv",
+                "AmphionRuntime/asr/evaluation/police_terms/round_newmodel/police_terms_eval.tsv",
             )) {
                 val c = File(base, rel)
                 if (c.isFile) return c

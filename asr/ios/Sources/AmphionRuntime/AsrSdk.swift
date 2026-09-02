@@ -28,7 +28,7 @@ public final class AsrSdk {
     public static let shared = AsrSdk()
 
     /// SDK 版本号；与 Android `BuildConfig.SDK_VERSION` 同步。
-    public let version: String = "0.3.4-ios-alpha.1"
+    public let version: String = "0.3.4-alpha.1"
 
     /// 进程内已启动的 Engine 数（仅诊断用）。
     public private(set) var liveEngineCount: Int = 0

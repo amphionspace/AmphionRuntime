@@ -302,8 +302,11 @@ def fingerprints(path: Path) -> set[bytes]:
     return {x509.load_pem_x509_certificate(block).fingerprint(hashes.SHA256()) for block in blocks}
 
 
-config = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-expected_path = Path(config.get("certpath", ""))
+config_path = Path(sys.argv[1]).resolve()
+config = json.loads(config_path.read_text(encoding="utf-8"))
+expected_path = Path(config.get("certpath", "")).expanduser()
+if not expected_path.is_absolute():
+    expected_path = config_path.parent / expected_path
 if not expected_path.is_file():
     raise SystemExit("[ERROR] signing config certpath is missing or invalid")
 if fingerprints(expected_path) != fingerprints(Path(sys.argv[2])):

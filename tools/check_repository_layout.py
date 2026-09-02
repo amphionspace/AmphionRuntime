@@ -18,8 +18,6 @@ ALLOWED_ROOT_DIRECTORIES = {
     "ci",
     "delivery",
     "docs",
-    "evaluation",
-    "scripts",
     "shared",
     "third_party",
     "tools",
@@ -42,6 +40,10 @@ LEGACY_TTS_PATHS = {
     "scripts/tn_pronunciation_fix": "tts/tools/tn/pronunciation_fix/",
     "tools/dingqiao-android": "tts/tools/android/",
     "tools/dingqiao-onnx-export": "tts/tools/onnx-export/",
+}
+LEGACY_ASR_PATHS = {
+    "evaluation": "asr/evaluation/",
+    "scripts/mac_prep": "asr/tools/mac_prep/",
 }
 REQUIRED_GITLINKS = {
     "third_party/sherpa-onnx": "f3b1a9da8d6e0e6cdb21387d41d25f8c8e10d3cc",
@@ -98,6 +100,11 @@ def find_path_violations(paths: Iterable[str]) -> list[str]:
         for legacy_path, module_path in LEGACY_TTS_PATHS.items():
             if item == legacy_path or item.startswith(f"{legacy_path}/"):
                 violations.append(f"TTS tooling must live under {module_path}: {item}")
+                break
+
+        for legacy_path, module_path in LEGACY_ASR_PATHS.items():
+            if item == legacy_path or item.startswith(f"{legacy_path}/"):
+                violations.append(f"ASR tooling must live under {module_path}: {item}")
                 break
 
     for required in sorted(REQUIRED_FILES - tracked):

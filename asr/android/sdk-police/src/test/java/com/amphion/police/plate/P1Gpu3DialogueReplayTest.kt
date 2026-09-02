@@ -9,15 +9,15 @@ import java.nio.charset.StandardCharsets
 
 /**
  * 离线回放 P1 gpu3 dialogue 536 条真机 asr_raw，评估 PlateNormalizer 修复后指标。
- * 数据：evaluation/plate_number/p1_gpu3_dialogue/{plate_eval.tsv, metadata.gpu3.jsonl}
+ * 数据：asr/evaluation/plate_number/p1_gpu3_dialogue/{plate_eval.tsv, metadata.gpu3.jsonl}
  */
 class P1Gpu3DialogueReplayTest {
 
     private val evalDir: File by lazy {
-        val fromModule = File("../../../../evaluation/plate_number/p1_gpu3_dialogue")
+        val fromModule = File("../../evaluation/plate_number/p1_gpu3_dialogue")
         if (fromModule.isDirectory) fromModule.canonicalFile
         else File(System.getProperty("user.dir"))
-            .resolve("../../../../evaluation/plate_number/p1_gpu3_dialogue")
+            .resolve("../../evaluation/plate_number/p1_gpu3_dialogue")
             .canonicalFile
     }
 

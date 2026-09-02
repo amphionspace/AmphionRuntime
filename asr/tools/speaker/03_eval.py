@@ -33,7 +33,7 @@ Pipeline 简化与决策：
 
     # sanity（覆盖各桶各 5-10 条）
     python asr/tools/speaker/03_eval.py \
-        --cuts /Users/boxp/data/ts_hw_test/ts_hw_test_cuts_all.jsonl.gz \
+        --cuts /path/to/ts_hw_test/ts_hw_test_cuts_all.jsonl.gz \
         --asr-model-dir asr/tools/demo-model/zipformer_L_zh_en \
         --speaker-model asr/tools/speaker/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx \
         --out asr/tools/speaker/results/eval_sanity.jsonl \
@@ -41,7 +41,7 @@ Pipeline 简化与决策：
 
     # 全量
     python asr/tools/speaker/03_eval.py \
-        --cuts /Users/boxp/data/ts_hw_test/ts_hw_test_cuts_all.jsonl.gz \
+        --cuts /path/to/ts_hw_test/ts_hw_test_cuts_all.jsonl.gz \
         --asr-model-dir asr/tools/demo-model/zipformer_L_zh_en \
         --speaker-model asr/tools/speaker/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx \
         --out asr/tools/speaker/results/eval_full.jsonl

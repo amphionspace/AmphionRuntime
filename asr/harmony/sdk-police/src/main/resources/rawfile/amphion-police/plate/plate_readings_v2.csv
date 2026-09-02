@@ -1,7 +1,7 @@
 from,to,category
 # V2 专用读音补充表（老方案 PlateNormalizer / PlateHomophoneDict 不读此文件）。
 # 仅 PlateReadingMap 加载，与 plate_homophones.csv 合并为 1→N 候选。
-# 来源：真机 ASR 国测语料挖掘（evaluation/.../mine_plate_homophones.py，计数≥3 + 音近人工核对）。
+# 来源：真机 ASR 国测语料挖掘（asr/evaluation/.../mine_plate_homophones.py，计数≥3 + 音近人工核对）。
 # 已剔除：与 plate_homophones.csv 重复项、ASCII↔ASCII 字母混淆、省份字本身作源的对齐噪声。
 #
 # --- 省份近音（补充，主攻 豫/晋/吉/沪/黑 真机高频听岔）---

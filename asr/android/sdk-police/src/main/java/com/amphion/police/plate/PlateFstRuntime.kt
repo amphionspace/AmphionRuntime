@@ -21,7 +21,7 @@ internal class PlateFstRuntime private constructor(
     companion object {
         fun create(context: Context): PlateFstRuntime {
             require(PlateFstAssets.allPresent(context)) {
-                "missing plate FST assets; run evaluation/plate_number/sync_fsts_to_sample.sh"
+                "missing plate FST assets; run asr/evaluation/plate_number/sync_fsts_to_sample.sh"
             }
             val cached = PlateFstAssets.ensureCached(context)
             return PlateFstRuntime(
