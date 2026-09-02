@@ -31,3 +31,8 @@ jobs:
 
       - name: Check repository layout
         run: python3 tools/check_repository_layout.py
+
+      - name: Test Git-external asset synchronization
+        run: |
+          python3 tools/assets/test_sync.py -v
+          python3 tools/assets/sync.py list
