@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import Any
 
 
-OUT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
+OUT_DIR = REPO_ROOT / "tts" / "android" / "testdata" / "dingqiao_batch_cases"
 JSONL_PATH = OUT_DIR / "android_v3_sdk_edge_text_200_cases.jsonl"
 SUMMARY_PATH = OUT_DIR / "android_v3_sdk_edge_text_200_summary.json"
 
@@ -271,7 +272,7 @@ def write_outputs(cases: list[dict[str, Any]]) -> None:
     operations = Counter(case["operation"] for case in cases)
     summary = {
         "caseVersion": CASE_VERSION,
-        "jsonl": str(JSONL_PATH),
+        "jsonl": JSONL_PATH.name,
         "total": len(cases),
         "maxTextChars": MAX_TEXT_CHARS,
         "edgeTypeCounts": dict(Counter(case["setup"]["edgeTextType"] for case in cases)),

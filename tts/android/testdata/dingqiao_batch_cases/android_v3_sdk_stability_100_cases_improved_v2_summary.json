@@ -189,9 +189,9 @@
       ]
     }
   },
-  "jsonl": "/Users/amphion/Documents/Lits_delivery/dingqiao_test_cases/android_v3_sdk_stability_100_cases_improved_v2.jsonl",
+  "jsonl": "android_v3_sdk_stability_100_cases_improved_v2.jsonl",
   "selectionPolicy": "round-robin by operation within fixed category quotas",
-  "sourceJsonl": "/Users/amphion/Documents/Lits_delivery/dingqiao_test_cases/android_v3_sdk_stability_1000_cases_improved.jsonl",
+  "sourceJsonl": "android_v3_sdk_stability_1000_cases_improved.jsonl",
   "statusCounts": {
     "EXPECTED_ERROR": 9,
     "PASS": 91

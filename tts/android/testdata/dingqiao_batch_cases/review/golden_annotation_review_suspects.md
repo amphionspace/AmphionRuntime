@@ -1,6 +1,6 @@
 # Golden pinyin/phoneme 疑似错误（供人工复审）
 
-源文件: `dingqiao_test_cases/pronunciation-golden-round3-results-with-pinyin-fixed.jsonl`（675条）
+源文件：`pronunciation-golden-round3-results-with-pinyin-fixed.jsonl`（675 条）
 
 说明: 只列出我认为 **golden 本身可疑/错误** 的样例，不是系统 actual 与 golden 不一致的全部 mismatch。同类模板只给代表样例 + id 列表。
 
