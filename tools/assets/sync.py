@@ -593,19 +593,23 @@ def policy_match(path: str, manifest: dict) -> Optional[str]:
 
 
 def audit_ignored(repo_root: Path, manifest: dict, bundles: dict[str, Bundle]) -> dict[str, int]:
-    managed: list[tuple[str, set[str], bool]] = []
+    managed: dict[str, tuple[set[str], bool]] = {}
     for bundle in bundles.values():
         if not bundle.owned:
             continue
         root = bundle.destination.relative_to(repo_root.resolve()).as_posix().rstrip("/")
         expected = {f"{root}/{path}" for path in expected_files(bundle)}
-        managed.append((root, expected, bool(bundle.definition.get("allow_extra_files"))))
+        existing, allow_extra = managed.get(root, (set(), False))
+        managed[root] = (
+            existing | expected,
+            allow_extra or bool(bundle.definition.get("allow_extra_files")),
+        )
 
     counts: dict[str, int] = {}
     violations = []
     for path in ignored_files(repo_root):
         handled = False
-        for root, expected, allow_extra in managed:
+        for root, (expected, allow_extra) in managed.items():
             if path == root or path.startswith(root + "/"):
                 if path in expected:
                     counts["synchronized"] = counts.get("synchronized", 0) + 1
