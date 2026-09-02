@@ -13,6 +13,10 @@ SDK = (
     REPO_ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 )
+RECOGNITION_CONFIG = (
+    REPO_ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/RecognitionConfig.ets"
+)
 RUNTIME = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
 TYPES = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets"
 TARGET_CONFIG_POLICY = (
@@ -67,7 +71,7 @@ class HarmonyVoiceprintCapabilityTest(unittest.TestCase):
         )
 
     def test_voiceprint_verification_is_score_only_in_customer_adapter(self) -> None:
-        source = SDK.read_text(encoding="utf-8")
+        source = RECOGNITION_CONFIG.read_text(encoding="utf-8")
         target_config = source.split(
             "function buildTargetSpeakerConfig(", 1
         )[1].split("function buildSpeakerVadConfig", 1)[0]

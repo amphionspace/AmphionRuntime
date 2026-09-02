@@ -29,6 +29,7 @@
 #include <node_api.h>
 
 #include "lits_tn_inprocess.hpp"
+#include "streaming_final_condition.h"
 #include "third_party/onnxruntime/include/onnxruntime_cxx_api.h"
 
 namespace {
@@ -127,6 +128,7 @@ struct Runtime {
   int hop_length;
   int decoder_timesteps;
   float decoder_temperature;
+  bool use_chunk_condition_for_final;
   std::atomic_bool cancel_requested{false};
 
   Runtime(
@@ -140,7 +142,8 @@ struct Runtime {
       int mel_cache_len,
       int hop,
       int timesteps,
-      float temperature)
+      float temperature,
+      bool use_chunk_condition_for_final_value)
       : env(ORT_LOGGING_LEVEL_WARNING, "litsttsnative"),
         memory_info(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault)),
         streaming_chunk_size(std::max(1, chunk_size)),
@@ -148,7 +151,8 @@ struct Runtime {
         streaming_mel_cache_len(std::max(1, mel_cache_len)),
         hop_length(std::max(1, hop)),
         decoder_timesteps(std::max(1, timesteps)),
-        decoder_temperature(temperature) {
+        decoder_temperature(temperature),
+        use_chunk_condition_for_final(use_chunk_condition_for_final_value) {
     load_future = std::async(
         std::launch::async,
         [this, hidden_encoder_path, stream_condition_chunk_path, stream_condition_final_path, stream_decoder_step_path, vocoder_path]() {
@@ -156,8 +160,10 @@ struct Runtime {
               env, hidden_encoder_path.c_str(), CreateSessionOptions(kSessionIntraOpThreads));
           stream_condition_chunk_session = std::make_unique<Ort::Session>(
               env, stream_condition_chunk_path.c_str(), CreateSessionOptions(kSessionIntraOpThreads));
-          stream_condition_final_session = std::make_unique<Ort::Session>(
-              env, stream_condition_final_path.c_str(), CreateSessionOptions(kSessionIntraOpThreads));
+          if (!use_chunk_condition_for_final) {
+            stream_condition_final_session = std::make_unique<Ort::Session>(
+                env, stream_condition_final_path.c_str(), CreateSessionOptions(kSessionIntraOpThreads));
+          }
           stream_decoder_step_session = std::make_unique<Ort::Session>(
               env, stream_decoder_step_path.c_str(), CreateSessionOptions(kSessionIntraOpThreads));
           vocoder_session = std::make_unique<Ort::Session>(
@@ -169,7 +175,8 @@ struct Runtime {
     if (load_future.valid()) {
       load_future.get();
     }
-    if (!hidden_encoder_session || !stream_condition_chunk_session || !stream_condition_final_session ||
+    if (!hidden_encoder_session || !stream_condition_chunk_session ||
+        (!use_chunk_condition_for_final && !stream_condition_final_session) ||
         !stream_decoder_step_session || !vocoder_session) {
       throw std::runtime_error("runtime sessions are not loaded");
     }
@@ -292,6 +299,15 @@ double GetDoubleArgument(napi_env env, napi_value value, const char* name) {
   napi_status status = napi_get_value_double(env, value, &output);
   if (status != napi_ok) {
     throw std::runtime_error(std::string(name) + " must be a number");
+  }
+  return output;
+}
+
+bool GetBoolArgument(napi_env env, napi_value value, const char* name) {
+  bool output = false;
+  napi_status status = napi_get_value_bool(env, value, &output);
+  if (status != napi_ok) {
+    throw std::runtime_error(std::string(name) + " must be a boolean");
   }
   return output;
 }
@@ -808,12 +824,24 @@ StreamingMetrics SynthesizeStreamingNative(
     std::vector<float> window_mu_y = SliceFrameRange(hidden.mu_y, window_start_idx, window_frames, channels);
     const int output_frames = finalize ? window_frames : std::max(1, window_frames - runtime->streaming_pre_lookahead_len);
     std::vector<float> window_mask(hidden.y_mask.begin() + window_start_idx, hidden.y_mask.begin() + window_start_idx + output_frames);
+    const StreamingFinalConditionPlan final_condition_plan = BuildStreamingFinalConditionPlan(
+        finalize && runtime->use_chunk_condition_for_final,
+        window_frames,
+        runtime->streaming_pre_lookahead_len);
+    PadStreamingFinalConditionFrames(
+        &window_mu_y,
+        finalize && runtime->use_chunk_condition_for_final,
+        runtime->streaming_pre_lookahead_len,
+        channels);
+    Ort::Session* condition_session = final_condition_plan.use_chunk_condition
+        ? runtime->stream_condition_chunk_session.get()
+        : (finalize ? runtime->stream_condition_final_session.get() : runtime->stream_condition_chunk_session.get());
     on_chunk({}, static_cast<int32_t>(-1000 - static_cast<int>(index)));
     std::vector<float> mel_window = RunExternalLoopDecoder(
         runtime,
-        finalize ? runtime->stream_condition_final_session.get() : runtime->stream_condition_chunk_session.get(),
+        condition_session,
         window_mu_y,
-        window_frames,
+        final_condition_plan.condition_frames,
         window_mask,
         output_frames,
         hidden.speaker_embedding,
@@ -867,6 +895,8 @@ StreamingMetrics SynthesizeStreamingNative(
           << " chunkSize=" << slice.chunk_size
           << " previousChunkSize=" << slice.previous_chunk_size
           << " windowFrames=" << window_frames
+          << " conditionFrames=" << final_condition_plan.condition_frames
+          << " chunkConditionForFinal=" << (final_condition_plan.use_chunk_condition ? 1 : 0)
           << " outputFrames=" << output_frames
           << " emitSamples=" << emit_samples
           << " emittedBytes=" << chunk.size() * sizeof(int16_t)
@@ -1278,12 +1308,14 @@ napi_value ReleaseTnResourcesWrapped(napi_env env, napi_callback_info /*info*/) 
 
 napi_value CreateRuntimeWrapped(napi_env env, napi_callback_info info) {
   try {
-    size_t argc = 11;
-    napi_value args[11] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+    size_t argc = 12;
+    napi_value args[12] = {
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
     napi_value this_arg = nullptr;
     napi_get_cb_info(env, info, &argc, args, &this_arg, nullptr);
-    if (argc < 11) {
-      throw std::runtime_error("createRuntime expects hiddenEncoderPath, streamConditionChunkPath, streamConditionFinalPath, streamDecoderStepPath, vocoderPath, chunkSize, preLookaheadLen, melCacheLen, hopLength, decoderTimesteps, and decoderTemperature");
+    if (argc < 12) {
+      throw std::runtime_error("createRuntime expects hiddenEncoderPath, streamConditionChunkPath, streamConditionFinalPath, streamDecoderStepPath, vocoderPath, chunkSize, preLookaheadLen, melCacheLen, hopLength, decoderTimesteps, decoderTemperature, and useChunkConditionForFinal");
     }
 
     const std::string hidden_encoder_path = GetStringArgument(env, args[0], "hiddenEncoderPath");
@@ -1298,6 +1330,7 @@ napi_value CreateRuntimeWrapped(napi_env env, napi_callback_info info) {
     const int decoder_timesteps = static_cast<int>(GetInt64Argument(env, args[9], "decoderTimesteps"));
     double decoder_temperature = 0.0;
     napi_get_value_double(env, args[10], &decoder_temperature);
+    const bool use_chunk_condition_for_final = GetBoolArgument(env, args[11], "useChunkConditionForFinal");
 
     std::unique_ptr<RuntimeHolder> holder(new RuntimeHolder());
     holder->runtime = new Runtime(
@@ -1311,7 +1344,8 @@ napi_value CreateRuntimeWrapped(napi_env env, napi_callback_info info) {
         mel_cache_len,
         hop_length,
         decoder_timesteps,
-        static_cast<float>(decoder_temperature));
+        static_cast<float>(decoder_temperature),
+        use_chunk_condition_for_final);
 
     napi_value external = nullptr;
     napi_create_external(env, holder.get(), FinalizeRuntimeHolder, nullptr, &external);

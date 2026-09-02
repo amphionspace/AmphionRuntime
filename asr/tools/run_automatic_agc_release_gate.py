@@ -20,8 +20,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tools.delivery.asr_release_evidence_contract import HARMONY_RELEASE_MODES  # noqa: E402
-FINISH_COMPAT_MODES = ("callback-api-reentrant", "finish-shutdown")
+from tools.delivery.asr_release_evidence_contract import (  # noqa: E402
+    HARMONY_FINISH_COMPAT_MODES,
+    HARMONY_RELEASE_MODES,
+)
+FINISH_COMPAT_MODES = HARMONY_FINISH_COMPAT_MODES
 DEVICE_MATRIX = tuple(mode for mode in HARMONY_RELEASE_MODES if mode not in FINISH_COMPAT_MODES)
 STATIC_MAX_PARALLEL = 3
 REGRESSION_MAX_PARALLEL = 3
