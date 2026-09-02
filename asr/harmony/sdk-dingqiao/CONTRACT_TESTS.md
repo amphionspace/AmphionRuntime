@@ -1,6 +1,6 @@
 # 鼎桥 Harmony SDK 契约测试规格
 
-本文档记录 Harmony 侧需要在 DevEco / ohosTest 环境执行的接口契约测试。契约基线为 `/Users/boxp/Downloads/语音识别SDK接口-20260622.md`，增补口径见 `asr/android/docs/customer/语音识别SDK接口-交付批注版.md`。
+本文档记录 Harmony 侧需要在 DevEco / ohosTest 环境执行的接口契约测试。契约基线为 `asr/docs/api/语音识别SDK接口-20260622.md`，增补口径见 `asr/android/docs/customer/语音识别SDK接口-交付批注版.md`。
 
 当前仓库环境未配置可执行的 Harmony ohosTest 目标；本文先作为测试规格落库，后续接入鸿蒙设备或 DevEco CI 后应转成自动化用例。
 

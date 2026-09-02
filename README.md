@@ -15,6 +15,7 @@ amphion-runtime/
 │
 ├── asr/                         # ASR 能力纵切
 │   ├── android/                 # Android ASR SDK（AAR + Sample + police/dingqiao）
+│   ├── docs/                    # ASR 跨平台接口契约与维护文档
 │   ├── harmony/                 # HarmonyOS ASR HAR（amphion_asr / amphion_police / amphion_dingqiao）
 │   ├── ios/                     # iOS SDK（SPM + CocoaPods）
 │   ├── server/                  # Linux 原生服务端
@@ -23,6 +24,7 @@ amphion-runtime/
 │
 ├── tts/                         # TTS 能力纵切
 │   ├── android/                 # Android TTS SDK（AAR + Sample，独立 Gradle root）
+│   ├── docs/                    # TTS 跨平台接口契约与优化报告
 │   ├── harmony/                 # HarmonyOS TTS HAR
 │   └── tools/                   # 模型校验 / license / 交付脚本
 │
@@ -49,10 +51,12 @@ amphion-runtime/
 | 场景 | 入口 |
 | --- | --- |
 | 文档索引与组织规则 | [docs/README.md](docs/README.md) |
+| ASR 跨平台接口契约 | [asr/docs/api/语音识别SDK接口-20260622.md](asr/docs/api/语音识别SDK接口-20260622.md) |
 | Android ASR SDK 构建与集成 | [asr/android/README.md](asr/android/README.md) |
 | HarmonyOS ASR SDK | [asr/harmony/README.md](asr/harmony/README.md) |
 | ASR WebSocket 服务 | [asr/ws-server/README.md](asr/ws-server/README.md) |
 | Android TTS SDK | [tts/android/README.md](tts/android/README.md) |
+| TTS 跨平台接口契约 | [tts/docs/api/语音合成SDK接口.md](tts/docs/api/语音合成SDK接口.md) |
 | HarmonyOS TTS SDK | [tts/harmony/docs/BUILD.md](tts/harmony/docs/BUILD.md) |
 | 鼎桥 Android 客户接口契约 | [asr/android/docs/customer/语音识别SDK接口-交付批注版.md](asr/android/docs/customer/语音识别SDK接口-交付批注版.md) |
 | 鼎桥 HarmonyOS 交付聚合层 | [delivery/harmony-dingqiao/README.md](delivery/harmony-dingqiao/README.md) |
