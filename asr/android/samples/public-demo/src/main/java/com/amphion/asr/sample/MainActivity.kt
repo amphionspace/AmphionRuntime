@@ -36,6 +36,7 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.StrikethroughSpan
 import androidx.appcompat.widget.SwitchCompat
 import com.amphion.asr.AsrResult
+import com.amphion.asr.BuildConfig as AsrBuildConfig
 import com.amphion.asr.SpeakerVadConfig
 import com.amphion.asr.TargetSpeakerConfig
 import com.amphion.police.PoliceEnhancePipeline
@@ -255,6 +256,9 @@ class MainActivity : AppCompatActivity() {
         rgLang = findViewById(R.id.rg_lang)
         rbZhEn = findViewById(R.id.rb_zh_en)
         rbYueEn = findViewById(R.id.rb_yue_en)
+        if (AsrBuildConfig.ZH_EN_ONLY) {
+            rbYueEn.visibility = android.view.View.GONE
+        }
         waveform = findViewById(R.id.waveform)
 
         cardTargetSpeaker = findViewById(R.id.card_target_speaker)
@@ -361,6 +365,17 @@ class MainActivity : AppCompatActivity() {
             loadEngineForLang(newLang)
         }
 
+        val app = application as AmphionApp
+        if (!app.runtimeReady) {
+            rgLang.isEnabled = false
+            setCapabilityLocked(true)
+            tvLoadingHint.visibility = android.view.View.GONE
+            progress.visibility = android.view.View.GONE
+            setStatus(getString(R.string.status_runtime_unavailable, app.runtimeInitErrorCode))
+            invalidateOptionsMenu()
+            return
+        }
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
@@ -399,8 +414,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        menu.findItem(R.id.action_hotwords)?.isEnabled = !listening
-        menu.findItem(R.id.action_speaker)?.isEnabled = !listening
+        val runtimeReady = (application as? AmphionApp)?.runtimeReady == true
+        menu.findItem(R.id.action_hotwords)?.isEnabled = runtimeReady && !listening
+        menu.findItem(R.id.action_speaker)?.isEnabled = runtimeReady && !listening
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -627,6 +643,7 @@ class MainActivity : AppCompatActivity() {
     // ----------- 加载 / 切换语言 -----------
 
     private fun loadEngineForLang(lang: AsrLanguage) {
+        if ((application as? AmphionApp)?.runtimeReady != true) return
         val gen = asrLoadGeneration.incrementAndGet()
         val oldEngine = engine
         val speakerTuning = normalizeSpeakerTuningInputs()

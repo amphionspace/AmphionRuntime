@@ -59,6 +59,31 @@ class PublicDemoBoundaryTest(unittest.TestCase):
 
         self.assertEqual(exported, [".MainActivity"])
 
+    def test_missing_license_is_reported_without_bypassing_enforcement(self) -> None:
+        app = (DEMO / "src/main/java/com/amphion/asr/sample/AmphionApp.kt").read_text(
+            encoding="utf-8"
+        )
+        activity = (
+            DEMO / "src/main/java/com/amphion/asr/sample/MainActivity.kt"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("runtimeReady", app)
+        self.assertIn("catch (error: IllegalStateException)", app)
+        self.assertIn("if (!app.runtimeReady)", activity)
+        self.assertNotIn("LicenseEnforcement.PERMISSIVE", app)
+
+    def test_preload_respects_the_packaged_language_set(self) -> None:
+        app = (DEMO / "src/main/java/com/amphion/asr/sample/AmphionApp.kt").read_text(
+            encoding="utf-8"
+        )
+        activity = (
+            DEMO / "src/main/java/com/amphion/asr/sample/MainActivity.kt"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("AsrBuildConfig.ZH_EN_ONLY", app)
+        self.assertIn("preloadLanguages", app)
+        self.assertIn("AsrBuildConfig.ZH_EN_ONLY", activity)
+
 
 if __name__ == "__main__":
     unittest.main()

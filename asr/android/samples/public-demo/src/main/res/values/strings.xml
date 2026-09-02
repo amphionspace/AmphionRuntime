@@ -19,6 +19,7 @@
     <string name="status_installing_assets">正在解包内置模型…%1$d%%</string>
     <string name="status_install_failed">模型解包失败：%1$s</string>
     <string name="status_no_permission">没有录音权限，无法识别</string>
+    <string name="status_runtime_unavailable">授权不可用（错误码 %1$d），请放入有效 license 后重启</string>
     <string name="status_preloading">正在预加载中英 + 粤英模型…</string>
     <string name="status_preload_progress">预加载：%1$s %2$d%%</string>
 

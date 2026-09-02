@@ -7,6 +7,7 @@ import com.amphion.asr.AmphionOptions
 import com.amphion.asr.AmphionRuntime
 import com.amphion.asr.AsrConfig
 import com.amphion.asr.AsrLanguage
+import com.amphion.asr.BuildConfig as AsrBuildConfig
 import com.amphion.police.plate.PlateEnhancePrefs
 import com.amphion.police.station.PoliceStationEnhancePrefs
 import com.amphion.police.terms.PoliceTermsEnhancePrefs
@@ -20,7 +21,7 @@ import com.amphion.police.terms.PoliceTermsEnhancePrefs
  *    把全部要用到的语言一次性加载到 ASR 池里；之后 [AmphionRuntime.create] 命中池
  *    O(ms) 返回，用户切换语言不再有等待
  *
- * 这里 sample 选了「中英 + 粤英」两个语言；实际业务方按需调整 list。
+ * Sample 只预加载当前 AAR 实际打包的语言；中英裁剪包不会请求粤英模型。
  */
 class AmphionApp : Application() {
 
@@ -34,6 +35,16 @@ class AmphionApp : Application() {
     @Volatile
     var preloadDone: Boolean = false
 
+    /** 只有严格授权校验成功后，Demo 才允许创建 ASR engine。 */
+    @Volatile
+    var runtimeReady: Boolean = false
+        private set
+
+    /** 初始化失败时仅向 UI 暴露公开错误码，不保留 license 内容。 */
+    @Volatile
+    var runtimeInitErrorCode: Int = 0
+        private set
+
     /**
      * preload 时是否注入了占位热词。值在 [onCreate] 内一次性决定：
      * 任一语言有 active 热词即 true。MainActivity 根据它决定运行时是否补占位词，
@@ -45,10 +56,18 @@ class AmphionApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        AmphionRuntime.init(
-            this,
-            AmphionOptions(logLevel = AmphionLogLevel.WARN),
-        )
+        try {
+            AmphionRuntime.init(
+                this,
+                AmphionOptions(logLevel = AmphionLogLevel.WARN),
+            )
+        } catch (error: IllegalStateException) {
+            runtimeInitErrorCode = AmphionRuntime.licenseStatus().errorCode
+            preloadStage = "license-error"
+            Log.e(TAG, "runtime initialization failed: code=$runtimeInitErrorCode")
+            return
+        }
+        runtimeReady = true
 
         // 演示授权状态查询：未武装构建（SDK 公钥为空）下为 DEV_UNLICENSED，不校验、不影响使用；
         // 武装交付构建放入 .lic 后会是 LICENSED（接入与排障见 docs/INTEGRATION.md §14）。
@@ -92,12 +111,17 @@ class AmphionApp : Application() {
 
         // preload 本身是非阻塞的（内部派发到自己的工作线程），onProgress 是判定完成的唯一来源。
         // 这里在所有 stage 都到 100 后才把 preloadDone = true。
+        val preloadLanguages = if (AsrBuildConfig.ZH_EN_ONLY) {
+            listOf(AsrLanguage.ZH_EN)
+        } else {
+            listOf(AsrLanguage.ZH_EN, AsrLanguage.YUE_EN)
+        }
         val finishedStages = mutableSetOf<String>()
-        val expectedStages = setOf("asr-ZH_EN", "asr-YUE_EN")
+        val expectedStages = preloadLanguages.mapTo(mutableSetOf()) { "asr-$it" }
         try {
             AmphionRuntime.preload(
                 this,
-                languages = listOf(AsrLanguage.ZH_EN, AsrLanguage.YUE_EN),
+                languages = preloadLanguages,
                 config = config,
             ) { stage, percent ->
                 preloadStage = stage
