@@ -107,6 +107,23 @@ class AssetSyncTest(unittest.TestCase):
             with self.assertRaisesRegex(MODULE.AssetError, "escapes"):
                 MODULE.safe_extract(archive, root / "stage", bundle)
 
+    def test_archive_restores_executable_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "assets/sample"
+            source.mkdir(parents=True)
+            executable = source / "model.bin"
+            executable.write_bytes(b"payload")
+            executable.chmod(0o755)
+            bundle = self.bundle(root, digest="0" * 64, size=1)
+            bundle.definition["files"][0]["mode"] = "0755"
+            archive = root / "executable.zip"
+            with mock.patch.object(MODULE, "verify_archive"):
+                MODULE.build_archive(bundle, archive)
+            with tempfile.TemporaryDirectory(dir=root) as stage:
+                extracted = MODULE.safe_extract(archive, Path(stage), bundle)
+                self.assertEqual(0o755, (extracted / "model.bin").stat().st_mode & 0o777)
+
     def test_local_verification_rejects_unlisted_asset(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
