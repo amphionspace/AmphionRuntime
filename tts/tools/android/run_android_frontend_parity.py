@@ -83,7 +83,7 @@ class TnProcess:
 
 
 def repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[3]
 
 
 def default_model_root() -> Path:
@@ -239,7 +239,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--cases",
-        default=str(root / "tools" / "dingqiao-android" / "frontend_golden_cases.jsonl"),
+        default=str(root / "tts" / "tools" / "android" / "frontend_golden_cases.jsonl"),
     )
     parser.add_argument("--model-root", default=str(default_model_root()))
     parser.add_argument("--zh-tn", required=True, help="macOS/Linux host zh_tts binary")

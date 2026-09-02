@@ -9,11 +9,11 @@ set -uo pipefail
 #
 # Usage:
 #   FULL_ICU=/path/to/inst-full  SLIM_ICU=/path/to/inst-slim \
-#   scripts/tn_icu_slim/verify_zero_regression.sh
+#   tts/tools/tn/icu_slim/verify_zero_regression.sh
 #
 # Notes:
 #  - Run on the host (macOS/Linux) with g++ + the two ICU prefixes from
-#    scripts/build_slim_icu_data.sh (build one full, one slim).
+#    tts/tools/tn/build_slim_icu_data.sh (build one full, one slim).
 #  - The submodule test/expected/*.golden are STALE vs the current rules_v2
 #    (even full-ICU differs from them), so they are NOT used as the oracle;
 #    the sound oracle is full-vs-slim identity.
@@ -22,7 +22,7 @@ set -uo pipefail
 : "${SLIM_ICU:?set SLIM_ICU to the slim ICU 78.1 install prefix}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(cd "$HERE/../.." && pwd)"
+REPO="$(cd "$HERE/../../../.." && pwd)"
 TN="$REPO/tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
 [[ -f "$TN/en.cpp" ]] || { echo "TN submodule not checked out at $TN" >&2; exit 1; }
 WORK="${WORK:-$HERE/.verify-work}"; mkdir -p "$WORK/bin" "$WORK/out" "$WORK/in"

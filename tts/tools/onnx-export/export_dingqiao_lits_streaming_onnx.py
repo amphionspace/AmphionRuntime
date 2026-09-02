@@ -21,12 +21,12 @@ import soundfile as sf
 import torch
 
 
-SDK_ROOT = Path(__file__).resolve().parents[1]
-WORKSPACE_ROOT = SDK_ROOT.parent
-DEFAULT_DINGQIAO_ROOT = WORKSPACE_ROOT / "tts" / "training" / "dingqiao_lits"
+TTS_ROOT = Path(__file__).resolve().parents[2]
+WORKSPACE_ROOT = TTS_ROOT.parent
+DEFAULT_DINGQIAO_ROOT = TTS_ROOT / "training" / "dingqiao_lits"
 DEFAULT_MODEL_ID = "dingqiao_lits_en_zh_vocos24k_streaming_proto"
 DEFAULT_VERSION = "0.1.0"
-DEFAULT_MODEL_DIR = SDK_ROOT / "tools" / "trial-export" / DEFAULT_MODEL_ID / DEFAULT_VERSION
+DEFAULT_MODEL_DIR = TTS_ROOT / "tools" / "trial-export" / DEFAULT_MODEL_ID / DEFAULT_VERSION
 DEFAULT_SMOKE_TEXT = "Hello world."
 TONES = {"0": "˙", "5": "˙", "6": "ˊ", "1": "ˉ", "2": "ˊ", "3": "ˇ", "4": "ˋ"}
 

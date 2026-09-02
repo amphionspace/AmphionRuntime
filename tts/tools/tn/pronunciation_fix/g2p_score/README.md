@@ -18,7 +18,8 @@
 
 ## 用法
 1. 建 host zh_tts（见 `tts/training/dingqiao_lits` 子模块 en/zh.cpp + host ICU 78.1）。
-2. `python3 score.py <testset.jsonl>`(需能 import g2p;zh_tts 路径在脚本顶部)。
+2. `python3 score.py <testset.jsonl>`。默认从仓库构建目录读取 `zh_tts`，也可通过
+   `ZH_TTS=/path/to/zh_tts` 覆盖。
 
 ## 已知边界(打分时注意)
 - 只对**中文拼音**打分;英文 ARPABET(EY1 等)、复杂符号未建模 → 这类条目已跳过。
@@ -48,11 +49,15 @@ The harness needs a host (macOS) `zh_tts` native TN binary. It's not committed
 (it's a build artifact). Rebuild it self-contained:
 
 ```bash
-scripts/tn_pronunciation_fix/g2p_score/build_host_zh_tts.sh
+tts/tools/tn/pronunciation_fix/g2p_score/build_host_zh_tts.sh
 # -> writes tts/training/dingqiao_lits/build/host-tn/zh_tts (gitignored); auto-downloads ICU 78.1
 ```
 
 `score_all.py` / `score.py` read `$ZH_TTS`, falling back to that default path, so
-after building just run `python3 score_all.py`. Rebuild only when the C++ engine
+after building just run `python3 score_all.py`. With no arguments, `score_all.py`
+uses the tracked round15 fixture; additional JSONL fixtures can be passed as positional
+arguments. `g2p.py`, `frontend.py`, and `en_score.py` read the synchronized model package
+under `tts/tools/trial-export/`; use `$TTS_MODEL_DIR` only when validating another package.
+Rebuild only when the C++ engine
 (tts_normalizer_engine.cpp / zh.cpp) changes — rules_v2 JSON is loaded at runtime.
 Requires the TN submodule checked out (git submodule update --init …).

@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 SOURCE_GENERATOR = Path(__file__).resolve().with_name("generate_v3_sdk_stability_1000_cases.py")
 OUT_DIR = REPO_ROOT / "tts" / "android" / "testdata" / "dingqiao_batch_cases"
 JSONL_PATH = OUT_DIR / "android_v3_sdk_stability_1000_cases_improved.jsonl"

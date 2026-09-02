@@ -45,7 +45,7 @@ const modelSourceDir = path.resolve(
 );
 const frontendBinaryBuilder = path.resolve(
   __dirname,
-  '../../tools/dingqiao-android/build_frontend_binary_assets.py'
+  '../tools/android/build_frontend_binary_assets.py'
 );
 const modelTargetDir = path.resolve(
   __dirname,

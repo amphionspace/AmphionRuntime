@@ -8,12 +8,12 @@ usage() {
   cat <<'EOF'
 Usage:
   OHOS_NATIVE_SDK=/path/to/openharmony/native \
-  scripts/build_dingqiao_harmony_tn.sh
+  tts/tools/tn/build_dingqiao_harmony_tn.sh
 
 Optional environment variables:
   HARMONY_TN_OUTPUT_DIR  Output directory (default: tts/harmony/build-ohos-tn)
   SLIM_ICU_LIB_DIR       Directory holding a slimmed libicudata.a/libicui18n.a/
-                         libicuuc.a (see scripts/build_slim_icu_data.sh). When
+                         libicuuc.a (see tts/tools/tn/build_slim_icu_data.sh). When
                          unset, links the vendored full ohos-icu libs exactly as
                          before — this override changes nothing by default.
 EOF
@@ -24,7 +24,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 TN_ROOT="$REPO_ROOT/tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
 OHOS_ICU_ROOT="$REPO_ROOT/tts/harmony/sdk/src/main/cpp/third_party/ohos-icu"
 OUTPUT_DIR="${HARMONY_TN_OUTPUT_DIR:-$REPO_ROOT/tts/harmony/build-ohos-tn}"

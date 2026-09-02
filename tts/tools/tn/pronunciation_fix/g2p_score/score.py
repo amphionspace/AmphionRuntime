@@ -1,6 +1,11 @@
 import json,re,sys,subprocess
-sys.path.insert(0,'.'); import g2p
-ZH=__import__("os").environ.get("ZH_TTS") or __import__("os").path.join(__import__("os").path.dirname(__file__),"..","..","..","tts","training","dingqiao_lits","build","host-tn","zh_tts")
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent)); import g2p
+REPO_ROOT = Path(__file__).resolve().parents[5]
+ZH = __import__("os").environ.get("ZH_TTS") or str(
+    REPO_ROOT / "tts/training/dingqiao_lits/build/host-tn/zh_tts"
+)
 PIN=re.compile(r'^[a-z]+[0-6]$')
 def pins(l): return [x for x in l if PIN.match(x)]
 def tn(texts):

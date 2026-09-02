@@ -9,7 +9,7 @@ set -euo pipefail
 # changes — NOT when you edit rules_v2 JSON.
 #
 # Usage:
-#   scripts/tn_pronunciation_fix/g2p_score/build_host_zh_tts.sh
+#   tts/tools/tn/pronunciation_fix/g2p_score/build_host_zh_tts.sh
 #   # then: export ZH_TTS=<printed path>   (score_all.py reads $ZH_TTS)
 #
 # Env overrides:
@@ -18,7 +18,7 @@ set -euo pipefail
 #   FORCE=1            rebuild even if the binary already exists
 #   BUILD_EN=1         also build en_tts
 # =============================================================================
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 TN="$REPO/tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
 OUT_DIR="${OUT_DIR:-$REPO/tts/training/dingqiao_lits/build/host-tn}"
 ICU_PREFIX="$OUT_DIR/icu-inst"
@@ -81,4 +81,4 @@ build_one zh "$BIN"
 echo
 echo "DONE. Point the harness at it:"
 echo "  export ZH_TTS=$BIN"
-echo "  cd $REPO/scripts/tn_pronunciation_fix/g2p_score && python3 score_all.py"
+echo "  cd $REPO/tts/tools/tn/pronunciation_fix/g2p_score && python3 score_all.py"

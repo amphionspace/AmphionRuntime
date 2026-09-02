@@ -1,6 +1,15 @@
-import json, re
+import argparse, json, os, re
 from collections import Counter
-D="/Users/amphion/Desktop/work/reference/AmphionRuntime/tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0"
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[5]
+D = os.environ.get(
+    "TTS_MODEL_DIR",
+    str(
+        REPO_ROOT
+        / "tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0"
+    ),
+)
 
 # --- load lexicons (device: englishLexicon=cmudict, supplementLexicon=supplement.entries) ---
 cmu={}
@@ -47,7 +56,10 @@ def phones_for_word(raw):
         if out: return out
     return spell(norm)
 
-rows=[json.loads(l) for l in open("/Users/amphion/Desktop/work/reference/AmphionRuntime/tts_tn_bugfix/kaikki-english-tts-proper-terms-500.jsonl",encoding='utf-8') if l.strip()]
+parser = argparse.ArgumentParser(description="Score English frontend pronunciation fixtures.")
+parser.add_argument("fixture", type=Path, help="JSONL fixture containing text and golden_pinyin.")
+args = parser.parse_args()
+rows=[json.loads(l) for l in args.fixture.open(encoding='utf-8') if l.strip()]
 tot=Counter(); ok=Counter(); fails={}
 for r in rows:
     c=r['category']; g=r['golden_pinyin']; m=phones_for_word(r['text'])

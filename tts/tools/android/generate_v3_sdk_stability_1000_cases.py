@@ -17,7 +17,8 @@ from pathlib import Path
 from typing import Any
 
 
-OUT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parents[3]
+OUT_DIR = REPO_ROOT / "tts" / "android" / "testdata" / "dingqiao_batch_cases"
 JSONL_PATH = OUT_DIR / "android_v3_sdk_stability_1000_cases.jsonl"
 SUMMARY_PATH = OUT_DIR / "android_v3_sdk_stability_1000_summary.json"
 REPORT_PATH = OUT_DIR / "ANDROID_V3_SDK_STABILITY_1000_CASE_DESIGN.md"
