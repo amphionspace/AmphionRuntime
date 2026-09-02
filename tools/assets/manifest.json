@@ -1,0 +1,268 @@
+{
+  "schema_version": 1,
+  "storage": {
+    "provider": "huawei-obs",
+    "bucket": "cuhk-anfeiweng-benchmark",
+    "endpoint_env": "OBS_Endpoint",
+    "access_key_env": "OBS_AccesskeyID",
+    "secret_key_env": "OBS_SecretAccesskey",
+    "prefix": "amphion-runtime/assets/v1"
+  },
+  "included_manifests": [
+    {
+      "path": "asr/test-data/manifest.json",
+      "kind": "test-data"
+    }
+  ],
+  "bundles": {
+    "asr-itn-zh-v1": {
+      "description": "WeTextProcessing 1.0.4.1 Chinese inverse text normalization FSTs",
+      "license": "Apache-2.0",
+      "source": "https://github.com/wenet-e2e/WeTextProcessing",
+      "redistribution": "team-internal",
+      "destination": "asr/tools/weitn-fsts",
+      "archive_root": "weitn-fsts",
+      "archive_type": "zip",
+      "object": "asr-itn-zh-v1/fd5a3e4d922a54bdcf228bd5a06b7a418b9ead50bd213ac4cded576c73937d19.zip",
+      "size": 193193,
+      "sha256": "fd5a3e4d922a54bdcf228bd5a06b7a418b9ead50bd213ac4cded576c73937d19",
+      "files": [
+        {
+          "path": "zh_itn_tagger.fst",
+          "size": 1189122,
+          "sha256": "4983ab817f3f3b206516d576b54d6f925c3a52c58c8348d3ae98e826b4f6d49d"
+        },
+        {
+          "path": "zh_itn_verbalizer.fst",
+          "size": 119018,
+          "sha256": "a475d151fce5b365265b04e61c785898158cbac21f5a953723b230c5e4639f6f"
+        }
+      ]
+    },
+    "asr-punctuation-zhen-v1": {
+      "description": "sherpa-onnx CT-Transformer Chinese-English punctuation model",
+      "license": "upstream-model-terms",
+      "source": "https://modelscope.cn/models/iic/punc_ct-transformer_zh-cn-common-vocab272727-pytorch/summary",
+      "redistribution": "team-internal",
+      "destination": "asr/tools/punct-model/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8",
+      "archive_root": "sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8",
+      "archive_type": "zip",
+      "object": "asr-punctuation-zhen-v1/0ea3e01cda42140f4c601d4e4bf97bd161f0997e3c2aeceab8b322ef03e2cb59.zip",
+      "size": 62029020,
+      "sha256": "0ea3e01cda42140f4c601d4e4bf97bd161f0997e3c2aeceab8b322ef03e2cb59",
+      "files": [
+        {
+          "path": "README.md",
+          "size": 1487,
+          "sha256": "c4653586d436602e27aa3f12b080fe4417600204193ad46ed1235b42c20f6936"
+        },
+        {
+          "path": "add-model-metadata.py",
+          "size": 1664,
+          "sha256": "40bf1e82588729b2516cdb49e2485cf6d990596255a1daa527265f29065c4a2c"
+        },
+        {
+          "path": "config.yaml",
+          "size": 810,
+          "sha256": "a56ec10925b06fa976ad51af373396be2b13e1eb8dc62a5426b5adebaba7071d"
+        },
+        {
+          "path": "model.int8.onnx",
+          "size": 75519198,
+          "sha256": "65a3fb9f5ad7bfb96bf69e0dc4481df97f6ee60513c1d94ce981ba6effd524b1"
+        },
+        {
+          "path": "show-model-input-output.py",
+          "size": 745,
+          "sha256": "d8f3bb6c445b5604088429f3fa2318709bf88c97040ceca1083de11109de29e6"
+        },
+        {
+          "path": "test.py",
+          "size": 4714,
+          "sha256": "0de2c8e8369370a2ec0a86c6d46083fe93a0af73a6c2d8c25c72c801b7253af4"
+        },
+        {
+          "path": "tokens.json",
+          "size": 4207480,
+          "sha256": "c960ab87bccea4aa15cf49a59f71973c2c330b46668048cd8da253749ec71ee3"
+        }
+      ]
+    },
+    "asr-vad-silero-v1": {
+      "description": "Silero VAD ONNX model used by ASR packaging",
+      "license": "MIT",
+      "source": "https://github.com/snakers4/silero-vad",
+      "redistribution": "team-internal",
+      "destination": "asr/tools/vad-model",
+      "archive_root": "vad-model",
+      "archive_type": "zip",
+      "object": "asr-vad-silero-v1/f4a617d102f3c5e660f002bc7ebb581386385e513b38c322460daf873c7d2dc2.zip",
+      "size": 508208,
+      "sha256": "f4a617d102f3c5e660f002bc7ebb581386385e513b38c322460daf873c7d2dc2",
+      "files": [
+        {
+          "path": "silero_vad.onnx",
+          "size": 643854,
+          "sha256": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6"
+        }
+      ]
+    },
+    "asr-zhen-v1": {
+      "description": "Controlled ZH_EN streaming Zipformer source model used by SDK packaging",
+      "license": "internal-controlled-model",
+      "source": "Amphion controlled model pipeline",
+      "redistribution": "team-internal-only",
+      "destination": "asr/tools/demo-model/zhen",
+      "archive_root": "zhen",
+      "archive_type": "zip",
+      "object": "asr-zhen-v1/c912eeb5b0e28a1cfa7013baf473221d72c917da8cfed4ef5cd01ba7aca4a22d.zip",
+      "size": 151333252,
+      "sha256": "c912eeb5b0e28a1cfa7013baf473221d72c917da8cfed4ef5cd01ba7aca4a22d",
+      "files": [
+        {
+          "path": "bbpe.model",
+          "size": 380510,
+          "sha256": "6232b8a79b91b3831a3ab7ab71168a21abac87cd85449982857f9de3bc578d73"
+        },
+        {
+          "path": "bbpe.vocab",
+          "size": 232130,
+          "sha256": "aa7a1b34d6a10e666f32dd7bc34599f16bd7602a3ed67602873c603dae978514"
+        },
+        {
+          "path": "decoder.onnx",
+          "size": 17453084,
+          "sha256": "b1735983d9fe6c7d8a8ddca8ff5aad7f3837e27ae3be7ba12d6de25a229f205d"
+        },
+        {
+          "path": "encoder.int8.onnx",
+          "size": 161135709,
+          "sha256": "ea36d21a1db076c09206078fdb260cf2b852204ad0b5a998fcc1a0e92003d174"
+        },
+        {
+          "path": "joiner.onnx",
+          "size": 16416467,
+          "sha256": "9ab471015f16b81faa74718a611393bbb69805ac7dfc16639f684667cc06ebb8"
+        },
+        {
+          "path": "tokens.txt",
+          "size": 115277,
+          "sha256": "29a20d469f044011706d9720ff31770e5dcd6c30714943282e9563a55c6918f5"
+        }
+      ]
+    }
+  },
+  "ignored_asset_policy": {
+    "excluded": [
+      {
+        "category": "credentials-and-customer-data",
+        "reason": "Credentials, signing material, licenses, device identifiers, and personal speaker data must never be uploaded.",
+        "patterns": [
+          ".secure/**",
+          "**/*-private.pem",
+          "**/amphion-license.lic",
+          "**/keystore/**",
+          "current_usb_device_sn.txt",
+          "tools/license/*.pem",
+          "tools/license/*.lic",
+          "asr/tools/license/*.pem",
+          "asr/tools/license/*.lic",
+          "tts/tools/license/*.pem",
+          "tts/tools/license/*.lic",
+          "asr/tools/speaker/data/**",
+          "**/resources/rawfile/msbench/**",
+          "**/ets/util/TtsBench.ets",
+          "**/ets/util/AsrBench.ets",
+          "delivery/**/*.p12",
+          "delivery/**/*.p7b",
+          "delivery/**/*.cer",
+          "delivery/**/*.csr"
+        ]
+      },
+      {
+        "category": "generated-output",
+        "reason": "Build, IDE, virtual-environment, derived SDK model, report, and delivery outputs are reproducible and are not collaboration inputs.",
+        "patterns": [
+          ".DS_Store",
+          "**/.DS_Store",
+          ".idea/**",
+          "**/.idea/**",
+          ".vscode/**",
+          "**/*.iml",
+          "**/*.swp",
+          "**/*.swo",
+          ".gradle/**",
+          "**/.gradle/**",
+          "**/local.properties",
+          "build/**",
+          "**/build/**",
+          "**/.externalNativeBuild/**",
+          "**/.cxx/**",
+          ".hvigor/**",
+          "**/.hvigor/**",
+          "**/hvigor/**",
+          "**/oh_modules/**",
+          "**/oh-package-lock.json5",
+          "**/BuildProfile.ets",
+          "**/*.hap",
+          "**/*.har",
+          "**/*.hsp",
+          "**/*.app",
+          "**/__pycache__/**",
+          "**/*.pyc",
+          "**/*.egg-info/**",
+          ".venv/**",
+          ".venv-*/**",
+          "**/.venv/**",
+          "**/.venv-*/**",
+          "**/.tools-venv/**",
+          "**/venv/**",
+          ".cache/**",
+          "**/.swiftpm/**",
+          "**/*.xcworkspace/xcuserdata/**",
+          "**/DerivedData/**",
+          "**/.build/**",
+          "**/cmake-build-*/**",
+          "asr/ws-server/reports/**/server.log",
+          "asr/server/bench/asr_pb2.py",
+          "asr/server/bench/asr_pb2_grpc.py",
+          "asr/android/sdk/src/main/jniLibs/**/*.so",
+          "asr/android/samples/public-demo/src/main/jniLibs/**/*.so",
+          "asr/android/sdk/maven-repo/**",
+          "tts/android/sdk/src/main/assets/**",
+          "tts/android/sdk/src/main/jniLibs/**/*.so",
+          "asr/ios/AmphionRuntime.xcframework/**",
+          "asr/ios/AmphionRuntime.xcframework.zip",
+          "asr/ios/AmphionRuntime.xcframework.zip.sha256",
+          "asr/harmony/sdk/src/main/cpp/libs/**",
+          "asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**",
+          "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/**",
+          "asr/android/samples/public-demo/src/main/assets/asr-models/**",
+          "asr/android/sdk/src/main/assets/amphion-models/**",
+          "asr/android/sdk/src/main/assets/lits-models/**",
+          "asr/delivery/**",
+          "delivery/**/build/**",
+          "asr/tools/speaker/results/**",
+          "asr/tools/hotwords/results/**",
+          "shared/docs/dashboard/trends/reports/*.md",
+          "shared/docs/dashboard/trends/*.csv",
+          "tts/harmony/build-ohos-tn/**"
+        ]
+      },
+      {
+        "category": "reproducible-upstream-cache",
+        "reason": "Pinned third-party dependency and source archives already have deterministic upstream fetch paths.",
+        "patterns": [
+          "asr/tools/punct-model/*.tar.bz2",
+          "asr/tools/sherpa-cmake-deps/**",
+          "asr/native/audio-processing/build-*/**",
+          "asr/native/audio-processing/subprojects/**",
+          "third_party/sherpa-onnx/build-*/**",
+          "third_party/sherpa-onnx/build-android-*/**",
+          "third_party/sherpa-onnx/build-ios/**",
+          "third_party/sherpa-onnx/onnxruntime-*/**"
+        ]
+      }
+    ]
+  }
+}

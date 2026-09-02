@@ -1,0 +1,158 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import os
+from pathlib import Path
+import sys
+import tempfile
+import unittest
+from unittest import mock
+import zipfile
+
+
+MODULE_PATH = Path(__file__).with_name("sync.py")
+SPEC = importlib.util.spec_from_file_location("asset_sync", MODULE_PATH)
+assert SPEC is not None and SPEC.loader is not None
+MODULE = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = MODULE
+SPEC.loader.exec_module(MODULE)
+
+
+class AssetSyncTest(unittest.TestCase):
+    def bundle(self, root: Path, *, digest: str, size: int) -> MODULE.Bundle:
+        definition = {
+            "description": "fixture",
+            "license": "test",
+            "redistribution": "test-only",
+            "destination": "assets/sample",
+            "archive_root": "sample",
+            "archive_type": "zip",
+            "object": "sample.zip",
+            "size": size,
+            "sha256": digest,
+            "files": [
+                {
+                    "path": "model.bin",
+                    "size": 7,
+                    "sha256": MODULE.hashlib.sha256(b"payload").hexdigest(),
+                }
+            ],
+        }
+        storage = MODULE.Storage("bucket", "ENDPOINT", "ACCESS", "SECRET", "test")
+        return MODULE.Bundle("sample", definition, storage, root, True)
+
+    def test_archive_is_deterministic_and_restores_exact_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "assets/sample"
+            source.mkdir(parents=True)
+            (source / "model.bin").write_bytes(b"payload")
+            provisional = self.bundle(root, digest="0" * 64, size=1)
+            first = root / "first.zip"
+            second = root / "second.zip"
+            with mock.patch.object(MODULE, "verify_archive"):
+                MODULE.build_archive(provisional, first)
+                MODULE.build_archive(provisional, second)
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+
+            bundle = self.bundle(
+                root,
+                digest=MODULE.sha256_file(first),
+                size=first.stat().st_size,
+            )
+            MODULE.verify_archive(first, bundle)
+            for item in source.iterdir():
+                item.unlink()
+            source.rmdir()
+            with tempfile.TemporaryDirectory(dir=root) as stage:
+                extracted = MODULE.safe_extract(first, Path(stage), bundle)
+                MODULE.replace_destination(extracted, bundle.destination)
+            self.assertEqual(b"payload", MODULE.verify_local(bundle).joinpath("model.bin").read_bytes())
+
+    def test_archive_rejects_path_traversal(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            archive = root / "bad.zip"
+            with zipfile.ZipFile(archive, "w") as payload:
+                payload.writestr("../escape", b"bad")
+            bundle = self.bundle(root, digest=MODULE.sha256_file(archive), size=archive.stat().st_size)
+            with self.assertRaisesRegex(MODULE.AssetError, "escapes"):
+                MODULE.safe_extract(archive, root / "stage", bundle)
+
+    def test_local_verification_rejects_unlisted_asset(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "assets/sample"
+            source.mkdir(parents=True)
+            (source / "model.bin").write_bytes(b"payload")
+            (source / "unexpected.bin").write_bytes(b"extra")
+            bundle = self.bundle(root, digest="0" * 64, size=1)
+            with self.assertRaisesRegex(MODULE.AssetError, "unexpected"):
+                MODULE.verify_local(bundle)
+
+    def test_audit_rejects_unclassified_ignored_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundle = self.bundle(root, digest="0" * 64, size=1)
+            manifest = {"ignored_asset_policy": {"excluded": []}}
+            with mock.patch.object(MODULE, "ignored_files", return_value=["private/model.onnx"]):
+                with self.assertRaisesRegex(MODULE.AssetError, "unclassified"):
+                    MODULE.audit_ignored(root, manifest, {bundle.name: bundle})
+
+    def test_test_data_include_uses_shared_cache_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "tools/assets").mkdir(parents=True)
+            (root / "asr/test-data").mkdir(parents=True)
+            manifest = {
+                "schema_version": 1,
+                "storage": {
+                    "bucket": "bucket",
+                    "endpoint_env": "ENDPOINT",
+                    "access_key_env": "ACCESS",
+                    "secret_key_env": "SECRET",
+                    "prefix": "assets",
+                },
+                "bundles": {},
+                "included_manifests": [
+                    {"path": "asr/test-data/manifest.json", "kind": "test-data"}
+                ],
+            }
+            test_data = {
+                "schema_version": 1,
+                "dataset_version": "v1",
+                "obs": {
+                    "bucket": "bucket",
+                    "endpoint_env": "ENDPOINT",
+                    "access_key_env": "ACCESS",
+                    "secret_key_env": "SECRET",
+                    "prefix": "test-data/v1",
+                },
+                "bundles": {
+                    "corpus": {
+                        "description": "fixture",
+                        "license": "test",
+                        "redistribution": "test-only",
+                        "destination": "corpus",
+                        "archive_root": "corpus",
+                        "archive_type": "zip",
+                        "object": "corpus.zip",
+                        "size": 1,
+                        "sha256": "0" * 64,
+                    }
+                },
+            }
+            manifest_path = root / "tools/assets/manifest.json"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            (root / "asr/test-data/manifest.json").write_text(
+                json.dumps(test_data), encoding="utf-8"
+            )
+            shared = root / "shared-cache"
+            with mock.patch.dict(os.environ, {"AMPHION_TEST_DATA_DIR": str(shared)}):
+                _, bundles = MODULE.load_registry(manifest_path, root)
+            self.assertEqual(shared.resolve() / "corpus", bundles["corpus"].destination)
+
+
+if __name__ == "__main__":
+    unittest.main()
