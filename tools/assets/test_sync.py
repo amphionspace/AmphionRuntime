@@ -42,6 +42,33 @@ class AssetSyncTest(unittest.TestCase):
         storage = MODULE.Storage("bucket", "ENDPOINT", "ACCESS", "SECRET", "test")
         return MODULE.Bundle("sample", definition, storage, root, True)
 
+    def restricted_bundle(self, root: Path) -> MODULE.Bundle:
+        payload = b"private"
+        definition = {
+            "description": "restricted fixture",
+            "license": "confidential",
+            "redistribution": "test-only",
+            "destination": ".secure",
+            "archive_root": "secure",
+            "archive_type": "zip",
+            "object": "secure.zip",
+            "size": 1,
+            "sha256": "0" * 64,
+            "encryption": "sse-kms",
+            "merge_destination": True,
+            "allow_extra_files": True,
+            "files": [
+                {
+                    "path": "private.pem",
+                    "size": len(payload),
+                    "sha256": MODULE.hashlib.sha256(payload).hexdigest(),
+                    "mode": "0600",
+                }
+            ],
+        }
+        storage = MODULE.Storage("bucket", "ENDPOINT", "ACCESS", "SECRET", "test")
+        return MODULE.Bundle("restricted", definition, storage, root, True)
+
     def test_archive_is_deterministic_and_restores_exact_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -90,6 +117,32 @@ class AssetSyncTest(unittest.TestCase):
             bundle = self.bundle(root, digest="0" * 64, size=1)
             with self.assertRaisesRegex(MODULE.AssetError, "unexpected"):
                 MODULE.verify_local(bundle)
+
+    def test_restricted_merge_preserves_extra_files_and_refuses_conflicts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            destination = root / ".secure"
+            destination.mkdir()
+            (destination / "local-only.txt").write_bytes(b"keep")
+            extracted = root / "extracted"
+            extracted.mkdir()
+            (extracted / "private.pem").write_bytes(b"private")
+            bundle = self.restricted_bundle(root)
+
+            MODULE.merge_destination(extracted, bundle)
+            self.assertEqual(b"keep", (destination / "local-only.txt").read_bytes())
+            self.assertEqual(b"private", (destination / "private.pem").read_bytes())
+            self.assertEqual(0o600, (destination / "private.pem").stat().st_mode & 0o777)
+
+            (destination / "private.pem").write_bytes(b"different")
+            with self.assertRaisesRegex(MODULE.AssetError, "--replace-existing"):
+                MODULE.merge_destination(extracted, bundle)
+
+    def test_restricted_remote_requires_kms_marker(self) -> None:
+        bundle = self.restricted_bundle(Path("/tmp/repo"))
+        with mock.patch.object(MODULE, "remote_identity", return_value=(1, None, None)):
+            with self.assertRaisesRegex(MODULE.AssetError, "SSE-KMS"):
+                MODULE.verify_remote(bundle)
 
     def test_audit_rejects_unclassified_ignored_file(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -178,10 +178,9 @@ def expected_files(bundle: Bundle) -> dict[str, dict]:
     return {str(item["path"]): item for item in files}
 
 
-def verify_local(bundle: Bundle) -> Path:
-    destination = bundle.destination
-    if not destination.is_dir():
-        raise AssetError(f"bundle {bundle.name} is missing: {destination}")
+def verify_file_identities(
+    destination: Path, bundle: Bundle, *, allow_extra: bool, check_mode: bool = True
+) -> None:
     files = expected_files(bundle)
     if files:
         actual = {
@@ -190,9 +189,9 @@ def verify_local(bundle: Bundle) -> Path:
             if path.is_file() and path.name != ".DS_Store"
         }
         expected = set(files)
-        if actual != expected:
-            missing = sorted(expected - actual)
-            extra = sorted(actual - expected)
+        missing = sorted(expected - actual)
+        extra = [] if allow_extra else sorted(actual - expected)
+        if missing or extra:
             details = []
             if missing:
                 details.append(f"missing={','.join(missing)}")
@@ -213,6 +212,34 @@ def verify_local(bundle: Bundle) -> Path:
                     f"bundle {bundle.name} SHA-256 mismatch for {relative}: "
                     f"expected {identity['sha256']}, got {actual_hash}"
                 )
+            if check_mode and "mode" in identity:
+                expected_mode = int(str(identity["mode"]), 8)
+                actual_mode = stat.S_IMODE(path.stat().st_mode)
+                if actual_mode != expected_mode:
+                    raise AssetError(
+                        f"bundle {bundle.name} mode mismatch for {relative}: "
+                        f"expected {expected_mode:04o}, got {actual_mode:04o}"
+                    )
+
+
+def verify_local(bundle: Bundle) -> Path:
+    destination = bundle.destination
+    if not destination.is_dir():
+        raise AssetError(f"bundle {bundle.name} is missing: {destination}")
+    if bundle.definition.get("encryption") == "sse-kms":
+        directory_mode = stat.S_IMODE(destination.stat().st_mode)
+        if directory_mode & 0o077:
+            raise AssetError(
+                f"restricted bundle directory is too permissive: "
+                f"{destination} mode={directory_mode:04o}; expected 0700"
+            )
+    files = expected_files(bundle)
+    if files:
+        verify_file_identities(
+            destination,
+            bundle,
+            allow_extra=bool(bundle.definition.get("allow_extra_files")),
+        )
     else:
         missing = [
             item
@@ -252,7 +279,9 @@ def build_archive(bundle: Bundle, archive: Path) -> None:
             archive_name = f"{bundle.definition['archive_root']}/{relative}"
             info = zipfile.ZipInfo(archive_name, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
-            info.external_attr = (stat.S_IFREG | 0o644) << 16
+            identity = expected_files(bundle)[relative]
+            mode = int(str(identity.get("mode", "0644")), 8)
+            info.external_attr = (stat.S_IFREG | mode) << 16
             payload.writestr(
                 info,
                 source.read_bytes(),
@@ -298,6 +327,46 @@ def replace_destination(extracted: Path, destination: Path) -> None:
             shutil.rmtree(backup)
 
 
+def merge_destination(
+    extracted: Path, bundle: Bundle, *, replace_existing: bool = False
+) -> None:
+    verify_file_identities(extracted, bundle, allow_extra=False, check_mode=False)
+    destination = bundle.destination
+    destination.mkdir(parents=True, exist_ok=True)
+    if bundle.definition.get("encryption") == "sse-kms":
+        os.chmod(destination, 0o700)
+
+    conflicts = []
+    for relative, identity in expected_files(bundle).items():
+        target = safe_join(destination, relative)
+        if not target.exists():
+            continue
+        same = (
+            target.is_file()
+            and target.stat().st_size == int(identity["size"])
+            and sha256_file(target) == identity["sha256"]
+        )
+        if not same and not replace_existing:
+            conflicts.append(relative)
+    if conflicts:
+        raise AssetError(
+            f"bundle {bundle.name} would replace existing restricted file(s): "
+            f"{', '.join(sorted(conflicts))}; re-run fetch with --replace-existing"
+        )
+
+    for relative, identity in expected_files(bundle).items():
+        source = safe_join(extracted, relative)
+        target = safe_join(destination, relative)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        ready = target.parent / f".{target.name}.ready-{uuid.uuid4().hex}"
+        try:
+            shutil.copyfile(source, ready)
+            os.chmod(ready, int(str(identity.get("mode", "0600")), 8))
+            os.replace(ready, target)
+        finally:
+            ready.unlink(missing_ok=True)
+
+
 def obs_client(storage: Storage):
     values = {}
     for field, env_name in (
@@ -330,7 +399,7 @@ def response_header(response, name: str) -> Optional[str]:
     return None
 
 
-def remote_identity(bundle: Bundle) -> tuple[int, Optional[str]]:
+def remote_identity(bundle: Bundle) -> tuple[int, Optional[str], Optional[str]]:
     client = obs_client(bundle.storage)
     try:
         response = client.getObjectMetadata(bundle.storage.bucket, bundle.object_key)
@@ -345,11 +414,12 @@ def remote_identity(bundle: Bundle) -> tuple[int, Optional[str]]:
     if content_length is None:
         raise AssetError(f"OBS object has no content-length: {bundle.object_key}")
     metadata_hash = response_header(response, "x-obs-meta-sha256")
-    return int(content_length), metadata_hash
+    encryption = getattr(response.body, "sseKms", None)
+    return int(content_length), metadata_hash, encryption
 
 
 def verify_remote(bundle: Bundle) -> None:
-    size, metadata_hash = remote_identity(bundle)
+    size, metadata_hash, encryption = remote_identity(bundle)
     if size != int(bundle.definition["size"]):
         raise AssetError(
             f"remote size mismatch for {bundle.name}: expected {bundle.definition['size']}, got {size}"
@@ -359,6 +429,8 @@ def verify_remote(bundle: Bundle) -> None:
             f"remote SHA-256 metadata mismatch for {bundle.name}: "
             f"expected {bundle.definition['sha256']}, got {metadata_hash}"
         )
+    if bundle.definition.get("encryption") == "sse-kms" and encryption != "kms":
+        raise AssetError(f"remote object for {bundle.name} is not encrypted with SSE-KMS")
 
 
 def download_root() -> Path:
@@ -366,93 +438,134 @@ def download_root() -> Path:
     return Path(configured).expanduser().resolve() if configured else DEFAULT_DOWNLOAD_ROOT
 
 
-def fetch_bundle(bundle: Bundle) -> Path:
+def fetch_bundle(bundle: Bundle, *, replace_existing: bool = False) -> Path:
     try:
         return verify_local(bundle)
     except AssetError:
         pass
+    restricted = bundle.definition.get("encryption") == "sse-kms"
     downloads = download_root() / "downloads"
     downloads.mkdir(parents=True, exist_ok=True)
+    if restricted:
+        os.chmod(downloads, 0o700)
     archive = downloads / f"{bundle.name}-{bundle.definition['sha256']}.zip"
     checkpoint = archive.with_suffix(".zip.checkpoint")
-    if not archive.exists():
-        client = obs_client(bundle.storage)
-        try:
-            response = client.downloadFile(
-                bundle.storage.bucket,
-                bundle.object_key,
-                str(archive),
-                partSize=20 * 1024 * 1024,
-                taskNum=4,
-                enableCheckpoint=True,
-                checkpointFile=str(checkpoint),
-            )
-        finally:
-            client.close()
-        if response.status >= 300:
-            raise AssetError(
-                f"OBS download failed for {bundle.name}: "
-                f"status={response.status} code={response.errorCode}"
-            )
-    verify_archive(archive, bundle)
-    bundle.destination.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(
-        dir=bundle.destination.parent, prefix=f".{bundle.destination.name}.extract-"
-    ) as temporary:
-        extracted = safe_extract(archive, Path(temporary), bundle)
-        replace_destination(extracted, bundle.destination)
-    verify_local(bundle)
-    archive.unlink()
-    checkpoint.unlink(missing_ok=True)
-    return bundle.destination
+    try:
+        if not archive.exists():
+            client = obs_client(bundle.storage)
+            try:
+                response = client.downloadFile(
+                    bundle.storage.bucket,
+                    bundle.object_key,
+                    str(archive),
+                    partSize=20 * 1024 * 1024,
+                    taskNum=4,
+                    enableCheckpoint=not restricted,
+                    checkpointFile=None if restricted else str(checkpoint),
+                )
+            finally:
+                client.close()
+            if response.status >= 300:
+                raise AssetError(
+                    f"OBS download failed for {bundle.name}: "
+                    f"status={response.status} code={response.errorCode}"
+                )
+        if restricted:
+            os.chmod(archive, 0o600)
+        verify_archive(archive, bundle)
+        bundle.destination.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(
+            dir=bundle.destination.parent, prefix=f".{bundle.destination.name}.extract-"
+        ) as temporary:
+            extracted = safe_extract(archive, Path(temporary), bundle)
+            if bundle.definition.get("merge_destination"):
+                merge_destination(extracted, bundle, replace_existing=replace_existing)
+            else:
+                replace_destination(extracted, bundle.destination)
+        verify_local(bundle)
+        archive.unlink()
+        checkpoint.unlink(missing_ok=True)
+        return bundle.destination
+    finally:
+        if restricted:
+            archive.unlink(missing_ok=True)
+            checkpoint.unlink(missing_ok=True)
 
 
 def publish_bundle(bundle: Bundle) -> str:
     if not bundle.owned:
         raise AssetError(f"included bundle {bundle.name} is published by its owning tool")
+    restricted = bundle.definition.get("encryption") == "sse-kms"
     downloads = download_root() / "uploads"
     downloads.mkdir(parents=True, exist_ok=True)
+    if restricted:
+        os.chmod(downloads, 0o700)
     archive = downloads / f"{bundle.name}-{bundle.definition['sha256']}.zip"
-    build_archive(bundle, archive)
-    client = obs_client(bundle.storage)
-    try:
-        existing = client.getObjectMetadata(bundle.storage.bucket, bundle.object_key)
-        if existing.status < 300:
-            content_length = response_header(existing, "content-length")
-            metadata_hash = response_header(existing, "x-obs-meta-sha256")
-            if content_length != str(bundle.definition["size"]):
-                raise AssetError(f"refusing to replace OBS object with different size: {bundle.object_key}")
-            if metadata_hash and metadata_hash != bundle.definition["sha256"]:
-                raise AssetError(f"refusing to replace OBS object with different SHA-256: {bundle.object_key}")
-            archive.unlink()
-            return "already-present"
-        if existing.status != 404:
+    checkpoint = archive.with_suffix(".zip.upload-checkpoint")
+    headers = None
+    if restricted:
+        try:
+            from obs import PutObjectHeader, SseKmsHeader
+        except ImportError as error:
             raise AssetError(
-                f"cannot inspect OBS object for {bundle.name}: "
-                f"status={existing.status} code={existing.errorCode}"
+                "missing Huawei OBS SDK; run: python3 -m pip install esdk-obs-python"
+            ) from error
+        headers = PutObjectHeader(sseHeader=SseKmsHeader.getInstance())
+    try:
+        build_archive(bundle, archive)
+        if restricted:
+            os.chmod(archive, 0o600)
+        client = obs_client(bundle.storage)
+        try:
+            existing = client.getObjectMetadata(bundle.storage.bucket, bundle.object_key)
+            if existing.status < 300:
+                content_length = response_header(existing, "content-length")
+                metadata_hash = response_header(existing, "x-obs-meta-sha256")
+                if content_length != str(bundle.definition["size"]):
+                    raise AssetError(
+                        f"refusing to replace OBS object with different size: {bundle.object_key}"
+                    )
+                if metadata_hash and metadata_hash != bundle.definition["sha256"]:
+                    raise AssetError(
+                        f"refusing to replace OBS object with different SHA-256: {bundle.object_key}"
+                    )
+                if restricted and getattr(existing.body, "sseKms", None) != "kms":
+                    raise AssetError(
+                        f"refusing unencrypted existing restricted object: {bundle.object_key}"
+                    )
+                archive.unlink()
+                return "already-present"
+            if existing.status != 404:
+                raise AssetError(
+                    f"cannot inspect OBS object for {bundle.name}: "
+                    f"status={existing.status} code={existing.errorCode}"
+                )
+            response = client.uploadFile(
+                bundle.storage.bucket,
+                bundle.object_key,
+                str(archive),
+                partSize=20 * 1024 * 1024,
+                taskNum=4,
+                enableCheckpoint=not restricted,
+                checkpointFile=None if restricted else str(checkpoint),
+                metadata={"sha256": bundle.definition["sha256"]},
+                headers=headers,
             )
-        checkpoint = archive.with_suffix(".zip.upload-checkpoint")
-        response = client.uploadFile(
-            bundle.storage.bucket,
-            bundle.object_key,
-            str(archive),
-            partSize=20 * 1024 * 1024,
-            taskNum=4,
-            enableCheckpoint=True,
-            checkpointFile=str(checkpoint),
-            metadata={"sha256": bundle.definition["sha256"]},
-        )
+        finally:
+            client.close()
+        if response.status >= 300:
+            raise AssetError(
+                f"OBS upload failed for {bundle.name}: "
+                f"status={response.status} code={response.errorCode}"
+            )
+        verify_remote(bundle)
+        archive.unlink()
+        checkpoint.unlink(missing_ok=True)
+        return "uploaded"
     finally:
-        client.close()
-    if response.status >= 300:
-        raise AssetError(
-            f"OBS upload failed for {bundle.name}: "
-            f"status={response.status} code={response.errorCode}"
-        )
-    verify_remote(bundle)
-    archive.unlink()
-    checkpoint.unlink(missing_ok=True)
-    return "uploaded"
+        if restricted:
+            archive.unlink(missing_ok=True)
+            checkpoint.unlink(missing_ok=True)
 
 
 def ignored_files(repo_root: Path) -> list[str]:
@@ -474,25 +587,26 @@ def policy_match(path: str, manifest: dict) -> Optional[str]:
 
 
 def audit_ignored(repo_root: Path, manifest: dict, bundles: dict[str, Bundle]) -> dict[str, int]:
-    managed: list[tuple[str, set[str]]] = []
+    managed: list[tuple[str, set[str], bool]] = []
     for bundle in bundles.values():
         if not bundle.owned:
             continue
         root = bundle.destination.relative_to(repo_root.resolve()).as_posix().rstrip("/")
         expected = {f"{root}/{path}" for path in expected_files(bundle)}
-        managed.append((root, expected))
+        managed.append((root, expected, bool(bundle.definition.get("allow_extra_files"))))
 
     counts: dict[str, int] = {}
     violations = []
     for path in ignored_files(repo_root):
         handled = False
-        for root, expected in managed:
+        for root, expected, allow_extra in managed:
             if path == root or path.startswith(root + "/"):
                 if path in expected:
                     counts["synchronized"] = counts.get("synchronized", 0) + 1
-                else:
+                    handled = True
+                elif not allow_extra:
                     violations.append(f"unlisted file under synchronized asset root: {path}")
-                handled = True
+                    handled = True
                 break
         if handled:
             continue
@@ -515,7 +629,14 @@ def parse_args() -> argparse.Namespace:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list")
     commands.add_parser("audit")
-    for command in ("fetch", "verify", "remote-verify", "publish"):
+    fetch = commands.add_parser("fetch")
+    fetch.add_argument("bundles", nargs="+", help="bundle names or 'all'")
+    fetch.add_argument(
+        "--replace-existing",
+        action="store_true",
+        help="replace conflicting files in merge-style restricted bundles",
+    )
+    for command in ("verify", "remote-verify", "publish"):
         child = commands.add_parser(command)
         child.add_argument("bundles", nargs="+", help="bundle names or 'all'")
     return parser.parse_args()
@@ -546,7 +667,10 @@ def main() -> int:
                 print(f"verified {bundle.name}: {verify_local(bundle)}")
         elif args.command == "fetch":
             for bundle in chosen:
-                print(f"fetched {bundle.name}: {fetch_bundle(bundle)}")
+                print(
+                    f"fetched {bundle.name}: "
+                    f"{fetch_bundle(bundle, replace_existing=args.replace_existing)}"
+                )
         elif args.command == "remote-verify":
             for bundle in chosen:
                 verify_remote(bundle)
