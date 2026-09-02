@@ -24,7 +24,7 @@ shared/docs/dashboard/
 
 ## 出报告流程
 
-每月最后一个工作日由值班同学触发：
+每月最后一周由 GitHub Actions 定时生成；也可以由值班同学手动触发。结果只保存为受仓库权限保护的 Actions artifact，不再自动提交包含内部 crash 摘要和性能数据的公开 PR。
 
 ```bash
 python shared/docs/dashboard/runner.py \
@@ -32,18 +32,20 @@ python shared/docs/dashboard/runner.py \
     --android-aar artifacts/amphion-runtime-1.1.0.aar \
     --ios-xcframework artifacts/AmphionRuntime-1.1.0.xcframework \
     --server-image your-registry/asr-service:1.1.0 \
-    --bench-target localhost:50051 \
+    --bench-source build/dashboard/bench.json \
     --upstream-wer-report-url 'https://internal.example/asr/wer/2026-05.html' \
     --out shared/docs/dashboard/trends/reports/2026-05.md
 ```
 
 `runner.py` 会：
 
-1. 调端侧脚本拉启动延迟 p50 / p95
-2. 调 server bench 出 RTF / 并发 / 内存 / first-partial 延迟 / 错误率
-3. 拉 Sentry / Bugly / Crashlytics 上月 crash 率
+1. 读取预先采集的端侧启动延迟 JSON
+2. 读取预先生成的 server bench JSON；本地显式传入 `--bench-target` 时也可运行仓库内的 bench 工具
+3. 读取已下载的 Sentry / Bugly / Crashlytics 月度摘要 JSON
 4. 把上游 WER 报告 URL 直接渲染成顶部链接（不重新跑 WER）
-5. 结果写到 `trends/{rtf,crash,startup}.csv` 末尾 + 渲染本月 markdown 报告
+5. 结果写到 `trends/{rtf,crash,startup}.csv` 末尾并渲染本月 Markdown 报告；CI 仅上传私有 artifact，保留 30 天
+
+Dashboard 不接受任意 shell runner，也不从 GitHub runner 直连推理服务。外部 JSON 和测试语料只通过 HTTPS 下载到临时目录，并限制下载体积；tar 包通过路径穿越与链接校验后再解压；`month` 只接受严格的 `YYYY-MM`。
 
 ## 关键工程指标
 
