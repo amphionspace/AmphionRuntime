@@ -103,7 +103,7 @@ tools/trial-export/
 # Local-only TTS training/evaluation inputs and runtime binaries
 tts/training/dingqiao_lits/data/filelists/*.txt
 tts/training/dingqiao_lits/*_query_samples.jsonl
-tools/dingqiao-android/frontend_golden_cases.jsonl
+tts/tools/android/frontend_golden_cases.jsonl
 tts/android/aarHost/src/androidTest/assets/*
 tts/android/sdk/src/androidTest/assets/*
 !tts/android/aarHost/src/androidTest/assets/

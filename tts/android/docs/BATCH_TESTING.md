@@ -50,12 +50,12 @@ tts/android/sdk/src/androidTest/java/com/lits/tts/sdk/internal/PronunciationRoun
 辅助脚本：
 
 ```text
-tools/dingqiao-android/generate_v3_sdk_stability_1000_cases.py
-tools/dingqiao-android/generate_improved_v3_sdk_stability_1000_cases.py
-tools/dingqiao-android/select_improved_v3_from_v2.py
-tools/dingqiao-android/run_android_frontend_parity.py
-tools/dingqiao-android/run_android_phone_frontend_batch.py
-tools/dingqiao-android/compare_android_frontend_batch_tokens.py
+tts/tools/android/generate_v3_sdk_stability_1000_cases.py
+tts/tools/android/generate_improved_v3_sdk_stability_1000_cases.py
+tts/tools/android/select_improved_v3_from_v2.py
+tts/tools/android/run_android_frontend_parity.py
+tts/tools/android/run_android_phone_frontend_batch.py
+tts/tools/android/compare_android_frontend_batch_tokens.py
 ```
 
 ## 3. 环境准备
@@ -159,10 +159,10 @@ adb pull /sdcard/Android/data/com.lits.tts.sdk.test/files/pronunciation-round15-
 如需重新生成稳定性样例：
 
 ```bash
-python3 tools/dingqiao-android/generate_v3_sdk_stability_1000_cases.py
-python3 tools/dingqiao-android/generate_improved_v3_sdk_stability_1000_cases.py
-python3 tools/dingqiao-android/select_improved_v3_from_v2.py
-python3 tools/dingqiao-android/generate_edge_text_200_cases.py
+python3 tts/tools/android/generate_v3_sdk_stability_1000_cases.py
+python3 tts/tools/android/generate_improved_v3_sdk_stability_1000_cases.py
+python3 tts/tools/android/select_improved_v3_from_v2.py
+python3 tts/tools/android/generate_edge_text_200_cases.py
 ```
 
 其中：

@@ -15,12 +15,12 @@ import soundfile as sf
 
 
 DEFAULT_MODEL_DIR = (
-    Path(__file__).resolve().parent
+    Path(__file__).resolve().parents[1]
     / "trial-export"
     / "lits_delivery_16k_hifigan_streaming_proto"
     / "0.1.1-v2-int8-vocoder"
 )
-DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[2] / "infer" / "v2_streaming_breakpoints"
+DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[3] / "infer" / "v2_streaming_breakpoints"
 
 
 @dataclass(frozen=True)

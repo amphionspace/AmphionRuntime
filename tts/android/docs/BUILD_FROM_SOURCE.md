@@ -106,7 +106,7 @@ Android 运行时通过 AAR 内的 `liblits_tn.so` 调用 native TN，不再要�
 ```bash
 ANDROID_NDK=/path/to/android-sdk/ndk/27.2.12479018 \
 ICU_SOURCE_ARCHIVE=/path/to/icu4c-78.1-sources.tgz \
-scripts/build_dingqiao_android_native.sh
+tts/tools/tn/build_dingqiao_android_native.sh
 ```
 
 脚本会使用当前仓库里的 TN submodule，不依赖任何兄弟目录或本机私有源码路径。默认输出：
@@ -163,6 +163,6 @@ AAR 不应包含：
 
 - `submodule` 目录为空：执行 `git submodule update --init --recursive`。
 - 找不到 Android SDK：设置 `ANDROID_HOME` / `ANDROID_SDK_ROOT`，或写 `tts/android/local.properties`。
-- 找不到 ICU 头文件或静态库：先运行 `scripts/build_dingqiao_android_native.sh`，或确认 `tts/training/dingqiao_lits/build/android-icu/` 已存在。
+- 找不到 ICU 头文件或静态库：先运行 `tts/tools/tn/build_dingqiao_android_native.sh`，或确认 `tts/training/dingqiao_lits/build/android-icu/` 已存在。
 - 运行时报缺少外部资源：把 `tts/android/external-resources/tts/...` 复制到宿主 SDK 工作目录下的 `tts/...`。
 - 不要提交 `external-resources/`、`build/`、签名文件、license 包或本地 `local.properties`。

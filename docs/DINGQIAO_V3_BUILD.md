@@ -34,7 +34,7 @@ Android TN executables, and ICU source/build outputs are delivered separately.
    ```bash
    ANDROID_NDK=/path/to/android-sdk/ndk/27.2.12479018 \
    ICU_SOURCE_ARCHIVE=/path/to/icu4c-78.1-sources.tgz \
-   scripts/build_dingqiao_android_native.sh
+   tts/tools/tn/build_dingqiao_android_native.sh
    ```
 
    This writes all native build outputs under `tts/training/dingqiao_lits/build/` and the
@@ -45,7 +45,7 @@ Android TN executables, and ICU source/build outputs are delivered separately.
 
    ```bash
    OHOS_NATIVE_SDK=/path/to/openharmony/native \
-   scripts/build_dingqiao_harmony_tn.sh
+   tts/tools/tn/build_dingqiao_harmony_tn.sh
    ```
 
    This writes `zh_tts` and `en_tts` to `tts/harmony/build-ohos-tn/`.

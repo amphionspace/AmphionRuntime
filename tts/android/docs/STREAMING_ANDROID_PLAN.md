@@ -44,7 +44,7 @@
 
 ### 3. 导出的 manifest 明确关闭了流式
 
-[export_lits_delivery_16k_hifigan_onnx.py](tools/dingqiao-onnx-export/export_lits_delivery_16k_hifigan_onnx.py:1011)
+`export_lits_delivery_16k_hifigan_onnx.py`（历史脚本，当前仓库未保留）
 
 当前导出结果写死：
 
@@ -52,7 +52,7 @@
 
 ### 4. ONNX 导出协议仍然是整句 mel
 
-[export_lits_delivery_16k_hifigan_onnx.py](tools/dingqiao-onnx-export/export_lits_delivery_16k_hifigan_onnx.py:306)
+`export_lits_delivery_16k_hifigan_onnx.py`（历史脚本，当前仓库未保留）
 
 虽然导出 wrapper 内部调用了流式路径，但最终还是把整个过程包成：
 
@@ -261,7 +261,7 @@
 
 ## 下一步最值得直接动手的文件
 
-1. [LitsTtsSdk/tools/export_lits_delivery_16k_hifigan_onnx.py](tools/dingqiao-onnx-export/export_lits_delivery_16k_hifigan_onnx.py:1)
+1. [tts/tools/onnx-export/export_lits_delivery_streaming_proto_onnx.py](../../tools/onnx-export/export_lits_delivery_streaming_proto_onnx.py)
 2. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt:1)
 3. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt:1)
 4. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt:1)

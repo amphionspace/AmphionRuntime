@@ -1,6 +1,15 @@
-import json, re
+import argparse, json, os, re
 from collections import Counter
-D="/Users/amphion/Desktop/work/reference/AmphionRuntime/tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0"
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[5]
+D = os.environ.get(
+    "TTS_MODEL_DIR",
+    str(
+        REPO_ROOT
+        / "tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0"
+    ),
+)
 
 # --- load lexicons (device: englishLexicon=cmudict, supplementLexicon=supplement.entries) ---
 cmu={}
@@ -47,16 +56,24 @@ def phones_for_word(raw):
         if out: return out
     return spell(norm)
 
-rows=[json.loads(l) for l in open("/Users/amphion/Desktop/work/reference/AmphionRuntime/tts_tn_bugfix/kaikki-english-tts-proper-terms-500.jsonl",encoding='utf-8') if l.strip()]
-tot=Counter(); ok=Counter(); fails={}
-for r in rows:
-    c=r['category']; g=r['golden_pinyin']; m=phones_for_word(r['text'])
-    tot[c]+=1
-    if m==g: ok[c]+=1
-    else: fails.setdefault(c,[]).append((r['text'],' '.join(g),' '.join(m)))
-print("=== 设备逻辑忠实模拟 vs golden ===")
-for c in tot: print(f"{c:22} {ok[c]:3}/{tot[c]:3} = {100*ok[c]//tot[c]}%")
-print(f"{'TOTAL':22} {sum(ok.values()):3}/{sum(tot.values()):3} = {100*sum(ok.values())//sum(tot.values())}%")
-for c in fails:
-    print(f"\n--- {c}: {len(fails[c])} 失败(前4)---")
-    for t,g,m in fails[c][:4]: print(f"  {t:16} gold={g:34} dev={m}")
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Score English frontend pronunciation fixtures.")
+    parser.add_argument("fixture", type=Path, help="JSONL fixture containing text and golden_pinyin.")
+    args = parser.parse_args()
+    rows=[json.loads(l) for l in args.fixture.open(encoding='utf-8') if l.strip()]
+    tot=Counter(); ok=Counter(); fails={}
+    for r in rows:
+        c=r['category']; g=r['golden_pinyin']; m=phones_for_word(r['text'])
+        tot[c]+=1
+        if m==g: ok[c]+=1
+        else: fails.setdefault(c,[]).append((r['text'],' '.join(g),' '.join(m)))
+    print("=== 设备逻辑忠实模拟 vs golden ===")
+    for c in tot: print(f"{c:22} {ok[c]:3}/{tot[c]:3} = {100*ok[c]//tot[c]}%")
+    print(f"{'TOTAL':22} {sum(ok.values()):3}/{sum(tot.values()):3} = {100*sum(ok.values())//sum(tot.values())}%")
+    for c in fails:
+        print(f"\n--- {c}: {len(fails[c])} 失败(前4)---")
+        for t,g,m in fails[c][:4]: print(f"  {t:16} gold={g:34} dev={m}")
+
+
+if __name__ == "__main__":
+    main()

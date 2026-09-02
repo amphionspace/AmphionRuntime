@@ -28,7 +28,7 @@ CMUDICT_MAGIC = 0x434D4431  # CMD1
 
 
 def parse_args() -> argparse.Namespace:
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = Path(__file__).resolve().parents[3]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--model-dir",

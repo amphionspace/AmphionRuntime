@@ -10,14 +10,14 @@ usage() {
 Usage:
   ANDROID_NDK=/path/to/ndk \
   ICU_SOURCE_ARCHIVE=/path/to/icu4c-78.1-sources.tgz \
-  scripts/build_dingqiao_android_native.sh
+  tts/tools/tn/build_dingqiao_android_native.sh
 
 Optional environment variables:
   ANDROID_API_LEVEL       Android API level (default: 24)
   ICU_SOURCE_DIR          ICU source directory containing configure; skips archive extraction
   DINGQIAO_NATIVE_BUILD_ROOT  Build root (default: tts/training/dingqiao_lits/build/android-icu)
   TN_ANDROID_OUTPUT_DIR   TN output directory (default: tts/training/dingqiao_lits/e2e_infer/bin-android-arm64)
-  LITS_ANDROID_SLIM_ICU   Set to 1/true to build ICU with scripts/icu_tn_data_filter.json
+  LITS_ANDROID_SLIM_ICU   Set to 1/true to build ICU with tts/tools/tn/icu_tn_data_filter.json
   ICU_DATA_ZIP            Required with LITS_ANDROID_SLIM_ICU; raw ICU 78.1 data zip
   BUILD_TN_BINARIES       auto/1/0 (default: auto). auto builds only if zh.cpp/en.cpp exist.
   BUILD_JOBS              Parallel make jobs (default: system CPU count)
@@ -29,7 +29,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 TN_ROOT="$REPO_ROOT/tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
 BUILD_ROOT="${DINGQIAO_NATIVE_BUILD_ROOT:-$REPO_ROOT/tts/training/dingqiao_lits/build/android-icu}"
 TN_OUTPUT_DIR="${TN_ANDROID_OUTPUT_DIR:-$REPO_ROOT/tts/training/dingqiao_lits/e2e_infer/bin-android-arm64}"
@@ -132,7 +132,7 @@ ICU_DATA_FILTER_FILE=""
 if [[ "$LITS_ANDROID_SLIM_ICU" == 1 || "$LITS_ANDROID_SLIM_ICU" == true || "$LITS_ANDROID_SLIM_ICU" == TRUE ]]; then
   ICU_DATA_ZIP="${ICU_DATA_ZIP:-}"
   require_file "$ICU_DATA_ZIP"
-  ICU_DATA_FILTER_FILE="$REPO_ROOT/scripts/icu_tn_data_filter.json"
+  ICU_DATA_FILTER_FILE="$REPO_ROOT/tts/tools/tn/icu_tn_data_filter.json"
   require_file "$ICU_DATA_FILTER_FILE"
   rm -f "$ICU_SOURCE_DIR/data/in/icudt78l.dat"
   unzip -oq "$ICU_DATA_ZIP" -d "$ICU_SOURCE_DIR"
