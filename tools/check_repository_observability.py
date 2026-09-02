@@ -20,7 +20,7 @@ TEXT_SUFFIXES = {".csv", ".json", ".jsonl", ".md", ".tsv", ".txt", ".xml"}
 RAW_SYSTEM_LOG_NAMES = re.compile(r"^(?:logcat\.txt|tombstone[^/]*\.txt)$", re.IGNORECASE)
 LOCAL_HOME = re.compile(r"(?:/Users/|/home/)[^\s`'\"<>|]+")
 HOME_WITH_USER = re.compile(r"/(?:Users|home)/(?P<user>[^/\s`'\"<>|]+)/")
-EXAMPLE_HOME_USERS = {"example", "runner", "test", "user", "username", "you"}
+EXAMPLE_HOME_USERS = {"...", "example", "runner", "test", "user", "username", "you"}
 PRIVATE_KEY = re.compile(r"-----BEGIN (?:EC |RSA )?PRIVATE KEY-----")
 RESULT_HEX = re.compile(r"(?i)resultHex(?:\s*[=:]\s*|\"\s*:\s*\")[0-9a-f]+")
 LITERAL_DEVICE = re.compile(
@@ -34,7 +34,7 @@ SAFE_IDENTIFIER = re.compile(r"^(?:device-[0-9a-f]{12}|REDACTED|<redacted>|å·²è„
 
 def _is_portability_document(relative: str) -> bool:
     path = PurePosixPath(relative)
-    return relative.startswith(("docs/", "shared/docs/")) or "reports" in path.parts
+    return path.suffix.lower() == ".md" or "reports" in path.parts
 
 
 def _contains_private_home_path(text: str) -> bool:

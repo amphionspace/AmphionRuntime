@@ -47,7 +47,11 @@ class RepositoryObservabilityTest(unittest.TestCase):
         self.assertTrue(any("raw system log" in item for item in violations))
 
     def test_rejects_private_home_paths_in_docs_and_reports(self) -> None:
-        for relative in ("docs/report.md", "asr/server/reports/run.json"):
+        for relative in (
+            "docs/report.md",
+            "asr/server/reports/run.json",
+            "asr/module/README.md",
+        ):
             with self.subTest(relative=relative):
                 violations = self.check(relative, "/Users/alice/private/input.wav")
                 self.assertTrue(any("local home path" in item for item in violations))
@@ -55,6 +59,7 @@ class RepositoryObservabilityTest(unittest.TestCase):
     def test_accepts_portable_home_path_examples(self) -> None:
         self.assertEqual(self.check("docs/setup.md", "/Users/you/project"), [])
         self.assertEqual(self.check("docs/setup.md", "/home/user/project"), [])
+        self.assertEqual(self.check("asr/tools/QUICKSTART.md", "/Users/.../ndk"), [])
 
     def test_rejects_raw_operation_log(self) -> None:
         violations = self.check("docs/OPERATION_LOG.md", "no sensitive text")
