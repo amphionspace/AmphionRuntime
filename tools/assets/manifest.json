@@ -150,15 +150,79 @@
           "sha256": "29a20d469f044011706d9720ff31770e5dcd6c30714943282e9563a55c6918f5"
         }
       ]
+    },
+    "team-secure-state-v1": {
+      "description": "Team-only license root, signing configuration, and device allowlists",
+      "license": "confidential-team-material",
+      "source": "Local controlled .secure inputs",
+      "redistribution": "team-internal-only",
+      "destination": ".secure",
+      "archive_root": "secure",
+      "archive_type": "zip",
+      "object": "secure/team-secure-state-v1/6fa013e05bee43e2a401367e93e9a25f209bdaf0e26725b0d9250e8fb3c3e49b.zip",
+      "size": 4451,
+      "sha256": "6fa013e05bee43e2a401367e93e9a25f209bdaf0e26725b0d9250e8fb3c3e49b",
+      "encryption": "sse-kms",
+      "merge_destination": true,
+      "allow_extra_files": true,
+      "files": [
+        {
+          "path": "amphion-harmony-asr-eval-20260818.lic",
+          "size": 640,
+          "sha256": "a53bd8b83eb2dae75e2575fbeeb8b51371c8de23ffcd8328ff006c75d796da91",
+          "mode": "0644"
+        },
+        {
+          "path": "amphion-license-bound-generated-20260818.lic",
+          "size": 1340,
+          "sha256": "9465523b1d8992c3b33279820547f5caf6c5d1b8097bf4ce8c3e5997f6f6505b",
+          "mode": "0644"
+        },
+        {
+          "path": "amphion-license-private.pem",
+          "size": 241,
+          "sha256": "094346a59147a7b6a36eda5e80121dc55da15738cbb05da03bd214dbeccc8f02",
+          "mode": "0600"
+        },
+        {
+          "path": "amphion_asr_demo_device_ids.txt",
+          "size": 91,
+          "sha256": "5672906d9aaa86334b0d23748fd012265327e1baaaf99192b0280604a388931d",
+          "mode": "0600"
+        },
+        {
+          "path": "build-profile.deveco-local-20260730.json5",
+          "size": 1665,
+          "sha256": "14a4cf945ea604175a5cc8c0cc99151e321ab7e75cfc5949d2c1219e06f1482a",
+          "mode": "0644"
+        },
+        {
+          "path": "dingqiao-test-sn-20260824.txt",
+          "size": 710,
+          "sha256": "9fa170546ff7bc7cf24ef5916c120f622defab41a8024e9ac39f2085f3f95313",
+          "mode": "0600"
+        },
+        {
+          "path": "harmony-debug-0.3.7-signing.json",
+          "size": 625,
+          "sha256": "83f13a152f77e6b1a1a3bd495c6ca503561b3193e7f761e57b37d1149985673b",
+          "mode": "0600"
+        },
+        {
+          "path": "harmony-signing.json",
+          "size": 625,
+          "sha256": "e638ea4d39d6dafa9737511a8797281319d4cd76e915729d02a85835de8a2d55",
+          "mode": "0600"
+        }
+      ]
     }
   },
   "ignored_asset_policy": {
     "excluded": [
       {
         "category": "credentials-and-customer-data",
-        "reason": "Credentials, signing material, licenses, device identifiers, and personal speaker data must never be uploaded.",
+        "reason": "Restricted local inputs not registered in the SSE-KMS bundle remain outside the collaboration store.",
         "patterns": [
-          ".secure/**",
           "**/*-private.pem",
           "**/amphion-license.lic",
           "**/keystore/**",
@@ -223,6 +287,7 @@
           "**/DerivedData/**",
           "**/.build/**",
           "**/cmake-build-*/**",
+          ".secure/license-build-*/**",
           "asr/ws-server/reports/**/server.log",
           "asr/server/bench/asr_pb2.py",
           "asr/server/bench/asr_pb2_grpc.py",
