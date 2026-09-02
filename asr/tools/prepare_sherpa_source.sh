@@ -16,10 +16,16 @@ DERIVED_PARENT="${AMPHION_SHERPA_DERIVED_PARENT:-$REPO_ROOT/third_party/.derived
 }
 
 PINNED_COMMIT="$(git -C "$REPO_ROOT" rev-parse :third_party/sherpa-onnx)"
+shopt -s nullglob
+PATCH_FILES=("$PATCH_DIR"/*.patch)
+if [[ ${#PATCH_FILES[@]} -eq 0 ]]; then
+  echo "[ERROR] no sherpa patch files found in $PATCH_DIR" >&2
+  exit 1
+fi
 if command -v shasum >/dev/null 2>&1; then
-  PATCH_SIG="$(cat "$PATCH_DIR"/*.patch | shasum -a 256 | awk '{print $1}')"
+  PATCH_SIG="$(cat "${PATCH_FILES[@]}" | shasum -a 256 | awk '{print $1}')"
 else
-  PATCH_SIG="$(cat "$PATCH_DIR"/*.patch | sha256sum | awk '{print $1}')"
+  PATCH_SIG="$(cat "${PATCH_FILES[@]}" | sha256sum | awk '{print $1}')"
 fi
 GENERATION="sherpa-onnx-${PINNED_COMMIT:0:12}-${PATCH_SIG:0:12}"
 DESTINATION="$DERIVED_PARENT/$GENERATION"

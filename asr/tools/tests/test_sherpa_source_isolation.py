@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import subprocess
 import unittest
 
@@ -44,6 +45,9 @@ class SherpaSourceIsolationTest(unittest.TestCase):
             'SHERPA_ROOT="$(bash "$SCRIPT_DIR/prepare_sherpa_source.sh")"',
             kotlin_sync,
         )
+        prepare = PREPARE.read_text(encoding="utf-8")
+        self.assertIn('PATCH_FILES=("$PATCH_DIR"/*.patch)', prepare)
+        self.assertIn('if [[ ${#PATCH_FILES[@]} -eq 0 ]]', prepare)
         harmony_cmake = (
             ROOT / "asr/harmony/sdk/src/main/cpp/CMakeLists.txt"
         ).read_text(encoding="utf-8")
@@ -76,7 +80,7 @@ class SherpaSourceIsolationTest(unittest.TestCase):
         result = subprocess.run(
             ["bash", str(APPLY)],
             cwd=ROOT,
-            env={"AMPHION_SHERPA_ROOT": str(CANONICAL)},
+            env={**os.environ, "AMPHION_SHERPA_ROOT": str(CANONICAL)},
             text=True,
             capture_output=True,
         )

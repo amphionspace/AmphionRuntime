@@ -14,8 +14,8 @@ SHERPA_ROOT="$(bash "$SCRIPT_DIR/prepare_sherpa_source.sh")"
 export AMPHION_SHERPA_ROOT="$SHERPA_ROOT"
 
 if [[ ! -f "$SHERPA_ROOT/CMakeLists.txt" ]]; then
-  echo "[ERROR] 找不到 sherpa-onnx submodule：$SHERPA_ROOT"
-  echo "        请先运行：git submodule update --init --recursive"
+  echo "[ERROR] 找不到隔离的 sherpa-onnx 源码目录：$SHERPA_ROOT"
+  echo "        请先运行：bash asr/tools/prepare_sherpa_source.sh"
   exit 1
 fi
 
