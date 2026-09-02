@@ -26,6 +26,28 @@ class SecureExtractTarTest(unittest.TestCase):
             extract_tar(archive, destination)
             self.assertEqual((destination / "corpus/sample.wav").read_bytes(), b"wave")
 
+    def test_extracts_pax_and_gnu_long_name_metadata(self) -> None:
+        long_name = "corpus/" + "sample-" + "x" * 180 + ".wav"
+        for archive_format in (tarfile.PAX_FORMAT, tarfile.GNU_FORMAT):
+            with self.subTest(archive_format=archive_format):
+                with tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    archive_path = root / "input.tar.gz"
+                    with tarfile.open(
+                        archive_path,
+                        "w:gz",
+                        format=archive_format,
+                    ) as archive:
+                        info = tarfile.TarInfo(long_name)
+                        info.size = len(b"wave")
+                        if archive_format == tarfile.PAX_FORMAT:
+                            info.pax_headers = {"comment": "safe metadata"}
+                        archive.addfile(info, io.BytesIO(b"wave"))
+
+                    destination = root / "out"
+                    extract_tar(archive_path, destination)
+                    self.assertEqual((destination / long_name).read_bytes(), b"wave")
+
     def test_rejects_path_traversal(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
