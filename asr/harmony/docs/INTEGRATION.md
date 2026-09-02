@@ -154,7 +154,7 @@ bash asr/tools/05_package_har_libs.sh
 bash asr/tools/08_pack_harmony_assets.sh
 ```
 
-`04_build_harmony_so.sh` 会自动调用 `apply_sherpa_patches.sh`，把 `third_party/patches/sherpa-amphion/` 的 patch 应用到 sherpa-onnx；不要提交 submodule 本体的本地改动。`08_pack_harmony_assets.sh` 需要本机已有 `asr/android/sdk/src/main/assets/amphion-models/` 模型源文件。构建 signed HAP 还需要 DevEco 签名配置；无签名配置时只能得到未签名或调试产物。
+`04_build_harmony_so.sh` 会通过 `prepare_sherpa_source.sh` 在 `third_party/.derived/` 创建隔离 checkout 并应用 patch；受 Git 管理的 sherpa submodule 保持只读。`08_pack_harmony_assets.sh` 需要本机已有 `asr/android/sdk/src/main/assets/amphion-models/` 模型源文件。构建 signed HAP 还需要 DevEco 签名配置；无签名配置时只能得到未签名或调试产物。
 
 因此 `main` 可以编译出功能等价的鸿蒙应用，但 HAP 二进制不承诺字节级一致，签名、时间戳和构建元数据都会影响 hash。
 

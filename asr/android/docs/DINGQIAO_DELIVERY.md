@@ -303,7 +303,7 @@ DELIVERY_VERIFY_DEVICE=1 bash tools/delivery/verify_delivery_zip_e2e.sh "$ZIP"
 - [x] Release APK 已构建（`assembleRelease`）  
 - [x] Release 真机：license + R8 + 识别链路  
 - [x] 声纹：register → 校验 → delete  
-- [x] `sherpa-onnx` patch 流程（`apply_sherpa_patches.sh`，upstream v1.13.1）  
+- [x] `sherpa-onnx` 隔离 patch 流程（`prepare_sherpa_source.sh`，upstream v1.13.1）
 
 ## 10. 相关文档
 

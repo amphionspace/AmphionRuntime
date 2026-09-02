@@ -141,6 +141,9 @@ third_party/sherpa-onnx/build-*/
 third_party/sherpa-onnx/build-android-*/
 third_party/sherpa-onnx/build-ios/
 third_party/sherpa-onnx/onnxruntime-*/
+# Amphion patch series and native build outputs live in an isolated, generated
+# checkout. The canonical sherpa-onnx submodule remains pinned and untouched.
+third_party/.derived/
 
 # --- 回归测试 wav 数据（外部分发，不入库） ---
 shared/regression-set/audio/

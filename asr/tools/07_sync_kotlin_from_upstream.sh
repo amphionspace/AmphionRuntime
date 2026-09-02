@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 把 third_party/sherpa-onnx submodule 内 SherpaOnnxAar 的 Kotlin 桥接文件
+# 把隔离的已打补丁 sherpa-onnx 源码中的 Kotlin 桥接文件
 # 同步到 asr/android/sdk/src/main/java/com/k2fsa/sherpa/onnx/。
 #
 # 何时使用：
@@ -19,15 +19,17 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SHERPA_ROOT="$REPO_ROOT/third_party/sherpa-onnx"
+SHERPA_ROOT="${AMPHION_SHERPA_ROOT:-}"
+if [[ -z "$SHERPA_ROOT" ]]; then
+  SHERPA_ROOT="$(bash "$SCRIPT_DIR/prepare_sherpa_source.sh")"
+fi
 # 上游 Kotlin 真实源在 sherpa-onnx/kotlin-api/；SherpaOnnxAar/.../ 下都是 symlink 指过来。
 SRC_DIR="$SHERPA_ROOT/sherpa-onnx/kotlin-api"
 DST_DIR="$REPO_ROOT/asr/android/sdk/src/main/java/com/k2fsa/sherpa/onnx"
 
 if [[ ! -d "$SRC_DIR" ]]; then
   echo "[ERROR] 找不到上游 Kotlin 源目录：$SRC_DIR"
-  echo "        请确认 third_party/sherpa-onnx submodule 已经初始化："
-  echo "        git submodule update --init --recursive"
+  echo "        请先运行 bash asr/tools/prepare_sherpa_source.sh"
   exit 1
 fi
 
@@ -67,7 +69,7 @@ if [[ "$MODE" == "check" ]]; then
     echo "       Run: bash asr/tools/07_sync_kotlin_from_upstream.sh"
     exit 2
   fi
-  echo "[OK] Kotlin bridge files are in sync with submodule HEAD."
+  echo "[OK] Kotlin bridge files are in sync with the isolated patched sherpa source."
 else
   echo "[DONE] Synced $DIFF_COUNT file(s) into $DST_DIR"
 fi

@@ -51,6 +51,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+SHERPA_ROOT="$(bash "$REPO_ROOT/asr/tools/prepare_sherpa_source.sh")"
+
 if [[ -n "$HAP" && -z "$SIGNING_CONFIG" && -s "$REPO_ROOT/.secure/harmony-signing.json" ]]; then
   SIGNING_CONFIG="$REPO_ROOT/.secure/harmony-signing.json"
 fi
@@ -80,18 +82,19 @@ fi
 "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${MODEL_VERIFY_ARGS[@]}"
 "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --root "$MODEL_ROOT"
 
-"$PYTHON" - "$REPO_ROOT" <<'PY'
+"$PYTHON" - "$REPO_ROOT" "$SHERPA_ROOT" <<'PY'
 import struct
 import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
+sherpa_root = Path(sys.argv[2])
 libraries = [
     root / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libamphion_audio_processing.so",
     root / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so",
     root / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so",
-    root / "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/libonnxruntime.so",
-    root / "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so",
+    sherpa_root / "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/libonnxruntime.so",
+    sherpa_root / "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so",
 ]
 for path in libraries:
     data = path.read_bytes()[:20]

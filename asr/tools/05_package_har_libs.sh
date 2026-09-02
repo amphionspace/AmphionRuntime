@@ -4,9 +4,10 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SRC="$REPO_ROOT/third_party/sherpa-onnx/build-ohos-arm64-v8a/install/lib"
+SHERPA_ROOT="${AMPHION_SHERPA_ROOT:-$(bash "$SCRIPT_DIR/prepare_sherpa_source.sh")}"
+SRC="$SHERPA_ROOT/build-ohos-arm64-v8a/install/lib"
 AMPHION_DST="$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a"
-SHERPA_DST="$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a"
+SHERPA_DST="$SHERPA_ROOT/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a"
 AGC_SO="$REPO_ROOT/asr/native/audio-processing/build-ohos-arm64-v8a/libamphion_audio_processing.so"
 
 resolve_llvm_nm() {
