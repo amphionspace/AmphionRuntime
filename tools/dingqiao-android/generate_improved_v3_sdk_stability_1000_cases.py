@@ -340,8 +340,8 @@ def write_outputs(cases: list[dict[str, Any]]) -> None:
         }
     summary = {
         "total": len(cases),
-        "jsonl": str(JSONL_PATH),
-        "sourceGenerator": str(SOURCE_GENERATOR),
+        "jsonl": JSONL_PATH.name,
+        "sourceGenerator": str(SOURCE_GENERATOR.relative_to(REPO_ROOT)),
         "caseVersion": "dingqiao-stability-improved-v2",
         "categorySummary": by_category,
         "statusCounts": dict(Counter(case["expected_status"] for case in cases)),
@@ -410,8 +410,8 @@ def write_reduced_outputs(cases: list[dict[str, Any]]) -> None:
         }
     summary = {
         "total": len(cases),
-        "jsonl": str(REDUCED_JSONL_PATH),
-        "sourceJsonl": str(JSONL_PATH),
+        "jsonl": REDUCED_JSONL_PATH.name,
+        "sourceJsonl": JSONL_PATH.name,
         "caseVersion": "dingqiao-stability-improved-v2-reduced100",
         "categorySummary": by_category,
         "statusCounts": dict(Counter(case["expected_status"] for case in cases)),

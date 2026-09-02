@@ -162,6 +162,7 @@ adb pull /sdcard/Android/data/com.lits.tts.sdk.test/files/pronunciation-round15-
 python3 tools/dingqiao-android/generate_v3_sdk_stability_1000_cases.py
 python3 tools/dingqiao-android/generate_improved_v3_sdk_stability_1000_cases.py
 python3 tools/dingqiao-android/select_improved_v3_from_v2.py
+python3 tools/dingqiao-android/generate_edge_text_200_cases.py
 ```
 
 其中：
@@ -169,6 +170,7 @@ python3 tools/dingqiao-android/select_improved_v3_from_v2.py
 - `generate_v3_sdk_stability_1000_cases.py` 生成基础 v3 1000 条设计样例。
 - `generate_improved_v3_sdk_stability_1000_cases.py` 生成可在设备上长期跑的 improved 1000 条和 reduced 100 条。
 - `select_improved_v3_from_v2.py` 从 improved 1000 条里抽取当前 424 条中量集。
+- `generate_edge_text_200_cases.py` 生成数字、中英混合、符号、Emoji 和路径等文本边界语料。
 
 重新生成后，需要把最终要跑的稳定性 JSONL 同步到 `tts/android/aarHost/src/androidTest/assets/`，把发音正确性 JSONL 同步到 `tts/android/sdk/src/androidTest/assets/`。
 

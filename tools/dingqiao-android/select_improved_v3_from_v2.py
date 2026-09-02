@@ -195,8 +195,8 @@ def build_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
     return {
         "total": len(rows),
-        "jsonl": str(V3_JSONL_PATH),
-        "sourceJsonl": str(SOURCE_JSONL_PATH),
+        "jsonl": V3_JSONL_PATH.name,
+        "sourceJsonl": SOURCE_JSONL_PATH.name,
         "caseVersion": "dingqiao-stability-improved-v3",
         "selectionPolicy": "category quotas with operation-balanced sampling; repeat/loop and longtext categories capped",
         "categoryCounts": dict(sorted(Counter(row["category"] for row in rows).items())),
