@@ -51,11 +51,16 @@ REQUIRED_GITLINKS = {
 GENERATED_FILE_PREFIXES = {
     "tts/android/external-resources/",
     "tts/android/aarHost/src/androidTest/assets/",
+    "tts/training/dingqiao_lits/lits/utils/monotonic_align/core.cpython-",
 }
 GENERATED_FILES = {
     "tts/android/sdk/src/androidTest/assets/"
     "pronunciation-golden-round3-results-with-pinyin-fixed-round15.jsonl",
     "tts/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so",
+    "tts/training/dingqiao_lits/lits/utils/monotonic_align/core.c",
+}
+DUPLICATED_SOURCE_PREFIXES = {
+    "tts/training/dingqiao_lits/vocos-24k/vocos/",
 }
 
 
@@ -120,6 +125,9 @@ def find_path_violations(paths: Iterable[str]) -> list[str]:
             item.startswith(prefix) for prefix in GENERATED_FILE_PREFIXES
         ):
             violations.append(f"generated copy must not be tracked: {item}")
+
+        if any(item.startswith(prefix) for prefix in DUPLICATED_SOURCE_PREFIXES):
+            violations.append(f"duplicated vendored source must not be tracked: {item}")
 
     for required in sorted(REQUIRED_FILES - tracked):
         violations.append(f"required module document is missing: {required}")

@@ -33,7 +33,7 @@ parser.add_argument('--output_txt', type=str, required=True, help='Output txt fi
 parser.add_argument(
     '--vocos_checkpoint',
     type=str,
-    default=str(REPO_ROOT / "vocos/generator.ckpt"),
+    default=str(REPO_ROOT / "vocos-24k/last.ckpt"),
     help='Vocos generator checkpoint path (.ckpt)',
 )
 parser.add_argument(

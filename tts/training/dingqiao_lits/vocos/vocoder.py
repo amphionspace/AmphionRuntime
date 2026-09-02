@@ -13,7 +13,7 @@ from torch import nn
 VOCOS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = VOCOS_DIR.parent
 DEFAULT_VOCOS_ROOT = REPO_ROOT
-DEFAULT_VOCOS_CHECKPOINT = VOCOS_DIR / "generator.ckpt"
+DEFAULT_VOCOS_CHECKPOINT = REPO_ROOT / "vocos-24k" / "last.ckpt"
 
 
 class AttrDict(dict):
