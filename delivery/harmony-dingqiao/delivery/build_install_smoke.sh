@@ -319,8 +319,13 @@ missing = sorted(required - set(material))
 if missing:
     raise SystemExit(f"[ERROR] signing config missing keys: {missing}")
 for key in ("certpath", "profile", "storeFile"):
-    if not Path(material[key]).is_file():
+    path = Path(material[key]).expanduser()
+    if not path.is_absolute():
+        path = material_path.parent / path
+    path = path.resolve()
+    if not path.is_file():
         raise SystemExit(f"[ERROR] signing material path does not exist: {key}")
+    material[key] = str(path)
 
 cert_bytes = Path(material["certpath"]).read_bytes()
 blocks = re.findall(b"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", cert_bytes, re.S)

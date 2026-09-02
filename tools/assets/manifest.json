@@ -540,6 +540,477 @@
       "encryption": "sse-kms",
       "merge_destination": true,
       "allow_extra_files": true
+    },
+    "team-secure-state-v3": {
+      "description": "Non-canonical portable signing snapshot missing DevEco decrypt material",
+      "license": "confidential-team-material",
+      "source": "Local controlled secure inputs with repository-relative signing paths",
+      "redistribution": "team-internal-only",
+      "destination": ".secure",
+      "archive_root": "secure",
+      "archive_type": "zip",
+      "object": "team-secure-state-v3/18e0f01433dbe9b15153dca0456581725986c34a76f9e4ea4bd12fc6847a3d49.zip",
+      "size": 24424,
+      "sha256": "18e0f01433dbe9b15153dca0456581725986c34a76f9e4ea4bd12fc6847a3d49",
+      "files": [
+        {
+          "path": "amphion-harmony-asr-eval-20260818.lic",
+          "size": 640,
+          "sha256": "a53bd8b83eb2dae75e2575fbeeb8b51371c8de23ffcd8328ff006c75d796da91",
+          "mode": "0644"
+        },
+        {
+          "path": "amphion-license-bound-generated-20260818.lic",
+          "size": 1340,
+          "sha256": "9465523b1d8992c3b33279820547f5caf6c5d1b8097bf4ce8c3e5997f6f6505b",
+          "mode": "0644"
+        },
+        {
+          "path": "amphion-license-private.pem",
+          "size": 241,
+          "sha256": "094346a59147a7b6a36eda5e80121dc55da15738cbb05da03bd214dbeccc8f02",
+          "mode": "0600"
+        },
+        {
+          "path": "amphion_asr_demo_device_ids.txt",
+          "size": 91,
+          "sha256": "5672906d9aaa86334b0d23748fd012265327e1baaaf99192b0280604a388931d",
+          "mode": "0600"
+        },
+        {
+          "path": "build-profile.deveco-local-20260730.json5",
+          "size": 1665,
+          "sha256": "14a4cf945ea604175a5cc8c0cc99151e321ab7e75cfc5949d2c1219e06f1482a",
+          "mode": "0644"
+        },
+        {
+          "path": "dingqiao-test-sn-20260824.txt",
+          "size": 710,
+          "sha256": "9fa170546ff7bc7cf24ef5916c120f622defab41a8024e9ac39f2085f3f95313",
+          "mode": "0600"
+        },
+        {
+          "path": "harmony-debug-0.3.7-signing.json",
+          "size": 625,
+          "sha256": "83f13a152f77e6b1a1a3bd495c6ca503561b3193e7f761e57b37d1149985673b",
+          "mode": "0600"
+        },
+        {
+          "path": "harmony-signing.json",
+          "size": 420,
+          "sha256": "f14437c2bd7c813a0914e78b92c79836cebe270b8d9f71696998be9f88d2a2c7",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/certificate.cer",
+          "size": 2910,
+          "sha256": "56c839223ccd7d9fbfb4463442efc2ea8dd57925aa65b8f1b94ddd262e7e1d71",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/keystore.p12",
+          "size": 1128,
+          "sha256": "4c8571ad00cd529100c12e4177f3703216e094baead2ebc6ffe6e276b684de87",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/profile.p7b",
+          "size": 4351,
+          "sha256": "6a546210d7782c8620abfa063be3d713bbfc92d4d46214ab4e51700cc6efca21",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/certificate.cer",
+          "size": 2910,
+          "sha256": "767c1974b3cde264818a81d5282cf6966d9d409bd829c8669f7a88558758d7e0",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/keystore.p12",
+          "size": 1128,
+          "sha256": "8bd02d41191dd9ca66bf7bb6e1608e9e69e5a66d47ba902344a4c0cb47b62759",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/profile.p7b",
+          "size": 4350,
+          "sha256": "43e1560b321e64e09e98a05c69a305fb47b2ce99fb36cc7bd84b04dd0e40fe20",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/certificate.cer",
+          "size": 2910,
+          "sha256": "fd0349c3497b59dbbea2f3d9ee3a0e2e4a07c230742a6c65de220eea2e34293a",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/keystore.p12",
+          "size": 1128,
+          "sha256": "4ac94c1d1497b81e0a00a676bf92b8c03ca9efc56bf500d40590cd1b09d716c4",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/profile.p7b",
+          "size": 4343,
+          "sha256": "cd450d51738e909448d2c7c122589b2ba9b7dd1787d0fba771628645d2e3f738",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-build-profile-20260902.json5",
+          "size": 1577,
+          "sha256": "364c4162c2bf96433844c33e06f85ed05e83d615e158a86fd32a479ede73e4a9",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-license.lic",
+          "size": 728,
+          "sha256": "2900aa5c7b693e5a2a8fef09e04d08819071905f3a23fcb23ddc588ab1e337e5",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-signing.json",
+          "size": 444,
+          "sha256": "239faab65e23caab9c126a33facaa86f5a1c8aff82e3a9216c7acbea074a977f",
+          "mode": "0600"
+        }
+      ],
+      "encryption": "sse-kms",
+      "merge_destination": true,
+      "allow_extra_files": true
+    },
+    "team-secure-state-v4": {
+      "description": "Non-canonical signing snapshot whose ASR encrypted credentials do not match the packaged keystore",
+      "license": "confidential-team-material",
+      "source": "Local controlled secure inputs with repository-relative signing paths",
+      "redistribution": "team-internal-only",
+      "destination": ".secure",
+      "archive_root": "secure",
+      "archive_type": "zip",
+      "object": "team-secure-state-v4/2050a1590d117eea98000d5343371c31f773412213e50536c5ae2eb7b7c06cd6.zip",
+      "size": 25623,
+      "sha256": "2050a1590d117eea98000d5343371c31f773412213e50536c5ae2eb7b7c06cd6",
+      "files": [
+        {
+          "path": "amphion-harmony-asr-eval-20260818.lic",
+          "size": 640,
+          "sha256": "a53bd8b83eb2dae75e2575fbeeb8b51371c8de23ffcd8328ff006c75d796da91",
+          "mode": "0644"
+        },
+        {
+          "path": "amphion-license-bound-generated-20260818.lic",
+          "size": 1340,
+          "sha256": "9465523b1d8992c3b33279820547f5caf6c5d1b8097bf4ce8c3e5997f6f6505b",
+          "mode": "0644"
+        },
+        {
+          "path": "amphion-license-private.pem",
+          "size": 241,
+          "sha256": "094346a59147a7b6a36eda5e80121dc55da15738cbb05da03bd214dbeccc8f02",
+          "mode": "0600"
+        },
+        {
+          "path": "amphion_asr_demo_device_ids.txt",
+          "size": 91,
+          "sha256": "5672906d9aaa86334b0d23748fd012265327e1baaaf99192b0280604a388931d",
+          "mode": "0600"
+        },
+        {
+          "path": "build-profile.deveco-local-20260730.json5",
+          "size": 1665,
+          "sha256": "14a4cf945ea604175a5cc8c0cc99151e321ab7e75cfc5949d2c1219e06f1482a",
+          "mode": "0644"
+        },
+        {
+          "path": "dingqiao-test-sn-20260824.txt",
+          "size": 710,
+          "sha256": "9fa170546ff7bc7cf24ef5916c120f622defab41a8024e9ac39f2085f3f95313",
+          "mode": "0600"
+        },
+        {
+          "path": "harmony-debug-0.3.7-signing.json",
+          "size": 625,
+          "sha256": "83f13a152f77e6b1a1a3bd495c6ca503561b3193e7f761e57b37d1149985673b",
+          "mode": "0600"
+        },
+        {
+          "path": "harmony-signing.json",
+          "size": 420,
+          "sha256": "f14437c2bd7c813a0914e78b92c79836cebe270b8d9f71696998be9f88d2a2c7",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/certificate.cer",
+          "size": 2910,
+          "sha256": "56c839223ccd7d9fbfb4463442efc2ea8dd57925aa65b8f1b94ddd262e7e1d71",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/keystore.p12",
+          "size": 1128,
+          "sha256": "4c8571ad00cd529100c12e4177f3703216e094baead2ebc6ffe6e276b684de87",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/profile.p7b",
+          "size": 4351,
+          "sha256": "6a546210d7782c8620abfa063be3d713bbfc92d4d46214ab4e51700cc6efca21",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/certificate.cer",
+          "size": 2910,
+          "sha256": "767c1974b3cde264818a81d5282cf6966d9d409bd829c8669f7a88558758d7e0",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/keystore.p12",
+          "size": 1128,
+          "sha256": "8bd02d41191dd9ca66bf7bb6e1608e9e69e5a66d47ba902344a4c0cb47b62759",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/material/ac/6fb894f66733489ea900702494c2775e",
+          "size": 16,
+          "sha256": "06f2a0b007d297d6c26bec1d10136859a5b44a03c9efeafe99ae53863e88a8b4",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/material/ce/c8d5433d3b254314b12eab893be4dd2f",
+          "size": 48,
+          "sha256": "723be1da4a74a0acd96fa2329d44142a0d0ed5965f416ec943da19de3417b2a2",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/material/fd/0/beb6277f1a7d47be9f49f6f685ca7b69",
+          "size": 16,
+          "sha256": "207955b5d0d021dfb3a9005f7ca335d8d6ac6df86b9553efa2641ab12fc2be0d",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/material/fd/1/2052f9b3146543dcb582457ee5fa41c7",
+          "size": 16,
+          "sha256": "3c8c5a6c0df4be8c8b6923d7d79f578a80f23662041102ac8e23a520967356cf",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/material/fd/2/12b1c3979caa492aa248af382aa74282",
+          "size": 16,
+          "sha256": "8da3d7c7f1edfd12d59b6f379d052563bb8ae546c3e73f5ea02a9cbafcdce4e1",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/profile.p7b",
+          "size": 4350,
+          "sha256": "43e1560b321e64e09e98a05c69a305fb47b2ce99fb36cc7bd84b04dd0e40fe20",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/certificate.cer",
+          "size": 2910,
+          "sha256": "fd0349c3497b59dbbea2f3d9ee3a0e2e4a07c230742a6c65de220eea2e34293a",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/keystore.p12",
+          "size": 1128,
+          "sha256": "4ac94c1d1497b81e0a00a676bf92b8c03ca9efc56bf500d40590cd1b09d716c4",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/profile.p7b",
+          "size": 4343,
+          "sha256": "cd450d51738e909448d2c7c122589b2ba9b7dd1787d0fba771628645d2e3f738",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-build-profile-20260902.json5",
+          "size": 1577,
+          "sha256": "364c4162c2bf96433844c33e06f85ed05e83d615e158a86fd32a479ede73e4a9",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-license.lic",
+          "size": 728,
+          "sha256": "2900aa5c7b693e5a2a8fef09e04d08819071905f3a23fcb23ddc588ab1e337e5",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-signing.json",
+          "size": 444,
+          "sha256": "239faab65e23caab9c126a33facaa86f5a1c8aff82e3a9216c7acbea074a977f",
+          "mode": "0600"
+        }
+      ],
+      "encryption": "sse-kms",
+      "merge_destination": true,
+      "allow_extra_files": true
+    },
+    "team-secure-state-v5": {
+      "description": "Canonical portable team-only license root, device allowlists, and device-verified Harmony signing materials",
+      "license": "confidential-team-material",
+      "source": "Local controlled secure inputs verified by Harmony build/install and SDK device smoke",
+      "redistribution": "team-internal-only",
+      "destination": ".secure",
+      "archive_root": "secure",
+      "archive_type": "zip",
+      "object": "team-secure-state-v5/f829b1a89c54c272af303aa2904a2e8a573c79e09aeffe12862196949d66abcc.zip",
+      "size": 25646,
+      "sha256": "f829b1a89c54c272af303aa2904a2e8a573c79e09aeffe12862196949d66abcc",
+      "files": [
+        {
+          "path": "amphion-harmony-asr-eval-20260818.lic",
+          "size": 640,
+          "sha256": "a53bd8b83eb2dae75e2575fbeeb8b51371c8de23ffcd8328ff006c75d796da91",
+          "mode": "0644"
+        },
+        {
+          "path": "amphion-license-bound-generated-20260818.lic",
+          "size": 1340,
+          "sha256": "9465523b1d8992c3b33279820547f5caf6c5d1b8097bf4ce8c3e5997f6f6505b",
+          "mode": "0644"
+        },
+        {
+          "path": "amphion-license-private.pem",
+          "size": 241,
+          "sha256": "094346a59147a7b6a36eda5e80121dc55da15738cbb05da03bd214dbeccc8f02",
+          "mode": "0600"
+        },
+        {
+          "path": "amphion_asr_demo_device_ids.txt",
+          "size": 128,
+          "sha256": "4035346a730c558724f567657cdf421623a60a5a6a1f146e24ee5e50d71c00cf",
+          "mode": "0600"
+        },
+        {
+          "path": "build-profile.deveco-local-20260730.json5",
+          "size": 1665,
+          "sha256": "14a4cf945ea604175a5cc8c0cc99151e321ab7e75cfc5949d2c1219e06f1482a",
+          "mode": "0644"
+        },
+        {
+          "path": "dingqiao-test-sn-20260824.txt",
+          "size": 710,
+          "sha256": "9fa170546ff7bc7cf24ef5916c120f622defab41a8024e9ac39f2085f3f95313",
+          "mode": "0600"
+        },
+        {
+          "path": "harmony-debug-0.3.7-signing.json",
+          "size": 625,
+          "sha256": "83f13a152f77e6b1a1a3bd495c6ca503561b3193e7f761e57b37d1149985673b",
+          "mode": "0600"
+        },
+        {
+          "path": "harmony-signing.json",
+          "size": 420,
+          "sha256": "883800d96d962fc3e41205a7db1e3c5e58b1db564cba078cb4c80ca3dfdb6e06",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/certificate.cer",
+          "size": 2910,
+          "sha256": "56c839223ccd7d9fbfb4463442efc2ea8dd57925aa65b8f1b94ddd262e7e1d71",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/keystore.p12",
+          "size": 1128,
+          "sha256": "4c8571ad00cd529100c12e4177f3703216e094baead2ebc6ffe6e276b684de87",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/profile.p7b",
+          "size": 4351,
+          "sha256": "6a546210d7782c8620abfa063be3d713bbfc92d4d46214ab4e51700cc6efca21",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/certificate.cer",
+          "size": 2910,
+          "sha256": "767c1974b3cde264818a81d5282cf6966d9d409bd829c8669f7a88558758d7e0",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/keystore.p12",
+          "size": 1128,
+          "sha256": "8bd02d41191dd9ca66bf7bb6e1608e9e69e5a66d47ba902344a4c0cb47b62759",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/material/ac/6fb894f66733489ea900702494c2775e",
+          "size": 16,
+          "sha256": "06f2a0b007d297d6c26bec1d10136859a5b44a03c9efeafe99ae53863e88a8b4",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/material/ce/c8d5433d3b254314b12eab893be4dd2f",
+          "size": 48,
+          "sha256": "723be1da4a74a0acd96fa2329d44142a0d0ed5965f416ec943da19de3417b2a2",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/material/fd/0/beb6277f1a7d47be9f49f6f685ca7b69",
+          "size": 16,
+          "sha256": "207955b5d0d021dfb3a9005f7ca335d8d6ac6df86b9553efa2641ab12fc2be0d",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/material/fd/1/2052f9b3146543dcb582457ee5fa41c7",
+          "size": 16,
+          "sha256": "3c8c5a6c0df4be8c8b6923d7d79f578a80f23662041102ac8e23a520967356cf",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/material/fd/2/12b1c3979caa492aa248af382aa74282",
+          "size": 16,
+          "sha256": "8da3d7c7f1edfd12d59b6f379d052563bb8ae546c3e73f5ea02a9cbafcdce4e1",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/profile.p7b",
+          "size": 4350,
+          "sha256": "43e1560b321e64e09e98a05c69a305fb47b2ce99fb36cc7bd84b04dd0e40fe20",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/certificate.cer",
+          "size": 2910,
+          "sha256": "fd0349c3497b59dbbea2f3d9ee3a0e2e4a07c230742a6c65de220eea2e34293a",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/keystore.p12",
+          "size": 1128,
+          "sha256": "4ac94c1d1497b81e0a00a676bf92b8c03ca9efc56bf500d40590cd1b09d716c4",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/profile.p7b",
+          "size": 4343,
+          "sha256": "cd450d51738e909448d2c7c122589b2ba9b7dd1787d0fba771628645d2e3f738",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-build-profile-20260902.json5",
+          "size": 1577,
+          "sha256": "364c4162c2bf96433844c33e06f85ed05e83d615e158a86fd32a479ede73e4a9",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-license.lic",
+          "size": 728,
+          "sha256": "2900aa5c7b693e5a2a8fef09e04d08819071905f3a23fcb23ddc588ab1e337e5",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-signing.json",
+          "size": 444,
+          "sha256": "239faab65e23caab9c126a33facaa86f5a1c8aff82e3a9216c7acbea074a977f",
+          "mode": "0600"
+        }
+      ],
+      "encryption": "sse-kms",
+      "merge_destination": true,
+      "allow_extra_files": true
     }
   },
   "ignored_asset_policy": {
@@ -620,8 +1091,12 @@
           "asr/ios/AmphionRuntime.xcframework.zip",
           "asr/ios/AmphionRuntime.xcframework.zip.sha256",
           "asr/harmony/sdk/src/main/cpp/libs/**",
-          "asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**",
-          "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/**",
+        "asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**",
+        "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx",
+        "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.LICENSE",
+        "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+        "asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police/lac/v1/lac_encoder.onnx",
+        "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/**",
           "asr/android/samples/public-demo/src/main/assets/asr-models/**",
           "asr/android/sdk/src/main/assets/amphion-models/**",
           "asr/android/sdk/src/main/assets/lits-models/**",
