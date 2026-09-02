@@ -65,7 +65,7 @@ python ..\..\tools\verify_lits_delivery_16k_package.py --model-dir ..\..\tools\t
 sdk/build/outputs/aar/sdk-release.aar
 ```
 
-注意：模型文件只需要放到 `tts/tools/trial-export/...`，不要手动放到 `sdk/src/main/assets/...`；Gradle 会在 `preBuild` 阶段自动生成前端 `.bin` 并同步资源。
+注意：模型文件只需要放到 `tts/tools/trial-export/...`，不要手动放到 `sdk/src/main/assets/...`；OBS 模型包已包含校验过的前端 `.bin`，Gradle 会在 `preBuild` 阶段以只读方式同步资源。`tts/android/external-resources/` 是构建输出，不是第二份源资产，不得提交到 Git。只有显式执行 `syncLitsTnAssets` 时才会在 `build/generated/` 生成候选词典，不会改写源包。
 
 完整步骤、输入文件清单、自检方式与常见报错见 [docs/DELIVERY.md](docs/DELIVERY.md)。
 

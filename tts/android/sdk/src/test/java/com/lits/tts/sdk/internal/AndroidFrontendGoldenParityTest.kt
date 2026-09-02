@@ -48,9 +48,7 @@ class AndroidFrontendGoldenParityTest {
     }
 
     private companion object {
-        private val assetRoot = File(
-            "src/main/assets/lits-models/${LitsTtsAssetRegistry.assetSubPath}",
-        )
+        private val assetRoot = TtsTestAssets.root()
 
         private val sharedLayout: LitsTtsAssetInstaller.InstalledLayout by lazy {
             val root = createTempDirectory("lits-tts-golden-assets-test").toFile()
