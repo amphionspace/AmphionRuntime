@@ -11,6 +11,7 @@ APPLY = ROOT / "asr/tools/apply_sherpa_patches.sh"
 ANDROID_BUILD = ROOT / "asr/tools/04_build_android_so.sh"
 AGC_BUILD = ROOT / "asr/tools/03_build_agc_native.sh"
 ANDROID_PACKAGE = ROOT / "asr/tools/05_package_aar_libs.sh"
+ANDROID_WORKFLOW = ROOT / ".github/workflows/android.yml"
 
 
 def git(*args: str, cwd: Path = ROOT) -> str:
@@ -20,6 +21,19 @@ def git(*args: str, cwd: Path = ROOT) -> str:
 
 
 class SherpaSourceIsolationTest(unittest.TestCase):
+    def test_android_sample_ci_uses_the_tracked_gradle_wrapper(self) -> None:
+        workflow = ANDROID_WORKFLOW.read_text(encoding="utf-8")
+        sample_job = workflow.split("  android-samples:\n", 1)[1].split(
+            "\n  ci-result:", 1
+        )[0]
+        self.assertNotIn("init_gradle_wrapper.sh", sample_job)
+        for relative in (
+            "asr/android/gradlew",
+            "asr/android/gradlew.bat",
+            "asr/android/gradle/wrapper/gradle-wrapper.jar",
+        ):
+            self.assertEqual(relative, git("ls-files", "--error-unmatch", relative))
+
     def test_android_native_builds_redact_host_paths_before_packaging(self) -> None:
         sherpa_build = ANDROID_BUILD.read_text(encoding="utf-8")
         agc_build = AGC_BUILD.read_text(encoding="utf-8")
@@ -28,6 +42,8 @@ class SherpaSourceIsolationTest(unittest.TestCase):
         for source in (sherpa_build, agc_build):
             self.assertIn("-ffile-prefix-map=", source)
             self.assertIn("-fmacro-prefix-map=", source)
+        self.assertIn("-ffile-prefix-map=$HOME=/build-host", sherpa_build)
+        self.assertIn("-fmacro-prefix-map=$HOME=/build-host", sherpa_build)
         self.assertIn("verify_no_host_paths", package)
         self.assertIn("/Users/", package)
         self.assertIn("/home/", package)

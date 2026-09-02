@@ -197,7 +197,6 @@ jobs:
               "asr/android/gradle/wrapper/gradle-wrapper.properties",
               "asr/android/gradlew",
               "asr/android/gradlew.bat",
-              "asr/android/init_gradle_wrapper.sh",
               "asr/android/settings.gradle.kts",
             ]);
             const samplePrefixes = [
@@ -790,10 +789,6 @@ jobs:
           cache-provider: enhanced
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
           cache-cleanup: on-success
-
-      - name: Init Gradle wrapper
-        working-directory: ${{ env.SDK_BUILD_DIR }}
-        run: bash init_gradle_wrapper.sh
 
       - name: Configure local.properties
         working-directory: ${{ env.SDK_BUILD_DIR }}
