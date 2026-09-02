@@ -128,10 +128,10 @@
 
 ```bash
 # 方案 A：重新打包 APK
-./gradlew :samples:public-demo:assembleDebug
+./gradlew :samples:internal-eval:assembleDebug
 
 # 方案 B：adb push 覆盖（不需要重打包）
-adb push my-sentences.json /sdcard/Android/data/com.amphion.asr.sample/files/asr-eval-set/sentences.json
+adb push my-sentences.json /sdcard/Android/data/com.amphion.asr.sample.eval/files/asr-eval-set/sentences.json
 ```
 
 外部覆盖比内置版本优先级高。

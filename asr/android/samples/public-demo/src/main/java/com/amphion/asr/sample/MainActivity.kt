@@ -38,12 +38,6 @@ import androidx.appcompat.widget.SwitchCompat
 import com.amphion.asr.AsrResult
 import com.amphion.asr.SpeakerVadConfig
 import com.amphion.asr.TargetSpeakerConfig
-import com.amphion.asr.sample.plate.PlateBatchEvalActivity
-import com.amphion.asr.sample.plate.PlateEvalRecorder
-import com.amphion.asr.sample.police_station.PoliceStationBatchEvalActivity
-import com.amphion.asr.sample.police_station.PoliceStationEvalRecorder
-import com.amphion.asr.sample.police_terms.PoliceTermsBatchEvalActivity
-import com.amphion.asr.sample.police_terms.PoliceTermsEvalRecorder
 import com.amphion.police.PoliceEnhancePipeline
 import com.amphion.police.plate.PlateEnhancePrefs
 import com.amphion.police.plate.PlateHotwords
@@ -153,14 +147,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etSpeakerVadBelow: EditText
     private lateinit var etSpeakerThreads: EditText
 
-    // -------- 云端（WebSocket /clean-stream）相关视图 --------
-    private lateinit var swCloud: SwitchCompat
-    private lateinit var tvCloudState: TextView
-    private lateinit var cardCloud: android.view.View
-    private lateinit var colCloud: android.view.View
     private var mainScroll: androidx.core.widget.NestedScrollView? = null
-    private lateinit var tvCloudFinal: TextView
-    private lateinit var tvCloudStatus: TextView
 
     private lateinit var cardPlateEnhance: android.view.View
     private lateinit var swPlateHotwords: SwitchCompat
@@ -224,25 +211,12 @@ class MainActivity : AppCompatActivity() {
     private var lastSpeakerVadDebug = "等待窗口打分"
     private val finalBuilder = SpannableStringBuilder()
 
-    // -------- 云端状态 --------
-    private val cloudPrefs: CloudAsrPrefs by lazy { CloudAsrPrefs(applicationContext) }
-
-    @Volatile
-    private var cloudClient: CloudAsrClient? = null
-
-    private val cloudGeneration = AtomicInteger(0)
-    private val cloudFinalBuilder = StringBuilder()
-    private var cloudCurrentPartial: String = ""
-
     /**
      * 三场景后处理流水线实例（含 V1，按各 *EnhancePrefs.*V2Enabled 决定是否额外构建 V2）。
      * normalize 开关每次调用 [PoliceEnhancePipeline.apply] 时按 prefs 实时传入；V2 开关切换需
      * [rebuildEnhancePipeline]（V2 normalizer 在 create 时构建、加载资产）。
      */
     private lateinit var enhancePipeline: PoliceEnhancePipeline
-    private lateinit var plateEvalRecorder: PlateEvalRecorder
-    private lateinit var stationEvalRecorder: PoliceStationEvalRecorder
-    private lateinit var termsEvalRecorder: PoliceTermsEvalRecorder
 
     private val recordPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -302,28 +276,12 @@ class MainActivity : AppCompatActivity() {
         swSpeakerVad.setOnCheckedChangeListener { _, checked -> onSpeakerVadToggle(checked) }
         refreshSpeakerControlCard()
 
-        swCloud = findViewById(R.id.sw_cloud)
-        tvCloudState = findViewById(R.id.tv_cloud_state)
-        cardCloud = findViewById(R.id.card_cloud)
-        colCloud = findViewById(R.id.col_cloud)
         mainScroll = findViewById(R.id.main_scroll)
-        tvCloudFinal = findViewById(R.id.tv_cloud_final)
-        tvCloudStatus = findViewById(R.id.tv_cloud_status)
-        cardCloud.setOnClickListener { swCloud.toggle() }
 
         plateEnhancePrefs = PlateEnhancePrefs(this)
         stationEnhancePrefs = PoliceStationEnhancePrefs(this)
         termsEnhancePrefs = PoliceTermsEnhancePrefs(this)
         enhancePipeline = PoliceEnhancePipeline.create(this)
-        plateEvalRecorder = PlateEvalRecorder(this)
-        stationEvalRecorder = PoliceStationEvalRecorder(this)
-        termsEvalRecorder = PoliceTermsEvalRecorder(this)
-        Log.i(TAG, "plate-eval TSV: ${plateEvalRecorder.filePath()}")
-        Log.i(TAG, PlateEvalRecorder.pullHint())
-        Log.i(TAG, "police-station-eval TSV: ${stationEvalRecorder.filePath()}")
-        Log.i(TAG, PoliceStationEvalRecorder.pullHint())
-        Log.i(TAG, "police-terms-eval TSV: ${termsEvalRecorder.filePath()}")
-        Log.i(TAG, PoliceTermsEvalRecorder.pullHint())
 
         cardPlateEnhance = findViewById(R.id.card_plate_enhance)
         swPlateHotwords = findViewById(R.id.sw_plate_hotwords)
@@ -416,7 +374,6 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         reloadTargetSpeaker()
         refreshSpeakerControlCard()
-        refreshCloudCard()
         refreshPlateEnhanceCard()
         refreshStationEnhanceCard()
         refreshTermsEnhanceCard()
@@ -426,9 +383,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         stopListening()
-        cloudGeneration.incrementAndGet()
-        cloudClient?.close()
-        cloudClient = null
         asrLoadGeneration.incrementAndGet()
         asrLoadExec.shutdownNow()
         engine?.close()
@@ -458,18 +412,6 @@ class MainActivity : AppCompatActivity() {
             }
             R.id.action_hotwords -> {
                 hotwordsLauncher.launch(Intent(this, HotwordsActivity::class.java))
-                true
-            }
-            R.id.action_batch_eval -> {
-                startActivity(Intent(this, PlateBatchEvalActivity::class.java))
-                true
-            }
-            R.id.action_station_batch_eval -> {
-                startActivity(Intent(this, PoliceStationBatchEvalActivity::class.java))
-                true
-            }
-            R.id.action_terms_batch_eval -> {
-                startActivity(Intent(this, PoliceTermsBatchEvalActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -528,126 +470,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ----------- 云端能力卡 -----------
-
-    private fun refreshCloudCard() {
-        val enabled = cloudPrefs.isEnabled()
-        swCloud.setOnCheckedChangeListener(null)
-        swCloud.isChecked = enabled
-        swCloud.setOnCheckedChangeListener { _, isChecked -> onCloudToggle(isChecked) }
-        tvCloudState.text = if (enabled) {
-            getString(R.string.cap_cloud_on)
-        } else {
-            getString(R.string.cap_cloud_off)
-        }
-        colCloud.visibility = if (enabled) android.view.View.VISIBLE else android.view.View.GONE
-        if (!enabled) {
-            cloudFinalBuilder.setLength(0)
-            cloudCurrentPartial = ""
-            renderCloud()
-            setCloudStatus(getString(R.string.cloud_status_idle))
-        }
-    }
-
-    private fun onCloudToggle(enabled: Boolean) {
-        cloudPrefs.setEnabled(enabled)
-        refreshCloudCard()
-        if (!enabled) {
-            cloudGeneration.incrementAndGet()
-            cloudClient?.close()
-            cloudClient = null
-        } else if (listening) {
-            startCloudForCurrentSession()
-        }
-    }
-
-    private fun startCloudForCurrentSession() {
-        val gen = cloudGeneration.get()
-        cloudClient?.close()
-        cloudFinalBuilder.setLength(0)
-        cloudCurrentPartial = ""
-        renderCloud()
-
-        val client = CloudAsrClient(
-            url = CloudAsrPrefs.WS_URL,
-            apiKey = CloudAsrPrefs.API_KEY,
-            language = cloudLangCode(currentLang),
-            hotwords = currentHotwordsApplied,
-            listener = object : CloudAsrClient.Listener {
-                override fun onStatus(status: CloudAsrClient.Status, detail: String?) {
-                    runOnUiThread {
-                        if (gen != cloudGeneration.get()) return@runOnUiThread
-                        setCloudStatus(cloudStatusText(status, detail))
-                    }
-                }
-
-                override fun onPartial(text: String) {
-                    runOnUiThread {
-                        if (gen != cloudGeneration.get()) return@runOnUiThread
-                        cloudCurrentPartial = text
-                        renderCloud()
-                    }
-                }
-
-                override fun onFinal(text: String, durationSec: Double?) {
-                    runOnUiThread {
-                        if (gen != cloudGeneration.get()) return@runOnUiThread
-                        cloudCurrentPartial = ""
-                        appendCloudFinal(text)
-                        if (durationSec != null) {
-                            setCloudStatus(getString(R.string.cloud_status_duration, durationSec))
-                        }
-                    }
-                }
-
-                override fun onError(message: String) {
-                    runOnUiThread {
-                        if (gen != cloudGeneration.get()) return@runOnUiThread
-                        setCloudStatus(getString(R.string.cloud_status_error, message))
-                    }
-                }
-            },
-        )
-        cloudClient = client
-        client.start()
-    }
-
-    private fun cloudStatusText(status: CloudAsrClient.Status, detail: String?): String = when (status) {
-        CloudAsrClient.Status.CONNECTING -> getString(R.string.cloud_status_connecting)
-        CloudAsrClient.Status.READY -> getString(R.string.cloud_status_ready)
-        CloudAsrClient.Status.STOPPING -> getString(R.string.cloud_status_stopping)
-        CloudAsrClient.Status.CLOSED -> getString(R.string.cloud_status_closed)
-    }.let { if (detail.isNullOrBlank()) it else "$it · $detail" }
-
-    private fun cloudLangCode(lang: AsrLanguage): String = when (lang) {
-        AsrLanguage.ZH_EN -> "zh"
-        AsrLanguage.YUE_EN -> "yue"
-    }
-
-    private fun appendCloudFinal(text: String) {
-        if (text.isNotEmpty()) {
-            if (cloudFinalBuilder.isNotEmpty()) cloudFinalBuilder.append("\n")
-            cloudFinalBuilder.append(text)
-        }
-        renderCloud()
-    }
-
-    private fun renderCloud() {
-        val sb = StringBuilder(cloudFinalBuilder)
-        if (cloudCurrentPartial.isNotEmpty()) {
-            if (sb.isNotEmpty()) sb.append("\n")
-            sb.append(cloudCurrentPartial)
-        }
-        tvCloudFinal.text = sb.toString()
-        scrollResultsToBottom()
-    }
-
     private fun scrollResultsToBottom() {
         mainScroll?.post { mainScroll?.fullScroll(android.view.View.FOCUS_DOWN) }
-    }
-
-    private fun setCloudStatus(s: String) {
-        tvCloudStatus.text = s
     }
 
     private fun onPlateHotwordsToggle(enabled: Boolean) {
@@ -797,9 +621,6 @@ class MainActivity : AppCompatActivity() {
         cardTermsEnhance.alpha = if (locked) 0.5f else 1f
         swTermsHotwords.isEnabled = !locked
         swTermsV2.isEnabled = !locked
-        cardCloud.isEnabled = !locked
-        cardCloud.alpha = if (locked) 0.5f else 1f
-        swCloud.isEnabled = !locked
         setSpeakerParamInputsEnabled(!locked)
     }
 
@@ -955,14 +776,6 @@ class MainActivity : AppCompatActivity() {
         setCapabilityLocked(true)
         invalidateOptionsMenu()
 
-        cloudGeneration.incrementAndGet()
-        if (cloudPrefs.isEnabled()) {
-            startCloudForCurrentSession()
-        } else {
-            cloudClient?.close()
-            cloudClient = null
-        }
-
         waveform.reset()
         waveform.visibility = android.view.View.VISIBLE
 
@@ -978,7 +791,6 @@ class MainActivity : AppCompatActivity() {
 
             override fun onFinal(result: AsrResult) {
                 val enhanced = applyDomainEnhance(result.text)
-                recordDomainEnhance(enhanced, result.text)
                 runOnUiThread {
                     appendFinalSegment(result, rejected = false, enhanced = enhanced)
                     tvPartial.text = ""
@@ -988,7 +800,6 @@ class MainActivity : AppCompatActivity() {
 
             override fun onFinalRejected(result: AsrResult) {
                 val enhanced = applyDomainEnhance(result.text)
-                recordDomainEnhance(enhanced, result.text)
                 runOnUiThread {
                     appendFinalSegment(result, rejected = true, enhanced = enhanced)
                     tvPartial.text = ""
@@ -1054,7 +865,6 @@ class MainActivity : AppCompatActivity() {
             onPcm = { samples ->
                 s.acceptPcmShort(samples)
                 feedWaveform(samples)
-                cloudClient?.sendPcm(samples)
             },
             onError = { msg -> runOnUiThread { setStatus("录音错误：$msg") } },
             gainDb = 10f,
@@ -1075,7 +885,6 @@ class MainActivity : AppCompatActivity() {
         setTalkButtonRecording(false)
         setCapabilityLocked(false)
         invalidateOptionsMenu()
-        cloudClient?.stop()
         if (engine != null) {
             setStatus("正在结束本段…")
         }
@@ -1086,9 +895,6 @@ class MainActivity : AppCompatActivity() {
         recorder?.stop()
         recorder = null
         session = null
-        cloudGeneration.incrementAndGet()
-        cloudClient?.close()
-        cloudClient = null
         setTalkButtonRecording(false)
         setCapabilityLocked(false)
         invalidateOptionsMenu()
@@ -1144,10 +950,6 @@ class MainActivity : AppCompatActivity() {
         tvFinal.text = ""
         finalBuilder.clear()
         tvMetrics.text = getString(R.string.metrics_placeholder)
-        cloudFinalBuilder.setLength(0)
-        cloudCurrentPartial = ""
-        renderCloud()
-        if (cloudPrefs.isEnabled()) setCloudStatus(getString(R.string.cloud_status_idle))
     }
 
     private fun setStatus(s: String) {
@@ -1344,60 +1146,6 @@ class MainActivity : AppCompatActivity() {
             enhancePipeline.close()
         } catch (_: Throwable) {}
         enhancePipeline = PoliceEnhancePipeline.create(this)
-    }
-
-    private fun recordDomainEnhance(enhanced: PoliceEnhancePipeline.Result, asrRaw: String) {
-        termsEvalRecorder.append(
-            uttId = "mic_${System.currentTimeMillis()}",
-            refText = "",
-            expectedTerms = emptyList(),
-            asrRaw = asrRaw,
-            result = enhanced.terms,
-        )
-        logTermsEnhance(asrRaw, enhanced.terms)
-        plateEvalRecorder.append(asrRaw, enhanced.plate)
-        logPlateEnhance(asrRaw, enhanced.plate)
-        stationEvalRecorder.append(
-            uttId = "mic_${System.currentTimeMillis()}",
-            refText = "",
-            expectedStation = "",
-            asrRaw = asrRaw,
-            result = enhanced.station,
-        )
-        logStationEnhance(asrRaw, enhanced.station)
-    }
-
-    private fun logTermsEnhance(
-        raw: String,
-        norm: com.amphion.police.terms.PoliceTermsNormalizeResult,
-    ) {
-        if (norm.spans.isEmpty()) return
-        Log.i(
-            TAG,
-            "PoliceTermsEnhance raw=$raw norm=${norm.text} terms=${norm.matchedTerms} " +
-                "valid=${norm.spans.any { it.valid }}",
-        )
-    }
-
-    private fun logPlateEnhance(raw: String, norm: com.amphion.police.plate.PlateNormalizeResult) {
-        if (norm.spans.isEmpty()) return
-        Log.i(
-            TAG,
-            "PlateEnhance raw=$raw norm=${norm.text} primary=${norm.primaryPlate} " +
-                "valid=${norm.spans.any { it.valid }}",
-        )
-    }
-
-    private fun logStationEnhance(
-        raw: String,
-        norm: com.amphion.police.station.PoliceStationNormalizeResult,
-    ) {
-        if (norm.spans.isEmpty()) return
-        Log.i(
-            TAG,
-            "PoliceStationEnhance raw=$raw norm=${norm.text} primary=${norm.primaryStation} " +
-                "valid=${norm.spans.any { it.valid }}",
-        )
     }
 
     private fun appendFinalSegment(

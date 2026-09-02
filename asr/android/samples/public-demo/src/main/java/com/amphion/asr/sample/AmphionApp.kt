@@ -47,13 +47,13 @@ class AmphionApp : Application() {
 
         AmphionRuntime.init(
             this,
-            AmphionOptions(logLevel = AmphionLogLevel.INFO),
+            AmphionOptions(logLevel = AmphionLogLevel.WARN),
         )
 
         // 演示授权状态查询：未武装构建（SDK 公钥为空）下为 DEV_UNLICENSED，不校验、不影响使用；
         // 武装交付构建放入 .lic 后会是 LICENSED（接入与排障见 docs/INTEGRATION.md §14）。
         val lic = AmphionRuntime.licenseStatus()
-        Log.i(TAG, "license state=${lic.state} customer=${lic.customer} expiresAt=${lic.expiresAt}")
+        Log.i(TAG, "license state=${lic.state} expiresAt=${lic.expiresAt}")
 
         // 决定本次启动池子要不要带占位热词。读 prefs 是 ~ms 级 I/O，可接受。
         // 一旦决定就不会在运行期改变；用户在 app 内首次开关热词的边界场景会让
