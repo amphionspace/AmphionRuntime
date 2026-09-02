@@ -80,8 +80,7 @@ params.extraParams['voiceprintIds'] = ['vp-...'];
 
 ### 4.2 C1/C2/C3 完整音频
 
-最终结果：
-[`realtime/report.json`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805/realtime/report.json)
+最终结果摘要如下。早期现场包含设备序列号和未脱敏识别文本，已从当前工作树移除；后续发布验收使用统一的脱敏、不可覆盖证据格式。
 
 | 用例 | 最终文本 | 业务断言 | 生命周期 |
 |---|---|---|---|
@@ -103,8 +102,8 @@ params.extraParams['voiceprintIds'] = ['vp-...'];
 
 ### 4.3 `onStart` 同步调用
 
-结果：
-[`onstart/report.json`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805/onstart/report.json)
+对应的后续脱敏验收见
+[`start-write/report.json`](../../delivery/harmony-dingqiao/evidence/release-gate/20260824-97434d1-0.3.9/modes/start-write/report.json)。
 
 增强开启时分别在 `onStart` 调用栈内同步写入 100 个真实 20 ms PCM 帧，然后继续识别、立即
 `finish`、立即 `cancel`。三种路径全部通过：继续和结束路径各恰好一次 last/complete；取消路径没有
@@ -112,8 +111,8 @@ final/complete；均没有 `NOT_LISTENING` 或其他错误。
 
 ### 4.4 取消和立即恢复
 
-结果：
-[`cancel-recovery/report.json`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805/cancel-recovery/report.json)
+对应的后续脱敏验收见
+[`cancel-full/report.json`](../../delivery/harmony-dingqiao/evidence/release-gate/20260824-97434d1-0.3.9/modes/cancel-full/report.json)。
 
 第一 session 写满 2 秒并启动原生任务后立即 `cancel`；取消返回时没有 final/complete。随后立即启动同配置
 的第二 session 并识别完整 C1：旧 session 没有迟到回调，第二 session 正常一次 last 后一次 complete，
@@ -121,10 +120,8 @@ final/complete；均没有 `NOT_LISTENING` 或其他错误。
 
 ### 4.5 证据留存
 
-三轮的 `report.json`、`result.txt`、`memory.csv`、`hilog.txt`、`inventory.json` 和
-`payload/corpus.json` 均保存在分支的
-[`delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805`](../../delivery/harmony-dingqiao/evidence/target-speaker-enhancement/20260805)
-目录。最终 HAP SHA-256 为
+早期原始现场不再保存在当前 Git 工作树；本节保留结论和构建身份，后续验收统一使用
+`archive_release_gate_evidence.py` 生成的脱敏证据。最终 HAP SHA-256 为
 `9dd070743ff1dba597631446e15fb5a5c062a999077bdc02c8c8097dd4aa611f`；三轮均绑定代码提交
 `9d276554c686aea31db17354b7f5ece74ea35077`，报告中的 `voiceprintIdCount`、`fedFrames` 和
 `lastFinalsBeforeFinish` 已与真实输入及生命周期断言一致。
@@ -134,7 +131,7 @@ final/complete；均没有 `NOT_LISTENING` 或其他错误。
 同一 HAP 还完成了 21 个通用真机发布模式，全部 `overall_status=PASS`，包括基础实时/突发识别、
 `vadBegin` 真实语音和纯静音、声纹评分与 cold/warm 回退、Speaker VAD、取消、最大时长、数值边界、
 `onStart` 同步写入和卸载后冷加载，以及回调内重入和真实用户快速操作序列。完整模式清单与逐轮证据见
-[`release-gate/20260805-9d27655`](../../delivery/harmony-dingqiao/evidence/release-gate/20260805-9d27655/README.md)。
+[`release-gate/20260824-97434d1-0.3.9`](../../delivery/harmony-dingqiao/evidence/release-gate/20260824-97434d1-0.3.9/report.json)。
 
 ## 5. 本轮发现并修复的问题
 

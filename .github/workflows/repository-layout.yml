@@ -29,10 +29,18 @@ jobs:
       - name: Test repository layout checker
         run: |
           python3 tools/test_check_repository_layout.py -v
+          python3 tools/test_check_repository_observability.py -v
           python3 tools/test_check_repository_versions.py -v
+          python3 tools/test_public_demo_boundary.py -v
+          python3 tools/test_ci_dashboard_workflow.py -v
+          python3 tools/ci/test_secure_extract_tar.py -v
+          python3 shared/docs/dashboard/test_runner.py -v
+          python3 asr/server/bench/test_bench_concurrent.py -v
 
       - name: Check repository layout
-        run: python3 tools/check_repository_layout.py
+        run: |
+          python3 tools/check_repository_layout.py
+          python3 tools/check_repository_observability.py
 
       - name: Check documented SDK versions
         run: python3 tools/check_repository_versions.py
