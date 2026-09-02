@@ -211,6 +211,8 @@ shared/docs/dashboard/trends/*.csv
 
 # --- 离线 license 私钥与签发产物（严禁进库，见 tools/license/README.md） ---
 # 私钥 = 授权信任根，泄露即可被任意签发有效 license；签发出的 .lic 是每客户产物，不入库。
+# 根目录版本化目录同样属于客户签发产物；交付元数据只登记到 delivery 台账。
+amphion-dingqiao-license-v*/
 *-private.pem
 .secure/
 current_usb_device_sn.txt
