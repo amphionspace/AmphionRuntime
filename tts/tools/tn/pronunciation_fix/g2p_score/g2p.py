@@ -3,8 +3,16 @@
 # lexicon/override/polychar files and porting LitsTtsFrontend.hanziChunkToPinyin
 # + tone sandhi. Used to score TN fixes end-to-end without a device.
 import re, os, sys
+from pathlib import Path
 
-D = "/Users/amphion/Desktop/work/reference/AmphionRuntime/tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0"
+REPO_ROOT = Path(__file__).resolve().parents[5]
+D = os.environ.get(
+    "TTS_MODEL_DIR",
+    str(
+        REPO_ROOT
+        / "tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0"
+    ),
+)
 PINYIN = re.compile(r'^[a-z]+[0-6]$')
 CHINESE_DIGIT_SEQUENCE = set("零〇一二三四五六七八九两幺")
 CHINESE_NUMBER_CONTEXT = set("零〇一二三四五六七八九十百千万亿两点负")  # device constant

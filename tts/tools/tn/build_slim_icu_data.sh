@@ -10,7 +10,7 @@ set -euo pipefail
 # Everything else (coll, brkitr, ~700 other locales, units, zones, regions,
 # languages, transliterators, converters) is dropped via ICU_DATA_FILTER_FILE.
 #
-# Filter spec: scripts/icu_tn_data_filter.json
+# Filter spec: tts/tools/tn/icu_tn_data_filter.json
 # Report: tts/docs/optimization/TN_SIZE_OPT_REPORT.md
 #
 # The HOST recipe below was executed and VERIFIED on macOS arm64: it yields
@@ -38,13 +38,13 @@ Optional:
 Example (host verification build):
   ICU_SOURCES_TGZ=~/dl/icu4c-78.1-sources.tgz \
   ICU_DATA_ZIP=~/dl/icu4c-78.1-data.zip \
-  scripts/build_slim_icu_data.sh
+  tts/tools/tn/build_slim_icu_data.sh
 EOF
 }
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; exit 0; fi
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FILTER_FILE="$REPO_ROOT/scripts/icu_tn_data_filter.json"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+FILTER_FILE="$REPO_ROOT/tts/tools/tn/icu_tn_data_filter.json"
 OUT_DIR="${OUT_DIR:-$REPO_ROOT/tts/harmony/build-ohos-tn/slim-icu}"
 ICU_PLATFORM="${ICU_PLATFORM:-MacOSX}"
 : "${ICU_SOURCES_TGZ:?set ICU_SOURCES_TGZ to icu4c-78.1-sources.tgz}"
@@ -80,5 +80,5 @@ make install
 
 echo ">> slim ICU data ready:"
 ls -la "$OUT_DIR/lib/libicudata.a"
-echo ">> next: SLIM_ICU_LIB_DIR=$OUT_DIR/lib OHOS_NATIVE_SDK=<sdk> scripts/build_dingqiao_harmony_tn.sh"
-echo ">> then run scripts/tn_icu_slim/verify_zero_regression.sh before shipping."
+echo ">> next: SLIM_ICU_LIB_DIR=$OUT_DIR/lib OHOS_NATIVE_SDK=<sdk> tts/tools/tn/build_dingqiao_harmony_tn.sh"
+echo ">> then run tts/tools/tn/icu_slim/verify_zero_regression.sh before shipping."

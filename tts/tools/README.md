@@ -13,11 +13,17 @@
   - 历史 16 kHz HifiGAN 包检查脚本，仅用于旧包排障
 
 - `android/`
-  - Android SDK 交付打包与校验脚本
+  - Android SDK 资源生成、批测、交付打包与校验脚本
   - `pack_lits_tts_android_delivery.sh` 会生成含 AAR、sample APK、Android 源码快照、文档和 `VERSION.txt` 的交付包
   - `verify_lits_tts_android_delivery.sh` 校验交付目录 / zip 是否包含源码与必要合规文件
 
-- `../license/`
+- `onnx-export/`
+  - TTS ONNX 导出、量化和本地验证脚本
+
+- `tn/`
+  - Android / HarmonyOS TN 构建、ICU 裁剪和发音回归工具
+
+- `tools/license/`（仓库根目录）
   - Amphion 统一离线 license 签发 / 校验工具
   - ASR / TTS 共用同一份 `amphion-license.lic`、同一套信封格式和同一把 `AMPHION_LICENSE_PUBLIC_KEY`
 
@@ -26,23 +32,24 @@
 Android v2 使用下面这个模型包目录：
 
 ```text
-tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/
+tts/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/
 ```
 
 放好后目录应当长这样：
 
 ```text
 amphion-runtime/
-└── tools/
-    └── trial-export/
-        └── transsion_lits_en_zh_vocos24k_streaming_proto/
-            └── 0.1.0/
-                ├── manifest.json
-                ├── lits_hidden_encoder.onnx
-                ├── lits_stream_decoder_chunk.ort
-                ├── lits_stream_decoder_final.ort
-                ├── vocos_vocoder.onnx
-                └── ...
+└── tts/
+    └── tools/
+        └── trial-export/
+            └── transsion_lits_en_zh_vocos24k_streaming_proto/
+                └── 0.1.0/
+                    ├── manifest.json
+                    ├── lits_hidden_encoder.onnx
+                    ├── lits_stream_decoder_chunk.ort
+                    ├── lits_stream_decoder_final.ort
+                    ├── vocos_vocoder.onnx
+                    └── ...
 ```
 
 ## 最小必要文件
@@ -78,14 +85,14 @@ amphion-runtime/
 
 如果你需要让专有名词、品牌词、缩写按指定读音合成，统一只改 TTS 模型包里的这两个词典：
 
-- 中文专有名词：`tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/chinese_lexicon.txt`
-- 英文单词、缩写、品牌词：`tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/cmudict.txt`
+- 中文专有名词：`tts/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/chinese_lexicon.txt`
+- 英文单词、缩写、品牌词：`tts/tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0/cmudict.txt`
 
 不要直接去改 `tts/android/sdk/src/main/assets/...`。这个位置是构建时自动同步出来的副本，不是词典源文件。
 
 词典改完后，需要重新做预检和构建，确认更新后的词典已经重新打进 SDK：
 
-- 先运行 `python ../../tts/tools/verify_transsion_vocos24k_package.py --model-dir ../../tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0`
+- 先运行 `python ../../tts/tools/verify_transsion_vocos24k_package.py --model-dir ../tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0`
 - 再运行 `./gradlew :sdk:testDebugUnitTest :sdk:assembleRelease :sample:assembleDebug`
 
 ## Android
@@ -93,7 +100,7 @@ amphion-runtime/
 从 `tts/android` 执行：
 
 ```bash
-python ../../tts/tools/verify_transsion_vocos24k_package.py --model-dir ../../tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0
+python ../../tts/tools/verify_transsion_vocos24k_package.py --model-dir ../tools/trial-export/transsion_lits_en_zh_vocos24k_streaming_proto/0.1.0
 ./gradlew :sdk:testDebugUnitTest :sdk:assembleRelease :sample:assembleDebug
 ```
 

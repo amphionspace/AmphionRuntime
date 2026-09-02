@@ -14,7 +14,7 @@ from onnxruntime.quantization import CalibrationDataReader, QuantFormat, QuantTy
 
 
 DEFAULT_MODEL_DIR = (
-    Path(__file__).resolve().parent
+    Path(__file__).resolve().parents[1]
     / "trial-export"
     / "dingqiao_lits_en_zh_hifigan_streaming_proto"
     / "0.1.0"

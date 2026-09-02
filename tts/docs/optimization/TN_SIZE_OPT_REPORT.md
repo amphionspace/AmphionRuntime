@@ -34,7 +34,7 @@ TN 引擎(`tts_normalizer_engine`)+ 语言 main(`en.cpp`/`zh.cpp`)+ JNI + in-pro
 
 ## 3. 裁剪方案与⚠️关键坑
 
-`ICU_DATA_FILTER_FILE` = [`scripts/icu_tn_data_filter.json`](../../../scripts/icu_tn_data_filter.json):`localeFilter` 只留 `en`/`zh`(+root 自动);`featureFilters` 保 `rbnf_tree`+`locales_tree`+`misc`+**`curr_tree`**+`curr_supplemental`,丢弃 coll/brkitr/lang/region/unit/zone/translit/conversion。
+`ICU_DATA_FILTER_FILE` = [`tts/tools/tn/icu_tn_data_filter.json`](../../tools/tn/icu_tn_data_filter.json):`localeFilter` 只留 `en`/`zh`(+root 自动);`featureFilters` 保 `rbnf_tree`+`locales_tree`+`misc`+**`curr_tree`**+`curr_supplemental`,丢弃 coll/brkitr/lang/region/unit/zone/translit/conversion。
 
 **⚠️ 头号坑(实测踩到):必须保留 `curr_tree`。** 我最初的 filter 把 currency 也裁了,结果 `RuleBasedNumberFormat` 构造函数返回 `U_MISSING_RESOURCE_ERROR`,**每一条 spellout 都静默变成空字符串**(数字从输出里消失,不崩溃)。原因:RBNF 内部的 `DecimalFormatSymbols` 要加载该 locale 的货币符号。这种坑构建/冒烟都发现不了,**只有逐字节输出 diff 能抓到**。裁剪定位过程见 §5(coll/brkitr 经二分确认无关,唯 curr 必需)。
 
@@ -57,7 +57,7 @@ TN 引擎(`tts_normalizer_engine`)+ 语言 main(`en.cpp`/`zh.cpp`)+ JNI + in-pro
 | SDK 稳定性 1000+ 用例 `text`(去重 1476) | OK | OK |
 | 发音 golden 派生文本(675) | OK | OK |
 
-- **结果:full-ICU 与 slim-ICU 输出逐字节一致,0 回退**(harness:[`scripts/tn_icu_slim/verify_zero_regression.sh`](../../../scripts/tn_icu_slim/verify_zero_regression.sh))。
+- **结果:full-ICU 与 slim-ICU 输出逐字节一致,0 回退**(harness:[`tts/tools/tn/icu_slim/verify_zero_regression.sh`](../../tools/tn/icu_slim/verify_zero_regression.sh))。
 - **延迟**:稳定性语料 best-of-3,en 3.50→3.48s、zh 7.51→7.50s(持平,未回退)。
 
 **关于 `test/expected/*.golden`**:这些 golden 与当前 `rules_v2` 已**不同步**——即便 full-ICU host 构建也与它们 diff(如 `$3.50` golden="three dollars and fifty cents",当前规则="three point five dollars")。这是子模块里既有的规则-golden 漂移,与本 ICU 优化无关,故**不能用作回归基准**;正确基准是 full-vs-slim 逐字节一致(已通过)。
@@ -95,11 +95,11 @@ TN 引擎(`tts_normalizer_engine`)+ 语言 main(`en.cpp`/`zh.cpp`)+ JNI + in-pro
 git submodule update --init tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS
 # 2) 建 slim ICU 数据(需 icu4c-78.1 sources.tgz + data.zip,unicode-org/icu release-78.1)
 ICU_SOURCES_TGZ=…/icu4c-78.1-sources.tgz ICU_DATA_ZIP=…/icu4c-78.1-data.zip \
-  scripts/build_slim_icu_data.sh          # 产出 slim libicudata.a(host: MacOSX)
+  tts/tools/tn/build_slim_icu_data.sh     # 产出 slim libicudata.a(host: MacOSX)
 # 另建一套 full ICU(不设 ICU_DATA_FILTER_FILE)作对照
 # 3) 零回退验证
 FULL_ICU=<full-prefix> SLIM_ICU=<slim-prefix> \
-  scripts/tn_icu_slim/verify_zero_regression.sh
+  tts/tools/tn/icu_slim/verify_zero_regression.sh
 ```
 
 ## 7. arm64 交付产物(已实建)
@@ -135,10 +135,10 @@ FULL_ICU=<full-prefix> SLIM_ICU=<slim-prefix> \
 
 | 文件 | 改动 | 默认行为影响 |
 |---|---|---|
-| `scripts/icu_tn_data_filter.json` | ICU data filter(**含 curr,已验证最小集**) | 否 |
-| `scripts/build_slim_icu_data.sh` | slim ICU 构建配方(host 已验证;含 OHOS 交叉说明) | 否 |
-| `scripts/tn_icu_slim/verify_zero_regression.sh` + `spellout_{en,zh}.txt` | 零回退验证 harness + 应力语料 | 否 |
-| `scripts/build_dingqiao_harmony_tn.sh` | `SLIM_ICU_LIB_DIR` 覆盖点 | **否(未设时逐字符等价)** |
+| `tts/tools/tn/icu_tn_data_filter.json` | ICU data filter(**含 curr,已验证最小集**) | 否 |
+| `tts/tools/tn/build_slim_icu_data.sh` | slim ICU 构建配方(host 已验证;含 OHOS 交叉说明) | 否 |
+| `tts/tools/tn/icu_slim/verify_zero_regression.sh` + `spellout_{en,zh}.txt` | 零回退验证 harness + 应力语料 | 否 |
+| `tts/tools/tn/build_dingqiao_harmony_tn.sh` | `SLIM_ICU_LIB_DIR` 覆盖点 | **否(未设时逐字符等价)** |
 | `TN_SIZE_OPT_REPORT.md` | 本报告 | 否 |
 
 未改:TN 规则/逻辑/`rules_v2`;模型/vocoder/ASR/其它 SDK;交付二进制;同事分支。

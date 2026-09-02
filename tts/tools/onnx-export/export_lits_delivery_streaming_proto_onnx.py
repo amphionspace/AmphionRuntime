@@ -16,13 +16,13 @@ import soundfile as sf
 import torch
 
 
-WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
+WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_LITS_ROOT = WORKSPACE_ROOT
 DEFAULT_MODEL_ID = "lits_delivery_16k_hifigan_streaming_proto"
 DEFAULT_VERSION = "0.1.0"
 DEFAULT_MODEL_DIR = (
     WORKSPACE_ROOT
-    / "LitsTtsSdk"
+    / "tts"
     / "tools"
     / "trial-export"
     / DEFAULT_MODEL_ID

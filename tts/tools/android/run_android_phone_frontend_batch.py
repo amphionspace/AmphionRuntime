@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_APK = ROOT / "tts/android/sample/build/outputs/apk/debug/sample-debug.apk"
 DEFAULT_PACKAGE = "com.lits.tts.sample"
 DEFAULT_ACTIVITY_CLASS = "com.lits.tts.sample.MainActivity"
