@@ -186,6 +186,7 @@ def aggregate(stats_list: List[WorkerStats]) -> dict:
         return {
             "p50": percentile(vs, 0.5),
             "p90": percentile(vs, 0.9),
+            "p95": percentile(vs, 0.95),
             "p99": percentile(vs, 0.99),
             "max": max(vs) if vs else 0.0,
             "mean": statistics.fmean(vs) if vs else 0.0,

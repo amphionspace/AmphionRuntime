@@ -3,7 +3,7 @@
 > 生成时间：{{GENERATED_AT}}  
 > 生成方式：`shared/docs/dashboard/runner.py --month {{MONTH}}`  
 > 上月对比：[{{PREV_MONTH}}](./{{PREV_MONTH}}.md)  
-> 上游 WER 报告（识别正确性）：[{{UPSTREAM_WER_REPORT_URL}}]({{UPSTREAM_WER_REPORT_URL}})
+> 上游 WER 报告（识别正确性）：{{UPSTREAM_WER_REPORT}}
 
 > 注：识别正确性（WER / CER）由上游 sherpa-onnx `scripts/benchmark/` 统一出报告，本 dashboard 不重复造轮子。本报告只追踪 端 / 服务端工程指标 三轨：启动延迟、服务端 RTF / 并发 / 内存、客户端 crash 率。
 
@@ -30,7 +30,7 @@
 
 | 指标 | 值 | 阈值 | 健康 |
 | --- | --- | --- | --- |
-| 单实例并发上限 | {{SVR_MAX_CONCURRENCY}} | ≥ {{SVR_MAX_CONCURRENCY_TARGET}} | {{SVR_MAX_CONCURRENCY_STATUS}} |
+| 本次并发数 | {{SVR_MAX_CONCURRENCY}} | ≥ {{SVR_MAX_CONCURRENCY_TARGET}} | {{SVR_MAX_CONCURRENCY_STATUS}} |
 | RTF p50 | {{SVR_RTF_P50}} | ≤ {{SVR_RTF_TARGET}} | {{SVR_RTF_P50_STATUS}} |
 | RTF p99 | {{SVR_RTF_P99}} | ≤ {{SVR_RTF_TARGET}} × 1.5 | {{SVR_RTF_P99_STATUS}} |
 | 内存峰值 | {{SVR_MEM_PEAK}} MiB | ≤ {{SVR_MEM_TARGET}} MiB | {{SVR_MEM_STATUS}} |
@@ -65,8 +65,7 @@
 ## 7. 附录
 
 - 模型版本：{{MODEL_ID}}@{{MODEL_VERSION}}
-- 上游 WER 报告：{{UPSTREAM_WER_REPORT_URL}}
+- 上游 WER 报告：{{UPSTREAM_WER_REPORT}}
 - Android SDK：{{ANDROID_SDK_VERSION}}（aar sha256: {{ANDROID_SDK_SHA}}）
 - iOS SDK：{{IOS_SDK_VERSION}}（xcframework sha256: {{IOS_SDK_SHA}}）
 - Server 镜像：{{SERVER_IMAGE}}（image digest: {{SERVER_IMAGE_DIGEST}}）
-- 报告生成机器：{{HOSTNAME}} / {{OS_INFO}}

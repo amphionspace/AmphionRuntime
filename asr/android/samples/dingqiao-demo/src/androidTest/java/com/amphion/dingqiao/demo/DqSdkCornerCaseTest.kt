@@ -987,9 +987,7 @@ class DqSdkCornerCaseTest {
 
         private fun ensureSdkReady() {
             val target = InstrumentationRegistry.getInstrumentation().targetContext
-            val test = InstrumentationRegistry.getInstrumentation().context
             prepareSdkRuntime(
-                test,
                 target,
                 File(target.getExternalFilesDir(null), "dq_corner_work"),
             )

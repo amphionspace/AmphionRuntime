@@ -19,6 +19,7 @@
     <string name="status_installing_assets">正在解包内置模型…%1$d%%</string>
     <string name="status_install_failed">模型解包失败：%1$s</string>
     <string name="status_no_permission">没有录音权限，无法识别</string>
+    <string name="status_runtime_unavailable">授权不可用（错误码 %1$d），请放入有效 license 后重启</string>
     <string name="status_preloading">正在预加载中英 + 粤英模型…</string>
     <string name="status_preload_progress">预加载：%1$s %2$d%%</string>
 
@@ -27,9 +28,6 @@
     <string name="cap_hotword_on">已启用 %1$d 个</string>
     <string name="cap_hotword_off">未启用</string>
     <string name="cap_target_title">目标人</string>
-    <string name="cap_cloud_title">云端</string>
-    <string name="cap_cloud_on">已启用</string>
-    <string name="cap_cloud_off">未启用</string>
     <string name="cap_plate_title">车牌增强</string>
     <string name="cap_plate_hotwords">车牌热词偏置（冀R/辽B 等）</string>
     <string name="cap_plate_normalize">车牌规则后处理</string>
@@ -57,20 +55,8 @@
     <string name="metrics_format">E2E %1$d ms · 首字 %2$d ms · RTF %3$.2f · RSS %4$d MB</string>
     <string name="metrics_format_no_partial">E2E %1$d ms · 首字 — · RTF %2$.2f · RSS %3$d MB</string>
 
-    <!-- 端云双列结果区 -->
+    <!-- 端侧结果区 -->
     <string name="col_local_title">端侧 · On-Device</string>
-    <string name="col_cloud_title">云端 · Cloud</string>
-    <string name="cloud_partial_placeholder">等待云端结果…</string>
-
-    <!-- 云端连接状态 -->
-    <string name="cloud_status_idle">未连接</string>
-    <string name="cloud_status_connecting">连接中…</string>
-    <string name="cloud_status_ready">已连接</string>
-    <string name="cloud_status_stopping">收尾中…</string>
-    <string name="cloud_status_closed">连接已关闭</string>
-    <string name="cloud_status_error">云端错误：%1$s</string>
-    <string name="cloud_status_duration">本段 %1$.2fs · 已连接</string>
-    <string name="cloud_status_disabled">未启用云端识别</string>
 
     <!-- Toolbar 菜单 -->
     <string name="menu_hotwords">热词管理</string>
@@ -147,30 +133,4 @@
     <string name="enroll_threshold_title">判定阈值</string>
     <string name="enroll_threshold_value">%1$.2f</string>
     <string name="enroll_threshold_hint">越高越严格：更不易误纳他人，但越可能漏掉本人。改完返回主页，下一段识别生效。</string>
-
-    <!-- 批量车牌评测 -->
-    <string name="menu_batch_eval">批量车牌评测</string>
-    <string name="batch_eval_title">批量车牌评测</string>
-    <string name="batch_eval_start">开始批量评测</string>
-    <string name="batch_eval_stop">停止</string>
-    <string name="batch_eval_status_fmt">已加载 %1$d 条（filter=%2$s）· 已完成 %3$d 条\n数据目录：%4$s</string>
-    <string name="batch_eval_detail_hint">每条：读 WAV → +10dB → ASR → PlateNormalizer → plate_eval.tsv。完成后 adb pull。</string>
-    <string name="batch_eval_loading_engine">正在加载中英模型…</string>
-    <string name="batch_eval_engine_failed">模型加载失败：%1$s</string>
-    <string name="batch_eval_done_fmt">完成：处理 %1$d · 跳过 %2$d · 失败 %3$d\nTSV：%4$s</string>
-    <string name="batch_eval_stopping">正在停止…</string>
-
-    <!-- 批量派出所评测 -->
-    <string name="menu_station_batch_eval">批量派出所评测</string>
-    <string name="station_batch_eval_title">批量派出所评测</string>
-    <string name="station_batch_eval_status_fmt">已加载 %1$d 条（filter=%2$s）· 已完成 %3$d 条\n数据目录：%4$s</string>
-    <string name="station_batch_eval_detail_hint">每条：读 WAV → +10dB → ASR → PoliceStationNormalizer → police_station_eval.tsv。完成后 adb pull。</string>
-    <string name="station_batch_eval_done_fmt">完成：处理 %1$d · 跳过 %2$d · 失败 %3$d\nTSV：%4$s</string>
-
-    <!-- 批量警务术语评测 -->
-    <string name="menu_terms_batch_eval">批量警务术语评测</string>
-    <string name="terms_batch_eval_title">批量警务术语评测</string>
-    <string name="terms_batch_eval_status_fmt">已加载 %1$d 条（filter=%2$s）· 已完成 %3$d 条\n数据目录：%4$s</string>
-    <string name="terms_batch_eval_detail_hint">每条：读 WAV → +10dB → ASR → PoliceTermsNormalizer → police_terms_eval.tsv。完成后 adb pull。</string>
-    <string name="terms_batch_eval_done_fmt">完成：处理 %1$d · 跳过 %2$d · 失败 %3$d\nTSV：%4$s</string>
 </resources>

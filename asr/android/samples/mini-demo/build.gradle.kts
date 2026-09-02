@@ -12,7 +12,7 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = providers.gradleProperty("AMPHION_RUNTIME_VERSION").get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

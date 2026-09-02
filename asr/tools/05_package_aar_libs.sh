@@ -23,6 +23,15 @@ SHERPA_ROOT="${AMPHION_SHERPA_ROOT:-$(bash "$SCRIPT_DIR/prepare_sherpa_source.sh
 SDK_JNI_LIBS_DIR="$REPO_ROOT/asr/android/sdk/src/main/jniLibs"
 AGC_ROOT="$REPO_ROOT/asr/native/audio-processing"
 
+verify_no_host_paths() {
+  local native_lib="$1"
+  if LC_ALL=C strings "$native_lib" | grep -Eq '/Users/|/home/'; then
+    echo "[ERROR] native library contains a developer-machine path: $native_lib" >&2
+    echo "        Rebuild it with the repository native build script before packaging." >&2
+    return 1
+  fi
+}
+
 copy_one_abi() {
   local ABI="$1"
   local SRC_DIR="$SHERPA_ROOT/build-android-${ABI}/install/lib"
@@ -43,6 +52,7 @@ copy_one_abi() {
   echo "[COPY] $ABI"
   for f in libsherpa-onnx-jni.so libonnxruntime.so; do
     if [[ -f "$SRC_DIR/$f" ]]; then
+      verify_no_host_paths "$SRC_DIR/$f"
       cp -fv "$SRC_DIR/$f" "$DST_DIR/$f"
     else
       if [[ "$STRICT" == "1" ]]; then
@@ -53,6 +63,7 @@ copy_one_abi() {
     fi
   done
   if [[ -f "$AGC_SO" ]]; then
+    verify_no_host_paths "$AGC_SO"
     cp -fv "$AGC_SO" "$DST_DIR/libamphion_audio_processing.so"
   elif [[ "$STRICT" == "1" ]]; then
     echo "[ERROR] $AGC_SO 缺失，请先运行 03_build_agc_native.sh android-$ABI" >&2

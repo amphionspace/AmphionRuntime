@@ -11,6 +11,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.PI
 import kotlin.math.sin
+import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -18,6 +19,11 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class DingqiaoEmbeddedVoiceprintModelInstrumentedTest {
+
+    @After
+    fun releaseRuntime() {
+        SpeechRecognizeSdk.unloadRuntime()
+    }
 
     @Test
     fun embeddedSpeakerModel_installsAndRegistersVoiceprint() {
@@ -29,8 +35,7 @@ class DingqiaoEmbeddedVoiceprintModelInstrumentedTest {
         val model = File(workDir, DINGQIAO_SPEAKER_MODEL_FILENAME)
         assertFalse("test must start without external speaker model", model.exists())
 
-        val testContext = InstrumentationRegistry.getInstrumentation().context
-        prepareSdkRuntime(testContext, context, workDir)
+        prepareSdkRuntime(context, workDir)
 
         assertTrue(
             "preloadVoiceprintModel should install the embedded model",

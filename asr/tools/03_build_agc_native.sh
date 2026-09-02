@@ -20,6 +20,11 @@ setup_and_build() {
   else
     "$MESON" setup "$build_dir" "$SOURCE_DIR" "$@"
   fi
+  if [[ -n "${AMPHION_MESON_PATH_MAP_FLAGS:-}" ]]; then
+    "$MESON" configure "$build_dir" \
+      "-Dc_args=$AMPHION_MESON_PATH_MAP_FLAGS" \
+      "-Dcpp_args=$AMPHION_MESON_PATH_MAP_FLAGS"
+  fi
   "$MESON" compile -C "$build_dir"
 }
 
@@ -69,6 +74,7 @@ cpu_family = 'aarch64'
 cpu = 'armv8-a'
 endian = 'little'
 EOF
+    AMPHION_MESON_PATH_MAP_FLAGS="-ffile-prefix-map=$REPO_ROOT=. -fmacro-prefix-map=$REPO_ROOT=. -ffile-prefix-map=$NDK_ROOT=/android-ndk -fmacro-prefix-map=$NDK_ROOT=/android-ndk"
     setup_and_build "$BUILD_DIR" --cross-file "$CROSS_FILE"
     "$TOOLCHAIN/llvm-strip" "$BUILD_DIR/libamphion_audio_processing.so"
     ;;

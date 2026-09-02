@@ -137,6 +137,11 @@ export SHERPA_ONNX_ENABLE_JNI=ON
 export SHERPA_ONNX_ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-24}" # 与 SDK minSdk 一致
 export BUILD_SHARED_LIBS=ON
 
+# Prevent __FILE__ diagnostics and debug metadata from embedding developer-machine paths.
+PATH_MAP_FLAGS="-ffile-prefix-map=$REPO_ROOT=. -fmacro-prefix-map=$REPO_ROOT=. -ffile-prefix-map=$ANDROID_NDK=/android-ndk -fmacro-prefix-map=$ANDROID_NDK=/android-ndk"
+export CFLAGS="${CFLAGS:+$CFLAGS }$PATH_MAP_FLAGS"
+export CXXFLAGS="${CXXFLAGS:+$CXXFLAGS }$PATH_MAP_FLAGS"
+
 build_one_abi() {
   local ABI="$1"
   local SCRIPT
@@ -160,6 +165,19 @@ build_one_abi() {
   echo "[BUILD] ABI = $ABI"
   echo "[BUILD] script = $SCRIPT"
   echo "================================================"
+
+  # CMake only seeds CFLAGS/CXXFLAGS when their cache entries are first created.
+  # Update just those generated entries so an existing build directory also
+  # picks up the path-redaction flags. The ONNX locations are needed while this
+  # cached build is reconfigured; the upstream script exports the same values.
+  local BUILD_DIR="$SHERPA_ROOT/build-android-${ABI}"
+  if [[ -f "$BUILD_DIR/CMakeCache.txt" ]]; then
+    export SHERPA_ONNXRUNTIME_LIB_DIR="$BUILD_DIR/$ONNX_VER/jni/$ABI/"
+    export SHERPA_ONNXRUNTIME_INCLUDE_DIR="$BUILD_DIR/$ONNX_VER/headers/"
+    cmake -S "$SHERPA_ROOT" -B "$BUILD_DIR" \
+      -D CMAKE_C_FLAGS:STRING="$CFLAGS" \
+      -D CMAKE_CXX_FLAGS:STRING="$CXXFLAGS" >/dev/null
+  fi
   ( cd "$SHERPA_ROOT" && bash "$SCRIPT" )
 
   local OUT_DIR="$SHERPA_ROOT/build-android-${ABI}/install/lib"

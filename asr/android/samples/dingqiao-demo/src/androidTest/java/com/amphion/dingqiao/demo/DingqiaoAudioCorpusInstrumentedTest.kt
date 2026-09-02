@@ -61,7 +61,6 @@ class DingqiaoAudioCorpusInstrumentedTest {
         )
 
         prepareSdkRuntime(
-            testContext,
             context,
             File(context.getExternalFilesDir(null), "dingqiao_work_eval"),
         )

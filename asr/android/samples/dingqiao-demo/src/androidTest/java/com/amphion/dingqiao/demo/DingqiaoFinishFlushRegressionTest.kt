@@ -72,7 +72,6 @@ class DingqiaoFinishFlushRegressionTest {
     @Test
     fun assetLicenseInfoReflectsRuntimeLicense() {
         prepareSdkRuntime(
-            testContext,
             targetContext,
             File(targetContext.getExternalFilesDir(null), "dingqiao_work_license"),
         )
@@ -101,7 +100,6 @@ class DingqiaoFinishFlushRegressionTest {
 
     private fun createEngine(): SpeechRecognitionEngine {
         prepareSdkRuntime(
-            testContext,
             targetContext,
             File(targetContext.getExternalFilesDir(null), "dingqiao_work_finish_flush"),
         )

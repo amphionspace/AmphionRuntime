@@ -25,6 +25,11 @@ class RepositoryVersionsTest(unittest.TestCase):
         self.assertTrue(any("stale" in item for item in violations))
         self.assertTrue(any("single repository-wide" in item for item in violations))
 
+    def test_android_samples_follow_sdk_version(self) -> None:
+        repo_root = MODULE_PATH.parents[1]
+        versions = MODULE.read_versions(repo_root)
+        self.assertEqual(MODULE.find_source_violations(repo_root, versions), [])
+
 
 if __name__ == "__main__":
     unittest.main()

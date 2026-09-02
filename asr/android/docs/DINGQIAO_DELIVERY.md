@@ -22,7 +22,7 @@
 | `:sdk-dingqiao` | `com.amphion.dingqiao` | `SpeechRecognizeSdk` |
 | `:sdk-police` | `com.amphion.police` | `PoliceEnhancePipeline`（由 dingqiao 内部调用） |
 
-**不在交付范围：** `:samples:public-demo` 云端 ASR、Batch Eval；`:samples:internal-eval` 内部评测。
+**不在交付范围：** `:samples:internal-eval` 内部评测。`:samples:public-demo` 已移除云端 ASR 与 Batch Eval，不声明联网权限，也不包含评测数据采集入口。
 
 ## 2. 交付物清单（当前 Android ASR 客户包）
 
