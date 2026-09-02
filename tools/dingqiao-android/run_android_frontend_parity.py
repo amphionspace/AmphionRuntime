@@ -191,7 +191,7 @@ def normalize_with_host_tn(row: dict, zh_tn: TnProcess, en_tn: TnProcess) -> str
 
 
 def python_cleaned_text(repo: Path, tn_text: str, language: str) -> str:
-    dingqiao_root = repo / "dingqiao_lits"
+    dingqiao_root = repo / "tts" / "training" / "dingqiao_lits"
     sys.path.insert(0, str(dingqiao_root))
     from lits.text import text_to_sequence  # pylint: disable=import-error,import-outside-toplevel
 

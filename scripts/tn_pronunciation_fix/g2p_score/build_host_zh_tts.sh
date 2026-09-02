@@ -13,20 +13,20 @@ set -euo pipefail
 #   # then: export ZH_TTS=<printed path>   (score_all.py reads $ZH_TTS)
 #
 # Env overrides:
-#   OUT_DIR            build/output root (default: dingqiao_lits/build/host-tn, gitignored)
+#   OUT_DIR            build/output root (default: tts/training/dingqiao_lits/build/host-tn, gitignored)
 #   ICU_SOURCES_TGZ    path to icu4c-78.1-sources.tgz (else auto-download)
 #   FORCE=1            rebuild even if the binary already exists
 #   BUILD_EN=1         also build en_tts
 # =============================================================================
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-TN="$REPO/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
-OUT_DIR="${OUT_DIR:-$REPO/dingqiao_lits/build/host-tn}"
+TN="$REPO/tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
+OUT_DIR="${OUT_DIR:-$REPO/tts/training/dingqiao_lits/build/host-tn}"
 ICU_PREFIX="$OUT_DIR/icu-inst"
 BIN="$OUT_DIR/zh_tts"
 
 if [[ ! -f "$TN/zh.cpp" ]]; then
   echo "TN submodule not checked out. Run:" >&2
-  echo "  git submodule update --init dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS" >&2
+  echo "  git submodule update --init tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS" >&2
   echo "  (private repo; the logged-in gh account needs access — HTTPS works via gh creds)" >&2
   exit 1
 fi

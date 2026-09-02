@@ -11,6 +11,20 @@ from pathlib import Path, PurePosixPath
 
 
 ALLOWED_ROOT_MARKDOWN = {"AGENTS.md", "README.md"}
+ALLOWED_ROOT_DIRECTORIES = {
+    ".cursor",
+    ".github",
+    "asr",
+    "ci",
+    "delivery",
+    "docs",
+    "evaluation",
+    "scripts",
+    "shared",
+    "third_party",
+    "tools",
+    "tts",
+}
 REQUIRED_FILES = {
     "asr/docs/api/语音识别SDK接口-20260622.md",
     "tts/docs/api/语音合成SDK接口.md",
@@ -43,6 +57,9 @@ def find_path_violations(paths: Iterable[str]) -> list[str]:
         if len(parts) == 1 and item.lower().endswith((".md", ".markdown")):
             if item not in ALLOWED_ROOT_MARKDOWN:
                 violations.append(f"root Markdown must belong to a module or docs/: {item}")
+
+        if len(parts) > 1 and parts[0] not in ALLOWED_ROOT_DIRECTORIES:
+            violations.append(f"tracked root directory is not module-owned: {parts[0]}")
 
         if parts and parts[0].startswith(LICENSE_DELIVERY_PREFIX):
             violations.append(f"license delivery directory must not be tracked at root: {parts[0]}")

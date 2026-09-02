@@ -24,6 +24,12 @@ class RepositoryLayoutTest(unittest.TestCase):
         violations = MODULE.find_path_violations({*self.valid_paths(), "SDK_API.md"})
         self.assertTrue(any("root Markdown" in item for item in violations))
 
+    def test_rejects_unowned_root_directory(self) -> None:
+        violations = MODULE.find_path_violations(
+            {*self.valid_paths(), "standalone_training_project/train.py"}
+        )
+        self.assertTrue(any("root directory is not module-owned" in item for item in violations))
+
     def test_rejects_trailing_whitespace_component(self) -> None:
         violations = MODULE.find_path_violations({*self.valid_paths(), "test /cases.jsonl"})
         self.assertTrue(any("trailing whitespace" in item for item in violations))

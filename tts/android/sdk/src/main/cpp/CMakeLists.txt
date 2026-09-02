@@ -6,12 +6,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(LITS_WORKSPACE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../../../..")
-set(LITS_SOURCE_DIR_NAME "dingqiao_lits")
+set(LITS_SOURCE_ROOT_RELATIVE "tts/training/dingqiao_lits")
 set(TN_PACKAGE_DIR_NAME "Dingqiao_Multilingual_Text_Normalization_for_TTS")
 get_filename_component(SDK_PROJECT_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../.." ABSOLUTE)
-set(LITS_TN_ROOT "${LITS_WORKSPACE_ROOT}/${LITS_SOURCE_DIR_NAME}/${TN_PACKAGE_DIR_NAME}")
-set(ANDROID_ICU_ROOT "${LITS_WORKSPACE_ROOT}/${LITS_SOURCE_DIR_NAME}/build/android-icu/android-arm64-install")
-set(ANDROID_ICU_LIB_DIR "${LITS_WORKSPACE_ROOT}/${LITS_SOURCE_DIR_NAME}/build/android-icu/android-arm64-build/lib")
+set(LITS_TN_ROOT "${LITS_WORKSPACE_ROOT}/${LITS_SOURCE_ROOT_RELATIVE}/${TN_PACKAGE_DIR_NAME}")
+set(ANDROID_ICU_ROOT "${LITS_WORKSPACE_ROOT}/${LITS_SOURCE_ROOT_RELATIVE}/build/android-icu/android-arm64-install")
+set(ANDROID_ICU_LIB_DIR "${LITS_WORKSPACE_ROOT}/${LITS_SOURCE_ROOT_RELATIVE}/build/android-icu/android-arm64-build/lib")
 
 add_library(lits_tn SHARED
     lits_tn_jni.cpp
@@ -22,7 +22,7 @@ add_library(lits_tn SHARED
 target_compile_definitions(lits_tn PRIVATE U_STATIC_IMPLEMENTATION)
 target_compile_options(lits_tn PRIVATE
     "-ffile-prefix-map=${LITS_TN_ROOT}=/lits_tn_runtime_source"
-    "-ffile-prefix-map=${LITS_WORKSPACE_ROOT}/${LITS_SOURCE_DIR_NAME}=/lits_src_pack_"
+    "-ffile-prefix-map=${LITS_WORKSPACE_ROOT}/${LITS_SOURCE_ROOT_RELATIVE}=/lits_src_pack_"
     "-ffile-prefix-map=${SDK_PROJECT_ROOT}=/lits_sdk_workspace"
 )
 

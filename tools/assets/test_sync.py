@@ -153,6 +153,19 @@ class AssetSyncTest(unittest.TestCase):
                 with self.assertRaisesRegex(MODULE.AssetError, "unclassified"):
                     MODULE.audit_ignored(root, manifest, {bundle.name: bundle})
 
+    def test_generated_frontend_dictionaries_are_classified_narrowly(self) -> None:
+        manifest = json.loads(MODULE.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+        generated = [
+            "tts/android/external-resources/tts/model/1.0/chinese_lexicon.bin",
+            "tts/android/external-resources/tts/model/1.0/cmudict.bin",
+            "tts/tools/trial-export/model/1.0/chinese_lexicon.bin",
+            "tts/tools/trial-export/model/1.0/cmudict.bin",
+        ]
+        for path in generated:
+            with self.subTest(path=path):
+                self.assertEqual("generated-output", MODULE.policy_match(path, manifest))
+        self.assertIsNone(MODULE.policy_match("private/model.bin", manifest))
+
     def test_test_data_include_uses_shared_cache_root(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

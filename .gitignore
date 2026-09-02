@@ -101,8 +101,8 @@ tts/tools/trial-export/lits_delivery_16k_hifigan/1.0.0/*
 tools/trial-export/
 
 # Local-only TTS training/evaluation inputs and runtime binaries
-dingqiao_lits/data/filelists/*.txt
-dingqiao_lits/*_query_samples.jsonl
+tts/training/dingqiao_lits/data/filelists/*.txt
+tts/training/dingqiao_lits/*_query_samples.jsonl
 tools/dingqiao-android/frontend_golden_cases.jsonl
 tts/android/aarHost/src/androidTest/assets/*
 tts/android/sdk/src/androidTest/assets/*

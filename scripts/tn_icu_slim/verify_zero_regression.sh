@@ -23,7 +23,7 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
-TN="$REPO/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
+TN="$REPO/tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
 [[ -f "$TN/en.cpp" ]] || { echo "TN submodule not checked out at $TN" >&2; exit 1; }
 WORK="${WORK:-$HERE/.verify-work}"; mkdir -p "$WORK/bin" "$WORK/out" "$WORK/in"
 
