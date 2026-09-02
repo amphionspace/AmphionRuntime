@@ -151,6 +151,29 @@
         }
       ]
     },
+    "harmony-demo-license-v1": {
+      "description": "Current Harmony Dingqiao demo runtime license",
+      "license": "confidential-team-material",
+      "source": "Local controlled Harmony demo license",
+      "redistribution": "team-internal-only",
+      "destination": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/resources/rawfile",
+      "archive_root": "rawfile",
+      "archive_type": "zip",
+      "object": "secure/harmony-demo-license-v1/de883ed3f33f40920d8a51668f14f0d90726a6716fe58c978e5afd239d4daf61.zip",
+      "size": 873,
+      "sha256": "de883ed3f33f40920d8a51668f14f0d90726a6716fe58c978e5afd239d4daf61",
+      "encryption": "sse-kms",
+      "merge_destination": true,
+      "allow_extra_files": true,
+      "files": [
+        {
+          "path": "amphion-license.lic",
+          "size": 985,
+          "sha256": "72d38c1631c89b4166a2f334753b3095d38442ed0335fd179b0d694680b2338d",
+          "mode": "0644"
+        }
+      ]
+    },
     "team-secure-state-v1": {
       "description": "Team-only license root, signing configuration, and device allowlists",
       "license": "confidential-team-material",
@@ -223,16 +246,7 @@
         "category": "credentials-and-customer-data",
         "reason": "Restricted local inputs not registered in the SSE-KMS bundle remain outside the collaboration store.",
         "patterns": [
-          "**/*-private.pem",
-          "**/amphion-license.lic",
           "**/keystore/**",
-          "current_usb_device_sn.txt",
-          "tools/license/*.pem",
-          "tools/license/*.lic",
-          "asr/tools/license/*.pem",
-          "asr/tools/license/*.lic",
-          "tts/tools/license/*.pem",
-          "tts/tools/license/*.lic",
           "asr/tools/speaker/data/**",
           "**/resources/rawfile/msbench/**",
           "**/ets/util/TtsBench.ets",
