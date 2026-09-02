@@ -11,27 +11,26 @@ Vocos 相关文件均 vendored 在仓库内，无需依赖外部 `VOCOS` 仓库�
 ```
 vocos/
 ├── vocoder.py        # 推理加载器
-├── generator.ckpt    # generator 权重（仅 backbone + head，~38MB，git-lfs）
 ├── config.yaml       # 训练配置（用于还原 mel / 模型超参）
 └── *.py              # vendored Vocos 模型代码
+
+vocos-24k/
+├── last.ckpt         # 24 kHz 训练 checkpoint（由资产同步恢复）
+└── hparams.yaml      # 训练参数；Python 实现统一复用 ../vocos/
 ```
 
-- 默认 checkpoint：`./vocos/generator.ckpt`
+- 默认 checkpoint：`./vocos-24k/last.ckpt`
 - 采样率：24 kHz，`n_mels=100`，`hop_size=384`
-- `inference_stream.py` 固定使用 Vocos 声码器（默认 `./vocos/generator.ckpt`）
+- `inference_stream.py` 固定使用 Vocos 声码器（默认 `./vocos-24k/last.ckpt`）
 
-## 1) Clone with Git LFS (required)
+## 1) 恢复训练 checkpoint
 
-This repo contains checkpoint files, so Git LFS is required.
+模型权重不进入 Git。首次使用时在 AmphionRuntime 仓库根目录从团队 OBS 恢复版本化资产：
 
 ```bash
-# install git-lfs first (Ubuntu/Debian)
-apt-get update && apt-get install -y git-lfs
-
-git lfs install
-git clone https://github.com/hhxxwwestrella/Multilingual_LITs.git
-cd Multilingual_LITs
-git lfs pull
+python3 tools/assets/sync.py fetch tts-checkpoints-v3-20260806
+python3 tools/assets/sync.py verify tts-checkpoints-v3-20260806
+cd tts/training/dingqiao_lits
 ```
 
 ## 2) Prepare environment
@@ -43,7 +42,11 @@ conda create -n lits python=3.10.18
 conda activate lits
 pip install -r lits_requirements.txt
 pip install ttsfrd==0.2.1 -f https://modelscope.oss-cn-beijing.aliyuncs.com/releases/repo.html
+python lits/utils/monotonic_align/setup.py build_ext --inplace
 ```
+
+`monotonic_align` 的 `core.c` 和平台专用 `core.cpython-*.so` 都是本机生成物，不进入 Git。
+换 Python 版本或操作系统后重新执行上面的 `build_ext`，避免误用其他机器编译的扩展。
 
 ## 3) Input format (`wav_path|text`)
 
@@ -125,7 +128,7 @@ export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
 ```
 
 - 默认 acoustic checkpoint：`./model_checkpoints/en-zh.ckpt`
-- 默认 vocoder：`vocos`（`./vocos/generator.ckpt`）
+- 默认 vocoder：`vocos`（`./vocos-24k/last.ckpt`）
 - 输出目录：`./infer_output/<infer_id>/`
 - 元数据：`./infer_output/<infer_id>/meta.txt`
 - 输出采样率：24 kHz
@@ -137,7 +140,7 @@ python inference_stream.py \
   --model_lang en-zh-dict \
   --checkpoint ./model_checkpoints/en-zh.ckpt \
   --input_txt <input_txt> \
-  --vocos_checkpoint ./vocos/generator.ckpt \
+  --vocos_checkpoint ./vocos-24k/last.ckpt \
   --output_sample_rate 24000 \
   ...
 ```

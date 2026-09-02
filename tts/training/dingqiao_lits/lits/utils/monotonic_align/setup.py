@@ -1,7 +1,22 @@
-# from distutils.core import setup
-# from Cython.Build import cythonize
-# import numpy
+from pathlib import Path
 
-# setup(name='monotonic_align',
-#       ext_modules=cythonize("core.pyx"),
-#       include_dirs=[numpy.get_include()])
+import numpy
+from Cython.Build import cythonize
+from setuptools import Extension, setup
+
+
+SOURCE = Path(__file__).with_name("core.pyx")
+
+setup(
+    name="lits-monotonic-align",
+    ext_modules=cythonize(
+        [
+            Extension(
+                "lits.utils.monotonic_align.core",
+                [str(SOURCE)],
+                include_dirs=[numpy.get_include()],
+            )
+        ],
+        compiler_directives={"language_level": "3"},
+    ),
+)
