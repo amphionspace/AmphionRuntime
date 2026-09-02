@@ -170,6 +170,28 @@ class AssetSyncTest(unittest.TestCase):
                 with self.assertRaisesRegex(MODULE.AssetError, "unclassified"):
                     MODULE.audit_ignored(root, manifest, {bundle.name: bundle})
 
+    def test_audit_unions_versioned_bundles_with_the_same_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old = self.restricted_bundle(root)
+            current = self.restricted_bundle(root)
+            current.definition["files"] = [
+                {
+                    "path": "material/current.bin",
+                    "size": 7,
+                    "sha256": MODULE.hashlib.sha256(b"payload").hexdigest(),
+                }
+            ]
+            manifest = {"ignored_asset_policy": {"excluded": []}}
+            ignored = [".secure/material/current.bin"]
+            with mock.patch.object(MODULE, "ignored_files", return_value=ignored):
+                counts = MODULE.audit_ignored(
+                    root,
+                    manifest,
+                    {"secure-v1": old, "secure-v2": current},
+                )
+            self.assertEqual({"synchronized": 1}, counts)
+
     def test_generated_frontend_dictionaries_are_classified_narrowly(self) -> None:
         manifest = json.loads(MODULE.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
         generated = [
@@ -177,6 +199,14 @@ class AssetSyncTest(unittest.TestCase):
             "tts/android/external-resources/tts/model/1.0/cmudict.bin",
             "tts/tools/trial-export/model/1.0/chinese_lexicon.bin",
             "tts/tools/trial-export/model/1.0/cmudict.bin",
+            "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/"
+            "amphion-dingqiao/eres2net.onnx",
+            "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/"
+            "amphion-dingqiao/pyannote-segmentation-3.0.LICENSE",
+            "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/"
+            "amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+            "asr/harmony/sdk-police/src/main/resources/rawfile/"
+            "amphion-police/lac/v1/lac_encoder.onnx",
         ]
         for path in generated:
             with self.subTest(path=path):

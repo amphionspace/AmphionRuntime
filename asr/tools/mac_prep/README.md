@@ -4,9 +4,9 @@
 
 | 步骤 | 脚本 | 对应 |
 | --- | --- | --- |
-| ① 环境自检 | `bash scripts/mac_prep/01_check_env.sh` | JDK / SDK / adb / submodule |
-| ② 拉 submodule | `bash scripts/mac_prep/02_init_submodule.sh` | sherpa-onnx |
-| ③ demo 编 APK + 单测 | `bash scripts/mac_prep/03_build_demo.sh` | QUICKSTART 精简链 |
+| ① 环境自检 | `bash asr/tools/mac_prep/01_check_env.sh` | JDK / SDK / adb / submodule |
+| ② 拉 submodule | `bash asr/tools/mac_prep/02_init_submodule.sh` | sherpa-onnx |
+| ③ demo 编 APK + 单测 | `bash asr/tools/mac_prep/03_build_demo.sh` | QUICKSTART 精简链 |
 
 ## Android Studio / SDK 路径（Homebrew 装完后）
 
@@ -22,7 +22,7 @@
 每次开终端加载环境：
 
 ```bash
-source /Users/amphion/Desktop/work/projects/鼎桥/AmphionRuntime/scripts/mac_prep/00_android_env.sh
+source asr/tools/mac_prep/00_android_env.sh
 ```
 
 **第一次**：打开 Android Studio → 完成 Setup Wizard → **SDK Manager**：
@@ -35,10 +35,10 @@ source /Users/amphion/Desktop/work/projects/鼎桥/AmphionRuntime/scripts/mac_pr
 装完终端执行：
 
 ```bash
-source scripts/mac_prep/00_android_env.sh
-bash scripts/mac_prep/01_check_env.sh
+source asr/tools/mac_prep/00_android_env.sh
+bash asr/tools/mac_prep/01_check_env.sh
 # 若仍 WARN NDK，且已装 Command-line Tools：
-bash scripts/mac_prep/01b_install_ndk.sh
+bash asr/tools/mac_prep/01b_install_ndk.sh
 ```
 
 若 `01_check_env` 仍报 SDK MISS，但 Studio 已装好：先 `source 00_android_env.sh` 再检查（路径应为 `~/Library/Android/sdk`）。
@@ -72,7 +72,7 @@ python3 generate_eval_subset.py
 `gradlew` 在 **`asr/android`**，不在仓库根目录：
 
 ```bash
-cd /Users/amphion/Desktop/work/projects/鼎桥/AmphionRuntime/asr/android
+cd asr/android
 ./gradlew :samples:public-demo:assembleDebug
 adb devices   # 必须先看到一台 device
 adb install -r samples/public-demo/build/outputs/apk/debug/public-demo-debug.apk

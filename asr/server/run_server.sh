@@ -27,7 +27,7 @@ fi
 
 # 可覆盖参数（默认即推荐生产值）
 PORT="${PORT:-50051}"
-MANIFEST="${MANIFEST:-/home/ubuntu/models/onnx/k2/260628/ctc-chunk16-lc128/manifest.server.json}"
+MANIFEST="${MANIFEST:-}"
 PROVIDER="${PROVIDER:-cuda}"
 ENCODER_PRECISION="${ENCODER_PRECISION:-fp32}"
 DECODE_WORKERS="${DECODE_WORKERS:-2}"
@@ -45,6 +45,7 @@ ENDPOINT_RULE3="${ENDPOINT_RULE3:-20.0}"
 # fail-fast：缺二进制/lib/manifest 直接报错，避免起到一半才崩。
 [[ -x "$BIN" ]] || { echo "[run] 找不到可执行: $BIN（先编译 asr_service）" >&2; exit 1; }
 [[ -f "$SHERPA_LIB/libonnxruntime.so" ]] || { echo "[run] 找不到 onnxruntime: $SHERPA_LIB（先编 sherpa GPU）" >&2; exit 1; }
+[[ -n "$MANIFEST" ]] || { echo "[run] 请通过 MANIFEST=/path/to/manifest.server.json 指定模型" >&2; exit 1; }
 [[ -f "$MANIFEST" ]] || { echo "[run] 找不到 manifest: $MANIFEST" >&2; exit 1; }
 
 echo "[run] listen=0.0.0.0:$PORT manifest=$MANIFEST provider=$PROVIDER precision=$ENCODER_PRECISION workers=$DECODE_WORKERS decoding=$DECODING_METHOD beam=$MAX_ACTIVE_PATHS batch=$MAX_BATCH_SIZE loop=${LOOP_INTERVAL_MS}ms endpoint=r1=$ENDPOINT_RULE1/r2=$ENDPOINT_RULE2/r3=$ENDPOINT_RULE3"

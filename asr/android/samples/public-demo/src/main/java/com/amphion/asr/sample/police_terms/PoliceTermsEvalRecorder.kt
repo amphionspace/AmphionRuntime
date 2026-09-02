@@ -31,7 +31,7 @@ class PoliceTermsEvalRecorder(context: Context) {
 
         fun pullHint(): String =
             "adb pull /sdcard/Android/data/com.amphion.asr.sample/files/police-terms-eval " +
-                "./evaluation/police_terms/roundN"
+                "./asr/evaluation/police_terms/roundN"
     }
 
     init {

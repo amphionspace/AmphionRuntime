@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 在终端里 source 本文件，或把末尾「写入 ~/.zshrc」段复制进去。
-# 用法: source /path/to/amphion-runtime/scripts/mac_prep/00_android_env.sh
+# 用法: source /path/to/amphion-runtime/asr/tools/mac_prep/00_android_env.sh
 
 # ----- Java 17（Gradle 需要）-----
 if /usr/libexec/java_home -v 17 &>/dev/null; then

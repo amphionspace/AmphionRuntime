@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets
  * 这两类是甲方现网主力牌、也是老方案 V1 重点精调对象。复用历史真机 plate_eval.tsv
  * （`expected_plate` + `asr_raw` 已就绪），把 asr_raw 喂进**当前** V1 / V2，分牌别统计。
  *
- * 无语料时优雅跳过。报告写到 `evaluation/plate_number/metrics_jiR_liaoB_v1v2.txt`。
+ * 无语料时优雅跳过。报告写到 `asr/evaluation/plate_number/metrics_jiR_liaoB_v1v2.txt`。
  */
 class HebeiLiaoningRealAsrTest {
 
@@ -126,7 +126,7 @@ class HebeiLiaoningRealAsrTest {
         if (d == 0) "n/a" else String.format("%.1f%%", 100.0 * n / d)
 
     private fun locateEvalBase(): File {
-        val rel = "evaluation/plate_number"
+        val rel = "asr/evaluation/plate_number"
         var dir: File? = File(System.getProperty("user.dir") ?: ".").canonicalFile
         repeat(12) {
             val baseDir = dir ?: return@repeat
