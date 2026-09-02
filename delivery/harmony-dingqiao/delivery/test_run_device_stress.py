@@ -26,6 +26,9 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_short_memory_run_summary_uses_the_metrics_threshold(self) -> None:
+        self.assertEqual(60.0, MODULE.MIN_MEMORY_SLOPE_SECONDS)
+
     def test_default_corpus_uses_versioned_test_data_cache(self) -> None:
         with mock.patch.object(sys, "argv", [str(SCRIPT)]):
             args = MODULE.parse_args()
