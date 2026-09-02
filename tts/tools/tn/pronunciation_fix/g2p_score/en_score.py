@@ -56,19 +56,24 @@ def phones_for_word(raw):
         if out: return out
     return spell(norm)
 
-parser = argparse.ArgumentParser(description="Score English frontend pronunciation fixtures.")
-parser.add_argument("fixture", type=Path, help="JSONL fixture containing text and golden_pinyin.")
-args = parser.parse_args()
-rows=[json.loads(l) for l in args.fixture.open(encoding='utf-8') if l.strip()]
-tot=Counter(); ok=Counter(); fails={}
-for r in rows:
-    c=r['category']; g=r['golden_pinyin']; m=phones_for_word(r['text'])
-    tot[c]+=1
-    if m==g: ok[c]+=1
-    else: fails.setdefault(c,[]).append((r['text'],' '.join(g),' '.join(m)))
-print("=== 设备逻辑忠实模拟 vs golden ===")
-for c in tot: print(f"{c:22} {ok[c]:3}/{tot[c]:3} = {100*ok[c]//tot[c]}%")
-print(f"{'TOTAL':22} {sum(ok.values()):3}/{sum(tot.values()):3} = {100*sum(ok.values())//sum(tot.values())}%")
-for c in fails:
-    print(f"\n--- {c}: {len(fails[c])} 失败(前4)---")
-    for t,g,m in fails[c][:4]: print(f"  {t:16} gold={g:34} dev={m}")
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Score English frontend pronunciation fixtures.")
+    parser.add_argument("fixture", type=Path, help="JSONL fixture containing text and golden_pinyin.")
+    args = parser.parse_args()
+    rows=[json.loads(l) for l in args.fixture.open(encoding='utf-8') if l.strip()]
+    tot=Counter(); ok=Counter(); fails={}
+    for r in rows:
+        c=r['category']; g=r['golden_pinyin']; m=phones_for_word(r['text'])
+        tot[c]+=1
+        if m==g: ok[c]+=1
+        else: fails.setdefault(c,[]).append((r['text'],' '.join(g),' '.join(m)))
+    print("=== 设备逻辑忠实模拟 vs golden ===")
+    for c in tot: print(f"{c:22} {ok[c]:3}/{tot[c]:3} = {100*ok[c]//tot[c]}%")
+    print(f"{'TOTAL':22} {sum(ok.values()):3}/{sum(tot.values()):3} = {100*sum(ok.values())//sum(tot.values())}%")
+    for c in fails:
+        print(f"\n--- {c}: {len(fails[c])} 失败(前4)---")
+        for t,g,m in fails[c][:4]: print(f"  {t:16} gold={g:34} dev={m}")
+
+
+if __name__ == "__main__":
+    main()
