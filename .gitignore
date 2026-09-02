@@ -5,6 +5,7 @@
 .vscode/
 *.swp
 *.swo
+/docs/OPERATION_LOG.md
 
 # --- Android / Gradle ---
 .gradle/

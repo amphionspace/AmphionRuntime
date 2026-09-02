@@ -46,6 +46,20 @@ class RepositoryObservabilityTest(unittest.TestCase):
         violations = self.check("asr/android/reports/run/evidence/logcat.txt", "system log")
         self.assertTrue(any("raw system log" in item for item in violations))
 
+    def test_rejects_private_home_paths_in_docs_and_reports(self) -> None:
+        for relative in ("docs/report.md", "asr/server/reports/run.json"):
+            with self.subTest(relative=relative):
+                violations = self.check(relative, "/Users/alice/private/input.wav")
+                self.assertTrue(any("local home path" in item for item in violations))
+
+    def test_accepts_portable_home_path_examples(self) -> None:
+        self.assertEqual(self.check("docs/setup.md", "/Users/you/project"), [])
+        self.assertEqual(self.check("docs/setup.md", "/home/user/project"), [])
+
+    def test_rejects_raw_operation_log(self) -> None:
+        violations = self.check("docs/OPERATION_LOG.md", "no sensitive text")
+        self.assertTrue(any("operation log" in item for item in violations))
+
 
 if __name__ == "__main__":
     unittest.main()

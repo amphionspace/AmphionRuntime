@@ -15,9 +15,12 @@ EVIDENCE_PREFIXES = (
     "asr/android/reports/",
     "delivery/harmony-dingqiao/evidence/",
 )
+DISALLOWED_TRACKED_FILES = {"docs/OPERATION_LOG.md"}
 TEXT_SUFFIXES = {".csv", ".json", ".jsonl", ".md", ".tsv", ".txt", ".xml"}
 RAW_SYSTEM_LOG_NAMES = re.compile(r"^(?:logcat\.txt|tombstone[^/]*\.txt)$", re.IGNORECASE)
 LOCAL_HOME = re.compile(r"(?:/Users/|/home/)[^\s`'\"<>|]+")
+HOME_WITH_USER = re.compile(r"/(?:Users|home)/(?P<user>[^/\s`'\"<>|]+)/")
+EXAMPLE_HOME_USERS = {"example", "runner", "test", "user", "username", "you"}
 PRIVATE_KEY = re.compile(r"-----BEGIN (?:EC |RSA )?PRIVATE KEY-----")
 RESULT_HEX = re.compile(r"(?i)resultHex(?:\s*[=:]\s*|\"\s*:\s*\")[0-9a-f]+")
 LITERAL_DEVICE = re.compile(
@@ -27,6 +30,18 @@ LITERAL_DEVICE = re.compile(
 )
 SENSITIVE_JSON_KEYS = {"device", "deviceid", "odid", "serial", "serialnumber", "sn"}
 SAFE_IDENTIFIER = re.compile(r"^(?:device-[0-9a-f]{12}|REDACTED|<redacted>|已脱敏)$")
+
+
+def _is_portability_document(relative: str) -> bool:
+    path = PurePosixPath(relative)
+    return relative.startswith(("docs/", "shared/docs/")) or "reports" in path.parts
+
+
+def _contains_private_home_path(text: str) -> bool:
+    return any(
+        match.group("user").lower() not in EXAMPLE_HOME_USERS
+        for match in HOME_WITH_USER.finditer(text)
+    )
 
 
 def tracked_files(repo_root: Path) -> list[str]:
@@ -55,10 +70,15 @@ def _json_identifier_violations(value: object, location: str = "$") -> list[str]
 def find_violations(repo_root: Path, paths: Iterable[str]) -> list[str]:
     violations: list[str] = []
     for relative in sorted(paths):
-        if not relative.startswith(EVIDENCE_PREFIXES):
+        if relative in DISALLOWED_TRACKED_FILES:
+            violations.append(f"raw operation log must not be tracked: {relative}")
+            continue
+        is_evidence = relative.startswith(EVIDENCE_PREFIXES)
+        is_portability_document = _is_portability_document(relative)
+        if not is_evidence and not is_portability_document:
             continue
         path = PurePosixPath(relative)
-        if RAW_SYSTEM_LOG_NAMES.fullmatch(path.name):
+        if is_evidence and RAW_SYSTEM_LOG_NAMES.fullmatch(path.name):
             violations.append(f"raw system log must not be tracked: {relative}")
             continue
         if path.suffix.lower() not in TEXT_SUFFIXES:
@@ -67,17 +87,23 @@ def find_violations(repo_root: Path, paths: Iterable[str]) -> list[str]:
         try:
             text = source.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as error:
-            violations.append(f"cannot inspect evidence {relative}: {error}")
+            violations.append(f"cannot inspect tracked material {relative}: {error}")
             continue
-        for label, pattern in (
-            ("local home path", LOCAL_HOME),
-            ("private key material", PRIVATE_KEY),
-            ("unredacted recognition text", RESULT_HEX),
-            ("literal device identifier", LITERAL_DEVICE),
-        ):
+        patterns = [("private key material", PRIVATE_KEY)]
+        if is_evidence:
+            patterns.extend(
+                (
+                    ("local home path", LOCAL_HOME),
+                    ("unredacted recognition text", RESULT_HEX),
+                    ("literal device identifier", LITERAL_DEVICE),
+                )
+            )
+        elif _contains_private_home_path(text):
+            violations.append(f"local home path in tracked documentation: {relative}")
+        for label, pattern in patterns:
             if pattern.search(text):
-                violations.append(f"{label} in tracked evidence: {relative}")
-        if path.suffix.lower() == ".json":
+                violations.append(f"{label} in tracked material: {relative}")
+        if is_evidence and path.suffix.lower() == ".json":
             try:
                 payload = json.loads(text)
             except json.JSONDecodeError as error:
