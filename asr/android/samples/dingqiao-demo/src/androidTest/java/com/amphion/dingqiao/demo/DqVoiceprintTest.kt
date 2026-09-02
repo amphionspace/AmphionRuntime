@@ -457,8 +457,7 @@ class DqVoiceprintTest {
         private fun ensureReady() {
             if (runtimePrepared) return
             val target = InstrumentationRegistry.getInstrumentation().targetContext
-            val test = InstrumentationRegistry.getInstrumentation().context
-            prepareSdkRuntime(test, target, workDir())
+            prepareSdkRuntime(target, workDir())
             runtimePrepared = true
         }
 

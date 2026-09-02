@@ -29,8 +29,7 @@ class DingqiaoEmbeddedVoiceprintModelInstrumentedTest {
         val model = File(workDir, DINGQIAO_SPEAKER_MODEL_FILENAME)
         assertFalse("test must start without external speaker model", model.exists())
 
-        val testContext = InstrumentationRegistry.getInstrumentation().context
-        prepareSdkRuntime(testContext, context, workDir)
+        prepareSdkRuntime(context, workDir)
 
         assertTrue(
             "preloadVoiceprintModel should install the embedded model",

@@ -28,7 +28,6 @@ class DingqiaoNativeEndpointParityInstrumentedTest {
     @Test
     fun nativeRule3TransitionsPreserveContinuousSession() {
         prepareSdkRuntime(
-            testContext,
             targetContext,
             File(targetContext.getExternalFilesDir(null), "dingqiao_work_endpoint_parity"),
         )

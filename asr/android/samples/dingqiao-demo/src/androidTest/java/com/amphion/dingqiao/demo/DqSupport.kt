@@ -24,6 +24,7 @@ import org.json.JSONObject
 const val DQ_SR = 16_000
 const val DQ_FRAME = 640
 const val DQ_FRAME_MS = 20L
+const val DQ_LICENSE_ASSET = "amphion-license.lic"
 
 enum class CapturedCallbackKind { START, EVENT, PARTIAL, FINAL, COMPLETE, ERROR }
 
@@ -180,20 +181,37 @@ fun stageAsset(testContext: Context, targetContext: Context, assetName: String, 
     return out.absolutePath
 }
 
+/**
+ * 把当前被测 Demo APK 内置的授权落到 filesDir。
+ *
+ * 正向真机测试必须和实际 Demo 使用同一份授权，避免 Git 中的固定日期样本随时间失效。
+ */
+fun stageRuntimeLicense(targetContext: Context, outName: String = "lic/runtime-valid.lic"): String {
+    val out = File(targetContext.filesDir, outName)
+    out.parentFile?.mkdirs()
+    runCatching {
+        targetContext.assets.open(DQ_LICENSE_ASSET).use { input ->
+            out.outputStream().use { input.copyTo(it) }
+        }
+    }.getOrElse { cause ->
+        throw IllegalStateException(
+            "Missing $DQ_LICENSE_ASSET in the Dingqiao Demo APK. " +
+                "Build device tests with -PdingqiaoDemoAssetDir=/path/to/license-assets.",
+            cause,
+        )
+    }
+    return out.absolutePath
+}
+
 /** 按公共生命周期契约激活测试 License 并准备 Runtime。 */
-fun prepareSdkRuntime(testContext: Context, targetContext: Context, workPath: File) {
+fun prepareSdkRuntime(targetContext: Context, workPath: File) {
     SpeechRecognizeSdk.init(targetContext)
     SpeechRecognizeSdk.setWorkPath(workPath.absolutePath)
 
     val licenseDone = CountDownLatch(1)
     var licenseResultCode: Int? = null
     var licenseError: String? = null
-    val licensePath = stageAsset(
-        testContext,
-        targetContext,
-        "licenses/valid.lic",
-        "lic/runtime-valid.lic",
-    )
+    val licensePath = stageRuntimeLicense(targetContext)
     SpeechRecognizeSdk.setLicense(licensePath, object : LicenseActivationCallback {
         override fun onResult(result: LicenseActivationResult) {
             licenseResultCode = result.errorCode
