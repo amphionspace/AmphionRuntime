@@ -9,9 +9,9 @@ PARAM_POLICY = (
     REPO_ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/NumericParam.ts"
 )
-ADAPTER = (
+RECOGNITION_CONFIG = (
     REPO_ROOT
-    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/RecognitionConfig.ets"
 )
 
 
@@ -52,9 +52,9 @@ class HarmonyNumericParamPolicyTest(unittest.TestCase):
         )
 
     def test_adapter_uses_the_shared_policy_for_optional_and_defaulted_params(self) -> None:
-        adapter = ADAPTER.read_text(encoding="utf-8")
-        self.assertIn("return finiteNumberParam(params, key) ?? defaultValue;", adapter)
-        self.assertIn("return finiteNumberParam(params, key);", adapter)
+        config = RECOGNITION_CONFIG.read_text(encoding="utf-8")
+        self.assertIn("return finiteNumberParam(params, key) ?? defaultValue;", config)
+        self.assertIn("return finiteNumberParam(params, key);", config)
 
 
 if __name__ == "__main__":

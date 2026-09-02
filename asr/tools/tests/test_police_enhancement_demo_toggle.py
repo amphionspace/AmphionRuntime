@@ -75,7 +75,15 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
         self.assertIn("Text('警务增强')", demo)
 
     def test_harmony_dingqiao_merges_builtin_police_hotwords_with_user_lexicon(self) -> None:
-        engine = HARMONY_ENGINE.read_text(encoding="utf-8")
+        engine = "\n".join(
+            (
+                HARMONY_ENGINE.read_text(encoding="utf-8"),
+                (
+                    REPO_ROOT
+                    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/RecognitionConfig.ets"
+                ).read_text(encoding="utf-8"),
+            )
+        )
 
         self.assertIn("import { PoliceEngineConfig } from 'amphion_police';", engine)
         self.assertIn(

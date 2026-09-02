@@ -185,10 +185,10 @@ class ReleaseDefaultsTest(unittest.TestCase):
         core = (
             REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets"
         ).read_text(encoding="utf-8")
-        dingqiao = (
+        recognition_config = (
             REPO_ROOT
             / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/"
-            "SpeechRecognizeSdk.ets"
+            "RecognitionConfig.ets"
         ).read_text(encoding="utf-8")
         docs = (
             REPO_ROOT / "delivery/harmony-dingqiao/docs/语音识别SDK接口.md"
@@ -197,7 +197,7 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("disablePrepack: boolean = true;", core)
         self.assertIn(
             "compatibleBooleanParam(params.extraParams, 'disablePrepack', true)",
-            dingqiao,
+            recognition_config,
         )
         self.assertIn("| `disablePrepack` | `boolean/number/string` | `true` |", docs)
 
@@ -308,10 +308,10 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn('IDENTITY_ARGS+=(--build-mode "$BUILD_MODE")', smoke)
 
     def test_speaker_vad_defaults_match_sdk_demo_and_public_docs(self) -> None:
-        sdk = (
+        recognition_config = (
             REPO_ROOT
             / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/"
-            "SpeechRecognizeSdk.ets"
+            "RecognitionConfig.ets"
         ).read_text(encoding="utf-8")
         demo = (
             REPO_ROOT
@@ -324,15 +324,15 @@ class ReleaseDefaultsTest(unittest.TestCase):
 
         self.assertIn(
             "clamp(numberParam(extra, 'speakerVadThreshold', 0.35), -1.0, 1.0)",
-            sdk,
+            recognition_config,
         )
         self.assertIn(
             "clamp(numberParam(extra, 'speakerVadWindowMs', 1500), 500, 5000)",
-            sdk,
+            recognition_config,
         )
         self.assertIn(
             "clamp(numberParam(extra, 'speakerVadHopMs', 500), 100, 2000)",
-            sdk,
+            recognition_config,
         )
         self.assertIn("SPEAKER_VAD_THRESHOLD = 0.35", demo)
         self.assertIn("SPEAKER_VAD_WINDOW_MS = 1500", demo)

@@ -27,4 +27,8 @@ HARMONY_RELEASE_MODES = (
     "user-sequence",
     "numeric-edge",
 )
+HARMONY_FINISH_COMPAT_MODES = (
+    "callback-api-reentrant",
+    "finish-shutdown",
+)
 MIN_LONG_RUN_SECONDS = 60.0

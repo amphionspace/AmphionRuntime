@@ -26,6 +26,10 @@ HARMONY_ENGINE = (
     ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 )
+HARMONY_RECOGNITION_CONFIG = (
+    ROOT
+    / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/RecognitionConfig.ets"
+)
 HARMONY_AUDIO_INFO = (
     ROOT
     / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/AudioInfoValidation.ts"
@@ -65,6 +69,7 @@ class DingqiaoParameterContractTest(unittest.TestCase):
             path.read_text(encoding="utf-8")
             for path in (
                 HARMONY_ENGINE,
+                HARMONY_RECOGNITION_CONFIG,
                 HARMONY_AUDIO_INFO,
                 HARMONY_ENDPOINT_POLICY,
                 HARMONY_AUDIO_LIMIT,

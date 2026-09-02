@@ -83,7 +83,6 @@ LitsTtsSdk\tools\trial-export\dingqiao_lits_en_zh_vocos24k_streaming_proto_exter
 - `manifest.json`
 - `lits_hidden_encoder.onnx`
 - `lits_stream_condition_chunk.onnx`
-- `lits_stream_condition_final.onnx`
 - `lits_stream_decoder_step.onnx`
 - `vocos_vocoder.onnx`
 - `frontend_golden.json`
@@ -98,6 +97,9 @@ LitsTtsSdk\tools\trial-export\dingqiao_lits_en_zh_vocos24k_streaming_proto_exter
 - `zh_en_symbols.json`
 - `pinyin_to_tokens.json`
 - `arpabet_to_tokens.json`
+
+当 manifest 声明 `stream_final_zero_pad_with_chunk_condition=true` 时，不需要
+`lits_stream_condition_final.onnx`；旧 manifest 未声明该字段时仍必须提供该文件。
 - `tn-bin/arm64-v8a/zh_tts`
 - `tn-bin/arm64-v8a/en_tts`
 - `rules_v2/zh.full.json`

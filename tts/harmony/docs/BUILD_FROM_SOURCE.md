@@ -69,7 +69,6 @@ tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loo
 - `manifest.json`
 - `lits_hidden_encoder.onnx`
 - `lits_stream_condition_chunk.onnx`
-- `lits_stream_condition_final.onnx`
 - `lits_stream_decoder_step.onnx`
 - `vocos_vocoder.onnx`
 - `frontend_golden.json`
@@ -85,6 +84,9 @@ tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loo
 - `rules_v2/zh.full.json`
 - `rules_v2/en.full.json`
 - `rules_v2/zh_pinyin.json`
+
+当 manifest 声明 `stream_final_zero_pad_with_chunk_condition=true` 时，不需要
+`lits_stream_condition_final.onnx`；旧 manifest 未声明该字段时仍必须提供该文件。
 
 HarmonyOS 构建会把模型包同步到：
 
