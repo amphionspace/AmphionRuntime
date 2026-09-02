@@ -12,6 +12,10 @@ ANDROID_BUILD = ROOT / "asr/tools/04_build_android_so.sh"
 AGC_BUILD = ROOT / "asr/tools/03_build_agc_native.sh"
 ANDROID_PACKAGE = ROOT / "asr/tools/05_package_aar_libs.sh"
 ANDROID_WORKFLOW = ROOT / ".github/workflows/android.yml"
+ANDROID_REPRODUCIBLE_PATCH = (
+    ROOT
+    / "third_party/patches/sherpa-amphion/0025-build-android-forward-reproducible-flags.patch"
+)
 
 
 def git(*args: str, cwd: Path = ROOT) -> str:
@@ -44,9 +48,15 @@ class SherpaSourceIsolationTest(unittest.TestCase):
             self.assertIn("-fmacro-prefix-map=", source)
         self.assertIn("-ffile-prefix-map=$HOME=/build-host", sherpa_build)
         self.assertIn("-fmacro-prefix-map=$HOME=/build-host", sherpa_build)
+        reproducible_patch = ANDROID_REPRODUCIBLE_PATCH.read_text(encoding="utf-8")
+        self.assertEqual(2, reproducible_patch.count('-DCMAKE_C_FLAGS:STRING="${CFLAGS:-}"'))
+        self.assertEqual(
+            2, reproducible_patch.count('-DCMAKE_CXX_FLAGS:STRING="${CXXFLAGS:-}"')
+        )
         self.assertIn("verify_no_host_paths", package)
         self.assertIn("/Users/", package)
         self.assertIn("/home/", package)
+        self.assertIn("printf '%s\\n' \"$host_paths\"", package)
 
     def test_build_entrypoints_never_reset_the_canonical_submodule(self) -> None:
         gitmodules = (ROOT / ".gitmodules").read_text(encoding="utf-8")

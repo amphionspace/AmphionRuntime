@@ -25,8 +25,11 @@ AGC_ROOT="$REPO_ROOT/asr/native/audio-processing"
 
 verify_no_host_paths() {
   local native_lib="$1"
-  if LC_ALL=C strings "$native_lib" | grep -Eq '/Users/|/home/'; then
+  local host_paths
+  host_paths="$(LC_ALL=C strings "$native_lib" | grep -E '/Users/|/home/' | sort -u | head -20 || true)"
+  if [[ -n "$host_paths" ]]; then
     echo "[ERROR] native library contains a developer-machine path: $native_lib" >&2
+    printf '%s\n' "$host_paths" >&2
     echo "        Rebuild it with the repository native build script before packaging." >&2
     return 1
   fi
