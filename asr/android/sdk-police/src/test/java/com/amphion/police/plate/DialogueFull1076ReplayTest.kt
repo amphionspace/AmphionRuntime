@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets
 class DialogueFull1076ReplayTest {
 
     private val evalDir: File =
-        File("../../../../evaluation/plate_number/dialogue_full_1076").canonicalFile
+        File("../../evaluation/plate_number/dialogue_full_1076").canonicalFile
 
     private val metaList: List<Pair<String, String>> by lazy {
         val meta = File(evalDir, "../staging_dialogue_full_1076/metadata.jsonl").canonicalFile

@@ -1,7 +1,7 @@
 package com.amphion.police.terms
 
 /**
- * 从参考句提取期望警务术语（与 evaluation/police_terms 分析脚本口径一致）。
+ * 从参考句提取期望警务术语（与 asr/evaluation/police_terms 分析脚本口径一致）。
  */
 object PoliceTermsTextUtil {
 

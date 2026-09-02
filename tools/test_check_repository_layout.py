@@ -45,6 +45,12 @@ class RepositoryLayoutTest(unittest.TestCase):
                 violations = MODULE.find_path_violations({*self.valid_paths(), legacy_path})
                 self.assertTrue(any("TTS tooling" in item for item in violations))
 
+    def test_rejects_legacy_asr_tooling_locations(self) -> None:
+        for legacy_path in MODULE.LEGACY_ASR_PATHS:
+            with self.subTest(legacy_path=legacy_path):
+                violations = MODULE.find_path_violations({*self.valid_paths(), legacy_path})
+                self.assertTrue(any("ASR tooling" in item for item in violations))
+
     def test_rejects_local_only_submodule_pin(self) -> None:
         gitlinks = {"third_party/sherpa-onnx": "74e48a3606ac9bac38f4912b1836da53ef7f4bb2"}
         violations = MODULE.find_gitlink_violations(gitlinks)

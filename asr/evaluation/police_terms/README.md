@@ -16,8 +16,8 @@ build_cases.py            # 4 类 -> cases.tsv + build/metadata.jsonl + build/pu
 ## 一次基线全流程
 
 ```bash
-cd evaluation/police_terms
-python3 build_cases.py                       # 生成用例（默认读 test_data/police_terms_20260711）
+cd asr/evaluation/police_terms
+python3 build_cases.py --src /path/to/police_terms_20260711
 ./push_batch_eval.sh --archive-old           # 推真机（旧输出先归档到 _archive/）
 ./run_batch.sh all                           # 跑全部 4 类（fresh）
 # 等设备跑完（logcat -s PoliceTermsBatchEval:I 看进度）

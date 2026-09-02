@@ -10,15 +10,15 @@ import java.nio.charset.StandardCharsets
 class CarPlates2ShanghaiReplayTest {
 
     private val evalDir: File by lazy {
-        val fromModule = File("../../../../evaluation/plate_number/car_plates2_shanghai_zh_20260612_1256")
+        val fromModule = File("../../evaluation/plate_number/car_plates2_shanghai_zh_20260612_1256")
         if (fromModule.isDirectory) fromModule.canonicalFile
         else File(System.getProperty("user.dir"))
-            .resolve("../../../../evaluation/plate_number/car_plates2_shanghai_zh_20260612_1256")
+            .resolve("../../evaluation/plate_number/car_plates2_shanghai_zh_20260612_1256")
             .canonicalFile
     }
 
     private val casesTsv: File by lazy {
-        File("../../../../evaluation/plate_number/staging_car_plates2_shanghai_zh_20260612_1256/cases.tsv")
+        File("../../evaluation/plate_number/staging_car_plates2_shanghai_zh_20260612_1256/cases.tsv")
             .canonicalFile
     }
 
@@ -81,9 +81,9 @@ class CarPlates2ShanghaiReplayTest {
         }
 
         var regress = 0
-        val nationalEval = File("../../../../evaluation/plate_number/car_plates2_zh_20260612_0331/plate_eval.tsv")
+        val nationalEval = File("../../evaluation/plate_number/car_plates2_zh_20260612_0331/plate_eval.tsv")
             .canonicalFile
-        val nationalCases = File("../../../../evaluation/plate_number/staging_car_plates2_zh_20260612_0331/cases.tsv")
+        val nationalCases = File("../../evaluation/plate_number/staging_car_plates2_zh_20260612_0331/cases.tsv")
             .canonicalFile
         if (nationalEval.isFile && nationalCases.isFile) {
             val nc = nationalCases.readLines().drop(1).map { it.split("\t") }

@@ -6,8 +6,8 @@ rebase 比走 lhotse 加载链更可控。
 数据探查结论（参考 [docs/Target_speaker.md] 6.x 节附近）：
 
 - 6555 条 cuts，positive 6227 / negative_silence 164 / negative_distractor 164
-- recording / enrollment 路径形如 `/chenmingjie/mingdong/data/lhotse/...`，
-  本地映射到 `/Users/boxp/data/...`，rebase 命中率 100%
+- recording / enrollment 路径形如 `/chenmingjie/mingdong/data/lhotse/...`；
+  可通过 `AMPHION_AUDIO_ROOT_LOCAL` 或调用参数映射到本机数据目录
 - positive 必带 overlap_ratio (0.1~0.7+)，num_interferers (1/2/3)
 - negative 的 overlap_ratio / num_interferers 为 None / -1，speaker 字段仍保留
 
@@ -38,7 +38,9 @@ from .core import TARGET_SAMPLE_RATE, load_audio_mono16k
 
 
 DEFAULT_AUDIO_ROOT_REMOTE = "/chenmingjie/mingdong/data/lhotse/"
-DEFAULT_AUDIO_ROOT_LOCAL = "/Users/boxp/data/"
+DEFAULT_AUDIO_ROOT_LOCAL = os.environ.get(
+    "AMPHION_AUDIO_ROOT_LOCAL", DEFAULT_AUDIO_ROOT_REMOTE
+)
 
 
 @dataclass

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 从真机拉回 police_terms_eval.tsv 到 evaluation/police_terms/<round>/。
+# 从真机拉回 police_terms_eval.tsv 到 asr/evaluation/police_terms/<round>/。
 #
 # 用法：
 #   ./pull_eval.sh                # 默认拉到 round_baseline/

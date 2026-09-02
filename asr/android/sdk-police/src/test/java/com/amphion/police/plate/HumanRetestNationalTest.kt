@@ -9,10 +9,10 @@ import java.io.FileReader
 import java.nio.charset.StandardCharsets
 
 /**
- * 汇总全部省份真人真机复测语料（evaluation/plate_number/ 各 *_human_retest 目录），
+ * 汇总全部省份真人真机复测语料（asr/evaluation/plate_number/ 各 *_human_retest 目录），
  * 用**当前** V1 / V2 后处理统计分省 + 全国准确率。
  *
- * 运行：bash evaluation/plate_number/run_human_retest_national.sh
+ * 运行：bash asr/evaluation/plate_number/run_human_retest_national.sh
  */
 class HumanRetestNationalTest {
 
@@ -170,7 +170,7 @@ class HumanRetestNationalTest {
         if (d == 0) "n/a" else String.format("%.1f%%", 100.0 * n / d)
 
     private fun locateEvalBase(): File {
-        val rel = "evaluation/plate_number"
+        val rel = "asr/evaluation/plate_number"
         var dir: File? = File(System.getProperty("user.dir") ?: ".").canonicalFile
         repeat(12) {
             val baseDir = dir ?: return@repeat

@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets
  * V2 = [PoliceTermsNormalizerV2]（V1 全局谐音 + 保守字级模糊层：长术语 / 等长近音 / 唯一）。
  *
  * 命中口径同现有回放：expected_terms 每个词出现在输出或原文即算命中。
- * 结果写 evaluation/police_terms/metrics_v1_v2_compare.txt。
+ * 结果写 asr/evaluation/police_terms/metrics_v1_v2_compare.txt。
  */
 class PoliceTermsV1V2CompareTest {
 
@@ -175,7 +175,7 @@ class PoliceTermsV1V2CompareTest {
         var dir: File? = File(System.getProperty("user.dir") ?: ".")
         repeat(8) {
             val base = dir ?: return@repeat
-            val f = File(base, "evaluation/police_terms/$round/police_terms_eval.tsv")
+            val f = File(base, "asr/evaluation/police_terms/$round/police_terms_eval.tsv")
             if (f.isFile) return f
             dir = base.parentFile
         }

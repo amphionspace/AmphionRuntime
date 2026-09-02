@@ -3,7 +3,7 @@
 # 需先通过 01_check_env.sh；首次编 .so 较慢（约 10–30 分钟）
 set -euo pipefail
 
-REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$REPO"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/00_android_env.sh"
 if [[ ! -f "${ANDROID_NDK}/build/cmake/android.toolchain.cmake" ]]; then
   echo "[ERROR] 合法 NDK 未找到。期望: $HOME/Library/Android/sdk/ndk/26.3.11579264"
   echo "        当前 ANDROID_NDK=$ANDROID_NDK"
-  echo "        若 ANDROID_HOME 含 /Android/Android/ 是路径写错了，请: source scripts/mac_prep/00_android_env.sh"
+  echo "        若 ANDROID_HOME 含 /Android/Android/ 是路径写错了，请: source asr/tools/mac_prep/00_android_env.sh"
   exit 1
 fi
 echo "[INFO] ANDROID_HOME=$ANDROID_HOME"

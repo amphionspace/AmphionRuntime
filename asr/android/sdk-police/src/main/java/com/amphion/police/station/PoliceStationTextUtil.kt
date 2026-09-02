@@ -1,7 +1,7 @@
 package com.amphion.police.station
 
 /**
- * 从参考句式提取标准派出所名（与 evaluation/police_station 分析脚本口径一致）。
+ * 从参考句式提取标准派出所名（与 asr/evaluation/police_station 分析脚本口径一致）。
  */
 object PoliceStationTextUtil {
 

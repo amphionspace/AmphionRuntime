@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 初始化 sherpa-onnx；网络不稳时加大 buffer，pin 失败则回退 v1.13.1
 set -euo pipefail
-REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$REPO"
 
 git config --global http.postBuffer 524288000 2>/dev/null || true

@@ -202,10 +202,10 @@ class KespeechRound02ReplayTest {
         var dir: File? = File(System.getProperty("user.dir") ?: ".")
         repeat(6) {
             val base = dir ?: return@repeat
-            val candidate = File(base, "evaluation/police_terms/round01_partial/kespeech_only_eval.tsv")
+            val candidate = File(base, "asr/evaluation/police_terms/round01_partial/kespeech_only_eval.tsv")
             if (candidate.isFile) return candidate
             dir = base.parentFile
         }
-        return File("evaluation/police_terms/round01_partial/kespeech_only_eval.tsv")
+        return File("asr/evaluation/police_terms/round01_partial/kespeech_only_eval.tsv")
     }
 }

@@ -14,13 +14,13 @@ import java.nio.charset.StandardCharsets
  * 用途：当怀疑 TTS 合成音不准导致 V2「假回退」时，用真人真机重录同一批牌复测，
  * 用真实数字裁定「是否可交付 V2-only」。
  *
- * 数据约定（由 evaluation/plate_number/ 下的采集工装产出）：
+ * 数据约定（由 asr/evaluation/plate_number/ 下的采集工装产出）：
  * - 录音清单：`realmic/staging/cases.tsv`     列：utt_id, orig_utt_id, expected_plate, region, text, audio_path
  * - 设备转写：`realmic/result/plate_eval.tsv` 列：timestamp_ms, expected_plate, asr_raw, normalized, plate_extracted, plate_valid
  * 两文件均按 utt_id 排序、行数一致（assemble_realmic.py 保证）。
  *
  * 无录音数据时**优雅跳过**（assumeTrue），不影响常规 CI。
- * 一键运行：`bash evaluation/plate_number/run_realmic_compare.sh`
+ * 一键运行：`bash asr/evaluation/plate_number/run_realmic_compare.sh`
  */
 class RealMicCompareTest {
 
@@ -140,7 +140,7 @@ class RealMicCompareTest {
         if (d == 0) "n/a" else String.format("%.1f%%", 100.0 * n / d)
 
     private fun locateEvalBase(): File {
-        val rel = "evaluation/plate_number"
+        val rel = "asr/evaluation/plate_number"
         var dir: File? = File(System.getProperty("user.dir") ?: ".").canonicalFile
         repeat(12) {
             val baseDir = dir ?: return@repeat

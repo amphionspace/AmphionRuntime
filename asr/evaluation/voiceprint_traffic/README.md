@@ -192,14 +192,14 @@ pilot 规模以能够稳定估计主要 cluster 方差并暴露采集失败模�
 结构检查：
 
 ```bash
-python3 evaluation/voiceprint_traffic/validate_manifest.py \
-  evaluation/voiceprint_traffic/examples/manifest.example.jsonl
+python3 asr/evaluation/voiceprint_traffic/validate_manifest.py \
+  asr/evaluation/voiceprint_traffic/examples/manifest.example.jsonl
 ```
 
 正式验收门禁（会检查文件、hash、WAV 属性和最低规模）：
 
 ```bash
-python3 evaluation/voiceprint_traffic/validate_manifest.py \
+python3 asr/evaluation/voiceprint_traffic/validate_manifest.py \
   /secure/path/voiceprint-traffic-v1/manifest.jsonl \
   --dataset-root /secure/path/voiceprint-traffic-v1 \
   --check-files --acceptance \

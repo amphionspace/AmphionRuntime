@@ -40,7 +40,7 @@ class DingqiaoNativeEndpointParityInstrumentedTest {
         )
         try {
             val wav = mainWavs(testContext).maxByOrNull { readAssetPcm(testContext, it).size }
-                ?: error("no test wav; pass -PdingqiaoEvalAudioDir=/Users/boxp/Downloads/wav")
+                ?: error("no test wav; pass -PdingqiaoEvalAudioDir=/path/to/wav")
             val pcm = readAssetPcm(testContext, wav)
 
             assertEmptyRule3RecoversWithSpeech(engine, pcm)

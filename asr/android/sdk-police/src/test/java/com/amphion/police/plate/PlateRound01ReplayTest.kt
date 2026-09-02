@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets
 class PlateRound01ReplayTest {
 
     private val evalDir: File =
-        File("../../../../evaluation/plate_number/round01").canonicalFile
+        File("../../evaluation/plate_number/round01").canonicalFile
 
     private val metaList: List<Pair<String, String>> by lazy {
         val meta = File(evalDir, "../staging_dialogue_full_1076/metadata.jsonl").canonicalFile

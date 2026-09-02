@@ -48,13 +48,13 @@ def main():
     ap = argparse.ArgumentParser(description="build police_terms batch-eval cases")
     ap.add_argument(
         "--src",
-        default="/Users/amphion/Desktop/work/projects/鼎桥/test_data/police_terms_20260711",
+        required=True,
         help="police_terms_20260711 根目录",
     )
     ap.add_argument(
         "--out",
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "build"),
-        help="产物输出目录（默认 evaluation/police_terms/build）",
+        help="产物输出目录（默认 asr/evaluation/police_terms/build）",
     )
     args = ap.parse_args()
 

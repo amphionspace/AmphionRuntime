@@ -27,10 +27,15 @@ jobs:
           python-version: "3.11"
 
       - name: Test repository layout checker
-        run: python3 tools/test_check_repository_layout.py -v
+        run: |
+          python3 tools/test_check_repository_layout.py -v
+          python3 tools/test_check_repository_versions.py -v
 
       - name: Check repository layout
         run: python3 tools/check_repository_layout.py
+
+      - name: Check documented SDK versions
+        run: python3 tools/check_repository_versions.py
 
       - name: Test Git-external asset synchronization
         run: |

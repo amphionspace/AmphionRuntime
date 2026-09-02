@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets
 
 /**
  * Layer 3：red-team 100 句全 pipeline 回放（术语 → 车牌 → 派出所）。
- * 语料：evaluation/red_team/homophone_collateral_corpus_100.tsv
+ * 语料：asr/evaluation/red_team/homophone_collateral_corpus_100.tsv
  */
 class HomophoneCollateralReplayTest {
 
@@ -267,11 +267,11 @@ class HomophoneCollateralReplayTest {
             ?.let { return File(it) }
         var dir: File? = File(System.getProperty("user.dir") ?: ".")
         repeat(8) {
-            val base = dir ?: return File("../../../../evaluation/red_team/homophone_collateral_corpus_100.tsv")
-            val candidate = File(base, "evaluation/red_team/homophone_collateral_corpus_100.tsv")
+            val base = dir ?: return File("../../evaluation/red_team/homophone_collateral_corpus_100.tsv")
+            val candidate = File(base, "asr/evaluation/red_team/homophone_collateral_corpus_100.tsv")
             if (candidate.isFile) return candidate
             dir = base.parentFile
         }
-        return File("../../../../evaluation/red_team/homophone_collateral_corpus_100.tsv")
+        return File("../../evaluation/red_team/homophone_collateral_corpus_100.tsv")
     }
 }
