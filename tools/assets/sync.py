@@ -295,10 +295,16 @@ def safe_extract(archive: Path, stage: Path, bundle: Bundle) -> Path:
     with zipfile.ZipFile(archive) as payload:
         for item in payload.infolist():
             safe_join(stage, item.filename)
-            mode = (item.external_attr >> 16) & 0o170000
-            if mode == stat.S_IFLNK:
+            file_type = (item.external_attr >> 16) & 0o170000
+            if file_type == stat.S_IFLNK:
                 raise AssetError(f"archive links are not allowed: {item.filename}")
         payload.extractall(stage)
+        for item in payload.infolist():
+            if item.is_dir():
+                continue
+            mode = stat.S_IMODE(item.external_attr >> 16)
+            if mode:
+                os.chmod(safe_join(stage, item.filename), mode)
     extracted = safe_join(stage, str(bundle.definition["archive_root"]))
     if not extracted.is_dir():
         raise AssetError(

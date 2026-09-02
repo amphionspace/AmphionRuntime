@@ -174,20 +174,247 @@
         }
       ]
     },
-    "team-secure-state-v1": {
-      "description": "Team-only license root, signing configuration, and device allowlists",
+    "tts-checkpoints-v3-20260806": {
+      "description": "Dingqiao v3 LITS, MeanFlow step2, and Vocos 24 kHz training checkpoints",
+      "license": "internal-controlled-model",
+      "source": "Amphion controlled pipeline",
+      "redistribution": "team-internal-only",
+      "destination": "tts/training/dingqiao_lits",
+      "archive_root": "dingqiao_lits",
+      "archive_type": "zip",
+      "object": "tts-checkpoints-v3-20260806/700dbac958e136d0812ca7bea751fd86a7e8e89960b4a2ff7e97aabacc9df83a.zip",
+      "size": 894088005,
+      "sha256": "700dbac958e136d0812ca7bea751fd86a7e8e89960b4a2ff7e97aabacc9df83a",
+      "files": [
+        {
+          "path": "lits-en-zh.ckpt",
+          "size": 255883803,
+          "sha256": "4b2d36bdd9654141a622198ce11ff103273616e8e64e832397502fb961f699a9",
+          "mode": "0644"
+        },
+        {
+          "path": "meanflow_student2_biaobei_full_t16_step2_20260715.pt",
+          "size": 85291655,
+          "sha256": "4aae5240ddc33f15f18bc6516f6920654ca2ef9b67803439773490c05bd3818a",
+          "mode": "0644"
+        },
+        {
+          "path": "vocos-24k/last.ckpt",
+          "size": 629066688,
+          "sha256": "e5b5612d3c2825b02ad435db9ac5e311dc0202268495a722d9609e731d1dac14",
+          "mode": "0644"
+        }
+      ],
+      "merge_destination": true,
+      "allow_extra_files": true
+    },
+    "tts-runtime-zhen-v1": {
+      "description": "Dingqiao v3 ZH-EN external-loop ONNX runtime model and frontend resources",
+      "license": "internal-controlled-model",
+      "source": "Amphion controlled pipeline",
+      "redistribution": "team-internal-only",
+      "destination": "tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0",
+      "archive_root": "0.1.0",
+      "archive_type": "zip",
+      "object": "tts-runtime-zhen-v1/6b7be4eaead2ebf5af1bd653bb97d5fd5da2fd0cc52687a822c1d890bbfb8d8b.zip",
+      "size": 158164913,
+      "sha256": "6b7be4eaead2ebf5af1bd653bb97d5fd5da2fd0cc52687a822c1d890bbfb8d8b",
+      "files": [
+        {
+          "path": "arpabet_to_tokens.json",
+          "size": 2256,
+          "sha256": "8bb94d9197247499f2d19853479369d8f0137998991ff300db6af546822e1dfb",
+          "mode": "0644"
+        },
+        {
+          "path": "chinese_lexicon.bin",
+          "size": 18755837,
+          "sha256": "8643111adbc3e84fd2eea6765f6bb9cf395d233d082e3816992b7255fe48cdfc",
+          "mode": "0644"
+        },
+        {
+          "path": "chinese_lexicon.txt",
+          "size": 14780125,
+          "sha256": "aeef947a20c488fb0454df2f61478ebea13ef56876089e0306b2cbeaa199d207",
+          "mode": "0644"
+        },
+        {
+          "path": "chinese_surname_lexicon.txt",
+          "size": 1043,
+          "sha256": "2010afe0b843ec728aad4f36533394fa895dd0d8a21c0f7254ebfb1e8d2776b8",
+          "mode": "0644"
+        },
+        {
+          "path": "cmudict.bin",
+          "size": 6594504,
+          "sha256": "393901ab6836ecbd14cc537cf2e4ecfcb816bb4ab8494ee687ac52d054ac60e1",
+          "mode": "0644"
+        },
+        {
+          "path": "cmudict.txt",
+          "size": 3592051,
+          "sha256": "a4ff51409376837d2ed216f50e318ecbe0b4882524ade3aaace52e82acfca05d",
+          "mode": "0644"
+        },
+        {
+          "path": "export_report.json",
+          "size": 2425,
+          "sha256": "41a01a02fe18d090d2dfd20396cc2dc2072a14a237c1d8dd0690539bb6b49d30",
+          "mode": "0644"
+        },
+        {
+          "path": "external_loop_export_report.json",
+          "size": 1894,
+          "sha256": "7166343b5a6e3df40024159db54911540992dc1956a5a5a76e242ae3c50f31ea",
+          "mode": "0644"
+        },
+        {
+          "path": "frontend_golden.json",
+          "size": 1782,
+          "sha256": "454fdfed7ca3c025b2330a6f81900dd53ba71dcad7cca95566f630b05fb02333",
+          "mode": "0644"
+        },
+        {
+          "path": "frontend_rules.json",
+          "size": 1330,
+          "sha256": "34ee16dc6362df43938214448d3ecacda1d693c6e632752066d7fb1cc10a41b6",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_hidden_encoder.onnx",
+          "size": 29101411,
+          "sha256": "c921308f75b8c433bceebf3208fc82e0728ba51f6814b59f7f176f5720b6f300",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_stream_condition_chunk.onnx",
+          "size": 15594489,
+          "sha256": "1eb7aef563852ed2b994757d267819801dd003226e0b6ef9eb8c4a59c608acf7",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_stream_condition_final.onnx",
+          "size": 15590082,
+          "sha256": "5ad822d9161ad1e709454b26e9ffe1c14b9351bffdbb3f27d57ccc4a8359e4b6",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_stream_decoder_step.onnx",
+          "size": 45044115,
+          "sha256": "0561dc58306ffc012749ef6b0c317ea9f06528bdc2735e8eca0d375456d53387",
+          "mode": "0644"
+        },
+        {
+          "path": "manifest.json",
+          "size": 2642,
+          "sha256": "2d368e80ac79757b0600ac3a400b4089d7749adfd2cd7d22d5924f3179ef00b6",
+          "mode": "0644"
+        },
+        {
+          "path": "pinyin_2_bpmf.txt",
+          "size": 5262,
+          "sha256": "dc8b048a20cf61d04b5a36bc6939db74095719b8099269a1269023ee3e6535b4",
+          "mode": "0644"
+        },
+        {
+          "path": "pinyin_to_tokens.json",
+          "size": 221469,
+          "sha256": "9805455caa214bd8de420adeb8906ff05c85345fea6e3d1c54f248616b5b0323",
+          "mode": "0644"
+        },
+        {
+          "path": "polychar.txt",
+          "size": 636,
+          "sha256": "9df819e371415c23e26a2907236a0228ef93772cc698d93dc0c18844956d1011",
+          "mode": "0644"
+        },
+        {
+          "path": "polyphone_context.txt",
+          "size": 763,
+          "sha256": "d3e84dd4d0965d49121438fa0677fe231a9dba216730bd013912dad744ccf757",
+          "mode": "0644"
+        },
+        {
+          "path": "polyphone_phrases.txt",
+          "size": 3341,
+          "sha256": "b27237bff76f20ab38b8fe2e8f4a66c02db8a010c82827a3d4faa74388ccf55a",
+          "mode": "0644"
+        },
+        {
+          "path": "rules_v2/en.full.json",
+          "size": 112853,
+          "sha256": "0e1a2a1170de5076e4b3996d7ff3a92c2ca848a2b70e72d5e5dfd16931275865",
+          "mode": "0644"
+        },
+        {
+          "path": "rules_v2/zh.full.json",
+          "size": 132603,
+          "sha256": "3366e98ba8049285c5a2d1bbf4a3062341719c4502f965e0ee3e54e28f2f5481",
+          "mode": "0644"
+        },
+        {
+          "path": "rules_v2/zh_pinyin.json",
+          "size": 22481,
+          "sha256": "d41a8043fb8be91309e531e7d48d18e57ec4e557a49f82463be1df16c8d9c3bf",
+          "mode": "0644"
+        },
+        {
+          "path": "supplement_lexicon.json",
+          "size": 278290,
+          "sha256": "9978ffca6229d9faba74dd9d7f2b713278b86195173609b72d0ef70843c1a4da",
+          "mode": "0644"
+        },
+        {
+          "path": "vocos_vocoder.onnx",
+          "size": 61513245,
+          "sha256": "6abd1e9d6f173092666a26794d633bff862a96b5041c36c3d2358fa8778cf65e",
+          "mode": "0644"
+        },
+        {
+          "path": "zh_en_symbols.json",
+          "size": 1590,
+          "sha256": "444d43250d9ea0dcb3fa1bd3afdfaf2fdd94ded066ead021abf0fd788992904d",
+          "mode": "0644"
+        }
+      ]
+    },
+    "tts-harmony-tn-v1": {
+      "description": "HarmonyOS arm64 Chinese and English TTS text-normalization executables",
+      "license": "internal-derived-binary",
+      "source": "Pinned Transsion TN source and ICU build",
+      "redistribution": "team-internal-only",
+      "destination": "tts/harmony/build-ohos-tn",
+      "archive_root": "build-ohos-tn",
+      "archive_type": "zip",
+      "object": "tts-harmony-tn-v1/e80464c15c7778eb396bcdf17e52e375ed46a75898d8f559ab037be43f07009b.zip",
+      "size": 27903669,
+      "sha256": "e80464c15c7778eb396bcdf17e52e375ed46a75898d8f559ab037be43f07009b",
+      "files": [
+        {
+          "path": "en_tts",
+          "size": 36884240,
+          "sha256": "80ab9b064ddca802553eaf4501abd97d83a8a6a1e24514f9da0e9356fee6860d",
+          "mode": "0755"
+        },
+        {
+          "path": "zh_tts",
+          "size": 36883816,
+          "sha256": "5db1cb5d7a6601a15d1e13997dfa2ca65f7c3bece05f62cbbf9197d12cb7ea98",
+          "mode": "0755"
+        }
+      ]
+    },
+    "team-secure-state-v2": {
+      "description": "Team-only license root, device allowlists, and complete Harmony signing materials",
       "license": "confidential-team-material",
-      "source": "Local controlled .secure inputs",
+      "source": "Local controlled secure inputs",
       "redistribution": "team-internal-only",
       "destination": ".secure",
       "archive_root": "secure",
       "archive_type": "zip",
-      "object": "secure/team-secure-state-v1/6fa013e05bee43e2a401367e93e9a25f209bdaf0e26725b0d9250e8fb3c3e49b.zip",
-      "size": 4451,
-      "sha256": "6fa013e05bee43e2a401367e93e9a25f209bdaf0e26725b0d9250e8fb3c3e49b",
-      "encryption": "sse-kms",
-      "merge_destination": true,
-      "allow_extra_files": true,
+      "object": "team-secure-state-v2/53834111aa92bd9dbc5eb2ccb84a6d54482873bdf61b3252ba6aaa4705db211f.zip",
+      "size": 24479,
+      "sha256": "53834111aa92bd9dbc5eb2ccb84a6d54482873bdf61b3252ba6aaa4705db211f",
       "files": [
         {
           "path": "amphion-harmony-asr-eval-20260818.lic",
@@ -236,8 +463,83 @@
           "size": 625,
           "sha256": "e638ea4d39d6dafa9737511a8797281319d4cd76e915729d02a85835de8a2d55",
           "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/certificate.cer",
+          "size": 2910,
+          "sha256": "56c839223ccd7d9fbfb4463442efc2ea8dd57925aa65b8f1b94ddd262e7e1d71",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/keystore.p12",
+          "size": 1128,
+          "sha256": "4c8571ad00cd529100c12e4177f3703216e094baead2ebc6ffe6e276b684de87",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-debug-0.3.7/profile.p7b",
+          "size": 4351,
+          "sha256": "6a546210d7782c8620abfa063be3d713bbfc92d4d46214ab4e51700cc6efca21",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/certificate.cer",
+          "size": 2910,
+          "sha256": "767c1974b3cde264818a81d5282cf6966d9d409bd829c8669f7a88558758d7e0",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/keystore.p12",
+          "size": 1128,
+          "sha256": "8bd02d41191dd9ca66bf7bb6e1608e9e69e5a66d47ba902344a4c0cb47b62759",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/asr-demo/profile.p7b",
+          "size": 4350,
+          "sha256": "43e1560b321e64e09e98a05c69a305fb47b2ce99fb36cc7bd84b04dd0e40fe20",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/certificate.cer",
+          "size": 2910,
+          "sha256": "fd0349c3497b59dbbea2f3d9ee3a0e2e4a07c230742a6c65de220eea2e34293a",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/keystore.p12",
+          "size": 1128,
+          "sha256": "4ac94c1d1497b81e0a00a676bf92b8c03ca9efc56bf500d40590cd1b09d716c4",
+          "mode": "0600"
+        },
+        {
+          "path": "signing/tts-demo/profile.p7b",
+          "size": 4343,
+          "sha256": "cd450d51738e909448d2c7c122589b2ba9b7dd1787d0fba771628645d2e3f738",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-build-profile-20260902.json5",
+          "size": 1577,
+          "sha256": "364c4162c2bf96433844c33e06f85ed05e83d615e158a86fd32a479ede73e4a9",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-license.lic",
+          "size": 728,
+          "sha256": "2900aa5c7b693e5a2a8fef09e04d08819071905f3a23fcb23ddc588ab1e337e5",
+          "mode": "0600"
+        },
+        {
+          "path": "tts-harmony-signing.json",
+          "size": 444,
+          "sha256": "239faab65e23caab9c126a33facaa86f5a1c8aff82e3a9216c7acbea074a977f",
+          "mode": "0600"
         }
-      ]
+      ],
+      "encryption": "sse-kms",
+      "merge_destination": true,
+      "allow_extra_files": true
     }
   },
   "ignored_asset_policy": {
