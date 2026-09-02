@@ -57,7 +57,8 @@ cp "$REPO_ROOT/asr/harmony/sdk-police/build/default/outputs/default/amphion_poli
   "$PACKAGE_ROOT/sdk/amphion_police-diagnostics.har"
 cp "$REPO_ROOT/asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har" \
   "$PACKAGE_ROOT/sdk/amphion_dingqiao-diagnostics.har"
-cp "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har" \
+SHERPA_ROOT="$(bash "$REPO_ROOT/asr/tools/prepare_sherpa_source.sh")"
+cp "$SHERPA_ROOT/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har" \
   "$PACKAGE_ROOT/sdk/sherpa_onnx.har"
 cp "$SCRIPT_DIR/collect_asr_diagnostics.py" "$PACKAGE_ROOT/tools/"
 cp "$BUILD_IDENTITY" "$PACKAGE_ROOT/tools/build-identity.json"

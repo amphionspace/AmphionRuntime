@@ -84,7 +84,7 @@ PR 合入后，`main` 分支包含完整源码、交付工程、声纹模型和 
 从干净 `main` 复现时需要先准备这些本地输入：
 
 - 执行 `git submodule update --init third_party/sherpa-onnx`。
-- 执行 `bash asr/tools/04_build_harmony_so.sh`；该脚本会调用 `asr/tools/apply_sherpa_patches.sh`，把 `third_party/patches/sherpa-amphion/` 下的 patch 应用到 sherpa-onnx，本分支不提交 submodule 本体改动。
+- 执行 `bash asr/tools/04_build_harmony_so.sh`；该脚本会通过 `asr/tools/prepare_sherpa_source.sh` 在 `third_party/.derived/` 创建隔离 checkout 并应用 patch，受 Git 管理的 `third_party/sherpa-onnx` 保持只读。
 - 执行 `bash asr/tools/05_package_har_libs.sh`，把已构建的 AArch64 native 库同步到 Harmony HAR 源目录。
 - 执行 `bash asr/tools/08_pack_harmony_assets.sh`；默认直接读取 `asr/tools/demo-model/zhen`、`asr/tools/demo-model/yueen` 及标点/ITN/VAD 源文件，并用固定 ORT 1.16.3 构建环境预优化中英三图与标点图，不再依赖 Android assets。
 - 配置 DevEco 签名后构建 `amphion_asr_demo`；无签名配置时只能得到未签名或调试产物。

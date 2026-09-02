@@ -142,7 +142,7 @@ bash asr/tools/05_package_har_libs.sh
 bash asr/tools/08_pack_harmony_assets.sh
 ```
 
-其中 `04_build_harmony_so.sh` 会自动调用 `apply_sherpa_patches.sh`，把 `third_party/patches/sherpa-amphion/` 中的 patch 应用到 sherpa-onnx；不要提交 `third_party/sherpa-onnx` 的本地工作区改动或 submodule 指针。`08_pack_harmony_assets.sh` 默认直接使用 `asr/tools/demo-model/zhen`、`asr/tools/demo-model/yueen` 及标点/ITN/VAD 源文件，并在构建期生成 Harmony 专用 ORT 资产；不再要求先打 Android assets。
+其中 `04_build_harmony_so.sh` 会通过 `prepare_sherpa_source.sh` 在 `third_party/.derived/` 创建隔离 checkout 并应用 `third_party/patches/sherpa-amphion/` 中的 patch；受 Git 管理的 `third_party/sherpa-onnx` 保持只读。`08_pack_harmony_assets.sh` 默认直接使用 `asr/tools/demo-model/zhen`、`asr/tools/demo-model/yueen` 及标点/ITN/VAD 源文件，并在构建期生成 Harmony 专用 ORT 资产；不再要求先打 Android assets。
 
 构建 signed HAP 还需要本机 DevEco 签名配置；无签名配置时只能生成未签名或调试产物。即使输入相同，HAP 的签名、时间戳和构建元数据也会影响 hash，因此交付验收以功能和清单一致为准，不承诺字节级一致。
 

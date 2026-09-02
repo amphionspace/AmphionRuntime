@@ -24,7 +24,7 @@ ARTIFACT_DIRS = {
     "amphion_police.har": REPO_ROOT / "asr/harmony/sdk-police/build/default/outputs/default",
     "amphion_dingqiao.har": REPO_ROOT / "asr/harmony/sdk-dingqiao/build/default/outputs/default",
     "sherpa_onnx.har": REPO_ROOT / (
-        "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/"
+        "third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/"
         "build/default/outputs/default"
     ),
 }
@@ -50,6 +50,8 @@ TRACKED_BUILD_INPUTS = (
     "asr/native/audio-processing",
     "asr/tools/03_build_agc_native.sh",
     "asr/tools/05_package_har_libs.sh",
+    "asr/tools/apply_sherpa_patches.sh",
+    "asr/tools/prepare_sherpa_source.sh",
     "shared/models/asr",
     "delivery/harmony-dingqiao/samples",
     "delivery/harmony-dingqiao/AppScope",
@@ -128,7 +130,7 @@ def source_fingerprint() -> str:
         if path.is_file():
             add_path(digest, relative, path)
 
-    submodule = REPO_ROOT / "third_party/sherpa-onnx"
+    submodule = REPO_ROOT / "third_party/.derived/sherpa-onnx"
     digest.update(sherpa_source_fingerprint(submodule).encode("ascii"))
     digest.update(b"\0")
     return digest.hexdigest()
@@ -174,7 +176,7 @@ def current_identity(
         }
     return {
         "schema_version": 3,
-        "source_fingerprint_algorithm": "tracked-inputs+sherpa-v1.13.1-diff-v2",
+        "source_fingerprint_algorithm": "tracked-inputs+isolated-sherpa-v1.13.1-diff-v3",
         "zh_en_only": zh_en_only,
         "build_mode": build_mode,
         "git_commit": run(["git", "rev-parse", "HEAD"]).decode().strip(),

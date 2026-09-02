@@ -10,7 +10,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SHERPA_ROOT="$REPO_ROOT/third_party/sherpa-onnx"
+SHERPA_ROOT="${AMPHION_SHERPA_ROOT:-$(bash "$SCRIPT_DIR/prepare_sherpa_source.sh")}"
 CACHE="$SCRIPT_DIR/sherpa-cmake-deps"
 
 mkdir -p "$CACHE" "$HOME/Downloads"

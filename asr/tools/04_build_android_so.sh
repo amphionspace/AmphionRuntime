@@ -13,9 +13,7 @@
 #     （首期 v1.13.1）。脚本会校验：必须停在某个上游 release tag 上，否则警告。
 #   - 仓库本身（amphion-runtime）不需要 checkout 任何 tag；版本锁通过 submodule SHA。
 #
-# 输出（每个 ABI 一份；产物落在 submodule 内的构建目录，被根 .gitignore 排除）：
-#   third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libsherpa-onnx-jni.so
-#   third_party/sherpa-onnx/build-android-arm64-v8a/install/lib/libonnxruntime.so
+# 输出位于 third_party/.derived/ 的隔离 sherpa checkout；canonical submodule 不变。
 
 set -euo pipefail
 
@@ -24,15 +22,14 @@ ABI_ARG="${1:-arm64-v8a}"
 # ---------- 解析 amphion-runtime 根 + sherpa-onnx submodule 根 ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SHERPA_ROOT="$REPO_ROOT/third_party/sherpa-onnx"
+SHERPA_ROOT="$(bash "$SCRIPT_DIR/prepare_sherpa_source.sh")"
+export AMPHION_SHERPA_ROOT="$SHERPA_ROOT"
 
 if [[ ! -f "$SHERPA_ROOT/CMakeLists.txt" ]]; then
   echo "[ERROR] 找不到 sherpa-onnx submodule：$SHERPA_ROOT"
   echo "        请先运行：git submodule update --init --recursive"
   exit 1
 fi
-
-bash "$SCRIPT_DIR/apply_sherpa_patches.sh"
 
 cd "$SHERPA_ROOT"
 
