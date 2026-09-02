@@ -24,6 +24,16 @@ class AndroidDingqiaoLicenseFixtureTest(unittest.TestCase):
             "androidTest may only track deterministic negative license fixtures",
         )
 
+    def test_voiceprint_fixture_releases_process_runtime(self) -> None:
+        source = (
+            ANDROID_TEST
+            / "java/com/amphion/dingqiao/demo/"
+            "DingqiaoEmbeddedVoiceprintModelInstrumentedTest.kt"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("@After", source)
+        self.assertIn("SpeechRecognizeSdk.unloadRuntime()", source)
+
 
 if __name__ == "__main__":
     unittest.main()
