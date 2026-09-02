@@ -112,7 +112,7 @@ LitsTtsSdk\tools\trial-export\dingqiao_lits_en_zh_vocos24k_streaming_proto_exter
 - 不需要执行任何导出脚本
 - 不要把模型手工拷进 `sdk/` 或 `sample/`
 
-HarmonyOS SDK 会在构建阶段把 `tts/tools/trial-export/...` 同步进 `sdk/src/main/resources/rawfile/...`，并从文本词典生成前端 `.bin` 文件；运行时默认使用 HAR 内置模型，如果宿主显式传入外部模型目录，则显式路径优先。
+HarmonyOS SDK 会在构建阶段以只读方式把 `tts/tools/trial-export/...` 同步进 `sdk/src/main/resources/rawfile/...`；OBS 模型包已经包含校验过的前端 `.bin` 文件，普通 HAR/HAP 构建不会改写源包。运行时默认使用 HAR 内置模型，如果宿主显式传入外部模型目录，则显式路径优先。
 
 ## 3. 宿主侧预检
 

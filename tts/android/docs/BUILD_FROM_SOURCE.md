@@ -91,11 +91,13 @@ tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loo
 "stream_final_zero_pad_with_chunk_condition": true
 ```
 
-Gradle 会在构建阶段生成或同步前端 `.bin` 资源，并把运行时需要的外部资源整理到：
+OBS 模型包已经包含校验过的前端 `.bin`。Gradle 会以只读方式同步这些资源，并把运行时需要的外部资源整理到：
 
 ```text
 tts/android/external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
+
+该目录可随时由 `tts/tools/trial-export/...` 重建，已被 Git 忽略，不应作为源资产编辑或提交。
 
 宿主集成时需要把这个 `external-resources/tts/...` 目录复制到 SDK 工作目录，使运行时能看到 `<workPath>/tts/...`。Android 当前使用 AAR 内的 native TN/JNI，外部资源目录不需要携带 `tn-bin/arm64-v8a/zh_tts` 或 `tn-bin/arm64-v8a/en_tts`。
 
