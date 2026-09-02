@@ -13,6 +13,7 @@ import com.amphion.dingqiao.SpeechRecognizeSdk
 import com.amphion.dingqiao.StartParams
 import com.amphion.dingqiao.VoiceprintRegisterParams
 import java.io.File
+import org.junit.AfterClass
 import org.junit.Assert.assertTrue
 import org.junit.FixMethodOrder
 import org.junit.Test
@@ -33,18 +34,30 @@ class DqVoiceprintTest {
         runCatching { t.javaClass.getMethod("getErrorCode").invoke(t) as? Int }.getOrNull()
 
     private fun registerFromSample(sampleAsset: String): String {
+        DqReport.append(ctx, mapOf(
+            "case" to "voiceprint_register",
+            "phase" to "start",
+            "sample" to sampleAsset,
+        ))
         val path = stageAsset(testCtx, ctx, sampleAsset, "vp_samples/${File(sampleAsset).name}")
         val result = SpeechRecognizeSdk.registerVoiceprint(
             VoiceprintRegisterParams(samplePaths = listOf(path), audioInfo = AudioInfo()),
         )
-        return result.voiceprintId.keys.first()
+        DqReport.append(ctx, mapOf(
+            "case" to "voiceprint_register",
+            "phase" to "complete",
+            "sample" to sampleAsset,
+            "idCount" to result.voiceprintId.size,
+        ))
+        return result.voiceprintId.keys.singleOrNull()
+            ?: error("registerVoiceprint returned ${result.voiceprintId.size} voiceprint ids for $sampleAsset")
     }
 
     // ---------- v01: 用 _声纹 样本注册 ----------
     @Test
     fun v01_register_fromSample_ok() {
         ensureReady()
-        val sample = testCtx.assets.list("").orEmpty().first { it.contains("声纹") }
+        val sample = registrationSampleFor(testCtx)
         val id = registerFromSample(sample)
         val persisted = File(workDir(), "voiceprints/$id/embedding.bin").isFile
         DqReport.append(ctx, mapOf("case" to "v01_register", "sample" to sample, "voiceprintId" to id, "persisted" to persisted))
@@ -89,7 +102,7 @@ class DqVoiceprintTest {
     fun v04_verification_similarityReturned() {
         ensureReady()
         val main = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
-        val sample = voiceprintSampleFor(testCtx, main) ?: main
+        val sample = registrationSampleFor(testCtx, main)
         val id = registerFromSample(sample)
         val engine = engine()
         val listener = CapturingListener().also { engine.setListener(it) }
@@ -122,12 +135,13 @@ class DqVoiceprintTest {
     fun v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly() {
         ensureReady()
         val main = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
-        val sample = voiceprintSampleFor(testCtx, main) ?: main
+        val sample = registrationSampleFor(testCtx, main)
         val id = registerFromSample(sample)
         val engine = engine()
         awaitIdle(engine)
         val listener = CapturingListener().also { engine.setListener(it) }
         val sid = "vp-vadbegin-${System.currentTimeMillis()}"
+        DqReport.append(ctx, mapOf("case" to "v04b_voiceprintVadBegin", "phase" to "start_listening"))
         engine.startListening(
             StartParams(
                 sid,
@@ -140,6 +154,7 @@ class DqVoiceprintTest {
                 ),
             ),
         )
+        DqReport.append(ctx, mapOf("case" to "v04b_voiceprintVadBegin", "phase" to "start_returned"))
         assertTrue("start failed: ${listener.errorCodes()}", listener.awaitStarted(15_000))
         feedSilence(engine, sid, 300)
         feedFrames(engine, sid, readAssetPcm(testCtx, main), 20)
@@ -214,7 +229,7 @@ class DqVoiceprintTest {
     fun v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad() {
         ensureReady()
         val main = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
-        val sample = voiceprintSampleFor(testCtx, main) ?: main
+        val sample = registrationSampleFor(testCtx, main)
         val id = registerFromSample(sample)
         val engine = engine()
         awaitIdle(engine)
@@ -262,7 +277,7 @@ class DqVoiceprintTest {
     @Test
     fun v04e_voiceprintVadBegin_pureSilenceEndsOnce() {
         ensureReady()
-        val sample = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
+        val sample = registrationSampleFor(testCtx)
         val id = registerFromSample(sample)
         val engine = engine()
         awaitIdle(engine)
@@ -320,7 +335,7 @@ class DqVoiceprintTest {
     fun v06_speakerVad_overlapRuns() {
         ensureReady()
         val main = mainWavs(testCtx).first { it.contains("重叠") }
-        val sample = voiceprintSampleFor(testCtx, main) ?: testCtx.assets.list("").orEmpty().first { it.contains("声纹") }
+        val sample = registrationSampleFor(testCtx, main)
         val id = registerFromSample(sample)
         val engine = engine()
         awaitIdle(engine)
@@ -358,7 +373,7 @@ class DqVoiceprintTest {
     @Test
     fun v07_delete_thenNotFound() {
         ensureReady()
-        val sample = testCtx.assets.list("").orEmpty().first { it.contains("声纹") }
+        val sample = registrationSampleFor(testCtx)
         val id = registerFromSample(sample)
         SpeechRecognizeSdk.deleteVoiceprint(id)
         var deleteAgain: Int? = null
@@ -410,7 +425,7 @@ class DqVoiceprintTest {
     @Test
     fun v09_register_async_offCallerThread_ok() {
         ensureReady()
-        val sample = testCtx.assets.list("").orEmpty().first { it.contains("声纹") }
+        val sample = registrationSampleFor(testCtx)
         val path = stageAsset(testCtx, ctx, sample, "vp_samples/${File(sample).name}")
         val callerThread = Thread.currentThread().name
         val latch = java.util.concurrent.CountDownLatch(1)
@@ -448,6 +463,18 @@ class DqVoiceprintTest {
         @Volatile private var engine: SpeechRecognitionEngine? = null
         @Volatile private var runtimePrepared: Boolean = false
 
+        @AfterClass
+        @JvmStatic
+        fun releaseRuntime() {
+            val target = InstrumentationRegistry.getInstrumentation().targetContext
+            DqReport.append(target, mapOf("case" to "runtime_release", "phase" to "start"))
+            engine?.shutdown()
+            engine = null
+            runtimePrepared = false
+            SpeechRecognizeSdk.unloadRuntime()
+            DqReport.append(target, mapOf("case" to "runtime_release", "phase" to "complete"))
+        }
+
         private fun workDir(): File {
             val target = InstrumentationRegistry.getInstrumentation().targetContext
             return File(target.getExternalFilesDir(null), "dq_vp_work")
@@ -465,9 +492,14 @@ class DqVoiceprintTest {
         private fun engine(): SpeechRecognitionEngine {
             engine?.let { return it }
             ensureReady()
+            val target = InstrumentationRegistry.getInstrumentation().targetContext
+            DqReport.append(target, mapOf("case" to "engine_create", "phase" to "start"))
             return SpeechRecognizeSdk.createEngine(
                 CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE, extraParams = mapOf("vadEnd" to 800)),
-            ).also { engine = it }
+            ).also {
+                engine = it
+                DqReport.append(target, mapOf("case" to "engine_create", "phase" to "complete"))
+            }
         }
 
         @Synchronized

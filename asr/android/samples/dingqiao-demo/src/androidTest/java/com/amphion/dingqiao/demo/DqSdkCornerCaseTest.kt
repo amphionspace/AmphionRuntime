@@ -22,6 +22,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.AfterClass
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -725,14 +726,23 @@ class DqSdkCornerCaseTest {
     }
 
     // ---------- a13: 真实调用方连续 cancel / finish / 立即替换 / 旧 session 迟到调用 ----------
-    @Test
+    @Test(timeout = 15 * 60 * 1000L)
     fun a13_userSequenceStress_300Cycles() {
         val engine = sharedEngine()
         val source = readAssetPcm(testCtx, mainWavs(testCtx).first())
         val pcm = source.copyOfRange(0, minOf(source.size, DQ_SR * 3))
         var completedSessions = 0
+        val startedAt = System.currentTimeMillis()
 
         repeat(300) { cycle ->
+            if (cycle % 10 == 0) {
+                DqReport.append(ctx, mapOf(
+                    "case" to "a13_userSequenceStress_progress",
+                    "cycle" to cycle,
+                    "phase" to "start",
+                    "elapsedMs" to System.currentTimeMillis() - startedAt,
+                ))
+            }
             awaitIdle(engine)
 
             val cancelSid = "useq-c-$cycle-${System.currentTimeMillis()}"
@@ -840,6 +850,14 @@ class DqSdkCornerCaseTest {
             )
             awaitIdle(engine)
             completedSessions++
+            if (cycle % 10 == 9) {
+                DqReport.append(ctx, mapOf(
+                    "case" to "a13_userSequenceStress_progress",
+                    "cycle" to cycle,
+                    "phase" to "complete",
+                    "elapsedMs" to System.currentTimeMillis() - startedAt,
+                ))
+            }
         }
 
         DqReport.append(
@@ -848,18 +866,20 @@ class DqSdkCornerCaseTest {
                 "case" to "a13_userSequenceStress",
                 "cycles" to 300,
                 "completedSessions" to completedSessions,
+                "elapsedMs" to System.currentTimeMillis() - startedAt,
             ),
         )
         assertEquals(600, completedSessions)
     }
 
     // ---------- a11: vadBegin 首段静音自动结束 ----------
-    @Test
+    @Test(timeout = 2 * 60 * 1000L)
     fun a11_vadBegin_initialSilenceAutoFinish() {
         val engine = sharedEngine()
         awaitIdle(engine)
         val listener = CapturingListener().also { engine.setListener(it) }
         val sid = "vadbegin-${System.currentTimeMillis()}"
+        DqReport.append(ctx, mapOf("case" to "a11_vadBegin", "phase" to "start_listening"))
         engine.startListening(
             StartParams(
                 sid,
@@ -867,6 +887,7 @@ class DqSdkCornerCaseTest {
                 mapOf("vadBegin" to 500, "enablePartialResult" to false),
             ),
         )
+        DqReport.append(ctx, mapOf("case" to "a11_vadBegin", "phase" to "start_returned"))
         assertTrue(listener.awaitStarted(10_000))
         feedSilence(engine, sid, 700)
         val completed = listener.awaitComplete(10_000)
@@ -985,6 +1006,17 @@ class DqSdkCornerCaseTest {
         @Volatile private var engine: SpeechRecognitionEngine? = null
         @Volatile private var seq = 0
 
+        @AfterClass
+        @JvmStatic
+        fun releaseRuntime() {
+            val target = InstrumentationRegistry.getInstrumentation().targetContext
+            DqReport.append(target, mapOf("case" to "runtime_release", "phase" to "start"))
+            engine?.shutdown()
+            engine = null
+            SpeechRecognizeSdk.unloadRuntime()
+            DqReport.append(target, mapOf("case" to "runtime_release", "phase" to "complete"))
+        }
+
         private fun ensureSdkReady() {
             val target = InstrumentationRegistry.getInstrumentation().targetContext
             prepareSdkRuntime(
@@ -997,9 +1029,14 @@ class DqSdkCornerCaseTest {
         fun sharedEngine(): SpeechRecognitionEngine {
             engine?.let { return it }
             ensureSdkReady()
+            val target = InstrumentationRegistry.getInstrumentation().targetContext
+            DqReport.append(target, mapOf("case" to "engine_create", "phase" to "start"))
             return SpeechRecognizeSdk.createEngine(
                 CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE, extraParams = mapOf("vadEnd" to 800)),
-            ).also { engine = it }
+            ).also {
+                engine = it
+                DqReport.append(target, mapOf("case" to "engine_create", "phase" to "complete"))
+            }
         }
 
         @Synchronized
