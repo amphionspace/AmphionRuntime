@@ -3,6 +3,61 @@ import fs from '@ohos.file.fs';
 import { audio } from '@kit.AudioKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { HarmonyLicenseVerifier, AmphionLicenseStatus } from './License';
+import { AudioTransforms, lengthScaleForSpeed } from './AudioTransforms';
+import { PcmChunkQueue } from './PcmChunkQueue';
+import {
+  CompleteType,
+  LicenseActivationResult,
+  LicenseInfo,
+  PlayType,
+  QueueMode,
+  RunMode,
+  StopType,
+  TextToSpeechException,
+  TtsErrorCode
+} from './TtsApiTypes';
+import type {
+  Callback,
+  CreateEngineParams,
+  ExtraParams,
+  LicenseActivationCallback,
+  SpeakListener,
+  SpeakParams,
+  StartResponse,
+  SynthesisResponse,
+  CompleteResponse,
+  StopResponse,
+  TextToSpeechEngine,
+  VoiceInfo,
+  VoiceQuery
+} from './TtsApiTypes';
+
+export {
+  CompleteType,
+  LicenseActivationResult,
+  LicenseInfo,
+  PlayType,
+  QueueMode,
+  RunMode,
+  StopType,
+  TextToSpeechException,
+  TtsErrorCode
+} from './TtsApiTypes';
+export type {
+  Callback,
+  CreateEngineParams,
+  ExtraParams,
+  LicenseActivationCallback,
+  SpeakListener,
+  SpeakParams,
+  StartResponse,
+  SynthesisResponse,
+  CompleteResponse,
+  StopResponse,
+  TextToSpeechEngine,
+  VoiceInfo,
+  VoiceQuery
+} from './TtsApiTypes';
 
 const MODEL_ID: string = 'dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop';
 const MODEL_VERSION: string = '0.1.0';
@@ -397,63 +452,6 @@ interface NativeStreamingSynthesisMetrics {
   textMetricSummary?: string;
 }
 
-export enum TtsErrorCode {
-  TEXT_LENGTH_INVALID = 1002300001,
-  LANGUAGE_UNSUPPORTED = 1002300002,
-  VOICE_UNSUPPORTED = 1002300003,
-  CREATE_ENGINE_FAILED = 1002300005,
-  ENGINE_LIMIT_REACHED = 1002300006,
-  ENGINE_NOT_INITIALIZED = 1002300007,
-  ENGINE_DESTROYED = 1002300008,
-  INTERNAL_SERVICE_ERROR = 1002300009,
-  QUEUE_FULL = 1002300010,
-  RUNTIME_EXCEPTION = 1002300011,
-  LICENSE_MISSING = 1002300012,
-  LICENSE_MALFORMED = 1002300013,
-  LICENSE_SIGNATURE_INVALID = 1002300014,
-  LICENSE_APP_MISMATCH = 1002300015,
-  LICENSE_CERT_MISMATCH = 1002300016,
-  LICENSE_EXPIRED = 1002300017,
-  LICENSE_DEVICE_MISMATCH = 1002300018,
-  LICENSE_SDK_MAJOR_MISMATCH = 1002300019,
-  LICENSE_MAINTENANCE_EXPIRED = 1002300020,
-  LICENSE_FEATURE_MISSING = 1002300021,
-  LICENSE_NOT_SET = 1002300034
-}
-
-export class TextToSpeechException extends Error {
-  readonly errorCode: number;
-
-  constructor(errorCode: number, message: string) {
-    super(message);
-    this.errorCode = errorCode;
-  }
-}
-
-export interface Callback<T> {
-  onSuccess(result: T): void;
-  onError(errorCode: number, errorMessage: string): void;
-}
-
-export class LicenseInfo {
-  status: number = 0;
-  expireTime: number = -1;
-  remainingDays: number = -1;
-  authorizedFeatures: string[] = [];
-}
-
-export class LicenseActivationResult {
-  errorCode: number = 0;
-  errorMessage: string = '';
-  remainingDays: number = -1;
-  authorizedFeatures: string[] = [];
-}
-
-export interface LicenseActivationCallback {
-  onResult(result: LicenseActivationResult): void;
-  onError(errorCode: number, errorMessage: string): void;
-}
-
 function utf8BytesToText(bytes: Uint8Array): string {
   let out = '';
   for (let i = 0; i < bytes.length;) {
@@ -500,128 +498,6 @@ function readDeviceSerial(): string | undefined {
   } catch (e) {
     return undefined;
   }
-}
-
-export interface ExtraParams {
-  modelPackageDir?: string;
-  streamingChunkSize?: number | string;
-  chunkSize?: number | string;
-  pcmQueueCapacity?: number | string;
-  pcmQueueSize?: number | string;
-}
-
-export enum RunMode {
-  OFFLINE = 'OFFLINE',
-  ONLINE = 'ONLINE'
-}
-
-export enum PlayType {
-  SYNTHESIZE_ONLY = 'SYNTHESIZE_ONLY',
-  SYNTHESIZE_AND_PLAY = 'SYNTHESIZE_AND_PLAY'
-}
-
-export enum QueueMode {
-  QUEUE = 'QUEUE',
-  PREEMPT = 'PREEMPT'
-}
-
-export enum CompleteType {
-  SYNTHESIS_COMPLETE = 'SYNTHESIS_COMPLETE',
-  PLAYBACK_COMPLETE = 'PLAYBACK_COMPLETE'
-}
-
-export enum StopType {
-  STOP_ALL = 'STOP_ALL',
-  STOP_PLAYBACK_ONLY = 'STOP_PLAYBACK_ONLY'
-}
-
-export interface CreateEngineParams {
-  language: string;
-  mode: RunMode;
-  voiceId: string;
-  locate?: string;
-  engineName?: string;
-  extraParams?: ExtraParams;
-  modelLoadOnCreate?: boolean;
-}
-
-export interface VoiceQuery {
-  requestId: string;
-  mode: RunMode;
-  language?: string;
-  extraParams?: ExtraParams;
-}
-
-export interface VoiceInfo {
-  language: string;
-  voiceId: string;
-  gender: string;
-  description?: string;
-}
-
-export interface SpeakParams {
-  requestId: string;
-  speed?: number;
-  volume?: number;
-  pitch?: number;
-  languageContext?: string;
-  audioType?: string;
-  playType?: PlayType;
-  soundChannel?: number;
-  queueMode?: QueueMode;
-  extraParams?: ExtraParams;
-}
-
-export interface StartResponse {
-  audioType: string;
-  sampleRate: number;
-  sampleBit: number;
-  audioChannel: number;
-  compressRate: number;
-  isStreaming: boolean;
-  dataPath: string;
-  modelSource: string;
-  modelInfo: string;
-  loadProfileInfo: string;
-}
-
-export interface SynthesisResponse {
-  sequence: number;
-  audioType: string;
-  isStreaming: boolean;
-  chunkSource: string;
-}
-
-export interface CompleteResponse {
-  type: CompleteType;
-  message: string;
-  firstPacketMs?: number;
-  synthesisMs?: number;
-  audioDurationMs?: number;
-  rtf?: number;
-  profilingInfo?: string;
-  playbackStartMs?: number;
-}
-
-export interface StopResponse {
-  type: StopType;
-  message: string;
-}
-
-export interface SpeakListener {
-  onStart?(requestId: string, response: StartResponse): void;
-  onData?(requestId: string, audio: ArrayBuffer, response: SynthesisResponse): void;
-  onComplete?(requestId: string, response: CompleteResponse): void;
-  onStop?(requestId: string, response: StopResponse): void;
-  onError?(requestId: string, errorCode: number, errorMessage: string): void;
-}
-
-export interface TextToSpeechEngine {
-  setListener(listener: SpeakListener): void;
-  speak(text: string, params: SpeakParams): void;
-  stop(): void;
-  isBusy(): boolean;
-  shutdown(): void;
 }
 
 interface RegisteredVoice {
@@ -730,11 +606,6 @@ interface TextMetric {
   tokenIds: Array<number>;
   tokenIdHead: Array<number>;
   tokenIdTail: Array<number>;
-}
-
-interface PcmQueueTakeResult {
-  chunk?: ArrayBuffer;
-  done: boolean;
 }
 
 interface SynthesisTask {
@@ -2689,88 +2560,6 @@ class LitsTtsFrontend {
   }
 }
 
-class AudioTransforms {
-  static apply(source: ArrayBuffer, params: SpeakParams): ArrayBuffer {
-    const pitch = params.pitch ?? 1.0;
-    const speed = params.speed ?? 1.0;
-    const volume = params.volume ?? 1.0;
-    if (pitch === 1.0 && speed === 1.0 && volume === 1.0) {
-      return source;
-    }
-    let samples = new Int16Array(source.slice(0));
-    if (pitch !== 1.0) {
-      samples = AudioTransforms.applyPitch(samples, clampNumber(pitch, 0.5, 2.0));
-    }
-    if (speed !== 1.0) {
-      samples = AudioTransforms.applySpeed(samples, clampNumber(speed, 0.5, 2.0));
-    }
-    if (volume !== 1.0) {
-      samples = AudioTransforms.applyVolume(samples, clampNumber(volume, 0.0, 2.0));
-    }
-    return samples.buffer as ArrayBuffer;
-  }
-
-  static applyPitchAndVolume(source: ArrayBuffer, params: SpeakParams): ArrayBuffer {
-    const pitch = params.pitch ?? 1.0;
-    const volume = params.volume ?? 1.0;
-    if (pitch === 1.0 && volume === 1.0) {
-      return source;
-    }
-    let samples = new Int16Array(source.slice(0));
-    if (pitch !== 1.0) {
-      samples = AudioTransforms.applyPitch(samples, clampNumber(pitch, 0.5, 2.0));
-    }
-    if (volume !== 1.0) {
-      samples = AudioTransforms.applyVolume(samples, clampNumber(volume, 0.0, 2.0));
-    }
-    return samples.buffer as ArrayBuffer;
-  }
-
-  private static applyPitch(input: Int16Array, pitch: number): Int16Array {
-    if (input.length === 0) {
-      return input;
-    }
-    const shifted = AudioTransforms.resampleToLength(input, Math.max(1, Math.round(input.length / pitch)));
-    return AudioTransforms.resampleToLength(shifted, input.length);
-  }
-
-  private static applySpeed(input: Int16Array, speed: number): Int16Array {
-    if (input.length === 0) {
-      return input;
-    }
-    return AudioTransforms.resampleToLength(input, Math.max(1, Math.round(input.length / speed)));
-  }
-
-  private static applyVolume(input: Int16Array, volume: number): Int16Array {
-    const output = new Int16Array(input.length);
-    for (let index = 0; index < input.length; index += 1) {
-      const scaled = Math.round(input[index] * volume);
-      output[index] = clampInt16(scaled);
-    }
-    return output;
-  }
-
-  private static resampleToLength(input: Int16Array, targetLength: number): Int16Array {
-    if (input.length === targetLength) {
-      return new Int16Array(input.slice().buffer);
-    }
-    if (targetLength <= 1) {
-      return new Int16Array([input[0]]);
-    }
-    const output = new Int16Array(targetLength);
-    const ratio = (input.length - 1) / (targetLength - 1);
-    for (let index = 0; index < targetLength; index += 1) {
-      const position = index * ratio;
-      const left = Math.min(input.length - 1, Math.floor(position));
-      const right = Math.min(input.length - 1, left + 1);
-      const fraction = position - left;
-      const value = input[left] + Math.round((input[right] - input[left]) * fraction);
-      output[index] = clampInt16(value);
-    }
-    return output;
-  }
-}
-
 class HarmonyPcmPlayer {
   private renderer: audio.AudioRenderer | undefined;
   private stopped: boolean = false;
@@ -2795,7 +2584,7 @@ class HarmonyPcmPlayer {
     const renderer = await this.createRenderer(sampleRate, soundChannel);
     this.renderer = renderer;
     this.rendererSampleRate = sampleRate;
-    const queue = new PcmChunkQueue(queueCapacity);
+    const queue = new PcmChunkQueue(queueCapacity, MAX_PCM_QUEUE_CAPACITY_VALUE);
     let queuedChunks = 0;
     let queuedBytes = 0;
     let playbackStartedAt = 0;
@@ -2990,77 +2779,6 @@ class HarmonyPcmPlayer {
       await renderer.release();
     } catch (_error) {
     }
-  }
-}
-
-class PcmChunkQueue {
-  private readonly capacity: number;
-  private readonly chunks: Array<ArrayBuffer> = [];
-  private closed: boolean = false;
-  private waitingTakers: Array<(result: PcmQueueTakeResult) => void> = [];
-  private waitingPutters: Array<() => void> = [];
-  private prebufferWaiters: Array<() => void> = [];
-
-  constructor(capacity: number) {
-    this.capacity = clampInt(Math.round(capacity), 1, MAX_PCM_QUEUE_CAPACITY_VALUE);
-  }
-
-  async put(chunk: ArrayBuffer): Promise<void> {
-    while (!this.closed && this.chunks.length >= this.capacity) {
-      await new Promise<void>((resolve: () => void): void => {
-        this.waitingPutters.push(resolve);
-      });
-    }
-    if (this.closed) {
-      return;
-    }
-    const taker = this.waitingTakers.shift();
-    if (taker !== undefined) {
-      taker({ chunk, done: false });
-      return;
-    }
-    this.chunks.push(chunk);
-    this.notifyPrebufferWaiters();
-  }
-
-  async take(): Promise<PcmQueueTakeResult> {
-    const chunk = this.chunks.shift();
-    if (chunk !== undefined) {
-      this.notifyPutters();
-      return { chunk, done: false };
-    }
-    if (this.closed) {
-      return { done: true };
-    }
-    return new Promise<PcmQueueTakeResult>((resolve: (result: PcmQueueTakeResult) => void): void => {
-      this.waitingTakers.push(resolve);
-    });
-  }
-
-  async waitForPrebuffer(targetChunks: number): Promise<void> {
-    const target = Math.min(Math.max(1, targetChunks), this.capacity);
-    while (!this.closed && this.chunks.length < target) {
-      await new Promise<void>((resolve: () => void): void => {
-        this.prebufferWaiters.push(resolve);
-      });
-    }
-  }
-
-  close(): void {
-    this.closed = true;
-    this.waitingTakers.splice(0).forEach((resolve: (result: PcmQueueTakeResult) => void): void => {
-      resolve({ done: true });
-    });
-    this.notifyPutters();
-    this.notifyPrebufferWaiters();
-  }
-
-  private notifyPutters(): void {
-    this.waitingPutters.splice(0).forEach((resolve: () => void): void => resolve());
-  }
-
-  private notifyPrebufferWaiters(): void {
-    this.prebufferWaiters.splice(0).forEach((resolve: () => void): void => resolve());
   }
 }
 
@@ -4390,27 +4108,8 @@ function resolveOptionalIntegerExtraParam(
   return undefined;
 }
 
-function clampNumber(value: number, minValue: number, maxValue: number): number {
-  return Math.max(minValue, Math.min(maxValue, value));
-}
-
-function lengthScaleForSpeed(speed: number): number {
-  const clampedSpeed = Number.isFinite(speed) ? clampNumber(speed, 0.5, 2.0) : 1.0;
-  return clampNumber(1.0 / clampedSpeed, 0.5, 2.0);
-}
-
 function clampInt(value: number, minValue: number, maxValue: number): number {
   return Math.max(minValue, Math.min(maxValue, Math.round(value)));
-}
-
-function clampInt16(value: number): number {
-  if (value > 32767) {
-    return 32767;
-  }
-  if (value < -32768) {
-    return -32768;
-  }
-  return value;
 }
 
 function audioDurationMs(audioBytes: number, sampleRate: number): number {
