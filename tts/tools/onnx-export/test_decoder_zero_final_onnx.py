@@ -12,7 +12,7 @@ import onnxruntime as ort
 
 
 DEFAULT_MODEL_DIR = (
-    Path(__file__).resolve().parent
+    Path(__file__).resolve().parents[1]
     / "trial-export"
     / "lits_delivery_16k_hifigan_streaming_proto"
     / "0.1.1"

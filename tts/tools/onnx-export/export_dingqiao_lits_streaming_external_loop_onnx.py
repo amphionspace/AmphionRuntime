@@ -27,16 +27,15 @@ import onnxruntime as ort
 import torch
 
 
-SDK_ROOT = Path(__file__).resolve().parents[1]
-WORKSPACE_ROOT = SDK_ROOT.parent
-DEFAULT_DINGQIAO_ROOT = WORKSPACE_ROOT / "tts" / "training" / "dingqiao_lits"
+TTS_ROOT = Path(__file__).resolve().parents[2]
+WORKSPACE_ROOT = TTS_ROOT.parent
+DEFAULT_DINGQIAO_ROOT = TTS_ROOT / "training" / "dingqiao_lits"
 DEFAULT_MODEL_ID = "dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop"
 DEFAULT_VERSION = "0.1.0"
-DEFAULT_MODEL_DIR = SDK_ROOT / "tools" / "trial-export" / DEFAULT_MODEL_ID / DEFAULT_VERSION
+DEFAULT_MODEL_DIR = TTS_ROOT / "tools" / "trial-export" / DEFAULT_MODEL_ID / DEFAULT_VERSION
 DEFAULT_BASE_PACKAGE = (
-    SDK_ROOT
+    TTS_ROOT
     / "android"
-    / "AmphionRuntime"
     / "sdk"
     / "src"
     / "main"

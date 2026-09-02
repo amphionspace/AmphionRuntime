@@ -4,8 +4,16 @@
 # -> (native zh_tts rules_v2). Ported faithfully from LitsTnNormalizer.kt +
 # FrontendRuleSet.kt. Zh path.
 import re, json, unicodedata, os
+from pathlib import Path
 
-D="/Users/amphion/Desktop/work/reference/AmphionRuntime/tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0"
+REPO_ROOT = Path(__file__).resolve().parents[5]
+D = os.environ.get(
+    "TTS_MODEL_DIR",
+    str(
+        REPO_ROOT
+        / "tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0"
+    ),
+)
 CH={'0':'零','1':'一','2':'二','3':'三','4':'四','5':'五','6':'六','7':'七','8':'八','9':'九'}
 TECH_SYM=set('./\\_@:?=&#%+-')
 

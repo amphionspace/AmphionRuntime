@@ -102,7 +102,7 @@ tts/harmony/sdk/src/main/resources/rawfile/amphion-dingqiao/
 
 ```bash
 OHOS_NATIVE_SDK=/path/to/openharmony/native \
-scripts/build_dingqiao_harmony_tn.sh
+tts/tools/tn/build_dingqiao_harmony_tn.sh
 ```
 
 脚本会使用当前仓库里的 TN submodule 和 HarmonyOS SDK 内置的 OHOS 编译器。默认输出：
@@ -178,5 +178,5 @@ HAR 不应包含：
 - `submodule` 目录为空：执行 `git submodule update --init --recursive`。
 - `ohpm` 或 `hvigorw` 找不到：确认 DevEco Studio 命令行工具路径，并设置 `NODE_HOME` / `DEVECO_SDK_HOME`。
 - 找不到 OHOS 编译器：设置 `OHOS_NATIVE_SDK` 到 `openharmony/native`。
-- 找不到 TN 文件：先运行 `scripts/build_dingqiao_harmony_tn.sh`，或确认模型包里有 `tn-bin/arm64-v8a/zh_tts` 和 `en_tts`。
+- 找不到 TN 文件：先运行 `tts/tools/tn/build_dingqiao_harmony_tn.sh`，或确认模型包里有 `tn-bin/arm64-v8a/zh_tts` 和 `en_tts`。
 - 不要提交 `.signing-local/`、`build-ohos-tn/`、`build/`、个人签名文件、license 包或本机 DevEco 缓存。
