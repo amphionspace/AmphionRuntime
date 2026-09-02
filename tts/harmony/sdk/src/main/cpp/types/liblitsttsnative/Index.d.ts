@@ -10,7 +10,8 @@ declare const nativeModule: {
     melCacheLen: number,
     hopLength: number,
     decoderTimesteps: number,
-    decoderTemperature: number
+    decoderTemperature: number,
+    useChunkConditionForFinal: boolean
   ) => object;
   releaseRuntime: (runtimeHandle: object) => void;
   cancelRuntime: (runtimeHandle: object) => void;
