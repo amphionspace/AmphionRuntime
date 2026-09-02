@@ -28,10 +28,14 @@ python3 tools/assets/sync.py verify all
 中断的分片下载保存在 `~/.cache/amphion-runtime/assets`，可用
 `AMPHION_ASSET_CACHE_DIR` 改位置。
 
-`team-secure-state-v1` 包含团队授权根、签名配置和设备清单。对象使用 OBS SSE-KMS；拥有同一
+`team-secure-state-v2` 包含团队授权根、签名配置、完整签名材料和设备清单。对象使用 OBS SSE-KMS；拥有同一
 OBS/KMS 权限的团队成员下载时会透明解密。恢复采用合并模式，不删除 `.secure` 下其他本地内容，
 也不会默认覆盖同名但内容不同的文件；确认要采用远端版本时显式增加 `--replace-existing`。
 受限 ZIP 的本地明文临时文件无论成功或失败都会清理，并保留清单声明的 `0600`/`0644` 权限。
+
+TTS 协作输入拆成三个用途明确的 bundle：`tts-checkpoints-v3-20260806` 恢复训练 checkpoint，
+`tts-runtime-zhen-v1` 恢复 Android/Harmony 共用的 ONNX 与前端资源，`tts-harmony-tn-v1` 恢复
+HarmonyOS arm64 TN 可执行文件。这样新机器可以按训练、导出或真机验证场景只取所需资产。
 
 ## 上传与审计
 
