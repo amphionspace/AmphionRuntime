@@ -37,8 +37,8 @@ Android TN executables, and ICU source/build outputs are delivered separately.
    scripts/build_dingqiao_android_native.sh
    ```
 
-   This writes all native build outputs under `dingqiao_lits/build/` and the
-   two executable TN frontends under `dingqiao_lits/e2e_infer/bin-android-arm64/`.
+   This writes all native build outputs under `tts/training/dingqiao_lits/build/` and the
+   two executable TN frontends under `tts/training/dingqiao_lits/e2e_infer/bin-android-arm64/`.
    No sibling checkout or absolute path is used.
 
 5. To rebuild the HarmonyOS TN frontend executables with the DevEco native SDK:

@@ -29,7 +29,7 @@ import torch
 
 SDK_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = SDK_ROOT.parent
-DEFAULT_DINGQIAO_ROOT = WORKSPACE_ROOT / "dingqiao_lits"
+DEFAULT_DINGQIAO_ROOT = WORKSPACE_ROOT / "tts" / "training" / "dingqiao_lits"
 DEFAULT_MODEL_ID = "dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop"
 DEFAULT_VERSION = "0.1.0"
 DEFAULT_MODEL_DIR = SDK_ROOT / "tools" / "trial-export" / DEFAULT_MODEL_ID / DEFAULT_VERSION

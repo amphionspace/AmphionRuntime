@@ -1,0 +1,29 @@
+_target_: lits.data.text_mel_datamodule.TextMelDataModule
+name: en-zh_24k_pinyin
+train_filelist_path: data/filelists/dingqiao_en-zh_mix24k_arpa_pinyin_LJPlus_training.txt
+valid_filelist_path: data/filelists/dingqiao_en-zh_mix24k_arpa_pinyin_LJPlus_validation.txt
+
+batch_size: 24
+num_workers: 8
+pin_memory: True
+n_spks: 2
+
+# 24k pupuvocoder mel config
+# to fit 16k-24k latest pupuvocoder
+n_fft: 2048
+n_feats: 100
+sample_rate: 24000
+hop_length: 384 # prev: 320
+win_length: 1536 # prev: 1280
+f_min: 0
+f_max: 12000
+
+cleaners: [pinyin_direct_mixed_cleaners]
+add_blank: False
+text_normalization: False
+
+data_statistics: # {'mel_mean': -5.2953901290893555, 'mel_std': 2.4459526538848877}
+  mel_mean: -5.2953901290893555
+  mel_std: 2.4459526538848877
+seed: ${seed}
+load_durations: false

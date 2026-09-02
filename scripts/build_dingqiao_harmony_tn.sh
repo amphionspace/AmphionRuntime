@@ -25,7 +25,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TN_ROOT="$REPO_ROOT/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
+TN_ROOT="$REPO_ROOT/tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
 OHOS_ICU_ROOT="$REPO_ROOT/tts/harmony/sdk/src/main/cpp/third_party/ohos-icu"
 OUTPUT_DIR="${HARMONY_TN_OUTPUT_DIR:-$REPO_ROOT/tts/harmony/build-ohos-tn}"
 OHOS_NATIVE_SDK="${OHOS_NATIVE_SDK:-}"

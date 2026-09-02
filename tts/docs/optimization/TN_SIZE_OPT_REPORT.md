@@ -92,7 +92,7 @@ TN 引擎(`tts_normalizer_engine`)+ 语言 main(`en.cpp`/`zh.cpp`)+ JNI + in-pro
 
 ```bash
 # 1) 拉 TN 子模块(pin 在交付 commit)
-git submodule update --init dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS
+git submodule update --init tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS
 # 2) 建 slim ICU 数据(需 icu4c-78.1 sources.tgz + data.zip,unicode-org/icu release-78.1)
 ICU_SOURCES_TGZ=…/icu4c-78.1-sources.tgz ICU_DATA_ZIP=…/icu4c-78.1-data.zip \
   scripts/build_slim_icu_data.sh          # 产出 slim libicudata.a(host: MacOSX)

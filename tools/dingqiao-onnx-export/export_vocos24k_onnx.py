@@ -18,7 +18,7 @@ import yaml
 
 SDK_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = SDK_ROOT.parent
-DEFAULT_VOCOS_ROOT = WORKSPACE_ROOT / "dingqiao_lits" / "vocos-24k"
+DEFAULT_VOCOS_ROOT = WORKSPACE_ROOT / "tts" / "training" / "dingqiao_lits" / "vocos-24k"
 
 
 def parse_args() -> argparse.Namespace:

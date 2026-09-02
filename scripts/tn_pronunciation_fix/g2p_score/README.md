@@ -17,7 +17,7 @@
 **逐 token 100% 一致**;polyphone-surname 类整体 91–93% 通过 —— 说明 G2P 移植忠实。
 
 ## 用法
-1. 建 host zh_tts(见 dingqiao_lits 子模块 en/zh.cpp + host ICU 78.1)。
+1. 建 host zh_tts（见 `tts/training/dingqiao_lits` 子模块 en/zh.cpp + host ICU 78.1）。
 2. `python3 score.py <testset.jsonl>`(需能 import g2p;zh_tts 路径在脚本顶部)。
 
 ## 已知边界(打分时注意)
@@ -49,7 +49,7 @@ The harness needs a host (macOS) `zh_tts` native TN binary. It's not committed
 
 ```bash
 scripts/tn_pronunciation_fix/g2p_score/build_host_zh_tts.sh
-# -> writes dingqiao_lits/build/host-tn/zh_tts (gitignored); auto-downloads ICU 78.1
+# -> writes tts/training/dingqiao_lits/build/host-tn/zh_tts (gitignored); auto-downloads ICU 78.1
 ```
 
 `score_all.py` / `score.py` read `$ZH_TTS`, falling back to that default path, so

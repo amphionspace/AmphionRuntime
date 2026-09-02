@@ -1,0 +1,32 @@
+_target_: lits.data.text_mel_datamodule.TextMelDataModule
+name: ar-en_24k
+train_filelist_path: data/filelists/dingqiao_ar-en_mix24k_training.txt
+valid_filelist_path: data/filelists/dingqiao_ar-en_mix24k_validation.txt
+
+batch_size: 24
+num_workers: 8
+pin_memory: True
+n_spks: 2
+
+# 24k pupuvocoder mel config
+# to fit 16k-24k latest pupuvocoder
+n_fft: 2048
+n_feats: 100
+sample_rate: 24000
+hop_length: 384 # prev: 320
+win_length: 1536 # prev: 1280
+f_min: 0
+f_max: 12000
+cleaners: [ar_en_mixed_cleaners]
+# false | true | mixed
+# mixed: filelist must include no-, partial-, and full-diacritics Arabic rows
+use_diacritics: false
+add_blank: False
+text_normalization: False
+
+# TODO: recompute with lits/utils/generate_data_statistics.py -i ar-en_24k
+data_statistics: # {'mel_mean': -4.956259727478027, 'mel_std': 2.2982845306396484}
+  mel_mean: -4.956259727478027
+  mel_std: 2.2982845306396484
+seed: ${seed}
+load_durations: false
