@@ -6,7 +6,7 @@ import { appTasks } from '@ohos/hvigor-ohos-plugin';
 
 const MODEL_ID = 'dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop';
 const MODEL_VERSION = '0.1.0';
-const MODEL_FILES = [
+const BASE_MODEL_FILES = [
   'manifest.json',
   'export_report.json',
   'frontend_golden.json',
@@ -32,10 +32,10 @@ const MODEL_FILES = [
   'lits_hidden_encoder.onnx',
   'external_loop_export_report.json',
   'lits_stream_condition_chunk.onnx',
-  'lits_stream_condition_final.onnx',
   'lits_stream_decoder_step.onnx',
   'vocos_vocoder.onnx'
 ];
+const STREAM_CONDITION_FINAL_MODEL_FILE = 'lits_stream_condition_final.onnx';
 
 const modelSourceDir = path.resolve(
   __dirname,
@@ -69,6 +69,7 @@ export default {
 
 function syncBundledModelResources(): void {
   assertModelSourceDir();
+  const modelFiles = requiredModelFiles();
 
   if (isModelTargetUpToDate()) {
     return;
@@ -76,7 +77,7 @@ function syncBundledModelResources(): void {
 
   fs.rmSync(modelTargetDir, { recursive: true, force: true });
   fs.mkdirSync(modelTargetDir, { recursive: true });
-  MODEL_FILES.forEach((fileName: string): void => {
+  modelFiles.forEach((fileName: string): void => {
     const sourceFile = resolveModelSource(fileName);
     const targetFile = path.join(modelTargetDir, fileName);
     fs.mkdirSync(path.dirname(targetFile), { recursive: true });
@@ -99,14 +100,15 @@ function buildFrontendBinaryAssets(): void {
 }
 
 function assertModelSourceDir(): void {
+  const modelFiles = requiredModelFiles();
   if (!fs.existsSync(modelSourceDir)) {
-    if (MODEL_FILES.every((fileName: string): boolean => fs.existsSync(resolveModelSource(fileName)))) {
+    if (modelFiles.every((fileName: string): boolean => fs.existsSync(resolveModelSource(fileName)))) {
       return;
     }
     throw new Error(`Missing HarmonyOS model source directory: ${modelSourceDir}`);
   }
 
-  MODEL_FILES.forEach((fileName: string): void => {
+  modelFiles.forEach((fileName: string): void => {
     const sourceFile = resolveModelSource(fileName);
     if (!fs.existsSync(sourceFile)) {
       throw new Error(`Missing HarmonyOS model file: ${sourceFile}`);
@@ -125,10 +127,14 @@ function resolveModelSource(fileName: string): string {
 }
 
 function isModelTargetUpToDate(): boolean {
-  if (!fs.existsSync(modelSourceDir)) {
-    return MODEL_FILES.every((fileName: string): boolean => fs.existsSync(path.join(modelTargetDir, fileName)));
+  const modelFiles = requiredModelFiles();
+  if (usesChunkConditionForFinal() && fs.existsSync(path.join(modelTargetDir, STREAM_CONDITION_FINAL_MODEL_FILE))) {
+    return false;
   }
-  return MODEL_FILES.every((fileName: string): boolean => {
+  if (!fs.existsSync(modelSourceDir)) {
+    return modelFiles.every((fileName: string): boolean => fs.existsSync(path.join(modelTargetDir, fileName)));
+  }
+  return modelFiles.every((fileName: string): boolean => {
     const sourceFile = resolveModelSource(fileName);
     const targetFile = path.join(modelTargetDir, fileName);
     if (!fs.existsSync(targetFile)) {
@@ -139,4 +145,26 @@ function isModelTargetUpToDate(): boolean {
     const targetStat = fs.statSync(targetFile);
     return sourceStat.size === targetStat.size && targetStat.mtimeMs >= sourceStat.mtimeMs;
   });
+}
+
+function requiredModelFiles(): Array<string> {
+  const files = BASE_MODEL_FILES.slice();
+  if (!usesChunkConditionForFinal()) {
+    files.push(STREAM_CONDITION_FINAL_MODEL_FILE);
+  }
+  return files;
+}
+
+function usesChunkConditionForFinal(): boolean {
+  const sourceManifest = path.join(modelSourceDir, 'manifest.json');
+  const manifestPath = fs.existsSync(sourceManifest)
+    ? sourceManifest
+    : path.join(modelTargetDir, 'manifest.json');
+  if (!fs.existsSync(manifestPath)) {
+    return false;
+  }
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
+    stream_final_zero_pad_with_chunk_condition?: boolean;
+  };
+  return manifest.stream_final_zero_pad_with_chunk_condition === true;
 }

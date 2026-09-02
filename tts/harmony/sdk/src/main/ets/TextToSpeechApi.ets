@@ -6,6 +6,11 @@ import { HarmonyLicenseVerifier, AmphionLicenseStatus } from './License';
 import { AudioTransforms, lengthScaleForSpeed } from './AudioTransforms';
 import { PcmChunkQueue } from './PcmChunkQueue';
 import {
+  resolveStreamFinalConditionPolicy,
+  STREAM_CONDITION_FINAL_MODEL_FILE
+} from './TtsModelManifest';
+import type { StreamFinalConditionPolicy } from './TtsModelManifest';
+import {
   CompleteType,
   LicenseActivationResult,
   LicenseInfo,
@@ -61,7 +66,7 @@ export type {
 
 const MODEL_ID: string = 'dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop';
 const MODEL_VERSION: string = '0.1.0';
-const FRONTEND_ASSET_SIGNATURE_VERSION: string = '20260701-chunk50-polyphone-v1';
+const FRONTEND_ASSET_SIGNATURE_VERSION: string = '20260902-zero-final-v1';
 const BUNDLED_MODEL_RAWFILE_DIR: string = `lits-models/tts/${MODEL_ID}/${MODEL_VERSION}`;
 const DEFAULT_SAMPLE_RATE: number = 24000;
 const MAX_ENGINE_COUNT: number = 3;
@@ -120,7 +125,6 @@ const REQUIRED_RUNTIME_FILES: Array<string> = [
   'manifest.json',
   'lits_hidden_encoder.onnx',
   'lits_stream_condition_chunk.onnx',
-  'lits_stream_condition_final.onnx',
   'lits_stream_decoder_step.onnx',
   'vocos_vocoder.onnx',
   'chinese_lexicon.txt',
@@ -162,7 +166,6 @@ const BUNDLED_MODEL_FILES: Array<string> = [
   'rules_v2/zh_pinyin.json',
   'lits_hidden_encoder.onnx',
   'lits_stream_condition_chunk.onnx',
-  'lits_stream_condition_final.onnx',
   'lits_stream_decoder_step.onnx',
   'vocos_vocoder.onnx'
 ];
@@ -426,7 +429,8 @@ interface NativeTtsModule {
     melCacheLen: number,
     hopLength: number,
     decoderTimesteps: number,
-    decoderTemperature: number
+    decoderTemperature: number,
+    useChunkConditionForFinal: boolean
   ): object;
   releaseRuntime(runtimeHandle: object): void;
   cancelRuntime(runtimeHandle: object): void;
@@ -537,6 +541,7 @@ interface ModelManifest {
   hidden_encoder_model?: ManifestModelFile;
   stream_condition_chunk_model?: ManifestModelFile;
   stream_condition_final_model?: ManifestModelFile;
+  stream_final_zero_pad_with_chunk_condition?: boolean;
   stream_decoder_step_model?: ManifestModelFile;
   stream_decoder_external_loop?: boolean;
   stream_decoder_n_timesteps?: number;
@@ -582,6 +587,7 @@ interface RequiredManifest {
   hiddenEncoderModelFile: string;
   streamConditionChunkModelFile: string;
   streamConditionFinalModelFile: string;
+  useChunkConditionForFinal: boolean;
   streamDecoderStepModelFile: string;
   streamDecoderTimesteps: number;
   streamDecoderTemperature: number;
@@ -655,8 +661,11 @@ class FrontendResources {
   }
 
   private static loadManifest(modelPackageDir: string): RequiredManifest {
-    FrontendResources.ensureRuntimeFiles(modelPackageDir);
     const raw = readJsonFile<ModelManifest>(joinPath(modelPackageDir, 'manifest.json'));
+    const finalConditionPolicy = resolveStreamFinalConditionPolicy(
+      raw.stream_final_zero_pad_with_chunk_condition === true,
+      raw.stream_condition_final_model?.file
+    );
     if (
       raw.task !== 'tts' ||
       raw.model_id !== MODEL_ID ||
@@ -671,7 +680,7 @@ class FrontendResources {
       raw.hidden_encoder_model?.file !== 'lits_hidden_encoder.onnx' ||
       raw.stream_decoder_external_loop !== true ||
       raw.stream_condition_chunk_model?.file !== 'lits_stream_condition_chunk.onnx' ||
-      raw.stream_condition_final_model?.file !== 'lits_stream_condition_final.onnx' ||
+      finalConditionPolicy === undefined ||
       raw.stream_decoder_step_model?.file !== 'lits_stream_decoder_step.onnx' ||
       raw.stream_decoder_n_timesteps === undefined ||
       raw.stream_decoder_n_timesteps <= 0 ||
@@ -694,6 +703,7 @@ class FrontendResources {
         `invalid TTS manifest: ${joinPath(modelPackageDir, 'manifest.json')}`
       );
     }
+    FrontendResources.ensureRuntimeFiles(modelPackageDir, finalConditionPolicy);
     return {
       sampleRate: raw.sample_rate,
       hopLength: raw.hop_length,
@@ -703,7 +713,8 @@ class FrontendResources {
       supportedLanguages: raw.supported_languages ?? ['zh-en', 'en-US'],
       hiddenEncoderModelFile: raw.hidden_encoder_model.file,
       streamConditionChunkModelFile: raw.stream_condition_chunk_model.file,
-      streamConditionFinalModelFile: raw.stream_condition_final_model.file,
+      streamConditionFinalModelFile: finalConditionPolicy.finalModelFile,
+      useChunkConditionForFinal: finalConditionPolicy.useChunkConditionForFinal,
       streamDecoderStepModelFile: raw.stream_decoder_step_model.file,
       streamDecoderTimesteps: raw.stream_decoder_n_timesteps,
       streamDecoderTemperature: raw.stream_decoder_temperature,
@@ -714,8 +725,11 @@ class FrontendResources {
     };
   }
 
-  private static ensureRuntimeFiles(modelPackageDir: string): void {
-    REQUIRED_RUNTIME_FILES.forEach((fileName: string): void => {
+  private static ensureRuntimeFiles(
+    modelPackageDir: string,
+    finalConditionPolicy: StreamFinalConditionPolicy
+  ): void {
+    runtimeFilesForFinalCondition(finalConditionPolicy).forEach((fileName: string): void => {
       const path = joinPath(modelPackageDir, fileName);
       if (!isRegularFile(path)) {
         throw new TextToSpeechException(
@@ -2926,7 +2940,9 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
     this.nativeRuntime = nativeTts.createRuntime(
       joinPath(this.modelPackageDir, this.modelPackage.manifest.hiddenEncoderModelFile),
       joinPath(this.modelPackageDir, this.modelPackage.manifest.streamConditionChunkModelFile),
-      joinPath(this.modelPackageDir, this.modelPackage.manifest.streamConditionFinalModelFile),
+      this.modelPackage.manifest.streamConditionFinalModelFile.length > 0
+        ? joinPath(this.modelPackageDir, this.modelPackage.manifest.streamConditionFinalModelFile)
+        : '',
       joinPath(this.modelPackageDir, this.modelPackage.manifest.streamDecoderStepModelFile),
       joinPath(this.modelPackageDir, this.modelPackage.manifest.vocoderModelFile),
       runtimeChunkSize,
@@ -2934,7 +2950,8 @@ export class TextToSpeechEngineImpl implements TextToSpeechEngine {
       this.modelPackage.manifest.streamingMelCacheLen,
       this.modelPackage.manifest.hopLength,
       this.modelPackage.manifest.streamDecoderTimesteps,
-      this.modelPackage.manifest.streamDecoderTemperature
+      this.modelPackage.manifest.streamDecoderTemperature,
+      this.modelPackage.manifest.useChunkConditionForFinal
     );
     this.modelInfo = this.buildModelInfo(runtimeChunkSize);
     this.loadProfileInfo = `createRuntimeWall=${Math.max(0, Date.now() - loadStartedAt)}ms`;
@@ -3803,7 +3820,27 @@ function resolveBundledModelPackageDir(workPath: string | undefined, context: co
 }
 
 function hasRequiredRuntimeFiles(modelPackageDir: string): boolean {
-  return REQUIRED_RUNTIME_FILES.every((fileName: string): boolean => isRegularFile(joinPath(modelPackageDir, fileName)));
+  try {
+    const manifest = readJsonFile<ModelManifest>(joinPath(modelPackageDir, 'manifest.json'));
+    const finalConditionPolicy = resolveStreamFinalConditionPolicy(
+      manifest.stream_final_zero_pad_with_chunk_condition === true,
+      manifest.stream_condition_final_model?.file
+    );
+    return finalConditionPolicy !== undefined &&
+      runtimeFilesForFinalCondition(finalConditionPolicy).every(
+        (fileName: string): boolean => isRegularFile(joinPath(modelPackageDir, fileName))
+      );
+  } catch (_error) {
+    return false;
+  }
+}
+
+function runtimeFilesForFinalCondition(finalConditionPolicy: StreamFinalConditionPolicy): Array<string> {
+  const files = REQUIRED_RUNTIME_FILES.slice();
+  if (!finalConditionPolicy.useChunkConditionForFinal) {
+    files.push(STREAM_CONDITION_FINAL_MODEL_FILE);
+  }
+  return files;
 }
 
 function hasExpectedAssetSignature(modelPackageDir: string): boolean {
@@ -3818,7 +3855,26 @@ function extractBundledModelPackage(modelPackageDir: string, context: common.Con
   ensureDirectory(modelPackageDir);
   try {
     const resourceManager = resolveBundledModelResourceManager(context);
-    BUNDLED_MODEL_FILES.forEach((fileName: string): void => {
+    const manifestRawfilePath = joinPath(BUNDLED_MODEL_RAWFILE_DIR, 'manifest.json');
+    writeBinaryFile(
+      joinPath(modelPackageDir, 'manifest.json'),
+      resourceManager.getRawFileContentSync(manifestRawfilePath)
+    );
+    const manifest = readJsonFile<ModelManifest>(joinPath(modelPackageDir, 'manifest.json'));
+    const finalConditionPolicy = resolveStreamFinalConditionPolicy(
+      manifest.stream_final_zero_pad_with_chunk_condition === true,
+      manifest.stream_condition_final_model?.file
+    );
+    if (finalConditionPolicy === undefined) {
+      throw new TextToSpeechException(TtsErrorCode.CREATE_ENGINE_FAILED, 'invalid bundled TTS final condition policy');
+    }
+    const bundledFiles = BUNDLED_MODEL_FILES.filter(
+      (fileName: string): boolean => fileName !== 'manifest.json'
+    );
+    if (!finalConditionPolicy.useChunkConditionForFinal) {
+      bundledFiles.push(STREAM_CONDITION_FINAL_MODEL_FILE);
+    }
+    bundledFiles.forEach((fileName: string): void => {
       const rawfilePath = joinPath(BUNDLED_MODEL_RAWFILE_DIR, fileName);
       writeBinaryFile(
         joinPath(modelPackageDir, fileName),
