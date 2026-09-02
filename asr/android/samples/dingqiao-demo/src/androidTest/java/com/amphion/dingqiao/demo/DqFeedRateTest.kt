@@ -81,9 +81,7 @@ class DqFeedRateTest {
         private fun engine(): SpeechRecognitionEngine {
             engine?.let { return it }
             val target = InstrumentationRegistry.getInstrumentation().targetContext
-            val test = InstrumentationRegistry.getInstrumentation().context
             prepareSdkRuntime(
-                test,
                 target,
                 File(target.getExternalFilesDir(null), "dq_feedrate_work"),
             )

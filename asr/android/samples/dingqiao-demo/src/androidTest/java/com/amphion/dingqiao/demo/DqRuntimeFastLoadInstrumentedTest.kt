@@ -110,7 +110,7 @@ class DqRuntimeFastLoadInstrumentedTest {
     }
 
     private fun activateValidLicense() {
-        val path = stageAsset(testContext, targetContext, "licenses/valid.lic", "lic/runtime-valid.lic")
+        val path = stageRuntimeLicense(targetContext)
         val done = CountDownLatch(1)
         var resultCode: Int? = null
         SpeechRecognizeSdk.setLicense(path, object : LicenseActivationCallback {

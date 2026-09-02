@@ -26,7 +26,7 @@ class DqFirstPartialLatencyInstrumentedTest {
     fun pacedPcmReportsWallAndAudioTimeAtFirstNonEmptyPartial() {
         val target = InstrumentationRegistry.getInstrumentation().targetContext
         val test = InstrumentationRegistry.getInstrumentation().context
-        prepareSdkRuntime(test, target, File(target.filesDir, "first-partial-latency"))
+        prepareSdkRuntime(target, File(target.filesDir, "first-partial-latency"))
         val availableAudio = mainWavs(test)
         val requestedAudio = InstrumentationRegistry.getArguments()
             .getString(AUDIO_ASSET_ARGUMENT)

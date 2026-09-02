@@ -31,18 +31,20 @@ import argparse
 import csv
 import datetime as dt
 import json
-import os
-import socket
+import html
+import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
+from urllib.parse import urlsplit
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_TPL = Path(__file__).resolve().parent / "templates" / "monthly.md.tpl"
 DEFAULT_TRENDS = Path(__file__).resolve().parent / "trends"
+MAX_JSON_BYTES = 50 * 1024 * 1024
 
 
 @dataclass
@@ -108,12 +110,12 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="directory containing rtf.csv / crash.csv / startup.csv")
     p.add_argument("--template", type=Path, default=DEFAULT_TPL,
                    help="markdown template path")
-    p.add_argument("--android-startup-runner", default=None,
-                   help="Optional shell command to collect Android startup latency; must print json to stdout")
-    p.add_argument("--ios-startup-runner", default=None,
-                   help="Optional shell command to collect iOS startup latency; must print json to stdout")
-    p.add_argument("--bench-runner", default=None,
-                   help="Optional shell command to run server bench; must print json to stdout")
+    p.add_argument("--android-startup-source", type=Path,
+                   help="pre-fetched Android startup JSON")
+    p.add_argument("--ios-startup-source", type=Path,
+                   help="pre-fetched iOS startup JSON")
+    p.add_argument("--bench-source", type=Path,
+                   help="pre-fetched server benchmark JSON")
     p.add_argument("--android-crash-source", default=None,
                    help="path to JSON file pre-fetched from Bugly/Crashlytics")
     p.add_argument("--ios-crash-source", default=None,
@@ -124,20 +126,26 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-def shell_json(cmd: str) -> Dict[str, Any]:
-    proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=False)
-    if proc.returncode != 0:
-        sys.stderr.write(f"[runner] command failed (rc={proc.returncode}): {cmd}\nstderr:\n{proc.stderr}\n")
-        return {}
-    out = proc.stdout.strip()
-    if not out:
-        sys.stderr.write(f"[runner] command produced empty stdout: {cmd}\n")
-        return {}
+def validate_month(value: str) -> str:
     try:
-        return json.loads(out)
-    except json.JSONDecodeError as e:
-        sys.stderr.write(f"[runner] command stdout not valid json: {cmd}\nerror={e}\nstdout snippet:\n{out[:400]}\n")
-        return {}
+        parsed = dt.datetime.strptime(value, "%Y-%m")
+    except ValueError as error:
+        raise ValueError(f"invalid month {value!r}; expected YYYY-MM") from error
+    if parsed.strftime("%Y-%m") != value:
+        raise ValueError(f"invalid month {value!r}; expected YYYY-MM")
+    return value
+
+
+def load_json_source(path: Path, label: str) -> Dict[str, Any]:
+    try:
+        if path.stat().st_size > MAX_JSON_BYTES:
+            raise ValueError(f"{label} JSON exceeds {MAX_JSON_BYTES} bytes: {path}")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"cannot read {label} JSON {path}: {error}") from error
+    if not isinstance(payload, dict):
+        raise ValueError(f"{label} JSON must contain an object: {path}")
+    return payload
 
 
 def parse_startup(payload: Dict[str, Any]) -> StartupStats:
@@ -167,13 +175,16 @@ def parse_server_bench(payload: Dict[str, Any]) -> ServerBench:
     rtf = payload.get("rtf", {})
     fp = payload.get("first_partial_ms", {})
     err = payload.get("error", {})
+    sessions = int(payload.get("sessions", 0) or 0)
+    failures = int(payload.get("failures", 0) or 0)
+    measured_error_rate = (failures / sessions * 100.0) if sessions else float("nan")
     return ServerBench(
-        max_concurrency=int(payload.get("max_concurrency", 0) or 0),
+        max_concurrency=int(payload.get("max_concurrency", payload.get("concurrency", 0)) or 0),
         rtf_p50=float(rtf.get("p50", float("nan"))),
         rtf_p99=float(rtf.get("p99", float("nan"))),
         mem_peak_mib=float(payload.get("mem_peak_mib", float("nan"))),
         first_partial_p95=float(fp.get("p95", float("nan"))),
-        error_rate=float(err.get("rate", float("nan"))),
+        error_rate=float(err.get("rate", measured_error_rate)),
         error_top=list(err.get("top", []) or [])[:5],
     )
 
@@ -252,47 +263,56 @@ def load_prev_csv_row(csv_path: Path, prev_month: str) -> Dict[str, str]:
 def render_table_rows(items: Iterable[Dict[str, Any]], cols: List[str]) -> str:
     lines = []
     for it in items:
-        cells = [str(it.get(c, "-")) for c in cols]
+        cells = [markdown_cell(it.get(c, "-")) for c in cols]
         lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines) if lines else "| - | - | - | - | - |"
 
 
 def collect_android_startup(args: argparse.Namespace) -> StartupStats:
-    if args.dry_run or not args.android_startup_runner:
+    if args.dry_run or not args.android_startup_source:
         return StartupStats()
-    return parse_startup(shell_json(args.android_startup_runner))
+    return parse_startup(load_json_source(args.android_startup_source, "Android startup"))
 
 
 def collect_ios_startup(args: argparse.Namespace) -> StartupStats:
-    if args.dry_run or not args.ios_startup_runner:
+    if args.dry_run or not args.ios_startup_source:
         return StartupStats()
-    return parse_startup(shell_json(args.ios_startup_runner))
+    return parse_startup(load_json_source(args.ios_startup_source, "iOS startup"))
 
 
 def collect_server_bench(args: argparse.Namespace) -> ServerBench:
     if args.dry_run:
         return ServerBench()
-    if args.bench_runner:
-        return parse_server_bench(shell_json(args.bench_runner))
+    if args.bench_source:
+        return parse_server_bench(load_json_source(args.bench_source, "server benchmark"))
     if not args.bench_target:
         return ServerBench()
-    bench_script = REPO_ROOT / "server" / "asr-service" / "bench" / "bench_concurrent.py"
+    bench_script = REPO_ROOT / "asr" / "server" / "bench" / "bench_concurrent.py"
     if not bench_script.exists():
         sys.stderr.write(f"[runner] bench script missing: {bench_script}\n")
         return ServerBench()
     out = REPO_ROOT / "build" / "dashboard" / f"bench-{args.month}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    cmd = (
-        f"python {bench_script} --target {args.bench_target} "
-        f"--regression-set {args.regression_set} --json-out {out}"
-    )
-    proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=False)
+    cmd = [
+        sys.executable,
+        str(bench_script),
+        "--target",
+        args.bench_target,
+        "--wav-dir",
+        str(args.regression_set / "wav"),
+        "--report",
+        str(out),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if proc.returncode != 0:
-        sys.stderr.write(f"[runner] bench command failed: {cmd}\nstderr:\n{proc.stderr}\n")
+        sys.stderr.write(
+            f"[runner] bench command failed (rc={proc.returncode}): {bench_script}\n"
+            f"stderr:\n{proc.stderr}\n"
+        )
         return ServerBench()
     if not out.exists():
         return ServerBench()
-    return parse_server_bench(json.loads(out.read_text(encoding="utf-8")))
+    return parse_server_bench(load_json_source(out, "server benchmark"))
 
 
 def collect_crash(path: Optional[str]) -> CrashStats:
@@ -302,7 +322,31 @@ def collect_crash(path: Optional[str]) -> CrashStats:
     if not p.exists():
         sys.stderr.write(f"[runner] crash source missing: {p}\n")
         return CrashStats()
-    return parse_crash(json.loads(p.read_text(encoding="utf-8")))
+    return parse_crash(load_json_source(p, "crash"))
+
+
+def markdown_cell(value: object) -> str:
+    text = html.escape(str(value), quote=False)
+    return text.replace("|", r"\|").replace("\r", " ").replace("\n", " ")
+
+
+def safe_report_url(value: Optional[str]) -> str:
+    if not value:
+        return "-"
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or re.search(r"[\x00-\x20\x7f<>()\[\]]", value)
+    ):
+        raise ValueError("upstream WER report URL must be a safe https URL")
+    return value
+
+
+def report_link(value: str) -> str:
+    return "-" if value == "-" else f"[{markdown_cell(value)}]({value})"
 
 
 def render_report(report: MonthlyReport, prev_csv_rows: Dict[str, Dict[str, str]], template: Path) -> str:
@@ -346,7 +390,7 @@ def render_report(report: MonthlyReport, prev_csv_rows: Dict[str, Dict[str, str]
         "MONTH": report.month,
         "PREV_MONTH": report.prev_month,
         "GENERATED_AT": report.generated_at,
-        "UPSTREAM_WER_REPORT_URL": report.upstream_wer_report_url,
+        "UPSTREAM_WER_REPORT": report_link(report.upstream_wer_report_url),
         "RTF_SINGLE": fmt_num(rtf_single),
         "RTF_SINGLE_PREV": fmt_num(rtf_single_prev),
         "RTF_SINGLE_DELTA": fmt_delta(rtf_single, rtf_single_prev, kind="num"),
@@ -396,16 +440,14 @@ def render_report(report: MonthlyReport, prev_csv_rows: Dict[str, Dict[str, str]
         "P0_P1_LIST": "\n".join(f"- {x}" for x in report.p0_p1_list) or "- 无",
         "FOLLOWUPS": "\n".join(f"- {x}" for x in report.followups) or "- 无",
         "NEXT_MONTH_PLAN": "\n".join(f"- {x}" for x in report.next_month_plan) or "- 待补充",
-        "MODEL_ID": report.model_id,
-        "MODEL_VERSION": report.model_version,
-        "ANDROID_SDK_VERSION": report.android_sdk_version,
-        "ANDROID_SDK_SHA": report.android_sdk_sha,
-        "IOS_SDK_VERSION": report.ios_sdk_version,
-        "IOS_SDK_SHA": report.ios_sdk_sha,
-        "SERVER_IMAGE": report.server_image,
-        "SERVER_IMAGE_DIGEST": report.server_image_digest,
-        "HOSTNAME": socket.gethostname(),
-        "OS_INFO": f"{os.name}-{sys.platform}",
+        "MODEL_ID": markdown_cell(report.model_id),
+        "MODEL_VERSION": markdown_cell(report.model_version),
+        "ANDROID_SDK_VERSION": markdown_cell(report.android_sdk_version),
+        "ANDROID_SDK_SHA": markdown_cell(report.android_sdk_sha),
+        "IOS_SDK_VERSION": markdown_cell(report.ios_sdk_version),
+        "IOS_SDK_SHA": markdown_cell(report.ios_sdk_sha),
+        "SERVER_IMAGE": markdown_cell(report.server_image),
+        "SERVER_IMAGE_DIGEST": markdown_cell(report.server_image_digest),
     }
     out = tpl
     for k, v in mapping.items():
@@ -415,7 +457,7 @@ def render_report(report: MonthlyReport, prev_csv_rows: Dict[str, Dict[str, str]
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = parse_args(argv)
-    month = args.month
+    month = validate_month(args.month)
     prev = previous_month(month)
 
     android_startup = collect_android_startup(args)
@@ -433,7 +475,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         android_crash=android_crash,
         ios_crash=ios_crash,
         server_bench=server_bench,
-        upstream_wer_report_url=args.upstream_wer_report_url or "-",
+        upstream_wer_report_url=safe_report_url(args.upstream_wer_report_url),
         android_sdk_version=str(args.android_aar.name) if args.android_aar else "-",
         ios_sdk_version=str(args.ios_xcframework.name) if args.ios_xcframework else "-",
         server_image=args.server_image or "-",

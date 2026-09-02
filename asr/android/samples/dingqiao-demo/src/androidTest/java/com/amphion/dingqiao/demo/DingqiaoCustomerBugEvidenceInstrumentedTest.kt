@@ -431,7 +431,7 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
             File(targetContext.getExternalFilesDir(null), "customer_bug_work").absolutePath,
         )
 
-        val licensePath = stageAsset(testContext, targetContext, "licenses/valid.lic", "lic/runtime-valid.lic")
+        val licensePath = stageRuntimeLicense(targetContext)
         val licenseDone = CountDownLatch(1)
         var licenseResultCode: Int? = null
         var licenseError: String? = null
@@ -557,7 +557,7 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
     }
 
     private fun relicenseAndPrepare(writer: EvidenceWriter) {
-        val licensePath = stageAsset(testContext, targetContext, "licenses/valid.lic", "customer_bug/relicense.lic")
+        val licensePath = stageRuntimeLicense(targetContext, "customer_bug/relicense.lic")
         val licenseDone = CountDownLatch(1)
         var licenseError: String? = null
         SpeechRecognizeSdk.setLicense(licensePath, object : LicenseActivationCallback {
