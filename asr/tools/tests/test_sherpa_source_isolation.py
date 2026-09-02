@@ -24,6 +24,7 @@ class SherpaSourceIsolationTest(unittest.TestCase):
             "asr/tools/apply_sherpa_patches.sh",
             "asr/tools/04_build_android_so.sh",
             "asr/tools/04_build_harmony_so.sh",
+            "asr/tools/07_sync_kotlin_from_upstream.sh",
         ):
             source = (ROOT / relative).read_text(encoding="utf-8")
             self.assertNotIn("reset --hard", source, relative)
@@ -34,6 +35,14 @@ class SherpaSourceIsolationTest(unittest.TestCase):
         self.assertIn(
             'SHERPA_ROOT="$(bash "$SCRIPT_DIR/prepare_sherpa_source.sh")"',
             (ROOT / "asr/tools/04_build_harmony_so.sh").read_text(encoding="utf-8"),
+        )
+        kotlin_sync = (
+            ROOT / "asr/tools/07_sync_kotlin_from_upstream.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn('SHERPA_ROOT="${AMPHION_SHERPA_ROOT:-}"', kotlin_sync)
+        self.assertIn(
+            'SHERPA_ROOT="$(bash "$SCRIPT_DIR/prepare_sherpa_source.sh")"',
+            kotlin_sync,
         )
         harmony_cmake = (
             ROOT / "asr/harmony/sdk/src/main/cpp/CMakeLists.txt"
