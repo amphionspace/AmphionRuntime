@@ -18,7 +18,7 @@ val frontendBinaryBuilder = rootDir.resolve("../../tools/dingqiao-android/build_
 val externalResourceDir = rootDir.resolve("external-resources/tts/$modelId/$modelVersion")
 val sourceDirName = "dingqiao_lits"
 val tnPackageDirName = "Dingqiao_Multilingual_Text_Normalization_for_TTS"
-val litsSourceRoot = rootDir.resolve("../../$sourceDirName")
+val litsSourceRoot = rootDir.resolve("../training/$sourceDirName")
 val tnSourceRoot = litsSourceRoot.resolve(tnPackageDirName)
 val bundledAssetRoot = rootDir.resolve("sdk/src/main/assets/lits-models/tts")
 

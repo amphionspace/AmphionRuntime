@@ -26,6 +26,7 @@ amphion-runtime/
 │   ├── android/                 # Android TTS SDK（AAR + Sample，独立 Gradle root）
 │   ├── docs/                    # TTS 跨平台接口契约与优化报告
 │   ├── harmony/                 # HarmonyOS TTS HAR
+│   ├── training/                # TTS 训练、推理与模型导出源码（见 training/README.md）
 │   └── tools/                   # 模型校验 / license / 交付脚本
 │
 ├── delivery/

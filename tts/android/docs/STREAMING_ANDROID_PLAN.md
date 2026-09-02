@@ -11,7 +11,7 @@
    - `LITS.get_mel(..., streaming=True)`
    - `CFM_Causal.forward(..., finalize, streaming=True)`
 2. 本地已经可以测训练侧流式指标：
-   - [infer/benchmark_streaming_local.py](dingqiao_lits/infer/benchmark_streaming_local.py:1)
+   - [infer/benchmark_streaming_local.py](../../training/dingqiao_lits/infer/benchmark_streaming_local.py:1)
 
 但 Android 交付包目前仍是非流式资产，因此 SDK 侧暂时无法实现真实首包提前。
 
@@ -64,7 +64,7 @@
 
 ### 1. 隐变量阶段和解码阶段已经拆开
 
-[train/lits/models/lits.py](dingqiao_lits/lits/models/lits.py:135)
+[train/lits/models/lits.py](../../training/dingqiao_lits/lits/models/lits.py:135)
 
 - `get_hidden_mel(...)` 产出 `mu_y`, `y_mask`, `y_max_length`, `spks`
 - `get_mel(...)` 接收 `mu_y`, `y_mask`, `finalize`, `streaming`
@@ -73,7 +73,7 @@
 
 ### 2. `CFM_Causal` 已有 lookahead/finalize 语义
 
-[flow_matching.py](dingqiao_lits/lits/models/components/flow_matching.py:177)
+[flow_matching.py](../../training/dingqiao_lits/lits/models/components/flow_matching.py:177)
 
 关键点：
 
@@ -85,7 +85,7 @@
 
 ### 3. Conformer/Attention 已考虑 ONNX 流式缓存形态
 
-[transformer.py](dingqiao_lits/lits/models/components/transformer.py:398)
+[transformer.py](../../training/dingqiao_lits/lits/models/components/transformer.py:398)
 
 注释里已经明确提到：
 
@@ -236,7 +236,7 @@
 
 ### 第 2 步：对齐本地 benchmark
 
-以 [infer/benchmark_streaming_local.py](dingqiao_lits/infer/benchmark_streaming_local.py:1) 为基线，至少对比：
+以 [infer/benchmark_streaming_local.py](../../training/dingqiao_lits/infer/benchmark_streaming_local.py:1) 为基线，至少对比：
 
 - `first_mel_ms`
 - `first_audio_ms`

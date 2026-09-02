@@ -30,7 +30,7 @@ git submodule update --init --recursive
 必须存在以下 TN submodule：
 
 ```text
-dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS/
+tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS/
 ```
 
 HarmonyOS TN 可执行文件会从这个 submodule 编译；HAR 的 native 库 `liblitsttsnative.so` 也会使用仓库内的 TN/ICU 代码和静态库。
