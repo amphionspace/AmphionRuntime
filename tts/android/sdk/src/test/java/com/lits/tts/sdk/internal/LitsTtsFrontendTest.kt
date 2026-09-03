@@ -95,9 +95,16 @@ class LitsTtsFrontendTest {
                 "zh-en",
             ).isNotEmpty(),
         )
+        // Technical tokens intentionally spell LITS as an acronym; the ordinary
+        // lowercase word outside a technical token retains its lexicon reading.
         assertArrayEquals(
-            LitsTtsFrontend.encode(layout, "包名是com点lits点tts点sample", "zh-en", "zh-en"),
+            LitsTtsFrontend.encodeNormalized(layout, "包名是com点LITS点tts点sample", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "包名是com.lits.tts.sample", "zh-en", "zh-en"),
+        )
+        assertFalse(
+            LitsTtsFrontend.encode(layout, "包名是com点lits点tts点sample", "zh-en", "zh-en").contentEquals(
+                LitsTtsFrontend.encode(layout, "包名是com.lits.tts.sample", "zh-en", "zh-en"),
+            ),
         )
         assertArrayEquals(
             LitsTtsFrontend.encode(layout, "公式E等于mc平方只是备注", "zh-en", "zh-en"),
@@ -459,24 +466,21 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun splitForStreamingUsesStrongChinesePunctuation() {
-        val layout = testLayout()
-
-        val segments = LitsTtsFrontend.splitForStreaming(layout, "你好。欢迎使用语音合成系统！请稍等。")
+    fun splitRawForStreamingUsesStrongChinesePunctuation() {
+        val segments = LitsTtsFrontend.splitRawForStreaming("你好。欢迎使用语音合成系统！请稍等。")
 
         assertArrayEquals(
-            arrayOf("你好.", "欢迎使用语音合成系统!", "请稍等."),
+            arrayOf("你好。", "欢迎使用语音合成系统！", "请稍等。"),
             segments.toTypedArray(),
         )
     }
 
     @Test
-    fun splitForStreamingAvoidsEnglishFalseBreaks() {
-        val layout = testLayout()
-
-        val segments = LitsTtsFrontend.splitForStreaming(
-            layout,
+    fun splitRawForStreamingAvoidsEnglishPunctuationFalseBreaks() {
+        val segments = LitsTtsFrontend.splitRawForStreaming(
             "Hello world. Dr. Smith paid 3.14 dollars at 10:30 a.m. Visit example.com/test. Done.",
+            // Isolate punctuation decisions from the independently tested length cap.
+            maxCharsPerSegment = 100,
         )
 
         assertArrayEquals(
@@ -490,14 +494,11 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun splitForStreamingUsesEnUsContextForEnglishSample() {
+    fun splitRawForStreamingPreservesEnglishInputForEncoding() {
         val layout = testLayout()
 
-        val segments = LitsTtsFrontend.splitForStreaming(
-            layout = layout,
+        val segments = LitsTtsFrontend.splitRawForStreaming(
             text = "Welcome to the Lits delivery TTS sample. Room 204 is ready.",
-            language = "en-US",
-            languageContext = "en-US",
         )
 
         assertArrayEquals(
@@ -508,8 +509,18 @@ class LitsTtsFrontendTest {
             segments.toTypedArray(),
         )
         assertTrue(
-            LitsTtsFrontend.encodeNormalized(layout, segments[1], "en-US", "en-US").isNotEmpty(),
+            LitsTtsFrontend.encode(layout, segments[1], "en-US", "en-US").isNotEmpty(),
         )
+    }
+
+    @Test
+    fun splitRawForStreamingCapsLongSegmentsWithoutDroppingText() {
+        val text = "这是一段没有标点的测试文本".repeat(8)
+        val segments = LitsTtsFrontend.splitRawForStreaming(text)
+        assertTrue(segments.size > 1)
+        assertEquals(text, segments.joinToString(""))
+        assertTrue(segments.all { it.length <= 50 })
+        assertTrue(segments.dropLast(1).all { it.length == 50 })
     }
 
     @Test
@@ -611,32 +622,27 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun splitForStreamingDoesNotCreateShortPlateFragments() {
-        val layout = testLayout()
-
-        val segments = LitsTtsFrontend.splitForStreaming(layout, "车牌冀R65438，请核查。下一条。")
+    fun splitRawForStreamingDoesNotCreateShortPlateFragments() {
+        val segments = LitsTtsFrontend.splitRawForStreaming("车牌冀R65438，请核查。下一条。")
 
         assertArrayEquals(
-            arrayOf("车牌冀R65438,请核查.", "下一条."),
+            arrayOf("车牌冀R65438，请核查。", "下一条。"),
             segments.toTypedArray(),
         )
     }
 
     @Test
-    fun splitForStreamingAvoidsTechnicalPunctuationFalseBreaks() {
-        val layout = testLayout()
-
-        val segments = LitsTtsFrontend.splitForStreaming(
-            layout,
+    fun splitRawForStreamingAvoidsTechnicalPunctuationFalseBreaks() {
+        val segments = LitsTtsFrontend.splitRawForStreaming(
             "URL为https://api.example.com/v1/order?id=10086。版本号v10.20.003发布。用时1小时05分钟。下一句。",
         )
 
         assertArrayEquals(
             arrayOf(
-                "URL为https://api.example.com/v1/order?id=10086.",
-                "版本号v10.20.003发布.",
-                "用时一小时零五分钟.",
-                "下一句.",
+                "URL为https://api.example.com/v1/order?id=10086。",
+                "版本号v10.20.003发布。",
+                "用时1小时05分钟。",
+                "下一句。",
             ),
             segments.toTypedArray(),
         )
