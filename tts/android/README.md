@@ -87,4 +87,4 @@ tts/android/external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_
 
 ## 验证状态
 
-当前前端完整 JVM 测试仍有已知失败，不能将“可编译”或部分用例通过当成完整发布验收。负温度修复与剩余项见 [2026-09-03 回归记录](reports/negative-temperature-20260903/README.md)。
+2026-09-03 后续回归已解决日期规则和流式长度边界问题；默认 JVM 套件 103 项中 100 项通过、3 项原有跳过。Release AAR 与测试 APK 构建通过，最终代码的 Android 真机门禁仍待设备重连，尚不具备合入或发布条件。见[最新回归记录](reports/frontend-contracts-20260903/README.md)；[前序负温度记录](reports/negative-temperature-20260903/README.md)作为历史证据保留，不代表当前状态。
