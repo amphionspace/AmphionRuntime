@@ -3,6 +3,9 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+val sdkVersion = rootProject.extra["amphionRuntimeVersionName"] as String
+val sdkVersionCode = rootProject.extra["amphionRuntimeVersionCode"] as Int
+
 android {
     namespace = "com.amphion.asr.mini"
     compileSdk = 34
@@ -11,8 +14,8 @@ android {
         applicationId = "com.amphion.asr.mini"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = providers.gradleProperty("AMPHION_RUNTIME_VERSION").get()
+        versionCode = sdkVersionCode
+        versionName = sdkVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

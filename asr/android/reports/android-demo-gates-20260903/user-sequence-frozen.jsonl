@@ -1,0 +1,64 @@
+{"ts": 1788406589475, "case": "runtime_prepare", "phase": "init_start"}
+{"ts": 1788406590587, "case": "runtime_prepare", "phase": "init_complete"}
+{"ts": 1788406590587, "case": "runtime_prepare", "phase": "work_path_complete"}
+{"ts": 1788406590588, "case": "runtime_prepare", "phase": "license_staged"}
+{"ts": 1788406590588, "case": "runtime_prepare", "phase": "license_invoked"}
+{"ts": 1788406590680, "case": "runtime_prepare", "phase": "license_complete"}
+{"ts": 1788406590681, "case": "runtime_prepare", "phase": "prepare_invoked"}
+{"ts": 1788406591749, "case": "runtime_prepare", "phase": "prepare_complete"}
+{"ts": 1788406591749, "case": "engine_create", "phase": "start"}
+{"ts": 1788406591875, "case": "engine_create", "phase": "complete"}
+{"ts": 1788406591878, "case": "a13_userSequenceStress_progress", "cycle": 0, "phase": "start", "elapsedMs": 0}
+{"ts": 1788406591894, "case": "callback", "sessionId": "useq-c-0-1788406591879", "kind": "START", "isLast": false}
+{"ts": 1788406591898, "case": "cancel_requested", "sessionId": "useq-c-0-1788406591879"}
+{"ts": 1788406592034, "case": "callback", "sessionId": "useq-old-0-1788406592020", "kind": "START", "isLast": false}
+{"ts": 1788406592044, "case": "finish_requested", "sessionId": "useq-old-0-1788406592020"}
+{"ts": 1788406592050, "case": "callback", "sessionId": "useq-old-0-1788406592020", "kind": "EVENT", "isLast": false}
+{"ts": 1788406592523, "case": "callback", "sessionId": "useq-old-0-1788406592020", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406592803, "case": "callback", "sessionId": "useq-old-0-1788406592020", "kind": "FINAL", "isLast": true}
+{"ts": 1788406592803, "case": "callback", "sessionId": "useq-old-0-1788406592020", "kind": "COMPLETE", "isLast": false}
+{"ts": 1788406592812, "case": "callback", "sessionId": "useq-new-0-1788406592803", "kind": "START", "isLast": false}
+{"ts": 1788406592813, "case": "callback", "sessionId": "useq-old-0-1788406592020", "kind": "ERROR", "isLast": false}
+{"ts": 1788406592817, "case": "callback", "sessionId": "useq-old-0-1788406592020", "kind": "ERROR", "isLast": false}
+{"ts": 1788406592819, "case": "finish_requested", "sessionId": "useq-new-0-1788406592803"}
+{"ts": 1788406592819, "case": "callback", "sessionId": "useq-old-0-1788406592020", "kind": "ERROR", "isLast": false}
+{"ts": 1788406592827, "case": "callback", "sessionId": "useq-new-0-1788406592803", "kind": "EVENT", "isLast": false}
+{"ts": 1788406593079, "case": "callback", "sessionId": "useq-new-0-1788406592803", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406593347, "case": "callback", "sessionId": "useq-new-0-1788406592803", "kind": "FINAL", "isLast": true}
+{"ts": 1788406593347, "case": "callback", "sessionId": "useq-new-0-1788406592803", "kind": "COMPLETE", "isLast": false}
+{"ts": 1788406593356, "case": "callback", "sessionId": "useq-c-1-1788406593347", "kind": "START", "isLast": false}
+{"ts": 1788406593358, "case": "cancel_requested", "sessionId": "useq-c-1-1788406593347"}
+{"ts": 1788406593470, "case": "callback", "sessionId": "useq-old-1-1788406593460", "kind": "START", "isLast": false}
+{"ts": 1788406593473, "case": "finish_requested", "sessionId": "useq-old-1-1788406593460"}
+{"ts": 1788406593486, "case": "callback", "sessionId": "useq-old-1-1788406593460", "kind": "EVENT", "isLast": false}
+{"ts": 1788406593753, "case": "callback", "sessionId": "useq-old-1-1788406593460", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406594043, "case": "callback", "sessionId": "useq-old-1-1788406593460", "kind": "FINAL", "isLast": true}
+{"ts": 1788406594043, "case": "callback", "sessionId": "useq-old-1-1788406593460", "kind": "COMPLETE", "isLast": false}
+{"ts": 1788406594053, "case": "callback", "sessionId": "useq-new-1-1788406594043", "kind": "START", "isLast": false}
+{"ts": 1788406594053, "case": "callback", "sessionId": "useq-old-1-1788406593460", "kind": "ERROR", "isLast": false}
+{"ts": 1788406594053, "case": "callback", "sessionId": "useq-old-1-1788406593460", "kind": "ERROR", "isLast": false}
+{"ts": 1788406594053, "case": "callback", "sessionId": "useq-old-1-1788406593460", "kind": "ERROR", "isLast": false}
+{"ts": 1788406594055, "case": "finish_requested", "sessionId": "useq-new-1-1788406594043"}
+{"ts": 1788406594069, "case": "callback", "sessionId": "useq-new-1-1788406594043", "kind": "EVENT", "isLast": false}
+{"ts": 1788406594335, "case": "callback", "sessionId": "useq-new-1-1788406594043", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406594618, "case": "callback", "sessionId": "useq-new-1-1788406594043", "kind": "FINAL", "isLast": true}
+{"ts": 1788406594619, "case": "callback", "sessionId": "useq-new-1-1788406594043", "kind": "COMPLETE", "isLast": false}
+{"ts": 1788406594629, "case": "callback", "sessionId": "useq-c-2-1788406594620", "kind": "START", "isLast": false}
+{"ts": 1788406594631, "case": "cancel_requested", "sessionId": "useq-c-2-1788406594620"}
+{"ts": 1788406594761, "case": "callback", "sessionId": "useq-old-2-1788406594733", "kind": "START", "isLast": false}
+{"ts": 1788406594767, "case": "finish_requested", "sessionId": "useq-old-2-1788406594733"}
+{"ts": 1788406594784, "case": "callback", "sessionId": "useq-old-2-1788406594733", "kind": "EVENT", "isLast": false}
+{"ts": 1788406595033, "case": "callback", "sessionId": "useq-old-2-1788406594733", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406595287, "case": "callback", "sessionId": "useq-old-2-1788406594733", "kind": "FINAL", "isLast": true}
+{"ts": 1788406595287, "case": "callback", "sessionId": "useq-old-2-1788406594733", "kind": "COMPLETE", "isLast": false}
+{"ts": 1788406595297, "case": "callback", "sessionId": "useq-new-2-1788406595288", "kind": "START", "isLast": false}
+{"ts": 1788406595298, "case": "callback", "sessionId": "useq-old-2-1788406594733", "kind": "ERROR", "isLast": false}
+{"ts": 1788406595298, "case": "callback", "sessionId": "useq-old-2-1788406594733", "kind": "ERROR", "isLast": false}
+{"ts": 1788406595298, "case": "callback", "sessionId": "useq-old-2-1788406594733", "kind": "ERROR", "isLast": false}
+{"ts": 1788406595300, "case": "finish_requested", "sessionId": "useq-new-2-1788406595288"}
+{"ts": 1788406595316, "case": "callback", "sessionId": "useq-new-2-1788406595288", "kind": "EVENT", "isLast": false}
+{"ts": 1788406595560, "case": "callback", "sessionId": "useq-new-2-1788406595288", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406622530, "case": "runtime_release", "phase": "start"}
+{"ts": 1788406622687, "case": "callback", "sessionId": "useq-new-2-1788406595288", "kind": "FINAL", "isLast": true}
+{"ts": 1788406622687, "case": "callback", "sessionId": "useq-new-2-1788406595288", "kind": "COMPLETE", "isLast": false}
+{"ts": 1788406622772, "case": "runtime_release", "phase": "complete"}

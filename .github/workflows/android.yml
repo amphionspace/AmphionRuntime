@@ -44,6 +44,7 @@ jobs:
       agc: ${{ steps.filter.outputs.agc }}
       police: ${{ steps.filter.outputs.police }}
       police_unit: ${{ steps.filter.outputs.police_unit }}
+      samples: ${{ steps.filter.outputs.samples }}
     steps:
       - name: Checkout main push for an exact before/after diff
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -59,7 +60,7 @@ jobs:
             const { execFileSync } = require("node:child_process");
             const WORKFLOW = ".github/workflows/android.yml";
             const flags = [
-              "static", "harmony", "redaction", "agc", "police", "police_unit", "android",
+              "static", "harmony", "redaction", "agc", "police", "police_unit", "samples", "android",
             ];
             const allRequired = Object.fromEntries(flags.map((name) => [name, true]));
 
@@ -187,6 +188,21 @@ jobs:
               "asr/native/",
               "third_party/patches/sherpa-amphion/",
             ];
+            const sampleExactInputs = new Set([
+              WORKFLOW,
+              "asr/android/build.gradle.kts",
+              "asr/android/gradle.properties",
+              "asr/android/gradle/libs.versions.toml",
+              "asr/android/gradle/wrapper/gradle-wrapper.jar",
+              "asr/android/gradle/wrapper/gradle-wrapper.properties",
+              "asr/android/gradlew",
+              "asr/android/gradlew.bat",
+              "asr/android/settings.gradle.kts",
+            ]);
+            const samplePrefixes = [
+              "asr/android/gradle/",
+              "asr/android/samples/",
+            ];
 
             const matches = (path, exact, prefixes) =>
               exact.has(path) || prefixes.some((prefix) => path.startsWith(prefix));
@@ -225,6 +241,8 @@ jobs:
                   matches(path, policeExactInputs, policePrefixes)),
                 police_unit: !markdownOnly && paths.some((path) =>
                   matches(path, policeUnitExactInputs, policeUnitPrefixes)),
+                samples: !markdownOnly && paths.some((path) =>
+                  matches(path, sampleExactInputs, samplePrefixes)),
                 android: !markdownOnly && paths.some((path) =>
                   matches(path, androidExactInputs, androidPrefixes)),
               };
@@ -282,13 +300,13 @@ jobs:
             ]), { static: true, harmony: true, redaction: true });
             assertClassification("sample", changes([
               "asr/android/samples/public-demo/src/main/java/com/amphion/Demo.kt",
-            ]), {});
+            ]), { samples: true });
             assertClassification("android-doc-data", changes([
               "asr/android/docs/navigation.json",
             ]), {});
             assertClassification("gradle-config", changes([
               "asr/android/gradle/verification-metadata.xml",
-            ]), { harmony: true, police_unit: true, android: true });
+            ]), { harmony: true, police_unit: true, samples: true, android: true });
             assertClassification("unrelated", changes(["tts/android/sdk/src/main/Foo.kt"]), {});
             assertClassification("workflow", changes([WORKFLOW]), allRequired);
             assertClassification("rename-out", [
@@ -744,10 +762,52 @@ jobs:
           compression-level: 0
           retention-days: 30
 
+  android-samples:
+    name: Android samples compile
+    needs: changes
+    if: needs.changes.outputs.samples == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platforms;android-34 build-tools;34.0.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: enhanced
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          cache-cleanup: on-success
+
+      - name: Configure local.properties
+        working-directory: ${{ env.SDK_BUILD_DIR }}
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Compile every Android sample and device test
+        working-directory: ${{ env.SDK_BUILD_DIR }}
+        run: |
+          ./gradlew --no-daemon \
+            :samples:public-demo:compileDebugKotlin \
+            :samples:mini-demo:compileDebugKotlin \
+            :samples:internal-eval:compileDebugKotlin \
+            :samples:dingqiao-demo:compileDebugKotlin \
+            :samples:dingqiao-demo:compileDebugAndroidTestKotlin
+
   ci-result:
     # Keep the old required-check display name so branch protection remains valid during migration.
     name: Build AAR (arm64-v8a)
-    needs: [changes, static-contracts, harmony-contracts, delivery-redaction, police-parity, host-agc, android-aar]
+    needs: [changes, static-contracts, harmony-contracts, delivery-redaction, police-parity, host-agc, android-aar, android-samples]
     if: always()
     runs-on: ubuntu-22.04
     steps:
@@ -767,6 +827,8 @@ jobs:
           HOST_AGC_RESULT: ${{ needs.host-agc.result }}
           ANDROID_REQUIRED: ${{ needs.changes.outputs.android }}
           ANDROID_RESULT: ${{ needs.android-aar.result }}
+          SAMPLES_REQUIRED: ${{ needs.changes.outputs.samples }}
+          SAMPLES_RESULT: ${{ needs.android-samples.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" ]]; then
             echo "changes failed: $CHANGES_RESULT"
@@ -793,7 +855,8 @@ jobs:
           verify_job police-parity "$POLICE_REQUIRED" "$POLICE_RESULT"
           verify_job host-agc "$AGC_REQUIRED" "$HOST_AGC_RESULT"
           verify_job android-aar "$ANDROID_REQUIRED" "$ANDROID_RESULT"
-          echo "Android CI passed (static: $STATIC_RESULT, harmony: $HARMONY_RESULT, redaction: $REDACTION_RESULT, police: $POLICE_RESULT, host-agc: $HOST_AGC_RESULT, android-aar: $ANDROID_RESULT)"
+          verify_job android-samples "$SAMPLES_REQUIRED" "$SAMPLES_RESULT"
+          echo "Android CI passed (static: $STATIC_RESULT, harmony: $HARMONY_RESULT, redaction: $REDACTION_RESULT, police: $POLICE_RESULT, host-agc: $HOST_AGC_RESULT, android-aar: $ANDROID_RESULT, android-samples: $SAMPLES_RESULT)"
 
   publish-maven:
     name: Publish to Maven (tags only)

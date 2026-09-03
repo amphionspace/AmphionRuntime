@@ -416,12 +416,13 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
             "police-parity",
             "host-agc",
             "android-aar",
+            "android-samples",
         ):
             self.assertIn("needs: changes", job(name))
 
         summary = job("ci-result")
         self.assertIn(
-            "needs: [changes, static-contracts, harmony-contracts, delivery-redaction, police-parity, host-agc, android-aar]",
+            "needs: [changes, static-contracts, harmony-contracts, delivery-redaction, police-parity, host-agc, android-aar, android-samples]",
             summary,
         )
         for name in (
@@ -431,6 +432,7 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
             "police-parity",
             "host-agc",
             "android-aar",
+            "android-samples",
         ):
             self.assertIn(f"verify_job {name}", summary)
         self.assertIn('if [[ "$required" != "true" && "$required" != "false" ]]', summary)
@@ -479,7 +481,9 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
     def test_ci_classifier_is_path_aware_and_fails_closed(self) -> None:
         workflow = (ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
 
-        for output in ("static", "harmony", "redaction", "agc", "police", "police_unit", "android"):
+        for output in (
+            "static", "harmony", "redaction", "agc", "police", "police_unit", "samples", "android",
+        ):
             self.assertIn(f"{output}: ${{{{ steps.filter.outputs.{output} }}}}", workflow)
         self.assertIn("context.payload.pull_request.changed_files", workflow)
         self.assertIn('context.ref === "refs/heads/main"', workflow)
@@ -503,6 +507,19 @@ class AutomaticAgcReleaseGateTest(unittest.TestCase):
         self.assertIn('case "$POLICE_UNIT_REQUIRED" in', workflow)
         self.assertIn('*) echo "invalid police_unit output:', workflow)
         self.assertIn(":sdk-police:testReleaseUnitTest", workflow)
+
+    def test_ci_compiles_every_android_sample_and_device_test(self) -> None:
+        workflow = (ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+
+        self.assertIn("if: needs.changes.outputs.samples == 'true'", workflow)
+        for task in (
+            ":samples:public-demo:compileDebugKotlin",
+            ":samples:mini-demo:compileDebugKotlin",
+            ":samples:internal-eval:compileDebugKotlin",
+            ":samples:dingqiao-demo:compileDebugKotlin",
+            ":samples:dingqiao-demo:compileDebugAndroidTestKotlin",
+        ):
+            self.assertIn(task, workflow)
 
     def test_static_classifier_covers_every_direct_release_gate_input(self) -> None:
         workflow = (ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")

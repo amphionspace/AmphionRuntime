@@ -1,0 +1,20 @@
+09-03 11:36:29.471  6966  7084 I TestRunner: run started: 1 tests
+09-03 11:36:29.471  6966  7084 I TestRunner: started: a13_userSequenceStress_300Cycles(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-03 11:37:02.468  6966  7084 E TestRunner: failed: a13_userSequenceStress_300Cycles(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-03 11:37:02.470  6966  7084 E TestRunner: ----- begin exception -----
+09-03 11:37:02.470  6966  7084 E TestRunner: java.lang.AssertionError: cycle=2 replacement did not complete
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at org.junit.Assert.fail(Assert.java:89)
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at org.junit.Assert.assertTrue(Assert.java:42)
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a13_userSequenceStress_300Cycles(DqSdkCornerCaseTest.kt:862)
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at org.junit.internal.runners.statements.FailOnTimeout$CallableStatement.call(FailOnTimeout.java:299)
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at org.junit.internal.runners.statements.FailOnTimeout$CallableStatement.call(FailOnTimeout.java:293)
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+09-03 11:37:02.470  6966  7084 E TestRunner: 	at java.lang.Thread.run(Thread.java:1149)
+09-03 11:37:02.470  6966  7084 E TestRunner: ----- end exception -----
+09-03 11:37:02.471  6966  7084 I TestRunner: finished: a13_userSequenceStress_300Cycles(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-03 11:37:02.772  6966  7084 I TestRunner: run finished: 1 tests, 1 failed, 0 ignored

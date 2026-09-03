@@ -28,6 +28,7 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0022-*` | endpoint rule 使用负的最短句长作为显式禁用值，使 long 模式不再依靠有限时长 guard 规避 Rule3 |
 | `0023-*` | long 模式按所有存活 beam 的共同 token/frame 前缀做内部压缩；保留未决候选与 encoder/LM/context 状态，不制造周期 endpoint/final，并向 Harmony/Android 暴露内部调用入口 |
 | `0024-*` | C API 暴露 metadata-free pyannote powerset 解码，与 Android/Harmony 的 10 秒说话人片段语义一致，供 iOS 直接复用公共模型 |
+| `0025-*` | Android 上游构建脚本显式传递 `CFLAGS` / `CXXFLAGS`，确保首次干净构建也应用可复现路径映射 |
 
 Apply automatically from the Harmony `04_build_harmony_so.sh` entry point (Android also applies the same series from its native build flow):
 

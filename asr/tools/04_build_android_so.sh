@@ -138,7 +138,7 @@ export SHERPA_ONNX_ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-24}" # 与 SDK 
 export BUILD_SHARED_LIBS=ON
 
 # Prevent __FILE__ diagnostics and debug metadata from embedding developer-machine paths.
-PATH_MAP_FLAGS="-ffile-prefix-map=$REPO_ROOT=. -fmacro-prefix-map=$REPO_ROOT=. -ffile-prefix-map=$ANDROID_NDK=/android-ndk -fmacro-prefix-map=$ANDROID_NDK=/android-ndk"
+PATH_MAP_FLAGS="-ffile-prefix-map=$REPO_ROOT=. -fmacro-prefix-map=$REPO_ROOT=. -ffile-prefix-map=$HOME=/build-host -fmacro-prefix-map=$HOME=/build-host -ffile-prefix-map=$ANDROID_NDK=/android-ndk -fmacro-prefix-map=$ANDROID_NDK=/android-ndk"
 export CFLAGS="${CFLAGS:+$CFLAGS }$PATH_MAP_FLAGS"
 export CXXFLAGS="${CXXFLAGS:+$CXXFLAGS }$PATH_MAP_FLAGS"
 

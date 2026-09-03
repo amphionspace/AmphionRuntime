@@ -50,35 +50,40 @@ class CapturingListener(
     @Volatile var complete = CountDownLatch(1)
     @Volatile var firstError = CountDownLatch(1)
 
+    private fun capture(callback: CapturedCallback) {
+        callbackTrace.add(callback)
+        DqReport.callback(callback)
+    }
+
     override fun onStart(sessionId: String, eventMessage: String) {
-        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.START))
+        capture(CapturedCallback(sessionId, CapturedCallbackKind.START))
         onStartAction?.invoke(sessionId)
         started.countDown()
     }
 
     override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) {
-        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.EVENT))
+        capture(CapturedCallback(sessionId, CapturedCallbackKind.EVENT))
         events.add(eventCode to eventMessage)
     }
 
     override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
         if (result.isFinal) {
-            callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.FINAL, result.isLast))
+            capture(CapturedCallback(sessionId, CapturedCallbackKind.FINAL, result.isLast))
             finals.add(result)
         } else {
-            callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.PARTIAL))
+            capture(CapturedCallback(sessionId, CapturedCallbackKind.PARTIAL))
             partials.add(result.result)
         }
     }
 
     override fun onComplete(sessionId: String, eventMessage: String) {
-        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.COMPLETE))
+        capture(CapturedCallback(sessionId, CapturedCallbackKind.COMPLETE))
         completes.add(eventMessage)
         complete.countDown()
     }
 
     override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
-        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.ERROR))
+        capture(CapturedCallback(sessionId, CapturedCallbackKind.ERROR))
         errors.add(errorCode to errorMessage)
         firstError.countDown()
         complete.countDown()
@@ -116,6 +121,7 @@ fun feedSilence(engine: SpeechRecognitionEngine, sessionId: String, ms: Int) {
 fun awaitIdle(engine: SpeechRecognitionEngine, timeoutMs: Long = 8_000) {
     val deadline = System.currentTimeMillis() + timeoutMs
     while (engine.isBusy() && System.currentTimeMillis() < deadline) Thread.sleep(20)
+    check(!engine.isBusy()) { "engine remained busy after ${timeoutMs}ms" }
 }
 
 object DqWav {
@@ -205,13 +211,22 @@ fun stageRuntimeLicense(targetContext: Context, outName: String = "lic/runtime-v
 
 /** 按公共生命周期契约激活测试 License 并准备 Runtime。 */
 fun prepareSdkRuntime(targetContext: Context, workPath: File) {
+    fun phase(name: String) = DqReport.append(
+        targetContext,
+        mapOf("case" to "runtime_prepare", "phase" to name),
+    )
+
+    phase("init_start")
     SpeechRecognizeSdk.init(targetContext)
+    phase("init_complete")
     SpeechRecognizeSdk.setWorkPath(workPath.absolutePath)
+    phase("work_path_complete")
 
     val licenseDone = CountDownLatch(1)
     var licenseResultCode: Int? = null
     var licenseError: String? = null
     val licensePath = stageRuntimeLicense(targetContext)
+    phase("license_staged")
     SpeechRecognizeSdk.setLicense(licensePath, object : LicenseActivationCallback {
         override fun onResult(result: LicenseActivationResult) {
             licenseResultCode = result.errorCode
@@ -223,9 +238,11 @@ fun prepareSdkRuntime(targetContext: Context, workPath: File) {
             licenseDone.countDown()
         }
     })
+    phase("license_invoked")
     check(licenseDone.await(20, TimeUnit.SECONDS)) { "setLicense callback timed out" }
     check(licenseError == null) { "setLicense failed: $licenseError" }
     check(licenseResultCode == 0) { "setLicense returned errorCode=$licenseResultCode" }
+    phase("license_complete")
 
     val runtimeDone = CountDownLatch(1)
     var runtimeError: String? = null
@@ -239,12 +256,21 @@ fun prepareSdkRuntime(targetContext: Context, workPath: File) {
             runtimeDone.countDown()
         }
     })
+    phase("prepare_invoked")
     check(runtimeDone.await(20, TimeUnit.SECONDS)) { "prepareRuntime callback timed out" }
     check(runtimeError == null) { "prepareRuntime failed: $runtimeError" }
+    phase("prepare_complete")
 }
 
 /** 追加一行 JSONL 报告到 targetContext.filesDir/dq_corner/report.jsonl。 */
 object DqReport {
+    fun callback(callback: CapturedCallback) {
+        append(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext,
+            mapOf("case" to "callback", "sessionId" to callback.sessionId,
+                "kind" to callback.kind.name, "isLast" to callback.isLast))
+    }
+
+    @Synchronized
     fun append(context: Context, fields: Map<String, Any?>) {
         val dir = File(context.filesDir, "dq_corner").apply { mkdirs() }
         val obj = JSONObject()
@@ -269,4 +295,17 @@ fun voiceprintSampleFor(testContext: Context, mainWav: String): String? {
     val prefix = mainWav.substringBefore('_').ifBlank { mainWav.substringBefore('.') }
     return testContext.assets.list("").orEmpty()
         .firstOrNull { it.contains("声纹") && it.startsWith(prefix) }
+}
+
+/**
+ * 选择声纹注册样本：优先使用与识别语料配对的样本，精简测试包则回退到公共注册样本。
+ * 不得将识别语料本身当作注册样本，否则无法区分样本无效与样本缺失。
+ */
+fun registrationSampleFor(testContext: Context, mainWav: String? = null): String {
+    val assets = testContext.assets.list("").orEmpty()
+    val paired = mainWav?.let { voiceprintSampleFor(testContext, it) }
+    return paired
+        ?: assets.firstOrNull { it == "000_enroll.wav" }
+        ?: assets.firstOrNull { it.contains("声纹") }
+        ?: error("missing voiceprint registration asset")
 }

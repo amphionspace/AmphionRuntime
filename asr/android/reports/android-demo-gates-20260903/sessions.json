@@ -1,0 +1,9002 @@
+[
+  {
+    "sessionId": "useq-c-0-1788406672838",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-0-1788406672946",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-0-1788406673269",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-1-1788406673518",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-1-1788406673623",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-1-1788406673887",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-2-1788406674113",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-2-1788406674217",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-2-1788406674570",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-3-1788406674872",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-3-1788406674986",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-3-1788406675317",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-4-1788406675674",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-4-1788406675790",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-4-1788406676140",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-5-1788406676443",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-5-1788406676551",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-5-1788406676888",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-6-1788406677241",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-6-1788406677356",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-6-1788406677671",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-7-1788406677963",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-7-1788406678071",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-7-1788406678383",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-8-1788406678683",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-8-1788406678791",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-8-1788406679105",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-9-1788406679414",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-9-1788406679522",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-9-1788406679827",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-10-1788406680141",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-10-1788406680248",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-10-1788406680581",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-11-1788406680866",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-11-1788406680974",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-11-1788406681275",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-12-1788406681561",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-12-1788406681670",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-12-1788406682004",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-13-1788406682350",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-13-1788406682465",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-13-1788406682794",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-14-1788406683106",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-14-1788406683220",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-14-1788406683542",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-15-1788406683835",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-15-1788406683945",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-15-1788406684253",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-16-1788406684579",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-16-1788406684687",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-16-1788406685010",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-17-1788406685316",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-17-1788406685425",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-17-1788406685729",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-18-1788406686036",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-18-1788406686147",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-18-1788406686482",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-19-1788406686767",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-19-1788406686877",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-19-1788406687182",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-20-1788406687557",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-20-1788406687669",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-20-1788406688050",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-21-1788406688472",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-21-1788406688593",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-21-1788406688992",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-22-1788406689423",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-22-1788406689535",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-22-1788406689959",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-23-1788406690315",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-23-1788406690427",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-23-1788406690852",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-24-1788406691257",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-24-1788406691372",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-24-1788406691760",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-25-1788406692166",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-25-1788406692278",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-25-1788406692661",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-26-1788406693031",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-26-1788406693145",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-26-1788406693528",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-27-1788406693911",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-27-1788406694030",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-27-1788406694440",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-28-1788406694834",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-28-1788406694948",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-28-1788406695336",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-29-1788406695701",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-29-1788406695813",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-29-1788406696232",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-30-1788406696617",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-30-1788406696731",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-30-1788406697132",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-31-1788406697507",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-31-1788406697623",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-31-1788406698058",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-32-1788406698436",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-32-1788406698550",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-32-1788406698941",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-33-1788406699302",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-33-1788406699415",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-33-1788406699787",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-34-1788406700195",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-34-1788406700307",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-34-1788406700758",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-35-1788406701129",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-35-1788406701246",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-35-1788406701689",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-36-1788406702076",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-36-1788406702190",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-36-1788406702593",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-37-1788406702982",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-37-1788406703094",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-37-1788406703482",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-38-1788406703866",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-38-1788406703979",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-38-1788406704436",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-39-1788406704791",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-39-1788406704902",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-39-1788406705280",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-40-1788406705639",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-40-1788406705750",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-40-1788406706130",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-41-1788406706495",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-41-1788406706608",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-41-1788406706984",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-42-1788406707347",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-42-1788406707461",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-42-1788406707843",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-43-1788406708234",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-43-1788406708346",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-43-1788406708797",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-44-1788406709175",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-44-1788406709285",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-44-1788406709670",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-45-1788406710023",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-45-1788406710136",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-45-1788406710532",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-46-1788406710914",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-46-1788406711030",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-46-1788406711423",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-47-1788406711804",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-47-1788406711916",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-47-1788406712320",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-48-1788406712757",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-48-1788406712869",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-48-1788406713314",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-49-1788406713687",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-49-1788406713808",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-49-1788406714213",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-50-1788406714616",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-50-1788406714730",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-50-1788406715111",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-51-1788406715479",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-51-1788406715593",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-51-1788406715964",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-52-1788406716360",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-52-1788406716474",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-52-1788406716881",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-53-1788406717260",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-53-1788406717373",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-53-1788406717758",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-54-1788406718144",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-54-1788406718256",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-54-1788406718674",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-55-1788406719122",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-55-1788406719243",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-55-1788406719643",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-56-1788406720044",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-56-1788406720157",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-56-1788406720540",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-57-1788406720922",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-57-1788406721037",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-57-1788406721462",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-58-1788406721843",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-58-1788406721958",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-58-1788406722375",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-59-1788406722764",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-59-1788406722877",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-59-1788406723276",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-60-1788406723648",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-60-1788406723760",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-60-1788406724137",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-61-1788406724510",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-61-1788406724620",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-61-1788406724998",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-62-1788406725350",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-62-1788406725462",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-62-1788406725866",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-63-1788406726286",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-63-1788406726398",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-63-1788406726845",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-64-1788406727250",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-64-1788406727361",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-64-1788406727788",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-65-1788406728192",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-65-1788406728304",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-65-1788406728707",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-66-1788406729097",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-66-1788406729215",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-66-1788406729616",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-67-1788406729965",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-67-1788406730076",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-67-1788406730469",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-68-1788406730826",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-68-1788406730943",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-68-1788406731302",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-69-1788406731666",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-69-1788406731778",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-69-1788406732191",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-70-1788406732571",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-70-1788406732686",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-70-1788406733068",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-71-1788406733437",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-71-1788406733549",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-71-1788406733940",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-72-1788406734315",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-72-1788406734436",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-72-1788406734906",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-73-1788406735266",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-73-1788406735385",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-73-1788406735782",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-74-1788406736162",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-74-1788406736274",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-74-1788406736688",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-75-1788406737042",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-75-1788406737153",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-75-1788406737540",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-76-1788406737943",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-76-1788406738054",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-76-1788406738439",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-77-1788406738800",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-77-1788406738913",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-77-1788406739316",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-78-1788406739720",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-78-1788406739831",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-78-1788406740209",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-79-1788406740584",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-79-1788406740695",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-79-1788406741085",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-80-1788406741550",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-80-1788406741661",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-80-1788406742018",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-81-1788406742390",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-81-1788406742501",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-81-1788406742887",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-82-1788406743262",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-82-1788406743374",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-82-1788406743783",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-83-1788406744178",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-83-1788406744294",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-83-1788406744701",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-84-1788406745067",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-84-1788406745179",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-84-1788406745560",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-85-1788406745943",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-85-1788406746053",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-85-1788406746550",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-86-1788406746930",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-86-1788406747047",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-86-1788406747441",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-87-1788406747808",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-87-1788406747924",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-87-1788406748343",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-88-1788406748702",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-88-1788406748814",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-88-1788406749204",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-89-1788406749568",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-89-1788406749681",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-89-1788406750110",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-90-1788406750484",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-90-1788406750596",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-90-1788406750999",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-91-1788406751363",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-91-1788406751476",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-91-1788406751896",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-92-1788406752270",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-92-1788406752381",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-92-1788406752749",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-93-1788406753100",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-93-1788406753213",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-93-1788406753595",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-94-1788406753960",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-94-1788406754072",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-94-1788406754481",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-95-1788406754838",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-95-1788406754952",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-95-1788406755351",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-96-1788406755748",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-96-1788406755862",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-96-1788406756297",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-97-1788406756673",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-97-1788406756791",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-97-1788406757186",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-98-1788406757578",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-98-1788406757692",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-98-1788406758091",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-99-1788406758471",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-99-1788406758588",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-99-1788406758958",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-100-1788406759353",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-100-1788406759474",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-100-1788406760021",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-101-1788406760404",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-101-1788406760518",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-101-1788406760919",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-102-1788406761399",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-102-1788406761515",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-102-1788406761928",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-103-1788406762342",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-103-1788406762453",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-103-1788406762829",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-104-1788406763194",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-104-1788406763308",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-104-1788406763684",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-105-1788406764099",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-105-1788406764212",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-105-1788406764594",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-106-1788406764958",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-106-1788406765072",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-106-1788406765520",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-107-1788406765974",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-107-1788406766089",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-107-1788406766462",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-108-1788406766842",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-108-1788406766954",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-108-1788406767353",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-109-1788406767739",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-109-1788406767855",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-109-1788406768230",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-110-1788406768612",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-110-1788406768725",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-110-1788406769113",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-111-1788406769464",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-111-1788406769582",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-111-1788406770008",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-112-1788406770377",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-112-1788406770489",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-112-1788406770914",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-113-1788406771366",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-113-1788406771478",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-113-1788406771888",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-114-1788406772249",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-114-1788406772360",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-114-1788406772766",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-115-1788406773130",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-115-1788406773249",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-115-1788406773650",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-116-1788406774019",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-116-1788406774129",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-116-1788406774512",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-117-1788406774874",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-117-1788406774988",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-117-1788406775376",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-118-1788406775732",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-118-1788406775844",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-118-1788406776254",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-119-1788406776647",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-119-1788406776762",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-119-1788406777176",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-120-1788406777547",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-120-1788406777665",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-120-1788406778081",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-121-1788406778488",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-121-1788406778603",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-121-1788406778978",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-122-1788406779338",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-122-1788406779451",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-122-1788406779887",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-123-1788406780241",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-123-1788406780358",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-123-1788406780743",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-124-1788406781122",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-124-1788406781237",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-124-1788406781642",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-125-1788406782012",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-125-1788406782124",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-125-1788406782541",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-126-1788406782913",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-126-1788406783028",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-126-1788406783479",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-127-1788406783890",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-127-1788406784001",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-127-1788406784389",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-128-1788406784782",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-128-1788406784895",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-128-1788406785279",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-129-1788406785659",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-129-1788406785775",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-129-1788406786164",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-130-1788406786555",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-130-1788406786671",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-130-1788406787057",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-131-1788406787434",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-131-1788406787553",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-131-1788406787990",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-132-1788406788400",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-132-1788406788513",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-132-1788406788929",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-133-1788406789300",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-133-1788406789413",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-133-1788406789796",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-134-1788406790189",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-134-1788406790305",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-134-1788406790688",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-135-1788406791070",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-135-1788406791183",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-135-1788406791580",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-136-1788406791952",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-136-1788406792068",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-136-1788406792481",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-137-1788406792846",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-137-1788406792959",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-137-1788406793352",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-138-1788406793721",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-138-1788406793842",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-138-1788406794252",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-139-1788406794636",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-139-1788406794749",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-139-1788406795183",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-140-1788406795577",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-140-1788406795690",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-140-1788406796117",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-141-1788406796507",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-141-1788406796629",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-141-1788406797087",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-142-1788406797489",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-142-1788406797606",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-142-1788406798041",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-143-1788406798466",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-143-1788406798580",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-143-1788406798984",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-144-1788406799379",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-144-1788406799492",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-144-1788406799897",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-145-1788406800291",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-145-1788406800404",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-145-1788406800823",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-146-1788406801194",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-146-1788406801311",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-146-1788406801765",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-147-1788406802140",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-147-1788406802256",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-147-1788406802665",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-148-1788406803079",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-148-1788406803194",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-148-1788406803608",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-149-1788406803998",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-149-1788406804108",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-149-1788406804496",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-150-1788406804869",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-150-1788406804980",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-150-1788406805360",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-151-1788406805712",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-151-1788406805827",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-151-1788406806212",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-152-1788406806601",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-152-1788406806719",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-152-1788406807137",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-153-1788406807572",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-153-1788406807683",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-153-1788406808109",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-154-1788406808544",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-154-1788406808656",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-154-1788406809072",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-155-1788406809432",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-155-1788406809546",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-155-1788406809935",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-156-1788406810312",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-156-1788406810426",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-156-1788406810890",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-157-1788406811271",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-157-1788406811381",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-157-1788406811789",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-158-1788406812148",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-158-1788406812264",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-158-1788406812680",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-159-1788406813062",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-159-1788406813174",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-159-1788406813552",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-160-1788406813910",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-160-1788406814022",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-160-1788406814391",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-161-1788406814758",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-161-1788406814871",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-161-1788406815263",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-162-1788406815630",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-162-1788406815740",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-162-1788406816120",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-163-1788406816477",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-163-1788406816589",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-163-1788406816972",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-164-1788406817349",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-164-1788406817465",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-164-1788406817867",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-165-1788406818264",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-165-1788406818375",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-165-1788406818802",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-166-1788406819176",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-166-1788406819288",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-166-1788406819699",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-167-1788406820103",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-167-1788406820215",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-167-1788406820612",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-168-1788406821022",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-168-1788406821135",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-168-1788406821516",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-169-1788406821885",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-169-1788406821995",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-169-1788406822408",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-170-1788406822754",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-170-1788406822869",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-170-1788406823273",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-171-1788406823712",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-171-1788406823831",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-171-1788406824222",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-172-1788406824628",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-172-1788406824740",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-172-1788406825139",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-173-1788406825544",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-173-1788406825657",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-173-1788406826119",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-174-1788406826477",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-174-1788406826591",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-174-1788406827009",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-175-1788406827390",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-175-1788406827500",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-175-1788406827903",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-176-1788406828327",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-176-1788406828440",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-176-1788406828845",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-177-1788406829212",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-177-1788406829324",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-177-1788406829704",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-178-1788406830102",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-178-1788406830213",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-178-1788406830607",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-179-1788406830983",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-179-1788406831100",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-179-1788406831488",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-180-1788406831888",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-180-1788406832006",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-180-1788406832430",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-181-1788406832816",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-181-1788406832931",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-181-1788406833368",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-182-1788406833750",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-182-1788406833864",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-182-1788406834254",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-183-1788406834610",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-183-1788406834721",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-183-1788406835114",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-184-1788406835563",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-184-1788406835676",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-184-1788406836087",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-185-1788406836466",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-185-1788406836584",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-185-1788406836979",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-186-1788406837383",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-186-1788406837502",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-186-1788406837879",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-187-1788406838257",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-187-1788406838369",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-187-1788406838754",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-188-1788406839122",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-188-1788406839233",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-188-1788406839610",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-189-1788406839983",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-189-1788406840097",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-189-1788406840509",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-190-1788406840888",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-190-1788406840999",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-190-1788406841461",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-191-1788406841833",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-191-1788406841956",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-191-1788406842368",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-192-1788406842735",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-192-1788406842845",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-192-1788406843233",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-193-1788406843587",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-193-1788406843697",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-193-1788406844078",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-194-1788406844445",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-194-1788406844555",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-194-1788406844992",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-195-1788406845385",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-195-1788406845497",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-195-1788406845899",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-196-1788406846269",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-196-1788406846380",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-196-1788406846796",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-197-1788406847169",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-197-1788406847280",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-197-1788406847672",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-198-1788406848025",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-198-1788406848139",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-198-1788406848558",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-199-1788406848973",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-199-1788406849085",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-199-1788406849474",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-200-1788406849844",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-200-1788406849957",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-200-1788406850334",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-201-1788406850729",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-201-1788406850839",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-201-1788406851216",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-202-1788406851594",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-202-1788406851707",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-202-1788406852111",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-203-1788406852490",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-203-1788406852604",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-203-1788406853023",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-204-1788406853391",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-204-1788406853507",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-204-1788406853921",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-205-1788406854311",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-205-1788406854431",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-205-1788406854814",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-206-1788406855191",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-206-1788406855308",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-206-1788406855727",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-207-1788406856105",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-207-1788406856221",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-207-1788406856609",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-208-1788406857066",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-208-1788406857182",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-208-1788406857592",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-209-1788406857987",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-209-1788406858101",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-209-1788406858477",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-210-1788406858853",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-210-1788406858963",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-210-1788406859383",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-211-1788406859750",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-211-1788406859863",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-211-1788406860280",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-212-1788406860651",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-212-1788406860763",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-212-1788406861203",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-213-1788406861584",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-213-1788406861698",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-213-1788406862112",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-214-1788406862476",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-214-1788406862590",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-214-1788406862973",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-215-1788406863331",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-215-1788406863442",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-215-1788406863849",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-216-1788406864231",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-216-1788406864342",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-216-1788406864746",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-217-1788406865098",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-217-1788406865212",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-217-1788406865600",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-218-1788406865992",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-218-1788406866105",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-218-1788406866538",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-219-1788406866925",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-219-1788406867037",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-219-1788406867439",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-220-1788406867800",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-220-1788406867912",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-220-1788406868343",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-221-1788406868695",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-221-1788406868807",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-221-1788406869224",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-222-1788406869668",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-222-1788406869780",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-222-1788406870160",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-223-1788406870580",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-223-1788406870692",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-223-1788406871078",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-224-1788406871462",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-224-1788406871577",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-224-1788406871992",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-225-1788406872422",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-225-1788406872534",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-225-1788406872957",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-226-1788406873319",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-226-1788406873429",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-226-1788406873800",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-227-1788406874177",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-227-1788406874290",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-227-1788406874719",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-228-1788406875121",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-228-1788406875240",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-228-1788406875655",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-229-1788406876025",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-229-1788406876135",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-229-1788406876508",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-230-1788406876956",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-230-1788406877071",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-230-1788406877456",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-231-1788406877817",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-231-1788406877931",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-231-1788406878353",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-232-1788406878721",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-232-1788406878833",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-232-1788406879230",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-233-1788406879608",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-233-1788406879718",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-233-1788406880094",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-234-1788406880496",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-234-1788406880613",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-234-1788406881037",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-235-1788406881413",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-235-1788406881523",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-235-1788406881921",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-236-1788406882305",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-236-1788406882414",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-236-1788406882782",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-237-1788406883140",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-237-1788406883252",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-237-1788406883630",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-238-1788406884001",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-238-1788406884113",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-238-1788406884520",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-239-1788406884883",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-239-1788406884997",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-239-1788406885402",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-240-1788406885775",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-240-1788406885889",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-240-1788406886322",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-241-1788406886720",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-241-1788406886838",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-241-1788406887262",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-242-1788406887646",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-242-1788406887756",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-242-1788406888138",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-243-1788406888528",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-243-1788406888648",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-243-1788406889049",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-244-1788406889427",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-244-1788406889540",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-244-1788406889995",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-245-1788406890371",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-245-1788406890482",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-245-1788406890888",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-246-1788406891264",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-246-1788406891375",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-246-1788406891816",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-247-1788406892175",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-247-1788406892287",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-247-1788406892696",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-248-1788406893056",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-248-1788406893167",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-248-1788406893538",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-249-1788406893913",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-249-1788406894032",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-249-1788406894422",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-250-1788406894815",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-250-1788406894927",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-250-1788406895347",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-251-1788406895709",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-251-1788406895821",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-251-1788406896205",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-252-1788406896560",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-252-1788406896676",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-252-1788406897067",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-253-1788406897455",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-253-1788406897567",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-253-1788406897943",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-254-1788406898367",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-254-1788406898482",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-254-1788406898891",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-255-1788406899296",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-255-1788406899409",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-255-1788406899851",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-256-1788406900217",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-256-1788406900332",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-256-1788406900726",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-257-1788406901081",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-257-1788406901195",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-257-1788406901586",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-258-1788406901976",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-258-1788406902098",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-258-1788406902512",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-259-1788406902879",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-259-1788406902990",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-259-1788406903361",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-260-1788406903727",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-260-1788406903837",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-260-1788406904216",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-261-1788406904601",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-261-1788406904714",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-261-1788406905135",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-262-1788406905510",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-262-1788406905621",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-262-1788406905991",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-263-1788406906346",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-263-1788406906460",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-263-1788406906878",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-264-1788406907263",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-264-1788406907374",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-264-1788406907757",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-265-1788406908142",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-265-1788406908252",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-265-1788406908626",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-266-1788406909022",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-266-1788406909135",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-266-1788406909544",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-267-1788406909911",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-267-1788406910023",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-267-1788406910407",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-268-1788406910784",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-268-1788406910897",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-268-1788406911304",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-269-1788406911710",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-269-1788406911820",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-269-1788406912224",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-270-1788406912598",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-270-1788406912716",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-270-1788406913111",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-271-1788406913520",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-271-1788406913630",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-271-1788406914075",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-272-1788406914471",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-272-1788406914585",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-272-1788406914988",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-273-1788406915353",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-273-1788406915469",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-273-1788406915869",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-274-1788406916233",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-274-1788406916347",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-274-1788406916733",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-275-1788406917121",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-275-1788406917235",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-275-1788406917616",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-276-1788406918031",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-276-1788406918144",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-276-1788406918537",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-277-1788406918934",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-277-1788406919044",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-277-1788406919465",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-278-1788406919847",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-278-1788406919958",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-278-1788406920398",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-279-1788406920760",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-279-1788406920876",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-279-1788406921262",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-280-1788406921674",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-280-1788406921789",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-280-1788406922208",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-281-1788406922570",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-281-1788406922683",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-281-1788406923110",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-282-1788406923479",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-282-1788406923591",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-282-1788406923993",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-283-1788406924350",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-283-1788406924463",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-283-1788406924842",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-284-1788406925237",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-284-1788406925349",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-284-1788406925755",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-285-1788406926126",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-285-1788406926239",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-285-1788406926724",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-286-1788406927096",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-286-1788406927207",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-286-1788406927578",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-287-1788406927955",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-287-1788406928070",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-287-1788406928488",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-288-1788406928844",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-288-1788406928961",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-288-1788406929343",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-289-1788406929703",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-289-1788406929818",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-289-1788406930215",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-290-1788406930618",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-290-1788406930737",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-290-1788406931120",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-291-1788406931498",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-291-1788406931613",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-291-1788406932024",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-292-1788406932393",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-292-1788406932513",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-292-1788406932935",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-293-1788406933319",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-293-1788406933434",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-293-1788406933840",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-294-1788406934216",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-294-1788406934336",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-294-1788406934751",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-295-1788406935127",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-295-1788406935241",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-295-1788406935664",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-296-1788406936046",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-296-1788406936160",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-296-1788406936546",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-297-1788406936907",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-297-1788406937029",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-297-1788406937438",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-298-1788406937824",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-298-1788406937942",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-298-1788406938344",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-c-299-1788406938774",
+    "outcome": "cancelled",
+    "start": 1,
+    "final": 0,
+    "last": 0,
+    "complete": 0,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  },
+  {
+    "sessionId": "useq-old-299-1788406938886",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 3,
+    "expected_late_old_call_errors": 3
+  },
+  {
+    "sessionId": "useq-new-299-1788406939288",
+    "outcome": "completed",
+    "start": 1,
+    "final": 1,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "expected_late_old_call_errors": 0
+  }
+]

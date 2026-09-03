@@ -1,6 +1,6 @@
 # Amphion Android SDK 交付指南（给我们自己看）
 
-适用 SDK 版本：0.2.0
+适用 SDK 版本：0.3.4
 
 > 本文是「我们怎么把 SDK 交付给业务方」的内部 SOP。业务方只需要看 [INTEGRATION.md](INTEGRATION.md) 和 [PRIVACY.md](PRIVACY.md)。
 
@@ -9,9 +9,9 @@
 每次交付给业务方的目录结构（建议命名 `amphion-runtime-android-<version>-<date>/`）：
 
 ```
-amphion-runtime-android-0.2.0-2026-05-25/
-├── amphion-runtime-0.2.0.aar          # 唯一二进制；包含全部模型 + so
-├── amphion-runtime-0.2.0-sources.jar  # 源码（仅 Kotlin 公开 API；可选）
+amphion-runtime-android-0.3.4-2026-05-25/
+├── amphion-runtime-0.3.4.aar          # 唯一二进制；包含全部模型 + so
+├── amphion-runtime-0.3.4-sources.jar  # 源码（仅 Kotlin 公开 API；可选）
 ├── INTEGRATION.md                      # 给业务方看的集成指南
 ├── PRIVACY.md                          # 隐私合规说明
 ├── CHANGELOG.md                        # 版本变更
@@ -103,7 +103,7 @@ cd asr/android
 
 # 想要源码 jar，跑这条：
 ./gradlew :sdk:publishReleasePublicationToLocalFileRepoRepository
-# 落在：sdk/build/maven-repo/com/amphion/amphion-runtime/0.2.0/
+# 落在：sdk/build/maven-repo/com/amphion/amphion-runtime/0.3.4/
 ```
 
 ### 3.5 装 sample 自验
@@ -157,11 +157,11 @@ python tools/license/issue_license.py --private-key ~/secure/amphion-license-pri
 
 ```bash
 # 在 asr/android 下
-mkdir -p ../delivery/amphion-runtime-android-0.2.0-$(date +%Y-%m-%d)
-DST=../delivery/amphion-runtime-android-0.2.0-$(date +%Y-%m-%d)
+mkdir -p ../delivery/amphion-runtime-android-0.3.4-$(date +%Y-%m-%d)
+DST=../delivery/amphion-runtime-android-0.3.4-$(date +%Y-%m-%d)
 
-cp sdk/build/outputs/aar/sdk-release.aar               $DST/amphion-runtime-0.2.0.aar
-cp sdk/build/maven-repo/.../amphion-runtime-0.2.0-sources.jar $DST/  # 可选
+cp sdk/build/outputs/aar/sdk-release.aar               $DST/amphion-runtime-0.3.4.aar
+cp sdk/build/maven-repo/.../amphion-runtime-0.3.4-sources.jar $DST/  # 可选
 cp docs/INTEGRATION.md docs/PRIVACY.md docs/CHANGELOG.md $DST/
 cp ../../LICENSE ../../NOTICE                          $DST/
 cp sdk/consumer-rules.pro                              $DST/
@@ -174,15 +174,15 @@ cp sample/src/main/java/com/amphion/asr/sample/MainActivity.kt $DST/samples/
 
 ```bash
 cd ../delivery
-zip -r amphion-runtime-android-0.2.0-2026-05-25.zip amphion-runtime-android-0.2.0-2026-05-25/
+zip -r amphion-runtime-android-0.3.4-2026-05-25.zip amphion-runtime-android-0.3.4-2026-05-25/
 ```
 
 ## 5. 给业务方的最小化沟通模板
 
 ```
-Subject: Amphion ASR Android SDK v0.2.0 交付
+Subject: Amphion ASR Android SDK v0.3.4 交付
 
-附件：amphion-runtime-android-0.2.0-2026-05-25.zip (sha256: <填一下>)
+附件：amphion-runtime-android-0.3.4-2026-05-25.zip (sha256: <填一下>)
 
 主要说明：
 1. 单 AAR 交付，模型已经打包，无需任何 CDN / 模型分发
@@ -310,7 +310,7 @@ adb shell am start -n com.amphion.asr.sample.eval/com.amphion.asr.sample.eval.La
 
 - 反射访问 `com.amphion.asr.internal.*`
 - 通过 `@JvmField` / `@Suppress("INVISIBLE_*")` 等手段绕过 internal 可见性
-- 引入 SDK 之外的模型分发链路（0.2.0 模型已内置 AAR）
+- 引入 SDK 之外的模型分发链路（当前模型已内置 AAR）
 
 需要新增评测维度（如新的 metric 字段）时按以下顺序走：
 

@@ -3,6 +3,9 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+val sdkVersion = rootProject.extra["amphionRuntimeVersionName"] as String
+val sdkVersionCode = rootProject.extra["amphionRuntimeVersionCode"] as Int
+
 android {
     // namespace 故意与 :samples:public-demo 共用 com.amphion.asr.sample：
     // - internal-eval 的 Kotlin 文件继续用 com.amphion.asr.sample.eval.* 子 package（与 HEAD 一致）
@@ -17,8 +20,8 @@ android {
         applicationId = "com.amphion.asr.sample.eval"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.2.0"
+        versionCode = sdkVersionCode
+        versionName = sdkVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
