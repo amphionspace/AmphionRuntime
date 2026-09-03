@@ -15,7 +15,9 @@ class StockCodeDeviceTest {
     @Test
     fun stockCodeDigitsSurviveNativeTnAndFrontend() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val workPath = requireNotNull(InstrumentationRegistry.getArguments().getString("workPath"))
+        val workPath = requireNotNull(InstrumentationRegistry.getArguments().getString("workPath")) {
+            "Pass -e workPath pointing to the external TTS model package"
+        }
         val layout = LitsTtsAssetInstaller.ensureInstalled(context, workPath)
         val rows = JSONArray()
         val reportFile = File(context.filesDir, "stock-code-${System.currentTimeMillis()}.json")
