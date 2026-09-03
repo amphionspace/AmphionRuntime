@@ -1,0 +1,48 @@
+{
+  "pass": false,
+  "cases": [
+    {
+      "raw": "气温-24.5度",
+      "expected": "气温零下二十四点五度",
+      "normalized": "气温零下二十四点五度",
+      "profile": "total=68ms,clean=0ms,prepare=4ms,hasRules=0ms,segment=0ms,native=63ms,nativeJni=60ms,nativeAvailability=3ms,nativeBatch=false,fastPath=false,joinWall=63ms,preserveWhitespace=0ms,append=0ms,joinOverhead=0ms,segments=1,nativeCalls=zh:wall=63ms,jni=60ms,available=3ms,10->10"
+    },
+    {
+      "raw": "气温 -24.5 度",
+      "expected": "气温零下二十四点五度",
+      "normalized": "气温零下二十四点五度",
+      "profile": "total=12ms,clean=0ms,prepare=0ms,hasRules=0ms,segment=0ms,native=11ms,nativeJni=11ms,nativeAvailability=0ms,nativeBatch=false,fastPath=false,joinWall=11ms,preserveWhitespace=0ms,append=0ms,joinOverhead=0ms,segments=1,nativeCalls=zh:wall=11ms,jni=11ms,available=0ms,10->10"
+    },
+    {
+      "raw": "温度  -  5 度",
+      "expected": "温度零下五度",
+      "normalized": "温度零下五度",
+      "profile": "total=11ms,clean=0ms,prepare=0ms,hasRules=0ms,segment=0ms,native=11ms,nativeJni=11ms,nativeAvailability=0ms,nativeBatch=false,fastPath=false,joinWall=11ms,preserveWhitespace=0ms,append=0ms,joinOverhead=0ms,segments=1,nativeCalls=zh:wall=11ms,jni=11ms,available=0ms,6->6"
+    },
+    {
+      "raw": "体温-0.5度",
+      "expected": "体温零下零点五度",
+      "normalized": "体温零下零点五度",
+      "profile": "total=12ms,clean=0ms,prepare=0ms,hasRules=0ms,segment=0ms,native=11ms,nativeJni=11ms,nativeAvailability=0ms,nativeBatch=false,fastPath=false,joinWall=11ms,preserveWhitespace=0ms,append=0ms,joinOverhead=0ms,segments=1,nativeCalls=zh:wall=11ms,jni=11ms,available=0ms,8->8"
+    },
+    {
+      "raw": "温度范围是-5到10度",
+      "expected": "温度范围是零下五到十度",
+      "normalized": "温度范围是零下五到十度",
+      "profile": "total=11ms,clean=0ms,prepare=0ms,hasRules=0ms,segment=0ms,native=11ms,nativeJni=11ms,nativeAvailability=0ms,nativeBatch=false,fastPath=false,joinWall=11ms,preserveWhitespace=0ms,append=0ms,joinOverhead=0ms,segments=1,nativeCalls=zh:wall=11ms,jni=11ms,available=0ms,11->11"
+    },
+    {
+      "raw": "温度范围是 -5 到 10 度",
+      "expected": "温度范围是零下五到十度",
+      "normalized": "温度范围是零下五到十度",
+      "profile": "total=12ms,clean=0ms,prepare=0ms,hasRules=0ms,segment=0ms,native=11ms,nativeJni=11ms,nativeAvailability=0ms,nativeBatch=false,fastPath=false,joinWall=11ms,preserveWhitespace=0ms,append=0ms,joinOverhead=0ms,segments=1,nativeCalls=zh:wall=11ms,jni=11ms,available=0ms,11->11"
+    },
+    {
+      "raw": "温度范围是  -  5  到  10  度",
+      "expected": "温度范围是零下五到十度",
+      "normalized": "温度范围是零下五到十度",
+      "profile": "total=11ms,clean=0ms,prepare=0ms,hasRules=0ms,segment=0ms,native=11ms,nativeJni=11ms,nativeAvailability=0ms,nativeBatch=false,fastPath=false,joinWall=11ms,preserveWhitespace=0ms,append=0ms,joinOverhead=0ms,segments=1,nativeCalls=zh:wall=11ms,jni=11ms,available=0ms,11->11"
+    }
+  ],
+  "callbacks": []
+}

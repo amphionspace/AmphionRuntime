@@ -1,24 +1,22 @@
 # Lits TTS Android SDK
 
-Lits TTS Android SDK 是一套最小 Android 源码构建入口，用来从源码构建离线端侧语音合成 AAR。对协作者来说，如果目标只是重建 `:sdk`，只需要关心这里的 `sdk/`、Gradle 配置、`tools/` 下的模型包目录和文档；仓库中其他历史目录可以忽略。
+当前入口用于构建 Dingqiao v3 离线 TTS AAR。SDK 与模型分开交付：AAR 包含代码和 native 库，模型与前端资源位于构建生成的 `external-resources/`。以 [源码编译说明](docs/BUILD_FROM_SOURCE.md) 为准，不要沿用旧 16 kHz HiFi-GAN 包的目录和文件清单。
 
-下面统一用 `LitsTtsSdk 根目录` 指代你把这份源码放到本机后的那个目录，例如：
+以下命令从 AmphionRuntime 仓库根目录执行；Windows 请把 `./gradlew` 替换为 `gradlew.bat`。
 
 ```text
-D:\work\LitsTtsSdk
+AmphionRuntime/tts/android/
 ```
-
-下文的路径和命令默认按 Windows 写；如果你在 macOS 或 Linux 上构建，请把路径分隔符和 `gradlew.bat` 替换成各自平台的等价形式。
 
 ## 当前版本
 
 | 项 | 值 |
 | --- | --- |
-| SDK 版本 | `0.1.0` |
-| 模型 ID | `lits_delivery_16k_hifigan` |
-| 模型版本 | `1.0.0` |
+| SDK 构建版本 | `3.0`，见 [build.gradle.kts](build.gradle.kts) 的 `sdkVersion` |
+| 模型 ID | `dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop` |
+| 模型资源版本 | `0.1.0`（不是 SDK 版本） |
 | 支持语种 | `zh-en`, `en-US` |
-| 输出格式 | `pcm`, 16000 Hz, 16-bit, mono |
+| 输出格式 | `pcm`, 24000 Hz, 16-bit, mono |
 | Android minSdk | 24 |
 | ABI | `arm64-v8a` |
 
@@ -33,17 +31,11 @@ D:\work\LitsTtsSdk
 
 ## 源码构建快速开始
 
-1. 从源码交接方单独获取完整模型包
+1. 初始化 submodule，并按仓库[资产同步说明](../../tools/assets/README.md)恢复 `tts-runtime-zhen-v1` 等构建资产；不要从旧交付目录拼装资源。
 2. 放到下面这个固定目录：
 
 ```text
-LitsTtsSdk\tools\trial-export\lits_delivery_16k_hifigan\1.0.0\
-```
-
-如果你的 `LitsTtsSdk 根目录` 是 `D:\work\LitsTtsSdk`，那么真实放置位置就是：
-
-```text
-D:\work\LitsTtsSdk\tools\trial-export\lits_delivery_16k_hifigan\1.0.0\
+tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
 
 3. 让 Gradle 能找到本机 Android SDK：
@@ -51,12 +43,12 @@ D:\work\LitsTtsSdk\tools\trial-export\lits_delivery_16k_hifigan\1.0.0\
 - 在 `local.properties` 写 `sdk.dir=...`
 - 或设置 `ANDROID_HOME` / `ANDROID_SDK_ROOT`
 
-4. 打开终端进入 `LitsTtsSdk 根目录\android\AmphionRuntime\`，然后在当前目录执行：
+4. 准备 JDK、NDK 和 ICU 等 native 依赖（详见源码编译说明），执行：
 
-```powershell
-python ..\..\tools\verify_lits_delivery_16k_package.py --model-dir ..\..\tools\trial-export\lits_delivery_16k_hifigan\1.0.0
-.\gradlew.bat :sdk:testDebugUnitTest
-.\gradlew.bat :sdk:assembleRelease
+```bash
+cd tts/android
+./gradlew :sdk:testDebugUnitTest
+./gradlew :sdk:assembleRelease
 ```
 
 5. 构建输出位于：
@@ -67,32 +59,25 @@ sdk/build/outputs/aar/sdk-release.aar
 
 注意：模型文件只需要放到 `tts/tools/trial-export/...`，不要手动放到 `sdk/src/main/assets/...`；OBS 模型包已包含校验过的前端 `.bin`，Gradle 会在 `preBuild` 阶段以只读方式同步资源。`tts/android/external-resources/` 是构建输出，不是第二份源资产，不得提交到 Git。只有显式执行 `syncLitsTnAssets` 时才会在 `build/generated/` 生成候选词典，不会改写源包。
 
-完整步骤、输入文件清单、自检方式与常见报错见 [docs/DELIVERY.md](docs/DELIVERY.md)。
+完整步骤、输入文件清单、自检方式与常见报错见 [docs/BUILD_FROM_SOURCE.md](docs/BUILD_FROM_SOURCE.md)。
 
 ## 模型包说明
 
-源码构建直接消费已经导出的 ONNX 模型包，不要求 checkpoint，也不要求执行任何导出脚本。最少需要以下文件：
+源码构建直接消费已经导出的 ONNX 模型包，不要求 checkpoint，也不要求重新导出。主要模型文件为：
 
 - `manifest.json`
-- `lits_acoustic.onnx`
-- `hifigan_vocoder.onnx`
-- `smoke_tokens.json`
-- `frontend_golden.json`
-- `chinese_lexicon.txt`
-- `cmudict.txt`
-- `pinyin_2_bpmf.txt`
-- `polychar.txt`
-- `zh_en_symbols.json`
-- `pinyin_to_tokens.json`
-- `arpabet_to_tokens.json`
+- `lits_hidden_encoder.onnx`
+- `lits_stream_condition_chunk.onnx`
+- `lits_stream_decoder_step.onnx`
+- `vocos_vocoder.onnx`
 
-Gradle 会在 `preBuild` 阶段自动把它们同步到：
+完整清单还包括前端词典与 `rules_v2`，见源码编译说明。Gradle 在 `preBuild` 阶段同步到：
 
 ```text
-sdk/src/main/assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0/
+tts/android/external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
 
-这个目录是构建时自动生成/同步的目录，不是你手工投放模型的地方。
+该目录是可重建输出。运行时把 `external-resources/tts/` 放在调用方 `workPath` 下的 `tts/` 目录，先激活有效 TTS license，再创建引擎；不要将 `workPath` 指向具体模型版本目录。
 
 ## 运行时说明
 
@@ -100,9 +85,6 @@ sdk/src/main/assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0/
 - 同步版 `createEngine(params)` 会在当前线程完成模型加载，调用方应自行放到后台线程
 - `SpeakListener` 的 `onStart/onData/onComplete/onStop/onError` 为 SDK 内部异步派发；更新 UI 时需要切回主线程
 
-## 已验证范围
+## 验证状态
 
-当前工程已验证以下源码构建链路：
-
-- `:sdk:testDebugUnitTest`
-- `:sdk:assembleRelease`
+当前前端完整 JVM 测试仍有已知失败，不能将“可编译”或部分用例通过当成完整发布验收。负温度修复与剩余项见 [2026-09-03 回归记录](reports/negative-temperature-20260903/README.md)。
