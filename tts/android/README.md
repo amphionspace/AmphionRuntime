@@ -87,6 +87,8 @@ tts/android/external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_
 
 ## 验证状态
 
+2026-09-03 [股票代码逐位读法修复](reports/stock-code-20260903/README.md)已通过本机、原生前端及 Release AAR 公开 SDK 真机回归。完整 675 条前后对照仅目标句 token 改变，其余 674 条完全一致；目标句仍含另一处历史音调标注差异，严格匹配总数仍为 380/675，不能视为全量发音验收通过。
+
 2026-09-03 [完整 675 条前端语料基线](reports/pronunciation-corpus-20260903/README.md)已采集：380 条音素序列完全一致、295 条有差异、0 条执行错误，**完整发音对照尚未通过**。其中混有旧 golden 与已确认契约冲突、变调及其他前端差异，不能直接当作 295 个已确认 SDK 缺陷。已补报告门禁，防止仅凭 instrumentation 的 `OK` 误放行；未修改运行代码或 golden。
 
 2026-09-03 已补齐 [Release AAR 独立宿主最小接入门禁](reports/release-aar-host-20260903/README.md)：vivo V2505A / Android 16 上，正式授权、外置模型加载及公开 API 合成通过；21 个非空 PCM 回调连续有序，唯一 start/complete，shutdown 返回。宿主使用 Debug 签名，SDK 依赖为校验过的 Release AAR。运行方式见[批测说明](docs/BATCH_TESTING.md#当前-release-aar-最小接入门禁)。

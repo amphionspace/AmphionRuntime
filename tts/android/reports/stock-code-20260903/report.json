@@ -1,0 +1,97 @@
+{
+  "scope": "Stock-code digit reading correction; not full pronunciation acceptance",
+  "scope_status": "PASS",
+  "full_pronunciation_status": "FAIL",
+  "source_commit": "c1adf36b75b10859b17a80c47a7cf1812727a908",
+  "runtime_fix_commit": "5a7dcffb",
+  "base_main_commit": "1a338571620a5316883749268e82d000f36e4c9e",
+  "device": {
+    "model": "vivo V2505A",
+    "android": "16",
+    "api": 36,
+    "execution": "Foreground; no power/security policy changes"
+  },
+  "validation": {
+    "targeted_jvm_tests": 2,
+    "targeted_jvm_status": "PASS",
+    "full_jvm": {
+      "source_commit": "5a7dcffb",
+      "tests": 106,
+      "passed": 103,
+      "skipped": 3,
+      "failed": 0,
+      "reuse": "Runtime unchanged; subsequently expanded numeric control assertions verified by targeted tests"
+    },
+    "native_frontend": {
+      "cases": 7,
+      "passed": 7,
+      "seconds": 2.228,
+      "raw_and_prepared_token_arrays": "exact equality against entry-specific references",
+      "native_tn_executed": true
+    },
+    "release_aar_public_api": {
+      "status": "PASS",
+      "license": "LICENSED",
+      "start": 1,
+      "pcm_callbacks": 25,
+      "pcm_bytes": 1325568,
+      "sequence": "0..24",
+      "sample_rate": 24000,
+      "sample_bit": 16,
+      "audio_channels": 1,
+      "complete": 1,
+      "error": 0,
+      "stop": 0,
+      "shutdown_returned": true,
+      "seconds": 6.014
+    },
+    "corpus": {
+      "total": 675,
+      "matched": 380,
+      "differences": 295,
+      "execution_errors": 0,
+      "changed_token_sequences": 1,
+      "unchanged_token_sequences": 674,
+      "new_mismatches": 0,
+      "seconds": 14.938,
+      "strict_checker_exit": 1
+    }
+  },
+  "non_canonical": {
+    "stock-device.log": "First control expectation incorrectly used cardinal reading for prepared entry",
+    "stock-device-final.log": "Second control expectation missed existing digit chunk boundary; exact difference observed and checked locally before next device run"
+  },
+  "invariants": [
+    "Existing stock shorthand, leading zeros and six-digit boundary preserved",
+    "Other 674 corpus token sequences unchanged",
+    "No golden, model, license, version, concurrency or lifecycle changes"
+  ],
+  "not_verified": [
+    "Full pronunciation gate; unresolved historical golden and frontend differences remain",
+    "Subjective audio quality",
+    "Background freeze recovery and long-duration stability",
+    "Harmony TTS; Android-only Kotlin rule change"
+  ],
+  "evidence_sha256": {
+    "aar-device-report.json": "b130e85e59675134dae06367fef464f3ffd6880f703b8c5a8d557f379873ee86",
+    "aar-device.log": "e185a61b35323b9f54185e5b3d664a467dfc3bb6b6568898a1b63590a06fd737",
+    "build-and-unit.log": "6f789ca6e68355fc01c4e0a0d2bb13d06b4e13c19cc792bf99960680d9907e36",
+    "build-canonical.log": "03ce8f277715290703abf856059c3a02ab27ac6f367cc717318ec29b75388ea2",
+    "build-identity.json": "a9167ee4f87c7298fd3d553768c46f5587891571b2d4a5a9be732ebcd6261d65",
+    "checker-result.log": "6813decca906f30185db8417d7b053859949ff128ab7258c92f106ca0868e605",
+    "corpus-device.log": "bf2ac614788048240b7fc1b20690f5e94ad07ab63f4611a76fce43f2763e6ad3",
+    "corpus-diff.json": "19f0e0d6a4fb33d15acb871444ad2eb01e2c87b4e8c2d5399c49477aab3d4b9e",
+    "corpus-results.jsonl": "6ac4d9cf557965661177b66b530879a1fae566c3dbfc773e9d8c3b8ba0cc104a",
+    "corpus-summary.json": "695326ee161c99ad0da4c3f16864858e3cd6669607eab00b25519132ee0681cb",
+    "non-canonical/stock-device-final.log": "41cb9b3fab721d7d9792953f353257e1e74534e9fab9d21728234fa7050f9a6f",
+    "non-canonical/stock-device-reference2.json": "a40d6610f3fc850d9f0c8e9dfbc2e60743f788259dd56cd09bf18d803ab5db8c",
+    "non-canonical/stock-device-wrong-reference.json": "60cceb183b02a5082e565565739c3598618bd970e22d0085e58a2d365d740922",
+    "non-canonical/stock-device.log": "22265e65addaeb1139d320a0e076f9e90c5964c3cf0ea39584a9f302ff0b88e7",
+    "non-canonical/unit-red.log": "7bbafb07d42a695e7255f9a13d8f90688590625ad7b9987dd31e4bff35046a50",
+    "stock-device-canonical.log": "adc801d81dd551dd0c335fc374ff67fabda5c3cb2708dc3a167f7a16c2e5ea4f",
+    "stock-device-report.json": "ca6ec523ea3faa5080dace1cd82f298d85d766bb2e9dc2e035ff72e9ee3940d0",
+    "unit-control-boundaries.log": "0c91637d38563914e48c2005d273d4a4d658ee2ca20f34399e6f4d5750b59e8e",
+    "unit-green.log": "5e64d515f1d3a843656a02b44d2f31dba841c6115262c3e309a8351f4bb553eb"
+  },
+  "evidence_normalization": "Trailing whitespace removed from Gradle logs only; raw device JSON/JSONL retained byte-for-byte"
+}

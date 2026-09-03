@@ -84,7 +84,7 @@ adb devices
 
 ### 当前 Release AAR 最小接入门禁
 
-`AarFrontendContractDeviceTest` 只通过公开 API 验证 Release AAR 的授权、外置资源加载及一次合成请求。它不访问 SDK 内部类，也不清空调用方的资源目录。输入包含负温度、日期和跨 50 字符位置的 URL；本门禁检查回调和 PCM 格式，不替代前端 token 对照、完整发音语料或长稳压。
+`AarFrontendContractDeviceTest` 只通过公开 API 验证 Release AAR 的授权、外置资源加载及一次合成请求。它不访问 SDK 内部类，也不清空调用方的资源目录。输入包含股票代码、负温度、日期和跨 50 字符位置的 URL；本门禁检查回调和 PCM 格式，不替代前端 token 对照、完整发音语料或长稳压。
 
 先按[源码编译说明](BUILD_FROM_SOURCE.md)准备模型和授权构建配置，再构建宿主及测试 APK：
 
