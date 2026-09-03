@@ -202,6 +202,12 @@ class LitsTtsFrontendTest {
         }
         assertEquals("股票代码六百万五千一百九十", LitsTnNormalizer.normalize(layout, "股票代码6005190", "zh-en", "zh-en"))
         assertEquals("Stock code 600519", LitsTnNormalizer.normalize(layout, "Stock code 600519", "en-US", "en-US"))
+        listOf(Triple("数值600519", "数值", "六零零五一九"), Triple("股票代码6005190", "股票代码", "六零零五一九零")).forEach { (raw, prefix, digits) ->
+            assertArrayEquals(raw,
+                LitsTtsFrontend.encodeNormalized(layout, prefix, "zh-en", "zh-en") +
+                    LitsTtsFrontend.encodeNormalized(layout, digits, "zh-en", "zh-en"),
+                LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en"))
+        }
     }
 
     @Test

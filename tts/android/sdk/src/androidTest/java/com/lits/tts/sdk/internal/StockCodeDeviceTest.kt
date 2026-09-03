@@ -42,7 +42,15 @@ class StockCodeDeviceTest {
                     "股票代码6005190" -> "股票代码六零零五一九零"
                     else -> spoken
                 }
-                val preparedExpected = LitsTtsFrontend.encodeNormalized(layout, preparedSpoken, "zh-en", "zh-en")
+                // A raw digit run is a separate chunk without a leading boundary;
+                // unlike a single hanzi chunk, it does not add '_' after its prefix.
+                val preparedExpected = when (raw) {
+                    "数值600519" -> LitsTtsFrontend.encodeNormalized(layout, "数值", "zh-en", "zh-en") +
+                        LitsTtsFrontend.encodeNormalized(layout, "六零零五一九", "zh-en", "zh-en")
+                    "股票代码6005190" -> LitsTtsFrontend.encodeNormalized(layout, "股票代码", "zh-en", "zh-en") +
+                        LitsTtsFrontend.encodeNormalized(layout, "六零零五一九零", "zh-en", "zh-en")
+                    else -> LitsTtsFrontend.encodeNormalized(layout, preparedSpoken, "zh-en", "zh-en")
+                }
                 val preparedActual = LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en")
                 val row = JSONObject().put("raw", raw).put("spoken", spoken).put("normalized", normalized)
                     .put("profile", profile).put("expected_tokens", JSONArray(expected.toList()))
