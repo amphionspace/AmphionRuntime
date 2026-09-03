@@ -50,35 +50,40 @@ class CapturingListener(
     @Volatile var complete = CountDownLatch(1)
     @Volatile var firstError = CountDownLatch(1)
 
+    private fun capture(callback: CapturedCallback) {
+        callbackTrace.add(callback)
+        DqReport.callback(callback)
+    }
+
     override fun onStart(sessionId: String, eventMessage: String) {
-        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.START))
+        capture(CapturedCallback(sessionId, CapturedCallbackKind.START))
         onStartAction?.invoke(sessionId)
         started.countDown()
     }
 
     override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) {
-        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.EVENT))
+        capture(CapturedCallback(sessionId, CapturedCallbackKind.EVENT))
         events.add(eventCode to eventMessage)
     }
 
     override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
         if (result.isFinal) {
-            callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.FINAL, result.isLast))
+            capture(CapturedCallback(sessionId, CapturedCallbackKind.FINAL, result.isLast))
             finals.add(result)
         } else {
-            callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.PARTIAL))
+            capture(CapturedCallback(sessionId, CapturedCallbackKind.PARTIAL))
             partials.add(result.result)
         }
     }
 
     override fun onComplete(sessionId: String, eventMessage: String) {
-        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.COMPLETE))
+        capture(CapturedCallback(sessionId, CapturedCallbackKind.COMPLETE))
         completes.add(eventMessage)
         complete.countDown()
     }
 
     override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
-        callbackTrace.add(CapturedCallback(sessionId, CapturedCallbackKind.ERROR))
+        capture(CapturedCallback(sessionId, CapturedCallbackKind.ERROR))
         errors.add(errorCode to errorMessage)
         firstError.countDown()
         complete.countDown()
@@ -259,6 +264,13 @@ fun prepareSdkRuntime(targetContext: Context, workPath: File) {
 
 /** 追加一行 JSONL 报告到 targetContext.filesDir/dq_corner/report.jsonl。 */
 object DqReport {
+    fun callback(callback: CapturedCallback) {
+        append(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext,
+            mapOf("case" to "callback", "sessionId" to callback.sessionId,
+                "kind" to callback.kind.name, "isLast" to callback.isLast))
+    }
+
+    @Synchronized
     fun append(context: Context, fields: Map<String, Any?>) {
         val dir = File(context.filesDir, "dq_corner").apply { mkdirs() }
         val obj = JSONObject()

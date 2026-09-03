@@ -131,7 +131,7 @@ class DqVoiceprintTest {
     }
 
     // ---------- v04b: voiceprint + vadBegin，前置静音后真实语音不得提前结束 ----------
-    @Test
+    @Test(timeout = 2 * 60 * 1000L)
     fun v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly() {
         ensureReady()
         val main = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
@@ -160,6 +160,11 @@ class DqVoiceprintTest {
         feedFrames(engine, sid, readAssetPcm(testCtx, main), 20)
         assertTrue("voiceprint vadBegin must not auto-finish real speech",
             listener.finals.none { it.isLast } && listener.completes.isEmpty())
+        DqReport.append(ctx, mapOf("case" to "finish_requested", "sessionId" to sid,
+            "enableVoiceprintVerification" to true, "enableSpeakerVad" to false,
+            "voiceprintIdCount" to 1, "vadBeginMs" to 1_000,
+            "frontSilenceMs" to 300, "pcmDurationMs" to readAssetPcm(testCtx, main).size * 1_000L / (DQ_SR * 2),
+            "lastBeforeFinish" to listener.finals.count { it.isLast }))
         engine.finish(sid)
         val completed = listener.awaitComplete(25_000)
         awaitIdle(engine)
@@ -169,11 +174,16 @@ class DqVoiceprintTest {
             "main" to main, "completed" to completed,
             "lastCount" to listener.finals.count { it.isLast },
             "scoredFinalCount" to eligible.count { it.speakerSimilarity != null },
+            "speakerSimilarities" to eligible.map { it.speakerSimilarity }.toString(),
             "errorCodes" to listener.errorCodes().toString()))
         assertTrue("voiceprint vadBegin session must complete after explicit finish", completed)
         assertTrue("expected a non-empty final", eligible.isNotEmpty())
         assertTrue("voiceprint vadBegin speech must produce a scored non-empty final",
-            eligible.any { it.speakerSimilarity != null })
+            eligible.all { it.speakerSimilarity != null })
+        assertTrue("voiceprint session must not report errors", listener.errors.isEmpty())
+        assertTrue("voiceprint session must emit exactly one last then one complete",
+            listener.callbackTrace.filter { it.isLast || it.kind == CapturedCallbackKind.COMPLETE }
+                .map { it.kind } == listOf(CapturedCallbackKind.FINAL, CapturedCallbackKind.COMPLETE))
     }
 
     // ---------- v04c: 500 ms 短句有 ASR 证据时，退化到本句真实 PCM ----------

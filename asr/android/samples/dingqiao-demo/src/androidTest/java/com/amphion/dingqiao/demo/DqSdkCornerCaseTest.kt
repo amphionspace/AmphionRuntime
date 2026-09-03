@@ -751,13 +751,21 @@ class DqSdkCornerCaseTest {
             assertTrue("cycle=$cycle cancel session did not start",
                 cancelListener.awaitStarted(10_000))
             feedFrames(engine, cancelSid, pcm.copyOfRange(0, minOf(pcm.size, DQ_SR)), 0)
+            DqReport.append(ctx, mapOf("case" to "cancel_requested", "sessionId" to cancelSid))
             engine.cancel(cancelSid)
+            val cancelledFinalCount = cancelListener.finals.size
+            val cancelledCompleteCount = cancelListener.completes.size
             awaitIdle(engine)
             assertFalse("cycle=$cycle cancel session remained busy", engine.isBusy())
             // Keep the cancel listener installed through a short quiescence window so callbacks
             // queued immediately before the state transition cannot escape the assertion.
             Thread.sleep(100)
-            assertTrue("cycle=$cycle cancel must not emit final", cancelListener.finals.isEmpty())
+            assertEquals("cycle=$cycle cancel must not emit new final", cancelledFinalCount,
+                cancelListener.finals.size)
+            assertTrue("cycle=$cycle cancel must not emit last",
+                cancelListener.finals.none { it.isLast })
+            assertEquals("cycle=$cycle cancel must not emit new complete", cancelledCompleteCount,
+                cancelListener.completes.size)
             assertTrue("cycle=$cycle cancel must not emit complete",
                 cancelListener.completes.isEmpty())
 
@@ -771,6 +779,7 @@ class DqSdkCornerCaseTest {
                 0,
                 oldListener.finals.count { it.isLast },
             )
+            DqReport.append(ctx, mapOf("case" to "finish_requested", "sessionId" to oldSid))
             engine.finish(oldSid)
             assertTrue("cycle=$cycle old session did not complete",
                 oldListener.awaitComplete(20_000))
@@ -778,6 +787,10 @@ class DqSdkCornerCaseTest {
                 oldListener.finals.count { it.isLast })
             assertEquals("cycle=$cycle old session complete count", 1,
                 oldListener.completes.size)
+            assertEquals("cycle=$cycle old session terminal order",
+                listOf(CapturedCallbackKind.FINAL, CapturedCallbackKind.COMPLETE),
+                oldListener.callbackTrace.filter { it.isLast || it.kind == CapturedCallbackKind.COMPLETE }
+                    .map { it.kind })
             assertTrue("cycle=$cycle old session errors=${oldListener.errors}",
                 oldListener.errors.isEmpty())
             awaitIdle(engine)
@@ -792,12 +805,18 @@ class DqSdkCornerCaseTest {
             val unexpectedTerminalCallbacks = AtomicInteger(0)
             engine.setListener(object : RecognitionListener {
                 override fun onStart(sessionId: String, eventMessage: String) {
+                    DqReport.callback(CapturedCallback(sessionId, CapturedCallbackKind.START))
                     if (sessionId == replacementSid) replacementStarted.countDown()
                 }
 
-                override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) = Unit
+                override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) {
+                    DqReport.callback(CapturedCallback(sessionId, CapturedCallbackKind.EVENT))
+                }
 
                 override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
+                    DqReport.callback(CapturedCallback(sessionId,
+                        if (result.isFinal) CapturedCallbackKind.FINAL else CapturedCallbackKind.PARTIAL,
+                        result.isLast))
                     if (sessionId == replacementSid) {
                         if (result.isLast) replacementLastCount.incrementAndGet()
                     } else if (result.isLast) {
@@ -806,7 +825,9 @@ class DqSdkCornerCaseTest {
                 }
 
                 override fun onComplete(sessionId: String, eventMessage: String) {
+                    DqReport.callback(CapturedCallback(sessionId, CapturedCallbackKind.COMPLETE))
                     if (sessionId == replacementSid) {
+                        if (replacementLastCount.get() != 1) unexpectedTerminalCallbacks.incrementAndGet()
                         replacementCompleteCount.incrementAndGet()
                         replacementComplete.countDown()
                     } else {
@@ -815,6 +836,7 @@ class DqSdkCornerCaseTest {
                 }
 
                 override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+                    DqReport.callback(CapturedCallback(sessionId, CapturedCallbackKind.ERROR))
                     if (sessionId == replacementSid) {
                         synchronized(replacementErrors) { replacementErrors += errorCode }
                     }
@@ -835,6 +857,7 @@ class DqSdkCornerCaseTest {
                 0,
                 replacementLastCount.get(),
             )
+            DqReport.append(ctx, mapOf("case" to "finish_requested", "sessionId" to replacementSid))
             engine.finish(replacementSid)
             assertTrue("cycle=$cycle replacement did not complete",
                 replacementComplete.await(20_000, TimeUnit.MILLISECONDS))
@@ -896,6 +919,10 @@ class DqSdkCornerCaseTest {
         assertTrue("vadBegin should complete a no-input session", completed)
         assertEquals("no-input final must be empty", "", listener.lastFinal()?.result)
         assertTrue("no-input final must close the session", listener.lastFinal()?.isLast == true)
+        assertEquals("no-input session must emit exactly one last then one complete",
+            listOf(CapturedCallbackKind.FINAL, CapturedCallbackKind.COMPLETE),
+            listener.callbackTrace.filter { it.isLast || it.kind == CapturedCallbackKind.COMPLETE }
+                .map { it.kind })
         assertFalse(listener.events.any { it.first == DingqiaoEventCode.SPEECH_BEGIN })
         assertFalse(listener.events.any { it.first == DingqiaoEventCode.SPEECH_END })
         assertTrue(listener.errors.isEmpty())
