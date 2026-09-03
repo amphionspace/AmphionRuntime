@@ -1,0 +1,17 @@
+{
+  "input-mapping.json": "b56680ed487544fbe23acb02689c2ac71e055e15f0a7cf85c47370fbc8fe399b",
+  "report.json": "7f38609409f5a78c758273e98217662bc2d75a93c0cb43043f538bb2b910b22f",
+  "sessions.json": "f10c4f0c7512d43b8ecf74ad76645da61e3a08cabb7751560ed3cf3cdb35b0ed",
+  "user-sequence-frozen-instrumentation.txt": "0ef890987e9e1b5e81404ee3c64b8c0ec15d3b95f244389faa14e6f83a3d1130",
+  "user-sequence-frozen-logcat.txt": "d8bcee63e37259961dad3bc9699971aa3453a9bac25bfc6effc3df2069972719",
+  "user-sequence-frozen-memory.csv": "eaa82345dfe6a75c9972da215d2be5b45332d9728301c3bd86dcc3de692a46ae",
+  "user-sequence-frozen.jsonl": "1423d2370e6e325d9fd941e0167f9ae3ed5aa7ce02cd58f934130c2b9b148c99",
+  "user-sequence-instrumentation.txt": "543e8e6cdcbb7e7c409393435926349f524ffa2380b5669bceb8417c43630195",
+  "user-sequence-logcat.txt": "b73c32c295258c3a7561457f04241d87f4d5e1321160c0f8399128242c4ac8d1",
+  "user-sequence-memory.csv": "5fc2d910bf8048cf36d57436a5f0a6a9090afa0520db6bc27018408b9cac078d",
+  "user-sequence.jsonl": "250c8a11ff0b9daf49269cb881bf4527a3d110a99fa052694aa00f0197a8f5d5",
+  "vad-begin-silence-instrumentation.txt": "de69dbb674defbee0e181c9bbac686714d1a907ddda49c64484dc9d091774b5b",
+  "vad-begin-silence.jsonl": "89d92de22181f62451d9e2b340beb12f01c4ae35c2b0e6a875ae8b01d1b0bf37",
+  "voiceprint-vad-begin-instrumentation.txt": "144d1bb0a2778c5a7c806cac45e89b53e41e8e4576aab80cf251d58a46a2cf82",
+  "voiceprint-vad-begin.jsonl": "3953c18b5f53f6b47631cf58df47cacdc8ba618f40677259d138d95f5b305274"
+}

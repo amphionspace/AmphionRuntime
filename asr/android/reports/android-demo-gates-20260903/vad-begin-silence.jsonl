@@ -1,0 +1,17 @@
+{"ts": 1788406563404, "case": "runtime_prepare", "phase": "init_start"}
+{"ts": 1788406564521, "case": "runtime_prepare", "phase": "init_complete"}
+{"ts": 1788406564523, "case": "runtime_prepare", "phase": "work_path_complete"}
+{"ts": 1788406564524, "case": "runtime_prepare", "phase": "license_staged"}
+{"ts": 1788406564524, "case": "runtime_prepare", "phase": "license_invoked"}
+{"ts": 1788406564616, "case": "runtime_prepare", "phase": "license_complete"}
+{"ts": 1788406564617, "case": "runtime_prepare", "phase": "prepare_invoked"}
+{"ts": 1788406565701, "case": "runtime_prepare", "phase": "prepare_complete"}
+{"ts": 1788406565701, "case": "engine_create", "phase": "start"}
+{"ts": 1788406565828, "case": "engine_create", "phase": "complete"}
+{"ts": 1788406565829, "case": "a11_vadBegin", "phase": "start_listening"}
+{"ts": 1788406565843, "case": "a11_vadBegin", "phase": "start_returned"}
+{"ts": 1788406565844, "case": "callback", "sessionId": "vadbegin-1788406565829", "kind": "START", "isLast": false}
+{"ts": 1788406566156, "case": "callback", "sessionId": "vadbegin-1788406565829", "kind": "FINAL", "isLast": true}
+{"ts": 1788406566157, "case": "callback", "sessionId": "vadbegin-1788406565829", "kind": "COMPLETE", "isLast": false}
+{"ts": 1788406566158, "case": "runtime_release", "phase": "start"}
+{"ts": 1788406566279, "case": "runtime_release", "phase": "complete"}
