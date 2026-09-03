@@ -191,8 +191,9 @@ internal object LitsTtsFrontend {
     private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点\\s?0([1-9])分")
     private val durationMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d+)小时0([1-9])分钟")
     private val yearBeforeNianRegex = Regex("(?<!\\d)(\\d{4})\\s*年")
-    private val yearMonthLeadingZeroRegex = Regex("(\\d{2,4}年)0([1-9])月")
-    private val yearMonthRegex = Regex("(\\d{2,4}年)(\\d{1,2})月")
+    // The TN preparation step may already have expanded the year to Hanzi.
+    private val yearMonthLeadingZeroRegex = Regex("((?:\\d{2,4}|[零一二三四五六七八九]{2,4})年)0([1-9])月")
+    private val yearMonthRegex = Regex("((?:\\d{2,4}|[零一二三四五六七八九]{2,4})年)(\\d{1,2})月")
     private val monthDayLeadingZeroRegex = Regex("(月)0([1-9])日")
     private val monthDayRegex = Regex("(月)(\\d{1,2})(日|号)")
     private val negativeTemperatureRegex = Regex("((?:气温|温度|体温))\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*(度|℃)")

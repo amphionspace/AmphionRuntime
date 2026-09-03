@@ -238,7 +238,7 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun zhEnNumericFixesMatchMacosFrontendCases() {
+    fun zhEnNumericReadingsMatchSpokenForms() {
         val layout = testLayout()
 
         assertArrayEquals(
@@ -289,18 +289,54 @@ class LitsTtsFrontendTest {
             LitsTtsFrontend.encode(layout, "JDK17路径在点venv斜杠lib斜杠jvm", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "JDK17路径在.venv/lib/jvm", "zh-en", "zh-en"),
         )
+    }
+
+    @Test
+    fun zhEnVersionSuffixKeepsTechnicalDigitReadings() {
+        val layout = testLayout()
+        // The technical-token contract added in 75e48aee reads each digit and
+        // retains its separator pauses; it is not the older macOS cardinal rule.
         assertArrayEquals(
-            LitsTtsFrontend.encode(layout, "firmware二点零点十杠beta需要灰度", "zh-en", "zh-en"),
+            LitsTtsFrontend.encodeNormalized(layout, "firmware 二,点零,点一零,杠beta需要灰度", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "firmware 2.0.10-beta需要灰度", "zh-en", "zh-en"),
         )
+    }
+
+    @Test
+    fun zhEnPathKeepsTechnicalUnderscoreReading() {
+        val layout = testLayout()
+        // As for TTS_8_TIMEOUT above, '_' in a technical token is spoken in
+        // English. A lowercase prose "underscore" is a different input contract.
         assertArrayEquals(
-            LitsTtsFrontend.encode(layout, "路径是斜杠home斜杠user斜杠report下划线2026点csv", "zh-en", "zh-en"),
+            LitsTtsFrontend.encodeNormalized(layout, "路径是斜杠home斜杠user斜杠report UNDERSCORE 二零二六,点csv", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "路径是/home/user/report_2026.csv", "zh-en", "zh-en"),
         )
+    }
+
+    @Test
+    fun zhEnUrlQueryValueMatchesSpokenDigits() {
+        val layout = testLayout()
+        // Do not run a partly expanded reference containing "123" through TN:
+        // it no longer has the technical-token context of the raw URL.
         assertArrayEquals(
-            LitsTtsFrontend.encode(layout, "URL是www点example点com斜杠test问号id等于123", "zh-en", "zh-en"),
+            LitsTtsFrontend.encodeNormalized(layout, "URL是www点example点com斜杠test问号id等于一二三", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "URL是www.example.com/test?id=123", "zh-en", "zh-en"),
         )
+    }
+
+    @Test
+    fun zhEnCalendarMonthsStillNormalizeAfterYearExpansion() {
+        val layout = testLayout()
+        listOf(
+            "出生日期1998年2月09日" to "出生日期一九九八年二月零九日",
+            "出生日期一九九八年2月09日" to "出生日期一九九八年二月零九日",
+            "出生日期1998年02月09日" to "出生日期一九九八年零二月零九日",
+            "日期2026年12月31日" to "日期二零二六年十二月三十一日",
+        ).forEach { (raw, spoken) ->
+            val expected = LitsTtsFrontend.encodeNormalized(layout, spoken, "zh-en", "zh-en")
+            assertArrayEquals("raw: $raw", expected, LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en"))
+            assertArrayEquals("prepared: $raw", expected, LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en"))
+        }
     }
 
     @Test
