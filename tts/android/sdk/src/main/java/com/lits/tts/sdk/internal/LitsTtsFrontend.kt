@@ -207,7 +207,7 @@ internal object LitsTtsFrontend {
     private val technicalSymbolChars = setOf('.', '/', '\\', '_', '@', ':', '?', '=', '&', '#', '%', '+', '-')
     private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
     private val roomNumberRegex = Regex("((?:房间|房号)(?:是|为)?\\s*)(\\d{3,4})(?!\\d)")
-    private val stockCodeRegex = Regex("(股票\\s*)(\\d{6})(?!\\d)")
+    private val stockCodeRegex = Regex("(股票\\s*(?:代码\\s*)?)(\\d{6})(?!\\d)")
     private val plateCodeRegex = Regex("((?:车牌号?|号牌)\\s*[\\u4e00-\\u9fff]?\\s*[A-Za-z])(\\d{3,6})(?!\\d)")
     private val idTailRegex = Regex("((?:身份证尾号|尾号)\\s*)(\\d+)([A-Za-z])(?![A-Za-z0-9])")
     private val slashDelimitedNumberRegex = Regex("(斜杠)(\\d+)(?=斜杠)")
