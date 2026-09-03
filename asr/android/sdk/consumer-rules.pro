@@ -86,6 +86,8 @@
 -keep public class com.amphion.asr.AsrSession { *; }
 -keep public interface com.amphion.asr.AsrCallback { *; }
 -keep public class com.amphion.asr.AsrResult { *; }
+# SDK-to-adapter seam: referenced from the separately compiled diarization AAR.
+-keep public class com.amphion.asr.internal.ResultAudioTimeline { *; }
 -keep public class com.amphion.asr.AsrError { *; }
 -keep public class com.amphion.asr.AsrErrorCode { *; }
 -keep public interface com.amphion.asr.Cancellable { *; }

@@ -144,6 +144,28 @@ export class OnlineSpeakerRegistry {
     return assignments;
   }
 
+  fork(): OnlineSpeakerRegistry {
+    const copy = new OnlineSpeakerRegistry(this.maxSpeakers, this.similarityThreshold, this.topMargin);
+    for (const entry of this.entries) copy.entries.push({ speakerId: entry.speakerId,
+      centroid: entry.centroid.slice(), speechDurationMs: entry.speechDurationMs, lastSeenMs: entry.lastSeenMs });
+    return copy;
+  }
+
+  matchKnown(raw: number[]): string | undefined {
+    const embedding = normalize(new Float32Array(raw));
+    if (embedding === undefined) return undefined;
+    const ranked = this.entries.map(entry => ({ id: entry.speakerId, score: cosine(entry.centroid, embedding) }))
+      .sort((left, right) => right.score - left.score);
+    return ranked.length > 0 && ranked[0].score >= this.similarityThreshold &&
+      (ranked.length < 2 || ranked[0].score - ranked[1].score >= this.topMargin) ? ranked[0].id : undefined;
+  }
+
+  commitKnown(id: string, embedding: number[], durationMs: number, atMs: number): void {
+    const entry = this.entries.find(item => item.speakerId === id);
+    const normalized = normalize(new Float32Array(embedding));
+    if (entry !== undefined && normalized !== undefined) this.updateCentroid(entry, normalized, durationMs, atMs);
+  }
+
   speakerIds(): string[] {
     return this.entries.map((entry) => entry.speakerId);
   }

@@ -296,11 +296,14 @@ SDK 自动估计实际发言人数，不接收参会名单人数或 hard K。证
 
 角色分离完全在 SDK 内端侧执行。`pyannote-segmentation-3.0.onnx` 与 `eres2net.onnx` 已内置在
 `amphion_dingqiao.har`，宿主无需配置地址、认证、模型路径、网络权限或 ChildProcess 入口。
-PCM 只写入应用沙箱中的顺序 spool，SDK 按 10 秒窗口、2.5 秒 hop 串行执行本地 segmentation 和
-embedding；稳定编号、最近 60 秒静默修正及最终 AHC 聚类也都在本机完成。会议结束只处理尾窗和
-已持久化 embedding，不重新推理整场 PCM。
+PCM 写入应用沙箱的 10 秒分块临时文件，处理完成且不再被推理任务引用后回收。
+SDK 按 10 秒推理窗口、2.5 秒 hop 串行执行本地 segmentation 和 embedding。
+分人结果以 120 秒为目标窗口，在其后的第一个 ASR endpoint 及所需分人推理完成后校准并发布。
+跨窗长句等待原句结束，不强行分句。120 秒是工程默认值，不是准确率最优或固定延迟保证。
+窗口发布后，其中全部身份（包括 `-1`）永久冻结。整场保留匿名编号及代表声纹；结束仅完成尾批，
+不再对历史全文或整场 embedding 重新聚类。
 
-模型加载、端侧推理、存储或单窗超时会保留 ASR，并通过唯一一次
+模型加载、端侧推理、存储或单窗超时会保留 ASR，并通过分窗及终结
 `onSpeakerDiarizationResult` 返回明确的 `degradedReason`。产品发布门禁必须把降级视为角色分离
 失败，不能只检查 `onComplete`。
 
@@ -324,7 +327,7 @@ interface RecognitionListener {
 | `onEvent` | 语音端点、声纹 VAD 状态等事件 |
 | `onResult` | 识别结果，包含 partial 与 final |
 | `onSpeakerDiarizationUpdate` | 按 `utteranceId + revision` 增量修订说话人归属；只更新 speaker 信息，不修改 ASR 文本 |
-| `onSpeakerDiarizationResult` | 开启角色分离后在正常 finish 流程中唯一一次返回整场最终 utterance 和 speaker timeline，包括降级结果 |
+| `onSpeakerDiarizationResult` | 返回本窗口定稿的 utterance 和 speaker timeline；每场多次，只有末次 `isSessionFinal=true`，包含降级结果 |
 | `onComplete` | 主动 `finish`、达到 `vadBegin` 首段静音阈值或达到 `maxAudioDuration` 上限后，识别完整结束 |
 | `onError` | 发生错误 |
 
@@ -362,9 +365,12 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `utterances` | `DiarizedUtterance[]` | 最终全文；包含 `rawText`、`text`、全局时间、speaker 索引、`confidence` 和 `overlap` |
-| `speakerTurns` | `SpeakerTurn[]` | 最终 speaker timeline；保留 primary、secondary、`confidence` 和 `overlap` |
-| `speakerCount` | `number` | 本 session 已确认的匿名说话人数 |
+| `utterances` | `DiarizedUtterance[]` | 本窗口定稿文字；每项的 `sourceUtteranceId` 指向原 ASR final，安全拆句时多个片段可共享该 ID；包含 `rawText`、`text`、全局时间、speaker 索引、`confidence` 和 `overlap` |
+| `speakerTurns` | `SpeakerTurn[]` | 本窗口 speaker timeline；保留 primary、secondary、`confidence` 和 `overlap` |
+| `windowIndex` | `number` | session 内从 0 开始递增；用于批次去重 |
+| `windowBeginTime` / `windowEndTime` | `number` | 本批音频起止位置，session-global 毫秒 |
+| `isSessionFinal` | `boolean` | 只有正常收尾最后一批为 `true`；不能与 ASR `isLast` 混用 |
+| `speakerCount` | `number` | 截至本批，session 已确认的匿名说话人数 |
 | `degraded` | `boolean` | 是否返回当前最佳降级结果 |
 | `degradedReason` | `SpeakerDiarizationDegradedReason` | 稳定降级枚举，成功时为 `NONE` |
 | `degradedMessage` | `string?` | 可选的详细说明；业务分支应使用 `degradedReason` |
@@ -380,8 +386,13 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 
 1. 最后一批 `onSpeakerDiarizationUpdate`。
 2. 唯一 `onResult(isLast=true)`。
-3. 唯一 `onSpeakerDiarizationResult`。
+3. 唯一 `onSpeakerDiarizationResult(isSessionFinal=true)`，即使尾批为空也会返回。
 4. 唯一 `onComplete`。
+
+会话进行中可多次返回 `isSessionFinal=false` 的窗口结果，不能据此停止录音或清空全文。
+调用方按 `sourceUtteranceId` 替换本批临时句子并累积保存；窗口发布后不再收到对应句子的 update。
+`onResult.isFinal` 只定稿文字，只有窗口结果才定稿身份，整场完成仍以 `onComplete` 为准。
+此处是 Harmony／Android 的新语义，旧调用方必须同步迁移；iOS 本轮未改，不能套用本分窗契约。
 
 分人收尾超时时会按相同顺序返回 `degraded=true` 的当前最佳结果；`cancel()` 不产生
 last、`onSpeakerDiarizationResult` 或 `onComplete`。未开启时不产生任何 diarization 回调，

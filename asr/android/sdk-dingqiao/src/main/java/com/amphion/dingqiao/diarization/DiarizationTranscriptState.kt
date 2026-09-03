@@ -34,9 +34,11 @@ internal data class DiarizedTranscriptUtterance(
     val secondarySpeakerIds: List<String>,
     val confidence: Float,
     val overlap: Boolean,
+    val sourceUtteranceId: String = utteranceId,
 )
 
 private data class StoredUtterance(
+    val audioEndTime: Int,
     val utteranceId: String,
     val rawText: String,
     val text: String,
@@ -51,6 +53,7 @@ private data class StoredUtterance(
 
 internal class DiarizationTranscriptState {
     private val utterances = mutableListOf<StoredUtterance>()
+    private var nextUtteranceId = 1
     private val turns = mutableListOf<SpeakerTimelineTurn>()
 
     fun addUtterance(
@@ -60,11 +63,12 @@ internal class DiarizationTranscriptState {
         tokenTimesMs: List<Int>,
         beginTime: Int,
         endTime: Int,
+        audioEndTime: Int = endTime,
     ): String {
-        val id = "u${utterances.size + 1}"
+        val id = "u${nextUtteranceId++}"
         val assignment = assignmentFor(beginTime, endTime)
         utterances += StoredUtterance(
-            id, rawText, text, tokens.toList(), tokenTimesMs.toList(), beginTime, endTime,
+            audioEndTime, id, rawText, text, tokens.toList(), tokenTimesMs.toList(), beginTime, endTime,
             0, assignment.speakerId, assignment.secondarySpeakerIds,
         )
         return id
@@ -103,7 +107,7 @@ internal class DiarizationTranscriptState {
         return refreshUtterances { it.endTime >= fromTime }
     }
 
-    fun finalUtterances(): List<DiarizedTranscriptUtterance> = utterances.flatMap { utterance ->
+    fun finalUtterances(throughTime: Int = Int.MAX_VALUE): List<DiarizedTranscriptUtterance> = utterances.filter { it.audioEndTime <= throughTime }.flatMap { utterance ->
         if (
             utterance.tokens.isEmpty() ||
             utterance.tokens.size != utterance.tokenTimesMs.size ||
@@ -114,6 +118,18 @@ internal class DiarizationTranscriptState {
             val split = splitByTokenSpeaker(utterance)
             if (split.joinToString("") { it.text } == utterance.text) split else listOf(unsplit(utterance))
         }
+    }
+
+    fun commitThrough(endTime: Int): List<DiarizedTranscriptUtterance> {
+        val result = finalUtterances(endTime)
+        utterances.removeAll { it.audioEndTime <= endTime }
+        val retainFrom = minOf(endTime, utterances.minOfOrNull { it.beginTime } ?: endTime)
+        val retained = turns.filter { it.endTime > retainFrom }.map {
+            it.copy(beginTime = maxOf(it.beginTime, retainFrom))
+        }
+        turns.clear()
+        turns.addAll(retained)
+        return result
     }
 
     fun allTurns(): List<SpeakerTimelineTurn> = turns.map {
@@ -194,6 +210,7 @@ internal class DiarizationTranscriptState {
             val text = utterance.tokens.subList(groupStart, index).joinToString("")
             result += DiarizedTranscriptUtterance(
                 utteranceId = if (result.isEmpty()) utterance.utteranceId else "${utterance.utteranceId}.${result.size + 1}",
+                sourceUtteranceId = utterance.utteranceId,
                 rawText = text,
                 text = text,
                 beginTime = begin,

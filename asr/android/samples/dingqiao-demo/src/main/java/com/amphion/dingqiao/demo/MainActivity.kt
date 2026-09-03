@@ -95,7 +95,10 @@ class MainActivity : AppCompatActivity() {
         val secondarySpeakerIndexes: List<Int>,
         val confidence: Float,
         val overlap: Boolean,
+        val beginTime: Int,
     )
+    private val finalizedUtteranceIds = mutableSetOf<String>()
+    private var lastDiarizationWindowIndex = -1
     private val meetingLines = linkedMapOf<String, MeetingLine>()
 
     private var engine: SpeechRecognitionEngine? = null
@@ -433,6 +436,7 @@ class MainActivity : AppCompatActivity() {
                                 result.secondarySpeakerIndexes,
                                 result.speakerConfidence,
                                 result.secondarySpeakerIndexes.isNotEmpty(),
+                                result.beginTime ?: 0,
                             )
                             renderMeetingLines()
                         } else {
@@ -454,6 +458,7 @@ class MainActivity : AppCompatActivity() {
         ) {
             if (sessionId == replaySessionId) return
             runOnUiThread {
+                if (update.utteranceId in finalizedUtteranceIds) return@runOnUiThread
                 val previous = meetingLines[update.utteranceId] ?: return@runOnUiThread
                 meetingLines[update.utteranceId] = previous.copy(
                     speakerIndex = update.speakerIndex,
@@ -472,9 +477,15 @@ class MainActivity : AppCompatActivity() {
             if (sessionId == replaySessionId) return
             runOnUiThread {
                 if (!active) return@runOnUiThread
+                if (result.windowIndex <= lastDiarizationWindowIndex) return@runOnUiThread
+                lastDiarizationWindowIndex = result.windowIndex
                 if (result.utterances.isNotEmpty()) {
-                    meetingLines.clear()
+                    result.utterances.map { it.sourceUtteranceId }.distinct().forEach { source ->
+                        if (source !in finalizedUtteranceIds) meetingLines.remove(source)
+                        finalizedUtteranceIds += source
+                    }
                     result.utterances.forEach { utterance ->
+                        finalizedUtteranceIds += utterance.utteranceId
                         meetingLines[utterance.utteranceId] = MeetingLine(
                             utterance.utteranceId,
                             utterance.text,
@@ -482,6 +493,7 @@ class MainActivity : AppCompatActivity() {
                             utterance.secondarySpeakerIndexes,
                             utterance.confidence,
                             utterance.overlap,
+                            utterance.beginTime,
                         )
                     }
                     renderMeetingLines()
@@ -506,6 +518,8 @@ class MainActivity : AppCompatActivity() {
         startTapMs = SystemClock.elapsedRealtime()
         finalLines.clear()
         meetingLines.clear()
+        finalizedUtteranceIds.clear()
+        lastDiarizationWindowIndex = -1
         tvFinal.text = ""
         tvPartial.text = ""
         synchronized(stateLock) {
@@ -1029,7 +1043,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderMeetingLines() {
         finalLines.clear()
-        meetingLines.values.forEach { line ->
+        meetingLines.values.sortedBy { it.beginTime }.forEach { line ->
             if (finalLines.isNotEmpty()) finalLines.append('\n')
             val labelStart = finalLines.length
             val speaker = if (line.speakerIndex >= 0) {

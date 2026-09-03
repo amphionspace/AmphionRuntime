@@ -52,7 +52,7 @@ FINISH_MODES = {
     "continuous-voiceprint-speaker-vad", "numeric-edge",
     "finish-shutdown", "finish-shutdown-relicense", "speaker-vad-shutdown-relicense",
     "customer-tap-vad", "customer-ptt", "customer-transcription", "customer-ptt-tail",
-    "customer-form", "customer-meeting-minutes",
+    "customer-form", "customer-meeting-minutes", "diarization-windows",
 }
 TARGET_SPEAKER_MODES = {
     "speaker-vad-turn",
@@ -136,6 +136,7 @@ def parse_args() -> argparse.Namespace:
             "customer-ptt-tail",
             "customer-form",
             "customer-meeting-minutes",
+            "diarization-windows",
             "endpoint-reentrant",
             "finish-shutdown",
             "finish-shutdown-relicense",
