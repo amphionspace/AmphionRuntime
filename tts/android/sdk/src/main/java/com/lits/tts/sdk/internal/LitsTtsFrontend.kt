@@ -195,8 +195,8 @@ internal object LitsTtsFrontend {
     private val yearMonthRegex = Regex("(\\d{2,4}年)(\\d{1,2})月")
     private val monthDayLeadingZeroRegex = Regex("(月)0([1-9])日")
     private val monthDayRegex = Regex("(月)(\\d{1,2})(日|号)")
-    private val negativeTemperatureRegex = Regex("((?:气温|温度|体温))\\s?-\\s?(\\d+(?:\\.\\d+)?)\\s?(度|℃)")
-    private val negativeTemperatureRangeRegex = Regex("(温度范围是)\\s?-\\s?(\\d+(?:\\.\\d+)?)\\s?到\\s?(\\d+(?:\\.\\d+)?)\\s?(度|℃)")
+    private val negativeTemperatureRegex = Regex("((?:气温|温度|体温))\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*(度|℃)")
+    private val negativeTemperatureRangeRegex = Regex("(温度范围是)\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*到\\s*(\\d+(?:\\.\\d+)?)\\s*(度|℃)")
     private val semanticVersionRegex = Regex("(?<![A-Za-z0-9])([vV])(\\d+(?:\\.\\d+)+)(?![A-Za-z0-9])")
     private val versionNumberWithSuffixRegex = Regex("(?<!\\d)(\\d+(?:\\.\\d+){2,})(?=[-A-Za-z])")
     private val digitDotRegex = Regex("(?<=\\d)\\.(?=\\d)")
@@ -1237,12 +1237,7 @@ internal object LitsTtsFrontend {
         normalized = kmPerHourRegex.replace(normalized) { match ->
             numberTextToHanzi(match.groupValues[1]) + "千米每小时"
         }
-        normalized = negativeTemperatureRangeRegex.replace(normalized) { match ->
-            "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}到${numberTextToHanzi(match.groupValues[3])}${match.groupValues[4]}"
-        }
-        normalized = negativeTemperatureRegex.replace(normalized) { match ->
-            "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
-        }
+        normalized = normalizeNegativeTemperatures(normalized)
         normalized = clockColonMinuteLeadingZeroRegex.replace(normalized) { match ->
             "${numberTextToHanzi(match.groupValues[1])}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}"
         }
@@ -1280,6 +1275,17 @@ internal object LitsTtsFrontend {
             match.groupValues[1] + match.groupValues[2] + normalizeSerialCode(match.groupValues[3])
         }
         return normalized
+    }
+
+    // Shared by pre-TN protection and the already-normalized frontend entry.
+    // Protect temperature context before the generic minus rule changes '-' to '负'.
+    internal fun normalizeNegativeTemperatures(text: String): String {
+        val normalized = negativeTemperatureRangeRegex.replace(text) { match ->
+            "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}到${numberTextToHanzi(match.groupValues[3])}${match.groupValues[4]}"
+        }
+        return negativeTemperatureRegex.replace(normalized) { match ->
+            "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
+        }
     }
 
     private fun normalizeSerialCode(code: String): String = buildString {

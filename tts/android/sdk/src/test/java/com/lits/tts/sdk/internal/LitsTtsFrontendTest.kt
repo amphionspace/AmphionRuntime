@@ -297,6 +297,46 @@ class LitsTtsFrontendTest {
     }
 
     @Test
+    fun negativeTemperatureReadingsAreIndependentOfWhitespace() {
+        val layout = testLayout()
+        listOf(
+            "气温-24.5度" to "气温零下二十四点五度",
+            "气温 -24.5 度" to "气温零下二十四点五度",
+            "温度  -  5 度" to "温度零下五度",
+            "体温-0.5度" to "体温零下零点五度",
+            "温度范围是-5到10度" to "温度范围是零下五到十度",
+            "温度范围是 -5 到 10 度" to "温度范围是零下五到十度",
+            "温度范围是  -  5  到  10  度" to "温度范围是零下五到十度",
+        ).forEach { (raw, spoken) ->
+            // Assert the pre-native text as well as tokens: a downstream repair must
+            // not conceal a native TN input that already lost the temperature context.
+            assertEquals(raw, spoken, LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en"))
+            assertArrayEquals(
+                raw,
+                LitsTtsFrontend.encodeNormalized(layout, spoken, "zh-en", "zh-en"),
+                LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en"),
+            )
+        }
+    }
+
+    @Test
+    fun temperatureProtectionDoesNotChangeOtherNumericContexts() {
+        val layout = testLayout()
+        listOf(
+            "气温24.5度" to "气温24.5度",
+            "温度范围是5到10度" to "温度范围是5到10度",
+            "数值 -24.5" to "数值 负24.5",
+            "比分1-2" to "比分1-2",
+        ).forEach { (raw, prepared) ->
+            assertEquals(raw, prepared, LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en"))
+        }
+        assertEquals(
+            "Temperature -24.5 degrees",
+            LitsTnNormalizer.normalize(layout, "Temperature -24.5 degrees", "en-US", "en-US"),
+        )
+    }
+
+    @Test
     fun enUsChatgptUsesLexiconReading() {
         val layout = testLayout()
 

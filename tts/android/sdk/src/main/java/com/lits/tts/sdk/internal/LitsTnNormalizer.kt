@@ -223,7 +223,8 @@ internal object LitsTnNormalizer {
         }
 
         private fun prepareInputForTn(text: String): String {
-            var output = expandEra(text)
+            var output = LitsTtsFrontend.normalizeNegativeTemperatures(text)
+            output = expandEra(output)
             output = expandTime(output)
             output = expandDates(output)
             output = dateHaoToRiRegex.replace(output) { it.groupValues[1] + "日" }
