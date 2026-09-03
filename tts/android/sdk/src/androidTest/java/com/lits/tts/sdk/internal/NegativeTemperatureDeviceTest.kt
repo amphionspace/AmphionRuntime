@@ -125,6 +125,8 @@ class NegativeTemperatureDeviceTest {
             assertTrue("Unexpected callback or empty PCM: $trace", data.all {
                 it.startsWith("temperature:data:") && it.substringAfterLast(':').toInt() > 0
             })
+            assertEquals("PCM sequence must be contiguous and ordered: $trace",
+                data.indices.toList(), data.map { it.split(':')[2].toInt() })
             passed = true
         } finally {
             reportFile.writeText(JSONObject().put("pass", passed).put("cases", rows)
