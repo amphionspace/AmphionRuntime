@@ -35,14 +35,25 @@ class StockCodeDeviceTest {
                 val profile = LitsTnNormalizer.lastProfileSummary().orEmpty()
                 val expected = LitsTtsFrontend.encodeNormalized(layout, spoken, "zh-en", "zh-en")
                 val actual = LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en")
+                // The normalized-input entry bypasses native cardinal expansion.
+                // Preserve its existing digit-by-digit reading for these controls.
+                val preparedSpoken = when (raw) {
+                    "数值600519" -> "数值六零零五一九"
+                    "股票代码6005190" -> "股票代码六零零五一九零"
+                    else -> spoken
+                }
+                val preparedExpected = LitsTtsFrontend.encodeNormalized(layout, preparedSpoken, "zh-en", "zh-en")
+                val preparedActual = LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en")
                 val row = JSONObject().put("raw", raw).put("spoken", spoken).put("normalized", normalized)
                     .put("profile", profile).put("expected_tokens", JSONArray(expected.toList()))
                     .put("actual_tokens", JSONArray(actual.toList()))
+                    .put("prepared_spoken", preparedSpoken)
+                    .put("prepared_expected_tokens", JSONArray(preparedExpected.toList()))
+                    .put("prepared_actual_tokens", JSONArray(preparedActual.toList()))
                 rows.put(row)
                 assertTrue("Native TN must run: $profile", profile.contains("nativeCalls=zh:"))
                 assertArrayEquals(raw, expected, actual)
-                assertArrayEquals("prepared: $raw", expected,
-                    LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en"))
+                assertArrayEquals("prepared: $raw", preparedExpected, preparedActual)
                 row.put("pass", true)
             }
             assertEquals(7, rows.length())
