@@ -23,12 +23,21 @@ class AarLicensedExternalResourcesRule : TestRule {
             val licensePath = requireNotNull(arguments.getString("licensePath")?.takeIf { it.isNotBlank() }) {
                 "Pass -e licensePath <private license file>"
             }
+            val modelDirectory = File(workPath)
+            require(modelDirectory.isDirectory && modelDirectory.canRead()) {
+                "workPath must be an existing readable directory: $workPath"
+            }
+            val licenseFile = File(licensePath)
+            require(licenseFile.isFile && licenseFile.canRead()) {
+                "licensePath must be an existing readable file: $licensePath"
+            }
+            val licenseText = licenseFile.readText(Charsets.UTF_8)
             val context = instrumentation.targetContext
             val activity = instrumentation.startActivitySync(Intent(context, AarHostActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             try {
                 TextToSpeechSdk.init(context, TtsLicenseOptions(
-                    license = File(licensePath).readText(), licenseAssetName = null,
+                    license = licenseText, licenseAssetName = null,
                 ))
                 val state = TextToSpeechSdk.licenseStatus().state
                 assertEquals("Batch gate requires a licensed Release AAR", TtsLicenseStatus.State.LICENSED, state)
