@@ -34,9 +34,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 class AarStability1000DeviceTest {
+    @get:Rule
+    val externalResources = AarLicensedExternalResourcesRule()
+
     private val context = ApplicationProvider.getApplicationContext<android.content.Context>()
     private val outputDir = File(
         context.getExternalFilesDir(null) ?: context.filesDir,
@@ -56,14 +60,6 @@ class AarStability1000DeviceTest {
         )
 
         applyRuntimeOptions()
-        TextToSpeechSdk.setWorkPath(File(
-            instrumentationArg("workPath") ?: File(context.cacheDir, "aar-stability-1000-work").absolutePath,
-        ).apply {
-            if (instrumentationArg("preserveWorkPath") != "true") {
-                deleteRecursively()
-            }
-            mkdirs()
-        }.absolutePath)
 
         val resultsFile = File(outputDir, "results-$runId.jsonl")
         val startedAtMs = System.currentTimeMillis()
