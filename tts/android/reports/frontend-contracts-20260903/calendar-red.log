@@ -1,0 +1,64 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.6/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :sdk:checkKotlinGradlePluginConfigurationErrors
+> Task :cleanBundledTtsResources UP-TO-DATE
+> Task :sdk:generateDebugUnitTestAssets UP-TO-DATE
+> Task :stageExternalTtsResources UP-TO-DATE
+> Task :sdk:preBuild UP-TO-DATE
+> Task :sdk:preDebugBuild UP-TO-DATE
+> Task :sdk:generateDebugBuildConfig UP-TO-DATE
+> Task :sdk:generateDebugResValues UP-TO-DATE
+> Task :sdk:generateDebugResources UP-TO-DATE
+> Task :sdk:packageDebugResources UP-TO-DATE
+> Task :sdk:parseDebugLocalResources UP-TO-DATE
+> Task :sdk:generateDebugRFile UP-TO-DATE
+> Task :sdk:compileDebugKotlin UP-TO-DATE
+> Task :sdk:javaPreCompileDebug UP-TO-DATE
+> Task :sdk:compileDebugJavaWithJavac UP-TO-DATE
+> Task :sdk:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :sdk:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :sdk:preDebugUnitTestBuild UP-TO-DATE
+> Task :sdk:writeDebugAarMetadata UP-TO-DATE
+> Task :sdk:checkDebugUnitTestAarMetadata UP-TO-DATE
+> Task :sdk:compileDebugLibraryResources UP-TO-DATE
+> Task :sdk:generateDebugUnitTestResValues UP-TO-DATE
+> Task :sdk:mapDebugUnitTestSourceSetPaths UP-TO-DATE
+> Task :sdk:generateDebugUnitTestResources UP-TO-DATE
+> Task :sdk:mergeDebugUnitTestResources UP-TO-DATE
+> Task :sdk:extractDeepLinksDebug UP-TO-DATE
+> Task :sdk:processDebugManifest UP-TO-DATE
+> Task :sdk:processDebugUnitTestManifest UP-TO-DATE
+> Task :sdk:processDebugUnitTestResources UP-TO-DATE
+> Task :sdk:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :sdk:mergeDebugShaders UP-TO-DATE
+> Task :sdk:compileDebugShaders NO-SOURCE
+> Task :sdk:generateDebugAssets UP-TO-DATE
+> Task :sdk:mergeDebugAssets UP-TO-DATE
+> Task :sdk:packageDebugAssets UP-TO-DATE
+> Task :sdk:mergeDebugUnitTestAssets UP-TO-DATE
+> Task :sdk:packageDebugUnitTestForUnitTest UP-TO-DATE
+> Task :sdk:generateDebugUnitTestConfig UP-TO-DATE
+> Task :sdk:processDebugJavaRes UP-TO-DATE
+> Task :sdk:compileDebugUnitTestKotlin
+> Task :sdk:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :sdk:processDebugUnitTestJavaRes UP-TO-DATE
+
+> Task :sdk:testDebugUnitTest FAILED
+
+com.lits.tts.sdk.internal.LitsTtsFrontendTest > zhEnCalendarMonthsStillNormalizeAfterYearExpansion FAILED
+    org.junit.internal.ArrayComparisonFailure at LitsTtsFrontendTest.kt:316
+        Caused by: java.lang.AssertionError at LitsTtsFrontendTest.kt:316
+
+1 test completed, 1 failed
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':sdk:testDebugUnitTest'.
+> There were failing tests. See the report at: file://<worktree>/tts/android/sdk/build/reports/tests/testDebugUnitTest/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+BUILD FAILED in 6s
+36 actionable tasks: 3 executed, 33 up-to-date

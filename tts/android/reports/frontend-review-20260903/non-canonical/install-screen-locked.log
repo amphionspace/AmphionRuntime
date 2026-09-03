@@ -1,0 +1,2 @@
+Performing Streamed Install
+adb: failed to install tts/android/sdk/build/outputs/apk/androidTest/debug/sdk-debug-androidTest.apk: Failure [INSTALL_FAILED_ABORTED: User rejected permissions]

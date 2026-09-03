@@ -1,0 +1,97 @@
+Name:	ts.tts.sdk.test
+Umask:	0077
+State:	S (sleeping)
+Tgid:	28977
+Ngid:	0
+Pid:	28977
+PPid:	1818
+TracerPid:	0
+Uid:	10624	10624	10624	10624
+Gid:	10624	10624	10624	10624
+FDSize:	128
+Groups:	9997 20624 50624 99909997 
+Kthread:	0
+VmPeak:	17364004 kB
+VmSize:	15166068 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	  629392 kB
+VmRSS:	  204564 kB
+RssAnon:	   92732 kB
+RssFile:	  100580 kB
+RssShmem:	   11252 kB
+VmData:	 1274796 kB
+VmStk:	    8192 kB
+VmExe:	       8 kB
+VmLib:	  243620 kB
+VmPTE:	    2384 kB
+VmSwap:	  310128 kB
+CoreDumping:	0
+THP_enabled:	1
+untag_mask:	0xffffffffffffff
+Threads:	21
+SigQ:	2/54840
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000004
+SigBlk:	0000000080001204
+SigIgn:	0000000000000001
+SigCgt:	0000006e400084f8
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	0000000000000000
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	2
+Seccomp_filters:	1
+Speculation_Store_Bypass:	thread vulnerable
+SpeculationIndirectBranch:	unknown
+Cpus_allowed:	3f
+Cpus_allowed_list:	0-5
+Mems_allowed:	1
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	36
+nonvoluntary_ctxt_switches:	29
+/proc/28977/task/28977
+ts.tts.sdk.test
+get_signal/proc/28977/task/28978
+Signal Catcher
+get_signal/proc/28977/task/28979
+perfetto_hprof_
+get_signal/proc/28977/task/28980
+ADB-JDWP Connec
+get_signal/proc/28977/task/28983
+Jit thread pool
+get_signal/proc/28977/task/28984
+HeapTaskDaemon
+get_signal/proc/28977/task/28985
+ReferenceQueueD
+get_signal/proc/28977/task/28987
+FinalizerDaemon
+get_signal/proc/28977/task/28989
+FinalizerWatchd
+get_signal/proc/28977/task/28990
+binder:28977_1
+get_signal/proc/28977/task/28991
+binder:28977_2
+get_signal/proc/28977/task/28992
+binder:28977_3
+get_signal/proc/28977/task/28993
+Profile Saver
+get_signal/proc/28977/task/28995
+vivo.PerfThread
+get_signal/proc/28977/task/28996
+POSIX timer 0
+get_signal/proc/28977/task/28997
+Cleaner-0
+get_signal/proc/28977/task/28998
+roidJUnitRunner
+get_signal/proc/28977/task/28999
+Instrumentation
+get_signal/proc/28977/task/29018
+pool-3-thread-1
+get_signal/proc/28977/task/29019
+lits-tts-engine
+get_signal/proc/28977/task/29021
+lits-tts-listen
+get_signal

@@ -1,0 +1,41 @@
+INSTRUMENTATION_STATUS: class=com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest:
+INSTRUMENTATION_STATUS: test=nativeFrontendAndPublicSynthesisPreserveReadingContracts
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: Synthesis timeout
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest.nativeFrontendAndPublicSynthesisPreserveReadingContracts(NegativeTemperatureDeviceTest.kt:114)
+
+INSTRUMENTATION_STATUS: stream=
+Error in nativeFrontendAndPublicSynthesisPreserveReadingContracts(com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest):
+java.lang.AssertionError: Synthesis timeout
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest.nativeFrontendAndPublicSynthesisPreserveReadingContracts(NegativeTemperatureDeviceTest.kt:114)
+
+INSTRUMENTATION_STATUS: test=nativeFrontendAndPublicSynthesisPreserveReadingContracts
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 164.084
+There was 1 failure:
+1) nativeFrontendAndPublicSynthesisPreserveReadingContracts(com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest)
+java.lang.AssertionError: Synthesis timeout
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest.nativeFrontendAndPublicSynthesisPreserveReadingContracts(NegativeTemperatureDeviceTest.kt:114)
+
+FAILURES!!!
+Tests run: 1,  Failures: 1
+
+
+INSTRUMENTATION_CODE: -1
