@@ -1,0 +1,129 @@
+{
+  "scope": "Migrate main TTS AAR batch/RTF test setup to licensed external resources",
+  "scope_status": "PASS",
+  "source_commit": "cf12e1c30623e18ef93736456c48684893f528ba",
+  "baseline_commit": "927abb90b40859eca5b51ecff6f69c799cd9d856",
+  "runtime_and_jvm_sources_unchanged": true,
+  "changed": [
+    "Shared TestRule initializes enforced license and requires LICENSED",
+    "Both batch/RTF entries require explicit workPath and licensePath",
+    "Removed legacy model-directory deletion/fallback",
+    "Uses existing Debug foreground display activity"
+  ],
+  "unchanged": [
+    "SDK runtime and Release AAR",
+    "Host application code/signature",
+    "Corpora, per-case assertions, RTF warmups/repeats/timeouts",
+    "Historical probe classes and pronunciation evaluator"
+  ],
+  "device": {
+    "model": "vivo V2505A",
+    "android": "16",
+    "api": 36,
+    "abi": "arm64-v8a",
+    "execution": "foreground AarHostActivity; explicit normal am start after instrumentation launch"
+  },
+  "build": {
+    "sdk_version": "3.0",
+    "model_version": "0.1.0",
+    "release_aar_sha256": "cf3dd8abcbb9a644f2c0596c59e08989e8c42c43accd508b63b92b97398068f2",
+    "host_apk_sha256": "541c98b0ee0ab7f5198a99a27c8108d3d7f57aae235e2342a6fe64d5d5707a64",
+    "test_apk_sha256": "67b408fa34ede0208145c14a969c92b002c469da69dde7e315fc30a53fb91920",
+    "baseline_test_apk_sha256": "2286a2252cfc7e7e26f527f5f430cdf6f0e2fc21e6579cff092483b3ad79b008",
+    "installed_apks_match": true,
+    "signing": "existing Android Debug signatures",
+    "license": "private TTS-only fixture, default ENFORCE, rule asserts LICENSED; no license content archived"
+  },
+  "common_arguments": {
+    "workPath": "/data/user/0/com.lits.tts.aarhost/files/batch-setup-regression-20260903",
+    "licensePath": "/data/user/0/com.lits.tts.aarhost/files/tts_only.lic"
+  },
+  "corpus": {
+    "path": "../../testdata/dingqiao_batch_cases/android_v3_sdk_stability_100_cases_improved_v2.jsonl",
+    "sha256": "a0ba33a17b2dcd407e53be4c35050b627ba02c35a408843a883cd271884868f6"
+  },
+  "verification": {
+    "red": {
+      "canonical": false,
+      "purpose": "original-bug reproduction",
+      "caseStart": 0,
+      "caseLimit": 1,
+      "fail": 1,
+      "error": "1002300012: no license provided",
+      "resource_directory_deleted": true,
+      "instrumentation_seconds": 11.469
+    },
+    "same_input_green": {
+      "caseStart": 0,
+      "caseLimit": 1,
+      "pass": 1,
+      "fail": 0,
+      "start": 1,
+      "pcm_callbacks": 7,
+      "complete": 1,
+      "instrumentation_seconds": 20.147
+    },
+    "adjacent_shared_engine": {
+      "caseStart": 1,
+      "caseLimit": 2,
+      "pass": 2,
+      "fail": 0,
+      "instrumentation_seconds": 12.517
+    },
+    "rtf": {
+      "method": "AarRtfAuditDeviceTest#auditMediumSynthesizeOnlyRtf20",
+      "warmup_runs_unchanged": 3,
+      "measured_runs_unchanged": 20,
+      "measured_rows": 20,
+      "total_bytes": 6359040,
+      "all_completed": true,
+      "all_have_pcm": true,
+      "errors": 0,
+      "instrumentation_seconds": 24.948
+    },
+    "negative_arguments": {
+      "missing_workPath": "expected IllegalArgumentException; 0.012 s",
+      "missing_licensePath": "expected IllegalArgumentException; 0.011 s"
+    },
+    "resource_preservation": {
+      "model_files": 25,
+      "all_sha256_unchanged": true,
+      "sentinel_retained": true
+    },
+    "full_jvm_reused": {
+      "tests": 104,
+      "passed": 101,
+      "failed": 0,
+      "skipped": 3,
+      "evidence": "../frontend-device-20260903/jvm-results.json"
+    },
+    "strict_public_callback_gate_reused": "../release-aar-host-20260903/report.json"
+  },
+  "evidence_sha256": {
+    "shared-green/summary.json": "70f9a6a09e037115f42946406e95e552ca052f2738dd767b9ce7b64a1d26875b",
+    "shared-green/device-test.log": "b89334a0475b153bff9f38d39f4e80e0a30350f3120c352336e9404dc77beae3",
+    "shared-green/results.jsonl": "61c0a5a256f0b21b7f95c9ed60cb957b3fef38999a7444e022a5b927620f1568",
+    "resources-after.json": "74ed2efb27f42fb8ac6a9995450cf0e9d42f7a5fc8c9012e9e10bd831b325911",
+    "baseline-red/summary.json": "37948572f322d0d3e52a4586149f6a2e0917b7c4346e11b015b5aac3f19f4c4a",
+    "baseline-red/device-test.log": "f7e738a1db7e8ba407dddf9defcaa5ee9def495c6a7612ce830314a7a6db4ba5",
+    "baseline-red/results.jsonl": "6018ca14c202e883996f1ee616a71dbdfd497338e4ef7c268397999017836b44",
+    "baseline-red/resource-deletion.txt": "854af87817698b989aa005fb4e2d6d983ec1f415cf4ec46d9a12f123329cba1b",
+    "expected-errors/missing-license.log": "8a1285296a538da78b0c9d6954c4a3552291fc3fa86ad341dd2e286686bb4937",
+    "expected-errors/missing-workpath.log": "33fac7376b50ecb86f6bd5fbd1a83f47c5ac606339459847580da68cdddeb871",
+    "cold-green/summary.json": "a0d10378a1bd2a6e77acd7de3eee463a4d7a8d81fdc06b197a164745ad0df83a",
+    "cold-green/device-test.log": "e10abc70063aaea92d8725c2b2e2c9989152ef42f4ce964ea2d4d4fac6ed60b4",
+    "cold-green/results.jsonl": "dd44d54746ea97eb79e5f6abdfba403e76c8ba502b1df0d7c3ff3c8586c5e939",
+    "rtf-green/summary.json": "8e3bd07717e2c96514f8b77f720253d1a89cfd72e984d6b04a3d2720e66a6c49",
+    "rtf-green/device-test.log": "578e48fb2a9a222f339f5a86aa53f15b47fbdee09b226ab542bae6449bb3b631",
+    "rtf-green/results.jsonl": "bbe88c670bd515fb316d09d9e56ea1ef9d63363933d012cd15e638e451316906",
+    "build.log": "a5c64b6c539974841f9cc40aff9eb7ac88f5d1b7e14065db60422d4a62335642"
+  },
+  "not_covered": [
+    "Full 100/424/1000 corpus",
+    "Full RTF/playback matrix",
+    "Pronunciation corpus",
+    "Background freeze recovery",
+    "Long-duration memory/performance",
+    "Other historical probe entry points"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "runId": "aar-rtf-audit-1788415513012-medium-synth-only",
+  "createEngineMs": 1117,
+  "repeats": 20,
+  "chunkSize": 50,
+  "firstChunkSize": 50,
+  "pcmQueueCapacity": 32,
+  "speed": 1,
+  "textName": "medium",
+  "playType": "SYNTHESIZE_ONLY",
+  "resultsFile": "\/storage\/emulated\/0\/Android\/data\/com.lits.tts.aarhost\/files\/aar-rtf-audit\/results-aar-rtf-audit-1788415513012-medium-synth-only.jsonl",
+  "conditions": {
+    "medium\/SYNTHESIZE_ONLY": {
+      "count": 20,
+      "rtfMean": 0.12657759661835752,
+      "rtfP50": 0.12318840579710144,
+      "rtfP90": 0.1409118357487923,
+      "rtfMax": 0.15353260869565216,
+      "modelRtfMean": 0.12174667874396139,
+      "modelRtfP50": 0.11820652173913043,
+      "firstPacketP50": 129,
+      "firstPacketP90": 140.3
+    }
+  }
+}

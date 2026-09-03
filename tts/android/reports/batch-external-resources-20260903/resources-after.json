@@ -1,0 +1,33 @@
+{
+  "model_files": 25,
+  "all_model_files_match_canonical": true,
+  "sentinel_sha256": "ca7d9b9606988ee37b4425c73d0a2916483333edef80137561c1d8399b7914a7",
+  "sentinel_retained": true,
+  "sha256": {
+    "vocos_vocoder.onnx": "6abd1e9d6f173092666a26794d633bff862a96b5041c36c3d2358fa8778cf65e",
+    "frontend_golden.json": "454fdfed7ca3c025b2330a6f81900dd53ba71dcad7cca95566f630b05fb02333",
+    "chinese_lexicon.bin": "8643111adbc3e84fd2eea6765f6bb9cf395d233d082e3816992b7255fe48cdfc",
+    "chinese_lexicon.txt": "aeef947a20c488fb0454df2f61478ebea13ef56876089e0306b2cbeaa199d207",
+    "frontend_rules.json": "34ee16dc6362df43938214448d3ecacda1d693c6e632752066d7fb1cc10a41b6",
+    "export_report.json": "c0ce2494156c7a974144a20b7baa6e00e65b64852a1f503f0d9b54fe0adcfd88",
+    "polyphone_context.txt": "d3e84dd4d0965d49121438fa0677fe231a9dba216730bd013912dad744ccf757",
+    "rules_v2/zh_pinyin.json": "d41a8043fb8be91309e531e7d48d18e57ec4e557a49f82463be1df16c8d9c3bf",
+    "rules_v2/en.full.json": "0e1a2a1170de5076e4b3996d7ff3a92c2ca848a2b70e72d5e5dfd16931275865",
+    "rules_v2/zh.full.json": "3366e98ba8049285c5a2d1bbf4a3062341719c4502f965e0ee3e54e28f2f5481",
+    "polychar.txt": "9df819e371415c23e26a2907236a0228ef93772cc698d93dc0c18844956d1011",
+    "pinyin_to_tokens.json": "9805455caa214bd8de420adeb8906ff05c85345fea6e3d1c54f248616b5b0323",
+    "lits_stream_condition_chunk.onnx": "1eb7aef563852ed2b994757d267819801dd003226e0b6ef9eb8c4a59c608acf7",
+    "polyphone_phrases.txt": "b27237bff76f20ab38b8fe2e8f4a66c02db8a010c82827a3d4faa74388ccf55a",
+    "lits_hidden_encoder.onnx": "c921308f75b8c433bceebf3208fc82e0728ba51f6814b59f7f176f5720b6f300",
+    "arpabet_to_tokens.json": "8bb94d9197247499f2d19853479369d8f0137998991ff300db6af546822e1dfb",
+    "cmudict.bin": "393901ab6836ecbd14cc537cf2e4ecfcb816bb4ab8494ee687ac52d054ac60e1",
+    "cmudict.txt": "a4ff51409376837d2ed216f50e318ecbe0b4882524ade3aaace52e82acfca05d",
+    "chinese_surname_lexicon.txt": "2010afe0b843ec728aad4f36533394fa895dd0d8a21c0f7254ebfb1e8d2776b8",
+    "manifest.json": "0bdf0071387ec26c03fc55fedcad6c8a65c9c2ef83ae3f367418d46e04941168",
+    "external_loop_export_report.json": "7166343b5a6e3df40024159db54911540992dc1956a5a5a76e242ae3c50f31ea",
+    "zh_en_symbols.json": "444d43250d9ea0dcb3fa1bd3afdfaf2fdd94ded066ead021abf0fd788992904d",
+    "lits_stream_decoder_step.onnx": "0561dc58306ffc012749ef6b0c317ea9f06528bdc2735e8eca0d375456d53387",
+    "supplement_lexicon.json": "9978ffca6229d9faba74dd9d7f2b713278b86195173609b72d0ef70843c1a4da",
+    "pinyin_2_bpmf.txt": "dc8b048a20cf61d04b5a36bc6939db74095719b8099269a1269023ee3e6535b4"
+  }
+}

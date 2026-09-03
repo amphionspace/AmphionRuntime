@@ -1,0 +1,140 @@
+{
+  "scope": "PR #189 review: fail before batch execution for unusable paths",
+  "scope_status": "PASS",
+  "source_commit": "e5640ade95f3a002fd8f5ed16f3f68d5ccc89ddf",
+  "baseline_commit": "8de55c8e0a1409d399d59d73284ad00c8f8ada30",
+  "runtime_and_jvm_sources_unchanged": true,
+  "device": {
+    "model": "vivo V2505A",
+    "android": "16",
+    "api": 36,
+    "execution": "existing Debug foreground AarHostActivity"
+  },
+  "build": {
+    "sdk_version": "3.0",
+    "model_version": "0.1.0",
+    "release_aar_sha256": "cf3dd8abcbb9a644f2c0596c59e08989e8c42c43accd508b63b92b97398068f2",
+    "host_apk_sha256": "541c98b0ee0ab7f5198a99a27c8108d3d7f57aae235e2342a6fe64d5d5707a64",
+    "test_apk_sha256": "183ca96c01b1f59a705ed734782b4d10335d7a6d38f1f0d7b882d624da78b23b",
+    "installed_test_apk_matches": true,
+    "release_aar_and_host_unchanged": true,
+    "signing": "existing Android Debug",
+    "license": "existing private TTS-only fixture; ENFORCE and LICENSED assertion retained"
+  },
+  "verification": {
+    "baseline": {
+      "canonical": false,
+      "instrumentation_seconds": 12.214,
+      "result": "missing workPath enters a cold-create case and fails only at final summary"
+    },
+    "expected_rejections": [
+      {
+        "name": "missing-workdir",
+        "expected_rejection": true,
+        "instrumentation_seconds": 0.012
+      },
+      {
+        "name": "workdir-is-file",
+        "expected_rejection": true,
+        "instrumentation_seconds": 0.012
+      },
+      {
+        "name": "unreadable-workdir",
+        "expected_rejection": true,
+        "instrumentation_seconds": 0.012
+      },
+      {
+        "name": "missing-license-file",
+        "expected_rejection": true,
+        "instrumentation_seconds": 0.012
+      },
+      {
+        "name": "license-is-directory",
+        "expected_rejection": true,
+        "instrumentation_seconds": 0.012
+      },
+      {
+        "name": "unreadable-license",
+        "expected_rejection": true,
+        "instrumentation_seconds": 0.013
+      }
+    ],
+    "valid_cold_create": {
+      "pass": 1,
+      "fail": 0,
+      "instrumentation_seconds": 19.862
+    },
+    "reused_batch_and_rtf": "../batch-external-resources-20260903/report.json",
+    "reused_full_jvm": {
+      "tests": 104,
+      "passed": 101,
+      "skipped": 3,
+      "failed": 0
+    },
+    "reused_strict_public_api": "../release-aar-host-20260903/report.json"
+  },
+  "inputs": {
+    "test_class": "com.lits.tts.aarhost.AarStability1000DeviceTest",
+    "inputAsset": "android_v3_sdk_stability_100_cases_improved_v2.jsonl",
+    "caseStart": 0,
+    "caseLimit": 1,
+    "negative_cases": [
+      {
+        "name": "missing-workdir",
+        "workPath": "/data/user/0/com.lits.tts.aarhost/files/batch-review-missing-20260903",
+        "licensePath": "/data/user/0/com.lits.tts.aarhost/files/tts_only.lic",
+        "expectedField": "workPath"
+      },
+      {
+        "name": "workdir-is-file",
+        "workPath": "/data/user/0/com.lits.tts.aarhost/files/batch-setup-regression-20260903/preserve-me.txt",
+        "licensePath": "/data/user/0/com.lits.tts.aarhost/files/tts_only.lic",
+        "expectedField": "workPath"
+      },
+      {
+        "name": "unreadable-workdir",
+        "workPath": "/data/user/0/com.lits.tts.aarhost/files/batch-review-unreadable-dir-20260903",
+        "licensePath": "/data/user/0/com.lits.tts.aarhost/files/tts_only.lic",
+        "expectedField": "workPath"
+      },
+      {
+        "name": "missing-license-file",
+        "workPath": "/data/user/0/com.lits.tts.aarhost/files/batch-setup-regression-20260903",
+        "licensePath": "/data/user/0/com.lits.tts.aarhost/files/batch-review-missing.lic",
+        "expectedField": "licensePath"
+      },
+      {
+        "name": "license-is-directory",
+        "workPath": "/data/user/0/com.lits.tts.aarhost/files/batch-setup-regression-20260903",
+        "licensePath": "/data/user/0/com.lits.tts.aarhost/files/batch-setup-regression-20260903",
+        "expectedField": "licensePath"
+      },
+      {
+        "name": "unreadable-license",
+        "workPath": "/data/user/0/com.lits.tts.aarhost/files/batch-setup-regression-20260903",
+        "licensePath": "/data/user/0/com.lits.tts.aarhost/files/batch-review-unreadable-20260903.txt",
+        "expectedField": "licensePath"
+      }
+    ],
+    "unreadable_fixture_modes": {
+      "during_test": "000",
+      "restored_file": "600",
+      "restored_directory": "700"
+    }
+  },
+  "evidence_sha256": {
+    "baseline-red/summary.json": "9a46d08da8f122f0629600d284d111b0ae6a4e9e9fc875d9c09e62e6267e7ee9",
+    "baseline-red/device-test.log": "9f23b5256726bf6ec2634550c7fde81fd0f95ad25a4b216da12311e5b30e72a2",
+    "baseline-red/results.jsonl": "d2c82fcea33a09942955d6294dc50532450effc371dffb5b1f13660b6a92ce2b",
+    "valid-green/summary.json": "b8cc6eaf88e30ee94f436a4e07ff7cb753311ebd77d10e71ca9ca653b051ca88",
+    "valid-green/device-test.log": "d199f8abada5cb8097a26f018b6224dd3125e0056ccfe92c619957c99aac3f24",
+    "valid-green/results.jsonl": "316b9711a56957e9f2ecae7a489ae6d23c3713e5533e131a8a70c3a064bf0a44",
+    "expected-errors/missing-license-file.log": "ec5f29fa964a0410fb6cc07d871889fd8a8acc946dcae297bb24143b16dc8e8f",
+    "expected-errors/unreadable-license.log": "4c6f775069bab1fec6e31e4c6da870975f33ac6c52665280752d96190cc01f7d",
+    "expected-errors/unreadable-workdir.log": "eddb7e9dfe5b27147a71bd34a8f03359d21a0f3edf4f79159e3e1c44158fe054",
+    "expected-errors/workdir-is-file.log": "83ca3a3c1e461df00913480dac4826db4a6b9cbb518d1147713e0b9130d18e15",
+    "expected-errors/missing-workdir.log": "4d957871f42f8e87edbc99792a97f3d450dcfd07aac3e1b08e9ea36a30fd9262",
+    "expected-errors/license-is-directory.log": "7d45d9236d43ce8c44341bc17651aaf28b1ca211182f7a15f9a803ee8e008664",
+    "build.log": "1e6312eb0621a7039fe1e83b1d865647ffdbecf5223f827c5c3b5c16d78f6ad9"
+  }
+}
