@@ -61,9 +61,9 @@ class NegativeTemperatureDeviceTest {
             }
 
             listOf(
-                "出生日期1998年2月09日" to "出生日期一九九八年二月零九日",
-                "出生日期一九九八年2月09日" to "出生日期一九九八年二月零九日",
-                "出生日期1998年02月09日" to "出生日期一九九八年零二月零九日",
+                "出生日期1998年2月09日" to "出生日期一九九八年二月九日",
+                "出生日期一九九八年2月09日" to "出生日期一九九八年二月九日",
+                "出生日期1998年02月09日" to "出生日期一九九八年二月九日",
                 "日期2026年12月31日" to "日期二零二六年十二月三十一日",
             ).forEach { (raw, spoken) ->
                 val expected = LitsTtsFrontend.encodeNormalized(layout, spoken, "zh-en", "zh-en")

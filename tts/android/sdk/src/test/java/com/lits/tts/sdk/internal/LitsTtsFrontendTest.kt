@@ -274,7 +274,7 @@ class LitsTtsFrontendTest {
             LitsTtsFrontend.encode(layout, "用时1小时05分钟", "zh-en", "zh-en"),
         )
         assertArrayEquals(
-            LitsTtsFrontend.encode(layout, "出生日期1998年二月零九日", "zh-en", "zh-en"),
+            LitsTtsFrontend.encode(layout, "出生日期1998年二月九日", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "出生日期1998年2月09日", "zh-en", "zh-en"),
         )
         assertArrayEquals(
@@ -325,12 +325,28 @@ class LitsTtsFrontendTest {
     }
 
     @Test
+    fun zhEnCalendarPaddingMatchesNativeCardinalReading() {
+        val layout = testLayout()
+        // The real native TN emits 二月九日, as does the separator-date path.
+        val expected = LitsTtsFrontend.encodeNormalized(layout, "出生日期一九九八年二月九日", "zh-en", "zh-en")
+        listOf("出生日期1998年02月09日", "出生日期1998年2月09日", "出生日期1998-02-09").forEach { raw ->
+            assertArrayEquals(raw, expected, LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en"))
+        }
+        assertArrayEquals(expected,
+            LitsTtsFrontend.encodeNormalized(layout, "出生日期1998年02月09日", "zh-en", "zh-en"))
+        val explicitZero = "出生日期一九九八年零二月零九日"
+        val explicitTokens = LitsTtsFrontend.encodeNormalized(layout, explicitZero, "zh-en", "zh-en")
+        assertFalse("Explicit Hanzi zero must remain spoken", expected.contentEquals(explicitTokens))
+        assertArrayEquals(explicitTokens, LitsTtsFrontend.encode(layout, explicitZero, "zh-en", "zh-en"))
+    }
+
+    @Test
     fun zhEnCalendarMonthsStillNormalizeAfterYearExpansion() {
         val layout = testLayout()
         listOf(
-            "出生日期1998年2月09日" to "出生日期一九九八年二月零九日",
-            "出生日期一九九八年2月09日" to "出生日期一九九八年二月零九日",
-            "出生日期1998年02月09日" to "出生日期一九九八年零二月零九日",
+            "出生日期1998年2月09日" to "出生日期一九九八年二月九日",
+            "出生日期一九九八年2月09日" to "出生日期一九九八年二月九日",
+            "出生日期1998年02月09日" to "出生日期一九九八年二月九日",
             "日期2026年12月31日" to "日期二零二六年十二月三十一日",
         ).forEach { (raw, spoken) ->
             val expected = LitsTtsFrontend.encodeNormalized(layout, spoken, "zh-en", "zh-en")

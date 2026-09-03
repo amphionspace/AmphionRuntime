@@ -192,9 +192,7 @@ internal object LitsTtsFrontend {
     private val durationMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d+)小时0([1-9])分钟")
     private val yearBeforeNianRegex = Regex("(?<!\\d)(\\d{4})\\s*年")
     // The TN preparation step may already have expanded the year to Hanzi.
-    private val yearMonthLeadingZeroRegex = Regex("((?:\\d{2,4}|[零一二三四五六七八九]{2,4})年)0([1-9])月")
     private val yearMonthRegex = Regex("((?:\\d{2,4}|[零一二三四五六七八九]{2,4})年)(\\d{1,2})月")
-    private val monthDayLeadingZeroRegex = Regex("(月)0([1-9])日")
     private val monthDayRegex = Regex("(月)(\\d{1,2})(日|号)")
     private val negativeTemperatureRegex = Regex("((?:气温|温度|体温))\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*(度|℃)")
     private val negativeTemperatureRangeRegex = Regex("(温度范围是)\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*到\\s*(\\d+(?:\\.\\d+)?)\\s*(度|℃)")
@@ -1273,14 +1271,10 @@ internal object LitsTtsFrontend {
         normalized = yearBeforeNianRegex.replace(normalized) { match ->
             digitSequenceToHanzi(match.groupValues[1]) + "年"
         }
-        normalized = yearMonthLeadingZeroRegex.replace(normalized) { match ->
-            "${match.groupValues[1]}零${numberTextToHanzi(match.groupValues[2])}月"
-        }
+        // Calendar padding is not spoken: match native TN and separator dates.
+        // Explicit Hanzi 零 and leading zeroes in clocks/codes stay untouched.
         normalized = yearMonthRegex.replace(normalized) { match ->
             "${match.groupValues[1]}${numberTextToHanzi(match.groupValues[2])}月"
-        }
-        normalized = monthDayLeadingZeroRegex.replace(normalized) { match ->
-            "${match.groupValues[1]}零${numberTextToHanzi(match.groupValues[2])}日"
         }
         normalized = monthDayRegex.replace(normalized) { match ->
             "${match.groupValues[1]}${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
