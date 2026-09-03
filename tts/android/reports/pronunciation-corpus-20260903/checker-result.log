@@ -1,0 +1,2 @@
+FAIL: expected=675 total=675 matched=380 mismatched=295 errors=0
+exit_code=1 (expected: report must not pass)

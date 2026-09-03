@@ -1,0 +1,12 @@
+test_complete_match_passes (test_check_pronunciation_report.PronunciationReportTest) ... ok
+test_empty_collection_fails (test_check_pronunciation_report.PronunciationReportTest) ... ok
+test_execution_errors_fail (test_check_pronunciation_report.PronunciationReportTest) ... ok
+test_inconsistent_counts_fail (test_check_pronunciation_report.PronunciationReportTest) ... ok
+test_missing_counts_fail (test_check_pronunciation_report.PronunciationReportTest) ... ok
+test_observed_instrumentation_ok_with_295_mismatches_fails (test_check_pronunciation_report.PronunciationReportTest) ... ok
+test_truncated_or_duplicate_count_fails (test_check_pronunciation_report.PronunciationReportTest) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.000s
+
+OK
