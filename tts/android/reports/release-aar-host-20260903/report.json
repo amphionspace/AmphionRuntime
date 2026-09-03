@@ -1,0 +1,68 @@
+{
+  "scope": "Licensed standalone Release AAR public API foreground smoke gate",
+  "scope_status": "PASS",
+  "source_commit": "f1e069bfd75794abde3caaabb5cdf2f3ae9adac4",
+  "base_main_commit": "700a847af04ec40857febfe67373fc593ddedb0d",
+  "runtime_and_jvm_sources_unchanged": true,
+  "device": {
+    "model": "vivo V2505A",
+    "android": "16",
+    "api": 36,
+    "execution": "Debug host AarHostActivity; explicit foreground launch after instrumentation start; no power/security policy change"
+  },
+  "build": {
+    "sdk_version": "3.0",
+    "model_version": "0.1.0",
+    "host_variant": "debug",
+    "sdk_variant": "release",
+    "dependency": "implementation(files(\"../sdk/build/outputs/aar/sdk-release.aar\"))",
+    "release_aar_sha256": "cf3dd8abcbb9a644f2c0596c59e08989e8c42c43accd508b63b92b97398068f2",
+    "host_apk_sha256": "541c98b0ee0ab7f5198a99a27c8108d3d7f57aae235e2342a6fe64d5d5707a64",
+    "test_apk_sha256": "2286a2252cfc7e7e26f527f5f430cdf6f0e2fc21e6579cff092483b3ad79b008",
+    "installed_apks_match": true,
+    "release_aar_unchanged": true,
+    "signing": "Android debug signing for host/test APKs",
+    "license": "Existing private TTS-only test fixture; default ENFORCE; public status asserted LICENSED; no license contents archived"
+  },
+  "verification": {
+    "device_gate": "PASS",
+    "license_state": "LICENSED",
+    "external_model_files": 25,
+    "external_model_sha256_match": true,
+    "start": 1,
+    "nonempty_pcm_callbacks": 21,
+    "pcm_bytes": 1112064,
+    "pcm_sequences": "0..20; asserted by instrumentation",
+    "pcm_format": "24000 Hz / 16-bit / mono",
+    "complete": 1,
+    "errors": 0,
+    "stops": 0,
+    "shutdown_returned": true,
+    "instrumentation_seconds": 14.943,
+    "start_to_complete_ms": 2998,
+    "timing_caveat": "Startup includes manual foreground launch waiting; this is not performance or background-freeze recovery evidence.",
+    "full_jvm_reused": {
+      "tests": 104,
+      "passed": 101,
+      "failed": 0,
+      "skipped": 3
+    },
+    "jvm_evidence": "../frontend-device-20260903/jvm-results.json",
+    "jvm_evidence_sha256": "8031d069d888da965967e150db19e162d9bd7263820b91d103b5c1f907666c65",
+    "native_frontend_evidence": "../frontend-review-20260903/report.json"
+  },
+  "evidence_sha256": {
+    "build.log": "7a6ab1570aa29e0e410c1b1ed02c7ca297ee2efb15ce33d7a6764bac5f96aed9",
+    "device-report.json": "ac20eeed7481725b7e4d69cde21bd47e18312e50e142ec67308f722041c65ad8",
+    "device-test.log": "e0dbb95ce711fa36d00abb0fd23bf92dc1e516359ea80d9779479b7135dbc625",
+    "model-files.json": "6caf5dde337476aa748e1b6d150149e4f1ef3c33147367707e65e9055363a6ab",
+    "non-canonical/startup-frozen-state.txt": "fa0ecab703025af420b661d536a67a04ba450a87fe5744e299256a78c879183c",
+    "non-canonical/startup-frozen.log": "ec7f924da466e6584287e1f9d5e8e326819c7795af1806712e479e21f764436f"
+  },
+  "remaining": [
+    "Migrate legacy full-batch harness to current license/external resource setup without deleting caller assets",
+    "Full pronunciation corpus (three existing JVM skips remain)",
+    "Background forced-freeze recovery contract",
+    "Long-duration stability"
+  ]
+}
