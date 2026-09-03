@@ -13,6 +13,7 @@ import com.lits.tts.sdk.SpeakParams
 import com.lits.tts.sdk.StartResponse
 import com.lits.tts.sdk.SynthesisResponse
 import com.lits.tts.sdk.TextToSpeechSdk
+import com.lits.tts.sdk.TtsLicenseOptions
 import java.io.File
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
@@ -57,6 +58,9 @@ class NegativeTemperatureDeviceTest {
                     LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en"))
             }
 
+            val license = InstrumentationRegistry.getInstrumentation().context.assets
+                .open("lic/tts_only.lic").bufferedReader().use { it.readText() }
+            TextToSpeechSdk.init(context, TtsLicenseOptions(license = license))
             TextToSpeechSdk.setWorkPath(workPath)
             val engine = TextToSpeechSdk.createEngine(CreateEngineParams(
                 language = "zh-en", mode = RunMode.OFFLINE, voiceId = "lits-female-02",
