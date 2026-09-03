@@ -1,0 +1,21 @@
+{
+  "source_commit": "c1adf36b75b10859b17a80c47a7cf1812727a908",
+  "release_aar_sha256": "72174502b6fc9420d148a23b965b119dff9874c0fe39bd64812b4abe0c42622c",
+  "packages": {
+    "com.lits.tts.sdk.test": {
+      "sha256": "30076e04090a744fa54d884d0f0b4bf9a36caee27356f1a569dff0bfbfdc1114",
+      "installed_matches": true,
+      "model_files_verified": 25
+    },
+    "com.lits.tts.aarhost": {
+      "sha256": "d52d22efdbf8f9df5cdc8a18b94f63c0ab055a8f0cb41bcd7a9853f208294023",
+      "installed_matches": true,
+      "model_files_verified": 25
+    },
+    "com.lits.tts.aarhost.test": {
+      "sha256": "279f19cc9ba2b7a3278e94828c28b1ec6152ccb58f45bdcdbbf7851e3d2800fc",
+      "installed_matches": true
+    }
+  },
+  "model_hash_reference": "../release-aar-host-20260903/model-files.json"
+}

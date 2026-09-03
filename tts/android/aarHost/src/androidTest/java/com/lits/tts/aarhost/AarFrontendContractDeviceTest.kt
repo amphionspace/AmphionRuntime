@@ -37,7 +37,7 @@ class AarFrontendContractDeviceTest {
         val workPath = requireNotNull(arguments.getString("workPath")) { "Pass -e workPath <external model root>" }
         val licensePath = requireNotNull(arguments.getString("licensePath")) { "Pass -e licensePath <private license file>" }
         val prefix = "这是一段用于验证流式分段的中文测试文本".repeat(3).take(49)
-        val text = "气温 -24.5 度。温度范围是 -5 到 10 度。出生日期1998年2月09日。${prefix}example.com/test。下一句。"
+        val text = "股票代码 600519 今日上涨 1.23%。气温 -24.5 度。温度范围是 -5 到 10 度。出生日期1998年2月09日。${prefix}example.com/test。下一句。"
         val requestId = "aar-frontend"
         val startedAt = SystemClock.elapsedRealtime()
         val callbacks = Collections.synchronizedList(mutableListOf<JSONObject>())

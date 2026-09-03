@@ -179,6 +179,38 @@ class LitsTtsFrontendTest {
     }
 
     @Test
+    fun stockCodeLabelProtectsDigitsBeforeNativeTn() {
+        val layout = testLayout()
+        listOf(
+            "股票代码 600519" to "股票代码 六零零五一九",
+            "股票代码600519" to "股票代码六零零五一九",
+            "股票 代码 000001" to "股票 代码 零零零零零一",
+            "股票 600519" to "股票 六零零五一九",
+        ).forEach { (raw, spoken) ->
+            assertEquals(raw, spoken, LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en"))
+            val expected = LitsTtsFrontend.encodeNormalized(layout, spoken, "zh-en", "zh-en")
+            assertArrayEquals("raw: $raw", expected, LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en"))
+            assertArrayEquals("prepared: $raw", expected, LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en"))
+        }
+    }
+
+    @Test
+    fun stockCodeProtectionKeepsOtherNumericContexts() {
+        val layout = testLayout()
+        listOf("数值600519", "代码600519", "股票代码12345").forEach { raw ->
+            assertEquals(raw, raw, LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en"))
+        }
+        assertEquals("股票代码六百万五千一百九十", LitsTnNormalizer.normalize(layout, "股票代码6005190", "zh-en", "zh-en"))
+        assertEquals("Stock code 600519", LitsTnNormalizer.normalize(layout, "Stock code 600519", "en-US", "en-US"))
+        listOf(Triple("数值600519", "数值", "六零零五一九"), Triple("股票代码6005190", "股票代码", "六零零五一九零")).forEach { (raw, prefix, digits) ->
+            assertArrayEquals(raw,
+                LitsTtsFrontend.encodeNormalized(layout, prefix, "zh-en", "zh-en") +
+                    LitsTtsFrontend.encodeNormalized(layout, digits, "zh-en", "zh-en"),
+                LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en"))
+        }
+    }
+
+    @Test
     fun zhEnTechnicalTnContextsUseCodeAndSymbolReadings() {
         val layout = testLayout()
 

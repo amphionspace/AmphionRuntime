@@ -1,0 +1,71 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.6/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build
+> Task :cleanBundledTtsResources UP-TO-DATE
+> Task :sdk:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk:stageAndroidTestAssets UP-TO-DATE
+> Task :stageExternalTtsResources UP-TO-DATE
+> Task :sdk:preBuild UP-TO-DATE
+> Task :sdk:preDebugBuild UP-TO-DATE
+> Task :sdk:generateDebugBuildConfig UP-TO-DATE
+> Task :sdk:generateDebugResValues UP-TO-DATE
+> Task :sdk:generateDebugResources UP-TO-DATE
+> Task :sdk:packageDebugResources UP-TO-DATE
+> Task :sdk:parseDebugLocalResources UP-TO-DATE
+> Task :sdk:generateDebugRFile UP-TO-DATE
+> Task :sdk:compileDebugKotlin UP-TO-DATE
+> Task :sdk:javaPreCompileDebug UP-TO-DATE
+> Task :sdk:compileDebugJavaWithJavac UP-TO-DATE
+> Task :sdk:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :sdk:preDebugAndroidTestBuild UP-TO-DATE
+> Task :sdk:extractDeepLinksDebug UP-TO-DATE
+> Task :sdk:processDebugManifest UP-TO-DATE
+> Task :sdk:processDebugAndroidTestManifest UP-TO-DATE
+> Task :sdk:generateDebugAndroidTestBuildConfig UP-TO-DATE
+> Task :sdk:writeDebugAarMetadata UP-TO-DATE
+> Task :sdk:checkDebugAndroidTestAarMetadata UP-TO-DATE
+> Task :sdk:compileDebugLibraryResources UP-TO-DATE
+> Task :sdk:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :sdk:mapDebugAndroidTestSourceSetPaths UP-TO-DATE
+> Task :sdk:generateDebugAndroidTestResources UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestResources UP-TO-DATE
+> Task :sdk:processDebugAndroidTestResources UP-TO-DATE
+> Task :sdk:javaPreCompileDebugAndroidTest UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestShaders UP-TO-DATE
+> Task :sdk:compileDebugAndroidTestShaders NO-SOURCE
+> Task :sdk:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :sdk:mergeDebugShaders UP-TO-DATE
+> Task :sdk:compileDebugShaders NO-SOURCE
+> Task :sdk:generateDebugAssets UP-TO-DATE
+> Task :sdk:packageDebugAssets UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestAssets UP-TO-DATE
+> Task :sdk:compressDebugAndroidTestAssets UP-TO-DATE
+> Task :sdk:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :sdk:desugarDebugAndroidTestFileDependencies UP-TO-DATE
+> Task :sdk:processDebugJavaRes UP-TO-DATE
+> Task :sdk:checkDebugAndroidTestDuplicateClasses UP-TO-DATE
+> Task :sdk:mergeExtDexDebugAndroidTest UP-TO-DATE
+> Task :sdk:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :sdk:configureNdkBuildDebug[arm64-v8a]
+> Task :sdk:mergeLibDexDebugAndroidTest UP-TO-DATE
+> Task :sdk:buildNdkBuildDebug[arm64-v8a]
+> Task :sdk:mergeDebugJniLibFolders UP-TO-DATE
+> Task :sdk:mergeDebugNativeLibs UP-TO-DATE
+> Task :sdk:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestJniLibFolders UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestNativeLibs UP-TO-DATE
+> Task :sdk:stripDebugAndroidTestDebugSymbols UP-TO-DATE
+> Task :sdk:validateSigningDebugAndroidTest UP-TO-DATE
+> Task :sdk:writeDebugAndroidTestSigningConfigVersions UP-TO-DATE
+> Task :sdk:compileDebugAndroidTestKotlin
+> Task :sdk:compileDebugAndroidTestJavaWithJavac UP-TO-DATE
+> Task :sdk:dexBuilderDebugAndroidTest
+> Task :sdk:mergeDebugAndroidTestGlobalSynthetics UP-TO-DATE
+> Task :sdk:processDebugAndroidTestJavaRes UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestJavaResource UP-TO-DATE
+> Task :sdk:mergeProjectDexDebugAndroidTest
+> Task :sdk:packageDebugAndroidTest
+> Task :sdk:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
+> Task :sdk:assembleDebugAndroidTest
+
+BUILD SUCCESSFUL in 7s
+58 actionable tasks: 7 executed, 51 up-to-date
