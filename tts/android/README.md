@@ -87,6 +87,8 @@ tts/android/external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_
 
 ## 验证状态
 
-2026-09-03 已补齐 [Release AAR 独立宿主最小接入门禁](reports/release-aar-host-20260903/README.md)：vivo V2505A / Android 16 上，正式授权、外置模型加载及公开 API 合成通过；21 个非空 PCM 回调连续有序，唯一 start/complete，shutdown 返回。宿主使用 Debug 签名，SDK 依赖为校验过的 Release AAR。运行方式见[批测说明](docs/BATCH_TESTING.md#当前-release-aar-最小接入门禁)。旧的全量批测入口尚未适配当前授权和资源部署，不能直接作为发布门禁。
+2026-09-03 已补齐 [Release AAR 独立宿主最小接入门禁](reports/release-aar-host-20260903/README.md)：vivo V2505A / Android 16 上，正式授权、外置模型加载及公开 API 合成通过；21 个非空 PCM 回调连续有序，唯一 start/complete，shutdown 返回。宿主使用 Debug 签名，SDK 依赖为校验过的 Release AAR。运行方式见[批测说明](docs/BATCH_TESTING.md#当前-release-aar-最小接入门禁)。
+
+主要批测入口 `AarStability1000DeviceTest` / `AarRtfAuditDeviceTest` 已完成[授权与外置资源迁移](reports/batch-external-resources-20260903/README.md)，不再清空调用方目录。真机完成旧版红灯→同条件绿灯、2 个共享引擎相邻用例、20 次纯合成 RTF 及缺参检查；25 个模型文件校验值保持一致。这是入口迁移回归，不是全量 100/424/1000 条、播放、后台冻结恢复或长稳压验收；其他历史 probe 仍未迁移。
 
 2026-09-03 前端修复已完成本轮 Android 真机门禁：7 项负温度、4 项日期、URL 分段及公共 SDK PCM 合成通过；审查后新增的 PCM 连续序号断言也已[真机复验](reports/frontend-review-20260903/README.md)。默认 JVM 套件 104 项中 101 项通过、3 项原有跳过；Release AAR 和测试 APK 构建通过。根因与完整回归见[真机回归记录](reports/frontend-device-20260903/README.md)。这不是完整发音语料、后台冻结场景或长稳压的发布验收；[此前本机记录](reports/frontend-contracts-20260903/README.md)和[负温度记录](reports/negative-temperature-20260903/README.md)仅作为历史证据保留。

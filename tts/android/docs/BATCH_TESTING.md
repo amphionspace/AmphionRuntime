@@ -136,14 +136,18 @@ adb shell run-as com.lits.tts.aarhost cat 'files/aar-frontend-<timestamp>.json'
 
 ## 4. 运行稳定性批测
 
-以下为旧批测入口的参数参考，**尚未适配当前授权和外置资源流程，不是当前可用的发布门禁**：它没有初始化 license，而且默认清空 workPath。不要把已部署的资源目录传给旧入口；当前最小接入验收使用上一节的新入口，完整批测迁移单独推进。
+`AarStability1000DeviceTest` 和 `AarRtfAuditDeviceTest` 已统一接入正常授权与外置资源初始化。先完成上一节的宿主安装、资源和 license 部署；必须显式传入 `workPath` 与 `licensePath`。两个入口均不创建或清空资源目录，旧参数 `preserveWorkPath` 不再参与控制，传入与否都保留调用方资源。未授权或缺少参数会在执行批测前失败，不通过开发态放行。
+
+先用 `caseLimit=1` 验证接入，再按验收目标扩大语料范围。下列完整批次命令是运行入口，不代表所有 100/424/1000 条已经验收通过；原有语料、生命周期断言与 RTF 参数未改变。其他历史 probe 类尚未迁移，不要不指定 class 就运行整个 `aarHost` 测试包。
 
 ### 100 条快速批测
 
 ```bash
 ./gradlew --no-daemon :aarHost:connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=com.lits.tts.aarhost.AarStability1000DeviceTest \
-  -Pandroid.testInstrumentationRunnerArguments.inputAsset=android_v3_sdk_stability_100_cases_improved_v2.jsonl
+  -Pandroid.testInstrumentationRunnerArguments.inputAsset=android_v3_sdk_stability_100_cases_improved_v2.jsonl \
+  -Pandroid.testInstrumentationRunnerArguments.workPath=/data/user/0/com.lits.tts.aarhost/files/tts-contract \
+  -Pandroid.testInstrumentationRunnerArguments.licensePath=/data/user/0/com.lits.tts.aarhost/files/tts.lic
 ```
 
 ### 424 条中量批测
@@ -151,7 +155,9 @@ adb shell run-as com.lits.tts.aarhost cat 'files/aar-frontend-<timestamp>.json'
 ```bash
 ./gradlew --no-daemon :aarHost:connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=com.lits.tts.aarhost.AarStability1000DeviceTest \
-  -Pandroid.testInstrumentationRunnerArguments.inputAsset=android_v3_sdk_stability_424_cases_improved_v3.jsonl
+  -Pandroid.testInstrumentationRunnerArguments.inputAsset=android_v3_sdk_stability_424_cases_improved_v3.jsonl \
+  -Pandroid.testInstrumentationRunnerArguments.workPath=/data/user/0/com.lits.tts.aarhost/files/tts-contract \
+  -Pandroid.testInstrumentationRunnerArguments.licensePath=/data/user/0/com.lits.tts.aarhost/files/tts.lic
 ```
 
 ### 1000 条完整批测
@@ -159,7 +165,9 @@ adb shell run-as com.lits.tts.aarhost cat 'files/aar-frontend-<timestamp>.json'
 ```bash
 ./gradlew --no-daemon :aarHost:connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=com.lits.tts.aarhost.AarStability1000DeviceTest \
-  -Pandroid.testInstrumentationRunnerArguments.inputAsset=android_v3_sdk_stability_1000_cases_improved.jsonl
+  -Pandroid.testInstrumentationRunnerArguments.inputAsset=android_v3_sdk_stability_1000_cases_improved.jsonl \
+  -Pandroid.testInstrumentationRunnerArguments.workPath=/data/user/0/com.lits.tts.aarhost/files/tts-contract \
+  -Pandroid.testInstrumentationRunnerArguments.licensePath=/data/user/0/com.lits.tts.aarhost/files/tts.lic
 ```
 
 也可以只跑一段样例，用于复现某个区间：
@@ -169,8 +177,24 @@ adb shell run-as com.lits.tts.aarhost cat 'files/aar-frontend-<timestamp>.json'
   -Pandroid.testInstrumentationRunnerArguments.class=com.lits.tts.aarhost.AarStability1000DeviceTest \
   -Pandroid.testInstrumentationRunnerArguments.inputAsset=android_v3_sdk_stability_1000_cases_improved.jsonl \
   -Pandroid.testInstrumentationRunnerArguments.caseStart=200 \
-  -Pandroid.testInstrumentationRunnerArguments.caseLimit=50
+  -Pandroid.testInstrumentationRunnerArguments.caseLimit=50 \
+  -Pandroid.testInstrumentationRunnerArguments.workPath=/data/user/0/com.lits.tts.aarhost/files/tts-contract \
+  -Pandroid.testInstrumentationRunnerArguments.licensePath=/data/user/0/com.lits.tts.aarhost/files/tts.lic
 ```
+
+### 既有 RTF 合成场景
+
+下面只运行中等文本纯合成场景（原有 3 次预热、20 次测量，不播放音频），不改变轮数、超时或阈值。若 vivo 在页面启动前冻结进程，按上一节方法将宿主拉到前台。
+
+```bash
+adb shell am instrument -w -r \
+  -e class 'com.lits.tts.aarhost.AarRtfAuditDeviceTest#auditMediumSynthesizeOnlyRtf20' \
+  -e workPath /data/user/0/com.lits.tts.aarhost/files/tts-contract \
+  -e licensePath /data/user/0/com.lits.tts.aarhost/files/tts.lic \
+  com.lits.tts.aarhost.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+结果位于 `/sdcard/Android/data/com.lits.tts.aarhost/files/aar-rtf-audit/`，每次有独立 runId 的逐条结果和 summary。RTF 测量不代替严格的回调序列门禁、播放音质或长稳压验收。
 
 ## 5. 运行发音正确性批测
 
@@ -232,5 +256,5 @@ python3 tts/tools/android/generate_edge_text_200_cases.py
 
 - 批测样例是文本和 JSON，不包含 ONNX、TN 二进制、license 或签名材料。
 - `tts/android/build/reports/`、设备拉回结果、APK/AAR、`external-resources/` 都属于本地输出，不应提交。
-- 1000 条完整批测耗时较长，建议先跑 100 条确认设备、模型和 license 链路正常。
+- 1000 条完整批测耗时较长，建议先用 `caseLimit=1` 确认设备、模型和 license 链路正常，再按风险扩展。
 - 内存类样例的 native heap delta 是即时采样指标，失败时需要结合复跑、GC/settling 和系统日志判断，不应单独作为泄漏结论。
