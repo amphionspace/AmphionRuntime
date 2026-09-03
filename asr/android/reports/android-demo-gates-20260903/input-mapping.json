@@ -1,0 +1,10 @@
+{
+  "000_enroll.wav": {
+    "sha256": "406027619ac5356b902338e50c7c4ec665e86de1c205835216dde89a3cda67bc",
+    "purpose": "voiceprint registration"
+  },
+  "001_recognize.wav": {
+    "sha256": "3b8255aed49b90df4bdbd5ae626f37c94da318a4b2f3bd0c746ef2dbc8a7f8fc",
+    "purpose": "recognition / first 500 or 1500 ms for stress"
+  }
+}

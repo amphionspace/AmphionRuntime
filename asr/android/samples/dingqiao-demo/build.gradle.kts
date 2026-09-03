@@ -9,7 +9,8 @@ val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
-val sdkVersion = providers.gradleProperty("AMPHION_RUNTIME_VERSION").get()
+val sdkVersion = rootProject.extra["amphionRuntimeVersionName"] as String
+val sdkVersionCode = rootProject.extra["amphionRuntimeVersionCode"] as Int
 
 // -PdingqiaoUseFatAar=true 时用方案 A fat AAR 构建 Demo（与 dingqiao-asr-*.aar 对齐）
 val useFatAar = providers.gradleProperty("dingqiaoUseFatAar").orElse("false").get() == "true"
@@ -43,7 +44,7 @@ android {
         applicationId = "com.amphion.dingqiao.demo"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
+        versionCode = sdkVersionCode
         versionName = sdkVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

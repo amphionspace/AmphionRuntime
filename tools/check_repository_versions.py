@@ -34,18 +34,40 @@ VERSION_SOURCES = {
 MIRRORED_VERSION_SOURCES = {
     "ASR Android": (
         (
+            "asr/android/build.gradle.kts",
+            r'amphionRuntimeVersion\s*=\s*providers\.gradleProperty\("AMPHION_RUNTIME_VERSION"\)\.get\(\)',
+        ),
+        (
             "asr/android/samples/public-demo/build.gradle.kts",
-            r'versionName\s*=\s*providers\.gradleProperty\("AMPHION_RUNTIME_VERSION"\)\.get\(\)',
+            r'(?s)val sdkVersion\s*=\s*rootProject\.extra\["amphionRuntimeVersionName"\] as String.*versionCode\s*=\s*sdkVersionCode.*versionName\s*=\s*sdkVersion',
         ),
         (
             "asr/android/samples/mini-demo/build.gradle.kts",
-            r'versionName\s*=\s*providers\.gradleProperty\("AMPHION_RUNTIME_VERSION"\)\.get\(\)',
+            r'(?s)val sdkVersion\s*=\s*rootProject\.extra\["amphionRuntimeVersionName"\] as String.*versionCode\s*=\s*sdkVersionCode.*versionName\s*=\s*sdkVersion',
+        ),
+        (
+            "asr/android/samples/internal-eval/build.gradle.kts",
+            r'(?s)val sdkVersion\s*=\s*rootProject\.extra\["amphionRuntimeVersionName"\] as String.*versionCode\s*=\s*sdkVersionCode.*versionName\s*=\s*sdkVersion',
+        ),
+        (
+            "asr/android/samples/dingqiao-demo/build.gradle.kts",
+            r'(?s)val sdkVersion\s*=\s*rootProject\.extra\["amphionRuntimeVersionName"\] as String.*versionCode\s*=\s*sdkVersionCode.*versionName\s*=\s*sdkVersion',
         ),
     ),
     "ASR iOS 预览版": (
         (
             "asr/ios/Sources/AmphionRuntime/AsrSdk.swift",
             r'public let version: String = "([^"]+)"',
+        ),
+    ),
+}
+CURRENT_VERSION_DOCS = {
+    "ASR Android": (
+        ("asr/android/docs/DELIVERY.md", r'(?m)^适用 SDK 版本：([^\s]+)$'),
+        ("asr/android/docs/INTEGRATION.md", r'(?m)^适用 SDK 版本：([^\s]+)$'),
+        (
+            "asr/android/docs/PRIVACY.md",
+            r'(?m)^适用 SDK：`com\.amphion:amphion-runtime` ([^\s]+)$',
         ),
     ),
 }
@@ -75,6 +97,16 @@ def find_source_violations(repo_root: Path, versions: Mapping[str, str]) -> list
             if actual != expected:
                 violations.append(
                     f"mirrored version is stale: {relative_path} "
+                    f"expected={expected} actual={actual}"
+                )
+    for component, sources in CURRENT_VERSION_DOCS.items():
+        expected = versions[component]
+        for relative_path, pattern in sources:
+            match = re.search(pattern, (repo_root / relative_path).read_text(encoding="utf-8"))
+            actual = match.group(1) if match else "unreadable"
+            if actual != expected:
+                violations.append(
+                    f"current-version document is stale: {relative_path} "
                     f"expected={expected} actual={actual}"
                 )
     return violations
