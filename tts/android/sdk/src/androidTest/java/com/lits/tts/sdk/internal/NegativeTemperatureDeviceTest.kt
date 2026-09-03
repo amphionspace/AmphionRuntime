@@ -27,7 +27,7 @@ import org.junit.Test
 
 class NegativeTemperatureDeviceTest {
     @Test
-    fun nativeFrontendAndPublicSynthesisPreserveTemperatureReading() {
+    fun nativeFrontendAndPublicSynthesisPreserveReadingContracts() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val workPath = requireNotNull(InstrumentationRegistry.getArguments().getString("workPath")) {
             "Pass -e workPath pointing to the external TTS model package"
@@ -35,7 +35,9 @@ class NegativeTemperatureDeviceTest {
         val layout = LitsTtsAssetInstaller.ensureInstalled(context, workPath)
         val rows = JSONArray()
         val callbacks = Collections.synchronizedList(mutableListOf<String>())
-        val reportFile = File(context.filesDir, "temperature-${System.currentTimeMillis()}.json")
+        val reportFile = File(context.filesDir, "frontend-contract-${System.currentTimeMillis()}.json")
+        val streamingPrefix = "这是一段用于验证流式分段的中文测试文本".repeat(3).take(49)
+        val streamingText = "${streamingPrefix}example.com/test。下一句。"
         var passed = false
         try {
             listOf(
@@ -49,7 +51,7 @@ class NegativeTemperatureDeviceTest {
             ).forEach { (raw, spoken) ->
                 val actual = LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en")
                 val profile = LitsTnNormalizer.lastProfileSummary().orEmpty()
-                rows.put(JSONObject().put("raw", raw).put("expected", spoken)
+                rows.put(JSONObject().put("kind", "temperature").put("raw", raw).put("expected", spoken)
                     .put("normalized", actual).put("profile", profile))
                 assertTrue("Native TN must run: $profile", profile.contains("nativeCalls=zh:"))
                 assertEquals(raw, spoken, actual)
@@ -57,6 +59,29 @@ class NegativeTemperatureDeviceTest {
                     LitsTtsFrontend.encodeNormalized(layout, spoken, "zh-en", "zh-en"),
                     LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en"))
             }
+
+            listOf(
+                "出生日期1998年2月09日" to "出生日期一九九八年二月零九日",
+                "出生日期一九九八年2月09日" to "出生日期一九九八年二月零九日",
+                "出生日期1998年02月09日" to "出生日期一九九八年零二月零九日",
+                "日期2026年12月31日" to "日期二零二六年十二月三十一日",
+            ).forEach { (raw, spoken) ->
+                val expected = LitsTtsFrontend.encodeNormalized(layout, spoken, "zh-en", "zh-en")
+                val actual = LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en")
+                val profile = LitsTnNormalizer.lastProfileSummary().orEmpty()
+                rows.put(JSONObject().put("kind", "calendar").put("raw", raw).put("expected", spoken)
+                    .put("expected_tokens", JSONArray(expected.toList()))
+                    .put("actual_tokens", JSONArray(actual.toList())).put("profile", profile))
+                assertTrue("Native TN must run: $profile", profile.contains("nativeCalls=zh:"))
+                assertArrayEquals(raw, expected, actual)
+            }
+
+            val expectedSegments = arrayOf("${streamingPrefix}example.com/test。", "下一句。")
+            val actualSegments = LitsTtsFrontend.splitRawForStreaming(streamingText).toTypedArray()
+            rows.put(JSONObject().put("kind", "streaming").put("raw", streamingText)
+                .put("expected_segments", JSONArray(expectedSegments.toList()))
+                .put("actual_segments", JSONArray(actualSegments.toList())))
+            assertArrayEquals(streamingText, expectedSegments, actualSegments)
 
             val license = InstrumentationRegistry.getInstrumentation().context.assets
                 .open("lic/tts_only.lic").bufferedReader().use { it.readText() }
@@ -83,7 +108,7 @@ class NegativeTemperatureDeviceTest {
                         done.countDown()
                     }
                 })
-                engine.speak("气温 -24.5 度。温度范围是 -5 到 10 度。", SpeakParams(
+                engine.speak("气温 -24.5 度。温度范围是 -5 到 10 度。出生日期1998年2月09日。$streamingText", SpeakParams(
                     requestId = "temperature", languageContext = "zh-en", playType = PlayType.SYNTHESIZE_ONLY,
                 ))
                 assertTrue("Synthesis timeout", done.await(60, TimeUnit.SECONDS))
