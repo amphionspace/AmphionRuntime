@@ -191,12 +191,11 @@ internal object LitsTtsFrontend {
     private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点\\s?0([1-9])分")
     private val durationMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d+)小时0([1-9])分钟")
     private val yearBeforeNianRegex = Regex("(?<!\\d)(\\d{4})\\s*年")
-    private val yearMonthLeadingZeroRegex = Regex("(\\d{2,4}年)0([1-9])月")
-    private val yearMonthRegex = Regex("(\\d{2,4}年)(\\d{1,2})月")
-    private val monthDayLeadingZeroRegex = Regex("(月)0([1-9])日")
+    // The TN preparation step may already have expanded the year to Hanzi.
+    private val yearMonthRegex = Regex("((?:\\d{2,4}|[零一二三四五六七八九]{2,4})年)(\\d{1,2})月")
     private val monthDayRegex = Regex("(月)(\\d{1,2})(日|号)")
-    private val negativeTemperatureRegex = Regex("((?:气温|温度|体温))\\s?-\\s?(\\d+(?:\\.\\d+)?)\\s?(度|℃)")
-    private val negativeTemperatureRangeRegex = Regex("(温度范围是)\\s?-\\s?(\\d+(?:\\.\\d+)?)\\s?到\\s?(\\d+(?:\\.\\d+)?)\\s?(度|℃)")
+    private val negativeTemperatureRegex = Regex("((?:气温|温度|体温))\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*(度|℃)")
+    private val negativeTemperatureRangeRegex = Regex("(温度范围是)\\s*-\\s*(\\d+(?:\\.\\d+)?)\\s*到\\s*(\\d+(?:\\.\\d+)?)\\s*(度|℃)")
     private val semanticVersionRegex = Regex("(?<![A-Za-z0-9])([vV])(\\d+(?:\\.\\d+)+)(?![A-Za-z0-9])")
     private val versionNumberWithSuffixRegex = Regex("(?<!\\d)(\\d+(?:\\.\\d+){2,})(?=[-A-Za-z])")
     private val digitDotRegex = Regex("(?<=\\d)\\.(?=\\d)")
@@ -615,11 +614,11 @@ internal object LitsTtsFrontend {
     fun splitRawForStreaming(
         text: String,
         wordsPerSegment: Int = 7,
-        maxCharsPerSegment: Int = 50,
+        targetCharsPerSegment: Int = 50,
     ): List<String> {
         val normalized = text.trim()
         if (normalized.isEmpty()) return emptyList()
-        val segmentLimit = maxCharsPerSegment.coerceAtLeast(1)
+        val segmentTarget = targetCharsPerSegment.coerceAtLeast(1)
         val segments = mutableListOf<String>()
         val current = StringBuilder()
         var index = 0
@@ -640,13 +639,32 @@ internal object LitsTtsFrontend {
                     current.append(normalized[index])
                 }
                 flushCurrentSegment()
-            } else if (current.length >= segmentLimit) {
+            } else if (
+                current.length >= segmentTarget &&
+                !continuesRawAsciiToken(normalized, index) &&
+                normalized.getOrNull(index + 1)?.let {
+                    !isRawSentenceEndPunctuation(it) && !isAttachedSentenceSuffix(it)
+                } != false
+            ) {
                 flushCurrentSegment()
             }
             index += 1
         }
         flushSegment(segments, current)
         return segments.ifEmpty { listOf(normalized) }
+    }
+
+    // The length target must not split words, URLs, identifiers, or numbers:
+    // each raw segment goes through TN independently, which would lose context.
+    // An indivisible token may exceed the target; the SDK's input bound is unchanged.
+    private fun continuesRawAsciiToken(text: String, index: Int): Boolean {
+        val current = text[index]
+        val next = text.getOrNull(index + 1) ?: return false
+        fun isTokenChar(char: Char): Boolean =
+            isAsciiAlnum(char) || char in technicalSymbolChars || char == '\''
+        return (isTokenChar(current) && isTokenChar(next)) ||
+            (current.isDigit() && next == ',' && text.getOrNull(index + 2)?.isDigit() == true) ||
+            (current == ',' && text.getOrNull(index - 1)?.isDigit() == true && next.isDigit())
     }
 
     private fun shouldSplitRawAfterPunctuation(
@@ -1237,12 +1255,7 @@ internal object LitsTtsFrontend {
         normalized = kmPerHourRegex.replace(normalized) { match ->
             numberTextToHanzi(match.groupValues[1]) + "千米每小时"
         }
-        normalized = negativeTemperatureRangeRegex.replace(normalized) { match ->
-            "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}到${numberTextToHanzi(match.groupValues[3])}${match.groupValues[4]}"
-        }
-        normalized = negativeTemperatureRegex.replace(normalized) { match ->
-            "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
-        }
+        normalized = normalizeNegativeTemperatures(normalized)
         normalized = clockColonMinuteLeadingZeroRegex.replace(normalized) { match ->
             "${numberTextToHanzi(match.groupValues[1])}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}"
         }
@@ -1258,14 +1271,10 @@ internal object LitsTtsFrontend {
         normalized = yearBeforeNianRegex.replace(normalized) { match ->
             digitSequenceToHanzi(match.groupValues[1]) + "年"
         }
-        normalized = yearMonthLeadingZeroRegex.replace(normalized) { match ->
-            "${match.groupValues[1]}零${numberTextToHanzi(match.groupValues[2])}月"
-        }
+        // Calendar padding is not spoken: match native TN and separator dates.
+        // Explicit Hanzi 零 and leading zeroes in clocks/codes stay untouched.
         normalized = yearMonthRegex.replace(normalized) { match ->
             "${match.groupValues[1]}${numberTextToHanzi(match.groupValues[2])}月"
-        }
-        normalized = monthDayLeadingZeroRegex.replace(normalized) { match ->
-            "${match.groupValues[1]}零${numberTextToHanzi(match.groupValues[2])}日"
         }
         normalized = monthDayRegex.replace(normalized) { match ->
             "${match.groupValues[1]}${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
@@ -1280,6 +1289,17 @@ internal object LitsTtsFrontend {
             match.groupValues[1] + match.groupValues[2] + normalizeSerialCode(match.groupValues[3])
         }
         return normalized
+    }
+
+    // Shared by pre-TN protection and the already-normalized frontend entry.
+    // Protect temperature context before the generic minus rule changes '-' to '负'.
+    internal fun normalizeNegativeTemperatures(text: String): String {
+        val normalized = negativeTemperatureRangeRegex.replace(text) { match ->
+            "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}到${numberTextToHanzi(match.groupValues[3])}${match.groupValues[4]}"
+        }
+        return negativeTemperatureRegex.replace(normalized) { match ->
+            "${match.groupValues[1]}零下${numberTextToHanzi(match.groupValues[2])}${match.groupValues[3]}"
+        }
     }
 
     private fun normalizeSerialCode(code: String): String = buildString {
@@ -1907,7 +1927,8 @@ internal object LitsTtsFrontend {
                     wordPinyin = wordPinyin,
                     overrideWordPinyin = overrideWordPinyin,
                     polyphonicWords = polyphonicWords.get(),
-                    maxWordLength = (wordPinyin.keys + overrideWordPinyin.keys).maxOfOrNull { it.length } ?: 1,
+                    maxWordLength = (wordPinyin.keys.asSequence() + overrideWordPinyin.keys.asSequence())
+                        .maxOfOrNull { it.length } ?: 1,
                     cmudict = baseCmudict,
                     supplementLexicon = supplement,
                     englishLexicon = mergeEnglishLexicon(baseCmudict, supplement),

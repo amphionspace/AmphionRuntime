@@ -1,0 +1,105 @@
+09-03 13:03:22.808 30373 30406 I TestRunner: run started: 1 tests
+09-03 13:03:22.808 30373 30406 I TestRunner: started: nativeFrontendAndPublicSynthesisPreserveReadingContracts(com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest)
+09-03 13:03:22.838 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=气温零下二十四点五度
+09-03 13:03:22.841 30373 30406 I LitsTnNative: native TN library loaded name=lits_tn
+09-03 13:03:22.841 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=气温零下二十四点五度
+09-03 13:03:22.902 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=气温零下二十四点五度
+09-03 13:03:22.902 30373 30406 I LitsTn  : TN native path used lang=zh input=气温零下二十四点五度 output=气温零下二十四点五度
+09-03 13:03:24.192 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=气温零下二十四点五度
+09-03 13:03:24.192 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=气温零下二十四点五度
+09-03 13:03:24.200 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=气温零下二十四点五度
+09-03 13:03:24.200 30373 30406 I LitsTn  : TN native path used lang=zh input=气温零下二十四点五度 output=气温零下二十四点五度
+09-03 13:03:24.204 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=气温零下二十四点五度
+09-03 13:03:24.204 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=气温零下二十四点五度
+09-03 13:03:24.212 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=气温零下二十四点五度
+09-03 13:03:24.212 30373 30406 I LitsTn  : TN native path used lang=zh input=气温零下二十四点五度 output=气温零下二十四点五度
+09-03 13:03:24.215 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=气温零下二十四点五度
+09-03 13:03:24.215 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=气温零下二十四点五度
+09-03 13:03:24.223 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=气温零下二十四点五度
+09-03 13:03:24.223 30373 30406 I LitsTn  : TN native path used lang=zh input=气温零下二十四点五度 output=气温零下二十四点五度
+09-03 13:03:24.227 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=温度零下五度
+09-03 13:03:24.227 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=温度零下五度
+09-03 13:03:24.235 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=温度零下五度
+09-03 13:03:24.235 30373 30406 I LitsTn  : TN native path used lang=zh input=温度零下五度 output=温度零下五度
+09-03 13:03:24.238 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=温度零下五度
+09-03 13:03:24.238 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=温度零下五度
+09-03 13:03:24.246 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=温度零下五度
+09-03 13:03:24.246 30373 30406 I LitsTn  : TN native path used lang=zh input=温度零下五度 output=温度零下五度
+09-03 13:03:24.249 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=体温零下零点五度
+09-03 13:03:24.249 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=体温零下零点五度
+09-03 13:03:24.257 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=体温零下零点五度
+09-03 13:03:24.257 30373 30406 I LitsTn  : TN native path used lang=zh input=体温零下零点五度 output=体温零下零点五度
+09-03 13:03:24.260 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=体温零下零点五度
+09-03 13:03:24.260 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=体温零下零点五度
+09-03 13:03:24.268 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=体温零下零点五度
+09-03 13:03:24.268 30373 30406 I LitsTn  : TN native path used lang=zh input=体温零下零点五度 output=体温零下零点五度
+09-03 13:03:24.271 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=温度范围是零下五到十度
+09-03 13:03:24.271 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=温度范围是零下五到十度
+09-03 13:03:24.279 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=温度范围是零下五到十度
+09-03 13:03:24.279 30373 30406 I LitsTn  : TN native path used lang=zh input=温度范围是零下五到十度 output=温度范围是零下五到十度
+09-03 13:03:24.282 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=温度范围是零下五到十度
+09-03 13:03:24.282 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=温度范围是零下五到十度
+09-03 13:03:24.290 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=温度范围是零下五到十度
+09-03 13:03:24.290 30373 30406 I LitsTn  : TN native path used lang=zh input=温度范围是零下五到十度 output=温度范围是零下五到十度
+09-03 13:03:24.294 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=温度范围是零下五到十度
+09-03 13:03:24.294 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=温度范围是零下五到十度
+09-03 13:03:24.302 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=温度范围是零下五到十度
+09-03 13:03:24.302 30373 30406 I LitsTn  : TN native path used lang=zh input=温度范围是零下五到十度 output=温度范围是零下五到十度
+09-03 13:03:24.305 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=温度范围是零下五到十度
+09-03 13:03:24.305 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=温度范围是零下五到十度
+09-03 13:03:24.313 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=温度范围是零下五到十度
+09-03 13:03:24.313 30373 30406 I LitsTn  : TN native path used lang=zh input=温度范围是零下五到十度 output=温度范围是零下五到十度
+09-03 13:03:24.316 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=温度范围是零下五到十度
+09-03 13:03:24.316 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=温度范围是零下五到十度
+09-03 13:03:24.324 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=温度范围是零下五到十度
+09-03 13:03:24.324 30373 30406 I LitsTn  : TN native path used lang=zh input=温度范围是零下五到十度 output=温度范围是零下五到十度
+09-03 13:03:24.328 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=温度范围是零下五到十度
+09-03 13:03:24.328 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=温度范围是零下五到十度
+09-03 13:03:24.335 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=温度范围是零下五到十度
+09-03 13:03:24.335 30373 30406 I LitsTn  : TN native path used lang=zh input=温度范围是零下五到十度 output=温度范围是零下五到十度
+09-03 13:03:24.342 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=出生日期一九九八年2月09日
+09-03 13:03:24.342 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=出生日期一九九八年2月09日
+09-03 13:03:24.350 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=出生日期一九九八年二月九日
+09-03 13:03:24.350 30373 30406 I LitsTn  : TN native path used lang=zh input=出生日期一九九八年2月09日 output=出生日期一九九八年二月九日
+09-03 13:03:24.356 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=出生日期一九九八年2月09日
+09-03 13:03:24.356 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=出生日期一九九八年2月09日
+09-03 13:03:24.364 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=出生日期一九九八年二月九日
+09-03 13:03:24.364 30373 30406 I LitsTn  : TN native path used lang=zh input=出生日期一九九八年2月09日 output=出生日期一九九八年二月九日
+09-03 13:03:24.369 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=出生日期一九九八年02月09日
+09-03 13:03:24.369 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=出生日期一九九八年02月09日
+09-03 13:03:24.377 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=出生日期一九九八年二月九日
+09-03 13:03:24.377 30373 30406 I LitsTn  : TN native path used lang=zh input=出生日期一九九八年02月09日 output=出生日期一九九八年二月九日
+09-03 13:03:24.383 30373 30406 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=日期二零二六年12月31日
+09-03 13:03:24.383 30373 30406 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=日期二零二六年12月31日
+09-03 13:03:24.390 30373 30406 I LitsTnNative: native TN normalize success lang=zh output=日期二零二六年十二月三十一日
+09-03 13:03:24.390 30373 30406 I LitsTn  : TN native path used lang=zh input=日期二零二六年12月31日 output=日期二零二六年十二月三十一日
+09-03 13:03:24.694 30373 30506 I LitsFrontendRequest: stream start language=zh-en languageContext=zh-en speed=1.0 lengthScale=1.0 textLen=112 text=气温 -24.5 度。温度范围是 -5 到 10 度。出生日期1998年2月09日。这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分example.com/test。下一句。
+09-03 13:03:24.694 30373 30506 I LitsFrontendRequest: stream segments count=5 segments=气温 -24.5 度。 | 温度范围是 -5 到 10 度。 | 出生日期1998年2月09日。 | 这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分example.com/test。 | 下一句。
+09-03 13:03:24.694 30373 30506 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=气温零下二十四点五度。
+09-03 13:03:24.695 30373 30506 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=气温零下二十四点五度。
+09-03 13:03:24.702 30373 30506 I LitsTnNative: native TN normalize success lang=zh output=气温零下二十四点五度。
+09-03 13:03:24.702 30373 30506 I LitsTn  : TN native path used lang=zh input=气温零下二十四点五度。 output=气温零下二十四点五度。
+09-03 13:03:24.705 30373 30506 I LitsFrontendRequest: stream segment frontendMs=10 tokenCount=40 segment=气温 -24.5 度。 tokenIds=16 38 44 3 39 34 41 3 11 38 36 42 3 17 38 25 44 3 37 44 3 20 42 3 24 44 3 8 38 33 43 3 39 43 3 8 39 44 3 49
+09-03 13:03:25.023 30373 30506 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=温度范围是零下五到十度。
+09-03 13:03:25.023 30373 30506 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=温度范围是零下五到十度。
+09-03 13:03:25.030 30373 30506 I LitsTnNative: native TN normalize success lang=zh output=温度范围是零下五到十度。
+09-03 13:03:25.030 30373 30506 I LitsTn  : TN native path used lang=zh input=温度范围是零下五到十度。 output=温度范围是零下五到十度。
+09-03 13:03:25.033 30373 30506 I LitsFrontendRequest: stream segment frontendMs=10 tokenCount=44 segment=温度范围是 -5 到 10 度。 tokenIds=39 34 41 3 8 39 44 3 7 33 44 3 39 30 42 3 20 44 3 11 38 36 42 3 17 38 25 44 3 39 43 3 8 31 44 3 20 42 3 8 39 44 3 49
+09-03 13:03:25.395 30373 30506 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=出生日期一九九八年2月09日。
+09-03 13:03:25.395 30373 30506 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=出生日期一九九八年2月09日。
+09-03 13:03:25.402 30373 30506 I LitsTnNative: native TN normalize success lang=zh output=出生日期一九九八年二月九日。
+09-03 13:03:25.402 30373 30506 I LitsTn  : TN native path used lang=zh input=出生日期一九九八年2月09日。 output=出生日期一九九八年二月九日。
+09-03 13:03:25.405 30373 30506 I LitsFrontendRequest: stream segment frontendMs=10 tokenCount=53 segment=出生日期1998年2月09日。 tokenIds=19 39 41 3 20 36 41 3 21 44 3 16 38 41 3 38 41 3 15 38 32 42 3 15 38 32 43 3 4 25 41 3 10 38 33 42 3 37 44 3 40 28 44 3 15 38 32 43 3 21 44 3 49
+09-03 13:03:25.793 30373 30506 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分example点com斜杠test。
+09-03 13:03:25.793 30373 30506 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分example点com斜杠test。
+09-03 13:03:25.802 30373 30506 I LitsTnNative: native TN normalize success lang=zh output=这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分example点com斜杠test。
+09-03 13:03:25.802 30373 30506 I LitsTn  : TN native path used lang=zh input=这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分example点com斜杠test。 output=这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分example点com斜杠test。
+09-03 13:03:25.813 30373 30506 I LitsFrontendRequest: stream segment frontendMs=20 tokenCount=225 segment=这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分example.com/test。 tokenIds=18 27 44 3 20 44 3 38 42 3 8 39 33 44 3 40 36 44 3 40 42 3 38 33 44 3 18 36 44 3 11 38 32 42 3 20 44 3 7 34 41 3 8 39 33 44 3 8 27 45 3 18 39 36 41 3 39 34 42 3 23 27 44 3 20 44 3 39 34 42 3 4 34 43 3 18 27 44 3 20 44 3 38 42 3 8 39 33 44 3 40 36 44 3 40 42 3 38 33 44 3 18 36 44 3 11 38 32 42 3 20 44 3 7 34 41 3 8 39 33 44 3 8 27 45 3 18 39 36 41 3 39 34 42 3 23 27 44 3 20 44 3 39 34 42 3 4 34 43 3 18 27 44 3 20 44 3 38 42 3 8 39 33 44 3 40 36 44 3 40 42 3 38 33 44 3 18 36 44 3 11 38 32 42 3 20 44 3 7 34 41 3 115 113 148 82 124 133 84 123 3 8 38 33 43 3 122 79 124 3 17 38 28 42 3 12 35 44 3 137 104 135 137 3 49
+09-03 13:03:27.014 30373 30506 I LitsTn  : TN normalize request language=zh-en languageContext=zh-en hasRules=true input=下一句。
+09-03 13:03:27.014 30373 30506 I LitsTnNative: native TN normalize start lang=zh root=/data/user/0/com.lits.tts.sdk.test/files/tts-contract/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 input=下一句。
+09-03 13:03:27.022 30373 30506 I LitsTnNative: native TN normalize success lang=zh output=下一句。
+09-03 13:03:27.022 30373 30506 I LitsTn  : TN native path used lang=zh input=下一句。 output=下一句。
+09-03 13:03:27.024 30373 30506 I LitsFrontendRequest: stream segment frontendMs=11 tokenCount=13 segment=下一句。 tokenIds=17 38 25 44 3 38 42 3 15 40 44 3 49
+09-03 13:03:27.251 30373 30506 I LitsFrontendRequest: stream complete synthesisMs=2557 frontendMs=61 totalBytes=1112064 firstChunkMs=82
+09-03 13:03:27.266 30373 30406 I TestRunner: finished: nativeFrontendAndPublicSynthesisPreserveReadingContracts(com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest)
+09-03 13:03:28.371 30373 30406 I TestRunner: run finished: 1 tests, 0 failed, 0 ignored

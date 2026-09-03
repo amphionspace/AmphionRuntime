@@ -95,9 +95,16 @@ class LitsTtsFrontendTest {
                 "zh-en",
             ).isNotEmpty(),
         )
+        // Technical tokens intentionally spell LITS as an acronym; the ordinary
+        // lowercase word outside a technical token retains its lexicon reading.
         assertArrayEquals(
-            LitsTtsFrontend.encode(layout, "包名是com点lits点tts点sample", "zh-en", "zh-en"),
+            LitsTtsFrontend.encodeNormalized(layout, "包名是com点LITS点tts点sample", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "包名是com.lits.tts.sample", "zh-en", "zh-en"),
+        )
+        assertFalse(
+            LitsTtsFrontend.encode(layout, "包名是com点lits点tts点sample", "zh-en", "zh-en").contentEquals(
+                LitsTtsFrontend.encode(layout, "包名是com.lits.tts.sample", "zh-en", "zh-en"),
+            ),
         )
         assertArrayEquals(
             LitsTtsFrontend.encode(layout, "公式E等于mc平方只是备注", "zh-en", "zh-en"),
@@ -231,7 +238,7 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun zhEnNumericFixesMatchMacosFrontendCases() {
+    fun zhEnNumericReadingsMatchSpokenForms() {
         val layout = testLayout()
 
         assertArrayEquals(
@@ -267,7 +274,7 @@ class LitsTtsFrontendTest {
             LitsTtsFrontend.encode(layout, "用时1小时05分钟", "zh-en", "zh-en"),
         )
         assertArrayEquals(
-            LitsTtsFrontend.encode(layout, "出生日期1998年二月零九日", "zh-en", "zh-en"),
+            LitsTtsFrontend.encode(layout, "出生日期1998年二月九日", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "出生日期1998年2月09日", "zh-en", "zh-en"),
         )
         assertArrayEquals(
@@ -282,17 +289,109 @@ class LitsTtsFrontendTest {
             LitsTtsFrontend.encode(layout, "JDK17路径在点venv斜杠lib斜杠jvm", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "JDK17路径在.venv/lib/jvm", "zh-en", "zh-en"),
         )
+    }
+
+    @Test
+    fun zhEnVersionSuffixKeepsTechnicalDigitReadings() {
+        val layout = testLayout()
+        // The technical-token contract added in 75e48aee reads each digit and
+        // retains its separator pauses; it is not the older macOS cardinal rule.
         assertArrayEquals(
-            LitsTtsFrontend.encode(layout, "firmware二点零点十杠beta需要灰度", "zh-en", "zh-en"),
+            LitsTtsFrontend.encodeNormalized(layout, "firmware 二,点零,点一零,杠beta需要灰度", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "firmware 2.0.10-beta需要灰度", "zh-en", "zh-en"),
         )
+    }
+
+    @Test
+    fun zhEnPathKeepsTechnicalUnderscoreReading() {
+        val layout = testLayout()
+        // As for TTS_8_TIMEOUT above, '_' in a technical token is spoken in
+        // English. A lowercase prose "underscore" is a different input contract.
         assertArrayEquals(
-            LitsTtsFrontend.encode(layout, "路径是斜杠home斜杠user斜杠report下划线2026点csv", "zh-en", "zh-en"),
+            LitsTtsFrontend.encodeNormalized(layout, "路径是斜杠home斜杠user斜杠report UNDERSCORE 二零二六,点csv", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "路径是/home/user/report_2026.csv", "zh-en", "zh-en"),
         )
+    }
+
+    @Test
+    fun zhEnUrlQueryValueMatchesSpokenDigits() {
+        val layout = testLayout()
+        // Do not run a partly expanded reference containing "123" through TN:
+        // it no longer has the technical-token context of the raw URL.
         assertArrayEquals(
-            LitsTtsFrontend.encode(layout, "URL是www点example点com斜杠test问号id等于123", "zh-en", "zh-en"),
+            LitsTtsFrontend.encodeNormalized(layout, "URL是www点example点com斜杠test问号id等于一二三", "zh-en", "zh-en"),
             LitsTtsFrontend.encode(layout, "URL是www.example.com/test?id=123", "zh-en", "zh-en"),
+        )
+    }
+
+    @Test
+    fun zhEnCalendarPaddingMatchesNativeCardinalReading() {
+        val layout = testLayout()
+        // The real native TN emits 二月九日, as does the separator-date path.
+        val expected = LitsTtsFrontend.encodeNormalized(layout, "出生日期一九九八年二月九日", "zh-en", "zh-en")
+        listOf("出生日期1998年02月09日", "出生日期1998年2月09日", "出生日期1998-02-09").forEach { raw ->
+            assertArrayEquals(raw, expected, LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en"))
+        }
+        assertArrayEquals(expected,
+            LitsTtsFrontend.encodeNormalized(layout, "出生日期1998年02月09日", "zh-en", "zh-en"))
+        val explicitZero = "出生日期一九九八年零二月零九日"
+        val explicitTokens = LitsTtsFrontend.encodeNormalized(layout, explicitZero, "zh-en", "zh-en")
+        assertFalse("Explicit Hanzi zero must remain spoken", expected.contentEquals(explicitTokens))
+        assertArrayEquals(explicitTokens, LitsTtsFrontend.encode(layout, explicitZero, "zh-en", "zh-en"))
+    }
+
+    @Test
+    fun zhEnCalendarMonthsStillNormalizeAfterYearExpansion() {
+        val layout = testLayout()
+        listOf(
+            "出生日期1998年2月09日" to "出生日期一九九八年二月九日",
+            "出生日期一九九八年2月09日" to "出生日期一九九八年二月九日",
+            "出生日期1998年02月09日" to "出生日期一九九八年二月九日",
+            "日期2026年12月31日" to "日期二零二六年十二月三十一日",
+        ).forEach { (raw, spoken) ->
+            val expected = LitsTtsFrontend.encodeNormalized(layout, spoken, "zh-en", "zh-en")
+            assertArrayEquals("raw: $raw", expected, LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en"))
+            assertArrayEquals("prepared: $raw", expected, LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en"))
+        }
+    }
+
+    @Test
+    fun negativeTemperatureReadingsAreIndependentOfWhitespace() {
+        val layout = testLayout()
+        listOf(
+            "气温-24.5度" to "气温零下二十四点五度",
+            "气温 -24.5 度" to "气温零下二十四点五度",
+            "温度  -  5 度" to "温度零下五度",
+            "体温-0.5度" to "体温零下零点五度",
+            "温度范围是-5到10度" to "温度范围是零下五到十度",
+            "温度范围是 -5 到 10 度" to "温度范围是零下五到十度",
+            "温度范围是  -  5  到  10  度" to "温度范围是零下五到十度",
+        ).forEach { (raw, spoken) ->
+            // Assert the pre-native text as well as tokens: a downstream repair must
+            // not conceal a native TN input that already lost the temperature context.
+            assertEquals(raw, spoken, LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en"))
+            assertArrayEquals(
+                raw,
+                LitsTtsFrontend.encodeNormalized(layout, spoken, "zh-en", "zh-en"),
+                LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en"),
+            )
+        }
+    }
+
+    @Test
+    fun temperatureProtectionDoesNotChangeOtherNumericContexts() {
+        val layout = testLayout()
+        listOf(
+            "气温24.5度" to "气温24.5度",
+            "温度范围是5到10度" to "温度范围是5到10度",
+            "数值 -24.5" to "数值 负24.5",
+            "比分1-2" to "比分1-2",
+        ).forEach { (raw, prepared) ->
+            assertEquals(raw, prepared, LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en"))
+        }
+        assertEquals(
+            "Temperature -24.5 degrees",
+            LitsTnNormalizer.normalize(layout, "Temperature -24.5 degrees", "en-US", "en-US"),
         )
     }
 
@@ -419,24 +518,21 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun splitForStreamingUsesStrongChinesePunctuation() {
-        val layout = testLayout()
-
-        val segments = LitsTtsFrontend.splitForStreaming(layout, "你好。欢迎使用语音合成系统！请稍等。")
+    fun splitRawForStreamingUsesStrongChinesePunctuation() {
+        val segments = LitsTtsFrontend.splitRawForStreaming("你好。欢迎使用语音合成系统！请稍等。")
 
         assertArrayEquals(
-            arrayOf("你好.", "欢迎使用语音合成系统!", "请稍等."),
+            arrayOf("你好。", "欢迎使用语音合成系统！", "请稍等。"),
             segments.toTypedArray(),
         )
     }
 
     @Test
-    fun splitForStreamingAvoidsEnglishFalseBreaks() {
-        val layout = testLayout()
-
-        val segments = LitsTtsFrontend.splitForStreaming(
-            layout,
+    fun splitRawForStreamingAvoidsEnglishPunctuationFalseBreaks() {
+        val segments = LitsTtsFrontend.splitRawForStreaming(
             "Hello world. Dr. Smith paid 3.14 dollars at 10:30 a.m. Visit example.com/test. Done.",
+            // Isolate punctuation decisions from the independently tested length target.
+            targetCharsPerSegment = 100,
         )
 
         assertArrayEquals(
@@ -450,14 +546,11 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun splitForStreamingUsesEnUsContextForEnglishSample() {
+    fun splitRawForStreamingPreservesEnglishInputForEncoding() {
         val layout = testLayout()
 
-        val segments = LitsTtsFrontend.splitForStreaming(
-            layout = layout,
+        val segments = LitsTtsFrontend.splitRawForStreaming(
             text = "Welcome to the Lits delivery TTS sample. Room 204 is ready.",
-            language = "en-US",
-            languageContext = "en-US",
         )
 
         assertArrayEquals(
@@ -468,8 +561,38 @@ class LitsTtsFrontendTest {
             segments.toTypedArray(),
         )
         assertTrue(
-            LitsTtsFrontend.encodeNormalized(layout, segments[1], "en-US", "en-US").isNotEmpty(),
+            LitsTtsFrontend.encode(layout, segments[1], "en-US", "en-US").isNotEmpty(),
         )
+    }
+
+    @Test
+    fun splitRawForStreamingCapsLongChineseSegmentsWithoutDroppingText() {
+        val text = "这是一段没有标点的测试文本".repeat(8)
+        val segments = LitsTtsFrontend.splitRawForStreaming(text)
+        assertTrue(segments.size > 1)
+        assertEquals(text, segments.joinToString(""))
+        assertTrue(segments.all { it.length <= 50 })
+        assertTrue(segments.dropLast(1).all { it.length == 50 })
+    }
+
+    @Test
+    fun splitRawForStreamingPreservesAsciiTokensAcrossLengthBoundary() {
+        val prefix = "前".repeat(49)
+        listOf(
+            "recognition", "example.com/test", "https://api.example.com/v1?id=123",
+            "USB-C", "don't", "3.14", "10:30", "1,000,000.00", "file_name.ext",
+            "support-team@example.com", "v10.20.003",
+        ).forEach { token ->
+            assertArrayEquals(token, arrayOf("$prefix$token。", "下一句。"),
+                LitsTtsFrontend.splitRawForStreaming("$prefix$token。下一句。").toTypedArray())
+        }
+    }
+
+    @Test
+    fun splitRawForStreamingKeepsOversizedTechnicalTokenIntact() {
+        val url = "https://example.com/" + "long-path/".repeat(12) + "?id=123"
+        assertArrayEquals(arrayOf("$url.", "Done."),
+            LitsTtsFrontend.splitRawForStreaming("$url. Done.").toTypedArray())
     }
 
     @Test
@@ -571,32 +694,27 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun splitForStreamingDoesNotCreateShortPlateFragments() {
-        val layout = testLayout()
-
-        val segments = LitsTtsFrontend.splitForStreaming(layout, "车牌冀R65438，请核查。下一条。")
+    fun splitRawForStreamingDoesNotCreateShortPlateFragments() {
+        val segments = LitsTtsFrontend.splitRawForStreaming("车牌冀R65438，请核查。下一条。")
 
         assertArrayEquals(
-            arrayOf("车牌冀R65438,请核查.", "下一条."),
+            arrayOf("车牌冀R65438，请核查。", "下一条。"),
             segments.toTypedArray(),
         )
     }
 
     @Test
-    fun splitForStreamingAvoidsTechnicalPunctuationFalseBreaks() {
-        val layout = testLayout()
-
-        val segments = LitsTtsFrontend.splitForStreaming(
-            layout,
+    fun splitRawForStreamingAvoidsTechnicalPunctuationFalseBreaks() {
+        val segments = LitsTtsFrontend.splitRawForStreaming(
             "URL为https://api.example.com/v1/order?id=10086。版本号v10.20.003发布。用时1小时05分钟。下一句。",
         )
 
         assertArrayEquals(
             arrayOf(
-                "URL为https://api.example.com/v1/order?id=10086.",
-                "版本号v10.20.003发布.",
-                "用时一小时零五分钟.",
-                "下一句.",
+                "URL为https://api.example.com/v1/order?id=10086。",
+                "版本号v10.20.003发布。",
+                "用时1小时05分钟。",
+                "下一句。",
             ),
             segments.toTypedArray(),
         )

@@ -1,0 +1,46 @@
+{
+  "scope": "Android TTS negative-temperature context before native normalization",
+  "scope_status": "PARTIAL",
+  "release_status": "BLOCKED",
+  "blocking_reasons": ["existing numeric frontend test failure", "Android disconnected before final binary device gate"],
+  "source_commit": "429352527867841c62570db4db5a7c988fad39e7",
+  "runtime_fix_commit": "81c652f84808aa0ac2f9bb1790188d6e195a945b",
+  "device": {"model": "vivo V2505A", "android": "16"},
+  "build": {
+    "sdk_version": "3.0",
+    "apk_variant": "debugAndroidTest",
+    "signing": "Android debug signing",
+    "license": "existing TTS-only instrumentation fixture; normal enforced activation",
+    "apk_sha256": "4e710a1b1cea97fbeb4baeee0396524e3b596a5c9dff3ff1d10f27ba6e6d637d",
+    "release_aar_sha256": "e747009ae678b06c1d2dace2cd3826da4b9de6ee48f608927cc296d09488b228",
+    "model_manifest_sha256": "0bdf0071387ec26c03fc55fedcad6c8a65c9c2ef83ae3f367418d46e04941168",
+    "model_version": "0.1.0"
+  },
+  "verification": {
+    "targeted_jvm": {"tests": 2, "passed": 2, "red_reproduced": true},
+    "full_jvm": {"tests": 97, "passed": 93, "failed": 1, "skipped": 3},
+    "current_device_gate": "PENDING_DEVICE_RECONNECT",
+    "device": {
+      "passed": true,
+      "applies_to_current_binary": false,
+      "source_commit": "70ac0301d0f8e3dc55a81e878412f7728e701bcb",
+      "apk_sha256": "ea074c9c01aa526bed4801a1a8a078fcf329bb5bd027747032c51013dc415792",
+      "release_aar_sha256": "8af1d80243a6d57c5b6b996b9726c161bff56cfc1237e618c4d1cb20fff04780",
+      "temperature_cases": 7,
+      "sdk_synthesis_requests": 1,
+      "start": 1,
+      "pcm_callbacks": 7,
+      "pcm_bytes": 261888,
+      "synthesis_complete": 1,
+      "errors": 0,
+      "report": "device-report.json",
+      "report_sha256": "1efd21dbe6533b4fbeabd37fafc9fbe83bc61ed76832962bf1b854af8a56f741"
+    },
+    "release_aar_build": "PASS"
+  },
+  "not_covered": ["full TTS pronunciation corpus", "Harmony device", "release AAR host-device run", "long-duration resource stability"],
+  "existing_failures": [
+    "zhEnNumericFixesMatchMacosFrontendCases: negative-temperature pairs fixed; later date/version/path assertions remain"
+  ],
+  "follow_up": ["50-character splitting can cut inside an English word or URL; cross-segment pronunciation is not covered by the length-only test"]
+}

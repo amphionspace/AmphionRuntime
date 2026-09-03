@@ -1,0 +1,519 @@
+{
+  "tests": 103,
+  "passed": 100,
+  "failed": 0,
+  "skipped": 3,
+  "suites": [
+    {
+      "name": "com.lits.tts.sdk.TextToSpeechSdkTest",
+      "tests": 24,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        {
+          "name": "speakValidatesTextLengthRangesAudioTypeAndLanguageContext",
+          "status": "PASS"
+        },
+        {
+          "name": "licenseOptionsDefaultToSharedAmphionAsset",
+          "status": "PASS"
+        },
+        {
+          "name": "destroyedEngineRejectsIsBusyAndRepeatedShutdown",
+          "status": "PASS"
+        },
+        {
+          "name": "createEngineRejectsBlankLocate",
+          "status": "PASS"
+        },
+        {
+          "name": "listVoicesRejectsBlankRequestId",
+          "status": "PASS"
+        },
+        {
+          "name": "setWorkPathMustRunBeforeCreateEngine",
+          "status": "PASS"
+        },
+        {
+          "name": "destroyedEngineWithoutListenerRejectsSpeakAsDestroyed",
+          "status": "PASS"
+        },
+        {
+          "name": "createEngineSupportsSameVoiceIdAcrossLanguages",
+          "status": "PASS"
+        },
+        {
+          "name": "preemptStopsPreviousRequestAndRunsNewRequest",
+          "status": "PASS"
+        },
+        {
+          "name": "listVoicesReturnsSharedVoiceIdsAcrossLanguages",
+          "status": "PASS"
+        },
+        {
+          "name": "synthesizeOnlyEmitsDataAndSynthesisComplete",
+          "status": "PASS"
+        },
+        {
+          "name": "engineNameAppearsInDestroyedErrorMessage",
+          "status": "PASS"
+        },
+        {
+          "name": "createEngineAcceptsCustomLocateString",
+          "status": "PASS"
+        },
+        {
+          "name": "createEngineRejectsDisabledModelLoadOnCreate",
+          "status": "PASS"
+        },
+        {
+          "name": "stopStopsActiveAndQueuedRequests",
+          "status": "PASS"
+        },
+        {
+          "name": "createEngineRejectsBlankEngineName",
+          "status": "PASS"
+        },
+        {
+          "name": "createEngineRejectsUnsupportedLanguage",
+          "status": "PASS"
+        },
+        {
+          "name": "licenseOptionsDefaultToSystemDeviceIdProvider",
+          "status": "PASS"
+        },
+        {
+          "name": "shutdownDestroysEngine",
+          "status": "PASS"
+        },
+        {
+          "name": "listVoicesCallbackRunsAsynchronously",
+          "status": "PASS"
+        },
+        {
+          "name": "createEngineCallbackRunsAsynchronously",
+          "status": "PASS"
+        },
+        {
+          "name": "synthesizeAndPlayDoesNotEmitDataAndEmitsTwoCompleteEvents",
+          "status": "PASS"
+        },
+        {
+          "name": "duplicateRequestErrorsAreDispatchedAsynchronously",
+          "status": "PASS"
+        },
+        {
+          "name": "speakValidationErrorsAreDispatchedAsynchronously",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.lits.tts.sdk.internal.AndroidFrontendGoldenParityTest",
+      "tests": 1,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        {
+          "name": "androidFrontendMatchesGoldenTokensAfterHostTn",
+          "status": "SKIP"
+        }
+      ]
+    },
+    {
+      "name": "com.lits.tts.sdk.internal.Base64CodecTest",
+      "tests": 4,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        {
+          "name": "rejectsIllegalCharacter",
+          "status": "PASS"
+        },
+        {
+          "name": "matchesJdkEncoderForRandomPayloads",
+          "status": "PASS"
+        },
+        {
+          "name": "toleratesEmbeddedNewlinesAndWhitespace",
+          "status": "PASS"
+        },
+        {
+          "name": "decodesKnownVectors",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.lits.tts.sdk.internal.EnglishProperNounCoverageReportTest",
+      "tests": 1,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        {
+          "name": "generatedProperNounsReportLexiconCoverage",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.lits.tts.sdk.internal.LicenseVerifierTest",
+      "tests": 17,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        {
+          "name": "snWhitelistMatchesAndMismatches",
+          "status": "PASS"
+        },
+        {
+          "name": "certBindingMatchesAndMismatches",
+          "status": "PASS"
+        },
+        {
+          "name": "malformedEnvelopeFails",
+          "status": "PASS"
+        },
+        {
+          "name": "applicationIdMismatchFails",
+          "status": "PASS"
+        },
+        {
+          "name": "validAppOnlyLicenseIsLicensed",
+          "status": "PASS"
+        },
+        {
+          "name": "expiredLicenseFails",
+          "status": "PASS"
+        },
+        {
+          "name": "blankApplicationIdIsNotAppBound",
+          "status": "PASS"
+        },
+        {
+          "name": "maintenanceWindowRejectsNewerSdkRelease",
+          "status": "PASS"
+        },
+        {
+          "name": "sdkMajorMismatchFails",
+          "status": "PASS"
+        },
+        {
+          "name": "armedButMissingLicenseFails",
+          "status": "PASS"
+        },
+        {
+          "name": "emptyFeaturesDeniesTts",
+          "status": "PASS"
+        },
+        {
+          "name": "legacyDeviceHashStillMatchesOverride",
+          "status": "PASS"
+        },
+        {
+          "name": "missingTtsFeatureFails",
+          "status": "PASS"
+        },
+        {
+          "name": "featureTierMatrixForTts",
+          "status": "PASS"
+        },
+        {
+          "name": "emptyPublicKeyIsDevUnlicensed",
+          "status": "PASS"
+        },
+        {
+          "name": "expiryGraceKeepsLicenseValid",
+          "status": "PASS"
+        },
+        {
+          "name": "tamperedSignatureFails",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.lits.tts.sdk.internal.LitsTtsFrontendTest",
+      "tests": 42,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        {
+          "name": "zhEnPathKeepsTechnicalUnderscoreReading",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnTechnicalSymbolsReadOutInUrlsFilesAndFormulas",
+          "status": "PASS"
+        },
+        {
+          "name": "temperatureProtectionDoesNotChangeOtherNumericContexts",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnNamePlacePolyphoneOverridesUseExpectedReadings",
+          "status": "PASS"
+        },
+        {
+          "name": "localFrontendBadcaseSetsMatchPythonGoldenTokensAfterTn",
+          "status": "SKIP"
+        },
+        {
+          "name": "realAssetLayoutLoadsBinaryLexiconsAndSupplementLexicon",
+          "status": "PASS"
+        },
+        {
+          "name": "splitRawForStreamingCapsLongChineseSegmentsWithoutDroppingText",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnNumericReadingsMatchSpokenForms",
+          "status": "PASS"
+        },
+        {
+          "name": "splitRawForStreamingUsesStrongChinesePunctuation",
+          "status": "PASS"
+        },
+        {
+          "name": "splitRawForStreamingPreservesEnglishInputForEncoding",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnTechnicalTnContextsUseCodeAndSymbolReadings",
+          "status": "PASS"
+        },
+        {
+          "name": "realAssetLayoutUsesSyncedPolyphonePhraseOverrides",
+          "status": "PASS"
+        },
+        {
+          "name": "enUsSymbolsAndEmojiDoNotBreakFrontend",
+          "status": "PASS"
+        },
+        {
+          "name": "enUsSupplementLexiconIsUsedBeforeSpellingFallback",
+          "status": "PASS"
+        },
+        {
+          "name": "oovTextDoesNotBreakFrontend",
+          "status": "PASS"
+        },
+        {
+          "name": "splitRawForStreamingAvoidsTechnicalPunctuationFalseBreaks",
+          "status": "PASS"
+        },
+        {
+          "name": "enUsDigitsMatchSpelledOutWords",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnChatgptUsesLexiconAfterTnSplitRepair",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnUrlQueryValueMatchesSpokenDigits",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnNumericTnContextsUseSemanticDigitReadings",
+          "status": "PASS"
+        },
+        {
+          "name": "enUsSingleAUsesArticleOrLetterNameByContext",
+          "status": "PASS"
+        },
+        {
+          "name": "enUsChatgptUsesLexiconReading",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnSymbolsAndEmojiDoNotBreakFrontend",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnPlateAlnumRunsReadLettersAndDigits",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnCalendarMonthsStillNormalizeAfterYearExpansion",
+          "status": "PASS"
+        },
+        {
+          "name": "enUsTechnicalTextDoesNotNormalizeToChinese",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnPercentNumbersAcceptAsciiAndFullwidthPercent",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnAssistantAlarmUsesWeiFourthToneForAlreadyForYou",
+          "status": "PASS"
+        },
+        {
+          "name": "languageContextControlsDigitReading",
+          "status": "PASS"
+        },
+        {
+          "name": "tnSegmentWhitespaceIsPreservedAroundNormalizedSegment",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnUppercaseAcronymsSpellLettersExceptWordReadings",
+          "status": "PASS"
+        },
+        {
+          "name": "splitRawForStreamingKeepsOversizedTechnicalTokenIntact",
+          "status": "PASS"
+        },
+        {
+          "name": "enUsCodeAndLeadingZeroNumbersUseDigitReadings",
+          "status": "PASS"
+        },
+        {
+          "name": "splitRawForStreamingDoesNotCreateShortPlateFragments",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnJingzangExpresswayUsesTibetanReading",
+          "status": "PASS"
+        },
+        {
+          "name": "splitRawForStreamingPreservesAsciiTokensAcrossLengthBoundary",
+          "status": "PASS"
+        },
+        {
+          "name": "arpabetInputCanPassThroughDirectly",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnVersionSuffixKeepsTechnicalDigitReadings",
+          "status": "PASS"
+        },
+        {
+          "name": "splitRawForStreamingAvoidsEnglishPunctuationFalseBreaks",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnKeepsBoundaryBetweenEnglishAndChineseNumber",
+          "status": "PASS"
+        },
+        {
+          "name": "zhEnAppliesYiBuErToneSandhi",
+          "status": "PASS"
+        },
+        {
+          "name": "negativeTemperatureReadingsAreIndependentOfWhitespace",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.lits.tts.sdk.internal.LitsTtsOrtRuntimeTest",
+      "tests": 4,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        {
+          "name": "streamingChunkSlicesKeepSingleFinalSliceForShortAudio",
+          "status": "PASS"
+        },
+        {
+          "name": "streamingRuntimeDefaultsToNoCacheAndSixteenFrameDecoderLeftContext",
+          "status": "PASS"
+        },
+        {
+          "name": "streamingChunkSlicesCanUseSmallerFirstChunk",
+          "status": "PASS"
+        },
+        {
+          "name": "streamingChunkSlicesSupportTestV4DynamicGrowth",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.lits.tts.sdk.internal.PronunciationRound15FrontendCorrectnessTest",
+      "tests": 1,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        {
+          "name": "currentFrontendMatchesRound15GoldenPinyin",
+          "status": "SKIP"
+        }
+      ]
+    },
+    {
+      "name": "com.lits.tts.sdk.internal.TextToSpeechEngineCancellationTest",
+      "tests": 2,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        {
+          "name": "stopLetsNextPreemptRequestStartWithoutWaitingForLongStreamingSynthesis",
+          "status": "PASS"
+        },
+        {
+          "name": "preemptStartsNextRequestEvenIfCancelledStreamingProducerHasNotReturned",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.lits.tts.sdk.internal.TextToSpeechStreamingConfigTest",
+      "tests": 4,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        {
+          "name": "streamingConfigTakesPrecedenceOverLegacyExtraParamsForChunkSize",
+          "status": "PASS"
+        },
+        {
+          "name": "legacyExtraParamsRemainSupportedForChunkSize",
+          "status": "PASS"
+        },
+        {
+          "name": "startResponseCanReportEffectiveStreamingParameters",
+          "status": "PASS"
+        },
+        {
+          "name": "streamingConfigTakesPrecedenceOverLegacyExtraParamsForFirstChunkSize",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.lits.tts.sdk.internal.TtsInputTextNormalizerTest",
+      "tests": 3,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "cases": [
+        {
+          "name": "preservesTrailingWhitespaceAfterAddingPunctuation",
+          "status": "PASS"
+        },
+        {
+          "name": "addsLanguageSpecificTerminalPunctuationWhenMissing",
+          "status": "PASS"
+        },
+        {
+          "name": "doesNotDuplicateExistingTerminalPunctuation",
+          "status": "PASS"
+        }
+      ]
+    }
+  ]
+}
