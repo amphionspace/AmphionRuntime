@@ -200,13 +200,41 @@ adb shell am instrument -w -r \
 
 ## 5. 运行发音正确性批测
 
+这是 SDK 内部前端的音素对照，不替代公开 API 授权、PCM 合成或播放验收。此测试包与 `aarHost` 的私有目录不同，需单独部署资源；已有且校验一致的资源可直接复用。
+
 ```bash
-./gradlew --no-daemon :sdk:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=com.lits.tts.sdk.internal.PronunciationRound15FrontendDeviceTest \
-  -Pandroid.testInstrumentationRunnerArguments.inputAsset=pronunciation-golden-round3-results-with-pinyin-fixed-round15.jsonl
+./gradlew --no-daemon :sdk:assembleDebugAndroidTest
+adb install -r sdk/build/outputs/apk/androidTest/debug/sdk-debug-androidTest.apk
+adb shell run-as com.lits.tts.sdk.test mkdir -p files/tts-contract
+COPYFILE_DISABLE=1 tar -C external-resources -cf - tts | \
+  adb shell -T run-as com.lits.tts.sdk.test tar -xf - -C files/tts-contract
+adb shell am instrument -w -r \
+  -e class com.lits.tts.sdk.internal.PronunciationRound15FrontendDeviceTest \
+  -e inputAsset pronunciation-golden-round3-results-with-pinyin-fixed-round15.jsonl \
+  -e workPath /data/user/0/com.lits.tts.sdk.test/files/tts-contract \
+  -e useTn true \
+  com.lits.tts.sdk.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-该测试会读取 golden pinyin，并用当前设备上的 SDK frontend 输出做 pinyin 序列对齐。测试会生成结果 JSONL、失败 JSONL 和 summary JSON。
+若当前 vivo 设备冻结后台测试进程，在另一个终端启动测试包已有的前台页面，勿修改系统策略：
+
+```bash
+adb shell 'am start -W -n com.lits.tts.sdk.test/androidx.test.core.app.InstrumentationActivityInvoker\$EmptyActivity'
+```
+
+该测试会生成逐条结果、差异 JSONL 和 summary。**instrumentation 的 `OK (1 test)` 只表示采集完成，不是发音通过**。完整 Round15 语料预期 675 条，拉回本次实际 runId 的 summary 后，必须再执行门禁；下面的 `<timestamp>` 应替换为设备输出目录中的本次时间戳：
+
+```bash
+pronunciation_run_id='pronunciation-round15-device-<timestamp>'
+mkdir -p "build/reports/pronunciation-round15-device/$pronunciation_run_id"
+adb pull "/sdcard/Android/data/com.lits.tts.sdk.test/files/pronunciation-round15-device/summary-$pronunciation_run_id.json" \
+  "build/reports/pronunciation-round15-device/$pronunciation_run_id/summary.json"
+python3 ../tools/android/check_pronunciation_report.py \
+  --summary "build/reports/pronunciation-round15-device/$pronunciation_run_id/summary.json" \
+  --expected-total 675
+```
+
+门禁仅在条数完整、全部匹配、差异和执行错误均为 0 时返回 0；其他结果返回非零。它不修改语料、不设置容错比例，也不裁决某条 golden 是否符合产品契约。2026-09-03 基线有 295 条差异，当前不能作为发布 PASS；应先区分旧标注冲突和 SDK 问题，不得降低 `expected-total` 或改写 golden 来绕过结果。
 
 ## 6. 结果位置
 
