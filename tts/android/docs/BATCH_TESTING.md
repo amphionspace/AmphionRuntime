@@ -116,12 +116,20 @@ adb shell am instrument -w -r \
   com.lits.tts.aarhost.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
+部分 vivo 系统可能在测试方法启动页面之前就冻结后台进程。若测试已启动但页面未出现，在另一个终端将同一宿主拉到前台（不改省电/安全设置）：
+
+```bash
+adb shell am start -W -n com.lits.tts.aarhost/.AarHostActivity
+```
+
+该页面仅在 Debug 宿主中对外开放，只显示测试状态，不接受输入或触发 SDK 操作。正常进入前台后，请保持页面可见；冻结过的运行只留作诊断记录，正式证据使用从启动起即保持前台的运行。
+
 必须得到 `OK (1 test)`。未注入授权公钥的 `DEV_UNLICENSED` 构建不能通过。断言要求同一 requestId 下唯一 start、连续有序且非空的 PCM、唯一 `SYNTHESIS_COMPLETE`，没有 error/stop，随后 shutdown 返回；不固定 PCM 块数或合成耗时。
 
 日志中的 `AAR_FRONTEND_REPORT` 给出此次唯一 JSON 路径；成功和失败记录均保留。用该实际路径导出，例如：
 
 ```bash
-adb shell run-as com.lits.tts.aarhost cat files/aar-frontend-<timestamp>.json
+adb shell run-as com.lits.tts.aarhost cat 'files/aar-frontend-<timestamp>.json'
 ```
 
 归档时同时记录源码提交、Release AAR/两个 APK 的 SHA-256、已安装 APK 的校验值、模型清单和设备系统。仅在相关代码或二进制变化时重跑；文档修改不使原有真机证据失效。
