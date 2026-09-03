@@ -515,8 +515,8 @@ class LitsTtsFrontendTest {
     fun splitRawForStreamingAvoidsEnglishPunctuationFalseBreaks() {
         val segments = LitsTtsFrontend.splitRawForStreaming(
             "Hello world. Dr. Smith paid 3.14 dollars at 10:30 a.m. Visit example.com/test. Done.",
-            // Isolate punctuation decisions from the independently tested length cap.
-            maxCharsPerSegment = 100,
+            // Isolate punctuation decisions from the independently tested length target.
+            targetCharsPerSegment = 100,
         )
 
         assertArrayEquals(
@@ -550,13 +550,33 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun splitRawForStreamingCapsLongSegmentsWithoutDroppingText() {
+    fun splitRawForStreamingCapsLongChineseSegmentsWithoutDroppingText() {
         val text = "这是一段没有标点的测试文本".repeat(8)
         val segments = LitsTtsFrontend.splitRawForStreaming(text)
         assertTrue(segments.size > 1)
         assertEquals(text, segments.joinToString(""))
         assertTrue(segments.all { it.length <= 50 })
         assertTrue(segments.dropLast(1).all { it.length == 50 })
+    }
+
+    @Test
+    fun splitRawForStreamingPreservesAsciiTokensAcrossLengthBoundary() {
+        val prefix = "前".repeat(49)
+        listOf(
+            "recognition", "example.com/test", "https://api.example.com/v1?id=123",
+            "USB-C", "don't", "3.14", "10:30", "1,000,000.00", "file_name.ext",
+            "support-team@example.com", "v10.20.003",
+        ).forEach { token ->
+            assertArrayEquals(token, arrayOf("$prefix$token。", "下一句。"),
+                LitsTtsFrontend.splitRawForStreaming("$prefix$token。下一句。").toTypedArray())
+        }
+    }
+
+    @Test
+    fun splitRawForStreamingKeepsOversizedTechnicalTokenIntact() {
+        val url = "https://example.com/" + "long-path/".repeat(12) + "?id=123"
+        assertArrayEquals(arrayOf("$url.", "Done."),
+            LitsTtsFrontend.splitRawForStreaming("$url. Done.").toTypedArray())
     }
 
     @Test

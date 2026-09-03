@@ -616,11 +616,11 @@ internal object LitsTtsFrontend {
     fun splitRawForStreaming(
         text: String,
         wordsPerSegment: Int = 7,
-        maxCharsPerSegment: Int = 50,
+        targetCharsPerSegment: Int = 50,
     ): List<String> {
         val normalized = text.trim()
         if (normalized.isEmpty()) return emptyList()
-        val segmentLimit = maxCharsPerSegment.coerceAtLeast(1)
+        val segmentTarget = targetCharsPerSegment.coerceAtLeast(1)
         val segments = mutableListOf<String>()
         val current = StringBuilder()
         var index = 0
@@ -641,13 +641,32 @@ internal object LitsTtsFrontend {
                     current.append(normalized[index])
                 }
                 flushCurrentSegment()
-            } else if (current.length >= segmentLimit) {
+            } else if (
+                current.length >= segmentTarget &&
+                !continuesRawAsciiToken(normalized, index) &&
+                normalized.getOrNull(index + 1)?.let {
+                    !isRawSentenceEndPunctuation(it) && !isAttachedSentenceSuffix(it)
+                } != false
+            ) {
                 flushCurrentSegment()
             }
             index += 1
         }
         flushSegment(segments, current)
         return segments.ifEmpty { listOf(normalized) }
+    }
+
+    // The length target must not split words, URLs, identifiers, or numbers:
+    // each raw segment goes through TN independently, which would lose context.
+    // An indivisible token may exceed the target; the SDK's input bound is unchanged.
+    private fun continuesRawAsciiToken(text: String, index: Int): Boolean {
+        val current = text[index]
+        val next = text.getOrNull(index + 1) ?: return false
+        fun isTokenChar(char: Char): Boolean =
+            isAsciiAlnum(char) || char in technicalSymbolChars || char == '\''
+        return (isTokenChar(current) && isTokenChar(next)) ||
+            (current.isDigit() && next == ',' && text.getOrNull(index + 2)?.isDigit() == true) ||
+            (current == ',' && text.getOrNull(index - 1)?.isDigit() == true && next.isDigit())
     }
 
     private fun shouldSplitRawAfterPunctuation(
