@@ -138,6 +138,8 @@ adb shell run-as com.lits.tts.aarhost cat 'files/aar-frontend-<timestamp>.json'
 
 `AarStability1000DeviceTest` 和 `AarRtfAuditDeviceTest` 已统一接入正常授权与外置资源初始化。先完成上一节的宿主安装、资源和 license 部署；必须显式传入 `workPath` 与 `licensePath`。两个入口均不创建或清空资源目录，旧参数 `preserveWorkPath` 不再参与控制，传入与否都保留调用方资源。未授权或缺少参数会在执行批测前失败，不通过开发态放行。
 
+`workPath` 必须是已存在且可读的目录，`licensePath` 必须是已存在且可读的文件；这些检查和 UTF-8 授权文件读取均在启动测试页面之前完成。目录内部的模型清单仍由 SDK 校验，不在批测入口重复实现模型校验。
+
 先用 `caseLimit=1` 验证接入，再按验收目标扩大语料范围。下列完整批次命令是运行入口，不代表所有 100/424/1000 条已经验收通过；原有语料、生命周期断言与 RTF 参数未改变。其他历史 probe 类尚未迁移，不要不指定 class 就运行整个 `aarHost` 测试包。
 
 ### 100 条快速批测

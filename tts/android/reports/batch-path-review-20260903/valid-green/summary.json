@@ -1,0 +1,45 @@
+{
+  "runId": "aar-stability-1000-1788418278520",
+  "sourceAsset": "android_v3_sdk_stability_100_cases_improved_v2.jsonl",
+  "devicePackage": "com.lits.tts.aarhost",
+  "integrationPath": "aarHost implementation(files(\"..\/sdk\/build\/outputs\/aar\/sdk-release.aar\"))",
+  "totalAvailableCases": 100,
+  "totalRunCases": 1,
+  "enginePolicy": "shared engine for normal batch cases; lifecycle cases run with isolated engines",
+  "pass": 1,
+  "expectedError": 0,
+  "skipped": 0,
+  "fail": 0,
+  "categoryCounts": {
+    "smoke-api": 1
+  },
+  "finalSharedEngineShutdown": {
+    "before": {
+      "fdCount": 176,
+      "threadCount": 26,
+      "javaHeap": 132774616,
+      "nativeHeap": 24099184,
+      "pssKb": 326542,
+      "rssKb": 427212,
+      "vmHwmKb": 611480,
+      "litsThreadCount": 1,
+      "ttsThreadCount": 1,
+      "onnxThreadCount": 0
+    },
+    "after": {
+      "fdCount": 176,
+      "threadCount": 26,
+      "javaHeap": 132946408,
+      "nativeHeap": 24110512,
+      "pssKb": 326670,
+      "rssKb": 427276,
+      "vmHwmKb": 611480,
+      "litsThreadCount": 1,
+      "ttsThreadCount": 1,
+      "onnxThreadCount": 0
+    }
+  },
+  "startedAtMs": 1788418280031,
+  "finishedAtMs": 1788418297767,
+  "resultsFile": "\/storage\/emulated\/0\/Android\/data\/com.lits.tts.aarhost\/files\/aar-stability-1000\/results-aar-stability-1000-1788418278520.jsonl"
+}
