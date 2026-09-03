@@ -1913,7 +1913,8 @@ internal object LitsTtsFrontend {
                     wordPinyin = wordPinyin,
                     overrideWordPinyin = overrideWordPinyin,
                     polyphonicWords = polyphonicWords.get(),
-                    maxWordLength = (wordPinyin.keys + overrideWordPinyin.keys).maxOfOrNull { it.length } ?: 1,
+                    maxWordLength = (wordPinyin.keys.asSequence() + overrideWordPinyin.keys.asSequence())
+                        .maxOfOrNull { it.length } ?: 1,
                     cmudict = baseCmudict,
                     supplementLexicon = supplement,
                     englishLexicon = mergeEnglishLexicon(baseCmudict, supplement),
