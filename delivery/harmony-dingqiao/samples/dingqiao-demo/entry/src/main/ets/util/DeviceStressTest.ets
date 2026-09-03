@@ -2053,6 +2053,9 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   }
   const profile = customerScenarioProfile(scenario);
   const params = customerProfileStartParams(sessionId, scenario);
+  // The window gate feeds five hours; the customer meeting profile stops at two hours.
+  const maxAudioDurationMs = mode === 'diarization-windows' ? 28800000 : profile.maxAudioDuration;
+  params.extraParams['maxAudioDuration'] = maxAudioDurationMs;
   params.extraParams['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
@@ -2113,7 +2116,7 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   result.tailSilenceMs = mode === 'customer-ptt-tail' ? tailFrames * FRAME_DURATION_MS : -1;
   result.lastFinalsBeforeFinish = lastBeforeStop;
   result.requestedVadBeginMs = profile.vadBegin === undefined ? -1 : profile.vadBegin;
-  result.requestedMaxAudioDurationMs = profile.maxAudioDuration;
+  result.requestedMaxAudioDurationMs = maxAudioDurationMs;
   result.finishToLastMs = events.lastFinalAtMs < 0 ? -1 :
     events.lastFinalAtMs - finishRequestedAtMs;
   result.finishToDiarizationResultMs = events.speakerDiarizationResultAtMs < 0 ? -1 :

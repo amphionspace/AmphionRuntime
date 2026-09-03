@@ -1,5 +1,6 @@
 from pathlib import Path
 import subprocess
+import tempfile
 import textwrap
 import unittest
 
@@ -37,6 +38,45 @@ def run_node(script: str) -> None:
 
 
 class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
+    def test_window_stress_budget_admits_five_hours_without_changing_customer_profiles(self) -> None:
+        profile = PROFILE.read_text(encoding="utf-8").split("\n", 1)[1]
+        carrier = CARRIER.read_text(encoding="utf-8")
+        start = carrier.index("async function runCustomerScenarioCycle(")
+        end = carrier.index("  engine.startListening(params);", start)
+        setup = carrier[start:end] + "  engine.startListening(params);\n}\n"
+        audio_limit = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SessionAudioLimit.ts"
+        script = f"""
+            import assert from 'node:assert/strict';
+            import {{ maxAudioBytesOf }} from '{audio_limit.as_uri()}';
+            class StartParams {{ extraParams = {{}}; }}
+            class AudioInfo {{}}
+            class SpeakerDiarizationConfig {{}}
+            class SessionEvents {{}}
+            class StressListener {{}}
+            {profile}
+            {setup}
+            const captured = [];
+            const engine = {{ setListener() {{}}, startListening(params) {{ captured.push(params); }} }};
+            for (const mode of ['diarization-windows', 'customer-meeting-minutes', 'customer-form']) {{
+                await runCustomerScenarioCycle(engine, {{}}, 0, mode, 20);
+            }}
+            const [windows, meeting, form] = captured;
+            assert.ok(maxAudioBytesOf(windows.extraParams) > 18000000 * 32,
+                'five-hour input must finish before the configured automatic stop');
+            assert.equal(windows.extraParams.enableContinuousRecognition, false);
+            assert.equal(windows.speakerDiarization.maxSpeakers, 4);
+            assert.equal(meeting.extraParams.maxAudioDuration, 7200000);
+            assert.equal(maxAudioBytesOf(meeting.extraParams), 7200000 * 32);
+            assert.equal(form.extraParams.maxAudioDuration, 28800000);
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / "carrier-params.mts"
+            harness.write_text(textwrap.dedent(script), encoding="utf-8")
+            subprocess.run([
+                "node", "--experimental-strip-types", "--experimental-loader",
+                TS_LOADER.as_uri(), str(harness),
+            ], check=True, cwd=ROOT)
+
     def test_speaker_display_indexes_are_compact_and_keep_unassigned_hidden(self) -> None:
         run_node(
             f"""
