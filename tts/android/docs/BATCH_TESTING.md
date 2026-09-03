@@ -122,7 +122,7 @@ adb shell am instrument -w -r \
 adb shell am start -W -n com.lits.tts.aarhost/.AarHostActivity
 ```
 
-该页面仅在 Debug 宿主中对外开放，只显示测试状态，不接受输入或触发 SDK 操作。正常进入前台后，请保持页面可见；冻结过的运行只留作诊断记录，正式证据使用从启动起即保持前台的运行。
+该页面仅在 Debug 宿主中对外开放，只显示测试状态，不接受输入或触发 SDK 操作。正常进入前台后，请保持页面可见。因冻结未完成的运行只留作诊断记录；前台完成的功能验收应注明页面启动方式，不能把启动等待当作 SDK 合成耗时，也不能宣称后台恢复已验收。
 
 必须得到 `OK (1 test)`。未注入授权公钥的 `DEV_UNLICENSED` 构建不能通过。断言要求同一 requestId 下唯一 start、连续有序且非空的 PCM、唯一 `SYNTHESIS_COMPLETE`，没有 error/stop，随后 shutdown 返回；不固定 PCM 块数或合成耗时。
 
