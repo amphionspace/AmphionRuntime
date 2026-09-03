@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import re
 import subprocess
 import unittest
 
@@ -25,11 +26,14 @@ def git(*args: str, cwd: Path = ROOT) -> str:
 
 
 class SherpaSourceIsolationTest(unittest.TestCase):
+    def sample_job(self, workflow: str) -> str:
+        match = re.search(r"(?ms)^  android-samples:\n(.*?)(?=^  \S|\Z)", workflow)
+        self.assertIsNotNone(match, "android-samples job is missing from the workflow")
+        return match.group(1)
+
     def test_android_sample_ci_uses_the_tracked_gradle_wrapper(self) -> None:
         workflow = ANDROID_WORKFLOW.read_text(encoding="utf-8")
-        sample_job = workflow.split("  android-samples:\n", 1)[1].split(
-            "\n  ci-result:", 1
-        )[0]
+        sample_job = self.sample_job(workflow)
         self.assertNotIn("init_gradle_wrapper.sh", sample_job)
         for relative in (
             "asr/android/gradlew",
@@ -37,6 +41,18 @@ class SherpaSourceIsolationTest(unittest.TestCase):
             "asr/android/gradle/wrapper/gradle-wrapper.jar",
         ):
             self.assertEqual(relative, git("ls-files", "--error-unmatch", relative))
+
+    def test_android_sample_job_is_independent_of_job_order(self) -> None:
+        sample = "  android-samples:\n    steps: []\n"
+        other = "  another-job:\n    run: init_gradle_wrapper.sh\n"
+        result = "  ci-result:\n    steps: []\n"
+        for workflow in (sample + other + result, result + sample + other, other + result + sample):
+            with self.subTest(workflow=workflow):
+                self.assertEqual("    steps: []\n", self.sample_job(workflow))
+
+    def test_missing_android_sample_job_fails_clearly(self) -> None:
+        with self.assertRaisesRegex(AssertionError, "android-samples job"):
+            self.sample_job("  ci-result:\n    steps: []\n")
 
     def test_android_native_builds_redact_host_paths_before_packaging(self) -> None:
         sherpa_build = ANDROID_BUILD.read_text(encoding="utf-8")
