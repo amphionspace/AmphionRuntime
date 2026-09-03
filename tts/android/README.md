@@ -87,6 +87,8 @@ tts/android/external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_
 
 ## 验证状态
 
+2026-09-03 [完整 675 条前端语料基线](reports/pronunciation-corpus-20260903/README.md)已采集：380 条音素序列完全一致、295 条有差异、0 条执行错误，**完整发音对照尚未通过**。其中混有旧 golden 与已确认契约冲突、变调及其他前端差异，不能直接当作 295 个已确认 SDK 缺陷。已补报告门禁，防止仅凭 instrumentation 的 `OK` 误放行；未修改运行代码或 golden。
+
 2026-09-03 已补齐 [Release AAR 独立宿主最小接入门禁](reports/release-aar-host-20260903/README.md)：vivo V2505A / Android 16 上，正式授权、外置模型加载及公开 API 合成通过；21 个非空 PCM 回调连续有序，唯一 start/complete，shutdown 返回。宿主使用 Debug 签名，SDK 依赖为校验过的 Release AAR。运行方式见[批测说明](docs/BATCH_TESTING.md#当前-release-aar-最小接入门禁)。
 
 主要批测入口 `AarStability1000DeviceTest` / `AarRtfAuditDeviceTest` 已完成[授权与外置资源迁移](reports/batch-external-resources-20260903/README.md)，不再清空调用方目录。真机完成旧版红灯→同条件绿灯、2 个共享引擎相邻用例、20 次纯合成 RTF 及缺参检查；25 个模型文件校验值保持一致。这是入口迁移回归，不是全量 100/424/1000 条、播放、后台冻结恢复或长稳压验收；其他历史 probe 仍未迁移。

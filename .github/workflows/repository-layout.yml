@@ -45,6 +45,9 @@ jobs:
       - name: Check documented SDK versions
         run: python3 tools/check_repository_versions.py
 
+      - name: Test pronunciation report gate
+        run: python3 -m unittest discover -s tts/tools/android -p test_check_pronunciation_report.py -v
+
       - name: Test Git-external asset synchronization
         run: |
           python3 tools/assets/test_sync.py -v
