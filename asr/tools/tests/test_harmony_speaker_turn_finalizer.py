@@ -165,11 +165,15 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "this.dispatchFinal(endpointTriggered || finishTriggered"
         )
         replay = commit.index("this.replaySpeakerSuffixForFinish(split)")
-        tail_last = commit.index("this.drain(true, false, true)")
+        tail_flush = commit.index("'speaker-suffix', SPEAKER_FINAL_TAIL_MIN_PADDING_MS")
+        input_finished = commit.index("this.stream.inputFinished()", tail_flush)
+        tail_last = commit.index("this.drain(true, false, true, suffixTailDecodeMs)")
         self.assertIn("const prefixIsLast = isLast && !finishTriggered", commit)
         self.assertLess(endpoint, prefix_dispatch)
         self.assertLess(prefix_dispatch, replay)
-        self.assertLess(replay, tail_last)
+        self.assertLess(replay, tail_flush)
+        self.assertLess(tail_flush, input_finished)
+        self.assertLess(input_finished, tail_last)
         self.assertIn("if (finishTriggered && !this.callbackGate.isClosed())", commit)
         self.assertIn("this.reentryQueue.consumeStopAtEndpoint()", commit)
 
@@ -438,7 +442,8 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         endpoint_index = speaker_gate.index("this.triggerSpeakerVadEndpoint()", departure_index)
         self.assertLess(prepare_index, endpoint_index)
         self.assertIn("preparedSamples < split.prefix.length", commit)
-        self.assertIn("this.appendFinalTailSilence()", commit)
+        self.assertIn("'speaker-prefix', SPEAKER_FINAL_TAIL_MIN_PADDING_MS", commit)
+        self.assertNotIn("this.appendFinalTailSilence()", commit)
         self.assertNotIn("CLEAN_PREFIX_FINAL_TAIL_SILENCE_MS", source)
 
     def test_safe_predecode_watermark_is_before_the_score_transition_band(self) -> None:
