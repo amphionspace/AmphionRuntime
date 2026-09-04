@@ -183,6 +183,8 @@ def evaluate(args: argparse.Namespace) -> Path:
         stage_cases(root, selected, stage)
         stress_args = SimpleNamespace(
             data_dir=stage,
+            target_speaker_manifest=None,
+            expected_tail_manifest=None,
             mode="paced" if args.pace_ms > 0 else "burst",
             cycles=len(selected),
             files=0,
@@ -191,10 +193,13 @@ def evaluate(args: argparse.Namespace) -> Path:
             timeout=args.timeout,
             sample_interval=1.0,
             post_run_observe=0.0,
+            speaker_vad_threshold=None,
+            skip_target_content_check=False,
             max_rss_growth_mb=1024.0,
             max_thread_growth=32,
             max_empty_final_rate=1.0,
             skip_build_install=args.skip_build_install,
+            installed_package=False,
             device=args.device,
             output_root=output_root,
         )

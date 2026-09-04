@@ -36,22 +36,22 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
             for source in MODULE.RUNTIME_TO_ONNX_SOURCE.values()
         }
 
-    def test_default_policy_pins_amphion_119_edge_transducer_onnx_md5(self) -> None:
+    def test_default_policy_pins_police_candidate_onnx_md5(self) -> None:
         model_id, expected = MODULE.load_policy()
         policy = json.loads(MODULE.DEFAULT_POLICY_PATH.read_text(encoding="utf-8"))
         self.assertEqual(
-            "amphion-119-edge-transducer-chunk32-lc256-20260820-7.0.0-cp.5500",
+            "police-179m-v1-1-1.1.0-chunk32-lc256-edge-transducer",
             model_id,
         )
         self.assertEqual(
-            "b8193e9a0c98fda99aa8826b03eb5a15",
+            "6fd85a43dd226d7aa6f0db5b84be8c92",
             policy["source_bundle"]["md5"],
         )
         self.assertEqual(
             {
-                "encoder.int8.onnx": "d196506ff05a6365929eda6f6955f3f6",
-                "decoder.onnx": "8442eb2694dc5830f6f1b8fc84fbf98d",
-                "joiner.onnx": "1ed6a44ba9aaf767de148ef2aa9a3965",
+                "encoder.int8.onnx": "0bcad6878250a88261de9d4ca1129047",
+                "decoder.onnx": "5eda4a3e47144bcea5b110e3ebf2469e",
+                "joiner.onnx": "5d408055735dd5275076a099d8c505f0",
             },
             expected,
         )
