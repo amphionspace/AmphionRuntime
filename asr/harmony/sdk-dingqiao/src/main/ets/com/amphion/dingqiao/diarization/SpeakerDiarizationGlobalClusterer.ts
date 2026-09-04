@@ -4,15 +4,17 @@ export interface SpeakerDiarizationEmbeddingObservation {
   onlineSpeakerId: string;
   endTimeMs?: number;
   evidenceKey?: string;
+  anchorId?: string;
 }
 
 export interface SpeakerDiarizationClusterResult {
   observationSpeakerIds: string[];
   clusterCount: number;
   speakerRemap: Record<string, string>;
+  clusters: MutableCluster[];
 }
 
-interface MutableCluster {
+export interface MutableCluster {
   indexes: number[];
   centroid: number[];
   durationMs: number;
@@ -58,6 +60,7 @@ export class SpeakerDiarizationGlobalClusterer {
       let bestScore = -1;
       for (let left = 0; left < clusters.length; left++) {
         for (let right = left + 1; right < clusters.length; right++) {
+          if (!this.compatible(clusters[left].indexes, clusters[right].indexes, observations)) continue;
           const score = cosine(clusters[left].centroid, clusters[right].centroid);
           if (score > bestScore) {
             bestScore = score;
@@ -111,7 +114,18 @@ export class SpeakerDiarizationGlobalClusterer {
       });
       speakerRemap[source] = best;
     });
-    return { observationSpeakerIds, clusterCount: clusters.length, speakerRemap };
+    return { observationSpeakerIds, clusterCount: clusters.length, speakerRemap, clusters: byDuration };
+  }
+
+  private compatible(left: number[], right: number[], observations: SpeakerDiarizationEmbeddingObservation[]): boolean {
+    let anchor: string | undefined;
+    for (const index of left.concat(right)) {
+      const id = observations[index].anchorId;
+      if (id === undefined) continue;
+      if (anchor !== undefined && anchor !== id) return false;
+      anchor = id;
+    }
+    return true;
   }
 
   private merge(clusters: MutableCluster[], leftIndex: number, rightIndex: number): void {
@@ -137,6 +151,7 @@ export class SpeakerDiarizationGlobalClusterer {
       let bestIndex = -1;
       let bestScore = -1;
       for (let clusterIndex = 0; clusterIndex < clusters.length; clusterIndex++) {
+        if (!this.compatible(clusters[clusterIndex].indexes, [index], observations)) continue;
         const score = cosine(clusters[clusterIndex].centroid, centroid);
         if (score > bestScore) {
           bestScore = score;
