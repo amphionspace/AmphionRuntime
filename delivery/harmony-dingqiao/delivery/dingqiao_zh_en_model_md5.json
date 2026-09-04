@@ -1,13 +1,13 @@
 {
   "schema_version": 3,
-  "model_id": "amphion-119-edge-transducer-chunk32-lc256-20260820-7.0.0-cp.5500",
+  "model_id": "police-179m-v1-1-1.1.0-chunk32-lc256-edge-transducer",
   "source_bundle": {
     "name": "bundle.tar.gz",
-    "md5": "b8193e9a0c98fda99aa8826b03eb5a15"
+    "md5": "6fd85a43dd226d7aa6f0db5b84be8c92"
   },
   "onnx_files_md5": {
-    "decoder.onnx": "8442eb2694dc5830f6f1b8fc84fbf98d",
-    "encoder.int8.onnx": "d196506ff05a6365929eda6f6955f3f6",
-    "joiner.onnx": "1ed6a44ba9aaf767de148ef2aa9a3965"
+    "decoder.onnx": "5eda4a3e47144bcea5b110e3ebf2469e",
+    "encoder.int8.onnx": "0bcad6878250a88261de9d4ca1129047",
+    "joiner.onnx": "5d408055735dd5275076a099d8c505f0"
   }
 }
