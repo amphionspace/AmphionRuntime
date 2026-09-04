@@ -116,6 +116,9 @@ const FINAL_TAIL_STEP_MS: number = 20;
 const FINAL_TAIL_REQUIRED_DECODES: number = 2;
 // lc256 needs 256 ms of right context; keep a 64 ms margin before allowing one decode.
 const FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS: number = 320;
+// Fresh Speaker VAD replay streams need more right context than the live stream. Device and offline
+// cut-point differentials show the police model preserves the fixed-tail tokens from 800 ms onward.
+const SPEAKER_FINAL_TAIL_MIN_PADDING_MS: number = 800;
 const SPEAKER_TURN_SEGMENTATION_MODEL: string = 'pyannote-segmentation-3.0.onnx';
 
 export class AmphionRuntime {
@@ -1602,7 +1605,8 @@ export class AsrSession {
       // Don't rebuild the stream afterwards (session is ending), so a soft reset is enough.
       let tailDecodeMs = 0;
       if (this.speakerVadEnabled) {
-        this.appendFinalTailSilence();
+        tailDecodeMs = this.flushAdaptiveFinalTail(
+          this.stream, 'speaker-terminal', SPEAKER_FINAL_TAIL_MIN_PADDING_MS);
       } else {
         tailDecodeMs = this.flushAdaptiveFinalTail();
       }
@@ -1630,7 +1634,8 @@ export class AsrSession {
       if (await this.commitSpeakerTurnAtFinishAsync()) return;
       let tailDecodeMs = 0;
       if (this.speakerVadEnabled) {
-        this.appendFinalTailSilence();
+        tailDecodeMs = await this.flushAdaptiveFinalTailAsync(
+          this.stream, 'speaker-terminal', SPEAKER_FINAL_TAIL_MIN_PADDING_MS);
       } else {
         tailDecodeMs = await this.flushAdaptiveFinalTailAsync();
       }
@@ -1865,12 +1870,14 @@ export class AsrSession {
       isFinal, restartAfterFinal, isLastFinal, decodeDurationMs);
   }
 
-  private async drainFinalWithSpeakerScoreAsync(isLastFinal: boolean): Promise<void> {
+  private async drainFinalWithSpeakerScoreAsync(isLastFinal: boolean,
+    initialDecodeDurationMs: number = 0): Promise<void> {
     const scoreTask = this.prepareVadEndpointSpeakerScoreAsync();
     const decodeTask = this.recognizer.decodeAsync(this.stream);
     const settled = await Promise.all([scoreTask, decodeTask]);
     if (!settled[0] || this.callbackGate.isClosed()) return;
-    await this.processDecodedResultAsync(true, false, isLastFinal, settled[1]);
+    await this.processDecodedResultAsync(
+      true, false, isLastFinal, initialDecodeDurationMs + settled[1]);
   }
 
   private async processDecodedResultAsync(isFinal: boolean, restartAfterFinal: boolean,
@@ -2746,26 +2753,27 @@ export class AsrSession {
     await this.drainAsync(isFinal);
   }
 
-  private flushAdaptiveFinalTail(): number {
+  private flushAdaptiveFinalTail(stream: OnlineStream = this.stream,
+    scope: string = 'session', minimumPaddingMs: number = 0): number {
     const flushStartMs = Date.now();
     const planner = new FinalTailFlushPlanner(
       FINAL_TAIL_STEP_MS, FINAL_TAIL_SILENCE_MS, FINAL_TAIL_REQUIRED_DECODES,
-      FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS);
+      FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS, minimumPaddingMs);
     let decodeDurationMs = 0;
     while (!planner.isComplete()) {
-      if (this.recognizer.isReady(this.stream)) {
+      if (this.recognizer.isReady(stream)) {
         const decodeStartMs = Date.now();
-        this.recognizer.decode(this.stream);
+        this.recognizer.decode(stream);
         decodeDurationMs += Date.now() - decodeStartMs;
         planner.recordDecode();
         continue;
       }
       const paddingMs = planner.nextPaddingMs();
       if (paddingMs <= 0) break;
-      this.appendFinalTailSilence(paddingMs);
+      this.appendFinalTailSilence(paddingMs, stream);
       planner.recordPadding(paddingMs);
     }
-    Logger.metric(`kind=FINAL_TAIL sessionId=${this.sessionId} ` +
+    Logger.metric(`kind=FINAL_TAIL sessionId=${this.sessionId} scope=${scope} ` +
       `paddingMs=${planner.paddingDurationMs()} ` +
       `decodeOpportunities=${planner.decodeOpportunities()} ` +
       `decodeDurationMs=${decodeDurationMs} elapsedMs=${Date.now() - flushStartMs} ` +
@@ -2774,24 +2782,25 @@ export class AsrSession {
     return decodeDurationMs;
   }
 
-  private async flushAdaptiveFinalTailAsync(): Promise<number> {
+  private async flushAdaptiveFinalTailAsync(stream: OnlineStream = this.stream,
+    scope: string = 'session', minimumPaddingMs: number = 0): Promise<number> {
     const flushStartMs = Date.now();
     const planner = new FinalTailFlushPlanner(
       FINAL_TAIL_STEP_MS, FINAL_TAIL_SILENCE_MS, FINAL_TAIL_REQUIRED_DECODES,
-      FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS);
+      FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS, minimumPaddingMs);
     let decodeDurationMs = 0;
     while (!planner.isComplete() && !this.callbackGate.isClosed()) {
-      if (this.recognizer.isReady(this.stream)) {
-        decodeDurationMs += await this.recognizer.decodeOneAsync(this.stream);
+      if (this.recognizer.isReady(stream)) {
+        decodeDurationMs += await this.recognizer.decodeOneAsync(stream);
         planner.recordDecode();
         continue;
       }
       const paddingMs = planner.nextPaddingMs();
       if (paddingMs <= 0) break;
-      this.appendFinalTailSilence(paddingMs);
+      this.appendFinalTailSilence(paddingMs, stream);
       planner.recordPadding(paddingMs);
     }
-    Logger.metric(`kind=FINAL_TAIL sessionId=${this.sessionId} ` +
+    Logger.metric(`kind=FINAL_TAIL sessionId=${this.sessionId} scope=${scope} ` +
       `paddingMs=${planner.paddingDurationMs()} ` +
       `decodeOpportunities=${planner.decodeOpportunities()} ` +
       `decodeDurationMs=${decodeDurationMs} elapsedMs=${Date.now() - flushStartMs} ` +
@@ -2800,11 +2809,12 @@ export class AsrSession {
     return decodeDurationMs;
   }
 
-  private appendFinalTailSilence(durationMs: number = FINAL_TAIL_SILENCE_MS): void {
+  private appendFinalTailSilence(durationMs: number = FINAL_TAIL_SILENCE_MS,
+    stream: OnlineStream = this.stream): void {
     const n = Math.max(0, Math.round(ASR_SAMPLE_RATE_HZ * durationMs / 1000));
     if (n === 0) return;
     const wave: Samples = { samples: new Float32Array(n), sampleRate: ASR_SAMPLE_RATE_HZ } as Samples;
-    this.stream.acceptWaveform(wave);
+    stream.acceptWaveform(wave);
   }
 
   private applyTargetSpeaker(result: AsrResult, samples: Float32Array): void {
@@ -3428,18 +3438,20 @@ export class AsrSession {
       const preparedDecodeMs = preparedSamples > 0 ? this.svPreparedPrefixDecodeMs : 0;
       if (preparedSamples > 0) prefixStream = this.svPreparedPrefixStream;
       if (prefixStream === undefined) prefixStream = this.recognizer.createStream();
+      const activePrefixStream: OnlineStream = prefixStream;
       this.svPreparedPrefixStream = undefined;
       this.svPreparedPrefixSamples = 0;
       this.svPreparedPrefixDecodeMs = 0;
-      this.stream = prefixStream;
+      this.stream = activePrefixStream;
       const decodeStartMs = Date.now();
       if (preparedSamples < split.prefix.length) {
         const prefixWave: Samples = {
           samples: split.processedPrefix.slice(preparedSamples), sampleRate: ASR_SAMPLE_RATE_HZ
         } as Samples;
-        prefixStream.acceptWaveform(prefixWave);
+        activePrefixStream.acceptWaveform(prefixWave);
       }
-      this.appendFinalTailSilence();
+      this.flushAdaptiveFinalTail(
+        prefixStream, 'speaker-prefix', SPEAKER_FINAL_TAIL_MIN_PADDING_MS);
       prefixStream.inputFinished();
       while (this.recognizer.isReady(prefixStream)) this.recognizer.decode(prefixStream);
       const clean = this.recognizer.getResult(prefixStream);
@@ -3495,9 +3507,10 @@ export class AsrSession {
         this.replaySpeakerSuffix(split);
       }
       if (finishTriggered && !this.callbackGate.isClosed()) {
-        this.appendFinalTailSilence();
+        const suffixTailDecodeMs = this.flushAdaptiveFinalTail(
+          this.stream, 'speaker-suffix', SPEAKER_FINAL_TAIL_MIN_PADDING_MS);
         this.stream.inputFinished();
-        this.drain(true, false, true);
+        this.drain(true, false, true, suffixTailDecodeMs);
         if (!this.callbackGate.isClosed()) this.notifyStopped();
         return true;
       }
@@ -3580,18 +3593,17 @@ export class AsrSession {
       const preparedDecodeMs = preparedSamples > 0 ? this.svPreparedPrefixDecodeMs : 0;
       if (preparedSamples > 0) prefixStream = this.svPreparedPrefixStream;
       if (prefixStream === undefined) prefixStream = this.recognizer.createStream();
+      const activePrefixStream: OnlineStream = prefixStream;
       this.svPreparedPrefixStream = undefined;
       this.svPreparedPrefixSamples = 0;
       this.svPreparedPrefixDecodeMs = 0;
-      this.stream = prefixStream;
+      this.stream = activePrefixStream;
       if (preparedSamples < split.prefix.length) {
         const prefixWave: Samples = {
           samples: split.processedPrefix.slice(preparedSamples), sampleRate: ASR_SAMPLE_RATE_HZ
         } as Samples;
-        prefixStream.acceptWaveform(prefixWave);
+        activePrefixStream.acceptWaveform(prefixWave);
       }
-      this.appendFinalTailSilence();
-      prefixStream.inputFinished();
       if (!this.svSpeakerScorePrepared) {
         cleanPrefixScoreTask = this.computeCleanPrefixSpeakerScoreAsync(split)
           .then((score: number | undefined): void => { cleanPrefixScore = score; })
@@ -3599,7 +3611,12 @@ export class AsrSession {
       }
       let decodeDurationMs = 0;
       let decodeError: Object | undefined;
-      const decodeTask = this.recognizer.decodeAsync(prefixStream)
+      const decodeTask = this.flushAdaptiveFinalTailAsync(
+        activePrefixStream, 'speaker-prefix', SPEAKER_FINAL_TAIL_MIN_PADDING_MS)
+        .then(async (tailDecodeMs: number): Promise<number> => {
+          activePrefixStream.inputFinished();
+          return tailDecodeMs + await this.recognizer.decodeAsync(activePrefixStream);
+        })
         .then((durationMs: number): void => { decodeDurationMs = durationMs; })
         .catch((e: Object): void => { decodeError = e; });
       await Promise.all([cleanPrefixScoreTask, decodeTask]);
@@ -3668,9 +3685,10 @@ export class AsrSession {
         await this.replaySpeakerSuffixAsync(split);
       }
       if (finishTriggered && !this.callbackGate.isClosed()) {
-        this.appendFinalTailSilence();
+        const suffixTailDecodeMs = await this.flushAdaptiveFinalTailAsync(
+          this.stream, 'speaker-suffix', SPEAKER_FINAL_TAIL_MIN_PADDING_MS);
         this.stream.inputFinished();
-        await this.drainFinalWithSpeakerScoreAsync(true);
+        await this.drainFinalWithSpeakerScoreAsync(true, suffixTailDecodeMs);
         if (!this.callbackGate.isClosed()) this.notifyStopped();
         return true;
       }
