@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -45,6 +48,41 @@ class EvaluatePoliceCorpusTest(unittest.TestCase):
             {theme: sum(case["category"] == theme for case in selected) for theme in evaluation.THEMES},
             {theme: 2 for theme in evaluation.THEMES},
         )
+
+    def test_evaluate_supplies_disabled_defaults_for_optional_stress_features(self) -> None:
+        class ExpectedStop(Exception):
+            pass
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for theme in evaluation.THEMES:
+                theme_dir = root / theme
+                (theme_dir / "wavs").mkdir(parents=True)
+                (theme_dir / "cases.tsv").write_text(
+                    "utt_id\tref_text\taudio_path\n"
+                    f"{theme}-1\t警情\twavs/{theme}-1.wav\n",
+                    encoding="utf-8",
+                )
+
+            def assert_stress_defaults(args: SimpleNamespace) -> None:
+                self.assertIsNone(args.target_speaker_manifest)
+                self.assertIsNone(args.expected_tail_manifest)
+                self.assertIsNone(args.speaker_vad_threshold)
+                self.assertFalse(args.skip_target_content_check)
+                self.assertFalse(args.installed_package)
+                raise ExpectedStop
+
+            args = SimpleNamespace(
+                data_dir=root,
+                device="device",
+                limit_per_category=1,
+                pace_ms=20,
+                timeout=60,
+                skip_build_install=True,
+            )
+            with mock.patch.object(evaluation, "run_stress", side_effect=assert_stress_defaults):
+                with self.assertRaises(ExpectedStop):
+                    evaluation.evaluate(args)
 
 
 if __name__ == "__main__":
