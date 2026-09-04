@@ -151,6 +151,56 @@
         }
       ]
     },
+    "asr-zhen-police-179m-v1-1-v1.1.0": {
+      "description": "Candidate police-domain ZH_EN streaming Zipformer2r model; desktop A/B shows a small general-domain regression, so it is not the canonical packaging input",
+      "license": "internal-controlled-model",
+      "source": "amphion-119 controlled model pipeline 260904",
+      "source_archive_sha256": "5bfe142b429a99d09cabd9789f67fd029e44848e23b2e04624f7a7630f4d778a",
+      "redistribution": "team-internal-only",
+      "destination": "asr/tools/demo-model/police-179m-v1-1-1.1.0-chunk32-lc256-edge-transducer",
+      "archive_root": "police-179m-v1-1-1.1.0-chunk32-lc256-edge-transducer",
+      "archive_type": "zip",
+      "object": "asr-zhen-police-179m-v1-1-v1.1.0/b2aace0db10e84faa561a025b9d0ea88cf7eb07edc5f7b7d217a18d637166cab.zip",
+      "size": 151343968,
+      "sha256": "b2aace0db10e84faa561a025b9d0ea88cf7eb07edc5f7b7d217a18d637166cab",
+      "files": [
+        {
+          "path": "bbpe.model",
+          "size": 380510,
+          "sha256": "6232b8a79b91b3831a3ab7ab71168a21abac87cd85449982857f9de3bc578d73"
+        },
+        {
+          "path": "bbpe.vocab",
+          "size": 232130,
+          "sha256": "aa7a1b34d6a10e666f32dd7bc34599f16bd7602a3ed67602873c603dae978514"
+        },
+        {
+          "path": "decoder.onnx",
+          "size": 17453084,
+          "sha256": "5e4a812403ff3ae47b191aba81805d2e9df6e839f3dd8200d0e529d1fc82e418"
+        },
+        {
+          "path": "encoder.int8.onnx",
+          "size": 161135709,
+          "sha256": "5b8f9c3b40a5dfe3c82a53513a11a68751abee0e9af56f72aeaa1ff7516e8888"
+        },
+        {
+          "path": "joiner.onnx",
+          "size": 16416467,
+          "sha256": "d67214dbe287b904b6f49c5d68399f9a68813f764a5833c8bf554156634ae869"
+        },
+        {
+          "path": "manifest.json",
+          "size": 1531,
+          "sha256": "4d90dcff5191586992cfc996a9891d629be7d60a8b4399c1d0df95d216aa6e12"
+        },
+        {
+          "path": "tokens.txt",
+          "size": 115253,
+          "sha256": "1521aa1a13cef2d7e30579aaae39d109648f16af334727a6d95760c767a01e15"
+        }
+      ]
+    },
     "harmony-demo-license-v1": {
       "description": "Current Harmony Dingqiao demo runtime license",
       "license": "confidential-team-material",
