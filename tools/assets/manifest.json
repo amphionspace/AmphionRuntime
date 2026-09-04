@@ -152,7 +152,7 @@
       ]
     },
     "asr-zhen-police-179m-v1-1-v1.1.0": {
-      "description": "Candidate police-domain ZH_EN streaming Zipformer2r model; desktop A/B shows a small general-domain regression, so it is not the canonical packaging input",
+      "description": "Police-domain ZH_EN streaming Zipformer2r model pinned for Dingqiao packaging; desktop A/B shows a small general-domain regression, so it is not an unconditional general-domain upgrade",
       "license": "internal-controlled-model",
       "source": "amphion-119 controlled model pipeline 260904",
       "source_archive_sha256": "5bfe142b429a99d09cabd9789f67fd029e44848e23b2e04624f7a7630f4d778a",
