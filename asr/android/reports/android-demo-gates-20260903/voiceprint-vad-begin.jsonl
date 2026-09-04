@@ -1,0 +1,36 @@
+{"ts": 1788406500124, "case": "runtime_prepare", "phase": "init_start"}
+{"ts": 1788406501295, "case": "runtime_prepare", "phase": "init_complete"}
+{"ts": 1788406501295, "case": "runtime_prepare", "phase": "work_path_complete"}
+{"ts": 1788406501296, "case": "runtime_prepare", "phase": "license_staged"}
+{"ts": 1788406501296, "case": "runtime_prepare", "phase": "license_invoked"}
+{"ts": 1788406501387, "case": "runtime_prepare", "phase": "license_complete"}
+{"ts": 1788406501387, "case": "runtime_prepare", "phase": "prepare_invoked"}
+{"ts": 1788406502479, "case": "runtime_prepare", "phase": "prepare_complete"}
+{"ts": 1788406502483, "case": "voiceprint_register", "phase": "start", "sample": "000_enroll.wav"}
+{"ts": 1788406503126, "case": "voiceprint_register", "phase": "complete", "sample": "000_enroll.wav", "idCount": 1}
+{"ts": 1788406503126, "case": "engine_create", "phase": "start"}
+{"ts": 1788406503522, "case": "engine_create", "phase": "complete"}
+{"ts": 1788406503523, "case": "v04b_voiceprintVadBegin", "phase": "start_listening"}
+{"ts": 1788406503537, "case": "v04b_voiceprintVadBegin", "phase": "start_returned"}
+{"ts": 1788406503537, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "START", "isLast": false}
+{"ts": 1788406504287, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "EVENT", "isLast": false}
+{"ts": 1788406505477, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406506125, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406506802, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406507452, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406535645, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406536326, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406536958, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406537598, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406538271, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406538913, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406539559, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406540235, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "PARTIAL", "isLast": false}
+{"ts": 1788406541949, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "EVENT", "isLast": false}
+{"ts": 1788406542397, "case": "finish_requested", "sessionId": "vp-vadbegin-1788406503523", "enableVoiceprintVerification": true, "enableSpeakerVad": false, "voiceprintIdCount": 1, "vadBeginMs": 1000, "frontSilenceMs": 300, "pcmDurationMs": 11040, "lastBeforeFinish": 0}
+{"ts": 1788406543440, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "FINAL", "isLast": false}
+{"ts": 1788406543701, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "FINAL", "isLast": true}
+{"ts": 1788406543701, "case": "callback", "sessionId": "vp-vadbegin-1788406503523", "kind": "COMPLETE", "isLast": false}
+{"ts": 1788406543701, "case": "v04b_voiceprintVadBegin", "main": "001_recognize.wav", "completed": true, "lastCount": 1, "scoredFinalCount": 1, "speakerSimilarities": "[0.10566215]", "errorCodes": "[]"}
+{"ts": 1788406543704, "case": "runtime_release", "phase": "start"}
+{"ts": 1788406543834, "case": "runtime_release", "phase": "complete"}

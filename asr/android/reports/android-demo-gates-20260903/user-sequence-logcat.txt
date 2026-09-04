@@ -1,0 +1,4 @@
+09-03 11:37:51.445  9807  9826 I TestRunner: run started: 1 tests
+09-03 11:37:51.445  9807  9826 I TestRunner: started: a13_userSequenceStress_300Cycles(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-03 11:42:19.696  9807  9826 I TestRunner: finished: a13_userSequenceStress_300Cycles(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-03 11:42:20.865  9807  9826 I TestRunner: run finished: 1 tests, 0 failed, 0 ignored

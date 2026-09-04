@@ -3,6 +3,18 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+val generatedAndroidTestAssets = layout.buildDirectory.dir("generated/androidTestAssets")
+val stageAndroidTestAssets = tasks.register<Sync>("stageAndroidTestAssets") {
+    from(rootProject.file("testdata/dingqiao_batch_cases")) {
+        include(
+            "android_v3_sdk_stability_100_cases_improved_v2.jsonl",
+            "android_v3_sdk_stability_424_cases_improved_v3.jsonl",
+            "android_v3_sdk_stability_1000_cases_improved.jsonl",
+        )
+    }
+    into(generatedAndroidTestAssets)
+}
+
 android {
     namespace = "com.lits.tts.aarhost"
     compileSdk = 34
@@ -27,6 +39,8 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    sourceSets["androidTest"].assets.srcDir(generatedAndroidTestAssets)
 }
 
 dependencies {
@@ -38,4 +52,8 @@ dependencies {
 
 tasks.named("preBuild") {
     dependsOn(":sdk:assembleRelease")
+}
+
+tasks.matching { it.name == "mergeDebugAndroidTestAssets" }.configureEach {
+    dependsOn(stageAndroidTestAssets)
 }

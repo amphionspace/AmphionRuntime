@@ -24,9 +24,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 class AarRtfAuditDeviceTest {
+    @get:Rule
+    val externalResources = AarLicensedExternalResourcesRule()
+
     private val context = ApplicationProvider.getApplicationContext<android.content.Context>()
     private val outputDir = File(
         context.getExternalFilesDir(null) ?: context.filesDir,
@@ -36,11 +40,6 @@ class AarRtfAuditDeviceTest {
 
     @Test
     fun auditSharedEngineRtf() {
-        TextToSpeechSdk.setWorkPath(File(context.cacheDir, "aar-rtf-audit-work").apply {
-            deleteRecursively()
-            mkdirs()
-        }.absolutePath)
-
         val resultsFile = File(outputDir, "results-$runId.jsonl")
         val summaryFile = File(outputDir, "summary-$runId.json")
         val createStartMs = SystemClock.elapsedRealtime()
@@ -108,11 +107,6 @@ class AarRtfAuditDeviceTest {
 
     @Test
     fun auditMediumSynthesizeOnlyRtf20() {
-        TextToSpeechSdk.setWorkPath(File(context.cacheDir, "aar-rtf-audit-medium-only-work").apply {
-            deleteRecursively()
-            mkdirs()
-        }.absolutePath)
-
         val mediumOnlyRunId = "$runId-medium-synth-only"
         val resultsFile = File(outputDir, "results-$mediumOnlyRunId.jsonl")
         val summaryFile = File(outputDir, "summary-$mediumOnlyRunId.json")
@@ -185,11 +179,6 @@ class AarRtfAuditDeviceTest {
 
     @Test
     fun auditMediumPlaybackRtf20() {
-        TextToSpeechSdk.setWorkPath(File(context.cacheDir, "aar-rtf-audit-medium-playback-work").apply {
-            deleteRecursively()
-            mkdirs()
-        }.absolutePath)
-
         val playbackRunId = "$runId-medium-playback"
         val resultsFile = File(outputDir, "results-$playbackRunId.jsonl")
         val summaryFile = File(outputDir, "summary-$playbackRunId.json")

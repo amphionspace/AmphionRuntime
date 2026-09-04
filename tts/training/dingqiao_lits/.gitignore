@@ -36,6 +36,10 @@ afnas_pupuvocoder_*/
 tools/
 infer_hifigan*
 
+# Rebuilt for the active Python and host platform.
+lits/utils/monotonic_align/core.c
+lits/utils/monotonic_align/core.cpython-*.so
+
 
 # make sure to ignore all transsion's data
 transsion*

@@ -1,0 +1,50 @@
+{
+  "scope": "Android TTS calendar expansion and raw streaming token boundaries",
+  "scope_status": "LOCAL_PASS_DEVICE_PENDING",
+  "release_status": "BLOCKED",
+  "blocking_reasons": ["Final Android SDK device gate has not run; no adb device connected"],
+  "source_commit": "530a41a2270ccfd7eb16cf074838335685aa474b",
+  "runtime_commit": "cc2be67a3fa062cc3f5dc72be95da55a46e0a3e9",
+  "calendar_fix_commit": "2faa61581a5b3d300f4ea6926ad96bf47aad7e35",
+  "build": {
+    "sdk_version": "3.0",
+    "model_version": "0.1.0",
+    "apk_variant": "debugAndroidTest",
+    "apk_signing": "Android debug signing",
+    "license": "existing TTS-only instrumentation fixture; normal enforced activation",
+    "apk_sha256": "7a9920ee8527637257bfda077966e2d48041d4dd698a38b3a12b813230e33ef9",
+    "release_aar_sha256": "ae4246fbd21e1d66844be344f64208478b7ac48f1ae29728742685ba434bced4",
+    "model_manifest_sha256": "0bdf0071387ec26c03fc55fedcad6c8a65c9c2ef83ae3f367418d46e04941168"
+  },
+  "verification": {
+    "calendar_red_then_green": true,
+    "streaming_red_then_green": true,
+    "full_jvm": {"tests": 103, "passed": 100, "failed": 0, "skipped": 3},
+    "jvm_evidence_reuse": "Runtime and JVM tests unchanged from cc2be67a to build commit; 530a41a2 changes only instrumentation",
+    "jvm_native_tn_covered": false,
+    "release_aar_build": "PASS",
+    "debug_instrumentation_build": "PASS",
+    "current_device_gate": "PENDING_DEVICE_RECONNECT",
+    "device_cases_prepared_not_executed": {"temperature": 7, "calendar": 4, "streaming_boundary": 1, "public_sdk_synthesis": 1},
+    "prior_device_pass_applies_to_current_binary": false
+  },
+  "evidence_sha256": {
+    "build-final.log": "fa9948934ee16294702eb73c6f463081630e14cd935d82783efec4eed7050c81",
+    "calendar-green.log": "23a5b052e81612cd1a094ff3e96142c1cf266ec7765c4beb175cca14f4c13571",
+    "calendar-red.log": "c275f7d363288eaa28997506fab828724c3061f9992965176e967ccf3229b2d9",
+    "jvm-results.json": "2f4f7fd1423c9456548af33d47ebdd0cb2a15533016293399c2bf15dc109e2cf",
+    "numeric-contracts.log": "ef4a3b5e2c55a697a09be13802c3116ffa063267e320a07fa17e69ed691a2a06",
+    "numeric-full.log": "ca36dff9612c6c0dbc291a8b589264e578cbdcdfdc699f3286c2756e6fab985a",
+    "split-full.log": "04d2c4bb1b3630f4a728a3445e8764ea00e472c7405a3b2d20c300a70fb5cd00",
+    "split-green.log": "23a5b052e81612cd1a094ff3e96142c1cf266ec7765c4beb175cca14f4c13571",
+    "split-red.log": "2340cfdc490035ab73f2f87a00e3a3ee32466dd433a1e38df68a5049e5fa5d62"
+  },
+  "not_covered": [
+    "Final Android native TN and public SDK synthesis device gate",
+    "Full pronunciation corpus; three existing optional/ignored JVM tests remain skipped",
+    "Oversized technical-token device latency and memory",
+    "Long-duration resource stability",
+    "Harmony device",
+    "Release AAR host-device run"
+  ]
+}

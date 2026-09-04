@@ -12,19 +12,4 @@
         android:title="@string/menu_hotwords"
         app:showAsAction="never" />
 
-    <item
-        android:id="@+id/action_batch_eval"
-        android:title="@string/menu_batch_eval"
-        app:showAsAction="never" />
-
-    <item
-        android:id="@+id/action_station_batch_eval"
-        android:title="@string/menu_station_batch_eval"
-        app:showAsAction="never" />
-
-    <item
-        android:id="@+id/action_terms_batch_eval"
-        android:title="@string/menu_terms_batch_eval"
-        app:showAsAction="never" />
-
 </menu>

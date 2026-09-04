@@ -64,7 +64,9 @@ internal class PostProcessor(
         if (punctuation != null) {
             text = punctuation.addPunctuation(text, onError)
         }
-        return if (text === raw.text) raw else raw.copy(text = text)
+        val result = if (text === raw.text) raw else raw.copy(text = text)
+        ResultAudioTimeline.transfer(raw, result)
+        return result
     }
 
     override fun close() {

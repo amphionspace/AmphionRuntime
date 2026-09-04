@@ -36,11 +36,11 @@ bash asr/tools/05_package_har_libs.sh
 产物：
 
 ```text
-third_party/sherpa-onnx/build-ohos-arm64-v8a/install/lib/libsherpa-onnx-c-api.so
-third_party/sherpa-onnx/build-ohos-arm64-v8a/install/lib/libonnxruntime.so
+third_party/.derived/sherpa-onnx/build-ohos-arm64-v8a/install/lib/libsherpa-onnx-c-api.so
+third_party/.derived/sherpa-onnx/build-ohos-arm64-v8a/install/lib/libonnxruntime.so
 asr/native/audio-processing/build-ohos-arm64-v8a/libamphion_audio_processing.so
 asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/
-third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/
+third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/
 ```
 
 ## 模型预优化与资源打包

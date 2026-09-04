@@ -6,17 +6,31 @@
 #   Pinning a local-only commit breaks `git submodule update` for the whole team.
 #   Patches live in third_party/patches/sherpa-amphion/ and ship with amphion-runtime.
 #
-# Usage (from repo root):
-#   bash asr/tools/apply_sherpa_patches.sh
+# This low-level command only accepts an explicit derived checkout. Normal
+# builds must call prepare_sherpa_source.sh, which creates that checkout from
+# the superproject's pinned gitlink without mutating the canonical submodule.
 #
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SHERPA_ROOT="${AMPHION_SHERPA_ROOT:-$REPO_ROOT/third_party/sherpa-onnx}"
-PATCH_DIR="$REPO_ROOT/third_party/patches/sherpa-amphion"
-UPSTREAM_TAG="v1.13.1"
+CANONICAL_ROOT="$REPO_ROOT/third_party/sherpa-onnx"
+SHERPA_ROOT="${AMPHION_SHERPA_ROOT:-}"
+PATCH_DIR="${AMPHION_PATCH_DIR:-$REPO_ROOT/third_party/patches/sherpa-amphion}"
+BASE_COMMIT="${AMPHION_SHERPA_BASE_COMMIT:-$(git -C "$REPO_ROOT" rev-parse :third_party/sherpa-onnx)}"
 MARKER_FILE="$SHERPA_ROOT/.amphion-patches-applied"
+
+if [[ -z "$SHERPA_ROOT" ]]; then
+  echo "[ERROR] AMPHION_SHERPA_ROOT is required; run prepare_sherpa_source.sh" >&2
+  exit 1
+fi
+
+canonical_real="$(cd "$CANONICAL_ROOT" && pwd -P)"
+sherpa_real="$(cd "$SHERPA_ROOT" 2>/dev/null && pwd -P || true)"
+if [[ -n "$sherpa_real" && "$sherpa_real" == "$canonical_real" ]]; then
+  echo "[ERROR] refusing to patch the canonical sherpa-onnx submodule: $CANONICAL_ROOT" >&2
+  exit 1
+fi
 
 # .git is a gitfile (not a dir) in submodule layout, so test existence not dir-ness.
 if [[ ! -e "$SHERPA_ROOT/.git" ]]; then
@@ -38,41 +52,30 @@ else
   PATCH_SIG="$(cat "$PATCH_DIR"/*.patch | sha256sum | awk '{print $1}')"
 fi
 if [[ -f "$MARKER_FILE" ]] && [[ "$(cat "$MARKER_FILE")" == "$PATCH_SIG" ]]; then
+  if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+    echo "[ERROR] derived sherpa checkout has tracked modifications: $SHERPA_ROOT" >&2
+    exit 1
+  fi
   echo "[SKIP] sherpa-amphion patches already applied ($PATCH_SIG)"
   exit 0
 fi
 
-echo "[INFO] reset sherpa-onnx to upstream $UPSTREAM_TAG before applying patches ..."
-git fetch --tags origin 2>/dev/null || true
-git checkout "$UPSTREAM_TAG"
-
-# Drop prior Amphion patch commits if re-running on a dirty tree.
-if git rev-parse --verify refs/tags/"$UPSTREAM_TAG" >/dev/null 2>&1; then
-  git reset --hard "$UPSTREAM_TAG"
+actual_commit="$(git rev-parse HEAD)"
+if [[ "$actual_commit" != "$BASE_COMMIT" ]]; then
+  echo "[ERROR] derived sherpa checkout is not at pinned base" >&2
+  echo "        expected: $BASE_COMMIT" >&2
+  echo "        actual:   $actual_commit" >&2
+  exit 1
 fi
-
-# `reset --hard` does not remove files introduced by an earlier patch application when that
-# application was later reset to the upstream tag. Remove only the patch-owned collision; never
-# use a broad `git clean`, because the submodule may also contain unrelated local build inputs.
-PATCH_OWNED_NEW_FILES=(
-  "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-stream-handle.h"
-  "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/online-recognizer-handle.h"
-  "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/offline-punctuation-handle.h"
-  "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-embedding-extractor-handle.h"
-  "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn-handle.h"
-  "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc"
-  "harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/WetextItn.ets"
-)
-for path in "${PATCH_OWNED_NEW_FILES[@]}"; do
-  if [[ -e "$path" ]] && ! git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
-    rm -f -- "$path"
-  fi
-done
+if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then
+  echo "[ERROR] derived sherpa checkout is dirty; refusing to overwrite it: $SHERPA_ROOT" >&2
+  exit 1
+fi
 
 echo "[INFO] applying $(ls "$PATCH_DIR"/*.patch | wc -l | tr -d ' ') patch(es) from $PATCH_DIR ..."
 GIT_COMMITTER_NAME="${GIT_COMMITTER_NAME:-Amphion CI}" \
 GIT_COMMITTER_EMAIL="${GIT_COMMITTER_EMAIL:-ci@amphion.local}" \
-  git am --3way "$PATCH_DIR"/*.patch
+  git am --3way --committer-date-is-author-date "$PATCH_DIR"/*.patch
 
 echo "$PATCH_SIG" > "$MARKER_FILE"
-echo "[OK] sherpa-onnx patched at $(git rev-parse --short HEAD) (base $UPSTREAM_TAG + amphion patches)"
+echo "[OK] sherpa-onnx patched at $(git rev-parse --short HEAD) (base ${BASE_COMMIT:0:12} + amphion patches)"

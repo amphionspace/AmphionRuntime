@@ -1,0 +1,44 @@
+{
+  "scope": "PR 191 missing workPath diagnostic and review closure",
+  "scope_status": "PASS",
+  "source_commit": "1278a02ec95537731d4351f868d2a7f596a32d9e",
+  "device": {
+    "model": "vivo V2505A",
+    "android": "16",
+    "api": 36
+  },
+  "build": {
+    "sdk_test_apk_sha256": "f90b1f32357c9d14557efe794054e4320111f5951b9e4e7cffe8f445a1733aad",
+    "installed_apk_matches": true,
+    "release_aar_sha256": "72174502b6fc9420d148a23b965b119dff9874c0fe39bd64812b4abe0c42622c",
+    "release_aar_unchanged": true,
+    "runtime_unchanged": true
+  },
+  "validation": {
+    "missing_workpath": "Expected IllegalArgumentException with actionable -e workPath hint; instrumentation failure is intentional",
+    "valid_workpath": {
+      "cases": 7,
+      "passed": 7,
+      "seconds": 2.08,
+      "full_token_arrays_match": true
+    }
+  },
+  "reused_evidence": "../stock-code-20260903/report.json",
+  "reused_evidence_sha256": "55a9d9c4ef90da75cfe982fb43188f43c66f918b3c219937cfad30578d16b48c",
+  "full_pronunciation_status": "FAIL (380/675 exact matches; no golden changes)",
+  "review": {
+    "missing_argument_hint": "accepted",
+    "shared_rule_holder": "not adopted: broader structural change outside the scoped fix"
+  },
+  "evidence_normalization": "Trailing whitespace and extra final blank lines removed from command logs only; device JSON unchanged",
+  "evidence_sha256": {
+    "README.md": "78bc2d93203219ccd1bff2194e4c25e629cd645e488f26f2797601fd87563f43",
+    "build.log": "c988eaae75ef4a62e0dd92d744275715e4f2a7d922fef58497db800e799b20be",
+    "device-report.json": "c12d1ea88994311950a5d0461f592227bd91633a4a06bbacf2ffbc9a74dfc295",
+    "install-ready.log": "781a31c82430c97897af612ece5e0ca2205e301cb5ff121ce2660541ea5182c7",
+    "missing-workpath.log": "42f858507b73d25d0215d19c809468db42e6e449ac0729a31116937bb050e419",
+    "non-canonical/install-unlocked.log": "e03f614f0951f649a7f6ce999e930c67057480c34498265ffea7d0417f9e26a9",
+    "non-canonical/install.log": "e03f614f0951f649a7f6ce999e930c67057480c34498265ffea7d0417f9e26a9",
+    "stock-device.log": "3027cde3312007249df021b1678607c88cb17ca4a049ea673e5336b091b2a9ba"
+  }
+}

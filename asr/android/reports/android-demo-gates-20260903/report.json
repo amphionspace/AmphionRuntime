@@ -1,0 +1,77 @@
+{
+  "status": "PASS",
+  "scope": "PR 184 focused Android device gates, not the full release matrix",
+  "source_commit": "37c96af9bba3b8c90bf3aa89a86609a61e0391d6",
+  "device": {
+    "model": "vivo V2505A",
+    "android": "16"
+  },
+  "sdk_version": "0.3.4",
+  "demo_apk_sha256": "f57d8de0e6271cc1bb99b5b56b83b8a21535e3a51bd4c0f47215d608ac660369",
+  "test_apk_sha256": "14684f268a45f1cb75c3860496a20572e02d7055bb9ad8e18a04c600ae23ac9d",
+  "installed_apk_hashes_match": true,
+  "modes": {
+    "voiceprint-vad-begin": "PASS",
+    "vad-begin-silence": "PASS",
+    "user-sequence": "PASS"
+  },
+  "voiceprint": {
+    "vad_begin_ms": 1000,
+    "front_silence_ms": 300,
+    "pcm_duration_ms": 11040,
+    "last_before_finish": 0,
+    "scored_nonempty_finals": 1,
+    "nonempty_finals": 1,
+    "last": 1,
+    "complete": 1,
+    "errors": 0,
+    "similarity_accuracy_evaluated": false
+  },
+  "silence": {
+    "vad_begin_ms": 500,
+    "silence_written_ms": 700,
+    "last": 1,
+    "complete": 1,
+    "errors": 0
+  },
+  "user_sequence": {
+    "cycles": 300,
+    "cancelled_sessions": 300,
+    "completed_sessions": 600,
+    "elapsed_ms": 266858,
+    "per_session_trace_verified": true,
+    "unexpected_errors": 0,
+    "expected_late_old_call_errors": 900,
+    "cancel_pcm_ms": 500,
+    "normal_pcm_ms": 1500
+  },
+  "resources": {
+    "status": "INCONCLUSIVE_FOR_LONG_TERM_LEAKS",
+    "samples": 26,
+    "rss_kib_min": 541796,
+    "rss_kib_max": 632684,
+    "rss_kib_last": 632684,
+    "threads_min": 55,
+    "threads_max": 60,
+    "native_stream_counts": "not collected"
+  },
+  "noncanonical_attempt": {
+    "artifact_prefix": "user-sequence-frozen",
+    "status": "FAIL",
+    "failure": "cycle=2 replacement did not complete",
+    "diagnosis": "cgroup.freeze=1 while screen asleep; charging plug type was AC, not USB",
+    "controlled_change": "same APK/input/parameters, awake foreground and stay-on for actual charging source"
+  },
+  "not_covered": [
+    "full SDK release matrix",
+    "external process death",
+    "USB disconnection during audio",
+    "speaker identity accuracy",
+    "long-term native stream/resource leak assessment"
+  ],
+  "unit_tests": {
+    "demo": 15,
+    "result": "PASS (unchanged inputs reused from Gradle cache)"
+  },
+  "ci_run": "https://github.com/amphionspace/AmphionRuntime/actions/runs/33711842806"
+}

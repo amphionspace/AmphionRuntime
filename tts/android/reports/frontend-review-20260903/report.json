@@ -1,0 +1,43 @@
+{
+  "scope": "PR #187 PCM sequence assertion follow-up",
+  "scope_status": "PASS",
+  "source_commit": "e7910d697e05dedc0bd9a63f68548cc34842d166",
+  "runtime_commit": "fcdfea97ca5fb5ba7e437e84e810290505e44df6",
+  "runtime_and_jvm_sources_unchanged": true,
+  "device": {"model": "vivo V2505A", "android": "16", "execution": "foreground AndroidX EmptyActivity"},
+  "build": {
+    "sdk_version": "3.0",
+    "model_version": "0.1.0",
+    "apk_variant": "debugAndroidTest",
+    "apk_sha256": "4bf5677904ae634c506e5e9c5db26bb2c11262e94a3d77818aa8d52846c917ac",
+    "installed_apk_matches": true,
+    "release_aar_sha256": "cf3dd8abcbb9a644f2c0596c59e08989e8c42c43accd508b63b92b97398068f2",
+    "release_aar_unchanged": true,
+    "signing": "Android debug signing",
+    "license": "existing TTS-only test fixture; enforced activation"
+  },
+  "verification": {
+    "full_jvm_reused": {"tests": 104, "passed": 101, "failed": 0, "skipped": 3},
+    "jvm_evidence": "../frontend-device-20260903/jvm-results.json",
+    "jvm_evidence_sha256": "8031d069d888da965967e150db19e162d9bd7263820b91d103b5c1f907666c65",
+    "device_gate": "PASS",
+    "temperature_cases": 7,
+    "calendar_cases": 4,
+    "streaming_boundary_cases": 1,
+    "start": 1,
+    "nonempty_pcm_callbacks": 21,
+    "pcm_bytes": 1112064,
+    "pcm_sequences": "0..20; asserted by instrumentation",
+    "complete": 1,
+    "errors": 0,
+    "shutdown_returned": true,
+    "instrumentation_seconds": 5.312
+  },
+  "evidence_sha256": {
+    "build.log": "e8cd54efbbace532cdaa9e079299662e692c142ca92b5e68f662bbcfd98ee8d9",
+    "device-report.json": "300dfd13de6c9e73a18b68d9b197feff0253a5007d213cbdf856babfdca979a8",
+    "device-test.log": "a903c860ba90a70720b82dbdeebc42d0c6e2695b155ed62e4dd23588c6e00d72",
+    "non-canonical/install-screen-locked.log": "4c8ee35c9a4f52223aeb7fad106bae8116b015255e170e3f518cf34b1fca1262"
+  },
+  "remaining": ["Release AAR standalone host gate", "Full pronunciation corpus", "Background forced-freeze recovery contract", "Long-duration stability"]
+}

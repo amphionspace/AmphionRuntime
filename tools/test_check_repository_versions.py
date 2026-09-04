@@ -25,6 +25,24 @@ class RepositoryVersionsTest(unittest.TestCase):
         self.assertTrue(any("stale" in item for item in violations))
         self.assertTrue(any("single repository-wide" in item for item in violations))
 
+    def test_android_samples_follow_sdk_version(self) -> None:
+        repo_root = MODULE_PATH.parents[1]
+        versions = MODULE.read_versions(repo_root)
+        mirrored_paths = {
+            path for path, _ in MODULE.MIRRORED_VERSION_SOURCES["ASR Android"]
+        }
+        self.assertEqual(
+            mirrored_paths,
+            {
+                "asr/android/build.gradle.kts",
+                "asr/android/samples/public-demo/build.gradle.kts",
+                "asr/android/samples/mini-demo/build.gradle.kts",
+                "asr/android/samples/internal-eval/build.gradle.kts",
+                "asr/android/samples/dingqiao-demo/build.gradle.kts",
+            },
+        )
+        self.assertEqual(MODULE.find_source_violations(repo_root, versions), [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,94 @@
+{
+  "scope": "Android TTS negative-temperature, calendar and raw streaming frontend contracts",
+  "scope_status": "PASS",
+  "release_status": "NOT_CLAIMED_FULL_RELEASE",
+  "source_commit": "fcdfea97ca5fb5ba7e437e84e810290505e44df6",
+  "device": {
+    "model": "vivo V2505A",
+    "android": "16",
+    "build_fingerprint": "vivo/PD2505/PD2505:16/BP2A.250605.031.A3_V000L1/compiler260520211145:user/release-keys",
+    "execution": "foreground instrumentation using the existing AndroidX EmptyActivity"
+  },
+  "build": {
+    "sdk_version": "3.0",
+    "model_version": "0.1.0",
+    "apk_variant": "debugAndroidTest",
+    "apk_signing": "Android debug signing",
+    "license": "existing TTS-only instrumentation fixture; normal enforced activation",
+    "apk_sha256": "27daeb7bf8f928d9b3c1f111d72c7b29cf96e904690a45e0a6cc04c49e0261c5",
+    "installed_apk_matches": true,
+    "release_aar_sha256": "cf3dd8abcbb9a644f2c0596c59e08989e8c42c43accd508b63b92b97398068f2",
+    "model_manifest_sha256": "0bdf0071387ec26c03fc55fedcad6c8a65c9c2ef83ae3f367418d46e04941168",
+    "required_model_and_frontend_files": 25,
+    "all_required_resource_hashes_match": true
+  },
+  "verification": {
+    "calendar_padding_red_then_green": true,
+    "full_jvm": {
+      "tests": 104,
+      "passed": 101,
+      "failed": 0,
+      "skipped": 3
+    },
+    "release_aar_build": "PASS",
+    "debug_instrumentation_build": "PASS",
+    "current_device_gate": "PASS",
+    "temperature_cases": 7,
+    "calendar_cases": 4,
+    "streaming_boundary_cases": 1,
+    "sdk_synthesis_requests": 1,
+    "start": 1,
+    "nonempty_pcm_callbacks": 21,
+    "pcm_bytes": 1112064,
+    "pcm_sequences_ordered": true,
+    "synthesis_complete": 1,
+    "errors": 0,
+    "shutdown_returned": true,
+    "instrumentation_seconds": 5.563,
+    "sdk_synthesis_ms": 2557
+  },
+  "non_canonical_attempts": [
+    {
+      "source_commit": "530a41a2270ccfd7eb16cf074838335685aa474b",
+      "apk_sha256": "7a9920ee8527637257bfda077966e2d48041d4dd698a38b3a12b813230e33ef9",
+      "status": "FAIL",
+      "cause": "Calendar golden copied the no-native frontend's incorrect padding-zero behavior; native emitted cardinal month/day",
+      "report": "non-canonical/device-report.json"
+    },
+    {
+      "source_commit": "fcdfea97ca5fb5ba7e437e84e810290505e44df6",
+      "apk_sha256": "27daeb7bf8f928d9b3c1f111d72c7b29cf96e904690a45e0a6cc04c49e0261c5",
+      "status": "ENVIRONMENT_INTERRUPTED_TIMEOUT",
+      "cause": "All 21 process threads were cgroup-frozen; frozen=1. Same APK/input/timeout passed once kept foreground.",
+      "report": "non-canonical/frozen-device-report.json",
+      "diagnosis": "non-canonical/environment-freeze.json"
+    }
+  ],
+  "evidence_sha256": {
+    "README.md": "8f24f3d5bba421a115e0cb100877ce5d7570bb5a2199182d08392048a880a3e9",
+    "build-final.log": "239c6f8792b6bdbf1162283e13466f5c9fb176157f85126252a143c3a8710318",
+    "calendar-padding-green.log": "23a5b052e81612cd1a094ff3e96142c1cf266ec7765c4beb175cca14f4c13571",
+    "device-report.json": "e35cb737b37bd1e9d6d1e64b92ba07a972277990346dd6a6b3e12a8968f8b1ff",
+    "device-test.log": "c5eba4bde1f09993081fa0e60e4a4accfcdd09bab896934e2a7d113d089aaf9a",
+    "jvm-results.json": "8031d069d888da965967e150db19e162d9bd7263820b91d103b5c1f907666c65",
+    "model-files.json": "248b1607ac07bab1d73588d613e8e742b298809c1d0ea6a72adaa38829693450",
+    "non-canonical/calendar-padding-red.log": "d2c24b0635d41621a2bdfc3829aee947285619496e88a20e434cade7ac1d4978",
+    "non-canonical/device-report.json": "39d9faf84133d0cab1488b429e8abdc32a28b00423ab4e52e3422bc83fddd943",
+    "non-canonical/device-test.log": "172f71d97d93b606c431d7d6d50d7116e24c30a18a363a0037777719063ffea3",
+    "non-canonical/environment-freeze.json": "75de0f24db761f50c7087220199367fde729f4e159f30b7ce3c7c68eae9aadf3",
+    "non-canonical/frozen-device-report.json": "573f5b6528349a601937709ff78038d7ff3212923746d02c812d3dab5cc205f7",
+    "non-canonical/frozen-device-test.log": "c00609f75f5a88bb0c46ef1fee49f971cddff27fb27308e09141b111945c652a",
+    "non-canonical/frozen-thread-state.log": "8abd95d2fc1d0bf4a60b338bb4350d88a31fc559e309ac56bf30db9e58aed3a4",
+    "non-canonical/tn-trace.log": "7ec8ab3e4919ace6e65d40d82949349ca695fb0d866d88ab6ecaa357226dcd14",
+    "tn-and-sdk-trace.log": "7d86eefb5882b74f69604d0501de905a945b7c5f860a394611dca12331d48fe1",
+    "unit-final.log": "5bd136ca5399401802e901ce74bc16a5ebdaaa16bddda0e2378d88116e499624"
+  },
+  "not_covered": [
+    "Full pronunciation corpus; three existing optional/ignored JVM tests remain skipped",
+    "Arbitrary oversized technical-token latency and memory",
+    "SDK behavior under forced background freezing",
+    "Long-duration resource stability",
+    "Harmony device",
+    "Release AAR host-device run"
+  ]
+}

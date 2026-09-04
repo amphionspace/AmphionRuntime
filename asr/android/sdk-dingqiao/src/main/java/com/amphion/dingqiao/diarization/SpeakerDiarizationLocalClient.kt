@@ -52,8 +52,7 @@ internal class SpeakerDiarizationLocalClient(
     private val scheduler = DiarizationWindowScheduler(SAMPLE_RATE)
     private val queue = ArrayDeque<DiarizationLocalJob>()
     private val jobDir = File(File(workPath, "speaker-diarization-jobs"), "job-${System.nanoTime()}")
-    private val spoolPath = File(jobDir, "audio.pcm")
-    private val spool: RandomAccessFile
+    private val spool: DiarizationPcmSpool
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { task ->
         Thread(task, "amphion-diarization").apply { isDaemon = true }
     }
@@ -74,7 +73,7 @@ internal class SpeakerDiarizationLocalClient(
 
     init {
         check(jobDir.mkdirs() || jobDir.isDirectory) { "cannot create ${jobDir.absolutePath}" }
-        spool = RandomAccessFile(spoolPath, "rw")
+        spool = DiarizationPcmSpool(jobDir)
         executor.execute {
             try {
                 val (segmentation, embedding) =
@@ -107,8 +106,7 @@ internal class SpeakerDiarizationLocalClient(
     fun append(audio: ByteArray) {
         if (closed || finishing || degraded) return
         try {
-            spool.seek(spool.length())
-            spool.write(audio)
+            spool.append(audio)
             scheduler.acceptSamples(audio.size / 2).forEach(::submitLocked)
             pumpLocked()
         } catch (t: Throwable) {
@@ -145,7 +143,6 @@ internal class SpeakerDiarizationLocalClient(
     }
 
     fun cleanup(onQuiescent: (() -> Unit)? = null) = cancel(onQuiescent)
-    fun checkpointDir(): File = jobDir
 
     private fun submitLocked(window: DiarizationInferenceWindow) {
         val sampleCount = minOf(WINDOW_SAMPLES.toLong(), window.realEndSample - window.startSample)
@@ -211,7 +208,8 @@ internal class SpeakerDiarizationLocalClient(
         } catch (t: Throwable) {
             synchronized(this) {
                 if (!closed && !degraded) failLocked(
-                    SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE,
+                    if (t is java.io.IOException) SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE
+                    else SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE,
                     "speaker diarization inference failed: ${t.message ?: t.javaClass.simpleName}",
                 )
             }
@@ -219,6 +217,10 @@ internal class SpeakerDiarizationLocalClient(
             watchdog.cancel(false)
             synchronized(this) {
                 active = false
+                if (!closed) runCatching {
+                    spool.discardBefore(queue.peekFirst()?.offsetBytes ?: maxOf(0, spool.endOffset - WINDOW_SAMPLES * 2))
+                }.onFailure { failLocked(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+                    "diarization PCM cleanup failed: ${it.message}") }
                 if (closed) closeWhenQuiescentLocked() else {
                     pumpLocked()
                     maybeNotifyDrainedLocked()
@@ -228,11 +230,9 @@ internal class SpeakerDiarizationLocalClient(
     }
 
     private fun readWindow(job: DiarizationLocalJob): FloatArray {
-        val bytes = ByteArray(job.sampleCount * 2)
-        synchronized(this) {
+        val bytes = synchronized(this) {
             check(!closed) { "speaker diarization session is closed" }
-            spool.seek(job.offsetBytes)
-            spool.readFully(bytes)
+            spool.read(job.offsetBytes, job.sampleCount * 2)
         }
         val result = FloatArray(WINDOW_SAMPLES)
         var source = 0
@@ -265,12 +265,7 @@ internal class SpeakerDiarizationLocalClient(
         resourcesClosed = true
         runCatching { inference?.close() }
         inference = null
-        runCatching { spool.close() }
-        spoolPath.delete()
-        File(jobDir, "window-journal.jsonl").delete()
-        File(jobDir, "embedding-index.jsonl").delete()
-        File(jobDir, "embedding-index.bin").delete()
-        File(jobDir, "speaker-registry.json").delete()
+        runCatching { spool.remove() }
         jobDir.delete()
         executor.shutdown()
         timeoutExecutor.shutdown()

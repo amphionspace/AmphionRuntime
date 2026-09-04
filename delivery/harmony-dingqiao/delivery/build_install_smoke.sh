@@ -31,7 +31,7 @@ SMOKE_DIR="$PROJECT_ROOT/build/smoke"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
 LICENSE_PYTHON="${LICENSE_PYTHON:-python3}"
-NODE_ADDON_API_CACHE="${NODE_ADDON_API_CACHE:-$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/.cxx/default/default/debug/arm64-v8a/_deps/node_addon_api-src}"
+NODE_ADDON_API_CACHE="${NODE_ADDON_API_CACHE:-$REPO_ROOT/third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/.cxx/default/default/debug/arm64-v8a/_deps/node_addon_api-src}"
 TARGET_SPEAKER_SEPARATOR_MODEL="${TARGET_SPEAKER_SEPARATOR_MODEL:-}"
 SPEAKER_TURN_SEGMENTATION_MODEL="${SPEAKER_TURN_SEGMENTATION_MODEL:-}"
 BUILD_WORKSPACE=""
@@ -196,7 +196,9 @@ prepare_build_workspace() {
   BUILD_WORKSPACE="$(mktemp -d "${TMPDIR:-/tmp}/amphion-harmony-build.XXXXXX")"
   local temp_repo="$BUILD_WORKSPACE/repo"
   local sherpa_source="$REPO_ROOT/third_party/sherpa-onnx"
-  local sherpa_destination="$temp_repo/third_party/sherpa-onnx"
+  local sherpa_native_source
+  sherpa_native_source="$(bash "$REPO_ROOT/asr/tools/prepare_sherpa_source.sh")"
+  local sherpa_destination="$temp_repo/third_party/.derived/sherpa-onnx"
   local sherpa_commit
   sherpa_commit="$(git -C "$REPO_ROOT" ls-tree HEAD -- third_party/sherpa-onnx | awk '{print $3}')"
   [[ -n "$sherpa_commit" ]] || {
@@ -207,9 +209,10 @@ prepare_build_workspace() {
   git clone --quiet --no-hardlinks "$sherpa_source" "$sherpa_destination"
   git -C "$sherpa_destination" checkout --quiet --detach "$sherpa_commit"
   rsync -a \
-    "$sherpa_source/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/" \
+    "$sherpa_native_source/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/" \
     "$sherpa_destination/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/"
   AMPHION_SHERPA_ROOT="$sherpa_destination" \
+  AMPHION_SHERPA_BASE_COMMIT="$sherpa_commit" \
     bash "$REPO_ROOT/asr/tools/apply_sherpa_patches.sh"
   mkdir -p "$temp_repo/delivery"
   rsync -a \
@@ -242,7 +245,7 @@ prepare_build_workspace() {
 }
 EOF
   find "$temp_repo/asr/harmony" \
-    "$temp_repo/third_party/sherpa-onnx" \
+    "$sherpa_destination" \
     -type d \( -name build -o -name .cxx -o -name .hvigor \) -prune -exec rm -rf {} +
   if [[ -n "$TARGET_SPEAKER_SEPARATOR_MODEL" ]]; then
     [[ -s "$TARGET_SPEAKER_SEPARATOR_MODEL" ]] || {
@@ -267,7 +270,7 @@ EOF
   if [[ -d "$NODE_ADDON_API_CACHE/.git" ]] && \
       [[ "$(git -C "$NODE_ADDON_API_CACHE" rev-parse HEAD 2>/dev/null)" == "c679f6f4c9dc6bf9fc0d99cbe5982bd24a5e2c7b" ]]; then
     "$LICENSE_PYTHON" - \
-      "$temp_repo/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt" \
+      "$sherpa_destination/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt" \
       "$NODE_ADDON_API_CACHE" <<'PY'
 import sys
 from pathlib import Path
@@ -426,7 +429,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
     exit 1
   }
   python3 "$REPO_ROOT/asr/tools/verify_harmony_sherpa_symbols.py" \
-    --library "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
+    --library "$(bash "$REPO_ROOT/asr/tools/prepare_sherpa_source.sh")/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
     --nm "$LLVM_NM"
   prepare_build_workspace
   apply_local_signing "$SIGNING_CONFIG"
@@ -477,8 +480,8 @@ if [[ "$SKIP_BUILD" != true ]]; then
     "$BUILD_WORKSPACE/repo/asr/harmony/sdk-dingqiao/build/default/outputs/default" \
     "$REPO_ROOT/asr/harmony/sdk-dingqiao/build/default/outputs/default"
   publish_har \
-    "$BUILD_WORKSPACE/repo/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default" \
-    "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default"
+    "$BUILD_WORKSPACE/repo/third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default" \
+    "$(bash "$REPO_ROOT/asr/tools/prepare_sherpa_source.sh")/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default"
   mkdir -p "$(dirname "$HAP")"
   TEMP_HAP_COPY="${HAP}.tmp.$$"
   cp "$BUILD_HAP" "$TEMP_HAP_COPY"

@@ -5,6 +5,7 @@
 .vscode/
 *.swp
 *.swo
+/docs/OPERATION_LOG.md
 
 # --- Android / Gradle ---
 .gradle/
@@ -104,14 +105,13 @@ tools/trial-export/
 tts/training/dingqiao_lits/data/filelists/*.txt
 tts/training/dingqiao_lits/*_query_samples.jsonl
 tts/tools/android/frontend_golden_cases.jsonl
+tts/android/external-resources/
 tts/android/aarHost/src/androidTest/assets/*
 tts/android/sdk/src/androidTest/assets/*
-!tts/android/aarHost/src/androidTest/assets/
-!tts/android/aarHost/src/androidTest/assets/android_v3_sdk_stability_100_cases_improved_v2.jsonl
-!tts/android/aarHost/src/androidTest/assets/android_v3_sdk_stability_424_cases_improved_v3.jsonl
-!tts/android/aarHost/src/androidTest/assets/android_v3_sdk_stability_1000_cases_improved.jsonl
 !tts/android/sdk/src/androidTest/assets/
-!tts/android/sdk/src/androidTest/assets/pronunciation-golden-round3-results-with-pinyin-fixed-round15.jsonl
+!tts/android/sdk/src/androidTest/assets/error_pinyin_pronunciation_reviewed.jsonl
+!tts/android/sdk/src/androidTest/assets/polychar_missing_candidate_sentences_with_pinyin.txt
+!tts/android/sdk/src/androidTest/assets/pronunciation-golden-round3-results-with-pinyin-fixed-round15-reviewed-merged.jsonl
 tts/tools/trial-export/*/0.1.0/tn-bin/
 
 # 本地误放到 ASR assets 下的 Lits/TTS 模型副本不入库；源目录是 tts/tools/trial-export/
@@ -141,6 +141,9 @@ third_party/sherpa-onnx/build-*/
 third_party/sherpa-onnx/build-android-*/
 third_party/sherpa-onnx/build-ios/
 third_party/sherpa-onnx/onnxruntime-*/
+# Amphion patch series and native build outputs live in an isolated, generated
+# checkout. The canonical sherpa-onnx submodule remains pinned and untouched.
+third_party/.derived/
 
 # --- 回归测试 wav 数据（外部分发，不入库） ---
 shared/regression-set/audio/

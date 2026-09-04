@@ -18,13 +18,14 @@ import yaml
 
 TTS_ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE_ROOT = TTS_ROOT.parent
-DEFAULT_VOCOS_ROOT = TTS_ROOT / "training" / "dingqiao_lits" / "vocos-24k"
+DEFAULT_VOCOS_ROOT = TTS_ROOT / "training" / "dingqiao_lits" / "vocos"
+DEFAULT_CHECKPOINT = TTS_ROOT / "training" / "dingqiao_lits" / "vocos-24k" / "last.ckpt"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--vocos-root", type=Path, default=DEFAULT_VOCOS_ROOT)
-    parser.add_argument("--checkpoint", type=Path, default=DEFAULT_VOCOS_ROOT / "last.ckpt")
+    parser.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--mel-frames", type=int, default=64)
     parser.add_argument("--opset", type=int, default=17)

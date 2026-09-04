@@ -1,0 +1,228 @@
+{
+  "pass": true,
+  "text": "股票代码 600519 今日上涨 1.23%。气温 -24.5 度。温度范围是 -5 到 10 度。出生日期1998年2月09日。这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分example.com\/test。下一句。",
+  "requestId": "aar-frontend",
+  "language": "zh-en",
+  "voiceId": "lits-female-02",
+  "playType": "SYNTHESIZE_ONLY",
+  "licenseState": "LICENSED",
+  "shutdownReturned": true,
+  "elapsedMs": 4845,
+  "callbacks": [
+    {
+      "requestId": "aar-frontend",
+      "type": "start",
+      "elapsedMs": 1717,
+      "audioType": "pcm",
+      "sampleRate": 24000,
+      "sampleBit": 16,
+      "audioChannel": 1
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 1833,
+      "sequence": 0,
+      "bytes": 6912,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 1942,
+      "sequence": 1,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 2094,
+      "sequence": 2,
+      "bytes": 76800,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 2248,
+      "sequence": 3,
+      "bytes": 91392,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 2333,
+      "sequence": 4,
+      "bytes": 6912,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 2434,
+      "sequence": 5,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 2570,
+      "sequence": 6,
+      "bytes": 78336,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 2649,
+      "sequence": 7,
+      "bytes": 6912,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 2750,
+      "sequence": 8,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 2901,
+      "sequence": 9,
+      "bytes": 76800,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 2958,
+      "sequence": 10,
+      "bytes": 16128,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 3037,
+      "sequence": 11,
+      "bytes": 6912,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 3142,
+      "sequence": 12,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 3292,
+      "sequence": 13,
+      "bytes": 76800,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 3378,
+      "sequence": 14,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 3484,
+      "sequence": 15,
+      "bytes": 6912,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 3584,
+      "sequence": 16,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 3731,
+      "sequence": 17,
+      "bytes": 76800,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 3991,
+      "sequence": 18,
+      "bytes": 153600,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 4244,
+      "sequence": 19,
+      "bytes": 153600,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 4495,
+      "sequence": 20,
+      "bytes": 153600,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 4590,
+      "sequence": 21,
+      "bytes": 44544,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 4668,
+      "sequence": 22,
+      "bytes": 6912,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 4767,
+      "sequence": 23,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 4821,
+      "sequence": 24,
+      "bytes": 16896,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "complete",
+      "elapsedMs": 4821,
+      "completeType": "SYNTHESIS_COMPLETE"
+    }
+  ]
+}

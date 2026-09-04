@@ -26,12 +26,20 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunCommandTest(unittest.TestCase):
+    def test_short_memory_run_summary_uses_the_metrics_threshold(self) -> None:
+        self.assertEqual(60.0, MODULE.MIN_MEMORY_SLOPE_SECONDS)
+
     def test_default_corpus_uses_versioned_test_data_cache(self) -> None:
         with mock.patch.object(sys, "argv", [str(SCRIPT)]):
             args = MODULE.parse_args()
 
         self.assertEqual(MODULE.DEFAULT_DEVICE_CORPUS, args.data_dir)
         self.assertIn(".cache/amphion-runtime/test-data/v1", str(args.data_dir))
+
+    def test_window_lifecycle_mode_uses_meeting_profile_without_text_manifest(self) -> None:
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "diarization-windows"]):
+            self.assertEqual("diarization-windows", MODULE.parse_args().mode)
+        self.assertIn("mode === 'customer-meeting-minutes' || mode === 'diarization-windows') scenario = 'meeting-minutes'", CARRIER.read_text())
 
     def test_meeting_minutes_has_no_service_parameter(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")

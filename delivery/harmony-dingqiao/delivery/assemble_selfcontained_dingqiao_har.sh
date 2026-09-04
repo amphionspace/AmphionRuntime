@@ -57,7 +57,8 @@ har_of() {  # 取模块构建输出目录里唯一的 .har
 ASR_HAR="$(har_of "$REPO_ROOT/asr/harmony/sdk/build/default/outputs/default")"
 POLICE_HAR="$(har_of "$REPO_ROOT/asr/harmony/sdk-police/build/default/outputs/default")"
 DINGQIAO_HAR="$(har_of "$REPO_ROOT/asr/harmony/sdk-dingqiao/build/default/outputs/default")"
-SHERPA_HAR="$(har_of "$REPO_ROOT/third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default")"
+SHERPA_ROOT="$(bash "$REPO_ROOT/asr/tools/prepare_sherpa_source.sh")"
+SHERPA_HAR="$(har_of "$SHERPA_ROOT/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default")"
 
 python3 - "$SPEAKER_TURN_MODEL" "$SPEAKER_TURN_METADATA" <<'PY'
 import hashlib

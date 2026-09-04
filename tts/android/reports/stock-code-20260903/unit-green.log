@@ -1,0 +1,48 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.6/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build
+> Task :sdk:checkKotlinGradlePluginConfigurationErrors
+> Task :cleanBundledTtsResources UP-TO-DATE
+> Task :sdk:generateDebugUnitTestAssets UP-TO-DATE
+> Task :stageExternalTtsResources UP-TO-DATE
+> Task :sdk:preBuild UP-TO-DATE
+> Task :sdk:preDebugBuild UP-TO-DATE
+> Task :sdk:generateDebugBuildConfig UP-TO-DATE
+> Task :sdk:generateDebugResValues UP-TO-DATE
+> Task :sdk:generateDebugResources UP-TO-DATE
+> Task :sdk:packageDebugResources UP-TO-DATE
+> Task :sdk:parseDebugLocalResources UP-TO-DATE
+> Task :sdk:generateDebugRFile UP-TO-DATE
+> Task :sdk:javaPreCompileDebug UP-TO-DATE
+> Task :sdk:preDebugUnitTestBuild UP-TO-DATE
+> Task :sdk:writeDebugAarMetadata UP-TO-DATE
+> Task :sdk:checkDebugUnitTestAarMetadata UP-TO-DATE
+> Task :sdk:compileDebugLibraryResources UP-TO-DATE
+> Task :sdk:generateDebugUnitTestResValues UP-TO-DATE
+> Task :sdk:mapDebugUnitTestSourceSetPaths UP-TO-DATE
+> Task :sdk:generateDebugUnitTestResources UP-TO-DATE
+> Task :sdk:mergeDebugUnitTestResources UP-TO-DATE
+> Task :sdk:extractDeepLinksDebug UP-TO-DATE
+> Task :sdk:processDebugManifest UP-TO-DATE
+> Task :sdk:processDebugUnitTestManifest UP-TO-DATE
+> Task :sdk:processDebugUnitTestResources UP-TO-DATE
+> Task :sdk:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :sdk:mergeDebugShaders UP-TO-DATE
+> Task :sdk:compileDebugShaders NO-SOURCE
+> Task :sdk:generateDebugAssets UP-TO-DATE
+> Task :sdk:mergeDebugAssets UP-TO-DATE
+> Task :sdk:packageDebugAssets UP-TO-DATE
+> Task :sdk:mergeDebugUnitTestAssets UP-TO-DATE
+> Task :sdk:packageDebugUnitTestForUnitTest UP-TO-DATE
+> Task :sdk:generateDebugUnitTestConfig UP-TO-DATE
+> Task :sdk:compileDebugKotlin
+> Task :sdk:compileDebugJavaWithJavac UP-TO-DATE
+> Task :sdk:processDebugJavaRes UP-TO-DATE
+> Task :sdk:bundleLibRuntimeToJarDebug
+> Task :sdk:bundleLibCompileToJarDebug
+> Task :sdk:compileDebugUnitTestKotlin UP-TO-DATE
+> Task :sdk:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :sdk:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :sdk:testDebugUnitTest
+
+BUILD SUCCESSFUL in 9s
+36 actionable tasks: 5 executed, 31 up-to-date

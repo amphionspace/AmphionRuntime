@@ -1,0 +1,6 @@
+Source: 927abb90b40859eca5b51ecff6f69c799cd9d856
+Test directory: files/batch-setup-regression-20260903 (new dedicated copy; not files/tts-contract)
+Before run: external-resources/tts and preserve-me.txt copied successfully into the test directory.
+After run: directory contains only '.' and '..'; model subtree and sentinel removed by the legacy setup.
+The independent files/tts-contract model package and private license were not touched.
+Restored the disposable test copy from the same source before the fixed-code, same-argument run.
