@@ -109,4 +109,41 @@ class FinalTailFlushPlannerTest {
             assertFalse(planner.usedFallback)
         }
     }
+
+    @Test
+    fun speakerRedecodeRequires800MsEvenWhenDecodeIsReadyEarly() {
+        val planner = FinalTailFlushPlanner(
+            stepMs = 20,
+            maxPaddingMs = 1280,
+            requiredDecodes = 2,
+            singleDecodeMinPaddingMs = 320,
+            minimumPaddingMs = 800,
+        )
+        planner.recordDecode()
+        planner.recordDecode()
+        assertFalse(planner.isComplete)
+        repeat(39) { planner.recordPadding(20) }
+        assertFalse(planner.isComplete)
+        planner.recordPadding(20)
+        assertTrue(planner.isComplete)
+        assertEquals(800, planner.paddingDurationMs)
+        assertEquals(2, planner.decodeOpportunities)
+    }
+
+    @Test
+    fun speakerMinimumPaddingDisablesTheSingleDecodeShortcut() {
+        val planner = FinalTailFlushPlanner(
+            stepMs = 20,
+            maxPaddingMs = 1280,
+            requiredDecodes = 2,
+            singleDecodeMinPaddingMs = 320,
+            minimumPaddingMs = 800,
+        )
+        repeat(16) { planner.recordPadding(20) }
+        planner.recordDecode()
+        repeat(24) { planner.recordPadding(20) }
+        assertFalse(planner.isComplete)
+        planner.recordDecode()
+        assertTrue(planner.isComplete)
+    }
 }

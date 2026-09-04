@@ -140,7 +140,36 @@ class HarmonyFinalTailFlushPlannerTest(unittest.TestCase):
             """
         )
 
-    def test_adaptive_flush_is_asr_only_and_follows_speaker_turn_commit(self) -> None:
+    def test_speaker_redecode_requires_800ms_even_when_decode_is_ready_early(self) -> None:
+        self.run_planner(
+            """
+            const planner = new FinalTailFlushPlanner(20, 1280, 2, 320, 800);
+            planner.recordDecode();
+            planner.recordDecode();
+            assert.equal(planner.isComplete(), false);
+            for (let i = 0; i < 780; i += 20) planner.recordPadding(20);
+            assert.equal(planner.isComplete(), false);
+            planner.recordPadding(20);
+            assert.equal(planner.isComplete(), true);
+            assert.equal(planner.paddingDurationMs(), 800);
+            assert.equal(planner.decodeOpportunities(), 2);
+            """
+        )
+
+    def test_speaker_minimum_padding_disables_the_single_decode_shortcut(self) -> None:
+        self.run_planner(
+            """
+            const planner = new FinalTailFlushPlanner(20, 1280, 2, 320, 800);
+            for (let i = 0; i < 320; i += 20) planner.recordPadding(20);
+            planner.recordDecode();
+            for (let i = 320; i < 800; i += 20) planner.recordPadding(20);
+            assert.equal(planner.isComplete(), false);
+            planner.recordDecode();
+            assert.equal(planner.isComplete(), true);
+            """
+        )
+
+    def test_adaptive_flush_is_asr_only_and_covers_speaker_turn_final_paths(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
         async_stop = source.split("private async stopNowAsync", 1)[1].split(
             "updateHotwords", 1
@@ -149,11 +178,10 @@ class HarmonyFinalTailFlushPlannerTest(unittest.TestCase):
             async_stop.index("commitSpeakerTurnAtFinishAsync"),
             async_stop.index("flushAdaptiveFinalTailAsync"),
         )
-        self.assertLess(
-            async_stop.index("if (this.speakerVadEnabled)"),
-            async_stop.index("flushAdaptiveFinalTailAsync"),
+        self.assertIn(
+            "this.stream, 'speaker-terminal', SPEAKER_FINAL_TAIL_MIN_PADDING_MS",
+            async_stop,
         )
-        self.assertIn("this.appendFinalTailSilence()", async_stop)
 
         helper = source.split("private async flushAdaptiveFinalTailAsync", 1)[1].split(
             "private ", 1
@@ -167,17 +195,24 @@ class HarmonyFinalTailFlushPlannerTest(unittest.TestCase):
         clean_turn = source.split("private async commitCleanSpeakerTurnAsync", 1)[1].split(
             "setTargetSpeaker", 1
         )[0]
-        self.assertIn("this.appendFinalTailSilence()", clean_turn)
-        self.assertNotIn("flushAdaptiveFinalTail", clean_turn)
+        self.assertIn(
+            "activePrefixStream, 'speaker-prefix', SPEAKER_FINAL_TAIL_MIN_PADDING_MS",
+            clean_turn,
+        )
+        self.assertIn(
+            "this.stream, 'speaker-suffix', SPEAKER_FINAL_TAIL_MIN_PADDING_MS",
+            clean_turn,
+        )
+        self.assertNotIn("this.appendFinalTailSilence()", clean_turn)
 
-    def test_android_adaptive_flush_also_bypasses_speaker_pcm(self) -> None:
+    def test_android_adaptive_flush_covers_speaker_finish_without_speaker_pcm(self) -> None:
         source = ANDROID_SESSION.read_text(encoding="utf-8")
         stop = source.split("fun stop()", 1)[1].split("fun close()", 1)[0]
         self.assertLess(stop.index("agcIngress.flush"), stop.index("flushAdaptiveFinalTail()"))
-        self.assertLess(stop.index("if (speakerVadEnabled)"), stop.index("flushAdaptiveFinalTail()"))
-        self.assertIn("appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)", stop)
+        self.assertIn('scope = "speaker-terminal"', stop)
+        self.assertIn('minimumPaddingMs = SPEAKER_FINAL_TAIL_MIN_PADDING_MS', stop)
 
-        helper = source.split("private fun flushAdaptiveFinalTail()", 1)[1].split(
+        helper = source.split("private fun flushAdaptiveFinalTail", 1)[1].split(
             "private fun", 1
         )[0]
         self.assertIn("appendFinalTailSilence", helper)

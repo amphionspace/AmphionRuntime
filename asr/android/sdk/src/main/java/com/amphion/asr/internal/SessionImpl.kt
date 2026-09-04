@@ -386,7 +386,10 @@ internal class SessionImpl(
                 if (agcOk) {
                     val r = NativeGuard.run("stream.inputFinished+drain") {
                         if (speakerVadEnabled) {
-                            appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
+                            flushAdaptiveFinalTail(
+                                scope = "speaker-terminal",
+                                minimumPaddingMs = SPEAKER_FINAL_TAIL_MIN_PADDING_MS,
+                            )
                         } else {
                             flushAdaptiveFinalTail()
                         }
@@ -512,13 +515,14 @@ internal class SessionImpl(
         stream.acceptWaveform(FloatArray(n), sampleRate)
     }
 
-    private fun flushAdaptiveFinalTail() {
+    private fun flushAdaptiveFinalTail(scope: String = "session", minimumPaddingMs: Int = 0) {
         val flushStartedNs = System.nanoTime()
         val planner = FinalTailFlushPlanner(
             stepMs = FINAL_TAIL_STEP_MS,
             maxPaddingMs = FINAL_TAIL_SILENCE_MS,
             requiredDecodes = FINAL_TAIL_REQUIRED_DECODES,
             singleDecodeMinPaddingMs = FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS,
+            minimumPaddingMs = minimumPaddingMs,
         )
         var decodeDurationMs = 0L
         while (!planner.isComplete && !closed.get()) {
@@ -535,7 +539,7 @@ internal class SessionImpl(
             planner.recordPadding(paddingMs)
         }
         Logger.metric(
-            "kind=FINAL_TAIL sessionId=$sessionId " +
+            "kind=FINAL_TAIL sessionId=$sessionId scope=$scope " +
                 "paddingMs=${planner.paddingDurationMs} " +
                 "decodeOpportunities=${planner.decodeOpportunities} " +
                 "decodeDurationMs=$decodeDurationMs " +
@@ -1277,6 +1281,7 @@ internal class SessionImpl(
         const val FINAL_TAIL_STEP_MS = 20
         const val FINAL_TAIL_REQUIRED_DECODES = 2
         const val FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS = 320
+        const val SPEAKER_FINAL_TAIL_MIN_PADDING_MS = 800
 
         /**
          * silero VAD 强约束：必须按窗口对齐喂入 [Vad.acceptWaveform]。
