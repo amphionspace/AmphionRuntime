@@ -429,6 +429,8 @@ class MainActivity : AppCompatActivity() {
                             utteranceId != null && result.result.isNotEmpty()
                         ) {
                             activeDebugRecord?.addFinal(result.result, result.speakerSimilarity)
+                            val meetingBeginTime = result.beginTime ?: result.endTime
+                                ?: ((meetingLines.values.maxOfOrNull { it.beginTime } ?: -1) + 1)
                             meetingLines[utteranceId] = MeetingLine(
                                 utteranceId,
                                 result.result,
@@ -436,7 +438,7 @@ class MainActivity : AppCompatActivity() {
                                 result.secondarySpeakerIndexes,
                                 result.speakerConfidence,
                                 result.secondarySpeakerIndexes.isNotEmpty(),
-                                result.beginTime ?: 0,
+                                meetingBeginTime,
                             )
                             renderMeetingLines()
                         } else {

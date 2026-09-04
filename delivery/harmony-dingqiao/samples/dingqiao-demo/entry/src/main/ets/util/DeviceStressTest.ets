@@ -2053,7 +2053,7 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   }
   const profile = customerScenarioProfile(scenario);
   const params = customerProfileStartParams(sessionId, scenario);
-  // The window gate feeds five hours; the customer meeting profile stops at two hours.
+  // Feed five hours under an eight-hour guard so explicit finish owns the gate's terminal callback.
   const maxAudioDurationMs = mode === 'diarization-windows' ? 28800000 : profile.maxAudioDuration;
   params.extraParams['maxAudioDuration'] = maxAudioDurationMs;
   params.extraParams['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
