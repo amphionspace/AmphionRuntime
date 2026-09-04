@@ -198,6 +198,10 @@ internal class DingqiaoRecognitionEngine(
                         dispatchDiarizationUpdate(diarizationEpoch, diarizationSessionId, update)
                     }
 
+                    override fun onWindowResult(result: SpeakerDiarizationResult) {
+                        dispatchDiarizationWindow(diarizationEpoch, diarizationSessionId, result)
+                    }
+
                     override fun onFinished(result: SpeakerDiarizationResult) {
                         synchronized(this@DingqiaoRecognitionEngine) {
                             if (!ownsSessionLocked(diarizationEpoch, diarizationSessionId)) return
@@ -643,6 +647,7 @@ internal class DingqiaoRecognitionEngine(
                 }
             } else {
                 dispatchPayload(epoch, sessionId, decorated)
+                diarization.asrFinalDelivered(result)
             }
         } else if (result.isLast) {
             enqueueTerminalResult(epoch, sessionId, result, outputText)
@@ -753,7 +758,7 @@ internal class DingqiaoRecognitionEngine(
                     degradedMessage = "speaker diarization finish timeout",
                 )
             }
-            Triple(diarization.decoratePayload(output.asr), result, listener)
+            Triple(diarization.decoratePayload(output.asr), result.copy(isSessionFinal = true), listener)
         }
         callbackExecutor.execute {
             lifecycleCallbackLock.withLock {
@@ -811,6 +816,24 @@ internal class DingqiaoRecognitionEngine(
     private fun requestSpeakerDiarizationFinishLocked() {
         speakerDiarizationFinishBarrier?.begin()
         speakerDiarizationSession?.finish()
+    }
+
+    private fun dispatchDiarizationWindow(
+        epoch: Long,
+        sessionId: String,
+        result: SpeakerDiarizationResult,
+    ) {
+        callbackExecutor.execute {
+            lifecycleCallbackLock.withLock {
+                val captured = synchronized(this@DingqiaoRecognitionEngine) {
+                    if (!ownsSessionLocked(epoch, sessionId) || completeSent) return@execute
+                    listener
+                }
+                callbackInvocation.withEpoch(epoch) {
+                    captured?.onSpeakerDiarizationResult(sessionId, result)
+                }
+            }
+        }
     }
 
     private fun dispatchDiarizationUpdate(

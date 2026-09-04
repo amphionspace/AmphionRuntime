@@ -13,6 +13,7 @@ import {
   RecognitionListener,
   SpeakerDiarizationResult,
   SpeakerDiarizationUpdate,
+  SpeakerTurn,
   SpeechRecognitionEngine,
   SpeechRecognitionResult,
   SpeechRecognizeSdk,
@@ -102,6 +103,11 @@ class SessionEvents {
   targetSpeakerEnhancementResults: number = 0;
   speakerDiarizationUpdates: number = 0;
   speakerDiarizationResults: number = 0;
+  speakerDiarizationTerminalResults: number = 0;
+  speakerDiarizationViolations: number = 0;
+  diarizationWindows: SpeakerDiarizationResult[] = [];
+  diarizationTurns: SpeakerTurn[] = [];
+  frozenUtterances: Set<string> = new Set();
   speakerDiarizationSpeakerCount: number = -1;
   speakerDiarizationDegraded: number = -1;
   speakerDiarizationReason: number = -1;
@@ -232,22 +238,40 @@ class StressListener implements RecognitionListener {
     this.record(sessionId, 'complete');
   }
 
-  onSpeakerDiarizationUpdate(sessionId: string, _update: SpeakerDiarizationUpdate): void {
+  onSpeakerDiarizationUpdate(sessionId: string, update: SpeakerDiarizationUpdate): void {
+    if (this.events.frozenUtterances.has(update.utteranceId)) this.events.speakerDiarizationViolations += 1;
     this.events.speakerDiarizationUpdates += 1;
     this.record(sessionId, 'diarization-update');
   }
 
   onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    const previous = this.events.diarizationWindows[this.events.diarizationWindows.length - 1];
+    if (result.windowIndex !== this.events.speakerDiarizationResults ||
+      result.windowEndTime < result.windowBeginTime ||
+      (previous !== undefined && (previous.isSessionFinal || result.windowBeginTime < previous.windowEndTime))) {
+      this.events.speakerDiarizationViolations += 1;
+    }
+    for (const utterance of result.utterances) {
+      if (this.events.frozenUtterances.has(utterance.utteranceId) ||
+        this.events.frozenUtterances.has(utterance.sourceUtteranceId)) this.events.speakerDiarizationViolations += 1;
+    }
+    for (const utterance of result.utterances) {
+      this.events.frozenUtterances.add(utterance.utteranceId);
+      this.events.frozenUtterances.add(utterance.sourceUtteranceId);
+    }
+    this.events.diarizationWindows.push(result);
+    this.events.diarizationTurns.push(...result.speakerTurns);
+    if (result.isSessionFinal) this.events.speakerDiarizationTerminalResults += 1;
     this.events.speakerDiarizationResults += 1;
     this.events.speakerDiarizationSpeakerCount = result.speakerCount;
     this.events.speakerDiarizationDegraded = result.degraded ? 1 : 0;
     this.events.speakerDiarizationReason = result.degradedReason;
     this.events.speakerDiarizationMessage = result.degradedMessage ?? '';
-    this.events.speakerTurnsJson = JSON.stringify(result.speakerTurns);
+    this.events.speakerTurnsJson = JSON.stringify(this.events.diarizationTurns);
     this.events.speakerDiarizationResultAtMs = Date.now();
     this.events.speakerDiarizationInferenceMs = result.inferenceMs;
     this.events.speakerDiarizationRtf = result.rtf;
-    this.record(sessionId, 'diarization-result');
+    this.record(sessionId, result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`);
   }
 
   onError(sessionId: string, errorCode: number, message: string): void {
@@ -859,6 +883,7 @@ class CycleResult {
   speakerDiarizationDegraded: number = -1;
   speakerDiarizationReason: number = -1;
   speakerDiarizationMessageHex: string = '';
+  speakerWindowsHex: string = '';
   speakerTurnsHex: string = '';
   speakerDiarizationInferenceMs: number = -1;
   speakerDiarizationRtf: number = -1;
@@ -903,6 +928,7 @@ class CycleResult {
       `|errors=${this.errors}|finalChars=${this.finalChars}|speakerScores=${this.speakerScores}` +
       `|speakerDiarizationUpdates=${this.speakerDiarizationUpdates}` +
       `|speakerDiarizationResults=${this.speakerDiarizationResults}` +
+      `|speakerWindowsHex=${this.speakerWindowsHex}` +
       `|speakerDiarizationSpeakerCount=${this.speakerDiarizationSpeakerCount}` +
       `|speakerDiarizationDegraded=${this.speakerDiarizationDegraded}` +
       `|speakerDiarizationReason=${this.speakerDiarizationReason}` +
@@ -1252,6 +1278,7 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.speakerScores = events.speakerScores;
   result.speakerDiarizationUpdates = events.speakerDiarizationUpdates;
   result.speakerDiarizationResults = events.speakerDiarizationResults;
+  result.speakerWindowsHex = stringToUtf16Hex(JSON.stringify(events.diarizationWindows));
   result.speakerDiarizationSpeakerCount = events.speakerDiarizationSpeakerCount;
   result.speakerDiarizationDegraded = events.speakerDiarizationDegraded;
   result.speakerDiarizationReason = events.speakerDiarizationReason;
@@ -2014,7 +2041,7 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   if (mode === 'customer-tap-vad') scenario = 'tap-vad';
   else if (mode === 'customer-transcription') scenario = 'transcription';
   else if (mode === 'customer-form') scenario = 'form';
-  else if (mode === 'customer-meeting-minutes') scenario = 'meeting-minutes';
+  else if (mode === 'customer-meeting-minutes' || mode === 'diarization-windows') scenario = 'meeting-minutes';
   const sessionId = `${mode}-${index}`;
   const callbackListener = mode === 'customer-tap-vad' ?
     new CallbackApiReentrantListener(engine, sessionId, 'speech-end') : undefined;
@@ -2026,6 +2053,9 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   }
   const profile = customerScenarioProfile(scenario);
   const params = customerProfileStartParams(sessionId, scenario);
+  // Feed five hours under an eight-hour guard so explicit finish owns the gate's terminal callback.
+  const maxAudioDurationMs = mode === 'diarization-windows' ? 28800000 : profile.maxAudioDuration;
+  params.extraParams['maxAudioDuration'] = maxAudioDurationMs;
   params.extraParams['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
@@ -2059,11 +2089,13 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   const callbackContract = callbackListener === undefined ||
     (callbackListener.reentryAttempted && callbackListener.finishCalls === 1 &&
     callbackListener.reentryThrowMessage.length === 0);
-  const meetingContract = mode !== 'customer-meeting-minutes' ||
-    (events.speakerDiarizationResults === 1 &&
+  const meetingContract = (mode !== 'customer-meeting-minutes' && mode !== 'diarization-windows') ||
+    (events.speakerDiarizationResults >= 1 &&
+    events.speakerDiarizationTerminalResults === 1 && events.speakerDiarizationViolations === 0 &&
     events.speakerDiarizationDegraded === 0 &&
     events.speakerDiarizationSpeakerCount > 0 &&
     events.speakerTurnsJson !== '[]' &&
+    (mode !== 'diarization-windows' || events.speakerDiarizationResults >= 2) &&
     speakerDiarizationTerminalOrderOk(events, sessionId));
   const ok = completed && callbackContract && lastBeforeStop === 0 &&
     events.starts === 1 && events.lastFinals === 1 && events.completes === 1 &&
@@ -2084,7 +2116,7 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   result.tailSilenceMs = mode === 'customer-ptt-tail' ? tailFrames * FRAME_DURATION_MS : -1;
   result.lastFinalsBeforeFinish = lastBeforeStop;
   result.requestedVadBeginMs = profile.vadBegin === undefined ? -1 : profile.vadBegin;
-  result.requestedMaxAudioDurationMs = profile.maxAudioDuration;
+  result.requestedMaxAudioDurationMs = maxAudioDurationMs;
   result.finishToLastMs = events.lastFinalAtMs < 0 ? -1 :
     events.lastFinalAtMs - finishRequestedAtMs;
   result.finishToDiarizationResultMs = events.speakerDiarizationResultAtMs < 0 ? -1 :
@@ -2830,7 +2862,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runCallbackApiReentrantCycle(engine, entry, i);
       } else if (options.mode === 'customer-tap-vad' || options.mode === 'customer-ptt' ||
         options.mode === 'customer-transcription' || options.mode === 'customer-ptt-tail' ||
-        options.mode === 'customer-form' || options.mode === 'customer-meeting-minutes') {
+        options.mode === 'customer-form' || options.mode === 'customer-meeting-minutes' ||
+        options.mode === 'diarization-windows') {
         result = await runCustomerScenarioCycle(
           engine, entry, i, options.mode, options.paceMs);
       } else if (options.mode === 'endpoint-reentrant') {

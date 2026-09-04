@@ -74,6 +74,7 @@ data class DiarizedUtterance(
     val secondarySpeakerIndexes: List<Int> = emptyList(),
     val confidence: Float = 0f,
     val overlap: Boolean = false,
+    val sourceUtteranceId: String = utteranceId,
 )
 
 data class SpeakerTurn(
@@ -104,6 +105,10 @@ data class SpeakerDiarizationResult(
     val degradedMessage: String? = null,
     val inferenceMs: Long = 0,
     val rtf: Float = 0f,
+    val windowIndex: Int = 0,
+    val windowBeginTime: Int = 0,
+    val windowEndTime: Int = 0,
+    val isSessionFinal: Boolean = false,
 )
 
 /** 声纹注册请求。 */

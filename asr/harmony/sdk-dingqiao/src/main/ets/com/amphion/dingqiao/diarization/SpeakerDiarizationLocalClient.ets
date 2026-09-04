@@ -1,3 +1,4 @@
+import { DiarizationPcmSpool } from './DiarizationPcmSpool';
 import { SpeakerDiarizationInference, SpeakerDiarizationWindowResult } from 'amphion_asr';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { DingqiaoSpeakerModelAssets } from '../DingqiaoSpeakerModelAssets';
@@ -50,12 +51,11 @@ export class SpeakerDiarizationLocalClient {
   private readonly scheduler: DiarizationWindowScheduler = new DiarizationWindowScheduler(SAMPLE_RATE);
   private readonly queue: DiarizationLocalJob[] = [];
   private readonly jobDir: string;
-  private readonly spoolPath: string;
+  private readonly spool: DiarizationPcmSpool;
   private readonly observer: SpeakerDiarizationLocalObserver;
   private readonly inference: SpeakerDiarizationInference = new SpeakerDiarizationInference();
   private readonly inferenceLoad: Promise<void>;
   private readonly quiescentCallbacks: Array<() => void> = [];
-  private spoolFd: number = -1;
   private nextJobId: number = 1;
   private activeJob?: DiarizationLocalJob;
   private finishing: boolean = false;
@@ -69,11 +69,8 @@ export class SpeakerDiarizationLocalClient {
     const localJobId = nextDiarizationJobId;
     nextDiarizationJobId += 1;
     this.jobDir = `${workPath}/speaker-diarization-jobs/job-${Date.now()}-${localJobId}`;
-    this.spoolPath = `${this.jobDir}/audio.pcm`;
     this.ensureDir(this.jobDir);
-    const spool = fs.openSync(this.spoolPath,
-      fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.APPEND);
-    this.spoolFd = spool.fd;
+    this.spool = new DiarizationPcmSpool(this.jobDir);
     this.inferenceLoad = this.inference.load(context, DingqiaoSpeakerModelAssets.bundledPath());
     this.inferenceLoad.then((): void => {
       this.loadSettled = true;
@@ -91,7 +88,7 @@ export class SpeakerDiarizationLocalClient {
   append(audio: ArrayBuffer): void {
     if (this.closed || this.finishing || this.degraded) return;
     try {
-      fs.writeSync(this.spoolFd, audio);
+      this.spool.append(audio);
       const windows = this.scheduler.acceptSamples(audio.byteLength / 2);
       for (let index = 0; index < windows.length; index++) this.submit(windows[index]);
       this.pump();
@@ -126,7 +123,6 @@ export class SpeakerDiarizationLocalClient {
 
   cleanup(onQuiescent?: () => void): void { this.cancel(onQuiescent); }
 
-  checkpointDir(): string { return this.jobDir; }
 
   private submit(window: DiarizationInferenceWindow): void {
     const jobId = `w${this.nextJobId.toString().padStart(8, '0')}`;
@@ -205,6 +201,12 @@ export class SpeakerDiarizationLocalClient {
     } finally {
       if (timeout >= 0) clearTimeout(timeout);
       if (this.activeJob?.jobId === job.jobId) this.activeJob = undefined;
+      if (!this.closed) {
+        const retainedOffset = this.queue.length > 0 ? this.queue[0].offsetBytes :
+          Math.max(0, this.spool.endOffset() - WINDOW_SAMPLES * 2);
+        try { this.spool.discardBefore(retainedOffset); }
+        catch (error) { this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE, `${error}`); }
+      }
       if (this.closed) this.closeWhenQuiescent();
       else {
         this.pump();
@@ -218,13 +220,9 @@ export class SpeakerDiarizationLocalClient {
   }
 
   private readWindow(job: DiarizationLocalJob): Float32Array {
-    const data = new ArrayBuffer(job.sampleCount * 2);
-    const spool = fs.openSync(this.spoolPath, fs.OpenMode.READ_ONLY);
-    try {
-      const read = fs.readSync(spool.fd, data, { offset: job.offsetBytes, length: data.byteLength });
-      if (read !== data.byteLength) throw new SpeakerDiarizationStorageError(
-        `expected ${data.byteLength} PCM bytes, got ${read}`);
-    } finally { fs.closeSync(spool.fd); }
+    let data: ArrayBuffer;
+    try { data = this.spool.read(job.offsetBytes, job.sampleCount * 2); }
+    catch (error) { throw new SpeakerDiarizationStorageError(`diarization PCM read failed: ${error}`); }
     const pcm = new Int16Array(data);
     const result = new Float32Array(WINDOW_SAMPLES);
     const offset = WINDOW_SAMPLES - pcm.length;
@@ -255,21 +253,12 @@ export class SpeakerDiarizationLocalClient {
     for (let index = 0; index < callbacks.length; index++) callbacks[index]();
   }
 
-  private closeSpool(): void {
-    if (this.spoolFd < 0) return;
-    fs.closeSync(this.spoolFd);
-    this.spoolFd = -1;
-  }
+  private closeSpool(): void { this.spool.close(); }
 
   private removeJobFiles(): void {
     try {
-      const names = ['audio.pcm', 'window-journal.jsonl', 'embedding-index.jsonl',
-        'speaker-registry.json'];
-      for (let index = 0; index < names.length; index++) {
-        const path = `${this.jobDir}/${names[index]}`;
-        if (fs.accessSync(path)) fs.unlinkSync(path);
-      }
-      if (fs.accessSync(this.jobDir)) fs.rmdirSync(this.jobDir);
+      this.spool.remove();
+      fs.rmdirSync(this.jobDir);
     } catch (_ignored) {}
   }
 

@@ -2,6 +2,7 @@ package com.amphion.dingqiao.diarization
 
 import android.content.Context
 import com.amphion.asr.AsrResult
+import com.amphion.asr.internal.ResultAudioTimeline
 import com.amphion.dingqiao.DiarizedUtterance
 import com.amphion.dingqiao.SpeakerDiarizationDegradedReason
 import com.amphion.dingqiao.SpeakerDiarizationResult
@@ -9,23 +10,20 @@ import com.amphion.dingqiao.SpeakerDiarizationUpdate
 import com.amphion.dingqiao.SpeakerTurn
 import com.amphion.dingqiao.SpeechRecognitionResult
 import java.io.File
-import java.io.DataInputStream
-import java.io.DataOutputStream
-import java.io.EOFException
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
 internal interface SpeakerDiarizationSessionObserver {
     fun onUpdate(update: SpeakerDiarizationUpdate)
+    fun onWindowResult(result: SpeakerDiarizationResult) {}
     fun onFinished(result: SpeakerDiarizationResult)
 }
 
 internal interface SpeakerDiarizationController {
     fun append(audio: ByteArray)
     fun observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult): SpeechRecognitionResult
+    fun asrFinalDelivered(result: AsrResult) {}
     fun finish()
     fun decoratePayload(payload: SpeechRecognitionResult): SpeechRecognitionResult
     fun bestResult(
@@ -42,12 +40,17 @@ internal class SpeakerDiarizationSession(
     private val observer: SpeakerDiarizationSessionObserver,
 ) : SpeakerDiarizationLocalObserver, SpeakerDiarizationController {
     private val client = SpeakerDiarizationLocalClient(context, workPath, this)
-    private val registry = OnlineSpeakerRegistry(maxSpeakers, 0.72f, 0.05f)
+    private var registry = OnlineSpeakerRegistry(maxSpeakers, 0.72f, 0.05f)
     private val globalClusterer = SpeakerDiarizationGlobalClusterer(maxSpeakers, 0.72f)
     private val transcript = DiarizationTranscriptState()
-    private val observationPath = File(client.checkpointDir(), "embedding-index.bin")
+    private val commitClock = DiarizationCommitClock()
+    private val committedRegistry = OnlineSpeakerRegistry(maxSpeakers, 0.72f, 0.05f)
+    private val callbacks = DiarizationCallbackQueue()
+    private var inferenceEndMs = 0
+    private var windowIndex = 0
+    private var terminalPayload: SpeechRecognitionResult? = null
+    private var decoratedTerminalPayload: SpeechRecognitionResult? = null
     private var recentObservations = mutableListOf<SpeakerEmbeddingObservation>()
-    private var nextReclusterMs = RECLUSTER_INTERVAL_MS
     private var totalSamples = 0L
     private var lastAsrEndMs = 0
     private var inferenceMs = 0L
@@ -94,13 +97,25 @@ internal class SpeakerDiarizationSession(
                     tokenTimesMs = timestampsMs,
                     beginTime = beginTime,
                     endTime = endTime,
+                    audioEndTime = ((ResultAudioTimeline.endSample(result) ?: totalSamples) * 1000 / SAMPLE_RATE).toInt(),
                 )
                 decoratePayloadLocked(payload.copy(utteranceId = utteranceId))
             }
+            if (payload.isLast) terminalPayload = value
             value to finalizeIfReadyLocked()
         }
         dispatchFinal(finalDispatch)
         return decorated
+    }
+
+    override fun asrFinalDelivered(result: AsrResult) {
+        synchronized(this) {
+            if (finished || result.isLast) return
+            val endSample = ResultAudioTimeline.endSample(result) ?: return
+            commitClock.observeEndpoint((endSample * 1000 / SAMPLE_RATE).toInt())
+            flushReadyWindowsLocked()
+        }
+        dispatchWindows()
     }
 
     @Synchronized
@@ -112,7 +127,7 @@ internal class SpeakerDiarizationSession(
 
     @Synchronized
     override fun decoratePayload(payload: SpeechRecognitionResult): SpeechRecognitionResult {
-        return decoratePayloadLocked(payload)
+        return if (payload.isLast) decoratedTerminalPayload ?: decoratePayloadLocked(payload) else decoratePayloadLocked(payload)
     }
 
     private fun decoratePayloadLocked(payload: SpeechRecognitionResult): SpeechRecognitionResult {
@@ -138,6 +153,7 @@ internal class SpeakerDiarizationSession(
     @Synchronized
     override fun cancel(onQuiescent: (() -> Unit)?) {
         finished = true
+        callbacks.close()
         client.cancel(onQuiescent)
     }
 
@@ -146,9 +162,10 @@ internal class SpeakerDiarizationSession(
 
     override fun onWindow(result: DiarizationLocalWindowResult) {
         val window = result
-        val updates = synchronized(this) {
+        synchronized(this) {
         if (finished) return
         inferenceMs += window.result.inferenceMs
+        inferenceEndMs = (window.realEndSample * 1000 / SAMPLE_RATE).toInt()
         val channelIds = mutableMapOf<Int, String>()
         val channelConfidences = mutableMapOf<Int, Float>()
         val assignments = registry.assignBatch(
@@ -168,12 +185,6 @@ internal class SpeakerDiarizationSession(
                 evidenceKey = "${window.jobId}:${embedding.localSpeaker}",
             )
             recentObservations += observation
-            runCatching { appendObservation(observation) }.onFailure {
-                onDegraded(
-                    SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
-                    "speaker diarization checkpoint failed: ${it.message ?: it.javaClass.simpleName}",
-                )
-            }
         }
         val turns = window.result.segments.mapNotNull { segment ->
             val localStart = max(0, segment.startSample - window.contentStartInWindowSample)
@@ -209,10 +220,10 @@ internal class SpeakerDiarizationSession(
             )
         }
         val published = transcript.applySpeakerTurns(turns).map { it.toPublic() }.toMutableList()
-        published += reclusterRecentLocked((window.realEndSample * 1000 / SAMPLE_RATE).toInt())
-        published
+        published.forEach { update -> callbacks.enqueue { observer.onUpdate(update) } }
+        flushReadyWindowsLocked()
         }
-        updates.forEach(observer::onUpdate)
+        dispatchWindows()
     }
 
     override fun onDrained() {
@@ -234,45 +245,66 @@ internal class SpeakerDiarizationSession(
 
     private fun finalizeIfReadyLocked(): FinalDispatch? {
         if (!finishRequested || finished || !processDrained || !asrTailObserved) return null
-        val observations = runCatching { loadObservations() }.getOrElse {
-            onDegraded(
-                SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
-                "speaker diarization checkpoint read failed: ${it.message ?: it.javaClass.simpleName}",
-            )
-            recentObservations.toList()
-        }
-        val clustered = globalClusterer.cluster(observations)
-        finalSpeakerCount = min(maxSpeakers, clustered.clusterCount)
-        val updates = transcript.applyEvidenceRemap(
-            evidenceRemap(observations, clustered.observationSpeakerIds),
-        ).map { it.toPublic() }
+        flushReadyWindowsLocked()
+        val result = commitWindowLocked((totalSamples * 1000 / SAMPLE_RATE).toInt(), Int.MAX_VALUE, true)
         finished = true
-        return FinalDispatch(updates, buildResultLocked(degradedReason, degradedMessage))
+        callbacks.enqueue { observer.onFinished(result) }
+        return FinalDispatch(emptyList(), result)
     }
 
-    private fun reclusterRecentLocked(endTimeMs: Int): List<SpeakerDiarizationUpdate> {
-        val fromTime = max(0, endTimeMs - RECENT_CORRECTION_MS)
-        recentObservations = recentObservations.filterTo(mutableListOf()) { it.endTimeMs >= fromTime }
-        if (endTimeMs < nextReclusterMs) return emptyList()
-        nextReclusterMs = endTimeMs + RECLUSTER_INTERVAL_MS
-        val clustered = globalClusterer.cluster(recentObservations)
-        return transcript.applyEvidenceRemap(
-            evidenceRemap(recentObservations, clustered.observationSpeakerIds),
-            fromTime,
-        ).map { it.toPublic() }
+    private fun flushReadyWindowsLocked() {
+        if (finished) return
+        val progress = if (degradedReason == SpeakerDiarizationDegradedReason.NONE) inferenceEndMs else Int.MAX_VALUE
+        while (true) {
+            val boundary = commitClock.takeReady(progress) ?: break
+            val result = commitWindowLocked(boundary.endTime, boundary.evidenceEndTime, false, boundary.beginTime)
+            if (result.utterances.isNotEmpty() || result.speakerTurns.isNotEmpty()) {
+                windowIndex += 1
+                callbacks.enqueue { observer.onWindowResult(result) }
+            }
+        }
     }
+
+    private fun commitWindowLocked(endTime: Int, evidenceEndTime: Int, isSessionFinal: Boolean,
+        beginTime: Int = commitClock.beginTime()): SpeakerDiarizationResult {
+        val observations = recentObservations.filter { it.endTimeMs <= evidenceEndTime && it.endTimeMs > beginTime }
+            .map { it.copy(onlineSpeakerId = "UNKNOWN", anchorId = committedRegistry.matchKnown(it.embedding)) }
+        val clustered = globalClusterer.cluster(observations)
+        val remap = mutableMapOf<String, String>()
+        for (cluster in clustered.clusters) {
+            val anchor = cluster.indexes.mapNotNull { observations[it].anchorId }.firstOrNull()
+            val id = if (anchor != null) {
+                committedRegistry.commitKnown(anchor, cluster.centroid, cluster.durationMs, endTime)
+                anchor
+            } else {
+                committedRegistry.assignBatch(listOf(cluster.centroid), listOf(cluster.durationMs), endTime)[0].speakerId
+            }
+            cluster.indexes.forEach { remap[observations[it].evidenceKey] = id }
+        }
+        transcript.applyEvidenceRemap(remap)
+        finalSpeakerCount = committedRegistry.speakerIds().size
+        registry = committedRegistry.fork()
+        terminalPayload?.let { decoratedTerminalPayload = decoratePayloadLocked(it) }
+        val result = buildResultLocked(degradedReason, degradedMessage, endTime, beginTime).copy(isSessionFinal = isSessionFinal)
+        transcript.commitThrough(endTime)
+        val needed = transcript.allTurns().flatMap { listOfNotNull(it.evidenceKey) + it.secondaryEvidenceKeys }.toSet()
+        recentObservations.removeAll { it.endTimeMs <= endTime && it.evidenceKey !in needed }
+        return result
+    }
+
+    private fun dispatchWindows() { callbacks.drain() }
 
     private fun dispatchFinal(dispatch: FinalDispatch?) {
-        if (dispatch == null) return
-        dispatch.updates.forEach(observer::onUpdate)
-        observer.onFinished(dispatch.result)
+        if (dispatch != null) callbacks.drain()
     }
 
     private fun buildResultLocked(
         reason: SpeakerDiarizationDegradedReason,
         message: String?,
+        endTime: Int = (totalSamples * 1000 / SAMPLE_RATE).toInt(),
+        beginTime: Int = commitClock.beginTime(),
     ): SpeakerDiarizationResult {
-        val utterances = transcript.finalUtterances().map {
+        val utterances = transcript.finalUtterances(endTime).map {
             DiarizedUtterance(
                 it.utteranceId,
                 it.rawText,
@@ -283,12 +315,13 @@ internal class SpeakerDiarizationSession(
                 speakerIndexesFromInternalIds(it.secondarySpeakerIds, maxSpeakers, true),
                 it.confidence,
                 it.overlap,
+                it.sourceUtteranceId,
             )
         }
-        val turns = transcript.allTurns().map {
+        val turns = transcript.allTurns().filter { it.endTime > beginTime && it.beginTime < endTime }.map {
             SpeakerTurn(
-                it.beginTime,
-                it.endTime,
+                maxOf(beginTime, it.beginTime),
+                minOf(endTime, it.endTime),
                 speakerIndexFromInternalId(it.speakerId, maxSpeakers),
                 speakerIndexesFromInternalIds(it.secondarySpeakerIds, maxSpeakers, true),
                 it.confidence,
@@ -299,7 +332,10 @@ internal class SpeakerDiarizationSession(
         return SpeakerDiarizationResult(
             utterances = utterances,
             speakerTurns = turns,
-            speakerCount = if (finalSpeakerCount > 0) finalSpeakerCount else registry.speakerIds().size,
+            speakerCount = finalSpeakerCount,
+            windowIndex = windowIndex,
+            windowBeginTime = beginTime,
+            windowEndTime = endTime,
             degraded = reason != SpeakerDiarizationDegradedReason.NONE,
             degradedReason = reason,
             degradedMessage = message,
@@ -318,68 +354,19 @@ internal class SpeakerDiarizationSession(
         confidence,
     )
 
-    private fun evidenceRemap(
-        observations: List<SpeakerEmbeddingObservation>,
-        speakerIds: List<String>,
-    ): Map<String, String> = observations.indices.associate { index ->
-        observations[index].evidenceKey to speakerIds.getOrElse(index) { "UNKNOWN" }
-    }
-
-    private fun appendObservation(observation: SpeakerEmbeddingObservation) {
-        DataOutputStream(FileOutputStream(observationPath, true).buffered()).use { output ->
-            output.writeInt(observation.durationMs)
-            output.writeInt(observation.endTimeMs)
-            output.writeUTF(observation.onlineSpeakerId)
-            output.writeUTF(observation.evidenceKey)
-            output.writeInt(observation.embedding.size)
-            observation.embedding.forEach(output::writeFloat)
-        }
-    }
-
-    private fun loadObservations(): List<SpeakerEmbeddingObservation> {
-        if (!observationPath.isFile) return emptyList()
-        val result = mutableListOf<SpeakerEmbeddingObservation>()
-        DataInputStream(FileInputStream(observationPath).buffered()).use { input ->
-            while (true) {
-                try {
-                    val durationMs = input.readInt()
-                    val endTimeMs = input.readInt()
-                    val onlineSpeakerId = input.readUTF()
-                    val evidenceKey = input.readUTF()
-                    val dimension = input.readInt()
-                    check(dimension in 1..4096) { "invalid embedding dimension: $dimension" }
-                    val embedding = FloatArray(dimension) { input.readFloat() }
-                    result += SpeakerEmbeddingObservation(
-                        embedding,
-                        durationMs,
-                        onlineSpeakerId,
-                        endTimeMs,
-                        evidenceKey,
-                    )
-                } catch (_: EOFException) {
-                    break
-                }
-            }
-        }
-        return result
-    }
-
-    private companion object {
-        const val SAMPLE_RATE = 16_000
-        const val LOCAL_SPEAKER_COUNT = 3
-        const val RECENT_CORRECTION_MS = 60_000
-        const val RECLUSTER_INTERVAL_MS = 30_000
-    }
+    private companion object { const val SAMPLE_RATE = 16_000; const val LOCAL_SPEAKER_COUNT = 3 }
 }
 
-/** Keeps ASR usable and publishes an explicit final degradation if local storage setup fails. */
 internal class DegradedSpeakerDiarizationSession(
     private val maxSpeakers: Int,
     private val observer: SpeakerDiarizationSessionObserver,
     private val degradedReason: SpeakerDiarizationDegradedReason,
     private val degradedMessage: String,
 ) : SpeakerDiarizationController {
+    private val callbacks = DiarizationCallbackQueue()
     private val transcript = DiarizationTranscriptState()
+    private val commitClock = DiarizationCommitClock()
+    private var windowIndex = 0
     private var totalSamples = 0L
     private var lastAsrEndMs = 0
     private var finishRequested = false
@@ -411,13 +398,31 @@ internal class DegradedSpeakerDiarizationSession(
                     timestampsMs,
                     beginTime,
                     endTime,
+                    ((ResultAudioTimeline.endSample(result) ?: totalSamples) * 1000 / SAMPLE_RATE).toInt(),
                 )
                 payload.copy(utteranceId = id)
             }
             value to finalizeIfReadyLocked()
         }
-        finalResult?.let(observer::onFinished)
+        if (finalResult != null) callbacks.drain()
         return decorated
+    }
+
+    override fun asrFinalDelivered(result: AsrResult) {
+        synchronized(this) {
+            if (finished || result.isLast) return
+            val endSample = ResultAudioTimeline.endSample(result) ?: return
+            commitClock.observeEndpoint((endSample * 1000 / SAMPLE_RATE).toInt())
+            while (true) {
+                val boundary = commitClock.takeReady(Int.MAX_VALUE) ?: break
+                val value = buildResult(degradedReason, degradedMessage, boundary.endTime, boundary.beginTime)
+                transcript.commitThrough(boundary.endTime)
+                if (value.utterances.isNotEmpty()) {
+                    callbacks.enqueue { observer.onWindowResult(value) }; windowIndex++
+                }
+            }
+        }
+        callbacks.drain()
     }
 
     override fun finish() {
@@ -426,7 +431,7 @@ internal class DegradedSpeakerDiarizationSession(
             finishRequested = true
             finalizeIfReadyLocked()
         }
-        finalResult?.let(observer::onFinished)
+        if (finalResult != null) callbacks.drain()
     }
 
     override fun decoratePayload(payload: SpeechRecognitionResult): SpeechRecognitionResult = payload
@@ -439,21 +444,26 @@ internal class DegradedSpeakerDiarizationSession(
     }
 
     override fun cancel(onQuiescent: (() -> Unit)?) {
-        synchronized(this) { finished = true }
+        synchronized(this) { finished = true; callbacks.close() }
         onQuiescent?.invoke()
     }
 
     private fun finalizeIfReadyLocked(): SpeakerDiarizationResult? {
         if (!finishRequested || !asrTailObserved || finished) return null
         finished = true
-        return buildResult(degradedReason, degradedMessage)
+        val result = buildResult(degradedReason, degradedMessage).copy(isSessionFinal = true)
+        callbacks.enqueue { observer.onFinished(result) }
+        return result
     }
 
     private fun buildResult(
         reason: SpeakerDiarizationDegradedReason,
         message: String?,
+        endTime: Int = (totalSamples * 1000 / SAMPLE_RATE).toInt(),
+        beginTime: Int = commitClock.beginTime(),
     ) = SpeakerDiarizationResult(
-        utterances = transcript.finalUtterances().map {
+        windowIndex = windowIndex, windowBeginTime = beginTime, windowEndTime = endTime,
+        utterances = transcript.finalUtterances(endTime).map {
             DiarizedUtterance(
                 it.utteranceId,
                 it.rawText,
