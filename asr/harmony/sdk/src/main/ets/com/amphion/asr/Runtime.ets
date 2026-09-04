@@ -114,6 +114,8 @@ const UTT_MAX_SAMPLES: number = 25 * ASR_SAMPLE_RATE_HZ;
 const FINAL_TAIL_SILENCE_MS: number = 1280;
 const FINAL_TAIL_STEP_MS: number = 20;
 const FINAL_TAIL_REQUIRED_DECODES: number = 2;
+// lc256 needs 256 ms of right context; keep a 64 ms margin before allowing one decode.
+const FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS: number = 320;
 const SPEAKER_TURN_SEGMENTATION_MODEL: string = 'pyannote-segmentation-3.0.onnx';
 
 export class AmphionRuntime {
@@ -2747,7 +2749,8 @@ export class AsrSession {
   private flushAdaptiveFinalTail(): number {
     const flushStartMs = Date.now();
     const planner = new FinalTailFlushPlanner(
-      FINAL_TAIL_STEP_MS, FINAL_TAIL_SILENCE_MS, FINAL_TAIL_REQUIRED_DECODES);
+      FINAL_TAIL_STEP_MS, FINAL_TAIL_SILENCE_MS, FINAL_TAIL_REQUIRED_DECODES,
+      FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS);
     let decodeDurationMs = 0;
     while (!planner.isComplete()) {
       if (this.recognizer.isReady(this.stream)) {
@@ -2766,6 +2769,7 @@ export class AsrSession {
       `paddingMs=${planner.paddingDurationMs()} ` +
       `decodeOpportunities=${planner.decodeOpportunities()} ` +
       `decodeDurationMs=${decodeDurationMs} elapsedMs=${Date.now() - flushStartMs} ` +
+      `singleDecode=${planner.decodeOpportunities() === 1} ` +
       `fallback=${planner.usedFallback()}`);
     return decodeDurationMs;
   }
@@ -2773,7 +2777,8 @@ export class AsrSession {
   private async flushAdaptiveFinalTailAsync(): Promise<number> {
     const flushStartMs = Date.now();
     const planner = new FinalTailFlushPlanner(
-      FINAL_TAIL_STEP_MS, FINAL_TAIL_SILENCE_MS, FINAL_TAIL_REQUIRED_DECODES);
+      FINAL_TAIL_STEP_MS, FINAL_TAIL_SILENCE_MS, FINAL_TAIL_REQUIRED_DECODES,
+      FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS);
     let decodeDurationMs = 0;
     while (!planner.isComplete() && !this.callbackGate.isClosed()) {
       if (this.recognizer.isReady(this.stream)) {
@@ -2790,6 +2795,7 @@ export class AsrSession {
       `paddingMs=${planner.paddingDurationMs()} ` +
       `decodeOpportunities=${planner.decodeOpportunities()} ` +
       `decodeDurationMs=${decodeDurationMs} elapsedMs=${Date.now() - flushStartMs} ` +
+      `singleDecode=${planner.decodeOpportunities() === 1} ` +
       `fallback=${planner.usedFallback()}`);
     return decodeDurationMs;
   }

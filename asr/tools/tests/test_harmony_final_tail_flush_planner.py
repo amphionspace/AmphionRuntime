@@ -85,6 +85,61 @@ class HarmonyFinalTailFlushPlannerTest(unittest.TestCase):
             """
         )
 
+    def test_single_decode_requires_the_full_320ms_right_context_margin(self) -> None:
+        self.run_planner(
+            """
+            const below = new FinalTailFlushPlanner(20, 1280, 2, 320);
+            for (let i = 0; i < 300; i += 20) below.recordPadding(20);
+            below.recordDecode();
+            assert.equal(below.isComplete(), false);
+
+            const boundary = new FinalTailFlushPlanner(20, 1280, 2, 320);
+            for (let i = 0; i < 320; i += 20) boundary.recordPadding(20);
+            boundary.recordDecode();
+            assert.equal(boundary.isComplete(), true);
+            assert.equal(boundary.decodeOpportunities(), 1);
+            """
+        )
+
+    def test_later_padding_cannot_retroactively_qualify_the_first_decode(self) -> None:
+        self.run_planner(
+            """
+            const planner = new FinalTailFlushPlanner(20, 1280, 2, 320);
+            for (let i = 0; i < 300; i += 20) planner.recordPadding(20);
+            planner.recordDecode();
+            planner.recordPadding(20);
+            assert.equal(planner.isComplete(), false);
+            planner.recordDecode();
+            assert.equal(planner.isComplete(), true);
+            assert.equal(planner.decodeOpportunities(), 2);
+            """
+        )
+
+    def test_right_context_gate_is_safe_for_every_20ms_chunk_phase(self) -> None:
+        self.run_planner(
+            """
+            for (let phaseMs = 0; phaseMs < 640; phaseMs += 20) {
+              const planner = new FinalTailFlushPlanner(20, 1280, 2, 320);
+              let readyAudioMs = phaseMs;
+              while (!planner.isComplete()) {
+                if (readyAudioMs >= 640) {
+                  readyAudioMs -= 640;
+                  planner.recordDecode();
+                  continue;
+                }
+                const paddingMs = planner.nextPaddingMs();
+                assert.ok(paddingMs > 0);
+                planner.recordPadding(paddingMs);
+                readyAudioMs += paddingMs;
+              }
+              const firstPaddingMs = 640 - phaseMs;
+              assert.equal(planner.decodeOpportunities(), firstPaddingMs >= 320 ? 1 : 2);
+              assert.ok(planner.paddingDurationMs() <= 1280);
+              assert.equal(planner.usedFallback(), false);
+            }
+            """
+        )
+
     def test_adaptive_flush_is_asr_only_and_follows_speaker_turn_commit(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
         async_stop = source.split("private async stopNowAsync", 1)[1].split(

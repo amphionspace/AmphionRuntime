@@ -518,6 +518,7 @@ internal class SessionImpl(
             stepMs = FINAL_TAIL_STEP_MS,
             maxPaddingMs = FINAL_TAIL_SILENCE_MS,
             requiredDecodes = FINAL_TAIL_REQUIRED_DECODES,
+            singleDecodeMinPaddingMs = FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS,
         )
         var decodeDurationMs = 0L
         while (!planner.isComplete && !closed.get()) {
@@ -539,6 +540,7 @@ internal class SessionImpl(
                 "decodeOpportunities=${planner.decodeOpportunities} " +
                 "decodeDurationMs=$decodeDurationMs " +
                 "elapsedMs=${(System.nanoTime() - flushStartedNs) / 1_000_000L} " +
+                "singleDecode=${planner.decodeOpportunities == 1} " +
                 "fallback=${planner.usedFallback}",
         )
     }
@@ -1271,9 +1273,10 @@ internal class SessionImpl(
          */
         const val FINAL_TAIL_SILENCE_MS = 1280
 
-        /** Probe readiness in normal 20 ms PCM slices; count two real encoder decode chunks. */
+        /** Probe readiness in 20 ms slices; one decode is enough only after 320 ms right context. */
         const val FINAL_TAIL_STEP_MS = 20
         const val FINAL_TAIL_REQUIRED_DECODES = 2
+        const val FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS = 320
 
         /**
          * silero VAD 强约束：必须按窗口对齐喂入 [Vad.acceptWaveform]。
