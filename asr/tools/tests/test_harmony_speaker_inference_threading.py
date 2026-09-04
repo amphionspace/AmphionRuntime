@@ -378,7 +378,7 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
     def test_clean_prefix_score_overlaps_prefix_decode(self) -> None:
         commit = method_body(self.runtime, "commitCleanSpeakerTurnAsync")
         score = commit.index("this.computeCleanPrefixSpeakerScoreAsync(split)")
-        decode = commit.index("this.recognizer.decodeAsync(prefixStream)")
+        decode = commit.index("const decodeTask = this.flushAdaptiveFinalTailAsync")
         joined = commit.index("await Promise.all", max(score, decode))
         self.assertLess(score, joined)
         self.assertLess(decode, joined)
@@ -431,7 +431,7 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
 
     def test_async_clean_turn_failure_never_restores_a_closed_stream(self) -> None:
         commit = method_body(self.runtime, "commitCleanSpeakerTurnAsync")
-        invalidated = commit.index("if (!isCurrent())", commit.index("decodeAsync(prefixStream)"))
+        invalidated = commit.index("if (!isCurrent())", commit.index("await Promise.all"))
         catch = commit.rindex("catch (e)")
         self.assertIn("prefixStream.close()", commit[invalidated:catch])
         self.assertIn("this.stream = speculativeStream", commit[invalidated:catch])
@@ -641,12 +641,15 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         self.assertIn("await this.commitSpeakerTurnAtFinishAsync()", finish)
         self.assertIn("await this.commitCleanSpeakerTurnAsync", endpoint)
         self.assertIn("await this.commitCleanSpeakerTurnAsync", vad_endpoint)
-        self.assertIn("this.recognizer.decodeAsync(prefixStream)", commit)
+        self.assertIn("this.flushAdaptiveFinalTailAsync", commit)
+        self.assertIn("this.recognizer.decodeAsync(activePrefixStream)", commit)
         self.assertIn("await Promise.all", commit)
-        self.assertNotIn("this.recognizer.decode(prefixStream)", commit)
+        self.assertNotIn("this.recognizer.decode(activePrefixStream)", commit)
         self.assertIn("await this.replaySpeakerSuffixAsync(split)", commit)
         self.assertIn("this.replaySpeakerSuffixForFinish(split)", commit)
-        self.assertIn("await this.drainFinalWithSpeakerScoreAsync(true)", commit)
+        self.assertIn(
+            "await this.drainFinalWithSpeakerScoreAsync(true, suffixTailDecodeMs)", commit
+        )
         self.assertIn("await this.feedChunkAndDecodeAsync", replay)
 
 

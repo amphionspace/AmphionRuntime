@@ -4,33 +4,41 @@
  * The caller owns recognizer readiness. It appends nextPaddingMs() when the stream is not ready,
  * or records exactly one decode after running a single ready chunk. A first chunk may complete the
  * flush only when it already contains the configured amount of synthetic right context; otherwise
- * the caller must decode a second chunk. Synthetic padding never flows through the public PCM, VAD,
- * Speaker VAD, or speaker-scoring buffers.
+ * the caller must decode a second chunk. Replay streams may additionally require a minimum amount
+ * of padding before either completion rule applies. Synthetic padding never flows through the
+ * public PCM, VAD, Speaker VAD, or speaker-scoring buffers.
  */
 export class FinalTailFlushPlanner {
   readonly stepMs: number;
   readonly maxPaddingMs: number;
   readonly requiredDecodes: number;
   readonly singleDecodeMinPaddingMs: number;
+  readonly minimumPaddingMs: number;
   private paddedMs: number = 0;
   private decodedChunks: number = 0;
   private firstDecodePaddedMs: number = -1;
 
   constructor(stepMs: number, maxPaddingMs: number, requiredDecodes: number,
-    singleDecodeMinPaddingMs: number = 0) {
+    singleDecodeMinPaddingMs: number = 0, minimumPaddingMs: number = 0) {
     this.stepMs = Math.round(stepMs);
     this.maxPaddingMs = Math.round(maxPaddingMs);
     this.requiredDecodes = Math.round(requiredDecodes);
     this.singleDecodeMinPaddingMs = Math.round(singleDecodeMinPaddingMs);
+    this.minimumPaddingMs = Math.round(minimumPaddingMs);
     if (this.stepMs <= 0) throw new Error('stepMs must be > 0');
     if (this.maxPaddingMs <= 0) throw new Error('maxPaddingMs must be > 0');
     if (this.requiredDecodes <= 0) throw new Error('requiredDecodes must be > 0');
     if (this.singleDecodeMinPaddingMs < 0 || this.singleDecodeMinPaddingMs > this.maxPaddingMs) {
       throw new Error('singleDecodeMinPaddingMs must be within the padding bound');
     }
+    if (this.minimumPaddingMs < 0 || this.minimumPaddingMs > this.maxPaddingMs) {
+      throw new Error('minimumPaddingMs must be within the padding bound');
+    }
   }
 
   isComplete(): boolean {
+    if (this.paddedMs < this.minimumPaddingMs) return false;
+    if (this.minimumPaddingMs > 0) return this.decodedChunks >= this.requiredDecodes;
     return this.decodedChunks >= this.requiredDecodes ||
       (this.decodedChunks >= 1 && this.singleDecodeMinPaddingMs > 0 &&
         this.firstDecodePaddedMs >= this.singleDecodeMinPaddingMs);
