@@ -348,7 +348,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             commit,
         )
         commit_index = async_stop.index("this.commitSpeakerTurnAtFinishAsync()")
-        speculative_flush_index = async_stop.index("this.appendFinalTailSilence()")
+        speculative_flush_index = async_stop.index("this.flushAdaptiveFinalTailAsync()")
         self.assertLess(commit_index, speculative_flush_index)
 
     def test_sync_finish_uses_the_same_short_departure_recovery(self) -> None:
@@ -358,7 +358,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         )[0]
         self.assertIn("if (this.commitSpeakerTurnAtFinish()) return", sync_stop)
         commit_index = sync_stop.index("this.commitSpeakerTurnAtFinish()")
-        speculative_flush_index = sync_stop.index("this.appendFinalTailSilence()")
+        speculative_flush_index = sync_stop.index("this.flushAdaptiveFinalTail()")
         self.assertLess(commit_index, speculative_flush_index)
 
     def test_enabled_by_default_starts_boundary_model_loading(self) -> None:
