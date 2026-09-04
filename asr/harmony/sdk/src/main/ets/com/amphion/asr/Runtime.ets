@@ -56,6 +56,7 @@ import { InitialSilenceTracker } from './InitialSilenceTracker';
 import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
 import { SpeakerPcmBuffers } from './SpeakerPcmBuffers';
 import { SpeakerVadScoreScheduler } from './SpeakerVadScoreScheduler';
+import { FinalTailFlushPlanner } from './FinalTailFlushPlanner';
 import { RecognizerPoolPolicy } from './RecognizerPoolPolicy';
 import {
   NativeEndpointTransition,
@@ -111,6 +112,10 @@ const UTT_MAX_SAMPLES: number = 25 * ASR_SAMPLE_RATE_HZ;
 // chunk (~640 ms); padding two complete chunks guarantees two more decode opportunities regardless
 // of the current chunk phase. This is synthetic input, not a 1.28-second wall-clock delay.
 const FINAL_TAIL_SILENCE_MS: number = 1280;
+const FINAL_TAIL_STEP_MS: number = 20;
+const FINAL_TAIL_REQUIRED_DECODES: number = 2;
+// lc256 needs 256 ms of right context; keep a 64 ms margin before allowing one decode.
+const FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS: number = 320;
 const SPEAKER_TURN_SEGMENTATION_MODEL: string = 'pyannote-segmentation-3.0.onnx';
 
 export class AmphionRuntime {
@@ -1595,9 +1600,14 @@ export class AsrSession {
       if (this.commitSpeakerTurnAtFinish()) return;
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
       // Don't rebuild the stream afterwards (session is ending), so a soft reset is enough.
-      this.appendFinalTailSilence();
+      let tailDecodeMs = 0;
+      if (this.speakerVadEnabled) {
+        this.appendFinalTailSilence();
+      } else {
+        tailDecodeMs = this.flushAdaptiveFinalTail();
+      }
       this.stream.inputFinished();
-      this.drain(true, false, true);
+      this.drain(true, false, true, tailDecodeMs);
       if (!this.callbackGate.isClosed()) this.notifyStopped();
     } catch (e) {
       this.callbackGate.invoke((): void => {
@@ -1618,9 +1628,15 @@ export class AsrSession {
         await this.feedAndDecodeAsync(frame);
       });
       if (await this.commitSpeakerTurnAtFinishAsync()) return;
-      this.appendFinalTailSilence();
+      let tailDecodeMs = 0;
+      if (this.speakerVadEnabled) {
+        this.appendFinalTailSilence();
+      } else {
+        tailDecodeMs = await this.flushAdaptiveFinalTailAsync();
+      }
+      if (this.callbackGate.isClosed()) return;
       this.stream.inputFinished();
-      await this.drainAsync(true, false, true);
+      await this.drainAsync(true, false, true, tailDecodeMs);
       if (!this.callbackGate.isClosed()) this.notifyStopped();
     } catch (e) {
       this.callbackGate.invoke((): void => {
@@ -1830,19 +1846,20 @@ export class AsrSession {
       async (): Promise<void> => { await this.stopNowAsync(); });
   }
 
-  private drain(isFinal: boolean, restartAfterFinal: boolean = true, isLastFinal: boolean = false): void {
+  private drain(isFinal: boolean, restartAfterFinal: boolean = true, isLastFinal: boolean = false,
+    initialDecodeDurationMs: number = 0): void {
     const decodeStartMs = Date.now();
     while (this.recognizer.isReady(this.stream)) {
       this.recognizer.decode(this.stream);
     }
-    const decodeDurationMs = Date.now() - decodeStartMs;
+    const decodeDurationMs = initialDecodeDurationMs + Date.now() - decodeStartMs;
 
     this.processDecodedResult(isFinal, restartAfterFinal, isLastFinal, decodeDurationMs);
   }
 
   private async drainAsync(isFinal: boolean, restartAfterFinal: boolean = true,
-    isLastFinal: boolean = false): Promise<void> {
-    const decodeDurationMs = await this.recognizer.decodeAsync(this.stream);
+    isLastFinal: boolean = false, initialDecodeDurationMs: number = 0): Promise<void> {
+    const decodeDurationMs = initialDecodeDurationMs + await this.recognizer.decodeAsync(this.stream);
     if (this.callbackGate.isClosed()) return;
     await this.processDecodedResultAsync(
       isFinal, restartAfterFinal, isLastFinal, decodeDurationMs);
@@ -2727,6 +2744,60 @@ export class AsrSession {
     this.stream.acceptWaveform(wave);
     this.stablePrefixPcmBytes += samples.length * 2;
     await this.drainAsync(isFinal);
+  }
+
+  private flushAdaptiveFinalTail(): number {
+    const flushStartMs = Date.now();
+    const planner = new FinalTailFlushPlanner(
+      FINAL_TAIL_STEP_MS, FINAL_TAIL_SILENCE_MS, FINAL_TAIL_REQUIRED_DECODES,
+      FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS);
+    let decodeDurationMs = 0;
+    while (!planner.isComplete()) {
+      if (this.recognizer.isReady(this.stream)) {
+        const decodeStartMs = Date.now();
+        this.recognizer.decode(this.stream);
+        decodeDurationMs += Date.now() - decodeStartMs;
+        planner.recordDecode();
+        continue;
+      }
+      const paddingMs = planner.nextPaddingMs();
+      if (paddingMs <= 0) break;
+      this.appendFinalTailSilence(paddingMs);
+      planner.recordPadding(paddingMs);
+    }
+    Logger.metric(`kind=FINAL_TAIL sessionId=${this.sessionId} ` +
+      `paddingMs=${planner.paddingDurationMs()} ` +
+      `decodeOpportunities=${planner.decodeOpportunities()} ` +
+      `decodeDurationMs=${decodeDurationMs} elapsedMs=${Date.now() - flushStartMs} ` +
+      `singleDecode=${planner.decodeOpportunities() === 1} ` +
+      `fallback=${planner.usedFallback()}`);
+    return decodeDurationMs;
+  }
+
+  private async flushAdaptiveFinalTailAsync(): Promise<number> {
+    const flushStartMs = Date.now();
+    const planner = new FinalTailFlushPlanner(
+      FINAL_TAIL_STEP_MS, FINAL_TAIL_SILENCE_MS, FINAL_TAIL_REQUIRED_DECODES,
+      FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS);
+    let decodeDurationMs = 0;
+    while (!planner.isComplete() && !this.callbackGate.isClosed()) {
+      if (this.recognizer.isReady(this.stream)) {
+        decodeDurationMs += await this.recognizer.decodeOneAsync(this.stream);
+        planner.recordDecode();
+        continue;
+      }
+      const paddingMs = planner.nextPaddingMs();
+      if (paddingMs <= 0) break;
+      this.appendFinalTailSilence(paddingMs);
+      planner.recordPadding(paddingMs);
+    }
+    Logger.metric(`kind=FINAL_TAIL sessionId=${this.sessionId} ` +
+      `paddingMs=${planner.paddingDurationMs()} ` +
+      `decodeOpportunities=${planner.decodeOpportunities()} ` +
+      `decodeDurationMs=${decodeDurationMs} elapsedMs=${Date.now() - flushStartMs} ` +
+      `singleDecode=${planner.decodeOpportunities() === 1} ` +
+      `fallback=${planner.usedFallback()}`);
+    return decodeDurationMs;
   }
 
   private appendFinalTailSilence(durationMs: number = FINAL_TAIL_SILENCE_MS): void {
