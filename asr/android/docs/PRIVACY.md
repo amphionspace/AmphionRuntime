@@ -1,6 +1,6 @@
 # 隐私与合规说明
 
-适用 SDK：`com.amphion:amphion-runtime` 0.2.0
+适用 SDK：`com.amphion:amphion-runtime` 0.3.4
 
 本文件用于：
 1. 让你（集成方）在自己的 App 隐私政策、上架材料里准确披露 SDK 的数据行为；
@@ -15,7 +15,7 @@
 | SDK 名称 | AmphionRuntime |
 | 包名 | com.amphion.asr |
 | 坐标 | com.amphion:amphion-runtime |
-| 版本 | 0.2.0 |
+| 版本 | 0.3.4 |
 | 提供方 | Amphion（fork 用户请替换为自己公司的完整名称与联系方式） |
 | 隐私政策链接 | https://your-domain.example.com/privacy/amphion-runtime |
 
@@ -34,7 +34,7 @@
 
 ## 3. 网络通信
 
-SDK 0.2.0 完全离线，全部模型（中英 ASR / 粤英 ASR / 标点 / 中文 ITN / VAD）已经打入 AAR 的 assets，无任何主动网络请求。
+当前 SDK 0.3.4 完全离线，全部模型（中英 ASR / 粤英 ASR / 标点 / 中文 ITN / VAD）已经打入 AAR 的 assets，无任何主动网络请求。
 
 | 时机 | 是否发起请求 |
 | --- | --- |

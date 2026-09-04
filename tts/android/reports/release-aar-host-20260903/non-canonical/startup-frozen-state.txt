@@ -1,0 +1,13 @@
+Build source: b2e38ba5
+Host PID: 31233
+Host UID: 10625
+No host activity in topResumedActivity.
+/proc/31233/maps: no libonnxruntime/liblits/libsherpa/libamphion match.
+/sys/fs/cgroup/apps/uid_10625/pid_31233/cgroup.freeze = 1
+/sys/fs/cgroup/apps/uid_10625/pid_31233/cgroup.events:
+  populated 1
+  frozen 1
+Host files: tts-contract, tts_only.lic; no aar-frontend JSON report.
+Stopped with am force-stop com.lits.tts.aarhost after preserving state.
+The resulting 'Process crashed' instrumentation status is the deliberate termination, not a native crash.
+Non-canonical: startup froze before the model/SDK gate ran; not an SDK regression result.

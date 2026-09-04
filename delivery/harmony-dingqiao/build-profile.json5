@@ -45,7 +45,7 @@
     },
     {
       "name": "sherpa_onnx",
-      "srcPath": "../../third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx"
+      "srcPath": "../../third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx"
     }
   ]
 }

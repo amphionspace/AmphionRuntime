@@ -1,9 +1,0 @@
-{
-  "valid_wavs": 4,
-  "selected_wavs": 4,
-  "total_valid_duration_seconds": 43.84,
-  "selected_duration_seconds": 43.84,
-  "sample_rates": {
-    "16000": 4
-  }
-}

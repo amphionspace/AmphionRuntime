@@ -52,6 +52,7 @@ export class SpeakerDiarizationUpdate {
 }
 
 export class DiarizedUtterance {
+  sourceUtteranceId: string = '';
   utteranceId: string = '';
   rawText: string = '';
   text: string = '';
@@ -83,6 +84,10 @@ export enum SpeakerDiarizationDegradedReason {
 }
 
 export class SpeakerDiarizationResult {
+  windowIndex: number = 0;
+  windowBeginTime: number = 0;
+  windowEndTime: number = 0;
+  isSessionFinal: boolean = false;
   utterances: DiarizedUtterance[] = [];
   speakerTurns: SpeakerTurn[] = [];
   speakerCount: number = 0;

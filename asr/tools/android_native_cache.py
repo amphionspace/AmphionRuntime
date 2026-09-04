@@ -26,6 +26,7 @@ SOURCE_INPUTS = (
     "asr/tools/04_build_android_so.sh",
     "asr/tools/05_package_aar_libs.sh",
     "asr/tools/apply_sherpa_patches.sh",
+    "asr/tools/prepare_sherpa_source.sh",
     "asr/tools/ensure_agc_build_tools.sh",
     "asr/tools/prefetch_sherpa_cmake_deps.sh",
     "asr/tools/android_native_cache.py",
@@ -35,9 +36,10 @@ SOURCE_DIRECTORIES = (
     "third_party/patches/sherpa-amphion",
 )
 ARTIFACTS = (
-    f"third_party/sherpa-onnx/build-android-{SUPPORTED_ABI}/install/lib/"
+    f"third_party/.derived/sherpa-onnx/build-android-{SUPPORTED_ABI}/install/lib/"
     "libsherpa-onnx-jni.so",
-    f"third_party/sherpa-onnx/build-android-{SUPPORTED_ABI}/install/lib/libonnxruntime.so",
+    f"third_party/.derived/sherpa-onnx/build-android-{SUPPORTED_ABI}/install/lib/"
+    "libonnxruntime.so",
     f"asr/native/audio-processing/build-android-{SUPPORTED_ABI}/"
     "libamphion_audio_processing.so",
 )

@@ -22,7 +22,7 @@
 | `:sdk-dingqiao` | `com.amphion.dingqiao` | `SpeechRecognizeSdk` |
 | `:sdk-police` | `com.amphion.police` | `PoliceEnhancePipeline`（由 dingqiao 内部调用） |
 
-**不在交付范围：** `:samples:public-demo` 云端 ASR、Batch Eval；`:samples:internal-eval` 内部评测。
+**不在交付范围：** `:samples:internal-eval` 内部评测。`:samples:public-demo` 已移除云端 ASR 与 Batch Eval，不声明联网权限，也不包含评测数据采集入口。
 
 ## 2. 交付物清单（当前 Android ASR 客户包）
 
@@ -303,7 +303,7 @@ DELIVERY_VERIFY_DEVICE=1 bash tools/delivery/verify_delivery_zip_e2e.sh "$ZIP"
 - [x] Release APK 已构建（`assembleRelease`）  
 - [x] Release 真机：license + R8 + 识别链路  
 - [x] 声纹：register → 校验 → delete  
-- [x] `sherpa-onnx` patch 流程（`apply_sherpa_patches.sh`，upstream v1.13.1）  
+- [x] `sherpa-onnx` 隔离 patch 流程（`prepare_sherpa_source.sh`，upstream v1.13.1）
 
 ## 10. 相关文档
 

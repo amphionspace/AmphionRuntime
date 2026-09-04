@@ -64,6 +64,8 @@ export OHOS_NATIVE_SDK=/Applications/DevEco-Studio.app/Contents/sdk/default/open
 tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
 
+该目录是从 OBS 恢复的版本化只读输入。构建只会将其复制到生成目录，不会在原目录重建或覆盖词典。
+
 至少应包含：
 
 - `manifest.json`

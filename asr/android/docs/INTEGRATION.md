@@ -1,6 +1,6 @@
 # AmphionRuntime 集成指南
 
-适用 SDK 版本：0.2.0
+适用 SDK 版本：0.3.4
 
 > 0.2.0 是一次破坏性升级：所有模型已经打进 AAR、API 收敛到 4 个公开类。如果你之前接的是 0.1.x，请先看 [CHANGELOG](CHANGELOG.md) 的 Breaking 段。
 
@@ -23,11 +23,11 @@
 
 ### 方案 A：AAR 直接放 libs/
 
-把 `amphion-runtime-0.2.0.aar` 拷到你 app 工程的 `libs/`：
+把 `amphion-runtime-0.3.4.aar` 拷到你 app 工程的 `libs/`：
 
 ```kotlin
 dependencies {
-    implementation(files("libs/amphion-runtime-0.2.0.aar"))
+    implementation(files("libs/amphion-runtime-0.3.4.aar"))
     implementation("androidx.core:core-ktx:1.13.1")
 }
 ```
@@ -39,7 +39,7 @@ dependencies {
 ```bash
 cd asr/android
 ./gradlew :sdk:publishReleasePublicationToLocalFileRepoRepository
-# 输出：sdk/build/maven-repo/com/amphion/amphion-runtime/0.2.0/
+# 输出：sdk/build/maven-repo/com/amphion/amphion-runtime/0.3.4/
 ```
 
 在你 app 的 `settings.gradle.kts`：
@@ -58,7 +58,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.amphion:amphion-runtime:0.2.0")
+    implementation("com.amphion:amphion-runtime:0.3.4")
 }
 ```
 
@@ -230,7 +230,7 @@ SDK 不发起任何网络请求。所有模型加载、识别都在端上完成�
 ## 10. FAQ
 
 ### Q: AAR 太大（~280 MB）能瘦身吗？
-0.2.0 的 AAR 已经把全部 5 类模型（中英 ASR / 粤英 ASR / 标点 / ITN / VAD）打进 assets。如果你的业务**不需要**某种语言或某项后处理，可以联系我们出一份精简包；模型粒度的开关都在 [AssetRegistry] 集中维护。
+当前 AAR 已经把全部 5 类模型（中英 ASR / 粤英 ASR / 标点 / ITN / VAD）打进 assets。如果你的业务**不需要**某种语言或某项后处理，可以联系我们出一份精简包；模型粒度的开关都在 [AssetRegistry] 集中维护。
 
 ### Q: 第一次启动卡了 30 秒？
 首次解包是阻塞的，建议在 splash 上调 `AmphionRuntime.preInstall`，把这件事提前到用户感知不到的时间。
@@ -254,7 +254,7 @@ AmphionRuntime.init(this, AmphionOptions(logLevel = AmphionLogLevel.DEBUG))
 logcat tag = `AmphionRuntime`。
 
 ### Q: 想用自己的模型怎么办？
-0.2.0 的设计目标是「一份 AAR 全程黑盒」。如果你需要替换内置模型，请联系我们走定制流程；我们会用 `asr/tools/08_pack_sdk_assets.sh` 出一份带你私有模型的专属 AAR。
+当前 AAR 的设计目标是「一份 AAR 全程黑盒」。如果你需要替换内置模型，请联系我们走定制流程；我们会用 `asr/tools/08_pack_sdk_assets.sh` 出一份带你私有模型的专属 AAR。
 
 ### Q: VAD 开了，为什么长句子说一半还是不切分？
 0.2.x 起 SDK 把 silero VAD 真正接入了流式管线（之前版本里 VAD 对象被构造但没参与解码，所以"开"和"不开"效果一样）。VAD 现在做两件事：(1) 维护 speech/silence 状态机；(2) speech 之后尾静音达到阈值时主动给 ASR 出 final。默认阈值 500 ms，比 `endpointRules.rule2MinTrailingSilenceSec` 的 1.4 秒更敏感。

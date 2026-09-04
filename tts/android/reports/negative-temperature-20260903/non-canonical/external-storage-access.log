@@ -1,0 +1,65 @@
+INSTRUMENTATION_STATUS: class=com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest:
+INSTRUMENTATION_STATUS: test=nativeFrontendAndPublicSynthesisPreserveTemperatureReading
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stack=java.lang.IllegalStateException: 1002300005:TTS external resources not found under /sdcard/Android/data/com.lits.tts.sdk.test/files/tts-contract/tts
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.illegalState(LitsTtsAssetInstaller.kt:261)
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.ensureInstalled(LitsTtsAssetInstaller.kt:20)
+	at com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest.nativeFrontendAndPublicSynthesisPreserveTemperatureReading(NegativeTemperatureDeviceTest.kt:34)
+	... 31 trimmed
+Caused by: java.io.FileNotFoundException: lits-models/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/manifest.json
+	at android.content.res.AssetManager.nativeOpenAsset(Native Method)
+	at android.content.res.AssetManager.open(AssetManager.java:1161)
+	at android.content.res.AssetManager.open(AssetManager.java:1138)
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.readAssetSignature(LitsTtsAssetInstaller.kt:234)
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.ensureInstalled(LitsTtsAssetInstaller.kt:19)
+	... 33 more
+
+INSTRUMENTATION_STATUS: stream=
+Error in nativeFrontendAndPublicSynthesisPreserveTemperatureReading(com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest):
+java.lang.IllegalStateException: 1002300005:TTS external resources not found under /sdcard/Android/data/com.lits.tts.sdk.test/files/tts-contract/tts
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.illegalState(LitsTtsAssetInstaller.kt:261)
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.ensureInstalled(LitsTtsAssetInstaller.kt:20)
+	at com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest.nativeFrontendAndPublicSynthesisPreserveTemperatureReading(NegativeTemperatureDeviceTest.kt:34)
+	... 31 trimmed
+Caused by: java.io.FileNotFoundException: lits-models/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/manifest.json
+	at android.content.res.AssetManager.nativeOpenAsset(Native Method)
+	at android.content.res.AssetManager.open(AssetManager.java:1161)
+	at android.content.res.AssetManager.open(AssetManager.java:1138)
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.readAssetSignature(LitsTtsAssetInstaller.kt:234)
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.ensureInstalled(LitsTtsAssetInstaller.kt:19)
+	... 33 more
+
+INSTRUMENTATION_STATUS: test=nativeFrontendAndPublicSynthesisPreserveTemperatureReading
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 0.015
+There was 1 failure:
+1) nativeFrontendAndPublicSynthesisPreserveTemperatureReading(com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest)
+java.lang.IllegalStateException: 1002300005:TTS external resources not found under /sdcard/Android/data/com.lits.tts.sdk.test/files/tts-contract/tts
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.illegalState(LitsTtsAssetInstaller.kt:261)
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.ensureInstalled(LitsTtsAssetInstaller.kt:20)
+	at com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest.nativeFrontendAndPublicSynthesisPreserveTemperatureReading(NegativeTemperatureDeviceTest.kt:34)
+	... 31 trimmed
+Caused by: java.io.FileNotFoundException: lits-models/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/manifest.json
+	at android.content.res.AssetManager.nativeOpenAsset(Native Method)
+	at android.content.res.AssetManager.open(AssetManager.java:1161)
+	at android.content.res.AssetManager.open(AssetManager.java:1138)
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.readAssetSignature(LitsTtsAssetInstaller.kt:234)
+	at com.lits.tts.sdk.internal.LitsTtsAssetInstaller.ensureInstalled(LitsTtsAssetInstaller.kt:19)
+	... 33 more
+
+FAILURES!!!
+Tests run: 1,  Failures: 1
+
+
+INSTRUMENTATION_CODE: -1

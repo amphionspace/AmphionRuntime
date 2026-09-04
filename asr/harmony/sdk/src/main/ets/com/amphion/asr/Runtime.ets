@@ -1,3 +1,4 @@
+import { ResultAudioTimeline } from './ResultAudioTimeline';
 import {
   OfflinePunctuation,
   OfflinePunctuationConfig,
@@ -1986,7 +1987,7 @@ export class AsrSession {
   }
 
   private dispatchFinal(endpointTriggered: boolean, decodeDurationMs: number,
-    isLast: boolean = false): boolean {
+    isLast: boolean = false, audioEndSample: number = this.publicSamplesFed): boolean {
     const native = this.recognizer.getResult(this.stream);
     this.rememberSpeculativeTimestamps(native.timestamps);
     // Once vadBegin has conclusively expired without speech, inputFinished() may still expose a
@@ -2003,6 +2004,7 @@ export class AsrSession {
     result.timestamps = discardInitialSilenceResult ? [] :
       this.toSessionGlobalTimestamps(native.timestamps);
     result.isLast = isLast;
+    ResultAudioTimeline.record(result, audioEndSample);
     const cleanPrefixSpeakerScore = this.svCleanPrefixSpeakerScore;
     const speakerScorePrepared = this.svSpeakerScorePrepared;
     this.svCleanPrefixSpeakerScore = undefined;
@@ -3396,7 +3398,8 @@ export class AsrSession {
       // prefix last here would stop before the suffix is gated.
       const prefixIsLast = isLast && !finishTriggered;
       this.dispatchFinal(endpointTriggered || finishTriggered,
-        preparedDecodeMs + Date.now() - decodeStartMs, prefixIsLast);
+        preparedDecodeMs + Date.now() - decodeStartMs, prefixIsLast,
+        speculativeStreamStartSample + split.cutSample);
       if (this.callbackGate.isClosed()) return true;
       if (prefixIsLast) {
         this.notifyStopped();
@@ -3568,7 +3571,8 @@ export class AsrSession {
       }
       const prefixIsLast = isLast && !finishTriggered;
       this.dispatchFinal(endpointTriggered || finishTriggered,
-        preparedDecodeMs + decodeDurationMs, prefixIsLast);
+        preparedDecodeMs + decodeDurationMs, prefixIsLast,
+        speculativeStreamStartSample + split.cutSample);
       if (this.callbackGate.isClosed()) return true;
       if (prefixIsLast) {
         this.notifyStopped();

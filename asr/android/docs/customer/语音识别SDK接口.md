@@ -185,7 +185,7 @@ interface RecognitionListener {
 | `onEvent` | 语音端点、声纹 VAD 状态等事件 |
 | `onResult` | 识别结果，包含 partial 与 final |
 | `onSpeakerDiarizationUpdate` | 已公开 utterance 的说话人归属发生变化；通过 `utteranceId + revision` 覆盖旧显示 |
-| `onSpeakerDiarizationResult` | 启用说话人分离时的唯一最终分离结果；位于最后一个 `onResult(isLast=true)` 与 `onComplete` 之间 |
+| `onSpeakerDiarizationResult` | 分窗定稿结果；每场多次，仅 `isSessionFinal=true` 的末批位于唯一 ASR last 与 complete 之间 |
 | `onComplete` | 主动 `finish`、达到 `vadBegin` 首段静音阈值或达到显式 `maxAudioDuration` 上限后，识别完整结束 |
 | `onError` | 发生错误 |
 
@@ -250,8 +250,9 @@ engine.startListening(
 
 该能力使用 AAR 内置 pyannote segmentation 与 eres2net 模型，断网可用，适合会议长转写。SDK 以
 10 秒窗口、2.5 秒 hop 增量推理，支持重叠说话；在线聚类产生的显示序号会在后续证据到达时通过
-revision 修订。`finish` 非阻塞，SDK 等待 ASR 尾结果和分离尾结果后按固定顺序回调：唯一 last →
-`onSpeakerDiarizationResult` → 唯一 complete。分离超时或模型/存储不可用时仍保持 ASR 完整结束，
+revision 修订。约每 120 秒在句末发布一批 `onSpeakerDiarizationResult`，该批编号随后冻结。
+`finish` 非阻塞，SDK 仅校准未定稿的尾窗，按固定顺序回调：唯一 last →
+`onSpeakerDiarizationResult(isSessionFinal=true)` → 唯一 complete。分离超时或模型/存储不可用时仍保持 ASR 完整结束，
 最终结果通过 `degraded/degradedReason/degradedMessage` 明确降级；`cancel` 不产生 last、最终分离结果
 或 complete。
 
@@ -350,3 +351,20 @@ Demo APK 内置 license 仅用于体验：记录包名 com.amphion.dingqiao.demo
 | 1002200033 | LICENSE_DEVICE_MISMATCH | 设备 SN 不在授权白名单，或 license 内写入签名证书且签名不匹配 |
 | `1002200034` | `LICENSE_NOT_SET` | 未设置授权 |
 | `1002200035` | `LICENSE_ACTIVATION_FAILED` | 授权激活失败 |
+
+### 分窗定稿回调迁移
+
+角色分离以 120 秒为目标定稿窗口，边界顺延到原有 ASR endpoint，并等待所需推理完成。
+`onResult` 提供实时文字，update 仅修订未定稿句子；`onSpeakerDiarizationResult` 发布后，
+该批主要、次要和未知（`-1`）身份均不再改变。整场编号不会随窗口重置，结束不再全场聚类。
+
+`SpeakerDiarizationResult` 增加 `windowIndex`（从 0 递增）、`windowBeginTime`、`windowEndTime`
+（全场毫秒）和 `isSessionFinal`。每批只含本窗 utterances／speakerTurns；
+`DiarizedUtterance.sourceUtteranceId` 指向原 ASR final，允许安全拆句后的多个片段替换同一原句。
+业务按窗口去重、替换对应临时句子并累积结果，不再清空全文。speakerCount 为截至本批的整场确认人数，
+inferenceMs／rtf 为累计统计。120 秒不是硬性延迟保证，长句和积压会顺延。
+
+正常收尾仍是最后一批 update → 唯一 ASR last → 唯一 isSessionFinal=true 的分人结果 → complete；
+空尾批也返回终结结果。中间结果不表示会话结束。降级结果保留 ASR，未知身份同样冻结。
+取消后不新增回调；此前正常发布的窗口结果仍然有效。此变更直接替换旧的“一次整场全文”语义，
+Harmony／Android 同步迁移，iOS 本轮保持原实现。

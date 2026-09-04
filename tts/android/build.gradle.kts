@@ -1,5 +1,6 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import org.gradle.api.tasks.testing.Test
 
 plugins {
     alias(libs.plugins.android.application) apply false
@@ -14,6 +15,7 @@ val modelVersion = "0.1.0"
 val deliveryDirName = "lits-dingqiao-tts-android-sdk-vocos24k-$sdkVersion"
 val deliveryAarName = "lits-dingqiao-tts-sdk-vocos24k-$sdkVersion.aar"
 val litsModelDir = rootDir.resolve("../tools/trial-export/$sourceModelId/$modelVersion")
+val candidateModelDir = rootDir.resolve("build/generated/tts-model-candidate/$sourceModelId/$modelVersion")
 val frontendBinaryBuilder = rootDir.resolve("../tools/android/build_frontend_binary_assets.py")
 val externalResourceDir = rootDir.resolve("external-resources/tts/$modelId/$modelVersion")
 val sourceDirName = "dingqiao_lits"
@@ -69,23 +71,34 @@ fun MutableMap<String, Any?>.upsertManifestFile(name: String, sizeBytes: Long) {
     this["files"] = nextFiles
 }
 
+val prepareTtsModelCandidate = tasks.register<Sync>("prepareTtsModelCandidate") {
+    group = "build"
+    description = "Copy the immutable OBS-restored TTS bundle for an explicit frontend rebuild."
+    from(litsModelDir)
+    into(candidateModelDir)
+    inputs.dir(litsModelDir)
+    outputs.dir(candidateModelDir)
+}
+
 val buildFrontendBinaryAssets = tasks.register<Exec>("buildFrontendBinaryAssets") {
     group = "build"
     description = "Build compact frontend dictionaries from their text sources."
-    commandLine("python3", frontendBinaryBuilder.absolutePath, "--model-dir", litsModelDir.absolutePath)
+    dependsOn("syncLitsTnRules")
+    commandLine("python3", frontendBinaryBuilder.absolutePath, "--model-dir", candidateModelDir.absolutePath)
     inputs.files(
-        litsModelDir.resolve("chinese_lexicon.txt"),
-        litsModelDir.resolve("cmudict.txt"),
+        candidateModelDir.resolve("chinese_lexicon.txt"),
+        candidateModelDir.resolve("cmudict.txt"),
     )
     outputs.files(
-        litsModelDir.resolve("chinese_lexicon.bin"),
-        litsModelDir.resolve("cmudict.bin"),
+        candidateModelDir.resolve("chinese_lexicon.bin"),
+        candidateModelDir.resolve("cmudict.bin"),
     )
 }
 
 val syncLitsTnRules = tasks.register<Copy>("syncLitsTnRules") {
     group = "build"
     description = "Sync TN rules into the TTS model assets."
+    dependsOn(prepareTtsModelCandidate)
     from(tnSourceRoot.resolve("rules_v2")) {
         include("zh.full.json", "en.full.json")
         into("rules_v2")
@@ -94,29 +107,24 @@ val syncLitsTnRules = tasks.register<Copy>("syncLitsTnRules") {
         include("zh_pinyin.json")
         into("rules_v2")
     }
-    into(litsModelDir)
+    into(candidateModelDir)
     inputs.dir(tnSourceRoot.resolve("rules_v2"))
     outputs.files(
-        litsModelDir.resolve("rules_v2/zh_pinyin.json"),
-        litsModelDir.resolve("rules_v2/zh.full.json"),
-        litsModelDir.resolve("rules_v2/en.full.json"),
+        candidateModelDir.resolve("rules_v2/zh_pinyin.json"),
+        candidateModelDir.resolve("rules_v2/zh.full.json"),
+        candidateModelDir.resolve("rules_v2/en.full.json"),
     )
-}
-
-buildFrontendBinaryAssets.configure {
-    mustRunAfter(syncLitsTnRules)
 }
 
 val syncLitsTnAssets = tasks.register("syncLitsTnAssets") {
     group = "build"
-    description = "Sync Android TN rules into the TTS model assets."
-    dependsOn(buildFrontendBinaryAssets, syncLitsTnRules)
+    description = "Explicitly rebuild Android frontend assets in the build-local TTS working copy."
+    dependsOn(buildFrontendBinaryAssets)
 }
 
 val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources") {
     group = "build"
     description = "Stage exported Dingqiao LITS TTS resources outside the Android SDK AAR."
-    dependsOn(syncLitsTnAssets)
     from(litsModelDir)
     into(externalResourceDir)
     include(
@@ -203,6 +211,9 @@ val cleanBundledTtsResources = tasks.register<Delete>("cleanBundledTtsResources"
 }
 
 subprojects {
+    tasks.withType<Test>().configureEach {
+        systemProperty("lits.tts.testAssetRoot", litsModelDir.absolutePath)
+    }
     tasks.matching { it.name == "preBuild" }.configureEach {
         dependsOn(cleanBundledTtsResources, stageExternalTtsResources)
     }

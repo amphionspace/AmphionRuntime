@@ -31,7 +31,6 @@ import { DemoCaseSaveResult, saveDemoCase } from '../util/DemoCaseStore';
 import { PcmPlayer } from '../util/PcmPlayer';
 import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
-import { compactSpeakerDisplayIndexes } from '../util/SpeakerDisplayIndex';
 import { WavIo } from '../util/WavIo';
 import { BackgroundRecordingTask } from '../util/BackgroundRecordingTask';
 
@@ -149,6 +148,7 @@ struct Index {
   private capturedVoiceprintVerify: boolean = false;
   private capturedSpeakerVad: boolean = false;
   private capturedSpeakerDiarization: boolean = false;
+  private lastDiarizationWindowIndex: number = -1;
   private capturedPoliceEnhancement: boolean = true;
   private capturedCustomerScenario: CustomerScenarioName = 'ptt';
   private capturedAudioSource: DemoAudioSource = 'mic';
@@ -398,6 +398,7 @@ struct Index {
     this.capturedSpeakerVad = profile.allowVoiceprint && this.speakerVadDesired &&
       this.capturedVoiceprintId.length > 0;
     this.capturedSpeakerDiarization = this.speakerDiarizationDesired;
+    this.lastDiarizationWindowIndex = -1;
     this.capturedPoliceEnhancement = this.policeEnhancementDesired;
     this.capturedCustomerScenario = this.customerScenario;
     this.capturedAudioSource = this.audioSource;
@@ -544,11 +545,7 @@ struct Index {
   }
 
   private refreshSpeakerDisplayIndexes(segments: FinalSegment[]): void {
-    const indexes = compactSpeakerDisplayIndexes(
-      segments.map((segment: FinalSegment): number => segment.speakerIndex));
-    for (let index = 0; index < segments.length; index++) {
-      segments[index].displaySpeakerIndex = indexes[index];
-    }
+    for (const segment of segments) segment.displaySpeakerIndex = segment.speakerIndex;
   }
 
   private selectCustomerScenario(name: CustomerScenarioName): void {
@@ -1057,14 +1054,10 @@ struct Index {
 
   handleSpeakerDiarizationUpdate(sessionId: string, update: SpeakerDiarizationUpdate): void {
     if (sessionId === this.replaySessionId) return;
-    let latestEnd = 0;
-    for (let i = 0; i < this.finalSegments.length; i++) {
-      latestEnd = Math.max(latestEnd, this.finalSegments[i].endTime);
-    }
-    if (update.endTime < latestEnd - 60000) return;
     const next = this.finalSegments.slice();
     for (let i = 0; i < next.length; i++) {
-      if (next[i].utteranceId !== update.utteranceId || next[i].revision >= update.revision) continue;
+      if (next[i].speakerAssignmentFinal || next[i].utteranceId !== update.utteranceId ||
+        next[i].revision >= update.revision) continue;
       const replacement = new FinalSegment(
         next[i].text, next[i].score, next[i].utteranceId, update.speakerIndex,
         next[i].endTime, true, next[i].speakerAssignmentFinal);
@@ -1078,15 +1071,21 @@ struct Index {
 
   handleSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
     if (sessionId === this.replaySessionId) return;
-    const next: FinalSegment[] = [];
+    if (result.windowIndex <= this.lastDiarizationWindowIndex) return;
+    this.lastDiarizationWindowIndex = result.windowIndex;
+    const sources = new Set<string>(result.utterances.map(item => item.sourceUtteranceId));
+    const next = this.finalSegments.filter(item =>
+      item.speakerAssignmentFinal || !sources.has(item.utteranceId ?? ''));
     for (let i = 0; i < result.utterances.length; i++) {
       const utterance = result.utterances[i];
       next.push(new FinalSegment(
         utterance.text, undefined, utterance.utteranceId, utterance.speakerIndex,
         utterance.endTime, true, true));
     }
+    next.sort((left: FinalSegment, right: FinalSegment): number => left.endTime - right.endTime);
     this.refreshSpeakerDisplayIndexes(next);
     this.finalSegments = next;
+    if (!result.isSessionFinal) return;
     this.loading = false;
     const completed = this.capturedCustomerScenario === 'meeting-minutes' ? '纪要已生成' : '角色分离已完成';
     this.status = result.degraded ? `${completed} · 角色分离已降级` : completed;

@@ -61,7 +61,8 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         meeting_cycle = carrier.split("async function runCustomerScenarioCycle", 1)[1].split(
             "async function run", 1
         )[0]
-        self.assertIn("events.speakerDiarizationResults === 1", meeting_cycle)
+        self.assertIn("events.speakerDiarizationTerminalResults === 1", meeting_cycle)
+        self.assertIn("events.speakerDiarizationViolations === 0", meeting_cycle)
         self.assertIn("events.speakerDiarizationDegraded === 0", meeting_cycle)
         self.assertIn("events.speakerDiarizationSpeakerCount > 0", meeting_cycle)
         self.assertIn("events.speakerTurnsJson !== '[]'", meeting_cycle)
@@ -230,8 +231,10 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             "private ensureAlive", 1
         )[0]
         self.assertIn(
-            "speakerDiarizationSession.observeAsrFinal(payload, result)", rejected
+            "diarization.observeAsrFinal(payload, result)", rejected
         )
+        self.assertGreater(rejected.index("diarization.asrFinalDelivered(result)"),
+                           rejected.index("this.listener?.onResult?.(sessionId, payload)"))
         self.assertIn(
             "speakerDiarizationFinishBarrier?.resolveAsr(payload)", rejected
         )
@@ -298,7 +301,8 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertIn("SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE", client)
 
         session = SESSION.read_text(encoding="utf-8")
-        self.assertIn("throw new SpeakerDiarizationStorageError", session)
+        self.assertNotIn("appendCheckpoint", session)
+        self.assertIn("this.spool.read", client)
 
     def test_caller_session_id_never_participates_in_job_paths(self) -> None:
         client = LOCAL_CLIENT.read_text(encoding="utf-8")
@@ -315,7 +319,7 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         )
         self.assertNotIn("globalEnd > window.stableEndSample", session)
         self.assertIn(
-            "Math.min(this.maxSpeakers, clustered.clusterCount)", session
+            "this.committedRegistry.speakerIds().length", session
         )
 
     def test_window_schedule_is_frame_independent_and_finish_flushes_tail(self) -> None:

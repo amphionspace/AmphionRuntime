@@ -1,7 +1,6 @@
 [submodule "third_party/sherpa-onnx"]
 	path = third_party/sherpa-onnx
 	url = https://github.com/k2-fsa/sherpa-onnx.git
-	ignore = all
 [submodule "tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"]
 	path = tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS
 	url = git@github.com:hhk1994/Transsion_Multilingual_Text_Normalization_for_TTS.git

@@ -1,0 +1,124 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.6/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :aarHost:checkKotlinGradlePluginConfigurationErrors
+> Task :cleanBundledTtsResources UP-TO-DATE
+> Task :sdk:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk:prepareLintJarForPublish UP-TO-DATE
+> Task :stageExternalTtsResources UP-TO-DATE
+> Task :aarHost:stageAndroidTestAssets UP-TO-DATE
+> Task :sdk:preBuild UP-TO-DATE
+> Task :sdk:preReleaseBuild UP-TO-DATE
+> Task :sdk:configureNdkBuildRelease[arm64-v8a]
+> Task :sdk:buildNdkBuildRelease[arm64-v8a]
+> Task :sdk:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :sdk:mergeReleaseNativeLibs UP-TO-DATE
+> Task :sdk:stripReleaseDebugSymbols UP-TO-DATE
+> Task :sdk:copyReleaseJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :sdk:generateReleaseResValues UP-TO-DATE
+> Task :sdk:extractDeepLinksForAarRelease UP-TO-DATE
+> Task :sdk:generateReleaseBuildConfig UP-TO-DATE
+> Task :sdk:generateReleaseResources UP-TO-DATE
+> Task :sdk:packageReleaseResources UP-TO-DATE
+> Task :sdk:parseReleaseLocalResources UP-TO-DATE
+> Task :sdk:generateReleaseRFile UP-TO-DATE
+> Task :sdk:compileReleaseKotlin UP-TO-DATE
+> Task :sdk:extractReleaseAnnotations UP-TO-DATE
+> Task :sdk:javaPreCompileRelease UP-TO-DATE
+> Task :sdk:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :sdk:mergeReleaseGeneratedProguardFiles UP-TO-DATE
+> Task :sdk:mergeReleaseConsumerProguardFiles UP-TO-DATE
+> Task :sdk:mergeReleaseShaders UP-TO-DATE
+> Task :sdk:compileReleaseShaders NO-SOURCE
+> Task :sdk:generateReleaseAssets UP-TO-DATE
+> Task :sdk:packageReleaseAssets UP-TO-DATE
+> Task :sdk:prepareReleaseArtProfile UP-TO-DATE
+> Task :sdk:processReleaseManifest UP-TO-DATE
+> Task :sdk:processReleaseJavaRes UP-TO-DATE
+> Task :sdk:mergeReleaseJavaResource UP-TO-DATE
+> Task :sdk:syncReleaseLibJars UP-TO-DATE
+> Task :sdk:writeReleaseAarMetadata UP-TO-DATE
+> Task :sdk:bundleReleaseAar UP-TO-DATE
+> Task :sdk:mapReleaseSourceSetPaths UP-TO-DATE
+> Task :sdk:mergeReleaseResources UP-TO-DATE
+> Task :sdk:verifyReleaseResources UP-TO-DATE
+> Task :sdk:assembleRelease UP-TO-DATE
+> Task :aarHost:preBuild UP-TO-DATE
+> Task :aarHost:preDebugBuild UP-TO-DATE
+> Task :aarHost:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :aarHost:checkDebugAarMetadata UP-TO-DATE
+> Task :aarHost:generateDebugResValues UP-TO-DATE
+> Task :aarHost:mapDebugSourceSetPaths UP-TO-DATE
+> Task :aarHost:generateDebugResources UP-TO-DATE
+> Task :aarHost:mergeDebugResources UP-TO-DATE
+> Task :aarHost:packageDebugResources UP-TO-DATE
+> Task :aarHost:parseDebugLocalResources UP-TO-DATE
+> Task :aarHost:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :aarHost:extractDeepLinksDebug UP-TO-DATE
+> Task :aarHost:processDebugMainManifest UP-TO-DATE
+> Task :aarHost:processDebugManifest UP-TO-DATE
+> Task :aarHost:processDebugManifestForPackage UP-TO-DATE
+> Task :aarHost:processDebugResources UP-TO-DATE
+> Task :aarHost:compileDebugKotlin UP-TO-DATE
+> Task :aarHost:javaPreCompileDebug UP-TO-DATE
+> Task :aarHost:compileDebugJavaWithJavac NO-SOURCE
+> Task :aarHost:mergeDebugShaders UP-TO-DATE
+> Task :aarHost:compileDebugShaders NO-SOURCE
+> Task :aarHost:generateDebugAssets UP-TO-DATE
+> Task :aarHost:mergeDebugAssets UP-TO-DATE
+> Task :aarHost:compressDebugAssets UP-TO-DATE
+> Task :aarHost:desugarDebugFileDependencies UP-TO-DATE
+> Task :aarHost:dexBuilderDebug UP-TO-DATE
+> Task :aarHost:mergeDebugGlobalSynthetics UP-TO-DATE
+> Task :aarHost:processDebugJavaRes UP-TO-DATE
+> Task :aarHost:mergeDebugJavaResource UP-TO-DATE
+> Task :aarHost:checkDebugDuplicateClasses UP-TO-DATE
+> Task :aarHost:mergeDebugStartupProfile UP-TO-DATE
+> Task :aarHost:mergeExtDexDebug UP-TO-DATE
+> Task :aarHost:mergeLibDexDebug UP-TO-DATE
+> Task :aarHost:mergeProjectDexDebug UP-TO-DATE
+> Task :aarHost:mergeDebugJniLibFolders UP-TO-DATE
+> Task :aarHost:mergeDebugNativeLibs UP-TO-DATE
+> Task :aarHost:stripDebugDebugSymbols UP-TO-DATE
+> Task :aarHost:validateSigningDebug UP-TO-DATE
+> Task :aarHost:writeDebugAppMetadata UP-TO-DATE
+> Task :aarHost:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :aarHost:packageDebug UP-TO-DATE
+> Task :aarHost:createDebugApkListingFileRedirect UP-TO-DATE
+> Task :aarHost:assembleDebug UP-TO-DATE
+> Task :aarHost:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :aarHost:preDebugAndroidTestBuild SKIPPED
+> Task :aarHost:checkDebugAndroidTestAarMetadata UP-TO-DATE
+> Task :aarHost:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :aarHost:mapDebugAndroidTestSourceSetPaths UP-TO-DATE
+> Task :aarHost:generateDebugAndroidTestResources UP-TO-DATE
+> Task :aarHost:mergeDebugAndroidTestResources UP-TO-DATE
+> Task :aarHost:processDebugAndroidTestManifest UP-TO-DATE
+> Task :aarHost:processDebugAndroidTestResources UP-TO-DATE
+> Task :aarHost:javaPreCompileDebugAndroidTest UP-TO-DATE
+> Task :aarHost:mergeDebugAndroidTestShaders UP-TO-DATE
+> Task :aarHost:compileDebugAndroidTestShaders NO-SOURCE
+> Task :aarHost:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :aarHost:mergeDebugAndroidTestAssets UP-TO-DATE
+> Task :aarHost:compressDebugAndroidTestAssets UP-TO-DATE
+> Task :aarHost:desugarDebugAndroidTestFileDependencies UP-TO-DATE
+> Task :aarHost:checkDebugAndroidTestDuplicateClasses UP-TO-DATE
+> Task :aarHost:mergeExtDexDebugAndroidTest UP-TO-DATE
+> Task :aarHost:mergeLibDexDebugAndroidTest UP-TO-DATE
+> Task :aarHost:mergeDebugAndroidTestJniLibFolders UP-TO-DATE
+> Task :aarHost:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :aarHost:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :aarHost:validateSigningDebugAndroidTest UP-TO-DATE
+> Task :aarHost:writeDebugAndroidTestSigningConfigVersions UP-TO-DATE
+> Task :aarHost:compileDebugAndroidTestKotlin
+> Task :aarHost:compileDebugAndroidTestJavaWithJavac NO-SOURCE
+> Task :aarHost:dexBuilderDebugAndroidTest
+> Task :aarHost:mergeDebugAndroidTestGlobalSynthetics UP-TO-DATE
+> Task :aarHost:processDebugAndroidTestJavaRes UP-TO-DATE
+> Task :aarHost:mergeDebugAndroidTestJavaResource UP-TO-DATE
+> Task :aarHost:mergeProjectDexDebugAndroidTest
+> Task :aarHost:packageDebugAndroidTest
+> Task :aarHost:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
+> Task :aarHost:assembleDebugAndroidTest
+
+BUILD SUCCESSFUL in 7s
+100 actionable tasks: 8 executed, 92 up-to-date

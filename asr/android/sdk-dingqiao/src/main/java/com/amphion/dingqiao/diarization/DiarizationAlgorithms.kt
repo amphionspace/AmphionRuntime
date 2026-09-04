@@ -148,6 +148,24 @@ internal class OnlineSpeakerRegistry(
         return result
     }
 
+    fun fork(): OnlineSpeakerRegistry = OnlineSpeakerRegistry(maxSpeakers, similarityThreshold, topMargin).also { copy ->
+        entries.forEach { copy.entries += it.copy(centroid = it.centroid.copyOf()) }
+    }
+
+    fun matchKnown(raw: FloatArray): String? {
+        val embedding = normalize(raw) ?: return null
+        val ranked = entries.map { it.speakerId to cosine(it.centroid, embedding) }.sortedByDescending { it.second }
+        val best = ranked.firstOrNull() ?: return null
+        return if (best.second >= similarityThreshold &&
+            (ranked.size < 2 || best.second - ranked[1].second >= topMargin)) best.first else null
+    }
+
+    fun commitKnown(id: String, embedding: FloatArray, durationMs: Int, atMs: Int) {
+        val entry = entries.find { it.speakerId == id } ?: return
+        val normalized = normalize(embedding) ?: return
+        updateCentroid(entry, normalized, durationMs, atMs)
+    }
+
     fun speakerIds(): List<String> = entries.map { it.speakerId }
 
     private fun updateCentroid(entry: MutableSpeakerEntry, embedding: FloatArray, durationMs: Int, atMs: Int) {
@@ -167,14 +185,16 @@ internal data class SpeakerEmbeddingObservation(
     val onlineSpeakerId: String,
     val endTimeMs: Int,
     val evidenceKey: String,
+    val anchorId: String? = null,
 )
 
 internal data class SpeakerClusterResult(
     val observationSpeakerIds: List<String>,
     val clusterCount: Int,
+    val clusters: List<MutableCluster>,
 )
 
-private data class MutableCluster(
+internal data class MutableCluster(
     val indexes: MutableList<Int>,
     var centroid: FloatArray,
     var durationMs: Int,
@@ -192,6 +212,7 @@ internal class SpeakerDiarizationGlobalClusterer(
             var bestScore = -1f
             for (left in clusters.indices) {
                 for (right in left + 1 until clusters.size) {
+                    if (!compatible(clusters[left].indexes, clusters[right].indexes, observations)) continue
                     val score = cosine(clusters[left].centroid, clusters[right].centroid)
                     if (score > bestScore) {
                         bestScore = score
@@ -209,14 +230,17 @@ internal class SpeakerDiarizationGlobalClusterer(
         sorted.forEachIndexed { clusterIndex, cluster ->
             cluster.indexes.forEach { assignments[it] = displayIds.getOrElse(clusterIndex) { "UNKNOWN" } }
         }
-        return SpeakerClusterResult(assignments, clusters.size)
+        return SpeakerClusterResult(assignments, clusters.size, sorted)
     }
+
+    private fun compatible(left: List<Int>, right: List<Int>, observations: List<SpeakerEmbeddingObservation>): Boolean =
+        (left + right).mapNotNull { observations[it].anchorId }.distinct().size <= 1
 
     private fun seedMicroClusters(observations: List<SpeakerEmbeddingObservation>): MutableList<MutableCluster> {
         val clusters = mutableListOf<MutableCluster>()
         observations.forEachIndexed { index, observation ->
             val centroid = normalize(observation.embedding) ?: return@forEachIndexed
-            val best = clusters.indices.maxByOrNull { cosine(clusters[it].centroid, centroid) }
+            val best = clusters.indices.filter { compatible(clusters[it].indexes, listOf(index), observations) }.maxByOrNull { cosine(clusters[it].centroid, centroid) }
             val bestScore = best?.let { cosine(clusters[it].centroid, centroid) } ?: -1f
             if (best != null && (bestScore >= 0.88f || clusters.size >= 96)) {
                 val temporary = mutableListOf(

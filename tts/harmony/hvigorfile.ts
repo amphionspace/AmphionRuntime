@@ -1,6 +1,5 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { execFileSync } from 'child_process';
 
 import { appTasks } from '@ohos/hvigor-ohos-plugin';
 
@@ -43,10 +42,6 @@ const modelSourceDir = path.resolve(
   MODEL_ID,
   MODEL_VERSION
 );
-const frontendBinaryBuilder = path.resolve(
-  __dirname,
-  '../tools/android/build_frontend_binary_assets.py'
-);
 const modelTargetDir = path.resolve(
   __dirname,
   'sdk/src/main/resources/rawfile/lits-models/tts',
@@ -59,7 +54,6 @@ const HARMONY_TN_FILES = new Set<string>([
   'tn-bin/arm64-v8a/en_tts'
 ]);
 
-buildFrontendBinaryAssets();
 syncBundledModelResources();
 
 export default {
@@ -86,17 +80,6 @@ function syncBundledModelResources(): void {
       targetFile
     );
   });
-}
-
-function buildFrontendBinaryAssets(): void {
-  try {
-    execFileSync('python3', [frontendBinaryBuilder, '--model-dir', modelSourceDir], {
-      encoding: 'utf8',
-      stdio: 'inherit'
-    });
-  } catch (error) {
-    throw new Error(`Failed to build frontend binary assets: ${String(error)}`);
-  }
 }
 
 function assertModelSourceDir(): void {

@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Debug-only display surface, also launchable before a frozen test process can run code. -->
+        <activity android:name=".AarHostActivity" android:exported="true" />
+    </application>
+</manifest>

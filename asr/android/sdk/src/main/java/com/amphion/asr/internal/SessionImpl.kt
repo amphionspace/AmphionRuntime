@@ -95,6 +95,7 @@ internal class SessionImpl(
     private val stablePrefixIntervalSamples: Long = if (
         engineImpl.endpointRules.rule3MinUtteranceLengthSec < 0f
     ) LONG_FORM_STABLE_PREFIX_INTERVAL_SEC * sampleRate else 0L
+    private var publicSamplesFed: Long = 0L
     private var stablePrefixSamples: Long = 0L
     private var nextStablePrefixCheckSamples: Long = stablePrefixIntervalSamples
 
@@ -552,6 +553,7 @@ internal class SessionImpl(
         val resetGenerationBefore = recognizerResetGeneration.snapshot()
         val asrR = NativeGuard.run("stream.acceptWaveform+drain") {
             stream.acceptWaveform(processedSamples, sampleRate)
+            publicSamplesFed += processedSamples.size
             stablePrefixSamples += processedSamples.size
             drainDecoder(isFinal = false)
         }
@@ -1136,6 +1138,7 @@ internal class SessionImpl(
      * 如果 ITN / 标点都没启用，PostProcessor 的处理是 no-op，链路一致但不增加耗时。
      */
     private fun postFinalToProcessor(raw: AsrResult) {
+        ResultAudioTimeline.record(raw, publicSamplesFed)
         finalCallbackOrderGate.onFinalQueued()
         postProcessor.postFinal(raw)
     }

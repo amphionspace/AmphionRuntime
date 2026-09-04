@@ -223,7 +223,8 @@ internal object LitsTnNormalizer {
         }
 
         private fun prepareInputForTn(text: String): String {
-            var output = expandEra(text)
+            var output = LitsTtsFrontend.normalizeNegativeTemperatures(text)
+            output = expandEra(output)
             output = expandTime(output)
             output = expandDates(output)
             output = dateHaoToRiRegex.replace(output) { it.groupValues[1] + "日" }
@@ -672,7 +673,7 @@ internal object LitsTnNormalizer {
             private val technicalSymbolChars = setOf('.', '/', '\\', '_', '@', ':', '?', '=', '&', '#', '%', '+', '-')
             private val chemicalFormulaRegex = Regex("\\b(H|CO)(\\d+)(O?)\\b")
             private val roomNumberRegex = Regex("((?:房间|房号)(?:是|为)?\\s*)(\\d{3,4})(?!\\d)")
-            private val stockCodeRegex = Regex("(股票\\s*)(\\d{6})(?!\\d)")
+            private val stockCodeRegex = Regex("(股票\\s*(?:代码\\s*)?)(\\d{6})(?!\\d)")
             private val plateCodeRegex = Regex("((?:车牌号?|号牌)\\s*[\\u4e00-\\u9fff]?\\s*[A-Za-z])(\\d{3,6})(?!\\d)")
             private val idTailRegex = Regex("((?:身份证尾号|尾号)\\s*)(\\d+)([A-Za-z])(?![A-Za-z0-9])")
             private val pathSlashNumberRegex = Regex("(/)(\\d+)(?=/)")

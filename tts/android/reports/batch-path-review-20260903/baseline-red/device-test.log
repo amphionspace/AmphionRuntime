@@ -1,0 +1,44 @@
+INSTRUMENTATION_STATUS: class=com.lits.tts.aarhost.AarStability1000DeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+com.lits.tts.aarhost.AarStability1000DeviceTest:
+INSTRUMENTATION_STATUS: test=runAndroidV3SdkStability1000CasesThroughAar
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.lits.tts.aarhost.AarStability1000DeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: failed cases; see /storage/emulated/0/Android/data/com.lits.tts.aarhost/files/aar-stability-1000/results-aar-stability-1000-1788418197314.jsonl expected:<0> but was:<1>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:120)
+	at com.lits.tts.aarhost.AarStability1000DeviceTest.runAndroidV3SdkStability1000CasesThroughAar(AarStability1000DeviceTest.kt:120)
+
+INSTRUMENTATION_STATUS: stream=
+Error in runAndroidV3SdkStability1000CasesThroughAar(com.lits.tts.aarhost.AarStability1000DeviceTest):
+java.lang.AssertionError: failed cases; see /storage/emulated/0/Android/data/com.lits.tts.aarhost/files/aar-stability-1000/results-aar-stability-1000-1788418197314.jsonl expected:<0> but was:<1>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:120)
+	at com.lits.tts.aarhost.AarStability1000DeviceTest.runAndroidV3SdkStability1000CasesThroughAar(AarStability1000DeviceTest.kt:120)
+
+INSTRUMENTATION_STATUS: test=runAndroidV3SdkStability1000CasesThroughAar
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 12.214
+There was 1 failure:
+1) runAndroidV3SdkStability1000CasesThroughAar(com.lits.tts.aarhost.AarStability1000DeviceTest)
+java.lang.AssertionError: failed cases; see /storage/emulated/0/Android/data/com.lits.tts.aarhost/files/aar-stability-1000/results-aar-stability-1000-1788418197314.jsonl expected:<0> but was:<1>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:120)
+	at com.lits.tts.aarhost.AarStability1000DeviceTest.runAndroidV3SdkStability1000CasesThroughAar(AarStability1000DeviceTest.kt:120)
+
+FAILURES!!!
+Tests run: 1,  Failures: 1
+
+
+INSTRUMENTATION_CODE: -1

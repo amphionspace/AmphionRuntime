@@ -34,7 +34,7 @@ add_library(litsttsnative SHARED
 add_library(onnxruntime SHARED IMPORTED)
 set_target_properties(onnxruntime
   PROPERTIES
-  IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/libs/${OHOS_ARCH}/libonnxruntime.so
+  IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../../../libs/${OHOS_ARCH}/libonnxruntime.so
 )
 
 target_link_libraries(litsttsnative PUBLIC

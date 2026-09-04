@@ -1,0 +1,111 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.6/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :sdk:checkKotlinGradlePluginConfigurationErrors
+> Task :cleanBundledTtsResources UP-TO-DATE
+> Task :sdk:prepareLintJarForPublish UP-TO-DATE
+> Task :stageExternalTtsResources UP-TO-DATE
+> Task :sdk:preBuild UP-TO-DATE
+> Task :sdk:preReleaseBuild UP-TO-DATE
+> Task :sdk:configureNdkBuildRelease[arm64-v8a]
+> Task :sdk:buildNdkBuildRelease[arm64-v8a]
+> Task :sdk:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :sdk:mergeReleaseNativeLibs UP-TO-DATE
+> Task :sdk:stripReleaseDebugSymbols UP-TO-DATE
+> Task :sdk:copyReleaseJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :sdk:generateReleaseResValues UP-TO-DATE
+> Task :sdk:extractDeepLinksForAarRelease UP-TO-DATE
+> Task :sdk:generateReleaseBuildConfig UP-TO-DATE
+> Task :sdk:generateReleaseResources UP-TO-DATE
+> Task :sdk:packageReleaseResources UP-TO-DATE
+> Task :sdk:parseReleaseLocalResources UP-TO-DATE
+> Task :sdk:generateReleaseRFile UP-TO-DATE
+> Task :sdk:javaPreCompileRelease UP-TO-DATE
+> Task :sdk:mergeReleaseShaders UP-TO-DATE
+> Task :sdk:compileReleaseShaders NO-SOURCE
+> Task :sdk:generateReleaseAssets UP-TO-DATE
+> Task :sdk:packageReleaseAssets UP-TO-DATE
+> Task :sdk:prepareReleaseArtProfile UP-TO-DATE
+> Task :sdk:processReleaseManifest UP-TO-DATE
+> Task :sdk:writeReleaseAarMetadata UP-TO-DATE
+> Task :sdk:mapReleaseSourceSetPaths UP-TO-DATE
+> Task :sdk:mergeReleaseResources UP-TO-DATE
+> Task :sdk:verifyReleaseResources UP-TO-DATE
+> Task :sdk:preDebugBuild UP-TO-DATE
+> Task :sdk:generateDebugBuildConfig UP-TO-DATE
+> Task :sdk:generateDebugResValues UP-TO-DATE
+> Task :sdk:generateDebugResources UP-TO-DATE
+> Task :sdk:packageDebugResources UP-TO-DATE
+> Task :sdk:parseDebugLocalResources UP-TO-DATE
+> Task :sdk:generateDebugRFile UP-TO-DATE
+> Task :sdk:compileDebugKotlin UP-TO-DATE
+> Task :sdk:javaPreCompileDebug UP-TO-DATE
+> Task :sdk:compileDebugJavaWithJavac UP-TO-DATE
+> Task :sdk:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :sdk:preDebugAndroidTestBuild UP-TO-DATE
+> Task :sdk:extractDeepLinksDebug UP-TO-DATE
+> Task :sdk:processDebugManifest UP-TO-DATE
+> Task :sdk:processDebugAndroidTestManifest UP-TO-DATE
+> Task :sdk:generateDebugAndroidTestBuildConfig UP-TO-DATE
+> Task :sdk:writeDebugAarMetadata UP-TO-DATE
+> Task :sdk:checkDebugAndroidTestAarMetadata UP-TO-DATE
+> Task :sdk:compileDebugLibraryResources UP-TO-DATE
+> Task :sdk:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :sdk:mapDebugAndroidTestSourceSetPaths UP-TO-DATE
+> Task :sdk:generateDebugAndroidTestResources UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestResources UP-TO-DATE
+> Task :sdk:processDebugAndroidTestResources UP-TO-DATE
+> Task :sdk:javaPreCompileDebugAndroidTest UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestShaders UP-TO-DATE
+> Task :sdk:compileDebugAndroidTestShaders NO-SOURCE
+> Task :sdk:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :sdk:mergeDebugShaders UP-TO-DATE
+> Task :sdk:compileDebugShaders NO-SOURCE
+> Task :sdk:generateDebugAssets UP-TO-DATE
+> Task :sdk:packageDebugAssets UP-TO-DATE
+> Task :sdk:stageAndroidTestAssets UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestAssets UP-TO-DATE
+> Task :sdk:compressDebugAndroidTestAssets UP-TO-DATE
+> Task :sdk:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :sdk:desugarDebugAndroidTestFileDependencies UP-TO-DATE
+> Task :sdk:processDebugJavaRes UP-TO-DATE
+> Task :sdk:checkDebugAndroidTestDuplicateClasses UP-TO-DATE
+> Task :sdk:mergeExtDexDebugAndroidTest UP-TO-DATE
+> Task :sdk:configureNdkBuildDebug[arm64-v8a]
+> Task :sdk:bundleLibRuntimeToDirDebug
+> Task :sdk:buildNdkBuildDebug[arm64-v8a]
+> Task :sdk:mergeDebugJniLibFolders UP-TO-DATE
+> Task :sdk:mergeDebugNativeLibs UP-TO-DATE
+> Task :sdk:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestJniLibFolders UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestNativeLibs UP-TO-DATE
+> Task :sdk:stripDebugAndroidTestDebugSymbols UP-TO-DATE
+> Task :sdk:validateSigningDebugAndroidTest UP-TO-DATE
+> Task :sdk:writeDebugAndroidTestSigningConfigVersions UP-TO-DATE
+> Task :sdk:mergeLibDexDebugAndroidTest
+
+> Task :sdk:compileDebugAndroidTestKotlin
+w: file://<worktree>/tts/android/sdk/src/androidTest/java/com/lits/tts/sdk/internal/EngineLoadBenchmarkTest.kt:146:32 Variable 'speakSubmitGapMs' initializer is redundant
+w: file://<worktree>/tts/android/sdk/src/androidTest/java/com/lits/tts/sdk/internal/EngineLoadBenchmarkTest.kt:181:73 The corresponding parameter in the supertype 'SpeakListener' is named 'errorMessage'. This may cause problems when calling this function with named arguments.
+
+> Task :sdk:compileDebugAndroidTestJavaWithJavac UP-TO-DATE
+> Task :sdk:dexBuilderDebugAndroidTest
+> Task :sdk:mergeDebugAndroidTestGlobalSynthetics UP-TO-DATE
+> Task :sdk:processDebugAndroidTestJavaRes UP-TO-DATE
+> Task :sdk:mergeDebugAndroidTestJavaResource UP-TO-DATE
+> Task :sdk:compileReleaseKotlin
+> Task :sdk:mergeProjectDexDebugAndroidTest
+> Task :sdk:extractReleaseAnnotations
+> Task :sdk:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :sdk:mergeReleaseGeneratedProguardFiles UP-TO-DATE
+> Task :sdk:mergeReleaseConsumerProguardFiles UP-TO-DATE
+> Task :sdk:processReleaseJavaRes UP-TO-DATE
+> Task :sdk:mergeReleaseJavaResource UP-TO-DATE
+> Task :sdk:syncReleaseLibJars
+> Task :sdk:bundleReleaseAar
+> Task :sdk:assembleRelease
+> Task :sdk:packageDebugAndroidTest
+> Task :sdk:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
+> Task :sdk:assembleDebugAndroidTest
+
+BUILD SUCCESSFUL in 15s
+90 actionable tasks: 15 executed, 75 up-to-date

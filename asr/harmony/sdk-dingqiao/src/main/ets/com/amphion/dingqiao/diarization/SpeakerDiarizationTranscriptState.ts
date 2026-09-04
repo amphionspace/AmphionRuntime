@@ -5,6 +5,7 @@ export interface DiarizationTranscriptInput {
   tokenTimesMs: number[];
   beginTime: number;
   endTime: number;
+  audioEndTime?: number;
 }
 
 export interface SpeakerTimelineTurn {
@@ -25,6 +26,7 @@ export interface DiarizationTranscriptUpdate extends SpeakerTimelineTurn {
 }
 
 export interface DiarizedTranscriptUtterance extends SpeakerTimelineTurn {
+  sourceUtteranceId: string;
   utteranceId: string;
   rawText: string;
   text: string;
@@ -54,10 +56,11 @@ function sameStrings(left: string[], right: string[]): boolean {
 
 export class SpeakerDiarizationTranscriptState {
   private readonly utterances: StoredUtterance[] = [];
+  private nextUtteranceId: number = 1;
   private readonly turns: SpeakerTimelineTurn[] = [];
 
   addUtterance(input: DiarizationTranscriptInput): string {
-    const utteranceId = `u${this.utterances.length + 1}`;
+    const utteranceId = `u${this.nextUtteranceId++}`;
     const assignment = this.assignmentFor(input.beginTime, input.endTime);
     this.utterances.push({
       utteranceId,
@@ -67,6 +70,7 @@ export class SpeakerDiarizationTranscriptState {
       tokenTimesMs: input.tokenTimesMs.slice(),
       beginTime: input.beginTime,
       endTime: input.endTime,
+      audioEndTime: input.audioEndTime,
       revision: 0,
       speakerId: assignment.speakerId,
       secondarySpeakerIds: assignment.secondarySpeakerIds,
@@ -127,10 +131,11 @@ export class SpeakerDiarizationTranscriptState {
     return updates;
   }
 
-  finalUtterances(): DiarizedTranscriptUtterance[] {
+  finalUtterances(throughTime: number = Number.POSITIVE_INFINITY): DiarizedTranscriptUtterance[] {
     const result: DiarizedTranscriptUtterance[] = [];
     for (let i = 0; i < this.utterances.length; i++) {
       const utterance = this.utterances[i];
+      if ((utterance.audioEndTime ?? utterance.endTime) > throughTime) continue;
       if (utterance.tokens.length === 0 ||
         utterance.tokens.length !== utterance.tokenTimesMs.length ||
         utterance.tokens.join('') !== utterance.text) {
@@ -144,6 +149,23 @@ export class SpeakerDiarizationTranscriptState {
       } else {
         result.push(...split);
       }
+    }
+    return result;
+  }
+
+  commitThrough(endTime: number): DiarizedTranscriptUtterance[] {
+    const result = this.finalUtterances(endTime);
+    for (let i = this.utterances.length - 1; i >= 0; i--) {
+      if ((this.utterances[i].audioEndTime ?? this.utterances[i].endTime) <= endTime) {
+        this.utterances.splice(i, 1);
+      }
+    }
+    // Keep a crossing utterance's timeline until the original ASR final is complete.
+    let retainFrom = endTime;
+    for (const utterance of this.utterances) retainFrom = Math.min(retainFrom, utterance.beginTime);
+    for (let i = this.turns.length - 1; i >= 0; i--) {
+      if (this.turns[i].endTime <= retainFrom) this.turns.splice(i, 1);
+      else this.turns[i].beginTime = Math.max(this.turns[i].beginTime, retainFrom);
     }
     return result;
   }
@@ -299,6 +321,7 @@ export class SpeakerDiarizationTranscriptState {
       result.push({
         utteranceId: result.length === 0 ? utterance.utteranceId :
           `${utterance.utteranceId}.${result.length + 1}`,
+        sourceUtteranceId: utterance.utteranceId,
         rawText: utterance.tokens.slice(groupStart, index).join(''),
         text: utterance.tokens.slice(groupStart, index).join(''),
         beginTime,
@@ -318,6 +341,7 @@ export class SpeakerDiarizationTranscriptState {
     const assignment = this.assignmentFor(utterance.beginTime, utterance.endTime);
     return {
       utteranceId: utterance.utteranceId,
+      sourceUtteranceId: utterance.utteranceId,
       rawText: utterance.rawText,
       text: utterance.text,
       beginTime: utterance.beginTime,

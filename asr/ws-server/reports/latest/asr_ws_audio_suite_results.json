@@ -1,7 +1,7 @@
 {
   "generated_at": "2026-06-25T19:14:11+0800",
   "uri": "ws://127.0.0.1:18110",
-  "audio_dir": "/Users/boxp/Downloads/audio",
+  "audio_dir": "<external-data>/audio",
   "file_count": 24,
   "concurrency": 4,
   "realtime": false,
@@ -15,7 +15,7 @@
   "first_partial_summary": "min=0.060, p50=0.132, p95=0.311, max=0.342",
   "results": [
     {
-      "file": "/Users/boxp/Downloads/audio/01_说话人跟踪_3人重叠91_抗战历史长句.wav",
+      "file": "<external-data>/audio/01_说话人跟踪_3人重叠91_抗战历史长句.wav",
       "duration_sec": 11.78,
       "elapsed_sec": 0.9371360829100013,
       "rtf": 0.0795531479550086,
@@ -141,7 +141,7 @@
       "event_count": 19
     },
     {
-      "file": "/Users/boxp/Downloads/audio/01_说话人跟踪_3人重叠91_抗战历史长句_声纹.wav",
+      "file": "<external-data>/audio/01_说话人跟踪_3人重叠91_抗战历史长句_声纹.wav",
       "duration_sec": 3.764375,
       "elapsed_sec": 0.29963008407503366,
       "rtf": 0.07959623684543482,
@@ -201,7 +201,7 @@
       "event_count": 8
     },
     {
-      "file": "/Users/boxp/Downloads/audio/02_说话人跟踪_2人重叠89_政策标题.wav",
+      "file": "<external-data>/audio/02_说话人跟踪_2人重叠89_政策标题.wav",
       "duration_sec": 5.105,
       "elapsed_sec": 0.40180416696239263,
       "rtf": 0.07870796610428846,
@@ -261,7 +261,7 @@
       "event_count": 8
     },
     {
-      "file": "/Users/boxp/Downloads/audio/02_说话人跟踪_2人重叠89_政策标题_声纹.wav",
+      "file": "<external-data>/audio/02_说话人跟踪_2人重叠89_政策标题_声纹.wav",
       "duration_sec": 4.842,
       "elapsed_sec": 0.39938408392481506,
       "rtf": 0.08248328870814024,
@@ -327,7 +327,7 @@
       "event_count": 9
     },
     {
-      "file": "/Users/boxp/Downloads/audio/03_说话人跟踪_2人重叠76_天文科普.wav",
+      "file": "<external-data>/audio/03_说话人跟踪_2人重叠76_天文科普.wav",
       "duration_sec": 9.624,
       "elapsed_sec": 0.710510041913949,
       "rtf": 0.07382689546071788,
@@ -429,7 +429,7 @@
       "event_count": 15
     },
     {
-      "file": "/Users/boxp/Downloads/audio/03_说话人跟踪_2人重叠76_天文科普_声纹.wav",
+      "file": "<external-data>/audio/03_说话人跟踪_2人重叠76_天文科普_声纹.wav",
       "duration_sec": 4.21625,
       "elapsed_sec": 0.31604025000706315,
       "rtf": 0.07495766380244606,
@@ -489,7 +489,7 @@
       "event_count": 8
     },
     {
-      "file": "/Users/boxp/Downloads/audio/04_说话人跟踪_3人重叠71_生活建议.wav",
+      "file": "<external-data>/audio/04_说话人跟踪_3人重叠71_生活建议.wav",
       "duration_sec": 7.538625,
       "elapsed_sec": 0.5569545830367133,
       "rtf": 0.07388012841024899,
@@ -567,7 +567,7 @@
       "event_count": 11
     },
     {
-      "file": "/Users/boxp/Downloads/audio/04_说话人跟踪_3人重叠71_生活建议_声纹.wav",
+      "file": "<external-data>/audio/04_说话人跟踪_3人重叠71_生活建议_声纹.wav",
       "duration_sec": 3.5125625,
       "elapsed_sec": 0.2629289170727134,
       "rtf": 0.07485387578803605,
@@ -621,7 +621,7 @@
       "event_count": 7
     },
     {
-      "file": "/Users/boxp/Downloads/audio/05_说话人跟踪_3人重叠64_数码资讯.wav",
+      "file": "<external-data>/audio/05_说话人跟踪_3人重叠64_数码资讯.wav",
       "duration_sec": 5.36,
       "elapsed_sec": 0.5409047920256853,
       "rtf": 0.10091507313912039,
@@ -693,7 +693,7 @@
       "event_count": 10
     },
     {
-      "file": "/Users/boxp/Downloads/audio/05_说话人跟踪_3人重叠64_数码资讯_声纹.wav",
+      "file": "<external-data>/audio/05_说话人跟踪_3人重叠64_数码资讯_声纹.wav",
       "duration_sec": 3.8,
       "elapsed_sec": 0.25335208396427333,
       "rtf": 0.06667160104322983,
@@ -747,7 +747,7 @@
       "event_count": 7
     },
     {
-      "file": "/Users/boxp/Downloads/audio/06_说话人跟踪_2人重叠71_流行歌曲口语.wav",
+      "file": "<external-data>/audio/06_说话人跟踪_2人重叠71_流行歌曲口语.wav",
       "duration_sec": 5.717,
       "elapsed_sec": 0.5488285419996828,
       "rtf": 0.09599939513725429,
@@ -813,7 +813,7 @@
       "event_count": 9
     },
     {
-      "file": "/Users/boxp/Downloads/audio/06_说话人跟踪_2人重叠71_流行歌曲口语_声纹.wav",
+      "file": "<external-data>/audio/06_说话人跟踪_2人重叠71_流行歌曲口语_声纹.wav",
       "duration_sec": 4.693,
       "elapsed_sec": 0.483681375044398,
       "rtf": 0.1030644310770079,
@@ -867,7 +867,7 @@
       "event_count": 7
     },
     {
-      "file": "/Users/boxp/Downloads/audio/07_抗路噪_交通背景_情感独白长句.wav",
+      "file": "<external-data>/audio/07_抗路噪_交通背景_情感独白长句.wav",
       "duration_sec": 8.312,
       "elapsed_sec": 0.7562350410735235,
       "rtf": 0.09098111658728628,
@@ -969,7 +969,7 @@
       "event_count": 15
     },
     {
-      "file": "/Users/boxp/Downloads/audio/07_抗路噪_交通背景_情感独白长句_声纹.wav",
+      "file": "<external-data>/audio/07_抗路噪_交通背景_情感独白长句_声纹.wav",
       "duration_sec": 4.4010625,
       "elapsed_sec": 0.2916112079983577,
       "rtf": 0.06625927443619756,
@@ -1029,7 +1029,7 @@
       "event_count": 8
     },
     {
-      "file": "/Users/boxp/Downloads/audio/08_抗路噪_交通背景_招聘要求.wav",
+      "file": "<external-data>/audio/08_抗路噪_交通背景_招聘要求.wav",
       "duration_sec": 6.2678125,
       "elapsed_sec": 0.4516684589907527,
       "rtf": 0.07206157794138748,
@@ -1107,7 +1107,7 @@
       "event_count": 11
     },
     {
-      "file": "/Users/boxp/Downloads/audio/08_抗路噪_交通背景_招聘要求_声纹.wav",
+      "file": "<external-data>/audio/08_抗路噪_交通背景_招聘要求_声纹.wav",
       "duration_sec": 4.10025,
       "elapsed_sec": 0.3098179589724168,
       "rtf": 0.07556074848421848,
@@ -1173,7 +1173,7 @@
       "event_count": 9
     },
     {
-      "file": "/Users/boxp/Downloads/audio/09_抗路噪_交通背景_通信术语.wav",
+      "file": "<external-data>/audio/09_抗路噪_交通背景_通信术语.wav",
       "duration_sec": 5.616,
       "elapsed_sec": 0.3995485419873148,
       "rtf": 0.07114468340229965,
@@ -1239,7 +1239,7 @@
       "event_count": 9
     },
     {
-      "file": "/Users/boxp/Downloads/audio/09_抗路噪_交通背景_通信术语_声纹.wav",
+      "file": "<external-data>/audio/09_抗路噪_交通背景_通信术语_声纹.wav",
       "duration_sec": 4.824,
       "elapsed_sec": 0.3512532919412479,
       "rtf": 0.07281370065117079,
@@ -1299,7 +1299,7 @@
       "event_count": 8
     },
     {
-      "file": "/Users/boxp/Downloads/audio/10_抗路噪_交通背景_证券公告.wav",
+      "file": "<external-data>/audio/10_抗路噪_交通背景_证券公告.wav",
       "duration_sec": 5.818625,
       "elapsed_sec": 0.4083372079767287,
       "rtf": 0.07017761206070655,
@@ -1365,7 +1365,7 @@
       "event_count": 9
     },
     {
-      "file": "/Users/boxp/Downloads/audio/10_抗路噪_交通背景_证券公告_声纹.wav",
+      "file": "<external-data>/audio/10_抗路噪_交通背景_证券公告_声纹.wav",
       "duration_sec": 3.4891875,
       "elapsed_sec": 0.24793808395043015,
       "rtf": 0.07105897403061033,
@@ -1419,7 +1419,7 @@
       "event_count": 7
     },
     {
-      "file": "/Users/boxp/Downloads/audio/11_抗路噪_交通背景_行程提醒.wav",
+      "file": "<external-data>/audio/11_抗路噪_交通背景_行程提醒.wav",
       "duration_sec": 5.7585625,
       "elapsed_sec": 0.3940794999944046,
       "rtf": 0.0684336585726741,
@@ -1479,7 +1479,7 @@
       "event_count": 8
     },
     {
-      "file": "/Users/boxp/Downloads/audio/11_抗路噪_交通背景_行程提醒_声纹.wav",
+      "file": "<external-data>/audio/11_抗路噪_交通背景_行程提醒_声纹.wav",
       "duration_sec": 3.622,
       "elapsed_sec": 0.2593050830764696,
       "rtf": 0.0715916850017862,
@@ -1527,7 +1527,7 @@
       "event_count": 6
     },
     {
-      "file": "/Users/boxp/Downloads/audio/12_抗路噪_交通背景_汽车行业评论.wav",
+      "file": "<external-data>/audio/12_抗路噪_交通背景_汽车行业评论.wav",
       "duration_sec": 5.735,
       "elapsed_sec": 0.3785176669480279,
       "rtf": 0.06600133686975203,
@@ -1599,7 +1599,7 @@
       "event_count": 10
     },
     {
-      "file": "/Users/boxp/Downloads/audio/12_抗路噪_交通背景_汽车行业评论_声纹.wav",
+      "file": "<external-data>/audio/12_抗路噪_交通背景_汽车行业评论_声纹.wav",
       "duration_sec": 3.95,
       "elapsed_sec": 0.21928258298430592,
       "rtf": 0.055514577970710355,

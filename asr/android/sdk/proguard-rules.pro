@@ -6,6 +6,9 @@
 # 直接 include consumer-rules.pro（AGP 8 支持）
 -include consumer-rules.pro
 
+# Cross-AAR audio boundary metadata (also retained by consumer-rules.pro).
+-keep public class com.amphion.asr.internal.ResultAudioTimeline { *; }
+
 # Release unit tests instantiate this internal state tracker directly. Keep the class boundary in
 # the minified test artifact instead of letting R8 inline it into SessionImpl and remove the class.
 -keep class com.amphion.asr.internal.InitialAcousticActivityTracker { *; }

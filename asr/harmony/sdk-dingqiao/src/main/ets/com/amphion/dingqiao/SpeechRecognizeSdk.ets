@@ -1,3 +1,6 @@
+import { DiarizationCommitClock } from './diarization/DiarizationCommitClock';
+import { SpeakerDiarizationTranscriptState } from './diarization/SpeakerDiarizationTranscriptState';
+import { ResultAudioTimeline } from 'amphion_asr';
 import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionLogLevel, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller } from 'amphion_asr';
 import { PoliceEnhancePipeline } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
@@ -92,63 +95,96 @@ class SpeakerDiarizationSessionCallback implements SpeakerDiarizationSessionObse
 
   onSpeakerDiarizationUpdate(update: SpeakerDiarizationUpdate): void { this.updateCallback(update); }
 
+  onWindowResult(result: SpeakerDiarizationResult): void { this.finishedCallback(result); }
+
   onFinished(result: SpeakerDiarizationResult): void { this.finishedCallback(result); }
 }
 
 /** Keeps the public callback contract intact when the isolated diarization path cannot start. */
 class DegradedSpeakerDiarizationSession implements SpeakerDiarizationSessionController {
   private readonly observer: SpeakerDiarizationSessionObserver;
-  private readonly result: SpeakerDiarizationResult = new SpeakerDiarizationResult();
+  private readonly transcript: SpeakerDiarizationTranscriptState = new SpeakerDiarizationTranscriptState();
+  private readonly clock: DiarizationCommitClock = new DiarizationCommitClock();
+  private readonly reason: SpeakerDiarizationDegradedReason;
+  private readonly message: string;
   private finished: boolean = false;
   private finishRequested: boolean = false;
   private asrTailObserved: boolean = false;
+  private totalSamples: number = 0;
   private lastEndTime: number = 0;
+  private windowIndex: number = 0;
 
   constructor(observer: SpeakerDiarizationSessionObserver,
     reason: SpeakerDiarizationDegradedReason, message: string) {
-    this.observer = observer;
-    this.result.degraded = true;
-    this.result.degradedReason = reason;
-    this.result.degradedMessage = message;
+    this.observer = observer; this.reason = reason; this.message = message;
   }
 
-  append(_audio: ArrayBuffer): void {}
+  append(audio: ArrayBuffer): void {
+    if (!this.finished && !this.finishRequested) this.totalSamples += audio.byteLength / 2;
+  }
 
   observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult): void {
+    if (this.finished) return;
+    const endTime = (ResultAudioTimeline.endSample(result) ?? this.totalSamples) / 16;
     if (payload.result.length > 0) {
-      const utterance = new DiarizedUtterance();
-      utterance.utteranceId = `u${this.result.utterances.length + 1}`;
-      utterance.rawText = result.rawText;
-      utterance.text = payload.result;
-      utterance.beginTime = payload.beginTime ?? this.lastEndTime;
-      utterance.endTime = payload.endTime ?? utterance.beginTime;
-      this.lastEndTime = Math.max(this.lastEndTime, utterance.endTime);
-      this.result.utterances.push(utterance);
-      payload.utteranceId = utterance.utteranceId;
+      payload.utteranceId = this.transcript.addUtterance({ rawText: result.rawText,
+        text: payload.result, tokens: [], tokenTimesMs: [],
+        beginTime: payload.beginTime ?? this.lastEndTime,
+        endTime: payload.endTime ?? endTime, audioEndTime: endTime });
     }
+    this.lastEndTime = endTime;
     if (payload.isLast) this.asrTailObserved = true;
     this.finishIfReady();
   }
 
-  finish(): void {
-    this.finishRequested = true;
-    this.finishIfReady();
+  asrFinalDelivered(result: AsrResult): void {
+    if (this.finished || result.isLast) return;
+    const sample = ResultAudioTimeline.endSample(result);
+    if (sample === undefined) return;
+    this.clock.observeEndpoint(sample / 16);
+    let boundary = this.clock.takeReady(Number.POSITIVE_INFINITY);
+    while (boundary !== undefined && !this.finished) {
+      const output = this.buildResult(boundary.beginTime, boundary.endTime);
+      this.transcript.commitThrough(boundary.endTime);
+      if (output.utterances.length > 0) {
+        this.windowIndex += 1;
+        this.observer.onWindowResult(output);
+      }
+      boundary = this.clock.takeReady(Number.POSITIVE_INFINITY);
+    }
   }
 
+  finish(): void { this.finishRequested = true; this.finishIfReady(); }
   decoratePayload(_payload: SpeechRecognitionResult): void {}
+  cleanup(): void { this.finished = true; }
 
   bestResult(reason?: SpeakerDiarizationDegradedReason, message?: string): SpeakerDiarizationResult {
-    if (reason !== undefined) this.result.degradedReason = reason;
-    if (message !== undefined) this.result.degradedMessage = message;
-    return this.result;
+    const result = this.buildResult(this.clock.beginTime(), this.totalSamples / 16);
+    result.degradedReason = reason ?? this.reason;
+    result.degradedMessage = message ?? this.message;
+    return result;
   }
 
-  cleanup(): void { this.finished = true; }
+  private buildResult(beginTime: number, endTime: number): SpeakerDiarizationResult {
+    const result = new SpeakerDiarizationResult();
+    result.windowIndex = this.windowIndex;
+    result.windowBeginTime = Math.round(beginTime); result.windowEndTime = Math.round(endTime);
+    result.degraded = true; result.degradedReason = this.reason; result.degradedMessage = this.message;
+    result.utterances = this.transcript.finalUtterances(endTime).map(value => {
+      const utterance = new DiarizedUtterance();
+      utterance.utteranceId = value.utteranceId; utterance.sourceUtteranceId = value.sourceUtteranceId;
+      utterance.rawText = value.rawText; utterance.text = value.text;
+      utterance.beginTime = value.beginTime; utterance.endTime = value.endTime;
+      return utterance;
+    });
+    return result;
+  }
 
   private finishIfReady(): void {
     if (this.finished || !this.finishRequested || !this.asrTailObserved) return;
     this.finished = true;
-    this.observer.onFinished(this.result);
+    const result = this.bestResult(); result.isSessionFinal = true;
+    this.observer.onFinished(result);
   }
 }
 
@@ -550,6 +586,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           (diarizationResult: SpeakerDiarizationResult): void => {
             if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
               this.currentSessionId !== diarizationSessionId) return;
+            if (!diarizationResult.isSessionFinal) {
+              this.listener?.onSpeakerDiarizationResult?.(diarizationSessionId, diarizationResult);
+              return;
+            }
             this.speakerDiarizationFinishBarrier?.resolveSpeaker({
               degraded: diarizationResult.degraded,
               value: diarizationResult,
@@ -806,6 +846,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           this.speakerDiarizationFinishBarrier?.resolveAsr(payload);
         } else {
           this.listener?.onResult?.(sessionId, payload);
+          diarization.asrFinalDelivered(result);
         }
       },
       (): void => {
@@ -852,6 +893,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       diarizationResult.degradedReason = SpeakerDiarizationDegradedReason.FINISH_TIMEOUT;
       diarizationResult.degradedMessage = 'speaker diarization finish timeout';
     }
+    diarizationResult.isSessionFinal = true;
     diarization.decoratePayload(output.asr);
     this.listener?.onResult?.(sessionId, output.asr);
     if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
@@ -1031,12 +1073,14 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (this.targetSpeakerEnhancementEnabled) payload.targetSpeakerEnhancementApplied = true;
     this.finalResultSent = true;
     this.diagnosticResult(sessionId, payload, true);
-    if (this.speakerDiarizationSession !== undefined) {
-      this.speakerDiarizationSession.observeAsrFinal(payload, result);
+    const diarization = this.speakerDiarizationSession;
+    if (diarization !== undefined) {
+      diarization.observeAsrFinal(payload, result);
       if (payload.isLast) {
         this.speakerDiarizationFinishBarrier?.resolveAsr(payload);
       } else {
         this.listener?.onResult?.(sessionId, payload);
+        diarization.asrFinalDelivered(result);
       }
       return;
     }

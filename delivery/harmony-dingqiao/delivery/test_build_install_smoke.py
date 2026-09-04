@@ -56,9 +56,13 @@ class BuildInstallSmokeTest(unittest.TestCase):
             'git -C "$sherpa_destination" checkout --quiet --detach "$sherpa_commit"'
         )
         native_libs = isolated_build.index(
-            '"$sherpa_source/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/"'
+            '"$sherpa_native_source/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/"'
         )
         patch = isolated_build.index('AMPHION_SHERPA_ROOT="$sherpa_destination"')
+        self.assertIn(
+            'local sherpa_destination="$temp_repo/third_party/.derived/sherpa-onnx"',
+            isolated_build,
+        )
         self.assertLess(clone, checkout)
         self.assertLess(checkout, native_libs)
         self.assertLess(native_libs, patch)

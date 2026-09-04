@@ -1,0 +1,196 @@
+{
+  "pass": true,
+  "text": "气温 -24.5 度。温度范围是 -5 到 10 度。出生日期1998年2月09日。这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分段的中文测试文本这是一段用于验证流式分example.com\/test。下一句。",
+  "requestId": "aar-frontend",
+  "language": "zh-en",
+  "voiceId": "lits-female-02",
+  "playType": "SYNTHESIZE_ONLY",
+  "licenseState": "LICENSED",
+  "shutdownReturned": true,
+  "elapsedMs": 14178,
+  "callbacks": [
+    {
+      "requestId": "aar-frontend",
+      "type": "start",
+      "elapsedMs": 11156,
+      "audioType": "pcm",
+      "sampleRate": 24000,
+      "sampleBit": 16,
+      "audioChannel": 1
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 11270,
+      "sequence": 0,
+      "bytes": 6912,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 11405,
+      "sequence": 1,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 11572,
+      "sequence": 2,
+      "bytes": 78336,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 11669,
+      "sequence": 3,
+      "bytes": 6912,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 11785,
+      "sequence": 4,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 11952,
+      "sequence": 5,
+      "bytes": 76800,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 12014,
+      "sequence": 6,
+      "bytes": 16128,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 12106,
+      "sequence": 7,
+      "bytes": 6912,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 12225,
+      "sequence": 8,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 12392,
+      "sequence": 9,
+      "bytes": 76800,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 12491,
+      "sequence": 10,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 12617,
+      "sequence": 11,
+      "bytes": 6912,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 12731,
+      "sequence": 12,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 12904,
+      "sequence": 13,
+      "bytes": 76800,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 13202,
+      "sequence": 14,
+      "bytes": 153600,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 13489,
+      "sequence": 15,
+      "bytes": 153600,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 13780,
+      "sequence": 16,
+      "bytes": 153600,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 13889,
+      "sequence": 17,
+      "bytes": 44544,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 13977,
+      "sequence": 18,
+      "bytes": 6912,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 14092,
+      "sequence": 19,
+      "bytes": 38400,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "data",
+      "elapsedMs": 14153,
+      "sequence": 20,
+      "bytes": 16896,
+      "audioType": "pcm"
+    },
+    {
+      "requestId": "aar-frontend",
+      "type": "complete",
+      "elapsedMs": 14154,
+      "completeType": "SYNTHESIS_COMPLETE"
+    }
+  ]
+}

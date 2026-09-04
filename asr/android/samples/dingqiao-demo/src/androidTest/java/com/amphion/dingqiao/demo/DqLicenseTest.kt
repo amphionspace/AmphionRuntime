@@ -20,10 +20,10 @@ import org.junit.runner.RunWith
 import org.junit.runners.MethodSorters
 
 /**
- * 离线 License 运行时激活（setLicense）corner-case：到期、设备白名单、包名不限制、能力、损坏、路径。
+ * 离线 License 运行时激活（setLicense）corner-case：正向激活、到期、损坏和缺文件。
  * 同时验证资产 license 生效后 getLicenseInfo 能回落返回 runtime 授权信息。
  *
- * 变体 license 用项目签发私钥（与交付 AAR 内置公钥同对）现签，落在 androidTest 资产 licenses/ 下。
+ * 正向授权复用 Demo APK 内置的 amphion-license.lic；androidTest 只保留时间无关的负向样本。
  */
 @RunWith(AndroidJUnit4::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
@@ -38,6 +38,8 @@ class DqLicenseTest {
         val path = stageAsset(testCtx, ctx, "licenses/$assetName", "lic/$assetName")
         return setLicensePath(path)
     }
+
+    private fun setBundledLicense(): Activation = setLicensePath(stageRuntimeLicense(ctx))
 
     private fun setLicensePath(path: String): Activation {
         val latch = CountDownLatch(1)
@@ -61,7 +63,6 @@ class DqLicenseTest {
     @Test
     fun L01_assetLicensed_engineWorks_andInfoReadable() {
         prepareSdkRuntime(
-            testCtx,
             ctx,
             File(ctx.getExternalFilesDir(null), "dq_lic_work"),
         )
@@ -85,7 +86,7 @@ class DqLicenseTest {
     // ---------- L10: 合法 demo license ----------
     @Test
     fun L10_setValid_ok() {
-        val a = setLicense("valid.lic")
+        val a = setBundledLicense()
         val info = runCatching { SpeechRecognizeSdk.getLicenseInfo() }.getOrNull()
         DqReport.append(ctx, mapOf("case" to "L10_valid", "code" to a.code, "remainingDays" to a.remainingDays,
             "features" to a.features?.toString(), "infoStatus" to info?.status, "infoFeatures" to info?.authorizedFeatures?.toString()))
@@ -99,76 +100,6 @@ class DqLicenseTest {
         val a = setLicense("expired.lic")
         DqReport.append(ctx, mapOf("case" to "L20_expired", "code" to a.code, "msg" to a.errMsg))
         assertEquals(DingqiaoErrorCode.LICENSE_EXPIRED, a.code)
-    }
-
-    // ---------- L30: 设备白名单不含本机 ----------
-    @Test
-    fun L30_setDeviceMismatch() {
-        val a = setLicense("device_mismatch.lic")
-        DqReport.append(ctx, mapOf("case" to "L30_deviceMismatch", "code" to a.code, "msg" to a.errMsg))
-        assertEquals(DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH, a.code)
-    }
-
-    // ---------- L40: SN 白名单含本机；非特权 demo app 读不到 SN -> DEVICE_MISMATCH ----------
-    @Test
-    fun L40_setDeviceMatch_mySn() {
-        val a = setLicense("device_match.lic")
-        DqReport.append(ctx, mapOf("case" to "L40_deviceMatch_mySn", "code" to a.code, "msg" to a.errMsg,
-            "note" to "license bound to real SN; demo app lacks READ_PRIVILEGED_PHONE_STATE so SN unreadable -> DEVICE_MISMATCH. Only the privileged host com.tdtech.tiassistant can pass SN-bound license."))
-        // 本机在白名单内，但 demo app 无特权读不到 SN -> 设备校验失败。这是 Android 权限约束，非 SDK 缺陷。
-        assertEquals(DingqiaoErrorCode.LICENSE_DEVICE_MISMATCH, a.code)
-    }
-
-    // ---------- L41: 记录 demo app 实际可见的设备 SN（佐证 L40 根因） ----------
-    @Test
-    fun L41_deviceSerialVisibility() {
-        val getSerial = runCatching {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) android.os.Build.getSerial()
-            else @Suppress("DEPRECATION") android.os.Build.SERIAL
-        }
-        val sysProp = runCatching {
-            val clazz = Class.forName("android.os.SystemProperties")
-            val get = clazz.getMethod("get", String::class.java)
-            get.invoke(null, "ro.serialno") as? String
-        }.getOrNull()
-        val getprop = runCatching {
-            val p = ProcessBuilder("getprop", "ro.serialno").redirectErrorStream(true).start()
-            p.inputStream.bufferedReader().use { it.readText() }.trim()
-        }.getOrNull()
-        DqReport.append(ctx, mapOf(
-            "case" to "L41_serialVisibility",
-            "build_getSerial" to (getSerial.getOrNull() ?: "EXC:${getSerial.exceptionOrNull()?.javaClass?.simpleName}"),
-            "systemProperties_ro_serialno" to (sysProp ?: ""),
-            "getprop_ro_serialno" to (getprop ?: ""),
-        ))
-    }
-
-    // ---------- L50: 3.0 license 不再限制包名/证书 ----------
-    @Test
-    fun L50_setAppMismatch() {
-        val a = setLicense("app_mismatch.lic")
-        DqReport.append(ctx, mapOf("case" to "L50_appMismatch", "code" to a.code, "msg" to a.errMsg,
-            "note" to "v3.0 policy does not bind applicationId/cert; only device/time/features are enforced"))
-        assertEquals("v3.0 license should not reject app/cert mismatch", 0, a.code)
-    }
-
-    // ---------- L60: 仅 TTS 能力，缺 ASR ----------
-    @Test
-    fun L60_setTtsOnly_featureMissing() {
-        val a = setLicense("tts_only.lic")
-        DqReport.append(ctx, mapOf("case" to "L60_ttsOnly", "code" to a.code, "msg" to a.errMsg,
-            "note" to "feature-missing maps to LICENSE_ACTIVATION_FAILED(1002200035)"))
-        assertEquals(DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED, a.code)
-    }
-
-    // ---------- L70: ASR,TTS 共用 license ----------
-    @Test
-    fun L70_setAsrTts_ok() {
-        val a = setLicense("asr_tts.lic")
-        DqReport.append(ctx, mapOf("case" to "L70_asrTts", "code" to a.code, "features" to a.features?.toString()))
-        assertEquals(0, a.code)
-        assertTrue("ASR present", a.features?.contains("ASR") == true)
-        assertTrue("TTS present", a.features?.contains("TTS") == true)
     }
 
     // ---------- L80: 损坏信封 ----------
@@ -190,7 +121,7 @@ class DqLicenseTest {
     // ---------- L90: 恢复合法 license，便于后续类复用 ----------
     @Test
     fun L90_restoreValid() {
-        val a = setLicense("valid.lic")
+        val a = setBundledLicense()
         DqReport.append(ctx, mapOf("case" to "L90_restoreValid", "code" to a.code))
         assertEquals(0, a.code)
     }

@@ -1,0 +1,39 @@
+From 728dfde595b503ca6e5dd193e70e69fabf57fe13 Mon Sep 17 00:00:00 2001
+From: Amphion CI <ci@amphion.local>
+Date: Wed, 2 Sep 2026 19:30:00 +0800
+Subject: [PATCH] build(android): forward reproducible compiler flags
+
+---
+ build-android-arm64-v8a.sh | 2 ++
+ build-android-armv7-eabi.sh | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/build-android-arm64-v8a.sh b/build-android-arm64-v8a.sh
+index 00b83a2e..d0a57d4b 100755
+--- a/build-android-arm64-v8a.sh
++++ b/build-android-arm64-v8a.sh
+@@ -143,6 +143,8 @@ if [ -z $SHERPA_ONNX_ENABLE_JNI ]; then
+ fi
+ 
+ cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
++    -DCMAKE_C_FLAGS:STRING="${CFLAGS:-}" \
++    -DCMAKE_CXX_FLAGS:STRING="${CXXFLAGS:-}" \
+     -DSHERPA_ONNX_ENABLE_TTS=$SHERPA_ONNX_ENABLE_TTS \
+     -DSHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION=$SHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION \
+     -DSHERPA_ONNX_ENABLE_BINARY=$SHERPA_ONNX_ENABLE_BINARY \
+diff --git a/build-android-armv7-eabi.sh b/build-android-armv7-eabi.sh
+index c01b15ba..63649446 100755
+--- a/build-android-armv7-eabi.sh
++++ b/build-android-armv7-eabi.sh
+@@ -136,6 +136,8 @@ if [ -z $SHERPA_ONNX_ENABLE_JNI ]; then
+ fi
+ 
+ cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
++    -DCMAKE_C_FLAGS:STRING="${CFLAGS:-}" \
++    -DCMAKE_CXX_FLAGS:STRING="${CXXFLAGS:-}" \
+     -DSHERPA_ONNX_ENABLE_TTS=$SHERPA_ONNX_ENABLE_TTS \
+     -DSHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION=$SHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION \
+     -DSHERPA_ONNX_ENABLE_BINARY=$SHERPA_ONNX_ENABLE_BINARY \
+-- 
+2.51.0
+

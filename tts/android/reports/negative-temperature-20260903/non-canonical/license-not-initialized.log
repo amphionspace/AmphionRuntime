@@ -1,0 +1,47 @@
+INSTRUMENTATION_STATUS: class=com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest:
+INSTRUMENTATION_STATUS: test=nativeFrontendAndPublicSynthesisPreserveTemperatureReading
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stack=com.lits.tts.sdk.TextToSpeechException: license check failed (code=1002300012): no license provided
+	at com.lits.tts.sdk.internal.LicenseGuard.licenseException(LicenseGuard.kt:101)
+	at com.lits.tts.sdk.internal.LicenseGuard.gate(LicenseGuard.kt:55)
+	at com.lits.tts.sdk.internal.EngineRegistry.createEngine(EngineRegistry.kt:37)
+	at com.lits.tts.sdk.TextToSpeechSdk.createEngine(TextToSpeechApi.kt:323)
+	at com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest.nativeFrontendAndPublicSynthesisPreserveTemperatureReading(NegativeTemperatureDeviceTest.kt:61)
+
+INSTRUMENTATION_STATUS: stream=
+Error in nativeFrontendAndPublicSynthesisPreserveTemperatureReading(com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest):
+com.lits.tts.sdk.TextToSpeechException: license check failed (code=1002300012): no license provided
+	at com.lits.tts.sdk.internal.LicenseGuard.licenseException(LicenseGuard.kt:101)
+	at com.lits.tts.sdk.internal.LicenseGuard.gate(LicenseGuard.kt:55)
+	at com.lits.tts.sdk.internal.EngineRegistry.createEngine(EngineRegistry.kt:37)
+	at com.lits.tts.sdk.TextToSpeechSdk.createEngine(TextToSpeechApi.kt:323)
+	at com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest.nativeFrontendAndPublicSynthesisPreserveTemperatureReading(NegativeTemperatureDeviceTest.kt:61)
+
+INSTRUMENTATION_STATUS: test=nativeFrontendAndPublicSynthesisPreserveTemperatureReading
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 1.828
+There was 1 failure:
+1) nativeFrontendAndPublicSynthesisPreserveTemperatureReading(com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest)
+com.lits.tts.sdk.TextToSpeechException: license check failed (code=1002300012): no license provided
+	at com.lits.tts.sdk.internal.LicenseGuard.licenseException(LicenseGuard.kt:101)
+	at com.lits.tts.sdk.internal.LicenseGuard.gate(LicenseGuard.kt:55)
+	at com.lits.tts.sdk.internal.EngineRegistry.createEngine(EngineRegistry.kt:37)
+	at com.lits.tts.sdk.TextToSpeechSdk.createEngine(TextToSpeechApi.kt:323)
+	at com.lits.tts.sdk.internal.NegativeTemperatureDeviceTest.nativeFrontendAndPublicSynthesisPreserveTemperatureReading(NegativeTemperatureDeviceTest.kt:61)
+
+FAILURES!!!
+Tests run: 1,  Failures: 1
+
+
+INSTRUMENTATION_CODE: -1

@@ -1,0 +1,20 @@
+{
+  "classification": "NON_CANONICAL_ENVIRONMENT_INTERRUPTION",
+  "source_commit": "fcdfea97ca5fb5ba7e437e84e810290505e44df6",
+  "pid": 28977,
+  "cgroup": "/apps/uid_10624/pid_28977",
+  "observed_cgroup_freeze": 1,
+  "observed_cgroup_events": {
+    "populated": 1,
+    "frozen": 1
+  },
+  "observed_threads": 21,
+  "all_thread_wchan": "get_signal",
+  "foreground_app_at_freeze": "launcher",
+  "apk_changed_before_rerun": false,
+  "input_or_timeout_changed_before_rerun": false,
+  "only_rerun_change": "Keep the instrumentation process foreground using the existing exported AndroidX EmptyActivity",
+  "restored_by": "Launch existing AndroidX EmptyActivity; the timed-out run resumed and wrote failure artifacts",
+  "phone_settings_changed": false,
+  "native_debugger_attempt": "Not available without root; no privilege escalation performed"
+}
