@@ -385,7 +385,11 @@ internal class SessionImpl(
                 val agcOk = agcIngress.flush("agc.flush(stop)", ::feedAndDecode)
                 if (agcOk) {
                     val r = NativeGuard.run("stream.inputFinished+drain") {
-                        appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
+                        if (speakerVadEnabled) {
+                            appendFinalTailSilence(FINAL_TAIL_SILENCE_MS)
+                        } else {
+                            flushAdaptiveFinalTail()
+                        }
                         stream.inputFinished()
                         drainDecoder(isFinal = true, restartAfterFinal = false, isLastFinal = true)
                     }
@@ -506,6 +510,39 @@ internal class SessionImpl(
         if (n == 0) return
         // 用户松手通常正好卡在语音末尾；SDK 内部补尾静音，给流式模型足够右上下文完成 final。
         stream.acceptWaveform(FloatArray(n), sampleRate)
+    }
+
+    private fun flushAdaptiveFinalTail() {
+        val flushStartedNs = System.nanoTime()
+        val planner = FinalTailFlushPlanner(
+            stepMs = FINAL_TAIL_STEP_MS,
+            maxPaddingMs = FINAL_TAIL_SILENCE_MS,
+            requiredDecodes = FINAL_TAIL_REQUIRED_DECODES,
+            singleDecodeMinPaddingMs = FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS,
+        )
+        var decodeDurationMs = 0L
+        while (!planner.isComplete && !closed.get()) {
+            if (recognizer.isReady(stream)) {
+                val decodeStartedNs = System.nanoTime()
+                recognizer.decode(stream)
+                decodeDurationMs += (System.nanoTime() - decodeStartedNs) / 1_000_000L
+                planner.recordDecode()
+                continue
+            }
+            val paddingMs = planner.nextPaddingMs()
+            if (paddingMs <= 0) break
+            appendFinalTailSilence(paddingMs)
+            planner.recordPadding(paddingMs)
+        }
+        Logger.metric(
+            "kind=FINAL_TAIL sessionId=$sessionId " +
+                "paddingMs=${planner.paddingDurationMs} " +
+                "decodeOpportunities=${planner.decodeOpportunities} " +
+                "decodeDurationMs=$decodeDurationMs " +
+                "elapsedMs=${(System.nanoTime() - flushStartedNs) / 1_000_000L} " +
+                "singleDecode=${planner.decodeOpportunities == 1} " +
+                "fallback=${planner.usedFallback}",
+        )
     }
 
     private fun feedAndDecode(frame: ProcessedAudioFrame) {
@@ -1235,6 +1272,11 @@ internal class SessionImpl(
          * chunk，保证无论当前 chunk 相位如何都还有两次解码机会。这里是合成输入，不是墙钟等待。
          */
         const val FINAL_TAIL_SILENCE_MS = 1280
+
+        /** Probe readiness in 20 ms slices; one decode is enough only after 320 ms right context. */
+        const val FINAL_TAIL_STEP_MS = 20
+        const val FINAL_TAIL_REQUIRED_DECODES = 2
+        const val FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS = 320
 
         /**
          * silero VAD 强约束：必须按窗口对齐喂入 [Vad.acceptWaveform]。
