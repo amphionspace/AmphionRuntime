@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import unittest
 
 
@@ -34,7 +35,12 @@ class HarmonyDingqiaoLogLevelTest(unittest.TestCase):
 
     def test_public_adapter_exposes_the_core_log_level_type(self) -> None:
         self.assertIn("export { AmphionLogLevel } from 'amphion_asr';", self.index)
-        self.assertIn("AmphionLogLevel", self.adapter.split("from 'amphion_asr';", 1)[0])
+        imports = re.findall(
+            r"import\s*\{.*?\}\s*from 'amphion_asr';",
+            self.adapter,
+            flags=re.DOTALL,
+        )
+        self.assertIn("AmphionLogLevel", "\n".join(imports))
 
     def test_default_level_remains_warn_and_explicit_level_reaches_runtime_init(self) -> None:
         self.assertIn(

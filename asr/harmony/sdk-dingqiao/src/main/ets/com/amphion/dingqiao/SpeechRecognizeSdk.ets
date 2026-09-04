@@ -1,6 +1,7 @@
 import { DiarizationCommitClock } from './diarization/DiarizationCommitClock';
 import { SpeakerDiarizationTranscriptState } from './diarization/SpeakerDiarizationTranscriptState';
-import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionLogLevel, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, ResultAudioTimeline, SpeakerEnroller } from 'amphion_asr';
+import { ResultAudioTimeline } from 'amphion_asr';
+import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionLogLevel, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller } from 'amphion_asr';
 import { PoliceEnhancePipeline } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
