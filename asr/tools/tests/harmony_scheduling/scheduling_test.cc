@@ -90,8 +90,10 @@ int main() {
   assert(ta && tb);
   release_b.set_value(); second.join(tb); assert(wb.completed);
   release_a.set_value(); first.join(ta); assert(wa.completed);
-  for (const char *invalid : {"cpu;AmphionQos=invalid", "cpu;AmphionCpuIds=2,2",
-       "cpu;AmphionCpuIds=128", "cpu;AmphionCpuIds=2,", "cpu;AmphionCpuIds=-1",
+  for (const std::string &invalid : std::vector<std::string>{
+       "cpu;AmphionQos=invalid", "cpu;AmphionCpuIds=2,2",
+       "cpu;AmphionCpuIds=" + std::to_string(CPU_SETSIZE),
+       "cpu;AmphionCpuIds=2,", "cpu;AmphionCpuIds=-1",
        "cpu;AmphionAllowSpinning=x"}) {
     HarmonyScheduling policy;
     bool rejected = false;
