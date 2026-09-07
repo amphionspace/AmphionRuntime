@@ -120,6 +120,12 @@ export default class EntryAbility extends UIAbility {
       options.cycles = this.numberParameter(want, 'stressCycles', 1);
       options.settleMs = this.numberParameter(want, 'stressSettleMs', 0);
       options.paceMs = this.numberParameter(want, 'stressPaceMs', 20);
+      options.asrQos = this.stringParameter(want, 'stressAsrQos', 'default');
+      const cpuIds = this.stringParameter(want, 'stressAsrCpuIds', 'none');
+      options.asrCpuIds = cpuIds === 'none' ? [] : cpuIds.split(',').map((id: string): number => Number(id));
+      options.asrNumThreads = this.numberParameter(want, 'stressAsrNumThreads', 4);
+      options.asrAllowSpinning = this.stringParameter(want, 'stressAsrAllowSpinning', 'true') === 'true';
+      options.asrDisablePrepack = this.stringParameter(want, 'stressAsrDisablePrepack', 'true') === 'true';
       options.enrollmentCount = this.numberParameter(want, 'stressEnrollmentCount', 1);
       options.enforceTargetSpeakerBusinessText =
         this.stringParameter(want, 'stressEnforceTargetSpeakerBusinessText', 'true') === 'true';

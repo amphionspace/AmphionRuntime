@@ -1,3 +1,5 @@
+import { AsrSchedulingConfig } from 'amphion_asr';
+
 export class AudioInfo {
   audioType: string = 'pcm';
   sampleRate: number = 16000;
@@ -6,6 +8,9 @@ export class AudioInfo {
 }
 
 export class CreateEngineParams {
+  /** Engine-wide; changing these fields after createEngine has no effect. */
+  scheduling?: AsrSchedulingConfig;
+  numThreads?: number;
   language: string = 'zh-CN';
   online: number = 1;
   extraParams: Record<string, Object> = {};

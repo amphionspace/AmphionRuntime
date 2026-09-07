@@ -1,4 +1,5 @@
 import { ResultAudioTimeline } from './ResultAudioTimeline';
+import { asrCpuProvider, snapshotAsrScheduling } from './AsrSchedulingConfig';
 import {
   OfflinePunctuation,
   OfflinePunctuationConfig,
@@ -969,7 +970,7 @@ export class AmphionRuntime {
     model.numThreads = config.numThreads;
     model.debug = false;
     // provider 内联配置把「跳过 prepack」下发到 native session.cc(零 C-API/ABI 改动)。
-    model.provider = config.disablePrepack ? 'cpu;DisablePrepacking=1' : 'cpu';
+    model.provider = asrCpuProvider(config.disablePrepack, config.scheduling);
 
     const rc = new OnlineRecognizerConfig();
     rc.modelConfig = model;
@@ -1041,6 +1042,7 @@ export class AmphionRuntime {
     snapshot.vad = source.vad;
     snapshot.endpoint = source.endpoint;
     snapshot.disablePrepack = source.disablePrepack;
+    snapshot.scheduling = snapshotAsrScheduling(source.scheduling);
     snapshot.hotwords = source.hotwords.slice();
     snapshot.hotwordsScore = source.hotwordsScore;
 
@@ -1098,7 +1100,7 @@ export class AmphionRuntime {
       `${config.endpointRules.rule2MinTrailingSilenceSec}`,
       `${config.endpointRules.rule3MinUtteranceLengthSec}`,
       `${config.hotwordsScore}`,
-      `${config.disablePrepack}`,
+      asrCpuProvider(config.disablePrepack, config.scheduling),
       config.hotwords.join('\n')
     ].join('|');
   }
@@ -1225,6 +1227,7 @@ export class AsrEngine {
     nextConfig.vad = this.config.vad;
     nextConfig.endpoint = this.config.endpoint;
     nextConfig.disablePrepack = this.config.disablePrepack;
+    nextConfig.scheduling = snapshotAsrScheduling(this.config.scheduling);
     nextConfig.hotwords = this.config.hotwords.slice();
     nextConfig.hotwordsScore = this.config.hotwordsScore;
     const vad = new VadConfig();

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
 
 
@@ -83,6 +84,35 @@ class BuildInstallSmokeTest(unittest.TestCase):
     def test_test_carrier_install_allows_a_version_downgrade(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('"$HDC" -t "$DEVICE" install -r -d "$HAP"', source)
+
+
+    def test_install_retries_only_unsupported_downgrade_syntax(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        block = source[source.index('echo "[INFO] installing HAP'):source.index('"$HDC" -t "$DEVICE" shell power-shell wakeup')]
+        for response, expected_calls, succeeds in [
+            ("install bundle successfully", 1, True),
+            ("msg:usage: bm install <options>", 2, True),
+            ("signature verification failed", 1, False),
+        ]:
+            with self.subTest(response=response), tempfile.TemporaryDirectory() as directory:
+                setup = '''set -euo pipefail
+HDC=mock_hdc
+DEVICE=test-device
+HAP=test.hap
+INSTALL_LOG=install.log
+mock_hdc() {
+  echo call >> calls
+  if [[ "$*" == *" -d "* ]]; then
+    echo "$RESPONSE"
+  else
+    echo 'install bundle successfully'
+  fi
+}
+'''
+                result = subprocess.run(["bash", "-c", setup + block], cwd=directory,
+                                        env={"RESPONSE": response}, capture_output=True, text=True)
+                self.assertEqual(result.returncode == 0, succeeds, result.stderr)
+                self.assertEqual(len((Path(directory) / "calls").read_text().splitlines()), expected_calls)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import hilog from '@ohos.hilog';
 import { common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import {
+  AsrSchedulingConfig,
   AudioInfo,
   CreateEngineCallback,
   CreateEngineParams,
@@ -55,6 +56,11 @@ const VOICEPRINT_SCENARIOS: string[] = [
 ];
 
 export class DeviceStressOptions {
+  asrQos: string = 'default';
+  asrCpuIds: number[] = [];
+  asrNumThreads: number = 4;
+  asrAllowSpinning: boolean = true;
+  asrDisablePrepack: boolean = true;
   runId: string = 'manual';
   manifestPath: string = '';
   resultPath: string = '';
@@ -1116,18 +1122,31 @@ function prepareRuntime(): Promise<number> {
   });
 }
 
-function createEngine(): SpeechRecognitionEngine {
+function createEngine(options: DeviceStressOptions = new DeviceStressOptions()): SpeechRecognitionEngine {
   const params = new CreateEngineParams();
+  const scheduling = new AsrSchedulingConfig();
+  scheduling.qos = options.asrQos;
+  scheduling.cpuIds = options.asrCpuIds.slice();
+  scheduling.allowSpinning = options.asrAllowSpinning;
+  params.scheduling = scheduling;
+  params.numThreads = options.asrNumThreads;
+  params.extraParams['disablePrepack'] = options.asrDisablePrepack;
   params.language = 'zh-CN';
   params.online = 1;
   return SpeechRecognizeSdk.createEngine(params);
 }
 
-function createColdStartEngine(): Promise<EngineCreateResult> {
+function createColdStartEngine(options: DeviceStressOptions): Promise<EngineCreateResult> {
   const params = new CreateEngineParams();
+  const scheduling = new AsrSchedulingConfig();
+  scheduling.qos = options.asrQos;
+  scheduling.cpuIds = options.asrCpuIds.slice();
+  scheduling.allowSpinning = options.asrAllowSpinning;
+  params.scheduling = scheduling;
+  params.numThreads = options.asrNumThreads;
   params.language = 'zh-CN';
   params.online = 1;
-  params.extraParams['disablePrepack'] = true;
+  params.extraParams['disablePrepack'] = options.asrDisablePrepack;
   params.extraParams['sysGeneralLexicon'] = COLD_START_HOTWORDS;
   return new Promise<EngineCreateResult>((resolve: (result: EngineCreateResult) => void): void => {
     SpeechRecognizeSdk.createEngineAsync(params, new EngineCreateCb(resolve));
@@ -2170,7 +2189,7 @@ async function runFinishShutdownCycle(engine: SpeechRecognitionEngine, entry: Co
 // A safe SDK must not let Runtime invalidation free handles still owned by the decode worker.
 async function runFinishShutdownRelicenseCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
   index: number, licensePath: string, mode: string = 'finish-shutdown-relicense',
-  voiceprintId: string = ''): Promise<CycleResult> {
+  voiceprintId: string = '', options: DeviceStressOptions = new DeviceStressOptions()): Promise<CycleResult> {
   const startedAt = Date.now();
   const events = new SessionEvents();
   const sessionId = `${mode}-${index}`;
@@ -2209,7 +2228,7 @@ async function runFinishShutdownRelicenseCycle(engine: SpeechRecognitionEngine, 
   let recoveryEngine: SpeechRecognitionEngine | undefined;
   if (runtimeError === 0) {
     try {
-      recoveryEngine = createEngine();
+      recoveryEngine = createEngine(options);
       recoveryEngine.setListener(new StressListener(recoveryEvents, recoverySessionId));
       const recoveryParams = startParams(recoverySessionId, mode, index);
       if (voiceprintId.length > 0) {
@@ -2806,13 +2825,13 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       options.mode === 'speaker-vad-shutdown-relicense';
     if (!recreateEachCycle) {
       if (options.mode === 'cold-start-pcm-gap') {
-        const created = await createColdStartEngine();
+        const created = await createColdStartEngine(options);
         if (created.engine === undefined) {
           throw new Error(`engine-create-${created.errorCode}-${safeDetail(created.errorMessage)}`);
         }
         engine = created.engine;
       } else {
-        engine = createEngine();
+        engine = createEngine(options);
       }
     }
     for (let i = 0; i < options.cycles; i++) {
@@ -2829,7 +2848,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entry = entries[options.enrollmentCount +
           (i % (entries.length - options.enrollmentCount))];
       }
-      if (recreateEachCycle) engine = createEngine();
+      if (recreateEachCycle) engine = createEngine(options);
       if (engine === undefined) throw new Error('engine-create-failed');
 
       let result: CycleResult;
@@ -2872,11 +2891,11 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runFinishShutdownCycle(engine, entry, i);
       } else if (options.mode === 'finish-shutdown-relicense') {
         result = await runFinishShutdownRelicenseCycle(
-          engine, entry, i, `${workPath}/stress-amphion-license.lic`);
+          engine, entry, i, `${workPath}/stress-amphion-license.lic`, options.mode, '', options);
       } else if (options.mode === 'speaker-vad-shutdown-relicense') {
         result = await runFinishShutdownRelicenseCycle(
           engine, entry, i, `${workPath}/stress-amphion-license.lic`, options.mode,
-          stressVoiceprintId);
+          stressVoiceprintId, options);
       } else if (options.mode === 'user-sequence') {
         result = await runUserSequenceCycle(engine, entry, i);
       } else if (options.mode === 'vad-begin-silence') {

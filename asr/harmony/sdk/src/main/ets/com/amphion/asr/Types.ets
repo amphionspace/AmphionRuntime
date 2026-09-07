@@ -1,3 +1,4 @@
+import { AsrSchedulingConfig, snapshotAsrScheduling } from './AsrSchedulingConfig';
 import { isValidRule3MinUtteranceSec } from './EndpointRuleValidation';
 import { isValidSpeakerMinimumSegment } from './TargetSpeakerConfigPolicy';
 
@@ -91,6 +92,7 @@ export class TargetSpeakerConfig {
 }
 
 export class AsrConfig {
+  scheduling?: AsrSchedulingConfig;
   numThreads: number = 2;
   punctuation: boolean = true;
   itn: boolean = true;
@@ -117,6 +119,10 @@ export class AsrConfigBuilder {
   numThreads(value: number): AsrConfigBuilder {
     if (value < 1 || value > 8) throw new Error(`numThreads must be in [1, 8], got ${value}`);
     this.config.numThreads = value;
+    return this;
+  }
+  scheduling(value: AsrSchedulingConfig): AsrConfigBuilder {
+    this.config.scheduling = snapshotAsrScheduling(value);
     return this;
   }
   punctuation(value: boolean): AsrConfigBuilder { this.config.punctuation = value; return this; }
