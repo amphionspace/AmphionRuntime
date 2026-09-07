@@ -1,0 +1,24 @@
+# 20260827 甲方验收表：仅完整 final 命中时纠正，禁止作为子串或通用车牌猜测规则。
+川A五L五五,川A5L555,acceptance_20260827
+二A二B222,鄂A2B222,acceptance_20260827
+沪AD6666,沪AD66666,acceptance_20260827
+沪B18117,沪B181117,acceptance_20260827
+一A三K234,冀A3K234,acceptance_20260827
+京A00001警,京A0001警,acceptance_20260827
+仅挨12345,京A12345,acceptance_20260827
+AA12345,京AA12345,acceptance_20260827
+今爱滴9999,京AD99999,acceptance_20260827
+LN6660,辽NLN666L,acceptance_20260827
+卢比六A六六,鲁B6A666,acceptance_20260827
+LNL661,鲁LNL661N,acceptance_20260827
+苏一七街987,苏E7J987,acceptance_20260827
+像2000警,湘A0000警,acceptance_20260827
+相比BP 226,湘BBP226P,acceptance_20260827
+预案11000 - 1000,豫A1Y111,acceptance_20260827
+# 表格将该行标红，但 ASR 文本已经等于系统当前的无中点规范格式；保留作验收审计。
+粤A0235警,粤A0235警,acceptance_20260827
+月比12345,粤B12345,acceptance_20260827
+粤BF000000000,粤BF00000,acceptance_20260827
+乐里八八哔,粤BPB888B,acceptance_20260827
+粤12177,粤E217777,acceptance_20260827
+四A八八F八八,浙A88F88,acceptance_20260827
