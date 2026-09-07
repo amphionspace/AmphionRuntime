@@ -1,0 +1,355 @@
+From e6d36a486f27fe597ae66d40fef660d40d4087d5 Mon Sep 17 00:00:00 2001
+From: Boxp <boxp@BoxpdeMacBook-Air.local>
+Date: Mon, 7 Sep 2026 11:05:10 +0800
+Subject: [PATCH] feat(harmony): add optional ASR thread scheduling
+
+---
+ sherpa-onnx/c-api/c-api.cc             |  28 ++++-
+ sherpa-onnx/csrc/CMakeLists.txt        |   2 +
+ sherpa-onnx/csrc/harmony-scheduling.cc | 156 +++++++++++++++++++++++++
+ sherpa-onnx/csrc/harmony-scheduling.h  |  50 ++++++++
+ sherpa-onnx/csrc/session.cc            |   7 ++
+ 5 files changed, 237 insertions(+), 6 deletions(-)
+ create mode 100644 sherpa-onnx/csrc/harmony-scheduling.cc
+ create mode 100644 sherpa-onnx/csrc/harmony-scheduling.h
+
+diff --git a/sherpa-onnx/c-api/c-api.cc b/sherpa-onnx/c-api/c-api.cc
+index f435dbb3..6ce91cae 100644
+--- a/sherpa-onnx/c-api/c-api.cc
++++ b/sherpa-onnx/c-api/c-api.cc
+@@ -58,7 +58,13 @@ const char *SherpaOnnxGetVersionStr() { return sherpa_onnx::GetVersionStr(); }
+ const char *SherpaOnnxGetGitSha1() { return sherpa_onnx::GetGitSha1(); }
+ const char *SherpaOnnxGetGitDate() { return sherpa_onnx::GetGitDate(); }
+ 
++#include "sherpa-onnx/csrc/harmony-scheduling.h"
++
+ struct SherpaOnnxOnlineRecognizer {
++#if defined(__OHOS__)
++  // Declared before impl: remains alive until ORT joins every worker.
++  sherpa_onnx::HarmonyScheduling scheduling;
++#endif
+   std::unique_ptr<sherpa_onnx::OnlineRecognizer> impl;
+ };
+ 
+@@ -358,12 +364,15 @@ const SherpaOnnxOnlineRecognizer *SherpaOnnxCreateOnlineRecognizer(
+     return nullptr;
+   }
+ 
+-  SherpaOnnxOnlineRecognizer *recognizer = new SherpaOnnxOnlineRecognizer;
+-
++  auto recognizer = std::make_unique<SherpaOnnxOnlineRecognizer>();
++#if defined(__OHOS__)
++  recognizer->scheduling.Parse(recognizer_config.model_config.provider_config.provider);
++  sherpa_onnx::HarmonySchedulingConstruction construction(&recognizer->scheduling);
++#endif
+   recognizer->impl =
+       std::make_unique<sherpa_onnx::OnlineRecognizer>(recognizer_config);
+ 
+-  return recognizer;
++  return recognizer.release();
+ }
+ 
+ void SherpaOnnxDestroyOnlineRecognizer(
+@@ -410,6 +419,9 @@ int32_t SherpaOnnxIsOnlineStreamReady(
+ void SherpaOnnxDecodeOnlineStream(const SherpaOnnxOnlineRecognizer *recognizer,
+                                   const SherpaOnnxOnlineStream *stream) {
+   if (!recognizer || !stream) return;
++#if defined(__OHOS__)
++  sherpa_onnx::ScopedHarmonyScheduling scope(recognizer->scheduling);
++#endif
+   recognizer->impl->DecodeStream(stream->impl.get());
+ }
+ 
+@@ -417,6 +429,9 @@ void SherpaOnnxDecodeMultipleOnlineStreams(
+     const SherpaOnnxOnlineRecognizer *recognizer,
+     const SherpaOnnxOnlineStream **streams, int32_t n) {
+   if (!recognizer || !streams) return;
++#if defined(__OHOS__)
++  sherpa_onnx::ScopedHarmonyScheduling scope(recognizer->scheduling);
++#endif
+   std::vector<sherpa_onnx::OnlineStream *> ss(n);
+   for (int32_t i = 0; i != n; ++i) {
+     ss[i] = streams[i]->impl.get();
+@@ -3641,12 +3656,13 @@ const SherpaOnnxOnlineRecognizer *SherpaOnnxCreateOnlineRecognizerOHOS(
+   sherpa_onnx::OnlineRecognizerConfig recognizer_config =
+       GetOnlineRecognizerConfig(config);
+ 
+-  SherpaOnnxOnlineRecognizer *recognizer = new SherpaOnnxOnlineRecognizer;
+-
++  auto recognizer = std::make_unique<SherpaOnnxOnlineRecognizer>();
++  recognizer->scheduling.Parse(recognizer_config.model_config.provider_config.provider);
++  sherpa_onnx::HarmonySchedulingConstruction construction(&recognizer->scheduling);
+   recognizer->impl =
+       std::make_unique<sherpa_onnx::OnlineRecognizer>(mgr, recognizer_config);
+ 
+-  return recognizer;
++  return recognizer.release();
+ }
+ 
+ const SherpaOnnxOnlinePunctuation *SherpaOnnxCreateOnlinePunctuationOHOS(
+diff --git a/sherpa-onnx/csrc/CMakeLists.txt b/sherpa-onnx/csrc/CMakeLists.txt
+index 94d0428c..20c21561 100755
+--- a/sherpa-onnx/csrc/CMakeLists.txt
++++ b/sherpa-onnx/csrc/CMakeLists.txt
+@@ -134,6 +134,7 @@ set(sources
+   provider.cc
+   resample.cc
+   session.cc
++  harmony-scheduling.cc
+   silero-vad-model-config.cc
+   silero-vad-model.cc
+   slice.cc
+@@ -388,6 +389,7 @@ if(DEFINED OHOS AND x${OHOS} STREQUAL xOHOS)
+   target_link_libraries(sherpa-onnx-core
+     hilog_ndk.z
+     rawfile.z
++    qos
+   )
+ endif()
+ 
+diff --git a/sherpa-onnx/csrc/harmony-scheduling.cc b/sherpa-onnx/csrc/harmony-scheduling.cc
+new file mode 100644
+index 00000000..458daa3d
+--- /dev/null
++++ b/sherpa-onnx/csrc/harmony-scheduling.cc
+@@ -0,0 +1,156 @@
++#include "sherpa-onnx/csrc/harmony-scheduling.h"
++#if defined(__OHOS__)
++#include <cerrno>
++#include <cstdio>
++#include <sstream>
++#include <stdexcept>
++#include <thread>
++#include <hilog/log.h>
++
++namespace sherpa_onnx {
++namespace {
++thread_local const HarmonyScheduling *construction_policy = nullptr;
++
++// One report per outcome and recognizer, never log PCM or recognition text.
++void Report(const HarmonyScheduling &policy, unsigned bit, const char *operation,
++            int result) {
++  if ((policy.reported.fetch_or(bit) & bit) == 0) {
++    OH_LOG_Print(LOG_APP, LOG_INFO, 0x6666, "AmphionScheduling",
++                 "%{public}s result=%{public}d thread=%{public}lu", operation,
++                 result, static_cast<unsigned long>(pthread_self()));
++  }
++}
++
++OrtCustomThreadHandle CreateWorker(void *opaque, OrtThreadWorkerFn work,
++                                   void *param) {
++  const auto *policy = static_cast<const HarmonyScheduling *>(opaque);
++  try {
++    auto *thread = new std::thread([policy, work, param] {
++      ScopedHarmonyScheduling scope(*policy, true);
++      work(param);
++    });
++    return reinterpret_cast<OrtCustomThreadHandle>(thread);
++  } catch (...) {
++    // ORT owns failure handling; never let an exception cross its C callback.
++    return nullptr;
++  }
++}
++void JoinWorker(OrtCustomThreadHandle handle) {
++  auto *thread = reinterpret_cast<std::thread *>(
++      const_cast<OrtCustomHandleType *>(handle));
++  if (thread != nullptr) {
++    thread->join();
++    delete thread;
++  }
++}
++}  // namespace
++
++void HarmonyScheduling::Parse(const std::string &provider) {
++  std::istringstream entries(provider);
++  std::string entry;
++  while (std::getline(entries, entry, ';')) {
++    const auto separator = entry.find('=');
++    if (separator == std::string::npos) continue;
++    const auto key = entry.substr(0, separator);
++    const auto value = entry.substr(separator + 1);
++    if (key == "AmphionQos") {
++      if (value == "user-initiated") qos = QOS_USER_INITIATED;
++      else if (value == "user-interactive") qos = QOS_USER_INTERACTIVE;
++      else throw std::invalid_argument("Invalid AmphionQos");
++    } else if (key == "AmphionCpuIds") {
++      if (value.empty() || value.back() == ',') throw std::invalid_argument("Empty CPU ID");
++      std::istringstream ids(value);
++      std::string id;
++      while (std::getline(ids, id, ',')) {
++        if (id.empty() || id.find_first_not_of("0123456789") != std::string::npos)
++          throw std::invalid_argument("Invalid CPU ID");
++        int cpu = std::stoi(id);
++        if (cpu < 0 || cpu >= CPU_SETSIZE) throw std::invalid_argument("CPU ID out of range");
++        for (int existing : cpu_ids) {
++          if (existing == cpu) throw std::invalid_argument("Duplicate CPU ID");
++        }
++        cpu_ids.push_back(cpu);
++      }
++    } else if (key == "AmphionAllowSpinning") {
++      if (value != "0" && value != "1") throw std::invalid_argument("Invalid spinning option");
++      allow_spinning = value == "1";
++    }
++  }
++}
++
++HarmonySchedulingConstruction::HarmonySchedulingConstruction(
++    const HarmonyScheduling *policy) : previous_(construction_policy) {
++  construction_policy = policy;
++}
++HarmonySchedulingConstruction::~HarmonySchedulingConstruction() {
++  construction_policy = previous_;
++}
++
++void ConfigureHarmonyScheduling(Ort::SessionOptions *options) {
++  const auto *policy = construction_policy;
++  if (policy == nullptr) return;
++  if (!policy->allow_spinning) {
++    options->AddConfigEntry("session.intra_op.allow_spinning", "0");
++    options->AddConfigEntry("session.inter_op.allow_spinning", "0");
++  }
++  if (policy->HasThreadPolicy()) {
++    options->SetCustomCreateThreadFn(CreateWorker);
++    options->SetCustomThreadCreationOptions(const_cast<HarmonyScheduling *>(policy));
++    options->SetCustomJoinThreadFn(JoinWorker);
++  }
++}
++
++ScopedHarmonyScheduling::ScopedHarmonyScheduling(const HarmonyScheduling &policy,
++                                               bool owned_thread)
++    : policy_(policy) {
++  // Snapshot affinity before QoS can change the scheduler's CPU restrictions.
++  const bool have_cpus = !policy.cpu_ids.empty() &&
++      sched_getaffinity(0, sizeof(previous_cpus_), &previous_cpus_) == 0;
++  const int affinity_read_error = errno;
++  if (policy.qos >= 0) {
++    const int before = OH_QoS_GetThreadQoS(&previous_qos_);
++    // Get failure cannot distinguish an unset QoS from a system error. A
++    // borrowed libuv/caller thread must never lose an unknown previous policy.
++    if (before == 0 || owned_thread) {
++      const int result = OH_QoS_SetThreadQoS(static_cast<QoS_Level>(policy.qos));
++      restore_qos_ = result == 0 && before == 0;
++      reset_qos_ = result == 0 && before != 0;
++      Report(policy, result == 0 ? 1 : 2, "qos-set", result);
++      QoS_Level effective;
++      if (result == 0 && OH_QoS_GetThreadQoS(&effective) == 0)
++        Report(policy, 4, "qos-effective", static_cast<int>(effective));
++    } else {
++      Report(policy, 8, "qos-skipped-unknown-borrowed-policy", before);
++    }
++  }
++  if (!policy.cpu_ids.empty()) {
++    if (!have_cpus) {
++      Report(policy, 16, "affinity-read-failed", affinity_read_error);
++      return;
++    }
++    cpu_set_t requested;
++    CPU_ZERO(&requested);
++    for (int cpu : policy.cpu_ids) CPU_SET(cpu, &requested);
++    const int result = sched_setaffinity(0, sizeof(requested), &requested);
++    restore_cpus_ = result == 0;
++    Report(policy, result == 0 ? 32 : 64, "affinity-set", result == 0 ? 0 : errno);
++    if (result == 0) {
++      cpu_set_t effective;
++      if (sched_getaffinity(0, sizeof(effective), &effective) == 0) {
++        Report(policy, CPU_EQUAL(&requested, &effective) ? 128 : 256,
++               "affinity-exact", CPU_EQUAL(&requested, &effective) ? 1 : 0);
++      }
++    }
++  }
++}
++
++ScopedHarmonyScheduling::~ScopedHarmonyScheduling() {
++  if (restore_qos_ && OH_QoS_SetThreadQoS(previous_qos_) != 0)
++    Report(policy_, 1024, "qos-restore-failed", -1);
++  if (reset_qos_ && OH_QoS_ResetThreadQoS() != 0)
++    Report(policy_, 2048, "qos-reset-failed", -1);
++  if (restore_cpus_ && sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_) != 0)
++    Report(policy_, 512, "affinity-restore-failed", errno);
++}
++}  // namespace sherpa_onnx
++#endif
+diff --git a/sherpa-onnx/csrc/harmony-scheduling.h b/sherpa-onnx/csrc/harmony-scheduling.h
+new file mode 100644
+index 00000000..d7a7fc7b
+--- /dev/null
++++ b/sherpa-onnx/csrc/harmony-scheduling.h
+@@ -0,0 +1,50 @@
++// Optional Harmony ASR scheduling. No process-wide scheduler changes.
++#ifndef SHERPA_ONNX_CSRC_HARMONY_SCHEDULING_H_
++#define SHERPA_ONNX_CSRC_HARMONY_SCHEDULING_H_
++#if defined(__OHOS__)
++#include <atomic>
++#include <string>
++#include <vector>
++#include <sched.h>
++#include <qos/qos.h>
++#include "onnxruntime_cxx_api.h"
++
++namespace sherpa_onnx {
++struct HarmonyScheduling {
++  int qos = -1;
++  std::vector<int> cpu_ids;
++  bool allow_spinning = true;
++  mutable std::atomic<unsigned> reported{0};
++  void Parse(const std::string &provider);
++  bool HasThreadPolicy() const { return qos >= 0 || !cpu_ids.empty(); }
++};
++
++// Only selects options during synchronous ORT session construction. The actual
++// policy belongs to the recognizer and outlives all its ORT worker threads.
++class HarmonySchedulingConstruction {
++ public:
++  explicit HarmonySchedulingConstruction(const HarmonyScheduling *policy);
++  ~HarmonySchedulingConstruction();
++ private:
++  const HarmonyScheduling *previous_;
++};
++void ConfigureHarmonyScheduling(Ort::SessionOptions *options);
++
++class ScopedHarmonyScheduling {
++ public:
++  explicit ScopedHarmonyScheduling(const HarmonyScheduling &policy,
++                                   bool owned_thread = false);
++  ~ScopedHarmonyScheduling();
++  ScopedHarmonyScheduling(const ScopedHarmonyScheduling &) = delete;
++  ScopedHarmonyScheduling &operator=(const ScopedHarmonyScheduling &) = delete;
++ private:
++  const HarmonyScheduling &policy_;
++  cpu_set_t previous_cpus_{};
++  QoS_Level previous_qos_ = QOS_DEFAULT;
++  bool restore_cpus_ = false;
++  bool restore_qos_ = false;
++  bool reset_qos_ = false;
++};
++}  // namespace sherpa_onnx
++#endif
++#endif
+diff --git a/sherpa-onnx/csrc/session.cc b/sherpa-onnx/csrc/session.cc
+index 825b0d69..23993208 100755
+--- a/sherpa-onnx/csrc/session.cc
++++ b/sherpa-onnx/csrc/session.cc
+@@ -3,6 +3,7 @@
+ // Copyright (c)  2023  Xiaomi Corporation
+ 
+ #include "sherpa-onnx/csrc/session.h"
++#include "sherpa-onnx/csrc/harmony-scheduling.h"
+ 
+ #include <algorithm>
+ #include <fstream>
+@@ -196,6 +197,12 @@ Ort::SessionOptions GetSessionOptionsImpl(
+   sess_opts.SetIntraOpNumThreads(num_threads);
+ 
+   sess_opts.SetInterOpNumThreads(num_threads);
++#if defined(__OHOS__)
++  ConfigureHarmonyScheduling(&sess_opts);
++  config.erase("AmphionQos");
++  config.erase("AmphionCpuIds");
++  config.erase("AmphionAllowSpinning");
++#endif
+ 
+   std::vector<std::string> available_providers = Ort::GetAvailableProviders();
+   std::ostringstream os;
+-- 
+2.50.1 (Apple Git-155)
+

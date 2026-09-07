@@ -16,7 +16,6 @@ import {
   StartParams
 } from './DingqiaoModels';
 
-const DEFAULT_ASR_NUM_THREADS: number = 4;
 const DEFAULT_HOTWORDS_SCORE: number = 3.0;
 
 export function languageOf(language: string): AsrLanguage {
@@ -114,7 +113,14 @@ export function buildAsrConfig(context: Context, params: CreateEngineParams,
   if (params.online !== DingqiaoOnlineMode.OFFLINE) throw new Error('only offline mode is supported');
   validateRecognizerMode(params);
   const config = new AsrConfig();
-  config.numThreads = DEFAULT_ASR_NUM_THREADS;
+  const numThreads = params.numThreads ?? 4;
+  if (!Number.isInteger(numThreads) || numThreads < 1 || numThreads > 8) {
+    throw new Error('numThreads must be an integer in [1, 8]');
+  }
+  config.numThreads = numThreads;
+  if (params.scheduling !== undefined) {
+    config.scheduling = AsrConfig.builder().scheduling(params.scheduling).build().scheduling;
+  }
   config.punctuation = true;
   config.itn = true;
   config.vad = true;
@@ -155,6 +161,10 @@ function snapshotExtraParams(source: Record<string, Object>): Record<string, Obj
 
 export function snapshotCreateEngineParams(source: CreateEngineParams): CreateEngineParams {
   const snapshot = new CreateEngineParams();
+  snapshot.numThreads = source.numThreads;
+  if (source.scheduling !== undefined) {
+    snapshot.scheduling = AsrConfig.builder().scheduling(source.scheduling).build().scheduling;
+  }
   snapshot.language = source.language;
   snapshot.online = source.online;
   snapshot.extraParams = snapshotExtraParams(source.extraParams);

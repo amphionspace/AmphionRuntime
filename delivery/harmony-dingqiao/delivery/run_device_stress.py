@@ -155,6 +155,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--settle-ms", type=int, default=0)
     parser.add_argument("--pace-ms", type=int, default=20)
+    parser.add_argument("--asr-qos", choices=["default", "user-initiated", "user-interactive"], default="default")
+    parser.add_argument("--asr-cpu-ids", default="none", help="Experimental zero-based CPU IDs, comma-separated.")
+    parser.add_argument("--asr-num-threads", type=int, choices=range(1, 9), default=4)
+    parser.add_argument("--asr-disable-spinning", action="store_true")
+    parser.add_argument("--asr-enable-prepack", action="store_true")
     parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--sample-interval", type=float, default=1.0)
     parser.add_argument("--post-run-observe", type=float, default=5.0)
@@ -187,6 +192,14 @@ def parse_args() -> argparse.Namespace:
         default=PROJECT_ROOT / "build" / "device-stress",
     )
     args = parser.parse_args()
+    if args.asr_cpu_ids != "none":
+        try:
+            cpu_ids = [int(value) for value in args.asr_cpu_ids.split(",")]
+            if len(cpu_ids) != len(set(cpu_ids)) or any(cpu < 0 or cpu >= 128 for cpu in cpu_ids):
+                raise ValueError()
+        except ValueError:
+            parser.error("--asr-cpu-ids requires unique integer IDs in [0, 127]")
+        args.asr_cpu_ids = ",".join(str(cpu) for cpu in sorted(cpu_ids))
     if args.cycles <= 0:
         parser.error("--cycles must be positive")
     if args.files < 0:
@@ -1000,6 +1013,11 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressCycles", str(args.cycles),
         "--ps", "stressSettleMs", str(args.settle_ms),
         "--ps", "stressPaceMs", str(args.pace_ms),
+        "--ps", "stressAsrQos", args.asr_qos,
+        "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
+        "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
+        "--ps", "stressAsrAllowSpinning", str(not args.asr_disable_spinning).lower(),
+        "--ps", "stressAsrDisablePrepack", str(not args.asr_enable_prepack).lower(),
         "--ps", "stressEnrollmentCount", str(target_speaker_enrollment_count),
         "--ps", "stressEnforceTargetSpeakerBusinessText",
         # Manifest-driven assertions are evaluated per case after the device run.
@@ -1159,6 +1177,11 @@ def run_stress(args: argparse.Namespace) -> Path:
             "cycles": args.cycles,
             "settle_ms": args.settle_ms,
             "pace_ms": args.pace_ms,
+            "asr_qos": args.asr_qos,
+            "asr_cpu_ids": args.asr_cpu_ids,
+            "asr_num_threads": args.asr_num_threads,
+            "asr_allow_spinning": not args.asr_disable_spinning,
+            "asr_disable_prepack": not args.asr_enable_prepack,
             "sample_interval_seconds": args.sample_interval,
             "post_run_observe_seconds": args.post_run_observe,
             "target_content_check_enabled": not args.skip_target_content_check,

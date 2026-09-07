@@ -1,4 +1,5 @@
 export * from './src/main/ets/com/amphion/asr/Types';
+export { AsrSchedulingConfig } from './src/main/ets/com/amphion/asr/AsrSchedulingConfig';
 export * from './src/main/ets/com/amphion/asr/AssetRegistry';
 export * from './src/main/ets/com/amphion/asr/Runtime';
 export * from './src/main/ets/com/amphion/asr/AssetInstaller';

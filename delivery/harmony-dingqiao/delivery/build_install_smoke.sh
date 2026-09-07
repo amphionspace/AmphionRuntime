@@ -505,6 +505,14 @@ fi
 
 echo "[INFO] installing HAP on the USB device"
 "$HDC" -t "$DEVICE" install -r -d "$HAP" >"$INSTALL_LOG"
+if grep -q 'msg:usage: bm install' "$INSTALL_LOG"; then
+  # Some device bundle managers do not support HDC's downgrade option.
+  # Retry ordinary replacement only for this syntax rejection, never for a
+  # signature, authorization, version, or other installation failure.
+  cp "$INSTALL_LOG" "$INSTALL_LOG.unsupported-downgrade"
+  echo "[INFO] device rejected downgrade syntax; using ordinary replacement"
+  "$HDC" -t "$DEVICE" install -r "$HAP" >"$INSTALL_LOG"
+fi
 grep -q 'install bundle successfully' "$INSTALL_LOG" || {
   cat "$INSTALL_LOG" >&2
   exit 1
