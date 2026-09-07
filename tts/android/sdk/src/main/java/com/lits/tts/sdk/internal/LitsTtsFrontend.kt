@@ -64,7 +64,10 @@ internal object LitsTtsFrontend {
     private val surnameTitlePinyinOverrides = mapOf(
         "先生" to listOf("xian1", "sheng1"),
     )
-    private val punctuation = setOf(',', '.', '!', '?', ';', ':', '\'', '"', '(', ')', '[', ']', '<', '>', '-')
+    // Keep this aligned with zh_en_symbols.json. Structural delimiters such as
+    // [] and <> are normalized to a pause below because the model has no IDs
+    // for them.
+    private val punctuation = setOf(',', '.', '!', '?', ';', ':', '\'', '"', '(', ')', '-')
     private val sentenceEndPunctuation = setOf('.', '!', '?', ';', ',', '\u2026')
     private val attachedSentenceSuffix = setOf('"', '\'', ')', ']', '}', '>', '\u201D', '\u2019', '\u300B', '\u3011')
     private val ENGLISH_ABBREVIATIONS = setOf(
@@ -86,12 +89,12 @@ internal object LitsTtsFrontend {
         '\u2019' to "'",
         '\u201C' to "\"",
         '\u201D' to "\"",
-        '\u3010' to "[",
-        '\u3011' to "]",
+        '\u3010' to ",",
+        '\u3011' to ",",
         '\uFF08' to "(",
         '\uFF09' to ")",
-        '\u300A' to "<",
-        '\u300B' to ">",
+        '\u300A' to ",",
+        '\u300B' to ",",
         '\u2014' to "-",
         '\u2013' to "-",
         '\u22EF' to "\u2026",
@@ -145,18 +148,18 @@ internal object LitsTtsFrontend {
         '\u300D' to "\"",
         '\u300E' to "\"",
         '\u300F' to "\"",
-        '\u3014' to "[",
-        '\u3015' to "]",
-        '\u3016' to "[",
-        '\u3017' to "]",
-        '\u3018' to "[",
-        '\u3019' to "]",
-        '\u301A' to "[",
-        '\u301B' to "]",
-        '\uFF3B' to "[",
-        '\uFF3D' to "]",
-        '\uFF1C' to "<",
-        '\uFF1E' to ">",
+        '\u3014' to ",",
+        '\u3015' to ",",
+        '\u3016' to ",",
+        '\u3017' to ",",
+        '\u3018' to ",",
+        '\u3019' to ",",
+        '\u301A' to ",",
+        '\u301B' to ",",
+        '\uFF3B' to ",",
+        '\uFF3D' to ",",
+        '\uFF1C' to ",",
+        '\uFF1E' to ",",
         '\uFF0F' to ",",
         '\uFF3C' to ",",
         '\uFF20' to ",",
@@ -1140,6 +1143,7 @@ internal object LitsTtsFrontend {
 
     private fun normalizeFrontendChar(char: Char, languageContext: String): String {
         fullwidthPunctuation[char]?.let { return it }
+        if (char in "[]<>") return ","
         if (isSupportedFrontendChar(char)) return char.toString()
         if (isAsciiSymbol(char)) return char.toString()
         if (languageContext != "en-US") {
