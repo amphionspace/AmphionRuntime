@@ -1,4 +1,4 @@
-From 3b05a82b36997c7e02206332ee2dccfdee37a70d Mon Sep 17 00:00:00 2001
+From e6d36a486f27fe597ae66d40fef660d40d4087d5 Mon Sep 17 00:00:00 2001
 From: Boxp <boxp@BoxpdeMacBook-Air.local>
 Date: Mon, 7 Sep 2026 11:05:10 +0800
 Subject: [PATCH] feat(harmony): add optional ASR thread scheduling
@@ -6,10 +6,10 @@ Subject: [PATCH] feat(harmony): add optional ASR thread scheduling
 ---
  sherpa-onnx/c-api/c-api.cc             |  28 ++++-
  sherpa-onnx/csrc/CMakeLists.txt        |   2 +
- sherpa-onnx/csrc/harmony-scheduling.cc | 152 +++++++++++++++++++++++++
+ sherpa-onnx/csrc/harmony-scheduling.cc | 156 +++++++++++++++++++++++++
  sherpa-onnx/csrc/harmony-scheduling.h  |  50 ++++++++
  sherpa-onnx/csrc/session.cc            |   7 ++
- 5 files changed, 233 insertions(+), 6 deletions(-)
+ 5 files changed, 237 insertions(+), 6 deletions(-)
  create mode 100644 sherpa-onnx/csrc/harmony-scheduling.cc
  create mode 100644 sherpa-onnx/csrc/harmony-scheduling.h
 
@@ -109,10 +109,10 @@ index 94d0428c..20c21561 100755
  
 diff --git a/sherpa-onnx/csrc/harmony-scheduling.cc b/sherpa-onnx/csrc/harmony-scheduling.cc
 new file mode 100644
-index 00000000..33f20793
+index 00000000..458daa3d
 --- /dev/null
 +++ b/sherpa-onnx/csrc/harmony-scheduling.cc
-@@ -0,0 +1,152 @@
+@@ -0,0 +1,156 @@
 +#include "sherpa-onnx/csrc/harmony-scheduling.h"
 +#if defined(__OHOS__)
 +#include <cerrno>
@@ -218,6 +218,10 @@ index 00000000..33f20793
 +ScopedHarmonyScheduling::ScopedHarmonyScheduling(const HarmonyScheduling &policy,
 +                                               bool owned_thread)
 +    : policy_(policy) {
++  // Snapshot affinity before QoS can change the scheduler's CPU restrictions.
++  const bool have_cpus = !policy.cpu_ids.empty() &&
++      sched_getaffinity(0, sizeof(previous_cpus_), &previous_cpus_) == 0;
++  const int affinity_read_error = errno;
 +  if (policy.qos >= 0) {
 +    const int before = OH_QoS_GetThreadQoS(&previous_qos_);
 +    // Get failure cannot distinguish an unset QoS from a system error. A
@@ -235,8 +239,8 @@ index 00000000..33f20793
 +    }
 +  }
 +  if (!policy.cpu_ids.empty()) {
-+    if (sched_getaffinity(0, sizeof(previous_cpus_), &previous_cpus_) != 0) {
-+      Report(policy, 16, "affinity-read-failed", errno);
++    if (!have_cpus) {
++      Report(policy, 16, "affinity-read-failed", affinity_read_error);
 +      return;
 +    }
 +    cpu_set_t requested;
@@ -256,12 +260,12 @@ index 00000000..33f20793
 +}
 +
 +ScopedHarmonyScheduling::~ScopedHarmonyScheduling() {
-+  if (restore_cpus_ && sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_) != 0)
-+    Report(policy_, 512, "affinity-restore-failed", errno);
 +  if (restore_qos_ && OH_QoS_SetThreadQoS(previous_qos_) != 0)
 +    Report(policy_, 1024, "qos-restore-failed", -1);
 +  if (reset_qos_ && OH_QoS_ResetThreadQoS() != 0)
 +    Report(policy_, 2048, "qos-reset-failed", -1);
++  if (restore_cpus_ && sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_) != 0)
++    Report(policy_, 512, "affinity-restore-failed", errno);
 +}
 +}  // namespace sherpa_onnx
 +#endif

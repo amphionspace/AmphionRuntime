@@ -8,8 +8,13 @@ thread_local QoS_Level qos = QOS_DEFAULT;
 thread_local cpu_set_t cpus{};
 thread_local bool read_qos_fails = false, set_fails = false, read_cpus_fails = false;
 thread_local int writes = 0;
+thread_local bool qos_updates_cpus = false;
 int OH_QoS_GetThreadQoS(QoS_Level *value) { *value = qos; return read_qos_fails ? -1 : 0; }
-int OH_QoS_SetThreadQoS(QoS_Level value) { ++writes; if (set_fails) return -1; qos = value; return 0; }
+int OH_QoS_SetThreadQoS(QoS_Level value) {
+  ++writes; if (set_fails) return -1; qos = value;
+  if (qos_updates_cpus) { CPU_ZERO(&cpus); CPU_SET(0, &cpus); CPU_SET(1, &cpus); CPU_SET(2, &cpus); }
+  return 0;
+}
 int OH_QoS_ResetThreadQoS() { qos = QOS_DEFAULT; return 0; }
 int sched_getaffinity(int, unsigned long, cpu_set_t *value) { *value = cpus; return read_cpus_fails ? -1 : 0; }
 int sched_setaffinity(int, unsigned long, const cpu_set_t *value) {
@@ -58,6 +63,12 @@ int main() {
   { ScopedHarmonyScheduling scope(a); }
   assert(writes == before);
   read_qos_fails = false; read_cpus_fails = false;
+  // QoS may affect the scheduler's CPU restrictions. Snapshot all original
+  // state before changing either setting and restore explicit affinity last.
+  qos_updates_cpus = true;
+  { ScopedHarmonyScheduling scope(a); }
+  assert(qos == QOS_DEFAULT && CPU_EQUAL(&original, &cpus));
+  qos_updates_cpus = false;
   Ort::SessionOptions first, second, outside;
   {
     HarmonySchedulingConstruction scope(&a);
