@@ -2,6 +2,7 @@ package com.amphion.police
 
 import com.amphion.police.plate.PlateNormalizerV2
 import com.amphion.police.plate.loadKnowledgeBase
+import com.amphion.police.plate.loadExactResiduals
 import com.amphion.police.plate.loadReadingMap
 import com.amphion.police.station.PoliceStationGazetteer
 import com.amphion.police.station.PoliceStationHomophoneDict
@@ -71,7 +72,12 @@ class PoliceV2CrossPlatformParityTest {
     @Test
     fun android_v2_matches_cross_platform_corpus() {
         val kb = loadKnowledgeBase()
-        val plate = PlateNormalizerV2.create(kb, loadReadingMap(kb), listOf('冀', '辽'))
+        val plate = PlateNormalizerV2.create(
+            kb,
+            loadReadingMap(kb),
+            listOf('冀', '辽'),
+            loadExactResiduals(),
+        )
         val terms = terms()
         val station = station()
 
@@ -86,6 +92,9 @@ class PoliceV2CrossPlatformParityTest {
                     "terms-polish" -> terms.polish(input)
                     "terms-pipeline" -> terms.polish(terms.normalize(input).text)
                     "station" -> station.normalize(input).text
+                    "pipeline" -> terms.polish(
+                        station.normalize(plate.normalize(terms.normalize(input).text).text).text,
+                    )
                     else -> error("unknown domain: $domain")
                 }
                 if (assertion == "contains") {

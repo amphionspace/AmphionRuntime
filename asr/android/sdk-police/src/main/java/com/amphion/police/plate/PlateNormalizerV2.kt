@@ -35,6 +35,7 @@ class PlateNormalizerV2 private constructor(
      * 默认空 = 全部关闭（不臆造、不偏置，零回归）。雄安部署建议置 ['冀','辽']。
      */
     private val contextProvinces: List<Char> = emptyList(),
+    private val exactResiduals: PlateExactResidualDict = PlateExactResidualDict.EMPTY,
 ) : AutoCloseable {
 
     private val homeProvinces: Set<Char> = contextProvinces.toSet()
@@ -102,6 +103,18 @@ class PlateNormalizerV2 private constructor(
 
     fun normalize(text: String): PlateNormalizeResult {
         if (text.isEmpty()) return PlateNormalizeResult(text, emptyList())
+
+        exactResiduals.matchWholeUtterance(text)?.let { match ->
+            val corrected = text.replaceRange(match.start, match.end, match.normalized)
+            val span = PlateSpan(
+                start = match.start,
+                end = match.end,
+                raw = match.raw,
+                normalized = match.normalized,
+                valid = validator.isValidPlate(match.normalized),
+            )
+            return PlateNormalizeResult(corrected, listOf(span))
+        }
 
         val input = preprocessStructuralMishears(text)
 
@@ -519,14 +532,21 @@ class PlateNormalizerV2 private constructor(
         ): PlateNormalizerV2 {
             val kb = PlateKnowledgeBase.load(context)
             val readingMap = PlateReadingMap.load(context, kb)
-            return PlateNormalizerV2(kb, readingMap, PlateValidatorV2(kb), contextProvinces)
+            return PlateNormalizerV2(
+                kb,
+                readingMap,
+                PlateValidatorV2(kb),
+                contextProvinces,
+                PlateExactResidualDict.load(context),
+            )
         }
 
         internal fun create(
             kb: PlateKnowledgeBase,
             readingMap: PlateReadingMap,
             contextProvinces: List<Char> = emptyList(),
+            exactResiduals: PlateExactResidualDict = PlateExactResidualDict.EMPTY,
         ): PlateNormalizerV2 =
-            PlateNormalizerV2(kb, readingMap, PlateValidatorV2(kb), contextProvinces)
+            PlateNormalizerV2(kb, readingMap, PlateValidatorV2(kb), contextProvinces, exactResiduals)
     }
 }
