@@ -665,6 +665,20 @@ class LitsTtsFrontendTest {
     }
 
     @Test
+    fun zhEnPoliceCaseIdInChineseBracketsDoesNotEmitUnsupportedBracketTokens() {
+        val layout = testLayout()
+
+        assertTrue(
+            LitsTtsFrontend.encode(
+                layout,
+                "已存在【C10194368】警单待处置，请继续完成处置操作。",
+                "zh-en",
+                "zh-en",
+            ).isNotEmpty(),
+        )
+    }
+
+    @Test
     fun tnSegmentWhitespaceIsPreservedAroundNormalizedSegment() {
         assertTrue(
             LitsTnNormalizer.preserveSegmentWhitespace(" 204 ", "二百零四") == " 二百零四 ",
