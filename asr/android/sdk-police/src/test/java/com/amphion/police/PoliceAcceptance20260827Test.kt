@@ -19,14 +19,12 @@ import org.junit.Test
 import java.io.BufferedReader
 import java.io.FileReader
 
-/** 2026-08-27 甲方验收表标红结果：整句残差修复及同音负例。 */
+/** 2026-08-27 甲方验收表标红结果：可明确识别的残差修复及合法输入保护。 */
 class PoliceAcceptance20260827Test {
 
     private val plateCases = linkedMapOf(
         "川A五L五五" to "川A5L555",
         "二A二B222" to "鄂A2B222",
-        "沪AD6666" to "沪AD66666",
-        "沪B18117" to "沪B181117",
         "一A三K234" to "冀A3K234",
         "京A00001警" to "京A0001警",
         "仅挨12345" to "京A12345",
@@ -48,21 +46,12 @@ class PoliceAcceptance20260827Test {
     )
 
     private val termCases = linkedMapOf(
-        "防暴" to "防盗",
         "服务欺凌" to "服务欺诈",
         "化解矛盾矛" to "化解矛盾",
-        "活" to "活儿",
-        "警戒" to "警鉴",
-        "借贷" to "警戒带",
         "开启盘查智能" to "开启盘查智能体",
-        "耐心疏散" to "耐心疏导",
-        "启动计算机" to "启动计算器",
         "取256号" to "去二百五十六号",
-        "事故" to "事主",
         "左车" to "锁车",
-        "外面真冷" to "外面真冷啊",
         "现场缉枪" to "现场勘查箱",
-        "询问笔录" to "讯问笔录",
         "主要警综" to "主要警种",
     )
 
@@ -128,8 +117,26 @@ class PoliceAcceptance20260827Test {
         return terms.polish(afterStation)
     }
 
+    // 完整 final 仍可能是正确的独立词或车牌，验收错听文本本身不能消除歧义。
     @Test
-    fun recovers_all_marked_plate_residuals() {
+    fun preserves_valid_standalone_inputs_through_the_full_v2_pipeline() {
+        val terms = terms()
+        val plate = plate()
+        val station = station()
+        val inputs = listOf(
+            "沪AD6666", "沪B18117",
+            "防暴", "活", "警戒", "借贷", "耐心疏散", "启动计算机",
+            "事故", "外面真冷", "询问笔录", "讯问笔录",
+        )
+        for (input in inputs) {
+            for (text in listOf(input, "  $input。 ", "$input？")) {
+                assertEquals("input=$text", text, enhance(text, terms, plate, station))
+            }
+        }
+    }
+
+    @Test
+    fun recovers_retained_marked_plate_residuals() {
         val normalizer = plate()
 
         for ((raw, expected) in plateCases) {
@@ -139,7 +146,7 @@ class PoliceAcceptance20260827Test {
     }
 
     @Test
-    fun recovers_all_marked_term_and_command_residuals() {
+    fun recovers_retained_marked_term_and_command_residuals() {
         val normalizer = terms()
 
         for ((raw, expected) in termCases) {
@@ -182,7 +189,7 @@ class PoliceAcceptance20260827Test {
     }
 
     @Test
-    fun recovers_all_marked_residuals_through_the_full_v2_pipeline() {
+    fun recovers_retained_marked_residuals_through_the_full_v2_pipeline() {
         val terms = terms()
         val plate = plate()
         val station = station()
