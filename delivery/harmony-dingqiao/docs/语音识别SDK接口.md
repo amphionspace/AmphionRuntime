@@ -8,7 +8,7 @@
 | 文档项 | 值 |
 | --- | --- |
 | 文档版本 | v1.10（SDK 0.3.13） |
-| 更新日期 | 2026-08-28 |
+| 更新日期 | 2026-09-08 |
 | SDK 依赖 | `amphion_dingqiao` |
 
 SDK 依赖名为 `amphion_dingqiao`，核心入口为 `SpeechRecognizeSdk`。本版包含 License、Runtime、Model 三层生命周期控制，以及内置声纹模型的按需加载策略，便于宿主控制模型内存和识别启动时延。
