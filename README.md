@@ -94,7 +94,7 @@ git submodule update --init --recursive
 | iOS | `bash asr/ios/build_xcframework.sh` | 详见 [asr/ios/README.md](asr/ios/README.md) |
 | ASR Server | `cmake -DSHERPA_ONNX_DIR=...` | 详见 [asr/server/README.md](asr/server/README.md)，需要先在 `third_party/sherpa-onnx` 内做 cxx-api install |
 | ASR WebSocket | `uv pip install -e asr/ws-server` 后运行 `python -m amphion_asr_ws` | 详见 [asr/ws-server/README.md](asr/ws-server/README.md) |
-| 鼎桥 HarmonyOS 交付 | `bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh` | 详见 [delivery/harmony-dingqiao/README.md](delivery/harmony-dingqiao/README.md) |
+| 鼎桥 HarmonyOS 交付 | `bash delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh` | 详见 [delivery/harmony-dingqiao/README.md](delivery/harmony-dingqiao/README.md) |
 
 ## 与 sherpa-onnx 的关系
 
@@ -137,7 +137,7 @@ bash asr/tools/07_sync_kotlin_from_upstream.sh   # 同步 Kotlin 桥接文件
 | 能力 / 平台 | 当前版本 | 权威来源 |
 | --- | --- | --- |
 | ASR Android | `0.3.4` | [asr/android/gradle.properties](asr/android/gradle.properties) `AMPHION_RUNTIME_VERSION` |
-| ASR HarmonyOS | `0.3.12` | [asr/harmony/sdk/oh-package.json5](asr/harmony/sdk/oh-package.json5) `version` |
+| ASR HarmonyOS | `0.3.13` | [asr/harmony/sdk/oh-package.json5](asr/harmony/sdk/oh-package.json5) `version` |
 | ASR iOS 预览版 | `0.3.4-alpha.1` | [asr/ios/AmphionRuntime.podspec](asr/ios/AmphionRuntime.podspec) `s.version` |
 | TTS Android | `3.0` | [tts/android/build.gradle.kts](tts/android/build.gradle.kts) `sdkVersion` |
 | TTS HarmonyOS | `3.0.0` | [tts/harmony/sdk/oh-package.json5](tts/harmony/sdk/oh-package.json5) `version` |

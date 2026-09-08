@@ -1,0 +1,16 @@
+{
+  "source": "ZIP/demo-source",
+  "sdk_dependency": "ZIP/demo-source/libs/amphion_dingqiao.har",
+  "sdk_sha256": "5842e956928cea7c96d45965ac1d16e2abe03ab0f276ae5457278ba390c797ea",
+  "matches_release_sdk": true,
+  "changed_delivered_files": [
+    "build-profile.json5"
+  ],
+  "added_customer_configuration": [
+    "signing configuration",
+    "amphion-license.lic"
+  ],
+  "hap": "source-build/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+  "hap_sha256": "044b0ce5e1b04dd5530a426fa36021b6dcde3b0a587936200b7035b0a917048e",
+  "native_stream_probe": "UNAVAILABLE: delivered source assigns liveStreams=0; not a measurement"
+}

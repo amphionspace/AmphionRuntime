@@ -468,6 +468,7 @@ jobs:
             asr.tools.tests.test_android_native_cache \
             delivery.harmony-dingqiao.delivery.test_run_device_stress \
             delivery.harmony-dingqiao.delivery.test_run_finish_compat_release_gate \
+            delivery.harmony-dingqiao.delivery.test_complete_delivery_package \
             delivery.harmony-dingqiao.delivery.test_release_defaults -v
 
   delivery-redaction:

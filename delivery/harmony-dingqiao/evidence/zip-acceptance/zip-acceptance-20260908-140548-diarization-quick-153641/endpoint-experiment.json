@@ -1,0 +1,8 @@
+{
+  "hypothesis": "First run lacks post-120s endpoint; segmentation commitment waits for it",
+  "single_change": "Insert 5 seconds silence after an existing source utterance",
+  "insert_at_seconds": 130.869125,
+  "duration_seconds": 175.8683125,
+  "falsification": "A post-120s endpoint occurs but no intermediate window arrives",
+  "stop_condition": "One real-time run; preserve either result; no SDK or ZIP edits"
+}

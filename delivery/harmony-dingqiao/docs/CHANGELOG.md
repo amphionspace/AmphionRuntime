@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.13 - 2026-09-08（最新 main 交付）
+
+- 增加可选 ASR 调度配置，默认行为不变；包含 Speaker VAD final 尾部和受限警务纠错修复。
+- 角色分离新增分窗定稿；`onSpeakerDiarizationResult` 改为多批，调用方需累积保存，不能每次覆盖全文。
+- ASR 生命周期契约不变；冷启动仍支持先缓存 PCM，再调用 `startListening()` 并在 `onStart` 同步回灌。
+- 交付正式 SDK、Diagnostics Debug SDK、Demo 和 Demo 源码；默认结构及邮件模板见 `DEFAULT_DELIVERY.md`。
+- 目标说话人增强仅预留接口；本交付不包含所需模型，不能启用。
+- 接入说明见 `UPGRADE_0.3.13.md`。
+
 ## 0.3.12 - 2026-08-28（角色分离、short/long、Speaker VAD 与冷启动首句 PCM 连续性修复）
 
 - 新增端侧离线角色分离能力，支持最多四名匿名说话人；通过

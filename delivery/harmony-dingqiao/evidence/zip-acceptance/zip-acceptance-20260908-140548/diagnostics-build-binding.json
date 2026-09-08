@@ -1,0 +1,27 @@
+[
+  {
+    "artifact": "amphion_asr.har",
+    "sha256": "e653fcb2572f9d38bf56d6c4a7309656c83f77956793f7df48a894d49ff74254",
+    "match": true
+  },
+  {
+    "artifact": "amphion_asr_demo.hap",
+    "sha256": "e88738ffbdb0b324e1071da902d58513c09fa7fac201d343bcdb1d29303dd383",
+    "match": true
+  },
+  {
+    "artifact": "amphion_dingqiao.har",
+    "sha256": "72479ca5d2e4cd6ab797cfa759027fc4911c4fd9cb71848638797251f20f2d65",
+    "match": true
+  },
+  {
+    "artifact": "amphion_police.har",
+    "sha256": "1d2a88a22c4d696c1a78e573e5ae9be768c3102cb8a2a8531b947993a78471e0",
+    "match": true
+  },
+  {
+    "artifact": "sherpa_onnx.har",
+    "sha256": "3849634ffdca1aae75f712f784d7f3c106885f3bc00959ef1b7553ac384d8919",
+    "match": true
+  }
+]

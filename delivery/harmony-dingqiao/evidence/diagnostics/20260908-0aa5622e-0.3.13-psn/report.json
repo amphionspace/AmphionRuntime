@@ -1,0 +1,43 @@
+{
+  "status": "NON_CANONICAL",
+  "source_commit": "0aa5622e77cb55da46d40522af70ce1a372e331c",
+  "device": "device-2257b2bbf3e2",
+  "reason": "Short window included cold voiceprint allocation; 12-cycle observation passed unchanged thresholds. This device also returned empty accessibility trees despite a visibly ready Demo. Final release gate uses a separate verified VYG device.",
+  "files": [
+    {
+      "path": "report.json",
+      "sha256": "3a77fa3fa3dd06ac44efded5876062e34e19da9269c11df9dc217b7bc58b02c3",
+      "size_bytes": 12427
+    },
+    {
+      "path": "result.txt",
+      "sha256": "dd8e0ead865e622070f7f5c3894eec61458a20d3d6eb400873e50959a0c4affd",
+      "size_bytes": 5140
+    },
+    {
+      "path": "memory.csv",
+      "sha256": "23090868b6a3dc71baac3fb5394ef9b4f23ed0a55792418e4f2bd1de23c2bbc0",
+      "size_bytes": 1957
+    },
+    {
+      "path": "hilog.txt",
+      "sha256": "fd3c9371183a70264e21a9f944371246e501b8a09496308dddaf3b08aad99a58",
+      "size_bytes": 10466
+    },
+    {
+      "path": "inventory.json",
+      "sha256": "aedbbe2a1ffe3a5f496f2f5627fb5d1869ae7651246d64a9ccad0a599d758f17",
+      "size_bytes": 202
+    },
+    {
+      "path": "payload/corpus.json",
+      "sha256": "f28547282b3bd47f3959d7a5b38001dc0125690cfc7e50d10db8cfbb31ac7e21",
+      "size_bytes": 723
+    },
+    {
+      "path": "payload/manifest.txt",
+      "sha256": "36bc0f5ecee50c20e8e963bededbca86c2a473e557dd063a69162a3dc688d7f3",
+      "size_bytes": 218
+    }
+  ]
+}
