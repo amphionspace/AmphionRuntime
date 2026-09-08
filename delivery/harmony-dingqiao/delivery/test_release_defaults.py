@@ -19,8 +19,11 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("startListening()", notes_0313)
         self.assertIn("Speaker VAD", notes_0313)
         self.assertIn("角色分离", notes_0313)
-        self.assertIn("公共 API", notes_0313)
-        self.assertIn("上一正式交付", upgrade)
+        self.assertIn("ASR 生命周期契约不变", notes_0313)
+        self.assertIn("相对 0.3.12", upgrade)
+        for field in ("onSpeakerDiarizationResult", "windowIndex", "sourceUtteranceId", "isSessionFinal"):
+            self.assertIn(field, upgrade)
+        self.assertIn("不能每次覆盖全文", upgrade)
         self.assertIn("AudioCapturer", upgrade)
         self.assertIn("onStart", upgrade)
 
