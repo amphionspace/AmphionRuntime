@@ -4,6 +4,8 @@ import importlib.util
 from array import array
 import hashlib
 import json
+import math
+import re
 from pathlib import Path
 import sys
 import tempfile
@@ -23,6 +25,94 @@ if SPEC is None or SPEC.loader is None:
 MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
+
+
+class CorpusPreconditionsTest(unittest.TestCase):
+    def source(self, directory, name, samples, rate=16000, channels=1):
+        path = Path(directory) / name
+        with wave.open(str(path), "wb") as wav:
+            wav.setnchannels(channels)
+            wav.setsampwidth(2)
+            wav.setframerate(rate)
+            wav.writeframes(array("h", [1000] * (samples * channels)).tobytes())
+        return MODULE.AudioSource(
+            path, rate, channels, 2, samples, samples / rate)
+
+    def test_start_write_filters_55_frames_before_sampling_for_both_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            short = self.source(directory, "short.wav", 55 * 320)
+            valid = self.source(directory, "valid.wav", 88 * 320)
+            for mode in ("start-write", "start-write-reload"):
+                selected, audit = MODULE.select_preconditioned_sources([short, valid], mode, 1)
+                self.assertEqual([valid], selected)
+                self.assertEqual(88, audit["minimum_buffered_frames"])
+                self.assertEqual(1, audit["eligible_wavs"])
+
+    def test_start_write_checks_resampled_mono_pcm_not_duration_rounding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            short = self.source(directory, "short.wav", 14079, rate=8000, channels=2)
+            valid = self.source(directory, "valid.wav", 14081, rate=8000, channels=2)
+            selected, _ = MODULE.select_preconditioned_sources([short, valid], "start-write", 0)
+            self.assertEqual([valid], selected)
+            with self.assertRaisesRegex(MODULE.StressFailure, "88"):
+                MODULE.select_preconditioned_sources([short], "start-write", 0)
+
+    def test_onset_selection_uses_both_vad_timelines_before_sampling(self):
+        with tempfile.TemporaryDirectory() as directory:
+            late = self.source(directory, "late-loud.wav", 3 * 16000)
+            early = self.source(directory, "early.wav", 4 * 16000)
+            with mock.patch.object(MODULE, "SileroOnsetProbe") as probe:
+                probe.return_value.model_sha256 = "a" * 64
+                # Direct VAD confirmation alone is insufficient: the 400 ms prefix shifts windows.
+                probe.return_value.confirmed_at_ms.side_effect = [640, None, 416, 704]
+                selected, audit = MODULE.select_preconditioned_sources(
+                    [late, early], "speaker-vad-onstart", 1)
+                self.assertEqual([early], selected)
+                self.assertEqual(704, audit["selected"][0]["leading_400_ms_confirmation_ms"])
+                self.assertEqual(4, probe.return_value.confirmed_at_ms.call_count)
+
+    def test_onset_selection_rejects_no_speech_before_device_start(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = self.source(directory, "steady-noise.wav", 4 * 16000)
+            with mock.patch.object(MODULE, "SileroOnsetProbe") as probe:
+                probe.return_value.model_sha256 = "a" * 64
+                probe.return_value.confirmed_at_ms.return_value = None
+                with self.assertRaisesRegex(MODULE.StressFailure, "1000"):
+                    MODULE.select_preconditioned_sources([source], "voiceprint-vad-begin", 0)
+
+    def test_invalid_corpus_stops_runner_before_build_or_device_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            short = self.source(directory, "short.wav", 55 * 320)
+            with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "start-write"]):
+                args = MODULE.parse_args()
+            with mock.patch.object(MODULE, "locate_hdc"), \
+                 mock.patch.object(MODULE, "select_target", return_value="device"), \
+                 mock.patch.object(MODULE, "Hdc") as hdc, \
+                 mock.patch.object(MODULE, "inspect_wavs", return_value=[short]), \
+                 mock.patch.object(MODULE, "build_install") as build:
+                with self.assertRaisesRegex(MODULE.StressFailure, "88"):
+                    MODULE.run_stress(args)
+                build.assert_not_called()
+                hdc.return_value.app_send.assert_not_called()
+
+    def test_probe_timing_tracks_sdk_vad_defaults_and_carrier_prefix(self):
+        types = (MODULE.REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets").read_text()
+        vad = types.split("export class VadConfig {", 1)[1].split("}", 1)[0]
+        threshold = float(re.search(r"threshold: number = ([0-9.]+)", vad).group(1))
+        duration = float(re.search(r"minSpeechDurationSec: number = ([0-9.]+)", vad).group(1))
+        self.assertEqual((math.ceil(duration * 1000 / 32) + 1) * 32,
+                         MODULE.first_vad_confirmation_ms([threshold + 0.01] * 31))
+        self.assertIsNone(MODULE.first_vad_confirmation_ms([threshold - 0.01] * 31))
+        carrier = CARRIER.read_text()
+        frame_ms = int(re.search(r"FRAME_DURATION_MS: number = (\d+)", carrier).group(1))
+        prefix_frames = int(re.search(r"VAD_BEGIN_LEADING_SILENCE_FRAMES: number = (\d+)", carrier).group(1))
+        self.assertEqual(400, frame_ms * prefix_frames)
+
+    def test_vad_confirmation_rejects_1024ms_but_accepts_704ms(self):
+        self.assertIsNone(MODULE.first_vad_confirmation_ms([0.1] * 23 + [0.9] * 9))
+        self.assertEqual(704, MODULE.first_vad_confirmation_ms([0.1] * 13 + [0.9] * 9))
+        self.assertIsNone(MODULE.first_vad_confirmation_ms(([0.9] * 7 + [0.1]) * 4))
+        self.assertIsNone(MODULE.first_vad_confirmation_ms([0.1] * 32))
 
 
 class RunCommandTest(unittest.TestCase):

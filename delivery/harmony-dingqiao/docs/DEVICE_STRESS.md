@@ -71,6 +71,25 @@ bundle 信息写入 artifact；它不能证明已安装 HAP 与当前源码一�
 设备写出结果后会删除本轮 PCM、manifest 和 corpus 映射，避免重复压测持续占用应用存储；
 主机侧 artifact 保留完整输入映射用于复核。
 
+## 语料前置检查
+
+`start-write` / `start-write-reload` 会先按实际 16 kHz、单声道 PCM 筛除不足 88 个完整
+20 ms 帧的文件，再执行 `--files` 抽样，保证四种缓存回放时序都有足够输入。
+
+`voiceprint-vad-begin` / `speaker-vad-onstart` 会用本地打包的同款 Silero v4 模型检查原始
+PCM，以及添加 400 ms 静音后的 PCM。只有两种输入都能在 1000 ms 内确认语音、且具备至少
+3 秒注册语料的文件才会参与抽样。该检查使用 SDK 默认的 0.5 概率门槛和 250 ms 确认时长，
+不再把音量当作起音，不裁剪语料，也不修改 SDK 超时。模型配置变化时需同步更新此检查。
+
+这两个起音模式需使用装有 `asr/tools/requirements-harmony-ort.txt` 依赖的 Python 环境，
+例如模型打包使用的 `.venv-harmony-ort-1.16.3/bin/python`。缺少依赖、打包模型或合格语料时，
+脚本在启动测试载体前明确失败，不会降级回音量筛选。`--installed-package` 用户需确保本地
+VAD 模型与设备包一致；该选项仍不构成源码与二进制的一致性证明。
+
+`report.json.corpus_preconditions` 记录候选数、合格数、所选文件的完整帧数或两种起音
+确认时间，以及 VAD 模型 SHA-256；文件 ID 对应 `payload/corpus.json`。这些检查只证明
+测试输入满足前置条件，不代表 SDK 生命周期测试已经通过。
+
 ## 模式
 
 | 模式 | 覆盖边界 |
@@ -81,7 +100,7 @@ bundle 信息写入 artifact；它不能证明已安装 HAP 与当前源码一�
 | `vad-begin-silence` | 纯静音命中 500 ms `vadBegin`，验证恰好一次 last/complete 且没有起音事件 |
 | `voiceprint` | 轮换验证 500 ms 短句、1.5 秒门槛、3 秒长句、前置静音、低音量、多句连续输入和非注册语料源；只检查分数可选性与生命周期，不判定相似度精度 |
 | `voiceprint-fallback` | 固定使用 `000_enroll.wav` 注册、`001_recognize.wav` 识别，覆盖严格窗口不足但 ASR 有非空 text/token 且整句 PCM 达标时的真实 PCM 回退；要求 cold/warm 第一条非空 endpoint final 均带分数 |
-| `voiceprint-vad-begin` | 选择自身前 200 ms 已起音的真实语料，声纹开启且传入 1000 ms `vadBegin`，交替实时/突发喂入和直接起音/800 ms 前置静音；验证显式 finish 前无 `isLast`，足够长语音出现带分数 final |
+| `voiceprint-vad-begin` | 选择通过直接/前置静音 VAD 确认检查的真实语料，声纹开启且传入 1000 ms `vadBegin`，交替实时/突发喂入和直接起音/400 ms 前置静音；验证显式 finish 前无 `isLast`，足够长语音出现带分数 final |
 | `voiceprint-vad-begin-idle` | 声纹开启且传入 1000 ms `vadBegin`，交替写入纯静音和稳态高能非语音；鼎桥固定 `minSegSec=0`，验证二者都没有额外确认窗并约在 1000 ms 有界结束 |
 | `cancel` | 500 ms 后取消，验证无 final/complete 和短会话泄漏 |
 | `cancel-full` | 完整音频解码后取消，隔离正常 finish 路径 |
@@ -95,7 +114,7 @@ bundle 信息写入 artifact；它不能证明已安装 HAP 与当前源码一�
 | `start-cancel` | `onStart` 回调内立即 `cancel`，验证取消后不再透出 start 后续事件 |
 | `start-write` | `onStart` 调用栈内交替同步写入 32/88 个真实 PCM 缓存帧，并交替继续识别或立即 `finish`；验证成功回调前 session 已可用，且不返回 `NOT_LISTENING` / `FINISH_FAILED` |
 | `start-write-reload` | 每轮执行 `shutdown -> unloadModel -> createEngine` 后复用 `start-write` 四种组合，等价覆盖业务空闲定时卸载后的再次冷加载 |
-| `speaker-vad-onstart` | `StartParams` 只预置 `voiceprintIds`，两个声纹开关保持关闭；在 `onStart` 调用栈内同步启用 Speaker VAD，覆盖 burst/paced 与直接起音/800 ms 前置静音四种组合；足够长的同源有效语音必须至少产生一个带 `speakerSimilarity` 的非空 final，并在正常结束后立即启动恢复 session |
+| `speaker-vad-onstart` | `StartParams` 只预置 `voiceprintIds`，两个声纹开关保持关闭；在 `onStart` 调用栈内同步启用 Speaker VAD，覆盖 burst/paced 与直接起音/400 ms 前置静音四种组合；足够长的同源有效语音必须至少产生一个带 `speakerSimilarity` 的非空 final，并在正常结束后立即启动恢复 session |
 | `target-speaker-enhancement` | 使用第一个 WAV 注册声纹，其余 WAV 按 20 ms 节奏逐轮进行目标说话人增强；完整写入后要求逐条文本含“上海”且不含“你好”，每个 session 恰好一次 last/complete，所有 final 均带增强标记，并检查块耗时和最大排队数 |
 | `target-speaker-enhancement-onstart` | 增强开启时在 `onStart` 调用栈内同步写入 100 个真实 PCM 帧，分别继续识别、立即 finish、立即 cancel，验证 session 在回调前已经可用 |
 | `target-speaker-enhancement-cancel` | 写入 2 秒并启动后台增强后立即 cancel，随后零等待启动同配置恢复 session；验证取消会话无 final/complete、迟到任务不串入新 session，恢复会话正常结束 |
@@ -251,8 +270,8 @@ AISHELL-4 语料，以及从其中高能量语音段派生的 0.5–10 秒、前
 ## 2026-07-15 声纹与 `vadBegin=1000` 竞态复现
 
 针对“首句已有识别文本，但 `speakerSimilarity=undefined` 且提前 `isLast=true`”建立了独立
-`voiceprint-vad-begin` 门禁。该门禁只选择自身前 200 ms 已起音的真实语料，交替突发/实时喂入、
-直接起音/800 ms 前置静音，并在调用 `finish` 前快照 `isLast` 数量。这个筛选很重要：如果载体注入
+`voiceprint-vad-begin` 门禁。该门禁只选择通过直接/前置静音 VAD 确认检查的真实语料，交替突发/实时喂入、
+直接起音/400 ms 前置静音，并在调用 `finish` 前快照 `isLast` 数量。这个筛选很重要：如果载体注入
 800 ms 后源文件自身还静音超过 200 ms，讲话实际晚于 1000 ms，自动结束本来就是正确行为。
 
 | 阶段 | 轮数 | 结果 | Artifact |
