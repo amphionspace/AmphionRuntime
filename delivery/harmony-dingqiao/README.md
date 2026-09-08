@@ -40,10 +40,12 @@ bash tts/tools/harmony/pack_harmony_tts_assets.sh # TTS 模型 -> tts/harmony（
 ## 交付打包
 
 ```bash
-bash delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh
+bash delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh
 ```
 
-脚本只收集已构建产物（HAR/HAP/模型/文档），不负责启动 DevEco 构建。
+默认交付为完整 ZIP、外置 ZIP SHA-256 文件、中文交付邮件和绑定最终 ZIP 的验收报告。目录结构、准备步骤及邮件模板见 [默认交付规范](docs/DEFAULT_DELIVERY.md)。
+
+先构建并冻结 Release/Diagnostics 产物，生成 SDK 子包及验收摘要，再运行完整组包脚本；脚本不负责启动 DevEco 构建。SDK-only 子包不替代完整交付。
 
 ## 真机压力测试
 
