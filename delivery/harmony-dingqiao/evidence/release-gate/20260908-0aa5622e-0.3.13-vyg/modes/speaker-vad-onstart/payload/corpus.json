@@ -1,0 +1,13 @@
+[
+  {
+    "channels": 1,
+    "duration_seconds": 3.829116,
+    "id": "000000",
+    "pcm_bytes": 122532,
+    "pcm_sha256": "4839d280cae215201840c270d080eef8fbe35ec76ceed63a9987b12640cdfec0",
+    "sample_rate": 44100,
+    "sample_width": 2,
+    "source": "audio/SSB1745/SSB17450297.wav",
+    "source_sha256": "aa8b23e9fc3628b0ce83b1af7f90f6d9bf5168ed493ad951a736cf2aa93a5ab3"
+  }
+]

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.dingqiao.DiagnosticsModuleTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-09-08T04:08:27" hostname="redacted" time="0.015">
+  <properties/>
+  <testcase name="exportAvailabilityAndCaptureMatchCompileTimeBuildVariant" classname="com.amphion.dingqiao.DiagnosticsModuleTest" time="0.014"/>
+  <testcase name="crashJournalIsRecoveredAndMarkedAbnormal" classname="com.amphion.dingqiao.DiagnosticsModuleTest" time="0.0"/>
+  <testcase name="recordsLifecycleAbnormalReasonsAndOriginThread" classname="com.amphion.dingqiao.DiagnosticsModuleTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

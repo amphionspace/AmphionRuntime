@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.asr.AsrConfigColdStartTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-09-08T04:08:22" hostname="redacted" time="0.015">
+  <properties/>
+  <testcase name="endpointRule3AcceptsOnlyDisableSentinelOrPositiveFiniteDuration" classname="com.amphion.asr.AsrConfigColdStartTest" time="0.014"/>
+  <testcase name="defaultConfigDisablesOrtPrepacking" classname="com.amphion.asr.AsrConfigColdStartTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
