@@ -444,6 +444,110 @@ def representative_voiceprint_sources(
     return representative_sources(enrollment_capable, count)
 
 
+def first_vad_confirmation_ms(probabilities) -> float | None:
+    """Silero's first-speech rule: 0.5 threshold, 250 ms duration, 512-sample windows.
+
+    Only completed windows at or before the unchanged 1000 ms deadline count.
+    A high-energy window is never substituted for a model speech probability.
+    """
+    pending_start = 0
+    for window, probability in enumerate(probabilities, 1):
+        end = window * 512
+        if end > 16000:
+            break
+        if probability > 0.5:
+            if pending_start == 0:
+                pending_start = end
+            elif end - pending_start >= 4000:
+                return end / 16
+        elif probability < 0.5:
+            pending_start = 0
+    return None
+
+
+class SileroOnsetProbe:
+    def __init__(self):
+        try:
+            import numpy as np
+            import onnxruntime as ort
+        except ImportError as error:
+            raise StressFailure(
+                "onset preflight requires numpy and onnxruntime; run with the Python environment "
+                "installed from asr/tools/requirements-harmony-ort.txt"
+            ) from error
+        model = REPO_ROOT / "asr/harmony/sdk/src/main/resources/rawfile/amphion-models/vad/v1/silero_vad.onnx"
+        if not model.is_file():
+            raise StressFailure(f"onset preflight requires the packed HAP VAD model: {model}")
+        self.model_sha256 = hashlib.sha256(model.read_bytes()).hexdigest()
+        self.np = np
+        options = ort.SessionOptions()
+        options.intra_op_num_threads = 1
+        options.inter_op_num_threads = 1
+        self.session = ort.InferenceSession(str(model), options, providers=["CPUExecutionProvider"])
+        if [value.name for value in self.session.get_inputs()] != ["x", "h", "c"]:
+            raise StressFailure("onset preflight requires the SDK's packed Silero v4 model")
+
+    def confirmed_at_ms(self, pcm: bytes, leading_ms: int) -> float | None:
+        np = self.np
+        samples = np.frombuffer(bytes(leading_ms * 32) + pcm, dtype="<i2").astype(np.float32) / 32768
+
+        def probabilities():
+            h = np.zeros((2, 1, 64), dtype=np.float32)
+            c = np.zeros_like(h)
+            for start in range(0, min(len(samples), 16000) - 511, 512):
+                probability, h, c = self.session.run(None, {
+                    "x": samples[start:start + 512].reshape(1, 512), "h": h, "c": c,
+                })
+                yield float(probability.flat[0])
+
+        return first_vad_confirmation_ms(probabilities())
+
+
+def select_preconditioned_sources(
+    sources: list[AudioSource], mode: str, count: int,
+) -> tuple[list[AudioSource], dict]:
+    """Filter the complete corpus before sampling; never repair/crop caller audio."""
+    eligible = []
+    evidence = {}
+    audit = {"candidate_wavs": len(sources)}
+    if mode in ("start-write", "start-write-reload"):
+        audit["minimum_buffered_frames"] = 88
+        for source in sources:
+            # Match payload conversion, including stereo downmix and rate conversion rounding.
+            full_frames = len(read_mono_pcm(source)) // 640
+            if full_frames >= 88:
+                eligible.append(source)
+                evidence[source.path] = {"full_pcm_frames": full_frames}
+        if not eligible:
+            raise StressFailure(f"{mode} requires a source with 88 full 20 ms PCM frames")
+    else:
+        probe = SileroOnsetProbe()
+        audit.update({"vad_model_sha256": probe.model_sha256, "vad_begin_ms": 1000,
+                      "leading_silence_ms": 400, "vad_threshold": 0.5,
+                      "vad_min_speech_ms": 250, "vad_window_samples": 512})
+        for source in sources:
+            if source.duration_seconds < 3.0:
+                continue
+            pcm = read_mono_pcm(source)
+            direct = probe.confirmed_at_ms(pcm, 0)
+            leading = probe.confirmed_at_ms(pcm, 400)
+            if direct is not None and leading is not None:
+                eligible.append(source)
+                evidence[source.path] = {"direct_confirmation_ms": direct,
+                                         "leading_400_ms_confirmation_ms": leading}
+        if not eligible:
+            raise StressFailure(
+                f"{mode} has no enrollment-capable source with VAD-confirmed speech "
+                "by 1000 ms in both direct and 400 ms leading-silence inputs"
+            )
+        count = 1 if mode == "speaker-vad-onstart" else min(count or 8, 8)
+    selected = representative_sources(eligible, count)
+    audit["eligible_wavs"] = len(eligible)
+    audit["selected"] = [dict(id=f"{index:06d}", **evidence[source.path])
+                         for index, source in enumerate(selected)]
+    return selected, audit
+
+
 def corpus_root_for_mode(data_dir: Path, mode: str) -> Path:
     if mode == "voiceprint-fallback":
         return VOICEPRINT_FALLBACK_FIXTURES
@@ -664,7 +768,7 @@ def initial_signal_level(source: AudioSource, seconds: float = 3.0) -> float:
     return audioop.rms(raw, source.sample_width) / full_scale
 
 
-def convert_to_pcm(source: AudioSource, destination: Path) -> int:
+def read_mono_pcm(source: AudioSource) -> bytes:
     if source.sample_width != 2:
         raise StressFailure(f"unsupported sample width {source.sample_width * 8} for {source.path}")
     if source.channels not in (1, 2):
@@ -677,6 +781,11 @@ def convert_to_pcm(source: AudioSource, destination: Path) -> int:
         raw, _ = audioop.ratecv(raw, 2, 1, source.sample_rate, 16000, None)
     if len(raw) % 2:
         raw = raw[:-1]
+    return raw
+
+
+def convert_to_pcm(source: AudioSource, destination: Path) -> int:
+    raw = read_mono_pcm(source)
     destination.write_bytes(raw)
     return len(raw)
 
@@ -910,11 +1019,15 @@ def run_stress(args: argparse.Namespace) -> Path:
         "speaker-vad-onstart", "cold-start-pcm-gap", "continuous-voiceprint-speaker-vad",
         "speaker-vad-shutdown-relicense",
     }
-    selected = (
-        representative_voiceprint_sources(all_sources, args.files)
-        if args.mode in voiceprint_representative_modes
-        else representative_sources(all_sources, args.files)
-    )
+    corpus_preconditions = {}
+    if args.mode in ("start-write", "start-write-reload", "voiceprint-vad-begin", "speaker-vad-onstart"):
+        selected, corpus_preconditions = select_preconditioned_sources(all_sources, args.mode, args.files)
+    else:
+        selected = (
+            representative_voiceprint_sources(all_sources, args.files)
+            if args.mode in voiceprint_representative_modes
+            else representative_sources(all_sources, args.files)
+        )
     target_speaker_enrollment_count = 1
     if args.mode == "voiceprint-fallback":
         sources_by_name = {source.path.name: source for source in all_sources}
@@ -928,18 +1041,6 @@ def run_stress(args: argparse.Namespace) -> Path:
         # This regression gate uses a 5 s vadBegin window and measures synchronous startListening
         # latency plus exact PCM delivery. Unlike the 1 s VAD gates, it does not require direct onset.
         selected = sorted(selected, key=lambda source: (-source.duration_seconds, str(source.path)))[:1]
-    elif args.mode in ("voiceprint-vad-begin", "speaker-vad-onstart"):
-        # The carrier adds 400 ms leading silence in half the cycles. Keep only sources whose own
-        # first 200 ms already contain signal, leaving at least 400 ms for VAD/ASR confirmation
-        # before the 1000 ms vadBegin boundary.
-        # Otherwise the test would correctly time out before the source itself starts speaking.
-        selected.sort(key=initial_signal_level, reverse=True)
-        selected = [source for source in selected if initial_signal_level(source, 0.2) >= 0.015]
-        # Runtime Speaker VAD rejects non-target speakers, so its enrollment and recognition source
-        # must be identical. Verification-only mode can intentionally span several sources.
-        selected = selected[:1] if args.mode == "speaker-vad-onstart" else selected[:8]
-        if not selected:
-            raise StressFailure(f"{args.mode} requires a source with a non-silent onset")
     elif args.mode == "voiceprint-vad-begin-idle":
         selected.sort(key=initial_signal_level, reverse=True)
         selected = selected[:1]
@@ -1189,6 +1290,7 @@ def run_stress(args: argparse.Namespace) -> Path:
             "finish_recovery_entry_ids": sorted(finish_recovery_entry_ids),
         },
         "inventory": inventory,
+        "corpus_preconditions": corpus_preconditions,
         "application": app_summary,
         "empty_finals": {
             "status": empty_status,
