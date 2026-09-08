@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "source_commit": "0aa5622e77cb55da46d40522af70ce1a372e331c",
+  "complete_verified_files": 48,
+  "artifacts": [
+    {
+      "sha256": "54f9eaf9b282bc40b457cd65c07b07456bf26c8575c4aae24a8f5e69ccafa4cd",
+      "size_bytes": 300164238,
+      "artifact": "amphion-harmony-asr-sdk-v0.3.13-20260908.zip"
+    },
+    {
+      "sha256": "1ab439c1230d05c17bdee91d47011c795dd3f3739a64698331c67cd33b7de326",
+      "size_bytes": 593489779,
+      "artifact": "Amphion-ASR-Diagnostics-SDK.zip"
+    },
+    {
+      "sha256": "be3e3a26e0e34725d4bf4d6450ccb4a52605b9a365ce0a9fbc5a1a2909dcffba",
+      "size_bytes": 300207697,
+      "artifact": "Amphion-Harmony-ASR-Demo-Source-0.3.13.zip"
+    },
+    {
+      "sha256": "a7b10bef4b9093d085ae02bb5c9f14dc95130007378cf22475e3a33e301d78e9",
+      "size_bytes": 380783441,
+      "artifact": "amphion_asr_demo-signed.hap"
+    },
+    {
+      "sha256": "134d079e7501700e51df0ba1a9d7cf9cddef39cc3d8c5207a14ff0b30075ad2c",
+      "size_bytes": 1488332137,
+      "artifact": "Amphion-Harmony-ASR-Complete-0.3.13.zip"
+    }
+  ],
+  "canonical_release_report": "delivery/harmony-dingqiao/evidence/release-gate/20260908-0aa5622e-0.3.13-vyg/report.json",
+  "diagnostics_report": "delivery/harmony-dingqiao/evidence/diagnostics/20260908-0aa5622e-0.3.13-diagnostics/report.json"
+}

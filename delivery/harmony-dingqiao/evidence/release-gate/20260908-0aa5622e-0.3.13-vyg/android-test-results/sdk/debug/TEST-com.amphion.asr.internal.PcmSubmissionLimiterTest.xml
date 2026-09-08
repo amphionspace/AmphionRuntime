@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.asr.internal.PcmSubmissionLimiterTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-09-08T04:08:19" hostname="redacted" time="0.215">
+  <properties/>
+  <testcase name="fullBudgetBlocksUntilSamplesAreReleased" classname="com.amphion.asr.internal.PcmSubmissionLimiterTest" time="0.108"/>
+  <testcase name="stopAcceptingWakesBlockedProducerWithoutReservation" classname="com.amphion.asr.internal.PcmSubmissionLimiterTest" time="0.107"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

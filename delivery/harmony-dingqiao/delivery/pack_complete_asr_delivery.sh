@@ -243,6 +243,25 @@ EOF
 
 cp "$ACCEPTANCE_SUMMARY" "$PACKAGE_ROOT/docs/ACCEPTANCE-SUMMARY.md"
 cp "$ACCEPTANCE_MANIFEST" "$PACKAGE_ROOT/docs/acceptance-manifest.json"
+python3 - "$ACCEPTANCE_MANIFEST" "$PACKAGE_ROOT/docs" <<'PY'
+import json
+import shutil
+import sys
+from pathlib import Path
+
+manifest_path = Path(sys.argv[1]).resolve()
+docs = Path(sys.argv[2]).resolve()
+for report in json.loads(manifest_path.read_text(encoding="utf-8"))["reports"]:
+    relative = Path(report["path"])
+    if relative.is_absolute():
+        raise SystemExit("[ERROR] acceptance report path must be relative")
+    source = (manifest_path.parent / relative).resolve()
+    source.relative_to(manifest_path.parent)
+    destination = (docs / relative).resolve()
+    destination.relative_to(docs)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
+PY
 unzip -p "$DIAGNOSTICS_ZIP" \
   'Amphion-ASR-Diagnostics-SDK/tools/build-identity.json' \
   > "$PACKAGE_ROOT/docs/build-identity.json"

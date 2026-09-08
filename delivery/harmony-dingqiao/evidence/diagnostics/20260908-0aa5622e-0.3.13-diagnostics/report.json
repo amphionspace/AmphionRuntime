@@ -1,0 +1,138 @@
+{
+  "source_commit": "0aa5622e77cb55da46d40522af70ce1a372e331c",
+  "status": "PASS_WITH_DOCUMENTED_LIMITATIONS",
+  "runs": [
+    {
+      "run_id": "20260908-124027-speaker-vad-turn-2c2ec7b6",
+      "status": "FAIL",
+      "mode": "speaker-vad-turn",
+      "canonical": false,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "54ba66ffb4d7b2785c7cc5e85cbee131cdaa613c3849be039ed2a6fbc2f752ad",
+          "size_bytes": 12671
+        },
+        {
+          "path": "result.txt",
+          "sha256": "131b8bcf010338b4d622ba1e509c622c082566251140202d5b48727e306e0308",
+          "size_bytes": 5237
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "c952fc675798a3477f5b03fdd2c9f03c32635fc6c36639e17101fd838bf1f3aa",
+          "size_bytes": 2049
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "7ab5a6a81ba8c20fdd10abad3ea4d7f7bb65080ef38e4a48eded1b63d165e1ad",
+          "size_bytes": 23380
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "963ded95ca8110d23725a77692bb32e4877418f3e67646d021247750ed1ece25",
+          "size_bytes": 204
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "aa5f91bc1356d3aa0f35ac30f4950aaa175727f8289531a22b882c2424b7eb6d",
+          "size_bytes": 2248
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "812b18b04dcb6590c16c89ee871b6270bd4930342a6e505ee4faeb115662af01",
+          "size_bytes": 636
+        }
+      ]
+    },
+    {
+      "run_id": "20260908-124423-speaker-vad-turn-d46b8bf3",
+      "status": "PASS",
+      "mode": "speaker-vad-turn",
+      "canonical": true,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "5c8057ac5ae6a2466a2284f5914fc21c04444808f8e5523e87b783f5087e9a36",
+          "size_bytes": 10498
+        },
+        {
+          "path": "result.txt",
+          "sha256": "616437f012da6d8e05b542f434c0fdb951a312a16a2b9936903f4261f8ce10b0",
+          "size_bytes": 3755
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "b1a05461c4f8fadf1097ca7455320a96448041c823b76b82841961f6035cb957",
+          "size_bytes": 1987
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "c09a1aba6e75c2093e5e7dcd0d02bf1fedd434ca996393802c25aa46ad1cd0ad",
+          "size_bytes": 23272
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "368b75200275a9dbf8678d293a334975dc43a7cefb3c4bbc3816dc222da5fb2e",
+          "size_bytes": 204
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "fec520cd38c4f7db5a2a15dce68873fc2a04ccc110b5bab50bab26d012574466",
+          "size_bytes": 1492
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "364087707c34a83e06f933c5355dbb871dddd046eb4606ed3dad95b56329df95",
+          "size_bytes": 424
+        }
+      ]
+    },
+    {
+      "run_id": "20260908-124548-customer-ptt-1c8bda64",
+      "status": "PASS",
+      "mode": "customer-ptt",
+      "canonical": true,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "f84f817eae4b3586630f6e82a9640016e769a5cd4859899a304c175167a971fe",
+          "size_bytes": 11699
+        },
+        {
+          "path": "result.txt",
+          "sha256": "0a3d7290e3357fabbe5d461d73693b95e96293ab64386250dd3da9968427d588",
+          "size_bytes": 4459
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "565b2afa21a64514da9a510e467d036ec6c5c534380d95858f010431763d0e8d",
+          "size_bytes": 1232
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "d6d1114f9025f8ec57c18ed64997604f965c4e8355767f16bbdf7b3703c61c9b",
+          "size_bytes": 7875
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "764263d0add756ea96e08387c5d2c2d0b20a95ac5bae7a78de72911672c203f0",
+          "size_bytes": 306
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "The 5.26-second short fixture had no endpoint before caller finish; finish-to-first-nonempty-final was 1438 ms. The continued two-turn fixture passed endpoint and lifecycle checks. No short-finish latency guarantee is made."
+  ]
+}

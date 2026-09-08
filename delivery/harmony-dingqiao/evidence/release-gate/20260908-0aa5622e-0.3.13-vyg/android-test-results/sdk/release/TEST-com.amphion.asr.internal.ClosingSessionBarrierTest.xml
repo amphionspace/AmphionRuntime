@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.asr.internal.ClosingSessionBarrierTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-09-08T04:08:22" hostname="redacted" time="0.117">
+  <properties/>
+  <testcase name="timeoutKeepsSessionTrackedForALaterRetry" classname="com.amphion.asr.internal.ClosingSessionBarrierTest" time="0.001"/>
+  <testcase name="nextSessionWaitsForEveryTrackedDecoderToBecomeQuiescent" classname="com.amphion.asr.internal.ClosingSessionBarrierTest" time="0.116"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
