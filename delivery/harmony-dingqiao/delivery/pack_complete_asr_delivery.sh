@@ -3,11 +3,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-VERSION="${AMPHION_RUNTIME_VERSION:-0.3.12}"
+VERSION="${AMPHION_RUNTIME_VERSION:-0.3.13}"
 SOURCE_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)"
-RELEASE_ZIP="${RELEASE_SDK_ZIP:-$REPO_ROOT/build/amphion-harmony-asr-sdk-v${VERSION}-20260828.zip}"
+RELEASE_ZIP="${RELEASE_SDK_ZIP:-$REPO_ROOT/build/amphion-harmony-asr-sdk-v${VERSION}-${AMPHION_BUILD_DATE:-$(date +%Y%m%d)}.zip}"
 DIAGNOSTICS_ZIP="${DIAGNOSTICS_SDK_ZIP:-$REPO_ROOT/delivery/harmony-dingqiao/build/diagnostics-sdk-${VERSION}-${SOURCE_COMMIT:0:8}/Amphion-ASR-Diagnostics-SDK.zip}"
 OUTPUT_ROOT="${1:-$REPO_ROOT/delivery/harmony-dingqiao/build/complete-sdk-${VERSION}-${SOURCE_COMMIT:0:8}}"
+[[ "$OUTPUT_ROOT" = /* ]] || OUTPUT_ROOT="$PWD/$OUTPUT_ROOT"
 OUTPUT_ZIP="$OUTPUT_ROOT/Amphion-Harmony-ASR-Complete-${VERSION}.zip"
 ACCEPTANCE_SUMMARY="${ACCEPTANCE_SUMMARY:-$REPO_ROOT/delivery/harmony-dingqiao/build/acceptance-${VERSION}/ACCEPTANCE-SUMMARY.md}"
 ACCEPTANCE_MANIFEST="${ACCEPTANCE_MANIFEST:-$REPO_ROOT/delivery/harmony-dingqiao/build/acceptance-${VERSION}/acceptance-manifest.json}"
@@ -243,6 +244,25 @@ EOF
 
 cp "$ACCEPTANCE_SUMMARY" "$PACKAGE_ROOT/docs/ACCEPTANCE-SUMMARY.md"
 cp "$ACCEPTANCE_MANIFEST" "$PACKAGE_ROOT/docs/acceptance-manifest.json"
+python3 - "$ACCEPTANCE_MANIFEST" "$PACKAGE_ROOT/docs" <<'PY'
+import json
+import shutil
+import sys
+from pathlib import Path
+
+manifest_path = Path(sys.argv[1]).resolve()
+docs = Path(sys.argv[2]).resolve()
+for report in json.loads(manifest_path.read_text(encoding="utf-8"))["reports"]:
+    relative = Path(report["path"])
+    if relative.is_absolute():
+        raise SystemExit("[ERROR] acceptance report path must be relative")
+    source = (manifest_path.parent / relative).resolve()
+    source.relative_to(manifest_path.parent)
+    destination = (docs / relative).resolve()
+    destination.relative_to(docs)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, destination)
+PY
 unzip -p "$DIAGNOSTICS_ZIP" \
   'Amphion-ASR-Diagnostics-SDK/tools/build-identity.json' \
   > "$PACKAGE_ROOT/docs/build-identity.json"
@@ -260,5 +280,8 @@ ZIP_TEMP="$(mktemp -d "$OUTPUT_ROOT/.complete-zip.XXXXXX")"
 )
 mv "$ZIP_TEMP/$(basename "$OUTPUT_ZIP")" "$OUTPUT_ZIP"
 rmdir "$ZIP_TEMP"
-shasum -a 256 "$OUTPUT_ZIP" > "$OUTPUT_ZIP.sha256"
+(
+  cd "$OUTPUT_ROOT"
+  shasum -a 256 "$(basename "$OUTPUT_ZIP")" > "$(basename "$OUTPUT_ZIP").sha256"
+)
 echo "[OK] $OUTPUT_ZIP"

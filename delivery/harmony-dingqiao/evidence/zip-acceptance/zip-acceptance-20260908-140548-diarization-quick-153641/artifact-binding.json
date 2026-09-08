@@ -1,0 +1,5 @@
+{
+  "zip_sha256": "134d079e7501700e51df0ba1a9d7cf9cddef39cc3d8c5207a14ff0b30075ad2c",
+  "hap_sha256": "044b0ce5e1b04dd5530a426fa36021b6dcde3b0a587936200b7035b0a917048e",
+  "build_origin": "previously verified ZIP demo-source plus ZIP formal HAR; local signing/license only"
+}

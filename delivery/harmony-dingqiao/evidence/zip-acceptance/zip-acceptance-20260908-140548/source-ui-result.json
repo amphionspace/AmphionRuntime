@@ -1,0 +1,6 @@
+{
+  "status": "PASS",
+  "assertion": "默认中英模型已就绪",
+  "source": "reconstructed ZIP demo",
+  "seconds_upper_bound": 2
+}

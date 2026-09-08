@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.asr.internal.FinalTailFlushPlannerTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-09-08T04:08:22" hostname="redacted" time="0.001">
+  <properties/>
+  <testcase name="rightContextGateIsSafeForEvery20MsChunkPhase" classname="com.amphion.asr.internal.FinalTailFlushPlannerTest" time="0.0"/>
+  <testcase name="speakerRedecodeRequires800MsEvenWhenDecodeIsReadyEarly" classname="com.amphion.asr.internal.FinalTailFlushPlannerTest" time="0.001"/>
+  <testcase name="laterPaddingCannotRetroactivelyQualifyTheFirstDecode" classname="com.amphion.asr.internal.FinalTailFlushPlannerTest" time="0.0"/>
+  <testcase name="neverReadyStopsAtTheExisting1280MsCap" classname="com.amphion.asr.internal.FinalTailFlushPlannerTest" time="0.0"/>
+  <testcase name="speakerMinimumPaddingDisablesTheSingleDecodeShortcut" classname="com.amphion.asr.internal.FinalTailFlushPlannerTest" time="0.0"/>
+  <testcase name="singleDecodeRequiresTheFull320MsRightContextMargin" classname="com.amphion.asr.internal.FinalTailFlushPlannerTest" time="0.0"/>
+  <testcase name="all20MsChunkPhasesReceiveTwoDecodeOpportunities" classname="com.amphion.asr.internal.FinalTailFlushPlannerTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
