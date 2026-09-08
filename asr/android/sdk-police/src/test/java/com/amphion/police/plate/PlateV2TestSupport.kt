@@ -16,3 +16,8 @@ internal fun loadReadingMap(kb: PlateKnowledgeBase): PlateReadingMap {
     val supplement = BufferedReader(FileReader(TestAssets.resolve(PlateReadingMap.SUPPLEMENT_ASSET_PATH)))
     return base.use { b -> supplement.use { s -> PlateReadingMap.loadFromReaders(listOf(b, s), kb) } }
 }
+
+internal fun loadExactResiduals(): PlateExactResidualDict {
+    val file = TestAssets.resolve(PlateExactResidualDict.ASSET_PATH)
+    return BufferedReader(FileReader(file)).use { PlateExactResidualDict.loadFromReader(it) }
+}
