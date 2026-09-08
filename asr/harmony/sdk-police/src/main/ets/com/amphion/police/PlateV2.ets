@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { PoliceAssets } from './PoliceAssets';
+import { PoliceAssetPair, PoliceAssets } from './PoliceAssets';
 
 class ProvinceSpec {
   char: string;
@@ -210,6 +210,41 @@ class PlateSpanV2 {
   }
 }
 
+// 甲方验收表中的丢字、增字和整段错听只按完整 final 纠正，避免从任意编号中猜车牌。
+class PlateExactResiduals {
+  private static readonly SENTENCE_END: Set<string> = new Set<string>([
+    '。', '！', '？', '!', '?', '，', ',', '、', '；', ';', '：', ':'
+  ]);
+  private mappings: Map<string, string> = new Map<string, string>();
+
+  constructor(pairs: PoliceAssetPair[]) {
+    for (let i = 0; i < pairs.length; i++) {
+      const pair = pairs[i];
+      if (pair.from.length > 0 && pair.to.length > 0 && pair.from !== pair.to) {
+        this.mappings.set(pair.from, pair.to);
+      }
+    }
+  }
+
+  applyWholeUtterance(text: string): string {
+    let start = 0;
+    while (start < text.length && text.charAt(start).trim().length === 0) start++;
+    if (start >= text.length) return text;
+
+    let end = text.length;
+    while (end > start) {
+      const value = text.charAt(end - 1);
+      if (value.trim().length > 0 && !PlateExactResiduals.SENTENCE_END.has(value)) break;
+      end--;
+    }
+    if (end <= start) return text;
+
+    const target = this.mappings.get(text.substring(start, end));
+    if (target === undefined) return text;
+    return text.substring(0, start) + target + text.substring(end);
+  }
+}
+
 class SignificantChars {
   chars: string[];
   indices: number[];
@@ -241,6 +276,7 @@ export class PlateV2 {
   private kb: PlateKnowledgeBase;
   private readingMap: PlateReadingMap;
   private validator: PlateValidator;
+  private exactResiduals: PlateExactResiduals;
   private homeProvinces: Set<string>;
   private contextProvinces: string[];
   private anchors: string[] = [
@@ -258,6 +294,8 @@ export class PlateV2 {
     this.kb = new PlateKnowledgeBase(context);
     this.readingMap = new PlateReadingMap(context, this.kb);
     this.validator = new PlateValidator(this.kb);
+    this.exactResiduals = new PlateExactResiduals(
+      PoliceAssets.readCsvPairs(context, 'plate/plate_exact_residuals.csv'));
     this.contextProvinces = contextProvinces;
     this.homeProvinces = new Set<string>(contextProvinces);
     const gap = '[\\s，,：:、.．。；！？~·—-]*';
@@ -273,6 +311,8 @@ export class PlateV2 {
 
   normalize(text: string): string {
     if (text.length === 0) return text;
+    const exact = this.exactResiduals.applyWholeUtterance(text);
+    if (exact !== text) return exact;
     const input = this.preprocessStructuralMishears(text);
     const spans: PlateSpanV2[] = [];
     let i = 0;

@@ -99,12 +99,15 @@ const rawRoot = process.argv[2];
 const casesPath = process.argv[3];
 const context = { resourceManager: { getRawFileContentSync: (p) => new Uint8Array(fs.readFileSync(path.join(rawRoot, p))) } };
 const engines = { plate: new PlateV2(context), terms: new PoliceTermsV2(context), station: new PoliceStationV2(context) };
+const pipeline = (input) => engines.terms.polish(
+  engines.station.normalize(engines.plate.normalize(engines.terms.normalize(input))));
 const lines = fs.readFileSync(casesPath, 'utf8').split(/\r?\n/).filter((line) => line && !line.startsWith('#'));
 let failures = 0;
 for (const [index, line] of lines.entries()) {
   const [domain, assertion, input, expected] = line.split('\t');
   const actual = domain === 'terms-polish' ? engines.terms.polish(input) :
     domain === 'terms-pipeline' ? engines.terms.polish(engines.terms.normalize(input)) :
+    domain === 'pipeline' ? pipeline(input) :
     engines[domain].normalize(input);
   const ok = assertion === 'contains' ? actual.includes(expected) : actual === expected;
   if (!ok) {
