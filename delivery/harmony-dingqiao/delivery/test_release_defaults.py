@@ -6,31 +6,31 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
-    def test_0312_versions_and_upgrade_contract_are_consistent(self) -> None:
+    def test_0313_versions_and_upgrade_contract_are_consistent(self) -> None:
         changelog = (
             REPO_ROOT / "delivery/harmony-dingqiao/docs/CHANGELOG.md"
         ).read_text(encoding="utf-8")
-        notes_0312 = changelog.split("## 0.3.12", 1)[1].split("\n## ", 1)[0]
+        notes_0313 = changelog.split("## 0.3.13", 1)[1].split("\n## ", 1)[0]
         upgrade = (
-            REPO_ROOT / "delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.12.md"
+            REPO_ROOT / "delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.13.md"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("冷启动", notes_0312)
-        self.assertIn("startListening()", notes_0312)
-        self.assertIn("Speaker VAD", notes_0312)
-        self.assertIn("角色分离", notes_0312)
-        self.assertIn("公共 API", notes_0312)
+        self.assertIn("冷启动", notes_0313)
+        self.assertIn("startListening()", notes_0313)
+        self.assertIn("Speaker VAD", notes_0313)
+        self.assertIn("角色分离", notes_0313)
+        self.assertIn("公共 API", notes_0313)
         self.assertIn("上一正式交付", upgrade)
         self.assertIn("AudioCapturer", upgrade)
         self.assertIn("onStart", upgrade)
 
         version_files = {
-            "asr/harmony/sdk/oh-package.json5": '"version": "0.3.12"',
-            "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.12"',
-            "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.12"',
-            "delivery/harmony-dingqiao/oh-package.json5": '"version": "0.3.12"',
-            "delivery/harmony-dingqiao/AppScope/app.json5": '"versionName": "0.3.12"',
-            "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts": "'0.3.12'",
+            "asr/harmony/sdk/oh-package.json5": '"version": "0.3.13"',
+            "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.13"',
+            "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.13"',
+            "delivery/harmony-dingqiao/oh-package.json5": '"version": "0.3.13"',
+            "delivery/harmony-dingqiao/AppScope/app.json5": '"versionName": "0.3.13"',
+            "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts": "'0.3.13'",
         }
         for relative, expected in version_files.items():
             with self.subTest(relative=relative):
@@ -43,12 +43,12 @@ class ReleaseDefaultsTest(unittest.TestCase):
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
         ).read_text(encoding="utf-8")
-        self.assertIn("UPGRADE_0.3.12.md", pack_script)
+        self.assertIn("UPGRADE_0.3.13.md", pack_script)
         validator = (
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py"
         ).read_text(encoding="utf-8")
-        self.assertIn('"docs/UPGRADE_0.3.12.md"', validator)
+        self.assertIn('"docs/UPGRADE_0.3.13.md"', validator)
 
     def test_039_changelog_limits_the_release_to_public_log_configuration(self) -> None:
         changelog = (
@@ -236,7 +236,7 @@ class ReleaseDefaultsTest(unittest.TestCase):
         for path in doc_paths:
             text = path.read_text(encoding="utf-8")
             for claim in stale_claims:
-                self.assertNotIn(claim, text, f"stale 0.3.12 behavior in {path}: {claim}")
+                self.assertNotIn(claim, text, f"stale 0.3.13 behavior in {path}: {claim}")
 
     def test_sdk_only_changelog_combines_controlled_notes_and_commit_trace(self) -> None:
         script = (
