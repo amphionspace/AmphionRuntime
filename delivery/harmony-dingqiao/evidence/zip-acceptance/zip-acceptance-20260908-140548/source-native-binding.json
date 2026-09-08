@@ -1,0 +1,50 @@
+{
+  "hap_sha256": "044b0ce5e1b04dd5530a426fa36021b6dcde3b0a587936200b7035b0a917048e",
+  "identical_native_members": [
+    {
+      "har_member": "package/_bundled/amphion_asr/libs/arm64-v8a/libamphion_asr.so",
+      "hap_member": "libs/arm64-v8a/libamphion_asr.so",
+      "sha256": "1e11da2dfd1b05e7ec9ab022106e3c4b3ec549f50634f1b98ae87f05babd236a"
+    },
+    {
+      "har_member": "package/_bundled/amphion_asr/libs/arm64-v8a/libamphion_audio_processing.so",
+      "hap_member": "libs/arm64-v8a/libamphion_audio_processing.so",
+      "sha256": "4487228e82316ec54183ee2cdb33cf1c20f030095a3bd9568cd45e856e52164d"
+    },
+    {
+      "har_member": "package/_bundled/amphion_asr/libs/arm64-v8a/libc++_shared.so",
+      "hap_member": "libs/arm64-v8a/libc++_shared.so",
+      "sha256": "341b75246162c5c2eed2c57808e062cc698118d39b82125e3709ff5eca883b0d"
+    },
+    {
+      "har_member": "package/_bundled/amphion_asr/libs/arm64-v8a/libonnxruntime.so",
+      "hap_member": "libs/arm64-v8a/libonnxruntime.so",
+      "sha256": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b"
+    },
+    {
+      "har_member": "package/_bundled/amphion_asr/libs/arm64-v8a/libsherpa-onnx-c-api.so",
+      "hap_member": "libs/arm64-v8a/libsherpa-onnx-c-api.so",
+      "sha256": "0764f9dcffb14ef34bdab7261c1f0bc65aebcc45a680b38b225024eaea9c7e4a"
+    },
+    {
+      "har_member": "package/_bundled/sherpa_onnx/libs/arm64-v8a/libc++_shared.so",
+      "hap_member": "libs/arm64-v8a/libc++_shared.so",
+      "sha256": "341b75246162c5c2eed2c57808e062cc698118d39b82125e3709ff5eca883b0d"
+    },
+    {
+      "har_member": "package/_bundled/sherpa_onnx/libs/arm64-v8a/libonnxruntime.so",
+      "hap_member": "libs/arm64-v8a/libonnxruntime.so",
+      "sha256": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b"
+    },
+    {
+      "har_member": "package/_bundled/sherpa_onnx/libs/arm64-v8a/libsherpa-onnx-c-api.so",
+      "hap_member": "libs/arm64-v8a/libsherpa-onnx-c-api.so",
+      "sha256": "0764f9dcffb14ef34bdab7261c1f0bc65aebcc45a680b38b225024eaea9c7e4a"
+    },
+    {
+      "har_member": "package/_bundled/sherpa_onnx/libs/arm64-v8a/libsherpa_onnx.so",
+      "hap_member": "libs/arm64-v8a/libsherpa_onnx.so",
+      "sha256": "8e9f77f160f1a8914d39a54a0fdf74f12ebb29b735d1199478315d784b80d0ac"
+    }
+  ]
+}

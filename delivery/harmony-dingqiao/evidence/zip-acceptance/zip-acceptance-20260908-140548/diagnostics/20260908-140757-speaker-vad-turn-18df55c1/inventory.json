@@ -1,0 +1,10 @@
+{
+  "sample_rates": {
+    "44100": 4
+  },
+  "selected_duration_seconds": 23.606,
+  "selected_wavs": 4,
+  "target_speaker_enrollment_wavs": 3,
+  "total_valid_duration_seconds": 23.606,
+  "valid_wavs": 4
+}

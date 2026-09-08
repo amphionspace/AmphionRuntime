@@ -1,0 +1,1874 @@
+{
+  "schema_version": 1,
+  "acceptance_type": "final ZIP extracted artifact acceptance",
+  "status": "PASS_WITH_LIMITATIONS",
+  "zip_name": "Amphion-Harmony-ASR-Complete-0.3.13.zip",
+  "zip_sha256": "134d079e7501700e51df0ba1a9d7cf9cddef39cc3d8c5207a14ff0b30075ad2c",
+  "device": {
+    "model": "VYG-AL30",
+    "system": "OpenHarmony-6.1.1.120"
+  },
+  "device_alias": "device-9d33cec60055",
+  "runs": [
+    {
+      "stage": "diagnostics",
+      "mode": "customer-ptt",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "diagnostics/20260908-140653-customer-ptt-ac8e0f6f/report.json",
+      "report_sha256": "a2cf88c39b62c8477bc380f29cc94716c71cba831fd9bfe2b11d3120b052548c",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "a2cf88c39b62c8477bc380f29cc94716c71cba831fd9bfe2b11d3120b052548c",
+          "size_bytes": 9610
+        },
+        {
+          "path": "result.txt",
+          "sha256": "7e0445a8ec0d6f090d05979a803bef62b4292da5f677059c17e4c441ed280630",
+          "size_bytes": 4459
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "c7eeb9fcd69b5a14e4391fb0fb2dd8e15904766f765a67b1fbfa69b7eec14775",
+          "size_bytes": 1234
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "bf06c462a9f8625d7d4c7784529b55e0bbe39b45ff211626ce9c84d2c6cae34e",
+          "size_bytes": 7540
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "f373b6abd961eae198a8d8486671ce7d2a188de3960bd3787aeb84797db45b3b",
+          "size_bytes": 306
+        }
+      ],
+      "native_stream_observability": "MEASURED",
+      "memory": {
+        "status": "PASS",
+        "sample_count": 18,
+        "observation_seconds": 21.318,
+        "warmup_samples_excluded": 3,
+        "head_rss_mb": 364.141,
+        "tail_rss_mb": 375.023,
+        "rss_growth_mb": 10.883,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          374.922,
+          379.539,
+          384.926
+        ],
+        "peak_rss_mb": 384.926,
+        "peak_hwm_mb": 388.949,
+        "head_vm_data_mb": 2434.484,
+        "tail_vm_data_mb": 2434.828,
+        "vm_data_growth_mb": 0.344,
+        "peak_swap_mb": 82.93,
+        "head_threads": 50,
+        "tail_threads": 45,
+        "thread_growth": -5,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "failures": []
+    },
+    {
+      "stage": "diagnostics",
+      "mode": "speaker-vad-turn",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 2,
+      "report": "diagnostics/20260908-140757-speaker-vad-turn-18df55c1/report.json",
+      "report_sha256": "e8014183eaf755c0d73d0dd9d6b3c01d65aa3bf00f3bfb662af3ddae44bdbdd7",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "e8014183eaf755c0d73d0dd9d6b3c01d65aa3bf00f3bfb662af3ddae44bdbdd7",
+          "size_bytes": 8407
+        },
+        {
+          "path": "result.txt",
+          "sha256": "a2ac29193649da63b5834887000796b865516775adcc962141938186ff8a0b1f",
+          "size_bytes": 3755
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "7a761be716b4996d662ae00bd6f7a39015c27454f37dad21db12c0ebae8763c9",
+          "size_bytes": 1990
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "19f148248456909f689168dbcbadf7e172284aea0f5aaf6eef9465ac43765ad5",
+          "size_bytes": 23444
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "368b75200275a9dbf8678d293a334975dc43a7cefb3c4bbc3816dc222da5fb2e",
+          "size_bytes": 204
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "fec520cd38c4f7db5a2a15dce68873fc2a04ccc110b5bab50bab26d012574466",
+          "size_bytes": 1492
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "8344dda8855c6233752d40ff645e2fd5a3dbc4d94ad73b0b01a0de03d4797e08",
+          "size_bytes": 424
+        }
+      ],
+      "native_stream_observability": "MEASURED",
+      "memory": {
+        "status": "PASS",
+        "sample_count": 30,
+        "observation_seconds": 37.223,
+        "warmup_samples_excluded": 6,
+        "head_rss_mb": 522.098,
+        "tail_rss_mb": 577.09,
+        "rss_growth_mb": 54.992,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          527.504,
+          523.258,
+          577.09
+        ],
+        "peak_rss_mb": 588.832,
+        "peak_hwm_mb": 598.574,
+        "head_vm_data_mb": 2765.699,
+        "tail_vm_data_mb": 2815.668,
+        "vm_data_growth_mb": 49.969,
+        "peak_swap_mb": 90.039,
+        "head_threads": 49,
+        "tail_threads": 48,
+        "thread_growth": -1,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "failures": []
+    },
+    {
+      "stage": "diagnostics",
+      "mode": "callback-api-reentrant",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "diagnostics/20260908-140839-callback-api-reentrant-b64ed1bc/report.json",
+      "report_sha256": "5b0afb5c2c096a73fa46f84528ff9250914c5769f9676f69f60aaf0a3263b169",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "5b0afb5c2c096a73fa46f84528ff9250914c5769f9676f69f60aaf0a3263b169",
+          "size_bytes": 9007
+        },
+        {
+          "path": "result.txt",
+          "sha256": "d826c71f2f5a6ebe0c47cb0ba6c7c195e6aa91052aecea3000159c732007d643",
+          "size_bytes": 4339
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "d9944987bdbf9fd1924570a465bc14472485731e669e6e43df936cf5149e2827",
+          "size_bytes": 608
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "f6bcf6502a553f549d39208c39100d571647141787ad92d5114ece8b2201515d",
+          "size_bytes": 7791
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "b20d0ffe67d2f392d917e64d33ad0bcb516113aab982ab6cdc3452974e9ac56c",
+          "size_bytes": 336
+        }
+      ],
+      "native_stream_observability": "MEASURED",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 8,
+        "observation_seconds": 8.234
+      },
+      "failures": []
+    },
+    {
+      "stage": "diagnostics",
+      "mode": "finish-shutdown",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "diagnostics/20260908-140851-finish-shutdown-4e502af4/report.json",
+      "report_sha256": "d08459008732ed811c62d9f234080e3ff1d34de56178abd1b3ef0ef0afd1fc06",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "d08459008732ed811c62d9f234080e3ff1d34de56178abd1b3ef0ef0afd1fc06",
+          "size_bytes": 8768
+        },
+        {
+          "path": "result.txt",
+          "sha256": "03df1dcf72375d48121f3f6b6038d4203cb8491817b3735be963ca3d268b12a3",
+          "size_bytes": 4114
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "450e9ae6b79e31b72ba2ee2614d3877b45f85ff4b52e6ddac14d808acd8749f3",
+          "size_bytes": 607
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "5550c559c6c0538e44604dc196b70826b82ce8e39747a06b875aefb3cf038d63",
+          "size_bytes": 7132
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "d73925dcb3986305862e2ac81cff3115f5b339f8873614a5e0507a488e7d2478",
+          "size_bytes": 315
+        }
+      ],
+      "native_stream_observability": "MEASURED",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 8,
+        "observation_seconds": 8.174
+      },
+      "failures": []
+    },
+    {
+      "stage": "diagnostics",
+      "mode": "start-write",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "diagnostics/20260908-140904-start-write-b49ca736/report.json",
+      "report_sha256": "327a7719c7210b92ab239ae8be2a2f8dab2e012de589d0c050d4db5d641d8940",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "327a7719c7210b92ab239ae8be2a2f8dab2e012de589d0c050d4db5d641d8940",
+          "size_bytes": 9087
+        },
+        {
+          "path": "result.txt",
+          "sha256": "5b7b645c855d2485846e6b677721f01a0ae788e772587ac95f2eea0ab063fea3",
+          "size_bytes": 4110
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "75e473f611cf7458b10a6ea54fbd404ede6c9cc235f25c8efdb1b8b97b8d6cdd",
+          "size_bytes": 607
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "ab971e674094311095cf5e09e266f2c7b8a66f8e8c174859f6a5f3e75228c540",
+          "size_bytes": 6694
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "d7a71337397416d9af5de872268a200653796d89975859e805a102c0e474dc09",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8b4bad64d2f4a4b642da15617354f3c44604ad3e0cf608c9518bd617ae74e9f8",
+          "size_bytes": 1129
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "21d13d6f36c1d121899668bc6fde004ca2e0906d501d7e4323de24e253b25e3a",
+          "size_bytes": 303
+        }
+      ],
+      "native_stream_observability": "MEASURED",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 8,
+        "observation_seconds": 8.143
+      },
+      "failures": []
+    },
+    {
+      "stage": "diagnostics",
+      "mode": "start-write-reload",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "diagnostics/20260908-140917-start-write-reload-90f01a64/report.json",
+      "report_sha256": "1dbc9c8ee20021a60518dcf232ab6267b1a0e047c1f3a9f6138cebc13a93ecd7",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "1dbc9c8ee20021a60518dcf232ab6267b1a0e047c1f3a9f6138cebc13a93ecd7",
+          "size_bytes": 9113
+        },
+        {
+          "path": "result.txt",
+          "sha256": "a6fc9d5ce51d02dbdf23410a52b6cdad4f492b7177917b486812efc0bad18363",
+          "size_bytes": 4124
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "d10a367608c4d883cfd68be28306a660adf6bb34ba036cf5e1adb1f619a015c4",
+          "size_bytes": 669
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "edf89168b6267bd7ae3ffb2f047a79423407134cd7572f61ef1d3df44bfb210c",
+          "size_bytes": 7165
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "d7a71337397416d9af5de872268a200653796d89975859e805a102c0e474dc09",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8b4bad64d2f4a4b642da15617354f3c44604ad3e0cf608c9518bd617ae74e9f8",
+          "size_bytes": 1129
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "13ae927fe9739190914ab0b2391ee280987e25a65f2f4ad9271b4c4fbeae2a41",
+          "size_bytes": 324
+        }
+      ],
+      "native_stream_observability": "MEASURED",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 9,
+        "observation_seconds": 9.495
+      },
+      "failures": []
+    },
+    {
+      "stage": "diagnostics",
+      "mode": "cancel",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "diagnostics/20260908-140931-cancel-5e01b041/report.json",
+      "report_sha256": "9ce0de741921b1c4be339ac35b5bced7ebb16ef12f1916b546447d70df7ac0fc",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "9ce0de741921b1c4be339ac35b5bced7ebb16ef12f1916b546447d70df7ac0fc",
+          "size_bytes": 8403
+        },
+        {
+          "path": "result.txt",
+          "sha256": "afa6fc02bf40e3d20e5c904792215c0c20fbdfcd3d3a7a3bf7efe9d5a2f3bc32",
+          "size_bytes": 3744
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "c5499c7a6958a7719fd885abc38bf4315b31fe5e066ee0e1f7bce34e64de7439",
+          "size_bytes": 481
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "8f645f7803789bf00659a0cfdb783c98536106f82df68db2cc946211add3a567",
+          "size_bytes": 5582
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "42eed9d4751699f4b3afc43a9fe70d34588b424cb13a7f80ec059eee75fc767d",
+          "size_bytes": 288
+        }
+      ],
+      "native_stream_observability": "MEASURED",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 5.48
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "burst",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141132-burst-2235ed25/report.json",
+      "report_sha256": "f2cd5d5b5042745de74743148acae97dc34d3bad3a6755e69b69271b544e830f",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "f2cd5d5b5042745de74743148acae97dc34d3bad3a6755e69b69271b544e830f",
+          "size_bytes": 8637
+        },
+        {
+          "path": "result.txt",
+          "sha256": "824faf79df576011ee6fbd37752c1fc7bbfeb533acc0ee514656b818a349a11a",
+          "size_bytes": 3999
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "58547c2d5acd2395d4db212b7c2e93fadc6a09db068630cf70e8f2b9df79b59e",
+          "size_bytes": 733
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "ed8b2b0a62c251bcd40e37c8dfbcc8ea5c627c9b83ab3020ffb3fb53c51a9e76",
+          "size_bytes": 7437
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "94fe94ce6b2dd42c00c3dcafd5c506bd0b6d18cc6babac93914418d05ca31b38",
+          "size_bytes": 285
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 10,
+        "observation_seconds": 10.782
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "paced",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 12,
+      "report": "source/20260908-141147-paced-3174ce8f/report.json",
+      "report_sha256": "c1dbd52a5b410543fae72be4e21405e66b143bc1c6d0c7a615776d7ee875dba5",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "c1dbd52a5b410543fae72be4e21405e66b143bc1c6d0c7a615776d7ee875dba5",
+          "size_bytes": 27409
+        },
+        {
+          "path": "result.txt",
+          "sha256": "8e9df74340d59aeb32c216968b65f794fe30323163b5888306cd771a3d62245e",
+          "size_bytes": 16384
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "4c5ec2081d68cf021de2369183eb0278e31a9b2b3fd5678b0f521ae42349a4e0",
+          "size_bytes": 3576
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "b6154e4c96c1f63509ac346b37842ab1f5710d7d6bf0a9bd595a50c3ee23c944",
+          "size_bytes": 27408
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "c3d482037ad6b18dece3b9acebf1228a33d1610b185a8fde527cf7c81f0485a0",
+          "size_bytes": 285
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "PASS",
+        "sample_count": 55,
+        "observation_seconds": 70.905,
+        "warmup_samples_excluded": 11,
+        "head_rss_mb": 374.098,
+        "tail_rss_mb": 390.422,
+        "rss_growth_mb": 16.324,
+        "rss_slope_mb_per_minute": 16.817,
+        "rss_third_medians_mb": [
+          376.934,
+          393.797,
+          389.422
+        ],
+        "peak_rss_mb": 398.98,
+        "peak_hwm_mb": 404.902,
+        "head_vm_data_mb": 2427.359,
+        "tail_vm_data_mb": 2469.359,
+        "vm_data_growth_mb": 42.0,
+        "peak_swap_mb": 89.867,
+        "head_threads": 45,
+        "tail_threads": 46,
+        "thread_growth": 1,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "vad-begin",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141303-vad-begin-f56688d7/report.json",
+      "report_sha256": "8e2766c06fb224c359944146c36f4cacea690571b07a2b8c183de79f374ca0d9",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "8e2766c06fb224c359944146c36f4cacea690571b07a2b8c183de79f374ca0d9",
+          "size_bytes": 8746
+        },
+        {
+          "path": "result.txt",
+          "sha256": "c67a835ad1c5a522cb19b8295ad290feeadd3521dfe21b099af51e922957604d",
+          "size_bytes": 4100
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "573d65212a86360c67bd47c3f198c24cea8b50991e21fe809a4cc93cbe89bafb",
+          "size_bytes": 733
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "e8965f8ae16ef5a3fb899df4a5367af1b13b14fb4dba65ac33284dec1ed4f7ab",
+          "size_bytes": 7550
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "7fe4f36c02536c1b77377b6b7df4ae032f31c7cf157ffc48130bf8c3b94659f1",
+          "size_bytes": 297
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 10,
+        "observation_seconds": 10.815
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "vad-begin-silence",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141318-vad-begin-silence-e8544ac1/report.json",
+      "report_sha256": "30d1a5147525803cd421e2a339c3980c1a6f53f95e59791930f18b361baba0cf",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "30d1a5147525803cd421e2a339c3980c1a6f53f95e59791930f18b361baba0cf",
+          "size_bytes": 8734
+        },
+        {
+          "path": "result.txt",
+          "sha256": "c456190f5aeb683e0fcd958db877a50da702d113f80e074619479fcd0c863a71",
+          "size_bytes": 4045
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "bc5369d13fbb31034c9aeca0a9c6b47cfc336d222b4d1bdc6ee2ab39f724899c",
+          "size_bytes": 540
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "6b4108400895e9adf0d0d420b3eeecf21250a7e9c39f458595161e4434b87631",
+          "size_bytes": 6648
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "0c333f74c3373dd2d70a9722c45d94c4e82109ce9c5467c890c2dfc7e251fc27",
+          "size_bytes": 321
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 7,
+        "observation_seconds": 6.91
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "voiceprint",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141329-voiceprint-9cee3aa9/report.json",
+      "report_sha256": "093777bd94ac6a067b73616306f43c6ff047dd940caee55a85800d7f18b1830f",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "093777bd94ac6a067b73616306f43c6ff047dd940caee55a85800d7f18b1830f",
+          "size_bytes": 8746
+        },
+        {
+          "path": "result.txt",
+          "sha256": "bbc3d4b8d4439f3d3b146042b81f47cef400e1ad2379915d2d7a01e43bff0cc2",
+          "size_bytes": 4103
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "86ddb17a6c295cc4a952ec8c2065bd4359c18fb21b8c5651b6185ec0e2f4d0f0",
+          "size_bytes": 608
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "3850144975c6692c815bb3a12d87bf89232388e4d16fbe64dfbb5abd93f031f3",
+          "size_bytes": 6683
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "a7fd636dd797afef7583adee6e3f53db885243c9defa138cee2135d45e74e299",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "9f5a1c6a065f028d9f260c4fbee03aa2b2e1af66393396282b840fcf911d3568",
+          "size_bytes": 1131
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "c7a58b134aa8a3ca2e159b34aac8156c0f9d30f0e631c139bd81ac1c20082755",
+          "size_bytes": 300
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 8,
+        "observation_seconds": 8.154
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "voiceprint-fallback",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 12,
+      "report": "source/20260908-141341-voiceprint-fallback-6d847c51/report.json",
+      "report_sha256": "0b10c2204200f19395d9b53d902d02d35e2b1a66de594a989b99705e9272b669",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "0b10c2204200f19395d9b53d902d02d35e2b1a66de594a989b99705e9272b669",
+          "size_bytes": 30995
+        },
+        {
+          "path": "result.txt",
+          "sha256": "b239166c6aa3a48a955c0ccc55bf3ad67779996cfcb820959d1f2873c0c36337",
+          "size_bytes": 19947
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "590c4a6067f84ed09b6d0c22b6ba5cdf4d13cbe91da11ffda940038ccca67345",
+          "size_bytes": 6734
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "4b15e4f46b90a412a9a7ca5dcaa23a44020541722ed38945be7f427919a19ae6",
+          "size_bytes": 38817
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "aedbbe2a1ffe3a5f496f2f5627fb5d1869ae7651246d64a9ccad0a599d758f17",
+          "size_bytes": 202
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "f28547282b3bd47f3959d7a5b38001dc0125690cfc7e50d10db8cfbb31ac7e21",
+          "size_bytes": 723
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "49833f7169c15f325dc6859fe13448a974fbaa2be967f91a22778babc334b941",
+          "size_bytes": 218
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "PASS",
+        "sample_count": 104,
+        "observation_seconds": 137.273,
+        "warmup_samples_excluded": 20,
+        "head_rss_mb": 551.711,
+        "tail_rss_mb": 555.473,
+        "rss_growth_mb": 3.762,
+        "rss_slope_mb_per_minute": 5.644,
+        "rss_third_medians_mb": [
+          548.799,
+          551.543,
+          555.752
+        ],
+        "peak_rss_mb": 563.141,
+        "peak_hwm_mb": 569.875,
+        "head_vm_data_mb": 2813.324,
+        "tail_vm_data_mb": 2817.324,
+        "vm_data_growth_mb": 4.0,
+        "peak_swap_mb": 89.496,
+        "head_threads": 45,
+        "tail_threads": 45,
+        "thread_growth": 0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "voiceprint-vad-begin",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141604-voiceprint-vad-begin-2bc8198f/report.json",
+      "report_sha256": "3262456442d35ab0954e2e7c4d71ba15e31b152e57aec647bb8b62f350b564f7",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "3262456442d35ab0954e2e7c4d71ba15e31b152e57aec647bb8b62f350b564f7",
+          "size_bytes": 9598
+        },
+        {
+          "path": "result.txt",
+          "sha256": "a14e577f064846641f39c3ea344447b886fbdd4ba32a2d9f8e5f62a882c511cf",
+          "size_bytes": 4229
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "2ba52d4765f910992a0f47d1a1cc7b5fdfab76014ef0caece0d267d2caf8ee92",
+          "size_bytes": 857
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "5719bec1910620a9247ce1aa2379ffc7daab4285e58402f5fc519e8b075203c0",
+          "size_bytes": 6839
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "274c67135bcac32b9af9d2e455f8116b56c5e1b49339624ebe933f127acaef3c",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8b26d8f774d6d51962d31676e5d895d2d372f0382228b63f15f320c36be2ebaf",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "3b11a6cd36627f732821970f60cee95e939174b444745fcf169112d7882c6a17",
+          "size_bytes": 330
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 12,
+        "observation_seconds": 13.545
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "voiceprint-vad-begin-idle",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141622-voiceprint-vad-begin-idle-a9e75a5e/report.json",
+      "report_sha256": "ed45eec0d3a77c7b49fd6b4546518bcf6d00a8b19cd84110dd8f10b745d0e728",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "ed45eec0d3a77c7b49fd6b4546518bcf6d00a8b19cd84110dd8f10b745d0e728",
+          "size_bytes": 8855
+        },
+        {
+          "path": "result.txt",
+          "sha256": "b043bfe0f36db9ae34a0dc8656c48055caab2e46839e0867b39ef1899d5250a2",
+          "size_bytes": 4149
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "62e762c4742eb3a4e53cb8c999a5c7886213f0be71bcc47925a73fff680ce002",
+          "size_bytes": 787
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "2b9a310555ae1a815550c3ea20f1a1e417e610da10ba850d2591a36b43887ca0",
+          "size_bytes": 6773
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "cd368349e15a556f74d72019f37beebbd1c0468871a0035d37ebbc8f56c934ad",
+          "size_bytes": 209
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "cb8df29a7a959586449224e1b4fad2f46e2018504ba4585f2d66265341597bef",
+          "size_bytes": 380
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "8f5f918a4990006ee22847db304fd660ed13e5d0b4adc0de7235ffc37cf44384",
+          "size_bytes": 115
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 11,
+        "observation_seconds": 12.198
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "cancel",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141639-cancel-c9fb0410/report.json",
+      "report_sha256": "7d883b903a0e36b89a88805ea56526ec90889612bbc0c0d734455db15f16e25d",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "7d883b903a0e36b89a88805ea56526ec90889612bbc0c0d734455db15f16e25d",
+          "size_bytes": 8395
+        },
+        {
+          "path": "result.txt",
+          "sha256": "c20a3cdc82252813fc53739739280a0a1a4e480eb40b4daa0bd733dad78125a5",
+          "size_bytes": 3744
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "243b4115765e7324e92c3d41e62dcf1405eeb153da110988d3c81f0bb5071ebc",
+          "size_bytes": 481
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "a1bc5ddec9d0403a7b287529c47a7c2feb88905e863a6fc390e89b909957dbce",
+          "size_bytes": 5582
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "d4ded16bf23d9f5ec124dd066d1350140229c46a90f95d7559fe5175b1046823",
+          "size_bytes": 288
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 5.54
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "cancel-full",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141648-cancel-full-d59c12b7/report.json",
+      "report_sha256": "e5c8c2595c70db36496ae640f1d30220307935a8c0f0abb7238145a2f92faefa",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "e5c8c2595c70db36496ae640f1d30220307935a8c0f0abb7238145a2f92faefa",
+          "size_bytes": 8439
+        },
+        {
+          "path": "result.txt",
+          "sha256": "e86e341f226f19cbb80183a63c4c1b949ef4745b354a9a90fea982183e85cb11",
+          "size_bytes": 3769
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "045a82e4769910aae4690a2360f501bd3793cbd88836b44d5ae161dc0342e8b8",
+          "size_bytes": 481
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "0f3a93f5d6aeb836b8f73121a8e31a67a0194762d845899519b76ed98a7ae5bd",
+          "size_bytes": 5631
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "a7273c439a4e9cc125b26e5609da5828fb842a4db0f1598b3bad83239be8d57f",
+          "size_bytes": 303
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 5.488
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "recreate",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141658-recreate-0961ba81/report.json",
+      "report_sha256": "7b72e79a34e03fa0e5bb6bac54d33d65dbd495a5d6cea32d06dda32faa0df510",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "7b72e79a34e03fa0e5bb6bac54d33d65dbd495a5d6cea32d06dda32faa0df510",
+          "size_bytes": 8649
+        },
+        {
+          "path": "result.txt",
+          "sha256": "e590ff6093ad5b544c6a5a9a33b867c47d09321dd71aee64cf665683903f62ad",
+          "size_bytes": 4005
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "a8deaae0c0fe2ab345d578945103ab276638d29251df96d51cab2e93aa1645b9",
+          "size_bytes": 733
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "ab8aabdbc47976e2f640abbe04a56537a2625b5f54aee007ce89b5c57e8308af",
+          "size_bytes": 7876
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "36d7e62accc0e111ce64b97a01534279a365c67e2104e906df18d5d45b2c7261",
+          "size_bytes": 294
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 10,
+        "observation_seconds": 10.845
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "reconfigure",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141713-reconfigure-2090fecc/report.json",
+      "report_sha256": "aa31808798486d838e7730f4328a792fb3e31e91d4b54bf9d75ebc78351352c3",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "aa31808798486d838e7730f4328a792fb3e31e91d4b54bf9d75ebc78351352c3",
+          "size_bytes": 8660
+        },
+        {
+          "path": "result.txt",
+          "sha256": "b6626c0c59efd93dfef0f065b4b37c033cafc54d3ab7ddd9998f2d4bd0507b79",
+          "size_bytes": 4011
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "ce16532a150f186f776513214cee638bd038fdeaa92257c0ecb32185abf36970",
+          "size_bytes": 731
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "2a00130f237bab7fd5984b2a42eec068c1189b987d52174bce1de59969c8c87f",
+          "size_bytes": 7467
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "78e9f9df35d8b60886e94bee906a16c028d07f775a42c6d16749eaf533ba02d1",
+          "size_bytes": 303
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 10,
+        "observation_seconds": 10.839
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "max-duration",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141728-max-duration-fef343fd/report.json",
+      "report_sha256": "db74c32317ed50972be737e4e41f01f88f2c5184777fb3b17b5726d28c3c56d0",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "db74c32317ed50972be737e4e41f01f88f2c5184777fb3b17b5726d28c3c56d0",
+          "size_bytes": 9172
+        },
+        {
+          "path": "result.txt",
+          "sha256": "68982ec2ec118e58ae72b54573552ba0af80d462f4a7068bf452dae8097ce8b7",
+          "size_bytes": 4019
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "0db2115f0a4ad2b9c3e10cefdfe3c38323ec2aaf45e897718044b7fb571e6575",
+          "size_bytes": 1236
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "706a9a790c5d1cc26a889194505a208ab86a7eb9ead5a2fe682810e67b206897",
+          "size_bytes": 7371
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "a1cd3a898cda404a50823d130fc194904d074245275b4e3459ba8b9f47bd3737",
+          "size_bytes": 306
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "PASS",
+        "sample_count": 18,
+        "observation_seconds": 21.404,
+        "warmup_samples_excluded": 3,
+        "head_rss_mb": 388.445,
+        "tail_rss_mb": 380.148,
+        "rss_growth_mb": -8.297,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          388.445,
+          385.438,
+          380.234
+        ],
+        "peak_rss_mb": 395.473,
+        "peak_hwm_mb": 401.09,
+        "head_vm_data_mb": 2468.484,
+        "tail_vm_data_mb": 2447.828,
+        "vm_data_growth_mb": -20.656,
+        "peak_swap_mb": 89.422,
+        "head_threads": 50,
+        "tail_threads": 45,
+        "thread_growth": -5,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "edge",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141754-edge-bdaca0fa/report.json",
+      "report_sha256": "07c0023de83509a032a830b08b4b6fceff88e39403e17f4a7049987b563ce6bb",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "07c0023de83509a032a830b08b4b6fceff88e39403e17f4a7049987b563ce6bb",
+          "size_bytes": 9202
+        },
+        {
+          "path": "result.txt",
+          "sha256": "df22dc5125ca6ec054f0cfaf2e55af966a9249f27ff706bd5f27b9108df2983d",
+          "size_bytes": 4569
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "40f85f0629b17468e52e6b40866f163b3c45a34834c4b52996ce6047fe80b4c9",
+          "size_bytes": 527
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "3227ae348bbeda0ee711ba8ed8eb6bb69842b5bbd5d4f040fe97f0b04df5e4e2",
+          "size_bytes": 7130
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "f1bc9fc1eafd3f3a6bdc300749cc4c3bb851b8ee1d77ba654f8ea5072f699717",
+          "size_bytes": 282
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 7,
+        "observation_seconds": 6.884
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "reentrant",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141805-reentrant-0cce4dbf/report.json",
+      "report_sha256": "ca2bc471d4cee38b849a58397fe0ab75f54895c7dc06289802d1113f5d12c628",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "ca2bc471d4cee38b849a58397fe0ab75f54895c7dc06289802d1113f5d12c628",
+          "size_bytes": 8818
+        },
+        {
+          "path": "result.txt",
+          "sha256": "f29279f0e9fa4930aaa67262becd8d60509505b597ebd2310a1a273e483c6d4e",
+          "size_bytes": 4144
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "49500544ee6ce46379185e4ed65cc48f2561a648c5825459a7153db755b2a553",
+          "size_bytes": 600
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "1b6dd0ac8e005b7d8b99edca3ea565c33710f3fd0d89f2e66d5469b08a316afa",
+          "size_bytes": 8112
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "9e2abdf4993573174ff7f04f22d1c19e5cb0a7beca9e50d815723e63037fad85",
+          "size_bytes": 297
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 8,
+        "observation_seconds": 8.191
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "start-cancel",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141817-start-cancel-4bbc1c69/report.json",
+      "report_sha256": "f39dc6885155a851338528fb4a658efa6983306f070d40c91ba5877ee62039b5",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "f39dc6885155a851338528fb4a658efa6983306f070d40c91ba5877ee62039b5",
+          "size_bytes": 8451
+        },
+        {
+          "path": "result.txt",
+          "sha256": "e86b732753e0ed541655c848c0799c4e54fb31b7ae76ed5d79209a9246c22e88",
+          "size_bytes": 3783
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "e5bff964fe67001dbfb2a4395128a090a675930b973abd545002f1e878183722",
+          "size_bytes": 475
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "a4587f0939fdf98a97acd225e20f634a089bc55e70eb8fdee0320d554ba3b5d0",
+          "size_bytes": 5639
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "0db3b9309e0e888d8075219cf0d1e916c6e73bcb70147ad8120e36c7d361d207",
+          "size_bytes": 306
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 5.543
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "start-write",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141827-start-write-91f1073a/report.json",
+      "report_sha256": "1d3987e64444fc2ca09b19b93fde27df7cdea000e88c3a6176653d9eb53c7399",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "1d3987e64444fc2ca09b19b93fde27df7cdea000e88c3a6176653d9eb53c7399",
+          "size_bytes": 9086
+        },
+        {
+          "path": "result.txt",
+          "sha256": "d7383bf75c950a8c0174039f0a3c141a10e1c9ef33bf9f5ca3e183dc94d8b2ff",
+          "size_bytes": 4110
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "b380498d49765067e442bc83608691a09c95b5b64d7da5f41bf7df793e4f079d",
+          "size_bytes": 599
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "2eb39c50e6943cc372afe32bbb53522be74d9c9cb1401851a32614557b1547cd",
+          "size_bytes": 6694
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "d7a71337397416d9af5de872268a200653796d89975859e805a102c0e474dc09",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8b4bad64d2f4a4b642da15617354f3c44604ad3e0cf608c9518bd617ae74e9f8",
+          "size_bytes": 1129
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "299dbd52ba1e7cceb95046b2127bb0b601a3ee8734daac0deecd596fb768336b",
+          "size_bytes": 303
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 8,
+        "observation_seconds": 8.206
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "start-write-reload",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141840-start-write-reload-f439f3a6/report.json",
+      "report_sha256": "28a487640fbed69450be39095cf682e9b084fdf2c4b4bc094af7d4e338f91023",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "28a487640fbed69450be39095cf682e9b084fdf2c4b4bc094af7d4e338f91023",
+          "size_bytes": 9114
+        },
+        {
+          "path": "result.txt",
+          "sha256": "d70fdd9b868637895248a902b9b3c074b54ef0bd04dae97b2c0375b087713b35",
+          "size_bytes": 4124
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "30a513b84a53080a555300ceb98c3fc6abe82417a4b63293783d92dd221fa5d2",
+          "size_bytes": 660
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "e4d6147ec1aa8a3d49a996d1a502bed50dcde861e3133a40ddd8d0677ad449fb",
+          "size_bytes": 7166
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "d7a71337397416d9af5de872268a200653796d89975859e805a102c0e474dc09",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8b4bad64d2f4a4b642da15617354f3c44604ad3e0cf608c9518bd617ae74e9f8",
+          "size_bytes": 1129
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "19c4c56ce5cacb448ddfbcfadcc59c489551f4e63b0b2d9ec452daf0f4f5cd26",
+          "size_bytes": 324
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 9,
+        "observation_seconds": 9.559
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "speaker-vad-onstart",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141855-speaker-vad-onstart-dde08fa5/report.json",
+      "report_sha256": "f8159f0b3bd2ad087919e449b32d2b272e7465a15c9de0c26f0f6f71f6661e8c",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "f8159f0b3bd2ad087919e449b32d2b272e7465a15c9de0c26f0f6f71f6661e8c",
+          "size_bytes": 9799
+        },
+        {
+          "path": "result.txt",
+          "sha256": "f127c1a407a04a34a8cf99d96d258d71602c8d1587fea9a0134ed9915298aa93",
+          "size_bytes": 4690
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "8f900b8974b65a217bfee750772c8787542df10f9853713515d33acf78a72483",
+          "size_bytes": 909
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "d660170cf6053705117ad947bd5a43a732376b497ddde9c1e7b0413792e0f99a",
+          "size_bytes": 11396
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "e97be00951ce4d86a5f61bb3a00c98b313f09574e9b917d2451b5b96b35290f6",
+          "size_bytes": 209
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "7470c93f72c10fca0f6d597dd48b5030e92c39bb316f8e90f2636d1855e14714",
+          "size_bytes": 380
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "5d00a62c5522014d173879c045c7b74c43e8d5f900fa5d6852df56c8b9043a8e",
+          "size_bytes": 109
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 13,
+        "observation_seconds": 14.881
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "callback-api-reentrant",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141914-callback-api-reentrant-e0910d20/report.json",
+      "report_sha256": "dc41b76d10cbed877b6f84c4cc85d0515a416f962d4efb2a981007537bfdfa70",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "dc41b76d10cbed877b6f84c4cc85d0515a416f962d4efb2a981007537bfdfa70",
+          "size_bytes": 9007
+        },
+        {
+          "path": "result.txt",
+          "sha256": "747cf9a0ba18fe0c29699415ef3a7c84547d391294e1aaaeaec1ba64f6db0eac",
+          "size_bytes": 4339
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "964dc23d1fb281fa13010649ff8fdf41b96feeae16dcda5cf79329abeee4b3fc",
+          "size_bytes": 600
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "0c7a91e9097c2e6a9c52e58076894913299111160dbe1e259b645505f30efb6d",
+          "size_bytes": 7791
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "5ff55dbeb4ecf79fa535db28c88af34ebd72b78fa2695b45b9d0c4235a9a9c2c",
+          "size_bytes": 336
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 8,
+        "observation_seconds": 8.21
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "endpoint-reentrant",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141926-endpoint-reentrant-85c40880/report.json",
+      "report_sha256": "eb1bb740d20c46eda2c29f0a1268aae2deb682db1f2a6053e81a6dc861a7e97a",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "eb1bb740d20c46eda2c29f0a1268aae2deb682db1f2a6053e81a6dc861a7e97a",
+          "size_bytes": 8975
+        },
+        {
+          "path": "result.txt",
+          "sha256": "515aa28bc23736f232171c7216d7196f8095e5eb5227b6e4a2903620ee1ab9e5",
+          "size_bytes": 4311
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "f917a4e9f59f9046d25cef565f421f67d6bf0d155828313f8946bfb7ab653286",
+          "size_bytes": 844
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "0dcddbe8c5a72ac3e918e1955e02a52544c5c70ec01cada80ac6e06c341be2ab",
+          "size_bytes": 8231
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "0376894ed2a152b4fd811642c74d608d2cfb0571fc0738c5629ae64aab7d6d27",
+          "size_bytes": 324
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 12,
+        "observation_seconds": 13.508
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "finish-shutdown",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141944-finish-shutdown-03466351/report.json",
+      "report_sha256": "db16ed17ddd569b35600ae85b0855617b60112f79dd411c4011f7a13b8719603",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "db16ed17ddd569b35600ae85b0855617b60112f79dd411c4011f7a13b8719603",
+          "size_bytes": 8766
+        },
+        {
+          "path": "result.txt",
+          "sha256": "f4b6e8113a43b272ae64bec393016636bc37f40b7649d44415d439be449ecc2c",
+          "size_bytes": 4114
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "2ed42f7002bf9703ddfba12cb47b31aa824935a1b5d275e87fea08339fffc90a",
+          "size_bytes": 600
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "6b67a7d27095e379f06584399d51567d2477fe4f8a741b4a0052a206f6fef73f",
+          "size_bytes": 7132
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "e1843aafb6969855d3f2c5e022eef95bd2670e5f86f9f9b74fe47f2d27dd078e",
+          "size_bytes": 315
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 8,
+        "observation_seconds": 8.2
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "user-sequence",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-141957-user-sequence-a8cae0fd/report.json",
+      "report_sha256": "4a15d2871cef69ed68135f2577aca43dd11b4a03bd14f586bb983ae90df6f79b",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "4a15d2871cef69ed68135f2577aca43dd11b4a03bd14f586bb983ae90df6f79b",
+          "size_bytes": 9609
+        },
+        {
+          "path": "result.txt",
+          "sha256": "425ecda87581975fac290788e0c2e56efd7781faf24d1f5fe0ab0f0a3681f61c",
+          "size_bytes": 4955
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "50e9032b79ff67f30ffcdfbfacefe7bea25c6a8fff81c25f9e16f78deef1afec",
+          "size_bytes": 723
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "1a9c51ec3ffd53412d2f5dc93330a0f2f2f73f637ea54eaceea1d3b4c2f69aba",
+          "size_bytes": 9601
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "bb60d9abdd6f387803771d3c2e3bd46bad2b25ed63100ea64380703bf3ee78b4",
+          "size_bytes": 309
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 10,
+        "observation_seconds": 10.815
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "numeric-edge",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-142012-numeric-edge-c076aa6d/report.json",
+      "report_sha256": "c244c65ee6771443368eb119de4cc22aef74d31c2fea5c662b50c68d3e897b5b",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "c244c65ee6771443368eb119de4cc22aef74d31c2fea5c662b50c68d3e897b5b",
+          "size_bytes": 9449
+        },
+        {
+          "path": "result.txt",
+          "sha256": "e19b4d39b3040d66ec40b28eceb9b43261e197d7b7b0f4fab30da719d3f7d902",
+          "size_bytes": 4296
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "15e893a755a3d14406b39c6af7e9dae26c0eb5b9352746b123d9ef04616b96c8",
+          "size_bytes": 1847
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "c9f9aa74ef139e5b744c578d922cad7eb5ec56f24ac56b2f1e37e255aaaa4b1d",
+          "size_bytes": 11122
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "6c5462085f117a3c73c4ba707f590bb023fbe2f12cd0765782d3d4aab155f296",
+          "size_bytes": 306
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "PASS",
+        "sample_count": 28,
+        "observation_seconds": 34.091,
+        "warmup_samples_excluded": 5,
+        "head_rss_mb": 381.156,
+        "tail_rss_mb": 403.383,
+        "rss_growth_mb": 22.227,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          386.576,
+          409.941,
+          409.389
+        ],
+        "peak_rss_mb": 417.562,
+        "peak_hwm_mb": 422.844,
+        "head_vm_data_mb": 2469.172,
+        "tail_vm_data_mb": 2481.578,
+        "vm_data_growth_mb": 12.406,
+        "peak_swap_mb": 89.262,
+        "head_threads": 48,
+        "tail_threads": 45,
+        "thread_growth": -3,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "failures": []
+    },
+    {
+      "stage": "source",
+      "mode": "finish-shutdown-relicense",
+      "status": "PASS",
+      "sdk_status": "PASS",
+      "cycles": 3,
+      "report": "source/20260908-142050-finish-shutdown-relicense-7c40752f/report.json",
+      "report_sha256": "a0a97bcbec81927fa462eda6935cd4f07d913218b0957e11ef5a7e790358e13b",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "a0a97bcbec81927fa462eda6935cd4f07d913218b0957e11ef5a7e790358e13b",
+          "size_bytes": 9055
+        },
+        {
+          "path": "result.txt",
+          "sha256": "015a4214403f6321f56f05c3d0d16d2db3d57dc92b9878d04f738c97b00e28be",
+          "size_bytes": 4377
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "fb0c7bcde7cd901eee4fddef2fff021bc3be82f524e670a7d76d694c6c78868c",
+          "size_bytes": 907
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "c1460ce0c44ffe3e7d0a5d7ed89ee7a7b670d92c2a210c8cb7420a7b8a724a5a",
+          "size_bytes": 10806
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "f0df35b9dfeefb3c34b89500155c9eccc743571d2b29e231147505201c5c6740",
+          "size_bytes": 345
+        }
+      ],
+      "native_stream_observability": "UNAVAILABLE (delivered carrier assigns zero; ignore raw native_streams PASS)",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 13,
+        "observation_seconds": 14.747
+      },
+      "failures": []
+    }
+  ],
+  "limitations": [
+    "Source carrier removes internal native stream probes; raw zero counts are not measured evidence. Public callback assertions remain valid.",
+    "Short runs with memory INCONCLUSIVE do not prove memory stability. Long paced/fallback observations are reported separately.",
+    "Previous documented short speaker-turn endpoint limitation remains; this run uses the explicit two-real-turns fixture.",
+    "No new accuracy assessment, offline network capture, diarization delivery acceptance or external fault injection.",
+    "Noncanonical install-selection run used prior Diagnostics app after unsigned installation rejection and is excluded."
+  ],
+  "source_build_changes": [
+    "Local signing configuration",
+    "Local device license"
+  ],
+  "prohibited_substitution_check": "Signed source HAP uses only extracted public HAR; native bytes matched. Diagnostics HAP and all four HARs match embedded identity."
+}

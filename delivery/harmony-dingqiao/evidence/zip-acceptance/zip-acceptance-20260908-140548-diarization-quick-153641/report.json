@@ -1,0 +1,290 @@
+{
+  "status": "PASS",
+  "scope": "ZIP-derived formal HAR + delivered demo-source; quick diarization window contract only",
+  "runs": [
+    {
+      "label": "baseline-no-post120-endpoint",
+      "status": "FAIL",
+      "report": "baseline-no-post120-endpoint/report.json",
+      "report_sha256": "91ab33e3b677c31846e355c1285beef016f9ee0300aff2258be889ee30a5020b",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "91ab33e3b677c31846e355c1285beef016f9ee0300aff2258be889ee30a5020b",
+          "size_bytes": 108929
+        },
+        {
+          "path": "result.txt",
+          "sha256": "2e8e36b930445d8374d1c938f5cd4f880cfe4d432c2449f8e3f67a08f0266bf8",
+          "size_bytes": 105037
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "771715a6fc11afe1a868834205abc2f36ed7e178ca1a34c9a562578660e67d48",
+          "size_bytes": 10117
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "284f04acb4cc1a161829052c9820b435a9c74a6fa3477bd95e6c095818a1f659",
+          "size_bytes": 12412
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "c959731a52a6e77c9b5bf80c4be10cc7408fe1f958ce3e71ce9d340340c4d89a",
+          "size_bytes": 206
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "b3a144996deb38e67665e08a2d623a3a3690889fddc838da763b7e93e767d622",
+          "size_bytes": 380
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "474a7a7f8c0e63c1472297667481dc165da2cb534e3167e001e0605e45d03b77",
+          "size_bytes": 109
+        }
+      ],
+      "checks": {
+        "at_least_two_windows": false,
+        "no_degraded_batches": true,
+        "sequential_windows": true,
+        "unique_terminal_batch": true,
+        "no_early_asr_last": true,
+        "no_errors": true
+      },
+      "windows": [
+        {
+          "windowIndex": 0,
+          "windowBeginTime": 0,
+          "windowEndTime": 170880,
+          "isSessionFinal": true,
+          "degraded": false,
+          "speakerCount": 4
+        }
+      ],
+      "asr_utterance_spans": [
+        {
+          "sourceUtteranceId": "u1",
+          "beginTime": 680,
+          "endTime": 8200
+        },
+        {
+          "sourceUtteranceId": "u2",
+          "beginTime": 12480,
+          "endTime": 28200
+        },
+        {
+          "sourceUtteranceId": "u3",
+          "beginTime": 32320,
+          "endTime": 43680
+        },
+        {
+          "sourceUtteranceId": "u4",
+          "beginTime": 46240,
+          "endTime": 50040
+        },
+        {
+          "sourceUtteranceId": "u5",
+          "beginTime": 52920,
+          "endTime": 66120
+        },
+        {
+          "sourceUtteranceId": "u6",
+          "beginTime": 68960,
+          "endTime": 72160
+        },
+        {
+          "sourceUtteranceId": "u7",
+          "beginTime": 74800,
+          "endTime": 78280
+        },
+        {
+          "sourceUtteranceId": "u8",
+          "beginTime": 80920,
+          "endTime": 169640
+        }
+      ],
+      "memory": {
+        "status": "PASS",
+        "sample_count": 156,
+        "observation_seconds": 205.424,
+        "warmup_samples_excluded": 31,
+        "head_rss_mb": 535.828,
+        "tail_rss_mb": 541.168,
+        "rss_growth_mb": 5.34,
+        "rss_slope_mb_per_minute": -19.686,
+        "rss_third_medians_mb": [
+          536.854,
+          540.785,
+          540.74
+        ],
+        "peak_rss_mb": 556.672,
+        "peak_hwm_mb": 563.391,
+        "head_vm_data_mb": 3174.543,
+        "tail_vm_data_mb": 3178.543,
+        "vm_data_growth_mb": 4.0,
+        "peak_swap_mb": 82.934,
+        "head_threads": 68,
+        "tail_threads": 68,
+        "thread_growth": 0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "elapsed_ms": "200428"
+    },
+    {
+      "label": "explicit-endpoint",
+      "status": "PASS",
+      "report": "explicit-endpoint/report.json",
+      "report_sha256": "ce139f95e829d0a13a0b3589a4413483eff48d57942813ab38552425ec3a9368",
+      "artifacts": [
+        {
+          "path": "report.json",
+          "sha256": "ce139f95e829d0a13a0b3589a4413483eff48d57942813ab38552425ec3a9368",
+          "size_bytes": 110705
+        },
+        {
+          "path": "result.txt",
+          "sha256": "53b96b7d4afa0a89b29882b483a086cfefb22b4338b93d50ba858fb10ced1317",
+          "size_bytes": 106840
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "0ec4784fab5c81baae64791c25af6bafb3c2f4332a4077b0888935cc1b6032f6",
+          "size_bytes": 10302
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "581c3f0100c230147393bb662ffb1e69db8b6def48928fb2d8cd9151d7ac81a6",
+          "size_bytes": 14189
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "c414a28743073f639f42fbaadf89c152abf025d01aa66cdd202143bb63fb358f",
+          "size_bytes": 206
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "1824a42175edd32f9e8ddd8d4cacf19ddd841979fa29f4349e58efa344f86818",
+          "size_bytes": 382
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "76cea4cde74fc6d31c92ba12fe1efee1f36bdbe311ceef3d9db56b336e106306",
+          "size_bytes": 109
+        }
+      ],
+      "checks": {
+        "at_least_two_windows": true,
+        "no_degraded_batches": true,
+        "sequential_windows": true,
+        "unique_terminal_batch": true,
+        "no_early_asr_last": true,
+        "no_errors": true
+      },
+      "windows": [
+        {
+          "windowIndex": 0,
+          "windowBeginTime": 0,
+          "windowEndTime": 133120,
+          "isSessionFinal": false,
+          "degraded": false,
+          "speakerCount": 4
+        },
+        {
+          "windowIndex": 1,
+          "windowBeginTime": 133120,
+          "windowEndTime": 175880,
+          "isSessionFinal": true,
+          "degraded": false,
+          "speakerCount": 4
+        }
+      ],
+      "asr_utterance_spans": [
+        {
+          "sourceUtteranceId": "u1",
+          "beginTime": 680,
+          "endTime": 8200
+        },
+        {
+          "sourceUtteranceId": "u2",
+          "beginTime": 12480,
+          "endTime": 28200
+        },
+        {
+          "sourceUtteranceId": "u3",
+          "beginTime": 32320,
+          "endTime": 43680
+        },
+        {
+          "sourceUtteranceId": "u4",
+          "beginTime": 46240,
+          "endTime": 50040
+        },
+        {
+          "sourceUtteranceId": "u5",
+          "beginTime": 52920,
+          "endTime": 66120
+        },
+        {
+          "sourceUtteranceId": "u6",
+          "beginTime": 68960,
+          "endTime": 72160
+        },
+        {
+          "sourceUtteranceId": "u7",
+          "beginTime": 74800,
+          "endTime": 78280
+        },
+        {
+          "sourceUtteranceId": "u8",
+          "beginTime": 80920,
+          "endTime": 130600
+        },
+        {
+          "sourceUtteranceId": "u9",
+          "beginTime": 137480,
+          "endTime": 174640
+        }
+      ],
+      "memory": {
+        "status": "PASS",
+        "sample_count": 159,
+        "observation_seconds": 209.584,
+        "warmup_samples_excluded": 31,
+        "head_rss_mb": 538.691,
+        "tail_rss_mb": 547.102,
+        "rss_growth_mb": 8.41,
+        "rss_slope_mb_per_minute": -14.596,
+        "rss_third_medians_mb": [
+          539.863,
+          542.477,
+          549.746
+        ],
+        "peak_rss_mb": 569.418,
+        "peak_hwm_mb": 573.797,
+        "head_vm_data_mb": 3192.543,
+        "tail_vm_data_mb": 3207.543,
+        "vm_data_growth_mb": 15.0,
+        "peak_swap_mb": 83.074,
+        "head_threads": 68.0,
+        "tail_threads": 69.0,
+        "thread_growth": 1.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "elapsed_ms": "204195"
+    }
+  ],
+  "baseline_interpretation": "FAIL preserved: final utterance spans 80.92s to169.64s, no post120 endpoint before finish; lacks intermediate-window coverage.",
+  "limits": [
+    "Not speaker accuracy assessment or long-duration stability acceptance",
+    "Source carrier native stream probe unavailable",
+    "No new network capture"
+  ],
+  "artifact_binding": {
+    "zip_sha256": "134d079e7501700e51df0ba1a9d7cf9cddef39cc3d8c5207a14ff0b30075ad2c",
+    "hap_sha256": "044b0ce5e1b04dd5530a426fa36021b6dcde3b0a587936200b7035b0a917048e",
+    "build_origin": "previously verified ZIP demo-source plus ZIP formal HAR; local signing/license only"
+  }
+}

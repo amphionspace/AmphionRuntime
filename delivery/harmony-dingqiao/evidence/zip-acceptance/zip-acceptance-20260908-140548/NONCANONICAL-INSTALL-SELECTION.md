@@ -1,0 +1,1 @@
+An ambiguous *signed.hap glob selected unsigned.hap. Installation was rejected. The accidentally started run still used the previous Diagnostics app and was stopped. These reports are NOT source-build acceptance evidence. Corrected to exact -signed.hap suffix and require successful installation before testing.
