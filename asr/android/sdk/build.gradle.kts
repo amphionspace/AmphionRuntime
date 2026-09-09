@@ -15,7 +15,7 @@ val sdkReleaseDate: String = providers.gradleProperty("AMPHION_SDK_RELEASE_DATE"
 val zhEnOnly: Boolean =
     !file("src/main/assets/amphion-models/yue-en/v1/encoder.int8.onnx.mp3").isFile
 
-// 离线 license 公钥（base64 of X.509 SubjectPublicKeyInfo DER，单行）。
+// 离线 license 公钥信任集（base64 of X.509 SubjectPublicKeyInfo DER，多个以逗号分隔，单行）。
 // 空 = 不武装 license（开发 / 内部构建）；正式交付构建必须注入真实公钥（见 gradle.properties）。
 val licensePublicKeyB64: String =
     providers.gradleProperty("AMPHION_LICENSE_PUBLIC_KEY").orElse("").get()

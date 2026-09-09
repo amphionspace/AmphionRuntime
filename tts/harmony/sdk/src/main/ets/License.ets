@@ -19,10 +19,9 @@ class AsrErrorCode {
   static readonly SDK_NOT_INITIALIZED: number = 1002300034;
 }
 
-// Offline-license public key (X.509 SubjectPublicKeyInfo DER, base64). Empty = development/unarmed build.
-// PRODUCTION key — same keypair as the Android SDK (asr/android/gradle.properties AMPHION_LICENSE_PUBLIC_KEY),
-// so the shared amphion-license.lic (ASR/TTS, SN whitelist) verifies identically on Harmony and Android.
-const LICENSE_PUBLIC_KEY_B64: string = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc5BCEdeeELgXa3tTXeM6i49o+2NslcH9FrgpAMn3o61kFEv1Xlv7fD/kYA5NnXi2eLM8l+w4wEUvPgsbiM9tCQ==';
+// Offline-license trust set (comma-separated X.509 SubjectPublicKeyInfo DER base64 values).
+// The original delivery key remains trusted while the AWS KMS Enterprise key signs newly issued licenses.
+const LICENSE_PUBLIC_KEY_B64: string = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc5BCEdeeELgXa3tTXeM6i49o+2NslcH9FrgpAMn3o61kFEv1Xlv7fD/kYA5NnXi2eLM8l+w4wEUvPgsbiM9tCQ==,MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyUsVYVWDZxAsS7QufuJSzp8+3uMJmCQiQAaUxloGYBSY3sCtEHnDdAuwXPjai4KnJzc85JgsnOTGmDsl941/jA==';
 
 export enum AmphionLicenseState {
   NOT_INITIALIZED = 'NOT_INITIALIZED',
@@ -205,16 +204,31 @@ export class HarmonyLicenseVerifier {
     } catch (_e) {
       return false;
     }
-    try {
-      const keyGenerator = cryptoFramework.createAsyKeyGenerator('ECC256');
-      const keyPair = await keyGenerator.convertKey({ data: HarmonyLicenseVerifier.base64ToBytes(publicKeyB64) }, null);
-      const verifier = cryptoFramework.createVerify('ECC256|SHA256');
-      await verifier.init(keyPair.pubKey);
-      await verifier.update({ data: payloadBytes });
-      return await verifier.verify(null, { data: sigBytes });
-    } catch (_e) {
-      return false;
+    return await HarmonyLicenseVerifier.verifyBytes(payloadBytes, sigBytes, publicKeyB64);
+  }
+
+  /** Try every configured trust root so existing and newly issued licenses both remain valid. */
+  private static async verifyBytes(payloadBytes: Uint8Array, sigBytes: Uint8Array, publicKeyB64: string): Promise<boolean> {
+    const trustedKeys = publicKeyB64.split(',');
+    for (let i = 0; i < trustedKeys.length; i++) {
+      const trustedKey = trustedKeys[i].trim();
+      if (trustedKey.length === 0) {
+        continue;
+      }
+      try {
+        const keyGenerator = cryptoFramework.createAsyKeyGenerator('ECC256');
+        const keyPair = await keyGenerator.convertKey({ data: HarmonyLicenseVerifier.base64ToBytes(trustedKey) }, null);
+        const verifier = cryptoFramework.createVerify('ECC256|SHA256');
+        await verifier.init(keyPair.pubKey);
+        await verifier.update({ data: payloadBytes });
+        if (await verifier.verify(null, { data: sigBytes })) {
+          return true;
+        }
+      } catch (_e) {
+        // A malformed or non-matching root must not prevent trying the remaining trusted roots.
+      }
     }
+    return false;
   }
 
   private static base64ToBytes(b64: string): Uint8Array {
