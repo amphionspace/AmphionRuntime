@@ -49,7 +49,8 @@ internal object LicenseVerifier {
     /**
      * 执行校验。
      *
-     * @param publicKeyB64 构建期注入的 X.509 SubjectPublicKeyInfo（DER）的 base64；
+     * @param publicKeyB64 构建期注入的一个或多个 X.509 SubjectPublicKeyInfo（DER）的 base64；
+     *   多个信任根用逗号分隔，便于密钥轮换并兼容已签发 license；
      *   空白表示 SDK 未武装 license → 返回 [AmphionLicenseStatus.State.DEV_UNLICENSED]
      * @param licenseText `.lic` 文件全文；可空（武装态下为空即 [AsrErrorCode.LICENSE_MISSING]）
      * @param expiryGraceDays 过期宽限天数（规避客户端时钟误差）
@@ -97,17 +98,7 @@ internal object LicenseVerifier {
         }
 
         // 5. ECDSA 验签（对 payload 原始字节）。
-        val signatureValid: Boolean = try {
-            val keyBytes = Base64.decode(publicKeyB64, Base64.NO_WRAP)
-            val pub = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(keyBytes))
-            Signature.getInstance("SHA256withECDSA").run {
-                initVerify(pub)
-                update(payloadBytes)
-                verify(sigBytes)
-            }
-        } catch (t: Throwable) {
-            return failWith(claims, AsrErrorCode.LICENSE_SIGNATURE_INVALID, "verify error: ${t.message}")
-        }
+        val signatureValid = verifyWithAnyTrustedKey(payloadBytes, sigBytes, publicKeyB64)
         if (!signatureValid) {
             return failWith(claims, AsrErrorCode.LICENSE_SIGNATURE_INVALID, "signature mismatch")
         }
@@ -217,6 +208,28 @@ internal object LicenseVerifier {
             null,
         )
     }
+
+    /** Accepts a comma-separated trust set so old and rotated signing keys can coexist safely. */
+    internal fun verifyWithAnyTrustedKey(
+        payloadBytes: ByteArray,
+        signatureBytes: ByteArray,
+        publicKeysB64: String,
+        decodeKey: (String) -> ByteArray = { Base64.decode(it, Base64.NO_WRAP) },
+    ): Boolean = publicKeysB64.split(',')
+        .asSequence()
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .any { publicKeyB64 ->
+            runCatching {
+                val keyBytes = decodeKey(publicKeyB64)
+                val pub = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(keyBytes))
+                Signature.getInstance("SHA256withECDSA").run {
+                    initVerify(pub)
+                    update(payloadBytes)
+                    verify(signatureBytes)
+                }
+            }.getOrDefault(false)
+        }
 
     // -------- 内部 --------
 

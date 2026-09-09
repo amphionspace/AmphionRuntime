@@ -79,6 +79,30 @@ class LicenseVerifierTest {
     }
 
     @Test
+    fun rotatedSecondTrustRootAcceptsLicense() {
+        val oldKey = newKeyPair()
+        val payloadBytes = claims(applicationId = appId).toByteArray(Charsets.UTF_8)
+        val license = envelope(payloadBytes, sign(keyPair, payloadBytes))
+        val trustSet = listOf(oldKey.public, keyPair.public)
+            .joinToString(",") { Base64.getEncoder().encodeToString(it.encoded) }
+
+        val result = LicenseVerifier.verifyResolved(
+            licenseText = license,
+            publicKeyB64 = trustSet,
+            packageName = appId,
+            hostCertSha256 = emptySet(),
+            deviceSerial = null,
+            expiryGraceDays = 0,
+            sdkMajor = 1,
+            sdkReleaseDate = "2026-06-01",
+            requiredFeature = "TTS",
+            nowMillis = utc("2026-06-01"),
+        )
+
+        assertTrue(result.errorMessage, result.ok)
+    }
+
+    @Test
     fun malformedEnvelopeFails() {
         val r = verify(licenseText = "{ not a valid envelope }")
         assertEquals(TtsErrorCode.LICENSE_MALFORMED, r.errorCode)
