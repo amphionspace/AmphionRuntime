@@ -4,10 +4,9 @@ import { util } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { evaluateLicenseIdentity, LicenseIdentityFailure } from './RuntimeIdentity';
 
-// Offline-license public key (X.509 SubjectPublicKeyInfo DER, base64). Empty = development/unarmed build.
-// PRODUCTION key — same keypair as the Android SDK (asr/android/gradle.properties AMPHION_LICENSE_PUBLIC_KEY),
-// so the shared amphion-license.lic (ASR/TTS, SN whitelist) verifies identically on Harmony and Android.
-const LICENSE_PUBLIC_KEY_B64: string = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc5BCEdeeELgXa3tTXeM6i49o+2NslcH9FrgpAMn3o61kFEv1Xlv7fD/kYA5NnXi2eLM8l+w4wEUvPgsbiM9tCQ==';
+// Offline-license trust set (comma-separated X.509 SubjectPublicKeyInfo DER base64 values).
+// The original delivery key remains trusted while the AWS KMS Enterprise key signs newly issued licenses.
+const LICENSE_PUBLIC_KEY_B64: string = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc5BCEdeeELgXa3tTXeM6i49o+2NslcH9FrgpAMn3o61kFEv1Xlv7fD/kYA5NnXi2eLM8l+w4wEUvPgsbiM9tCQ==,MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyUsVYVWDZxAsS7QufuJSzp8+3uMJmCQiQAaUxloGYBSY3sCtEHnDdAuwXPjai4KnJzc85JgsnOTGmDsl941/jA==';
 
 export enum AmphionLicenseState {
   NOT_INITIALIZED = 'NOT_INITIALIZED',
@@ -298,18 +297,28 @@ export class HarmonyLicenseVerifier {
     return status;
   }
 
-  /** ECDSA P-256(ECC256|SHA256)验签,输入为已解码的 payload/sig 字节(避免重复 base64 解码)。 */
+  /** ECDSA P-256(ECC256|SHA256)验签；依次尝试信任集中的公钥，支持无中断轮换。 */
   private static async verifyBytes(payloadBytes: Uint8Array, sigBytes: Uint8Array, publicKeyB64: string): Promise<boolean> {
-    try {
-      const keyGenerator = cryptoFramework.createAsyKeyGenerator('ECC256');
-      const keyPair = await keyGenerator.convertKey({ data: HarmonyLicenseVerifier.base64ToBytes(publicKeyB64) }, null);
-      const verifier = cryptoFramework.createVerify('ECC256|SHA256');
-      await verifier.init(keyPair.pubKey);
-      await verifier.update({ data: payloadBytes });
-      return await verifier.verify(null, { data: sigBytes });
-    } catch (_e) {
-      return false;
+    const trustedKeys = publicKeyB64.split(',');
+    for (let i = 0; i < trustedKeys.length; i++) {
+      const trustedKey = trustedKeys[i].trim();
+      if (trustedKey.length === 0) {
+        continue;
+      }
+      try {
+        const keyGenerator = cryptoFramework.createAsyKeyGenerator('ECC256');
+        const keyPair = await keyGenerator.convertKey({ data: HarmonyLicenseVerifier.base64ToBytes(trustedKey) }, null);
+        const verifier = cryptoFramework.createVerify('ECC256|SHA256');
+        await verifier.init(keyPair.pubKey);
+        await verifier.update({ data: payloadBytes });
+        if (await verifier.verify(null, { data: sigBytes })) {
+          return true;
+        }
+      } catch (_e) {
+        // A malformed or non-matching root must not prevent trying the remaining trusted roots.
+      }
     }
+    return false;
   }
 
   /** native UTF-8 解码。替代按字节手搓的 decodeBase64Utf8/decodeUtf8(4MB 逐字符 String.fromCharCode 拼接,真机极慢)。 */
@@ -349,16 +358,7 @@ export class HarmonyLicenseVerifier {
     } catch (_e) {
       return false;
     }
-    try {
-      const keyGenerator = cryptoFramework.createAsyKeyGenerator('ECC256');
-      const keyPair = await keyGenerator.convertKey({ data: HarmonyLicenseVerifier.base64ToBytes(publicKeyB64) }, null);
-      const verifier = cryptoFramework.createVerify('ECC256|SHA256');
-      await verifier.init(keyPair.pubKey);
-      await verifier.update({ data: payloadBytes });
-      return await verifier.verify(null, { data: sigBytes });
-    } catch (_e) {
-      return false;
-    }
+    return await HarmonyLicenseVerifier.verifyBytes(payloadBytes, sigBytes, publicKeyB64);
   }
 
   private static base64ToBytes(b64: string): Uint8Array {

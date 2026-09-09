@@ -98,17 +98,7 @@ internal object LicenseVerifier {
             return fail(packageName, TtsErrorCode.LICENSE_MALFORMED, "bad payload: ${t.message}")
         }
 
-        val signatureValid: Boolean = try {
-            val keyBytes = Base64Codec.decode(publicKeyB64)
-            val pub = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(keyBytes))
-            Signature.getInstance("SHA256withECDSA").run {
-                initVerify(pub)
-                update(payloadBytes)
-                verify(sigBytes)
-            }
-        } catch (t: Throwable) {
-            return failWith(claims, TtsErrorCode.LICENSE_SIGNATURE_INVALID, "verify error: ${t.message}")
-        }
+        val signatureValid = verifyWithAnyTrustedKey(payloadBytes, sigBytes, publicKeyB64)
         if (!signatureValid) {
             return failWith(claims, TtsErrorCode.LICENSE_SIGNATURE_INVALID, "signature mismatch")
         }
@@ -219,6 +209,27 @@ internal object LicenseVerifier {
             null,
         )
     }
+
+    /** Accepts a comma-separated trust set so old and rotated signing keys can coexist safely. */
+    internal fun verifyWithAnyTrustedKey(
+        payloadBytes: ByteArray,
+        signatureBytes: ByteArray,
+        publicKeysB64: String,
+    ): Boolean = publicKeysB64.split(',')
+        .asSequence()
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .any { publicKeyB64 ->
+            runCatching {
+                val keyBytes = Base64Codec.decode(publicKeyB64)
+                val pub = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(keyBytes))
+                Signature.getInstance("SHA256withECDSA").run {
+                    initVerify(pub)
+                    update(payloadBytes)
+                    verify(signatureBytes)
+                }
+            }.getOrDefault(false)
+        }
 
     internal fun devResult(packageName: String): Result = Result(dev(packageName), TtsErrorCode.OK, null)
 
