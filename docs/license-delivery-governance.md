@@ -124,7 +124,7 @@ flowchart LR
 5. 唯一 SN 数量大于零；
 6. 正在执行的脚本就是当前仓库已跟踪的工具副本，Git 工作区干净，并能记录当前工具 commit；
 7. `.secure/amphion-license-private.pem` 是 ECDSA P-256 私钥；
-8. 该私钥推导出的公钥与 Android ASR/TTS、HarmonyOS ASR/TTS 四端内置公钥完全一致。
+8. Android ASR/TTS、HarmonyOS ASR/TTS 四端内置公钥信任集必须一致（忽略顺序），且该私钥推导出的公钥必须属于此信任集。兼容单公钥及逗号分隔的多公钥配置。
 
 `--allow-dirty` 仅用于排查：产物和回执固定标记 `production=false`，不能进入台账。
 
@@ -156,7 +156,7 @@ ZIP 固定命名为 `<deliveryId>.zip`，包内只有一个同名根目录和六
 - ZIP CRC、路径安全、非符号链接和固定文件集；
 - `SHA256SUMS.txt` 与每个成员精确一致；
 - 包内没有明文 SN、PEM 或本机绝对路径；
-- ECDSA P-256 签名能由四端一致公钥验证；
+- ECDSA P-256 签名能由四端一致信任集中的至少一个公钥验证；信任集中的公钥仍须全部为有效 ECDSA P-256 公钥；
 - claims 与申请中的 ASR/TTS、SDK 主版本、日期和绑定策略一致；
 - `authorizedDeviceHashes` 唯一，且与重新读取的 SN 集合精确一致；
 - License、manifest、计划和最终 ZIP 身份一致。
