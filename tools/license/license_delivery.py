@@ -564,7 +564,9 @@ def _embedded_public_keys(repo: Path) -> Dict[str, frozenset[str]]:
             )
         if match is None:
             raise LicenseDeliveryError(f"embedded public key not found: {label}")
-        values[label] = frozenset(key.strip() for key in match.group(1).split(",") if key.strip())
+        values[label] = frozenset(
+            key.strip() for key in match.group(1).split(",") if key.strip()
+        )
     if len(set(values.values())) != 1:
         raise LicenseDeliveryError("four SDK embedded public keys do not match")
     return values
@@ -1020,8 +1022,6 @@ def _verify_delivery(
     if envelope.get("alg") != "SHA256withECDSA":
         raise LicenseDeliveryError("License algorithm is invalid")
     embedded_keys = _embedded_public_keys(repo)
-    if len(set(embedded_keys.values())) != 1:
-        raise LicenseDeliveryError("four SDK embedded public keys do not match")
     verified = False
     for trusted_key in sorted(next(iter(embedded_keys.values()))):
         try:

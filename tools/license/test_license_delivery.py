@@ -98,11 +98,14 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             serialization.PublicFormat.SubjectPublicKeyInfo,
         )
         public_b64 = base64.b64encode(public_bytes).decode("ascii")
+        harmony_public_b64 = public_b64
         if trust_set:
             other_der = ec.generate_private_key(ec.SECP256R1()).public_key().public_bytes(
                 serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
             )
-            public_b64 = base64.b64encode(other_der).decode("ascii") + "," + public_b64
+            other_b64 = base64.b64encode(other_der).decode("ascii")
+            harmony_public_b64 = public_b64 + "," + other_b64
+            public_b64 = other_b64 + "," + public_b64
         private_path = repo / ".secure" / "amphion-license-private.pem"
         private_path.parent.mkdir()
         private_path.write_bytes(private_bytes)
@@ -110,10 +113,10 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             "asr/android/gradle.properties": f"AMPHION_LICENSE_PUBLIC_KEY={public_b64}\n",
             "tts/android/gradle.properties": f"AMPHION_LICENSE_PUBLIC_KEY={public_b64}\n",
             "asr/harmony/sdk/src/main/ets/com/amphion/asr/License.ets": (
-                f"const LICENSE_PUBLIC_KEY_B64: string = '{public_b64}';\n"
+                f"const LICENSE_PUBLIC_KEY_B64: string = '{harmony_public_b64}';\n"
             ),
             "tts/harmony/sdk/src/main/ets/License.ets": (
-                f"const LICENSE_PUBLIC_KEY_B64: string = '{public_b64}';\n"
+                f"const LICENSE_PUBLIC_KEY_B64: string = '{harmony_public_b64}';\n"
             ),
         }
         for relative, content in files.items():
@@ -931,9 +934,15 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         self.assertIn("four SDK", result.stderr)
 
     def test_verify_reopens_final_zip_with_rotated_trust_set(self) -> None:
-        self.test_verify_reopens_final_zip_and_writes_external_pass_receipt(trust_set=True)
+        self.verify_final_zip(trust_set=True)
 
-    def test_verify_reopens_final_zip_and_writes_external_pass_receipt(self, trust_set=False) -> None:
+    def test_verify_rejects_signature_outside_trust_set(self) -> None:
+        self.verify_final_zip(trust_set=True, untrusted_verify=True)
+
+    def test_verify_reopens_final_zip_and_writes_external_pass_receipt(self) -> None:
+        self.verify_final_zip()
+
+    def verify_final_zip(self, *, trust_set=False, untrusted_verify=False) -> None:
         source = self.input_dir / "devices.csv"
         source.write_text(
             "SN\n7GK0226310007121\n62Q0225C06020145\n",
@@ -1019,6 +1028,26 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         self.assertNotEqual(0, renamed.returncode)
         self.assertIn("file name", renamed.stderr)
 
+        if untrusted_verify:
+            private_key = serialization.load_pem_private_key(
+                (repo / ".secure/amphion-license-private.pem").read_bytes(), password=None
+            )
+            signer_b64 = base64.b64encode(private_key.public_key().public_bytes(
+                serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+            )).decode("ascii")
+            replacement = base64.b64encode(
+                ec.generate_private_key(ec.SECP256R1()).public_key().public_bytes(
+                    serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+                )
+            ).decode("ascii")
+            for relative in (
+                "asr/android/gradle.properties", "tts/android/gradle.properties",
+                "asr/harmony/sdk/src/main/ets/com/amphion/asr/License.ets",
+                "tts/harmony/sdk/src/main/ets/License.ets",
+            ):
+                path = repo / relative
+                path.write_text(path.read_text().replace(signer_b64, replacement))
+
         result = self.run_cli(
             "verify",
             "--repo",
@@ -1037,6 +1066,10 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             str(prefix),
         )
 
+        if untrusted_verify:
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("License signature verification failed", result.stderr)
+            return
         self.assertEqual(0, result.returncode, result.stderr)
         receipt_path = Path(str(prefix) + ".verification.json")
         report_path = Path(str(prefix) + ".verification.md")
