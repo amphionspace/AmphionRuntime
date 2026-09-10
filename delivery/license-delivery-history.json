@@ -133,6 +133,50 @@
       "operator": "Boxp",
       "deliveredAt": "2026-08-24",
       "status": "delivered"
+    },
+    {
+      "requestId": "REQ-DQ-SHENGTING-20260910-ASR-ONLY-001",
+      "licenseId": "LIC-DQ-SHENGTING-20260910-ASR-ONLY-001",
+      "deliveryId": "DEL-DQ-SHENGTING-20260910-ASR-ONLY-001",
+      "customerId": "tdtech",
+      "projectId": "dingqiao-shengting",
+      "previousLicenseId": null,
+      "snSetId": "SNSET-E56EB675A84C416A88D1DAF59601345B",
+      "uniqueSnCount": 50,
+      "policy": {
+        "features": [
+          "ASR"
+        ],
+        "sdkMajor": 1,
+        "installTier": "",
+        "applicationRecord": {
+          "mode": "none"
+        },
+        "certificateBinding": {
+          "mode": "none"
+        },
+        "runtimeExpiry": {
+          "mode": "perpetual"
+        },
+        "maintenance": {
+          "mode": "unlimited"
+        },
+        "deviceBinding": "required"
+      },
+      "artifact": "DEL-DQ-SHENGTING-20260910-ASR-ONLY-001.zip",
+      "artifactSha256": "b819f8cdb1807d6c6a4e9b3c139f5bbc09f78353f51a7836797b702483707212",
+      "artifactSizeBytes": 5904,
+      "licenseSha256": "d75ed00250df1f9ddccc2f2548dba72973e7de7c9ea32e10c604e8cad3509685",
+      "planSha256": "33b8d0eaaac49262e0be8959097dc5e76acf1a3f9418ddd0b47b7e43ff67c54f",
+      "planReceiptSha256": "3f7443159b37e3d4990fbdfe9b5dc273d88c4dbbe58e5b4b9798edf4d61b6263",
+      "issuanceReceiptSha256": "a338bd5d4e56ab8457670ffdf0c8209e4f2c7ed97892cd888103c76c5063efe3",
+      "verificationReceiptSha256": "2d197222d2d27851489a973de66e562d16eccf8c9673959910353bf6765a60cf",
+      "toolCommit": "3dd54e31f85dee2382a877c3c96d4534357bc4f1",
+      "issueOperator": "Boxp",
+      "verifyOperator": "Boxp",
+      "operator": "Boxp",
+      "deliveredAt": "2026-09-10",
+      "status": "delivered"
     }
   ]
 }
