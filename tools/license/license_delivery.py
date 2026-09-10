@@ -541,14 +541,14 @@ def _executing_tool_matches_repo(repo: Path) -> bool:
     return tracked == "tools/license/license_delivery.py"
 
 
-def _embedded_public_keys(repo: Path) -> Dict[str, str]:
+def _embedded_public_keys(repo: Path) -> Dict[str, frozenset[str]]:
     sources = {
         "androidAsr": repo / "asr/android/gradle.properties",
         "androidTts": repo / "tts/android/gradle.properties",
         "harmonyAsr": repo / "asr/harmony/sdk/src/main/ets/com/amphion/asr/License.ets",
         "harmonyTts": repo / "tts/harmony/sdk/src/main/ets/License.ets",
     }
-    values: Dict[str, str] = {}
+    values: Dict[str, frozenset[str]] = {}
     for label, path in sources.items():
         try:
             text = path.read_text(encoding="utf-8")
@@ -564,7 +564,11 @@ def _embedded_public_keys(repo: Path) -> Dict[str, str]:
             )
         if match is None:
             raise LicenseDeliveryError(f"embedded public key not found: {label}")
-        values[label] = match.group(1)
+        values[label] = frozenset(
+            key.strip() for key in match.group(1).split(",") if key.strip()
+        )
+    if len(set(values.values())) != 1:
+        raise LicenseDeliveryError("four SDK embedded public keys do not match")
     return values
 
 
@@ -798,7 +802,7 @@ def _issue_delivery(
     private_key_path = repo / ".secure/amphion-license-private.pem"
     public_b64 = _derive_public_key_b64(private_key_path)
     embedded_keys = _embedded_public_keys(repo)
-    if any(value != public_b64 for value in embedded_keys.values()):
+    if any(public_b64 not in value for value in embedded_keys.values()):
         raise LicenseDeliveryError("fixed private key does not match all four SDK public keys")
     request = _load_json(request_path)
     policy = _policy_claims(request["policy"])
@@ -1018,19 +1022,24 @@ def _verify_delivery(
     if envelope.get("alg") != "SHA256withECDSA":
         raise LicenseDeliveryError("License algorithm is invalid")
     embedded_keys = _embedded_public_keys(repo)
-    if len(set(embedded_keys.values())) != 1:
-        raise LicenseDeliveryError("four SDK embedded public keys do not match")
-    try:
-        public_key = serialization.load_der_public_key(
-            base64.b64decode(next(iter(embedded_keys.values())), validate=True)
-        )
-        if not isinstance(public_key, ec.EllipticCurvePublicKey) or not isinstance(
-            public_key.curve, ec.SECP256R1
-        ):
-            raise LicenseDeliveryError("SDK License public key must use ECDSA P-256")
-        public_key.verify(signature, payload_bytes, ec.ECDSA(hashes.SHA256()))
-    except (ValueError, TypeError, InvalidSignature) as error:
-        raise LicenseDeliveryError("License signature verification failed") from error
+    verified = False
+    for trusted_key in sorted(next(iter(embedded_keys.values()))):
+        try:
+            public_key = serialization.load_der_public_key(
+                base64.b64decode(trusted_key, validate=True)
+            )
+            if not isinstance(public_key, ec.EllipticCurvePublicKey) or not isinstance(
+                public_key.curve, ec.SECP256R1
+            ):
+                raise LicenseDeliveryError("SDK License public key must use ECDSA P-256")
+            public_key.verify(signature, payload_bytes, ec.ECDSA(hashes.SHA256()))
+            verified = True
+        except InvalidSignature:
+            continue
+        except (ValueError, TypeError) as error:
+            raise LicenseDeliveryError("License signature verification failed") from error
+    if not verified:
+        raise LicenseDeliveryError("License signature verification failed")
     claims = _parse_json_bytes(payload_bytes, "License claims")
     policy = _policy_claims(request["policy"])
     expected_claims = {
