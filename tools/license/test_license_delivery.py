@@ -83,7 +83,7 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         )
 
     def create_signing_repo(
-        self, curve: ec.EllipticCurve = ec.SECP256R1()
+        self, curve: ec.EllipticCurve = ec.SECP256R1(), *, trust_set: bool = False
     ) -> Path:
         repo = self.root / "repo"
         repo.mkdir()
@@ -98,6 +98,11 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             serialization.PublicFormat.SubjectPublicKeyInfo,
         )
         public_b64 = base64.b64encode(public_bytes).decode("ascii")
+        if trust_set:
+            other_der = ec.generate_private_key(ec.SECP256R1()).public_key().public_bytes(
+                serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+            )
+            public_b64 = base64.b64encode(other_der).decode("ascii") + "," + public_b64
         private_path = repo / ".secure" / "amphion-license-private.pem"
         private_path.parent.mkdir()
         private_path.write_bytes(private_bytes)
@@ -925,7 +930,10 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("four SDK", result.stderr)
 
-    def test_verify_reopens_final_zip_and_writes_external_pass_receipt(self) -> None:
+    def test_verify_reopens_final_zip_with_rotated_trust_set(self) -> None:
+        self.test_verify_reopens_final_zip_and_writes_external_pass_receipt(trust_set=True)
+
+    def test_verify_reopens_final_zip_and_writes_external_pass_receipt(self, trust_set=False) -> None:
         source = self.input_dir / "devices.csv"
         source.write_text(
             "SN\n7GK0226310007121\n62Q0225C06020145\n",
@@ -948,7 +956,7 @@ class LicenseDeliveryCliTest(unittest.TestCase):
                 str(plan_path),
             ).returncode,
         )
-        repo = self.create_signing_repo()
+        repo = self.create_signing_repo(trust_set=trust_set)
         output_dir = self.root / "output"
         issue_result = self.run_cli(
             "issue",
