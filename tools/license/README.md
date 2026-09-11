@@ -143,8 +143,11 @@ payload claims 字段：
 
 | 字段 | 含义 | 必填 |
 | --- | --- | --- |
-| applicationId | Android 宿主包名记录，不参与 Android 绑定校验 | 否 |
-| bundleName | HarmonyOS bundleName 记录，不参与 Android 绑定校验 | 否 |
+| applicationBindingMode | `none`/`record-only` 不限制，`allowlist` 多包白名单，`bound` 兼容单包绑定 | 是 |
+| applicationId | Android 宿主包名记录，也是兼容单包字段 | 否 |
+| applicationIds | Android applicationId 白名单，`allowlist` 时最多 50 个 | 否 |
+| bundleName | HarmonyOS bundleName 记录，也是兼容单包字段 | 否 |
+| bundleNames | HarmonyOS bundleName 白名单，`allowlist` 时最多 50 个 | 否 |
 | certSha256 | 兼容字段，绑定签名证书 SHA-256 | 否 |
 | signingCertDigest | 绑定签名证书 SHA-256 | 否 |
 | customer | 客户名 | 否 |
