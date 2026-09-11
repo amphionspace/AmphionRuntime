@@ -70,6 +70,13 @@ def _parse_features(raw: str) -> list[str]:
     return features
 
 
+def _parse_values(raw: str) -> list[str]:
+    values = [value.strip() for value in raw.replace("\n", ",").split(",") if value.strip()]
+    if len(values) > 50 or len(values) != len(set(values)) or any(len(value) > 160 for value in values):
+        raise ValueError("application package list must contain 1-50 unique values up to 160 characters")
+    return sorted(values)
+
+
 def create_license_envelope(
     *,
     private_key_path: Path,
@@ -87,12 +94,36 @@ def create_license_envelope(
     install_tier: str,
     features: Sequence[str],
     sdk_major: int,
+    application_binding_mode: str = "",
+    application_ids: Sequence[str] = (),
+    bundle_names: Sequence[str] = (),
 ) -> Tuple[Dict[str, str], Dict[str, Any], bytes]:
     """Create a signed license envelope without writing plaintext device IDs."""
     normalized_features = _parse_features(",".join(features))
+    normalized_application_ids = sorted({value.strip() for value in application_ids if value.strip()})
+    normalized_bundle_names = sorted({value.strip() for value in bundle_names if value.strip()})
+    mode = application_binding_mode.strip().lower()
+    if not mode:
+        mode = "record-only" if application_id or bundle_name else "none"
+    if mode not in {"none", "record-only", "bound", "allowlist"}:
+        raise ValueError("application binding mode is invalid")
+    if mode == "allowlist":
+        if bool(normalized_application_ids) == bool(normalized_bundle_names):
+            raise ValueError("allowlist requires exactly one Android or HarmonyOS package list")
+        if len(normalized_application_ids) > 50 or len(normalized_bundle_names) > 50:
+            raise ValueError("application package list exceeds 50 values")
+    elif normalized_application_ids or normalized_bundle_names:
+        raise ValueError("application package lists require allowlist mode")
+    if mode == "none" and (application_id or bundle_name):
+        raise ValueError("unrestricted package mode cannot include a package record")
+    if mode == "bound" and bool(application_id) == bool(bundle_name):
+        raise ValueError("bound mode requires exactly one applicationId or bundleName")
     payload: Dict[str, Any] = {
         "applicationId": application_id,
+        "applicationIds": normalized_application_ids,
+        "applicationBindingMode": mode,
         "bundleName": bundle_name,
+        "bundleNames": normalized_bundle_names,
         "certSha256": cert_sha256,
         "signingCertDigest": cert_sha256,
         "customer": customer,
@@ -133,6 +164,9 @@ def main() -> None:
     ap.add_argument("--password", default=None, help="私钥口令（若 gen 时加密）")
     ap.add_argument("--application-id", default="", help="宿主 applicationId；仅写入记录，不参与 Android 绑定校验")
     ap.add_argument("--bundle-name", default="", help="HarmonyOS bundleName；仅写入记录，不参与 Android 绑定校验")
+    ap.add_argument("--application-binding-mode", choices=("none", "record-only", "bound", "allowlist"), default="", help="应用包策略；默认根据记录字段自动选择")
+    ap.add_argument("--application-ids", default="", help="allowlist 模式的 Android applicationId，逗号分隔，最多 50 个")
+    ap.add_argument("--bundle-names", default="", help="allowlist 模式的 HarmonyOS bundleName，逗号分隔，最多 50 个")
     ap.add_argument("--customer", default="", help="客户名")
     ap.add_argument("--license-id", default="", help="授权编号")
     ap.add_argument(
@@ -171,6 +205,8 @@ def main() -> None:
         if line.strip() and not line.lstrip().startswith("#")
     ] if args.device_id_file else []
     try:
+        application_ids = _parse_values(args.application_ids)
+        bundle_names = _parse_values(args.bundle_names)
         envelope, payload, _ = create_license_envelope(
             private_key_path=Path(args.private_key),
             password=args.password,
@@ -187,9 +223,12 @@ def main() -> None:
             install_tier=args.install_tier,
             features=features,
             sdk_major=args.sdk_major,
+            application_binding_mode=args.application_binding_mode,
+            application_ids=application_ids,
+            bundle_names=bundle_names,
         )
     except ValueError as error:
-        sys.exit(f"私钥不是 EC 密钥：{error}")
+        sys.exit(f"签发参数或私钥无效：{error}")
 
     out = Path(args.out or (f"{args.application_id}.lic" if args.application_id else "amphion-license.lic"))
     out.write_text(json.dumps(envelope, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -197,6 +236,8 @@ def main() -> None:
     print(f"[ok] 已签发：{out}")
     print(f"     applicationId = {args.application_id or '(未设置)'}")
     print(f"     bundleName    = {payload['bundleName'] or '(未设置)'}")
+    print(f"     packagePolicy = {payload['applicationBindingMode']}")
+    print(f"     packageCount  = {len(payload['applicationIds']) + len(payload['bundleNames'])}")
     print(f"     customer      = {args.customer}")
     print(f"     expiresAt     = {expires or '(永久)'}")
     print(f"     maintenance   = {maintenance_until or '(不限制)'}")

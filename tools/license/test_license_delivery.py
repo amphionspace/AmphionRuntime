@@ -231,6 +231,36 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         plan = json.loads(output.read_text(encoding="utf-8"))
         self.assertEqual(1, plan["snSummary"]["uniqueCount"])
 
+    def test_plan_accepts_multi_package_allowlist_and_rejects_cross_platform_mix(self) -> None:
+        source = self.input_dir / "devices.csv"
+        source.write_text("SN\nDEVICE-001\n", encoding="utf-8")
+        request = self.write_request(
+            source.name,
+            hashlib.sha256(source.read_bytes()).hexdigest(),
+        )
+        payload = json.loads(request.read_text(encoding="utf-8"))
+        payload["policy"]["applicationRecord"] = {
+            "mode": "allowlist",
+            "applicationIds": ["ai.fourhz.primary", "ai.fourhz.secondary"],
+            "bundleNames": [],
+        }
+        request.write_text(json.dumps(payload), encoding="utf-8")
+
+        accepted = self.run_cli(
+            "plan", "--request", str(request), "--input-dir", str(self.input_dir),
+            "--out", str(self.root / "allowlist-plan.json"),
+        )
+        self.assertEqual(0, accepted.returncode, accepted.stderr)
+
+        payload["policy"]["applicationRecord"]["bundleNames"] = ["ai.fourhz.harmony"]
+        request.write_text(json.dumps(payload), encoding="utf-8")
+        rejected = self.run_cli(
+            "plan", "--request", str(request), "--input-dir", str(self.input_dir),
+            "--out", str(self.root / "mixed-plan.json"),
+        )
+        self.assertNotEqual(0, rejected.returncode)
+        self.assertIn("allowlist", rejected.stderr)
+
     def test_plan_rejects_macro_content_renamed_to_xlsx(self) -> None:
         source = self.input_dir / "devices.xlsx"
         workbook = Workbook()
@@ -574,6 +604,13 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             source.name,
             hashlib.sha256(source.read_bytes()).hexdigest(),
         )
+        request_payload = json.loads(request.read_text(encoding="utf-8"))
+        request_payload["policy"]["applicationRecord"] = {
+            "mode": "allowlist",
+            "applicationIds": ["ai.customer.primary", "ai.customer.secondary"],
+            "bundleNames": [],
+        }
+        request.write_text(json.dumps(request_payload), encoding="utf-8")
         plan_path = self.root / "plan.json"
         plan_result = self.run_cli(
             "plan",
@@ -624,6 +661,11 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             envelope = json.loads(archive.read(root + "amphion-license.lic"))
             claims = json.loads(base64.b64decode(envelope["payload_b64"]))
             self.assertEqual(2, len(claims["authorizedDeviceHashes"]))
+            self.assertEqual("allowlist", claims["applicationBindingMode"])
+            self.assertEqual(
+                ["ai.customer.primary", "ai.customer.secondary"],
+                claims["applicationIds"],
+            )
             combined = b"".join(archive.read(name) for name in names)
             self.assertNotIn(b"7GK0226310007121", combined)
             self.assertNotIn(b"62Q0225C06020145", combined)
