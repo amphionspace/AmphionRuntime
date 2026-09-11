@@ -103,13 +103,9 @@ internal object LicenseVerifier {
             return failWith(claims, TtsErrorCode.LICENSE_SIGNATURE_INVALID, "signature mismatch")
         }
 
-        // 包名绑定：仅当 boundApplicationId 非空时才校验（与下面的 cert / expiry 校验一致，
-        // 也与 ASR 验签器一致——ASR 根本不做包名校验）。鼎桥离线 license 按 packageNameBound=false
-        // 签发（applicationId/bundleName 均为空），改用 cert + SN 绑定；若在此无条件比对，武装态下
-        // 会把这类合法 license 误判为 LICENSE_APP_MISMATCH。
-        val boundApp = claims.boundApplicationId
-        if (boundApp.isNotBlank() && boundApp != packageName) {
-            return failWith(claims, TtsErrorCode.LICENSE_APP_MISMATCH, "license app=$boundApp host=$packageName")
+        // 新 license 显式选择 allowlist/none；旧 TTS license 缺少策略字段时保持历史单包语义。
+        if (!applicationMatches(claims.applicationBindingMode, claims.boundApplicationId, claims.applicationIds, packageName)) {
+            return failWith(claims, TtsErrorCode.LICENSE_APP_MISMATCH, "license application policy rejected host=$packageName")
         }
 
         if (claims.boundSigningCertDigest.isNotBlank()) {
@@ -240,6 +236,8 @@ internal object LicenseVerifier {
             customer = o.optString("customer", ""),
             applicationId = o.optString("applicationId", ""),
             bundleName = o.optString("bundleName", ""),
+            applicationBindingMode = o.optString("applicationBindingMode", ""),
+            applicationIds = parseStringArray(o, "applicationIds").toSet(),
             signingCertDigest = o.optString("signingCertDigest", ""),
             certSha256 = o.optString("certSha256", ""),
             deviceIdHashAlg = o.optString("deviceIdHashAlg", "SHA-256"),
@@ -264,6 +262,15 @@ internal object LicenseVerifier {
             arr.optString(i, "").trim().takeIf { it.isNotEmpty() }
         }
     }
+
+    internal fun applicationMatches(mode: String, licensedApp: String, applicationIds: Set<String>, runtimeApp: String): Boolean =
+        when (mode.trim().lowercase(Locale.ROOT)) {
+            "" -> licensedApp.isBlank() || licensedApp == runtimeApp
+            "none", "record-only" -> true
+            "bound" -> licensedApp.isNotBlank() && licensedApp == runtimeApp
+            "allowlist" -> applicationIds.isNotEmpty() && applicationIds.contains(runtimeApp)
+            else -> false
+        }
 
     private fun hostCertSha256Set(ctx: Context): Set<String> {
         val pm = ctx.packageManager

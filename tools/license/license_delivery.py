@@ -22,6 +22,10 @@ from pathlib import Path, PurePosixPath
 import stat
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+# Formal signing verifies a clean checkout after imports. Do not let Python's local bytecode cache
+# make an otherwise pristine detached worktree appear dirty.
+sys.dont_write_bytecode = True
+
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -616,24 +620,46 @@ def _policy_claims(policy: Dict[str, Any]) -> Dict[str, Any]:
         raise LicenseDeliveryError("policy.sdkMajor must be a positive integer")
     application = policy.get("applicationRecord")
     if not isinstance(application, dict) or application.get("mode") not in {
-        "none",
-        "record-only",
+        "none", "record-only", "bound", "allowlist",
     }:
         raise LicenseDeliveryError("policy.applicationRecord mode is invalid")
-    allowed_application_fields = (
-        {"mode"}
-        if application["mode"] == "none"
-        else {"mode", "applicationId", "bundleName"}
-    )
+    allowed_application_fields = {
+        "none": {"mode"},
+        "record-only": {"mode", "applicationId", "bundleName"},
+        "bound": {"mode", "applicationId", "bundleName"},
+        "allowlist": {"mode", "applicationIds", "bundleNames"},
+    }[application["mode"]]
     if set(application) - allowed_application_fields:
         raise LicenseDeliveryError("policy.applicationRecord contains unknown fields")
     application_id = ""
     bundle_name = ""
-    if application["mode"] == "record-only":
+    application_ids: list[str] = []
+    bundle_names: list[str] = []
+    if application["mode"] in {"record-only", "bound"}:
         application_id = application.get("applicationId", "")
         bundle_name = application.get("bundleName", "")
         if not isinstance(application_id, str) or not isinstance(bundle_name, str):
             raise LicenseDeliveryError("application record values must be strings")
+        if application["mode"] == "bound" and bool(application_id) == bool(bundle_name):
+            raise LicenseDeliveryError("bound mode requires exactly one applicationId or bundleName")
+    elif application["mode"] == "allowlist":
+        application_ids = application.get("applicationIds", [])
+        bundle_names = application.get("bundleNames", [])
+        if (
+            not isinstance(application_ids, list)
+            or not isinstance(bundle_names, list)
+            or bool(application_ids) == bool(bundle_names)
+            or len(application_ids) > 50
+            or len(bundle_names) > 50
+            or any(not isinstance(value, str) or not value or len(value) > 160 for value in application_ids + bundle_names)
+            or len(application_ids) != len(set(application_ids))
+            or len(bundle_names) != len(set(bundle_names))
+        ):
+            raise LicenseDeliveryError("allowlist requires one unique Android or HarmonyOS package list (max 50)")
+        application_ids = sorted(application_ids)
+        bundle_names = sorted(bundle_names)
+        application_id = application_ids[0] if application_ids else ""
+        bundle_name = bundle_names[0] if bundle_names else ""
     certificate = policy.get("certificateBinding")
     if not isinstance(certificate, dict) or certificate.get("mode") not in {
         "none",
@@ -691,7 +717,10 @@ def _policy_claims(policy: Dict[str, Any]) -> Dict[str, Any]:
         "features": features,
         "sdkMajor": sdk_major,
         "applicationId": application_id,
+        "applicationIds": application_ids,
+        "applicationBindingMode": application["mode"],
         "bundleName": bundle_name,
+        "bundleNames": bundle_names,
         "certSha256": cert_sha256.replace(":", "").upper(),
         "expiresAt": expires,
         "maintenanceUntil": maintenance_until,
@@ -720,11 +749,7 @@ def _build_internal_verification(
         "authorizedHashUniqueCount": device_count,
         "features": claims["features"],
         "permanent": claims["expiresAt"] == "",
-        "packageBinding": (
-            "none"
-            if not claims["applicationId"] and not claims["bundleName"]
-            else "record-only"
-        ),
+        "packageBinding": claims["applicationBindingMode"],
         "certificateBinding": bool(claims["signingCertDigest"]),
         "payloadSha256": _sha256_bytes(payload_bytes),
     }
@@ -822,6 +847,9 @@ def _issue_delivery(
         install_tier=policy["installTier"],
         features=policy["features"],
         sdk_major=policy["sdkMajor"],
+        application_binding_mode=policy["applicationBindingMode"],
+        application_ids=policy["applicationIds"],
+        bundle_names=policy["bundleNames"],
     )
     authorized_hashes = claims.get("authorizedDeviceHashes")
     expected_hashes = _expected_authorized_hashes(device_ids)
@@ -1044,7 +1072,10 @@ def _verify_delivery(
     policy = _policy_claims(request["policy"])
     expected_claims = {
         "applicationId": policy["applicationId"],
+        "applicationIds": policy["applicationIds"],
+        "applicationBindingMode": policy["applicationBindingMode"],
         "bundleName": policy["bundleName"],
+        "bundleNames": policy["bundleNames"],
         "certSha256": policy["certSha256"],
         "signingCertDigest": policy["certSha256"],
         "customer": request["customerId"],
