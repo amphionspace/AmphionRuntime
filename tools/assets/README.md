@@ -28,6 +28,9 @@ python3 tools/assets/sync.py verify all
 中断的分片下载保存在 `~/.cache/amphion-runtime/assets`，可用
 `AMPHION_ASSET_CACHE_DIR` 改位置。
 
+中文 ITN 当前使用 `asr-itn-zh-v2`，保留识别出的“啊、呃”；两端打包默认读取
+`asr/tools/weitn-fsts-v2`。`asr-itn-zh-v1` 仅保留为旧规则记录，不用于新构建。
+
 当前 canonical 受限资产是 `team-secure-state-v5`，包含团队授权根、可跨机签名配置、DevEco 解密材料、
 完整签名材料和设备清单；该版本已通过 Harmony 真机构建、安装和 SDK smoke。新机器按需执行
 `python3 tools/assets/sync.py fetch team-secure-state-v5`。v2-v4 仅作为不可变历史快照保留，不应用于新环境。

@@ -15,6 +15,30 @@
     }
   ],
   "bundles": {
+    "asr-itn-zh-v2": {
+      "description": "WeTextProcessing 1.0.4.1 Chinese ITN; preserve recognized interjections",
+      "license": "Apache-2.0",
+      "source": "https://github.com/wenet-e2e/WeTextProcessing",
+      "redistribution": "team-internal",
+      "destination": "asr/tools/weitn-fsts-v2",
+      "archive_root": "weitn-fsts-v2",
+      "archive_type": "zip",
+      "object": "asr-itn-zh-v2/a8957b32562f794917fbbcf6e3aca21aa4f1e1206e417e69d21080a30ddaac42.zip",
+      "size": 191584,
+      "sha256": "a8957b32562f794917fbbcf6e3aca21aa4f1e1206e417e69d21080a30ddaac42",
+      "files": [
+        {
+          "path": "zh_itn_tagger.fst",
+          "size": 1189122,
+          "sha256": "4983ab817f3f3b206516d576b54d6f925c3a52c58c8348d3ae98e826b4f6d49d"
+        },
+        {
+          "path": "zh_itn_verbalizer.fst",
+          "size": 87098,
+          "sha256": "89d1b765d526fab21b1ba3402221baa28edb4b380e9b799d764042e842cecf98"
+        }
+      ]
+    },
     "asr-itn-zh-v1": {
       "description": "WeTextProcessing 1.0.4.1 Chinese inverse text normalization FSTs",
       "license": "Apache-2.0",
