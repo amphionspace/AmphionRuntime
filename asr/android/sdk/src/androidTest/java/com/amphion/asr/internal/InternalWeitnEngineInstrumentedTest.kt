@@ -2,6 +2,8 @@ package com.amphion.asr.internal
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import android.content.ContextWrapper
+import com.amphion.asr.BuildConfig
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -10,6 +12,35 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class InternalWeitnEngineInstrumentedTest {
+    @Test
+    fun upgradeReplacesLegacyItnCacheAndPreservesInterjections() {
+        val base = InstrumentationRegistry.getInstrumentation().targetContext
+        val files = File(base.cacheDir, "itn-upgrade-test").apply { mkdirs() }
+        val context = object : ContextWrapper(base) {
+            override fun getFilesDir(): File = files
+        }
+        val root = File(files, AssetRegistry.INSTALL_ROOT)
+        val bundle = AssetRegistry.itnBundle()
+        val itnDir = File(root, bundle.installSubDir).apply { mkdirs() }
+        // A same-SDK-version install used to accept this marker and keep both stale files.
+        File(root, AssetRegistry.INSTALL_FLAG).writeText("${BuildConfig.SDK_VERSION}:itn-only-v1")
+        bundle.files.forEach { File(itnDir, it).writeText("legacy graph") }
+        try {
+            assertTrue(AssetInstaller.preInstallAllSync(context).installBytes > 0)
+            InternalWeitnEngine(
+                File(itnDir, "zh_itn_tagger.fst"),
+                File(itnDir, "zh_itn_verbalizer.fst"),
+            ).use { itn ->
+                listOf("今天天气很好啊", "啊今天天气很好", "今天啊天气很好", "啊", "呃")
+                    .forEach { assertEquals(it, itn.normalize(it)) }
+                assertEquals("2026/05/15啊", itn.normalize("二零二六年五月十五日啊"))
+            }
+            assertEquals(0L, AssetInstaller.preInstallAllSync(context).installBytes)
+        } finally {
+            files.deleteRecursively()
+        }
+    }
+
     @Test
     fun spokenIdentityNumberWithYiYaoAndMeiIsFullyNormalized() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

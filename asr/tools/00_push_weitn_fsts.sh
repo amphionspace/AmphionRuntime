@@ -13,8 +13,8 @@
 # 资源来源（按优先级）：
 #   1) WEITN_TAGGER_URL + WEITN_VERBALIZER_URL  环境变量提供的预编译 URL，
 #      可选 WEITN_TAGGER_SHA256 / WEITN_VERBALIZER_SHA256 做完整性校验；
-#   2) 本机 `pip install --quiet "WeTextProcessing==${WEITN_PIP_VERSION}"` 后
-#      `python -c "from itn..."` 触发 pynini build 出两份 fst。
+#   2) 安装 requirements-weitn.txt 后，用 build_weitn_fsts.py 保留 tagger，
+#      重建不删除“啊、呃”的 verbalizer。
 #
 # 用法：
 #   bash asr/tools/00_push_weitn_fsts.sh
@@ -33,14 +33,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-CACHE_DIR="${REPO_ROOT}/asr/tools/weitn-fsts"
+CACHE_DIR="${REPO_ROOT}/asr/tools/weitn-fsts-v2"
 TAGGER_FILE="${CACHE_DIR}/zh_itn_tagger.fst"
 VERBALIZER_FILE="${CACHE_DIR}/zh_itn_verbalizer.fst"
 
-# Pin to a specific WeTextProcessing release for reproducibility. Override if
-# you intentionally need a newer feature. Releases:
-#   https://github.com/wenet-e2e/WeTextProcessing/releases
-WEITN_PIP_VERSION="${WEITN_PIP_VERSION:-1.0.4.1}"
+# v2 avoids reusing the old graphs whose verbalizer deletes interjections.
+REQUIREMENTS="${SCRIPT_DIR}/requirements-weitn.txt"
 
 WEITN_TAGGER_URL="${WEITN_TAGGER_URL:-}"
 WEITN_VERBALIZER_URL="${WEITN_VERBALIZER_URL:-}"
@@ -120,14 +118,14 @@ EOF
     return 1
   fi
 
-  echo "[INFO] installing WeTextProcessing==${WEITN_PIP_VERSION} (one-time)"
-  if ! python3 -m pip install --quiet --upgrade "WeTextProcessing==${WEITN_PIP_VERSION}"; then
+  echo "[INFO] installing pinned WeText build dependencies (one-time)"
+  if ! python3 -m pip install --quiet -r "$REQUIREMENTS"; then
     cat >&2 <<EOF
 [ERROR] pip install WeTextProcessing failed. On macOS arm64 / Linux you usually
         need pynini, which is easiest to install via conda:
 
           conda install -c conda-forge "pynini>=2.1.6"
-          python -m pip install --no-deps "WeTextProcessing==${WEITN_PIP_VERSION}"
+          python -m pip install --no-deps WeTextProcessing==1.0.4.1
 
         Or skip the pip path entirely by setting WEITN_TAGGER_URL +
         WEITN_VERBALIZER_URL to prebuilt fst URLs.
@@ -136,23 +134,7 @@ EOF
   fi
 
   echo "[INFO] building zh_itn fsts (cache_dir=${CACHE_DIR})"
-  WEITN_CACHE_DIR="${CACHE_DIR}" python3 - <<'PY'
-import os
-import shutil
-from itn.chinese.inverse_normalizer import InverseNormalizer
-
-cache_dir = os.environ["WEITN_CACHE_DIR"]
-os.makedirs(cache_dir, exist_ok=True)
-
-itn = InverseNormalizer(cache_dir=cache_dir, overwrite_cache=False)
-# Sanity check: the cache must contain the two fsts after construction.
-for f in ("zh_itn_tagger.fst", "zh_itn_verbalizer.fst"):
-    path = os.path.join(cache_dir, f)
-    if not os.path.isfile(path):
-        raise SystemExit(f"missing expected build output: {path}")
-print("[INFO] WeText InverseNormalizer ready; sample normalize result:")
-print("        ", itn.normalize("两点五八万"))
-PY
+  python3 "${SCRIPT_DIR}/build_weitn_fsts.py" "$CACHE_DIR"
 }
 
 need_fetch=1

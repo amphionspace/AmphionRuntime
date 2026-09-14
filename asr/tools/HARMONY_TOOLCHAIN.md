@@ -54,7 +54,7 @@ bash asr/tools/08_pack_harmony_assets.sh
 - 中英：`asr/tools/demo-model/zhen`
 - 粤英：`asr/tools/demo-model/yueen`
 - 标点：`asr/tools/punct-model/...-int8`
-- ITN：`asr/tools/weitn-fsts`
+- ITN：`asr/tools/weitn-fsts-v2`（保留“啊、呃”）
 - VAD：`asr/tools/vad-model/silero_vad.onnx`
 
 中英模型接受 `decoder.int8.onnx`，并兼容旧的 `decoder.onnx`。构建时会并行把中英
