@@ -21,19 +21,16 @@ export class SpeakerDiarizationFinishBarrier<A, S> {
   private timer?: ReturnType<typeof setTimeout>;
   private readonly timeoutMs: number;
   private readonly onReady: (result: SpeakerDiarizationFinishOutput<A, S>) => void;
-  private readonly timeoutAsrFallback?: () => A;
 
   constructor(
     timeoutMs: number,
     onReady: (result: SpeakerDiarizationFinishOutput<A, S>) => void,
-    timeoutAsrFallback?: () => A,
   ) {
     if (timeoutMs <= 0) {
       throw new Error('timeoutMs must be positive');
     }
     this.timeoutMs = timeoutMs;
     this.onReady = onReady;
-    this.timeoutAsrFallback = timeoutAsrFallback;
   }
 
   begin(): void {
@@ -41,16 +38,20 @@ export class SpeakerDiarizationFinishBarrier<A, S> {
       return;
     }
     this.started = true;
+    this.startTimeoutIfReady();
+  }
+
+  private startTimeoutIfReady(): void {
+    // Diarization also waits for the real ASR tail. Its timeout must not include ASR backlog.
+    if (!this.started || !this.asrReady || this.speakerReady || this.completed ||
+      this.timer !== undefined) return;
     this.timer = setTimeout(() => {
-      if (this.completed) {
+      if (this.completed || this.speakerReady) {
         return;
       }
       this.speakerReady = true;
       this.degraded = true;
-      if (!this.asrReady && this.timeoutAsrFallback !== undefined) {
-        this.asrValue = this.timeoutAsrFallback();
-        this.asrReady = true;
-      }
+      // Only diarization may degrade on timeout. ASR must drain all accepted audio.
       this.tryComplete();
     }, this.timeoutMs);
   }
@@ -61,6 +62,7 @@ export class SpeakerDiarizationFinishBarrier<A, S> {
     }
     this.asrReady = true;
     this.asrValue = value;
+    this.startTimeoutIfReady();
     this.tryComplete();
   }
 

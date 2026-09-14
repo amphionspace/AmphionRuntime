@@ -12,7 +12,6 @@ internal class SpeakerDiarizationFinishBarrier<A : Any, S : Any>(
     private val timeoutMs: Long,
     private val scheduler: ScheduledExecutorService,
     private val onReady: (DiarizationFinishOutput<A, S>) -> Unit,
-    private val timeoutAsrFallback: (() -> A)? = null,
 ) {
     private var started = false
     private var completed = false
@@ -29,15 +28,18 @@ internal class SpeakerDiarizationFinishBarrier<A : Any, S : Any>(
     fun begin() {
         if (started || completed) return
         started = true
+        startTimeoutIfReadyLocked()
+    }
+
+    private fun startTimeoutIfReadyLocked() {
+        // Diarization also waits for the real ASR tail. Its timeout must not include ASR backlog.
+        if (!started || !asrReady || speakerReady || completed || timeout != null) return
         timeout = scheduler.schedule({
             synchronized(this) {
-                if (completed) return@synchronized
+                if (completed || speakerReady) return@synchronized
                 speakerReady = true
                 degraded = true
-                if (!asrReady) timeoutAsrFallback?.let {
-                    asrValue = it()
-                    asrReady = true
-                }
+                // Only diarization may degrade on timeout. ASR must drain all accepted audio.
                 tryCompleteLocked()
             }
         }, timeoutMs, TimeUnit.MILLISECONDS)
@@ -48,6 +50,7 @@ internal class SpeakerDiarizationFinishBarrier<A : Any, S : Any>(
         if (completed || asrReady) return
         asrReady = true
         asrValue = value
+        startTimeoutIfReadyLocked()
         tryCompleteLocked()
     }
 
