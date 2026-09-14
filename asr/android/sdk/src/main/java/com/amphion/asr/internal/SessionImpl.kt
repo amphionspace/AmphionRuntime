@@ -677,7 +677,8 @@ internal class SessionImpl(
             }
             anySilence && vadSpeechActive -> {
                 // 仅在曾经有 speech 之后才累计静音；进入主动 endpoint 判定。
-                trailingSilenceMs += (processedSamples.size * 1000L / sampleRate).toInt()
+                // Include carry from earlier submissions in each completed VAD window.
+                trailingSilenceMs += (i * 1000L / sampleRate).toInt()
                 if (activeEpSilenceMs > 0 && trailingSilenceMs >= activeEpSilenceMs) {
                     Logger.d(
                         "session $sessionId VAD active endpoint after ${trailingSilenceMs}ms silence",
@@ -717,9 +718,11 @@ internal class SessionImpl(
      */
     private fun triggerVadActiveEndpoint() {
         if (vad == null) return
+        // inputFinished can yield a final without satisfying the native endpoint rules.
+        postEndpoint()
         val r = NativeGuard.run("vad.activeEndpoint") {
             stream.inputFinished()
-            drainDecoder(isFinal = true)
+            drainDecoder(isFinal = true, postEndpointOnEndpoint = false)
         }
         if (r is NativeResult.Err) {
             postError(r.error)
