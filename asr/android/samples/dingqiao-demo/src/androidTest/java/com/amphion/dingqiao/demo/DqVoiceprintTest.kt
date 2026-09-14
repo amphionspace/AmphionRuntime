@@ -374,6 +374,7 @@ class DqVoiceprintTest {
         }
         DqReport.append(ctx, mapOf("case" to "v06_speakerVadOverlap", "main" to main, "completed" to completed,
             "finalText" to listener.finalText(), "vadEventCount" to vadEvents.size,
+            "vadEvents" to vadEvents.joinToString(" | ") { "${it.first}:${it.second}" },
             "errorCodes" to listener.errorCodes().toString()))
         assertTrue("speaker VAD session should complete without recognition error",
             !listener.errorCodes().contains(DingqiaoErrorCode.RECOGNITION_ERROR))
