@@ -90,6 +90,7 @@ internal class SessionImpl(
     private val speakerPcmBuffers = SpeakerPcmBuffers(UTT_MAX_SAMPLES)
     private val effectiveSpeechBuffer = EffectiveSpeechBuffer(sampleRate, UTT_MAX_SAMPLES)
     private val recognizerResetGeneration = RecognizerResetGeneration()
+    private val speechBoundarySignals = SpeechBoundarySignalTracker()
     private val agcIngress = StreamingAgcIngress(StreamingAgcProcessor(sampleRate), ::guardAgcFrames)
 
     private val stablePrefixIntervalSamples: Long = if (
@@ -168,9 +169,8 @@ internal class SessionImpl(
     @Volatile
     private var vadSpeechActive: Boolean = false
 
-    /** speech 段后已累计的尾部静音毫秒数。 */
-    @Volatile
-    private var trailingSilenceMs: Int = 0
+    /** Tail silence advances on Silero's consumed 512-sample windows, not caller frame sizes. */
+    private val trailingSilenceClock = VadTrailingSilenceClock(sampleRate, activeEpSilenceMs)
 
     /** 不足 [vadWindowSize] 的余数 PCM；下次 feed 时拼回；只在 decoder 线程访问。 */
     private var vadCarry: FloatArray = FloatArray(0)
@@ -312,7 +312,7 @@ internal class SessionImpl(
                         // 与 hardRestart 同源逻辑：stream 切换后 VAD 状态也要回到初始
                         NativeGuard.runQuietly("vad.reset(updateHotwords)") { vad?.reset() }
                         vadSpeechActive = false
-                        trailingSilenceMs = 0
+                        trailingSilenceClock.reset()
                         vadCarry = FloatArray(0)
                         resetSpeakerVadState()
                         speakerPcmBuffers.clearAll()
@@ -403,8 +403,9 @@ internal class SessionImpl(
                 // VAD 状态与 stream 同步：用户手动 stop 等价于一段语音结束
                 NativeGuard.runQuietly("vad.reset(stop)") { vad?.reset() }
                 vadSpeechActive = false
-                trailingSilenceMs = 0
+                trailingSilenceClock.reset()
                 vadCarry = FloatArray(0)
+                speechBoundarySignals.reset()
                 resetSpeakerVadState()
                 speakerPcmBuffers.clearAll()
                 effectiveSpeechBuffer.reset()
@@ -631,12 +632,10 @@ internal class SessionImpl(
                 if (!vadSpeechActive) {
                     vadSpeechActive = true
                     Logger.d("session $sessionId VAD speech onset")
-                    callbackHandler.post {
-                        safeCallback { callback.onSpeechBegin() }
-                    }
+                    postSpeechBeginIfNeeded()
                 }
                 initialSpeechDetected = true
-                trailingSilenceMs = 0
+                trailingSilenceClock.reset()
             }
             !initialSpeechDetected && !initialSilenceTimeoutSent && initialSilenceTimeoutSamples > 0L -> {
                 initialSilenceSamples += i.toLong()
@@ -677,13 +676,13 @@ internal class SessionImpl(
             }
             anySilence && vadSpeechActive -> {
                 // 仅在曾经有 speech 之后才累计静音；进入主动 endpoint 判定。
-                trailingSilenceMs += (processedSamples.size * 1000L / sampleRate).toInt()
-                if (activeEpSilenceMs > 0 && trailingSilenceMs >= activeEpSilenceMs) {
+                if (trailingSilenceClock.observeSilence(i)) {
                     Logger.d(
-                        "session $sessionId VAD active endpoint after ${trailingSilenceMs}ms silence",
+                        "session $sessionId VAD active endpoint after " +
+                            "${trailingSilenceClock.elapsedMs()}ms silence",
                     )
                     vadSpeechActive = false
-                    trailingSilenceMs = 0
+                    trailingSilenceClock.reset()
                     triggerVadActiveEndpoint()
                 }
             }
@@ -717,9 +716,12 @@ internal class SessionImpl(
      */
     private fun triggerVadActiveEndpoint() {
         if (vad == null) return
+        // Announce the same public boundary that produces this final. Native endpoint detection
+        // may be false after inputFinished, so it cannot be relied on to emit SPEECH_END.
+        postEndpoint()
         val r = NativeGuard.run("vad.activeEndpoint") {
             stream.inputFinished()
-            drainDecoder(isFinal = true)
+            drainDecoder(isFinal = true, postEndpointOnEndpoint = false)
         }
         if (r is NativeResult.Err) {
             postError(r.error)
@@ -766,6 +768,7 @@ internal class SessionImpl(
             val endpointReason = recognizer.getEndpointReason(stream)
             val r = recognizer.getResult(stream)
             markInitialSpeechDetected(r)
+            if (!isFinal) announceAsrSpeechIfNeeded(r)
             val decoded = discardInitialSilenceTimeoutResult(toAsrResult(r), initialSilenceTimeoutSent)
             val hasEvidence = decoded.text.isNotEmpty() || decoded.tokens.isNotEmpty()
             metrics.onRawFinalReady()
@@ -785,6 +788,7 @@ internal class SessionImpl(
         if (!isFinal) maybeCommitStablePrefix()
         val r = recognizer.getResult(stream)
         markInitialSpeechDetected(r)
+        if (!isFinal) announceAsrSpeechIfNeeded(r)
         val decoded = discardInitialSilenceTimeoutResult(toAsrResult(r), initialSilenceTimeoutSent)
         val hasEvidence = decoded.text.isNotEmpty() || decoded.tokens.isNotEmpty()
         if (isFinal) {
@@ -805,6 +809,18 @@ internal class SessionImpl(
         if (initialSilenceTimeoutSent || result.text.isEmpty() && result.tokens.isEmpty()) return
         initialSpeechDetected = true
         initialSilenceSamples = 0L
+    }
+
+    private fun announceAsrSpeechIfNeeded(r: OnlineRecognizerResult) {
+        if (initialSilenceTimeoutSent) return
+        postSpeechBeginIfNeeded(r.text.isNotEmpty() || r.tokens.isNotEmpty())
+    }
+
+    private fun postSpeechBeginIfNeeded(hasEvidence: Boolean = true) {
+        if (!speechBoundarySignals.observeSpeech(hasEvidence)) return
+        callbackHandler.post {
+            safeCallback { callback.onSpeechBegin() }
+        }
     }
 
     private fun discardInitialSilenceTimeoutResult(result: AsrResult, timedOut: Boolean): AsrResult {
@@ -914,7 +930,7 @@ internal class SessionImpl(
                 // stream 重建意味着上一段已结束；同步 reset VAD 让 onset 重新走
                 NativeGuard.runQuietly("vad.reset(hardRestart)") { vad?.reset() }
                 vadSpeechActive = false
-                trailingSilenceMs = 0
+                trailingSilenceClock.reset()
                 vadCarry = FloatArray(0)
                 resetSpeakerVadState()
                 Logger.i("session $sessionId hard-restarted stream after long utterance")
@@ -1086,7 +1102,7 @@ internal class SessionImpl(
                     )
                     if (vadSpeechActive) {
                         vadSpeechActive = false
-                        trailingSilenceMs = 0
+                        trailingSilenceClock.reset()
                     }
                     triggerSpeakerVadEndpoint()
                     return true
@@ -1105,7 +1121,7 @@ internal class SessionImpl(
                         "threshold=${speakerVad.threshold} belowCount=$svBelowCount",
                 )
                 vadSpeechActive = false
-                trailingSilenceMs = 0
+                trailingSilenceClock.reset()
                 triggerSpeakerVadEndpoint()
                 return true
             }
@@ -1211,6 +1227,7 @@ internal class SessionImpl(
     }
 
     private fun postEndpoint() {
+        speechBoundarySignals.endpoint()
         callbackHandler.post {
             safeCallback { callback.onEndpoint() }
         }
@@ -1231,8 +1248,9 @@ internal class SessionImpl(
     private fun resetVadGateState() {
         NativeGuard.runQuietly("vad.reset(streamBoundary)") { vad?.reset() }
         vadSpeechActive = false
-        trailingSilenceMs = 0
+        trailingSilenceClock.reset()
         vadCarry = FloatArray(0)
+        speechBoundarySignals.reset()
         resetSpeakerVadState()
     }
 
