@@ -1,0 +1,56 @@
+# 2026-09-14 反馈排查
+
+已在 `fix/sept14-vad-feedback` 提交候选修复，尚未合入主线或发布。缺少客户原始 PCM 和构建标识，不能将全部反馈关闭。
+
+## 版本与范围
+
+来源为[鼎桥客户真实语音与 BUG 证据库](https://ccnuebbmik1f.feishu.cn/wiki/JaccwHakcit4Fnkk4IycN8UgnOE)及 9 月 14 日转发邮件中的五份附件。
+VAD 报告明确写明 **Android 0.3.4（20260828）**；角色分离附件为 Harmony 日志。用户已确认两端都修复。
+
+| 后续版本/主线 | 已包含的相关变化 | 本次结论 |
+| --- | --- | --- |
+| Harmony 0.3.4（8 月 17 日） | 警务短句纠错 | 尚无本次反馈所用的离线角色分离能力，不能作为角色分离附件的实际版本 |
+| Harmony 0.3.5–0.3.8 | 长会话、空 endpoint、Speaker VAD 顺序和尾部处理 | 不能据此认定本次普通 VAD 计时与事件缺失已修复 |
+| Harmony 0.3.12 | 离线角色分离、short/long、冷加载期间 PCM 连续性 | 已覆盖能力与此前问题，未覆盖本次结束超时截断 |
+| Harmony 0.3.13 | 角色分离分窗定稿、可选 ASR 调度、Speaker VAD 尾部优化 | 分窗结果及终结时只返回尾批是现有接口语义；不代表角色准确率问题已解决 |
+| Android 0.3.4 | 后续源码持续对齐 Harmony；发布记录仍标记 PREVIEW / NON-CANONICAL | 同一版本号不能证明客户 AAR 包含后续提交 |
+
+修复基于最新 `origin/main` 的 `23847791`。本次确认的 VAD 计时、Android 主动 endpoint 事件和分人 finish 超时问题在该基线仍存在。
+
+## 已定位的缺陷
+
+1. **VAD 尾静音少计。** VAD 每次处理 512 个样本，原逻辑只累计本次调用的样本数，漏掉此前缓存的样本。16 kHz 下按 10 ms/20 ms 分帧写入，800 ms 尾静音分别只记成约 250 ms/500 ms。Harmony 同步、异步路径与 Android 均改为累计实际完成的 VAD 窗口。固定检测状态的生产方法测试验证 160/320/512/1600 样本分帧，并保护语音清零、首段纯静音和重复结束分支。
+2. **Android 主动分句漏发结束事件。** `inputFinished` 可以产生 final，但不一定满足 native `isEndpoint`。旧路径只在后者成立时派发 endpoint，可能等到下一次空白 endpoint 才通知业务。主动 VAD 现在直接派发 endpoint，并禁止本次 native 路径重复派发。这与附件中 final 后约 2.65 秒才收到 `SPEECH_END` 相符；没有客户 PCM，尚未做原场景前后回放。该项红灯为生产调用路径检查，不能代替 Android 真机复现。
+3. **分人超时制造空 last，提前关闭 ASR。** Harmony 附件中，停止时已提交 99,950,080 字节，随后 native 指标为 93,061,120 字节，相差约 215 秒音频。15 秒超时完成时 native 总量仍仅 94,827,520 字节，相差约 160 秒。代码会创建空 last 并取消尚未排空的队列。两端均移除该替代结果，等待真实 ASR 尾结果后才开始分人收尾时限；先完成的分人结果也不会被误标超时。可控时钟测试已确认旧逻辑提前完成、修复后等待真实尾结果且只完成一次。
+
+保持不变：VAD 模型与阈值、声纹和角色编号规则、正常 endpoint 分句、last/complete 顺序、cancel 契约。不会通过提高超时、补假分数或改变识别阈值处理这些问题。
+
+## 仍需跟踪
+
+| 反馈 | 状态与缺少的证据 |
+| --- | --- |
+| 四轮完全没有 VAD begin/end | 未关闭。只有日志中部分 PCM 前缀，无法重建真实 VAD 输入和检测状态；现有修复不宣称解决所有起音漏检 |
+| 38/41 句角色未知、零次增量 update | 未关闭。没有原始 PCM、embedding 和准确构建身份，不能判断声学证据、匹配阈值或窗口归属在哪一层首次偏离 |
+| 长会话停止耗时 | 已修复超时截断，音频积压的形成原因未关闭；不承诺整次 finish 在 15 秒内完成 |
+| 终结时只返回五句、speakerCount=4 | 终结回调返回未定稿尾批，调用方需要累积之前窗口。speakerCount 为已登记角色数，不保证本窗口每句可归属；不能据此认定结果丢失或角色识别正确 |
+
+缺少原始材料已与用户确认。本轮不修改在线服务问题、模型或角色识别阈值。
+
+## 提交与验证
+
+- `f9340520`：VAD 计时与 Android 主动 endpoint 事件。
+- `5581e47c`：分人 finish 等待真实 ASR 尾结果及接口说明。
+- `96b2df3b`：Android 公共 API 的 VAD 结束事件真机回归用例。
+- `a4d858bc`：修复构建前置检查仍按单公钥比较的问题。仅匹配 SDK 已内置的信任集合，继续验证实际 license 签名、有效期、能力和设备集合；授权、签名和信任范围均未更换。
+- Harmony 主机测试 55 项通过；Android 路径检查 6 项通过；构建脚本检查 9 项通过。
+- Android Debug、Release 各通过 core SDK 59 项与鼎桥 SDK 93 项单测，均无失败或跳过。用户随后连接 vivo V2505A（Android 16），五项定向真机用例通过：cancel、重复 finish、onStart 内同步写入后立即 finish、纯静音 vadBegin、vadEnd=800。按 session 核对 last/complete 顺序，无 error；VAD 结束事件在追加尾静音后 786 ms 到达。原音频自身尾静音不在这 786 ms 内，因此这不是从真实语音结束点测得的精确时延。
+- Harmony 中英 Debug HAP 与四个 HAR 编译通过，来源提交 `a4d858bc`。使用现有签名、授权和 PSN-AL00 USB 设备，未生成正式交付包。
+- Harmony finish 兼容性门禁通过：回调重入 3 轮、finish/shutdown 3 轮；`SPEECH_END -> finish` 返回非空文本，last 后唯一 complete，native stream 归零。短轮次资源指标为 INCONCLUSIVE。
+- Harmony 分窗真机通过：150.477 秒拼接语音、两次分人结果、两名角色、无降级或 error、finish 前 last=0、结束后唯一 last/complete、native stream 归零，finish 到 complete 601 ms。该轮资源门禁 PASS，但单轮不能证明长时间无泄漏或角色准确率。
+- 首轮 147.477 秒输入只有 500 ms 间隔，未触发任何 native endpoint，因此未满足两次分窗回调的测试前置条件；原 FAIL 完整保留。只在 123 秒处插入 3000 ms 静音后重跑通过，未改 SDK、参数或断言。
+
+Android 首次后台运行被 vivo 冻结，改用现有 `DeviceTestKeepAliveActivity` 前台载体后完成五项验证。普通 MainActivity 曾干扰测试 Runtime 所有权，该轮失败也保留为 non-canonical；没有据此修改 SDK。测试框架会在用例结束后清理 Activity，最后一例在结束事件已送达后再次被冻结，拉回前台后原用例继续通过；不能据此评估整轮墙钟性能。临时线程快照代码已撤除，未安装的诊断测试 APK 标记为 non-canonical，已安装的测试 APK 哈希与 `96b2df3b` 测试源码记录核对一致。
+
+本轮没有运行完整发布矩阵、Android 角色分离真机矩阵或客户原始录音回放，不作为正式发布验收。
+
+原始附件、哈希清单、失败现场、测试日志、构建身份和真机 `report.json` 保存在本机诊断目录 `~/.cache/amphion-runtime/diagnostics/sept14-feedback-7p93hy56/`。客户原文及 PCM 不纳入 Git。
