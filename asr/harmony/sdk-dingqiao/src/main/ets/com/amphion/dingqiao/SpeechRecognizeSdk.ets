@@ -611,8 +611,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           (output: SpeakerDiarizationFinishOutput<SpeechRecognitionResult, SpeakerDiarizationResult>): void => {
             this.completeSpeakerDiarizationSession(
               diarizationGeneration, diarizationSessionId, output);
-          },
-          (): SpeechRecognitionResult => this.createSpeakerDiarizationTimeoutLastResult());
+          });
       }
       if (this.sessionStartGate.publishSession(startGeneration)) {
         this.diagnostic(params.sessionId, 'SESSION_PUBLISHED');
@@ -900,15 +899,6 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.listener?.onSpeakerDiarizationResult?.(sessionId, diarizationResult);
     if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
     this.completeCurrentSession(generation);
-  }
-
-  private createSpeakerDiarizationTimeoutLastResult(): SpeechRecognitionResult {
-    const payload = new SpeechRecognitionResult();
-    payload.isFinal = true;
-    payload.isLast = true;
-    payload.result = '';
-    if (this.targetSpeakerEnhancementEnabled) payload.targetSpeakerEnhancementApplied = true;
-    return payload;
   }
 
   private resetSessionState(): void {

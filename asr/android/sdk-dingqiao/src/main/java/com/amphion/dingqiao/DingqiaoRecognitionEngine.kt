@@ -236,7 +236,6 @@ internal class DingqiaoRecognitionEngine(
                             output,
                         )
                     },
-                    timeoutAsrFallback = { createSpeakerDiarizationTimeoutLastResult() },
                 )
             }
             if (DiagnosticsModule.isBuildEnabled()) {
@@ -806,12 +805,6 @@ internal class DingqiaoRecognitionEngine(
             }
         }
     }
-
-    private fun createSpeakerDiarizationTimeoutLastResult() = SpeechRecognitionResult(
-        isFinal = true,
-        isLast = true,
-        result = "",
-    )
 
     private fun requestSpeakerDiarizationFinishLocked() {
         speakerDiarizationFinishBarrier?.begin()

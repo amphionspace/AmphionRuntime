@@ -96,23 +96,31 @@ class SpeakerDiarizationAlgorithmsTest {
     }
 
     @Test
-    fun finishBarrierTimeoutUsesOneDegradedFallback() {
+    fun finishBarrierWaitsForRealAsrBeforeStartingDiarizationTimeout() {
         val scheduler = Executors.newSingleThreadScheduledExecutor()
         try {
-            val latch = CountDownLatch(1)
-            val outputs = mutableListOf<DiarizationFinishOutput<String, String>>()
-            val barrier = SpeakerDiarizationFinishBarrier<String, String>(20, scheduler, {
-                outputs += it
-                latch.countDown()
-            }, timeoutAsrFallback = { "fallback-last" })
-            barrier.begin()
-            assertTrue(latch.await(1, TimeUnit.SECONDS))
-            barrier.resolveAsr("late-last")
-            barrier.resolveSpeaker(DiarizationFinishInput(false, "late-speakers"))
-            assertEquals(1, outputs.size)
-            assertEquals("fallback-last", outputs.single().asr)
-            assertEquals(null, outputs.single().speaker)
-            assertTrue(outputs.single().degraded)
+            for (speakerFirst in listOf(false, true)) {
+                val outputs = mutableListOf<DiarizationFinishOutput<String, String>>()
+                val barrier = SpeakerDiarizationFinishBarrier<String, String>(20, scheduler, {
+                    outputs += it
+                })
+                barrier.begin()
+                if (speakerFirst) barrier.resolveSpeaker(DiarizationFinishInput(false, "speakers"))
+                scheduler.schedule({}, 40, TimeUnit.MILLISECONDS).get(1, TimeUnit.SECONDS)
+                assertTrue("ASR must drain accepted audio before last/complete", outputs.isEmpty())
+                barrier.resolveAsr("actual-tail-after-draining")
+                if (!speakerFirst) {
+                    assertTrue(outputs.isEmpty())
+                    scheduler.schedule({}, 40, TimeUnit.MILLISECONDS).get(1, TimeUnit.SECONDS)
+                }
+                assertEquals(1, outputs.size)
+                assertEquals("actual-tail-after-draining", outputs.single().asr)
+                assertEquals(if (speakerFirst) "speakers" else null, outputs.single().speaker)
+                assertEquals(!speakerFirst, outputs.single().degraded)
+                barrier.resolveAsr("duplicate")
+                barrier.resolveSpeaker(DiarizationFinishInput(false, "late-speakers"))
+                assertEquals(1, outputs.size)
+            }
         } finally {
             scheduler.shutdownNow()
         }
@@ -125,7 +133,7 @@ class SpeakerDiarizationAlgorithmsTest {
             val latch = CountDownLatch(1)
             val barrier = SpeakerDiarizationFinishBarrier<String, String>(20, scheduler, {
                 latch.countDown()
-            }, timeoutAsrFallback = { "fallback-last" })
+            })
             barrier.begin()
             barrier.cancel()
             barrier.resolveAsr("last")
