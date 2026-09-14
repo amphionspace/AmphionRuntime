@@ -895,6 +895,51 @@ class DqSdkCornerCaseTest {
         assertEquals(600, completedSessions)
     }
 
+    @Test
+    fun a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint() {
+        val engine = sharedEngine()
+        val wav = mainWavs(testCtx).firstOrNull() ?: error("a real speech WAV is required")
+        val pcm = readAssetPcm(testCtx, wav)
+        val listener = CapturingListener()
+        val sid = "vad-end-${System.currentTimeMillis()}"
+        engine.setListener(object : RecognitionListener by listener {
+            override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) {
+                listener.onEvent(sessionId, eventCode, eventMessage)
+                DqReport.append(ctx, mapOf("case" to "vad_end_event", "sessionId" to sessionId,
+                    "eventCode" to eventCode))
+            }
+        })
+        engine.startListening(StartParams(sid, AudioInfo(), mapOf(
+            "vadEnd" to 800, "maxAudioDuration" to 20_000,
+            "recognizerMode" to "short", "enablePartialResult" to true,
+        )))
+        assertTrue("start failed: ${listener.errors}", listener.awaitStarted(15_000))
+        try {
+            feedFrames(engine, sid, pcm, DQ_FRAME_MS)
+            DqReport.append(ctx, mapOf("case" to "vad_tail_start", "sessionId" to sid,
+                "speechPcmBytes" to pcm.size, "vadEndMs" to 800))
+            // This permits Silero's 250ms confirmation plus the configured tail, but is shorter
+            // than a fresh native Rule1 endpoint after the active VAD final.
+            feedFrames(engine, sid, ByteArray(DQ_SR * 2 * 2), DQ_FRAME_MS)
+            val begins = listener.events.count { it.first == DingqiaoEventCode.SPEECH_BEGIN }
+            val ends = listener.events.count { it.first == DingqiaoEventCode.SPEECH_END }
+            DqReport.append(ctx, mapOf("case" to "vad_tail_before_finish", "sessionId" to sid,
+                "begins" to begins, "ends" to ends,
+                "lasts" to listener.finals.count { it.isLast }))
+            assertEquals("real speech must produce one begin", 1, begins)
+            assertEquals("active VAD must publish end without waiting for another native endpoint", 1, ends)
+            assertEquals(0, listener.finals.count { it.isLast })
+            assertTrue(listener.completes.isEmpty())
+            engine.finish(sid)
+            assertTrue(listener.awaitComplete(20_000))
+            assertEquals(1, listener.finals.count { it.isLast })
+            assertEquals(1, listener.completes.size)
+            assertTrue("unexpected errors: ${listener.errors}", listener.errors.isEmpty())
+        } finally {
+            if (engine.isBusy()) engine.cancel(sid)
+        }
+    }
+
     // ---------- a11: vadBegin 首段静音自动结束 ----------
     @Test(timeout = 2 * 60 * 1000L)
     fun a11_vadBegin_initialSilenceAutoFinish() {

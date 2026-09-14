@@ -1205,6 +1205,7 @@ async function feedPcmFile(engine: SpeechRecognitionEngine, sessionId: string, p
   const frameBytes = new Uint8Array(frame);
   let fed = 0;
   const fp = fs.openSync(path);
+  const feedStartedAtMs = Date.now();
   try {
     while (maxFrames <= 0 || fed < maxFrames) {
       if (stopWhen?.()) break;
@@ -1224,7 +1225,9 @@ async function feedPcmFile(engine: SpeechRecognitionEngine, sessionId: string, p
       engine.writeAudio(sessionId, frame);
       fed += 1;
       if (paceMs > 0) {
-        await sleep(paceMs);
+        // Anchor to the input clock: file reads and writeAudio work must not accumulate into
+        // slower-than-realtime feeding. Yield even when late, preserving every frame in order.
+        await sleep(Math.max(0, feedStartedAtMs + fed * paceMs - Date.now()));
       } else if (fed % 50 === 0) {
         // Burst remains much faster than realtime, but must not monopolize the UIAbility event runner
         // long enough for Harmony's foreground-app watchdog to terminate a long-file stress cycle.

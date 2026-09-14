@@ -157,12 +157,14 @@ export class SpeakerDiarizationLocalClient {
 
   private async execute(job: DiarizationLocalJob): Promise<void> {
     let timeout: number = -1;
+    let inferenceTimedOut: boolean = false;
     let inferencePromise: Promise<SpeakerDiarizationWindowResult> | undefined;
     try {
       const samples = this.readWindow(job);
       const timeoutPromise = new Promise<SpeakerDiarizationWindowResult>((_resolve,
         reject: (reason?: Object) => void): void => {
         timeout = setTimeout((): void => {
+          inferenceTimedOut = true;
           reject(new Error('speaker diarization inference timed out'));
         }, INFERENCE_TIMEOUT_MS);
       });
@@ -190,7 +192,7 @@ export class SpeakerDiarizationLocalClient {
         const message = `${error}`;
         const reason = error instanceof SpeakerDiarizationStorageError ?
           SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE :
-          (message.toLowerCase().indexOf('timeout') >= 0 ?
+          (inferenceTimedOut || message.toLowerCase().indexOf('timeout') >= 0 ?
             SpeakerDiarizationDegradedReason.INFERENCE_TIMEOUT :
             (message.toLowerCase().indexOf('load') >= 0 || message.toLowerCase().indexOf('model') >= 0 ?
               SpeakerDiarizationDegradedReason.MODEL_UNAVAILABLE :

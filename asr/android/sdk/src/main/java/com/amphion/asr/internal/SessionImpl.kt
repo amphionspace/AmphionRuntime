@@ -716,8 +716,8 @@ internal class SessionImpl(
      */
     private fun triggerVadActiveEndpoint() {
         if (vad == null) return
-        // Announce the same public boundary that produces this final. Native endpoint detection
-        // may be false after inputFinished, so it cannot be relied on to emit SPEECH_END.
+        // inputFinished can yield a final without satisfying native endpoint rules; announce
+        // this public boundary first and prevent a duplicate native endpoint event.
         postEndpoint()
         val r = NativeGuard.run("vad.activeEndpoint") {
             stream.inputFinished()

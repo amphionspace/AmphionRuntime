@@ -447,14 +447,53 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
 
             const missingAsr = [];
             const missingAsrBarrier = new SpeakerDiarizationFinishBarrier(
-              20, result => missingAsr.push(result), () => 'timeout-last');
+              20, result => missingAsr.push(result));
             missingAsrBarrier.begin();
             await new Promise(resolve => setTimeout(resolve, 40));
+            assert.deepEqual(missingAsr, []);
+            missingAsrBarrier.resolveAsr('actual-tail');
+            missingAsrBarrier.resolveSpeaker({{ degraded: false, value: 'speakers' }});
             assert.deepEqual(missingAsr, [{{
-              asr: 'timeout-last', speaker: undefined, degraded: true
+              asr: 'actual-tail', speaker: 'speakers', degraded: false
             }}]);
             """
         )
+
+    def test_diarization_timeout_never_replaces_pending_asr_tail(self) -> None:
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ SpeakerDiarizationFinishBarrier }} from {BARRIER.as_uri()!r};
+            let expire;
+            globalThis.setTimeout = fn => {{ expire = fn; return 1; }};
+            globalThis.clearTimeout = () => {{}};
+            for (const speakerFirst of [false, true]) {{
+              expire = undefined;
+              const events = [];
+              const barrier = new SpeakerDiarizationFinishBarrier(
+                15000, result => events.push(result));
+              barrier.begin();
+              if (speakerFirst) barrier.resolveSpeaker({{ degraded: false, value: 'speakers' }});
+              assert.equal(expire, undefined, 'ASR backlog is not a diarization timeout');
+              assert.deepEqual(events, [], 'accepted PCM must drain before last/complete');
+              barrier.resolveAsr('actual-tail-after-draining');
+              if (!speakerFirst) {{
+                assert.deepEqual(events, []);
+                expire();
+              }}
+              assert.deepEqual(events, [{{
+                asr: 'actual-tail-after-draining',
+                speaker: speakerFirst ? 'speakers' : undefined,
+                degraded: !speakerFirst,
+              }}]);
+              barrier.resolveAsr('duplicate');
+              barrier.resolveSpeaker({{ degraded: false, value: 'late-speakers' }});
+              expire?.();
+              assert.equal(events.length, 1);
+            }}
+            """
+        )
+        self.assertNotIn("createSpeakerDiarizationTimeoutLastResult", ADAPTER.read_text())
 
     def test_diarization_runtime_release_waits_for_active_native_work(self) -> None:
         run_node(

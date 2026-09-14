@@ -394,7 +394,9 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 `onResult.isFinal` 只定稿文字，只有窗口结果才定稿身份，整场完成仍以 `onComplete` 为准。
 此处是 Harmony／Android 的新语义，旧调用方必须同步迁移；iOS 本轮未改，不能套用本分窗契约。
 
-分人收尾超时时会按相同顺序返回 `degraded=true` 的当前最佳结果；`cancel()` 不产生
+分人收尾的等待时限从真实 ASR 尾结果到达后开始计算。`finish()` 会先处理完已接收的音频；
+音频积压不受分人超时截断，也不会用空 last 代替尚未完成的识别结果。分人收尾超时时，
+按相同顺序返回真实 ASR 尾结果及 `degraded=true` 的当前最佳分人结果；`cancel()` 不产生
 last、`onSpeakerDiarizationResult` 或 `onComplete`。未开启时不产生任何 diarization 回调，
 原有 ASR 生命周期不变。
 
