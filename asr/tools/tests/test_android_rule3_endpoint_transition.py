@@ -27,6 +27,17 @@ RULE_DISABLE_PATCH = ROOT / (
 
 
 class AndroidRule3EndpointTransitionTest(unittest.TestCase):
+    def test_active_vad_publishes_endpoint_even_without_native_endpoint(self) -> None:
+        source = SESSION.read_text(encoding="utf-8")
+        active = source.split("private fun triggerVadActiveEndpoint()", 1)[1].split(
+            "private fun triggerSpeakerVadEndpoint()", 1
+        )[0]
+        # inputFinished may produce a final without satisfying native isEndpoint.
+        # Dispatch the VAD decision directly and suppress the possible native duplicate.
+        self.assertIn("postEndpoint()", active)
+        self.assertLess(active.index("postEndpoint()"), active.index("stream.inputFinished()"))
+        self.assertIn("drainDecoder(isFinal = true, postEndpointOnEndpoint = false)", active)
+
     def test_android_jni_exposes_endpoint_reason_and_checkpoint(self) -> None:
         wrapper = RECOGNIZER.read_text(encoding="utf-8")
         patch = JNI_PATCH.read_text(encoding="utf-8")

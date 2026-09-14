@@ -2345,7 +2345,9 @@ export class AsrSession {
       }
       return;
     } else if (anySilence && this.vadSpeechActive) {
-      this.trailingSilenceMs += Math.round(rawSamples.length * 1000 / 16000);
+      // A completed 512-sample VAD window includes carry from earlier caller frames.
+      // Count those classified samples, not just the frame that completed the window.
+      this.trailingSilenceMs += i * 1000 / ASR_SAMPLE_RATE_HZ;
       const activeEpMs = this.sessionConfig.endpointSilenceMs ?? this.config.vadConfig.activeEndpointSilenceMs;
       if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs) {
         this.vadSpeechActive = false;
@@ -2484,7 +2486,7 @@ export class AsrSession {
       // slice permanently disarms vadBegin before the timeout decision is confirmed.
       advance.initialSilenceTimedOut = true;
     } else if (anySilence && this.vadSpeechActive) {
-      this.trailingSilenceMs += Math.round(rawSamples.length * 1000 / ASR_SAMPLE_RATE_HZ);
+      this.trailingSilenceMs += index * 1000 / ASR_SAMPLE_RATE_HZ;
       const activeEpMs = this.sessionConfig.endpointSilenceMs ??
         this.config.vadConfig.activeEndpointSilenceMs;
       if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs && !this.vadEndpointPending) {
