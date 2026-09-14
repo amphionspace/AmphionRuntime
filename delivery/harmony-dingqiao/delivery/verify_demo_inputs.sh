@@ -122,8 +122,13 @@ PY
 if [[ -s "$PRIVATE_KEY" ]]; then
   command -v openssl >/dev/null || { echo "[ERROR] openssl is required to verify the private key" >&2; exit 1; }
   DERIVED_PUBLIC_KEY="$(openssl pkey -in "$PRIVATE_KEY" -pubout -outform DER 2>/dev/null | openssl base64 -A)"
-  [[ "$DERIVED_PUBLIC_KEY" == "$PUBLIC_KEY_B64" ]] || {
-    echo "[ERROR] private key does not match the SDK embedded public key" >&2
+  KEY_TRUSTED=false
+  IFS=',' read -r -a TRUSTED_PUBLIC_KEYS <<< "$PUBLIC_KEY_B64"
+  for trusted_key in "${TRUSTED_PUBLIC_KEYS[@]}"; do
+    if [[ "$DERIVED_PUBLIC_KEY" == "$trusted_key" ]]; then KEY_TRUSTED=true; break; fi
+  done
+  [[ "$KEY_TRUSTED" == true ]] || {
+    echo "[ERROR] private key does not match the SDK embedded public key trust set" >&2
     exit 1
   }
   echo "[OK] private key matches the SDK embedded public key"
@@ -132,12 +137,22 @@ fi
 VERIFY_LICENSE=(
   "$PYTHON" "$REPO_ROOT/tools/license/verify_license.py"
   --license "$LICENSE_FILE"
-  --public-key-b64 "$PUBLIC_KEY_B64"
   --bundle-name "$BUNDLE_NAME"
   --required-feature ASR
 )
 
-"${VERIFY_LICENSE[@]}" >/dev/null
+LICENSE_VERIFIED=false
+IFS=',' read -r -a TRUSTED_PUBLIC_KEYS <<< "$PUBLIC_KEY_B64"
+for trusted_key in "${TRUSTED_PUBLIC_KEYS[@]}"; do
+  if "${VERIFY_LICENSE[@]}" --public-key-b64 "$trusted_key" >/dev/null 2>&1; then
+    LICENSE_VERIFIED=true
+    break
+  fi
+done
+[[ "$LICENSE_VERIFIED" == true ]] || {
+  echo "[ERROR] license signature, expiry, or feature did not verify against the SDK trust set" >&2
+  exit 1
+}
 "$PYTHON" "$REPO_ROOT/tools/license/verify_license_device_set.py" \
   --license "$LICENSE_FILE" \
   --device-id-file "$DEVICE_ID_FILE"
