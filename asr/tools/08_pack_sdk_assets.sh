@@ -23,7 +23,7 @@
 #   PUNCT_DIR     默认 asr/tools/punct-model/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8
 #                 必须包含 model.int8.onnx
 #                 没有时会自动调用 asr/tools/00_push_punct_model.sh --no-push
-#   ITN_DIR       默认 asr/tools/weitn-fsts
+#   ITN_DIR       默认 asr/tools/weitn-fsts-v2
 #                 必须包含 zh_itn_tagger.fst / zh_itn_verbalizer.fst
 #                 没有时会自动调用 asr/tools/00_push_weitn_fsts.sh --no-push
 #   VAD_FILE      默认 asr/tools/vad-model/silero_vad.onnx
@@ -52,7 +52,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 ZH_EN_DIR="${ZH_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/zhen}"
 YUE_EN_DIR="${YUE_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/yueen}"
 PUNCT_DIR="${PUNCT_DIR:-${REPO_ROOT}/asr/tools/punct-model/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8}"
-ITN_DIR="${ITN_DIR:-${REPO_ROOT}/asr/tools/weitn-fsts}"
+ITN_DIR="${ITN_DIR:-${REPO_ROOT}/asr/tools/weitn-fsts-v2}"
 VAD_FILE="${VAD_FILE:-${REPO_ROOT}/asr/tools/vad-model/silero_vad.onnx}"
 CONVERTER="${SCRIPT_DIR}/convert_harmony_ort.py"
 CONVERTER_REQUIREMENTS="${SCRIPT_DIR}/requirements-android-ort.txt"

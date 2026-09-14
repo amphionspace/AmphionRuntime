@@ -185,7 +185,7 @@ internal object AssetInstaller {
         listOf(AssetRegistry.itnBundle())
 
     private fun installMarker(): String =
-        "${BuildConfig.SDK_VERSION}:itn-only-v1"
+        "${BuildConfig.SDK_VERSION}:itn-only-v2"
 
     @Throws(IllegalStateException::class)
     @Synchronized

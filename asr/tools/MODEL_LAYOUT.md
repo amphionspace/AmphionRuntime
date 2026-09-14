@@ -198,7 +198,7 @@ WeText ITN 用我们 fork 的 sherpa-onnx 中 vendored 的 [WeTextProcessing](ht
 | 与模型解耦 | fst 作用在 ASR 解码后的字符串上，对模型权重 / tokens.txt 无依赖，可跨多套模型共用 |
 | 不属于 modelDir | 不放进 `asr-streaming-zipformer-zh-en-1.0.0/` 内、不进 manifest.json 的 files 数组 |
 | 文件清单 | `zh_itn_tagger.fst` + `zh_itn_verbalizer.fst`（中文 ITN，总和约 2-4 MB）；WeTextProcessing 也支持 zh_tn / en_tn / ja_tn 等更多对子 |
-| 来源 | 推荐做法：业务方在 CI / 内部机器上 `pip install WeTextProcessing==<pinned>` 后跑 `asr/tools/00_push_weitn_fsts.sh` 触发 pynini build，把 fst 缓存到 `asr/tools/weitn-fsts/`（git 忽略）；或直接挂到自家 CDN（脚本支持 WEITN_TAGGER_URL / WEITN_VERBALIZER_URL 环境变量直接拉预编译产物） |
+| 来源 | 推荐做法：业务方在 CI / 内部机器上 `pip install WeTextProcessing==<pinned>` 后跑 `asr/tools/00_push_weitn_fsts.sh` 触发 pynini build，把 fst 缓存到 `asr/tools/weitn-fsts-v2/`（git 忽略）；或直接挂到自家 CDN（脚本支持 WEITN_TAGGER_URL / WEITN_VERBALIZER_URL 环境变量直接拉预编译产物） |
 | 在 sample 内的位置 | external push 到 `/sdcard/Android/data/<pkg>/files/asr-weitn-import/{zh_itn_tagger.fst,zh_itn_verbalizer.fst}`；sample 启动时 `WeitnAssetInstaller` 搬到 `<filesDir>/asr-weitn/` |
 | 为何不走 assets | 即使两份 fst 总和也 2-4 MB；其次 fst 与模型权重生命周期独立，pull 模式比 assets 更灵活，便于线上热更 fst 修 bug |
 | 在 SDK API 中传入 | `WeitnConfig.Builder(taggerFst, verbalizerFst).build()` → `WeitnEngine(config)`，详见 INTEGRATION.md §12.4 |
