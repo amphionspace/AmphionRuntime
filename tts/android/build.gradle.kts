@@ -18,6 +18,7 @@ val deliveryAarName = "lits-dingqiao-tts-sdk-vocos24k-$sdkVersion.aar"
 val litsModelDir = providers.gradleProperty("LITS_TTS_MODEL_DIR").orNull
     ?.let { file(it) } ?: rootDir.resolve("../tools/trial-export/$sourceModelId/$modelVersion")
 val candidateModelDir = rootDir.resolve("build/generated/tts-model-candidate/$sourceModelId/$modelVersion")
+val studentFrontendDir = rootDir.resolve("../frontend/rhyme_body_tone_173")
 val frontendBinaryBuilder = rootDir.resolve("../tools/android/build_frontend_binary_assets.py")
 val externalResourceDir = rootDir.resolve("external-resources/tts/$modelId/$modelVersion")
 val sourceDirName = "dingqiao_lits"
@@ -159,8 +160,17 @@ val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources"
         "vocos_vocoder.onnx",
     )
     inputs.dir(litsModelDir)
+    inputs.dir(studentFrontendDir)
     outputs.dir(externalResourceDir)
     doFirst {
+        val sourceManifest = JsonSlurper().parse(litsModelDir.resolve("manifest.json")) as Map<*, *>
+        if (sourceManifest["frontend_paradigm"] == "rhyme_body_tone_173") {
+            for (name in listOf("zh_en_symbols.json", "pinyin_to_tokens.json")) {
+                require(JsonSlurper().parse(litsModelDir.resolve(name)) == JsonSlurper().parse(studentFrontendDir.resolve(name))) {
+                    "Student model $name does not match the versioned 173-token frontend"
+                }
+            }
+        }
         externalResourceDir.resolve("lits_stream_condition_final.onnx").delete()
     }
     doLast {
@@ -217,6 +227,7 @@ val cleanBundledTtsResources = tasks.register<Delete>("cleanBundledTtsResources"
 subprojects {
     tasks.withType<Test>().configureEach {
         systemProperty("lits.tts.testAssetRoot", litsModelDir.absolutePath)
+        systemProperty("lits.tts.studentFrontendRoot", studentFrontendDir.absolutePath)
     }
     tasks.matching { it.name == "preBuild" }.configureEach {
         dependsOn(cleanBundledTtsResources, stageExternalTtsResources)
