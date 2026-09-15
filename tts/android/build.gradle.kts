@@ -9,12 +9,14 @@ plugins {
 }
 
 val sdkVersion = "3.0"
-val modelId = "dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop"
-val sourceModelId = "dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop"
+val modelId = providers.gradleProperty("LITS_TTS_MODEL_ID")
+    .orElse("dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop").get()
+val sourceModelId = modelId
 val modelVersion = "0.1.0"
 val deliveryDirName = "lits-dingqiao-tts-android-sdk-vocos24k-$sdkVersion"
 val deliveryAarName = "lits-dingqiao-tts-sdk-vocos24k-$sdkVersion.aar"
-val litsModelDir = rootDir.resolve("../tools/trial-export/$sourceModelId/$modelVersion")
+val litsModelDir = providers.gradleProperty("LITS_TTS_MODEL_DIR").orNull
+    ?.let { file(it) } ?: rootDir.resolve("../tools/trial-export/$sourceModelId/$modelVersion")
 val candidateModelDir = rootDir.resolve("build/generated/tts-model-candidate/$sourceModelId/$modelVersion")
 val frontendBinaryBuilder = rootDir.resolve("../tools/android/build_frontend_binary_assets.py")
 val externalResourceDir = rootDir.resolve("external-resources/tts/$modelId/$modelVersion")
@@ -150,6 +152,7 @@ val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources"
         "rules_v2/en.full.json",
         "rules_v2/zh_pinyin.json",
         "lits_hidden_encoder.onnx",
+        "lits_acoustic.onnx",
         "external_loop_export_report.json",
         "lits_stream_condition_chunk.onnx",
         "lits_stream_decoder_step.onnx",
@@ -195,10 +198,11 @@ val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources"
             val exportReport = JsonSlurper().parse(exportReportFile) as MutableMap<String, Any?>
             exportReport["frontend_binary_assets"] = listOf("chinese_lexicon.bin", "cmudict.bin")
             exportReport["frontend_text_assets"] = listOf("chinese_lexicon.txt", "cmudict.txt")
-            exportReport["android_decoder_models"] = listOf(
-                "lits_stream_condition_chunk.onnx",
-                "lits_stream_decoder_step.onnx",
-            )
+            exportReport["android_decoder_models"] = if (manifest["supports_streaming"] == false) {
+                listOf("lits_acoustic.onnx")
+            } else {
+                listOf("lits_stream_condition_chunk.onnx", "lits_stream_decoder_step.onnx")
+            }
             exportReportFile.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(exportReport)) + "\n")
         }
     }

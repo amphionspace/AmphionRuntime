@@ -159,8 +159,9 @@ internal object LitsTnNormalizer {
             val segmentStartedAt = System.nanoTime()
             // Match the Python one-shot TN path: choose one locale for the
             // complete utterance, then send the complete utterance through TN.
-            // For zh-en, Chinese script selects zh_tts; otherwise en_tts.
-            val tnLang = if (isEnglishContext || input.none(::isHanziForTn)) "en" else "zh"
+            // Mixed mode uses Chinese for Hanzi and numeric-only utterances;
+            // explicit English and ASCII words retain the English route.
+            val tnLang = TnLanguageSelector.select(input, isEnglishContext)
             val segments = listOf(input to tnLang)
             val segmentMs = elapsedMs(segmentStartedAt)
             val joinStartedAt = System.nanoTime()
