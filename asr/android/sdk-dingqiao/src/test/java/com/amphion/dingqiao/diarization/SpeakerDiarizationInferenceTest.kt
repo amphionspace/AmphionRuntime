@@ -11,6 +11,7 @@ class SpeakerDiarizationInferenceTest {
         val inference = mock<SpeakerDiarizationInference>()
         val collect = SpeakerDiarizationInference::class.java.getDeclaredMethod(
             "collectSingleSpeakerSamples", FloatArray::class.java, List::class.java, Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType, Int::class.javaPrimitiveType,
         ).also { it.isAccessible = true }
         val samples = FloatArray(160_000) { it / 160_000f }
         val segments = listOf(
@@ -21,10 +22,14 @@ class SpeakerDiarizationInferenceTest {
         )
         assertArrayEquals(
             samples.copyOfRange(0, 48_000) + samples.copyOfRange(96_000, 144_000),
-            collect.invoke(inference, samples, segments, 0) as FloatArray, 0f,
+            collect.invoke(inference, samples, segments, 0, 0, samples.size) as FloatArray, 0f,
         )
         assertArrayEquals(samples.copyOfRange(64_000, 96_000),
-            collect.invoke(inference, samples, segments, 1) as FloatArray, 0f)
-        assertArrayEquals(floatArrayOf(), collect.invoke(inference, samples, segments, 2) as FloatArray, 0f)
+            collect.invoke(inference, samples, segments, 1, 0, samples.size) as FloatArray, 0f)
+        assertArrayEquals(floatArrayOf(), collect.invoke(inference, samples, segments, 2, 0, samples.size) as FloatArray, 0f)
+        assertArrayEquals(samples.copyOfRange(96_000, 128_000),
+            collect.invoke(inference, samples, segments, 0, 96_000, 128_000) as FloatArray, 0f)
+        assertArrayEquals(floatArrayOf(),
+            collect.invoke(inference, samples, segments, 1, 96_000, 128_000) as FloatArray, 0f)
     }
 }

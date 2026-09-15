@@ -153,11 +153,23 @@ internal class OnlineSpeakerRegistry(
     }
 
     fun matchKnown(raw: FloatArray): String? {
+        return matchExisting(raw, similarityThreshold)?.speakerId
+    }
+
+    /** Query matching never enrolls roles or uses a context-only profile. */
+    fun matchQuery(raw: FloatArray, establishedIds: Set<String>): SpeakerAssignment? {
+        // Independent AISHELL3 calibration: maximum impostor cosine .5392 + .05 margin.
+        return matchExisting(raw, 0.59f, establishedIds)
+    }
+
+    private fun matchExisting(raw: FloatArray, threshold: Float, allowedIds: Set<String>? = null): SpeakerAssignment? {
         val embedding = normalize(raw) ?: return null
-        val ranked = entries.map { it.speakerId to cosine(it.centroid, embedding) }.sortedByDescending { it.second }
+        val ranked = entries.filter { allowedIds == null || it.speakerId in allowedIds }
+            .map { it.speakerId to cosine(it.centroid, embedding) }.sortedByDescending { it.second }
         val best = ranked.firstOrNull() ?: return null
-        return if (best.second >= similarityThreshold &&
-            (ranked.size < 2 || best.second - ranked[1].second >= topMargin)) best.first else null
+        return if (best.second >= threshold &&
+            (ranked.size < 2 || best.second - ranked[1].second >= topMargin))
+            SpeakerAssignment(best.first, best.second.coerceIn(0f, 1f), false) else null
     }
 
     fun commitKnown(id: String, embedding: FloatArray, durationMs: Int, atMs: Int) {
@@ -186,6 +198,7 @@ internal data class SpeakerEmbeddingObservation(
     val endTimeMs: Int,
     val evidenceKey: String,
     val anchorId: String? = null,
+    val queryEmbedding: FloatArray? = null,
 )
 
 internal data class SpeakerClusterResult(

@@ -8,6 +8,7 @@ internal data class DiarizationEmbedding(
     val localSpeaker: Int,
     val speechSamples: Int,
     val embedding: FloatArray,
+    val queryEmbedding: FloatArray? = null,
 )
 
 internal data class DiarizationWindowInferenceResult(
@@ -30,20 +31,15 @@ internal class SpeakerDiarizationInference(
         ),
     )
 
-    fun process(samples: FloatArray): DiarizationWindowInferenceResult {
+    fun process(samples: FloatArray, queryStartSample: Int = 0, queryEndSample: Int = 0): DiarizationWindowInferenceResult {
         val started = System.nanoTime()
         val segments = segmenter.process(samples)
         val embeddings = (0 until LOCAL_SPEAKER_COUNT).mapNotNull { localSpeaker ->
             val channelSamples = collectSingleSpeakerSamples(samples, segments, localSpeaker)
-            if (channelSamples.size < MIN_EMBEDDING_SAMPLES) return@mapNotNull null
-            val stream = extractor.createStream()
-            try {
-                stream.acceptWaveform(channelSamples, SAMPLE_RATE)
-                if (!extractor.isReady(stream)) return@mapNotNull null
-                DiarizationEmbedding(localSpeaker, channelSamples.size, extractor.compute(stream))
-            } finally {
-                stream.release()
-            }
+            val embedding = computeEmbedding(channelSamples) ?: return@mapNotNull null
+            val querySamples = collectSingleSpeakerSamples(samples, segments, localSpeaker,
+                queryStartSample, queryEndSample)
+            DiarizationEmbedding(localSpeaker, channelSamples.size, embedding, computeEmbedding(querySamples))
         }
         return DiarizationWindowInferenceResult(
             segments,
@@ -57,18 +53,31 @@ internal class SpeakerDiarizationInference(
         runCatching { segmenter.close() }
     }
 
+    private fun computeEmbedding(samples: FloatArray): FloatArray? {
+        if (samples.size < MIN_EMBEDDING_SAMPLES) return null
+        val stream = extractor.createStream()
+        try {
+            stream.acceptWaveform(samples, SAMPLE_RATE)
+            return if (extractor.isReady(stream)) extractor.compute(stream) else null
+        } finally {
+            stream.release()
+        }
+    }
+
     private fun collectSingleSpeakerSamples(
         samples: FloatArray,
         segments: List<SpeakerSegmentationSegment>,
         localSpeaker: Int,
+        fromSample: Int = 0,
+        throughSample: Int = samples.size,
     ): FloatArray {
         val expectedMask = 1 shl localSpeaker
         val result = FloatArray(MAX_EMBEDDING_SAMPLES)
         var count = 0
         for (segment in segments) {
             if (segment.speakerMask != expectedMask || count >= result.size) continue
-            val start = segment.startSample.coerceIn(0, samples.size)
-            val end = segment.endSample.coerceIn(start, samples.size)
+            val start = maxOf(fromSample, segment.startSample).coerceIn(0, samples.size)
+            val end = minOf(throughSample, segment.endSample).coerceIn(start, samples.size)
             val take = min(end - start, result.size - count)
             if (take <= 0) continue
             samples.copyInto(result, count, start, start + take)
