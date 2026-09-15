@@ -82,5 +82,35 @@ partial 后固定 1600ms 结束。未改变 VAD 模型或阈值。
 diagnostics HAP。独立提交 `2b5b47cf` 增加显式构建模式并透传到身份校验与安装，
 默认仍为 Debug，源码指纹和二进制校验保持生效。
 
-待补：冻结测试载体后的最终 USB 时延报告和必要相邻公共 API 验收。
-Host native VAD 结果仅用于定位，不能替代鸿蒙真机验收。
+## 最终验证
+
+代码、测试载体、版本、授权、签名和模型冻结在 `74dad3916620241cb5b8d97629811b55a1cb9879`。
+之后只补本报告和证据，不改变运行代码。中英 diagnostics HAP 和四个 HAR 已保留，
+HAP SHA-256：`6216dc478d93625760dfc51a1969fb91ea18e3e27098c182103381ecd21c0da5`。
+完整构建身份、逐轮断言与原始 artifact 哈希见
+[脱敏验收报告](evidence/speech-end-latency-20260915/report.json)。
+
+| 最终包、同一设备、同一 PCM | 普通 | Speaker VAD |
+| --- | ---: | ---: |
+| native 尾静音 | 1626ms | 1626ms |
+| 尾点到事件的墙钟时间 | 1697ms | 1730ms |
+| 到期时已有解码的剩余等待 | 68ms | 101ms |
+| 就绪后事件分发 | 11ms | 11ms |
+| 时延及 SDK 回调契约 | PASS | PASS |
+
+- Harmony 构建、安装与运行通过；最终包共完成 17 轮定向验收：时延对照 2 轮，
+  `callback-api-reentrant` 3 轮，`finish-shutdown`、`vad-begin`、`vad-begin-silence`、
+  `cancel`、`start-write`、`max-duration` 各 2 轮，全部 PASS。
+- `SPEECH_END -> finish` 保留非空文本，finish 前 last 为 0，结束后唯一 last 随后唯一
+  complete；Speaker VAD 对照的非空 final 带 `speakerSimilarity`；正常结束无 error，
+  native stream 回到 0。取消、纯静音自动结束、真实语音继续和最大时长分别验收。
+- 状态机红灯转绿，并通过有序声纹决策、恢复起音、初始静音、回调内重入等相关测试。
+  Android SDK 和鼎桥 SDK 的 Debug/Release 共 304 个单测通过。
+- 原始失败报告、最终 `report.json`、逐轮回调、内存采样、hilog、输入映射与二进制保留
+  在本地私有诊断目录，失败现场没有覆盖或改判。本次是问题验证，未运行完整发布矩阵。
+
+覆盖限制：没有客户原注册录音，不能宣称已在真机上复现并消除原声纹下的全部偶发情况。
+歧义分支由现场日志与同分数序列的生产方法差分支撑；本次真机使用说明过的替代注册 PCM。
+`SPEECH_END` 之后的 final 仍可能需要说话人细化，此修复不承诺 final 在 1600ms 内返回。
+短测内存结果中的 `INCONCLUSIVE` 不计为长期稳定性通过；Android 本次只做单测，未做
+对应修复包的 USB 验收。未生成新的客户交付 ZIP，也未宣称完成发布门禁或主线合入。
