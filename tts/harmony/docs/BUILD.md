@@ -2,7 +2,7 @@
 
 本文面向第一次拿到这份 HarmonyOS 工程的协作者，目标是从 0 构建出 HAR，并理解 `sample` 这个宿主 HAP 的用途。
 
-Dingqiao v3 当前源码、submodule、TN 原生文件和 HAR 编译的完整说明见 [BUILD_FROM_SOURCE.md](BUILD_FROM_SOURCE.md)。
+Dingqiao v3 当前源码、TN 原生文件和 HAR 编译的完整说明见 [BUILD_FROM_SOURCE.md](BUILD_FROM_SOURCE.md)。
 
 最终 SDK 产物：
 

@@ -8,28 +8,23 @@ tts/android/sdk/build/outputs/aar/sdk-release.aar
 
 当前 Android AAR 只包含 SDK 代码、`liblits_tn.so`、ONNX Runtime JNI 库和播放实现；ONNX 模型、前端资源和 TN 可执行文件会被整理到 `external-resources/`，不再打进 AAR。
 
-## 1. 获取源码和 submodule
+## 1. 获取源码
 
-首次克隆建议直接带上 submodule：
+TN（文本归一化）源码、规则和测试已直接纳入本仓库，普通克隆即可获取：
 
 ```bash
-git clone --recurse-submodules <AmphionRuntime-url>
+git clone <AmphionRuntime-url>
 cd AmphionRuntime
 ```
 
-如果已经克隆过仓库，进入仓库根目录后执行：
-
-```bash
-git submodule update --init --recursive
-```
-
-必须存在以下 TN submodule：
+协作者无需原 TN 私有仓库权限；来源版本见
+[TN_SOURCE.md](../../training/TN_SOURCE.md)。源码目录为：
 
 ```text
 tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS/
 ```
 
-Android JNI 会从这个 submodule 编译 `liblits_tn.so`，Gradle 也会从这里同步 `rules_v2` 和拼音映射文件。
+Android JNI 会从这个目录编译 `liblits_tn.so`，Gradle 也会从这里同步 `rules_v2` 和拼音映射文件。
 
 ## 2. 准备本机环境
 
@@ -111,7 +106,7 @@ ICU_SOURCE_ARCHIVE=/path/to/icu4c-78.1-sources.tgz \
 tts/tools/tn/build_dingqiao_android_native.sh
 ```
 
-脚本会使用当前仓库里的 TN submodule，不依赖任何兄弟目录或本机私有源码路径。默认输出：
+脚本会使用当前仓库里的 TN 源码目录，不依赖任何兄弟目录或本机私有源码路径。默认输出：
 
 ```text
 tts/training/dingqiao_lits/build/android-icu/
@@ -163,7 +158,7 @@ AAR 不应包含：
 
 ## 7. 常见问题
 
-- `submodule` 目录为空：执行 `git submodule update --init --recursive`。
+- TN 源码目录为空：确认已检出包含 TN 源码迁入的版本；该目录由本仓库直接跟踪。
 - 找不到 Android SDK：设置 `ANDROID_HOME` / `ANDROID_SDK_ROOT`，或写 `tts/android/local.properties`。
 - 找不到 ICU 头文件或静态库：先运行 `tts/tools/tn/build_dingqiao_android_native.sh`，或确认 `tts/training/dingqiao_lits/build/android-icu/` 已存在。
 - 运行时报缺少外部资源：把 `tts/android/external-resources/tts/...` 复制到宿主 SDK 工作目录下的 `tts/...`。
