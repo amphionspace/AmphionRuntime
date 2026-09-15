@@ -114,7 +114,7 @@ class HarmonyDiarizationQueryTest(unittest.TestCase):
         """
         driver = """
           const query=[.63,.41,Math.sqrt(1-.63**2-.41**2)];
-          function run(useQuery,published,context=[0,1,0],maxSpeakers=4) {
+          function run(useQuery,published,context=[0,1,0],maxSpeakers=4,outputQuery=query) {
             const s=new SpeakerDiarizationSession({},'',maxSpeakers,{
               onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}});
             s.committedRegistry.assign(new Float32Array([1,0,0]),6000,0);
@@ -125,7 +125,7 @@ class HarmonyDiarizationQueryTest(unittest.TestCase):
               realEndSample:32000,commitStartSample:0,stableEndSample:32000,finalWindow:true,
               result:{inferenceMs:0,segments:[{startSample:0,endSample:32000,speaker:0,speakerMask:1}],
                 embeddings:[{localSpeaker:0,speechSamples:96000,embedding:context,
-                  queryEmbedding:useQuery?query:undefined}]}});
+                  queryEmbedding:useQuery?outputQuery:undefined}]}});
             const result=s.commitWindow(2000,2000,true);
             return {s,result,profile:s.committedRegistry.snapshot()};
           }
@@ -136,8 +136,10 @@ class HarmonyDiarizationQueryTest(unittest.TestCase):
           assert.deepEqual(corrected.profile,baseline.profile,'queries must not update enrollment');
           assert.equal(run(true,[]).result.speakerTurns[0].speakerIndex,1,
             'a context-only registry entry must not become a new public identity');
-          assert.equal(run(true,['S1'],[0,0,1],2).result.speakerTurns[0].speakerIndex,-1,
-            'a query must not promote an UNKNOWN context assignment');
+          assert.equal(run(true,['S1'],[0,0,1],2).result.speakerTurns[0].speakerIndex,0,
+            'strong owned speech must resolve UNKNOWN against an established role');
+          assert.equal(run(true,['S1'],[0,0,1],2,[.5,0,Math.sqrt(.75)]).result.speakerTurns[0].speakerIndex,-1,
+            'a below-threshold query must keep UNKNOWN');
           corrected.s.transcript.applyEvidenceRemap({'handoff:0':'S2'});
           assert.equal(corrected.result.speakerTurns[0].speakerIndex,0,'published output is immutable');
         """
