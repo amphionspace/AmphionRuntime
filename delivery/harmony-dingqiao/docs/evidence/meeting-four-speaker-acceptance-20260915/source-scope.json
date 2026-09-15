@@ -1,0 +1,45 @@
+{
+  "sourcesSearched": [
+    "COS amphion-audio-backup full-catalog-20260914: 361 verified receipts, catalog binding, AliMeeting annotation and supervision manifests",
+    "COS cuhk-anfeiweng: existing Dingqiao meeting audio and relevant evaluation prefixes",
+    "OBS cuhk-anfeiweng-benchmark: ASR evaluation archives, metadata, testset and icefall prefixes",
+    "OBS anfeiweng-audiollm-resource: model testdata and available workspace/archive listings"
+  ],
+  "aishell4": {
+    "obsBucket": "cuhk-anfeiweng-benchmark",
+    "obsKey": "asr-zh-en-eval-20260804/aishell4-test.tar",
+    "members": 62,
+    "wholeMeetings": 20,
+    "wholeMeetingSpeakerCounts": [
+      5,
+      6,
+      7
+    ],
+    "newAcceptanceScope": "3 fixed consecutive 180-second clips with 2/3/4 actual reference speakers; original recordings are not <=4-person meetings",
+    "downloadMethod": "OBS ranged reads of uncompressed tar members, preserving member offsets and individual extracted SHA-256 values. Whole 5.24GB archive was not downloaded or hash-verified; provided archive checksum is retained as source metadata only."
+  },
+  "alimeeting": {
+    "cosIndexedAnnotationFiles": 237,
+    "pairedFullMeetingAudioFound": false,
+    "status": "NOT_INCLUDED: annotations without matched audio are not an acceptance case; no claim that every opaque archive across all buckets was exhaustively searched."
+  },
+  "customerUnlabeledAudio": {
+    "file": "meetingMinutes-1789438186695.wav",
+    "groundTruthAvailable": false,
+    "participantCountVerified": false,
+    "accuracyStatus": "NOT_EVALUATED",
+    "note": "Unknown counts remain diagnostic observations, not a failure judgment. SDK limit is maxSpeakers=4."
+  },
+  "reusedCosCase": {
+    "sourceKey": "fengtingyan/dingqiao/20200623_S_R001S01C01.flac",
+    "bucket": "cuhk-anfeiweng-1373259071",
+    "wholeReferenceSpeakerCount": 4,
+    "clipSeconds": [
+      0,
+      180
+    ],
+    "buildCommit": "b38ed1202069c1a86a1c4860ba75291902d7de01",
+    "reportSha256": "b74169e614c939009a4e751af8841fb732588dc41d1235d029fdd62e91054dd6",
+    "reasonForReuse": "Same source, input, runtime code, model hashes, HAP/HAR bytes and device; existing current-binary public SDK evidence is valid."
+  }
+}
