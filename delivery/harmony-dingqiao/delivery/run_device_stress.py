@@ -56,6 +56,7 @@ FINISH_MODES = {
 }
 TARGET_SPEAKER_MODES = {
     "speaker-vad-turn",
+    "speech-end-latency",
     "target-speaker-enhancement",
     "target-speaker-enhancement-onstart",
     "target-speaker-enhancement-cancel",
@@ -126,6 +127,7 @@ def parse_args() -> argparse.Namespace:
             "speaker-vad-onstart",
             "cold-start-pcm-gap",
             "speaker-vad-turn",
+            "speech-end-latency",
             "target-speaker-enhancement",
             "target-speaker-enhancement-onstart",
             "target-speaker-enhancement-cancel",
@@ -155,6 +157,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--settle-ms", type=int, default=0)
     parser.add_argument("--pace-ms", type=int, default=20)
+    parser.add_argument("--speech-end-ms", type=int, default=0,
+                        help="Native VAD speech-end sample time for speech-end-latency fixture (ms).")
     parser.add_argument("--asr-qos", choices=["default", "user-initiated", "user-interactive"], default="default")
     parser.add_argument("--asr-cpu-ids", default="none", help="Experimental zero-based CPU IDs, comma-separated.")
     parser.add_argument("--asr-num-threads", type=int, choices=range(1, 9), default=4)
@@ -200,6 +204,8 @@ def parse_args() -> argparse.Namespace:
         except ValueError:
             parser.error("--asr-cpu-ids requires unique integer IDs in [0, 127]")
         args.asr_cpu_ids = ",".join(str(cpu) for cpu in sorted(cpu_ids))
+    if args.mode == "speech-end-latency" and (args.speech_end_ms <= 0 or args.pace_ms != 20):
+        parser.error("speech-end-latency requires --speech-end-ms and --pace-ms 20")
     if args.cycles <= 0:
         parser.error("--cycles must be positive")
     if args.files < 0:
@@ -1114,6 +1120,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressCycles", str(args.cycles),
         "--ps", "stressSettleMs", str(args.settle_ms),
         "--ps", "stressPaceMs", str(args.pace_ms),
+        "--ps", "stressSpeechEndMs", str(args.speech_end_ms),
         "--ps", "stressAsrQos", args.asr_qos,
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
         "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
