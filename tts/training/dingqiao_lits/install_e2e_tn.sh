@@ -20,9 +20,9 @@ TN_ROOT="$REPO_ROOT/Dingqiao_Multilingual_Text_Normalization_for_TTS"
 BUILD_OUT="$TN_ROOT/test/bin"
 INSTALL_DIR="${TN_INSTALL_DIR:-$REPO_ROOT/e2e_infer/bin-macos-arm64}"
 
-if [[ ! -d "$TN_ROOT" ]]; then
-  echo "Missing TN submodule: $TN_ROOT" >&2
-  echo "Run: git submodule update --init Dingqiao_Multilingual_Text_Normalization_for_TTS" >&2
+if [[ ! -f "$TN_ROOT/test/scripts/build.sh" ]]; then
+  echo "Missing repository TN source: $TN_ROOT" >&2
+  echo "Use a complete AmphionRuntime checkout; TN source is tracked in this repository." >&2
   exit 1
 fi
 
