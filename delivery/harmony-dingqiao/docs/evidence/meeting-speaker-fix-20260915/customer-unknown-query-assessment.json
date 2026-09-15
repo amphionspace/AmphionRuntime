@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "runtimeCommit": "4c6c45a47fdc30e9948b34ef472a5b06a7e7c252",
-  "status": "LOCAL_PASS_DEVICE_PENDING_EXPIRED_SIGNING",
+  "status": "LOCAL_PASS_DEVICE_WITNESS_PASS_OVERALL_CUSTOMER_ISSUE_OPEN",
   "canonical": false,
   "scope": {
     "change": "Allow owned-speech query to resolve UNKNOWN context assignments against established public roles.",
@@ -239,7 +239,7 @@
     "green": "5 Harmony query checks passed",
     "android": "sdk and sdk-dingqiao Debug/Release unit tests passed; BUILD SUCCESSFUL in 19s",
     "harmony": "Isolated production ArkTS assembleHar passed; BUILD SUCCESSFUL in 43s; not an installed HAP",
-    "usb": "Pending valid signing; the installed fd621123 HAP does not contain this fix"
+    "usb": "Completed once on 9d2103a0 diagnostics ZH_EN HAP; exact identity witness and lifecycle pass; see customer-unknown-query-device-assessment.json; raw mid-window coverage remains FAIL."
   },
   "remainingMeetingDiagnosis": {
     "canonical": false,
@@ -307,7 +307,9 @@
   "signingBlock": {
     "expiredAt": "2026-09-15T16:44:58+08:00",
     "action": "Refresh same-app developer debug signing using the current connected Harmony device",
-    "bypassed": false
+    "bypassed": false,
+    "resolved": true,
+    "certificateNotAfter": "2026-09-29T17:28:20+08:00"
   },
   "evidence": [
     {
