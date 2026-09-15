@@ -8,7 +8,7 @@ internal data class SpeakerTimelineTurn(
     val endTime: Int,
     var speakerId: String,
     var secondarySpeakerIds: List<String>,
-    val confidence: Float = 0f,
+    var confidence: Float = 0f,
     val overlap: Boolean = false,
     val evidenceKey: String? = null,
     val secondaryEvidenceKeys: List<String> = emptyList(),
@@ -88,9 +88,13 @@ internal class DiarizationTranscriptState {
         }
     }
 
-    fun applyEvidenceRemap(remap: Map<String, String>, fromTime: Int = 0): List<DiarizationTranscriptUpdate> {
+    fun applyEvidenceRemap(remap: Map<String, String>, fromTime: Int = 0,
+        confidences: Map<String, Float> = emptyMap()): List<DiarizationTranscriptUpdate> {
         turns.filter { it.endTime >= fromTime }.forEach { turn ->
-            turn.evidenceKey?.let { turn.speakerId = remap[it] ?: turn.speakerId }
+            turn.evidenceKey?.let {
+                turn.speakerId = remap[it] ?: turn.speakerId
+                turn.confidence = confidences[it] ?: turn.confidence
+            }
             turn.secondarySpeakerIds = turn.secondarySpeakerIds.mapIndexed { index, speakerId ->
                 remap[turn.secondaryEvidenceKeys.getOrNull(index)] ?: speakerId
             }.filter { it != turn.speakerId }.distinct()

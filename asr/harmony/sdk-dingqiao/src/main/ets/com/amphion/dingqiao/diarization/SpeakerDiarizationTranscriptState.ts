@@ -215,12 +215,14 @@ export class SpeakerDiarizationTranscriptState {
     return updates;
   }
 
-  applyEvidenceRemap(remap: Record<string, string>, fromTime: number = 0): DiarizationTranscriptUpdate[] {
+  applyEvidenceRemap(remap: Record<string, string>, fromTime: number = 0,
+    confidences: Record<string, number> = {}): DiarizationTranscriptUpdate[] {
     for (let index = 0; index < this.turns.length; index++) {
       const turn = this.turns[index];
       if (turn.endTime < fromTime) continue;
       if (turn.evidenceKey !== undefined) {
         turn.speakerId = remap[turn.evidenceKey] ?? turn.speakerId;
+        turn.confidence = confidences[turn.evidenceKey] ?? turn.confidence;
       }
       const evidenceKeys = turn.secondaryEvidenceKeys ?? [];
       turn.secondarySpeakerIds = turn.secondarySpeakerIds

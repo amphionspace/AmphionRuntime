@@ -26,6 +26,7 @@ export class SpeakerDiarizationEmbedding {
   localSpeaker: number = 0;
   speechSamples: number = 0;
   embedding: number[] = [];
+  queryEmbedding?: number[];
 }
 
 export class SpeakerDiarizationWindowResult {
@@ -50,7 +51,8 @@ export class SpeakerDiarizationInference {
       config, embeddingModelPath.startsWith('/') ? undefined : context.resourceManager, SAMPLE_RATE);
   }
 
-  async process(samples: Float32Array): Promise<SpeakerDiarizationWindowResult> {
+  async process(samples: Float32Array, queryStartSample: number = 0,
+    queryEndSample: number = 0): Promise<SpeakerDiarizationWindowResult> {
     if (this.closed || this.extractor === undefined) {
       throw new Error('speaker diarization inference is not loaded');
     }
@@ -77,6 +79,12 @@ export class SpeakerDiarizationInference {
       value.localSpeaker = localSpeaker;
       value.speechSamples = channelSamples.length;
       value.embedding = Array.from(embedding);
+      const querySamples = this.collectSingleSpeakerSamples(
+        samples, nativeSegments, localSpeaker, queryStartSample, queryEndSample);
+      if (querySamples.length >= MIN_EMBEDDING_SAMPLES) {
+        const query = await this.computeEmbedding(querySamples);
+        if (query !== undefined) value.queryEmbedding = Array.from(query);
+      }
       result.embeddings.push(value);
     }
     result.inferenceMs = Date.now() - startedMs;
@@ -91,15 +99,16 @@ export class SpeakerDiarizationInference {
   }
 
   private collectSingleSpeakerSamples(samples: Float32Array,
-    segments: SpeakerTurnSegmentationSegment[], localSpeaker: number): Float32Array {
+    segments: SpeakerTurnSegmentationSegment[], localSpeaker: number,
+    fromSample: number = 0, throughSample: number = samples.length): Float32Array {
     const expectedMask = 1 << localSpeaker;
     const parts: Float32Array[] = [];
     let total = 0;
     for (let i = 0; i < segments.length && total < MAX_EMBEDDING_SAMPLES; i++) {
       const segment = segments[i];
       if (segment.speakerMask !== expectedMask) continue;
-      const start = Math.max(0, Math.min(samples.length, segment.startSample));
-      const end = Math.max(start, Math.min(samples.length, segment.endSample));
+      const start = Math.max(0, Math.min(samples.length, Math.max(fromSample, segment.startSample)));
+      const end = Math.max(start, Math.min(samples.length, throughSample, segment.endSample));
       const take = Math.min(end - start, MAX_EMBEDDING_SAMPLES - total);
       if (take <= 0) continue;
       parts.push(samples.slice(start, start + take));

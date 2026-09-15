@@ -51,6 +51,7 @@ internal class SpeakerDiarizationSession(
     private var terminalPayload: SpeechRecognitionResult? = null
     private var decoratedTerminalPayload: SpeechRecognitionResult? = null
     private var recentObservations = mutableListOf<SpeakerEmbeddingObservation>()
+    private val publishedSpeakerIds = mutableSetOf<String>()
     private var totalSamples = 0L
     private var lastAsrEndMs = 0
     private var inferenceMs = 0L
@@ -183,6 +184,7 @@ internal class SpeakerDiarizationSession(
                 onlineSpeakerId = assignment.speakerId,
                 endTimeMs = (window.realEndSample * 1000 / SAMPLE_RATE).toInt(),
                 evidenceKey = "${window.jobId}:${embedding.localSpeaker}",
+                queryEmbedding = embedding.queryEmbedding?.copyOf(),
             )
             recentObservations += observation
         }
@@ -281,15 +283,41 @@ internal class SpeakerDiarizationSession(
             }
             cluster.indexes.forEach { remap[observations[it].evidenceKey] = id }
         }
-        transcript.applyEvidenceRemap(remap)
+        val established = publishedSpeakerIds.toMutableSet()
+        collectOutputSpeakerIds(beginTime, endTime, remap, established)
+        val queryConfidences = mutableMapOf<String, Float>()
+        for (observation in observations) {
+            val query = observation.queryEmbedding ?: continue
+            if (remap[observation.evidenceKey] == "UNKNOWN") continue
+            val match = committedRegistry.matchQuery(query, established) ?: continue
+            if (match.speakerId != remap[observation.evidenceKey]) {
+                remap[observation.evidenceKey] = match.speakerId
+                queryConfidences[observation.evidenceKey] = match.confidence
+            }
+        }
+        transcript.applyEvidenceRemap(remap, 0, queryConfidences)
         finalSpeakerCount = committedRegistry.speakerIds().size
         registry = committedRegistry.fork()
         terminalPayload?.let { decoratedTerminalPayload = decoratePayloadLocked(it) }
         val result = buildResultLocked(degradedReason, degradedMessage, endTime, beginTime).copy(isSessionFinal = isSessionFinal)
+        collectOutputSpeakerIds(beginTime, endTime, emptyMap(), publishedSpeakerIds)
         transcript.commitThrough(endTime)
         val needed = transcript.allTurns().flatMap { listOfNotNull(it.evidenceKey) + it.secondaryEvidenceKeys }.toSet()
         recentObservations.removeAll { it.endTimeMs <= endTime && it.evidenceKey !in needed }
         return result
+    }
+
+    private fun collectOutputSpeakerIds(beginTime: Int, endTime: Int,
+        remap: Map<String, String>, ids: MutableSet<String>) {
+        for (turn in transcript.allTurns()) {
+            if (turn.beginTime >= endTime || turn.endTime <= beginTime) continue
+            val primary = remap[turn.evidenceKey] ?: turn.speakerId
+            if (primary.startsWith("S")) ids += primary
+            turn.secondarySpeakerIds.forEachIndexed { index, id ->
+                val secondary = remap[turn.secondaryEvidenceKeys.getOrNull(index)] ?: id
+                if (secondary.startsWith("S")) ids += secondary
+            }
+        }
     }
 
     private fun dispatchWindows() { callbacks.drain() }

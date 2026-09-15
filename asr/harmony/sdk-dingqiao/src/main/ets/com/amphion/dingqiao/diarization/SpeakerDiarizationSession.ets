@@ -58,6 +58,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private recentEmbeddingObservations: SpeakerDiarizationEmbeddingObservation[] = [];
   private readonly commitClock: DiarizationCommitClock = new DiarizationCommitClock();
   private readonly committedRegistry: OnlineSpeakerRegistry;
+  private readonly publishedSpeakerIds: Set<string> = new Set();
   private inferenceEndMs: number = 0;
   private windowIndex: number = 0;
   private terminalPayload?: SpeechRecognitionResult;
@@ -194,6 +195,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         onlineSpeakerId: assignment.speakerId,
         endTimeMs,
         evidenceKey: `${window.jobId}:${item.localSpeaker}`,
+        queryEmbedding: item.queryEmbedding?.slice(),
       };
       this.recentEmbeddingObservations.push(observation);
 
@@ -281,6 +283,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       .map((item: SpeakerDiarizationEmbeddingObservation): SpeakerDiarizationEmbeddingObservation => ({
         embedding: item.embedding, durationMs: item.durationMs, endTimeMs: item.endTimeMs,
         evidenceKey: item.evidenceKey, onlineSpeakerId: 'UNKNOWN',
+        queryEmbedding: item.queryEmbedding,
         anchorId: this.committedRegistry.matchKnown(item.embedding) }));
     const clustered = this.globalClusterer.cluster(observations);
     const remap: Record<string, string> = {};
@@ -300,12 +303,25 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         if (key !== undefined) remap[key] = id;
       }
     }
-    this.transcript.applyEvidenceRemap(remap);
+    const established = new Set<string>(this.publishedSpeakerIds);
+    this.collectOutputSpeakerIds(beginTime, endTime, remap, established);
+    const queryConfidences: Record<string, number> = {};
+    for (const observation of observations) {
+      const key = observation.evidenceKey;
+      if (key === undefined || remap[key] === 'UNKNOWN' || observation.queryEmbedding === undefined) continue;
+      const match = this.committedRegistry.matchQuery(observation.queryEmbedding, established);
+      if (match !== undefined && match.speakerId !== remap[key]) {
+        remap[key] = match.speakerId;
+        queryConfidences[key] = match.confidence;
+      }
+    }
+    this.transcript.applyEvidenceRemap(remap, 0, queryConfidences);
     this.finalSpeakerCount = this.committedRegistry.speakerIds().length;
     this.registry = this.committedRegistry.fork();
     if (this.terminalPayload !== undefined) this.decoratePayload(this.terminalPayload);
     const result = this.buildResult(this.degradedReason, this.degradedMessage, endTime, beginTime);
     result.isSessionFinal = isSessionFinal;
+    this.collectOutputSpeakerIds(beginTime, endTime, {}, this.publishedSpeakerIds);
     this.transcript.commitThrough(endTime);
     // Keep only evidence needed by a crossing inference window / later uncommitted turns.
     const needed = new Set(this.transcript.allTurns().flatMap(turn =>
@@ -313,6 +329,20 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.recentEmbeddingObservations = this.recentEmbeddingObservations.filter(item =>
       (item.endTimeMs ?? 0) > endTime || needed.has(item.evidenceKey ?? ''));
     return result;
+  }
+
+  private collectOutputSpeakerIds(beginTime: number, endTime: number,
+    remap: Record<string, string>, ids: Set<string>): void {
+    for (const turn of this.transcript.allTurns()) {
+      if (turn.beginTime >= endTime || turn.endTime <= beginTime) continue;
+      const primary = turn.evidenceKey === undefined ? turn.speakerId : remap[turn.evidenceKey] ?? turn.speakerId;
+      if (primary.startsWith('S')) ids.add(primary);
+      turn.secondarySpeakerIds.forEach((id: string, index: number): void => {
+        const key = turn.secondaryEvidenceKeys?.[index];
+        const secondary = key === undefined ? id : remap[key] ?? id;
+        if (secondary.startsWith('S')) ids.add(secondary);
+      });
+    }
   }
 
   onDegraded(reason: SpeakerDiarizationDegradedReason, message: string): void {
