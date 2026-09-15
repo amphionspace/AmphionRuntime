@@ -33,6 +33,8 @@ class HarmonyVadTailClockTest(unittest.TestCase):
             class Gate {{
               vadCarry = new Float32Array(0);
               vadWindowSize = 512;
+              vadProcessedSamples = 0;
+              vadLastSpeechEndSample = -1;
               vadSpeechActive = true;
               trailingSilenceMs = 0;
               vadEndpointPending = false;
@@ -51,7 +53,7 @@ class HarmonyVadTailClockTest(unittest.TestCase):
               events = [];
               callback = {{ onEndpoint: () => this.events.push('end'),
                 onSpeechBegin: () => this.events.push('begin') }};
-              vad = {{ acceptWaveform() {{}}, isDetected: () => false }};
+              vad = {{ acceptWaveform() {{}}, isDetected: () => false, isEmpty: () => true }};
               {method}
             }}
             {checks}
@@ -90,6 +92,38 @@ class HarmonyVadTailClockTest(unittest.TestCase):
             await gate.advanceVadGateAsync(new Float32Array(1));
             assert.equal(gate.trailingSilenceMs, 32);
         """)
+
+    def test_native_silence_confirmation_is_included_in_vad_end(self):
+        for synchronous in (False, True):
+            with self.subTest(synchronous=synchronous):
+                self.run_gate("""
+            // Native segment timeline measured with the customer PCM and packaged Silero model.
+            // The detector confirms silence 250ms after its actual segment end (40032).
+            for (const frameSamples of [160, 320, 512]) {
+              const gate = new Gate();
+              gate.sessionConfig.endpointSilenceMs = 1600;
+              let classified = 0;
+              let segmentPending = false;
+              gate.vad = {
+                acceptWaveform(win) {
+                  classified += win.length;
+                  if (classified === 44032) segmentPending = true;
+                },
+                isDetected: () => classified < 44032,
+                isEmpty: () => !segmentPending,
+                front: () => ({ start: 0, samples: new Float32Array(40032) }),
+                pop: () => { segmentPending = false; },
+              };
+              let fed = 0;
+              while (gate.events.length === 0 && fed < 72000) {
+                fed += frameSamples;
+                await gate.advanceVadGateAsync(new Float32Array(frameSamples));
+              }
+              assert.deepEqual(gate.events, ['end']);
+              assert.ok(classified >= 40032 + 25600 && classified < 40032 + 25600 + 512,
+                `vadEnd=1600 includes native confirmation: classified=${classified}, fed=${fed}`);
+            }
+                """, synchronous=synchronous)
 
     def test_speech_resets_tail_and_initial_silence_emits_no_speech_end(self):
         self.run_gate("""

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import unittest
 
@@ -32,7 +33,6 @@ class ReleaseDefaultsTest(unittest.TestCase):
             "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.13"',
             "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.13"',
             "delivery/harmony-dingqiao/oh-package.json5": '"version": "0.3.13"',
-            "delivery/harmony-dingqiao/AppScope/app.json5": '"versionName": "0.3.13"',
             "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts": "'0.3.13'",
         }
         for relative, expected in version_files.items():
@@ -52,6 +52,13 @@ class ReleaseDefaultsTest(unittest.TestCase):
             / "delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py"
         ).read_text(encoding="utf-8")
         self.assertIn('"docs/UPGRADE_0.3.13.md"', validator)
+
+    def test_usb_carrier_preserves_the_installed_0314_version(self) -> None:
+        # The test carrier must replace the installed 314 HAP without uninstalling device data.
+        # SDK/package versions above remain unchanged until a separate customer release.
+        app = json.loads((REPO_ROOT / "delivery/harmony-dingqiao/AppScope/app.json5").read_text())["app"]
+        self.assertEqual("0.3.14", app["versionName"])
+        self.assertEqual(314, app["versionCode"])
 
     def test_039_changelog_limits_the_release_to_public_log_configuration(self) -> None:
         changelog = (

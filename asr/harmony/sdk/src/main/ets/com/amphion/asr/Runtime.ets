@@ -1338,6 +1338,10 @@ export class AsrSession {
   private vadSpeechActive: boolean = false;
   private trailingSilenceMs: number = 0;
   private vadCarry: Float32Array = new Float32Array(0);
+  private vadProcessedSamples: number = 0;
+  private vadLastSpeechEndSample: number = -1;
+  private lastDecodeStartedAtMs: number = -1;
+  private lastDecodeFinishedAtMs: number = -1;
   private initialSilenceTracker: InitialSilenceTracker = new InitialSilenceTracker(0, ASR_SAMPLE_RATE_HZ);
   // Speaker-VAD sliding-window state (Android-aligned two-phase: confirm target -> detect departure).
   private svScoreScheduler?: SpeakerVadScoreScheduler;
@@ -1360,6 +1364,7 @@ export class AsrSession {
   private speakerInferenceLane: SpeakerInferenceLane = new SpeakerInferenceLane();
   private svInferenceLoopActive: boolean = false;
   private svQueuedInferences: SpeakerVadInferenceRequest[] = [];
+  private svSilentDeparturePending: boolean = false;
   private svEndpointReady: boolean = false;
   private pendingVadStopAtEndpoint: boolean = false;
   private vadEndpointPending: boolean = false;
@@ -1867,7 +1872,13 @@ export class AsrSession {
 
   private async drainAsync(isFinal: boolean, restartAfterFinal: boolean = true,
     isLastFinal: boolean = false, initialDecodeDurationMs: number = 0): Promise<void> {
-    const decodeDurationMs = initialDecodeDurationMs + await this.recognizer.decodeAsync(this.stream);
+    const decodeStartedAtMs = Date.now();
+    const nativeDecodeDurationMs = await this.recognizer.decodeAsync(this.stream);
+    if (nativeDecodeDurationMs > 0) {
+      this.lastDecodeStartedAtMs = decodeStartedAtMs;
+      this.lastDecodeFinishedAtMs = Date.now();
+    }
+    const decodeDurationMs = initialDecodeDurationMs + nativeDecodeDurationMs;
     if (this.callbackGate.isClosed()) return;
     await this.processDecodedResultAsync(
       isFinal, restartAfterFinal, isLastFinal, decodeDurationMs);
@@ -2320,6 +2331,12 @@ export class AsrSession {
     let anySilence = false;
     while (i + this.vadWindowSize <= merged.length) {
       this.vad.acceptWaveform(merged.slice(i, i + this.vadWindowSize));
+      this.vadProcessedSamples += this.vadWindowSize;
+      while (!this.vad.isEmpty()) {
+        const segment = this.vad.front();
+        this.vadLastSpeechEndSample = segment.start + segment.samples.length;
+        this.vad.pop();
+      }
       if (this.vad.isDetected()) anySpeech = true; else anySilence = true;
       i += this.vadWindowSize;
     }
@@ -2347,7 +2364,10 @@ export class AsrSession {
     } else if (anySilence && this.vadSpeechActive) {
       // A completed 512-sample VAD window includes carry from earlier caller frames.
       // Count those classified samples, not just the frame that completed the window.
-      this.trailingSilenceMs += i * 1000 / ASR_SAMPLE_RATE_HZ;
+      // Native segment.end excludes its silence-confirmation window. Include it in vadEnd.
+      this.trailingSilenceMs = this.vadLastSpeechEndSample >= 0 ?
+        (this.vadProcessedSamples - this.vadLastSpeechEndSample) * 1000 / ASR_SAMPLE_RATE_HZ :
+        this.trailingSilenceMs + i * 1000 / ASR_SAMPLE_RATE_HZ;
       const activeEpMs = this.sessionConfig.endpointSilenceMs ?? this.config.vadConfig.activeEndpointSilenceMs;
       if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs) {
         this.vadSpeechActive = false;
@@ -2385,6 +2405,20 @@ export class AsrSession {
         return;
       }
     }
+    let deferredVadAdvance: VadGateAdvance | undefined;
+    if (!replay && this.svSilentDeparturePending) {
+      deferredVadAdvance = await this.advanceVadGateAsync(rawSamples, replay);
+      if (this.callbackGate.isClosed()) return;
+      if (!deferredVadAdvance.vadEndpoint && this.vad?.isDetected()) {
+        // Keep returning PCM outside the old turn until its boundary settles. A clean split
+        // replays its old suffix, while an unresolved fallback clears it; neither owns this slice.
+        await this.triggerSpeakerVadEndpointAsync();
+        if (!this.callbackGate.isClosed()) {
+          await this.feedChunkAndDecodeAsync(rawSamples, processedSamples, replay);
+        }
+        return;
+      }
+    }
     if (!replay) this.publicSamplesFed += rawSamples.length;
     if (!replay) this.initialSilenceTracker.observeAcousticSamples(rawSamples);
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
@@ -2406,7 +2440,7 @@ export class AsrSession {
     const speakerInferenceNeedsAsrEvidence = !replay && this.initialSilenceTracker.isArmed();
     const speakerBoundaryUnresolved = !this.svTargetConfirmed || this.svBelowCount > 0 ||
       this.svAwaitingTargetAfterDeparture;
-    const vadAdvance = await this.advanceVadGateAsync(rawSamples, replay);
+    const vadAdvance = deferredVadAdvance ?? await this.advanceVadGateAsync(rawSamples, replay);
     if (this.callbackGate.isClosed()) return;
     if (!speakerInferenceNeedsAsrEvidence) {
       this.enqueueSpeakerVadInference(rawSamples.length);
@@ -2466,6 +2500,12 @@ export class AsrSession {
     let anySilence = false;
     while (index + this.vadWindowSize <= merged.length) {
       this.vad.acceptWaveform(merged.slice(index, index + this.vadWindowSize));
+      this.vadProcessedSamples += this.vadWindowSize;
+      while (!this.vad.isEmpty()) {
+        const segment = this.vad.front();
+        this.vadLastSpeechEndSample = segment.start + segment.samples.length;
+        this.vad.pop();
+      }
       if (this.vad.isDetected()) anySpeech = true; else anySilence = true;
       index += this.vadWindowSize;
     }
@@ -2486,7 +2526,10 @@ export class AsrSession {
       // slice permanently disarms vadBegin before the timeout decision is confirmed.
       advance.initialSilenceTimedOut = true;
     } else if (anySilence && this.vadSpeechActive) {
-      this.trailingSilenceMs += index * 1000 / ASR_SAMPLE_RATE_HZ;
+      // Native segment.end excludes its silence-confirmation window. Include it in vadEnd.
+      this.trailingSilenceMs = this.vadLastSpeechEndSample >= 0 ?
+        (this.vadProcessedSamples - this.vadLastSpeechEndSample) * 1000 / ASR_SAMPLE_RATE_HZ :
+        this.trailingSilenceMs + index * 1000 / ASR_SAMPLE_RATE_HZ;
       const activeEpMs = this.sessionConfig.endpointSilenceMs ??
         this.config.vadConfig.activeEndpointSilenceMs;
       if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs && !this.vadEndpointPending) {
@@ -2494,7 +2537,10 @@ export class AsrSession {
         this.trailingSilenceMs = 0;
         Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=vad-active ` +
           `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
-          `utterancePcmBytes=${this.pcmBytesAccepted}`);
+          `utterancePcmBytes=${this.pcmBytesAccepted} vadSamples=${this.vadProcessedSamples} ` +
+          `speechEndSample=${this.vadLastSpeechEndSample} ` +
+          `lastDecodeStartedAtMs=${this.lastDecodeStartedAtMs} ` +
+          `lastDecodeFinishedAtMs=${this.lastDecodeFinishedAtMs}`);
         this.endpointAtMs = Date.now();
         if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return advance;
         this.pendingVadStopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
@@ -2566,7 +2612,7 @@ export class AsrSession {
       }
       return;
     } else {
-      if (this.svEndpointReady &&
+      if ((this.svEndpointReady || this.svSilentDeparturePending) &&
         await this.commitCleanSpeakerTurnAsync(stopAtEndpoint, true)) return;
       // A supported live Speaker VAD reset can invalidate clean-turn work while it is awaiting
       // native inference. Re-prepare under the new generation before falling back to the full final.
@@ -2711,6 +2757,8 @@ export class AsrSession {
 
   private resetVadGateState(): void {
     this.vad?.reset();
+    this.vadProcessedSamples = 0;
+    this.vadLastSpeechEndSample = -1;
     this.vadEndpointPending = false;
     this.pendingVadStopAtEndpoint = false;
     this.pendingNativeEndpointTransition = undefined;
@@ -2955,7 +3003,9 @@ export class AsrSession {
     const request = new SpeakerVadInferenceRequest(
       this.speakerPcmBuffers.speakerVadTail(winSamples).slice(),
       scheduler.totalSamples(),
-      this.vadSpeechActive || this.vadEndpointPending);
+      // An open utterance includes vadEnd silence. Only acoustic speech can establish a
+      // speaker-change boundary; low scores on silence must not launch turn refinement.
+      this.vad?.isDetected() ?? (this.vadSpeechActive || this.vadEndpointPending));
     if (this.svInferenceLoopActive) {
       // Score hops are ordered state-machine inputs. Dropping an intermediate low hop can merge a
       // rejected speaker directly into the returning target before the rejection boundary closes.
@@ -3017,11 +3067,19 @@ export class AsrSession {
       return true;
     }
     if (state === 'target-active' || state === 'target-confirmed') {
+      this.svSilentDeparturePending = false;
       this.discardPreparedSpeakerTurnPrefix();
     } else if (state === 'below') {
       this.startSpeakerTurnPrefixPreparationAsync(finalizer);
     }
-    if (state !== 'departure' || !request.speechWasActive) return false;
+    if (state !== 'departure') return false;
+    if (!request.speechWasActive) {
+      // Keep the departure evidence for final filtering. Refinement must not block the remaining
+      // acoustic silence from reaching vadEnd; finalizeAnnouncedVadEndpointAsync resolves it after
+      // the event, or the next acoustic onset resolves it before accepting another speaker score.
+      this.svSilentDeparturePending = true;
+      return false;
+    }
     let split = await this.resolveSpeakerTurnSplitAsync(
       finalizer, sv, false, (): boolean => this.speakerInferenceLane.isCurrent(generation));
     if (!this.speakerInferenceLane.isCurrent(generation) || this.svTurnFailOpen) return false;
@@ -3184,6 +3242,7 @@ export class AsrSession {
     this.svContextWaitStartedSample = -1;
     this.svTurnFailOpen = false;
     this.svEndpointReady = false;
+    this.svSilentDeparturePending = false;
     this.svTargetConfirmed = false;
     this.svBelowCount = 0;
     this.svRejectCurrentUtterance = this.svAwaitingTargetAfterDeparture;

@@ -1,0 +1,1239 @@
+{
+  "schema_version": 1,
+  "scope": "issue verification, not a release matrix or customer delivery",
+  "status": "PASS_WITH_COVERAGE_LIMITATIONS",
+  "baseline_commit": "502b3cc2",
+  "fix_commit": "ac4334ad",
+  "build_commit": "74dad3916620241cb5b8d97629811b55a1cb9879",
+  "device": {
+    "model": "PSN-AL00",
+    "system": "OpenHarmony-6.0.2.130",
+    "serial": "REDACTED"
+  },
+  "build": {
+    "mode": "diagnostics",
+    "zh_en_only": true,
+    "source_fingerprint_sha256": "9e9583653358df4cec259fc557eecfd43b507869506603fa1b5e311115e57153",
+    "identity": {
+      "private_relative_path": "final-binary/build-identity.json",
+      "sha256": "0f6b90a4eea825ff3ffe34dba44a5b648989693188f2a42397992e6982db0696",
+      "size_bytes": 2351
+    },
+    "artifacts": {
+      "amphion_asr.har": {
+        "sha256": "0293d0784d7e48170ec76b7f16b725bb99af4927454b550d0e7d734cc5946821",
+        "size_bytes": 219610668
+      },
+      "amphion_asr_demo.hap": {
+        "sha256": "6216dc478d93625760dfc51a1969fb91ea18e3e27098c182103381ecd21c0da5",
+        "size_bytes": 380766884
+      },
+      "amphion_dingqiao.har": {
+        "sha256": "aae0e149ea85a76fa27e5155d4bd87a5b44a9d13467808e380e64d1e41186399",
+        "size_bytes": 42349472
+      },
+      "amphion_police.har": {
+        "sha256": "8cc479b31364f48660de3caa42b024dffd680b6d2b2cf36363b360597d918e7d",
+        "size_bytes": 30201901
+      },
+      "sherpa_onnx.har": {
+        "sha256": "cf02999b33dbf6bd278bc4f1dd9852ae6a7c5f63b0596d121571e2b9a2492623",
+        "size_bytes": 6950541
+      }
+    }
+  },
+  "input": {
+    "recognition_pcm": {
+      "role": "customer owner-enabled recording",
+      "wav_sha256": "d7ecef308728ef7fdc343f83ffdfa36f57fcf16a0381e4bb5de76d0bc3ba70c6"
+    },
+    "enrollment": {
+      "role": "first three seconds of the same real recording; no repetition or padding; original customer enrollment unavailable",
+      "wav_sha256": "5cb03b8351d71364f1efce079e1d8f975e75d2aba06498662c14970bc286bc36"
+    },
+    "speech_end_reference_samples": 40032,
+    "sample_rate": 16000,
+    "vad_end_ms": 1600,
+    "public_frame_ms": 20
+  },
+  "timing_contract": {
+    "native_tail_ms": "[1600,1632)",
+    "wall_time": "recorded in full; only remaining duration of one ASR decode already running at the deadline is attributed separately",
+    "dispatch_budget_ms": 32,
+    "speaker_refinement_allowance_ms": 0,
+    "meaning": "an observed device acceptance budget, not a hard realtime API guarantee"
+  },
+  "canonical_device_reports": [
+    {
+      "mode": "callback-api-reentrant",
+      "status": "PASS",
+      "raw_report": {
+        "private_relative_path": "adjacent-device-final/20260915-103426-callback-api-reentrant-287adb44/report.json",
+        "sha256": "1775b7ebe2c72e3c603cf5c8d580039e8795baab64ae39eec637c34e1f0a373b",
+        "size_bytes": 11524
+      },
+      "artifacts": [
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103426-callback-api-reentrant-287adb44/hilog.txt",
+          "sha256": "31cf954c73c72ef53245e850dd83b4912a3f31880fa86b793f4b56eeea24e07a",
+          "size_bytes": 510367
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103426-callback-api-reentrant-287adb44/result.txt",
+          "sha256": "c220b0be893549b52075528e1564b23183e0324b69ee7d170ba901e3fa9139ba",
+          "size_bytes": 4606
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103426-callback-api-reentrant-287adb44/memory.csv",
+          "sha256": "6229de412da3aeff3c25706518bee251e2c7927926dcf243617b60d31a5b7299",
+          "size_bytes": 347
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103426-callback-api-reentrant-287adb44/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "size_bytes": 210
+        }
+      ],
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 4
+      },
+      "native_streams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "cycles": [
+        {
+          "index": "0",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "1",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "3",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "0",
+          "voiceprintIdCount": "0",
+          "fedFrames": "155",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "callback-api-speech-begin-0:start>callback-api-speech-begin-0:event-1>callback-api-speech-begin-0:final-last>callback-api-speech-begin-0:complete",
+          "detail": "callback-api-reentrant-speech-begin"
+        },
+        {
+          "index": "1",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "1",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "13",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "0",
+          "voiceprintIdCount": "0",
+          "fedFrames": "250",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "callback-api-speech-end-1:start>callback-api-speech-end-1:event-1>callback-api-speech-end-1:event-3>callback-api-speech-end-1:final-last>callback-api-speech-end-1:complete",
+          "detail": "callback-api-reentrant-speech-end"
+        },
+        {
+          "index": "2",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "2",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "11",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "0",
+          "voiceprintIdCount": "0",
+          "fedFrames": "250",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "callback-api-result-2:start>callback-api-result-2:event-1>callback-api-result-2:event-3>callback-api-result-2:final>callback-api-result-2:final-last>callback-api-result-2:complete",
+          "detail": "callback-api-reentrant-result"
+        }
+      ]
+    },
+    {
+      "mode": "finish-shutdown",
+      "status": "PASS",
+      "raw_report": {
+        "private_relative_path": "adjacent-device-final/20260915-103433-finish-shutdown-f0e31fdf/report.json",
+        "sha256": "7c9f0723f162b34542393051e6a5211331fa07c9c02d97328fdaca36c3b133b9",
+        "size_bytes": 9195
+      },
+      "artifacts": [
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103433-finish-shutdown-f0e31fdf/hilog.txt",
+          "sha256": "2c3dc00ca7010518656442cb82c94db6ec47c4f6da8ec1e50afa21ec5ff76db7",
+          "size_bytes": 429794
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103433-finish-shutdown-f0e31fdf/result.txt",
+          "sha256": "1faf391104aa7fd8a808173b400100047d11bda8797b1eba8f3cd5cf922f6920",
+          "size_bytes": 2981
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103433-finish-shutdown-f0e31fdf/memory.csv",
+          "sha256": "29722e766e27fa921f1e691f76a3c19ff70c01392892e9d61b6c96742c75aa4a",
+          "size_bytes": 289
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103433-finish-shutdown-f0e31fdf/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "size_bytes": 210
+        }
+      ],
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "native_streams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "cycles": [
+        {
+          "index": "0",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "1",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "3",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "1",
+          "voiceprintIdCount": "0",
+          "fedFrames": "55",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "0",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "finish-shutdown-0:start>finish-shutdown-0:event-1>finish-shutdown-0:final-last>finish-shutdown-0:complete",
+          "detail": "finish-shutdown-drained"
+        },
+        {
+          "index": "1",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "1",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "13",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "1",
+          "voiceprintIdCount": "0",
+          "fedFrames": "150",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "0",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "finish-shutdown-1:start>finish-shutdown-1:event-1>finish-shutdown-1:final-last>finish-shutdown-1:complete",
+          "detail": "finish-shutdown-drained"
+        }
+      ]
+    },
+    {
+      "mode": "vad-begin",
+      "status": "PASS",
+      "raw_report": {
+        "private_relative_path": "adjacent-device-final/20260915-103502-vad-begin-62edf3ed/report.json",
+        "sha256": "5e32c7f71acd6e3ddec28e80335cb9f1bf9add3dc6609f5d0850b08b7d936123",
+        "size_bytes": 9136
+      },
+      "artifacts": [
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103502-vad-begin-62edf3ed/hilog.txt",
+          "sha256": "7e847378d29189aeda6c5ff44c279631dd7420e9c71110cfeb5036173edc4cc1",
+          "size_bytes": 454150
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103502-vad-begin-62edf3ed/result.txt",
+          "sha256": "6b0b480237b9d99e5858b9b491aa42391c6d9586d56ce39d1b9dcbfa747bcdba",
+          "size_bytes": 2934
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103502-vad-begin-62edf3ed/memory.csv",
+          "sha256": "e92553ae9cc1738ff1d385b8d07bb82102432b7f24ef8e81716a749b0effdcf0",
+          "size_bytes": 289
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103502-vad-begin-62edf3ed/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "size_bytes": 210
+        }
+      ],
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "native_streams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "cycles": [
+        {
+          "index": "0",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "1",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "3",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "1",
+          "voiceprintIdCount": "0",
+          "fedFrames": "0",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "stress-0:start>stress-0:event-1>stress-0:final-last>stress-0:complete",
+          "detail": "vad-begin-no-early-last-speech-events-1"
+        },
+        {
+          "index": "1",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "1",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "13",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "1",
+          "voiceprintIdCount": "0",
+          "fedFrames": "0",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "stress-1:start>stress-1:event-1>stress-1:final-last>stress-1:complete",
+          "detail": "vad-begin-no-early-last-speech-events-1"
+        }
+      ]
+    },
+    {
+      "mode": "vad-begin-silence",
+      "status": "PASS",
+      "raw_report": {
+        "private_relative_path": "adjacent-device-final/20260915-103507-vad-begin-silence-b97b193d/report.json",
+        "sha256": "8af7b2f85d76ee7c4ae2b91c55a93e1e39cecfcbb31711386b338d42c406a2b5",
+        "size_bytes": 9111
+      },
+      "artifacts": [
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103507-vad-begin-silence-b97b193d/hilog.txt",
+          "sha256": "bdd96ee761e6df3504e074fb6ad770eea80457da076022c8aa3fd1192645723c",
+          "size_bytes": 444541
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103507-vad-begin-silence-b97b193d/result.txt",
+          "sha256": "f7348c4cfa1d8262ff50b170482d0e21a3c2fb7b8230fe12a8d5ac91343065be",
+          "size_bytes": 2893
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103507-vad-begin-silence-b97b193d/memory.csv",
+          "sha256": "dade652b72c1c8c2e78fca069aaf97c72a1e93cdeb9d80d2188daf9e6ae0a692",
+          "size_bytes": 289
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103507-vad-begin-silence-b97b193d/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "size_bytes": 210
+        }
+      ],
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "native_streams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "cycles": [
+        {
+          "index": "0",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "1",
+          "nonEmptyFinals": "0",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "0",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "1",
+          "voiceprintIdCount": "0",
+          "fedFrames": "0",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "vad-begin-silence-0:start>vad-begin-silence-0:final-last>vad-begin-silence-0:complete",
+          "detail": "vad-begin-silence-auto-finished"
+        },
+        {
+          "index": "1",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "1",
+          "nonEmptyFinals": "0",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "0",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "1",
+          "voiceprintIdCount": "0",
+          "fedFrames": "0",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "vad-begin-silence-1:start>vad-begin-silence-1:final-last>vad-begin-silence-1:complete",
+          "detail": "vad-begin-silence-auto-finished"
+        }
+      ]
+    },
+    {
+      "mode": "cancel",
+      "status": "PASS",
+      "raw_report": {
+        "private_relative_path": "adjacent-device-final/20260915-103513-cancel-3b9f0047/report.json",
+        "sha256": "d535e0ffaa76f473df0bd4719394ce5f1f5dc70a33c58be82f630c2ebc958169",
+        "size_bytes": 8872
+      },
+      "artifacts": [
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103513-cancel-3b9f0047/hilog.txt",
+          "sha256": "2f3d1df29d074c93f5586c3d1d90800bfaff9c892440ff049c24840edea73e59",
+          "size_bytes": 393641
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103513-cancel-3b9f0047/result.txt",
+          "sha256": "fde2a4f1de4dd0c4946479717f620dda3389839ec4f4effea39e6f292d65cc9d",
+          "size_bytes": 2684
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103513-cancel-3b9f0047/memory.csv",
+          "sha256": "3a1b508cea1f0100e2d0352da093c06e91ff648c3c4b7c4157652ea58ebc086d",
+          "size_bytes": 232
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103513-cancel-3b9f0047/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "size_bytes": 210
+        }
+      ],
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 2
+      },
+      "native_streams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "cycles": [
+        {
+          "index": "0",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "0",
+          "nonEmptyFinals": "0",
+          "completes": "0",
+          "errors": "0",
+          "finalChars": "0",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "0",
+          "voiceprintIdCount": "0",
+          "fedFrames": "0",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "stress-0:start",
+          "detail": "cancelled"
+        },
+        {
+          "index": "1",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "0",
+          "nonEmptyFinals": "0",
+          "completes": "0",
+          "errors": "0",
+          "finalChars": "0",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "0",
+          "voiceprintIdCount": "0",
+          "fedFrames": "0",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "stress-1:start",
+          "detail": "cancelled"
+        }
+      ]
+    },
+    {
+      "mode": "start-write",
+      "status": "PASS",
+      "raw_report": {
+        "private_relative_path": "adjacent-device-final/20260915-103517-start-write-16a9d8a8/report.json",
+        "sha256": "cb6c17af4962b049192da966cd23ae07d8d617af2bb3e5ff3c4cb29f8693e32e",
+        "size_bytes": 9536
+      },
+      "artifacts": [
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103517-start-write-16a9d8a8/hilog.txt",
+          "sha256": "468989fa5a0a785cc2dee37744506ea1e43a5c00aee39b207159d393c7750172",
+          "size_bytes": 434810
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103517-start-write-16a9d8a8/result.txt",
+          "sha256": "00d5f1b2ff2d0f1969be0720d0de5498671de1988dd5b4fb0ce045c8c6ff805c",
+          "size_bytes": 3001
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103517-start-write-16a9d8a8/memory.csv",
+          "sha256": "d2baeecb2ce1a84275aee1da331857edfc6ed5e464988d4acf37efec482d4150",
+          "size_bytes": 290
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103517-start-write-16a9d8a8/inventory.json",
+          "sha256": "e25377fe4ff5fe77b58622877330a770cdc2eaabf121fdbec43253e9533161f7",
+          "size_bytes": 210
+        }
+      ],
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "native_streams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "cycles": [
+        {
+          "index": "0",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "1",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "8",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "0",
+          "voiceprintIdCount": "0",
+          "fedFrames": "0",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "start-write-0:start>start-write-0:event-1>start-write-0:final-last>start-write-0:complete",
+          "detail": "onstart-write-32-frames-continue-batch-1ms-max-1ms"
+        },
+        {
+          "index": "1",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "1",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "10",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "0",
+          "voiceprintIdCount": "0",
+          "fedFrames": "0",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "start-write-1:start>start-write-1:event-1>start-write-1:final-last>start-write-1:complete",
+          "detail": "onstart-write-88-frames-continue-batch-1ms-max-1ms"
+        }
+      ]
+    },
+    {
+      "mode": "max-duration",
+      "status": "PASS",
+      "raw_report": {
+        "private_relative_path": "adjacent-device-final/20260915-103523-max-duration-89fd0d7e/report.json",
+        "sha256": "6c4bf78e527075ceeb2b88197ca758fe0e5399b2689bb946e764637965dd7243",
+        "size_bytes": 9316
+      },
+      "artifacts": [
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103523-max-duration-89fd0d7e/hilog.txt",
+          "sha256": "da364e97eafe3aa244ef21dc0e08e5f536ef86021c8a24d2e9227e7b9f04041f",
+          "size_bytes": 690180
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103523-max-duration-89fd0d7e/result.txt",
+          "sha256": "8294e73b19f7bcb15151c9fbea51c5b93a3c9e754becf20068bd3299ef141b05",
+          "size_bytes": 3070
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103523-max-duration-89fd0d7e/memory.csv",
+          "sha256": "47fe95fa191ccdf28a45a279dd7fafbe688bed8fbed7e00760c06c057fda21e5",
+          "size_bytes": 696
+        },
+        {
+          "private_relative_path": "adjacent-device-final/20260915-103523-max-duration-89fd0d7e/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "size_bytes": 210
+        }
+      ],
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 10,
+        "observation_seconds": 11.863
+      },
+      "native_streams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "cycles": [
+        {
+          "index": "0",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "1",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "20",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "1",
+          "voiceprintIdCount": "0",
+          "fedFrames": "400",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "max-0:start>max-0:event-1>max-0:final-last>max-0:complete",
+          "detail": "auto-finished-burst"
+        },
+        {
+          "index": "1",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "0",
+          "finals": "2",
+          "nonEmptyFinals": "2",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "31",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "2",
+          "voiceprintIdCount": "0",
+          "fedFrames": "400",
+          "speechEndLatencyMs": "-1",
+          "lastFinalsBeforeFinish": "-1",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "max-1:start>max-1:event-1>max-1:event-3>max-1:final>max-1:event-1>max-1:final-last>max-1:complete",
+          "detail": "auto-finished-paced"
+        }
+      ]
+    },
+    {
+      "mode": "speech-end-latency",
+      "status": "PASS",
+      "raw_report": {
+        "private_relative_path": "final-device/20260915-103300-speech-end-latency-6352e79a/report.json",
+        "sha256": "2312d83d59cd8c22b7bf9c4c168c4a27653e237beba3f340139bec3885229c08",
+        "size_bytes": 10197
+      },
+      "artifacts": [
+        {
+          "private_relative_path": "final-device/20260915-103300-speech-end-latency-6352e79a/hilog.txt",
+          "sha256": "554f08f79f57b4ce79e5e2bdffe2ecdefc83ac90b6d80c87951b09a73e0b92af",
+          "size_bytes": 686143
+        },
+        {
+          "private_relative_path": "final-device/20260915-103300-speech-end-latency-6352e79a/result.txt",
+          "sha256": "a096fcaaaf4a59547081af6415c1bd54b80f63ea084c8c9554a39caccc4229a1",
+          "size_bytes": 3369
+        },
+        {
+          "private_relative_path": "final-device/20260915-103300-speech-end-latency-6352e79a/memory.csv",
+          "sha256": "3bac671e09eba10daac9b2ee9ce3dc3f6c142041b64c2480f3a5cf4db2a02ae5",
+          "size_bytes": 644
+        },
+        {
+          "private_relative_path": "final-device/20260915-103300-speech-end-latency-6352e79a/inventory.json",
+          "sha256": "d81a03f807c8c824429cde8182906e7ffb120625fab530143d9e6b55b2f2727f",
+          "size_bytes": 198
+        }
+      ],
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 9,
+        "observation_seconds": 10.42
+      },
+      "native_streams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "cycles": [
+        {
+          "index": "0",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "4",
+          "finals": "1",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "10",
+          "nonEmptySpeakerScores": "0",
+          "missingSpeakerScores": "1",
+          "voiceprintIdCount": "0",
+          "fedFrames": "210",
+          "speechEndLatencyMs": "1697",
+          "lastFinalsBeforeFinish": "0",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "speech-end-latency-0:start>speech-end-latency-0:event-1>speech-end-latency-0:partial>speech-end-latency-0:partial>speech-end-latency-0:partial>speech-end-latency-0:partial>speech-end-latency-0:event-3>speech-end-latency-0:final-last>speech-end-latency-0:complete",
+          "detail": "ordinary-latency-ok"
+        },
+        {
+          "index": "1",
+          "status": "PASS",
+          "starts": "1",
+          "partials": "4",
+          "finals": "1",
+          "nonEmptyFinals": "1",
+          "completes": "1",
+          "errors": "0",
+          "finalChars": "10",
+          "nonEmptySpeakerScores": "1",
+          "missingSpeakerScores": "0",
+          "voiceprintIdCount": "1",
+          "fedFrames": "212",
+          "speechEndLatencyMs": "1730",
+          "lastFinalsBeforeFinish": "0",
+          "liveStreams": "0",
+          "unexpectedCallbacks": "0",
+          "trace": "speech-end-latency-1:start>speech-end-latency-1:event-1>speech-end-latency-1:partial>speech-end-latency-1:partial>speech-end-latency-1:partial>speech-end-latency-1:partial>speech-end-latency-1:event-3>speech-end-latency-1:final-last>speech-end-latency-1:complete",
+          "detail": "speaker-vad-latency-ok"
+        }
+      ],
+      "latency": {
+        "status": "PASS",
+        "criteria": "native tail [1600,1632)ms; dispatch within 32ms after deadline frame or overlapping ASR decode; no speaker refinement allowance",
+        "cases": [
+          {
+            "index": "0",
+            "status": "PASS",
+            "native_tail_ms": 1626.0,
+            "wall_latency_ms": 1697,
+            "overlapping_decode_wait_ms": 68,
+            "dispatch_after_ready_ms": 11
+          },
+          {
+            "index": "1",
+            "status": "PASS",
+            "native_tail_ms": 1626.0,
+            "wall_latency_ms": 1730,
+            "overlapping_decode_wait_ms": 101,
+            "dispatch_after_ready_ms": 11
+          }
+        ]
+      }
+    }
+  ],
+  "finish_compatibility": {
+    "status": "PASS",
+    "modes": [
+      {
+        "mode": "callback-api-reentrant",
+        "run_id": "20260915-103426-callback-api-reentrant-287adb44",
+        "status": "PASS",
+        "cycles": 3,
+        "speech_end_cycles": 1,
+        "minimum_speech_end_final_chars": 13
+      },
+      {
+        "mode": "finish-shutdown",
+        "run_id": "20260915-103433-finish-shutdown-f0e31fdf",
+        "status": "PASS",
+        "cycles": 2
+      }
+    ],
+    "root_report": {
+      "private_relative_path": "finish-compat-final/20260915-023350-576930-74dad391/report.json",
+      "sha256": "d5c8f4e15ecd83144d92a7f298d81b47b8e6d84711dd93ef692dc98a77db0b05",
+      "size_bytes": 3344
+    }
+  },
+  "non_canonical_device_reports": [
+    {
+      "canonical": false,
+      "reason": "pre-fix native tail includes repeated confirmation window; old 1700ms scalar FAIL",
+      "status": "FAIL",
+      "commit": "ba86cb626db0cd08a919f9d852f4d2cde3e2ab1c",
+      "raw_report": {
+        "private_relative_path": "baseline-device/20260915-100534-speech-end-latency-e30b9d5c/report.json",
+        "sha256": "3a1e1fdae53a6c96ec0cb6739bd80a6efea29fdbe82923c0d5022575349c6b76",
+        "size_bytes": 9400
+      },
+      "wall_latency_ms": [
+        1802,
+        1799
+      ]
+    },
+    {
+      "canonical": false,
+      "reason": "post-fix observation under initial 1700ms scalar; retained FAIL, not relabeled",
+      "status": "FAIL",
+      "commit": "ac4334adbaaf76ffa8c4901823e9216bf1a059d2",
+      "raw_report": {
+        "private_relative_path": "fixed-device/20260915-101318-speech-end-latency-610ab224/report.json",
+        "sha256": "1882db8ee08ce18bdd4ac9965482d445a9b8dd07f5b6682df847c7fcc5de1110",
+        "size_bytes": 9396
+      },
+      "wall_latency_ms": [
+        1706,
+        1715
+      ]
+    },
+    {
+      "canonical": false,
+      "reason": "post-fix instrumentation proves overlapping decode; original scalar verdict retained",
+      "status": "FAIL",
+      "commit": "b245152bdbea549a0cdd1ebd69d432ee4047d805",
+      "raw_report": {
+        "private_relative_path": "decoder-observation/20260915-102405-speech-end-latency-12842797/report.json",
+        "sha256": "f3091b900374c27f1075bf91df22665ff7c9023b99c126a92d383cbb245cd618",
+        "size_bytes": 9396
+      },
+      "wall_latency_ms": [
+        1715,
+        1701
+      ]
+    }
+  ],
+  "host_tests": [
+    {
+      "status": "EXPECTED_FAIL",
+      "scope": "pre-fix production methods: repeated native silence window and silent speaker departure entering resolver",
+      "artifact": {
+        "private_relative_path": "host-red.log",
+        "sha256": "87a96d9a72ec9ebd13fad12b7598167c00e420b687b5de12654a106e89c0761b",
+        "size_bytes": 5403
+      }
+    },
+    {
+      "status": "PASS",
+      "scope": "native tail clock and silent speaker resolver regression, 5 tests",
+      "artifact": {
+        "private_relative_path": "host-green.log",
+        "sha256": "bc725fbd6ae60c947ee1d5d067a5bfb9e774b4f2f5c5dbc1365628e011d1dc42",
+        "size_bytes": 1235
+      }
+    },
+    {
+      "status": "PASS",
+      "scope": "initial silence, final lifecycle, ordered speaker inference, turn finalizer and SDK carrier, 174 tests; evidence reused for unchanged methods",
+      "artifact": {
+        "private_relative_path": "adjacent-tests.log",
+        "sha256": "57eac3e46161cbcd7a9eaeffa5e777d65cda6af8f9a13439d78dcea6c8367e0c",
+        "size_bytes": 37217
+      }
+    },
+    {
+      "status": "PASS",
+      "scope": "deferred clean final ownership, finish reentry, returning speech before new score, 2 tests",
+      "artifact": {
+        "private_relative_path": "deferred-turn-tests.log",
+        "sha256": "b23b12badde21c84c752151c627188e941f60300d04d21f30d89e9f5f1888a58",
+        "size_bytes": 517
+      }
+    },
+    {
+      "status": "PASS",
+      "scope": "tail clock, speaker inference and explicit diagnostic build identity, 53 tests",
+      "artifact": {
+        "private_relative_path": "queue-observation-tests.log",
+        "sha256": "70df08206db7fd74c040fa8d9510d9f7f37f20e6b299ff27a8877d48e3dcde43",
+        "size_bytes": 4376
+      }
+    },
+    {
+      "status": "PASS",
+      "scope": "timing verdict and finish gate helpers, 70 tests",
+      "artifact": {
+        "private_relative_path": "timing-verdict-tests.log",
+        "sha256": "910f69f69f760d415a204acf8ef43c079715693a354d4447f80771daa69ab35e",
+        "size_bytes": 19654
+      }
+    },
+    {
+      "status": "PASS",
+      "scope": "Android sdk and sdk-dingqiao Debug/Release, 304 tests",
+      "artifact": {
+        "private_relative_path": "android-final-unit-tests.log",
+        "sha256": "55eb20dcdb65e9f0a816580a8fd82a0d45bd003c8402197d55fa23f15f18bf6a",
+        "size_bytes": 8020
+      }
+    },
+    {
+      "status": "NON_CANONICAL",
+      "scope": "87 passed plus one test harness syntax error; corrected harness validated in deferred-turn-tests.log",
+      "artifact": {
+        "private_relative_path": "final-focused-tests.log",
+        "sha256": "b3f3f3678c611cfa3a319f74271b5928c68bb82992c6455ad634e5e24eeb6110",
+        "size_bytes": 21334
+      }
+    }
+  ],
+  "android_tests": {
+    "sdk-Debug": {
+      "tests": 59,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "sdk-Release": {
+      "tests": 59,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "sdk-dingqiao-Debug": {
+      "tests": 93,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "sdk-dingqiao-Release": {
+      "tests": 93,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "limitations": [
+    "Original customer enrollment is unavailable. The ambiguous 1.4–3.5s branch is supported by customer logs and deterministic production-method score replay, not by an exact original-voiceprint USB reproduction.",
+    "Native speech tail is the timing reference. No independent human annotation of physical end of speech was supplied.",
+    "Final text may still wait for speaker-boundary refinement after SPEECH_END; this fix does not promise a 1600ms final-result deadline.",
+    "Short focused runs do not establish long-term memory stability; inspect each memory status and do not promote INCONCLUSIVE to PASS.",
+    "No Android USB validation was performed for this fix; Android evidence is Debug/Release unit tests.",
+    "No full release matrix, external system fault testing, release ZIP, PR merge or customer-delivery claim is included."
+  ],
+  "retention": "Raw report.json, per-cycle callbacks, hilog, memory.csv, input mappings, failed attempts, input PCM and frozen binaries retained in the private diagnostic directory; only redacted summaries and hashes are committed.",
+  "android_xml_reports": [
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.AsrConfigColdStartTest.xml",
+      "sha256": "c7bdd14c5313b090a5b443027c38df57c7a430cf27dcaff7abe67e4d6540b96c"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.TargetSpeakerConfigTest.xml",
+      "sha256": "e8e6e1ed9186f2cafff8df4ba1693b289174dbebbb15b9d68793d562d419e936"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.AssetRegistryTest.xml",
+      "sha256": "fe9fca3d0d447b346914af5417405c7b20dbad17b9a2e8ad6f429db0ed4456e6"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.ClosingSessionBarrierTest.xml",
+      "sha256": "bbcdaf94279b25d98583e043ef810d773ba6184867fbfe2dac27da32fe397559"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.DecoderSubmissionFenceTest.xml",
+      "sha256": "0cffec6832ab41b844045bb01f66fef0eea9c958c0b7a00d0eb3bd391c41ed1a"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.EffectiveSpeechBufferTest.xml",
+      "sha256": "b62e55a5778665f883b320d61aac9dac1f640ad1e3fb148109cd54ffbbec94fd"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.FinalCallbackOrderGateTest.xml",
+      "sha256": "6ef3efd6a7c921420075a7943a60d2c8b8c43f496ea520f79ca68d42b0b49df0"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.FinalTailFlushPlannerTest.xml",
+      "sha256": "de608ef56306b8df75ea990d5b23b212737a0daa7a2ea572965972523001a1cb"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.InitialAcousticActivityTrackerTest.xml",
+      "sha256": "2f34602592c117e79622502eda8786e22f8af64e5231f5f06903dec5c0394c50"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.LicenseVerifierTest.xml",
+      "sha256": "d635a5ba45c299617e188ff1145f55c660328a1e8dd104ad5c45c04dd4e91052"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.NativeEndpointTransitionPolicyTest.xml",
+      "sha256": "4b9c943b701d7082921ac4e74cc6d8fdedb75f1c049b98ca26cb830217e535eb"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.PcmSubmissionLimiterTest.xml",
+      "sha256": "25669c4ad0c5b72784fab10f759347af093232459d2d8b80d77909e50d4c3266"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.RecognizerResetGenerationTest.xml",
+      "sha256": "bf078cdad56a8389242fd872c1f20ad7cc34617e8214f60543211a73d9647b60"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.SessionConfigTest.xml",
+      "sha256": "8b820e5a861cb1483feb06c4b29956ca26d187d6b4b637040b0a4bb732f2e0fe"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.SpeakerPcmBuffersTest.xml",
+      "sha256": "5e4c4b41edab6ddcbbbfb2c52a4120bf85d00f713007c54ce57c6beeadf23515"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.SpeakerVadFinalGateTest.xml",
+      "sha256": "92a0fe045abb11d8d6535542dd370aefca8f571796e777560ae8bc4dd25d2adf"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.SpeakerVadScoreSchedulerTest.xml",
+      "sha256": "656639b39b2ad257080d7b60d4751da263f7eb9a0e3b10588e485aadacf5d376"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.StreamingAgcIngressTest.xml",
+      "sha256": "cf1092f0ffa400520b71d2866d70547bc6755a048826fd84cc12736e15b04d78"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Debug/TEST-com.amphion.asr.internal.StreamingAgcProcessorTest.xml",
+      "sha256": "3f8fd025af42fe27b6857233735fd677d27acbbe2853597e758acc6adb2a201b"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.AsrConfigColdStartTest.xml",
+      "sha256": "6be616269209b2aea4e7a9db0e93afede8f826774657ad15e09d8a358c600fa6"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.TargetSpeakerConfigTest.xml",
+      "sha256": "25a23310f5fa4c218bf463a2a1cad07ba16eb0edc86f238445c251046d320343"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.AssetRegistryTest.xml",
+      "sha256": "a3ef5dbee794e7e26884450c4557a752c134a23c055adc7453bf80237356605e"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.ClosingSessionBarrierTest.xml",
+      "sha256": "d6e22bd83ecf3525c68bf4886f0f463306bc74f2d11439241f4b47523f00891f"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.DecoderSubmissionFenceTest.xml",
+      "sha256": "340a33af17a8e19602171426c993282d3e5abc4134e1c781a38c11b7b9c9c271"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.EffectiveSpeechBufferTest.xml",
+      "sha256": "f24559d3e227e7990f037df74d5f41b5b434795419b69d681071867eafaed5f1"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.FinalCallbackOrderGateTest.xml",
+      "sha256": "8effb1165f8ab3f832bd8e5a3d602fa32a05da00500b1a20caacc4ed38ffdcf5"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.FinalTailFlushPlannerTest.xml",
+      "sha256": "624e3701183a7abeda676de31b1cce73b98cc161c5ca66b7324d660116a118ca"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.InitialAcousticActivityTrackerTest.xml",
+      "sha256": "c83d363f44b42190daf214adff7af32bf91c01c33f7e5f7d2ffd0994a6b9993b"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.LicenseVerifierTest.xml",
+      "sha256": "50d12ce33a07a568a5f5e0ef613733292b0d7c0e83b1e00e4ad68fe0da714c0f"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.NativeEndpointTransitionPolicyTest.xml",
+      "sha256": "9f3cd455317b7ec997421795e69a7c181ec67ed67d9729e3bf86246345dc44fd"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.PcmSubmissionLimiterTest.xml",
+      "sha256": "5e4778e38d2d084bf8547f7f56e7dc73ec1ae2e58edd0fb0bf824aca46be74a1"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.RecognizerResetGenerationTest.xml",
+      "sha256": "6740b0a417dbd0aa2f3ce95729e58fcfa1943a4427bc150bcc45dfd3fe5ac624"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.SessionConfigTest.xml",
+      "sha256": "a9c7785fd3df7a60d2832ada0dfb8963daaf08803a7c18ad92fe818291bbe56b"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.SpeakerPcmBuffersTest.xml",
+      "sha256": "30b565764db8e5dd362d2c5a5091f91acadd69f7277f78a78949f39c2e8df7d5"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.SpeakerVadFinalGateTest.xml",
+      "sha256": "9627ffad99c470c57de4d21c7a7e6e876dfb888723b9fe8b2a23220d2d8c7a63"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.SpeakerVadScoreSchedulerTest.xml",
+      "sha256": "ade3c23843912a1a27b3f9e75b7cd4123d999220b31848df5a546fce4c11ddf7"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.StreamingAgcIngressTest.xml",
+      "sha256": "7fee98a36ccafe248ce360edf79da45ecf8a42f156e040f0dc9675793fd21005"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-Release/TEST-com.amphion.asr.internal.StreamingAgcProcessorTest.xml",
+      "sha256": "e334161588d7205381dd22108b3cad90a0f0c74fd6ca8860cf40840af0be8e85"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.CallbackEpochTest.xml",
+      "sha256": "8441933809d680f84bc1c4a7ffe96cb86640c028c8bd978a750bef5cce8499c5"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.CallbackInvocationContextTest.xml",
+      "sha256": "1e62d237cc45519426134997a0be67e30a08c9c8735180a46d19f6a19c034d66"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.DiagnosticsModuleTest.xml",
+      "sha256": "7fcdc884016f77b4b350cf34c6eaa00427b3a4afaec5d9cd6b4728930c789c17"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.DingqiaoEngineConfigTest.xml",
+      "sha256": "94a6fcc1d2f5bbdf2bb3c0d6693760b858a823e75f793f7ac2bc8f392a47e45f"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.PcmIoTest.xml",
+      "sha256": "e24c2eae30118166ff0d3cdcab1a1314bed66e8b2aac39162006bc53d3820182"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.PoliceEnhancementEngineCallbackTest.xml",
+      "sha256": "844b457c928f8d6e45aee565e4dd464543c533216b58368e1225a72474edd7bf"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.PoliceEnhancementPolicyTest.xml",
+      "sha256": "22ed8b785622cb9b9afff07ad9ee9ca6dd2fa60d7b3ba116a6288ce16c1f51ed"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.RejectedFinalLifecycleTest.xml",
+      "sha256": "22d9fdfb15dc3cb3e35994b51e8d324806048c2425a1beb23f218c974caabdbf"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest.xml",
+      "sha256": "f034934c39b7673f5195ab4c0ce50ab7e7475802a031b141e6a9772b580a432d"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.VoiceprintRegistrationContractTest.xml",
+      "sha256": "9b03ffacb6cce020f35d26696ca711c31338801be6c40db122f3492fa42fc104"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.VoiceprintStoreTest.xml",
+      "sha256": "cdea00ef51d9f833815dc0797d40883bf1bbece83ded31c4a4dca40f9013e0d3"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest.xml",
+      "sha256": "e33d2f3a4a03fd01d6e57ed13fc50c47f4354b5f279dc1c8497516a14491b35b"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Debug/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest.xml",
+      "sha256": "8e6c12eb9d1fb067aa10eb632c9f9bc1233edf2a12fbd40f2f0ef1ea164f2ce9"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.CallbackEpochTest.xml",
+      "sha256": "ade7b1d5f1551515d5ffc9b970833af4acad15cfc4ed4b88bf86cfcc0ef5d147"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.CallbackInvocationContextTest.xml",
+      "sha256": "82b3078443c14237d14ee97dec47b82c6dd79da0b487dc73752051aecdc9629e"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.DiagnosticsModuleTest.xml",
+      "sha256": "485b147129f7bd2b9d6ebc7786e5facd189b87c5948a29f2cb87809f91ff7e89"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.DingqiaoEngineConfigTest.xml",
+      "sha256": "909823ad313d58f71d3151a966c612cb48837ecdfd523dbc61e5101e6f5f1379"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.PcmIoTest.xml",
+      "sha256": "4a6fdc1d3f9f19c1e71f1d7f34bc9542a9016e276018c1ffd26172aa230337df"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.PoliceEnhancementEngineCallbackTest.xml",
+      "sha256": "493b0ffa3bcd7f298ca17c533b7d396e3fe031ca235bfae99bad7253911c9a7c"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.PoliceEnhancementPolicyTest.xml",
+      "sha256": "d7ff08da322b33bbb355ef4fcf74b32844294ab500ba37a45e8479399fe4bf97"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.RejectedFinalLifecycleTest.xml",
+      "sha256": "496bc668fe5710633c776f1f6efc2bf8fd68507a02dd02e6b1f1d17cf79815f5"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest.xml",
+      "sha256": "f48d696bfe640aaf3066b82af2c275230840a621173dfa6c6d781bb894f21382"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.VoiceprintRegistrationContractTest.xml",
+      "sha256": "6781c0cbd4955eba814217f9f0d3544ca0fa9738796b33f44448d5261ccbcd81"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.VoiceprintStoreTest.xml",
+      "sha256": "9db3b0a2643fd2fa60010818991213782b1702eafd7e566f16fec59a75a78e69"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest.xml",
+      "sha256": "ed267bd9a74ec6c1733152a4529cb38f42e757e7237227b274b56e190e86a6aa"
+    },
+    {
+      "private_relative_path": "final-android-unit-results/sdk-dingqiao-Release/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest.xml",
+      "sha256": "2dfd9eea51eacd75bcac82df570103fe14e4adfd094395b4940a5cdfc3b37f7f"
+    }
+  ]
+}
