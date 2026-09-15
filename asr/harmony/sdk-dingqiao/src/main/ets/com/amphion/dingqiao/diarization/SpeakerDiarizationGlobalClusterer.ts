@@ -1,3 +1,5 @@
+import { SPEAKER_SIMILARITY_THRESHOLD } from './OnlineSpeakerRegistry';
+
 export interface SpeakerDiarizationEmbeddingObservation {
   embedding: number[];
   durationMs: number;
@@ -45,7 +47,7 @@ export class SpeakerDiarizationGlobalClusterer {
   private readonly similarityThreshold: number;
 
   constructor(maxSpeakers: number = 4, speakerCountHint: number = 0,
-    similarityThreshold: number = 0.72) {
+    similarityThreshold: number = SPEAKER_SIMILARITY_THRESHOLD) {
     this.maxSpeakers = maxSpeakers;
     this.speakerCountHint = speakerCountHint;
     this.similarityThreshold = similarityThreshold;

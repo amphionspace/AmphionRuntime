@@ -51,6 +51,37 @@ def run_node(script: str) -> None:
 
 
 class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
+    def test_short_turn_speaker_match_preserves_identity_and_separates_other_voice(self) -> None:
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ OnlineSpeakerRegistry }} from {REGISTRY.as_uri()!r};
+            import {{ SpeakerDiarizationGlobalClusterer }} from {CLUSTERER.as_uri()!r};
+
+            // Synthetic vectors bracket measured short-turn scores; no customer embeddings.
+            const first = [1, 0, 0];
+            const returning = [0.66, Math.sqrt(1 - 0.66 ** 2), 0];
+            const other = [0.54, 0, Math.sqrt(1 - 0.54 ** 2)];
+            const registry = new OnlineSpeakerRegistry(4);
+            const assign = (embedding, time) => registry.assign(new Float32Array(embedding), 1500, time);
+            const original = assign(first, 1500).speakerId;
+            assert.equal(assign(returning, 3000).speakerId, original);
+            assert.notEqual(assign(other, 4500).speakerId, original);
+            assert.equal(registry.fork().matchKnown(first), original);
+
+            const observations = [first, returning, other].map((embedding, index) => ({{
+              embedding, durationMs: 1500, onlineSpeakerId: 'UNKNOWN', evidenceKey: `w${{index}}:0`
+            }}));
+            const clusterer = new SpeakerDiarizationGlobalClusterer(4);
+            const result = clusterer.cluster(observations);
+            assert.equal(result.clusterCount, 2);
+            assert.equal(result.observationSpeakerIds[0], result.observationSpeakerIds[1]);
+            assert.notEqual(result.observationSpeakerIds[0], result.observationSpeakerIds[2]);
+            const anchored = observations.slice(0, 2).map((item, index) => ({{...item, anchorId: `S${{index + 1}}`}}));
+            assert.equal(clusterer.cluster(anchored).clusterCount, 2, 'committed roles must stay frozen');
+            """
+        )
+
     def test_meeting_stress_exports_the_final_diarization_timeline(self) -> None:
         carrier = DEVICE_STRESS.read_text(encoding="utf-8")
         self.assertIn("SpeakerDiarizationResult", carrier)
