@@ -322,10 +322,14 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         accept_index = async_lane.index(
             "this.speakerTurnFinalizer(speakerVad).accept(rawSamples, processedSamples)"
         )
-        vad_index = async_lane.index("await this.advanceVadGateAsync(rawSamples, replay)")
+        # Normal input is retained before VAD/scoring. Deferred departures first probe VAD to
+        # settle the old boundary before assigning returning PCM (covered by the behavioral test).
+        deferred_vad_index = async_lane.index("await this.advanceVadGateAsync(rawSamples, replay)")
+        vad_index = async_lane.index("await this.advanceVadGateAsync(rawSamples, replay)", accept_index)
         speaker_index = async_lane.index("this.enqueueSpeakerVadInference(rawSamples.length)")
         decode_index = async_lane.index("await this.feedRecognizerAsync(processedSamples, false)")
         self.assertLess(accept_index, vad_index)
+        self.assertLess(deferred_vad_index, accept_index)
         self.assertLess(vad_index, speaker_index)
         self.assertLess(speaker_index, decode_index)
         self.assertNotIn("await this.enqueueSpeakerVadInference", async_lane)
