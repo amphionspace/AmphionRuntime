@@ -181,15 +181,19 @@ def validate_frontend(
 
 
 def load_student(
-    checkpoint: dict[str, Any], model_type: Any, estimator_type: Any
+    checkpoint: dict[str, Any],
+    model_type: Any,
+    estimator_type: Any,
+    *,
+    streaming: bool = False,
 ) -> torch.nn.Module:
     grid = tuple(checkpoint["metadata"]["student_t_grid"])
     if grid != SUPPORTED_GRID:
         raise ValueError(
             f"Only the trained two-step grid {SUPPORTED_GRID} is supported: {grid}"
         )
-    if checkpoint["distill_args"]["decoder_streaming"] is not False:
-        raise ValueError("This exporter requires a non-streaming student checkpoint")
+    if checkpoint["distill_args"]["decoder_streaming"] is not streaming:
+        raise ValueError(f"Expected decoder_streaming={streaming} in the checkpoint")
     parameters = inspect.signature(model_type.__init__).parameters
     config = {
         key: value

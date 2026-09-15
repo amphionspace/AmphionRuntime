@@ -154,6 +154,8 @@ val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources"
         "rules_v2/zh_pinyin.json",
         "lits_hidden_encoder.onnx",
         "lits_acoustic.onnx",
+        "lits_stream_decoder_cache_init.onnx",
+        "lits_stream_decoder_cache_step.onnx",
         "external_loop_export_report.json",
         "lits_stream_condition_chunk.onnx",
         "lits_stream_decoder_step.onnx",
