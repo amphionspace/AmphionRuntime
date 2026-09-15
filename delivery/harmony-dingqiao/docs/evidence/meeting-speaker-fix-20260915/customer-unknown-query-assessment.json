@@ -1,0 +1,369 @@
+{
+  "schemaVersion": 1,
+  "runtimeCommit": "4c6c45a47fdc30e9948b34ef472a5b06a7e7c252",
+  "status": "LOCAL_PASS_DEVICE_PENDING_EXPIRED_SIGNING",
+  "canonical": false,
+  "scope": {
+    "change": "Allow owned-speech query to resolve UNKNOWN context assignments against established public roles.",
+    "preserve": [
+      "No threshold changes: query 0.59, margin 0.05, enrollment/clustering 0.72",
+      "At least one second of real single-speaker PCM owned by the output interval",
+      "No role/profile creation or update by query",
+      "No context-only role introduced",
+      "Immutable published windows and unchanged PCM/callback ownership"
+    ],
+    "excluded": [
+      "Models",
+      "Speaker capacity or enrollment strategy",
+      "Overlap separation",
+      "ASR accuracy",
+      "Release or delivery claims"
+    ]
+  },
+  "experimentPlan": {
+    "hypothesis": "Customer originalu4 (current46.0–48.27s localquery) is labeledUNKNOWN even though its query matches the originalu1 profileS3 at0.685240 versus nextbest0.245554. The existing guard disallows querying UNKNOWN context assignments, discarding otherwise eligible identity evidence.",
+    "onlyChange": "Remove UNKNOWN-context early skip for established-role queries. Keep>=1s real ownedPCM, .59 calibration, .05margin, actual-public candidate eligibility, .72enrollment/globalclustering and all centroids unchanged. No new profiles.",
+    "positiveWitness": "Customer46s utterance obtains the same role as2.72–7.8s utterances;38.5s queryscore0.524265 remains belowcalibration and must remain unresolved.",
+    "falsifier": "Reject if any of4fixed-reference meetings increases DER, reference confusion or same-person named switches. Also reject query-introduced role/profile or loss of immutable results. Unknown reduction alone is not success.",
+    "stop": "One cached-state branch on the4existing meetings and2customerfiles; no PCM replay or threshold search. Product code remains unchanged until the fork passes."
+  },
+  "cachedStateVerdict": {
+    "canonical": false,
+    "status": "PASS",
+    "cases": [
+      {
+        "case": "meeting-180s-ch0",
+        "before": {
+          "classicDer250msNoOverlap": 0.26563,
+          "speakerConfusionSeconds": 9.54,
+          "unknownTurnSeconds": 35.13
+        },
+        "after": {
+          "classicDer250msNoOverlap": 0.26563,
+          "speakerConfusionSeconds": 9.54,
+          "unknownTurnSeconds": 35.13
+        },
+        "beforeSwitches": 5,
+        "afterSwitches": 5,
+        "failures": []
+      },
+      {
+        "case": "M_R003S01C01",
+        "before": {
+          "classicDer250msNoOverlap": 0.058547,
+          "speakerConfusionSeconds": 3.41,
+          "unknownTurnSeconds": 2.91
+        },
+        "after": {
+          "classicDer250msNoOverlap": 0.058547,
+          "speakerConfusionSeconds": 3.41,
+          "unknownTurnSeconds": 2.91
+        },
+        "beforeSwitches": 4,
+        "afterSwitches": 4,
+        "failures": []
+      },
+      {
+        "case": "S_R004S01C01",
+        "before": {
+          "classicDer250msNoOverlap": 0.094012,
+          "speakerConfusionSeconds": 6.29,
+          "unknownTurnSeconds": 7.14
+        },
+        "after": {
+          "classicDer250msNoOverlap": 0.094012,
+          "speakerConfusionSeconds": 6.29,
+          "unknownTurnSeconds": 7.14
+        },
+        "beforeSwitches": 1,
+        "afterSwitches": 1,
+        "failures": []
+      },
+      {
+        "case": "S_R004S03C01",
+        "before": {
+          "classicDer250msNoOverlap": 0.009351,
+          "speakerConfusionSeconds": 0.0,
+          "unknownTurnSeconds": 0.0
+        },
+        "after": {
+          "classicDer250msNoOverlap": 0.009351,
+          "speakerConfusionSeconds": 0.0,
+          "unknownTurnSeconds": 0.0
+        },
+        "beforeSwitches": 0,
+        "afterSwitches": 0,
+        "failures": []
+      }
+    ]
+  },
+  "utteranceAssessment": {
+    "canonical": false,
+    "scope": "Production transcript interval assignment on saved USB utterance intervals; no ASR or device replay",
+    "baseline": [
+      {
+        "utteranceId": "u1",
+        "beginTime": 2720,
+        "endTime": 3960,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u2",
+        "beginTime": 6320,
+        "endTime": 7800,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u3",
+        "beginTime": 16920,
+        "endTime": 36000,
+        "speakerIndex": 0
+      },
+      {
+        "utteranceId": "u4",
+        "beginTime": 38320,
+        "endTime": 40560,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u5",
+        "beginTime": 46120,
+        "endTime": 48560,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u6",
+        "beginTime": 50040,
+        "endTime": 51120,
+        "speakerIndex": 3
+      },
+      {
+        "utteranceId": "u7",
+        "beginTime": 66040,
+        "endTime": 72520,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u8",
+        "beginTime": 74500,
+        "endTime": 77100,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u9",
+        "beginTime": 85620,
+        "endTime": 85980,
+        "speakerIndex": -1
+      }
+    ],
+    "candidate": [
+      {
+        "utteranceId": "u1",
+        "beginTime": 2720,
+        "endTime": 3960,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u2",
+        "beginTime": 6320,
+        "endTime": 7800,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u3",
+        "beginTime": 16920,
+        "endTime": 36000,
+        "speakerIndex": 0
+      },
+      {
+        "utteranceId": "u4",
+        "beginTime": 38320,
+        "endTime": 40560,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u5",
+        "beginTime": 46120,
+        "endTime": 48560,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u6",
+        "beginTime": 50040,
+        "endTime": 51120,
+        "speakerIndex": 3
+      },
+      {
+        "utteranceId": "u7",
+        "beginTime": 66040,
+        "endTime": 72520,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u8",
+        "beginTime": 74500,
+        "endTime": 77100,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u9",
+        "beginTime": 85620,
+        "endTime": 85980,
+        "speakerIndex": -1
+      }
+    ],
+    "changes": [
+      {
+        "utteranceId": "u5",
+        "beginTime": 46120,
+        "endTime": 48560,
+        "speakerIndex": 2
+      }
+    ],
+    "provisionalIdentityMapping": {
+      "originalU1": [
+        "u1",
+        "u2"
+      ],
+      "originalU3": [
+        "u4"
+      ],
+      "originalU4": [
+        "u5"
+      ]
+    },
+    "verdict": "46-second witness resolves to original u1 role; 38-second original u3 remains UNKNOWN"
+  },
+  "validation": {
+    "red": "Actual production Session returned UNKNOWN where eligible query matched established S1",
+    "green": "5 Harmony query checks passed",
+    "android": "sdk and sdk-dingqiao Debug/Release unit tests passed; BUILD SUCCESSFUL in 19s",
+    "harmony": "Isolated production ArkTS assembleHar passed; BUILD SUCCESSFUL in 43s; not an installed HAP",
+    "usb": "Pending valid signing; the installed fd621123 HAP does not contain this fix"
+  },
+  "remainingMeetingDiagnosis": {
+    "canonical": false,
+    "profileLastSeenMs": {
+      "S1": 122980,
+      "S2": 122980,
+      "S3": 122980,
+      "S4": 122980
+    },
+    "windows": [
+      {
+        "windowIndex": 0,
+        "beginMs": 0,
+        "endMs": 122980,
+        "utterancesWithoutDiarizationSpeech": 2,
+        "observations": 66,
+        "contextBestScoreRange": [
+          0.060606,
+          0.988164
+        ],
+        "anchorCount": 0,
+        "queryBestScoreRange": [
+          0.06145,
+          0.856062
+        ],
+        "queryAcceptedCount": 7
+      },
+      {
+        "windowIndex": 1,
+        "beginMs": 122980,
+        "endMs": 246780,
+        "utterancesWithoutDiarizationSpeech": 8,
+        "observations": 17,
+        "contextBestScoreRange": [
+          0.056973,
+          0.5203
+        ],
+        "anchorCount": 0,
+        "queryBestScoreRange": [
+          0.225494,
+          0.507608
+        ],
+        "queryAcceptedCount": 0
+      },
+      {
+        "windowIndex": 2,
+        "beginMs": 246780,
+        "endMs": 374160,
+        "utterancesWithoutDiarizationSpeech": 2,
+        "observations": 56,
+        "contextBestScoreRange": [
+          0.104174,
+          0.550043
+        ],
+        "anchorCount": 0,
+        "queryBestScoreRange": [
+          0.086672,
+          0.401498
+        ],
+        "queryAcceptedCount": 0
+      }
+    ],
+    "interpretation": "Later windows contain both absent diarization-speech coverage and rejected identities. No later context anchor or accepted query exists. Query guard removal alone leaves this recording unchanged."
+  },
+  "signingBlock": {
+    "expiredAt": "2026-09-15T16:44:58+08:00",
+    "action": "Refresh same-app developer debug signing using the current connected Harmony device",
+    "bypassed": false
+  },
+  "evidence": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-red.log",
+      "sha256": "2f1b36c373d4d1036a505b9079607cb62996ecef85b9f089870f9008bded397e",
+      "bytes": 2503
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-green.log",
+      "sha256": "a4e330fe70de1f6335b49d4a9a68143c704ae5031ea91247246995c7ac612910",
+      "bytes": 2489
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-android.log",
+      "sha256": "4a36507213915a25815224fcd59a1c638c925d9bbd43d3945416b67c1140828d",
+      "bytes": 8526
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-harmony-isolated.log",
+      "sha256": "161e87ed1f384dc849fe49e567b7b26d0ae3ae97e785f2e22ed97f9f02bc1c4d",
+      "bytes": 36115
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-amphion_dingqiao.har",
+      "sha256": "13356f04ffd36663a57ea074379770bd458a246267fa1e89b56cf313c4f4dcb2",
+      "bytes": 42350093
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-utterance-assessment.json",
+      "sha256": "faa8f35cfc8226be0286fd71f5824f9fd3e974dac9f5073bddd92a1d7f6d38f1",
+      "bytes": 2632
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/meeting-coverage-diagnosis.json",
+      "sha256": "0dc4a2494a66f55e27973d8172394f891f6344484994c317c71a3f898c8da325",
+      "bytes": 67682
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-verdict.json",
+      "sha256": "4a23a28956184b031c697e607a35de7eb4cb7282dbfc2e6c5e93c5aa51926f9f",
+      "bytes": 1718
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/host-smartFill/unknown-query-state.json",
+      "sha256": "e154853a20b1dbf28a1c7444324661c54fa7f3340dbfae956f2c10de8b7cd45b",
+      "bytes": 4113820
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/host-meetingMinutes/unknown-query-state.json",
+      "sha256": "7c8ee95e50984fdfd431dd59ce233c46f0747b543f982259314909e6b9a2d4b3",
+      "bytes": 17698371
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/usb-runtime/20260915-164824-diarization-windows-f441f000/report.json",
+      "sha256": "14ea78ab44e209b3a0552b294e017b01c1f7caf981c8a4e2a8bb777a384f823d",
+      "bytes": 282083
+    }
+  ]
+}
