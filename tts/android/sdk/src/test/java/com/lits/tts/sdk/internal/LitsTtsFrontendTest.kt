@@ -12,6 +12,40 @@ import org.json.JSONObject
 
 class LitsTtsFrontendTest {
     @Test
+    fun sentenceColonBeforeEnglishRemainsPunctuation() {
+        val layout = testLayout()
+        for (colon in listOf(":", "：")) {
+            for (suffix in listOf("Hello", "Room 204 is ready.", "The meeting starts at nine thirty.")) {
+                val raw = "提示${colon}${suffix}"
+                val spaced = "提示${colon} ${suffix}"
+                val normalized = LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en")
+                assertFalse("$raw -> $normalized", normalized.contains("冒号"))
+                assertArrayEquals(raw,
+                    LitsTtsFrontend.encode(layout, spaced, "zh-en", "zh-en"),
+                    LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en"))
+                // Also cover callers that enter after native TN.
+                assertArrayEquals(raw,
+                    LitsTtsFrontend.encodeNormalized(layout, spaced, "zh-en", "zh-en"),
+                    LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en"))
+            }
+        }
+        val english = LitsTnNormalizer.normalize(layout, ":Hello", "en-US", "en-US")
+        assertFalse(english, english.contains("colon", ignoreCase = true))
+    }
+
+    @Test
+    fun sentenceColonFixPreservesTimeAndUrlReadings() {
+        val layout = testLayout()
+        val time = LitsTnNormalizer.normalize(layout, "会议时间：9:30", "zh-en", "zh-en")
+        assertEquals("会议时间:九点三十分", time)
+        val url = LitsTnNormalizer.normalize(layout, "请访问https://example.com", "zh-en", "zh-en")
+        assertEquals("请访问https冒号斜杠斜杠example点com", url)
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "提示：你好", "zh-en", "zh-en"),
+            LitsTtsFrontend.encode(layout, "提示:你好", "zh-en", "zh-en"))
+    }
+
+    @Test
     fun languageContextControlsDigitReading() {
         val layout = testLayout()
 
