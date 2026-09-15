@@ -6,6 +6,39 @@ import org.mockito.kotlin.mock
 
 class SpeakerDiarizationInferenceTest {
     @Test
+    fun queryRetainsUnclassifiedRealPcmButRequiresOneSecondOfConfirmedSpeech() {
+        val inference = mock<SpeakerDiarizationInference>()
+        val collect = SpeakerDiarizationInference::class.java.getDeclaredMethod(
+            "collectQuerySamples", FloatArray::class.java, List::class.java, Int::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType, Int::class.javaPrimitiveType,
+        ).also { it.isAccessible = true }
+        val samples = FloatArray(64_000) { (it + 1) / 64_000f }
+        val segments = mutableListOf(
+            SpeakerSegmentationSegment(0, 16_000, 0, 1),
+            SpeakerSegmentationSegment(20_000, 38_000, 0, 1),
+            SpeakerSegmentationSegment(40_000, 42_000, 1, 2),
+            SpeakerSegmentationSegment(44_000, 46_000, 0, 3),
+            SpeakerSegmentationSegment(48_000, 64_000, 0, 1),
+        )
+        assertArrayEquals(
+            samples.copyOfRange(16_000, 40_000) + samples.copyOfRange(42_000, 44_000) +
+                samples.copyOfRange(46_000, 48_000),
+            collect.invoke(inference, samples, segments, 0, 16_000, 48_000) as FloatArray, 0f,
+        )
+        segments[1] = SpeakerSegmentationSegment(20_000, 35_999, 0, 1)
+        assertArrayEquals(floatArrayOf(),
+            collect.invoke(inference, samples, segments, 0, 20_000, 48_000) as FloatArray, 0f)
+        segments[1] = SpeakerSegmentationSegment(20_000, 36_000, 0, 1)
+        assertArrayEquals(
+            samples.copyOfRange(20_000, 40_000) + samples.copyOfRange(42_000, 44_000) +
+                samples.copyOfRange(46_000, 48_000),
+            collect.invoke(inference, samples, segments, 0, 20_000, 48_000) as FloatArray, 0f,
+        )
+        assertArrayEquals(floatArrayOf(),
+            collect.invoke(inference, samples, segments, 0, 46_000, 48_000) as FloatArray, 0f)
+    }
+
+    @Test
     fun retainsLaterSpeechAndExcludesOverlapAndOtherSpeakers() {
         // Bypass native construction; invoke the production PCM selector itself.
         val inference = mock<SpeakerDiarizationInference>()

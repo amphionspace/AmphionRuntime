@@ -95,6 +95,49 @@ class HarmonyDiarizationQueryTest(unittest.TestCase):
             harness.write_text(source + driver)
             subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
 
+    def test_query_keeps_unclassified_real_pcm_without_counting_it_as_speech(self):
+        path = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerDiarizationInference.ets'
+        source = path.read_text()
+        source = source[source.index('const SAMPLE_RATE:'):]
+        driver = """
+          import assert from 'node:assert/strict';
+          const samples=Float32Array.from({length:64000},(_,i)=>(i+1)/64000);
+          let segments=[
+            {startSample:0,endSample:16000,speaker:0,speakerMask:1},
+            {startSample:20000,endSample:38000,speaker:0,speakerMask:1},
+            {startSample:40000,endSample:42000,speaker:1,speakerMask:2},
+            {startSample:44000,endSample:46000,speaker:0,speakerMask:3},
+            {startSample:48000,endSample:64000,speaker:0,speakerMask:1},
+          ];
+          async function processSpeakerTurnSegmentationAsync(){return segments;}
+          const consumed=[];
+          const inference=new SpeakerDiarizationInference();
+          inference.extractor={
+            createStream(){return {acceptWaveform(w){this.samples=w.samples;},close(){}};},
+            isReady(){return true;},
+            async computeAsync(stream){consumed.push(stream.samples);return new Float32Array([1,0]);},
+          };
+          const result=await inference.process(samples,16000,48000);
+          assert.deepEqual(result.embeddings[0].queryEmbedding,[1,0]);
+          assert.deepEqual(consumed[1],new Float32Array([
+            ...samples.slice(16000,40000),...samples.slice(42000,44000),...samples.slice(46000,48000)
+          ]),'retain real unclassified PCM within ownership; exclude other speakers and overlaps');
+          assert.equal(result.embeddings[0].speechSamples,50000,'enrollment still uses only single-speaker speech');
+          consumed.length=0;
+          segments[1].endSample=35999;
+          assert.equal((await inference.process(samples,20000,48000)).embeddings[0].queryEmbedding,undefined,
+            'unclassified samples must not lift 15999 confirmed samples above the 1-second minimum');
+          assert.equal(consumed.length,1);
+          segments[1].endSample=36000;
+          assert.deepEqual((await inference.process(samples,20000,48000)).embeddings[0].queryEmbedding,[1,0]);
+          assert.equal((await inference.process(samples,46000,48000)).embeddings[0].queryEmbedding,undefined,
+            'an unclassified-only interval is not eligible');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'query-gaps.mts'
+            harness.write_text(source + driver)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
+
     def test_session_queries_only_established_output_and_preserves_profiles(self):
         source = SESSION.read_text()
         imports = "\n".join(
