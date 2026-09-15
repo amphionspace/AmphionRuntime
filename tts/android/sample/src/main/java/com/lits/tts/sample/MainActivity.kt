@@ -498,17 +498,21 @@ class MainActivity : AppCompatActivity() {
             "Welcome to the Lits delivery TTS sample. Room 204 is ready."
         } else {
             """
-                早上好，欢迎参加今天的语音试听。Good morning, everyone. Please take a seat and make yourself comfortable. 接下来，我们会交替使用中文和英文，讲一段日常生活中的小故事。
+                那天午后，我去港口取一只修好的钟。店主说，零件还没有送到。我在柜台前站了一会儿，看见墙上挂着十几只钟，每一只都指向不同的时刻。他没有解释，我也没有问。门外的阳光落在台阶上，白得令人睁不开眼。
 
-                今天早上，我带着电脑和蓝色背包来到办公室，先打开 WiFi，再查看今天的工作安排。屏幕上显示：The meeting starts at nine thirty. Please bring your laptop and a bottle of water. 我给同事发了一条消息：会议在二楼，Room 204 is ready，到了以后直接进来就好。
+                The street was almost empty. A dog slept beneath a parked truck, its paws resting in a narrow strip of shade. Somewhere behind the houses, a woman was shaking out a sheet. For a moment, the white cloth rose above the wall and held the light.
 
-                开会之前，我们一起检查麦克风和扬声器。Please check your microphone and make sure the room is quiet. 听到提示音后，请自然地说一句话，不用刻意放慢，也不用提高音量。如果中途没有听清楚，可以说：Could you repeat that, please? 然后我们再试一次。
+                我沿着电车轨道往海边走。鞋底有一粒沙子，每走几步，它就挪动一下。我本来可以停下来把它倒掉，却一直没有停。街角的水果摊收了遮阳布，一个男孩正把滚到路上的橙子捡回木箱。他递给我一个，说这个已经碰坏了。我付了钱。他看着手里的硬币，似乎想说什么，最后只是把脸转向海风。
 
-                中午，我们去附近的小店买午餐。我点了一份三明治、一杯咖啡和两个苹果，一共花了四十五元。The coffee is a little hot, so let it cool down before you drink it. 同事笑着提醒我，下午还有一段很长的英文材料要读，记得先休息一会儿。
+                I sat on a low wall and peeled the orange. The skin broke beneath my thumb, and a little juice ran down my wrist. A boat was leaving the harbour. I watched it until I could no longer tell whether it was moving or whether the afternoon itself was slowly carrying it away.
 
-                下午的阳光照进窗户，桌上的茶还冒着热气。我戴上耳机，打开刚才保存的录音，从头听到最后。The first sentence should sound clear and natural. The next sentence should continue smoothly, with a short pause between ideas. 我特别留意中文切换到英文时，声音是否连贯，句子开头是否清楚，最后几个词有没有突然变轻。
+                昨天，姐姐来信，问我打算在这里住到什么时候。信纸上还有她擦去一个字留下的破口。我把信读了两遍，折好，放进抽屉。我不知道该给她一个日期，还是说说这间屋子的窗户。每天傍晚，窗框的影子都会爬过床边，停在一块裂开的地砖上。那块砖已经裂了很久，房东答应过要换。
 
-                好了，今天的试听就到这里。Thank you for listening. Have a pleasant afternoon, and see you next time. 希望你接下来的每一件事，都能顺顺利利。
+                海水撞在堤岸上，声音很近。远处有人叫了一个名字，叫第二遍时，风把后半截吹散了。我吃完橙子，将果皮放在膝上。此刻没有人等我回去，钟表店也不会在今天关门以前收到零件。我还有很长的一段下午，需要自己过完。
+
+                There was no answer waiting in the water. I stayed there anyway. The stone was warm beneath my hands, and the salt had dried on my sleeve. When the boat disappeared, I stood up. A small fishing line had caught around my shoe. I bent down and patiently worked it loose.
+
+                回去的时候，水果摊已经空了。男孩坐在木箱上吃面包，脚够不着地。他认出了我，问橙子甜不甜。我说，很甜。他点点头，继续吃他的面包。我走过那条街，终于停在路边，脱下鞋，把里面的沙子倒了出来。
             """.trimIndent()
         }
         inputText.setText(preset)
