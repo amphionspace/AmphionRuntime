@@ -14,7 +14,7 @@ set -uo pipefail
 # Notes:
 #  - Run on the host (macOS/Linux) with g++ + the two ICU prefixes from
 #    tts/tools/tn/build_slim_icu_data.sh (build one full, one slim).
-#  - The submodule test/expected/*.golden are STALE vs the current rules_v2
+#  - The TN test/expected/*.golden are STALE vs the current rules_v2
 #    (even full-ICU differs from them), so they are NOT used as the oracle;
 #    the sound oracle is full-vs-slim identity.
 # =============================================================================
@@ -24,7 +24,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../../.." && pwd)"
 TN="$REPO/tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS"
-[[ -f "$TN/en.cpp" ]] || { echo "TN submodule not checked out at $TN" >&2; exit 1; }
+[[ -f "$TN/en.cpp" ]] || { echo "Missing repository TN source at $TN" >&2; exit 1; }
 WORK="${WORK:-$HERE/.verify-work}"; mkdir -p "$WORK/bin" "$WORK/out" "$WORK/in"
 
 build() { # locale icu-prefix out

@@ -31,7 +31,7 @@ AmphionRuntime/tts/android/
 
 ## 源码构建快速开始
 
-1. 初始化 submodule，并按仓库[资产同步说明](../../tools/assets/README.md)恢复 `tts-runtime-zhen-v1` 等构建资产；不要从旧交付目录拼装资源。
+1. 克隆本仓库（已包含 TN 源码），并按仓库[资产同步说明](../../tools/assets/README.md)恢复 `tts-runtime-zhen-v1` 等构建资产；不要从旧交付目录拼装资源。
 2. 放到下面这个固定目录：
 
 ```text

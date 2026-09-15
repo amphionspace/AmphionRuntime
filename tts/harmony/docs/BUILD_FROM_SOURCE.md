@@ -12,28 +12,23 @@ tts/harmony/sdk/build/default/outputs/default/sdk.har
 tts/harmony/sample/build/default/outputs/default/sample-default-unsigned.hap
 ```
 
-## 1. 获取源码和 submodule
+## 1. 获取源码
 
-首次克隆建议直接带上 submodule：
+TN（文本归一化）源码、规则和测试已直接纳入本仓库，普通克隆即可获取：
 
 ```bash
-git clone --recurse-submodules <AmphionRuntime-url>
+git clone <AmphionRuntime-url>
 cd AmphionRuntime
 ```
 
-如果已经克隆过仓库，进入仓库根目录后执行：
-
-```bash
-git submodule update --init --recursive
-```
-
-必须存在以下 TN submodule：
+协作者无需原 TN 私有仓库权限；来源版本见
+[TN_SOURCE.md](../../training/TN_SOURCE.md)。源码目录为：
 
 ```text
 tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS/
 ```
 
-HarmonyOS TN 可执行文件会从这个 submodule 编译；HAR 的 native 库 `liblitsttsnative.so` 也会使用仓库内的 TN/ICU 代码和静态库。
+HarmonyOS TN 可执行文件会从这个目录编译；HAR 的 native 库 `liblitsttsnative.so` 也会使用仓库内的 TN/ICU 代码和静态库。
 
 ## 2. 准备本机环境
 
@@ -107,7 +102,7 @@ OHOS_NATIVE_SDK=/path/to/openharmony/native \
 tts/tools/tn/build_dingqiao_harmony_tn.sh
 ```
 
-脚本会使用当前仓库里的 TN submodule 和 HarmonyOS SDK 内置的 OHOS 编译器。默认输出：
+脚本会使用当前仓库里的 TN 源码目录 和 HarmonyOS SDK 内置的 OHOS 编译器。默认输出：
 
 ```text
 tts/harmony/build-ohos-tn/zh_tts
@@ -177,7 +172,7 @@ HAR 不应包含：
 
 ## 8. 常见问题
 
-- `submodule` 目录为空：执行 `git submodule update --init --recursive`。
+- TN 源码目录为空：确认已检出包含 TN 源码迁入的版本；该目录由本仓库直接跟踪。
 - `ohpm` 或 `hvigorw` 找不到：确认 DevEco Studio 命令行工具路径，并设置 `NODE_HOME` / `DEVECO_SDK_HOME`。
 - 找不到 OHOS 编译器：设置 `OHOS_NATIVE_SDK` 到 `openharmony/native`。
 - 找不到 TN 文件：先运行 `tts/tools/tn/build_dingqiao_harmony_tn.sh`，或确认模型包里有 `tn-bin/arm64-v8a/zh_tts` 和 `en_tts`。
