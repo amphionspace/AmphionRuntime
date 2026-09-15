@@ -100,7 +100,7 @@ for (const delay of [0, 5]) {{
                             (ROOT / 'asr/tools/tests/ts_extension_loader.mjs').as_uri(), str(harness)],
                            check=True, cwd=ROOT)
 
-    def test_returning_speech_resolves_pending_turn_before_new_score_or_decode(self):
+    def test_returning_speech_survives_clean_split_and_unresolved_fallback(self):
         body = method_body(RUNTIME.read_text(), 'feedChunkAndDecodeAsync')
         script = f"""
 import assert from 'node:assert/strict';
@@ -108,30 +108,42 @@ const shouldSettleSpeakerInferenceBeforeNextSlice = () => false;
 const pcm = Float32Array.from([0.2, -0.1, 0.3, -0.2]);
 class Session {{
   svSilentDeparturePending = true; publicSamplesFed = 100;
+  svQueuedInferences = [];
   speakerVadEnabled = true; svTargetConfirmed = true; svBelowCount = 2;
   callbackGate = {{ isClosed: () => false }};
   initialSilenceTracker = {{ hasTimedOut: () => false, isArmed: () => false,
     observeAcousticSamples() {{}} }};
   effectiveSpeechBuffer = {{ observe() {{}} }};
   speakerPcmBuffers = {{ observe() {{}} }};
-  retained = []; timeline = [];
+  retained = []; decoded = []; timeline = []; cleanSplit = false;
   finalizer = {{ accept: raw => this.retained.push(...raw) }};
   effectiveSpeakerVad() {{ return {{ consecutiveBelow: 2 }}; }}
   speakerTurnFinalizer() {{ return this.finalizer; }}
   vad = {{ isDetected: () => true }};
   async advanceVadGateAsync() {{ return {{ vadEndpoint: false }}; }}
   async triggerSpeakerVadEndpointAsync() {{
-    assert.deepEqual(this.retained, Array.from(pcm), 'returning PCM must remain in clean-turn suffix');
     this.timeline.push('resolve-old-turn');
+    // A clean split replays its retained suffix; an unresolved fallback resets the old turn.
+    if (this.cleanSplit) this.decoded.push(...this.retained);
+    this.retained = [];
+    this.svSilentDeparturePending = false;
+    this.svBelowCount = 0;
   }}
-  enqueueSpeakerVadInference() {{ assert.fail('new target score must not erase pending departure'); }}
-  async feedRecognizerAsync() {{ assert.fail('suffix must not be fed twice'); }}
+  enqueueSpeakerVadInference() {{
+    assert.equal(this.svSilentDeparturePending, false, 'new score must not erase pending departure');
+    this.timeline.push('new-score');
+  }}
+  async feedRecognizerAsync(raw) {{ this.decoded.push(...raw); }}
   async feedChunkAndDecodeAsync(rawSamples, processedSamples, replay = false) {{ {body} }}
 }}
-const s = new Session();
-await s.feedChunkAndDecodeAsync(pcm, pcm);
-assert.deepEqual(s.timeline, ['resolve-old-turn']);
-assert.equal(s.publicSamplesFed, 104);
+for (const cleanSplit of [true, false]) {{
+  const s = new Session(); s.cleanSplit = cleanSplit;
+  await s.feedChunkAndDecodeAsync(pcm, pcm);
+  assert.equal(s.timeline[0], 'resolve-old-turn');
+  assert.deepEqual(s.decoded, Array.from(pcm),
+    `returning PCM must be decoded exactly once, cleanSplit=${{cleanSplit}}`);
+  assert.equal(s.publicSamplesFed, 104, 'public PCM must only be counted once');
+}}
 """
         with tempfile.TemporaryDirectory() as directory:
             harness = Path(directory) / 'returning-speaker.mts'
