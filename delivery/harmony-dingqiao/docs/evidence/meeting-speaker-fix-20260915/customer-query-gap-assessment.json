@@ -1,0 +1,408 @@
+{
+  "status": "HOST_CANDIDATE_PASS_DEVICE_PENDING",
+  "baselineCommit": "9f014b1e",
+  "confirmedIdentity": {
+    "source": "Explicit user statement in this task",
+    "audioSha256": "e07f2e2e56ab3c319664e9b16f1dddd5d0f18a5853e4dd06b8ccea5183d9ed11",
+    "sameSpeaker": [
+      {
+        "userStartSeconds": 1,
+        "originalUtterance": "u1",
+        "currentAsrIntervalsSeconds": [
+          [
+            2.72,
+            3.96
+          ],
+          [
+            6.32,
+            7.8
+          ]
+        ]
+      },
+      {
+        "userStartSeconds": 38,
+        "originalUtterance": "u3",
+        "currentAsrIntervalsSeconds": [
+          [
+            38.32,
+            40.56
+          ]
+        ]
+      }
+    ],
+    "note": "User confirmed same identity; user start seconds are approximate acoustic starts, not an assertion that current ASR or segmentation boundaries are accurate."
+  },
+  "rootCause": "Single-mask query selection clips real unclassified PCM within the owned output slice, lowering the confirmed 38-second query below the existing role-match threshold.",
+  "beforeCosine": 0.5242648476,
+  "candidateProbe": {
+    "canonical": false,
+    "ownedSeconds": [
+      38.5,
+      41.0
+    ],
+    "confirmedSpeechSeconds": 1.8778125,
+    "selectedSeconds": 2.3671875,
+    "addedRealZeroMaskSeconds": 0.489375,
+    "scores": {
+      "S1": 0.07978776304621941,
+      "S2": 0.10046843136098017,
+      "S3": 0.6208468567481555,
+      "S4": 0.0546126623085558
+    }
+  },
+  "plan": {
+    "baselineCommit": "9f014b1e",
+    "changedBehavior": "Keep real unclassified PCM within existing owned short query bounds. Exclude other detected speakers and overlap. Require >=16000 confirmed single-speaker samples.",
+    "unchanged": [
+      "context/enrollment PCM",
+      "query .59 threshold and .05 margin",
+      "profile .72 threshold and capacity",
+      "published results immutable",
+      "callback and sample ownership",
+      "models, license, signing, versions, ZH_EN diagnostics build"
+    ],
+    "outOfScope": [
+      "new speaker enrollment policy",
+      "ASR boundary changes",
+      "segmentation recall",
+      "52-minute resource acceptance",
+      "release packaging"
+    ],
+    "devicePlan": {
+      "inputs": [
+        {
+          "file": "01-smartFill.wav",
+          "seconds": 86.08
+        },
+        {
+          "file": "02-meeting-180s-ch0.wav",
+          "seconds": 180
+        }
+      ],
+      "mode": "diarization-windows",
+      "cycles": 2,
+      "paceMs": 20,
+      "expectedMinutes": 5,
+      "hypothesis": "Production query selection matches saved-state candidate identity intervals and restores confirmed 38-second identity without lifecycle changes.",
+      "falsifier": "Identity intervals differ from candidate; any last before finish, duplicate last/complete, error or native stream leak.",
+      "stop": "One replay per input; preserve failure and diagnose rather than rerun.",
+      "invalidation": "Code, PCM, model, thresholds or HAP/HAR content change.",
+      "outputs": "Unique raw report, per-session callbacks, memory samples, hilog, input mapping and candidate interval assessment. Raw short-input intermediate-window failure must stay visible."
+    }
+  },
+  "fourLabeledMeetings": [
+    {
+      "canonical": false,
+      "name": "meeting-180s-ch0",
+      "status": "PASS",
+      "failures": [],
+      "compare": {
+        "classicDer250msNoOverlap": {
+          "before": 0.26563,
+          "candidate": 0.251658
+        },
+        "speakerConfusionSeconds": {
+          "before": 9.54,
+          "candidate": 9.54
+        },
+        "unknownTurnSeconds": {
+          "before": 35.13,
+          "candidate": 33.02
+        },
+        "sameSpeakerIdSwitchCount": {
+          "before": 5,
+          "candidate": 5
+        }
+      },
+      "queries": 65,
+      "elapsedSeconds": 2.356189541
+    },
+    {
+      "canonical": false,
+      "name": "M_R003S01C01",
+      "status": "PASS",
+      "failures": [],
+      "compare": {
+        "classicDer250msNoOverlap": {
+          "before": 0.058547,
+          "candidate": 0.058547
+        },
+        "speakerConfusionSeconds": {
+          "before": 3.41,
+          "candidate": 3.41
+        },
+        "unknownTurnSeconds": {
+          "before": 2.91,
+          "candidate": 2.91
+        },
+        "sameSpeakerIdSwitchCount": {
+          "before": 4,
+          "candidate": 4
+        }
+      },
+      "queries": 66,
+      "elapsedSeconds": 2.320035666
+    },
+    {
+      "canonical": false,
+      "name": "S_R004S01C01",
+      "status": "PASS",
+      "failures": [],
+      "compare": {
+        "classicDer250msNoOverlap": {
+          "before": 0.094012,
+          "candidate": 0.094012
+        },
+        "speakerConfusionSeconds": {
+          "before": 6.29,
+          "candidate": 6.29
+        },
+        "unknownTurnSeconds": {
+          "before": 7.14,
+          "candidate": 7.14
+        },
+        "sameSpeakerIdSwitchCount": {
+          "before": 1,
+          "candidate": 1
+        }
+      },
+      "queries": 56,
+      "elapsedSeconds": 1.9853000840000004
+    },
+    {
+      "canonical": false,
+      "name": "S_R004S03C01",
+      "status": "PASS",
+      "failures": [],
+      "compare": {
+        "classicDer250msNoOverlap": {
+          "before": 0.009351,
+          "candidate": 0.009351
+        },
+        "speakerConfusionSeconds": {
+          "before": 0.0,
+          "candidate": 0.0
+        },
+        "unknownTurnSeconds": {
+          "before": 0.0,
+          "candidate": 0.0
+        },
+        "sameSpeakerIdSwitchCount": {
+          "before": 0,
+          "candidate": 0
+        }
+      },
+      "queries": 73,
+      "elapsedSeconds": 2.7760323749999998
+    }
+  ],
+  "customerShort": {
+    "canonical": false,
+    "scope": "Production transcript interval assignment on saved USB utterance intervals; no ASR or device replay",
+    "baseline": [
+      {
+        "utteranceId": "u1",
+        "beginTime": 2720,
+        "endTime": 3960,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u2",
+        "beginTime": 6320,
+        "endTime": 7800,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u3",
+        "beginTime": 16920,
+        "endTime": 36000,
+        "speakerIndex": 0
+      },
+      {
+        "utteranceId": "u4",
+        "beginTime": 38320,
+        "endTime": 40560,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u5",
+        "beginTime": 46120,
+        "endTime": 48560,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u6",
+        "beginTime": 50040,
+        "endTime": 51120,
+        "speakerIndex": 3
+      },
+      {
+        "utteranceId": "u7",
+        "beginTime": 66040,
+        "endTime": 72520,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u8",
+        "beginTime": 74500,
+        "endTime": 77100,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u9",
+        "beginTime": 85620,
+        "endTime": 85980,
+        "speakerIndex": -1
+      }
+    ],
+    "candidate": [
+      {
+        "utteranceId": "u1",
+        "beginTime": 2720,
+        "endTime": 3960,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u2",
+        "beginTime": 6320,
+        "endTime": 7800,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u3",
+        "beginTime": 16920,
+        "endTime": 36000,
+        "speakerIndex": 0
+      },
+      {
+        "utteranceId": "u4",
+        "beginTime": 38320,
+        "endTime": 40560,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u5",
+        "beginTime": 46120,
+        "endTime": 48560,
+        "speakerIndex": 2
+      },
+      {
+        "utteranceId": "u6",
+        "beginTime": 50040,
+        "endTime": 51120,
+        "speakerIndex": 3
+      },
+      {
+        "utteranceId": "u7",
+        "beginTime": 66040,
+        "endTime": 72520,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u8",
+        "beginTime": 74500,
+        "endTime": 77100,
+        "speakerIndex": -1
+      },
+      {
+        "utteranceId": "u9",
+        "beginTime": 85620,
+        "endTime": 85980,
+        "speakerIndex": -1
+      }
+    ],
+    "changes": [
+      {
+        "utteranceId": "u4",
+        "beginTime": 38320,
+        "endTime": 40560,
+        "speakerIndex": 2
+      }
+    ],
+    "provisionalIdentityMapping": {
+      "originalU1": [
+        "u1",
+        "u2"
+      ],
+      "originalU3": [
+        "u4"
+      ],
+      "originalU4": [
+        "u5"
+      ]
+    },
+    "verdict": "Confirmed 38-second and provisional 46-second witnesses both match the opening role"
+  },
+  "tests": {
+    "harmony": {
+      "tests": 29,
+      "failures": 0,
+      "redBeforeFix": true
+    },
+    "android": {
+      "sdk-Debug": {
+        "tests": 59,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sdk-Release": {
+        "tests": 59,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sdk-dingqiao-Debug": {
+        "tests": 98,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sdk-dingqiao-Release": {
+        "tests": 98,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    }
+  },
+  "remaining": "6-minute later windows remain all UNKNOWN; 52-minute recording not replayed. No full customer accuracy or long-meeting resource PASS.",
+  "artifacts": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/confirmed-same-speaker-1s-38s.json",
+      "sha256": "0fa6e20d51180cb9cfdd955a058d7ab2bbf9ec6b15f3403ad2f297a1e899421f"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-plan.json",
+      "sha256": "e0a0a442ea77cd64c2fe70a6d6ea8d7bf6e711f9dcee320c8f90039418dd9a37"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-probe-result.json",
+      "sha256": "59e4e35533018310c191a8a1ced08c38a163f922cffcf7d0d21c1848d54d6a9b"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-four-meeting-verdict.json",
+      "sha256": "c13f10e04dd2937c7e2d8983075d8573774b36231ca8173b3e913ee57fdffb49"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/gap-utterance-assessment.json",
+      "sha256": "45d0a85b8aa91503f9ba155be08f8b85a815c8283eb6da6993a261672b159083"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-red.log",
+      "sha256": "23f4ad8bd30a7d164154ccba7a4a21deb14b7bc2016b98ef68aacdac999c7470"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-harmony-tests.log",
+      "sha256": "3320952b9c71adb192085f6eafb4b0c18cb1a0117ef055f39433b1466bcabb94"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-android-tests.log",
+      "sha256": "42da99ff4c704e9b64a5d50c042042bf0afaf6a724254203dea796dfd3ed53e6"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-fix-plan.json",
+      "sha256": "5562dcd579ee5a0d1a8e0305dd29fc6ba76a0321dfe7963e2db409739e6b794a"
+    }
+  ]
+}

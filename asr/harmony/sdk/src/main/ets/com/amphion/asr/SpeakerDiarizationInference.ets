@@ -79,7 +79,7 @@ export class SpeakerDiarizationInference {
       value.localSpeaker = localSpeaker;
       value.speechSamples = channelSamples.length;
       value.embedding = Array.from(embedding);
-      const querySamples = this.collectSingleSpeakerSamples(
+      const querySamples = this.collectQuerySamples(
         samples, nativeSegments, localSpeaker, queryStartSample, queryEndSample);
       if (querySamples.length >= MIN_EMBEDDING_SAMPLES) {
         const query = await this.computeEmbedding(querySamples);
@@ -119,6 +119,37 @@ export class SpeakerDiarizationInference {
     for (let i = 0; i < parts.length; i++) {
       result.set(parts[i], offset);
       offset += parts[i].length;
+    }
+    return result;
+  }
+
+  private collectQuerySamples(samples: Float32Array,
+    segments: SpeakerTurnSegmentationSegment[], localSpeaker: number,
+    fromSample: number, throughSample: number): Float32Array {
+    const start = Math.max(0, Math.min(samples.length, fromSample));
+    const end = Math.max(start, Math.min(samples.length, throughSample));
+    const masks = new Uint8Array(end - start);
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      const from = Math.max(start, segment.startSample);
+      const through = Math.min(end, segment.endSample);
+      if (through > from) masks.fill(segment.speakerMask, from - start, through - start);
+    }
+    const expectedMask = 1 << localSpeaker;
+    let confirmedSpeech = 0;
+    let total = 0;
+    for (let i = 0; i < masks.length; i++) {
+      if (masks[i] === expectedMask) confirmedSpeech++;
+      if (masks[i] === 0 || masks[i] === expectedMask) total++;
+    }
+    if (confirmedSpeech < MIN_EMBEDDING_SAMPLES) return new Float32Array(0);
+    // Segmentation can miss weak phonetic tails. Retain real unclassified PCM
+    // within this output slice, excluding other speakers and overlap. These
+    // samples do not count toward speech eligibility or enter enrollment.
+    const result = new Float32Array(Math.min(total, MAX_EMBEDDING_SAMPLES));
+    let offset = 0;
+    for (let i = 0; i < masks.length && offset < result.length; i++) {
+      if (masks[i] === 0 || masks[i] === expectedMask) result[offset++] = samples[start + i];
     }
     return result;
   }

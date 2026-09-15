@@ -37,7 +37,7 @@ internal class SpeakerDiarizationInference(
         val embeddings = (0 until LOCAL_SPEAKER_COUNT).mapNotNull { localSpeaker ->
             val channelSamples = collectSingleSpeakerSamples(samples, segments, localSpeaker)
             val embedding = computeEmbedding(channelSamples) ?: return@mapNotNull null
-            val querySamples = collectSingleSpeakerSamples(samples, segments, localSpeaker,
+            val querySamples = collectQuerySamples(samples, segments, localSpeaker,
                 queryStartSample, queryEndSample)
             DiarizationEmbedding(localSpeaker, channelSamples.size, embedding, computeEmbedding(querySamples))
         }
@@ -84,6 +84,41 @@ internal class SpeakerDiarizationInference(
             count += take
         }
         return result.copyOf(count)
+    }
+
+    private fun collectQuerySamples(
+        samples: FloatArray,
+        segments: List<SpeakerSegmentationSegment>,
+        localSpeaker: Int,
+        fromSample: Int,
+        throughSample: Int,
+    ): FloatArray {
+        val start = fromSample.coerceIn(0, samples.size)
+        val end = throughSample.coerceIn(start, samples.size)
+        val masks = ByteArray(end - start)
+        for (segment in segments) {
+            val from = maxOf(start, segment.startSample)
+            val through = minOf(end, segment.endSample)
+            if (through > from) masks.fill(segment.speakerMask.toByte(), from - start, through - start)
+        }
+        val expectedMask = 1 shl localSpeaker
+        var confirmedSpeech = 0
+        var total = 0
+        for (mask in masks) {
+            if (mask.toInt() == expectedMask) confirmedSpeech++
+            if (mask.toInt() == 0 || mask.toInt() == expectedMask) total++
+        }
+        if (confirmedSpeech < MIN_EMBEDDING_SAMPLES) return floatArrayOf()
+        // Retain real unclassified PCM inside the output slice to avoid clipping
+        // weak phonetic tails. Exclude other speakers and overlap; unclassified
+        // samples do not count toward speech eligibility or enter enrollment.
+        val result = FloatArray(min(total, MAX_EMBEDDING_SAMPLES))
+        var offset = 0
+        for (i in masks.indices) {
+            if (offset >= result.size) break
+            if (masks[i].toInt() == 0 || masks[i].toInt() == expectedMask) result[offset++] = samples[start + i]
+        }
+        return result
     }
 
     private companion object {
