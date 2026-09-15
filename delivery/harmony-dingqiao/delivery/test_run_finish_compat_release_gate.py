@@ -130,6 +130,15 @@ class FinishCompatReleaseGateTest(unittest.TestCase):
             [item["mode"] for item in result["modes"]],
         )
 
+    def test_reuse_verifies_and_installs_the_explicit_diagnostics_mode(self) -> None:
+        identity = Path("/tmp/diagnostics-build-identity.json")
+        with mock.patch.object(MODULE.subprocess, "run") as run:
+            MODULE.prepare_verified_build(identity, "device-1", "diagnostics")
+        verify, install = [call.args[0] for call in run.call_args_list]
+        for command in (verify, install):
+            self.assertEqual("diagnostics", command[command.index("--build-mode") + 1])
+        self.assertEqual(str(identity), verify[verify.index("--verify") + 1])
+
     def test_rejects_empty_last_from_vad_speech_end_finish(self) -> None:
         with self.assertRaisesRegex(MODULE.GateFailure, "speech-end.*non-empty"):
             MODULE.validate_gate_reports(
