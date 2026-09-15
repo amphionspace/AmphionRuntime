@@ -1,0 +1,19 @@
+{
+  "windows": 73,
+  "embeddingComponents": 48640,
+  "maximumAbsoluteDifference": 0.0,
+  "settings": {
+    "arena-on": {
+      "peakRssMiB": 2075.25,
+      "firstRssMiB": 152.0625,
+      "lastRssMiB": 1571.03125,
+      "seconds": 10.021491708
+    },
+    "arena-off": {
+      "peakRssMiB": 2527.65625,
+      "firstRssMiB": 156.859375,
+      "lastRssMiB": 2505.59375,
+      "seconds": 10.167256541999999
+    }
+  }
+}

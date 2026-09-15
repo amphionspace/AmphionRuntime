@@ -1,0 +1,296 @@
+{
+  "canonical": false,
+  "productionChanges": false,
+  "experiments": [
+    {
+      "canonical": false,
+      "status": "REJECTED",
+      "reason": "Confusion increased on the COS recording (13.84 -> 14.11s) and M recording (3.41 -> 4.08s); M known-ID switches increased 4 -> 7. The reciprocal overlap constraint cannot prove that a merged local track represents one human.",
+      "artifact": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/overlap-state-comparison.json",
+      "sha256": "30893372c8fbf388888e7d40310044d4f1bad79a0f92b727d7c5bbdddd00be0d",
+      "cases": [
+        {
+          "recording": "meeting-180s-ch0",
+          "before": {
+            "classicDer250msNoOverlap": 0.2976,
+            "speakerConfusionSeconds": 13.84,
+            "unknownTurnSeconds": 35.13
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.297442,
+            "speakerConfusionSeconds": 14.11,
+            "unknownTurnSeconds": 34.09
+          },
+          "switchesBefore": 5,
+          "switchesAfter": 5
+        },
+        {
+          "recording": "M_R003S01C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.058547,
+            "speakerConfusionSeconds": 3.41,
+            "unknownTurnSeconds": 2.91
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.054502,
+            "speakerConfusionSeconds": 4.08,
+            "unknownTurnSeconds": 1.09
+          },
+          "switchesBefore": 4,
+          "switchesAfter": 7
+        },
+        {
+          "recording": "S_R004S01C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.094012,
+            "speakerConfusionSeconds": 6.29,
+            "unknownTurnSeconds": 7.14
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.094012,
+            "speakerConfusionSeconds": 6.29,
+            "unknownTurnSeconds": 7.14
+          },
+          "switchesBefore": 1,
+          "switchesAfter": 1
+        },
+        {
+          "recording": "S_R004S03C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.009351,
+            "speakerConfusionSeconds": 0.0,
+            "unknownTurnSeconds": 0.0
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.009351,
+            "speakerConfusionSeconds": 0.0,
+            "unknownTurnSeconds": 0.0
+          },
+          "switchesBefore": 0,
+          "switchesAfter": 0
+        }
+      ]
+    },
+    {
+      "canonical": false,
+      "status": "REJECTED",
+      "reason": "The COS sample increased confusion 13.84 -> 14.02 seconds and known-ID switches 5 -> 7. Local masks across windows carry correlated errors; majority votes cannot establish the correct human identity.",
+      "artifact": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/overlapping-votes-comparison.json",
+      "sha256": "8af60ecece00515b04d937798766cb03e9b7d3b61a6973cb02b4d1f0d0a37c0d",
+      "cases": [
+        {
+          "recording": "meeting-180s-ch0",
+          "before": {
+            "classicDer250msNoOverlap": 0.2976,
+            "speakerConfusionSeconds": 13.84,
+            "unknownTurnSeconds": 35.13
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.295548,
+            "speakerConfusionSeconds": 14.02,
+            "unknownTurnSeconds": 33.93
+          },
+          "switchesBefore": 5,
+          "switchesAfter": 7
+        },
+        {
+          "recording": "M_R003S01C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.058547,
+            "speakerConfusionSeconds": 3.41,
+            "unknownTurnSeconds": 2.91
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.05185,
+            "speakerConfusionSeconds": 3.41,
+            "unknownTurnSeconds": 1.63
+          },
+          "switchesBefore": 4,
+          "switchesAfter": 4
+        },
+        {
+          "recording": "S_R004S01C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.094012,
+            "speakerConfusionSeconds": 6.29,
+            "unknownTurnSeconds": 7.14
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.094012,
+            "speakerConfusionSeconds": 6.29,
+            "unknownTurnSeconds": 7.14
+          },
+          "switchesBefore": 1,
+          "switchesAfter": 1
+        },
+        {
+          "recording": "S_R004S03C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.009351,
+            "speakerConfusionSeconds": 0.0,
+            "unknownTurnSeconds": 0.0
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.009351,
+            "speakerConfusionSeconds": 0.0,
+            "unknownTurnSeconds": 0.0
+          },
+          "switchesBefore": 0,
+          "switchesAfter": 0
+        }
+      ]
+    },
+    {
+      "canonical": false,
+      "status": "REJECTED",
+      "reason": "Less confusion confirms right-context sensitivity but every recording has worse DER, original UNKNOWN grows 35.13 -> 45.98s, and latency increases 6s. This is not a deployable fix.",
+      "artifact": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/early-slice-comparison.json",
+      "sha256": "dde7c0a95425202ebc35bd80acef617adb43537269afa214dcc155920f6b9177",
+      "cases": [
+        {
+          "recording": "meeting-180s-ch0",
+          "before": {
+            "classicDer250msNoOverlap": 0.2976,
+            "speakerConfusionSeconds": 13.84,
+            "unknownTurnSeconds": 35.13
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.345753,
+            "speakerConfusionSeconds": 7.86,
+            "unknownTurnSeconds": 45.98
+          },
+          "switchesBefore": 5,
+          "switchesAfter": 4
+        },
+        {
+          "recording": "M_R003S01C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.058547,
+            "speakerConfusionSeconds": 3.41,
+            "unknownTurnSeconds": 2.91
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.063718,
+            "speakerConfusionSeconds": 0.7,
+            "unknownTurnSeconds": 6.18
+          },
+          "switchesBefore": 4,
+          "switchesAfter": 2
+        },
+        {
+          "recording": "S_R004S01C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.094012,
+            "speakerConfusionSeconds": 6.29,
+            "unknownTurnSeconds": 7.14
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.138351,
+            "speakerConfusionSeconds": 6.02,
+            "unknownTurnSeconds": 10.41
+          },
+          "switchesBefore": 1,
+          "switchesAfter": 1
+        },
+        {
+          "recording": "S_R004S03C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.009351,
+            "speakerConfusionSeconds": 0.0,
+            "unknownTurnSeconds": 0.0
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.020064,
+            "speakerConfusionSeconds": 0.0,
+            "unknownTurnSeconds": 0.29
+          },
+          "switchesBefore": 0,
+          "switchesAfter": 0
+        }
+      ]
+    },
+    {
+      "canonical": false,
+      "status": "REJECTED",
+      "reason": "First COS recording falsified no-increased-confusion requirement: 13.84 -> 15.68 seconds; stop before other inputs or any SDK/USB change. Normalized average of short embeddings is not equivalent to one longer embedding.",
+      "artifact": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/chunked-embedding-rejection.json",
+      "sha256": "c32908b2e3b0b8fdfa51e2485f8d9062c0d75a1bd2e74c861b0ad8e8d5dc8537"
+    },
+    {
+      "canonical": false,
+      "status": "REJECTED",
+      "reason": "COS confusion 13.84 -> 15.57s and known-ID switches 5 -> 8; S01 confusion 6.29 -> 6.61s. Positive labels from newer windows are not necessarily more reliable.",
+      "artifact": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/later-positive-comparison.json",
+      "sha256": "e91e8da00039b7e0e81d0158d2580806b6507e5b17468c430800cb059f4f112d",
+      "cases": [
+        {
+          "recording": "meeting-180s-ch0",
+          "before": {
+            "classicDer250msNoOverlap": 0.2976,
+            "speakerConfusionSeconds": 13.84,
+            "unknownTurnSeconds": 35.13
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.270919,
+            "speakerConfusionSeconds": 15.57,
+            "unknownTurnSeconds": 29.19
+          },
+          "switchesBefore": 5,
+          "switchesAfter": 8
+        },
+        {
+          "recording": "M_R003S01C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.058547,
+            "speakerConfusionSeconds": 3.41,
+            "unknownTurnSeconds": 2.91
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.049463,
+            "speakerConfusionSeconds": 3.41,
+            "unknownTurnSeconds": 1.27
+          },
+          "switchesBefore": 4,
+          "switchesAfter": 4
+        },
+        {
+          "recording": "S_R004S01C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.094012,
+            "speakerConfusionSeconds": 6.29,
+            "unknownTurnSeconds": 7.14
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.094012,
+            "speakerConfusionSeconds": 6.61,
+            "unknownTurnSeconds": 6.79
+          },
+          "switchesBefore": 1,
+          "switchesAfter": 1
+        },
+        {
+          "recording": "S_R004S03C01",
+          "before": {
+            "classicDer250msNoOverlap": 0.009351,
+            "speakerConfusionSeconds": 0.0,
+            "unknownTurnSeconds": 0.0
+          },
+          "after": {
+            "classicDer250msNoOverlap": 0.009351,
+            "speakerConfusionSeconds": 0.0,
+            "unknownTurnSeconds": 0.0
+          },
+          "switchesBefore": 0,
+          "switchesAfter": 0
+        }
+      ]
+    },
+    {
+      "canonical": false,
+      "status": "REJECTED_AS_DROP_IN",
+      "reason": "With all six-second PCM selections and 0.72 matching unchanged, first COS recording increased confusion 13.84 -> 17.68 seconds. Known-ID switches remain 5. Stop before other recordings and USB. Independent calibration or a different model would be a separate experiment, not silently tuned on these meeting labels.",
+      "artifact": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/alternate-model-rejection.json",
+      "sha256": "908efc9324190254f5f30e25a7aab6a1f2b7cad1ed9b5fc15f0b05a0597d7b34"
+    }
+  ]
+}

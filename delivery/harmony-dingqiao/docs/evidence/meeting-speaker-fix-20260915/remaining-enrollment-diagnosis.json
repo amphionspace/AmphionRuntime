@@ -1,0 +1,128 @@
+{
+  "canonical": false,
+  "hypothesis": "A mixed context cluster consumes the fourth role before a minority-speaker cluster; no implementation change or additional playback. Reference labels diagnose saved inputs only.",
+  "rows": [
+    {
+      "clusterOrder": 1,
+      "embeddingSpeechMs": 117906,
+      "observationKeys": [
+        "w00000014:1",
+        "w00000015:1",
+        "w00000016:1",
+        "w00000017:1",
+        "w00000018:1",
+        "w00000019:1",
+        "w00000020:1",
+        "w00000025:1",
+        "w00000026:1",
+        "w00000027:1",
+        "w00000028:1",
+        "w00000029:2",
+        "w00000030:2",
+        "w00000041:1",
+        "w00000042:1",
+        "w00000043:2",
+        "w00000021:1",
+        "w00000022:1",
+        "w00000023:1",
+        "w00000024:1",
+        "w00000040:2"
+      ],
+      "referenceSecondsWithRepeatedContext": {
+        "006-M": 116.402
+      },
+      "enrolledInFirstWindow": true
+    },
+    {
+      "clusterOrder": 2,
+      "embeddingSpeechMs": 69381,
+      "observationKeys": [
+        "w00000029:1",
+        "w00000030:1",
+        "w00000031:1",
+        "w00000032:1",
+        "w00000033:1",
+        "w00000034:2",
+        "w00000034:1",
+        "w00000035:1",
+        "w00000036:1",
+        "w00000037:1",
+        "w00000038:1",
+        "w00000039:1",
+        "w00000040:1"
+      ],
+      "referenceSecondsWithRepeatedContext": {
+        "006-M": 6.542,
+        "004-M": 63.049
+      },
+      "enrolledInFirstWindow": true
+    },
+    {
+      "clusterOrder": 3,
+      "embeddingSpeechMs": 58839,
+      "observationKeys": [
+        "w00000043:1",
+        "w00000044:1",
+        "w00000045:1",
+        "w00000046:1",
+        "w00000047:1",
+        "w00000048:1",
+        "w00000049:1",
+        "w00000050:1",
+        "w00000051:1",
+        "w00000052:1"
+      ],
+      "referenceSecondsWithRepeatedContext": {
+        "006-M": 7.194,
+        "001-M": 53.25
+      },
+      "enrolledInFirstWindow": true
+    },
+    {
+      "clusterOrder": 4,
+      "embeddingSpeechMs": 22282,
+      "observationKeys": [
+        "w00000009:1",
+        "w00000010:1",
+        "w00000011:1",
+        "w00000012:1"
+      ],
+      "referenceSecondsWithRepeatedContext": {
+        "006-M": 12.682,
+        "004-M": 7.41,
+        "001-M": 0.48
+      },
+      "enrolledInFirstWindow": true
+    },
+    {
+      "clusterOrder": 5,
+      "embeddingSpeechMs": 12851,
+      "observationKeys": [
+        "w00000011:2",
+        "w00000012:2",
+        "w00000014:2",
+        "w00000013:1"
+      ],
+      "referenceSecondsWithRepeatedContext": {
+        "004-M": 3.203,
+        "003-M": 8.114,
+        "001-M": 1.005
+      },
+      "enrolledInFirstWindow": false
+    },
+    {
+      "clusterOrder": 6,
+      "embeddingSpeechMs": 6024,
+      "observationKeys": [
+        "w00000014:0",
+        "w00000016:2",
+        "w00000015:2"
+      ],
+      "referenceSecondsWithRepeatedContext": {
+        "003-M": 0.94,
+        "001-M": 4.95
+      },
+      "enrolledInFirstWindow": false
+    }
+  ]
+}

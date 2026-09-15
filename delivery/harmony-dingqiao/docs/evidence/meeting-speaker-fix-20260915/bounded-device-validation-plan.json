@@ -1,0 +1,15 @@
+{
+  "commit": "a9df59dc31de15dae0f7c3c5f339af1a700b23bd",
+  "mode": "diarization-windows",
+  "cycles": 4,
+  "paceMs": 20,
+  "maxSpeakers": 4,
+  "hypothesis": "Six seconds of effective single-speaker PCM preserves all four recordings acoustic quality of the 10s candidate while passing the unchanged 64 MiB device RSS growth gate.",
+  "expectedMinutes": 13,
+  "artifacts": "usb-fixed/report.json, per-cycle public windows, memory.csv, hilog.txt, payload/corpus.json; evaluated per recording against official RTTM",
+  "invalidatedBy": "Any runtime source/model/HAP/HAR change. Documentation-only updates do not invalidate.",
+  "stop": "One same-condition replay; stop and localize timeout, resource failure or loss of previously stable identities. Keep missing-mid-window baseline failure as such; never relax assertions.",
+  "scope": "Root-cause regression plus four-recording quality measurement; unresolved reference-identity errors remain failures, not a full release gate.",
+  "previousFailedRun": "usb-fixed/20260915-144243-diarization-windows-fcf9a190",
+  "output": "usb-bounded"
+}
