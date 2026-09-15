@@ -118,7 +118,6 @@
                     android:hint="@string/hint_chunk_size"
                     android:inputType="number"
                     android:maxLines="1"
-                    android:text="50"
                     android:textAppearance="@style/TextAppearance.Lits.Body" />
 
                 <TextView

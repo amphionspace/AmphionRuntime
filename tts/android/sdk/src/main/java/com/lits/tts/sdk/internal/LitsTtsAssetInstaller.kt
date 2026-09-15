@@ -51,7 +51,7 @@ internal object LitsTtsAssetInstaller {
         }
     }
 
-    private fun parseAndValidateManifest(file: File): ManifestInfo {
+    internal fun parseAndValidateManifest(file: File): ManifestInfo {
         val json = try {
             JSONObject(file.readText())
         } catch (error: Throwable) {
@@ -81,6 +81,10 @@ internal object LitsTtsAssetInstaller {
         val streamConditionFinalFile = json.optJSONObject("stream_condition_final_model")?.optString("file")
         val streamDecoderStepFile = json.optJSONObject("stream_decoder_step_model")?.optString("file")
         val streamDecoderCacheInfo = parseStreamDecoderCacheInfo(json.optJSONObject("stream_decoder_cache"))
+        if (json.optString("model_type") == "lits_intmeanflow_streaming" &&
+            streamDecoderCacheInfo?.mode != IntMeanFlowStreamingContract.CACHE_MODE) {
+            throw illegalState(TtsErrorCode.CREATE_ENGINE_FAILED, "IntMeanFlow streaming requires its trained KV cache contract")
+        }
         val streamFinalZeroPadWithChunkCondition =
             json.optBoolean("stream_final_zero_pad_with_chunk_condition", false)
         val streamingChunkSize = json.optInt("streaming_chunk_size", -1)
@@ -185,7 +189,7 @@ internal object LitsTtsAssetInstaller {
             stepFile.isBlank() ||
             stateNames.isEmpty() ||
             stateCount != stateNames.size ||
-            mode != "relative_left_window_v1" ||
+            mode !in setOf("relative_left_window_v1", IntMeanFlowStreamingContract.CACHE_MODE) ||
             fixedChunkSize <= 0
         ) {
             throw illegalState(TtsErrorCode.CREATE_ENGINE_FAILED, "TTS stream decoder cache fields are invalid")

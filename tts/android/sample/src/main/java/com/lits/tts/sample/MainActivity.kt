@@ -185,9 +185,9 @@ class MainActivity : AppCompatActivity() {
         else -> VOICE_ID_SPEAKER_1
     }
 
-    private fun selectedChunkSize(): Int {
+    private fun selectedChunkSize(): Int? {
         val value = chunkSizeInput.text?.toString()?.trim()?.toIntOrNull()
-        return value?.takeIf { it > 0 } ?: DEFAULT_STREAMING_CHUNK_SIZE
+        return value?.takeIf { it > 0 }
     }
 
     private fun selectedPcmQueueCapacity(): Int {
@@ -845,7 +845,6 @@ class MainActivity : AppCompatActivity() {
         var workPathConfigured = false
         const val VOICE_ID_SPEAKER_0 = "lits-female-01"
         const val VOICE_ID_SPEAKER_1 = "lits-female-02"
-        const val DEFAULT_STREAMING_CHUNK_SIZE = 50
         const val DEFAULT_PCM_QUEUE_CAPACITY = 128
     }
 }
