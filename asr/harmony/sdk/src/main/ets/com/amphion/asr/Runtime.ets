@@ -1340,6 +1340,8 @@ export class AsrSession {
   private vadCarry: Float32Array = new Float32Array(0);
   private vadProcessedSamples: number = 0;
   private vadLastSpeechEndSample: number = -1;
+  private lastDecodeStartedAtMs: number = -1;
+  private lastDecodeFinishedAtMs: number = -1;
   private initialSilenceTracker: InitialSilenceTracker = new InitialSilenceTracker(0, ASR_SAMPLE_RATE_HZ);
   // Speaker-VAD sliding-window state (Android-aligned two-phase: confirm target -> detect departure).
   private svScoreScheduler?: SpeakerVadScoreScheduler;
@@ -1870,7 +1872,13 @@ export class AsrSession {
 
   private async drainAsync(isFinal: boolean, restartAfterFinal: boolean = true,
     isLastFinal: boolean = false, initialDecodeDurationMs: number = 0): Promise<void> {
-    const decodeDurationMs = initialDecodeDurationMs + await this.recognizer.decodeAsync(this.stream);
+    const decodeStartedAtMs = Date.now();
+    const nativeDecodeDurationMs = await this.recognizer.decodeAsync(this.stream);
+    if (nativeDecodeDurationMs > 0) {
+      this.lastDecodeStartedAtMs = decodeStartedAtMs;
+      this.lastDecodeFinishedAtMs = Date.now();
+    }
+    const decodeDurationMs = initialDecodeDurationMs + nativeDecodeDurationMs;
     if (this.callbackGate.isClosed()) return;
     await this.processDecodedResultAsync(
       isFinal, restartAfterFinal, isLastFinal, decodeDurationMs);
@@ -2523,7 +2531,10 @@ export class AsrSession {
         this.trailingSilenceMs = 0;
         Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=vad-active ` +
           `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
-          `utterancePcmBytes=${this.pcmBytesAccepted}`);
+          `utterancePcmBytes=${this.pcmBytesAccepted} vadSamples=${this.vadProcessedSamples} ` +
+          `speechEndSample=${this.vadLastSpeechEndSample} ` +
+          `lastDecodeStartedAtMs=${this.lastDecodeStartedAtMs} ` +
+          `lastDecodeFinishedAtMs=${this.lastDecodeFinishedAtMs}`);
         this.endpointAtMs = Date.now();
         if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return advance;
         this.pendingVadStopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
