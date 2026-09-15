@@ -11,10 +11,26 @@ an ONNX model setting, not a playback volume or an AAR runtime parameter.
 
 The exporter requires the matching LITs-distill source (validated revision
 `d878405d1a2c10eef0aefe5eb3227ca1fd3de2eb`), the checkpoint, and the original
-150-token frontend asset directory plus the matching Vocos ONNX. It converts
-the Chinese token mapping to the 173-token training inventory and checks acoustic
+150-token frontend asset directory plus the matching Vocos ONNX. It verifies the
+training vocabulary and pinyin conversion against the versioned files in
+`tts/frontend/rhyme_body_tone_173`, then checks acoustic
 ONNX/PyTorch parity using the exact same sampled noise. Vocos is copied, not
-re-exported or independently validated by this script.
+re-exported or independently validated by this script. Output is built in a temporary
+directory and published only after validation succeeds; existing output directories
+are rejected. The export report fingerprints the actual supplied Python source,
+checkpoint, acoustic model and Vocos file instead of claiming a hardcoded commit.
+
+Install the training source dependencies and compile its real Cython
+`lits/utils/monotonic_align/core.pyx` extension before export. With the upstream
+OpenMP toolchain configured, run `python setup.py build_ext --inplace` from that
+directory. For export-only use on macOS without OpenMP, Cython can compile the
+same extension serially (`cythonize -i core.pyx` with NumPy's include directory
+in `CFLAGS`). Alignment is not invoked by inference, but the training module
+imports it. The exporter does not inject replacement modules into `sys.modules`.
+
+Runtime dependencies include PyTorch, NumPy, ONNX, ONNX Runtime, OmegaConf and the
+training source's dependencies. `python export_intmeanflow_student.py --help`
+describes input paths, temperature and thread count.
 
 ```sh
 python tts/tools/android/export_intmeanflow_student.py \
@@ -59,9 +75,12 @@ Execution completed for all ten; listening feedback still identified quality
 issues in the final two English samples. Temperature 0 is a selected experimental
 configuration, not a demonstrated fix for all English artifacts.
 
-The JVM suite runs against the selected student asset directory. Nine obsolete
-legacy pronunciation assertions have been removed; this is not full raw-text
-pronunciation coverage for the new inventory.
+The JVM suite runs against the selected student asset directory. The nine
+pronunciation tests have been restored with 173-token expectations, retaining
+checks for polyphones, tone sandhi, technical text and numeric contexts. The stock
+code test encodes its spoken reference as one sentence so `<sil>` occurs once.
+`StudentFrontendAssetsTest` pins token order and validates all 3,003 pinyin entries.
+This is not full raw-text pronunciation coverage.
 
 `NumericUtteranceDeviceTest` checks native TN and public SDK synthesis;
 `ZeroTemperaturePlaybackDeviceTest` records repeated generations;
