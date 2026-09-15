@@ -1,0 +1,3 @@
+elapsed_seconds,pid,vm_rss_kb,vm_hwm_kb,vm_data_kb,vm_swap_kb,threads,process_cpu_ticks,system_cpu_ticks,logical_cpus
+0.162,36379,147328,147328,166344,68,27,46,5098617146,12
+1.437,36379,242960,242960,749248,68,51,139,5098618679,12

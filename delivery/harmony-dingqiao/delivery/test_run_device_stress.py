@@ -27,6 +27,29 @@ sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 
+class SpeechEndLatencyTest(unittest.TestCase):
+    def verdict(self, *, sample=66048, event=5216, start=4983, end=5200):
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "hilog.txt"
+            log.write_text(f"kind=ENDPOINT source=vad-active vadSamples={sample} "
+                           f"speechEndSample=40032 lastDecodeStartedAtMs={start} "
+                           f"lastDecodeFinishedAtMs={end}\n")
+            return MODULE.speech_end_latency_verdict(log, [{
+                "index": "0", "audioFeedStartedAtMs": "1000", "speechEndAtMs": str(event),
+            }], 2502)
+
+    def test_only_decode_overlapping_the_deadline_can_delay_dispatch(self):
+        result = self.verdict()
+        self.assertEqual("PASS", result["status"])
+        self.assertEqual(80, result["cases"][0]["overlapping_decode_wait_ms"])
+        self.assertEqual(16, result["cases"][0]["dispatch_after_ready_ms"])
+        self.assertEqual("FAIL", self.verdict(start=5150)["status"])
+
+    def test_rejects_repeated_silence_window_and_long_speaker_refinement(self):
+        self.assertEqual("FAIL", self.verdict(sample=69120, event=5320)["status"])
+        self.assertEqual("FAIL", self.verdict(event=6716)["status"])
+
+
 class CorpusPreconditionsTest(unittest.TestCase):
     def source(self, directory, name, samples, rate=16000, channels=1):
         path = Path(directory) / name

@@ -72,6 +72,7 @@ export class DeviceStressOptions {
   enforceTargetSpeakerBusinessText: boolean = true;
   speakerVadFinishRecoveryEntryIds: string = 'none';
   speakerVadThreshold: number = -2;
+  speechEndMs: number = 0;
 }
 
 class CorpusEntry {
@@ -907,6 +908,9 @@ class CycleResult {
   fedFrames: number = 0;
   startListeningMs: number = -1;
   tailSilenceMs: number = -1;
+  speechEndLatencyMs: number = -1;
+  audioFeedStartedAtMs: number = -1;
+  speechEndAtMs: number = -1;
   lastFinalsBeforeFinish: number = -1;
   speechEndsBeforeFinish: number = -1;
   finishToFirstNonEmptyResultMs: number = -1;
@@ -953,6 +957,8 @@ class CycleResult {
       `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
       `|startListeningMs=${this.startListeningMs}` +
       `|tailSilenceMs=${this.tailSilenceMs}` +
+      `|speechEndLatencyMs=${this.speechEndLatencyMs}` +
+      `|audioFeedStartedAtMs=${this.audioFeedStartedAtMs}|speechEndAtMs=${this.speechEndAtMs}` +
       `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}` +
       `|speechEndsBeforeFinish=${this.speechEndsBeforeFinish}` +
       `|finishToFirstNonEmptyResultMs=${this.finishToFirstNonEmptyResultMs}` +
@@ -2056,6 +2062,74 @@ async function runCallbackApiReentrantCycle(engine: SpeechRecognitionEngine, ent
   return result;
 }
 
+class SpeechEndLatencyListener extends StressListener {
+  endAtMs: number = -1;
+  lastBeforeFinish: number = -1;
+  private engine: SpeechRecognitionEngine;
+  private observed: SessionEvents;
+
+  constructor(events: SessionEvents, sessionId: string, engine: SpeechRecognitionEngine) {
+    super(events, sessionId);
+    this.observed = events;
+    this.engine = engine;
+  }
+
+  onEvent(sessionId: string, eventCode: number, message: string): void {
+    super.onEvent(sessionId, eventCode, message);
+    if (eventCode === DingqiaoEventCode.SPEECH_END && this.endAtMs < 0) {
+      this.endAtMs = Date.now();
+      this.lastBeforeFinish = this.observed.lastFinals;
+      this.engine.finish(sessionId);
+    }
+  }
+}
+
+async function runSpeechEndLatencyCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number, voiceprintId: string, options: DeviceStressOptions): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const sessionId = `speech-end-latency-${index}`;
+  const events = new SessionEvents();
+  const listener = new SpeechEndLatencyListener(events, sessionId, engine);
+  engine.setListener(listener);
+  const speakerVad = index % 2 === 1;
+  const params = startParams(sessionId, 'speech-end-latency', index);
+  params.extraParams['vadBegin'] = 5000;
+  params.extraParams['vadEnd'] = 1600;
+  params.extraParams['maxAudioDuration'] = 20000;
+  params.extraParams['enablePartialResult'] = true;
+  params.extraParams['enableVoiceprintVerification'] = speakerVad;
+  params.extraParams['enableSpeakerVad'] = speakerVad;
+  if (speakerVad) params.extraParams['voiceprintIds'] = [voiceprintId];
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+  let feedStartedAt = -1;
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, FRAME_DURATION_MS,
+    (): boolean => listener.endAtMs >= 0, 1, (): void => { feedStartedAt = Date.now(); });
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const latency = listener.endAtMs < 0 ? -1 : listener.endAtMs - feedStartedAt - options.speechEndMs;
+  // The host validates the exact native sample deadline and independently attributes any wall
+  // delay to a decode already running when the deadline frame arrived. No blanket grace period.
+  const timingOk = latency >= 0;
+  const scoreOk = !speakerVad || (events.nonEmptySpeakerScores > 0 &&
+    events.nonEmptySpeakerScores === events.finalTexts.filter((text: string): boolean => text.length > 0).length);
+  const ok = completed && fed > 0 && timingOk && scoreOk && events.finalChars > 0 && events.speechEnds === 1 &&
+    listener.lastBeforeFinish === 0 && events.lastFinals === 1 && events.completes === 1 &&
+    events.errors === 0 && events.unexpectedSessionCallbacks === 0 &&
+    terminalCallbackOrderOk(events, sessionId) && !engine.isBusy();
+  if (!completed && engine.isBusy()) engine.cancel(sessionId);
+  const result = finishCycle(index, entry.id, events, startedAt, ok,
+    `${speakerVad ? 'speaker-vad' : 'ordinary'}-${timingOk ? 'latency-ok' : 'speech-end-late'}`);
+  result.speechEndLatencyMs = latency;
+  result.audioFeedStartedAtMs = feedStartedAt;
+  result.speechEndAtMs = listener.endAtMs;
+  result.lastFinalsBeforeFinish = listener.lastBeforeFinish;
+  result.voiceprintIdCount = speakerVad ? 1 : 0;
+  result.fedFrames = fed;
+  return result;
+}
+
 async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
   index: number, mode: string, paceMs: number): Promise<CycleResult> {
   const startedAt = Date.now();
@@ -2794,7 +2868,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       options.mode === 'cold-start-pcm-gap' ||
       options.mode === 'speaker-vad-shutdown-relicense' ||
       options.mode === 'continuous-voiceprint-speaker-vad' ||
-      options.mode === 'speaker-vad-turn' ||
+      options.mode === 'speaker-vad-turn' || options.mode === 'speech-end-latency' ||
       options.mode === 'target-speaker-enhancement' ||
       options.mode === 'target-speaker-enhancement-onstart' ||
       options.mode === 'target-speaker-enhancement-cancel') {
@@ -2802,7 +2876,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entries.length < 2) {
         throw new Error('voiceprint-stress-requires-two-corpus-sources');
       }
-      const requiresSeparateCase = options.mode === 'speaker-vad-turn' ||
+      const requiresSeparateCase = options.mode === 'speaker-vad-turn' || options.mode === 'speech-end-latency' ||
         options.mode === 'target-speaker-enhancement' ||
         options.mode === 'target-speaker-enhancement-onstart' ||
         options.mode === 'target-speaker-enhancement-cancel';
@@ -2844,7 +2918,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entry = entries[1];
       } else if (options.mode === 'voiceprint-fallback') {
         entry = entries[1];
-      } else if (options.mode === 'speaker-vad-turn' ||
+      } else if (options.mode === 'speaker-vad-turn' || options.mode === 'speech-end-latency' ||
         options.mode === 'target-speaker-enhancement' ||
         options.mode === 'target-speaker-enhancement-onstart' ||
         options.mode === 'target-speaker-enhancement-cancel') {
@@ -2878,6 +2952,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runSpeakerVadOnStartCycle(engine, entry, i, stressVoiceprintId);
       } else if (options.mode === 'cold-start-pcm-gap') {
         result = await runColdStartPcmGapCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'speech-end-latency') {
+        result = await runSpeechEndLatencyCycle(engine, entry, i, stressVoiceprintId, options);
       } else if (options.mode === 'speaker-vad-turn') {
         result = await runSpeakerVadTurnCycle(engine, entry, i, stressVoiceprintId, options);
       } else if (options.mode === 'callback-api-reentrant') {
