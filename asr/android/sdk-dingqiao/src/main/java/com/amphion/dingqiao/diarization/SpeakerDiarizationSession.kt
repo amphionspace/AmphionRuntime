@@ -288,7 +288,6 @@ internal class SpeakerDiarizationSession(
         val queryConfidences = mutableMapOf<String, Float>()
         for (observation in observations) {
             val query = observation.queryEmbedding ?: continue
-            if (remap[observation.evidenceKey] == "UNKNOWN") continue
             val match = committedRegistry.matchQuery(query, established) ?: continue
             if (match.speakerId != remap[observation.evidenceKey]) {
                 remap[observation.evidenceKey] = match.speakerId

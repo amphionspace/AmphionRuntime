@@ -308,7 +308,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     const queryConfidences: Record<string, number> = {};
     for (const observation of observations) {
       const key = observation.evidenceKey;
-      if (key === undefined || remap[key] === 'UNKNOWN' || observation.queryEmbedding === undefined) continue;
+      if (key === undefined || observation.queryEmbedding === undefined) continue;
       const match = this.committedRegistry.matchQuery(observation.queryEmbedding, established);
       if (match !== undefined && match.speakerId !== remap[key]) {
         remap[key] = match.speakerId;
