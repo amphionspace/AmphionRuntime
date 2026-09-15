@@ -1,0 +1,146 @@
+{
+  "overallStatus": "FAIL",
+  "reason": "Two reference people receive multiple named SDK speaker indexes.",
+  "testHead": "e65395cfbcf24a699026cc8bffd16c415e19ef09",
+  "builtCommit": "67e33c8cff3338e8d09a48a9d4c804e9d5899ae2",
+  "sourceEquivalentBinary": true,
+  "sourceFingerprint": "37e5dddb055be7f797edd8e262ce88b738d988db82d6b72ada21388bf79b8aae",
+  "hapSha256": "79fc6bbd0df21a8851a1645814022e3b6c0506de325acc0d184ac3919c81b3b6",
+  "sdkVersion": "0.3.13",
+  "deviceModel": "PSN-AL00",
+  "system": "OpenHarmony-6.0.2.130",
+  "scope": {
+    "sessions": 1,
+    "audioSeconds": 180,
+    "channel": 0,
+    "paceMs": 20,
+    "maxSpeakers": 4,
+    "vadEndMs": 1500,
+    "maxAudioDurationMs": 28800000,
+    "recognizerMode": "long"
+  },
+  "identityStabilityStatus": "FAIL",
+  "sdkLifecycleStatus": "PASS",
+  "memoryStatus": "PASS",
+  "callbackCounts": {
+    "start": 1,
+    "final": 14,
+    "lastBeforeFinish": 0,
+    "last": 1,
+    "complete": 1,
+    "error": 0,
+    "lastThenComplete": true,
+    "liveStreams": 0
+  },
+  "diarization": {
+    "publicWindows": 2,
+    "reportedSpeakers": 4,
+    "degraded": false,
+    "inferenceMs": 40233,
+    "finishToCompleteMs": 1613
+  },
+  "metrics": {
+    "durationSeconds": 180.0,
+    "frameMs": 10,
+    "referenceSpeakerCount": 4,
+    "systemSpeakerCount": 4,
+    "speakerCountError": 0,
+    "speakerMapping": {
+      "0": "006-M",
+      "1": "001-M",
+      "2": "004-M",
+      "3": "003-M"
+    },
+    "der": 0.733427,
+    "missedSpeechSeconds": 101.17,
+    "falseAlarmSeconds": 0.78,
+    "speakerConfusionSeconds": 13.0,
+    "referenceSpeakerSeconds": 156.73,
+    "classicDer250msNoOverlap": 0.713372,
+    "singleSpeakerAttributionAccuracy": 0.280661,
+    "macroSpeakerRecall": 0.258064,
+    "minoritySpeakerRecall": 0.0,
+    "perSpeakerRecall": {
+      "001-M": 0.546771,
+      "003-M": 0.0,
+      "004-M": 0.325336,
+      "006-M": 0.160149
+    },
+    "referenceOverlapSeconds": 4.29,
+    "detectedOverlapSeconds": 5.47,
+    "overlapDetectionRecall": 0.356643,
+    "overlapDetectionPrecision": 0.279707,
+    "secondaryEvidenceSeconds": 4.28,
+    "secondaryEvidenceRecall": 0.282051,
+    "identifiedSecondarySeconds": 0.0,
+    "identifiedSecondaryRecall": 0.0,
+    "unknownTurnSeconds": 96.97,
+    "identityStability": {
+      "scope": "single-reference speech outside boundary collar; single named SDK index",
+      "collarSeconds": 0.25,
+      "perReferenceLabelSeconds": {
+        "001-M": {
+          "unknown": 8.8,
+          "3": 4.53,
+          "1": 20.11
+        },
+        "003-M": {
+          "unknown": 17.01,
+          "missing": 0.6
+        },
+        "004-M": {
+          "unknown": 14.73,
+          "2": 6.36
+        },
+        "006-M": {
+          "unknown": 40.47,
+          "missing": 0.2,
+          "0": 9.84,
+          "3": 0.69,
+          "1": 3.34
+        }
+      },
+      "referenceSpeakersWithMultipleSystemIds": [
+        "001-M",
+        "006-M"
+      ],
+      "sameSpeakerIdSwitchCount": 3,
+      "switches": [
+        {
+          "referenceSpeaker": "006-M",
+          "fromSpeakerIndex": 0,
+          "toSpeakerIndex": 3,
+          "previousEvidenceSeconds": 102.325,
+          "atSeconds": 103.685
+        },
+        {
+          "referenceSpeaker": "001-M",
+          "fromSpeakerIndex": 3,
+          "toSpeakerIndex": 1,
+          "previousEvidenceSeconds": 110.995,
+          "atSeconds": 111.005
+        },
+        {
+          "referenceSpeaker": "006-M",
+          "fromSpeakerIndex": 3,
+          "toSpeakerIndex": 1,
+          "previousEvidenceSeconds": 104.365,
+          "atSeconds": 128.935
+        }
+      ]
+    }
+  },
+  "rawReportSha256": "ccac2ffc3e001448ac314f20eb7fc993ef9550855b8768ffdb72c19c8b906d7b",
+  "reference": {
+    "sha256": "4abf1920a2580982cba117112677e882c0cecff74c72226096d563f0b7956ef7",
+    "url": "https://huggingface.co/datasets/AISHELL/AISHELL-4/blob/main/train_S/TextGrid/20200623_S_R001S01C01.rttm"
+  },
+  "limitations": [
+    "One meeting excerpt, not a general accuracy benchmark.",
+    "No Android device, long-duration drift or network isolation verification.",
+    "No SDK fix or threshold change.",
+    "Host internal-state replay is non-canonical diagnostic evidence."
+  ],
+  "carrierVersion": "0.3.14",
+  "carrierVersionCode": 314
+}
