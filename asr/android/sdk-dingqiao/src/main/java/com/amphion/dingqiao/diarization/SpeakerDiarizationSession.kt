@@ -40,11 +40,11 @@ internal class SpeakerDiarizationSession(
     private val observer: SpeakerDiarizationSessionObserver,
 ) : SpeakerDiarizationLocalObserver, SpeakerDiarizationController {
     private val client = SpeakerDiarizationLocalClient(context, workPath, this)
-    private var registry = OnlineSpeakerRegistry(maxSpeakers)
-    private val globalClusterer = SpeakerDiarizationGlobalClusterer(maxSpeakers)
+    private var registry = OnlineSpeakerRegistry(maxSpeakers, 0.72f, 0.05f)
+    private val globalClusterer = SpeakerDiarizationGlobalClusterer(maxSpeakers, 0.72f)
     private val transcript = DiarizationTranscriptState()
     private val commitClock = DiarizationCommitClock()
-    private val committedRegistry = OnlineSpeakerRegistry(maxSpeakers)
+    private val committedRegistry = OnlineSpeakerRegistry(maxSpeakers, 0.72f, 0.05f)
     private val callbacks = DiarizationCallbackQueue()
     private var inferenceEndMs = 0
     private var windowIndex = 0

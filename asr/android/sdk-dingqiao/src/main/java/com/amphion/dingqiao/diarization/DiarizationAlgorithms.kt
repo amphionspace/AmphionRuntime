@@ -82,12 +82,9 @@ private data class MutableSpeakerEntry(
     var lastSeenMs: Int,
 )
 
-// ERes2Net short-turn calibration; shared by online matching and window finalization.
-internal const val SPEAKER_SIMILARITY_THRESHOLD = 0.60f
-
 internal class OnlineSpeakerRegistry(
     private val maxSpeakers: Int = 4,
-    private val similarityThreshold: Float = SPEAKER_SIMILARITY_THRESHOLD,
+    private val similarityThreshold: Float = 0.72f,
     private val topMargin: Float = 0.05f,
 ) {
     private val entries = mutableListOf<MutableSpeakerEntry>()
@@ -205,7 +202,7 @@ internal data class MutableCluster(
 
 internal class SpeakerDiarizationGlobalClusterer(
     private val maxSpeakers: Int = 4,
-    private val similarityThreshold: Float = SPEAKER_SIMILARITY_THRESHOLD,
+    private val similarityThreshold: Float = 0.72f,
 ) {
     fun cluster(observations: List<SpeakerEmbeddingObservation>): SpeakerClusterResult {
         val clusters = seedMicroClusters(observations)
