@@ -174,6 +174,8 @@ internal class SessionImpl(
 
     /** 不足 [vadWindowSize] 的余数 PCM；下次 feed 时拼回；只在 decoder 线程访问。 */
     private var vadCarry: FloatArray = FloatArray(0)
+    private var vadProcessedSamples: Long = 0
+    private var vadLastSpeechEndSample: Long = -1
 
     private val postProcessor: PostProcessor =
         PostProcessor(
@@ -311,6 +313,8 @@ internal class SessionImpl(
                         NativeGuard.runQuietly("oldStream.release") { old.release() }
                         // 与 hardRestart 同源逻辑：stream 切换后 VAD 状态也要回到初始
                         NativeGuard.runQuietly("vad.reset(updateHotwords)") { vad?.reset() }
+                        vadProcessedSamples = 0
+                        vadLastSpeechEndSample = -1
                         vadSpeechActive = false
                         trailingSilenceMs = 0
                         vadCarry = FloatArray(0)
@@ -402,6 +406,8 @@ internal class SessionImpl(
                 }
                 // VAD 状态与 stream 同步：用户手动 stop 等价于一段语音结束
                 NativeGuard.runQuietly("vad.reset(stop)") { vad?.reset() }
+                vadProcessedSamples = 0
+                vadLastSpeechEndSample = -1
                 vadSpeechActive = false
                 trailingSilenceMs = 0
                 vadCarry = FloatArray(0)
@@ -618,6 +624,12 @@ internal class SessionImpl(
         while (i + vadWindowSize <= merged.size) {
             val win = merged.copyOfRange(i, i + vadWindowSize)
             NativeGuard.runQuietly("vad.acceptWaveform") { v.acceptWaveform(win) }
+            vadProcessedSamples += vadWindowSize
+            while (!v.empty()) {
+                val segment = v.front()
+                vadLastSpeechEndSample = segment.start.toLong() + segment.samples.size
+                v.pop()
+            }
             if (v.isSpeechDetected()) anySpeech = true else anySilence = true
             i += vadWindowSize
         }
@@ -678,7 +690,12 @@ internal class SessionImpl(
             anySilence && vadSpeechActive -> {
                 // 仅在曾经有 speech 之后才累计静音；进入主动 endpoint 判定。
                 // Include carry from earlier submissions in each completed VAD window.
-                trailingSilenceMs += (i * 1000L / sampleRate).toInt()
+                // Native segment.end excludes its silence-confirmation window. Include it in vadEnd.
+                trailingSilenceMs = if (vadLastSpeechEndSample >= 0) {
+                    ((vadProcessedSamples - vadLastSpeechEndSample) * 1000L / sampleRate).toInt()
+                } else {
+                    trailingSilenceMs + (i * 1000L / sampleRate).toInt()
+                }
                 if (activeEpSilenceMs > 0 && trailingSilenceMs >= activeEpSilenceMs) {
                     Logger.d(
                         "session $sessionId VAD active endpoint after ${trailingSilenceMs}ms silence",
@@ -837,6 +854,8 @@ internal class SessionImpl(
         } else {
             NativeGuard.runQuietly("recognizer.reset") { recognizer.reset(stream) }
             NativeGuard.runQuietly("vad.reset") { vad?.reset() }
+            vadProcessedSamples = 0
+            vadLastSpeechEndSample = -1
             resetSpeakerVadState()
         }
         recognizerResetGeneration.markReset()
@@ -916,6 +935,8 @@ internal class SessionImpl(
                 NativeGuard.runQuietly("oldStream.release") { old.release() }
                 // stream 重建意味着上一段已结束；同步 reset VAD 让 onset 重新走
                 NativeGuard.runQuietly("vad.reset(hardRestart)") { vad?.reset() }
+                vadProcessedSamples = 0
+                vadLastSpeechEndSample = -1
                 vadSpeechActive = false
                 trailingSilenceMs = 0
                 vadCarry = FloatArray(0)
@@ -1233,6 +1254,8 @@ internal class SessionImpl(
 
     private fun resetVadGateState() {
         NativeGuard.runQuietly("vad.reset(streamBoundary)") { vad?.reset() }
+        vadProcessedSamples = 0
+        vadLastSpeechEndSample = -1
         vadSpeechActive = false
         trailingSilenceMs = 0
         vadCarry = FloatArray(0)
