@@ -266,6 +266,42 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def speech_end_latency_verdict(log_path: Path, cycles: list[dict[str, str]],
+                               speech_end_ms: int) -> dict[str, object]:
+    endpoints = [dict(re.findall(r"(\w+)=([^\s]+)", line))
+                 for line in log_path.read_text(errors="replace").splitlines()
+                 if "kind=ENDPOINT " in line and "source=vad-active " in line]
+    if len(endpoints) != len(cycles) or not cycles:
+        return {"status": "FAIL", "reason": "missing or duplicate acoustic endpoint metrics", "cases": []}
+    cases = []
+    for cycle, endpoint in zip(cycles, endpoints):
+        try:
+            classified = int(endpoint["vadSamples"])
+            speech_end = int(endpoint["speechEndSample"])
+            decode_start = int(endpoint["lastDecodeStartedAtMs"])
+            decode_end = int(endpoint["lastDecodeFinishedAtMs"])
+            feed_start = int(cycle["audioFeedStartedAtMs"])
+            event_at = int(cycle["speechEndAtMs"])
+        except (KeyError, ValueError):
+            return {"status": "FAIL", "reason": "missing endpoint timing evidence", "cases": cases}
+        tail_ms = (classified - speech_end) / 16
+        # Every public frame contains 320 samples and is submitted at an absolute 20ms cadence.
+        ready_at = feed_start + (math.ceil(classified / 320) - 1) * 20
+        decode_overlap = decode_start <= ready_at < decode_end <= event_at
+        unblock_at = decode_end if decode_overlap else ready_at
+        dispatch_ms = event_at - unblock_at
+        passed = (feed_start > 0 and speech_end == speech_end_ms * 16 and
+                  1600 <= tail_ms < 1632 and 0 <= dispatch_ms <= 32)
+        cases.append({"index": cycle.get("index"), "status": "PASS" if passed else "FAIL",
+                      "native_tail_ms": tail_ms,
+                      "wall_latency_ms": event_at - feed_start - speech_end_ms,
+                      "overlapping_decode_wait_ms": max(0, unblock_at - ready_at),
+                      "dispatch_after_ready_ms": dispatch_ms})
+    return {"status": "PASS" if all(case["status"] == "PASS" for case in cases) else "FAIL",
+            "criteria": "native tail [1600,1632)ms; dispatch within 32ms after deadline frame or overlapping ASR decode; no speaker refinement allowance",
+            "cases": cases}
+
+
 def verified_build_identity() -> dict[str, object]:
     if not BUILD_IDENTITY.is_file():
         raise StressFailure(
@@ -1233,6 +1269,12 @@ def run_stress(args: argparse.Namespace) -> Path:
 
     overall = "PASS"
     failures: list[str] = []
+    speech_end_latency = speech_end_latency_verdict(
+        artifact_dir / "hilog.txt", cycle_results, args.speech_end_ms
+    ) if args.mode == "speech-end-latency" else {"status": "NOT_APPLICABLE"}
+    if speech_end_latency["status"] == "FAIL":
+        overall = "FAIL"
+        failures.append("speech-end sample deadline or dispatch latency failed")
     if app_summary.get("status") != "PASS":
         overall = "FAIL"
         failures.append("SDK contract checks failed")
@@ -1285,6 +1327,7 @@ def run_stress(args: argparse.Namespace) -> Path:
             "cycles": args.cycles,
             "settle_ms": args.settle_ms,
             "pace_ms": args.pace_ms,
+            "speech_end_ms": args.speech_end_ms,
             "asr_qos": args.asr_qos,
             "asr_cpu_ids": args.asr_cpu_ids,
             "asr_num_threads": args.asr_num_threads,
@@ -1314,6 +1357,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         "target_speaker_realtime": target_speaker_realtime,
         "target_speaker_content": target_speaker_content,
         "expected_tail": expected_tail,
+        "speech_end_latency": speech_end_latency,
         "memory": memory,
         "cpu": cpu,
         "cycles": cycle_results,

@@ -909,6 +909,8 @@ class CycleResult {
   startListeningMs: number = -1;
   tailSilenceMs: number = -1;
   speechEndLatencyMs: number = -1;
+  audioFeedStartedAtMs: number = -1;
+  speechEndAtMs: number = -1;
   lastFinalsBeforeFinish: number = -1;
   speechEndsBeforeFinish: number = -1;
   finishToFirstNonEmptyResultMs: number = -1;
@@ -956,6 +958,7 @@ class CycleResult {
       `|startListeningMs=${this.startListeningMs}` +
       `|tailSilenceMs=${this.tailSilenceMs}` +
       `|speechEndLatencyMs=${this.speechEndLatencyMs}` +
+      `|audioFeedStartedAtMs=${this.audioFeedStartedAtMs}|speechEndAtMs=${this.speechEndAtMs}` +
       `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}` +
       `|speechEndsBeforeFinish=${this.speechEndsBeforeFinish}` +
       `|finishToFirstNonEmptyResultMs=${this.finishToFirstNonEmptyResultMs}` +
@@ -2101,17 +2104,17 @@ async function runSpeechEndLatencyCycle(engine: SpeechRecognitionEngine, entry: 
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
   }
-  const feedStartedAt = Date.now();
+  let feedStartedAt = -1;
   const fed = await feedPcmFile(engine, sessionId, entry.path, 0, FRAME_DURATION_MS,
-    (): boolean => listener.endAtMs >= 0);
+    (): boolean => listener.endAtMs >= 0, 1, (): void => { feedStartedAt = Date.now(); });
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
   const latency = listener.endAtMs < 0 ? -1 : listener.endAtMs - feedStartedAt - options.speechEndMs;
-  // 32ms native VAD window + 20ms public frame, with 48ms device scheduling allowance.
-  // The exact sample deadline is also asserted by the host state-machine test.
-  const timingOk = latency >= 0 && latency <= 1700;
+  // The host validates the exact native sample deadline and independently attributes any wall
+  // delay to a decode already running when the deadline frame arrived. No blanket grace period.
+  const timingOk = latency >= 0;
   const scoreOk = !speakerVad || (events.nonEmptySpeakerScores > 0 &&
     events.nonEmptySpeakerScores === events.finalTexts.filter((text: string): boolean => text.length > 0).length);
-  const ok = completed && fed > 0 && timingOk && scoreOk && events.speechEnds === 1 &&
+  const ok = completed && fed > 0 && timingOk && scoreOk && events.finalChars > 0 && events.speechEnds === 1 &&
     listener.lastBeforeFinish === 0 && events.lastFinals === 1 && events.completes === 1 &&
     events.errors === 0 && events.unexpectedSessionCallbacks === 0 &&
     terminalCallbackOrderOk(events, sessionId) && !engine.isBusy();
@@ -2119,6 +2122,8 @@ async function runSpeechEndLatencyCycle(engine: SpeechRecognitionEngine, entry: 
   const result = finishCycle(index, entry.id, events, startedAt, ok,
     `${speakerVad ? 'speaker-vad' : 'ordinary'}-${timingOk ? 'latency-ok' : 'speech-end-late'}`);
   result.speechEndLatencyMs = latency;
+  result.audioFeedStartedAtMs = feedStartedAt;
+  result.speechEndAtMs = listener.endAtMs;
   result.lastFinalsBeforeFinish = listener.lastBeforeFinish;
   result.voiceprintIdCount = speakerVad ? 1 : 0;
   result.fedFrames = fed;
