@@ -77,9 +77,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     observer: SpeakerDiarizationSessionObserver) {
     this.observer = observer;
     this.maxSpeakers = maxSpeakers;
-    this.registry = new OnlineSpeakerRegistry(maxSpeakers);
-    this.committedRegistry = new OnlineSpeakerRegistry(maxSpeakers);
-    this.globalClusterer = new SpeakerDiarizationGlobalClusterer(maxSpeakers);
+    this.registry = new OnlineSpeakerRegistry(maxSpeakers, 0.72, 0.05);
+    this.committedRegistry = new OnlineSpeakerRegistry(maxSpeakers, 0.72, 0.05);
+    this.globalClusterer = new SpeakerDiarizationGlobalClusterer(
+      maxSpeakers, 0, 0.72);
     this.runtimeLease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
     try {
       this.client = new SpeakerDiarizationLocalClient(context, workPath, this);

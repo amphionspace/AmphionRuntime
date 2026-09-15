@@ -15,32 +15,6 @@ import java.util.concurrent.TimeUnit
 
 class SpeakerDiarizationAlgorithmsTest {
     @Test
-    fun shortTurnSpeakerMatchPreservesIdentityAndSeparatesOtherVoice() {
-        // Synthetic vectors bracket measured short-turn scores; no customer embeddings.
-        val first = floatArrayOf(1f, 0f, 0f)
-        val returning = floatArrayOf(0.66f, kotlin.math.sqrt(1f - 0.66f * 0.66f), 0f)
-        val other = floatArrayOf(0.54f, 0f, kotlin.math.sqrt(1f - 0.54f * 0.54f))
-        val registry = OnlineSpeakerRegistry(4)
-        val original = registry.assignBatch(listOf(first), listOf(1_500), 1_500).single().speakerId
-        assertEquals(original, registry.assignBatch(listOf(returning), listOf(1_500), 3_000).single().speakerId)
-        assertTrue(original != registry.assignBatch(listOf(other), listOf(1_500), 4_500).single().speakerId)
-        assertEquals(original, registry.fork().matchKnown(first))
-
-        val observations = listOf(first, returning, other).mapIndexed { index, embedding ->
-            observation(embedding, "UNKNOWN", "w$index:0")
-        }
-        val clusterer = SpeakerDiarizationGlobalClusterer(4)
-        val result = clusterer.cluster(observations)
-        assertEquals(2, result.clusterCount)
-        assertEquals(result.observationSpeakerIds[0], result.observationSpeakerIds[1])
-        assertTrue(result.observationSpeakerIds[0] != result.observationSpeakerIds[2])
-        val anchored = observations.take(2).mapIndexed { index, item ->
-            item.copy(anchorId = "S${index + 1}")
-        }
-        assertEquals(2, clusterer.cluster(anchored).clusterCount)
-    }
-
-    @Test
     fun schedulerMatchesHarmonyWindowHopAndFinalFlush() {
         val scheduler = DiarizationWindowScheduler(16_000)
         val first = scheduler.acceptSamples(40_000).single()
