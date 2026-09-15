@@ -206,7 +206,8 @@ internal object LitsTtsFrontend {
     private val leadingDotAsciiTokenRegex = Regex("(?<![A-Za-z0-9])\\.(?=[A-Za-z0-9])")
     private val urlSchemeSeparatorRegex = Regex("(?<![A-Za-z0-9])(https?|ftp)://", RegexOption.IGNORE_CASE)
     private val caretPowerTwoRegex = Regex("\\^(?:2|二)")
-    private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])([A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
+    // A leading colon separates prose from the following word; URL-internal colons remain technical.
+    private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])((?!:)[A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
     private val technicalSymbolChars = setOf('.', '/', '\\', '_', '@', ':', '?', '=', '&', '#', '%', '+', '-')
     private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
     private val roomNumberRegex = Regex("((?:房间|房号)(?:是|为)?\\s*)(\\d{3,4})(?!\\d)")
