@@ -20,6 +20,7 @@ class HarmonySpeakerVadSilenceTest(unittest.TestCase):
             'class SpeakerVadInferenceRequest', 1)[1].split('\nexport ', 1)[0]
         enqueue = method_body(source, 'enqueueSpeakerVadInference')
         evaluate = method_body(source, 'evaluateSpeakerVadInferenceAsync')
+        finalize = method_body(source, 'finalizeAnnouncedVadEndpointAsync')
         script = f"""
 import assert from 'node:assert/strict';
 import {{ SpeakerTurnFinalizer }} from {FINALIZER.as_uri()!r};
@@ -31,6 +32,7 @@ class Session {{
   speakerVadEnabled = true; svTurnFailOpen = false; svInferenceLoopActive = false;
   targetExtractor = {{}}; targetSpeaker = {{}}; vadSpeechActive = true;
   vadEndpointPending = false; svQueuedInferences = []; svContextWaitStartedSample = -1;
+  svSilentDeparturePending = false; pendingVadStopAtEndpoint = true;
   speakerInferenceLane = new SpeakerInferenceLane();
   finalizer = new SpeakerTurnFinalizer(16000, 24000, 8000, 2, 160000);
   callbackGate = {{ isClosed: () => false }};
@@ -55,6 +57,7 @@ class Session {{
   }}
   enqueueSpeakerVadInference(samplesInChunk) {{ {enqueue} }}
   async evaluateSpeakerVadInferenceAsync(request, sv, scheduler, generation) {{ {evaluate} }}
+  async finalizeAnnouncedVadEndpointAsync(decodeDurationMs = 0) {{ {finalize} }}
 }}
 for (const delay of [0, 5]) {{
   for (const hasSpeech of [false, true]) {{
@@ -71,6 +74,22 @@ for (const delay of [0, 5]) {{
     assert.equal(s.resolverCalls, hasSpeech ? 1 : 0,
       'silence after a confirmed target must wait for acoustic vadEnd, not speaker refinement');
     assert.equal(s.svContextWaitStartedSample, hasSpeech ? 56000 : -1);
+    assert.equal(s.finalizer.hasPendingDeparture(), true, 'deferred evidence must survive for final filtering');
+    assert.equal(s.svSilentDeparturePending, !hasSpeech);
+    if (!hasSpeech) {{
+      const callbacks = ['speech-end'];
+      s.commitCleanSpeakerTurnAsync = async (isLast, endpointTriggered) => {{
+        assert.equal(isLast, true, 'finish inside SPEECH_END must promote this same final');
+        assert.equal(endpointTriggered, true);
+        assert.equal(s.finalizer.hasPendingDeparture(), true);
+        await new Promise(r => setTimeout(r, delay));
+        callbacks.push('clean-final-last', 'complete');
+        return true;
+      }};
+      s.dispatchFinal = () => assert.fail('must not publish speculative non-target suffix');
+      await s.finalizeAnnouncedVadEndpointAsync();
+      assert.deepEqual(callbacks, ['speech-end', 'clean-final-last', 'complete']);
+    }}
   }}
 }}
 """
@@ -79,6 +98,45 @@ for (const delay of [0, 5]) {{
             harness.write_text(script)
             subprocess.run(['node', '--experimental-strip-types', '--experimental-loader',
                             (ROOT / 'asr/tools/tests/ts_extension_loader.mjs').as_uri(), str(harness)],
+                           check=True, cwd=ROOT)
+
+    def test_returning_speech_resolves_pending_turn_before_new_score_or_decode(self):
+        body = method_body(RUNTIME.read_text(), 'feedChunkAndDecodeAsync')
+        script = f"""
+import assert from 'node:assert/strict';
+const shouldSettleSpeakerInferenceBeforeNextSlice = () => false;
+const pcm = Float32Array.from([0.2, -0.1, 0.3, -0.2]);
+class Session {{
+  svSilentDeparturePending = true; publicSamplesFed = 100;
+  speakerVadEnabled = true; svTargetConfirmed = true; svBelowCount = 2;
+  callbackGate = {{ isClosed: () => false }};
+  initialSilenceTracker = {{ hasTimedOut: () => false, isArmed: () => false,
+    observeAcousticSamples() {{}} }};
+  effectiveSpeechBuffer = {{ observe() {{}} }};
+  speakerPcmBuffers = {{ observe() {{}} }};
+  retained = []; timeline = [];
+  finalizer = {{ accept: raw => this.retained.push(...raw) }};
+  effectiveSpeakerVad() {{ return {{ consecutiveBelow: 2 }}; }}
+  speakerTurnFinalizer() {{ return this.finalizer; }}
+  vad = {{ isDetected: () => true }};
+  async advanceVadGateAsync() {{ return {{ vadEndpoint: false }}; }}
+  async triggerSpeakerVadEndpointAsync() {{
+    assert.deepEqual(this.retained, Array.from(pcm), 'returning PCM must remain in clean-turn suffix');
+    this.timeline.push('resolve-old-turn');
+  }}
+  enqueueSpeakerVadInference() {{ assert.fail('new target score must not erase pending departure'); }}
+  async feedRecognizerAsync() {{ assert.fail('suffix must not be fed twice'); }}
+  async feedChunkAndDecodeAsync(rawSamples, processedSamples, replay = false) {{ {body} }}
+}}
+const s = new Session();
+await s.feedChunkAndDecodeAsync(pcm, pcm);
+assert.deepEqual(s.timeline, ['resolve-old-turn']);
+assert.equal(s.publicSamplesFed, 104);
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'returning-speaker.mts'
+            harness.write_text(script)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)],
                            check=True, cwd=ROOT)
 
 
