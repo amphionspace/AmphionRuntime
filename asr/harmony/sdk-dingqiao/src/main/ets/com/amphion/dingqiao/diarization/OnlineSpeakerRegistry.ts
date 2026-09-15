@@ -19,6 +19,8 @@ interface MutableSpeakerEntry {
 }
 
 const UNKNOWN_SPEAKER = 'UNKNOWN';
+// ERes2Net short-turn calibration; shared by online matching and window finalization.
+export const SPEAKER_SIMILARITY_THRESHOLD = 0.60;
 
 function normalize(embedding: Float32Array): Float32Array | undefined {
   let squaredNorm = 0;
@@ -59,7 +61,7 @@ export class OnlineSpeakerRegistry {
 
   constructor(
     maxSpeakers: number = 4,
-    similarityThreshold: number = 0.72,
+    similarityThreshold: number = SPEAKER_SIMILARITY_THRESHOLD,
     topMargin: number = 0.05,
   ) {
     if (!Number.isInteger(maxSpeakers) || maxSpeakers < 1) {
