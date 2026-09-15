@@ -2405,6 +2405,20 @@ export class AsrSession {
         return;
       }
     }
+    let deferredVadAdvance: VadGateAdvance | undefined;
+    if (!replay && this.svSilentDeparturePending) {
+      deferredVadAdvance = await this.advanceVadGateAsync(rawSamples, replay);
+      if (this.callbackGate.isClosed()) return;
+      if (!deferredVadAdvance.vadEndpoint && this.vad?.isDetected()) {
+        // Keep returning PCM outside the old turn until its boundary settles. A clean split
+        // replays its old suffix, while an unresolved fallback clears it; neither owns this slice.
+        await this.triggerSpeakerVadEndpointAsync();
+        if (!this.callbackGate.isClosed()) {
+          await this.feedChunkAndDecodeAsync(rawSamples, processedSamples, replay);
+        }
+        return;
+      }
+    }
     if (!replay) this.publicSamplesFed += rawSamples.length;
     if (!replay) this.initialSilenceTracker.observeAcousticSamples(rawSamples);
     if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
@@ -2426,16 +2440,8 @@ export class AsrSession {
     const speakerInferenceNeedsAsrEvidence = !replay && this.initialSilenceTracker.isArmed();
     const speakerBoundaryUnresolved = !this.svTargetConfirmed || this.svBelowCount > 0 ||
       this.svAwaitingTargetAfterDeparture;
-    const vadAdvance = await this.advanceVadGateAsync(rawSamples, replay);
+    const vadAdvance = deferredVadAdvance ?? await this.advanceVadGateAsync(rawSamples, replay);
     if (this.callbackGate.isClosed()) return;
-    if (!replay && this.svSilentDeparturePending && !vadAdvance.vadEndpoint &&
-      this.vad?.isDetected()) {
-      // A deferred departure still owns the old turn. Resolve it before a returning speaker's
-      // score can clear that decision. The accepted slice is retained in the resolver's suffix
-      // and replayed by commitCleanSpeakerTurnAsync; do not feed it a second time below.
-      await this.triggerSpeakerVadEndpointAsync();
-      return;
-    }
     if (!speakerInferenceNeedsAsrEvidence) {
       this.enqueueSpeakerVadInference(rawSamples.length);
       const speakerInferenceBackpressured = this.svQueuedInferences.length > 0;
