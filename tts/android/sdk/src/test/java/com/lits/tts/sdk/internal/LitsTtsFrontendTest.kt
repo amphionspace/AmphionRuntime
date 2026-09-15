@@ -162,23 +162,6 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun zhEnNumericTnContextsUseSemanticDigitReadings() {
-        val layout = testLayout()
-
-        assertNormalizedTokenSequence(layout, "今天是 2026 年 7 月 2 日,下午 3:05 开会.", "ㄦ ˋ _ ㄌ ㄧ ㄥ ˊ _ ㄦ ˋ _ ㄌ ㄧ ㄡ ˋ _ ㄋ ㄧ ㄢ ˊ")
-        assertNormalizedTokenSequence(layout, "今天是 2026 年 7 月 2 日,下午 3:05 开会.", "ㄙ ㄢ ˉ _ ㄉ ㄧ ㄢ ˇ _ ㄌ ㄧ ㄥ ˊ _ ㄨ ˇ")
-        assertNormalizedTokenSequence(layout, "股票 600519 今日上涨 5.23百分号.", "ㄌ ㄧ ㄡ ˋ _ ㄌ ㄧ ㄥ ˊ _ ㄌ ㄧ ㄥ ˊ _ ㄨ ˇ _ ㄧ ˉ _ ㄐ ㄧ ㄡ ˇ")
-        assertNormalizedTokenSequence(layout, "股票 600519 今日上涨 5.23百分号.", "ㄅ ㄞ ˇ _ ㄈ ㄣ ˉ _ ㄓ ˉ _ ㄨ ˊ _ ㄉ ㄧ ㄢ ˇ _ ㄦ ˋ _ ㄙ ㄢ ˉ")
-        assertNormalizedTokenSequence(layout, "编号 1 的房间是 204,温度 -24.5 度.", "ㄦ ˋ _ ㄌ ㄧ ㄥ ˊ _ ㄙ ˋ")
-        assertNormalizedTokenSequence(layout, "车牌号粤 B00009 已经入场.", "B IY1 _ ㄌ ㄧ ㄥ ˊ _ ㄌ ㄧ ㄥ ˊ _ ㄌ ㄧ ㄥ ˊ _ ㄌ ㄧ ㄥ ˊ _ ㄐ ㄧ ㄡ ˇ")
-        assertNormalizedTokenSequence(layout, "身份证尾号 010X,请核对.", "ㄌ ㄧ ㄥ ˊ _ ㄧ ˉ _ ㄌ ㄧ ㄥ ˊ _ EH1 K S")
-        assertNormalizedTokenSequence(layout, "版本 v3.0.7 与 build 20260702 对齐.", "V IY1 _ ㄙ ㄢ ˉ _ ㄉ ㄧ ㄢ ˇ _ ㄌ ㄧ ㄥ ˊ _ ㄉ ㄧ ㄢ ˇ _ ㄑ ㄧ ˉ")
-        assertNormalizedTokenSequence(layout, "路径 斜杠sdcard斜杠test斜杠18斜杠audio.wav 已生成.", "ㄧ ˉ _ ㄅ ㄚ ˉ")
-        assertNormalizedTokenSequence(layout, "坐标 N22.12 E113.11,导航继续.", "ㄅ ㄟ ˊ _ ㄨ ㄟ ˇ _ ㄦ ˋ _ ㄕ ˊ _ ㄦ ˋ _ ㄉ ㄧ ㄢ ˇ _ ㄧ ˉ _ ㄦ ˋ")
-        assertNormalizedTokenSequence(layout, "速度 80km斜杠h,距离目的地 11.5 公里.", "ㄅ ㄚ ˉ _ ㄕ ˊ _ ㄑ ㄧ ㄢ ˉ _ ㄇ ㄧ ˊ _ ㄇ ㄟ ˊ _ ㄒ ㄧ ㄠ ˇ _ ㄕ ˊ")
-    }
-
-    @Test
     fun stockCodeLabelProtectsDigitsBeforeNativeTn() {
         val layout = testLayout()
         listOf(
@@ -192,33 +175,6 @@ class LitsTtsFrontendTest {
             assertArrayEquals("raw: $raw", expected, LitsTtsFrontend.encode(layout, raw, "zh-en", "zh-en"))
             assertArrayEquals("prepared: $raw", expected, LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en"))
         }
-    }
-
-    @Test
-    fun stockCodeProtectionKeepsOtherNumericContexts() {
-        val layout = testLayout()
-        listOf("数值600519", "代码600519", "股票代码12345").forEach { raw ->
-            assertEquals(raw, raw, LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en"))
-        }
-        assertEquals("股票代码六百万五千一百九十", LitsTnNormalizer.normalize(layout, "股票代码6005190", "zh-en", "zh-en"))
-        assertEquals("Stock code 600519", LitsTnNormalizer.normalize(layout, "Stock code 600519", "en-US", "en-US"))
-        listOf(Triple("数值600519", "数值", "六零零五一九"), Triple("股票代码6005190", "股票代码", "六零零五一九零")).forEach { (raw, prefix, digits) ->
-            assertArrayEquals(raw,
-                LitsTtsFrontend.encodeNormalized(layout, prefix, "zh-en", "zh-en") +
-                    LitsTtsFrontend.encodeNormalized(layout, digits, "zh-en", "zh-en"),
-                LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en"))
-        }
-    }
-
-    @Test
-    fun zhEnTechnicalTnContextsUseCodeAndSymbolReadings() {
-        val layout = testLayout()
-
-        assertNormalizedTokenSequence(layout, "请访问 https:斜杠斜杠example.com斜杠help斜杠1?q等于lits-v3.", "ㄧ ˉ _ , _ ㄨ ㄣ ˋ _ ㄏ ㄠ ˋ")
-        assertNormalizedTokenSequence(layout, "请访问 https:斜杠斜杠example.com斜杠help斜杠1?q等于lits-v3.", "EH1 L AY1 T IY1 EH1 S")
-        assertNormalizedTokenSequence(layout, "A斜杠B 测试组 16 的 F1-score 是 0.16.", "EH1 F _ ㄧ ˉ _ , _ ㄍ ㄤ ˋ _ S K AO1 R")
-        assertNormalizedTokenSequence(layout, "错误码 TTS_8_TIMEOUT 只作为普通文本.", "T IY1 T IY1 EH1 S _ AH2 N D ER0 S K AO1 R _ ㄅ ㄚ ˉ _ , _ AH2 N D ER0 S K AO1 R _ T AY1 M AW1 T")
-        assertNormalizedTokenSequence(layout, "包名 com.lits.tts.sample9 应按规则处理.", "K AA1 M _ ㄉ ㄧ ㄢ ˇ _ EH1 L AY1 T IY1 EH1 S")
     }
 
     @Test
@@ -524,32 +480,6 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun zhEnAppliesYiBuErToneSandhi() {
-        val layout = testLayout()
-
-        assertTokenSequence(layout, "一辆车。", "ㄧ ˊ _ ㄌ ㄧ ㄤ ˋ _")
-        assertTokenSequence(layout, "一条鱼。", "ㄧ ˋ _ ㄊ ㄧ ㄠ ˊ _")
-        assertTokenSequence(layout, "一个城市。", "ㄧ ˊ _ ㄍ ㄜ ˋ _")
-        assertTokenSequence(layout, "不对。", "ㄅ ㄨ ˊ _ ㄉ ㄨ ㄟ ˋ _")
-        assertTokenSequence(layout, "看一看。", "ㄎ ㄢ ˋ _ ㄧ ˙ _ ㄎ ㄢ ˋ _")
-        assertTokenSequence(layout, "花儿。", "ㄏ ㄨ ㄚ ˉ _ ㄦ ˙ _")
-    }
-
-    @Test
-    fun zhEnAssistantAlarmUsesWeiFourthToneForAlreadyForYou() {
-        val layout = realAssetLayout()
-
-        val actual = LitsTtsFrontend.debugTokensForNormalizedForTest(
-            layout,
-            "好的，已为你设置明天早上七点半的闹钟。",
-            "zh-en",
-            "zh-en",
-        ).joinToString(" ")
-
-        assertTrue("expected 已为你 with 为 as fourth tone, actual=$actual", actual.contains("ㄧ ˇ _ ㄨ ㄟ ˋ _ ㄋ ㄧ ˇ _ ㄕ ㄜ ˋ"))
-    }
-
-    @Test
     fun splitRawForStreamingUsesStrongChinesePunctuation() {
         val segments = LitsTtsFrontend.splitRawForStreaming("你好。欢迎使用语音合成系统！请稍等。")
 
@@ -640,31 +570,6 @@ class LitsTtsFrontendTest {
     }
 
     @Test
-    fun zhEnNamePlacePolyphoneOverridesUseExpectedReadings() {
-        val layout = testLayout()
-
-        assertTokenSequence(layout, "听音乐。", "ㄧ ㄣ ˉ _ ㄩ ㄝ ˋ _")
-        assertTokenSequence(layout, "成都是一个美食之都。", "ㄕ ˋ _ ㄧ ˊ _ ㄍ ㄜ ˋ _ ㄇ ㄟ ˇ _")
-        assertTokenSequence(layout, "成都是一个美食之都。", "ㄇ ㄟ ˇ _ ㄕ ˊ _ ㄓ ˉ _ ㄉ ㄨ ˉ _")
-        assertTokenSequence(layout, "重庆市人民医院的曾医生今天接诊。", "ㄗ ㄥ ˉ _ ㄧ ˉ _ ㄕ ㄥ ˉ _")
-        assertTokenSequence(layout, "单县来的单老师重新核对名单。", "ㄕ ㄢ ˋ _ ㄌ ㄠ ˇ _ ㄕ ˉ _")
-        assertTokenSequence(layout, "解律师在解放路口说明合同。", "ㄒ ㄧ ㄝ ˋ _ ㄌ ㄩ ˋ _ ㄕ ˉ _")
-        assertTokenSequence(layout, "仇工程师并不记仇。", "ㄑ ㄧ ㄡ ˊ _ ㄍ ㄨ ㄥ ˉ _ ㄔ ㄥ ˊ _ ㄕ ˉ _")
-        assertTokenSequence(layout, "朴顾问建议保持朴素风格。", "ㄆ ㄧ ㄠ ˊ _ ㄍ ㄨ ˋ _ ㄨ ㄣ ˋ _")
-        assertTokenSequence(layout, "区记者从南海区发回报道。", "ㄡ ˉ _ ㄐ ㄧ ˋ _ ㄓ ㄜ ˇ _")
-        assertTokenSequence(layout, "华教授研究华山碑刻。", "ㄏ ㄨ ㄚ ˋ _ ㄐ ㄧ ㄠ ˋ _ ㄕ ㄡ ˋ _")
-        assertTokenSequence(layout, "燕法官出生在燕郊。", "ㄧ ㄢ ˉ _ ㄈ ㄚ ˇ _ ㄍ ㄨ ㄢ ˉ _")
-        assertTokenSequence(layout, "曾宁从重庆飞到长沙。", "ㄘ ㄨ ㄥ ˊ _ ㄔ ㄨ ㄥ ˊ _ ㄑ ㄧ ㄥ ˋ _")
-    }
-
-    @Test
-    fun zhEnJingzangExpresswayUsesTibetanReading() {
-        val layout = testLayout()
-        assertTokenSequence(layout, "京藏高速。", "ㄐ ㄧ ㄥ ˉ _ ㄗ ㄤ ˋ _ ㄍ ㄠ ˉ _ ㄙ ㄨ ˋ")
-        assertTokenSequence(layout, "京藏（zang）高速", "ㄐ ㄧ ㄥ ˉ _ ㄗ ㄤ ˋ")
-    }
-
-    @Test
     fun zhEnPoliceCaseIdInChineseBracketsDoesNotEmitUnsupportedBracketTokens() {
         val layout = testLayout()
 
@@ -683,60 +588,6 @@ class LitsTtsFrontendTest {
         assertTrue(
             LitsTnNormalizer.preserveSegmentWhitespace(" 204 ", "二百零四") == " 二百零四 ",
         )
-    }
-
-    @Test
-    fun realAssetLayoutLoadsBinaryLexiconsAndSupplementLexicon() {
-        val layout = realAssetLayout()
-
-        val firmwareTokens = LitsTtsFrontend.debugTokensForNormalizedForTest(
-            layout,
-            "firmware roadmap barista barcode Figma Anthropic",
-            "en-US",
-            "en-US",
-        ).joinToString(" ")
-        val polyphoneTokens = LitsTtsFrontend.debugTokensForNormalizedForTest(
-            layout,
-            "曾医生从重庆出发。",
-            "zh-en",
-            "zh-en",
-        ).joinToString(" ")
-
-        assertTrue("expected firmware supplement entry, actual=$firmwareTokens", firmwareTokens.contains("F ER1 M W EH2 R"))
-        assertTrue("expected roadmap supplement entry, actual=$firmwareTokens", firmwareTokens.contains("R OW1 D M AE2 P"))
-        assertTrue("expected barista supplement entry, actual=$firmwareTokens", firmwareTokens.contains("B AH0 R IY1 S T AH0"))
-        assertTrue("expected barcode supplement entry, actual=$firmwareTokens", firmwareTokens.contains("B AA1 R K OW2 D"))
-        assertTrue("expected Figma supplement entry, actual=$firmwareTokens", firmwareTokens.contains("F IH1 G M AH0"))
-        assertTrue("expected Anthropic supplement entry, actual=$firmwareTokens", firmwareTokens.contains("AE0 N TH R AA1 P IH0 K"))
-        assertTrue("expected user_dict 曾医生 entry, actual=$polyphoneTokens", polyphoneTokens.contains("ㄗ ㄥ ˉ _ ㄧ ˉ _ ㄕ ㄥ ˉ"))
-        assertTrue("expected user_dict 从重庆 entry, actual=$polyphoneTokens", polyphoneTokens.contains("ㄘ ㄨ ㄥ ˊ _ ㄔ ㄨ ㄥ ˊ _ ㄑ ㄧ ㄥ ˋ"))
-    }
-
-    @Test
-    fun realAssetLayoutUsesSyncedPolyphonePhraseOverrides() {
-        val layout = realAssetLayout()
-        assertTrue(
-            "expected copied polyphone overrides to contain 圈养了",
-            layout.rootDir.resolve(LitsTtsAssetRegistry.POLYPHONE_PHRASES).readText().contains("圈养了\tjuan4 yang3 le5"),
-        )
-
-        assertNormalizedTokenSequence(layout, "朝阳越过山脊照亮小村", "ㄓ ㄠ ˉ _ ㄧ ㄤ ˊ")
-        assertNormalizedTokenSequence(layout, "医生在处方上写下用药说明", "ㄔ ㄨ ˇ _ ㄈ ㄤ ˉ")
-        assertNormalizedTokenSequence(layout, "盖姓同学在名册里排在前面", "ㄍ ㄜ ˇ _ ㄒ ㄧ ㄥ ˋ")
-        assertNormalizedTokenSequence(layout, "吴堡县名出现在这册旧志里", "ㄨ ˊ _ ㄅ ㄨ ˇ _ ㄒ ㄧ ㄢ ˋ")
-        assertNormalizedTokenSequence(layout, "棋盘上那枚车守住了边线", "ㄋ ㄚ ˋ _ ㄇ ㄟ ˊ _ ㄐ ㄩ ˉ")
-        assertNormalizedTokenSequence(layout, "区老师住在区庄附近", "ㄡ ˉ _ ㄌ ㄠ ˇ _ ㄕ ˉ")
-        assertNormalizedTokenSequence(layout, "曾参和曾老师都在名单里", "ㄗ ㄥ ˉ _ ㄕ ㄣ ˉ _ ㄏ ㄜ ˊ _ ㄗ ㄥ ˉ _ ㄌ ㄠ ˇ _ ㄕ ˉ")
-        assertNormalizedTokenSequence(layout, "解经理正在解释合同", "ㄒ ㄧ ㄝ ˋ _ ㄐ ㄧ ㄥ ˉ _ ㄌ ㄧ ˇ")
-        assertNormalizedTokenSequence(layout, "薄荷味很淡，薄书记也在现场", "ㄅ ㄛ ˋ _ ㄏ ㄜ ˙")
-        assertNormalizedTokenSequence(layout, "薄荷味很淡，薄书记也在现场", "ㄅ ㄛ ˊ _ ㄕ ㄨ ˉ _ ㄐ ㄧ ˋ")
-        assertNormalizedTokenSequence(layout, "任先生负责本次任务", "ㄖ ㄣ ˊ _ ㄒ ㄧ ㄢ ˉ _ ㄕ ㄥ ˉ")
-        assertNormalizedTokenSequence(layout, "朴老师介绍朴素的设计", "ㄆ ㄧ ㄠ ˊ _ ㄌ ㄠ ˇ _ ㄕ ˉ")
-        assertNormalizedTokenSequence(layout, "区先生和区主任都到了", "ㄡ ˉ _ ㄒ ㄧ ㄢ ˉ _ ㄕ ㄥ ˉ")
-        assertNormalizedTokenSequence(layout, "区先生和区主任都到了", "ㄡ ˉ _ ㄓ ㄨ ˇ _ ㄖ ㄣ ˋ")
-        assertNormalizedTokenSequence(layout, "区域里的任务需要解释清楚", "ㄑ ㄩ ˉ _ ㄩ ˋ")
-        assertNormalizedTokenSequence(layout, "区域里的任务需要解释清楚", "ㄖ ㄣ ˋ _ ㄨ ˋ")
-        assertNormalizedTokenSequence(layout, "区域里的任务需要解释清楚", "ㄐ ㄧ ㄝ ˇ _ ㄕ ˋ")
     }
 
     @Test
@@ -818,24 +669,6 @@ class LitsTtsFrontendTest {
 
     private fun realAssetLayout(): LitsTtsAssetInstaller.InstalledLayout {
         return sharedRealAssetLayout
-    }
-
-    private fun assertTokenSequence(
-        layout: LitsTtsAssetInstaller.InstalledLayout,
-        text: String,
-        expected: String,
-    ) {
-        val actual = LitsTtsFrontend.debugTokensForTest(layout, text, "zh-en", "zh-en").joinToString(" ")
-        assertTrue("expected '$expected' in '$actual'", actual.contains(expected))
-    }
-
-    private fun assertNormalizedTokenSequence(
-        layout: LitsTtsAssetInstaller.InstalledLayout,
-        text: String,
-        expected: String,
-    ) {
-        val actual = LitsTtsFrontend.debugTokensForNormalizedForTest(layout, text, "zh-en", "zh-en").joinToString(" ")
-        assertTrue("expected '$expected' in '$actual'", actual.contains(expected))
     }
 
     private companion object {

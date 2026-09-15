@@ -6,9 +6,13 @@ plugins {
 android {
     namespace = "com.lits.tts.sample"
     compileSdk = 34
+    buildFeatures { buildConfig = true }
 
     defaultConfig {
-        applicationId = "com.tdtech.tiassistant"
+        applicationId = providers.gradleProperty("LITS_TTS_SAMPLE_APPLICATION_ID")
+            .orElse("com.tdtech.tiassistant").get()
+        manifestPlaceholders["ttsAppLabel"] = providers.gradleProperty("LITS_TTS_SAMPLE_LABEL")
+            .orElse("@string/app_name").get()
         minSdk = 24
         targetSdk = 34
         versionCode = 1

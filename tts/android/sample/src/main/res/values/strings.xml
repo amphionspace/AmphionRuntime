@@ -18,8 +18,8 @@
     <string name="hint_speed">默认 1.0，范围 0.5~2.0</string>
     <string name="mode_mixed">zh-en</string>
     <string name="mode_en">en-US</string>
-    <string name="mode_desc">数字读法由 languageContext 决定：zh-en 按中文逐位读，en-US 按英文逐位读。</string>
-    <string name="action_desc">“开始合成”用于测流式回调；“SDK 直接播报”用于测边推边播；“Warmup”会先跑一条短句，把模型首次执行开销排除掉。Chunk size 会覆盖流式切块大小，PCM queue capacity 会覆盖 SDK 直接播报的播放缓冲队列容量，Speed 会调整语速。</string>
+    <string name="mode_desc">纯数字在 zh-en 模式下按中文读，在 en-US 模式下按英文读；末尾句点作为标点，小数保留小数读法。</string>
+    <string name="action_desc">“开始合成”生成音频；“SDK 直接播报”合成并播放；“Warmup”先运行一条短句。模型决定使用整句或流式合成，Chunk size 仅对流式模型生效。PCM queue capacity 调整播放缓冲容量，Speed 调整语速。</string>
 
     <string name="button_synthesize">开始合成</string>
     <string name="button_sdk_playback">SDK 直接播报</string>

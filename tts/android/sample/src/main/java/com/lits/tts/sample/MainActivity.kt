@@ -27,6 +27,9 @@ import com.lits.tts.sdk.SynthesisResponse
 import com.lits.tts.sdk.TextToSpeechEngine
 import com.lits.tts.sdk.TextToSpeechSdk
 import com.lits.tts.sdk.TtsStreamingConfig
+import com.lits.tts.sdk.TtsLicenseOptions
+import com.lits.tts.sdk.TtsDeviceIdProvider
+import com.lits.tts.sdk.TtsSystemDeviceIdProvider
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
@@ -108,7 +111,7 @@ class MainActivity : AppCompatActivity() {
         logText = findViewById(R.id.text_log)
         progressBar = findViewById(R.id.progress_busy)
 
-        configureWorkPath()
+        if (!configureWorkPath()) return
         modeGroup.check(R.id.radio_mode_mixed)
         modeGroup.setOnCheckedChangeListener { _, _ ->
             val language = selectedLanguage()
@@ -131,6 +134,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        // Invalidate an outstanding asynchronous load before its callback arrives.
+        loadingLanguage = null
         player.stop()
         ioExecutor.shutdownNow()
         runCatching { engine?.shutdown() }
@@ -138,11 +143,36 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-    private fun configureWorkPath() {
-        val baseDir = getExternalFilesDir(null) ?: filesDir
+    private fun configureWorkPath(): Boolean {
+        val baseDir = if (BuildConfig.DEBUG) filesDir else getExternalFilesDir(null) ?: filesDir
         val workDir = File(baseDir, "lits-tts-work").apply { mkdirs() }
-        TextToSpeechSdk.setWorkPath(workDir.absolutePath)
         appendLog("workPath=${workDir.absolutePath}")
+        // adb provisions this private directory for a local, signed-license demo.
+        // Production callers must provide their actual platform device-SN API.
+        val provisioning = File(filesDir, "tts-provisioning")
+        val license = File(provisioning, "amphion-license.lic")
+        val serial = File(provisioning, "device-sn.txt")
+        return runCatching {
+            // SDK workPath is process-wide. Activity recreation can overlap an
+            // earlier engine load, so configure it only once for this process.
+            if (!workPathConfigured) {
+                TextToSpeechSdk.setWorkPath(workDir.absolutePath)
+                workPathConfigured = true
+            }
+            val provider = if (BuildConfig.DEBUG && serial.isFile) {
+                TtsDeviceIdProvider { serial.readText().trim() }
+            } else TtsSystemDeviceIdProvider
+            TextToSpeechSdk.init(this, TtsLicenseOptions(
+                license = license.takeIf { it.isFile }?.readText(),
+                deviceIdProvider = provider,
+            ))
+            appendLog("license=${TextToSpeechSdk.licenseStatus().state}")
+            true
+        }.getOrElse {
+            setStatus("授权初始化失败：${it.message}")
+            appendLog("请先配置授权文件及设备 SN。")
+            false
+        }
     }
 
     private fun selectedLanguage(): String = when (modeGroup.checkedRadioButtonId) {
@@ -812,6 +842,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
+        var workPathConfigured = false
         const val VOICE_ID_SPEAKER_0 = "lits-female-01"
         const val VOICE_ID_SPEAKER_1 = "lits-female-02"
         const val DEFAULT_STREAMING_CHUNK_SIZE = 50

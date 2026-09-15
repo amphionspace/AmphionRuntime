@@ -385,7 +385,7 @@ internal object LitsTtsFrontend {
         val ids = tokenization.tokens.map { token ->
             resources.symbolToId[token] ?: throw unsupported("frontend token is not in zh_en_symbols.json: $token")
         }
-        val tokenIds = ids.map { it.toLong() }.toLongArray()
+        val tokenIds = FrontendTokenIds.withInitialSilence(ids, resources.symbolToId)
         val tokenToIdsMs = elapsedMs(tokenToIdsStartedAt)
         val profile = FrontendEncodeProfile(
             totalMs = elapsedMs(totalStartedAt),
