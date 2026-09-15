@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from asr.tools.tests.test_harmony_speaker_diarization_session import REGISTRY, ROOT, TIMELINE, run_node
+from asr.tools.tests.test_harmony_speaker_diarization_session import REGISTRY, ROOT, TIMELINE, DIARIZATION, SESSION, TS_LOADER, run_node
 
 
 class HarmonyDiarizationQueryTest(unittest.TestCase):
@@ -94,3 +94,55 @@ class HarmonyDiarizationQueryTest(unittest.TestCase):
             harness = Path(directory) / 'query.mts'
             harness.write_text(source + driver)
             subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
+
+    def test_session_queries_only_established_output_and_preserves_profiles(self):
+        source = SESSION.read_text()
+        imports = "\n".join(
+            f"import {{ {name} }} from {(DIARIZATION / (name + '.ts')).as_uri()!r};"
+            for name in ['DiarizationCommitClock', 'OnlineSpeakerRegistry',
+                         'SpeakerDiarizationGlobalClusterer', 'SpeakerDiarizationTranscriptState']
+        )
+        imports += f"\nimport {{ speakerIndexFromInternalId, speakerIndexesFromInternalIds }} from {(DIARIZATION / 'SpeakerDiarizationSpeakerIndex.ts').as_uri()!r};"
+        stubs = """
+          import assert from 'node:assert/strict';
+          const SAMPLE_RATE=16000;
+          const SpeakerDiarizationDegradedReason={NONE:0};
+          class SpeakerDiarizationResult {utterances=[];speakerTurns=[];}
+          class DiarizedUtterance {} class SpeakerTurn {} class SpeakerDiarizationUpdate {}
+          class SpeakerDiarizationLocalClient {}
+          const SpeakerDiarizationRuntimeLeaseRegistry={acquire:()=>({release(){}})};
+        """
+        driver = """
+          const query=[.63,.41,Math.sqrt(1-.63**2-.41**2)];
+          function run(useQuery,published,context=[0,1,0],maxSpeakers=4) {
+            const s=new SpeakerDiarizationSession({},'',maxSpeakers,{
+              onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}});
+            s.committedRegistry.assign(new Float32Array([1,0,0]),6000,0);
+            s.committedRegistry.assign(new Float32Array([0,1,0]),6000,0);
+            s.publishedSpeakerIds=new Set(published);
+            s.registry=s.committedRegistry.fork();s.totalSamples=32000;
+            s.onWindow({jobId:'handoff',windowStartSample:0,contentStartInWindowSample:0,
+              realEndSample:32000,commitStartSample:0,stableEndSample:32000,finalWindow:true,
+              result:{inferenceMs:0,segments:[{startSample:0,endSample:32000,speaker:0,speakerMask:1}],
+                embeddings:[{localSpeaker:0,speechSamples:96000,embedding:context,
+                  queryEmbedding:useQuery?query:undefined}]}});
+            const result=s.commitWindow(2000,2000,true);
+            return {s,result,profile:s.committedRegistry.snapshot()};
+          }
+          const baseline=run(false,['S1']);const corrected=run(true,['S1']);
+          assert.equal(baseline.result.speakerTurns[0].speakerIndex,1);
+          assert.equal(corrected.result.speakerTurns[0].speakerIndex,0);
+          assert.ok(Math.abs(corrected.result.speakerTurns[0].confidence-.63)<1e-6);
+          assert.deepEqual(corrected.profile,baseline.profile,'queries must not update enrollment');
+          assert.equal(run(true,[]).result.speakerTurns[0].speakerIndex,1,
+            'a context-only registry entry must not become a new public identity');
+          assert.equal(run(true,['S1'],[0,0,1],2).result.speakerTurns[0].speakerIndex,-1,
+            'a query must not promote an UNKNOWN context assignment');
+          corrected.s.transcript.applyEvidenceRemap({'handoff:0':'S2'});
+          assert.equal(corrected.result.speakerTurns[0].speakerIndex,0,'published output is immutable');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'session-query.mts'
+            harness.write_text(imports + stubs + source[source.index('export class SpeakerDiarizationSession'):] + driver)
+            subprocess.run(['node', '--experimental-strip-types', '--experimental-loader',
+                            TS_LOADER.as_uri(), str(harness)], check=True, cwd=ROOT)
