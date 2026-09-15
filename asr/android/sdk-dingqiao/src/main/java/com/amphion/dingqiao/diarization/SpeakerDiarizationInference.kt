@@ -81,6 +81,7 @@ internal class SpeakerDiarizationInference(
         const val SAMPLE_RATE = 16_000
         const val LOCAL_SPEAKER_COUNT = 3
         const val MIN_EMBEDDING_SAMPLES = SAMPLE_RATE
-        const val MAX_EMBEDDING_SAMPLES = SAMPLE_RATE * 5 / 2
+        // Use all clean speech in the bounded 10-second window, not only its first phonemes.
+        const val MAX_EMBEDDING_SAMPLES = SAMPLE_RATE * 10
     }
 }

@@ -12,7 +12,8 @@ import { AmphionRuntime } from './Runtime';
 
 const SAMPLE_RATE: number = 16000;
 const MIN_EMBEDDING_SAMPLES: number = SAMPLE_RATE;
-const MAX_EMBEDDING_SAMPLES: number = Math.round(SAMPLE_RATE * 2.5);
+// Use all clean speech in the bounded 10-second window, not only its first phonemes.
+const MAX_EMBEDDING_SAMPLES: number = SAMPLE_RATE * 10;
 
 export class SpeakerDiarizationSegment {
   startSample: number = 0;
