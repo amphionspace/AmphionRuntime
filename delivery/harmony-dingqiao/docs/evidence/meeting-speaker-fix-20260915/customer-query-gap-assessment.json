@@ -1,5 +1,5 @@
 {
-  "status": "HOST_CANDIDATE_PASS_DEVICE_PENDING",
+  "status": "TARGETED_CUSTOMER_QUERY_GAP_HOST_AND_DEVICE_PASS",
   "baselineCommit": "9f014b1e",
   "confirmedIdentity": {
     "source": "Explicit user statement in this task",
@@ -403,6 +403,149 @@
     {
       "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-fix-plan.json",
       "sha256": "5562dcd579ee5a0d1a8e0305dd29fc6ba76a0321dfe7963e2db409739e6b794a"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-customer-host-summary.json",
+      "sha256": "47d2bb490f14add234b8ff9f12996e47df6b7ae0698f3c91b5f393ae4fb4d72f"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-build-install.log",
+      "sha256": "ec64ee4677333de3c36117314b4dca948d363740e0c6e284dfdb495920427646"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-usb.log",
+      "sha256": "ca3a7927bff9a8c8ceadb235c11008bab2fdb98252247e2da5829f9897a791fb"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-device-assessment.json",
+      "sha256": "3cfcde26a149eb10d0301eae40cf17a8c3e9e1dc9ead453e294dace16bb03be2"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/query-gap-build-identity.json",
+      "sha256": "603a464a5259f3a950d78730177f197570b1c03844bf42bbe8c4a4217119e0a8"
+    }
+  ],
+  "runtimeCommit": "b38ed1202069c1a86a1c4860ba75291902d7de01",
+  "deviceEvidence": "customer-query-gap-device-assessment.json",
+  "buildIdentity": "customer-query-gap-build-identity.json",
+  "customerHostSummary": [
+    {
+      "name": "smartFill",
+      "canonical": false,
+      "profilesUnchanged": true,
+      "before": [
+        2,
+        2,
+        0,
+        -1,
+        2,
+        3,
+        -1,
+        -1,
+        -1
+      ],
+      "candidate": [
+        2,
+        2,
+        0,
+        2,
+        2,
+        3,
+        -1,
+        -1,
+        -1
+      ],
+      "changes": [
+        {
+          "utteranceId": "u4",
+          "beginTime": 38320,
+          "endTime": 40560,
+          "speakerIndex": 2,
+          "before": -1
+        }
+      ],
+      "unknownBefore": 4,
+      "unknownCandidate": 3
+    },
+    {
+      "name": "meetingMinutes",
+      "canonical": false,
+      "profilesUnchanged": true,
+      "before": [
+        -1,
+        -1,
+        2,
+        0,
+        -1,
+        1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "candidate": [
+        -1,
+        -1,
+        2,
+        0,
+        -1,
+        1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "changes": [],
+      "unknownBefore": 31,
+      "unknownCandidate": 31
     }
   ]
 }
