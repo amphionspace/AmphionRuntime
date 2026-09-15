@@ -497,7 +497,19 @@ class MainActivity : AppCompatActivity() {
         val preset = if (language == "en-US") {
             "Welcome to the Lits delivery TTS sample. Room 204 is ready."
         } else {
-            "欢迎使用 Lits delivery 纯 TTS sample，room 204 is ready."
+            """
+                早上好，欢迎参加今天的语音试听。Good morning, everyone. Please take a seat and make yourself comfortable. 接下来，我们会交替使用中文和英文，讲一段日常生活中的小故事。
+
+                今天早上，我带着电脑和蓝色背包来到办公室，先打开 WiFi，再查看今天的工作安排。屏幕上显示：The meeting starts at nine thirty. Please bring your laptop and a bottle of water. 我给同事发了一条消息：会议在二楼，Room 204 is ready，到了以后直接进来就好。
+
+                开会之前，我们一起检查麦克风和扬声器。Please check your microphone and make sure the room is quiet. 听到提示音后，请自然地说一句话，不用刻意放慢，也不用提高音量。如果中途没有听清楚，可以说：Could you repeat that, please? 然后我们再试一次。
+
+                中午，我们去附近的小店买午餐。我点了一份三明治、一杯咖啡和两个苹果，一共花了四十五元。The coffee is a little hot, so let it cool down before you drink it. 同事笑着提醒我，下午还有一段很长的英文材料要读，记得先休息一会儿。
+
+                下午的阳光照进窗户，桌上的茶还冒着热气。我戴上耳机，打开刚才保存的录音，从头听到最后。The first sentence should sound clear and natural. The next sentence should continue smoothly, with a short pause between ideas. 我特别留意中文切换到英文时，声音是否连贯，句子开头是否清楚，最后几个词有没有突然变轻。
+
+                好了，今天的试听就到这里。Thank you for listening. Have a pleasant afternoon, and see you next time. 希望你接下来的每一件事，都能顺顺利利。
+            """.trimIndent()
         }
         inputText.setText(preset)
         inputText.setSelection(preset.length)
