@@ -20,6 +20,43 @@ import java.util.concurrent.CopyOnWriteArrayList
 import org.junit.Test
 
 class TextToSpeechEngineCancellationTest {
+    @Test fun internalCancellationStillReportsTheUnderlyingError() {
+        val dispatched = CountDownLatch(2)
+        val events = CopyOnWriteArrayList<String>()
+        lateinit var engine: TextToSpeechEngineImpl
+        val synth = object : PcmSynthesizer {
+            override fun preload() = Unit
+            override fun supportsInternalPlayback() = false
+            override fun synthesize(text: String, params: SpeakParams, engineParams: CreateEngineParams): SynthesizedAudio {
+                // AndroidPcmPlayer stops its peer worker with this shared flag on
+                // internal failure. It does not set the user's stopRequested flag.
+                val task = engine.javaClass.getDeclaredField("current").apply { isAccessible = true }.get(engine)
+                val flag = task.javaClass.getDeclaredField("cancelled").apply { isAccessible = true }.get(task)
+                (flag as java.util.concurrent.atomic.AtomicBoolean).set(true)
+                throw IllegalStateException("internal playback failure")
+            }
+        }
+        engine = TextToSpeechEngineImpl(CreateEngineParams("zh-en", RunMode.OFFLINE, "lits-female-02"),
+            VoiceInfo("zh-en", "lits-female-02", "female"), null, null, { true }, synth,
+            java.util.concurrent.Executor { try { it.run() } finally { dispatched.countDown() } })
+        engine.setListener(object : SpeakListener {
+            override fun onStart(requestId: String, response: StartResponse) { events += "START" }
+            override fun onData(requestId: String, audio: ByteArray, response: SynthesisResponse) = Unit
+            override fun onComplete(requestId: String, response: CompleteResponse) { events += "COMPLETE" }
+            override fun onStop(requestId: String, response: StopResponse) { events += "STOP" }
+            override fun onError(requestId: String, errorCode: Int, errorMessage: String) {
+                events += "ERROR"
+                assertEquals("internal playback failure", errorMessage)
+                engine.shutdown()
+            }
+        })
+        try {
+            engine.speak("内部错误。", SpeakParams("internal-error", playType = PlayType.SYNTHESIZE_ONLY))
+            assertTrue(dispatched.await(2, TimeUnit.SECONDS))
+            assertEquals(listOf("START", "ERROR"), events.toList())
+        } finally { runCatching { engine.shutdown() } }
+    }
+
     @Test fun terminalCallbacksCommitBeforeReentrantStopOrShutdown() {
         for (playType in listOf(PlayType.SYNTHESIZE_ONLY, PlayType.SYNTHESIZE_AND_PLAY)) {
             for (action in listOf("stop", "shutdown")) {

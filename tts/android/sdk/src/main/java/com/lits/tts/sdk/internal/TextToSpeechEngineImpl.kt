@@ -362,7 +362,7 @@ internal class TextToSpeechEngineImpl(
             if (callback != null) {
                 dispatchListener {
                     // Recheck at dispatch: stop may race with a native failure.
-                    if (commitTerminal(task)) {
+                    if (commitTerminal(task, TerminalEvent.ERROR)) {
                         callback.onError(task.params.requestId, code, message)
                     }
                 }
@@ -513,7 +513,7 @@ internal class TextToSpeechEngineImpl(
     private fun notifyStop(callback: SpeakListener, task: SynthesisTask) {
         if (task.stopNotified.compareAndSet(false, true)) {
             dispatchListener {
-                if (commitTerminal(task, stopped = true)) {
+                if (commitTerminal(task, TerminalEvent.STOP)) {
                     callback.onStop(task.params.requestId, StopResponse(StopType.STOP_ALL, "stopped"))
                 }
             }
@@ -523,8 +523,17 @@ internal class TextToSpeechEngineImpl(
     // Publish the terminal state before entering user code. Worker-finally may
     // still be pending, but a completed request must no longer be cancellable.
     // Share the cancellation lock so stop and completion have one winner.
-    private fun commitTerminal(task: SynthesisTask, stopped: Boolean = false): Boolean = synchronized(lock) {
-        if (task.terminalNotified || (!stopped && (task.cancelled.get() || destroyed))) {
+    private enum class TerminalEvent { COMPLETE, ERROR, STOP }
+
+    private fun commitTerminal(task: SynthesisTask, event: TerminalEvent = TerminalEvent.COMPLETE): Boolean = synchronized(lock) {
+        val suppressed = when (event) {
+            TerminalEvent.COMPLETE -> task.cancelled.get() || destroyed
+            // Internal playback failure sets cancelled to stop its peer worker.
+            // Only an explicit user stop/shutdown should suppress that error.
+            TerminalEvent.ERROR -> task.stopRequested.get() || destroyed
+            TerminalEvent.STOP -> false
+        }
+        if (task.terminalNotified || suppressed) {
             false
         } else {
             task.terminalNotified = true
