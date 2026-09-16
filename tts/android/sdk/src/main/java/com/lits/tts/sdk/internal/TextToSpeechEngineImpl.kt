@@ -19,6 +19,7 @@ import com.lits.tts.sdk.TextToSpeechException
 import com.lits.tts.sdk.TtsErrorCode
 import com.lits.tts.sdk.VoiceInfo
 import java.util.ArrayDeque
+import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
@@ -32,6 +33,7 @@ internal class TextToSpeechEngineImpl(
     @Suppress("unused") private val workPath: String?,
     private val onRelease: () -> Boolean,
     private val synthesizer: PcmSynthesizer,
+    private val listenerExecutor: Executor = LISTENER_EXECUTOR,
 ) : TextToSpeechEngine {
     private val lock = Any()
     private val queue = ArrayDeque<SynthesisTask>()
@@ -119,7 +121,7 @@ internal class TextToSpeechEngineImpl(
     override fun isBusy(): Boolean {
         ensureNotDestroyed()
         return synchronized(lock) {
-            current?.cancelled?.get() == false || queue.any { !it.cancelled.get() }
+            current?.let { !it.cancelled.get() && !it.terminalNotified } == true || queue.any { !it.cancelled.get() }
         }
     }
 
@@ -198,7 +200,7 @@ internal class TextToSpeechEngineImpl(
 
     private fun cancelAllLocked(): List<SynthesisTask> {
         val tasks = buildList {
-            current?.let { add(it) }
+            current?.takeUnless { it.terminalNotified }?.let { add(it) }
             addAll(queue)
         }
         tasks.forEach {
@@ -360,7 +362,7 @@ internal class TextToSpeechEngineImpl(
             if (callback != null) {
                 dispatchListener {
                     // Recheck at dispatch: stop may race with a native failure.
-                    if (!task.stopRequested.get() && !destroyed) {
+                    if (commitTerminal(task)) {
                         callback.onError(task.params.requestId, code, message)
                     }
                 }
@@ -497,7 +499,12 @@ internal class TextToSpeechEngineImpl(
 
     private fun notifyComplete(callback: SpeakListener, task: SynthesisTask, response: CompleteResponse) {
         dispatchListener {
-            if (!task.cancelled.get() && !destroyed) {
+            val terminal = task.params.playType == PlayType.SYNTHESIZE_ONLY ||
+                response.type == CompleteType.PLAYBACK_COMPLETE
+            val deliver = if (terminal) commitTerminal(task) else synchronized(lock) {
+                !task.cancelled.get() && !destroyed && !task.terminalNotified
+            }
+            if (deliver) {
                 callback.onComplete(task.params.requestId, response)
             }
         }
@@ -506,8 +513,22 @@ internal class TextToSpeechEngineImpl(
     private fun notifyStop(callback: SpeakListener, task: SynthesisTask) {
         if (task.stopNotified.compareAndSet(false, true)) {
             dispatchListener {
-                callback.onStop(task.params.requestId, StopResponse(StopType.STOP_ALL, "stopped"))
+                if (commitTerminal(task, stopped = true)) {
+                    callback.onStop(task.params.requestId, StopResponse(StopType.STOP_ALL, "stopped"))
+                }
             }
+        }
+    }
+
+    // Publish the terminal state before entering user code. Worker-finally may
+    // still be pending, but a completed request must no longer be cancellable.
+    // Share the cancellation lock so stop and completion have one winner.
+    private fun commitTerminal(task: SynthesisTask, stopped: Boolean = false): Boolean = synchronized(lock) {
+        if (task.terminalNotified || (!stopped && (task.cancelled.get() || destroyed))) {
+            false
+        } else {
+            task.terminalNotified = true
+            true
         }
     }
 
@@ -518,7 +539,7 @@ internal class TextToSpeechEngineImpl(
     }
 
     private fun dispatchListener(block: () -> Unit) {
-        LISTENER_EXECUTOR.execute(block)
+        listenerExecutor.execute(block)
     }
 
     private fun ensureNotDestroyed() {
@@ -556,6 +577,8 @@ internal class TextToSpeechEngineImpl(
         val cancelled: AtomicBoolean = AtomicBoolean(false),
         val stopRequested: AtomicBoolean = AtomicBoolean(false),
         val stopNotified: AtomicBoolean = AtomicBoolean(false),
+        // Guarded by the engine lock; native worker lifetime is tracked separately.
+        var terminalNotified: Boolean = false,
         val playbackStartMs: AtomicLong = AtomicLong(-1L),
         @Volatile var startedAtMs: Long = -1L,
     )
