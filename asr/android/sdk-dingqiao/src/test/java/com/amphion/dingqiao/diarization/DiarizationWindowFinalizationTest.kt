@@ -14,6 +14,38 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
 
 class DiarizationWindowFinalizationTest {
+    @Test fun historicalContextCannotCompeteWithCurrentSpeech() {
+        mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
+            val directory = Files.createTempDirectory("diarization-owned-speech-test").toFile()
+            val observer = object : SpeakerDiarizationSessionObserver {
+                override fun onUpdate(update: SpeakerDiarizationUpdate) = Unit
+                override fun onWindowResult(result: SpeakerDiarizationResult) = Unit
+                override fun onFinished(result: SpeakerDiarizationResult) = Unit
+            }
+            val session = SpeakerDiarizationSession(mock<Context>(), directory, 4, observer)
+            try {
+                session.onWindow(window(4000))
+                val current = floatArrayOf(.767f, kotlin.math.sqrt(1f - .767f * .767f))
+                session.onWindow(DiarizationLocalWindowResult("current", 0, 0, 160000, 96000,
+                    136000, false, DiarizationWindowInferenceResult(listOf(
+                        SpeakerSegmentationSegment(32000, 96000, 0, 1),
+                        SpeakerSegmentationSegment(121600, 160000, 1, 2)), listOf(
+                        DiarizationEmbedding(0, 32000, floatArrayOf(1f, 0f)),
+                        DiarizationEmbedding(1, 38400, current)), 0)))
+                val transcript = session.javaClass.getDeclaredField("transcript")
+                    .apply { isAccessible = true }.get(session) as DiarizationTranscriptState
+                assertEquals(listOf("S1"), transcript.allTurns()
+                    .filter { it.beginTime >= 6000 }.map { it.speakerId })
+                val observations = session.javaClass.getDeclaredField("recentObservations")
+                    .apply { isAccessible = true }.get(session) as List<*>
+                assertEquals("context remains available for final clustering", 3, observations.size)
+            } finally {
+                session.cancel()
+                directory.deleteRecursively()
+            }
+        }
+    }
+
     @Test fun windowPublicationCannotOvertakeAnEarlierUpdateDuringConcurrentDrain() {
         mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
             val updating = CountDownLatch(1)

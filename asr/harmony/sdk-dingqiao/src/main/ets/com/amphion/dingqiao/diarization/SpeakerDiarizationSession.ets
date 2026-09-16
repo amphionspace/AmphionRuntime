@@ -179,20 +179,31 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.inferenceEndMs = window.realEndSample * 1000 / SAMPLE_RATE;
     const channelIds = new Map<number, string>();
     const channelConfidences = new Map<number, number>();
+    const ownedStart = window.commitStartSample - window.windowStartSample + window.contentStartInWindowSample;
+    const ownedEnd = Math.min(window.realEndSample, window.stableEndSample) -
+      window.windowStartSample + window.contentStartInWindowSample;
+    // Historical/right-context channels must not compete with the current output.
+    // Keep their embeddings below for window-final clustering.
+    const activeEmbeddings = window.result.embeddings.filter(item =>
+      window.result.segments.some(segment =>
+        (segment.speakerMask & (1 << item.localSpeaker)) !== 0 &&
+        Math.max(ownedStart, segment.startSample) < Math.min(ownedEnd, segment.endSample)));
     const assignments = this.registry.assignBatch(
-      window.result.embeddings.map((item) => new Float32Array(item.embedding)),
-      window.result.embeddings.map((item) => Math.round(item.speechSamples * 1000 / SAMPLE_RATE)),
+      activeEmbeddings.map((item) => new Float32Array(item.embedding)),
+      activeEmbeddings.map((item) => Math.round(item.speechSamples * 1000 / SAMPLE_RATE)),
       Math.round(window.realEndSample * 1000 / SAMPLE_RATE));
     for (let i = 0; i < window.result.embeddings.length; i++) {
       const item = window.result.embeddings[i];
-      const assignment = assignments[i];
-      channelIds.set(item.localSpeaker, assignment.speakerId);
-      channelConfidences.set(item.localSpeaker, assignment.confidence);
+      const assignment = assignments[activeEmbeddings.indexOf(item)];
+      if (assignment !== undefined) {
+        channelIds.set(item.localSpeaker, assignment.speakerId);
+        channelConfidences.set(item.localSpeaker, assignment.confidence);
+      }
       const endTimeMs = Math.round(window.realEndSample * 1000 / SAMPLE_RATE);
       const observation: SpeakerDiarizationEmbeddingObservation = {
         embedding: item.embedding.slice(),
         durationMs: Math.round(item.speechSamples * 1000 / SAMPLE_RATE),
-        onlineSpeakerId: assignment.speakerId,
+        onlineSpeakerId: assignment?.speakerId ?? 'UNKNOWN',
         endTimeMs,
         evidenceKey: `${window.jobId}:${item.localSpeaker}`,
         queryEmbedding: item.queryEmbedding?.slice(),
