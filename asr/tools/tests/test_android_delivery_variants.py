@@ -99,3 +99,23 @@ dingqiao_verify_aar_asr_models() { :; }
             result = subprocess.run(['bash', str(PACKER), *args], text=True, capture_output=True)
             self.assertEqual(2, result.returncode, result.stdout + result.stderr)
             self.assertIn('new absolute directory', result.stderr)
+
+
+class AndroidItnVerbalizerTest(unittest.TestCase):
+    def test_approved_small_rules_pass_and_truncated_or_padded_rules_fail(self):
+        from asr.tools.delivery.verify_android_itn_verbalizer import ENTRY, verify
+        import hashlib
+        approved = b'optimized-fst' * 100
+        expected = hashlib.sha256(approved).hexdigest()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'sdk.aar'
+            for payload in [approved, approved[:-1], approved + bytes(200_000)]:
+                path.write_bytes(archive_bytes({ENTRY: payload}))
+                if payload == approved:
+                    verify(path, expected_sha256=expected)
+                else:
+                    with self.assertRaisesRegex(ValueError, 'approved rules'):
+                        verify(path, expected_sha256=expected)
+            path.write_bytes(archive_bytes({'unrelated': approved}))
+            with self.assertRaises(KeyError):
+                verify(path, expected_sha256=expected)
