@@ -39,6 +39,8 @@ internal class SpeakerDiarizationSession(
     private val maxSpeakers: Int,
     private val observer: SpeakerDiarizationSessionObserver,
 ) : SpeakerDiarizationLocalObserver, SpeakerDiarizationController {
+    // Recognize the first/known speaker as before; require more speech to add another.
+    private val minAdditionalSpeakerSpeechMs = 3000
     private val client = SpeakerDiarizationLocalClient(context, workPath, this)
     private var registry = OnlineSpeakerRegistry(maxSpeakers, 0.72f, 0.05f)
     private val globalClusterer = SpeakerDiarizationGlobalClusterer(maxSpeakers, 0.72f)
@@ -184,6 +186,7 @@ internal class SpeakerDiarizationSession(
             activeEmbeddings.map { it.embedding },
             activeEmbeddings.map { it.speechSamples * 1000 / SAMPLE_RATE },
             (window.realEndSample * 1000 / SAMPLE_RATE).toInt(),
+            activeEmbeddings.map { it.speechSamples * 1000 / SAMPLE_RATE >= minAdditionalSpeakerSpeechMs },
         )
         window.result.embeddings.forEach { embedding ->
             val assignment = assignments.getOrNull(activeEmbeddings.indexOf(embedding))
@@ -283,14 +286,25 @@ internal class SpeakerDiarizationSession(
         val observations = recentObservations.filter { it.endTimeMs <= evidenceEndTime && it.endTimeMs > beginTime }
             .map { it.copy(onlineSpeakerId = "UNKNOWN", anchorId = committedRegistry.matchKnown(it.embedding)) }
         val clustered = globalClusterer.cluster(observations)
+        val clusters = clustered.clusters.toMutableList()
+        if (committedRegistry.speakerIds().isEmpty()) {
+            // Repeated short context cannot outweigh a better-supported first identity.
+            val firstSupported = clusters.indexOfFirst { cluster ->
+                cluster.indexes.any { observations[it].durationMs >= minAdditionalSpeakerSpeechMs }
+            }
+            if (firstSupported > 0) clusters.add(0, clusters.removeAt(firstSupported))
+        }
         val remap = mutableMapOf<String, String>()
-        for (cluster in clustered.clusters) {
+        for (cluster in clusters) {
             val anchor = cluster.indexes.mapNotNull { observations[it].anchorId }.firstOrNull()
             val id = if (anchor != null) {
                 committedRegistry.commitKnown(anchor, cluster.centroid, cluster.durationMs, endTime)
                 anchor
             } else {
-                committedRegistry.assignBatch(listOf(cluster.centroid), listOf(cluster.durationMs), endTime)[0].speakerId
+                // Repeated overlapping context is not additional independent PCM.
+                val canEnroll = cluster.indexes.any { observations[it].durationMs >= minAdditionalSpeakerSpeechMs }
+                committedRegistry.assignBatch(listOf(cluster.centroid), listOf(cluster.durationMs),
+                    endTime, listOf(canEnroll))[0].speakerId
             }
             cluster.indexes.forEach { remap[observations[it].evidenceKey] = id }
         }

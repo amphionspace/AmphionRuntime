@@ -37,6 +37,43 @@ def run_session(body: str) -> None:
 
 
 class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
+    def test_repeated_short_context_cannot_enroll_a_new_speaker(self):
+        run_session("""
+          function run(embedding, speechMs, seedMs=6000) {
+            const s=session(); s.totalSamples=224000;
+            const windows=[{start:0,end:seedMs,embedding:[1,0]}];
+            for(let i=0;i<4;i++) windows.push({start:7000,end:7000+speechMs,embedding});
+            for(let i=0;i<windows.length;i++) {
+              const w=windows[i];
+              s.onWindow({jobId:`w${i}`,windowStartSample:0,contentStartInWindowSample:0,
+                realEndSample:224000,commitStartSample:i<2 ? 0 : 176000,
+                stableEndSample:224000,finalWindow:false,result:{inferenceMs:0,
+                  segments:[{startSample:w.start*16,endSample:w.end*16,speaker:0,speakerMask:1}],
+                  embeddings:[{localSpeaker:0,speechSamples:(w.end-w.start)*16,embedding:w.embedding}]}});
+            }
+            const provisional=s.registry.speakerIds();
+            const result=s.commitWindow(14000,Infinity,true);
+            return {provisional,result};
+          }
+          const first=run([1,0],1200,1200);
+          assert.deepEqual(first.provisional,['S1']);
+          assert.equal(first.result.speakerCount,1,'do not delay the first speaker of a short session');
+          assert.equal(run([0,1],2999).result.speakerCount,1,'new identity waits for sufficient evidence');
+          const short=run([.53,Math.sqrt(1-.53**2)],1200);
+          assert.deepEqual(short.provisional,['S1'],
+            'one short uncertain fragment must not create a provisional extra person');
+          assert.equal(short.result.speakerCount,1,
+            'four overlapping observations of 1.2s are not 4.8s of enrollment evidence');
+          assert.deepEqual(short.result.speakerTurns.map(t=>t.speakerIndex),[0,-1]);
+          const known=run([1,0],1200);
+          assert.deepEqual(known.result.speakerTurns.map(t=>t.speakerIndex),[0,0],
+            'short evidence can still recognize an established speaker');
+          const distinct=run([0,1],3000);
+          assert.deepEqual(distinct.provisional,['S1','S2']);
+          assert.deepEqual(distinct.result.speakerTurns.map(t=>t.speakerIndex).sort(),[0,1],
+            'sufficient independent evidence can still enroll another speaker');
+        """)
+
     def test_historical_context_cannot_compete_with_current_speech(self):
         run_session("""
           const s=session(); s.registry.assign(new Float32Array([1,0,0]),2000,4000);
@@ -56,7 +93,9 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
             'window-final clustering still needs the original contextual evidence');
           const other=session(); other.registry.assign(new Float32Array([1,0,0]),2000,4000);
           window.result.segments[0].endSample=136000;
+          window.result.segments[1].startSample=112000;
           window.result.embeddings[1].embedding=[0,1,0];
+          window.result.embeddings[1].speechSamples=48000;
           other.onWindow(window);
           assert.deepEqual(other.registry.speakerIds(),['S1','S2'],
             'two actual current speakers remain eligible for different roles');
@@ -81,14 +120,14 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
     def test_final_overlap_does_not_depend_on_provisional_unknown_collisions(self):
         run_session("""
           function run(provisional) {
-            const s=session(); s.totalSamples=32000;
+            const s=session(); s.totalSamples=51200;
             s.registry.assignBatch=()=>provisional.map(speakerId=>({speakerId,confidence:1,created:false}));
             s.onWindow({jobId:'same-audio',windowStartSample:0,contentStartInWindowSample:0,
-              realEndSample:32000,commitStartSample:0,stableEndSample:32000,finalWindow:true,
-              result:{inferenceMs:0,segments:[{startSample:0,endSample:32000,speaker:0,speakerMask:3}],
-                embeddings:[{localSpeaker:0,speechSamples:32000,embedding:[1,0]},
-                  {localSpeaker:1,speechSamples:32000,embedding:[0,1]}]}});
-            return s.commitWindow(2000,2000,true);
+              realEndSample:51200,commitStartSample:0,stableEndSample:51200,finalWindow:true,
+              result:{inferenceMs:0,segments:[{startSample:0,endSample:51200,speaker:0,speakerMask:3}],
+                embeddings:[{localSpeaker:0,speechSamples:51200,embedding:[1,0]},
+                  {localSpeaker:1,speechSamples:51200,embedding:[0,1]}]}});
+            return s.commitWindow(3200,3200,true);
           }
           const known=run(['S1','S2']); const unknown=run(['UNKNOWN','UNKNOWN']);
           assert.deepEqual(unknown.speakerTurns,known.speakerTurns,

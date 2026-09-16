@@ -49,6 +49,8 @@ export interface SpeakerDiarizationSessionController {
 
 export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserver,
   SpeakerDiarizationSessionController {
+  // Recognize the first/known speaker as before; require more speech to add another.
+  private readonly minAdditionalSpeakerSpeechMs: number = 3000;
   private readonly client: SpeakerDiarizationLocalClient;
   private registry: OnlineSpeakerRegistry;
   private readonly transcript: SpeakerDiarizationTranscriptState = new SpeakerDiarizationTranscriptState();
@@ -191,7 +193,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     const assignments = this.registry.assignBatch(
       activeEmbeddings.map((item) => new Float32Array(item.embedding)),
       activeEmbeddings.map((item) => Math.round(item.speechSamples * 1000 / SAMPLE_RATE)),
-      Math.round(window.realEndSample * 1000 / SAMPLE_RATE));
+      Math.round(window.realEndSample * 1000 / SAMPLE_RATE),
+      activeEmbeddings.map(item => item.speechSamples * 1000 / SAMPLE_RATE >= this.minAdditionalSpeakerSpeechMs));
     for (let i = 0; i < window.result.embeddings.length; i++) {
       const item = window.result.embeddings[i];
       const assignment = assignments[activeEmbeddings.indexOf(item)];
@@ -295,8 +298,15 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         queryEmbedding: item.queryEmbedding,
         anchorId: this.committedRegistry.matchKnown(item.embedding) }));
     const clustered = this.globalClusterer.cluster(observations);
+    const clusters = clustered.clusters.slice();
+    if (this.committedRegistry.speakerIds().length === 0) {
+      // Repeated short context must not outweigh a better-supported first identity.
+      const firstSupported = clusters.findIndex(cluster => cluster.indexes.some(index =>
+        observations[index].durationMs >= this.minAdditionalSpeakerSpeechMs));
+      if (firstSupported > 0) clusters.unshift(clusters.splice(firstSupported, 1)[0]);
+    }
     const remap: Record<string, string> = {};
-    for (const cluster of clustered.clusters) {
+    for (const cluster of clusters) {
       const anchor = cluster.indexes.map(index => observations[index].anchorId)
         .find(id => id !== undefined);
       let id: string;
@@ -304,8 +314,12 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         id = anchor;
         this.committedRegistry.commitKnown(id, cluster.centroid, cluster.durationMs, endTime);
       } else {
+        // Overlapping windows repeatedly contain the same short PCM. Their summed
+        // weights cannot qualify it as a longer recording for a new identity.
+        const canEnroll = cluster.indexes.some(index =>
+          observations[index].durationMs >= this.minAdditionalSpeakerSpeechMs);
         id = this.committedRegistry.assign(new Float32Array(cluster.centroid), cluster.durationMs,
-          endTime).speakerId;
+          endTime, canEnroll).speakerId;
       }
       for (const index of cluster.indexes) {
         const key = observations[index].evidenceKey;
