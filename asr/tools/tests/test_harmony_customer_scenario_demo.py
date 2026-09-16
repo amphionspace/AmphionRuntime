@@ -87,6 +87,13 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
                 await runCustomerScenarioCycle(engine, {{}}, 0, mode, 20);
             }}
             const [windows, meeting, form] = captured;
+            for (const value of [400, 600, 800]) {{
+                await runCustomerScenarioCycle(engine, {{}}, 0, 'diarization-windows', 20, value);
+                assert.equal(captured.at(-1).extraParams.vadEnd, value);
+            }}
+            await runCustomerScenarioCycle(engine, {{}}, 0, 'customer-form', 20, 400);
+            assert.equal(captured.at(-1).extraParams.vadEnd, form.extraParams.vadEnd);
+            assert.equal(meeting.extraParams.vadEnd, 800);
             assert.ok(maxAudioBytesOf(windows.extraParams) > 18000000 * 32,
                 'five-hour input must finish before the configured automatic stop');
             assert.equal(windows.extraParams.enableContinuousRecognition, false);

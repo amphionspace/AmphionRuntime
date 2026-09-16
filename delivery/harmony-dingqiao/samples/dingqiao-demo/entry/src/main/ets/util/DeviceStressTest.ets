@@ -73,6 +73,7 @@ export class DeviceStressOptions {
   speakerVadFinishRecoveryEntryIds: string = 'none';
   speakerVadThreshold: number = -2;
   speechEndMs: number = 0;
+  diarizationVadEndMs: number = 0;
 }
 
 class CorpusEntry {
@@ -96,6 +97,7 @@ class SessionEvents {
   finalChars: number = 0;
   finalTexts: string[] = [];
   audioFeedStartedAtMs: number = -1;
+  auditVadEndMs: number = 0;
   speechBeginAtMs: number = -1;
   firstNonEmptyResultAtMs: number = -1;
   firstNonEmptyFinalAtMs: number = -1;
@@ -216,6 +218,12 @@ class StressListener implements RecognitionListener {
     }
     if (result.targetSpeakerEnhancementApplied === true) {
       this.events.targetSpeakerEnhancementResults += 1;
+    }
+    if (this.events.auditVadEndMs > 0) {
+      hilog.info(0x0000, 'DeviceStress', 'VADEND_FINAL %{public}s', JSON.stringify({
+        sessionId: sessionId, atMs: Date.now(), feedStartedAtMs: this.events.audioFeedStartedAtMs,
+        vadEndMs: this.events.auditVadEndMs, result: result
+      }));
     }
     this.events.finals += 1;
     if (expectedSession && result.result.length > 0 && this.events.firstNonEmptyFinalAtMs < 0) {
@@ -2146,7 +2154,7 @@ async function runSpeechEndLatencyCycle(engine: SpeechRecognitionEngine, entry: 
 }
 
 async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
-  index: number, mode: string, paceMs: number): Promise<CycleResult> {
+  index: number, mode: string, paceMs: number, diarizationVadEndMs: number = 0): Promise<CycleResult> {
   const startedAt = Date.now();
   let scenario: CustomerScenarioName = 'ptt';
   if (mode === 'customer-tap-vad') scenario = 'tap-vad';
@@ -2164,6 +2172,11 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   }
   const profile = customerScenarioProfile(scenario);
   const params = customerProfileStartParams(sessionId, scenario);
+  if (params.speakerDiarization !== undefined &&
+    (diarizationVadEndMs === 400 || diarizationVadEndMs === 600 || diarizationVadEndMs === 800)) {
+    params.extraParams['vadEnd'] = diarizationVadEndMs;
+    events.auditVadEndMs = diarizationVadEndMs;
+  }
   // Feed five hours under an eight-hour guard so explicit finish owns the gate's terminal callback.
   const maxAudioDurationMs = mode === 'diarization-windows' ? 28800000 : profile.maxAudioDuration;
   params.extraParams['maxAudioDuration'] = maxAudioDurationMs;
@@ -2173,6 +2186,7 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
     return finishCycle(index, entry.id, events, startedAt, false, 'customer-start-timeout');
   }
 
+  events.audioFeedStartedAtMs = Date.now();
   const fed = await feedPcmFile(engine, sessionId, entry.path, 0, paceMs,
     (): boolean => events.completes > 0);
   let tailFrames = 0;
@@ -2978,7 +2992,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         options.mode === 'customer-form' || options.mode === 'customer-meeting-minutes' ||
         options.mode === 'diarization-windows') {
         result = await runCustomerScenarioCycle(
-          engine, entry, i, options.mode, options.paceMs);
+          engine, entry, i, options.mode, options.paceMs, options.diarizationVadEndMs);
       } else if (options.mode === 'endpoint-reentrant') {
         result = await runEndpointReentrantCycle(engine, entry, i);
       } else if (options.mode === 'finish-shutdown') {

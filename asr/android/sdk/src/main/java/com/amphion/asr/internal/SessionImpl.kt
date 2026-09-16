@@ -96,6 +96,8 @@ internal class SessionImpl(
         engineImpl.endpointRules.rule3MinUtteranceLengthSec < 0f
     ) LONG_FORM_STABLE_PREFIX_INTERVAL_SEC * sampleRate else 0L
     private var publicSamplesFed: Long = 0L
+    // Native token times restart with each stream; public results use the session PCM clock.
+    private var streamStartSample: Long = 0L
     private var stablePrefixSamples: Long = 0L
     private var nextStablePrefixCheckSamples: Long = stablePrefixIntervalSamples
 
@@ -308,6 +310,7 @@ internal class SessionImpl(
                     is NativeResult.Ok -> {
                         val old = stream
                         stream = r.value
+                        streamStartSample = publicSamplesFed
                         currentHotwords = newHotwords
                         lastPartialText = ""
                         NativeGuard.runQuietly("oldStream.release") { old.release() }
@@ -853,6 +856,7 @@ internal class SessionImpl(
             hardRestartStream()
         } else {
             NativeGuard.runQuietly("recognizer.reset") { recognizer.reset(stream) }
+            streamStartSample = publicSamplesFed
             NativeGuard.runQuietly("vad.reset") { vad?.reset() }
             vadProcessedSamples = 0
             vadLastSpeechEndSample = -1
@@ -932,6 +936,7 @@ internal class SessionImpl(
             is NativeResult.Ok -> {
                 val old = stream
                 stream = r.value
+                streamStartSample = publicSamplesFed
                 NativeGuard.runQuietly("oldStream.release") { old.release() }
                 // stream 重建意味着上一段已结束；同步 reset VAD 让 onset 重新走
                 NativeGuard.runQuietly("vad.reset(hardRestart)") { vad?.reset() }
@@ -952,6 +957,7 @@ internal class SessionImpl(
                 NativeGuard.runQuietly("recognizer.reset(hardRestartFallback)") {
                     recognizer.reset(stream)
                 }
+                streamStartSample = publicSamplesFed
                 resetSpeakerVadState()
                 return false
             }
@@ -960,7 +966,8 @@ internal class SessionImpl(
 
     private fun toAsrResult(r: OnlineRecognizerResult): AsrResult {
         val tokenList = r.tokens.toList()
-        val tsList = r.timestamps.toList()
+        val offsetSeconds = streamStartSample.toFloat() / sampleRate
+        val tsList = r.timestamps.map { it + offsetSeconds }
         val probList = r.ysProbs.toList()
         val confidence = if (probList.isNotEmpty()) {
             val mean = probList.sum() / probList.size

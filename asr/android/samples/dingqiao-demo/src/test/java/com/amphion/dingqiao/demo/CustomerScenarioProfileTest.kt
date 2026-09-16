@@ -38,6 +38,15 @@ class CustomerScenarioProfileTest {
     }
 
     @Test
+    fun meetingUsesShorterPauseWhileOtherScenariosKeepTheirParameters() {
+        assertEquals(800, CustomerScenarioProfiles.forScenario(CustomerScenario.MEETING_MINUTES).vadEndMs)
+        assertEquals(1500, CustomerScenarioProfiles.forScenario(CustomerScenario.FORM).vadEndMs)
+        assertEquals(1600, CustomerScenarioProfiles.forScenario(CustomerScenario.PTT).vadEndMs)
+        assertEquals(7_200_000, CustomerScenarioProfiles.forScenario(CustomerScenario.MEETING_MINUTES).maxAudioDurationMs)
+        assertFalse(CustomerScenarioProfiles.usesContinuousRecognition(CustomerScenario.MEETING_MINUTES))
+    }
+
+    @Test
     fun continuousRecognitionMatchesHarmonyRotationRule() {
         assertTrue(CustomerScenarioProfiles.usesContinuousRecognition(CustomerScenario.PTT))
         assertTrue(CustomerScenarioProfiles.usesContinuousRecognition(CustomerScenario.TRANSCRIPTION))
