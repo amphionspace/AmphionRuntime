@@ -24,8 +24,10 @@ The `intmeanflow_absolute_kv_v1` contract carries 29 state tensors for each of t
 two solver steps: attention K/V, absolute attention offsets and convolution tails.
 Each request/text segment starts with empty caches. Subsequent chunks evaluate
 only new frames. Android must not fall back to the legacy window decoder or run
-this trained model with a different chunk size or number of steps. Unsupported
-overrides are rejected. The sample's chunk input is blank by default so the
+this trained model with a different number of steps. Uniform inference chunks
+of at least 40 frames are accepted; first/steady-size changes and growth remain
+unsupported. See `STUDENT_MATCHED_50.md` for the current export limitations and
+variable-chunk validation. Unsupported overrides are rejected. The sample's chunk input is blank by default so the
 model's value is used.
 
 The ordinary legacy decoder-cache experiment remains disabled. This model's

@@ -17,12 +17,12 @@ class IntMeanFlowStreamingContractTest {
             "init.onnx", "step.onnx", listOf("cache_att_0"), IntMeanFlowStreamingContract.CACHE_MODE, 100),
     )
 
-    @Test fun fiftyFrameModelUsesItsOwnFixedGeometry() {
+    @Test fun fiftyFrameModelAllowsLargerInferenceChunks() {
         val fifty = manifest().copy(streamingChunkSize = 50,
             streamDecoderCacheInfo = manifest().streamDecoderCacheInfo!!.copy(requiresFixedChunkSize = 50))
         IntMeanFlowStreamingContract.validate(fifty, 50, 2, 0, 50, 50, 50, 1, 50)
-        assertThrows(IllegalArgumentException::class.java) {
-            IntMeanFlowStreamingContract.validate(fifty, 100, null, null, null, null, null, null, null)
+        for (chunk in listOf(40, 42, 50, 64, 75, 100, 150, 200)) {
+            IntMeanFlowStreamingContract.validate(fifty, chunk, 2, 0, chunk, chunk, chunk, 1, chunk)
         }
         assertThrows(IllegalArgumentException::class.java) {
             IntMeanFlowStreamingContract.validate(fifty.copy(streamDecoderCacheInfo = manifest().streamDecoderCacheInfo),
@@ -62,8 +62,10 @@ class IntMeanFlowStreamingContractTest {
         validate()
     }
 
-    @Test fun rejectsUntrainedChunkSizesAndSolverSteps() {
-        assertThrows(IllegalArgumentException::class.java) { validate(chunk = 50) }
+    @Test fun rejectsUnsupportedSolverAndPartitionOverrides() {
+        validate(chunk = 50)
+        assertThrows(IllegalArgumentException::class.java) { validate(chunk = 25) }
+        assertThrows(IllegalArgumentException::class.java) { validate(chunk = 39) }
         assertThrows(IllegalArgumentException::class.java) { validate(steps = 4) }
         assertThrows(IllegalArgumentException::class.java) { validate(context = 20) }
         assertThrows(IllegalArgumentException::class.java) { validate(first = 25) }

@@ -20,8 +20,13 @@ internal object IntMeanFlowStreamingContract {
             manifest.streamDecoderCacheInfo?.requiresFixedChunkSize == manifest.streamingChunkSize) {
             "Invalid IntMeanFlow streaming manifest"
         }
-        require(listOf(chunkSize, firstChunkSize, secondChunkSize, steadyChunkSize, maxChunkSize)
-            .all { it == null || it == manifest.streamingChunkSize }) { "This student requires ${manifest.streamingChunkSize}-frame chunks" }
+        val inferenceChunkSize = chunkSize ?: manifest.streamingChunkSize
+        // The exported cached-step graph was traced with full 20-frame KV
+        // histories, including the 2x downsampled level. Shorter first chunks
+        // do not match its cache-offset branches. A short final-only chunk is OK.
+        require(inferenceChunkSize >= 40) { "This exported student requires chunks of at least 40 frames" }
+        require(listOf(firstChunkSize, secondChunkSize, steadyChunkSize, maxChunkSize)
+            .all { it == null || it == inferenceChunkSize }) { "Cached inference requires a uniform chunk size" }
         require(flowStep == null || flowStep == 2) { "This student requires two trained flow steps" }
         require(previousContext == null || previousContext == 0) { "This student carries history through KV cache" }
         require(growthFactor == null || growthFactor == 1) { "This student does not support chunk growth" }
