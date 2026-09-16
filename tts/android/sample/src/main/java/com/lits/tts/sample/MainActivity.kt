@@ -180,11 +180,6 @@ class MainActivity : AppCompatActivity() {
         else -> "zh-en"
     }
 
-    private fun voiceIdForLanguage(language: String): String = when (language) {
-        "en-US" -> VOICE_ID_SPEAKER_0
-        else -> VOICE_ID_SPEAKER_1
-    }
-
     private fun selectedChunkSize(): Int? {
         val value = chunkSizeInput.text?.toString()?.trim()?.toIntOrNull()
         return value?.takeIf { it > 0 }
@@ -422,7 +417,7 @@ class MainActivity : AppCompatActivity() {
         setMetrics(buildMetricsText(null, null, null, null, 0L, 0))
         appendLog("\u5f00\u59cb\u52a0\u8f7d\u6a21\u578b language=$language requestId=$loadRequestId")
         beginBusy(loadRequestId)
-        val voiceId = voiceIdForLanguage(language)
+        val voiceId = VOICE_ID_SPEAKER_1
         TextToSpeechSdk.createEngine(
             CreateEngineParams(
                 language = language,
@@ -478,7 +473,7 @@ class MainActivity : AppCompatActivity() {
             runCatching { current.shutdown() }
             player.stop()
         }
-        val voiceId = voiceIdForLanguage(language)
+        val voiceId = VOICE_ID_SPEAKER_1
         return TextToSpeechSdk.createEngine(
             CreateEngineParams(
                 language = language,
@@ -859,7 +854,6 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         var workPathConfigured = false
-        const val VOICE_ID_SPEAKER_0 = "lits-female-01"
         const val VOICE_ID_SPEAKER_1 = "lits-female-02"
         const val DEFAULT_PCM_QUEUE_CAPACITY = 128
     }
