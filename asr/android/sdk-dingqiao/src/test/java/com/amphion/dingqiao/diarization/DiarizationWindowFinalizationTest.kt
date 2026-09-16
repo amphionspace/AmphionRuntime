@@ -98,7 +98,8 @@ class DiarizationWindowFinalizationTest {
 
     @Test fun repeatedShortContextCannotEnrollButCanRecognizeAnExistingSpeaker() {
         mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
-            fun run(embedding: FloatArray, speechMs: Int, seedMs: Int = 6000): Pair<List<String>, SpeakerDiarizationResult> {
+            fun run(embedding: FloatArray, speechMs: Int, seedMs: Int = 6000,
+                    speechSamples: Int = speechMs * 16): Pair<List<String>, SpeakerDiarizationResult> {
                 val directory = Files.createTempDirectory("diarization-short-enrollment-test").toFile()
                 val results = mutableListOf<SpeakerDiarizationResult>()
                 val observer = object : SpeakerDiarizationSessionObserver {
@@ -110,13 +111,13 @@ class DiarizationWindowFinalizationTest {
                     session.append(ByteArray(448000))
                     for (index in 0..4) {
                         val start = if (index == 0) 0 else 7000
-                        val duration = if (index == 0) seedMs else speechMs
+                        val durationSamples = if (index == 0) seedMs * 16 else speechSamples
                         val vector = if (index == 0) floatArrayOf(1f, 0f) else embedding
                         session.onWindow(DiarizationLocalWindowResult("w$index", 0, 0, 224000,
                             if (index < 2) 0 else 176000, 224000, false,
                             DiarizationWindowInferenceResult(listOf(
-                                SpeakerSegmentationSegment(start * 16, (start + duration) * 16, 0, 1)),
-                                listOf(DiarizationEmbedding(0, duration * 16, vector,
+                                SpeakerSegmentationSegment(start * 16, start * 16 + durationSamples, 0, 1)),
+                                listOf(DiarizationEmbedding(0, durationSamples, vector,
                                     if (index < 2) vector else null)), 0)))
                     }
                     val registry = session.javaClass.getDeclaredField("registry")
@@ -136,6 +137,7 @@ class DiarizationWindowFinalizationTest {
             assertEquals(listOf("S1"), first.first)
             assertEquals(1, first.second.speakerCount)
             assertEquals(1, run(floatArrayOf(0f, 1f), 2999).second.speakerCount)
+            assertEquals(1, run(floatArrayOf(0f, 1f), 3000, speechSamples = 47999).second.speakerCount)
             val short = run(floatArrayOf(.53f, kotlin.math.sqrt(1f - .53f * .53f)), 1200)
             assertEquals(listOf("S1"), short.first)
             assertEquals(1, short.second.speakerCount)

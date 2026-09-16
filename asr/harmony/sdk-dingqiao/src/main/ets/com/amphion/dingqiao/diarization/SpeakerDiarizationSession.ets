@@ -205,7 +205,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       const endTimeMs = Math.round(window.realEndSample * 1000 / SAMPLE_RATE);
       const observation: SpeakerDiarizationEmbeddingObservation = {
         embedding: item.embedding.slice(),
-        durationMs: Math.round(item.speechSamples * 1000 / SAMPLE_RATE),
+        // Do not round sub-threshold PCM up into an eligible new identity.
+        durationMs: Math.floor(item.speechSamples * 1000 / SAMPLE_RATE),
         onlineSpeakerId: assignment?.speakerId ?? 'UNKNOWN',
         endTimeMs,
         evidenceKey: `${window.jobId}:${item.localSpeaker}`,
