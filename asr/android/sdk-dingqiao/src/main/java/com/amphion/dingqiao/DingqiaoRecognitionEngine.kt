@@ -606,7 +606,10 @@ internal class DingqiaoRecognitionEngine(
     private fun scheduleStoppedFallback(epoch: Long, sessionId: String) {
         stopFallbackExecutor.schedule({
             val shouldComplete = synchronized(this@DingqiaoRecognitionEngine) {
-                ownsSessionLocked(epoch, sessionId) && finishRequested && !completeSent
+                // A real ASR tail may already be waiting for the speaker window.
+                // Sending another empty tail would overwrite its stored decoration.
+                ownsSessionLocked(epoch, sessionId) && finishRequested && !completeSent &&
+                    !diarizationTerminalClaimed
             }
             if (!shouldComplete) return@schedule
             enqueueTerminalResult(
