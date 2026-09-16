@@ -156,7 +156,13 @@ class ApiAuditDeviceTest {
                 streamingConfig = TtsStreamingConfig(pcmQueueCapacity = capacity)))
             r.await(); assertNull(r.error); assertEquals(0, r.pcm.size())
             assertEquals(capacity, r.start?.pcmQueueCapacity)
-            assertEquals(listOf("start", "playback-start", "complete:SYNTHESIS_COMPLETE", "complete:PLAYBACK_COMPLETE"), r.events.toList())
+            // Production and playback run concurrently; only their shared boundaries are ordered.
+            assertEquals(4, r.events.size)
+            for (event in listOf("start", "playback-start", "complete:SYNTHESIS_COMPLETE", "complete:PLAYBACK_COMPLETE")) {
+                assertEquals(event, 1, r.events.count { it == event })
+            }
+            assertEquals("start", r.events.first())
+            assertEquals("complete:PLAYBACK_COMPLETE", r.events.last())
         }
     }
 

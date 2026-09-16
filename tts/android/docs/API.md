@@ -123,6 +123,9 @@ interface SpeakListener {
 
 `CompleteResponse` 的性能字段只在 `type = SYNTHESIS_COMPLETE` 时有意义；未知值为 `-1` 或空字符串。`profilingInfo` 是调试文本，当前包含流式路径的 frontend、hidden encoder、decoder、vocoder、chunk 数和模型 chunk size 等分段耗时。
 
+内部流式播放的合成线程与播放线程并行。`onPlaybackStart` 和 `SYNTHESIS_COMPLETE` 的先后不固定：短音频可能在播放预缓冲完成前已经合成完。成功播放必须从 `onStart` 开始，最终以 `PLAYBACK_COMPLETE` 结束；合成完成、播放开始、播放完成各回调一次。不要据这两个中间事件的相对顺序判断失败。
+
+
 `StartResponse.loadProfileInfo` 是引擎创建时记录的加载分段耗时，当前包含 layout/model install、frontend preload、ORT session 创建总耗时，以及各 ONNX session 创建耗时。
 
 ## 枚举

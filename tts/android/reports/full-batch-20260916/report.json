@@ -1,0 +1,111 @@
+{
+  "sourceCommit": "b84710f7",
+  "runtimeChanged": false,
+  "engineering": {
+    "total": 235,
+    "pass": 184,
+    "expectedError": 34,
+    "fail": 17,
+    "timeout": 0,
+    "firstPacketMs": {
+      "count": 182,
+      "p50": 410,
+      "p90": 670,
+      "max": 1264
+    },
+    "rtf": {
+      "count": 182,
+      "p50": 0.2837301587301587,
+      "p90": 0.3006900212314225,
+      "max": 0.3568121693121693
+    }
+  },
+  "pronunciationOriginal": {
+    "total": 675,
+    "pass": 406,
+    "fail": 269,
+    "error": 0,
+    "categorySummary": {
+      "en-core": {
+        "total": 60,
+        "pass": 60,
+        "fail": 0,
+        "error": 0,
+        "pinyinAccuracy": 1
+      },
+      "frontend-rules-technical": {
+        "total": 90,
+        "pass": 53,
+        "fail": 37,
+        "error": 0,
+        "pinyinAccuracy": 0.5888888888888889
+      },
+      "known-regression": {
+        "total": 10,
+        "pass": 7,
+        "fail": 3,
+        "error": 0,
+        "pinyinAccuracy": 0.7
+      },
+      "mixed-zh-en": {
+        "total": 80,
+        "pass": 49,
+        "fail": 31,
+        "error": 0,
+        "pinyinAccuracy": 0.6125
+      },
+      "polyphone-surname-proper": {
+        "total": 110,
+        "pass": 90,
+        "fail": 20,
+        "error": 0,
+        "pinyinAccuracy": 0.8181818181818182
+      },
+      "symbols-unicode-failsoft": {
+        "total": 75,
+        "pass": 30,
+        "fail": 45,
+        "error": 0,
+        "pinyinAccuracy": 0.4
+      },
+      "tn-numeric-date-money-unit": {
+        "total": 170,
+        "pass": 63,
+        "fail": 107,
+        "error": 0,
+        "pinyinAccuracy": 0.37058823529411766
+      },
+      "zh-core": {
+        "total": 80,
+        "pass": 54,
+        "fail": 26,
+        "error": 0,
+        "pinyinAccuracy": 0.675
+      }
+    }
+  },
+  "pronunciationReviewedOffline": {
+    "mode": "Offline comparison of captured device pronunciation to existing reviewed oracle; no device rerun and no oracle edits",
+    "total": 675,
+    "pass": 439,
+    "fail": 236,
+    "oracleSha256": "43f47cd10dfe473a3046d71e46b9909d72a20e8c070d5f0b212b2c3263664479",
+    "sameTextAndIdVerified": true
+  },
+  "stability1000": {
+    "completed": false,
+    "preflightExecuted": 5,
+    "preflightPass": 4,
+    "preflightFail": 1,
+    "blockers": [
+      "legacy chunk configurations incompatible with current model",
+      "named lifecycle/burst operations missing actual call sequence in generic runner"
+    ]
+  },
+  "gate": "FAIL",
+  "knownUnresolved": [
+    "pitch transform does not produce expected pitch shift",
+    "pronunciation differences need classification and fixes",
+    "full 1000-case meaningful stress gate outstanding"
+  ]
+}
