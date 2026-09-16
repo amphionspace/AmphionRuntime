@@ -45,4 +45,7 @@
     <string name="status_stopped">请求已停止：%1$s</string>
     <string name="status_stop_current">当前任务已停止</string>
     <string name="status_error">请求失败：%1$s / %2$d / %3$s</string>
+    <string name="compact_button_synthesize">合成</string>
+    <string name="compact_button_sdk_playback">播报</string>
+    <string name="compact_button_stop">停止</string>
 </resources>
