@@ -1,0 +1,806 @@
+{
+  "privateArtifactDirectoryName": "speaker-merge-review-20260916-kid3vben",
+  "note": "Raw audio, transcripts, voiceprints and device logs remain private. SHA-256 binds the complete evidence.",
+  "files": [
+    {
+      "artifact": "device-assessment.json",
+      "sha256": "f5f3cb4f7334436add23bdeb8625b5533d6e66e7905ba9b54359a42b01dadbdb",
+      "sizeBytes": 18451
+    },
+    {
+      "artifact": "final-build-identity.json",
+      "sha256": "ae187ee3c3da8985a62744ae339dbd491113bfed9a31e3425e4d08a2d6f530ed",
+      "sizeBytes": 2351
+    },
+    {
+      "artifact": "final-finish-compat/20260916-080340-800728-0f98b113/report.json",
+      "sha256": "7edc39f702c736c0a3168e2087d2d1e275f43156588f4fcfdd0d9fa99a862371",
+      "sizeBytes": 3320
+    },
+    {
+      "artifact": "final-session.mts",
+      "sha256": "f41b4aef75570cdb598367034515f6554aa1dc34759547ccb9a71d74fd024f1b",
+      "sizeBytes": 23036
+    },
+    {
+      "artifact": "final-usb/20260916-155149-burst-a5691bb3/hilog.txt",
+      "sha256": "de37eb03fba8a9dfb06e9e561ab5a6157f80d02f76130d34436bb8715d0209e4",
+      "sizeBytes": 563287
+    },
+    {
+      "artifact": "final-usb/20260916-155149-burst-a5691bb3/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155149-burst-a5691bb3/memory.csv",
+      "sha256": "a9c93275ce7395ae9ef21d3f1d6a4a8578221c8352355d77026a78bb4ffaac0b",
+      "sizeBytes": 469
+    },
+    {
+      "artifact": "final-usb/20260916-155149-burst-a5691bb3/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155149-burst-a5691bb3/payload/manifest.txt",
+      "sha256": "33e358343edbc036d492133eabd96d30a9cdf7fe03ac5bbf8a0bfb1161302e02",
+      "sizeBytes": 285
+    },
+    {
+      "artifact": "final-usb/20260916-155149-burst-a5691bb3/report.json",
+      "sha256": "8fd8c23ee696ba18173885a86cf4f18e7389aa6dbd196733feff1971aafa5591",
+      "sizeBytes": 11369
+    },
+    {
+      "artifact": "final-usb/20260916-155149-burst-a5691bb3/result.txt",
+      "sha256": "cced3ce8e5340180b4002d643ad20e847db6547565fe10a544c9d4cfd2fc7575",
+      "sizeBytes": 4415
+    },
+    {
+      "artifact": "final-usb/20260916-155159-paced-ba35a758/hilog.txt",
+      "sha256": "5ad3e0845c2de26d45cab0e08756efd3fe1cba2c9d535d0a1da2a889a04defb5",
+      "sizeBytes": 702185
+    },
+    {
+      "artifact": "final-usb/20260916-155159-paced-ba35a758/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155159-paced-ba35a758/memory.csv",
+      "sha256": "fa7de2c60712b6342ce28b7d2767fbaadc54b21c98fbf966f78b8ca06f03bec1",
+      "sizeBytes": 2985
+    },
+    {
+      "artifact": "final-usb/20260916-155159-paced-ba35a758/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155159-paced-ba35a758/payload/manifest.txt",
+      "sha256": "e1b5a924eb71cd524a589913e8d62b185f970e436b8a4c4477b5b9bff368b2d4",
+      "sizeBytes": 285
+    },
+    {
+      "artifact": "final-usb/20260916-155159-paced-ba35a758/report.json",
+      "sha256": "ad04864e23455b0f5c62c508615e93d44c90b9b5090f9b858864b2e87c5fa377",
+      "sizeBytes": 31821
+    },
+    {
+      "artifact": "final-usb/20260916-155159-paced-ba35a758/result.txt",
+      "sha256": "50b2383937225517da83b7335a4ed8a0ffddc769772d2b54410771d0d8a77a12",
+      "sizeBytes": 18040
+    },
+    {
+      "artifact": "final-usb/20260916-155305-vad-begin-9d90f7f6/hilog.txt",
+      "sha256": "3ae5b1efd8ecee6d4fc27c7228d805309603e5c63bdf0c56236b763da486f2c0",
+      "sizeBytes": 438650
+    },
+    {
+      "artifact": "final-usb/20260916-155305-vad-begin-9d90f7f6/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155305-vad-begin-9d90f7f6/memory.csv",
+      "sha256": "144a6f9d572486f3076849f37bf401bb48d1f33320f6ecd115884097b8cfc3b3",
+      "sizeBytes": 292
+    },
+    {
+      "artifact": "final-usb/20260916-155305-vad-begin-9d90f7f6/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155305-vad-begin-9d90f7f6/payload/manifest.txt",
+      "sha256": "60e2108b9efd42904d935125242b79ee2e5bc0b38d24cf4477c60794032b774a",
+      "sizeBytes": 297
+    },
+    {
+      "artifact": "final-usb/20260916-155305-vad-begin-9d90f7f6/report.json",
+      "sha256": "b51ab1d659362926852ff484cf170cbaec42151f3ef585601cb18a61e63c0c49",
+      "sizeBytes": 9213
+    },
+    {
+      "artifact": "final-usb/20260916-155305-vad-begin-9d90f7f6/result.txt",
+      "sha256": "ec7cf816da5a4368c8cfc6e783c18b2b88991747180ec0f798a6852c301f2c6b",
+      "sizeBytes": 2988
+    },
+    {
+      "artifact": "final-usb/20260916-155311-vad-begin-silence-0a68a59b/hilog.txt",
+      "sha256": "d656245fc2ffe9bc4a33ef0dc3ad219c1221875bd358bf8902c6a23446faf286",
+      "sizeBytes": 444087
+    },
+    {
+      "artifact": "final-usb/20260916-155311-vad-begin-silence-0a68a59b/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155311-vad-begin-silence-0a68a59b/memory.csv",
+      "sha256": "d15b2e587b2802cbf6f72620e77b1c5769cbee16024feab3367129f57384fdc3",
+      "sizeBytes": 292
+    },
+    {
+      "artifact": "final-usb/20260916-155311-vad-begin-silence-0a68a59b/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155311-vad-begin-silence-0a68a59b/payload/manifest.txt",
+      "sha256": "2d5b8fe513efde09cba357cece99156b9d447136a717882b6b597e2eed7ecdd3",
+      "sizeBytes": 321
+    },
+    {
+      "artifact": "final-usb/20260916-155311-vad-begin-silence-0a68a59b/report.json",
+      "sha256": "b2763b964dad09ee812f3f78e19d2af54fb8714f5557649ea76860b236255bf3",
+      "sizeBytes": 9189
+    },
+    {
+      "artifact": "final-usb/20260916-155311-vad-begin-silence-0a68a59b/result.txt",
+      "sha256": "60aaeb9a9c9a8c07b5b72f8dc3e37b35be91e44148c286e491e46ff37833b109",
+      "sizeBytes": 2947
+    },
+    {
+      "artifact": "final-usb/20260916-155316-voiceprint-90aa2673/hilog.txt",
+      "sha256": "c95de99bc1836cde986839197a59f5be9dc5b1b0c52dda14710e85de565d64f4",
+      "sizeBytes": 696049
+    },
+    {
+      "artifact": "final-usb/20260916-155316-voiceprint-90aa2673/inventory.json",
+      "sha256": "32678ddbf16dfde69514653a1375864e1829da23a38754ee244839f56e322039",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155316-voiceprint-90aa2673/memory.csv",
+      "sha256": "b33ff7ce0737f91d276e6cbb98135e3f31557039dc19d0c572c637aa305f9f87",
+      "sizeBytes": 774
+    },
+    {
+      "artifact": "final-usb/20260916-155316-voiceprint-90aa2673/payload/corpus.json",
+      "sha256": "6ab3ecc4cb348369c87ed336432c8e467e87d33a9ff8583bdf3f408425a350b9",
+      "sizeBytes": 1131
+    },
+    {
+      "artifact": "final-usb/20260916-155316-voiceprint-90aa2673/payload/manifest.txt",
+      "sha256": "04b60bd5f9f17a8dfb604676be2612e34c1f612132e90b56f48e92a80556e16d",
+      "sizeBytes": 300
+    },
+    {
+      "artifact": "final-usb/20260916-155316-voiceprint-90aa2673/report.json",
+      "sha256": "e506c838ee2a29c2c699417df5e2e756e1bb70500eba61237074f8b7616142d2",
+      "sizeBytes": 20306
+    },
+    {
+      "artifact": "final-usb/20260916-155316-voiceprint-90aa2673/result.txt",
+      "sha256": "69092e5c3f602453b7636d788440a31b3122073c078ceffedaca0a203a91d3af",
+      "sizeBytes": 10529
+    },
+    {
+      "artifact": "final-usb/20260916-155332-voiceprint-fallback-24d0af29/hilog.txt",
+      "sha256": "7081390e4548b98c0711a7d541a0f9abb1fc41bb76372e7f0317740bbd8fcbce",
+      "sizeBytes": 697123
+    },
+    {
+      "artifact": "final-usb/20260916-155332-voiceprint-fallback-24d0af29/inventory.json",
+      "sha256": "1f54ce4abb5e4f125c0c44f38cce2ded889d0e93b801b4fa201054dfca48d4ad",
+      "sizeBytes": 202
+    },
+    {
+      "artifact": "final-usb/20260916-155332-voiceprint-fallback-24d0af29/memory.csv",
+      "sha256": "6339b530bb96a0669b722108c8ed358bf69667dfee805ced6ee4ecad928a9351",
+      "sizeBytes": 3960
+    },
+    {
+      "artifact": "final-usb/20260916-155332-voiceprint-fallback-24d0af29/payload/corpus.json",
+      "sha256": "fd4582a0c74d3cd6fe1caf3518d09f5677287849319866f0bdcb62757262bd35",
+      "sizeBytes": 723
+    },
+    {
+      "artifact": "final-usb/20260916-155332-voiceprint-fallback-24d0af29/payload/manifest.txt",
+      "sha256": "e4f6ec3e1497d8db4293c94e98f164ac30296d4ee9bbc8e25083de357a9b2ebe",
+      "sizeBytes": 218
+    },
+    {
+      "artifact": "final-usb/20260916-155332-voiceprint-fallback-24d0af29/report.json",
+      "sha256": "0728588dbfeb1e6709723fdbe33118cb400d9e09eec0e87e72896f325ce636f8",
+      "sizeBytes": 25732
+    },
+    {
+      "artifact": "final-usb/20260916-155332-voiceprint-fallback-24d0af29/result.txt",
+      "sha256": "1d32dbebd1ad7b77b338a1a4bdb58a9b0417c7233651b8897e1b89d7fb93b53d",
+      "sizeBytes": 14748
+    },
+    {
+      "artifact": "final-usb/20260916-155459-voiceprint-vad-begin-e8aa7c9f/hilog.txt",
+      "sha256": "c0f7ac8f5ae38d99ab67a2230e591f50042ee87789c4d7e7d9a0477a8918c2bd",
+      "sizeBytes": 706478
+    },
+    {
+      "artifact": "final-usb/20260916-155459-voiceprint-vad-begin-e8aa7c9f/inventory.json",
+      "sha256": "35a10a5b66a5e03cf6215006c47638cb120c0a4af5c5cce98ccc7d5633d205f6",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155459-voiceprint-vad-begin-e8aa7c9f/memory.csv",
+      "sha256": "7abd16b60a25c9c6710ad5bedd92ec3cc2fd4404a6899bc48b943cbcac0debb1",
+      "sizeBytes": 712
+    },
+    {
+      "artifact": "final-usb/20260916-155459-voiceprint-vad-begin-e8aa7c9f/payload/corpus.json",
+      "sha256": "2ee51c9ab3b029c11bca18f0fffc249fda638106397b3b2d3d0ea020eb5312eb",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155459-voiceprint-vad-begin-e8aa7c9f/payload/manifest.txt",
+      "sha256": "1003ffadb13997b95085c6b51acf6bc50e6f2278646330ae21a5281b85b1d39b",
+      "sizeBytes": 330
+    },
+    {
+      "artifact": "final-usb/20260916-155459-voiceprint-vad-begin-e8aa7c9f/report.json",
+      "sha256": "712a76d4ee19cad5405bdc6147e8f8f2c8396fb8944df5f35cece0b0b94975bc",
+      "sizeBytes": 14481
+    },
+    {
+      "artifact": "final-usb/20260916-155459-voiceprint-vad-begin-e8aa7c9f/result.txt",
+      "sha256": "9ed3808ed8972f8698690b6bd4e6bc2b21df162c32f91e32900a220d705afac1",
+      "sizeBytes": 6088
+    },
+    {
+      "artifact": "final-usb/20260916-155515-voiceprint-vad-begin-idle-42d92ee9/hilog.txt",
+      "sha256": "7baf617dcece9c5844101b43aa3f538b15fb3420e432aee7e2adb4c6a657aad9",
+      "sizeBytes": 731145
+    },
+    {
+      "artifact": "final-usb/20260916-155515-voiceprint-vad-begin-idle-42d92ee9/inventory.json",
+      "sha256": "82759feb3c7c2950d60390c4534f601dab9c312555d986362928f475f0736d3f",
+      "sizeBytes": 209
+    },
+    {
+      "artifact": "final-usb/20260916-155515-voiceprint-vad-begin-idle-42d92ee9/memory.csv",
+      "sha256": "959c9dd94c226b7e9db4bb615c583b0cb66fb2bc3f04c46b8b4140d7168c474e",
+      "sizeBytes": 471
+    },
+    {
+      "artifact": "final-usb/20260916-155515-voiceprint-vad-begin-idle-42d92ee9/payload/corpus.json",
+      "sha256": "cd8bb61f66fcf55ef0e6d5a5177e37c3e7849a3398db4d546e5498c5f070313d",
+      "sizeBytes": 380
+    },
+    {
+      "artifact": "final-usb/20260916-155515-voiceprint-vad-begin-idle-42d92ee9/payload/manifest.txt",
+      "sha256": "838e98e0e3538fb82a025c1a9f1656f0dc113368077d5546c6f77f0059620a35",
+      "sizeBytes": 115
+    },
+    {
+      "artifact": "final-usb/20260916-155515-voiceprint-vad-begin-idle-42d92ee9/report.json",
+      "sha256": "3725c8000c702a7826ad1930834d3381e84087a2c7ac1e70b967e07e28e0e9a7",
+      "sizeBytes": 9308
+    },
+    {
+      "artifact": "final-usb/20260916-155515-voiceprint-vad-begin-idle-42d92ee9/result.txt",
+      "sha256": "90e90db2a72cc6564d3b9083d1f155389c7968ba55242395126fbc225272f1e8",
+      "sizeBytes": 3022
+    },
+    {
+      "artifact": "final-usb/20260916-155525-cancel-111c1e62/hilog.txt",
+      "sha256": "b4be9e265b9d48069df3ca914af208b21bd9c3f35631186fff3a718cabe0779b",
+      "sizeBytes": 382839
+    },
+    {
+      "artifact": "final-usb/20260916-155525-cancel-111c1e62/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155525-cancel-111c1e62/memory.csv",
+      "sha256": "b2ee28ae667154101897fe319abecebf2747cc5972332da91a8833a85b645ae0",
+      "sizeBytes": 234
+    },
+    {
+      "artifact": "final-usb/20260916-155525-cancel-111c1e62/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155525-cancel-111c1e62/payload/manifest.txt",
+      "sha256": "5f9f7d31afb735776463856e9674fb210a76c7734dbd77809301f9588b018eb6",
+      "sizeBytes": 288
+    },
+    {
+      "artifact": "final-usb/20260916-155525-cancel-111c1e62/report.json",
+      "sha256": "c4dcd88e4c9d99517b76571201b734143acf1a36f589eca14d8bedfe41d88abf",
+      "sizeBytes": 8946
+    },
+    {
+      "artifact": "final-usb/20260916-155525-cancel-111c1e62/result.txt",
+      "sha256": "d31e25426b6e267fec0f0a4052a4e10c0f3e9fb4f7e75cc27607883e0712f33f",
+      "sizeBytes": 2738
+    },
+    {
+      "artifact": "final-usb/20260916-155529-cancel-full-9ad01f7c/hilog.txt",
+      "sha256": "ae4037ff8cdd08e57b9dcf94a8798fca29c774e8cf217d5521d602e8ade091cf",
+      "sizeBytes": 391792
+    },
+    {
+      "artifact": "final-usb/20260916-155529-cancel-full-9ad01f7c/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155529-cancel-full-9ad01f7c/memory.csv",
+      "sha256": "ddb0057746c410e77513a8735138be07d5f9f49de003cfac93a2fa780e62067f",
+      "sizeBytes": 234
+    },
+    {
+      "artifact": "final-usb/20260916-155529-cancel-full-9ad01f7c/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155529-cancel-full-9ad01f7c/payload/manifest.txt",
+      "sha256": "b8ce6c8bdca2d29bbfefd8c6637b6d928413fe1f0a2a6e043ca905a7ccf7d66c",
+      "sizeBytes": 303
+    },
+    {
+      "artifact": "final-usb/20260916-155529-cancel-full-9ad01f7c/report.json",
+      "sha256": "45e89e4ad09becad1acba5fb223761a9df18cf6be7094ce8e891839b5a51d495",
+      "sizeBytes": 8981
+    },
+    {
+      "artifact": "final-usb/20260916-155529-cancel-full-9ad01f7c/result.txt",
+      "sha256": "17e5f11988689ebe11f959abace11f7d873d6476a2689d2ee2838a8c72a80746",
+      "sizeBytes": 2759
+    },
+    {
+      "artifact": "final-usb/20260916-155533-max-duration-8ffe1b97/hilog.txt",
+      "sha256": "6187c4acb9d1650c0bfaf4de5ff718bbddd04f41d5cc1be1146cd51e502b913d",
+      "sizeBytes": 672215
+    },
+    {
+      "artifact": "final-usb/20260916-155533-max-duration-8ffe1b97/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155533-max-duration-8ffe1b97/memory.csv",
+      "sha256": "f223052c07ffa432d0ce198ada475daa27b8e1ea642dd7d2a843ed7f96d137c6",
+      "sizeBytes": 768
+    },
+    {
+      "artifact": "final-usb/20260916-155533-max-duration-8ffe1b97/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155533-max-duration-8ffe1b97/payload/manifest.txt",
+      "sha256": "bdf0815b0460dfaf6fbffa89543f93c7da134919b190c363756a801641df293e",
+      "sizeBytes": 306
+    },
+    {
+      "artifact": "final-usb/20260916-155533-max-duration-8ffe1b97/report.json",
+      "sha256": "73a087dc0a040a0b71e613b668fa0f559357f9fc28f1bd7c6572afae2ab4245d",
+      "sizeBytes": 9394
+    },
+    {
+      "artifact": "final-usb/20260916-155533-max-duration-8ffe1b97/result.txt",
+      "sha256": "405057a0312b246155aa8c24d288cb3b367802482592c1d11b327fc647918958",
+      "sizeBytes": 3124
+    },
+    {
+      "artifact": "final-usb/20260916-155549-edge-b1fd2aae/hilog.txt",
+      "sha256": "31332b5924923dbca408c993b27a0660d5df2292e1e0aa7de7a1f92a9cf757fc",
+      "sizeBytes": 425759
+    },
+    {
+      "artifact": "final-usb/20260916-155549-edge-b1fd2aae/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155549-edge-b1fd2aae/memory.csv",
+      "sha256": "00a2cd898883ee5699c8261efc301e326d7956be0265af43a2fe6aa916aa2f03",
+      "sizeBytes": 292
+    },
+    {
+      "artifact": "final-usb/20260916-155549-edge-b1fd2aae/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155549-edge-b1fd2aae/payload/manifest.txt",
+      "sha256": "f7edfd355e79eb989153096ecc896bd73b7cb02ebb3b97e40e4bc06e0206e525",
+      "sizeBytes": 282
+    },
+    {
+      "artifact": "final-usb/20260916-155549-edge-b1fd2aae/report.json",
+      "sha256": "b33e40f4b9ea447af3126ef74f376eb125ca1ccd865e4fd96f7ce4cda8e44336",
+      "sizeBytes": 9512
+    },
+    {
+      "artifact": "final-usb/20260916-155549-edge-b1fd2aae/result.txt",
+      "sha256": "b8b2c2f0e7f04039f73cd168740eff8192dfaa5908c66c8f337c052540f639fb",
+      "sizeBytes": 3296
+    },
+    {
+      "artifact": "final-usb/20260916-155555-reentrant-010fa06a/hilog.txt",
+      "sha256": "0a17ef7d7079bec287595a9434a24025fc621cb2c27bb9f2dc50e05928058b6c",
+      "sizeBytes": 476424
+    },
+    {
+      "artifact": "final-usb/20260916-155555-reentrant-010fa06a/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155555-reentrant-010fa06a/memory.csv",
+      "sha256": "192936069e681f93f41b2c84a3ee2312b1bfabd2ce276315dfb559207fe6357e",
+      "sizeBytes": 350
+    },
+    {
+      "artifact": "final-usb/20260916-155555-reentrant-010fa06a/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155555-reentrant-010fa06a/payload/manifest.txt",
+      "sha256": "4be28acd903c3cf1420cc957c0f743701a5100fd847873a8034db80f4197ded1",
+      "sizeBytes": 297
+    },
+    {
+      "artifact": "final-usb/20260916-155555-reentrant-010fa06a/report.json",
+      "sha256": "230b52b5c901c8c6ab363b677f18ae4a9aa1c443502446da1a81d92a8cb65fed",
+      "sizeBytes": 9233
+    },
+    {
+      "artifact": "final-usb/20260916-155555-reentrant-010fa06a/result.txt",
+      "sha256": "78171b4154c5206af26cdabb5e3c32aa433ddac55f4bbf641d99c5b7d530a488",
+      "sizeBytes": 3007
+    },
+    {
+      "artifact": "final-usb/20260916-155602-start-cancel-83be0abb/hilog.txt",
+      "sha256": "5c553c9485b86f9ac7f40d2c4a907c3277480ccf67a8b30d22ae87080a32cc18",
+      "sizeBytes": 387944
+    },
+    {
+      "artifact": "final-usb/20260916-155602-start-cancel-83be0abb/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155602-start-cancel-83be0abb/memory.csv",
+      "sha256": "a9acd648be856446c1e13b4f2a18c713402283ee7ead526bc746122a8aaaf324",
+      "sizeBytes": 233
+    },
+    {
+      "artifact": "final-usb/20260916-155602-start-cancel-83be0abb/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155602-start-cancel-83be0abb/payload/manifest.txt",
+      "sha256": "f050e4bb71f24d655f960824478e91d0065d4c2b96459d6be499ae3b8b94766f",
+      "sizeBytes": 306
+    },
+    {
+      "artifact": "final-usb/20260916-155602-start-cancel-83be0abb/report.json",
+      "sha256": "93f89a475d6548b1e2b631fec799978f4de74ff0d14a72ef0b50cba00d5daf69",
+      "sizeBytes": 8992
+    },
+    {
+      "artifact": "final-usb/20260916-155602-start-cancel-83be0abb/result.txt",
+      "sha256": "529077c072a74a026ff0e70d7be0d0cbe91ea862680aed24c6a45c6d8e0eb0e8",
+      "sizeBytes": 2768
+    },
+    {
+      "artifact": "final-usb/20260916-155606-start-write-822dd6fd/hilog.txt",
+      "sha256": "9f027a9d24499313abb6b2c25493325d7592da6cde1192e80e46dbefa9d1ede9",
+      "sizeBytes": 486432
+    },
+    {
+      "artifact": "final-usb/20260916-155606-start-write-822dd6fd/inventory.json",
+      "sha256": "e25377fe4ff5fe77b58622877330a770cdc2eaabf121fdbec43253e9533161f7",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155606-start-write-822dd6fd/memory.csv",
+      "sha256": "94aa17b3b0fa2f654b27e34854ab7ad96a6f6fc6f41b0f9bc87ef7a251302a95",
+      "sizeBytes": 352
+    },
+    {
+      "artifact": "final-usb/20260916-155606-start-write-822dd6fd/payload/corpus.json",
+      "sha256": "8391344bf08073ca5f26a60ccc83fcd79e22a08e0bed5c9ac4201c920d18de45",
+      "sizeBytes": 1129
+    },
+    {
+      "artifact": "final-usb/20260916-155606-start-write-822dd6fd/payload/manifest.txt",
+      "sha256": "ec0f291eb8e2fb4a57c256b6593360522cb135a3f04a2e76e6598bb098eb113b",
+      "sizeBytes": 303
+    },
+    {
+      "artifact": "final-usb/20260916-155606-start-write-822dd6fd/report.json",
+      "sha256": "2e2b6c0cd6e8854f5192616988028543a58ab1a7959ac9ee888e98861f91e189",
+      "sizeBytes": 13818
+    },
+    {
+      "artifact": "final-usb/20260916-155606-start-write-822dd6fd/result.txt",
+      "sha256": "a2a6eeb2b3f14fa13a917dcef9de968cedf609d8191fde69ac5935a253bd495f",
+      "sizeBytes": 5855
+    },
+    {
+      "artifact": "final-usb/20260916-155614-start-write-reload-b130cca3/hilog.txt",
+      "sha256": "484552721a4c6809e6b8486be78d89891e50400952d5325b327160952df15213",
+      "sizeBytes": 606784
+    },
+    {
+      "artifact": "final-usb/20260916-155614-start-write-reload-b130cca3/inventory.json",
+      "sha256": "e25377fe4ff5fe77b58622877330a770cdc2eaabf121fdbec43253e9533161f7",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155614-start-write-reload-b130cca3/memory.csv",
+      "sha256": "3d0837e81d8ec040f7ee5403012076e89b368b5bd87c4a1bd1b9667050ee3c83",
+      "sizeBytes": 527
+    },
+    {
+      "artifact": "final-usb/20260916-155614-start-write-reload-b130cca3/payload/corpus.json",
+      "sha256": "8391344bf08073ca5f26a60ccc83fcd79e22a08e0bed5c9ac4201c920d18de45",
+      "sizeBytes": 1129
+    },
+    {
+      "artifact": "final-usb/20260916-155614-start-write-reload-b130cca3/payload/manifest.txt",
+      "sha256": "90de84ace6edd7265a63c778fddc9a7dd718f169255cfb67e3055ccbbc054344",
+      "sizeBytes": 324
+    },
+    {
+      "artifact": "final-usb/20260916-155614-start-write-reload-b130cca3/report.json",
+      "sha256": "db9161b57c38846a5874e9c5f9a52b20c807c9cccd77c02b0813a26739130938",
+      "sizeBytes": 13877
+    },
+    {
+      "artifact": "final-usb/20260916-155614-start-write-reload-b130cca3/result.txt",
+      "sha256": "ee853ec9e0ceeac0a5652b2774035c81554884a0259668a1e1b883211e308f84",
+      "sizeBytes": 5869
+    },
+    {
+      "artifact": "final-usb/20260916-155625-user-sequence-aa79d1a3/hilog.txt",
+      "sha256": "9257adb1ddd41ee3781bb4e82ab2533100909aa8fb30d30a53417751962a182f",
+      "sizeBytes": 560058
+    },
+    {
+      "artifact": "final-usb/20260916-155625-user-sequence-aa79d1a3/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155625-user-sequence-aa79d1a3/memory.csv",
+      "sha256": "23168c6bac9ae0b361a83e0e27397891f7b0eb14ed350fbe7e5e1add544fec23",
+      "sizeBytes": 468
+    },
+    {
+      "artifact": "final-usb/20260916-155625-user-sequence-aa79d1a3/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155625-user-sequence-aa79d1a3/payload/manifest.txt",
+      "sha256": "50316068adee73773462f952b4adac1ee8cf3f179287538f934e3d7ae32eced4",
+      "sizeBytes": 309
+    },
+    {
+      "artifact": "final-usb/20260916-155625-user-sequence-aa79d1a3/report.json",
+      "sha256": "6974952306045b0ae8ec2da6189053ca9f5666926d21734fd92c391719d4d27a",
+      "sizeBytes": 12382
+    },
+    {
+      "artifact": "final-usb/20260916-155625-user-sequence-aa79d1a3/result.txt",
+      "sha256": "cb09ff8f693489ee6053ee0b48c50d9458ee82a36127c26c4cddd85ecde85d96",
+      "sizeBytes": 5412
+    },
+    {
+      "artifact": "final-usb/20260916-155634-numeric-edge-11747cf7/hilog.txt",
+      "sha256": "6b9929c1e38cb53ae458be05c867566c74409acb4b0de30f3052d6fe781b8cee",
+      "sizeBytes": 758383
+    },
+    {
+      "artifact": "final-usb/20260916-155634-numeric-edge-11747cf7/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-155634-numeric-edge-11747cf7/memory.csv",
+      "sha256": "d4ac664692904e4cb8084e3d7d998d75581c71b22a7557f38adeb09d9491f246",
+      "sizeBytes": 946
+    },
+    {
+      "artifact": "final-usb/20260916-155634-numeric-edge-11747cf7/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-155634-numeric-edge-11747cf7/payload/manifest.txt",
+      "sha256": "490d33704dd086166cef0e741cbc69d760f6e5b7d6ddae150aac4423eb74d8fb",
+      "sizeBytes": 306
+    },
+    {
+      "artifact": "final-usb/20260916-155634-numeric-edge-11747cf7/report.json",
+      "sha256": "c727dc818ccd3eadef3f7be980a4ae7d94eaf0a90c9a6eb8fd2cccfbd0839b4e",
+      "sizeBytes": 10381
+    },
+    {
+      "artifact": "final-usb/20260916-155634-numeric-edge-11747cf7/result.txt",
+      "sha256": "7ad0331101f7526b91459842635777eca9d55efb1698521307cfd3449285d20b",
+      "sizeBytes": 3616
+    },
+    {
+      "artifact": "final-usb/20260916-155720-diarization-windows-7096e654/hilog.txt",
+      "sha256": "9b19c042b64639ef4a40caa29e0e7bf55fb00558f38c54d1952a14c66119dfa6",
+      "sizeBytes": 968743
+    },
+    {
+      "artifact": "final-usb/20260916-155720-diarization-windows-7096e654/inventory.json",
+      "sha256": "d60abaa0520ccc0084d382cd0ae580609fb90a61c110ea3c1e110e89e2f2dbaf",
+      "sizeBytes": 202
+    },
+    {
+      "artifact": "final-usb/20260916-155720-diarization-windows-7096e654/memory.csv",
+      "sha256": "d4ddd9afff6e947f37bd5c39a2131f78f942a6e55ef9d916a367e16332545bc2",
+      "sizeBytes": 17850
+    },
+    {
+      "artifact": "final-usb/20260916-155720-diarization-windows-7096e654/payload/corpus.json",
+      "sha256": "4d2dc0c3b9da8dc205c52a4323efd10760937fcf98959968a7eb05207e248cc0",
+      "sizeBytes": 733
+    },
+    {
+      "artifact": "final-usb/20260916-155720-diarization-windows-7096e654/payload/manifest.txt",
+      "sha256": "849c8f68867ee038fc50e8434c452a605b805ef697f8c182c4b7182d719aff4e",
+      "sizeBytes": 218
+    },
+    {
+      "artifact": "final-usb/20260916-155720-diarization-windows-7096e654/report.json",
+      "sha256": "1df46eacbbfea7f5c6dfc1b5eff933e19b30912235395acd3671e8b9ed62dcf7",
+      "sizeBytes": 343734
+    },
+    {
+      "artifact": "final-usb/20260916-155720-diarization-windows-7096e654/result.txt",
+      "sha256": "de5df2af8d1f9420ed51a34c83d7c930bd310cb1eb45f968514d54431729060d",
+      "sizeBytes": 336950
+    },
+    {
+      "artifact": "final-usb/20260916-160417-callback-api-reentrant-8755c8b3/hilog.txt",
+      "sha256": "a59850081aa7c5c08e116d28bdd20ae0ee2149228bd6b1323e87b932e19387b7",
+      "sizeBytes": 524188
+    },
+    {
+      "artifact": "final-usb/20260916-160417-callback-api-reentrant-8755c8b3/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-160417-callback-api-reentrant-8755c8b3/memory.csv",
+      "sha256": "dc232b2623f5c239cba695d0c1debb8886d1872cc850be3acbd8c68c71a0e41b",
+      "sizeBytes": 346
+    },
+    {
+      "artifact": "final-usb/20260916-160417-callback-api-reentrant-8755c8b3/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-160417-callback-api-reentrant-8755c8b3/payload/manifest.txt",
+      "sha256": "d53d6ee60294d76d74dbe2ded271a6f53b56145d090b9adfc1f67bf7918a7758",
+      "sizeBytes": 336
+    },
+    {
+      "artifact": "final-usb/20260916-160417-callback-api-reentrant-8755c8b3/report.json",
+      "sha256": "d26c05438b9d9b7bd04024774e2c3542510cf0aa0ad9d03312fedcf756f4246e",
+      "sizeBytes": 11636
+    },
+    {
+      "artifact": "final-usb/20260916-160417-callback-api-reentrant-8755c8b3/result.txt",
+      "sha256": "42d82e9f08bd5c29780b50ee73487deb8799f62e5dd0ab42ba9409b368b70802",
+      "sizeBytes": 4687
+    },
+    {
+      "artifact": "final-usb/20260916-160424-finish-shutdown-731820c1/hilog.txt",
+      "sha256": "a4069119b54b599dd1919d2cf61686c25d1b05ac9bdc5ed2a88be896683c044c",
+      "sizeBytes": 430901
+    },
+    {
+      "artifact": "final-usb/20260916-160424-finish-shutdown-731820c1/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "artifact": "final-usb/20260916-160424-finish-shutdown-731820c1/memory.csv",
+      "sha256": "45a88ba465696c944b819334ee6e197918b0491515f4b80dc4e143a118eca81e",
+      "sizeBytes": 288
+    },
+    {
+      "artifact": "final-usb/20260916-160424-finish-shutdown-731820c1/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "artifact": "final-usb/20260916-160424-finish-shutdown-731820c1/payload/manifest.txt",
+      "sha256": "c1cd80470ed5a1f35f79a25329a0f2c309b71d05c76e14b4612447297acbc9f3",
+      "sizeBytes": 315
+    },
+    {
+      "artifact": "final-usb/20260916-160424-finish-shutdown-731820c1/report.json",
+      "sha256": "2185dc773b06664a4112f79cf37d726043352f9524b9eb7ae8c3aa8104f83bab",
+      "sizeBytes": 9272
+    },
+    {
+      "artifact": "final-usb/20260916-160424-finish-shutdown-731820c1/result.txt",
+      "sha256": "192dfdf9edbd854c9e1d0fd17756b409f4dbf3ce2cad0bbc78cdd1d1850c1e5b",
+      "sizeBytes": 3035
+    },
+    {
+      "artifact": "fourth-speaker-red.txt",
+      "sha256": "a9c327d9efa38cbfbef52a1cdcf9538faa175a46a77f5ea0bea4ea667c666412",
+      "sizeBytes": 1590
+    },
+    {
+      "artifact": "pr-review-final-source.json",
+      "sha256": "8291e6a246ed1c7121887c878efa72d3904e31f8e49d6c7b72360ca69295cbcc",
+      "sizeBytes": 592
+    },
+    {
+      "artifact": "sample-boundary-android.log",
+      "sha256": "6a18aff281e34904ffe66eed1ce91927dfb34426223d2f4f7594d5dcacf8429f",
+      "sizeBytes": 6055
+    },
+    {
+      "artifact": "sample-boundary-green.log",
+      "sha256": "a665d78ca9fde3e185a546a15c7259ef0cfdb476013f1cee520897a5b05cafad",
+      "sizeBytes": 18510
+    },
+    {
+      "artifact": "sample-boundary-host-assessment.json",
+      "sha256": "7bdaa33b1d66c7c2533864bdf4c6606a53b69441b7b0e2e875c915bec39fbafc",
+      "sizeBytes": 1102
+    },
+    {
+      "artifact": "sample-boundary-red.log",
+      "sha256": "da236fc5bf68dee9564cf15ed18e4caedc15bc11a8f82ad61756f71a48098f01",
+      "sizeBytes": 2679
+    },
+    {
+      "artifact": "usb/20260916-154037-voiceprint-fallback-7c1133db/report.json",
+      "sha256": "1f168fd757c170cfd1b93cfb09de57ecfedf922a8ab38c4769aff17f1fd7b5cc",
+      "sizeBytes": 10665
+    },
+    {
+      "artifact": "usb/20260916-154231-voiceprint-fallback-21f959eb/report.json",
+      "sha256": "d0d3abb4fe25b45b6f53d085c815459bc78b580489aba090c00a9b8f9ba339eb",
+      "sizeBytes": 25736
+    },
+    {
+      "artifact": "voiceprint-memory-diagnosis.json",
+      "sha256": "42e73d3160557fc0ca02a85474abaeb6ee2740be46bca24a0f7907bffbeb3972",
+      "sizeBytes": 2237
+    }
+  ]
+}
