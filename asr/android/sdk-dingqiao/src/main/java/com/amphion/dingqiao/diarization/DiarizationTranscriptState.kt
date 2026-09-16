@@ -118,14 +118,13 @@ internal class DiarizationTranscriptState {
     }
 
     fun finalUtterances(throughTime: Int = Int.MAX_VALUE): List<DiarizedTranscriptUtterance> = utterances.filter { it.audioEndTime <= throughTime }.flatMap { utterance ->
-        if (
-            utterance.tokens.isEmpty() ||
-            utterance.tokens.size != utterance.tokenTimesMs.size ||
-            utterance.tokens.joinToString("") != utterance.text
-        ) {
+        val boundaries = if (utterance.tokens.isNotEmpty() &&
+            utterance.tokens.size == utterance.tokenTimesMs.size
+        ) tokenTextBoundaries(utterance.tokens, utterance.text) else null
+        if (boundaries == null) {
             listOf(unsplit(utterance))
         } else {
-            val split = splitByTokenSpeaker(utterance)
+            val split = splitByTokenSpeaker(utterance, boundaries)
             if (split.joinToString("") { it.text } == utterance.text) split else listOf(unsplit(utterance))
         }
     }
@@ -205,7 +204,27 @@ internal class DiarizationTranscriptState {
         timeMs >= it.beginTime && timeMs < it.endTime
     }
 
-    private fun splitByTokenSpeaker(utterance: StoredUtterance): List<DiarizedTranscriptUtterance> {
+    // Only punctuation/spacing insertions are alignable; do not guess ITN boundaries.
+    private fun tokenTextBoundaries(tokens: List<String>, text: String): List<Int>? {
+        val inserted = " ,.!?，。！？、;；:：\t\r\n"
+        val boundaries = mutableListOf(0)
+        var cursor = 0
+        for ((index, token) in tokens.withIndex()) {
+            if (token.isEmpty()) return null
+            for ((character, value) in token.withIndex()) {
+                while (cursor < text.length && text[cursor] != value && text[cursor] in inserted) cursor++
+                if (cursor >= text.length || text[cursor] != value) return null
+                if (index > 0 && character == 0) boundaries += cursor
+                cursor++
+            }
+        }
+        while (cursor < text.length && text[cursor] in inserted) cursor++
+        if (cursor != text.length) return null
+        boundaries += cursor
+        return boundaries
+    }
+
+    private fun splitByTokenSpeaker(utterance: StoredUtterance, textBoundaries: List<Int>): List<DiarizedTranscriptUtterance> {
         val result = mutableListOf<DiarizedTranscriptUtterance>()
         var groupStart = 0
         var active = turnAt(utterance.tokenTimesMs[0])
@@ -224,7 +243,7 @@ internal class DiarizationTranscriptState {
                 utteranceId = if (result.isEmpty()) utterance.utteranceId else "${utterance.utteranceId}.${result.size + 1}",
                 sourceUtteranceId = utterance.utteranceId,
                 rawText = text,
-                text = text,
+                text = utterance.text.substring(textBoundaries[groupStart], textBoundaries[index]),
                 beginTime = begin,
                 endTime = end,
                 speakerId = active?.speakerId ?: "UNKNOWN",
