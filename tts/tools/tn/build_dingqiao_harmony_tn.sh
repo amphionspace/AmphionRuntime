@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build the HarmonyOS arm64 TN frontend executables from the submodule source.
+# Build the HarmonyOS arm64 TN frontend executables from the repository source.
 # The HarmonyOS native SDK is supplied by DevEco Studio and is passed explicitly.
 
 usage() {

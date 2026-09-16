@@ -5,13 +5,12 @@
 
 ## Dingqiao LITS
 
-[`dingqiao_lits/`](dingqiao_lits/) 是当前中英 TTS 训练与导出工程，其中 TN 源码通过私有
-submodule 固定版本：
+[`dingqiao_lits/`](dingqiao_lits/) 是当前中英 TTS 训练与导出工程，其中 TN（文本归一化）
+源码、规则和测试已直接纳入本仓库：
+[`Dingqiao_Multilingual_Text_Normalization_for_TTS/`](dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS/)。
+普通 `git clone` 即可获取，无需初始化 TN submodule 或申请原私有仓库的权限。
 
-```bash
-git submodule update --init \
-  tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS
-```
+迁入来源与版本见 [TN_SOURCE.md](TN_SOURCE.md)。后续 TN 修改直接在本仓库提交。
 
 训练数据、checkpoint、导出模型和本地构建产物不直接提交到 Git；跨机协作资产按
 [`tools/assets/README.md`](../../tools/assets/README.md) 的清单和校验流程管理。
