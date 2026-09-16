@@ -47,10 +47,9 @@ class HarmonyDiarizationQueryTest(unittest.TestCase):
           import assert from 'node:assert/strict';
           import {{ OnlineSpeakerRegistry }} from {REGISTRY.as_uri()!r};
           const registry = new OnlineSpeakerRegistry();
-          registry.assign(new Float32Array([-1,0,0]), 6000, 0);
-          registry.assign(new Float32Array([1,0,0]), 6000, 0);
           const query = [.693,0,Math.sqrt(1-.693**2)];
-          registry.assign(new Float32Array(query), 1076, 0);
+          registry.assignBatch([new Float32Array([-1,0,0]), new Float32Array([1,0,0]),
+            new Float32Array(query)], [6000,6000,1076], 0);
           assert.equal(registry.matchKnown(query), 'S3');
           const before = registry.snapshot();
           assert.equal(registry.matchQuery(query, new Set(['S1','S2']))?.speakerId, 'S2');

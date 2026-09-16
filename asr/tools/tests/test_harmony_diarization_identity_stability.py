@@ -62,3 +62,19 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
             'two actual current speakers remain eligible for different roles');
         """)
 
+    def test_uncertain_match_does_not_prove_a_new_identity(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ OnlineSpeakerRegistry }} from {REGISTRY.as_uri()!r};
+          const registry=new OnlineSpeakerRegistry();
+          registry.assign(new Float32Array([1,0,0]),6000,0);
+          const uncertain=registry.assign(new Float32Array([.68,Math.sqrt(1-.68**2),0]),2000,2000);
+          assert.equal(uncertain.speakerId,'UNKNOWN',
+            'below acceptance but within known-speaker query range must not create a new person');
+          assert.deepEqual(registry.speakerIds(),['S1']);
+          assert.equal(registry.assign(new Float32Array([0,1,0]),2000,4000).speakerId,'S2');
+          assert.equal(registry.assign(new Float32Array([Math.SQRT1_2,Math.SQRT1_2,0]),2000,6000).speakerId,'UNKNOWN');
+          assert.deepEqual(registry.speakerIds(),['S1','S2']);
+          assert.equal(registry.assign(new Float32Array([.9,0,Math.sqrt(.19)]),2000,8000).speakerId,'S1');
+        """)
+

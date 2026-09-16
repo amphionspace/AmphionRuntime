@@ -87,6 +87,7 @@ internal class OnlineSpeakerRegistry(
     private val similarityThreshold: Float = 0.72f,
     private val topMargin: Float = 0.05f,
 ) {
+    private companion object { const val QUERY_SIMILARITY_THRESHOLD = 0.59f }
     private val entries = mutableListOf<MutableSpeakerEntry>()
 
     init {
@@ -132,7 +133,9 @@ internal class OnlineSpeakerRegistry(
                     best.second.coerceIn(0f, 1f),
                     false,
                 )
-            } else if (entries.size < maxSpeakers) {
+            } else if (entries.size < maxSpeakers && (best == null || !mutual ||
+                best.second < minOf(similarityThreshold, QUERY_SIMILARITY_THRESHOLD))) {
+                // An uncertain known speaker is not evidence of a new person.
                 val entry = MutableSpeakerEntry(
                     speakerId = "S${entries.size + 1}",
                     centroid = embedding,
@@ -159,7 +162,7 @@ internal class OnlineSpeakerRegistry(
     /** Query matching never enrolls roles or uses a context-only profile. */
     fun matchQuery(raw: FloatArray, establishedIds: Set<String>): SpeakerAssignment? {
         // Independent AISHELL3 calibration: maximum impostor cosine .5392 + .05 margin.
-        return matchExisting(raw, 0.59f, establishedIds)
+        return matchExisting(raw, QUERY_SIMILARITY_THRESHOLD, establishedIds)
     }
 
     private fun matchExisting(raw: FloatArray, threshold: Float, allowedIds: Set<String>? = null): SpeakerAssignment? {

@@ -5,6 +5,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DiarizationQueryTest {
+    @Test fun uncertaintyDoesNotEnrollAnotherIdentity() {
+        val registry = OnlineSpeakerRegistry()
+        fun assign(vararg values: Float) = registry.assignBatch(listOf(values), listOf(2000), 0).single()
+        assertEquals("S1", assign(1f, 0f, 0f).speakerId)
+        assertEquals("UNKNOWN", assign(.68f, kotlin.math.sqrt(1f - .68f * .68f), 0f).speakerId)
+        assertEquals(listOf("S1"), registry.speakerIds())
+        assertEquals("S2", assign(0f, 1f, 0f).speakerId)
+        assertEquals("UNKNOWN", assign(1f, 1f, 0f).speakerId)
+        assertEquals(listOf("S1", "S2"), registry.speakerIds())
+        assertEquals("S1", assign(.9f, 0f, kotlin.math.sqrt(.19f)).speakerId)
+    }
+
     @Test
     fun shortQueryMatchesEstablishedRoleWithoutChangingItsProfile() {
         val registry = OnlineSpeakerRegistry()
@@ -25,9 +37,9 @@ class DiarizationQueryTest {
     @Test
     fun queryCannotIntroduceContextOnlyIdentity() {
         val registry = OnlineSpeakerRegistry()
-        registry.assignBatch(listOf(floatArrayOf(-1f, 0f, 0f), floatArrayOf(1f, 0f, 0f)), listOf(6000, 6000), 0)
         val query = floatArrayOf(.693f, 0f, sqrt(1f - .693f * .693f))
-        registry.assignBatch(listOf(query), listOf(1076), 0)
+        registry.assignBatch(listOf(floatArrayOf(-1f, 0f, 0f), floatArrayOf(1f, 0f, 0f), query),
+            listOf(6000, 6000, 1076), 0)
         assertEquals("S3", registry.matchKnown(query))
         assertEquals("S2", registry.matchQuery(query, setOf("S1", "S2"))?.speakerId)
         assertNull(registry.matchQuery(query, emptySet()))
