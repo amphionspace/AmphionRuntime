@@ -38,17 +38,18 @@ class DiarizationDemoInstrumentedTest {
                 val view = activity.findViewById<TextView>(R.id.tv_final)
                 listener.onResult("s", SpeechRecognitionResult(isFinal = true, isLast = true,
                     result = "你好", utteranceId = "u", speakerIndex = 3))
-                assertTrue(view.text.toString().contains("说话人 1（中间结果）"))
+                assertTrue(view.text.toString().contains("说话人 4（中间结果）"))
                 listener.onResult("s", SpeechRecognitionResult(isFinal = true, result = "再见",
                     utteranceId = "u2", speakerIndex = 0, beginTime = 2000))
-                assertTrue(view.text.toString().contains("说话人 1（中间结果）] 你好"))
-                assertTrue(view.text.toString().contains("说话人 2（中间结果）] 再见"))
+                assertTrue(view.text.toString().contains("说话人 4（中间结果）] 你好"))
+                assertTrue(view.text.toString().contains("说话人 1（中间结果）] 再见"))
                 listener.onSpeakerDiarizationResult("s", SpeakerDiarizationResult(
                     utterances = listOf(DiarizedUtterance(utteranceId = "u-final", sourceUtteranceId = "u",
                         text = "你好", speakerIndex = -1),
                         DiarizedUtterance(utteranceId = "u2-final", sourceUtteranceId = "u2",
                             text = "再见", speakerIndex = 0, beginTime = 2000)), windowIndex = 0))
                 val frozen = view.text.toString()
+                assertTrue(frozen.contains("说话人 1（最终结果）] 再见"))
                 assertTrue(frozen.contains("未能区分说话人（最终结果）"))
                 assertFalse(frozen.contains("中间结果"))
                 listener.onSpeakerDiarizationUpdate("s", SpeakerDiarizationUpdate(utteranceId = "u-final", speakerIndex = 1))

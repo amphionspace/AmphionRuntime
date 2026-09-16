@@ -1084,12 +1084,11 @@ class MainActivity : AppCompatActivity() {
     private fun renderMeetingLines() {
         finalLines.clear()
         val lines = meetingLines.values.sortedBy { it.beginTime }
-        val displayIndexes = lines.map { it.speakerIndex }.filter { it >= 0 }.distinct()
         lines.forEach { line ->
             if (finalLines.isNotEmpty()) finalLines.append('\n')
             val labelStart = finalLines.length
             val speaker = if (line.speakerIndex >= 0) {
-                getString(R.string.diarization_speaker, displayIndexes.indexOf(line.speakerIndex) + 1)
+                getString(R.string.diarization_speaker, line.speakerIndex + 1)
             } else {
                 getString(R.string.diarization_speaker_unknown)
             }
