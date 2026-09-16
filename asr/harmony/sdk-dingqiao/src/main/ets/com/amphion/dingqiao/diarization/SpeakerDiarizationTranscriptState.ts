@@ -17,6 +17,8 @@ export interface SpeakerTimelineTurn {
   overlap?: boolean;
   evidenceKey?: string;
   secondaryEvidenceKeys?: string[];
+  // One ID per acoustic channel, even when display IDs currently collapse.
+  secondaryEvidenceSpeakerIds?: string[];
 }
 
 export interface DiarizationTranscriptUpdate extends SpeakerTimelineTurn {
@@ -52,6 +54,11 @@ function sameStrings(left: string[], right: string[]): boolean {
     if (left[i] !== right[i]) return false;
   }
   return true;
+}
+
+function visibleSecondaryIds(ids: string[], primary: string): string[] {
+  return ids.filter((id: string, index: number, all: string[]): boolean =>
+    id !== primary && all.indexOf(id) === index);
 }
 
 export class SpeakerDiarizationTranscriptState {
@@ -96,15 +103,17 @@ export class SpeakerDiarizationTranscriptState {
   applySpeakerTurns(newTurns: SpeakerTimelineTurn[]): DiarizationTranscriptUpdate[] {
     if (newTurns.length === 0) return [];
     for (let i = 0; i < newTurns.length; i++) {
+      const evidenceIds = newTurns[i].secondaryEvidenceSpeakerIds ?? newTurns[i].secondarySpeakerIds;
       this.turns.push({
         beginTime: newTurns[i].beginTime,
         endTime: newTurns[i].endTime,
         speakerId: newTurns[i].speakerId,
-        secondarySpeakerIds: newTurns[i].secondarySpeakerIds.slice(),
+        secondarySpeakerIds: visibleSecondaryIds(evidenceIds, newTurns[i].speakerId),
         confidence: newTurns[i].confidence,
         overlap: newTurns[i].overlap,
         evidenceKey: newTurns[i].evidenceKey,
         secondaryEvidenceKeys: newTurns[i].secondaryEvidenceKeys?.slice(),
+        secondaryEvidenceSpeakerIds: evidenceIds.slice(),
       });
     }
 
@@ -180,17 +189,18 @@ export class SpeakerDiarizationTranscriptState {
       overlap: turn.overlap,
       evidenceKey: turn.evidenceKey,
       secondaryEvidenceKeys: turn.secondaryEvidenceKeys?.slice(),
+      secondaryEvidenceSpeakerIds: turn.secondaryEvidenceSpeakerIds?.slice(),
     }));
   }
 
   applySpeakerRemap(remap: Record<string, string>, fromTime: number = 0): DiarizationTranscriptUpdate[] {
     for (let i = 0; i < this.turns.length; i++) {
       if (this.turns[i].endTime < fromTime) continue;
-      this.turns[i].speakerId = remap[this.turns[i].speakerId] ?? this.turns[i].speakerId;
-      this.turns[i].secondarySpeakerIds = this.turns[i].secondarySpeakerIds
-        .map((speakerId: string): string => remap[speakerId] ?? speakerId)
-        .filter((speakerId: string, index: number, all: string[]): boolean =>
-          speakerId !== this.turns[i].speakerId && all.indexOf(speakerId) === index);
+      const turn = this.turns[i];
+      turn.speakerId = remap[turn.speakerId] ?? turn.speakerId;
+      turn.secondaryEvidenceSpeakerIds = (turn.secondaryEvidenceSpeakerIds ?? turn.secondarySpeakerIds)
+        .map((speakerId: string): string => remap[speakerId] ?? speakerId);
+      turn.secondarySpeakerIds = visibleSecondaryIds(turn.secondaryEvidenceSpeakerIds, turn.speakerId);
     }
     const updates: DiarizationTranscriptUpdate[] = [];
     for (let i = 0; i < this.utterances.length; i++) {
@@ -225,11 +235,10 @@ export class SpeakerDiarizationTranscriptState {
         turn.confidence = confidences[turn.evidenceKey] ?? turn.confidence;
       }
       const evidenceKeys = turn.secondaryEvidenceKeys ?? [];
-      turn.secondarySpeakerIds = turn.secondarySpeakerIds
+      turn.secondaryEvidenceSpeakerIds = (turn.secondaryEvidenceSpeakerIds ?? turn.secondarySpeakerIds)
         .map((speakerId: string, secondaryIndex: number): string =>
-          remap[evidenceKeys[secondaryIndex]] ?? speakerId)
-        .filter((speakerId: string, secondaryIndex: number, all: string[]): boolean =>
-          speakerId !== turn.speakerId && all.indexOf(speakerId) === secondaryIndex);
+          remap[evidenceKeys[secondaryIndex]] ?? speakerId);
+      turn.secondarySpeakerIds = visibleSecondaryIds(turn.secondaryEvidenceSpeakerIds, turn.speakerId);
     }
     const updates: DiarizationTranscriptUpdate[] = [];
     for (let index = 0; index < this.utterances.length; index++) {
