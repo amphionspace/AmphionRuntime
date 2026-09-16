@@ -708,6 +708,9 @@ struct Index {
     meta['sampleFormat'] = 's16le';
     meta['audioSource'] = this.audioSourceName(this.capturedAudioSource);
     meta['customerScenario'] = this.capturedCustomerScenario;
+    meta['speakerDiarization'] = this.capturedSpeakerDiarization;
+    meta['vadEnd'] = customerProfileStartParams('metadata', this.capturedCustomerScenario,
+      this.capturedSpeakerDiarization).extraParams['vadEnd'];
     meta['softwareGainDb'] = 0;
     meta['frameBytes'] = SDK_FRAME_BYTES;
     meta['frameCount'] = this.sdkCaptureFrames.length;
@@ -769,7 +772,9 @@ struct Index {
     metadata['frameCount'] = this.sdkCaptureFrames.length;
     metadata['durationMs'] = Math.round(this.sdkCaptureFrames.length * FRAME_AUDIO_MS);
     metadata['enablePartialResult'] = profile.enablePartialResult;
-    metadata['vadEnd'] = profile.vadEnd;
+    metadata['speakerDiarization'] = this.capturedSpeakerDiarization;
+    metadata['vadEnd'] = customerProfileStartParams('metadata', this.capturedCustomerScenario,
+      this.capturedSpeakerDiarization).extraParams['vadEnd'];
     metadata['maxAudioDuration'] = profile.maxAudioDuration;
     if (profile.vadBegin !== undefined) metadata['vadBegin'] = profile.vadBegin;
     metadata['voiceprintVerify'] = this.capturedVoiceprintVerify;
@@ -1313,7 +1318,8 @@ struct Index {
         .width('100%')
         Text(`SourceType=${this.audioSource} · ` +
           `模式=${customerScenarioProfile(this.customerScenario).recognizerMode === 'long' ? '长语音' : '短语音'} · ` +
-          `vadEnd=${customerScenarioProfile(this.customerScenario).vadEnd}ms · ` +
+          `vadEnd=${customerProfileStartParams('preview', this.customerScenario,
+            this.speakerDiarizationDesired).extraParams['vadEnd']}ms · ` +
           `max=${this.formatMaxAudioDuration(customerScenarioProfile(this.customerScenario).maxAudioDuration)}`)
           .fontSize(11)
           .fontColor(Color.Gray)
