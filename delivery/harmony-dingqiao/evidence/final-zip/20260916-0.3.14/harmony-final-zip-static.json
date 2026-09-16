@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "zip_sha256": "6de2391caf4bcc76fe37c93f33a81409b264d91ab2cf1a514ec11eed8a2d4870",
+  "checked_files": 48,
+  "diagnostics_hap_sha256": "005fe9202fe23bc8fa4505fcd2417d578c1bbbb7a19b199c28aff88fe7f3e258",
+  "release_har_sha256": "997d579b7ed7a5acd18585453c723a7a5b7a04fcd43cbcb9a5be4bee0d42c66f",
+  "source_local_additions": [
+    "existing authorization",
+    "existing signing configuration"
+  ]
+}
