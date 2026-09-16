@@ -11,6 +11,32 @@ import org.junit.Test
 import org.json.JSONObject
 
 class LitsTtsFrontendTest {
+    @Test fun buildVerbDoesNotBecomeAnIdentifier() {
+        val layout = realAssetLayout()
+        for (text in listOf("We will build 12 houses.", "We will build 120 houses.")) {
+            val prepared = LitsTnNormalizer.normalize(layout, text, "zh-en", "zh-en")
+            assertFalse(prepared, prepared.any { it in '\u4e00'..'\u9fff' })
+        }
+    }
+
+    @Test fun decimalYiRuleDoesNotConsumeTheBeginningOfANoun() {
+        val layout = realAssetLayout()
+        for (text in listOf("买一点三文鱼。", "买一点五花肉。", "加一点二氧化碳。")) {
+            assertNormalizedTokenSequence(layout, text, "ㄧ ˋ ㄉ ㄧㄢ")
+        }
+        assertNormalizedTokenSequence(layout, "百分之一点二三。", "ㄧ ˉ ㄉ ㄧㄢ")
+    }
+
+    @Test fun technicalPhraseDefaultsDoNotCrossClassifierBoundaries() {
+        val layout = realAssetLayout()
+        assertNormalizedTokenSequence(layout, "打印一串行号。", "ㄏ ㄤ ˊ")
+        assertNormalizedTokenSequence(layout, "一只终止鸣叫的蝉。", "ㄓ ˉ ㄓ ㄨㄥ")
+        assertNormalizedTokenSequence(layout, "请求应该串行完成。", "ㄔ ㄨㄢ ˋ ㄒ ㄧㄥ ˊ")
+        assertNormalizedTokenSequence(layout, "请求应该串行执行。", "ㄒ ㄧㄥ ˊ ㄓ ˊ ㄒ ㄧㄥ ˊ")
+        assertNormalizedTokenSequence(layout, "请求应该串行处理。", "ㄒ ㄧㄥ ˊ ㄔ ㄨ ˊ ㄌ ㄧ ˇ")
+        assertNormalizedTokenSequence(layout, "每个请求只终止一次。", "ㄓ ˇ ㄓ ㄨㄥ")
+    }
+
     @Test fun ordinalYiKeepsContextAcrossWhitespace() {
         val layout = realAssetLayout()
         for (text in listOf("第一百轮。", "第 一百 轮。", "第\t一百轮。")) {
@@ -69,7 +95,8 @@ class LitsTtsFrontendTest {
 
     @Test fun buildIdentifiersUseDigitsButQuantitiesUseCardinals() {
         val layout = testLayout()
-        assertTrue(LitsTnNormalizer.normalize(layout, "build 20260702 已完成。", "zh-en", "zh-en").contains("二零二六零七零二"))
+        assertTrue(LitsTnNormalizer.normalize(layout, "版本 v3.0.19 与 build 20260702 对齐。", "zh-en", "zh-en").contains("二零二六零七零二"))
+        assertTrue(LitsTnNormalizer.normalize(layout, "版本 v3.0.19 与 build 20260702.", "zh-en", "zh-en").contains("二零二六零七零二"))
         assertTrue(LitsTnNormalizer.normalize(layout, "数量20260702个。", "zh-en", "zh-en").contains("二千零二十六万零七百零二"))
     }
 
@@ -288,6 +315,43 @@ class LitsTtsFrontendTest {
         assertNormalizedTokenSequence(layout, "路径 斜杠sdcard斜杠test斜杠18斜杠audio.wav 已生成.", "ㄧ ˉ ㄅ ㄚ ˉ")
         assertNormalizedTokenSequence(layout, "坐标 N22.12 E113.11,导航继续.", "ㄅ ㄟ ˊ ㄨㄟ ˇ ㄦ ˋ ㄕ ˊ ㄦ ˋ ㄉ ㄧㄢ ˇ ㄧ ˉ ㄦ ˋ")
         assertNormalizedTokenSequence(layout, "速度 80km斜杠h,距离目的地 11.5 公里.", "ㄅ ㄚ ˉ ㄕ ˊ ㄑ ㄧㄢ ˉ ㄇ ㄧ ˊ ㄇ ㄟ ˊ ㄒ ㄧㄠ ˇ ㄕ ˊ")
+    }
+
+    @Test
+    fun mainlandNumbersAreProtectedBeforeNativeTn() {
+        val layout = testLayout()
+        listOf(
+            "手机号：13800138000。" to "手机号:幺三八零零幺三八零零零。",
+            "电话是 138-0013-8000。" to "电话是 幺三八零零幺三八零零零。",
+            "手机号码 138 0013 8000" to "手机号码 幺三八零零幺三八零零零",
+            "身份证号：11010119900101123X。" to "身份证号:一一零一零一一九九零零一零一一二三 X。",
+            "身份证号码 110101 19900101 123x" to "身份证号码 一一零一零一一九九零零一零一一二三 X",
+            "身份证 110101900101123" to "身份证 一一零一零一九零零一零一一二三",
+        ).forEach { (raw, spoken) ->
+            assertEquals(raw, spoken, LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en"))
+        }
+    }
+
+    @Test
+    fun mainlandNumberRulesRequireACompleteLabeledNumber() {
+        val layout = testLayout()
+        val cardinal = "一百三十八亿零一十三万八千"
+        listOf("13800138000", "金额13800138000元", "订单号13800138000").forEach { raw ->
+            assertEquals(raw.replace("13800138000", cardinal), LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en"))
+        }
+        // Compare with an unrelated field label: the new rules must not affect these bodies.
+        listOf(
+            "手机号" to "138001380000", "手机号" to "12800138000",
+            "手机号" to "13800138000.25", "手机号" to "13800138000A",
+            "手机号" to "138-0013-8000-1", "手机号" to "13800138000元",
+            "身份证号" to "11010119900101123XA", "身份证号" to "1101011990010112345",
+            "身份证号" to "11010119900101123", "身份证号" to "11010119900101123X.2",
+        ).forEach { (label, number) ->
+            val expected = LitsTnNormalizer.normalize(layout, "字段:" + number, "zh-en", "zh-en").removePrefix("字段:")
+            assertEquals(label + number, expected,
+                LitsTnNormalizer.normalize(layout, label + ":" + number, "zh-en", "zh-en").removePrefix(label + ":"))
+        }
+        assertEquals("手机号:13800138000", LitsTnNormalizer.normalize(layout, "手机号:13800138000", "en-US", "en-US"))
     }
 
     @Test

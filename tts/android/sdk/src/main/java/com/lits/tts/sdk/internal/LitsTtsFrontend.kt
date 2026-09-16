@@ -1565,7 +1565,10 @@ internal object LitsTtsFrontend {
             } else next.last()
             val sandhi = if (nextTone == '4') '2' else '4'
             val tone = when {
-                nx == '点' && text.getOrNull(index + 2)?.let { it in CHINESE_DIGIT_ONLY_CHARS } == true -> '1' // decimal 1.23
+                // Only an entire remaining digit run is unambiguous here. A following
+                // noun such as 三文鱼 or 五花肉 must not be treated as a decimal.
+                nx == '点' && index + 2 < text.length &&
+                    text.substring(index + 2).all { it in CHINESE_DIGIT_ONLY_CHARS } -> '1'
                 nx in CHINESE_MULTIPLIER_CHARS -> sandhi              // 一百/一十/一千/一万
                 nx == '月' || nx == '日' || nx == '号' -> '1'          // date label
                 nx in CHINESE_DIGIT_ONLY_CHARS -> '1'                 // digit sequence 一二三
@@ -1993,8 +1996,12 @@ internal object LitsTtsFrontend {
             // Context-specific defaults; a model's explicit phrase override wins.
             // 调到 alone remains ambiguous (e.g. 调到北京 uses diao4).
             put("音量调到", "yin1 liang4 tiao2 dao4")
-            put("串行", "chuan4 xing2")
-            put("只终止", "zhi3 zhong1 zhi3")
+            // Keep defaults within complete technical phrases, not ambiguous
+            // substrings spanning 一串/行号 or 一只/终止鸣叫的蝉.
+            put("串行完成", "chuan4 xing2 wan2 cheng2")
+            put("串行执行", "chuan4 xing2 zhi2 xing2")
+            put("串行处理", "chuan4 xing2 chu2 li3")
+            put("请求只终止", "qing3 qiu2 zhi3 zhong1 zhi3")
             mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.POLYPHONE_PHRASES)
             mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.CHINESE_SURNAME_LEXICON)
         }

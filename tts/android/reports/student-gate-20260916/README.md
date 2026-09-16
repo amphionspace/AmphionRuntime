@@ -1,5 +1,7 @@
 # Android student regression fixes and current-model validation
 
+后续修正：[收窄规则覆盖范围](SCOPE_NARROWING_20260916.md)。已知反例、范围限制和最新验证状态以此记录为准。
+
 完整中文说明（含修改清单、版本对应的测试证据及全部 155 条核对全文）：[Android TTS 本轮修改与验证](ANDROID_TTS_CHANGES_AND_VALIDATION_20260916.md)。以下阶段记录应结合该文档中的最新状态阅读。
 
 ## Changes
@@ -62,3 +64,5 @@ The 17 frontend cases lose ordinal context at whitespace or inside the same nume
 Verification: all 155 device-recorded normalized inputs were run through the current JVM G2P; exactly the 17 adjudicated frontend cases changed. Of those, 16 now match the old oracle; the remaining case also has an oracle omission (116 written as 一百十六). Full JVM tests: 142 total, 138 PASS, 4 pre-existing skips, 0 failures. This is not a new JNI/device run or listening evaluation. Evidence is in `outputs/tts-student-gate-20260916/pronunciation-audit/`.
 
 The terminal-state-repair APK passed its 30-case pilot and six API/lifecycle/chunk tests; its 1000-case run was stopped at user request after 208 recorded PASS cases (0 FAIL). That installed build predates this ordinal fix and must not be cited as device evidence for it.
+
+- [大陆手机号和身份证读法（限定字段范围）](MAINLAND_NUMBER_READINGS_20260916.md)：修复范围、限制和手机端验证。

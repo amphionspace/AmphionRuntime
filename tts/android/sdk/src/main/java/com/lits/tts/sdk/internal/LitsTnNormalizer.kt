@@ -226,7 +226,7 @@ internal object LitsTnNormalizer {
         }
 
         private fun prepareInputForTn(text: String): String {
-            var output = LitsTtsFrontend.normalizeNegativeTemperatures(text)
+            var output = LitsTtsFrontend.normalizeNegativeTemperatures(protectMainlandNumbers(text))
             output = expandEra(output)
             output = expandTime(output)
             output = expandDates(output)
@@ -336,6 +336,21 @@ internal object LitsTnNormalizer {
                 }
             }
             return output.toString().replace(Regex("\\s+"), " ")
+        }
+
+        // Require a Chinese field label: long integers alone are ambiguous (money, IDs, etc.).
+        // Run before date/cardinal TN; otherwise the original digit sequence is lost.
+        private fun protectMainlandNumbers(text: String): String {
+            var output = mainlandMobileRegex.replace(text) { match ->
+                val number = match.groupValues[2].filter { it in '0'..'9' }
+                match.groupValues[1] + digitSequenceToHanzi(number).replace('一', '幺')
+            }
+            output = mainlandIdentityRegex.replace(output) { match ->
+                val number = match.groupValues[2]
+                match.groupValues[1] + digitSequenceToHanzi(number.filter { it in '0'..'9' }) +
+                    if (number.endsWith("x", ignoreCase = true)) " X" else ""
+            }
+            return output
         }
 
         private fun protectSemanticNumericReadings(text: String): String {
@@ -622,6 +637,17 @@ internal object LitsTnNormalizer {
             private val yearBeforeNianTwoRegex = Regex("(?<!\\d)(0\\d)年")  // 05年->零五年 (leading-zero only)
             // leading minus before a number / percent -> 负 (not a range like 1-2)
             private val negBeforeNumberRegex = Regex("(?<![0-9A-Za-z\\u4e00-\\u9fff])[-\\u2212](?=\\d|百分之)")
+            // Boundaries reject longer codes, decimal amounts and partial grouped numbers.
+            private const val numberFieldEnd = "(?![A-Za-z0-9]|[ .-][0-9])(?=$|[\\s,，。;；!?！？、)])"
+            private val mainlandMobileRegex = Regex(
+                "((?:手机号码?|联系电话|电话号码?|电话)\\s*(?:为|是)?\\s*[:：]?\\s*)" +
+                    "(1[3-9][0-9]{9}|1[3-9][0-9] [0-9]{4} [0-9]{4}|1[3-9][0-9]-[0-9]{4}-[0-9]{4})" + numberFieldEnd,
+            )
+            private val mainlandIdentityRegex = Regex(
+                "((?:身份证(?:号码?|件号码?)?)\\s*(?:为|是)?\\s*[:：]?\\s*)" +
+                    "([0-9]{17}[0-9Xx]|[0-9]{6} [0-9]{8} [0-9]{3}[0-9Xx]|" +
+                    "[0-9]{6}-[0-9]{8}-[0-9]{3}[0-9Xx]|[0-9]{15})" + numberFieldEnd,
+            )
             // >=7-digit isolated number (native only spells out <=6 digits); not after '.' (decimal tail)
             private val bigCardinalRegex = Regex("(?<![0-9A-Za-z.])(\\d{7,15})(?![0-9])")
             private val semanticVersionRegex = Regex("(?<![A-Za-z0-9])([vV])(\\d+(?:\\.\\d+)+)(?![A-Za-z0-9])")
@@ -634,7 +660,8 @@ internal object LitsTnNormalizer {
             private val stockCodeRegex = Regex("(股票\\s*(?:代码\\s*)?)(\\d{6})(?!\\d)")
             private val plateCodeRegex = Regex("((?:车牌号?|号牌)\\s*[\\u4e00-\\u9fff]?\\s*[A-Za-z])(\\d{3,6})(?!\\d)")
             private val idTailRegex = Regex("((?:身份证尾号|尾号)\\s*)(\\d+)([A-Za-z])(?![A-Za-z0-9])")
-            private val buildIdentifierRegex = Regex("(?<![A-Za-z0-9])(build\\s+)(\\d+)(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
+            // Bare "build 12" may be an English verb, not a build identifier.
+            private val buildIdentifierRegex = Regex("(?<![A-Za-z0-9])(版本\\s*[^\\s,，。;；!?！？]+\\s*(?:与|和)\\s+build\\s+)(\\d+)(?![A-Za-z0-9]|\\.\\d)", RegexOption.IGNORE_CASE)
             private val kmPerHourRegex = Regex("(\\d+)\\s*km/h", RegexOption.IGNORE_CASE)
             private val dateYmdSepRegex =
                 Regex("(?<![0-9A-Za-z])(\\d{4})[-/.·](\\d{1,2})[-/.·](\\d{1,2})(?![0-9])")

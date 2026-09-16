@@ -1,5 +1,7 @@
 # Android TTS 本轮修改、测试与 155 条发音差异完整说明
 
+后续更正：[收窄规则覆盖范围](SCOPE_NARROWING_20260916.md)。下文是原提交时的完整记录；build、小数和短语覆盖的后续限制见该文。
+
 记录日期：2026-09-16
 
 分支：`feat/android-tts-student-10000-temp0`
